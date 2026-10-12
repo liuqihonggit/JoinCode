@@ -11,8 +11,9 @@ public sealed class PdfPageRendererTests {
         return PhysicalFs.FileExists(path) ? path : throw new FileNotFoundException($"Test PDF not found: {path}");
     }
 
-    [Fact]
+    [SkippableFact]
     public void IsAvailable_ReturnsTrue() {
+        Skip.IfNot(PdfPageRenderer.IsAvailable(), "PDFium 原生库在此平台不可用");
         PdfPageRenderer.IsAvailable().Should().BeTrue();
     }
 
@@ -39,8 +40,9 @@ public sealed class PdfPageRendererTests {
         }
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task ExtractPagesAsync_ValidPdf_ExtractsAllPages() {
+        Skip.IfNot(PdfPageRenderer.IsAvailable(), "PDFium 原生库在此平台不可用");
         var result = await PdfPageRenderer.ExtractPagesAsync(
             GetTestPdfPath(), PhysicalFs).ConfigureAwait(true);
 
@@ -62,8 +64,9 @@ public sealed class PdfPageRendererTests {
         }
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task ExtractPagesAsync_WithPageRange_ExtractsOnlySpecifiedPages() {
+        Skip.IfNot(PdfPageRenderer.IsAvailable(), "PDFium 原生库在此平台不可用");
         var result = await PdfPageRenderer.ExtractPagesAsync(
             GetTestPdfPath(), PhysicalFs, firstPage: 2, lastPage: 2).ConfigureAwait(true);
 
@@ -74,8 +77,9 @@ public sealed class PdfPageRendererTests {
         result.TotalPageCount.Should().Be(3);
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task ExtractPagesAsync_PageOutOfRange_ReturnsFail() {
+        Skip.IfNot(PdfPageRenderer.IsAvailable(), "PDFium 原生库在此平台不可用");
         var result = await PdfPageRenderer.ExtractPagesAsync(
             GetTestPdfPath(), PhysicalFs, firstPage: 99).ConfigureAwait(true);
 
@@ -83,8 +87,9 @@ public sealed class PdfPageRendererTests {
         result.ErrorReason.Should().Be("out_of_range");
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task ExtractPagesAsync_PageNumbers_AreOneIndexed() {
+        Skip.IfNot(PdfPageRenderer.IsAvailable(), "PDFium 原生库在此平台不可用");
         var result = await PdfPageRenderer.ExtractPagesAsync(
             GetTestPdfPath(), PhysicalFs).ConfigureAwait(true);
 
@@ -94,8 +99,9 @@ public sealed class PdfPageRendererTests {
         result.Pages![2].PageNumber.Should().Be(3);
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task ExtractPagesAsync_WithFirstPageOnly_ExtractsOnePage() {
+        Skip.IfNot(PdfPageRenderer.IsAvailable(), "PDFium 原生库在此平台不可用");
         var result = await PdfPageRenderer.ExtractPagesAsync(
             GetTestPdfPath(), PhysicalFs, firstPage: 1, lastPage: 1).ConfigureAwait(true);
 

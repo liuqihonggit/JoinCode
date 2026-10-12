@@ -16,7 +16,7 @@ public sealed class ReferenceResolutionCollection : ICollectionFixture<Reference
 /// </summary>
 public sealed class ReferenceResolutionTestFixture : IAsyncLifetime {
     private bool _disposed;
-    public string TestDir { get; private set; } = "C:\\testroot";
+    public string TestDir { get; private set; } = OperatingSystem.IsWindows() ? "C:\\testroot" : "/testroot";
     public Testing.Common.Services.InMemoryFileSystem FileSystem { get; private set; } = null!;
     public IFileOperationService FileOperationService { get; private set; } = null!;
 

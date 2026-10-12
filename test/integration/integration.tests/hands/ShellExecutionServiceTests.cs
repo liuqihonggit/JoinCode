@@ -40,7 +40,7 @@ public class ShellExecutionServiceTests {
 
         // Assert
         Assert.True(result.Success);
-        Assert.Contains(tempDir.TrimEnd('\\'), result.Stdout.Trim());
+        Assert.Contains(tempDir.TrimEnd(Path.DirectorySeparatorChar), result.Stdout.Trim());
     }
 
     [Fact]

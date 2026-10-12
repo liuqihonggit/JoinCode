@@ -247,20 +247,21 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("watch 模式轮询直到完成(可选)", Required = false)] bool? watch = null,
         [McpToolParameter("轮询间隔秒数(可选,默认 10)", Required = false)] int? interval = null,
         [McpToolParameter("有失败立即标记(可选)", Required = false)] bool? fail_fast = null,
+        [McpToolParameter("最大显示 check 数量(可选,默认全部,pass 最多 5)", Required = false)] int? limit = null,
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
-            if (watch == true) return await GhPrChecksWatchAsync(client, owner, repoName, pr_number, interval, fail_fast, required, cancellationToken).ConfigureAwait(false);
-            return await GhPrChecksCoreAsync(client, owner, repoName, pr_number, fail_fast, required, common?.JsonFields, cancellationToken).ConfigureAwait(false);
+            if (watch == true) return await GhPrChecksWatchAsync(client, owner, repoName, pr_number, interval, fail_fast, required, limit, cancellationToken).ConfigureAwait(false);
+            return await GhPrChecksCoreAsync(client, owner, repoName, pr_number, fail_fast, required, common?.JsonFields, limit, cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>
     /// GhPrChecks watch 模式 — 轮询 check-runs 直到全部 completed，用 interval 间隔
     /// </summary>
-    private async Task<ToolResult> GhPrChecksWatchAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, int? intervalSec, bool? failFast, bool? required, CancellationToken ct) {
+    private async Task<ToolResult> GhPrChecksWatchAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, int? intervalSec, bool? failFast, bool? required, int? limit, CancellationToken ct) {
         var delay = TimeSpan.FromSeconds(Math.Clamp(intervalSec ?? 10, 1, 300));
         for (var i = 0; i < 120; i++) {
-            var checkResult = await GhPrChecksCoreAsync(client, owner, repoName, prNumber, failFast, required, null, ct).ConfigureAwait(false);
+            var checkResult = await GhPrChecksCoreAsync(client, owner, repoName, prNumber, failFast, required, null, limit, ct).ConfigureAwait(false);
             if (checkResult.IsError) return checkResult;
             var text = checkResult.GetFirstText() ?? "";
             if (!text.Contains("进行中")) return checkResult;
@@ -347,7 +348,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// GhPrChecks 核心逻辑 — 调 REST API 获取 check-runs,正确处理 skipping 语义(非失败),支持 required 过滤和 fail-fast 标记
     /// </summary>
-    private async Task<ToolResult> GhPrChecksCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, bool? failFast, bool? required, string? json_fields, CancellationToken ct) {
+    private async Task<ToolResult> GhPrChecksCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, bool? failFast, bool? required, string? json_fields, int? limit, CancellationToken ct) {
         var number = ParseNumberFromRef(prNumber);
         var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: ct).ConfigureAwait(false);
         if (!prResult.Success) return Fail(prResult.Error);
@@ -398,19 +399,26 @@ public partial class GitHubToolHandlers {
         sb.Append($"汇总: {passCount} 通过, {failCount} 失败, {warnCount} 警告, {pendingCount} 进行中, {skipCount} 跳过(依赖链跳过,非失败)");
         if (failFast == true && failCount > 0) sb.Append("\n⚠ fail-fast: 检测到失败");
         const int maxPassDisplay = 5;
+        var maxLimit = limit is > 0 ? limit.Value : int.MaxValue;
         var ordered = checks
             .OrderBy(c => c.severity.SortKey())
             .ThenBy(c => c.name)
             .ToList();
         var displayedPass = 0;
+        var displayedTotal = 0;
+        var omittedByLimit = 0;
         foreach (var (name, severity) in ordered) {
-            if (severity == CiJobSeverity.Success && displayedPass >= maxPassDisplay) continue;
+            if (displayedTotal >= maxLimit) { omittedByLimit++; continue; }
+            if (severity == CiJobSeverity.Success && displayedPass >= maxPassDisplay) { omittedByLimit++; continue; }
             sb.Append($"\n{name}\t{severity.ToDisplayShort()}");
+            displayedTotal++;
             if (severity == CiJobSeverity.Success) displayedPass++;
         }
         var omittedPass = passCount - displayedPass;
-        if (omittedPass > 0)
+        if (omittedPass > 0 && omittedByLimit == 0)
             sb.Append($"\n… 另有 {omittedPass} 个 pass 未列出");
+        else if (omittedByLimit > 0)
+            sb.Append($"\n… 另有 {omittedByLimit} 个 check 未列出(limit={maxLimit})");
         // 优化E: 有失败 job 时自动附加排障命令提示,引导 AI 直接拉失败日志而非翻页
         if (failCount > 0 && !string.IsNullOrEmpty(headRef))
             sb.Append($"\n\n💡 排障建议:\njcc gh run list --branch {headRef} --limit 1  → 找到最新 run ID\njcc gh run view <run_id> --log_failed  → 直接拉失败步骤日志(智能定位错误行)");

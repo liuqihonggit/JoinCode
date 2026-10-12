@@ -8,6 +8,7 @@ internal sealed class GitHubRunLogFilterRunner {
     private readonly IGitHubApiClient _apiClient;
     private readonly IKvStore? _kvStore;
     private readonly bool _compactLinePrefix;
+    private readonly ILogger? _logger;
 
     /// <summary>缓存 TTL — 7 天后自动过期,由 KvStoreTtlCleanupService 定期清理</summary>
     internal static readonly TimeSpan CacheTtl = TimeSpan.FromDays(7);
@@ -27,10 +28,12 @@ internal sealed class GitHubRunLogFilterRunner {
     /// <param name="apiClient">GitHub API 客户端(非 null)。</param>
     /// <param name="compactLinePrefix">行号前缀格式: true=紧凑 tab(行号\t内容), false=箭头(行号→内容)。对齐 FileOperationConfig.CompactLinePrefix</param>
     /// <param name="kvStore">可选 KV 缓存(LSM-Tree PithosKvStore),用于日志缓存避免重复下载。</param>
-    public GitHubRunLogFilterRunner(IGitHubApiClient apiClient, bool compactLinePrefix, IKvStore? kvStore = null) {
+    /// <param name="logger">可选日志记录器,缓存异常时记录</param>
+    public GitHubRunLogFilterRunner(IGitHubApiClient apiClient, bool compactLinePrefix, IKvStore? kvStore = null, ILogger? logger = null) {
         _apiClient = apiClient;
         _kvStore = kvStore;
         _compactLinePrefix = compactLinePrefix;
+        _logger = logger;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -138,6 +141,61 @@ internal sealed class GitHubRunLogFilterRunner {
             if (long.TryParse(part, out var id)) result.Add(id);
         }
         return result;
+    }
+
+    /// <summary>
+    /// 获取完整 job 列表 — 优先命中 LSM 缓存(key=gh:jobs:full:{runId}),未命中则调 API 并缓存
+    /// <para>已完成 run 的 job 列表不可变,缓存 7 天;wantRefresh=true 跳过缓存读(仍写缓存)</para>
+    /// <para>消除 BuildFailedJobsSummaryAsync/ExtractAllFailuresAsync/EnhanceDefaultViewWithJobsAsync 重复 API 调用</para>
+    /// </summary>
+    public async Task<List<RunJobItemResponse>> GetOrFetchJobsAsync(string owner, string repo, string runId, bool wantRefresh, CancellationToken ct) {
+        var cacheKey = Encoding.UTF8.GetBytes($"gh:jobs:full:{runId}");
+        var timer = GhTimingTracker.CurrentTimer.Value;
+
+        if (!wantRefresh && _kvStore is not null) {
+            var cached = await ReadJobsCacheAsync(_kvStore, cacheKey, timer, ct).ConfigureAwait(false);
+            if (cached is not null) return cached;
+        }
+        timer?.RecordMiss();
+
+        var tNet = Stopwatch.GetTimestamp();
+        var jobsResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
+        timer?.AddNetwork(Stopwatch.GetTimestamp() - tNet);
+        if (!jobsResult.Success) return [];
+
+        try {
+            var jobsResp = JsonSerializer.Deserialize(jobsResult.Body, GitHubApiJsonContext.Safe.RunJobListResponse);
+            if (jobsResp?.Jobs is null) return [];
+            await WriteJobsCacheAsync(cacheKey, jobsResp, timer, ct).ConfigureAwait(false);
+            return jobsResp.Jobs;
+        } catch (JsonException ex) {
+            _logger?.LogWarning(ex, "解析 jobs 列表 JSON 失败");
+            return [];
+        }
+    }
+
+    private async Task<List<RunJobItemResponse>?> ReadJobsCacheAsync(IKvStore kvStore, byte[] cacheKey, GhTimingTracker? timer, CancellationToken ct) {
+        var tRead = Stopwatch.GetTimestamp();
+        var cached = await kvStore.GetWithTtlAndRenewAsync(cacheKey, CacheTtl, ct).ConfigureAwait(false);
+        timer?.AddLsmRead(Stopwatch.GetTimestamp() - tRead);
+        if (cached is null) return null;
+        timer?.RecordHit();
+        try {
+            var resp = JsonSerializer.Deserialize(Encoding.UTF8.GetString(cached), GitHubApiJsonContext.Safe.RunJobListResponse);
+            return resp?.Jobs;
+        } catch (JsonException ex) {
+            _logger?.LogWarning(ex, "解析缓存 jobs 列表 JSON 失败");
+            return null;
+        }
+    }
+
+    private async Task WriteJobsCacheAsync(byte[] cacheKey, RunJobListResponse jobsResp, GhTimingTracker? timer, CancellationToken ct) {
+        if (_kvStore is null || jobsResp.Jobs.Count == 0) return;
+        var json = JsonSerializer.Serialize(jobsResp, GitHubApiJsonContext.Safe.RunJobListResponse);
+        var bytes = Encoding.UTF8.GetBytes(json);
+        var tWrite = Stopwatch.GetTimestamp();
+        await _kvStore.PutWithTtlAsync(cacheKey, bytes, CacheTtl, ct).ConfigureAwait(false);
+        timer?.AddLsmWrite(Stopwatch.GetTimestamp() - tWrite);
     }
 
     /// <summary>
@@ -324,8 +382,13 @@ internal sealed class GitHubRunLogFilterRunner {
         string stepName, string sectionType,
         bool wantRefresh, CancellationToken ct) {
         var (_, sections) = await ParseLogsToSummaryAsync(owner, repo, runId, jobId, wantRefresh, ct).ConfigureAwait(false);
-        return sections.TryGetValue(stepName, out var secs) && secs.TryGetValue(sectionType, out var secLines)
-            ? secLines : null;
+        if (!sections.TryGetValue(stepName, out var secs)) {
+            var fuzzy = GitHubRunStepExtractor.TryFuzzyMatchStepName(sections.Keys, stepName);
+            if (fuzzy is null) return null;
+            stepName = fuzzy;
+            secs = sections[fuzzy];
+        }
+        return secs.TryGetValue(sectionType, out var secLines) ? secLines : null;
     }
 
     /// <summary>
@@ -515,7 +578,7 @@ internal sealed class GitHubRunLogFilterRunner {
         var text = string.Join('\n', matched);
         // 达到 maxLines 说明可能还有更多行,追加续读提示
         if (matched.Count >= maxLines)
-            text += $"\n... [可能还有更多行，用 skip_lines={skipLines + maxLines} 续读]";
+            text += $"\n... [显示第 {skipLines + 1}-{skipLines + matched.Count} 行，用 start_line={skipLines + maxLines + 1} 续读]";
         if (hint is not null) text += hint;
         if (GitHubRunLogFilter.HasNoStackTrace(text))
             text += GitHubRunLogHints.NoStackTraceHint;
@@ -772,7 +835,7 @@ internal sealed class GitHubRunLogFilterRunner {
         var prefix = $"Run {runId} 测试失败({failures.Count} 个,显示 {shown} 个)";
         if (skipLines > 0) prefix += $",跳过前 {skipLines} 个";
         if (skipLines + shown < failures.Count)
-            sb.Append($"\n... [共 {failures.Count} 个失败,用 skip_lines={skipLines + shown} 续读]");
+            sb.Append($"\n... [共 {failures.Count} 个失败,显示第 {skipLines + 1}-{skipLines + shown} 个,用 start_line={skipLines + shown + 1} 续读]");
         return GitHubToolHandlers.Ok(sb.ToString(), prefix);
     }
 

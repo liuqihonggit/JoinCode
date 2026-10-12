@@ -66,9 +66,9 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 查看 Run 详情/日志 — 支持 expand 按步骤展开（两级缓存跨进程）、filter 按标记过滤、skip_lines 分页续读、refresh 强制刷新、web 返回 URL、attempt 指定重试次数
+    /// 查看 Run 详情/日志 — 支持 expand 按步骤展开（两级缓存跨进程）、filter 按标记过滤、start_line 分页续读(1-indexed)、refresh 强制刷新、web 返回 URL、attempt 指定重试次数
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhRunView, "查看 Run 详情/日志(expand 按步骤展开+文件级缓存跨进程,filter 按标记过滤,skip_lines 分页续读,refresh 强制刷新,web 返回 URL,attempt 指定重试次数)", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameEnumConstants.GhRunView, "查看 Run 详情/日志(expand 按步骤展开+文件级缓存跨进程,filter 按标记过滤,start_line 分页续读(1-indexed),refresh 强制刷新,web 返回 URL,attempt 指定重试次数)", "github", ConcurrencySafe = true)]
     [ToolAnchors("CI 失败", "job 日志", "run 状态", "workflow 排错", "构建失败")]
     public async Task<ToolResult> GhRunViewAsync(
         [McpToolParameter("Run ID(可选,与 pr 二选一;支持 run number 短数字自动解析)", Required = false)] string? run_id = null,
@@ -290,7 +290,7 @@ public partial class GitHubToolHandlers {
         public bool? Log { get; init; }
         /// <summary>最大日志行数(默认 200)</summary>
         public int? MaxLines { get; init; }
-        /// <summary>跳过前 N 行(分页续读,默认 0)</summary>
+        /// <summary>跳过前 N 行(分页续读,默认 0;等价 start_line=N+1)</summary>
         public int? SkipLines { get; init; }
         /// <summary>按步骤展开: jobs/steps/failed/step:Name</summary>
         public string? Expand { get; init; }
@@ -333,7 +333,7 @@ public partial class GitHubToolHandlers {
         // === expand=failed: 前置失败 job 汇总 + 只拉失败步骤日志(走 LSM 缓存,wantRefresh 可强制刷新) ===
         if (string.Equals(opts.Expand, "failed", StringComparison.OrdinalIgnoreCase)) {
             var logResult = await StreamAndFilterAsync(repo.Owner, repo.Repo, target.RunId, job_id, true, "失败步骤", markers, filterLevel, maxLines, repo.Ct, GitHubRunLogHints.FailedHint, skip, wantRefresh).ConfigureAwait(false);
-            var summary = await BuildFailedJobsSummaryAsync(repo.Client, repo.Owner, repo.Repo, target.RunId, repo.Ct).ConfigureAwait(false);
+            var summary = await BuildFailedJobsSummaryAsync(repo.Owner, repo.Repo, target.RunId, wantRefresh, repo.Ct).ConfigureAwait(false);
             if (string.IsNullOrEmpty(summary)) return logResult;
             var logText = logResult.Content.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? "";
             return Ok(summary + "\n\n" + logText);
@@ -371,7 +371,7 @@ public partial class GitHubToolHandlers {
         // 优化D1: 默认模式(verbosity=0/null)run 失败/进行中时,附加失败 job 列表+"尚未拉取"提示
         // 渐进式披露: 首次 view 就置顶错误,AI 无需再调 expand=jobs→expand=failed 两步
         if (opts.Verbosity is null or 0)
-            return Ok(await EnhanceDefaultViewWithJobsAsync(repo.Client, repo.Owner, repo.Repo, target.RunId, detailResult.Body, repo.Ct).ConfigureAwait(false));
+            return Ok(await EnhanceDefaultViewWithJobsAsync(repo.Owner, repo.Repo, target.RunId, wantRefresh, detailResult.Body, repo.Ct).ConfigureAwait(false));
 
         return opts.Verbosity switch {
             2 => Ok(detailResult.Body),
@@ -384,13 +384,10 @@ public partial class GitHubToolHandlers {
     /// 构建失败 job 汇要 — expand=failed 时前置显示,让 AI 一眼看到所有失败 job 而非只看到第一个错误
     /// <para>避免 AI 只看到第一个 chcp 错误就以为修完了,实际 24 个 job 全失败</para>
     /// </summary>
-    private async Task<string?> BuildFailedJobsSummaryAsync(IGitHubApiClient client, string owner, string repo, string runId, CancellationToken ct) {
+    private async Task<string?> BuildFailedJobsSummaryAsync(string owner, string repo, string runId, bool wantRefresh, CancellationToken ct) {
         try {
-            var jobsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
-            if (!jobsResult.Success) return null;
-            var jobsResp = JsonSerializer.Deserialize(jobsResult.Body, GitHubApiJsonContext.Safe.RunJobListResponse);
-            if (jobsResp is null) return null;
-            var failedJobs = jobsResp.Jobs
+            var jobs = await LogFilterRunner.GetOrFetchJobsAsync(owner, repo, runId, wantRefresh, ct).ConfigureAwait(false);
+            var failedJobs = jobs
                 .Where(j => j.Conclusion is "failure" or "timed_out" or "cancelled")
                 .ToList();
             if (failedJobs.Count == 0) return null;
@@ -419,13 +416,8 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private async Task<ToolResult> ExtractAllFailuresAsync(
         GhRepoCtx repo, string runId, int maxLines, int skip, bool wantRefresh, CancellationToken ct) {
-        var jobsResult = await repo.Client.SendAsync(
-            HttpMethod.Get, $"repos/{repo.Owner}/{repo.Repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
-        if (!jobsResult.Success) return Fail(jobsResult.Error);
-        var jobsResp = JsonSerializer.Deserialize(jobsResult.Body, GitHubApiJsonContext.Safe.RunJobListResponse);
-        if (jobsResp is null) return Fail("解析 job 列表失败");
-
-        var failedJobs = jobsResp.Jobs
+        var jobs = await LogFilterRunner.GetOrFetchJobsAsync(repo.Owner, repo.Repo, runId, wantRefresh, ct).ConfigureAwait(false);
+        var failedJobs = jobs
             .Where(j => j.Conclusion is "failure" or "timed_out" or "cancelled")
             .ToList();
 
@@ -581,7 +573,7 @@ public partial class GitHubToolHandlers {
     /// <para>run 成功时不附加,保持简洁;verbosity=2/1 不附加(保持原始 JSON/精简格式)</para>
     /// </summary>
     private async Task<string> EnhanceDefaultViewWithJobsAsync(
-        IGitHubApiClient client, string owner, string repo, string runId,
+        string owner, string repo, string runId, bool wantRefresh,
         string runDetailJson, CancellationToken ct) {
         var baseSummary = GitHubRunViewSummarizer.SummarizeRunView(runDetailJson);
 
@@ -600,23 +592,15 @@ public partial class GitHubToolHandlers {
         var isInProgress = string.Equals(status, "in_progress", StringComparison.OrdinalIgnoreCase);
         if (!isFailed && !isInProgress) return baseSummary;
 
-        // 调 jobs API 获取 job 列表(轻量,不下载日志)
-        var jobsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
-        if (!jobsResult.Success) return baseSummary;
+        // 通过 LogFilterRunner 获取 job 列表(走 LSM 缓存,避免重复 API 调用)
+        var jobsResp = await LogFilterRunner.GetOrFetchJobsAsync(owner, repo, runId, wantRefresh, ct).ConfigureAwait(false);
 
         var jobs = new List<(long id, string name, string status, string conclusion)>();
-        try {
-            var jobsResp = JsonSerializer.Deserialize(jobsResult.Body, GitHubApiJsonContext.Safe.RunJobListResponse);
-            if (jobsResp is null) return baseSummary;
-            foreach (var job in jobsResp.Jobs) {
-                var name = string.IsNullOrEmpty(job.Name) ? "unknown" : job.Name;
-                var s = string.IsNullOrEmpty(job.Status) ? "?" : job.Status;
-                var c = job.Conclusion ?? "";
-                jobs.Add((job.Id, name, s, c));
-            }
-        } catch (JsonException ex) {
-            _logger?.LogWarning(ex, "解析 jobs 列表 JSON 失败,返回基础摘要");
-            return baseSummary;
+        foreach (var job in jobsResp) {
+            var name = string.IsNullOrEmpty(job.Name) ? "unknown" : job.Name;
+            var s = string.IsNullOrEmpty(job.Status) ? "?" : job.Status;
+            var c = job.Conclusion ?? "";
+            jobs.Add((job.Id, name, s, c));
         }
 
         if (jobs.Count == 0) return baseSummary;
@@ -664,8 +648,13 @@ public partial class GitHubToolHandlers {
     /// 解析 expandStep 中的 /section:Type 后缀 — 返回 (不含后缀的 expandStep, sectionType)
     /// </summary>
     private ToolResult BuildStepSectionResult(RunLogSummary summary, string expandStep, string run_id) {
-        if (!summary.SectionCounts.TryGetValue(expandStep, out var secs))
-            return Ok($"未找到步骤 '{expandStep}'，可用步骤: {string.Join(", ", summary.SectionCounts.Keys)}");
+        if (!summary.SectionCounts.TryGetValue(expandStep, out var secs)) {
+            var fuzzy = GitHubRunStepExtractor.TryFuzzyMatchStepName(summary.SectionCounts.Keys, expandStep);
+            if (fuzzy is null)
+                return Ok($"未找到步骤 '{expandStep}'，可用步骤: {string.Join(", ", summary.SectionCounts.Keys)}");
+            expandStep = fuzzy;
+            secs = summary.SectionCounts[fuzzy];
+        }
         var summaryText = secs
             .OrderBy(kvp => GitHubRunLogFilter.SectionOrder(kvp.Key))
             .Select(kvp => $"  {kvp.Key,-8} {kvp.Value,5} 行  (用 expand=step:{expandStep}/section:{kvp.Key} 查看)");
@@ -733,7 +722,7 @@ public partial class GitHubToolHandlers {
         }
         var sb = new StringBuilder(string.Join('\n', matched));
         if (matched.Count >= maxLines)
-            sb.Append($"\n… 可能还有更多匹配行(用 skip_lines={skip + maxLines} 续读)");
+            sb.Append($"\n… 可能还有更多匹配行(用 start_line={skip + maxLines + 1} 续读)");
         return Ok(sb.ToString(), $"正则过滤 '{filter}' 匹配 {matched.Count} 行(显示 {matched.Count} 行):");
     }
 

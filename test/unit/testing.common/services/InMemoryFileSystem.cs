@@ -650,17 +650,18 @@ public sealed class InMemoryFileSystem : IFileSystem {
         var normalizedPath = NormalizePath(path);
         if (string.IsNullOrEmpty(normalizedPath)) return;
 
+        var hasLeadingSlash = normalizedPath.StartsWith('/');
         var parts = normalizedPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        var currentPath = string.Empty;
+        var currentPath = hasLeadingSlash ? "/" : string.Empty;
 
         foreach (var part in parts) {
-            currentPath = string.IsNullOrEmpty(currentPath) ? part : $"{currentPath}/{part}";
+            currentPath = currentPath == "/" ? $"/{part}" : (string.IsNullOrEmpty(currentPath) ? part : $"{currentPath}/{part}");
             _directories.GetOrAdd(currentPath, _ => new InMemoryDirectoryEntry { FullPath = currentPath });
         }
     }
 
     private static string NormalizePath(string path)
-        => path?.Replace('\\', '/').Trim('/') ?? string.Empty;
+        => path?.Replace('\\', '/').TrimEnd('/') ?? string.Empty;
 
     // === IFileSystem: Watch ===
 

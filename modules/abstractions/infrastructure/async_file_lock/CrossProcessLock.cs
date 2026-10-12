@@ -1,4 +1,5 @@
-// JCC9002/JCC9006 抑制: 跨进程锁底层实现需直接构造 FileStream + FileShare.None (flock LOCK_EX)
+// JCC9002: 跨进程锁是底层基础设施，直接使用 FileStream 是设计意图（flock 需要真实文件句柄）
+// JCC9006: FileShare.None 是互斥锁的语义要求，不能用 ReadWrite 否则锁失效
 #pragma warning disable JCC9002, JCC9006
 namespace AsyncFileLock;
 
@@ -84,7 +85,7 @@ internal sealed class CrossProcessLock : IDisposable {
     }
 
     /// <summary>
-    /// 释放跨进程锁 — Windows 释放 Mutex，Linux 关闭 FileStream
+    /// 释放跨进程锁资源 — Linux 释放文件句柄，Windows 释放 Mutex 所有权再 Dispose
     /// </summary>
     public void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

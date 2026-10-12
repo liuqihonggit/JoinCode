@@ -224,7 +224,8 @@ public sealed class SubAgentEventStreamE2ETests {
         while (dir is not null) {
             var candidate = Path.Combine(dir, "artifacts", "bin", "OpenAI.MockServer");
             if (fs.DirectoryExists(candidate)) {
-                var exe = fs.GetFiles(candidate, "JoinCode.OpenAI.MockServer.exe", SearchOption.AllDirectories)
+                var exeName = OperatingSystem.IsWindows() ? "JoinCode.OpenAI.MockServer.exe" : "JoinCode.OpenAI.MockServer";
+                var exe = fs.GetFiles(candidate, exeName, SearchOption.AllDirectories)
                     .OrderByDescending(p => p.Contains("Release"))
                     .FirstOrDefault()
                     ?? throw new FileNotFoundException($"MockServer exe 未编译，请先 dotnet build OpenAI.MockServer", candidate);

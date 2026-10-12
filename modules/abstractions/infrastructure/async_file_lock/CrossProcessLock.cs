@@ -1,6 +1,6 @@
 // JCC9002: 跨进程锁是底层基础设施，直接使用 FileStream 是设计意图（flock 需要真实文件句柄）
 // JCC9006: FileShare.None 是互斥锁的语义要求，不能用 ReadWrite 否则锁失效
-#pragma warning disable JCC9002, JCC9006
+#pragma warning disable JCC9001, JCC9002, JCC9006
 namespace AsyncFileLock;
 
 /// <summary>
@@ -67,6 +67,10 @@ internal sealed class CrossProcessLock : IDisposable {
     /// </summary>
     private static async Task<CrossProcessLock> AcquireFlockAsync(string key, TimeSpan timeout, CancellationToken ct) {
         var lockPath = key + ".lck";
+        var lockDir = Path.GetDirectoryName(lockPath);
+        if (lockDir is not null && !Directory.Exists(lockDir)) {
+            Directory.CreateDirectory(lockDir);
+        }
         var deadline = DateTime.UtcNow + timeout;
         var delayMs = 10;
         while (true) {

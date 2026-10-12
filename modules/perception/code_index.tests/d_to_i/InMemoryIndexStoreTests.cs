@@ -65,20 +65,20 @@ public sealed class InMemoryIndexStoreTests : IDisposable {
 
     // ============ NormalizeKey 确定性测试 ============
 
-    [Theory]
-    [InlineData("a/b/c", "a\\b\\c")]
-    [InlineData("a\\b\\c", "a\\b\\c")]
-    [InlineData("a/b\\c/d", "a\\b\\c\\d")]
-    [InlineData("single", "single")]
-    [InlineData("", "")]
-    public void NormalizeKey_UnifiesPathSeparators(string input, string expected) {
-        Assert.Equal(expected, InMemoryIndexStore.NormalizeKey(input));
+    [Fact]
+    public void NormalizeKey_UnifiesPathSeparators() {
+        var sep = Path.DirectorySeparatorChar;
+        Assert.Equal($"a{sep}b{sep}c", InMemoryIndexStore.NormalizeKey("a/b/c"));
+        Assert.Equal($"a{sep}b{sep}c", InMemoryIndexStore.NormalizeKey($"a{sep}b{sep}c"));
+        Assert.Equal($"a{sep}b{sep}c{sep}d", InMemoryIndexStore.NormalizeKey($"a/b{sep}c/d"));
+        Assert.Equal("single", InMemoryIndexStore.NormalizeKey("single"));
+        Assert.Equal("", InMemoryIndexStore.NormalizeKey(""));
     }
 
     [Fact]
     public void NormalizeKey_MixedSeparators_AllBecomeBackslash() {
         var result = InMemoryIndexStore.NormalizeKey("src/lib\\core/test");
-        Assert.DoesNotContain("/", result);
-        Assert.Contains("\\", result);
+        Assert.DoesNotContain(Path.AltDirectorySeparatorChar.ToString(), result);
+        Assert.Contains(Path.DirectorySeparatorChar.ToString(), result);
     }
 }

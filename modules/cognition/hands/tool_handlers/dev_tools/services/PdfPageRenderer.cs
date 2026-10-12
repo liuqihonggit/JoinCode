@@ -106,6 +106,7 @@ public static class PdfPageRenderer {
     public static bool IsAvailable() {
         try {
             _ = DocLib.Instance;
+            using var probe = new SKBitmap(1, 1, SKColorType.Bgra8888, SKAlphaType.Premul);
             return true;
         } catch {
             return false;

@@ -40,7 +40,7 @@ public sealed class NamedMutexMailboxLock : IAsyncDisposable {
         CancellationToken cancellationToken = default,
         ILogger? logger = null) {
         var fullPath = Path.GetFullPath(filePath);
-        var lockKey = fullPath.ToLowerInvariant();
+        var lockKey = OperatingSystem.IsWindows() ? fullPath.ToLowerInvariant() : fullPath;
         var semaphore = s_semaphores.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
 
         if (!await semaphore.WaitAsync(timeout, cancellationToken).ConfigureAwait(false)) {

@@ -94,11 +94,7 @@ public sealed partial class ToolCacheManager : ServiceEntity {
     /// 使所有工具缓存失效
     /// </summary>
     public void InvalidateAllCache() {
-        if (_cache is MemoryCache memoryCache) {
-            memoryCache.Clear();
-        } else {
-            _cache.Remove(ToolCacheKeys.AllTools);
-        }
+        _cache.Remove(ToolCacheKeys.AllTools);
     }
 
     /// <summary>

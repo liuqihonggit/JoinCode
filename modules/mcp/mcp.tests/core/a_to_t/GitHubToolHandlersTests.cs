@@ -7,7 +7,6 @@ public sealed partial class GitHubToolHandlersTests {
     private readonly GitHubToolHandlers _handler;
 
     public GitHubToolHandlersTests() {
-        MemoryCache.Default.Trim(100);
         _handler = new GitHubToolHandlers(new FakeDownloader(), new InMemoryFileSystem(), _api, null, NullLogger<GitHubToolHandlers>.Instance);
     }
 

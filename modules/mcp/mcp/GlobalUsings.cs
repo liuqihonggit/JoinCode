@@ -61,7 +61,6 @@ global using System.IO;
 global using System.Net;
 global using System.Net.Http.Headers;
 global using System.Net.Sockets;
-global using System.Runtime.Caching;
 global using System.Runtime.CompilerServices;
 global using System.Security.Cryptography;
 global using System.Text;

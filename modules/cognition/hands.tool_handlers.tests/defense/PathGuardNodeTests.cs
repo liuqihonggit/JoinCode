@@ -34,9 +34,14 @@ public class PathGuardNodeTests {
     [Theory]
     [InlineData("keyword-sections.json")]
     [InlineData("/path/to/keyword-sections.json")]
-    [InlineData(@"C:\dir\KEYWORD-SECTIONS.json")]
     public void IsKeywordSectionsPath_KeywordPath_ReturnsTrue(string path) {
         Assert.True(PathGuardNode.IsKeywordSectionsPath(path));
+    }
+
+    [SkippableFact]
+    public void IsKeywordSectionsPath_WindowsPath_ReturnsTrue() {
+        Skip.IfNot(OperatingSystem.IsWindows(), "Windows 路径分隔符 \\");
+        Assert.True(PathGuardNode.IsKeywordSectionsPath(@"C:\dir\KEYWORD-SECTIONS.json"));
     }
 
     [Theory]

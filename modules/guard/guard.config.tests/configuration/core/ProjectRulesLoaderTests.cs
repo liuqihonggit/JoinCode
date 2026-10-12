@@ -6,10 +6,10 @@ namespace Core.Tests.Configuration;
 [Collection("AppDataConstantsCollection")]
 public sealed class ProjectRulesLoaderTests {
     private readonly Mock<IFileSystem> _fs = new();
-    private const string BaseDir = "C:\\test\\dir";
+    private const string BaseDir = "/test/dir";
 
     private void SetupFile(string relativePath, string content) {
-        var fullPath = Path.Combine(BaseDir, relativePath);
+        var fullPath = Path.GetFullPath(Path.Combine(BaseDir, relativePath));
         _fs.Setup(x => x.FileExists(fullPath)).Returns(true);
         _fs.Setup(x => x.ReadAllTextAsync(fullPath, It.IsAny<CancellationToken>()))
             .ReturnsAsync(content);
@@ -21,7 +21,7 @@ public sealed class ProjectRulesLoaderTests {
         _fs.Setup(x => x.GetFiles(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<SearchOption>()))
             .Returns(Array.Empty<string>());
         _fs.Setup(x => x.GetFullPath(It.IsAny<string>())).Returns<string>(p => Path.GetFullPath(p));
-        _fs.Setup(x => x.GetParentPath(BaseDir)).Returns((string?)null);
+        _fs.Setup(x => x.GetParentPath(It.IsAny<string>())).Returns((string?)null);
         return new ProjectRulesLoader(_fs.Object);
     }
 
@@ -31,7 +31,7 @@ public sealed class ProjectRulesLoaderTests {
         _fs.Setup(x => x.GetCurrentDirectory()).Returns(BaseDir);
         _fs.Setup(x => x.DirectoryExists(It.IsAny<string>())).Returns(false);
         _fs.Setup(x => x.GetFullPath(It.IsAny<string>())).Returns<string>(p => Path.GetFullPath(p));
-        _fs.Setup(x => x.GetParentPath(BaseDir)).Returns((string?)null);
+        _fs.Setup(x => x.GetParentPath(It.IsAny<string>())).Returns((string?)null);
         await using var loader = new ProjectRulesLoader(_fs.Object);
 
         var result = await loader.LoadRulesAsync(BaseDir).ConfigureAwait(true);
@@ -133,7 +133,7 @@ public sealed class ProjectRulesLoaderTests {
 
         var path = loader.GetRulesFilePath(BaseDir);
 
-        Assert.Equal(Path.Combine(BaseDir, "AGENTS.md"), path);
+        Assert.Equal(Path.Combine(Path.GetFullPath(BaseDir), "AGENTS.md"), path);
     }
 
     [Fact]

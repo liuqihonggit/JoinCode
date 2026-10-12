@@ -80,7 +80,6 @@ public class ShellBuildInterceptMiddlewareTests {
     [InlineData("dotnet publish JoinCode.slnx -c Release")]
     [InlineData("dotnet msbuild JoinCode.slnx")]
     [InlineData("dotnet.exe build JoinCode.slnx")]
-    [InlineData("\"C:\\Program Files\\dotnet\\dotnet.exe\" build JoinCode.slnx")]
     public async Task InvokeAsync_RecognizesBuildCommands(string command) {
         var queueMock = new Mock<IBuildQueueService>();
         queueMock.Setup(x => x.SubmitAsync(It.IsAny<BuildRequest>(), It.IsAny<CancellationToken>()))
@@ -100,6 +99,33 @@ public class ShellBuildInterceptMiddlewareTests {
 
         await using var sut = CreateSut(buildQueueService: queueMock.Object);
         var context = CreateContext(command: command);
+
+        await sut.InvokeAsync(context, Next, CancellationToken.None).ConfigureAwait(true);
+
+        queueMock.Verify(x => x.SubmitAsync(It.IsAny<BuildRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [SkippableFact]
+    public async Task InvokeAsync_RecognizesBuildCommands_WindowsFullPath() {
+        Skip.IfNot(OperatingSystem.IsWindows(), "Windows 完整路径格式");
+        var queueMock = new Mock<IBuildQueueService>();
+        queueMock.Setup(x => x.SubmitAsync(It.IsAny<BuildRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("b-0001");
+        queueMock.Setup(x => x.GetBuild("b-0001"))
+            .Returns((BuildQueueEntry?)null);
+        queueMock.Setup(x => x.WaitAsync("b-0001", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new BuildQueueResult {
+                BuildId = "b-0001",
+                ExitCode = 0,
+                Output = "ok",
+                ErrorOutput = "",
+                WaitDuration = TimeSpan.Zero,
+                BuildDuration = TimeSpan.FromSeconds(5),
+                QueuePosition = 0,
+            });
+
+        await using var sut = CreateSut(buildQueueService: queueMock.Object);
+        var context = CreateContext(command: "\"C:\\Program Files\\dotnet\\dotnet.exe\" build JoinCode.slnx");
 
         await sut.InvokeAsync(context, Next, CancellationToken.None).ConfigureAwait(true);
 

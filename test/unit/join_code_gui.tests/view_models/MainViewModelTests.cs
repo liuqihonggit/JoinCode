@@ -1725,6 +1725,7 @@ public class MainViewModelTests {
     /// </summary>
     [Fact]
     public async Task ProtectedDrives_Initialized_AllDefaultProtected() {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("盘号扫描仅 Windows 有值");
         await using var vm = CreateVm();
         vm.ProtectedDrives.Should().NotBeEmpty("至少应扫描到一个一个盘号");
         vm.ProtectedDrives.Should().AllSatisfy(item =>
@@ -1734,6 +1735,7 @@ public class MainViewModelTests {
     /// <summary>ProtectedDrives 盘号格式验证 — 每项 DriveLetter 应为 大写字母+冒号 格式</summary>
     [Fact]
     public async Task ProtectedDrives_DriveLetterFormat_UppercaseLetterColon() {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("盘号格式仅 Windows 有值");
         await using var vm = CreateVm();
         vm.ProtectedDrives.Should().AllSatisfy(item => {
             item.DriveLetter.Should().HaveLength(2);

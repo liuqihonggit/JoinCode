@@ -73,10 +73,13 @@ internal static class SolutionParser {
                 continue;
             }
 
-            var name = Path.GetFileNameWithoutExtension(pathAttr);
-            var resolvedPath = Path.IsPathRooted(pathAttr)
-                ? pathAttr
-                : Path.GetFullPath(Path.Combine(solutionDir, pathAttr));
+            // slnx 中路径可能用 \ 分隔（Windows 风格），统一为平台分隔符后再解析
+            // Linux 上 Path.GetFileNameWithoutExtension 不识别 \ 分隔符
+            var normalizedPath = pathAttr.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+            var name = Path.GetFileNameWithoutExtension(normalizedPath);
+            var resolvedPath = Path.IsPathRooted(normalizedPath)
+                ? normalizedPath
+                : Path.GetFullPath(Path.Combine(solutionDir, normalizedPath));
 
             projects.Add(new SolutionProjectEntry {
                 Name = name,

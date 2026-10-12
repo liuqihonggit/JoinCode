@@ -57,7 +57,9 @@ public class PathNormalizerTests {
     [Fact]
     public void Normalize_Should_Unify_Mixed_Separators_To_Platform_Separator() {
         var normalized = PathNormalizer.Normalize("D:\\proj\\a\\b/c");
-        normalized.Should().NotContain("/");
-        normalized.Should().Contain("\\");
+        var sep = System.IO.Path.DirectorySeparatorChar;
+        var nonSep = sep == '\\' ? '/' : '\\';
+        normalized.Should().NotContain(nonSep.ToString());
+        normalized.Should().Contain(sep.ToString());
     }
 }

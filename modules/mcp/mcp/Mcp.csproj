@@ -30,7 +30,6 @@
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="$(MicrosoftExtensionsVersion)" />
     <PackageReference Include="ModelContextProtocol" Version="$(ModelContextProtocolVersion)" />
     <PackageReference Include="NaCl.Core" Version="2.2.0" />
-    <PackageReference Include="System.Runtime.Caching" Version="$(SystemRuntimeCachingVersion)" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />

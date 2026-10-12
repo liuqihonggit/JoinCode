@@ -124,10 +124,11 @@ public sealed partial class CustomCommandLoader {
     }
 
     internal static CustomCommand? ParseCommandFile(string relativePath, string content, string sourcePath) {
-        var fileName = Path.GetFileNameWithoutExtension(relativePath);
+        var normalized = relativePath.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+        var fileName = Path.GetFileNameWithoutExtension(normalized);
         if (string.IsNullOrWhiteSpace(fileName)) return null;
 
-        var dirPart = Path.GetDirectoryName(relativePath);
+        var dirPart = Path.GetDirectoryName(normalized);
         var ns = !string.IsNullOrEmpty(dirPart)
             ? dirPart.Replace(Path.DirectorySeparatorChar, ':').Replace(Path.AltDirectorySeparatorChar, ':')
             : null;

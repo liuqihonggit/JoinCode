@@ -16,7 +16,7 @@ public sealed class TreeCacheTests : IDisposable {
         if (_disposed) return;
         _disposed = true;
         _cache.DisposeSafe();
-        _parser.DisposeSafe();
+        _parser?.DisposeSafe();
     }
 
     [Fact]
@@ -27,7 +27,7 @@ public sealed class TreeCacheTests : IDisposable {
     [Fact]
     public void Add_ThenTryGet_ReturnsSameTree() {
         var source = "class A { }";
-        using var tree = _parser.Parse(source);
+        using var tree = _parser!.Parse(source);
 
         _cache.Add("test.cs", tree, source);
 
@@ -38,7 +38,7 @@ public sealed class TreeCacheTests : IDisposable {
     [Fact]
     public void Remove_ExistingFile_RemovesFromCache() {
         var source = "class A { }";
-        using var tree = _parser.Parse(source);
+        using var tree = _parser!.Parse(source);
         _cache.Add("test.cs", tree, source);
 
         _cache.Remove("test.cs");
@@ -51,7 +51,7 @@ public sealed class TreeCacheTests : IDisposable {
         using var cache = new TreeCache(maxEntries: 3);
         for (var i = 0; i < 5; i++) {
             var source = $"class Class{i} {{ }}";
-            using var tree = _parser.Parse(source);
+            using var tree = _parser!.Parse(source);
             cache.Add($"file{i}.cs", tree, source);
         }
 
@@ -66,7 +66,7 @@ public sealed class TreeCacheTests : IDisposable {
     [Fact]
     public void GetSource_ExistingFile_ReturnsStoredSource() {
         var source = "class A { public void M() { } }";
-        using var tree = _parser.Parse(source);
+        using var tree = _parser!.Parse(source);
         _cache.Add("test.cs", tree, source);
 
         var retrieved = _cache.GetSource("test.cs");
@@ -82,7 +82,7 @@ public sealed class TreeCacheTests : IDisposable {
     [Fact]
     public void Clear_RemovesAllEntries() {
         var source = "class A { }";
-        using var tree = _parser.Parse(source);
+        using var tree = _parser!.Parse(source);
         _cache.Add("file1.cs", tree, source);
         _cache.Add("file2.cs", tree, source);
 
@@ -97,7 +97,7 @@ public sealed class TreeCacheTests : IDisposable {
         Assert.Equal(0, _cache.Count);
 
         var source = "class A { }";
-        using var tree = _parser.Parse(source);
+        using var tree = _parser!.Parse(source);
         _cache.Add("file1.cs", tree, source);
 
         Assert.Equal(1, _cache.Count);
@@ -115,8 +115,8 @@ public sealed class TreeCacheTests : IDisposable {
     public void Add_SameFileTwice_ReplacesOldEntry() {
         var source1 = "class A { }";
         var source2 = "class B { }";
-        using var tree1 = _parser.Parse(source1);
-        using var tree2 = _parser.Parse(source2);
+        using var tree1 = _parser!.Parse(source1);
+        using var tree2 = _parser!.Parse(source2);
 
         _cache.Add("test.cs", tree1, source1);
         _cache.Add("test.cs", tree2, source2);
@@ -128,7 +128,7 @@ public sealed class TreeCacheTests : IDisposable {
     [Fact]
     public void IncrementalParse_WithCachedTree_ProducesValidTree() {
         var oldSource = "class A { public void M1() { } }";
-        using var oldTree = _parser.Parse(oldSource);
+        using var oldTree = _parser!.Parse(oldSource);
         _cache.Add("test.cs", oldTree, oldSource);
 
         var newSource = "class A { public void M1() { } public void M2() { } }";
@@ -137,7 +137,7 @@ public sealed class TreeCacheTests : IDisposable {
         Assert.True(_cache.TryGet("test.cs", out var cachedTree));
         cachedTree!.Edit(edit);
 
-        using var newTree = _parser.Parse(newSource, cachedTree);
+        using var newTree = _parser!.Parse(newSource, cachedTree);
 
         Assert.NotNull(newTree);
         Assert.False(newTree.RootNode.IsError);
@@ -150,7 +150,7 @@ public sealed class TreeCacheTests : IDisposable {
 
     [Fact]
     public void Add_NullFilePath_Throws() {
-        using var tree = _parser.Parse("class A { }");
+        using var tree = _parser!.Parse("class A { }");
         Assert.Throws<ArgumentNullException>(() => _cache.Add(null!, tree, "source"));
     }
 
@@ -161,7 +161,7 @@ public sealed class TreeCacheTests : IDisposable {
 
     [Fact]
     public void Add_NullSource_Throws() {
-        using var tree = _parser.Parse("class A { }");
+        using var tree = _parser!.Parse("class A { }");
         Assert.Throws<ArgumentNullException>(() => _cache.Add("test.cs", tree, null!));
     }
 
@@ -193,7 +193,7 @@ public sealed class TreeCacheTests : IDisposable {
         var cache = new TreeCache();
         cache.Dispose();
 
-        using var tree = _parser.Parse("class A { }");
+        using var tree = _parser!.Parse("class A { }");
         Assert.Throws<ObjectDisposedException>(() => cache.Add("test.cs", tree, "source"));
     }
 

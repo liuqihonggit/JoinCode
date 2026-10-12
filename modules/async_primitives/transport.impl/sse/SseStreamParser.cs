@@ -37,7 +37,7 @@ public sealed class SseStreamParser {
             if (line.StartsWith("event:", StringComparison.Ordinal)) {
                 eventType = line.AsSpan(6).Trim().ToString();
             } else if (line.StartsWith("data:", StringComparison.Ordinal)) {
-                if (dataBuilder.Length > 0) dataBuilder.AppendLine();
+                if (dataBuilder.Length > 0) dataBuilder.Append('\n');
                 dataBuilder.Append(line.AsSpan(5).Trim());
             } else if (line.StartsWith("id:", StringComparison.Ordinal)) {
                 eventId = line.AsSpan(3).Trim().ToString();

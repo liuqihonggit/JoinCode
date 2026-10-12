@@ -73,8 +73,9 @@ public class PermissionCheckContextInternalTests {
 
     #region IsSensitivePath
 
-    [Fact]
+    [SkippableFact]
     public void IsSensitivePath_StartsWith_Should_Match() {
+        Skip.IfNot(OperatingSystem.IsWindows(), "Windows 路径模式匹配测试");
         var patterns = new List<SensitivePathPattern> {
             new() { Path = "C:\\Windows", PathType = PathType.StartsWith }
         };
@@ -208,15 +209,17 @@ public class PermissionCheckContextInternalTests {
         PermissionCheckContext.ResolveSpecialFolder("C:\\project").Should().Be("C:\\project");
     }
 
-    [Fact]
+    [SkippableFact]
     public void ResolveSpecialFolder_Windows_Should_Resolve_To_System_Path() {
+        Skip.IfNot(OperatingSystem.IsWindows(), "SpecialFolder.Windows 仅 Windows 有值");
         var resolved = PermissionCheckContext.ResolveSpecialFolder("{Windows}");
         resolved.Should().NotBe("{Windows}");
         resolved.Should().NotBeNullOrEmpty();
     }
 
-    [Fact]
+    [SkippableFact]
     public void ResolveSpecialFolder_System_Should_Resolve_To_System_Path() {
+        Skip.IfNot(OperatingSystem.IsWindows(), "SpecialFolder.System 仅 Windows 有值");
         var resolved = PermissionCheckContext.ResolveSpecialFolder("{System}");
         resolved.Should().NotBe("{System}");
         resolved.Should().NotBeNullOrEmpty();

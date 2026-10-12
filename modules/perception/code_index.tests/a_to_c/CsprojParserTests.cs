@@ -246,12 +246,12 @@ public sealed class CsprojParserTests : IDisposable {
 
     // ============ NormalizePath 确定性测试 ============
 
-    [Theory]
-    [InlineData("a/b/c", "a\\b\\c")]
-    [InlineData("a\\b\\c", "a\\b\\c")]
-    [InlineData("a/b\\c/d", "a\\b\\c\\d")]
-    [InlineData("single", "single")]
-    public void NormalizePath_UnifiesSeparators(string input, string expected) {
-        Assert.Equal(expected, CsprojParser.NormalizePath(input));
+    [Fact]
+    public void NormalizePath_UnifiesSeparators() {
+        var sep = Path.DirectorySeparatorChar;
+        Assert.Equal($"a{sep}b{sep}c", CsprojParser.NormalizePath("a/b/c"));
+        Assert.Equal($"a{sep}b{sep}c", CsprojParser.NormalizePath($"a{sep}b{sep}c"));
+        Assert.Equal($"a{sep}b{sep}c{sep}d", CsprojParser.NormalizePath($"a/b{sep}c/d"));
+        Assert.Equal("single", CsprojParser.NormalizePath("single"));
     }
 }

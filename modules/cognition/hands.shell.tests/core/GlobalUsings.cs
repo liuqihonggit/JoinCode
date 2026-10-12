@@ -24,6 +24,7 @@ global using Infrastructure.IO.Services.FileOps;
 global using Infrastructure.Localization;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Pipeline.Middlewares;
+global using Infrastructure.Shell;
 global using IO;
 global using IO.FileSystem;
 global using IO.Services;

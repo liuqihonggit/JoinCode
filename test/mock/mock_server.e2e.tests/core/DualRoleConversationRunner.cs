@@ -1034,6 +1034,14 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
             _logger.LogInformation("[PathResolver] {ExeName} 回退解析成功: {Path}", exeName, fallback);
             return fallback;
         }
+        // Linux apphost 不带 .exe 后缀
+        if (exeName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) {
+            var fallbackNoExt = Path.GetFullPath(Path.Combine(baseDir, exeName[..^4]));
+            if (_fs.FileExists(fallbackNoExt)) {
+                _logger.LogInformation("[PathResolver] {ExeName} 回退解析成功(无扩展名): {Path}", exeName, fallbackNoExt);
+                return fallbackNoExt;
+            }
+        }
 
         var diag = new StringBuilder();
         diag.AppendLine($"{exeName} 未找到。诊断:");
@@ -1089,7 +1097,16 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
     private string? SearchExeUnderDir(string rootDir, string exeName) {
         try {
             var files = _fs.GetFiles(rootDir, exeName, SearchOption.AllDirectories);
-            return files.OrderByDescending(System.IO.File.GetLastWriteTime).FirstOrDefault();
+            if (files.Length > 0) {
+                return files.OrderByDescending(System.IO.File.GetLastWriteTime).FirstOrDefault();
+            }
+            // Linux apphost 不带 .exe 后缀，去掉再搜索
+            if (exeName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) {
+                var noExtName = exeName[..^4];
+                files = _fs.GetFiles(rootDir, noExtName, SearchOption.AllDirectories);
+                return files.OrderByDescending(System.IO.File.GetLastWriteTime).FirstOrDefault();
+            }
+            return null;
         } catch (Exception ex) {
             _logger.LogDebug(ex, "[PathResolver] 搜索 {ExeName} 时异常", exeName);
             return null;

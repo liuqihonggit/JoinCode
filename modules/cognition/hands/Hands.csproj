@@ -29,6 +29,7 @@
     <PackageReference Include="System.IO.Hashing" Version="$(SystemIOHashingVersion)" />
     <PackageReference Include="ReverseMarkdown.Aot" Version="4.8.0" />
     <PackageReference Include="SkiaSharp" Version="$(SkiaSharpVersion)" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="$(SkiaSharpVersion)" />
     <PackageReference Include="Docnet.Core" Version="$(DocnetCoreVersion)" />
   </ItemGroup>
 

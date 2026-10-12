@@ -683,16 +683,41 @@ internal static class GhArgsBinder {
         return true;
     }
 
-    /// <summary>找最接近的参数名: 优先前缀匹配(如 auto→auto_merge),其次包含匹配(如 merge→merge_method),最后 key 包含参数名(如 add-label→label)。</summary>
+    /// <summary>找最接近的参数名: 优先前缀匹配(如 auto→auto_merge),其次包含匹配(如 merge→merge_method),再次 key 包含参数名(如 add-label→label),最后编辑距离兜底(拼写错误如 reqired→required)。</summary>
     private static string? SuggestOption(string key, IReadOnlyList<GhParam> parameters) {
         var prefix = parameters.FirstOrDefault(p => p.Name.StartsWith(key, StringComparison.OrdinalIgnoreCase));
         if (prefix is not null) return prefix.Name;
         var contains = parameters.FirstOrDefault(p => p.Name.Contains(key, StringComparison.OrdinalIgnoreCase));
         if (contains is not null) return contains.Name;
         var keyContains = parameters.FirstOrDefault(p => key.Contains(p.Name, StringComparison.OrdinalIgnoreCase));
-        return keyContains?.Name;
+        if (keyContains is not null) return keyContains.Name;
+        var threshold = Math.Max(1, key.Length / 2);
+        string? best = null;
+        var bestDist = int.MaxValue;
+        foreach (var p in parameters) {
+            var dist = Levenshtein(key, p.Name);
+            if (dist < bestDist && dist <= threshold) { bestDist = dist; best = p.Name; }
+        }
+        return best;
     }
 
+    /// <summary>Levenshtein 编辑距离 — 用于未知参数模糊提示(如 reqired→required 距离 1)。</summary>
+    private static int Levenshtein(ReadOnlySpan<char> a, ReadOnlySpan<char> b) {
+        if (a.IsEmpty) return b.Length;
+        if (b.IsEmpty) return a.Length;
+        Span<int> prev = stackalloc int[b.Length + 1];
+        Span<int> curr = stackalloc int[b.Length + 1];
+        for (var j = 0; j <= b.Length; j++) prev[j] = j;
+        for (var i = 1; i <= a.Length; i++) {
+            curr[0] = i;
+            for (var j = 1; j <= b.Length; j++) {
+                var cost = a[i - 1] == b[j - 1] ? 0 : 1;
+                curr[j] = Math.Min(Math.Min(prev[j] + 1, curr[j - 1] + 1), prev[j - 1] + cost);
+            }
+            var tmp = prev; prev = curr; curr = tmp;
+        }
+        return prev[b.Length];
+    }
     /// <summary>
     /// 尝试解析不带 -- 前缀的 key=value 格式 — AI 习惯写 job_id=123 而非 --job_id 123
     /// <para>宽容策略: 精确匹配或连字符→下划线转换(如 max-lines=50 → max_lines=50)</para>

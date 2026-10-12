@@ -7,8 +7,8 @@
 /// <para>核心设计：构造时锁定 path，Dispose/析构复用同一引用，禁止二次计算路径。</para>
 /// </summary>
 public class WorktreeLifecycleGuardTest {
-    private const string MainPath = "D:\\project\\w1";
-    private const string WorktreePath = "D:\\project\\w1\\.jcc\\worktrees\\agent-abc";
+    private static readonly string MainPath = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "jcc_test_main"));
+    private static readonly string WorktreePath = Path.Combine(MainPath, ".jcc", "worktrees", "agent-abc");
 
     private static IFileOperationService CreateFs(bool worktreeExists = false) {
         var fs = new InMemoryFileOperationService();
@@ -42,10 +42,15 @@ public class WorktreeLifecycleGuardTest {
 
     /// <summary>
     /// 路径大小写不同时按规范化比较 — 容忍大小写差异但仍然检测主路径。
+    /// 仅 Windows 文件系统大小写不敏感，Linux 跳过。
     /// </summary>
     [Fact]
     public void Ctor_WhenCaseOnlyDifferent_Throws() {
-        var act = () => new WorktreeLifecycleGuard("d:\\project\\w1", "D:\\Project\\W1", CreateFs());
+        if (!OperatingSystem.IsWindows()) return;
+
+        var upperMain = MainPath.ToUpperInvariant();
+        var lowerMain = MainPath.ToLowerInvariant();
+        var act = () => new WorktreeLifecycleGuard(lowerMain, upperMain, CreateFs());
 
         act.Should().Throw<ArgumentException>();
     }
@@ -81,7 +86,7 @@ public class WorktreeLifecycleGuardTest {
     /// </summary>
     [Fact]
     public void Ctor_WhenPathDiffersOnlyByTrailingSeparator_Throws() {
-        var act = () => new WorktreeLifecycleGuard("D:\\project\\w1\\", MainPath, CreateFs());
+        var act = () => new WorktreeLifecycleGuard(MainPath + Path.DirectorySeparatorChar, MainPath, CreateFs());
 
         act.Should().Throw<ArgumentException>();
     }

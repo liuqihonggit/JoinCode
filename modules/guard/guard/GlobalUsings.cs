@@ -26,6 +26,7 @@ global using Core.Security.Services;
 global using Core.Utils;
 global using Infrastructure.IO.Services.FileOps;
 global using Infrastructure.Pipeline;
+global using Infrastructure.Shell;
 global using Infrastructure.Utils.IO;
 global using Infrastructure.Utils.Text;
 global using Infrastructure.Windows.JobObject;

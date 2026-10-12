@@ -424,7 +424,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable {
         return _files.Values
             .Where(f => MatchDirectory(f.FullPath, normalizedPath, searchOption))
             .Where(f => regex.IsMatch(Path.GetFileName(f.FullPath)))
-            .Select(f => f.FullPath.Replace('/', '\\'));
+            .Select(f => f.FullPath.Replace('/', Path.DirectorySeparatorChar));
     }
 
     /// <inheritdoc />
@@ -438,7 +438,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable {
             .Where(d => !string.IsNullOrEmpty(d))
             .Where(d => MatchParentDirectory(d, normalizedPath, searchOption))
             .Where(d => regex.IsMatch(Path.GetFileName(d)))
-            .Select(d => d.Replace('/', '\\'));
+            .Select(d => d.Replace('/', Path.DirectorySeparatorChar));
     }
 
     /// <inheritdoc />
@@ -486,7 +486,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable {
     public string? GetParentPath(string path) {
         var normalizedPath = NormalizePath(path);
         var parent = Path.GetDirectoryName(normalizedPath)?.Replace('\\', '/');
-        return string.IsNullOrEmpty(parent) ? null : parent.Replace('/', '\\');
+        return string.IsNullOrEmpty(parent) ? null : parent.Replace('/', Path.DirectorySeparatorChar);
     }
 
     /// <inheritdoc />
@@ -553,22 +553,23 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable {
         var normalizedPath = NormalizePath(path);
         if (string.IsNullOrEmpty(normalizedPath)) return;
 
+        var hasLeadingSlash = normalizedPath.StartsWith('/');
         var parts = normalizedPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        var currentPath = string.Empty;
+        var currentPath = hasLeadingSlash ? "/" : string.Empty;
 
         foreach (var part in parts) {
-            currentPath = string.IsNullOrEmpty(currentPath) ? part : $"{currentPath}/{part}";
+            currentPath = currentPath == "/" ? $"/{part}" : (string.IsNullOrEmpty(currentPath) ? part : $"{currentPath}/{part}");
             _directories.GetOrAdd(currentPath, _ => new InMemoryDirectoryEntry { FullPath = currentPath });
         }
     }
 
     /// <summary>
-    /// 规范化路径 — 反斜杠转正斜杠并去除首尾分隔符，用于内部统一路径比较
+    /// 规范化路径 — 反斜杠转正斜杠并去除尾部分隔符，保留前导 / 用于 Linux 绝对路径
     /// </summary>
     /// <param name="path">原始路径</param>
     /// <returns>规范化后的路径</returns>
     internal static string NormalizePath(string path)
-        => path?.Replace('\\', '/').Trim('/') ?? string.Empty;
+        => path?.Replace('\\', '/').TrimEnd('/') ?? string.Empty;
 
     private static string GlobToRegex(string pattern)
         => pattern.Replace("*", ".*").Replace("?", ".");

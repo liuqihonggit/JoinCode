@@ -131,6 +131,7 @@ public sealed class P3CompoundOperationTests {
 
     #region MultiClickAsync
 
+#if WINDOWS
     [Fact]
     public async Task MultiClick_ValidCoordinates_ClicksAllPoints() {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
@@ -165,6 +166,7 @@ public sealed class P3CompoundOperationTests {
         else
             result.Content[0].Text.Should().Contain("非交互式桌面环境");
     }
+#endif
 
     #endregion
 

@@ -264,10 +264,15 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime {
     }
 
     private static string? SearchExe(string root, string exeName) {
+        var linuxName = exeName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+            ? exeName[..^4]
+            : exeName;
         foreach (var dir in Directory.GetDirectories(root, "*", SearchOption.TopDirectoryOnly)) {
             foreach (var subDir in Directory.GetDirectories(dir, "*", SearchOption.AllDirectories)) {
                 var path = Path.Combine(subDir, exeName);
                 if (File.Exists(path)) return path;
+                var linuxPath = Path.Combine(subDir, linuxName);
+                if (File.Exists(linuxPath)) return linuxPath;
             }
         }
         return null;

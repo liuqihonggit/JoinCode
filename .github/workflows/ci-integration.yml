@@ -13,7 +13,7 @@ env:
 jobs:
   integration-core:
     name: Integration - Core
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -22,24 +22,23 @@ jobs:
           submodules: recursive
       - uses: ./.github/actions/setup-test-env
       - name: Integration Tests
-        shell: pwsh
+        shell: bash
         run: |
-          $tests = @(
-            @{Name="integration-all"; Csproj="test/integration/integration.tests/Integration.Tests.csproj"; Filter="Category!=Benchmark"},
-            @{Name="integration-prefixcache"; Csproj="build/sln/JoinCode.slnx"; Filter="Category=Integration&FullyQualifiedName~PrefixCache"}
-          )
-          foreach ($t in $tests) {
-              $name = $t.Name
-              $csproj = $t.Csproj
-              $filter = $t.Filter
-              & dotnet test $csproj -c Debug --nologo `
-                /p:UsePackedComponents=true `
-                /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
-                --filter $filter `
-                --logger "console;verbosity=normal" `
-                --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
-              if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
-          }
+          set -e
+          dotnet test test/integration/integration.tests/Integration.Tests.csproj \
+            -c Debug --nologo \
+            -p:UsePackedComponents=true \
+            -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
+            --filter "Category!=Benchmark" \
+            --logger "console;verbosity=normal" \
+            --logger "trx;LogFileName=integration-all.trx"
+          dotnet test build/sln/JoinCode.slnx \
+            -c Debug --nologo \
+            -p:UsePackedComponents=true \
+            -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
+            --filter "Category=Integration&FullyQualifiedName~PrefixCache" \
+            --logger "console;verbosity=normal" \
+            --logger "trx;LogFileName=integration-prefixcache.trx"
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
@@ -50,7 +49,7 @@ jobs:
 
   integration-safety:
     name: Integration - Safety
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -58,24 +57,32 @@ jobs:
         with:
           submodules: recursive
       - uses: ./.github/actions/setup-test-env
-      - name: Integration Tests
-        shell: pwsh
+      - name: Build and set execute permission
+        shell: bash
         run: |
-          $tests = @(
-            @{Name="integration-brain-clock"; Filter="Category=Integration&(FullyQualifiedName~Brain|FullyQualifiedName~Clock)"},
-            @{Name="integration-guard-vault"; Filter="Category=Integration&(FullyQualifiedName~Guard|FullyQualifiedName~Vault)"}
-          )
-          foreach ($t in $tests) {
-              $name = $t.Name
-              $filter = $t.Filter
-              & dotnet test build/sln/JoinCode.slnx -c Debug --nologo `
-                /p:UsePackedComponents=true `
-                /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
-                --filter $filter `
-                --logger "console;verbosity=normal" `
-                --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
-              if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
-          }
+          dotnet build build/sln/JoinCode.slnx \
+            -c Debug --nologo \
+            -p:UsePackedComponents=true \
+            -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
+          find artifacts/bin/ -type f -name '*.exe' -exec chmod +x {} + 2>/dev/null || true
+      - name: Integration Tests
+        shell: bash
+        run: |
+          set -e
+          dotnet test build/sln/JoinCode.slnx \
+            -c Debug --nologo --no-build \
+            -p:UsePackedComponents=true \
+            -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
+            --filter "Category=Integration&(FullyQualifiedName~Brain|FullyQualifiedName~Clock)" \
+            --logger "console;verbosity=normal" \
+            --logger "trx;LogFileName=integration-brain-clock.trx"
+          dotnet test build/sln/JoinCode.slnx \
+            -c Debug --nologo --no-build \
+            -p:UsePackedComponents=true \
+            -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
+            --filter "Category=Integration&(FullyQualifiedName~Guard|FullyQualifiedName~Vault)" \
+            --logger "console;verbosity=normal" \
+            --logger "trx;LogFileName=integration-guard-vault.trx"
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
@@ -86,7 +93,7 @@ jobs:
 
   integration-app:
     name: Integration - App
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -95,16 +102,16 @@ jobs:
           submodules: recursive
       - uses: ./.github/actions/setup-test-env
       - name: Integration Tests - Hand + Host + McpTools
-        shell: pwsh
+        shell: bash
         run: |
-          & dotnet test test/integration/integration.tests/Integration.Tests.csproj `
-            -c Debug --nologo `
-            /p:UsePackedComponents=true `
-            /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
-            --filter "Category=Integration&(FullyQualifiedName~Hands|FullyQualifiedName~Host|FullyQualifiedName~McpTools)" `
-            --logger "console;verbosity=detailed" `
-            --logger "trx;LogFileName=integration-hands-host-mcp.trx" 2>&1 | Out-Host
-          if ($LASTEXITCODE -ne 0) { throw "Integration tests FAILED" }
+          set -e
+          dotnet test test/integration/integration.tests/Integration.Tests.csproj \
+            -c Debug --nologo \
+            -p:UsePackedComponents=true \
+            -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
+            --filter "Category=Integration&(FullyQualifiedName~Hands|FullyQualifiedName~Host|FullyQualifiedName~McpTools)" \
+            --logger "console;verbosity=detailed" \
+            --logger "trx;LogFileName=integration-hands-host-mcp.trx"
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7

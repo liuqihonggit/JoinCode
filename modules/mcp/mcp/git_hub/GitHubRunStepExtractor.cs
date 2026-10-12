@@ -39,6 +39,29 @@ internal static class GitHubRunStepExtractor {
     }
 
     /// <summary>
+    /// 模糊匹配步骤名 — 精确匹配由调用方 TryGetValue 处理,这里只处理归一化匹配
+    /// <para>支持 dotnet_build 匹配 dotnet build,ci-build 匹配 ci build 等(下划线/连字符/空格等价)</para>
+    /// <para>还支持子串包含匹配: 传 "build" 可匹配 "dotnet build"(唯一命中时)</para>
+    /// </summary>
+    public static string? TryFuzzyMatchStepName(IEnumerable<string> keys, string query) {
+        var normalizedQuery = NormalizeStepName(query);
+        string? containsMatch = null;
+        var containsCount = 0;
+        foreach (var key in keys) {
+            var normalizedKey = NormalizeStepName(key);
+            if (string.Equals(normalizedKey, normalizedQuery, StringComparison.OrdinalIgnoreCase))
+                return key;
+            if (normalizedKey.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase)) {
+                containsCount++;
+                containsMatch = key;
+            }
+        }
+        return containsCount == 1 ? containsMatch : null;
+    }
+
+    private static string NormalizeStepName(string name) => name.Replace('_', ' ').Replace('-', ' ').Trim();
+
+    /// <summary>
     /// 累积一行日志到 summary 和 sectionContents — 用指定 stepName
     /// </summary>
     public static void Accumulate(string line, int lineNumber, string stepName, RunLogSummary summary, Dictionary<string, Dictionary<string, List<string>>> sectionContents) {

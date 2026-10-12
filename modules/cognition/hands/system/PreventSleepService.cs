@@ -40,6 +40,8 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
     public async Task<bool> PreventSleepAsync(SleepPreventionType type = SleepPreventionType.Continuous, CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        if (!OperatingSystem.IsWindows()) return true;
+
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         if (_isSleepPrevented) {
@@ -75,6 +77,8 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
     public async Task<bool> AllowSleepAsync(CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        if (!OperatingSystem.IsWindows()) return true;
+
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         if (!_isSleepPrevented) {
@@ -101,7 +105,7 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
     public override void Dispose() {
         if (_disposed) return;
 
-        if (_isSleepPrevented) {
+        if (_isSleepPrevented && OperatingSystem.IsWindows()) {
             SetThreadExecutionState(ES_CONTINUOUS);
             _isSleepPrevented = false;
         }

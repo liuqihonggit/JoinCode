@@ -51,9 +51,14 @@ runs:
     - name: Set Console Encoding to UTF-8
       shell: pwsh
       run: |
-        chcp 65001
+        if ($IsWindows) { chcp 65001 }
         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
         [Console]::InputEncoding = [System.Text.Encoding]::UTF8
+
+    - name: Install Linux Dependencies for SkiaSharp
+      if: runner.os == 'Linux'
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y libfontconfig1
 
     - name: Download E2E Exes (for E2E)
       if: inputs.build-e2e-exes == 'true'
@@ -61,3 +66,8 @@ runs:
       with:
         name: e2e-exes
         path: artifacts/bin/
+
+    - name: Set Execute Permission (Linux)
+      if: inputs.build-e2e-exes == 'true' && runner.os == 'Linux'
+      shell: bash
+      run: find artifacts/bin/ -type f -exec chmod +x {} + 2>/dev/null || true

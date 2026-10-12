@@ -4,9 +4,16 @@ namespace Guard.Security.Tests;
 /// RedirectWhitelistNode 内部纯函数确定性测试 — 重定向目标提取、白名单判定、路径规范化。
 /// <para>ExpandTilde/NormalizeRedirectTarget/IsWithinWorkspace 使用 Path.GetFullPath/Environment.GetFolderPath,
 /// 属于确定性 IO(同机器同输入→同输出),可确定性测试。</para>
+/// <para>跨平台: 用预处理符号定义平台路径常量</para>
 /// </summary>
 public class RedirectWhitelistNodeInternalTests {
+#if WINDOWS
     private const string WorkDir = "D:\\project\\w2";
+    private const string OutsidePath = "C:\\Windows\\System32\\drivers\\etc\\hosts";
+#else
+    private const string WorkDir = "/tmp/project";
+    private const string OutsidePath = "/etc/hosts";
+#endif
 
     #region ExtractRedirectTargets
 
@@ -94,7 +101,7 @@ public class RedirectWhitelistNodeInternalTests {
 
     [Fact]
     public void EvaluateTarget_OutsideWorkspace_Should_Not_Be_Whitelisted() {
-        var result = RedirectWhitelistNode.EvaluateTarget("C:\\Windows\\System32\\drivers\\etc\\hosts", WorkDir);
+        var result = RedirectWhitelistNode.EvaluateTarget(OutsidePath, WorkDir);
         result.IsWhitelisted.Should().BeFalse();
         result.ViolatingTarget.Should().NotBeNull();
     }
@@ -107,13 +114,14 @@ public class RedirectWhitelistNodeInternalTests {
     public void NormalizeRedirectTarget_RelativePath_Should_Resolve_Against_WorkDir() {
         var normalized = RedirectWhitelistNode.NormalizeRedirectTarget("file.txt", WorkDir);
         normalized.Should().Contain("file.txt");
-        normalized.Should().StartWith("D:");
+        normalized.Should().StartWith(WorkDir);
     }
 
     [Fact]
     public void NormalizeRedirectTarget_AbsolutePath_Should_Keep_Absolute() {
-        var normalized = RedirectWhitelistNode.NormalizeRedirectTarget("D:\\project\\w2\\file.txt", WorkDir);
-        normalized.Should().Be("D:\\project\\w2\\file.txt");
+        var absPath = Path.Combine(WorkDir, "file.txt");
+        var normalized = RedirectWhitelistNode.NormalizeRedirectTarget(absPath, WorkDir);
+        normalized.Should().Be(absPath);
     }
 
     #endregion
@@ -143,13 +151,13 @@ public class RedirectWhitelistNodeInternalTests {
 
     [Fact]
     public void IsWithinWorkspace_Inside_Should_Be_True() {
-        var path = Path.GetFullPath("file.txt", WorkDir);
+        var path = Path.GetFullPath(Path.Combine(WorkDir, "file.txt"));
         RedirectWhitelistNode.IsWithinWorkspace(path, WorkDir).Should().BeTrue();
     }
 
     [Fact]
     public void IsWithinWorkspace_Outside_Should_Be_False() {
-        RedirectWhitelistNode.IsWithinWorkspace("C:\\Windows\\System32\\drivers\\etc\\hosts", WorkDir).Should().BeFalse();
+        RedirectWhitelistNode.IsWithinWorkspace(OutsidePath, WorkDir).Should().BeFalse();
     }
 
     [Fact]

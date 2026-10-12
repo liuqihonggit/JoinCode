@@ -5,10 +5,10 @@ namespace JoinCode.Hands.Desktop;
 /// </summary>
 [Register(typeof(IEnvironmentAwarenessService), ServiceLifetime.Singleton)]
 public sealed partial class Win32EnvironmentAwarenessService : ServiceEntity, IEnvironmentAwarenessService {
-    private static readonly IntPtr ArrowCursor = CursorNativeMethods.LoadCursor(IntPtr.Zero, CursorNativeMethods.IdcArrow);
-    private static readonly IntPtr WaitCursor = CursorNativeMethods.LoadCursor(IntPtr.Zero, CursorNativeMethods.IdcWait);
-    private static readonly IntPtr AppStartingCursor = CursorNativeMethods.LoadCursor(IntPtr.Zero, CursorNativeMethods.IdcAppstarting);
-    private static readonly IntPtr HelpCursor = CursorNativeMethods.LoadCursor(IntPtr.Zero, CursorNativeMethods.IdcHelp);
+    private static readonly IntPtr ArrowCursor = OperatingSystem.IsWindows() ? CursorNativeMethods.LoadCursor(IntPtr.Zero, CursorNativeMethods.IdcArrow) : IntPtr.Zero;
+    private static readonly IntPtr WaitCursor = OperatingSystem.IsWindows() ? CursorNativeMethods.LoadCursor(IntPtr.Zero, CursorNativeMethods.IdcWait) : IntPtr.Zero;
+    private static readonly IntPtr AppStartingCursor = OperatingSystem.IsWindows() ? CursorNativeMethods.LoadCursor(IntPtr.Zero, CursorNativeMethods.IdcAppstarting) : IntPtr.Zero;
+    private static readonly IntPtr HelpCursor = OperatingSystem.IsWindows() ? CursorNativeMethods.LoadCursor(IntPtr.Zero, CursorNativeMethods.IdcHelp) : IntPtr.Zero;
 
     private static readonly FrozenSet<string> DecisionKeywords = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase, "确认", "保存", "覆盖", "删除", "替换", "是否");

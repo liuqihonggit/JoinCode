@@ -118,6 +118,10 @@ internal static class CiLogAnalyzer {
     internal const string GroupMarker   = "##[group]";
     /// <summary>进程退出码标记</summary>
     internal const string ExitCodeMarker = "Process completed with exit code";
+    /// <summary>.NET native library 加载失败异常</summary>
+    internal const string DllNotFoundMarker = "System.DllNotFoundException";
+    /// <summary>.NET 类型初始化失败异常（静态构造函数抛异常）</summary>
+    internal const string TypeInitMarker = "System.TypeInitializationException";
 
     // === Section 类型常量 ===
 
@@ -148,10 +152,13 @@ internal static class CiLogAnalyzer {
         || line.Contains("was canceled", StringComparison.OrdinalIgnoreCase)
         || line.Contains("Cancelling the job", StringComparison.OrdinalIgnoreCase)
         || line.Contains("exceeded the maximum", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("timed out", StringComparison.OrdinalIgnoreCase);
+        || line.Contains("timed out", StringComparison.OrdinalIgnoreCase)
+        || line.Contains(DllNotFoundMarker, StringComparison.Ordinal)
+        || line.Contains(TypeInitMarker, StringComparison.Ordinal);
 
     /// <summary>错误行分类 — 从错误行内容提取类型,用于摘要统计</summary>
     internal static CiErrorCategory ClassifyError(ReadOnlySpan<char> line) {
+        if (line.Contains(DllNotFoundMarker, StringComparison.Ordinal) || line.Contains(TypeInitMarker, StringComparison.Ordinal)) return CiErrorCategory.RuntimeException;
         if (line.Contains("error CS", StringComparison.OrdinalIgnoreCase)) return CiErrorCategory.CsCompile;
         if (line.Contains("error MSB", StringComparison.OrdinalIgnoreCase) || line.Contains("warning MSB", StringComparison.OrdinalIgnoreCase)) return CiErrorCategory.MsBuild;
         if (line.Contains("[FAIL]", StringComparison.OrdinalIgnoreCase) || line.Contains("  Failed ", StringComparison.OrdinalIgnoreCase)) return CiErrorCategory.TestFailure;
@@ -212,6 +219,8 @@ internal enum CiErrorCategory {
     ProcessExit,
     /// <summary>GitHub Actions 错误 (##[error])</summary>
     ActionsError,
+    /// <summary>.NET 运行时异常 (DllNotFoundException / TypeInitializationException)</summary>
+    RuntimeException,
     /// <summary>其他错误</summary>
     Other,
 }
@@ -227,6 +236,7 @@ internal static class CiErrorCategoryExtensions {
         CiErrorCategory.Timeout      => "超时",
         CiErrorCategory.ProcessExit  => "进程退出",
         CiErrorCategory.ActionsError => "Actions错误",
+        CiErrorCategory.RuntimeException => "运行时异常",
         _                            => "其他",
     };
 }

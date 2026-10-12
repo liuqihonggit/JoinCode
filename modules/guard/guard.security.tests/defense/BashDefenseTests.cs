@@ -16,7 +16,13 @@ public class BashDefenseTests {
 
     public BashDefenseTests() {
         _dangerousCommandNode = new DangerousCommandNode(new CommandDangerClassifier());
-        _bashDefenseService = new BashDefenseService(_dangerousCommandNode, _retainedDeviceNode, _argvHashNode, _redirectWhitelistNode, _strictParseNode);
+        _bashDefenseService = new BashDefenseService(_dangerousCommandNode, _retainedDeviceNode, _argvHashNode, _redirectWhitelistNode, _strictParseNode, new GitPushCiGuardNode(new NoOpCiStatusChecker()));
+    }
+
+    /// <summary>测试用 CI 状态检查器 stub — 始终返回未运行，不拦截 push。</summary>
+    private sealed class NoOpCiStatusChecker : ICiRunStatusChecker {
+        public ValueTask<CiRunStatus> CheckBranchCiStatusAsync(string workingDirectory, string? branch, CancellationToken ct)
+            => ValueTask.FromResult(new CiRunStatus(false, branch ?? "", 0, null));
     }
 
     #region BashDefense 链式构建器基本功能

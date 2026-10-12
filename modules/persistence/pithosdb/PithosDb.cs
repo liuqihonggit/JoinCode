@@ -332,16 +332,17 @@ public sealed class PithosDb : IDisposable
                 return DecodeAndFilter(key, raw, out value);
             }
 
+            var sstCount = 0;
             foreach (var level in _levels)
             foreach (var sstPath in Enumerable.Reverse(level))
             {
+                sstCount++;
                 if (_readerCache[sstPath].TryGet(key, out raw))
                 {
                     if (raw is null) { value = null; return false; } // tombstone
                     return DecodeAndFilter(key, raw, out value);
                 }
             }
-
             value = null;
             return false;
         }
@@ -589,6 +590,32 @@ public sealed class PithosDb : IDisposable
         SignalCompaction();
     }
 
+    /// <summary>
+    /// Unconditionally flushes MemTable to SSTable on shutdown — no threshold check.
+    /// <para>Ensures all in-memory writes survive across process restarts. Without this,
+    /// unflushed data lives only in WAL; if a prior flush deleted/recreated the WAL,
+    /// earlier writes are invisible to the next process.</para>
+    /// </summary>
+    private void FlushForShutdown()
+    {
+        if (_options.InMemory) return;
+        if (_memTable.SizeBytes == 0) return;
+
+        if (_levels.Count == 0) _levels.Add([]);
+
+        string sstPath = Path.Combine(_directory, $"L0_{Guid.NewGuid():N}.sst");
+        SSTableWriter.Write(sstPath, _memTable.GetSortedEntries(), _options.BloomFilterFalsePositiveRate, _options.Compression);
+        _levels[0].Add(sstPath);
+        _readerCache[sstPath] = SSTableReader.Open(sstPath, _blockCache);
+        _memTable.Clear();
+
+        _wal!.Dispose();
+        File.Delete(Path.Combine(_directory, "wal.log"));
+        _wal = WriteAheadLog.Open(Path.Combine(_directory, "wal.log"), _options.WalSyncMode, _options.WalSyncIntervalMs);
+
+        _manifest.Write(_levels);
+    }
+
     private void SignalCompaction()
     {
         if (_options.DisableCompaction) return;
@@ -619,17 +646,20 @@ public sealed class PithosDb : IDisposable
 
     private void RecoverFromWal()
     {
+        var count = 0;
         foreach (var (type, key, value) in WriteAheadLog.Replay(Path.Combine(_directory, "wal.log")))
         {
             if (type == WalEntryType.Put) _memTable.Put(key, value!);
             else _memTable.Delete(key);
+            count++;
         }
     }
 
     private void RecoverSSTables()
     {
         var log = _options.DiagnosticLog;
-        foreach (var path in Directory.GetFiles(_directory, "*.sst"))
+        var sstFiles = Directory.GetFiles(_directory, "*.sst");
+        foreach (var path in sstFiles)
         {
             if (new FileInfo(path).Length == 0)
             {
@@ -950,6 +980,11 @@ public sealed class PithosDb : IDisposable
         _compactionThread?.Join();
         _compactionCts.Dispose();
         _compactionSignal.Dispose();
+
+        // Flush MemTable to SST on shutdown — ensures data survives across processes.
+        // Without this, unflushed MemTable data lives only in WAL; if a prior flush
+        // deleted and recreated the WAL, earlier writes are lost to the next process.
+        FlushForShutdown();
 
         _wal?.Dispose();
         foreach (var reader in _readerCache.Values)

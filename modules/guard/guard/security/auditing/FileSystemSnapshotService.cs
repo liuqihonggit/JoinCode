@@ -43,7 +43,7 @@ public sealed class FileSystemSnapshotService : IFileSystemSnapshotService {
 
     private FrozenDictionary<string, FileSnapshotEntry> CaptureEntries(string directoryPath, CancellationToken ct) {
         var builder = new Dictionary<string, FileSnapshotEntry>(StringComparer.Ordinal);
-        var normalizedDir = directoryPath.Replace('/', '\\').Trim('\\');
+        var normalizedDir = directoryPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
         foreach (var filePath in _fs.EnumerateFiles(directoryPath, "*", SearchOption.AllDirectories)) {
             ct.ThrowIfCancellationRequested();

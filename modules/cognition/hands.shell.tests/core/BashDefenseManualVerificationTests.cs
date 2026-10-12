@@ -14,7 +14,13 @@ public class BashDefenseManualVerificationTests {
 
     public BashDefenseManualVerificationTests() {
         _dangerousNode = new DangerousCommandNode(new CommandDangerClassifier());
-        _service = new BashDefenseService(_dangerousNode, _retainedNode, _argvHashNode, _redirectNode, _strictParseNode);
+        _service = new BashDefenseService(_dangerousNode, _retainedNode, _argvHashNode, _redirectNode, _strictParseNode, new GitPushCiGuardNode(new NoOpCiStatusChecker()));
+    }
+
+    /// <summary>测试用 CI 状态检查器 stub — 始终返回未运行，不拦截 push。</summary>
+    private sealed class NoOpCiStatusChecker : ICiRunStatusChecker {
+        public ValueTask<CiRunStatus> CheckBranchCiStatusAsync(string workingDirectory, string? branch, CancellationToken ct)
+            => ValueTask.FromResult(new CiRunStatus(false, branch ?? "", 0, null));
     }
 
     private static string WorkDir => AppContext.BaseDirectory;

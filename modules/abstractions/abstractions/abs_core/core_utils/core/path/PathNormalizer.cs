@@ -16,27 +16,25 @@ public static class PathNormalizer {
 
     /// <summary>
     /// 获取叶子名(文件/目录名),跨 \ / 分隔符,先去尾分隔符再取
+    /// <para>不依赖 Path.GetFileName — Linux 上 Path.GetFileName 不识别 \ 分隔符</para>
     /// </summary>
     public static string GetLeafName(string path) {
         if (string.IsNullOrWhiteSpace(path))
             return string.Empty;
         var trimmed = path.TrimEnd('/', '\\');
-        return System.IO.Path.GetFileName(trimmed);
+        var lastSep = Math.Max(trimmed.LastIndexOf('/'), trimmed.LastIndexOf('\\'));
+        return lastSep >= 0 ? trimmed[(lastSep + 1)..] : trimmed;
     }
 
     /// <summary>
-    /// 归一化路径:Trim + GetFullPath + 去尾分隔符,异常时回退到 Trim + 去尾分隔符
+    /// 归一化路径:Trim + 统一分隔符为平台分隔符 + 去尾分隔符
+    /// <para>不依赖 Path.GetFullPath — Linux 上 GetFullPath 不识别 \ 分隔符,且会引入工作目录副作用</para>
     /// </summary>
     public static string Normalize(string path) {
         if (string.IsNullOrWhiteSpace(path))
             return string.Empty;
-        try {
-            return System.IO.Path.GetFullPath(path.Trim())
-                .TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
-        } catch (Exception) {
-            return path.Trim()
-                .TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
-        }
+        var sep = System.IO.Path.DirectorySeparatorChar;
+        return path.Trim().Replace('\\', sep).Replace('/', sep).TrimEnd(sep);
     }
 
     /// <summary>

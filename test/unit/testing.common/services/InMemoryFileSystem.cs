@@ -502,7 +502,7 @@ public sealed class InMemoryFileSystem : IFileSystem {
             files = files.Where(f => regex.IsMatch(Path.GetFileName(f.FullPath)));
         }
 
-        return files.Select(f => f.FullPath.Replace('/', '\\'));
+        return files.Select(f => f.FullPath.Replace('/', Path.DirectorySeparatorChar));
     }
 
     /// <inheritdoc />
@@ -532,7 +532,7 @@ public sealed class InMemoryFileSystem : IFileSystem {
             return parent.StartsWith(targetDir + "/", StringComparison.Ordinal) || parent == targetDir;
         });
 
-        return dirs.Select(d => d.Replace('/', '\\'));
+        return dirs.Select(d => d.Replace('/', Path.DirectorySeparatorChar));
     }
 
     /// <inheritdoc />
@@ -594,7 +594,7 @@ public sealed class InMemoryFileSystem : IFileSystem {
     public string? GetParentPath(string path) {
         var normalizedPath = NormalizePath(path);
         var parent = Path.GetDirectoryName(normalizedPath)?.Replace('\\', '/');
-        return string.IsNullOrEmpty(parent) ? null : parent.Replace('/', '\\');
+        return string.IsNullOrEmpty(parent) ? null : parent.Replace('/', Path.DirectorySeparatorChar);
     }
 
     /// <inheritdoc />
@@ -650,17 +650,18 @@ public sealed class InMemoryFileSystem : IFileSystem {
         var normalizedPath = NormalizePath(path);
         if (string.IsNullOrEmpty(normalizedPath)) return;
 
+        var hasLeadingSlash = normalizedPath.StartsWith('/');
         var parts = normalizedPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        var currentPath = string.Empty;
+        var currentPath = hasLeadingSlash ? "/" : string.Empty;
 
         foreach (var part in parts) {
-            currentPath = string.IsNullOrEmpty(currentPath) ? part : $"{currentPath}/{part}";
+            currentPath = currentPath == "/" ? $"/{part}" : (string.IsNullOrEmpty(currentPath) ? part : $"{currentPath}/{part}");
             _directories.GetOrAdd(currentPath, _ => new InMemoryDirectoryEntry { FullPath = currentPath });
         }
     }
 
     private static string NormalizePath(string path)
-        => path?.Replace('\\', '/').Trim('/') ?? string.Empty;
+        => path?.Replace('\\', '/').TrimEnd('/') ?? string.Empty;
 
     // === IFileSystem: Watch ===
 

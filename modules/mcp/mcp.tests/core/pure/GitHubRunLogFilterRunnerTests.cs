@@ -294,7 +294,7 @@ public sealed class GitHubRunLogFilterRunnerTests {
         text.Should().Contain("--> line 2");
         text.Should().NotContain("--> line 3");
         text.Should().Contain("续读");
-        text.Should().Contain("skip_lines=2");
+        text.Should().Contain("start_line=3");
     }
 
     [Fact]

@@ -109,6 +109,7 @@ public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, 
             .Then(_bashDefenseService.StrictParse)
             .Then(_bashDefenseService.CheckRetainedDevice)
             .Then(_bashDefenseService.CheckRedirectWhitelist)
+            .Then(_bashDefenseService.CheckGitPushCiGuard)
             .Then(_bashDefenseService.RequireArgvHash)
             .ExecuteAsync(ct)
             .ConfigureAwait(false);

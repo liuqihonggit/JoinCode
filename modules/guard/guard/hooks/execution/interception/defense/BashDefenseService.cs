@@ -27,6 +27,7 @@ public sealed class BashDefenseService {
     private readonly ArgvHashNode _argvHashNode;
     private readonly RedirectWhitelistNode _redirectWhitelistNode;
     private readonly StrictParseNode _strictParseNode;
+    private readonly GitPushCiGuardNode _gitPushCiGuardNode;
 
     /// <summary>
     /// 构造 Bash 防御服务
@@ -36,17 +37,20 @@ public sealed class BashDefenseService {
     /// <param name="argvHashNode">argv hash 校验 node</param>
     /// <param name="redirectWhitelistNode">重定向白名单 node</param>
     /// <param name="strictParseNode">严格解析检测 node</param>
+    /// <param name="gitPushCiGuardNode">git push CI 守卫 node（push 前查 CI 是否在跑）</param>
     public BashDefenseService(
         DangerousCommandNode dangerousCommandNode,
         RetainedDeviceNode retainedDeviceNode,
         ArgvHashNode argvHashNode,
         RedirectWhitelistNode redirectWhitelistNode,
-        StrictParseNode strictParseNode) {
+        StrictParseNode strictParseNode,
+        GitPushCiGuardNode gitPushCiGuardNode) {
         _dangerousCommandNode = dangerousCommandNode ?? throw new ArgumentNullException(nameof(dangerousCommandNode));
         _retainedDeviceNode = retainedDeviceNode ?? throw new ArgumentNullException(nameof(retainedDeviceNode));
         _argvHashNode = argvHashNode ?? throw new ArgumentNullException(nameof(argvHashNode));
         _redirectWhitelistNode = redirectWhitelistNode ?? throw new ArgumentNullException(nameof(redirectWhitelistNode));
         _strictParseNode = strictParseNode ?? throw new ArgumentNullException(nameof(strictParseNode));
+        _gitPushCiGuardNode = gitPushCiGuardNode ?? throw new ArgumentNullException(nameof(gitPushCiGuardNode));
     }
 
     /// <summary>
@@ -185,6 +189,24 @@ public sealed class BashDefenseService {
             ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
     }
 
+    /// <summary>
+    /// git push CI 守卫 — 委托 <see cref="GitPushCiGuardNode"/>，检测 git push 时对应分支 CI 是否 in_progress。
+    /// <para>
+    /// 动机：cancel-in-progress: true 会取消正在跑的 CI run。AI 在 CI 运行期间 push 会浪费之前的运行时间。
+    /// 拦截后提示 AI 请求用户确认，而非自动放行。
+    /// </para>
+    /// </summary>
+    /// <param name="ctx">Bash 防御上下文</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>拒绝诊断；通过时返回 null</returns>
+    public async ValueTask<ToolResult?> CheckGitPushCiGuard(BashDefenseContext ctx, CancellationToken ct) {
+        var result = await _gitPushCiGuardNode.CheckGitPushAsync(ctx.CurrentCommand, ctx.WorkingDirectory, ct).ConfigureAwait(false);
+        if (result is null) return null;
+
+        var diag = BuildGitPushCiRunningDiagnostic(result);
+        return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+    }
+
     // ════════════════════════════════════════════════════════════════════
     //  诊断模板构建（封死替代路径 + MTP 扰动提示）
     // ════════════════════════════════════════════════════════════════════
@@ -206,6 +228,23 @@ public sealed class BashDefenseService {
             $"\n⚠️ 疑似 MTP 扰动：建议丢弃当前命令，完整重新生成，不要在错误字符串上局部修补",
             "风险类型", classification.RiskType.ToString(),
             "命令被分类为 Dangerous 级，直接拒绝。请移除危险参数或使用安全等价命令。");
+
+    /// <summary>
+    /// 构建 git push CI 在跑拒绝诊断 — 提示 AI 请求用户确认，而非自动 push。
+    /// </summary>
+    /// <param name="result">CI 守卫结果（分支+run 数量）</param>
+    /// <returns>拒绝诊断</returns>
+    private static ToolDiagnostic BuildGitPushCiRunningDiagnostic(GitPushCiGuardResult result)
+        => ToolDiagnostic.Create(
+            "JCC9009",
+            $"git push 被拦截 — 分支 '{result.Branch}' 有 {result.RunCount} 个 CI run 正在进行中。" +
+            $"\n仓库 ci.yml 配置了 cancel-in-progress: true，push 新 commit 会取消正在跑的 CI run，浪费之前的运行时间。" +
+            (result.RunUrl is not null ? $"\n\n最新 run: {result.RunUrl}" : "") +
+            $"\n\n✅ 推荐做法：等 CI 跑完后再 push，或用 gh run view 查看进度" +
+            $"\n✅ 确认 push：如果确需强制 push，请请求用户确认（用户明确说可以 push 才继续）" +
+            $"\n⚠️ 禁止自动 push：CI 运行期间 push 会导致 run 被取消",
+            "分支", result.Branch,
+            "git push 被拦截：CI 正在运行。请等 CI 跑完或请求用户确认后再 push。");
 
     /// <summary>
     /// 构建保留设备名拒绝诊断 — 封死替代路径 + 提示 MTP 扰动重生成。

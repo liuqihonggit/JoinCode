@@ -37,7 +37,7 @@ internal static class GitHubRunLogHints {
     /// </summary>
     public const string TruncatedHint =
         "\n\n💡 日志已截断，缩小范围:\n" +
-        "- skip_lines=N → 续读后续行(截断提示中有具体值)\n" +
+        "- start_line=N → 续读后续行(1-indexed,截断提示中有具体值)\n" +
         "- filter=error → 只看错误行\n" +
         "- 增大 max_lines → 看更多行";
 
@@ -54,7 +54,7 @@ internal static class GitHubRunLogHints {
         "\n\n💡 日志量大时建议:\n" +
         "- expand=steps → 按步骤展开\n" +
         "- filter=error → 只看错误行\n" +
-        "- skip_lines=N → 分页续读";
+        "- start_line=N → 分页续读(1-indexed)";
 
     /// <summary>
     /// 缺少栈帧信息提示 — CI 只报 "Process completed with exit code 1" 但无栈帧,引导 AI 按顺序排错

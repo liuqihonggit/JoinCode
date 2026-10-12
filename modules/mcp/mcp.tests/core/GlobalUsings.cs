@@ -35,7 +35,6 @@ global using System.Net.Http.Headers;
 global using System.Net.Sockets;
 global using System.Net.WebSockets;
 global using System.Reflection;
-global using System.Runtime.Caching;
 global using System.Runtime.CompilerServices;
 global using System.Security.Cryptography;
 global using System.Text;

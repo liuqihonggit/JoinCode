@@ -20,11 +20,17 @@ public sealed class GitCommitGuardTests {
     [InlineData("  git commit -m x")]
     [InlineData("git commit --amend")]
     [InlineData("\"git\" commit -m x")]
-    [InlineData("\"C:\\Program Files\\Git\\bin\\git.exe\" commit -m x")]
     public void CanHandle_GitCommitCommand_ReturnsTrue(string command) {
         var guard = new GitCommitGuard();
 
         guard.CanHandle(command, EmptyContext).Should().BeTrue();
+    }
+
+    [SkippableFact]
+    public void CanHandle_GitCommitCommand_WithWindowsFullPath_ReturnsTrue() {
+        Skip.IfNot(OperatingSystem.IsWindows(), "Windows 完整路径格式");
+        var guard = new GitCommitGuard();
+        guard.CanHandle("\"C:\\Program Files\\Git\\bin\\git.exe\" commit -m x", EmptyContext).Should().BeTrue();
     }
 
     // === CanHandle 不命中 ===

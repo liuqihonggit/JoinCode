@@ -13,8 +13,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <AvaloniaResource Include="Assets\**" Exclude="Assets\*.xshd" />
-    <EmbeddedResource Include="Assets\ChatHighlighting.xshd" />
+    <AvaloniaResource Include="assets\**" Exclude="assets\*.xshd" />
+    <EmbeddedResource Include="assets\ChatHighlighting.xshd" />
     <EmbeddedResource Include="theming\Appearance.json" LogicalName="JoinCode.Gui.Appearance.json" />
   </ItemGroup>
 

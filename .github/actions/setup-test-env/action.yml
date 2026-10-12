@@ -55,6 +55,11 @@ runs:
         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
         [Console]::InputEncoding = [System.Text.Encoding]::UTF8
 
+    - name: Install Linux Dependencies for SkiaSharp
+      if: runner.os == 'Linux'
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y libfontconfig1
+
     - name: Download E2E Exes (for E2E)
       if: inputs.build-e2e-exes == 'true'
       uses: actions/download-artifact@v8

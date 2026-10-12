@@ -106,7 +106,10 @@ public static class PdfPageRenderer {
     public static bool IsAvailable() {
         try {
             _ = DocLib.Instance;
-            using var probe = new SKBitmap(1, 1, SKColorType.Bgra8888, SKAlphaType.Premul);
+            using var probeBmp = new SKBitmap(1, 1, SKColorType.Bgra8888, SKAlphaType.Premul);
+            using var probeImg = SKImage.FromBitmap(probeBmp);
+            using var probeData = probeImg.Encode(SKEncodedImageFormat.Jpeg, 1);
+            _ = probeData.ToArray();
             return true;
         } catch {
             return false;

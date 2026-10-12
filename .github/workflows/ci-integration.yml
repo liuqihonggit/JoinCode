@@ -57,19 +57,27 @@ jobs:
         with:
           submodules: recursive
       - uses: ./.github/actions/setup-test-env
+      - name: Build and set execute permission
+        shell: bash
+        run: |
+          dotnet build build/sln/JoinCode.slnx \
+            -c Debug --nologo \
+            -p:UsePackedComponents=true \
+            -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
+          find artifacts/bin/ -type f -name '*.exe' -exec chmod +x {} + 2>/dev/null || true
       - name: Integration Tests
         shell: bash
         run: |
           set -e
           dotnet test build/sln/JoinCode.slnx \
-            -c Debug --nologo \
+            -c Debug --nologo --no-build \
             -p:UsePackedComponents=true \
             -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
             --filter "Category=Integration&(FullyQualifiedName~Brain|FullyQualifiedName~Clock)" \
             --logger "console;verbosity=normal" \
             --logger "trx;LogFileName=integration-brain-clock.trx"
           dotnet test build/sln/JoinCode.slnx \
-            -c Debug --nologo \
+            -c Debug --nologo --no-build \
             -p:UsePackedComponents=true \
             -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
             --filter "Category=Integration&(FullyQualifiedName~Guard|FullyQualifiedName~Vault)" \

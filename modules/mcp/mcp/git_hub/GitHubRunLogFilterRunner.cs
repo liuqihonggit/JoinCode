@@ -82,65 +82,19 @@ internal sealed class GitHubRunLogFilterRunner {
     }
 
     /// <summary>
-    /// 获取失败 job ID 列表 — 优先命中 LSM 缓存(key=gh:jobs:{runId}),未命中则调 API 并缓存
+    /// 获取失败 job ID 列表 — 委托给 GetOrFetchJobsAsync 共享缓存(key=gh:jobs:full:{runId}),单次 API 调用
     /// <para>已完成 run 的 job 列表不可变,可安全缓存;wantRefresh=true 跳过缓存读(仍写缓存)</para>
     /// </summary>
     private async Task<List<long>> GetOrFetchFailedJobIdsAsync(string owner, string repo, string runId, bool wantRefresh, CancellationToken ct) {
-        var jobsCacheKey = Encoding.UTF8.GetBytes($"gh:jobs:{runId}");
-        var timer = GhTimingTracker.CurrentTimer.Value;
-
-        if (!wantRefresh && _kvStore is not null) {
-            var tRead = Stopwatch.GetTimestamp();
-            var cached = await _kvStore.GetWithTtlAndRenewAsync(jobsCacheKey, CacheTtl, ct).ConfigureAwait(false);
-            timer?.AddLsmRead(Stopwatch.GetTimestamp() - tRead);
-            if (cached is not null) {
-                timer?.RecordHit();
-                return ParseCachedJobIds(cached);
-            }
+        var jobs = await GetOrFetchJobsAsync(owner, repo, runId, wantRefresh, ct).ConfigureAwait(false);
+        var failedJobIds = new List<long>(jobs.Count);
+        foreach (var job in jobs) {
+            if (job.Id == 0) continue;
+            var severity = CiJobSeverityExtensions.FromConclusion(job.Conclusion, job.Status);
+            if (severity.IsAnomaly())
+                failedJobIds.Add(job.Id);
         }
-        timer?.RecordMiss();
-
-        var tNet = Stopwatch.GetTimestamp();
-        var jobsResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
-        timer?.AddNetwork(Stopwatch.GetTimestamp() - tNet);
-        if (!jobsResult.Success) return [];
-
-        List<long> failedJobIds;
-        try {
-            var tParse = Stopwatch.GetTimestamp();
-            var jobsResp = JsonSerializer.Deserialize(jobsResult.Body, GitHubApiJsonContext.Safe.RunJobListResponse);
-            if (jobsResp?.Jobs is null) return [];
-            failedJobIds = [];
-            foreach (var job in jobsResp.Jobs) {
-                if (job.Id == 0) continue;
-                var severity = CiJobSeverityExtensions.FromConclusion(job.Conclusion, job.Status);
-                if (severity.IsAnomaly())
-                    failedJobIds.Add(job.Id);
-            }
-            timer?.AddParse(Stopwatch.GetTimestamp() - tParse);
-        } catch {
-            return [];
-        }
-
-        if (_kvStore is not null && failedJobIds.Count > 0) {
-            var text = string.Join(',', failedJobIds);
-            var bytes = Encoding.UTF8.GetBytes(text);
-            var tWrite = Stopwatch.GetTimestamp();
-            await _kvStore.PutWithTtlAsync(jobsCacheKey, bytes, CacheTtl, ct).ConfigureAwait(false);
-            timer?.AddLsmWrite(Stopwatch.GetTimestamp() - tWrite);
-        }
-
         return failedJobIds;
-    }
-
-    /// <summary>解析缓存的 job ID 列表(逗号分隔)</summary>
-    private static List<long> ParseCachedJobIds(byte[] cached) {
-        var text = Encoding.UTF8.GetString(cached);
-        var result = new List<long>();
-        foreach (var part in text.Split(',')) {
-            if (long.TryParse(part, out var id)) result.Add(id);
-        }
-        return result;
     }
 
     /// <summary>
@@ -564,8 +518,11 @@ internal sealed class GitHubRunLogFilterRunner {
 
         // 优化B: expand=failed 无 filter 时智能定位错误行,不从 runner setup 从头开始
         // 优化C: filter=error 也走智能定位(首屏即见真正错误行),但无错误行时不回退 tail(返回空→"未匹配到任何日志行")
-        if ((failedOnly && markers is null) || (markers is not null && markers.Contains(CiLogAnalyzer.ErrorMarker))) {
-            var fallbackOnNoError = failedOnly && markers is null;
+        // 优化E: 指定 jobId + 无 filter 时也走智能定位(expand=failed 按 job 分组,避免从头输出 setup 行)
+        var smartStartNoFilter = markers is null && (failedOnly || !string.IsNullOrWhiteSpace(jobId));
+        var smartStartWithErrorFilter = markers is not null && markers.Contains(CiLogAnalyzer.ErrorMarker);
+        if (smartStartNoFilter || smartStartWithErrorFilter) {
+            var fallbackOnNoError = smartStartNoFilter;
             matched = await CollectWithSmartStartAsync(logLines, maxLines, skipLines, fallbackOnNoError, ct).ConfigureAwait(false);
         } else {
             await foreach (var line in logLines.ConfigureAwait(false)) {

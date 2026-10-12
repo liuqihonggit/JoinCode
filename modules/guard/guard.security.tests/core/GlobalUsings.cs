@@ -26,6 +26,7 @@ global using FluentAssertions;
 global using System.Collections.Immutable;
 global using Infrastructure.Localization;
 global using Infrastructure.Pipeline;
+global using Infrastructure.Shell;
 global using IO.FileSystem;
 global using JoinCode.Abstractions.ChatCommands;
 global using JoinCode.Abstractions.Configuration;

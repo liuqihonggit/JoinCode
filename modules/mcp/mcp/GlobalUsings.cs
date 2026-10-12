@@ -4,6 +4,7 @@ global using Infrastructure.Http;
 global using Infrastructure.IO.Services.FileOps;
 global using Infrastructure.Network.Downloader;
 global using Infrastructure.Pipeline;
+global using Infrastructure.Shell;
 global using Infrastructure.Utils.Cpu;
 global using Infrastructure.Utils.IO;
 global using Infrastructure.Utils.Resilience;

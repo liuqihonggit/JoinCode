@@ -13,6 +13,15 @@ internal sealed class GitHubRunLogFilterRunner {
     internal static readonly TimeSpan CacheTtl = TimeSpan.FromDays(7);
 
     /// <summary>
+    /// 并行下载并发限制 — 从环境变量 JCC_GH_MAX_CONCURRENCY 读取,默认 16
+    /// <para>用户可通过环境变量调整并发度,如 JCC_GH_MAX_CONCURRENCY=32</para>
+    /// </summary>
+    internal static int GetMaxConcurrency() {
+        var env = Environment.GetEnvironmentVariable("JCC_GH_MAX_CONCURRENCY");
+        return int.TryParse(env, out var n) && n > 0 ? n : 16;
+    }
+
+    /// <summary>
     /// 构造日志过滤运行器,注入 GitHub API 客户端(非 null)+可选 KV 缓存(LSM-Tree)
     /// </summary>
     /// <param name="apiClient">GitHub API 客户端(非 null)。</param>
@@ -39,12 +48,14 @@ internal sealed class GitHubRunLogFilterRunner {
     /// <para>架构统一: 所有日志消费方(StreamAndFilter/FilterByRegex/FilterFailed)都通过此入口获取日志流</para>
     /// </summary>
     public IAsyncEnumerable<string> GetLogStreamAsync(
-        string owner, string repo, string runId, string? jobId, bool failedOnly, bool wantRefresh, CancellationToken ct) {
+        string owner, string repo, string runId, string? jobId, bool failedOnly, bool wantRefresh, CancellationToken ct,
+        int maxConcurrency = 0) {
+        if (maxConcurrency <= 0) maxConcurrency = GetMaxConcurrency();
         if (failedOnly)
-            return GetFailedJobLogsAsync(owner, repo, runId, wantRefresh, ct);
+            return GetFailedJobLogsAsync(owner, repo, runId, wantRefresh, ct, maxConcurrency);
         if (!string.IsNullOrWhiteSpace(jobId)) {
             var jobIds = GitHubRunLogFilter.ParseJobIds(jobId);
-            return DownloadJobsParallelAsync(owner, repo, runId, jobIds, wantRefresh, ct);
+            return DownloadJobsParallelAsync(owner, repo, runId, jobIds, wantRefresh, ct, maxConcurrency);
         }
         return GetOrFetchRunLogsAsync(owner, repo, runId, wantRefresh, ct);
     }
@@ -57,11 +68,12 @@ internal sealed class GitHubRunLogFilterRunner {
     /// </summary>
     public async IAsyncEnumerable<string> GetFailedJobLogsAsync(
         string owner, string repo, string runId, bool wantRefresh,
-        [EnumeratorCancellation] CancellationToken ct) {
+        [EnumeratorCancellation] CancellationToken ct, int maxConcurrency = 0) {
+        if (maxConcurrency <= 0) maxConcurrency = GetMaxConcurrency();
         var failedJobIds = await GetOrFetchFailedJobIdsAsync(owner, repo, runId, wantRefresh, ct).ConfigureAwait(false);
         if (failedJobIds.Count == 0) yield break;
 
-        await foreach (var line in DownloadJobsParallelAsync(owner, repo, runId, failedJobIds, wantRefresh, ct).ConfigureAwait(false)) {
+        await foreach (var line in DownloadJobsParallelAsync(owner, repo, runId, failedJobIds, wantRefresh, ct, maxConcurrency).ConfigureAwait(false)) {
             yield return line;
         }
     }
@@ -137,7 +149,8 @@ internal sealed class GitHubRunLogFilterRunner {
     /// </summary>
     public async IAsyncEnumerable<string> DownloadJobsParallelAsync(
         string owner, string repo, string runId, IReadOnlyList<long> jobIds, bool wantRefresh,
-        [EnumeratorCancellation] CancellationToken ct) {
+        [EnumeratorCancellation] CancellationToken ct, int maxConcurrency = 0) {
+        if (maxConcurrency <= 0) maxConcurrency = GetMaxConcurrency();
         if (jobIds.Count == 0) yield break;
 
         // 单 job: 走缓存(避免 Channel 开销)
@@ -149,10 +162,10 @@ internal sealed class GitHubRunLogFilterRunner {
         }
 
         // 多 job: Channel 并行合并(Actor 邮箱模型),每个 job 走缓存
-        // 并发限制 8,避免 GitHub API 二级限速(对齐旧系统 TryDownloadJobsAsync)
+        // 并发限制参数化,避免 GitHub API 二级限速(对齐旧系统 TryDownloadJobsAsync)
         var channel = Channel.CreateUnbounded<string>();
         var writer = channel.Writer;
-        using var semaphore = new SemaphoreSlim(8);
+        using var semaphore = new SemaphoreSlim(maxConcurrency);
 
         var tasks = jobIds.Select(async jobId => {
             await semaphore.WaitAsync(ct).ConfigureAwait(false);
@@ -370,6 +383,88 @@ internal sealed class GitHubRunLogFilterRunner {
         failures = DeduplicateFailures(failures);
 
         return FormatFailuresRustStyle(failures, maxLines, skipLines, runId);
+    }
+
+    /// <summary>
+    /// 并行提取多个 job 的失败测试信息 — Channel 流水线模型,下载+解析重叠
+    /// <para>生产者: SemaphoreSlim 控制并发下载+解析,完成即推 channel</para>
+    /// <para>消费者: 流式收集结果到 Dictionary,不等所有 job 完成</para>
+    /// <para>计时: 返回 per-job 耗时(ms),供调用方诊断瓶颈(下载慢 vs 解析慢)</para>
+    /// </summary>
+    internal async Task<(Dictionary<long, List<TestFailureInfo>> results, string timing)> ExtractFailuresForJobsAsync(
+        string owner, string repo, string runId, IReadOnlyList<long> jobIds,
+        int maxConcurrency, bool wantRefresh, CancellationToken ct) {
+        if (jobIds.Count == 0) return (new(), "");
+
+        using var semaphore = new SemaphoreSlim(maxConcurrency);
+        var channel = Channel.CreateUnbounded<(long jobId, List<TestFailureInfo> failures, long elapsedMs)>();
+        var writer = channel.Writer;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
+        // 生产者: 并行下载+解析,完成即推 channel(流水线: 下载完一个就推,不等其他)
+        var producerTasks = jobIds.Select(async jobId => {
+            await semaphore.WaitAsync(ct).ConfigureAwait(false);
+            try {
+                var jobSw = System.Diagnostics.Stopwatch.StartNew();
+                var failures = await ExtractFailuresForJobAsync(
+                    owner, repo, runId, jobId, wantRefresh, ct).ConfigureAwait(false);
+                jobSw.Stop();
+                await writer.WriteAsync((jobId, failures, jobSw.ElapsedMilliseconds), ct).ConfigureAwait(false);
+            } catch (OperationCanceledException) {
+                // 取消: 静默退出
+            } catch (Exception) {
+                await writer.WriteAsync((jobId, new List<TestFailureInfo>(), -1), CancellationToken.None).ConfigureAwait(false);
+            } finally {
+                semaphore.Release();
+            }
+        }).ToArray();
+
+        // 后台等待所有生产者完成后关闭 channel
+        _ = Task.Run(async () => {
+            try { await Task.WhenAll(producerTasks).ConfigureAwait(false); }
+            finally { writer.TryComplete(); }
+        });
+
+        // 消费者: 流式收集结果(一个 job 完成就立即入库,不等其他)
+        var results = new Dictionary<long, List<TestFailureInfo>>(jobIds.Count);
+        var timingSb = new StringBuilder();
+        var maxMs = 0L;
+        var slowJobs = new List<(long jobId, long ms)>();
+
+        await foreach (var (jobId, failures, elapsedMs) in channel.Reader.ReadAllAsync(ct).ConfigureAwait(false)) {
+            results[jobId] = failures;
+            if (elapsedMs > maxMs) maxMs = elapsedMs;
+            if (elapsedMs > 5000) slowJobs.Add((jobId, elapsedMs));
+            timingSb.Append($"job {jobId}: {elapsedMs}ms, ");
+        }
+
+        sw.Stop();
+        timingSb.Append($"\n总耗时 {sw.ElapsedMilliseconds}ms, 并发 {maxConcurrency}, 最慢 job {maxMs}ms");
+        if (slowJobs.Count > 0)
+            timingSb.Append($", 慢 job(>5s): {string.Join(", ", slowJobs.Select(s => $"{s.jobId}={s.ms}ms"))}");
+
+        return (results, timingSb.ToString());
+    }
+
+    /// <summary>
+    /// 提取指定 job 的失败测试信息 — 返回结构化 TestFailureInfo 列表(供 expand=failures 聚合)
+    /// <para>复用 ProcessLogLine 状态机,对单个 job 日志提取 Failed+Error+StackTrace</para>
+    /// </summary>
+    internal async Task<List<TestFailureInfo>> ExtractFailuresForJobAsync(
+        string owner, string repo, string runId, long jobId, bool wantRefresh, CancellationToken ct) {
+        var failures = new List<TestFailureInfo>();
+        TestFailureInfo? current = null;
+        var state = LogParseState.Normal;
+        var lineNumber = 0;
+
+        var logLines = GetLogStreamAsync(owner, repo, runId, jobId.ToString(), false, wantRefresh, ct);
+        await foreach (var line in logLines.ConfigureAwait(false)) {
+            lineNumber++;
+            var content = GitHubRunLogText.StripLogTimestamp(line);
+            ProcessLogLine(content, lineNumber, ref state, ref current, failures);
+        }
+
+        return DeduplicateFailures(failures);
     }
 
 

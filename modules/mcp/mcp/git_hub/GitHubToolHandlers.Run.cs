@@ -78,7 +78,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("最大日志行数(默认 200)", Required = false)] int? max_lines = null,
         [McpToolParameter("跳过前 N 行(用于续读截断日志,默认 0)", Required = false)] int? skip_lines = null,
         [McpToolParameter("从第 N 行开始(1-indexed,等价 skip_lines=N-1,用于行号定位跳转)", Required = false)] int? start_line = null,
-        [McpToolParameter("按步骤展开: jobs=列出job列表, steps=按job_id下载日志后列出步骤, failed=只拉失败步骤, step:Name=只拉指定步骤", Required = false)] string? expand = null,
+        [McpToolParameter("按步骤展开: jobs=列出job列表, steps=按job_id下载日志后列出步骤, failed=只拉失败步骤, failures=跨所有失败job批量提取测试名+错误+栈帧, step:Name=只拉指定步骤", Required = false)] string? expand = null,
         [McpToolParameter("日志过滤级别(error/warning/info/all/failed,默认 all=不过滤;failed=智能提取测试失败+Rust风格输出)", Required = false)] string? filter = null,
         [McpToolParameter("强制刷新缓存(默认 false,rerun 后用 true 避免脏数据)", Required = false)] bool? refresh = null,
         [McpToolParameter("web=true 只返回 Run 浏览器 URL", Required = false)] bool? web = null,
@@ -339,6 +339,11 @@ public partial class GitHubToolHandlers {
             return Ok(summary + "\n\n" + logText);
         }
 
+        // === expand=failures: 跨所有失败 job 批量提取失败测试详情(测试名+错误+栈帧,一站式) ===
+        if (string.Equals(opts.Expand, "failures", StringComparison.OrdinalIgnoreCase)) {
+            return await ExtractAllFailuresAsync(repo, target.RunId, maxLines, skip, wantRefresh, repo.Ct).ConfigureAwait(false);
+        }
+
         // === expand=steps 或 expand=step:Name: 两级缓存(ADR 0067) ===
         var expandStep = opts.Expand?.StartsWith("step:", StringComparison.OrdinalIgnoreCase) == true
             ? opts.Expand[5..].Trim()
@@ -405,6 +410,82 @@ public partial class GitHubToolHandlers {
         } catch (InvalidOperationException) {
             return null;
         }
+    }
+
+    /// <summary>
+    /// expand=failures: 跨所有失败 job 并行提取失败测试详情(测试名+错误消息+栈帧)
+    /// <para>一站式排障: 不需要先 expand=jobs → expand=steps → section:error 三步</para>
+    /// <para>并行下载委托给 ExtractFailuresForJobsAsync(maxConcurrency=8),handler 只格式化输出</para>
+    /// </summary>
+    private async Task<ToolResult> ExtractAllFailuresAsync(
+        GhRepoCtx repo, string runId, int maxLines, int skip, bool wantRefresh, CancellationToken ct) {
+        var jobsResult = await repo.Client.SendAsync(
+            HttpMethod.Get, $"repos/{repo.Owner}/{repo.Repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
+        if (!jobsResult.Success) return Fail(jobsResult.Error);
+        var jobsResp = JsonSerializer.Deserialize(jobsResult.Body, GitHubApiJsonContext.Safe.RunJobListResponse);
+        if (jobsResp is null) return Fail("解析 job 列表失败");
+
+        var failedJobs = jobsResp.Jobs
+            .Where(j => j.Conclusion is "failure" or "timed_out" or "cancelled")
+            .ToList();
+
+        if (failedJobs.Count == 0) return Ok("没有失败 job。", $"Run {runId} 失败汇总(0 job)");
+
+        // 并行提取所有失败 job 的测试失败信息(委托给底层统一并行基建)
+        var jobIds = failedJobs.Select(j => j.Id).ToArray();
+        var (failuresByJob, timing) = await LogFilterRunner.ExtractFailuresForJobsAsync(
+            repo.Owner, repo.Repo, runId, jobIds, GitHubRunLogFilterRunner.GetMaxConcurrency(), wantRefresh, ct).ConfigureAwait(false);
+
+        // 格式化输出(按原始 job 顺序)
+        var sb = new StringBuilder();
+        var totalFailures = 0;
+        var shown = 0;
+
+        foreach (var job in failedJobs) {
+            if (shown >= maxLines) break;
+            shown++;
+
+            var failures = failuresByJob[job.Id];
+            var marker = job.Conclusion switch {
+                "failure" => "❌",
+                "timed_out" => "⏱️",
+                "cancelled" => "🚫",
+                _ => "❌"
+            };
+
+            if (failures.Count == 0) {
+                sb.Append($"{marker} {job.Name}  [{job.Conclusion}]\n");
+                sb.Append("  └─ (无测试失败标记,可能是构建错误或 Permission denied)\n\n");
+                continue;
+            }
+
+            totalFailures += failures.Count;
+            sb.Append($"{marker} {job.Name}  ({failures.Count} 个失败测试)\n");
+            foreach (var f in failures) {
+                var testName = GitHubRunLogFilterRunner.TestFailureInfo.ExtractTestName(f.TestLine);
+                sb.Append($"  └─ {testName ?? f.TestLine.Trim()}\n");
+                if (f.ErrorMessageLines.Count > 0) {
+                    sb.Append($"     错误: {f.ErrorMessageLines[0]}\n");
+                }
+                if (f.StackTraceLines.Count > 0) {
+                    var firstStack = f.StackTraceLines[0].Trim();
+                    if (!string.IsNullOrEmpty(firstStack))
+                        sb.Append($"     栈帧: {firstStack}\n");
+                }
+                sb.Append('\n');
+            }
+        }
+
+        if (shown < failedJobs.Count)
+            sb.Append($"\n... [共 {failedJobs.Count} 个失败 job,显示前 {shown} 个,用 max_lines={maxLines + 50} 查看更多]\n");
+
+        sb.Append($"\n⏱️ 计时: {timing}\n");
+        sb.Append($"\n💡 排障命令:\n");
+        sb.Append($"  jcc gh run view {runId} --expand steps job_id=<job_id>  # 查看指定 job 步骤\n");
+        sb.Append($"  jcc gh run view {runId} --filter failed job_id=<job_id>  # 查看指定 job 失败测试\n");
+
+        var prefix = $"Run {runId} 失败汇总({failedJobs.Count} job, {totalFailures} 失败测试)";
+        return Ok(sb.ToString(), prefix);
     }
 
     /// <summary>

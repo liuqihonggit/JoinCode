@@ -76,6 +76,7 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("Job ID(可选,支持逗号分隔多个并行下载,如 123 或 123,456)", Required = false)] string? job_id = null,
         [McpToolParameter("是否拉取日志(默认 false,仅看详情)", Required = false)] bool? log = null,
         [McpToolParameter("最大日志行数(默认 200)", Required = false)] int? max_lines = null,
+        [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("跳过前 N 行(用于续读截断日志,默认 0)", Required = false)] int? skip_lines = null,
         [McpToolParameter("从第 N 行开始(1-indexed,等价 skip_lines=N-1,用于行号定位跳转)", Required = false)] int? start_line = null,
         [McpToolParameter("按步骤展开: jobs=列出job列表, steps=按job_id下载日志后列出步骤, failed=只拉失败步骤, failures=跨所有失败job批量提取测试名+错误+栈帧, step:Name=只拉指定步骤", Required = false)] string? expand = null,
@@ -123,7 +124,7 @@ public partial class GitHubToolHandlers {
             return await GhRunViewCoreAsync(
                 new GhRepoCtx { Client = client, Owner = owner, Repo = repoName, Ct = cancellationToken },
                 new GhRunTarget { RunId = resolvedRunId!, JobId = job_id, Attempt = attempt },
-                new GhLogOpts { Log = log, MaxLines = max_lines, SkipLines = start_line.HasValue ? start_line.Value - 1 : skip_lines, Expand = expand, Filter = filter, Refresh = refresh, Verbosity = common?.Verbosity }
+                new GhLogOpts { Log = log, MaxLines = max_lines ?? limit, SkipLines = start_line.HasValue ? start_line.Value - 1 : skip_lines, Expand = expand, Filter = filter, Refresh = refresh, Verbosity = common?.Verbosity }
             ).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
@@ -155,7 +156,7 @@ public partial class GitHubToolHandlers {
         IGitHubApiClient client, string owner, string repoName, string runId, CancellationToken ct) {
         var resolved = await ResolveRunIdAsync(client, owner, repoName, runId, ct).ConfigureAwait(false);
         if (resolved is null)
-            return (null, Fail($"Run '{runId}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列"));
+            return (null, Fail($"Run '{runId}' 不存在。可能原因: ① run id 错误 ② run number 无对应 run ③ 仓库不存在或无权限。提示: 用 gh run list 查看 ID 列(11位数字),非 NUM 列;不传 --repo 时自动从 git remote 推断"));
         return (resolved, null);
     }
 

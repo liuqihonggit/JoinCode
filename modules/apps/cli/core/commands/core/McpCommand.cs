@@ -426,7 +426,7 @@ public sealed class McpCliCommand {
         }
         if ((text[0] == '[' || text[0] == '{') && TryOutputStructuredJson(text, meta))
             return;
-        var strEnvelope = Cli.Output.CliOutputEnvelope<string>.Success(text, meta);
+        var strEnvelope = Cli.Output.CliOutputEnvelope<string>.Success(text.Replace("\r\n", "\n"), meta);
         System.Console.WriteLine(strEnvelope.ToJsonString());
     }
 

@@ -330,9 +330,13 @@ public partial class GitHubToolHandlers {
             return await FilterFailedTestsAsync(repo.Owner, repo.Repo, target.RunId, job_id, maxLines, skip, wantRefresh, repo.Ct).ConfigureAwait(false);
         }
 
-        // === expand=failed: 只拉失败步骤日志(走 LSM 缓存,wantRefresh 可强制刷新) ===
+        // === expand=failed: 前置失败 job 汇总 + 只拉失败步骤日志(走 LSM 缓存,wantRefresh 可强制刷新) ===
         if (string.Equals(opts.Expand, "failed", StringComparison.OrdinalIgnoreCase)) {
-            return await StreamAndFilterAsync(repo.Owner, repo.Repo, target.RunId, job_id, true, "失败步骤", markers, filterLevel, maxLines, repo.Ct, GitHubRunLogHints.FailedHint, skip, wantRefresh).ConfigureAwait(false);
+            var logResult = await StreamAndFilterAsync(repo.Owner, repo.Repo, target.RunId, job_id, true, "失败步骤", markers, filterLevel, maxLines, repo.Ct, GitHubRunLogHints.FailedHint, skip, wantRefresh).ConfigureAwait(false);
+            var summary = await BuildFailedJobsSummaryAsync(repo.Client, repo.Owner, repo.Repo, target.RunId, repo.Ct).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(summary)) return logResult;
+            var logText = logResult.Content.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? "";
+            return Ok(summary + "\n\n" + logText);
         }
 
         // === expand=steps 或 expand=step:Name: 两级缓存(ADR 0067) ===
@@ -369,6 +373,38 @@ public partial class GitHubToolHandlers {
             1 => Ok(FilterJsonFields(detailResult.Body, "id,name,head_branch,head_sha,status,conclusion,run_number,event,created_at,updated_at,html_url,display_title")),
             _ => Ok(GitHubRunViewSummarizer.SummarizeRunView(detailResult.Body))
         };
+    }
+
+    /// <summary>
+    /// 构建失败 job 汇要 — expand=failed 时前置显示,让 AI 一眼看到所有失败 job 而非只看到第一个错误
+    /// <para>避免 AI 只看到第一个 chcp 错误就以为修完了,实际 24 个 job 全失败</para>
+    /// </summary>
+    private async Task<string?> BuildFailedJobsSummaryAsync(IGitHubApiClient client, string owner, string repo, string runId, CancellationToken ct) {
+        try {
+            var jobsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
+            if (!jobsResult.Success) return null;
+            var jobsResp = JsonSerializer.Deserialize(jobsResult.Body, GitHubApiJsonContext.Safe.RunJobListResponse);
+            if (jobsResp is null) return null;
+            var failedJobs = jobsResp.Jobs
+                .Where(j => j.Conclusion is "failure" or "timed_out" or "cancelled")
+                .ToList();
+            if (failedJobs.Count == 0) return null;
+            var sb = new StringBuilder($"⚠️ 失败 job 汇总({failedJobs.Count} 个,先看全貌再修,禁止只修一个就 push):");
+            foreach (var job in failedJobs) {
+                var marker = job.Conclusion switch {
+                    "failure" => "❌",
+                    "timed_out" => "⏱️",
+                    "cancelled" => "🚫",
+                    _ => "❌"
+                };
+                sb.Append($"\n  {marker}  {job.Name}  [{job.Conclusion}]");
+            }
+            return sb.ToString();
+        } catch (JsonException) {
+            return null;
+        } catch (InvalidOperationException) {
+            return null;
+        }
     }
 
     /// <summary>
@@ -1125,5 +1161,83 @@ public partial class GitHubToolHandlers {
         }
 
         return Ok(sb.ToString(), $"CI 告警: {alerts.Count} 条");
+    }
+}
+
+/// <summary>
+/// GitHub CI 运行状态检查器 — 实现 <see cref="ICiRunStatusChecker"/>，查 GitHub Actions in_progress run。
+/// <para>
+/// 流程：解析 git remote(owner/repo) → 获取当前分支(如需) → GET /actions/runs?branch=&amp;status=in_progress
+/// 非GitHub仓库或未配置 API 客户端时返回 IsRunning=false(不拦截)。
+/// </para>
+/// </summary>
+[Register(typeof(ICiRunStatusChecker), ServiceLifetime.Singleton)]
+public sealed class GitHubCiRunStatusChecker : ICiRunStatusChecker {
+    private readonly IGitCommandRunner? _git;
+    private readonly IGitHubApiClient? _apiClient;
+
+    /// <summary>
+    /// 构造 GitHub CI 运行状态检查器。
+    /// </summary>
+    /// <param name="git">git 命令执行器（可选，未注入时不拦截）</param>
+    /// <param name="apiClient">GitHub API 客户端（可选，未注入时不拦截）</param>
+    public GitHubCiRunStatusChecker(IGitCommandRunner? git = null, IGitHubApiClient? apiClient = null) {
+        _git = git;
+        _apiClient = apiClient;
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<CiRunStatus> CheckBranchCiStatusAsync(string workingDirectory, string? branch, CancellationToken ct) {
+        if (_git is not { } git || _apiClient is not { } apiClient)
+            return new CiRunStatus(false, branch ?? "", 0, null);
+
+        var resolvedBranch = await ResolveBranchAsync(git, workingDirectory, branch, ct).ConfigureAwait(false);
+        if (resolvedBranch is null)
+            return new CiRunStatus(false, branch ?? "", 0, null);
+
+        var remoteInfo = await ResolveOwnerRepoAsync(git, workingDirectory, ct).ConfigureAwait(false);
+        if (remoteInfo is null)
+            return new CiRunStatus(false, resolvedBranch, 0, null);
+
+        var (owner, repo) = remoteInfo.Value;
+        return await QueryCiRunsAsync(apiClient, owner, repo, resolvedBranch, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>获取当前分支（branch 为空时用 git rev-parse）。</summary>
+    private static async Task<string?> ResolveBranchAsync(IGitCommandRunner git, string workingDirectory, string? branch, CancellationToken ct) {
+        if (!string.IsNullOrWhiteSpace(branch)) return branch.Trim();
+        var result = await git.ExecuteAsync("rev-parse --abbrev-ref HEAD", workingDirectory, ct).ConfigureAwait(false);
+        if (!result.Success || string.IsNullOrWhiteSpace(result.Output)) return null;
+        var b = result.Output.Trim();
+        return b is "HEAD" or "(no branch)" ? null : b;
+    }
+
+    /// <summary>解析 git remote origin → (owner, repo)。</summary>
+    private static async Task<(string owner, string repo)?> ResolveOwnerRepoAsync(IGitCommandRunner git, string workingDirectory, CancellationToken ct) {
+        var result = await git.ExecuteAsync("remote get-url origin", workingDirectory, ct).ConfigureAwait(false);
+        if (!result.Success || string.IsNullOrWhiteSpace(result.Output)) return null;
+        return GitHubToolHandlers.ParseGitHubRemoteUrl(result.Output.Trim());
+    }
+
+    /// <summary>查 GitHub Actions in_progress run。</summary>
+    private static async ValueTask<CiRunStatus> QueryCiRunsAsync(IGitHubApiClient apiClient, string owner, string repo, string branch, CancellationToken ct) {
+        var query = new Dictionary<string, string> { ["branch"] = branch, ["status"] = "in_progress", ["per_page"] = "1" };
+        var result = await apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs", query: query, ct: ct).ConfigureAwait(false);
+        if (!result.Success || string.IsNullOrWhiteSpace(result.Body))
+            return new CiRunStatus(false, branch, 0, null);
+
+        try {
+            using var doc = JsonDocument.Parse(result.Body);
+            var totalCount = doc.RootElement.TryGetProperty("total_count", out var tc) ? tc.GetInt32() : 0;
+            if (totalCount <= 0)
+                return new CiRunStatus(false, branch, 0, null);
+            string? runUrl = null;
+            if (doc.RootElement.TryGetProperty("workflow_runs", out var runs) && runs.GetArrayLength() > 0
+                && runs[0].TryGetProperty("html_url", out var url))
+                runUrl = url.GetString();
+            return new CiRunStatus(true, branch, totalCount, runUrl);
+        } catch {
+            return new CiRunStatus(false, branch, 0, null);
+        }
     }
 }

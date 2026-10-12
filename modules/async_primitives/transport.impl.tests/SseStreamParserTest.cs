@@ -35,13 +35,13 @@ public class SseStreamParserTest {
         events[0].Data.Should().Be("payload");
     }
 
-    /// <summary>多行 data: 用换行拼接成单个 Data 字符串。</summary>
+    /// <summary>多行 data: 用换行拼接成单个 Data 字符串（SSE 规范: U+000A LF）。</summary>
     [Fact]
     public async Task ParseAsync_MultiLineData_JoinsWithNewline() {
         var events = await ParseAllAsync("data: line1\ndata: line2\ndata: line3\n\n");
 
         events.Should().HaveCount(1);
-        events[0].Data.Should().Be("line1\r\nline2\r\nline3");
+        events[0].Data.Should().Be("line1\nline2\nline3");
     }
 
     /// <summary>空行分隔多个独立事件。</summary>

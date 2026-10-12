@@ -502,7 +502,7 @@ public sealed class InMemoryFileSystem : IFileSystem {
             files = files.Where(f => regex.IsMatch(Path.GetFileName(f.FullPath)));
         }
 
-        return files.Select(f => f.FullPath.Replace('/', '\\'));
+        return files.Select(f => f.FullPath.Replace('/', Path.DirectorySeparatorChar));
     }
 
     /// <inheritdoc />
@@ -532,7 +532,7 @@ public sealed class InMemoryFileSystem : IFileSystem {
             return parent.StartsWith(targetDir + "/", StringComparison.Ordinal) || parent == targetDir;
         });
 
-        return dirs.Select(d => d.Replace('/', '\\'));
+        return dirs.Select(d => d.Replace('/', Path.DirectorySeparatorChar));
     }
 
     /// <inheritdoc />
@@ -594,7 +594,7 @@ public sealed class InMemoryFileSystem : IFileSystem {
     public string? GetParentPath(string path) {
         var normalizedPath = NormalizePath(path);
         var parent = Path.GetDirectoryName(normalizedPath)?.Replace('\\', '/');
-        return string.IsNullOrEmpty(parent) ? null : parent.Replace('/', '\\');
+        return string.IsNullOrEmpty(parent) ? null : parent.Replace('/', Path.DirectorySeparatorChar);
     }
 
     /// <inheritdoc />

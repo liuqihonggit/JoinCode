@@ -4,9 +4,24 @@ namespace Core.Tests.Permission;
 /// PathPermissionChecker 路径段绕过测试 — 验证 IsPathUnderDirectory 路径段边界检查
 /// <para>防护: C:\Projects\MyAppSecret 不应绕过 C:\Projects\MyApp(路径段边界)</para>
 /// <para>防护: /foo/../bar 应被 Path.GetFullPath 解析后再判断</para>
+/// <para>跨平台: 用预处理符号定义平台路径常量,Windows 用 D:\test\,Linux 用 /tmp/test/</para>
 /// </summary>
 public sealed class PathPermissionCheckerBypassTests {
+#if WINDOWS
     private const string WorkingDir = @"D:\test\project";
+    private const string WorkingDirParent = @"D:\test";
+    private const string OtherDriveFile = @"E:\other\file.txt";
+    private const string SiblingFile = @"D:\test\other\file.txt";
+    private const string ExtraDir = @"D:\extra\dir";
+    private const string ExtraDirPrefixFile = @"D:\extra\directory\file.txt";
+#else
+    private const string WorkingDir = @"/tmp/test/project";
+    private const string WorkingDirParent = @"/tmp/test";
+    private const string OtherDriveFile = @"/other/file.txt";
+    private const string SiblingFile = @"/tmp/test/other/file.txt";
+    private const string ExtraDir = @"/extra/dir";
+    private const string ExtraDirPrefixFile = @"/extra/directory/file.txt";
+#endif
 
     #region 辅助构造
 
@@ -27,33 +42,33 @@ public sealed class PathPermissionCheckerBypassTests {
 
     #region 路径段边界 — 相似前缀绕过防护
 
-    /// <summary>D:\test\projectSecret 不应被当作 D:\test\project 的子路径</summary>
+    /// <summary>projectSecret 不应被当作 project 的子路径</summary>
     [Fact]
     public async Task CheckReadPermission_相似前缀绕过_不当作子路径_返回Invalid() {
         await using var sut = CreateSut();
 
-        var result = sut.CheckReadPermission(@"D:\test\projectSecret\file.txt");
+        var result = sut.CheckReadPermission(Path.Combine(WorkingDirParent, "projectSecret", "file.txt"));
 
         result.Decision.Should().Be(PermissionBehavior.Invalid);
         result.Reason.Should().Contain("路径不存在");
     }
 
-    /// <summary>D:\test\projectexact 不应被当作 D:\test\project 的子路径(仅前缀匹配)</summary>
+    /// <summary>projectexact 不应被当作 project 的子路径(仅前缀匹配)</summary>
     [Fact]
     public async Task CheckReadPermission_前缀匹配但非路径段_返回Invalid() {
         await using var sut = CreateSut();
 
-        var result = sut.CheckReadPermission(@"D:\test\projectexact");
+        var result = sut.CheckReadPermission(Path.Combine(WorkingDirParent, "projectexact"));
 
         result.Decision.Should().Be(PermissionBehavior.Invalid);
     }
 
-    /// <summary>大小写不同的路径段边界 — D:\test\PROJECT\file.txt 应 Allow(OrdinalIgnoreCase)</summary>
+    /// <summary>大小写不同的路径段边界 — PROJECT/file.txt 应 Allow(OrdinalIgnoreCase)</summary>
     [Fact]
     public async Task CheckReadPermission_大小写不同路径段_返回Allow() {
         await using var sut = CreateSut();
 
-        var result = sut.CheckReadPermission(@"D:\test\PROJECT\file.txt");
+        var result = sut.CheckReadPermission(Path.Combine(WorkingDirParent, "PROJECT", "file.txt"));
 
         result.Decision.Should().Be(PermissionBehavior.Allow);
     }
@@ -77,7 +92,7 @@ public sealed class PathPermissionCheckerBypassTests {
     public async Task CheckReadPermission_工作目录内子路径_返回Allow() {
         await using var sut = CreateSut();
 
-        var result = sut.CheckReadPermission(@"D:\test\project\file.txt");
+        var result = sut.CheckReadPermission(Path.Combine(WorkingDir, "file.txt"));
 
         result.Decision.Should().Be(PermissionBehavior.Allow);
     }
@@ -87,7 +102,7 @@ public sealed class PathPermissionCheckerBypassTests {
     public async Task CheckReadPermission_工作目录内多层子路径_返回Allow() {
         await using var sut = CreateSut();
 
-        var result = sut.CheckReadPermission(@"D:\test\project\src\sub\file.cs");
+        var result = sut.CheckReadPermission(Path.Combine(WorkingDir, "src", "sub", "file.cs"));
 
         result.Decision.Should().Be(PermissionBehavior.Allow);
     }
@@ -96,42 +111,42 @@ public sealed class PathPermissionCheckerBypassTests {
 
     #region 路径遍历 .. 解析
 
-    /// <summary>D:\test\project\..\other\file.txt 解析为 D:\test\other\file.txt,工作目录外 → Invalid</summary>
+    /// <summary>../other/file.txt 解析后在工作目录外 → Invalid</summary>
     [Fact]
     public async Task CheckReadPermission_父目录遍历_解析后在工作目录外_返回Invalid() {
         await using var sut = CreateSut();
 
-        var result = sut.CheckReadPermission(@"D:\test\project\..\other\file.txt");
+        var result = sut.CheckReadPermission(Path.Combine(WorkingDir, "..", "other", "file.txt"));
 
         result.Decision.Should().Be(PermissionBehavior.Invalid);
     }
 
-    /// <summary>D:\test\project\sub\..\file.txt 解析为 D:\test\project\file.txt,工作目录内 → Allow</summary>
+    /// <summary>sub/../file.txt 解析回工作目录内 → Allow</summary>
     [Fact]
     public async Task CheckReadPermission_子目录遍历回工作目录_返回Allow() {
         await using var sut = CreateSut();
 
-        var result = sut.CheckReadPermission(@"D:\test\project\sub\..\file.txt");
+        var result = sut.CheckReadPermission(Path.Combine(WorkingDir, "sub", "..", "file.txt"));
 
         result.Decision.Should().Be(PermissionBehavior.Allow);
     }
 
-    /// <summary>多层遍历 D:\test\project\..\..\other 解析为 D:\other,工作目录外 → Invalid</summary>
+    /// <summary>../../other 解析后在工作目录外 → Invalid</summary>
     [Fact]
     public async Task CheckReadPermission_多层遍历_解析后在工作目录外_返回Invalid() {
         await using var sut = CreateSut();
 
-        var result = sut.CheckReadPermission(@"D:\test\project\..\..\other\file.txt");
+        var result = sut.CheckReadPermission(Path.Combine(WorkingDir, "..", "..", "other", "file.txt"));
 
         result.Decision.Should().Be(PermissionBehavior.Invalid);
     }
 
-    /// <summary>遍历回工作目录根 D:\test\project\sub\..\..\project\file.txt → D:\test\project\file.txt → Allow</summary>
+    /// <summary>sub/../../project/file.txt 遍历回工作目录 → Allow</summary>
     [Fact]
     public async Task CheckReadPermission_遍历回工作目录_返回Allow() {
         await using var sut = CreateSut();
 
-        var result = sut.CheckReadPermission(@"D:\test\project\sub\..\..\project\file.txt");
+        var result = sut.CheckReadPermission(Path.Combine(WorkingDir, "sub", "..", "..", "project", "file.txt"));
 
         result.Decision.Should().Be(PermissionBehavior.Allow);
     }
@@ -140,12 +155,12 @@ public sealed class PathPermissionCheckerBypassTests {
 
     #region 工作目录外路径
 
-    /// <summary>完全不同的驱动器路径 → Invalid(不存在)</summary>
+    /// <summary>完全不同的驱动器/根路径 → Invalid(不存在)</summary>
     [Fact]
     public async Task CheckReadPermission_不同驱动器_返回Invalid() {
         await using var sut = CreateSut();
 
-        var result = sut.CheckReadPermission(@"E:\other\file.txt");
+        var result = sut.CheckReadPermission(OtherDriveFile);
 
         result.Decision.Should().Be(PermissionBehavior.Invalid);
     }
@@ -155,7 +170,7 @@ public sealed class PathPermissionCheckerBypassTests {
     public async Task CheckReadPermission_同级目录_返回Invalid() {
         await using var sut = CreateSut();
 
-        var result = sut.CheckReadPermission(@"D:\test\other\file.txt");
+        var result = sut.CheckReadPermission(SiblingFile);
 
         result.Decision.Should().Be(PermissionBehavior.Invalid);
     }
@@ -171,9 +186,9 @@ public sealed class PathPermissionCheckerBypassTests {
         await using var sut = new PathPermissionChecker(
             fs.Object,
             WorkingDir,
-            additionalDirectories: [@"D:\extra\dir"]);
+            additionalDirectories: [ExtraDir]);
 
-        var result = sut.CheckReadPermission(@"D:\extra\dir\file.txt");
+        var result = sut.CheckReadPermission(Path.Combine(ExtraDir, "file.txt"));
 
         result.Decision.Should().Be(PermissionBehavior.Allow);
     }
@@ -185,9 +200,9 @@ public sealed class PathPermissionCheckerBypassTests {
         await using var sut = new PathPermissionChecker(
             fs.Object,
             WorkingDir,
-            additionalDirectories: [@"D:\extra\dir"]);
+            additionalDirectories: [ExtraDir]);
 
-        var result = sut.CheckReadPermission(@"D:\extra\directory\file.txt");
+        var result = sut.CheckReadPermission(ExtraDirPrefixFile);
 
         result.Decision.Should().Be(PermissionBehavior.Invalid);
     }
@@ -201,7 +216,7 @@ public sealed class PathPermissionCheckerBypassTests {
     public async Task CheckWritePermission_相似前缀绕过_不当作子路径_返回Ask() {
         await using var sut = CreateSut();
 
-        var result = sut.CheckWritePermission(@"D:\test\projectSecret\file.txt");
+        var result = sut.CheckWritePermission(Path.Combine(WorkingDirParent, "projectSecret", "file.txt"));
 
         result.Decision.Should().Be(PermissionBehavior.Ask);
     }
@@ -211,7 +226,7 @@ public sealed class PathPermissionCheckerBypassTests {
     public async Task CheckWritePermission_工作目录内子路径_返回Allow() {
         await using var sut = CreateSut();
 
-        var result = sut.CheckWritePermission(@"D:\test\project\file.txt");
+        var result = sut.CheckWritePermission(Path.Combine(WorkingDir, "file.txt"));
 
         result.Decision.Should().Be(PermissionBehavior.Allow);
     }
@@ -221,7 +236,7 @@ public sealed class PathPermissionCheckerBypassTests {
     public async Task CheckWritePermission_父目录遍历_解析后在工作目录外_返回Ask() {
         await using var sut = CreateSut();
 
-        var result = sut.CheckWritePermission(@"D:\test\project\..\other\file.txt");
+        var result = sut.CheckWritePermission(Path.Combine(WorkingDir, "..", "other", "file.txt"));
 
         result.Decision.Should().Be(PermissionBehavior.Ask);
     }

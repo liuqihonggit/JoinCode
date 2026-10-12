@@ -176,6 +176,9 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime {
         // E2E 测试基础设施：解析 jcc.exe 路径，不通过 IFileSystem DI（此为构建期路径解析）
         var fallback = Path.GetFullPath(Path.Combine(baseDir, "jcc.exe"));
         if (File.Exists(fallback)) return fallback;
+        // Linux apphost 不带 .exe 后缀
+        var fallbackLinux = Path.GetFullPath(Path.Combine(baseDir, "jcc"));
+        if (File.Exists(fallbackLinux)) return fallbackLinux;
 #pragma warning restore JCC9001
 
         throw new FileNotFoundException($"[GEN034] 未找到 jcc.exe (artifacts/bin={artifactsBin})");
@@ -201,7 +204,14 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime {
         try {
 #pragma warning disable JCC9001
             // E2E 测试基础设施：搜索 exe 文件
-            return Directory.GetFiles(rootDir, exeName, SearchOption.AllDirectories).FirstOrDefault();
+            var files = Directory.GetFiles(rootDir, exeName, SearchOption.AllDirectories);
+            if (files.Length > 0) return files[0];
+            // Linux apphost 不带 .exe 后缀，去掉再搜索
+            if (exeName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) {
+                files = Directory.GetFiles(rootDir, exeName[..^4], SearchOption.AllDirectories);
+                if (files.Length > 0) return files[0];
+            }
+            return null;
 #pragma warning restore JCC9001
         } catch (Exception ex) {
             System.Diagnostics.Trace.WriteLine($"[BridgeE2E] SearchExeUnderDir 失败: {ex.Message}");

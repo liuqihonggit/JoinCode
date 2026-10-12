@@ -82,4 +82,5 @@ jobs:
             artifacts/bin/Anthropic.MockServer/Debug/net10.0/
             artifacts/bin/DeepSeek.MockServer/Debug/net10.0/
             artifacts/bin/Mcp.MockServer/Debug/net10.0/
+            artifacts/bin/JoinCode/Debug/net10.0/
           retention-days: 1

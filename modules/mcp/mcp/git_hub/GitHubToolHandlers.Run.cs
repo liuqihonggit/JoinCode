@@ -351,12 +351,24 @@ public partial class GitHubToolHandlers {
             }
 
             var perJobMaxLines = Math.Max(maxLines / failedJobs.Count, 50);
-            foreach (var job in failedJobs) {
-                var jobResult = await StreamAndFilterAsync(
-                    repo.Owner, repo.Repo, target.RunId, job.Id.ToString(),
-                    false, $"失败步骤({job.Name})", markers, filterLevel,
-                    perJobMaxLines, repo.Ct, null, skip, wantRefresh).ConfigureAwait(false);
-                var jobText = jobResult.Content.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? "";
+            // 并行拉取各失败 job 日志(对齐 expand=failures 的 Semaphore+并行模式,避免串行逐个 await)
+            var failConcurrency = Math.Min(failedJobs.Count, GitHubRunLogFilterRunner.GetMaxConcurrency());
+            using var failSemaphore = new SemaphoreSlim(failConcurrency);
+            var failJobTasks = failedJobs.Select(async job => {
+                await failSemaphore.WaitAsync(repo.Ct).ConfigureAwait(false);
+                try {
+                    var jobResult = await StreamAndFilterAsync(
+                        repo.Owner, repo.Repo, target.RunId, job.Id.ToString(),
+                        false, $"失败步骤({job.Name})", markers, filterLevel,
+                        perJobMaxLines, repo.Ct, null, skip, wantRefresh).ConfigureAwait(false);
+                    var jobText = jobResult.Content.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? "";
+                    return (job, jobText);
+                } finally {
+                    failSemaphore.Release();
+                }
+            }).ToArray();
+            var failJobResults = await Task.WhenAll(failJobTasks).ConfigureAwait(false);
+            foreach (var (job, jobText) in failJobResults) {
                 if (!string.IsNullOrEmpty(jobText))
                     sb.Append($"\n\n{new string('=', 60)}\n❌ {job.Name}\n{new string('=', 60)}\n{jobText}");
             }

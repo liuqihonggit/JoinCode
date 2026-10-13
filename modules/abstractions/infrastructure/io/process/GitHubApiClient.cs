@@ -22,6 +22,11 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
     private const string AcceptHeader = "application/vnd.github+json";
     private const string UserAgent = "jcc/1.0";
     private const int MaxRateLimitRetries = 3;
+    private const int Max5xxRetries = 3;
+
+    private static bool Is5xxRetryable(int statusCode) => statusCode is >= 500 and < 600;
+
+    private static TimeSpan Compute5xxBackoff(int retry) => TimeSpan.FromSeconds(Math.Pow(2, retry));
 
     /// <summary>
     /// 构造 GitHub REST API 客户端
@@ -74,6 +79,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         var lastStatusCode = 0;
         var isFirstPage = true;
         var routeSwitched = false;
+        var retry5xx = 0;
 
         while (true) {
             using var request = BuildRequest(method, isFirstPage ? effectivePath : nextUrl!, body, query, token, isFirstPage);
@@ -110,11 +116,19 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
                 var responseBody = await ReadBodyAsync(response, ct).ConfigureAwait(false);
 
                 if (!response.IsSuccessStatusCode) {
+                    if (Is5xxRetryable(lastStatusCode) && retry5xx < Max5xxRetries) {
+                        retry5xx++;
+                        var backoff = Compute5xxBackoff(retry5xx);
+                        _logger?.LogWarning("GitHub API 5xx({Code}), 第{Retry}次重试,{Backoff:F0}s 后重试: {Method} {Path}", lastStatusCode, retry5xx, backoff.TotalSeconds, method, path);
+                        await Task.Delay(backoff, ct).ConfigureAwait(false);
+                        continue;
+                    }
                     var errorMsg = ExtractErrorMessage(responseBody) ?? $"HTTP {lastStatusCode}";
                     return new GitHubApiResponse { Success = false, StatusCode = lastStatusCode, Error = errorMsg, Body = responseBody };
                 }
 
                 allBodies.Add(responseBody);
+                retry5xx = 0;
                 nextUrl = ParseLinkHeaderNext(response.Headers);
 
                 if (!paginate || string.IsNullOrEmpty(nextUrl)) {
@@ -142,37 +156,50 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         [EnumeratorCancellation] CancellationToken ct = default) {
         var token = ResolveToken();
         var path = $"repos/{owner}/{repo}/actions/runs/{runId}/logs";
-        using var request = BuildRequest(HttpMethod.Get, path, null, null, token, true);
-
         HttpResponseMessage? response = null;
-        string? fetchError = null;
-        var canceled = false;
-        try {
-            response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
-        } catch (OperationCanceledException) { canceled = true; } catch (Exception ex) {
-            _logger?.LogError(ex, "获取 Run 日志失败: runId={RunId}", runId);
-            fetchError = $"[ERROR] 获取 Run 日志失败: {ex.Message}";
-        }
+        var retry5xx = 0;
+        while (true) {
+            using var request = BuildRequest(HttpMethod.Get, path, null, null, token, true);
+            string? fetchError = null;
+            var canceled = false;
+            try {
+                response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+            } catch (OperationCanceledException) { canceled = true; } catch (Exception ex) {
+                _logger?.LogError(ex, "获取 Run 日志失败: runId={RunId}", runId);
+                fetchError = $"[ERROR] 获取 Run 日志失败: {ex.Message}";
+            }
 
-        if (canceled) yield break;
-        if (fetchError is not null) {
-            yield return fetchError;
-            yield break;
-        }
-
-        var resp = response!;
-        using (resp) {
-            if (!resp.IsSuccessStatusCode) {
-                if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
-                    yield return $"[ERROR] 日志不存在(run {runId} 可能被取消或未产生日志)。提示: 用 gh run view {runId} 查看 run 状态";
-                else {
-                    var errBody = await ReadBodyAsync(resp, ct).ConfigureAwait(false);
-                    yield return $"[ERROR] HTTP {(int)resp.StatusCode}: {ExtractErrorMessage(errBody)}";
-                }
+            if (canceled) yield break;
+            if (fetchError is not null) {
+                yield return fetchError;
                 yield break;
             }
 
-            await using var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            var resp = response!;
+            if (!resp.IsSuccessStatusCode) {
+                if (resp.StatusCode == System.Net.HttpStatusCode.NotFound) {
+                    resp.Dispose();
+                    yield return $"[ERROR] 日志不存在(run {runId} 可能被取消或未产生日志)。提示: 用 gh run view {runId} 查看 run 状态";
+                    yield break;
+                }
+                if (Is5xxRetryable((int)resp.StatusCode) && retry5xx < Max5xxRetries) {
+                    retry5xx++;
+                    var backoff = Compute5xxBackoff(retry5xx);
+                    _logger?.LogWarning("GitHub 日志 API 5xx({Code}), 第{Retry}次重试,{Backoff:F0}s 后重试: run {RunId}", (int)resp.StatusCode, retry5xx, backoff.TotalSeconds, runId);
+                    resp.Dispose();
+                    await Task.Delay(backoff, ct).ConfigureAwait(false);
+                    continue;
+                }
+                var errBody = await ReadBodyAsync(resp, ct).ConfigureAwait(false);
+                resp.Dispose();
+                yield return $"[ERROR] HTTP {(int)resp.StatusCode}: {ExtractErrorMessage(errBody)}";
+                yield break;
+            }
+            break;
+        }
+
+        using (response!) {
+            await using var stream = await response!.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             await foreach (var line in ReadLogStreamLinesAsync(stream, $"run {runId}", ct).ConfigureAwait(false)) {
                 yield return line;
             }
@@ -191,37 +218,50 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         [EnumeratorCancellation] CancellationToken ct = default) {
         var token = ResolveToken();
         var path = $"repos/{owner}/{repo}/actions/jobs/{jobId}/logs";
-        using var request = BuildRequest(HttpMethod.Get, path, null, null, token, true);
-
         HttpResponseMessage? response = null;
-        string? fetchError = null;
-        var canceled = false;
-        try {
-            response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
-        } catch (OperationCanceledException) { canceled = true; } catch (Exception ex) {
-            _logger?.LogError(ex, "获取 Job 日志失败: jobId={JobId}", jobId);
-            fetchError = $"[ERROR] 获取 Job 日志失败: {ex.Message}";
-        }
+        var retry5xx = 0;
+        while (true) {
+            using var request = BuildRequest(HttpMethod.Get, path, null, null, token, true);
+            string? fetchError = null;
+            var canceled = false;
+            try {
+                response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+            } catch (OperationCanceledException) { canceled = true; } catch (Exception ex) {
+                _logger?.LogError(ex, "获取 Job 日志失败: jobId={JobId}", jobId);
+                fetchError = $"[ERROR] 获取 Job 日志失败: {ex.Message}";
+            }
 
-        if (canceled) yield break;
-        if (fetchError is not null) {
-            yield return fetchError;
-            yield break;
-        }
-
-        var resp = response!;
-        using (resp) {
-            if (!resp.IsSuccessStatusCode) {
-                if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
-                    yield return $"[ERROR] 日志不存在(job {jobId} 可能被取消或未产生日志)。提示: 用 gh run view 查看 job 状态";
-                else {
-                    var errBody = await ReadBodyAsync(resp, ct).ConfigureAwait(false);
-                    yield return $"[ERROR] HTTP {(int)resp.StatusCode}: {ExtractErrorMessage(errBody)}";
-                }
+            if (canceled) yield break;
+            if (fetchError is not null) {
+                yield return fetchError;
                 yield break;
             }
 
-            await using var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            var resp = response!;
+            if (!resp.IsSuccessStatusCode) {
+                if (resp.StatusCode == System.Net.HttpStatusCode.NotFound) {
+                    resp.Dispose();
+                    yield return $"[ERROR] 日志不存在(job {jobId} 可能被取消或未产生日志)。提示: 用 gh run view 查看 job 状态";
+                    yield break;
+                }
+                if (Is5xxRetryable((int)resp.StatusCode) && retry5xx < Max5xxRetries) {
+                    retry5xx++;
+                    var backoff = Compute5xxBackoff(retry5xx);
+                    _logger?.LogWarning("GitHub 日志 API 5xx({Code}), 第{Retry}次重试,{Backoff:F0}s 后重试: job {JobId}", (int)resp.StatusCode, retry5xx, backoff.TotalSeconds, jobId);
+                    resp.Dispose();
+                    await Task.Delay(backoff, ct).ConfigureAwait(false);
+                    continue;
+                }
+                var errBody = await ReadBodyAsync(resp, ct).ConfigureAwait(false);
+                resp.Dispose();
+                yield return $"[ERROR] HTTP {(int)resp.StatusCode}: {ExtractErrorMessage(errBody)}";
+                yield break;
+            }
+            break;
+        }
+
+        using (response!) {
+            await using var stream = await response!.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             await foreach (var line in ReadLogStreamLinesAsync(stream, $"job {jobId}", ct).ConfigureAwait(false)) {
                 yield return line;
             }

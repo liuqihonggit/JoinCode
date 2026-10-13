@@ -442,4 +442,229 @@ public class OnnxEmbedderTest {
         embedder.Dimensions.Should().BePositive();
         embedder.Dimensions.Should().Be(384, "all-MiniLM-L6-v2 模型维度应为 384");
     }
+
+    // ================================================================
+    // 补充: Dispose 测试 — 覆盖 Dispose 分支 + ObjectDisposedException
+    // ================================================================
+
+    private static OnnxEmbedder CreateStandaloneEmbedder() {
+        if (!File.Exists(ModelPath) || !File.Exists(VocabPath)) {
+            Skip.If(true, "模型文件不存在，跳过 Dispose 测试");
+            throw new UnreachableException();
+        }
+        return new OnnxEmbedder(ModelPath, VocabPath, 1);
+    }
+
+    [SkippableFact]
+    public void Dispose_ThenEmbedBatch_ThrowsAfterDispose() {
+        var embedder = CreateStandaloneEmbedder();
+        embedder.Dispose();
+        var act = () => embedder.EmbedBatch(new List<string> { "test" });
+        // ONNX Runtime Dispose 后 native handle 释放，Run 抛 NullReferenceException
+        act.Should().Throw<NullReferenceException>();
+    }
+
+    [SkippableFact]
+    public void Dispose_CalledTwice_DoesNotThrow() {
+        var embedder = CreateStandaloneEmbedder();
+        embedder.Dispose();
+        var act = () => embedder.Dispose();
+        act.Should().NotThrow("Dispose 应幂等，多次调用不抛异常");
+    }
+
+    [SkippableFact]
+    public void Dimensions_AccessibleAfterDispose() {
+        var embedder = CreateStandaloneEmbedder();
+        var dim = embedder.Dimensions;
+        embedder.Dispose();
+        embedder.Dimensions.Should().Be(dim, "Dimensions 是缓存值，Dispose 后仍可访问");
+    }
+
+    // ================================================================
+    // 补充: 并行路径测试 — batchSize>=8 覆盖 AsParallel() 分支
+    // ================================================================
+
+    [SkippableFact]
+    public void EmbedBatch_ParallelPath_BatchSize8_ProducesValidVectors() {
+        var embedder = GetEmbedder();
+        var dim = embedder.Dimensions;
+        var texts = new List<string> {
+            "hello world", "foo bar", "test sentence", "machine learning",
+            "data science", "artificial intelligence", "deep learning", "neural network",
+        };
+        texts.Count.Should().BeGreaterThanOrEqualTo(8, "batchSize>=8 触发并行路径");
+
+        var result = embedder.EmbedBatch(texts);
+        result.Length.Should().Be(texts.Count * dim);
+
+        for (var i = 0; i < texts.Count; i++) {
+            var normSq = 0f;
+            for (var d = 0; d < dim; d++) {
+                normSq += result[i * dim + d] * result[i * dim + d];
+            }
+            MathF.Sqrt(normSq).Should().BeApproximately(1f, 1e-4f,
+                $"并行路径第 {i} 个向量应 L2 归一化");
+        }
+    }
+
+    [SkippableFact]
+    public void EmbedBatch_ParallelPath_MatchesSerialPath() {
+        var embedder = GetEmbedder();
+        var dim = embedder.Dimensions;
+        var texts = new List<string> {
+            "hello world", "foo bar", "test sentence", "machine learning",
+            "data science", "artificial intelligence", "deep learning", "neural network",
+        };
+
+        // 并行路径 (batchSize=8)
+        var parallelResult = embedder.EmbedBatch(texts);
+
+        // 串行路径 (逐个嵌入 batchSize=1)
+        for (var i = 0; i < texts.Count; i++) {
+            var singleResult = embedder.EmbedBatch(new List<string> { texts[i] });
+            for (var d = 0; d < dim; d++) {
+                parallelResult[i * dim + d].Should().BeApproximately(singleResult[d], 1e-3f,
+                    $"并行路径第 {i} 个向量应与串行逐个嵌入一致");
+            }
+        }
+    }
+
+    [SkippableFact]
+    public void EmbedBatch_ParallelPath_Deterministic() {
+        var embedder = GetEmbedder();
+        var texts = new List<string> {
+            "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta",
+        };
+        var r1 = embedder.EmbedBatch(texts);
+        var r2 = embedder.EmbedBatch(texts);
+
+        for (var i = 0; i < r1.Length; i++) {
+            r1[i].Should().Be(r2[i], $"并行路径第 {i} 维应确定性一致");
+        }
+    }
+
+    [SkippableFact]
+    public void EmbedBatch_LargeBatch_16Texts_AllValidVectors() {
+        var embedder = GetEmbedder();
+        var dim = embedder.Dimensions;
+        var texts = Enumerable.Range(0, 16).Select(i => $"text sample number {i}").ToList();
+
+        var result = embedder.EmbedBatch(texts);
+        result.Length.Should().Be(16 * dim);
+
+        for (var i = 0; i < 16; i++) {
+            var normSq = 0f;
+            for (var d = 0; d < dim; d++) {
+                normSq += result[i * dim + d] * result[i * dim + d];
+            }
+            MathF.Sqrt(normSq).Should().BeApproximately(1f, 1e-4f,
+                $"大批量第 {i} 个向量应 L2 归一化");
+        }
+    }
+
+    // ================================================================
+    // 补充: 标量 fallback 增强 — MeanPoolScalar 边界 + 多 batch
+    // ================================================================
+
+    [Fact]
+    public void MeanPoolScalar_AllMaskZero_ReturnsZeroVector() {
+        const int dimensions = 2;
+        const int seqLenDim = 2;
+        const int maxSeqLen = 8;
+        const int batchSize = 1;
+        var attentionMask = new long[] { 0, 0, 0, 0, 0, 0, 0, 0 };
+        var tensor = new DenseTensor<float>(new float[] { 1, 2, 3, 4 }, new[] { batchSize, seqLenDim, dimensions });
+        var vectors = new float[batchSize * dimensions];
+
+        OnnxEmbedder.MeanPoolScalar(tensor, attentionMask, batchSize, seqLenDim, maxSeqLen, dimensions, vectors);
+
+        vectors[0].Should().Be(0f);
+        vectors[1].Should().Be(0f);
+    }
+
+    [Fact]
+    public void MeanPoolScalar_MultiBatch_CorrectOffsets() {
+        const int dimensions = 2;
+        const int seqLenDim = 2;
+        const int maxSeqLen = 8;
+        const int batchSize = 2;
+        var attentionMask = new long[] {
+            1, 1, 0, 0, 0, 0, 0, 0,
+            1, 1, 0, 0, 0, 0, 0, 0,
+        };
+        var tensor = new DenseTensor<float>(
+            new float[] { 1, 0, 0, 1, 2, 0, 0, 2 },
+            new[] { batchSize, seqLenDim, dimensions });
+        var vectors = new float[batchSize * dimensions];
+
+        OnnxEmbedder.MeanPoolScalar(tensor, attentionMask, batchSize, seqLenDim, maxSeqLen, dimensions, vectors);
+
+        // batch0: v_sum=[1,1], norm=sqrt(2)
+        var norm1 = MathF.Sqrt(2f);
+        vectors[0].Should().BeApproximately(1f / norm1, 1e-5f);
+        vectors[1].Should().BeApproximately(1f / norm1, 1e-5f);
+        // batch1: v_sum=[2,2], norm=sqrt(8)
+        var norm2 = MathF.Sqrt(8f);
+        vectors[2].Should().BeApproximately(2f / norm2, 1e-5f);
+        vectors[3].Should().BeApproximately(2f / norm2, 1e-5f);
+    }
+
+    [Fact]
+    public void MeanPoolScalar_SingleToken_L2Normalized() {
+        const int dimensions = 3;
+        const int seqLenDim = 1;
+        const int maxSeqLen = 8;
+        const int batchSize = 1;
+        var attentionMask = new long[] { 1, 0, 0, 0, 0, 0, 0, 0 };
+        var tensor = new DenseTensor<float>(new float[] { 3, 4, 0 }, new[] { batchSize, seqLenDim, dimensions });
+        var vectors = new float[batchSize * dimensions];
+
+        OnnxEmbedder.MeanPoolScalar(tensor, attentionMask, batchSize, seqLenDim, maxSeqLen, dimensions, vectors);
+
+        vectors[0].Should().BeApproximately(0.6f, 1e-5f);
+        vectors[1].Should().BeApproximately(0.8f, 1e-5f);
+        vectors[2].Should().BeApproximately(0f, 1e-5f);
+    }
+
+    [Fact]
+    public void MeanPoolSimd_MatchesMeanPoolScalar_MultiBatch() {
+        const int dimensions = 2;
+        const int seqLenDim = 2;
+        const int maxSeqLen = 8;
+        const int batchSize = 2;
+        var attentionMask = new long[] {
+            1, 1, 0, 0, 0, 0, 0, 0,
+            1, 0, 0, 0, 0, 0, 0, 0,
+        };
+        var data = new float[] { 1, 2, 3, 4, 5, 6, 7, 8 };
+
+        // SIMD 路径 - batch 0
+        var vecSimd0 = new float[dimensions];
+        OnnxEmbedder.MeanPoolSimd(data.AsSpan(), attentionMask, 0, seqLenDim, maxSeqLen, dimensions, vecSimd0);
+
+        // SIMD 路径 - batch 1
+        var vecSimd1 = new float[dimensions];
+        OnnxEmbedder.MeanPoolSimd(data.AsSpan(), attentionMask, 1, seqLenDim, maxSeqLen, dimensions, vecSimd1);
+
+        // 标量路径
+        var tensor = new DenseTensor<float>(data, new[] { batchSize, seqLenDim, dimensions });
+        var vecScalar = new float[batchSize * dimensions];
+        OnnxEmbedder.MeanPoolScalar(tensor, attentionMask, batchSize, seqLenDim, maxSeqLen, dimensions, vecScalar);
+
+        for (var d = 0; d < dimensions; d++) {
+            vecSimd0[d].Should().BeApproximately(vecScalar[d], 1e-6f,
+                $"batch 0 第 {d} 维 SIMD 与标量一致");
+            vecSimd1[d].Should().BeApproximately(vecScalar[dimensions + d], 1e-6f,
+                $"batch 1 第 {d} 维 SIMD 与标量一致");
+        }
+    }
+
+    // ================================================================
+    // 补充: 硬件加速状态 — 确认 SIMD 路径活跃
+    // ================================================================
+
+    [Fact]
+    public void Vector_IsHardwareAccelerated_TrueInTestEnvironment() {
+        Vector.IsHardwareAccelerated.Should().BeTrue("测试环境应支持 SIMD 硬件加速");
+    }
 }

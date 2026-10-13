@@ -1016,4 +1016,106 @@ public sealed class GhCommandResolverTests {
         bound.Should().BeNull();
         error.Should().Contain("integer");
     }
+
+    /// <summary>系统 gh CLI 的 --enable-auto-merge 应映射到 auto_merge=true（gh pr merge --enable-auto-merge）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_EnableAutoMerge_PrMerge_ShouldMapToAutoMergeTrue() {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: true, IsBoolean: false),
+            new("merge_method", IsRequired: false, IsBoolean: false),
+            new("auto_merge", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "382", "--enable-auto-merge" }, parameters, "gh_pr_merge", out var error);
+
+        error.Should().BeNull();
+        bound!["auto_merge"].Should().Be("true");
+    }
+
+    /// <summary>系统 gh CLI 的 --auto-merge-method squash 应映射到 merge_method=squash（gh pr merge）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_AutoMergeMethod_PrMerge_ShouldMapToMergeMethod() {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: true, IsBoolean: false),
+            new("merge_method", IsRequired: false, IsBoolean: false),
+            new("auto_merge", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "382", "--auto-merge-method", "squash" }, parameters, "gh_pr_merge", out var error);
+
+        error.Should().BeNull();
+        bound!["merge_method"].Should().Be("squash");
+    }
+
+    /// <summary>系统 gh CLI 的 --enable-auto-merge 在 gh pr create 也应映射到 auto_merge=true</summary>
+    [Fact]
+    public void Bind_GhCliAlias_EnableAutoMerge_PrCreate_ShouldMapToAutoMergeTrue() {
+        var parameters = new List<GhParam> {
+            new("title", IsRequired: true, IsBoolean: false),
+            new("body", IsRequired: false, IsBoolean: false),
+            new("head", IsRequired: false, IsBoolean: false),
+            new("base", IsRequired: false, IsBoolean: false),
+            new("auto_merge", IsRequired: false, IsBoolean: true),
+            new("merge_method", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "feat: test", "--enable-auto-merge" }, parameters, "gh_pr_create", out var error);
+
+        error.Should().BeNull();
+        bound!["auto_merge"].Should().Be("true");
+    }
+
+    /// <summary>系统 gh CLI 的 --auto-merge-method squash 在 gh pr create 也应映射到 merge_method=squash</summary>
+    [Fact]
+    public void Bind_GhCliAlias_AutoMergeMethod_PrCreate_ShouldMapToMergeMethod() {
+        var parameters = new List<GhParam> {
+            new("title", IsRequired: true, IsBoolean: false),
+            new("body", IsRequired: false, IsBoolean: false),
+            new("head", IsRequired: false, IsBoolean: false),
+            new("base", IsRequired: false, IsBoolean: false),
+            new("auto_merge", IsRequired: false, IsBoolean: true),
+            new("merge_method", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "feat: test", "--auto-merge-method", "squash" }, parameters, "gh_pr_create", out var error);
+
+        error.Should().BeNull();
+        bound!["merge_method"].Should().Be("squash");
+    }
+
+    /// <summary>gh pr create --enable-auto-merge --auto-merge-method squash 组合应同时映射两个参数</summary>
+    [Fact]
+    public void Bind_GhCliAlias_PrCreate_EnableAutoMergeAndMethod_ShouldMapBoth() {
+        var parameters = new List<GhParam> {
+            new("title", IsRequired: true, IsBoolean: false),
+            new("body", IsRequired: false, IsBoolean: false),
+            new("head", IsRequired: false, IsBoolean: false),
+            new("base", IsRequired: false, IsBoolean: false),
+            new("auto_merge", IsRequired: false, IsBoolean: true),
+            new("merge_method", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(
+            new[] { "feat: test", "--enable-auto-merge", "--auto-merge-method", "squash" },
+            parameters, "gh_pr_create", out var error);
+
+        error.Should().BeNull();
+        bound!["auto_merge"].Should().Be("true");
+        bound["merge_method"].Should().Be("squash");
+    }
+
+    /// <summary>--auto-merge-method=squash 内联值形式也应正确映射（TakeNextToken 优先用 inlineValue）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_AutoMergeMethod_InlineValue_ShouldMapToMergeMethod() {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: true, IsBoolean: false),
+            new("merge_method", IsRequired: false, IsBoolean: false),
+            new("auto_merge", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "382", "--auto-merge-method=squash" }, parameters, "gh_pr_merge", out var error);
+
+        error.Should().BeNull();
+        bound!["merge_method"].Should().Be("squash");
+    }
 }

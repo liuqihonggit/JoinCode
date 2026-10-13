@@ -164,6 +164,10 @@ public partial class GitHubToolHandlers {
     /// 从 PR 号解析最新 run ID — 获取 PR head_sha 后查 runs 取最新一条（缺陷1: --pr 支持）
     /// </summary>
     private async Task<string?> ResolveRunIdFromPrAsync(IGitHubApiClient client, string owner, string repoName, int prNumber, CancellationToken ct) {
+        // 反查索引: PR → run-id(命中则跳过 API 调用)
+        var cachedRunId = await LogFilterRunner.TryGetRunIdByPrAsync(prNumber, ct).ConfigureAwait(false);
+        if (!string.IsNullOrEmpty(cachedRunId)) return cachedRunId;
+
         var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{prNumber}", ct: ct).ConfigureAwait(false);
         if (!prResult.Success) return null;
         string? headSha = null;
@@ -173,25 +177,37 @@ public partial class GitHubToolHandlers {
                 headSha = sha.GetString();
         } catch (JsonException ex) { _logger?.LogWarning(ex, "解析 PR head_sha 失败"); }
         if (string.IsNullOrEmpty(headSha)) return null;
-        return await ResolveRunIdFromHeadShaAsync(client, owner, repoName, headSha, ct).ConfigureAwait(false);
+        var runId = await ResolveRunIdFromHeadShaAsync(client, owner, repoName, headSha, ct).ConfigureAwait(false);
+        // 写入反查索引: PR → run-id
+        if (!string.IsNullOrEmpty(runId))
+            await LogFilterRunner.WriteRunIdByPrAsync(prNumber, runId, ct).ConfigureAwait(false);
+        return runId;
     }
 
     /// <summary>
     /// 从 head_sha 查最新 Actions run ID — per_page=1 取最新一条
     /// </summary>
     private async Task<string?> ResolveRunIdFromHeadShaAsync(IGitHubApiClient client, string owner, string repoName, string headSha, CancellationToken ct) {
+        // 反查索引: SHA → run-id(命中则跳过 API 调用)
+        var cachedRunId = await LogFilterRunner.TryGetRunIdByShaAsync(headSha, ct).ConfigureAwait(false);
+        if (!string.IsNullOrEmpty(cachedRunId)) return cachedRunId;
+
         var runsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs",
             query: new Dictionary<string, string> { ["head_sha"] = headSha, ["per_page"] = "1" }, ct: ct).ConfigureAwait(false);
         if (!runsResult.Success) return null;
+        string? resolvedRunId = null;
         try {
             using var doc = JsonDocument.Parse(runsResult.Body);
             if (doc.RootElement.TryGetProperty("workflow_runs", out var runs) && runs.GetArrayLength() > 0) {
                 var first = runs[0];
                 if (first.TryGetProperty("id", out var id))
-                    return id.GetRawText().Trim('"');
+                    resolvedRunId = id.GetRawText().Trim('"');
             }
         } catch (JsonException ex) { _logger?.LogWarning(ex, "解析 PR runs 失败"); }
-        return null;
+        // 写入反查索引: SHA → run-id(提取到 try 外,扁平化避免嵌套超 2 层)
+        if (!string.IsNullOrEmpty(resolvedRunId))
+            await LogFilterRunner.WriteRunIdByShaAsync(headSha, resolvedRunId, ct).ConfigureAwait(false);
+        return resolvedRunId;
     }
 
     /// <summary>run_id 通常是 10-11 位数字,run number 是短数字(少于 10 位)</summary>

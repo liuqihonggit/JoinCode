@@ -34,6 +34,20 @@ internal readonly record struct JobLogCacheKey(long JobId, long RunId) {
     }
 }
 
+/// <summary>PR → run-id 反查索引 key — 只读记录类型封装 PR number,避免裸字符串拼接</summary>
+/// <para>key=gh:runid:pr:{prNumber}, TTL 5 分钟(新 push 可能产生新 run)</para>
+internal readonly record struct PrRunIdCacheKey(int PrNumber) {
+    /// <summary>构造 LSM 缓存 key 字节</summary>
+    public byte[] ToCacheKeyBytes() => Encoding.UTF8.GetBytes($"gh:runid:pr:{PrNumber}");
+}
+
+/// <summary>SHA → run-id 反查索引 key — 只读记录类型封装 head SHA,避免裸字符串拼接</summary>
+/// <para>key=gh:runid:sha:{headSha}, TTL 7 天(SHA 固定,run-id 不变)</para>
+internal readonly record struct ShaRunIdCacheKey(string HeadSha) {
+    /// <summary>构造 LSM 缓存 key 字节</summary>
+    public byte[] ToCacheKeyBytes() => Encoding.UTF8.GetBytes($"gh:runid:sha:{HeadSha}");
+}
+
 /// <summary>
 /// GitHub Run 日志过滤运行器 — DI 注入 _apiClient/_kvStore,负责失败测试过滤+流式过滤+失败 job 日志获取
 /// <para>日志缓存: 复用 IKvStore(LSM-Tree PithosKvStore),首次下载→后续命中缓存,避免重复下载</para>
@@ -316,6 +330,41 @@ internal sealed class GitHubRunLogFilterRunner {
         var cacheKey = JobLogCacheKey.BuildCacheKey(jobId);
         var cached = await _kvStore.GetWithTtlAndRenewAsync(cacheKey, CacheTtl, ct).ConfigureAwait(false);
         return JobLogCacheKey.TryExtractRunId(cached);
+    }
+
+    /// <summary>反查索引 TTL — PR→run-id 映射可能随新 push 变化,5 分钟过期;SHA→run-id 固定用 CacheTtl(7天)</summary>
+    internal static readonly TimeSpan RunIdReverseLookupTtl = TimeSpan.FromMinutes(5);
+
+    /// <summary>反查 PR → run-id — key=gh:runid:pr:{prNumber},命中则跳过 API 调用</summary>
+    public async Task<string?> TryGetRunIdByPrAsync(int prNumber, CancellationToken ct) {
+        if (_kvStore is null) return null;
+        var key = new PrRunIdCacheKey(prNumber).ToCacheKeyBytes();
+        var cached = await _kvStore.GetWithTtlAndRenewAsync(key, RunIdReverseLookupTtl, ct).ConfigureAwait(false);
+        return cached is null ? null : Encoding.UTF8.GetString(cached);
+    }
+
+    /// <summary>写入 PR → run-id 反查索引 — key=gh:runid:pr:{prNumber},TTL 5 分钟(新 push 可能产生新 run)</summary>
+    public async Task WriteRunIdByPrAsync(int prNumber, string runId, CancellationToken ct) {
+        if (_kvStore is null) return;
+        var key = new PrRunIdCacheKey(prNumber).ToCacheKeyBytes();
+        var bytes = Encoding.UTF8.GetBytes(runId);
+        await _kvStore.PutWithTtlAsync(key, bytes, RunIdReverseLookupTtl, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>反查 SHA → run-id — key=gh:runid:sha:{headSha},命中则跳过 API 调用</summary>
+    public async Task<string?> TryGetRunIdByShaAsync(string headSha, CancellationToken ct) {
+        if (_kvStore is null) return null;
+        var key = new ShaRunIdCacheKey(headSha).ToCacheKeyBytes();
+        var cached = await _kvStore.GetWithTtlAndRenewAsync(key, CacheTtl, ct).ConfigureAwait(false);
+        return cached is null ? null : Encoding.UTF8.GetString(cached);
+    }
+
+    /// <summary>写入 SHA → run-id 反查索引 — key=gh:runid:sha:{headSha},TTL 7 天(SHA 固定,run-id 不变)</summary>
+    public async Task WriteRunIdByShaAsync(string headSha, string runId, CancellationToken ct) {
+        if (_kvStore is null) return;
+        var key = new ShaRunIdCacheKey(headSha).ToCacheKeyBytes();
+        var bytes = Encoding.UTF8.GetBytes(runId);
+        await _kvStore.PutWithTtlAsync(key, bytes, CacheTtl, ct).ConfigureAwait(false);
     }
 
     /// <summary>

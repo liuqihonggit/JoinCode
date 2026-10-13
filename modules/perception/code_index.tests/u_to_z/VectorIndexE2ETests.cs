@@ -34,7 +34,7 @@ public sealed class VectorIndexE2ETests : IDisposable {
         }
 
         var embeddingModel = new OnnxEmbeddingClient(modelPath, vocabPath, _realFs);
-        _embeddingIndex = new EmbeddingIndex(embeddingModel, new BruteForceAnn(), _realFs);
+        _embeddingIndex = new EmbeddingIndex(embeddingModel, new BruteForceAnn(), _fs);
         _indexer = new CodeIndexer(_store, _fs);
         _indexer.SetEmbeddingIndex(_embeddingIndex);
     }

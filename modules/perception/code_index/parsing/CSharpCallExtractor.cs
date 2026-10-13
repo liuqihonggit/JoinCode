@@ -103,8 +103,7 @@ public sealed class CSharpCallExtractor {
         var symbolIndex = new SymbolIndex(symbols);
         var calls = new List<CallEdge>();
 
-        var options = new CollectCallsOptions(rootNode, filePath, classNameSet, interfaceNameSet, variableTypeMap, methodLookup, symbolIndex, extensionMethodMap, calls);
-        CollectCalls(options);
+        CollectCalls(rootNode, filePath, classNameSet, interfaceNameSet, variableTypeMap, methodLookup, symbolIndex, extensionMethodMap, calls);
 
         return calls;
     }
@@ -184,16 +183,12 @@ public sealed class CSharpCallExtractor {
         return map;
     }
 
-    private static void CollectCalls(CollectCallsOptions options) {
-        var node = options.Node;
-        var filePath = options.FilePath;
-        var classNameSet = options.ClassNameSet;
-        var interfaceNameSet = options.InterfaceNameSet;
-        var variableTypeMap = options.VariableTypeMap;
-        var methodLookup = options.MethodLookup;
-        var symbols = options.Symbols;
-        var extensionMethodMap = options.ExtensionMethodMap;
-        var calls = options.Calls;
+    private static void CollectCalls(
+        Node node, string filePath,
+        HashSet<string> classNameSet, HashSet<string> interfaceNameSet,
+        Dictionary<string, string> variableTypeMap, List<MethodLookupEntry> methodLookup,
+        SymbolIndex symbols, Dictionary<string, string> extensionMethodMap,
+        List<CallEdge> calls) {
 
         if (node.IsError) {
             return;
@@ -226,7 +221,7 @@ public sealed class CSharpCallExtractor {
         }
 
         foreach (var child in node.NamedChildren) {
-            CollectCalls(options with { Node = child });
+            CollectCalls(child, filePath, classNameSet, interfaceNameSet, variableTypeMap, methodLookup, symbols, extensionMethodMap, calls);
         }
     }
 

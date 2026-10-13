@@ -15,12 +15,13 @@ internal sealed class FakeEmbeddingModel : IEmbeddingModel {
         return Task.FromResult(Embed(text));
     }
 
-    public Task<float[][]> EmbedBatchAsync(IReadOnlyList<string> texts, CancellationToken ct) {
-        var results = new float[texts.Count][];
+    public Task<float[]> EmbedBatchAsync(IReadOnlyList<string> texts, CancellationToken ct) {
+        var dim = Dimensions;
+        var flat = new float[texts.Count * dim];
         for (var i = 0; i < texts.Count; i++) {
-            results[i] = Embed(texts[i]);
+            Embed(texts[i]).AsSpan().CopyTo(flat.AsSpan(i * dim));
         }
-        return Task.FromResult(results);
+        return Task.FromResult(flat);
     }
 
     private float[] Embed(string text) {

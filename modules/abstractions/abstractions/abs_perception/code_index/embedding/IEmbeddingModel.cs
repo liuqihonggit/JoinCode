@@ -13,6 +13,6 @@ public interface IEmbeddingModel {
     /// <summary>嵌入单个文本 → 向量。</summary>
     Task<float[]> EmbedAsync(string text, CancellationToken ct);
 
-    /// <summary>批量嵌入 — 首次索引提速，减少 API 往返/模型加载开销。</summary>
-    Task<float[][]> EmbedBatchAsync(IReadOnlyList<string> texts, CancellationToken ct);
+    /// <summary>批量嵌入 — 首次索引提速，减少 API 往返/模型加载开销。返回扁平化向量 [count × Dimensions]。</summary>
+    Task<float[]> EmbedBatchAsync(IReadOnlyList<string> texts, CancellationToken ct);
 }

@@ -46,15 +46,16 @@ public sealed class OnnxEmbedder : IDisposable {
     }
 
     /// <summary>
-    /// 批量嵌入文本 → 向量数组。
-    /// <para> tokenize → 动态 padding → ONNX 推理 → SIMD mean pooling → 返回向量。</para>
-    /// <para>动态 padding: 按 batch 内最长 token 长度向上对齐到 8 的倍数（SIMD 友好），替代固定 padding，省 30~70% 推理时间。</para>
-    /// <para>mean pooling 用 Vector&lt;float&gt; 批量累加+归一化，比标量快 4-8x。</para>
+    /// 批量嵌入文本 → 扁平化向量数组（batchSize × Dimensions 连续存储）。
+    /// <para> tokenize → 动态 padding → ONNX 推理 → SIMD mean pooling → 返回扁平向量。</para>
+    /// <para>动态 padding: 按 batch 内最长 token 长度向上对齐到 8 的倍数（SIMD 友好），省 30~70% 推理时间。</para>
+    /// <para>0-GC mean pooling: 直接在结果 span 上累加，零临时分配。</para>
+    /// <para>SIMD: TensorPrimitives 累加+点积+缩放，Vector&lt;long&gt; 批量求 maskSum，乘法代替除法。</para>
     /// </summary>
     /// <param name="texts">待嵌入的文本列表。</param>
     /// <param name="maxSeqLen">最大序列长度上限（默认 32），实际 padding 按 batch 内最长动态计算。</param>
-    /// <returns>向量数组，每个向量长度为 <see cref="Dimensions"/>。</returns>
-    public float[][] EmbedBatch(IReadOnlyList<string> texts, int maxSeqLen = 32) {
+    /// <returns>扁平化向量数组 [batchSize × Dimensions]，第 i 个向量在 [i*Dimensions, (i+1)*Dimensions)。</returns>
+    public float[] EmbedBatch(IReadOnlyList<string> texts, int maxSeqLen = 32) {
         var batchSize = texts.Count;
 
         var allTokens = batchSize >= 8
@@ -100,7 +101,8 @@ public sealed class OnnxEmbedder : IDisposable {
             using var results = _session.Run(inputs);
             var output = results.First().AsTensor<float>();
             var outputDims = output.Dimensions;
-            var vectors = new float[batchSize][];
+            var dim = _dimensions;
+            var vectors = new float[batchSize * dim];
 
             if (outputDims.Length == 3) {
                 var seqLenDim = outputDims[1];
@@ -109,20 +111,18 @@ public sealed class OnnxEmbedder : IDisposable {
                 if (output is DenseTensor<float> denseOutput && Vector.IsHardwareAccelerated) {
                     var outputSpan = denseOutput.Buffer.Span;
                     for (var i = 0; i < batchSize; i++) {
-                        var vector = new float[_dimensions];
-                        MeanPoolSimd(outputSpan, attentionMask, i, seqLenDim, paddedLen, _dimensions, vector);
-                        vectors[i] = vector;
+                        MeanPoolSimd(outputSpan, attentionMask, i, seqLenDim, paddedLen, dim,
+                            vectors.AsSpan(i * dim, dim));
                     }
                 } else {
-                    MeanPoolScalar(output, attentionMask, batchSize, seqLenDim, paddedLen, _dimensions, vectors);
+                    MeanPoolScalar(output, attentionMask, batchSize, seqLenDim, paddedLen, dim, vectors);
                 }
             } else {
                 for (var i = 0; i < batchSize; i++) {
-                    var vector = new float[_dimensions];
-                    for (var d = 0; d < _dimensions; d++) {
-                        vector[d] = output[i, d];
+                    var vecOffset = i * dim;
+                    for (var d = 0; d < dim; d++) {
+                        vectors[vecOffset + d] = output[i, d];
                     }
-                    vectors[i] = vector;
                 }
             }
             return vectors;
@@ -136,7 +136,8 @@ public sealed class OnnxEmbedder : IDisposable {
     /// <summary>
     /// SIMD mean pooling — 对 [seqLenDim, dimensions] 的 token 向量按 attention mask 求均值+L2 归一化。
     /// <para>使用 TensorPrimitives（.NET 8+ AVX2/AVX512 全优化）累加+点积+缩放，比手写 Vector&lt;float&gt; 快 1.5~3x。</para>
-    /// <para>融合: 累加 → 一次缩放 1/(maskSum*norm)，省一趟除法。</para>
+    /// <para>融合: mean pooling + L2 归一化数学等价于 v_sum/||v_sum||，maskSum 被约掉，一次缩放 1/norm，用乘法代替除法。</para>
+    /// <para>0-GC: 直接写入结果 span，零临时分配。</para>
     /// </summary>
     /// <param name="outputSpan">ONNX 输出的扁平 span（batchSize × seqLenDim × dimensions）。</param>
     /// <param name="attentionMask">attention mask 数组。</param>
@@ -144,30 +145,45 @@ public sealed class OnnxEmbedder : IDisposable {
     /// <param name="seqLenDim">序列长度维度。</param>
     /// <param name="maxSeqLen">最大序列长度（attention mask 步长）。</param>
     /// <param name="dimensions">向量维度。</param>
-    /// <param name="vector">输出向量（原地累加+归一化）。</param>
+    /// <param name="vecSpan">输出向量 span（原地累加+归一化，零临时分配）。</param>
     private static void MeanPoolSimd(
         ReadOnlySpan<float> outputSpan, long[] attentionMask,
         int batchIndex, int seqLenDim, int maxSeqLen, int dimensions,
-        float[] vector) {
-        var maskSum = 0;
+        Span<float> vecSpan) {
+        var maskBase = batchIndex * maxSeqLen;
+        var maskSum = SumMaskSimd(attentionMask.AsSpan(maskBase, seqLenDim));
+        if (maskSum == 0) return;
         var batchBase = batchIndex * seqLenDim * dimensions;
-        var vecSpan = vector.AsSpan(0, dimensions);
         for (var j = 0; j < seqLenDim; j++) {
-            if (attentionMask[batchIndex * maxSeqLen + j] == 0) continue;
-            maskSum++;
+            if (attentionMask[maskBase + j] == 0) continue;
             var rowOffset = batchBase + j * dimensions;
             TensorPrimitives.Add(vecSpan, outputSpan.Slice(rowOffset, dimensions), vecSpan);
         }
-        if (maskSum > 0) {
-            var norm = MathF.Sqrt(TensorPrimitives.Dot(vecSpan, vecSpan));
-            if (norm > 0f) {
-                TensorPrimitives.Multiply(vecSpan, 1f / (maskSum * norm), vecSpan);
-            }
+        var norm = MathF.Sqrt(TensorPrimitives.Dot(vecSpan, vecSpan));
+        if (norm > 0f) {
+            TensorPrimitives.Multiply(vecSpan, 1f / norm, vecSpan);
         }
     }
 
+    /// <summary>SIMD 求和 attention mask（0/1 long → 非零个数），Vector&lt;long&gt; 批量累加。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int SumMaskSimd(ReadOnlySpan<long> maskSpan) {
+        var sum = 0L;
+        var simdWidth = Vector<long>.Count;
+        var v = 0;
+        for (; v <= maskSpan.Length - simdWidth; v += simdWidth) {
+            sum += Vector.Sum(new Vector<long>(maskSpan.Slice(v, simdWidth)));
+        }
+        for (; v < maskSpan.Length; v++) {
+            sum += maskSpan[v];
+        }
+        return (int)sum;
+    }
+
     /// <summary>
-    /// 标量 mean pooling — DenseTensor 不可用时的 fallback，逐元素累加+除法。
+    /// 标量 mean pooling — DenseTensor 不可用时的 fallback，逐元素累加+融合归一化。
+    /// <para>融合: v_sum/||v_sum||，maskSum 被约掉，一次缩放 1/norm，用乘法代替除法。</para>
+    /// <para>0-GC: 直接写入扁平结果数组，零临时分配。</para>
     /// </summary>
     /// <param name="output">ONNX 输出 tensor。</param>
     /// <param name="attentionMask">attention mask 数组。</param>
@@ -175,38 +191,34 @@ public sealed class OnnxEmbedder : IDisposable {
     /// <param name="seqLenDim">序列长度维度。</param>
     /// <param name="maxSeqLen">最大序列长度（attention mask 步长）。</param>
     /// <param name="dimensions">向量维度。</param>
-    /// <param name="vectors">输出向量数组。</param>
+    /// <param name="vectors">扁平化输出向量数组 [batchSize × dimensions]。</param>
     private static void MeanPoolScalar(
         Microsoft.ML.OnnxRuntime.Tensors.Tensor<float> output, long[] attentionMask,
         int batchSize, int seqLenDim, int maxSeqLen, int dimensions,
-        float[][] vectors) {
+        float[] vectors) {
         for (var i = 0; i < batchSize; i++) {
-            var vector = new float[dimensions];
+            var vecOffset = i * dimensions;
             var maskSum = 0;
             for (var j = 0; j < seqLenDim; j++) {
                 if (attentionMask[i * maxSeqLen + j] == 0) continue;
                 maskSum++;
                 for (var d = 0; d < dimensions; d++) {
-                    vector[d] += output[i, j, d];
+                    vectors[vecOffset + d] += output[i, j, d];
                 }
             }
             if (maskSum > 0) {
-                for (var d = 0; d < dimensions; d++) {
-                    vector[d] /= maskSum;
-                }
                 var norm = 0f;
                 for (var d = 0; d < dimensions; d++) {
-                    norm += vector[d] * vector[d];
+                    norm += vectors[vecOffset + d] * vectors[vecOffset + d];
                 }
                 norm = MathF.Sqrt(norm);
                 if (norm > 0f) {
                     var invNorm = 1f / norm;
                     for (var d = 0; d < dimensions; d++) {
-                        vector[d] *= invNorm;
+                        vectors[vecOffset + d] *= invNorm;
                     }
                 }
             }
-            vectors[i] = vector;
         }
     }
 

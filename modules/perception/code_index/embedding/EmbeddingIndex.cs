@@ -84,7 +84,8 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         }
 
         const int EmbedBatchSize = 256;
-        var vectors = new float[toEmbed.Count][];
+        var dim = _embedModel.Dimensions;
+        var flatVectors = new float[toEmbed.Count * dim];
         try {
             for (var batchStart = 0; batchStart < toEmbed.Count; batchStart += EmbedBatchSize) {
                 ct.ThrowIfCancellationRequested();
@@ -93,10 +94,8 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
                 for (var i = batchStart; i < batchEnd; i++) {
                     batchTexts.Add(BuildEmbedText(toEmbed[i]));
                 }
-                var batchVectors = await _embedModel.EmbedBatchAsync(batchTexts, ct).ConfigureAwait(false);
-                for (var i = 0; i < batchVectors.Length; i++) {
-                    vectors[batchStart + i] = batchVectors[i];
-                }
+                var batchFlat = await _embedModel.EmbedBatchAsync(batchTexts, ct).ConfigureAwait(false);
+                batchFlat.AsSpan().CopyTo(flatVectors.AsSpan(batchStart * dim));
             }
         } catch (OperationCanceledException) {
             throw;
@@ -113,9 +112,8 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         for (var i = 0; i < toEmbed.Count; i++) {
             ct.ThrowIfCancellationRequested();
             var chunk = toEmbed[i];
-            var vector = vectors[i];
 
-            _ann.Add(chunk.ChunkId, vector);
+            _ann.Add(chunk.ChunkId, flatVectors.AsSpan(i * dim, dim));
             metadataToAdd.Add((chunk.ChunkId, new ChunkMetadata {
                 ChunkId = chunk.ChunkId,
                 FilePath = chunk.FilePath,
@@ -141,7 +139,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         CasBulkUpdateFileChunks(fileChunksToAdd);
         var vectorsToAdd = new List<(string ChunkId, float[] Vector)>(toEmbed.Count);
         for (var i = 0; i < toEmbed.Count; i++) {
-            vectorsToAdd.Add((toEmbed[i].ChunkId, vectors[i]));
+            vectorsToAdd.Add((toEmbed[i].ChunkId, flatVectors.AsSpan(i * dim, dim).ToArray()));
         }
         CasBulkUpdateVectors(vectorsToAdd);
 

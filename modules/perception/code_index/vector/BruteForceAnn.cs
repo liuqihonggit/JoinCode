@@ -24,12 +24,11 @@ public sealed class BruteForceAnn : IAnnSearch {
     }
 
     /// <summary>添加单个向量。若 id 已存在则覆盖。</summary>
-    public void Add(string id, float[] vector) {
+    public void Add(string id, ReadOnlySpan<float> vector) {
         ArgumentNullException.ThrowIfNull(id);
-        ArgumentNullException.ThrowIfNull(vector);
         _lock.EnterWriteLock();
         try {
-            _vectors[id] = vector;
+            _vectors[id] = vector.ToArray();
         } finally {
             _lock.ExitWriteLock();
         }

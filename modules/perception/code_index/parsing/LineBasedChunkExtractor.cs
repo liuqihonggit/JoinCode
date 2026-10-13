@@ -3,7 +3,7 @@ namespace JoinCode.CodeIndex.Parsing;
 /// <summary>
 /// 按固定行数切块 — 向量嵌入用，预嵌入 AST 符号 FQN 组成知识图谱。
 /// <para>与 CSharpSymbolExtractor 的 AST 符号切块互补：</para>
-/// <para>  向量索引 = 固定行数块（粗粒度，快速召回，~500行/块）</para>
+/// <para>  向量索引 = 固定行数块（粗粒度，快速召回，~400行/块）</para>
 /// <para>  符号索引 = AST 符号（细粒度，精确查询，调用图/依赖图）</para>
 /// <para>  关联方式 = 块内预嵌入 ContainedSymbolFqns，搜索时直接查图谱</para>
 /// <para>Span 优化：用 ReadOnlySpan 切片替代 Split+Join，消除中间 string[] 分配。</para>
@@ -24,8 +24,8 @@ public static class LineBasedChunkExtractor {
     /// <param name="sourceCode">源代码文本。</param>
     /// <param name="symbols">该文件的 AST 符号列表（用于预嵌入 FQN）。</param>
     /// <param name="parentLocations">该文件的父文档定位信息列表（用于关联块的父文档）。</param>
-    /// <param name="chunkSize">每块行数（默认 500）。</param>
-    /// <param name="overlap">相邻块重叠行数（默认 25，即 5%），避免函数跨越块边界被切断。</param>
+    /// <param name="chunkSize">每块行数（默认 400）。</param>
+    /// <param name="overlap">相邻块重叠行数（默认 25，即 ~6%），避免函数跨越块边界被切断。</param>
     /// <param name="languageId">语言标识。</param>
     /// <returns>代码块列表。</returns>
     public static IReadOnlyList<ChunkInfo> Extract(
@@ -33,7 +33,7 @@ public static class LineBasedChunkExtractor {
         string sourceCode,
         IReadOnlyList<SymbolInfo> symbols,
         IReadOnlyList<ParentLocation>? parentLocations = null,
-        int chunkSize = 500,
+        int chunkSize = 400,
         int overlap = 25,
         string languageId = "c-sharp") {
         if (string.IsNullOrEmpty(sourceCode)) return [];

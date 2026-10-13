@@ -202,6 +202,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         phaseSw.Restart();
 
         // Phase C: 并行读文件+哈希(Task.WhenAll,对齐 IncrementalUpdater 模式)
+        var phaseCSw = Stopwatch.StartNew();
         var storedHashes = BatchGetStoredHashes(csFiles);
 
         var updatedCount = 0;
@@ -238,6 +239,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         }
 
         progress?.Report(new IndexProgress { Current = total, Total = total });
+        phaseCSw.Stop();
+        Console.Error.WriteLine($"[code-index] Phase C 读+哈希: {csFiles.Count} 文件 ({phaseCSw.ElapsedMilliseconds}ms)");
 
         // Phase D: 并行提取符号
         var phaseDSw = Stopwatch.StartNew();
@@ -280,6 +283,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         phaseSw.Restart();
 
         // Phase F: 删除已移除文件
+        var phaseFSw = Stopwatch.StartNew();
         foreach (var trackedFile in trackedFiles) {
             if (!existingFiles.Contains(trackedFile)) {
                 await _symbolIndex.RemoveFileAsync(trackedFile, ct).ConfigureAwait(false);
@@ -289,9 +293,14 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                 deletedCount++;
             }
         }
+        phaseFSw.Stop();
+        Console.Error.WriteLine($"[code-index] Phase F 删除: {deletedCount} 文件 ({phaseFSw.ElapsedMilliseconds}ms)");
 
         // Phase G: 失效图缓存
+        var phaseGSw = Stopwatch.StartNew();
         InvalidateGraphCaches();
+        phaseGSw.Stop();
+        Console.Error.WriteLine($"[code-index] Phase G 失效缓存: ({phaseGSw.ElapsedMilliseconds}ms)");
 
         // Phase H: 统一持久化所有 IIndexStore — 并行保存（CLI 单次调用模式跨进程恢复）
         _lastVectorIndexDir = Path.Combine(options.WorkspaceRoot, ".jcc", "code-index");

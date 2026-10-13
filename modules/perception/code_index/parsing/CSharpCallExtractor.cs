@@ -164,7 +164,7 @@ public sealed class CSharpCallExtractor {
     }
 
     internal static void CollectVariableTypes(Node node, HashSet<string> classNameSet, Dictionary<string, string> map) {
-        ProcessVariableTypeNode(node, classNameSet, map);
+        ProcessVariableTypeNode(node, node.Type, classNameSet, map);
 
         foreach (var child in node.NamedChildren) {
             CollectVariableTypes(child, classNameSet, map);
@@ -172,23 +172,23 @@ public sealed class CSharpCallExtractor {
     }
 
     /// <summary>处理单个节点的变量类型收集（不递归），供联合遍历调用</summary>
-    internal static void ProcessVariableTypeNode(Node node, HashSet<string> classNameSet, Dictionary<string, string> map) {
-        if (node.Type == "parameter") {
+    internal static void ProcessVariableTypeNode(Node node, string nodeType, HashSet<string> classNameSet, Dictionary<string, string> map) {
+        if (nodeType == "parameter") {
             CollectParameterVariableType(node, classNameSet, map);
-        } else if (node.Type == "variable_declaration") {
+        } else if (nodeType == "variable_declaration") {
             CollectVariableDeclarationTypes(node, map);
         }
     }
 
     /// <summary>收集所有参数/变量类型（不过滤 classNameSet），供 CollectSymbols 联合遍历使用</summary>
-    internal static void ProcessVariableTypeNodeUnfiltered(Node node, Dictionary<string, string> map) {
-        if (node.Type == "parameter") {
+    internal static void ProcessVariableTypeNodeUnfiltered(Node node, string nodeType, Dictionary<string, string> map) {
+        if (nodeType == "parameter") {
             var nameNode = node.GetChildForField("name");
             var typeNode = node.GetChildForField("type");
             if (nameNode is not null && typeNode is not null) {
                 map[nameNode.Text] = typeNode.Text;
             }
-        } else if (node.Type == "variable_declaration") {
+        } else if (nodeType == "variable_declaration") {
             CollectVariableDeclarationTypes(node, map);
         }
     }
@@ -245,7 +245,7 @@ public sealed class CSharpCallExtractor {
             return;
         }
 
-        ProcessCallNode(node, filePath, classNameSet, interfaceNameSet, variableTypeMap, methodLookup, symbols, extensionMethodMap, calls);
+        ProcessCallNode(node, node.Type, filePath, classNameSet, interfaceNameSet, variableTypeMap, methodLookup, symbols, extensionMethodMap, calls);
 
         foreach (var child in node.NamedChildren) {
             CollectCalls(child, filePath, classNameSet, interfaceNameSet, variableTypeMap, methodLookup, symbols, extensionMethodMap, calls);
@@ -254,7 +254,7 @@ public sealed class CSharpCallExtractor {
 
     /// <summary>处理单个节点的调用提取（不递归），供联合遍历调用</summary>
     internal static void ProcessCallNode(
-        Node node, string filePath,
+        Node node, string nodeType, string filePath,
         HashSet<string> classNameSet, HashSet<string> interfaceNameSet,
         Dictionary<string, string> variableTypeMap, List<MethodLookupEntry> methodLookup,
         SymbolIndex symbols, Dictionary<string, string> extensionMethodMap,
@@ -262,24 +262,24 @@ public sealed class CSharpCallExtractor {
 
         if (node.IsError) return;
 
-        if (node.Type == "invocation_expression") {
+        if (nodeType == "invocation_expression") {
             if (IsNameofExpression(node)) return;
 
             var edge = TryExtractInvocationEdge(node, filePath, classNameSet, interfaceNameSet, variableTypeMap, methodLookup, symbols, extensionMethodMap);
             if (edge is not null) {
                 calls.Add(edge);
             }
-        } else if (node.Type == "object_creation_expression") {
+        } else if (nodeType == "object_creation_expression") {
             var edge = TryExtractConstructorEdge(node, filePath, methodLookup);
             if (edge is not null) {
                 calls.Add(edge);
             }
-        } else if (node.Type == "constructor_initializer") {
+        } else if (nodeType == "constructor_initializer") {
             var edge = TryExtractConstructorInitializerEdge(node, filePath, methodLookup, symbols);
             if (edge is not null) {
                 calls.Add(edge);
             }
-        } else if (node.Type == "assignment_expression") {
+        } else if (nodeType == "assignment_expression") {
             var edge = TryExtractEventHandlerEdge(node, filePath, methodLookup, symbols);
             if (edge is not null) {
                 calls.Add(edge);

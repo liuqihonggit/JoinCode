@@ -139,7 +139,7 @@ public sealed class CSharpDependencyExtractor {
     }
 
     internal static void CollectInterfaceNamesRecursive(Node node, HashSet<string> names) {
-        ProcessInterfaceNameNode(node, names);
+        ProcessInterfaceNameNode(node, node.Type, names);
 
         foreach (var child in node.NamedChildren) {
             CollectInterfaceNamesRecursive(child, names);
@@ -147,8 +147,8 @@ public sealed class CSharpDependencyExtractor {
     }
 
     /// <summary>处理单个节点的接口名收集（不递归），供联合遍历调用</summary>
-    internal static void ProcessInterfaceNameNode(Node node, HashSet<string> names) {
-        if (node.Type == "interface_declaration") {
+    internal static void ProcessInterfaceNameNode(Node node, string nodeType, HashSet<string> names) {
+        if (nodeType == "interface_declaration") {
             var nameNode = node.GetChildForField("name");
             if (nameNode is not null) {
                 names.Add(nameNode.Text);
@@ -161,7 +161,7 @@ public sealed class CSharpDependencyExtractor {
             return;
         }
 
-        ProcessDepNode(node, fileFqn, filePath, deps, interfaceNames, typeFqnMap);
+        ProcessDepNode(node, node.Type, fileFqn, filePath, deps, interfaceNames, typeFqnMap);
 
         foreach (var child in node.NamedChildren) {
             CollectDependencies(child, fileFqn, filePath, deps, interfaceNames, typeFqnMap);
@@ -169,10 +169,10 @@ public sealed class CSharpDependencyExtractor {
     }
 
     /// <summary>处理单个节点的依赖提取（不递归），供联合遍历调用</summary>
-    internal static void ProcessDepNode(Node node, string fileFqn, string filePath, List<DependencyEdge> deps, HashSet<string> interfaceNames, Dictionary<string, string> typeFqnMap) {
+    internal static void ProcessDepNode(Node node, string nodeType, string fileFqn, string filePath, List<DependencyEdge> deps, HashSet<string> interfaceNames, Dictionary<string, string> typeFqnMap) {
         if (node.IsError) return;
 
-        switch (node.Type) {
+        switch (nodeType) {
             case "class_declaration":
             case "struct_declaration":
             case "record_declaration":
@@ -216,8 +216,8 @@ public sealed class CSharpDependencyExtractor {
     }
 
     /// <summary>处理单个节点的类型引用收集（不递归），供外层联合遍历调用</summary>
-    internal static void ProcessTypeReferenceNode(Node node, HashSet<string> usedTypes) {
-        switch (node.Type) {
+    internal static void ProcessTypeReferenceNode(Node node, string nodeType, HashSet<string> usedTypes) {
+        switch (nodeType) {
             case "type_identifier":
             AddIfUserDefinedType(node, node.Text, usedTypes);
             break;

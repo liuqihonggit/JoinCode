@@ -235,20 +235,22 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
         string? currentTypeFqn, Dictionary<string, HashSet<string>> typeUsageMap) {
         if (node.IsError) return;
 
-        CSharpCallExtractor.ProcessCallNode(node, filePath, classNameSet, interfaceNameSet, variableTypeMap,
+        var nodeType = node.Type;
+
+        CSharpCallExtractor.ProcessCallNode(node, nodeType, filePath, classNameSet, interfaceNameSet, variableTypeMap,
             methodLookup, symbols, extensionMethodMap, calls);
-        CSharpDependencyExtractor.ProcessDepNode(node, fileFqn, filePath, deps, interfaceNames, typeFqnMap);
+        CSharpDependencyExtractor.ProcessDepNode(node, nodeType, fileFqn, filePath, deps, interfaceNames, typeFqnMap);
 
         if (currentTypeFqn is not null) {
             if (!typeUsageMap.TryGetValue(currentTypeFqn, out var usedTypes)) {
                 usedTypes = new HashSet<string>(StringComparer.Ordinal);
                 typeUsageMap[currentTypeFqn] = usedTypes;
             }
-            CSharpDependencyExtractor.ProcessTypeReferenceNode(node, usedTypes);
+            CSharpDependencyExtractor.ProcessTypeReferenceNode(node, nodeType, usedTypes);
         }
 
         var newTypeFqn = currentTypeFqn;
-        if (CSharpDependencyExtractor.TypeDeclNodeTypes.Contains(node.Type)) {
+        if (CSharpDependencyExtractor.TypeDeclNodeTypes.Contains(nodeType)) {
             newTypeFqn = CSharpDependencyExtractor.TryGetTypeDeclSourceFqn(node, typeFqnMap);
         }
 
@@ -467,15 +469,17 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
             return;
         }
 
-        CSharpCallExtractor.ProcessVariableTypeNodeUnfiltered(node, rawVariableTypes);
-        CSharpDependencyExtractor.ProcessInterfaceNameNode(node, interfaceNames);
+        var nodeType = node.Type;
 
-        if (node.Type == "compilation_unit") {
+        CSharpCallExtractor.ProcessVariableTypeNodeUnfiltered(node, nodeType, rawVariableTypes);
+        CSharpDependencyExtractor.ProcessInterfaceNameNode(node, nodeType, interfaceNames);
+
+        if (nodeType == "compilation_unit") {
             CollectCompilationUnitChildren(node, filePath, symbols, rawVariableTypes, interfaceNames);
             return;
         }
 
-        if (TryExtractSymbol(node, filePath, parentSymbol, parentFqn, ns, out var symbol, out var currentNs)) {
+        if (TryExtractSymbol(node, nodeType, filePath, parentSymbol, parentFqn, ns, out var symbol, out var currentNs)) {
             symbols.Add(symbol);
 
             if (TryExtractPrimaryConstructor(node, filePath, symbol.Name, symbol.FullyQualifiedName, currentNs, symbols)) {
@@ -501,7 +505,8 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
         string? fileScopedNs = null;
 
         foreach (var child in node.NamedChildren) {
-            if (child.Type == "file_scoped_namespace_declaration") {
+            var childType = child.Type;
+            if (childType == "file_scoped_namespace_declaration") {
                 var nameNode = child.GetChildForField("name");
                 var nsName = nameNode?.Text ?? "<anonymous>";
 
@@ -534,12 +539,12 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
         }
     }
 
-    private static bool TryExtractSymbol(Node node, string filePath, string? parentSymbol, string? parentFqn, string? ns,
+    private static bool TryExtractSymbol(Node node, string nodeType, string filePath, string? parentSymbol, string? parentFqn, string? ns,
         [NotNullWhen(true)] out SymbolInfo? symbol, out string? currentNs) {
         symbol = null;
         currentNs = ns;
 
-        if (!NodeTypeToKind.TryGetValue(node.Type, out var kind)) {
+        if (!NodeTypeToKind.TryGetValue(nodeType, out var kind)) {
             return false;
         }
 

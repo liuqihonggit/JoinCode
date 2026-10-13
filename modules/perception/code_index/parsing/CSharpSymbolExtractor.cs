@@ -440,6 +440,7 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
 
     private IReadOnlyList<SymbolInfo> ExtractSymbolsCore(string sourceCode, string filePath) {
         var tree = ParseIncremental(sourceCode, filePath);
+        TreeSitterFieldIds.Initialize(tree.Language);
 
         try {
             var symbols = new List<SymbolInfo>();

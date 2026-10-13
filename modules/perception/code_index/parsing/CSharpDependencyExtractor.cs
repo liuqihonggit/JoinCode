@@ -80,6 +80,7 @@ public sealed class CSharpDependencyExtractor {
 
         using var parser = TreeSitterParserPool.CreateDisposable();
         using var tree = parser.Parse(sourceCode);
+        TreeSitterFieldIds.Initialize(tree.Language);
 
         return ExtractDependenciesFromTree(tree.RootNode, filePath, symbols);
     }
@@ -96,8 +97,13 @@ public sealed class CSharpDependencyExtractor {
         var interfaceNames = CollectInterfaceNames(rootNode);
         var typeFqnMap = BuildTypeFqnMap(symbols);
         var fileFqn = BuildFileFqn(filePath, symbols);
+        var typeUsageMap = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
 
-        CollectDependencies(rootNode, fileFqn, filePath, deps, interfaceNames, typeFqnMap);
+        CollectDependencies(rootNode, fileFqn, filePath, deps, interfaceNames, typeFqnMap, null, typeUsageMap);
+
+        foreach (var (sourceFqn, usedTypes) in typeUsageMap) {
+            BuildTypeUsageEdges(sourceFqn, filePath, usedTypes, deps, typeFqnMap);
+        }
 
         return deps;
     }
@@ -109,8 +115,13 @@ public sealed class CSharpDependencyExtractor {
         var deps = new List<DependencyEdge>();
         var typeFqnMap = BuildTypeFqnMap(symbols);
         var fileFqn = BuildFileFqn(filePath, symbols);
+        var typeUsageMap = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
 
-        CollectDependencies(rootNode, fileFqn, filePath, deps, interfaceNames, typeFqnMap);
+        CollectDependencies(rootNode, fileFqn, filePath, deps, interfaceNames, typeFqnMap, null, typeUsageMap);
+
+        foreach (var (sourceFqn, usedTypes) in typeUsageMap) {
+            BuildTypeUsageEdges(sourceFqn, filePath, usedTypes, deps, typeFqnMap);
+        }
 
         return deps;
     }
@@ -156,16 +167,32 @@ public sealed class CSharpDependencyExtractor {
         }
     }
 
-    internal static void CollectDependencies(Node node, string fileFqn, string filePath, List<DependencyEdge> deps, HashSet<string> interfaceNames, Dictionary<string, string> typeFqnMap) {
+    internal static void CollectDependencies(Node node, string fileFqn, string filePath, List<DependencyEdge> deps, HashSet<string> interfaceNames, Dictionary<string, string> typeFqnMap, string? currentTypeFqn, Dictionary<string, HashSet<string>> typeUsageMap) {
         if (node.IsError) {
             return;
         }
 
-        ProcessDepNode(node, node.Type, fileFqn, filePath, deps, interfaceNames, typeFqnMap);
+        var nodeType = node.Type;
+        ProcessDepNode(node, nodeType, fileFqn, filePath, deps, interfaceNames, typeFqnMap);
+        CollectTypeReferenceIfNeeded(currentTypeFqn, nodeType, node, typeUsageMap);
+
+        var newTypeFqn = TypeDeclNodeTypes.Contains(nodeType)
+            ? TryGetTypeDeclSourceFqn(node, typeFqnMap)
+            : currentTypeFqn;
 
         foreach (var child in node.NamedChildren) {
-            CollectDependencies(child, fileFqn, filePath, deps, interfaceNames, typeFqnMap);
+            CollectDependencies(child, fileFqn, filePath, deps, interfaceNames, typeFqnMap, newTypeFqn, typeUsageMap);
         }
+    }
+
+    /// <summary>在类型声明内部时,收集类型引用(field/param/return type)到 typeUsageMap,遍历后由 BuildTypeUsageEdges 创建 Uses 边</summary>
+    private static void CollectTypeReferenceIfNeeded(string? currentTypeFqn, string nodeType, Node node, Dictionary<string, HashSet<string>> typeUsageMap) {
+        if (currentTypeFqn is null) return;
+        if (!typeUsageMap.TryGetValue(currentTypeFqn, out var usedTypes)) {
+            usedTypes = new HashSet<string>(StringComparer.Ordinal);
+            typeUsageMap[currentTypeFqn] = usedTypes;
+        }
+        ProcessTypeReferenceNode(node, nodeType, usedTypes);
     }
 
     /// <summary>处理单个节点的依赖提取（不递归），供联合遍历调用</summary>

@@ -960,7 +960,13 @@ public partial class GitHubToolHandlers {
 
         if (failedJobIds.Count == 0) {
             var conclusion = watchResult.RunConclusion ?? "unknown";
-            return Ok(summary, $"Run {runId} 已完成: {conclusion}");
+            var cancelPrefix = CiJobSeverityExtensions.FromConclusion(conclusion) switch {
+                CiJobSeverity.Cancelled => $"❌ Run {runId} 已取消(conclusion: {conclusion})",
+                CiJobSeverity.TimedOut  => $"❌ Run {runId} 已超时(conclusion: {conclusion})",
+                CiJobSeverity.Failure   => $"❌ Run {runId} 失败(conclusion: {conclusion})",
+                _                       => $"Run {runId} 已完成: {conclusion}"
+            };
+            return Ok(summary, cancelPrefix);
         }
 
         if (isFailFast)

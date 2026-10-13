@@ -175,7 +175,7 @@ internal static class GitHubRunPoller {
 
         return state switch {
             PollState.Completed => JobWatchResult.Completed(value.RunConclusion, value.FailedJobIds, value.Summary, pollCount, elapsedMs),
-            PollState.FastFailed => JobWatchResult.FailFast(value.FailedJobIds, value.Summary, pollCount, elapsedMs),
+            PollState.FastFailed => JobWatchResult.FailFast(value.RunConclusion, value.FailedJobIds, value.Summary, pollCount, elapsedMs),
             PollState.Timeout => JobWatchResult.FromTimeout(value.Summary, pollCount, elapsedMs),
             _ => JobWatchResult.FromError(error ?? "轮询失败", pollCount)
         };
@@ -431,8 +431,8 @@ internal sealed record JobWatchResult {
     internal static JobWatchResult Completed(string? conclusion, List<long> failedJobIds, string summary, int pollCount, long elapsedMs)
         => new() { Outcome = RunWaitOutcome.Completed, RunConclusion = conclusion, FailedJobIds = failedJobIds, Summary = summary, PollCount = pollCount, ElapsedMs = elapsedMs };
 
-    internal static JobWatchResult FailFast(List<long> failedJobIds, string summary, int pollCount, long elapsedMs)
-        => new() { Outcome = RunWaitOutcome.FailFast, FailedJobIds = failedJobIds, Summary = summary, PollCount = pollCount, ElapsedMs = elapsedMs };
+    internal static JobWatchResult FailFast(string? conclusion, List<long> failedJobIds, string summary, int pollCount, long elapsedMs)
+        => new() { Outcome = RunWaitOutcome.FailFast, RunConclusion = conclusion, FailedJobIds = failedJobIds, Summary = summary, PollCount = pollCount, ElapsedMs = elapsedMs };
 
     internal static JobWatchResult FromTimeout(string summary, int pollCount, long elapsedMs)
         => new() { Outcome = RunWaitOutcome.Timeout, Summary = summary, PollCount = pollCount, ElapsedMs = elapsedMs };

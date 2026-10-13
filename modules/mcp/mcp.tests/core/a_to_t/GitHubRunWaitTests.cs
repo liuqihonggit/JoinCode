@@ -410,4 +410,77 @@ public sealed class GitHubRunWaitTests {
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("无 CI 告警");
     }
+
+    /// <summary>
+    /// fail-fast 模式:run 被 cancelled,jobs 还没更新 conclusion(failedJobIds 为空) → 立即返回,信息含"取消"
+    /// </summary>
+    /// <para>用户手工取消 CI run 是常见操作,wait 应立即感知并退出,不应继续轮询空转</para>
+    [Fact]
+    public async Task RunWait_FailFast_RunCancelled_NoFailedJobs_ReturnsCancelledImmediately() {
+        EnqueueResolveRunIdOk();
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"status":"completed","conclusion":"cancelled"}"""
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"jobs":[]}"""
+        });
+
+        var result = await _handler.GhRunWaitAsync(
+            run_id: "1", timeout_seconds: 10, poll_interval_seconds: 1, fail_fast: true,
+            common: new GitHubCommonOptions { Repo = "owner/repo" });
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("取消");
+        result.GetFirstText().Should().Contain("轮询次数: 1");
+    }
+
+    /// <summary>
+    /// fail-fast 模式:run 被 timed_out,jobs 还没更新 conclusion → 立即返回,信息含"超时"
+    /// </summary>
+    [Fact]
+    public async Task RunWait_FailFast_RunTimedOut_NoFailedJobs_ReturnsTimedOutImmediately() {
+        EnqueueResolveRunIdOk();
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"status":"completed","conclusion":"timed_out"}"""
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"jobs":[]}"""
+        });
+
+        var result = await _handler.GhRunWaitAsync(
+            run_id: "1", timeout_seconds: 10, poll_interval_seconds: 1, fail_fast: true,
+            common: new GitHubCommonOptions { Repo = "owner/repo" });
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("超时");
+        result.GetFirstText().Should().Contain("轮询次数: 1");
+    }
+
+    /// <summary>
+    /// 非 fail-fast 模式:run 被 cancelled → 返回信息含"取消"或"失败",不应返回"已完成 ✅"
+    /// </summary>
+    [Fact]
+    public async Task RunWait_NonFailFast_RunCancelled_ReturnsCancelledNotSuccess() {
+        EnqueueResolveRunIdOk();
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"status":"completed","conclusion":"cancelled","html_url":"https://github.com/o/r/actions/runs/1"}"""
+        });
+        _api.EnqueueResponse(new GitHubApiResponse {
+            Success = true, StatusCode = 200,
+            Body = """{"jobs":[]}"""
+        });
+
+        var result = await _handler.GhRunWaitAsync(
+            run_id: "1", timeout_seconds: 10, poll_interval_seconds: 1,
+            common: new GitHubCommonOptions { Repo = "owner/repo" });
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("cancelled");
+        result.GetFirstText().Should().NotContain("✅");
+    }
 }

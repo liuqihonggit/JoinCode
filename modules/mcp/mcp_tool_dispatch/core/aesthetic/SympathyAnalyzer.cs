@@ -7,9 +7,11 @@ namespace McpToolRegistry;
 /// </summary>
 [Register(typeof(IAestheticAnalyzer), ServiceLifetime.Singleton)]
 public sealed class SympathyAnalyzer : IAestheticAnalyzer {
+    private const string CooldownKey = "sympathy";
+    private static readonly TimeSpan Cooldown = TimeSpan.FromMinutes(30);
     private static readonly Regex SympathyKeywordsRegex = new(
         @"(癌症|cancer|患病|住院|手术|化疗|放疗|肿瘤|leukemia|tumour|tumor|脑梗|心梗|中风|尿毒症|肝硬化|肾衰竭|器官移植" +
-        @"|累了|撑不住|扛不住|压力大|要崩溃了|崩溃边缘|快撑不住了|放弃|绝望|撑不下去|扛不下去|心力交瘁|筋疲力尽" +
+        @"|哎|唉|哎哟|唉声叹气|叹气|难受|想哭|香菇|累了|撑不住|扛不住|压力大|要崩溃了|崩溃边缘|快撑不住了|放弃|绝望|撑不下去|扛不下去|心力交瘁|筋疲力尽" +
         @"|失眠|睡不着|头疼|头痛|身体不舒服|不舒服|胃疼|胃痛|心慌|胸闷|头晕|恶心|呕吐|食欲不振|体重下降" +
         @"|家里有事|家人生病|家人住院|父母生病|妈妈生病|爸爸生病|照顾病人|陪护|医院陪护|送医院|急诊" +
         @"|医药费|治疗费|手术费|住院费|负担不起|看不起病|没钱治病|经济困难|经济压力|入不敷出" +
@@ -35,6 +37,9 @@ public sealed class SympathyAnalyzer : IAestheticAnalyzer {
         if (!match.Success) return false;
 
         var anchor = match.Value;
+
+        if (!CooldownService.ShouldTrigger(CooldownKey, Cooldown)) return false;
+        CooldownService.RecordTrigger(CooldownKey);
 
         feedback = new AestheticFeedback {
             Emotion = AestheticEmotion.Sympathy,

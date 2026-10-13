@@ -7,6 +7,8 @@ namespace McpToolRegistry;
 /// </summary>
 [Register(typeof(IAestheticAnalyzer), ServiceLifetime.Singleton)]
 public sealed class UrgencyAnalyzer : IAestheticAnalyzer {
+    private const string CooldownKey = "urgency";
+    private static readonly TimeSpan Cooldown = TimeSpan.FromMinutes(5);
     private static readonly Regex UrgencyKeywordsRegex = new(
         @"(没有弄好|没有弄对|没弄好|没弄对|不对|不对啊|不对呀|还有其他方法吗|还有别的办法吗|不行|不行啊|搞不定|搞不了|做不好|做不了|救命|求求你|求你了|快点|赶紧|抓紧|快一点|马上|立刻|急|急用|着急|催|催我)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled,
@@ -29,6 +31,9 @@ public sealed class UrgencyAnalyzer : IAestheticAnalyzer {
         if (!match.Success) return false;
 
         var keyword = match.Value;
+
+        if (!CooldownService.ShouldTrigger(CooldownKey, Cooldown)) return false;
+        CooldownService.RecordTrigger(CooldownKey);
 
         feedback = new AestheticFeedback {
             Emotion = AestheticEmotion.Urgency,

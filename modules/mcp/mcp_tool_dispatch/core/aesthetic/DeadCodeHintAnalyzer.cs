@@ -6,6 +6,8 @@ namespace McpToolRegistry;
 /// </summary>
 [Register(typeof(IAestheticAnalyzer), ServiceLifetime.Singleton)]
 public sealed class DeadCodeHintAnalyzer : IAestheticAnalyzer {
+    private const string CooldownKey = "dead-code-hint";
+    private static readonly TimeSpan Cooldown = TimeSpan.FromMinutes(10);
     private static readonly Regex DeadCodeKeywordsRegex = new(
         @"\b(unreferenced|never\s+called|dead\s+code|unused\s+method|unused\s+function|orphaned|no\s+callers)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled,
@@ -25,6 +27,9 @@ public sealed class DeadCodeHintAnalyzer : IAestheticAnalyzer {
         if (string.IsNullOrEmpty(text)) return false;
 
         if (!DeadCodeKeywordsRegex.IsMatch(text)) return false;
+
+        if (!CooldownService.ShouldTrigger(CooldownKey, Cooldown)) return false;
+        CooldownService.RecordTrigger(CooldownKey);
 
         feedback = new AestheticFeedback {
             Emotion = AestheticEmotion.Confusion,

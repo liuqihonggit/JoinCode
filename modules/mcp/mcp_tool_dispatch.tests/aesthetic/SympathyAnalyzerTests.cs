@@ -4,6 +4,8 @@ namespace McpToolRegistry.Tests;
 /// SympathyAnalyzer 单元测试 — 检测六类困境信号锚点
 /// </summary>
 public class SympathyAnalyzerTests {
+    public SympathyAnalyzerTests() => CooldownService.Reset();
+
     private static ToolExecutionContext CreateContext(string? text) {
         return new ToolExecutionContext {
             ToolName = "read",
@@ -39,6 +41,14 @@ public class SympathyAnalyzerTests {
     [InlineData("完全绝望了")]
     [InlineData("心力交瘁")]
     [InlineData("筋疲力尽")]
+    [InlineData("哎，又出bug了")]
+    [InlineData("唉，好累")]
+    [InlineData("哎哟，疼死了")]
+    [InlineData("唉声叹气")]
+    [InlineData("叹气")]
+    [InlineData("真的好难受")]
+    [InlineData("想哭")]
+    [InlineData("香菇，太难了")]
     public void TryAnalyze_EmotionalDistressAnchor_ReturnsSympathy(string text) {
         var analyzer = new SympathyAnalyzer();
         var context = CreateContext(text);

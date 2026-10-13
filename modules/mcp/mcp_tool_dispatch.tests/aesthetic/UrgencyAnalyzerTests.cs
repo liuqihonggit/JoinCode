@@ -4,6 +4,8 @@ namespace McpToolRegistry.Tests;
 /// UrgencyAnalyzer 单元测试 — 检测工具结果文本中用户表达不满/求助/催促的关键词
 /// </summary>
 public class UrgencyAnalyzerTests {
+    public UrgencyAnalyzerTests() => CooldownService.Reset();
+
     private static ToolExecutionContext CreateContext(string? text) {
         return new ToolExecutionContext {
             ToolName = "read",

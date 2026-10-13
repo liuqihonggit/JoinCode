@@ -6,6 +6,8 @@ namespace McpToolRegistry;
 /// </summary>
 [Register(typeof(IAestheticAnalyzer), ServiceLifetime.Singleton)]
 public sealed class MultiFieldAnalyzer : IAestheticAnalyzer {
+    private const string CooldownKey = "multi-field-sadness";
+    private static readonly TimeSpan Cooldown = TimeSpan.FromMinutes(10);
     private static readonly Regex FieldPattern = new(
         @"(?:public|private|internal|protected)\s+(?:readonly\s+|static\s+|volatile\s+|const\s+)?(?:\w+(?:<[^>]+>)?(?:\[\])?)\s+\w+\s*(?:\{|;|=)",
         RegexOptions.Compiled,
@@ -28,6 +30,9 @@ public sealed class MultiFieldAnalyzer : IAestheticAnalyzer {
 
         var matches = FieldPattern.Matches(text);
         if (matches.Count <= FieldThreshold) return false;
+
+        if (!CooldownService.ShouldTrigger(CooldownKey, Cooldown)) return false;
+        CooldownService.RecordTrigger(CooldownKey);
 
         feedback = new AestheticFeedback {
             Emotion = AestheticEmotion.Sadness,

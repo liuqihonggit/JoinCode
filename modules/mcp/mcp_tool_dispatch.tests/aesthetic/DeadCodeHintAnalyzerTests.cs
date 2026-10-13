@@ -4,6 +4,8 @@ namespace McpToolRegistry.Tests;
 /// DeadCodeHintAnalyzer 单元测试 — 检测工具结果文本中暗示死代码的关键词
 /// </summary>
 public class DeadCodeHintAnalyzerTests {
+    public DeadCodeHintAnalyzerTests() => CooldownService.Reset();
+
     private static ToolExecutionContext CreateContext(string? text) {
         return new ToolExecutionContext {
             ToolName = "read",

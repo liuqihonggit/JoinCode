@@ -4,6 +4,8 @@ namespace McpToolRegistry.Tests;
 /// BugKeywordAnalyzer 单元测试 — 检测工具结果文本中的 BUG/FIXME/HACK/WORKAROUND/XXX 关键字
 /// </summary>
 public class BugKeywordAnalyzerTests {
+    public BugKeywordAnalyzerTests() => CooldownService.Reset();
+
     private static ToolExecutionContext CreateContext(string? text) {
         return new ToolExecutionContext {
             ToolName = "read",

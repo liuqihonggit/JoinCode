@@ -6,6 +6,8 @@ namespace McpToolRegistry;
 /// </summary>
 [Register(typeof(IAestheticAnalyzer), ServiceLifetime.Singleton)]
 public sealed class BugKeywordAnalyzer : IAestheticAnalyzer {
+    private const string CooldownKey = "bug-keyword-alert";
+    private static readonly TimeSpan Cooldown = TimeSpan.FromMinutes(10);
     private static readonly Regex BugKeywordsRegex = new(
         @"\b(BUG|FIXME|HACK|WORKAROUND|XXX)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled,
@@ -32,6 +34,9 @@ public sealed class BugKeywordAnalyzer : IAestheticAnalyzer {
             .Distinct()
             .OrderBy(static k => k)
             .ToList();
+
+        if (!CooldownService.ShouldTrigger(CooldownKey, Cooldown)) return false;
+        CooldownService.RecordTrigger(CooldownKey);
 
         feedback = new AestheticFeedback {
             Emotion = AestheticEmotion.Alert,

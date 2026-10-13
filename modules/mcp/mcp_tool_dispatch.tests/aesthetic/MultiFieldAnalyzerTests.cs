@@ -4,6 +4,8 @@ namespace McpToolRegistry.Tests;
 /// MultiFieldAnalyzer 单元测试 — 检测工具结果文本中字段/属性过多的类
 /// </summary>
 public class MultiFieldAnalyzerTests {
+    public MultiFieldAnalyzerTests() => CooldownService.Reset();
+
     private static ToolExecutionContext CreateContext(string? text) {
         return new ToolExecutionContext {
             ToolName = "read",

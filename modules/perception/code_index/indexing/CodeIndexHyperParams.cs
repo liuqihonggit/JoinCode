@@ -17,7 +17,7 @@ public sealed record CodeIndexHyperParams {
     // ── Embedding 参数 ────────────────────────────────────────
 
     /// <summary>最大序列长度（token 数）。all-MiniLM-L6-v2 上限 256。越大召回率↑但推理慢。范围 32~256。</summary>
-    public int MaxSeqLen { get; init; } = 128;
+    public int MaxSeqLen { get; init; } = 8;
 
     /// <summary>嵌入批大小 — 单次送入 ONNX 推理的文本数量。越大吞吐↑但内存↑。范围 64~512。</summary>
     public int EmbedBatchSize { get; init; } = 256;
@@ -80,7 +80,7 @@ public sealed record CodeIndexHyperParams {
     public static CodeIndexHyperParams FromEnvironment() => new() {
         ChunkSize = ReadInt("JCC_CHUNK_SIZE", 400),
         Overlap = ReadInt("JCC_CHUNK_OVERLAP", 25),
-        MaxSeqLen = ReadInt("JCC_ONNX_MAX_SEQ_LEN", 128),
+        MaxSeqLen = ReadInt("JCC_ONNX_MAX_SEQ_LEN", 8),
         EmbedBatchSize = ReadInt("JCC_EMBED_BATCH_SIZE", 256),
         Dimensions = ReadInt("JCC_EMBED_DIMENSIONS", 384),
         PaddingAlign = ReadInt("JCC_PADDING_ALIGN", 8),

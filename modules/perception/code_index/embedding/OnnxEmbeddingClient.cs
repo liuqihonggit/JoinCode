@@ -35,7 +35,7 @@ public sealed class OnnxEmbeddingClient : IEmbeddingModel, IAsyncDisposable {
     /// <param name="fs">文件系统抽象（检查文件是否存在）。</param>
     /// <param name="modelId">模型标识（默认 onnx-minilm-l6-v2）。</param>
     /// <param name="degree">并行推理实例数（默认 0=自动，取 ProcessorCount；每个实例 IntraOpNumThreads=ProcessorCount/degree，避免线程争抢）。</param>
-    /// <param name="maxSeqLen">最大序列长度（token 数，默认 128）。all-MiniLM-L6-v2 上限 256。</param>
+    /// <param name="maxSeqLen">最大序列长度（token 数）。必须从 CodeIndexHyperParams 传入，-1=未设置将抛异常。</param>
     /// <param name="logger">日志记录器（可选）。</param>
     public OnnxEmbeddingClient(
         string modelPath,
@@ -43,7 +43,7 @@ public sealed class OnnxEmbeddingClient : IEmbeddingModel, IAsyncDisposable {
         IFileSystem fs,
         string modelId = "onnx-minilm-l6-v2",
         int degree = 0,
-        int maxSeqLen = 128,
+        int maxSeqLen = -1,
         ILogger<OnnxEmbeddingClient>? logger = null) {
         ArgumentNullException.ThrowIfNull(modelPath);
         ArgumentNullException.ThrowIfNull(vocabPath);
@@ -65,7 +65,11 @@ public sealed class OnnxEmbeddingClient : IEmbeddingModel, IAsyncDisposable {
         }
         _modelId = modelId;
         _logger = logger;
-        _maxSeqLen = maxSeqLen > 0 ? maxSeqLen : 128;
+        if (maxSeqLen <= 0) {
+            throw new ArgumentOutOfRangeException(nameof(maxSeqLen),
+                "maxSeqLen 必须从 CodeIndexHyperParams 传入正值，当前值=" + maxSeqLen + "。超参数统一存放见 CodeIndexHyperParams.cs");
+        }
+        _maxSeqLen = maxSeqLen;
     }
 
     /// <summary>

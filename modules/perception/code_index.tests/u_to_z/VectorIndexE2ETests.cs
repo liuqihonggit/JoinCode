@@ -33,7 +33,7 @@ public sealed class VectorIndexE2ETests : IDisposable {
             return;
         }
 
-        var embeddingModel = new OnnxEmbeddingClient(modelPath, vocabPath, _realFs);
+        var embeddingModel = new OnnxEmbeddingClient(modelPath, vocabPath, _realFs, maxSeqLen: CodeIndexHyperParams.FromEnvironment().MaxSeqLen);
         _embeddingIndex = new EmbeddingIndex(embeddingModel, new BruteForceAnn(), _fs);
         _indexer = new CodeIndexer(_store, _fs);
         _indexer.SetEmbeddingIndex(_embeddingIndex);

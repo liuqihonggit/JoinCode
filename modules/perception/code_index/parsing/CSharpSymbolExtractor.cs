@@ -138,10 +138,17 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
             var calls = new List<CallEdge>();
             var fileFqn = CSharpDependencyExtractor.BuildFileFqn(filePath, symbols);
             var deps = new List<DependencyEdge>();
+            var typeUsageMap = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
 
-            // 联合主遍历：同时收集 calls 和 deps（省 1 次 AST 遍历）
+            // 联合主遍历：同时收集 calls、deps、类型引用（省 2 次 AST 遍历）
             CollectCallsAndDeps(tree.RootNode, filePath, structures.ClassNameSet, structures.InterfaceNameSet, variableTypeMap,
-                structures.MethodLookup, structures.SymbolIndex, structures.ExtensionMethodMap, calls, fileFqn, deps, interfaceNames, structures.TypeFqnMap);
+                structures.MethodLookup, structures.SymbolIndex, structures.ExtensionMethodMap, calls, fileFqn, deps, interfaceNames, structures.TypeFqnMap,
+                null, typeUsageMap);
+
+            // 从累积的类型引用创建 DependencyEdge
+            foreach (var (sourceFqn, usedTypes) in typeUsageMap) {
+                CSharpDependencyExtractor.BuildTypeUsageEdges(sourceFqn, filePath, usedTypes, deps, structures.TypeFqnMap);
+            }
 
             var chunks = CollectChunksWithParents(sourceCode, filePath, symbols);
 
@@ -221,7 +228,7 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
         }
     }
 
-    /// <summary>联合主遍历 — 单次 AST 遍历同时收集调用边和依赖边（合并 CollectCalls + CollectDependencies）</summary>
+    /// <summary>联合主遍历 — 单次 AST 遍历同时收集调用边、依赖边、类型引用（合并 CollectCalls + CollectDependencies + CollectTypeReferences）</summary>
     private static void CollectCallsAndDeps(
         Node node, string filePath,
         HashSet<string> classNameSet, HashSet<string> interfaceNameSet,
@@ -229,16 +236,31 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
         SymbolIndex symbols, Dictionary<string, string> extensionMethodMap,
         List<CallEdge> calls,
         string fileFqn, List<DependencyEdge> deps, HashSet<string> interfaceNames,
-        Dictionary<string, string> typeFqnMap) {
+        Dictionary<string, string> typeFqnMap,
+        string? currentTypeFqn, Dictionary<string, HashSet<string>> typeUsageMap) {
         if (node.IsError) return;
 
         CSharpCallExtractor.ProcessCallNode(node, filePath, classNameSet, interfaceNameSet, variableTypeMap,
             methodLookup, symbols, extensionMethodMap, calls);
         CSharpDependencyExtractor.ProcessDepNode(node, fileFqn, filePath, deps, interfaceNames, typeFqnMap);
 
+        if (currentTypeFqn is not null) {
+            if (!typeUsageMap.TryGetValue(currentTypeFqn, out var usedTypes)) {
+                usedTypes = new HashSet<string>(StringComparer.Ordinal);
+                typeUsageMap[currentTypeFqn] = usedTypes;
+            }
+            CSharpDependencyExtractor.ProcessTypeReferenceNode(node, usedTypes);
+        }
+
+        var newTypeFqn = currentTypeFqn;
+        if (CSharpDependencyExtractor.TypeDeclNodeTypes.Contains(node.Type)) {
+            newTypeFqn = CSharpDependencyExtractor.TryGetTypeDeclSourceFqn(node, typeFqnMap);
+        }
+
         foreach (var child in node.NamedChildren) {
             CollectCallsAndDeps(child, filePath, classNameSet, interfaceNameSet, variableTypeMap,
-                methodLookup, symbols, extensionMethodMap, calls, fileFqn, deps, interfaceNames, typeFqnMap);
+                methodLookup, symbols, extensionMethodMap, calls, fileFqn, deps, interfaceNames, typeFqnMap,
+                newTypeFqn, typeUsageMap);
         }
     }
 

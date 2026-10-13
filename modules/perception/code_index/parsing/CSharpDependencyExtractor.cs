@@ -53,7 +53,7 @@ public sealed class CSharpDependencyExtractor {
         "IHostBuilder", "IHost", "IHostedService", "IApplicationBuilder", "IWebHostEnvironment"
     }.ToFrozenSet();
 
-    private static readonly FrozenSet<string> TypeDeclNodeTypes = new HashSet<string>(StringComparer.Ordinal)
+    internal static readonly FrozenSet<string> TypeDeclNodeTypes = new HashSet<string>(StringComparer.Ordinal)
     {
         "class_declaration", "struct_declaration", "interface_declaration",
         "enum_declaration", "record_declaration", "record_struct_declaration"
@@ -202,10 +202,54 @@ public sealed class CSharpDependencyExtractor {
             }
         }
 
-        ExtractTypeUsageDependencies(typeDeclNode, sourceFqn, filePath, deps, typeFqnMap);
         ExtractGenericConstraintDependencies(typeDeclNode, sourceFqn, filePath, deps, typeFqnMap);
         ExtractAttributeDependencies(typeDeclNode, sourceFqn, filePath, deps, typeFqnMap);
         ExtractContainsDependencies(typeDeclNode, sourceFqn, filePath, deps, typeFqnMap);
+    }
+
+    /// <summary>计算类型声明的 source FQN（供外层遍历跟踪类型上下文）</summary>
+    internal static string? TryGetTypeDeclSourceFqn(Node typeDeclNode, Dictionary<string, string> typeFqnMap) {
+        var nameNode = typeDeclNode.GetChildForField("name");
+        if (nameNode is null) return null;
+        var sourceName = nameNode.Text;
+        return typeFqnMap.TryGetValue(sourceName, out var fqn) ? fqn : sourceName;
+    }
+
+    /// <summary>处理单个节点的类型引用收集（不递归），供外层联合遍历调用</summary>
+    internal static void ProcessTypeReferenceNode(Node node, HashSet<string> usedTypes) {
+        switch (node.Type) {
+            case "type_identifier":
+            AddIfUserDefinedType(node, node.Text, usedTypes);
+            break;
+            case "generic_name":
+            ExtractGenericNameTypeReferences(node, usedTypes);
+            break;
+            case "variable_declaration":
+            ExtractTypeFromVariableDeclaration(node, usedTypes);
+            break;
+            case "parameter":
+            ExtractTypeFromParameter(node, usedTypes);
+            break;
+            case "method_declaration":
+            ExtractTypeFromMethodReturn(node, usedTypes);
+            break;
+            case "property_declaration":
+            ExtractTypeFromProperty(node, usedTypes);
+            break;
+        }
+    }
+
+    /// <summary>从累积的 usedTypes 集合创建 DependencyEdge（遍历后调用）</summary>
+    internal static void BuildTypeUsageEdges(string sourceFqn, string filePath, HashSet<string> usedTypes, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap) {
+        foreach (var usedType in usedTypes) {
+            var targetFqn = typeFqnMap.TryGetValue(usedType, out var fqnVal) ? fqnVal : usedType;
+            deps.Add(new DependencyEdge {
+                SourceSymbol = sourceFqn,
+                TargetSymbol = targetFqn,
+                DependencyKind = DependencyKind.Uses,
+                SourceFilePath = filePath
+            });
+        }
     }
 
     private static void ExtractBaseListEntry(Node baseEntry, string sourceFqn, string filePath, List<DependencyEdge> deps, HashSet<string> interfaceNames, Dictionary<string, string> typeFqnMap) {
@@ -338,49 +382,7 @@ public sealed class CSharpDependencyExtractor {
         }
     }
 
-    private static void ExtractTypeUsageDependencies(Node typeDeclNode, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap) {
-        var usedTypes = new HashSet<string>(StringComparer.Ordinal);
-        CollectTypeReferences(typeDeclNode, usedTypes);
-
-        foreach (var usedType in usedTypes) {
-            var targetFqn = typeFqnMap.TryGetValue(usedType, out var fqnVal) ? fqnVal : usedType;
-            deps.Add(new DependencyEdge {
-                SourceSymbol = sourceFqn,
-                TargetSymbol = targetFqn,
-                DependencyKind = DependencyKind.Uses,
-                SourceFilePath = filePath
-            });
-        }
-    }
-
-    private static void CollectTypeReferences(Node node, HashSet<string> usedTypes) {
-        switch (node.Type) {
-            case "type_identifier":
-            AddIfUserDefinedType(node, node.Text, usedTypes);
-            break;
-            case "generic_name":
-            ExtractGenericNameTypeReferences(node, usedTypes);
-            break;
-            case "variable_declaration":
-            ExtractTypeFromVariableDeclaration(node, usedTypes);
-            break;
-            case "parameter":
-            ExtractTypeFromParameter(node, usedTypes);
-            break;
-            case "method_declaration":
-            ExtractTypeFromMethodReturn(node, usedTypes);
-            break;
-            case "property_declaration":
-            ExtractTypeFromProperty(node, usedTypes);
-            break;
-        }
-
-        foreach (var child in node.NamedChildren) {
-            CollectTypeReferences(child, usedTypes);
-        }
-    }
-
-    private static void ExtractGenericNameTypeReferences(Node genericNameNode, HashSet<string> usedTypes) {
+    internal static void ExtractGenericNameTypeReferences(Node genericNameNode, HashSet<string> usedTypes) {
         var nameIdentifier = GetGenericNameIdentifier(genericNameNode);
         if (nameIdentifier is not null) {
             AddIfUserDefinedType(genericNameNode, nameIdentifier, usedTypes);
@@ -400,35 +402,35 @@ public sealed class CSharpDependencyExtractor {
         }
     }
 
-    private static void ExtractTypeFromVariableDeclaration(Node varDecl, HashSet<string> usedTypes) {
+    internal static void ExtractTypeFromVariableDeclaration(Node varDecl, HashSet<string> usedTypes) {
         var typeNode = varDecl.GetChildForField("type");
         if (typeNode is not null) {
             AddTypeFromNode(typeNode, usedTypes);
         }
     }
 
-    private static void ExtractTypeFromParameter(Node param, HashSet<string> usedTypes) {
+    internal static void ExtractTypeFromParameter(Node param, HashSet<string> usedTypes) {
         var typeNode = param.GetChildForField("type");
         if (typeNode is not null) {
             AddTypeFromNode(typeNode, usedTypes);
         }
     }
 
-    private static void ExtractTypeFromMethodReturn(Node methodDecl, HashSet<string> usedTypes) {
+    internal static void ExtractTypeFromMethodReturn(Node methodDecl, HashSet<string> usedTypes) {
         var returnTypeNode = methodDecl.GetChildForField("returns");
         if (returnTypeNode is not null) {
             AddTypeFromNode(returnTypeNode, usedTypes);
         }
     }
 
-    private static void ExtractTypeFromProperty(Node propDecl, HashSet<string> usedTypes) {
+    internal static void ExtractTypeFromProperty(Node propDecl, HashSet<string> usedTypes) {
         var typeNode = propDecl.GetChildForField("type");
         if (typeNode is not null) {
             AddTypeFromNode(typeNode, usedTypes);
         }
     }
 
-    private static void AddTypeFromNode(Node typeNode, HashSet<string> usedTypes) {
+    internal static void AddTypeFromNode(Node typeNode, HashSet<string> usedTypes) {
         if (typeNode.Type == "generic_name") {
             ExtractGenericNameTypeReferences(typeNode, usedTypes);
         } else {
@@ -436,7 +438,7 @@ public sealed class CSharpDependencyExtractor {
         }
     }
 
-    private static void AddIfUserDefinedType(Node typeNode, string typeName, HashSet<string> usedTypes) {
+    internal static void AddIfUserDefinedType(Node typeNode, string typeName, HashSet<string> usedTypes) {
         if (typeName.Length == 0 || BclTypes.Contains(typeName)) {
             return;
         }

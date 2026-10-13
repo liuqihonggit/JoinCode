@@ -1103,4 +1103,19 @@ public sealed class GhCommandResolverTests {
         bound!["auto_merge"].Should().Be("true");
         bound["merge_method"].Should().Be("squash");
     }
+
+    /// <summary>--auto-merge-method=squash 内联值形式也应正确映射（TakeNextToken 优先用 inlineValue）</summary>
+    [Fact]
+    public void Bind_GhCliAlias_AutoMergeMethod_InlineValue_ShouldMapToMergeMethod() {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: true, IsBoolean: false),
+            new("merge_method", IsRequired: false, IsBoolean: false),
+            new("auto_merge", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "382", "--auto-merge-method=squash" }, parameters, "gh_pr_merge", out var error);
+
+        error.Should().BeNull();
+        bound!["merge_method"].Should().Be("squash");
+    }
 }

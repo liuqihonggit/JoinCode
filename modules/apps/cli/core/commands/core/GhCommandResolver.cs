@@ -376,7 +376,7 @@ internal static class GhArgsBinder {
             ("squash",            new GhCliAlias("merge_method", "squash", AliasKind.FixedValue)),
             ("merge",             new GhCliAlias("merge_method", "merge", AliasKind.FixedValue)),
             ("rebase",            new GhCliAlias("merge_method", "rebase", AliasKind.FixedValue)),
-            ("auto-merge-method", new GhCliAlias("merge_method", null, AliasKind.RenameOnly)),
+            ("auto-merge-method", new GhCliAlias("merge_method", null, AliasKind.TakeNextToken)),
             ("delete-branch",     new GhCliAlias("delete_branch", null, AliasKind.RenameOnly))
         ),
         ["gh_pr_close"] = new(
@@ -392,7 +392,7 @@ internal static class GhArgsBinder {
             ("fill-first",        new GhCliAlias("fill_first", "true", AliasKind.FixedValue)),
             ("fill-verbose",      new GhCliAlias("fill_verbose", "true", AliasKind.FixedValue)),
             ("enable-auto-merge", new GhCliAlias("auto_merge", "true", AliasKind.FixedValue)),
-            ("auto-merge-method", new GhCliAlias("merge_method", null, AliasKind.RenameOnly))
+            ("auto-merge-method", new GhCliAlias("merge_method", null, AliasKind.TakeNextToken))
         ),
         ["gh_run_rerun"] = new(("failed", new GhCliAlias("failed_only", "true", AliasKind.FixedValue))),
         ["gh_run_view"]  = new(("job", new GhCliAlias("job_id", null, AliasKind.TakeNextToken)), ("pr", new GhCliAlias("pr", null, AliasKind.TakeNextToken))),
@@ -457,6 +457,10 @@ internal static class GhArgsBinder {
                 result[alias.TargetKey] = inlineValue ?? "true";
                 return true;
             default: // TakeNextToken
+                if (inlineValue is not null) {
+                    result[alias.TargetKey] = inlineValue;
+                    return true;
+                }
                 if (i + 1 >= tail.Length || tail[i + 1].StartsWith("--")) {
                     error = $"{CliErrorCatalog.ArgMissingRequired($"--{key} 的值").ToRustStyleString(token)}\n提示: 用法 --{key} <值>";
                     return false;

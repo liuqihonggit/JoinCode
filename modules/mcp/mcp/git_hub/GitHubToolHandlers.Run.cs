@@ -1220,24 +1220,31 @@ public partial class GitHubToolHandlers {
             var sb = new StringBuilder(512);
             string? finalStatus = null;
             string? finalConclusion = null;
-            while (true) {
-                var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}", ct: cancellationToken).ConfigureAwait(false);
-                if (!result.Success) return Fail(result.Error);
-                try {
-                    var run = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.RunDetailResponse);
-                    var status = run?.Status ?? "";
-                    var conclusion = run?.Conclusion ?? "";
-                    var displayTitle = run?.DisplayTitle ?? "";
-                    sb.AppendLine($"[{DateTime.Now:HH:mm:ss}] {status}{(string.IsNullOrEmpty(conclusion) ? "" : $" / {conclusion}")} — {displayTitle}");
-                    if (status == "completed") { finalStatus = status; finalConclusion = conclusion; break; }
-                } catch (JsonException) {
-                    return Fail($"解析 Run 响应失败: {result.Body[..Math.Min(200, result.Body.Length)]}");
+            var tracker = GhTimingTracker.CurrentTimer.Value;
+            var prevCacheDisabled = tracker?.CacheDisabled ?? false;
+            if (tracker is not null) tracker.CacheDisabled = true;
+            try {
+                while (true) {
+                    var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}", ct: cancellationToken).ConfigureAwait(false);
+                    if (!result.Success) return Fail(result.Error);
+                    try {
+                        var run = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.RunDetailResponse);
+                        var status = run?.Status ?? "";
+                        var conclusion = run?.Conclusion ?? "";
+                        var displayTitle = run?.DisplayTitle ?? "";
+                        sb.AppendLine($"[{DateTime.Now:HH:mm:ss}] {status}{(string.IsNullOrEmpty(conclusion) ? "" : $" / {conclusion}")} — {displayTitle}");
+                        if (status == "completed") { finalStatus = status; finalConclusion = conclusion; break; }
+                    } catch (JsonException) {
+                        return Fail($"解析 Run 响应失败: {result.Body[..Math.Min(200, result.Body.Length)]}");
+                    }
+                    try { await Task.Delay(intervalSec * 1000, cancellationToken).ConfigureAwait(false); } catch (TaskCanceledException) { return Ok(sb.ToString(), "Run watch 已取消"); }
                 }
-                try { await Task.Delay(intervalSec * 1000, cancellationToken).ConfigureAwait(false); } catch (TaskCanceledException) { return Ok(sb.ToString(), "Run watch 已取消"); }
+                var failed = finalConclusion == "failure";
+                if (failed && exit_status == true) return Fail(sb.ToString());
+                return Ok(sb.ToString(), $"Run {resolvedRunId} 已完成: {finalConclusion}");
+            } finally {
+                if (tracker is not null) tracker.CacheDisabled = prevCacheDisabled;
             }
-            var failed = finalConclusion == "failure";
-            if (failed && exit_status == true) return Fail(sb.ToString());
-            return Ok(sb.ToString(), $"Run {resolvedRunId} 已完成: {finalConclusion}");
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -1322,7 +1329,14 @@ public sealed class GitHubCiRunStatusChecker : ICiRunStatusChecker {
             return new CiRunStatus(false, resolvedBranch, 0, null);
 
         var (owner, repo) = remoteInfo.Value;
-        return await QueryCiRunsAsync(apiClient, owner, repo, resolvedBranch, ct).ConfigureAwait(false);
+        var tracker = GhTimingTracker.CurrentTimer.Value;
+        var prevCacheDisabled = tracker?.CacheDisabled ?? false;
+        if (tracker is not null) tracker.CacheDisabled = true;
+        try {
+            return await QueryCiRunsAsync(apiClient, owner, repo, resolvedBranch, ct).ConfigureAwait(false);
+        } finally {
+            if (tracker is not null) tracker.CacheDisabled = prevCacheDisabled;
+        }
     }
 
     /// <summary>获取当前分支（branch 为空时用 git rev-parse）。</summary>

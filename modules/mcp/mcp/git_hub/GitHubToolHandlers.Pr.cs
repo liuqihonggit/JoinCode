@@ -260,15 +260,22 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private async Task<ToolResult> GhPrChecksWatchAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, int? intervalSec, bool? failFast, bool? required, int? limit, CancellationToken ct) {
         var delay = TimeSpan.FromSeconds(Math.Clamp(intervalSec ?? 10, 1, 300));
-        for (var i = 0; i < 120; i++) {
-            var checkResult = await GhPrChecksCoreAsync(client, owner, repoName, prNumber, failFast, required, null, limit, ct).ConfigureAwait(false);
-            if (checkResult.IsError) return checkResult;
-            var text = checkResult.GetFirstText() ?? "";
-            if (!text.Contains("进行中")) return checkResult;
-            if (failFast == true && text.Contains("失败")) return checkResult;
-            await Task.Delay(delay, ct).ConfigureAwait(false);
+        var tracker = GhTimingTracker.CurrentTimer.Value;
+        var prevCacheDisabled = tracker?.CacheDisabled ?? false;
+        if (tracker is not null) tracker.CacheDisabled = true;
+        try {
+            for (var i = 0; i < 120; i++) {
+                var checkResult = await GhPrChecksCoreAsync(client, owner, repoName, prNumber, failFast, required, null, limit, ct).ConfigureAwait(false);
+                if (checkResult.IsError) return checkResult;
+                var text = checkResult.GetFirstText() ?? "";
+                if (!text.Contains("进行中")) return checkResult;
+                if (failFast == true && text.Contains("失败")) return checkResult;
+                await Task.Delay(delay, ct).ConfigureAwait(false);
+            }
+            return Ok("轮询超时，仍有 checks 进行中");
+        } finally {
+            if (tracker is not null) tracker.CacheDisabled = prevCacheDisabled;
         }
-        return Ok("轮询超时，仍有 checks 进行中");
     }
 
     /// <summary>

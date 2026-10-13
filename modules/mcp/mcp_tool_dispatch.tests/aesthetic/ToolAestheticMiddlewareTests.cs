@@ -275,4 +275,124 @@ public class ToolAestheticMiddlewareTests {
             _output.WriteLine($"════════════════════════════════════════");
         }
     }
+
+    [Fact]
+    public async Task EdgeCase_NormalCode_NoEmotionInjected() {
+        var cooldown = new CooldownService();
+        var analyzers = new IAestheticAnalyzer[] {
+            new BugKeywordAnalyzer(cooldown),
+            new MultiFieldAnalyzer(cooldown),
+            new DeadCodeHintAnalyzer(cooldown),
+            new SympathyAnalyzer(cooldown),
+            new UrgencyAnalyzer(cooldown),
+            new LateNightAnalyzer(new FixedLocalTimeProvider(10), cooldown)
+        };
+
+        await using var middleware = new ToolAestheticMiddleware(analyzers, NullLogger<ToolAestheticMiddleware>.Instance);
+        var context = new ToolExecutionContext { ToolName = "read", Arguments = [] };
+
+        await middleware.InvokeAsync(context, (ctx, _) => {
+            ctx.Result = CreateTextResult("var x = 42;\nConsole.WriteLine(x);");
+            return Task.CompletedTask;
+        }, CancellationToken.None);
+
+        var messages = context.Result?.InjectedMessages;
+        messages.Should().BeNullOrEmpty("正常代码不应触发任何情绪");
+        _output.WriteLine($"正常代码: 注入 {messages?.Count ?? 0} 条情绪反馈 ✓");
+    }
+
+    [Fact]
+    public async Task EdgeCase_EmptyResult_NoEmotionInjected() {
+        var cooldown = new CooldownService();
+        var analyzers = new IAestheticAnalyzer[] { new BugKeywordAnalyzer(cooldown) };
+
+        await using var middleware = new ToolAestheticMiddleware(analyzers, NullLogger<ToolAestheticMiddleware>.Instance);
+        var context = new ToolExecutionContext { ToolName = "read", Arguments = [] };
+
+        await middleware.InvokeAsync(context, (ctx, _) => {
+            ctx.Result = CreateTextResult("");
+            return Task.CompletedTask;
+        }, CancellationToken.None);
+
+        var messages = context.Result?.InjectedMessages;
+        messages.Should().BeNullOrEmpty("空结果不应触发情绪");
+        _output.WriteLine($"空结果: 注入 {messages?.Count ?? 0} 条情绪反馈 ✓");
+    }
+
+    [Fact]
+    public async Task EdgeCase_NonCodeTool_LateNightNotTriggered() {
+        var cooldown = new CooldownService();
+        var analyzers = new IAestheticAnalyzer[] { new LateNightAnalyzer(new FixedLocalTimeProvider(2), cooldown) };
+
+        await using var middleware = new ToolAestheticMiddleware(analyzers, NullLogger<ToolAestheticMiddleware>.Instance);
+        var context = new ToolExecutionContext { ToolName = "weather", Arguments = [] };
+
+        await middleware.InvokeAsync(context, (ctx, _) => {
+            ctx.Result = CreateTextResult("晴 25°C");
+            return Task.CompletedTask;
+        }, CancellationToken.None);
+
+        var messages = context.Result?.InjectedMessages;
+        messages.Should().BeNullOrEmpty("非代码工具深夜不应触发同情");
+        _output.WriteLine($"非代码工具(weather)深夜2点: 注入 {messages?.Count ?? 0} 条情绪反馈 ✓");
+    }
+
+    [Fact]
+    public async Task EdgeCase_Daytime_LateNightNotTriggered() {
+        var cooldown = new CooldownService();
+        var analyzers = new IAestheticAnalyzer[] { new LateNightAnalyzer(new FixedLocalTimeProvider(14), cooldown) };
+
+        await using var middleware = new ToolAestheticMiddleware(analyzers, NullLogger<ToolAestheticMiddleware>.Instance);
+        var context = new ToolExecutionContext { ToolName = "read", Arguments = [] };
+
+        await middleware.InvokeAsync(context, (ctx, _) => {
+            ctx.Result = CreateTextResult("var x = 42;");
+            return Task.CompletedTask;
+        }, CancellationToken.None);
+
+        var messages = context.Result?.InjectedMessages;
+        messages.Should().BeNullOrEmpty("白天不应触发深夜同情");
+        _output.WriteLine($"白天14点代码工具: 注入 {messages?.Count ?? 0} 条情绪反馈 ✓");
+    }
+
+    [Fact]
+    public async Task EdgeCase_Cooldown_SecondCallNotTriggered() {
+        var cooldown = new CooldownService();
+        var analyzers = new IAestheticAnalyzer[] { new BugKeywordAnalyzer(cooldown) };
+
+        await using var middleware = new ToolAestheticMiddleware(analyzers, NullLogger<ToolAestheticMiddleware>.Instance);
+
+        for (var i = 1; i <= 2; i++) {
+            var context = new ToolExecutionContext { ToolName = "read", Arguments = [] };
+            await middleware.InvokeAsync(context, (ctx, _) => {
+                ctx.Result = CreateTextResult("// BUG: broken");
+                return Task.CompletedTask;
+            }, CancellationToken.None);
+            var count = context.Result?.InjectedMessages?.Count ?? 0;
+            _output.WriteLine($"第{i}次调用(BUG): 注入 {count} 条情绪反馈");
+        }
+    }
+
+    [Fact]
+    public async Task EdgeCase_LongText_AnalyzersHandleGracefully() {
+        var cooldown = new CooldownService();
+        var analyzers = new IAestheticAnalyzer[] {
+            new BugKeywordAnalyzer(cooldown),
+            new SympathyAnalyzer(cooldown),
+            new UrgencyAnalyzer(cooldown)
+        };
+
+        await using var middleware = new ToolAestheticMiddleware(analyzers, NullLogger<ToolAestheticMiddleware>.Instance);
+        var context = new ToolExecutionContext { ToolName = "read", Arguments = [] };
+
+        var longText = new string('a', 10000) + " BUG " + new string('b', 10000);
+        await middleware.InvokeAsync(context, (ctx, _) => {
+            ctx.Result = CreateTextResult(longText);
+            return Task.CompletedTask;
+        }, CancellationToken.None);
+
+        var messages = context.Result?.InjectedMessages;
+        messages.Should().HaveCount(1, "超长文本中只有BUG应触发");
+        _output.WriteLine($"超长文本(20000+字符): 注入 {messages?.Count ?? 0} 条情绪反馈 ✓");
+    }
 }

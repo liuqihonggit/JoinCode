@@ -45,24 +45,30 @@ internal sealed class MethodLookupEntry(string fqn, int startLine, int endLine) 
 /// </summary>
 internal sealed class SymbolIndex {
     private readonly Dictionary<string, SymbolInfo> _byFqn;
-    private readonly ILookup<string, SymbolInfo> _byName;
+    private readonly Dictionary<string, List<SymbolInfo>> _byName;
 
     /// <summary>从符号列表构建索引，保留同 FQN 首个（与 FirstOrDefault 语义一致）</summary>
     public SymbolIndex(IReadOnlyList<SymbolInfo> symbols) {
         _byFqn = new Dictionary<string, SymbolInfo>(symbols.Count, StringComparer.Ordinal);
+        _byName = new Dictionary<string, List<SymbolInfo>>(symbols.Count, StringComparer.Ordinal);
         foreach (var s in symbols) {
             if (!_byFqn.ContainsKey(s.FullyQualifiedName)) {
                 _byFqn[s.FullyQualifiedName] = s;
             }
+            if (!_byName.TryGetValue(s.Name, out var list)) {
+                list = new List<SymbolInfo>(1);
+                _byName[s.Name] = list;
+            }
+            list.Add(s);
         }
-        _byName = symbols.ToLookup(s => s.Name, StringComparer.Ordinal);
     }
 
     /// <summary>按全限定名 O(1) 查找</summary>
     public bool TryGetByFqn(string fqn, [MaybeNullWhen(false)] out SymbolInfo symbol) => _byFqn.TryGetValue(fqn, out symbol);
 
     /// <summary>按名称查找，返回同名符号集合（通常 ≤3 个），消费方按 Kind 二次过滤</summary>
-    public IEnumerable<SymbolInfo> GetByName(string name) => _byName[name];
+    public IEnumerable<SymbolInfo> GetByName(string name) =>
+        _byName.TryGetValue(name, out var list) ? list : [];
 }
 
 /// <summary>
@@ -134,11 +140,16 @@ public sealed class CSharpCallExtractor {
             .Where(s => s.Kind == SymbolKind.Interface)
             .Select(s => s.Name), StringComparer.Ordinal);
 
-    internal static List<MethodLookupEntry> BuildMethodLookup(IReadOnlyList<SymbolInfo> symbols) =>
-        symbols
-            .Where(s => s.Kind is SymbolKind.Method or SymbolKind.Constructor or SymbolKind.Property or SymbolKind.LocalFunction)
-            .Select(s => new MethodLookupEntry(s.FullyQualifiedName, s.StartLine, s.EndLine))
-            .ToList();
+    internal static List<MethodLookupEntry> BuildMethodLookup(IReadOnlyList<SymbolInfo> symbols) {
+        var list = new List<MethodLookupEntry>(symbols.Count);
+        foreach (var s in symbols) {
+            if (s.Kind is SymbolKind.Method or SymbolKind.Constructor or SymbolKind.Property or SymbolKind.LocalFunction) {
+                list.Add(new MethodLookupEntry(s.FullyQualifiedName, s.StartLine, s.EndLine));
+            }
+        }
+        list.Sort(static (a, b) => a.StartLine.CompareTo(b.StartLine));
+        return list;
+    }
 
     private static Dictionary<string, string> BuildVariableTypeMap(Node rootNode, HashSet<string> classNameSet) {
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -574,17 +585,25 @@ public sealed class CSharpCallExtractor {
 
     internal static string FindCallerFqn(Node node, List<MethodLookupEntry> methodLookup) {
         var line = node.StartPosition.Row + 1;
-        MethodLookupEntry? best = null;
 
-        foreach (var entry in methodLookup) {
-            if (line >= entry.StartLine && line <= entry.EndLine) {
-                if (best is null || (entry.EndLine - entry.StartLine) < (best.EndLine - best.StartLine)) {
-                    best = entry;
-                }
+        var lo = 0;
+        var hi = methodLookup.Count;
+        while (lo < hi) {
+            var mid = (lo + hi) >>> 1;
+            if (methodLookup[mid].StartLine <= line) {
+                lo = mid + 1;
+            } else {
+                hi = mid;
             }
         }
 
-        return best?.Fqn ?? "<global>";
+        for (var i = lo - 1; i >= 0; i--) {
+            if (methodLookup[i].EndLine >= line) {
+                return methodLookup[i].Fqn;
+            }
+        }
+
+        return "<global>";
     }
 
     internal static CallKind DetermineCallKind(Node invocationNode, string calleeName, HashSet<string> classNameSet, HashSet<string> interfaceNameSet, Dictionary<string, string> variableTypeMap) {

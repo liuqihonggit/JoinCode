@@ -342,15 +342,15 @@ public sealed class CSharpDependencyExtractor {
         var usedTypes = new HashSet<string>(StringComparer.Ordinal);
         CollectTypeReferences(typeDeclNode, usedTypes);
 
-        deps.AddRange(usedTypes.Select(usedType => {
+        foreach (var usedType in usedTypes) {
             var targetFqn = typeFqnMap.TryGetValue(usedType, out var fqnVal) ? fqnVal : usedType;
-            return new DependencyEdge {
+            deps.Add(new DependencyEdge {
                 SourceSymbol = sourceFqn,
                 TargetSymbol = targetFqn,
                 DependencyKind = DependencyKind.Uses,
                 SourceFilePath = filePath
-            };
-        }));
+            });
+        }
     }
 
     private static void CollectTypeReferences(Node node, HashSet<string> usedTypes) {
@@ -486,6 +486,11 @@ public sealed class CSharpDependencyExtractor {
     }
 
     private static Node? FindChildByType(Node node, string type) {
-        return node.Children.FirstOrDefault(child => child.Type == type);
+        foreach (var child in node.Children) {
+            if (child.Type == type) {
+                return child;
+            }
+        }
+        return null;
     }
 }

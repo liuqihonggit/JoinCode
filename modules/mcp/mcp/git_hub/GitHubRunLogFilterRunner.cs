@@ -19,7 +19,8 @@ internal sealed class GitHubRunLogFilterRunner {
     /// </summary>
     internal static int GetMaxConcurrency() {
         var env = Environment.GetEnvironmentVariable("JCC_GH_MAX_CONCURRENCY");
-        return int.TryParse(env, out var n) && n > 0 ? n : 16;
+        if (int.TryParse(env, out var n) && n > 0) return n;
+        return Environment.ProcessorCount + 1;
     }
 
     /// <summary>
@@ -249,7 +250,7 @@ internal sealed class GitHubRunLogFilterRunner {
         timer?.RecordMiss();
 
         // 2. 缓存未命中: 下载所有行到 List
-        var lines = new List<string>();
+        var lines = new List<string>(256);
         var tNet = Stopwatch.GetTimestamp();
         await foreach (var line in _apiClient.GetJobLogsAsync(owner, repo, jobId, ct).ConfigureAwait(false)) {
             lines.Add(line);
@@ -313,7 +314,7 @@ internal sealed class GitHubRunLogFilterRunner {
         timer?.RecordMiss();
 
         // 2. 缓存未命中: 下载所有行到 List
-        var lines = new List<string>();
+        var lines = new List<string>(256);
         var tNet = Stopwatch.GetTimestamp();
         await foreach (var line in _apiClient.GetRunLogsAsync(owner, repo, long.Parse(runId), ct).ConfigureAwait(false)) {
             lines.Add(line);
@@ -336,10 +337,18 @@ internal sealed class GitHubRunLogFilterRunner {
     }
 
     /// <summary>解析缓存字节为逐行字符串(跳过空行);offset 跳过 value 头部字段(如 runId 8 字节)</summary>
+    /// <para>索引遍历替代 Split,省掉 string[] 数组分配(极少 GC);IndexOf SIMD 加速</para>
     private static IEnumerable<string> ParseCachedLines(byte[] cached, int offset = 0) {
         var text = Encoding.UTF8.GetString(cached, offset, cached.Length - offset);
-        foreach (var line in text.Split('\n')) {
-            if (line.Length > 0) yield return line;
+        var start = 0;
+        while (start < text.Length) {
+            var newlineIdx = text.IndexOf('\n', start);
+            if (newlineIdx < 0) {
+                if (start < text.Length) yield return text[start..];
+                yield break;
+            }
+            if (newlineIdx > start) yield return text[start..newlineIdx];
+            start = newlineIdx + 1;
         }
     }
 

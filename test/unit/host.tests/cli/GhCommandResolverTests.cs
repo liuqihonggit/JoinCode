@@ -1118,4 +1118,52 @@ public sealed class GhCommandResolverTests {
         error.Should().BeNull();
         bound!["merge_method"].Should().Be("squash");
     }
+
+    /// <summary>
+    /// --auto-merge squash（裸值）应映射到 auto_merge=true + merge_method=squash，而非把 squash 当位置参数报"参数重复指定: title"。
+    /// <para>复现 bug: --auto-merge 匹配 boolean 参数 auto_merge 设 true 但不消费 squash，squash 游离成位置参数绑定到 title slot（已被 --title 填充）→ 误报"参数重复指定"。</para>
+    /// <para>系统 gh CLI 习惯 --auto --squash 两个 flag，AI 常写 --auto-merge squash 省略第二个 --，应宽容接受。</para>
+    /// </summary>
+    [Fact]
+    public void Bind_PrCreate_AutoMergeBareSquash_ShouldMapToAutoMergeAndMethod() {
+        var parameters = new List<GhParam> {
+            new("title", IsRequired: true, IsBoolean: false),
+            new("body", IsRequired: false, IsBoolean: false),
+            new("head", IsRequired: false, IsBoolean: false),
+            new("base", IsRequired: false, IsBoolean: false),
+            new("auto_merge", IsRequired: false, IsBoolean: true),
+            new("merge_method", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(
+            new[] { "--title", "feat: test", "--auto-merge", "squash" },
+            parameters, "gh_pr_create", out var error);
+
+        error.Should().BeNull();
+        bound.Should().NotBeNull();
+        bound!["auto_merge"].Should().Be("true");
+        bound["merge_method"].Should().Be("squash");
+    }
+
+    /// <summary>--auto-merge --squash（带 -- 前缀）也应映射到 auto_merge=true + merge_method=squash</summary>
+    [Fact]
+    public void Bind_PrCreate_AutoMergeFlagSquash_ShouldMapToAutoMergeAndMethod() {
+        var parameters = new List<GhParam> {
+            new("title", IsRequired: true, IsBoolean: false),
+            new("body", IsRequired: false, IsBoolean: false),
+            new("head", IsRequired: false, IsBoolean: false),
+            new("base", IsRequired: false, IsBoolean: false),
+            new("auto_merge", IsRequired: false, IsBoolean: true),
+            new("merge_method", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(
+            new[] { "--title", "feat: test", "--auto-merge", "--squash" },
+            parameters, "gh_pr_create", out var error);
+
+        error.Should().BeNull();
+        bound.Should().NotBeNull();
+        bound!["auto_merge"].Should().Be("true");
+        bound["merge_method"].Should().Be("squash");
+    }
 }

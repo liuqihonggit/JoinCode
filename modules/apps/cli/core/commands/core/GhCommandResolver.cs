@@ -303,13 +303,7 @@ internal static class GhArgsBinder {
             }
 
             if (param.IsBoolean) {
-                // 宽容: --log true / --log false / --log 1 / --log 0 / --log yes / --log no
-                if (i + 1 < tail.Length && TryParseBoolValue(tail[i + 1], out var boolVal)) {
-                    result[key] = boolVal;
-                    i++;
-                } else {
-                    result[key] = "true";
-                }
+                BindBooleanParam(key, tail, ref i, result);
                 continue;
             }
 
@@ -392,7 +386,10 @@ internal static class GhArgsBinder {
             ("fill-first",        new GhCliAlias("fill_first", "true", AliasKind.FixedValue)),
             ("fill-verbose",      new GhCliAlias("fill_verbose", "true", AliasKind.FixedValue)),
             ("enable-auto-merge", new GhCliAlias("auto_merge", "true", AliasKind.FixedValue)),
-            ("auto-merge-method", new GhCliAlias("merge_method", null, AliasKind.TakeNextToken))
+            ("auto-merge-method", new GhCliAlias("merge_method", null, AliasKind.TakeNextToken)),
+            ("squash",            new GhCliAlias("merge_method", "squash", AliasKind.FixedValue)),
+            ("merge",             new GhCliAlias("merge_method", "merge", AliasKind.FixedValue)),
+            ("rebase",            new GhCliAlias("merge_method", "rebase", AliasKind.FixedValue))
         ),
         ["gh_run_rerun"] = new(("failed", new GhCliAlias("failed_only", "true", AliasKind.FixedValue))),
         ["gh_run_view"]  = new(("job", new GhCliAlias("job_id", null, AliasKind.TakeNextToken)), ("pr", new GhCliAlias("pr", null, AliasKind.TakeNextToken))),
@@ -794,4 +791,36 @@ internal static class GhArgsBinder {
     /// <summary>归一化布尔值 — 用于 --key=value 内联形式（--log=1 → true, --log=0 → false）。</summary>
     private static string NormalizeBoolValue(string value)
         => TryParseBoolValue(value, out var result) ? result : value;
+
+    /// <summary>已知 merge method 值 — squash/merge/rebase,用于 --auto-merge squash 宽容解析。</summary>
+    private static bool IsKnownMergeMethod(string value)
+        => value is "squash" or "merge" or "rebase";
+
+    /// <summary>
+    /// 绑定 boolean 参数 — 宽容接受 --flag true/false/1/0/yes/no,无值时设 true。
+    /// <para>特殊宽容: --auto-merge squash → auto_merge=true + merge_method=squash(系统 gh CLI 习惯 --auto --squash)。</para>
+    /// </summary>
+    private static void BindBooleanParam(string key, string[] tail, ref int i, Dictionary<string, string> result) {
+        if (i + 1 < tail.Length && TryParseBoolValue(tail[i + 1], out var boolVal)) {
+            result[key] = boolVal;
+            i++;
+            return;
+        }
+        result[key] = "true";
+        TryConsumeBareMergeMethod(key, tail, ref i, result);
+    }
+
+    /// <summary>
+    /// 宽容解析 --auto-merge squash → auto_merge=true + merge_method=squash。
+    /// <para>系统 gh CLI 习惯 --auto --squash 两个 flag,AI 常写 --auto-merge squash 省略第二个 --,</para>
+    /// <para>若不消费 squash 会游离成位置参数绑定到 title slot → 误报"参数重复指定: title"。</para>
+    /// </summary>
+    private static bool TryConsumeBareMergeMethod(string key, string[] tail, ref int i, Dictionary<string, string> result) {
+        if (key != "auto_merge") return false;
+        if (i + 1 >= tail.Length || tail[i + 1].StartsWith("--")) return false;
+        if (!IsKnownMergeMethod(tail[i + 1])) return false;
+        result["merge_method"] = tail[i + 1];
+        i++;
+        return true;
+    }
 }

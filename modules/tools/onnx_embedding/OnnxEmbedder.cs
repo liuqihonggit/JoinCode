@@ -1,3 +1,5 @@
+[assembly: InternalsVisibleTo("JoinCode.OnnxEmbedding.Tests")]
+
 namespace OnnxEmbedding;
 
 /// <summary>
@@ -158,7 +160,7 @@ public sealed class OnnxEmbedder : IDisposable {
     /// <param name="maxSeqLen">最大序列长度（attention mask 步长）。</param>
     /// <param name="dimensions">向量维度。</param>
     /// <param name="vecSpan">输出向量 span（原地累加+归一化，零临时分配）。</param>
-    private static void MeanPoolSimd(
+    internal static void MeanPoolSimd(
         ReadOnlySpan<float> outputSpan, long[] attentionMask,
         int batchIndex, int seqLenDim, int maxSeqLen, int dimensions,
         Span<float> vecSpan) {
@@ -179,7 +181,7 @@ public sealed class OnnxEmbedder : IDisposable {
 
     /// <summary>SIMD 求和 attention mask（0/1 long → 非零个数），Vector&lt;long&gt; 批量累加。</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int SumMaskSimd(ReadOnlySpan<long> maskSpan) {
+    internal static int SumMaskSimd(ReadOnlySpan<long> maskSpan) {
         var sum = 0L;
         var simdWidth = Vector<long>.Count;
         var v = 0;
@@ -204,7 +206,7 @@ public sealed class OnnxEmbedder : IDisposable {
     /// <param name="maxSeqLen">最大序列长度（attention mask 步长）。</param>
     /// <param name="dimensions">向量维度。</param>
     /// <param name="vectors">扁平化输出向量数组 [batchSize × dimensions]。</param>
-    private static void MeanPoolScalar(
+    internal static void MeanPoolScalar(
         Microsoft.ML.OnnxRuntime.Tensors.Tensor<float> output, long[] attentionMask,
         int batchSize, int seqLenDim, int maxSeqLen, int dimensions,
         float[] vectors) {

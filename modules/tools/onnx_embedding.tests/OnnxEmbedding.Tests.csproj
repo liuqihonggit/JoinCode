@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ProjectType>test</ProjectType>
+    <RootNamespace>OnnxEmbedding.Tests</RootNamespace>
+    <AssemblyName>JoinCode.OnnxEmbedding.Tests</AssemblyName>
+    <Description>OnnxEmbedding 组件单元测试 — 扁平化向量数值正确性验证</Description>
+    <NoWarn>$(NoWarn);JCC3007;JCC9001;JCC1011;IL2026;IL3050</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/tools/onnx_embedding/OnnxEmbeddingExe.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.2" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

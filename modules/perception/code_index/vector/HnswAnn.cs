@@ -28,13 +28,22 @@ public sealed class HnswAnn : IAnnSearch, IAnnSearchGraphPersistence {
     /// <summary>
     /// 构造 HNSW 索引。
     /// </summary>
-    /// <param name="m">每层最大连接数（第0层 = 2m）。默认 16。</param>
-    /// <param name="efConstruction">建图时搜索宽度。默认 200。</param>
-    /// <param name="efSearch">搜索时搜索宽度。默认 50。</param>
-    public HnswAnn(int m = 16, int efConstruction = 200, int efSearch = 50) {
-        if (m < 2) throw new ArgumentOutOfRangeException(nameof(m), "M must be >= 2");
-        if (efConstruction < 1) throw new ArgumentOutOfRangeException(nameof(efConstruction));
-        if (efSearch < 1) throw new ArgumentOutOfRangeException(nameof(efSearch));
+    /// <param name="m">每层最大连接数（第0层 = 2m）。必须从 CodeIndexHyperParams 传入，-1=未设置将抛异常。</param>
+    /// <param name="efConstruction">建图时搜索宽度。必须从 CodeIndexHyperParams 传入，-1=未设置将抛异常。</param>
+    /// <param name="efSearch">搜索时搜索宽度。必须从 CodeIndexHyperParams 传入，-1=未设置将抛异常。</param>
+    public HnswAnn(int m = -1, int efConstruction = -1, int efSearch = -1) {
+        if (m < 2) {
+            throw new ArgumentOutOfRangeException(nameof(m),
+                "m 必须从 CodeIndexHyperParams 传入 >=2 的值，当前值=" + m + "。超参数统一存放见 CodeIndexHyperParams.cs");
+        }
+        if (efConstruction < 1) {
+            throw new ArgumentOutOfRangeException(nameof(efConstruction),
+                "efConstruction 必须从 CodeIndexHyperParams 传入正值，当前值=" + efConstruction + "。超参数统一存放见 CodeIndexHyperParams.cs");
+        }
+        if (efSearch < 1) {
+            throw new ArgumentOutOfRangeException(nameof(efSearch),
+                "efSearch 必须从 CodeIndexHyperParams 传入正值，当前值=" + efSearch + "。超参数统一存放见 CodeIndexHyperParams.cs");
+        }
         _m = m;
         _efConstruction = efConstruction;
         _efSearch = efSearch;

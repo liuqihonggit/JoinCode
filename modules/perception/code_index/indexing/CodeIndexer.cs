@@ -25,6 +25,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     private readonly IHttpClientProvider? _httpClient;
     private readonly IKvStore _kvStore;
     private EmbeddingIndex? _embeddingIndex;
+    private readonly CodeIndexHyperParams _hyperParams;
     private List<IIndexStore> _indexStores = [];
     private string? _lastVectorIndexDir;
     private int _disposed;
@@ -48,6 +49,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         _fs = fs;
         _logger = logger;
         _httpClient = httpClient;
+        _hyperParams = CodeIndexHyperParams.FromEnvironment();
         _pluginFactory = static () => new CSharpSymbolExtractor();
         _plugin = _pluginFactory();
         _symbolIndex = new SymbolIndex(store, fs, _plugin);
@@ -86,15 +88,14 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         if (!fs.FileExists(modelPath) || !fs.FileExists(vocabPath)) return;
 
         try {
-            var degree = int.TryParse(Environment.GetEnvironmentVariable("JCC_ONNX_DEGREE"), out var d) && d > 0
-                ? Math.Min(d, Environment.ProcessorCount) : 0;
-            var embedModel = new OnnxEmbeddingClient(modelPath, vocabPath, fs, degree: degree);
-            var annType = Environment.GetEnvironmentVariable("JCC_ANN_TYPE") ?? "brute";
-            IAnnSearch ann = annType.Equals("hnsw", StringComparison.OrdinalIgnoreCase)
-                ? new HnswAnn()
+            var degree = _hyperParams.OnnxDegree > 0
+                ? Math.Min(_hyperParams.OnnxDegree, Environment.ProcessorCount) : 0;
+            var embedModel = new OnnxEmbeddingClient(modelPath, vocabPath, fs, degree: degree, maxSeqLen: _hyperParams.MaxSeqLen);
+            IAnnSearch ann = _hyperParams.AnnType.Equals("hnsw", StringComparison.OrdinalIgnoreCase)
+                ? new HnswAnn(_hyperParams.HnswM, _hyperParams.HnswEfConstruction, _hyperParams.HnswEfSearch)
                 : new BruteForceAnn();
             _embeddingIndex = new EmbeddingIndex(embedModel, ann, fs);
-            logger?.LogInformation("向量索引已自动初始化: dim={Dim}, ann={Ann}", embedModel.Dimensions, annType);
+            logger?.LogInformation("向量索引已自动初始化: dim={Dim}, ann={Ann}, maxSeqLen={MaxSeqLen}", embedModel.Dimensions, _hyperParams.AnnType, _hyperParams.MaxSeqLen);
         } catch (Exception ex) {
             logger?.LogWarning(ex, "向量索引自动初始化失败，语义搜索将不可用");
         }
@@ -273,7 +274,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                     .Select(s => new LineBasedChunkExtractor.ParentLocation(b.FilePath, s.StartLine, s.EndLine, s.FullyQualifiedName))
                     .ToList();
                 allChunks.AddRange(LineBasedChunkExtractor.Extract(
-                    b.FilePath, b.SourceCode, b.Extraction.Symbols, parentLocations));
+                    b.FilePath, b.SourceCode, b.Extraction.Symbols, parentLocations,
+                    chunkSize: _hyperParams.ChunkSize, overlap: _hyperParams.Overlap));
             }
             if (allChunks.Count > 0) {
                 await _embeddingIndex.IndexChunksAsync(allChunks, ct).ConfigureAwait(false);
@@ -430,7 +432,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                     .Select(s => new LineBasedChunkExtractor.ParentLocation(b.FilePath, s.StartLine, s.EndLine, s.FullyQualifiedName))
                     .ToList();
                 allChunks.AddRange(LineBasedChunkExtractor.Extract(
-                    b.FilePath, b.SourceCode, b.Extraction.Symbols, parentLocations));
+                    b.FilePath, b.SourceCode, b.Extraction.Symbols, parentLocations,
+                    chunkSize: _hyperParams.ChunkSize, overlap: _hyperParams.Overlap));
             }
             if (allChunks.Count > 0) {
                 await _embeddingIndex.IndexChunksAsync(allChunks, ct).ConfigureAwait(false);

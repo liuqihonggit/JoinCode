@@ -163,14 +163,12 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("仅删过期(默认 false=删全部 gh: 前缀)", Required = false)] bool? expired_only = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(null, null, cancellationToken, async (_, _, _) => {
-            if (_kvStore is null) return Fail("KV 存储未配置,无法清理");
-            var fromBytes = Encoding.UTF8.GetBytes("gh:");
-            var toBytes = Encoding.UTF8.GetBytes("gh;");
+            if (_cacheService is null) return Fail("KV 存储未配置,无法清理");
             var deleted = 0;
             var expiredOnly = expired_only == true;
-            await foreach (var (key, value) in _kvStore.ScanAsync(from: fromBytes, to: toBytes, ct: cancellationToken).ConfigureAwait(false)) {
+            await foreach (var (key, value) in _cacheService.ScanAllGhAsync(cancellationToken).ConfigureAwait(false)) {
                 if (expiredOnly && !KvStoreTtlExtensions.IsExpired(value)) continue;
-                await _kvStore.DeleteAsync(key, cancellationToken).ConfigureAwait(false);
+                await _cacheService.DeleteAsync(key, cancellationToken).ConfigureAwait(false);
                 deleted++;
             }
             return Ok($"已清理 {deleted} 个本地日志缓存条目{(expiredOnly ? "(仅过期)" : "(全部)")}。");

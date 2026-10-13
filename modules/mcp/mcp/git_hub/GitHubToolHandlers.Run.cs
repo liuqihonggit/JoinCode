@@ -1053,7 +1053,7 @@ public partial class GitHubToolHandlers {
                     } catch (JsonException ex) { _logger?.LogWarning(ex, "后台监控解析 jobs 失败: runId={RunId}", runId); continue; }
 
                     foreach (var (jobId, jobName, conclusion) in newFailedJobs)
-                        await WriteCiAlertToKvStoreAsync(runId, jobId, jobName, conclusion).ConfigureAwait(false);
+                        await WriteCiAlertToKvStoreAsync(runId, jobId, jobName, conclusion, CancellationToken.None).ConfigureAwait(false);
                 }
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, "后台 CI 监控任务异常退出: runId={RunId}", runId);
@@ -1066,16 +1066,16 @@ public partial class GitHubToolHandlers {
     /// <para>复用 IKvStore(LSM-Tree PithosKvStore),禁止用文件系统(见 persistence-reuse-lsm-tree)</para>
     /// <para>AI 用 gh ci alerts 调阅,ScanAsync 范围扫描 gh:ci_alert: 前缀;日志用 gh run view --log 从 LSM 缓存读</para>
     /// </summary>
-    private async Task WriteCiAlertToKvStoreAsync(string runId, long jobId, string jobName, string conclusion) {
-        if (_kvStore is null) return;
+    private async Task WriteCiAlertToKvStoreAsync(string runId, long jobId, string jobName, string conclusion, CancellationToken ct) {
+        if (_cacheService is null) return;
         var alert = new CiAlertDto {
             RunId = runId, JobId = jobId, JobName = jobName,
             Conclusion = conclusion, Timestamp = DateTime.UtcNow.ToString("O")
         };
         var json = JsonSerializer.Serialize(alert, GitHubApiJsonContext.Safe.CiAlertDto);
-        var key = Encoding.UTF8.GetBytes($"gh:ci_alert:{runId}:{jobId}:{DateTime.UtcNow:yyyyMMddHHmmssfff}");
+        var key = $"gh:ci_alert:{runId}:{jobId}:{DateTime.UtcNow:yyyyMMddHHmmssfff}";
         var value = Encoding.UTF8.GetBytes(json);
-        await _kvStore.PutAsync(key, value).ConfigureAwait(false);
+        await _cacheService.WriteAlertAsync(key, value, ct).ConfigureAwait(false);
         _logger?.LogDebug("CI 告警通知已写入 LSM: run={RunId} job={JobId}", runId, jobId);
     }
 
@@ -1257,12 +1257,10 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("清理已读告警(从 LSM 删除已返回的告警 key)", Required = false)] bool? mark_read = null,
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default) {
-        if (_kvStore is null) return Fail("KV 存储未配置,无法读取 CI 告警");
+        if (_cacheService is null) return Fail("KV 存储未配置,无法读取 CI 告警");
 
-        var fromKey = Encoding.UTF8.GetBytes("gh:ci_alert:");
-        var toKey = Encoding.UTF8.GetBytes("gh:ci_alert:~");
         var alerts = new List<(byte[] Key, CiAlertDto Alert)>();
-        await foreach (var (key, value) in _kvStore.ScanAsync(fromKey, toKey, cancellationToken).ConfigureAwait(false)) {
+        await foreach (var (key, value) in _cacheService.ScanAlertsAsync(cancellationToken).ConfigureAwait(false)) {
             try {
                 var json = Encoding.UTF8.GetString(value);
                 var alert = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.CiAlertDto);
@@ -1284,7 +1282,7 @@ public partial class GitHubToolHandlers {
 
         if (mark_read == true) {
             foreach (var (key, _) in alerts)
-                await _kvStore.DeleteAsync(key, cancellationToken).ConfigureAwait(false);
+                await _cacheService.DeleteAlertAsync(key, cancellationToken).ConfigureAwait(false);
             sb.AppendLine();
             sb.Append($"✅ {alerts.Count} 条告警已清理(从 LSM 删除)");
         }

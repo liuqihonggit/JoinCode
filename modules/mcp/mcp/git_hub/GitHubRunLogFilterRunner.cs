@@ -49,17 +49,17 @@ internal readonly record struct ShaRunIdCacheKey(string HeadSha) {
 }
 
 /// <summary>
-/// GitHub Run 日志过滤运行器 — DI 注入 _apiClient/_kvStore,负责失败测试过滤+流式过滤+失败 job 日志获取
+/// GitHub Run 日志过滤运行器 — DI 注入 _apiClient/_cacheService,负责失败测试过滤+流式过滤+失败 job 日志获取
 /// <para>日志缓存: 复用 IKvStore(LSM-Tree PithosKvStore),首次下载→后续命中缓存,避免重复下载</para>
 /// </summary>
 internal sealed class GitHubRunLogFilterRunner {
     private readonly IGitHubApiClient _apiClient;
-    private readonly IKvStore? _kvStore;
+    private readonly IGhCacheService? _cacheService;
     private readonly bool _compactLinePrefix;
     private readonly ILogger? _logger;
 
     /// <summary>缓存 TTL — 7 天后自动过期,由 KvStoreTtlCleanupService 定期清理</summary>
-    internal static readonly TimeSpan CacheTtl = TimeSpan.FromDays(7);
+    internal static readonly TimeSpan CacheTtl = GhCacheService.LogTtl;
 
     /// <summary>
     /// 并行下载并发限制 — 从环境变量 JCC_GH_MAX_CONCURRENCY 读取,默认 16
@@ -72,15 +72,15 @@ internal sealed class GitHubRunLogFilterRunner {
     }
 
     /// <summary>
-    /// 构造日志过滤运行器,注入 GitHub API 客户端(非 null)+可选 KV 缓存(LSM-Tree)
+    /// 构造日志过滤运行器,注入 GitHub API 客户端(非 null)+可选 gh 缓存服务
     /// </summary>
     /// <param name="apiClient">GitHub API 客户端(非 null)。</param>
     /// <param name="compactLinePrefix">行号前缀格式: true=紧凑 tab(行号\t内容), false=箭头(行号→内容)。对齐 FileOperationConfig.CompactLinePrefix</param>
-    /// <param name="kvStore">可选 KV 缓存(LSM-Tree PithosKvStore),用于日志缓存避免重复下载。</param>
+    /// <param name="cacheService">可选 gh 缓存服务,用于日志缓存避免重复下载。</param>
     /// <param name="logger">可选日志记录器,缓存异常时记录</param>
-    public GitHubRunLogFilterRunner(IGitHubApiClient apiClient, bool compactLinePrefix, IKvStore? kvStore = null, ILogger? logger = null) {
+    public GitHubRunLogFilterRunner(IGitHubApiClient apiClient, bool compactLinePrefix, IGhCacheService? cacheService = null, ILogger? logger = null) {
         _apiClient = apiClient;
-        _kvStore = kvStore;
+        _cacheService = cacheService;
         _compactLinePrefix = compactLinePrefix;
         _logger = logger;
     }
@@ -155,16 +155,14 @@ internal sealed class GitHubRunLogFilterRunner {
         var cacheKeyStr = $"gh:jobs:full:{runId}";
         var cacheKey = Encoding.UTF8.GetBytes(cacheKeyStr);
         var timer = GhTimingTracker.CurrentTimer.Value;
-        _logger?.LogInformation("[KvDebug] GetOrFetchJobsAsync start: key={Key} kvStoreNull={KvNull} wantRefresh={Refresh}", cacheKeyStr, _kvStore is null, wantRefresh);
+        _logger?.LogInformation("[KvDebug] GetOrFetchJobsAsync start: key={Key} cacheNull={KvNull} wantRefresh={Refresh}", cacheKeyStr, _cacheService is null, wantRefresh);
 
-        if (!wantRefresh && _kvStore is not null) {
-            var cached = await ReadJobsCacheAsync(_kvStore, cacheKey, timer, ct).ConfigureAwait(false);
-            if (cached is not null) {
-                _logger?.LogInformation("[KvDebug] cache HIT: key={Key} jobsCount={Count}", cacheKeyStr, cached.Count);
-                return cached;
+        if (!wantRefresh && _cacheService is not null) {
+            if (await TryGetCachedJobsAsync(runId, cacheKeyStr, timer, ct).ConfigureAwait(false) is { } cachedJobs) {
+                return cachedJobs;
             }
-            _logger?.LogInformation("[KvDebug] cache MISS: key={Key}", cacheKeyStr);
         }
+        _logger?.LogInformation("[KvDebug] cache MISS: key={Key}", cacheKeyStr);
         timer?.RecordMiss();
 
         var tNet = Stopwatch.GetTimestamp();
@@ -175,42 +173,39 @@ internal sealed class GitHubRunLogFilterRunner {
         try {
             var jobsResp = JsonSerializer.Deserialize(jobsResult.Body, GitHubApiJsonContext.Safe.RunJobListResponse);
             if (jobsResp?.Jobs is null) return [];
-            await WriteJobsCacheAsync(cacheKey, jobsResp, timer, ct).ConfigureAwait(false);
-            return jobsResp.Jobs;
+            var jobs = jobsResp.Jobs;
+            if (_cacheService is not null) {
+                var json = JsonSerializer.Serialize(jobsResp, GitHubApiJsonContext.Safe.RunJobListResponse);
+                var jsonBytes = Encoding.UTF8.GetBytes(json);
+                var tWrite = Stopwatch.GetTimestamp();
+                await _cacheService.WriteJobsAsync(long.Parse(runId), jsonBytes, ct).ConfigureAwait(false);
+                timer?.AddLsmWrite(Stopwatch.GetTimestamp() - tWrite);
+            }
+            return jobs;
         } catch (JsonException ex) {
             _logger?.LogWarning(ex, "解析 jobs 列表 JSON 失败");
             return [];
         }
     }
 
-    private async Task<List<RunJobItemResponse>?> ReadJobsCacheAsync(IKvStore kvStore, byte[] cacheKey, GhTimingTracker? timer, CancellationToken ct) {
-        var tRead = Stopwatch.GetTimestamp();
-        var raw = await kvStore.GetAsync(cacheKey, ct).ConfigureAwait(false);
-        timer?.AddLsmRead(Stopwatch.GetTimestamp() - tRead);
-        if (raw is null || raw.Length < 8) return null;
-        var expiryTicks = BitConverter.ToInt64(raw, 0);
-        var expiry = new DateTime(expiryTicks, DateTimeKind.Utc);
-        var now = DateTime.UtcNow;
-        if (now > expiry) return null;
-        var cached = raw[8..];
+    /// <summary>尝试从缓存读取 jobs 列表 — 卫语句扁平化,避免 if 嵌套超 2 层</summary>
+    private async Task<List<RunJobItemResponse>?> TryGetCachedJobsAsync(string runId, string cacheKeyStr, GhTimingTracker? timer, CancellationToken ct) {
+        if (_cacheService is null) return null;
+        var cached = await _cacheService.TryGetJobsAsync(long.Parse(runId), ct).ConfigureAwait(false);
+        if (cached is null || cached.Length <= 8) return null;
+        var expiryTicks = BitConverter.ToInt64(cached, 0);
+        if (DateTime.UtcNow > new DateTime(expiryTicks, DateTimeKind.Utc)) return null;
         timer?.RecordHit();
         try {
-            var resp = JsonSerializer.Deserialize(Encoding.UTF8.GetString(cached), GitHubApiJsonContext.Safe.RunJobListResponse);
-            return resp?.Jobs;
-        } catch (JsonException ex) {
-            _logger?.LogWarning(ex, "解析缓存 jobs 列表 JSON 失败");
-            return null;
-        }
+            var resp = JsonSerializer.Deserialize(Encoding.UTF8.GetString(cached, 8, cached.Length - 8), GitHubApiJsonContext.Safe.RunJobListResponse);
+            if (resp?.Jobs is not null) {
+                _logger?.LogInformation("[KvDebug] cache HIT: key={Key} jobsCount={Count}", cacheKeyStr, resp.Jobs.Count);
+                return resp.Jobs;
+            }
+        } catch (JsonException ex) { _logger?.LogWarning(ex, "解析缓存 jobs 列表 JSON 失败"); }
+        return null;
     }
 
-    private async Task WriteJobsCacheAsync(byte[] cacheKey, RunJobListResponse jobsResp, GhTimingTracker? timer, CancellationToken ct) {
-        if (_kvStore is null || jobsResp.Jobs.Count == 0) return;
-        var json = JsonSerializer.Serialize(jobsResp, GitHubApiJsonContext.Safe.RunJobListResponse);
-        var bytes = Encoding.UTF8.GetBytes(json);
-        var tWrite = Stopwatch.GetTimestamp();
-        await _kvStore.PutWithTtlAsync(cacheKey, bytes, CacheTtl, ct).ConfigureAwait(false);
-        timer?.AddLsmWrite(Stopwatch.GetTimestamp() - tWrite);
-    }
 
     /// <summary>
     /// 统一多 job 日志下载 — 单 job 走缓存,多 job Channel 并行合并(Actor 邮箱模型)
@@ -283,9 +278,9 @@ internal sealed class GitHubRunLogFilterRunner {
         var timer = GhTimingTracker.CurrentTimer.Value;
 
         // 1. 查 LSM 缓存(wantRefresh 时跳过)
-        if (!wantRefresh && _kvStore is not null) {
+        if (!wantRefresh && _cacheService is not null) {
             var t0 = Stopwatch.GetTimestamp();
-            var cached = await _kvStore.GetWithTtlAndRenewAsync(cacheKey, CacheTtl, ct).ConfigureAwait(false);
+            var cached = await _cacheService.TryGetJobLogAsync(jobId, ct).ConfigureAwait(false);
             timer?.AddLsmRead(Stopwatch.GetTimestamp() - t0);
             if (cached is not null && cached.Length > 16) {
                 timer?.RecordHit();
@@ -306,12 +301,11 @@ internal sealed class GitHubRunLogFilterRunner {
         timer?.AddNetwork(Stopwatch.GetTimestamp() - tNet);
 
         // 3. 写入 LSM 缓存(value=[runId(8)][expiry(8)][日志内容],CI job 日志只读不可变)
-        if (_kvStore is not null && lines.Count > 0) {
+        if (_cacheService is not null && lines.Count > 0) {
             var text = string.Join('\n', lines);
             var logBytes = Encoding.UTF8.GetBytes(text);
-            var bytes = cacheEntry.ToValueBytes(logBytes, DateTime.UtcNow + CacheTtl);
             var tWrite = Stopwatch.GetTimestamp();
-            await _kvStore.PutWithTtlAsync(cacheKey, bytes, CacheTtl, ct).ConfigureAwait(false);
+            await _cacheService.WriteJobLogAsync(jobId, long.Parse(runId), logBytes, ct).ConfigureAwait(false);
             timer?.AddLsmWrite(Stopwatch.GetTimestamp() - tWrite);
         }
 
@@ -326,10 +320,8 @@ internal sealed class GitHubRunLogFilterRunner {
     /// <para>用于从 jobId 反查所属 runId(如告警只存 jobId 时定位 run)</para>
     /// </summary>
     public async Task<long?> TryGetRunIdByJobIdAsync(long jobId, CancellationToken ct) {
-        if (_kvStore is null) return null;
-        var cacheKey = JobLogCacheKey.BuildCacheKey(jobId);
-        var cached = await _kvStore.GetWithTtlAndRenewAsync(cacheKey, CacheTtl, ct).ConfigureAwait(false);
-        return JobLogCacheKey.TryExtractRunId(cached);
+        if (_cacheService is null) return null;
+        return await _cacheService.TryGetRunIdByJobIdAsync(jobId, ct).ConfigureAwait(false);
     }
 
     /// <summary>反查索引 TTL — PR→run-id 映射可能随新 push 变化,5 分钟过期;SHA→run-id 固定用 CacheTtl(7天)</summary>
@@ -337,34 +329,26 @@ internal sealed class GitHubRunLogFilterRunner {
 
     /// <summary>反查 PR → run-id — key=gh:runid:pr:{prNumber},命中则跳过 API 调用</summary>
     public async Task<string?> TryGetRunIdByPrAsync(int prNumber, CancellationToken ct) {
-        if (_kvStore is null) return null;
-        var key = new PrRunIdCacheKey(prNumber).ToCacheKeyBytes();
-        var cached = await _kvStore.GetWithTtlAndRenewAsync(key, RunIdReverseLookupTtl, ct).ConfigureAwait(false);
-        return cached is null ? null : Encoding.UTF8.GetString(cached);
+        if (_cacheService is null) return null;
+        return await _cacheService.TryGetRunIdByPrAsync(prNumber, ct).ConfigureAwait(false);
     }
 
     /// <summary>写入 PR → run-id 反查索引 — key=gh:runid:pr:{prNumber},TTL 5 分钟(新 push 可能产生新 run)</summary>
     public async Task WriteRunIdByPrAsync(int prNumber, string runId, CancellationToken ct) {
-        if (_kvStore is null) return;
-        var key = new PrRunIdCacheKey(prNumber).ToCacheKeyBytes();
-        var bytes = Encoding.UTF8.GetBytes(runId);
-        await _kvStore.PutWithTtlAsync(key, bytes, RunIdReverseLookupTtl, ct).ConfigureAwait(false);
+        if (_cacheService is null) return;
+        await _cacheService.WriteRunIdByPrAsync(prNumber, runId, ct).ConfigureAwait(false);
     }
 
     /// <summary>反查 SHA → run-id — key=gh:runid:sha:{headSha},命中则跳过 API 调用</summary>
     public async Task<string?> TryGetRunIdByShaAsync(string headSha, CancellationToken ct) {
-        if (_kvStore is null) return null;
-        var key = new ShaRunIdCacheKey(headSha).ToCacheKeyBytes();
-        var cached = await _kvStore.GetWithTtlAndRenewAsync(key, CacheTtl, ct).ConfigureAwait(false);
-        return cached is null ? null : Encoding.UTF8.GetString(cached);
+        if (_cacheService is null) return null;
+        return await _cacheService.TryGetRunIdByShaAsync(headSha, ct).ConfigureAwait(false);
     }
 
     /// <summary>写入 SHA → run-id 反查索引 — key=gh:runid:sha:{headSha},TTL 7 天(SHA 固定,run-id 不变)</summary>
     public async Task WriteRunIdByShaAsync(string headSha, string runId, CancellationToken ct) {
-        if (_kvStore is null) return;
-        var key = new ShaRunIdCacheKey(headSha).ToCacheKeyBytes();
-        var bytes = Encoding.UTF8.GetBytes(runId);
-        await _kvStore.PutWithTtlAsync(key, bytes, CacheTtl, ct).ConfigureAwait(false);
+        if (_cacheService is null) return;
+        await _cacheService.WriteRunIdByShaAsync(headSha, runId, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -379,9 +363,9 @@ internal sealed class GitHubRunLogFilterRunner {
         var timer = GhTimingTracker.CurrentTimer.Value;
 
         // 1. 查 LSM 缓存(wantRefresh 时跳过)
-        if (!wantRefresh && _kvStore is not null) {
+        if (!wantRefresh && _cacheService is not null) {
             var t0 = Stopwatch.GetTimestamp();
-            var cached = await _kvStore.GetWithTtlAndRenewAsync(cacheKey, CacheTtl, ct).ConfigureAwait(false);
+            var cached = await _cacheService.TryGetRunLogAsync(runId, ct).ConfigureAwait(false);
             timer?.AddLsmRead(Stopwatch.GetTimestamp() - t0);
             if (cached is not null) {
                 timer?.RecordHit();
@@ -402,11 +386,11 @@ internal sealed class GitHubRunLogFilterRunner {
         timer?.AddNetwork(Stopwatch.GetTimestamp() - tNet);
 
         // 3. 写入 LSM 缓存
-        if (_kvStore is not null && lines.Count > 0) {
+        if (_cacheService is not null && lines.Count > 0) {
             var text = string.Join('\n', lines);
             var bytes = Encoding.UTF8.GetBytes(text);
             var tWrite = Stopwatch.GetTimestamp();
-            await _kvStore.PutWithTtlAsync(cacheKey, bytes, CacheTtl, ct).ConfigureAwait(false);
+            await _cacheService.WriteRunLogAsync(runId, bytes, ct).ConfigureAwait(false);
             timer?.AddLsmWrite(Stopwatch.GetTimestamp() - tWrite);
         }
 

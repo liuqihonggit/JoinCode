@@ -167,7 +167,7 @@ internal sealed class GitHubRunLogFilterRunner {
     /// 统一多 job 日志下载 — 单 job 走缓存,多 job Channel 并行合并(Actor 邮箱模型)
     /// <para>并行时各 job 行交错合并到 Channel,总时间 ≈ max(各 job) 而非 sum</para>
     /// <para>AGENTS.md 死锁处理规范: Actor 邮箱模型(消息传递替代共享锁)</para>
-    /// <para>日志缓存: 复用 IKvStore(LSM-Tree),key=gh:log:{runId}:{jobId},首次下载→后续命中</para>
+    /// <para>日志缓存: 复用 IKvStore(LSM-Tree),key=gh:log:{jobId}(纯 jobId),value=[runId(8字节)][日志],首次下载→后续命中</para>
     /// <para>wantRefresh=true 时跳过缓存读(仍写缓存),用于 rerun 后避免脏数据</para>
     /// </summary>
     public async IAsyncEnumerable<string> DownloadJobsParallelAsync(
@@ -221,14 +221,16 @@ internal sealed class GitHubRunLogFilterRunner {
 
     /// <summary>
     /// 获取单个 job 日志 — 优先命中 IKvStore(LSM-Tree)缓存,未命中则下载并写入缓存
-    /// <para>key=gh:log:{runId}:{jobId},value=日志全文(UTF-8),首次下载→后续命中避免重复下载</para>
-    /// <para>缓存命中时按行分割逐行 yield;未命中时先下载到 List 再写缓存再 yield(保证缓存完整写入)</para>
+    /// <para>key=gh:log:{jobId}(纯 jobId 不拼接 runId),value=[runId(8字节反查字段)][日志内容(UTF-8)]</para>
+    /// <para>runId 存 value 头部供 TryGetRunIdByJobIdAsync 反查;淘汰时间由 LSM 内置 TTL 管理</para>
+    /// <para>CI job 日志只读不可变: 首次写入后不再覆盖,仅 wantRefresh 强制刷新可覆盖</para>
     /// <para>wantRefresh=true 时跳过缓存读(仍写缓存),用于 rerun 后避免脏数据</para>
     /// </summary>
     public async IAsyncEnumerable<string> GetOrFetchJobLogsAsync(
         string owner, string repo, string runId, long jobId, bool wantRefresh,
         [EnumeratorCancellation] CancellationToken ct) {
-        var cacheKey = Encoding.UTF8.GetBytes($"gh:log:{runId}:{jobId}");
+        var cacheKey = Encoding.UTF8.GetBytes($"gh:log:{jobId}");
+        var runIdBytes = BitConverter.GetBytes(long.Parse(runId));
         var timer = GhTimingTracker.CurrentTimer.Value;
 
         // 1. 查 LSM 缓存(wantRefresh 时跳过)
@@ -236,10 +238,10 @@ internal sealed class GitHubRunLogFilterRunner {
             var t0 = Stopwatch.GetTimestamp();
             var cached = await _kvStore.GetWithTtlAndRenewAsync(cacheKey, CacheTtl, ct).ConfigureAwait(false);
             timer?.AddLsmRead(Stopwatch.GetTimestamp() - t0);
-            if (cached is not null) {
+            if (cached is not null && cached.Length > 8) {
                 timer?.RecordHit();
                 var t1 = Stopwatch.GetTimestamp();
-                foreach (var line in ParseCachedLines(cached)) yield return line;
+                foreach (var line in ParseCachedLines(cached, 8)) yield return line;
                 timer?.AddParse(Stopwatch.GetTimestamp() - t1);
                 yield break;
             }
@@ -254,10 +256,13 @@ internal sealed class GitHubRunLogFilterRunner {
         }
         timer?.AddNetwork(Stopwatch.GetTimestamp() - tNet);
 
-        // 3. 写入 LSM 缓存
+        // 3. 写入 LSM 缓存(value=[runId(8字节)][日志内容],CI job 日志只读不可变)
         if (_kvStore is not null && lines.Count > 0) {
             var text = string.Join('\n', lines);
-            var bytes = Encoding.UTF8.GetBytes(text);
+            var logBytes = Encoding.UTF8.GetBytes(text);
+            var bytes = new byte[8 + logBytes.Length];
+            runIdBytes.CopyTo(bytes, 0);
+            logBytes.CopyTo(bytes, 8);
             var tWrite = Stopwatch.GetTimestamp();
             await _kvStore.PutWithTtlAsync(cacheKey, bytes, CacheTtl, ct).ConfigureAwait(false);
             timer?.AddLsmWrite(Stopwatch.GetTimestamp() - tWrite);
@@ -267,6 +272,18 @@ internal sealed class GitHubRunLogFilterRunner {
         foreach (var line in lines) {
             yield return line;
         }
+    }
+
+    /// <summary>
+    /// 从 job 日志缓存反查 runId — key=gh:log:{jobId},value 头 8 字节为 runId(long)
+    /// <para>用于从 jobId 反查所属 runId(如告警只存 jobId 时定位 run)</para>
+    /// </summary>
+    public async Task<long?> TryGetRunIdByJobIdAsync(long jobId, CancellationToken ct) {
+        if (_kvStore is null) return null;
+        var cacheKey = Encoding.UTF8.GetBytes($"gh:log:{jobId}");
+        var cached = await _kvStore.GetWithTtlAndRenewAsync(cacheKey, CacheTtl, ct).ConfigureAwait(false);
+        if (cached is null || cached.Length < 8) return null;
+        return BitConverter.ToInt64(cached, 0);
     }
 
     /// <summary>
@@ -318,9 +335,9 @@ internal sealed class GitHubRunLogFilterRunner {
         }
     }
 
-    /// <summary>解析缓存字节为逐行字符串(跳过空行)</summary>
-    private static IEnumerable<string> ParseCachedLines(byte[] cached) {
-        var text = Encoding.UTF8.GetString(cached);
+    /// <summary>解析缓存字节为逐行字符串(跳过空行);offset 跳过 value 头部字段(如 runId 8 字节)</summary>
+    private static IEnumerable<string> ParseCachedLines(byte[] cached, int offset = 0) {
+        var text = Encoding.UTF8.GetString(cached, offset, cached.Length - offset);
         foreach (var line in text.Split('\n')) {
             if (line.Length > 0) yield return line;
         }

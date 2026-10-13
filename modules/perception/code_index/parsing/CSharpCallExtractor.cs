@@ -63,6 +63,12 @@ internal sealed class SymbolIndex {
         }
     }
 
+    /// <summary>从预构建字典构造（供单遍历联合构建使用，避免重复遍历）</summary>
+    internal SymbolIndex(Dictionary<string, SymbolInfo> byFqn, Dictionary<string, List<SymbolInfo>> byName) {
+        _byFqn = byFqn;
+        _byName = byName;
+    }
+
     /// <summary>按全限定名 O(1) 查找</summary>
     public bool TryGetByFqn(string fqn, [MaybeNullWhen(false)] out SymbolInfo symbol) => _byFqn.TryGetValue(fqn, out symbol);
 

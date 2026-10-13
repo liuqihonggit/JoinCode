@@ -1,5 +1,14 @@
 namespace JoinCode.CodeIndex.Ast;
 
+/// <summary>单遍历构建的符号结构集合 — 替代 6 次独立 BuildXxx 遍历</summary>
+internal sealed record SymbolStructures(
+    HashSet<string> ClassNameSet,
+    HashSet<string> InterfaceNameSet,
+    List<MethodLookupEntry> MethodLookup,
+    Dictionary<string, string> ExtensionMethodMap,
+    SymbolIndex SymbolIndex,
+    Dictionary<string, string> TypeFqnMap);
+
 /// <summary>
 /// C# 符号提取器 — 基于 Tree-sitter 解析 C# 源码,提取符号、调用、依赖信息
 /// 实现 ILanguagePlugin 接口,支持增量解析与并行提取
@@ -118,27 +127,21 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
             var symbols = new List<SymbolInfo>();
             CollectSymbols(tree.RootNode, filePath, symbols, parentSymbol: null, parentFqn: null, ns: null);
 
+            // 单遍历构建全部符号结构（6→1 pass）
+            var structures = BuildSymbolStructures(symbols);
+
             // 联合准备遍历：同时收集 variableTypeMap 和 interfaceNames（省 1 次 AST 遍历）
-            var classNameSet = CSharpCallExtractor.BuildClassNameSet(symbols);
             var variableTypeMap = new Dictionary<string, string>(StringComparer.Ordinal);
             var interfaceNames = new HashSet<string>(StringComparer.Ordinal);
-            CollectContextUnified(tree.RootNode, classNameSet, variableTypeMap, interfaceNames);
+            CollectContextUnified(tree.RootNode, structures.ClassNameSet, variableTypeMap, interfaceNames);
 
-            // 构建 call 上下文（不遍历）
-            var interfaceNameSet = CSharpCallExtractor.BuildInterfaceNameSet(symbols);
-            var methodLookup = CSharpCallExtractor.BuildMethodLookup(symbols);
-            var extensionMethodMap = CSharpCallExtractor.BuildExtensionMethodMap(symbols);
-            var symbolIndex = new SymbolIndex(symbols);
             var calls = new List<CallEdge>();
-
-            // 构建 dep 上下文（不遍历）
-            var typeFqnMap = CSharpDependencyExtractor.BuildTypeFqnMap(symbols);
             var fileFqn = CSharpDependencyExtractor.BuildFileFqn(filePath, symbols);
             var deps = new List<DependencyEdge>();
 
             // 联合主遍历：同时收集 calls 和 deps（省 1 次 AST 遍历）
-            CollectCallsAndDeps(tree.RootNode, filePath, classNameSet, interfaceNameSet, variableTypeMap,
-                methodLookup, symbolIndex, extensionMethodMap, calls, fileFqn, deps, interfaceNames, typeFqnMap);
+            CollectCallsAndDeps(tree.RootNode, filePath, structures.ClassNameSet, structures.InterfaceNameSet, variableTypeMap,
+                structures.MethodLookup, structures.SymbolIndex, structures.ExtensionMethodMap, calls, fileFqn, deps, interfaceNames, structures.TypeFqnMap);
 
             var chunks = CollectChunksWithParents(sourceCode, filePath, symbols);
 
@@ -151,6 +154,60 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
         } finally {
             _treeCache.Add(filePath, tree, sourceCode);
         }
+    }
+
+    /// <summary>单遍历构建全部符号结构 — 替代 6 次 BuildXxx 独立遍历</summary>
+    internal static SymbolStructures BuildSymbolStructures(IReadOnlyList<SymbolInfo> symbols) {
+        var classNameSet = new HashSet<string>(StringComparer.Ordinal);
+        var interfaceNameSet = new HashSet<string>(StringComparer.Ordinal);
+        var methodLookup = new List<MethodLookupEntry>(symbols.Count);
+        var extensionMethodMap = new Dictionary<string, string>(StringComparer.Ordinal);
+        var typeFqnMap = new Dictionary<string, string>(StringComparer.Ordinal);
+        var byFqn = new Dictionary<string, SymbolInfo>(symbols.Count, StringComparer.Ordinal);
+        var byName = new Dictionary<string, List<SymbolInfo>>(symbols.Count, StringComparer.Ordinal);
+
+        foreach (var s in symbols) {
+            if (!byFqn.ContainsKey(s.FullyQualifiedName)) {
+                byFqn[s.FullyQualifiedName] = s;
+            }
+            if (!byName.TryGetValue(s.Name, out var nameList)) {
+                nameList = new List<SymbolInfo>(1);
+                byName[s.Name] = nameList;
+            }
+            nameList.Add(s);
+
+            switch (s.Kind) {
+                case SymbolKind.Class or SymbolKind.Struct:
+                    classNameSet.Add(s.Name);
+                    if (!typeFqnMap.ContainsKey(s.Name)) {
+                        typeFqnMap[s.Name] = s.FullyQualifiedName;
+                    }
+                    break;
+                case SymbolKind.Interface:
+                    interfaceNameSet.Add(s.Name);
+                    if (!typeFqnMap.ContainsKey(s.Name)) {
+                        typeFqnMap[s.Name] = s.FullyQualifiedName;
+                    }
+                    break;
+                case SymbolKind.Enum or SymbolKind.Delegate or SymbolKind.Record or SymbolKind.RecordStruct:
+                    if (!typeFqnMap.ContainsKey(s.Name)) {
+                        typeFqnMap[s.Name] = s.FullyQualifiedName;
+                    }
+                    break;
+                case SymbolKind.Method:
+                    methodLookup.Add(new MethodLookupEntry(s.FullyQualifiedName, s.StartLine, s.EndLine));
+                    if (s.ParentSymbol is not null) {
+                        extensionMethodMap[s.Name] = s.ParentSymbol;
+                    }
+                    break;
+                case SymbolKind.Constructor or SymbolKind.Property or SymbolKind.LocalFunction:
+                    methodLookup.Add(new MethodLookupEntry(s.FullyQualifiedName, s.StartLine, s.EndLine));
+                    break;
+            }
+        }
+
+        methodLookup.Sort(static (a, b) => a.StartLine.CompareTo(b.StartLine));
+        return new SymbolStructures(classNameSet, interfaceNameSet, methodLookup, extensionMethodMap, new SymbolIndex(byFqn, byName), typeFqnMap);
     }
 
     /// <summary>联合遍历 — 单次 AST 遍历同时收集变量类型和接口名（合并 CollectVariableTypes + CollectInterfaceNamesRecursive）</summary>

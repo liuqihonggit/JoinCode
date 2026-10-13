@@ -2,6 +2,8 @@ namespace JoinCode.CodeIndex.Tests;
 
 public sealed class LineBasedChunkExtractorTests {
 
+    private static readonly CodeIndexHyperParams HP = CodeIndexHyperParams.FromEnvironment();
+
     private static SymbolInfo Sym(string name, string fqn, SymbolKind kind, int start, int end) => new() {
         Name = name,
         FullyQualifiedName = fqn,
@@ -22,7 +24,7 @@ public sealed class LineBasedChunkExtractorTests {
             Sym("Bar", "Ns.Foo.Bar", SymbolKind.Method, 3, 3)
         };
 
-        var chunks = LineBasedChunkExtractor.Extract("test.cs", source, symbols);
+        var chunks = LineBasedChunkExtractor.Extract("test.cs", source, symbols, chunkSize: HP.ChunkSize, overlap: HP.Overlap);
 
         Assert.NotEmpty(chunks);
         var chunk = chunks[0];
@@ -40,7 +42,7 @@ public sealed class LineBasedChunkExtractorTests {
             Sym("Bar", "Ns.Foo.Bar", SymbolKind.Method, 3, 3)
         };
 
-        var chunks = LineBasedChunkExtractor.Extract("test.cs", source, symbols);
+        var chunks = LineBasedChunkExtractor.Extract("test.cs", source, symbols, chunkSize: HP.ChunkSize, overlap: HP.Overlap);
 
         Assert.NotEmpty(chunks);
         Assert.All(chunks, c => Assert.True(BitMask.Contains(c.ContainedSymbolKinds, SymbolKind.Constructor)));
@@ -50,7 +52,7 @@ public sealed class LineBasedChunkExtractorTests {
     public void Extract_NoSymbols_ContainedSymbolKindsIsZero() {
         var source = "class Foo {\n  Foo() {}\n}\n";
 
-        var chunks = LineBasedChunkExtractor.Extract("test.cs", source, []);
+        var chunks = LineBasedChunkExtractor.Extract("test.cs", source, [], chunkSize: HP.ChunkSize, overlap: HP.Overlap);
 
         Assert.NotEmpty(chunks);
         Assert.All(chunks, c => Assert.Equal(0, c.ContainedSymbolKinds));

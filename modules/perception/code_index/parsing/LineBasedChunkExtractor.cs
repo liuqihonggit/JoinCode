@@ -24,8 +24,8 @@ public static class LineBasedChunkExtractor {
     /// <param name="sourceCode">源代码文本。</param>
     /// <param name="symbols">该文件的 AST 符号列表（用于预嵌入 FQN）。</param>
     /// <param name="parentLocations">该文件的父文档定位信息列表（用于关联块的父文档）。</param>
-    /// <param name="chunkSize">每块行数（默认 400）。</param>
-    /// <param name="overlap">相邻块重叠行数（默认 25，即 ~6%），避免函数跨越块边界被切断。</param>
+    /// <param name="chunkSize">每块行数。必须从 CodeIndexHyperParams 传入，-1=未设置将抛异常。</param>
+    /// <param name="overlap">相邻块重叠行数。必须从 CodeIndexHyperParams 传入，-1=未设置将抛异常。</param>
     /// <param name="languageId">语言标识。</param>
     /// <returns>代码块列表。</returns>
     public static IReadOnlyList<ChunkInfo> Extract(
@@ -33,9 +33,17 @@ public static class LineBasedChunkExtractor {
         string sourceCode,
         IReadOnlyList<SymbolInfo> symbols,
         IReadOnlyList<ParentLocation>? parentLocations = null,
-        int chunkSize = 400,
-        int overlap = 25,
+        int chunkSize = -1,
+        int overlap = -1,
         string languageId = "c-sharp") {
+        if (chunkSize <= 0) {
+            throw new ArgumentOutOfRangeException(nameof(chunkSize),
+                "chunkSize 必须从 CodeIndexHyperParams 传入正值，当前值=" + chunkSize + "。超参数统一存放见 CodeIndexHyperParams.cs");
+        }
+        if (overlap < 0) {
+            throw new ArgumentOutOfRangeException(nameof(overlap),
+                "overlap 必须从 CodeIndexHyperParams 传入非负值，当前值=" + overlap + "。超参数统一存放见 CodeIndexHyperParams.cs");
+        }
         if (string.IsNullOrEmpty(sourceCode)) return [];
 
         var span = sourceCode.AsSpan();

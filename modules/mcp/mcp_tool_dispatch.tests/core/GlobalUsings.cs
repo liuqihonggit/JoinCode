@@ -3,6 +3,7 @@ global using Core.Permission;
 global using Core.Utils;
 global using FluentAssertions;
 global using Infrastructure.Pipeline;
+global using System.Diagnostics.CodeAnalysis;
 global using JoinCode.Abstractions.Pipeline;
 global using Infrastructure.Utils.IO;
 global using IO.ProcessService;

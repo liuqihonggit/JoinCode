@@ -225,13 +225,7 @@ public class GitCommitConstraintHidingMiddlewareTest {
     #endregion
 
     /// <summary>
-    /// 反射清空 CooldownService 全局状态，用于测试隔离（确保首次触发分支可覆盖）。
+    /// 重置 CooldownService 全局状态，用于测试隔离（确保首次触发分支可覆盖）。
     /// </summary>
-    private static void ResetCooldownState() {
-        var field = typeof(CooldownService).GetField("LastTrigger",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-        if (field?.GetValue(null) is System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> dict) {
-            dict.Clear();
-        }
-    }
+    private static void ResetCooldownState() => CooldownService.Reset();
 }

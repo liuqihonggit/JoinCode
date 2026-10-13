@@ -4,6 +4,14 @@ namespace McpToolRegistry.Tests;
 /// ToolAestheticMiddleware 单元测试 — 工具执行后分析结果注入情绪反馈
 /// </summary>
 public class ToolAestheticMiddlewareTests {
+    public ToolAestheticMiddlewareTests() => CooldownService.Reset();
+
+    private sealed class FixedLocalTimeProvider(int localHour) : TimeProvider {
+        private readonly DateTimeOffset _utcNow = new DateTime(2026, 1, 15, localHour, 0, 0).ToUniversalTime();
+        public override DateTimeOffset GetUtcNow() => _utcNow;
+        public override long TimestampFrequency => Stopwatch.Frequency;
+    }
+
     private static ToolExecutionContext CreateContext() {
         return new ToolExecutionContext {
             ToolName = "read",
@@ -223,6 +231,43 @@ public class ToolAestheticMiddlewareTests {
         messages.Should().HaveCount(1);
         if (messages is not null) {
             messages[0].Content.Should().Contain("FIXME");
+        }
+    }
+
+    [Fact]
+    public async Task InvokeAsync_AllRealAnalyzers_MultipleEmotionsInjected() {
+        var provider = new FixedLocalTimeProvider(2);
+        var analyzers = new IAestheticAnalyzer[] {
+            new BugKeywordAnalyzer(),
+            new MultiFieldAnalyzer(),
+            new DeadCodeHintAnalyzer(),
+            new SympathyAnalyzer(),
+            new UrgencyAnalyzer(),
+            new LateNightAnalyzer(provider)
+        };
+
+        await using var middleware = new ToolAestheticMiddleware(analyzers, NullLogger<ToolAestheticMiddleware>.Instance);
+        var context = new ToolExecutionContext {
+            ToolName = "read",
+            Arguments = []
+        };
+
+        await middleware.InvokeAsync(context, (ctx, _) => {
+            ctx.Result = CreateTextResult("// BUG: FIXME broken — 用户说没有弄好，妈妈患癌住院");
+            return Task.CompletedTask;
+        }, CancellationToken.None);
+
+        var result = context.Result;
+        result.Should().NotBeNull();
+        if (result is null) return;
+
+        var messages = result.InjectedMessages;
+        messages.Should().NotBeNull();
+        messages.Should().HaveCount(4);
+        if (messages is null) return;
+
+        foreach (var msg in messages) {
+            msg.Content.Should().Contain("情绪反馈");
         }
     }
 }

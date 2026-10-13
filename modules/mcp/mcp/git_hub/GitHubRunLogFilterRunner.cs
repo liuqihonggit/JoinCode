@@ -1,6 +1,15 @@
 namespace McpToolDispatch;
 
 /// <summary>
+/// job 日志缓存 key — 只读记录类型封装 job-id,避免裸字符串拼接导致定位不清晰
+/// <para>key 格式: gh:log:{jobId}(纯 jobId 不拼接 runId);runId 存 value 头部供 TryGetRunIdByJobIdAsync 反查</para>
+/// </summary>
+internal readonly record struct JobLogCacheKey(long JobId) {
+    /// <summary>构造 LSM 缓存 key 字节(gh:log:{jobId})</summary>
+    public byte[] ToCacheKeyBytes() => Encoding.UTF8.GetBytes($"gh:log:{JobId}");
+}
+
+/// <summary>
 /// GitHub Run 日志过滤运行器 — DI 注入 _apiClient/_kvStore,负责失败测试过滤+流式过滤+失败 job 日志获取
 /// <para>日志缓存: 复用 IKvStore(LSM-Tree PithosKvStore),首次下载→后续命中缓存,避免重复下载</para>
 /// </summary>
@@ -230,7 +239,7 @@ internal sealed class GitHubRunLogFilterRunner {
     public async IAsyncEnumerable<string> GetOrFetchJobLogsAsync(
         string owner, string repo, string runId, long jobId, bool wantRefresh,
         [EnumeratorCancellation] CancellationToken ct) {
-        var cacheKey = Encoding.UTF8.GetBytes($"gh:log:{jobId}");
+        var cacheKey = new JobLogCacheKey(jobId).ToCacheKeyBytes();
         var runIdBytes = BitConverter.GetBytes(long.Parse(runId));
         var timer = GhTimingTracker.CurrentTimer.Value;
 
@@ -281,7 +290,7 @@ internal sealed class GitHubRunLogFilterRunner {
     /// </summary>
     public async Task<long?> TryGetRunIdByJobIdAsync(long jobId, CancellationToken ct) {
         if (_kvStore is null) return null;
-        var cacheKey = Encoding.UTF8.GetBytes($"gh:log:{jobId}");
+        var cacheKey = new JobLogCacheKey(jobId).ToCacheKeyBytes();
         var cached = await _kvStore.GetWithTtlAndRenewAsync(cacheKey, CacheTtl, ct).ConfigureAwait(false);
         if (cached is null || cached.Length < 8) return null;
         return BitConverter.ToInt64(cached, 0);

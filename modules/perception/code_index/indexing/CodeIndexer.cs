@@ -94,7 +94,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             IAnnSearch ann = _hyperParams.AnnType.Equals("hnsw", StringComparison.OrdinalIgnoreCase)
                 ? new HnswAnn(_hyperParams.HnswM, _hyperParams.HnswEfConstruction, _hyperParams.HnswEfSearch)
                 : new BruteForceAnn();
-            _embeddingIndex = new EmbeddingIndex(embedModel, ann, fs);
+            _embeddingIndex = new EmbeddingIndex(embedModel, ann, fs, embedBatchSize: _hyperParams.EmbedBatchSize);
             logger?.LogInformation("向量索引已自动初始化: dim={Dim}, ann={Ann}, maxSeqLen={MaxSeqLen}", embedModel.Dimensions, _hyperParams.AnnType, _hyperParams.MaxSeqLen);
         } catch (Exception ex) {
             logger?.LogWarning(ex, "向量索引自动初始化失败，语义搜索将不可用");

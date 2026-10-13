@@ -8,6 +8,8 @@ namespace JoinCode.CodeIndex.Tests;
 /// CodeIndexer 父文档检索集成测试 — 验证 BuildIndex 填充父文档、SearchSemantic 返回父文档、删除文件同步清理。
 /// </summary>
 public sealed class CodeIndexerParentDocTests : IDisposable {
+
+    private static readonly CodeIndexHyperParams HP = CodeIndexHyperParams.FromEnvironment();
     private readonly InMemoryIndexStore _store;
     private readonly CodeIndexer _indexer;
     private readonly IFileSystem _fs;

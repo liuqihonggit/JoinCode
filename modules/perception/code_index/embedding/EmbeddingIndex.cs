@@ -14,6 +14,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     private readonly IEmbeddingModel _embedModel;
     private readonly IAnnSearch _ann;
     private readonly IFileSystem _fs;
+    private readonly int _embedBatchSize;
     private readonly IEmbeddingPersistence _persistence;
     private string? _incrementalDir;
 
@@ -30,13 +31,19 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     /// <param name="embedModel">嵌入模型（API/ONNX/simhash 均可）。</param>
     /// <param name="ann">ANN 搜索引擎（暴力/HNSW 均可，需自身线程安全）。</param>
     /// <param name="fs">文件系统抽象 — 用于持久化读写 + 父文档源码按行读取。</param>
-    public EmbeddingIndex(IEmbeddingModel embedModel, IAnnSearch ann, IFileSystem fs) {
+    /// <param name="embedBatchSize">嵌入批大小。必须从 CodeIndexHyperParams 传入，-1=未设置将抛异常。</param>
+    public EmbeddingIndex(IEmbeddingModel embedModel, IAnnSearch ann, IFileSystem fs, int embedBatchSize = -1) {
         ArgumentNullException.ThrowIfNull(embedModel);
         ArgumentNullException.ThrowIfNull(ann);
         ArgumentNullException.ThrowIfNull(fs);
+        if (embedBatchSize <= 0) {
+            throw new ArgumentOutOfRangeException(nameof(embedBatchSize),
+                "embedBatchSize 必须从 CodeIndexHyperParams 传入正值，当前值=" + embedBatchSize + "。超参数统一存放见 CodeIndexHyperParams.cs");
+        }
         _embedModel = embedModel;
         _ann = ann;
         _fs = fs;
+        _embedBatchSize = embedBatchSize;
         _persistence = new LsmEmbeddingPersistence(fs);
         _status = (int)IndexStatus.NotReady;
     }
@@ -83,13 +90,12 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             return;
         }
 
-        const int EmbedBatchSize = 256;
         var dim = _embedModel.Dimensions;
         var flatVectors = new float[toEmbed.Count * dim];
         try {
-            for (var batchStart = 0; batchStart < toEmbed.Count; batchStart += EmbedBatchSize) {
+            for (var batchStart = 0; batchStart < toEmbed.Count; batchStart += _embedBatchSize) {
                 ct.ThrowIfCancellationRequested();
-                var batchEnd = Math.Min(batchStart + EmbedBatchSize, toEmbed.Count);
+                var batchEnd = Math.Min(batchStart + _embedBatchSize, toEmbed.Count);
                 var batchTexts = new List<string>(batchEnd - batchStart);
                 for (var i = batchStart; i < batchEnd; i++) {
                     batchTexts.Add(BuildEmbedText(toEmbed[i]));

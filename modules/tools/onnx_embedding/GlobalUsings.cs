@@ -6,6 +6,7 @@ global using System.Collections.Frozen;
 global using System.Numerics;
 global using System.Numerics.Tensors;
 global using System.Runtime.CompilerServices;
+global using System.Runtime.InteropServices;
 global using System.Diagnostics;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Text.Json;

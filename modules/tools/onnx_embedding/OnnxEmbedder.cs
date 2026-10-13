@@ -61,7 +61,11 @@ public sealed class OnnxEmbedder : IDisposable {
         var allTokens = batchSize >= 8
             ? texts.AsParallel().Select(t => _tokenizer.EncodeToIdsSafe(t)).ToArray()
             : texts.Select(t => _tokenizer.EncodeToIdsSafe(t)).ToArray();
-        var maxLen = allTokens.Length == 0 ? 0 : allTokens.Max(t => Math.Min(t.Count, maxSeqLen));
+        var maxLen = 0;
+        foreach (var t in allTokens) {
+            var len = Math.Min(t.Count, maxSeqLen);
+            if (len > maxLen) maxLen = len;
+        }
 
         var paddedLen = Math.Max((maxLen + 7) & ~7, 8);
 
@@ -79,9 +83,17 @@ public sealed class OnnxEmbedder : IDisposable {
                 var tokens = allTokens[i];
                 var seqLen = Math.Min(tokens.Count, maxSeqLen);
                 var rowOffset = i * paddedLen;
-                for (var j = 0; j < seqLen; j++) {
-                    inputIds[rowOffset + j] = tokens[j];
-                    attentionMask[rowOffset + j] = 1;
+                if (tokens is List<int> tokenList) {
+                    var tokenSpan = CollectionsMarshal.AsSpan(tokenList);
+                    for (var j = 0; j < seqLen; j++) {
+                        inputIds[rowOffset + j] = tokenSpan[j];
+                        attentionMask[rowOffset + j] = 1;
+                    }
+                } else {
+                    for (var j = 0; j < seqLen; j++) {
+                        inputIds[rowOffset + j] = tokens[j];
+                        attentionMask[rowOffset + j] = 1;
+                    }
                 }
             }
 

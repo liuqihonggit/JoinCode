@@ -9,6 +9,7 @@ namespace McpToolRegistry;
 public sealed class SympathyAnalyzer : IAestheticAnalyzer {
     private const string CooldownKey = "sympathy";
     private static readonly TimeSpan Cooldown = TimeSpan.FromMinutes(30);
+    private readonly CooldownService _cooldown;
     private static readonly Regex SympathyKeywordsRegex = new(
         @"(癌症|cancer|患病|住院|手术|化疗|放疗|肿瘤|leukemia|tumour|tumor|脑梗|心梗|中风|尿毒症|肝硬化|肾衰竭|器官移植" +
         @"|哎|唉|哎哟|唉声叹气|叹气|难受|想哭|香菇|累了|撑不住|扛不住|压力大|要崩溃了|崩溃边缘|快撑不住了|放弃|绝望|撑不下去|扛不下去|心力交瘁|筋疲力尽" +
@@ -19,6 +20,14 @@ public sealed class SympathyAnalyzer : IAestheticAnalyzer {
         @"|深夜加班|凌晨|通宵|熬通宵|连续熬夜|加班到很晚|没时间休息|没时间睡觉)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled,
         TimeSpan.FromMilliseconds(50));
+
+    /// <summary>
+    /// 构造同情分析器 — 注入可选冷却服务，默认用全局单例
+    /// </summary>
+    /// <param name="cooldown">冷却服务实例 — DI 注入或测试传入独立实例</param>
+    public SympathyAnalyzer(CooldownService? cooldown = null) {
+        _cooldown = cooldown ?? CooldownService.Instance;
+    }
 
     /// <summary>
     /// 分析工具结果文本，检测同情触发锚点（六类信号）
@@ -38,8 +47,7 @@ public sealed class SympathyAnalyzer : IAestheticAnalyzer {
 
         var anchor = match.Value;
 
-        if (!CooldownService.ShouldTrigger(CooldownKey, Cooldown)) return false;
-        CooldownService.RecordTrigger(CooldownKey);
+        if (!_cooldown.TryTrigger(CooldownKey, Cooldown)) return false;
 
         feedback = new AestheticFeedback {
             Emotion = AestheticEmotion.Sympathy,

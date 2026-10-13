@@ -4,8 +4,6 @@ namespace McpToolRegistry.Tests;
 /// ToolAestheticMiddleware 单元测试 — 工具执行后分析结果注入情绪反馈
 /// </summary>
 public class ToolAestheticMiddlewareTests {
-    public ToolAestheticMiddlewareTests() => CooldownService.Reset();
-
     private sealed class FixedLocalTimeProvider(int localHour) : TimeProvider {
         private readonly DateTimeOffset _utcNow = new DateTime(2026, 1, 15, localHour, 0, 0).ToUniversalTime();
         public override DateTimeOffset GetUtcNow() => _utcNow;
@@ -47,7 +45,7 @@ public class ToolAestheticMiddlewareTests {
 
     [Fact]
     public async Task InvokeAsync_AfterExecution_BugKeywordResult_InjectsEmotionMessage() {
-        var analyzer = new BugKeywordAnalyzer();
+        var analyzer = new BugKeywordAnalyzer(new CooldownService());
         await using var middleware = new ToolAestheticMiddleware([analyzer], NullLogger<ToolAestheticMiddleware>.Instance);
         var context = CreateContext();
 
@@ -71,7 +69,7 @@ public class ToolAestheticMiddlewareTests {
 
     [Fact]
     public async Task InvokeAsync_AfterExecution_CleanResult_NoInjection() {
-        var analyzer = new BugKeywordAnalyzer();
+        var analyzer = new BugKeywordAnalyzer(new CooldownService());
         await using var middleware = new ToolAestheticMiddleware([analyzer], NullLogger<ToolAestheticMiddleware>.Instance);
         var context = CreateContext();
 
@@ -88,7 +86,7 @@ public class ToolAestheticMiddlewareTests {
 
     [Fact]
     public async Task InvokeAsync_NullResult_NoInjection() {
-        var analyzer = new BugKeywordAnalyzer();
+        var analyzer = new BugKeywordAnalyzer(new CooldownService());
         await using var middleware = new ToolAestheticMiddleware([analyzer], NullLogger<ToolAestheticMiddleware>.Instance);
         var context = CreateContext();
 
@@ -114,7 +112,7 @@ public class ToolAestheticMiddlewareTests {
 
     [Fact]
     public async Task InvokeAsync_AlwaysCallsNext_First() {
-        var analyzer = new BugKeywordAnalyzer();
+        var analyzer = new BugKeywordAnalyzer(new CooldownService());
         await using var middleware = new ToolAestheticMiddleware([analyzer], NullLogger<ToolAestheticMiddleware>.Instance);
         var context = CreateContext();
 
@@ -131,7 +129,7 @@ public class ToolAestheticMiddlewareTests {
 
     [Fact]
     public async Task InvokeAsync_MultipleAnalyzers_InjectsAllFeedbacks() {
-        var analyzer1 = new BugKeywordAnalyzer();
+        var analyzer1 = new BugKeywordAnalyzer(new CooldownService());
         var analyzer2 = new AlwaysSadnessAnalyzer();
 
         await using var middleware = new ToolAestheticMiddleware([analyzer1, analyzer2], NullLogger<ToolAestheticMiddleware>.Instance);
@@ -158,7 +156,7 @@ public class ToolAestheticMiddlewareTests {
     [Fact]
     public async Task InvokeAsync_AnalyzerThrows_SkipsAndContinues() {
         var throwingAnalyzer = new ThrowingAnalyzer();
-        var normalAnalyzer = new BugKeywordAnalyzer();
+        var normalAnalyzer = new BugKeywordAnalyzer(new CooldownService());
 
         await using var middleware = new ToolAestheticMiddleware([throwingAnalyzer, normalAnalyzer], NullLogger<ToolAestheticMiddleware>.Instance);
         var context = CreateContext();
@@ -182,7 +180,7 @@ public class ToolAestheticMiddlewareTests {
 
     [Fact]
     public async Task InvokeAsync_PreservesExistingInjectedMessages() {
-        var analyzer = new BugKeywordAnalyzer();
+        var analyzer = new BugKeywordAnalyzer(new CooldownService());
         await using var middleware = new ToolAestheticMiddleware([analyzer], NullLogger<ToolAestheticMiddleware>.Instance);
         var context = CreateContext();
 
@@ -210,7 +208,7 @@ public class ToolAestheticMiddlewareTests {
 
     [Fact]
     public async Task InvokeAsync_ErrorResult_StillAnalyzes() {
-        var analyzer = new BugKeywordAnalyzer();
+        var analyzer = new BugKeywordAnalyzer(new CooldownService());
         await using var middleware = new ToolAestheticMiddleware([analyzer], NullLogger<ToolAestheticMiddleware>.Instance);
         var context = CreateContext();
 
@@ -237,13 +235,14 @@ public class ToolAestheticMiddlewareTests {
     [Fact]
     public async Task InvokeAsync_AllRealAnalyzers_MultipleEmotionsInjected() {
         var provider = new FixedLocalTimeProvider(2);
+        var cooldown = new CooldownService();
         var analyzers = new IAestheticAnalyzer[] {
-            new BugKeywordAnalyzer(),
-            new MultiFieldAnalyzer(),
-            new DeadCodeHintAnalyzer(),
-            new SympathyAnalyzer(),
-            new UrgencyAnalyzer(),
-            new LateNightAnalyzer(provider)
+            new BugKeywordAnalyzer(cooldown),
+            new MultiFieldAnalyzer(cooldown),
+            new DeadCodeHintAnalyzer(cooldown),
+            new SympathyAnalyzer(cooldown),
+            new UrgencyAnalyzer(cooldown),
+            new LateNightAnalyzer(provider, cooldown)
         };
 
         await using var middleware = new ToolAestheticMiddleware(analyzers, NullLogger<ToolAestheticMiddleware>.Instance);

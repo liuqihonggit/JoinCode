@@ -4,8 +4,6 @@ namespace McpToolRegistry.Tests;
 /// DeadCodeHintAnalyzer 单元测试 — 检测工具结果文本中暗示死代码的关键词
 /// </summary>
 public class DeadCodeHintAnalyzerTests {
-    public DeadCodeHintAnalyzerTests() => CooldownService.Reset();
-
     private static ToolExecutionContext CreateContext(string? text) {
         return new ToolExecutionContext {
             ToolName = "read",
@@ -18,7 +16,7 @@ public class DeadCodeHintAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_UnreferencedKeyword_ReturnsConfusionFeedback() {
-        var analyzer = new DeadCodeHintAnalyzer();
+        var analyzer = new DeadCodeHintAnalyzer(new CooldownService());
         var context = CreateContext("Method 'Foo' is unreferenced.");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -31,7 +29,7 @@ public class DeadCodeHintAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_NeverCalledKeyword_ReturnsConfusionFeedback() {
-        var analyzer = new DeadCodeHintAnalyzer();
+        var analyzer = new DeadCodeHintAnalyzer(new CooldownService());
         var context = CreateContext("Warning: method Bar is never called.");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -43,7 +41,7 @@ public class DeadCodeHintAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_DeadCodeKeyword_ReturnsConfusionFeedback() {
-        var analyzer = new DeadCodeHintAnalyzer();
+        var analyzer = new DeadCodeHintAnalyzer(new CooldownService());
         var context = CreateContext("Detected dead code in module X.");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -55,7 +53,7 @@ public class DeadCodeHintAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_NoCallersKeyword_ReturnsConfusionFeedback() {
-        var analyzer = new DeadCodeHintAnalyzer();
+        var analyzer = new DeadCodeHintAnalyzer(new CooldownService());
         var context = CreateContext("Function has no callers in the codebase.");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -67,7 +65,7 @@ public class DeadCodeHintAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_OrphanedKeyword_ReturnsConfusionFeedback() {
-        var analyzer = new DeadCodeHintAnalyzer();
+        var analyzer = new DeadCodeHintAnalyzer(new CooldownService());
         var context = CreateContext("Found orphaned function definitions.");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -79,7 +77,7 @@ public class DeadCodeHintAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_NormalText_ReturnsFalse() {
-        var analyzer = new DeadCodeHintAnalyzer();
+        var analyzer = new DeadCodeHintAnalyzer(new CooldownService());
         var context = CreateContext("var x = 42;");
 
         analyzer.TryAnalyze(context, out _).Should().BeFalse();
@@ -87,7 +85,7 @@ public class DeadCodeHintAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_NullResult_ReturnsFalse() {
-        var analyzer = new DeadCodeHintAnalyzer();
+        var analyzer = new DeadCodeHintAnalyzer(new CooldownService());
         var context = new ToolExecutionContext {
             ToolName = "read",
             Arguments = []
@@ -98,7 +96,7 @@ public class DeadCodeHintAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_EmptyText_ReturnsFalse() {
-        var analyzer = new DeadCodeHintAnalyzer();
+        var analyzer = new DeadCodeHintAnalyzer(new CooldownService());
         var context = CreateContext("");
 
         analyzer.TryAnalyze(context, out _).Should().BeFalse();
@@ -106,7 +104,7 @@ public class DeadCodeHintAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_AlwaysProvidesSuggestion() {
-        var analyzer = new DeadCodeHintAnalyzer();
+        var analyzer = new DeadCodeHintAnalyzer(new CooldownService());
         var context = CreateContext("Method is unreferenced.");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {

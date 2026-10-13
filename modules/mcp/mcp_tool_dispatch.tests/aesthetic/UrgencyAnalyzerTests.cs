@@ -4,8 +4,6 @@ namespace McpToolRegistry.Tests;
 /// UrgencyAnalyzer 单元测试 — 检测工具结果文本中用户表达不满/求助/催促的关键词
 /// </summary>
 public class UrgencyAnalyzerTests {
-    public UrgencyAnalyzerTests() => CooldownService.Reset();
-
     private static ToolExecutionContext CreateContext(string? text) {
         return new ToolExecutionContext {
             ToolName = "read",
@@ -32,7 +30,7 @@ public class UrgencyAnalyzerTests {
     [InlineData("马上")]
     [InlineData("着急")]
     public void TryAnalyze_UrgencyKeyword_ReturnsUrgencyFeedback(string keyword) {
-        var analyzer = new UrgencyAnalyzer();
+        var analyzer = new UrgencyAnalyzer(new CooldownService());
         var context = CreateContext(keyword);
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -45,7 +43,7 @@ public class UrgencyAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_NormalText_ReturnsFalse() {
-        var analyzer = new UrgencyAnalyzer();
+        var analyzer = new UrgencyAnalyzer(new CooldownService());
         var context = CreateContext("var x = 42;");
 
         analyzer.TryAnalyze(context, out _).Should().BeFalse();
@@ -53,7 +51,7 @@ public class UrgencyAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_NullResult_ReturnsFalse() {
-        var analyzer = new UrgencyAnalyzer();
+        var analyzer = new UrgencyAnalyzer(new CooldownService());
         var context = new ToolExecutionContext {
             ToolName = "read",
             Arguments = []
@@ -64,7 +62,7 @@ public class UrgencyAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_EmptyText_ReturnsFalse() {
-        var analyzer = new UrgencyAnalyzer();
+        var analyzer = new UrgencyAnalyzer(new CooldownService());
         var context = CreateContext("");
 
         analyzer.TryAnalyze(context, out _).Should().BeFalse();
@@ -72,7 +70,7 @@ public class UrgencyAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_FeedbackMentionsEndToEndTest() {
-        var analyzer = new UrgencyAnalyzer();
+        var analyzer = new UrgencyAnalyzer(new CooldownService());
         var context = CreateContext("救命G救命");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -85,7 +83,7 @@ public class UrgencyAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_SuggestionMentionsBranchStrategy() {
-        var analyzer = new UrgencyAnalyzer();
+        var analyzer = new UrgencyAnalyzer(new CooldownService());
         var context = CreateContext("快点弄好");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {

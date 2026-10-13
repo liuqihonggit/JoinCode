@@ -8,10 +8,19 @@ namespace McpToolRegistry;
 public sealed class DeadCodeHintAnalyzer : IAestheticAnalyzer {
     private const string CooldownKey = "dead-code-hint";
     private static readonly TimeSpan Cooldown = TimeSpan.FromMinutes(10);
+    private readonly CooldownService _cooldown;
     private static readonly Regex DeadCodeKeywordsRegex = new(
         @"\b(unreferenced|never\s+called|dead\s+code|unused\s+method|unused\s+function|orphaned|no\s+callers)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled,
         TimeSpan.FromMilliseconds(50));
+
+    /// <summary>
+    /// 构造死代码提示分析器 — 注入可选冷却服务，默认用全局单例
+    /// </summary>
+    /// <param name="cooldown">冷却服务实例 — DI 注入或测试传入独立实例</param>
+    public DeadCodeHintAnalyzer(CooldownService? cooldown = null) {
+        _cooldown = cooldown ?? CooldownService.Instance;
+    }
 
     /// <summary>
     /// 分析工具结果文本，检测死代码相关关键词
@@ -28,8 +37,7 @@ public sealed class DeadCodeHintAnalyzer : IAestheticAnalyzer {
 
         if (!DeadCodeKeywordsRegex.IsMatch(text)) return false;
 
-        if (!CooldownService.ShouldTrigger(CooldownKey, Cooldown)) return false;
-        CooldownService.RecordTrigger(CooldownKey);
+        if (!_cooldown.TryTrigger(CooldownKey, Cooldown)) return false;
 
         feedback = new AestheticFeedback {
             Emotion = AestheticEmotion.Confusion,

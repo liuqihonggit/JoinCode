@@ -8,12 +8,21 @@ namespace McpToolRegistry;
 public sealed class MultiFieldAnalyzer : IAestheticAnalyzer {
     private const string CooldownKey = "multi-field-sadness";
     private static readonly TimeSpan Cooldown = TimeSpan.FromMinutes(10);
+    private readonly CooldownService _cooldown;
     private static readonly Regex FieldPattern = new(
         @"(?:public|private|internal|protected)\s+(?:readonly\s+|static\s+|volatile\s+|const\s+)?(?:\w+(?:<[^>]+>)?(?:\[\])?)\s+\w+\s*(?:\{|;|=)",
         RegexOptions.Compiled,
         TimeSpan.FromMilliseconds(50));
 
     private const int FieldThreshold = 7;
+
+    /// <summary>
+    /// 构造多字段分析器 — 注入可选冷却服务，默认用全局单例
+    /// </summary>
+    /// <param name="cooldown">冷却服务实例 — DI 注入或测试传入独立实例</param>
+    public MultiFieldAnalyzer(CooldownService? cooldown = null) {
+        _cooldown = cooldown ?? CooldownService.Instance;
+    }
 
     /// <summary>
     /// 分析工具结果文本，检测字段/属性数量是否超过阈值
@@ -31,8 +40,7 @@ public sealed class MultiFieldAnalyzer : IAestheticAnalyzer {
         var matches = FieldPattern.Matches(text);
         if (matches.Count <= FieldThreshold) return false;
 
-        if (!CooldownService.ShouldTrigger(CooldownKey, Cooldown)) return false;
-        CooldownService.RecordTrigger(CooldownKey);
+        if (!_cooldown.TryTrigger(CooldownKey, Cooldown)) return false;
 
         feedback = new AestheticFeedback {
             Emotion = AestheticEmotion.Sadness,

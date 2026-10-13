@@ -4,8 +4,6 @@ namespace McpToolRegistry.Tests;
 /// LateNightAnalyzer 单元测试 — 深夜处理代码任务自动触发同情情绪
 /// </summary>
 public class LateNightAnalyzerTests {
-    public LateNightAnalyzerTests() => CooldownService.Reset();
-
     private sealed class FixedLocalTimeProvider(int localHour) : TimeProvider {
         private readonly DateTimeOffset _utcNow = new DateTime(2026, 1, 15, localHour, 0, 0).ToUniversalTime();
         public override DateTimeOffset GetUtcNow() => _utcNow;
@@ -32,7 +30,7 @@ public class LateNightAnalyzerTests {
     [InlineData(23)]
     public void TryAnalyze_LateNightHour_CodeTool_ReturnsSympathy(int hour) {
         var provider = new FixedLocalTimeProvider(hour);
-        var analyzer = new LateNightAnalyzer(provider);
+        var analyzer = new LateNightAnalyzer(provider, new CooldownService());
         var context = CreateContext("read");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -53,7 +51,7 @@ public class LateNightAnalyzerTests {
     [InlineData(22)]
     public void TryAnalyze_DaytimeHour_ReturnsFalse(int hour) {
         var provider = new FixedLocalTimeProvider(hour);
-        var analyzer = new LateNightAnalyzer(provider);
+        var analyzer = new LateNightAnalyzer(provider, new CooldownService());
         var context = CreateContext("read");
 
         analyzer.TryAnalyze(context, out _).Should().BeFalse();
@@ -67,7 +65,7 @@ public class LateNightAnalyzerTests {
     [InlineData("notify")]
     public void TryAnalyze_LateNight_NonCodeTool_ReturnsFalse(string toolName) {
         var provider = new FixedLocalTimeProvider(2);
-        var analyzer = new LateNightAnalyzer(provider);
+        var analyzer = new LateNightAnalyzer(provider, new CooldownService());
         var context = CreateContext(toolName);
 
         analyzer.TryAnalyze(context, out _).Should().BeFalse();
@@ -86,7 +84,7 @@ public class LateNightAnalyzerTests {
     [InlineData("test")]
     public void TryAnalyze_LateNight_CodeTool_ReturnsSympathy(string toolName) {
         var provider = new FixedLocalTimeProvider(2);
-        var analyzer = new LateNightAnalyzer(provider);
+        var analyzer = new LateNightAnalyzer(provider, new CooldownService());
         var context = CreateContext(toolName);
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -99,7 +97,7 @@ public class LateNightAnalyzerTests {
     [Fact]
     public void TryAnalyze_NullResult_ReturnsFalse() {
         var provider = new FixedLocalTimeProvider(2);
-        var analyzer = new LateNightAnalyzer(provider);
+        var analyzer = new LateNightAnalyzer(provider, new CooldownService());
         var context = new ToolExecutionContext {
             ToolName = "read",
             Arguments = []
@@ -111,7 +109,7 @@ public class LateNightAnalyzerTests {
     [Fact]
     public void TryAnalyze_SecondCallWithinCooldown_ReturnsFalse() {
         var provider = new FixedLocalTimeProvider(2);
-        var analyzer = new LateNightAnalyzer(provider);
+        var analyzer = new LateNightAnalyzer(provider, new CooldownService());
         var context = CreateContext("read");
 
         var first = analyzer.TryAnalyze(context, out _);
@@ -124,7 +122,7 @@ public class LateNightAnalyzerTests {
     [Fact]
     public void TryAnalyze_FeedbackMentionsEndToEndTest() {
         var provider = new FixedLocalTimeProvider(1);
-        var analyzer = new LateNightAnalyzer(provider);
+        var analyzer = new LateNightAnalyzer(provider, new CooldownService());
         var context = CreateContext("edit");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {

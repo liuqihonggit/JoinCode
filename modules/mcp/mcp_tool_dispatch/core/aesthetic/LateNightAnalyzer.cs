@@ -10,17 +10,20 @@ namespace McpToolRegistry;
 [Register(typeof(IAestheticAnalyzer), ServiceLifetime.Singleton)]
 public sealed class LateNightAnalyzer : IAestheticAnalyzer {
     private readonly TimeProvider _timeProvider;
+    private readonly CooldownService _cooldown;
     private const string CooldownKey = "late-night-sympathy";
 
     private static readonly string[] CodeToolPrefixes =
         ["read", "write", "edit", "glob", "grep", "bash", "shell", "git", "code", "build", "compile", "test", "file", "rg", "dotnet"];
 
     /// <summary>
-    /// 构造深夜工作分析器 — 注入可选时间提供者，默认用系统时间
+    /// 构造深夜工作分析器 — 注入可选时间提供者和冷却服务
     /// </summary>
     /// <param name="timeProvider">时间提供者 — DI 注入或用 TimeProvider.System</param>
-    public LateNightAnalyzer(TimeProvider? timeProvider = null) {
+    /// <param name="cooldown">冷却服务实例 — DI 注入或测试传入独立实例</param>
+    public LateNightAnalyzer(TimeProvider? timeProvider = null, CooldownService? cooldown = null) {
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _cooldown = cooldown ?? CooldownService.Instance;
     }
 
     /// <summary>
@@ -38,8 +41,7 @@ public sealed class LateNightAnalyzer : IAestheticAnalyzer {
         var hour = _timeProvider.GetLocalNow().Hour;
         if (hour is < 23 and >= 6) return false;
 
-        if (!CooldownService.ShouldTrigger(CooldownKey)) return false;
-        CooldownService.RecordTrigger(CooldownKey);
+        if (!_cooldown.TryTrigger(CooldownKey)) return false;
 
         feedback = new AestheticFeedback {
             Emotion = AestheticEmotion.Sympathy,

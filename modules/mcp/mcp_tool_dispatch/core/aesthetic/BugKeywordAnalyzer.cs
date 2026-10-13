@@ -8,10 +8,19 @@ namespace McpToolRegistry;
 public sealed class BugKeywordAnalyzer : IAestheticAnalyzer {
     private const string CooldownKey = "bug-keyword-alert";
     private static readonly TimeSpan Cooldown = TimeSpan.FromMinutes(10);
+    private readonly CooldownService _cooldown;
     private static readonly Regex BugKeywordsRegex = new(
         @"\b(BUG|FIXME|HACK|WORKAROUND|XXX)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled,
         TimeSpan.FromMilliseconds(50));
+
+    /// <summary>
+    /// 构造 bug 关键字分析器 — 注入可选冷却服务，默认用全局单例
+    /// </summary>
+    /// <param name="cooldown">冷却服务实例 — DI 注入或测试传入独立实例</param>
+    public BugKeywordAnalyzer(CooldownService? cooldown = null) {
+        _cooldown = cooldown ?? CooldownService.Instance;
+    }
 
     /// <summary>
     /// 分析工具结果文本，检测 BUG/FIXME/HACK/WORKAROUND/XXX 关键字
@@ -35,8 +44,7 @@ public sealed class BugKeywordAnalyzer : IAestheticAnalyzer {
             .OrderBy(static k => k)
             .ToList();
 
-        if (!CooldownService.ShouldTrigger(CooldownKey, Cooldown)) return false;
-        CooldownService.RecordTrigger(CooldownKey);
+        if (!_cooldown.TryTrigger(CooldownKey, Cooldown)) return false;
 
         feedback = new AestheticFeedback {
             Emotion = AestheticEmotion.Alert,

@@ -4,8 +4,6 @@ namespace McpToolRegistry.Tests;
 /// BugKeywordAnalyzer 单元测试 — 检测工具结果文本中的 BUG/FIXME/HACK/WORKAROUND/XXX 关键字
 /// </summary>
 public class BugKeywordAnalyzerTests {
-    public BugKeywordAnalyzerTests() => CooldownService.Reset();
-
     private static ToolExecutionContext CreateContext(string? text) {
         return new ToolExecutionContext {
             ToolName = "read",
@@ -18,7 +16,7 @@ public class BugKeywordAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_ResultContainsBugKeyword_ReturnsAlertFeedback() {
-        var analyzer = new BugKeywordAnalyzer();
+        var analyzer = new BugKeywordAnalyzer(new CooldownService());
         var context = CreateContext("// BUG: this is broken");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -31,7 +29,7 @@ public class BugKeywordAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_ResultContainsFixmeKeyword_ReturnsAlertFeedback() {
-        var analyzer = new BugKeywordAnalyzer();
+        var analyzer = new BugKeywordAnalyzer(new CooldownService());
         var context = CreateContext("// FIXME: need to fix this");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -44,7 +42,7 @@ public class BugKeywordAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_ResultContainsHackKeyword_ReturnsAlertFeedback() {
-        var analyzer = new BugKeywordAnalyzer();
+        var analyzer = new BugKeywordAnalyzer(new CooldownService());
         var context = CreateContext("// HACK: temporary workaround");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -57,7 +55,7 @@ public class BugKeywordAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_ResultContainsWorkaroundKeyword_ReturnsAlertFeedback() {
-        var analyzer = new BugKeywordAnalyzer();
+        var analyzer = new BugKeywordAnalyzer(new CooldownService());
         var context = CreateContext("// WORKAROUND: bypass issue #123");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -70,7 +68,7 @@ public class BugKeywordAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_ResultContainsXxxKeyword_ReturnsAlertFeedback() {
-        var analyzer = new BugKeywordAnalyzer();
+        var analyzer = new BugKeywordAnalyzer(new CooldownService());
         var context = CreateContext("// XXX: not sure about this");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -83,7 +81,7 @@ public class BugKeywordAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_ResultWithoutKeywords_ReturnsFalse() {
-        var analyzer = new BugKeywordAnalyzer();
+        var analyzer = new BugKeywordAnalyzer(new CooldownService());
         var context = CreateContext("var x = 42;");
 
         analyzer.TryAnalyze(context, out _).Should().BeFalse();
@@ -91,7 +89,7 @@ public class BugKeywordAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_NullResult_ReturnsFalse() {
-        var analyzer = new BugKeywordAnalyzer();
+        var analyzer = new BugKeywordAnalyzer(new CooldownService());
         var context = new ToolExecutionContext {
             ToolName = "read",
             Arguments = []
@@ -102,7 +100,7 @@ public class BugKeywordAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_EmptyText_ReturnsFalse() {
-        var analyzer = new BugKeywordAnalyzer();
+        var analyzer = new BugKeywordAnalyzer(new CooldownService());
         var context = CreateContext("");
 
         analyzer.TryAnalyze(context, out _).Should().BeFalse();
@@ -110,7 +108,7 @@ public class BugKeywordAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_MultipleKeywords_FeedbackContainsAllDistinctKeywords() {
-        var analyzer = new BugKeywordAnalyzer();
+        var analyzer = new BugKeywordAnalyzer(new CooldownService());
         var context = CreateContext("// BUG: broken\n// FIXME: also broken\n// HACK: temp");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -124,7 +122,7 @@ public class BugKeywordAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_DuplicateKeywords_FeedbackDeduplicates() {
-        var analyzer = new BugKeywordAnalyzer();
+        var analyzer = new BugKeywordAnalyzer(new CooldownService());
         var context = CreateContext("// BUG: first\n// BUG: second\n// BUG: third");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -138,7 +136,7 @@ public class BugKeywordAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_KeywordInWordBoundary_DoesNotMatch() {
-        var analyzer = new BugKeywordAnalyzer();
+        var analyzer = new BugKeywordAnalyzer(new CooldownService());
         var context = CreateContext("var debugMode = true;");
 
         analyzer.TryAnalyze(context, out _).Should().BeFalse();
@@ -146,7 +144,7 @@ public class BugKeywordAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_AlwaysProvidesSuggestion() {
-        var analyzer = new BugKeywordAnalyzer();
+        var analyzer = new BugKeywordAnalyzer(new CooldownService());
         var context = CreateContext("// BUG: broken");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {

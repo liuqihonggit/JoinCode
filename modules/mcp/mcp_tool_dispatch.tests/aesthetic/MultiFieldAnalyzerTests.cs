@@ -4,8 +4,6 @@ namespace McpToolRegistry.Tests;
 /// MultiFieldAnalyzer 单元测试 — 检测工具结果文本中字段/属性过多的类
 /// </summary>
 public class MultiFieldAnalyzerTests {
-    public MultiFieldAnalyzerTests() => CooldownService.Reset();
-
     private static ToolExecutionContext CreateContext(string? text) {
         return new ToolExecutionContext {
             ToolName = "read",
@@ -39,7 +37,7 @@ public class MultiFieldAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_ManyFields_ReturnsSadnessFeedback() {
-        var analyzer = new MultiFieldAnalyzer();
+        var analyzer = new MultiFieldAnalyzer(new CooldownService());
         var context = CreateContext(ManyFieldsClass);
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -53,7 +51,7 @@ public class MultiFieldAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_FewFields_ReturnsFalse() {
-        var analyzer = new MultiFieldAnalyzer();
+        var analyzer = new MultiFieldAnalyzer(new CooldownService());
         var context = CreateContext(FewFieldsClass);
 
         analyzer.TryAnalyze(context, out _).Should().BeFalse();
@@ -61,7 +59,7 @@ public class MultiFieldAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_NullResult_ReturnsFalse() {
-        var analyzer = new MultiFieldAnalyzer();
+        var analyzer = new MultiFieldAnalyzer(new CooldownService());
         var context = new ToolExecutionContext {
             ToolName = "read",
             Arguments = []
@@ -72,7 +70,7 @@ public class MultiFieldAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_EmptyText_ReturnsFalse() {
-        var analyzer = new MultiFieldAnalyzer();
+        var analyzer = new MultiFieldAnalyzer(new CooldownService());
         var context = CreateContext("");
 
         analyzer.TryAnalyze(context, out _).Should().BeFalse();
@@ -80,7 +78,7 @@ public class MultiFieldAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_NonCodeText_ReturnsFalse() {
-        var analyzer = new MultiFieldAnalyzer();
+        var analyzer = new MultiFieldAnalyzer(new CooldownService());
         var context = CreateContext("Hello world, this is a plain text without any fields.");
 
         analyzer.TryAnalyze(context, out _).Should().BeFalse();
@@ -88,7 +86,7 @@ public class MultiFieldAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_FeedbackIncludesFieldCount() {
-        var analyzer = new MultiFieldAnalyzer();
+        var analyzer = new MultiFieldAnalyzer(new CooldownService());
         var context = CreateContext(ManyFieldsClass);
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -100,7 +98,7 @@ public class MultiFieldAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_AlwaysProvidesSuggestion() {
-        var analyzer = new MultiFieldAnalyzer();
+        var analyzer = new MultiFieldAnalyzer(new CooldownService());
         var context = CreateContext(ManyFieldsClass);
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -113,7 +111,7 @@ public class MultiFieldAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_StructWithManyFields_ReturnsSadnessFeedback() {
-        var analyzer = new MultiFieldAnalyzer();
+        var analyzer = new MultiFieldAnalyzer(new CooldownService());
         var text = """
             public struct BigStruct {
                 public int X;

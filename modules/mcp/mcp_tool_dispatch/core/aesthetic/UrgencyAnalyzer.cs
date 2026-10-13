@@ -9,10 +9,19 @@ namespace McpToolRegistry;
 public sealed class UrgencyAnalyzer : IAestheticAnalyzer {
     private const string CooldownKey = "urgency";
     private static readonly TimeSpan Cooldown = TimeSpan.FromMinutes(5);
+    private readonly CooldownService _cooldown;
     private static readonly Regex UrgencyKeywordsRegex = new(
         @"(没有弄好|没有弄对|没弄好|没弄对|不对|不对啊|不对呀|还有其他方法吗|还有别的办法吗|不行|不行啊|搞不定|搞不了|做不好|做不了|救命|求求你|求你了|快点|赶紧|抓紧|快一点|马上|立刻|急|急用|着急|催|催我)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled,
         TimeSpan.FromMilliseconds(50));
+
+    /// <summary>
+    /// 构造迫切分析器 — 注入可选冷却服务，默认用全局单例
+    /// </summary>
+    /// <param name="cooldown">冷却服务实例 — DI 注入或测试传入独立实例</param>
+    public UrgencyAnalyzer(CooldownService? cooldown = null) {
+        _cooldown = cooldown ?? CooldownService.Instance;
+    }
 
     /// <summary>
     /// 分析工具结果文本，检测用户不满/求助/催促关键词
@@ -32,8 +41,7 @@ public sealed class UrgencyAnalyzer : IAestheticAnalyzer {
 
         var keyword = match.Value;
 
-        if (!CooldownService.ShouldTrigger(CooldownKey, Cooldown)) return false;
-        CooldownService.RecordTrigger(CooldownKey);
+        if (!_cooldown.TryTrigger(CooldownKey, Cooldown)) return false;
 
         feedback = new AestheticFeedback {
             Emotion = AestheticEmotion.Urgency,

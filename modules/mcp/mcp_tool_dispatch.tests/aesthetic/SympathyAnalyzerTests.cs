@@ -4,8 +4,6 @@ namespace McpToolRegistry.Tests;
 /// SympathyAnalyzer 单元测试 — 检测六类困境信号锚点
 /// </summary>
 public class SympathyAnalyzerTests {
-    public SympathyAnalyzerTests() => CooldownService.Reset();
-
     private static ToolExecutionContext CreateContext(string? text) {
         return new ToolExecutionContext {
             ToolName = "read",
@@ -24,7 +22,7 @@ public class SympathyAnalyzerTests {
     [InlineData("开始化疗了")]
     [InlineData("脑梗住院")]
     public void TryAnalyze_DirectIllnessAnchor_ReturnsSympathy(string text) {
-        var analyzer = new SympathyAnalyzer();
+        var analyzer = new SympathyAnalyzer(new CooldownService());
         var context = CreateContext(text);
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -50,7 +48,7 @@ public class SympathyAnalyzerTests {
     [InlineData("想哭")]
     [InlineData("香菇，太难了")]
     public void TryAnalyze_EmotionalDistressAnchor_ReturnsSympathy(string text) {
-        var analyzer = new SympathyAnalyzer();
+        var analyzer = new SympathyAnalyzer(new CooldownService());
         var context = CreateContext(text);
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -67,7 +65,7 @@ public class SympathyAnalyzerTests {
     [InlineData("经常头晕")]
     [InlineData("食欲不振")]
     public void TryAnalyze_PhysicalSymptomAnchor_ReturnsSympathy(string text) {
-        var analyzer = new SympathyAnalyzer();
+        var analyzer = new SympathyAnalyzer(new CooldownService());
         var context = CreateContext(text);
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -83,7 +81,7 @@ public class SympathyAnalyzerTests {
     [InlineData("送急诊了")]
     [InlineData("照顾病人")]
     public void TryAnalyze_FamilyDifficultyAnchor_ReturnsSympathy(string text) {
-        var analyzer = new SympathyAnalyzer();
+        var analyzer = new SympathyAnalyzer(new CooldownService());
         var context = CreateContext(text);
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -99,7 +97,7 @@ public class SympathyAnalyzerTests {
     [InlineData("看不起病")]
     [InlineData("经济困难")]
     public void TryAnalyze_EconomicPressureAnchor_ReturnsSympathy(string text) {
-        var analyzer = new SympathyAnalyzer();
+        var analyzer = new SympathyAnalyzer(new CooldownService());
         var context = CreateContext(text);
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -115,7 +113,7 @@ public class SympathyAnalyzerTests {
     [InlineData("深夜加班")]
     [InlineData("没时间睡觉")]
     public void TryAnalyze_OverworkAnchor_ReturnsSympathy(string text) {
-        var analyzer = new SympathyAnalyzer();
+        var analyzer = new SympathyAnalyzer(new CooldownService());
         var context = CreateContext(text);
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -127,7 +125,7 @@ public class SympathyAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_NormalText_ReturnsFalse() {
-        var analyzer = new SympathyAnalyzer();
+        var analyzer = new SympathyAnalyzer(new CooldownService());
         var context = CreateContext("var x = 42;");
 
         analyzer.TryAnalyze(context, out _).Should().BeFalse();
@@ -135,7 +133,7 @@ public class SympathyAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_NullResult_ReturnsFalse() {
-        var analyzer = new SympathyAnalyzer();
+        var analyzer = new SympathyAnalyzer(new CooldownService());
         var context = new ToolExecutionContext {
             ToolName = "read",
             Arguments = []
@@ -146,7 +144,7 @@ public class SympathyAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_EmptyText_ReturnsFalse() {
-        var analyzer = new SympathyAnalyzer();
+        var analyzer = new SympathyAnalyzer(new CooldownService());
         var context = CreateContext("");
 
         analyzer.TryAnalyze(context, out _).Should().BeFalse();
@@ -154,7 +152,7 @@ public class SympathyAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_FeedbackIncludesAnchorWord() {
-        var analyzer = new SympathyAnalyzer();
+        var analyzer = new SympathyAnalyzer(new CooldownService());
         var context = CreateContext("妈妈患上了癌症");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {
@@ -169,7 +167,7 @@ public class SympathyAnalyzerTests {
 
     [Fact]
     public void TryAnalyze_AlwaysProvidesSuggestion() {
-        var analyzer = new SympathyAnalyzer();
+        var analyzer = new SympathyAnalyzer(new CooldownService());
         var context = CreateContext("确诊癌症");
 
         if (analyzer.TryAnalyze(context, out var feedback)) {

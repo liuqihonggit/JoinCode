@@ -1,12 +1,37 @@
 namespace McpToolDispatch;
 
 /// <summary>
-/// job 日志缓存 key — 只读记录类型封装 job-id,避免裸字符串拼接导致定位不清晰
-/// <para>key 格式: gh:log:{jobId}(纯 jobId 不拼接 runId);runId 存 value 头部供 TryGetRunIdByJobIdAsync 反查</para>
+/// job 日志缓存条目 — 只读记录类型封装 job-id + run-id + 淘汰时间,避免裸字符串拼接导致定位不清晰
+/// <para>cache key: gh:log:{jobId}(纯 jobId 不拼接 runId)</para>
+/// <para>value: [runId(8字节反查字段)][expiryTicks(8字节淘汰时间)][日志内容(UTF-8)]</para>
 /// </summary>
-internal readonly record struct JobLogCacheKey(long JobId) {
-    /// <summary>构造 LSM 缓存 key 字节(gh:log:{jobId})</summary>
-    public byte[] ToCacheKeyBytes() => Encoding.UTF8.GetBytes($"gh:log:{JobId}");
+internal readonly record struct JobLogCacheKey(long JobId, long RunId) {
+    /// <summary>构造 LSM 缓存 key 字节(gh:log:{jobId}) — 静态,反查时无需 RunId</summary>
+    public static byte[] BuildCacheKey(long jobId) => Encoding.UTF8.GetBytes($"gh:log:{jobId}");
+
+    /// <summary>构造 LSM 缓存 key 字节(gh:log:{jobId}) — 实例,写入时用</summary>
+    public byte[] ToCacheKeyBytes() => BuildCacheKey(JobId);
+
+    /// <summary>构造 LSM 缓存 value 字节([runId(8)][expiryTicks(8)][日志内容])</summary>
+    public byte[] ToValueBytes(ReadOnlySpan<byte> logContent, DateTime expiry) {
+        var bytes = new byte[16 + logContent.Length];
+        BitConverter.TryWriteBytes(bytes.AsSpan(0, 8), RunId);
+        BitConverter.TryWriteBytes(bytes.AsSpan(8, 8), expiry.ToUniversalTime().Ticks);
+        logContent.CopyTo(bytes.AsSpan(16));
+        return bytes;
+    }
+
+    /// <summary>从缓存 value 反查 runId(value 头 8 字节)</summary>
+    public static long? TryExtractRunId(byte[]? cached) {
+        if (cached is null || cached.Length < 16) return null;
+        return BitConverter.ToInt64(cached, 0);
+    }
+
+    /// <summary>从缓存 value 反查淘汰时间(value 第 9-16 字节)</summary>
+    public static DateTime? TryExtractExpiry(byte[]? cached) {
+        if (cached is null || cached.Length < 16) return null;
+        return new DateTime(BitConverter.ToInt64(cached, 8), DateTimeKind.Utc);
+    }
 }
 
 /// <summary>
@@ -239,8 +264,8 @@ internal sealed class GitHubRunLogFilterRunner {
     public async IAsyncEnumerable<string> GetOrFetchJobLogsAsync(
         string owner, string repo, string runId, long jobId, bool wantRefresh,
         [EnumeratorCancellation] CancellationToken ct) {
-        var cacheKey = new JobLogCacheKey(jobId).ToCacheKeyBytes();
-        var runIdBytes = BitConverter.GetBytes(long.Parse(runId));
+        var cacheEntry = new JobLogCacheKey(jobId, long.Parse(runId));
+        var cacheKey = cacheEntry.ToCacheKeyBytes();
         var timer = GhTimingTracker.CurrentTimer.Value;
 
         // 1. 查 LSM 缓存(wantRefresh 时跳过)
@@ -248,10 +273,10 @@ internal sealed class GitHubRunLogFilterRunner {
             var t0 = Stopwatch.GetTimestamp();
             var cached = await _kvStore.GetWithTtlAndRenewAsync(cacheKey, CacheTtl, ct).ConfigureAwait(false);
             timer?.AddLsmRead(Stopwatch.GetTimestamp() - t0);
-            if (cached is not null && cached.Length > 8) {
+            if (cached is not null && cached.Length > 16) {
                 timer?.RecordHit();
                 var t1 = Stopwatch.GetTimestamp();
-                foreach (var line in ParseCachedLines(cached, 8)) yield return line;
+                foreach (var line in ParseCachedLines(cached, 16)) yield return line;
                 timer?.AddParse(Stopwatch.GetTimestamp() - t1);
                 yield break;
             }
@@ -266,13 +291,11 @@ internal sealed class GitHubRunLogFilterRunner {
         }
         timer?.AddNetwork(Stopwatch.GetTimestamp() - tNet);
 
-        // 3. 写入 LSM 缓存(value=[runId(8字节)][日志内容],CI job 日志只读不可变)
+        // 3. 写入 LSM 缓存(value=[runId(8)][expiry(8)][日志内容],CI job 日志只读不可变)
         if (_kvStore is not null && lines.Count > 0) {
             var text = string.Join('\n', lines);
             var logBytes = Encoding.UTF8.GetBytes(text);
-            var bytes = new byte[8 + logBytes.Length];
-            runIdBytes.CopyTo(bytes, 0);
-            logBytes.CopyTo(bytes, 8);
+            var bytes = cacheEntry.ToValueBytes(logBytes, DateTime.UtcNow + CacheTtl);
             var tWrite = Stopwatch.GetTimestamp();
             await _kvStore.PutWithTtlAsync(cacheKey, bytes, CacheTtl, ct).ConfigureAwait(false);
             timer?.AddLsmWrite(Stopwatch.GetTimestamp() - tWrite);
@@ -290,10 +313,9 @@ internal sealed class GitHubRunLogFilterRunner {
     /// </summary>
     public async Task<long?> TryGetRunIdByJobIdAsync(long jobId, CancellationToken ct) {
         if (_kvStore is null) return null;
-        var cacheKey = new JobLogCacheKey(jobId).ToCacheKeyBytes();
+        var cacheKey = JobLogCacheKey.BuildCacheKey(jobId);
         var cached = await _kvStore.GetWithTtlAndRenewAsync(cacheKey, CacheTtl, ct).ConfigureAwait(false);
-        if (cached is null || cached.Length < 8) return null;
-        return BitConverter.ToInt64(cached, 0);
+        return JobLogCacheKey.TryExtractRunId(cached);
     }
 
     /// <summary>

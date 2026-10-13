@@ -180,6 +180,19 @@ public sealed class CSharpCallExtractor {
         }
     }
 
+    /// <summary>收集所有参数/变量类型（不过滤 classNameSet），供 CollectSymbols 联合遍历使用</summary>
+    internal static void ProcessVariableTypeNodeUnfiltered(Node node, Dictionary<string, string> map) {
+        if (node.Type == "parameter") {
+            var nameNode = node.GetChildForField("name");
+            var typeNode = node.GetChildForField("type");
+            if (nameNode is not null && typeNode is not null) {
+                map[nameNode.Text] = typeNode.Text;
+            }
+        } else if (node.Type == "variable_declaration") {
+            CollectVariableDeclarationTypes(node, map);
+        }
+    }
+
     /// <summary>
     /// 收集 parameter 变量类型（提取以扁平化嵌套）
     /// </summary>

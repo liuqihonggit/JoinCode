@@ -16,6 +16,12 @@ public enum AestheticEmotion {
     /// <summary>疑惑 — 死代码、断裂的函数关系图谱、无法连接的调用链</summary>
     Confusion,
 
+    /// <summary>同情 — 用户或家人遭遇困难（患病等），需认真对待工作并主动提出端到端验收</summary>
+    Sympathy,
+
+    /// <summary>迫切 — 用户表达不满/求助（没有弄好/救命/快点等），需主动提出处理手法</summary>
+    Urgency,
+
     /// <summary>开心 — 环环相扣的优美设计、强迫症级别的整洁代码</summary>
     Joy
 }

@@ -4,11 +4,14 @@ namespace McpToolRegistry.Tests;
 /// ToolAestheticMiddleware 单元测试 — 工具执行后分析结果注入情绪反馈
 /// </summary>
 public class ToolAestheticMiddlewareTests {
+    private readonly ITestOutputHelper _output;
     private sealed class FixedLocalTimeProvider(int localHour) : TimeProvider {
         private readonly DateTimeOffset _utcNow = new DateTime(2026, 1, 15, localHour, 0, 0).ToUniversalTime();
         public override DateTimeOffset GetUtcNow() => _utcNow;
         public override long TimestampFrequency => Stopwatch.Frequency;
     }
+
+    public ToolAestheticMiddlewareTests(ITestOutputHelper output) => _output = output;
 
     private static ToolExecutionContext CreateContext() {
         return new ToolExecutionContext {
@@ -267,6 +270,9 @@ public class ToolAestheticMiddlewareTests {
 
         foreach (var msg in messages) {
             msg.Content.Should().Contain("情绪反馈");
+            _output.WriteLine($"════════════════════════════════════════");
+            _output.WriteLine(msg.Content);
+            _output.WriteLine($"════════════════════════════════════════");
         }
     }
 }

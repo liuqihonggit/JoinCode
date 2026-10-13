@@ -102,6 +102,19 @@ public sealed class CSharpDependencyExtractor {
         return deps;
     }
 
+    /// <summary>提取依赖关系 — 接受预计算的 interfaceNames，跳过 CollectInterfaceNames 遍历（供联合遍历使用）</summary>
+    public IReadOnlyList<DependencyEdge> ExtractDependenciesFromTreePrepared(
+        Node rootNode, string filePath, IReadOnlyList<SymbolInfo> symbols,
+        HashSet<string> interfaceNames) {
+        var deps = new List<DependencyEdge>();
+        var typeFqnMap = BuildTypeFqnMap(symbols);
+        var fileFqn = BuildFileFqn(filePath, symbols);
+
+        CollectDependencies(rootNode, fileFqn, filePath, deps, interfaceNames, typeFqnMap);
+
+        return deps;
+    }
+
     internal static Dictionary<string, string> BuildTypeFqnMap(IReadOnlyList<SymbolInfo> symbols) {
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var symbol in symbols) {
@@ -125,23 +138,39 @@ public sealed class CSharpDependencyExtractor {
         return names;
     }
 
-    private static void CollectInterfaceNamesRecursive(Node node, HashSet<string> names) {
-        if (node.Type == "interface_declaration") {
-            var nameNode = node.GetChildForField("name");
-            if (nameNode is not null) {
-                names.Add(nameNode.Text);
-            }
-        }
+    internal static void CollectInterfaceNamesRecursive(Node node, HashSet<string> names) {
+        ProcessInterfaceNameNode(node, names);
 
         foreach (var child in node.NamedChildren) {
             CollectInterfaceNamesRecursive(child, names);
         }
     }
 
-    private static void CollectDependencies(Node node, string fileFqn, string filePath, List<DependencyEdge> deps, HashSet<string> interfaceNames, Dictionary<string, string> typeFqnMap) {
+    /// <summary>处理单个节点的接口名收集（不递归），供联合遍历调用</summary>
+    internal static void ProcessInterfaceNameNode(Node node, HashSet<string> names) {
+        if (node.Type == "interface_declaration") {
+            var nameNode = node.GetChildForField("name");
+            if (nameNode is not null) {
+                names.Add(nameNode.Text);
+            }
+        }
+    }
+
+    internal static void CollectDependencies(Node node, string fileFqn, string filePath, List<DependencyEdge> deps, HashSet<string> interfaceNames, Dictionary<string, string> typeFqnMap) {
         if (node.IsError) {
             return;
         }
+
+        ProcessDepNode(node, fileFqn, filePath, deps, interfaceNames, typeFqnMap);
+
+        foreach (var child in node.NamedChildren) {
+            CollectDependencies(child, fileFqn, filePath, deps, interfaceNames, typeFqnMap);
+        }
+    }
+
+    /// <summary>处理单个节点的依赖提取（不递归），供联合遍历调用</summary>
+    internal static void ProcessDepNode(Node node, string fileFqn, string filePath, List<DependencyEdge> deps, HashSet<string> interfaceNames, Dictionary<string, string> typeFqnMap) {
+        if (node.IsError) return;
 
         switch (node.Type) {
             case "class_declaration":
@@ -154,10 +183,6 @@ public sealed class CSharpDependencyExtractor {
             case "using_directive":
             ExtractUsingDependency(node, fileFqn, filePath, deps);
             break;
-        }
-
-        foreach (var child in node.NamedChildren) {
-            CollectDependencies(child, fileFqn, filePath, deps, interfaceNames, typeFqnMap);
         }
     }
 

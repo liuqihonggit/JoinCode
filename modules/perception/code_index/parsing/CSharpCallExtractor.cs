@@ -108,17 +108,33 @@ public sealed class CSharpCallExtractor {
         return calls;
     }
 
-    private static HashSet<string> BuildClassNameSet(IReadOnlyList<SymbolInfo> symbols) =>
+    /// <summary>提取调用关系 — 接受预计算的 variableTypeMap，跳过 CollectVariableTypes 遍历（供联合遍历使用）</summary>
+    public IReadOnlyList<CallEdge> ExtractCallsFromTreePrepared(
+        Node rootNode, string filePath, IReadOnlyList<SymbolInfo> symbols,
+        Dictionary<string, string> variableTypeMap) {
+        var classNameSet = BuildClassNameSet(symbols);
+        var interfaceNameSet = BuildInterfaceNameSet(symbols);
+        var methodLookup = BuildMethodLookup(symbols);
+        var extensionMethodMap = BuildExtensionMethodMap(symbols);
+        var symbolIndex = new SymbolIndex(symbols);
+        var calls = new List<CallEdge>();
+
+        CollectCalls(rootNode, filePath, classNameSet, interfaceNameSet, variableTypeMap, methodLookup, symbolIndex, extensionMethodMap, calls);
+
+        return calls;
+    }
+
+    internal static HashSet<string> BuildClassNameSet(IReadOnlyList<SymbolInfo> symbols) =>
         new(symbols
             .Where(s => s.Kind is SymbolKind.Class or SymbolKind.Struct)
             .Select(s => s.Name), StringComparer.Ordinal);
 
-    private static HashSet<string> BuildInterfaceNameSet(IReadOnlyList<SymbolInfo> symbols) =>
+    internal static HashSet<string> BuildInterfaceNameSet(IReadOnlyList<SymbolInfo> symbols) =>
         new(symbols
             .Where(s => s.Kind == SymbolKind.Interface)
             .Select(s => s.Name), StringComparer.Ordinal);
 
-    private static List<MethodLookupEntry> BuildMethodLookup(IReadOnlyList<SymbolInfo> symbols) =>
+    internal static List<MethodLookupEntry> BuildMethodLookup(IReadOnlyList<SymbolInfo> symbols) =>
         symbols
             .Where(s => s.Kind is SymbolKind.Method or SymbolKind.Constructor or SymbolKind.Property or SymbolKind.LocalFunction)
             .Select(s => new MethodLookupEntry(s.FullyQualifiedName, s.StartLine, s.EndLine))
@@ -130,15 +146,20 @@ public sealed class CSharpCallExtractor {
         return map;
     }
 
-    private static void CollectVariableTypes(Node node, HashSet<string> classNameSet, Dictionary<string, string> map) {
+    internal static void CollectVariableTypes(Node node, HashSet<string> classNameSet, Dictionary<string, string> map) {
+        ProcessVariableTypeNode(node, classNameSet, map);
+
+        foreach (var child in node.NamedChildren) {
+            CollectVariableTypes(child, classNameSet, map);
+        }
+    }
+
+    /// <summary>处理单个节点的变量类型收集（不递归），供联合遍历调用</summary>
+    internal static void ProcessVariableTypeNode(Node node, HashSet<string> classNameSet, Dictionary<string, string> map) {
         if (node.Type == "parameter") {
             CollectParameterVariableType(node, classNameSet, map);
         } else if (node.Type == "variable_declaration") {
             CollectVariableDeclarationTypes(node, map);
-        }
-
-        foreach (var child in node.NamedChildren) {
-            CollectVariableTypes(child, classNameSet, map);
         }
     }
 
@@ -171,7 +192,7 @@ public sealed class CSharpCallExtractor {
         }
     }
 
-    private static Dictionary<string, string> BuildExtensionMethodMap(IReadOnlyList<SymbolInfo> symbols) {
+    internal static Dictionary<string, string> BuildExtensionMethodMap(IReadOnlyList<SymbolInfo> symbols) {
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
 
         foreach (var symbol in symbols) {
@@ -183,7 +204,7 @@ public sealed class CSharpCallExtractor {
         return map;
     }
 
-    private static void CollectCalls(
+    internal static void CollectCalls(
         Node node, string filePath,
         HashSet<string> classNameSet, HashSet<string> interfaceNameSet,
         Dictionary<string, string> variableTypeMap, List<MethodLookupEntry> methodLookup,
@@ -194,10 +215,25 @@ public sealed class CSharpCallExtractor {
             return;
         }
 
+        ProcessCallNode(node, filePath, classNameSet, interfaceNameSet, variableTypeMap, methodLookup, symbols, extensionMethodMap, calls);
+
+        foreach (var child in node.NamedChildren) {
+            CollectCalls(child, filePath, classNameSet, interfaceNameSet, variableTypeMap, methodLookup, symbols, extensionMethodMap, calls);
+        }
+    }
+
+    /// <summary>处理单个节点的调用提取（不递归），供联合遍历调用</summary>
+    internal static void ProcessCallNode(
+        Node node, string filePath,
+        HashSet<string> classNameSet, HashSet<string> interfaceNameSet,
+        Dictionary<string, string> variableTypeMap, List<MethodLookupEntry> methodLookup,
+        SymbolIndex symbols, Dictionary<string, string> extensionMethodMap,
+        List<CallEdge> calls) {
+
+        if (node.IsError) return;
+
         if (node.Type == "invocation_expression") {
-            if (IsNameofExpression(node)) {
-                return;
-            }
+            if (IsNameofExpression(node)) return;
 
             var edge = TryExtractInvocationEdge(node, filePath, classNameSet, interfaceNameSet, variableTypeMap, methodLookup, symbols, extensionMethodMap);
             if (edge is not null) {
@@ -218,10 +254,6 @@ public sealed class CSharpCallExtractor {
             if (edge is not null) {
                 calls.Add(edge);
             }
-        }
-
-        foreach (var child in node.NamedChildren) {
-            CollectCalls(child, filePath, classNameSet, interfaceNameSet, variableTypeMap, methodLookup, symbols, extensionMethodMap, calls);
         }
     }
 

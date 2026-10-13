@@ -118,8 +118,28 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
             var symbols = new List<SymbolInfo>();
             CollectSymbols(tree.RootNode, filePath, symbols, parentSymbol: null, parentFqn: null, ns: null);
 
-            var calls = _callExtractor.ExtractCallsFromTree(tree.RootNode, filePath, symbols);
-            var deps = _dependencyExtractor.ExtractDependenciesFromTree(tree.RootNode, filePath, symbols);
+            // 联合准备遍历：同时收集 variableTypeMap 和 interfaceNames（省 1 次 AST 遍历）
+            var classNameSet = CSharpCallExtractor.BuildClassNameSet(symbols);
+            var variableTypeMap = new Dictionary<string, string>(StringComparer.Ordinal);
+            var interfaceNames = new HashSet<string>(StringComparer.Ordinal);
+            CollectContextUnified(tree.RootNode, classNameSet, variableTypeMap, interfaceNames);
+
+            // 构建 call 上下文（不遍历）
+            var interfaceNameSet = CSharpCallExtractor.BuildInterfaceNameSet(symbols);
+            var methodLookup = CSharpCallExtractor.BuildMethodLookup(symbols);
+            var extensionMethodMap = CSharpCallExtractor.BuildExtensionMethodMap(symbols);
+            var symbolIndex = new SymbolIndex(symbols);
+            var calls = new List<CallEdge>();
+
+            // 构建 dep 上下文（不遍历）
+            var typeFqnMap = CSharpDependencyExtractor.BuildTypeFqnMap(symbols);
+            var fileFqn = CSharpDependencyExtractor.BuildFileFqn(filePath, symbols);
+            var deps = new List<DependencyEdge>();
+
+            // 联合主遍历：同时收集 calls 和 deps（省 1 次 AST 遍历）
+            CollectCallsAndDeps(tree.RootNode, filePath, classNameSet, interfaceNameSet, variableTypeMap,
+                methodLookup, symbolIndex, extensionMethodMap, calls, fileFqn, deps, interfaceNames, typeFqnMap);
+
             var chunks = CollectChunksWithParents(sourceCode, filePath, symbols);
 
             return new ExtractionResult {
@@ -130,6 +150,38 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
             };
         } finally {
             _treeCache.Add(filePath, tree, sourceCode);
+        }
+    }
+
+    /// <summary>联合遍历 — 单次 AST 遍历同时收集变量类型和接口名（合并 CollectVariableTypes + CollectInterfaceNamesRecursive）</summary>
+    private static void CollectContextUnified(
+        Node node, HashSet<string> classNameSet,
+        Dictionary<string, string> variableTypeMap, HashSet<string> interfaceNames) {
+        CSharpCallExtractor.ProcessVariableTypeNode(node, classNameSet, variableTypeMap);
+        CSharpDependencyExtractor.ProcessInterfaceNameNode(node, interfaceNames);
+        foreach (var child in node.NamedChildren) {
+            CollectContextUnified(child, classNameSet, variableTypeMap, interfaceNames);
+        }
+    }
+
+    /// <summary>联合主遍历 — 单次 AST 遍历同时收集调用边和依赖边（合并 CollectCalls + CollectDependencies）</summary>
+    private static void CollectCallsAndDeps(
+        Node node, string filePath,
+        HashSet<string> classNameSet, HashSet<string> interfaceNameSet,
+        Dictionary<string, string> variableTypeMap, List<MethodLookupEntry> methodLookup,
+        SymbolIndex symbols, Dictionary<string, string> extensionMethodMap,
+        List<CallEdge> calls,
+        string fileFqn, List<DependencyEdge> deps, HashSet<string> interfaceNames,
+        Dictionary<string, string> typeFqnMap) {
+        if (node.IsError) return;
+
+        CSharpCallExtractor.ProcessCallNode(node, filePath, classNameSet, interfaceNameSet, variableTypeMap,
+            methodLookup, symbols, extensionMethodMap, calls);
+        CSharpDependencyExtractor.ProcessDepNode(node, fileFqn, filePath, deps, interfaceNames, typeFqnMap);
+
+        foreach (var child in node.NamedChildren) {
+            CollectCallsAndDeps(child, filePath, classNameSet, interfaceNameSet, variableTypeMap,
+                methodLookup, symbols, extensionMethodMap, calls, fileFqn, deps, interfaceNames, typeFqnMap);
         }
     }
 

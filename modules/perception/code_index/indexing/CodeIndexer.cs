@@ -83,9 +83,27 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// </summary>
     private void TryInitEmbeddingIndex(IFileSystem fs, IKvStore kvStore, ILogger<CodeIndexer>? logger) {
         var appData = EmbeddingModelDownloader.DefaultTargetDir;
-        var modelPath = Path.Combine(appData, EmbeddingModelDownloader.ModelFileName);
+        var onnxPath = Path.Combine(appData, EmbeddingModelDownloader.ModelFileName);
+        var ortPath = Path.Combine(appData, "model_quantized.ort");
         var vocabPath = Path.Combine(appData, EmbeddingModelDownloader.VocabFileName);
-        if (!fs.FileExists(modelPath) || !fs.FileExists(vocabPath)) return;
+        if (!fs.FileExists(onnxPath) || !fs.FileExists(vocabPath)) return;
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var modelPath = onnxPath;
+        if (!fs.FileExists(ortPath)) {
+            try {
+                if (OnnxEmbedder.TryConvertToOrtFormat(onnxPath, ortPath)) {
+                    modelPath = ortPath;
+                    logger?.LogInformation("ORT 格式转换成功: {OrtPath} ({Ms}ms)", ortPath, sw.ElapsedMilliseconds);
+                }
+            } catch (Exception ex) {
+                logger?.LogWarning(ex, "ORT 格式转换失败，回退到 ONNX 格式");
+            }
+        } else {
+            modelPath = ortPath;
+            logger?.LogInformation("使用已有 ORT 格式模型: {OrtPath}", ortPath);
+        }
+        sw.Stop();
 
         try {
             var degree = _hyperParams.OnnxDegree > 0

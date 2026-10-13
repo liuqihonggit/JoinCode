@@ -23,7 +23,8 @@ public sealed class CodeIndexerParentDocTests : IDisposable {
         _embeddingIndex = new EmbeddingIndex(
             new FakeEmbeddingModel(8),
             new BruteForceAnn(),
-            _fs);
+            _fs,
+            embedBatchSize: HP.EmbedBatchSize);
         _indexer.SetEmbeddingIndex(_embeddingIndex);
     }
 

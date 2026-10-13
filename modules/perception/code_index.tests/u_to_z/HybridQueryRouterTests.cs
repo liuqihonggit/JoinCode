@@ -15,7 +15,8 @@ public sealed class HybridQueryRouterTests : IDisposable {
         _embeddingIndex = new EmbeddingIndex(
             new FakeEmbeddingModel(8),
             new BruteForceAnn(),
-            TestFileSystem.Current);
+            TestFileSystem.Current,
+            embedBatchSize: HP.EmbedBatchSize);
         _router = new HybridQueryRouter(_embeddingIndex, _searcher);
     }
 

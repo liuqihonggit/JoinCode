@@ -20,7 +20,7 @@ public sealed class OnnxEmbedder : IDisposable {
     /// <summary>
     /// 构造 ONNX 嵌入器 — 加载模型和 BERT 词表。
     /// </summary>
-    /// <param name="modelPath">ONNX 模型文件路径。</param>
+    /// <param name="modelPath">模型文件路径（.onnx 或 .ort 格式；.ort 自动启用 mmap 零拷贝加载）。</param>
     /// <param name="vocabPath">BERT 词表文件路径（vocab.txt）。</param>
     /// <param name="intraOpNumThreads">ONNX session 内部并行线程数（默认 ProcessorCount，多实例场景传 ProcessorCount/N 避免争抢）。</param>
     public OnnxEmbedder(string modelPath, string vocabPath, int? intraOpNumThreads = null) {
@@ -30,6 +30,14 @@ public sealed class OnnxEmbedder : IDisposable {
             InterOpNumThreads = 1,
             IntraOpNumThreads = threads,
         };
+        options.AddSessionConfigEntry("session.prepack.enable_parallel", "1");
+
+        var isOrtFormat = modelPath.EndsWith(".ort", StringComparison.OrdinalIgnoreCase);
+        if (isOrtFormat) {
+            options.AddSessionConfigEntry("session.load_model_format", "ORT");
+            options.AddSessionConfigEntry("session.use_memory_mapped_ort_model", "1");
+            options.AddSessionConfigEntry("session.use_ort_model_bytes_for_initializers", "1");
+        }
         _session = new InferenceSession(modelPath, options);
         _hasTokenTypeIds = _session.InputMetadata.ContainsKey("token_type_ids");
 
@@ -240,5 +248,24 @@ public sealed class OnnxEmbedder : IDisposable {
     public void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _session.Dispose();
+    }
+
+    /// <summary>
+    /// 将 ONNX 格式模型转换为 ORT 格式（一次性操作），转换后可用 mmap 零拷贝加载。
+    /// </summary>
+    /// <param name="onnxModelPath">源 ONNX 模型路径（.onnx）。</param>
+    /// <param name="ortModelPath">目标 ORT 模型路径（.ort）。</param>
+    /// <returns>转换成功返回 true；目标已存在或转换失败返回 false。</returns>
+    public static bool TryConvertToOrtFormat(string onnxModelPath, string ortModelPath) {
+        if (File.Exists(ortModelPath)) return false;
+        if (!File.Exists(onnxModelPath)) return false;
+
+        var options = new SessionOptions {
+            GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
+            OptimizedModelFilePath = ortModelPath,
+        };
+        options.AddSessionConfigEntry("session.save_model_format", "ORT");
+        using var session = new InferenceSession(onnxModelPath, options);
+        return File.Exists(ortModelPath);
     }
 }

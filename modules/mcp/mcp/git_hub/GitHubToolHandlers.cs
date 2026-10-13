@@ -18,7 +18,7 @@ public partial class GitHubToolHandlers {
     private readonly ILogger<GitHubToolHandlers>? _logger;
     private readonly GitHubRunLogFetcher _logFetcher;
     private readonly GitHubRunLogFilterRunner? _logFilterRunner;
-    private readonly IKvStore? _kvStore;
+    private readonly IGhCacheService? _cacheService;
     private readonly bool _compactLinePrefix;
 
     /// <summary>
@@ -47,13 +47,13 @@ public partial class GitHubToolHandlers {
         WorkflowConfig? workflowConfig = null) {
         _downloader = downloader ?? throw new ArgumentNullException(nameof(downloader));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
-        _apiClient = ComposeGhPipeline(apiClient, kvStore, logger);
+        _cacheService = new GhCacheService(kvStore, logger);
+        _apiClient = ComposeGhPipeline(apiClient, _cacheService, logger);
         _git = git;
         _logger = logger;
         _compactLinePrefix = workflowConfig?.FileOperation.CompactLinePrefix ?? true;
         _logFetcher = new GitHubRunLogFetcher();
-        _logFilterRunner = _apiClient is not null ? new GitHubRunLogFilterRunner(_apiClient, _compactLinePrefix, kvStore, logger) : null;
-        _kvStore = kvStore;
+        _logFilterRunner = _apiClient is not null ? new GitHubRunLogFilterRunner(_apiClient, _compactLinePrefix, _cacheService, logger) : null;
     }
 
     /// <summary>
@@ -61,10 +61,10 @@ public partial class GitHubToolHandlers {
     /// <para>可插拔: kvStore=null 剥离缓存层;apiClient=null 返回 null</para>
     /// <para>所有 handler(无论是否通过 ExecuteGhAsync)统一通过此管道,自动获得缓存+计时</para>
     /// </summary>
-    private static IGitHubApiClient? ComposeGhPipeline(IGitHubApiClient? inner, IKvStore? kvStore, ILogger? logger) {
+    private static IGitHubApiClient? ComposeGhPipeline(IGitHubApiClient? inner, IGhCacheService? cacheService, ILogger? logger) {
         if (inner is null) return null;
         var pipeline = inner;
-        if (kvStore is not null) pipeline = new CacheGitHubApiClient(pipeline, kvStore, logger);
+        if (cacheService is not null) pipeline = new CacheGitHubApiClient(pipeline, cacheService, logger);
         pipeline = new TimingGitHubApiClient(pipeline);
         return pipeline;
     }

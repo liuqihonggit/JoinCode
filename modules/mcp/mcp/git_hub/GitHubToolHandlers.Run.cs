@@ -164,6 +164,10 @@ public partial class GitHubToolHandlers {
     /// 从 PR 号解析最新 run ID — 获取 PR head_sha 后查 runs 取最新一条（缺陷1: --pr 支持）
     /// </summary>
     private async Task<string?> ResolveRunIdFromPrAsync(IGitHubApiClient client, string owner, string repoName, int prNumber, CancellationToken ct) {
+        // 反查索引: PR → run-id(命中则跳过 API 调用)
+        var cachedRunId = await LogFilterRunner.TryGetRunIdByPrAsync(prNumber, ct).ConfigureAwait(false);
+        if (!string.IsNullOrEmpty(cachedRunId)) return cachedRunId;
+
         var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{prNumber}", ct: ct).ConfigureAwait(false);
         if (!prResult.Success) return null;
         string? headSha = null;
@@ -173,25 +177,37 @@ public partial class GitHubToolHandlers {
                 headSha = sha.GetString();
         } catch (JsonException ex) { _logger?.LogWarning(ex, "解析 PR head_sha 失败"); }
         if (string.IsNullOrEmpty(headSha)) return null;
-        return await ResolveRunIdFromHeadShaAsync(client, owner, repoName, headSha, ct).ConfigureAwait(false);
+        var runId = await ResolveRunIdFromHeadShaAsync(client, owner, repoName, headSha, ct).ConfigureAwait(false);
+        // 写入反查索引: PR → run-id
+        if (!string.IsNullOrEmpty(runId))
+            await LogFilterRunner.WriteRunIdByPrAsync(prNumber, runId, ct).ConfigureAwait(false);
+        return runId;
     }
 
     /// <summary>
     /// 从 head_sha 查最新 Actions run ID — per_page=1 取最新一条
     /// </summary>
     private async Task<string?> ResolveRunIdFromHeadShaAsync(IGitHubApiClient client, string owner, string repoName, string headSha, CancellationToken ct) {
+        // 反查索引: SHA → run-id(命中则跳过 API 调用)
+        var cachedRunId = await LogFilterRunner.TryGetRunIdByShaAsync(headSha, ct).ConfigureAwait(false);
+        if (!string.IsNullOrEmpty(cachedRunId)) return cachedRunId;
+
         var runsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs",
             query: new Dictionary<string, string> { ["head_sha"] = headSha, ["per_page"] = "1" }, ct: ct).ConfigureAwait(false);
         if (!runsResult.Success) return null;
+        string? resolvedRunId = null;
         try {
             using var doc = JsonDocument.Parse(runsResult.Body);
             if (doc.RootElement.TryGetProperty("workflow_runs", out var runs) && runs.GetArrayLength() > 0) {
                 var first = runs[0];
                 if (first.TryGetProperty("id", out var id))
-                    return id.GetRawText().Trim('"');
+                    resolvedRunId = id.GetRawText().Trim('"');
             }
         } catch (JsonException ex) { _logger?.LogWarning(ex, "解析 PR runs 失败"); }
-        return null;
+        // 写入反查索引: SHA → run-id(提取到 try 外,扁平化避免嵌套超 2 层)
+        if (!string.IsNullOrEmpty(resolvedRunId))
+            await LogFilterRunner.WriteRunIdByShaAsync(headSha, resolvedRunId, ct).ConfigureAwait(false);
+        return resolvedRunId;
     }
 
     /// <summary>run_id 通常是 10-11 位数字,run number 是短数字(少于 10 位)</summary>
@@ -351,12 +367,24 @@ public partial class GitHubToolHandlers {
             }
 
             var perJobMaxLines = Math.Max(maxLines / failedJobs.Count, 50);
-            foreach (var job in failedJobs) {
-                var jobResult = await StreamAndFilterAsync(
-                    repo.Owner, repo.Repo, target.RunId, job.Id.ToString(),
-                    false, $"失败步骤({job.Name})", markers, filterLevel,
-                    perJobMaxLines, repo.Ct, null, skip, wantRefresh).ConfigureAwait(false);
-                var jobText = jobResult.Content.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? "";
+            // 并行拉取各失败 job 日志(对齐 expand=failures 的 Semaphore+并行模式,避免串行逐个 await)
+            var failConcurrency = Math.Min(failedJobs.Count, GitHubRunLogFilterRunner.GetMaxConcurrency());
+            using var failSemaphore = new SemaphoreSlim(failConcurrency);
+            var failJobTasks = failedJobs.Select(async job => {
+                await failSemaphore.WaitAsync(repo.Ct).ConfigureAwait(false);
+                try {
+                    var jobResult = await StreamAndFilterAsync(
+                        repo.Owner, repo.Repo, target.RunId, job.Id.ToString(),
+                        false, $"失败步骤({job.Name})", markers, filterLevel,
+                        perJobMaxLines, repo.Ct, null, skip, wantRefresh).ConfigureAwait(false);
+                    var jobText = jobResult.Content.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? "";
+                    return (job, jobText);
+                } finally {
+                    failSemaphore.Release();
+                }
+            }).ToArray();
+            var failJobResults = await Task.WhenAll(failJobTasks).ConfigureAwait(false);
+            foreach (var (job, jobText) in failJobResults) {
                 if (!string.IsNullOrEmpty(jobText))
                     sb.Append($"\n\n{new string('=', 60)}\n❌ {job.Name}\n{new string('=', 60)}\n{jobText}");
             }
@@ -1025,7 +1053,7 @@ public partial class GitHubToolHandlers {
                     } catch (JsonException ex) { _logger?.LogWarning(ex, "后台监控解析 jobs 失败: runId={RunId}", runId); continue; }
 
                     foreach (var (jobId, jobName, conclusion) in newFailedJobs)
-                        await WriteCiAlertToKvStoreAsync(runId, jobId, jobName, conclusion).ConfigureAwait(false);
+                        await WriteCiAlertToKvStoreAsync(runId, jobId, jobName, conclusion, CancellationToken.None).ConfigureAwait(false);
                 }
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, "后台 CI 监控任务异常退出: runId={RunId}", runId);
@@ -1038,16 +1066,16 @@ public partial class GitHubToolHandlers {
     /// <para>复用 IKvStore(LSM-Tree PithosKvStore),禁止用文件系统(见 persistence-reuse-lsm-tree)</para>
     /// <para>AI 用 gh ci alerts 调阅,ScanAsync 范围扫描 gh:ci_alert: 前缀;日志用 gh run view --log 从 LSM 缓存读</para>
     /// </summary>
-    private async Task WriteCiAlertToKvStoreAsync(string runId, long jobId, string jobName, string conclusion) {
-        if (_kvStore is null) return;
+    private async Task WriteCiAlertToKvStoreAsync(string runId, long jobId, string jobName, string conclusion, CancellationToken ct) {
+        if (_cacheService is null) return;
         var alert = new CiAlertDto {
             RunId = runId, JobId = jobId, JobName = jobName,
             Conclusion = conclusion, Timestamp = DateTime.UtcNow.ToString("O")
         };
         var json = JsonSerializer.Serialize(alert, GitHubApiJsonContext.Safe.CiAlertDto);
-        var key = Encoding.UTF8.GetBytes($"gh:ci_alert:{runId}:{jobId}:{DateTime.UtcNow:yyyyMMddHHmmssfff}");
+        var key = $"gh:ci_alert:{runId}:{jobId}:{DateTime.UtcNow:yyyyMMddHHmmssfff}";
         var value = Encoding.UTF8.GetBytes(json);
-        await _kvStore.PutAsync(key, value).ConfigureAwait(false);
+        await _cacheService.WriteAlertAsync(key, value, ct).ConfigureAwait(false);
         _logger?.LogDebug("CI 告警通知已写入 LSM: run={RunId} job={JobId}", runId, jobId);
     }
 
@@ -1192,24 +1220,31 @@ public partial class GitHubToolHandlers {
             var sb = new StringBuilder(512);
             string? finalStatus = null;
             string? finalConclusion = null;
-            while (true) {
-                var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}", ct: cancellationToken).ConfigureAwait(false);
-                if (!result.Success) return Fail(result.Error);
-                try {
-                    var run = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.RunDetailResponse);
-                    var status = run?.Status ?? "";
-                    var conclusion = run?.Conclusion ?? "";
-                    var displayTitle = run?.DisplayTitle ?? "";
-                    sb.AppendLine($"[{DateTime.Now:HH:mm:ss}] {status}{(string.IsNullOrEmpty(conclusion) ? "" : $" / {conclusion}")} — {displayTitle}");
-                    if (status == "completed") { finalStatus = status; finalConclusion = conclusion; break; }
-                } catch (JsonException) {
-                    return Fail($"解析 Run 响应失败: {result.Body[..Math.Min(200, result.Body.Length)]}");
+            var tracker = GhTimingTracker.CurrentTimer.Value;
+            var prevCacheDisabled = tracker?.CacheDisabled ?? false;
+            if (tracker is not null) tracker.CacheDisabled = true;
+            try {
+                while (true) {
+                    var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}", ct: cancellationToken).ConfigureAwait(false);
+                    if (!result.Success) return Fail(result.Error);
+                    try {
+                        var run = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.RunDetailResponse);
+                        var status = run?.Status ?? "";
+                        var conclusion = run?.Conclusion ?? "";
+                        var displayTitle = run?.DisplayTitle ?? "";
+                        sb.AppendLine($"[{DateTime.Now:HH:mm:ss}] {status}{(string.IsNullOrEmpty(conclusion) ? "" : $" / {conclusion}")} — {displayTitle}");
+                        if (status == "completed") { finalStatus = status; finalConclusion = conclusion; break; }
+                    } catch (JsonException) {
+                        return Fail($"解析 Run 响应失败: {result.Body[..Math.Min(200, result.Body.Length)]}");
+                    }
+                    try { await Task.Delay(intervalSec * 1000, cancellationToken).ConfigureAwait(false); } catch (TaskCanceledException) { return Ok(sb.ToString(), "Run watch 已取消"); }
                 }
-                try { await Task.Delay(intervalSec * 1000, cancellationToken).ConfigureAwait(false); } catch (TaskCanceledException) { return Ok(sb.ToString(), "Run watch 已取消"); }
+                var failed = finalConclusion == "failure";
+                if (failed && exit_status == true) return Fail(sb.ToString());
+                return Ok(sb.ToString(), $"Run {resolvedRunId} 已完成: {finalConclusion}");
+            } finally {
+                if (tracker is not null) tracker.CacheDisabled = prevCacheDisabled;
             }
-            var failed = finalConclusion == "failure";
-            if (failed && exit_status == true) return Fail(sb.ToString());
-            return Ok(sb.ToString(), $"Run {resolvedRunId} 已完成: {finalConclusion}");
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -1222,12 +1257,10 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("清理已读告警(从 LSM 删除已返回的告警 key)", Required = false)] bool? mark_read = null,
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default) {
-        if (_kvStore is null) return Fail("KV 存储未配置,无法读取 CI 告警");
+        if (_cacheService is null) return Fail("KV 存储未配置,无法读取 CI 告警");
 
-        var fromKey = Encoding.UTF8.GetBytes("gh:ci_alert:");
-        var toKey = Encoding.UTF8.GetBytes("gh:ci_alert:~");
         var alerts = new List<(byte[] Key, CiAlertDto Alert)>();
-        await foreach (var (key, value) in _kvStore.ScanAsync(fromKey, toKey, cancellationToken).ConfigureAwait(false)) {
+        await foreach (var (key, value) in _cacheService.ScanAlertsAsync(cancellationToken).ConfigureAwait(false)) {
             try {
                 var json = Encoding.UTF8.GetString(value);
                 var alert = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.CiAlertDto);
@@ -1249,7 +1282,7 @@ public partial class GitHubToolHandlers {
 
         if (mark_read == true) {
             foreach (var (key, _) in alerts)
-                await _kvStore.DeleteAsync(key, cancellationToken).ConfigureAwait(false);
+                await _cacheService.DeleteAlertAsync(key, cancellationToken).ConfigureAwait(false);
             sb.AppendLine();
             sb.Append($"✅ {alerts.Count} 条告警已清理(从 LSM 删除)");
         }
@@ -1294,7 +1327,14 @@ public sealed class GitHubCiRunStatusChecker : ICiRunStatusChecker {
             return new CiRunStatus(false, resolvedBranch, 0, null);
 
         var (owner, repo) = remoteInfo.Value;
-        return await QueryCiRunsAsync(apiClient, owner, repo, resolvedBranch, ct).ConfigureAwait(false);
+        var tracker = GhTimingTracker.CurrentTimer.Value;
+        var prevCacheDisabled = tracker?.CacheDisabled ?? false;
+        if (tracker is not null) tracker.CacheDisabled = true;
+        try {
+            return await QueryCiRunsAsync(apiClient, owner, repo, resolvedBranch, ct).ConfigureAwait(false);
+        } finally {
+            if (tracker is not null) tracker.CacheDisabled = prevCacheDisabled;
+        }
     }
 
     /// <summary>获取当前分支（branch 为空时用 git rev-parse）。</summary>

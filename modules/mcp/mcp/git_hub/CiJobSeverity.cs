@@ -137,37 +137,38 @@ internal static class CiLogAnalyzer {
     internal const string SectionNormal  = "normal";
 
     /// <summary>
-    /// 错误指示行检测 — GitHub Actions 标记 + 编译/测试/链接错误 + 超时/取消模式,精确定位真正错误行
-    /// <para>扩展模式: error CS####(C#编译) / error MSB####(MSBuild) / [FAIL](xUnit) / Failed (测试汇总) / 超时/取消</para>
-    /// <para>移除 No test matches — 非错误,大量测试项目无匹配是正常行为,产生噪音淹没真正错误</para>
+    /// 单次扫描错误行检测+分类 — 合并 IsErrorIndicator+ClassifyError,消除重复扫描(常量时间压缩)
+    /// <para>按优先级短路求值: 高频/特定模式在前,匹配即返回;值元组无 GC 分配</para>
+    /// <para>warning MSB9008 归入 warning MSB(更宽泛,涵盖所有 MSBuild 警告)</para>
     /// </summary>
-    internal static bool IsErrorIndicator(ReadOnlySpan<char> line)
-        => line.Contains(ErrorMarker, StringComparison.OrdinalIgnoreCase)
-        || line.Contains(ExitCodeMarker, StringComparison.OrdinalIgnoreCase)
-        || line.Contains("error CS", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("error MSB", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("[FAIL]", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("  Failed ", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("warning MSB9008", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("was canceled", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("Cancelling the job", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("exceeded the maximum", StringComparison.OrdinalIgnoreCase)
-        || line.Contains("timed out", StringComparison.OrdinalIgnoreCase)
-        || line.Contains(DllNotFoundMarker, StringComparison.Ordinal)
-        || line.Contains(TypeInitMarker, StringComparison.Ordinal);
-
-    /// <summary>错误行分类 — 从错误行内容提取类型,用于摘要统计</summary>
-    internal static CiErrorCategory ClassifyError(ReadOnlySpan<char> line) {
-        if (line.Contains(DllNotFoundMarker, StringComparison.Ordinal) || line.Contains(TypeInitMarker, StringComparison.Ordinal)) return CiErrorCategory.RuntimeException;
-        if (line.Contains("error CS", StringComparison.OrdinalIgnoreCase)) return CiErrorCategory.CsCompile;
-        if (line.Contains("error MSB", StringComparison.OrdinalIgnoreCase) || line.Contains("warning MSB", StringComparison.OrdinalIgnoreCase)) return CiErrorCategory.MsBuild;
-        if (line.Contains("[FAIL]", StringComparison.OrdinalIgnoreCase) || line.Contains("  Failed ", StringComparison.OrdinalIgnoreCase)) return CiErrorCategory.TestFailure;
-        if (line.Contains("was canceled", StringComparison.OrdinalIgnoreCase) || line.Contains("Cancelling the job", StringComparison.OrdinalIgnoreCase)) return CiErrorCategory.Cancelled;
-        if (line.Contains("exceeded the maximum", StringComparison.OrdinalIgnoreCase) || line.Contains("timed out", StringComparison.OrdinalIgnoreCase)) return CiErrorCategory.Timeout;
-        if (line.Contains(ExitCodeMarker, StringComparison.OrdinalIgnoreCase)) return CiErrorCategory.ProcessExit;
-        if (line.Contains(ErrorMarker, StringComparison.OrdinalIgnoreCase)) return CiErrorCategory.ActionsError;
-        return CiErrorCategory.Other;
+    internal static (bool isError, CiErrorCategory category) TryClassifyError(ReadOnlySpan<char> line) {
+        if (line.Contains(DllNotFoundMarker, StringComparison.Ordinal) || line.Contains(TypeInitMarker, StringComparison.Ordinal))
+            return (true, CiErrorCategory.RuntimeException);
+        if (line.Contains("error CS", StringComparison.OrdinalIgnoreCase))
+            return (true, CiErrorCategory.CsCompile);
+        if (line.Contains("error MSB", StringComparison.OrdinalIgnoreCase) || line.Contains("warning MSB", StringComparison.OrdinalIgnoreCase))
+            return (true, CiErrorCategory.MsBuild);
+        if (line.Contains("[FAIL]", StringComparison.OrdinalIgnoreCase) || line.Contains("  Failed ", StringComparison.OrdinalIgnoreCase))
+            return (true, CiErrorCategory.TestFailure);
+        if (line.Contains("was canceled", StringComparison.OrdinalIgnoreCase) || line.Contains("Cancelling the job", StringComparison.OrdinalIgnoreCase))
+            return (true, CiErrorCategory.Cancelled);
+        if (line.Contains("exceeded the maximum", StringComparison.OrdinalIgnoreCase) || line.Contains("timed out", StringComparison.OrdinalIgnoreCase))
+            return (true, CiErrorCategory.Timeout);
+        if (line.Contains(ExitCodeMarker, StringComparison.OrdinalIgnoreCase))
+            return (true, CiErrorCategory.ProcessExit);
+        if (line.Contains(ErrorMarker, StringComparison.OrdinalIgnoreCase))
+            return (true, CiErrorCategory.ActionsError);
+        return (false, CiErrorCategory.Other);
     }
+
+    /// <summary>
+    /// 错误指示行检测 — 委托 TryClassifyError 单次扫描(消除重复扫描,常量时间压缩)
+    /// <para>扩展模式: error CS####(C#编译) / error MSB####(MSBuild) / [FAIL](xUnit) / Failed (测试汇总) / 超时/取消</para>
+    /// </summary>
+    internal static bool IsErrorIndicator(ReadOnlySpan<char> line) => TryClassifyError(line).isError;
+
+    /// <summary>错误行分类 — 委托 TryClassifyError 单次扫描,从错误行内容提取类型用于摘要统计</summary>
+    internal static CiErrorCategory ClassifyError(ReadOnlySpan<char> line) => TryClassifyError(line).category;
 
     /// <summary>构建错误摘要行 — 错误数+类型分布,前置到 filter=error 输出开头</summary>
     internal static string BuildErrorSummary(int errorCount, Dictionary<CiErrorCategory, int> categories) {

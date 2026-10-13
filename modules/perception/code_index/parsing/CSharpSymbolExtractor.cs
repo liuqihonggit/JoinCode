@@ -1,5 +1,41 @@
 namespace JoinCode.CodeIndex.Ast;
 
+/// <summary>TreeSitter field ID 预计算 — 消除 GetChildForField(string) 的 UTF8 编码+byte[] 分配</summary>
+internal static class TreeSitterFieldIds {
+    private static ushort _name;
+    private static ushort _type;
+    private static ushort _function;
+    private static ushort _expression;
+    private static ushort _right;
+    private static ushort _returns;
+    private static bool _initialized;
+
+    /// <summary>从 Language 预计算全部 field ID（仅首次调用生效）</summary>
+    public static void Initialize(TreeSitter.Language language) {
+        if (_initialized) return;
+        _name = language.GetFieldIdFromName("name");
+        _type = language.GetFieldIdFromName("type");
+        _function = language.GetFieldIdFromName("function");
+        _expression = language.GetFieldIdFromName("expression");
+        _right = language.GetFieldIdFromName("right");
+        _returns = language.GetFieldIdFromName("returns");
+        _initialized = true;
+    }
+
+    /// <summary>"name" 字段 ID</summary>
+    public static ushort Name => _name;
+    /// <summary>"type" 字段 ID</summary>
+    public static ushort Type => _type;
+    /// <summary>"function" 字段 ID</summary>
+    public static ushort Function => _function;
+    /// <summary>"expression" 字段 ID</summary>
+    public static ushort Expression => _expression;
+    /// <summary>"right" 字段 ID</summary>
+    public static ushort Right => _right;
+    /// <summary>"returns" 字段 ID</summary>
+    public static ushort Returns => _returns;
+}
+
 /// <summary>单遍历构建的符号结构集合 — 替代 6 次独立 BuildXxx 遍历</summary>
 internal sealed record SymbolStructures(
     HashSet<string> ClassNameSet,
@@ -122,6 +158,7 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
 
     private ExtractionResult ExtractAllCore(string sourceCode, string filePath) {
         var tree = ParseIncremental(sourceCode, filePath);
+        TreeSitterFieldIds.Initialize(tree.Language);
 
         try {
             var symbols = new List<SymbolInfo>();
@@ -507,7 +544,7 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
         foreach (var child in node.NamedChildren) {
             var childType = child.Type;
             if (childType == "file_scoped_namespace_declaration") {
-                var nameNode = child.GetChildForField("name");
+                var nameNode = child.GetChildForField(TreeSitterFieldIds.Name);
                 var nsName = nameNode?.Text ?? "<anonymous>";
 
                 symbols.Add(new SymbolInfo {
@@ -587,13 +624,13 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
             case SymbolKind.Constructor:
             return "ctor";
             default:
-            var nameNode = node.GetChildForField("name");
+            var nameNode = node.GetChildForField(TreeSitterFieldIds.Name);
             return nameNode?.Text ?? "<anonymous>";
         }
     }
 
     internal static string ExtractOperatorName(Node node) {
-        var nameNode = node.GetChildForField("name");
+        var nameNode = node.GetChildForField(TreeSitterFieldIds.Name);
         if (nameNode is not null) {
             return $"op_{nameNode.Text}";
         }
@@ -618,7 +655,7 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
     }
 
     private static string ExtractDestructorName(Node node) {
-        var nameNode = node.GetChildForField("name");
+        var nameNode = node.GetChildForField(TreeSitterFieldIds.Name);
         if (nameNode is not null) {
             return $"Finalize";
         }
@@ -716,7 +753,7 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
         string? parentFqn, string? ns, SymbolKind kind, string? accessibility, List<SymbolInfo> symbols) {
         foreach (var child in variableDecl.NamedChildren) {
             if (child.Type == "variable_declarator") {
-                var nameNode = child.GetChildForField("name");
+                var nameNode = child.GetChildForField(TreeSitterFieldIds.Name);
                 if (nameNode is null) {
                     continue;
                 }

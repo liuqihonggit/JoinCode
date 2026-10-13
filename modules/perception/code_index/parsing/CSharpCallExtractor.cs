@@ -183,8 +183,8 @@ public sealed class CSharpCallExtractor {
     /// <summary>收集所有参数/变量类型（不过滤 classNameSet），供 CollectSymbols 联合遍历使用</summary>
     internal static void ProcessVariableTypeNodeUnfiltered(Node node, string nodeType, Dictionary<string, string> map) {
         if (nodeType == "parameter") {
-            var nameNode = node.GetChildForField("name");
-            var typeNode = node.GetChildForField("type");
+            var nameNode = node.GetChildForField(TreeSitterFieldIds.Name);
+            var typeNode = node.GetChildForField(TreeSitterFieldIds.Type);
             if (nameNode is not null && typeNode is not null) {
                 map[nameNode.Text] = typeNode.Text;
             }
@@ -197,8 +197,8 @@ public sealed class CSharpCallExtractor {
     /// 收集 parameter 变量类型（提取以扁平化嵌套）
     /// </summary>
     private static void CollectParameterVariableType(Node node, HashSet<string> classNameSet, Dictionary<string, string> map) {
-        var nameNode = node.GetChildForField("name");
-        var typeNode = node.GetChildForField("type");
+        var nameNode = node.GetChildForField(TreeSitterFieldIds.Name);
+        var typeNode = node.GetChildForField(TreeSitterFieldIds.Type);
         if (nameNode is null || typeNode is null) return;
         var typeName = typeNode.Text;
         if ((typeName.Length > 0 && char.IsUpper(typeName[0])) || classNameSet.Contains(typeName)) {
@@ -210,12 +210,12 @@ public sealed class CSharpCallExtractor {
     /// 收集 variable_declaration 变量类型（提取以扁平化嵌套）
     /// </summary>
     private static void CollectVariableDeclarationTypes(Node node, Dictionary<string, string> map) {
-        var typeNode = node.GetChildForField("type");
+        var typeNode = node.GetChildForField(TreeSitterFieldIds.Type);
         if (typeNode is null) return;
         var typeName = typeNode.Text;
         foreach (var child in node.NamedChildren) {
             if (child.Type != "variable_declarator") continue;
-            var nameNode = child.GetChildForField("name");
+            var nameNode = child.GetChildForField(TreeSitterFieldIds.Name);
             if (nameNode is not null) {
                 map[nameNode.Text] = typeName;
             }
@@ -300,7 +300,7 @@ public sealed class CSharpCallExtractor {
             return null;
         }
 
-        var rightNode = assignmentNode.GetChildForField("right");
+        var rightNode = assignmentNode.GetChildForField(TreeSitterFieldIds.Right);
         if (rightNode is null) {
             return null;
         }
@@ -308,7 +308,7 @@ public sealed class CSharpCallExtractor {
         var handlerName = rightNode.Type == "identifier"
             ? rightNode.Text
             : rightNode.Type == "member_access_expression"
-                ? rightNode.GetChildForField("name")?.Text
+                ? rightNode.GetChildForField(TreeSitterFieldIds.Name)?.Text
                 : null;
 
         if (handlerName is null) {
@@ -352,7 +352,7 @@ public sealed class CSharpCallExtractor {
     }
 
     private static bool IsNameofExpression(Node invocationNode) {
-        var funcNode = invocationNode.GetChildForField("function");
+        var funcNode = invocationNode.GetChildForField(TreeSitterFieldIds.Function);
         return funcNode?.Type == "identifier" && funcNode.Text == "nameof";
     }
 
@@ -415,7 +415,7 @@ public sealed class CSharpCallExtractor {
     }
 
     private static CallEdge? TryExtractConstructorEdge(Node objectCreationNode, string filePath, List<MethodLookupEntry> methodLookup) {
-        var typeNode = objectCreationNode.GetChildForField("type");
+        var typeNode = objectCreationNode.GetChildForField(TreeSitterFieldIds.Type);
         if (typeNode is null) {
             return null;
         }
@@ -433,7 +433,7 @@ public sealed class CSharpCallExtractor {
     }
 
     private static string? ExtractCalleeName(Node invocationNode) {
-        var funcNode = invocationNode.GetChildForField("function");
+        var funcNode = invocationNode.GetChildForField(TreeSitterFieldIds.Function);
         if (funcNode is null) {
             return null;
         }
@@ -443,7 +443,7 @@ public sealed class CSharpCallExtractor {
         }
 
         if (funcNode.Type == "member_access_expression") {
-            var nameNode = funcNode.GetChildForField("name");
+            var nameNode = funcNode.GetChildForField(TreeSitterFieldIds.Name);
             return nameNode?.Text;
         }
 
@@ -460,7 +460,7 @@ public sealed class CSharpCallExtractor {
         var symbols = options.Symbols;
         var extensionMethodMap = options.ExtensionMethodMap;
 
-        var funcNode = invocationNode.GetChildForField("function");
+        var funcNode = invocationNode.GetChildForField(TreeSitterFieldIds.Function);
 
         if (funcNode?.Type == "member_access_expression") {
             var resolved = ResolveMemberAccessCallee(funcNode, calleeName, callerFqn, classNameSet, interfaceNameSet, variableTypeMap, symbols, invocationNode);
@@ -487,7 +487,7 @@ public sealed class CSharpCallExtractor {
         Node funcNode, string calleeName, string callerFqn,
         HashSet<string> classNameSet, HashSet<string> interfaceNameSet,
         Dictionary<string, string> variableTypeMap, SymbolIndex symbols, Node invocationNode) {
-        var expressionNode = funcNode.GetChildForField("expression");
+        var expressionNode = funcNode.GetChildForField(TreeSitterFieldIds.Expression);
         if (expressionNode is null) return null;
         var expressionText = expressionNode.Text;
 
@@ -626,7 +626,7 @@ public sealed class CSharpCallExtractor {
     }
 
     internal static CallKind DetermineCallKind(Node invocationNode, string calleeName, HashSet<string> classNameSet, HashSet<string> interfaceNameSet, Dictionary<string, string> variableTypeMap) {
-        var funcNode = invocationNode.GetChildForField("function");
+        var funcNode = invocationNode.GetChildForField(TreeSitterFieldIds.Function);
 
         if (funcNode?.Type == "identifier") {
             return CallKind.Direct;
@@ -643,7 +643,7 @@ public sealed class CSharpCallExtractor {
     /// 判断 member_access_expression 的调用类型（提取以扁平化嵌套）
     /// </summary>
     private static CallKind DetermineMemberAccessCallKind(Node funcNode, HashSet<string> classNameSet, HashSet<string> interfaceNameSet, Dictionary<string, string> variableTypeMap) {
-        var expressionNode = funcNode.GetChildForField("expression");
+        var expressionNode = funcNode.GetChildForField(TreeSitterFieldIds.Expression);
         if (expressionNode is null) return CallKind.Direct;
         var expressionText = expressionNode.Text;
 

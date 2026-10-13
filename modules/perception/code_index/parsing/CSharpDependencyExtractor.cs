@@ -149,7 +149,7 @@ public sealed class CSharpDependencyExtractor {
     /// <summary>处理单个节点的接口名收集（不递归），供联合遍历调用</summary>
     internal static void ProcessInterfaceNameNode(Node node, string nodeType, HashSet<string> names) {
         if (nodeType == "interface_declaration") {
-            var nameNode = node.GetChildForField("name");
+            var nameNode = node.GetChildForField(TreeSitterFieldIds.Name);
             if (nameNode is not null) {
                 names.Add(nameNode.Text);
             }
@@ -187,7 +187,7 @@ public sealed class CSharpDependencyExtractor {
     }
 
     private static void ExtractTypeDeclarationDependencies(Node typeDeclNode, string filePath, List<DependencyEdge> deps, HashSet<string> interfaceNames, Dictionary<string, string> typeFqnMap) {
-        var nameNode = typeDeclNode.GetChildForField("name");
+        var nameNode = typeDeclNode.GetChildForField(TreeSitterFieldIds.Name);
         if (nameNode is null) {
             return;
         }
@@ -209,7 +209,7 @@ public sealed class CSharpDependencyExtractor {
 
     /// <summary>计算类型声明的 source FQN（供外层遍历跟踪类型上下文）</summary>
     internal static string? TryGetTypeDeclSourceFqn(Node typeDeclNode, Dictionary<string, string> typeFqnMap) {
-        var nameNode = typeDeclNode.GetChildForField("name");
+        var nameNode = typeDeclNode.GetChildForField(TreeSitterFieldIds.Name);
         if (nameNode is null) return null;
         var sourceName = nameNode.Text;
         return typeFqnMap.TryGetValue(sourceName, out var fqn) ? fqn : sourceName;
@@ -367,7 +367,7 @@ public sealed class CSharpDependencyExtractor {
 
         foreach (var child in declList.NamedChildren) {
             if (TypeDeclNodeTypes.Contains(child.Type)) {
-                var childNameNode = child.GetChildForField("name");
+                var childNameNode = child.GetChildForField(TreeSitterFieldIds.Name);
                 if (childNameNode is not null) {
                     var childName = childNameNode.Text;
                     var childFqn = typeFqnMap.TryGetValue(childName, out var fqnVal) ? fqnVal : $"{sourceFqn}.{childName}";
@@ -403,28 +403,28 @@ public sealed class CSharpDependencyExtractor {
     }
 
     internal static void ExtractTypeFromVariableDeclaration(Node varDecl, HashSet<string> usedTypes) {
-        var typeNode = varDecl.GetChildForField("type");
+        var typeNode = varDecl.GetChildForField(TreeSitterFieldIds.Type);
         if (typeNode is not null) {
             AddTypeFromNode(typeNode, usedTypes);
         }
     }
 
     internal static void ExtractTypeFromParameter(Node param, HashSet<string> usedTypes) {
-        var typeNode = param.GetChildForField("type");
+        var typeNode = param.GetChildForField(TreeSitterFieldIds.Type);
         if (typeNode is not null) {
             AddTypeFromNode(typeNode, usedTypes);
         }
     }
 
     internal static void ExtractTypeFromMethodReturn(Node methodDecl, HashSet<string> usedTypes) {
-        var returnTypeNode = methodDecl.GetChildForField("returns");
+        var returnTypeNode = methodDecl.GetChildForField(TreeSitterFieldIds.Returns);
         if (returnTypeNode is not null) {
             AddTypeFromNode(returnTypeNode, usedTypes);
         }
     }
 
     internal static void ExtractTypeFromProperty(Node propDecl, HashSet<string> usedTypes) {
-        var typeNode = propDecl.GetChildForField("type");
+        var typeNode = propDecl.GetChildForField(TreeSitterFieldIds.Type);
         if (typeNode is not null) {
             AddTypeFromNode(typeNode, usedTypes);
         }

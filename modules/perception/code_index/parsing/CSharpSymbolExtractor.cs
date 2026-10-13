@@ -291,7 +291,10 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
             newTypeFqn = CSharpDependencyExtractor.TryGetTypeDeclSourceFqn(node, typeFqnMap);
         }
 
-        foreach (var child in node.NamedChildren) {
+        var children = node.NamedChildren;
+        var childCount = children.Count;
+        for (var ci = 0; ci < childCount; ci++) {
+            var child = children[ci];
             CollectCallsAndDeps(child, filePath, classNameSet, interfaceNameSet, variableTypeMap,
                 methodLookup, symbols, extensionMethodMap, calls, fileFqn, deps, interfaceNames, typeFqnMap,
                 newTypeFqn, typeUsageMap);
@@ -522,8 +525,10 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
             if (TryExtractPrimaryConstructor(node, filePath, symbol.Name, symbol.FullyQualifiedName, currentNs, symbols)) {
             }
 
-            foreach (var child in node.NamedChildren) {
-                CollectSymbols(child, filePath, symbols, symbol.Name, symbol.FullyQualifiedName, currentNs, rawVariableTypes, interfaceNames);
+            var children = node.NamedChildren;
+            var childCount = children.Count;
+            for (var ci = 0; ci < childCount; ci++) {
+                CollectSymbols(children[ci], filePath, symbols, symbol.Name, symbol.FullyQualifiedName, currentNs, rawVariableTypes, interfaceNames);
             }
             return;
         }
@@ -532,8 +537,10 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
             return;
         }
 
-        foreach (var child in node.NamedChildren) {
-            CollectSymbols(child, filePath, symbols, parentSymbol, parentFqn, ns, rawVariableTypes, interfaceNames);
+        var fallbackChildren = node.NamedChildren;
+        var fallbackCount = fallbackChildren.Count;
+        for (var ci = 0; ci < fallbackCount; ci++) {
+            CollectSymbols(fallbackChildren[ci], filePath, symbols, parentSymbol, parentFqn, ns, rawVariableTypes, interfaceNames);
         }
     }
 
@@ -541,7 +548,10 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
         Dictionary<string, string> rawVariableTypes, HashSet<string> interfaceNames) {
         string? fileScopedNs = null;
 
-        foreach (var child in node.NamedChildren) {
+        var children = node.NamedChildren;
+        var childCount = children.Count;
+        for (var ci = 0; ci < childCount; ci++) {
+            var child = children[ci];
             var childType = child.Type;
             if (childType == "file_scoped_namespace_declaration") {
                 var nameNode = child.GetChildForField(TreeSitterFieldIds.Name);
@@ -563,7 +573,10 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
 
                 fileScopedNs = nsName;
 
-                foreach (var nsChild in child.NamedChildren) {
+                var nsChildren = child.NamedChildren;
+                var nsCount = nsChildren.Count;
+                for (var ni = 0; ni < nsCount; ni++) {
+                    var nsChild = nsChildren[ni];
                     if (nsChild.Type != "identifier") {
                         CollectSymbols(nsChild, filePath, symbols, null, null, fileScopedNs, rawVariableTypes, interfaceNames);
                     }

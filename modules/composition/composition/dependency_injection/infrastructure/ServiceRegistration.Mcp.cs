@@ -5,7 +5,7 @@ public static partial class ServiceRegistration {
     /// <summary>
     /// 注册 MCP 服务：MemoryCache、工具注册表、工具评分配置、超图自定义超边、
     /// Agent 工具管道（<see cref="MiddlewarePipeline{AgentToolContext}"/>）、
-    /// 工具执行管道（<see cref="MiddlewarePipeline{ToolExecutionContext}"/>，含 14 个中间件）。
+    /// 工具执行管道（<see cref="MiddlewarePipeline{ToolExecutionContext}"/>，含 15 个中间件）。
     /// </summary>
     /// <param name="services">DI 容器。</param>
     /// <returns>已注册服务的 <see cref="IServiceCollection"/> 实例。</returns>
@@ -70,6 +70,7 @@ public static partial class ServiceRegistration {
                 .Use(sp.GetRequiredService<McpToolRegistry.OnErrorToolInjectionMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.ToolHealthScoringMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.ToolFixHookMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.ToolAestheticMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.PostToolUseHookMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.ToolExecutionMiddleware>())
                 .WithShortCircuit(ctx => ctx.IsShortCircuited)

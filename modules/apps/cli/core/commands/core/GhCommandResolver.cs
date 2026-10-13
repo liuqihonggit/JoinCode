@@ -371,11 +371,13 @@ internal static class GhArgsBinder {
     /// </summary>
     private static readonly FrozenDictionary<string, GhCliAliasGroup> LongAliasMap = new Dictionary<string, GhCliAliasGroup> {
         ["gh_pr_merge"] = new(
-            ("auto",          new GhCliAlias("auto_merge", "true", AliasKind.FixedValue)),
-            ("squash",        new GhCliAlias("merge_method", "squash", AliasKind.FixedValue)),
-            ("merge",         new GhCliAlias("merge_method", "merge", AliasKind.FixedValue)),
-            ("rebase",        new GhCliAlias("merge_method", "rebase", AliasKind.FixedValue)),
-            ("delete-branch", new GhCliAlias("delete_branch", null, AliasKind.RenameOnly))
+            ("auto",              new GhCliAlias("auto_merge", "true", AliasKind.FixedValue)),
+            ("enable-auto-merge", new GhCliAlias("auto_merge", "true", AliasKind.FixedValue)),
+            ("squash",            new GhCliAlias("merge_method", "squash", AliasKind.FixedValue)),
+            ("merge",             new GhCliAlias("merge_method", "merge", AliasKind.FixedValue)),
+            ("rebase",            new GhCliAlias("merge_method", "rebase", AliasKind.FixedValue)),
+            ("auto-merge-method", new GhCliAlias("merge_method", null, AliasKind.RenameOnly)),
+            ("delete-branch",     new GhCliAlias("delete_branch", null, AliasKind.RenameOnly))
         ),
         ["gh_pr_close"] = new(
             ("delete-branch", new GhCliAlias("delete_branch", "true", AliasKind.FixedValue))
@@ -386,9 +388,11 @@ internal static class GhArgsBinder {
             ("comment",        new GhCliAlias("action", "comment", AliasKind.FixedValue))
         ),
         ["gh_pr_create"] = new(
-            ("fill",         new GhCliAlias("fill", "true", AliasKind.FixedValue)),
-            ("fill-first",   new GhCliAlias("fill_first", "true", AliasKind.FixedValue)),
-            ("fill-verbose", new GhCliAlias("fill_verbose", "true", AliasKind.FixedValue))
+            ("fill",              new GhCliAlias("fill", "true", AliasKind.FixedValue)),
+            ("fill-first",        new GhCliAlias("fill_first", "true", AliasKind.FixedValue)),
+            ("fill-verbose",      new GhCliAlias("fill_verbose", "true", AliasKind.FixedValue)),
+            ("enable-auto-merge", new GhCliAlias("auto_merge", "true", AliasKind.FixedValue)),
+            ("auto-merge-method", new GhCliAlias("merge_method", null, AliasKind.RenameOnly))
         ),
         ["gh_run_rerun"] = new(("failed", new GhCliAlias("failed_only", "true", AliasKind.FixedValue))),
         ["gh_run_view"]  = new(("job", new GhCliAlias("job_id", null, AliasKind.TakeNextToken)), ("pr", new GhCliAlias("pr", null, AliasKind.TakeNextToken))),

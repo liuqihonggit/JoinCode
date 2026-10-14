@@ -1,6 +1,9 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class HnswBenchmarkTests {
+public sealed class HnswBenchmarkTests
+ {
+
+    private static readonly CodeIndexHyperParams HP = CodeIndexHyperParams.FromEnvironment();
 
     private static float[] MakeRandomVector(int dims, Random rng) {
         var v = new float[dims];
@@ -33,7 +36,7 @@ public sealed class HnswBenchmarkTests {
         bfSw.Stop();
 
         var hnswSw = System.Diagnostics.Stopwatch.StartNew();
-        var hnsw = new HnswAnn(m: 16, efConstruction: 200, efSearch: 50);
+        var hnsw = new HnswAnn(m: HP.HnswM, efConstruction: HP.HnswEfConstruction, efSearch: HP.HnswEfSearch);
         hnsw.AddRange(vectors);
         hnswSw.Stop();
 
@@ -77,7 +80,7 @@ public sealed class HnswBenchmarkTests {
         for (var i = 0; i < size; i++)
             vectors[i] = ($"v{i}", MakeRandomVector(dims, rng));
 
-        var hnsw = new HnswAnn(m: 16, efConstruction: 200, efSearch: 50);
+        var hnsw = new HnswAnn(m: HP.HnswM, efConstruction: HP.HnswEfConstruction, efSearch: HP.HnswEfSearch);
         hnsw.AddRange(vectors);
 
         var vectorDict = new Dictionary<string, float[]>(size);
@@ -92,7 +95,7 @@ public sealed class HnswBenchmarkTests {
         }
 
         var loadSw = System.Diagnostics.Stopwatch.StartNew();
-        var hnsw2 = new HnswAnn(m: 16, efConstruction: 200, efSearch: 50);
+        var hnsw2 = new HnswAnn(m: HP.HnswM, efConstruction: HP.HnswEfConstruction, efSearch: HP.HnswEfSearch);
         await using (var ms2 = new MemoryStream(graphBytes, writable: false)) {
             using var br = new BinaryReader(ms2, System.Text.Encoding.UTF8);
             ((IAnnSearchGraphPersistence)hnsw2).LoadGraph(br, vectorDict);

@@ -25,6 +25,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     private readonly IHttpClientProvider? _httpClient;
     private readonly IKvStore _kvStore;
     private EmbeddingIndex? _embeddingIndex;
+    private readonly CodeIndexHyperParams _hyperParams;
     private List<IIndexStore> _indexStores = [];
     private string? _lastVectorIndexDir;
     private int _disposed;
@@ -48,6 +49,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         _fs = fs;
         _logger = logger;
         _httpClient = httpClient;
+        _hyperParams = CodeIndexHyperParams.FromEnvironment();
         _pluginFactory = static () => new CSharpSymbolExtractor();
         _plugin = _pluginFactory();
         _symbolIndex = new SymbolIndex(store, fs, _plugin);
@@ -81,20 +83,37 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// </summary>
     private void TryInitEmbeddingIndex(IFileSystem fs, IKvStore kvStore, ILogger<CodeIndexer>? logger) {
         var appData = EmbeddingModelDownloader.DefaultTargetDir;
-        var modelPath = Path.Combine(appData, EmbeddingModelDownloader.ModelFileName);
+        var onnxPath = Path.Combine(appData, EmbeddingModelDownloader.ModelFileName);
+        var ortPath = Path.Combine(appData, "model_quantized.ort");
         var vocabPath = Path.Combine(appData, EmbeddingModelDownloader.VocabFileName);
-        if (!fs.FileExists(modelPath) || !fs.FileExists(vocabPath)) return;
+        if (!fs.FileExists(onnxPath) || !fs.FileExists(vocabPath)) return;
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var modelPath = onnxPath;
+        if (!fs.FileExists(ortPath)) {
+            try {
+                if (OnnxEmbedder.TryConvertToOrtFormat(onnxPath, ortPath)) {
+                    modelPath = ortPath;
+                    logger?.LogInformation("ORT 格式转换成功: {OrtPath} ({Ms}ms)", ortPath, sw.ElapsedMilliseconds);
+                }
+            } catch (Exception ex) {
+                logger?.LogWarning(ex, "ORT 格式转换失败，回退到 ONNX 格式");
+            }
+        } else {
+            modelPath = ortPath;
+            logger?.LogInformation("使用已有 ORT 格式模型: {OrtPath}", ortPath);
+        }
+        sw.Stop();
 
         try {
-            var degree = int.TryParse(Environment.GetEnvironmentVariable("JCC_ONNX_DEGREE"), out var d) && d > 0
-                ? Math.Min(d, Environment.ProcessorCount) : 0;
-            var embedModel = new OnnxEmbeddingClient(modelPath, vocabPath, fs, degree: degree);
-            var annType = Environment.GetEnvironmentVariable("JCC_ANN_TYPE") ?? "brute";
-            IAnnSearch ann = annType.Equals("hnsw", StringComparison.OrdinalIgnoreCase)
-                ? new HnswAnn()
+            var degree = _hyperParams.OnnxDegree > 0
+                ? Math.Min(_hyperParams.OnnxDegree, Environment.ProcessorCount) : 0;
+            var embedModel = new OnnxEmbeddingClient(modelPath, vocabPath, fs, degree: degree, maxSeqLen: _hyperParams.MaxSeqLen);
+            IAnnSearch ann = _hyperParams.AnnType.Equals("hnsw", StringComparison.OrdinalIgnoreCase)
+                ? new HnswAnn(_hyperParams.HnswM, _hyperParams.HnswEfConstruction, _hyperParams.HnswEfSearch)
                 : new BruteForceAnn();
-            _embeddingIndex = new EmbeddingIndex(embedModel, ann, fs);
-            logger?.LogInformation("向量索引已自动初始化: dim={Dim}, ann={Ann}", embedModel.Dimensions, annType);
+            _embeddingIndex = new EmbeddingIndex(embedModel, ann, fs, embedBatchSize: _hyperParams.EmbedBatchSize);
+            logger?.LogInformation("向量索引已自动初始化: dim={Dim}, ann={Ann}, maxSeqLen={MaxSeqLen}", embedModel.Dimensions, _hyperParams.AnnType, _hyperParams.MaxSeqLen);
         } catch (Exception ex) {
             logger?.LogWarning(ex, "向量索引自动初始化失败，语义搜索将不可用");
         }
@@ -202,6 +221,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         phaseSw.Restart();
 
         // Phase C: 并行读文件+哈希(Task.WhenAll,对齐 IncrementalUpdater 模式)
+        var phaseCSw = Stopwatch.StartNew();
         var storedHashes = BatchGetStoredHashes(csFiles);
 
         var updatedCount = 0;
@@ -238,6 +258,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         }
 
         progress?.Report(new IndexProgress { Current = total, Total = total });
+        phaseCSw.Stop();
+        Console.Error.WriteLine($"[code-index] Phase C 读+哈希: {csFiles.Count} 文件 ({phaseCSw.ElapsedMilliseconds}ms)");
 
         // Phase D: 并行提取符号
         var phaseDSw = Stopwatch.StartNew();
@@ -270,7 +292,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                     .Select(s => new LineBasedChunkExtractor.ParentLocation(b.FilePath, s.StartLine, s.EndLine, s.FullyQualifiedName))
                     .ToList();
                 allChunks.AddRange(LineBasedChunkExtractor.Extract(
-                    b.FilePath, b.SourceCode, b.Extraction.Symbols, parentLocations));
+                    b.FilePath, b.SourceCode, b.Extraction.Symbols, parentLocations,
+                    chunkSize: _hyperParams.ChunkSize, overlap: _hyperParams.Overlap));
             }
             if (allChunks.Count > 0) {
                 await _embeddingIndex.IndexChunksAsync(allChunks, ct).ConfigureAwait(false);
@@ -280,6 +303,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         phaseSw.Restart();
 
         // Phase F: 删除已移除文件
+        var phaseFSw = Stopwatch.StartNew();
         foreach (var trackedFile in trackedFiles) {
             if (!existingFiles.Contains(trackedFile)) {
                 await _symbolIndex.RemoveFileAsync(trackedFile, ct).ConfigureAwait(false);
@@ -289,9 +313,14 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                 deletedCount++;
             }
         }
+        phaseFSw.Stop();
+        Console.Error.WriteLine($"[code-index] Phase F 删除: {deletedCount} 文件 ({phaseFSw.ElapsedMilliseconds}ms)");
 
         // Phase G: 失效图缓存
+        var phaseGSw = Stopwatch.StartNew();
         InvalidateGraphCaches();
+        phaseGSw.Stop();
+        Console.Error.WriteLine($"[code-index] Phase G 失效缓存: ({phaseGSw.ElapsedMilliseconds}ms)");
 
         // Phase H: 统一持久化所有 IIndexStore — 并行保存（CLI 单次调用模式跨进程恢复）
         _lastVectorIndexDir = Path.Combine(options.WorkspaceRoot, ".jcc", "code-index");
@@ -350,38 +379,48 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         List<(string FilePath, string SourceCode, string Hash)> files, CancellationToken ct) {
         if (files.Count == 0) return [];
 
-        // 优化: 手动范围分区 + AOT 兼容并行,替代固定 chunk
+        // 优化: 手动范围分区 + 每线程复用 parser/extractor(工作窃取)
         // 优势: 1) 动态工作分区,大文件不阻塞小文件(固定 16-chunk 会因文件大小不均导致线程空闲)
-        //      2) 每个范围复用 parser+extractor(rangeSize=64,平衡创建开销与负载均衡)
-        //      3) WithDegreeOfParallelism = ProcessorCount 充分利用多核
+        //      2) 每线程一套 parser+extractor,跨 range 复用(原每 range 创建,98 ranges→16 套)
+        //      3) parallelism = ProcessorCount 充分利用多核
         var parallelism = Math.Min(files.Count, CpuParallelism.GetDegree());
         var results = new ExtractionResult[files.Count];
 
-        // 范围大小 64: 3313 files → 52 ranges,16 线程平均每线程 ~3-4 ranges
-        // 大文件只阻塞其所在 64-文件范围,不影响其他范围(原 207-文件 chunk 会阻塞整个线程)
-        // 52 个 parser 创建 vs 原 16 个,多 36 次创建但负载均衡收益更大
+        // 范围大小 64: 6215 files → 98 ranges,16 线程平均每线程 ~6 ranges
+        // 大文件只阻塞其所在 64-文件范围,不影响其他范围
         var ranges = new List<(int Start, int End)>();
         for (var start = 0; start < files.Count; start += 64)
             ranges.Add((start, Math.Min(start + 64, files.Count)));
 
-        ranges
-            .AsCpuParallel()
-            .WithDegreeOfParallelism(parallelism)
-            .WithCancellation(ct)
-            .ForAll(range => {
+        Console.Error.WriteLine($"[code-index] Phase D 并行: degree={parallelism}, ranges={ranges.Count}, cpu={Environment.ProcessorCount}");
+
+        // 每线程一套 parser/extractor,工作窃取跨 range 复用
+        // 原: 98 ranges 各创建一套(98 套 parser+extractor+cache+lock)
+        // 现: 16 线程各创建一套(16 套),省 82 次创建
+        var rangeIndex = 0;
+        var rangeCount = ranges.Count;
+        var tasks = new Task[parallelism];
+        for (var t = 0; t < parallelism; t++) {
+            tasks[t] = Task.Run(() => {
                 LockRegistry.RegisterFlow();
                 using var parser = TreeSitterParserPool.CreateDisposable();
                 using var extractor = new CSharpSymbolExtractor(parser);
                 var mdExtractor = new MarkdownChunkExtractor();
 
-                for (var i = range.Start; i < range.End; i++) {
-                    ct.ThrowIfCancellationRequested();
-                    var f = files[i];
-                    results[i] = f.FilePath.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
-                        ? mdExtractor.ExtractAll(f.SourceCode, f.FilePath)
-                        : extractor.ExtractAll(f.SourceCode, f.FilePath);
+                int ri;
+                while ((ri = Interlocked.Increment(ref rangeIndex) - 1) < rangeCount) {
+                    var range = ranges[ri];
+                    for (var i = range.Start; i < range.End; i++) {
+                        ct.ThrowIfCancellationRequested();
+                        var f = files[i];
+                        results[i] = f.FilePath.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+                            ? mdExtractor.ExtractAll(f.SourceCode, f.FilePath)
+                            : extractor.ExtractAll(f.SourceCode, f.FilePath);
+                    }
                 }
-            });
+            }, ct);
+        }
+        Task.WhenAll(tasks).GetAwaiter().GetResult();
 
         return [.. results];
     }
@@ -411,7 +450,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                     .Select(s => new LineBasedChunkExtractor.ParentLocation(b.FilePath, s.StartLine, s.EndLine, s.FullyQualifiedName))
                     .ToList();
                 allChunks.AddRange(LineBasedChunkExtractor.Extract(
-                    b.FilePath, b.SourceCode, b.Extraction.Symbols, parentLocations));
+                    b.FilePath, b.SourceCode, b.Extraction.Symbols, parentLocations,
+                    chunkSize: _hyperParams.ChunkSize, overlap: _hyperParams.Overlap));
             }
             if (allChunks.Count > 0) {
                 await _embeddingIndex.IndexChunksAsync(allChunks, ct).ConfigureAwait(false);

@@ -1,6 +1,8 @@
 namespace JoinCode.CodeIndex.Tests;
 
 public sealed class CodeIndexerSemanticTests : IDisposable {
+
+    private static readonly CodeIndexHyperParams HP = CodeIndexHyperParams.FromEnvironment();
     private readonly InMemoryIndexStore _store;
     private readonly CodeIndexer _indexer;
     private readonly IFileSystem _fs;
@@ -14,7 +16,8 @@ public sealed class CodeIndexerSemanticTests : IDisposable {
         _embeddingIndex = new EmbeddingIndex(
             new FakeEmbeddingModel(8),
             new BruteForceAnn(),
-            _fs);
+            _fs,
+            embedBatchSize: HP.EmbedBatchSize);
         _indexer.SetEmbeddingIndex(_embeddingIndex);
     }
 

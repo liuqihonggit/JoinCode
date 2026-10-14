@@ -2,10 +2,12 @@ namespace JoinCode.CodeIndex.Tests;
 
 public sealed class EmbeddingIndexTests {
 
+    private static readonly CodeIndexHyperParams HP = CodeIndexHyperParams.FromEnvironment();
+
     private static EmbeddingIndex CreateIndex(int dims = 8) {
         var embed = new FakeEmbeddingModel(dims);
         var ann = new BruteForceAnn();
-        return new EmbeddingIndex(embed, ann, TestFileSystem.Current);
+        return new EmbeddingIndex(embed, ann, TestFileSystem.Current, embedBatchSize: HP.EmbedBatchSize);
     }
 
     private static ChunkInfo CreateChunk(
@@ -227,7 +229,7 @@ public sealed class EmbeddingIndexTests {
         await fs.WriteAllText("test.cs", "class Foo { void Bar() { } }");
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
-        await using var index = new EmbeddingIndex(embed, ann, fs);
+        await using var index = new EmbeddingIndex(embed, ann, fs, embedBatchSize: HP.EmbedBatchSize);
 
         var methodChunk = CreateChunk(id: "m1", text: "void Bar() { }") with {
             ParentFilePath = "test.cs",
@@ -265,7 +267,7 @@ public sealed class EmbeddingIndexTests {
         var fs = new IO.FileSystem.InMemoryFileSystem();
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
-        await using var index = new EmbeddingIndex(embed, ann, fs);
+        await using var index = new EmbeddingIndex(embed, ann, fs, embedBatchSize: HP.EmbedBatchSize);
 
         var chunk = CreateChunk() with { ParentFilePath = "missing.cs", ParentStartLine = 1, ParentEndLine = 10, ParentSymbolFqn = "Test.Foo" };
         await index.IndexChunksAsync([chunk], CancellationToken.None);
@@ -329,7 +331,7 @@ public sealed class EmbeddingIndexTests {
         await fs.WriteAllText("test.cs", "class Foo { }");
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
-        await using var index = new EmbeddingIndex(embed, ann, fs);
+        await using var index = new EmbeddingIndex(embed, ann, fs, embedBatchSize: HP.EmbedBatchSize);
 
         var chunk = CreateChunk() with { ParentFilePath = "test.cs", ParentStartLine = 1, ParentEndLine = 1, ParentSymbolFqn = "Test.Foo" };
         await index.IndexChunksAsync([chunk], CancellationToken.None);
@@ -346,7 +348,7 @@ public sealed class EmbeddingIndexTests {
         await fs.WriteAllText("test.cs", "class Foo { void Bar() { } }");
         var embed = new FakeEmbeddingModel(8);
         var ann = new BruteForceAnn();
-        await using var index = new EmbeddingIndex(embed, ann, fs);
+        await using var index = new EmbeddingIndex(embed, ann, fs, embedBatchSize: HP.EmbedBatchSize);
 
         var chunk = CreateChunk(text: "void Bar() { }") with { ParentFilePath = "test.cs", ParentStartLine = 1, ParentEndLine = 1, ParentSymbolFqn = "Test.Foo" };
         await index.IndexChunksAsync([chunk], CancellationToken.None);

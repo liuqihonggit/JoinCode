@@ -11,6 +11,8 @@ namespace JoinCode.CodeIndex.Tests;
 /// </summary>
 [Trait("Category", "Integration")]
 public sealed class VectorIndexE2ETests : IDisposable {
+
+    private static readonly CodeIndexHyperParams HP = CodeIndexHyperParams.FromEnvironment();
     private readonly InMemoryIndexStore _store;
     private readonly CodeIndexer? _indexer;
     private readonly IFileSystem _fs;
@@ -33,8 +35,8 @@ public sealed class VectorIndexE2ETests : IDisposable {
             return;
         }
 
-        var embeddingModel = new OnnxEmbeddingClient(modelPath, vocabPath, _realFs);
-        _embeddingIndex = new EmbeddingIndex(embeddingModel, new BruteForceAnn(), _realFs);
+        var embeddingModel = new OnnxEmbeddingClient(modelPath, vocabPath, _realFs, maxSeqLen: CodeIndexHyperParams.FromEnvironment().MaxSeqLen);
+        _embeddingIndex = new EmbeddingIndex(embeddingModel, new BruteForceAnn(), _fs, embedBatchSize: HP.EmbedBatchSize);
         _indexer = new CodeIndexer(_store, _fs);
         _indexer.SetEmbeddingIndex(_embeddingIndex);
     }

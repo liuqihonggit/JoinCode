@@ -1,6 +1,8 @@
 namespace JoinCode.CodeIndex.Tests;
 
 public sealed class HybridQueryRouterTests : IDisposable {
+
+    private static readonly CodeIndexHyperParams HP = CodeIndexHyperParams.FromEnvironment();
     private readonly InMemoryIndexStore _store;
     private readonly SymbolSearcher _searcher;
     private readonly EmbeddingIndex _embeddingIndex;
@@ -13,7 +15,8 @@ public sealed class HybridQueryRouterTests : IDisposable {
         _embeddingIndex = new EmbeddingIndex(
             new FakeEmbeddingModel(8),
             new BruteForceAnn(),
-            TestFileSystem.Current);
+            TestFileSystem.Current,
+            embedBatchSize: HP.EmbedBatchSize);
         _router = new HybridQueryRouter(_embeddingIndex, _searcher);
     }
 

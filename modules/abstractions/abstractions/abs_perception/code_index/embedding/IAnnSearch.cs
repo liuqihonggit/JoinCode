@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.CodeIndex;
 /// </summary>
 public interface IAnnSearch {
     /// <summary>添加单个向量。</summary>
-    void Add(string id, float[] vector);
+    void Add(string id, ReadOnlySpan<float> vector);
     /// <summary>批量添加向量。</summary>
     void AddRange(IReadOnlyList<(string Id, float[] Vector)> items);
     /// <summary>删除向量。</summary>

@@ -14,6 +14,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     private readonly IEmbeddingModel _embedModel;
     private readonly IAnnSearch _ann;
     private readonly IFileSystem _fs;
+    private readonly int _embedBatchSize;
     private readonly IEmbeddingPersistence _persistence;
     private string? _incrementalDir;
 
@@ -30,13 +31,19 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     /// <param name="embedModel">嵌入模型（API/ONNX/simhash 均可）。</param>
     /// <param name="ann">ANN 搜索引擎（暴力/HNSW 均可，需自身线程安全）。</param>
     /// <param name="fs">文件系统抽象 — 用于持久化读写 + 父文档源码按行读取。</param>
-    public EmbeddingIndex(IEmbeddingModel embedModel, IAnnSearch ann, IFileSystem fs) {
+    /// <param name="embedBatchSize">嵌入批大小。必须从 CodeIndexHyperParams 传入，-1=未设置将抛异常。</param>
+    public EmbeddingIndex(IEmbeddingModel embedModel, IAnnSearch ann, IFileSystem fs, int embedBatchSize = -1) {
         ArgumentNullException.ThrowIfNull(embedModel);
         ArgumentNullException.ThrowIfNull(ann);
         ArgumentNullException.ThrowIfNull(fs);
+        if (embedBatchSize <= 0) {
+            throw new ArgumentOutOfRangeException(nameof(embedBatchSize),
+                "embedBatchSize 必须从 CodeIndexHyperParams 传入正值，当前值=" + embedBatchSize + "。超参数统一存放见 CodeIndexHyperParams.cs");
+        }
         _embedModel = embedModel;
         _ann = ann;
         _fs = fs;
+        _embedBatchSize = embedBatchSize;
         _persistence = new LsmEmbeddingPersistence(fs);
         _status = (int)IndexStatus.NotReady;
     }
@@ -83,20 +90,18 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
             return;
         }
 
-        const int EmbedBatchSize = 256;
-        var vectors = new float[toEmbed.Count][];
+        var dim = _embedModel.Dimensions;
+        var flatVectors = new float[toEmbed.Count * dim];
         try {
-            for (var batchStart = 0; batchStart < toEmbed.Count; batchStart += EmbedBatchSize) {
+            for (var batchStart = 0; batchStart < toEmbed.Count; batchStart += _embedBatchSize) {
                 ct.ThrowIfCancellationRequested();
-                var batchEnd = Math.Min(batchStart + EmbedBatchSize, toEmbed.Count);
+                var batchEnd = Math.Min(batchStart + _embedBatchSize, toEmbed.Count);
                 var batchTexts = new List<string>(batchEnd - batchStart);
                 for (var i = batchStart; i < batchEnd; i++) {
                     batchTexts.Add(BuildEmbedText(toEmbed[i]));
                 }
-                var batchVectors = await _embedModel.EmbedBatchAsync(batchTexts, ct).ConfigureAwait(false);
-                for (var i = 0; i < batchVectors.Length; i++) {
-                    vectors[batchStart + i] = batchVectors[i];
-                }
+                var batchFlat = await _embedModel.EmbedBatchAsync(batchTexts, ct).ConfigureAwait(false);
+                batchFlat.AsSpan().CopyTo(flatVectors.AsSpan(batchStart * dim));
             }
         } catch (OperationCanceledException) {
             throw;
@@ -113,9 +118,8 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         for (var i = 0; i < toEmbed.Count; i++) {
             ct.ThrowIfCancellationRequested();
             var chunk = toEmbed[i];
-            var vector = vectors[i];
 
-            _ann.Add(chunk.ChunkId, vector);
+            _ann.Add(chunk.ChunkId, flatVectors.AsSpan(i * dim, dim));
             metadataToAdd.Add((chunk.ChunkId, new ChunkMetadata {
                 ChunkId = chunk.ChunkId,
                 FilePath = chunk.FilePath,
@@ -141,7 +145,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         CasBulkUpdateFileChunks(fileChunksToAdd);
         var vectorsToAdd = new List<(string ChunkId, float[] Vector)>(toEmbed.Count);
         for (var i = 0; i < toEmbed.Count; i++) {
-            vectorsToAdd.Add((toEmbed[i].ChunkId, vectors[i]));
+            vectorsToAdd.Add((toEmbed[i].ChunkId, flatVectors.AsSpan(i * dim, dim).ToArray()));
         }
         CasBulkUpdateVectors(vectorsToAdd);
 

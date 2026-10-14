@@ -34,7 +34,8 @@ public sealed class OnnxEmbeddingClient : IEmbeddingModel, IAsyncDisposable {
     /// <param name="vocabPath">BERT 词表文件路径（vocab.txt）。</param>
     /// <param name="fs">文件系统抽象（检查文件是否存在）。</param>
     /// <param name="modelId">模型标识（默认 onnx-minilm-l6-v2）。</param>
-    /// <param name="degree">并行推理实例数（默认 0=自动，取 ProcessorCount/2；每个实例 IntraOpNumThreads=ProcessorCount/degree，避免线程争抢）。</param>
+    /// <param name="degree">并行推理实例数（默认 0=自动，取 ProcessorCount；每个实例 IntraOpNumThreads=ProcessorCount/degree，避免线程争抢）。</param>
+    /// <param name="maxSeqLen">最大序列长度（token 数）。必须从 CodeIndexHyperParams 传入，-1=未设置将抛异常。</param>
     /// <param name="logger">日志记录器（可选）。</param>
     public OnnxEmbeddingClient(
         string modelPath,
@@ -42,6 +43,7 @@ public sealed class OnnxEmbeddingClient : IEmbeddingModel, IAsyncDisposable {
         IFileSystem fs,
         string modelId = "onnx-minilm-l6-v2",
         int degree = 0,
+        int maxSeqLen = -1,
         ILogger<OnnxEmbeddingClient>? logger = null) {
         ArgumentNullException.ThrowIfNull(modelPath);
         ArgumentNullException.ThrowIfNull(vocabPath);
@@ -63,8 +65,11 @@ public sealed class OnnxEmbeddingClient : IEmbeddingModel, IAsyncDisposable {
         }
         _modelId = modelId;
         _logger = logger;
-        _maxSeqLen = int.TryParse(Environment.GetEnvironmentVariable("JCC_ONNX_MAX_SEQ_LEN"), out var msl) && msl > 0
-            ? msl : 8;
+        if (maxSeqLen <= 0) {
+            throw new ArgumentOutOfRangeException(nameof(maxSeqLen),
+                "maxSeqLen 必须从 CodeIndexHyperParams 传入正值，当前值=" + maxSeqLen + "。超参数统一存放见 CodeIndexHyperParams.cs");
+        }
+        _maxSeqLen = maxSeqLen;
     }
 
     /// <summary>
@@ -76,21 +81,21 @@ public sealed class OnnxEmbeddingClient : IEmbeddingModel, IAsyncDisposable {
     public async Task<float[]> EmbedAsync(string text, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(text);
         ct.ThrowIfCancellationRequested();
-        var results = await EmbedBatchAsync([text], ct).ConfigureAwait(false);
-        return results[0];
+        return await EmbedBatchAsync([text], ct).ConfigureAwait(false);
     }
 
     /// <summary>
     /// 批量嵌入 — 分 N 组并行推理，每组调一个 OnnxEmbedder 实例。
     /// <para>degree=1 时直接单实例推理，无并行开销。</para>
     /// <para>degree&gt;1 时分 N 组，Task.Run 并行，wall time 降至 1/N。</para>
+    /// <para>返回扁平化向量 [count × Dimensions]，第 i 个向量在 [i*Dimensions, (i+1)*Dimensions)。</para>
     /// </summary>
     /// <param name="texts">待嵌入文本列表。</param>
     /// <param name="ct">取消令牌。</param>
-    /// <returns>向量数组。</returns>
-    public Task<float[][]> EmbedBatchAsync(IReadOnlyList<string> texts, CancellationToken ct) {
+    /// <returns>扁平化向量数组 [count × Dimensions]。</returns>
+    public Task<float[]> EmbedBatchAsync(IReadOnlyList<string> texts, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(texts);
-        if (texts.Count == 0) return Task.FromResult(Array.Empty<float[]>());
+        if (texts.Count == 0) return Task.FromResult(Array.Empty<float>());
         ct.ThrowIfCancellationRequested();
 
         if (_degree == 1) return Task.FromResult(_embedders[0].EmbedBatch(texts, _maxSeqLen));
@@ -98,9 +103,10 @@ public sealed class OnnxEmbeddingClient : IEmbeddingModel, IAsyncDisposable {
         return EmbedBatchParallelAsync(texts, ct);
     }
 
-    private async Task<float[][]> EmbedBatchParallelAsync(IReadOnlyList<string> texts, CancellationToken ct) {
+    private async Task<float[]> EmbedBatchParallelAsync(IReadOnlyList<string> texts, CancellationToken ct) {
         var count = texts.Count;
-        var results = new float[count][];
+        var dim = Dimensions;
+        var flat = new float[count * dim];
         var groupSize = (count + _degree - 1) / _degree;
         var tasks = new List<Task>(_degree);
 
@@ -114,15 +120,13 @@ public sealed class OnnxEmbeddingClient : IEmbeddingModel, IAsyncDisposable {
                 for (var i = 0; i < subTexts.Length; i++) {
                     subTexts[i] = texts[start + i];
                 }
-                var subVectors = embedder.EmbedBatch(subTexts, _maxSeqLen);
-                for (var i = 0; i < subVectors.Length; i++) {
-                    results[start + i] = subVectors[i];
-                }
+                var subFlat = embedder.EmbedBatch(subTexts, _maxSeqLen);
+                subFlat.AsSpan().CopyTo(flat.AsSpan(start * dim));
             }, ct));
         }
 
         await Task.WhenAll(tasks).ConfigureAwait(false);
-        return results;
+        return flat;
     }
 
     /// <summary>释放所有 ONNX session。</summary>

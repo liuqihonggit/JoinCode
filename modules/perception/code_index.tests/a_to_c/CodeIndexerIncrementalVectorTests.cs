@@ -6,6 +6,8 @@ namespace JoinCode.CodeIndex.Tests;
 /// 增量更新向量索引联动测试 — 验证 UpdateFileAsync 修改/删除文件时 EmbeddingIndex 同步更新。
 /// </summary>
 public sealed class CodeIndexerIncrementalVectorTests : IDisposable {
+
+    private static readonly CodeIndexHyperParams HP = CodeIndexHyperParams.FromEnvironment();
     private readonly InMemoryIndexStore _store;
     private readonly CodeIndexer _indexer;
     private readonly IFileSystem _fs;
@@ -19,7 +21,8 @@ public sealed class CodeIndexerIncrementalVectorTests : IDisposable {
         _embeddingIndex = new EmbeddingIndex(
             new FakeEmbeddingModel(8),
             new BruteForceAnn(),
-            _fs);
+            _fs,
+            embedBatchSize: HP.EmbedBatchSize);
         _indexer.SetEmbeddingIndex(_embeddingIndex);
     }
 

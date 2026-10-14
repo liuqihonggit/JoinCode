@@ -2,11 +2,13 @@ namespace JoinCode.CodeIndex.Tests;
 
 public sealed class HnswAnnTests {
 
+    private static readonly CodeIndexHyperParams HP = CodeIndexHyperParams.FromEnvironment();
+
     private static float[] MakeVector(params float[] values) => values;
 
     [Fact]
     public void Add_Single_IncreasesCount() {
-        var ann = new HnswAnn();
+        var ann = new HnswAnn(HP.HnswM, HP.HnswEfConstruction, HP.HnswEfSearch);
         Assert.Equal(0, ann.Count);
 
         ann.Add("v1", MakeVector(1f, 0f, 0f));
@@ -15,7 +17,7 @@ public sealed class HnswAnnTests {
 
     [Fact]
     public void Add_DuplicateId_Overwrites() {
-        var ann = new HnswAnn();
+        var ann = new HnswAnn(HP.HnswM, HP.HnswEfConstruction, HP.HnswEfSearch);
         ann.Add("v1", MakeVector(1f, 0f));
         ann.Add("v1", MakeVector(0f, 1f));
 
@@ -26,7 +28,7 @@ public sealed class HnswAnnTests {
 
     [Fact]
     public void AddRange_BatchAdd() {
-        var ann = new HnswAnn();
+        var ann = new HnswAnn(HP.HnswM, HP.HnswEfConstruction, HP.HnswEfSearch);
         ann.AddRange([
             ("v1", MakeVector(1f, 0f)),
             ("v2", MakeVector(0f, 1f)),
@@ -38,7 +40,7 @@ public sealed class HnswAnnTests {
 
     [Fact]
     public void Remove_DecreasesCount() {
-        var ann = new HnswAnn();
+        var ann = new HnswAnn(HP.HnswM, HP.HnswEfConstruction, HP.HnswEfSearch);
         ann.Add("v1", MakeVector(1f, 0f));
         ann.Add("v2", MakeVector(0f, 1f));
 
@@ -48,14 +50,14 @@ public sealed class HnswAnnTests {
 
     [Fact]
     public void Remove_NonExistent_NoError() {
-        var ann = new HnswAnn();
+        var ann = new HnswAnn(HP.HnswM, HP.HnswEfConstruction, HP.HnswEfSearch);
         ann.Remove("nonexistent");
         Assert.Equal(0, ann.Count);
     }
 
     [Fact]
     public void Search_Empty_ReturnsEmpty() {
-        var ann = new HnswAnn();
+        var ann = new HnswAnn(HP.HnswM, HP.HnswEfConstruction, HP.HnswEfSearch);
         var results = ann.Search(MakeVector(1f, 0f), 5, CancellationToken.None);
         Assert.Empty(results);
     }
@@ -76,7 +78,7 @@ public sealed class HnswAnnTests {
 
     [Fact]
     public void Search_TopKZero_ReturnsEmpty() {
-        var ann = new HnswAnn();
+        var ann = new HnswAnn(HP.HnswM, HP.HnswEfConstruction, HP.HnswEfSearch);
         ann.Add("v1", MakeVector(1f, 0f));
 
         var results = ann.Search(MakeVector(1f, 0f), 0, CancellationToken.None);

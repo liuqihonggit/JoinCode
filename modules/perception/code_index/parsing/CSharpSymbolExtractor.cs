@@ -1,5 +1,50 @@
 namespace JoinCode.CodeIndex.Ast;
 
+/// <summary>TreeSitter field ID 预计算 — 消除 GetChildForField(string) 的 UTF8 编码+byte[] 分配</summary>
+internal static class TreeSitterFieldIds {
+    private static ushort _name;
+    private static ushort _type;
+    private static ushort _function;
+    private static ushort _expression;
+    private static ushort _right;
+    private static ushort _returns;
+    private static bool _initialized;
+
+    /// <summary>从 Language 预计算全部 field ID（仅首次调用生效）</summary>
+    public static void Initialize(TreeSitter.Language language) {
+        if (_initialized) return;
+        _name = language.GetFieldIdFromName("name");
+        _type = language.GetFieldIdFromName("type");
+        _function = language.GetFieldIdFromName("function");
+        _expression = language.GetFieldIdFromName("expression");
+        _right = language.GetFieldIdFromName("right");
+        _returns = language.GetFieldIdFromName("returns");
+        _initialized = true;
+    }
+
+    /// <summary>"name" 字段 ID</summary>
+    public static ushort Name => _name;
+    /// <summary>"type" 字段 ID</summary>
+    public static ushort Type => _type;
+    /// <summary>"function" 字段 ID</summary>
+    public static ushort Function => _function;
+    /// <summary>"expression" 字段 ID</summary>
+    public static ushort Expression => _expression;
+    /// <summary>"right" 字段 ID</summary>
+    public static ushort Right => _right;
+    /// <summary>"returns" 字段 ID</summary>
+    public static ushort Returns => _returns;
+}
+
+/// <summary>单遍历构建的符号结构集合 — 替代 6 次独立 BuildXxx 遍历</summary>
+internal sealed record SymbolStructures(
+    HashSet<string> ClassNameSet,
+    HashSet<string> InterfaceNameSet,
+    List<MethodLookupEntry> MethodLookup,
+    Dictionary<string, string> ExtensionMethodMap,
+    SymbolIndex SymbolIndex,
+    Dictionary<string, string> TypeFqnMap);
+
 /// <summary>
 /// C# 符号提取器 — 基于 Tree-sitter 解析 C# 源码,提取符号、调用、依赖信息
 /// 实现 ILanguagePlugin 接口,支持增量解析与并行提取
@@ -113,13 +158,41 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
 
     private ExtractionResult ExtractAllCore(string sourceCode, string filePath) {
         var tree = ParseIncremental(sourceCode, filePath);
+        TreeSitterFieldIds.Initialize(tree.Language);
 
         try {
             var symbols = new List<SymbolInfo>();
-            CollectSymbols(tree.RootNode, filePath, symbols, parentSymbol: null, parentFqn: null, ns: null);
+            var rawVariableTypes = new Dictionary<string, string>(StringComparer.Ordinal);
+            var interfaceNames = new HashSet<string>(StringComparer.Ordinal);
+            CollectSymbols(tree.RootNode, filePath, symbols, parentSymbol: null, parentFqn: null, ns: null,
+                rawVariableTypes, interfaceNames);
 
-            var calls = _callExtractor.ExtractCallsFromTree(tree.RootNode, filePath, symbols);
-            var deps = _dependencyExtractor.ExtractDependenciesFromTree(tree.RootNode, filePath, symbols);
+            // 单遍历构建全部符号结构（6→1 pass）
+            var structures = BuildSymbolStructures(symbols);
+
+            // 过滤 variableTypeMap：保留类型名首字母大写或在 classNameSet 中的条目
+            var variableTypeMap = new Dictionary<string, string>(rawVariableTypes.Count, StringComparer.Ordinal);
+            foreach (var (name, typeName) in rawVariableTypes) {
+                if (typeName.Length > 0 && (char.IsUpper(typeName[0]) || structures.ClassNameSet.Contains(typeName))) {
+                    variableTypeMap[name] = typeName;
+                }
+            }
+
+            var calls = new List<CallEdge>();
+            var fileFqn = CSharpDependencyExtractor.BuildFileFqn(filePath, symbols);
+            var deps = new List<DependencyEdge>();
+            var typeUsageMap = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+
+            // 联合主遍历：同时收集 calls、deps、类型引用
+            CollectCallsAndDeps(tree.RootNode, filePath, structures.ClassNameSet, structures.InterfaceNameSet, variableTypeMap,
+                structures.MethodLookup, structures.SymbolIndex, structures.ExtensionMethodMap, calls, fileFqn, deps, interfaceNames, structures.TypeFqnMap,
+                null, typeUsageMap);
+
+            // 从累积的类型引用创建 DependencyEdge
+            foreach (var (sourceFqn, usedTypes) in typeUsageMap) {
+                CSharpDependencyExtractor.BuildTypeUsageEdges(sourceFqn, filePath, usedTypes, deps, structures.TypeFqnMap);
+            }
+
             var chunks = CollectChunksWithParents(sourceCode, filePath, symbols);
 
             return new ExtractionResult {
@@ -130,6 +203,101 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
             };
         } finally {
             _treeCache.Add(filePath, tree, sourceCode);
+        }
+    }
+
+    /// <summary>单遍历构建全部符号结构 — 替代 6 次 BuildXxx 独立遍历</summary>
+    internal static SymbolStructures BuildSymbolStructures(IReadOnlyList<SymbolInfo> symbols) {
+        var classNameSet = new HashSet<string>(StringComparer.Ordinal);
+        var interfaceNameSet = new HashSet<string>(StringComparer.Ordinal);
+        var methodLookup = new List<MethodLookupEntry>(symbols.Count);
+        var extensionMethodMap = new Dictionary<string, string>(StringComparer.Ordinal);
+        var typeFqnMap = new Dictionary<string, string>(StringComparer.Ordinal);
+        var byFqn = new Dictionary<string, SymbolInfo>(symbols.Count, StringComparer.Ordinal);
+        var byName = new Dictionary<string, List<SymbolInfo>>(symbols.Count, StringComparer.Ordinal);
+
+        foreach (var s in symbols) {
+            if (!byFqn.ContainsKey(s.FullyQualifiedName)) {
+                byFqn[s.FullyQualifiedName] = s;
+            }
+            if (!byName.TryGetValue(s.Name, out var nameList)) {
+                nameList = new List<SymbolInfo>(1);
+                byName[s.Name] = nameList;
+            }
+            nameList.Add(s);
+
+            switch (s.Kind) {
+                case SymbolKind.Class or SymbolKind.Struct:
+                    classNameSet.Add(s.Name);
+                    if (!typeFqnMap.ContainsKey(s.Name)) {
+                        typeFqnMap[s.Name] = s.FullyQualifiedName;
+                    }
+                    break;
+                case SymbolKind.Interface:
+                    interfaceNameSet.Add(s.Name);
+                    if (!typeFqnMap.ContainsKey(s.Name)) {
+                        typeFqnMap[s.Name] = s.FullyQualifiedName;
+                    }
+                    break;
+                case SymbolKind.Enum or SymbolKind.Delegate or SymbolKind.Record or SymbolKind.RecordStruct:
+                    if (!typeFqnMap.ContainsKey(s.Name)) {
+                        typeFqnMap[s.Name] = s.FullyQualifiedName;
+                    }
+                    break;
+                case SymbolKind.Method:
+                    methodLookup.Add(new MethodLookupEntry(s.FullyQualifiedName, s.StartLine, s.EndLine));
+                    if (s.ParentSymbol is not null) {
+                        extensionMethodMap[s.Name] = s.ParentSymbol;
+                    }
+                    break;
+                case SymbolKind.Constructor or SymbolKind.Property or SymbolKind.LocalFunction:
+                    methodLookup.Add(new MethodLookupEntry(s.FullyQualifiedName, s.StartLine, s.EndLine));
+                    break;
+            }
+        }
+
+        methodLookup.Sort(static (a, b) => a.StartLine.CompareTo(b.StartLine));
+        return new SymbolStructures(classNameSet, interfaceNameSet, methodLookup, extensionMethodMap, new SymbolIndex(byFqn, byName), typeFqnMap);
+    }
+
+    /// <summary>联合主遍历 — 单次 AST 遍历同时收集调用边、依赖边、类型引用（合并 CollectCalls + CollectDependencies + CollectTypeReferences）</summary>
+    private static void CollectCallsAndDeps(
+        Node node, string filePath,
+        HashSet<string> classNameSet, HashSet<string> interfaceNameSet,
+        Dictionary<string, string> variableTypeMap, List<MethodLookupEntry> methodLookup,
+        SymbolIndex symbols, Dictionary<string, string> extensionMethodMap,
+        List<CallEdge> calls,
+        string fileFqn, List<DependencyEdge> deps, HashSet<string> interfaceNames,
+        Dictionary<string, string> typeFqnMap,
+        string? currentTypeFqn, Dictionary<string, HashSet<string>> typeUsageMap) {
+        if (node.IsError) return;
+
+        var nodeType = node.Type;
+
+        CSharpCallExtractor.ProcessCallNode(node, nodeType, filePath, classNameSet, interfaceNameSet, variableTypeMap,
+            methodLookup, symbols, extensionMethodMap, calls);
+        CSharpDependencyExtractor.ProcessDepNode(node, nodeType, fileFqn, filePath, deps, interfaceNames, typeFqnMap);
+
+        if (currentTypeFqn is not null) {
+            if (!typeUsageMap.TryGetValue(currentTypeFqn, out var usedTypes)) {
+                usedTypes = new HashSet<string>(StringComparer.Ordinal);
+                typeUsageMap[currentTypeFqn] = usedTypes;
+            }
+            CSharpDependencyExtractor.ProcessTypeReferenceNode(node, nodeType, usedTypes);
+        }
+
+        var newTypeFqn = currentTypeFqn;
+        if (CSharpDependencyExtractor.TypeDeclNodeTypes.Contains(nodeType)) {
+            newTypeFqn = CSharpDependencyExtractor.TryGetTypeDeclSourceFqn(node, typeFqnMap);
+        }
+
+        var children = node.NamedChildren;
+        var childCount = children.Count;
+        for (var ci = 0; ci < childCount; ci++) {
+            var child = children[ci];
+            CollectCallsAndDeps(child, filePath, classNameSet, interfaceNameSet, variableTypeMap,
+                methodLookup, symbols, extensionMethodMap, calls, fileFqn, deps, interfaceNames, typeFqnMap,
+                newTypeFqn, typeUsageMap);
         }
     }
 
@@ -272,10 +440,12 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
 
     private IReadOnlyList<SymbolInfo> ExtractSymbolsCore(string sourceCode, string filePath) {
         var tree = ParseIncremental(sourceCode, filePath);
+        TreeSitterFieldIds.Initialize(tree.Language);
 
         try {
             var symbols = new List<SymbolInfo>();
-            CollectSymbols(tree.RootNode, filePath, symbols, parentSymbol: null, parentFqn: null, ns: null);
+            CollectSymbols(tree.RootNode, filePath, symbols, parentSymbol: null, parentFqn: null, ns: null,
+                new Dictionary<string, string>(StringComparer.Ordinal), new HashSet<string>(StringComparer.Ordinal));
             return symbols;
         } finally {
             _treeCache.Add(filePath, tree, sourceCode);
@@ -334,24 +504,32 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
     }
 
     private static void CollectSymbols(Node node, string filePath, List<SymbolInfo> symbols,
-        string? parentSymbol, string? parentFqn, string? ns) {
+        string? parentSymbol, string? parentFqn, string? ns,
+        Dictionary<string, string> rawVariableTypes, HashSet<string> interfaceNames) {
         if (node.IsError) {
             return;
         }
 
-        if (node.Type == "compilation_unit") {
-            CollectCompilationUnitChildren(node, filePath, symbols);
+        var nodeType = node.Type;
+
+        CSharpCallExtractor.ProcessVariableTypeNodeUnfiltered(node, nodeType, rawVariableTypes);
+        CSharpDependencyExtractor.ProcessInterfaceNameNode(node, nodeType, interfaceNames);
+
+        if (nodeType == "compilation_unit") {
+            CollectCompilationUnitChildren(node, filePath, symbols, rawVariableTypes, interfaceNames);
             return;
         }
 
-        if (TryExtractSymbol(node, filePath, parentSymbol, parentFqn, ns, out var symbol, out var currentNs)) {
+        if (TryExtractSymbol(node, nodeType, filePath, parentSymbol, parentFqn, ns, out var symbol, out var currentNs)) {
             symbols.Add(symbol);
 
             if (TryExtractPrimaryConstructor(node, filePath, symbol.Name, symbol.FullyQualifiedName, currentNs, symbols)) {
             }
 
-            foreach (var child in node.NamedChildren) {
-                CollectSymbols(child, filePath, symbols, symbol.Name, symbol.FullyQualifiedName, currentNs);
+            var children = node.NamedChildren;
+            var childCount = children.Count;
+            for (var ci = 0; ci < childCount; ci++) {
+                CollectSymbols(children[ci], filePath, symbols, symbol.Name, symbol.FullyQualifiedName, currentNs, rawVariableTypes, interfaceNames);
             }
             return;
         }
@@ -360,17 +538,24 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
             return;
         }
 
-        foreach (var child in node.NamedChildren) {
-            CollectSymbols(child, filePath, symbols, parentSymbol, parentFqn, ns);
+        var fallbackChildren = node.NamedChildren;
+        var fallbackCount = fallbackChildren.Count;
+        for (var ci = 0; ci < fallbackCount; ci++) {
+            CollectSymbols(fallbackChildren[ci], filePath, symbols, parentSymbol, parentFqn, ns, rawVariableTypes, interfaceNames);
         }
     }
 
-    private static void CollectCompilationUnitChildren(Node node, string filePath, List<SymbolInfo> symbols) {
+    private static void CollectCompilationUnitChildren(Node node, string filePath, List<SymbolInfo> symbols,
+        Dictionary<string, string> rawVariableTypes, HashSet<string> interfaceNames) {
         string? fileScopedNs = null;
 
-        foreach (var child in node.NamedChildren) {
-            if (child.Type == "file_scoped_namespace_declaration") {
-                var nameNode = child.GetChildForField("name");
+        var children = node.NamedChildren;
+        var childCount = children.Count;
+        for (var ci = 0; ci < childCount; ci++) {
+            var child = children[ci];
+            var childType = child.Type;
+            if (childType == "file_scoped_namespace_declaration") {
+                var nameNode = child.GetChildForField(TreeSitterFieldIds.Name);
                 var nsName = nameNode?.Text ?? "<anonymous>";
 
                 symbols.Add(new SymbolInfo {
@@ -389,25 +574,28 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
 
                 fileScopedNs = nsName;
 
-                foreach (var nsChild in child.NamedChildren) {
+                var nsChildren = child.NamedChildren;
+                var nsCount = nsChildren.Count;
+                for (var ni = 0; ni < nsCount; ni++) {
+                    var nsChild = nsChildren[ni];
                     if (nsChild.Type != "identifier") {
-                        CollectSymbols(nsChild, filePath, symbols, null, null, fileScopedNs);
+                        CollectSymbols(nsChild, filePath, symbols, null, null, fileScopedNs, rawVariableTypes, interfaceNames);
                     }
                 }
 
                 continue;
             }
 
-            CollectSymbols(child, filePath, symbols, null, null, fileScopedNs);
+            CollectSymbols(child, filePath, symbols, null, null, fileScopedNs, rawVariableTypes, interfaceNames);
         }
     }
 
-    private static bool TryExtractSymbol(Node node, string filePath, string? parentSymbol, string? parentFqn, string? ns,
+    private static bool TryExtractSymbol(Node node, string nodeType, string filePath, string? parentSymbol, string? parentFqn, string? ns,
         [NotNullWhen(true)] out SymbolInfo? symbol, out string? currentNs) {
         symbol = null;
         currentNs = ns;
 
-        if (!NodeTypeToKind.TryGetValue(node.Type, out var kind)) {
+        if (!NodeTypeToKind.TryGetValue(nodeType, out var kind)) {
             return false;
         }
 
@@ -450,13 +638,13 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
             case SymbolKind.Constructor:
             return "ctor";
             default:
-            var nameNode = node.GetChildForField("name");
+            var nameNode = node.GetChildForField(TreeSitterFieldIds.Name);
             return nameNode?.Text ?? "<anonymous>";
         }
     }
 
     internal static string ExtractOperatorName(Node node) {
-        var nameNode = node.GetChildForField("name");
+        var nameNode = node.GetChildForField(TreeSitterFieldIds.Name);
         if (nameNode is not null) {
             return $"op_{nameNode.Text}";
         }
@@ -481,7 +669,7 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
     }
 
     private static string ExtractDestructorName(Node node) {
-        var nameNode = node.GetChildForField("name");
+        var nameNode = node.GetChildForField(TreeSitterFieldIds.Name);
         if (nameNode is not null) {
             return $"Finalize";
         }
@@ -579,7 +767,7 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
         string? parentFqn, string? ns, SymbolKind kind, string? accessibility, List<SymbolInfo> symbols) {
         foreach (var child in variableDecl.NamedChildren) {
             if (child.Type == "variable_declarator") {
-                var nameNode = child.GetChildForField("name");
+                var nameNode = child.GetChildForField(TreeSitterFieldIds.Name);
                 if (nameNode is null) {
                     continue;
                 }

@@ -1,6 +1,9 @@
 // 测试使用真实文件系统创建临时工作目录
-#pragma warning disable JCC9001, JCC9002
+#pragma warning disable JCC9002
+
 namespace Host.Tests.ChatCommands;
+
+[SuppressMessage("FileSystemAbstraction", "JCC9001", Justification = "集成测试需直接访问文件系统验证 adddir 命令的真实行为")]
 
 public sealed class AddDirCommandTests : FileSystemTestBase {
     [Fact]

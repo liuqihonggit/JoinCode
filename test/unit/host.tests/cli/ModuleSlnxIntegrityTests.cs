@@ -1,12 +1,14 @@
 // JCC9001 抑制: 源码级回归测试需直接读取文件系统验证 module.slnx 引用完整性
 // JCC11003 抑制: 存量代码可空抑制
-#pragma warning disable JCC9001, JCC11003
+#pragma warning disable JCC11003
+
 namespace Host.Tests.Cli;
 
 /// <summary>
 /// BUG-5 回归测试: 10 个 module.slnx 路径引用修正(snake_case→PascalCase),移除 2 个不存在的 csproj 引用。
 /// <para>验证: 所有 module.slnx 中 &lt;Project Path="..."/&gt; 引用的 csproj 文件实际存在。</para>
 /// </summary>
+[SuppressMessage("FileSystemAbstraction", "JCC9001", Justification = "源码级回归测试需直接读取文件系统验证 module.slnx 引用完整性")]
 public sealed class ModuleSlnxIntegrityTests {
     private static readonly string RepoRoot = FindRepoRoot();
     private static readonly Regex ProjectPathRegex = new(

@@ -53,3 +53,4 @@ global using TaskState = JoinCode.Abstractions.State.TaskExecutionStatus;
 global using TestInMemFs = Testing.Common.Services.InMemoryFileSystem;
 global using TranscriptEntry = JoinCode.Abstractions.LLM.Chat.TranscriptEntry;
 global using TranscriptSummary = JoinCode.Abstractions.LLM.Chat.TranscriptSummary;
+global using System.Diagnostics.CodeAnalysis;

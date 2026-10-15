@@ -1,6 +1,7 @@
 
 // 测试使用真实文件系统创建临时工作目录
-#pragma warning disable JCC9001, JCC9002
+#pragma warning disable JCC9002
+
 namespace MockServer.E2E.Tests.Fixtures;
 
 /// <summary>
@@ -21,6 +22,7 @@ public sealed record CliProcessOptions {
 /// 管道 JoinCode 进程工厂
 /// 用于创建带管道参数的 JoinCode 进程
 /// </summary>
+[SuppressMessage("FileSystemAbstraction", "JCC9001", Justification = "E2E 管道 CLI 进程工厂需直接访问文件系统定位可执行文件")]
 public sealed class PipeJoinCodeProcessFactory {
     private readonly ILogger<PipeJoinCodeProcessFactory> _logger;
 

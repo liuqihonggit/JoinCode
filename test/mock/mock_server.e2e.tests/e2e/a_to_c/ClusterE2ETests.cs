@@ -1,13 +1,15 @@
 namespace MockServer.E2E.Tests.E2E;
 
 
-#pragma warning disable JCC9001, JCC9002
+#pragma warning disable JCC9002
+
 
 /// <summary>
 /// 集群 E2E 测试 — 验证 jcc 集群流程（cluster_analyze → expand → worker → gather → merge → review）
 /// 通过 MockServer 模拟 LLM 响应，验证集群 DAG 执行不卡死、退出码正确
 /// </summary>
 [Trait("Category", "Integration")]
+[SuppressMessage("FileSystemAbstraction", "JCC9001", Justification = "E2E 集群测试需直接访问文件系统验证集群产物")]
 public sealed partial class ClusterE2ETests : IAsyncLifetime {
     private readonly ITestOutputHelper _output;
     private Process? _mockServerProcess;

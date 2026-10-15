@@ -4,7 +4,10 @@
 namespace MockServer.E2E.Tests.Core;
 
 // 测试运行器需要启动真实进程和访问文件系统路径
-#pragma warning disable JCC9001, JCC9002
+#pragma warning disable JCC9002
+
+[SuppressMessage("FileSystemAbstraction", "JCC9001", Justification = "E2E 对话运行器需直接访问文件系统管理测试产物")]
+
 public sealed class DualRoleConversationRunner : IAsyncDisposable {
     private readonly ILogger<DualRoleConversationRunner> _logger;
     private readonly IFileSystem _fs;

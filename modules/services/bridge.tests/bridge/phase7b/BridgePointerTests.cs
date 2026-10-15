@@ -1,6 +1,7 @@
 
 // Bridge.Tests 独立组件测试，使用 InMemoryFileSystem 替代 PhysicalFileSystem
-#pragma warning disable JCC9001, JCC9002
+#pragma warning disable JCC9002
+
 namespace Bridge.Tests.Phase7B;
 
 public sealed class BridgePointerTests : IDisposable {

@@ -2,11 +2,14 @@ namespace Infrastructure.Windows.JobObject;
 
 // cgroup 是 Linux 内核虚拟文件系统，用 SafeFileIO 统一 FileShare.ReadWrite 避免并发冲突
 // Directory.*/File.Exists 保留直接调用（cgroup 是内核接口，不适合 IFileSystem 抽象）
-#pragma warning disable JCC9001, JCC9002
+#pragma warning disable JCC9002
+
 
 /// <summary>
 /// Linux cgroup 沙箱 — 通过 cgroup v2 限制子进程内存与进程数，并在释放时终止全部子进程
 /// </summary>
+[SuppressMessage("FileSystemAbstraction", "JCC9001",
+    Justification = "cgroup 是 Linux 内核虚拟文件系统(vfs), Directory/File 操作是内核接口, 不适合 IFileSystem 抽象层")]
 public sealed class LinuxCgroupSandbox : IAsyncDisposable {
     private readonly ILogger? _logger;
     private string? _cgroupPath;

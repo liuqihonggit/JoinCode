@@ -1,4 +1,5 @@
-#pragma warning disable JCC9001, JCC9002
+#pragma warning disable JCC9002
+
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 #pragma warning disable JCC11003
 namespace JoinCode.CodeIndex.Tests;

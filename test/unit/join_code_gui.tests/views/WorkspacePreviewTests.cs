@@ -1,4 +1,3 @@
-#pragma warning disable JCC9001 // Screenshots are diagnostic artifacts, following the repository dumps convention.
 namespace JoinCode.Gui.Tests.Views;
 
 /// <summary>真实 Skia 帧验证四个主题、外观抽屉和窄窗口布局。</summary>

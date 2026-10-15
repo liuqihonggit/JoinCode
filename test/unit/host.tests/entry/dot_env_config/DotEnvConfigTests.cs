@@ -2,7 +2,11 @@
 #pragma warning disable JCC11003
 namespace JoinCode.Entry.Tests;
 
-#pragma warning disable JCC9001, JCC3013
+#pragma warning disable JCC3013
+
+
+[SuppressMessage("FileSystemAbstraction", "JCC9001", Justification = ".env 配置测试需直接访问文件系统验证配置加载")]
+
 
 public sealed class DotEnvConfigTests {
     private static readonly string TempDir = Path.Combine(Path.GetTempPath(), $"jcc_test_{Guid.NewGuid():N}");

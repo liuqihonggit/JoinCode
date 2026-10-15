@@ -3,13 +3,15 @@
 namespace MockServer.E2E.Tests.E2E;
 
 
-#pragma warning disable JCC9001, JCC9002
+#pragma warning disable JCC9002
+
 
 /// <summary>
 /// 流式响应 E2E 测试 — 验证 jcc -p 非交互模式通过 MockServer 完成流式请求不卡住
 /// TDD: 先写失败测试（jcc --await 20 超时返回 1234），修复后应返回 0
 /// </summary>
 [Trait("Category", "Integration")]
+[SuppressMessage("FileSystemAbstraction", "JCC9001", Justification = "E2E 流式响应测试需直接访问文件系统验证流式产物")]
 public sealed partial class StreamingResponseE2ETests : IAsyncLifetime {
     private readonly ITestOutputHelper _output;
     private Process? _mockServerProcess;

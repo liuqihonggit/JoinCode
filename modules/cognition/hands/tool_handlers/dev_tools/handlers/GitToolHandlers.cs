@@ -446,15 +446,21 @@ public partial class GitToolHandlers {
         }
     }
 
-    /// <summary>并行初始化/更新子模块（git submodule update --init --jobs=CPU×2 --depth=1）— 默认并行 + 浅克隆</summary>
+    /// <summary>并行初始化/更新子模块 — adaptive=true 时自动探测延迟,高延迟走 tarball API 并行下载</summary>
     [McpTool(GitToolNameEnumConstants.GitSubmoduleUpdate, "Init and update submodules in parallel", "git")]
     public async Task<ToolResult> GitSubmoduleUpdateAsync(
         [McpToolParameter("Working directory path (optional, defaults to current directory)", Required = false)] string? working_dir = null,
         [McpToolParameter("Shallow clone depth (optional, defaults to 1 for latest commit only)", Required = false)] int? depth = 1,
         [McpToolParameter("Parallel job count (optional, defaults to CPU×2)", Required = false)] int? jobs = null,
+        [McpToolParameter("Adaptive: auto-detect latency, use tarball API for high-latency (optional, defaults to false)", Required = false)] bool adaptive = false,
         CancellationToken cancellationToken = default) {
         try {
             var effectiveJobs = jobs is > 0 ? jobs.Value : ParallelJobs;
+
+            if (adaptive) {
+                return await UpdateAdaptiveAsync(working_dir, effectiveJobs, cancellationToken).ConfigureAwait(false);
+            }
+
             var parts = new List<string> {
                 GitSubCommand.Submodule.ToValue(),
                 "update",
@@ -482,6 +488,26 @@ public partial class GitToolHandlers {
         } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("git_submodule_update", ex, _logger, "working_dir", working_dir ?? "(null)");
         }
+    }
+
+    /// <summary>
+    /// 自适应子模块更新 — 探测延迟,自动选择 git --jobs 或 tarball API 方案。
+    /// </summary>
+    private async Task<ToolResult> UpdateAdaptiveAsync(string? workingDir, int jobs, CancellationToken ct) {
+        var cwd = !string.IsNullOrWhiteSpace(workingDir) ? workingDir : (_currentWorkingDirectory ?? _fs.GetCurrentDirectory());
+        using var http = new HttpClient { BaseAddress = new Uri("https://api.github.com/") };
+        var token = Environment.GetEnvironmentVariable("JCC_GITHUB_TOKEN") ?? Environment.GetEnvironmentVariable("GITHUB_TOKEN") ?? string.Empty;
+        var downloader = new SubmoduleParallelDownloader(http, token, _fs, _gitRunner, logger: null);
+        var result = await downloader.UpdateAsync(cwd, jobs, ct).ConfigureAwait(false);
+
+        if (result.Success) {
+            return ToolResultBuilder.Success()
+                .WithText($"Submodule update ({result.Strategy}): {result.Message}")
+                .Build();
+        }
+        return ToolResultBuilder.Error()
+            .WithText($"Submodule update failed ({result.Strategy}): {result.Message}")
+            .Build();
     }
 
     private void RecordGitMetrics(string command, bool isSuccess)

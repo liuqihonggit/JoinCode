@@ -5,6 +5,8 @@ namespace JoinCode;
 /// </summary>
 class Program {
     static async Task<int> Main(string[] args) {
+        args = RestoreMsysPathExpansion(args);
+
         // 原生 DLL 引导 — 从嵌入资源释放到临时目录并注册搜索路径（必须在任何 P/Invoke 之前）
         await Entry.Startup.NativeDllBootstrapper.InitializeAsync().ConfigureAwait(false);
 
@@ -224,6 +226,37 @@ class Program {
             state: null,
             dueTime: TimeSpan.FromSeconds(seconds),
             period: System.Threading.Timeout.InfiniteTimeSpan);
+    }
+
+    /// <summary>
+    /// 恢复 MSYS2/Git Bash 路径展开 — 将被展开的斜杠命令参数恢复为原始 /命令名 格式。
+    /// <para>Git Bash 会将以 / 开头的参数视为 Unix 路径并展开为 Windows 路径</para>
+    /// <para>例: /compact → C:/Program Files/Git/compact → 恢复为 /compact</para>
+    /// </summary>
+    private static string[] RestoreMsysPathExpansion(string[] args) {
+        if (args.Length == 0)
+            return args;
+        var restored = new string[args.Length];
+        for (var i = 0; i < args.Length; i++) {
+            restored[i] = TryRestoreMsysPath(args[i]) ?? args[i];
+        }
+        return restored;
+    }
+
+    private static string? TryRestoreMsysPath(string arg) {
+        if (arg.Length < 6 || arg[1] != ':')
+            return null;
+        var gitIdx = arg.IndexOf("/Git/", StringComparison.OrdinalIgnoreCase);
+        if (gitIdx < 0)
+            gitIdx = arg.IndexOf("\\Git\\", StringComparison.OrdinalIgnoreCase);
+        if (gitIdx < 0)
+            return null;
+        var rest = arg.AsSpan(gitIdx + 4);
+        while (!rest.IsEmpty && (rest[0] == '/' || rest[0] == '\\'))
+            rest = rest[1..];
+        if (rest.IsEmpty || rest.Contains('.') || rest.Contains('/') || rest.Contains('\\'))
+            return null;
+        return "/" + rest.ToString();
     }
 
     /// <summary>

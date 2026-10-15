@@ -1,12 +1,12 @@
 <Solution>
-  <Project Path="prompts/prompts.csproj" />
-  <Project Path="brain/brain.csproj" />
-  <Project Path="brain.context.tests/brain.context.tests.csproj" />
-  <Project Path="brain.other.tests/brain.other.tests.csproj" />
-  <Project Path="brain.prompts.tests/brain.prompts.tests.csproj" />
-  <Project Path="hands/hands.csproj" />
-  <Project Path="hands.api.tests/hands.api.tests.csproj" />
-  <Project Path="hands.shell.tests/hands.shell.tests.csproj" />
-  <Project Path="hands.skills.tests/hands.skills.tests.csproj" />
+  <Project Path="prompts/Prompts.csproj" />
+  <Project Path="brain/Brain.csproj" />
+  <Project Path="brain.context.tests/Brain.Context.Tests.csproj" />
+  <Project Path="brain.other.tests/Brain.Other.Tests.csproj" />
+  <Project Path="brain.prompts.tests/Brain.Prompts.Tests.csproj" />
+  <Project Path="hands/Hands.csproj" />
+  <Project Path="hands.api.tests/Hands.Api.Tests.csproj" />
+  <Project Path="hands.shell.tests/Hands.Shell.Tests.csproj" />
+  <Project Path="hands.skills.tests/Hands.Skills.Tests.csproj" />
   <Project Path="hands.tool_handlers.tests/Hands.ToolHandlers.Tests.csproj" />
 </Solution>

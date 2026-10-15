@@ -1,10 +1,10 @@
 <Solution>
-  <Project Path="bridge/bridge.csproj" />
-  <Project Path="bridge.tests/bridge.tests.csproj" />
-  <Project Path="browser/browser.csproj" />
-  <Project Path="browser.tests/browser.tests.csproj" />
-  <Project Path="dream/dream.csproj" />
-  <Project Path="dream.tests/dream.tests.csproj" />
-  <Project Path="update/update.csproj" />
+  <Project Path="bridge/Bridge.csproj" />
+  <Project Path="bridge.tests/Bridge.Tests.csproj" />
+  <Project Path="browser/Browser.csproj" />
+  <Project Path="browser.tests/Browser.Tests.csproj" />
+  <Project Path="dream/Dream.csproj" />
+  <Project Path="dream.tests/Dream.Tests.csproj" />
+  <Project Path="update/Update.csproj" />
   <Project Path="sandbox_satellite/SandboxSatellite.csproj" />
 </Solution>

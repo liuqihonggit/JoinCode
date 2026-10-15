@@ -1,4 +1,4 @@
 <Solution>
-  <Project Path="abstractions/abstractions.csproj" />
-  <Project Path="infrastructure/infrastructure.csproj" />
+  <Project Path="abstractions/Abstractions.csproj" />
+  <Project Path="infrastructure/Infrastructure.csproj" />
 </Solution>

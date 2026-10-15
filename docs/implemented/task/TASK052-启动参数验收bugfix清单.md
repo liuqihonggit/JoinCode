@@ -90,6 +90,25 @@ var items = filtered
 
 **验收标准：** `jcc slash_schema /compact` 在 Git Bash 下无需 `MSYS_NO_PATHCONV=1` 即可正常工作（如果选择内部修复），或文档明确提示绕过方式。
 
+---
+
+### BUG-4：CtorScanner 扫描目录和输出路径过时
+
+**严重度：中**
+**验收命令：** `ctor-scanner.exe`
+
+**现象：** `Found 0 .cs files` + `DirectoryNotFoundException: 'D:\project\w1\tool\ctor_scanner\ctor_scan_report.json'`
+
+**根因：** `modules/tools/ctor_scanner/Program.cs`
+- 第 5 行：`ScanDirs = ["lib", "kit", "server", "llm", "app"]` — 旧目录结构，已迁移到 `modules/` 16 功能域架构
+- 第 118 行：`Path.Combine(repoRoot, "tool", "ctor_scanner", ...)` — 旧路径，应为 `modules/tools/ctor_scanner/`
+
+**修复：**
+- `ScanDirs` 改为 `["modules"]`
+- 输出路径改为 `Path.Combine(repoRoot, "modules", "tools", "ctor_scanner", "ctor_scan_report.json")`
+
+**验收标准：** `ctor-scanner.exe` 扫描 modules/ 下所有 .cs 文件，输出报告到正确路径。✅ 4952 文件, 157 风险构造函数。
+
 ## 3. 修复优先级
 
 | 顺序 | Bug | 理由 |
@@ -105,6 +124,7 @@ var items = filtered
 | `McpCommand.cs:45` 填充 description/kind (BUG-1) | `jcc mcp_list` 输出 | ✅ | ✅ `mcp_list --category github` 全部有 description |
 | `--dry-run` 拦截 LLM 调用 (BUG-2) | `jcc -p --dry-run` 非交互模式 | ✅ | ✅ 输出试跑信息,不调用 LLM,exit=0 |
 | Git Bash 路径展开检测/恢复 (BUG-3) | `jcc slash_schema /xxx` | ✅ | ✅ 无需 MSYS_NO_PATHCONV=1 |
+| CtorScanner 扫描目录更新 (BUG-4) | `ctor-scanner.exe` | ✅ | ✅ 扫描 modules/ 4952 文件,157 风险 |
 
 ## 5. 决策记录
 

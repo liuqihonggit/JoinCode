@@ -5,6 +5,8 @@ namespace JoinCode;
 /// </summary>
 class Program {
     static async Task<int> Main(string[] args) {
+        args = RestoreMsysPathExpansion(args);
+
         // 原生 DLL 引导 — 从嵌入资源释放到临时目录并注册搜索路径（必须在任何 P/Invoke 之前）
         await Entry.Startup.NativeDllBootstrapper.InitializeAsync().ConfigureAwait(false);
 
@@ -227,6 +229,37 @@ class Program {
     }
 
     /// <summary>
+    /// 恢复 MSYS2/Git Bash 路径展开 — 将被展开的斜杠命令参数恢复为原始 /命令名 格式。
+    /// <para>Git Bash 会将以 / 开头的参数视为 Unix 路径并展开为 Windows 路径</para>
+    /// <para>例: /compact → C:/Program Files/Git/compact → 恢复为 /compact</para>
+    /// </summary>
+    private static string[] RestoreMsysPathExpansion(string[] args) {
+        if (args.Length == 0)
+            return args;
+        var restored = new string[args.Length];
+        for (var i = 0; i < args.Length; i++) {
+            restored[i] = TryRestoreMsysPath(args[i]) ?? args[i];
+        }
+        return restored;
+    }
+
+    private static string? TryRestoreMsysPath(string arg) {
+        if (arg.Length < 6 || arg[1] != ':')
+            return null;
+        var gitIdx = arg.IndexOf("/Git/", StringComparison.OrdinalIgnoreCase);
+        if (gitIdx < 0)
+            gitIdx = arg.IndexOf("\\Git\\", StringComparison.OrdinalIgnoreCase);
+        if (gitIdx < 0)
+            return null;
+        var rest = arg.AsSpan(gitIdx + 4);
+        while (!rest.IsEmpty && (rest[0] == '/' || rest[0] == '\\'))
+            rest = rest[1..];
+        if (rest.IsEmpty || rest.Contains('.') || rest.Contains('/') || rest.Contains('\\'))
+            return null;
+        return "/" + rest.ToString();
+    }
+
+    /// <summary>
     /// 验证 --await 参数值 — 无效值(非数字/零/负数)返回错误消息,避免静默降级导致无超时保护。
     /// </summary>
     private static string? ValidateAwaitArg(string[] args) {
@@ -342,8 +375,9 @@ class Program {
             }.With("processId", Environment.ProcessId.ToString()));
 
         // 1. 结构化 JSON 快照（DTO + JsonSerializer，AOT 安全）
+        var idShort = snapshot.Id.ToString("N")[..8];
         try {
-            var jsonPath = System.IO.Path.Combine(dumpDir, $"crash_{timestamp}_{snapshot.Id:N8}.json");
+            var jsonPath = System.IO.Path.Combine(dumpDir, $"crash_{timestamp}_{idShort}.json");
             var dto = new CrashDumpSnapshotDto(
                 snapshot.Id,
                 snapshot.CapturedAt,
@@ -368,7 +402,7 @@ class Program {
 
         // 2. 人类可读文本快照
         try {
-            var txtPath = System.IO.Path.Combine(dumpDir, $"crash_{timestamp}_{snapshot.Id:N8}.log");
+            var txtPath = System.IO.Path.Combine(dumpDir, $"crash_{timestamp}_{idShort}.log");
             var txt = new StringBuilder();
             txt.AppendLine("═══ 崩溃快照 ═══");
             txt.AppendLine($"ID:      {snapshot.Id}");

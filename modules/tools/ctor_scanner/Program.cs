@@ -2,7 +2,7 @@ namespace CtorScanner;
 
 internal static class Program
 {
-    private static readonly string[] ScanDirs = ["lib", "kit", "server", "llm", "app"];
+    private static readonly string[] ScanDirs = ["modules"];
 
     private static readonly string[] DisposableKeywords =
         ["Stream", "Reader", "Writer", "Process", "Thread", "Timer",
@@ -115,7 +115,7 @@ internal static class Program
         };
 
         var json = JsonSerializer.Serialize(report, options);
-        var outputPath = Path.Combine(repoRoot, "tool", "ctor_scanner", "ctor_scan_report.json");
+        var outputPath = Path.Combine(repoRoot, "modules", "tools", "ctor_scanner", "ctor_scan_report.json");
         File.WriteAllText(outputPath, json);
 
         Console.WriteLine();

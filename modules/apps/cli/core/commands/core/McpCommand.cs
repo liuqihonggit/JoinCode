@@ -42,7 +42,7 @@ public sealed class McpCliCommand {
                     .ToList();
                 var count = filtered.Count;
                 var items = filtered
-                    .Select(t => new Cli.Output.CliToolListItem(t.Name, "", t.Category, null, ""))
+                    .Select(t => new Cli.Output.CliToolListItem(t.Name, t.Description, t.Category, t.GroupName, t.Kind.ToString()))
                     .ToList();
                 var envelope = Cli.Output.CliOutputEnvelope<System.Collections.Generic.List<Cli.Output.CliToolListItem>>.Success(items, new Cli.Output.CliOutputMeta { TotalCount = count });
                 System.Console.WriteLine(envelope.ToJsonString());

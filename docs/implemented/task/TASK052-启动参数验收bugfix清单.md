@@ -1,6 +1,6 @@
 # TASK052 — 启动参数验收发现的 bugfix 清单
 
-> 状态：proposed
+> 状态：accepted
 > 创建：2026-10-15
 > 验收方式：实际编译 + 启动 exe + 传参验证（非 mock，ADR 0080）
 
@@ -102,9 +102,9 @@ var items = filtered
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| `McpCommand.cs:45` 填充 description/kind (BUG-1) | `jcc mcp_list` 输出 | ❌ | ❌ |
-| `--dry-run` 拦截 LLM 调用 (BUG-2) | `jcc -p --dry-run` 非交互模式 | ❌ | ❌ |
-| Git Bash 路径展开检测/恢复 (BUG-3) | `jcc slash_schema /xxx` | ❌ | ❌ |
+| `McpCommand.cs:45` 填充 description/kind (BUG-1) | `jcc mcp_list` 输出 | ✅ | ✅ `mcp_list --category github` 全部有 description |
+| `--dry-run` 拦截 LLM 调用 (BUG-2) | `jcc -p --dry-run` 非交互模式 | ✅ | ✅ 输出试跑信息,不调用 LLM,exit=0 |
+| Git Bash 路径展开检测/恢复 (BUG-3) | `jcc slash_schema /xxx` | ✅ | ✅ 无需 MSYS_NO_PATHCONV=1 |
 
 ## 5. 决策记录
 

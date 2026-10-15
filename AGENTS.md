@@ -184,6 +184,12 @@
    - 禁止: `git commit` 不带 `-m` 参数（会打开编辑器）
    - 禁止: `npm init` 等交互式命令（使用 `-y` 跳过）
 
+4.1 **⛔ 禁止 AI 自动执行 `git pull` / `git pull --rebase`**
+   - **🚫 禁止**: AI 自行执行 `git pull`、`git pull --rebase`、`git fetch + git merge/rebase` 等拉取合并操作
+   - **根因**: 用户可能已自行 rebase main 或重组历史，远程与本地差异是用户有意为之。AI 自动 pull 会产生不伦不类的历史记录，破坏用户的工作
+   - **✅ 正确做法**: 遇到 `git push` 被拒绝(non-fast-forward)时，**停止操作**，用 `ask_user` 工具告知用户"push 被拒绝，远程有新提交，请用户手动处理 pull/rebase"，让用户接管
+   - **例外**: 用户明确要求 AI 执行 pull 时才允许执行
+
 5. **❌ 禁止猜测用户意图/背景/业务场景**（规划任务期间）
    
    - 信息模糊时，基于行业最佳实践自主选择技术方案，优先保守安全.

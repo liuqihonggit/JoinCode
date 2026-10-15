@@ -32,8 +32,12 @@ jobs:
             --filter "Category!=Benchmark" \
             --logger "console;verbosity=normal" \
             --logger "trx;LogFileName=integration-all.trx"
-          dotnet test build/sln/JoinCode.slnx \
+          dotnet build build/sln/JoinCode.slnx \
             -c Debug --nologo \
+            -p:UsePackedComponents=true \
+            -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
+          dotnet test build/sln/JoinCode.slnx \
+            -c Debug --nologo --no-build \
             -p:UsePackedComponents=true \
             -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
             --filter "Category=Integration&FullyQualifiedName~PrefixCache" \

@@ -247,7 +247,7 @@ public class ActorBaseTest {
         actor.OutputCount.Should().Be(0);
 
         actor.Tell("test");
-        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
+        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1 && actor.OutputCount >= 1, TimeSpan.FromMilliseconds(500));
 
         actor.OutputCount.Should().Be(1);
     }

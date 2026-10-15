@@ -342,8 +342,9 @@ class Program {
             }.With("processId", Environment.ProcessId.ToString()));
 
         // 1. 结构化 JSON 快照（DTO + JsonSerializer，AOT 安全）
+        var idShort = snapshot.Id.ToString("N")[..8];
         try {
-            var jsonPath = System.IO.Path.Combine(dumpDir, $"crash_{timestamp}_{snapshot.Id:N8}.json");
+            var jsonPath = System.IO.Path.Combine(dumpDir, $"crash_{timestamp}_{idShort}.json");
             var dto = new CrashDumpSnapshotDto(
                 snapshot.Id,
                 snapshot.CapturedAt,
@@ -368,7 +369,7 @@ class Program {
 
         // 2. 人类可读文本快照
         try {
-            var txtPath = System.IO.Path.Combine(dumpDir, $"crash_{timestamp}_{snapshot.Id:N8}.log");
+            var txtPath = System.IO.Path.Combine(dumpDir, $"crash_{timestamp}_{idShort}.log");
             var txt = new StringBuilder();
             txt.AppendLine("═══ 崩溃快照 ═══");
             txt.AppendLine($"ID:      {snapshot.Id}");

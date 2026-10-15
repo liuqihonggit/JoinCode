@@ -57,3 +57,6 @@ global using Xunit.Abstractions;
 global using AgentInfo = JoinCode.Abstractions.Interfaces.AgentInfo;
 global using IMcpClient = JoinCode.Abstractions.Mcp.Client.IMcpClient;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
+global using System.Formats.Tar;
+global using System.IO.Compression;
+global using System.Text;

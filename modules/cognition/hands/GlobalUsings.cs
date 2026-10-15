@@ -130,3 +130,5 @@ global using ValidationHelper = Core.Utils.ValidationHelper;
 global using ValidationResult = Structura.Primitives.ValidationResult;
 global using System.Buffers;
 global using Structura.Collections;
+global using System.IO.Compression;
+global using System.Formats.Tar;

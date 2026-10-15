@@ -73,13 +73,13 @@ git_submodule_update 工具调用
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| `SubmoduleManifest.Parse` 解析 .gitmodules | `SubmoduleParallelDownloader` | ❌ | ❌ |
-| `TarExtractor.Extract` 解压 .tar.gz | `SubmoduleParallelDownloader` | ❌ | ❌ |
-| `TarballDownloader.DownloadAllAsync` 并行下载 | `SubmoduleParallelDownloader` | ❌ | ❌ |
-| `LatencyProbe` 复用 `IsPortReachableAsync` | `SubmoduleParallelDownloader` | ❌ | ❌ |
-| `GitSubmoduleUpdateAsync` 加 `adaptive` 参数 | `GitToolHandlers` | ❌ | ❌ |
-| 端口跳变复用到 tarball 下载 | `TarballDownloader` | ❌ | ❌ |
-| 临时包自动清理 `TempDirScope` | `SubmoduleParallelDownloader` | ❌ | ❌ |
+| `SubmoduleManifest.Parse` 解析 .gitmodules | `SubmoduleParallelDownloader` | ✅ | 单元✅(6测试) |
+| `TarExtractor.Extract` 解压 .tar.gz | `SubmoduleParallelDownloader` | ✅ | 单元✅(3测试) |
+| `TarballDownloader.DownloadAllAsync` 并行下载 | `SubmoduleParallelDownloader` | ✅ | 单元✅(3测试) |
+| `LatencyProbe` 复用 `IsPortReachableAsync` | `SubmoduleParallelDownloader` | ✅ | 单元✅(10测试) |
+| `GitSubmoduleUpdateAsync` 加 `adaptive` 参数 | `GitToolHandlers` | ✅ | 单元✅(42测试无回归) |
+| 端口跳变复用到 tarball 下载 | `TarballDownloader` | ✅ | 单元✅(5xx重试+路由切换模式复用) |
+| 临时包自动清理 `TempDirScope` | `SubmoduleParallelDownloader` | ✅ | 单元✅(await using 自动清理) |
 
 ## 关键约束
 

@@ -29,6 +29,16 @@ internal static class Program
         Console.WriteLine($"Repo root: {repoRoot}");
         Console.WriteLine("Scanning for constructors...");
 
+        foreach (var dir in ScanDirs)
+        {
+            var fullPath = Path.Combine(repoRoot, dir);
+            if (!Directory.Exists(fullPath))
+            {
+                Console.Error.WriteLine($"扫描目录不存在: {fullPath}（请从仓库根目录运行）");
+                return 2;
+            }
+        }
+
         var csFiles = FindAllCsFiles(repoRoot);
         Console.WriteLine($"Found {csFiles.Count} .cs files");
 

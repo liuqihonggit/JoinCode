@@ -234,7 +234,7 @@ class Program {
     /// <para>例: /compact → C:/Program Files/Git/compact → 恢复为 /compact</para>
     /// </summary>
     private static string[] RestoreMsysPathExpansion(string[] args) {
-        if (args.Length == 0)
+        if (args.Length == 0 || args.Length > CliGuardConfig.MaxArgCount)
             return args;
         var restored = new string[args.Length];
         for (var i = 0; i < args.Length; i++) {
@@ -244,7 +244,7 @@ class Program {
     }
 
     private static string? TryRestoreMsysPath(string arg) {
-        if (arg.Length < 6 || arg[1] != ':')
+        if (arg.Length < CliGuardConfig.MinMsysPathLength || arg.Length > CliGuardConfig.MaxArgLength || arg[1] != ':')
             return null;
         var gitIdx = arg.IndexOf("/Git/", StringComparison.OrdinalIgnoreCase);
         if (gitIdx < 0)

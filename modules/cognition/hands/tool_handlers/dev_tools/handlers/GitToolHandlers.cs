@@ -16,6 +16,12 @@ public partial class GitToolHandlers {
     private string? _currentWorkingDirectory;
 
     /// <summary>
+    /// IO 密集型 Git 操作的默认并行度 — CPU 逻辑核心数 × 2（IO 等待时重叠其他任务）。
+    /// 用于 git clone --recursive --jobs 和 git submodule update --jobs。
+    /// </summary>
+    internal static readonly int ParallelJobs = Environment.ProcessorCount * 2;
+
+    /// <summary>
     /// 构造 Git 工具处理器（无安全拦截器）
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
@@ -392,13 +398,14 @@ public partial class GitToolHandlers {
         }
     }
 
-    /// <summary>克隆远程仓库（git clone）</summary>
+    /// <summary>克隆远程仓库（git clone）— recursive=true 时并行拉取子模块（--recursive --jobs=CPU×2）</summary>
     [McpTool(GitToolNameEnumConstants.GitClone, "Clone remote repository", "git")]
     public async Task<ToolResult> GitCloneAsync(
         [McpToolParameter("Repository URL")] string url,
         [McpToolParameter("Local directory name (optional)", Required = false)] string? directory = null,
         [McpToolParameter("Parent directory path (optional, defaults to current directory)", Required = false)] string? parent_dir = null,
         [McpToolParameter("Branch (optional)", Required = false)] string? branch = null,
+        [McpToolParameter("Recursively clone submodules in parallel (optional, defaults to false)", Required = false)] bool recursive = false,
         CancellationToken cancellationToken = default) {
         try {
             if (string.IsNullOrWhiteSpace(url)) {
@@ -415,6 +422,9 @@ public partial class GitToolHandlers {
             }
             if (!string.IsNullOrEmpty(branch)) {
                 parts.Add($"-b \"{branch}\"");
+            }
+            if (recursive) {
+                parts.Add($"--recursive --jobs={ParallelJobs}");
             }
             var args = string.Join(' ', parts);
 
@@ -433,6 +443,44 @@ public partial class GitToolHandlers {
                 .Build();
         } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("git_clone", ex, _logger, "url", url ?? "(null)");
+        }
+    }
+
+    /// <summary>并行初始化/更新子模块（git submodule update --init --jobs=CPU×2 --depth=1）— 默认并行 + 浅克隆</summary>
+    [McpTool(GitToolNameEnumConstants.GitSubmoduleUpdate, "Init and update submodules in parallel", "git")]
+    public async Task<ToolResult> GitSubmoduleUpdateAsync(
+        [McpToolParameter("Working directory path (optional, defaults to current directory)", Required = false)] string? working_dir = null,
+        [McpToolParameter("Shallow clone depth (optional, defaults to 1 for latest commit only)", Required = false)] int? depth = 1,
+        [McpToolParameter("Parallel job count (optional, defaults to CPU×2)", Required = false)] int? jobs = null,
+        CancellationToken cancellationToken = default) {
+        try {
+            var effectiveJobs = jobs is > 0 ? jobs.Value : ParallelJobs;
+            var parts = new List<string> {
+                GitSubCommand.Submodule.ToValue(),
+                "update",
+                "--init",
+                $"--jobs={effectiveJobs}",
+            };
+            if (depth is > 0) {
+                parts.Add($"--depth={depth.Value}");
+            }
+            var args = string.Join(' ', parts);
+
+            var result = await ExecuteGitCommandAsync(GitSubCommand.Submodule, args, working_dir, cancellationToken).ConfigureAwait(false);
+
+            if (!result.Success) {
+                var diag = BuildGitSubmoduleUpdateFailedDiagnostic(result.Error);
+                return ToolResultBuilder.Error()
+                    .WithText(diag.FormattedMessage)
+                    .WithDiagnostic(diag)
+                    .Build();
+            }
+
+            return ToolResultBuilder.Success()
+                .WithText($"Submodule update successful (jobs={effectiveJobs}):\n{result.Output}")
+                .Build();
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("git_submodule_update", ex, _logger, "working_dir", working_dir ?? "(null)");
         }
     }
 
@@ -737,6 +785,25 @@ public partial class GitToolHandlers {
             [
                 "确认 URL 可访问且具有克隆权限。",
                 "检查本地目标目录是否已存在同名目录。",
+            ]);
+    }
+
+    /// <summary>
+    /// 构建 git submodule update 命令失败的结构化诊断。
+    /// </summary>
+    internal static ToolDiagnostic BuildGitSubmoduleUpdateFailedDiagnostic(string error) {
+        return ToolDiagnostic.Create(
+            reason: "GitSubmoduleUpdateFailed",
+            formattedMessage: $"Git submodule update failed:\n{error}",
+            details:
+            [
+                new DiagnosticDetail("Error", error),
+            ],
+            suggestions:
+            [
+                "确认当前目录是 Git 仓库且含 .gitmodules 配置。",
+                "检查子模块 URL 是否可访问且具有克隆权限。",
+                "尝试 git submodule sync 同步 URL 后重试。",
             ]);
     }
 

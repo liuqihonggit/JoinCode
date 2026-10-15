@@ -1,5 +1,5 @@
 <Solution>
-  <Project Path="core/core.csproj" />
+  <Project Path="core/Llm.csproj" />
   <Project Path="llm.tests/llm.tests.csproj" />
   <Project Path="agents/agents.csproj" />
   <Project Path="agents.tests/agents.tests.csproj" />

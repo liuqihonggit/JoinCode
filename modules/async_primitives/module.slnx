@@ -1,9 +1,9 @@
 <Solution>
-  <Project Path="async_lock/async_lock.csproj" />
-  <Project Path="async_lock.tests/async_lock.tests.csproj" />
-  <Project Path="bcl_bridge/bcl_bridge.csproj" />
-  <Project Path="bcl_bridge.tests/bcl_bridge.tests.csproj" />
-  <Project Path="transport.contracts/transport.contracts.csproj" />
-  <Project Path="transport.impl/transport.impl.csproj" />
-  <Project Path="transport.impl.tests/transport.impl.tests.csproj" />
+  <Project Path="async_lock/AsyncLock.csproj" />
+  <Project Path="async_lock.tests/AsyncLock.Tests.csproj" />
+  <Project Path="bcl_bridge/BclBridge.csproj" />
+  <Project Path="bcl_bridge.tests/JoinCode.BclBridge.Tests.csproj" />
+  <Project Path="transport.contracts/Transport.Contracts.csproj" />
+  <Project Path="transport.impl/Transport.Impl.csproj" />
+  <Project Path="transport.impl.tests/Transport.Impl.Tests.csproj" />
 </Solution>

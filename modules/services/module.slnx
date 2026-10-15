@@ -6,5 +6,5 @@
   <Project Path="dream/dream.csproj" />
   <Project Path="dream.tests/dream.tests.csproj" />
   <Project Path="update/update.csproj" />
-  <Project Path="sandbox_satellite/sandbox_satellite.csproj" />
+  <Project Path="sandbox_satellite/SandboxSatellite.csproj" />
 </Solution>

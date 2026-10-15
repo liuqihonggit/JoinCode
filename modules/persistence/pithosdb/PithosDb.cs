@@ -31,6 +31,7 @@ public sealed class PithosDb : IDisposable
 
     private MemTable _memTable = new();
     private WriteAheadLog? _wal;
+    private int _disposed;
 
     /// <summary>
     /// Opens or creates a database in <paramref name="directory"/>. Any unflushed
@@ -124,6 +125,16 @@ public sealed class PithosDb : IDisposable
     }
 
     /// <summary>
+    /// 释放后访问守卫 — 所有公共增删改查方法入口调用，防止 Dispose 后操作已释放的 WAL/MemTable/SST readers/lock。
+    /// </summary>
+    /// <exception cref="ObjectDisposedException">实例已 Dispose。</exception>
+    private void ThrowIfDisposed()
+    {
+        if (Volatile.Read(ref _disposed) != 0)
+            throw new ObjectDisposedException(nameof(PithosDb));
+    }
+
+    /// <summary>
     /// Inserts or updates <paramref name="key"/> with <paramref name="value"/>.
     /// The write is appended to the WAL before being applied to the MemTable.
     /// A MemTable flush (and possible compaction) is triggered when the buffer
@@ -131,6 +142,7 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public void Put(byte[] key, byte[] value)
     {
+        ThrowIfDisposed();
         var stored = _options.EnableTtl ? ValueCodec.Encode(value) : value;
         _lock.EnterWriteLock();
         try
@@ -153,6 +165,7 @@ public sealed class PithosDb : IDisposable
     /// </exception>
     public void Put(byte[] key, byte[] value, TimeSpan ttl)
     {
+        ThrowIfDisposed();
         if (!_options.EnableTtl)
             throw new InvalidOperationException(
                 "TTL writes require PithosOptions.EnableTtl = true.");
@@ -175,6 +188,7 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public void Write(WriteBatch batch)
     {
+        ThrowIfDisposed();
         if (batch.Operations.Count == 0) return;
         _lock.EnterWriteLock();
         try { ApplyBatch(batch); }
@@ -220,6 +234,7 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public void Delete(byte[] key)
     {
+        ThrowIfDisposed();
         _lock.EnterWriteLock();
         try
         {
@@ -239,6 +254,7 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public void DeleteRange(byte[]? from = null, byte[]? to = null)
     {
+        ThrowIfDisposed();
         // Phase 1: collect keys under a read lock so the scan doesn't block writers.
         _lock.EnterReadLock();
         List<byte[]> keys;
@@ -269,6 +285,7 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public bool CompareAndSwap(byte[] key, byte[]? expectedValue, byte[] newValue)
     {
+        ThrowIfDisposed();
         _lock.EnterWriteLock();
         try
         {
@@ -322,6 +339,7 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public bool TryGet(byte[] key, out byte[]? value)
     {
+        ThrowIfDisposed();
         _lock.EnterReadLock();
         try
         {
@@ -371,6 +389,7 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public IEnumerable<(byte[] key, byte[] value)> Scan(byte[]? from = null, byte[]? to = null)
     {
+        ThrowIfDisposed();
         _lock.EnterReadLock();
         try
         {
@@ -394,6 +413,7 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public long ApproximateCount(byte[]? from = null, byte[]? to = null)
     {
+        ThrowIfDisposed();
         var cmp = ByteArrayComparer.Instance;
         _lock.EnterReadLock();
         try
@@ -425,6 +445,7 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public IEnumerable<(byte[] key, byte[] value)> ScanPrefix(byte[] prefix)
     {
+        ThrowIfDisposed();
         if (prefix.Length == 0) return Scan();
 
         byte[]? upper = ComputePrefixUpperBound(prefix);
@@ -464,6 +485,7 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public IEnumerable<(byte[] key, byte[] value)> ScanDescending(byte[]? from = null, byte[]? to = null)
     {
+        ThrowIfDisposed();
         _lock.EnterReadLock();
         try
         {
@@ -582,12 +604,34 @@ public sealed class PithosDb : IDisposable
         _readerCache[sstPath] = SSTableReader.Open(sstPath, _blockCache);
         _memTable.Clear();
 
-        _wal!.Dispose();
-        File.Delete(Path.Combine(_directory, "wal.log"));
-        _wal = WriteAheadLog.Open(Path.Combine(_directory, "wal.log"), _options.WalSyncMode, _options.WalSyncIntervalMs);
+        ResetWal();
 
         _manifest.Write(_levels);
         SignalCompaction();
+    }
+
+    /// <summary>
+    /// 关闭并重建 WAL 文件。MemTable 已 flush 到 SST 后调用，清空 WAL 避免下次启动重复 replay。
+    /// <para>
+    /// Windows 上 FileStream.Dispose 后文件句柄释放可能有延迟（防病毒扫描、文件系统缓存），
+    /// File.Delete 可能抛 IOException。此时改用截断文件内容代替删除；
+    /// 截断也失败则保留原文件，WriteAheadLog.Open 以 Append 模式追加，下次 replay 幂等无碍。
+    /// </para>
+    /// </summary>
+    private void ResetWal()
+    {
+        var walPath = Path.Combine(_directory, "wal.log");
+        _wal!.Dispose();
+        try
+        {
+            File.Delete(walPath);
+        }
+        catch (IOException)
+        {
+            try { using var fs = new FileStream(walPath, FileMode.Truncate, FileAccess.Write, FileShare.None); }
+            catch { }
+        }
+        _wal = WriteAheadLog.Open(walPath, _options.WalSyncMode, _options.WalSyncIntervalMs);
     }
 
     /// <summary>
@@ -609,9 +653,7 @@ public sealed class PithosDb : IDisposable
         _readerCache[sstPath] = SSTableReader.Open(sstPath, _blockCache);
         _memTable.Clear();
 
-        _wal!.Dispose();
-        File.Delete(Path.Combine(_directory, "wal.log"));
-        _wal = WriteAheadLog.Open(Path.Combine(_directory, "wal.log"), _options.WalSyncMode, _options.WalSyncIntervalMs);
+        ResetWal();
 
         _manifest.Write(_levels);
     }
@@ -725,6 +767,7 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public DbStats GetStats()
     {
+        ThrowIfDisposed();
         _lock.EnterReadLock();
         try
         {
@@ -771,7 +814,11 @@ public sealed class PithosDb : IDisposable
     /// throughout the transaction's lifetime. Dispose or <see cref="Transaction.Rollback"/>
     /// the returned transaction if it is not committed.
     /// </summary>
-    public Transaction BeginTransaction() => new Transaction(this, GetSnapshot());
+    public Transaction BeginTransaction()
+    {
+        ThrowIfDisposed();
+        return new Transaction(this, GetSnapshot());
+    }
 
     // Validates the read set and applies the write batch atomically under the write lock.
     // Returns false (without applying any writes) if a conflict is detected.
@@ -812,6 +859,7 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public Snapshot GetSnapshot()
     {
+        ThrowIfDisposed();
         _lock.EnterReadLock();
         try
         {
@@ -973,6 +1021,7 @@ public sealed class PithosDb : IDisposable
     /// </summary>
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         // Signal the background thread to stop. If it is mid-compaction it will
         // finish the current job before seeing the cancellation.
         _compactionCts.Cancel();
@@ -984,11 +1033,15 @@ public sealed class PithosDb : IDisposable
         // Flush MemTable to SST on shutdown — ensures data survives across processes.
         // Without this, unflushed MemTable data lives only in WAL; if a prior flush
         // deleted and recreated the WAL, earlier writes are lost to the next process.
-        FlushForShutdown();
+        // FlushForShutdown 失败不阻止后续资源释放（WAL/SST readers/lock）。
+        try { FlushForShutdown(); }
+        catch (Exception ex) { _options.DiagnosticLog?.Invoke($"[PithosDB.Dispose] FlushForShutdown failed: {ex.Message}"); }
 
         _wal?.Dispose();
         foreach (var reader in _readerCache.Values)
-            reader.Dispose();
+        {
+            try { reader.Dispose(); } catch { }
+        }
         _readerCache.Clear();
         _lock.Dispose();
     }

@@ -31,6 +31,7 @@ public sealed class WriteAheadLog : IDisposable
     private readonly BinaryWriter _writer;
     private readonly WalSyncMode _syncMode;
     private readonly Timer? _syncTimer;
+    private int _disposed;
 
     /// <summary>
     /// Opens or creates the WAL file at <paramref name="path"/> in append mode.
@@ -249,10 +250,11 @@ public sealed class WriteAheadLog : IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         // Stop the periodic timer before flushing so it doesn't race with Dispose.
         _syncTimer?.Dispose();
         // Final flush ensures any buffered writes reach the OS before we close.
-        _stream.Flush();
+        try { _stream.Flush(); } catch (ObjectDisposedException) { }
         _writer.Dispose();
         _stream.Dispose();
     }

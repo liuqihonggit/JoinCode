@@ -32,6 +32,16 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
                 context.ExitCode = (int)ExitCode.GeneralError;
                 return;
             }
+            if (context.Options.DryRun) {
+                Diag.WriteLine("[STEP] ExecuteStep dry-run mode, skipping LLM call");
+                using (Cli.TerminalHelper.SetColor(ConsoleColor.Yellow)) {
+                    Cli.TerminalHelper.WriteLine($"[试跑模式] 将发送提示词到 {p.Vendor}/{p.ModelId}:");
+                    Cli.TerminalHelper.WriteLine($"  \"{prompt}\"");
+                }
+                context.ExitCode = 0;
+                await next(context, ct).ConfigureAwait(false);
+                return;
+            }
             await session.ProcessUserInputAsync(prompt, ct).ConfigureAwait(false);
             await Console.Out.FlushAsync().ConfigureAwait(false);
             Diag.WriteLifecycle("[AI对话结束]");

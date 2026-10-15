@@ -177,7 +177,38 @@ var items = filtered
 
 ---
 
-## 5. 验收表
+## 5. 第三轮验收：Mock服务器端点 + ONNX基准 + bugfix回归测试
+
+### 5个Mock服务器端点验收
+
+| Mock服务器 | 端点 | 验收结果 |
+|-----------|------|----------|
+| OpenAI | `/v1/chat/completions` + `/v1/embeddings` | ✅ 返回正确chat completion(含tool_calls) |
+| Anthropic | `/v1/messages` | ✅ 返回正确message(含tool_use) |
+| DeepSeek | `/v1/chat/completions` | ✅ 返回正确chat completion(含tool_calls) |
+| Responses | `/v1/responses` | ✅ 接收并处理请求 |
+| Mcp | `/mcp/` (initialize + tools/list) | ✅ 返回5个工具(echo/add/uppercase/reverse/length) |
+
+### ONNX基准测试验收
+
+| 工具 | 验收结果 |
+|------|----------|
+| `onnx-embedding-verify` | ✅ 原版86MB+量化22MB模型基准测试正常,DirectML环境不支持(非BUG) |
+
+### bugfix回归测试
+
+| BUG | 测试文件 | 用例数 | 状态 |
+|-----|---------|--------|------|
+| BUG-1 | `cli/CliOutputEnvelopeTests.cs` | 4 | ✅ |
+| BUG-2 | `entry/steps/NonInteractiveExecuteStepTests.cs` | 3 | ✅ |
+| BUG-3 | `cli/MsysPathExpansionTests.cs` | 13 | ✅ |
+| BUG-4 | `cli/CtorScannerConfigTests.cs` | 4 | ✅ |
+| BUG-5 | `cli/ModuleSlnxIntegrityTests.cs` | 5 | ✅ |
+| **合计** | **29用例** | **全通过** | ✅ |
+
+---
+
+## 6. 验收表
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
@@ -187,7 +218,7 @@ var items = filtered
 | CtorScanner 扫描目录更新 (BUG-4) | `ctor-scanner.exe` | ✅ | ✅ 扫描 modules/ 4952 文件,157 风险 |
 | 10个module.slnx路径修正 (BUG-5) | `jcc-audit layer-audit` | ✅ | ✅ 32条路径修正+2条移除,layer-audit无警告 |
 
-## 6. 决策记录
+## 7. 决策记录
 
 <!-- 🤖 Auto Decision: 2026-10-15 -->
 <!-- 决策: 先写 bugfix 文档再修复，因为修复可能扩展到相似功能 -->

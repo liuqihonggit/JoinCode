@@ -1,5 +1,5 @@
 <Solution>
-  <Project Path="code_index/code_index.csproj" />
-  <Project Path="code_index.tests/code_index.tests.csproj" />
-  <Project Path="code_index.e2e.tests/code_index.e2e.tests.csproj" />
+  <Project Path="code_index/CodeIndex.csproj" />
+  <Project Path="code_index.tests/CodeIndex.Tests.csproj" />
+  <Project Path="code_index.e2e.tests/CodeIndex.E2E.Tests.csproj" />
 </Solution>

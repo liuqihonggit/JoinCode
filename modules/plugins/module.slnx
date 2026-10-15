@@ -1,5 +1,5 @@
 <Solution>
-  <Project Path="plugins.contracts/plugins.contracts.csproj" />
-  <Project Path="plugins.infrastructure/plugins.infrastructure.csproj" />
-  <Project Path="plugins.tests/plugins.tests.csproj" />
+  <Project Path="plugins.contracts/Plugins.Contracts.csproj" />
+  <Project Path="plugins.infrastructure/Plugins.Infrastructure.csproj" />
+  <Project Path="plugins.tests/Plugins.Tests.csproj" />
 </Solution>

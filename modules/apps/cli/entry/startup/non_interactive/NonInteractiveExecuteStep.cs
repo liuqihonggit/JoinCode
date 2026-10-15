@@ -32,6 +32,14 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
                 context.ExitCode = (int)ExitCode.GeneralError;
                 return;
             }
+            if (CliGuardConfig.MaxPromptLength != CliGuardConfig.Unset && prompt.Length > CliGuardConfig.MaxPromptLength) {
+                Diag.WriteLine($"[STEP] ExecuteStep ERROR: prompt too long ({prompt.Length} > {CliGuardConfig.MaxPromptLength})");
+                using (Cli.TerminalHelper.SetColor(ConsoleColor.Red)) {
+                    Cli.TerminalHelper.WriteLine($"错误: 提示词过长 ({prompt.Length} 字符)，上限 {CliGuardConfig.MaxPromptLength} 字符。请缩短输入或通过文件传入。");
+                }
+                context.ExitCode = (int)ExitCode.GeneralError;
+                return;
+            }
             if (context.Options.DryRun) {
                 Diag.WriteLine("[STEP] ExecuteStep dry-run mode, skipping LLM call");
                 using (Cli.TerminalHelper.SetColor(ConsoleColor.Yellow)) {

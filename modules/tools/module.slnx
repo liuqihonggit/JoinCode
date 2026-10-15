@@ -1,7 +1,7 @@
 <Solution>
-  <Project Path="ctor_scanner/ctor_scanner.csproj" />
-  <Project Path="onnx_embedding/onnx_embedding.csproj" />
-  <Project Path="onnx_embedding_verify/onnx_embedding_verify.csproj" />
-  <Project Path="simd_vector_verify/simd_vector_verify.csproj" />
-  <Project Path="scripts/scripts.csproj" />
+  <Project Path="ctor_scanner/CtorScanner.csproj" />
+  <Project Path="onnx_embedding/OnnxEmbeddingExe.csproj" />
+  <Project Path="onnx_embedding_verify/OnnxEmbeddingVerify.csproj" />
+  <Project Path="simd_vector_verify/SimdVectorVerify.csproj" />
+  <!-- REMOVED: scripts/scripts.csproj (no .csproj found) -->
 </Solution>

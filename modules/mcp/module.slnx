@@ -1,6 +1,6 @@
 <Solution>
-  <Project Path="mcp/mcp.csproj" />
-  <Project Path="mcp.tests/mcp.tests.csproj" />
-  <Project Path="mcp_tool_dispatch/mcp_tool_dispatch.csproj" />
-  <Project Path="mcp_tool_dispatch.tests/mcp_tool_dispatch.tests.csproj" />
+  <Project Path="mcp/Mcp.csproj" />
+  <Project Path="mcp.tests/Mcp.Tests.csproj" />
+  <Project Path="mcp_tool_dispatch/McpToolDispatch.csproj" />
+  <Project Path="mcp_tool_dispatch.tests/McpToolDispatch.Tests.csproj" />
 </Solution>

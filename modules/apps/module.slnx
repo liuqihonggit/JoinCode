@@ -1,6 +1,6 @@
 <Solution>
-  <Project Path="cli/cli.csproj" />
-  <Project Path="gui/gui.csproj" />
-  <Project Path="sdk/sdk.csproj" />
-  <Project Path="tui/tui.csproj" />
+  <Project Path="cli/JoinCode.csproj" />
+  <Project Path="gui/JoinCodeGui.csproj" />
+  <Project Path="sdk/Sdk.csproj" />
+  <Project Path="tui/JoinCodeTui.csproj" />
 </Solution>

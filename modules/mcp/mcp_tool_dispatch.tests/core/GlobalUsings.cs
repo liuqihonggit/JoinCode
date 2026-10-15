@@ -60,3 +60,4 @@ global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using System.Formats.Tar;
 global using System.IO.Compression;
 global using System.Text;
+global using System.Net;

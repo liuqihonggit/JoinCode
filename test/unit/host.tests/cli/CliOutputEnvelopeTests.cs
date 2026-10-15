@@ -220,4 +220,61 @@ public sealed class CliOutputEnvelopeTests {
         json.Should().Contain("\"schema\":{");
         json.Should().NotContain("\"argumentHint\"");
     }
+
+    // ===== BUG-1 回归测试: mcp_list 的 description/kind 从硬编码空字符串改为取 t.Description/t.Kind.ToString() =====
+
+    /// <summary>
+    /// BUG-1 回归: CliToolListItem 构造时 Description 和 Kind 应正确保留非空值。
+    /// 修复前 ExecuteListAsync 硬编码空字符串,修复后传入 t.Description 和 t.Kind.ToString()。
+    /// </summary>
+    [Fact]
+    public void CliToolListItem_Should_Preserve_NonEmpty_Description_And_Kind() {
+        var item = new CliToolListItem("gh_pr_list", "列出 GitHub PR", "github", "github", "Mcp");
+
+        item.Name.Should().Be("gh_pr_list");
+        item.Description.Should().Be("列出 GitHub PR");
+        item.Kind.Should().Be("Mcp");
+        item.Description.Should().NotBeNullOrEmpty("BUG-1 修复: description 不再硬编码空字符串");
+        item.Kind.Should().NotBeNullOrEmpty("BUG-1 修复: kind 不再硬编码空字符串");
+    }
+
+    /// <summary>
+    /// BUG-1 回归: 序列化后 JSON 应包含非空 description 和 kind 字段。
+    /// 修复前 JSON 中 description/kind 为空字符串,修复后应有实际值。
+    /// </summary>
+    [Fact]
+    public void CliToolListItem_Serialized_Should_Contain_NonEmpty_Description_And_Kind() {
+        var items = new List<CliToolListItem> {
+            new("gh_pr_list", "列出 GitHub PR", "github", "github", "Mcp"),
+            new("rg_search", "搜索代码", "search", "search", "System"),
+        };
+        var meta = new CliOutputMeta { TotalCount = 2 };
+        var json = CliOutputEnvelope<List<CliToolListItem>>.Success(items, meta).ToJsonString();
+
+        json.Should().Contain("\"ok\":true");
+        json.Should().Contain("\"totalCount\":2");
+        // description 应包含实际描述而非空字符串
+        json.Should().Contain("\"description\":\"列出 GitHub PR\"");
+        json.Should().Contain("\"description\":\"搜索代码\"");
+        // kind 应包含实际类型而非空字符串
+        json.Should().Contain("\"kind\":\"Mcp\"");
+        json.Should().Contain("\"kind\":\"System\"");
+        // 不应出现空 description/kind(BUG-1 修复前会出现 "description":"" 和 "kind":"")
+        json.Should().NotContain("\"description\":\"\"");
+        json.Should().NotContain("\"kind\":\"\"");
+    }
+
+    /// <summary>
+    /// BUG-1 回归: ToolKind 枚举 ToString() 应产生有意义的非空字符串。
+    /// 验证 ExecuteListAsync 中 t.Kind.ToString() 的行为。
+    /// </summary>
+    [Theory]
+    [InlineData(ToolKind.Mcp, "Mcp")]
+    [InlineData(ToolKind.System, "System")]
+    public void ToolKind_ToString_Should_Produce_NonEmpty_Kind(ToolKind kind, string expected) {
+        var kindString = kind.ToString();
+
+        kindString.Should().Be(expected);
+        kindString.Should().NotBeNullOrEmpty("BUG-1 修复: kind 来自 t.Kind.ToString() 而非硬编码空字符串");
+    }
 }

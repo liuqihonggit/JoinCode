@@ -23,4 +23,5 @@ public enum GitSubCommand {
     [EnumValue("fetch")] Fetch,
     [EnumValue("rebase")] Rebase,
     [EnumValue("stash")] Stash,
+    [EnumValue("submodule")] Submodule,
 }

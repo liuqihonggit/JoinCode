@@ -47,4 +47,8 @@ public enum GitToolName {
     [EnumValue("git_clean")]
     [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
     GitClean,
+
+    [EnumValue("git_submodule_update")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GitSubmoduleUpdate,
 }

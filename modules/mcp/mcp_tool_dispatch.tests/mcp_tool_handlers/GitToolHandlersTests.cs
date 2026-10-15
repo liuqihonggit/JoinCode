@@ -25,6 +25,7 @@ public sealed class GitToolHandlersTests {
         GitSubCommand.RevParse.ToValue().Should().Be("rev-parse");
         GitSubCommand.RevList.ToValue().Should().Be("rev-list");
         GitSubCommand.SparseCheckout.ToValue().Should().Be("sparse-checkout");
+        GitSubCommand.Submodule.ToValue().Should().Be("submodule");
     }
 
     [Fact]
@@ -42,6 +43,7 @@ public sealed class GitToolHandlersTests {
         GitSubCommandExtensions.FromValue("clone").Should().Be(GitSubCommand.Clone);
         GitSubCommandExtensions.FromValue("reset").Should().Be(GitSubCommand.Reset);
         GitSubCommandExtensions.FromValue("clean").Should().Be(GitSubCommand.Clean);
+        GitSubCommandExtensions.FromValue("submodule").Should().Be(GitSubCommand.Submodule);
     }
 
     [Fact]
@@ -155,6 +157,68 @@ public sealed class GitToolHandlersTests {
         result.GetTextContent().Should().Contain("cannot be empty");
     }
 
+    [Fact]
+    public async Task GitToolHandlers_GitClone_RecursiveTrue_IncludesRecursiveAndJobs() {
+        // recursive=true 时命令应含 --recursive 和 --jobs=CPU×2
+        var stub = new StubGitCommandRunner();
+        var handler = new GitToolHandlers(new IO.FileSystem.PhysicalFileSystem(), stub);
+
+        await handler.GitCloneAsync("https://example.com/repo.git", recursive: true, cancellationToken: CancellationToken.None).ConfigureAwait(true);
+
+        stub.ExecutedCommands.Should().ContainSingle();
+        var cmd = stub.ExecutedCommands[0];
+        cmd.Should().Contain("--recursive");
+        cmd.Should().Contain("--jobs=");
+    }
+
+    [Fact]
+    public async Task GitToolHandlers_GitClone_RecursiveFalse_OmitsRecursive() {
+        // recursive=false（默认）时不应含 --recursive
+        var stub = new StubGitCommandRunner();
+        var handler = new GitToolHandlers(new IO.FileSystem.PhysicalFileSystem(), stub);
+
+        await handler.GitCloneAsync("https://example.com/repo.git", recursive: false, cancellationToken: CancellationToken.None).ConfigureAwait(true);
+
+        stub.ExecutedCommands[0].Should().NotContain("--recursive");
+    }
+
+    [Fact]
+    public async Task GitToolHandlers_GitSubmoduleUpdate_Default_IncludesJobsAndDepth() {
+        // 默认应含 --jobs=CPU×2 和 --depth=1（并行 + 浅克隆）
+        var stub = new StubGitCommandRunner();
+        var handler = new GitToolHandlers(new IO.FileSystem.PhysicalFileSystem(), stub);
+
+        await handler.GitSubmoduleUpdateAsync(cancellationToken: CancellationToken.None).ConfigureAwait(true);
+
+        stub.ExecutedCommands.Should().ContainSingle();
+        var cmd = stub.ExecutedCommands[0];
+        cmd.Should().StartWith("submodule update --init");
+        cmd.Should().Contain("--jobs=");
+        cmd.Should().Contain("--depth=1");
+    }
+
+    [Fact]
+    public async Task GitToolHandlers_GitSubmoduleUpdate_CustomJobs_UsesProvidedValue() {
+        // 自定义 jobs=4 时命令应含 --jobs=4
+        var stub = new StubGitCommandRunner();
+        var handler = new GitToolHandlers(new IO.FileSystem.PhysicalFileSystem(), stub);
+
+        await handler.GitSubmoduleUpdateAsync(jobs: 4, cancellationToken: CancellationToken.None).ConfigureAwait(true);
+
+        stub.ExecutedCommands[0].Should().Contain("--jobs=4");
+    }
+
+    [Fact]
+    public async Task GitToolHandlers_GitSubmoduleUpdate_ZeroDepth_OmitsDepth() {
+        // depth=0（或负数）时不加 --depth，拉取完整历史
+        var stub = new StubGitCommandRunner();
+        var handler = new GitToolHandlers(new IO.FileSystem.PhysicalFileSystem(), stub);
+
+        await handler.GitSubmoduleUpdateAsync(depth: 0, cancellationToken: CancellationToken.None).ConfigureAwait(true);
+
+        stub.ExecutedCommands[0].Should().NotContain("--depth");
+    }
+
     /// <summary>
     /// 复现 bug：MCP 框架把未传的可选 working_dir 参数设为空字符串 "" 而非 null，
     /// ScanBeforeCommitAsync 中 `workingDir ?? fallback` 不拦截空字符串，
@@ -191,8 +255,12 @@ public sealed class GitToolHandlersTests {
     }
 
     private sealed class StubGitCommandRunner : IGitCommandRunner {
-        public Task<GitCommandResult> ExecuteAsync(string arguments, string? workingDirectory = null, CancellationToken ct = default)
-            => Task.FromResult(new GitCommandResult { Success = true, Output = string.Empty, Error = string.Empty, ExitCode = 0 });
+        public List<string> ExecutedCommands { get; } = [];
+
+        public Task<GitCommandResult> ExecuteAsync(string arguments, string? workingDirectory = null, CancellationToken ct = default) {
+            ExecutedCommands.Add(arguments);
+            return Task.FromResult(new GitCommandResult { Success = true, Output = string.Empty, Error = string.Empty, ExitCode = 0 });
+        }
 
         public Task<MergeConflictResult> DetectMergeConflictAsync(string branch1, string branch2, string? workingDirectory = null, CancellationToken ct = default)
             => Task.FromResult(new MergeConflictResult { HasConflict = false });

@@ -95,4 +95,61 @@ public sealed class PrivateNetworkGuardTests {
         var mapped = IPAddress.Parse("::ffff:8.8.8.8");
         Assert.False(PrivateNetworkGuard.IsPrivateAddress(mapped));
     }
+
+    // === ValidateHost 统一入口（B2: fail-closed + 重定向复检数据源, ADR 0140）===
+
+    [Fact]
+    public void ValidateHost_DirectPrivateIpLiteral_NotAllowed() {
+        var decision = PrivateNetworkGuard.ValidateHost("10.9.8.7");
+        Assert.False(decision.Allowed);
+        Assert.NotNull(decision.Reason);
+    }
+
+    [Fact]
+    public void ValidateHost_DirectPublicIpLiteral_Allowed() {
+        var decision = PrivateNetworkGuard.ValidateHost("203.0.113.1");
+        Assert.True(decision.Allowed);
+    }
+
+    [Fact]
+    public void ValidateHost_HostnameResolvesToPrivateIp_NotAllowed() {
+        var decision = PrivateNetworkGuard.ValidateHost("rebind.evil.example", _ => [IPAddress.Parse("127.0.0.1")]);
+        Assert.False(decision.Allowed);
+        Assert.NotNull(decision.Reason);
+    }
+
+    [Fact]
+    public void ValidateHost_HostnameResolvesToPublicIp_Allowed() {
+        var decision = PrivateNetworkGuard.ValidateHost("safe.example.com", _ => [IPAddress.Parse("8.8.8.8")]);
+        Assert.True(decision.Allowed);
+    }
+
+    [Fact]
+    public void ValidateHost_MultipleAddressesOnePrivate_NotAllowed() {
+        // 多解析结果中任一私网 IP 即拒绝(攻击者常用多 A 记录混入内网地址)
+        var decision = PrivateNetworkGuard.ValidateHost("multi.evil.example",
+            _ => [IPAddress.Parse("8.8.8.8"), IPAddress.Parse("10.0.0.99")]);
+        Assert.False(decision.Allowed);
+    }
+
+    [Fact]
+    public void ValidateHost_DnsResolveFails_NotAllowed() {
+        // fail-closed: DNS 解析失败必须拒绝,禁止放行(B2 缺陷: SocketException 曾被 catch 后放行)
+        var decision = PrivateNetworkGuard.ValidateHost("nonexistent.invalid",
+            _ => throw new SocketException((int)SocketError.HostNotFound));
+        Assert.False(decision.Allowed);
+        Assert.NotNull(decision.Reason);
+    }
+
+    [Fact]
+    public void ValidateHost_IpLiteralSkipsDns_NotAllowed() {
+        // IP 字面量不得触发 DNS(防御 DNS 返回伪造结果覆盖字面量判断)
+        var called = false;
+        var decision = PrivateNetworkGuard.ValidateHost("192.168.1.1", _ => {
+            called = true;
+            return [];
+        });
+        Assert.False(called);
+        Assert.False(decision.Allowed);
+    }
 }

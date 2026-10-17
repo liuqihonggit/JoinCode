@@ -13,11 +13,12 @@ public interface IKvStoreLease : IKvStore, IDisposable {
 
 /// <summary>
 /// KV 存储租约工厂 — 按需获取租约，快读快释放。
-/// <para>磁盘模式：Acquire 时 Open PithosDb + 获取跨进程 Mutex，Dispose 时释放。</para>
-/// <para>降级模式：Mutex 被占时返回内存租约（写入不持久，短命令够用）。</para>
+/// <para>磁盘模式：AcquireAsync 时 Open PithosDb + 获取 SemaphoreSlim(1,1) 防重入 + CrossProcessLock 跨进程互斥，Dispose 时释放。</para>
+/// <para>降级模式：锁被占时返回内存租约（写入不持久，短命令够用）。</para>
+/// <para>两锁联合：SemaphoreSlim 进程内防重入 + CrossProcessLock 跨进程（复用 NamedMutexMailboxLock 模式）。</para>
 /// <para>替代方案（放弃）：进程级 Mutex 持有到 Dispose — 持有 = 进程生命周期，长驻 mcp server 先启动时后续 CLI 全降级。</para>
 /// </summary>
 public interface IKvStoreLeaseFactory {
-    /// <summary>获取一个 KV 存储租约 — 非阻塞，Mutex 被占时立即降级内存。</summary>
-    IKvStoreLease Acquire();
+    /// <summary>获取一个 KV 存储租约 — 非阻塞，锁被占时立即降级内存。</summary>
+    Task<IKvStoreLease> AcquireAsync();
 }

@@ -31,7 +31,7 @@ public sealed class HighWaterMarkManager : IDisposable {
     /// 读取当前高水位标记值 — 增量读取单个 KV 条目
     /// </summary>
     public async Task<int> ReadAsync(CancellationToken cancellationToken = default) {
-        using var lease = _factory.Acquire();
+        using var lease = await _factory.AcquireAsync().ConfigureAwait(false);
         return await ReadCoreAsync(lease, cancellationToken).ConfigureAwait(false);
     }
 
@@ -52,7 +52,7 @@ public sealed class HighWaterMarkManager : IDisposable {
     /// <param name="newValue">新值</param>
     /// <param name="cancellationToken">取消令牌</param>
     public async Task UpdateAsync(int newValue, CancellationToken cancellationToken = default) {
-        using var lease = _factory.Acquire();
+        using var lease = await _factory.AcquireAsync().ConfigureAwait(false);
         await UpdateCoreAsync(lease, newValue, cancellationToken).ConfigureAwait(false);
     }
 
@@ -70,7 +70,7 @@ public sealed class HighWaterMarkManager : IDisposable {
         cancellationToken.ThrowIfCancellationRequested();
         await _incrementLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try {
-            using var lease = _factory.Acquire();
+            using var lease = await _factory.AcquireAsync().ConfigureAwait(false);
             var current = await ReadCoreAsync(lease, cancellationToken).ConfigureAwait(false);
             var newValue = current + 1;
             await UpdateCoreAsync(lease, newValue, cancellationToken).ConfigureAwait(false);

@@ -41,7 +41,7 @@ public sealed class KvStoreTtlCleanupService : PeriodicBackgroundServiceBase {
 
     /// <inheritdoc/>
     protected override async Task ExecuteAsync(CancellationToken cancellationToken) {
-        using var lease = _factory.Acquire();
+        using var lease = await _factory.AcquireAsync().ConfigureAwait(false);
         var now = _clock.GetUtcNow();
         var totalDeleted = 0;
 

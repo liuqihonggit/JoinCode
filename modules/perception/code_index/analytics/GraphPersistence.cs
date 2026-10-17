@@ -127,7 +127,7 @@ public sealed class GraphPersistence : ServiceEntity, IIndexStore {
         }
 
         bw.Flush();
-        using var lease = _factory.Acquire();
+        using var lease = await _factory.AcquireAsync().ConfigureAwait(false);
         await lease.PutAsync(KeyCodeIndex, ms.ToArray(), ct).ConfigureAwait(false);
     }
 
@@ -136,7 +136,7 @@ public sealed class GraphPersistence : ServiceEntity, IIndexStore {
     /// </summary>
     public async Task<bool> LoadAsync(string directory, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(directory);
-        using var lease = _factory.Acquire();
+        using var lease = await _factory.AcquireAsync().ConfigureAwait(false);
         var bytes = await lease.GetAsync(KeyCodeIndex, ct).ConfigureAwait(false);
         if (bytes is null) return false;
 
@@ -257,7 +257,7 @@ public sealed class GraphPersistence : ServiceEntity, IIndexStore {
     /// </summary>
     public async Task<bool> ExistsAsync(string directory, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(directory);
-        using var lease = _factory.Acquire();
+        using var lease = await _factory.AcquireAsync().ConfigureAwait(false);
         var bytes = await lease.GetAsync(KeyCodeIndex, ct).ConfigureAwait(false);
         return bytes is not null;
     }

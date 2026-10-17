@@ -157,7 +157,7 @@ public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IIndexSt
             bw.Write(doc.IsTruncated);
         }
         bw.Flush();
-        using var lease = _factory.Acquire();
+        using var lease = await _factory.AcquireAsync().ConfigureAwait(false);
         await lease.PutAsync(KeyParentDocs, ms.ToArray(), ct).ConfigureAwait(false);
     }
 
@@ -169,7 +169,7 @@ public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IIndexSt
     /// <returns>true 表示加载成功；false 表示数据不存在或格式不匹配。</returns>
     public async Task<bool> LoadAsync(string dirPath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(dirPath);
-        using var lease = _factory.Acquire();
+        using var lease = await _factory.AcquireAsync().ConfigureAwait(false);
         var bytes = await lease.GetAsync(KeyParentDocs, ct).ConfigureAwait(false);
         if (bytes is null) return false;
 
@@ -200,7 +200,7 @@ public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IIndexSt
     /// </summary>
     public async Task<bool> ExistsAsync(string dirPath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(dirPath);
-        using var lease = _factory.Acquire();
+        using var lease = await _factory.AcquireAsync().ConfigureAwait(false);
         var bytes = await lease.GetAsync(KeyParentDocs, ct).ConfigureAwait(false);
         return bytes is not null;
     }

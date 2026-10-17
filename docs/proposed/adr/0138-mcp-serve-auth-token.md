@@ -1,8 +1,8 @@
 # ADR 0138: mcp serve 默认 token 鉴权 + 工具执行统一走权限管道
 
-> 状态: proposed
+> 状态: accepted
 > 日期: 2026-10-17
-> 关联: [TASK053 修复计划](global:../../task/TASK053-安全漏洞与未实现功能修复计划.md)（批次A P0-1）、ADR 0069（mcp serve 子命令）、ADR 0080（手动 exe 验收）
+> 关联: [TASK053 修复计划](global:../../task/TASK053-安全漏洞与未实现功能修复计划.md)（批次A P0-1）、ADR 0069（mcp serve 子命令）、ADR 0080（手动 exe 验收）、[ADR 0139](0139-permission-pipeline-path-boundary-shortcircuit.md)（验收中发现的管道短路缺陷）
 
 ## 1. 背景
 
@@ -69,16 +69,19 @@
 | `modules/mcp/mcp.tests/core/mcp/McpHttpServerTests.cs` `McpHttpServerE2ETests.cs` | 存量用例补 token 头（回归防护） |
 | `modules/mcp/mcp.tests/core/mcp/McpAuthTokenTests.cs` 等（新） | 红测试先行 |
 
-## 4. 验收
+## 4. 验收（2026-10-17 完成，ADR 0080 手动 exe 冒烟）
 
-| 要求 | 基建实现 | 消费点 | 验证方式 |
-|------|----------|--------|----------|
-| 无 token 请求 → 401 + 引导 | McpHttpServer/McpTcpServer 校验 | serve 流程 | 单元 + 真实 exe 冒烟（ADR 0080） |
-| Bearer/Mcp-Token 正确 → 200 | 同上 | — | 单元 + 冒烟 |
-| token 常量时间比较 | McpAuthToken | 两 server | 单元测试 |
-| tools/call 走权限管道 | JccMcpServer → gateway | serve/stdio 两传输 | 单元 mock + 管道拦截回归测试 |
-| file_write 越界路径拒绝 | PathPermissionMiddleware（Auto）生效于 serve | gateway 管道 | 集成测试（serve 场景 file_write cwd 外路径 → 拒绝） |
-| 现有 E2E 全绿 | 存量用例补 token 头 | — | dotnet test |
+| 要求 | 基建实现 | 消费点 | 已实现 | 已验收 |
+|------|----------|--------|--------|--------|
+| 无 token 请求 → 401 + 引导 | McpHttpServer/McpTcpServer 校验 | serve 流程 | ✅ | ✅ exe 冒烟 HTTP 401 |
+| Bearer/Mcp-Token 正确 → 200 | 同上 | — | ✅ | ✅ exe 冒烟 initialize 200 |
+| token 常量时间比较 | McpAuthToken | 两 server | ✅ | ✅ 单测 |
+| tools/call 走权限管道 | JccMcpServer → gateway | serve/stdio 两传输 | ✅ | ✅ 单测 mock + exe 冒烟 bash 被拒 |
+| file_write 越界路径拒绝 | PathPermissionMiddleware（Auto）生效于 serve | gateway 管道 | ✅ | ✅ exe 冒烟 `write C:\Users\Public` → 拒绝（ADR 0139） |
+| 现有 E2E 全绿 | 存量用例补 token 头 | — | ✅ | ✅ mcp 1000 / host 1279 / guard 1096 全绿 |
+
+单元测试: `McpAuthTokenTests` / `McpHttpServerAuthTests` / `McpTcpServerAuthTests`（23 用例）+
+存量 E2E 补 token 头；gateway 回归: `JccMcpServerGatewayTests`（host.tests）。
 
 ## 5. 被视为但放弃的替代方案
 

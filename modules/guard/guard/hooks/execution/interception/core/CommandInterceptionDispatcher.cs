@@ -110,9 +110,13 @@ public sealed partial class CommandInterceptionDispatcher : ServiceEntity {
                 result = await interceptor.HandleAsync(currentCommand, context, cancellationToken).ConfigureAwait(false);
             } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
                 throw;
-            } catch (Exception ex) {
-                _logger?.LogError(ex, "拦截器 {Name} 处理命令时抛异常,跳过", interceptor.Name);
+            } catch (Exception ex) when (!interceptor.IsSafetyCritical) {
+                _logger?.LogError(ex, "拦截器 {Name} 处理命令时抛异常,跳过(非安全关键,不阻塞)", interceptor.Name);
                 continue;
+            } catch (Exception ex) {
+                // 安全关键拦截器(默认)故障 → fail-closed 拒绝命令(纵深防御,ADR 0140)
+                _logger?.LogError(ex, "安全拦截器 {Name} 内部故障,拒绝命令(fail-closed)", interceptor.Name);
+                return new DispatchOutcome(currentCommand, BuildInterceptorFailureResult(interceptor, currentCommand, ex));
             }
 
             if (result is InterceptResult.Handled h) {
@@ -135,6 +139,29 @@ public sealed partial class CommandInterceptionDispatcher : ServiceEntity {
             .WithText(d.Diagnostic.FormattedMessage)
             .WithDiagnostic(d.Diagnostic)
             .Build();
+
+    /// <summary>
+    /// 构建安全拦截器故障拒绝结果 — Rust 风格引导报错:
+    /// ①为什么拒绝(拦截器内部故障,fail-closed) ②触发参数(命令)
+    /// ③哪个守卫层(拦截器名) ④正确做法(重试/上报/换写法)
+    /// </summary>
+    private static ToolResult BuildInterceptorFailureResult(
+        ICommandInterceptor interceptor, string command, Exception ex) {
+        var message =
+            $"命令被拒绝: 安全拦截器内部故障(fail-closed)\n\n"
+            + $"触发命令: {command}\n"
+            + $"拦截层: {interceptor.Name} (安全关键拦截器异常: {ex.GetType().Name}: {ex.Message})\n\n"
+            + "正确做法: ①检查该命令参数是否异常(异常参数可能触发拦截器解析缺陷)\n"
+            + "②若命令合法,更换等价安全写法重试\n"
+            + "③若持续出现,上报该拦截器故障(名称见上),勿绕过守卫";
+        var diagnostic = ToolDiagnostic.Create("InterceptorFault", message,
+            [new DiagnosticDetail("Command", command), new DiagnosticDetail("Interceptor", interceptor.Name), new DiagnosticDetail("Exception", ex.Message)],
+            ["更换等价安全写法重试", "若持续出现,上报拦截器故障(勿绕过守卫)"]);
+        return ToolResultBuilder.Error()
+            .WithText(diagnostic.FormattedMessage)
+            .WithDiagnostic(diagnostic)
+            .Build();
+    }
 
     /// <summary>
     /// 构建转交引导结果 — 软引导,返回提示文本由 LLM 自行调用目标工具

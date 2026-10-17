@@ -423,6 +423,126 @@ public interface IConfigLayer {
 - **复用 Microsoft.Extensions.Caching.Memory**（用户指定）— 已 AOT 兼容，`MemoryCacheService` 模式复用
 - **不可变快照 + 直接 =**（用户要求）— `Get<T>` 返回不可变 DTO 快照，调用方直接 `=` 线程安全，配置变更原子替换不影已持有快照
 - **config.user / config.pro 两层 + 项目隔离**（用户要求）— `IConfigLayer` 三层(User/Pro/Local)，`IProjectLocator` 按 `.git/`/`.jcc/` 定位项目根，`ProjectConfig` 按项目根路径隔离独立缓存
+- **统一供应商登记**（用户追加）— 一个父类 `IProviderDescriptor` 查询供应商列表/类型/是否支持 OpenAI 格式，动态检索（DI 收集），LLM + Search 全纳入
+
+## 7. 统一供应商登记（用户追加）
+
+### 7.1 需求
+
+用户要求：
+1. **供应商列表** — 能列出所有已注册供应商（LLM + Search）
+2. **供应商类型** — LLM / Search 等分类标签
+3. **供应商是否支持 OpenAI 格式** — 能力查询
+4. **一个父类就可以查询** — 统一父接口 `IProviderDescriptor`
+5. **动态检索出来** — 运行时从 DI 收集，不硬编码
+
+### 7.2 现状（两套独立机制）
+
+| 维度 | LLM 供应商 | Search 供应商 |
+|------|-----------|--------------|
+| 抽象 | `IProviderDefinition` | `ISearchProvider` |
+| 身份 | `VendorKind` 枚举 + `string ProviderName` | `string Name`（无枚举） |
+| 注册 | 运行时 settings.json vendor 节点构建 | 编译时 `[Register]` + 源码生成器 |
+| 容器 | `IProviderDefinitionRegistry`（FrozenDictionary） | DI `IEnumerable<ISearchProvider>` |
+| 聚合 | 入 `IRegistryHub.Providers` | 未入 RegistryHub |
+| 调度 | 单选（按名 TryGet） | 多选（Priority 遍历） |
+
+### 7.3 设计：统一供应商描述符 + 目录
+
+#### 7.3.1 `ProviderCategory` 枚举（供应商类型）
+
+```csharp
+public enum ProviderCategory {
+    [EnumValue("llm")]       Llm = 0,
+    [EnumValue("search")]    Search = 1,
+    [EnumValue("embedding")] Embedding = 2,
+}
+```
+
+#### 7.3.2 `IProviderDescriptor` 父接口（统一查询入口）
+
+```csharp
+/// <summary>供应商描述符 — 统一父接口，一个类查询供应商所有属性</summary>
+public interface IProviderDescriptor {
+    string Name { get; }                    // "openai"、"tavily" 等
+    ProviderCategory Category { get; }      // Llm / Search / Embedding
+    bool SupportsOpenAiFormat { get; }      // 是否支持 OpenAI 格式
+    bool IsAvailable { get; }               // 是否可用（API KEY 已配置等）
+    string? DisplayName { get; }            // 显示名（可选）
+}
+```
+
+#### 7.3.3 `IProviderCatalog` 目录（动态检索）
+
+```csharp
+/// <summary>供应商目录 — 动态检索所有已注册供应商</summary>
+public interface IProviderCatalog {
+    /// <summary>获取所有供应商描述符（LLM + Search + ...）</summary>
+    IReadOnlyList<IProviderDescriptor> GetAll();
+    /// <summary>按类别筛选</summary>
+    IReadOnlyList<IProviderDescriptor> GetByCategory(ProviderCategory category);
+    /// <summary>按名称查找</summary>
+    bool TryGet(string name, [NotNullWhen(true)] out IProviderDescriptor? descriptor);
+}
+```
+
+#### 7.3.4 适配器（桥接现有两套机制 → IProviderDescriptor）
+
+**LLM 适配器**：`LlmProviderDescriptor : IProviderDescriptor`
+- 包装 `IProviderDefinition`，`Category = Llm`，`SupportsOpenAiFormat = protocol == "openai-compatible"`
+
+**Search 适配器**：`SearchProviderDescriptor : IProviderDescriptor`
+- 包装 `ISearchProvider`，`Category = Search`，`SupportsOpenAiFormat = false`
+
+#### 7.3.5 `ProviderCatalog` 实现（DI 动态收集）
+
+```csharp
+[Register(typeof(IProviderCatalog), ServiceLifetime.Singleton)]
+public sealed class ProviderCatalog : IProviderCatalog {
+    private readonly FrozenDictionary<string, IProviderDescriptor> _byName;
+    private readonly IReadOnlyList<IProviderDescriptor> _all;
+
+    public ProviderCatalog(
+        IProviderDefinitionRegistry llmRegistry,
+        IEnumerable<ISearchProvider> searchProviders
+    ) {
+        var llmDescriptors = llmRegistry.GetRegisteredProviders()
+            .Select(name => new LlmProviderDescriptor(llmRegistry.TryGet(name)!));
+        var searchDescriptors = searchProviders.Select(p => new SearchProviderDescriptor(p));
+        _all = llmDescriptors.Concat(searchDescriptors).ToFrozenList();
+        _byName = _all.ToFrozenDictionary(d => d.Name, StringComparer.OrdinalIgnoreCase);
+    }
+
+    public IReadOnlyList<IProviderDescriptor> GetAll() => _all;
+    public IReadOnlyList<IProviderDescriptor> GetByCategory(ProviderCategory c)
+        => _all.Where(d => d.Category == c).ToFrozenList();
+    public bool TryGet(string name, [NotNullWhen(true)] out IProviderDescriptor? d)
+        => _byName.TryGetValue(name, out d);
+}
+```
+
+### 7.4 消费示例
+
+```csharp
+// 列出所有供应商
+foreach (var p in catalog.GetAll())
+    Console.WriteLine($"{p.Name} [{p.Category}] OpenAI={p.SupportsOpenAiFormat} Available={p.IsAvailable}");
+
+// 只看 LLM 供应商
+var llms = catalog.GetByCategory(ProviderCategory.Llm);
+
+// 查某个供应商是否支持 OpenAI 格式
+if (catalog.TryGet("openai", out var desc) && desc.SupportsOpenAiFormat) { ... }
+```
+
+### 7.5 执行步骤
+
+| 步骤 | 内容 |
+|------|------|
+| P4a | `ProviderCategory` 枚举 + `IProviderDescriptor` 接口 + `IProviderCatalog` 接口（abstractions 层） |
+| P4b | `LlmProviderDescriptor` 适配器 + `SearchProviderDescriptor` 适配器 + `ProviderCatalog` 实现 |
+| P4c | DI 注册 + 单元测试 |
+| P4d | search providers 代码拆子文件夹 + provider 构造注入 IConfigRoot |
 
 <!-- 🤖 Auto Decision: 2026-10-18 -->
 <!-- 决策: 配置树状生长 — settings.json 作极简树根，current/vendors/search_providers 三分支子文件夹，物理拆分+逻辑合并 -->

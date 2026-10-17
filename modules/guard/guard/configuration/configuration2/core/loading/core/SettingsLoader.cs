@@ -212,7 +212,7 @@ public static class SettingsLoader {
         var path = GetUserSettingsPath();
         var result = await LoadSettingsFileAsync(fs, path, cancellationToken, logger).ConfigureAwait(false);
         if (result is not null)
-            return result;
+            return await MergeVendorSubConfigsAsync(fs, result, AppDataConstants.Paths.JccDirectory, cancellationToken, logger).ConfigureAwait(false);
 
         // 文件不存在或为空 → 自动创建默认骨架
         if (fs.FileExists(path) && fs.GetFileLength(path) > 0)
@@ -228,7 +228,7 @@ public static class SettingsLoader {
             DirectoryHelper.EnsureDirectoryExists(fs, directory);
 
         await fs.WriteAllTextAsync(path, skeletonJson, cancellationToken).ConfigureAwait(false);
-        return skeleton;
+        return await MergeVendorSubConfigsAsync(fs, skeleton, AppDataConstants.Paths.JccDirectory, cancellationToken, logger).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -239,7 +239,7 @@ public static class SettingsLoader {
         var path = GetUserSettingsPath();
         var result = await LoadSettingsFileSync(fs, path).ConfigureAwait(false);
         if (result is not null)
-            return result;
+            return await MergeVendorSubConfigsAsync(fs, result, AppDataConstants.Paths.JccDirectory, CancellationToken.None, null).ConfigureAwait(false);
 
         if (fs.FileExists(path) && fs.GetFileLength(path) > 0)
             return null;
@@ -254,7 +254,7 @@ public static class SettingsLoader {
             DirectoryHelper.EnsureDirectoryExists(fs, directory);
 
         await fs.WriteAllText(path, skeletonJson).ConfigureAwait(false);
-        return skeleton;
+        return await MergeVendorSubConfigsAsync(fs, skeleton, AppDataConstants.Paths.JccDirectory, CancellationToken.None, null).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -356,6 +356,18 @@ public static class SettingsLoader {
             Models = models,
             ModelsEndpoint = profile.ModelsEndpoint,
         };
+
+    /// <summary>
+    /// 合并 vendors/ 子文件夹配置到 settings.json 内联配置 — 子文件覆盖内联（更高优先级）。
+    /// </summary>
+    private static async Task<SettingsJson?> MergeVendorSubConfigsAsync(
+        IFileSystem fs, SettingsJson? settings, string baseDir,
+        CancellationToken cancellationToken, ILogger? logger) {
+        if (settings is null) return null;
+        var subConfigs = await LoadVendorSubConfigsAsync(fs, baseDir, cancellationToken, logger).ConfigureAwait(false);
+        if (subConfigs.Count == 0) return settings;
+        return SettingsJson.Merge(settings, new SettingsJson { Vendor = subConfigs });
+    }
 
     /// <summary>
     /// 保存设置到指定来源

@@ -474,6 +474,30 @@ public class SettingsLoaderTests : IDisposable {
         result["anthropic"].Models.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task P6b_LoadUserSettingsAsync_子文件覆盖settingsJson内联() {
+        // Given: settings.json 含 vendor.openai 内联 + vendors/openai/config.json 子文件(不同 endpoint)
+        var userSettings = new SettingsJson {
+            Vendor = new Dictionary<string, ProfileSettings> {
+                ["openai"] = new ProfileSettings { Provider = "openai", Endpoint = "https://inline-endpoint" },
+            },
+        };
+        await WriteSettingsAsync(GetUserSettingsPath(), userSettings);
+
+        var vendorsDir = Path.Combine(_userAppDataDir, "vendors", "openai");
+        _fs.CreateDirectory(vendorsDir);
+        var subConfigJson = """{"provider":"openai","endpoint":"https://subfile-endpoint","apiKeyEnvVar":"OPENAI_API_KEY"}""";
+        await _fs.WriteAllText(Path.Combine(vendorsDir, "config.json"), subConfigJson);
+
+        // When: 加载用户设置
+        var result = await SettingsLoader.LoadUserSettingsAsync(_fs, CancellationToken.None);
+
+        // Then: 子文件 endpoint 覆盖内联
+        result.Should().NotBeNull();
+        result?.Vendor.Should().ContainKey("openai");
+        result?.Vendor["openai"].Endpoint.Should().Be("https://subfile-endpoint");
+    }
+
     #endregion
 }
 #pragma warning restore JCC3010, JCC3011, JCC3012

@@ -165,7 +165,7 @@ dsh_parity/
 | **A. Avalonia 原位重构**（降为回退） | 保留技术栈，按 DSH token+布局规格逐区域重构 | 零栈变更、既有测试/VM 全保留、AOT 稳 | 字形与 CSS 特效非 bit-exact（几何/颜色精确） |
 | **B2. WebView2 + 自研 Web UI**（已选定主线） | GUI 内容区改 WebView2 渲染自研 HTML/CSS/JS，样式消费 token golden，同 Chromium 渲染 | 真·像素级（同引擎）、CSS 即 DSH 布局母语、L1/L3 校验更简单严格 | 需卫星 spike 验证 AOT+COM 集成；Avalonia 视图层逐步废弃；引入前端构建链 |
 
-**决策（2026-10-17，用户确认）：B2 为主线** — 见 [ADR 0138](../../../../docs/proposed/adr/architecture/0138-gui-webview2-webui-rendering.md)（proposed，spike 通过转 accepted）；spike 执行见 [TASK054](../task/TASK054-WebView2自研WebUI-spike任务清单.md)。校验体系与 token 数据源保持渲染器无关：B2 下 L1 = token→CSS 变量对等、L2 = DOM 盒树（同构 JSON 天然成立）、L3 = 同引擎帧 diff 更严格。
+**决策（2026-10-17，用户确认）：B2 为主线** — 见 [ADR 0138](../../../../docs/implemented/adr/architecture/0138-gui-webview2-webui-rendering.md)（accepted，spike S1/S2 实测通过）；spike 执行见 [TASK054](../task/TASK054-WebView2自研WebUI-spike任务清单.md)。校验体系与 token 数据源保持渲染器无关：B2 下 L1 = token→CSS 变量对等、L2 = DOM 盒树（同构 JSON 天然成立）、L3 = 同引擎帧 diff 更严格。
 
 ---
 

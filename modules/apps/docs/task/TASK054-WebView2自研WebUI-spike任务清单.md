@@ -1,8 +1,8 @@
 # TASK054 — WebView2 + 自研 WebUI spike 任务清单
 
-> 状态: in_progress
+> 状态: completed（S1/S2/S3 全部通过，2026-10-17）
 > 日期: 2026-10-17
-> ADR: [0138](../../../../docs/proposed/adr/architecture/0138-gui-webview2-webui-rendering.md)（proposed，spike 通过后转 accepted）
+> ADR: [0138](../../../../docs/implemented/adr/architecture/0138-gui-webview2-webui-rendering.md)（accepted，spike 通过）
 > 设计: [DSG042](../design/DSG042-DSH像素级对齐对比校验体系.md) · 参考物: `non_deliverables_tools/dsh_parity/reference/`
 > 工作流: 每任务 红测试 → 实现 → 编译 → 绿测试 → 文档 → git 提交（脚本类非交付品豁免单测，验收 = 真实执行产出）
 
@@ -26,11 +26,11 @@
 - [x] S2-4 JS↔.NET 桥接 ping/pong：`chrome.webview.postMessage` → C# `WebMessageReceived` → `PostWebMessageAsJson` → JS 确认，AOT 版往返 378ms
 - [x] S2-5 离线策略：`--runtime-check` 模式探测 `GetAvailableBrowserVersionString`（缺失返回退出码 3 + 结果 JSON）；file:// 本地页无网运行验证 ✓
 
-## S3 — 收尾
+## S3 — 收尾 ✅
 
-- [ ] S3-1 spike 报告：S1 像素数据 + S2 AOT/桥接结论 → 路线终局建议
-- [ ] S3-2 ADR 0138 状态更新（accepted / 回退 A 并记录原因）
-- [ ] S3-3 TASK053 P5/P6 依决策重排（P5-1 移至本任务，P6 改 WebUI 区域重构）
+- [x] S3-1 spike 报告：S1 像素数据 + S2 AOT/桥接结论 → 路线终局建议（见下方"spike 数据"两节 + 结论行）
+- [x] S3-2 ADR 0138 状态更新：proposed → **accepted**，迁移至 `docs/implemented/adr/architecture/`（含四件套采纳配置）
+- [x] S3-3 TASK053 P5/P6 依决策重排（P6 增 P6-0 产品接入项，启动窗口开放）
 
 ---
 

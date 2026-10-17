@@ -63,7 +63,7 @@
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| Dispatcher 异常处理策略化（fail-closed 默认） | `CommandInterceptionDispatcher.cs:110-116` | ☐ | ☐ 单元测试：安全拦截器抛异常 → 命令被拒绝 |
+| Dispatcher 异常处理策略化（fail-closed 默认） | `CommandInterceptionDispatcher.cs:113-118` | ✅ `IsSafetyCritical` 区分: 非安全拦截器异常跳过,安全拦截器(默认)故障 → fail-closed 拒绝+Rust风格报错 | ✅ `CommandInterceptionDispatcherTests` 单元测试: 安全拦截器抛异常 → 命令被拒绝 |
 
 #### B2. SSRF DNS 失败放行 + TOCTOU 双解析
 
@@ -73,7 +73,7 @@
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| SSRF fail-closed + 单次解析锁定 | `WebSsrfGuardMiddleware.cs`、`WebFetchMiddleware.cs` | ☐ | ☐ 单元: DNS 失败 → 拒绝；E2E: rebinding 场景不穿透 |
+| SSRF fail-closed + 单次解析锁定 | `WebSsrfGuardMiddleware.cs`、`WebFetchMiddleware.cs` | ✅ DNS 解析失败 → 拒绝请求(fail-closed,ADR 0140); 单次解析锁定 IP 直连 | ✅ 单元: DNS 失败 → 拒绝; E2E: rebinding 场景不穿透 |
 
 #### B3. `InstallGitHubAppCommand` git remote URL 命令注入
 

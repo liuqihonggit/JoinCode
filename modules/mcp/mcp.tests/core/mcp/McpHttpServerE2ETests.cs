@@ -17,6 +17,20 @@ public class McpHttpServerE2ETests {
     private const string InitializeBody =
         """{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}""";
 
+    /// <summary>构造带 token 鉴权头的 POST 请求（ADR 0138: serve 默认 token 鉴权）</summary>
+    private static HttpRequestMessage CreateAuthorizedPost(McpHttpServer server, string url, string body) {
+        var request = new HttpRequestMessage(HttpMethod.Post, url) {
+            Content = new StringContent(body, Encoding.UTF8, "application/json")
+        };
+        request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {server.AuthToken.Value}");
+        return request;
+    }
+
+    /// <summary>为已有请求补 token 鉴权头（ADR 0138）</summary>
+    private static void AddAuthHeader(HttpRequestMessage request, McpHttpServer server) {
+        request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {server.AuthToken.Value}");
+    }
+
     [Fact]
     public async Task PostInitialize_StatelessMode_NoSessionIdHeader() {
         var server = new McpServer("test");
@@ -28,9 +42,8 @@ public class McpHttpServerE2ETests {
         try {
             await Task.Delay(300);
             using var client = new HttpClient();
-            using var response = await client.PostAsync(
-                $"http://localhost:{port}/mcp/",
-                new StringContent(InitializeBody, Encoding.UTF8, "application/json"));
+            using var request = CreateAuthorizedPost(httpServer, $"http://localhost:{port}/mcp/", InitializeBody);
+            using var response = await client.SendAsync(request);
 
             response.StatusCode.Should().Be(HttpStatusCode.OK);
             response.Headers.Contains("Mcp-Session-Id").Should().BeFalse();
@@ -51,10 +64,8 @@ public class McpHttpServerE2ETests {
         try {
             await Task.Delay(300);
             using var client = new HttpClient();
-
-            using var response = await client.PostAsync(
-                $"http://localhost:{port}/mcp/",
-                new StringContent(InitializeBody, Encoding.UTF8, "application/json"));
+            using var request = CreateAuthorizedPost(httpServer, $"http://localhost:{port}/mcp/", InitializeBody);
+            using var response = await client.SendAsync(request);
 
             response.StatusCode.Should().Be(HttpStatusCode.OK);
             response.Headers.Contains("Mcp-Session-Id").Should().BeTrue();
@@ -63,6 +74,7 @@ public class McpHttpServerE2ETests {
             httpServer.ActiveSessionCount.Should().Be(1);
 
             using var deleteRequest = new HttpRequestMessage(HttpMethod.Delete, $"http://localhost:{port}/mcp/");
+            AddAuthHeader(deleteRequest, httpServer);
             deleteRequest.Headers.TryAddWithoutValidation("Mcp-Session-Id", sessionId);
             using var deleteResponse = await client.SendAsync(deleteRequest);
             deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -84,10 +96,11 @@ public class McpHttpServerE2ETests {
         try {
             await Task.Delay(300);
             using var client = new HttpClient();
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"http://localhost:{port}/mcp/") {
+            using             var request = new HttpRequestMessage(HttpMethod.Post, $"http://localhost:{port}/mcp/") {
                 Content = new StringContent("""{"jsonrpc":"2.0","id":1,"method":"ping"}""", Encoding.UTF8, "application/json")
             };
             request.Headers.TryAddWithoutValidation("Mcp-Session-Id", "invalid-session-id");
+            AddAuthHeader(request, httpServer);
 
             using var response = await client.SendAsync(request);
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -108,8 +121,10 @@ public class McpHttpServerE2ETests {
         try {
             await Task.Delay(300);
             using var client = new HttpClient();
-            using var response = await client.GetAsync($"http://localhost:{port}/mcp/");
-            response.StatusCode.Should().Be(HttpStatusCode.MethodNotAllowed);
+            using var getHttpRequest = new HttpRequestMessage(HttpMethod.Get, $"http://localhost:{port}/mcp/");
+            AddAuthHeader(getHttpRequest, httpServer);
+            using var getResponse = await client.SendAsync(getHttpRequest);
+            getResponse.StatusCode.Should().Be(HttpStatusCode.MethodNotAllowed);
         } finally {
             cts.Cancel();
             httpServer.Stop();
@@ -129,25 +144,23 @@ public class McpHttpServerE2ETests {
             await Task.Delay(300);
             using var client = new HttpClient();
 
-            using var initResponse = await client.PostAsync(
-                $"http://localhost:{port}/mcp/",
-                new StringContent(InitializeBody, Encoding.UTF8, "application/json"));
+            using var initResponse = await client.SendAsync(CreateAuthorizedPost(httpServer, $"http://localhost:{port}/mcp/", InitializeBody));
             initResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             var sessionId = initResponse.Headers.GetValues("Mcp-Session-Id").First();
 
             using var getRequest = new HttpRequestMessage(HttpMethod.Get, $"http://localhost:{port}/mcp/");
             getRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+            AddAuthHeader(getRequest, httpServer);
             getRequest.Headers.TryAddWithoutValidation("Mcp-Session-Id", sessionId);
             using var getResponse = await client.SendAsync(getRequest, HttpCompletionOption.ResponseHeadersRead);
             getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             getResponse.Content.Headers.ContentType!.MediaType.Should().Be("text/event-stream");
 
             var notificationBody = """{"jsonrpc":"2.0","method":"notifications/initialized"}""";
-            using var notificationRequest = new HttpRequestMessage(HttpMethod.Post, $"http://localhost:{port}/mcp/") {
-                Content = new StringContent(notificationBody, Encoding.UTF8, "application/json")
-            };
+            var notificationRequest = CreateAuthorizedPost(httpServer, $"http://localhost:{port}/mcp/", notificationBody);
             notificationRequest.Headers.TryAddWithoutValidation("Mcp-Session-Id", sessionId);
-            using var notificationResponse = await client.SendAsync(notificationRequest);
+            using (notificationRequest) {
+                using var notificationResponse = await client.SendAsync(notificationRequest);
             notificationResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
             await using var stream = await getResponse.Content.ReadAsStreamAsync();
             using var reader = stream.AsUtf8Reader();
@@ -161,6 +174,7 @@ public class McpHttpServerE2ETests {
                 }
             }
             receivedData.Should().Contain("notifications/initialized");
+            }
         } finally {
             cts.Cancel();
             httpServer.Stop();
@@ -179,22 +193,19 @@ public class McpHttpServerE2ETests {
             await Task.Delay(300);
             using var client = new HttpClient();
 
-            using var initResponse = await client.PostAsync(
-                $"http://localhost:{port}/mcp/",
-                new StringContent(InitializeBody, Encoding.UTF8, "application/json"));
+            using var initResponse = await client.SendAsync(CreateAuthorizedPost(httpServer, $"http://localhost:{port}/mcp/", InitializeBody));
             var sessionId = initResponse.Headers.GetValues("Mcp-Session-Id").First();
 
             using var getRequest = new HttpRequestMessage(HttpMethod.Get, $"http://localhost:{port}/mcp/");
             getRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+            AddAuthHeader(getRequest, httpServer);
             getRequest.Headers.TryAddWithoutValidation("Mcp-Session-Id", sessionId);
             using var getResponse = await client.SendAsync(getRequest, HttpCompletionOption.ResponseHeadersRead);
 
             var notificationBody = """{"jsonrpc":"2.0","method":"notifications/initialized"}""";
-            using var notificationRequest = new HttpRequestMessage(HttpMethod.Post, $"http://localhost:{port}/mcp/") {
-                Content = new StringContent(notificationBody, Encoding.UTF8, "application/json")
-            };
+            using var notificationRequest = CreateAuthorizedPost(httpServer, $"http://localhost:{port}/mcp/", notificationBody);
             notificationRequest.Headers.TryAddWithoutValidation("Mcp-Session-Id", sessionId);
-            await client.SendAsync(notificationRequest);
+            using var notificationResponse = await client.SendAsync(notificationRequest);
             await using var stream = await getResponse.Content.ReadAsStreamAsync();
             using var reader = stream.AsUtf8Reader();
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));

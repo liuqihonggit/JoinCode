@@ -263,6 +263,9 @@ public class ConfigLoader {
         if (authData is null || !authData.TryGetValue(provider, out var apiKey))
             return string.Empty;
 
+        // C6: 解密 API Key — 检测 "dpapi:" 前缀,有则 DPAPI 解密,无则原样返回(旧明文兼容)
+        apiKey = ApiKeyProtector.Decrypt(apiKey);
+
         // Azure 等复合格式：auth.json 中存储的是 JSON 对象而非纯 API Key
         var definition = _registry.TryGet(provider);
         if (definition is not null && definition.IsCompoundAuthFormat(apiKey)) {
@@ -284,7 +287,7 @@ public class ConfigLoader {
     }
 
     /// <summary>
-    /// 保存 API Key 到 ~/.jcc/auth.json
+    /// 保存 API Key 到 ~/.jcc/auth.json — C6: Windows 用 DPAPI 加密,非 Windows 拒绝写明文
     /// </summary>
     public static async Task SaveApiKeyToJccAsync(string provider, string apiKey, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null, AppDataPaths? paths = null) {
         var authPath = (paths ?? AppDataConstants.Paths).AuthFilePath;
@@ -292,6 +295,10 @@ public class ConfigLoader {
 
         if (!string.IsNullOrEmpty(directory) && !fs.DirectoryExists(directory))
             fs.CreateDirectory(directory);
+
+        // C6: 加密 API Key — Windows DPAPI,非 Windows 抛异常(拒绝写明文)
+        var storedValue = ApiKeyProtector.Encrypt(apiKey);
+        logger?.LogInformation("API Key 已加密存储(DPAPI),provider={Provider}", provider);
 
         try {
             await fs.EditFileAsync<bool>(authPath, async (bytes, ct) => {
@@ -302,13 +309,13 @@ public class ConfigLoader {
                 } catch (Exception ex) {
                     logger?.LogWarning(ex, "Failed to read auth file '{AuthPath}'", authPath);
                 }
-                authData[provider] = apiKey;
+                authData[provider] = storedValue;
                 var outputJson = RelaxedJsonSerializer.SerializeCompact(authData, ConfigJsonContext.Default);
                 var newBytes = FileEncodingDetector.EncodeString(outputJson, encoding);
                 return (newBytes, true);
             }, cancellationToken).ConfigureAwait(false);
         } catch (FileNotFoundException) {
-            var authData = new Dictionary<string, string> { [provider] = apiKey };
+            var authData = new Dictionary<string, string> { [provider] = storedValue };
             var outputJson = RelaxedJsonSerializer.SerializeCompact(authData, ConfigJsonContext.Default);
             await fs.WriteAllTextAsync(authPath, outputJson, cancellationToken).ConfigureAwait(false);
         }

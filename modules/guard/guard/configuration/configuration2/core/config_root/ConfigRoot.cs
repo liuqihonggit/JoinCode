@@ -9,10 +9,20 @@ namespace JoinCode.Guard.Configuration.ConfigRoot;
 public sealed class UnifiedConfigRoot : IConfigRoot {
     private const string CacheKeyPrefix = "cfg:";
     private static readonly TimeSpan CacheSlidingExpiration = TimeSpan.FromMinutes(30);
+    private const int CacheEntrySize = 1;
     private readonly IConfigLayer _user;
     private readonly IConfigLayer _pro;
     private readonly IConfigLayer _local;
     private readonly IMemoryCache _cache;
+
+    /// <summary>
+    /// 创建缓存条目选项 — 统一设置 Size/SlidingExpiration/Priority，避免遗漏 Size 导致 InvalidOperationException。
+    /// </summary>
+    private static MemoryCacheEntryOptions CreateCacheEntryOptions() => new() {
+        SlidingExpiration = CacheSlidingExpiration,
+        Priority = CacheItemPriority.Low,
+        Size = CacheEntrySize,
+    };
 
     /// <summary>
     /// 构造统一配置入口。
@@ -47,12 +57,7 @@ public sealed class UnifiedConfigRoot : IConfigRoot {
         }
 
         if (ResolveFromLayers<T>(path, out var resolved)) {
-            var entryOptions = new MemoryCacheEntryOptions {
-                SlidingExpiration = CacheSlidingExpiration,
-                Priority = CacheItemPriority.Low,
-                Size = 1,
-            };
-            _cache.Set(cacheKey, resolved, entryOptions);
+            _cache.Set(cacheKey, resolved, CreateCacheEntryOptions());
             value = resolved;
             return true;
         }

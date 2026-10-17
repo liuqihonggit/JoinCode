@@ -1,11 +1,10 @@
-// JCC11005 抑制: IConfigRoot.Get<T> 返回 T? 接口契约，全层未命中返回 default 是正常情况非异常
-#pragma warning disable JCC11005
 namespace JoinCode.Guard.Configuration.ConfigRoot;
 
 /// <summary>
 /// 统一配置入口实现 — 三层合并 Local &gt; Pro &gt; User，IMemoryCache 懒加载（TASK054）。
-/// <para>线程安全：Get 返回不可变快照，IMemoryCache 内部线程安全，配置变更原子替换不影已持有快照。</para>
+/// <para>线程安全：TryGet 返回不可变快照，IMemoryCache 内部线程安全，配置变更原子替换不影已持有快照。</para>
 /// <para>缓存策略：L1 字段值缓存，key = "cfg:{path}"，SlidingExpiration 30 分钟，Priority.Low（内存压力优先释放）。</para>
+/// <para>TryGet 模式：bool 成功时 out 必然非 null，强制调用方处理未命中。</para>
 /// </summary>
 public sealed class UnifiedConfigRoot : IConfigRoot {
     private const string CacheKeyPrefix = "cfg:";
@@ -39,26 +38,34 @@ public sealed class UnifiedConfigRoot : IConfigRoot {
     public IConfigLayer Local => _local;
 
     /// <inheritdoc />
-    public T? Get<T>(string path) {
+    public bool TryGet<T>(string path, [NotNullWhen(true)] out T? value) {
         ArgumentException.ThrowIfNullOrEmpty(path);
         var cacheKey = CacheKeyPrefix + path;
-        if (_cache.TryGetValue(cacheKey, out T? cached)) {
-            return cached;
+        if (_cache.TryGetValue(cacheKey, out T? cached) && cached is not null) {
+            value = cached;
+            return true;
         }
 
-        var value = ResolveFromLayers<T>(path);
-        var entryOptions = new MemoryCacheEntryOptions {
-            SlidingExpiration = CacheSlidingExpiration,
-            Priority = CacheItemPriority.Low,
-        };
-        _cache.Set(cacheKey, value, entryOptions);
-        return value;
+        if (ResolveFromLayers<T>(path, out var resolved)) {
+            var entryOptions = new MemoryCacheEntryOptions {
+                SlidingExpiration = CacheSlidingExpiration,
+                Priority = CacheItemPriority.Low,
+            };
+            _cache.Set(cacheKey, resolved, entryOptions);
+            value = resolved;
+            return true;
+        }
+
+        value = default;
+        return false;
     }
 
     /// <inheritdoc />
     public T Get<T>(string path, T defaultValue) {
-        var value = Get<T>(path);
-        return value is null ? defaultValue : value;
+        if (TryGet<T>(path, out var value)) {
+            return value;
+        }
+        return defaultValue;
     }
 
     /// <inheritdoc />
@@ -75,22 +82,24 @@ public sealed class UnifiedConfigRoot : IConfigRoot {
         _cache.Remove(CacheKeyPrefix + path);
     }
 
-    private T? ResolveFromLayers<T>(string path) {
-        var local = _local.Get<T>(path);
-        if (local is not null) {
-            return local;
+    private bool ResolveFromLayers<T>(string path, [NotNullWhen(true)] out T? value) {
+        if (_local.TryGet<T>(path, out value)) {
+            return true;
         }
-        var pro = _pro.Get<T>(path);
-        if (pro is not null) {
-            return pro;
+        if (_pro.TryGet<T>(path, out value)) {
+            return true;
         }
-        return _user.Get<T>(path);
+        if (_user.TryGet<T>(path, out value)) {
+            return true;
+        }
+        value = default;
+        return false;
     }
 }
 
 /// <summary>
 /// 配置子节视图实现 — 从指定路径前缀下继续按相对路径获取（TASK054）。
-/// <para>线程安全：委托到 ConfigRoot，无共享可变状态。</para>
+/// <para>线程安全：委托到 UnifiedConfigRoot，无共享可变状态。</para>
 /// </summary>
 internal sealed class ConfigSection : IConfigSection {
     private readonly UnifiedConfigRoot _root;
@@ -107,9 +116,9 @@ internal sealed class ConfigSection : IConfigSection {
     }
 
     /// <inheritdoc />
-    public T? Get<T>(string relativePath) {
+    public bool TryGet<T>(string relativePath, [NotNullWhen(true)] out T? value) {
         ArgumentException.ThrowIfNullOrEmpty(relativePath);
-        return _root.Get<T>(_prefix + "." + relativePath);
+        return _root.TryGet<T>(_prefix + "." + relativePath, out value);
     }
 
     /// <inheritdoc />

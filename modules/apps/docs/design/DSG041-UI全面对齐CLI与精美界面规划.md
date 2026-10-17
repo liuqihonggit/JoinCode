@@ -3,6 +3,7 @@
 > 状态: proposed
 > 日期: 2026-10-17
 > 前置: [DSG032](DSG032-vscode-style-gui-master-plan.md)(VSCode风格GUI)、[GUI001](../task/gui/GUI001-任务-GUI全面美化.md)(全面美化)、[TASK011](../task/TASK011-TuiGui双端对齐任务清单.md)(TuiGui双端对齐)
+> 像素对齐: [DSG042](DSG042-DSH像素级对齐对比校验体系.md)(对比与校验体系 — DSH 参考物捕获已原型验证)
 > 学习对象: DSH (DeepSeek Harness) Web UI — 双进程宿主/客户端、slot 体系、四条交互缝
 > 关联: ADR [0098](../../../../docs/implemented/adr/architecture/0098-plugin-system-fusion-actor-effectscope.md)(插件系统)、PLG006(万物皆插件)、ADR [0005](../../../../docs/implemented/adr/architecture/0005-file-driven-ui.md)(文件驱动界面)、DSG039(启动参数)
 

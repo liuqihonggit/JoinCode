@@ -152,16 +152,47 @@ public sealed class CommandInterceptionDispatcherTests {
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
-    public async Task DispatchAsync_InterceptorException_SkipsAndContinues() {
+    public async Task DispatchAsync_SafetyCriticalInterceptorException_DeniesCommand() {
+        // fail-closed: 安全关键拦截器内部故障 → 拒绝命令,不得静默放行
         var throwingInterceptor = new StubInterceptor("thrower", priority: 100, throwOnHandle: true);
         var passInterceptor = new StubInterceptor("pass", priority: 50,
             new InterceptResult.Handled(ToolResultBuilder.Success().WithText("ok").Build()));
         await using var dispatcher = new CommandInterceptionDispatcher([], [throwingInterceptor, passInterceptor]);
 
-        var outcome = await dispatcher.DispatchAsync("cmd", EmptyContext, default);
+        var outcome = await dispatcher.DispatchAsync("git push --force", EmptyContext, default);
+
+        outcome.ShortCircuitResult.Should().NotBeNull("安全拦截器故障必须拒绝命令(fail-closed)");
+        outcome.ShortCircuitResult!.IsError.Should().BeTrue();
+        var text = outcome.ShortCircuitResult!.GetFirstText();
+        text.Should().Contain("thrower", "必须说明是哪个拦截器层拦截");
+        text.Should().Contain("git push --force", "必须说明触发参数");
+        text.Should().Contain("正确做法", "必须引导下一步");
+        passInterceptor.HandleCallCount.Should().Be(0, "安全拦截器故障后不得继续评估后续拦截器");
+    }
+
+    [Fact]
+    public async Task DispatchAsync_AuditInterceptorException_SkipsAndContinues() {
+        // 纯审计/统计类拦截器(IsSafetyCritical=false)异常 → 跳过继续,不阻塞命令
+        var throwingInterceptor = new StubInterceptor("audit", priority: 100, throwOnHandle: true, isSafetyCritical: false);
+        var passInterceptor = new StubInterceptor("pass", priority: 50,
+            new InterceptResult.Handled(ToolResultBuilder.Success().WithText("ok").Build()));
+        await using var dispatcher = new CommandInterceptionDispatcher([], [throwingInterceptor, passInterceptor]);
+
+        var outcome = await dispatcher.DispatchAsync("ls", EmptyContext, default);
 
         outcome.ShortCircuitResult.Should().NotBeNull();
-        outcome.ShortCircuitResult!.GetFirstText().Should().Contain("ok");
+        outcome.ShortCircuitResult?.GetFirstText().Should().Contain("ok");
+    }
+
+    [Fact]
+    public async Task DispatchAsync_InterceptorDefaultsToSafetyCritical() {
+        // 未显式声明的拦截器默认安全关键(fail-closed 兜底)
+        var interceptor = new StubInterceptor("default", priority: 100, throwOnHandle: true);
+        await using var dispatcher = new CommandInterceptionDispatcher([], [interceptor]);
+
+        var outcome = await dispatcher.DispatchAsync("cmd", EmptyContext, default);
+
+        outcome.ShortCircuitResult.Should().NotBeNull("默认安全关键,故障必须拒绝");
     }
 
     // === 优先级排序 ===
@@ -227,22 +258,25 @@ public sealed class CommandInterceptionDispatcherTests {
         private readonly bool _throwOnHandle;
         public int HandleCallCount { get; private set; }
 
-        public StubInterceptor(string name, int priority, InterceptResult result, bool throwOnHandle = false) {
+        public StubInterceptor(string name, int priority, InterceptResult result, bool isSafetyCritical = true) {
             Name = name;
             Priority = priority;
             _result = result;
-            _throwOnHandle = throwOnHandle;
+            _throwOnHandle = false;
+            IsSafetyCritical = isSafetyCritical;
         }
 
-        public StubInterceptor(string name, int priority, bool throwOnHandle) {
+        public StubInterceptor(string name, int priority, bool throwOnHandle, bool isSafetyCritical = true) {
             Name = name;
             Priority = priority;
             _result = new InterceptResult.Continue();
             _throwOnHandle = throwOnHandle;
+            IsSafetyCritical = isSafetyCritical;
         }
 
         public string Name { get; }
         public int Priority { get; }
+        public bool IsSafetyCritical { get; }
 
         public bool CanHandle(string command, GuardContext context) => true;
 

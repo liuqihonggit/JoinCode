@@ -25,6 +25,16 @@ public interface ICommandInterceptor {
     int Priority { get; }
 
     /// <summary>
+    /// 是否安全关键拦截器 — 决定内部故障时的失败策略
+    /// <para>
+    /// true(默认): fail-closed — HandleAsync 抛异常时拒绝命令并返回引导报错,
+    /// 安全拦截器故障不得静默放行(纵深防御,见 ADR 0140)。
+    /// false: 纯审计/统计类拦截器,异常仅记录日志后跳过,不阻塞命令。
+    /// </para>
+    /// </summary>
+    bool IsSafetyCritical => true;
+
+    /// <summary>
     /// 拦截器名称 — 用于日志和调试
     /// </summary>
     string Name { get; }

@@ -10,40 +10,33 @@ public sealed partial class WebService : ServiceEntity, IWebService {
     private readonly MiddlewarePipeline<WebContext> _pipeline;
     private readonly IWebFetchCache _cache;
     private readonly ITelemetryService? _telemetryService;
-    private readonly IQueryService? _queryService;
-    private readonly ProviderConfig? _providerConfig;
+    private readonly ISearchProviderCoordinator _searchCoordinator;
     private readonly ILogger<WebService>? _logger;
-    private readonly IClockService _clock;
 
     /// <summary>
     /// 初始化 <see cref="WebService"/> 实例。
     /// </summary>
     /// <param name="pipeline">Web 中间件管道，用于执行抓取流程。</param>
     /// <param name="cache">Web 抓取缓存。</param>
+    /// <param name="searchCoordinator">搜索引擎供应商调度器，委托多供应商搜索（ADR 0138）。</param>
     /// <param name="telemetryService">可选的遥测服务，用于记录 Web 操作指标。</param>
     /// <param name="logger">可选的日志记录器。</param>
-    /// <param name="queryService">可选的查询服务，用于执行 Web 搜索。</param>
-    /// <param name="providerConfig">可选的供应商配置，用于判断是否支持 Web 搜索。</param>
-    /// <param name="clock">可选的时钟服务，用于生成搜索提示词中的当前日期。</param>
     public WebService(
         MiddlewarePipeline<WebContext> pipeline,
         IWebFetchCache cache,
+        ISearchProviderCoordinator searchCoordinator,
         ITelemetryService? telemetryService = null,
-        ILogger<WebService>? logger = null,
-        IQueryService? queryService = null,
-        ProviderConfig? providerConfig = null,
-        IClockService? clock = null) {
+        ILogger<WebService>? logger = null) {
         _pipeline = pipeline;
         _cache = cache;
+        _searchCoordinator = searchCoordinator;
         _telemetryService = telemetryService;
         _logger = logger;
-        _queryService = queryService;
-        _providerConfig = providerConfig;
-        _clock = clock ?? SystemClockService.Instance;
     }
 
     /// <summary>
-    /// 异步执行 Web 搜索，返回匹配查询的搜索结果列表。
+    /// 异步执行 Web 搜索，委托 <see cref="ISearchProviderCoordinator"/> 按优先级遍历多个搜索引擎供应商。
+    /// 纵深防御：所有供应商失败时由 <see cref="SubAgentSearchProvider"/> 兜底（ADR 0138）。
     /// </summary>
     /// <param name="query">搜索查询字符串。</param>
     /// <param name="allowedDomains">可选的允许域名白名单。</param>
@@ -59,157 +52,14 @@ public sealed partial class WebService : ServiceEntity, IWebService {
             return new WebSearchResult(false, query, [], 0, ErrorMessage: "Cannot specify both allowed_domains and blocked_domains");
         }
 
-        // 检查 Provider 是否支持 WebSearch
-        if (_providerConfig?.Definition is not { SupportsWebSearch: true }) {
-            return new WebSearchResult(false, query, [], 0,
-                ErrorMessage: "Web search is not available for the current provider. It requires an Anthropic API connection with web_search support.");
+        var request = new SearchRequest(query, allowedDomains, blockedDomains);
+        var result = await _searchCoordinator.SearchAsync(request, cancellationToken).ConfigureAwait(false);
+
+        RecordWebMetrics("search", result.Success, result.Results.Count);
+        if (!result.Success) {
+            _logger?.LogWarning("Web 搜索失败: {Query}, Error: {Error}", query, result.ErrorMessage);
         }
-
-        if (_queryService == null) {
-            return new WebSearchResult(false, query, [], 0, ErrorMessage: "Query service is not available");
-        }
-
-        var stopwatch = Stopwatch.StartNew();
-
-        try {
-            // 构造搜索请求 — 对齐 TS 版 WebSearchTool.call()
-            var chatHistory = new MessageList();
-
-            // 对齐 TS prompt.ts：注入搜索专用系统提示词
-            chatHistory.AddSystemMessage(BuildWebSearchSystemPrompt());
-
-            chatHistory.AddUserMessage($"Perform a web search for the query: {query}");
-
-            // 通过 ExtensionData 传递 web_search 工具 schema
-            var webSearchToolSchema = BuildWebSearchToolSchema(allowedDomains, blockedDomains);
-            var options = new ChatOptions {
-                Temperature = 0,
-                MaxTokens = 4096,
-                FastMode = true,
-                FastModelId = _providerConfig.Definition.DefaultFastModelId,
-                ExtensionData = new Dictionary<string, JsonElement> {
-                    ["web_search_tool"] = webSearchToolSchema
-                }
-            };
-
-            var results = await _queryService.GetApiMessageContentsAsync(
-                chatHistory, options, cancellationToken: cancellationToken).ConfigureAwait(false);
-
-            stopwatch.Stop();
-
-            // 优先从 metadata 提取结构化搜索结果（对齐 TS makeOutputFromSearchResponse）
-            var searchResults = ExtractSearchResultsFromMetadata(results);
-
-            // 回退：从文本内容中提取（兼容非 Anthropic provider）
-            if (searchResults.Count == 0) {
-                foreach (var msg in results) {
-                    if (string.IsNullOrEmpty(msg.Content)) continue;
-                    ExtractSearchResults(msg.Content, searchResults);
-                }
-            }
-
-            RecordWebMetrics("search", true, searchResults.Count);
-            return new WebSearchResult(
-                true, query, searchResults, searchResults.Count,
-                DurationSeconds: stopwatch.Elapsed.TotalSeconds);
-        } catch (Exception ex) {
-            stopwatch.Stop();
-            _logger?.LogError(ex, "Web搜索失败: {Query}", query);
-            RecordWebMetrics("search", false);
-            return new WebSearchResult(false, query, [], 0,
-                DurationSeconds: stopwatch.Elapsed.TotalSeconds,
-                ErrorMessage: ex.Message);
-        }
-    }
-
-    /// <summary>
-    /// 构建搜索专用系统提示词 — 对齐 TS prompt.ts getWebSearchPrompt()
-    /// </summary>
-    private string BuildWebSearchSystemPrompt() {
-        var currentMonthYear = _clock.GetLocalNow().ToString("MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture);
-        return $"""
-            You are an assistant for performing a web search tool use.
-
-            CRITICAL REQUIREMENT - You MUST follow this:
-            - After answering the user's question, you MUST include a "Sources:" section at the end of your response
-            - In the Sources section, list all relevant URLs from the search results as markdown hyperlinks: [Title](URL)
-            - This is MANDATORY - never skip including sources in your response
-
-            IMPORTANT - Use the correct year in search queries:
-            - The current month is {currentMonthYear}. You MUST use this year when searching for recent information.
-            """;
-    }
-
-    /// <summary>
-    /// 从 ApiMessage metadata 提取结构化搜索结果 — 对齐 TS makeOutputFromSearchResponse
-    /// </summary>
-    private static List<SearchResultItem> ExtractSearchResultsFromMetadata(IReadOnlyList<ApiMessage> messages) {
-        var results = new List<SearchResultItem>();
-
-        foreach (var msg in messages) {
-            if (msg.Metadata == null || !msg.Metadata.TryGetValue("web_search_results", out var resultsJson))
-                continue;
-
-            if (resultsJson.ValueKind != JsonValueKind.Array)
-                continue;
-
-            foreach (var block in resultsJson.EnumerateArray()) {
-                if (block.ValueKind != JsonValueKind.Array)
-                    continue;
-
-                foreach (var item in block.EnumerateArray()) {
-                    if (item.ValueKind != JsonValueKind.Object)
-                        continue;
-
-                    var dto = JsonSerializer.Deserialize(item, WebSearchSchemaJsonContext.Default.SearchResultItemDto);
-                    var title = dto?.Title;
-                    var url = dto?.Url;
-
-                    if (string.IsNullOrEmpty(title) || string.IsNullOrEmpty(url))
-                        continue;
-
-                    // 去重
-                    if (results.Any(r => r.Url.Equals(url, StringComparison.OrdinalIgnoreCase)))
-                        continue;
-
-                    results.Add(new SearchResultItem(title, url));
-                }
-            }
-        }
-
-        return results;
-    }
-
-    /// <summary>
-    /// 构建 web_search 工具 schema（对齐 TS 版 BetaWebSearchTool20250305）
-    /// 通过 DTO + JsonSourceGeneration 序列化，兼容 NativeAOT
-    /// </summary>
-    private static JsonElement BuildWebSearchToolSchema(string[]? allowedDomains, string[]? blockedDomains) {
-        var dto = new WebSearchToolSchemaDto {
-            AllowedDomains = allowedDomains is { Length: > 0 } ? allowedDomains : null,
-            BlockedDomains = blockedDomains is { Length: > 0 } ? blockedDomains : null
-        };
-        return JsonSerializer.SerializeToElement(dto, WebSearchSchemaJsonContext.Default.WebSearchToolSchemaDto);
-    }
-
-    /// <summary>
-    /// 从文本内容中提取搜索结果链接（回退方案，兼容非 Anthropic provider）
-    /// </summary>
-    private static void ExtractSearchResults(string content, List<SearchResultItem> results) {
-        // 匹配 Markdown 链接格式 [title](url)
-        var linkRegex = new Regex(@"\[([^\]]+)\]\((https?://[^)]+)\)", RegexOptions.Compiled);
-        var matches = linkRegex.Matches(content);
-
-        foreach (Match match in matches) {
-            var title = match.Groups[1].Value.Trim();
-            var url = match.Groups[2].Value.Trim();
-
-            // 去重
-            if (results.Any(r => r.Url.Equals(url, StringComparison.OrdinalIgnoreCase)))
-                continue;
-
-            results.Add(new SearchResultItem(title, url));
-        }
+        return result;
     }
 
     /// <summary>
@@ -241,50 +91,3 @@ public sealed partial class WebService : ServiceEntity, IWebService {
     private void RecordWebMetrics(string operation, bool isSuccess, int size = 0)
         => ToolTelemetryHelper.RecordToolCount(_telemetryService, "web.operation.count", operation, isSuccess, "Web operation count");
 }
-
-/// <summary>
-/// web_search 工具 schema DTO — 对齐 TS 版 BetaWebSearchTool20250305
-/// 字段使用 snake_case 显式映射，null 域名列表不输出
-/// </summary>
-public sealed record WebSearchToolSchemaDto {
-    /// <summary>工具类型标识，固定为 web_search_20250305。</summary>
-    [JsonPropertyName("type")]
-    public string Type { get; init; } = "web_search_20250305";
-
-    /// <summary>工具名称，固定为 web_search。</summary>
-    [JsonPropertyName("name")]
-    public string Name { get; init; } = "web_search";
-
-    /// <summary>工具最大调用次数，默认 8。</summary>
-    [JsonPropertyName("max_uses")]
-    public int MaxUses { get; init; } = 8;
-
-    /// <summary>允许的域名白名单，为 null 时不输出该字段。</summary>
-    [JsonPropertyName("allowed_domains")]
-    public string[]? AllowedDomains { get; init; }
-
-    /// <summary>屏蔽的域名黑名单，为 null 时不输出该字段。</summary>
-    [JsonPropertyName("blocked_domains")]
-    public string[]? BlockedDomains { get; init; }
-}
-
-/// <summary>
-/// 搜索结果项 DTO — 解析 web_search_results 中的单个结果 {title, url}
-/// </summary>
-public sealed record SearchResultItemDto {
-    /// <summary>结果标题。</summary>
-    [JsonPropertyName("title")]
-    public string? Title { get; init; }
-
-    /// <summary>结果 URL。</summary>
-    [JsonPropertyName("url")]
-    public string? Url { get; init; }
-}
-
-/// <summary>
-/// Web 搜索 schema 序列化上下文 — NativeAOT 兼容
-/// </summary>
-[JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
-[JsonSerializable(typeof(WebSearchToolSchemaDto))]
-[JsonSerializable(typeof(SearchResultItemDto))]
-internal sealed partial class WebSearchSchemaJsonContext : JsonSerializerContext;

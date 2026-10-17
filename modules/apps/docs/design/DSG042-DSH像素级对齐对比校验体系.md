@@ -197,7 +197,10 @@ dsh_parity/
 
 ## 十一、原型证据索引
 
-- 原型脚本（临时目录，P0 时固化为正式工具）：`%TEMP%/opencode/dsh-ref/capture-all.ps1`、`capture-dsh.mjs`
-- 实测版本：`@deepseek-ai/dsh@0.2.0-rc.2`（npm）；Edge x86；Node v26.4.0
-- 参考物：`%TEMP%/opencode/dsh-ref/reference/{dsh-web-1440x900.png, dsh-dom-1440x900.json, dsh-tokens.json, dsh-meta.json}`
+- 卫星工具（P0 已固化）：`non_deliverables_tools/dsh_parity/`
+  - 编排：`capture/capture-all.ps1`（隔离 DSH_HOME + `--no-open` + 按 PID 击杀）
+  - 捕获：`capture/capture-dsh.mjs`（CDP/playwright-core；`colorScheme` 固定主题；首次运行引导弹窗自动关闭）
+  - 运行：`powershell -NoProfile -ExecutionPolicy Bypass -File capture/capture-all.ps1 [-Viewport WxH] [theme]`
+- 实测版本：`@deepseek-ai/dsh@0.2.0-rc.2`（npm，公开包）+ `playwright-core@1.64.1`；Edge x86；Node v26.4.0
+- 参考物（golden，入库）：`non_deliverables_tools/dsh_parity/reference/{dsh-web-1440x900.png, dsh-dom-1440x900.json(183 元素), dsh-tokens.json(421 变量/双主题各 407), dsh-meta.json}`
 - 本项目侧基建：`test/unit/join_code_gui.tests/views/DialogRenderTests.cs`（headless 帧捕获与像素断言先例）

@@ -1,0 +1,12 @@
+{
+  "dshVersion": "0.2.0-rc.2",
+  "url": "http://127.0.0.1:3080/?token=REDACTED",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "deviceScaleFactor": 1,
+  "theme": "dark",
+  "title": "DeepSeek Harness",
+  "capturedAt": "2026-10-17T13:22:40.009Z"
+}

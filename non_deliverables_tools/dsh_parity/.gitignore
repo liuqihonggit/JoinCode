@@ -1,0 +1,7 @@
+node_modules/
+.dsh-home/
+.tmp/
+*.log
+
+# golden 截图必须入库（覆盖根 .gitignore 的 *.png）
+!reference/*.png

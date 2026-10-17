@@ -101,12 +101,12 @@
 
 | # | 问题 | 证据 | 修复方案 | 验收 |
 |---|------|------|----------|------|
-| C1 | API key 默认随子进程继承（`env` 可回显，提示注入可窃取） | `SubprocessEnvCleaner.cs:68-69`（默认关闭，需手动 opt-in） | bash/powershell 工具**默认开启**清洗，`JCC_SUBPROCESS_ENV_SCRUB=0` 反向 opt-out | ☐ 手动 exe: bash 内 `printenv` 无 key |
-| C2 | Bypass 家族 `disableBypassPermissionsMode` 闸疑不覆盖 CLI 显式 flag | `PermissionChecker.cs:88`（仅拦环境变量路径） | `--force`/`--bypass`/`--permission-mode bypass` 一律过 settings.json 安全闸 | ☐ 单元: 闸开启时 CLI flag 被拦 |
-| C3 | HTTP 请求体无 Content-Length 上限（DoS 面） | `McpHttpServer.cs:222-225` | 限制上限（如 10MB），超限 413 + 引导文案 | ☐ 单元测试 |
-| C4 | 插件加载无签名/哈希/目录白名单；`PluginApprovalRegistry` 未接线 | `PluginManager.cs:330-456` | 加载主路径接入审批注册表；外部 exe 启动前校验审批状态 | ☐ 单元: 未审批插件 → 拒绝+引导 |
-| C5 | `JCC_SHELL_PREFIX` 未 ShellQuote 内插 | `BashSystemActuator.cs:180-183` | prefix 同样 `ShellQuote` | ☐ 单元测试 |
-| C6 | auth.json 明文存 key | `ConfigLoader.cs:289-315` | DPAPI 加密（Windows）/ 拒绝写明文（跨平台降级提示） | ☐ 手动 exe: 登录后文件非明文 |
+| C1 | API key 默认随子进程继承（`env` 可回显，提示注入可窃取） | `SubprocessEnvCleaner.cs:68-69`（默认关闭，需手动 opt-in） | bash/powershell 工具**默认开启**清洗，`JCC_SUBPROCESS_ENV_SCRUB=0` 反向 opt-out | ✅ `IsScrubbingEnabled` 改为 `is not ("0" or "false")` 默认开启 + hands.shell.tests 515/515 |
+| C2 | Bypass 家族 `disableBypassPermissionsMode` 闸疑不覆盖 CLI 显式 flag | `PermissionChecker.cs:88`（仅拦环境变量路径） | `--force`/`--bypass`/`--permission-mode bypass` 一律过 settings.json 安全闸 | ✅ `DisableBypassGate` 属性 + `CurrentMode` setter 拦截 + Guard.Security.Tests 1104/1104 |
+| C3 | HTTP 请求体无 Content-Length 上限（DoS 面） | `McpHttpServer.cs:222-225` | 限制上限（如 10MB），超限 413 + 引导文案 | ✅ `MaxRequestBodyBytes` 属性(默认10MB) + `WritePayloadTooLarge` 413 + McpHttpServer 29/29 |
+| C4 | 插件加载无签名/哈希/目录白名单；`PluginApprovalRegistry` 未接线 | `PluginManager.cs:330-456` | 加载主路径接入审批注册表；外部 exe 启动前校验审批状态 | ✅ `CheckPluginApproval` 三路径(EXT/NATIVE/WF) + PluginManager+Approval+Dynamic 59/59 |
+| C5 | `JCC_SHELL_PREFIX` 未 ShellQuote 内插 | `BashSystemActuator.cs:180-183` | prefix 同样 `ShellQuote` | ✅ `ShellQuotePrefix` 分词逐引用 + 11 Theory 元字符/多词/转义 |
+| C6 | auth.json 明文存 key | `ConfigLoader.cs:289-315` | DPAPI 加密（Windows）/ 拒绝写明文（跨平台降级提示） | ✅ `ApiKeyProtector` DPAPI + `dpapi:` 前缀 + ConfigLoader 44/44 + ApiKeyProtector 7/7 |
 
 ---
 

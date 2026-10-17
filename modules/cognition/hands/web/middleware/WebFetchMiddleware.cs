@@ -11,13 +11,17 @@ public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware {
     /// 初始化 <see cref="WebFetchMiddleware"/> 实例。
     /// </summary>
     /// <param name="apiClient">API 客户端抽象，用于执行 HTTP 请求。</param>
-    public WebFetchMiddleware(IApiClient apiClient) {
+    /// <param name="dnsResolver">可选的 DNS 解析函数(惰性注入仅测试使用,生产默认 Dns.GetHostAddresses)。</param>
+    public WebFetchMiddleware(IApiClient apiClient, Func<string, IPAddress[]>? dnsResolver = null) {
         _apiClient = apiClient;
+        _dnsResolver = dnsResolver ?? Dns.GetHostAddresses;
     }
     private const int MaxRedirects = 10;
     private const int MaxHttpContentLength = 10 * 1024 * 1024;
 
     private readonly IApiClient _apiClient;
+
+    private readonly Func<string, IPAddress[]> _dnsResolver;
 
     /// <inheritdoc />
 
@@ -59,6 +63,20 @@ public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware {
     private async Task<WebFetchResult> FetchWithRedirectSafetyAsync(string url, CancellationToken cancellationToken, int depth = 0) {
         if (depth > MaxRedirects) {
             return new WebFetchResult(false, url, ErrorMessage: L.T(StringKey.WebRedirectLimitExceeded, MaxRedirects));
+        }
+
+        // SSRF 复检 — 每次实际请求(含重定向跟随)前重新解析宿主再检查。
+        // HttpClient 内部仍会再解析一次 DNS(TOCTOU 窗口收窄到此),本层保证重定向链全跳复检(ADR 0140)。
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var requestUri)) {
+            return new WebFetchResult(false, url, ErrorMessage: $"Invalid URL: {url}");
+        }
+
+        var guardDecision = PrivateNetworkGuard.ValidateHost(requestUri.Host, _dnsResolver);
+        if (!guardDecision.Allowed) {
+            var message = $"{guardDecision.Reason}\n\n" +
+                          $"拦截层: SSRF guard (WebFetchMiddleware 复检)\n" +
+                          "正确做法: 确认目标主机可公网解析且非内网地址后再请求，内网地址不允许通过 web 工具访问";
+            return new WebFetchResult(false, url, ErrorMessage: message);
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Get, url);

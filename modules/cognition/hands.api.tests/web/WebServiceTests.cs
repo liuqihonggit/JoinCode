@@ -1,35 +1,14 @@
-// JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-﻿namespace Core.Tests.Web;
+namespace Core.Tests.Web;
 
-
+/// <summary>
+/// WebService 单元测试 — 测试输入验证 + 委托 ISearchProviderCoordinator（ADR 0138）。
+/// Anthropic web_search 行为测试迁移至 AnthropicSearchProviderTests。
+/// </summary>
 public sealed class WebServiceTests {
-    private static readonly IModelConfigLoader Loader = new ModelConfigLoader();
-    private static readonly string DefaultAnthropicModelId = Loader.GetDefaultModelId("anthropic");
-    private static readonly string DefaultAnthropicFastModelId = Loader.GetDefaultFastModelId("anthropic");
-
     private readonly Mock<IApiClient> _apiClientMock = new();
-    private readonly Mock<IQueryService> _queryServiceMock = new();
+    private readonly Mock<ISearchProviderCoordinator> _coordinatorMock = new();
 
-    private static ProviderConfig CreateProviderConfig(bool supportsWebSearch = true) {
-        var definitionMock = new Mock<IProviderDefinition>();
-        definitionMock.SetupGet(d => d.SupportsWebSearch).Returns(supportsWebSearch);
-        definitionMock.SetupGet(d => d.DefaultFastModelId).Returns(DefaultAnthropicFastModelId);
-        definitionMock.SetupGet(d => d.Vendor).Returns(VendorKind.Anthropic);
-        definitionMock.SetupGet(d => d.ProviderName).Returns("anthropic");
-        definitionMock.SetupGet(d => d.DisplayName).Returns("Anthropic");
-        definitionMock.SetupGet(d => d.DefaultModelId).Returns(DefaultAnthropicModelId);
-        definitionMock.Setup(d => d.IsValid(It.IsAny<ProviderConfig>())).Returns(true);
-        definitionMock.Setup(d => d.GetBaseUrl(It.IsAny<ProviderConfig>())).Returns("https://api.anthropic.com");
-        definitionMock.Setup(d => d.GetChatEndpoint(It.IsAny<ProviderConfig>())).Returns("v1/messages");
-        definitionMock.Setup(d => d.ConfigureHttpClient(It.IsAny<HttpClient>(), It.IsAny<ProviderConfig>()));
-
-        return new ProviderConfig {
-            Vendor = VendorKind.Anthropic.ToValue(),
-            Definition = definitionMock.Object
-        };
-    }
-
-    private async Task<WebService> CreateService(bool supportsWebSearch = true) {
+    private async Task<WebService> CreateService() {
         var cache = new WebFetchCache();
         await using var domainChecker = new DomainBlocklistChecker(_apiClientMock.Object, cache);
         await using var binaryStorage = new BinaryContentStorage(new IO.FileSystem.PhysicalFileSystem());
@@ -46,11 +25,7 @@ public sealed class WebServiceTests {
         };
         var pipeline = new MiddlewarePipeline<WebContext>(middlewares.Cast<IMiddleware<WebContext>>());
 
-        return new WebService(
-            pipeline,
-            cache,
-            queryService: _queryServiceMock.Object,
-            providerConfig: CreateProviderConfig(supportsWebSearch));
+        return new WebService(pipeline, cache, _coordinatorMock.Object);
     }
 
     #region SearchAsync - 输入验证
@@ -83,46 +58,43 @@ public sealed class WebServiceTests {
 
     #endregion
 
-    #region SearchAsync - Provider 检查
+    #region SearchAsync - 委托 Coordinator
 
     [Fact]
-    public async Task SearchAsync_ProviderNotSupportWebSearch_ReturnsError() {
-        await using var service = await CreateService(supportsWebSearch: false);
+    public async Task SearchAsync_ValidQuery_DelegatesToCoordinator() {
+        _coordinatorMock
+            .Setup(c => c.SearchAsync(It.IsAny<SearchRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new WebSearchResult(true, "test query", [], 0));
+        await using var service = await CreateService();
         var result = await service.SearchAsync("test query").ConfigureAwait(true);
-        result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("not available");
+
+        result.Success.Should().BeTrue();
+        _coordinatorMock.Verify(
+            c => c.SearchAsync(It.Is<SearchRequest>(r => r.Query == "test query"), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]
-    public async Task SearchAsync_NoQueryService_ReturnsError() {
-        await using var service = new WebService(
-            new MiddlewarePipeline<WebContext>(Enumerable.Empty<IMiddleware<WebContext>>()),
-            new WebFetchCache(),
-            providerConfig: CreateProviderConfig());
+    public async Task SearchAsync_CoordinatorReturnsError_PassesErrorThrough() {
+        _coordinatorMock
+            .Setup(c => c.SearchAsync(It.IsAny<SearchRequest>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult(new WebSearchResult(false, "test", [], 0, ErrorMessage: "All providers failed")));
+
+        await using var service = await CreateService();
         var result = await service.SearchAsync("test query").ConfigureAwait(true);
+
         result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("Query service");
+        result.ErrorMessage.Should().Contain("All providers failed");
     }
 
-    #endregion
-
-    #region SearchAsync - 结构化搜索结果提取
-
     [Fact]
-    public async Task SearchAsync_WithWebSearchResultsMetadata_ExtractsStructuredResults() {
-        var searchResultsJson = /*lang=json,strict*/ """[{"title":"Example","url":"https://example.com"}]""";
-        var metadata = new Dictionary<string, JsonElement> {
-            ["web_search_results"] = JsonDocument.Parse($"[{searchResultsJson}]").RootElement.Clone()
+    public async Task SearchAsync_CoordinatorReturnsResults_PassesResultsThrough() {
+        var expectedResults = new List<SearchResultItem> {
+            new("Example", "https://example.com", Snippet: "Test snippet")
         };
-
-        _queryServiceMock
-            .Setup(q => q.GetApiMessageContentsAsync(
-                It.IsAny<MessageList>(), It.IsAny<ChatOptions>(),
-                It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<ChatApiMessage>
-            {
-                new(ChatMessageRole.Assistant, "Search results:", metadata)
-            });
+        _coordinatorMock
+            .Setup(c => c.SearchAsync(It.IsAny<SearchRequest>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult(new WebSearchResult(true, "test", expectedResults, 1)));
 
         await using var service = await CreateService();
         var result = await service.SearchAsync("test query").ConfigureAwait(true);
@@ -134,140 +106,29 @@ public sealed class WebServiceTests {
     }
 
     [Fact]
-    public async Task SearchAsync_WithMultipleSearchResults_DeduplicatesByUrl() {
-        var searchResultsJson = /*lang=json,strict*/ """[{"title":"Example","url":"https://example.com"},{"title":"Example Again","url":"https://example.com"}]""";
-        var metadata = new Dictionary<string, JsonElement> {
-            ["web_search_results"] = JsonDocument.Parse($"[{searchResultsJson}]").RootElement.Clone()
-        };
-
-        _queryServiceMock
-            .Setup(q => q.GetApiMessageContentsAsync(
-                It.IsAny<MessageList>(), It.IsAny<ChatOptions>(),
-                It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<ChatApiMessage>
-            {
-                new(ChatMessageRole.Assistant, "Search results:", metadata)
-            });
-
-        await using var service = await CreateService();
-        var result = await service.SearchAsync("test query").ConfigureAwait(true);
-
-        result.Success.Should().BeTrue();
-        result.Results.Should().HaveCount(1);
-    }
-
-    #endregion
-
-    #region SearchAsync - 回退到文本解析
-
-    [Fact]
-    public async Task SearchAsync_NoMetadata_FallsBackToTextExtraction() {
-        _queryServiceMock
-            .Setup(q => q.GetApiMessageContentsAsync(
-                It.IsAny<MessageList>(), It.IsAny<ChatOptions>(),
-                It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<ChatApiMessage>
-            {
-                new(ChatMessageRole.Assistant, "Here are some results:\n[Example](https://example.com)\n[Another](https://another.com)")
-            });
-
-        await using var service = await CreateService();
-        var result = await service.SearchAsync("test query").ConfigureAwait(true);
-
-        result.Success.Should().BeTrue();
-        result.Results.Should().HaveCount(2);
-    }
-
-    #endregion
-
-    #region SearchAsync - 系统提示词注入
-
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    [Fact]
-    public async Task SearchAsync_IncludesSystemPromptInRequest() {
-        MessageList? capturedHistory = null;
-        _queryServiceMock
-            .Setup(q => q.GetApiMessageContentsAsync(
-                It.IsAny<MessageList>(), It.IsAny<ChatOptions>(),
-                It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
-            .Callback<MessageList, ChatOptions, IChatClient, CancellationToken>((history, _, _, _) => capturedHistory = history)
-            .ReturnsAsync(new List<ChatApiMessage> { new(ChatMessageRole.Assistant, "No results") });
-
-        await using var service = await CreateService();
-        await service.SearchAsync("test query").ConfigureAwait(true);
-
-        capturedHistory.Should().NotBeNull();
-        capturedHistory!.Count.Should().Be(2);
-        capturedHistory[0].Role.Should().Be(ChatMessageRole.System);
-        capturedHistory[0].Content.Should().Contain("CRITICAL REQUIREMENT");
-        capturedHistory[0].Content.Should().Contain("Sources:");
-        capturedHistory[1].Role.Should().Be(ChatMessageRole.User);
-        capturedHistory[1].Content.Should().Contain("web search");
-    }
-
-    #endregion
-
-    #region SearchAsync - ExtensionData 传递
-
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    [Fact]
-    public async Task SearchAsync_PassesWebSearchToolInExtensionData() {
-        ChatOptions? capturedOptions = null;
-        _queryServiceMock
-            .Setup(q => q.GetApiMessageContentsAsync(
-                It.IsAny<MessageList>(), It.IsAny<ChatOptions>(),
-                It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
-            .Callback<MessageList, ChatOptions, IChatClient, CancellationToken>((_, options, _, _) => capturedOptions = options)
-            .ReturnsAsync(new List<ChatApiMessage> { new(ChatMessageRole.Assistant, "No results") });
-
-        await using var service = await CreateService();
-        await service.SearchAsync("test query").ConfigureAwait(true);
-
-        capturedOptions.Should().NotBeNull();
-        capturedOptions!.ExtensionData.Should().NotBeNull();
-        capturedOptions.ExtensionData.Should().ContainKey("web_search_tool");
-
-        var toolJson = capturedOptions.ExtensionData!["web_search_tool"].GetRawText();
-        toolJson.Should().Contain("web_search_20250305");
-        toolJson.Should().Contain("max_uses");
-    }
-
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    [Fact]
-    public async Task SearchAsync_WithAllowedDomains_PassesInExtensionData() {
-        ChatOptions? capturedOptions = null;
-        _queryServiceMock
-            .Setup(q => q.GetApiMessageContentsAsync(
-                It.IsAny<MessageList>(), It.IsAny<ChatOptions>(),
-                It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
-            .Callback<MessageList, ChatOptions, IChatClient, CancellationToken>((_, options, _, _) => capturedOptions = options)
-            .ReturnsAsync(new List<ChatApiMessage> { new(ChatMessageRole.Assistant, "No results") });
-
+    public async Task SearchAsync_PassesAllowedDomainsToCoordinator() {
+        _coordinatorMock
+            .Setup(c => c.SearchAsync(It.IsAny<SearchRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new WebSearchResult(true, "test", [], 0));
         await using var service = await CreateService();
         await service.SearchAsync("test", allowedDomains: ["example.com"]).ConfigureAwait(true);
 
-        var toolJson = capturedOptions!.ExtensionData!["web_search_tool"].GetRawText();
-        toolJson.Should().Contain("allowed_domains");
-        toolJson.Should().Contain("example.com");
+        _coordinatorMock.Verify(
+            c => c.SearchAsync(It.Is<SearchRequest>(r => r.AllowedDomains != null && r.AllowedDomains.Contains("example.com")), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
-    #endregion
-
-    #region SearchAsync - 错误处理
-
     [Fact]
-    public async Task SearchAsync_QueryServiceThrows_ReturnsError() {
-        _queryServiceMock
-            .Setup(q => q.GetApiMessageContentsAsync(
-                It.IsAny<MessageList>(), It.IsAny<ChatOptions>(),
-                It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new HttpRequestException("API error"));
-
+    public async Task SearchAsync_PassesBlockedDomainsToCoordinator() {
+        _coordinatorMock
+            .Setup(c => c.SearchAsync(It.IsAny<SearchRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new WebSearchResult(true, "test", [], 0));
         await using var service = await CreateService();
-        var result = await service.SearchAsync("test query").ConfigureAwait(true);
+        await service.SearchAsync("test", blockedDomains: ["bad.com"]).ConfigureAwait(true);
 
-        result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("API error");
+        _coordinatorMock.Verify(
+            c => c.SearchAsync(It.Is<SearchRequest>(r => r.BlockedDomains != null && r.BlockedDomains.Contains("bad.com")), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     #endregion

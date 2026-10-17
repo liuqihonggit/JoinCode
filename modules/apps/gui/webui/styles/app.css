@@ -12,7 +12,30 @@ body {
   font-size: 16px;
 }
 
-button { font: inherit; color: inherit; background: none; border: 0; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+button:disabled { cursor: default; }
+
+/* 交互态（golden: reference/dsh-states.json，DSH hover/active=interactive-bg-hover，
+   corner active 用 interactive-bg-active） */
+.icon-btn:hover,
+.panel-row:hover,
+.settings-btn:hover,
+.chip:hover,
+.mode-chip:hover,
+.model-chip:hover,
+.corner:hover { background-color: var(--dsw-alias-interactive-bg-hover); }
+
+.icon-btn:active,
+.panel-row:active,
+.settings-btn:active,
+.chip:active,
+.mode-chip:active,
+.model-chip:active { background-color: var(--dsw-alias-interactive-bg-hover); }
+
+.corner:active { background-color: var(--dsw-alias-interactive-bg-active); }
+
+.new-session:hover,
+.new-session:active { background: var(--dsw-alias-bg-layer-3); }
 
 .frame { display: flex; width: 100vw; height: 100vh; }
 
@@ -300,7 +323,13 @@ button { font: inherit; color: inherit; background: none; border: 0; }
   padding: 4px 8px 0 14px;
   font-size: 14px;
   line-height: 24px;
+  color: var(--dsw-alias-label-primary);
+  caret-color: var(--dsw-alias-button-info-fill);
+}
+
+.composer-placeholder {
   color: var(--dsw-alias-label-caption);
+  pointer-events: none;
 }
 
 .composer-row {

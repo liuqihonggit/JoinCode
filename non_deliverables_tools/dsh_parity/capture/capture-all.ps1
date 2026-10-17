@@ -14,23 +14,35 @@
 .PARAMETER OutDir
   产出目录，默认 <工具目录>\reference。
 
+.PARAMETER Script
+  捕获脚本路径，默认 capture/capture-dsh.mjs；可传 capture/capture-states-dsh.mjs 等。
+
+.PARAMETER DshHomeDir
+  DSH_HOME 目录，默认 <工具目录>\.dsh-home；状态捕获可传独立 home 避免互相污染。
+
 .EXAMPLE
   powershell -NoProfile -ExecutionPolicy Bypass -File capture/capture-all.ps1
   powershell -NoProfile -ExecutionPolicy Bypass -File capture/capture-all.ps1 -Viewport 1024x768
+  powershell -NoProfile -ExecutionPolicy Bypass -File capture/capture-all.ps1 -Script capture/capture-states-dsh.mjs -DshHomeDir .dsh-home-states
 #>
 [CmdletBinding()]
 param(
     [string]$Viewport = "1440x900",
-    [string]$OutDir = ""
+    [string]$OutDir = "",
+    [string]$Script = "",
+    [string]$DshHomeDir = ""
 )
 
 $ErrorActionPreference = "Stop"
 $ToolRoot = Split-Path -Parent $PSScriptRoot
 $NodeModules = Join-Path $ToolRoot "node_modules"
 $DshEntry = Join-Path $NodeModules "@deepseek-ai\dsh\lib\bin.js"
-$CaptureScript = Join-Path $PSScriptRoot "capture-dsh.mjs"
+if (-not $Script) { $Script = Join-Path $PSScriptRoot "capture-dsh.mjs" }
+$CaptureScript = if ([System.IO.Path]::IsPathRooted($Script)) { $Script } else { Join-Path $ToolRoot $Script }
 $TmpDir = Join-Path $ToolRoot ".tmp"
-$DshHome = Join-Path $ToolRoot ".dsh-home"
+$DshHome = if (-not $DshHomeDir) { Join-Path $ToolRoot ".dsh-home" }
+    elseif ([System.IO.Path]::IsPathRooted($DshHomeDir)) { $DshHomeDir }
+    else { Join-Path $ToolRoot $DshHomeDir }
 if (-not $OutDir) { $OutDir = Join-Path $ToolRoot "reference" }
 
 New-Item -ItemType Directory -Force -Path $TmpDir, $DshHome, $OutDir | Out-Null

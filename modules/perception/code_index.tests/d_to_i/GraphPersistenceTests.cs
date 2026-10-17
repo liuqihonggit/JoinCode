@@ -166,7 +166,7 @@ public sealed class GraphPersistenceTests : IDisposable {
 
         await _persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
 
-        using var lease = _kvStore.AcquireAsync();
+        using var lease = await _kvStore.AcquireAsync();
         var bytes = await lease.GetAsync(System.Text.Encoding.UTF8.GetBytes("code-index"), CancellationToken.None).ConfigureAwait(true);
         Assert.NotNull(bytes);
         Assert.True(bytes.Length > 10, "二进制内容不应为空");
@@ -222,7 +222,7 @@ public sealed class GraphPersistenceTests : IDisposable {
 
         await _persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
 
-        using var lease = _kvStore.AcquireAsync();
+        using var lease = await _kvStore.AcquireAsync();
         var bytes = await lease.GetAsync(System.Text.Encoding.UTF8.GetBytes("code-index"), CancellationToken.None).ConfigureAwait(true);
         Assert.NotNull(bytes);
         Assert.True(bytes.Length > 10, "二进制内容不应为空");
@@ -264,7 +264,7 @@ public sealed class GraphPersistenceTests : IDisposable {
         await Task.WhenAll(tasks).ConfigureAwait(true);
 
         Assert.Empty(exceptions);
-        using var lease = _kvStore.AcquireAsync();
+        using var lease = await _kvStore.AcquireAsync();
         var bytes = await lease.GetAsync(System.Text.Encoding.UTF8.GetBytes("code-index"), CancellationToken.None).ConfigureAwait(true);
         Assert.NotNull(bytes);
         Assert.True(bytes.Length > 10, "并发保存后 KV store 应有数据");

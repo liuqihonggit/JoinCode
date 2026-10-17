@@ -17,6 +17,7 @@ internal static class Program
 
     internal sealed record Options(
         bool Smoke,
+        bool InputProbe,
         string PagePath,
         string ResultPath,
         int TimeoutSeconds);
@@ -40,7 +41,7 @@ internal static class Program
             .UsePlatformDetect()
             .LogToTrace();
 
-        if (opts.Smoke)
+        if (opts.Smoke || opts.InputProbe)
         {
             s_watchdog = new Timer(
                 _ => SpikeApp.FailAndExit("watchdog-timeout", opts.ResultPath),
@@ -77,6 +78,7 @@ internal static class Program
     private static Options ParseArgs(string[] args)
     {
         var smoke = false;
+        var inputProbe = false;
         var page = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory, "..", "..", "..", "..", "..",
             "modules", "apps", "gui", "webui", "index.html"));
@@ -87,12 +89,13 @@ internal static class Program
             switch (args[i])
             {
                 case "--smoke": smoke = true; break;
+                case "--input-probe": inputProbe = true; break;
                 case "--page" when i + 1 < args.Length: page = Path.GetFullPath(args[++i]); break;
                 case "--result" when i + 1 < args.Length: result = Path.GetFullPath(args[++i]); break;
                 case "--timeout" when i + 1 < args.Length: timeout = int.Parse(args[++i]); break;
             }
         }
-        return new Options(smoke, page, result, timeout);
+        return new Options(smoke, inputProbe, page, result, timeout);
     }
 }
 
@@ -121,7 +124,7 @@ internal sealed class SpikeApp : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var window = new SpikeWindow(_opts);
-            if (_opts.Smoke)
+            if (_opts.Smoke || _opts.InputProbe)
             {
                 window.BridgeSucceeded += () => Environment.Exit(0);
                 window.BridgeFailed += reason => FailAndExit(reason, _opts.ResultPath);
@@ -170,7 +173,7 @@ internal sealed class SpikeWindow : Window
         _host = new WebView2Host(new Uri(opts.PagePath).AbsoluteUri,
             Path.Combine(Path.GetTempPath(), "jcc-webview2-spike"));
         _host.WebViewReady += OnWebViewReady;
-        if (opts.Smoke)
+        if (opts.Smoke || opts.InputProbe)
         {
             _host.InitFailed += reason => BridgeFailed?.Invoke($"webview2-init-failed:{reason}");
         }
@@ -197,6 +200,10 @@ internal sealed class SpikeWindow : Window
             {
                 await core.ExecuteScriptAsync(BridgeJs);
             }
+            else if (_opts.InputProbe)
+            {
+                await core.ExecuteScriptAsync(InputProbeJs);
+            }
         };
     }
 
@@ -215,20 +222,39 @@ internal sealed class SpikeWindow : Window
                 core.PostWebMessageAsJson("\"pong-from-cs\"");
                 break;
             case "bridge-ok:pong-received" when _pingSeen && !_done:
-                _done = true;
-                _watch.Stop();
-                Console.WriteLine($"SPIKE-PASS: bridge roundtrip {_watch.ElapsedMilliseconds}ms");
-                SpikeApp.WriteResult(_opts.ResultPath, new SpikeResult(
-                    Ok: true,
-                    Reason: null,
-                    Mode: _opts.Smoke ? "smoke" : "interactive",
-                    Page: _opts.PagePath,
-                    Runtime: core.Environment.BrowserVersionString,
-                    RoundtripMs: _watch.ElapsedMilliseconds,
-                    EngineMode: Program.EngineMode()));
-                BridgeSucceeded?.Invoke();
+                Complete(core, "smoke-bridge");
+                break;
+            case "input-probe:ready":
+                Console.WriteLine("INPUT-PROBE-READY");
+                try
+                {
+                    System.IO.File.WriteAllText($"{_opts.ResultPath}.ready", "ready");
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"READY-MARKER-FAIL: {ex.Message}");
+                }
+                break;
+            case { } m when m.StartsWith("input-probe:down:", StringComparison.Ordinal) && !_done:
+                Complete(core, $"input-probe({m["input-probe:down:".Length..]})");
                 break;
         }
+    }
+
+    private void Complete(Microsoft.Web.WebView2.Core.CoreWebView2 core, string mode)
+    {
+        _done = true;
+        _watch.Stop();
+        Console.WriteLine($"SPIKE-PASS: {mode} {_watch.ElapsedMilliseconds}ms");
+        SpikeApp.WriteResult(_opts.ResultPath, new SpikeResult(
+            Ok: true,
+            Reason: null,
+            Mode: mode,
+            Page: _opts.PagePath,
+            Runtime: core.Environment.BrowserVersionString,
+            RoundtripMs: _watch.ElapsedMilliseconds,
+            EngineMode: Program.EngineMode()));
+        BridgeSucceeded?.Invoke();
     }
 
     private const string BridgeJs = """
@@ -242,6 +268,16 @@ internal sealed class SpikeWindow : Window
           });
           window.chrome.webview.postMessage('ping-from-js');
           return 'hooked';
+        })()
+        """;
+
+    private const string InputProbeJs = """
+        (() => {
+          document.addEventListener('mousedown', (e) => {
+            window.chrome.webview.postMessage('input-probe:down:' + e.clientX + ',' + e.clientY);
+          }, { once: true });
+          window.chrome.webview.postMessage('input-probe:ready');
+          return 'probe-armed';
         })()
         """;
 }

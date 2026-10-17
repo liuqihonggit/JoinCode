@@ -78,6 +78,19 @@
 
 **S2 结论**：Avalonia 12.1.3 + NativeControlHost + WebView2 投影 + NativeAOT 全链路可用，热启动桥接往返 < 400ms。**B2 路线技术可行，spike 通过。**
 
+### S2-6 — 交互目视验收 + 输入命中实证（2026-10-17）
+
+用户目视验收：画面渲染正常；"按钮点击无反应"经实证定位为**静态复刻页无 JS 行为**（composer 为 `<div>`，index.html:160；app.css 无任何 `:hover`/`:active`/`:focus` 规则），**非输入链路问题**。
+
+`--input-probe` 模式（页面注入 mousedown 监听 → `SendInput` 级真实 OS 点击，`dumps/click-probe.ps1`）：
+
+| 构建 | 点击落点（屏幕） | 页面收到 mousedown（客户区） | 结论 |
+|------|------------------|------------------------------|------|
+| Debug JIT | 客户区 1440x900 中心 | **(720,450) 精确一致**，往返 818ms | ✅ 输入可达 |
+| Release AOT | 客户区 1440x900 中心 | **(720,450) 精确一致**，往返 682ms | ✅ 输入可达 |
+
+**待办（webui CSS/JS 工作项，非宿主问题）**：补 `:hover`/`:active`/`:focus` 状态与真实 `input` 元素、交互 JS；归属 P1 场景矩阵扩展（新增"交互态"场景：hover/active/focus 样式需先 Capture DSH 对应状态）。
+
 ## 备注
 
 - DSH 暗色激活机制：playwright context colorScheme=dark；webui 侧对应 `prefers-color-scheme`

@@ -137,7 +137,9 @@ public sealed class McpTcpServer : ServiceEntity {
                 if (_statelessMode || string.IsNullOrEmpty(request.Headers.GetValueOrDefault("Mcp-Session-Id"))) {
                     await WriteResponseAsync(stream, 405, "Method Not Allowed", null, ct).ConfigureAwait(false);
                 } else {
-                    // SSE 推送暂不支持,返回 200 空流
+                    // TCP 传输层不支持 SSE 推送（实验性）。
+                    // 如需服务端通知推送，请使用 HTTP 传输（McpHttpServer），已实现 text/event-stream。
+                    // 此处返回 200 空流保持连接兼容，客户端不应依赖此通道接收通知。
                     await WriteResponseAsync(stream, 200, "OK", null, ct).ConfigureAwait(false);
                 }
                 break;

@@ -86,6 +86,34 @@ public class UltraplanCommandTests {
     }
 
     [Fact]
+    public async Task Execute_WithExecuteFlagAndSteps_ShouldPassStepsToPlanService() {
+        var context = CreateContext("test-goal --steps 10 --execute");
+
+        await _command.ExecuteAsync(context).ConfigureAwait(true);
+
+        _planServiceMock.Verify(
+            p => p.ExecutePlanWithResultAsync(
+                It.Is<string>(s => s.Contains("test-goal", StringComparison.OrdinalIgnoreCase)
+                                && s.Contains("10", StringComparison.OrdinalIgnoreCase)),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Execute_WithExecuteFlagAndDefaultSteps_ShouldPassDefaultStepsToPlanService() {
+        var context = CreateContext("test-goal --execute");
+
+        await _command.ExecuteAsync(context).ConfigureAwait(true);
+
+        _planServiceMock.Verify(
+            p => p.ExecutePlanWithResultAsync(
+                It.Is<string>(s => s.Contains("test-goal", StringComparison.OrdinalIgnoreCase)
+                                && s.Contains("5", StringComparison.OrdinalIgnoreCase)),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
     public async Task Execute_WhenPlanServiceThrows_ShouldReturnContinueAndNotCrash() {
         _planServiceMock
             .Setup(p => p.ExecutePlanWithResultAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))

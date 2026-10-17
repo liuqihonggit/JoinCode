@@ -14,6 +14,14 @@ public static class JobObjectNative {
     /// <summary>Job Object 扩展限制信息的信息类标识</summary>
     public const int JOB_OBJECT_EXTENDED_LIMIT_INFORMATION = 0x0009;
 
+    /// <summary>Job Object CPU 速率控制信息的信息类标识</summary>
+    public const int JOB_OBJECT_CPU_RATE_CONTROL_INFORMATION = 0x000A;
+
+    /// <summary>启用 CPU 速率控制</summary>
+    public const uint JOB_OBJECT_CPU_RATE_CONTROL_ENABLE = 0x0001;
+    /// <summary>硬性上限(而非软性)</summary>
+    public const uint JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP = 0x0002;
+
     /// <summary>进程终止权限</summary>
     public const uint PROCESS_TERMINATE = 0x0001;
     /// <summary>进程设置配额权限</summary>
@@ -38,6 +46,15 @@ public static class JobObjectNative {
         nint hJob,
         int JobObjectInformationClass,
         ref JOBOBJECT_EXTENDED_LIMIT_INFORMATION lpJobObjectInformation,
+        uint cbJobObjectInformationLength);
+
+    /// <summary>设置 Job Object CPU 速率控制信息</summary>
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetInformationJobObject(
+        nint hJob,
+        int JobObjectInformationClass,
+        ref JOBOBJECT_CPU_RATE_CONTROL_INFORMATION lpJobObjectInformation,
         uint cbJobObjectInformationLength);
 
     /// <summary>将进程分配到 Job Object</summary>
@@ -126,5 +143,14 @@ public static class JobObjectNative {
         public nint PeakProcessMemoryUsed;
         /// <summary>Job 峰值内存使用</summary>
         public nint PeakJobMemoryUsed;
+    }
+
+    /// <summary>Job Object CPU 速率控制信息 — D1: 实现 CPU limit</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public struct JOBOBJECT_CPU_RATE_CONTROL_INFORMATION {
+        /// <summary>控制标志(ENABLE | HARD_CAP)</summary>
+        public uint ControlFlags;
+        /// <summary>CPU 速率(百分比 * 100,如 50% = 5000)</summary>
+        public uint CpuRate;
     }
 }

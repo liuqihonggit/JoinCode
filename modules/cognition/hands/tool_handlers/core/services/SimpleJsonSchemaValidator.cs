@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Tools;
 
 /// <summary>
@@ -167,6 +166,7 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
         };
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private void ValidateNode(JsonNode? instance, JsonNode? schema, string path, List<ValidationError> errors) {
         if (schema is not JsonObject schemaObj) return;
 
@@ -197,6 +197,7 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static void ValidateType(JsonNode? instance, JsonNode typeNode, string path, List<ValidationError> errors) {
         var expectedType = typeNode!.GetValue<string>();
         var actualType = GetJsonTypeName(instance);
@@ -225,6 +226,7 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
         });
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private void ValidateObject(JsonObject instance, JsonObject schema, string path, List<ValidationError> errors) {
         // Required properties
         if (schema.TryGetPropertyValue("required", out var requiredNode) && requiredNode is JsonArray requiredArray) {
@@ -268,6 +270,7 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static void ValidateStringConstraints(JsonNode? instance, JsonObject schema, string path, List<ValidationError> errors) {
         if (instance is not JsonValue value || !value.TryGetValue(out string? strValue)) return;
 
@@ -292,6 +295,7 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static void ValidateNumberConstraints(JsonNode? instance, JsonObject schema, string path, List<ValidationError> errors) {
         if (instance is not JsonValue value) return;
 
@@ -323,6 +327,7 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private void ValidateArray(JsonArray instance, JsonObject schema, string path, List<ValidationError> errors) {
         if (schema.TryGetPropertyValue("minItems", out var minItemsNode)) {
             var minItems = minItemsNode!.GetValue<int>();

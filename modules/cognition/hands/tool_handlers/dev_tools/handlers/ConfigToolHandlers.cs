@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Tools.Handlers;
 
 /// <summary>
@@ -28,6 +27,7 @@ public sealed partial class ConfigToolHandlers {
     /// 获取配置设置值。
     /// 对齐 TS: ConfigTool.call — value === undefined → GET
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [McpTool(ConfigToolNameEnumConstants.ConfigGet, "Get a configuration setting value", "config", ConcurrencySafe = true)]
     public async Task<ToolResult> ConfigGetAsync(
         [McpToolParameter("The setting key (e.g., \"theme\", \"model\", \"permissions.defaultMode\")")] string setting,
@@ -65,6 +65,7 @@ public sealed partial class ConfigToolHandlers {
     /// 对齐 TS: ConfigTool.call — value provided → SET
     /// 包含：boolean 强转 → options 校验 → validateOnWrite → 写入
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [McpTool(ConfigToolNameEnumConstants.ConfigSet, "Set a configuration setting value", "config")]
     public async Task<ToolResult> ConfigSetAsync(
         [McpToolParameter("The setting key")] string setting,

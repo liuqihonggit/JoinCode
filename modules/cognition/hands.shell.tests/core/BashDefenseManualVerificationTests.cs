@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Hands.Tests.Shell;
 /// <summary>
 /// BashDefense 链手动验证 — 实际执行 bash 命令验证防御链行为（非 mock）
@@ -37,6 +36,7 @@ public class BashDefenseManualVerificationTests {
         rejection.Should().BeNull("echo hello 应通过防御链");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Verify_RetainedDeviceNul_Rejected() {
         var (_, rejection) = await _service
@@ -52,6 +52,7 @@ public class BashDefenseManualVerificationTests {
         rejection.GetFirstText().Should().Contain("MTP");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Verify_UnclosedQuote_Rejected() {
         var (_, rejection) = await _service
@@ -65,6 +66,7 @@ public class BashDefenseManualVerificationTests {
         rejection!.GetFirstText().Should().Contain("未闭合");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Verify_RedirectOutsideWorkspace_Rejected() {
         var (_, rejection) = await _service
@@ -114,6 +116,7 @@ public class BashDefenseManualVerificationTests {
         rejection.Should().BeNull("echo \"rm -rf /\" 是 echo 的字符串参数，应通过防御链");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Verify_ArgvHash_FirstRound_RejectsAndReturnsHash() {
         var (_, rejection) = await _service

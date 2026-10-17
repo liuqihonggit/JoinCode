@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Goal.Tests;
 
 
@@ -76,6 +75,7 @@ public sealed class GoalConflictMessengerTests {
         Assert.Equal(0, _sut.GetPendingCount("unknown"));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task EnqueueConflictAsync_NullMessage_Should_Throw() {
         await Assert.ThrowsAsync<ArgumentNullException>(() => _sut.EnqueueConflictAsync(null!).AsTask()).ConfigureAwait(true);

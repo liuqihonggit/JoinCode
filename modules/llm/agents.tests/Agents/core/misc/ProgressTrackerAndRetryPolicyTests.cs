@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Agents.Tests;
 
 public class ProgressTrackerTests {
@@ -61,6 +60,7 @@ public class ProgressTrackerTests {
         tracker.Notified.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ToProgress_WithActivities_ReturnsProgress() {
         var tracker = new ProgressTracker();
@@ -94,6 +94,7 @@ public class ProgressTrackerTests {
         progress.RecentActivities.Should().HaveCount(5);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void RecordToolUse_SearchTool_SetsIsSearchFlag() {
         var tracker = new ProgressTracker();
@@ -103,6 +104,7 @@ public class ProgressTrackerTests {
         progress.LastActivity!.IsSearch.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void RecordToolUse_ReadTool_SetsIsReadFlag() {
         var tracker = new ProgressTracker();

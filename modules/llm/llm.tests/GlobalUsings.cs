@@ -1,3 +1,4 @@
+global using System.Diagnostics.CodeAnalysis;
 global using Api;
 global using Api.Chat;
 global using Api.LLM;

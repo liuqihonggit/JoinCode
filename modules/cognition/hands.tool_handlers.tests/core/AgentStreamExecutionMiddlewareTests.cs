@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Hands.Tests.ToolHandlers;
 
 /// <summary>
@@ -114,6 +113,7 @@ public class AgentStreamExecutionMiddlewareTests {
 
     // === BuildChunkEvent 纯计算测试 ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildChunkEvent_Content_ReturnsContentEventWithAgentId() {
         var chunk = new AgentStreamChunk { Type = AgentStreamChunkType.Content, Content = "hello", AgentId = "ag-1" };
@@ -124,6 +124,7 @@ public class AgentStreamExecutionMiddlewareTests {
         evt.AgentId.Should().Be("ag-1");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildChunkEvent_ThinkingStart_WithContent_ReturnsThinkingEvent() {
         var chunk = new AgentStreamChunk { Type = AgentStreamChunkType.ThinkingStart, ThinkingContent = "思考中", AgentId = "ag-2" };
@@ -134,6 +135,7 @@ public class AgentStreamExecutionMiddlewareTests {
         evt.AgentId.Should().Be("ag-2");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildChunkEvent_Thinking_WithContent_ReturnsThinkingEvent() {
         var chunk = new AgentStreamChunk { Type = AgentStreamChunkType.Thinking, ThinkingContent = "继续思考", AgentId = "ag-3" };
@@ -157,6 +159,7 @@ public class AgentStreamExecutionMiddlewareTests {
         evt.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildChunkEvent_Thinking_WithOnlyContent_FallsBackToContent() {
         // ThinkingContent 为 null 但 Content 非空时,ThinkingContent 用 Content 填充
@@ -166,6 +169,7 @@ public class AgentStreamExecutionMiddlewareTests {
         evt!.ThinkingContent.Should().Be("fallback");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildChunkEvent_ToolCallStart_ReturnsToolCallStartEvent() {
         var chunk = new AgentStreamChunk {
@@ -184,6 +188,7 @@ public class AgentStreamExecutionMiddlewareTests {
         evt.AgentId.Should().Be("ag-7");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildChunkEvent_ToolCallEnd_ReturnsToolCallEndEvent() {
         var chunk = new AgentStreamChunk {
@@ -206,6 +211,7 @@ public class AgentStreamExecutionMiddlewareTests {
         evt.AgentId.Should().Be("ag-8");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildChunkEvent_ToolCallEnd_PreservesStructuredPatch() {
         // StructuredPatch 引用应原样传递（同引用,不拷贝）
@@ -221,6 +227,7 @@ public class AgentStreamExecutionMiddlewareTests {
         evt!.StructuredPatch.Should().BeSameAs(patch);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildChunkEvent_ToolCallEnd_WithError_PreservesErrorFlag() {
         var chunk = new AgentStreamChunk {
@@ -237,6 +244,7 @@ public class AgentStreamExecutionMiddlewareTests {
         evt.ToolResultText.Should().Be("failed");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildChunkEvent_ToolProgress_ReturnsToolProgressEvent() {
         var chunk = new AgentStreamChunk {
@@ -273,6 +281,7 @@ public class AgentStreamExecutionMiddlewareTests {
         evt.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildChunkEvent_AllEventTypes_StampAgentId() {
         // 所有事件类型都应携带 agentId 参数（非 chunk.AgentId）,因为 agentId 在首块后由主流程填充
@@ -288,6 +297,7 @@ public class AgentStreamExecutionMiddlewareTests {
         AgentStreamExecutionMiddleware.BuildChunkEvent(toolProgChunk, expectedAgentId)!.AgentId.Should().Be(expectedAgentId);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildChunkEvent_NullAgentId_PreservesNull() {
         // agentId 参数为 null 时（首块前理论上不会调用,但方法应容忍）,事件 AgentId 为 null

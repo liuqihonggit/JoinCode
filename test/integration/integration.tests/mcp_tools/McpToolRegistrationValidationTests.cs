@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Integration.Tests.McpTools;
 
 public sealed class McpToolRegistrationValidationTests {
@@ -45,6 +44,7 @@ public sealed class McpToolRegistrationValidationTests {
         return (registry, allTools, registrationFailures);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task All_Tools_Should_Register_Successfully() {
         var (_, allTools, registrationErrors) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);

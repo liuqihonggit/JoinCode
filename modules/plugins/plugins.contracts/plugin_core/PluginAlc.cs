@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
@@ -26,6 +25,7 @@ public static class AlcUnloadVerifier {
     /// <param name="alcRef">ALC 的弱引用(null 时直接返回 null)</param>
     /// <param name="pluginId">插件标识(用于诊断)</param>
     /// <returns>null=成功,非 null=诊断事件</returns>
+    [SuppressMessage("AOT", "JCC11003", Justification = "GC检测底层代码:故意置null释放强引用让GC回收ALC")]
     public static PluginDiagnostic? VerifyUnload(WeakReference<AssemblyLoadContext>? alcRef, string pluginId) {
         if (alcRef is null) return null;
         if (!alcRef.TryGetTarget(out var alc)) return null;

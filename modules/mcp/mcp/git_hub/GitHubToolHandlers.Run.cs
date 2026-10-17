@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace McpToolDispatch;
 
 /// <summary>
@@ -68,6 +67,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 查看 Run 详情/日志 — 支持 expand 按步骤展开（两级缓存跨进程）、filter 按标记过滤、start_line 分页续读(1-indexed)、refresh 强制刷新、web 返回 URL、attempt 指定重试次数
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [McpTool(GitHubToolNameEnumConstants.GhRunView, "查看 Run 详情/日志(expand 按步骤展开+文件级缓存跨进程,filter 按标记过滤,start_line 分页续读(1-indexed),refresh 强制刷新,web 返回 URL,attempt 指定重试次数)", "github", ConcurrencySafe = true)]
     [ToolAnchors("CI 失败", "job 日志", "run 状态", "workflow 排错", "构建失败")]
     public async Task<ToolResult> GhRunViewAsync(
@@ -885,6 +885,7 @@ public partial class GitHubToolHandlers {
     /// <para>指数退避:初始 5s ×1.5 每次,上限 60s,默认超时 30 分钟</para>
     /// <para>fail_fast=true:轮询 jobs 级别,发现任何 job failure 立即拉日志返回(不等整个 run completed)</para>
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [McpTool(GitHubToolNameEnumConstants.GhRunWait, "等待 Actions Run 完成(指数退避轮询+进度回调,完成才返回;fail_fast=运行中 job 失败立即返回)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRunWaitAsync(
         [McpToolParameter(WellKnownParam.RunId)] string run_id,
@@ -915,6 +916,7 @@ public partial class GitHubToolHandlers {
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<ToolResult> GhRunWaitCoreInnerAsync(IGitHubApiClient client, string owner, string repoName, string runId, int? timeoutSeconds, int? pollIntervalSeconds, bool failFast, string? workingDir, CancellationToken ct, ToolProgressCallback? onProgress) {
         var timeout = TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds ?? 1800, 1, 7200));
         var initialInterval = TimeSpan.FromSeconds(Math.Clamp(pollIntervalSeconds ?? 5, 1, 60));

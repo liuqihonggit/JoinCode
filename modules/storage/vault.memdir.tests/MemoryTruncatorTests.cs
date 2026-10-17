@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Memdir;
 
 /// <summary>
@@ -12,6 +11,7 @@ public sealed class MemoryTruncatorTests {
 
     // === Truncate 方法测试 ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Truncate_NullContent_ReturnsNull() {
         // 空内容应原样返回
@@ -90,6 +90,7 @@ public sealed class MemoryTruncatorTests {
 
     // === SmartTruncate 方法测试 ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SmartTruncate_NullContent_ReturnsNull() {
         // 空内容应原样返回

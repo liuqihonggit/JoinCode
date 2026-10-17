@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace JoinCode.Reasoning.Tests.Agents;
 
 public sealed class JudgeAgentTests {
@@ -344,6 +343,7 @@ public sealed class JudgeAgentTests {
         Assert.Null(verdict);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DecideWithWeightedSystem_AcceptBranch_ShouldReturnAcceptVerdict() {
         await using var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);
@@ -366,6 +366,7 @@ public sealed class JudgeAgentTests {
         Assert.Equal("c1", verdict.ClaimId);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DecideWithWeightedSystem_RejectBranch_ShouldReturnRejectVerdict() {
         await using var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);
@@ -387,6 +388,7 @@ public sealed class JudgeAgentTests {
         Assert.Equal(VerdictDecision.Reject, verdict!.Decision);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DecideWithWeightedSystem_PendingBranch_ShouldReturnPendingVerdict() {
         await using var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);
@@ -410,6 +412,7 @@ public sealed class JudgeAgentTests {
         Assert.Equal(50, verdict.Confidence);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DecideWithWeightedSystem_PartiallyAcceptBranch_ShouldReturnPartialVerdict() {
         await using var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);
@@ -435,6 +438,7 @@ public sealed class JudgeAgentTests {
         Assert.Equal(VerdictDecision.PartiallyAccept, verdict!.Decision);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DecideWithWeightedSystem_AcceptBoundary_EqualThreshold_ShouldAccept() {
         await using var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Integration.Tests.PrefixCache.Unit;
 
 /// <summary>
@@ -8,6 +7,7 @@ namespace Integration.Tests.PrefixCache.Unit;
 public sealed class LenientDeserializationTests {
     #region NativeJsonContext — OpenAI/DeepSeek 协议
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void NativeJson_TrailingCommaInResponse_Deserializes() {
         var json = """{"id":"chatcmpl-123","object":"chat.completion","created":1234567890,"model":"deepseek-v4-flash","choices":[{"index":0,"message":{"role":"assistant","content":"Hello"},"finish_reason":"stop"}],}""";
@@ -21,6 +21,7 @@ public sealed class LenientDeserializationTests {
         result.Choices[0].Message.Content!.Text.Should().Be("Hello");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void NativeJson_TrailingCommaInToolCall_Deserializes() {
         var json = """{"id":"chatcmpl-123","object":"chat.completion","created":1234567890,"model":"deepseek-v4-flash","choices":[{"index":0,"message":{"role":"assistant","content":null,"tool_calls":[{"id":"call_123","type":"function","function":{"name":"Bash","arguments":"{\"command\":\"ls\"}"}}]},"finish_reason":"tool_calls"}]}""";
@@ -35,6 +36,7 @@ public sealed class LenientDeserializationTests {
         toolCall.Function!.Arguments.Should().Contain("ls");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void NativeJson_CaseInsensitiveProperty_Deserializes() {
         var json = """{"Id":"chatcmpl-123","Object":"chat.completion","Created":1234567890,"Model":"deepseek-v4-flash","Choices":[{"Index":0,"Message":{"Role":"assistant","Content":"Hello"},"FinishReason":"stop"}]}""";
@@ -46,6 +48,7 @@ public sealed class LenientDeserializationTests {
         result.Choices[0].Message.Content!.Text.Should().Be("Hello");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void NativeJson_CommentInJson_Deserializes() {
         var json = """
@@ -72,6 +75,7 @@ public sealed class LenientDeserializationTests {
 
     #region AnthropicJsonContext — Anthropic 协议
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AnthropicJson_TrailingCommaInResponse_Deserializes() {
         var json = """{"id":"msg_123","type":"message","role":"assistant","content":[{"type":"text","text":"Hello"}],"model":"claude-3","stop_reason":"end_turn",}""";

@@ -1,6 +1,6 @@
 // JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC1017, JCC11003
+#pragma warning disable JCC1017
 namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 
 /// <summary>
@@ -207,7 +207,7 @@ assistant: ""我将使用 {AgentToolNameEnumConstants.Agent} 工具启动 greeti
         } else if (hasAllowlist) {
             return string.Join(", ", agent.Tools ?? []);
         } else if (hasDenylist) {
-            return $"除 {string.Join(", ", agent.DisallowedTools!)} 外的所有工具";
+            return $"除 {string.Join(", ", agent.DisallowedTools ?? [])} 外的所有工具";
         }
 
         return "所有工具";

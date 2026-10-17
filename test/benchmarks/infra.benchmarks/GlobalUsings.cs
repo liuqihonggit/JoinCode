@@ -1,3 +1,4 @@
+global using System.Diagnostics.CodeAnalysis;
 global using FluentAssertions;
 global using Infrastructure.Utils.Text;
 global using System.Diagnostics;

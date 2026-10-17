@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Prompts;
 
 public class UserPromptKeywordAnalyzerTests {
@@ -162,6 +161,7 @@ public class UserPromptKeywordAnalyzerTests {
         result.Type.Should().Be(UserPromptKeywordType.None);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AnalyzeInput_Null_ReturnsNone() {
         var result = UserPromptKeywordAnalyzer.AnalyzeInput(null!);

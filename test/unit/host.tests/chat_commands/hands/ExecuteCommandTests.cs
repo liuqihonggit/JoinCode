@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.ChatCommands;
 
 [Collection("ConsoleOutput")]
@@ -15,6 +14,7 @@ public class ExecuteCommandTests {
         _executeCommand = new ExecuteCommand(_loggerMock.Object);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteAsync_WithEmptyArguments_ShouldLogWarningAndContinue() {
         // Arrange
@@ -46,6 +46,7 @@ public class ExecuteCommandTests {
         _codeServiceMock.Verify(x => x.ExecuteCodeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteAsync_WithEmptyArguments_ShouldOutputToConsole() {
         // Arrange - 捕获 Console 输出验证 TerminalHelper.WriteLine 被调用
@@ -77,6 +78,7 @@ public class ExecuteCommandTests {
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteAsync_WithArguments_ShouldExecuteCodeAndLog() {
         // Arrange

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Plugins;
 
 public sealed class PluginHookInjectorTests {
@@ -11,6 +10,7 @@ public sealed class PluginHookInjectorTests {
         _injector = new PluginHookInjector(_pluginManager.Object, NullLogger<PluginHookInjector>.Instance);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullPluginManager_ShouldThrow() {
         var act = () => new PluginHookInjector(null!, NullLogger<PluginHookInjector>.Instance);
@@ -74,12 +74,14 @@ public sealed class PluginHookInjectorTests {
         _injector.GetInjectedHooks("nonexistent").Should().BeEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InjectHooksAsync_NullPluginName_ShouldThrow() {
         var act = async () => await _injector.InjectHooksAsync(null!, []).ConfigureAwait(true);
         await act.Should().ThrowAsync<ArgumentException>().ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InjectHooksAsync_NullHooks_ShouldThrow() {
         _pluginManager.Setup(m => m.IsPluginLoaded("test")).Returns(true);

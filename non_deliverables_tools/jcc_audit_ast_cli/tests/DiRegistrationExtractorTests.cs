@@ -3,7 +3,6 @@ using Microsoft.CodeAnalysis.CSharp;
 using System.Collections.Immutable;
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JccAuditCli.Tests;
 
 /// <summary>
@@ -14,6 +13,7 @@ public sealed class DiRegistrationExtractorTests {
     /// <summary>
     /// 辅助方法：创建带指定源码和 DI 引用的 Compilation，运行 Extract 并返回结果
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 参数默认值 null! 表示可选引用")]
     private static (List<ServiceRegistration>, List<ConstructorDependency>) ExtractFrom(
         string source,
         PortableExecutableReference[] extraRefs = null!) {

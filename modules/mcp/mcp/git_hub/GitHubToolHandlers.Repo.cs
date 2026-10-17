@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace McpToolDispatch;
 
 /// <summary>
@@ -251,6 +250,7 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private static readonly string[] DefaultRepoFields = ["name", "full_name", "private", "fork", "description", "language", "stargazers_count", "updated_at", "default_branch"];
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static string SummarizeRepoList(string json, bool? source = null, bool? fork = null, string? topic = null, string? jsonFields = null) {
         var topicSet = topic?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var fields = string.IsNullOrWhiteSpace(jsonFields) ? DefaultRepoFields : jsonFields.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Configuration.ModelFetch.Tests;
 
 /// <summary>
@@ -81,6 +80,7 @@ public class ModelListFetcherTests {
         result.Should().BeEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FetchAllAsync_AnthropicProtocol_UsesXApiKeyHeader() {
         using var env = new EnvScope(TestApiKeyEnv, "sk-anthropic");
@@ -100,6 +100,7 @@ public class ModelListFetcherTests {
         captured.Headers.Contains("Authorization").Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FetchAllAsync_OpenAiProtocol_UsesBearerAuth() {
         using var env = new EnvScope(TestApiKeyEnv, "sk-openai");
@@ -119,6 +120,7 @@ public class ModelListFetcherTests {
         captured.Headers.Contains("x-api-key").Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FetchAllAsync_MultipleProviders_ParallelFetch() {
         using var env = new EnvScope(TestApiKeyEnv, "sk-test");

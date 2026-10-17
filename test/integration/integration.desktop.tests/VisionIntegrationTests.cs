@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Integration.Tests;
 
 /// <summary>
@@ -98,6 +97,7 @@ public sealed class VisionIntegrationTests {
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DetectUiElements_RealScreenshot_MockDetector_ReturnsFormattedText() {
         await using var capture = new GdiScreenCaptureService();
@@ -128,6 +128,7 @@ public sealed class VisionIntegrationTests {
         detectorMock.Verify(d => d.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FindElement_RealScreenshot_MockDetector_ReturnsClickCoordinates() {
         await using var capture = new GdiScreenCaptureService();

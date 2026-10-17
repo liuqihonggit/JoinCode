@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Hands.Desktop.Tests;
 
 /// <summary>
@@ -19,6 +18,7 @@ public sealed class EnvironmentToolHandlersTests {
         return mock;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetEnvironmentState_NormalCursorNoPopup_ReturnsStateInfo() {
         var envMock = CreateEnvMock();
@@ -35,6 +35,7 @@ public sealed class EnvironmentToolHandlersTests {
         text.Should().Contain("撤销栈深度: 3");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetEnvironmentState_WaitCursorAndPopup_ReturnsWarning() {
         var envMock = new Mock<IEnvironmentAwarenessService>();
@@ -88,6 +89,7 @@ public sealed class EnvironmentToolHandlersTests {
         result.Content[0].Text.Should().Contain("为空");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UndoLastAction_WithOperation_ReturnsUndoInfo() {
         var op = new DesktopOperation(DesktopOperationKind.Click, 100, 200, null, MouseAction.Click, null, DateTimeOffset.UtcNow, true, null);
@@ -116,6 +118,7 @@ public sealed class EnvironmentToolHandlersTests {
         result.Content[0].Text.Should().Contain("为空");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetOperationHistory_WithOperations_ReturnsFormattedHistory() {
         var ops = new[]

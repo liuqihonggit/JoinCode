@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Llm.Tests.Adapters.LLM.QueryServices.Responses;
 
 
@@ -140,6 +139,7 @@ public class ResponsesQueryServiceTests {
         request.MaxOutputTokens.Should().Be(100);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CreateRequest_EffortLevel_SetsReasoningEffort() {
         var service = CreateService();
@@ -151,6 +151,7 @@ public class ResponsesQueryServiceTests {
         request.Reasoning!.Effort.Should().Be("medium");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CreateRequest_ThinkingEnabled_SetsReasoningWithHighEffort() {
         var service = CreateService();
@@ -173,6 +174,7 @@ public class ResponsesQueryServiceTests {
         request.Reasoning.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CreateRequest_ToolChoiceAutoWithKernel_BuildsTools() {
         var service = CreateService();
@@ -294,6 +296,7 @@ public class ResponsesQueryServiceTests {
 
     #region ConvertToApiMessages
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Stream_ReasoningDelta_AccumulatedInFinalMetadata() {
         // thinking 模式下流式 reasoning_text.delta 应累积到终局事件的 ReasoningText metadata
@@ -317,6 +320,7 @@ public class ResponsesQueryServiceTests {
         final.Metadata!["ReasoningText"].GetString().Should().Be("Let me think about this.");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToApiMessages_ReasoningItem_StoredInAssistantMetadata() {
         // DeepSeek thinking 模式下响应含 reasoning item，必须存入 metadata 供下轮回传
@@ -350,6 +354,7 @@ public class ResponsesQueryServiceTests {
         messages[0].Metadata!["ReasoningText"].GetString().Should().Be("I need to search for the file.Let me use grep.");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToApiMessages_NoReasoning_NoReasoningTextKey() {
         var response = new ResponsesResponse {
@@ -370,6 +375,7 @@ public class ResponsesQueryServiceTests {
         messages[0].Metadata!.Should().NotContainKey("ReasoningText");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToApiMessages_ReasoningWithToolCalls_StoredInToolCallsMetadata() {
         var response = new ResponsesResponse {
@@ -398,6 +404,7 @@ public class ResponsesQueryServiceTests {
         messages[0].Metadata!["ReasoningText"].GetString().Should().Be("thinking about it");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToApiMessages_TextResponse_ReturnsAssistantMessageWithText() {
         var response = new ResponsesResponse {
@@ -450,6 +457,7 @@ public class ResponsesQueryServiceTests {
         messages[0].Content.Should().Be("Part 1 Part 2");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToApiMessages_FunctionCall_ReturnsToolCallsMetadata() {
         var response = new ResponsesResponse {
@@ -475,6 +483,7 @@ public class ResponsesQueryServiceTests {
         messages[0].Metadata!["FinishReason"].GetString().Should().Be("tool_calls");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToApiMessages_Usage_MapsToTokenUsage() {
         var response = new ResponsesResponse {
@@ -518,6 +527,7 @@ public class ResponsesQueryServiceTests {
         messages[0].Content.Should().Be("");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToApiMessages_TextAndFunctionCall_PrioritizesToolCalls() {
         var response = new ResponsesResponse {
@@ -567,6 +577,7 @@ public class ResponsesQueryServiceTests {
         return new ResponsesQueryService(config, httpClient);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Stream_IncompleteEvent_YieldsFinalMetadataWithUsage() {
         // 官方协议: 终结事件有三个(completed/incomplete/failed)，incomplete 出现在 max_output_tokens 截断
@@ -593,6 +604,7 @@ public class ResponsesQueryServiceTests {
         usage.CompletionTokens.Should().Be(20);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Stream_IncompleteEvent_WithToolCalls_FlushesAccumulatedToolCalls() {
         // incomplete 截断时已累积的 function_call arguments 应被刷出，避免丢失
@@ -711,6 +723,7 @@ public class ResponsesQueryServiceTests {
 
     #region Two-Phase Tool Loading — CreateSecondResponsesRequestWithDescriptions
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CreateSecondResponsesRequestWithDescriptions_ValidToolNames_BuildsDescriptions() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
@@ -883,6 +896,7 @@ public class ResponsesQueryServiceTests {
         ResponsesQueryService.BuildParameters([]).Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildParameters_SingleParamNoDescription_EmitsTypeOnly() {
         var param = new ToolParam("name", "", typeof(string), false);
@@ -897,6 +911,7 @@ public class ResponsesQueryServiceTests {
         json.Should().NotContain("\"required\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildParameters_WithDescription_EmitsDescriptionField() {
         var param = new ToolParam("q", "query text", typeof(string), false);
@@ -907,6 +922,7 @@ public class ResponsesQueryServiceTests {
         json.Should().Contain("\"description\":\"query text\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildParameters_RequiredParam_EmitsRequiredArray() {
         var param = new ToolParam("q", "", typeof(string), true);
@@ -917,6 +933,7 @@ public class ResponsesQueryServiceTests {
         json.Should().Contain("\"required\":[\"q\"]");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildParameters_MultipleParams_CommaSeparated() {
         var parameters = new ToolParam[] {

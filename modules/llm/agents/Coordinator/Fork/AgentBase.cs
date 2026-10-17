@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Agents.Coordinator;
 
 /// <summary>
@@ -195,6 +194,7 @@ public class AgentBase : Entity, IAgent {
     /// <summary>
     /// 执行Agent任务 — 子类可重写以定制执行逻辑
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public virtual async System.Threading.Tasks.Task<SubAgentResult> ExecuteAsync(CancellationToken cancellationToken = default) {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, cancellationToken);
         var linkedToken = linkedCts.Token;
@@ -336,6 +336,7 @@ public class AgentBase : Entity, IAgent {
     /// <summary>
     /// 流式执行Agent任务 — 子类可重写以定制流式逻辑
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public virtual async IAsyncEnumerable<AgentStreamChunk> ExecuteStreamAsync([EnumeratorCancellation] CancellationToken cancellationToken = default) {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, cancellationToken);
         var linkedToken = linkedCts.Token;

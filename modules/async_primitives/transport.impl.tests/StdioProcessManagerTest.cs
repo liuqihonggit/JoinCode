@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Transport.Impl.Tests;
 
 /// <summary>
@@ -7,6 +6,7 @@ namespace JoinCode.Transport.Impl.Tests;
 /// </summary>
 [Trait("Category", "Deterministic")]
 public sealed class StdioProcessManagerTest {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task StartAsync_NullConfig_ThrowsArgumentNullException() {
         await using var mgr = new StdioProcessManager();
@@ -22,6 +22,7 @@ public sealed class StdioProcessManagerTest {
         await act.Should().ThrowAsync<ArgumentException>().WithParameterName("config.ExecutablePath");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SendAsync_NullMessage_ThrowsArgumentNullException() {
         await using var mgr = new StdioProcessManager();

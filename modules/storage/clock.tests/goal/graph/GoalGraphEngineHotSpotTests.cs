@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Goal.Tests;
 
 
@@ -26,6 +25,7 @@ public sealed partial class GoalGraphEngineTests {
             },
         };
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task HotSpotGuard_WhenCaptainShouldHandle_ShouldOverrideRoleToCoordinator() {
         AgentSpawnOptions? capturedOptions = null;
@@ -54,6 +54,7 @@ public sealed partial class GoalGraphEngineTests {
         guardMock.Verify(g => g.CheckBeforeDispatch(It.Is<IReadOnlyList<string>>(l => l.Contains("src/HotFile.cs"))), Times.Once);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task HotSpotGuard_WhenWorkerCanHandle_ShouldKeepOriginalRole() {
         AgentSpawnOptions? capturedOptions = null;

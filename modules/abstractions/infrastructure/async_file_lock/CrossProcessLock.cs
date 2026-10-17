@@ -1,6 +1,7 @@
 // JCC9002: 跨进程锁是底层基础设施，直接使用 FileStream 是设计意图（flock 需要真实文件句柄）
 // JCC9006: FileShare.None 是互斥锁的语义要求，不能用 ReadWrite 否则锁失效
-#pragma warning disable JCC9001, JCC9002, JCC9006
+#pragma warning disable JCC9002, JCC9006
+
 namespace AsyncFileLock;
 
 /// <summary>
@@ -9,6 +10,8 @@ namespace AsyncFileLock;
 /// <para>Linux: FileStream(FileShare.None) 映射到 flock(LOCK_EX)，POSIX 标准跨进程互斥。</para>
 /// <para>NamedMutex 在 Linux 上用 Global\ 前缀 + Dispose 销毁共享内存段行为不可控，改用 flock 更可靠。</para>
 /// </summary>
+[SuppressMessage("FileSystemAbstraction", "JCC9001",
+    Justification = "跨进程锁底层基础设施: flock 需要真实文件句柄, Directory.Exists/CreateDirectory 用于创建锁目录, 不适合 IFileSystem 抽象")]
 internal sealed class CrossProcessLock : IDisposable {
     private readonly Mutex? _mutex;
     private readonly FileStream? _fileStream;

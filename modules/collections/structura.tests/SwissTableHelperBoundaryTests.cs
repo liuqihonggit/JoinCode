@@ -1,5 +1,4 @@
 // JCC11003 抑制: 底层实现/测试代码, ! 用于可空抑制, 是必要用法
-#pragma warning disable JCC11003
 namespace Structura.Tests;
 
 /// <summary>
@@ -163,6 +162,7 @@ public class SwissTableHelperBoundaryTests {
 /// 覆盖 capacity=0/1/最大值/阈值边界。
 /// </summary>
 public class SwissTableCapacityToBucketsBoundaryTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static int InvokeCapacityToBuckets(int cap) {
         var method = typeof(SwissTable<int, int>).GetMethod(
             "capacity_to_buckets",

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Hands.Tests.Shell;
 
 /// <summary>
@@ -7,6 +6,7 @@
 /// 仅保留 UNC 路径警告(只读不改) + next 调用
 /// </summary>
 public class ShellPathGateMiddlewareTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("C:\\Users\\test", "bash")]
     [InlineData("C:\\Users\\test", "powershell")]
@@ -31,6 +31,7 @@ public class ShellPathGateMiddlewareTests {
         context.WorkingDirectory.Should().Be(input);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("echo D:\\a\\b\\c/d", "bash")]
     [InlineData("cat C:\\proj\\src/file.txt", "powershell")]

@@ -1,9 +1,9 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace McpToolRegistry.Tests;
 
 
 public class OnErrorInjectionTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ToolExecutionMiddleware_CatchesException_SetsIsErrorTrue() {
         await using var middleware = new ToolExecutionMiddleware(NullLogger<ToolExecutionMiddleware>.Instance);
@@ -26,6 +26,7 @@ public class OnErrorInjectionTests {
         context.Result.GetFirstText().Should().Contain("File does not exist");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ToolExecutionMiddleware_CatchesException_ResultHasExceptionTypeAndMessage() {
         await using var middleware = new ToolExecutionMiddleware(NullLogger<ToolExecutionMiddleware>.Instance);
@@ -50,6 +51,7 @@ public class OnErrorInjectionTests {
         text.Should().Contain("File not found: /nonexistent.txt");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task OnErrorToolInjectionMiddleware_TriggeredWhenIsErrorTrue_InjectsSchemaJson() {
         var onErrorTool = new Mock<IToolHandler>();

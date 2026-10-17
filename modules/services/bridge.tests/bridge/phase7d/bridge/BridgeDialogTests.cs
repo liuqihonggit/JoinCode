@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Bridge.Tests.Phase7D;
 
 public sealed partial class BridgeMainTests {
@@ -70,6 +69,7 @@ public sealed partial class BridgeMainTests {
 
     #region RunAsync — 远程确认对话框
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RunAsync_RemoteDialogNotSeen_NoDialogCallback_ReturnsError() {
         var deps = BridgeTestHelperMethods.CreateDeps(checkRemoteDialog: false);
@@ -81,6 +81,7 @@ public sealed partial class BridgeMainTests {
         Assert.Contains("not accepted", result.Error!);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RunAsync_RemoteDialogNotSeen_DialogDeclined_ReturnsError() {
         var deps = BridgeTestHelperMethods.CreateDeps(checkRemoteDialog: false);

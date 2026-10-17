@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Mcp.Tests;
 
 /// <summary>
@@ -17,6 +16,7 @@ public sealed class GitHubRunLogFilterRunnerCacheTests {
         "Test output line 2",
     ];
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetOrFetchSummaryAsync_CacheMiss_ThenHit_SecondCallFromCache() {
         var api = new FakeGitHubApiClient { NextLogLines = SampleLogLines };
@@ -33,6 +33,7 @@ public sealed class GitHubRunLogFilterRunnerCacheTests {
         summary2!.StepLineCounts.Should().BeEquivalentTo(summary1.StepLineCounts);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetOrFetchSummaryAsync_WantRefresh_SkipsCacheRead() {
         var api = new FakeGitHubApiClient { NextLogLines = SampleLogLines };
@@ -48,6 +49,7 @@ public sealed class GitHubRunLogFilterRunnerCacheTests {
         summary2.StepLineCounts.Should().NotContainKey("dotnet test");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetOrFetchSectionAsync_ReturnsSectionLines() {
         var api = new FakeGitHubApiClient { NextLogLines = SampleLogLines };
@@ -83,6 +85,7 @@ public sealed class GitHubRunLogFilterRunnerCacheTests {
         lines.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetOrFetchSummaryAsync_NoJobId_UsesRunLogs() {
         var api = new FakeGitHubApiClient { NextLogLines = SampleLogLines };

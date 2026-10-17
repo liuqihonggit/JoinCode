@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Guard.Tests.Hooks.Execution;
 
 /// <summary>
@@ -10,6 +9,7 @@ public sealed class ToolFixHookRegistryTest {
 
     // === 构造 ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullHealthMonitor_ThrowsArgumentNullException() {
         var act = () => new ToolFixHookRegistry(null!);
@@ -44,6 +44,7 @@ public sealed class ToolFixHookRegistryTest {
         registry.GetHooks().Should().Contain(hook);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Register_NullHook_ThrowsArgumentNullException() {
         await using var registry = new ToolFixHookRegistry(_healthMonitor.Object);
@@ -240,6 +241,7 @@ public sealed class ToolFixHookRegistryTest {
         await act.Should().ThrowAsync<ArgumentException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TryFixAsync_NullError_ThrowsArgumentNullException() {
         await using var registry = new ToolFixHookRegistry(_healthMonitor.Object);

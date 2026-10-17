@@ -1,3 +1,4 @@
+global using System.Diagnostics.CodeAnalysis;
 global using FluentAssertions;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.LLM;

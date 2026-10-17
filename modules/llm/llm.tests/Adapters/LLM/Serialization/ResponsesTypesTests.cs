@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Llm.Tests.Adapters.LLM.Serialization;
 
 /// <summary>
@@ -71,6 +70,7 @@ public class ResponsesTypesTests {
         json.Should().Contain("\"name\":\"get_weather\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ResponsesResponse_RoundTrip_PreservesOutputAndUsage() {
         var response = new ResponsesResponse {
@@ -106,6 +106,7 @@ public class ResponsesTypesTests {
         deserialized.Usage.InputTokensDetails!.CachedTokens.Should().Be(3);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ResponsesResponse_WithFunctionCallOutput_PreservesFunctionCall() {
         var response = new ResponsesResponse {
@@ -132,6 +133,7 @@ public class ResponsesTypesTests {
         deserialized.Output[0].CallId.Should().Be("call_123");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ResponsesUsage_RoundTrip_PreservesAllTokenCounts() {
         var usage = new ResponsesUsage {

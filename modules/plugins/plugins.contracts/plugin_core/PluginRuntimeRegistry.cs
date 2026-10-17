@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
@@ -30,24 +29,24 @@ internal sealed class PluginRuntimeRegistry {
         => _entries.GetValueOrDefault(name)?.Package;
 
     /// <summary>尝试获取插件包定义</summary>
-    public bool TryGetPackage(string name, out PluginPackage package) {
+    public bool TryGetPackage(string name, [NotNullWhen(true)] out PluginPackage? package) {
         var state = _entries.GetValueOrDefault(name);
         if (state is not null) {
             package = state.Package;
             return true;
         }
-        package = null!;
+        package = null;
         return false;
     }
 
     /// <summary>尝试获取运行实例</summary>
-    public bool TryGetRunning(string name, out RunningPluginInstance instance) {
+    public bool TryGetRunning(string name, [NotNullWhen(true)] out RunningPluginInstance? instance) {
         var state = _entries.GetValueOrDefault(name);
         if (state?.RunningInstance is not null) {
             instance = state.RunningInstance;
             return true;
         }
-        instance = null!;
+        instance = null;
         return false;
     }
 
@@ -95,17 +94,17 @@ internal sealed class PluginRuntimeRegistry {
     }
 
     /// <summary>移除运行实例（返回是否找到并移除）</summary>
-    public bool TryRemoveRunning(string name, out RunningPluginInstance instance) {
+    public bool TryRemoveRunning(string name, [NotNullWhen(true)] out RunningPluginInstance? instance) {
         while (_entries.TryGetValue(name, out var state)) {
             if (state.RunningInstance is null) {
-                instance = null!;
+                instance = null;
                 return false;
             }
             instance = state.RunningInstance;
             if (_entries.TryUpdate(name, state with { RunningInstance = null }, state))
                 return true;
         }
-        instance = null!;
+        instance = null;
         return false;
     }
 

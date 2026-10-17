@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infra.Tests.IO;
 
 /// <summary>
@@ -10,6 +9,7 @@ public class FileReaderDiagnosticTests {
 
     #region 文件不存在 → FileNotFound 诊断
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ReadFileAsync_FileNotFound_ReturnsFileNotFoundDiagnostic() {
         var reader = new FileReader(Fs, new FileOperationConfig());
@@ -29,6 +29,7 @@ public class FileReaderDiagnosticTests {
 
     #region 目录而非文件 → IsDirectoryNotFile 诊断
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ReadFileAsync_DirectoryNotFile_ReturnsIsDirectoryDiagnostic() {
         var reader = new FileReader(Fs, new FileOperationConfig());
@@ -48,6 +49,7 @@ public class FileReaderDiagnosticTests {
 
     #region 文件过大 → FileTooLarge 诊断
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ReadFileAsync_FileTooLarge_ReturnsFileTooLargeDiagnostic() {
         // 使用极小的 MaxReadSize 触发过大检测
@@ -74,6 +76,7 @@ public class FileReaderDiagnosticTests {
 
     #region 二进制文件 → BinaryFileDetected 诊断
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ReadFileAsync_BinaryFileWithNullByte_ReturnsBinaryFileDiagnostic() {
         var reader = new FileReader(Fs, new FileOperationConfig());
@@ -91,6 +94,7 @@ public class FileReaderDiagnosticTests {
         result.Diagnostic.Suggestions.Should().NotBeEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ReadFileAsync_BinaryFileWithHighNonPrintableRatio_ReturnsBinaryFileDiagnostic() {
         var reader = new FileReader(Fs, new FileOperationConfig());
@@ -131,6 +135,7 @@ public class FileReaderDiagnosticTests {
 
     #region FileReadResult.FailureResult(diagnostic) 工厂方法
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void FileReadResult_FailureResult_WithDiagnostic_SetsDiagnosticAndMessage() {
         var diagnostic = ToolDiagnostic.Create(

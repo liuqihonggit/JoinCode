@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace IO;
 
 /// <summary>
@@ -47,7 +46,7 @@ public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryServ
         backupPath = GetBackupFilePath(normalizedPath, version);
 
         try {
-            var backupDir = Path.GetDirectoryName(backupPath)!;
+            var backupDir = Path.GetDirectoryName(backupPath) ?? string.Empty;
             if (!_fs.DirectoryExists(backupDir))
                 _fs.CreateDirectory(backupDir);
 

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Mcp.Tests;
 
 /// <summary>
@@ -36,6 +35,7 @@ public class McpJsonSerializerTests {
         Assert.Equal(1, doc.RootElement.GetProperty("id").GetInt64());
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SerializeObject_JsonRpcRequest_CanBeDeserialized() {
         // Arrange
@@ -118,6 +118,7 @@ public class McpJsonSerializerTests {
         Assert.Equal("Method not found", error.GetProperty("message").GetString());
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SerializeObject_JsonRpcResponse_CanBeDeserialized() {
         // Arrange
@@ -161,6 +162,7 @@ public class McpJsonSerializerTests {
         Assert.Equal("notifications/initialized", doc.RootElement.GetProperty("method").GetString());
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SerializeObject_JsonRpcNotification_CanBeDeserialized() {
         // Arrange
@@ -250,6 +252,7 @@ public class McpJsonSerializerTests {
         Assert.Equal("\"hello\"", json);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SerializeObject_Null_ReturnsNullLiteral() {
         var json = McpJsonSerializer.SerializeObject(null!);

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Core.Agents;
 
 
@@ -8,6 +7,7 @@
 /// 验证 JCC_COORDINATOR_MODE 启用时 Coordinator Profile 工具集限制为 [Agent, SendMessage, TaskStop]
 /// </summary>
 public sealed class CoordinatorModeToolRestrictionTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetProfile_CoordinatorModeEnabled_RestrictsToolsToAgentSendMessageTaskStop() {
         Environment.SetEnvironmentVariable("JCC_COORDINATOR_MODE", "1");
@@ -27,6 +27,7 @@ public sealed class CoordinatorModeToolRestrictionTests {
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetProfile_CoordinatorModeDisabled_AllowsAllTools() {
         Environment.SetEnvironmentVariable("JCC_COORDINATOR_MODE", null);

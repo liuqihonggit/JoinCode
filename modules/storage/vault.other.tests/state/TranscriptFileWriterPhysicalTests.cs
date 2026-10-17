@@ -1,4 +1,5 @@
-#pragma warning disable JCC3010, JCC3011, JCC3012, JCC9001
+#pragma warning disable JCC3010, JCC3011, JCC3012
+
 namespace State.Tests;
 
 /// <summary>
@@ -165,4 +166,4 @@ public sealed class TranscriptFileWriterPhysicalTests : IAsyncDisposable {
         }
     }
 }
-#pragma warning restore JCC3010, JCC3011, JCC3012, JCC9001
+#pragma warning restore JCC3010, JCC3011, JCC3012

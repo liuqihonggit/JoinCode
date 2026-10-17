@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Dream.Tests.Pipeline;
 
 
@@ -18,6 +17,7 @@ public sealed class DreamMiddlewareTests {
 
     // === DreamGateCheckMiddleware ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Gate_Disabled_SetsSkippedResult() {
         var config = new AutoDreamConfig { Enabled = false, MinHours = 1, MinSessions = 1 };
@@ -42,6 +42,7 @@ public sealed class DreamMiddlewareTests {
         ctx.GateChecked.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Gate_InsufficientSessions_SetsSkippedResult() {
         _sessionScanner.Setup(x => x.ListSessionsTouchedSinceAsync(It.IsAny<long>(), default))
@@ -69,6 +70,7 @@ public sealed class DreamMiddlewareTests {
         ctx.SessionsScanned.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Scan_NoSessions_SetsSkippedResult() {
         _sessionScanner.Setup(x => x.ListSessionsTouchedSinceAsync(It.IsAny<long>(), default))
@@ -146,6 +148,7 @@ public sealed class DreamMiddlewareTests {
 
     // === DreamRecordTurnMiddleware ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RecordTurn_RecordsAndCompletes() {
         await using var mw = new DreamRecordTurnMiddleware(_taskRegistry);
@@ -166,6 +169,7 @@ public sealed class DreamMiddlewareTests {
 
     // === Full Pipeline ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FullPipeline_AllStepsSucceed_ReturnsSuccess() {
         _sessionScanner.Setup(x => x.ListSessionsTouchedSinceAsync(It.IsAny<long>(), default))
@@ -191,6 +195,7 @@ public sealed class DreamMiddlewareTests {
         ctx.Result.SessionsProcessed.Should().Be(2);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FullPipeline_GateFails_ReturnsSkipped() {
         var disabledConfig = new AutoDreamConfig { Enabled = false, MinHours = 1, MinSessions = 1 };

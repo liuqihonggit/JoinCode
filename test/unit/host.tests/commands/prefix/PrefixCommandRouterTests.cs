@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Host.Tests.Commands.Prefix;
 
 /// <summary>
@@ -32,6 +31,7 @@ public class PrefixCommandRouterTests {
 
     #region Parse
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Parse_SingleExclamation_ReturnsPrefixAndCommand() {
         var result = PrefixCommandRouter.Parse("!git status");
@@ -40,6 +40,7 @@ public class PrefixCommandRouterTests {
         result.Value.Command.Should().Be("git status");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Parse_DoubleExclamation_ReturnsPrefixAndCommand() {
         var result = PrefixCommandRouter.Parse("!!dir");
@@ -48,6 +49,7 @@ public class PrefixCommandRouterTests {
         result.Value.Command.Should().Be("dir");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Parse_DoubleExclamation_TakesPriorityOverSingle() {
         var result = PrefixCommandRouter.Parse("!!echo hello");
@@ -71,6 +73,7 @@ public class PrefixCommandRouterTests {
         PrefixCommandRouter.Parse("!! ").Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Parse_TrimLeadingWhitespace_AfterPrefix() {
         var single = PrefixCommandRouter.Parse("!  cmd");

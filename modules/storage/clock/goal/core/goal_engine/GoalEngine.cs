@@ -1,6 +1,6 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 // JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11003, JCC11005
+#pragma warning disable JCC11005
 namespace Core.Goal;
 
 
@@ -18,7 +18,9 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     private readonly AsyncLock _stateLock = new();
     private readonly ILogger<GoalEngine>? _logger;
     private readonly IClockService _clock;
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private readonly IServiceProvider _serviceProvider = null!;
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private readonly IGoalGraphTemplateRegistry _templateRegistry = null!;
     private readonly IToolPermissionManager? _permissionManager;
     private readonly MiddlewarePipeline<GoalLifecycleContext>? _lifecyclePipeline;

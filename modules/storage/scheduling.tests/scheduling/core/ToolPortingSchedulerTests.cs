@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Scheduling;
 
 public class ToolPortingSchedulerTests {
@@ -24,6 +23,7 @@ public class ToolPortingSchedulerTests {
         _scheduler.GetFirstWaveTasks().Should().HaveCount(9);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void StartTask_ShouldSetInProgress() {
         _scheduler.InitializeTasks();
@@ -35,6 +35,7 @@ public class ToolPortingSchedulerTests {
         _scheduler.GetTask(first.Id)!.Status.Should().Be(ScheduledTaskStatus.InProgress);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CompleteTask_ShouldSetCompletedAndRaiseDependencyEvent() {
         _scheduler.InitializeTasks();
@@ -61,6 +62,7 @@ public class ToolPortingSchedulerTests {
         _scheduler.CompleteTask("missing", "done").Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void FailTask_ShouldSetFailed() {
         _scheduler.InitializeTasks();

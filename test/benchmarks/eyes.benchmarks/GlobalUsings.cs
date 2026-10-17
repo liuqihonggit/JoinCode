@@ -1,3 +1,4 @@
+global using System.Diagnostics.CodeAnalysis;
 global using IO.FileSystem;
 global using JoinCode.Abstractions.CodeIndex;
 global using JoinCode.Abstractions.Interfaces;

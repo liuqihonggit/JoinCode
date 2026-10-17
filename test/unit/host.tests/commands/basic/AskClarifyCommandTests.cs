@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Commands;
 
 /// <summary>
@@ -89,6 +88,7 @@ public class AskClarifyCommandTests {
         prompt.Should().Contain("【需求已明确】");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Parse_DoubleQuestionMark_ShouldRouteToAskClarifyNotHelp() {
         var registry = new ChatCommandRegistry();
@@ -104,6 +104,7 @@ public class AskClarifyCommandTests {
         command.Should().BeOfType<AskClarifyCommand>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Parse_SingleQuestionMark_ShouldRouteToHelpNotAskClarify() {
         var registry = new ChatCommandRegistry();
@@ -119,6 +120,7 @@ public class AskClarifyCommandTests {
         command.Should().BeOfType<HelpCommand>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Parse_AskAlias_ShouldRouteToAskClarify() {
         var registry = new ChatCommandRegistry();

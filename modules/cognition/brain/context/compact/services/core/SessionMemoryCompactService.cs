@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Context.Compact;
 
 /// <summary>
@@ -146,6 +145,7 @@ public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessio
     /// </summary>
     /// <param name="content">新的会话记忆内容</param>
     /// <param name="cancellationToken">取消令牌</param>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public async Task UpdateSessionMemoryAsync(string content, CancellationToken cancellationToken = default) {
         _cachedMemoryContent = content;
 

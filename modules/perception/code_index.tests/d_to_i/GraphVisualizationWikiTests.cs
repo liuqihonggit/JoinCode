@@ -1,4 +1,5 @@
-#pragma warning disable JCC9001, JCC9002
+#pragma warning disable JCC9002
+
 namespace JoinCode.CodeIndex.Tests;
 
 public sealed class GraphVisualizationWikiTests : IDisposable {

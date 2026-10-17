@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Core.Tests.Services.FeatureFlags;
 
 public sealed class FeatureFlagServiceTests : IAsyncDisposable {
@@ -22,6 +21,7 @@ public sealed class FeatureFlagServiceTests : IAsyncDisposable {
         _httpClient.DisposeSafe();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private sealed class CacheHelper(FeatureFlagService service) {
         private static readonly global::System.Reflection.FieldInfo CacheField =
             typeof(FeatureFlagService).BaseType!.GetField("_cache", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance)!;
@@ -102,6 +102,7 @@ public sealed class FeatureFlagServiceTests : IAsyncDisposable {
         flags.Should().HaveCount(2);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_WithNullHttpClient_ThrowsArgumentNullException() {
         var act = () => new FeatureFlagService(null!);

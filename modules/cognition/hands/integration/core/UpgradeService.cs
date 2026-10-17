@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace IO.Services;
 
 /// <summary>
@@ -68,6 +67,7 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService {
     /// <summary>
     /// 从环境变量创建 UpdateSourceConfig — JCC_UPDATE_SOURCE_TYPE + JCC_UPDATE_MANIFEST_URL
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static UpdateSourceConfig? CreateConfigFromEnv() {
         var sourceTypeEnv = Environment.GetEnvironmentVariable(JccEnvVar.UpdateSourceType.ToValue());
         if (string.IsNullOrEmpty(sourceTypeEnv)) return null;
@@ -168,6 +168,7 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService {
     }
 
     /// <inheritdoc/>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public async Task<UpdateResult> DownloadUpdateAsync(
         UpdateManifestEntry entry,
         IProgress<UpdateDownloadProgress>? progress = null,
@@ -205,6 +206,7 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService {
     /// <summary>
     /// 多线程分片下载(IDownloader) — 远程源走此路径,复用基建
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<long> DownloadWithDownloaderAsync(
         string url, string downloadedPath, UpdateManifestEntry entry,
         IProgress<UpdateDownloadProgress>? progress, CancellationToken ct) {
@@ -220,6 +222,7 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService {
     /// <summary>
     /// 单线程流式回退 — 本地文件源(LocalFile)或未注入 IDownloader 时走此路径
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<long> DownloadFromStreamAsync(
         UpdateManifestEntry entry, string downloadedPath,
         IProgress<UpdateDownloadProgress>? progress, CancellationToken ct) {

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Transport.Bridge;
 
 /// <summary>
@@ -167,7 +166,7 @@ public static class NdjsonParser {
 
         // 必须有 request_id
         if (!json.TryGetValue("request_id", out var reqIdEl) || reqIdEl.ValueKind != JsonValueKind.String) return null;
-        var requestId = reqIdEl.GetString()!;
+        var requestId = reqIdEl.GetString() ?? string.Empty;
 
         // 必须有 request 对象
         if (!json.TryGetValue("request", out var reqEl) || reqEl.ValueKind != JsonValueKind.Object) return null;

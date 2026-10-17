@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Mcp.Tests;
 
 /// <summary>
@@ -127,6 +126,7 @@ public sealed class GitHubRunLogFilterRunnerTests {
         current.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ProcessLogLine_InErrorMessageContent_AppendsToErrorMessageLines() {
         var failures = new List<GitHubRunLogFilterRunner.TestFailureInfo>();
@@ -165,6 +165,7 @@ public sealed class GitHubRunLogFilterRunnerTests {
         current.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ProcessLogLine_InStackTraceContent_AppendsToStackTraceLines() {
         var failures = new List<GitHubRunLogFilterRunner.TestFailureInfo>();
@@ -279,6 +280,7 @@ public sealed class GitHubRunLogFilterRunnerTests {
         result.GetFirstText().Should().Contain("run123");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void FormatFailuresRustStyle_MaxLinesTruncatesAndAddsContinueHint() {
         var failures = new List<GitHubRunLogFilterRunner.TestFailureInfo> {
@@ -297,6 +299,7 @@ public sealed class GitHubRunLogFilterRunnerTests {
         text.Should().Contain("start_line=3");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void FormatFailuresRustStyle_SkipLinesSkipsFirst() {
         var failures = new List<GitHubRunLogFilterRunner.TestFailureInfo> {
@@ -312,6 +315,7 @@ public sealed class GitHubRunLogFilterRunnerTests {
         text.Should().Contain("跳过前 1");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void FormatFailuresRustStyle_AllShown_NoContinueHint() {
         var failures = new List<GitHubRunLogFilterRunner.TestFailureInfo> {
@@ -337,6 +341,7 @@ public sealed class GitHubRunLogFilterRunnerTests {
         result.GetFirstText().Should().Contain("1 个");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void FormatFailuresRustStyle_ErrorMarkerStripsErrorPrefix() {
         var f = new GitHubRunLogFilterRunner.TestFailureInfo {

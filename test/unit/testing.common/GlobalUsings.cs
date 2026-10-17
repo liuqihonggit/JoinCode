@@ -1,3 +1,4 @@
+global using System.Diagnostics.CodeAnalysis;
 global using Api.LLM;
 global using Core.Utils;
 global using JoinCode.Abstractions.Configuration.Llm;

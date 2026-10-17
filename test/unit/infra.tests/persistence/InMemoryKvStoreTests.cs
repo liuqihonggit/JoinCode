@@ -1,11 +1,11 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infra.IO.Tests.Persistence;
 
 public sealed class InMemoryKvStoreTests {
     private static byte[] K(string s) => Encoding.UTF8.GetBytes(s);
     private static string S(byte[] b) => Encoding.UTF8.GetString(b);
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PutGet_ReturnsValue() {
         await using var store = new InMemoryKvStore();

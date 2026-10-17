@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abs.Tests.Agents;
 
 /// <summary>
@@ -7,6 +6,7 @@ namespace JoinCode.Abs.Tests.Agents;
 /// CLI ReplLoopStep 与 GUI 消息路由共用同一实现）。
 /// </summary>
 public class SubAgentMentionParserTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Parse_ValidMention_ShouldSplitNameAndMessage() {
         var parsed = SubAgentMentionParser.Parse("@explore 帮我查一下README");
@@ -16,6 +16,7 @@ public class SubAgentMentionParserTests {
         parsed.Value.Message.Should().Be("帮我查一下README");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -28,6 +29,7 @@ public class SubAgentMentionParserTests {
         SubAgentMentionParser.Parse(input!).Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void FindAgent_Priority_DisplayName_ThenDescription_ThenIdPrefix() {
         var agents = new[]

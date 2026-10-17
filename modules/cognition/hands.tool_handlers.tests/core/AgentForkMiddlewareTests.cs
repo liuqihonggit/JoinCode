@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Hands.Tests.ToolHandlers;
 
 /// <summary>
@@ -9,6 +8,7 @@ namespace Hands.Tests.ToolHandlers;
 /// 并把通道引用传入 ForkOptions 供后台完成时发射 AgentFinished。
 /// </summary>
 public class AgentForkMiddlewareTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ForkPath_ShouldEmitAgentStarted_AndPassChannelToOptions() {
         JoinCode.Abstractions.Interfaces.ForkOptions? capturedOptions = null;

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
@@ -14,6 +13,7 @@ public class TransportE2ETest {
         try { return await source.FirstOrDefaultAsync(cts.Token); } catch (OperationCanceledException) { return null; }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task BusTransport_HostSlave_MessageRoundTrip() {
         var pipeName = $"e2e-bus-{Guid.NewGuid():N}";
@@ -59,6 +59,7 @@ public class TransportE2ETest {
         transport2.HostProcessId.Should().Be(lowPid, "从机应知道主机 PID");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task MeshTransport_TwoPeers_PointToPointMessage() {
         var baseName = $"e2e-mesh-{Guid.NewGuid():N}";
@@ -85,6 +86,7 @@ public class TransportE2ETest {
         received.SourceProcessId.Should().Be(pid1);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task MeshTransport_Bidirectional_BothDirectionsWork() {
         var baseName = $"e2e-mesh-bi-{Guid.NewGuid():N}";
@@ -116,6 +118,7 @@ public class TransportE2ETest {
         Encoding.UTF8.GetString(recv1!.Data.Span).Should().Be("2->1");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task NamedPipeTransport_HostSlave_MessageRoundTrip() {
         var pipeName = $"e2e-np-{Guid.NewGuid():N}";
@@ -148,6 +151,7 @@ public class TransportE2ETest {
         received.SourceProcessId.Should().Be(hostPid);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task BusTransport_Broadcast_MultipleSlavesReceive() {
         var pipeName = $"e2e-bus-multi-{Guid.NewGuid():N}";

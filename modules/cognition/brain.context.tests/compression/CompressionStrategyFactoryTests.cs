@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿
 namespace Core.Tests.Context.Compression;
 
@@ -35,6 +34,7 @@ public class CompressionStrategyFactoryTests {
         _factory.HasStrategyFor(ContentType.Text).Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetStrategy_CodeContent_ShouldReturnCodeCompressor() {
         var code = "public class Test { public void Method() { var x = 1; Console.WriteLine(x); } }";
@@ -44,6 +44,7 @@ public class CompressionStrategyFactoryTests {
         strategy!.Name.Should().Be("CodeContentCompressor");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetStrategy_DialogueContent_ShouldReturnDialogueCompressor() {
         var dialogue = @"User: Hello, how are you today?
@@ -56,6 +57,7 @@ Assistant: Of course! I'd be happy to help. What do you need assistance with?";
         strategy!.Name.Should().Be("DialogueCompressor");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetStrategy_ReferenceIndexContent_ShouldReturnReferenceCompressor() {
         var content = @"文件: Test.cs
@@ -155,6 +157,7 @@ method AnotherMethod";
         factory.HasStrategy("Strategy2").Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetBestStrategyForType_CodeType_ShouldReturnCodeCompressor() {
         var strategy = _factory.GetBestStrategyForType(ContentType.Code);

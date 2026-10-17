@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Hands.Tests.Integration;
 
 /// <summary>
@@ -22,6 +21,7 @@ public sealed class UpdateSourceTests {
         manifest.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task LocalFile_GetManifestAsync_ValidFile_ReturnsManifest() {
         var tempPath = _fs.CombinePath(Path.GetTempPath(), $"test_manifest_{Guid.NewGuid():N}.json");
@@ -87,6 +87,7 @@ public sealed class UpdateSourceTests {
         source.Type.Should().Be(UpdateSourceType.HttpApi);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task HttpApi_GetManifestAsync_ValidResponse_ReturnsManifest() {
         var handler = new FakeHttpMessageHandler();
@@ -130,6 +131,7 @@ public sealed class UpdateSourceTests {
         source.Type.Should().Be(UpdateSourceType.GitHubMirror);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GitHubMirror_GetManifestAsync_ValidRelease_ReturnsManifest() {
         var handler = new FakeHttpMessageHandler();
@@ -160,6 +162,7 @@ public sealed class UpdateSourceTests {
         manifest.Releases[0].ReleaseNotes.Should().Be("Release notes here");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GitHubMirror_GetManifestAsync_NoVPrefix_StripsCorrectly() {
         var handler = new FakeHttpMessageHandler();
@@ -174,6 +177,7 @@ public sealed class UpdateSourceTests {
         manifest!.LatestVersion.Should().Be("4.1.0");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GitHubMirror_GetManifestAsync_NoExeAssets_ReturnsEmptyReleases() {
         var handler = new FakeHttpMessageHandler();
@@ -199,6 +203,7 @@ public sealed class UpdateSourceTests {
         manifest.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GitHubMirror_GetManifestAsync_NoAssets_ReturnsEmptyReleases() {
         var handler = new FakeHttpMessageHandler();

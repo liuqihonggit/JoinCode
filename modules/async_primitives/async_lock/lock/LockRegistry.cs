@@ -1,5 +1,4 @@
 // JCC11003 抑制: 底层实现/测试代码, ! 用于可空抑制, 是必要用法
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
@@ -113,10 +112,10 @@ public static class LockRegistry {
     /// </summary>
     internal static void Unregister(int id) {
         var cfg = Volatile.Read(ref _config);
-        var hadInfo = Volatile.Read(ref _locks).TryGetValue(id, out var info);
+        Volatile.Read(ref _locks).TryGetValue(id, out var info);
         ImmutableInterlocked.Update(ref _locks, d => d.Remove(id));
-        if (!hadInfo) return;
-        if (info!.HoldingFlowId != 0) {
+        if (info is null) return;
+        if (info.HoldingFlowId != 0) {
             var acquiredTicks = info.AcquiredTicks;
             var heldFor = acquiredTicks != 0
                 ? TimeSpan.FromTicks(DateTimeOffset.UtcNow.Ticks - acquiredTicks)

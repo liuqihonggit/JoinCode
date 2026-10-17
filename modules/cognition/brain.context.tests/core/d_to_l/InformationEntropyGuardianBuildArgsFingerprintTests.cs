@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Context;
 
 /// <summary>
@@ -43,6 +42,7 @@ public sealed class InformationEntropyGuardianBuildArgsFingerprintTests {
         Assert.Equal("Grep(file_path=/src/Program.cs,pattern=TODO)", fp);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildArgsFingerprint_LongStringValue_TruncatedTo50Chars() {
         var longValue = new string('x', 100);
@@ -58,6 +58,7 @@ public sealed class InformationEntropyGuardianBuildArgsFingerprintTests {
         Assert.Contains(new string('x', 50) + "...", fp!);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildArgsFingerprint_NoKeyParams_FallbackToFirstTwoArbitrary() {
         var args = new Dictionary<string, JsonElement> {
@@ -76,6 +77,7 @@ public sealed class InformationEntropyGuardianBuildArgsFingerprintTests {
         Assert.DoesNotContain("custom_key3", fp!);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildArgsFingerprint_NonStringValue_UsesGetRawText() {
         var args = new Dictionary<string, JsonElement> {
@@ -88,6 +90,7 @@ public sealed class InformationEntropyGuardianBuildArgsFingerprintTests {
         Assert.Contains("file_path=42", fp!);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildArgsFingerprint_KeyParamPresent_FallbackNotUsed() {
         var args = new Dictionary<string, JsonElement> {

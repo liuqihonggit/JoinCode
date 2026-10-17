@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infrastructure.Utils.Text;
 
 /// <summary>
@@ -20,18 +19,18 @@ public static class JsonArgumentParser {
             return new Dictionary<string, JsonElement>();
 
         // 第1层：直接解析（ContractsJsonContext 已带 AllowTrailingCommas + CommentHandling + CaseInsensitive）
-        if (TryDeserialize(rawArguments, out var result))
-            return result!;
+        if (TryDeserialize(rawArguments, out var result) && result is not null)
+            return result;
 
         // 第2层：调用 LlmJsonHelper.RepairJson 进行语法修复
         var repairResult = LlmJsonHelper.RepairJson(rawArguments);
-        if (repairResult.Success && TryDeserialize(repairResult.RepairedJson, out var repairedResult))
-            return repairedResult!;
+        if (repairResult.Success && TryDeserialize(repairResult.RepairedJson, out var repairedResult) && repairedResult is not null)
+            return repairedResult;
 
         // 第3层：尝试提取内联 JSON（第一个 { 到最后一个 }）
         var inlineJson = LlmJsonHelper.ExtractInlineJson(rawArguments);
-        if (inlineJson is not null && TryDeserialize(inlineJson, out var inlineResult))
-            return inlineResult!;
+        if (inlineJson is not null && TryDeserialize(inlineJson, out var inlineResult) && inlineResult is not null)
+            return inlineResult;
 
         // 全部失败，返回空字典（保持原 API 契约）
         return new Dictionary<string, JsonElement>();

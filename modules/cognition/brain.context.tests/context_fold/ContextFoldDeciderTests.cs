@@ -1,6 +1,6 @@
 // JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC1017, JCC11003
+#pragma warning disable JCC1017
 namespace JoinCode.Abstractions.LLM.Chat;
 
 /// <summary>
@@ -94,6 +94,7 @@ public sealed class ContextFoldDeciderTests {
         Assert.Equal(ContextFoldDecision.FoldNormal, decision);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void DecideAfterUsage_NullUsage_Throws() {
         Assert.Throws<ArgumentNullException>(() =>
@@ -150,6 +151,7 @@ public sealed class ContextFoldDeciderTests {
         Assert.False(decision.NeedsAction);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void DecidePreflight_NullMessages_Throws() {
         Assert.Throws<ArgumentNullException>(() =>
@@ -397,6 +399,7 @@ public sealed class ContextFoldDeciderTests {
         Assert.False(log[1].Metadata.ContainsKey("ToolCalls"));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TrimTrailingToolCalls_NullLog_Throws() {
         Assert.Throws<ArgumentNullException>(() => ContextFoldDecider.TrimTrailingToolCalls(null!));
@@ -480,6 +483,7 @@ public sealed class ContextFoldDeciderTests {
         Assert.Throws<ArgumentOutOfRangeException>(() => ContextFoldDecider.SnipStaleToolResults(log, ctxMax: 0));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SnipStaleToolResults_NullLog_Throws() {
         Assert.Throws<ArgumentNullException>(() => ContextFoldDecider.SnipStaleToolResults(null!, ctxMax: 1000));

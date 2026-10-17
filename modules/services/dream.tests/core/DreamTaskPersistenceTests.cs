@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 // JCC9203 抑制: 存量释放超时, 后续异步化改造
 #pragma warning disable JCC9203
 namespace Dream.Tests;
@@ -193,12 +192,14 @@ public sealed class DreamTaskPersistenceTests : IDisposable {
 
     // ===== 守卫确定性测试(TASK031:null + 路径注入 + 范围) =====
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Trait("Category", "Deterministic")]
     [Fact]
     public async Task SaveAsync_NullTask_ThrowsArgumentNullException() {
         await Assert.ThrowsAsync<ArgumentNullException>(() => _persistence.SaveAsync(null!)).ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Trait("Category", "Deterministic")]
     [Fact]
     public async Task LoadAsync_NullTaskId_ThrowsArgumentNullException() {
@@ -231,6 +232,7 @@ public sealed class DreamTaskPersistenceTests : IDisposable {
         await Assert.ThrowsAsync<ArgumentException>(() => _persistence.LoadAsync("a/b")).ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Trait("Category", "Deterministic")]
     [Fact]
     public async Task DeleteAsync_NullTaskId_ThrowsArgumentNullException() {

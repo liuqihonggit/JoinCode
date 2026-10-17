@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 public class HostContextSyncServiceExtractJsonFieldTests {
@@ -103,6 +102,7 @@ public class HostContextSyncServiceDeserializeSnapshotTests {
         HostContextSyncService.DeserializeSnapshot("   ").Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void valid_json_extracts_timestamp_and_hostpid() {
         var ts = new DateTimeOffset(2026, 9, 30, 12, 0, 0, TimeSpan.Zero);
@@ -124,6 +124,7 @@ public class HostContextSyncServiceDeserializeSnapshotTests {
         restored.Timestamp.Should().Be(ts);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void missing_fields_fallback_to_defaults() {
         var json = """{"unknown":"data"}""";
@@ -132,6 +133,7 @@ public class HostContextSyncServiceDeserializeSnapshotTests {
         restored!.HostProcessId.Should().Be("unknown");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void malformed_json_returns_fallback_snapshot() {
         var restored = HostContextSyncService.DeserializeSnapshot("not json at all");
@@ -139,6 +141,7 @@ public class HostContextSyncServiceDeserializeSnapshotTests {
         restored!.HostProcessId.Should().Be("unknown");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void round_trip_preserves_hostpid() {
         var snap = new HostContextSnapshot {

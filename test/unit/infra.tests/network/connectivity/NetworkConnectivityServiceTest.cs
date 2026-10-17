@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infra.Services.Tests.Network;
 
 /// <summary>
@@ -109,6 +108,7 @@ public sealed class NetworkConnectivityServiceTest {
         sut.GetCurrentRoute().Type.Should().Be(NetworkRouteType.Direct);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RefreshState_WhenStateChanges_RaisesStateChangedEvent() {
         var interfaces = new List<NetworkInterfaceInfo>();

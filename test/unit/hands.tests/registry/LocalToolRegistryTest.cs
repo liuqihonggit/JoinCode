@@ -1,11 +1,11 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Hands.Tests.Registry;
 
 /// <summary>
 /// LocalToolRegistry 单元测试 — 验证注册/注销/索引维护/分组查询/事件
 /// </summary>
 public sealed class LocalToolRegistryTest : IAsyncLifetime {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private LocalToolRegistry _registry = null!;
     private EventHandler<ToolRegisteredEventArgs>? _onToolRegistered;
     private EventHandler<ToolUnregisteredEventArgs>? _onToolUnregistered;
@@ -38,6 +38,7 @@ public sealed class LocalToolRegistryTest : IAsyncLifetime {
 
     // === RegisterToolAsync + GetToolAsync ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RegisterToolAsync_NullHandler_ThrowsArgumentNullException() {
         var act = async () => await _registry.RegisterToolAsync(null!);
@@ -65,6 +66,7 @@ public sealed class LocalToolRegistryTest : IAsyncLifetime {
         (await _registry.GetCountAsync()).Should().Be(1);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RegisterToolAsync_WithKindAndGroup_RegistersCorrectly() {
         await _registry.RegisterToolAsync(
@@ -94,6 +96,7 @@ public sealed class LocalToolRegistryTest : IAsyncLifetime {
         result.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UnregisterToolAsync_NullOrEmptyName_ThrowsArgumentException() {
         var act1 = async () => await _registry.UnregisterToolAsync(null!);
@@ -154,6 +157,7 @@ public sealed class LocalToolRegistryTest : IAsyncLifetime {
 
     // === GetToolsByGroupAsync ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetToolsByGroupAsync_NullOrEmptyName_ThrowsArgumentException() {
         var act1 = async () => await _registry.GetToolsByGroupAsync(null!);
@@ -255,6 +259,7 @@ public sealed class LocalToolRegistryTest : IAsyncLifetime {
 
     // === 事件 ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ToolRegistered_Event_RaisedOnRegister() {
         ToolRegisteredEventArgs? eventArgs = null;
@@ -268,6 +273,7 @@ public sealed class LocalToolRegistryTest : IAsyncLifetime {
         eventArgs.Description.Should().Be("my description");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ToolUnregistered_Event_RaisedOnUnregister() {
         ToolUnregisteredEventArgs? eventArgs = null;

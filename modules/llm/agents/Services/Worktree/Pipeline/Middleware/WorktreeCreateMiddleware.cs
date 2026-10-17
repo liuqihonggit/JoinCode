@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Agents.Worktree;
 
 /// <summary>
@@ -32,6 +31,7 @@ public sealed partial class WorktreeCreateMiddleware : ServiceEntity, IWorktreeC
     /// <param name="context">worktree 创建上下文</param>
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct) {
         WorktreeContextEnricher.EnsureAllPaths(context, _fs);
         var opts = context.Options ?? new WorktreeOptions();

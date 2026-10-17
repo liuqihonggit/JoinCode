@@ -1,3 +1,4 @@
+global using System.Diagnostics.CodeAnalysis;
 global using Api;
 global using Core.Agents;
 global using Core.Agents.Coordinator;

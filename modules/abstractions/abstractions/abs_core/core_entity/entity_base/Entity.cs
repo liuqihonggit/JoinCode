@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
@@ -77,7 +76,7 @@ public abstract class Entity : IAsyncDisposable, ICloneableEntity {
         LifecycleState = EntityLifecycle.Disposed;
         ObjectIdManager.Unregister(ObjectId);
         if (SessionRouter.TryGetScope(SessionId, out var scope))
-            scope!.Value.Unregister(ObjectId);
+            scope.Value.Unregister(ObjectId);
         GC.SuppressFinalize(this);
     }
 

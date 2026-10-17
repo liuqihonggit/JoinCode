@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Guard.Security.Tests;
 
 /// <summary>
@@ -14,6 +13,7 @@ public class BashAstSecurityWalkerTest : IDisposable {
     public void Dispose() => _walker.Dispose();
 
     /// <summary>断言结果为 Simple 并返回其 Commands 数组。</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static BashSimpleCommandInfo[] ExpectSimple(BashAstSecurityResult result) {
         var simple = result as BashAstSecurityResult.Simple;
         simple.Should().NotBeNull($"期望结果为 Simple,实际为 {result?.GetType().Name}");
@@ -21,6 +21,7 @@ public class BashAstSecurityWalkerTest : IDisposable {
     }
 
     /// <summary>断言结果为 TooComplex 并返回其 NodeType。</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static string ExpectTooComplex(BashAstSecurityResult result) {
         var tc = result as BashAstSecurityResult.TooComplex;
         tc.Should().NotBeNull($"期望结果为 TooComplex,实际为 {result?.GetType().Name}");
@@ -575,6 +576,7 @@ public class BashAstSecurityWalkerTest : IDisposable {
     /// CollectCommands/WalkCommand 是 private static,正常路径不可达 null(调用方有 null 守卫)。
     /// 此处通过反射验证防御性守卫:null node → TooComplex(NULL_NODE),fail-closed 设计。
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Trait("Category", "Deterministic")]
     [Fact]
     public void CollectCommands_NullNode_ReturnsTooComplexNullNode() {
@@ -588,6 +590,7 @@ public class BashAstSecurityWalkerTest : IDisposable {
         tc!.NodeType.Should().Be("NULL_NODE");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Trait("Category", "Deterministic")]
     [Fact]
     public void WalkCommand_NullNode_ReturnsTooComplexNullNode() {

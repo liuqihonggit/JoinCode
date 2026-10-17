@@ -1,5 +1,7 @@
 namespace Sync.Tests.ToolHandlers;
 
+[SuppressMessage("FileSystemAbstraction", "JCC9001", Justification = "Agent 工具测试需直接访问文件系统验证 dry-run 状态文件")]
+
 public class AgentToolHandlersTests {
     private readonly Mock<IAgentService> _agentService = new();
     private readonly Mock<IAgentService> _coordinator = new();
@@ -152,12 +154,10 @@ public class AgentToolHandlersTests {
         var agentDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".jcc", "agents");
-#pragma warning disable JCC9001
         if (!Directory.Exists(agentDir))
             return;
         foreach (var file in Directory.EnumerateFiles(agentDir, "*.json")) {
             try { File.Delete(file); } catch (IOException ex) { System.Diagnostics.Trace.WriteLine($"Failed to delete {file}: {ex.Message}"); }
         }
-#pragma warning restore JCC9001
     }
 }

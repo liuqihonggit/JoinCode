@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
@@ -14,6 +13,7 @@ public class WaitGraphRaceTest {
     /// P1-3 修复验证: _askWaitGraph 类型从 AsyncLocal&lt;Dag&lt;string&gt;?&gt; 改为 AsyncLocal&lt;ImmutableDag&lt;string&gt;?&gt;。
     /// <para>ImmutableDag 使用 CAS 无锁，多异步流共享同一实例不会崩溃。</para>
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BugP13_WaitGraph_UsesImmutableDag_NotDag() {
         var field = typeof(ActorBase<P13EchoCmd, Unit>)

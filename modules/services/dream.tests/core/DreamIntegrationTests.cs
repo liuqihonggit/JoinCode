@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿
 namespace Dream.Tests;
 
@@ -107,6 +106,7 @@ public sealed class DreamIntegrationTests {
     /// <summary>
     /// 测试任务生命周期：创建 → 完成 → 查询
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TaskLifecycle_CreateCompleteQuery() {
         // Arrange
@@ -217,6 +217,7 @@ public sealed class DreamIntegrationTests {
     /// <summary>
     /// 测试持久化注册表集成
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PersistentRegistry_Integration_TaskSurvives() {
         // Arrange

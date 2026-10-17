@@ -1,8 +1,8 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Entry.Tests;
 
 public class StartupWorkflowTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Azure_CompoundAuthFormat_Should_Parse_Correctly() {
         var compoundJson = "{\"apiKey\":\"test-key\",\"endpoint\":\"https://test.openai.azure.com\"}";
@@ -16,6 +16,7 @@ public class StartupWorkflowTests {
         compoundData["endpoint"].Should().Be("https://test.openai.azure.com");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Azure_MissingEndpoint_Should_FailValidation() {
         var compoundJson = "{\"apiKey\":\"test-key\",\"endpoint\":\"\"}";
@@ -32,6 +33,7 @@ public class StartupWorkflowTests {
         isValid.Should().BeFalse("缺少 Endpoint 时应该验证失败");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Azure_MissingApiKey_Should_FailValidation() {
         var compoundJson = "{\"apiKey\":\"\",\"endpoint\":\"https://test.openai.azure.com\"}";
@@ -48,6 +50,7 @@ public class StartupWorkflowTests {
         isValid.Should().BeFalse("缺少 API Key 时应该验证失败");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Azure_ValidCompoundFormat_Should_PassValidation() {
         var compoundJson = "{\"apiKey\":\"test-key-123\",\"endpoint\":\"https://my-resource.openai.azure.com\"}";

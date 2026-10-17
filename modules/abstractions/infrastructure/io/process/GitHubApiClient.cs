@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace IO.ProcessService;
 
 /// <summary>
@@ -82,7 +81,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         var retry5xx = 0;
 
         while (true) {
-            using var request = BuildRequest(method, isFirstPage ? effectivePath : nextUrl!, body, query, token, isFirstPage);
+            using var request = BuildRequest(method, isFirstPage ? effectivePath : (nextUrl ?? effectivePath), body, query, token, isFirstPage);
             HttpResponseMessage response;
             try {
                 response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
@@ -175,7 +174,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
                 yield break;
             }
 
-            var resp = response!;
+            var resp = response ?? throw new InvalidOperationException("GitHub API response was null");
             if (!resp.IsSuccessStatusCode) {
                 if (resp.StatusCode == System.Net.HttpStatusCode.NotFound) {
                     resp.Dispose();
@@ -198,8 +197,9 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
             break;
         }
 
-        using (response!) {
-            await using var stream = await response!.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        var runResp = response ?? throw new InvalidOperationException("GitHub API response was null");
+        using (runResp) {
+            await using var stream = await runResp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             await foreach (var line in ReadLogStreamLinesAsync(stream, $"run {runId}", ct).ConfigureAwait(false)) {
                 yield return line;
             }
@@ -237,7 +237,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
                 yield break;
             }
 
-            var resp = response!;
+            var resp = response ?? throw new InvalidOperationException("GitHub API response was null");
             if (!resp.IsSuccessStatusCode) {
                 if (resp.StatusCode == System.Net.HttpStatusCode.NotFound) {
                     resp.Dispose();
@@ -260,8 +260,9 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
             break;
         }
 
-        using (response!) {
-            await using var stream = await response!.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        var jobResp = response ?? throw new InvalidOperationException("GitHub API response was null");
+        using (jobResp) {
+            await using var stream = await jobResp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             await foreach (var line in ReadLogStreamLinesAsync(stream, $"job {jobId}", ct).ConfigureAwait(false)) {
                 yield return line;
             }
@@ -535,7 +536,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         var downloadPath = $"repos/{owner}/{repo}/actions/artifacts/{artifactId}/zip";
 
         if (_downloader is not null) {
-            var fullUrl = new Uri(_httpClient.BaseAddress!, downloadPath).ToString();
+            var fullUrl = new Uri(_httpClient.BaseAddress ?? new Uri("https://api.github.com"), downloadPath).ToString();
             var headers = new Dictionary<string, string> {
                 ["Authorization"] = $"Bearer {token}",
                 ["Accept"] = AcceptHeader,
@@ -747,7 +748,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
             if (dto.Message is { } msg) parts.Add(msg);
             foreach (var e in dto.Errors) {
                 if (string.IsNullOrEmpty(e.Message)) continue;
-                var detail = e.Message!;
+                var detail = e.Message ?? string.Empty;
                 if (!string.IsNullOrEmpty(e.Field)) detail = $"{e.Field}: {detail}";
                 if (!string.IsNullOrEmpty(e.Code)) detail = $"{detail} (code: {e.Code})";
                 parts.Add(detail);

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Tools.Handlers;
 
 /// <summary>
@@ -43,6 +42,7 @@ public class ProcessToolHandlers {
     }
 
     /// <summary>结束进程（S-01）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [McpTool("kill_process", "按PID或名称结束进程", "desktop")]
     public async Task<ToolResult> KillProcessAsync(
         [McpToolParameter("进程ID（优先使用）", Required = false)] int? pid = null,

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Plugins;
 
 public sealed class CapabilityGateTests {
@@ -69,6 +68,7 @@ public sealed class CapabilityGateTests {
         Assert.Empty(attr.Services);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void RequireService_NullResolve_ThrowsNre() {
         var gate = new CapabilityGate(new[] { "tools" });

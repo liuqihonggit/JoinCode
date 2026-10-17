@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Vision.Tests.ToolHandlers;
 
 /// <summary>
@@ -14,6 +13,7 @@ public sealed class ImageMetaphorToolHandlersTests {
         return mock;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ImageDescribe_ValidResponse_ShouldReturnFormattedText() {
         var llmResponse = """
@@ -66,6 +66,7 @@ public sealed class ImageMetaphorToolHandlersTests {
         result.Content[0].Text.Should().Contain("普通文本响应");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ImageDescribe_JsonCodeBlock_ShouldParseCorrectly() {
         var llmResponse = """
@@ -84,6 +85,7 @@ public sealed class ImageMetaphorToolHandlersTests {
         text.Should().Contain("电脑");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ImageDrillDown_ValidResponse_ShouldReturnFormattedText() {
         var llmResponse = """

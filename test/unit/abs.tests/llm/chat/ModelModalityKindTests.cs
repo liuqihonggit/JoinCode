@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Abs.Tests.LLM;
 
 /// <summary>
@@ -130,6 +129,7 @@ public class ModelModalityKindTests {
         json.Should().NotContain("\"thinking\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void JsonConverter_Deserialize_ReadsStringArray() {
         var json = """{"FastMode":true,"Modalities":["text","readImage","toolUse"]}""";
@@ -142,6 +142,7 @@ public class ModelModalityKindTests {
         config.Modalities.HasFlag(ModelModalityKind.Thinking).Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void JsonConverter_Deserialize_ReadsIntegerBackwardCompat() {
         var json = """{"FastMode":true,"Modalities":4103}""";
@@ -153,6 +154,7 @@ public class ModelModalityKindTests {
         config.Modalities.HasFlag(ModelModalityKind.ToolUse).Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void JsonConverter_RoundTrip_PreservesFlags() {
         var original = new ModelCapabilitiesConfig {

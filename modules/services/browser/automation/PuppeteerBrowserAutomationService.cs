@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Browser;
 
 /// <summary>
@@ -147,7 +146,7 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
             var browser = _browser;
             _browser = null;
             return new ValueTask(browser.DisposeAsync().AsTask().ContinueWith(t => {
-                if (t.IsFaulted) _logger.LogWarning(t.Exception!, "Failed to dispose browser");
+                if (t.IsFaulted && t.Exception is { } ex) _logger.LogError(ex, "Failed to dispose browser");
                 _initLock.Dispose();
             }, TaskContinuationOptions.ExecuteSynchronously));
         }

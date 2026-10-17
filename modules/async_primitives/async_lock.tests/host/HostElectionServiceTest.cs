@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
@@ -37,6 +36,7 @@ public class HostElectionServiceTest {
         second.HostProcessId.Should().Be(first.HostProcessId);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CurrentRole_SetAfterElection() {
         var uniquePipe = $"test-pipe-{Guid.NewGuid():N}";
@@ -72,6 +72,7 @@ public class HostElectionServiceTest {
         results[0].Role.Should().Be(ProcessRole.Host);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UpdateSnapshot_StoresLastSnapshot() {
         var uniquePipe = $"test-pipe-{Guid.NewGuid():N}";

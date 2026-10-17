@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Bridge;
 
 /// <summary>
@@ -10,6 +9,7 @@ namespace Core.Tests.Bridge;
 public class BridgeClientIntegrationTests : IAsyncLifetime {
     private readonly ITestOutputHelper _output;
     private readonly ILoggerFactory _loggerFactory;
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private string _tempSkillsDir = null!;
     private readonly IFileOperationService _fileOperationService;
 
@@ -34,6 +34,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
 
     #region MCP 客户端完整流程测试
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task BridgeClient_Initialize_ShouldSucceed() {
         // Arrange
@@ -56,6 +57,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
         initResponse.ServerInfo.Name.Should().Be("Core.Bridge");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task BridgeClient_ToolsList_ShouldReturnTools() {
         // Arrange
@@ -83,6 +85,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
         toolsResponse.Tools[0].Name.Should().Be("test_tool");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task BridgeClient_ToolsCall_ShouldExecuteTool() {
         // Arrange
@@ -121,6 +124,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
 
     #region 技能加载和执行测试
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task BridgeClient_SkillExecute_NonExistentSkill_ShouldReturnError() {
         // Arrange
@@ -164,6 +168,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
         return new SkillService(options, _fileOperationService, pipeline);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task BridgeClient_SkillExecute_ExistingSkill_ShouldReturnResult() {
         // Arrange
@@ -227,6 +232,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
         response.Should().BeOfType<PongMessage>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task BridgeClient_ControlRequest_Ping_ShouldReturnPong() {
         // Arrange
@@ -248,6 +254,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
         controlResponse.Result.Should().NotBeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task BridgeClient_ControlRequest_GetStatus_ShouldReturnStatus() {
         // Arrange
@@ -280,6 +287,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime {
         controlResponse.Result.Should().NotBeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task BridgeClient_ControlRequest_UnknownCommand_ShouldReturnError() {
         // Arrange

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 底层实现/测试代码, ! 用于可空抑制, 是必要用法
-#pragma warning disable JCC11003
 namespace Structura.Tests;
 
 /// <summary>
@@ -122,6 +121,7 @@ public class DagTests {
         result.Success.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryGetEdge_Found() {
         var dag = BuildDag(new[] { "a", "b" }, new[] { ("a", "b") });
@@ -631,6 +631,7 @@ public class DagTests {
 
     // ===== 守卫补全:null/空输入抛异常(确定性测试,不依赖时序/IO) =====
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Deterministic")]
     public void AddNode_NullNode_ThrowsArgumentNullException() {
@@ -639,6 +640,7 @@ public class DagTests {
         act.Should().Throw<ArgumentNullException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Deterministic")]
     public void AddNode_NullId_ThrowsArgumentException() {
@@ -657,6 +659,7 @@ public class DagTests {
         act.Should().Throw<ArgumentException>().WithMessage("*节点 Id*");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Deterministic")]
     public void AddEdge_NullEdge_ThrowsArgumentNullException() {
@@ -665,6 +668,7 @@ public class DagTests {
         act.Should().Throw<ArgumentNullException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Deterministic")]
     public void AddEdge_NullFromId_ThrowsArgumentException() {
@@ -683,6 +687,7 @@ public class DagTests {
         act.Should().Throw<ArgumentException>().WithMessage("*FromId*");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Deterministic")]
     public void AddEdge_NullToId_ThrowsArgumentException() {
@@ -701,6 +706,7 @@ public class DagTests {
         act.Should().Throw<ArgumentException>().WithMessage("*ToId*");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Deterministic")]
     public void WouldCreateCycle_NullFromId_ThrowsArgumentNullException() {
@@ -709,6 +715,7 @@ public class DagTests {
         act.Should().Throw<ArgumentNullException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Deterministic")]
     public void WouldCreateCycle_NullToId_ThrowsArgumentNullException() {

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Llm.Tests.Adapters.LLM.QueryServices.Jev;
 
 /// <summary>
@@ -50,6 +49,7 @@ public class JevTypesTests {
         json.Should().Contain("\"options\":[\"positive\",\"negative\",\"neutral\"]");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void JevRequest_RoundTrip_PreservesAllFields() {
         var original = new JevRequest {
@@ -74,6 +74,7 @@ public class JevTypesTests {
 
     #region JevResponse 反序列化
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void JevResponse_Deserialize_NoulAnswer_ParsesCorrectly() {
         var json = """{"id":"resp_123","model":"jev-latest","answers":{"callback_requested":{"noul":0.95,"confidence":0.9}},"usage":{"input_tokens":42}}""";
@@ -90,6 +91,7 @@ public class JevTypesTests {
         response.Usage!.InputTokens.Should().Be(42);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void JevResponse_Deserialize_ChoiceAnswer_ParsesCorrectly() {
         var json = """{"answers":{"sentiment":{"choice":"positive","confidence":0.88}}}""";
@@ -101,6 +103,7 @@ public class JevTypesTests {
         response.Answers["sentiment"].Noul.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void JevResponse_Deserialize_ScoreAnswer_ParsesCorrectly() {
         var json = """{"answers":{"rating":{"score":7.5,"confidence":0.92}}}""";
@@ -111,6 +114,7 @@ public class JevTypesTests {
         response.Answers["rating"].Confidence.Should().Be(0.92);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void JevResponse_Deserialize_MultipleQuestions_ParsesAll() {
         var json = """{"answers":{"q1":{"noul":0.8},"q2":{"choice":"yes","confidence":0.7},"q3":{"score":5.0}}}""";

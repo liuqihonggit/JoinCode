@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Services.Lsp;
 
 #region LSP Server Config (JSON-RPC 连接配置，非 Contracts 模型)
@@ -418,6 +417,7 @@ public sealed partial class LspClient : ILspClient {
     /// <param name="config">LSP 服务器配置</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>连接成功返回 true，否则 false</returns>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public async Task<bool> ConnectAsync(LspServerConfig config, CancellationToken cancellationToken = default) {
         try {
             await _channel.StartAsync(config, cancellationToken).ConfigureAwait(false);
@@ -532,6 +532,7 @@ public sealed partial class LspClient : ILspClient {
     /// Location: { uri, range }
     /// LocationLink: { targetUri, targetRange, targetSelectionRange, originSelectionRange }
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static LspLocation? DeserializeSingleLocation(JsonNode? node) {
         if (node is not JsonObject) return null;
         var json = node!.ToJsonString();
@@ -599,6 +600,7 @@ public sealed partial class LspClient : ILspClient {
     /// <param name="character">列号（0-based）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>补全项列表</returns>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public async Task<List<LspCompletionItem>> GetCompletionsAsync(string filePath, int line, int character, CancellationToken cancellationToken = default) {
         if (!IsConnected) return [];
 

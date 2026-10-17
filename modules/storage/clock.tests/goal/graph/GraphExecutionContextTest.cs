@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Goal.Tests;
 
 /// <summary>
@@ -166,12 +165,14 @@ public sealed class GraphExecutionContextTest {
         Assert.Equal(next1, next2);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CollectNextNodeIds_NullDag_Should_Throw_ArgumentNullException() {
         Assert.Throws<ArgumentNullException>(() =>
             GraphExecutionContext.CollectNextNodeIds(null!, "a", null, RouteMatchMode.All));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CollectNextNodeIds_NullFromNodeId_Should_Throw_ArgumentNullException() {
         var dag = BuildTestDag();

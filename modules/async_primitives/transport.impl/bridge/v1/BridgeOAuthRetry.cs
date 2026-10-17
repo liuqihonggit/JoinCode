@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Transport.Bridge;
 
 /// <summary>
@@ -44,7 +43,7 @@ public static class BridgeOAuthRetry {
             return null;
         }
 
-        using var request = createRequest(accessToken!);
+        using var request = createRequest(accessToken ?? string.Empty);
 
         using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(timeoutMs));
 
@@ -67,12 +66,12 @@ public static class BridgeOAuthRetry {
         }
 
         // 4. 尝试 token 刷新 — 对齐 TS 端: debug(`attempting token refresh`)
-        var refreshed = await onAuth401(accessToken!).ConfigureAwait(false);
+        var refreshed = await onAuth401(accessToken ?? string.Empty).ConfigureAwait(false);
 
         // 5. 刷新成功 — 用新 token 重试一次
         var newToken = getAccessToken();
         if (ShouldRetryAfterRefresh(refreshed, newToken)) {
-            using var retryRequest = createRequest(newToken!);
+            using var retryRequest = createRequest(newToken ?? string.Empty);
             using var retryCts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(timeoutMs));
 
             try {

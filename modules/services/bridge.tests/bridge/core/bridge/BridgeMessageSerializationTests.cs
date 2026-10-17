@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Bridge.Tests;
 
 /// <summary>
@@ -22,6 +21,7 @@ public sealed class BridgeMessageSerializationTests {
         json.Should().Contain("\"id\":\"init-1\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ToJson_And_FromJson_InitializeRequest_RoundTrip() {
         var message = new InitializeRequest {
@@ -55,6 +55,7 @@ public sealed class BridgeMessageSerializationTests {
         json.Should().Contain("\"command\":\"ping\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void FromJson_ControlRequest_PreservesCommand() {
         var json = "{\"type\":\"control_request\",\"id\":\"ctrl-1\",\"command\":\"getStatus\",\"params\":{}}";

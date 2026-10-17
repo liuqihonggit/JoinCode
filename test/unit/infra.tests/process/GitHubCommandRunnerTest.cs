@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infra.Tests.Process;
 
 /// <summary>
@@ -63,6 +62,7 @@ public sealed class GitHubCommandRunnerTest {
         result.ExitCode.Should().Be(-1);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteAsync_PassesGitHubEnvironmentVariables() {
         ProcessOptions? captured = null;
@@ -80,6 +80,7 @@ public sealed class GitHubCommandRunnerTest {
         captured.EnvironmentVariables!["GH_FORCE_TTY"].Should().Be("100%");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteAsync_PassesWorkingDirectory() {
         ProcessOptions? captured = null;
@@ -131,6 +132,7 @@ public sealed class GitHubCommandRunnerTest {
         result.Success.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CreatePrAsync_Draft_AddsDraftFlag() {
         ProcessOptions? captured = null;
@@ -143,6 +145,7 @@ public sealed class GitHubCommandRunnerTest {
         captured!.Arguments.Should().Contain("--draft");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CreatePrAsync_NoDraft_OmitsDraftFlag() {
         ProcessOptions? captured = null;
@@ -155,6 +158,7 @@ public sealed class GitHubCommandRunnerTest {
         captured!.Arguments.Should().NotContain("--draft");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CreatePrAsync_WithRepo_AddsRepoFlag() {
         ProcessOptions? captured = null;
@@ -178,6 +182,7 @@ public sealed class GitHubCommandRunnerTest {
         result.Error.Should().NotBeNullOrEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CreatePrAsync_NullTitle_ThrowsArgumentNullException() {
         var act = async () => await _runner.CreatePrAsync(null!, "b", "main", "feature");
@@ -185,6 +190,7 @@ public sealed class GitHubCommandRunnerTest {
         await act.Should().ThrowAsync<ArgumentNullException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CreatePrAsync_NullBaseBranch_ThrowsArgumentNullException() {
         var act = async () => await _runner.CreatePrAsync("t", "b", null!, "feature");
@@ -244,6 +250,7 @@ public sealed class GitHubCommandRunnerTest {
         result.Items.Should().BeEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ListPrsAsync_WithRepo_AddsRepoFlag() {
         ProcessOptions? captured = null;
@@ -256,6 +263,7 @@ public sealed class GitHubCommandRunnerTest {
         captured!.Arguments.Should().Contain("--repo owner/repo");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ListPrsAsync_PassesStateAndLimit() {
         ProcessOptions? captured = null;

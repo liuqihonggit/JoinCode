@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Security.Sandbox.Ipc;
 
 
@@ -165,6 +164,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable {
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<SandboxIpcResponse> SendRequestAsync(SandboxIpcRequest request, CancellationToken ct) {
         var tcs = new TaskCompletionSource<SandboxIpcResponse>();
         SetPendingRequest(request.RequestId, tcs);
@@ -257,6 +257,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable {
     /// <summary>
     /// 异步释放客户端,关闭卫星进程并释放所有资源
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: ContinueWith state 由调用方保证非空")]
     public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         return new ValueTask(ShutdownAsync().ContinueWith(
@@ -281,6 +282,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable {
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private bool TryRemovePendingRequest(string requestId, out TaskCompletionSource<SandboxIpcResponse> tcs) {
         tcs = null!;
         var current = _pendingRequests;

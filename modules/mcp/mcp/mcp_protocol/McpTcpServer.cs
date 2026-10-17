@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace McpProtocol;
 
 /// <summary>
@@ -51,6 +50,7 @@ public sealed class McpTcpServer : ServiceEntity {
     }
 
     /// <summary>运行服务端,直到 cancellationToken 取消</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public async Task RunAsync(CancellationToken cancellationToken = default) {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _listener.Start();

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Scheduling.Runtime;
 
 
@@ -260,6 +259,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         await _persistActor.PersistAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     internal async Task PersistCoreAsync(CancellationToken cancellationToken) {
         var persistenceDir = _deps.PersistenceDirectory!;
         if (!_deps.FileOperationService!.DirectoryExists(persistenceDir)) {
@@ -292,6 +292,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         return await _persistActor.RecoverTasksAsync(goalId, cancellationToken).ConfigureAwait(false);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     internal async Task<IReadOnlyList<RuntimeTask>> RecoverTasksCoreAsync(string? goalId, CancellationToken cancellationToken) {
         var filePath = Path.Combine(_deps.PersistenceDirectory!, "runtime-tasks.json");
         if (!_deps.FileOperationService!.FileExists(filePath)) {
@@ -351,6 +352,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     /// <summary>
     /// 隔离损坏的持久化文件 — 移动到带时间戳的 .corrupt 后缀，避免反复报错且保留证据
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task QuarantineCorruptFileAsync(string filePath, CancellationToken cancellationToken) {
         try {
             var corruptPath = $"{filePath}.{DateTime.Now:yyyyMMddHHmmss}.corrupt";

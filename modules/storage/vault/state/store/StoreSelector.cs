@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace State;
 
 /// <summary>
@@ -184,8 +183,8 @@ public static class SelectorComposition {
         var initialized = false;
 
         return state => {
-            if (initialized && lastState is not null && comparer.Equals(lastState, state)) {
-                return lastResult!;
+            if (initialized && lastState is not null && comparer.Equals(lastState, state) && lastResult is not null) {
+                return lastResult;
             }
 
             lastState = state;

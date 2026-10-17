@@ -1,10 +1,10 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Context;
 
 public sealed class DsmlToolCallParserTests {
     private static readonly DsmlToolCallParser Sut = new();
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryParse_ValidSingleInvoke_ReturnsOneToolCall() {
         var content = """
@@ -35,6 +35,7 @@ public sealed class DsmlToolCallParserTests {
         result.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryParse_MultipleInvokes_ReturnsAllToolCalls() {
         var content = """
@@ -56,6 +57,7 @@ public sealed class DsmlToolCallParserTests {
         result.ToolCalls[1].Name.Should().Be("Grep");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryParse_DsmlWithSurroundingText_ReturnsToolCallAndRemainingText() {
         var content = """
@@ -85,6 +87,7 @@ public sealed class DsmlToolCallParserTests {
         result.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryParse_InvokeWithoutParameters_ReturnsToolCallWithEmptyArgs() {
         var content = """

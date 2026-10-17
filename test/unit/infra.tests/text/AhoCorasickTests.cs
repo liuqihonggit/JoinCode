@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Infra.Tests.Text;
 
 /// <summary>
@@ -73,6 +72,7 @@ public class AhoCorasickTests {
         matches.Should().BeEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void FindFirst_ReturnsFirstMatch() {
         var ac = AhoCorasick.Create(["he", "she", "his", "hers"]);
@@ -128,6 +128,7 @@ public class AhoCorasickTests {
         ac.ContainsAny("this contains nothing here").Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CreateBool_ReturnsTrueOnMatch() {
         var ac = AhoCorasick.CreateBool(["rm", "del", "format"]);

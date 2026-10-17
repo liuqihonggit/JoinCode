@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Reasoning.Tests.Agents;
 
 public sealed class ReasoningContextTests {
@@ -22,6 +21,7 @@ public sealed class ReasoningContextTests {
         Assert.Equal(string.Empty, result);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetConeContextForRole_WhenConeExists_ReturnsContext() {
         var orchestrator = new ConeOrchestrator();
@@ -65,6 +65,7 @@ public sealed class ReasoningContextTests {
         Assert.Single(result);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetVisibleItemsForRole_WhenConeExists_IncludesVisibleSourceIds() {
         var orchestrator = new ConeOrchestrator();
@@ -91,6 +92,7 @@ public sealed class ReasoningContextTests {
         Assert.Equal("visible1", result.First().Id);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetVisibleItemsForRole_AssumptionsAreAlwaysVisible() {
         var orchestrator = new ConeOrchestrator();
@@ -130,6 +132,7 @@ public sealed class ReasoningContextTests {
         Assert.Single(result);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetVisibleEvidenceForRole_WhenConeExists_FiltersByVisibleSourceIds() {
         var orchestrator = new ConeOrchestrator();

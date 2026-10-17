@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Core.Agents;
 
 
@@ -77,6 +76,7 @@ public sealed class PluginAgentLoaderTests {
         eventCount.Should().Be(2);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task LoadFromPlugin_TwoPluginsSameAgentName_LastWins() {
         await using var loader = new PluginAgentLoader();
@@ -90,6 +90,7 @@ public sealed class PluginAgentLoaderTests {
         loader.Find("executor:code")!.SystemPrompt.Should().Be("from plugin B");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task LoadFromPlugin_UndoOnlyRemovesOwnPlugin() {
         await using var loader = new PluginAgentLoader();

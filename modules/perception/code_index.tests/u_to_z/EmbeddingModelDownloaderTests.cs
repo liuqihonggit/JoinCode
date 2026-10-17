@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.CodeIndex.Tests;
 
 /// <summary>
@@ -14,6 +13,7 @@ public sealed class EmbeddingModelDownloaderTests {
         return Convert.ToHexString(sha.ComputeHash(data)).ToUpperInvariant();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private sealed class FakeHttpHandler : HttpMessageHandler {
         private readonly Dictionary<string, byte[]> _responses = new();
         public int GetCount { get; private set; }

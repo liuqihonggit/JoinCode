@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Memdir;
 
 public class MemoryManagementServiceAddMemoryTests : IDisposable {
@@ -78,6 +77,7 @@ public class MemoryManagementServiceAddMemoryTests : IDisposable {
         await act.Should().ThrowAsync<ArgumentException>().ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ArchiveMemoryAsync_Existing_ShouldArchiveInStore() {
         var memoryId = await _sut.AddMemoryAsync("Memory to archive via service").ConfigureAwait(true);
@@ -89,6 +89,7 @@ public class MemoryManagementServiceAddMemoryTests : IDisposable {
         memory!.IsArchived.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RestoreMemoryAsync_Archived_ShouldRestoreInStore() {
         var memoryId = await _sut.AddMemoryAsync("Memory to restore via service").ConfigureAwait(true);

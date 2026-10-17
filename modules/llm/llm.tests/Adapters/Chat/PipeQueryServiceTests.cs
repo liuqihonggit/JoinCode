@@ -1,9 +1,9 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Llm.Tests.Adapters.Chat;
 
 
 public class PipeQueryServiceTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullConfig_ThrowsArgumentNullException() {
         var act = () => new PipeQueryService(null!);
@@ -21,6 +21,7 @@ public class PipeQueryServiceTests {
 
     #region ConvertToMessage — tool_calls 元数据转换
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToMessage_ToolRoleWithMetadata_SetsToolCallIdAndName() {
         var msg = new ApiMessage(MessageRole.Tool, "result",
@@ -37,6 +38,7 @@ public class PipeQueryServiceTests {
         result.Content!.Text.Should().Be("result");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToMessage_AssistantWithToolCallsMetadata_SetsToolCalls() {
         var toolCallsJson = "[{\"Id\":\"call-1\",\"Name\":\"grep\",\"Arguments\":\"{\\\"q\\\":\\\"x\\\"}\"}]";
@@ -54,6 +56,7 @@ public class PipeQueryServiceTests {
         result.ToolCalls[0].Function!.Arguments.Should().Be("{\"q\":\"x\"}");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToMessage_AssistantWithMultipleToolCalls_AllMapped() {
         var toolCallsJson = "[{\"Id\":\"c1\",\"Name\":\"ls\",\"Arguments\":\"{}\"},{\"Id\":\"c2\",\"Name\":\"cat\",\"Arguments\":\"{}\"}]";
@@ -69,6 +72,7 @@ public class PipeQueryServiceTests {
         result.ToolCalls[1].Function!.Name.Should().Be("cat");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToMessage_ToolCallsItemMissingArguments_DefaultsToEmptyObject() {
         var toolCallsJson = "[{\"Id\":\"c1\",\"Name\":\"ls\"}]";
@@ -109,6 +113,7 @@ public class PipeQueryServiceTests {
 
     #region ConvertToApiMessage — tool_calls 响应处理
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToApiMessage_WithToolCalls_PopulatesAllToolCallsMetadata() {
         var choice = new OpenAIChoice {
@@ -134,6 +139,7 @@ public class PipeQueryServiceTests {
         result.Metadata!["AllToolCalls"].GetArrayLength().Should().Be(1);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToApiMessage_WithoutToolCalls_OnlyFinishReasonMetadata() {
         var choice = new OpenAIChoice {
@@ -148,6 +154,7 @@ public class PipeQueryServiceTests {
         result.Metadata.Should().NotContainKey("AllToolCalls");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToApiMessage_MultipleToolCalls_AllEntriesMapped() {
         var choice = new OpenAIChoice {

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Agents.Coordinator;
 
 /// <summary>
@@ -58,6 +57,7 @@ public class AgentCoordinatorConcurrencyTests {
     /// <summary>
     /// 并发 N 线程同时 RetryCount++ → 最终 RetryCount 必须等于 N（无 Lost Update）
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData(4, 1000)]
     [InlineData(8, 500)]
@@ -92,6 +92,7 @@ public class AgentCoordinatorConcurrencyTests {
     /// <summary>
     /// 并发混合更新：RetryCount++ 与 Outcome=Cancelled 交替 → 两者都必须保留（无覆盖）
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UpdateExecutionContext_ConcurrentMixedUpdates_BothFieldsPreserved() {
         await using var agent = new AgentBase("mixed-concurrent", null, _queryEngineMock.Object, null);

@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Services;
 
 public class TaskServiceEnhancedTests {
@@ -12,6 +11,7 @@ public class TaskServiceEnhancedTests {
 #pragma warning restore CS0618
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<TaskItem> CreateTestTask(string title, string description = "") {
         var result = await _taskService.CreateTaskAsync(title, description, null, null, "medium", null).ConfigureAwait(true);
         return result.Data!;

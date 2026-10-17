@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Services.Memdir;
 
 public sealed class TeamMemorySyncServiceTests : IAsyncDisposable {
@@ -28,11 +27,13 @@ public sealed class TeamMemorySyncServiceTests : IAsyncDisposable {
         await _service.DisposeSafeAsync();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static global::System.Collections.Concurrent.ConcurrentDictionary<string, SyncFileEntry> GetLocalEntries(global::Memdir.Sync.TeamMemorySyncService service) {
         var field = typeof(global::Memdir.Sync.TeamMemorySyncService).GetField("_localEntries", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance);
         return (global::System.Collections.Concurrent.ConcurrentDictionary<string, SyncFileEntry>)field!.GetValue(service)!;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static global::System.Collections.Concurrent.ConcurrentDictionary<string, SyncFileEntry> GetRemoteEntries(global::Memdir.Sync.TeamMemorySyncService service) {
         var field = typeof(global::Memdir.Sync.TeamMemorySyncService).GetField("_remoteEntries", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance);
         return (global::System.Collections.Concurrent.ConcurrentDictionary<string, SyncFileEntry>)field!.GetValue(service)!;
@@ -116,6 +117,7 @@ public sealed class TeamMemorySyncServiceTests : IAsyncDisposable {
         history.Should().NotBeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_WithNullFileOperationService_ThrowsArgumentNullException() {
         var act = () => new global::Memdir.Sync.TeamMemorySyncService(null!, null!);
@@ -125,11 +127,13 @@ public sealed class TeamMemorySyncServiceTests : IAsyncDisposable {
 
     // === GetSyncStatus / SyncTeamMemoryAsync 补测(确定性,不依赖时序) ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static global::Memdir.Sync.Helpers.SyncEventLog GetEventLog(global::Memdir.Sync.TeamMemorySyncService service) {
         var field = typeof(global::Memdir.Sync.TeamMemorySyncService).GetField("_eventLog", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance);
         return (global::Memdir.Sync.Helpers.SyncEventLog)field!.GetValue(service)!;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetSyncStatus_NullTeamId_ThrowsArgumentException() {
         var act = () => _service.GetSyncStatus(null!);
@@ -142,6 +146,7 @@ public sealed class TeamMemorySyncServiceTests : IAsyncDisposable {
         act.Should().Throw<ArgumentException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetSyncStatus_NoEntriesOrEvents_ReturnsZeroCountAndNoConflicts() {
         var status = _service.GetSyncStatus("team1");
@@ -155,6 +160,7 @@ public sealed class TeamMemorySyncServiceTests : IAsyncDisposable {
         status.IsWatching.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetSyncStatus_WithLocalEntries_CountsEntriesUnderTeamPath() {
         var localEntries = GetLocalEntries(_service);
@@ -170,6 +176,7 @@ public sealed class TeamMemorySyncServiceTests : IAsyncDisposable {
         status!.SyncedMemoryCount.Should().Be(2);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetSyncStatus_WithConflictDetectedEvent_ReportsConflict() {
         var eventLog = GetEventLog(_service);
@@ -190,6 +197,7 @@ public sealed class TeamMemorySyncServiceTests : IAsyncDisposable {
         status.Conflicts[0].ConflictType.Should().Be(ConflictType.ContentMismatch);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetSyncStatus_LastSyncAt_IsLatestEventTimestampForTeam() {
         var eventLog = GetEventLog(_service);
@@ -204,6 +212,7 @@ public sealed class TeamMemorySyncServiceTests : IAsyncDisposable {
         status!.LastSyncAt.Should().Be(newer);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetSyncStatus_ConflictEventsFromOtherTeam_NotCounted() {
         var eventLog = GetEventLog(_service);
@@ -223,12 +232,14 @@ public sealed class TeamMemorySyncServiceTests : IAsyncDisposable {
         await act.Should().ThrowAsync<ArgumentException>().ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SyncTeamMemoryAsync_NullTeamId_ThrowsArgumentException() {
         var act = async () => await _service.SyncTeamMemoryAsync(null!).ConfigureAwait(true);
         await act.Should().ThrowAsync<ArgumentException>().ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SyncTeamMemoryAsync_NoEntries_ReturnsStatusWithZeroCount() {
         var status = await _service.SyncTeamMemoryAsync("team1").ConfigureAwait(true);
@@ -239,6 +250,7 @@ public sealed class TeamMemorySyncServiceTests : IAsyncDisposable {
         status.HasConflicts.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SyncTeamMemoryAsync_AfterStart_ReportsIsWatchingTrue() {
         await _service.StartAsync().ConfigureAwait(true);

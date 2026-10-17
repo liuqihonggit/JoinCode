@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Api.LLM;
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
@@ -50,12 +49,14 @@ namespace Api.LLM;
 [JsonSerializable(typeof(AnthropicWebSearchErrorDto))]
 internal partial class NativeJsonContext : JsonSerializerContext {
 
-    private static readonly Lazy<NativeJsonContext> s_safe = new(() => new NativeJsonContext(
-        new JsonSerializerOptions(Default!.Options)
+    private static readonly Lazy<NativeJsonContext> s_safe = new(() => {
+        var ctx = Default ?? throw new InvalidOperationException("JsonSerializerContext.Default is null");
+        return new NativeJsonContext(new JsonSerializerOptions(ctx.Options)
         {
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-            TypeInfoResolver = Default!
-        }));
+            TypeInfoResolver = ctx
+        });
+    });
 
     /// <summary>
     /// 带 UnsafeRelaxedJsonEscaping 的上下文 — 不转义中文等非 ASCII 字符

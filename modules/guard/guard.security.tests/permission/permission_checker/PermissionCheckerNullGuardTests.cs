@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Permission;
 
 /// <summary>
@@ -24,6 +23,7 @@ public sealed class PermissionCheckerNullGuardTests {
 
     #region CheckPermissionAsync — toolName 守卫
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -40,6 +40,7 @@ public sealed class PermissionCheckerNullGuardTests {
 
     #region AddToAutoApproved — toolName 守卫
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -52,6 +53,7 @@ public sealed class PermissionCheckerNullGuardTests {
         act.Should().Throw<ArgumentException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -86,6 +88,7 @@ public sealed class PermissionCheckerNullGuardTests {
 
     #region AddToAutoApprovedAndPersistAsync — toolName 守卫
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -103,6 +106,7 @@ public sealed class PermissionCheckerNullGuardTests {
 
     #region AddToAutoRejected — toolName 守卫
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -119,6 +123,7 @@ public sealed class PermissionCheckerNullGuardTests {
 
     #region RemoveFromAutoApproved — toolName 守卫
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -135,6 +140,7 @@ public sealed class PermissionCheckerNullGuardTests {
 
     #region RemoveFromAutoRejected — toolName 守卫
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData(null)]
     [InlineData("")]

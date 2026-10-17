@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Sync.Tests.Scheduling.Tasks;
 
 public class LocalShellTaskExecutorTests {
@@ -58,6 +57,7 @@ public class LocalShellTaskExecutorTests {
         result.Error.Should().Be("command not found");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteShellAsync_NullDefinition_ShouldThrowArgumentNullException() {
         var act = () => _executor.ExecuteShellAsync(null!);
@@ -126,6 +126,7 @@ public class LocalShellTaskExecutorTests {
         result.Error.Should().Be("PowerShell error");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecutePowerShellAsync_NullDefinition_ShouldThrowArgumentNullException() {
         var act = () => _executor.ExecutePowerShellAsync(null!);

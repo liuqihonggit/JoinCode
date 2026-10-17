@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Mcp.Tests;
 
 /// <summary>
@@ -109,6 +108,7 @@ public sealed class GhCacheServiceTest {
         (await svc.TryGetApiAsync("/repos/x/y/issues", q1, CancellationToken.None)).Should().Be("page1");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task WriteApiAsync_SearchEndpoint_Ttl2Minutes() {
         var (svc, kv) = CreateService();
@@ -118,6 +118,7 @@ public sealed class GhCacheServiceTest {
         AssertTtl(raw!, TimeSpan.FromMinutes(2));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task WriteApiAsync_DetailEndpoint_Ttl10Minutes() {
         var (svc, kv) = CreateService();
@@ -128,6 +129,7 @@ public sealed class GhCacheServiceTest {
         AssertTtl(raw!, TimeSpan.FromMinutes(10));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task WriteApiAsync_DefaultEndpoint_Ttl5Minutes() {
         var (svc, kv) = CreateService();
@@ -193,6 +195,7 @@ public sealed class GhCacheServiceTest {
         (await svc.TryGetJobLogAsync(99, CancellationToken.None)).Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task WriteJobLogAsync_ThenTryGetJobLogAsync_ReturnsRunIdExpiryLogPrefix() {
         var (svc, _) = CreateService();
@@ -207,6 +210,7 @@ public sealed class GhCacheServiceTest {
         cached[16..].Should().Equal(SampleLog, "16字节后为日志内容");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task WriteJobLogAsync_InnerExpiryIs7DaysFromNow() {
         var (svc, _) = CreateService();
@@ -261,6 +265,7 @@ public sealed class GhCacheServiceTest {
         (await svc.TryGetJobsAsync(33, CancellationToken.None)).Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task WriteJobsAsync_ThenTryGetJobsAsync_ReturnsTtlWrappedJson() {
         var (svc, kv) = CreateService();
@@ -283,6 +288,7 @@ public sealed class GhCacheServiceTest {
         (await svc.TryGetRunIdByPrAsync(13, CancellationToken.None)).Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task WriteRunIdByPrAsync_ThenTryGetRunIdByPrAsync_HitReturnsRunId() {
         var (svc, kv) = CreateService();
@@ -303,6 +309,7 @@ public sealed class GhCacheServiceTest {
         (await svc.TryGetRunIdByShaAsync("deadbeef", CancellationToken.None)).Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task WriteRunIdByShaAsync_ThenTryGetRunIdByShaAsync_HitReturnsRunId() {
         var (svc, kv) = CreateService();
@@ -427,6 +434,7 @@ public sealed class GhCacheServiceTest {
 
     // === JobLogCacheKey 辅助方法(GhCacheService 间接使用) ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task JobLogCacheKey_TryExtractExpiry_ValidCached_Returns7DayExpiry() {
         var (svc, _) = CreateService();

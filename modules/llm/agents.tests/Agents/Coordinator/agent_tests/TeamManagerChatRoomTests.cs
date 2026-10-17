@@ -1,7 +1,6 @@
 
 #pragma warning disable JCC3010, JCC3011, JCC3012
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Agents.Coordinator;
 
 public class TeamManagerChatRoomTests : IAsyncLifetime {
@@ -17,6 +16,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime {
     public Task InitializeAsync() => Task.CompletedTask;
     public Task DisposeAsync() => Task.CompletedTask;
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetChatRoomInfoAsync_ReturnsChatRoomIdEqualToTeamId() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "agent1" });
@@ -29,6 +29,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime {
         chatRoom.RoomName.Should().Be("测试群");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetChatRoomInfoAsync_ReturnsMembersWithRoles() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "owner", "member1" });
@@ -41,6 +42,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime {
         chatRoom.Members.Should().Contain(m => m.AgentId == "member1");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task BroadcastMessageAsync_DuplicateMessageId_OnlyKeepsOne() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "sender", "receiver" });
@@ -65,6 +67,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime {
         messagesAfterDuplicate[0].Content.Should().Be("[广播] 第一条消息");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RevokeMessageAsync_Within2Minutes_Succeeds() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "sender", "receiver" });
@@ -84,6 +87,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime {
         revokedMsg.RevokeReason.Should().Be("发错了");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RevokeMessageAsync_ByNonSenderNonAdmin_Fails() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "sender", "receiver" });
@@ -99,6 +103,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime {
         revokeResult.ErrorMessage.Should().Contain("无权限");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RevokeMessageAsync_NonExistentMessage_Fails() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "sender" });
@@ -110,6 +115,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime {
         revokeResult.ErrorMessage.Should().Contain("不存在");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RevokeMessageAsync_BroadcastsSystemNotice() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "sender", "receiver" });
@@ -146,6 +152,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime {
         notice.Content.Should().Be("agent1 加入聊天室");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PersistTeamMessage_AdminOnly_OnlyDeliversToAdmins() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "owner", "admin1", "member1" });
@@ -174,6 +181,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime {
         sentAgents.Should().Contain("admin1");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PersistTeamMessage_Private_OnlyDeliversToToAgentId() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "sender", "target", "bystander" });
@@ -202,6 +210,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime {
         sentAgents[0].Should().Be("target");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PersistTeamMessage_Hidden_DoesNotDeliver() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "sender", "receiver" });
@@ -222,6 +231,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime {
         _mailboxServiceMock.Verify(m => m.SendAsync(It.IsAny<MailboxSendRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private void SetTeamSession(string teamId, string sessionId) {
         var registryField = typeof(TeamManager).GetField("_registry",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -232,6 +242,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime {
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private void SetMemberRole(string teamId, string agentId, string role) {
         var registryField = typeof(TeamManager).GetField("_registry",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -242,6 +253,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime {
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task InvokePersistTeamMessageAsync(string teamId, TeamMessage message, CancellationToken cancellationToken) {
         var dispatcherField = typeof(TeamManager).GetField("_messageDispatcher",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Tools;
 
 public sealed class SimpleJsonSchemaValidatorTests {
@@ -423,12 +422,14 @@ public sealed class SimpleJsonSchemaValidatorTests {
         result.Errors.Should().ContainSingle(e => e.Message.Contains("无效的JSON Schema"));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Validate_NullInstance_ShouldThrowArgumentNullException() {
         var act = () => _validator.Validate(null!, """{"type": "string"}""");
         act.Should().Throw<ArgumentNullException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Validate_NullSchema_ShouldThrowArgumentNullException() {
         var act = () => _validator.Validate("\"hello\"", null!);

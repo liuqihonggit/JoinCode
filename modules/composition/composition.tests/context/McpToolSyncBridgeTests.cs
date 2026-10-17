@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Context;
 
 public sealed partial class McpToolSyncBridgeTests {
@@ -79,6 +78,7 @@ public sealed partial class McpToolSyncBridgeTests {
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task OnToolsListChangedAsync_TransformsToolInfoToToolSpec() {
         var toolInfos = new List<ToolInfo>
@@ -205,6 +205,7 @@ public sealed partial class McpToolSyncBridgeTests {
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task OnToolsListChangedAsync_WithSchema_SerializesToJson() {
         var toolInfo = new ToolInfo {
@@ -236,6 +237,7 @@ public sealed partial class McpToolSyncBridgeTests {
         capturedSpecs[0].InputSchemaJson.Should().Contain("\"required\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task OnToolsListChangedAsync_DefaultSchema_SerializesEmptyObject() {
         var toolInfo = new ToolInfo { Name = "tool", Description = "desc" };

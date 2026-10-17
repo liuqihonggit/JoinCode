@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Tools.Handlers;
 
 /// <summary>
@@ -67,6 +66,7 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
         await next(context, ct).ConfigureAwait(false);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task ExecuteTeammatePathAsync(AgentToolContext context, CancellationToken ct) {
         var teammateId = $"teammate-{Guid.NewGuid():N}";
         var sessionId = _subAgentContextAccessor.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;

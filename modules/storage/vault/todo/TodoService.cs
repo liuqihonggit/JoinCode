@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Services.Todo;
 
 /// <summary>
@@ -228,14 +227,15 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
     }
 
     private async Task EnsureTodosLoadedAsync(CancellationToken ct) {
-        if (_fs is null || Interlocked.CompareExchange(ref _todosLoaded, 1, 0) != 0) return;
+        var fs = _fs;
+        if (fs is null || Interlocked.CompareExchange(ref _todosLoaded, 1, 0) != 0) return;
 
         try {
-            var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs!);
+            var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, fs);
             if (root is null) return;
             var path = Path.Combine(Path.Combine(root, TodosSubDir), TodosFileName);
-            if (!_fs.FileExists(path)) return;
-            var json = await _fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
+            if (!fs.FileExists(path)) return;
+            var json = await fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
             var list = RelaxedJsonSerializer.Deserialize<List<TodoItem>>(json, TodoJsonContext.Default);
             if (list is null) return;
             foreach (var todo in list) {

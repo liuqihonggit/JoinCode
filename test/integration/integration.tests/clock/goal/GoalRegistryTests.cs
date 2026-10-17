@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Integration.Tests.Clock.Goal;
 
 /// <summary>
@@ -69,6 +68,7 @@ public sealed class GoalRegistryTests : IDisposable {
         active.Select(s => s.GoalId).Should().BeEquivalentTo(["goal-a", "goal-b"]);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RehydrateAllAsync_SetsFirstAsCurrent() {
         await SeedGoalAsync("goal-first", "第一个目标");
@@ -81,6 +81,7 @@ public sealed class GoalRegistryTests : IDisposable {
         registry.CurrentEngine!.CurrentState.Should().NotBeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SetCurrent_SwitchesActiveGoal() {
         await SeedGoalAsync("goal-x", "目标X");

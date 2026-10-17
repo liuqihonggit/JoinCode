@@ -69,6 +69,7 @@ public partial class AgentToolHandlers {
     private readonly IClockService _clock;
     private readonly IWorktreeDecisionPolicy? _worktreeDecisionPolicy;
     private readonly IAgentWorktreeManager? _worktreeManager;
+    private readonly IFileSystem _fs;
 
     /// <summary>
     /// 构造 Agent 工具处理器
@@ -84,7 +85,8 @@ public partial class AgentToolHandlers {
         IClockService? clock = null,
         ITeamManager? teamManager = null,
         IWorktreeDecisionPolicy? worktreeDecisionPolicy = null,
-        IAgentWorktreeManager? worktreeManager = null) {
+        IAgentWorktreeManager? worktreeManager = null,
+        IFileSystem? fileSystem = null) {
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _agentService = agentService ?? throw new ArgumentNullException(nameof(agentService));
         _coordinator = coordinator;
@@ -96,6 +98,7 @@ public partial class AgentToolHandlers {
         _teamManager = teamManager;
         _worktreeDecisionPolicy = worktreeDecisionPolicy;
         _worktreeManager = worktreeManager;
+        _fs = fileSystem ?? new PhysicalFileSystem();
     }
 }
 

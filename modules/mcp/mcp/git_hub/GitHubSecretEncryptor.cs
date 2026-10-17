@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace McpToolDispatch;
 
 /// <summary>
@@ -29,6 +28,7 @@ internal static class GitHubSecretEncryptor {
     /// <summary>
     /// 生成 X25519 密钥对
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static (byte[] PublicKey, byte[] PrivateKey) GenerateX25519KeyPair() {
         using var ecdh = ECDiffieHellman.Create(ECCurve.CreateFromFriendlyName("curve25519"));
         var privateKey = ecdh.ExportParameters(true);

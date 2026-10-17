@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.LLM.Chat;
 
 public sealed class ContextFoldPartitionTests {
@@ -102,6 +101,7 @@ public sealed class ContextFoldPartitionTests {
         foldable.Should().ContainSingle(m => m.Content == "after summary");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static (List<ApiMessage> Kept, List<ApiMessage> Foldable) InvokePartitionFold(IReadOnlyList<ApiMessage> head) {
         var executor = new ContextFoldExecutor(new StubFoldSummarizer());
         var method = typeof(ContextFoldExecutor).GetMethod("PartitionFold",

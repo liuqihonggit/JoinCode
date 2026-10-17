@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 // JCC9203 抑制: 存量释放超时, 后续异步化改造
 #pragma warning disable JCC9203
 namespace JoinCode.CodeIndex.Tests;
@@ -50,6 +49,7 @@ public sealed class CodeIndexerParentDocTests : IDisposable {
         Assert.True(_embeddingIndex.ChunkCount > 0);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SearchSemantic_WithParentStore_ReturnsParentDocumentText() {
         var root = Path.Combine(Path.GetTempPath(), $"ci_pd_{Guid.NewGuid():N}");

@@ -1,11 +1,11 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace McpToolDispatch.Tests.Execution;
 
 /// <summary>
 /// ToolHypergraphScorer 单元测试 — 验证融合评分算法、链路推荐、共享评分更新
 /// </summary>
 public sealed class ToolHypergraphScorerTest {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private ToolHypergraphScorer _scorer = null!;
 
     public ToolHypergraphScorerTest() {
@@ -134,6 +134,7 @@ public sealed class ToolHypergraphScorerTest {
         result.Should().Equal("write");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetChainRecommendations_CaseInsensitiveLookup_MatchesByToolName() {
         // ToolToEdges 使用 ToFrozenDictionary() 后不保留 OrdinalIgnoreCase 比较器
@@ -304,6 +305,7 @@ public sealed class ToolHypergraphScorerTest {
         scoreAfter.Should().Be(scoreBefore);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LoadCustomHyperedges_Null_DoesNothing() {
         var scoreBefore = _scorer.CalculateFinalScore("Read", 50);

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
@@ -124,8 +123,8 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
             var updated = current.SetItem(key, value);
             if (Interlocked.CompareExchange(ref _items, updated, current) == current) break;
         }
-        if (hadOld)
-            SyncIndicesRemove(key, old!);
+        if (hadOld && old is not null)
+            SyncIndicesRemove(key, old);
         SyncIndicesAdd(key, value);
     }
 
@@ -139,8 +138,8 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
             var updated = current.Remove(key);
             if (Interlocked.CompareExchange(ref _items, updated, current) == current) { captured = v; removed = true; break; }
         }
-        if (removed)
-            SyncIndicesRemove(key, captured!);
+        if (removed && captured is not null)
+            SyncIndicesRemove(key, captured);
         return removed;
     }
 
@@ -155,8 +154,8 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
             if (Interlocked.CompareExchange(ref _items, updated, current) == current) { captured = v; removed = true; break; }
         }
         value = captured;
-        if (removed)
-            SyncIndicesRemove(key, captured!);
+        if (removed && captured is not null)
+            SyncIndicesRemove(key, captured);
         return removed;
     }
 
@@ -206,7 +205,7 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
 
     /// <summary>清空所有注册并返回被清空的项 — 手写 CAS 循环替代 Interlocked.Exchange,保留 comparer 和旧值。</summary>
     protected List<KeyValuePair<TKey, TValue>> ClearCore() {
-        ImmutableHamT<TKey, TValue> old = default!;
+        ImmutableHamT<TKey, TValue>? old = null;
         while (true) {
             var current = _items;
             if (Interlocked.CompareExchange(ref _items, ImmutableHamT<TKey, TValue>.Empty.WithComparers(current.KeyComparer), current) == current) { old = current; break; }
@@ -217,7 +216,7 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
                 if (Interlocked.CompareExchange(ref _canonicalKeys, ImmutableHamTSet<TKey>.Empty.WithComparer(current.KeyComparer), current) == current) break;
             }
         }
-        return [.. old];
+        return [.. (old ?? ImmutableHamT<TKey, TValue>.Empty)];
     }
 
     /// <summary>
@@ -253,8 +252,8 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
             if (Interlocked.CompareExchange(ref _items, updated, current) == current) { captured = v; removed = true; break; }
         }
         value = captured;
-        if (removed)
-            SyncIndicesRemove(key, captured!);
+        if (removed && captured is not null)
+            SyncIndicesRemove(key, captured);
         return removed;
     }
 
@@ -273,8 +272,8 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
             var updated = current.SetItem(key, value);
             if (Interlocked.CompareExchange(ref _items, updated, current) == current) break;
         }
-        if (hadOld)
-            SyncIndicesRemove(key, old!);
+        if (hadOld && old is not null)
+            SyncIndicesRemove(key, old);
         SyncIndicesAdd(key, value);
         if (isCanonical && _trackCanonical) {
             while (true) {
@@ -307,7 +306,8 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
             if (Interlocked.CompareExchange(ref _items, updated, current) == current) { captured = v; removed = true; break; }
         }
         if (!removed) return false;
-        SyncIndicesRemove(key, captured!);
+        if (captured is not null)
+            SyncIndicesRemove(key, captured);
         if (!_trackCanonical) return true;
         while (true) {
             var current = _canonicalKeys;

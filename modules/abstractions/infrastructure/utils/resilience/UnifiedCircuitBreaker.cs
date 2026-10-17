@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infrastructure.Utils.Resilience;
 
 /// <summary>
@@ -234,15 +233,15 @@ public sealed partial class UnifiedCircuitBreaker : IDisposable {
     }
 
     [Guard(CircuitBreakerPhase.Closed, CircuitBreakerEvent.RecordFailure)]
-    private static bool FsmGuardFailuresExceedThreshold(FsmContext? ctx) => ((CircuitBreakerContext)ctx!).ConsecutiveFailures >= ((CircuitBreakerContext)ctx!).FailureThreshold;
+    private static bool FsmGuardFailuresExceedThreshold(FsmContext? ctx) => ctx is CircuitBreakerContext c && c.ConsecutiveFailures >= c.FailureThreshold;
 
     [Guard(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.TryProbe)]
-    private static bool FsmGuardProbeCountUnderMax(FsmContext? ctx) => ((CircuitBreakerContext)ctx!).HalfOpenProbeCount < ((CircuitBreakerContext)ctx!).HalfOpenMaxProbe;
+    private static bool FsmGuardProbeCountUnderMax(FsmContext? ctx) => ctx is CircuitBreakerContext c && c.HalfOpenProbeCount < c.HalfOpenMaxProbe;
 
     [TransitionAction(CircuitBreakerPhase.Closed, CircuitBreakerEvent.RecordFailure)]
     [TransitionAction(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.RecordFailure)]
     private static void FsmActOpen(FsmContext? ctx) {
-        var c = (CircuitBreakerContext)ctx!;
+        if (ctx is not CircuitBreakerContext c) return;
         c.OpenedAt = DateTimeOffset.UtcNow;
         c.HalfOpenProbeCount = 0;
     }
@@ -251,7 +250,7 @@ public sealed partial class UnifiedCircuitBreaker : IDisposable {
     [TransitionAction(CircuitBreakerPhase.Open, CircuitBreakerEvent.RecordSuccess)]
     [TransitionAction(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.RecordSuccess)]
     private static void FsmActSuccess(FsmContext? ctx) {
-        var c = (CircuitBreakerContext)ctx!;
+        if (ctx is not CircuitBreakerContext c) return;
         c.ConsecutiveFailures = 0;
         c.HalfOpenProbeCount = 0;
     }
@@ -260,17 +259,17 @@ public sealed partial class UnifiedCircuitBreaker : IDisposable {
     [TransitionAction(CircuitBreakerPhase.Open, CircuitBreakerEvent.Reset)]
     [TransitionAction(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.Reset)]
     private static void FsmActReset(FsmContext? ctx) {
-        var c = (CircuitBreakerContext)ctx!;
+        if (ctx is not CircuitBreakerContext c) return;
         c.ConsecutiveFailures = 0;
         c.HalfOpenProbeCount = 0;
         c.OpenedAt = DateTimeOffset.MinValue;
     }
 
     [TransitionAction(CircuitBreakerPhase.Open, CircuitBreakerEvent.OpenTimeout)]
-    private static void FsmActHalfOpen(FsmContext? ctx) => ((CircuitBreakerContext)ctx!).HalfOpenProbeCount = 0;
+    private static void FsmActHalfOpen(FsmContext? ctx) { if (ctx is CircuitBreakerContext c) c.HalfOpenProbeCount = 0; }
 
     [TransitionAction(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.TryProbe)]
-    private static void FsmActTryProbe(FsmContext? ctx) => ((CircuitBreakerContext)ctx!).HalfOpenProbeCount++;
+    private static void FsmActTryProbe(FsmContext? ctx) { if (ctx is CircuitBreakerContext c) c.HalfOpenProbeCount++; }
 
     /// <summary>
     /// 释放资源 — 取消状态机事件订阅并释放锁,防止内存泄漏

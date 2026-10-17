@@ -1,9 +1,9 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Bridge.Tests.Phase7B;
 
 public sealed class BridgeWorkSecretTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void DecodeWorkSecret_ValidBase64Url_ReturnsSecret() {
         var json = """{"version":1,"session_ingress_token":"tok123","api_base_url":"https://api.example.com","sources":[{"type":"git","git_info":{"repo":"https://github.com/test","ref":"main"}}]}""";

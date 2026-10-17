@@ -90,3 +90,4 @@ global using IMcpClient = JoinCode.Abstractions.Mcp.Client.IMcpClient;
 global using IMcpToolRegistry = JoinCode.Abstractions.Mcp.Registry.IMcpToolRegistry;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using TestInMemFs = Testing.Common.Services.InMemoryFileSystem;
+global using System.Diagnostics.CodeAnalysis;

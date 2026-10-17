@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Llm.Tests.Adapters.LLM;
 
 
@@ -153,12 +152,14 @@ public class AnthropicEnumsTests {
 
     #endregion
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static T Read<T>(string json, JsonConverter<T> converter) {
         var reader = new Utf8JsonReader(Encoding.UTF8.GetBytes(json));
         reader.Read();
         return converter.Read(ref reader, typeof(T), null!)!;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static async Task<string> Write<T>(T value, JsonConverter<T> converter) {
         await using var stream = new MemoryStream();
         await using var writer = new Utf8JsonWriter(stream);

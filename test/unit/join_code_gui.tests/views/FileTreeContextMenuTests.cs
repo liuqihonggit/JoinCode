@@ -1,4 +1,4 @@
-#pragma warning disable JCC9001, JCC3013 // 豁免理由：TempFileTreeRoot 是测试辅助类，直接用 System.IO 创建确定性临时目录结构，非被测行为
+#pragma warning disable JCC3013 // 豁免理由：TempFileTreeRoot 是测试辅助类，直接用 System.IO 创建确定性临时目录结构，非被测行为
 namespace JoinCode.Gui.Tests.Views;
 
 /// <summary>

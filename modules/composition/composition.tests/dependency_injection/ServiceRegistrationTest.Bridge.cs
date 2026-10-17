@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.DependencyInjection;
 
 /// <summary>
@@ -13,6 +12,7 @@ public sealed partial class ServiceRegistrationTest {
     /// <summary>
     /// 断言 services 中存在指定类型 + 生命周期的 ServiceDescriptor。
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static void ShouldHaveSingleton<TService>(IServiceCollection services) {
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(TService));
         descriptor.Should().NotBeNull($"应注册 {typeof(TService).Name}");

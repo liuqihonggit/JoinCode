@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace MockServer.E2E.Tests;
 
 /// <summary>DualRole 对话 E2E 分组 B — 多轮/注入/PrefixCache/DualModel/EventStream（19测试,~98s）</summary>
@@ -56,6 +55,7 @@ public sealed class DualRoleConversationTestsB : DualRoleConversationTestBase {
         await RunScriptAsync(EdgeCaseScripts.LongStreamingResponse).ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ThreeTurn_PrefixCacheStable_ShouldDumpFiles() {
         var result = await RunScriptWithCacheAnalysisAsync(PrefixCacheScripts.ThreeTurnPrefixStable).ConfigureAwait(true);
@@ -66,6 +66,7 @@ public sealed class DualRoleConversationTestsB : DualRoleConversationTestBase {
             $"前缀缓存应稳定。失效: {FormatCacheBreaks(result.CacheAnalysis)}");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FiveTurn_PrefixCacheStable_ShouldDumpFiles() {
         var result = await RunScriptWithCacheAnalysisAsync(PrefixCacheScripts.FiveTurnPrefixStable).ConfigureAwait(true);

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Transport.Impl.Tests;
 
 /// <summary>
@@ -58,6 +57,7 @@ public class HttpRequestSerializerTest {
     /// 再 TryAddWithoutValidation 追加内容头 — Content-Type 为多值头，追加而非覆盖，
     /// 最终 Content-Type 含 [text/plain; charset=utf-8, application/json]。
     /// </remarks>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Deserialize_FullResponse_ParsesStatusHeadersBody() {
         var text = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nX-Trace: abc\r\n\r\n{\"ok\":true}";
@@ -403,6 +403,7 @@ public class HttpRequestSerializerTest {
 
     /// <summary>Content.Headers 也可通过 AppendHeaders 序列化（Content-Type 头）。</summary>
     /// <remarks>StringContent 的 Content-Length 头由 HttpClient 在发送时计算，构造时枚举 Headers 不包含它。</remarks>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AppendHeaders_ContentHeaders_EmitsContentHeaderLines() {
         var builder = new StringBuilder();

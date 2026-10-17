@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace IO.FileSystem;
 
 /// <summary>
@@ -230,7 +229,8 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable {
             return (newContent, (object?)result);
         };
         _editActor.Tell(new EditFileCmd(path, wrapped, reply));
-        return (T)(await _editActor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false))!;
+        var replyResult = await _editActor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+        return replyResult is null ? throw new InvalidOperationException("EditActor reply was null") : (T)replyResult;
     }
 
     // === File 存在/删除/移动/复制 ===

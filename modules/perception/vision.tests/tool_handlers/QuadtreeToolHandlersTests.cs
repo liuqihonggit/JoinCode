@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Vision.Tests.ToolHandlers;
 
 /// <summary>
@@ -26,6 +25,7 @@ public sealed class QuadtreeToolHandlersTests {
         return Task.FromResult(Convert.ToBase64String(data.ToArray()));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task QuadtreeBuild_ShouldReturnGridWithAllCells() {
         var base64 = await CreateTestImageBase64();
@@ -43,6 +43,7 @@ public sealed class QuadtreeToolHandlersTests {
         text.Should().Contain("L0.3");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task QuadtreeBuild_Depth2_ShouldReturn16Cells() {
         var base64 = await CreateTestImageBase64();
@@ -114,6 +115,7 @@ public sealed class QuadtreeToolHandlersTests {
         result.Content[0].Text.Should().Contain("[VIS113]");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task QuadtreePaint_ShouldUpdateAlphaValues() {
         var paintsJson = """{"L0.0":0.5,"L0.1":0.8}""";

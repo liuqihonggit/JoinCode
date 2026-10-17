@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Hands.Tests.Web;
 
 /// <summary>
@@ -50,6 +49,7 @@ public class WebServiceBinaryContentTests {
         return new WebService(pipeline, cache);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FetchAsync_BinaryContent_PersistsFile() {
         var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E }; // %PDF-1.

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Hooks.Lifecycle;
 
 
@@ -54,6 +53,7 @@ public class ClusterPlanApprovalHookManagerTests {
         result.ShouldProceed.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task OnClusterPlanApprovalAsync_ShouldPassPlanInfoInPayload() {
         var context = CreateContext();
@@ -79,6 +79,7 @@ public class ClusterPlanApprovalHookManagerTests {
         capturedPayload["sub_task_count"].GetInt64().Should().Be(2);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task OnClusterPlanApprovalAsync_WithValidationResult_ShouldIncludeInPayload() {
         var plan = CreatePlan();
@@ -108,6 +109,7 @@ public class ClusterPlanApprovalHookManagerTests {
         capturedPayload["is_valid"].GetBoolean().Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task OnClusterPlanApprovalAsync_NullContext_ShouldThrow() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>

@@ -1,11 +1,11 @@
 // JCC11003 抑制: 底层实现/测试代码, ! 用于可空抑制, 是必要用法
-#pragma warning disable JCC11003
 namespace JccInteractiveTester;
 
 /// <summary>
 /// jcc.exe 交互式测试器 — 通过 stderr 生命周期标记 [DONE]/[READY] 驱动输入时序
 /// </summary>
 internal static class Program {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static async Task<int> Main(string[] args) {
         var jccExe = args.Length > 0 ? args[0]
             : @"D:\project\w1\artifacts\bin\JoinCode\Debug\net10.0\jcc.exe";

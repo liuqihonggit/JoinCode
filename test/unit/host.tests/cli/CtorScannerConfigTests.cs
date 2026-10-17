@@ -1,6 +1,6 @@
 // JCC9001 抑制: 源码级回归测试需直接读取文件系统验证 ctor_scanner 源码常量
 // JCC11003 抑制: 存量代码可空抑制
-#pragma warning disable JCC9001, JCC11003
+
 namespace Host.Tests.Cli;
 
 /// <summary>
@@ -9,6 +9,7 @@ namespace Host.Tests.Cli;
 /// 输出路径从 tool/ 改为 modules/tools/ctor_scanner/。</para>
 /// <para>验证方式: 源码级回归测试,读取 Program.cs 验证常量未被改回旧值。</para>
 /// </summary>
+[SuppressMessage("FileSystemAbstraction", "JCC9001", Justification = "源码级回归测试需直接读取文件系统验证 ctor_scanner 源码常量")]
 public sealed class CtorScannerConfigTests {
     private static readonly string RepoRoot = FindRepoRoot();
     private static readonly string CtorScannerProgramPath = System.IO.Path.Combine(

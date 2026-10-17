@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Context;
 
 /// <summary>
@@ -91,6 +90,7 @@ public sealed partial class ToolConcurrencyClassifier : ServiceEntity, IToolConc
     /// <summary>
     /// 判断 Bash 命令是否只读 — 对齐 TS BashTool.isConcurrencySafe(input) { return this.isReadOnly?.(input) ?? false }
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private bool IsBashReadOnly(Dictionary<string, JsonElement>? arguments) {
         if (_isCommandReadOnly is null)
             return false;

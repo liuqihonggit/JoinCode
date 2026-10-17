@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿
 namespace Core.Tests.Scheduling;
 
@@ -63,6 +62,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable {
         _output.WriteLine($"创建任务成功: {result.Data.Id}");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetTaskAsync_WithExistingTask_ShouldReturnTask() {
         // Arrange
@@ -103,6 +103,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable {
         Assert.Equal(3, result.Tasks.Count);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ListTasksAsync_WithStatusFilter_ShouldFilterCorrectly() {
         // Arrange
@@ -120,6 +121,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable {
         Assert.Equal("待处理任务", result.Tasks[0].Title);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UpdateTaskAsync_WithExistingTask_ShouldUpdate() {
         // Arrange
@@ -156,6 +158,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable {
         Assert.Contains("不存在", result.ErrorMessage);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task StopTaskAsync_WithRunningTask_ShouldStop() {
         // Arrange
@@ -170,6 +173,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable {
         Assert.Equal("stopped", stopResult.Data!.Status);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DeleteTaskAsync_WithExistingTask_ShouldDelete() {
         // Arrange
@@ -185,6 +189,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable {
         Assert.Null(task);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SetTaskDependencyAsync_ShouldCreateDependency() {
         // Arrange
@@ -209,6 +214,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable {
         Assert.True(canExecute);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ResetTaskListAsync_ShouldClearTasksButKeepHighWaterMark() {
         // Arrange
@@ -227,6 +233,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable {
         Assert.True(int.Parse(newTask.Data!.Id.Replace("task-", "")) > 2);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CreateTaskAsync_Concurrent_ShouldGenerateUniqueIds() {
         // Arrange - 使用顺序创建来避免并发问题
@@ -252,6 +259,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable {
         _output.WriteLine($"成功创建{tasks.Count}个任务，ID: {string.Join(", ", ids)}");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TaskPersistence_AcrossInstances_ShouldWork() {
         // Arrange - 使用第一个服务实例创建任务

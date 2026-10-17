@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Agents;
 
 /// <summary>
@@ -103,6 +102,7 @@ public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstrac
     /// <summary>
     /// 追加团队上下文到提示词（提取以扁平化嵌套）
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task AppendTeamContextAsync(StringBuilder sb, CancellationToken cancellationToken) {
         var currentCtx = _subAgentContextAccessor.Current!;
         if (string.IsNullOrWhiteSpace(currentCtx.SessionId) || currentCtx.SessionId == global::Core.Utils.SessionIdFactory.DefaultSessionId) return;

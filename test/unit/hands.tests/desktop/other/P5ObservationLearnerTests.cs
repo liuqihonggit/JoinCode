@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace JoinCode.Hands.Desktop.Tests;
 
 /// <summary>
@@ -21,6 +20,7 @@ public sealed class P5ObservationLearnerTests {
 
     #region Constructor
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullQueryService_Throws() {
         var act = () => new ObservationLearner(null!);
@@ -233,6 +233,7 @@ public sealed class P5ObservationLearnerTests {
         result.Pattern.Should().Be("无法抽象");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AbstractAsync_NullSession_Throws() {
         var mock = CreateQueryMock("");
@@ -278,6 +279,7 @@ public sealed class P5ObservationLearnerTests {
         result.Should().Be("无法生成优化建议");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task OptimizeAsync_NullLogic_Throws() {
         var mock = CreateQueryMock("");
@@ -319,6 +321,7 @@ public sealed class P5ObservationLearnerTests {
         macro.Operations.Should().BeEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ReproduceAsync_NullLogic_Throws() {
         var mock = CreateQueryMock("");

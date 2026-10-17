@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Hands.Tests.Integration;
 
 /// <summary>
@@ -8,6 +7,7 @@ namespace Hands.Tests.Integration;
 /// </summary>
 [Trait("Category", "Integration")]
 public sealed class UpdateFlowE2ETests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FullUpdateFlow_ServerToDownload_Succeeds() {
         await using var fs = new IO.FileSystem.PhysicalFileSystem();
@@ -51,6 +51,7 @@ public sealed class UpdateFlowE2ETests {
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FullUpdateFlow_WrongSha256_DownloadFails() {
         await using var fs = new IO.FileSystem.PhysicalFileSystem();
@@ -103,6 +104,7 @@ public sealed class UpdateFlowE2ETests {
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FullUpdateFlow_ManifestEndpoint_ReturnsJson() {
         await using var fs = new IO.FileSystem.PhysicalFileSystem();

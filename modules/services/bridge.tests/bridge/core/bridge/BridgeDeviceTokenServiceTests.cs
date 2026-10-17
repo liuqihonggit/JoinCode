@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Bridge.Tests;
 
 /// <summary>
@@ -183,6 +182,7 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable {
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Enroll_SendsBearerToken() {
         HttpRequestMessage? capturedRequest = null;
@@ -202,6 +202,7 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable {
         capturedRequest.Headers.Authorization.Parameter.Should().Be("my-access-token");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Enroll_SendsDisplayNameInRequestBody() {
         string? requestBody = null;

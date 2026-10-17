@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Core.Tests.Prompts;
 
 public sealed class FileContextTrackerTests {
@@ -22,6 +21,7 @@ public sealed class FileContextTrackerTests {
         tracker.CurrentFilePaths.Should().Contain("file2.ts");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UpdateFilePaths_With_Null_Should_Clear() {
         await using var tracker = new FileContextTracker();
@@ -88,6 +88,7 @@ public sealed class FileContextTrackerTests {
         tracker.CurrentUserMessage.Should().Be("修复bug");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UpdateUserMessage_With_Null_Should_Set_Empty() {
         await using var tracker = new FileContextTracker();

@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Testing.Common.Services;
 
 /// <summary>
@@ -173,6 +172,7 @@ public sealed class InMemoryFileOperationService : IFileOperationService, IDispo
     }
 
     /// <summary>异步列出目录内容,支持递归枚举子目录</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public Task<DirectoryListResult> ListDirectoryAsync(string directoryPath, bool recursive = false, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(directoryPath);
         try {

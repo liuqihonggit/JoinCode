@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Brain.Tests.Context;
 
 /// <summary>
@@ -11,6 +10,7 @@ public sealed class ContentReplacementServiceTests {
     /// 红测试: 单个工具结果超过 per-message 预算时应被持久化
     /// 对齐 TS: enforceToolResultBudget — frozenSize + freshSize > limit 时选择最大结果持久化
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ApplyToolResultBudget_SingleToolExceedsBudget_PersistsResult() {
         var fileService = new MockToolResultFileService();
@@ -211,6 +211,7 @@ public sealed class ContentReplacementServiceTests {
     /// 测试: ProvisionContentReplacementState 冷启动时返回新状态
     /// 对齐 TS: REPL.tsx useState(() => provisionContentReplacementState())
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ProvisionContentReplacementState_ColdStart_ReturnsNewState() {
         var fileService = new MockToolResultFileService();
@@ -227,6 +228,7 @@ public sealed class ContentReplacementServiceTests {
     /// 测试: ProvisionContentReplacementState 有初始消息时走重建路径
     /// 对齐 TS: initialMessages 非空时调用 reconstructContentReplacementState
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ProvisionContentReplacementState_WithMessages_ReconstructsState() {
         var fileService = new MockToolResultFileService();
@@ -273,6 +275,7 @@ public sealed class ContentReplacementServiceTests {
     /// 测试: ReconstructForSubagentResume 从父级状态继承替换
     /// 对齐 TS: resumeAgent.ts — parentState.replacements 作为 inheritedReplacements
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ReconstructForSubagentResume_WithParent_InheritsReplacements() {
         var fileService = new MockToolResultFileService();

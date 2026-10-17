@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Goal.Tests;
 
 /// <summary>
@@ -145,6 +144,7 @@ public sealed class GoalGraphTemplatesTest {
         Assert.Equal("worker_sub_1", id);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildWorkerId_Null_Should_Throw_ArgumentNullException() {
         Assert.Throws<ArgumentNullException>(() => GoalGraphTemplates.BuildWorkerId(null!));
@@ -230,11 +230,13 @@ public sealed class GoalGraphTemplatesTest {
         Assert.Contains("Files you own: ", payload.SystemPrompt);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildWorkerNodePayload_NullTask_Should_Throw_ArgumentNullException() {
         Assert.Throws<ArgumentNullException>(() => GoalGraphTemplates.BuildWorkerNodePayload(null!));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildWorkerNodePayload_NullOwnedFiles_Should_Throw_ArgumentNullException() {
         var task = new SubTaskDefinition {

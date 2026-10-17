@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.CodeIndex.Tests;
 
 public sealed class SolutionParserTests : IDisposable {
@@ -142,21 +141,25 @@ public sealed class SolutionParserTests : IDisposable {
         Assert.Equal("App", result.Projects[0].Name);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ParseSln_NullFilePath_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await SolutionParser.ParseSlnAsync(null!, _fs));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ParseSln_NullFileSystem_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await SolutionParser.ParseSlnAsync("test.sln", null!));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ParseSlnx_NullFilePath_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await SolutionParser.ParseSlnxAsync(null!, _fs));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ParseSlnx_NullFileSystem_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await SolutionParser.ParseSlnxAsync("test.slnx", null!));
@@ -164,6 +167,7 @@ public sealed class SolutionParserTests : IDisposable {
 
     // ============ ParseProjectLine 确定性测试 ============
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseProjectLine_StandardCsproj_ReturnsEntry() {
         var line = "Project(\"{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}\") = \"Core\", \"Core\\Core.csproj\", \"{A1B2C3D4-1234-5678-90AB-CDEF12345678}\"";

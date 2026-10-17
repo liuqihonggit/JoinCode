@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
@@ -50,7 +49,9 @@ public static class FileTypeExtensionMap {
     /// 尝试获取文件类型对应的扩展名列表
     /// </summary>
     public static bool TryGetValue(string fileType, out string[] extensions) {
-        return Extensions.TryGetValue(fileType, out extensions!);
+        var found = Extensions.TryGetValue(fileType, out var result);
+        extensions = result ?? [];
+        return found;
     }
 
     /// <summary>

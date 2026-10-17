@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.CodeIndex.Tests;
 
 public sealed class SymbolSearcherTests : IDisposable {
@@ -103,6 +102,7 @@ public sealed class SymbolSearcherTests : IDisposable {
         Assert.True(result.ElapsedMs >= 0);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SearchAsync_NullQuery_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
@@ -202,6 +202,7 @@ public sealed class SymbolSearcherTests : IDisposable {
         Assert.Equal(5, result.TotalCount);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SearchByPatternAsync_NullPattern_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>

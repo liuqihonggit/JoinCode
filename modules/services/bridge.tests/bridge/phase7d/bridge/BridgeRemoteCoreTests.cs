@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿
 namespace Bridge.Tests.Phase7D;
 
@@ -71,6 +70,7 @@ public sealed class BridgeRemoteCoreTests {
 
     #region archiveSession
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ArchiveSession_NullToken_ReturnsSkipped() {
         var result = await BridgeSessionApi.ArchiveAsync(
@@ -136,6 +136,7 @@ public sealed class BridgeRemoteCoreTests {
         Assert.Equal(0, transport.WriteBatchCallCount);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FlushHistory_WithCap_TruncatesFromStart() {
         await using var transport = new MockTransport();
@@ -150,6 +151,7 @@ public sealed class BridgeRemoteCoreTests {
         Assert.Equal("msg5", transport.LastBatch[2]);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FlushHistory_NoCap_SendsAll() {
         await using var transport = new MockTransport();
@@ -160,6 +162,7 @@ public sealed class BridgeRemoteCoreTests {
         Assert.Equal(3, transport.LastBatch!.Count);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FlushHistory_WithToSDKMessages_ConvertsAndSends() {
         await using var transport = new MockTransport();
@@ -190,6 +193,7 @@ public sealed class BridgeRemoteCoreTests {
         Assert.Equal(0, transport.WriteBatchCallCount);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DrainFlushGate_WithPending_SendsAll() {
         var flushGate = new BridgeFlushGate<string>();
@@ -206,6 +210,7 @@ public sealed class BridgeRemoteCoreTests {
         Assert.Equal("queued2", transport.LastBatch[1]);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DrainFlushGate_WithToSDKMessages_ConvertsAndSends() {
         var flushGate = new BridgeFlushGate<string>();

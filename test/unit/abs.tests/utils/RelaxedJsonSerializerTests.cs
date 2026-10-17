@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Abs.Tests.Utils;
 
 /// <summary>
@@ -80,6 +79,7 @@ public sealed partial class RelaxedJsonSerializerTests {
 
     // ── Deserialize ──
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Deserialize_ValidJson_ReturnsObject() {
         var json = """{"displayName":"测试","description":"中文描述"}""";
@@ -91,6 +91,7 @@ public sealed partial class RelaxedJsonSerializerTests {
         result.Description.Should().Be("中文描述");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Deserialize_WithBom_StripsBomAndDeserializes() {
         var json = "\uFEFF" + """{"displayName":"BOM测试","description":"去BOM"}""";
@@ -101,6 +102,7 @@ public sealed partial class RelaxedJsonSerializerTests {
         result!.DisplayName.Should().Be("BOM测试");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Deserialize_WithWhitespace_TrimsAndDeserializes() {
         var json = "  \n  " + """{"displayName":"空白测试","description":"去空白"}""" + "  \n  ";
@@ -118,6 +120,7 @@ public sealed partial class RelaxedJsonSerializerTests {
         result.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Deserialize_NullString_ReturnsDefault() {
         var result = RelaxedJsonSerializer.Deserialize<TestDto>(null!, TestCamelCaseContext.Default);
@@ -125,6 +128,7 @@ public sealed partial class RelaxedJsonSerializerTests {
         result.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Deserialize_PascalCaseInput_WithCaseInsensitive_ReadsCorrectly() {
         var json = """{"DisplayName":"大写","Description":"兼容"}""";

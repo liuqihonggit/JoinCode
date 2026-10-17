@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
@@ -148,12 +147,12 @@ public sealed class DebounceTracker : IDisposable {
         if (_disposed) return;
         _disposed = true;
 
-        ImmutableHamT<string, Timer> oldTimers = default!;
+        ImmutableHamT<string, Timer>? oldTimers = null;
         while (true) {
             var current = _timers;
             if (Interlocked.CompareExchange(ref _timers, ImmutableHamT<string, Timer>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase), current) == current) { oldTimers = current; break; }
         }
-        foreach (var kvp in oldTimers)
+        foreach (var kvp in oldTimers ?? ImmutableHamT<string, Timer>.Empty)
             kvp.Value.Dispose();
         while (true) {
             var current = _internalWriteTimestamps;

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.CodeIndex.Benchmarks;
 
 public sealed class L2EvaluationTests : IDisposable {
@@ -120,6 +119,7 @@ public sealed class L2EvaluationTests : IDisposable {
         Assert.True(summary.P95Ms < 200, $"L2 P95 响应时间 {summary.P95Ms}ms > 200ms");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<EvaluationResult> EvaluateCallerCalleeAsync(TestCase tc) {
         var sw = Stopwatch.StartNew();
         var edges = tc.Query == "callers"
@@ -129,9 +129,11 @@ public sealed class L2EvaluationTests : IDisposable {
         return _engine.EvaluateL2CallGraph(tc, edges, sw.ElapsedMilliseconds);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<IReadOnlyList<string>> QueryImpactScopeAsync(TestCase tc) =>
         await _indexer.CallGraph.GetImpactScopeAsync(tc.SourceSymbol!, CancellationToken.None).ConfigureAwait(true);
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<EvaluationResult> EvaluateL2CaseAsync(TestCase tc) {
         var sw = Stopwatch.StartNew();
 

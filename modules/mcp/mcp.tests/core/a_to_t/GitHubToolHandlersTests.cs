@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Mcp.Tests;
 
 public sealed partial class GitHubToolHandlersTests {
@@ -80,6 +79,7 @@ public sealed partial class GitHubToolHandlersTests {
         _api.LastBody.Should().Contain("\"draft\":true");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PrCreate_WithBaseAndBody_ProducesValidJsonBody() {
         _api.NextResponse = new GitHubApiResponse {
@@ -98,6 +98,7 @@ public sealed partial class GitHubToolHandlersTests {
         doc.RootElement.GetProperty("body").GetString().Should().Be("b");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PrCreate_WithBaseOnly_ProducesValidJsonBody() {
         _api.NextResponse = new GitHubApiResponse {
@@ -515,6 +516,7 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     /// <summary>pr checks 汇总前置+失败 check 在 pass 前(优化A1: AI 首屏定位问题)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PrChecks_SummaryFirst_FailuresBeforePass() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"head":{"sha":"abc"}}""" });
@@ -753,6 +755,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().Contain("Build");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RunView_ExpandJobs_FailureJobsFirstAndTruncateSuccess() {
         // 缺陷4: 35 个 job(5 failure + 30 success),失败必须置顶,success 截断

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 底层泛型集合实现, ! 用于 default(T)/数组槽位的可空抑制, 是 C# 语言限制下的必要用法
-#pragma warning disable JCC11003
 namespace Structura.Collections;
 
 /// <summary>
@@ -37,6 +36,7 @@ public sealed class SkipList<TKey, TValue> where TKey : IComparable<TKey> {
     private volatile int _count;
 
     /// <summary>构造空跳表。</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "底层泛型集合实现, head 节点的 default(T) 对于引用类型是 null, 是 C# 语言限制下的必要用法")]
     public SkipList() {
         _head = new SkipListNode<TKey, TValue>(default!, default!, MaxLevel);
         _level = 0;
@@ -55,6 +55,7 @@ public sealed class SkipList<TKey, TValue> where TKey : IComparable<TKey> {
     /// <param name="key">键。</param>
     /// <param name="value">输出的值。</param>
     /// <returns>true 表示找到；false 表示未找到。</returns>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "底层泛型集合实现, TryGetValue 返回 false 时 out 参数 default(T) 对于引用类型是 null, 是 C# 语言限制下的必要用法")]
     public bool TryGetValue(TKey key, out TValue value) {
         var node = SearchPredecessor(key);
         var next = node.Next[0];
@@ -175,7 +176,7 @@ public sealed class SkipList<TKey, TValue> where TKey : IComparable<TKey> {
         var node = SearchPredecessor(prefix);
         var current = node.Next[0];
         while (current is { } c) {
-            if (!c.Key.ToString()!.StartsWith(prefix.ToString()!)) yield break;
+            if (!(c.Key.ToString() ?? string.Empty).StartsWith(prefix.ToString() ?? string.Empty)) yield break;
             yield return (c.Key, c.Value);
             current = c.Next[0];
         }

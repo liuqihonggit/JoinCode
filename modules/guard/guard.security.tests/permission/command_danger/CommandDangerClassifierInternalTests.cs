@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Guard.Security.Tests;
 
 /// <summary>
@@ -321,6 +320,7 @@ public class CommandDangerClassifierInternalTests {
 
     #region MatchCommandEntry
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void MatchCommandEntry_ExactMatch_Should_Return_Entry() {
         var entry = CommandDangerClassifier.MatchCommandEntry("rm");
@@ -328,6 +328,7 @@ public class CommandDangerClassifierInternalTests {
         entry!.CommandName.Should().Be("rm");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void MatchCommandEntry_PrefixMatch_Mkfs_Should_Return_Entry() {
         // mkfs.ext4 → mkfs 前缀匹配
@@ -348,6 +349,7 @@ public class CommandDangerClassifierInternalTests {
         entry.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void MatchCommandEntry_Git_Should_Return_LightValidation() {
         var entry = CommandDangerClassifier.MatchCommandEntry("git");

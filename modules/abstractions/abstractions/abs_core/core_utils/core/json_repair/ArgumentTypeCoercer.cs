@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
@@ -84,7 +83,7 @@ internal static class ArgumentTypeCoercer {
 
     private static (JsonElement Converted, bool WasConverted) TryConvertToInteger(JsonElement value) {
         if (value.ValueKind == JsonValueKind.String) {
-            var str = value.GetString()!;
+            var str = value.GetString() ?? string.Empty;
             if (int.TryParse(str, NumberStyles.Integer, CultureInfo.InvariantCulture, out var intVal))
                 return (JsonElementHelper.FromInt32(intVal), true);
             if (long.TryParse(str, NumberStyles.Integer, CultureInfo.InvariantCulture, out var longVal))
@@ -101,7 +100,7 @@ internal static class ArgumentTypeCoercer {
 
     private static (JsonElement Converted, bool WasConverted) TryConvertToNumber(JsonElement value) {
         if (value.ValueKind == JsonValueKind.String) {
-            var str = value.GetString()!;
+            var str = value.GetString() ?? string.Empty;
             if (double.TryParse(str, NumberStyles.Float, CultureInfo.InvariantCulture, out var doubleVal))
                 return (JsonElementHelper.FromDouble(doubleVal), true);
         }
@@ -111,7 +110,7 @@ internal static class ArgumentTypeCoercer {
 
     private static (JsonElement Converted, bool WasConverted) TryConvertToBoolean(JsonElement value) {
         if (value.ValueKind == JsonValueKind.String) {
-            var str = value.GetString()!;
+            var str = value.GetString() ?? string.Empty;
             if (bool.TryParse(str, out var boolVal))
                 return (JsonElementHelper.FromBoolean(boolVal), true);
         }
@@ -127,7 +126,7 @@ internal static class ArgumentTypeCoercer {
     private static (JsonElement Converted, bool WasConverted) TryConvertToArray(JsonElement value) {
         if (value.ValueKind != JsonValueKind.String) return (value, false);
 
-        var str = value.GetString()!;
+        var str = value.GetString() ?? string.Empty;
         if (str.StartsWith('[')) {
             try {
                 using var arr = JsonDocument.Parse(str);

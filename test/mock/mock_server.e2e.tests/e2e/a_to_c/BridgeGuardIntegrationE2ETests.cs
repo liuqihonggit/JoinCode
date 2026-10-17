@@ -10,6 +10,7 @@ namespace MockServer.E2E.Tests;
 /// 决策: 仅测试早期返回路径，不测试 BridgeMain.RunAsync（需真实 API）
 /// </summary>
 [Trait("Category", "Integration")]
+[SuppressMessage("FileSystemAbstraction", "JCC9001", Justification = "E2E 桥接守卫集成测试需直接访问文件系统验证真实文件")]
 public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime {
     private readonly ITestOutputHelper _output;
 
@@ -172,14 +173,12 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime {
         var found = SearchExeUnderDir(artifactsBin, "jcc.exe");
         if (found is not null) return found;
 
-#pragma warning disable JCC9001
         // E2E 测试基础设施：解析 jcc.exe 路径，不通过 IFileSystem DI（此为构建期路径解析）
         var fallback = Path.GetFullPath(Path.Combine(baseDir, "jcc.exe"));
         if (File.Exists(fallback)) return fallback;
         // Linux apphost 不带 .exe 后缀
         var fallbackLinux = Path.GetFullPath(Path.Combine(baseDir, "jcc"));
         if (File.Exists(fallbackLinux)) return fallbackLinux;
-#pragma warning restore JCC9001
 
         throw new FileNotFoundException($"[GEN034] 未找到 jcc.exe (artifacts/bin={artifactsBin})");
     }
@@ -187,11 +186,9 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime {
     private static string? FindArtifactsBinRoot(string baseDir) {
         var dir = baseDir;
         for (var i = 0; i < 10; i++) {
-#pragma warning disable JCC9001
             // E2E 测试基础设施：查找 artifacts/bin 目录
             var candidate = Path.Combine(dir, "artifacts", "bin");
             if (Directory.Exists(candidate)) return candidate;
-#pragma warning restore JCC9001
 
             var parent = Path.GetDirectoryName(dir);
             if (parent is null || parent == dir) break;
@@ -202,7 +199,6 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime {
 
     private static string? SearchExeUnderDir(string rootDir, string exeName) {
         try {
-#pragma warning disable JCC9001
             // E2E 测试基础设施：搜索 exe 文件
             var files = Directory.GetFiles(rootDir, exeName, SearchOption.AllDirectories);
             if (files.Length > 0) return files[0];
@@ -212,7 +208,6 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime {
                 if (files.Length > 0) return files[0];
             }
             return null;
-#pragma warning restore JCC9001
         } catch (Exception ex) {
             System.Diagnostics.Trace.WriteLine($"[BridgeE2E] SearchExeUnderDir 失败: {ex.Message}");
             return null;

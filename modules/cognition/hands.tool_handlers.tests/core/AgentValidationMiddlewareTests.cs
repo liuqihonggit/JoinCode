@@ -1,11 +1,11 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Hands.Tests.ToolHandlers;
 
 /// <summary>
 /// AgentValidationMiddleware 单元测试 — 验证 Agent 参数验证中间件的结构化诊断
 /// </summary>
 public class AgentValidationMiddlewareTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task EmptyDescription_SetsErrorWithDiagnostic() {
         await using var sut = new AgentValidationMiddleware();
@@ -20,6 +20,7 @@ public class AgentValidationMiddlewareTests {
         context.Result.Diagnostic.Details.Should().Contain(d => d.Key == "field" && d.Value == "description");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task EmptyPrompt_SetsErrorWithDiagnostic() {
         await using var sut = new AgentValidationMiddleware();

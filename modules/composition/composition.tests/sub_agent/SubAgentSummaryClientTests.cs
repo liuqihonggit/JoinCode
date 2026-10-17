@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.SubAgent;
 
 /// <summary>
@@ -61,6 +60,7 @@ public sealed class SubAgentSummaryClientTests {
 
     // ===== SummarizeAsync 确定性测试（Mock IChatClient 消除 LLM IO） =====
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SummarizeAsync_NullText_ReturnsNullWithoutCallingLlm() {
         await using var sut = CreateSut();
@@ -169,6 +169,7 @@ public sealed class SubAgentSummaryClientTests {
         await act.Should().ThrowAsync<OperationCanceledException>().ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SummarizeAsync_PassesCorrectChatHistoryToLlm() {
         MessageList? capturedHistory = null;
@@ -188,6 +189,7 @@ public sealed class SubAgentSummaryClientTests {
         capturedHistory[1].Content.Should().Be("用户输入文本");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SummarizeAsync_NullKernel_ThrowsArgumentNullException() {
         var act = () => new SubAgentSummaryClient(null!, NullLogger<SubAgentSummaryClient>.Instance);

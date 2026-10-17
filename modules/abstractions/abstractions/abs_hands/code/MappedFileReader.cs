@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
@@ -61,10 +60,10 @@ public sealed class MappedFileReader : IDisposable {
     /// 读取全部字节到新数组。
     /// </summary>
     public byte[] ToArray() {
-        if (_fileSize == 0)
+        if (_fileSize == 0 || _accessor is null)
             return Array.Empty<byte>();
         var bytes = new byte[_fileSize];
-        _accessor!.ReadArray(0, bytes, 0, (int)_fileSize);
+        _accessor.ReadArray(0, bytes, 0, (int)_fileSize);
         return bytes;
     }
 

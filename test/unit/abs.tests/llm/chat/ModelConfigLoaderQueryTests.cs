@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Abs.Tests.LLM;
 
 /// <summary>
@@ -45,6 +44,7 @@ public class ModelConfigLoaderQueryTests {
 
     #region FindModel
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void FindModel_ExactMatch_ReturnsConfig() {
         var loader = CreateLoader();
@@ -130,6 +130,7 @@ public class ModelConfigLoaderQueryTests {
 
     #region FindModelByModelId
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void FindModelByModelId_ExactMatch_ReturnsConfig() {
         var loader = CreateLoader();
@@ -138,6 +139,7 @@ public class ModelConfigLoaderQueryTests {
         model!.Id.Should().Be("gpt-4o");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void FindModelByModelId_FuzzyMatch_ReturnsConfig() {
         var loader = CreateLoader();

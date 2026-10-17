@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Core.Agents;
 
 
@@ -38,6 +37,7 @@ public sealed class SubAgentSummaryGeneratorTests {
         clientMock.Verify(c => c.SummarizeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task LlmReturnsValidSummary_ReturnsSuccess() {
         var clientMock = new Mock<ISubAgentSummaryClient>();

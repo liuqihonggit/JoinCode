@@ -48,9 +48,7 @@ public sealed partial class AgentToolHandlers {
         var agentId = $"agent-dryrun-{Guid.NewGuid():N}"[..^16];
         var now = _clock.GetUtcNow();
         var stateDir = AppDataConstants.Paths.AgentsDirectory;
-#pragma warning disable JCC9001
-        Directory.CreateDirectory(stateDir);
-#pragma warning restore JCC9001
+        _fs.CreateDirectory(stateDir);
         var statePath = Path.Combine(stateDir, $"{agentId}.json");
 
         var isolationMode = ResolveDryRunIsolationMode(options.Isolation);
@@ -80,9 +78,7 @@ public sealed partial class AgentToolHandlers {
             WorktreePath = worktreePath,
             WorktreeBranch = worktreeBranch,
         };
-#pragma warning disable JCC9001
-        await File.WriteAllTextAsync(statePath, RelaxedJsonSerializer.Serialize(state, DryRunAgentStateJsonContext.Default), cancellationToken).ConfigureAwait(false);
-#pragma warning restore JCC9001
+        await _fs.WriteAllTextAsync(statePath, RelaxedJsonSerializer.Serialize(state, DryRunAgentStateJsonContext.Default), cancellationToken).ConfigureAwait(false);
         var response = new System.Text.StringBuilder();
         response.AppendLine("Agent launched in dry-run mode (no LLM)");
         response.AppendLine($"Agent ID: {agentId}");
@@ -120,17 +116,15 @@ public sealed partial class AgentToolHandlers {
     private DryRunAgentState? TryLoadDryRunState(string agentId) {
         var statePath = Path.Combine(
             AppDataConstants.Paths.AgentsDirectory, $"{agentId}.json");
-#pragma warning disable JCC9001
-        if (!File.Exists(statePath))
+        if (!_fs.FileExists(statePath))
             return null;
         try {
-            var json = File.ReadAllText(statePath);
+            var json = _fs.ReadAllText(statePath).GetAwaiter().GetResult();
             return RelaxedJsonSerializer.Deserialize(json, DryRunAgentStateJsonContext.Default.DryRunAgentState);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to load dry-run agent state for {AgentId}", agentId);
             return null;
         }
-#pragma warning restore JCC9001
     }
 
     /// <summary>
@@ -138,15 +132,14 @@ public sealed partial class AgentToolHandlers {
     /// </summary>
     private List<DryRunAgentState> ListDryRunAgents() {
         var stateDir = AppDataConstants.Paths.AgentsDirectory;
-#pragma warning disable JCC9001
-        if (!Directory.Exists(stateDir))
+        if (!_fs.DirectoryExists(stateDir))
             return [];
         var result = new List<DryRunAgentState>();
-        foreach (var file in Directory.EnumerateFiles(stateDir, "*.json")) {
+        foreach (var file in _fs.EnumerateFiles(stateDir, "*.json", SearchOption.TopDirectoryOnly)) {
             if (file.EndsWith(".messages.json", StringComparison.OrdinalIgnoreCase))
                 continue;
             try {
-                var json = File.ReadAllText(file);
+                var json = _fs.ReadAllText(file).GetAwaiter().GetResult();
                 var state = RelaxedJsonSerializer.Deserialize(json, DryRunAgentStateJsonContext.Default.DryRunAgentState);
                 if (state is not null)
                     result.Add(state);
@@ -155,7 +148,6 @@ public sealed partial class AgentToolHandlers {
             }
         }
         return result;
-#pragma warning restore JCC9001
     }
 
     /// <summary>
@@ -163,15 +155,13 @@ public sealed partial class AgentToolHandlers {
     /// </summary>
     private void TrySaveDryRunState(DryRunAgentState state) {
         var stateDir = AppDataConstants.Paths.AgentsDirectory;
-#pragma warning disable JCC9001
-        Directory.CreateDirectory(stateDir);
+        _fs.CreateDirectory(stateDir);
         var statePath = Path.Combine(stateDir, $"{state.Id}.json");
         try {
-            File.WriteAllText(statePath, RelaxedJsonSerializer.Serialize(state, DryRunAgentStateJsonContext.Default));
+            _fs.WriteAllText(statePath, RelaxedJsonSerializer.Serialize(state, DryRunAgentStateJsonContext.Default)).GetAwaiter().GetResult();
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to save dry-run agent state for {AgentId}", state.Id);
         }
-#pragma warning restore JCC9001
     }
 
     /// <summary>
@@ -179,13 +169,12 @@ public sealed partial class AgentToolHandlers {
     /// </summary>
     private void AppendDryRunMessage(string agentId, string content, string? summary) {
         var msgDir = AppDataConstants.Paths.AgentsDirectory;
-#pragma warning disable JCC9001
-        Directory.CreateDirectory(msgDir);
+        _fs.CreateDirectory(msgDir);
         var msgPath = Path.Combine(msgDir, $"{agentId}.messages.json");
         var msgs = new List<DryRunAgentMessage>();
-        if (File.Exists(msgPath)) {
+        if (_fs.FileExists(msgPath)) {
             try {
-                var existing = File.ReadAllText(msgPath);
+                var existing = _fs.ReadAllText(msgPath).GetAwaiter().GetResult();
                 var loaded3 = RelaxedJsonSerializer.Deserialize(existing, DryRunAgentStateJsonContext.Default.ListDryRunAgentMessage);
                 if (loaded3 is not null)
                     msgs = [.. loaded3];
@@ -195,11 +184,10 @@ public sealed partial class AgentToolHandlers {
         }
         msgs.Add(new DryRunAgentMessage { Content = content, Summary = summary, Timestamp = _clock.GetUtcNow() });
         try {
-            File.WriteAllText(msgPath, RelaxedJsonSerializer.Serialize(msgs, DryRunAgentStateJsonContext.Default));
+            _fs.WriteAllText(msgPath, RelaxedJsonSerializer.Serialize(msgs, DryRunAgentStateJsonContext.Default)).GetAwaiter().GetResult();
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to save dry-run messages for {AgentId}", agentId);
         }
-#pragma warning restore JCC9001
     }
 
     /// <summary>
@@ -208,16 +196,14 @@ public sealed partial class AgentToolHandlers {
     private List<DryRunAgentMessage>? TryLoadDryRunMessages(string agentId) {
         var msgPath = Path.Combine(
             AppDataConstants.Paths.AgentsDirectory, $"{agentId}.messages.json");
-#pragma warning disable JCC9001
-        if (!File.Exists(msgPath))
+        if (!_fs.FileExists(msgPath))
             return null;
         try {
-            var json = File.ReadAllText(msgPath);
+            var json = _fs.ReadAllText(msgPath).GetAwaiter().GetResult();
             return RelaxedJsonSerializer.Deserialize(json, DryRunAgentStateJsonContext.Default.ListDryRunAgentMessage)?.ToList();
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to load dry-run messages for {AgentId}", agentId);
             return null;
         }
-#pragma warning restore JCC9001
     }
 }

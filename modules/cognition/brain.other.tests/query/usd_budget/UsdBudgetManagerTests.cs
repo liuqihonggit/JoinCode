@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Query.UsdBudget;
 
 public class UsdBudgetManagerTests : IAsyncDisposable {
@@ -43,6 +42,7 @@ public class UsdBudgetManagerTests : IAsyncDisposable {
         status.UsagePercentage.Should().BeApproximately(0.5, 0.001);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task BudgetAlert_AtThreshold_ShouldFireEvent() {
         UsdBudgetAlertEventArgs? alertArgs = null;
@@ -105,6 +105,7 @@ public class UsdBudgetManagerTests : IAsyncDisposable {
         status.IsExceeded.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RecordCostAsync_NullReason_ShouldThrowArgumentNullException() {
         var act = async () => await _manager.RecordCostAsync(1.0m, null!).ConfigureAwait(true);

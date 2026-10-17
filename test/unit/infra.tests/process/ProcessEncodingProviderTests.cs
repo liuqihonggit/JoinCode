@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infra.Tests.Process;
 
 [Trait("Category", "Unit")]
@@ -62,6 +61,7 @@ public sealed class ProcessEncodingProviderTests {
         provider.IsUtf8Mode.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SetEncoding_Null_Throws() {
         var provider = new ProcessEncodingProvider();
@@ -71,6 +71,7 @@ public sealed class ProcessEncodingProviderTests {
         act.Should().Throw<ArgumentNullException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SwitchingEncoding_DoesNotAffectAlreadyCreatedProcessStartInfo() {
         var provider = new ProcessEncodingProvider();

@@ -18,7 +18,6 @@ public static class SnapshotVerifier {
         var approvedPath = Path.Combine(dir, $"{snapshotName}.approved.txt");
         var receivedPath = Path.Combine(dir, $"{snapshotName}.received.txt");
 
-#pragma warning disable JCC9001
         if (!File.Exists(approvedPath)) {
             File.WriteAllText(receivedPath, actual);
             Assert.Fail($"快照未批准: 已生成 {receivedPath}。审核内容后将其重命名为 {snapshotName}.approved.txt。");
@@ -29,6 +28,5 @@ public static class SnapshotVerifier {
             File.WriteAllText(receivedPath, actual);
             Assert.Fail($"快照不匹配: 实际输出已写入 {receivedPath}，请与 {approvedPath} 对比。");
         }
-#pragma warning restore JCC9001
     }
 }

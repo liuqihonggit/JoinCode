@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Llm.Tests.Adapters.LLM.QueryServices.OpenAI;
 
 
@@ -53,6 +52,7 @@ public class OpenAIQueryServiceTests {
         request.Model.Should().Be("gpt-4o");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CreateRequest_StreamEnabled_IncludesUsageOption() {
         var service = CreateService();
@@ -73,6 +73,7 @@ public class OpenAIQueryServiceTests {
         request.ReasoningEffort.Should().Be("medium");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CreateRequest_ThinkingEnabled_SetsThinkingField() {
         var service = CreateService();
@@ -95,6 +96,7 @@ public class OpenAIQueryServiceTests {
         request.Thinking.Should().BeNull("ThinkingEnabled=false 时不发 thinking 字段");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CreateRequest_ToolChoiceAutoWithKernel_BuildsTools() {
         var service = CreateService();
@@ -164,6 +166,7 @@ public class OpenAIQueryServiceTests {
         result.Content?.Text.Should().Be("hi there");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToOpenAIMessage_AssistantWithToolCalls_MapsToolCallsAndClearsContent() {
         var entries = new[]
@@ -199,6 +202,7 @@ public class OpenAIQueryServiceTests {
 
     #region ConvertToApiMessage
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToApiMessage_WithUsage_IncludesUsageMetadata() {
         var choice = new OpenAIChoice {
@@ -218,6 +222,7 @@ public class OpenAIQueryServiceTests {
         result.Metadata.Should().ContainKey("FinishReason");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToApiMessage_WithReasoningContent_IncludesMetadata() {
         var choice = new OpenAIChoice {
@@ -235,6 +240,7 @@ public class OpenAIQueryServiceTests {
         result.Metadata!["reasoning_content"].GetString().Should().Be("thinking");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToApiMessage_WithToolCalls_IncludesToolCallMetadata() {
         var choice = new OpenAIChoice {
@@ -330,6 +336,7 @@ public class OpenAIQueryServiceTests {
 
     #region Two-Phase Tool Loading — CreateSecondRequestWithDescriptions
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CreateSecondRequestWithDescriptions_ValidToolNames_BuildsDescriptions() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
@@ -400,6 +407,7 @@ public class OpenAIQueryServiceTests {
 
     #region ConvertToOpenAIMessage — 多模态 ContentBlocks → image_url
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToOpenAIMessage_ImageContentBlock_ConvertsToImageUrlPart() {
         var msg = new ApiMessage(MessageRole.User, "What is in this image?") {
@@ -416,6 +424,7 @@ public class OpenAIQueryServiceTests {
         result.Content.Parts[1].ImageUrl!.Url.Should().Be("data:image/png;base64,iVBORw0KGgo=");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToOpenAIMessage_TextOnly_NoContentBlocks_SerializesAsString() {
         var msg = new ApiMessage(MessageRole.User, "plain text");
@@ -426,6 +435,7 @@ public class OpenAIQueryServiceTests {
         result.Content.Parts.Should().BeEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToOpenAIMessage_TextContentBlock_AddsTextPart() {
         var msg = new ApiMessage(MessageRole.User, "prefix") {

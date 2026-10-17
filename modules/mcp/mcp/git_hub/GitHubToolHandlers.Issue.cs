@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace McpToolDispatch;
 
 /// <summary>
@@ -94,6 +93,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 创建 Issue — 支持标签/指派人/里程碑/attach/blocked_by/blocking/parent/type(后四项为较新功能提示)，调 REST API POST
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [McpTool(GitHubToolNameEnumConstants.GhIssueCreate, "创建 Issue(支持标签/指派人/里程碑/attach/blocked_by/blocking/parent/type)", "github")]
     public async Task<ToolResult> GhIssueCreateAsync(
         [McpToolParameter("Issue 标题", Required = true)] string title,
@@ -204,6 +204,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 编辑 Issue — 修改标题/body/标签/指派人/里程碑，调 REST API PATCH + POST/DELETE labels/assignees
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [McpTool(GitHubToolNameEnumConstants.GhIssueEdit, "编辑 Issue(title/body/body_file/label/add_label/remove_label/assignee/add_assignee/remove_assignee/milestone/remove_milestone/add_project/remove_project/attach/add_sub_issue/remove_sub_issue/parent/remove_parent/add_blocked_by/remove_blocked_by/add_blocking/remove_blocking/type/remove_type)", "github")]
     public async Task<ToolResult> GhIssueEditAsync(
         [McpToolParameter(WellKnownParam.IssueNumber)] string issue_number,

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infra.Tests.Utils.State;
 
 
@@ -126,6 +125,7 @@ public class StateMachineTests {
         eventFired.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Reset_ShouldFireEvent() {
         var sm = CreateStateMachine();
@@ -138,6 +138,7 @@ public class StateMachineTests {
         capturedArgs.NewState.Should().Be(TestState.Idle);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void StateChanged_ShouldFireOnTransitionTo() {
         var sm = CreateStateMachine();
@@ -159,6 +160,7 @@ public class StateMachineTests {
         eventFired.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void StateChanged_ShouldFireOnForceTransitionTo() {
         var sm = CreateStateMachine();
@@ -202,6 +204,7 @@ public class StateMachineTests {
         states.Should().Equal(new[] { TestState.Running, TestState.Paused, TestState.Running, TestState.Completed });
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void StateChanged_WithClockService_ShouldUseClockTimestamp() {
         var fakeTime = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
@@ -256,6 +259,7 @@ public class StateMachineTests {
         sm.IsTerminalState().Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TransitionFailed_ShouldFireOnInvalidTransition() {
         var sm = CreateStateMachine();

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
@@ -269,7 +268,7 @@ public sealed class DynamicPluginRegistry {
             return pkg.PackageId;
 
         alc.Unload();
-        return winner!.PackageId;
+        return winner is not null ? winner.PackageId : pkg.PackageId;
     }
 
     /// <summary>
@@ -293,8 +292,8 @@ public sealed class DynamicPluginRegistry {
                 $"[DYN-UPDATE-VERSION] 新版本 {newVersion} 必须大于旧版本 {oldPkg.Version}。");
 
         var wasRunning = _runtime.TryRemoveRunning(name, out var oldInstance);
-        if (wasRunning) {
-            oldInstance!.Alc.Unload();
+        if (wasRunning && oldInstance is not null) {
+            oldInstance.Alc.Unload();
         }
 
         var id = NextPackageId();

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Cli.Output;
 
 /// <summary>
@@ -29,6 +28,7 @@ public static class InputSanitizer {
     /// 检查路径是否包含穿越模式
     /// </summary>
     /// <returns>如果路径安全返回 null，否则返回错误描述</returns>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public static string? ValidatePath(string path) {
         if (string.IsNullOrWhiteSpace(path))
             return "路径不能为空";
@@ -75,6 +75,7 @@ public static class InputSanitizer {
     /// 检查命令参数是否包含注入风险
     /// 防范 shell 注入：分号、管道符、反引号、$() 等
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public static string? ValidateShellArgument(string argument) {
         if (string.IsNullOrEmpty(argument))
             return null;

@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -15,6 +14,7 @@ public sealed class VendorCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数与工作流配置</param>
     /// <returns>表示命令执行结果的任务,始终返回 Continue 以继续会话</returns>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
         var config = context.GetCommandServices().WorkflowConfig;

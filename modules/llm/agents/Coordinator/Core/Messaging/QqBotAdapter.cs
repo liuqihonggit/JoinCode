@@ -1,8 +1,7 @@
 // JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC1017, JCC11003
+#pragma warning disable JCC1017
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Agents.Coordinator;
 
 /// <summary>
@@ -27,6 +26,7 @@ public sealed class QqBotAdapter : PlatformBotAdapterBase<QqBotConfig> {
     public override string PlatformName => "qq";
 
     /// <inheritdoc/>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     protected override async ValueTask<string> AcquireTokenAsync(CancellationToken ct) {
         var url = $"{Config.AuthBaseUrl}/app/getAppAccessToken";
         var body = $$"""{"appId":"{{Config.AppId}}","appSecret":"{{Config.AppSecret}}"}""";

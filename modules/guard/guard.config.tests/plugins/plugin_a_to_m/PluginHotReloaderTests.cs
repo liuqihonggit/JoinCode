@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Plugins;
 
 public sealed class PluginHotReloaderTests {
@@ -16,6 +15,7 @@ public sealed class PluginHotReloaderTests {
         _reloader = new PluginHotReloader(_pluginManager.Object, _fileSystem.Object, NullLogger<PluginHotReloader>.Instance);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullPluginManager_ShouldThrow() {
         var act = () => new PluginHotReloader(null!, _fileSystem.Object, NullLogger<PluginHotReloader>.Instance);
@@ -35,6 +35,7 @@ public sealed class PluginHotReloaderTests {
         await act.Should().ThrowAsync<DirectoryNotFoundException>().ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task StartWatchingAsync_NullOrWhiteSpace_ShouldThrow() {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));

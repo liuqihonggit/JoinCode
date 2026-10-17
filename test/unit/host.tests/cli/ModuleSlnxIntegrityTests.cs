@@ -1,12 +1,13 @@
 // JCC9001 抑制: 源码级回归测试需直接读取文件系统验证 module.slnx 引用完整性
 // JCC11003 抑制: 存量代码可空抑制
-#pragma warning disable JCC9001, JCC11003
+
 namespace Host.Tests.Cli;
 
 /// <summary>
 /// BUG-5 回归测试: 10 个 module.slnx 路径引用修正(snake_case→PascalCase),移除 2 个不存在的 csproj 引用。
 /// <para>验证: 所有 module.slnx 中 &lt;Project Path="..."/&gt; 引用的 csproj 文件实际存在。</para>
 /// </summary>
+[SuppressMessage("FileSystemAbstraction", "JCC9001", Justification = "源码级回归测试需直接读取文件系统验证 module.slnx 引用完整性")]
 public sealed class ModuleSlnxIntegrityTests {
     private static readonly string RepoRoot = FindRepoRoot();
     private static readonly Regex ProjectPathRegex = new(
@@ -64,6 +65,7 @@ public sealed class ModuleSlnxIntegrityTests {
     /// BUG-5 核心: 每个 module.slnx 中引用的 csproj 文件应实际存在。
     /// 修复前有 snake_case 路径和 2 个不存在的 csproj 引用,修复后应全部有效。
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void All_Referenced_Csproj_Paths_Should_Exist() {
         var slnxFiles = GetAllModuleSlnxFiles().ToList();
@@ -89,6 +91,7 @@ public sealed class ModuleSlnxIntegrityTests {
     /// BUG-5: 不应存在被注释掉的 REMOVED 引用以外的无效引用。
     /// 验证正则不误匹配注释行(<!-- REMOVED: ... -->)
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void No_Invalid_Project_References_Outside_Comments() {
         var slnxFiles = GetAllModuleSlnxFiles().ToList();
@@ -132,6 +135,7 @@ public sealed class ModuleSlnxIntegrityTests {
     /// BUG-5: 验证特定已修正的 module.slnx(generators)引用有效。
     /// generators/module.slnx 曾有 REMOVED: shared/shared.csproj 注释,移除后应无无效引用。
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Generators_ModuleSlnx_Should_Have_All_Valid_References() {
         var generatorsSlnx = System.IO.Path.Combine(RepoRoot, "modules", "generators", "module.slnx");

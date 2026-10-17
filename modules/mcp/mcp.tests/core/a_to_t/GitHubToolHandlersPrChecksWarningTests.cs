@@ -1,4 +1,3 @@
-#pragma warning disable JCC11003
 namespace Mcp.Tests;
 
 /// <summary>
@@ -6,6 +5,7 @@ namespace Mcp.Tests;
 /// </summary>
 public sealed partial class GitHubToolHandlersTests {
     /// <summary>GAP-038-06: stale/action_required 归入警告档,排序 fail→warning→pass</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PrChecks_StaleAndActionRequired_CountedAsWarning() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"head":{"sha":"abc"}}""" });

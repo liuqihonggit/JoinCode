@@ -1,11 +1,11 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Dream.Tests.Client;
 
 /// <summary>
 /// 默认会话扫描器单元测试
 /// </summary>
 public sealed class DefaultSessionScannerTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Constructor_NullConfig_UsesCurrentDirectory() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();

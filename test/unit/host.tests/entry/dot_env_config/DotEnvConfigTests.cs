@@ -1,12 +1,16 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Entry.Tests;
 
-#pragma warning disable JCC9001, JCC3013
+#pragma warning disable JCC3013
+
+
+[SuppressMessage("FileSystemAbstraction", "JCC9001", Justification = ".env 配置测试需直接访问文件系统验证配置加载")]
+
 
 public sealed class DotEnvConfigTests {
     private static readonly string TempDir = Path.Combine(Path.GetTempPath(), $"jcc_test_{Guid.NewGuid():N}");
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LoadFrom_OpenAIKey_SetsProviderToOpenAI() {
         var json = """{"env":{"OPENAI_API_KEY":"sk-test123"}}""";
@@ -20,6 +24,7 @@ public sealed class DotEnvConfigTests {
         Cleanup();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LoadFrom_AnthropicKey_SetsProviderToAnthropic() {
         var json = """{"env":{"ANTHROPIC_API_KEY":"sk-ant-test"}}""";
@@ -33,6 +38,7 @@ public sealed class DotEnvConfigTests {
         Cleanup();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LoadFrom_AzureKey_SetsProviderToAzure() {
         var json = """{"env":{"AZURE_OPENAI_API_KEY":"azure-key"}}""";
@@ -46,6 +52,7 @@ public sealed class DotEnvConfigTests {
         Cleanup();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LoadFrom_AgnesKey_SetsProviderToAgnes() {
         var json = """{"env":{"AGNES_API_KEY":"agnes-key"}}""";
@@ -59,6 +66,7 @@ public sealed class DotEnvConfigTests {
         Cleanup();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LoadFrom_AnthropicAuthToken_SetsProviderToAnthropic() {
         var json = """{"env":{"ANTHROPIC_AUTH_TOKEN":"auth-token-123"}}""";
@@ -72,6 +80,7 @@ public sealed class DotEnvConfigTests {
         Cleanup();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LoadFrom_JccVendor_OverridesInferredProvider() {
         var json = """{"env":{"OPENAI_API_KEY":"sk-test","JCC_VENDOR":"anthropic"}}""";
@@ -84,6 +93,7 @@ public sealed class DotEnvConfigTests {
         Cleanup();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LoadFrom_AzureEndpoint_SetsEndpoint() {
         var json = """{"env":{"AZURE_OPENAI_API_KEY":"azure-key","AZURE_OPENAI_ENDPOINT":"https://my.openai.azure.com"}}""";
@@ -96,6 +106,7 @@ public sealed class DotEnvConfigTests {
         Cleanup();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LoadFrom_AnthropicBaseUrl_SetsEndpoint() {
         var json = """{"env":{"ANTHROPIC_API_KEY":"sk-ant","ANTHROPIC_BASE_URL":"https://custom.anthropic.com/v1"}}""";
@@ -108,6 +119,7 @@ public sealed class DotEnvConfigTests {
         Cleanup();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LoadFrom_JccModelId_SetsModelId() {
         var json = """{"env":{"OPENAI_API_KEY":"sk-test","JCC_MODEL_ID":"gpt-4.1"}}""";

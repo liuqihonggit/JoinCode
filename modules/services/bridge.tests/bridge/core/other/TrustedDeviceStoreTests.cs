@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Bridge.Tests;
 
 /// <summary>
@@ -39,6 +38,7 @@ public sealed class TrustedDeviceStoreTests {
         result.DeviceName.Should().Be("Test Device");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetAsync_ShouldReturnDevice_WhenExists() {
         // Arrange
@@ -108,6 +108,7 @@ public sealed class TrustedDeviceStoreTests {
         result.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RevokeAsync_ShouldMarkDeviceAsRevoked() {
         // Arrange

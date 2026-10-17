@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Guard.Security.Tests;
 
 /// <summary>
@@ -166,6 +165,7 @@ public class GitCommandCatalogTests {
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Deterministic")]
     public void ReadOnlyCommandDetector_SafeGitSubcommands_Should_Delegate_To_SafeSubcommands() {
@@ -179,6 +179,7 @@ public class GitCommandCatalogTests {
             "SafeGitSubcommands 应委托 GitCommandCatalog.SafeSubcommands(同一引用)");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Deterministic")]
     public void ReadOnlyCommandDetector_DangerousGitSubcommands_Should_Delegate_To_DangerousSubcommands() {

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 // JCC10009 抑制: 存量元组 key, 后续改为字符串 key
 #pragma warning disable JCC10009
 namespace Core.Memdir;
@@ -106,14 +105,15 @@ internal sealed class TeamMemoryPathStore {
     /// 从 .jcc/memory/team-paths.json 加载团队路径(若存在且尚未加载)。Interlocked 保证只执行一次。
     /// </summary>
     private async Task EnsureTeamPathsLoadedAsync(CancellationToken ct) {
-        if (_fs is null || Interlocked.CompareExchange(ref _teamPathsLoaded, 1, 0) != 0) return;
+        var fs = _fs;
+        if (fs is null || Interlocked.CompareExchange(ref _teamPathsLoaded, 1, 0) != 0) return;
 
         try {
-            var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs!);
+            var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, fs);
             if (root is null) return;
-            var path = _fs.CombinePath(_fs.CombinePath(root, TeamPathsSubDir), TeamPathsFileName);
-            if (!_fs.FileExists(path)) return;
-            var json = await _fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
+            var path = fs.CombinePath(fs.CombinePath(root, TeamPathsSubDir), TeamPathsFileName);
+            if (!fs.FileExists(path)) return;
+            var json = await fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
             var list = RelaxedJsonSerializer.Deserialize<List<TeamMemoryPath>>(json, MemdirJsonContext.Default);
             if (list is null) return;
             foreach (var tp in list) {

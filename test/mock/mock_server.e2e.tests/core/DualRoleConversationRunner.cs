@@ -1,10 +1,13 @@
 // JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC1017, JCC11003
+#pragma warning disable JCC1017
 namespace MockServer.E2E.Tests.Core;
 
 // 测试运行器需要启动真实进程和访问文件系统路径
-#pragma warning disable JCC9001, JCC9002
+#pragma warning disable JCC9002
+
+[SuppressMessage("FileSystemAbstraction", "JCC9001", Justification = "E2E 对话运行器需直接访问文件系统管理测试产物")]
+
 public sealed class DualRoleConversationRunner : IAsyncDisposable {
     private readonly ILogger<DualRoleConversationRunner> _logger;
     private readonly IFileSystem _fs;
@@ -170,6 +173,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
         return result;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<ConversationResult> RunNonInteractiveAsync(ConversationScript script, CancellationToken ct) {
         var turnRecords = new List<ConversationTurnRecord>();
         var assertResults = new List<AssertResult>();
@@ -284,6 +288,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
     /// <summary>
     /// 等待 NonInteractive 模式输出 — 监听 [AI对话结束] 标记或进程退出
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<string> WaitForNonInteractiveOutputAsync(TimeSpan timeout, CancellationToken ct) {
         var startTime = DateTime.UtcNow;
         var seenDone = false;
@@ -355,6 +360,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
     /// 进程退出后轮询等待 stdout pipe 刷新 — CI 环境 pipe flush 可能 &gt;300ms,固定等待会误判无输出。
     /// 轮询直到输出非空或超时,兼顾快速通过和 CI 调度容忍。
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<string> WaitForOutputAfterExitAsync(TimeSpan pollTimeout, CancellationToken ct) {
         var deadline = DateTime.UtcNow + pollTimeout;
         while (DateTime.UtcNow < deadline) {
@@ -419,6 +425,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<ConversationResult> RunInteractiveAsync(ConversationScript script, CancellationToken ct) {
         var turnRecords = new List<ConversationTurnRecord>();
         var assertResults = new List<AssertResult>();
@@ -521,6 +528,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<string> WaitForStableOutputAsync(TimeSpan timeout, CancellationToken ct, int turnIndex = 0, int totalTurns = 0) {
         var startTime = DateTime.UtcNow;
         var lastChangeTime = DateTime.UtcNow;
@@ -653,6 +661,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
     /// 等待 jcc.exe 进程就绪 — 监听 stderr 中的 [READY] 标记
     /// jcc.exe 在 ReplLoopStep/NonInteractiveExecuteStep 就绪时输出 [READY] 到 stderr
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task WaitForProcessReadyAsync(CancellationToken ct) {
         var timeout = TimeSpan.FromSeconds(60);
         var startTime = DateTime.UtcNow;

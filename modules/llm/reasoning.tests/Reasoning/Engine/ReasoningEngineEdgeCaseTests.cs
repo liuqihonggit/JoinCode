@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Reasoning.Tests.Engine;
 
 public sealed class ReasoningEngineEdgeCaseTests {
@@ -273,6 +272,7 @@ public sealed class ReasoningEngineEdgeCaseTests {
         return new ReasoningEngine(agents, NullLogger<ReasoningEngine>.Instance, options);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static async Task RunApplyVerdicts(ReasoningEngine engine, IReadOnlyList<Verdict> verdicts) {
         var method = typeof(ReasoningEngine).GetMethod("ApplyVerdicts", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         method!.Invoke(engine, [verdicts]);

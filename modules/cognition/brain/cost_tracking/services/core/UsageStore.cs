@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.CostTracking;
 
 /// <summary>
@@ -25,6 +24,7 @@ internal sealed class UsageStore {
     }
 
     /// <summary>添加用量记录 — 无锁原子追加到主列表 + 3 个冗余索引</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public void Add(TokenUsageRecord record) {
         ImmutableInterlocked.Update(ref _usageRecords, static (list, r) => list.Add(r), record);
         ImmutableInterlocked.Update(ref _bySessionId, static (dict, r) => {

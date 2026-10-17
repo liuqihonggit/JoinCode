@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace McpToolRegistry.Tests;
 
 public class ToolCacheKeysTests {
@@ -44,12 +43,14 @@ public class ToolCacheManagerTests {
         return new WorkflowConfig { ToolExecution = new ToolExecutionSettings { ToolCacheExpirationMinutes = 30 } };
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullCache_Throws() {
         var act = () => new ToolCacheManager(null!, _config);
         act.Should().Throw<ArgumentNullException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullConfig_Throws() {
         var act = () => new ToolCacheManager(_cache, null!);

@@ -2,13 +2,13 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-#pragma warning disable JCC9001 // 豁免理由：BOM 检测需字节级精确控制（IFileSystem 不提供 ReadAllBytes/字节级 BOM 写入），测试用临时目录隔离
 
 namespace JccAuditCli.Tests;
 
 /// <summary>
 /// BomStripper 的单元测试 — 验证 UTF-8 BOM 检测与移除逻辑
 /// </summary>
+[SuppressMessage("FileSystemAbstraction", "JCC9001", Justification = "BOM 检测需字节级精确控制(IFileSystem 不提供 ReadAllBytes/字节级 BOM 写入)")]
 public sealed class BomStripperTests {
     /// <summary>
     /// 创建临时测试目录，返回目录路径，测试结束后自动清理

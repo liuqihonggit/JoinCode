@@ -1,6 +1,6 @@
-#pragma warning disable JCC9001, JCC9002
+#pragma warning disable JCC9002
+
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.CodeIndex.Tests;
 
 public sealed class GraphAnalyticsTests : IDisposable {
@@ -367,16 +367,19 @@ public sealed class GraphAnalyticsTests : IDisposable {
         Assert.Equal(3, levels.Count);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task QueryAsync_NullQuery_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() => _analytics.QueryAsync(null!, 10, CancellationToken.None)).ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FindPathAsync_NullFrom_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() => _analytics.FindPathAsync(null!, "B", CancellationToken.None)).ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExplainAsync_NullSymbolName_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() => _analytics.ExplainAsync(null!, CancellationToken.None)).ConfigureAwait(true);
@@ -732,6 +735,7 @@ public sealed class GraphAnalyticsTests : IDisposable {
 
     // ============ SearchBidirectionalBfs (拆分子方法确定性测试) ============
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SearchBidirectionalBfs_DirectCall_ReturnsPredecessorWithTarget() {
         InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
@@ -747,6 +751,7 @@ public sealed class GraphAnalyticsTests : IDisposable {
         Assert.Equal("B", edge.CalleeSymbol);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SearchBidirectionalBfs_TwoHopPath_RecordsBothPredecessors() {
         InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
@@ -763,6 +768,7 @@ public sealed class GraphAnalyticsTests : IDisposable {
         Assert.Equal("B", predecessor["C"].FromSymbol);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SearchBidirectionalBfs_ReverseDirection_FindsPathViaCallerEdges() {
         // A→B 正向边;从 C 出发无正向边,但 B→A 反向追溯应能找到
@@ -809,6 +815,7 @@ public sealed class GraphAnalyticsTests : IDisposable {
         Assert.Null(predecessor);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SearchBidirectionalBfs_DiamondGraph_FindsShortestPath() {
         // 菱形: A→B, A→C, B→D, C→D;从 A 到 D 应找到长度 2 路径
@@ -900,6 +907,7 @@ public sealed class GraphAnalyticsTests : IDisposable {
 
     // ============ FindPathAsync 拆分后编排一致性 ============
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FindPathAsync_Orchestration_MatchesBfsPlusRebuild() {
         // 验证主方法 = SearchBidirectionalBfs + RebuildPath 的组合

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JccAuditCli;
 
 /// <summary>
@@ -10,6 +9,7 @@ public static class AsyncIssueFixer {
     /// <summary>
     /// 加载解决方案，用语义模型检测并修复所有异步相关问题
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public static async Task<(int FixedFiles, int FixedIssues, int SkippedFiles)> FixAllAsync(
         string solutionPath, bool dryRun, CancellationToken ct = default) {
 
@@ -97,6 +97,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         _isTestFile = normalized.Contains(".tests/") || normalized.Contains("/test/");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public override SyntaxNode? VisitLocalDeclarationStatement(LocalDeclarationStatementSyntax node) {
         // 修复4：using → await using（用原始 node 查询 SemanticModel）
         // 只在 async 方法中加 await using（非 async 方法加 await using 会编译失败）
@@ -110,6 +111,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         return base.VisitLocalDeclarationStatement(node);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public override SyntaxNode? VisitUsingStatement(UsingStatementSyntax node) {
         // 修复4：using → await using（用原始 node 查询 SemanticModel）
         // 只在 async 方法中加 await using

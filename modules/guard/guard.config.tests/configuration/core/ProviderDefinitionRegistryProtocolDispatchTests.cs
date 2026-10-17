@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Guard.Tests.Configuration;
 
 /// <summary>
@@ -36,6 +35,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
 
     #region 分派到新通用类验证
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void DeepSeek_WithAnthropicProtocol_ShouldDispatchToAnthropicCompatible_VendorPreserved() {
         var json = """{"vendor":{"deepseek":{"protocol":"anthropic","endpoint":"https://api.deepseek.com/anthropic","apiKeyEnvVar":"DEEPSEEK_API_KEY"}}}""";
@@ -50,6 +50,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
         def.ProviderName.Should().Be("deepseek");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void DeepSeek_WithAnthropicProtocol_EndpointShouldBeFromConfig() {
         var json = """{"vendor":{"deepseek":{"protocol":"anthropic","endpoint":"https://api.deepseek.com/anthropic","apiKeyEnvVar":"DEEPSEEK_API_KEY"}}}""";
@@ -65,6 +66,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
 
     #region anthropic-beta 头可配置验证(配置大于代码)
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void DeepSeek_WithAnthropicProtocol_AndAnthropicBetaConfigured_ShouldSendBetaHeader() {
         var json = """{"vendor":{"deepseek":{"protocol":"anthropic","endpoint":"https://api.deepseek.com/anthropic","apiKeyEnvVar":"DEEPSEEK_API_KEY","anthropicBeta":"prompt-caching-2024-07-31"}}}""";
@@ -79,6 +81,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
             "用户配置的 anthropicBeta 原样发送,配置大于代码");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void DeepSeek_WithAnthropicProtocol_WithoutAnthropicBeta_ShouldNotSendBetaHeader() {
         var json = """{"vendor":{"deepseek":{"protocol":"anthropic","endpoint":"https://api.deepseek.com/anthropic","apiKeyEnvVar":"DEEPSEEK_API_KEY"}}}""";
@@ -92,6 +95,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
             "DeepSeek 未配 beta 时不发,避免不支持的 Anthropic beta 特性导致 400");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Anthropic_WithAnthropicProtocol_WithoutBetaConfig_ShouldSendDefaultBetaHeader() {
         var json = """{"vendor":{"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY"}}}""";
@@ -106,6 +110,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
         values!.First().Should().NotBeNullOrEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Anthropic_WithAnthropicProtocol_AndBetaConfigured_ShouldUseConfiguredBeta() {
         var json = """{"vendor":{"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY","anthropicBeta":"custom-beta-feature"}}}""";
@@ -124,6 +129,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
 
     #region OpenAI 兼容协议路径不破坏验证
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void DeepSeek_WithOpenAiCompatibleProtocol_ShouldStillDispatchToOpenAiCompatible() {
         var json = """{"vendor":{"deepseek":{"protocol":"openai-compatible","apiKeyEnvVar":"DEEPSEEK_API_KEY"}}}""";
@@ -136,6 +142,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
             "OpenAI 兼容协议路径不变,不破坏现有行为");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Anthropic_WithOpenAiCompatibleProtocol_ShouldDispatchToOpenAiCompatible() {
         var json = """{"vendor":{"anthropic":{"protocol":"openai-compatible","apiKeyEnvVar":"ANTHROPIC_API_KEY"}}}""";
@@ -162,6 +169,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
             "settings.json 未配 azure 时不应注册,配置驱动无硬编码兜底");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Azure_WithAzureProtocol_ShouldUseAzureProviderDefinition() {
         var json = """{"vendor":{"azure":{"protocol":"azure","endpoint":"https://my-azure-proxy.com","apiKeyEnvVar":"AZURE_OPENAI_API_KEY"}}}""";
@@ -174,6 +182,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
         def.ProviderName.Should().Be("azure");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Azure_WithResponsesProtocol_ShouldUseOpenAiCompatibleWithResponsesEndpoint() {
         var json = """{"vendor":{"azure":{"protocol":"responses","endpoint":"https://my-azure-proxy.com","apiKeyEnvVar":"AZURE_OPENAI_API_KEY"}}}""";

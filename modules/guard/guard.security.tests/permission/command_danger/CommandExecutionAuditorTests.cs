@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Guard.Security.Tests;
 
 /// <summary>
@@ -107,6 +106,7 @@ public class CommandExecutionAuditorTests {
 
     #region null 守卫
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullFileSystem_ThrowsArgumentNullException() {
         var act = () => new CommandExecutionAuditor(null!);
@@ -114,6 +114,7 @@ public class CommandExecutionAuditorTests {
             .Which.ParamName.Should().Be("fs");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Record_NullEntry_ThrowsArgumentNullException() {
         await using var fs = new InMemoryFileSystem();

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Llm.Tests.Adapters.LLM.QueryServices;
 
 
@@ -197,6 +196,7 @@ public class FallbackProviderDefinitionTests {
 
     #region ConfigureHttpClient
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConfigureHttpClient_OpenAI_AddsBearerAuthorization() {
         var definition = new FallbackProviderDefinition(ProtocolKind.OpenAiCompatible);
@@ -269,6 +269,7 @@ public class FallbackProviderDefinitionTests {
         definition.IsValid(config).Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("")]
     [InlineData("   ")]

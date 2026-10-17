@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Bridge.Tests.Phase7D;
 
 public sealed class BridgeMainArgsTests {
@@ -56,6 +55,7 @@ public sealed class BridgeMainArgsTests {
         Assert.Equal("/tmp/bridge.log", result.DebugFile);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Parse_DebugFile_MissingValue_ReturnsError() {
         var result = BridgeMainArgsParser.Parse([JccCliArgEnumConstants.DebugFile]);
@@ -133,6 +133,7 @@ public sealed class BridgeMainArgsTests {
         Assert.Equal(BridgeSpawnMode.Worktree, result.SpawnMode);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Parse_SpawnInvalid_ReturnsError() {
         var result = BridgeMainArgsParser.Parse([JccCliArgEnumConstants.Spawn, "invalid"]);
@@ -228,6 +229,7 @@ public sealed class BridgeMainArgsTests {
 
     #region Parse — 交叉验证
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Parse_CapacityWithSpawnSession_ReturnsError() {
         var result = BridgeMainArgsParser.Parse([JccCliArgEnumConstants.Capacity, "3", JccCliArgEnumConstants.Spawn, "session"]);
@@ -243,6 +245,7 @@ public sealed class BridgeMainArgsTests {
         Assert.Equal(BridgeSpawnMode.SameDir, result.SpawnMode);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Parse_SessionIdWithSpawn_ReturnsError() {
         var result = BridgeMainArgsParser.Parse([JccCliArgEnumConstants.SessionId, "cse_123", JccCliArgEnumConstants.Spawn, "same-dir"]);
@@ -250,6 +253,7 @@ public sealed class BridgeMainArgsTests {
         Assert.Contains("session-id", result.Error!);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Parse_ContinueWithCapacity_ReturnsError() {
         var result = BridgeMainArgsParser.Parse([JccCliArgEnumConstants.Continue, JccCliArgEnumConstants.Capacity, "3"]);
@@ -257,6 +261,7 @@ public sealed class BridgeMainArgsTests {
         Assert.Contains("continue", result.Error!);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Parse_SessionIdWithContinue_ReturnsError() {
         var result = BridgeMainArgsParser.Parse([JccCliArgEnumConstants.SessionId, "cse_123", JccCliArgEnumConstants.Continue]);

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace McpToolRegistry.Tests;
 
 public class RequiredParamsMiddlewareTests {
@@ -53,6 +52,7 @@ public class RequiredParamsMiddlewareTests {
         context.Result.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_MissingRequired_SetsErrorResult() {
         await using var middleware = new RequiredParamsMiddleware(_logger);
@@ -99,6 +99,7 @@ public class RequiredParamsMiddlewareTests {
         nextCalled.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_MissingWithDefault_StillReportsMissing() {
         await using var middleware = new RequiredParamsMiddleware(_logger);
@@ -120,6 +121,7 @@ public class RequiredParamsMiddlewareTests {
         text.Should().Contain("timeout");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_MissingParamNotInProperties_ReportsUnknown() {
         await using var middleware = new RequiredParamsMiddleware(_logger);

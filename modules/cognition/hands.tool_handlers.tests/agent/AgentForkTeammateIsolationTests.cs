@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Hands.ToolHandlers.Tests;
 
 /// <summary>
@@ -7,6 +6,7 @@ namespace Hands.ToolHandlers.Tests;
 /// 缺陷修复验证(TASK002): Teammate 未显式传 isolation 时应通过 WorktreeDecisionPolicy 决策
 /// </summary>
 public sealed class AgentForkTeammateIsolationTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Teammate_NoExplicitIsolation_UsesWorktreeDecisionPolicy() {
         InProcessTeammateDefinition? capturedDefinition = null;
@@ -26,6 +26,7 @@ public sealed class AgentForkTeammateIsolationTests {
             "未显式传 isolation 时应通过 WorktreeDecisionPolicy.Decide(true, Teammate) 决策为 Worktree");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Teammate_ExplicitWorktree_Isolation_OverridesDecisionPolicy() {
         InProcessTeammateDefinition? capturedDefinition = null;
@@ -44,6 +45,7 @@ public sealed class AgentForkTeammateIsolationTests {
             "显式传 isolation=worktree 应优先于决策策略");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Teammate_ExplicitNone_Isolation_OverridesDecisionPolicy() {
         InProcessTeammateDefinition? capturedDefinition = null;
@@ -62,6 +64,7 @@ public sealed class AgentForkTeammateIsolationTests {
             "显式传 isolation=none 应优先于决策策略");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Teammate_NoDecisionPolicy_FallsBackToNone() {
         InProcessTeammateDefinition? capturedDefinition = null;
@@ -78,6 +81,7 @@ public sealed class AgentForkTeammateIsolationTests {
             "无 WorktreeDecisionPolicy 时应 fallback 到 None");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Teammate_WorktreeDisabled_GlobalSwitch_ReturnsNone() {
         InProcessTeammateDefinition? capturedDefinition = null;

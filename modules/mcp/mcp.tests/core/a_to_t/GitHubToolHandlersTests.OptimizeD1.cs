@@ -1,9 +1,9 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Mcp.Tests;
 
 public sealed partial class GitHubToolHandlersTests {
     /// <summary>优化D1: 默认模式(无 expand 无 log)run 失败时,首次调用就置顶失败 job 列表+"尚未拉取"提示</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RunView_Default_FailureRun_ShowsFailedJobsAndNotFetchedHint() {
         var runDetail = """{"id":42,"run_number":755,"status":"completed","conclusion":"failure","display_title":"CI","event":"push","head_branch":"main","head_sha":"abc1234","html_url":"https://github.com/o/r/actions/runs/42","created_at":"2026-10-08T10:00:00Z","updated_at":"2026-10-08T10:05:30Z"}""";
@@ -30,6 +30,7 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     /// <summary>优化D1: 默认模式 run 成功时,不附加 job 列表(保持简洁)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RunView_Default_SuccessRun_DoesNotShowJobList() {
         var runDetail = """{"id":42,"run_number":755,"status":"completed","conclusion":"success","display_title":"CI","event":"push","head_branch":"main","head_sha":"abc1234","html_url":"https://github.com/o/r/actions/runs/42","created_at":"2026-10-08T10:00:00Z","updated_at":"2026-10-08T10:05:30Z"}""";
@@ -48,6 +49,7 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     /// <summary>优化D1: 默认模式 run 进行中时,附加 job 状态概览+"尚未拉取"提示</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RunView_Default_InProgressRun_ShowsJobStatusAndHint() {
         var runDetail = """{"id":42,"run_number":755,"status":"in_progress","conclusion":null,"display_title":"CI","event":"push","head_branch":"main","head_sha":"abc1234","html_url":"https://github.com/o/r/actions/runs/42","created_at":"2026-10-08T10:00:00Z","updated_at":"2026-10-08T10:05:30Z"}""";
@@ -68,6 +70,7 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     /// <summary>优化D1: 默认模式 verbosity=2(完整JSON)时不附加 job 列表(保持原始 JSON)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RunView_Default_Verbosity2_FailureRun_DoesNotAppendJobs() {
         var runDetail = """{"id":42,"run_number":755,"status":"completed","conclusion":"failure","display_title":"CI"}""";

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿
 namespace Bridge.Tests;
 
@@ -119,6 +118,7 @@ public sealed class BridgeIntegrationTests {
 
     #region BridgeClient + JwtService
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task BridgeClient_GeneratesJwtTokenOnStart() {
         await using var jwtService = new BridgeJwtService(new BridgeConfig { JwtSecretKey = "test-secret-key-for-integration-test" }, NullLogger.Instance);
@@ -327,6 +327,7 @@ public sealed class BridgeIntegrationTests {
         routedMessages[0].Type.Should().Be("peer_message");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task BridgeServer_PeerSessionConnectedEvent() {
         // Arrange

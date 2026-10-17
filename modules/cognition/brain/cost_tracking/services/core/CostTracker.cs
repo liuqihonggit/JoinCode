@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.CostTracking;
 
 /// <summary>
@@ -219,6 +218,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker {
 
     private decimal CalculateCost(string model, int promptTokens, int completionTokens, int cacheCreationTokens = 0, int cacheReadTokens = 0) => _pricing.CalculateCost(model, promptTokens, completionTokens, cacheCreationTokens, cacheReadTokens);
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     internal CostStatistics CalculateStatistics(IReadOnlyList<TokenUsageRecord> records) {
         if (records.Count == 0) {
             return new CostStatistics();

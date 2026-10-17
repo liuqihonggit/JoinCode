@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Planning;
 
 /// <summary>
@@ -136,6 +135,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// <summary>
     /// 进入计划模式
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public async Task<PlanOperationResult> EnterPlanModeAsync(
         string? description = null,
         List<PlanStepInput>? initialSteps = null,

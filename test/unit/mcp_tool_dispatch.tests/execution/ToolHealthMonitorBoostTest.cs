@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 
 namespace McpToolDispatch.Tests.Execution;
 
@@ -7,7 +6,9 @@ namespace McpToolDispatch.Tests.Execution;
 /// GAP-041-05 主动加热冷工具单元测试 — 验证 BoostToolAsync / HeatColdToolsAsync / boost TTL / GetEffectiveScore 含 boost
 /// </summary>
 public sealed class ToolHealthMonitorBoostTest : IAsyncLifetime {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private InMemoryFileSystem _fs = null!;
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private ToolHealthMonitor _monitor = null!;
 
     public Task InitializeAsync() {
@@ -60,6 +61,7 @@ public sealed class ToolHealthMonitorBoostTest : IAsyncLifetime {
         record.IsBoostActive.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task IsBoostActive_FalseWhenBoostExpired() {
         var record = await _monitor.BoostToolAsync("tool_a", 20, TimeSpan.FromMilliseconds(1));
@@ -68,6 +70,7 @@ public sealed class ToolHealthMonitorBoostTest : IAsyncLifetime {
         fresh!.IsBoostActive.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task IsBoostActive_FalseWhenNoBoost() {
         await _monitor.RecordSuccessAsync("tool_a");
@@ -75,6 +78,7 @@ public sealed class ToolHealthMonitorBoostTest : IAsyncLifetime {
         record!.IsBoostActive.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task HeatColdToolsAsync_HeatsToolsBelowThreshold() {
         for (var i = 0; i < 5; i++)
@@ -121,6 +125,7 @@ public sealed class ToolHealthMonitorBoostTest : IAsyncLifetime {
         heatedCount.Should().BeGreaterThanOrEqualTo(1);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ApplyTimeDecay_ClearsExpiredBoost() {
         await _monitor.RecordSuccessAsync("tool_a");

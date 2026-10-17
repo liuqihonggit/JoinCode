@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
@@ -75,6 +74,7 @@ public class NetworkMailboxTest {
     }
 
     /// <summary>验证适配器收到消息后投递到对应 Agent</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task 适配器收到消息_应投递到对应Agent() {
         var adapter = new MockPlatformBotAdapter("test");

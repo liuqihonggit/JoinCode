@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace JoinCode.Agents.Tests.Worktree;
 
 /// <summary>
@@ -185,6 +184,7 @@ public class WorktreeMiddlewareOrderAgnosticTests {
     /// SessionSaveMiddleware 在 WorktreePath 为空时(模拟排在 Create 之前执行),
     /// 通过 Enricher 自给自足填充 WorktreePath,不会保存空路径的会话
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SessionSaveMiddleware_EmptyWorktreePath_AutoEnrichesBeforeSaving() {
         var fs = new InMemoryFileOperationService();

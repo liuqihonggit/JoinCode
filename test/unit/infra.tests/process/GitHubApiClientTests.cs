@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infra.Tests.Process;
 
 /// <summary>
@@ -90,6 +89,7 @@ public sealed class GitHubApiClientTest : IDisposable {
         result.Error.Should().Be("Validation Failed");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SendAsync_SetsAuthorizationBearerHeader() {
         _handler.Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };
@@ -110,6 +110,7 @@ public sealed class GitHubApiClientTest : IDisposable {
         await act.Should().ThrowAsync<ConfigurationException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SendAsync_FallsBackToGITHUB_TOKEN_WhenJCCMissing() {
         using var env = EnvVarScope.Set("JCC_GITHUB_TOKEN", null).Add("GITHUB_TOKEN", "fallback-token");
@@ -120,6 +121,7 @@ public sealed class GitHubApiClientTest : IDisposable {
         _handler.LastRequest!.Headers.Authorization!.Parameter.Should().Be("fallback-token");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SendAsync_QueryParameters_AppendedToUrl() {
         _handler.Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };

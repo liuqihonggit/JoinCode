@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace McpToolRegistry.Tests;
 
 /// <summary>
@@ -88,6 +87,7 @@ public class GitCommitConstraintHidingMiddlewareTest {
 
     #region InvokeAsync 行为
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_ConstraintEcho_DeniesExecution() {
         await using var middleware = new GitCommitConstraintHidingMiddleware();
@@ -166,6 +166,7 @@ public class GitCommitConstraintHidingMiddlewareTest {
         nextCalled.Should().BeTrue("message 参数缺失不构成约束回显，应放行");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_ConstraintEcho_WithinCooldown_DeniesWithShortReason() {
         // 预先激活冷却，使 ShouldTrigger 返回 false → 进入 else 分支（短提示）
@@ -188,6 +189,7 @@ public class GitCommitConstraintHidingMiddlewareTest {
         text.Should().Contain("已提示过", "冷却内应使用短提示文本");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_ConstraintEcho_FirstTrigger_DeniesWithFullReason() {
         // 反射清空冷却状态，确保首次触发 → if 分支（完整拒绝原因）

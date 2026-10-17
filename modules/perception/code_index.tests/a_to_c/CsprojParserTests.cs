@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.CodeIndex.Tests;
 
 public sealed class CsprojParserTests : IDisposable {
@@ -149,11 +148,13 @@ public sealed class CsprojParserTests : IDisposable {
         Assert.Empty(result.ProjectReferences);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Parse_NullFilePath_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await CsprojParser.ParseAsync(null!, _fs, ""));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Parse_NullFileSystem_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(async () => await CsprojParser.ParseAsync("test.csproj", null!, ""));

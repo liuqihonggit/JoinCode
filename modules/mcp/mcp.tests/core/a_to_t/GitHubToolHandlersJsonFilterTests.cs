@@ -1,11 +1,11 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Mcp.Tests;
 
 /// <summary>
 /// --json 精确字段选择测试 — 验证 FilterJsonFields 在各命令中的行为
 /// </summary>
 public sealed partial class GitHubToolHandlersTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PrList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"number":1,"title":"bug","state":"open","body":"text","url":"https://x"}]""" };
@@ -20,6 +20,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"body\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PrList_WithJson_SearchApi_FiltersItemsArray() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":1,"items":[{"number":2,"title":"feat","state":"closed","body":"x"}]}""" };
@@ -33,6 +34,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"state\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task IssueList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"number":5,"title":"issue","state":"open","body":"desc"}]""" };
@@ -46,6 +48,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"state\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RunList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflow_runs":[{"id":123,"status":"completed","conclusion":"success","head_sha":"abc"}]}""" };
@@ -59,6 +62,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"conclusion\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ReleaseList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"id":1,"tag_name":"v1","name":"Release 1","draft":false}]""" };
@@ -72,6 +76,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"name\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task LabelList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"id":1,"name":"bug","color":"d73a4a","description":"Bug"}]""" };
@@ -85,6 +90,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"color\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task WorkflowList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"workflows":[{"id":42,"name":"CI","state":"active","path":".github/workflows/ci.yml"}]}""" };
@@ -98,6 +104,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"state\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PrView_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":7,"title":"pr","state":"open","body":"text","mergeable":true}""" };
@@ -112,6 +119,7 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     /// <summary>gh CLI 平铺字段别名: headRefName→head.ref, headRefOid→head.sha, baseRefName→base.ref, baseRefOid→base.sha</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PrView_WithJson_HeadRefName_FlattensNestedField() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":7,"title":"pr","state":"open","head":{"ref":"feature-branch","sha":"abc123"},"base":{"ref":"main","sha":"def456"}}""" };
@@ -126,6 +134,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().Contain("\"baseRefOid\":\"def456\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task IssueView_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":3,"title":"issue","state":"open","body":"desc"}""" };
@@ -139,6 +148,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"state\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RepoView_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"name":"repo","full_name":"owner/repo","description":"test","private":false}""" };
@@ -152,6 +162,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"description\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RepoList_WithJson_ReturnsCustomFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"name":"r1","full_name":"o/r1","language":"C#","fork":false}]""" };
@@ -165,6 +176,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"full_name\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SecretList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":1,"secrets":[{"name":"K","created_at":"2026-01-01"}]}""" };
@@ -177,6 +189,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"created_at\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task VariableList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":1,"variables":[{"name":"V","value":"x","updated_at":"2026-01-01"}]}""" };
@@ -190,6 +203,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"updated_at\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task OrgList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"login":"org","description":"d"}]""" };
@@ -202,6 +216,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"description\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SshKeyList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"id":1,"title":"k","key":"ssh-..."}]""" };
@@ -215,6 +230,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"key\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SearchRepos_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"total_count":1,"items":[{"full_name":"o/r","stargazers_count":5,"description":"d"}]}""" };
@@ -227,6 +243,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"stargazers_count\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GistList_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"id":"abc","description":"d","public":false}]""" };
@@ -239,6 +256,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"description\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RunView_WithJson_ReturnsFilteredFields() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123}""" });
@@ -254,6 +272,7 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     /// <summary>expand=jobs + json_fields 应对 job 列表过滤字段,而非 run 本身</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RunView_ExpandJobs_WithJson_FiltersJobFields() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":123}""" });
@@ -268,6 +287,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().Contain("\"conclusion\":\"failure\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ReleaseView_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":1,"tag_name":"v1","name":"Release 1","draft":false}""" };
@@ -281,6 +301,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"name\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task WorkflowView_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":42,"name":"CI","state":"active","path":".github/workflows/ci.yml"}""" };
@@ -294,6 +315,7 @@ public sealed partial class GitHubToolHandlersTests {
         text.Should().NotContain("\"state\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GistView_WithJson_ReturnsFilteredFields() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":"abc","description":"d","public":false}""" };

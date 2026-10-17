@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Agents.Tests.Unit.Agents;
 
 
@@ -10,6 +9,7 @@ namespace Core.Agents.Tests.Unit.Agents;
 public sealed class BedrockModelHelperTests {
     #region IsFoundationModel
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("anthropic.claude-sonnet-4-5-20250929-v1:0", true)]
     [InlineData("anthropic.claude-opus-4-6-v1", true)]
@@ -75,6 +75,7 @@ public sealed class BedrockModelHelperTests {
             .Should().Be("global");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("anthropic.claude-3-5-sonnet-20241022-v2:0", null)]
     [InlineData("claude-sonnet-4-5-20250929", null)]

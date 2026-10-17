@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
@@ -8,6 +7,7 @@ namespace Core.Utils;
 /// </summary>
 public class DoubleTellIdempotencyTest {
     /// <summary>首次发送命令 → 执行 HandleAsync → 缓存结果 → 调用 OnSuccess 回调</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FirstSend_ExecutesHandleAsync_CachesResult_InvokesOnSuccess() {
         await using var actor = new IdempotentTestActor();

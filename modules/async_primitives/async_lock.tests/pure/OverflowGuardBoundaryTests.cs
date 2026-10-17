@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
@@ -93,6 +92,7 @@ public class AsyncLockTryLockTimeSpanClampTests {
         await act.Should().NotThrowAsync();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryLock_with_negative_timeout_treated_as_nonblocking() {
         // 原实现 (int)负数 = 负数,SemaphoreSlim.Wait 抛 ArgumentOutOfRangeException

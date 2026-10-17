@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Vision.Tests;
 
 /// <summary>
@@ -66,6 +65,7 @@ public sealed class QuadtreeDesktopOverlayMapperTests {
         result[0].Alpha.Should().Be(0.0);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void MapToScreen_NullGrid_ThrowsArgumentNullException() {
         var act = () => _mapper.MapToScreen(null!, 0, 0);

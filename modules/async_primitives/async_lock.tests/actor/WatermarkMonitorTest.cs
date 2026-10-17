@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
@@ -11,6 +10,7 @@ public class WatermarkMonitorTest {
         => new(new ActorBackpressure(Capacity: capacity, HighWatermark: high, CriticalWatermark: critical));
 
     /// <summary>首次到达高水位线 → 触发 High 事件</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void FirstHighWatermark_TriggersHighEvent() {
         var monitor = NewMonitor();
@@ -37,6 +37,7 @@ public class WatermarkMonitorTest {
     }
 
     /// <summary>首次到达危险水位线 → 触发 Critical 事件</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void FirstCriticalWatermark_TriggersCriticalEvent() {
         var monitor = NewMonitor();
@@ -73,6 +74,7 @@ public class WatermarkMonitorTest {
     }
 
     /// <summary>回落到 Normal → 重置防抖状态 → 再次 High 可触发</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void NormalWatermark_ResetsState_AllowsRetrigger() {
         var monitor = NewMonitor();
@@ -89,6 +91,7 @@ public class WatermarkMonitorTest {
     }
 
     /// <summary>回落 Normal 后再次 Critical 可触发</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void NormalWatermark_ResetsState_AllowsCriticalRetrigger() {
         var monitor = NewMonitor();
@@ -102,6 +105,7 @@ public class WatermarkMonitorTest {
     }
 
     /// <summary>Reset 后可重新触发(测试与恢复场景)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Reset_AllowsRetrigger() {
         var monitor = NewMonitor();
@@ -125,6 +129,7 @@ public class WatermarkMonitorTest {
     }
 
     /// <summary>事件参数完整正确(ActorId/CurrentCount/Capacity/Level)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void EventArgs_ContainCorrectValues() {
         var monitor = NewMonitor(high: 5, critical: 10, capacity: 30);
@@ -146,6 +151,7 @@ public class WatermarkMonitorTest {
     }
 
     /// <summary>连续多次 Normal 调用保持重置状态(幂等)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void MultipleNormalCalls_IdempotentReset() {
         var monitor = NewMonitor();

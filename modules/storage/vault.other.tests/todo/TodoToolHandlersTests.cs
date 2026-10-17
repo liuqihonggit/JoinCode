@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Todo;
 
 public sealed class TodoToolHandlersTests {
@@ -31,6 +30,7 @@ public sealed class TodoToolHandlersTests {
         result.IsError.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TodoWriteAsync_EmptyContent_ReturnsError() {
         var sut = CreateSut();
@@ -48,6 +48,7 @@ public sealed class TodoToolHandlersTests {
         result.Diagnostic!.Details.Should().Contain(d => d.Key == "itemIndex" && d.Value == "0");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TodoWriteAsync_InvalidStatus_ReturnsError() {
         var sut = CreateSut();
@@ -66,6 +67,7 @@ public sealed class TodoToolHandlersTests {
         result.Diagnostic!.Details.Should().Contain(d => d.Key == "itemIndex" && d.Value == "0");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TodoWriteAsync_InvalidPriority_ReturnsError() {
         var sut = CreateSut();
@@ -104,6 +106,7 @@ public sealed class TodoToolHandlersTests {
         result.IsError.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TodoWriteAsync_ServiceFailure_ReturnsError() {
         var sut = CreateSut();
@@ -169,6 +172,7 @@ public sealed class TodoToolHandlersTests {
         result.GetTextContent().Should().NotContain("verification agent");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TodoListAsync_InvalidStatusFilter_ReturnsError() {
         var sut = CreateSut();
@@ -181,6 +185,7 @@ public sealed class TodoToolHandlersTests {
         result.Diagnostic!.Reason.Should().Be("InvalidStatusFilter");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TodoListAsync_InvalidPriorityFilter_ReturnsError() {
         var sut = CreateSut();
@@ -193,6 +198,7 @@ public sealed class TodoToolHandlersTests {
         result.Diagnostic!.Reason.Should().Be("InvalidPriorityFilter");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TodoListAsync_ServiceFailure_ReturnsError() {
         var sut = CreateSut();
@@ -241,6 +247,7 @@ public sealed class TodoToolHandlersTests {
         text.Should().Contain("(Doing task one)");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TodoUpdateAsync_EmptyId_ReturnsError() {
         var sut = CreateSut();
@@ -253,6 +260,7 @@ public sealed class TodoToolHandlersTests {
         result.Diagnostic!.Reason.Should().Be("EmptyTodoId");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TodoUpdateAsync_InvalidStatus_ReturnsError() {
         var sut = CreateSut();
@@ -266,6 +274,7 @@ public sealed class TodoToolHandlersTests {
         result.Diagnostic!.Details.Should().Contain(d => d.Key == "input" && d.Value == "unknown");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TodoUpdateAsync_InvalidPriority_ReturnsError() {
         var sut = CreateSut();
@@ -279,6 +288,7 @@ public sealed class TodoToolHandlersTests {
         result.Diagnostic!.Details.Should().Contain(d => d.Key == "input" && d.Value == "unknown");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TodoUpdateAsync_ServiceFailure_ReturnsError() {
         var sut = CreateSut();

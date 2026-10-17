@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Hands.Tests.Tools;
 
 public sealed class LocalToolRegistryTests : IAsyncDisposable {
@@ -41,6 +40,7 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable {
         count.Should().Be(1);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RegisterTool_ShouldBeRetrievable() {
         await _registry.RegisterToolAsync(CreateHandler("file_read", "Read file contents"));
@@ -62,6 +62,7 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable {
         registeredName.Should().Be("file_read");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RegisterTool_DuplicateName_ShouldOverwrite() {
         await _registry.RegisterToolAsync(CreateHandler("tool1", "v1"));
@@ -137,6 +138,7 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable {
         infos[0].Description.Should().Be("Read file contents");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetToolInfo_ShouldReturnCorrectInfo() {
         await _registry.RegisterToolAsync(CreateHandler("git_operations", "Git operations tool"));
@@ -205,6 +207,7 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable {
         fired.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RegisterTool_WithDelegateOverload_ShouldWork() {
         await _registry.RegisterToolAsync(
@@ -259,6 +262,7 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable {
         (await _registry.GetCountAsync()).Should().Be(0);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RegisterToolsBatch_WithDuplicateNames_ShouldOverwrite() {
         var firstBatch = new List<IToolHandler> {

@@ -1,4 +1,5 @@
-﻿global using Api.LLM;
+global using System.Diagnostics.CodeAnalysis;
+global using Api.LLM;
 global using Core.Utils;
 global using Infrastructure.Http;
 global using Infrastructure.IO.Services.FileOps;

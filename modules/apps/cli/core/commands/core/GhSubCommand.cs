@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.CliCommands;
 
 /// <summary>
@@ -15,6 +14,7 @@ internal static class GhSubCommand {
     /// <param name="args">完整命令行参数。</param>
     /// <param name="ct">取消令牌。</param>
     /// <returns>进程退出码：0 成功，1 参数/执行失败。</returns>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
         var hasHelp = Array.IndexOf(args, CliArgCliOptionConstants.HelpLongName) >= 0
                     || Array.IndexOf(args, CliArgCliOptionConstants.HelpShortName) >= 0;

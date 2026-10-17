@@ -1,3 +1,4 @@
+global using System.Diagnostics.CodeAnalysis;
 global using JoinCode.Transport;
 global using JoinCode.Transport.Bridge;
 global using System.Collections.Frozen;

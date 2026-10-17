@@ -1,5 +1,4 @@
 // JCC11003 抑制: 反射 Invoke 返回值需要 null-forgiving
-#pragma warning disable JCC11003
 namespace Host.Tests.Cli;
 
 /// <summary>
@@ -24,6 +23,7 @@ public sealed class MsysPathExpansionTests {
     /// <summary>
     /// 调用 private static RestoreMsysPathExpansion(string[]) → string[]
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static string[] RestoreMsysPathExpansion(string[] args) {
         var method = ProgramType.GetMethod("RestoreMsysPathExpansion", PrivateStatic)
             ?? throw new InvalidOperationException("RestoreMsysPathExpansion 方法未找到");

@@ -1,8 +1,10 @@
 // 测试使用真实文件系统创建临时工作目录
-#pragma warning disable JCC9001, JCC9002
+#pragma warning disable JCC9002
+
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.LLM;
+
+[SuppressMessage("FileSystemAbstraction", "JCC9001", Justification = "会话标签服务测试需直接访问文件系统验证持久化")]
 
 public sealed class SessionTagServiceTests {
     private static SessionTagService CreateService() {
@@ -33,6 +35,7 @@ public sealed class SessionTagServiceTests {
         service.GetTags("session1").Should().HaveCount(1);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AddTag_NullSessionId_ShouldThrow() {
         await using var service = CreateService();
@@ -42,6 +45,7 @@ public sealed class SessionTagServiceTests {
         act.Should().Throw<ArgumentNullException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AddTag_NullTag_ShouldThrow() {
         await using var service = CreateService();

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Mcp.Tests;
 
 /// <summary>
@@ -11,6 +10,7 @@ namespace Mcp.Tests;
 [Trait("Category", "Deterministic")]
 public sealed class GitHubRunLogFilterRunnerFilterTests {
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FilterFailedTestsAsync_WithJobId_FiltersFailuresFromJobLogs() {
         var api = new FakeGitHubApiClient {
@@ -47,6 +47,7 @@ public sealed class GitHubRunLogFilterRunnerFilterTests {
         result.GetFirstText().Should().Contain("未检测到测试失败行");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FilterFailedTestsAsync_NoJobId_FiltersFromFailedJobs() {
         var api = new FakeGitHubApiClient();
@@ -89,6 +90,7 @@ public sealed class GitHubRunLogFilterRunnerFilterTests {
         result.GetFirstText().Should().Contain("未检测到测试失败行");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FilterFailedTestsAsync_DuplicateTestName_DeduplicatesToOne() {
         var api = new FakeGitHubApiClient {
@@ -118,6 +120,7 @@ public sealed class GitHubRunLogFilterRunnerFilterTests {
         text.Should().Contain("more detail");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FilterFailedTestsAsync_MaxLinesTruncates_AddsContinueHint() {
         var api = new FakeGitHubApiClient {

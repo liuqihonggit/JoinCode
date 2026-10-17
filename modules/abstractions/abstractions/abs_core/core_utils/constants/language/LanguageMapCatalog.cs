@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.Constants;
 
 /// <summary>
@@ -44,8 +43,11 @@ public static class LanguageMapCatalog {
     /// <param name="extension">文件扩展名（含点号，如 ".cs"）</param>
     /// <param name="language">输出的语言显示名</param>
     /// <returns>是否找到映射</returns>
-    public static bool TryGetLanguage(string extension, out string language)
-        => ExtensionToLanguage.TryGetValue(extension, out language!);
+    public static bool TryGetLanguage(string extension, out string language) {
+        var found = ExtensionToLanguage.TryGetValue(extension, out var result);
+        language = result ?? string.Empty;
+        return found;
+    }
 
     /// <summary>
     /// 文件扩展名到 glob 搜索模式的映射（OrdinalIgnoreCase）

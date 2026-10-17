@@ -1,6 +1,5 @@
 #pragma warning disable JCC3010, JCC3011, JCC3012
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Guard.Tests.Configuration;
 
 /// <summary>
@@ -57,6 +56,7 @@ public class SettingsLoaderTests : IDisposable {
 
     #region 场景1: 多源加载 + 优先级合并
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Given_用户设置和项目设置_When_加载全部_Then_项目设置覆盖用户设置() {
         // Given: 用户设置 profile 指向 openai, 项目设置 profile 指向 anthropic
@@ -87,6 +87,7 @@ public class SettingsLoaderTests : IDisposable {
         activeProfile!.Model.Should().Be(DefaultAnthropicModelId);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Given_用户设置和本地设置_When_加载全部_Then_本地设置覆盖用户设置() {
         // Given: 用户设置 language=en-US, 本地设置 language=zh-CN
@@ -104,6 +105,7 @@ public class SettingsLoaderTests : IDisposable {
         result.Current!.Language.Should().Be("zh-CN");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Given_用户设置有env_项目设置也有env_When_加载全部_Then_env字典合并() {
         // Given
@@ -128,6 +130,7 @@ public class SettingsLoaderTests : IDisposable {
 
     #region 场景2: 无配置文件时返回默认值
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Given_无任何配置文件_When_加载全部_Then_返回默认骨架() {
         // Given: 无配置文件
@@ -150,6 +153,7 @@ public class SettingsLoaderTests : IDisposable {
 
     #region 场景3: 损坏文件不影响其他来源
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Given_用户设置损坏_项目设置正常_When_加载全部_Then_项目设置仍可用() {
         // Given: 用户设置损坏
@@ -180,6 +184,7 @@ public class SettingsLoaderTests : IDisposable {
 
     #region 场景4: 保存到指定来源
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Given_保存到UserSettings_When_重新加载_Then_数据一致() {
         // Given
@@ -208,6 +213,7 @@ public class SettingsLoaderTests : IDisposable {
 
     #region 场景5: 权限数组拼接去重
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Given_用户权限和项目权限_When_加载全部_Then_权限数组拼接去重() {
         // Given
@@ -244,6 +250,7 @@ public class SettingsLoaderTests : IDisposable {
     /// 用户 settings.json 存在但为空(0字节) → 自动写入默认骨架并返回
     /// 骨架含所有5个供应商的预设入口点,models 数组留空由 AutoFetchModels 填充
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Given_用户设置文件为空_When_加载用户设置_Then_返回默认骨架并写入磁盘() {
         // Given: 用户设置文件存在但为空(0字节)
@@ -283,6 +290,7 @@ public class SettingsLoaderTests : IDisposable {
     /// BuildDefaultSettingsJson 生成的骨架应包含 current.actor 节点,
     /// 且能反序列化为 ActorSettings,值与默认预设一致(ADR 0074)
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Given_默认骨架_When_解析_Then_包含Actor配置且值正确() {
         // Given

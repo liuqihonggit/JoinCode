@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace McpClient;
 
 /// <summary>
@@ -199,6 +198,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     /// <param name="authorizationCode">从授权回调获取的授权码</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>交换成功返回 true；失败返回 false</returns>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public async Task<bool> ExchangeCodeAsync(string authorizationCode, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(authorizationCode);
 

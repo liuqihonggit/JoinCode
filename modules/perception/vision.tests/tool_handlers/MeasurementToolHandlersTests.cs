@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Vision.Tests.ToolHandlers;
 
 /// <summary>
@@ -45,6 +44,7 @@ public sealed class MeasurementToolHandlersTests {
         result.Content[0].Text.Should().Contain("5.00 px");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task MeasureDepth_ValidRegion_ShouldReturnAnalysis() {
         var base64 = await CreateTestImageBase64();
@@ -86,6 +86,7 @@ public sealed class MeasurementToolHandlersTests {
         result.Content[0].Text.Should().Contain("[VIS403]");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task MeasureRatio_Square_ShouldReturnRatio1() {
         var handlers = new MeasurementToolHandlers();

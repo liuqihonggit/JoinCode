@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.CodeIndex.Tests;
 
 public sealed class TimeoutLockTests : IDisposable {
@@ -45,6 +44,7 @@ public sealed class TimeoutLockTests : IDisposable {
         Assert.Throws<TimeoutException>(() => _lock.Acquire(TimeSpan.FromMilliseconds(10)));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullLockName_Throws() {
         Assert.Throws<ArgumentNullException>(() => new TimeoutLock(null!));

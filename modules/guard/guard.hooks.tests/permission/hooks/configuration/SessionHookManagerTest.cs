@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Hooks.Session;
 
 /// <summary>
@@ -303,6 +302,7 @@ public sealed class SessionHookManagerTest {
 
     #region null 守卫 — ArgumentNullException.ThrowIfNull
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AddSessionHookAsync_NullSessionId_应抛ArgumentNullException() {
         await using var manager = new SessionHookManager();
@@ -311,6 +311,7 @@ public sealed class SessionHookManagerTest {
             .WithParameterName("sessionId");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AddSessionHookAsync_NullHook_应抛ArgumentNullException() {
         await using var manager = new SessionHookManager();
@@ -319,6 +320,7 @@ public sealed class SessionHookManagerTest {
             .WithParameterName("hook");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AddFunctionHookAsync_NullSessionId_应抛ArgumentNullException() {
         await using var manager = new SessionHookManager();
@@ -328,6 +330,7 @@ public sealed class SessionHookManagerTest {
             .WithParameterName("sessionId");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AddFunctionHookAsync_NullCallback_应抛ArgumentNullException() {
         await using var manager = new SessionHookManager();

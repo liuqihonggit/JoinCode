@@ -1,6 +1,6 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 // SYSLIB0050 抑制: 测试中用 FormatterServices 创建未初始化对象验证 dry-run 不调用 session 方法
-#pragma warning disable JCC11003, SYSLIB0050
+#pragma warning disable SYSLIB0050
 namespace JoinCode.Entry.Tests;
 
 /// <summary>
@@ -71,6 +71,7 @@ public sealed class NonInteractiveExecuteStepTests {
         nextCalled.Should().BeFalse("空提示词应直接返回不调用 next");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static StartupContext CreateContext(bool dryRun, string prompt) {
         var config = new WorkflowConfig {
             Provider = new ProviderConfig {

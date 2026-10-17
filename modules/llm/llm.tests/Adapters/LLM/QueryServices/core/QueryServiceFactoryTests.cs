@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Llm.Tests.Adapters.LLM.QueryServices;
 
 public sealed class QueryServiceFactoryTests {
@@ -18,6 +17,7 @@ public sealed class QueryServiceFactoryTests {
             (config, http, logger, fs, executor) => new OpenAIQueryService(config, http, logger, fs, executor));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Create_NullConfig_ThrowsArgumentNullException() {
         var act = () => _factory.Create(null!);

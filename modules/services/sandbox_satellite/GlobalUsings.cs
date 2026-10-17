@@ -1,3 +1,4 @@
+global using System.Diagnostics.CodeAnalysis;
 global using Infrastructure.Windows.JobObject;
 global using IO.FileSystem;
 global using JoinCode.Abstractions.Interfaces;

@@ -1,3 +1,4 @@
+global using System.Diagnostics.CodeAnalysis;
 global using Core.Agents.Coordinator;
 global using Core.Utils;
 global using FluentAssertions;

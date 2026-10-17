@@ -1,7 +1,6 @@
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JccAuditCli;
 
 /// <summary>
@@ -12,7 +11,9 @@ namespace JccAuditCli;
 ///   JCC9004 (Warning): 类型实现 IAsyncDisposable 但消费方用 using（非 await using）— 应改用 await using
 /// </summary>
 public static class DisposableConsistencyChecker {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static readonly string IDisposableFullName = typeof(IDisposable).FullName!;
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static readonly string IAsyncDisposableFullName = typeof(IAsyncDisposable).FullName!;
 
     /// <summary>从编译中提取 IDisposable/IAsyncDisposable 一致性问题。</summary>

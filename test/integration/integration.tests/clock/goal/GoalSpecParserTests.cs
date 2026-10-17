@@ -1,9 +1,9 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Integration.Tests.Clock;
 
 public sealed class GoalSpecParserTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryParse_ValidJson_Should_Return_GoalSpec() {
         var json = "{\"outcome\":\"降低p95延迟\",\"verification\":\"npm test\",\"constraints\":\"不改auth\",\"boundaries\":\"src/\",\"iterationLog\":\"EXPERIMENTS.md\",\"failureCircuit\":\"3次失败停止\"}";
@@ -19,6 +19,7 @@ public sealed class GoalSpecParserTests {
         Assert.Equal("3次失败停止", result.FailureCircuit);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryParse_JsonInCodeBlock_Should_Extract() {
         var llmOutput = "好的，收集完成：\n```json\n{\"outcome\":\"目标\",\"verification\":\"验证\",\"constraints\":\"约束\",\"boundaries\":\"边界\",\"iterationLog\":\"记录\",\"failureCircuit\":\"熔断\"}\n```";
@@ -44,6 +45,7 @@ public sealed class GoalSpecParserTests {
         Assert.Null(result);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryParse_PartialJson_Should_Return_GoalSpec_With_Default_Empty_Fields() {
         var json = "{\"outcome\":\"只有目标\"}";

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infra.Tests.Resilience;
 
 public sealed class CrashSnapshotTests {
@@ -144,6 +143,7 @@ public sealed class CrashSnapshotStoreTests {
         smallStore.GetById(ids[4]).Should().NotBeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SnapshotAdded_Event_Fires() {
         CrashSnapshot? captured = null;
@@ -201,6 +201,7 @@ public sealed class FaultFenceTests {
         result.Snapshot.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryExecute_Exception_Returns_Snapshot() {
         var store = new CrashSnapshotStore();

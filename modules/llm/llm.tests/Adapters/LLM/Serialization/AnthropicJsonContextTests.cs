@@ -1,8 +1,8 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Llm.Tests.Adapters.LLM.Serialization;
 
 public class AnthropicJsonContextTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AnthropicMessagesRequest_RoundTrip_SerializesModelAndMessages() {
         var request = new AnthropicMessagesRequest {
@@ -24,6 +24,7 @@ public class AnthropicJsonContextTests {
         deserialized.Stream.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AnthropicMessagesResponse_RoundTrip_PreservesContentBlocks() {
         var response = new AnthropicMessagesResponse {
@@ -48,6 +49,7 @@ public class AnthropicJsonContextTests {
         deserialized.Content[0].Type.Should().Be(AnthropicContentBlockType.Text);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AnthropicStreamingEvent_RoundTrip_PreservesType() {
         var evt = new AnthropicStreamingEvent {
@@ -67,6 +69,7 @@ public class AnthropicJsonContextTests {
         deserialized.Delta!.Type.Should().Be(AnthropicDeltaType.TextDelta);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AnthropicToolDefinition_RoundTrip_PreservesNameAndSchema() {
         var tool = new AnthropicToolDefinition {
@@ -88,6 +91,7 @@ public class AnthropicJsonContextTests {
         deserialized.InputSchema.Should().NotBeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AnthropicContextManagement_RoundTrip_PreservesStrategies() {
         var management = new AnthropicContextManagement {
@@ -104,6 +108,7 @@ public class AnthropicJsonContextTests {
         deserialized!.Edits.Should().ContainSingle();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AnthropicToolReferenceBlock_RoundTrip_PreservesToolName() {
         var block = new AnthropicToolReferenceBlock { ToolName = "ToolA" };

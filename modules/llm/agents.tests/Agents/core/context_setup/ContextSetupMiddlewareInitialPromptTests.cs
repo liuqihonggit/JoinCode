@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Core.Agents.Tests.Unit.Agents;
 
 
@@ -10,6 +9,7 @@
 public sealed class ContextSetupMiddlewareInitialPromptTests {
     private static MiddlewareDelegate<UnifiedSpawnContext> NoopNext => (_, _) => Task.CompletedTask;
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_DefinitionHasInitialPrompt_SetsSubOptionsInitialPrompt() {
         var definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition {
@@ -39,6 +39,7 @@ public sealed class ContextSetupMiddlewareInitialPromptTests {
         ctx.ResolvedSubOptions!.InitialPrompt.Should().Be("/review the code");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_DefinitionWithoutInitialPrompt_SubOptionsInitialPromptIsNull() {
         var definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition {

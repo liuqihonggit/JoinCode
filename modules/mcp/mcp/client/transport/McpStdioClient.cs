@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace McpClient;
 
 /// <summary>
@@ -285,6 +284,7 @@ public sealed class McpStdioClient : McpClientBase {
     /// <param name="request">JSON-RPC 请求对象。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>服务器返回的 JSON-RPC 响应。</returns>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     protected override async Task<JsonRpcResponse> SendRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken) {
         if (_stdinWriter == null) {
             throw new InvalidOperationException(McpErrorMessages.NotConnectedToServer);
@@ -329,6 +329,7 @@ public sealed class McpStdioClient : McpClientBase {
     /// <param name="notification">JSON-RPC 通知对象。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>表示异步操作的任务。</returns>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     protected override async Task SendNotificationAsync(JsonRpcNotification notification, CancellationToken cancellationToken) {
         if (_stdinWriter == null) {
             throw new InvalidOperationException(McpErrorMessages.NotConnectedToServer);

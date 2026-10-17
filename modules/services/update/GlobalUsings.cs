@@ -1,3 +1,4 @@
+global using System.Diagnostics.CodeAnalysis;
 global using IO;
 global using IO.FileSystem;
 global using JoinCode.Abstractions.Configuration.AppData;

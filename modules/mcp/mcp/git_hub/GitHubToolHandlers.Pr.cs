@@ -1,6 +1,6 @@
 // JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC1017, JCC11003
+#pragma warning disable JCC1017
 namespace McpToolDispatch;
 
 /// <summary>
@@ -127,6 +127,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 查看 PR diff — 调 REST API 获取 PR 的 diff_url 后下载 patch 文本，支持 name-only/exclude 过滤
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [McpTool(GitHubToolNameEnumConstants.GhPrDiff, "查看 PR diff(patch 文本,支持 name-only/exclude 过滤)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrDiffAsync(
         [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
@@ -355,6 +356,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// GhPrChecks 核心逻辑 — 调 REST API 获取 check-runs,正确处理 skipping 语义(非失败),支持 required 过滤和 fail-fast 标记
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<ToolResult> GhPrChecksCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, bool? failFast, bool? required, string? json_fields, int? limit, CancellationToken ct) {
         var number = ParseNumberFromRef(prNumber);
         var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: ct).ConfigureAwait(false);
@@ -629,6 +631,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// GhPrMerge 核心逻辑 — 支持 squash/merge/rebase + auto-merge/disable-auto + 自定义提交信息 + 可选删除分支
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<ToolResult> GhPrMergeCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, string? mergeMethod, bool? autoMerge, bool? disableAuto, string? subject, string? body, bool? deleteBranch, CancellationToken ct) {
         var number = ParseNumberFromRef(prNumber);
         var method = string.IsNullOrWhiteSpace(mergeMethod) ? "squash" : mergeMethod;
@@ -1011,6 +1014,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 编辑 PR — 修改标题/body/base 分支/标签/指派人/审查者/里程碑，调 REST API PATCH /pulls + PATCH /issues + POST/DELETE labels/reviewers/assignees
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [McpTool(GitHubToolNameEnumConstants.GhPrEdit, "编辑 PR(title/body/body_file/base/label/add_label/remove_label/assignee/add_reviewer/remove_reviewer/add_assignee/remove_assignee/milestone/remove_milestone)", "github")]
     public async Task<ToolResult> GhPrEditAsync(
         [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,

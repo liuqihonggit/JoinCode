@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Hooks.ToolPermission;
 
 /// <summary>
@@ -31,6 +30,7 @@ public class PermissionHookExecutorTests {
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteHooksAsync_WithAllowResult_ShouldReturnAllow() {
         var expectedResult = new HookResult {
@@ -52,6 +52,7 @@ public class PermissionHookExecutorTests {
         results[0].PermissionRequestResult!.Behavior.Should().Be(PermissionBehavior.Allow);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteHooksAsync_WithDenyResult_ShouldReturnDeny() {
         var expectedResult = new HookResult {

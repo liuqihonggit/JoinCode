@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JccAuditCli;
 
 /// <summary>
@@ -7,6 +6,7 @@ namespace JccAuditCli;
 /// 定位快速模式 0 处 JCC9103 违规的根因
 /// </summary>
 public class FastProjectLoaderReferenceTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: NotBeNull 断言保证非空")]
     [Fact]
     public void Compilation_Should_Resolve_IDisposable_And_IAsyncDisposable() {
         // 用 .NET 8 引用程序集（包含完整的类型定义）

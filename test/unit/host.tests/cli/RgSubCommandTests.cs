@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Host.Tests.Cli;
 public sealed class RgSubCommandTests {
     [Theory]
@@ -96,6 +95,7 @@ public sealed class RgSubCommandTests {
         RgSubCommand.IsRegexMetaChar(c).Should().Be(expected);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_SmartCase_ShouldSetSmartCaseFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-S"]);
@@ -104,6 +104,7 @@ public sealed class RgSubCommandTests {
         opts.CaseInsensitive.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_SmartCaseLongForm_ShouldSetSmartCaseFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--smart-case"]);
@@ -111,6 +112,7 @@ public sealed class RgSubCommandTests {
         opts!.SmartCase.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_WordRegexp_ShouldSetWordRegexpFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-w"]);
@@ -118,6 +120,7 @@ public sealed class RgSubCommandTests {
         opts!.WordRegexp.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_WordRegexpLongForm_ShouldSetWordRegexpFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--word-regexp"]);
@@ -125,6 +128,7 @@ public sealed class RgSubCommandTests {
         opts!.WordRegexp.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_OnlyMatching_ShouldSetOnlyMatchingFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-o"]);
@@ -132,6 +136,7 @@ public sealed class RgSubCommandTests {
         opts!.OnlyMatching.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_OnlyMatchingLongForm_ShouldSetOnlyMatchingFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--only-matching"]);
@@ -139,6 +144,7 @@ public sealed class RgSubCommandTests {
         opts!.OnlyMatching.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_Replace_ShouldSetReplaceValue() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-r", "REPLACEMENT"]);
@@ -146,6 +152,7 @@ public sealed class RgSubCommandTests {
         opts!.Replace.Should().Be("REPLACEMENT");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_ReplaceLongForm_ShouldSetReplaceValue() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--replace", "XYZ"]);
@@ -153,6 +160,7 @@ public sealed class RgSubCommandTests {
         opts!.Replace.Should().Be("XYZ");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_Sort_ShouldSetSortMode() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--sort", "path"]);
@@ -160,6 +168,7 @@ public sealed class RgSubCommandTests {
         opts!.Sort.Should().Be("path");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_SortModified_ShouldSetSortMode() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--sort", "modified"]);
@@ -167,6 +176,7 @@ public sealed class RgSubCommandTests {
         opts!.Sort.Should().Be("modified");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_Hidden_ShouldSetHiddenFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--hidden"]);
@@ -174,6 +184,7 @@ public sealed class RgSubCommandTests {
         opts!.Hidden.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_NoIgnore_ShouldSetNoIgnoreFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--no-ignore"]);
@@ -181,6 +192,7 @@ public sealed class RgSubCommandTests {
         opts!.NoIgnore.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_MultiplePaths_ShouldCollectAllPaths() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "app/", "core/"]);
@@ -189,6 +201,7 @@ public sealed class RgSubCommandTests {
         opts.Paths.Should().ContainInOrder("src/", "app/", "core/");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_CombinedShortOptions_ShouldParseAllFlags() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-inSwo"]);
@@ -200,6 +213,7 @@ public sealed class RgSubCommandTests {
         opts.OnlyMatching.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_Timeout_ShouldClampToMax() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--timeout", "999"]);
@@ -207,6 +221,7 @@ public sealed class RgSubCommandTests {
         opts!.TimeoutSeconds.Should().Be(300);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_TimeoutZero_ShouldUseDefault() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--timeout", "0"]);
@@ -214,6 +229,7 @@ public sealed class RgSubCommandTests {
         opts!.TimeoutSeconds.Should().Be(30);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_HeadLimitZero_ShouldAllowUnlimited() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--head-limit", "0"]);
@@ -221,6 +237,7 @@ public sealed class RgSubCommandTests {
         opts!.HeadLimit.Should().Be(0);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_Offset_ShouldSetOffsetValue() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--offset", "10"]);
@@ -240,6 +257,7 @@ public sealed class RgSubCommandTests {
         opts.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_DefaultTimeout_ShouldBe30Seconds() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/"]);
@@ -247,6 +265,7 @@ public sealed class RgSubCommandTests {
         opts!.TimeoutSeconds.Should().Be(30);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_MultipleGlobs_ShouldCollectAllGlobs() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--glob", "*.cs", "--glob", "!**/tests/**"]);
@@ -255,6 +274,7 @@ public sealed class RgSubCommandTests {
         opts.Globs.Should().ContainInOrder("*.cs", "!**/tests/**");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_MultipleShortGlobs_ShouldCollectAllGlobs() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-g", "*.cs", "-g", "!**/obj/**"]);
@@ -263,6 +283,7 @@ public sealed class RgSubCommandTests {
         opts.Globs.Should().ContainInOrder("*.cs", "!**/obj/**");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_NoGlob_ShouldReturnEmptyGlobsList() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/"]);
@@ -270,6 +291,7 @@ public sealed class RgSubCommandTests {
         opts!.Globs.Should().BeEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_MultilineDotall_ShouldSetMultilineFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--multiline-dotall"]);
@@ -277,6 +299,7 @@ public sealed class RgSubCommandTests {
         opts!.Multiline.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_DefaultOutputMode_ShouldBeContent() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/"]);
@@ -284,6 +307,7 @@ public sealed class RgSubCommandTests {
         opts!.OutputMode.Should().Be(SearchOutputMode.Content);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_InvertMatchShort_ShouldSetFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-v"]);
@@ -291,6 +315,7 @@ public sealed class RgSubCommandTests {
         opts!.InvertMatch.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_InvertMatchLong_ShouldSetFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--invert-match"]);
@@ -298,6 +323,7 @@ public sealed class RgSubCommandTests {
         opts!.InvertMatch.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_LineRegexp_ShouldWrapPatternWithAnchors() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-x"]);
@@ -306,6 +332,7 @@ public sealed class RgSubCommandTests {
         opts.LineRegexp.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_MaxCountShort_ShouldSetValue() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-m", "5"]);
@@ -313,6 +340,7 @@ public sealed class RgSubCommandTests {
         opts!.MaxCount.Should().Be(5);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_MaxCountLong_ShouldSetValue() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--max-count", "10"]);
@@ -320,6 +348,7 @@ public sealed class RgSubCommandTests {
         opts!.MaxCount.Should().Be(10);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_ThreadsShort_ShouldSetValue() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-j", "4"]);
@@ -327,6 +356,7 @@ public sealed class RgSubCommandTests {
         opts!.Threads.Should().Be(4);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_ThreadsLong_ShouldSetValue() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--threads", "8"]);
@@ -334,6 +364,7 @@ public sealed class RgSubCommandTests {
         opts!.Threads.Should().Be(8);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_MaxFilesizePlain_ShouldSetValue() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--max-filesize", "1000"]);
@@ -341,6 +372,7 @@ public sealed class RgSubCommandTests {
         opts!.MaxFilesize.Should().Be(1000L);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_MaxFilesizeKSuffix_ShouldMultiplyBy1024() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--max-filesize", "1K"]);
@@ -348,6 +380,7 @@ public sealed class RgSubCommandTests {
         opts!.MaxFilesize.Should().Be(1024L);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_MaxFilesizeMSuffix_ShouldMultiplyBy1M() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--max-filesize", "1M"]);
@@ -355,6 +388,7 @@ public sealed class RgSubCommandTests {
         opts!.MaxFilesize.Should().Be(1024L * 1024);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_MaxFilesizeGSuffix_ShouldMultiplyBy1G() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--max-filesize", "1G"]);
@@ -362,6 +396,7 @@ public sealed class RgSubCommandTests {
         opts!.MaxFilesize.Should().Be(1024L * 1024 * 1024);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_BareContent_ShouldSetContentMode() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "content"]);
@@ -369,6 +404,7 @@ public sealed class RgSubCommandTests {
         opts!.OutputMode.Should().Be(SearchOutputMode.Content);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_BareCount_ShouldSetCountMode() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "count"]);
@@ -376,6 +412,7 @@ public sealed class RgSubCommandTests {
         opts!.OutputMode.Should().Be(SearchOutputMode.Count);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_BareFilesWithMatches_ShouldSetFilesMode() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "files-with-matches"]);
@@ -383,6 +420,7 @@ public sealed class RgSubCommandTests {
         opts!.OutputMode.Should().Be(SearchOutputMode.Files);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_BareJson_ShouldSetJsonFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "json"]);
@@ -390,6 +428,7 @@ public sealed class RgSubCommandTests {
         opts!.Json.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_BareHidden_ShouldSetHiddenFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "hidden"]);
@@ -397,6 +436,7 @@ public sealed class RgSubCommandTests {
         opts!.Hidden.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_BareNoIgnore_ShouldSetNoIgnoreFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "no-ignore"]);
@@ -404,6 +444,7 @@ public sealed class RgSubCommandTests {
         opts!.NoIgnore.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_MultipleRegexp_ShouldMergeAsOrPattern() {
         var opts = RgSubCommand.ParseArgs(["rg", "-e", "foo", "-e", "bar", "src/"]);
@@ -412,6 +453,7 @@ public sealed class RgSubCommandTests {
         opts.Paths.Should().ContainSingle().Which.Should().Be("src/");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_RegexpWithPositionalPattern_ShouldTreatPositionalAsPaths() {
         var opts = RgSubCommand.ParseArgs(["rg", "-e", "foo", "bar", "src/"]);
@@ -421,6 +463,7 @@ public sealed class RgSubCommandTests {
         opts.Paths.Should().ContainInOrder("bar", "src/");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_FilesWithMatchesExplicit_ShouldSetFilesMode() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-l"]);
@@ -428,6 +471,7 @@ public sealed class RgSubCommandTests {
         opts!.OutputMode.Should().Be(SearchOutputMode.Files);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseArgs_CountExplicit_ShouldSetCountMode() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-c"]);

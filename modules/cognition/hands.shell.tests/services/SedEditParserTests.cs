@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Hands.Tests.Shell;
 
 /// <summary>
@@ -10,6 +9,7 @@ namespace Hands.Tests.Shell;
 public class SedEditParserTest {
     // ===== ParseSubstitutionExpression 状态机解析 =====
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseSubstitutionExpression_BasicThreeSlash_ReturnsParsedInfo() {
         var info = SedEditParser.ParseSubstitutionExpression("s/a/b/", "file.txt", false);
@@ -21,6 +21,7 @@ public class SedEditParserTest {
         info.ExtendedRegex.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseSubstitutionExpression_WithGlobalFlag_ReturnsFlags() {
         var info = SedEditParser.ParseSubstitutionExpression("s/a/b/g", "f", false);
@@ -28,6 +29,7 @@ public class SedEditParserTest {
         info!.Flags.Should().Be("g");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseSubstitutionExpression_WithMultipleFlags_ReturnsCombinedFlags() {
         var info = SedEditParser.ParseSubstitutionExpression("s/a/b/gi", "f", false);
@@ -35,6 +37,7 @@ public class SedEditParserTest {
         info!.Flags.Should().Be("gi");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseSubstitutionExpression_ExtendedRegexPropagated() {
         var info = SedEditParser.ParseSubstitutionExpression("s/a/b/", "f", true);
@@ -42,6 +45,7 @@ public class SedEditParserTest {
         info!.ExtendedRegex.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseSubstitutionExpression_EscapedSlashInReplacement_PreservesBackslash() {
         // expression = s/a/b\/c/ → pattern=a, replacement=b\/c, flags=""
@@ -53,6 +57,7 @@ public class SedEditParserTest {
         info.Flags.Should().Be("");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseSubstitutionExpression_EscapedSlashInPattern_PreservesBackslash() {
         // expression = "s/\//b/" → rest = "\//b/" → pattern=\/, replacement=b, flags=""
@@ -75,6 +80,7 @@ public class SedEditParserTest {
         SedEditParser.ParseSubstitutionExpression(expr, "f", false).Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseSubstitutionExpression_NumericFlagAccepted() {
         var info = SedEditParser.ParseSubstitutionExpression("s/a/b/1", "f", false);

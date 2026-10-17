@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Services.StepEvidence.Tests;
 
 public sealed class CompleteStepToolHandlersTests {
@@ -228,6 +227,7 @@ public sealed class CompleteStepToolHandlersTests {
 
     // === Kind null/empty 守卫 ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CompleteStep_NullKind_ReturnsInvalidKindError() {
         var evidence = new List<StepEvidenceInput>

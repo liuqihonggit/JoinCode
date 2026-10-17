@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.LLM.Chat;
 
 /// <summary>
@@ -39,10 +38,10 @@ public sealed class SubAgentEventChannel {
     /// <summary>
     /// 尝试读取单条事件（FIFO）
     /// </summary>
-    public bool TryRead(out ChatStreamEvent evt) {
+    public bool TryRead(out ChatStreamEvent? evt) {
         using (_lock.LockOrCrash()) {
             if (_buffer.Count == 0) {
-                evt = null!;
+                evt = null;
                 return false;
             }
             evt = _buffer[0];

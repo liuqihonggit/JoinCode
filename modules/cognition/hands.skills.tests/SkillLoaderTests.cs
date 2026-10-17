@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Skills;
 
 public class SkillServiceTests : IDisposable {
@@ -65,6 +64,7 @@ public class SkillServiceTests : IDisposable {
         skills.Should().Contain(s => s.Name == "verify");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetSkill_ExistingSkill_ShouldReturnSkill() {
         await using var service = CreateService();
@@ -96,6 +96,7 @@ public class SkillServiceTests : IDisposable {
         service.SkillExists("nonexistent").Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RegisterSkill_ShouldAddSkill() {
         await using var service = CreateService();
@@ -143,6 +144,7 @@ public class SkillServiceTests : IDisposable {
         result.ErrorMessage.Should().Contain("技能不存在");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteAsync_WithNullSkillName_ShouldThrow() {
         await using var service = CreateService();

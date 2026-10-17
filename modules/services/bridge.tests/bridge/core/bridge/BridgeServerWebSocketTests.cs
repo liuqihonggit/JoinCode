@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Bridge.Tests;
 
 
@@ -113,6 +112,7 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable {
     /// <summary>
     /// 用例1: executeCommand "echo hello" 应返回 success=true, output="hello", exitCode=0
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task WebSocket_ExecuteCommand_EchoHello_ShouldReturnSuccessWithOutput() {
         // Arrange
@@ -137,6 +137,7 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable {
     /// <summary>
     /// 用例2: executeCommand 无效命令应返回 success=false, exitCode!=0, error 非空
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task WebSocket_ExecuteCommand_InvalidCommand_ShouldReturnFailureWithStdError() {
         // Arrange
@@ -160,6 +161,7 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable {
     /// <summary>
     /// 用例3: setSelection 有效文件+选区 应返回 success=true
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task WebSocket_SetSelection_WithIdeConnected_ShouldSucceed() {
         // Arrange
@@ -181,6 +183,7 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable {
     /// <summary>
     /// 用例4: 无 IDE 服务注入时 setSelection 应返回 success=false, error 包含 IDE
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task WebSocket_SetSelection_WithoutIdeService_ShouldReturnFailure() {
         // Arrange — 启动一个无 IDE 服务的 BridgeServer 实例

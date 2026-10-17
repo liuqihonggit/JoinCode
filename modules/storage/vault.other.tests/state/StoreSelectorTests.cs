@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.State;
 
 /// <summary>
@@ -123,6 +122,7 @@ public sealed class StoreSelectorTests : IDisposable {
         received.Should().ContainSingle();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullStore_ThrowsArgumentNullException() {
         Action act = () => new StoreSelector<int, int>(null!, x => x);
@@ -130,6 +130,7 @@ public sealed class StoreSelectorTests : IDisposable {
         act.Should().Throw<ArgumentNullException>().Which.ParamName.Should().Be("store");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullSelector_ThrowsArgumentNullException() {
         Action act = () => new StoreSelector<int, int>(_store, null!);

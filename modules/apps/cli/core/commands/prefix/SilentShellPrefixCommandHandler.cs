@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Cli.Commands.Prefix;
 
 /// <summary>
@@ -46,6 +45,7 @@ public sealed class SilentShellPrefixCommandHandler : IPrefixCommandHandler {
     }
 
     /// <summary>URL → 系统默认浏览器打开</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static bool TryHandleUrl(string target, out PrefixCommandResult result) {
         result = default!;
         var schemeEnd = target.IndexOf("://", StringComparison.Ordinal);
@@ -62,6 +62,7 @@ public sealed class SilentShellPrefixCommandHandler : IPrefixCommandHandler {
     }
 
     /// <summary>文件 → 系统默认程序打开</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static bool TryHandleFile(string target, out PrefixCommandResult result) {
         result = default!;
         if (!File.Exists(target))
@@ -73,6 +74,7 @@ public sealed class SilentShellPrefixCommandHandler : IPrefixCommandHandler {
     }
 
     /// <summary>目录 → 文件管理器打开（Windows: explorer / Linux: xdg-open / macOS: open）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static bool TryHandleDirectory(string target, out PrefixCommandResult result) {
         result = default!;
         if (!Directory.Exists(target))

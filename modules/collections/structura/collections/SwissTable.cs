@@ -4,7 +4,6 @@
 using static Structura.Collections.SwissTableHelper;
 
 // JCC11003 抑制: 底层泛型集合实现, ! 用于 default(T)/数组槽位的可空抑制, 是 C# 语言限制下的必要用法
-#pragma warning disable JCC11003
 namespace Structura.Collections
 {
     /// <summary>
@@ -505,6 +504,7 @@ namespace Structura.Collections
         ICollection IDictionary.Values => Values;
 
 
+        [SuppressMessage("AotSafety", "JCC11003", Justification = "IDictionary 非泛型接口实现, value 经 IfNullAndNullsAreIllegalThenThrow 检查, 编译器无法推断非空")]
         object? IDictionary.this[object key]
         {
             get
@@ -547,6 +547,7 @@ namespace Structura.Collections
             }
         }
 
+        [SuppressMessage("AotSafety", "JCC11003", Justification = "IDictionary 非泛型接口实现, value 经 IfNullAndNullsAreIllegalThenThrow 检查, 编译器无法推断非空")]
         void IDictionary.Add(object key, object? value)
         {
             if (key == null)
@@ -638,7 +639,7 @@ namespace Structura.Collections
                     ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
                 }
 
-                CopyToObjectBox(objects!, index);
+                CopyToObjectBox(objects, index);
             }
         }
 
@@ -838,6 +839,7 @@ namespace Structura.Collections
             /// <param name="key">要查找或添加的键。</param>
             /// <param name="exists">键已存在时输出 <c>true</c>；新添加时输出 <c>false</c>。</param>
             /// <returns>键对应值的引用。</returns>
+            [SuppressMessage("AotSafety", "JCC11003", Justification = "底层泛型集合实现, bucket.Value/数组槽位对于引用类型是 null, 是 C# 语言限制下的必要用法")]
             public static ref TValue? GetValueRefOrAddDefault(SwissTable<TKey, TValue> dictionary, TKey key, out bool exists)
             {
                 // NOTE: this method is mirrored by SwissTable<TKey, TValue>.TryInsert above.
@@ -1113,6 +1115,7 @@ namespace Structura.Collections
             return DispatchFindBucketIndexOfDictionary(this, key);
         }
 
+        [SuppressMessage("AotSafety", "JCC11003", Justification = "底层泛型集合实现, erase 时 default(T) 清理槽位对于引用类型是 null, 是 C# 语言限制下的必要用法")]
         private TValue erase(int index)
         {
             // Attention, we could not just only set mark to `Deleted` to assume it is deleted, the reference is still here, and GC would not collect it.
@@ -1544,6 +1547,7 @@ namespace Structura.Collections
                 /// <summary>
                 /// 获取枚举器当前指向的键。
                 /// </summary>
+                [SuppressMessage("AotSafety", "JCC11003", Justification = "泛型枚举器 Current, _current 对于引用类型 default 是 null, 是 C# 语言限制下的必要用法")]
                 public TKey Current => _current!;
 
                 object? IEnumerator.Current
@@ -1656,6 +1660,7 @@ namespace Structura.Collections
 
             IEnumerator IEnumerable.GetEnumerator() => new Enumerator(_dictionary);
 
+            [SuppressMessage("AotSafety", "JCC11003", Justification = "ValueCollection.CopyTo 非泛型接口实现, item 为 TValue 对于引用类型可能 null, 是 C# 语言限制下的必要用法")]
             void ICollection.CopyTo(Array array, int index)
             {
                 if (array == null)
@@ -1768,6 +1773,7 @@ namespace Structura.Collections
                 /// <summary>
                 /// 获取枚举器当前指向的值。
                 /// </summary>
+                [SuppressMessage("AotSafety", "JCC11003", Justification = "泛型枚举器 Current, _current 对于引用类型 default 是 null, 是 C# 语言限制下的必要用法")]
                 public TValue Current => _current!;
 
                 object? IEnumerator.Current

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
@@ -184,6 +183,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     /// <summary>
     /// 从 .jcc/permission/rules.json 加载权限规则(若存在且尚未加载)。Interlocked 保证只执行一次。
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task EnsureRulesLoadedAsync(CancellationToken ct) {
         if (_fs is null || Interlocked.CompareExchange(ref _rulesLoaded, 1, 0) != 0) return;
 

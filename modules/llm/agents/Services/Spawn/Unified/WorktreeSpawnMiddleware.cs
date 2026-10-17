@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Agents;
 
 /// <summary>
@@ -34,6 +33,7 @@ public sealed partial class WorktreeSpawnMiddleware : ServiceEntity, IUnifiedSpa
     /// <param name="context">统一 Spawn 上下文</param>
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct) {
         if (!context.IsMainAgent && context.Agent is not null) {
             var agentId = context.AgentId;
@@ -54,6 +54,7 @@ public sealed partial class WorktreeSpawnMiddleware : ServiceEntity, IUnifiedSpa
         await next(context, ct).ConfigureAwait(false);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<bool> CreatePerAgentWorktreeAsync(UnifiedSpawnContext context, string agentId, CancellationToken ct) {
         _logger?.LogInformation("[WorktreeSpawn] 为 Agent {AgentId} 创建隔离 Worktree (per-agent)", agentId);
 
@@ -90,6 +91,7 @@ public sealed partial class WorktreeSpawnMiddleware : ServiceEntity, IUnifiedSpa
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<bool> CreateGlobalWorktreeAsync(UnifiedSpawnContext context, string agentId, CancellationToken ct) {
         _logger?.LogInformation("[WorktreeSpawn] 为 Agent {AgentId} 创建 Worktree (全局隔离)", agentId);
 

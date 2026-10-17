@@ -35,3 +35,4 @@ global using ChatMsg = Testing.Common.MockServer.ApiMessage;
 global using ChatRequest = Testing.Common.MockServer.ChatCompletionRequest;
 global using MessageRoles = Testing.Common.MockServer.MessageRoles;
 global using MsgRoles = Testing.Common.MockServer.MessageRoles;
+global using System.Diagnostics.CodeAnalysis;

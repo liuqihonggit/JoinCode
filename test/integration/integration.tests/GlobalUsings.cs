@@ -110,3 +110,4 @@ global using RemoteClientManager = McpToolRegistry.RemoteClientManager;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using SkillContext = Core.Skills.SkillContext;
 global using ToolContent = JoinCode.Abstractions.Tools.ToolContent;
+global using System.Diagnostics.CodeAnalysis;

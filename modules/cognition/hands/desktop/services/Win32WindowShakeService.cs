@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Hands.Desktop;
 
 /// <summary>
@@ -250,6 +249,7 @@ public sealed class Win32WindowShakeService : ServiceEntity, IWindowShakeService
     /// <summary>
     /// 按标题子串搜索窗口 — 找到标题包含指定子串的可见顶层窗口，多个匹配选面积最大的。
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static IntPtr FindWindowByTitleSubstring(string titleSubstring) {
         var ctx = new TitleSearchContext(titleSubstring);
         var handle = System.Runtime.InteropServices.GCHandle.Alloc(ctx);

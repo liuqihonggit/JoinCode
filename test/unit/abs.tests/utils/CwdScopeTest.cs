@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Abs.Tests.Utils;
 /// <summary>
 /// CwdScope 单元测试 — 验证工作目录切换与 Dispose 自动恢复（含幂等）
@@ -41,6 +40,7 @@ public sealed class CwdScopeTest {
         fs.GetCurrentDirectory().Should().Be(original);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Enter_NullFileSystem_ThrowsArgumentNullException() {
         var act = () => CwdScope.Enter(null!, "/tmp");

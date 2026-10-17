@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Core.Agents.Tests.Unit.Agents;
 
 
@@ -10,6 +9,7 @@
 public sealed class ContextSetupMiddlewareSkillPreloadTests {
     private static MiddlewareDelegate<UnifiedSpawnContext> NoopNext => (_, _) => Task.CompletedTask;
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_DefinitionHasSkills_LoadsSkillContentToInitialMessageList() {
         var skill = new SkillDefinition {
@@ -49,6 +49,7 @@ public sealed class ContextSetupMiddlewareSkillPreloadTests {
         ctx.ResolvedSubOptions!.PreloadSkills.Should().Contain("commit");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_NoSkillService_InitialMessageListIsNull() {
         var contextAccessor = new Mock<ISubAgentContextAccessor>();
@@ -77,6 +78,7 @@ public sealed class ContextSetupMiddlewareSkillPreloadTests {
         ctx.ResolvedSubOptions!.InitialMessageList.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_SkillNotFound_InitialMessageListIsEmpty() {
         var skillServiceMock = new Mock<ISkillService>();

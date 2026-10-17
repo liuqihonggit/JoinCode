@@ -253,6 +253,31 @@ public sealed class PermissionCheckerTest {
         checker.CurrentMode.Should().Be(PermissionMode.Plan);
     }
 
+    [Fact]
+    public async Task CurrentMode_Bypass_当DisableBypass开启时_被拦截() {
+        await using var checker = CreateChecker();
+        checker.DisableBypassGate = true;
+        checker.CurrentMode = PermissionMode.Bypass;
+        checker.CurrentMode.Should().NotBe(PermissionMode.Bypass);
+        checker.CurrentMode.Should().Be(PermissionMode.Auto);
+    }
+
+    [Fact]
+    public async Task CurrentMode_Plan_当DisableBypass开启时_不受影响() {
+        await using var checker = CreateChecker();
+        checker.DisableBypassGate = true;
+        checker.CurrentMode = PermissionMode.Plan;
+        checker.CurrentMode.Should().Be(PermissionMode.Plan);
+    }
+
+    [Fact]
+    public async Task CurrentMode_Bypass_当DisableBypass关闭时_正常设置() {
+        await using var checker = CreateChecker();
+        checker.DisableBypassGate = false;
+        checker.CurrentMode = PermissionMode.Bypass;
+        checker.CurrentMode.Should().Be(PermissionMode.Bypass);
+    }
+
     #endregion
 
     #region AddToAutoApprovedAndPersistAsync — 持久化

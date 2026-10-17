@@ -15,6 +15,19 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     private PermissionMode _currentMode;
     private readonly IFileSystem _fs;
     private readonly Task _loadTask;
+    private volatile bool _disableBypassGate;
+
+    /// <summary>
+    /// Bypass 安全闸 — 从 settings.json 的 disableBypassPermissionsMode 加载
+    /// <para>
+    /// C2 加固: CLI 显式 flag(--force/--bypass/--permission-mode bypass)也过此闸,
+    /// 不仅拦环境变量路径。internal 供测试直接注入。
+    /// </para>
+    /// </summary>
+    internal bool DisableBypassGate {
+        get => _disableBypassGate;
+        set => _disableBypassGate = value;
+    }
 
     /// <summary>
     /// 创建 PermissionChecker
@@ -97,6 +110,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// </summary>
     private async Task InitializeModeAsync(IFileSystem? fs) {
         _currentMode = await TryGetPermissionModeFromEnvAsync(fs).ConfigureAwait(false) ?? PermissionMode.Auto;
+        _disableBypassGate = await IsDisableBypassPermissionsModeAsync(fs).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -126,6 +140,10 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     public PermissionMode CurrentMode {
         get => _currentMode;
         set {
+            if (value == PermissionMode.Bypass && _disableBypassGate) {
+                _logger?.LogWarning("[PermissionChecker] Bypass 模式被 settings.json 安全闸拦截 (disableBypassPermissionsMode=true),保持当前模式: {Mode}", _currentMode);
+                return;
+            }
             _currentMode = value;
             _logger?.LogInformation("[PermissionChecker] 权限模式切换为: {Mode}", value);
         }

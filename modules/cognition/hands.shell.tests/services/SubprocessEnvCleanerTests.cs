@@ -198,4 +198,36 @@ public class SubprocessEnvCleanerTest {
         psi.EnvironmentVariables.ContainsKey("INPUT_OPENAI_API_KEY").Should().BeFalse();
         psi.EnvironmentVariables["SAFE_VAR"].Should().Be("keep");
     }
+
+    // ===== C1: 默认开启清洗 (opt-out via JCC_SUBPROCESS_ENV_SCRUB=0) =====
+
+    [Fact]
+    public void IsScrubbingEnabled_Default_On_When_EnvVar_Unset() {
+        using var env = EnvVarScope.Set(SubprocessEnvCleaner.ScrubEnvVar, null);
+        SubprocessEnvCleaner.IsScrubbingEnabled.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsScrubbingEnabled_Off_When_EnvVar_Is_Zero() {
+        using var env = EnvVarScope.Set(SubprocessEnvCleaner.ScrubEnvVar, "0");
+        SubprocessEnvCleaner.IsScrubbingEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsScrubbingEnabled_Off_When_EnvVar_Is_False() {
+        using var env = EnvVarScope.Set(SubprocessEnvCleaner.ScrubEnvVar, "false");
+        SubprocessEnvCleaner.IsScrubbingEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ScrubDictionaryEnv_Default_On_RemovesSensitiveKeys() {
+        using var env = EnvVarScope.Set(SubprocessEnvCleaner.ScrubEnvVar, null);
+        var dict = new Dictionary<string, string> {
+            ["OPENAI_API_KEY"] = "sk-secret",
+            ["PATH"] = "/usr/bin"
+        };
+        var result = SubprocessEnvCleaner.ScrubDictionaryEnv(dict);
+        result.Should().NotContainKey("OPENAI_API_KEY");
+        result.Should().ContainKey("PATH");
+    }
 }

@@ -180,7 +180,7 @@ public sealed partial class BashSystemActuator : SystemActuatorBase {
 
         var shellPrefix = Environment.GetEnvironmentVariable(ShellPrefixEnvVar);
         if (!string.IsNullOrEmpty(shellPrefix))
-            commandString = $"{shellPrefix} {ShellQuote(commandString)}";
+            commandString = $"{ShellQuotePrefix(shellPrefix)} {ShellQuote(commandString)}";
 
         Logger?.LogDebug("BashSystemActuator: built command for session {SessionId}", options.SessionId);
 
@@ -209,6 +209,16 @@ public sealed partial class BashSystemActuator : SystemActuatorBase {
     }
 
     private static string ShellQuote(string s) => "'" + s.Replace("'", "'\\''") + "'";
+
+    /// <summary>
+    /// C5: ShellQuote 前缀 — 按空格分词后逐词 ShellQuote,防止前缀中的 shell 元字符(;、|、$()等)被解释
+    /// <para>如 "nice -n 10" → "'nice' '-n' '10'" — 保留多词前缀功能</para>
+    /// <para>如 "; rm -rf /" → "';' 'rm' '-rf' '/'" — 分号被引号包裹,不被解释为命令分隔符</para>
+    /// </summary>
+    internal static string ShellQuotePrefix(string prefix) {
+        var parts = prefix.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return string.Join(' ', parts.Select(ShellQuote));
+    }
 
     private string ConvertToPosixPath(string path)
         => PathConverter.WindowsPathToPosixPath(path);

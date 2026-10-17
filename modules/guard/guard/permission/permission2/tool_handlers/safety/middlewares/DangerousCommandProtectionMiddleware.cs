@@ -50,6 +50,15 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
         if (context.CurrentMode == PermissionMode.Bypass) {
             if (TryRejectDangerousInBypass(context))
                 return;
+            if (_auditor is not null) {
+                await _auditor.Record(new CommandExecutionAuditEntry(
+                    DateTimeOffset.UtcNow,
+                    context.ToolName,
+                    CommandDangerLevel.LightValidation,
+                    context.CurrentMode,
+                    "Bypassed",
+                    "Bypass 模式放行")).ConfigureAwait(false);
+            }
             await next(context, ct).ConfigureAwait(false);
             return;
         }
@@ -285,6 +294,7 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
                 ? handler.BuildRejectionMessage(riskContext)
                 : $"危险操作已被阻止（{riskContext.Details}）。如确需执行请切换到 Ask 模式确认";
             context.Result = ToolPermissionCheckResult.Rejected(rejection);
+            await RecordAuditAsync(context, level, riskContext, "Rejected").ConfigureAwait(false);
             break;
 
             case PermissionMode.Ask:
@@ -299,15 +309,18 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
                 ? $"{levelTag} {handler.BuildConfirmationMessage(riskContext)}"
                 : $"{levelTag} 工具 '{context.ToolName}' 请求执行操作（{riskContext.Details}）。是否批准？";
             context.Result = ToolPermissionCheckResult.PendingConfirmation(confirmation);
+            await RecordAuditAsync(context, level, riskContext, "PendingConfirmation").ConfigureAwait(false);
             break;
 
             case PermissionMode.Plan:
             if (level == CommandDangerLevel.LightValidation) {
                 // LightValidation 在 Plan 模式下放行（可撤回操作，类似只读）
+                await RecordAuditAsync(context, level, riskContext, "Allowed").ConfigureAwait(false);
                 return;
             }
             context.Result = ToolPermissionCheckResult.Rejected(
                 $"Plan 模式下禁止不可撤回操作（{riskContext.Details}）");
+            await RecordAuditAsync(context, level, riskContext, "Rejected").ConfigureAwait(false);
             break;
 
             case PermissionMode.Unattended:
@@ -340,5 +353,22 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
         if (risks.Count == 0)
             return null;
         return DangerousCommandCatalog.SelectPrimaryRisk(risks);
+    }
+
+    /// <summary>
+    /// 记录审计日志 — 全权限模式消费(B4 审计层接线)
+    /// <para>auditor 为 null 时无操作(DI 未注入场景兼容)</para>
+    /// </summary>
+    private async ValueTask RecordAuditAsync(
+        PermissionCheckContext context, CommandDangerLevel level,
+        CommandRiskContext riskContext, string result) {
+        if (_auditor is null) return;
+        await _auditor.Record(new CommandExecutionAuditEntry(
+            DateTimeOffset.UtcNow,
+            riskContext.ShellCommand?.ToString() ?? context.ToolName,
+            level,
+            context.CurrentMode,
+            result,
+            riskContext.Details)).ConfigureAwait(false);
     }
 }

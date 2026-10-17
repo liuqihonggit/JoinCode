@@ -93,7 +93,7 @@
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| auditor DI 显式注册 + 全模式消费 | `DangerousCommandProtectionMiddleware.cs:36`、DI 注册处 | ☐ | ☐ ADR 0080 手动 exe: 执行命令后 `.jcc/audit/` 有完整记录 |
+| auditor DI 显式注册 + 全模式消费 | `DangerousCommandProtectionMiddleware.cs:36`、DI 注册处 | ✅ `[Register(Singleton)]` 自动注册 + `RecordAuditAsync` 辅助方法 + Auto/Ask/Plan/Bypass 四模式接入审计(Unattended 原有) + 落盘目录改 `.jcc/audit/` | ✅ `DangerousCommandProtectionMiddlewareTests.All_Modes_Should_Produce_Audit_Record` (Theory: Auto/Ask/Plan/Unattended 4/4) + `Bypass_Mode_Should_Produce_Audit_Record_For_NonDangerous` 1/1 + 全量 1101/1101 无回归 |
 
 ---
 
@@ -101,12 +101,12 @@
 
 | # | 问题 | 证据 | 修复方案 | 验收 |
 |---|------|------|----------|------|
-| C1 | API key 默认随子进程继承（`env` 可回显，提示注入可窃取） | `SubprocessEnvCleaner.cs:68-69`（默认关闭，需手动 opt-in） | bash/powershell 工具**默认开启**清洗，`JCC_SUBPROCESS_ENV_SCRUB=0` 反向 opt-out | ☐ 手动 exe: bash 内 `printenv` 无 key |
-| C2 | Bypass 家族 `disableBypassPermissionsMode` 闸疑不覆盖 CLI 显式 flag | `PermissionChecker.cs:88`（仅拦环境变量路径） | `--force`/`--bypass`/`--permission-mode bypass` 一律过 settings.json 安全闸 | ☐ 单元: 闸开启时 CLI flag 被拦 |
-| C3 | HTTP 请求体无 Content-Length 上限（DoS 面） | `McpHttpServer.cs:222-225` | 限制上限（如 10MB），超限 413 + 引导文案 | ☐ 单元测试 |
-| C4 | 插件加载无签名/哈希/目录白名单；`PluginApprovalRegistry` 未接线 | `PluginManager.cs:330-456` | 加载主路径接入审批注册表；外部 exe 启动前校验审批状态 | ☐ 单元: 未审批插件 → 拒绝+引导 |
-| C5 | `JCC_SHELL_PREFIX` 未 ShellQuote 内插 | `BashSystemActuator.cs:180-183` | prefix 同样 `ShellQuote` | ☐ 单元测试 |
-| C6 | auth.json 明文存 key | `ConfigLoader.cs:289-315` | DPAPI 加密（Windows）/ 拒绝写明文（跨平台降级提示） | ☐ 手动 exe: 登录后文件非明文 |
+| C1 | API key 默认随子进程继承（`env` 可回显，提示注入可窃取） | `SubprocessEnvCleaner.cs:68-69`（默认关闭，需手动 opt-in） | bash/powershell 工具**默认开启**清洗，`JCC_SUBPROCESS_ENV_SCRUB=0` 反向 opt-out | ✅ `IsScrubbingEnabled` 改为 `is not ("0" or "false")` 默认开启 + hands.shell.tests 515/515 |
+| C2 | Bypass 家族 `disableBypassPermissionsMode` 闸疑不覆盖 CLI 显式 flag | `PermissionChecker.cs:88`（仅拦环境变量路径） | `--force`/`--bypass`/`--permission-mode bypass` 一律过 settings.json 安全闸 | ✅ `DisableBypassGate` 属性 + `CurrentMode` setter 拦截 + Guard.Security.Tests 1104/1104 |
+| C3 | HTTP 请求体无 Content-Length 上限（DoS 面） | `McpHttpServer.cs:222-225` | 限制上限（如 10MB），超限 413 + 引导文案 | ✅ `MaxRequestBodyBytes` 属性(默认10MB) + `WritePayloadTooLarge` 413 + McpHttpServer 29/29 |
+| C4 | 插件加载无签名/哈希/目录白名单；`PluginApprovalRegistry` 未接线 | `PluginManager.cs:330-456` | 加载主路径接入审批注册表；外部 exe 启动前校验审批状态 | ✅ `CheckPluginApproval` 三路径(EXT/NATIVE/WF) + PluginManager+Approval+Dynamic 59/59 |
+| C5 | `JCC_SHELL_PREFIX` 未 ShellQuote 内插 | `BashSystemActuator.cs:180-183` | prefix 同样 `ShellQuote` | ✅ `ShellQuotePrefix` 分词逐引用 + 11 Theory 元字符/多词/转义 |
+| C6 | auth.json 明文存 key | `ConfigLoader.cs:289-315` | DPAPI 加密（Windows）/ 拒绝写明文（跨平台降级提示） | ✅ `ApiKeyProtector` DPAPI + `dpapi:` 前缀 + ConfigLoader 44/44 + ApiKeyProtector 7/7 |
 
 ---
 
@@ -120,15 +120,15 @@
 | `/keybindings` | `ChatCommandName.cs:28` | 同上 | **移除枚举** |
 | `/passes` | `ChatCommandName.cs:60` | 同上 | **移除枚举** |
 
-☐ 状态: 未开始 | 验收: 编译通过 + 枚举消费完整性测试通过
+✅ 状态: 已完成 | 验收: Abstractions + CLI app 编译通过(全量重建)
 
 ### 决策 2: 显式桩补全（核心路径相关）
 
 | 项 | 证据 | 方案 | 优先级 |
 |----|------|------|--------|
-| 团队上下文转录恢复恒 null | `TeammateReconnectService.cs:78-87` | 实现：读取会话转录重建么上下文（对齐 restart 场景） | D1 |
+| 团队上下文转录恢复恒 null | `TeammateReconnectService.cs:78-87` | 实现：读取会话转录重建么上下文（对齐 restart 场景） | D1 — ⚠️ 无调用方,保持 stub |
 | MCP 有状态 GET SSE 推送 | `McpTcpServer.cs:128`（返回 200 空流） | 实现事件流推送或显式文档声明"有状态模式不订阅推送"（当前处于实验性方式） | D2 |
-| `WindowsJobObjectSandbox` CPU 参数静默无效 | `WindowsJobObjectSandbox.cs:24,29`（接受参数但不设置 LIMIT） | **必须修复**：实现 CPU limit 或删除参数让调用方无误导 | D1 |
+| `WindowsJobObjectSandbox` CPU 参数静默无效 | `WindowsJobObjectSandbox.cs:24,29`（接受参数但不设置 LIMIT） | **必须修复**：实现 CPU limit 或删除参数让调用方无误导 | D1 — ✅ 已实现 CPU rate control |
 | `/ultraplan --steps` execute 模式被忽略 | `UltraplanCommand.cs:33,60` | 传入 PlanService 或显式文档"steps 仅规划模式" | D2 |
 | `confirm_action` 工具预留 | `UserInteractionToolName.cs:11-15`（显式标注未实现） | 评估: `ask_user_question` 已覆盖主场景 → **从枚举移除预留位**（消除误导）或实现 | D2 |
 

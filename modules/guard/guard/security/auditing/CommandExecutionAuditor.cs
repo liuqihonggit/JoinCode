@@ -18,9 +18,9 @@ namespace Core.Security.Auditing;
 internal sealed partial class CommandAuditJsonContext : JsonSerializerContext;
 
 /// <summary>
-/// 命令执行审计日志实现 — 将审计条目以 JSONL 格式写入 .audit/ 目录
+/// 命令执行审计日志实现 — 将审计条目以 JSONL 格式写入 .jcc/audit/ 目录
 /// <para>
-/// 文件路径: .audit/command-execution-{date}.jsonl
+/// 文件路径: .jcc/audit/command-execution-{date}.jsonl
 /// 每行一个 JSON 对象,使用 RelaxedJsonSerializer 序列化(AOT 安全)
 /// 通过 IFileSystem 抽象层写入文件(测试可注入 InMemoryFileSystem)
 /// </para>
@@ -36,10 +36,10 @@ public sealed class CommandExecutionAuditor : ActorBase<CommandAuditCommand, Uni
     private readonly ILogger<CommandExecutionAuditor>? _logger;
 
     /// <summary>
-    /// 创建 CommandExecutionAuditor;审计目录默认为 .audit/
+    /// 创建 CommandExecutionAuditor;审计目录默认为 .jcc/audit/
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
-    /// <param name="auditDirectory">审计日志目录路径(可选,默认 .audit/)</param>
+    /// <param name="auditDirectory">审计日志目录路径(可选,默认 .jcc/audit/)</param>
     /// <param name="logger">日志器(可选)</param>
     public CommandExecutionAuditor(
         IFileSystem fs,
@@ -48,7 +48,7 @@ public sealed class CommandExecutionAuditor : ActorBase<CommandAuditCommand, Uni
         : base(new ActorBackpressure(2048, BoundedChannelFullMode.DropOldest)) {
         ArgumentNullException.ThrowIfNull(fs);
         _fs = fs;
-        _auditDirectory = auditDirectory ?? ".audit";
+        _auditDirectory = auditDirectory ?? Path.Combine(".jcc", "audit");
         _logger = logger;
     }
 

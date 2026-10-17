@@ -5,7 +5,6 @@ namespace Integration.Tests.PrefixCache.Unit;
 
 /// <summary>
 /// 类型转换宽容层测试 — 覆盖 LlmJsonHelper 统一门控的纵深防御第三层（类型强制转换）
-/// 当前测试为 RED：在未实现类型强制转换前，number→bool、number→string 等会失败并落入第4层报错
 /// </summary>
 public sealed class LenientCoercionTests {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]

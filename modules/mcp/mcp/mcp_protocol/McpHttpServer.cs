@@ -18,6 +18,11 @@ public sealed class McpHttpServer : ServiceEntity {
     public McpAuthToken AuthToken => _authToken;
 
     /// <summary>
+    /// 请求体最大字节数 — C3 DoS 防护:超限返回 413 + 引导文案。默认 10MB。
+    /// </summary>
+    public long MaxRequestBodyBytes { get; set; } = 10 * 1024 * 1024;
+
+    /// <summary>
     /// 创建 MCP HTTP 服务端
     /// </summary>
     /// <param name="server">底层 MCP 服务器(提供工具/资源/提示处理)</param>
@@ -121,6 +126,13 @@ public sealed class McpHttpServer : ServiceEntity {
         if (!_statelessMode && !string.IsNullOrEmpty(sessionId) && !_sessions.Contains(sessionId)) {
             ctx.Response.StatusCode = 404;
             ctx.Response.Close();
+            return;
+        }
+
+        // C3 DoS 防护: Content-Length 超限 → 413 + 引导文案
+        var contentLength = ctx.Request.ContentLength64;
+        if (contentLength > 0 && contentLength > MaxRequestBodyBytes) {
+            WritePayloadTooLarge(ctx);
             return;
         }
 
@@ -233,6 +245,18 @@ public sealed class McpHttpServer : ServiceEntity {
         var body = Encoding.UTF8.GetBytes(reason);
         ctx.Response.StatusCode = 401;
         ctx.Response.Headers["WWW-Authenticate"] = "Bearer realm=\"mcp\"";
+        ctx.Response.ContentType = "application/json";
+        ctx.Response.ContentLength64 = body.Length;
+        ctx.Response.OutputStream.Write(body, 0, body.Length);
+        ctx.Response.Close();
+    }
+
+    /// <summary>413 响应 — 请求体超限 + 引导文案（C3 DoS 防护, AGENTS.md 规则9）</summary>
+    private void WritePayloadTooLarge(HttpListenerContext ctx) {
+        var reason = $"MCP 请求体过大: Content-Length {ctx.Request.ContentLength64} 超过上限 {MaxRequestBodyBytes} 字节。"
+            + "请减小请求体体积(如分批传输或压缩),或联系管理员调整 MaxRequestBodyBytes 上限";
+        var body = Encoding.UTF8.GetBytes(reason);
+        ctx.Response.StatusCode = 413;
         ctx.Response.ContentType = "application/json";
         ctx.Response.ContentLength64 = body.Length;
         ctx.Response.OutputStream.Write(body, 0, body.Length);

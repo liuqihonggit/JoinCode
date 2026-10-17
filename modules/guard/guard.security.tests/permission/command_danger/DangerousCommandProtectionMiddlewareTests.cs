@@ -142,4 +142,47 @@ public class DangerousCommandProtectionMiddlewareTests {
     }
 
     #endregion
+
+    #region B4: 全模式审计记录验证
+
+    /// <summary>
+    /// 捕获 auditor — 记录所有 Record 调用供测试验证
+    /// </summary>
+    private sealed class CapturingAuditor : ICommandExecutionAuditor {
+        public List<CommandExecutionAuditEntry> Entries { get; } = [];
+        public ValueTask Record(CommandExecutionAuditEntry entry) {
+            Entries.Add(entry);
+            return default;
+        }
+    }
+
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Theory]
+    [InlineData(PermissionMode.Auto)]
+    [InlineData(PermissionMode.Ask)]
+    [InlineData(PermissionMode.Plan)]
+    [InlineData(PermissionMode.Unattended)]
+    public async Task All_Modes_Should_Produce_Audit_Record(PermissionMode mode) {
+        var auditor = new CapturingAuditor();
+        await using var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier, auditor: auditor);
+        var context = CreateContext(mode, "git commit -m \"msg\"");
+
+        await middleware.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        auditor.Entries.Should().NotBeEmpty($"{mode} 模式应产生审计记录");
+    }
+
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public async Task Bypass_Mode_Should_Produce_Audit_Record_For_NonDangerous() {
+        var auditor = new CapturingAuditor();
+        await using var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier, auditor: auditor);
+        var context = CreateContext(PermissionMode.Bypass, "git commit -m \"msg\"");
+
+        await middleware.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        auditor.Entries.Should().NotBeEmpty("Bypass 模式放行非危险命令应产生审计记录");
+    }
+
+    #endregion
 }

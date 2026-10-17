@@ -1,9 +1,8 @@
 namespace MockServer.E2E.Tests;
 
 /// <summary>
-/// /ultraplan --execute 自动执行模式 E2E 测试 — P0-A TDD 红阶段
+/// /ultraplan --execute 自动执行模式 E2E 测试
 /// 验证 --execute 标志应触发 PlanService.ExecutePlanWithResultAsync
-/// 而非当前的"自动执行模式尚未实现"警告
 /// </summary>
 [Trait("Category", "Integration")]
 public sealed class UltraplanExecuteE2ETests : CoverageTestBase {

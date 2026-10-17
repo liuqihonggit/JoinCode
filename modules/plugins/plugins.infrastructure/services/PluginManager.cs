@@ -15,6 +15,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     private readonly IServiceProvider? _serviceProvider;
     private readonly ITelemetryService? _telemetryService;
     private readonly IFileSystem _fs;
+    private readonly PluginApprovalRegistry? _approvalRegistry;
     private volatile bool _isDisposed;
     private IPluginHotReloader? _hotReloader;
     private IPluginHookInjector? _hookInjector;
@@ -76,6 +77,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <param name="logger">可选日志器</param>
     /// <param name="serviceProvider">可选服务提供者（用于按需获取热重载、钩子注入器等）</param>
     /// <param name="telemetryService">可选遥测服务</param>
+    /// <param name="approvalRegistry">可选插件审批注册表（C4: 未审批插件拒绝加载+引导）；null 时跳过审批检查</param>
     public PluginManager(
         IFileSystem fs,
         IChatClient? kernel = null,
@@ -84,7 +86,8 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         ICommandRegistry? commandRegistry = null,
         ILogger<PluginManager>? logger = null,
         IServiceProvider? serviceProvider = null,
-        ITelemetryService? telemetryService = null)
+        ITelemetryService? telemetryService = null,
+        PluginApprovalRegistry? approvalRegistry = null)
         : base() {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _kernel = kernel;
@@ -94,6 +97,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         _logger = logger;
         _serviceProvider = serviceProvider;
         _telemetryService = telemetryService;
+        _approvalRegistry = approvalRegistry;
         _lifecycleTracker = new PluginLifecycleTracker(logger, ReportDiagnostic);
     }
 
@@ -130,6 +134,9 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         try {
             CheckNotDuplicateLoad(pluginName);
             CheckNotBlacklisted(pluginName);
+
+            // C4: 审批检查 — 未审批插件拒绝加载+引导
+            CheckPluginApproval(pluginName, "WF-LOAD");
 
             _logger?.LogInformation("正在加载内置工作流插件: {PluginName}", pluginName);
 
@@ -221,6 +228,25 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         if (Volatile.Read(ref _blacklistedPlugins).Contains(pluginName)) {
             RecordPluginMetrics("workflow", "load", false);
             throw new InvalidOperationException(PluginErrors.Blacklisted(pluginName));
+        }
+    }
+
+    /// <summary>
+    /// C4: 审批检查 — 未审批插件拒绝加载+引导（AGENTS.md 规则9: 拒绝必须带怎么做）
+    /// <para>对齐 DynamicPluginRegistry.RunPlugin 审批模式: PendingRequestFor + ApprovalState.Pending → throw</para>
+    /// <para>approvalRegistry 为 null 时跳过(向后兼容);审批通过(Approved)或无请求时不拦截</para>
+    /// </summary>
+    /// <param name="pluginName">插件名称</param>
+    /// <param name="tag">错误码前缀(如 EXT-LOAD / NATIVE-LOAD / WF-LOAD)</param>
+    internal void CheckPluginApproval(string pluginName, string tag) {
+        if (_approvalRegistry is null) return;
+        var pending = _approvalRegistry.PendingRequestFor(pluginName);
+        if (pending is not null && pending.State == ApprovalState.Pending) {
+            throw new InvalidOperationException(
+                $"[{tag}-PENDING-APPROVAL] 插件 {pluginName} 有待审批请求 {pending.RequestId}，"
+                + $"请先审批: 调用 PluginApprovalRegistry.Approve({pending.RequestId}) 批准,"
+                + $"或 PluginApprovalRegistry.Decline({pending.RequestId}) 拒绝。"
+                + $"审批原因: {pending.Reason}");
         }
     }
 
@@ -345,6 +371,9 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 throw new InvalidOperationException(PluginErrors.Blacklisted(pluginName));
             }
 
+            // C4: 审批检查 — 未审批插件拒绝加载+引导
+            CheckPluginApproval(pluginName, "NATIVE-LOAD");
+
             var host = new NativePluginHost(dllPath, pluginName, _fs, _logger);
             var loadResult = host.Load(configJson);
             if (!loadResult.IsSuccess) {
@@ -399,6 +428,9 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 RecordPluginMetrics("external", "load", false);
                 throw new InvalidOperationException(PluginErrors.Blacklisted(pluginName));
             }
+
+            // C4: 审批检查 — 未审批插件拒绝加载+引导（AGENTS.md 规则9）
+            CheckPluginApproval(pluginName, "EXT-LOAD");
 
             if (!_fs.FileExists(exePath)) {
                 RecordPluginMetrics("external", "load", false);

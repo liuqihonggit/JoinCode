@@ -21,7 +21,7 @@ public sealed class WindowsJobObjectSandbox : IDisposable {
     /// 创建 JobObject 并设置资源限制
     /// </summary>
     /// <param name="memoryLimitBytes">单进程内存上限(字节),null 表示不限制</param>
-    /// <param name="cpuLimitPercent">CPU 占用百分比上限,null 表示不限制(当前未实现)</param>
+    /// <param name="cpuLimitPercent">CPU 占用百分比上限(1-100),null 表示不限制</param>
     /// <param name="activeProcessLimit">活动进程数上限,null 表示不限制</param>
     /// <returns>JobObject 句柄</returns>
     /// <exception cref="PlatformNotSupportedException">非 Windows 平台</exception>
@@ -76,6 +76,26 @@ public sealed class WindowsJobObjectSandbox : IDisposable {
             var error = Marshal.GetLastPInvokeError();
             CloseHandle();
             throw new InvalidOperationException($"[INF057] 设置 JobObject 限制失败, Win32 错误码: {error}");
+        }
+
+        // D1: CPU 速率控制 — 使用 JobObjectCpuRateControlInformation 实现硬性 CPU 上限
+        if (cpuLimitPercent.HasValue && cpuLimitPercent.Value > 0 && cpuLimitPercent.Value <= 100) {
+            var cpuRate = new JobObjectNative.JOBOBJECT_CPU_RATE_CONTROL_INFORMATION {
+                ControlFlags = JobObjectNative.JOB_OBJECT_CPU_RATE_CONTROL_ENABLE
+                             | JobObjectNative.JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP,
+                CpuRate = (uint)cpuLimitPercent.Value * 100,
+            };
+            var cpuSuccess = JobObjectNative.SetInformationJobObject(
+                _jobHandle,
+                JobObjectNative.JOB_OBJECT_CPU_RATE_CONTROL_INFORMATION,
+                ref cpuRate,
+                (uint)Marshal.SizeOf<JobObjectNative.JOBOBJECT_CPU_RATE_CONTROL_INFORMATION>());
+            if (!cpuSuccess) {
+                var cpuError = Marshal.GetLastPInvokeError();
+                _logger?.LogWarning("[WindowsJobObject] CPU 速率控制设置失败(错误码: {Error}),降级为无 CPU 限制", cpuError);
+            } else {
+                _logger?.LogInformation("[WindowsJobObject] CPU 速率限制已设置: {Percent}%", cpuLimitPercent.Value);
+            }
         }
 
         _logger?.LogInformation("[WindowsJobObject] JobObject 已创建, Handle: {Handle}, 限制: {Flags}", _jobHandle, limitFlags);

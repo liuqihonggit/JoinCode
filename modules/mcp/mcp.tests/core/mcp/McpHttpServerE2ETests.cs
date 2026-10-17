@@ -223,4 +223,47 @@ public class McpHttpServerE2ETests {
             httpServer.Stop();
         }
     }
+
+    [Fact]
+    public async Task Post_OversizedBody_Returns413() {
+        var server = new McpServer("test");
+        var port = GetFreePort();
+        await using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: true);
+        httpServer.MaxRequestBodyBytes = 100;
+        using var cts = new CancellationTokenSource();
+        var runTask = Task.Run(() => httpServer.RunAsync(cts.Token));
+
+        try {
+            await Task.Delay(300);
+            using var client = new HttpClient();
+            var oversizedBody = new string('x', 200);
+            using var request = CreateAuthorizedPost(httpServer, $"http://localhost:{port}/mcp/", oversizedBody);
+            using var response = await client.SendAsync(request);
+            response.StatusCode.Should().Be(HttpStatusCode.RequestEntityTooLarge);
+        } finally {
+            cts.Cancel();
+            httpServer.Stop();
+        }
+    }
+
+    [Fact]
+    public async Task Post_NormalBody_UnderLimit_Returns200() {
+        var server = new McpServer("test");
+        var port = GetFreePort();
+        await using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: true);
+        httpServer.MaxRequestBodyBytes = 10 * 1024 * 1024;
+        using var cts = new CancellationTokenSource();
+        var runTask = Task.Run(() => httpServer.RunAsync(cts.Token));
+
+        try {
+            await Task.Delay(300);
+            using var client = new HttpClient();
+            using var request = CreateAuthorizedPost(httpServer, $"http://localhost:{port}/mcp/", InitializeBody);
+            using var response = await client.SendAsync(request);
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        } finally {
+            cts.Cancel();
+            httpServer.Stop();
+        }
+    }
 }

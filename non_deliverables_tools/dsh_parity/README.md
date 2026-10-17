@@ -5,7 +5,7 @@
 >
 > 设计文档: [DSG042](../../modules/apps/docs/design/DSG042-DSH像素级对齐对比校验体系.md)
 > 任务清单: [TASK053](../../modules/apps/docs/task/TASK053-DSH像素对齐对比校验体系任务清单.md) · [TASK054](../../modules/apps/docs/task/TASK054-WebView2自研WebUI-spike任务清单.md)
-> ADR: [0138](../../docs/proposed/adr/architecture/0138-gui-webview2-webui-rendering.md)（WebView2 + 自研 WebUI 路线）
+> ADR: [0138](../../docs/implemented/adr/architecture/0138-gui-webview2-webui-rendering.md)（WebView2 + 自研 WebUI 路线）
 
 ## 目录结构
 

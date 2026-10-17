@@ -4,7 +4,7 @@
 > 在 **NativeAOT** 下全链路可用：Avalonia 12.1.3 + NativeControlHost 嵌 WebView2 + JS↔.NET 桥接。
 >
 > 结论（2026-10-17 实测）：✅ 通过。详见 [TASK054](../../modules/apps/docs/task/TASK054-WebView2自研WebUI-spike任务清单.md) spike 数据节。
-> ADR: [0138](../../docs/proposed/adr/architecture/0138-gui-webview2-webui-rendering.md)
+> ADR: [0138](../../docs/implemented/adr/architecture/0138-gui-webview2-webui-rendering.md)
 
 ## 结论摘要
 

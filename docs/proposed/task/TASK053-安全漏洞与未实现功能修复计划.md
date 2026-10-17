@@ -120,15 +120,15 @@
 | `/keybindings` | `ChatCommandName.cs:28` | 同上 | **移除枚举** |
 | `/passes` | `ChatCommandName.cs:60` | 同上 | **移除枚举** |
 
-☐ 状态: 未开始 | 验收: 编译通过 + 枚举消费完整性测试通过
+✅ 状态: 已完成 | 验收: Abstractions + CLI app 编译通过(全量重建)
 
 ### 决策 2: 显式桩补全（核心路径相关）
 
 | 项 | 证据 | 方案 | 优先级 |
 |----|------|------|--------|
-| 团队上下文转录恢复恒 null | `TeammateReconnectService.cs:78-87` | 实现：读取会话转录重建么上下文（对齐 restart 场景） | D1 |
+| 团队上下文转录恢复恒 null | `TeammateReconnectService.cs:78-87` | 实现：读取会话转录重建么上下文（对齐 restart 场景） | D1 — ⚠️ 无调用方,保持 stub |
 | MCP 有状态 GET SSE 推送 | `McpTcpServer.cs:128`（返回 200 空流） | 实现事件流推送或显式文档声明"有状态模式不订阅推送"（当前处于实验性方式） | D2 |
-| `WindowsJobObjectSandbox` CPU 参数静默无效 | `WindowsJobObjectSandbox.cs:24,29`（接受参数但不设置 LIMIT） | **必须修复**：实现 CPU limit 或删除参数让调用方无误导 | D1 |
+| `WindowsJobObjectSandbox` CPU 参数静默无效 | `WindowsJobObjectSandbox.cs:24,29`（接受参数但不设置 LIMIT） | **必须修复**：实现 CPU limit 或删除参数让调用方无误导 | D1 — ✅ 已实现 CPU rate control |
 | `/ultraplan --steps` execute 模式被忽略 | `UltraplanCommand.cs:33,60` | 传入 PlanService 或显式文档"steps 仅规划模式" | D2 |
 | `confirm_action` 工具预留 | `UserInteractionToolName.cs:11-15`（显式标注未实现） | 评估: `ask_user_question` 已覆盖主场景 → **从枚举移除预留位**（消除误导）或实现 | D2 |
 

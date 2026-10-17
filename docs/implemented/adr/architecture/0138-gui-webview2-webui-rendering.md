@@ -3,7 +3,7 @@
 > 📍 **导航**: [docs/](../../../README.md) › [adr/](README.md)
 > 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
 
-> 状态: proposed（待 spike 验证 Avalonia+WebView2+NativeAOT 后转 accepted）
+> 状态: accepted（spike S1/S2 实测通过，2026-10-17；证据见 [TASK054](../../../../modules/apps/docs/task/TASK054-WebView2自研WebUI-spike任务清单.md)）
 > 创建: 2026-10-17
 > 决策者: 用户主导
 > 影响: modules/apps/gui 渲染层重写为 Web 前端；引入 HTML/CSS/JS 构建链；.NET↔JS 桥接
@@ -58,7 +58,23 @@ GUI 内容区采用 **WebView2 容器渲染自研 Web UI（HTML/CSS/JS）**：
 
 ## 验证清单
 
-- [ ] S1: 自研 WebUI 首页骨架 + token→CSS 生成器 + 截图/diff 管道跑通，产出对齐数据
-- [ ] S2: Avalonia+WebView2 卫星宿主 spike：AOT 发布 + 加载本地页面 + 桥接 ping/pong
-- [ ] S3: spike 报告 + 本 ADR 状态更新（accepted / 回退 A）
-- [ ] 离线打包策略确认（WebView2 Runtime 检测与分发）
+- [x] S1: 自研 WebUI 首页骨架 + token→CSS 生成器 + 截图/diff 管道跑通，产出对齐数据（98.6% 像素 Δ≤11，残余全部为字形/图形资产类，见 TASK054 spike 数据）
+- [x] S2: Avalonia+WebView2 卫星宿主 spike：AOT 发布通过 + 加载本地页面 + 桥接 ping/pong 往返 378ms（`non_deliverables_tools/webview_host_spike/`）
+- [x] S3: spike 报告 + 本 ADR 状态更新（accepted）
+- [x] 离线打包策略确认：WebView2 Evergreen Runtime 由系统提供（Win10/11 自带）；`--runtime-check` 探测缺失（退出码 3）+ 初始化异常可提示；file:// 本地页无网运行验证通过
+
+## spike 实测结论（2026-10-17）
+
+**技术路线终局：CsWinRT 投影（非托管 COM 互操作）**
+
+| 路线 | JIT | NativeAOT |
+|------|-----|-----------|
+| 托管 COM 互操作（包默认） | ✅ | ❌ `COM Interop requires ComWrapper instance registered for marshalling` |
+| **CsWinRT 投影（采纳）** | ✅ | ✅ ILC 零警告，桥接 378ms |
+
+生产接入配置四件套（缺一失败，详见 TASK054"spike 数据"S2 节）：
+
+1. **TFM 平台化**：`net10.0-windows10.0.26100.0`（TPV 与本机 UAP SDK 对齐）
+2. **投影开关**：`WebView2EnableCsWinRTProjection=true` + `Microsoft.Windows.CsWinRT` 2.3.1（+ `Microsoft.Web.WebView2` 1.0.4258.31）
+3. **x64 显式**：`PlatformTarget=x64`（包 targets 对 AnyCPU 误判 x86 → 组件架构错配）
+4. **应用清单**：`app.manifest` = supportedOS（NativeControlHost 子窗口必需）+ 免注册 WinRT `activatableClass` 条目

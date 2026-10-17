@@ -48,10 +48,11 @@
 ## P5 — 双路线评估（已决策：B2 主线）
 
 - [x] P5-1 WebView2 + NativeAOT 卫星 spike → 移至 [TASK054](TASK054-WebView2自研WebUI-spike任务清单.md)（用户选定 B2 后成为关键路径）
-- [x] P5-2 路线决策（用户确认）：**B2 WebView2+自研 Web UI**（[ADR 0138](../../../../docs/proposed/adr/architecture/0138-gui-webview2-webui-rendering.md) proposed）；A 降为回退
+- [x] P5-2 路线决策（用户确认）：**B2 WebView2+自研 Web UI**（[ADR 0138](../../../../docs/implemented/adr/architecture/0138-gui-webview2-webui-rendering.md) accepted）；A 降为回退
 
-## P6 — 按区域对齐重构（依 P5 决策：WebUI 区域，S2/S3 通过后启动）
+## P6 — 按区域对齐重构（依 P5 决策：WebUI 区域；S2/S3 已通过，启动窗口开放）
 
+- [ ] P6-0 产品 GUI 接入 WebView2 宿主（TASK054 四件套：TFM 平台化/投影开关/x64/清单条目 + 桥接协议 + webui 静态资源打包）
 - [ ] P6-1 侧栏（工作区/会话列表）
 - [ ] P6-2 composer（输入区）
 - [ ] P6-3 对话消息区

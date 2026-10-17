@@ -845,3 +845,13 @@ public sealed class SearchProviderProfileSettings {
     [JsonPropertyName("enabled")]
     public bool Enabled { get; init; } = true;
 }
+
+/// <summary>
+/// 供应商模型列表文件 — vendors/{name}/models.json 的 DTO（TASK054 P6 物理拆分）。
+/// <para>格式：{ "models": [{ "id": "...", "displayName": "...", ... }] }</para>
+/// </summary>
+public sealed class VendorModelsFile {
+    /// <summary>模型列表</summary>
+    [JsonPropertyName("models")]
+    public List<ModelItemConfig> Models { get; init; } = [];
+}

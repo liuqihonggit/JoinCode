@@ -429,5 +429,51 @@ public class SettingsLoaderTests : IDisposable {
     }
 
     #endregion
+
+    #region P6: vendors/ 子文件夹物理拆分
+
+    [Fact]
+    public async Task P6_LoadVendorSubConfigs_从子文件夹加载供应商配置和模型() {
+        var vendorsDir = Path.Combine(_userAppDataDir, "vendors", "openai");
+        _fs.CreateDirectory(vendorsDir);
+
+        var configJson = """{"provider":"openai","protocol":"openai-compatible","model":"gpt-4o","endpoint":"https://api.openai.com/v1","apiKeyEnvVar":"OPENAI_API_KEY","modelsEndpoint":"models"}""";
+        await _fs.WriteAllText(Path.Combine(vendorsDir, "config.json"), configJson);
+
+        var modelsJson = """{"models":[{"id":"gpt-4o","displayName":"GPT-4o","contextWindow":128000}]}""";
+        await _fs.WriteAllText(Path.Combine(vendorsDir, "models.json"), modelsJson);
+
+        var result = await SettingsLoader.LoadVendorSubConfigsAsync(_fs, _userAppDataDir, CancellationToken.None);
+
+        result.Should().ContainKey("openai");
+        var openai = result["openai"];
+        openai.Provider.Should().Be("openai");
+        openai.Endpoint.Should().Be("https://api.openai.com/v1");
+        openai.Models.Should().HaveCount(1);
+        openai.Models[0].Id.Should().Be("gpt-4o");
+        openai.Models[0].ContextWindow.Should().Be(128000);
+    }
+
+    [Fact]
+    public async Task P6_LoadVendorSubConfigs_无vendors目录_返回空字典() {
+        var result = await SettingsLoader.LoadVendorSubConfigsAsync(_fs, _userAppDataDir, CancellationToken.None);
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task P6_LoadVendorSubConfigs_只有config无models_Models为空() {
+        var vendorsDir = Path.Combine(_userAppDataDir, "vendors", "anthropic");
+        _fs.CreateDirectory(vendorsDir);
+
+        var configJson = """{"provider":"anthropic","protocol":"anthropic","model":"claude-sonnet-4-5"}""";
+        await _fs.WriteAllText(Path.Combine(vendorsDir, "config.json"), configJson);
+
+        var result = await SettingsLoader.LoadVendorSubConfigsAsync(_fs, _userAppDataDir, CancellationToken.None);
+
+        result.Should().ContainKey("anthropic");
+        result["anthropic"].Models.Should().BeEmpty();
+    }
+
+    #endregion
 }
 #pragma warning restore JCC3010, JCC3011, JCC3012

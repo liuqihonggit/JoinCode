@@ -293,6 +293,71 @@ public static class SettingsLoader {
     }
 
     /// <summary>
+    /// 从 {baseDir}/vendors/ 子文件夹加载供应商配置 — TASK054 P6 物理拆分。
+    /// <para>每个供应商 {name}/config.json 含 ProfileSettings（除 models），{name}/models.json 含模型列表。</para>
+    /// <para>子文件不存在时跳过（约定大于配置，渐进式迁移）。</para>
+    /// </summary>
+    /// <param name="fs">文件系统</param>
+    /// <param name="baseDir">jcc 基础目录（如 ~/.jcc/）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="logger">可选日志</param>
+    /// <returns>供应商名 → ProfileSettings 映射（空字典表示无子文件）</returns>
+    public static async Task<Dictionary<string, ProfileSettings>> LoadVendorSubConfigsAsync(
+        IFileSystem fs, string baseDir, CancellationToken cancellationToken = default, ILogger? logger = null) {
+        var result = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase);
+        var vendorsDir = Path.Combine(baseDir, "vendors");
+        if (!fs.DirectoryExists(vendorsDir))
+            return result;
+
+        foreach (var vendorDir in fs.EnumerateDirectories(vendorsDir, "*", SearchOption.TopDirectoryOnly)) {
+            var vendorName = Path.GetFileName(vendorDir);
+            var configPath = Path.Combine(vendorDir, "config.json");
+            var modelsPath = Path.Combine(vendorDir, "models.json");
+
+            ProfileSettings? profile = null;
+            if (fs.FileExists(configPath)) {
+                try {
+                    var configJson = await fs.ReadAllTextAsync(configPath, cancellationToken).ConfigureAwait(false);
+                    profile = RelaxedJsonSerializer.Deserialize(configJson, ConfigJsonContext.Default.ProfileSettings);
+                } catch (Exception ex) {
+                    logger?.LogWarning(ex, "Failed to load vendor config: {Path}", configPath);
+                }
+            }
+
+            if (profile is null)
+                continue;
+
+            if (profile.Models is null)
+                profile = WithModels(profile, []);
+
+            if (fs.FileExists(modelsPath)) {
+                try {
+                    var modelsJson = await fs.ReadAllTextAsync(modelsPath, cancellationToken).ConfigureAwait(false);
+                    var modelsFile = RelaxedJsonSerializer.Deserialize(modelsJson, ConfigJsonContext.Default.VendorModelsFile);
+                    if (modelsFile is not null)
+                        profile = WithModels(profile, modelsFile.Models);
+                } catch (Exception ex) {
+                    logger?.LogWarning(ex, "Failed to load vendor models: {Path}", modelsPath);
+                }
+            }
+
+            result[vendorName] = profile;
+        }
+        return result;
+    }
+
+    private static ProfileSettings WithModels(ProfileSettings profile, List<ModelItemConfig> models)
+        => new() {
+            Provider = profile.Provider,
+            Protocol = profile.Protocol,
+            Model = profile.Model,
+            Endpoint = profile.Endpoint,
+            ApiKeyEnvVar = profile.ApiKeyEnvVar,
+            Models = models,
+            ModelsEndpoint = profile.ModelsEndpoint,
+        };
+
+    /// <summary>
     /// 保存设置到指定来源
     /// </summary>
     public static async Task SaveSettingsAsync(

@@ -147,4 +147,32 @@ public class PluginManagerTests {
 
         Assert.Null(pluginManager.GetExternalPlugin("non-existent"));
     }
+
+    [Fact]
+    public async Task LoadExternalPlugin_PendingApproval_Throws() {
+        var approval = new PluginApprovalRegistry();
+        approval.ArmRequest("unapproved-plugin", "等待审批");
+        await using var fs = new InMemoryFileSystem();
+        await using var pluginManager = new PluginManager(fs, approvalRegistry: approval);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => pluginManager.LoadExternalPluginAsync("/fake/path.exe", "unapproved-plugin"));
+
+        Assert.Contains("PENDING-APPROVAL", ex.Message);
+        Assert.Contains("unapproved-plugin", ex.Message);
+    }
+
+    [Fact]
+    public async Task LoadExternalPlugin_AfterApproval_Succeeds_Or_Fails_With_Other_Error() {
+        var approval = new PluginApprovalRegistry();
+        var req = approval.ArmRequest("approved-plugin", "已审批");
+        approval.Approve(req.RequestId);
+        await using var fs = new InMemoryFileSystem();
+        await using var pluginManager = new PluginManager(fs, approvalRegistry: approval);
+
+        // 审批通过后不应因 PENDING-APPROVAL 失败(可能因文件不存在失败,但不是审批错误)
+        var ex = await Assert.ThrowsAnyAsync<Exception>(
+            () => pluginManager.LoadExternalPluginAsync("/fake/path.exe", "approved-plugin"));
+        Assert.DoesNotContain("PENDING-APPROVAL", ex.Message);
+    }
 }

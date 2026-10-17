@@ -212,4 +212,49 @@ public sealed class SearchProvidersTests {
     }
 
     #endregion
+
+    #region ConfigDrivenEnvVar — IConfigRoot 配置驱动环境变量名
+
+    [Fact]
+    public async Task Tavily_ConfigDrivenEnvVar_ReadsCustomEnvVarName() {
+        using var env = EnvVarScope.Set("MY_CUSTOM_TAVILY_KEY", "test-key");
+        var config = new FakeConfigRoot().Set("searchProviders.tavily.apiKeyEnvVar", "MY_CUSTOM_TAVILY_KEY");
+        await using var provider = new TavilySearchProvider(CreateJsonApiClient("{}").Object, config);
+        provider.IsAvailable.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Tavily_ConfigDrivenEnvVar_DefaultEnvVarNotRead_WhenCustomConfigured() {
+        using var env1 = EnvVarScope.Set("TAVILY_API_KEY", "should-not-use");
+        using var env2 = EnvVarScope.Set("MY_CUSTOM_TAVILY_KEY", null);
+        var config = new FakeConfigRoot().Set("searchProviders.tavily.apiKeyEnvVar", "MY_CUSTOM_TAVILY_KEY");
+        await using var provider = new TavilySearchProvider(CreateJsonApiClient("{}").Object, config);
+        provider.IsAvailable.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Serper_ConfigDrivenEnvVar_ReadsCustomEnvVarName() {
+        using var env = EnvVarScope.Set("MY_CUSTOM_SERPER_KEY", "test-key");
+        var config = new FakeConfigRoot().Set("searchProviders.serper.apiKeyEnvVar", "MY_CUSTOM_SERPER_KEY");
+        await using var provider = new SerperSearchProvider(CreateJsonApiClient("{}").Object, config);
+        provider.IsAvailable.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Brave_ConfigDrivenEnvVar_ReadsCustomEnvVarName() {
+        using var env = EnvVarScope.Set("MY_CUSTOM_BRAVE_KEY", "test-key");
+        var config = new FakeConfigRoot().Set("searchProviders.brave.apiKeyEnvVar", "MY_CUSTOM_BRAVE_KEY");
+        await using var provider = new BraveSearchProvider(CreateJsonApiClient("{}").Object, config);
+        provider.IsAvailable.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SearXNG_ConfigDrivenEnvVar_ReadsCustomEndpointEnvVarName() {
+        using var env = EnvVarScope.Set("MY_CUSTOM_SEARXNG_URL", "http://localhost:9090");
+        var config = new FakeConfigRoot().Set("searchProviders.searxng.endpointEnvVar", "MY_CUSTOM_SEARXNG_URL");
+        await using var provider = new SearXngSearchProvider(CreateJsonApiClient("{}").Object, config);
+        provider.IsAvailable.Should().BeTrue();
+    }
+
+    #endregion
 }

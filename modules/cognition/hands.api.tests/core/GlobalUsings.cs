@@ -30,6 +30,7 @@ global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Clock;
 global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Configuration.AppData;
+global using JoinCode.Abstractions.Configuration.ConfigRoot;
 global using JoinCode.Abstractions.Configuration.Execution;
 global using JoinCode.Abstractions.Configuration.Llm;
 global using JoinCode.Abstractions.Configuration.Providers;

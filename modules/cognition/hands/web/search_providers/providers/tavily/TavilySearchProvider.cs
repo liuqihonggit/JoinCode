@@ -10,6 +10,8 @@ public sealed partial class TavilySearchProvider : ServiceEntity, ISearchProvide
     private const string Endpoint = "https://api.tavily.com/search";
     private const int DefaultPriority = 100;
 
+    private const string DefaultApiKeyEnvVar = "TAVILY_API_KEY";
+
     private readonly IApiClient _apiClient;
     private readonly string? _apiKey;
     private readonly ILogger<TavilySearchProvider>? _logger;
@@ -18,12 +20,15 @@ public sealed partial class TavilySearchProvider : ServiceEntity, ISearchProvide
     /// 初始化 <see cref="TavilySearchProvider"/> 实例。
     /// </summary>
     /// <param name="apiClient">API 客户端，用于执行 HTTP 请求。</param>
+    /// <param name="config">统一配置入口，读 searchProviders.tavily.apiKeyEnvVar（未命中回退 <c>TAVILY_API_KEY</c>）。</param>
     /// <param name="logger">可选日志记录器。</param>
     public TavilySearchProvider(
         IApiClient apiClient,
+        IConfigRoot config,
         ILogger<TavilySearchProvider>? logger = null) {
         _apiClient = apiClient;
-        _apiKey = Environment.GetEnvironmentVariable("TAVILY_API_KEY");
+        var envVarName = SearchProviderConfigHelper.ResolveEnvVar(config, "tavily", "apiKeyEnvVar", DefaultApiKeyEnvVar);
+        _apiKey = Environment.GetEnvironmentVariable(envVarName);
         _logger = logger;
     }
 

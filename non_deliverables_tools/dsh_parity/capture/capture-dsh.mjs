@@ -8,8 +8,9 @@
  * DSH UI 保持 WebSocket 长连接，虚拟时间永不推进，CLI 截图永久挂起。CDP 主动截屏才可靠。
  */
 import { chromium } from 'playwright-core';
-import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { findEdge, EDGE_LAUNCH_ARGS } from '../lib/edge.mjs';
 
 const [url, outDir, viewportArg = '1440x900', themeArg = 'dark'] = process.argv.slice(2);
 if (!url || !outDir) {
@@ -23,22 +24,11 @@ if (!vm) {
 }
 const [width, height] = [parseInt(vm[1], 10), parseInt(vm[2], 10)];
 
-function findEdge() {
-  const candidates = [
-    process.env.DSH_PARITY_EDGE,
-    'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
-    'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
-  ].filter(Boolean);
-  for (const p of candidates) if (existsSync(p)) return p;
-  console.error('Edge not found. Set DSH_PARITY_EDGE env var to msedge.exe path.');
-  process.exit(2);
-}
-
 mkdirSync(outDir, { recursive: true });
 const browser = await chromium.launch({
   executablePath: findEdge(),
   headless: true,
-  args: ['--disable-gpu', '--hide-scrollbars', '--force-device-scale-factor=1'],
+  args: EDGE_LAUNCH_ARGS,
 });
 const context = await browser.newContext({
   viewport: { width, height },

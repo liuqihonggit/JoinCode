@@ -549,5 +549,121 @@ public class SettingsLoaderTests : IDisposable {
     }
 
     #endregion
+
+    #region P8: BuildDefaultConfigTreeAsync 树状骨架生成
+
+    [Fact]
+    public async Task P8_BuildDefaultConfigTreeAsync_生成current目录10子文件() {
+        var baseDir = $"/test/p8_current_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
+
+        var currentDir = Path.Combine(baseDir, "current");
+        _fs.DirectoryExists(currentDir).Should().BeTrue("应生成 current/ 目录");
+        var expectedFiles = new[] {
+            "ui.json", "inference.json", "behavior.json", "security.json",
+            "mcp.json", "plugins.json", "subagent.json", "tools.json",
+            "worktree.json", "runtime.json"
+        };
+        foreach (var fileName in expectedFiles) {
+            _fs.FileExists(Path.Combine(currentDir, fileName)).Should().BeTrue(
+                $"current/{fileName} 应存在");
+        }
+    }
+
+    [Fact]
+    public async Task P8_BuildDefaultConfigTreeAsync_生成vendors目录7供应商() {
+        var baseDir = $"/test/p8_vendors_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
+
+        var vendorsDir = Path.Combine(baseDir, "vendors");
+        _fs.DirectoryExists(vendorsDir).Should().BeTrue("应生成 vendors/ 目录");
+        var expectedVendors = new[] {
+            "sensenova", "openai", "anthropic", "deepseek",
+            "deepseek-anthropic", "agnes", "zhipu"
+        };
+        foreach (var name in expectedVendors) {
+            var vendorDir = Path.Combine(vendorsDir, name);
+            _fs.DirectoryExists(vendorDir).Should().BeTrue($"vendors/{name}/ 应存在");
+            _fs.FileExists(Path.Combine(vendorDir, "config.json")).Should().BeTrue($"vendors/{name}/config.json 应存在");
+            _fs.FileExists(Path.Combine(vendorDir, "models.json")).Should().BeTrue($"vendors/{name}/models.json 应存在");
+        }
+    }
+
+    [Fact]
+    public async Task P8_BuildDefaultConfigTreeAsync_生成searchProviders目录6供应商() {
+        var baseDir = $"/test/p8_search_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
+
+        var searchDir = Path.Combine(baseDir, "search_providers");
+        _fs.DirectoryExists(searchDir).Should().BeTrue("应生成 search_providers/ 目录");
+        var expectedProviders = new[] { "tavily", "serper", "brave", "searxng", "anthropic", "subagent" };
+        foreach (var name in expectedProviders) {
+            var providerDir = Path.Combine(searchDir, name);
+            _fs.DirectoryExists(providerDir).Should().BeTrue($"search_providers/{name}/ 应存在");
+            _fs.FileExists(Path.Combine(providerDir, "config.json")).Should().BeTrue($"search_providers/{name}/config.json 应存在");
+            _fs.FileExists(Path.Combine(providerDir, "models.json")).Should().BeTrue($"search_providers/{name}/models.json 应存在");
+        }
+    }
+
+    [Fact]
+    public async Task P8_BuildDefaultConfigTreeAsync_settingsJson极简不含Vendor内联() {
+        var baseDir = $"/test/p8_minimal_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
+
+        var settingsPath = Path.Combine(baseDir, "settings.json");
+        _fs.FileExists(settingsPath).Should().BeTrue("settings.json 应存在");
+        var settingsContent = await _fs.ReadAllText(settingsPath);
+
+        settingsContent.Should().Contain("autoFetchModels", "极简 settings.json 应含 autoFetchModels 全局开关");
+        settingsContent.Should().Contain("profile", "极简 settings.json 应含 current.profile 指针");
+        settingsContent.Should().NotContain("\"vendor\":", "极简 settings.json 不应内联 vendor 节点（已拆到 vendors/ 子文件夹）");
+        settingsContent.Should().NotContain("\"searchProviders\":", "极简 settings.json 不应内联 searchProviders 节点（已拆到 search_providers/ 子文件夹）");
+    }
+
+    [Fact]
+    public async Task P8_BuildDefaultConfigTreeAsync_vendors子文件含完整Profile() {
+        var baseDir = $"/test/p8_vendor_content_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
+
+        var openaiConfigPath = Path.Combine(baseDir, "vendors", "openai", "config.json");
+        var configContent = await _fs.ReadAllText(openaiConfigPath);
+        configContent.Should().Contain("https://api.openai.com/v1", "openai config.json 应含 endpoint");
+        configContent.Should().Contain("openai-compatible", "openai config.json 应含 protocol");
+        configContent.Should().Contain("apiKeyEnvVar", "openai config.json 应含 apiKeyEnvVar 字段");
+        configContent.Should().NotContain("\"models\":", "config.json 不应含 models 字段（已拆到 models.json）");
+    }
+
+    [Fact]
+    public async Task P8_BuildDefaultConfigTreeAsync_加载侧合并后等价于单文件骨架() {
+        var baseDir = $"/test/p8_roundtrip_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
+
+        var treeSettings = await SettingsLoader.LoadUserSettingsFromDirAsync(_fs, baseDir, CancellationToken.None);
+        treeSettings.Should().NotBeNull();
+        var settings = treeSettings ?? throw new InvalidOperationException("unreachable");
+        settings.Vendor.Should().ContainKey("openai");
+        settings.Vendor["openai"].Endpoint.Should().Be("https://api.openai.com/v1");
+        settings.Vendor["openai"].Protocol.Should().Be("openai-compatible");
+        settings.Vendor.Should().ContainKey("deepseek-anthropic");
+        settings.SearchProviders.Should().ContainKey("tavily");
+        settings.SearchProviders["tavily"].Priority.Should().Be(100);
+        settings.Current?.Profile.Should().NotBeNullOrEmpty();
+        settings.Current?.Actor.Should().NotBeNull("subagent.json 应含 actor 配置");
+        settings.Current?.SubAgentLiveness.Should().NotBeNull("subagent.json 应含 subAgentLiveness 配置");
+    }
+
+    #endregion
 }
 #pragma warning restore JCC3010, JCC3011, JCC3012

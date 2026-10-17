@@ -855,3 +855,63 @@ public sealed class VendorModelsFile {
     [JsonPropertyName("models")]
     public List<ModelItemConfig> Models { get; init; } = [];
 }
+
+/// <summary>
+/// 极简 settings.json DTO — P8 树状骨架的主入口，只含 current.profile 指针 + 全局开关。
+/// <para>vendor 和 searchProviders 节点不内联 — 按约定从 vendors/ 和 search_providers/ 子文件夹加载。</para>
+/// </summary>
+public sealed class MinimalSettingsJson {
+    /// <summary>初始化空的 MinimalSettingsJson 实例</summary>
+    public MinimalSettingsJson() { }
+
+    /// <summary>当前激活的供应商预设名指针 — 对应 vendors/{name}/ 子文件夹</summary>
+    [JsonPropertyName("current")]
+    public MinimalCurrentSettings? Current { get; init; }
+
+    /// <summary>是否在启动时自动从远程拉取各供应商模型列表 — 默认 true</summary>
+    [JsonPropertyName("autoFetchModels")]
+    public bool AutoFetchModels { get; init; } = true;
+
+    /// <summary>更新源配置 — 控制自动更新行为（ADR 0064）</summary>
+    [JsonPropertyName("update")]
+    public UpdateSourceConfig? Update { get; init; }
+}
+
+/// <summary>
+/// 极简 current 节点 — 只含 profile 指针，其他偏好字段从 current/ 子文件夹加载。
+/// </summary>
+public sealed class MinimalCurrentSettings {
+    /// <summary>当前激活的供应商预设名 — 对应 vendors/{name}/ 子文件夹</summary>
+    [JsonPropertyName("profile")]
+    public string? Profile { get; init; }
+}
+
+/// <summary>
+/// 供应商配置文件 — vendors/{name}/config.json 的 DTO（TASK054 P8 物理拆分）。
+/// <para>不含 models 字段 — 模型列表拆到 vendors/{name}/models.json（VendorModelsFile）。</para>
+/// </summary>
+public sealed class VendorConfigFile {
+    /// <summary>供应商名称（如 openai/sensenova/agnes/deepseek/anthropic）</summary>
+    [JsonPropertyName("provider")]
+    public string? Provider { get; init; }
+
+    /// <summary>协议类型（openai-compatible / anthropic / azure）</summary>
+    [JsonPropertyName("protocol")]
+    public string? Protocol { get; init; }
+
+    /// <summary>首选模型 ID</summary>
+    [JsonPropertyName("model")]
+    public string? Model { get; init; }
+
+    /// <summary>API 端点</summary>
+    [JsonPropertyName("endpoint")]
+    public string? Endpoint { get; init; }
+
+    /// <summary>API Key 环境变量名</summary>
+    [JsonPropertyName("apiKeyEnvVar")]
+    public string? ApiKeyEnvVar { get; init; }
+
+    /// <summary>模型列表拉取端点相对路径</summary>
+    [JsonPropertyName("modelsEndpoint")]
+    public string? ModelsEndpoint { get; init; }
+}

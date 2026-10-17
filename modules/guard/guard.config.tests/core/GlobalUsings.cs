@@ -10,6 +10,7 @@ global using Core.Hooks.Lifecycle;
 global using Core.Hooks.Session;
 global using JoinCode.Abstractions.Configuration.ConfigRoot;
 global using JoinCode.Guard.Configuration.ConfigRoot;
+global using Microsoft.Extensions.Caching.Memory;
 global using Core.Hooks.ToolPermission;
 global using Core.Hooks.ToolPermission.Handlers;
 global using Core.Permission;

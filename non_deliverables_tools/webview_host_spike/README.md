@@ -32,18 +32,28 @@ artifacts\..\WebViewHostSpike.exe --page <绝对路径>\modules\apps\gui\webui\i
 # WebView2 Runtime 探测（离线/缺失检测）
 <publish>\WebViewHostSpike.exe --runtime-check --result <结果JSON>
 
+# 输入命中实证（真实 OS 级点击 → 页面 mousedown，Debug 与 AOT 均 PASS）
+powershell -File click-probe.ps1 -Exe <exe> -Page <页路径> -Result <结果JSON>
+
 # AOT 发布（Release 自动 PublishAot，来自根 Directory.Build.props）
 dotnet publish WebViewHostSpike.csproj -c Release
 ```
 
 结果 JSON 字段：`Ok / Reason / Mode / Page / Runtime / RoundtripMs / EngineMode`（EngineMode = jit|aot 实证）。
 
+## 交互验收结论（2026-10-17）
+
+- 画面渲染正常；"点击无反应"经 `--input-probe` 实证为**静态复刻页无 JS 行为**（composer 是 `<div>`，无 `:hover`/`:active`/`:focus` 规则），非输入链路问题
+- 真实 OS 点击（SendInput）→ 页面 mousedown 坐标精确一致（客户区中心 720,450），JIT/AOT 双通过
+- webui 侧待补：hover/active/focus 状态（需先 Capture DSH 对应状态）、真实 input 元素（归 P1 场景矩阵）
+
 ## 代码地图
 
 | 文件 | 职责 |
 |------|------|
-| `Program.cs` | 入口：参数解析 / 冒烟状态机 / 看门狗 / 结果 DTO(JsonContext 源生成) / runtime-check |
+| `Program.cs` | 入口：参数解析（smoke/input-probe/runtime-check）/ 冒烟状态机 / 看门狗 / 结果 DTO(JsonContext 源生成) / runtime-check |
 | `WebView2Host.cs` | NativeControlHost 宿主：子 HWND → WebView2 controller 挂载 + Bounds 同步 + 初始化失败事件 |
+| `click-probe.ps1` | 输入命中实证：Win32 ClientToScreen + SendInput 级真实点击，等待 `.ready` 标记后点击客户区中心 |
 | `app.manifest` | supportedOS（NativeControlHost 子窗口必须）+ 免注册 WinRT 激活条目 |
 | `WebViewHostSpike.csproj` | AOT 四件套配置（见摘要） |
 

@@ -807,4 +807,36 @@ public sealed class CodeIndexerTests : IDisposable {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             _indexer.SearchComprehensiveAsync(null!, 1000, CancellationToken.None)).ConfigureAwait(true);
     }
+
+    /// <summary>
+    /// 诊断跨文件字段调用 — 复现 BddScenarioTests.Scenario_调用图_查找方法调用者 失败根因
+    /// </summary>
+    [Fact]
+    public async Task Diagnose_CrossFileFieldCall_ExtractsCallEdge() {
+        var root = Path.Combine(Path.GetTempPath(), $"diag_{Guid.NewGuid():N}");
+        _fs.CreateDirectory(root);
+        await _fs.WriteAllText(Path.Combine(root, "UserService.cs"),
+            "public class UserService { public string GetName() => \"User\"; }");
+        await _fs.WriteAllText(Path.Combine(root, "Controller.cs"),
+            """
+            public class Controller
+            {
+                private readonly UserService _svc;
+                public Controller(UserService svc) { _svc = svc; }
+                public string Handle() { return _svc.GetName(); }
+            }
+            """);
+        var options = new CodeIndexOptions { WorkspaceRoot = root };
+        await _indexer.BuildIndexAsync(options, CancellationToken.None).ConfigureAwait(true);
+
+        var snap = _store.GetSnapshot();
+        var allEdges = string.Join("; ", snap.CallEdges.Select(e => $"{e.CallerSymbol}->{e.CalleeSymbol}[{e.CallKind}]"));
+        var allSymbols = string.Join("; ", snap.SymbolsByFqn.Values.Select(s => $"{s.Name}={s.FullyQualifiedName}[{s.Kind}]"));
+        var calleeKeys = string.Join("; ", snap.CallsByCallee.Keys);
+
+        var callers = await _indexer.CallGraph.GetCallersAsync("UserService.GetName", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(callers.Count > 0,
+            $"callers.Count=0\n  edges=[{allEdges}]\n  symbols=[{allSymbols}]\n  calleeKeys=[{calleeKeys}]");
+    }
 }

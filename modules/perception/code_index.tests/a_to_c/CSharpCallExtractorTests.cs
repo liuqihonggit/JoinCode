@@ -589,4 +589,60 @@ public sealed class CSharpCallExtractorTests {
 
         Assert.Equal("Anything", CSharpCallExtractor.FindSymbolFqn("Anything", symbols));
     }
+
+    /// <summary>
+    /// 字段变量方法调用应解析为 OwnerType.Method — 复现 BddScenarioTests 预存失败根因
+    /// <para>根因: CollectVariableTypes 不处理 field_declaration, 字段类型不进 variableTypeMap,
+    /// _svc.GetName() 的 CalleeSymbol 退化为 GetName 而非 UserService.GetName</para>
+    /// </summary>
+    [Fact]
+    public void ExtractCalls_FieldVariableMethodCall_ResolvesToOwnerTypeFqn() {
+        var source = """
+            public class UserService
+            {
+                public string GetName() => "User";
+            }
+
+            public class Controller
+            {
+                private readonly UserService _svc;
+                public Controller(UserService svc) { _svc = svc; }
+                public string Handle() { return _svc.GetName(); }
+            }
+            """;
+
+        var symbols = _symbolExtractor.ExtractSymbols(source, "test.cs");
+        var extractor = new CSharpCallExtractor();
+        var calls = extractor.ExtractCalls(source, "test.cs", symbols);
+
+        Assert.Contains(calls, c => c.CallerSymbol == "Controller.Handle" && c.CalleeSymbol == "UserService.GetName");
+    }
+
+    /// <summary>
+    /// 多字段声明(同类型多变量)也应正确收集 — private readonly UserService _a, _b;
+    /// </summary>
+    [Fact]
+    public void ExtractCalls_MultipleFieldDeclarators_AllCollected() {
+        var source = """
+            public class UserService
+            {
+                public string GetName() => "User";
+                public string GetId() => "1";
+            }
+
+            public class Controller
+            {
+                private readonly UserService _a, _b;
+                public Controller(UserService svc) { _a = svc; _b = svc; }
+                public string Handle() { return _a.GetName() + _b.GetId(); }
+            }
+            """;
+
+        var symbols = _symbolExtractor.ExtractSymbols(source, "test.cs");
+        var extractor = new CSharpCallExtractor();
+        var calls = extractor.ExtractCalls(source, "test.cs", symbols);
+
+        Assert.Contains(calls, c => c.CalleeSymbol == "UserService.GetName");
+        Assert.Contains(calls, c => c.CalleeSymbol == "UserService.GetId");
+    }
 }

@@ -8,7 +8,8 @@ namespace JoinCode.Abstractions.Utils;
 public enum UserInteractionToolName {
     /// <summary>
     /// 确认动作 — 向用户请求是/否确认。
-    /// ⚠️ 未实现。未来实现时：必须归入 ToolCategory.Interaction，且禁止标 [McpTool(ConcurrencySafe=true)]。
+    /// 已实现于 UserInteractionToolHandlers.ConfirmActionAsync（McpToolDispatch 层）。
+    /// 归入 ToolCategory.Interaction，禁止标 [McpTool(ConcurrencySafe=true)]。
     /// </summary>
     [EnumValue("confirm_action")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]

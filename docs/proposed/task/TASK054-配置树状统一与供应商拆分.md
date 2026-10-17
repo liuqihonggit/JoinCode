@@ -548,4 +548,10 @@ if (catalog.TryGet("openai", out var desc) && desc.SupportsOpenAiFormat) { ... }
 <!-- 决策: 配置树状生长 — settings.json 作极简树根，current/vendors/search_providers 三分支子文件夹，物理拆分+逻辑合并 -->
 <!-- 原因: 用户要求"主配置在子配置文件夹外层，像一颗树一样生长"，简化理解 + 消费方无感知 -->
 <!-- 替代方案: 全部内联 settings.json（单文件膨胀，违背"拆分"诉求）/ 只拆供应商不拆 current（current 45 字段仍臃肿）-->
-<!-- 验证: 待实施 -->
+<!-- 验证: P1-P8 全部完成，24 单元测试 + 9 InitCommand 测试全绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 P8 -->
+<!-- 决策: BuildDefaultConfigTreeAsync 从 BuildDefaultSettingsJson DTO 拆分到树状文件，极简 MinimalSettingsJson DTO 避免空字典序列化 -->
+<!-- 原因: SettingsJson.Vendor/SearchProviders 是非 nullable 字典默认 []，序列化成 {}，极简 DTO 只含 current.profile+autoFetchModels+update -->
+<!-- 替代方案: 改 SettingsJson 字段为 nullable（影响面大）/ 用 JsonNode 动态构造（AOT 不兼容）-->
+<!-- 验证: 6 P8 单元测试 + 9 InitCommand 测试全绿 ✅ -->

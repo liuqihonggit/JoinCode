@@ -18,13 +18,13 @@
 - [x] S1-4 `compare/diff-frames.mjs`：Chromium canvas 帧 diff（差异像素比例 + 平均 ΔE + 热力图 PNG + 12x10 网格归因）
 - [x] S1-5 产出对齐报告（S1 数据），记录到本文件"spike 数据"节
 
-## S2 — Avalonia + WebView2 + NativeAOT 卫星宿主 spike
+## S2 — Avalonia + WebView2 + NativeAOT 卫星宿主 spike ✅
 
-- [ ] S2-1 卫星工程 `non_deliverables_tools/webview_host_spike/`（最大程度复用 JoinCodeGui 的 AOT 配置特征）
-- [ ] S2-2 WebView2 包选型（Avalonia.WebView 社区包 / Microsoft.Web.WebView2 + NativeControlHost 两条对比）
-- [ ] S2-3 `dotnet publish -c Release -r win-x64` AOT 发布通过，exe 启动加载本地 webui 页面
-- [ ] S2-4 JS↔.NET 桥接 ping/pong（双向调用 + 事件回传）
-- [ ] S2-5 离线策略验证：WebView2 Runtime 缺失检测/提示；无网环境可运行
+- [x] S2-1 卫星工程 `non_deliverables_tools/webview_host_spike/`（net10.0-windows10.0.26100.0 + Avalonia 12.1.3 + Microsoft.Web.WebView2 1.0.4258.31）
+- [x] S2-2 包选型：**否决**社区 Avalonia.WebView/托管 COM 互操作路线（实测 AOT 运行时不可用）；采用 **Microsoft.Web.WebView2 + NativeControlHost + CsWinRT 投影**（官方 AOT 路线，ILC 零警告）
+- [x] S2-3 `dotnet publish -c Release` AOT 发布通过（exe 11.7MB），启动加载 `modules/apps/gui/webui/index.html` ✓
+- [x] S2-4 JS↔.NET 桥接 ping/pong：`chrome.webview.postMessage` → C# `WebMessageReceived` → `PostWebMessageAsJson` → JS 确认，AOT 版往返 378ms
+- [x] S2-5 离线策略：`--runtime-check` 模式探测 `GetAvailableBrowserVersionString`（缺失返回退出码 3 + 结果 JSON）；file:// 本地页无网运行验证 ✓
 
 ## S3 — 收尾
 
@@ -52,8 +52,37 @@
 
 **S1 结论**：同引擎（Chromium）下，Web UI 路线"抄 token + 按盒模型落布局"即可在第一版达到 98.6% 像素一致，剩余全部是字形/图形资产类差异（有既定掩膜/白名单机制兜底）。**B2 路线像素对齐可行性成立。**
 
+### S2 — WebView2 宿主 AOT 实测矩阵（1440x900 窗口 · 本地 webui 页 · 真实 Edge WebView2 运行时 155.0.4283.60）
+
+| 路线 | JIT (Debug) | NativeAOT (Release publish) |
+|------|-------------|------------------------------|
+| 托管 COM 互操作（包默认 `lib_manual/netcoreapp3.0`） | ✅ 993ms | ❌ 运行期 `NotSupportedException: COM Interop requires ComWrapper instance registered for marshalling`（`ComWrappers.ComInterfaceForObject`，AOT 无内置 COM marshalling） |
+| **CsWinRT 投影**（`WebView2EnableCsWinRTProjection=true`） | ✅ 495ms | ✅ **378ms，ILC 零警告**，runtime-check + 导航 + 桥接全通 |
+
+上游情报佐证（GitHub WebView2Feedback #4783/#4800/#4962）：托管 COM 路径不支持 AOT；投影 + AOT 自 WebView2 1.0.2817/2849 + CsWinRT 2.1.1 起官方修复，本包 1.0.4258.31 实测确认可用。
+
+**AOT 采纳配置四件套**（缺一即失败）：
+
+| # | 配置 | 缺省后果 |
+|---|------|----------|
+| 1 | TFM `net10.0-windows10.0.26100.0`（TPV 与本机 UAP SDK 对齐） | cswinrt.exe 报 `Could not read Platform.xml 10.0.17763.0` |
+| 2 | `WebView2EnableCsWinRTProjection=true` + `Microsoft.Windows.CsWinRT 2.3.1` | 走托管 COM 路径 → AOT 运行时炸 |
+| 3 | `PlatformTarget=x64`（包 targets 对 AnyCPU 判定 EffectivePlatform=x86） | 拷入 win-x86 原生组件 → `BadImageFormatException 0x800700C1`（窗口弹出但永不渲染） |
+| 4 | app.manifest：supportedOS + 免注册 WinRT `activatableClass` 条目（Environment/EnvironmentOptions/Controller） | NativeControlHost 子窗口创建失败 / 激活 `ManifestFreeGet` 失败 |
+
+**WinRT 投影 API 形状差异**（与托管 SDK 不同，迁移时注意）：
+- `CoreWebView2Environment.CreateAsync()` 仅 0 参；带选项用 `CreateWithOptionsAsync(browserExecutableFolder, userDataFolder, options)`
+- 控制器创建：`CoreWebView2ControllerWindowReference.CreateFromWindowHandle((ulong)hwnd)` → `CreateCoreWebView2ControllerAsync(windowRef)`
+- `Bounds` 为 `Windows.Foundation.Rect`（double）；`ExecuteScriptAsync` 返回 `IAsyncOperation<string>`（可 await，无 ConfigureAwait）
+- 事件仍为 C# 事件（`WebMessageReceived` / `NavigationCompleted`）
+
+**S2 结论**：Avalonia 12.1.3 + NativeControlHost + WebView2 投影 + NativeAOT 全链路可用，热启动桥接往返 < 400ms。**B2 路线技术可行，spike 通过。**
+
 ## 备注
 
 - DSH 暗色激活机制：playwright context colorScheme=dark；webui 侧对应 `prefers-color-scheme`
 - 字体：若参考物用非系统字体，差异计入文本掩膜范围（L3 指标只看非文本区）
 - 所有截屏/对比脚本归 `non_deliverables_tools/dsh_parity/`（捕获与对比同源）
+- WebView2 user data folder：spike 用 `%TEMP%\jcc-webview2-spike`；产品接入时改为用户级目录（如 `%LOCALAPPDATA%\JoinCode\webview2`）
+- `Chrome_WidgetWin_0` unregister 错误 1412 = WebView2 退出期已知噪音日志，无影响
+- 产品 GUI 接入时同样需要四件套（TFM 平台化/投影开关/x64/清单条目），届时由 ADR 0138 落地章节承接

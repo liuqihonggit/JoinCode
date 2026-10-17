@@ -50,6 +50,7 @@ public sealed class UnifiedConfigRoot : IConfigRoot {
             var entryOptions = new MemoryCacheEntryOptions {
                 SlidingExpiration = CacheSlidingExpiration,
                 Priority = CacheItemPriority.Low,
+                Size = 1,
             };
             _cache.Set(cacheKey, resolved, entryOptions);
             value = resolved;

@@ -212,7 +212,7 @@ public static class SettingsLoader {
         var path = GetUserSettingsPath();
         var result = await LoadSettingsFileAsync(fs, path, cancellationToken, logger).ConfigureAwait(false);
         if (result is not null)
-            return await MergeVendorSubConfigsAsync(fs, result, AppDataConstants.Paths.JccDirectory, cancellationToken, logger).ConfigureAwait(false);
+            return await MergeAllSubConfigsAsync(fs, result, AppDataConstants.Paths.JccDirectory, cancellationToken, logger).ConfigureAwait(false);
 
         // 文件不存在或为空 → 自动创建默认骨架
         if (fs.FileExists(path) && fs.GetFileLength(path) > 0)
@@ -228,7 +228,7 @@ public static class SettingsLoader {
             DirectoryHelper.EnsureDirectoryExists(fs, directory);
 
         await fs.WriteAllTextAsync(path, skeletonJson, cancellationToken).ConfigureAwait(false);
-        return await MergeVendorSubConfigsAsync(fs, skeleton, AppDataConstants.Paths.JccDirectory, cancellationToken, logger).ConfigureAwait(false);
+        return await MergeAllSubConfigsAsync(fs, skeleton, AppDataConstants.Paths.JccDirectory, cancellationToken, logger).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -239,7 +239,7 @@ public static class SettingsLoader {
         var path = GetUserSettingsPath();
         var result = await LoadSettingsFileSync(fs, path).ConfigureAwait(false);
         if (result is not null)
-            return await MergeVendorSubConfigsAsync(fs, result, AppDataConstants.Paths.JccDirectory, CancellationToken.None, null).ConfigureAwait(false);
+            return await MergeAllSubConfigsAsync(fs, result, AppDataConstants.Paths.JccDirectory, CancellationToken.None, null).ConfigureAwait(false);
 
         if (fs.FileExists(path) && fs.GetFileLength(path) > 0)
             return null;
@@ -254,7 +254,7 @@ public static class SettingsLoader {
             DirectoryHelper.EnsureDirectoryExists(fs, directory);
 
         await fs.WriteAllText(path, skeletonJson).ConfigureAwait(false);
-        return await MergeVendorSubConfigsAsync(fs, skeleton, AppDataConstants.Paths.JccDirectory, CancellationToken.None, null).ConfigureAwait(false);
+        return await MergeAllSubConfigsAsync(fs, skeleton, AppDataConstants.Paths.JccDirectory, CancellationToken.None, null).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -367,6 +367,77 @@ public static class SettingsLoader {
         var subConfigs = await LoadVendorSubConfigsAsync(fs, baseDir, cancellationToken, logger).ConfigureAwait(false);
         if (subConfigs.Count == 0) return settings;
         return SettingsJson.Merge(settings, new SettingsJson { Vendor = subConfigs });
+    }
+
+    /// <summary>
+    /// current/ 子文件名清单 — CurrentSettings ~45 字段按职责拆成 10 个子文件（TASK054 P7 物理拆分）。
+    /// </summary>
+    private static readonly string[] CurrentSubFiles = [
+        "ui.json", "inference.json", "behavior.json", "security.json",
+        "mcp.json", "plugins.json", "subagent.json", "tools.json",
+        "worktree.json", "runtime.json"
+    ];
+
+    /// <summary>
+    /// 从 {baseDir}/current/*.json 加载 CurrentSettings 子文件 — TASK054 P7 物理拆分。
+    /// <para>每个子文件含 CurrentSettings 的部分字段，用 CurrentSettings.Merge 逐个合并成完整 DTO。</para>
+    /// <para>子文件不存在时跳过（约定大于配置，渐进式迁移）。</para>
+    /// </summary>
+    /// <param name="fs">文件系统</param>
+    /// <param name="baseDir">jcc 基础目录（如 ~/.jcc/）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="logger">可选日志</param>
+    /// <returns>合并后的 CurrentSettings（null 表示无子文件）</returns>
+    public static async Task<CurrentSettings?> LoadCurrentSubConfigsAsync(
+        IFileSystem fs, string baseDir, CancellationToken cancellationToken = default, ILogger? logger = null) {
+        var currentDir = Path.Combine(baseDir, "current");
+        if (!fs.DirectoryExists(currentDir))
+            return null;
+
+        CurrentSettings? merged = null;
+        foreach (var fileName in CurrentSubFiles) {
+            var path = Path.Combine(currentDir, fileName);
+            if (!fs.FileExists(path)) continue;
+            try {
+                var json = await fs.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
+                var partial = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.CurrentSettings);
+                if (partial is not null)
+                    merged = CurrentSettings.Merge(merged, partial);
+            } catch (Exception ex) {
+                logger?.LogWarning(ex, "Failed to load current sub-config: {Path}", path);
+            }
+        }
+        return merged;
+    }
+
+    /// <summary>
+    /// 合并 current/ 子文件配置到 settings.json 内联配置 — 子文件覆盖内联（更高优先级）。
+    /// </summary>
+    private static async Task<SettingsJson?> MergeCurrentSubConfigsAsync(
+        IFileSystem fs, SettingsJson? settings, string baseDir,
+        CancellationToken cancellationToken, ILogger? logger) {
+        if (settings is null) return null;
+        var subCurrent = await LoadCurrentSubConfigsAsync(fs, baseDir, cancellationToken, logger).ConfigureAwait(false);
+        if (subCurrent is null) return settings;
+        var mergedCurrent = CurrentSettings.Merge(settings.Current, subCurrent);
+        return new SettingsJson {
+            Vendor = settings.Vendor,
+            Current = mergedCurrent,
+            AutoFetchModels = settings.AutoFetchModels,
+            Update = settings.Update,
+            SearchProviders = settings.SearchProviders,
+        };
+    }
+
+    /// <summary>
+    /// 合并 vendors/ + current/ 子文件配置到 settings.json 内联 — 统一入口。
+    /// </summary>
+    private static async Task<SettingsJson?> MergeAllSubConfigsAsync(
+        IFileSystem fs, SettingsJson? settings, string baseDir,
+        CancellationToken cancellationToken, ILogger? logger) {
+        settings = await MergeVendorSubConfigsAsync(fs, settings, baseDir, cancellationToken, logger).ConfigureAwait(false);
+        settings = await MergeCurrentSubConfigsAsync(fs, settings, baseDir, cancellationToken, logger).ConfigureAwait(false);
+        return settings;
     }
 
     /// <summary>

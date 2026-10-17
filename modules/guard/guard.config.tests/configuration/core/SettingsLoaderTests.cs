@@ -499,5 +499,55 @@ public class SettingsLoaderTests : IDisposable {
     }
 
     #endregion
+
+    #region P7: current/ 子文件物理拆分
+
+    [Fact]
+    public async Task P7_LoadCurrentSubConfigs_多子文件合并成CurrentSettings() {
+        var currentDir = Path.Combine(_userAppDataDir, "current");
+        _fs.CreateDirectory(currentDir);
+
+        var uiJson = """{"theme":"dark","editorMode":"vim","language":"zh"}""";
+        await _fs.WriteAllText(Path.Combine(currentDir, "ui.json"), uiJson);
+
+        var inferenceJson = """{"effortLevel":"high","fastMode":true}""";
+        await _fs.WriteAllText(Path.Combine(currentDir, "inference.json"), inferenceJson);
+
+        var result = await SettingsLoader.LoadCurrentSubConfigsAsync(_fs, _userAppDataDir, CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result?.Theme.Should().Be("dark");
+        result?.EditorMode.Should().Be("vim");
+        result?.Language.Should().Be("zh");
+        result?.EffortLevel.Should().Be("high");
+        result?.FastMode.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task P7_LoadCurrentSubConfigs_无current目录_返回null() {
+        var result = await SettingsLoader.LoadCurrentSubConfigsAsync(_fs, _userAppDataDir, CancellationToken.None);
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task P7b_LoadUserSettingsAsync_current子文件覆盖settingsJson内联() {
+        var userSettings = new SettingsJson {
+            Current = new CurrentSettings { Theme = "light", Profile = "openai" },
+        };
+        await WriteSettingsAsync(GetUserSettingsPath(), userSettings);
+
+        var currentDir = Path.Combine(_userAppDataDir, "current");
+        _fs.CreateDirectory(currentDir);
+        var uiJson = """{"theme":"dark"}""";
+        await _fs.WriteAllText(Path.Combine(currentDir, "ui.json"), uiJson);
+
+        var result = await SettingsLoader.LoadUserSettingsAsync(_fs, CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result?.Current?.Theme.Should().Be("dark");
+        result?.Current?.Profile.Should().Be("openai");
+    }
+
+    #endregion
 }
 #pragma warning restore JCC3010, JCC3011, JCC3012

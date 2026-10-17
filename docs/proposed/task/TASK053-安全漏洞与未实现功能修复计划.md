@@ -93,7 +93,7 @@
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| auditor DI 显式注册 + 全模式消费 | `DangerousCommandProtectionMiddleware.cs:36`、DI 注册处 | ☐ | ☐ ADR 0080 手动 exe: 执行命令后 `.jcc/audit/` 有完整记录 |
+| auditor DI 显式注册 + 全模式消费 | `DangerousCommandProtectionMiddleware.cs:36`、DI 注册处 | ✅ `[Register(Singleton)]` 自动注册 + `RecordAuditAsync` 辅助方法 + Auto/Ask/Plan/Bypass 四模式接入审计(Unattended 原有) + 落盘目录改 `.jcc/audit/` | ✅ `DangerousCommandProtectionMiddlewareTests.All_Modes_Should_Produce_Audit_Record` (Theory: Auto/Ask/Plan/Unattended 4/4) + `Bypass_Mode_Should_Produce_Audit_Record_For_NonDangerous` 1/1 + 全量 1101/1101 无回归 |
 
 ---
 

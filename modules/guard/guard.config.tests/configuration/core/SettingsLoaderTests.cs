@@ -324,6 +324,76 @@ public class SettingsLoaderTests : IDisposable {
 
     #endregion
 
+    #region 场景8: 默认骨架含 SearchProviders 配置
+
+    /// <summary>
+    /// BuildDefaultSettingsJson 生成的骨架应包含 searchProviders 节点,
+    /// 含 6 个搜索供应商(tavily/serper/brave/searxng/anthropic/subagent),优先级与 enabled 正确(TASK054)
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Given_默认骨架_When_解析_Then_包含SearchProviders且6供应商配置正确() {
+        var json = SettingsLoader.BuildDefaultSettingsJson();
+        var parsed = JsonSerializer.Deserialize<SettingsJson>(json, ConfigJsonContext.Default.SettingsJson);
+
+        parsed.Should().NotBeNull();
+        parsed!.SearchProviders.Should().NotBeNull();
+        parsed.SearchProviders.Count.Should().Be(6);
+
+        parsed.SearchProviders.Should().ContainKey("tavily");
+        parsed.SearchProviders["tavily"].ApiKeyEnvVar.Should().Be("TAVILY_API_KEY");
+        parsed.SearchProviders["tavily"].Priority.Should().Be(100);
+        parsed.SearchProviders["tavily"].Enabled.Should().BeTrue();
+
+        parsed.SearchProviders.Should().ContainKey("serper");
+        parsed.SearchProviders["serper"].ApiKeyEnvVar.Should().Be("SERPER_API_KEY");
+        parsed.SearchProviders["serper"].Priority.Should().Be(200);
+
+        parsed.SearchProviders.Should().ContainKey("brave");
+        parsed.SearchProviders["brave"].ApiKeyEnvVar.Should().Be("BRAVE_API_KEY");
+        parsed.SearchProviders["brave"].Priority.Should().Be(300);
+
+        parsed.SearchProviders.Should().ContainKey("searxng");
+        parsed.SearchProviders["searxng"].EndpointEnvVar.Should().Be("SEARXNG_URL");
+        parsed.SearchProviders["searxng"].Priority.Should().Be(400);
+
+        parsed.SearchProviders.Should().ContainKey("anthropic");
+        parsed.SearchProviders["anthropic"].Priority.Should().Be(500);
+
+        parsed.SearchProviders.Should().ContainKey("subagent");
+        parsed.SearchProviders["subagent"].Priority.Should().Be(999);
+    }
+
+    /// <summary>
+    /// SettingsJson.Merge 应正确合并 searchProviders 字典(高优先级覆盖同键)
+    /// </summary>
+    [Fact]
+    public void Given_两层settings_When_合并_Then_searchProviders高优先级覆盖同键() {
+        var baseSettings = new SettingsJson {
+            SearchProviders = new Dictionary<string, SearchProviderProfileSettings> {
+                ["tavily"] = new() { ApiKeyEnvVar = "BASE_KEY", Priority = 100, Enabled = true },
+                ["serper"] = new() { ApiKeyEnvVar = "SERPER_API_KEY", Priority = 200, Enabled = true },
+            }
+        };
+        var overrideSettings = new SettingsJson {
+            SearchProviders = new Dictionary<string, SearchProviderProfileSettings> {
+                ["tavily"] = new() { ApiKeyEnvVar = "OVERRIDE_KEY", Priority = 150, Enabled = false },
+                ["brave"] = new() { ApiKeyEnvVar = "BRAVE_API_KEY", Priority = 300, Enabled = true },
+            }
+        };
+
+        var merged = SettingsJson.Merge(baseSettings, overrideSettings);
+
+        merged.SearchProviders.Count.Should().Be(3);
+        merged.SearchProviders["tavily"].ApiKeyEnvVar.Should().Be("OVERRIDE_KEY");
+        merged.SearchProviders["tavily"].Priority.Should().Be(150);
+        merged.SearchProviders["tavily"].Enabled.Should().BeFalse();
+        merged.SearchProviders["serper"].Priority.Should().Be(200);
+        merged.SearchProviders["brave"].Priority.Should().Be(300);
+    }
+
+    #endregion
+
     #region 辅助方法
 
     private string GetUserSettingsPath() => SettingsLoader.GetUserSettingsPath();

@@ -38,8 +38,17 @@ public sealed class SettingsJson {
     public UpdateSourceConfig? Update { get; init; }
 
     /// <summary>
+    /// 搜索供应商预设 — 命名的搜索供应商配置（TASK054）。
+    /// <para>键: 供应商名（如 "tavily"、"serper"），值: API KEY 环境变量名 + 优先级 + 启用状态</para>
+    /// <para>与 vendor 分离 — search ≠ LLM，语义独立，apiKeyEnvVar 模式复用</para>
+    /// </summary>
+    [JsonPropertyName("searchProviders")]
+    public Dictionary<string, SearchProviderProfileSettings> SearchProviders { get; init; } = [];
+
+    /// <summary>
     /// 合并两个 SettingsJson（低优先级 + 高优先级）
     /// vendor 字典合并（高优先级覆盖同键），current 递归合并
+    /// searchProviders 字典合并（高优先级覆盖同键）
     /// </summary>
     public static SettingsJson Merge(SettingsJson? baseSettings, SettingsJson? overrideSettings) {
         if (baseSettings is null) return overrideSettings ?? new SettingsJson();
@@ -50,6 +59,7 @@ public sealed class SettingsJson {
             Current = CurrentSettings.Merge(baseSettings.Current, overrideSettings.Current),
             AutoFetchModels = overrideSettings.AutoFetchModels,
             Update = overrideSettings.Update ?? baseSettings.Update,
+            SearchProviders = MergeSearchProviderDictionaries(baseSettings.SearchProviders, overrideSettings.SearchProviders) ?? [],
         };
     }
 
@@ -70,6 +80,20 @@ public sealed class SettingsJson {
         if (overrideDict is null) return baseDict;
 
         var result = new Dictionary<string, ProfileSettings>(baseDict, StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in overrideDict)
+            result[key] = value;
+
+        return result;
+    }
+
+    private static Dictionary<string, SearchProviderProfileSettings>? MergeSearchProviderDictionaries(
+        Dictionary<string, SearchProviderProfileSettings>? baseDict,
+        Dictionary<string, SearchProviderProfileSettings>? overrideDict) {
+        if (baseDict is null && overrideDict is null) return null;
+        if (baseDict is null) return overrideDict;
+        if (overrideDict is null) return baseDict;
+
+        var result = new Dictionary<string, SearchProviderProfileSettings>(baseDict, StringComparer.OrdinalIgnoreCase);
         foreach (var (key, value) in overrideDict)
             result[key] = value;
 
@@ -797,4 +821,27 @@ public sealed class ProfileSettings {
     /// <summary>模型列表拉取端点相对路径（如 "models"、"v1/models"）— 拼接 endpoint 得到完整 URL。null 表示不拉取。</summary>
     [JsonPropertyName("modelsEndpoint")]
     public string? ModelsEndpoint { get; init; }
+}
+
+/// <summary>
+/// 搜索供应商预设 — searchProviders 字典的值，配置 API KEY 环境变量名 + 优先级 + 启用状态（TASK054）。
+/// <para>与 LLM vendor 的 ProfileSettings 分离 — search ≠ LLM，语义独立。</para>
+/// <para>apiKeyEnvVar 模式：存环境变量名不存明文 key（安全，复用 vendor 模式）。</para>
+/// </summary>
+public sealed class SearchProviderProfileSettings {
+    /// <summary>API Key 环境变量名（如 TAVILY_API_KEY、SERPER_API_KEY）— 不存明文 key</summary>
+    [JsonPropertyName("apiKeyEnvVar")]
+    public string? ApiKeyEnvVar { get; init; }
+
+    /// <summary>端点环境变量名（SearXNG 用，如 SEARXNG_URL）— 其他供应商通常不需要</summary>
+    [JsonPropertyName("endpointEnvVar")]
+    public string? EndpointEnvVar { get; init; }
+
+    /// <summary>优先级（数字越小越优先，如 Tavily=100、Serper=200、Brave=300、SearXNG=400、Anthropic=500、SubAgent=999）</summary>
+    [JsonPropertyName("priority")]
+    public int Priority { get; init; }
+
+    /// <summary>是否启用 — false 时跳过该供应商，默认 true</summary>
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; init; } = true;
 }

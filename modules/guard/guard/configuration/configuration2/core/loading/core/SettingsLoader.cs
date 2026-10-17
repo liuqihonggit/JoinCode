@@ -151,6 +151,36 @@ public static class SettingsLoader {
               "preemptMinWindowRatio": 0.2,
               "activationRecoverySeconds": 10
             }
+          },
+          "searchProviders": {
+            "tavily": {
+              "apiKeyEnvVar": "TAVILY_API_KEY",
+              "priority": 100,
+              "enabled": true
+            },
+            "serper": {
+              "apiKeyEnvVar": "SERPER_API_KEY",
+              "priority": 200,
+              "enabled": true
+            },
+            "brave": {
+              "apiKeyEnvVar": "BRAVE_API_KEY",
+              "priority": 300,
+              "enabled": true
+            },
+            "searxng": {
+              "endpointEnvVar": "SEARXNG_URL",
+              "priority": 400,
+              "enabled": true
+            },
+            "anthropic": {
+              "priority": 500,
+              "enabled": true
+            },
+            "subagent": {
+              "priority": 999,
+              "enabled": true
+            }
           }
         }
         """

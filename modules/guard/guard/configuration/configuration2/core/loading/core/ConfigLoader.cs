@@ -296,9 +296,12 @@ public class ConfigLoader {
         if (!string.IsNullOrEmpty(directory) && !fs.DirectoryExists(directory))
             fs.CreateDirectory(directory);
 
-        // C6: 加密 API Key — Windows DPAPI,非 Windows 抛异常(拒绝写明文)
+        // C6: 加密 API Key — Windows DPAPI 加密,非 Windows 降级为明文
         var storedValue = ApiKeyProtector.Encrypt(apiKey);
-        logger?.LogInformation("API Key 已加密存储(DPAPI),provider={Provider}", provider);
+        if (ApiKeyProtector.IsSupported)
+            logger?.LogInformation("API Key 已加密存储(DPAPI),provider={Provider}", provider);
+        else
+            logger?.LogWarning("API Key 明文存储(非 Windows 平台不支持 DPAPI),provider={Provider},建议使用环境变量", provider);
 
         try {
             await fs.EditFileAsync<bool>(authPath, async (bytes, ct) => {

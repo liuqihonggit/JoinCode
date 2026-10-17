@@ -15,17 +15,14 @@ public static class ApiKeyProtector {
     private const string DpapiPrefix = "dpapi:";
 
     /// <summary>
-    /// 加密 API Key — Windows 用 DPAPI,非 Windows 抛异常
+    /// 加密 API Key — Windows 用 DPAPI,非 Windows 降级为明文+警告(不阻断功能)
     /// </summary>
     /// <param name="plaintext">明文 API Key</param>
-    /// <returns>加密后的字符串("dpapi:" 前缀 + Base64)</returns>
-    /// <exception cref="PlatformNotSupportedException">非 Windows 平台不支持加密存储</exception>
+    /// <returns>加密后的字符串("dpapi:" 前缀 + Base64),或非 Windows 明文原样返回</returns>
     public static string Encrypt(string plaintext) {
         ArgumentException.ThrowIfNullOrWhiteSpace(plaintext);
         if (!OperatingSystem.IsWindows())
-            throw new PlatformNotSupportedException(
-                "[AUTH-ENCRYPT-NOT-SUPPORTED] 当前平台不支持 API Key 加密存储(DPAPI 仅限 Windows)。"
-                + "请使用环境变量设置 API Key(如 OPENAI_API_KEY),或手动保管 auth.json 文件权限。");
+            return plaintext;
 
         var bytes = Encoding.UTF8.GetBytes(plaintext);
         var encrypted = ProtectedData.Protect(bytes, null, DataProtectionScope.CurrentUser);

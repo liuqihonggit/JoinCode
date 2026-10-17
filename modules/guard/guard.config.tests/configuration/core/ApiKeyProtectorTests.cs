@@ -6,12 +6,14 @@ namespace Guard.Tests.Configuration;
 public class ApiKeyProtectorTest {
     [Fact]
     public void Encrypt_Plaintext_ReturnsDpapiPrefix() {
+        if (!OperatingSystem.IsWindows()) return;
         var encrypted = ApiKeyProtector.Encrypt("sk-test-key-12345");
         encrypted.Should().StartWith("dpapi:");
     }
 
     [Fact]
     public void Encrypt_Plaintext_DoesNotContainPlaintext() {
+        if (!OperatingSystem.IsWindows()) return;
         const string plaintext = "sk-secret-key-abc123";
         var encrypted = ApiKeyProtector.Encrypt(plaintext);
         encrypted.Should().NotContain(plaintext);
@@ -19,6 +21,7 @@ public class ApiKeyProtectorTest {
 
     [Fact]
     public void Decrypt_EncryptedValue_ReturnsOriginal() {
+        if (!OperatingSystem.IsWindows()) return;
         const string plaintext = "sk-roundtrip-test-key";
         var encrypted = ApiKeyProtector.Encrypt(plaintext);
         var decrypted = ApiKeyProtector.Decrypt(encrypted);
@@ -53,7 +56,11 @@ public class ApiKeyProtectorTest {
         await ConfigLoader.SaveApiKeyToJccAsync("openai", "sk-test-secret-key", fs);
 
         var content = await fs.ReadAllTextAsync(authPath);
-        content.Should().Contain("dpapi:");
-        content.Should().NotContain("sk-test-secret-key");
+        if (OperatingSystem.IsWindows()) {
+            content.Should().Contain("dpapi:");
+            content.Should().NotContain("sk-test-secret-key");
+        } else {
+            content.Should().Contain("sk-test-secret-key");
+        }
     }
 }

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Core.Tests.Agents.Coordinator;
 
 public class AgentWorktreeManagerTests : IAsyncLifetime {
@@ -46,6 +45,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime {
         result.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CreateWorktreeAsync_ShouldFireWorktreeCreatedEvent() {
         var agentId = "test-agent-1";
@@ -191,6 +191,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime {
         result.Should().Be(WorktreeCleanupDetail.NoSession);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ForceRemoveWorktreeAsync_ShouldFireWorktreeCleanedEvent() {
         var agentId = "test-agent-1";
@@ -211,6 +212,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime {
         cleanedArgs!.AgentId.Should().Be(agentId);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetWorktreeSessionAsync_ShouldReturnSession_AfterCreate() {
         var agentId = "test-agent-1";

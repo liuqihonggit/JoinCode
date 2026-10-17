@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.CodeIndex.Embedding;
 
 /// <summary>
@@ -393,6 +392,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     /// <para>索引未就绪时返回空列表（调用方可降级到符号搜索）。</para>
     /// <para>options.IncludeSourceText=true 时结果携带块原文；IncludeParentDocument=false 时不返回父文档。</para>
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public async Task<IReadOnlyList<ChunkSearchResult>> SearchAsync(
         string query, int topK, CancellationToken ct, SearchOptions? options = null) {
         ArgumentNullException.ThrowIfNull(query);

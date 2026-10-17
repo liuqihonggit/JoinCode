@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace MockServer.E2E.Tests.E2E;
 
 
@@ -64,6 +63,7 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime {
     /// <summary>
     /// jcc -p 发送请求后 MockServer 应收到至少 1 个请求
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task NonInteractiveMode_MockServerShouldReceiveRequest() {
         var configPath = await WriteSimpleMockServerConfigAsync();

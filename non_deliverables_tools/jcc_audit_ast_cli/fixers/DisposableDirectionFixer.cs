@@ -4,7 +4,6 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.MSBuild;
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JccAuditCli;
 
 /// <summary>
@@ -266,6 +265,7 @@ internal class DisposableDirectionRewriter : CSharpSyntaxRewriter {
     /// <summary>
     /// 检测是否是 void Dispose() 方法（同步释放）
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static bool IsSyncDisposeMethod(MemberDeclarationSyntax member, out MethodDeclarationSyntax method) {
         method = null!;
         if (member is not MethodDeclarationSyntax m) return false;
@@ -279,6 +279,7 @@ internal class DisposableDirectionRewriter : CSharpSyntaxRewriter {
     /// <summary>
     /// 检测是否是 ValueTask DisposeAsync() 方法（异步释放）
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static bool IsAsyncDisposeMethod(MemberDeclarationSyntax member, out MethodDeclarationSyntax method) {
         method = null!;
         if (member is not MethodDeclarationSyntax m) return false;
@@ -399,6 +400,7 @@ internal class DisposableDirectionRewriter : CSharpSyntaxRewriter {
     }
 
     /// <summary>检测 await expr.DisposeAsync() 模式，返回内层 DisposeAsync 调用</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static bool IsAwaitDisposeAsyncCall(InvocationExpressionSyntax node, out InvocationExpressionSyntax disposeAsyncCall) {
         disposeAsyncCall = node!;
 

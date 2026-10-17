@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infrastructure.HotSpot;
 
 /// <summary>
@@ -109,15 +108,16 @@ public sealed class AutoRebaseService : IAutoRebaseService {
     }
 
     private async Task NotifyConflictAsync(AutoRebaseRequest request, IReadOnlyList<string> conflictFiles, CancellationToken ct) {
+        if (request.CaptainId is null) return;
         var filesText = conflictFiles.Count > 0 ? string.Join("\n", conflictFiles) : "(未知)";
         var msg = new CoordinatorMessage {
             FromAgentId = request.AgentId,
-            ToAgentId = request.CaptainId!,
+            ToAgentId = request.CaptainId,
             MessageType = TeammateMessageTypeEnumConstants.ForceSync,
             Content = FormattableString.Invariant($"Worker {request.AgentId} rebase {request.UpstreamBranch} 产生冲突，已 abort。冲突文件:\n{filesText}\n请处理冲突后重新派发任务。"),
             StructuredType = TeammateMessageType.ForceSync,
         };
-        await _mailbox.SendAsync(request.CaptainId!, msg, ct).ConfigureAwait(false);
+        await _mailbox.SendAsync(request.CaptainId, msg, ct).ConfigureAwait(false);
     }
 
     private static AutoRebaseResult Failed(string message) => new() {

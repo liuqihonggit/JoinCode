@@ -1,10 +1,10 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace McpToolRegistry.Tests;
 
 public class InputSchemaValidationTests {
     private readonly SimpleJsonSchemaValidator _validator = new();
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ValidateInput_MissingRequiredParameter_ReturnsError() {
         var schema = new ToolSchema {
@@ -41,6 +41,7 @@ public class InputSchemaValidationTests {
         result.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ValidateInput_WrongType_ReturnsError() {
         var schema = new ToolSchema {
@@ -60,6 +61,7 @@ public class InputSchemaValidationTests {
         result.GetTextContent().Should().Contain("count");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ValidateInput_InvalidEnumValue_ReturnsError() {
         var schema = new ToolSchema {
@@ -106,6 +108,7 @@ public class InputSchemaValidationTests {
         result.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ValidateInput_MultipleMissingRequired_ListsAll() {
         var schema = new ToolSchema {

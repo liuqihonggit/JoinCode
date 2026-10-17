@@ -1,3 +1,4 @@
+global using System.Diagnostics.CodeAnalysis;
 global using Core.Memdir;
 global using Core.Tests.Fakes;
 global using Infrastructure.Localization;

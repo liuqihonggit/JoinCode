@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Mcp.Tests.Auth;
 
 
@@ -106,6 +105,7 @@ public sealed class McpAuthFallbackTests {
     /// 验证 JCC_HTTP_MODE=Mock 时，fallback 路径走 MockHttpClientProvider
     /// 这是 P1-6 的关键能力: fallback 路径与主程序一致支持环境变量切换
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void McpOAuthMetadataDiscovery_WhenHttpModeMock_ShouldUseMockHttpClientProvider() {
         // Arrange
@@ -131,6 +131,7 @@ public sealed class McpAuthFallbackTests {
     // 辅助方法 — 通过反射获取 private _httpClient 字段
     // ─────────────────────────────────────────────────────────────────────────────
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static HttpClient? GetPrivateHttpClientField(object obj) {
         var field = obj.GetType().GetField("_httpClient", BindingFlags.NonPublic | BindingFlags.Instance);
         field.Should().NotBeNull($"类型 {obj.GetType().Name} 应包含 private _httpClient 字段");

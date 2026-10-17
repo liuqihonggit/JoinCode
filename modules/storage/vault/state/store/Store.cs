@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace State;
 
 /// <summary>
@@ -56,6 +55,7 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
     }
 
     /// <inheritdoc />
+    [SuppressMessage("AOT", "JCC11003", Justification = "泛型原子操作底层模式:default!作为CompareExchange标记值,TState可能是引用类型")]
     public TState GetState() {
         return Interlocked.CompareExchange(ref _currentState, default!, default!);
     }
@@ -66,6 +66,7 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
     }
 
     /// <inheritdoc />
+    [SuppressMessage("AOT", "JCC11003", Justification = "泛型原子操作底层模式:default!作为CompareExchange标记值,TState可能是引用类型")]
     public void SetState(Func<TState, TState> updater) {
         ThrowIfDisposed();
 
@@ -91,6 +92,7 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
     }
 
     /// <inheritdoc />
+    [SuppressMessage("AOT", "JCC11003", Justification = "泛型原子操作底层模式:default!作为CompareExchange标记值,TState可能是引用类型")]
     public async Task SetStateAsync(Func<TState, Task<TState>> updater, CancellationToken cancellationToken = default) {
         ThrowIfDisposed();
 

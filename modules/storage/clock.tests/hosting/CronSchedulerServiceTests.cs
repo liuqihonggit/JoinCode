@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Clock.Tests.Unit.Hosting;
 
 public sealed class CronSchedulerServiceTests {
@@ -13,11 +12,13 @@ public sealed class CronSchedulerServiceTests {
         return (taskStore, messageBus, service);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullTaskStore_Throws() {
         Assert.Throws<ArgumentNullException>(() => new CronSchedulerService(null!, new ServiceMessageBus()));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullMessageBus_Throws() {
         Assert.Throws<ArgumentNullException>(() => new CronSchedulerService(Mock.Of<ICronTaskStore>(), null!));

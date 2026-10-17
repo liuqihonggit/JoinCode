@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.Services;
 
 /// <summary>远程缓存刷新命令标记接口</summary>
@@ -100,7 +99,7 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
         try {
             Logger?.LogDebug("正在刷新{Label}配置", RefreshLogLabel);
 
-            var requestUrl = RefreshOptions.ApiEndpoint!;
+            var requestUrl = RefreshOptions.ApiEndpoint ?? string.Empty;
             if (!string.IsNullOrEmpty(RefreshOptions.ClientKey)) {
                 var separator = requestUrl.Contains('?') ? "&" : "?";
                 requestUrl = $"{requestUrl}{separator}clientKey={Uri.EscapeDataString(RefreshOptions.ClientKey)}";

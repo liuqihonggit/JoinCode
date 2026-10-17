@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Plugins;
 
 public sealed class InvariantRegistryTests {
@@ -156,12 +155,14 @@ public sealed class InvariantRegistryTests {
         disposer.Dispose();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Register_NullPackageName_Throws() {
         var registry = new InvariantRegistry();
         Assert.Throws<ArgumentNullException>(() => registry.Register(null!, _ => { }));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Register_NullInstaller_Throws() {
         var registry = new InvariantRegistry();

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Llm.Tests.Adapters;
 
 public sealed class QueryServiceBaseHelperTests {
@@ -74,6 +73,7 @@ public sealed class QueryServiceBaseHelperTests {
         result.Should().BeSameAs(expected);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToOpenAIToolCalls_WithJsonElementArray_ParsesProperties() {
         var json = """
@@ -159,6 +159,7 @@ public sealed class QueryServiceBaseHelperTests {
 
     #region Rate limit headers
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ExtractRateLimitHeaders_PopulatesLastHeaders() {
         using var response = new HttpResponseMessage();
@@ -188,6 +189,7 @@ public sealed class QueryServiceBaseHelperTests {
         service.GetLastRateLimitHeaders().Should().BeEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void EnrichWithRateLimitMetadata_WhenHeadersExist_AddsRatelimitPrefix() {
         using var response = new HttpResponseMessage();
@@ -221,6 +223,7 @@ public sealed class QueryServiceBaseHelperTests {
 
     #region Constructor validation
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullConfig_ThrowsArgumentNullException() {
         // 直接构造，绕过 CreateTestableService 的 ??= 默认值替换

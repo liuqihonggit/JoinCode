@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Mcp.Tests;
 
 public sealed class McpEnvExpanderTests {
@@ -37,6 +36,7 @@ public sealed class McpEnvExpanderTests {
         missing.Should().BeEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ExpandEnvVarsInString_ThrowsOnNull() {
         Assert.Throws<ArgumentNullException>(() => McpEnvExpander.ExpandEnvVarsInString(null!));
@@ -60,6 +60,7 @@ public sealed class McpEnvExpanderTests {
         McpEnvExpander.ExpandEndpoint("http://localhost:8080").Should().Be("http://localhost:8080");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ExpandEndpoint_ThrowsOnNull() {
         Assert.Throws<ArgumentNullException>(() => McpEnvExpander.ExpandEndpoint(null!));

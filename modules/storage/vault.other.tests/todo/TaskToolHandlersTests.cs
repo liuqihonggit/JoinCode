@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Todo;
 
 public sealed class TaskToolHandlersTests {
@@ -8,6 +7,7 @@ public sealed class TaskToolHandlersTests {
 
     private TaskToolHandlers CreateSut() => new(_taskServiceMock.Object);
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TaskCreateAsync_EmptyTitle_ReturnsEmptyTitleDiagnostic() {
         var sut = CreateSut();
@@ -20,6 +20,7 @@ public sealed class TaskToolHandlersTests {
         result.Diagnostic!.Details.Should().Contain(d => d.Key == "field" && d.Value == "title");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TaskUpdateAsync_EmptyTaskId_ReturnsEmptyTaskIdDiagnostic() {
         var sut = CreateSut();
@@ -33,6 +34,7 @@ public sealed class TaskToolHandlersTests {
         result.Diagnostic!.Details.Should().Contain(d => d.Key == "field" && d.Value == "task_id");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TaskStopAsync_EmptyTaskId_ReturnsEmptyTaskIdDiagnostic() {
         var sut = CreateSut();
@@ -44,6 +46,7 @@ public sealed class TaskToolHandlersTests {
         result.Diagnostic!.Reason.Should().Be("EmptyTaskId");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TaskGetAsync_EmptyTaskId_ReturnsEmptyTaskIdDiagnostic() {
         var sut = CreateSut();
@@ -55,6 +58,7 @@ public sealed class TaskToolHandlersTests {
         result.Diagnostic!.Reason.Should().Be("EmptyTaskId");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TaskGetAsync_TaskNotFound_ReturnsTaskNotFoundDiagnostic() {
         var sut = CreateSut();
@@ -69,6 +73,7 @@ public sealed class TaskToolHandlersTests {
         result.Diagnostic!.Details.Should().Contain(d => d.Key == "taskId" && d.Value == "ghost-id");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TaskSetDependencyAsync_EmptyTaskId_ReturnsEmptyTaskIdDiagnostic() {
         var sut = CreateSut();
@@ -80,6 +85,7 @@ public sealed class TaskToolHandlersTests {
         result.Diagnostic!.Reason.Should().Be("EmptyTaskId");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TaskSetDependencyAsync_EmptyDependsOnTaskId_ReturnsEmptyDependsOnTaskIdDiagnostic() {
         var sut = CreateSut();
@@ -92,6 +98,7 @@ public sealed class TaskToolHandlersTests {
         result.Diagnostic!.Details.Should().Contain(d => d.Key == "field" && d.Value == "depends_on_task_id");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TaskRemoveDependencyAsync_EmptyDependsOnTaskId_ReturnsEmptyDependsOnTaskIdDiagnostic() {
         var sut = CreateSut();
@@ -103,6 +110,7 @@ public sealed class TaskToolHandlersTests {
         result.Diagnostic!.Reason.Should().Be("EmptyDependsOnTaskId");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TaskCreateAsync_ServiceFailure_ReturnsServiceFailureDiagnostic() {
         var sut = CreateSut();
@@ -121,6 +129,7 @@ public sealed class TaskToolHandlersTests {
         result.Diagnostic!.Details.Should().Contain(d => d.Key == "operation" && d.Value == "CreateTask");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TaskUpdateAsync_ServiceFailure_ReturnsServiceFailureDiagnostic() {
         var sut = CreateSut();

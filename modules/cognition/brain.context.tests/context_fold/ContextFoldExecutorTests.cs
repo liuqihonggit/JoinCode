@@ -1,6 +1,6 @@
 // JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC1017, JCC11003
+#pragma warning disable JCC1017
 namespace JoinCode.Abstractions.LLM.Chat;
 
 /// <summary>
@@ -105,6 +105,7 @@ public sealed class ContextFoldExecutorTests {
         Assert.Equal(ContextFoldDecision.FoldNormal, result.Decision);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FoldAsync_NullLog_Throws() {
         var executor = new ContextFoldExecutor(new FakeFoldSummarizer());
@@ -152,6 +153,7 @@ public sealed class ContextFoldExecutorTests {
         Assert.Equal(2, log.Count);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TrimTrailingAndPrepareExit_NullLog_Throws() {
         var executor = new ContextFoldExecutor(new FakeFoldSummarizer());

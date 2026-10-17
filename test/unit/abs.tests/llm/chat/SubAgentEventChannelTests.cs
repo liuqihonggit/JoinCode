@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abs.Tests.LLM.Chat;
 
 /// <summary>
@@ -7,6 +6,7 @@ namespace JoinCode.Abs.Tests.LLM.Chat;
 /// 模式对齐 SubAgentContext.Current（AsyncLocal 环境态），供 QueryLoop 与 Agent 中间件跨层桥接。
 /// </summary>
 public class SubAgentEventChannelTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: TryRead 返回 true 时 out 参数非空")]
     [Fact]
     public void EnterScope_SetsCurrent_AndRestoreRestoresPrevious() {
         SubAgentEventChannel.Current.Should().BeNull();
@@ -27,6 +27,7 @@ public class SubAgentEventChannelTests {
         SubAgentEventChannel.Current.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TryEmit_TryRead_ShouldPreserveOrder() {
         using var scope = new SubAgentEventChannel().EnterScope();
@@ -40,11 +41,11 @@ public class SubAgentEventChannelTests {
         await Task.Yield();
 
         channel.TryRead(out var e0).Should().BeTrue();
-        e0.Type.Should().Be(ChatStreamEventType.AgentStarted);
+        e0!.Type.Should().Be(ChatStreamEventType.AgentStarted);
         channel.TryRead(out var e1).Should().BeTrue();
-        e1.Type.Should().Be(ChatStreamEventType.ToolCallStart);
+        e1!.Type.Should().Be(ChatStreamEventType.ToolCallStart);
         channel.TryRead(out var e2).Should().BeTrue();
-        e2.Type.Should().Be(ChatStreamEventType.AgentFinished);
+        e2!.Type.Should().Be(ChatStreamEventType.AgentFinished);
         channel.TryRead(out _).Should().BeFalse();
     }
 
@@ -55,6 +56,7 @@ public class SubAgentEventChannelTests {
         act.Should().NotThrow();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryDrain_ShouldReturnAllAndClear() {
         using var scope = new SubAgentEventChannel().EnterScope();

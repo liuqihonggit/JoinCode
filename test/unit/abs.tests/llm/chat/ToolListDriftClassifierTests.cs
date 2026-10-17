@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Abs.Tests.Llm.Chat;
 
 /// <summary>
@@ -94,12 +93,14 @@ public sealed class ToolListDriftClassifierTests {
         r.AddedNames.Should().Equal(["b"]);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Classify_NullBefore_Throws() {
         var act = () => ToolListDriftClassifier.Classify(null!, []);
         act.Should().Throw<ArgumentNullException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Classify_NullAfter_Throws() {
         var act = () => ToolListDriftClassifier.Classify([], null!);

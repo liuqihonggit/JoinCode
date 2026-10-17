@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace CodeIndex.Tests.UToZ;
 
 /// <summary>
@@ -30,6 +29,7 @@ public sealed class InMemoryParentDocumentStoreTests {
         store.Count.Should().Be(1);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Add_OverwriteSameChunkId_ReplacesDocument() {
         using var store = new InMemoryParentDocumentStore(new InMemoryKvStore());
@@ -39,6 +39,7 @@ public sealed class InMemoryParentDocumentStoreTests {
         store.Get("parent-001")!.SourceText.Should().Be("class B { }");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Get_ExistingChunkId_ReturnsDocument() {
         using var store = new InMemoryParentDocumentStore(new InMemoryKvStore());
@@ -115,6 +116,7 @@ public sealed class InMemoryParentDocumentStoreTests {
         store.Count.Should().Be(0);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Add_NullDocument_Throws() {
         using var store = new InMemoryParentDocumentStore(new InMemoryKvStore());
@@ -122,6 +124,7 @@ public sealed class InMemoryParentDocumentStoreTests {
         act.Should().Throw<ArgumentNullException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Get_NullChunkId_Throws() {
         using var store = new InMemoryParentDocumentStore(new InMemoryKvStore());

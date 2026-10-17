@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Abs.Tests.Utils;
 /// <summary>
 /// TempDirScope 单元测试 — 验证临时目录创建与 DisposeAsync 自动清理（含幂等、目录已删不抛）
@@ -27,6 +26,7 @@ public sealed class TempDirScopeTest {
         scope.Path.Should().Contain("jcctmp_");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Create_NullFileSystem_ThrowsArgumentNullException() {
         var act = () => TempDirScope.Create(null!);

@@ -1,8 +1,8 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace McpToolRegistry.Tests;
 
 public sealed class PermissionAwareToolExecutorEntityTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ToolExecutionContext_HasExecutionEntity_AfterCreation() {
         await using var entity = new ToolExecutionEntity("read_file");
@@ -216,6 +216,7 @@ public sealed class PermissionAwareToolExecutorEntityTests {
         boolEntry.BoolValue.Should().Be(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ToolResultBuilder_WithEntityMetadata_PropagatesToToolResult() {
         var result = ToolResultBuilder.Success()
@@ -229,6 +230,7 @@ public sealed class PermissionAwareToolExecutorEntityTests {
         result.EntityMetadata[0].IntValue.Should().Be(0);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ToolResultBuilder_WithEntityMetadata_MultipleEntries() {
         var result = ToolResultBuilder.Success()
@@ -243,6 +245,7 @@ public sealed class PermissionAwareToolExecutorEntityTests {
         result.EntityMetadata[1].Key.Should().Be("content_length");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static void CompleteAndBackfill(ToolExecutionContext context) {
         var entity = context.ExecutionEntity!;
         entity.CompletedAt = DateTime.UtcNow;

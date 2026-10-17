@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -213,6 +212,7 @@ public sealed class WorktreeCommand : ChatCommandBase {
         return true;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task CreateWorktreeAsync(ChatCommandContext context, IAgentWorktreeService worktreeService, string[] args) {
         if (args.Length < 2) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}请指定 Agent ID{AnsiStyleEnumConstants.Reset}");

@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Bridge.Tests;
 
 /// <summary>
@@ -33,6 +32,7 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable {
         session.CreatedAt.Should().BeGreaterThan(0);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task MarkConnectedAsync_ShouldUpdateStatus_ToConnected() {
         // Arrange
@@ -64,6 +64,7 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable {
         retrieved.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetPeerSession_ShouldReturnSession_WhenExists() {
         // Arrange
@@ -108,6 +109,7 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable {
         activeSessions.First().SessionId.Should().Be(session1.SessionId);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PeerSessionConnected_ShouldFire_WhenMarkedConnected() {
         // Arrange
@@ -126,6 +128,7 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable {
         capturedArgs.Session.Status.Should().Be(PeerSessionStatus.Connected);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PeerSessionDisconnected_ShouldFire_WhenClosed() {
         // Arrange

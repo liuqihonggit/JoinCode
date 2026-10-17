@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Integration.Tests.Hands;
 
 [Trait("Category", "Integration")]
@@ -43,6 +42,7 @@ public sealed class ReplServiceTests {
         Assert.False(_service.IsReplModeEnabled);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void EnableReplMode_ShouldLogInformation() {
         _service.EnableReplMode();
@@ -57,6 +57,7 @@ public sealed class ReplServiceTests {
             Times.AtLeastOnce);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void DisableReplMode_ShouldLogInformation() {
         _service.DisableReplMode();
@@ -80,6 +81,7 @@ public sealed class ReplServiceTests {
         Assert.Contains("空", result.Error);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteAsync_NullCode_ShouldReturnError() {
         var result = await _service.ExecuteAsync(null!, "csharp").ConfigureAwait(true);

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Llm.Tests.Adapters.CacheProtocol;
 
 public sealed class AnthropicCacheControlPlacementTests {
@@ -36,6 +35,7 @@ public sealed class AnthropicCacheControlPlacementTests {
             "when no static blocks exist, cache_control should be placed on the last system block");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void PlaceCacheControlOnSystemBlocks_WithMcpTools_ScopeShouldBeOrg() {
         var systemBlocks = new List<AnthropicSystemContentBlock>
@@ -66,6 +66,7 @@ public sealed class AnthropicCacheControlPlacementTests {
             "cache_control should be on the last tool definition");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void PlaceCacheControlOnTools_WithMcpTools_ScopeShouldBeOrg() {
         var tools = new List<AnthropicToolDefinition>
@@ -96,6 +97,7 @@ public sealed class AnthropicCacheControlPlacementTests {
             "cache_control should be on the last tool result block");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void PlaceCacheControlOnToolResults_WithMcpTools_ScopeShouldBeOrg() {
         var toolResults = new List<AnthropicToolResultBlock>
@@ -111,6 +113,7 @@ public sealed class AnthropicCacheControlPlacementTests {
             "previously FlushToolResultsAsUserMessage always passed hasMcpTools=false (fixed)");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void PlaceCacheControlOnToolResults_WithoutMcpTools_ScopeShouldBeNull() {
         var toolResults = new List<AnthropicToolResultBlock>

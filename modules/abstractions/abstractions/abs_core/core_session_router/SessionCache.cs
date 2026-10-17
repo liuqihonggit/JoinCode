@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
@@ -67,12 +66,12 @@ public sealed class SessionCache : ISessionCache {
 
     /// <summary>清空所有缓存项 — 手写 CAS 循环替代 Interlocked.Exchange(volatile 字段触发 CS0420),保留旧值用于 Dispose。</summary>
     public async Task ClearAsync() {
-        ImmutableHamT<string, Entity> snapshot = default!;
+        ImmutableHamT<string, Entity>? snapshot = null;
         while (true) {
             var current = _entries;
             if (Interlocked.CompareExchange(ref _entries, ImmutableHamT<string, Entity>.Empty, current) == current) { snapshot = current; break; }
         }
-        foreach (var entry in snapshot.Values) {
+        foreach (var entry in (snapshot ?? ImmutableHamT<string, Entity>.Empty).Values) {
             try { await entry.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) { _ = ex; }
         }
     }

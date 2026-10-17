@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Api.LLM.QueryServices.OpenAI;
 
 
@@ -96,7 +95,7 @@ public class OpenAIQueryService : QueryServiceBase {
                 await foreach (var sc in secondStream) {
                     if (sc.Choices.Count == 0 && sc.Usage is null) continue;
                     if (sc.Choices.Count == 0) {
-                        var tu = BuildTokenUsage(sc.Usage!);
+                        var tu = sc.Usage is { } u ? BuildTokenUsage(u) : new TokenUsage();
                         var um = new Dictionary<string, JsonElement> {
                             ["Id"] = JsonElementHelper.FromString(sc.Id),
                             ["FinishReason"] = JsonElementHelper.FromString(OpenAIFinishReasonEnumConstants.Stop),

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 
 namespace McpToolDispatch.Tests.Execution;
 
@@ -7,7 +6,9 @@ namespace McpToolDispatch.Tests.Execution;
 /// GAP-041-01 工具转移频率记录 + refine 角色单元测试
 /// </summary>
 public sealed class ToolTransitionTest : IAsyncLifetime {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private InMemoryFileSystem _fs = null!;
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private ToolHealthMonitor _monitor = null!;
 
     public Task InitializeAsync() {
@@ -21,6 +22,7 @@ public sealed class ToolTransitionTest : IAsyncLifetime {
         return Task.CompletedTask;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RecordTransitionAsync_RecordsFrequency() {
         await _monitor.RecordTransitionAsync("tool_a", "tool_b");
@@ -33,6 +35,7 @@ public sealed class ToolTransitionTest : IAsyncLifetime {
         record.NextToolFrequency["tool_c"].Should().Be(1);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RecordTransitionAsync_DifferentTools_TrackedSeparately() {
         await _monitor.RecordTransitionAsync("tool_a", "tool_b");
@@ -44,6 +47,7 @@ public sealed class ToolTransitionTest : IAsyncLifetime {
         recordB!.NextToolFrequency["tool_c"].Should().Be(1);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RecordTransitionAsync_SameTool_NoTransitionRecorded() {
         await _monitor.RecordSuccessAsync("tool_a");
@@ -53,6 +57,7 @@ public sealed class ToolTransitionTest : IAsyncLifetime {
         record!.NextToolFrequency.Should().BeEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetChainRecommendations_FrequencyBased_WhenAboveThreshold() {
         for (var i = 0; i < 5; i++)
@@ -81,6 +86,7 @@ public sealed class ToolTransitionTest : IAsyncLifetime {
         chain.Should().NotBeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetChainRecommendations_FallsBackToStatic_WhenNoFrequencyData() {
         using var scorer = new ToolHypergraphScorer();

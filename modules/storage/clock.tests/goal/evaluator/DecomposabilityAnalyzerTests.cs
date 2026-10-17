@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿
 namespace Core.Goal.Tests;
 
@@ -93,6 +92,7 @@ public sealed class DecomposabilityAnalyzerTests {
         Assert.Equal(["sub_1"], result.SubTasks[1].DependsOn);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AnalyzeAsync_NullObjective_Should_Throw() {
         var kernel = new Mock<IChatClient>();
@@ -413,12 +413,14 @@ public sealed class DecomposabilityAnalyzerTests {
         Assert.Equal("- A\n- B", text);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildAnalyzerConstraintsText_Null_Should_Throw_ArgumentNullException() {
         Assert.Throws<ArgumentNullException>(() =>
             DecomposabilityAnalyzer.BuildAnalyzerConstraintsText(null!));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildAnalyzerPrompt_NullObjective_Should_Throw_ArgumentNullException() {
         Assert.Throws<ArgumentNullException>(() =>
@@ -437,6 +439,7 @@ public sealed class DecomposabilityAnalyzerTests {
             DecomposabilityAnalyzer.BuildAnalyzerPrompt("   ", []));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildAnalyzerPrompt_NullConstraints_Should_Throw_ArgumentNullException() {
         Assert.Throws<ArgumentNullException>(() =>

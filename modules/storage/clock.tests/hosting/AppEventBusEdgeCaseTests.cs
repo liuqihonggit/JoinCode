@@ -1,9 +1,9 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Clock.Tests.Unit.Hosting;
 
 public sealed class AppEventBusEdgeCaseTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PublishAsync_NullEvent_Throws() {
         var messageBus = new ServiceMessageBus();
@@ -12,6 +12,7 @@ public sealed class AppEventBusEdgeCaseTests {
         await Assert.ThrowsAsync<ArgumentNullException>(() => eventBus.PublishAsync(null!)).ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SubscribeAsync_NullHandler_Throws() {
         var messageBus = new ServiceMessageBus();

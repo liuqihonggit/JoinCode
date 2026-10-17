@@ -1,8 +1,8 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Llm.Tests.Adapters.LLM.Serialization;
 
 public class NativeJsonContextTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void OpenAIChatRequest_RoundTrip_SerializesModelAndMessages() {
         var request = new OpenAIChatRequest {
@@ -25,6 +25,7 @@ public class NativeJsonContextTests {
         deserialized.Messages.Should().ContainSingle();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void OpenAIChatResponse_RoundTrip_PreservesChoices() {
         var response = new OpenAIChatResponse {
@@ -49,6 +50,7 @@ public class NativeJsonContextTests {
         deserialized.Choices[0].FinishReason.Should().Be("stop");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void OpenAIChatChunk_RoundTrip_PreservesUsage() {
         var chunk = new OpenAIChatChunk {
@@ -68,6 +70,7 @@ public class NativeJsonContextTests {
         deserialized.Usage!.TotalTokens.Should().Be(15);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void OpenAITool_RoundTrip_PreservesFunction() {
         var tool = new OpenAITool {
@@ -91,6 +94,7 @@ public class NativeJsonContextTests {
         deserialized.Function.Parameters!.Required.Should().Contain("x");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TokenUsage_RoundTrip_PreservesTotals() {
         var usage = new TokenUsage(10, 5) {
@@ -109,6 +113,7 @@ public class NativeJsonContextTests {
         deserialized.CacheCreationInputTokens.Should().Be(1);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void OpenAIChatRequest_WithThinking_SerializesThinkingField() {
         var request = new OpenAIChatRequest {
@@ -168,6 +173,7 @@ public class NativeJsonContextTests {
         json.Should().Contain("\"type\":\"text\",\"text\":\"What is this?\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void OpenAIApiMessage_MultimodalContent_RoundTripsImageUrlPart() {
         var msg = new OpenAIApiMessage {

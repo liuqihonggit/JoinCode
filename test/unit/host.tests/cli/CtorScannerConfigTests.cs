@@ -1,6 +1,5 @@
 // JCC9001 抑制: 源码级回归测试需直接读取文件系统验证 ctor_scanner 源码常量
 // JCC11003 抑制: 存量代码可空抑制
-#pragma warning disable JCC11003
 
 namespace Host.Tests.Cli;
 

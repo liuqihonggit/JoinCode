@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Memdir;
 
 /// <summary>
@@ -134,6 +133,7 @@ public sealed class TeamMemoryPathStoreTests {
 
     // === 持久化触发（Mock IPersistencePipeline）===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AddTeamMemoryPathCoreAsync_WithPipeline_EnqueuesPersistRequestAndCompletes() {
         PersistRequest? captured = null;
@@ -160,6 +160,7 @@ public sealed class TeamMemoryPathStoreTests {
         roundtrip[0].Path.Should().Be("/p1");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RemoveTeamMemoryPathCoreAsync_WithPipeline_EnqueuesPersistRequest() {
         PersistRequest? captured = null;
@@ -185,6 +186,7 @@ public sealed class TeamMemoryPathStoreTests {
         roundtrip.Should().BeEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AddThenRemove_WithPipeline_FinalPersistedStateIsEmpty() {
         var requests = new List<PersistRequest>();

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Plugins.Tests.Unit;
 
 /// <summary>
@@ -15,6 +14,7 @@ public sealed class PluginCommandRegistryTest {
         Aliases = [.. aliases]
     };
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RegisterCommandAsync_PrimaryCommand_Registered() {
         var registry = new PluginCommandRegistry();
@@ -25,6 +25,7 @@ public sealed class PluginCommandRegistryTest {
         registry.GetCommand("test")!.PluginName.Should().Be("plugin1");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RegisterCommandAsync_AliasesExpanded_AllAliasesRegistered() {
         var registry = new PluginCommandRegistry();
@@ -41,6 +42,7 @@ public sealed class PluginCommandRegistryTest {
         registry.GetCommand("alias1")!.HandlerType.Should().Be("FakeHandler");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RegisterCommandAsync_DuplicateCommand_Skipped() {
         var registry = new PluginCommandRegistry();
@@ -115,6 +117,7 @@ public sealed class PluginCommandRegistryTest {
         all.Select(c => c.CommandName).Should().Contain(["cmd1", "cmd2"]);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RegisterCommandAsync_NullCommand_Throws() {
         var registry = new PluginCommandRegistry();
@@ -188,6 +191,7 @@ public sealed class PluginCommandRegistryTest {
         aliasDef.CommandName.Should().NotBe("main");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ExpandAliases_NullCommand_Throws() {
         Action act = () => PluginCommandRegistry.ExpandAliases(null!).ToList();
@@ -208,6 +212,7 @@ public sealed class PluginCommandRegistryTest {
 
     // ===== ExpandAliases 别名 null 守卫 =====
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ExpandAliases_NullAliasesList_ReturnsEmptyWithoutThrowing() {
         // Aliases 为 null 应被 'is null or { Count: 0 }' 守卫处理,不抛 NRE

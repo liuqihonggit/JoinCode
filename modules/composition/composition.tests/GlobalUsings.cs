@@ -1,4 +1,5 @@
 extern alias composition;
+global using System.Diagnostics.CodeAnalysis;
 
 global using CompositionServiceRegistration = composition::Core.DependencyInjection.ServiceRegistration;
 global using Api;

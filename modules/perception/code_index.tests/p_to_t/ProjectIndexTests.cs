@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 // JCC9203 抑制: 存量释放超时, 后续异步化改造
 #pragma warning disable JCC9203
 namespace JoinCode.CodeIndex.Tests;
@@ -58,12 +57,14 @@ public sealed class ProjectIndexTests : IDisposable {
         Assert.Empty(snap.Projects);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task IndexProjectAsync_NullFilePath_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             _projectIndex.IndexProjectAsync(null!, "", CancellationToken.None)).ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task IndexSolutionAsync_SlnFile_IndexesProjects() {
         var dir = CreateTempDir();
@@ -91,6 +92,7 @@ public sealed class ProjectIndexTests : IDisposable {
         Assert.Contains(snap.Projects, p => p.Value.Name == "App");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task IndexSolutionAsync_SlnxFile_IndexesProjects() {
         var dir = CreateTempDir();
@@ -123,6 +125,7 @@ public sealed class ProjectIndexTests : IDisposable {
         Assert.Empty(snap.Projects);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task IndexSolutionAsync_NullFilePath_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
@@ -180,11 +183,13 @@ public sealed class ProjectIndexTests : IDisposable {
         Assert.Equal(1, count);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullStore_Throws() {
         Assert.Throws<ArgumentNullException>(() => new ProjectIndex(null!, _fs));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullFileSystem_Throws() {
         Assert.Throws<ArgumentNullException>(() => new ProjectIndex(_store, null!));

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace MockServer.Core;
 
 public sealed class HttpListenerMockServer : IHttpMockServer {
@@ -76,6 +75,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer {
         return Task.CompletedTask;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: Headers key 经 Where(not null) 过滤")]
     private async Task ListenLoop(CancellationToken ct) {
         while (!ct.IsCancellationRequested) {
             try {
@@ -220,6 +220,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer {
     }
 
     /// <summary>异步释放资源。</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: ContinueWith t.IsFaulted 时 t.Exception 非空")]
     public ValueTask DisposeAsync() {
         _cts.Cancel();
         try { _listener.Stop(); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"Listener stop failed: {ex.Message}"); }

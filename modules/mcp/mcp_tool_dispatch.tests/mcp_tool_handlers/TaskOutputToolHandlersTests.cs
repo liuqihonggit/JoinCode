@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Sync.Tests.ToolHandlers;
 
 public class TaskOutputToolHandlersTests {
@@ -18,6 +17,7 @@ public class TaskOutputToolHandlersTests {
         Assert.Contains("不能为空", result.GetTextContent());
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetTaskOutputAsync_NullTaskId_ReturnsError() {
         var result = await _handler.GetTaskOutputAsync(null!, cancellationToken: CancellationToken.None).ConfigureAwait(true);

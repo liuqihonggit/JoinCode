@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
@@ -14,7 +13,7 @@ public sealed record ChatRoomState {
     private static readonly IComparer<TeamMessage> s_timeComparer = Comparer<TeamMessage>.Create(static (a, b) => a.Timestamp.CompareTo(b.Timestamp));
 
     /// <summary>团队/聊天室信息</summary>
-    public TeamInfo Info { get; init; } = null!;
+    public required TeamInfo Info { get; init; }
 
     /// <summary>成员 ID 集合（不可变，O(1) 包含查询）</summary>
     public ImmutableHamTSet<string> Members { get; init; } = ImmutableHamTSet<string>.Empty;

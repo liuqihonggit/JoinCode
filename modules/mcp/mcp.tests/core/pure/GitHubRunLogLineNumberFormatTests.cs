@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Mcp.Tests;
 
 /// <summary>
@@ -9,6 +8,7 @@ namespace Mcp.Tests;
 [Trait("Category", "Deterministic")]
 public sealed class GitHubRunLogLineNumberFormatTests {
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task StreamAndFilterAsync_CompactLinePrefix_UsesTabSeparator() {
         var api = new FakeGitHubApiClient {
@@ -27,6 +27,7 @@ public sealed class GitHubRunLogLineNumberFormatTests {
         text.Should().Contain("2\tline two");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task StreamAndFilterAsync_WideLinePrefix_UsesArrowSeparator() {
         var api = new FakeGitHubApiClient {
@@ -45,6 +46,7 @@ public sealed class GitHubRunLogLineNumberFormatTests {
         text.Should().Contain("     2\u2192line two");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task StreamAndFilterAsync_DefaultCompactLinePrefix_UsesTabSeparator() {
         var api = new FakeGitHubApiClient {

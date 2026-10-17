@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Core.Context;
 
 public sealed class LoopInterventionMiddlewareTests {
@@ -21,6 +20,7 @@ public sealed class LoopInterventionMiddlewareTests {
         context.LoopTriggerCount.Should().Be(0);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Level1_FirstTrigger_InjectsSoftInterventionPrompt() {
         await using var middleware = CreateMiddleware();
@@ -39,6 +39,7 @@ public sealed class LoopInterventionMiddlewareTests {
         context.LoopTriggerCount.Should().Be(1);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Level1_SecondTrigger_InjectsSoftInterventionPrompt() {
         await using var middleware = CreateMiddleware();
@@ -56,6 +57,7 @@ public sealed class LoopInterventionMiddlewareTests {
         context.LoopTriggerCount.Should().Be(2);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Level2_ThirdTrigger_HardTruncateAndRetry() {
         var queryService = new Mock<IQueryService>();
@@ -172,6 +174,7 @@ public sealed class LoopInterventionMiddlewareTests {
         events.Should().NotContain(e => e.Type == ChatStreamEventType.Content && e.Content == "这段不应该出现");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TaskProgressed_Level2DowngradedToLevel1() {
         var progressTracker = new StubTaskProgressTracker(hasProgressed: true, completedCount: 5);
@@ -194,6 +197,7 @@ public sealed class LoopInterventionMiddlewareTests {
         context.CurrentCompletedTodoCount.Should().Be(5);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TaskNotProgressed_Level2RemainsLevel2() {
         var queryService = new Mock<IQueryService>();
@@ -237,6 +241,7 @@ public sealed class LoopInterventionMiddlewareTests {
         context.HasTaskProgressed.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task NoProgressTracker_BehavesAsBefore() {
         await using var middleware = CreateMiddleware();

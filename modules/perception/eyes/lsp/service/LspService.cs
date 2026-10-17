@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Services.Lsp;
 
 /// <summary>
@@ -420,6 +419,7 @@ public sealed partial class LspService : ServiceEntity, ILspService {
     /// Location: { uri, range }
     /// LocationLink: { targetUri, targetRange, targetSelectionRange, originSelectionRange }
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static LspLocation? DeserializeSingleLocation(JsonNode? node) {
         if (node is not JsonObject) return null;
         var json = node!.ToJsonString();
@@ -437,6 +437,7 @@ public sealed partial class LspService : ServiceEntity, ILspService {
         return null;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static List<LspCompletionItem> DeserializeCompletions(JsonNode? result) {
         if (result is null) return [];
 

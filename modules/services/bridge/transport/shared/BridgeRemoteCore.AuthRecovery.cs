@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Bridge;
 
 /// <summary>
@@ -163,6 +162,7 @@ public static partial class BridgeRemoteCore {
     /// <param name="transportFactory">传输工厂</param>
     /// <param name="refresh">令牌刷新调度器</param>
     /// <param name="ct">取消令牌</param>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     internal static void WireTransportCallbacks(
         IReplBridgeTransport transport,
         string sessionId,

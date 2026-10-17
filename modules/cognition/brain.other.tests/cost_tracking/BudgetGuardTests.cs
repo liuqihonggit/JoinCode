@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.CostTracking;
 
 /// <summary>
@@ -105,6 +104,7 @@ public sealed class BudgetGuardTests {
 
     // ---------- SetAsync ----------
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SetAsync_UpdatesConfigAndEnables() {
         var guard = new BudgetGuard();
@@ -115,6 +115,7 @@ public sealed class BudgetGuardTests {
         Assert.Equal(20, guard.Config!.DailyLimit);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SetAsync_NullConfig_Throws() {
         var guard = new BudgetGuard();
@@ -176,6 +177,7 @@ public sealed class BudgetGuardTests {
         Assert.Equal(0, triggered);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CheckAlertsAsync_ReachesHalfThreshold_TriggersInfoAlert() {
         var guard = new BudgetGuard(budgetConfig: MakeConfig(daily: 10, monthly: 100, total: 1000));
@@ -189,6 +191,7 @@ public sealed class BudgetGuardTests {
         Assert.Equal(CostAlertLevel.Info, alert!.Level);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CheckAlertsAsync_ReachesEightyPercent_TriggersWarningAlert() {
         var guard = new BudgetGuard(budgetConfig: MakeConfig(daily: 10, monthly: 100, total: 1000));
@@ -287,6 +290,7 @@ public sealed class BudgetGuardTests {
 
     // ---------- CheckAlertsAsync (Total / Monthly / Warning / Critical / 零限额) ----------
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CheckAlertsAsync_TotalReachesHalfThreshold_TriggersAlert() {
         var guard = new BudgetGuard(budgetConfig: MakeConfig(daily: 100, monthly: 1000, total: 1000));
@@ -300,6 +304,7 @@ public sealed class BudgetGuardTests {
         Assert.Equal(CostAlertLevel.Info, alert!.Level);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CheckAlertsAsync_MonthlyReachesHalfThreshold_TriggersAlert() {
         var guard = new BudgetGuard(budgetConfig: MakeConfig(daily: 100, monthly: 100, total: 1000));
@@ -313,6 +318,7 @@ public sealed class BudgetGuardTests {
         Assert.Equal(CostAlertLevel.Info, alert!.Level);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CheckAlertsAsync_EightyPercentWithSingleThreshold_TriggersWarning() {
         // 用仅 [0.8] 阈值,80% 直接触发 Warning(不被 0.5 先触发)
@@ -330,6 +336,7 @@ public sealed class BudgetGuardTests {
         Assert.Equal(CostAlertLevel.Warning, alert!.Level);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CheckAlertsAsync_FullThresholdWithSingleThreshold_TriggersCritical() {
         // 用仅 [1.0] 阈值,100% 直接触发 Critical

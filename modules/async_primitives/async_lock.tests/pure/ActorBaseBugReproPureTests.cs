@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
@@ -37,6 +36,7 @@ public class ActorBaseBugReproPureTests {
     /// <summary>
     /// B1 修复验证: 等待图改为 AsyncLocal,不再是全局静态 ConcurrentDictionary,无跨调用链残留污染。
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Deterministic")]
     public void Bug1_WaitGraph_IsAsyncLocal_NotGlobalStatic() {

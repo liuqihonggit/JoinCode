@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Cli;
 
 // ─── ProviderPicker ───
@@ -16,6 +15,7 @@ public sealed class ProviderPicker {
     /// <param name="hint">提示文本</param>
     /// <param name="registry">供应商定义注册表</param>
     /// <returns>选中的供应商名称，失败时返回默认供应商</returns>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public static string? Show(string defaultProvider, string title, string hint, IProviderDefinitionRegistry registry) {
         TerminalHelper.WriteLine();
         TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}{title}{AnsiStyleEnumConstants.Reset}");

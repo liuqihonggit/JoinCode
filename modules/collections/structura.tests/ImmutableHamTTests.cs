@@ -1,5 +1,4 @@
 // JCC11003 抑制: 底层实现/测试代码, ! 用于可空抑制, 是必要用法
-#pragma warning disable JCC11003
 namespace Structura.Tests;
 
 public class ImmutableHamTTests {
@@ -166,6 +165,7 @@ public class ImmutableHamTTests {
         hamt.Values.ToHashSet().Should().BeEquivalentTo(new[] { 1, 2, 3 });
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Remove_CollisionDegrades_ParentBitmapNodeShrinksToLeaf() {
         var cmp = new SplitHashComparer();
@@ -189,6 +189,7 @@ public class ImmutableHamTTests {
         ReferenceEquals(root1, root2).Should().BeTrue("同值 SetItem 不应触发路径复制");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static object? GetRoot(ImmutableHamT<string, int> hamt) {
         var f = typeof(ImmutableHamT<string, int>).GetField("_root",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);

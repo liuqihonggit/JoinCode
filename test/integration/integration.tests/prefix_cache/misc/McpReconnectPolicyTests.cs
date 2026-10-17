@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.LLM.Chat;
 
 public sealed class McpReconnectPolicyTests {
@@ -75,6 +74,7 @@ public sealed class McpReconnectPolicyTests {
         result3.Accepted.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Decide_NullReport_Throws() {
         var act = () => McpReconnectPolicy.Decide(null!, McpReconnectAcceptLevel.IdentityOnly);

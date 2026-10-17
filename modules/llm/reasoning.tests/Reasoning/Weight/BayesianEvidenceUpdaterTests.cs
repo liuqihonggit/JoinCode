@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Reasoning.Tests.Weight;
 
 public sealed class BayesianEvidenceUpdaterTests {
@@ -32,6 +31,7 @@ public sealed class BayesianEvidenceUpdaterTests {
         Assert.True(r2.Variance < r1.Variance);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void PropagateBelief_ShouldAdjustRelatedBeliefs() {
         var updater = new BayesianEvidenceUpdater();

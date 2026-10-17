@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.CodeIndex.Tests;
 
 public sealed class IncrementalUpdaterTests : IDisposable {
@@ -22,6 +21,7 @@ public sealed class IncrementalUpdaterTests : IDisposable {
         _store.Dispose();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UpdateAsync_NewFile_IndexesFile() {
         var fs = new IO.FileSystem.InMemoryFileSystem();
@@ -40,6 +40,7 @@ public sealed class IncrementalUpdaterTests : IDisposable {
         Assert.True(snap.SymbolsByFqn.Count > 0);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UpdateAsync_UnchangedFile_SkipsIndexing() {
         var fs = new IO.FileSystem.InMemoryFileSystem();
@@ -62,6 +63,7 @@ public sealed class IncrementalUpdaterTests : IDisposable {
         Assert.Equal(firstHash, store.GetSnapshot().FileTracking[path].Hash);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UpdateAsync_ModifiedFile_ReindexesFile() {
         var fs = new IO.FileSystem.InMemoryFileSystem();
@@ -86,6 +88,7 @@ public sealed class IncrementalUpdaterTests : IDisposable {
         Assert.Contains(snap.SymbolsByFqn, kvp => kvp.Key.Contains("New"));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UpdateAsync_DeletedFile_RemovesFromIndex() {
         var fs = new IO.FileSystem.InMemoryFileSystem();
@@ -201,12 +204,14 @@ public sealed class IncrementalUpdaterTests : IDisposable {
         Assert.Equal(0, result.DeletedCount);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UpdateAsync_NullFilePath_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             _updater.UpdateAsync(null!, CancellationToken.None)).ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UpdateDirectoryAsync_NullDirectoryPath_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>

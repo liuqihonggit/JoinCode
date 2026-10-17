@@ -1,9 +1,10 @@
 // JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC1017, JCC11003
+#pragma warning disable JCC1017
 namespace McpToolRegistry.Tests;
 
 public class McpResultCollapseClassifierTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Classify_NullResult_ReturnsNoneCategory() {
         var result = McpResultCollapseClassifier.Classify(null!);
@@ -190,6 +191,7 @@ public class McpResultCollapseClassifierTests {
         result.Category.Should().Be(CollapseCategory.BinaryData);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ClassifyBinary_NullData_ReturnsBinaryDataCategory() {
         byte[]? data = null;
@@ -302,6 +304,7 @@ public class McpResultCollapseClassifierTests {
 
     // === GetPreviewText (internal static) ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetPreviewText_EmptyText_ReturnsEmpty() {
         McpResultCollapseClassifier.GetPreviewText("", 100).Should().BeEmpty();

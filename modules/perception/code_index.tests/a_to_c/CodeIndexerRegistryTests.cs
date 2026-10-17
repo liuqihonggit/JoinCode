@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.CodeIndex.Tests;
 
 public sealed class CodeIndexerRegistryTests : IDisposable {
@@ -24,11 +23,13 @@ public sealed class CodeIndexerRegistryTests : IDisposable {
         _registry.DisposeSafe();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullFileSystem_Throws() {
         Assert.Throws<ArgumentNullException>(() => new CodeIndexerRegistry(null!, _defaultIndexer));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullDefaultIndexer_Throws() {
         Assert.Throws<ArgumentNullException>(() => new CodeIndexerRegistry(_fs, null!));
@@ -58,12 +59,14 @@ public sealed class CodeIndexerRegistryTests : IDisposable {
             () => _registry.RegisterAsync("repo1", "/workspace/repo1", CancellationToken.None));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RegisterAsync_NullRepoId_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => _registry.RegisterAsync(null!, "/workspace", CancellationToken.None));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RegisterAsync_NullWorkspaceRoot_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(
@@ -91,6 +94,7 @@ public sealed class CodeIndexerRegistryTests : IDisposable {
         Assert.Null(indexer);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetIndexer_NullRepoId_Throws() {
         Assert.Throws<ArgumentNullException>(() => _registry.GetIndexer(null!));
@@ -113,6 +117,7 @@ public sealed class CodeIndexerRegistryTests : IDisposable {
         Assert.False(result);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UnregisterAsync_NullRepoId_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(

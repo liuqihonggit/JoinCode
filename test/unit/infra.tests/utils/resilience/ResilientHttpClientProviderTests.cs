@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infra.Tests.Utils.Resilience;
 
 public sealed class ResilientHttpClientProviderTests {
@@ -55,6 +54,7 @@ public sealed class ResilientHttpClientProviderTests {
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SendResilientAsync_CircuitBreakerOpen_Throws() {
         var handler = new MockHttpMessageHandler(new HttpRequestException("connection refused"));
@@ -108,6 +108,7 @@ public sealed class ResilientHttpClientProviderTests {
             await provider.SendResilientAsync(request, "test-op"));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private sealed class MockHttpMessageHandler : HttpMessageHandler {
         private readonly HttpResponseMessage? _response;
         private readonly Exception? _exception;

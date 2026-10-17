@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Scheduling;
 
 public class TaskRuntimeTests : IDisposable {
@@ -17,6 +16,7 @@ public class TaskRuntimeTests : IDisposable {
         _runtime.DisposeSafe();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CreateTaskAsync_ShouldReturnTaskWithId() {
         var result = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "test" });
@@ -27,12 +27,14 @@ public class TaskRuntimeTests : IDisposable {
         result.Data.Description.Should().Be("test");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CreateTaskAsync_NullInput_ShouldThrow() {
         var act = () => _runtime.CreateTaskAsync(null!);
         await act.Should().ThrowAsync<ArgumentNullException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CreateTaskAsync_WithDependencies_ShouldBuildDag() {
         var a = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "a" });
@@ -50,6 +52,7 @@ public class TaskRuntimeTests : IDisposable {
         result.Success.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UpdateTaskAsync_ShouldSetStartedAt_WhenRunning() {
         var created = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "x" });
@@ -60,6 +63,7 @@ public class TaskRuntimeTests : IDisposable {
         result.Data!.StartedAt.Should().NotBeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UpdateTaskAsync_ShouldSetCompletedAt_WhenTerminal() {
         var created = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "x" });
@@ -76,6 +80,7 @@ public class TaskRuntimeTests : IDisposable {
         result.Success.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ListTasksAsync_ShouldFilterByStatus() {
         var a = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "a" });
@@ -88,6 +93,7 @@ public class TaskRuntimeTests : IDisposable {
         result.TotalCount.Should().Be(1);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ListTasksAsync_IncludeCompletedFalse_ShouldExcludeCompleted() {
         var a = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "a" });
@@ -111,6 +117,7 @@ public class TaskRuntimeTests : IDisposable {
         result.Tasks.Should().HaveCount(2);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SetDependencyAsync_Cycle_ShouldFail() {
         var a = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "a" });
@@ -120,6 +127,7 @@ public class TaskRuntimeTests : IDisposable {
         result.Success.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SetDependencyAsync_NonExistentTask_ShouldFail() {
         var a = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "a" });
@@ -128,6 +136,7 @@ public class TaskRuntimeTests : IDisposable {
         result.Success.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SetDependencyAsync_Duplicate_ShouldBeAllowed() {
         var a = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "a" });
@@ -139,6 +148,7 @@ public class TaskRuntimeTests : IDisposable {
         b.Data.Dependencies.Should().Contain(a.Data.Id);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RemoveDependencyAsync_ShouldWork() {
         var a = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "a" });
@@ -155,6 +165,7 @@ public class TaskRuntimeTests : IDisposable {
         (await _runtime.CanExecuteTaskAsync("missing")).Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CanExecuteTaskAsync_NonPendingOrReady_ShouldReturnFalse() {
         var task = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "x" });
@@ -163,6 +174,7 @@ public class TaskRuntimeTests : IDisposable {
         (await _runtime.CanExecuteTaskAsync(task.Data.Id)).Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DequeueReadyTasksAsync_ShouldReturnReadyTasks() {
         var a = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "a" });
@@ -275,6 +287,7 @@ public sealed class TaskRuntimeRecoveryTests : IDisposable {
             .Should().NotBeEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RecoverTasksAsync_ValidFile_ShouldRestoreTasks() {
         await using var runtime = CreateRuntime();

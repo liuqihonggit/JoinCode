@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Plugins.Tests.E2E;
 
 /// <summary>
@@ -24,6 +23,7 @@ public class NativePluginHostE2ETests {
         return Fs.FileExists(path) ? (s_nativeDllPath = path) : null;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Load_Echo_Unload_FullLifecycle() {
         var dllPath = FindNativeDll();
@@ -43,6 +43,7 @@ public class NativePluginHostE2ETests {
         host.IsLoaded.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Ping_ReturnsPong() {
         var dllPath = FindNativeDll();
@@ -59,6 +60,7 @@ public class NativePluginHostE2ETests {
         await host.UnloadAsync();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UnknownMethod_ReturnsMethodNotFound() {
         var dllPath = FindNativeDll();
@@ -75,6 +77,7 @@ public class NativePluginHostE2ETests {
         await host.UnloadAsync();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Load_Idempotent_ReturnsSuccessOnSecondLoad() {
         var dllPath = FindNativeDll();
@@ -91,6 +94,7 @@ public class NativePluginHostE2ETests {
         await host.UnloadAsync();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Invoke_BeforeLoad_ReturnsNotLoaded() {
         var dllPath = FindNativeDll();

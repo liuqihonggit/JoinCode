@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Bridge.Tests;
 
 /// <summary>
@@ -39,6 +38,7 @@ public sealed class BridgeJwtServiceTests {
         act.Should().Throw<ArgumentException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ValidateToken_ShouldReturnValid_WhenTokenIsValid() {
         // Arrange
@@ -107,6 +107,7 @@ public sealed class BridgeJwtServiceTests {
         result.Error.Should().Be("Invalid token format: expected 3 segments");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RefreshToken_ShouldReturnNewToken_WhenTokenIsInRefreshWindow() {
         // Arrange
@@ -174,6 +175,7 @@ public sealed class BridgeJwtServiceTests {
         result.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetClaims_ShouldReturnPayload_WhenTokenIsValid() {
         // Arrange

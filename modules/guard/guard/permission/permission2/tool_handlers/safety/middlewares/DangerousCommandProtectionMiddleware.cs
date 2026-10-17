@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Permission;
 
 /// <summary>
@@ -44,6 +43,7 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     }
 
     /// <inheritdoc />
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public async Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
         // Bypass 模式：仍需拦截 Dangerous 级（黑灯），其余放行
         // 安全红线: rm -rf /、mkfs、format c: 等整盘/系统级不可逆操作即使在 Bypass 下也必须拒绝
@@ -133,6 +133,7 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     /// 仅检查 Shell 工具的 Dangerous 级命令，非 Shell 工具的删除操作在 Bypass 下放行
     /// </summary>
     /// <returns>true 表示已拒绝（应短路返回），false 表示放行（应调用 next）</returns>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private bool TryRejectDangerousInBypass(PermissionCheckContext context) {
         if (!context.IsShellOperation(context.ToolName))
             return false;

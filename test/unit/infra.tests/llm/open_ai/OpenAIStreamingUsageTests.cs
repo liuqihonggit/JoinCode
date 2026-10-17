@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infra.Tests.LLM.OpenAI;
 
 
@@ -22,6 +21,7 @@ namespace Infra.Tests.LLM.OpenAI;
 public sealed class OpenAIStreamingUsageTests {
     // ============== 数据类型: OpenAIChatChunk.Usage ==============
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void OpenAIChatChunk_UsageField_DeserializesFromJson() {
         var json = """{"id":"chatcmpl-1","object":"chat.completion.chunk","created":1,"model":"gpt-4o","choices":[],"usage":{"prompt_tokens":100,"completion_tokens":50,"total_tokens":150,"prompt_tokens_details":{"cached_tokens":80}}}""";
@@ -35,6 +35,7 @@ public sealed class OpenAIStreamingUsageTests {
         chunk.Usage.PromptTokensDetails!.CachedTokens.Should().Be(80);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void OpenAIChatChunk_WithoutUsage_UsageFieldIsNull() {
         var json = """{"id":"chatcmpl-1","object":"chat.completion.chunk","created":1,"model":"gpt-4o","choices":[{"index":0,"delta":{"content":"hello"},"finish_reason":null}]}""";

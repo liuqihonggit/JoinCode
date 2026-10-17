@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace AsyncFileLock;
 
 /// <summary>
@@ -95,6 +94,7 @@ public sealed class LinkVerificationTests : IAsyncLifetime
         _output.WriteLine($"[{linkId}] PASSED: All {lines.Length} lines are complete and properly formatted");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task WriteWithLockAsync(string filePath, int taskId, int writeCount)
     {
         for (var i = 0; i < writeCount; i++)
@@ -221,6 +221,7 @@ public sealed class LinkVerificationTests : IAsyncLifetime
         _output.WriteLine($"[{linkId}] PASSED: All {validCount} lines are valid TranscriptEntry JSON");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task AppendJsonlWithLockAsync(string filePath, int taskId, int count)
     {
         for (var i = 0; i < count; i++)
@@ -247,6 +248,7 @@ public sealed class LinkVerificationTests : IAsyncLifetime
     // 场景: 两个任务以不同顺序请求相同文件锁，验证不死锁
     // ─────────────────────────────────────────────────────────────
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task LINK_004_FileLockService_BatchLock_DifferentOrder_ShouldNotDeadlock()
     {
@@ -369,6 +371,7 @@ public sealed class LinkVerificationTests : IAsyncLifetime
     // 场景: 一个任务持有锁，另一个任务请求锁应超时
     // ─────────────────────────────────────────────────────────────
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task LINK_006_FileLockService_LockTimeout_ShouldFail()
     {

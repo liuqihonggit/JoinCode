@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Services;
 
 public partial class UserInteractionServiceTests {
@@ -56,6 +55,7 @@ public partial class UserInteractionServiceTests {
             Times.Exactly(3));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SendMessageAsync_WithInfoType_ShouldLogInformation() {
         // Arrange
@@ -75,6 +75,7 @@ public partial class UserInteractionServiceTests {
             Times.Once);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SendMessageAsync_WithWarningType_ShouldLogWarning() {
         // Arrange
@@ -94,6 +95,7 @@ public partial class UserInteractionServiceTests {
             Times.Once);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SendMessageAsync_WithErrorType_ShouldLogError() {
         // Arrange
@@ -153,6 +155,7 @@ public partial class UserInteractionServiceTests {
             Times.Once);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AskQuestionAsync_NullQuestion_ShouldThrowArgumentException() {
         var act = async () => await _userInteractionService.AskQuestionAsync(null!).ConfigureAwait(true);
@@ -165,6 +168,7 @@ public partial class UserInteractionServiceTests {
         await act.Should().ThrowAsync<ArgumentException>().WithParameterName("question").ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SendMessageAsync_NullMessage_ShouldThrowArgumentException() {
         var act = async () => await _userInteractionService.SendMessageAsync(null!).ConfigureAwait(true);
@@ -177,6 +181,7 @@ public partial class UserInteractionServiceTests {
         await act.Should().ThrowAsync<ArgumentException>().WithParameterName("message").ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ConfirmAsync_NullMessage_ShouldThrowArgumentException() {
         var act = async () => await _userInteractionService.ConfirmAsync(null!).ConfigureAwait(true);

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.CodeIndex.Tests;
 
 public sealed class OnnxEmbeddingClientTests {
@@ -11,6 +10,7 @@ public sealed class OnnxEmbeddingClientTests {
             new OnnxEmbeddingClient("nonexistent.onnx", "vocab.txt", fs));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullModelPath_Throws() {
         var fs = new IO.FileSystem.InMemoryFileSystem();
@@ -18,6 +18,7 @@ public sealed class OnnxEmbeddingClientTests {
             new OnnxEmbeddingClient(null!, "vocab.txt", fs));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullVocabPath_Throws() {
         var fs = new IO.FileSystem.InMemoryFileSystem();
@@ -25,6 +26,7 @@ public sealed class OnnxEmbeddingClientTests {
             new OnnxEmbeddingClient("model.onnx", null!, fs));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullFileSystem_Throws() {
         Assert.Throws<ArgumentNullException>(() =>

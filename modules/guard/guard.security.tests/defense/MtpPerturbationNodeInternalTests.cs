@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Guard.Security.Tests;
 
 /// <summary>
@@ -136,6 +135,7 @@ public class MtpPerturbationNodeInternalTests {
 
     #region Null 守卫
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ContainsPathError_NullStderr_ThrowsArgumentNullException() {
         var act = () => MtpPerturbationNode.ContainsPathError(null!);
@@ -143,6 +143,7 @@ public class MtpPerturbationNodeInternalTests {
            .WithParameterName("stderr");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ExtractFeatures_NullCommand_ThrowsArgumentNullException() {
         var act = () => MtpPerturbationNode.ExtractFeatures(null!);
@@ -150,6 +151,7 @@ public class MtpPerturbationNodeInternalTests {
            .WithParameterName("command");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void DetectAnomaly_NullFeatures_ThrowsArgumentNullException() {
         var act = () => MtpPerturbationNode.DetectAnomaly(null!, exitCode: 0, stderr: null);
@@ -157,6 +159,7 @@ public class MtpPerturbationNodeInternalTests {
            .WithParameterName("features");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CountConsecutiveAnomalies_NullRecords_ThrowsArgumentNullException() {
         var act = () => MtpPerturbationNode.CountConsecutiveAnomalies(null!);

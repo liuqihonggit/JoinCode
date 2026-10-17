@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Host.Tests.Cli;
 
 /// <summary>
@@ -8,6 +7,7 @@ namespace Host.Tests.Cli;
 /// </summary>
 public sealed class GhCommandResolverTests {
     /// <summary>jcc gh pr view 123 → gh_pr_view，位置参数 123</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Resolve_PrView_ShouldMapToolNameAndTail() {
         var resolved = GhCommandResolver.Resolve(new[] { "gh", "pr", "view", "123" }, out var error);
@@ -22,6 +22,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>jcc gh api &lt;path&gt; 是单级命令 → gh_api，无 action</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Resolve_Api_ShouldMapToGhApiWithoutAction() {
         var resolved = GhCommandResolver.Resolve(new[] { "gh", "api", "repos/o/r/issues" }, out var error);
@@ -34,6 +35,7 @@ public sealed class GhCommandResolverTests {
 
     /// <summary>系统 gh CLI 的 --raw-field state=open 应映射到 jcc 的 --fields 参数</summary>
     /// <para>AI 习惯用系统 gh 的 --raw-field, jcc 应宽容接受</para>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Resolve_Api_RawField_ShouldMapToFields() {
         var tail = new[] { "repos/o/r/pulls/403", "--method", "PATCH", "--raw-field", "state=open" };
@@ -57,6 +59,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 的 --field state=open 也应映射到 jcc 的 --fields 参数</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Resolve_Api_Field_ShouldMapToFields() {
         var tail = new[] { "repos/o/r/pulls/403", "--method", "PATCH", "--field", "state=open" };
@@ -79,6 +82,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>--json 可在任意位置出现，且不进入待绑定参数</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Resolve_JsonFlag_ShouldBeStrippedFromTail() {
         var resolved = GhCommandResolver.Resolve(new[] { "gh", "pr", "list", "--json", "--limit", "3" }, out var error);
@@ -90,6 +94,7 @@ public sealed class GhCommandResolverTests {
 
     /// <summary>系统 gh CLI 的 --json field1,field2 应转为 --json_fields=field1,field2</summary>
     /// <para>缺陷1a: AI习惯写 --json statusCheckRollup（系统gh语法），jcc要求 --json_fields</para>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Resolve_JsonFollowedByFields_ShouldConvertToJsonFields() {
         var resolved = GhCommandResolver.Resolve(
@@ -101,6 +106,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>--json 多字段逗号分隔也应正确转换</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Resolve_JsonFollowedByMultipleFields_ShouldConvertToJsonFields() {
         var resolved = GhCommandResolver.Resolve(
@@ -111,6 +117,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>--json 后跟 --option 时不消费选项（保持原有行为）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Resolve_JsonFollowedByOption_ShouldNotConsumeOption() {
         var resolved = GhCommandResolver.Resolve(
@@ -140,6 +147,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>未知分组应列出可用分组</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Resolve_UnknownGroup_ShouldListKnownGroups() {
         var resolved = GhCommandResolver.Resolve(new[] { "gh", "bogus", "view" }, out var error);
@@ -150,6 +158,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>位置参数按 required 声明顺序绑定（issue_number, body）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_Positionals_ShouldFillRequiredInOrder() {
         var parameters = new List<GhParam>
@@ -167,6 +176,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>布尔参数支持无值 flag 形式（--log → true）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_BooleanFlag_ShouldSetTrueWithoutValue() {
         var parameters = new List<GhParam>
@@ -185,6 +195,7 @@ public sealed class GhCommandResolverTests {
 
     /// <summary>布尔参数宽容接受显式 true/false 值（--log true / --log false / --log=1 / --log=0）</summary>
     /// <para>缺陷2: AI 习惯写 --log true，不应报"多余的位置参数: true"</para>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("--log", "true", "true")]
     [InlineData("--log", "false", "false")]
@@ -214,6 +225,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>布尔参数 --log true 后不应把 true 当位置参数，后续选项应正常绑定</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_BooleanFlag_WithTrueThenMoreOptions_ShouldNotBreakSubsequent() {
         var parameters = new List<GhParam>
@@ -231,6 +243,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>--key value 与 --key=value 两种形式都应支持</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("--limit", "3")]
     [InlineData("--limit=3", null)]
@@ -295,6 +308,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 缩写 --auto 应映射到 auto_merge=true（AI 习惯用真实 gh CLI 语法）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_Auto_ShouldMapToAutoMerge() {
         var parameters = new List<GhParam> {
@@ -310,6 +324,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 缩写 --squash 应映射到 merge_method=squash</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_Squash_ShouldMapToMergeMethod() {
         var parameters = new List<GhParam> {
@@ -325,6 +340,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>--auto --squash 组合应同时映射（对应文件中 #4 的 jcc gh pr merge 382 --auto --squash）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_AutoAndSquash_ShouldMapBoth() {
         var parameters = new List<GhParam> {
@@ -341,6 +357,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 缩写 --failed 应映射到 failed_only=true（gh run rerun --failed）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_Failed_ShouldMapToFailedOnly() {
         var parameters = new List<GhParam> {
@@ -355,6 +372,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 的 --job 应映射到 job_id（gh run view --job）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_Job_ShouldMapToJobId() {
         var parameters = new List<GhParam> {
@@ -371,6 +389,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 的 --private/--public/--internal 应映射到 visibility（gh repo create）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("private", "private")]
     [InlineData("public", "public")]
@@ -388,6 +407,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 的 --duplicate 应映射到 duplicate_of（gh issue close --duplicate 42）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_Duplicate_ShouldMapToDuplicateOf() {
         var parameters = new List<GhParam> {
@@ -402,6 +422,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 的 --completed/--not-planned 应映射到 reason（gh issue close）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("completed", "completed")]
     [InlineData("not-planned", "not_planned")]
@@ -418,6 +439,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 的 --approve/--request-changes/--comment 应映射到 action（gh pr review）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("approve", "approve")]
     [InlineData("request-changes", "request_changes")]
@@ -436,6 +458,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 缩写 --merge/--rebase 也应映射到 merge_method</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("merge", "merge")]
     [InlineData("rebase", "rebase")]
@@ -505,6 +528,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 的 --enable-issues 应映射到 has_issues=true（gh repo edit --enable-issues）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_EnableIssues_ShouldMapToHasIssuesTrue() {
         var parameters = new List<GhParam> {
@@ -519,6 +543,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 的 --enable-issues=false 应映射到 has_issues=false（带值形式）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_EnableIssuesFalse_ShouldMapToHasIssuesFalse() {
         var parameters = new List<GhParam> {
@@ -533,6 +558,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 的 --enable-wiki 应映射到 has_wiki=true（gh repo edit --enable-wiki）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_EnableWiki_ShouldMapToHasWikiTrue() {
         var parameters = new List<GhParam> {
@@ -547,6 +573,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 的 --enable-projects 应映射到 has_projects=true</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_EnableProjects_ShouldMapToHasProjectsTrue() {
         var parameters = new List<GhParam> {
@@ -561,6 +588,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 的 --latest 应映射到 make_latest=true（gh release create --latest）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_Latest_ShouldMapToMakeLatestTrue() {
         var parameters = new List<GhParam> {
@@ -575,6 +603,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 的 --latest=false 应映射到 make_latest=false</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_LatestFalse_ShouldMapToMakeLatestFalse() {
         var parameters = new List<GhParam> {
@@ -589,6 +618,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 的 --event 应映射到 event_type（gh run list --event push）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_Event_ShouldMapToEventType() {
         var parameters = new List<GhParam> {
@@ -604,6 +634,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>gh release edit --latest 无值应映射到 make_latest=true（RenameOnly 别名）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_ReleaseEditLatest_ShouldMapToLatestTrue() {
         var parameters = new List<GhParam> {
@@ -638,6 +669,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>gh ssh-key list → gh_ssh_key_list，连字符分组名转下划线</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Resolve_SshKeyGroup_ShouldConvertHyphenToUnderscore() {
         var resolved = GhCommandResolver.Resolve(new[] { "gh", "ssh-key", "list" }, out var error);
@@ -648,6 +680,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>gh gpg-key list → gh_gpg_key_list，连字符分组名转下划线</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Resolve_GpgKeyGroup_ShouldConvertHyphenToUnderscore() {
         var resolved = GhCommandResolver.Resolve(new[] { "gh", "gpg-key", "list" }, out var error);
@@ -657,6 +690,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>gh browse → gh_browse，单级命令无需 action</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Resolve_Browse_ShouldMapToSingleLevelCommand() {
         var resolved = GhCommandResolver.Resolve(new[] { "gh", "browse" }, out var error);
@@ -667,6 +701,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>gh status → gh_status，单级命令无需 action</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Resolve_Status_ShouldMapToSingleLevelCommand() {
         var resolved = GhCommandResolver.Resolve(new[] { "gh", "status" }, out var error);
@@ -677,6 +712,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>gh licenses → gh_licenses，单级命令无需 action</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Resolve_Licenses_ShouldMapToSingleLevelCommand() {
         var resolved = GhCommandResolver.Resolve(new[] { "gh", "licenses" }, out var error);
@@ -698,6 +734,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>-L 短选项映射到 limit（gh pr list -L 5）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_ShortOption_L_ShouldMapToLimit() {
         var parameters = new List<GhParam> {
@@ -712,6 +749,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>-s 短选项在 pr list 映射到 state</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_ShortOption_s_PrList_ShouldMapToState() {
         var parameters = new List<GhParam> {
@@ -726,6 +764,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>-s 短选项在 run list 映射到 status（per-command 覆盖）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_ShortOption_s_RunList_ShouldMapToStatus() {
         var parameters = new List<GhParam> {
@@ -740,6 +779,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>-d 短选项映射到 draft bool flag（gh pr create -d）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_ShortOption_d_ShouldMapToDraftTrue() {
         var parameters = new List<GhParam> {
@@ -754,6 +794,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>-L5 内联值形式（gh pr list -L5）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_ShortOption_InlineValue_ShouldMapCorrectly() {
         var parameters = new List<GhParam> {
@@ -767,6 +808,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>-F 短选项在 release create 映射到 notes_file（per-command 覆盖）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_ShortOption_F_ReleaseCreate_ShouldMapToNotesFile() {
         var parameters = new List<GhParam> {
@@ -781,6 +823,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>gh repo clone 的 dir 是可选位置参数, 应接受位置传递（gh repo clone owner/repo target-dir）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_OptionalPositional_RepoClone_ShouldAcceptTargetDir() {
         var parameters = new List<GhParam> {
@@ -796,6 +839,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>gh repo clone 不传 dir 时, 只传 required 位置参数应成功</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_OptionalPositional_RepoClone_WithoutTargetDir_ShouldSucceed() {
         var parameters = new List<GhParam> {
@@ -811,6 +855,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>gh pr checkout 的 branch 是可选位置参数, 应接受位置传递</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_OptionalPositional_PrCheckout_ShouldAcceptBranch() {
         var parameters = new List<GhParam> {
@@ -840,6 +885,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>-f 短选项在 gh api 映射到 fields（gh api repos/.../labels -f name=test）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_ShortOption_f_Api_ShouldMapToFields() {
         var parameters = new List<GhParam> {
@@ -854,6 +900,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>重复 -f 短选项追加(逗号分隔): -f name=test -f color=ff0000 → fields="name=test,color=ff0000"</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_ShortOption_f_Repeated_ShouldAppend() {
         var parameters = new List<GhParam> {
@@ -868,6 +915,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>gh_api 第二个位置参数自动绑定到 body — 支持 jcc gh api graphql '{"query":...}' 自然写法</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhApi_SecondPositional_ShouldBindToBody() {
         var parameters = new List<GhParam> {
@@ -884,6 +932,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>AI 习惯写 key=value(不带 -- 前缀),应宽容解析为命名参数而非"多余的位置参数"</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_BareKeyEqualsValue_ShouldParseAsNamedParam() {
         var parameters = new List<GhParam> {
@@ -901,6 +950,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>key=value 连字符参数名应宽容匹配下划线(如 expand-steps → expand_steps)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_BareKeyEqualsValue_HyphenKey_ShouldMatchUnderscoreParam() {
         var parameters = new List<GhParam> {
@@ -916,6 +966,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>--dry-run（连字符）应映射到 dry_run（下划线）bool flag</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_HyphenOption_DryRun_ShouldMapToUnderscoreBoolParam() {
         var parameters = new List<GhParam> {
@@ -930,6 +981,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>--dry-run 是全局选项但也是工具参数,CollectTail 不应剥离(洋葱穿透:中间层不消费参数)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Resolve_DryRunFlag_ShouldNotBeStrippedFromTail() {
         var resolved = GhCommandResolver.Resolve(
@@ -940,6 +992,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>全局选项(非工具参数)在 Bind 时应跳过不报错(工具参数优先级 > 全局选项)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GlobalOption_NotInToolSchema_ShouldSkipWithoutError() {
         var parameters = new List<GhParam> {
@@ -1018,6 +1071,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 的 --enable-auto-merge 应映射到 auto_merge=true（gh pr merge --enable-auto-merge）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_EnableAutoMerge_PrMerge_ShouldMapToAutoMergeTrue() {
         var parameters = new List<GhParam> {
@@ -1033,6 +1087,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 的 --auto-merge-method squash 应映射到 merge_method=squash（gh pr merge）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_AutoMergeMethod_PrMerge_ShouldMapToMergeMethod() {
         var parameters = new List<GhParam> {
@@ -1048,6 +1103,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 的 --enable-auto-merge 在 gh pr create 也应映射到 auto_merge=true</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_EnableAutoMerge_PrCreate_ShouldMapToAutoMergeTrue() {
         var parameters = new List<GhParam> {
@@ -1066,6 +1122,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>系统 gh CLI 的 --auto-merge-method squash 在 gh pr create 也应映射到 merge_method=squash</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_AutoMergeMethod_PrCreate_ShouldMapToMergeMethod() {
         var parameters = new List<GhParam> {
@@ -1084,6 +1141,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>gh pr create --enable-auto-merge --auto-merge-method squash 组合应同时映射两个参数</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_PrCreate_EnableAutoMergeAndMethod_ShouldMapBoth() {
         var parameters = new List<GhParam> {
@@ -1105,6 +1163,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>--auto-merge-method=squash 内联值形式也应正确映射（TakeNextToken 优先用 inlineValue）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_GhCliAlias_AutoMergeMethod_InlineValue_ShouldMapToMergeMethod() {
         var parameters = new List<GhParam> {
@@ -1124,6 +1183,7 @@ public sealed class GhCommandResolverTests {
     /// <para>复现 bug: --auto-merge 匹配 boolean 参数 auto_merge 设 true 但不消费 squash，squash 游离成位置参数绑定到 title slot（已被 --title 填充）→ 误报"参数重复指定"。</para>
     /// <para>系统 gh CLI 习惯 --auto --squash 两个 flag，AI 常写 --auto-merge squash 省略第二个 --，应宽容接受。</para>
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_PrCreate_AutoMergeBareSquash_ShouldMapToAutoMergeAndMethod() {
         var parameters = new List<GhParam> {
@@ -1146,6 +1206,7 @@ public sealed class GhCommandResolverTests {
     }
 
     /// <summary>--auto-merge --squash（带 -- 前缀）也应映射到 auto_merge=true + merge_method=squash</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Bind_PrCreate_AutoMergeFlagSquash_ShouldMapToAutoMergeAndMethod() {
         var parameters = new List<GhParam> {

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 底层实现/测试代码, ! 用于可空抑制, 是必要用法
-#pragma warning disable JCC11003
 namespace Structura.Tests;
 
 /// <summary>
@@ -141,6 +140,7 @@ public class ConcurrentDagTests {
         dag.WouldCreateCycle("a", "b").Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryGetEdge_Works() {
         using var dag = Build(("a", "b"));

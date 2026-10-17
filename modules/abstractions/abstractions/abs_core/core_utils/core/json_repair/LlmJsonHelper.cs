@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
@@ -269,9 +268,9 @@ public static class LlmJsonHelper {
 
         // 第3层：类型强制转换（number↔bool、number→string、bool→string、string→number、Trim）
         try {
-            if (JsonLenientCoercer.TryCoerceObjectJson(repaired, jsonTypeInfo, out var coercedJson, out var coercionIssues)) {
+            if (JsonLenientCoercer.TryCoerceObjectJson(repaired, jsonTypeInfo, out var coercedJson, out var coercionIssues) && coercedJson is not null) {
                 issues.AddRange(coercionIssues);
-                var coercedResult = JsonSerializer.Deserialize(coercedJson!, jsonTypeInfo);
+                var coercedResult = JsonSerializer.Deserialize(coercedJson, jsonTypeInfo);
                 if (coercedResult is not null) {
                     report = new JsonLeniencyReport { Deserialized = true, RepairHint = repairHint, CoercionIssues = issues };
                     return coercedResult;

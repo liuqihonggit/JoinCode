@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Bridge;
 
 
@@ -188,6 +187,7 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable {
     /// <summary>
     /// 处理 WebSocket 连接
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task HandleWebSocketAsync(HttpListenerContext context, CancellationToken cancellationToken) {
         var clientId = Guid.NewGuid().ToString("N")[..8];
 

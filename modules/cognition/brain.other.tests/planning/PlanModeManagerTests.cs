@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Planning;
 
 public class PlanModeManagerTests {
@@ -18,6 +17,7 @@ public class PlanModeManagerTests {
         _planModeManager = new PlanModeManager(fs, JoinCode.Abstractions.Clock.SystemClockService.Instance);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task EnterPlanModeAsync_ShouldCreateNewPlan() {
         // Arrange
@@ -35,6 +35,7 @@ public class PlanModeManagerTests {
         _planModeManager.IsInPlanMode.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task EnterPlanModeAsync_WithInitialSteps_ShouldCreatePlanWithSteps() {
         // Arrange
@@ -54,6 +55,7 @@ public class PlanModeManagerTests {
         result.PlanState.Steps[1].Description.Should().Be("Step 2");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExitPlanModeAsync_ShouldExitPlanMode() {
         // Arrange
@@ -79,6 +81,7 @@ public class PlanModeManagerTests {
         result.ErrorMessage.Should().NotBeNullOrEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetPlanStatusAsync_WhenInPlanMode_ShouldReturnPlan() {
         // Arrange
@@ -101,6 +104,7 @@ public class PlanModeManagerTests {
         plan.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AddStepAsync_ShouldAddStepToPlan() {
         // Arrange
@@ -126,6 +130,7 @@ public class PlanModeManagerTests {
         result.ErrorMessage.Should().NotBeNullOrEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ApproveStepAsync_ShouldApprovePendingStep() {
         // Arrange
@@ -154,6 +159,7 @@ public class PlanModeManagerTests {
         result.ErrorMessage.Should().Contain("无效");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RejectStepAsync_ShouldRejectPendingStep() {
         // Arrange
@@ -185,6 +191,7 @@ public class PlanModeManagerTests {
         result.ErrorMessage.Should().Contain("无法拒绝");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteApprovedStepsAsync_ShouldExecuteApprovedSteps() {
         // Arrange
@@ -204,6 +211,7 @@ public class PlanModeManagerTests {
         result.PlanState.Steps[1].Status.Should().Be(PlanStepStatus.Completed);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteApprovedStepsAsync_WithPendingSteps_ShouldStopAtPending() {
         // Arrange
@@ -222,6 +230,7 @@ public class PlanModeManagerTests {
         result.PlanState.Steps[1].Status.Should().Be(PlanStepStatus.Pending);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ModifyStepAsync_ShouldModifyStepDescription() {
         // Arrange
@@ -236,6 +245,7 @@ public class PlanModeManagerTests {
         result.PlanState!.Steps[0].Description.Should().Be("New Description");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ModifyStepAsync_RejectedStep_ShouldResetToPending() {
         // Arrange
@@ -252,6 +262,7 @@ public class PlanModeManagerTests {
         result.PlanState.Steps[0].RejectionReason.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RemoveStepAsync_ShouldRemoveStep() {
         // Arrange
@@ -285,6 +296,7 @@ public class PlanModeManagerTests {
         result.ErrorMessage.Should().Contain("无法删除");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ReorderStepsAsync_ShouldReorderSteps() {
         // Arrange
@@ -318,6 +330,7 @@ public class PlanModeManagerTests {
         result.ErrorMessage.Should().Contain("不匹配");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AutoReorderOnFailure_StepWithConsecutiveFailures_PostponedToTail() {
         await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
@@ -337,6 +350,7 @@ public class PlanModeManagerTests {
         result.PlanState.Steps[1].Description.Should().Be("Step C");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AutoReorderOnFailure_CriticalNodeNotPostponed() {
         await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
@@ -398,6 +412,7 @@ public class PlanModeManagerTests {
         history[1].Description.Should().Be("Plan 1");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PlanState_GetProgressPercentage_ShouldCalculateCorrectly() {
         // Arrange
@@ -420,6 +435,7 @@ public class PlanModeManagerTests {
         plan.GetProgressPercentage().Should().Be(50.0);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PlanState_GetCurrentStep_ShouldReturnCorrectStep() {
         // Arrange
@@ -526,6 +542,7 @@ public class PlanModeManagerTests {
         _planModeManager.HasExitedPlanMode.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task EnterPlanModeAsync_ShouldUseRandomWordSlug() {
         // 对齐 TS getPlanSlug(): slug 应为 {adjective}-{verb}-{noun} 格式，不含时间戳
@@ -541,6 +558,7 @@ public class PlanModeManagerTests {
         parts.Should().HaveCount(3);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task EnterPlanModeAsync_ReentryShouldReuseSlug() {
         // 对齐 TS planSlugCache: 同一 session 内进出 plan mode 应覆盖同一文件
@@ -555,6 +573,7 @@ public class PlanModeManagerTests {
         await _planModeManager.ExitPlanModeAsync().ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ClearPlanSlug_ShouldResetSlugCache() {
         // 对齐 TS clearPlanSlug(): 清除后下次进入 plan mode 应生成新 slug
@@ -581,6 +600,7 @@ public class PlanModeManagerTests {
         result.Should().BeGreaterThanOrEqualTo(0);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExitPlanModeAsync_ShouldNotAutoWriteFile() {
         // 对齐 TS: 退出时不自动写文件 — plan 文件由模型通过 FileWriteTool 写入

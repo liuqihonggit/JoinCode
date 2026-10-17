@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 
 namespace Abs.Tests.Utils;
 
@@ -15,6 +14,7 @@ public sealed class AnsiStripperTests {
         Assert.Equal(string.Empty, AnsiStripper.Strip(string.Empty));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Strip_Null_ReturnsNull() {
         Assert.Null(AnsiStripper.Strip(null!));

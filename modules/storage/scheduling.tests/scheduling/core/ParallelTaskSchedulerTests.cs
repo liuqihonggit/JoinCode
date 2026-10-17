@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Scheduling;
 
 public class ParallelTaskSchedulerTests {
@@ -10,6 +9,7 @@ public class ParallelTaskSchedulerTests {
         _scheduler = new ParallelTaskScheduler();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void RegisterTask_ShouldAssignIdAndRaiseEvent() {
         TaskStatusChangedEventArgs? captured = null;
@@ -85,6 +85,7 @@ public class ParallelTaskSchedulerTests {
         firstWave[0].Id.Should().Be(t1.Id);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void UpdateTaskStatus_WithMessage_ShouldUpdateAndRaiseEvent() {
         var task = _scheduler.RegisterTask("a", "desc", 1, TodoPriority.Low);

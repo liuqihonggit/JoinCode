@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Scheduling.Storage;
 
 public sealed class WorkflowStateStoreTests : IDisposable {
@@ -32,6 +31,7 @@ public sealed class WorkflowStateStoreTests : IDisposable {
         };
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SaveAndLoad_RoundTrip_ShouldPreserveData() {
         await using var store = CreateStore();
@@ -86,6 +86,7 @@ public sealed class WorkflowStateStoreTests : IDisposable {
         _fileOperationService.FileExists(tmpPath).Should().BeFalse("原子写应清理临时文件");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SaveSnapshot_DifferentWorkflows_ShouldNotConflict() {
         await using var store = CreateStore();
@@ -100,6 +101,7 @@ public sealed class WorkflowStateStoreTests : IDisposable {
         loadedB!.WorkflowId.Should().Be("wf-b");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SaveSnapshot_OverwriteExisting_ShouldReplace() {
         await using var store = CreateStore();

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
@@ -156,6 +155,7 @@ public class AskRetryPureFunctionsTest {
     }
 
     /// <summary>null 命令 → false(空引用不实现任何接口)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void IsIdempotent_NullCmd_ReturnsFalse() {
         PureFuncActor.IsIdempotentCommand((PureCmd)null!).Should().BeFalse();

@@ -1,6 +1,6 @@
 // JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC1017, JCC11003
+#pragma warning disable JCC1017
 namespace Integration.Tests.PrefixCache.Unit;
 
 /// <summary>
@@ -8,6 +8,7 @@ namespace Integration.Tests.PrefixCache.Unit;
 /// 当前测试为 RED：在未实现类型强制转换前，number→bool、number→string 等会失败并落入第4层报错
 /// </summary>
 public sealed class LenientCoercionTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_NumberToBool_1_IsTrue() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -20,6 +21,7 @@ public sealed class LenientCoercionTests {
         result.Reason.Should().Be("done");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_NumberToBool_0_IsFalse() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -31,6 +33,7 @@ public sealed class LenientCoercionTests {
         result!.Completed.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_NumberToString_123_Becomes_String() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -43,6 +46,7 @@ public sealed class LenientCoercionTests {
         result.Completed.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_BoolToString_True_Becomes_String() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -54,6 +58,7 @@ public sealed class LenientCoercionTests {
         result!.Reason.Should().Be("true");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_StringToNumber_42_Becomes_Int() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -65,6 +70,7 @@ public sealed class LenientCoercionTests {
         result!.Count.Should().Be(42);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_StringToNullableNumber_Parses() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -76,6 +82,7 @@ public sealed class LenientCoercionTests {
         result!.Ratio.Should().Be(0.75);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_StringTrim_RemovesWhitespace() {
         // completed=1 触发第3层类型转换，转换过程中对 string 字段执行 Trim
@@ -89,6 +96,7 @@ public sealed class LenientCoercionTests {
         result.Completed.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_UncoerceableField_ReportsPreciseIssue() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -107,6 +115,7 @@ public sealed class LenientCoercionTests {
         report.CoercionIssues[0].ActualValueKind.Should().Be("String");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_SyntaxRepairHint_IsSurfaced() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -119,6 +128,7 @@ public sealed class LenientCoercionTests {
         report.RepairHint.Should().NotBeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BOM_Header_Is_Stripped() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -155,6 +165,7 @@ public sealed class LenientCoercionTests {
         repair.RepairedJson.Should().Contain("0xFF");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_OutOfRangeNumber_IsClamped() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -167,6 +178,7 @@ public sealed class LenientCoercionTests {
         report.CoercionIssues.Should().ContainSingle(i => i.PropertyPath == "score");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_UndefinedEnum_Defaults_And_Reports() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -179,6 +191,7 @@ public sealed class LenientCoercionTests {
         report.CoercionIssues.Should().ContainSingle(i => i.PropertyPath == "level");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_ValidEnum_IsKept() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -190,6 +203,7 @@ public sealed class LenientCoercionTests {
         result!.Level.Should().Be(LenientLevel.High);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_ObjectIntoBool_DefaultsAndReportsPreciseIssue() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -203,6 +217,7 @@ public sealed class LenientCoercionTests {
         report.FormatForLlm().Should().Contain("completed");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_ArrayIntoNumber_DefaultsAndReportsPreciseIssue() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -216,6 +231,7 @@ public sealed class LenientCoercionTests {
         report.FormatForLlm().Should().Contain("count");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_FractionalNumberIntoInt_Rounds_NotDefaults() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -227,6 +243,7 @@ public sealed class LenientCoercionTests {
         result!.Count.Should().Be(4);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_FractionalStringIntoInt_Rounds_NotDefaults() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -238,6 +255,7 @@ public sealed class LenientCoercionTests {
         result!.Count.Should().Be(3);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void RepairJson_NegativeHex_ConvertsToDecimal() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -249,6 +267,7 @@ public sealed class LenientCoercionTests {
         result!.Count.Should().Be(-255);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_NanIntoInt_DefaultsWithIssue() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -261,6 +280,7 @@ public sealed class LenientCoercionTests {
         report.RepairHint.Should().Contain("NaN");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_HugeDecimalIntoString_IsPreserved() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -274,6 +294,7 @@ public sealed class LenientCoercionTests {
 
     #region P1: null 字符串宽容
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("null")]
     [InlineData("none")]
@@ -288,6 +309,7 @@ public sealed class LenientCoercionTests {
         result!.NullableFlag.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("NULL")]
     [InlineData("None")]
@@ -305,6 +327,7 @@ public sealed class LenientCoercionTests {
 
     #region P3: 日期时间宽容
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_DateString_ToDateTime_Parses() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -318,6 +341,7 @@ public sealed class LenientCoercionTests {
         result.CreatedAt.Value.Day.Should().Be(15);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_DateStringSlash_ToDateTime_Parses() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -329,6 +353,7 @@ public sealed class LenientCoercionTests {
         result.CreatedAt!.Value.Year.Should().Be(2025);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_EpochNumber_ToDateTime_Parses() {
         var result = LlmJsonHelper.DeserializeWithReport(
@@ -340,6 +365,7 @@ public sealed class LenientCoercionTests {
         result.CreatedAt!.Value.Year.Should().Be(2025);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Coerce_NullLikeString_ToNullableDateTime_IsNull() {
         var result = LlmJsonHelper.DeserializeWithReport(

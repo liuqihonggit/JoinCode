@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.LLM;
 
 
@@ -53,6 +52,7 @@ public sealed class ThinkingResponseParsingTests {
         captured.Should().Be("thinking:reasoning text");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AnthropicResponseContentBlock_ThinkingType_ShouldDeserialize() {
         var json = """{"type":"thinking","thinking":"I need to think about this carefully"}""";
@@ -63,6 +63,7 @@ public sealed class ThinkingResponseParsingTests {
         block.Thinking.Should().Be("I need to think about this carefully");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AnthropicStreamingDelta_ThinkingDelta_ShouldDeserialize() {
         var json = """{"type":"thinking_delta","thinking":" step by step"}""";
@@ -73,6 +74,7 @@ public sealed class ThinkingResponseParsingTests {
         delta.Thinking.Should().Be(" step by step");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertAnthropicResponseToApiMessages_WithThinkingBlock_ShouldIncludeThinkingInMetadata() {
         var response = new AnthropicMessagesResponse {
@@ -96,6 +98,7 @@ public sealed class ThinkingResponseParsingTests {
         messages[0].Metadata!["thinking_content"].GetString().Should().Be("Let me reason about this...");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void OpenAIApiMessage_ReasoningContent_ShouldDeserialize() {
         var json = """{"role":"assistant","content":"The answer is 42","reasoning_content":"I calculated this by..."}""";
@@ -106,6 +109,7 @@ public sealed class ThinkingResponseParsingTests {
         msg.ReasoningContent.Should().Be("I calculated this by...");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToApiMessage_WithReasoningContent_ShouldIncludeInMetadata() {
         var choice = new OpenAIChoice {

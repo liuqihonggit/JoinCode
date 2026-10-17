@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Security.Sandbox;
 
 
@@ -313,6 +312,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
     /// <summary>
     /// 将卫星进程加入当前 JobObject（若处于进程沙箱中）
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private void TryAssignSatelliteToJobObject() {
         if (_ipcClient!.SatelliteProcessId is not int satellitePid
             || _lifecycleActor.ActiveProvider is not ProcessSandboxProvider psp
@@ -345,6 +345,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<AbstractionsSandboxExecutionResult> ExecuteViaIpcAsync(string command, SandboxExecutionOptions options, CancellationToken ct) {
         var executionId = Guid.NewGuid().ToString("N")[..16];
         var timeoutSeconds = options.GetTimeoutSeconds();
@@ -704,6 +705,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private bool TryRemoveExecution(string executionId, out SandboxActiveExecution execution) {
         execution = null!;
         var current = _activeExecutions;

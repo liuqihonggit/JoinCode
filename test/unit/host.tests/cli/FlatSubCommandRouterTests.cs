@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Host.Tests.Cli;
 
 /// <summary>
@@ -10,6 +9,7 @@ public sealed class FlatSubCommandRouterTests {
     /// <summary>
     /// 核心回归场景: --trust 后跟 key=value，key=value 不应被吞
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetAllPositional_TrustBeforeKeyValue_ShouldNotConsumeKeyValue() {
         var args = new[] { "mcp_call", "gh_pr_checks", "--trust", "pr_number=201", "--json" };
@@ -24,6 +24,7 @@ public sealed class FlatSubCommandRouterTests {
     /// <summary>
     /// --json 后跟 key=value，key=value 不应被吞
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetAllPositional_JsonBeforeKeyValue_ShouldNotConsumeKeyValue() {
         var args = new[] { "mcp_call", "gh_pr_checks", "--json", "pr_number=201" };
@@ -37,6 +38,7 @@ public sealed class FlatSubCommandRouterTests {
     /// <summary>
     /// --args-stdin（布尔标志）后跟 key=value，key=value 不应被吞
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetAllPositional_ArgsStdinBeforeKeyValue_ShouldNotConsumeKeyValue() {
         var args = new[] { "mcp_call", "read_file", "--args-stdin", "path=/tmp/x" };
@@ -50,6 +52,7 @@ public sealed class FlatSubCommandRouterTests {
     /// <summary>
     /// --debuglog（布尔标志）后跟 key=value，key=value 不应被吞
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetAllPositional_DebugLogBeforeKeyValue_ShouldNotConsumeKeyValue() {
         var args = new[] { "mcp_call", "read_file", "--debuglog", "path=/tmp/x" };
@@ -63,6 +66,7 @@ public sealed class FlatSubCommandRouterTests {
     /// <summary>
     /// 带值选项 --model 后跟值，值应被正确吞掉，后续 key=value 保留
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetAllPositional_ModelWithValue_ShouldConsumeValueButKeepKeyValue() {
         var args = new[] { "mcp_call", "read_file", "--model", "gpt-4o", "path=/tmp/x" };
@@ -78,6 +82,7 @@ public sealed class FlatSubCommandRouterTests {
     /// <summary>
     /// 带值选项 --args-file 后跟值，值应被正确吞掉
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetAllPositional_ArgsFileWithValue_ShouldConsumeValue() {
         var args = new[] { "mcp_call", "read_file", "--args-file", "args.json", "extra_kv=1" };
@@ -93,6 +98,7 @@ public sealed class FlatSubCommandRouterTests {
     /// <summary>
     /// 多个布尔标志连续出现，不互相干扰
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetAllPositional_MultipleBooleanFlags_ShouldNotConsumeAnything() {
         var args = new[] { "mcp_call", "tool", "--trust", "--json", "--debuglog", "key=value" };
@@ -107,6 +113,7 @@ public sealed class FlatSubCommandRouterTests {
     /// <summary>
     /// key=value 在布尔标志前面，正常识别
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetAllPositional_KeyValueBeforeBooleanFlag_ShouldWork() {
         var args = new[] { "mcp_call", "tool", "key=value", "--trust", "--json" };
@@ -134,6 +141,7 @@ public sealed class FlatSubCommandRouterTests {
     /// 用户原始失败场景: `jcc mcp_call gh_pr_checks --trust pr_number=201 --json`
     /// GetAllPositional 应返回 ["gh_pr_checks", "pr_number=201"]，pr_number=201 不丢失
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetAllPositional_OriginalFailingScenario_ShouldPreservePrNumber() {
         var args = new[] { "mcp_call", "gh_pr_checks", "--trust", "pr_number=201", "--json" };
@@ -182,6 +190,7 @@ public sealed class FlatSubCommandRouterTests {
     /// <summary>
     /// 未知 --flag 应被检测并返回错误信息，不静默吞掉
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void DetectUnknownOptions_UnknownFlag_ShouldReturnError() {
         var args = new[] { "mcp_call", "gh_pr_checks", "--unknown-flag", "pr_number=201" };
@@ -209,6 +218,7 @@ public sealed class FlatSubCommandRouterTests {
     /// <summary>
     /// Rust 风格错误格式应包含位置指示线(^)和 hint
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void DetectUnknownOptions_ErrorFormat_ShouldHaveRustStyleIndicator() {
         var args = new[] { "mcp_call", "tool", "--bad-flag" };

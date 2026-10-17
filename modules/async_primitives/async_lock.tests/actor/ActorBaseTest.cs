@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 // JCC9203 抑制: 存量释放函数超时, 后续异步化改造
 #pragma warning disable JCC9203
 namespace Core.Utils;
@@ -467,6 +466,7 @@ public class ActorBaseTest {
     }
 
     /// <summary>Become(null) 抛 ArgumentNullException(防御守卫)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Become_null参数_抛ArgumentNullException() {
         await using var actor = new GuardTestActor();
@@ -475,6 +475,7 @@ public class ActorBaseTest {
     }
 
     /// <summary>BecomeStacked(null) 抛 ArgumentNullException(防御守卫)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task BecomeStacked_null参数_抛ArgumentNullException() {
         await using var actor = new GuardTestActor();
@@ -842,6 +843,7 @@ public class ActorBaseTest {
     }
 
     /// <summary>Unhandled 触发 UnhandledMessage 事件(Akka 对齐)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Unhandled_PublishesEvent() {
         await using var actor = new UnhandledActor();

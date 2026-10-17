@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 
 namespace McpToolDispatch.Tests.Execution;
 
@@ -7,7 +6,9 @@ namespace McpToolDispatch.Tests.Execution;
 /// GAP-041-03 频率驱动动态重构图单元测试 — 验证从转移频率重建超图、低频候选移除
 /// </summary>
 public sealed class ToolHypergraphRebuildTest : IAsyncLifetime {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private InMemoryFileSystem _fs = null!;
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private ToolHealthMonitor _monitor = null!;
 
     public Task InitializeAsync() {
@@ -103,6 +104,7 @@ public sealed class ToolHypergraphRebuildTest : IAsyncLifetime {
         scorer.LowFreqEdgeCandidates.Should().BeEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RebuildFromTransitionsAsync_DynamicEdgeWeight_ScalesWithFrequency() {
         for (var i = 0; i < 50; i++)

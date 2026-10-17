@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Goal;
 
 
@@ -14,8 +13,11 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
     private readonly ILogger<GoalGraphEngine>? _logger;
     private readonly IClockService _clock;
     private readonly IServiceProvider _serviceProvider;
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private readonly IAgentService? _agentService = null!;
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private readonly ICaptainDispatchGuard? _dispatchGuard = null!;
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private readonly ITeamManager? _teamManager = null!;
     private readonly IGoalUserInteraction? _userInteraction = null;
     private readonly IGoalNodeInspector? _nodeInspector = null;

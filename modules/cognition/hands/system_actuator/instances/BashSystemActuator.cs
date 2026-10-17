@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Services.SystemActuator;
 
 /// <summary>
@@ -66,6 +65,7 @@ public sealed partial class BashSystemActuator : SystemActuatorBase {
         return capability;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static string ResolveShellPathStatic(IFileSystem fs, ILogger? logger) {
         if (!OperatingSystem.IsWindows()) return "bash";
 
@@ -100,6 +100,7 @@ public sealed partial class BashSystemActuator : SystemActuatorBase {
         return match.Success ? match.Groups[1].Value : "unknown";
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static string? FindExecutableStatic(IFileSystem fs, ILogger? logger, string executable, bool excludeCurrentDir = true) {
         try {
             var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions {

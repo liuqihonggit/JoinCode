@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Reasoning.Engine;
 
 /// <summary>
@@ -493,6 +492,7 @@ public sealed class ReasoningEngine : IReasoningEngine {
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     internal async Task VerifyAllEvidenceLinksAsync() {
         if (_urlVerifier is null) return;
 

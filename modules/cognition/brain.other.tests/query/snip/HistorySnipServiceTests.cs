@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Query.Snip;
 
 public class HistorySnipServiceTests {
@@ -119,6 +118,7 @@ public class HistorySnipServiceTests {
         result.RemainingMessages.Should().Be(1);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SnipHistoryAsync_NullHistory_ShouldThrowArgumentNullException() {
         var act = async () => await _service.SnipHistoryAsync(null!, new SnipOptions()).ConfigureAwait(true);
@@ -126,6 +126,7 @@ public class HistorySnipServiceTests {
         await act.Should().ThrowAsync<ArgumentNullException>().ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SnipHistoryAsync_NullOptions_ShouldThrowArgumentNullException() {
         var history = new JoinCode.Abstractions.LLM.Chat.MessageList();

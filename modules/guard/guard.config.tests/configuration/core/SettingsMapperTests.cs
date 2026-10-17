@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Guard.Tests.Configuration;
 
 /// <summary>
@@ -161,6 +160,7 @@ public class SettingsMapperTests {
             "settings.json 未配 protocol 时回退到 definition.Protocol 默认值");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Given_环境变量JCC_MODEL_ID_When_EnvOverrideApplier_Then_VendorProfileModel被覆盖() {
         var settings = new SettingsJson {
@@ -236,6 +236,7 @@ public class SettingsMapperTests {
 
     #region 场景4: SettingsJson 合并策略
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Given_两个SettingsJson_When_Merge_Then_vendor字典合并current递归合并() {
         var baseSettings = new SettingsJson {
@@ -258,6 +259,7 @@ public class SettingsMapperTests {
         merged.Current.Language.Should().Be("en-US");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Given_base为null_When_Merge_Then_返回override() {
         var overrideSettings = new SettingsJson {
@@ -268,6 +270,7 @@ public class SettingsMapperTests {
         merged.Current!.Profile.Should().Be("openai");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Given_override为null_When_Merge_Then_返回base() {
         var baseSettings = new SettingsJson {

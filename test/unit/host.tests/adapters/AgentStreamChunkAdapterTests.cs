@@ -1,10 +1,10 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Host.Tests.Adapters;
 
 public class AgentStreamChunkAdapterTests {
     private const string TestAgentId = "agent-test-001";
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ContentChunk_ShouldMapToContentEvent() {
         var chunk = new AgentStreamChunk {
@@ -20,6 +20,7 @@ public class AgentStreamChunkAdapterTests {
         evt.Content.Should().Be("hello world");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ThinkingStartChunk_ShouldMapToThinkingEvent() {
         var chunk = new AgentStreamChunk {
@@ -35,6 +36,7 @@ public class AgentStreamChunkAdapterTests {
         evt.ThinkingContent.Should().Be("Let me think...");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ThinkingChunk_ShouldMapToThinkingEvent() {
         var chunk = new AgentStreamChunk {
@@ -62,6 +64,7 @@ public class AgentStreamChunkAdapterTests {
         evt.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ToolCallStartChunk_ShouldMapToToolCallStartEvent() {
         var chunk = new AgentStreamChunk {
@@ -81,6 +84,7 @@ public class AgentStreamChunkAdapterTests {
         evt.ToolArguments.Should().Be("{\"path\":\"test.txt\"}");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ToolCallEndChunk_ShouldMapToToolCallEndEvent() {
         var hunks = new StructuredPatchHunk[] { new() { OldStart = 1, OldLines = 1, NewStart = 1, NewLines = 1 } };
@@ -105,6 +109,7 @@ public class AgentStreamChunkAdapterTests {
         evt.StructuredPatch.Should().BeSameAs(hunks);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ToolProgressChunk_ShouldMapToToolProgressEvent() {
         var chunk = new AgentStreamChunk {
@@ -126,6 +131,7 @@ public class AgentStreamChunkAdapterTests {
         evt.ProgressMessage.Should().Be("Searching for...");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LoopDetectedChunk_ShouldMapToLoopDetectedEvent() {
         var chunk = new AgentStreamChunk {
@@ -145,6 +151,7 @@ public class AgentStreamChunkAdapterTests {
         evt.Content.Should().Be("repeated pattern");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TimingSummaryChunk_ShouldMapToTimingSummaryEvent() {
         var chunk = new AgentStreamChunk {
@@ -160,6 +167,7 @@ public class AgentStreamChunkAdapterTests {
         evt.Content.Should().Be("Total: 1.5s");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CompleteChunk_ShouldMapToCompleteEvent() {
         var usage = new TokenUsage(100, 200);
@@ -191,6 +199,7 @@ public class AgentStreamChunkAdapterTests {
         evt.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ThinkingChunk_WithNullThinkingContent_ShouldFallbackToContent() {
         var chunk = new AgentStreamChunk {

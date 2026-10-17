@@ -1,9 +1,9 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Mcp.Tests;
 
 public sealed partial class GitHubToolHandlersTests {
     /// <summary>优化A2: expand=jobs 汇总前置+全量失败+success 折叠到5(AI 首屏定位问题降 token)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RunView_ExpandJobs_SummaryFirst_AllFailuresShown_SuccessFolded() {
         var jobs = new List<string>();
@@ -38,6 +38,7 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     /// <summary>优化B: expand=failed 智能定位错误行,不从 runner setup 从头开始(AI 首屏看到错误降 token)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RunView_ExpandFailed_SkipsSetupLines_StartsFromError() {
         var lines = new List<string>();

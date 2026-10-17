@@ -1,5 +1,4 @@
 // JCC11003 抑制: 底层实现/测试代码, ! 用于可空抑制, 是必要用法
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
@@ -174,7 +173,7 @@ internal static class PipeAcceptLoop {
             while (!ct.IsCancellationRequested) {
                 var server = NamedPipeFactory.CreateServer(pipeName);
                 try {
-                    await using var reg = ct.Register(static s => ((NamedPipeServerStream)s!).Dispose(), server);
+                    await using var reg = ct.Register(static s => { if (s is NamedPipeServerStream stream) stream.Dispose(); }, server);
                     await server.WaitForConnectionAsync(ct).ConfigureAwait(false);
                     reg.Unregister();
                     TransportDiagnostics.Log("PIPE-ACCEPT", () => $"accepted connection on {pipeName}");

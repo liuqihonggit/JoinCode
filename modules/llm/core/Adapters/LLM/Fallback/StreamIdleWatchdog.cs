@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Api.LLM.Fallback;
 
 /// <summary>
@@ -57,12 +56,12 @@ public sealed class StreamIdleWatchdog : IDisposable {
         CombinedToken = _watchdogCts.Token;
 
         _originalRegistration = originalToken.Register(static state => {
-            var self = (StreamIdleWatchdog)state!;
+            if (state is not StreamIdleWatchdog self) return;
             self.ClearTimer();
         }, this);
 
         _timer = new Timer(static state => {
-            var self = (StreamIdleWatchdog)state!;
+            if (state is not StreamIdleWatchdog self) return;
             self.OnIdleTimeout();
         }, this, idleTimeoutMs, Timeout.Infinite);
     }

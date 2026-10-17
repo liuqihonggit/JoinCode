@@ -1,10 +1,10 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Integration.Tests.PrefixCache.Unit;
 
 public sealed class CacheBreakDetectorDriftIntegrationTests {
     private readonly CacheBreakDetector _detector = new();
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CheckCacheBreak_ToolAppend_CacheHit_NoBreak_WithDriftReport() {
         var toolsBefore = new List<ToolSpec> { new("read", "Read files") };
@@ -28,6 +28,7 @@ public sealed class CacheBreakDetectorDriftIntegrationTests {
         result.ToolDrift.IsCacheSafe.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CheckCacheBreak_ToolEdit_ReportsBreak_WithDriftReport() {
         var toolsBefore = new List<ToolSpec> { new("read", "Read files v1") };
@@ -48,6 +49,7 @@ public sealed class CacheBreakDetectorDriftIntegrationTests {
         result.ToolDrift.IsCacheSafe.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CheckCacheBreak_ToolRemove_ReportsBreak_WithDriftReport() {
         var toolsBefore = new List<ToolSpec>

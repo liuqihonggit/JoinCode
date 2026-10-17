@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JccAuditCli;
 
 /// <summary>
@@ -10,6 +9,7 @@ public static class SyncAsyncFixer {
     /// <summary>
     /// 同步化解决方案中所有非 UI 项目的 async/await
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public static async Task<(int FixedFiles, int FixedMethods, int FixedAwaits, int SkippedFiles)> SyncAllAsync(
         string solutionPath, bool dryRun, string[]? excludeDirs = null, string[]? includeDirs = null, CancellationToken ct = default) {
 
@@ -101,6 +101,7 @@ internal class SyncAsyncRewriter : CSharpSyntaxRewriter {
         _model = model;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public override SyntaxNode? VisitMethodDeclaration(MethodDeclarationSyntax node) {
         var wasAsync = node.Modifiers.Any(SyntaxKind.AsyncKeyword);
         if (!wasAsync)
@@ -122,6 +123,7 @@ internal class SyncAsyncRewriter : CSharpSyntaxRewriter {
         return result;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public override SyntaxNode? VisitAwaitExpression(AwaitExpressionSyntax node) {
         var innerExpr = node.Expression;
 

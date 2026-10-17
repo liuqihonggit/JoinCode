@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests;
 
 public sealed class ApplyPatchLogicTests {
@@ -232,6 +231,7 @@ public sealed class ApplyPatchLogicTests {
         Assert.False(result.Success);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ApplyAsync_NullPatch_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(

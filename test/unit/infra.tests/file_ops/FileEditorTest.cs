@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infra.Tests.FileOps;
 
 /// <summary>
@@ -323,6 +322,7 @@ public sealed class FileEditorTest {
 
     // ===== ExtractOriginalContent 守卫(确定性) =====
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Trait("Category", "Deterministic")]
     [Fact]
     public void ExtractOriginalContent_NullAllLines_ThrowsArgumentNullException() {
@@ -357,6 +357,7 @@ public sealed class FileEditorTest {
 
     // ===== BuildUpdatedFileContent 守卫(确定性) =====
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Trait("Category", "Deterministic")]
     [Fact]
     public void BuildUpdatedFileContent_NullAllLines_ThrowsArgumentNullException() {
@@ -364,6 +365,7 @@ public sealed class FileEditorTest {
         act.Should().Throw<ArgumentNullException>().WithParameterName("allLines");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Trait("Category", "Deterministic")]
     [Fact]
     public void BuildUpdatedFileContent_NullNewContent_ThrowsArgumentNullException() {

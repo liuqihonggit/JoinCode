@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infrastructure.Tests.Services;
 
 public sealed class NotebookReaderTests {
@@ -213,6 +212,7 @@ public sealed class NotebookReaderTests {
         result.Text.Should().Contain("<cell id=\"cell-0\">");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ReadNotebookAsync_EmptyCells_ReturnsEmptyContent() {
         var path = $"/test/empty_{Guid.NewGuid():N}.ipynb";
@@ -263,6 +263,7 @@ public sealed class NotebookReaderTests {
         result.Text.Should().Contain("4");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ReadNotebookAsync_ImagePngOutput_ExtractsImage() {
         var path = $"/test/imgpng_{Guid.NewGuid():N}.ipynb";
@@ -302,6 +303,7 @@ public sealed class NotebookReaderTests {
         result.Images![0].Base64Data.Should().Be("aW1hZ2UgZGF0YQ==");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ReadNotebookAsync_ImageJpegOutput_ExtractsImage() {
         var path = $"/test/imgjpg_{Guid.NewGuid():N}.ipynb";

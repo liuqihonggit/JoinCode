@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Permission;
 
 /// <summary>
@@ -10,6 +9,7 @@ public sealed class PermissionInterceptResultNullGuardTests {
 
     #region Denied — reason 守卫
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -34,6 +34,7 @@ public sealed class PermissionInterceptResultNullGuardTests {
 
     #region ConfirmationRequired — prompt 守卫
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData(null)]
     [InlineData("")]

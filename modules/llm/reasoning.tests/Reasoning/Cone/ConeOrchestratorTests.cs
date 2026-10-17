@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Reasoning.Tests.Cone;
 
 public sealed class ConeOrchestratorTests {
@@ -14,6 +13,7 @@ public sealed class ConeOrchestratorTests {
         Assert.Equal(3, cone.MaxVisibleFragments);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TransferFragment_ShouldCreateCopyWithDecay() {
         var orchestrator = new ConeOrchestrator { TransferDecayFactor = 0.9 };
@@ -45,6 +45,7 @@ public sealed class ConeOrchestratorTests {
         Assert.Contains("f1", transferred.BackReferences);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void DetectConeConflict_ShouldReturnConflictResult() {
         var orchestrator = new ConeOrchestrator();

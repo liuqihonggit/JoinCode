@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.Configuration.Settings;
 
 /// <summary>
@@ -112,7 +111,7 @@ public static class SettingsEditValidator {
                     PermissionMode.Bypass.ToValue(),
                     PermissionMode.Unattended.ToValue()
                 };
-                if (!validModes.Contains(mode.GetString()!))
+                if (!validModes.Contains(mode.GetString() ?? string.Empty))
                     errors.Add($"permissions.defaultMode: 无效的模式 '{mode.GetString()}'，有效值: plan, auto, ask, bypass, unattended");
             }
 

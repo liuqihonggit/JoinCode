@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Core.Agents.Tests.Unit.Agents;
 
 
@@ -13,6 +12,7 @@ public sealed class ContextSetupMiddlewareSubagentModelTests {
 
     #region 环境变量优先级
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_EnvSubagentModelSet_OverridesAll() {
         Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", "gpt-4o-mini");
@@ -24,6 +24,7 @@ public sealed class ContextSetupMiddlewareSubagentModelTests {
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_EnvSubagentModelUnset_FallsBackToSpawnOptions() {
         Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
@@ -31,6 +32,7 @@ public sealed class ContextSetupMiddlewareSubagentModelTests {
         ctx.ResolvedSubOptions!.ModelName.Should().Be("spawn-model");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_EnvAndSpawnUnset_FallsBackToDefinition() {
         Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
@@ -42,6 +44,7 @@ public sealed class ContextSetupMiddlewareSubagentModelTests {
 
     #region inherit 关键字
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("inherit")]
     [InlineData("Inherit")]
@@ -52,6 +55,7 @@ public sealed class ContextSetupMiddlewareSubagentModelTests {
         ctx.ResolvedSubOptions!.ModelName.Should().Be("parent-opus-4-6");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("inherit")]
     [InlineData("Inherit")]
@@ -61,6 +65,7 @@ public sealed class ContextSetupMiddlewareSubagentModelTests {
         ctx.ResolvedSubOptions!.ModelName.Should().Be("parent-opus-4-6");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_BothNullAndParentModelSet_ResolvesToParentModel() {
         Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
@@ -68,6 +73,7 @@ public sealed class ContextSetupMiddlewareSubagentModelTests {
         ctx.ResolvedSubOptions!.ModelName.Should().Be("parent-opus-4-6");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_BothNullAndNoParentModel_ResolvesToNull() {
         Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
@@ -75,6 +81,7 @@ public sealed class ContextSetupMiddlewareSubagentModelTests {
         ctx.ResolvedSubOptions!.ModelName.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_InheritWithNoParentModel_ResolvesToNull() {
         Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
@@ -86,6 +93,7 @@ public sealed class ContextSetupMiddlewareSubagentModelTests {
 
     #region alias 匹配父 tier
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_SpawnModelAliasMatchesParentTier_ResolvesToParentModel() {
         Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
@@ -93,6 +101,7 @@ public sealed class ContextSetupMiddlewareSubagentModelTests {
         ctx.ResolvedSubOptions!.ModelName.Should().Be("claude-opus-4-6");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_SpawnModelAliasDoesNotMatchParentTier_ResolvesToSpawnModel() {
         Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Host.Tests.Cli;
 
 /// <summary>
@@ -166,6 +165,7 @@ public sealed class CliOutputEnvelopeTests {
         json.Should().Contain("\"totalCount\":1");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Success_Generic_ShouldDeserializeToolSchema() {
         var schema = new JoinCode.Abstractions.Tools.ToolSchema {
@@ -195,6 +195,7 @@ public sealed class CliOutputEnvelopeTests {
         json.Should().NotContain("\"schema\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Success_Generic_ShouldDeserializeCliSlashSchemaHintResult() {
         var data = new CliSlashSchemaHintResult("help", null, null);

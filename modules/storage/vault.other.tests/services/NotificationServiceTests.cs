@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Services;
 
 public partial class NotificationServiceTests {
@@ -12,6 +11,7 @@ public partial class NotificationServiceTests {
         _notificationService = new NotificationService(_loggerMock.Object);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task NotifyAsync_ShouldLogInformation() {
         var title = "Test Title";
@@ -59,6 +59,7 @@ public partial class NotificationServiceTests {
             Times.Never);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task NotifyTaskCompletedAsync_WithSuccess_ShouldLog() {
         var taskId = "task-123";
@@ -78,6 +79,7 @@ public partial class NotificationServiceTests {
             Times.AtLeastOnce);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task NotifyTaskCompletedAsync_WithFailure_ShouldLog() {
         var taskId = "task-123";
@@ -97,6 +99,7 @@ public partial class NotificationServiceTests {
             Times.AtLeastOnce);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task NotifyAgentMessageAsync_ShouldLogInformation() {
         var agentId = "agent-123";
@@ -145,6 +148,7 @@ public partial class ConsoleNotificationServiceTests {
         Assert.True(_consoleNotificationService.IsAvailable);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task NotifyAsync_ShouldLogInformation() {
         var title = "Test Title";
@@ -164,6 +168,7 @@ public partial class ConsoleNotificationServiceTests {
             Times.Once);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task NotifyTaskCompletedAsync_WithSuccess_ShouldLog() {
         var taskId = "task-123";
@@ -183,6 +188,7 @@ public partial class ConsoleNotificationServiceTests {
             Times.Once);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task NotifyTaskCompletedAsync_WithFailure_ShouldLog() {
         var taskId = "task-123";
@@ -202,6 +208,7 @@ public partial class ConsoleNotificationServiceTests {
             Times.Once);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task NotifyAgentMessageAsync_ShouldLogInformation() {
         var agentId = "agent-123";

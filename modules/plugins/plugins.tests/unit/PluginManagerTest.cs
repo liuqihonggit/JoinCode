@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Plugins.Tests.Unit;
 
 /// <summary>
@@ -11,6 +10,7 @@ public sealed class PluginManagerTest {
     /// <summary>
     /// OrderUnloadSequence 纯计算:三类插件名 → 统一卸载顺序 (external → native → workflow)
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public sealed class OrderUnloadSequenceTest {
         [Fact]
         public void AllEmpty_ReturnsEmpty() {
@@ -140,6 +140,7 @@ public sealed class PluginManagerTest {
     /// LoadWorkflowPluginCoreAsync 拆分出的同步检查子方法确定性测试
     /// <para>不依赖 Actor mailbox/IO,直接调用 internal 方法验证状态检查行为</para>
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public sealed class LoadWorkflowChecksTest {
         private static PluginManager CreateManager() => new(new InMemoryFileSystem());
 
@@ -266,6 +267,7 @@ public sealed class PluginManagerTest {
     /// <summary>
     /// TransitionFiberTo 确定性测试 — 验证非 WorkflowPluginBase 类型 no-op 不抛
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public sealed class TransitionFiberToTest {
         [Fact]
         public void TransitionFiberTo_NullPlugin_DoesNotThrow() {

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Bridge;
 
 /// <summary>
@@ -61,6 +60,7 @@ internal sealed class BridgeSessionRegistry {
     // ── 遍历 ──
 
     /// <summary>获取所有会话句柄</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public IEnumerable<BridgeSubprocessHandle> GetAllHandles()
         => _sessions.Values.Where(s => s.Handle is not null).Select(s => s.Handle!);
 
@@ -78,6 +78,7 @@ internal sealed class BridgeSessionRegistry {
         => _sessions.Where(kvp => kvp.Value.WorktreePath is not null).Select(kvp => kvp.Key);
 
     /// <summary>获取所有兼容 ID 映射（sessionId → compatId）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public IEnumerable<KeyValuePair<string, string>> GetAllCompatIds()
         => _sessions
             .Where(kvp => kvp.Value.CompatId is not null)

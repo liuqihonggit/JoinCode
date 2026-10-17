@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Plugins;
 
 public sealed class PluginApprovalRegistryTests {
@@ -93,6 +92,7 @@ public sealed class PluginApprovalRegistryTests {
         Assert.False(result);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void PeekRequest_ReturnsRequest_WithoutChangingState() {
         var registry = new PluginApprovalRegistry();
@@ -110,6 +110,7 @@ public sealed class PluginApprovalRegistryTests {
         Assert.Null(peeked);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ClaimRequest_ReturnsRequest_ForCallerToDecide() {
         var registry = new PluginApprovalRegistry();
@@ -135,6 +136,7 @@ public sealed class PluginApprovalRegistryTests {
         Assert.False(removed);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void PendingRequestFor_FindsPendingByPluginId() {
         var registry = new PluginApprovalRegistry();

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Services.Skills;
 
 public sealed class SkillSearchServiceTests {
@@ -71,6 +70,7 @@ public sealed class SkillSearchServiceTests {
         await act.Should().ThrowAsync<ArgumentException>().ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SearchAsync_WithNullQuery_ThrowsArgumentNullException() {
         var act = () => _service.SearchAsync(null!);
@@ -91,6 +91,7 @@ public sealed class SkillSearchServiceTests {
         results.Should().Contain(r => r.SkillName == "batch");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_WithNullSkillService_ThrowsArgumentNullException() {
         var act = () => new SkillSearchService(null!);

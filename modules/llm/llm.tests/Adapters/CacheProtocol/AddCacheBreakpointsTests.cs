@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Llm.Tests.Adapters.CacheProtocol;
 
 public sealed class AddCacheBreakpointsTests {
@@ -40,6 +39,7 @@ public sealed class AddCacheBreakpointsTests {
         tools[1].CacheControl.Should().NotBeNull("last tool gets cache_control");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AddCacheBreakpoints_PlacesOnLastToolResult() {
         var systemBlocks = new List<AnthropicSystemContentBlock>
@@ -67,6 +67,7 @@ public sealed class AddCacheBreakpointsTests {
         blocks[1].CacheControl.Should().NotBeNull("last tool result gets cache_control");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AddCacheBreakpoints_WithMcpTools_AllScopesAreOrg() {
         var systemBlocks = new List<AnthropicSystemContentBlock>
@@ -82,6 +83,7 @@ public sealed class AddCacheBreakpointsTests {
         tools[0].CacheControl!.Scope.Should().Be("org");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AddCacheBreakpoints_WithoutMcpTools_ScopesAreNull() {
         var systemBlocks = new List<AnthropicSystemContentBlock>
@@ -122,6 +124,7 @@ public sealed class AddCacheBreakpointsTests {
         systemBlocks[0].CacheControl.Should().NotBeNull("system blocks still get cache_control even without tools");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AddCacheBreakpoints_MultipleMessagesWithToolResults_LastResultGetsCacheControl() {
         var systemBlocks = new List<AnthropicSystemContentBlock>

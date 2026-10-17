@@ -1,6 +1,6 @@
 // JCC11003 抑制: 底层泛型集合实现, ! 用于 default(T)/数组槽位的可空抑制, 是 C# 语言限制下的必要用法
 // JCC11005 抑制: JsonConverter.Read 是框架接口实现, 必须返回 T?, 不能改 TryGet 模式
-#pragma warning disable JCC11003, JCC11005
+#pragma warning disable JCC11005
 namespace Structura.Collections;
 
 /// <summary>ImmutableHamT&lt;string, string&gt; 的 JSON 转换器 — 将 HAMT 序列化为 JSON 对象,反序列化时重建 HAMT。用于 AOT 场景下替代 BCL ImmutableDictionary 的内置转换器。</summary>
@@ -13,9 +13,9 @@ public sealed class ImmutableHamTStringStringConverter : JsonConverter<Immutable
         var result = ImmutableHamT.Create<string, string>();
         while (reader.Read()) {
             if (reader.TokenType == JsonTokenType.EndObject) break;
-            var key = reader.GetString()!;
+            var key = reader.GetString() ?? throw new JsonException("Expected property name string for ImmutableHamT<string,string>");
             reader.Read();
-            var value = reader.GetString()!;
+            var value = reader.GetString() ?? throw new JsonException("Expected value string for ImmutableHamT<string,string>");
             result = result.Add(key, value);
         }
         return result;

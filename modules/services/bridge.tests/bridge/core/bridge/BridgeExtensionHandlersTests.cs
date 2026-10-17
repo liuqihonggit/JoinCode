@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿#nullable disable
 
 namespace Bridge.Tests;
@@ -14,6 +13,7 @@ public sealed class BridgeExtensionHandlersTests {
     private static BridgeJwtService CreateJwtService() =>
         new(new BridgeConfig { JwtSecretKey = TestJwtSecret }, NullLogger.Instance);
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static ControlRequest CreateRequest(Dictionary<string, JsonElement> parameters = null!) =>
         new() {
             Id = "req-1",

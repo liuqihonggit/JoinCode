@@ -1,7 +1,6 @@
 
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Tools.Handlers;
 
 /// <summary>
@@ -35,6 +34,7 @@ public partial class FileToolHandlers : IDisposable {
     /// <param name="fs">文件系统抽象</param>
     /// <param name="context">可选依赖上下文，聚合各服务和逻辑组件</param>
     /// <param name="logger">可选日志记录器</param>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public FileToolHandlers(
         IFileOperationService fileOperationService,
         IFileSystem fs,

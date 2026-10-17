@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Memdir.Sync;
 
 /// <summary>
@@ -150,6 +149,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         _watcher.EnableRaisingEvents = true;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task StartDirectAsync(CancellationToken ct) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         if (_isRunning) { _logger?.LogDebug(L.T(StringKey.VaultLogSyncAlreadyRunning)); return; }
@@ -169,6 +169,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         RecordSyncMetrics("start", true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task StartViaPipelineAsync(CancellationToken ct) {
         var pipeline = _startPipeline;
         if (pipeline is null) return;

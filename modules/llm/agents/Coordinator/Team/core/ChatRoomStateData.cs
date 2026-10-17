@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Agents.Coordinator;
 
 /// <summary>
@@ -7,6 +6,7 @@ namespace Core.Agents.Coordinator;
 /// </summary>
 public sealed class ChatRoomStateData {
     /// <summary>团队/聊天室信息</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public TeamInfo Info { get; set; } = null!;
 
     /// <summary>成员 ID 列表</summary>

@@ -1,3 +1,4 @@
+global using System.Diagnostics.CodeAnalysis;
 global using Core.Plugins;
 global using FluentAssertions;
 global using IO.FileSystem;

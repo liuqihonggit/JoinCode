@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infra.Tests.Utils.Async;
 
 /// <summary>
@@ -12,6 +11,7 @@ namespace Infra.Tests.Utils.Async;
 public class AsyncLockTest {
     // ===== 1. 互斥性 (Mutual Exclusion) =====
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact(Timeout = 10000)]
     public async Task LockAsync_SecondCallWaitsUntilFirstReleases() {
         using var asyncLock = new AsyncLock(nameof(AsyncLockTest));
@@ -102,6 +102,7 @@ public class AsyncLockTest {
         await Task.CompletedTask;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact(Timeout = 10000)]
     public async Task LockAsync_WaitingLockerCanceled_ThrowsAndNextWaiterProceeds() {
         using var asyncLock = new AsyncLock(nameof(AsyncLockTest));
@@ -241,6 +242,7 @@ public class AsyncLockTest {
         await t.WaitAsync(TimeSpan.FromSeconds(2));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact(Timeout = 10000)]
     public async Task Lock_ThenLockAsync_BlocksUntilRelease() {
         using var asyncLock = new AsyncLock(nameof(AsyncLockTest));
@@ -284,6 +286,7 @@ public class AsyncLockTest {
 
     // ===== 9. 可重入安全 (Reentrancy Safety - 非重入, 第二次等待) =====
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact(Timeout = 10000)]
     public async Task LockAsync_TwiceWithoutRelease_SecondWaits() {
         using var asyncLock = new AsyncLock(nameof(AsyncLockTest));

@@ -1,9 +1,9 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Mcp.Tests;
 
 public sealed partial class GitHubToolHandlersTests {
     /// <summary>缓存复用: expand=failed 首次下载日志写入 LSM,二次请求命中缓存不重新下载</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RunView_ExpandFailed_CacheHit_SecondCallDoesNotRedownload() {
         var api = new FakeGitHubApiClient();
@@ -27,6 +27,7 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     /// <summary>缓存复用: filter=failed 首次下载写入 LSM,二次命中缓存</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RunView_FilterFailed_CacheHit_SecondCallDoesNotRedownload() {
         var api = new FakeGitHubApiClient();

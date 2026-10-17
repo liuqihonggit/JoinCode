@@ -1,5 +1,4 @@
 // JCC11003 抑制: 底层泛型集合实现, ! 用于 default(T)/数组槽位的可空抑制, 是 C# 语言限制下的必要用法
-#pragma warning disable JCC11003
 namespace Structura.Collections;
 
 /// <summary>
@@ -108,6 +107,7 @@ public sealed class RingBuffer<T> {
     /// <param name="item">出队的元素</param>
     /// <returns>成功出队返回 true;队列为空返回 false</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "底层泛型集合实现, TryDequeue 返回 false 时 out 参数 default(T) 对于引用类型是 null, 是 C# 语言限制下的必要用法")]
     public bool TryDequeue(out T item) {
         item = default!;
         var currentHead = Volatile.Read(ref _consumerHead.Value);

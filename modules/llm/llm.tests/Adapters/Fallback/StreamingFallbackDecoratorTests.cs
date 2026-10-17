@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Llm.Tests.Adapters.Fallback;
 
 public class StreamingFallbackDecoratorTests {
@@ -313,6 +312,7 @@ public class StreamingFallbackDecoratorTests {
         decorator.AdjustSettingsForNonStreaming(null).Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AdjustSettingsForNonStreaming_NullMaxTokens_CapsToConfig() {
         var decorator = CreateDecorator();
@@ -325,6 +325,7 @@ public class StreamingFallbackDecoratorTests {
         result.Temperature.Should().Be(0.5f);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AdjustSettingsForNonStreaming_SmallMaxTokens_Preserved() {
         var decorator = CreateDecorator();
@@ -335,6 +336,7 @@ public class StreamingFallbackDecoratorTests {
         result!.MaxTokens.Should().Be(100, "Math.MinC100, 64000D = 100");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AdjustSettingsForNonStreaming_LargeMaxTokens_Capped() {
         var decorator = CreateDecorator();
@@ -345,6 +347,7 @@ public class StreamingFallbackDecoratorTests {
         result!.MaxTokens.Should().Be(64_000, "Math.MinC100000, 64000D = 64000");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AdjustSettingsForNonStreaming_PreservesAllOtherFields() {
         var decorator = CreateDecorator();
@@ -382,6 +385,7 @@ public class StreamingFallbackDecoratorTests {
         result.Should().BeEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToStreamEvents_SingleMessage_AddsStreamingFallbackAndStopFinishReason() {
         var messages = new List<ApiMessage> {
@@ -398,6 +402,7 @@ public class StreamingFallbackDecoratorTests {
         result[0].Metadata!["FinishReason"].GetString().Should().Be("stop");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToStreamEvents_MultipleMessages_OnlyLastHasFinishReasonStop() {
         var messages = new List<ApiMessage> {
@@ -414,6 +419,7 @@ public class StreamingFallbackDecoratorTests {
         result[2].Metadata!["FinishReason"].GetString().Should().Be("stop");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToStreamEvents_PreservesOriginalMetadata() {
         var messages = new List<ApiMessage> {
@@ -432,6 +438,7 @@ public class StreamingFallbackDecoratorTests {
 
     #region GetApiMessageContentsAsync — 参数委托确定性测试
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetApiMessageContentsAsync_PassesAllArguments_ToInnerService() {
         // 验证:非流式调用完全委托 inner,所有参数透传,返回同一引用,LastRequestFellBack=false
@@ -495,6 +502,7 @@ public class StreamingFallbackDecoratorTests {
 
     #region ExecuteFallbackAsync — 间接触发确定性测试
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteFallbackAsync_SetsLastRequestFellBack_AndRaisesEvent_AndConvertsOutput() {
         // 通过流式失败间接触发 private ExecuteFallbackAsync
@@ -548,6 +556,7 @@ public class StreamingFallbackDecoratorTests {
         events[0].Metadata!["OriginalKey"].GetString().Should().Be("orig");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteFallbackAsync_WithMultipleMessages_OnlyLastHasFinishReasonStop() {
         // 验证 ExecuteFallbackAsync 通过 ConvertToStreamEvents 处理多条消息时,仅最后一条带 FinishReason=stop

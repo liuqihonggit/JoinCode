@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Commands;
 
 public class CommandRegistryTests {
@@ -15,6 +14,7 @@ public class CommandRegistryTests {
         _registry.HasCommand("test").Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetCommand_ExistingCommand_ShouldReturnCommand() {
         var command = new TestChatCommand("test", "Test command");
@@ -91,6 +91,7 @@ public class CommandRegistryTests {
         result.Arguments.Should().BeEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Register_DuplicateCommand_ShouldOverwrite() {
         var command1 = new TestChatCommand("test", "First command");

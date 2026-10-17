@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infrastructure.Tests.Services;
 
 public sealed class PdfReaderTests {
@@ -64,6 +63,7 @@ public sealed class PdfReaderTests {
         result.OriginalSize.Should().BeGreaterThan(0);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ReadPdfAsync_ValidPdf_Base64IsDecodable() {
         var tempFile = $"/test/b64_{Guid.NewGuid():N}.pdf";
@@ -78,6 +78,7 @@ public sealed class PdfReaderTests {
         decoded.Should().StartWith("%PDF-"u8.ToArray());
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("5", 5, 5)]
     [InlineData("1-10", 1, 10)]

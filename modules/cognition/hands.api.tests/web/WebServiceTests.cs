@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Core.Tests.Web;
 
 
@@ -183,6 +182,7 @@ public sealed class WebServiceTests {
 
     #region SearchAsync - 系统提示词注入
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SearchAsync_IncludesSystemPromptInRequest() {
         MessageList? capturedHistory = null;
@@ -209,6 +209,7 @@ public sealed class WebServiceTests {
 
     #region SearchAsync - ExtensionData 传递
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SearchAsync_PassesWebSearchToolInExtensionData() {
         ChatOptions? capturedOptions = null;
@@ -231,6 +232,7 @@ public sealed class WebServiceTests {
         toolJson.Should().Contain("max_uses");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SearchAsync_WithAllowedDomains_PassesInExtensionData() {
         ChatOptions? capturedOptions = null;

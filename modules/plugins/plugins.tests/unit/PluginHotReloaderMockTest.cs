@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Plugins.Tests.Unit;
 
 /// <summary>
@@ -60,6 +59,7 @@ public sealed class PluginHotReloaderMockTest {
         stopTcs.Task.IsCompleted.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task HandleReload_NotLoaded_FileNotExists_OnlyFiresEvents() {
         var (reloader, fs, _) = CreateReloader();
@@ -126,6 +126,7 @@ public sealed class PluginHotReloaderMockTest {
         await act.Should().NotThrowAsync();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ReloadPluginCoreAsync_ManualReason_FiresEventsWithManualReason() {
         var (reloader, _, _) = CreateReloader();

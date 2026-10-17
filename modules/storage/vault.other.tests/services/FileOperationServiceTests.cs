@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Services;
 
 /// <summary>
@@ -407,6 +406,7 @@ public sealed class FileOperationServiceTests : IDisposable {
         Assert.Contains("超出文件总行数", result.ErrorMessage);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task EditByLineRangeAsync_NullRequest_ThrowsArgumentNullException() {
         // Act & Assert

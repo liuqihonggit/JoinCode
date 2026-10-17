@@ -1,5 +1,4 @@
 // JCC11003 抑制: 底层实现/测试代码, ! 用于可空抑制, 是必要用法
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
@@ -48,9 +47,11 @@ public abstract class ActorFsm<TState, TData, TCommand, TOut> : ActorBase<TComma
     protected ActorFsm(ActorBackpressure? backpressure) : base(backpressure) { }
 
     /// <summary>当前状态 — 供测试和监控查询</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "FSM 内部不变量: StartWith 后 _currentState 非空")]
     protected TState CurrentState => _currentState!;
 
     /// <summary>当前数据 — 供测试和监控查询</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "FSM 内部不变量: StartWith 后 _currentData 非空")]
     protected TData CurrentData => _currentData!;
 
     /// <summary>
@@ -76,18 +77,22 @@ public abstract class ActorFsm<TState, TData, TCommand, TOut> : ActorBase<TComma
     /// <summary>转换到指定状态,保持当前数据 — 在 handler 中调用</summary>
     /// <param name="state">目标状态</param>
     /// <returns>状态转换结果</returns>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "FSM 内部不变量: StartWith 后 _currentData 非空")]
     protected FsmResult<TState, TData> GoTo(TState state) => new(state, _currentData!);
 
     /// <summary>保持当前状态,保持当前数据 — 在 handler 中调用</summary>
     /// <returns>状态转换结果</returns>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "FSM 内部不变量: StartWith 后 _currentState/_currentData 非空")]
     protected FsmResult<TState, TData> Stay() => new(_currentState!, _currentData!);
 
     /// <summary>保持当前状态,更新数据 — 在 handler 中调用</summary>
     /// <param name="data">新数据</param>
     /// <returns>状态转换结果</returns>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "FSM 内部不变量: StartWith 后 _currentState 非空")]
     protected FsmResult<TState, TData> Using(TData data) => new(_currentState!, data);
 
     /// <summary>FSM 消息处理 — 根据当前状态查找 handler,执行状态转换</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "FSM 内部不变量: _currentState 非空已检查, _currentData 由 StartWith 保证非空")]
     protected override void Handle(TCommand command, CancellationToken ct) {
         if (_currentState is null) return;
         if (!_handlers.TryGetValue(_currentState, out var handler)) return;

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
@@ -28,12 +27,12 @@ public sealed class UnmanagedResourceTable {
 
     /// <summary>释放所有非托管资源 — 卸载时调用</summary>
     public void ReleaseAll() {
-        ImmutableHamT<string, UnmanagedResourceEntry> snapshot = default!;
+        ImmutableHamT<string, UnmanagedResourceEntry>? snapshot = null;
         while (true) {
             var current = _resources;
             if (Interlocked.CompareExchange(ref _resources, ImmutableHamT<string, UnmanagedResourceEntry>.Empty, current) == current) { snapshot = current; break; }
         }
-        foreach (var entry in snapshot.Values) {
+        foreach (var entry in (snapshot ?? ImmutableHamT<string, UnmanagedResourceEntry>.Empty).Values) {
             if (!entry.Handle.IsClosed)
                 entry.Handle.Dispose();
         }

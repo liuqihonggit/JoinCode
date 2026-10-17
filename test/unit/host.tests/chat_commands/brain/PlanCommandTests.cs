@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.ChatCommands;
 
 public class PlanCommandTests {
@@ -12,6 +11,7 @@ public class PlanCommandTests {
         _planCommand = new PlanCommand();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteAsync_WithToggle_ShouldUsePlanService() {
         var context = new ChatCommandContext {
@@ -30,6 +30,7 @@ public class PlanCommandTests {
         Assert.True(result.IsHandled);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteAsync_WithOnSubCommand_ShouldEnterPlanMode() {
         var context = new ChatCommandContext {
@@ -65,6 +66,7 @@ public class PlanCommandTests {
 
     // ===== PlanSubCommand 枚举路由取值范围测试 =====
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("on")]
     [InlineData("enter")]
@@ -90,6 +92,7 @@ public class PlanCommandTests {
         Assert.True(result.IsHandled);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("ON")]
     [InlineData("ENTER")]

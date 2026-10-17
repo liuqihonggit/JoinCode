@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace JoinCode.Hands.Desktop.Tests;
 
 /// <summary>
@@ -7,6 +6,7 @@
 /// </summary>
 public sealed class DesktopSceneStateStoreTests {
     /// <summary>AC-05b: 实例 A 写状态 → 实例 B 读状态（模拟跨 mcp_call 进程，共享文件系统）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SaveThenLoad_PreservesStateAcrossInstances() {
         var storedFiles = new Dictionary<string, string>();

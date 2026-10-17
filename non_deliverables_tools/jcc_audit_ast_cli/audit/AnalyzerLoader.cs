@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JccAuditCli;
 
 /// <summary>
@@ -11,6 +10,7 @@ public static class AnalyzerLoader {
     /// </summary>
     /// <param name="analyzerDirectory">DLL 搜索目录</param>
     /// <param name="filter">可选规则过滤（如 JCC3007），只加载包含该规则的分析器</param>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public static List<DiagnosticAnalyzer> LoadAnalyzers(string analyzerDirectory, string? filter = null) {
         var analyzers = new List<DiagnosticAnalyzer>();
 
@@ -60,6 +60,7 @@ public static class AnalyzerLoader {
     /// <summary>
     /// 从指定目录加载所有 CodeFixProvider DLL
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public static List<CodeFixProvider> LoadCodeFixProviders(string analyzerDirectory) {
         var providers = new List<CodeFixProvider>();
 
@@ -96,6 +97,7 @@ public static class AnalyzerLoader {
     /// <summary>
     /// 自动发现分析器 DLL：在项目 obj/bin 目录下搜索
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public static string FindAnalyzerDirectory(string projectRoot) {
         // 优先搜索 .nuget/packages/ 目录（本地打包）
         var nugetDir = Path.Combine(projectRoot, ".nuget", "packages");

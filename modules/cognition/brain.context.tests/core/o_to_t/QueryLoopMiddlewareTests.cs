@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Context;
 
 public sealed class QueryLoopMiddlewareTests {
@@ -161,6 +160,7 @@ public sealed class QueryLoopMiddlewareTests {
         SubAgentEventChannel.Current.Should().BeNull("回合结束后作用域必须恢复");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task NestedQueryLoop_SubAgentSpawnsGrandchild_EmitsToOwnScope() {
         // 嵌套隔离：子代理内部再 spawn 孙代理时，孙代理事件进入内层通道，不泄漏到外层缓冲

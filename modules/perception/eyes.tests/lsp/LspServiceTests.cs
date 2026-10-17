@@ -1,8 +1,8 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Core.Tests.Lsp;
 
 public sealed class LspModelTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LspPosition_Serialize_Deserialize_Roundtrip() {
         var position = new LspPosition { Line = 10, Character = 5 };
@@ -15,6 +15,7 @@ public sealed class LspModelTests {
         deserialized.Character.Should().Be(5);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LspRange_Serialize_Deserialize_Roundtrip() {
         var range = new LspRange {
@@ -32,6 +33,7 @@ public sealed class LspModelTests {
         deserialized.End.Character.Should().Be(4);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LspLocation_Serialize_Deserialize_Roundtrip() {
         var location = new LspLocation {
@@ -51,6 +53,7 @@ public sealed class LspModelTests {
         deserialized.Range.End.Character.Should().Be(20);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LspHoverResult_WithMarkdownContent_Serialize_Deserialize() {
         var hover = new LspHoverResult {
@@ -74,6 +77,7 @@ public sealed class LspModelTests {
         deserialized.Range!.Start.Line.Should().Be(10);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LspHoverResult_WithPlainText_Deserialize() {
         var json = """{"contents":"This is a string value","range":null}""";
@@ -84,6 +88,7 @@ public sealed class LspModelTests {
         result!.Range.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LspCompletionItem_Roundtrip() {
         var item = new LspCompletionItem {
@@ -103,6 +108,7 @@ public sealed class LspModelTests {
         deserialized.InsertText.Should().Be("ToString()");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LspDocumentSymbol_Roundtrip() {
         var symbol = new LspDocumentSymbol {
@@ -148,6 +154,7 @@ public sealed class LspModelTests {
         deserialized.Children[0].Name.Should().Be("MyMethod");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LspSymbolInformation_Roundtrip() {
         var info = new LspSymbolInformation {
@@ -210,6 +217,7 @@ public sealed class LspModelTests {
         json.Should().NotContain("\"id\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LspLocationList_Serialize_Deserialize_Roundtrip() {
         var locations = new List<LspLocation>
@@ -227,6 +235,7 @@ public sealed class LspModelTests {
         deserialized[1].Uri.Should().Be("file:///b.cs");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LspCompletionItemList_Deserialize_FromArray() {
         var json = """[{"label":"Foo","kind":6},{"label":"Bar","kind":3}]""";
@@ -241,6 +250,7 @@ public sealed class LspModelTests {
         items[1].Kind.Should().Be(3);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void LspSymbolInformationList_Deserialize_FromArray() {
         var json = """[{"name":"MyFunc","kind":12,"location":{"uri":"file:///test.cs","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":6}}}}]""";
@@ -334,6 +344,7 @@ public sealed class LspServiceTests {
             .ReturnsAsync(new List<LspServerConfigEntry>());
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_WithNullEngineContext_ThrowsArgumentNullException() {
         var act = () => new LspService(null!);
@@ -341,6 +352,7 @@ public sealed class LspServiceTests {
         act.Should().Throw<ArgumentNullException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_WithNullManager_ThrowsArgumentNullException() {
         var ctx = new LspEngineContext { LspManager = null!, ConfigLoader = _mockConfigLoader.Object };
@@ -349,6 +361,7 @@ public sealed class LspServiceTests {
         act.Should().Throw<ArgumentNullException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_WithNullConfigLoader_ThrowsArgumentNullException() {
         var ctx = new LspEngineContext { LspManager = _mockManager.Object, ConfigLoader = null! };

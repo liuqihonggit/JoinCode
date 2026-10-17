@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Bridge.Tests;
 
 /// <summary>
@@ -52,6 +51,7 @@ public sealed class WorkSecretStoreTests : IDisposable {
             "存储的值应为加密后的密文，而非明文");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetAsync_ShouldReturnSecret_WhenExists() {
         // Arrange
@@ -121,6 +121,7 @@ public sealed class WorkSecretStoreTests : IDisposable {
         result.Should().BeFalse("已撤销的密钥验证应失败");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RotateAsync_ShouldCreateNewSecret_AndMarkOldAsRotated() {
         // Arrange
@@ -148,6 +149,7 @@ public sealed class WorkSecretStoreTests : IDisposable {
         isValid.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RevokeAsync_ShouldMarkSecretAsRevoked() {
         // Arrange

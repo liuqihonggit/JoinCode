@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Transport.Impl.Tests;
 
 /// <summary>
@@ -100,6 +99,7 @@ public class BoundedUUIDSetTest {
     }
 
     /// <summary>Contains 对空字符串返回 false。</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Contains_EmptyString_ReturnsFalse() {
         await using var set = new BoundedUUIDSet(3);
@@ -110,6 +110,7 @@ public class BoundedUUIDSetTest {
     }
 
     /// <summary>同步 Add 空字符串/null 静默跳过（不抛异常）。</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Add_EmptyOrNull_SilentlySkipped() {
         await using var set = new BoundedUUIDSet(3);

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
@@ -73,8 +72,8 @@ public static class SessionRouter {
     public static async Task<bool> RemoveScopeAsync(ObjectId sessionId) {
         var hadScope = Volatile.Read(ref _scopes).TryGetValue(sessionId, out var scope);
         ImmutableInterlocked.Update(ref _scopes, d => d.Remove(sessionId));
-        if (!hadScope) return false;
-        await scope!.DisposeAsync().ConfigureAwait(false);
+        if (!hadScope || scope is null) return false;
+        await scope.DisposeAsync().ConfigureAwait(false);
         return true;
     }
 

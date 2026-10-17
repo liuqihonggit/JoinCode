@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Scheduling;
 
 public class AgentExecutionRecordTests {
@@ -18,6 +17,7 @@ public class AgentExecutionRecordTests {
         record.AllSuccess.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AllSuccess_NullResults_ShouldBeFalse() {
         var record = new AgentExecutionRecord {
@@ -88,6 +88,7 @@ public class AgentExecutionRecordTests {
         record.FailureCount.Should().Be(1);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetMergedOutput_EmptyOrNull_ShouldReturnEmptyString() {
         var emptyRecord = new AgentExecutionRecord {

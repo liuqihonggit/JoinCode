@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Context;
 
 /// <summary>
@@ -168,21 +167,26 @@ public sealed partial class ShannonEntropyDetector {
         return ctx.IsDeclining ? EntropyEvent.Confirm : null;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [TransitionAction(EntropyDetectionState.Monitoring, EntropyEvent.Decline)]
     private static void FsmActDeclineFromMonitoring(FsmContext? ctx) {
         var c = (EntropyFsmContext)ctx!;
         c.FirstTriggerTime = c.Now;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [TransitionAction(EntropyDetectionState.Suspected, EntropyEvent.Confirm)]
     private static void FsmActConfirm(FsmContext? ctx) => ((EntropyFsmContext)ctx!).TriggerCount++;
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [TransitionAction(EntropyDetectionState.Suspected, EntropyEvent.Timeout)]
     private static void FsmActTimeout(FsmContext? ctx) => ((EntropyFsmContext)ctx!).FirstTriggerTime = null;
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [TransitionAction(EntropyDetectionState.Confirmed, EntropyEvent.Decline)]
     private static void FsmActDeclineFromConfirmed(FsmContext? ctx) => ((EntropyFsmContext)ctx!).TriggerCount++;
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [TransitionAction(EntropyDetectionState.Confirmed, EntropyEvent.Recover)]
     private static void FsmActRecover(FsmContext? ctx) => ((EntropyFsmContext)ctx!).FirstTriggerTime = null;
 

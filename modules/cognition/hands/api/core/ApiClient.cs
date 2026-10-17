@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Services.Api;
 
 /// <summary>
@@ -271,6 +270,7 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable {
     /// <summary>
     /// 尝试备用端点 — 主端点全部重试失败后,依次尝试备用端点
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<HttpResponseMessage> TryFallbackEndpointsAsync(ApiRequest request, Exception primaryException, CancellationToken ct) {
         foreach (var fallback in _options.FallbackEndpoints!) {
             try {

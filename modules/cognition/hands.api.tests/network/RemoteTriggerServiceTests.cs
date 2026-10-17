@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Hands.Tests.Network;
 
 public sealed class RemoteTriggerServiceTests {
@@ -21,6 +20,7 @@ public sealed class RemoteTriggerServiceTests {
         result.Json.Should().Contain("未配置 JCC API 端点");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteAsync_List_SendsGetRequest() {
         _handler.SetResponse(request => new HttpResponseMessage(HttpStatusCode.OK) {
@@ -39,6 +39,7 @@ public sealed class RemoteTriggerServiceTests {
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteAsync_Create_SendsPostRequest() {
         _handler.SetResponse(request => new HttpResponseMessage(HttpStatusCode.Created) {
@@ -56,6 +57,7 @@ public sealed class RemoteTriggerServiceTests {
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteAsync_WithTrailingSlash_TrimsSlash() {
         _handler.SetResponse(request => new HttpResponseMessage(HttpStatusCode.OK) {
@@ -71,6 +73,7 @@ public sealed class RemoteTriggerServiceTests {
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteAsync_WithApiKey_AddsAuthorizationHeader() {
         _handler.SetResponse(request => new HttpResponseMessage(HttpStatusCode.OK));

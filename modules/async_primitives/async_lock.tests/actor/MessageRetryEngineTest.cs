@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
@@ -133,6 +132,7 @@ public class MessageRetryEngineTest {
     }
 
     /// <summary>RetryQueue 暴露原始通道(供门面转发,可 TryWrite)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void RetryQueue_ExposesChannel_ForFacadeWrite() {
         var (engine, _, cts, _, _) = NewEngine();
@@ -205,6 +205,7 @@ public class MessageRetryEngineTest {
         SingleWriter = false
     });
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Deterministic")]
     public void Constructor_NullActorId_ThrowsArgumentNullException() {

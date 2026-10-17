@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Memdir;
 
 /// <summary>
@@ -131,6 +130,7 @@ public sealed class SyncFileTransferTests {
         _fosMock.Verify(x => x.WriteFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PersistRemoteIndexAsync_ValidEntries_WritesJsonToRemoteStorage() {
         _remoteEntries["/watch/a.md"] = new SyncFileEntry {
@@ -152,6 +152,7 @@ public sealed class SyncFileTransferTests {
         roundtrip!.Should().ContainSingle(e => e.FilePath == "/watch/a.md" && e.ContentHash == "h1");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PersistRemoteIndexAsync_EmptyEntries_WritesEmptyArrayJson() {
         string? capturedJson = null;

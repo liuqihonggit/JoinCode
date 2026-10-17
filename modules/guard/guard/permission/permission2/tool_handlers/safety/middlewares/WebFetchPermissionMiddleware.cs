@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Permission;
 
 /// <summary>
@@ -31,6 +30,7 @@ public sealed partial class WebFetchPermissionMiddleware : ServiceEntity, IPermi
     /// <summary>
     /// WebFetch 域名级权限检查 — 对齐 TS 版 WebFetchTool.checkPermissions
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static ToolPermissionCheckResult? CheckWebFetchPermission(PermissionCheckContext context) {
         var toolName = context.ToolName;
         var arguments = context.Arguments;

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Plugins;
 
 public sealed class SessionTrajectoryTests {
@@ -123,6 +122,7 @@ public sealed class SessionTrajectoryTests {
         Assert.Equal(3, log.Count);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Trajectory_NullLog_Throws() {
         Assert.Throws<ArgumentNullException>(() => new SessionTrajectory(null!));

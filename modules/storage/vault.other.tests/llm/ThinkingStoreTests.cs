@@ -2,7 +2,6 @@
 #pragma warning disable JCC9002
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.LLM;
 
 [SuppressMessage("FileSystemAbstraction", "JCC9001", Justification = "思维存储测试需直接访问文件系统验证持久化")]
@@ -75,6 +74,7 @@ public sealed class ThinkingStoreTests {
         entries.Should().BeEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetLatestAsync_ShouldReturnLastEntry() {
         await using var store = CreateStore();
@@ -123,6 +123,7 @@ public sealed class ThinkingStoreTests {
         s2Entries[0].Content.Should().Be("thinking for s2");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task StoreAsync_NullSessionId_ShouldThrow() {
         await using var store = CreateStore();

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infra.Tests.LLM;
 
 
@@ -12,6 +11,7 @@ public sealed class QueryServiceRoleConversionTests {
     /// 带 CacheBreak=true 的 System 消息必须保持 System 角色发送
     /// 否则 LLM API 前缀缓存被破坏（system 变 user 导致前缀不一致）
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SystemMessage_WithCacheBreakMetadata_PreservesSystemRole() {
         var metadata = new Dictionary<string, JsonElement> {
@@ -28,6 +28,7 @@ public sealed class QueryServiceRoleConversionTests {
     /// <summary>
     /// 无 CacheBreak metadata 的 System 消息保持 System 角色（回归保护）
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SystemMessage_WithoutCacheBreakMetadata_PreservesSystemRole() {
         var msg = new ChatApiMessage(ChatMessageRole.System, "静态系统提示词");
@@ -56,6 +57,7 @@ public sealed class QueryServiceRoleConversionTests {
     /// <summary>
     /// User 消息不受 CacheBreak 影响（回归保护）
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void UserMessage_WithCacheBreakMetadata_PreservesUserRole() {
         var metadata = new Dictionary<string, JsonElement> {

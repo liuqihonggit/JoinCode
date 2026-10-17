@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Core.Tests.Services.Configuration;
 
 public sealed class RemoteManagedSettingsServiceTests : IAsyncDisposable {
@@ -22,6 +21,7 @@ public sealed class RemoteManagedSettingsServiceTests : IAsyncDisposable {
         _httpClient.DisposeSafe();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private sealed class CacheHelper(RemoteManagedSettingsService service) {
         private static readonly global::System.Reflection.FieldInfo CacheField =
             typeof(RemoteManagedSettingsService).BaseType!.GetField("_cache", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance)!;
@@ -138,6 +138,7 @@ public sealed class RemoteManagedSettingsServiceTests : IAsyncDisposable {
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_WithNullHttpClient_ThrowsArgumentNullException() {
         var act = () => new RemoteManagedSettingsService(null!);

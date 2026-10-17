@@ -8,6 +8,7 @@ global using System.Collections.Concurrent;
 global using System.Collections.Generic;
 global using System.Collections.ObjectModel;
 global using System.Collections.Immutable;
+global using System.Diagnostics.CodeAnalysis;
 global using System.IO;
 global using System.IO.Pipes;
 global using System.Runtime.CompilerServices;

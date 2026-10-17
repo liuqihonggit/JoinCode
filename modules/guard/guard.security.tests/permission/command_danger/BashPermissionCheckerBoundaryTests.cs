@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Permission;
 
 /// <summary>
@@ -112,6 +111,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
 
     #region 空命令守卫
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -147,6 +147,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
 
     #region 构造函数 null 守卫
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullSecurityValidator_ThrowsArgumentNullException() {
         var act = () => new BashPermissionChecker(
@@ -157,6 +158,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
             .Which.ParamName.Should().Be("securityValidator");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullPathConstraintValidator_ThrowsArgumentNullException() {
         var act = () => new BashPermissionChecker(
@@ -167,6 +169,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
             .Which.ParamName.Should().Be("pathConstraintValidator");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullReadOnlyDetector_ThrowsArgumentNullException() {
         var act = () => new BashPermissionChecker(
@@ -181,6 +184,7 @@ public sealed class BashPermissionCheckerBoundaryTests {
 
     #region CheckPermission workingDirectory null/空 守卫
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CheckPermission_NullWorkingDirectory_ThrowsArgumentNullException() {
         await using var checker = CreateChecker();

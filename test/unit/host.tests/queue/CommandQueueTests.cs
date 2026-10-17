@@ -1,11 +1,11 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Host.Tests.Queue;
 
 /// <summary>
 /// CommandQueue 单元测试 — 验证优先级排序、FIFO、线程安全、快照。
 /// </summary>
 public class CommandQueueTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Enqueue_Dequeue_SingleItem_ReturnsItem() {
         using var queue = new CommandQueue();
@@ -26,6 +26,7 @@ public class CommandQueueTests {
         Assert.Equal(0, queue.Count);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Dequeue_PriorityOrder_NowBeforeNextBeforeLater() {
         using var queue = new CommandQueue();
@@ -38,6 +39,7 @@ public class CommandQueueTests {
         Assert.Equal("later", queue.Dequeue()!.Content);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Dequeue_SamePriority_FifoOrder() {
         using var queue = new CommandQueue();
@@ -50,6 +52,7 @@ public class CommandQueueTests {
         Assert.Equal("third", queue.Dequeue()!.Content);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Dequeue_MixedPriority_NowAlwaysFirst() {
         using var queue = new CommandQueue();

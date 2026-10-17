@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Llm.Tests.Adapters.LLM.QueryServices.Anthropic;
 
 public sealed class AnthropicQueryServiceTests {
@@ -38,6 +37,7 @@ public sealed class AnthropicQueryServiceTests {
         messages[0].Content?.Text.Should().Be("hello");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToAnthropicMessages_AssistantWithToolCalls_AddsContentBlocks() {
         var entries = new[]
@@ -58,6 +58,7 @@ public sealed class AnthropicQueryServiceTests {
         ((AnthropicToolUseBlock)blocks[1]).Name.Should().Be("ToolA");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToAnthropicMessages_ToolResult_FlushesAsUserMessage() {
         var metadata = ToolCallEntry.BuildToolResultMetadata("call-1", "ToolA");
@@ -75,6 +76,7 @@ public sealed class AnthropicQueryServiceTests {
         blocks![0].Should().BeOfType<AnthropicToolResultBlock>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToAnthropicMessages_UserAfterToolResult_CombinesIntoSingleUserMessage() {
         var toolMetadata = ToolCallEntry.BuildToolResultMetadata("call-1", "ToolA");
@@ -116,6 +118,7 @@ public sealed class AnthropicQueryServiceTests {
         result[0].Role.Should().Be(MessageRole.Assistant);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertAnthropicResponseToApiMessages_ThinkingBlock_AddsThinkingMetadata() {
         var response = new AnthropicMessagesResponse {
@@ -133,6 +136,7 @@ public sealed class AnthropicQueryServiceTests {
         result[0].Metadata!["thinking_content"].GetString().Should().Be("think");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertAnthropicResponseToApiMessages_ToolUseBlock_AddsToolCallMetadata() {
         var response = new AnthropicMessagesResponse {
@@ -281,6 +285,7 @@ public sealed class AnthropicQueryServiceTests {
 
     #region Two-Phase Tool Loading — CreateSecondAnthropicRequestWithDescriptions
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CreateSecondAnthropicRequestWithDescriptions_ValidToolNames_BuildsDescriptions() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
@@ -444,6 +449,7 @@ public sealed class AnthropicQueryServiceTests {
 
     #region ConvertContextManagement — 2策略 switch 映射
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertContextManagement_ClearToolUsesStrategy_MapsToAnthropicClearToolUses() {
         var config = new ContextManagementConfig {
@@ -528,6 +534,7 @@ public sealed class AnthropicQueryServiceTests {
 
     #region CreateToolResultBlock — image/text 多模态分支
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CreateToolResultBlock_NoContentBlocks_ContentFromString() {
         var msg = new ApiMessage(MessageRole.Tool, "plain text",
@@ -542,6 +549,7 @@ public sealed class AnthropicQueryServiceTests {
         block.Content.Value.GetString().Should().Be("plain text");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CreateToolResultBlock_TextContentBlock_EmitsTextBlock() {
         var msg = new ApiMessage {
@@ -558,6 +566,7 @@ public sealed class AnthropicQueryServiceTests {
         raw.Should().Contain("\"text\":\"block text\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CreateToolResultBlock_ImageContentBlock_EmitsImageBlock() {
         var msg = new ApiMessage {
@@ -578,6 +587,7 @@ public sealed class AnthropicQueryServiceTests {
         raw.Should().Contain("\"data\":\"base64data\"");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CreateToolResultBlock_MixedImageAndText_BothBlocksEmitted() {
         var msg = new ApiMessage {
@@ -594,6 +604,7 @@ public sealed class AnthropicQueryServiceTests {
         block.Content!.Value.GetArrayLength().Should().Be(2);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CreateToolResultBlock_EmptyContentBlocks_FallsBackToStringContent() {
         var msg = new ApiMessage {
@@ -1132,6 +1143,7 @@ public sealed class AnthropicQueryServiceTests {
         result.Should().BeNull("累积 JSON 不足 50 字符时不提取");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryBuildQueryUpdateStreamEvent_QueryExtracted_ReturnsStreamEvent() {
         var partialJson = """{"query":"search term here padding to reach fifty chars"}""";

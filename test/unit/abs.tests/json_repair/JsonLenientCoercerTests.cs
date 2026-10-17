@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Abs.Tests.JsonRepair;
 
 /// <summary>
@@ -77,6 +76,7 @@ public sealed class JsonLenientCoercerTests {
         act.Result.GetBoolean().Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CoerceToBool_InvalidString_DropsWithIssue() {
         var v = ParseElement("\"maybe\"");
@@ -138,6 +138,7 @@ public sealed class JsonLenientCoercerTests {
         act.Result.GetDouble().Should().BeApproximately(3.14, 1e-9);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CoerceToNumber_StringNaN_DropsWithIssue() {
         var v = ParseElement("\"NaN\"");
@@ -163,6 +164,7 @@ public sealed class JsonLenientCoercerTests {
         act.Issue.Should().NotBeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CoerceToNumber_InvalidString_KeepsWithIssue() {
         var v = ParseElement("\"abc\"");

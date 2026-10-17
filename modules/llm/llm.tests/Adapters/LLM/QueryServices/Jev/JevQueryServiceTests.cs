@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Llm.Tests.Adapters.LLM.QueryServices.Jev;
 
 /// <summary>
@@ -111,6 +110,7 @@ public class JevQueryServiceTests {
         events[0].ModelId.Should().Be("jev-latest");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetStreamEventContentsAsync_PreservesMetadata_FromApiMessage() {
         // 验证降级包装时 StreamEvent 携带 ApiMessage 的 metadata
@@ -270,6 +270,7 @@ public class JevQueryServiceTests {
         result.Answers["q1"].Kind.Should().Be(TypedDecisionKind.Noul);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToTypedDecisionResult_WithUsage_MapsInputTokens() {
         var response = new JevResponse {
@@ -374,6 +375,7 @@ public class JevQueryServiceTests {
         msg.Content.Should().Contain("score=8.5");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToApiMessage_WithModelIdAndUsage_PopulatesMetadata() {
         var result = new TypedDecisionResult {
@@ -390,6 +392,7 @@ public class JevQueryServiceTests {
         msg.Metadata!["JevInputTokens"].GetInt32().Should().Be(100);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConvertToApiMessage_NullModelIdAndUsage_MetadataContainsNulls() {
         var result = new TypedDecisionResult {
@@ -408,6 +411,7 @@ public class JevQueryServiceTests {
 
     #region GetTypedDecisionsAsync — HTTP mock 确定性测试
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetTypedDecisionsAsync_ShouldDeserializeResponse_AndMapToTypedDecisionResult() {
         // Arrange — 伪造 Jev 响应 JSON(Noul 决策 + usage)
@@ -571,6 +575,7 @@ public class JevQueryServiceTests {
         messages[0].Content.Should().Contain("confidence=0.77");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetApiMessageContentsAsync_PopulatesMetadata_WithJevModelIdAndTokens() {
         var responseJson = """{"model":"jev-m","answers":{"default":{"noul":0.5}},"usage":{"input_tokens":99}}""";

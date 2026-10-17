@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Sync.Tests.Agents.Coordinator;
 
 public class SwarmPermissionBridgeTests : IAsyncLifetime {
@@ -18,6 +17,7 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime {
             NullLogger<SwarmPermissionBridge>.Instance);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SyncPermissionsAsync_ShouldSyncPermissionsAndFireEvent() {
         _permissionManagerMock
@@ -109,6 +109,7 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime {
         state.Mode.Should().Be(PermissionMode.Auto);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RevokePermissionsAsync_ShouldRemoveRuleAndFireEvent() {
         _permissionManagerMock
@@ -160,6 +161,7 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime {
         state.AllowedTools.Should().BeEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullMessageBroker_ShouldThrowArgumentNullException() {
         var act = () => new SwarmPermissionBridge(null!, _permissionManagerMock.Object);
@@ -167,6 +169,7 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime {
         act.Should().Throw<ArgumentNullException>().WithParameterName("messageBroker");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullPermissionManager_ShouldThrowArgumentNullException() {
         var act = () => new SwarmPermissionBridge(_messageBrokerMock.Object, null!);

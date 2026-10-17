@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Sync.Tests.Agents.Coordinator;
 
 /// <summary>
@@ -129,6 +128,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime {
         result.Result.Should().Be("Fork execution failed");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ForkAsync_NullPipeline_ShouldThrowArgumentNullException() {
         var deps = new ForkManagerDependencies(
@@ -139,6 +139,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime {
         act.Should().Throw<ArgumentNullException>().WithParameterName("pipeline");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ForkAsync_NullDeps_ShouldThrowArgumentNullException() {
         var pipeline = CreatePipeline();
@@ -232,6 +233,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime {
         await WaitUntilAsync(() => _manager.InputCount == 0, TimeSpan.FromMilliseconds(500));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ForkAsync_BackgroundWithEventChannel_ShouldEmitAgentFinishedOnCompletion() {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();

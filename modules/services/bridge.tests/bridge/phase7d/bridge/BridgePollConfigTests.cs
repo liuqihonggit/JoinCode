@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Bridge.Tests.Phase7D;
 
 public sealed class BridgePollConfigTests {
@@ -116,6 +115,7 @@ public sealed class BridgePollConfigTests {
         Assert.Equal(BridgePollIntervalConfig.Defaults.SessionKeepaliveIntervalV2Ms, result.SessionKeepaliveIntervalV2Ms);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Validate_NullConfig_Throws() {
         Assert.Throws<ArgumentNullException>(() => BridgePollConfig.ValidateConfig(null!));

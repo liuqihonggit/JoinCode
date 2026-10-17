@@ -1,7 +1,7 @@
 
 // JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC1017, JCC11003
+#pragma warning disable JCC1017
 namespace Guard.Tests.Configuration;
 
 /// <summary>
@@ -15,6 +15,7 @@ public class SettingsJsonDeserializationTests {
 
     #region 场景1: 完整 settings.json 反序列化
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Given_完整SettingsJson_When_反序列化_Then_所有字段正确映射() {
         var json = $$"""
@@ -120,6 +121,7 @@ public class SettingsJsonDeserializationTests {
 
     #region 场景2: 最小 settings.json
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Given_仅包含vendor和profile的SettingsJson_When_反序列化_Then_其余字段为null() {
         var json = $$"""
@@ -149,6 +151,7 @@ public class SettingsJsonDeserializationTests {
 
     #region 场景3: 空 settings.json
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Given_空对象SettingsJson_When_反序列化_Then_vendor和current为null() {
         var json = "{}";
@@ -176,6 +179,7 @@ public class SettingsJsonDeserializationTests {
 
     #region 场景5: 序列化 + 反序列化往返
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Given_SettingsJson对象_When_序列化再反序列化_Then_数据一致() {
         var original = new SettingsJson {
@@ -212,6 +216,7 @@ public class SettingsJsonDeserializationTests {
 
     #region 场景6: SandboxSettings 新字段反序列化
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Given_SandboxSettings含新字段_When_反序列化_Then_AllowedPathsRestrictNetworkMemoryLimitMb正确映射() {
         var json = """
@@ -238,6 +243,7 @@ public class SettingsJsonDeserializationTests {
         settings.Current.Sandbox.MemoryLimitMb.Should().Be(512);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Given_SandboxSettings仅旧字段_When_反序列化_Then_新字段为null() {
         var json = """
@@ -265,6 +271,7 @@ public class SettingsJsonDeserializationTests {
 
     #region 场景7: GetActiveProfile 辅助方法
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Given_CurrentProfile指向Vendor键_When_GetActiveProfile_Then_返回对应预设() {
         var settings = new SettingsJson {

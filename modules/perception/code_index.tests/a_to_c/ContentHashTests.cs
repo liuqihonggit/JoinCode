@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.CodeIndex.Tests;
 
 public sealed class ContentHashTests {
@@ -50,11 +49,13 @@ public sealed class ContentHashTests {
         Assert.Equal(64, hash.Length);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ComputeContentHash_NullString_Throws() {
         Assert.Throws<ArgumentNullException>(() => HashUtility.ComputeContentHash((string)null!));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Trait("Category", "Deterministic")]
     [Fact]
     public async Task ReadFileAndComputeHashAsync_NullFilePath_ThrowsArgumentNullException() {
@@ -69,6 +70,7 @@ public sealed class ContentHashTests {
         await Assert.ThrowsAsync<ArgumentException>(() => HashUtility.ReadFileAndComputeHashAsync("", fs, CancellationToken.None)).ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Trait("Category", "Deterministic")]
     [Fact]
     public async Task ReadFileAndComputeHashAsync_NullFileSystem_ThrowsArgumentNullException() {

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 底层实现/测试代码, ! 用于可空抑制, 是必要用法
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
@@ -79,6 +78,7 @@ public sealed class HostContextSyncService : IAsyncDisposable {
     /// <summary>
     /// 主机广播上下文快照 — 序列化为字节，通过传输层广播。
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "BroadcastSnapshotAsync 在 _snapshotProvider 设置后调用, 内部不变量保证非空")]
     private async Task BroadcastSnapshotAsync(CancellationToken ct) {
         try {
             var snapshot = _snapshotProvider!();

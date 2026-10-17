@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 // JCC9203 抑制: 存量释放超时, 后续异步化改造
 #pragma warning disable JCC9203
 namespace Core.Tests.State;
@@ -78,6 +77,7 @@ public sealed class AppStateSelectorsTests : IDisposable {
         selector.CurrentValue.Should().ContainKey("agent-1");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SelectAgent_ExistingAgent_ReturnsAgent() {
         var selector = _selectors.SelectAgent("agent-1");
@@ -119,6 +119,7 @@ public sealed class AppStateSelectorsTests : IDisposable {
         selector.CurrentValue.Should().HaveCount(3);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SelectTask_ExistingTask_ReturnsTask() {
         var selector = _selectors.SelectTask("task-1");
@@ -209,6 +210,7 @@ public sealed class AppStateSelectorsTests : IDisposable {
         selector.CurrentValue.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SelectCurrentNotification_ReturnsNotification() {
         var selector = _selectors.SelectCurrentNotification();

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
@@ -30,6 +29,7 @@ public class AskWaitGraphTrackerTest {
     }
 
     /// <summary>正常加边 → 返回非 null scope,Dispose 后恢复父图</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void NormalEdge_ReturnsScope_DisposeRestoresParent() {
         var al = new AsyncLocal<ImmutableDag<string>?>();
@@ -49,6 +49,7 @@ public class AskWaitGraphTrackerTest {
     }
 
     /// <summary>环检测:已有 A→B,再加 B→A → 抛 ActorCyclicAskException</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CycleDetected_ThrowsActorCyclicAskException() {
         var al = new AsyncLocal<ImmutableDag<string>?>();
@@ -65,6 +66,7 @@ public class AskWaitGraphTrackerTest {
     }
 
     /// <summary>环检测异常的 TargetActorId 正确</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CycleDetected_ExceptionContainsTargetId() {
         var al = new AsyncLocal<ImmutableDag<string>?>();
@@ -78,6 +80,7 @@ public class AskWaitGraphTrackerTest {
     }
 
     /// <summary>无环:已有 A→B,加 C→D(独立节点) → 成功</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void NoCycle_IndependentChain_Succeeds() {
         var al = new AsyncLocal<ImmutableDag<string>?>();
@@ -93,6 +96,7 @@ public class AskWaitGraphTrackerTest {
     }
 
     /// <summary>嵌套作用域隔离:外层 A→B,内层 C→D,Dispose 内层恢复外层图</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void NestedScopes_Isolated_RestoreInOrder() {
         var al = new AsyncLocal<ImmutableDag<string>?>();
@@ -114,6 +118,7 @@ public class AskWaitGraphTrackerTest {
     }
 
     /// <summary>不同 AsyncLocal 实例的 tracker 互不影响(调用链独立)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void DifferentAsyncLocals_Independent() {
         var al1 = new AsyncLocal<ImmutableDag<string>?>();
@@ -133,6 +138,7 @@ public class AskWaitGraphTrackerTest {
     }
 
     /// <summary>链式调用 A→B→C 无环,各 scope 成功</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ChainABC_NoCycle_AllSucceed() {
         var al = new AsyncLocal<ImmutableDag<string>?>();
@@ -149,6 +155,7 @@ public class AskWaitGraphTrackerTest {
     }
 
     /// <summary>链式 A→B→C 后加 C→A 形成环 → 抛异常</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ChainABC_ThenCtoA_ThrowsCycle() {
         var al = new AsyncLocal<ImmutableDag<string>?>();

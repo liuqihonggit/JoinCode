@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace JoinCode.Hands.Desktop.Tests;
 
 /// <summary>
@@ -9,6 +8,7 @@
 [Trait("Category", "Integration")]
 public sealed class DesktopSceneE2ETests {
     /// <summary>AC-07: 真实调 desktop_look 截图建网格，验证截图非空 + 尺寸正确 + 状态文件生成</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Look_RealDesktop_ReturnsScreenshotAndPersistsState() {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
@@ -43,6 +43,7 @@ public sealed class DesktopSceneE2ETests {
     }
 
     /// <summary>AC-07: 真实调 look → zoom 链路，验证缩放后子图非空 + 状态更新</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task LookThenZoom_RealDesktop_ReturnsSubImageAndUpdatesState() {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
@@ -75,6 +76,7 @@ public sealed class DesktopSceneE2ETests {
     }
 
     /// <summary>AC-09: zoom 3 层后 back 1 层，断言 depth=2 + cellCode 回退 + history 删最后一条</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ZoomThreeLayersThenBack_DepthDecreasesAndHistoryShrinks() {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();

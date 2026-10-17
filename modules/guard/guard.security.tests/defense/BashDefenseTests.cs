@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Guard.Security.Tests;
 /// <summary>
 /// BashDefense 链式构建器 + RetainedDeviceNode + BashDefenseService 单元测试
@@ -48,6 +47,7 @@ public class BashDefenseTests {
         ctx.CurrentCommand.Should().Be("echo hello");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteAsync_StepRejects_ShouldShortCircuit() {
         var (ctx, rejection) = await _bashDefenseService
@@ -103,6 +103,7 @@ public class BashDefenseTests {
 
     #region BashDefenseService.CheckRetainedDevice 拒绝消息封死替代路径
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CheckRetainedDevice_RejectMessage_ShouldContainAlternativePath() {
         var (_, rejection) = await _bashDefenseService
@@ -117,6 +118,7 @@ public class BashDefenseTests {
         text.Should().Contain(">con", "应封死替代路径 con 变体");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CheckRetainedDevice_RejectMessage_ShouldContainMtpHint() {
         var (_, rejection) = await _bashDefenseService
@@ -129,6 +131,7 @@ public class BashDefenseTests {
         rejection.GetFirstText().Should().Contain("重新生成", "应建议完整重新生成而非局部修补");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CheckRetainedDevice_RejectMessage_ShouldContainCorrectWrite() {
         var (_, rejection) = await _bashDefenseService
@@ -227,6 +230,7 @@ public class BashDefenseTests {
         rejection.Should().BeNull("默认 None 模式不要求确认");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RequireArgvHash_FirstRound_ShouldRejectWithHash() {
         var (_, rejection) = await _bashDefenseService
@@ -252,6 +256,7 @@ public class BashDefenseTests {
         rejection.Should().BeNull("第二轮命令匹配 + hash 匹配应通过");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RequireArgvHash_SecondRoundWrongHash_ShouldReject() {
         var command = "rm -rf ./build";
@@ -265,6 +270,7 @@ public class BashDefenseTests {
         rejection!.GetFirstText().Should().Contain("确认码不匹配", "hash 不匹配应拒绝");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RequireArgvHash_SecondRoundCommandMismatch_ShouldReject() {
         var (_, rejection) = await _bashDefenseService
@@ -308,6 +314,7 @@ public class BashDefenseTests {
         result.IsWhitelisted.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CheckRedirectWhitelist_ViolatingTarget_ShouldRejectWithMessage() {
         var (_, rejection) = await _bashDefenseService
@@ -390,6 +397,7 @@ public class BashDefenseTests {
         result.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task StrictParse_UnclosedDoubleQuote_ShouldReject() {
         var workDir = AppContext.BaseDirectory;
@@ -418,6 +426,7 @@ public class BashDefenseTests {
 
     #region DangerousCommandNode — 危险命令检测
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void DangerousCommandNode_GitGlobalParamC_ShouldClassifyAsDangerous() {
         var result = _dangerousCommandNode.ClassifyDangerous("git -c core.sshCommand=rm status");
@@ -425,6 +434,7 @@ public class BashDefenseTests {
         result!.IsDangerous.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void DangerousCommandNode_GitExecPath_ShouldClassifyAsDangerous() {
         var result = _dangerousCommandNode.ClassifyDangerous("git --exec-path=/tmp/evil status");
@@ -432,6 +442,7 @@ public class BashDefenseTests {
         result!.IsDangerous.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void DangerousCommandNode_GitConfigEnv_ShouldClassifyAsDangerous() {
         var result = _dangerousCommandNode.ClassifyDangerous("git --config-env=foo=bar status");
@@ -451,6 +462,7 @@ public class BashDefenseTests {
         result.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CheckDangerousCommand_GitC_ShouldReject() {
         var workDir = AppContext.BaseDirectory;
@@ -464,6 +476,7 @@ public class BashDefenseTests {
         rejection.GetFirstText().Should().Contain("MTP");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CheckDangerousCommand_GitExecPath_ShouldReject() {
         var workDir = AppContext.BaseDirectory;
@@ -487,6 +500,7 @@ public class BashDefenseTests {
         rejection.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CheckDangerousCommand_InChain_ShouldShortCircuitBeforeRetainedDevice() {
         var workDir = AppContext.BaseDirectory;

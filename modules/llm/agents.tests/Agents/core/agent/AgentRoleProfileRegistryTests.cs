@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Core.Agents;
 
 
@@ -13,6 +12,7 @@ public sealed class AgentRoleProfileRegistryTests {
         profiles.Count(p => p.Role == AgentRole.Executor).Should().Be(8);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetProfile_Coordinator_ReturnsCoordinatorProfile() {
         await using var registry = new AgentRoleProfileRegistry();
@@ -26,6 +26,7 @@ public sealed class AgentRoleProfileRegistryTests {
         profile.AllowedTools.Should().BeEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetProfile_ExecutorCode_ReturnsCodeProfile() {
         await using var registry = new AgentRoleProfileRegistry();
@@ -40,6 +41,7 @@ public sealed class AgentRoleProfileRegistryTests {
         profile.AllowedTools.Should().Contain(FileToolNameEnumConstants.FileRead);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetProfile_ExecutorExplore_IsOneShot() {
         await using var registry = new AgentRoleProfileRegistry();
@@ -53,6 +55,7 @@ public sealed class AgentRoleProfileRegistryTests {
         profile.OmitGitStatus.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetProfile_ExecutorDoctor_IsBackground() {
         await using var registry = new AgentRoleProfileRegistry();
@@ -75,6 +78,7 @@ public sealed class AgentRoleProfileRegistryTests {
         profile.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetProfile_CustomDefinitionWithSourcePath_OverridesBuiltIn() {
         var customDef = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition {
@@ -112,6 +116,7 @@ public sealed class AgentRoleProfileRegistryTests {
         ]);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Register_AddsCustomProfile() {
         await using var registry = new AgentRoleProfileRegistry();
@@ -159,6 +164,7 @@ public sealed class AgentRoleProfileRegistryTests {
         executorProfiles.All(p => p.Role == AgentRole.Executor).Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetProfile_ExecutorVerification_HasCorrectTools() {
         await using var registry = new AgentRoleProfileRegistry();
@@ -172,6 +178,7 @@ public sealed class AgentRoleProfileRegistryTests {
         profile.SystemPrompt.Should().NotBeNullOrEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetProfile_ExecutorJoinCodeGuide_HasCorrectTools() {
         await using var registry = new AgentRoleProfileRegistry();
@@ -185,6 +192,7 @@ public sealed class AgentRoleProfileRegistryTests {
         profile.SystemPrompt.Should().NotBeNullOrEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetProfile_ExecutorContextCompression_HasCorrectTools() {
         await using var registry = new AgentRoleProfileRegistry();

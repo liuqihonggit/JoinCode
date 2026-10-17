@@ -1,7 +1,6 @@
 
 #pragma warning disable JCC3010, JCC3011, JCC3012
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Agents.Coordinator;
 
 public class TeamManagerTests : IAsyncLifetime {
@@ -11,6 +10,7 @@ public class TeamManagerTests : IAsyncLifetime {
         _teamManager = new TeamManager(JoinCode.Abstractions.Clock.SystemClockService.Instance);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CreateTeamAsync_WithValidName_ShouldCreateTeam() {
         // Arrange
@@ -41,6 +41,7 @@ public class TeamManagerTests : IAsyncLifetime {
         result.ErrorMessage.Should().Contain("不能为空");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CreateTeamAsync_WithInitialMembers_ShouldCreateTeamWithMembers() {
         // Arrange
@@ -58,6 +59,7 @@ public class TeamManagerTests : IAsyncLifetime {
         result.Data.Members.Should().Contain("agent3");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DeleteTeamAsync_WithExistingTeam_ShouldDelete() {
         // Arrange
@@ -84,6 +86,7 @@ public class TeamManagerTests : IAsyncLifetime {
         result.ErrorMessage.Should().Contain("不存在");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetTeamAsync_WithExistingTeam_ShouldReturnTeam() {
         // Arrange
@@ -122,6 +125,7 @@ public class TeamManagerTests : IAsyncLifetime {
         teams.Should().HaveCount(3);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AddTeamMemberAsync_WithValidTeam_ShouldAddMember() {
         // Arrange
@@ -148,6 +152,7 @@ public class TeamManagerTests : IAsyncLifetime {
         result.ErrorMessage.Should().Contain("不存在");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AddTeamMemberAsync_DuplicateMember_ShouldFail() {
         // Arrange
@@ -163,6 +168,7 @@ public class TeamManagerTests : IAsyncLifetime {
         result.ErrorMessage.Should().Contain("已经是团队成员");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RemoveTeamMemberAsync_WithExistingMember_ShouldRemove() {
         // Arrange
@@ -180,6 +186,7 @@ public class TeamManagerTests : IAsyncLifetime {
         members.Should().NotContain("agent1");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RemoveTeamMemberAsync_WithNonExistentMember_ShouldFail() {
         // Arrange
@@ -194,6 +201,7 @@ public class TeamManagerTests : IAsyncLifetime {
         result.ErrorMessage.Should().Contain("不是团队成员");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SendMessageAsync_WithValidTeam_ShouldSendMessage() {
         // Arrange
@@ -212,6 +220,7 @@ public class TeamManagerTests : IAsyncLifetime {
         messages.First().SenderId.Should().Be("sender1");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SendMessageAsync_WithNonMemberSender_ShouldFail() {
         // Arrange
@@ -226,6 +235,7 @@ public class TeamManagerTests : IAsyncLifetime {
         result.ErrorMessage.Should().Contain("不是团队成员");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SendMessageToAgentAsync_WithValidAgent_ShouldSendMessage() {
         // Arrange
@@ -244,6 +254,7 @@ public class TeamManagerTests : IAsyncLifetime {
         messages.First().Content.Should().Contain("Private message");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task BroadcastMessageAsync_WithValidTeam_ShouldBroadcast() {
         // Arrange
@@ -261,6 +272,7 @@ public class TeamManagerTests : IAsyncLifetime {
         messages.First().Content.Should().Contain("[广播]");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetTeamMessagesAsync_WithMultipleMessages_ShouldReturnOrdered() {
         // Arrange
@@ -280,6 +292,7 @@ public class TeamManagerTests : IAsyncLifetime {
         messages.Should().HaveCount(2);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TeamInfo_ShouldHaveCorrectTimestamps() {
         // Arrange
@@ -296,6 +309,7 @@ public class TeamManagerTests : IAsyncLifetime {
         result.Data.LastActivityAt.Should().BeOnOrBefore(after);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TeamActivity_ShouldUpdateLastActivityAt() {
         // Arrange
@@ -314,6 +328,7 @@ public class TeamManagerTests : IAsyncLifetime {
         team.LastActivityAt.Should().BeAfter(createResult.Data.CreatedAt.AddMilliseconds(-1));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TeamMessage_ShouldHaveAllProperties() {
         // Arrange
@@ -334,6 +349,7 @@ public class TeamManagerTests : IAsyncLifetime {
         message.Timestamp.Should().BeBefore(DateTime.UtcNow.AddSeconds(1));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ComplexScenario_CreateTeamAddMembersSendMessages() {
         // Arrange & Act - 创建团队

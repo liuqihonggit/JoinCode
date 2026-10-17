@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Configuration;
 
 /// <summary>
@@ -10,6 +9,7 @@ public sealed class ConfigLoaderInternalTests {
 
     #region MaskKey — 安全脱敏
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void MaskKey_Null_Should_Return_EmptyPlaceholder() {
         ConfigLoader.MaskKey(null!).Should().Be("<empty>");

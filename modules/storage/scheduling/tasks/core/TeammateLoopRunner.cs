@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Scheduling.Tasks;
 
 /// <summary>
@@ -267,6 +266,7 @@ internal sealed class TeammateLoopRunner {
     /// <summary>
     /// 尝试进入 plan mode — PlanModeRequired 且未已在 plan mode 时自动进入,失败仅警告不抛异常
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task TryEnterPlanModeIfNeededAsync(InProcessTeammateDefinition definition, CancellationToken ct) {
         try {
             _logger?.LogInformation("Teammate {TeammateId} requires plan mode, entering automatically", definition.TeammateId);

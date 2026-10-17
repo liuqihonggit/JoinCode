@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.Mcp.Protocol;
 
 [JsonConverter(typeof(JsonRpcIdConverter))]
@@ -61,7 +60,7 @@ public sealed class JsonRpcIdConverter : JsonConverter<JsonRpcId> {
             return JsonRpcId.Null;
 
         if (reader.TokenType == JsonTokenType.String)
-            return JsonRpcId.FromString(reader.GetString()!);
+            return JsonRpcId.FromString(reader.GetString() ?? string.Empty);
 
         if (reader.TokenType == JsonTokenType.Number) {
             if (reader.TryGetInt64(out var longValue))

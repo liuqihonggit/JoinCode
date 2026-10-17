@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Cli;
 
 // ─── Selector ───
@@ -81,6 +80,7 @@ public sealed class SelectorResult<T> {
     /// <summary>
     /// 选中的项，取消时为默认值
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public T Selected { get; init; } = default!;
 
     /// <summary>

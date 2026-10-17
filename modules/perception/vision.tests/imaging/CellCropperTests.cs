@@ -1,11 +1,11 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Vision.Tests;
 
 /// <summary>
 /// 图像格子裁剪器单元测试 — 裁剪尺寸/像素保留/base64
 /// </summary>
 public sealed class CellCropperTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CropAsync_ReturnsCroppedDimensions() {
         var bytes = await CreateTestImage(100, 100, SKColors.Red);
@@ -17,6 +17,7 @@ public sealed class CellCropperTests {
         img.Height.Should().Be(50);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CropAsync_PreservesPixelColor() {
         var bytes = await CreateTestImage(100, 100, SKColors.Blue);
@@ -29,6 +30,7 @@ public sealed class CellCropperTests {
         pixel.Red.Should().Be(0);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CropAsync_CropsBottomRightQuadrant() {
         var bytes = await CreateTestImage(100, 100, SKColors.Green);
@@ -40,6 +42,7 @@ public sealed class CellCropperTests {
         img.Height.Should().Be(50);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CropToBase64Async_ReturnsValidBase64Png() {
         var bytes = await CreateTestImage(100, 100, SKColors.Red);

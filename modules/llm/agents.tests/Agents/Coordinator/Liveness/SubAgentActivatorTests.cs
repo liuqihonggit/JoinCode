@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Sync.Tests.Agents.Coordinator.Liveness;
 
 /// <summary>
@@ -25,6 +24,7 @@ public sealed class SubAgentActivatorTests {
         result.Reason.Should().Contain("不存在");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ActivateAsync_AgentRunning_InjectsPromptAndSucceeds() {
         var agent = CreateAgent("test task");
@@ -76,6 +76,7 @@ public sealed class SubAgentActivatorTests {
         agent.LastActivityAt.Should().BeAfter(before);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ActivateAsync_DefaultIdleSeconds_Uses30() {
         var agent = CreateAgent("test task");

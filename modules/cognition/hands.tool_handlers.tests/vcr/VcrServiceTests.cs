@@ -2,7 +2,6 @@
 #pragma warning disable JCC9002
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Services.Vcr;
 
 [SuppressMessage("FileSystemAbstraction", "JCC9001", Justification = "VCR 录制回放测试需直接访问文件系统读取录像文件")]
@@ -106,6 +105,7 @@ public sealed class VcrServiceTests : IDisposable {
         result.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FindMatchingInteractionAsync_WhenPlaybackModeWithMatch_ReturnsResponse() {
         _service.SetMode(VcrMode.Record);
@@ -118,6 +118,7 @@ public sealed class VcrServiceTests : IDisposable {
         result!.Status.Should().Be(200);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_WithNullOptions_ThrowsArgumentNullException() {
         var act = () => new VcrService(null!, new IO.FileSystem.PhysicalFileSystem());

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿
 namespace Dream.Tests;
 
@@ -174,6 +173,7 @@ public sealed class DreamFeatureTests {
         Assert.Contains("LLM服务异常", result.Content);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteAsync_RegistersAndCompletesTask() {
         // Arrange
@@ -196,6 +196,7 @@ public sealed class DreamFeatureTests {
         Assert.Equal("整合完成", task.Turns[0].Text);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetTaskStatusAsync_ReturnsCorrectTask() {
         // Arrange
@@ -241,6 +242,7 @@ public sealed class DreamFeatureTests {
         Assert.Equal(2, tasks.Count);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task KillTaskAsync_TerminatesRunningTask() {
         // Arrange - 注册一个任务但不完成它

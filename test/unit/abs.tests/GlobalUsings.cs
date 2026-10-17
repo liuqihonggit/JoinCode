@@ -1,3 +1,4 @@
+global using System.Diagnostics.CodeAnalysis;
 global using FluentAssertions;
 global using McpProtocol.Contracts;
 global using System.Text;

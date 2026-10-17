@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Hands.Tests.Build;
 
 /// <summary>
@@ -17,6 +16,7 @@ public class BuildQueueServiceTests {
         buildId.Should().StartWith("b-");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SubmitAsync_EntryExists() {
         await using var sut = CreateSut();
@@ -65,6 +65,7 @@ public class BuildQueueServiceTests {
         result.ErrorOutput.Should().Contain("stderr");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CancelAsync_BuildingBuild_ReturnsTrue() {
         var buildTcs = new TaskCompletionSource<SystemActuatorExecutionResult>();
@@ -123,6 +124,7 @@ public class BuildQueueServiceTests {
         status.RecentBuilds.Should().ContainSingle(e => e.BuildId == buildId);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SubmitAsync_BufferHit_ReturnsCompletedResult() {
         var shellMock = new Mock<ISystemActuator>();
@@ -193,6 +195,7 @@ public class BuildQueueServiceTests {
     /// <summary>
     /// 验证队列 checkpoint 推进 — 多个 build 全部完成后，队列应无 pending 项
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Checkpoint_AllBuildsComplete_QueueShouldBeEmpty() {
         var shellMock = new Mock<ISystemActuator>();
@@ -279,6 +282,7 @@ public class BuildQueueServiceTests {
         key1.Should().NotBe(key2);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ClearCacheAsync_ClearsResultBuffer() {
         var shellMock = new Mock<ISystemActuator>();

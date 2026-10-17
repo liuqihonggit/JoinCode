@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Hands.Tests.Shell;
 
 /// <summary>
@@ -255,6 +254,7 @@ public class ShellSedInterceptMiddlewareTests {
     // 同一个中间件实例的多次调用共享 _fallbackEdits,用于验证"首次预览→二次确认"流程
     // 确定性:无时序依赖(60s 窗口内连续调用)、无磁盘 IO(全 mock)、无 session 上下文(默认 AsyncLocal null)
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static Mock<ISystemActuator> CreateBashProvider() {
         var mock = new Mock<ISystemActuator>();
         mock.SetupGet(x => x.Kind).Returns(SystemActuatorKind.FromId("bash")!);
@@ -318,6 +318,7 @@ public class ShellSedInterceptMiddlewareTests {
     /// <summary>
     /// 路径1: _fs is null → BuildFileSystemUnavailableDiagnostic
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_FsNull_ReturnsFileSystemUnavailableDiagnostic() {
         await using var sut = new ShellSedInterceptMiddleware(fs: null);
@@ -335,6 +336,7 @@ public class ShellSedInterceptMiddlewareTests {
     /// <summary>
     /// 路径2: 文件不存在 → BuildFileNotFoundDiagnostic
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_FileNotExists_ReturnsFileNotFoundDiagnostic() {
         var fs = CreateFileSystemMock();
@@ -353,6 +355,7 @@ public class ShellSedInterceptMiddlewareTests {
     /// <summary>
     /// 路径3: 读取失败 → BuildReadFailedDiagnostic
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_ReadAllTextThrows_ReturnsReadFailedDiagnostic() {
         var fs = CreateFileSystemMock();
@@ -373,6 +376,7 @@ public class ShellSedInterceptMiddlewareTests {
     /// <summary>
     /// 路径4: 无变更(pattern 不匹配) → BuildNoChangeMessage
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_PatternNoMatch_ReturnsNoChangeMessage() {
         var fs = CreateFileSystemMock();
@@ -391,6 +395,7 @@ public class ShellSedInterceptMiddlewareTests {
     /// <summary>
     /// 路径5: 首次调用 → 返回 BuildSedPreview 预览 + 存 pending(不调用 EditFileAsync)
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_FirstCall_ReturnsPreview_StoresPending() {
         var fs = CreateFileSystemMock();
@@ -414,6 +419,7 @@ public class ShellSedInterceptMiddlewareTests {
     /// <summary>
     /// 路径6: 二次调用确认匹配 → EditFileAsync 写入成功,返回 Applied 消息
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_SecondCall_MatchingSed_AppliesEdit() {
         var fs = CreateFileSystemMock();
@@ -441,6 +447,7 @@ public class ShellSedInterceptMiddlewareTests {
     /// <summary>
     /// 路径7: 二次调用写入失败(EditFileAsync 抛异常) → BuildWriteFailedDiagnostic
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_SecondCall_WriteFails_ReturnsWriteFailedDiagnostic() {
         var fs = CreateFileSystemMock();
@@ -468,6 +475,7 @@ public class ShellSedInterceptMiddlewareTests {
     /// <summary>
     /// 路径8: 二次调用 sed 信息不匹配(同文件不同 pattern) → 清旧 pending + 重新预览(不调用 EditFileAsync)
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_SecondCall_MismatchedSed_ClearsPending_Repreview() {
         var fs = CreateFileSystemMock();

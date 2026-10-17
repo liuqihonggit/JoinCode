@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Plugins;
 
 /// <summary>
@@ -89,8 +88,8 @@ public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjec
         return () => {
             var hadHooks = Volatile.Read(ref _injectedHooks).TryGetValue(pluginName, out var removed);
             ImmutableInterlocked.Update(ref _injectedHooks, d => d.Remove(pluginName));
-            if (hadHooks) {
-                RecordHookInjectorMetrics("remove", pluginName, removed!.Count, true);
+            if (hadHooks && removed is not null) {
+                RecordHookInjectorMetrics("remove", pluginName, removed.Count, true);
             }
         };
     }
@@ -105,8 +104,8 @@ public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjec
 
         var hadHooks = Volatile.Read(ref _injectedHooks).TryGetValue(pluginName, out var hooks);
         ImmutableInterlocked.Update(ref _injectedHooks, d => d.Remove(pluginName));
-        if (hadHooks) {
-            RecordHookInjectorMetrics("remove", pluginName, hooks!.Count, true);
+        if (hadHooks && hooks is not null) {
+            RecordHookInjectorMetrics("remove", pluginName, hooks.Count, true);
             foreach (var hook in hooks) {
                 _logger?.LogInformation(
                     "[PluginHookInjector] 移除 Hook: {HookName} (插件: {Plugin})",

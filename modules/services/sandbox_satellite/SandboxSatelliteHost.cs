@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.SandboxSatellite;
 
 
@@ -234,6 +233,7 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable {
     /// 异步释放资源 — 取消运行循环、终止并释放内部 JobObject/cgroup
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         _cts.Cancel();

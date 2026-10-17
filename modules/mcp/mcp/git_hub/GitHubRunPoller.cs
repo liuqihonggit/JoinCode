@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace McpToolDispatch;
 
 /// <summary>
@@ -104,6 +103,7 @@ internal static class GitHubRunPoller {
     /// <summary>
     /// 单次 Run 轮询 — IO 操作,返回 (Kind, Value, Error)
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static async Task<(PollOutcomeKind, RunPollData, string?)> PollRunOnceAsync(
         IGitHubApiClient apiClient, string owner, string repo, string runId, CancellationToken ct) {
         var result = await apiClient.SendAsync(
@@ -142,6 +142,7 @@ internal static class GitHubRunPoller {
     /// <summary>
     /// 单次 PR checks 轮询 — IO 操作,返回 (Kind, Value, Error)
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static async Task<(PollOutcomeKind, PrPollData, string?)> PollPrChecksOnceAsync(
         IGitHubApiClient apiClient, string owner, string repo, string headSha, CancellationToken ct) {
         var result = await apiClient.SendAsync(
@@ -184,6 +185,7 @@ internal static class GitHubRunPoller {
     /// <summary>
     /// 单次 Run jobs 轮询 — 并行查 run status + jobs,发现 failure job 返回 FailFast
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static async Task<(PollOutcomeKind, JobWatchData, string?)> PollRunJobsOnceAsync(
         IGitHubApiClient apiClient, string owner, string repo, string runId, CancellationToken ct) {
         var runTask = apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}", ct: ct);

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿
 namespace Core.Tests.Scheduling;
 
@@ -81,6 +80,7 @@ public class ParallelExecutionEngineTests {
     /// <summary>
     /// 测试使用 null AgentCoordinator 构造引擎时，应抛出 ArgumentNullException
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_WithNullAgentCoordinator_ShouldThrowArgumentNullException() {
         var act = () => new ParallelExecutionEngine(null!);

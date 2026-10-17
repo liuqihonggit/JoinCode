@@ -1,6 +1,6 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 // JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11003, JCC11005
+#pragma warning disable JCC11005
 namespace Host.Tests.ChatCommands;
 
 /// <summary>
@@ -72,6 +72,7 @@ public sealed class VendorCommandTests {
         config.Provider.Vendor.Should().Be("openai", "无参=查询模式不改变当前供应商");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Execute_ValidVendor_SwitchesConfigAndPersistsProfile() {
         var (cmd, config, ctx) = Create("anthropic");

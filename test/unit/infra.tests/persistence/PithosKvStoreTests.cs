@@ -1,11 +1,11 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infra.IO.Tests.Persistence;
 
 public sealed class PithosKvStoreTests {
     private static byte[] K(string s) => Encoding.UTF8.GetBytes(s);
     private static string S(byte[] b) => Encoding.UTF8.GetString(b);
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task PutGet_InMemory_ReturnsValue() {
         await using var store = PithosKvStore.OpenInMemory();
@@ -61,6 +61,7 @@ public sealed class PithosKvStoreTests {
         S(entries[9].Key).Should().Be("k029");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Put_OverwriteExistingKey_UpdatesValue() {
         await using var store = PithosKvStore.OpenInMemory();
@@ -70,6 +71,7 @@ public sealed class PithosKvStoreTests {
         S(got!).Should().Be("new");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Persistence_Disk_SurvivesReopen() {
         var dir = Path.Combine(Path.GetTempPath(), $"pithos_test_{Guid.NewGuid():N}");

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests;
 
 public class FileStateGuardNodeTests {
@@ -110,6 +109,7 @@ public class FileStateGuardNodeTests {
     /// <summary>
     /// rebase 场景：其他分支改了这文件 → 时间戳变新且内容变 → 拒绝，返回诊断元组。
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CheckStaleWriteAsync_TimestampNewerAndContentChanged_ReturnsStale() {
         const string readContent = "AI read this";
@@ -173,6 +173,7 @@ public class FileStateGuardNodeTests {
     /// 边缘场景：缓存无记录（LRU 淘汰）→ 防御性拒绝（IsNotRead=true），对齐 TS FileWriteTool.ts L282。
     /// 实际守卫链中 RequireReadBeforeWrite 会先拦下，此处为防御性兜底。
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CheckStaleWriteAsync_ReadStateNull_ReturnsStaleNotRead() {
         var filePath = CreateFile("content");

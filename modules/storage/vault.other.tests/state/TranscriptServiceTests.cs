@@ -1,6 +1,5 @@
 #pragma warning disable JCC3010, JCC3011, JCC3012
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace State.Tests;
 
 public sealed class TranscriptServiceTests : IDisposable {
@@ -165,6 +164,7 @@ public sealed class TranscriptServiceTests : IDisposable {
         Assert.Equal("second", transcript[1].Content);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task TranscriptSummary_Should_Contain_Preview() {
         await _service.AppendEntryAsync("preview-test", NewEntry("assistant", "This is a long response that should be truncated in the preview")).ConfigureAwait(true);
@@ -176,6 +176,7 @@ public sealed class TranscriptServiceTests : IDisposable {
         Assert.True(summaries[0].LastMessagePreview!.Length <= 84);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SaveSessionInfoAsync_Should_Create_Meta_File_And_Roundtrip() {
         var info = new SessionInfo { Id = "meta-1", ProjectPath = "/proj", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) };

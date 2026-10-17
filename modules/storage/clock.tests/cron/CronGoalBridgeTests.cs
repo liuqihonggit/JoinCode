@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Goal.Tests;
 
 public sealed class CronGoalBridgeTests {
@@ -13,11 +12,13 @@ public sealed class CronGoalBridgeTests {
         return (taskStore, goalEngine, bridge);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullTaskStore_Throws() {
         Assert.Throws<ArgumentNullException>(() => new CronGoalBridge(null!, Mock.Of<IGoalEngine>()));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullGoalEngine_Throws() {
         Assert.Throws<ArgumentNullException>(() => new CronGoalBridge(Mock.Of<ICronTaskStore>(), null!));

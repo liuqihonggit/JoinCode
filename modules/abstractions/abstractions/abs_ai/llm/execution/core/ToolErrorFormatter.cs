@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Abstractions.LLM.Execution;
 
 /// <summary>
@@ -23,18 +22,19 @@ public static class ToolErrorFormatter {
         if (string.IsNullOrEmpty(resultText))
             return string.Empty;
 
+        var text = resultText;
         if (!isError)
-            return resultText!;
+            return text;
 
-        var startIdx = resultText!.IndexOf(StartTag, StringComparison.OrdinalIgnoreCase);
+        var startIdx = text.IndexOf(StartTag, StringComparison.OrdinalIgnoreCase);
         if (startIdx < 0)
-            return resultText!;
+            return text;
 
         var contentStart = startIdx + StartTag.Length;
-        var endIdx = resultText.IndexOf(EndTag, contentStart, StringComparison.OrdinalIgnoreCase);
+        var endIdx = text.IndexOf(EndTag, contentStart, StringComparison.OrdinalIgnoreCase);
         if (endIdx <= contentStart)
-            return resultText![contentStart..].Trim();
+            return text[contentStart..].Trim();
 
-        return resultText[contentStart..endIdx].Trim();
+        return text[contentStart..endIdx].Trim();
     }
 }

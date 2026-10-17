@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.CliCommands;
 
 /// <summary>
@@ -441,6 +440,7 @@ internal static class GhArgsBinder {
 
     /// <summary>尝试绑定系统 gh CLI 别名 — 成功返回 true 并更新 result/i，失败设 error 返回 false</summary>
     /// <param name="inlineValue">--key=value 形式的内联值（已由调用方剥离），null 表示无内联值。</param>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static bool TryBindAlias(string key, string toolName, string[] tail, ref int i,
         Dictionary<string, string> result, string token, string? inlineValue, out string? error) {
         error = null;
@@ -640,6 +640,7 @@ internal static class GhArgsBinder {
     }
 
     /// <summary>尝试绑定系统 gh CLI 短选项 — 成功返回 true 并更新 result/i，失败返回 false（不设 error，fall through 到位置参数）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static bool TryBindShortOption(string token, string toolName, string[] tail, ref int i,
         Dictionary<string, string> result, Dictionary<string, GhParam> byName, out string? error) {
         error = null;

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿
 namespace Core.Tests.Memdir;
 
@@ -162,6 +161,7 @@ public class MemoryStoreTests : IDisposable {
         results.All(m => m.Type == MemoryType.Feedback).Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetMemory_ShouldReturnMemory() {
         // Arrange
@@ -210,6 +210,7 @@ public class MemoryStoreTests : IDisposable {
         result.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ArchiveMemory_Existing_ShouldArchiveMemory() {
         // Arrange
@@ -235,6 +236,7 @@ public class MemoryStoreTests : IDisposable {
         result.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void RestoreMemory_Archived_ShouldUnarchiveMemory() {
         // Arrange
@@ -320,6 +322,7 @@ public class MemoryStoreTests : IDisposable {
         memory.Id.Length.Should().Be(16);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void MemoryEntry_ShouldTrackAccessCount() {
         // Arrange
@@ -500,6 +503,7 @@ public class MemoryStoreTests : IDisposable {
 
     // === 守卫补全确定性测试 (TASK031) ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Deterministic")]
     public void AddMemory_NullContent_ThrowsArgumentNullException() {
@@ -516,6 +520,7 @@ public class MemoryStoreTests : IDisposable {
         act.Should().Throw<ArgumentException>().WithParameterName("content");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Deterministic")]
     public void GetMemory_NullId_ThrowsArgumentNullException() {
@@ -532,6 +537,7 @@ public class MemoryStoreTests : IDisposable {
         act.Should().Throw<ArgumentException>().WithParameterName("id");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Deterministic")]
     public void DeleteMemory_NullId_ThrowsArgumentNullException() {
@@ -548,6 +554,7 @@ public class MemoryStoreTests : IDisposable {
         act.Should().Throw<ArgumentException>().WithParameterName("id");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Deterministic")]
     public void Search_NullQuery_ThrowsArgumentNullException() {
@@ -562,6 +569,7 @@ public class MemoryStoreTests : IDisposable {
         act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("limit");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Deterministic")]
     public void SearchByTags_NullTags_ThrowsArgumentNullException() {

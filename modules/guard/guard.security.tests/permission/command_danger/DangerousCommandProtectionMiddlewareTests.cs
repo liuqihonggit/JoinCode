@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Guard.Security.Tests;
 
 /// <summary>
@@ -30,6 +29,7 @@ public class DangerousCommandProtectionMiddlewareTests {
 
     #region Bypass 模式黑灯穿透漏洞修复验证
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData("rm -rf /")]
     [InlineData("rm -r -f /")]
@@ -68,6 +68,7 @@ public class DangerousCommandProtectionMiddlewareTests {
 
     #region 非 Bypass 模式 Dangerous 拒绝验证
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
     [InlineData(PermissionMode.Plan)]
     [InlineData(PermissionMode.Auto)]
@@ -112,6 +113,7 @@ public class DangerousCommandProtectionMiddlewareTests {
         context.Result.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DifferentLevelApproval_Should_Still_Confirm() {
         await using var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
@@ -124,6 +126,7 @@ public class DangerousCommandProtectionMiddlewareTests {
         context.Result!.ConfirmationRequired.Should().BeTrue("红灯命令在绿灯已批准时仍需确认");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DangerousLevel_Should_Never_AutoApprove_Even_If_In_ApprovedLevels() {
         await using var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);

@@ -1,11 +1,11 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
 /// 过期值缓存 — 周期性刷新的值缓存，到期后下次访问触发刷新
 /// </summary>
 /// <typeparam name="T">值类型</typeparam>
+[SuppressMessage("AOT", "JCC11003", Justification = "泛型缓存底层模式:T可能是引用类型,default=null但GetOrRefresh保证_refresh()有值")]
 public sealed class ExpiringValue<T> {
     private readonly Func<T> _refresh;
     private readonly long _intervalTicks;

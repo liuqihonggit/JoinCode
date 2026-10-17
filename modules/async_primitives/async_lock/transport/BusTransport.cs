@@ -1,5 +1,4 @@
 // JCC11003 抑制: 底层实现/测试代码, ! 用于可空抑制, 是必要用法
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
@@ -135,7 +134,8 @@ public sealed class BusTransport : ITransportTopology {
         return Task.CompletedTask;
     }
 
-    private async Task StartSlaveAsync(CancellationToken ct) {
+        [SuppressMessage("AotSafety", "JCC11003", Justification = "StartSlaveAsync 在 StartAsync 设置 _role 后调用, 内部不变量保证非空")]
+        private async Task StartSlaveAsync(CancellationToken ct) {
         _slaveClient = NamedPipeFactory.CreateClient(_pipeName);
 
         await _slaveClient.ConnectAsync(ct).ConfigureAwait(false);

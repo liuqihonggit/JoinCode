@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Services.Lsp;
 
 /// <summary>
@@ -85,6 +84,7 @@ internal sealed class LspMessageRouter {
     /// <param name="message">JSON-RPC 消息 DTO</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <param name="sendJsonAsync">发送 JSON 字符串的回调</param>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task DispatchRequestAsync(LspJsonRpcMessageDto message, CancellationToken cancellationToken, Func<string, CancellationToken, Task> sendJsonAsync) {
         var id = message.Id!;
         var method = message.Method!;
@@ -106,6 +106,7 @@ internal sealed class LspMessageRouter {
     /// 分发 JSON-RPC 响应到匹配的 pending 请求，完成 TaskCompletionSource
     /// </summary>
     /// <param name="message">JSON-RPC 消息 DTO</param>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private Task DispatchResponseAsync(LspJsonRpcMessageDto message) {
         var id = message.Id!;
 

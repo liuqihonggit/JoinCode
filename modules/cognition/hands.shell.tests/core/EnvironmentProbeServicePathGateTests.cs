@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Hands.Tests.Shell;
 
 /// <summary>
@@ -37,6 +36,7 @@ public class EnvironmentProbeServicePathGateTests {
         result.Should().Be(expected);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void WindowsPathToPosixPath_NullInput_ReturnsNull() {
         var result = PathConverter.WindowsPathToPosixPath(null!);
@@ -69,6 +69,7 @@ public class EnvironmentProbeServicePathGateTests {
         result.Should().Be(expected);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void PosixPathToWindowsPath_NullInput_ReturnsNull() {
         var result = PathConverter.PosixPathToWindowsPath(null!);
@@ -126,6 +127,7 @@ public class EnvironmentProbeServicePathGateTests {
         result.Should().Be("copy /c/Users/test/a.txt /c/Users/test/b.txt");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GateCommandPaths_NullOrEmpty_ReturnsAsIs() {
         PathConverter.GateCommandPaths(null!, true).Should().BeNull();

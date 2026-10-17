@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Downloader.Tests;
 
 /// <summary>
@@ -12,6 +11,7 @@ public sealed class ChunkDownloaderTests {
 
     // === Range 请求头正确 ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Download_SendsCorrectRangeHeader() {
         var handler = new StubHandler(_ => OkPartial(new byte[1024]));
@@ -27,6 +27,7 @@ public sealed class ChunkDownloaderTests {
 
     // === 续传偏移:Downloaded=500 时 Range 从 500 开始 ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Download_WithExistingDownloaded_RangeStartsFromOffset() {
         var handler = new StubHandler(_ => OkPartial(new byte[524]));

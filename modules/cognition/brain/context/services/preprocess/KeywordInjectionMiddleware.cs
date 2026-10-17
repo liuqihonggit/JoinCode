@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Context;
 
 /// <summary>
@@ -88,6 +87,7 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
     /// <summary>
     /// 动态关键词注入
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task InjectDynamicKeywordAsync(PreprocessContext context, DynamicKeywordMatchResult dynamicMatch, CancellationToken ct) {
         _logger?.LogDebug("[DynamicKeyword] 检测到动态关键词 '{Keyword}'，Section: {Section}",
             dynamicMatch.MatchedKeyword, dynamicMatch.SectionName);

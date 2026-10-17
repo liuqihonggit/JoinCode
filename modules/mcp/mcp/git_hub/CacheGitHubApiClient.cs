@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace McpToolDispatch;
 
 /// <summary>
@@ -46,6 +45,7 @@ internal sealed class CacheGitHubApiClient : IGitHubApiClient {
     }
 
     /// <summary>带缓存的 GET 请求 — 先读缓存(命中续期),未命中调内层+写缓存</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<GitHubApiResponse> CacheGetAsync(
         string path, IReadOnlyDictionary<string, string>? query, bool paginate, CancellationToken ct) {
         var tracker = GhTimingTracker.CurrentTimer.Value;
@@ -68,6 +68,7 @@ internal sealed class CacheGitHubApiClient : IGitHubApiClient {
     }
 
     /// <summary>带缓存的 GraphQL 查询 — 缓存 key 用 body 的 SHA256 哈希前8位</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<GitHubApiResponse> CacheGraphqlAsync(string? body, CancellationToken ct) {
         var tracker = GhTimingTracker.CurrentTimer.Value;
         var readStart = Stopwatch.GetTimestamp();

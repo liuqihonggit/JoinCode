@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Hands.Tests.Build;
 
 /// <summary>
@@ -83,6 +82,7 @@ public class BuildQueueRouterTests {
             "3 个 Worker 并行执行 3 个 500ms 编译,总时间应远小于串行 1500ms");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CancelAsync_BuildingBuild_ReturnsTrue() {
         var buildTcs = new TaskCompletionSource<SystemActuatorExecutionResult>();
@@ -122,6 +122,7 @@ public class BuildQueueRouterTests {
         cancelled.Should().BeFalse();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetBuild_ReturnsEntry() {
         await using var sut = await CreateSut();

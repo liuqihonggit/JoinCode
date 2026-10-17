@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Guard.Hooks.Tests.Permission.Hooks.ToolPermission;
 
 /// <summary>
@@ -202,6 +201,7 @@ public sealed class InteractiveHandlerTests {
     // === CreatePermissionResult: null 守卫 ===
 
     /// <summary>null 参数抛出 ArgumentNullException。</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CreatePermissionResult_NullDecision_ThrowsArgumentNullException() {
         var act = () => InteractiveHandler.CreatePermissionResult(null!);
@@ -213,6 +213,7 @@ public sealed class InteractiveHandlerTests {
     // === ExtractCommand: null 守卫 ===
 
     /// <summary>ExtractCommand null 参数抛出 ArgumentNullException。</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ExtractCommand_NullInput_ThrowsArgumentNullException() {
         var act = () => InteractiveHandler.ExtractCommand(null!);

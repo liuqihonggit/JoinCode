@@ -1,6 +1,6 @@
 // JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC1017, JCC11003
+#pragma warning disable JCC1017
 namespace MockServer.E2E.Tests.E2E;
 
 /// <summary>
@@ -16,6 +16,7 @@ public sealed class SubAgentEventStreamE2ETests {
 
     public SubAgentEventStreamE2ETests(ITestOutputHelper output) => _output = output;
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AgentToolSpawn_ShouldEmitAgentEventsThroughMainStream() {
         const string args = "{\"name\":\"e2e-sub\",\"subagent_type\":\"executor:search\",\"description\":\"检查README文件\",\"prompt\":\"读取当前目录README并总结\"}";
@@ -49,6 +50,7 @@ public sealed class SubAgentEventStreamE2ETests {
             "主对话应有自己的 Agent 工具调用事件（AgentId 为 null）");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AgentToolFork_WithoutSubagentType_ShouldEmitAgentStartedImmediately() {
         // fork 盲区修复契约：省略 subagent_type 走后台 fork 短路路径，

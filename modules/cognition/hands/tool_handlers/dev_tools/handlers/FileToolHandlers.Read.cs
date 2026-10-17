@@ -1,9 +1,9 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Tools.Handlers;
 
 public partial class FileToolHandlers {
     /// <summary>从本地文件系统读取文件，支持文本/图像/PDF/Notebook 等格式</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [McpTool(FileToolNameEnumConstants.FileRead, "Read a file from the local filesystem", "file", ConcurrencySafe = true)]
     public async Task<ToolResult> FileReadAsync(
         [McpToolParameter("The absolute path to the file to read")] string file_path,

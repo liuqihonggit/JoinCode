@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Vision.Tests;
 
 /// <summary>
@@ -113,6 +112,7 @@ public sealed class QuadtreeEncoderTests {
         neighbor.Should().Be("L0.1");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetNeighbor_Depth2_TraversesCorrectly() {
         var neighbor = _encoder.GetNeighbor("L0.2.1", CardinalDirection.E, 100, 100, 2);

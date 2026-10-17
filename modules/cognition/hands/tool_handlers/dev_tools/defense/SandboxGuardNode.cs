@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Tools.Handlers;
 
 /// <summary>
@@ -31,6 +30,7 @@ public sealed class SandboxGuardNode {
     /// <param name="ct">取消令牌</param>
     /// <returns>沙箱内绝对路径</returns>
     /// <exception cref="UnauthorizedAccessException">路径越出沙箱范围</exception>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public async ValueTask<string> ResolvePathAsync(string path, CancellationToken ct) {
         if (_sandboxManager is null || !_sandboxManager.IsInSandbox) return path;
         var sandboxId = _sandboxManager.CurrentSandboxId;

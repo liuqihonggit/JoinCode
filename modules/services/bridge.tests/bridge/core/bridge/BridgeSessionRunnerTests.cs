@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Bridge.Tests;
 
 /// <summary>
@@ -30,6 +29,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable {
         return _sut.DisposeAsync();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task StartSessionAsync_ShouldCreateActiveSession() {
         // Arrange
@@ -66,6 +66,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable {
             .WithMessage("*上限*").ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task StopSessionAsync_ShouldCloseSession() {
         // Arrange
@@ -80,6 +81,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable {
         found!.Status.Should().Be(BridgeSessionStatus.Closed);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetSession_ShouldReturnSession_WhenExists() {
         // Arrange
@@ -163,6 +165,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable {
         _sut.GetSession(session.SessionId).Should().BeNull("过期会话应被移除");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SuspendSessionAsync_ShouldSetStatusToSuspended() {
         // Arrange
@@ -177,6 +180,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable {
         found!.Status.Should().Be(BridgeSessionStatus.Suspended);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SuspendSessionAsync_ShouldNotSuspend_ClosedSession() {
         // Arrange
@@ -192,6 +196,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable {
         found!.Status.Should().Be(BridgeSessionStatus.Closed);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ResumeSessionAsync_ShouldSetStatusToActive() {
         // Arrange
@@ -207,6 +212,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable {
         found!.Status.Should().Be(BridgeSessionStatus.Active);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ResumeSessionAsync_ShouldNotResume_NonSuspendedSession() {
         // Arrange
@@ -221,6 +227,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable {
         found!.Status.Should().Be(BridgeSessionStatus.Active);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CreateSnapshot_ShouldCaptureSessionState() {
         // Arrange
@@ -246,6 +253,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable {
         snapshot.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RestoreFromSnapshotAsync_ShouldResumeSuspendedSession() {
         // Arrange
@@ -261,6 +269,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable {
         restored!.Status.Should().Be(BridgeSessionStatus.Active);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RestoreFromSnapshotAsync_ShouldReturnNull_WhenSessionClosed() {
         // Arrange

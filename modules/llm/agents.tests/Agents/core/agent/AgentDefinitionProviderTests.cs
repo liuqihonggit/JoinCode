@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Sync.Tests.Agents;
 
 public sealed class AgentDefinitionProviderTests {
@@ -123,6 +122,7 @@ public sealed class AgentDefinitionProviderTests {
         doctorAgent.DisallowedTools.Should().Contain(AgentToolNameEnumConstants.Agent);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetBuiltInDefinitions_AllToolNames_AreValidToolNamesConstants() {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
@@ -154,6 +154,7 @@ public sealed class AgentDefinitionProviderTests {
         codeAgent.Tools.Should().Contain(SearchToolNameEnumConstants.SearchCodebase, $"code agent should use SearchToolNameEnumConstants.SearchCodebase ('{SearchToolNameEnumConstants.SearchCodebase}')");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseDefinitionFile_ValidFrontmatter_ParsesCorrectly() {
         var content = """
@@ -180,6 +181,7 @@ public sealed class AgentDefinitionProviderTests {
         result.SystemPrompt.Should().Be("You are a custom test agent.");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseDefinitionFile_NoFrontmatter_UsesContentAsPrompt() {
         var content = "You are a simple agent without frontmatter.";
@@ -204,6 +206,7 @@ public sealed class AgentDefinitionProviderTests {
         definitions.Select(d => d.DisplayId).Should().Contain(["coordinator", "executor:code", "executor:search", "executor:explore", "executor:plan", "executor:doctor"]);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetAgentDefinitionAsync_ReturnsCorrectAgentByType() {
         await using var provider = new AgentDefinitionProvider(new IO.FileSystem.PhysicalFileSystem());

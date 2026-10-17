@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Hands.Desktop.Tests;
 
 /// <summary>
@@ -7,6 +6,7 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// </summary>
 public sealed class DesktopSceneDetectClickTests {
     /// <summary>AC-07: detect 识别到"="按钮后 suggested_next 含 desktop_click</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Detect_FindsEqualsButton_SuggestsClick() {
         var detectMock = new Mock<IDesktopSceneDetectService>();
@@ -29,6 +29,7 @@ public sealed class DesktopSceneDetectClickTests {
     }
 
     /// <summary>AC-07: detect 识别到输入框后 suggested_next 含 desktop_type</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Detect_FindsInput_SuggestsType() {
         var detectMock = new Mock<IDesktopSceneDetectService>();
@@ -46,6 +47,7 @@ public sealed class DesktopSceneDetectClickTests {
     }
 
     /// <summary>AC-07: click 成功后 suggested_next 含 desktop_look</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Click_Succeeds_SuggestsLook() {
         var inputMock = new Mock<IDesktopInputService>();
@@ -69,6 +71,7 @@ public sealed class DesktopSceneDetectClickTests {
     }
 
     /// <summary>AC-07: click 失败（危险坐标拦截）后 suggested_next 含 desktop_look 重新确认</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Click_BlockedBySafety_SuggestsLookToRetry() {
         var inputMock = new Mock<IDesktopInputService>();
@@ -90,6 +93,7 @@ public sealed class DesktopSceneDetectClickTests {
     }
 
     /// <summary>AC-07: 完整链路 mock — look → zoom → detect → click 全链路 suggested_next 串联</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FullChain_LookZoomDetectClick_SuggestedNextChain() {
         var captureMock = new Mock<IDesktopSceneCaptureService>();

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿
 namespace Core.Tests.Context;
 
@@ -203,6 +202,7 @@ public partial class ContextCompressionIntegrationTests {
         _output.WriteLine($"压缩后内容: {promotedLayer.Content[..Math.Min(100, promotedLayer.Content.Length)]}...");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ContextHierarchy_DemoteLayer_ShouldRestoreContent() {
         // Arrange
@@ -330,6 +330,7 @@ public partial class ContextCompressionIntegrationTests {
         _output.WriteLine($"压缩比率: {result.CompressionRatio:P2}");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task CompressionStrategyFactory_RegisterAndRetrieve_ShouldWork() {
         await using var factory = new CompressionStrategyFactory();

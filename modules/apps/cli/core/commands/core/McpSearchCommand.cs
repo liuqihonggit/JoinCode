@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.CliCommands;
 
 /// <summary>
@@ -10,6 +9,7 @@ internal static class McpSearchCommand {
     /// <summary>
     /// 执行 mcp_search — &lt;query&gt; [--json]。
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
         var unknownError = FlatSubCommandRouter.DetectUnknownOptions(args, CliArgCliOptionConstants.AllOptionNames);
         if (unknownError is not null) {

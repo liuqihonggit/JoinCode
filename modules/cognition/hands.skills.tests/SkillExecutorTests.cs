@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Skills;
 
 public class SkillExecutorTests {
@@ -142,6 +141,7 @@ public class SkillExecutorTests {
         skill.Steps[1].Next.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SkillStep_WithLoopConfig_ShouldStoreLoop() {
         var step = new SkillStep {
@@ -260,6 +260,7 @@ public class SkillExecutorTests {
         skill.Extra["custom_field"].GetString().Should().Be("value");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SkillParameter_WithValidation_ShouldStoreValidation() {
         var param = new SkillParameter {
@@ -316,6 +317,7 @@ public class SkillExecutorTests {
         step.TimeoutSeconds.Should().Be(60);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void SkillStep_WithRetry_ShouldStoreRetryConfig() {
         var step = new SkillStep {

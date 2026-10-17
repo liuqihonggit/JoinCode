@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Ssh;
 
 /// <summary>
@@ -129,8 +128,8 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
             case DestroySessionCmd cmd: {
                 var hadSession = Volatile.Read(ref _sessions).TryGetValue(cmd.SessionId, out var session);
                 ImmutableInterlocked.Update(ref _sessions, d => d.Remove(cmd.SessionId));
-                if (hadSession) {
-                    session!.ConnectionStateChanged -= OnSessionConnectionStateChanged;
+                if (hadSession && session is not null) {
+                    session.ConnectionStateChanged -= OnSessionConnectionStateChanged;
                     await session.DisposeAsync().ConfigureAwait(false);
                     _logger?.LogInformation("SSH 会话已销毁: {SessionId}", cmd.SessionId);
                     RecordSessionMetrics("destroy", true);

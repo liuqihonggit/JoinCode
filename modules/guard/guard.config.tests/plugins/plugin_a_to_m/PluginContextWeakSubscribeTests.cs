@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Plugins;
 
 public sealed class PluginContextWeakSubscribeTests {
@@ -50,6 +49,7 @@ public sealed class PluginContextWeakSubscribeTests {
         return new WeakReference<Subscriber>(sub);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void WeakSubscribe_NullSource_Throws() {
         var services = new ServiceCollection();
@@ -60,6 +60,7 @@ public sealed class PluginContextWeakSubscribeTests {
             ctx.WeakSubscribe<Subscriber, int>(null!, sub, (s, arg) => { }));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void WeakSubscribe_NullTarget_Throws() {
         var services = new ServiceCollection();
@@ -70,6 +71,7 @@ public sealed class PluginContextWeakSubscribeTests {
             ctx.WeakSubscribe(source, (Subscriber)null!, (Subscriber s, int arg) => { }));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void WeakSubscribe_NullHandler_Throws() {
         var services = new ServiceCollection();

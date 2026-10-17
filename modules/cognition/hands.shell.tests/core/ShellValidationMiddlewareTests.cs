@@ -1,11 +1,11 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Hands.Tests.Shell;
 
 /// <summary>
 /// ShellValidationMiddleware 单元测试 — 验证 Shell 命令参数验证中间件的结构化诊断
 /// </summary>
 public class ShellValidationMiddlewareTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task EmptyCommand_SetsValidationErrorWithDiagnostic() {
         await using var sut = new ShellValidationMiddleware();

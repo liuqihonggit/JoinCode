@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Plugins;
 
 public sealed class CallableServiceTests {
@@ -21,16 +20,19 @@ public sealed class CallableServiceTests {
         Assert.Equal(10, service.Call(5));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullFunc_Throws() {
         Assert.Throws<ArgumentNullException>(() => new CallableService<string, int>(null!));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_NullFuncNoArg_Throws() {
         Assert.Throws<ArgumentNullException>(() => new CallableService<int>(null!));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ServiceInvokeAttribute_CanBeAppliedToMethod() {
         var method = typeof(TestServiceWithInvoke).GetMethod(nameof(TestServiceWithInvoke.DoWork));

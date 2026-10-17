@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infrastructure.Http;
 
 /// <summary>
@@ -51,17 +50,18 @@ public sealed class ResilientHttpExecutor {
         CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(operation);
 
-        if (_circuitBreaker is not null && !_circuitBreaker.TryProbe()) {
+        if (_circuitBreaker is not null && _policy.CircuitBreaker is { } cb && !_circuitBreaker.TryProbe()) {
             throw new CircuitBreakerOpenException(
-                $"[{_policy.Name}] 熔断器开启: 连续{_circuitBreaker.ConsecutiveFailures}次失败，{_policy.CircuitBreaker!.OpenDuration.TotalSeconds}s 后重试");
+                $"[{_policy.Name}] 熔断器开启: 连续{_circuitBreaker.ConsecutiveFailures}次失败，{cb.OpenDuration.TotalSeconds}s 后重试");
         }
 
-        using var totalTimeoutCts = _policy.TotalTimeout.HasValue
+        var totalTimeout = _policy.TotalTimeout;
+        using var totalTimeoutCts = totalTimeout.HasValue
             ? CancellationTokenSource.CreateLinkedTokenSource(ct)
             : null;
 
         if (totalTimeoutCts is not null) {
-            totalTimeoutCts.CancelAfter(_policy.TotalTimeout!.Value);
+            totalTimeoutCts.CancelAfter(totalTimeout.GetValueOrDefault());
         }
 
         var effectiveCt = totalTimeoutCts?.Token ?? ct;
@@ -83,7 +83,7 @@ public sealed class ResilientHttpExecutor {
 
         return await ExecuteRetryLoopAsync(
                 ect => ExecuteOnceAsync(operation, operationName, ect),
-                operationName, retry!, ct, effectiveCt).ConfigureAwait(false);
+                operationName, retry ?? throw new InvalidOperationException("retry is null"), ct, effectiveCt).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -105,12 +105,13 @@ public sealed class ResilientHttpExecutor {
                 $"[{_policy.Name}] 熔断器开启: 连续{_circuitBreaker.ConsecutiveFailures}次失败");
         }
 
-        using var totalTimeoutCts = _policy.TotalTimeout.HasValue
+        var totalTimeout = _policy.TotalTimeout;
+        using var totalTimeoutCts = totalTimeout.HasValue
             ? CancellationTokenSource.CreateLinkedTokenSource(ct)
             : null;
 
         if (totalTimeoutCts is not null) {
-            totalTimeoutCts.CancelAfter(_policy.TotalTimeout!.Value);
+            totalTimeoutCts.CancelAfter(totalTimeout.GetValueOrDefault());
         }
 
         var effectiveCt = totalTimeoutCts?.Token ?? ct;
@@ -131,7 +132,7 @@ public sealed class ResilientHttpExecutor {
         }
 
         return await ExecuteRetryLoopAsync(
-                operation, operationName, retry!, ct, effectiveCt).ConfigureAwait(false);
+                operation, operationName, retry ?? throw new InvalidOperationException("retry is null"), ct, effectiveCt).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -151,7 +152,7 @@ public sealed class ResilientHttpExecutor {
         var maxLabel = budget.HasValue ? "∞" : retry.MaxRetries.ToString();
 
         while (true) {
-            if (sw is not null && sw.Elapsed >= budget!.Value) {
+            if (sw is not null && sw.Elapsed >= budget.GetValueOrDefault()) {
                 throw new NetworkRetryBudgetExhaustedException(
                     $"[{_policy.Name}] 重试预算耗尽 (尝试 {attempt} 次, 实际 {sw.Elapsed.TotalMilliseconds:F0}ms)");
             }

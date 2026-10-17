@@ -1,12 +1,13 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace McpToolDispatch.Tests.Execution;
 
 /// <summary>
 /// ToolTemplateService 单元测试 — 验证模板加载、Schema构建、占位符替换
 /// </summary>
 public sealed class ToolTemplateServiceTest : IAsyncLifetime {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private InMemoryFileSystem _fs = null!;
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private ToolTemplateService _service = null!;
 
     public Task InitializeAsync() {
@@ -79,6 +80,7 @@ public sealed class ToolTemplateServiceTest : IAsyncLifetime {
         listed.Should().HaveCount(1);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task LoadTemplatesAsync_InvalidJson_SkipsFile() {
         var templatesDir = Path.Combine(

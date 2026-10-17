@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Goal;
 
 /// <summary>
@@ -70,6 +69,7 @@ internal sealed class AgentNodeExecutor : INodeExecutor {
     }
 
     /// <summary>通过 IAgentService 执行 Agent 节点 — 复用完整基础设施</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<NodeResult> ExecuteViaAgentServiceAsync(string nodeId, GoalNodePayload payload, string instruction, GraphExecutionContext context, CancellationToken ct) {
         var spawnOptions = new AgentSpawnOptions {
             Description = payload.Name,

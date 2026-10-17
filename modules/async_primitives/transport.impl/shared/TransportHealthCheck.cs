@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Transport;
 
 /// <summary>
@@ -116,7 +115,7 @@ public sealed class StdioHealthCheck : ITransportHealthCheck {
                 "No command configured for Stdio transport", sw.Elapsed));
         }
 
-        var commandName = _command!;
+        var commandName = _command ?? string.Empty;
         var isPath = commandName.Contains(Path.DirectorySeparatorChar) ||
                      commandName.Contains(Path.AltDirectorySeparatorChar);
 

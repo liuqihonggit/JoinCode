@@ -1,8 +1,8 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Prompts;
 
 public class DynamicKeywordMatchingTests {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryMatch_FactInquiryKeyword_ReturnsMatch() {
         var config = CreateConfig("fact_inquiry", ["写一", "分析", "总结"]);
@@ -13,6 +13,7 @@ public class DynamicKeywordMatchingTests {
         result.MatchedKeyword.Should().Be("写一");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryMatch_UserDelegationKeyword_ReturnsMatch() {
         var config = CreateConfig("user_delegation", ["睡觉", "离开", "走了"]);
@@ -43,6 +44,7 @@ public class DynamicKeywordMatchingTests {
         result.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryMatch_EmptyInput_ReturnsNull() {
         var config = CreateConfig("fact_inquiry", ["写一"]);
@@ -51,6 +53,7 @@ public class DynamicKeywordMatchingTests {
         DynamicKeywordMatcher.TryMatch("   ", config).Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryMatch_CustomContent_ReturnsCustomContent() {
         var config = new DynamicKeywordConfig {
@@ -65,6 +68,7 @@ public class DynamicKeywordMatchingTests {
         result.CustomContent.Should().Be("自定义注入内容");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryMatch_CaseInsensitive_Matches() {
         var config = CreateConfig("test", ["Chrome"]);
@@ -82,6 +86,7 @@ public class DynamicKeywordMatchingTests {
         DynamicKeywordMatcher.TryMatch("先睡觉", config).Should().NotBeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryMatch_MultipleSections_FirstMatchWins() {
         var config = new DynamicKeywordConfig {
@@ -96,6 +101,7 @@ public class DynamicKeywordMatchingTests {
         result!.SectionName.Should().Be("fact_inquiry");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryMatch_RepeatedCalls_SameConfig_ReturnsConsistentResult() {
         var config = CreateConfig("test", ["分析", "总结", "规划"]);
@@ -112,6 +118,7 @@ public class DynamicKeywordMatchingTests {
         result1.SectionName.Should().Be(result2.SectionName).And.Be(result3.SectionName);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryMatch_DifferentConfigs_CacheIsolation() {
         var config1 = CreateConfig("section_a", ["分析"]);
@@ -129,6 +136,7 @@ public class DynamicKeywordMatchingTests {
         result2.MatchedKeyword.Should().Be("睡觉");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TryMatch_LargeConfig_RepeatedCalls_PreserveCorrectness() {
         var keywords = new List<string> { "写一", "做一", "分析", "总结", "规划", "生成", "重构", "修复", "添加", "修改", "实现", "替换", "归纳", "合并", "整理" };

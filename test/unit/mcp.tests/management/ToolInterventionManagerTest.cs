@@ -1,12 +1,13 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Mcp.Tests.Management;
 
 /// <summary>
 /// ToolInterventionManager 单元测试 — 验证规则增删、黑名单、降权、过期、重定向
 /// </summary>
 public sealed class ToolInterventionManagerTest : IAsyncLifetime {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private InMemoryFileSystem _fs = null!;
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private ToolInterventionManager _manager = null!;
 
     public Task InitializeAsync() {
@@ -21,6 +22,7 @@ public sealed class ToolInterventionManagerTest : IAsyncLifetime {
 
     // === AddRuleAsync ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AddRuleAsync_Blacklist_CreatesBlacklistRule() {
         await _manager.AddRuleAsync("dangerous_tool", InterventionType.Blacklist, "安全风险");
@@ -32,6 +34,7 @@ public sealed class ToolInterventionManagerTest : IAsyncLifetime {
         rule.Expiry.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AddRuleAsync_Downgrade_CreatesDowngradeRuleWithPenalty() {
         await _manager.AddRuleAsync("slow_tool", InterventionType.Downgrade, "性能问题");
@@ -42,6 +45,7 @@ public sealed class ToolInterventionManagerTest : IAsyncLifetime {
         rule.ScorePenalty.Should().Be(-50);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AddRuleAsync_Redirect_CreatesRedirectRule() {
         await _manager.AddRuleAsync("cmd", InterventionType.Redirect, "推荐使用PowerShell");
@@ -52,6 +56,7 @@ public sealed class ToolInterventionManagerTest : IAsyncLifetime {
         rule.RedirectTo.Should().Be("powershell");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AddRuleAsync_Redirect_BashRedirectsToPowershell() {
         await _manager.AddRuleAsync("bash", InterventionType.Redirect, "推荐使用PowerShell");
@@ -60,6 +65,7 @@ public sealed class ToolInterventionManagerTest : IAsyncLifetime {
         rule!.RedirectTo.Should().Be("powershell");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AddRuleAsync_Redirect_UnknownTool_HasNoRedirectTarget() {
         await _manager.AddRuleAsync("unknown", InterventionType.Redirect, "无替代");
@@ -68,6 +74,7 @@ public sealed class ToolInterventionManagerTest : IAsyncLifetime {
         rule!.RedirectTo.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AddRuleAsync_WithDuration_SetsExpiry() {
         var duration = TimeSpan.FromMinutes(30);
@@ -79,6 +86,7 @@ public sealed class ToolInterventionManagerTest : IAsyncLifetime {
         rule.Expiry!.Value.Should().BeCloseTo(DateTime.UtcNow + duration, TimeSpan.FromSeconds(5));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AddRuleAsync_Overwrite_ReplacesExistingRule() {
         await _manager.AddRuleAsync("tool_a", InterventionType.Blacklist, "原因1");
@@ -180,6 +188,7 @@ public sealed class ToolInterventionManagerTest : IAsyncLifetime {
         rule.Should().NotBeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task GetRuleAsync_NoExpiry_RuleNeverExpires() {
         await _manager.AddRuleAsync("permanent", InterventionType.Blacklist, "永久禁用");
@@ -213,6 +222,7 @@ public sealed class ToolInterventionManagerTest : IAsyncLifetime {
 
     // === 持久化 ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task AddRuleAsync_PersistsToDisk() {
         await _manager.AddRuleAsync("persist_tool", InterventionType.Blacklist, "持久化测试");

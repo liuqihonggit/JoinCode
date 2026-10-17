@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Agents.Coordinator;
 
 /// <summary>
@@ -36,6 +35,7 @@ public sealed class FileChatRoomStoreTests : IDisposable {
         return state;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SaveAsync_LoadAsync_RoundTrip() {
         var state = CreateState("team_001", messageCount: 3);
@@ -105,6 +105,7 @@ public sealed class FileChatRoomStoreTests : IDisposable {
         needsCleanup[0].MaxCount.Should().Be(1000);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SaveAsync_OverwriteExisting() {
         var state1 = CreateState("team_overwrite", messageCount: 1);

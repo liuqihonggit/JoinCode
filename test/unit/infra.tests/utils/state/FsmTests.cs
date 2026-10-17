@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infra.Tests.Utils.State;
 
 
@@ -109,6 +108,7 @@ public class FsmTests {
         result.Outcome.Should().Be(TransitionOutcome.GuardFailed);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Trigger_Action_ShouldInvokeAfterTransition() {
         var ctx = new FsmTestContext();
@@ -173,6 +173,7 @@ public class FsmTests {
         events.Should().NotContain(FsmTestEvent.Complete);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void StateChanged_ShouldFireOnTransition() {
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(), FsmTestState.Idle);
@@ -324,6 +325,7 @@ public class FsmTests {
                 "排序数组每相邻元素应非降序");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ArrayConstructor_WithGuard_ShouldWork() {
         var ctx = new FsmTestContext { ConsecutiveFailures = 5 };
@@ -344,6 +346,7 @@ public class FsmTests {
         result.ToState.Should().Be(FsmTestState.Completed);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ArrayConstructor_WithAction_ShouldInvokeAction() {
         var ctx = new FsmTestContext();
@@ -363,6 +366,7 @@ public class FsmTests {
         ctx.ActionInvoked.Should().BeTrue("Action 应在转换后执行");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetAvailableEvents_WithArrayBackend_ShouldReturnGuardedEvents() {
         var ctx = new FsmTestContext { ConsecutiveFailures = 1 };

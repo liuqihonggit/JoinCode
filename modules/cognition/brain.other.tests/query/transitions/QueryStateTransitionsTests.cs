@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Query.Transitions;
 
 public class QueryStateTransitionsTests {
@@ -92,6 +91,7 @@ public class QueryStateTransitionsTests {
         _transitions.CurrentState.Should().Be(QueryState.Idle);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void StateChanged_ValidTransition_ShouldFireEvent() {
         StateChangedEventArgs<QueryState>? capturedArgs = null;
@@ -105,6 +105,7 @@ public class QueryStateTransitionsTests {
         capturedArgs.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void StateChanged_Reset_ShouldFireEvent() {
         _transitions.TransitionTo(QueryState.Initializing);

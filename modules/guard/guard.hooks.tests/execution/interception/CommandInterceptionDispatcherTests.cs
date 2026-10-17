@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Guard.Tests.Hooks.Execution.Interception;
 
 /// <summary>
@@ -66,6 +65,7 @@ public sealed class CommandInterceptionDispatcherTests {
 
     // === Deny ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DispatchAsync_GuardDeny_ShortCircuitsWithError() {
         var diag = ToolDiagnostic.Create("命令被拒绝", "禁止直接执行 git commit");
@@ -94,6 +94,7 @@ public sealed class CommandInterceptionDispatcherTests {
 
     // === Redirect ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DispatchAsync_GuardRedirect_ShortCircuitsWithHint() {
         var guard = new StubGuard("redirectCommit", priority: 1000,
@@ -109,6 +110,7 @@ public sealed class CommandInterceptionDispatcherTests {
 
     // === Handoff ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DispatchAsync_Handoff_FallsThroughToInterceptors() {
         var handoffGuard = new StubGuard("handoff", priority: 100, new CommandDecision.Handoff());
@@ -125,6 +127,7 @@ public sealed class CommandInterceptionDispatcherTests {
 
     // === Interceptor 链 ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DispatchAsync_InterceptorHandled_ShortCircuits() {
         var interceptor = new StubInterceptor("build", priority: 100,
@@ -147,6 +150,7 @@ public sealed class CommandInterceptionDispatcherTests {
         outcome.ShortCircuitResult.Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DispatchAsync_InterceptorException_SkipsAndContinues() {
         var throwingInterceptor = new StubInterceptor("thrower", priority: 100, throwOnHandle: true);

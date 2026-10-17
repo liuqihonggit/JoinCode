@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Agents.Coordinator.Liveness;
 
 /// <summary>
@@ -121,6 +120,7 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable {
     /// <summary>
     /// 定时扫描循环
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task ScanLoopAsync() {
         try {
             while (!_stopping && await _scanTimer!.WaitForNextTickAsync(CancellationToken.None).ConfigureAwait(false)) {
@@ -246,6 +246,7 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable {
         }
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private bool TryRemoveDetector(string key, out SubAgentIdleDetector value) {
         value = null!;
         var current = _detectors;

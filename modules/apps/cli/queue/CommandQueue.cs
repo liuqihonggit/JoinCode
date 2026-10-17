@@ -1,6 +1,6 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 // JCC11005 抑制: 存量返回 null 语义, 后续评估改 TryGet
-#pragma warning disable JCC11003, JCC11005
+#pragma warning disable JCC11005
 namespace JoinCode.Queue;
 
 /// <summary>
@@ -86,6 +86,7 @@ public sealed class CommandQueue : IDisposable {
     /// <summary>尝试出队。</summary>
     /// <param name="cmd">出队的命令。</param>
     /// <returns>非空返回 true；空返回 false。</returns>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public bool TryDequeue(out QueuedCommand cmd) {
         var dequeued = Dequeue();
         cmd = dequeued!;

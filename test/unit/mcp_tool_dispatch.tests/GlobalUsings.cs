@@ -1,3 +1,4 @@
+global using System.Diagnostics.CodeAnalysis;
 global using FluentAssertions;
 global using IO.FileSystem;
 global using JoinCode.Abstractions.Scenarios;

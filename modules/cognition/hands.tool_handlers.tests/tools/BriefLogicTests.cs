@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests;
 
 public class BriefLogicTests {
@@ -45,6 +44,7 @@ public class BriefLogicTests {
         Assert.Contains("大小", result.ErrorMessage);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ValidateAttachment_NullPath_ReturnsInvalidResult() {
         var result = _briefLogic.ValidateAttachment(null!);

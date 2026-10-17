@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Memdir;
 
 /// <summary>
@@ -353,6 +352,7 @@ public sealed class MemoryTruncatorPureLogicTests {
 
     // === 边界:TruncateByBytes null 守卫 ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void TruncateByBytes_NullContent_ThrowsArgumentNullException() {
         var act = () => MemoryTruncator.TruncateByBytes(null!, 110);
@@ -394,12 +394,14 @@ public sealed class MemoryTruncatorPureLogicTests {
 
     // === 边界:CalculateLineRelevance null 守卫 ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CalculateLineRelevance_NullQueryWords_ThrowsArgumentNullException() {
         var act = () => MemoryTruncator.CalculateLineRelevance("content", null!);
         act.Should().Throw<ArgumentNullException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void CalculateLineRelevance_NullLine_ReturnsZero() {
         // string.IsNullOrWhiteSpace(null) → true → 返回 0,不抛异常
@@ -409,12 +411,14 @@ public sealed class MemoryTruncatorPureLogicTests {
 
     // === 边界:ScoreAndSelectLines null 守卫 ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ScoreAndSelectLines_NullLines_ThrowsArgumentNullException() {
         var act = () => MemoryTruncator.ScoreAndSelectLines(null!, new[] { "query" }, 10);
         act.Should().Throw<ArgumentNullException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ScoreAndSelectLines_NullQueryWords_ThrowsArgumentNullException() {
         var act = () => MemoryTruncator.ScoreAndSelectLines(new[] { "line" }, null!, 10);
@@ -444,6 +448,7 @@ public sealed class MemoryTruncatorPureLogicTests {
 
     // === 边界:AssembleTruncatedLines null 守卫 ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void AssembleTruncatedLines_NullScoredLines_ThrowsArgumentNullException() {
         var act = () => MemoryTruncator.AssembleTruncatedLines(null!, totalLineCount: 5, maxLines: 10);

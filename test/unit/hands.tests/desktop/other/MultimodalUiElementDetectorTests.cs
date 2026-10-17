@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace JoinCode.Hands.Desktop.Tests;
 
 /// <summary>
@@ -200,6 +199,7 @@ public sealed class MultimodalUiElementDetectorTests {
 
     #region ParseFindResult
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ParseFindResult_FoundTrue_ReturnsElement() {
         var json = """
@@ -295,6 +295,7 @@ public sealed class MultimodalUiElementDetectorTests {
         await act.Should().ThrowAsync<ArgumentException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DetectAsync_PassesMultimodalContentBlock_ToQueryService() {
         MessageList? capturedMessages = null;
@@ -324,6 +325,7 @@ public sealed class MultimodalUiElementDetectorTests {
 
     #region FindByDescriptionAsync (with Mock IQueryService)
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FindByDescriptionAsync_FoundTrue_ReturnsElement() {
         var llmResponse = """
@@ -372,6 +374,7 @@ public sealed class MultimodalUiElementDetectorTests {
         await act2.Should().ThrowAsync<ArgumentException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task FindByDescriptionAsync_PassesDescriptionInUserMessage() {
         MessageList? capturedMessages = null;

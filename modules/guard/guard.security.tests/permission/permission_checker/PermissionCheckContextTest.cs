@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Guard.Security.Tests;
 
 /// <summary>
@@ -11,6 +10,7 @@ public class PermissionCheckContextTest {
 
     #region ExtractPathFromArguments — arguments null 守卫
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ExtractPathFromArguments_NullArguments_ThrowsArgumentNullException() {
         var act = () => PermissionCheckContext.ExtractPathFromArguments(null!);
@@ -22,6 +22,7 @@ public class PermissionCheckContextTest {
 
     #region IsSensitivePath — path null/空 守卫
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void IsSensitivePath_NullPath_ThrowsArgumentNullException() {
         var act = () => PermissionCheckContext.IsSensitivePath(null!, []);
@@ -39,6 +40,7 @@ public class PermissionCheckContextTest {
 
     #region IsDangerousCommand — command null 守卫
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void IsDangerousCommand_NullCommand_ThrowsArgumentNullException() {
         var act = () => PermissionCheckContext.IsDangerousCommand(null!, []);
@@ -50,6 +52,7 @@ public class PermissionCheckContextTest {
 
     #region MatchesPattern — pattern null 守卫
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void MatchesPattern_NullPattern_ThrowsArgumentNullException() {
         var act = () => PermissionCheckContext.MatchesPattern("input", null!, PatternType.Contains);

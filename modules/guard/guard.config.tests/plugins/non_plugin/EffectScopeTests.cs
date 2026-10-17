@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿namespace Core.Tests.Plugins;
 
 public sealed class EffectScopeTests {
@@ -37,6 +36,7 @@ public sealed class EffectScopeTests {
         Assert.Equal(new[] { "sync-apply", "async-revert", "sync-revert" }, log);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task OnRevertFailed_InvokedOnRevertException() {
         Exception? caught = null;
@@ -56,6 +56,7 @@ public sealed class EffectScopeTests {
         Assert.Throws<ObjectDisposedException>(() => scope.Add(() => { }, () => { }));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Add_NullRevert_Throws() {
         var scope = new EffectScope();

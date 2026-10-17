@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Plugins;
 
 public sealed class PluginCommandRegistryTests {
@@ -19,6 +18,7 @@ public sealed class PluginCommandRegistryTests {
         };
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RegisterCommandAsync_ValidCommand_ShouldRegister() {
         var cmd = CreateCommand("test-cmd");
@@ -29,12 +29,14 @@ public sealed class PluginCommandRegistryTests {
         result!.CommandName.Should().Be("test-cmd");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RegisterCommandAsync_NullCommand_ShouldThrow() {
         var act = async () => await _registry.RegisterCommandAsync(null!).ConfigureAwait(true);
         await act.Should().ThrowAsync<ArgumentNullException>().ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RegisterCommandAsync_DuplicateCommand_ShouldNotOverwrite() {
         var cmd1 = CreateCommand("test-cmd", "plugin1");
@@ -75,6 +77,7 @@ public sealed class PluginCommandRegistryTests {
         _registry.GetCommand("tc").Should().BeNull();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UnregisterCommandAsync_NullOrWhiteSpace_ShouldThrow() {
         var act = async () => await _registry.UnregisterCommandAsync(null!).ConfigureAwait(true);
@@ -90,6 +93,7 @@ public sealed class PluginCommandRegistryTests {
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void GetCommand_NullOrWhiteSpace_ShouldThrow() {
         var act = () => _registry.GetCommand(null!);

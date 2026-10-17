@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Todo;
 
 public sealed class TodoServiceTests {
@@ -15,6 +14,7 @@ public sealed class TodoServiceTests {
             withTelemetry ? _telemetry : null);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task WriteTodosAsync_NullInput_ThrowsArgumentNullException() {
         await using var sut = CreateSut();
@@ -155,6 +155,7 @@ public sealed class TodoServiceTests {
         result.CurrentTodos.Single().Id.Should().StartWith("todo_");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task WriteTodosAsync_RecordsTelemetry() {
         await using var sut = CreateSut();
@@ -244,6 +245,7 @@ public sealed class TodoServiceTests {
         result.Todos.Should().ContainSingle(t => t.Status == TodoStatusEnumConstants.Completed);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UpdateTodoAsync_Existing_UpdatesFields() {
         await using var sut = CreateSut(withTaskRuntime: false);
@@ -300,6 +302,7 @@ public sealed class TodoServiceTests {
         await act.Should().ThrowAsync<ArgumentException>().ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ClearTodosAsync_RemovesAllAndRecordsTelemetry() {
         await using var sut = CreateSut(withTaskRuntime: false);

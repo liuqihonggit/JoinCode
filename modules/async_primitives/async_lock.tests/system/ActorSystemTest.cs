@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Utils;
 
 /// <summary>
@@ -92,6 +91,7 @@ public class ActorSystemTest {
     }
 
     /// <summary>ActorSelection.Tell 找不到 Actor 时发布 DeadLetter 事件(Akka 对齐)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task DeadLetter_Published_WhenActorNotFound() {
         await using var system = new ActorSystem();

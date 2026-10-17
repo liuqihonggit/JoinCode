@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Commands;
 
 public class DoctorCommandTests {
@@ -10,6 +9,7 @@ public class DoctorCommandTests {
         _command = new DoctorCommand();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static ChatCommandContext CreateContext() {
         return new ChatCommandContext {
             Arguments = "",

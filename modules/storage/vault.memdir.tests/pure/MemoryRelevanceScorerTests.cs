@@ -1,6 +1,5 @@
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Memdir;
 
 /// <summary>
@@ -230,6 +229,7 @@ public sealed class MemoryRelevanceScorerTests {
 
     // === 守卫补全确定性测试 (TASK031) ===
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Deterministic")]
     public void Ctor_NullClock_ThrowsArgumentNullException() {
@@ -237,6 +237,7 @@ public sealed class MemoryRelevanceScorerTests {
         act.Should().Throw<ArgumentNullException>().WithParameterName("clock");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Deterministic")]
     public void CalculateAdvancedRelevanceScore_NullMemory_ThrowsArgumentNullException() {
@@ -245,6 +246,7 @@ public sealed class MemoryRelevanceScorerTests {
         act.Should().Throw<ArgumentNullException>().WithParameterName("memory");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Deterministic")]
     public void CalculateAdvancedRelevanceScore_NullQuery_ThrowsArgumentNullException() {

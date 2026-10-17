@@ -1,14 +1,17 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace McpToolDispatch.Tests.Handlers;
 
 /// <summary>
 /// ToolScoreDebugToolHandlers 单元测试 — 验证评分查询、超图展示、评分重置
 /// </summary>
 public sealed class ToolScoreDebugToolHandlersTest : IAsyncLifetime {
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private InMemoryFileSystem _fs = null!;
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private ToolHealthMonitor _monitor = null!;
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private ToolHypergraphScorer _scorer = null!;
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private ToolScoreDebugToolHandlers _handlers = null!;
 
     private static string GetText(ToolResult result) =>
@@ -78,6 +81,7 @@ public sealed class ToolScoreDebugToolHandlersTest : IAsyncLifetime {
         text.Should().Contain("超边总数");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ResetToolScoreAsync_ResetsScoreToZero() {
         await _monitor.RecordFailureAsync("failing_tool", "error1");

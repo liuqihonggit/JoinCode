@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.Vision.Tests;
 
 /// <summary>
@@ -8,6 +7,7 @@ namespace JoinCode.Vision.Tests;
 public sealed class QuadtreeRendererTests {
     private readonly QuadtreeRenderer _renderer = new(new QuadtreeEncoder());
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RenderAsync_AllCellsHidden_ReturnsValidSameSizeImage() {
         var base64 = await CreateTestImageBase64(100, 100, SKColors.Red);
@@ -22,6 +22,7 @@ public sealed class QuadtreeRendererTests {
         img.Height.Should().Be(100);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RenderAsync_PaintedCell_ReturnsOverlayImage() {
         var base64 = await CreateTestImageBase64(100, 100, SKColors.White);
@@ -49,6 +50,7 @@ public sealed class QuadtreeRendererTests {
         result.RenderedBase64.Should().NotBeNullOrEmpty();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ZoomAsync_ReturnsCroppedSubimageAndNewGrid() {
         var base64 = await CreateTestImageBase64(100, 100, SKColors.Red);
@@ -67,6 +69,7 @@ public sealed class QuadtreeRendererTests {
         img.Height.Should().Be(50);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ZoomAsync_Depth2_CropsQuarterRegion() {
         var base64 = await CreateTestImageBase64(100, 100, SKColors.Blue);

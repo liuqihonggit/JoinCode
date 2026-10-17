@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Configuration.ModelFetch;
 
 /// <summary>
@@ -29,6 +28,7 @@ public sealed class ModelListFetcher : IModelListFetcher {
     /// 并行拉取所有已配置 modelsEndpoint 的供应商的模型列表
     /// 跳过条件：endpoint 为空、modelsEndpoint 为空、API Key 未配置
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public async Task<IReadOnlyDictionary<string, IReadOnlyList<RemoteModelInfo>>> FetchAllAsync(
         IReadOnlyDictionary<string, ProfileSettings> vendor,
         CancellationToken cancellationToken = default) {
@@ -96,6 +96,7 @@ public sealed class ModelListFetcher : IModelListFetcher {
     /// <summary>
     /// 加载 auth.json — 供应商名 → API Key 映射（一次性读取，所有供应商共享）
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<Dictionary<string, string>> LoadAuthKeysAsync(CancellationToken cancellationToken) {
         var settingsPath = SettingsLoader.GetUserSettingsPath();
         var authPath = Path.Combine(Path.GetDirectoryName(settingsPath)!, AppDataConstants.AuthFileName);

@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Tests.Hooks.Lifecycle;
 
 public class SubagentStopHookManagerTests {
@@ -53,6 +52,7 @@ public class SubagentStopHookManagerTests {
         result.ShouldProceed.Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task OnSubagentStopAsync_ShouldPassAgentIdInPayload() {
         var context = CreateContext(agentId: "agent-123");
@@ -77,6 +77,7 @@ public class SubagentStopHookManagerTests {
         capturedPayload["isSuccess"].GetBoolean().Should().BeTrue();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task OnSubagentStopAsync_WithWorktreePath_ShouldIncludeInPayload() {
         var context = CreateContext(worktreePath: "/tmp/worktree-1");

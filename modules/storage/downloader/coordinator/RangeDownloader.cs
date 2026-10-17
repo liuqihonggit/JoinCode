@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infrastructure.Network.Downloader.Coordinator;
 
 /// <summary>
@@ -85,7 +84,7 @@ public sealed partial class RangeDownloader : ServiceEntity, IDownloader {
         if (string.IsNullOrWhiteSpace(proxyUrl))
             return _httpClientProvider.GetClient().Client;
 
-        return GetOrAddProxiedClient(proxyUrl!);
+        return GetOrAddProxiedClient(proxyUrl);
     }
 
     private HttpClient GetOrAddProxiedClient(string proxyUrl) {

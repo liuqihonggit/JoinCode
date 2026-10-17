@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Guard.Tests.Configuration;
 
 /// <summary>
@@ -176,6 +175,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable {
 
     #region HttpClient 配置验证(Anthropic 协议认证头)
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConfigureHttpClient_ShouldAddXApiKeyHeader() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
@@ -189,6 +189,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable {
             "Anthropic 协议用 x-api-key 认证,与供应商无关");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void ConfigureHttpClient_ShouldAddAnthropicVersionHeader() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");

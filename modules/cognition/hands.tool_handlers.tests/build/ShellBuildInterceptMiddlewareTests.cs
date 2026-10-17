@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Hands.Tests.Build;
 
 /// <summary>
@@ -183,6 +182,7 @@ public class ShellBuildInterceptMiddlewareTests {
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_CacheHitCompleted_ReturnsFullOutput() {
         var queueMock = new Mock<IBuildQueueService>();
@@ -215,6 +215,7 @@ public class ShellBuildInterceptMiddlewareTests {
         context.ExecutionResult!.ExitCode.Should().Be(0);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_BuildCompletesWithinTimeout_ReturnsFullOutput() {
         var queueMock = new Mock<IBuildQueueService>();
@@ -244,6 +245,7 @@ public class ShellBuildInterceptMiddlewareTests {
         context.ExecutionResult!.ExitCode.Should().Be(0);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_BuildFails_ReturnsErrorOutput() {
         var queueMock = new Mock<IBuildQueueService>();
@@ -275,6 +277,7 @@ public class ShellBuildInterceptMiddlewareTests {
         context.Result.Diagnostic.Details.Should().Contain(d => d.Key == "exit_code" && d.Value == "1");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_CancelledBuild_ReturnsCancelledMessage() {
         var queueMock = new Mock<IBuildQueueService>();

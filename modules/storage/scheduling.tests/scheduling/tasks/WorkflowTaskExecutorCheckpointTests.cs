@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 ﻿
 namespace Sync.Tests.Scheduling.Tasks;
 
@@ -62,6 +61,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable {
         snapshot.Should().NotBeNull("DAG 执行后应保存快照");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteDagAsync_Snapshot_ShouldContainAllCompletedSteps() {
         SetupToolSuccess();
@@ -89,6 +89,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable {
         result.Status.Should().Be(TaskExecutionStatus.Completed);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteDagAsync_StepFailure_ShouldRecordFailedInSnapshot() {
         _toolGatewayMock
@@ -172,6 +173,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable {
         result.Status.Should().Be(TaskExecutionStatus.Completed);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ExecuteDagAsync_RestartWithSameStore_ShouldSkipAllCompletedSteps() {
         SetupToolSuccess();

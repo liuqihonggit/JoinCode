@@ -1,3 +1,4 @@
+global using System.Diagnostics.CodeAnalysis;
 global using Core.Agents;
 global using Core.Agents.Coordinator;
 global using Core.Agents.Interfaces;

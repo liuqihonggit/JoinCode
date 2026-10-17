@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Ssh;
 
 /// <summary>
@@ -407,7 +406,7 @@ public sealed class SshSession : ISshSession {
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 AppDataConstants.AppDataFolder, "ssh", $"key_{SessionId}");
 
-            _fs.CreateDirectory(Path.GetDirectoryName(keyFile)!);
+            _fs.CreateDirectory(Path.GetDirectoryName(keyFile) ?? string.Empty);
             await _fs.WriteAllText(keyFile, Config.PrivateKey).ConfigureAwait(false);
             startInfo.ArgumentList.Add("-i");
             startInfo.ArgumentList.Add(keyFile);

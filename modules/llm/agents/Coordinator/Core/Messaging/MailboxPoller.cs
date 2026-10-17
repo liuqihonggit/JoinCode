@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Agents.Coordinator;
 
 /// <summary>
@@ -129,6 +128,7 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable {
         return false;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private bool TryRemovePollingAgent(string key, out CancellationTokenSource value) {
         value = null!;
         var current = _pollingAgents;
@@ -144,6 +144,7 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable {
     /// <summary>
     /// 异步释放轮询器，取消所有活跃轮询任务并清理资源
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: ContinueWith state 由调用方保证非空")]
     public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return ValueTask.CompletedTask;
 

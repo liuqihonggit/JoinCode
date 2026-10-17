@@ -1,5 +1,4 @@
 // JCC11003 抑制: 底层实现/测试代码, ! 用于可空抑制, 是必要用法
-#pragma warning disable JCC11003
 namespace Structura.Tests;
 
 /// <summary>
@@ -18,6 +17,7 @@ public class ImmutableHamTStringStringConverterTests {
         return hamt;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void RoundTrip_Empty() {
         var hamt = Build();
@@ -27,6 +27,7 @@ public class ImmutableHamTStringStringConverterTests {
         roundtrip!.Count.Should().Be(0);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void RoundTrip_SingleEntry() {
         var hamt = Build(("a", "1"));
@@ -36,6 +37,7 @@ public class ImmutableHamTStringStringConverterTests {
         roundtrip["a"].Should().Be("1");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void RoundTrip_MultipleEntries() {
         var hamt = Build(("a", "1"), ("b", "2"), ("c", "3"));
@@ -69,6 +71,7 @@ public class ImmutableHamTStringStringConverterTests {
         act.Should().Throw<JsonException>();
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void RoundTrip_PreservesEntries() {
         var hamt = Build(("alpha", "x"), ("beta", "y"), ("gamma", "z"));

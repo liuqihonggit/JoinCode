@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.CodeIndex.Tests;
 
 public sealed class LspIntegrationTests {
@@ -20,6 +19,7 @@ public sealed class LspIntegrationTests {
         _lspService = _mockLspService.Object;
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Constructor_WithNullIndexer_ThrowsArgumentNullException() {
         Assert.Throws<ArgumentNullException>(() => new LspIntegration(null!));
@@ -81,6 +81,7 @@ public sealed class LspIntegrationTests {
         Assert.Null(exception);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task OnDocumentChangedAsync_WithNullFilePath_ThrowsArgumentNullException() {
         await using var integration = new LspIntegration(_indexer, _lspService);

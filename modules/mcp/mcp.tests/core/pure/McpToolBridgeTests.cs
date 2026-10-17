@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Mcp.Tests;
 
 /// <summary>
@@ -159,6 +158,7 @@ public sealed class McpToolBridgeTests {
         result.Single(p => p.Name == "o").ParameterType.Should().Be(typeof(string));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void BuildParameters_RequiredListNull_DefaultsToEmpty() {
         var toolInfo = new ToolInfo {

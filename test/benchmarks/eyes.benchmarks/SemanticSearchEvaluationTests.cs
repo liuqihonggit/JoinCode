@@ -1,5 +1,4 @@
 // JCC11003 抑制: 测试可空抑制 — _indexer 在模型存在时初始化，IsAvailable 守卫
-#pragma warning disable JCC11003
 namespace JoinCode.CodeIndex.Benchmarks;
 
 /// <summary>
@@ -47,6 +46,7 @@ public sealed class SemanticSearchEvaluationTests : IDisposable {
     /// <summary>
     /// 加载已构建的索引（需先运行 /code-index）。
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<bool> EnsureIndexLoadedAsync() {
         if (!IsAvailable) return false;
         await _indexer!.EnsureIndexLoadedAsync(CancellationToken.None);
@@ -56,6 +56,7 @@ public sealed class SemanticSearchEvaluationTests : IDisposable {
     /// <summary>
     /// 运行全部 100 题，评估 HitRate@10。
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Semantic_HitRateAt10_AboveThreshold() {
         if (!await EnsureIndexLoadedAsync()) return;
@@ -82,6 +83,7 @@ public sealed class SemanticSearchEvaluationTests : IDisposable {
     /// <summary>
     /// MRR (Mean Reciprocal Rank) 应 >= 0.15 — 衡量命中排序质量。
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Semantic_Mrr_AboveThreshold() {
         if (!await EnsureIndexLoadedAsync()) return;
@@ -108,6 +110,7 @@ public sealed class SemanticSearchEvaluationTests : IDisposable {
     /// <summary>
     /// P95 延迟应 < 500ms — 单次语义搜索响应时间。
     /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Semantic_P95Latency_Under500ms() {
         if (!await EnsureIndexLoadedAsync()) return;

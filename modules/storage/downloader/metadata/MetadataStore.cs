@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Infrastructure.Network.Downloader.Metadata;
 
 /// <summary>
@@ -75,6 +74,6 @@ internal sealed class MetadataStore {
     private static bool LastModifiedMatches(DateTimeOffset? stored, DateTimeOffset? current) {
         if (stored.HasValue != current.HasValue) return false;
         if (!stored.HasValue) return true;
-        return Math.Abs((stored.Value - current!.Value).TotalSeconds) <= 1;
+        return Math.Abs((stored.Value - current.GetValueOrDefault()).TotalSeconds) <= 1;
     }
 }

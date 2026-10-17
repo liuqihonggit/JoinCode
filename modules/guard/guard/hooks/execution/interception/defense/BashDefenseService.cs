@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Hooks.Execution.Interception.Defense;
 
 /// <summary>
@@ -179,6 +178,7 @@ public sealed class BashDefenseService {
     /// <param name="ctx">Bash 防御上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public ValueTask<ToolResult?> CheckRedirectWhitelist(BashDefenseContext ctx, CancellationToken ct) {
         var result = _redirectWhitelistNode.CheckWhitelist(ctx.CurrentCommand, ctx.WorkingDirectory);
         if (result.IsWhitelisted)

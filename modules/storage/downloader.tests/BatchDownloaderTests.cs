@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Downloader.Tests;
 
 /// <summary>
@@ -118,6 +117,7 @@ public sealed class BatchDownloaderTests {
             => Task.FromResult(_handler(request));
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private sealed class MultiUrlStubHandler : HttpMessageHandler {
         private readonly Dictionary<string, byte[]> _data = new();
         internal void Setup(string url, byte[] data) => _data[url] = data;

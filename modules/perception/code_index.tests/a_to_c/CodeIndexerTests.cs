@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace JoinCode.CodeIndex.Tests;
 
 public sealed class CodeIndexerTests : IDisposable {
@@ -266,6 +265,7 @@ public sealed class CodeIndexerTests : IDisposable {
         Assert.True(result.EstimatedTokens <= 10);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SearchComprehensiveAsync_NullPattern_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
@@ -780,24 +780,28 @@ public sealed class CodeIndexerTests : IDisposable {
         Assert.IsAssignableFrom<IProjectDependencyGraph>(_indexer.ProjectDependencyGraph);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task BuildIndexAsync_NullOptions_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             _indexer.BuildIndexAsync(null!, CancellationToken.None)).ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task UpdateFileAsync_NullFilePath_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             _indexer.UpdateFileAsync(null!, CancellationToken.None)).ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RemoveFileAsync_NullFilePath_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             _indexer.RemoveFileAsync(null!, CancellationToken.None)).ConfigureAwait(true);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SearchComprehensiveAsync_EmptyPattern_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>

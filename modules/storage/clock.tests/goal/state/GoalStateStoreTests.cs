@@ -1,5 +1,4 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC11003
 namespace Core.Goal.Tests;
 
 
@@ -12,6 +11,7 @@ public sealed class GoalStateStoreTests {
         return new GoalStateStore(fs, baseDir);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SaveLoad_Should_RoundTrip() {
         var store = CreateStore();
@@ -69,6 +69,7 @@ public sealed class GoalStateStoreTests {
         Assert.Contains(active, s => s.GoalId == "paused");
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Save_Overwrite_Should_UpdateExisting() {
         var store = CreateStore();

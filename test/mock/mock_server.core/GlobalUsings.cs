@@ -1,3 +1,4 @@
+global using System.Diagnostics.CodeAnalysis;
 global using Core.Utils;
 global using JoinCode.Abstractions.Utils;
 global using Microsoft.AspNetCore.Builder;

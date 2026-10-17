@@ -51,10 +51,13 @@ public sealed class PithosKvStoreLeaseFactory : IKvStoreLeaseFactory {
 }
 
 /// <summary>
-/// 内存租约工厂 — 总是返回内存租约，不获取 Mutex。用于 JCC_FILE_SYSTEM_MODE=InMemory。
+/// 内存租约工厂 — 总是返回共享内存租约，不获取 Mutex。用于 JCC_FILE_SYSTEM_MODE=InMemory。
+/// <para>共享单个 PithosDb.OpenInMemory 实例 — 同工厂的所有 lease 数据共享（ownsDb=false，lease Dispose 不释放共享 db）。</para>
 /// </summary>
 public sealed class InMemoryKvStoreLeaseFactory : IKvStoreLeaseFactory {
+    private readonly PithosDb _db = PithosDb.OpenInMemory();
+
     /// <inheritdoc />
     public IKvStoreLease Acquire() =>
-        new PithosKvStoreLease(PithosDb.OpenInMemory(), null, ownsDb: true, isInMemory: true);
+        new PithosKvStoreLease(_db, null, ownsDb: false, isInMemory: true);
 }

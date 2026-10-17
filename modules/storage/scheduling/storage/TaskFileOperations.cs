@@ -9,7 +9,7 @@ public sealed record TaskFileOperations(
     ITaskFileWriter TaskFileWriter,
     ITaskFileReader TaskFileReader,
     IFileSystem FileSystem,
-    IKvStore KvStore) {
+    IKvStoreLeaseFactory LeaseFactory) {
     /// <summary>
     /// 从服务提供者创建 TaskFileOperations 实例，用于 DI 注册
     /// </summary>
@@ -19,6 +19,6 @@ public sealed record TaskFileOperations(
             sp.GetRequiredService<ITaskFileWriter>(),
             sp.GetRequiredService<ITaskFileReader>(),
             sp.GetRequiredService<IFileSystem>(),
-            sp.GetRequiredService<IKvStore>());
+            sp.GetRequiredService<IKvStoreLeaseFactory>());
     }
 }

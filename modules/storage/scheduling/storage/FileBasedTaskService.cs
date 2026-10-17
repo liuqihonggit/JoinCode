@@ -32,7 +32,7 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
         _taskFileWriter = fileOps.TaskFileWriter ?? throw new ArgumentNullException(nameof(fileOps), "TaskFileWriter cannot be null");
         _taskFileReader = fileOps.TaskFileReader ?? throw new ArgumentNullException(nameof(fileOps), "TaskFileReader cannot be null");
         _logger = logger;
-        _highWaterMarkManager = new HighWaterMarkManager(fileOps.KvStore, _options.GetHighWaterMarkKey());
+        _highWaterMarkManager = new HighWaterMarkManager(fileOps.LeaseFactory, _options.GetHighWaterMarkKey());
 
     }
 

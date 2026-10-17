@@ -9,7 +9,7 @@ namespace Core.Scheduling;
 /// Actor 模式 — 内部组合 HwmActor(继承 ActorBase)串行化 IncrementAndGetAsync 读-改-写原子性,获得监督/背压/生命周期/错误恢复。
 /// </summary>
 public sealed class HighWaterMarkManager : IDisposable {
-    private readonly IKvStore _kvStore;
+    private readonly IKvStoreLeaseFactory _factory;
     private readonly byte[] _key;
     private readonly HwmActor _actor;
     private readonly ILogger<HighWaterMarkManager>? _logger;
@@ -50,11 +50,11 @@ public sealed class HighWaterMarkManager : IDisposable {
     /// <summary>
     /// 初始化高水位标记管理器 — 启动内部 Actor
     /// </summary>
-    /// <param name="kvStore">KV 存储抽象</param>
+    /// <param name="factory">KV 存储租约工厂</param>
     /// <param name="key">高水位标记存储键(UTF-8 编码)</param>
     /// <param name="logger">日志记录器</param>
-    public HighWaterMarkManager(IKvStore kvStore, string key, ILogger<HighWaterMarkManager>? logger = null) {
-        _kvStore = kvStore ?? throw new ArgumentNullException(nameof(kvStore));
+    public HighWaterMarkManager(IKvStoreLeaseFactory factory, string key, ILogger<HighWaterMarkManager>? logger = null) {
+        _factory = factory ?? throw new ArgumentNullException(nameof(factory));
         _key = Encoding.UTF8.GetBytes(key);
         _logger = logger;
         _actor = new HwmActor(this, logger);
@@ -64,8 +64,13 @@ public sealed class HighWaterMarkManager : IDisposable {
     /// 读取当前高水位标记值 — 增量读取单个 KV 条目
     /// </summary>
     public async Task<int> ReadAsync(CancellationToken cancellationToken = default) {
+        using var lease = _factory.Acquire();
+        return await ReadCoreAsync(lease, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<int> ReadCoreAsync(IKvStoreLease lease, CancellationToken ct) {
         try {
-            var value = await _kvStore.GetAsync(_key, cancellationToken).ConfigureAwait(false);
+            var value = await lease.GetAsync(_key, ct).ConfigureAwait(false);
             if (value is null || value.Length < 4)
                 return 0;
             return BitConverter.ToInt32(value);
@@ -80,8 +85,13 @@ public sealed class HighWaterMarkManager : IDisposable {
     /// <param name="newValue">新值</param>
     /// <param name="cancellationToken">取消令牌</param>
     public async Task UpdateAsync(int newValue, CancellationToken cancellationToken = default) {
+        using var lease = _factory.Acquire();
+        await UpdateCoreAsync(lease, newValue, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task UpdateCoreAsync(IKvStoreLease lease, int newValue, CancellationToken ct) {
         var bytes = BitConverter.GetBytes(newValue);
-        await _kvStore.PutAsync(_key, bytes, cancellationToken).ConfigureAwait(false);
+        await lease.PutAsync(_key, bytes, ct).ConfigureAwait(false);
         _logger?.LogDebug("[HighWaterMarkManager] 增量更新: {Value}", newValue);
     }
 
@@ -102,9 +112,10 @@ public sealed class HighWaterMarkManager : IDisposable {
 
     /// <summary>IncrementAndGetAsync 核心 — 在 Actor Consumer 线程执行</summary>
     private async Task<int> IncrementAndGetCoreAsync(CancellationToken ct) {
-        var current = await ReadAsync(ct).ConfigureAwait(false);
+        using var lease = _factory.Acquire();
+        var current = await ReadCoreAsync(lease, ct).ConfigureAwait(false);
         var newValue = current + 1;
-        await UpdateAsync(newValue, ct).ConfigureAwait(false);
+        await UpdateCoreAsync(lease, newValue, ct).ConfigureAwait(false);
         return newValue;
     }
 

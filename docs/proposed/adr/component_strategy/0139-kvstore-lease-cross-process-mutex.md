@@ -1,6 +1,6 @@
 # ADR 0139: KV 存储租约模式 + 跨进程 Mutex 串行化
 
-**状态**: proposed
+**状态**: accepted
 **日期**: 2026-10-18
 **关联**: bugfix [kvstore-wal-cross-process-release-race](../../../modules/persistence/docs/bugfix/kvstore-wal-cross-process-release-race.md), 替代 [ee105ccc3](https://github.com/liuqihonggit/JoinCode/pull/413) try-catch 缓解
 

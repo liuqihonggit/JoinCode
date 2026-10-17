@@ -310,7 +310,8 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
                 foreach (var entry in archive.Entries) {
                     if (entry.Length == 0) continue;
                     await using var entryStream = entry.Open();
-                    using var reader = new StreamReader(entryStream);
+                    // GitHub 归档通常 UTF-8；显式启用 BOM 检测以兼容 UTF-16 条目
+                    using var reader = new StreamReader(entryStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
                     string? line;
                     while ((line = await reader.ReadLineAsync(ct).ConfigureAwait(false)) is not null) {
                         zipLines.Add(AnsiStripper.Strip(FormatZipEntryLine(entry.Name, line)));

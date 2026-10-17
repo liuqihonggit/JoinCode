@@ -200,8 +200,9 @@ public sealed class PhysicalProcessService : IProcessService {
         public PhysicalInteractiveProcess(System.Diagnostics.Process process, ILogger? logger) {
             _process = process;
             _logger = logger;
-            StandardInput = new StreamWriter(_process.StandardInput.BaseStream) { AutoFlush = true };
-            StandardOutput = new StreamReader(_process.StandardOutput.BaseStream);
+            // 用 Console 编码对齐系统代码页 — 中文 Windows 默认 GBK/CP936，chcp 65001 后 UTF-8
+            StandardInput = new StreamWriter(_process.StandardInput.BaseStream, Console.InputEncoding) { AutoFlush = true };
+            StandardOutput = new StreamReader(_process.StandardOutput.BaseStream, Console.OutputEncoding);
             _process.ErrorDataReceived += OnProcessErrorData;
         }
 

@@ -32,6 +32,17 @@ public sealed partial class AutoClassifierMiddleware : ServiceEntity, IPermissio
             return;
         }
 
+        // 文件类工具带路径参数时不在此短路 — 路径级边界（工作目录内外、敏感路径、deny 规则）
+        // 必须由 PathPermissionMiddleware 的 9 步决策链判定，分类器只做与路径无关的粗分类
+        // 修复缺陷（ADR 0138）: 此前对 SafeWrite/ReadOnly 直接 AutoApprove 并短路，
+        // 导致 serve 等无确认环境可写任意非敏感 cwd 外路径（如 C:\Users\Public）
+        if (context.Arguments is not null &&
+            PermissionCheckContext.ExtractPathFromArguments(context.Arguments) is not null &&
+            (PermissionCheckContext.IsFileReadTool(context.ToolName) || PermissionCheckContext.IsFileWriteTool(context.ToolName))) {
+            await next(context, ct).ConfigureAwait(false);
+            return;
+        }
+
         // 工具拒绝规则过滤
         if (_toolPermissionFilter is not null && _toolPermissionFilter.IsToolDenied(context.ToolName)) {
             context.Result = ToolPermissionCheckResult.Rejected($"工具 '{context.ToolName}' 被拒绝规则过滤");

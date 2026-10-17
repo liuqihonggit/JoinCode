@@ -11,6 +11,7 @@ import { chromium } from 'playwright-core';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { findEdge, EDGE_LAUNCH_ARGS } from '../lib/edge.mjs';
+import { openDshSession } from '../lib/dsh_session.mjs';
 
 const [url, outDir, viewportArg = '1440x900', themeArg = 'dark'] = process.argv.slice(2);
 if (!url || !outDir) {
@@ -30,32 +31,7 @@ const browser = await chromium.launch({
   headless: true,
   args: EDGE_LAUNCH_ARGS,
 });
-const context = await browser.newContext({
-  viewport: { width, height },
-  deviceScaleFactor: 1,
-  colorScheme: themeArg === 'light' ? 'light' : 'dark',
-});
-const page = await context.newPage();
-
-console.log('navigating...');
-await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-await page.waitForTimeout(3000);
-try {
-  await page.waitForLoadState('networkidle', { timeout: 12000 });
-} catch {
-  console.log('networkidle timeout (ws likely active), continuing');
-}
-
-// 首次运行引导弹窗（预览版说明）自动关闭，保证场景干净
-for (let i = 0; i < 3; i++) {
-  const btn = page.getByRole('button', { name: /继续|Continue|Got it|知道了|确定/ });
-  if (await btn.first().isVisible().catch(() => false)) {
-    console.log('dismissing onboarding modal');
-    await btn.first().click().catch(() => {});
-    await page.waitForTimeout(1500);
-  } else break;
-}
-await page.waitForTimeout(2500);
+const { page } = await openDshSession(browser, { url, width, height, theme: themeArg });
 
 const title = await page.title();
 console.log('title:', title);

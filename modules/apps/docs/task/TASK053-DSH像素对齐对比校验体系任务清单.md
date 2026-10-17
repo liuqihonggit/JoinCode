@@ -25,6 +25,16 @@
 - [ ] P1-4 斜杠面板场景
 - [ ] P1-5 场景定义文件 `scenarios.json` 驱动
 
+### P1-6 交互态场景（hover/active/focus）✅ 首页完成
+
+- [x] P1-6a `capture/state-targets.mjs` 映射唯一数据源（18 目标 DSH 选择器 ↔ 本地选择器）
+- [x] P1-6b `capture/capture-states-dsh.mjs`：hover/active/focus 计算样式 golden → `reference/dsh-states.json`（`capture-all.ps1 -Script ... -DshHomeDir .dsh-home-states` 独立 home）
+- [x] P1-6c `compare/verify-states.mjs`：本地对照 golden，DSH 变化项逐一必对，退出码门禁（PASS 0 不一致 / 0 警告）
+- [x] P1-6d webui 落地：按钮 hover/active=interactive-bg-hover、corner active=interactive-bg-active、new-session→bg-layer-3、composer placeholder 拆分（pointer-events:none, caption 色）、输入 caret=button-info-fill、send 空输入 disabled
+- [x] P1-6e 基帧回归：L3 diff 与 S1 基线一致（meanDelta 1.793, t12 1.36%）
+- [x] P1-6f 实测结论：DSH 按钮无 :focus 样式；addBtn/brand 无 hover；placeholder 需经父元素 hover（pointer-events:none）
+- [ ] P1-6g 其余页面（设置/对话/斜杠面板）交互态随场景矩阵补采
+
 ## P2 — L1 token 对等（CI 快）
 
 - [ ] P2-1 红测试：token 对等测试骨架（缺映射即红）

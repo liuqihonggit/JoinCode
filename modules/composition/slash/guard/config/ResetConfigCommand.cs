@@ -71,7 +71,7 @@ public sealed class ResetConfigCommand : ChatCommandBase {
 
     private static async Task ResetSettingsAsync(string jccDir, IFileSystem fs, CancellationToken ct) {
         await Core.Configuration.SettingsLoader.BuildDefaultConfigTreeAsync(fs, jccDir, ct).ConfigureAwait(false);
-        TerminalHelper.WriteLine("  ✓ 配置树已重置为默认骨架 (settings.json + current/ + vendors/ + search_providers/)");
+        TerminalHelper.WriteLine("  ✓ 配置树已重置为默认骨架 (settings.json + current/ + providers_llm/ + providers_search/)");
     }
 
     private static async Task ResetTrustAsync(string jccDir, IFileSystem fs, CancellationToken ct) {

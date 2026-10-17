@@ -847,7 +847,7 @@ public sealed class SearchProviderProfileSettings {
 }
 
 /// <summary>
-/// 供应商模型列表文件 — vendors/{name}/models.json 的 DTO（TASK054 P6 物理拆分）。
+/// 供应商模型列表文件 — providers_llm/{name}/models.json 的 DTO（TASK054 P6 物理拆分）。
 /// <para>格式：{ "models": [{ "id": "...", "displayName": "...", ... }] }</para>
 /// </summary>
 public sealed class VendorModelsFile {
@@ -858,13 +858,13 @@ public sealed class VendorModelsFile {
 
 /// <summary>
 /// 极简 settings.json DTO — P8 树状骨架的主入口，只含 current.profile 指针 + 全局开关。
-/// <para>vendor 和 searchProviders 节点不内联 — 按约定从 vendors/ 和 search_providers/ 子文件夹加载。</para>
+/// <para>vendor 和 searchProviders 节点不内联 — 按约定从 providers_llm/ 和 providers_search/ 子文件夹加载。</para>
 /// </summary>
 public sealed class MinimalSettingsJson {
     /// <summary>初始化空的 MinimalSettingsJson 实例</summary>
     public MinimalSettingsJson() { }
 
-    /// <summary>当前激活的供应商预设名指针 — 对应 vendors/{name}/ 子文件夹</summary>
+    /// <summary>当前激活的供应商预设名指针 — 对应 providers_llm/{name}/ 子文件夹</summary>
     [JsonPropertyName("current")]
     public MinimalCurrentSettings? Current { get; init; }
 
@@ -881,14 +881,14 @@ public sealed class MinimalSettingsJson {
 /// 极简 current 节点 — 只含 profile 指针，其他偏好字段从 current/ 子文件夹加载。
 /// </summary>
 public sealed class MinimalCurrentSettings {
-    /// <summary>当前激活的供应商预设名 — 对应 vendors/{name}/ 子文件夹</summary>
+    /// <summary>当前激活的供应商预设名 — 对应 providers_llm/{name}/ 子文件夹</summary>
     [JsonPropertyName("profile")]
     public string? Profile { get; init; }
 }
 
 /// <summary>
-/// 供应商配置文件 — vendors/{name}/config.json 的 DTO（TASK054 P8 物理拆分）。
-/// <para>不含 models 字段 — 模型列表拆到 vendors/{name}/models.json（VendorModelsFile）。</para>
+/// 供应商配置文件 — providers_llm/{name}/config.json 的 DTO（TASK054 P8 物理拆分）。
+/// <para>不含 models 字段 — 模型列表拆到 providers_llm/{name}/models.json（VendorModelsFile）。</para>
 /// </summary>
 public sealed class VendorConfigFile {
     /// <summary>供应商名称（如 openai/sensenova/agnes/deepseek/anthropic）</summary>

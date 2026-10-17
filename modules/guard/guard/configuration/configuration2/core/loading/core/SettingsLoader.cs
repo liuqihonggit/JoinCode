@@ -205,8 +205,8 @@ public static class SettingsLoader {
     }
 
     /// <summary>
-    /// 从指定目录加载 settings.json + 合并 vendors/current 子文件 — P8 roundtrip 测试用。
-    /// <para>读取 {baseDir}/settings.json，然后合并 {baseDir}/vendors/ 和 {baseDir}/current/ 子文件。</para>
+    /// 从指定目录加载 settings.json + 合并 providers_llm/current 子文件 — P8 roundtrip 测试用。
+    /// <para>读取 {baseDir}/settings.json，然后合并 {baseDir}/providers_llm/ 和 {baseDir}/current/ 子文件。</para>
     /// </summary>
     public static async Task<SettingsJson?> LoadUserSettingsFromDirAsync(
         IFileSystem fs, string baseDir, CancellationToken cancellationToken = default) {
@@ -224,8 +224,8 @@ public static class SettingsLoader {
     /// <list type="bullet">
     /// <item>settings.json — 极简主入口（current.profile 指针 + autoFetchModels + update）</item>
     /// <item>current/ — 10 个子文件（ui/inference/behavior/security/mcp/plugins/subagent/tools/worktree/runtime）</item>
-    /// <item>vendors/{name}/ — 每个供应商含 config.json（ProfileSettings 除 models）+ models.json（模型列表）</item>
-    /// <item>search_providers/{name}/ — 每个搜索供应商含 config.json + models.json（空列表占位）</item>
+    /// <item>providers_llm/{name}/ — 每个供应商含 config.json（ProfileSettings 除 models）+ models.json（模型列表）</item>
+    /// <item>providers_search/{name}/ — 每个搜索供应商含 config.json + models.json（空列表占位）</item>
     /// </list>
     /// <para>消费方无感知 — LoadVendorSubConfigsAsync/LoadCurrentSubConfigsAsync 合并子文件成 DTO（P6/P7 已实现）。</para>
     /// </summary>
@@ -283,7 +283,7 @@ public static class SettingsLoader {
 
     private static async Task WriteVendorSubFilesAsync(
         IFileSystem fs, string baseDir, SettingsJson fullSettings, CancellationToken ct) {
-        var vendorsDir = Path.Combine(baseDir, "vendors");
+        var vendorsDir = Path.Combine(baseDir, "providers_llm");
         DirectoryHelper.EnsureDirectoryExists(fs, vendorsDir);
 
         foreach (var (name, profile) in fullSettings.Vendor) {
@@ -309,7 +309,7 @@ public static class SettingsLoader {
 
     private static async Task WriteSearchProviderSubFilesAsync(
         IFileSystem fs, string baseDir, SettingsJson fullSettings, CancellationToken ct) {
-        var searchDir = Path.Combine(baseDir, "search_providers");
+        var searchDir = Path.Combine(baseDir, "providers_search");
         DirectoryHelper.EnsureDirectoryExists(fs, searchDir);
 
         var emptyModelsJson = RelaxedJsonSerializer.SerializeIndented(new VendorModelsFile(), ConfigIndentedJsonContext.Default);
@@ -413,7 +413,7 @@ public static class SettingsLoader {
     }
 
     /// <summary>
-    /// 从 {baseDir}/vendors/ 子文件夹加载供应商配置 — TASK054 P6 物理拆分。
+    /// 从 {baseDir}/providers_llm/ 子文件夹加载供应商配置 — TASK054 P6 物理拆分。
     /// <para>每个供应商 {name}/config.json 含 ProfileSettings（除 models），{name}/models.json 含模型列表。</para>
     /// <para>子文件不存在时跳过（约定大于配置，渐进式迁移）。</para>
     /// </summary>
@@ -425,7 +425,7 @@ public static class SettingsLoader {
     public static async Task<Dictionary<string, ProfileSettings>> LoadVendorSubConfigsAsync(
         IFileSystem fs, string baseDir, CancellationToken cancellationToken = default, ILogger? logger = null) {
         var result = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase);
-        var vendorsDir = Path.Combine(baseDir, "vendors");
+        var vendorsDir = Path.Combine(baseDir, "providers_llm");
         if (!fs.DirectoryExists(vendorsDir))
             return result;
 
@@ -478,7 +478,7 @@ public static class SettingsLoader {
         };
 
     /// <summary>
-    /// 合并 vendors/ 子文件夹配置到 settings.json 内联配置 — 子文件覆盖内联（更高优先级）。
+    /// 合并 providers_llm/ 子文件夹配置到 settings.json 内联配置 — 子文件覆盖内联（更高优先级）。
     /// </summary>
     private static async Task<SettingsJson?> MergeVendorSubConfigsAsync(
         IFileSystem fs, SettingsJson? settings, string baseDir,
@@ -550,7 +550,7 @@ public static class SettingsLoader {
     }
 
     /// <summary>
-    /// 合并 vendors/ + current/ + search_providers/ 子文件配置到 settings.json 内联 — 统一入口。
+    /// 合并 providers_llm/ + current/ + providers_search/ 子文件配置到 settings.json 内联 — 统一入口。
     /// </summary>
     private static async Task<SettingsJson?> MergeAllSubConfigsAsync(
         IFileSystem fs, SettingsJson? settings, string baseDir,
@@ -562,14 +562,14 @@ public static class SettingsLoader {
     }
 
     /// <summary>
-    /// 从 {baseDir}/search_providers/ 子文件夹加载搜索供应商配置 — TASK054 P8 物理拆分。
+    /// 从 {baseDir}/providers_search/ 子文件夹加载搜索供应商配置 — TASK054 P8 物理拆分。
     /// <para>每个供应商 {name}/config.json 含 SearchProviderProfileSettings。</para>
     /// <para>子文件不存在时跳过（约定大于配置，渐进式迁移）。</para>
     /// </summary>
     public static async Task<Dictionary<string, SearchProviderProfileSettings>> LoadSearchProviderSubConfigsAsync(
         IFileSystem fs, string baseDir, CancellationToken cancellationToken = default, ILogger? logger = null) {
         var result = new Dictionary<string, SearchProviderProfileSettings>(StringComparer.OrdinalIgnoreCase);
-        var searchDir = Path.Combine(baseDir, "search_providers");
+        var searchDir = Path.Combine(baseDir, "providers_search");
         if (!fs.DirectoryExists(searchDir))
             return result;
 
@@ -590,7 +590,7 @@ public static class SettingsLoader {
     }
 
     /// <summary>
-    /// 合并 search_providers/ 子文件夹配置到 settings.json 内联配置 — 子文件覆盖内联（更高优先级）。
+    /// 合并 providers_search/ 子文件夹配置到 settings.json 内联配置 — 子文件覆盖内联（更高优先级）。
     /// </summary>
     private static async Task<SettingsJson?> MergeSearchProviderSubConfigsAsync(
         IFileSystem fs, SettingsJson? settings, string baseDir,

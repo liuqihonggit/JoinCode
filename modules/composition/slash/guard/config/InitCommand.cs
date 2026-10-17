@@ -91,7 +91,7 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
 
         if (!fs.FileExists(settingsFile)) {
             await Core.Configuration.SettingsLoader.BuildDefaultConfigTreeAsync(fs, jccDir, context.CancellationToken).ConfigureAwait(false);
-            TerminalHelper.WriteLine("  ✓ 创建配置树骨架 (settings.json + current/ + vendors/ + search_providers/)");
+            TerminalHelper.WriteLine("  ✓ 创建配置树骨架 (settings.json + current/ + providers_llm/ + providers_search/)");
         } else {
             TerminalHelper.WriteLine("  · settings.json 已存在");
         }

@@ -41,7 +41,7 @@
 
 | 供应商 | API KEY 来源 | 优先级 | 代码位置 |
 |--------|-------------|--------|----------|
-| Tavily | 环境变量 `TAVILY_API_KEY`（硬编码） | 100 | `search_providers/providers/TavilySearchProvider.cs` |
+| Tavily | 环境变量 `TAVILY_API_KEY`（硬编码） | 100 | `providers_search/providers/TavilySearchProvider.cs` |
 | Serper | 环境变量 `SERPER_API_KEY`（硬编码） | 200 | `.../SerperSearchProvider.cs` |
 | Brave | 环境变量 `BRAVE_API_KEY`（硬编码） | 300 | `.../BraveSearchProvider.cs` |
 | SearXNG | 环境变量 `SEARXNG_URL`（硬编码） | 400 | `.../SearXngSearchProvider.cs` |
@@ -79,9 +79,9 @@
 ### 3.1 设计原则
 
 1. **主配置在子配置文件夹外层** — `settings.json` 是树根，只放指针 + 全局开关；子配置在子文件夹内
-2. **像树一样生长** — 每个分支（current/vendors/search_providers）是子文件夹，每个叶是单一职责的 json 文件
+2. **像树一样生长** — 每个分支（current/providers_llm/search_providers）是子文件夹，每个叶是单一职责的 json 文件
 3. **物理拆分 + 逻辑合并** — 物理上拆成多个小文件（简化理解），加载器合并成现有 DTO（消费方无感知，不破坏 `ConfigKey.Theme` 等平铺访问）
-4. **约定大于配置** — 路径按约定（`current/ui.json`、`vendors/openai/config.json`），settings.json 不必显式列指针
+4. **约定大于配置** — 路径按约定（`current/ui.json`、`providers_llm/openai/config.json`），settings.json 不必显式列指针
 5. **apiKeyEnvVar 模式** — 存环境变量名不存明文 key（安全）
 
 ### 3.2 完整配置树形态（`~/.jcc/`）
@@ -100,7 +100,7 @@
     tools.json                       ← 工具 5 字段：toolScore/blacklistedTools/toolPenalties/customHyperedges/searchScope（归并四散落）
     worktree.json                    ← Worktree 2 字段：worktree/activeWorktreeSession
     runtime.json                     ← 运行模式 4 字段：isUnattendedMode/isAntiCharLossConfirm/apiKeyHelper/env
-  vendors/                           ← LLM 供应商分支（7 个）
+  providers_llm/                           ← LLM 供应商分支（7 个）
     sensenova/
       config.json                    ← protocol/endpoint/apiKeyEnvVar/model/modelsEndpoint
       models.json                    ← [{ id, displayName, contextWindow, aliases, capabilities }]
@@ -122,7 +122,7 @@
     zhipu/
       config.json
       models.json
-  search_providers/                  ← 搜索供应商分支（6 个）
+  providers_search/                  ← 搜索供应商分支（6 个）
     tavily/
       config.json                    ← apiKeyEnvVar/priority/enabled
       models.json                    ← []（占位；search provider 不消费模型，anthropic 例外）
@@ -153,7 +153,7 @@
 }
 ```
 
-> `vendor` 和 `searchProviders` 节点**不再内联**在 settings.json — 按约定路径从 `vendors/` 和 `search_providers/` 子文件夹加载。settings.json 只保留 `current.profile` 指针 + 全局开关。
+> `vendor` 和 `searchProviders` 节点**不再内联**在 settings.json — 按约定路径从 `providers_llm/` 和 `providers_search/` 子文件夹加载。settings.json 只保留 `current.profile` 指针 + 全局开关。
 
 ### 3.4 CurrentSettings 物理拆分 + 逻辑合并
 
@@ -171,18 +171,18 @@
 
 ### 3.5 供应商配置树
 
-**LLM vendor**（`vendors/{name}/`）：
+**LLM vendor**（`providers_llm/{name}/`）：
 - `config.json` — `protocol`/`endpoint`/`apiKeyEnvVar`/`model`/`modelsEndpoint`（原 `ProfileSettings` 除 `models` 外的字段）
 - `models.json` — 模型列表（原 `ProfileSettings.Models` 内联，拆出独立文件）
 
-**search provider**（`search_providers/{name}/`）：
+**search provider**（`providers_search/{name}/`）：
 - `config.json` — `apiKeyEnvVar`/`priority`/`enabled`/`endpointEnvVar?`（SearXNG 用 endpointEnvVar）
 - `models.json` — 大多数 `[]`；`anthropic/` 列 fast model
 
 ### 3.6 代码侧供应商文件夹拆分
 
 ```
-modules/cognition/hands/web/search_providers/providers/
+modules/cognition/hands/web/providers_search/providers/
   tavily/
     TavilySearchProvider.cs
     models.json                    ← 默认/示例配置（随包发布，用户可覆盖）
@@ -204,7 +204,7 @@ modules/cognition/hands/web/search_providers/providers/
     models.json
 ```
 
-> 代码文件夹内的 `models.json` 作为**默认配置模板**随包发布；运行时用户配置（`~/.jcc/search_providers/{name}/models.json`）覆盖默认。`Hands.csproj` 是 SDK-style 自动 glob，移动 .cs 不需改 csproj。
+> 代码文件夹内的 `models.json` 作为**默认配置模板**随包发布；运行时用户配置（`~/.jcc/providers_search/{name}/models.json`）覆盖默认。`Hands.csproj` 是 SDK-style 自动 glob，移动 .cs 不需改 csproj。
 
 ### 3.7 加载策略（逻辑合并，消费方无感知）
 
@@ -212,8 +212,8 @@ modules/cognition/hands/web/search_providers/providers/
 ConfigLoader.LoadAsync()
   ├─ 读 settings.json → { current.profile, autoFetchModels, update }
   ├─ 读 current/*.json（10 个）→ 合并成 CurrentSettings DTO
-  ├─ 读 vendors/*/config.json + models.json → 合并成 Dictionary<string, ProfileSettings>
-  └─ 读 search_providers/*/config.json + models.json → 合并成 SearchProviderConfig
+  ├─ 读 providers_llm/*/config.json + models.json → 合并成 Dictionary<string, ProfileSettings>
+  └─ 读 providers_search/*/config.json + models.json → 合并成 SearchProviderConfig
 ```
 
 - 物理文件不存在时回退默认值（约定大于配置，渐进式迁移）
@@ -279,9 +279,9 @@ _cache = new MemoryCache(new MemoryCacheOptions {
 |------|----------|------|
 | `current.ui.theme` | `current/ui.json` | `theme` |
 | `current.inference.fastMode` | `current/inference.json` | `fastMode` |
-| `vendors.openai.endpoint` | `vendors/openai/config.json` | `endpoint` |
-| `vendors.openai.models[0].id` | `vendors/openai/models.json` | `[0].id` |
-| `searchProviders.tavily.apiKeyEnvVar` | `search_providers/tavily/config.json` | `apiKeyEnvVar` |
+| `vendors.openai.endpoint` | `providers_llm/openai/config.json` | `endpoint` |
+| `vendors.openai.models[0].id` | `providers_llm/openai/models.json` | `[0].id` |
+| `searchProviders.tavily.apiKeyEnvVar` | `providers_search/tavily/config.json` | `apiKeyEnvVar` |
 
 **与现有 `SettingsJson` DTO 的关系**：
 
@@ -374,16 +374,16 @@ public interface IConfigLayer {
 
 ## 4. 执行步骤（渐进式，每步编译+提交）
 
-> **施工顺序原则**：先建统一访问层（IConfigRoot 基础设施），再接入 search providers，物理拆分（current/*.json、vendors/{name}/models.json）延后 — 当前 settings.json 内联配置能用，物理拆分是简化理解的优化，不阻塞功能。
+> **施工顺序原则**：先建统一访问层（IConfigRoot 基础设施），再接入 search providers，物理拆分（current/*.json、providers_llm/{name}/models.json）延后 — 当前 settings.json 内联配置能用，物理拆分是简化理解的优化，不阻塞功能。
 
 | 步骤 | 内容 | 涉及文件 |
 |------|------|----------|
 | **P1** | **统一访问层（基础设施）**：`IConfigRoot` + `IConfigLayer`(User/Pro/Local) + `IProjectLocator` + `ConfigRoot` 实现（读**现有** settings.json，IMemoryCache 两级缓存 + 不可变快照 + 内存压力释放）+ DI 注册 | `abstractions/abs_core/configuration/` + `guard/configuration/` |
 | **P2** | `SettingsJson.cs` 新增 `searchProviders` 节点 DTO + `SearchProviderProfileSettings` + Merge | `SettingsJson.cs` |
 | **P3** | `SettingsLoader.cs` `BuildDefaultSettingsJson` 补充 `searchProviders` 骨架 | `SettingsLoader.cs` |
-| **P4** | search providers 代码拆子文件夹 + `ISearchProviderConfig`（通过 `IConfigRoot` 读）+ 6 个 provider 构造改造 | `search_providers/` |
+| **P4** | search providers 代码拆子文件夹 + `ISearchProviderConfig`（通过 `IConfigRoot` 读）+ 6 个 provider 构造改造 | `providers_search/` |
 | **P5** | search providers 测试 + 编译 + 提交 | `hands.api.tests/web/` |
-| **P6**（可延后） | LLM vendor models 物理拆分到 `vendors/{name}/config.json + models.json` + `ConfigFileLoader` 适配 | `SettingsJson.cs`/`ConfigLoader.cs` |
+| **P6**（可延后） | LLM vendor models 物理拆分到 `providers_llm/{name}/config.json + models.json` + `ConfigFileLoader` 适配 | `SettingsJson.cs`/`ConfigLoader.cs` |
 | **P7**（可延后） | CurrentSettings 物理拆分到 `current/*.json` 10 子文件 + `ConfigFileLoader` 适配 | `SettingsJson.cs`/`ConfigLoader.cs` |
 | **P8** | `InitCommand`/`ResetConfigCommand` 生成默认配置树骨架 | `composition/slash/g-uard/config/` |
 
@@ -399,8 +399,8 @@ public interface IConfigLayer {
 |--------|------|
 | settings.json 主入口极简（只有 profile 指针 + 全局开关） | 检查 `BuildDefaultSettingsJson` 输出 |
 | `current/` 下 10 个子文件，各单一职责 | 目录结构 |
-| `vendors/` 下 7 个供应商文件夹，各含 config.json + models.json | 目录结构 |
-| `search_providers/` 下 6 个供应商文件夹，各含 config.json + models.json | 目录结构 |
+| `providers_llm/` 下 7 个供应商文件夹，各含 config.json + models.json | 目录结构 |
+| `providers_search/` 下 6 个供应商文件夹，各含 config.json + models.json | 目录结构 |
 | search provider 从 config.json 读 apiKeyEnvVar（配置驱动） | 单元测试 |
 | 消费方无感知（`ConfigKey.Theme` 等平铺访问不变） | 现有测试全绿 |
 | 物理拆分 + 逻辑合并（加载器合并子文件成 DTO） | `ConfigLoader` 单元测试 |
@@ -545,7 +545,7 @@ if (catalog.TryGet("openai", out var desc) && desc.SupportsOpenAiFormat) { ... }
 | P4d | search providers 代码拆子文件夹 + provider 构造注入 IConfigRoot |
 
 <!-- 🤖 Auto Decision: 2026-10-18 -->
-<!-- 决策: 配置树状生长 — settings.json 作极简树根，current/vendors/search_providers 三分支子文件夹，物理拆分+逻辑合并 -->
+<!-- 决策: 配置树状生长 — settings.json 作极简树根，current/providers_llm/search_providers 三分支子文件夹，物理拆分+逻辑合并 -->
 <!-- 原因: 用户要求"主配置在子配置文件夹外层，像一颗树一样生长"，简化理解 + 消费方无感知 -->
 <!-- 替代方案: 全部内联 settings.json（单文件膨胀，违背"拆分"诉求）/ 只拆供应商不拆 current（current 45 字段仍臃肿）-->
 <!-- 验证: P1-P8 全部完成，24 单元测试 + 9 InitCommand 测试全绿 ✅ -->

@@ -430,11 +430,11 @@ public class SettingsLoaderTests : IDisposable {
 
     #endregion
 
-    #region P6: vendors/ 子文件夹物理拆分
+    #region P6: providers_llm/ 子文件夹物理拆分
 
     [Fact]
     public async Task P6_LoadVendorSubConfigs_从子文件夹加载供应商配置和模型() {
-        var vendorsDir = Path.Combine(_userAppDataDir, "vendors", "openai");
+        var vendorsDir = Path.Combine(_userAppDataDir, "providers_llm", "openai");
         _fs.CreateDirectory(vendorsDir);
 
         var configJson = """{"provider":"openai","protocol":"openai-compatible","model":"gpt-4o","endpoint":"https://api.openai.com/v1","apiKeyEnvVar":"OPENAI_API_KEY","modelsEndpoint":"models"}""";
@@ -462,7 +462,7 @@ public class SettingsLoaderTests : IDisposable {
 
     [Fact]
     public async Task P6_LoadVendorSubConfigs_只有config无models_Models为空() {
-        var vendorsDir = Path.Combine(_userAppDataDir, "vendors", "anthropic");
+        var vendorsDir = Path.Combine(_userAppDataDir, "providers_llm", "anthropic");
         _fs.CreateDirectory(vendorsDir);
 
         var configJson = """{"provider":"anthropic","protocol":"anthropic","model":"claude-sonnet-4-5"}""";
@@ -476,7 +476,7 @@ public class SettingsLoaderTests : IDisposable {
 
     [Fact]
     public async Task P6b_LoadUserSettingsAsync_子文件覆盖settingsJson内联() {
-        // Given: settings.json 含 vendor.openai 内联 + vendors/openai/config.json 子文件(不同 endpoint)
+        // Given: settings.json 含 vendor.openai 内联 + providers_llm/openai/config.json 子文件(不同 endpoint)
         var userSettings = new SettingsJson {
             Vendor = new Dictionary<string, ProfileSettings> {
                 ["openai"] = new ProfileSettings { Provider = "openai", Endpoint = "https://inline-endpoint" },
@@ -484,7 +484,7 @@ public class SettingsLoaderTests : IDisposable {
         };
         await WriteSettingsAsync(GetUserSettingsPath(), userSettings);
 
-        var vendorsDir = Path.Combine(_userAppDataDir, "vendors", "openai");
+        var vendorsDir = Path.Combine(_userAppDataDir, "providers_llm", "openai");
         _fs.CreateDirectory(vendorsDir);
         var subConfigJson = """{"provider":"openai","endpoint":"https://subfile-endpoint","apiKeyEnvVar":"OPENAI_API_KEY"}""";
         await _fs.WriteAllText(Path.Combine(vendorsDir, "config.json"), subConfigJson);
@@ -579,17 +579,17 @@ public class SettingsLoaderTests : IDisposable {
 
         await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
 
-        var vendorsDir = Path.Combine(baseDir, "vendors");
-        _fs.DirectoryExists(vendorsDir).Should().BeTrue("应生成 vendors/ 目录");
+        var vendorsDir = Path.Combine(baseDir, "providers_llm");
+        _fs.DirectoryExists(vendorsDir).Should().BeTrue("应生成 providers_llm/ 目录");
         var expectedVendors = new[] {
             "sensenova", "openai", "anthropic", "deepseek",
             "deepseek-anthropic", "agnes", "zhipu"
         };
         foreach (var name in expectedVendors) {
             var vendorDir = Path.Combine(vendorsDir, name);
-            _fs.DirectoryExists(vendorDir).Should().BeTrue($"vendors/{name}/ 应存在");
-            _fs.FileExists(Path.Combine(vendorDir, "config.json")).Should().BeTrue($"vendors/{name}/config.json 应存在");
-            _fs.FileExists(Path.Combine(vendorDir, "models.json")).Should().BeTrue($"vendors/{name}/models.json 应存在");
+            _fs.DirectoryExists(vendorDir).Should().BeTrue($"providers_llm/{name}/ 应存在");
+            _fs.FileExists(Path.Combine(vendorDir, "config.json")).Should().BeTrue($"providers_llm/{name}/config.json 应存在");
+            _fs.FileExists(Path.Combine(vendorDir, "models.json")).Should().BeTrue($"providers_llm/{name}/models.json 应存在");
         }
     }
 
@@ -600,14 +600,14 @@ public class SettingsLoaderTests : IDisposable {
 
         await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
 
-        var searchDir = Path.Combine(baseDir, "search_providers");
-        _fs.DirectoryExists(searchDir).Should().BeTrue("应生成 search_providers/ 目录");
+        var searchDir = Path.Combine(baseDir, "providers_search");
+        _fs.DirectoryExists(searchDir).Should().BeTrue("应生成 providers_search/ 目录");
         var expectedProviders = new[] { "tavily", "serper", "brave", "searxng", "anthropic", "subagent" };
         foreach (var name in expectedProviders) {
             var providerDir = Path.Combine(searchDir, name);
-            _fs.DirectoryExists(providerDir).Should().BeTrue($"search_providers/{name}/ 应存在");
-            _fs.FileExists(Path.Combine(providerDir, "config.json")).Should().BeTrue($"search_providers/{name}/config.json 应存在");
-            _fs.FileExists(Path.Combine(providerDir, "models.json")).Should().BeTrue($"search_providers/{name}/models.json 应存在");
+            _fs.DirectoryExists(providerDir).Should().BeTrue($"providers_search/{name}/ 应存在");
+            _fs.FileExists(Path.Combine(providerDir, "config.json")).Should().BeTrue($"providers_search/{name}/config.json 应存在");
+            _fs.FileExists(Path.Combine(providerDir, "models.json")).Should().BeTrue($"providers_search/{name}/models.json 应存在");
         }
     }
 
@@ -624,8 +624,8 @@ public class SettingsLoaderTests : IDisposable {
 
         settingsContent.Should().Contain("autoFetchModels", "极简 settings.json 应含 autoFetchModels 全局开关");
         settingsContent.Should().Contain("profile", "极简 settings.json 应含 current.profile 指针");
-        settingsContent.Should().NotContain("\"vendor\":", "极简 settings.json 不应内联 vendor 节点（已拆到 vendors/ 子文件夹）");
-        settingsContent.Should().NotContain("\"searchProviders\":", "极简 settings.json 不应内联 searchProviders 节点（已拆到 search_providers/ 子文件夹）");
+        settingsContent.Should().NotContain("\"vendor\":", "极简 settings.json 不应内联 vendor 节点（已拆到 providers_llm/ 子文件夹）");
+        settingsContent.Should().NotContain("\"searchProviders\":", "极简 settings.json 不应内联 searchProviders 节点（已拆到 providers_search/ 子文件夹）");
     }
 
     [Fact]
@@ -635,7 +635,7 @@ public class SettingsLoaderTests : IDisposable {
 
         await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
 
-        var openaiConfigPath = Path.Combine(baseDir, "vendors", "openai", "config.json");
+        var openaiConfigPath = Path.Combine(baseDir, "providers_llm", "openai", "config.json");
         var configContent = await _fs.ReadAllText(openaiConfigPath);
         configContent.Should().Contain("https://api.openai.com/v1", "openai config.json 应含 endpoint");
         configContent.Should().Contain("openai-compatible", "openai config.json 应含 protocol");

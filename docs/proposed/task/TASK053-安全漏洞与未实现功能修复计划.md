@@ -41,9 +41,13 @@
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| `McpHttpServer` token 校验（401 拒绝 + 引导文案） | `McpCommand.cs` http/tcp server 启动处生成并打印 token | ☐ | ☐ ADR 0080 手动 exe：无 token curl → 401；带 token → 200 |
-| serve 路径权限管道接入 | `JccMcpServer.HandleCallToolAsync` → PermissionAwareToolExecutor | ☐ | ☐ ADR 0080 手动 exe：serve 下 `bash` 工具调用请求确认（Auto 模式）而非直通 |
-| file 写路径 cwd 边界校验 | `FileWriter`/`FileOperationService` 写入口 | ☐ | ☐ ADR 0080 手动 exe：file_write 绝对路径 → 拒绝/Ask；cwd 内 → 成功 |
+| `McpHttpServer`/`McpTcpServer` token 校验（401 拒绝 + 引导文案） | `McpCommand.cs` serve 启动处生成并打印 `Mcp-Token`；`McpServeCommand`/`McpServeArg`/`JccCliArg` 新增 `--token`；`ApiKeyRedLine` 白名单放行 | ✅ [ADR 0138](../adr/0138-mcp-serve-auth-token.md) | ✅ [ADR 0080](../adr/engineering_ci_test/0080-manual-exe-testing-guide.md) exe 冒烟：无 token → 401；错 token → 401；对 token initialize → 200 |
+| serve 路径权限管道接入 | `JccMcpServer.HandleCallToolAsync` → `IToolExecutionGateway`（PermissionAwareToolExecutor） | ✅ [ADR 0138](../adr/0138-mcp-serve-auth-token.md) | ✅ exe 冒烟：`bash` 被拒（用户拒绝工具执行）；单测 `JccMcpServerGatewayTests` |
+| file 写路径 cwd 边界校验 | 权限管道第 4/8 层收窄短路 + 第 9 层 PathPermission 生效（`AutoClassifierMiddleware`/`ToolListPermissionMiddleware`/`PathPermissionMiddleware`） | ✅ [ADR 0139](../adr/0139-permission-pipeline-path-boundary-shortcircuit.md) | ✅ exe 冒烟：`write C:\Users\Public` 越界 → 拒绝且文件不存在；`write` cwd 内 → 成功；`read` 越界不存在 → 报错 |
+
+补充: 落地验收中发现权限管道自身短路缺陷（分类器/工具名单对带路径文件类工具
+直接短路，绕过 PathPermission 9 步链），修复与验收见 [ADR 0139](../adr/0139-permission-pipeline-path-boundary-shortcircuit.md)。
+回归测试: `PipelinePathBoundaryTests`（12 层真实管道，9 用例）+ guard 1096 / host 1279 / mcp 1000 全绿。
 
 **TDD 流程**: 🔴 E2E 红（mock_server.e2e 新增 serve 鉴权用例）→ 🔴 单元红（McpHttpServer token 校验 / JccMcpServer 权限管道 / FileWriter 边界）→ 🟢 绿 → ADR 0138（proposed→accepted）→ 提交。
 

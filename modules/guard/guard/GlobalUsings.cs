@@ -43,6 +43,7 @@ global using JoinCode.Abstractions.Configuration.Llm;
 global using JoinCode.Abstractions.Configuration.ConfigRoot;
 global using JoinCode.Abstractions.Configuration.Providers;
 global using JoinCode.Abstractions.Configuration.Settings;
+global using JoinCode.Guard.Configuration.ConfigRoot;
 global using Microsoft.Extensions.Caching.Memory;
 global using JoinCode.Abstractions.Entity;
 global using JoinCode.Abstractions.Exceptions;

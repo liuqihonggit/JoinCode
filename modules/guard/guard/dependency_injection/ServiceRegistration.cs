@@ -30,7 +30,7 @@ public static partial class ServiceRegistration {
     }
 
     /// <summary>
-    /// 注册配置服务(模型配置加载器、供应商定义注册表)
+    /// 注册配置服务(模型配置加载器、供应商定义注册表、统一配置入口 IConfigRoot)
     /// </summary>
     public static IServiceCollection AddConfigurationServices(this IServiceCollection services) {
         services.TryAddSingleton<IModelConfigLoader, ModelConfigLoader>();
@@ -38,6 +38,36 @@ public static partial class ServiceRegistration {
             sp.GetRequiredService<IModelConfigLoader>(),
             sp.GetService<IFileSystem>(),
             sp.GetService<ILogger<Core.Configuration.Providers.ProviderDefinitionRegistry>>()));
+        services.TryAddSingleton<IMemoryCache>(sp => new MemoryCache(new MemoryCacheOptions {
+            SizeLimit = 4096,
+            CompactionPercentage = 0.25,
+            ExpirationScanFrequency = TimeSpan.FromMinutes(5),
+        }));
+        services.TryAddSingleton<IProjectLocator, ProjectLocator>();
+        services.TryAddSingleton<IConfigRoot>(sp => {
+            var fs = sp.GetRequiredService<IFileSystem>();
+            var cache = sp.GetRequiredService<IMemoryCache>();
+            var locator = sp.GetRequiredService<IProjectLocator>();
+            var logger = sp.GetService<ILogger<UnifiedConfigRoot>>();
+
+            SettingsJson? userSettings = null;
+            SettingsJson? proSettings = null;
+            SettingsJson? localSettings = null;
+            try {
+                userSettings = SettingsLoader.LoadUserSettings(fs).GetAwaiter().GetResult();
+                if (locator.TryLocateProjectRoot(out var projectRoot)) {
+                    proSettings = SettingsLoader.LoadProjectSettingsAsync(fs, projectRoot).GetAwaiter().GetResult();
+                    localSettings = SettingsLoader.LoadLocalSettingsAsync(fs, projectRoot).GetAwaiter().GetResult();
+                }
+            } catch (Exception ex) {
+                logger?.LogWarning(ex, "Failed to load settings for IConfigRoot, falling back to empty layers");
+            }
+
+            var user = new ConfigLayer(userSettings);
+            var pro = new ConfigLayer(proSettings);
+            var local = new ConfigLayer(localSettings);
+            return new UnifiedConfigRoot(user, pro, local, cache);
+        });
         return services;
     }
 

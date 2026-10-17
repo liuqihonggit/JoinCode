@@ -63,10 +63,14 @@ public static class SubprocessEnvCleaner {
     }
 
     /// <summary>
-    /// 是否启用环境变量清理
+    /// 是否启用环境变量清理 — 默认开启,opt-out via JCC_SUBPROCESS_ENV_SCRUB=0/false
+    /// <para>
+    /// C1 加固: 原设计为 opt-in(默认关闭),API key 默认随子进程继承存在泄露风险。
+    /// 改为默认开启,仅当显式设为 "0" 或 "false" 时关闭。
+    /// </para>
     /// </summary>
     public static bool IsScrubbingEnabled
-        => Environment.GetEnvironmentVariable(ScrubEnvVar) is "1" or "true";
+        => Environment.GetEnvironmentVariable(ScrubEnvVar) is not ("0" or "false");
 
     /// <summary>
     /// 从 ProcessStartInfo.EnvironmentVariables 中移除敏感变量 — 对齐 TS subprocessEnv

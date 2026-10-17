@@ -2,9 +2,8 @@ namespace Core.Tests.ChatCommands;
 
 
 /// <summary>
-/// /ultraplan 命令单元测试 — P0-A TDD 红阶段
+/// /ultraplan 命令单元测试
 /// 验证 --execute 标志应触发 PlanService.ExecutePlanWithResultAsync
-/// 而非当前的"自动执行模式尚未实现"警告
 /// </summary>
 public class UltraplanCommandTests {
     private readonly Mock<IChatService> _chatServiceMock;

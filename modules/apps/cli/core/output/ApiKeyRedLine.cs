@@ -10,10 +10,19 @@ public static class ApiKeyRedLine {
     /// 检查命令行参数是否包含 API Key 模式
     /// 匹配: --api-key, --key, --token, --secret 等参数名
     /// 以及包含 sk-、sk_live、ghp_、gho_ 等常见 Key 前缀的值
+    /// <para>白名单: `mcp serve --token`（或 `mcp_serve --token`）— ADR 0138 该 token 是本地 MCP 服务端口令
+    /// （本进程生成、本地 client 消费，非供应商 API Key），脚本集成场景需显式复用 token，故放行。</para>
     /// </summary>
     /// <returns>如果检测到密钥泄露风险返回错误描述，否则 null</returns>
     public static string? CheckArgsForSecrets(string[] args) {
         if (args is null || args.Length == 0)
+            return null;
+
+        // 上下文白名单: mcp serve --token / mcp_serve --token（ADR 0138）
+        var lowerArgs = args.Where(static a => !a.StartsWith('-')).Select(static a => a.ToLowerInvariant()).ToArray();
+        var isMcpServe = lowerArgs.Contains("mcp_serve")
+            || (lowerArgs.Contains("mcp") && lowerArgs.Contains("serve"));
+        if (isMcpServe)
             return null;
 
         // 危险参数名模式

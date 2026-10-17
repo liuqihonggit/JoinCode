@@ -17,7 +17,8 @@ internal static class McpServeCommand {
         var transport = FlatSubCommandRouter.GetOptionValue(args, McpServeArgCliOptionConstants.TransportLongName) ?? "stdio";
         var port = int.TryParse(FlatSubCommandRouter.GetOptionValue(args, McpServeArgCliOptionConstants.PortLongName), out var p) ? p : 9903;
         var host = FlatSubCommandRouter.GetOptionValue(args, McpServeArgCliOptionConstants.HostLongName) ?? "localhost";
+        var token = FlatSubCommandRouter.GetOptionValue(args, McpServeArgCliOptionConstants.TokenLongName);
         var awaitSeconds = int.TryParse(FlatSubCommandRouter.GetOptionValue(args, CliArgCliOptionConstants.AwaitLongName), out var a) ? a : (int?)null;
-        return await McpCliCommand.ExecuteServeAsync(transport, port, host, ct, awaitSeconds).ConfigureAwait(false);
+        return await McpCliCommand.ExecuteServeAsync(transport, port, host, ct, awaitSeconds, token).ConfigureAwait(false);
     }
 }

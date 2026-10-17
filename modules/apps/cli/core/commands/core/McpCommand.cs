@@ -139,7 +139,7 @@ public sealed class McpCliCommand {
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    internal static async Task<int> ExecuteServeAsync(string transport, int port, string hostName, CancellationToken ct, int? awaitSeconds = null) {
+    internal static async Task<int> ExecuteServeAsync(string transport, int port, string hostName, CancellationToken ct, int? awaitSeconds = null, string? explicitToken = null) {
         if (!string.Equals(transport, "stdio", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(transport, "http", StringComparison.OrdinalIgnoreCase)) {
             TerminalHelper.WriteError($"不支持的传输方式: {transport}（仅支持 stdio 或 http）");
@@ -150,7 +150,9 @@ public sealed class McpCliCommand {
 
         var registry = appHost.Services.GetRequiredService<IMcpToolRegistry>();
         var toolCount = await registry.GetCountAsync(ct).ConfigureAwait(false);
-        var server = new JccMcpServer(registry, "jcc-mcp", "1.0.0",
+        // tools/call 统一走权限管道（13 层中间件），禁止直连注册表绕过权限层 — ADR 0138
+        var gateway = appHost.Services.GetRequiredService<IToolExecutionGateway>();
+        var server = new JccMcpServer(registry, gateway, "jcc-mcp", "1.0.0",
             $"jcc 内部 MCP 服务端 — 暴露 {toolCount} 个工具");
 
         // --await N: 子命令级超时,优雅退出并输出结构化信息
@@ -171,6 +173,8 @@ public sealed class McpCliCommand {
         }
 
         // HTTP 模式: 先尝试 HttpListener,失败降级 TcpListener(纵深防御)
+        // token 鉴权: 显式指定用于脚本集成,否则自动生成 — token 是唯一凭证,启动时打印 (ADR 0138)
+        var authToken = explicitToken ?? McpAuthToken.Generate();
         var prefix = $"http://{hostName}:{port}/mcp/";
         var startTime = DateTime.UtcNow;
         McpTcpServer? tcpServer = null;
@@ -178,17 +182,19 @@ public sealed class McpCliCommand {
         var usedTcp = false;
 
         try {
-            httpServer = new McpHttpServer(server, prefix, statelessMode: true);
+            httpServer = new McpHttpServer(server, prefix, statelessMode: true, authToken: authToken);
             httpServer.Start();
             TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleEnumConstants.Reset} HTTP 模式启动(HttpListener): {prefix}，暴露 {toolCount} 个工具");
         } catch (HttpListenerException) {
             // HttpListener 不可用(沙箱/无 HTTP.sys) → 降级 TcpListener
             httpServer?.Dispose();
             httpServer = null;
-            tcpServer = new McpTcpServer(server, hostName, port, statelessMode: true);
+            tcpServer = new McpTcpServer(server, hostName, port, statelessMode: true, authToken: authToken);
             usedTcp = true;
             TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleEnumConstants.Reset} HTTP 模式启动(TcpListener 降级): http://{hostName}:{port}/mcp/，暴露 {toolCount} 个工具");
         }
+
+        PrintServeTokenUsage(authToken, hostName, prefix);
 
         TerminalHelper.WriteLine("按 Ctrl+C 停止");
 
@@ -210,6 +216,16 @@ public sealed class McpCliCommand {
         tcpServer?.Dispose();
         httpServer?.Dispose();
         return 0;
+    }
+
+    /// <summary>
+    /// 打印 token 与客户端连接用法 — 无 token 的请求一律 401（ADR 0138: 默认 token 鉴权，无豁免开关）
+    /// </summary>
+    private static void PrintServeTokenUsage(string authToken, string hostName, string prefix) {
+        TerminalHelper.WriteLine($"{TerminalColors.Info}Mcp-Token{AnsiStyleEnumConstants.Reset}: {authToken}");
+        if (!hostName.Equals("localhost", StringComparison.OrdinalIgnoreCase) && !hostName.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase))
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}警告: 绑定 {hostName} (非 localhost) 会将 MCP 服务端暴露到网络，请确保 token 保密{AnsiStyleEnumConstants.Reset}");
+        TerminalHelper.WriteLine("客户端连接示例——请求头加 Authorization: Bearer <token>");
     }
 
     /// <summary>mcp_serve 退出时输出结构化 JSON 报告</summary>

@@ -3,21 +3,25 @@ namespace JoinCode.CliCommands;
 /// <summary>
 /// jcc 专属 MCP 服务端 — 继承 McpServer，接入 IMcpToolRegistry，
 /// 把全部内部工具（含 gh_*、tool_search、read、write 等）暴露为 MCP 协议 tools/list + tools/call。
-/// <para>ADR: 0065 — jcc mcp serve 子命令使用此类启动 MCP 服务端</para>
+/// <para>tools/call 执行统一走 <see cref="IToolExecutionGateway"/> 权限管道（13 层 PermissionCheck/Path/AgentRestriction 等），
+/// 禁止直连注册表绕过权限层 — ADR: 0065（mcp serve）、0138（serve token 鉴权 + 权限管道接入）</para>
 /// </summary>
 public sealed class JccMcpServer : McpServer {
     private readonly IMcpToolRegistry _registry;
+    private readonly IToolExecutionGateway _gateway;
 
     /// <summary>
-    /// 构造函数 — 注入工具注册表并初始化 MCP 服务端
+    /// 构造函数 — 注入工具注册表、权限执行器并初始化 MCP 服务端
     /// </summary>
-    /// <param name="registry">MCP 工具注册表</param>
+    /// <param name="registry">MCP 工具注册表（tools/list 与 containsTool 判断用）</param>
+    /// <param name="gateway">权限感知工具执行器（tools/call 执行统一入口，禁止绕过权限管道）</param>
     /// <param name="serverName">服务端名称，默认 jcc-mcp</param>
     /// <param name="serverVersion">服务端版本，为 null 时使用默认值</param>
     /// <param name="instructions">服务端说明信息</param>
-    public JccMcpServer(IMcpToolRegistry registry, string serverName = "jcc-mcp", string? serverVersion = null, string? instructions = null)
+    public JccMcpServer(IMcpToolRegistry registry, IToolExecutionGateway gateway, string serverName = "jcc-mcp", string? serverVersion = null, string? instructions = null)
         : base(serverName, serverVersion, instructions) {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        _gateway = gateway ?? throw new ArgumentNullException(nameof(gateway));
     }
 
     /// <summary>
@@ -66,7 +70,8 @@ public sealed class JccMcpServer : McpServer {
             };
 
         var arguments = ParseArguments(callParams.Arguments);
-        var result = await _registry.ExecuteToolAsync(callParams.Name, arguments, cancellationToken).ConfigureAwait(false);
+        // 执行统一走权限管道（PermissionAwareToolExecutor → 13 层中间件），禁止直连注册表绕过权限层
+        var result = await _gateway.ExecuteAsync(callParams.Name, arguments, cancellationToken).ConfigureAwait(false);
 
         var contents = new List<McpToolContent>(result.Content.Count);
         foreach (var c in result.Content) {

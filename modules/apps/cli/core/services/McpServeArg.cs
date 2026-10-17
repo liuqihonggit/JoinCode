@@ -15,4 +15,8 @@ public enum McpServeArg {
     /// <summary>MCP 服务端监听主机</summary>
     [CliOption(JccCliArgEnumConstants.Host, "", "MCP 服务端监听主机", AcceptsValue = true, Category = "服务端", Example = "jcc mcp_serve --host localhost")]
     Host,
+
+    /// <summary>MCP serve 鉴权令牌（默认自动生成并打印；脚本集成场景显式指定）</summary>
+    [CliOption(JccCliArgEnumConstants.Token, "", "MCP serve 鉴权令牌（默认自动生成并打印；脚本集成场景显式指定）", AcceptsValue = true, Category = "服务端", Example = "jcc mcp_serve --token <token>")]
+    Token,
 }

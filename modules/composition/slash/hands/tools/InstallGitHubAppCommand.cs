@@ -10,15 +10,18 @@ namespace JoinCode.ChatCommands;
 public sealed class InstallGitHubAppCommand : ChatCommandBase {
     private readonly IGitHubCommandRunner? _gitHubRunner;
     private readonly IGitHubApiClient? _apiClient;
+    private readonly IProcessService? _processService;
 
     /// <summary>
     /// 构造 install-github-app 命令实例
     /// </summary>
     /// <param name="gitHubRunner">可选的 GitHub 命令执行器</param>
     /// <param name="gitHubApiClient">可选的 GitHub API 客户端</param>
-    public InstallGitHubAppCommand(IGitHubCommandRunner? gitHubRunner = null, IGitHubApiClient? gitHubApiClient = null) {
+    /// <param name="processService">可选的进程服务 — 用于 git 命令执行,消除 cmd.exe /c 回退路径(B3 命令注入防御)</param>
+    public InstallGitHubAppCommand(IGitHubCommandRunner? gitHubRunner = null, IGitHubApiClient? gitHubApiClient = null, IProcessService? processService = null) {
         _gitHubRunner = gitHubRunner;
         _apiClient = gitHubApiClient;
+        _processService = processService;
     }
 
     /// <summary>
@@ -97,7 +100,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
         TerminalHelper.WriteLine("正在检查 GitHub CLI 安装...");
 
         // 检查 gh 是否安装
-        var ghCheck = await RunShellCommandAsync("gh --version", ct, _gitHubRunner).ConfigureAwait(false);
+        var ghCheck = await RunShellCommandAsync("gh", ["--version"], ct, _gitHubRunner, _processService).ConfigureAwait(false);
         if (!ghCheck.Success) {
             return GitHubCheckResult.Fail(
                 "GitHub CLI 未安装",
@@ -105,7 +108,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
         }
 
         // 检查认证状态
-        var authCheck = await RunShellCommandAsync("gh auth status", ct, _gitHubRunner).ConfigureAwait(false);
+        var authCheck = await RunShellCommandAsync("gh", ["auth", "status"], ct, _gitHubRunner, _processService).ConfigureAwait(false);
         if (!authCheck.Success) {
             return GitHubCheckResult.Fail(
                 "GitHub CLI 未认证",
@@ -124,24 +127,34 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
     }
 
     /// <summary>
-    /// 获取当前 Git 仓库的 GitHub 仓库名
+    /// 获取当前 Git 仓库的 GitHub 仓库名 — 解析后经 GitHubRepoNameValidator 白名单校验拒绝注入串
     /// </summary>
-    private async Task<string?> GetCurrentRepoAsync(CancellationToken ct) {
-        var result = await RunShellCommandAsync("git remote get-url origin", ct).ConfigureAwait(false);
+    internal async Task<string?> GetCurrentRepoAsync(CancellationToken ct) {
+        var result = await RunShellCommandAsync("git", ["remote", "get-url", "origin"], ct, null, _processService).ConfigureAwait(false);
         if (!result.Success) return null;
 
         var url = result.Output.Trim();
-        // 支持 https://github.com/owner/repo.git 和 git@github.com:owner/repo.git
-        if (url.Contains("github.com")) {
-            var parts = url.Split("github.com");
-            if (parts.Length > 1) {
-                var path = parts[1].TrimStart(':', '/', '.');
-                path = path.TrimEnd('.', 'g', 'i', 't'); // 移除 .git
-                return path.EndsWith('/') ? path[..^1] : path;
-            }
-        }
+        var extracted = ExtractRepoFromUrl(url);
+        if (extracted is null) return null;
 
-        return null;
+        if (!GitHubRepoNameValidator.TryValidate(extracted, out var validated, out var error)) {
+            TerminalHelper.NewLine();
+            TerminalHelper.WriteLine($"{TerminalColors.Error}✗ {error}{AnsiStyleEnumConstants.Reset}");
+            return null;
+        }
+        return validated;
+    }
+
+    /// <summary>
+    /// 从 GitHub URL 提取 owner/repo — 支持 https 与 ssh 格式,不校验(校验由 GitHubRepoNameValidator 统一负责)
+    /// </summary>
+    private static string? ExtractRepoFromUrl(string url) {
+        if (!url.Contains("github.com")) return null;
+        var parts = url.Split("github.com");
+        if (parts.Length <= 1) return null;
+        var path = parts[1].TrimStart(':', '/', '.');
+        path = path.TrimEnd('.', 'g', 'i', 't'); // 移除 .git
+        return path.EndsWith('/') ? path[..^1] : path;
     }
 
     /// <summary>
@@ -192,15 +205,15 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
 
         // 支持 URL 格式提取
         if (input.Contains("github.com")) {
-            var parts = input.Split("github.com");
-            if (parts.Length > 1) {
-                input = parts[1].TrimStart('/', ':');
-                input = input.TrimEnd('.', 'g', 'i', 't');
-                input = input.EndsWith('/') ? input[..^1] : input;
-            }
+            input = ExtractRepoFromUrl(input) ?? input;
         }
 
-        return input;
+        if (!GitHubRepoNameValidator.TryValidate(input, out var validated, out var error)) {
+            TerminalHelper.NewLine();
+            TerminalHelper.WriteLine($"{TerminalColors.Error}✗ {error}{AnsiStyleEnumConstants.Reset}");
+            return null;
+        }
+        return validated;
     }
 
     /// <summary>
@@ -359,9 +372,21 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
     }
 
     /// <summary>
-    /// 验证仓库是否存在且有权限
+    /// 验证仓库是否存在且有权限 — 测试入口(B3 注入防御: repoName 先经白名单校验)
+    /// </summary>
+    internal Task<bool> VerifyRepoForTestAsync(string repoName, CancellationToken ct) => VerifyRepoAsync(repoName, ct);
+
+    /// <summary>
+    /// 验证仓库是否存在且有权限 — repoName 先经 GitHubRepoNameValidator 白名单校验拒绝注入串
     /// </summary>
     private async Task<bool> VerifyRepoAsync(string repoName, CancellationToken ct) {
+        if (!GitHubRepoNameValidator.TryValidate(repoName, out var validatedRepo, out var error)) {
+            TerminalHelper.NewLine();
+            TerminalHelper.WriteLine($"{TerminalColors.Error}✗ {error}{AnsiStyleEnumConstants.Reset}");
+            return false;
+        }
+        repoName = validatedRepo;
+
         if (_apiClient is not null) {
             var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{repoName}", ct: ct).ConfigureAwait(false);
             if (!result.Success) return false;
@@ -370,7 +395,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
                 return repo?.Permissions?.Admin ?? false;
             } catch { return false; }
         }
-        var shellResult = await RunShellCommandAsync($"gh api repos/{repoName} --jq .permissions.admin", ct, _gitHubRunner).ConfigureAwait(false);
+        var shellResult = await RunShellCommandAsync("gh", ["api", $"repos/{repoName}", "--jq", ".permissions.admin"], ct, _gitHubRunner, _processService).ConfigureAwait(false);
         return shellResult.Success && shellResult.Output.Trim() == "true";
     }
 
@@ -420,7 +445,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
         }
 
         // 回退路径: gh CLI
-        var branchResult = await RunShellCommandAsync($"gh api repos/{repoName} --jq .default_branch", ct, _gitHubRunner).ConfigureAwait(false);
+        var branchResult = await RunShellCommandAsync("gh", ["api", $"repos/{repoName}", "--jq", ".default_branch"], ct, _gitHubRunner, _processService).ConfigureAwait(false);
         if (!branchResult.Success) return false;
 
         defaultBranch = branchResult.Output.Trim();
@@ -428,15 +453,15 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
         var newBranchFallback = $"add-claude-github-actions-{ts}";
 
         var shaResult = await RunShellCommandAsync(
-            $"gh api repos/{repoName}/git/ref/heads/{defaultBranch} --jq .object.sha",
-            ct, _gitHubRunner).ConfigureAwait(false);
+            "gh", ["api", $"repos/{repoName}/git/ref/heads/{defaultBranch}", "--jq", ".object.sha"],
+            ct, _gitHubRunner, _processService).ConfigureAwait(false);
         if (!shaResult.Success) return false;
 
         sha = shaResult.Output.Trim();
 
         var createBranch = await RunShellCommandAsync(
-            $"gh api repos/{repoName}/git/refs -f ref=refs/heads/{newBranchFallback} -f sha={sha}",
-            ct, _gitHubRunner).ConfigureAwait(false);
+            "gh", ["api", $"repos/{repoName}/git/refs", "-f", $"ref=refs/heads/{newBranchFallback}", "-f", $"sha={sha}"],
+            ct, _gitHubRunner, _processService).ConfigureAwait(false);
         if (!createBranch.Success) return false;
 
         foreach (var workflow in workflows) {
@@ -444,8 +469,8 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
             var base64Content = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(content));
 
             var createFile = await RunShellCommandAsync(
-                $"gh api repos/{repoName}/contents/.github/workflows/{fileName} -X PUT -f message=\"Add {workflow} workflow\" -f content=\"{base64Content}\" -f branch={newBranchFallback}",
-                ct, _gitHubRunner).ConfigureAwait(false);
+                "gh", ["api", $"repos/{repoName}/contents/.github/workflows/{fileName}", "-X", "PUT", "-f", $"message=Add {workflow} workflow", "-f", $"content={base64Content}", "-f", $"branch={newBranchFallback}"],
+                ct, _gitHubRunner, _processService).ConfigureAwait(false);
 
             if (!createFile.Success) return false;
         }
@@ -511,8 +536,8 @@ jobs:
     /// </summary>
     private async Task<bool> SetSecretAsync(string repoName, string secretName, string secretValue, CancellationToken ct) {
         var result = await RunShellCommandAsync(
-            $"gh secret set {secretName} --body \"{secretValue}\" --repo {repoName}",
-            ct, _gitHubRunner).ConfigureAwait(false);
+            "gh", ["secret", "set", secretName, "--body", secretValue, "--repo", repoName],
+            ct, _gitHubRunner, _processService).ConfigureAwait(false);
         return result.Success;
     }
 
@@ -521,8 +546,8 @@ jobs:
     /// </summary>
     private async Task OpenPullRequestAsync(string repoName, CancellationToken ct) {
         _ = await RunShellCommandAsync(
-            $"gh browse repos/{repoName}/compare/add-claude-github-actions",
-            ct, _gitHubRunner).ConfigureAwait(false);
+            "gh", ["browse", $"repos/{repoName}/compare/add-claude-github-actions"],
+            ct, _gitHubRunner, _processService).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -562,13 +587,22 @@ jobs:
     }
 
     /// <summary>
-    /// 执行 Shell 命令 — 当命令是 gh 开头且有 GitHubCommandRunner 时，走统一执行器（获得重试+编码处理）
+    /// 执行 Shell 命令 — fileName + args 参数化启动,消灭 cmd.exe /c 回退路径(B3 命令注入防御)
+    /// <para>
+    /// gh 命令优先走 GitHubCommandRunner 统一执行器(重试 + 环境变量 + 编码处理);
+    /// 否则走 IProcessService 或直接 ProcessStartInfo + ArgumentList,禁止 cmd.exe /c 字符串拼接。
+    /// </para>
     /// </summary>
-    private static async Task<ShellResult> RunShellCommandAsync(string command, CancellationToken ct, IGitHubCommandRunner? gitHubRunner = null, IProcessService? processService = null) {
+    private static async Task<ShellResult> RunShellCommandAsync(
+        string fileName,
+        IReadOnlyList<string> args,
+        CancellationToken ct,
+        IGitHubCommandRunner? gitHubRunner = null,
+        IProcessService? processService = null) {
         try {
             // gh 命令走 GitHubCommandRunner 统一执行器（重试 + 环境变量 + 编码处理）
-            if (gitHubRunner is not null && command.StartsWith("gh ", StringComparison.OrdinalIgnoreCase)) {
-                var ghArgs = command[3..];
+            if (gitHubRunner is not null && IsGh(fileName)) {
+                var ghArgs = string.Join(' ', args);
                 var ghResult = await gitHubRunner.ExecuteAsync(ghArgs, null, null, ct).ConfigureAwait(false);
                 return ghResult.Success
                     ? ShellResult.Ok(ghResult.Output)
@@ -577,8 +611,8 @@ jobs:
 
             if (processService is not null) {
                 var options = new ProcessOptions {
-                    FileName = "cmd.exe",
-                    ArgumentList = new[] { "/c", command }
+                    FileName = fileName,
+                    ArgumentList = args,
                 };
 
                 var result = await processService.ExecuteAsync(options, ct).ConfigureAwait(false);
@@ -587,15 +621,17 @@ jobs:
                     : ShellResult.Fail(result.StandardError);
             }
 
+            // 回退路径: 直接 ProcessStartInfo + ArgumentList, 禁止 cmd.exe /c(B3 命令注入防御)
             var psi = new System.Diagnostics.ProcessStartInfo {
-                FileName = "cmd.exe",
+                FileName = fileName,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
-            psi.ArgumentList.Add("/c");
-            psi.ArgumentList.Add(command);
+            foreach (var arg in args) {
+                psi.ArgumentList.Add(arg);
+            }
 
             using var process = System.Diagnostics.Process.Start(psi);
             if (process is null) return ShellResult.Fail("无法启动进程");
@@ -618,6 +654,11 @@ jobs:
             return ShellResult.Fail(ex.Message);
         }
     }
+
+    /// <summary>
+    /// 判断文件名是否为 gh CLI
+    /// </summary>
+    private static bool IsGh(string fileName) => fileName is "gh" or "gh.exe";
 
     private sealed record ShellResult(bool Success, string Output, string Error) {
         /// <summary>构造执行成功的 ShellResult。</summary>

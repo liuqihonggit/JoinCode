@@ -190,6 +190,12 @@ public sealed class CSharpCallExtractor {
             }
         } else if (nodeType == "variable_declaration") {
             CollectVariableDeclarationTypes(node, map);
+        } else if (nodeType == "field_declaration") {
+            foreach (var child in node.NamedChildren) {
+                if (child.Type == "variable_declaration") {
+                    CollectVariableDeclarationTypes(child, map);
+                }
+            }
         }
     }
 

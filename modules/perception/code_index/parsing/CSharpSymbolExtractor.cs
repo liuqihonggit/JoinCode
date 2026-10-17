@@ -737,10 +737,6 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable {
             return $"{parentFqn}.{name}";
         }
 
-        if (!string.IsNullOrEmpty(ns)) {
-            return $"{ns}.{name}";
-        }
-
         return name;
     }
 

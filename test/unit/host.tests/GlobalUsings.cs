@@ -1,6 +1,11 @@
 // Merged from Tui.Tests + Core.Tests.Terminal
 // Xunit, Moq, FluentAssertions, Microsoft.Extensions.Logging are in tests/Directory.Build.props
 
+global using McpProtocol;
+global using System.Net;
+global using System.Net.Http;
+global using System.Text;
+global using System.Text.Json;
 global using JoinCode.Abstractions.Models.Search;
 global using Core.Agents.Coordinator;
 global using Core.Bridge;
@@ -82,8 +87,6 @@ global using Services.OAuth;
 global using System.Collections.Frozen;
 global using System.Reflection;
 global using System.Runtime.CompilerServices;
-global using System.Text;
-global using System.Text.Json;
 global using System.Text.RegularExpressions;
 global using Testing.Common;
 global using IMcpClient = JoinCode.Abstractions.Mcp.Client.IMcpClient;

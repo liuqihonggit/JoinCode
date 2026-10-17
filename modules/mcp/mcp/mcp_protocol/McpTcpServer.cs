@@ -13,8 +13,12 @@ public sealed class McpTcpServer : ServiceEntity {
     private readonly McpSessionRegistry _sessions = new();
     private readonly bool _statelessMode;
     private readonly FrozenSet<string> _allowedOrigins;
+    private readonly McpAuthToken _authToken;
     private CancellationTokenSource? _cts;
     private readonly DateTime _startTime = DateTime.UtcNow;
+
+    /// <summary>鉴权令牌 — 客户端必须携带（Authorization: Bearer 或 Mcp-Token 头），serve 启动时打印给调用方</summary>
+    public McpAuthToken AuthToken => _authToken;
 
     // 统计信息 — 用于结构化退出报告
     private int _totalRequests;
@@ -38,13 +42,15 @@ public sealed class McpTcpServer : ServiceEntity {
     /// <param name="port">监听端口</param>
     /// <param name="statelessMode">无状态模式(默认 true):不分配 MCP-Session-Id</param>
     /// <param name="allowedOrigins">允许的 Origin 列表;null/空则允许所有</param>
-    public McpTcpServer(McpServer server, string host, int port, bool statelessMode = true, IEnumerable<string>? allowedOrigins = null)
+    /// <param name="authToken">鉴权令牌;null 则自动生成(暴露在 <see cref="AuthToken"/>);空串抛异常(禁止关闭鉴权)</param>
+    public McpTcpServer(McpServer server, string host, int port, bool statelessMode = true, IEnumerable<string>? allowedOrigins = null, string? authToken = null)
         : base(nameof(McpTcpServer)) {
         _server = server ?? throw new ArgumentNullException(nameof(server));
         if (string.IsNullOrWhiteSpace(host)) throw new ArgumentException("监听地址不能为空", nameof(host));
         if (port <= 0 || port > 65535) throw new ArgumentException("端口范围 1-65535", nameof(port));
         _statelessMode = statelessMode;
         _allowedOrigins = (allowedOrigins ?? []).ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+        _authToken = authToken is null ? McpAuthToken.New() : McpAuthToken.For(authToken);
         var address = host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ? IPAddress.Loopback : IPAddress.Parse(host);
         _listener = new TcpListener(address, port);
     }
@@ -113,6 +119,12 @@ public sealed class McpTcpServer : ServiceEntity {
     private async Task DispatchRequestAsync(Stream stream, HttpRequestInfo request, CancellationToken ct) {
         var method = request.Method.ToUpperInvariant();
         try {
+            if (!ValidateAuth(request)) {
+                Interlocked.Increment(ref _totalErrors);
+                await WriteUnauthorizedAsync(stream, ct).ConfigureAwait(false);
+                return;
+            }
+
             switch (method) {
                 case "POST":
                 await HandlePostAsync(stream, request, ct).ConfigureAwait(false);
@@ -142,6 +154,23 @@ public sealed class McpTcpServer : ServiceEntity {
                 Console.WriteLine($"McpTcpServer: 写 500 响应失败: {writeEx.Message}");
             }
         }
+    }
+
+    /// <summary>token 鉴权校验 — 所有 method 全覆盖（ADR 0138: 默认 token 鉴权，无豁免）</summary>
+    private bool ValidateAuth(HttpRequestInfo request) {
+        var headers = request.Headers.Select(kv => new KeyValuePair<string, string>(kv.Key, kv.Value));
+        return McpAuthToken.TryValidate(headers, _authToken.Value, out _);
+    }
+
+    /// <summary>401 响应 — 带 WWW-Authenticate 与引导文案（AGENTS.md 规则9: 拒绝必须带怎么做）</summary>
+    private static async Task WriteUnauthorizedAsync(Stream stream, CancellationToken ct) {
+        const string reason =
+            "MCP serve token 鉴权失败: 客户端未携带或携带了错误 token。"
+            + "在请求头加 'Authorization: Bearer <token>' 或 'Mcp-Token: <token>'，token 见 serve 启动输出的 Mcp-Token 行";
+        var extraHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
+            ["WWW-Authenticate"] = "Bearer realm=\"mcp\""
+        };
+        await WriteResponseAsync(stream, 401, "Unauthorized", reason, ct, extraHeaders).ConfigureAwait(false);
     }
 
     private async Task HandlePostAsync(Stream stream, HttpRequestInfo request, CancellationToken ct) {

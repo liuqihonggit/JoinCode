@@ -11,7 +11,11 @@ public sealed class McpHttpServer : ServiceEntity {
     private readonly McpSessionRegistry _sessions = new();
     private readonly bool _statelessMode;
     private readonly FrozenSet<string> _allowedOrigins;
+    private readonly McpAuthToken _authToken;
     private volatile CancellationTokenSource? _cts;
+
+    /// <summary>鉴权令牌 — 客户端必须携带（Authorization: Bearer 或 Mcp-Token 头），serve 启动时打印给调用方</summary>
+    public McpAuthToken AuthToken => _authToken;
 
     /// <summary>
     /// 创建 MCP HTTP 服务端
@@ -20,12 +24,14 @@ public sealed class McpHttpServer : ServiceEntity {
     /// <param name="prefix">监听前缀,如 http://localhost:8080/mcp/</param>
     /// <param name="statelessMode">无状态模式(默认 true):不分配 MCP-Session-Id,每个请求自包含</param>
     /// <param name="allowedOrigins">允许的 Origin 列表(Origin 校验防 DNS rebinding);null/空则允许所有</param>
-    public McpHttpServer(McpServer server, string prefix, bool statelessMode = true, IEnumerable<string>? allowedOrigins = null)
+    /// <param name="authToken">鉴权令牌;null 则自动生成(暴露在 <see cref="AuthToken"/>);空串抛异常(禁止关闭鉴权)</param>
+    public McpHttpServer(McpServer server, string prefix, bool statelessMode = true, IEnumerable<string>? allowedOrigins = null, string? authToken = null)
         : base(nameof(McpHttpServer)) {
         _server = server ?? throw new ArgumentNullException(nameof(server));
         if (string.IsNullOrWhiteSpace(prefix)) throw new ArgumentException("监听前缀不能为空", nameof(prefix));
         _statelessMode = statelessMode;
         _allowedOrigins = (allowedOrigins ?? []).ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+        _authToken = authToken is null ? McpAuthToken.New() : McpAuthToken.For(authToken);
         _listener = new HttpListener();
         _listener.Prefixes.Add(prefix);
     }
@@ -67,6 +73,11 @@ public sealed class McpHttpServer : ServiceEntity {
 
     private async Task HandleRequestAsync(HttpListenerContext ctx, CancellationToken ct) {
         try {
+            if (!ValidateAuth(ctx)) {
+                WriteUnauthorized(ctx);
+                return;
+            }
+
             if (!ValidateOrigin(ctx)) {
                 ctx.Response.StatusCode = 403;
                 ctx.Response.Close();
@@ -200,6 +211,31 @@ public sealed class McpHttpServer : ServiceEntity {
             _sessions.Remove(sessionId);
         }
         ctx.Response.StatusCode = 204;
+        ctx.Response.Close();
+    }
+
+    /// <summary>token 鉴权校验 — 所有 method 全覆盖（ADR 0138: 默认 token 鉴权，无豁免）</summary>
+    private bool ValidateAuth(HttpListenerContext ctx) {
+        var headers = new List<KeyValuePair<string, string>>(ctx.Request.Headers.Count);
+        foreach (var key in ctx.Request.Headers.AllKeys) {
+            var value = ctx.Request.Headers[key];
+            if (key is not null && value is not null)
+                headers.Add(new KeyValuePair<string, string>(key, value));
+        }
+        return McpAuthToken.TryValidate(headers, _authToken.Value, out _);
+    }
+
+    /// <summary>401 响应 — 带 WWW-Authenticate 与引导文案（AGENTS.md 规则9: 拒绝必须带怎么做）</summary>
+    private void WriteUnauthorized(HttpListenerContext ctx) {
+        const string reason =
+            "MCP serve token 鉴权失败: 客户端未携带或携带了错误 token。"
+            + "在请求头加 'Authorization: Bearer <token>' 或 'Mcp-Token: <token>'，token 见 serve 启动输出的 Mcp-Token 行";
+        var body = Encoding.UTF8.GetBytes(reason);
+        ctx.Response.StatusCode = 401;
+        ctx.Response.Headers["WWW-Authenticate"] = "Bearer realm=\"mcp\"";
+        ctx.Response.ContentType = "application/json";
+        ctx.Response.ContentLength64 = body.Length;
+        ctx.Response.OutputStream.Write(body, 0, body.Length);
         ctx.Response.Close();
     }
 

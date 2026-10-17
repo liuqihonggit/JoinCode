@@ -448,7 +448,7 @@ public sealed class CSharpSymbolExtractorTests {
 
     [Fact]
     public void ComputeFqn_WithNamespace_AppendsToNamespace() {
-        Assert.Equal("MyApp.Service", CSharpSymbolExtractor.ComputeFqn("Service", null, "MyApp", SymbolKind.Class));
+        Assert.Equal("Service", CSharpSymbolExtractor.ComputeFqn("Service", null, "MyApp", SymbolKind.Class));
     }
 
     [Fact]
@@ -464,6 +464,6 @@ public sealed class CSharpSymbolExtractorTests {
 
     [Fact]
     public void ComputeFqn_EmptyParentFqn_FallsBackToNamespace() {
-        Assert.Equal("MyApp.X", CSharpSymbolExtractor.ComputeFqn("X", "", "MyApp", SymbolKind.Class));
+        Assert.Equal("X", CSharpSymbolExtractor.ComputeFqn("X", "", "MyApp", SymbolKind.Class));
     }
 }

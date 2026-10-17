@@ -8,7 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.2" PrivateAssets="all" />
-    <PackageReference Include="System.IO.Hashing" Version="10.0.9" />
+    <PackageReference Include="System.IO.Hashing" Version="$(SystemIOHashingVersion)" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)modules/async_primitives/async_lock/AsyncLock.csproj" />

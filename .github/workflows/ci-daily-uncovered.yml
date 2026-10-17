@@ -1,0 +1,107 @@
+name: CI Daily - Uncovered Tests
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # 每日 UTC 06:00
+  workflow_dispatch: {}
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: true
+  NUGET_XMLDOC_MODE: skip
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+  Configuration: Debug
+
+jobs:
+  benchmarks:
+    name: Benchmarks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: eyes
+            proj: test/benchmarks/eyes.benchmarks/Eyes.Benchmarks.csproj
+          - name: async_lock
+            proj: test/benchmarks/async_lock.benchmarks/AsyncLock.Benchmarks.csproj
+          - name: infra
+            proj: test/benchmarks/infra.benchmarks/Infra.Benchmarks.csproj
+          - name: persistence
+            proj: test/benchmarks/persistence.benchmarks/Persistence.Benchmarks.csproj
+          - name: structura
+            proj: test/benchmarks/structura.benchmarks/Structura.Benchmarks.csproj
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-test-env
+      - name: Benchmark - ${{ matrix.name }}
+        shell: bash
+        run: |
+          dotnet test "${{ matrix.proj }}" \
+            -c Debug --nologo \
+            -p:UsePackedComponents=true \
+            -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
+            --logger "console;verbosity=normal" \
+            --logger "trx;LogFileName=bench-${{ matrix.name }}.trx"
+
+  aot:
+    name: AOT Verification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: browser
+            proj: test/aot/aot_browser_test/aot-browser-test.csproj
+          - name: httpclientfactory
+            proj: test/aot/aot_httpclientfactory_test/aot-httpclientfactory-test.csproj
+          - name: pithosdb
+            proj: test/aot/aot_pithosdb_probe/aot-pithosdb-probe.csproj
+          - name: pptr_api
+            proj: test/aot/pptr_api_check/PptrApiCheck.csproj
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-test-env
+      - name: AOT - ${{ matrix.name }}
+        shell: bash
+        run: |
+          dotnet test "${{ matrix.proj }}" \
+            -c Debug --nologo \
+            -p:UsePackedComponents=true \
+            -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
+            --logger "console;verbosity=normal" \
+            --logger "trx;LogFileName=aot-${{ matrix.name }}.trx"
+
+  misc:
+    name: Misc Uncovered
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-test-env
+      - name: ONNX Embedding Tests
+        shell: bash
+        run: |
+          dotnet test modules/tools/onnx_embedding.tests/OnnxEmbedding.Tests.csproj \
+            -c Debug --nologo \
+            -p:UsePackedComponents=true \
+            -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
+            --filter "Category!=Integration" \
+            --logger "console;verbosity=normal" \
+            --logger "trx;LogFileName=onnx-embedding.trx"
+      - name: Desktop Integration Tests
+        shell: bash
+        run: |
+          dotnet test test/integration/integration.desktop.tests/Integration.Desktop.Tests.csproj \
+            -c Debug --nologo \
+            -p:UsePackedComponents=true \
+            -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
+            --logger "console;verbosity=normal" \
+            --logger "trx;LogFileName=desktop-integration.trx"

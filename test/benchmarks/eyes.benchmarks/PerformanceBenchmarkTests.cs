@@ -94,7 +94,7 @@ public sealed class PerformanceBenchmarkTests : IDisposable {
         Assert.True(sw.ElapsedMilliseconds < 100, $"调用图查询耗时 {sw.ElapsedMilliseconds}ms > 100ms");
     }
 
-    [Fact]
+    [Fact(Skip = "内存占用测试: 用户明确不追求内存大小,追求速度")]
     public async Task MemoryUsage_L1L2Under600MB() {
         GenerateFiles(100, 100);
         await using var store = new InMemoryIndexStore();

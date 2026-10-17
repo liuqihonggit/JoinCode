@@ -214,15 +214,20 @@ public sealed class PermissionCheckContext {
     }
 
     /// <summary>
-    /// 解析特殊文件夹占位符
+    /// 解析特殊文件夹占位符 — Linux 上 Windows 特有文件夹返回空字符串,跳过 GetFullPath 避免异常
     /// </summary>
     internal static string ResolveSpecialFolder(string placeholder) {
         return placeholder switch {
-            "{Windows}" => Path.GetFullPath(Environment.GetFolderPath(Environment.SpecialFolder.Windows)),
-            "{System}" => Path.GetFullPath(Environment.GetFolderPath(Environment.SpecialFolder.System)),
-            "{SystemX86}" => Path.GetFullPath(Environment.GetFolderPath(Environment.SpecialFolder.SystemX86)),
+            "{Windows}" => ResolveFolderPath(Environment.SpecialFolder.Windows),
+            "{System}" => ResolveFolderPath(Environment.SpecialFolder.System),
+            "{SystemX86}" => ResolveFolderPath(Environment.SpecialFolder.SystemX86),
             _ => placeholder
         };
+    }
+
+    private static string ResolveFolderPath(Environment.SpecialFolder folder) {
+        var path = Environment.GetFolderPath(folder);
+        return string.IsNullOrEmpty(path) ? string.Empty : Path.GetFullPath(path);
     }
 
     /// <summary>

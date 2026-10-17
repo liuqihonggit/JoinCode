@@ -160,4 +160,7 @@ public enum JccCliArg {
 
     [EnumValue("--host")]
     Host,
+
+    [EnumValue("--token")]
+    Token,
 }

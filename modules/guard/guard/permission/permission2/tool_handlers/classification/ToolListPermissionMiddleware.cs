@@ -13,6 +13,14 @@ public sealed partial class ToolListPermissionMiddleware : ServiceEntity, IPermi
 
     /// <inheritdoc />
     public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
+        // 文件类工具带路径参数时不在此短路 — 工具级 allow 名单不得绕过路径级边界
+        // (工作目录内外、敏感路径、deny 规则由 PathPermissionMiddleware 决策链判定；ADR 0138)
+        if (context.Arguments is not null &&
+            PermissionCheckContext.ExtractPathFromArguments(context.Arguments) is not null &&
+            (PermissionCheckContext.IsFileReadTool(context.ToolName) || PermissionCheckContext.IsFileWriteTool(context.ToolName))) {
+            return next(context, ct);
+        }
+
         // 自动批准列表
         if (context.AutoApprovedTools.Contains(context.ToolName)) {
             context.Result = ToolPermissionCheckResult.Approved();

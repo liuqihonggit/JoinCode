@@ -9,7 +9,7 @@ namespace Infrastructure.Housekeeping;
 /// </summary>
 [Register(typeof(IHostedService), ServiceLifetime.Singleton)]
 public sealed class KvStoreTtlCleanupService : PeriodicBackgroundServiceBase {
-    private readonly IKvStore _kvStore;
+    private readonly IKvStoreLeaseFactory _factory;
     private readonly IClockService _clock;
     private readonly ILogger<KvStoreTtlCleanupService>? _logger;
 
@@ -31,21 +31,22 @@ public sealed class KvStoreTtlCleanupService : PeriodicBackgroundServiceBase {
     /// 构造函数 — 注入 KV 存储、时钟、日志
     /// </summary>
     public KvStoreTtlCleanupService(
-        IKvStore kvStore,
+        IKvStoreLeaseFactory factory,
         IClockService clock,
         ILogger<KvStoreTtlCleanupService>? logger = null) {
-        _kvStore = kvStore;
+        _factory = factory;
         _clock = clock;
         _logger = logger;
     }
 
     /// <inheritdoc/>
     protected override async Task ExecuteAsync(CancellationToken cancellationToken) {
+        using var lease = await _factory.AcquireAsync().ConfigureAwait(false);
         var now = _clock.GetUtcNow();
         var totalDeleted = 0;
 
         foreach (var prefix in KeyPrefixes) {
-            totalDeleted += await CleanupPrefixAsync(prefix, now, cancellationToken).ConfigureAwait(false);
+            totalDeleted += await CleanupPrefixAsync(lease, prefix, now, cancellationToken).ConfigureAwait(false);
         }
 
         if (totalDeleted > 0) {
@@ -53,17 +54,14 @@ public sealed class KvStoreTtlCleanupService : PeriodicBackgroundServiceBase {
         }
     }
 
-    /// <summary>
-    /// 清理指定前缀的过期条目 — 范围扫描 [prefix, prefixNext),逐条检查时间戳
-    /// </summary>
-    private async Task<int> CleanupPrefixAsync(string prefix, DateTime now, CancellationToken ct) {
+    private async Task<int> CleanupPrefixAsync(IKvStoreLease lease, string prefix, DateTime now, CancellationToken ct) {
         var fromBytes = Encoding.UTF8.GetBytes(prefix);
         var toBytes = GetPrefixUpperBound(prefix);
 
         var deleted = 0;
-        await foreach (var (key, value) in _kvStore.ScanAsync(from: fromBytes, to: toBytes, ct: ct).ConfigureAwait(false)) {
+        await foreach (var (key, value) in lease.ScanAsync(from: fromBytes, to: toBytes, ct: ct).ConfigureAwait(false)) {
             if (KvStoreTtlExtensions.IsExpired(value, now)) {
-                await _kvStore.DeleteAsync(key, ct).ConfigureAwait(false);
+                await lease.DeleteAsync(key, ct).ConfigureAwait(false);
                 deleted++;
             }
         }

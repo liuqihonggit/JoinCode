@@ -6,7 +6,7 @@ namespace JoinCode.CodeIndex.Analytics;
 [Register(typeof(IBinaryPersistence), ServiceLifetime.Singleton)]
 public sealed class GraphPersistence : ServiceEntity, IIndexStore {
     private readonly InMemoryIndexStore _store;
-    private readonly IKvStore _kvStore;
+    private readonly IKvStoreLeaseFactory _factory;
     private const int CurrentVersion = 1;
     private static readonly byte[] Magic = System.Text.Encoding.UTF8.GetBytes("CGIDX1");
     private static readonly byte[] KeyCodeIndex = System.Text.Encoding.UTF8.GetBytes("code-index");
@@ -14,11 +14,11 @@ public sealed class GraphPersistence : ServiceEntity, IIndexStore {
     /// <summary>
     /// 构造 GraphPersistence
     /// </summary>
-    public GraphPersistence(InMemoryIndexStore store, IKvStore kvStore) {
+    public GraphPersistence(InMemoryIndexStore store, IKvStoreLeaseFactory factory) {
         ArgumentNullException.ThrowIfNull(store);
-        ArgumentNullException.ThrowIfNull(kvStore);
+        ArgumentNullException.ThrowIfNull(factory);
         _store = store;
-        _kvStore = kvStore;
+        _factory = factory;
     }
 
     /// <summary>索引类型标识。</summary>
@@ -127,7 +127,8 @@ public sealed class GraphPersistence : ServiceEntity, IIndexStore {
         }
 
         bw.Flush();
-        await _kvStore.PutAsync(KeyCodeIndex, ms.ToArray(), ct).ConfigureAwait(false);
+        using var lease = await _factory.AcquireAsync().ConfigureAwait(false);
+        await lease.PutAsync(KeyCodeIndex, ms.ToArray(), ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -135,7 +136,8 @@ public sealed class GraphPersistence : ServiceEntity, IIndexStore {
     /// </summary>
     public async Task<bool> LoadAsync(string directory, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(directory);
-        var bytes = await _kvStore.GetAsync(KeyCodeIndex, ct).ConfigureAwait(false);
+        using var lease = await _factory.AcquireAsync().ConfigureAwait(false);
+        var bytes = await lease.GetAsync(KeyCodeIndex, ct).ConfigureAwait(false);
         if (bytes is null) return false;
 
         await using var ms = new MemoryStream(bytes, writable: false);
@@ -255,7 +257,8 @@ public sealed class GraphPersistence : ServiceEntity, IIndexStore {
     /// </summary>
     public async Task<bool> ExistsAsync(string directory, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(directory);
-        var bytes = await _kvStore.GetAsync(KeyCodeIndex, ct).ConfigureAwait(false);
+        using var lease = await _factory.AcquireAsync().ConfigureAwait(false);
+        var bytes = await lease.GetAsync(KeyCodeIndex, ct).ConfigureAwait(false);
         return bytes is not null;
     }
 

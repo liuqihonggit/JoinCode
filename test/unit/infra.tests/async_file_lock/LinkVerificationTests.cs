@@ -134,8 +134,8 @@ public sealed class LinkVerificationTests : IAsyncLifetime
             .WithTaskDirectoryPath(taskDir)
             .Build();
 
-        await using var kvStore = new InMemoryKvStore();
-        using var manager = new HighWaterMarkManager(kvStore, options.GetHighWaterMarkKey());
+        var factory = new InMemoryKvStoreLeaseFactory();
+        using var manager = new HighWaterMarkManager(factory, options.GetHighWaterMarkKey());
         const int incrementCount = 20;
         const int taskCount = 5;
 
@@ -416,8 +416,8 @@ public sealed class LinkVerificationTests : IAsyncLifetime
             .WithTaskDirectoryPath(taskDir)
             .Build();
 
-        await using var kvStore = new InMemoryKvStore();
-        using var manager = new HighWaterMarkManager(kvStore, options.GetHighWaterMarkKey());
+        var factory = new InMemoryKvStoreLeaseFactory();
+        using var manager = new HighWaterMarkManager(factory, options.GetHighWaterMarkKey());
 
         await manager.UpdateAsync(0).ConfigureAwait(true);
 

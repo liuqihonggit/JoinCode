@@ -22,7 +22,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     private readonly GraphVisualization _visualization;
     private readonly ILogger<CodeIndexer>? _logger;
     private readonly IHttpClientProvider? _httpClient;
-    private readonly IKvStore _kvStore;
+    private readonly IKvStoreLeaseFactory _factory;
     private EmbeddingIndex? _embeddingIndex;
     private readonly CodeIndexHyperParams _hyperParams;
     private List<IIndexStore> _indexStores = [];
@@ -39,8 +39,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">可选日志记录器</param>
     /// <param name="httpClient">可选 HTTP 客户端（用于模型缺失时自动下载，> ADR: 0124）</param>
-    /// <param name="kvStore">可选 KV 存储抽象（用于持久化，默认 InMemoryKvStore）</param>
-    public CodeIndexer(InMemoryIndexStore store, IFileSystem fs, ILogger<CodeIndexer>? logger = null, IHttpClientProvider? httpClient = null, IKvStore? kvStore = null) {
+    /// <param name="factory">可选 KV 存储租约工厂（用于持久化，默认 InMemoryKvStoreLeaseFactory）</param>
+    public CodeIndexer(InMemoryIndexStore store, IFileSystem fs, ILogger<CodeIndexer>? logger = null, IHttpClientProvider? httpClient = null, IKvStoreLeaseFactory? factory = null) {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(fs);
 
@@ -59,11 +59,11 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         _projectDependencyGraph = new ProjectDependencyGraph(store);
         _projectIndex = new ProjectIndex(store, fs, logger);
         _analytics = new GraphAnalytics(store);
-        var kv = kvStore ?? new InMemoryKvStore();
-        _kvStore = kv;
-        _persistence = new GraphPersistence(store, kv);
+        var leaseFactory = factory ?? new InMemoryKvStoreLeaseFactory();
+        _factory = leaseFactory;
+        _persistence = new GraphPersistence(store, leaseFactory);
         _visualization = new GraphVisualization(store);
-        TryInitEmbeddingIndex(fs, kv, logger);
+        TryInitEmbeddingIndex(fs, logger);
         BuildIndexStoreList();
     }
 
@@ -80,7 +80,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <para>模型路径：%AppData%/jcc/embedding/model_quantized.onnx + vocab.txt</para>
     /// <para>文件不存在时静默跳过（向量搜索降级为不可用）。</para>
     /// </summary>
-    private void TryInitEmbeddingIndex(IFileSystem fs, IKvStore kvStore, ILogger<CodeIndexer>? logger) {
+    private void TryInitEmbeddingIndex(IFileSystem fs, ILogger<CodeIndexer>? logger) {
         var appData = EmbeddingModelDownloader.DefaultTargetDir;
         var onnxPath = Path.Combine(appData, EmbeddingModelDownloader.ModelFileName);
         var ortPath = Path.Combine(appData, "model_quantized.ort");
@@ -131,7 +131,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             var downloader = new EmbeddingModelDownloader(_logger as ILogger<EmbeddingModelDownloader>);
             await using var rangeDownloader = new RangeDownloader(_httpClient!, _fs);
             await downloader.EnsureAsync(EmbeddingModelDownloader.DefaultTargetDir, _fs, _httpClient, rangeDownloader, ct).ConfigureAwait(false);
-            TryInitEmbeddingIndex(_fs, _kvStore, _logger);
+            TryInitEmbeddingIndex(_fs, _logger);
             BuildIndexStoreList();
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "向量模型自动下载失败，语义搜索将不可用");

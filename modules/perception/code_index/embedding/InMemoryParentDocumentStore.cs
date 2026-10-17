@@ -8,7 +8,7 @@ namespace JoinCode.CodeIndex.Embedding;
 /// </summary>
 public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IIndexStore, IDisposable {
 
-    private readonly IKvStore _kvStore;
+    private readonly IKvStoreLeaseFactory _factory;
     private volatile ImmutableHamT<string, ParentDocument> _documents = ImmutableHamT<string, ParentDocument>.Empty;
     private volatile ImmutableHamT<string, ImmutableHashSet<string>> _fileToDocs = ImmutableHamT<string, ImmutableHashSet<string>>.Empty;
     private int _disposed;
@@ -17,10 +17,10 @@ public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IIndexSt
     /// <summary>
     /// 构造内存父文档存储。
     /// </summary>
-    /// <param name="kvStore">KV 存储抽象 — 用于持久化。</param>
-    public InMemoryParentDocumentStore(IKvStore kvStore) {
-        ArgumentNullException.ThrowIfNull(kvStore);
-        _kvStore = kvStore;
+    /// <param name="factory">KV 存储租约工厂 — 用于持久化。</param>
+    public InMemoryParentDocumentStore(IKvStoreLeaseFactory factory) {
+        ArgumentNullException.ThrowIfNull(factory);
+        _factory = factory;
     }
 
     /// <summary>索引类型标识。</summary>
@@ -157,7 +157,8 @@ public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IIndexSt
             bw.Write(doc.IsTruncated);
         }
         bw.Flush();
-        await _kvStore.PutAsync(KeyParentDocs, ms.ToArray(), ct).ConfigureAwait(false);
+        using var lease = await _factory.AcquireAsync().ConfigureAwait(false);
+        await lease.PutAsync(KeyParentDocs, ms.ToArray(), ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -168,7 +169,8 @@ public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IIndexSt
     /// <returns>true 表示加载成功；false 表示数据不存在或格式不匹配。</returns>
     public async Task<bool> LoadAsync(string dirPath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(dirPath);
-        var bytes = await _kvStore.GetAsync(KeyParentDocs, ct).ConfigureAwait(false);
+        using var lease = await _factory.AcquireAsync().ConfigureAwait(false);
+        var bytes = await lease.GetAsync(KeyParentDocs, ct).ConfigureAwait(false);
         if (bytes is null) return false;
 
         await using var ms = new MemoryStream(bytes, writable: false);
@@ -198,7 +200,8 @@ public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IIndexSt
     /// </summary>
     public async Task<bool> ExistsAsync(string dirPath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(dirPath);
-        var bytes = await _kvStore.GetAsync(KeyParentDocs, ct).ConfigureAwait(false);
+        using var lease = await _factory.AcquireAsync().ConfigureAwait(false);
+        var bytes = await lease.GetAsync(KeyParentDocs, ct).ConfigureAwait(false);
         return bytes is not null;
     }
 

@@ -7,13 +7,13 @@ public sealed class GraphPersistenceTests : IDisposable {
     private readonly SymbolIndex _index;
     private readonly IFileSystem _fs;
     private readonly GraphPersistence _persistence;
-    private readonly IKvStore _kvStore;
+    private readonly IKvStoreLeaseFactory _kvStore;
     private bool _disposed;
 
     public GraphPersistenceTests() {
         _store = new InMemoryIndexStore();
         _fs = TestFileSystem.Current;
-        _kvStore = new InMemoryKvStore();
+        _kvStore = new InMemoryKvStoreLeaseFactory();
         _index = new SymbolIndex(_store, _fs, new CSharpSymbolExtractor());
         _persistence = new GraphPersistence(_store, _kvStore);
     }
@@ -22,7 +22,6 @@ public sealed class GraphPersistenceTests : IDisposable {
         if (_disposed) return;
         _disposed = true;
         _persistence?.Dispose();
-        _kvStore?.DisposeAsync().GetAwaiter().GetResult();
         _index.DisposeSafe();
         _store.Dispose();
     }
@@ -32,7 +31,7 @@ public sealed class GraphPersistenceTests : IDisposable {
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         await using var store = new InMemoryIndexStore();
         using var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
-        var kv = new InMemoryKvStore();
+        var kv = new InMemoryKvStoreLeaseFactory();
         await using var persistence = new GraphPersistence(store, kv);
 
         // 注入含调用边的文件
@@ -60,7 +59,7 @@ public sealed class GraphPersistenceTests : IDisposable {
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         await using var store = new InMemoryIndexStore();
         using var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
-        var kv = new InMemoryKvStore();
+        var kv = new InMemoryKvStoreLeaseFactory();
         await using var persistence = new GraphPersistence(store, kv);
 
         // 注入含依赖关系的文件(继承)
@@ -87,7 +86,7 @@ public sealed class GraphPersistenceTests : IDisposable {
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         await using var store = new InMemoryIndexStore();
         using var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
-        var kv = new InMemoryKvStore();
+        var kv = new InMemoryKvStoreLeaseFactory();
         await using var persistence = new GraphPersistence(store, kv);
 
         // 索引两个文件
@@ -124,7 +123,7 @@ public sealed class GraphPersistenceTests : IDisposable {
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         await using var store = new InMemoryIndexStore();
         using var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
-        var kv = new InMemoryKvStore();
+        var kv = new InMemoryKvStoreLeaseFactory();
         await using var persistence = new GraphPersistence(store, kv);
 
         // 接口和实现在不同文件
@@ -167,7 +166,8 @@ public sealed class GraphPersistenceTests : IDisposable {
 
         await _persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
 
-        var bytes = await _kvStore.GetAsync(System.Text.Encoding.UTF8.GetBytes("code-index"), CancellationToken.None).ConfigureAwait(true);
+        using var lease = await _kvStore.AcquireAsync();
+        var bytes = await lease.GetAsync(System.Text.Encoding.UTF8.GetBytes("code-index"), CancellationToken.None).ConfigureAwait(true);
         Assert.NotNull(bytes);
         Assert.True(bytes.Length > 10, "二进制内容不应为空");
         var magic = System.Text.Encoding.UTF8.GetString(bytes, 0, 6);
@@ -222,7 +222,8 @@ public sealed class GraphPersistenceTests : IDisposable {
 
         await _persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
 
-        var bytes = await _kvStore.GetAsync(System.Text.Encoding.UTF8.GetBytes("code-index"), CancellationToken.None).ConfigureAwait(true);
+        using var lease = await _kvStore.AcquireAsync();
+        var bytes = await lease.GetAsync(System.Text.Encoding.UTF8.GetBytes("code-index"), CancellationToken.None).ConfigureAwait(true);
         Assert.NotNull(bytes);
         Assert.True(bytes.Length > 10, "二进制内容不应为空");
         var magic = System.Text.Encoding.UTF8.GetString(bytes, 0, 6);
@@ -263,7 +264,8 @@ public sealed class GraphPersistenceTests : IDisposable {
         await Task.WhenAll(tasks).ConfigureAwait(true);
 
         Assert.Empty(exceptions);
-        var bytes = await _kvStore.GetAsync(System.Text.Encoding.UTF8.GetBytes("code-index"), CancellationToken.None).ConfigureAwait(true);
+        using var lease = await _kvStore.AcquireAsync();
+        var bytes = await lease.GetAsync(System.Text.Encoding.UTF8.GetBytes("code-index"), CancellationToken.None).ConfigureAwait(true);
         Assert.NotNull(bytes);
         Assert.True(bytes.Length > 10, "并发保存后 KV store 应有数据");
     }

@@ -129,8 +129,10 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
     /// <summary>
     /// 获取当前 Git 仓库的 GitHub 仓库名 — 解析后经 GitHubRepoNameValidator 白名单校验拒绝注入串
     /// </summary>
-    internal async Task<string?> GetCurrentRepoAsync(CancellationToken ct) {
-        var result = await RunShellCommandAsync("git", ["remote", "get-url", "origin"], ct, null, _processService).ConfigureAwait(false);
+    /// <param name="ct">取消令牌</param>
+    /// <param name="workingDirectory">工作目录(null=当前目录),用于测试在指定 git 仓库执行</param>
+    internal async Task<string?> GetCurrentRepoAsync(CancellationToken ct, string? workingDirectory = null) {
+        var result = await RunShellCommandAsync("git", ["remote", "get-url", "origin"], ct, null, _processService, workingDirectory).ConfigureAwait(false);
         if (!result.Success) return null;
 
         var url = result.Output.Trim();
@@ -146,15 +148,26 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
     }
 
     /// <summary>
-    /// 从 GitHub URL 提取 owner/repo — 支持 https 与 ssh 格式,不校验(校验由 GitHubRepoNameValidator 统一负责)
+    /// 从 GitHub URL 提取 owner/repo — 支持 https/ssh/scp 格式与 git ssh 规范化(ssh://git@ssh.github.com:443/...),不校验(校验由 GitHubRepoNameValidator 统一负责)
     /// </summary>
     private static string? ExtractRepoFromUrl(string url) {
         if (!url.Contains("github.com")) return null;
-        var parts = url.Split("github.com");
-        if (parts.Length <= 1) return null;
-        var path = parts[1].TrimStart(':', '/', '.');
-        path = path.TrimEnd('.', 'g', 'i', 't'); // 移除 .git
-        return path.EndsWith('/') ? path[..^1] : path;
+        var idx = url.IndexOf("github.com", StringComparison.Ordinal);
+        var rest = url[(idx + "github.com".Length)..];
+        // 跳过 :端口 或 :/ 或 / (scp 格式 git@github.com:owner/repo 与 https 格式 github.com/owner/repo)
+        rest = rest.TrimStart(':', '/');
+        // 跳过 ssh 规范化的端口段(如 443/owner/repo → owner/repo)
+        var slashIdx = rest.IndexOf('/');
+        if (slashIdx > 0 && int.TryParse(rest.AsSpan(0, slashIdx), out _)) {
+            rest = rest[(slashIdx + 1)..];
+        }
+        // 移除 .git 后缀
+        const string dotGitSuffix = ".git";
+        if (rest.EndsWith(dotGitSuffix, StringComparison.OrdinalIgnoreCase)) {
+            rest = rest[..^dotGitSuffix.Length];
+        }
+        rest = rest.TrimEnd('/');
+        return string.IsNullOrEmpty(rest) ? null : rest;
     }
 
     /// <summary>
@@ -598,12 +611,13 @@ jobs:
         IReadOnlyList<string> args,
         CancellationToken ct,
         IGitHubCommandRunner? gitHubRunner = null,
-        IProcessService? processService = null) {
+        IProcessService? processService = null,
+        string? workingDirectory = null) {
         try {
             // gh 命令走 GitHubCommandRunner 统一执行器（重试 + 环境变量 + 编码处理）
             if (gitHubRunner is not null && IsGh(fileName)) {
                 var ghArgs = string.Join(' ', args);
-                var ghResult = await gitHubRunner.ExecuteAsync(ghArgs, null, null, ct).ConfigureAwait(false);
+                var ghResult = await gitHubRunner.ExecuteAsync(ghArgs, workingDirectory, null, ct).ConfigureAwait(false);
                 return ghResult.Success
                     ? ShellResult.Ok(ghResult.Output)
                     : ShellResult.Fail(ghResult.Error);
@@ -613,6 +627,7 @@ jobs:
                 var options = new ProcessOptions {
                     FileName = fileName,
                     ArgumentList = args,
+                    WorkingDirectory = workingDirectory,
                 };
 
                 var result = await processService.ExecuteAsync(options, ct).ConfigureAwait(false);
@@ -624,6 +639,7 @@ jobs:
             // 回退路径: 直接 ProcessStartInfo + ArgumentList, 禁止 cmd.exe /c(B3 命令注入防御)
             var psi = new System.Diagnostics.ProcessStartInfo {
                 FileName = fileName,
+                WorkingDirectory = workingDirectory ?? string.Empty,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,

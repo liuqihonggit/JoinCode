@@ -83,7 +83,7 @@
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| repoName 白名单校验 + ArgumentList 统一 | `InstallGitHubAppCommand.cs:130-141,590-600` | ☐ | ☐ 单元: 恶意 URL（含 ` && start calc`）→ 报错不执行 |
+| repoName 白名单校验 + ArgumentList 统一 | `InstallGitHubAppCommand.cs` 全部 RunShellCommandAsync 调用点 + `GetCurrentRepoAsync`/`ChooseRepoAsync`/`VerifyRepoAsync` | ✅ `GitHubRepoNameValidator`(GeneratedRegex AOT 兼容) + `RunShellCommandAsync` 改 fileName+args 签名消灭 shell 代理回退 | ✅ `GitHubRepoNameValidatorTests` 25/25 + `InstallGitHubAppCommandInjectionTests` 10/10(恶意 URL→null、合法 URL→owner/repo、FileName 非 cmd、恶意 repoName 不进进程) + composition.tests 全量 270/270 + CLI 编译通过 |
 
 #### B4. 审计层（执行→审计）接线
 

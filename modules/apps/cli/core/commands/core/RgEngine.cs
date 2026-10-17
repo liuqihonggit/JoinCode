@@ -162,7 +162,7 @@ internal static class RgEngine {
 
     /// <summary>
     /// 搜索单个文件。大文件用 mmap 零拷贝，小文件用 ReadAllBytes。
-    /// 用 ReadOnlySpan&lt;char&gt; 遍历行，Regex.IsMatch(span) 零分配匹配。
+    /// 统一 UTF-8 解码（ASCII 是 UTF-8 子集，UTF-8 解码 ASCII 内容正确）。
     /// </summary>
     private static RgFileResult? SearchFile(string path, Regex regex, RgQuery q, CancellationToken ct) {
         try {
@@ -182,21 +182,24 @@ internal static class RgEngine {
             }
 
             var bomLen = RgCore.DetectBom(bytes);
-            var dataSpan = bytes.AsSpan(bomLen);
+            var dataLen = bytes.Length - bomLen;
+            if (dataLen <= 0)
+                return null;
 
+            var dataSpan = bytes.AsSpan(bomLen);
             if (RgCore.ContainsNullByte(dataSpan))
                 return null;
 
-            if (RgCore.IsAscii(dataSpan)) {
-                var charSpan = MemoryMarshal.Cast<byte, char>(dataSpan);
-                return SearchContent(path, charSpan, regex, q, ct);
-            }
-
-            var content = Encoding.UTF8.GetString(bytes, bomLen, bytes.Length - bomLen);
+            // 统一用 UTF-8 解码 — ASCII 是 UTF-8 子集，无需单独走 MemoryMarshal.Cast<byte,char> 快路径
+            // （Cast 把 2 字节当 1 char，会损坏 ASCII 内容）
+            var content = Encoding.UTF8.GetString(bytes, bomLen, dataLen);
+            if (content.Length == 0)
+                return null;
             return SearchContent(path, content.AsSpan(), regex, q, ct);
         } catch (OperationCanceledException) {
             throw;
-        } catch {
+        } catch (Exception ex) {
+            System.Diagnostics.Debug.WriteLine($"[RgEngine.SearchFile] 读取/解码失败: {path} - {ex.Message}");
             return null;
         }
     }

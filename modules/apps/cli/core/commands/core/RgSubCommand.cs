@@ -15,72 +15,104 @@ internal static class RgSubCommand {
         if (parsed is null)
             return 1;
 
-        var pattern = FixPowerShellEscaping(parsed.Pattern);
-        if (!ReferenceEquals(pattern, parsed.Pattern)) {
-            TerminalHelper.WriteError($"提示: 已自动修复 PowerShell 双反斜杠转义: \"{parsed.Pattern}\" → \"{pattern}\"");
-        }
-
-        if (string.IsNullOrEmpty(pattern)) {
-            TerminalHelper.WriteError("错误: pattern 为空");
-            return 1;
-        }
-
-        foreach (var p in parsed.Paths) {
-            if (IsRootOrUnsafePath(p)) {
-                TerminalHelper.WriteError($"拒绝在根目录或无效路径上扫盘: {p}。请指定具体子目录（如 . 或 src/）。");
-                return 1;
-            }
-            if (!File.Exists(p) && !Directory.Exists(p)) {
-                TerminalHelper.WriteError($"路径不存在: {p}");
-                return 1;
-            }
-        }
-
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(parsed.TimeoutSeconds));
-        var token = timeoutCts.Token;
-
+        var tempFiles = new List<string>();
         try {
-            var query = new RgQuery(
-                Pattern: pattern,
-                Paths: parsed.Paths,
-                Globs: parsed.Globs,
-                FileType: parsed.FileType,
-                CaseInsensitive: parsed.CaseInsensitive,
-                SmartCase: parsed.SmartCase,
-                WordRegexp: parsed.WordRegexp,
-                OnlyMatching: parsed.OnlyMatching,
-                Replace: parsed.Replace,
-                Multiline: parsed.Multiline,
-                FixedStrings: parsed.FixedStrings,
-                Hidden: parsed.Hidden,
-                NoIgnore: parsed.NoIgnore,
-                Before: parsed.Before,
-                After: parsed.After,
-                Context: parsed.Context,
-                LineNumbers: parsed.LineNumbers,
-                HeadLimit: parsed.HeadLimit,
-                Offset: parsed.Offset,
-                OutputMode: parsed.OutputMode,
-                Sort: parsed.Sort,
-                InvertMatch: parsed.InvertMatch,
-                LineRegexp: parsed.LineRegexp,
-                MaxCount: parsed.MaxCount,
-                Threads: parsed.Threads,
-                MaxFilesize: parsed.MaxFilesize);
+            var pattern = parsed.Pattern;
+            var paths = parsed.Paths;
 
-            RgOutcome outcome;
+            if (pattern == "-") {
+                if (paths.Any(p => p == "-")) {
+                    TerminalHelper.WriteError("错误: pattern 和 path 不能同时为 '-'（stdin 只能读一次）。");
+                    return 1;
+                }
+                var stdinPattern = await Console.In.ReadToEndAsync(ct).ConfigureAwait(false);
+                pattern = stdinPattern.TrimEnd('\r', '\n');
+                if (string.IsNullOrEmpty(pattern)) {
+                    TerminalHelper.WriteError("错误: 从 stdin 读取的 pattern 为空。");
+                    return 1;
+                }
+            }
+
+            if (paths.Any(p => p == "-")) {
+                var stdinContent = await Console.In.ReadToEndAsync(ct).ConfigureAwait(false);
+                var tempFile = Path.GetTempFileName();
+                await File.WriteAllTextAsync(tempFile, stdinContent, ct).ConfigureAwait(false);
+                tempFiles.Add(tempFile);
+                paths = paths.Select(p => p == "-" ? tempFile : p).ToList();
+            }
+
+            var fixedPattern = FixPowerShellEscaping(pattern);
+            if (!ReferenceEquals(fixedPattern, pattern)) {
+                TerminalHelper.WriteError($"提示: 已自动修复 PowerShell 双反斜杠转义: \"{pattern}\" → \"{fixedPattern}\"");
+            }
+            pattern = fixedPattern;
+
+            if (string.IsNullOrEmpty(pattern)) {
+                TerminalHelper.WriteError("错误: pattern 为空");
+                return 1;
+            }
+
+            foreach (var p in paths) {
+                if (IsRootOrUnsafePath(p)) {
+                    TerminalHelper.WriteError($"拒绝在根目录或无效路径上扫盘: {p}。请指定具体子目录（如 . 或 src/）。");
+                    return 1;
+                }
+                if (!File.Exists(p) && !Directory.Exists(p)) {
+                    TerminalHelper.WriteError($"路径不存在: {p}");
+                    return 1;
+                }
+            }
+
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(parsed.TimeoutSeconds));
+            var token = timeoutCts.Token;
+
             try {
-                outcome = await Task.Run(() => RgEngine.Search(query, token), token).ConfigureAwait(false);
+                var query = new RgQuery(
+                    Pattern: pattern,
+                    Paths: paths,
+                    Globs: parsed.Globs,
+                    FileType: parsed.FileType,
+                    CaseInsensitive: parsed.CaseInsensitive,
+                    SmartCase: parsed.SmartCase,
+                    WordRegexp: parsed.WordRegexp,
+                    OnlyMatching: parsed.OnlyMatching,
+                    Replace: parsed.Replace,
+                    Multiline: parsed.Multiline,
+                    FixedStrings: parsed.FixedStrings,
+                    Hidden: parsed.Hidden,
+                    NoIgnore: parsed.NoIgnore,
+                    Before: parsed.Before,
+                    After: parsed.After,
+                    Context: parsed.Context,
+                    LineNumbers: parsed.LineNumbers,
+                    HeadLimit: parsed.HeadLimit,
+                    Offset: parsed.Offset,
+                    OutputMode: parsed.OutputMode,
+                    Sort: parsed.Sort,
+                    InvertMatch: parsed.InvertMatch,
+                    LineRegexp: parsed.LineRegexp,
+                    MaxCount: parsed.MaxCount,
+                    Threads: parsed.Threads,
+                    MaxFilesize: parsed.MaxFilesize);
+
+                RgOutcome outcome;
+                try {
+                    outcome = await Task.Run(() => RgEngine.Search(query, token), token).ConfigureAwait(false);
+                } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+                    TerminalHelper.WriteError($"搜索超时（{parsed.TimeoutSeconds}s）。请缩小搜索范围、用 --type/-g 过滤，或增加 --timeout。");
+                    return (int)ExitCode.ToolExecutionTimeout;
+                }
+
+                return OutputOutcome(outcome, parsed);
             } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
-                TerminalHelper.WriteError($"搜索超时（{parsed.TimeoutSeconds}s）。请缩小搜索范围、用 --type/-g 过滤，或增加 --timeout。");
+                TerminalHelper.WriteError($"搜索超时（{parsed.TimeoutSeconds}s）— 已硬终止。");
                 return (int)ExitCode.ToolExecutionTimeout;
             }
-
-            return OutputOutcome(outcome, parsed);
-        } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
-            TerminalHelper.WriteError($"搜索超时（{parsed.TimeoutSeconds}s）— 已硬终止。");
-            return (int)ExitCode.ToolExecutionTimeout;
+        } finally {
+            foreach (var f in tempFiles) {
+                try { if (File.Exists(f)) File.Delete(f); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[RgSubCommand] 清理临时文件失败: {f} - {ex.Message}"); }
+            }
         }
     }
 
@@ -119,6 +151,14 @@ internal static class RgSubCommand {
             var arg = args[i];
             if (arg.Length == 0)
                 continue;
+
+            if (arg == "-") {
+                if (pattern is null && regexpPatterns.Count == 0)
+                    pattern = "-";
+                else
+                    paths.Add("-");
+                continue;
+            }
 
             if (arg[0] != '-') {
                 switch (arg) {
@@ -483,6 +523,13 @@ internal static class RgSubCommand {
               jcc rg "finally\s*\{" core/ --type cs -g "!**/tests/**"
               jcc rg "TODO|FIXME" src/ -i -n -C 2
               jcc rg "class\s+\w+Service" app/JoinCode -A 2 -B 1 --content
+              echo "TODO" | jcc rg - modules/abstractions --type cs    # stdin 作为 pattern
+              git diff | jcc rg "TODO" -                                # stdin 作为搜索内容（对齐 rg -）
+
+            stdin 支持（- 占位符）:
+              - 作为 pattern（第一个位置参数）: 从 stdin 读取搜索词
+              - 作为 path（后续位置参数）: 从 stdin 读取要搜索的内容，写入临时文件
+              - 两者不能同时为 '-'（stdin 只能读一次）
 
             宽容策略:
               1. PowerShell 把 \s 传成 \\s → 自动修复为 \s

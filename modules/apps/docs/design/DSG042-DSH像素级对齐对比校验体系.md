@@ -162,10 +162,10 @@ dsh_parity/
 
 | 路线 | 做法 | 优点 | 代价 |
 |------|------|------|------|
-| **A. Avalonia 原位重构** | 保留技术栈，按 DSH token+布局规格逐区域重构 | 零栈变更、既有测试/VM 全保留、AOT 稳 | 字形与 CSS 特效非 bit-exact（几何/颜色精确） |
-| **B. WebView2 内核** | GUI 改壳 + HTML/CSS（可参考 DSH CSS，MIT），同 Chromium 渲染 | 真·像素级（同引擎）、可复用 DSH 样式 | 需卫星 spike 验证 AOT+COM 集成；Avalonia 视图层废弃；引入前端构建链 |
+| **A. Avalonia 原位重构**（降为回退） | 保留技术栈，按 DSH token+布局规格逐区域重构 | 零栈变更、既有测试/VM 全保留、AOT 稳 | 字形与 CSS 特效非 bit-exact（几何/颜色精确） |
+| **B2. WebView2 + 自研 Web UI**（已选定主线） | GUI 内容区改 WebView2 渲染自研 HTML/CSS/JS，样式消费 token golden，同 Chromium 渲染 | 真·像素级（同引擎）、CSS 即 DSH 布局母语、L1/L3 校验更简单严格 | 需卫星 spike 验证 AOT+COM 集成；Avalonia 视图层逐步废弃；引入前端构建链 |
 
-**推荐：先落地本校验体系（两路线共用），用 A 路线逐区域对齐；B 路线以卫星 spike 并行验证，若 WebView2+AOT 打通且对齐质量差距显著再切换。** 校验体系与 token 数据源保持渲染器无关，切换成本可控。
+**决策（2026-10-17，用户确认）：B2 为主线** — 见 [ADR 0138](../../../../docs/proposed/adr/architecture/0138-gui-webview2-webui-rendering.md)（proposed，spike 通过转 accepted）；spike 执行见 [TASK054](../task/TASK054-WebView2自研WebUI-spike任务清单.md)。校验体系与 token 数据源保持渲染器无关：B2 下 L1 = token→CSS 变量对等、L2 = DOM 盒树（同构 JSON 天然成立）、L3 = 同引擎帧 diff 更严格。
 
 ---
 

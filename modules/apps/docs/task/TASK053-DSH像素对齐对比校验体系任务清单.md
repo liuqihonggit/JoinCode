@@ -45,12 +45,12 @@
 - [ ] P4-2 热力图输出 + 差异白名单
 - [ ] P4-3 双主题 × 场景矩阵报告
 
-## P5 — 双路线评估
+## P5 — 双路线评估（已决策：B2 主线）
 
-- [ ] P5-1 WebView2 + NativeAOT 卫星 spike（可行性验证）
-- [ ] P5-2 同一校验数据下 A/B 达成度对比报告 → 终局路线决策（用户确认）
+- [x] P5-1 WebView2 + NativeAOT 卫星 spike → 移至 [TASK054](TASK054-WebView2自研WebUI-spike任务清单.md)（用户选定 B2 后成为关键路径）
+- [x] P5-2 路线决策（用户确认）：**B2 WebView2+自研 Web UI**（[ADR 0138](../../../../docs/proposed/adr/architecture/0138-gui-webview2-webui-rendering.md) proposed）；A 降为回退
 
-## P6 — 按区域对齐重构（依 P5 决策）
+## P6 — 按区域对齐重构（依 P5 决策：WebUI 区域，S2/S3 通过后启动）
 
 - [ ] P6-1 侧栏（工作区/会话列表）
 - [ ] P6-2 composer（输入区）

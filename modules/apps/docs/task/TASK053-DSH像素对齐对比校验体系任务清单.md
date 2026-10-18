@@ -72,6 +72,9 @@
 - [x] P6-1b 会话流端到端（v1）：`chat/history` 消息（+`ChatHistoryEntry`，消息类型 13→14）；`WebChatFlow` 投影层（直连 `IJccChatSession.StreamAsync`，并发/未就绪 guard→app/error，异常→app/error+done，取消静默收尾）；WebUiWindow 引擎接线（`JccChatSession.CreateAsync` 后台组装+Dispatcher 热接、权限 fail-closed `DenyPermissionAsync`、transcript 注入会话存储）+ `OpenSessionAsync`（`GuiSessionStore.LoadAsync`→chat/history 渲染 + `SwitchSession`+`LoadHistoryAsync` 灌引擎）；web 侧 textarea+覆盖层 placeholder、消息区（`.msg-user`/`.msg-assistant` + `has-messages` 移底）、bridge.js 状态机（busy 防重入、delta 累积、done 复位、history 整体替换、会话点击先清空）
   - 验证：单测 35 绿（协议 31 + flow 4，ScriptedSession 假会话含门控/异常注入）+ 全量 GUI **603 通过/0 失败/3 跳过**；真机冒烟退出码 0（`sessions-rendered count=26` + pong）；交互态 20 目标 PASS；L3 meanDelta 1.7799 零漂移（placeholder 覆盖层保 golden 目标位置不变）
   - 真机手动验证（CDP 驱动真实 exe，非 mock）：26 真实会话行渲染✓、发送→用户消息渲染✓、真实引擎调用异常链路✓（agnes 上游 400 → app/error 引导文案 + done 复位，CLI 同环境同错证环境级）、会话切换→chat/history 替换✓；⚠️ 前排：LLM 成功流（delta 渲染）被上游阻断无法真机实证（agnes 400 / deepseek 401 / sensenova 空响应，CLI 同样失败），delta 路径由单测覆盖，待上游恢复后按 `dumps/manual-webui-flow.mjs` 复验
+  - 差评大师修复（S/M/L 全处理）：S1 窗口关闭释放引擎（防 HTTP 连接池/FW/后台任务泄漏致进程不退）；S2 流式期间拒绝切换会话（`_flow.IsStreaming` 守卫，防 transcript 差量写错会话）+ 连点序号丢弃过期请求 + JS 流中忽略行点击；M1 关闭后迟到引擎即刻释放（`IsCancellationRequested` 守卫）；M2 令牌未取消的 OCE→回"响应超时"错误（原一刀切静默吞 HttpClient 超时）；M3 app/error 复位语义收敛；M4 选区跨重渲染保持；L1 会话 ID 白名单（防越目录）；L3 空列表回填占位行；L4 transcript 缺失回退引擎内存（对齐 MainViewModel）
+  - 差评修复验证：单测 **608 通过/0 失败**（+5：超时 OCE/取消 OCE/纯 Thinking/空历史 roundtrip）；冒烟退出码 0（count=30）；交互态 20 目标 PASS；L3 meanDelta 1.779929012345679 比特级零漂移
+  - 附：新基线（#426）引入 mcp `GitHubToolHandlers.Run.cs` JCC1009 三层 if 嵌套阻断 Mcp→GUI 编译链，已按语义等价卫语句拍平解阻
 - [ ] P6-2 composer（输入区）
 - [ ] P6-3 对话消息区
 - [ ] P6-4 设置面板
@@ -152,3 +155,9 @@
 <!-- 替代方案: ① 肉眼截图（不可复跑/无断言，弃）；② 页面内注入脚本直调 jccBridge（绕真实输入事件，弃） -->
 <!-- 验证: 26 会话渲染/发送→用户消息/真实引擎异常引导/会话切换全通 ✓（delta 成功流待上游可用复验）✅ -->
 
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: 会话流 v1 差评修复全收（S1/S2/M1-M4/L1/L3/L4）：关闭即释放引擎、流中拒切换会话、连点序号、OCE 区分取消与超时、选区保持、ID 白名单 |
+<!-- 原因: S1 引擎不释放致 HTTP 连接池/FW 泄漏（对照 MainViewModel.DisposeAsync 先例）；S2 流中 SwitchSession 使 transcript 差量写错会话（数据完整性）；M2 一刀切静默吞掉 HttpClient 超时会误导用户 |
+<!-- 替代方案: ① 流中切会话改为取消本轮流（改变引擎行为面大，留待 P6-5 会话管理评估，弃）；② app/error 加归属字段区分本轮（协议扩容，当前守卫已使路径不可从 UI 到达，暂缓） |
+<!-- 验证: 608 通过/0 失败（+5 路径测试）+ 冒烟 0 + 交互态 PASS + L3 比特级零漂移 ✅ -->

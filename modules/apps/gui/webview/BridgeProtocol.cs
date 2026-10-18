@@ -107,7 +107,8 @@ public sealed record ChatHistoryMessage(IReadOnlyList<ChatHistoryEntry> Messages
 /// <summary>历史消息条目（chat/history 传输单元；Role 为持久化原始值 user/assistant/tool 等）</summary>
 /// <param name="Role">角色原始值</param>
 /// <param name="Content">消息正文</param>
-public sealed record ChatHistoryEntry(string Role, string Content);
+/// <param name="Timestamp">本机墙钟时间（宿主已 ToLocalTime；序列化无时区后缀，Web 侧按本地解析显示 HH:mm）</param>
+public sealed record ChatHistoryEntry(string Role, string Content, DateTime Timestamp);
 
 /// <summary>桥接协议源生成上下文（属性 camelCase；判别字段 type 由 [JsonPolymorphic] 注入）</summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]

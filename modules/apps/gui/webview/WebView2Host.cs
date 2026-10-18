@@ -51,6 +51,8 @@ internal sealed class WebView2Host : NativeControlHost {
             core.Settings.AreDefaultContextMenusEnabled = false;
             core.Settings.IsZoomControlEnabled = false;
             core.Settings.AreBrowserAcceleratorKeysEnabled = false;
+            // 主题通道提示：宿主变体 → WebView2 首选配色（tokens.css 以 data-jcc-theme 为主通道，此提示为兜底）
+            core.Profile.PreferredColorScheme = MapColorScheme(GuiPalette.CurrentVariant);
             core.WebMessageReceived += OnWebMessage;
             _core = core;
             UpdateControllerBounds();
@@ -73,6 +75,12 @@ internal sealed class WebView2Host : NativeControlHost {
         Send(new AppErrorMessage("桥接消息解析失败",
             "发送方须为 {type, ...fields} 形状且 type 已在 BridgeProtocol.cs 注册（对照 webui/js/bridge.js）"));
     }
+
+    /// <summary>据 GuiPalette 变体映射首选配色：亮系变体（Light/SolarizedLight）→ Light，其余 → Dark</summary>
+    private static CoreWebView2PreferredColorScheme MapColorScheme(GuiPalette.GuiThemeVariant variant) =>
+        variant is GuiPalette.GuiThemeVariant.Light or GuiPalette.GuiThemeVariant.SolarizedLight
+            ? CoreWebView2PreferredColorScheme.Light
+            : CoreWebView2PreferredColorScheme.Dark;
 
     /// <inheritdoc/>
     protected override Size ArrangeOverride(Size finalSize) {

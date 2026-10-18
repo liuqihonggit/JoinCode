@@ -42,64 +42,91 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator {
         foreach (var member in namespaceSymbol.GetMembers()) {
             if (member is INamespaceSymbol childNamespace)
                 VisitNamespaces(childNamespace, currentAssembly, enumValueAttr, aliasValueAttr, subCommandInfoAttr, results);
-            else if (member is INamedTypeSymbol { TypeKind: TypeKind.Enum } enumType
-                     && SymbolEqualityComparer.Default.Equals(enumType.ContainingAssembly, currentAssembly)) {
-                var members = new List<EnumMemberInfo>();
-                foreach (var field in enumType.GetMembers().OfType<IFieldSymbol>()) {
-                    var allAttrs = field.GetAttributes()
-                        .Where(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, enumValueAttr))
-                        .ToList();
+            else if (member is INamedTypeSymbol type)
+                VisitType(type, currentAssembly, enumValueAttr, aliasValueAttr, subCommandInfoAttr, results);
+        }
+    }
 
-                    if (allAttrs.Count > 0) {
-                        var value = allAttrs[0].ConstructorArguments.ElementAtOrDefault(0).Value as string ?? field.Name;
+    /// <summary>收集命名空间下类型的枚举：枚举直接收集，类/结构体递归进嵌套类型（支持 GuiPalette.GuiThemeVariant 这类嵌套枚举）</summary>
+    private static void VisitType(
+        INamedTypeSymbol type,
+        IAssemblySymbol currentAssembly,
+        INamedTypeSymbol enumValueAttr,
+        INamedTypeSymbol? aliasValueAttr,
+        INamedTypeSymbol? subCommandInfoAttr,
+        List<EnumInfo> results) {
+        if (type.TypeKind == TypeKind.Enum) {
+            if (!SymbolEqualityComparer.Default.Equals(type.ContainingAssembly, currentAssembly)) {
+                return;
+            }
+            CollectEnum(type, enumValueAttr, aliasValueAttr, subCommandInfoAttr, results);
+        } else if (type.TypeKind is TypeKind.Class or TypeKind.Struct or TypeKind.Interface) {
+            foreach (var nested in type.GetTypeMembers())
+                VisitType(nested, currentAssembly, enumValueAttr, aliasValueAttr, subCommandInfoAttr, results);
+        }
+    }
 
-                        var aliases = ImmutableArray<string>.Empty;
-                        if (allAttrs.Count > 1) {
-                            aliases = allAttrs.Skip(1)
-                                .Select(a => a.ConstructorArguments.ElementAtOrDefault(0).Value as string)
-                                .Where(a => a is not null)
-                                .Cast<string>()
-                                .ToImmutableArray();
-                        } else if (aliasValueAttr is not null) {
-                            var aliasAttrs = field.GetAttributes()
-                                .Where(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, aliasValueAttr))
-                                .Select(a => a.ConstructorArguments.ElementAtOrDefault(0).Value as string)
-                                .Where(a => a is not null)
-                                .Cast<string>()
-                                .ToImmutableArray();
-                            aliases = aliasAttrs;
-                        }
+    /// <summary>单个枚举的成员收集（[EnumValue] 为主值，额外实例为别名，兼容 [AliasValue] 与 [SubCommandInfo]）</summary>
+    private static void CollectEnum(
+        INamedTypeSymbol enumType,
+        INamedTypeSymbol enumValueAttr,
+        INamedTypeSymbol? aliasValueAttr,
+        INamedTypeSymbol? subCommandInfoAttr,
+        List<EnumInfo> results) {
+        var members = new List<EnumMemberInfo>();
+        foreach (var field in enumType.GetMembers().OfType<IFieldSymbol>()) {
+            var allAttrs = field.GetAttributes()
+                .Where(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, enumValueAttr))
+                .ToList();
 
-                        SubCommandInfo? subCmdInfo = null;
-                        if (subCommandInfoAttr is not null) {
-                            var subCmdAttr = field.GetAttributes()
-                                .FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, subCommandInfoAttr));
-                            if (subCmdAttr is not null) {
-                                var desc = subCmdAttr.ConstructorArguments.ElementAtOrDefault(0).Value as string ?? "";
-                                var cat = subCmdAttr.ConstructorArguments.ElementAtOrDefault(1).Value as string ?? "";
-                                var namedArgs = subCmdAttr.NamedArguments.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-                                var example = namedArgs.TryGetValue("Example", out var exArg) ? exArg.Value as string : null;
-                                var isAlias = namedArgs.TryGetValue("IsAlias", out var iaArg) && iaArg.Value is true;
-                                var aliasOf = namedArgs.TryGetValue("AliasOf", out var aoArg) ? aoArg.Value as string : null;
-                                var isDeprecated = namedArgs.TryGetValue("IsDeprecated", out var idArg) && idArg.Value is true;
-                                var selfHelp = namedArgs.TryGetValue("SelfHelp", out var shArg) && shArg.Value is true;
-                                subCmdInfo = new SubCommandInfo(desc, cat, example, isAlias, aliasOf, isDeprecated, selfHelp);
-                            }
-                        }
+            if (allAttrs.Count > 0) {
+                var value = allAttrs[0].ConstructorArguments.ElementAtOrDefault(0).Value as string ?? field.Name;
 
-                        members.Add(new EnumMemberInfo(field.Name, value, aliases, subCmdInfo));
+                var aliases = ImmutableArray<string>.Empty;
+                if (allAttrs.Count > 1) {
+                    aliases = allAttrs.Skip(1)
+                        .Select(a => a.ConstructorArguments.ElementAtOrDefault(0).Value as string)
+                        .Where(a => a is not null)
+                        .Cast<string>()
+                        .ToImmutableArray();
+                } else if (aliasValueAttr is not null) {
+                    var aliasAttrs = field.GetAttributes()
+                        .Where(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, aliasValueAttr))
+                        .Select(a => a.ConstructorArguments.ElementAtOrDefault(0).Value as string)
+                        .Where(a => a is not null)
+                        .Cast<string>()
+                        .ToImmutableArray();
+                    aliases = aliasAttrs;
+                }
+
+                SubCommandInfo? subCmdInfo = null;
+                if (subCommandInfoAttr is not null) {
+                    var subCmdAttr = field.GetAttributes()
+                        .FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, subCommandInfoAttr));
+                    if (subCmdAttr is not null) {
+                        var desc = subCmdAttr.ConstructorArguments.ElementAtOrDefault(0).Value as string ?? "";
+                        var cat = subCmdAttr.ConstructorArguments.ElementAtOrDefault(1).Value as string ?? "";
+                        var namedArgs = subCmdAttr.NamedArguments.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                        var example = namedArgs.TryGetValue("Example", out var exArg) ? exArg.Value as string : null;
+                        var isAlias = namedArgs.TryGetValue("IsAlias", out var iaArg) && iaArg.Value is true;
+                        var aliasOf = namedArgs.TryGetValue("AliasOf", out var aoArg) ? aoArg.Value as string : null;
+                        var isDeprecated = namedArgs.TryGetValue("IsDeprecated", out var idArg) && idArg.Value is true;
+                        var selfHelp = namedArgs.TryGetValue("SelfHelp", out var shArg) && shArg.Value is true;
+                        subCmdInfo = new SubCommandInfo(desc, cat, example, isAlias, aliasOf, isDeprecated, selfHelp);
                     }
                 }
 
-                if (members.Count > 0) {
-                    results.Add(new EnumInfo(
-                        enumType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-                        enumType.Name,
-                        enumType.ContainingNamespace.ToDisplayString(),
-                        members.ToImmutableArray(),
-                        enumType.DeclaredAccessibility != Accessibility.Public));
-                }
+                members.Add(new EnumMemberInfo(field.Name, value, aliases, subCmdInfo));
             }
+        }
+
+        if (members.Count > 0) {
+            results.Add(new EnumInfo(
+                enumType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                enumType.Name,
+                enumType.ContainingNamespace.ToDisplayString(),
+                members.ToImmutableArray(),
+                enumType.DeclaredAccessibility != Accessibility.Public));
         }
     }
 

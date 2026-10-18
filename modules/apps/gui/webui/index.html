@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>JoinCode WebUI</title>
+<script>
+/* 主题引导：首帧前按 OS 偏好写入 data-jcc-theme，避免闪烁；app/init 到达后由宿主修正（权威） */
+document.documentElement.dataset.jccTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+</script>
 <link rel="stylesheet" href="styles/tokens.css">
 <link rel="stylesheet" href="styles/app.css">
 </head>
@@ -113,7 +117,9 @@
       </button>
     </header>
     <div class="center-body">
-      <div class="message-list" aria-live="polite"></div>
+      <div class="message-list" aria-live="polite">
+        <div class="msg-column"></div>
+      </div>
       <div class="composer-seat">
         <div class="composer-stack">
 

@@ -21,7 +21,7 @@ public sealed class BridgeProtocolTests {
         new SessionsListMessage([new SessionSummaryDto("s1", "重构桥接层"), new SessionSummaryDto("s2", "s2")]),
         new SessionSelectMessage("s1"),
         new WebSessionsRenderedMessage(2),
-        new ChatHistoryMessage([new ChatHistoryEntry("user", "你好"), new ChatHistoryEntry("assistant", "你好！有什么可以帮你的？")]),
+        new ChatHistoryMessage([new ChatHistoryEntry("user", "你好", new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Local)), new ChatHistoryEntry("assistant", "你好！有什么可以帮你的？", new DateTime(2026, 1, 1, 12, 0, 30, DateTimeKind.Local))]),
         new ChatHistoryMessage([]),
     };
 
@@ -65,8 +65,17 @@ public sealed class BridgeProtocolTests {
     }
 
     [Fact]
-    public void TryParse_UnknownType_ReturnsFalse() {
-        BridgeProtocol.TryParse("""{"type":"evil/msg","x":1}""", out var parsed).Should().BeFalse("未知 type 必须 fail-closed");
+    public void ChatHistoryEntry_Roundtrip_PreservesTimestamp() {
+        var timestamp = new DateTime(2026, 1, 2, 22, 15, 30, DateTimeKind.Local);
+        var message = new ChatHistoryMessage([new ChatHistoryEntry("user", "你好", timestamp), new ChatHistoryEntry("assistant", "在的", timestamp.AddSeconds(5))]);
+        BridgeProtocol.TryParse(BridgeProtocol.Serialize(message), out var parsed).Should().BeTrue("消息应可解析");
+        var entries = parsed.Should().BeOfType<ChatHistoryMessage>().Subject.Messages;
+        entries[0].Timestamp.Should().Be(timestamp, "时间戳须往返保真（Web 侧据此渲染 HH:mm）");
+        entries[1].Timestamp.Should().Be(timestamp.AddSeconds(5));
+    }
+
+    [Fact]
+    public void TryParse_UnknownType_ReturnsFalse() {        BridgeProtocol.TryParse("""{"type":"evil/msg","x":1}""", out var parsed).Should().BeFalse("未知 type 必须 fail-closed");
         parsed.Should().BeNull();
     }
 

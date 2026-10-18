@@ -4,7 +4,9 @@
  * 用法: node tokens2css.mjs [tokensJson] [outCss]
  * 默认: reference/dsh-tokens.json → ../../../modules/apps/gui/webui/styles/tokens.css
  *
- * 光/暗主题：亮色写 :root，暗色写 @media (prefers-color-scheme: dark)（与 DSH 捕获时 colorScheme 对齐）
+ * 光/暗主题：亮色写 :root；暗色双通道 ——
+ *   1) @media (prefers-color-scheme: dark) 且未显式标记 light（兜底，随 OS）
+ *   2) :root[data-jcc-theme="dark"] 显式属性（宿主 app/init 下发，UI 主题的权威通道）
  * 禁止手改产物：tokens.css 头部有 AUTO-GENERATED 标记
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -31,10 +33,16 @@ const css = `/* AUTO-GENERATED from ${tokensPath.replace(/\\/g, '/').split('/ref
 ${block(tokens.light)}
 }
 
+/* 暗色通道 1：随 OS，但宿主显式标记 light 时不覆盖 */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-jcc-theme="light"]) {
 ${block(tokens.dark, '    ')}
   }
+}
+
+/* 暗色通道 2：宿主显式属性（app/init 下发，权威通道） */
+:root[data-jcc-theme="dark"] {
+${block(tokens.dark)}
 }
 `;
 

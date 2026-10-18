@@ -87,7 +87,7 @@ internal sealed class WebUiWindow : Window {
             case WebReadyMessage:
                 App.LogDiag("[WebUI] BRIDGE web/ready");
                 _host.Send(new AppInitMessage(
-                    GuiPalette.CurrentVariant.ToString(),
+                    GuiPalette.CurrentVariant.ToValue(),
                     typeof(WebUiWindow).Assembly.GetName().Version?.ToString() ?? "dev"));
                 _ = SendSessionsListAsync(_lifetimeCts.Token);
                 if (_smoke) {
@@ -195,7 +195,7 @@ internal sealed class WebUiWindow : Window {
     private static List<ChatHistoryEntry> BuildEntries(IReadOnlyList<Persistence.GuiSessionMessage> messages) =>
         messages
             .Where(m => !string.IsNullOrWhiteSpace(m.Content))
-            .Select(m => new ChatHistoryEntry(m.Role, m.Content))
+            .Select(m => new ChatHistoryEntry(m.Role, m.Content, ToLocalWallClock(m.Timestamp)))
             .ToList();
 
     /// <summary>transcript 缺失时从引擎内存读取当前（已切换）会话消息 — 对齐 MainViewModel.SelectSession 回退</summary>
@@ -207,13 +207,20 @@ internal sealed class WebUiWindow : Window {
             var records = await session.GetMessagesAsync(cancellationToken);
             return records
                 .Where(r => !string.IsNullOrWhiteSpace(r.Content))
-                .Select(r => new ChatHistoryEntry(r.Role, r.Content))
+                .Select(r => new ChatHistoryEntry(r.Role, r.Content, ToLocalWallClock(r.Timestamp)))
                 .ToList();
         } catch (Exception ex) {
             App.LogDiag($"[WebUI] engine memory fallback failed: {ex.Message}");
             return [];
         }
     }
+
+    /// <summary>
+    /// 持久化时间戳（UTC 语义；缺失时区后缀按 UTC 处理）→ 本机墙钟（Kind=Local）。
+    /// 序列化后无时区后缀，Web 侧 new Date(...) 按本地解析显示 HH:mm（宿主与页面同机，本地即正确）。
+    /// </summary>
+    private static DateTime ToLocalWallClock(DateTime timestamp) =>
+        DateTime.SpecifyKind(timestamp, DateTimeKind.Utc).ToLocalTime();
 
     /// <summary>会话 ID 白名单：字母/数字/下划线/连字符，长度 1-64（桥接消息是信任边界，防越目录读写）</summary>
     private static bool IsValidSessionId(string sessionId) {

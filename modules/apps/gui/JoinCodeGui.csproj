@@ -62,6 +62,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- 枚举 [EnumValue] 元数据生成（本项目枚举如 GuiPalette.GuiThemeVariant 的 ToValue/FromValue 扩展），与 Abstractions 同款接入 -->
+    <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="JoinCode.Gui.Tests" />
   </ItemGroup>
 

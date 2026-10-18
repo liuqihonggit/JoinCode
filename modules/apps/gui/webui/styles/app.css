@@ -366,44 +366,208 @@ button:disabled { cursor: default; }
 
 .composer-placeholder.is-hidden { display: none; }
 
-/* ---------- 消息区（会话流 v1；细化对齐见 P6-3） ---------- */
+/* ---------- 对话消息区（P6-3：逐项对齐 reference/dsh-messages-styles.json + dsh-messages-fullstyles.json） ---------- */
 
 .message-list {
   display: none;
   position: absolute;
   left: 0;
-  right: 0;
+  right: 2px; /* DSH scrollBody 右侧 2px 外边距（列居中基准 1153 = 1155-2-5 滚动条） */
   top: 0;
-  bottom: 176px;
-  padding: 24px 28px 0;
-  flex-direction: column;
-  gap: 16px;
+  bottom: 128px;
+  padding: 16px 32px;
   overflow-y: auto;
 }
 
-body.has-messages .message-list { display: flex; }
-body.has-messages .composer-seat { top: auto; bottom: 24px; }
+body.has-messages .message-list { display: block; }
+body.has-messages .composer-seat { top: auto; bottom: 0; }
 
-.msg {
-  max-width: 720px;
-  font-size: 14px;
-  line-height: 24px;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
+/* 消息态隐藏空态英雄区（DSH 消息态仅剩 composer 卡；底部留 30px 对应 DSH 卡 y870 + 统计行占位） */
+body.has-messages .headline-row,
+body.has-messages .workspace-row { display: none; }
+body.has-messages .composer-stack { padding-bottom: 30px; }
+body.has-messages .composer-input { height: 36px; }
+
+/* DSH 滚动条 5px（列居中差以此为基准；轨道透明，拇指用 token） */
+.message-list::-webkit-scrollbar { width: 5px; }
+.message-list::-webkit-scrollbar-thumb { background: var(--dsw-alias-scrollbar-bg-l2); border-radius: 2.5px; }
+.message-list::-webkit-scrollbar-track { background: transparent; }
+
+.msg-column { max-width: 742.4px; margin: 0 auto; }
+.msg-column > :first-child { margin-top: 0; }
+
+/* —— 用户消息行（DSH .Sixlwa_userRow：flex column gap6 右对齐） —— */
 
 .msg-user {
-  align-self: flex-end;
-  background: var(--dsw-alias-bg-layer-3);
-  border-radius: 16px;
-  padding: 8px 14px;
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.user-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  max-width: min(521.165px, 82%);
+}
+
+.bubble {
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary);
+  border-radius: 20px;
+  padding: 10px 16px;
+  font-size: 14px;
+  line-height: 22px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+.user-actions,
+.assistant-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+}
+
+.user-actions .msg-time { font-size: 13px; line-height: 24px; padding-right: 12px; }
+.assistant-actions .msg-time { font-size: 12px; line-height: 24px; margin-left: 8px; }
+.msg-time { color: var(--dsw-alias-label-tertiary); }
+
+.msg-action {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dsw-alias-label-tertiary);
+  flex: none;
+}
+
+.msg-action:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.msg-action svg { display: block; }
+
+/* —— 回合分隔行（DSH .l_V-RG_root：flex align-center + border-bottom 发丝线） —— */
+
+.turn-divider {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 14px;
+  line-height: 24px;
+}
+
+.turn-divider .duration-number {
+  font-family: var(--ds-font-family-code);
+  font-size: 12px;
+}
+
+/* —— 助手消息（DSH .hWmORq_root：flex column；markdown 排版 p 底边距 16 / ol·ul 16 0 / li+li 6） —— */
+
+.msg-assistant {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  line-height: 24px;
   color: var(--dsw-alias-label-primary);
 }
 
-.msg-assistant {
-  align-self: flex-start;
-  color: var(--dsw-alias-label-primary);
+.markdown { overflow-wrap: anywhere; }
+.markdown p { margin: 0 0 16px; }
+.markdown > :first-child { margin-top: 0; }
+.markdown > :last-child { margin-bottom: 0; }
+.markdown ol,
+.markdown ul { margin: 16px 0; padding: 0 0 0 18px; }
+.markdown li + li { margin-top: 6px; }
+.markdown strong { font-weight: 600; }
+
+.markdown code {
+  font-family: var(--ds-font-family-code);
+  font-size: 12.25px;
+  line-height: 19px;
+  background: var(--dsw-alias-markdown-inline-code);
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 8px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: bottom;
 }
+
+/* 助手页脚：独立流项（DSH footer flowItem = margin-top 12 + 根高 32，内部动作行 margin-left -6 回落） */
+.assistant-footer { margin: 12px 0 0; padding-top: 4px; height: 32px; }
+.assistant-actions { margin-left: -6px; }
+
+/* —— 代码块（DSH ._block_7gxqk：bannerWrap 42px 静态化 + header + pre） —— */
+
+.md-code-block {
+  margin: 16px 0;
+  border-radius: 16px;
+  background: var(--dsw-alias-markdown-code-block);
+}
+
+.md-code-banner {
+  background: var(--dsw-alias-bg-base);
+  border-radius: 16px 16px 0 0;
+}
+
+.md-code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 18px 8px 22px;
+  background: var(--dsw-alias-markdown-code-block);
+  border-radius: 16px 16px 0 0;
+}
+
+.md-code-lang {
+  font-family: var(--ds-font-family-code);
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.md-code-actions { display: flex; align-items: center; gap: 4px; }
+
+.md-code-action {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dsw-alias-label-secondary);
+  flex: none;
+}
+
+.md-code-action:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.md-code-action svg { width: 14px; height: 14px; }
+
+.md-code-block pre {
+  margin: 0;
+  padding: 6px 22px 20px;
+  font-family: var(--ds-font-family-code);
+  font-size: 11px;
+  line-height: 19px;
+  color: var(--dsw-alias-label-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-radius: 0 0 16px 16px;
+  overflow: auto;
+}
+
+.md-code-block pre.is-nowrap { white-space: pre; overflow-wrap: normal; }
 
 .composer-row {
   height: 42px;

@@ -67,7 +67,8 @@
   - 附：测试工程 JCC9001 预存编译失败（HEAD 即红）已按诊断产物豁免惯例修复（6 文件 pragma + 豁免理由）
 - [x] P6-0b 桥接协议（[ADR 0141](../../../../docs/implemented/adr/architecture/0141-webui-bridge-protocol.md) accepted）：类型化判别信封（type + 内联字段，`[JsonPolymorphic]` + `BridgeJsonContext` 源生成，AOT 安全）；首版 10 消息类型（web/ready·chat/send·permission/response·smoke/pong ⇄ app/init·chat/delta·chat/done·permission/request·smoke/ping·app/error）；web/ready 握手 + app/init 应答；未知消息 fail-closed + app/error 诱导；`webui/js/bridge.js` 薄层（jccBridge 零依赖）
   - 验证：单测 23 绿（全类型 roundtrip/判别字段/未知 type/非法 JSON）；E2E 红→绿（无 bridge.js 退出码 4 超时 → 实现后退出码 0，`BRIDGE web/ready` + `BRIDGE-SMOKE ok nonce=...` ~100ms）；全量 GUI 591 通过；L3 基帧 meanDelta 1.7927 无漂移 + 交互态 0 不一致
-- [ ] P6-1 侧栏（工作区/会话列表）
+- [x] P6-1 侧栏（工作区/会话列表）：session-row 几何修复（`margin-top: 2px`，对齐 DSH `margin 2px 0 0`）；行交互态补齐（project-row/session-row hover/active=interactive-bg-hover + `cursor: pointer`，golden 重捕获实证 base/hover/active）；搜索 span→button（对齐 DSH searchButton 语义，选择器随更新）；真实会话数据链路（`sessions/list` 下发 GuiSessionStore 真实会话 + `session/select` 点击回传 + `web/sessions-rendered` 渲染 ACK 冒烟钩子）
+  - 验证：桥接单测 29 绿（含 3 新消息 roundtrip，集合字段逐项比较）；E2E 红→绿（宿主先发 `sessions/list count=26` 无应答超时退出码 4 → bridge.js 渲染后退出码 0 `sessions-rendered count=26` + pong ~60ms）；全量 GUI 597 通过/0 失败；交互态 20 目标 PASS（0 不一致）；L3 meanDelta 1.7927 → 1.7799（t4 1.529→1.454%），侧栏行区 diff 1472→1270
 - [ ] P6-2 composer（输入区）
 - [ ] P6-3 对话消息区
 - [ ] P6-4 设置面板
@@ -117,4 +118,16 @@
 <!-- 原因: 遵循 AGENTS "新架构决策必须先写 ADR 再实现 + 实现后改状态" 工作流；编号取 0141 避开 main 上 TASK053 文本预占的 0140（SSRF fail-closed） -->
 <!-- 替代方案: 直接用 0140（与并行分支预占冲突风险，弃） -->
 <!-- 验证: ADR 迁移 + docs/README 计数同步（152→153 / 9→8 / 125→126）✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: P6-1 侧栏会话列表接真实 GuiSessionStore 数据（新增 sessions/list·session/select·web/sessions-rendered 三消息），冒烟契约扩展渲染 ACK -->
+<!-- 原因: 静态占位行无法验收"列表真能渲染"；web/sessions-rendered ACK 把"协议通但渲染断"变成冒烟可机检（超时并入退出码 4）；空列表保留静态"新会话"行=全新状态语义 -->
+<!-- 替代方案: ① mock 静态行（假数据不可验收，弃）；② 仅截图比对（冒烟无渲染断链机检，弃）；③ 独立 HTTP API 拉会话（绕桥接协议双通道，弃） -->
+<!-- 验证: E2E 红（26 条真实会话发出无 ACK → 退出码 4）→ 绿（count=26 ACK + pong 退出码 0）✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: 行交互态先重捕获 DSH golden（state-targets 扩 projectRow/sessionRow）再对齐 CSS，不凭惯例直写 -->
+<!-- 原因: sessionRow 的 selected 态 bg 与 hover 态相同（0.08），凭猜测会掩盖真实差异；golden 实证 projectRow hover/active=0.08 + cursor:pointer，searchBtn 态经 span→button 后保持 -->
+<!-- 替代方案: 按按钮惯例直接加 hover（若 DSH 行无 hover 则引入假差异，弃） -->
+<!-- 验证: 重捕获 20 目标 → 本地 verify 红（projectRow hover/active 2 处）→ 补 CSS 后 PASS（0 不一致）✅ -->
 

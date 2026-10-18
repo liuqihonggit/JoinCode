@@ -29,6 +29,10 @@ public enum WellKnownParam {
     [ParamMeta("JSON 字段过滤(可选,逗号分隔)", Required = false, TypeName = "string")]
     JsonFields,
 
+    [EnumValue("jq")]
+    [ParamMeta("jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f==\"v\")/{k: .f}/| 管道)", Required = false, TypeName = "string")]
+    Jq,
+
     // === GitHub 实体标识 ===
 
     [EnumValue("pr_number")]

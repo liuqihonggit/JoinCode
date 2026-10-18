@@ -115,11 +115,13 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 统一三档输出格式化 — json_fields 优先 > verbosity=2 完整JSON > verbosity=1 精简JSON > 默认 Summarizer
+    /// 统一三档输出格式化 — jq > json_fields > verbosity=2 完整JSON > verbosity=1 精简JSON > 默认 Summarizer
+    /// <para>jq: 在完整 JSON body 上应用 SimpleJqEvaluator 筛选,优先级最高</para>
     /// <para>verbosity: 0=gh风格人类可读(默认) 1=精简JSON 2=完整JSON</para>
     /// <para>GAP-038-03: verbosity 为 null 时读 JCC_OUTPUT_FORMAT 环境变量作默认值(gh_style/compact_json/full_json)</para>
     /// </summary>
-    internal static string FormatGhOutput(string body, int? verbosity, string? json_fields, Func<string, string> summarize, string? compactFields = null) {
+    internal static string FormatGhOutput(string body, int? verbosity, string? json_fields, Func<string, string> summarize, string? compactFields = null, string? jq = null) {
+        if (!string.IsNullOrEmpty(jq)) return SimpleJqEvaluator.Evaluate(body, jq) ?? body;
         if (!string.IsNullOrEmpty(json_fields)) return FilterJsonFields(body, json_fields);
         var effectiveVerbosity = verbosity ?? GetVerbosityFromEnv();
         return effectiveVerbosity switch {

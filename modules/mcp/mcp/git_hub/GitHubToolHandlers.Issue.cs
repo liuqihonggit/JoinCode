@@ -32,7 +32,7 @@ public partial class GitHubToolHandlers {
                 var query = new Dictionary<string, string> { ["q"] = q, ["per_page"] = pageCount };
                 var result = await client.SendAsync(HttpMethod.Get, "search/issues", query: query, ct: cancellationToken).ConfigureAwait(false);
                 if (!result.Success) return Fail(result.Error);
-                return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeIssueList, compactFields));
+                return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeIssueList, compactFields, common?.Jq));
             }
             var issuesQuery = new Dictionary<string, string> { ["state"] = stateVal, ["per_page"] = pageCount };
             if (!string.IsNullOrWhiteSpace(label)) issuesQuery["labels"] = label;
@@ -42,7 +42,7 @@ public partial class GitHubToolHandlers {
             if (!string.IsNullOrWhiteSpace(milestone)) issuesQuery["milestone"] = milestone;
             var issuesResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues", query: issuesQuery, ct: cancellationToken).ConfigureAwait(false);
             if (!issuesResult.Success) return Fail(issuesResult.Error);
-            return Ok(FormatGhOutput(issuesResult.Body, common?.Verbosity, common?.JsonFields, SummarizeIssueList, compactFields));
+            return Ok(FormatGhOutput(issuesResult.Body, common?.Verbosity, common?.JsonFields, SummarizeIssueList, compactFields, common?.Jq));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -82,7 +82,7 @@ public partial class GitHubToolHandlers {
             if (comments == true) {
                 var issueResult = await client.SendAsync(HttpMethod.Get, apiPath, ct: cancellationToken).ConfigureAwait(false);
                 if (!issueResult.Success) return Fail(issueResult.Error);
-                var summary = FormatGhOutput(issueResult.Body, common?.Verbosity, common?.JsonFields, SummarizeIssue, "number,title,state,labels,assignees,html_url");
+                var summary = FormatGhOutput(issueResult.Body, common?.Verbosity, common?.JsonFields, SummarizeIssue, "number,title,state,labels,assignees,html_url", common?.Jq);
                 var commentsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues/{number}/comments", ct: cancellationToken).ConfigureAwait(false);
                 if (!commentsResult.Success) return Fail(commentsResult.Error);
                 return Ok($"{summary}\n\n## 评论\n{SummarizeComments(commentsResult.Body)}");

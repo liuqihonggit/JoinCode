@@ -13,8 +13,13 @@ env:
   Configuration: Debug
 
 jobs:
+  build:
+    name: Build + Pack
+    uses: ./.github/workflows/ci-build.yml
+
   benchmarks:
     name: Benchmarks
+    needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
@@ -48,6 +53,7 @@ jobs:
 
   aot:
     name: AOT Verification
+    needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
@@ -79,29 +85,30 @@ jobs:
 
   misc:
     name: Misc Uncovered
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
         with:
           submodules: recursive
       - uses: ./.github/actions/setup-test-env
       - name: ONNX Embedding Tests
-        shell: bash
+        shell: pwsh
         run: |
-          dotnet test modules/tools/onnx_embedding.tests/OnnxEmbedding.Tests.csproj \
-            -c Debug --nologo \
-            -p:UsePackedComponents=true \
-            -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
-            --filter "Category!=Integration" \
-            --logger "console;verbosity=normal" \
+          dotnet test modules/tools/onnx_embedding.tests/OnnxEmbedding.Tests.csproj `
+            -c Debug --nologo `
+            -p:UsePackedComponents=true `
+            -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none `
+            --filter "Category!=Integration" `
+            --logger "console;verbosity=normal" `
             --logger "trx;LogFileName=onnx-embedding.trx"
       - name: Desktop Integration Tests
-        shell: bash
+        shell: pwsh
         run: |
-          dotnet test test/integration/integration.desktop.tests/Integration.Desktop.Tests.csproj \
-            -c Debug --nologo \
-            -p:UsePackedComponents=true \
-            -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
-            --logger "console;verbosity=normal" \
+          dotnet test test/integration/integration.desktop.tests/Integration.Desktop.Tests.csproj `
+            -c Debug --nologo `
+            -p:UsePackedComponents=true `
+            -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none `
+            --logger "console;verbosity=normal" `
             --logger "trx;LogFileName=desktop-integration.trx"

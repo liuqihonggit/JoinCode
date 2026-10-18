@@ -80,7 +80,12 @@
   - 白名单（已接受）：input 宽 Δ4（DSH 770.4 含 4px 透明滚动槽，不可见）；placeholder 覆盖层盒形（文本原点 483.3,455 一致）
   - 验证：DOM 转储逐元素与 DSH 表一致（除白名单）；交互态 20 目标 PASS（0 不一致）；L3 meanDelta **1.7799→1.4693**（t4 1.454→1.304 / t12 1.284→1.144 / t24 1.215→1.078）；真机冒烟退出码 0（sessions/list count=30 + sessions-rendered）；纯 CSS/HTML 变更无 C# 面，测试基线 608 不变
 - [ ] P6-2b 输入多行自动增高（首版 textarea 定高 52 + `overflow: hidden`；DSH 输入区随行数增高，需捕获 DSH 多行态 golden 后对齐）
-- [ ] P6-3 对话消息区
+- [x] P6-3 对话消息区：3 轮夹具 DSH 深度捕获（dom 377 元素 / html / styles / fullstyles 15 选择器全 longhand）→ 规格逐项落地
+  - 规格要点（DSH 实测）：流节奏 user+6 / divider·assistant+16 / 页脚紧贴 assistant 后（独立 flowItem margin 12 + 根高 32，图标 +16）；列 742.4 居中（滚动条 5px + 右移 2px，x=485.3）；气泡 bg-layer-2 br20 pad `10px 16px` fs14/lh22 pre-wrap；分隔行 border-bottom=border-l2 h33 pad-bottom 8「已完成，用时 N秒」；markdown p bottom16 / ol·ul 16 0 / li+li 6 / 行内码 border-l1；代码块 bannerWrap=bg-base #151517 42 + header 24 + pre 45；消息态 composer input 36 → 卡 98（底 870）
+  - 实现：`ChatHistoryEntry` +Timestamp（协议 14 类型不变，宿主 `ToLocalWallClock`，Web 侧本地 HH:mm）；bridge.js 全量渲染器（6 图标 svg 精确路径、renderMarkdown 段落/列表/行内码/粗体/围栏块、代码块换行切换+复制、用户/分隔/助手三类构建器、time/duration、chat delta/done/history 接线）；app.css 消息区整段；index.html `msg-column` + 主题引导脚本；tokens.css 生成器升双通道（`@media` 兜底 `:not([light])` + `[data-jcc-theme=dark]` 权威）；枚举生成器支持嵌套枚举 + GUI 接入 analyzer（GuiThemeVariant.ToValue）
+  - 验证：单测 **609 通过/0 失败/3 跳过**（+1 Timestamp roundtrip）；真机 CDP（夹具 home + `--webui` + 9222）：3 user+3 assistant+3 divider+1 代码块渲染 ✓；DOM 47 配对项 **Δ(0,0,0,0) 全 PASS**（column/userRow/assistant/divider/footerActions/timeEnd/p/li/strong，内容高 1160==DSH）；样式抽查 bubble #2c2c2e / inlineCode #292929 / codeBlock #1b1b1c / divider 白线全 PASS；L3 meanDelta **1.56**（热区=已知缺口：头区 26px/轮次统计行/滚动条 overlay，消息核心区 ≤1.7）；冒烟退出码 0
+  - 留待：对话头区（DSH 76px）与轮次统计行「N 轮 N 步」归 P6-3b；delta 成功流真机复验仍被上游阻断（LG 同前）
+- [ ] P6-3b 对话头区（76px：标题+tabs）+ 轮次统计行「N 轮 N 步」
 - [ ] P6-4 设置面板
 - [ ] P6-5 对话框（权限/询问/确认）
 - [ ] P6-6 CI 集成（L1/L2 入 CI）+ 验收记录
@@ -171,3 +176,27 @@
 <!-- 原因: S1 引擎不释放致 HTTP 连接池/FW 泄漏（对照 MainViewModel.DisposeAsync 先例）；S2 流中 SwitchSession 使 transcript 差量写错会话（数据完整性）；M2 一刀切静默吞掉 HttpClient 超时会误导用户 -->
 <!-- 替代方案: ① 流中切会话改为取消本轮流（改变引擎行为面大，留待 P6-5 会话管理评估，弃）；② app/error 加归属字段区分本轮（协议扩容，当前守卫已使路径不可从 UI 到达，暂缓） -->
 <!-- 验证: 608 通过/0 失败（+5 路径测试）+ 冒烟 0 + 交互态 PASS + L3 比特级零漂移 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: WebUI 主题以宿主 app/init 下发的 `data-jcc-theme` 属性为权威通道，media 查询降为兜底（tokens.css 生成器升双通道），WebView2 Profile.PreferredColorScheme 仅作提示 -->
+<!-- 原因: 真机实证 runtime 155 下 Profile.PreferredColorScheme=Dark 后页面 prefers-color-scheme 仍 false（官方 issue #5392 同款：142-155 期间该属性时有不生效）；属性通道可自证可控，且 OS 暗色下也能强制亮色（反向场景同被记录） -->
+<!-- 替代方案: ① 仅靠 Profile.PreferredColorScheme（不可靠，弃）；② JS 全量重设 CSS 变量（与 tokens.css 双份定义，弃） -->
+<!-- 验证: 真机 bubble #2c2c2e / inlineCode #292929 / codeBlock #1b1b1c / divider 白线全 PASS（pressDark=false 下属性通道生效）✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: enum_metadata 生成器扩展扫描嵌套枚举 + GUI 项目接入 analyzer（GuiThemeVariant.ToValue 供 app/init 下发 lowercase 主题值） -->
+<!-- 原因: 主题值须来自 [EnumValue] 唯一数据源（规则6 禁重复字符串）；生成器原仅扫命名空间直下枚举，漏嵌套；全仓扫描证实仅 GuiPalette.GuiThemeVariant 一个嵌套 [EnumValue] 枚举（其余命中均为字符串样例假阳性），风险可控 -->
+<!-- 替代方案: ① WebUiWindow 手写 switch 映射字符串（重复数据源，弃）；② 枚举提为顶层类型（100+ 引用/测试改动，弃） -->
+<!-- 验证: 生成 GuiThemeVariantExtensions.g.cs + GUI 编译 0 警告 0 错误 + 609 测试全绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: 助手页脚实现为独立流项 `.assistant-footer`（margin-top 12 + pad-top 4 + 盒高 32 包 h28 动作行，内层 margin-left -6），markdown 末元素底边距裁剪（`:last-child { margin-bottom:0 }`） -->
+<!-- 原因: DSH 几何实证页脚是独立 flowItem（TS9iAW_root h32 @ assistant底+12，图标 +16；assistant 流项高度不含页脚）；入流项后下一回合 rhythm 6/16 自动正确；compare 的 Δx -6 由内层 -6 承担（DSH .xzv4MW_actions 同款） -->
+<!-- 替代方案: 单层 .assistant-actions 盒（-6 溢出使配对盒 x/w 漂移 Δ(-6,6)，弃） -->
+<!-- 验证: footerActions[0..2] + timeEnd[0..2] Δ(0,0,0,0)；assistant[0..2] h 304/167/24 精确 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: 代码块下边距按 DSH 几何实证取 16px（覆盖全单探针读到的 11px），margin: 16px 0 -->
+<!-- 原因: 几何为准绳：DSH p4 局部 795 = block 底 779 + 16；单探针 11px 疑为 DSH 某中间层读数（若按其实现 assistant h 162≠167 直接反证） -->
+<!-- 替代方案: 保留 11px（assistant[1] h -5、后 8 项连续 -5 漂移，弃） -->
+<!-- 验证: assistant[1] 162→167 精确 + p[4]/p[5]/strong/divider[2] 全 Δ0 ✅ -->

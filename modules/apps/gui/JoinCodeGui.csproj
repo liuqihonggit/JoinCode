@@ -10,7 +10,25 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <NoWarn>$(NoWarn);JCC9001;JCC10001;JCC10002;CS8604;CS1573;CS1587;NU1903;CS0618</NoWarn>
+    <!-- WebView2 生产接入四件套（ADR 0138，spike 实测 TASK054）：
+         1) windows TFM（CsWinRT 投影消费 net8.0 分支，TPV 与本机 UAP SDK 对齐）
+         2) 投影开关（托管 COM 互操作在 NativeAOT 运行时不可用）
+         3) x64 显式（包 targets 对 AnyCPU 误判 x86 → 组件架构错配 BadImageFormatException）
+         4) app.manifest（supportedOS + 免注册 WinRT activatableClass 条目） -->
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <WebView2EnableCsWinRTProjection>true</WebView2EnableCsWinRTProjection>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="$(WebView2Version)" />
+    <PackageReference Include="Microsoft.Windows.CsWinRT" Version="$(CsWinRTVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- WebUI 静态资源（B2 路线，ADR 0138）：随 exe 分发，file:// 离线加载 -->
+    <Content Include="webui\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 
   <ItemGroup>
     <AvaloniaResource Include="assets\**" Exclude="assets\*.xshd" />

@@ -25,11 +25,21 @@ public sealed partial class App : Application {
         };
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) {
-            // 先显示窗口（占位会话），引擎在后台渐进式组装，完成后热切换，避免启动阻塞
-            desktop.MainWindow = new MainWindow {
-                DataContext = CreateViewModel()
-            };
-            App.LogDiag("[App] MainWindow created");
+            var args = Environment.GetCommandLineArgs();
+            if (args.Contains("--webui")) {
+                // B2 路线（ADR 0138）：内容区由 WebView2 承载自研 Web UI；--webui-smoke 供 E2E 冒烟
+                var pagePath = Path.Combine(AppContext.BaseDirectory, "webui", "index.html");
+                var userDataDir = Path.Combine(AppDataConstants.Paths.JccDirectory, "webview2");
+                desktop.MainWindow = new WebUiWindow(
+                    new Uri(pagePath).AbsoluteUri, userDataDir, args.Contains("--webui-smoke"));
+                App.LogDiag("[App] WebUiWindow created");
+            } else {
+                // 先显示窗口（占位会话），引擎在后台渐进式组装，完成后热切换，避免启动阻塞
+                desktop.MainWindow = new MainWindow {
+                    DataContext = CreateViewModel()
+                };
+                App.LogDiag("[App] MainWindow created");
+            }
         }
 
         base.OnFrameworkInitializationCompleted();

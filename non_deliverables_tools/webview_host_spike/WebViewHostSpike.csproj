@@ -18,6 +18,8 @@
     <!-- 非交付品探针工程：豁免 JCC 产品规范分析器（IFileSystem 注入/XML 注释等），
          保留 IsAotCompatible 与 ILC 真实 AOT 分析（spike 的核心证据） -->
     <JccAnalyzers>false</JccAnalyzers>
+    <!-- 独立探针：不引入 Structura 基建依赖（根 Directory.Build.props 平台化条件放宽后需要显式豁免） -->
+    <ExcludeStructura>true</ExcludeStructura>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <!-- WebView2 包 targets 无条件引用其 WPF 组件（WindowsBase 5.0 vs 10.0 ref 冲突），仅 CS 层使用 Core API，降噪 -->
     <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MSB3277</MSBuildWarningsAsMessages>
@@ -29,8 +31,8 @@
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
-    <PackageReference Include="Microsoft.Windows.CsWinRT" Version="2.3.1" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="$(WebView2Version)" />
+    <PackageReference Include="Microsoft.Windows.CsWinRT" Version="$(CsWinRTVersion)" />
   </ItemGroup>
 
 </Project>

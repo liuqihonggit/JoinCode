@@ -101,6 +101,8 @@
     <DockVersion>12.1.3</DockVersion>
     <CommunityToolkitMvvmVersion>8.4.0</CommunityToolkitMvvmVersion>
     <MarkdigVersion>1.3.2</MarkdigVersion>
+    <WebView2Version>1.0.4258.31</WebView2Version>
+    <CsWinRTVersion>2.3.1</CsWinRTVersion>
   </PropertyGroup>
 
 
@@ -114,22 +116,22 @@
     <Using Include="System.Text.Json.Serialization.Metadata" />
   </ItemGroup>
 
-  <!-- 全局 Structura 引用：所有 net10.0 项目自动引用瑞士表/HAMT 基建 + 命名空间 -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0' and '$(ExcludeStructura)' != 'true'">
+  <!-- 全局 Structura 引用：所有 net10.0 项目自动引用瑞士表/HAMT 基建 + 命名空间（含 net10.0-windows 平台变体） -->
+  <ItemGroup Condition="$(TargetFramework.StartsWith('net10.0')) and '$(ExcludeStructura)' != 'true'">
     <Using Include="Structura.Collections" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0' and '$(ExcludeStructura)' != 'true' and '$(UsePackedComponents)' != 'true'">
+  <ItemGroup Condition="$(TargetFramework.StartsWith('net10.0')) and '$(ExcludeStructura)' != 'true' and '$(UsePackedComponents)' != 'true'">
     <ProjectReference Include="$(RepoRoot)modules/collections/structura/Structura.csproj" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0' and '$(ExcludeStructura)' != 'true' and '$(UsePackedComponents)' == 'true'">
+  <ItemGroup Condition="$(TargetFramework.StartsWith('net10.0')) and '$(ExcludeStructura)' != 'true' and '$(UsePackedComponents)' == 'true'">
     <PackageReference Include="JoinCode.Structura" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
 
-  <!-- 全局 Analyzer 引用：所有 net10.0 项目自动获得 JCC 诊断和代码修复 -->
+  <!-- 全局 Analyzer 引用：所有 net10.0 项目自动获得 JCC 诊断和代码修复（含 net10.0-windows 平台变体） -->
   <!-- 排除: 分析器自身项目(EnforceExtendedAnalyzerRules)、测试辅助项目(ExcludeJccAnalyzers) -->
   <!-- 开关: /p:JccAnalyzers=false 禁用自定义分析器，加速迭代编译 -->
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0' and '$(EnforceExtendedAnalyzerRules)' != 'true' and '$(ExcludeJccAnalyzers)' != 'true' and '$(JccAnalyzers)' == 'true'">
+  <ItemGroup Condition="$(TargetFramework.StartsWith('net10.0')) and '$(EnforceExtendedAnalyzerRules)' != 'true' and '$(ExcludeJccAnalyzers)' != 'true' and '$(JccAnalyzers)' == 'true'">
     <ProjectReference Include="$(MSBuildThisFileDirectory)modules/generators/aot_safety.generator/AotSafety.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)modules/generators/code_fixes/CodeFixes.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>

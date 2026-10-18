@@ -62,7 +62,10 @@
 
 ## P6 — 按区域对齐重构（依 P5 决策：WebUI 区域；S2/S3 已通过，启动窗口开放）
 
-- [ ] P6-0 产品 GUI 接入 WebView2 宿主（TASK054 四件套：TFM 平台化/投影开关/x64/清单条目 + 桥接协议 + webui 静态资源打包）
+- [x] P6-0a 产品 GUI 接入 WebView2 宿主（四件套落地）：TFM 平台化 `net10.0-windows10.0.26100.0` + `WebView2EnableCsWinRTProjection` + x64 + app.manifest 免注册 WinRT；`webui/` 静态资源随包分发；`--webui` 开关（默认 MainWindow 不变），`--webui-smoke` 冒烟（READY + NAVIGATED 双标记，退出码 0/2/3）
+  - 验证：Debug 全绿（0 警告 0 错误）；GUI 测试套件 568 通过/0 失败；真机冒烟 `WEBVIEW2-READY runtime=155.0.4283.62` + `WEBUI-NAVIGATED success=True`，退出码 0
+  - 附：测试工程 JCC9001 预存编译失败（HEAD 即红）已按诊断产物豁免惯例修复（6 文件 pragma + 豁免理由）
+- [ ] P6-0b 桥接协议（C# ⇄ Web 消息面：会话流/权限确认/工具事件 + token 注入约定）
 - [ ] P6-1 侧栏（工作区/会话列表）
 - [ ] P6-2 composer（输入区）
 - [ ] P6-3 对话消息区
@@ -77,3 +80,22 @@
 - 参考物版本锚定 `0.2.0-rc.2`；升级需显式重捕获 + diff 审计（防参考物漂移）
 - golden 产物入库 `reference/`（PNG + JSON，KB 级）；瞬时产物写 `dumps/`（gitignore）
 - 卡点教训：`msedge --headless --screenshot --virtual-time-budget` 对 WebSocket 长连接页面永久挂起，必须用 CDP 主动截屏
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: P6-0a 采用 `--webui` 增量开关接入（默认仍走原 MainWindow），WebUiWindow 独立成类 -->
+<!-- 原因: 渲染路线切换属高风险面；开关式接入让原 Dock 路径零回归，验证通过后 P6-1 再收敛单窗口；P6 区域对齐按窗口分类推进互不阻塞 -->
+<!-- 替代方案: ① 直接切换默认渲染（回归面过大，弃）；② MainWindow 内嵌 WebView2Host（侵入 Dock 布局，P6-1 区域化时再评估） -->
+<!-- 验证: GUI 编译 0 警告 0 错误；测试 568 通过/0 失败；真机冒烟 READY+NAVIGATED 退出码 0 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: 根 props 三处 TFM 条件放宽为 StartsWith('net10.0') + WebView2/CsWinRT 版本号上收统一 props；spike 补 ExcludeStructura -->
+<!-- 原因: 四件套要求 GUI/测试/spike 均为 windows TFM，原精确匹配 'net10.0' 会让这三类工程漏配 Structura/分析器；版本号唯一定义防两处漂移 -->
+<!-- 替代方案: 逐工程手工挂引用（重复三份且日后易漂移，弃） -->
+<!-- 验证: GUI/测试/spike 三工程编译全绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: 测试工程 JCC9001 36 处预存编译失败按"诊断产物豁免"修复（pragma + 豁免理由），不引入 IFileSystem -->
+<!-- 原因: 违规点为帧图落盘（dumps 约定）/仓库根定位/临时目录夹具，均为测试基础设施且需真实文件系统语义；项目已有 JCC3010/JCC3013 同款豁免惯例 -->
+<!-- 替代方案: InMemoryFileSystem 替换（帧图产物即真实文件诉求，InMemory 语义错误，弃） -->
+<!-- 验证: HEAD 复现 36 错误（预存红）→ 修复后 0 警告 0 错误，568 测试全绿 ✅ -->
+

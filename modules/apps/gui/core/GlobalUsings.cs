@@ -12,6 +12,7 @@ global using Avalonia.Markup.Xaml;
 global using Avalonia.Media;
 global using Avalonia.Media.TextFormatting;
 global using Avalonia.Media.Transformation;
+global using Avalonia.Platform;
 global using Avalonia.Styling;
 global using Avalonia.Themes.Fluent;
 global using Avalonia.Threading;
@@ -84,3 +85,6 @@ global using Dock.Model.Controls;
 global using Dock.Model.Mvvm;
 global using Dock.Model.Mvvm.Controls;
 global using JoinCode.Gui.ViewModels.Docking;
+// WebUI 宿主（B2 路线，ADR 0138）
+global using JoinCode.Gui.WebView;
+global using Microsoft.Web.WebView2.Core;

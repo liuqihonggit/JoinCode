@@ -621,8 +621,8 @@ internal sealed class GitHubRunLogFilterRunner {
 
         // 优化B: expand=failed 无 filter 时智能定位错误行,不从 runner setup 从头开始
         // 优化C: filter=error 也走智能定位(首屏即见真正错误行),但无错误行时不回退 tail(返回空→"未匹配到任何日志行")
-        // 优化E: 指定 jobId + 无 filter 时也走智能定位(expand=failed 按 job 分组,避免从头输出 setup 行)
-        var smartStartNoFilter = markers is null && (failedOnly || !string.IsNullOrWhiteSpace(jobId));
+        // 优化E 已撤销: 指定 jobId + 无 filter 时从开头分页(用户要求第一页首行=1,每页20行按页翻)
+        var smartStartNoFilter = markers is null && failedOnly;
         var smartStartWithErrorFilter = markers is not null && markers.Contains(CiLogAnalyzer.ErrorMarker);
         if (smartStartNoFilter || smartStartWithErrorFilter) {
             var fallbackOnNoError = smartStartNoFilter;

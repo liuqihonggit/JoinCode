@@ -10,14 +10,12 @@ internal sealed class LogContext {
     public int? SkipLines { get; init; }
     /// <summary>从第 N 行开始(1-indexed,等价 skip_lines=N-1)</summary>
     public int? StartLine { get; init; }
-    /// <summary>每页行数(JCC_PAGE_SIZE 默认200)</summary>
+    /// <summary>每页行数(JCC_PAGE_SIZE 默认20)</summary>
     public int PageSize { get; init; }
     /// <summary>字符安全阀(JCC_MAX_OUTPUT_CHARS 默认30000)</summary>
     public int CharThreshold { get; init; }
     /// <summary>是否加行号</summary>
     public bool AddLineNumbers { get; init; }
-    /// <summary>是否加页眉(read_offset 模式)</summary>
-    public bool AddPageHeader { get; init; }
     /// <summary>行号前缀格式: true=tab, false=箭头</summary>
     public bool CompactLinePrefix { get; init; }
 

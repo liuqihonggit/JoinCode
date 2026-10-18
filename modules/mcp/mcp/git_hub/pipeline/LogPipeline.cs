@@ -18,12 +18,11 @@ internal sealed class LogPipeline(ILogPipelineStep[] steps) {
         }
     }
 
-    /// <summary>创建默认格式化管道: Pagination → LineNumber → PageHeader → ContinueHint</summary>
+    /// <summary>创建默认格式化管道: Pagination → LineNumber → ContinueHint</summary>
     public static LogPipeline CreateFormatPipeline() {
         return new LogPipeline([
             new PaginationStep(),
             new LineNumberStep(),
-            new PageHeaderStep(),
             new ContinueHintStep(),
         ]);
     }

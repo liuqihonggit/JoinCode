@@ -43,13 +43,13 @@ public partial class GitHubToolHandlers {
             var effectiveVerbosity = common?.Verbosity ?? GetVerbosityFromEnv();
             if (!string.IsNullOrEmpty(common?.Jq)) {
                 var jqOutput = SimpleJqEvaluator.Evaluate(result.Body, common.Jq);
-                return Ok(ApplyPaginationAndTruncation(jqOutput ?? result.Body, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: effectiveVerbosity != 2, addPageHeader: IsReadOffsetMode()));
+                return Ok(ApplyPaginationAndTruncation(jqOutput ?? result.Body, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: effectiveVerbosity != 2));
             }
             if (!string.IsNullOrEmpty(common?.JsonFields)) {
                 var filtered = FilterJsonFields(result.Body, common.JsonFields);
                 if (filtered is "[]" or "{}")
                     return Ok(filtered + "\n\n⚠️ 返回空: 可能原因: ① 字段名不匹配(用 verbosity=2 查看完整字段) ② 该 run 无此字段");
-                return Ok(ApplyPaginationAndTruncation(filtered, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: effectiveVerbosity != 2, addPageHeader: IsReadOffsetMode()));
+                return Ok(ApplyPaginationAndTruncation(filtered, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: effectiveVerbosity != 2));
             }
             var hasFailure = result.Body.Contains("\"conclusion\":\"failure\"", StringComparison.OrdinalIgnoreCase);
             var failureHint = hasFailure ? GitHubRunLogHints.RunListFailureHint : "";
@@ -58,7 +58,7 @@ public partial class GitHubToolHandlers {
                 1 => GitHubRunListSummarizer.SummarizeRunList(result.Body) + failureHint,
                 _ => GitHubRunListSummarizer.SummarizeRunListBrief(result.Body) + failureHint
             };
-            return Ok(ApplyPaginationAndTruncation(formattedOutput, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: effectiveVerbosity != 2, addPageHeader: IsReadOffsetMode()));
+            return Ok(ApplyPaginationAndTruncation(formattedOutput, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: effectiveVerbosity != 2));
         }).ConfigureAwait(false);
 
 
@@ -457,16 +457,8 @@ public partial class GitHubToolHandlers {
         if (wantLog) {
             // log=true: 用 REST API 日志流 + 过滤/分页
             var logResult = await StreamAndFilterAsync(repo.Owner, repo.Repo, target.RunId, job_id, false, "日志", markers, filterLevel, maxLines, repo.Ct, GitHubRunLogHints.LogHint, skip, wantRefresh).ConfigureAwait(false);
-            // read_offset 模式: 加页眉(StreamAndFilterAsync 已截断,总量未知)
-            if (!IsReadOffsetMode() || logResult.IsError) return logResult;
-            var logText = logResult.GetFirstText();
-            if (string.IsNullOrEmpty(logText)) return logResult;
-            // 解析实际行号范围(从行号前缀提取,对齐显示的行号)
-            var (displayFirst, displayLast) = ParseDisplayLineRange(logText, skip);
-            var lineCount = displayLast - displayFirst + 1;
-            var pageInfo = logText.Contains("已截断") ? "第1/?页(无完整日志)" : "第1/1页";
-            var logHeader = $"│ gh_run_view │ {pageInfo} | {lineCount}行 | 起始行{displayFirst},偏移{displayLast - displayFirst} │";
-            return Ok(logHeader + "\n" + logText);
+            // read_offset 模式: 行号已由 StreamAndFilterAsync 内部添加,直接返回
+            return logResult;
         }
 
         // log=false: 获取 run 详情,根据 verbosity 选择输出格式
@@ -486,27 +478,6 @@ public partial class GitHubToolHandlers {
             1 => Ok(FilterJsonFields(detailResult.Body, "id,name,head_branch,head_sha,status,conclusion,run_number,event,created_at,updated_at,html_url,display_title")),
             _ => Ok(GitHubRunViewSummarizer.SummarizeRunView(detailResult.Body))
         };
-    }
-
-    /// <summary>解析输出文本的实际行号范围(从行号前缀 tab/箭头 提取,跳过标题/提示行)</summary>
-    private static (int First, int Last) ParseDisplayLineRange(string text, int skip) {
-        var lines = text.Split('\n');
-        int? first = null, last = null;
-        foreach (var line in lines) {
-            if (TryParseLinePrefix(line) is { } n) {
-                first ??= n;
-                last = n;
-            }
-        }
-        return (first ?? (skip + 1), last ?? (skip + lines.Length));
-    }
-
-    /// <summary>从行首解析行号前缀(格式: "760\t内容" 或 "760→内容"),失败返回 null</summary>
-    private static int? TryParseLinePrefix(string line) {
-        var sep = line.IndexOf('\t');
-        if (sep <= 0) sep = line.IndexOf('→');
-        if (sep <= 0) return null;
-        return int.TryParse(line.AsSpan(0, sep), out var n) ? n : null;
     }
 
     /// <summary>

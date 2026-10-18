@@ -5,13 +5,13 @@ namespace Mcp.Tests;
 /// </summary>
 public sealed partial class GitHubToolHandlersTests {
     [Fact]
-    public void Pagination_DefaultPageSize_TruncatesAt200Lines() {
+    public void Pagination_DefaultPageSize_TruncatesAt20Lines() {
         using var env = EnvVarScope.Set("JCC_PAGE_SIZE", null);
         var input = BuildLines(250, "line");
         var result = GitHubToolHandlers.ApplyPaginationAndTruncation(input, null, null, toolName: "gh_test", addLineNumbers: false);
         result.Should().Contain("已截断");
         result.Should().Contain("共 250 行");
-        result.Should().Contain("显示第 1-200 行");
+        result.Should().Contain("显示第 1-20 行");
     }
 
     [Fact]

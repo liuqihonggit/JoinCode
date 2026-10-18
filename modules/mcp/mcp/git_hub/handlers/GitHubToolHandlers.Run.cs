@@ -422,7 +422,7 @@ public partial class GitHubToolHandlers {
                     var jobResult = await StreamAndFilterAsync(
                         repo.Owner, repo.Repo, target.RunId, job.Id.ToString(),
                         false, $"失败步骤({job.Name})", markers, filterLevel,
-                        perJobMaxLines, repo.Ct, null, skip, wantRefresh).ConfigureAwait(false);
+                        perJobMaxLines, repo.Ct, null, skip, wantRefresh, forceSmartStart: true).ConfigureAwait(false);
                     var jobText = jobResult.Content.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? "";
                     return (job, jobText);
                 } finally {
@@ -869,8 +869,9 @@ public partial class GitHubToolHandlers {
     private Task<ToolResult> StreamAndFilterAsync(
         string owner, string repo, string runId, string? jobId, bool failedOnly,
         string scope, FrozenSet<string>? markers, GitHubLogFilter? filterLevel,
-        int maxLines, CancellationToken ct, string? hint = null, int skipLines = 0, bool wantRefresh = false)
-        => LogFilterRunner.StreamAndFilterAsync(owner, repo, runId, jobId, failedOnly, scope, markers, filterLevel, maxLines, ct, hint, skipLines, wantRefresh);
+        int maxLines, CancellationToken ct, string? hint = null, int skipLines = 0, bool wantRefresh = false,
+        bool forceSmartStart = false)
+        => LogFilterRunner.StreamAndFilterAsync(owner, repo, runId, jobId, failedOnly, scope, markers, filterLevel, maxLines, ct, hint, skipLines, wantRefresh, forceSmartStart);
 
     /// <summary>
     /// 统一日志流入口 — 委托给 LogFilterRunner.GetLogStreamAsync(架构统一: 先入库 LSM 缓存再 yield)

@@ -606,7 +606,8 @@ internal sealed class GitHubRunLogFilterRunner {
     public async Task<ToolResult> StreamAndFilterAsync(
         string owner, string repo, string runId, string? jobId, bool failedOnly,
         string scope, FrozenSet<string>? markers, GitHubLogFilter? filterLevel,
-        int maxLines, CancellationToken ct, string? hint = null, int skipLines = 0, bool wantRefresh = false) {
+        int maxLines, CancellationToken ct, string? hint = null, int skipLines = 0, bool wantRefresh = false,
+        bool forceSmartStart = false) {
         var matched = new List<string>(maxLines);
         var skipped = 0;
         var lineNumber = 0;
@@ -622,7 +623,8 @@ internal sealed class GitHubRunLogFilterRunner {
         // 优化B: expand=failed 无 filter 时智能定位错误行,不从 runner setup 从头开始
         // 优化C: filter=error 也走智能定位(首屏即见真正错误行),但无错误行时不回退 tail(返回空→"未匹配到任何日志行")
         // 优化E 已撤销: 指定 jobId + 无 filter 时从开头分页(用户要求第一页首行=1,每页20行按页翻)
-        var smartStartNoFilter = markers is null && failedOnly;
+        // forceSmartStart: expand=failed 排障模式强制 smart start(跳到错误行附近)
+        var smartStartNoFilter = markers is null && (failedOnly || forceSmartStart);
         var smartStartWithErrorFilter = markers is not null && markers.Contains(CiLogAnalyzer.ErrorMarker);
         if (smartStartNoFilter || smartStartWithErrorFilter) {
             var fallbackOnNoError = smartStartNoFilter;

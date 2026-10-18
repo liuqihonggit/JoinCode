@@ -92,6 +92,30 @@
 
 ---
 
+## F 系列 — 功能对接（用户直接指令：先对齐功能、可自动化测试，不追像素；顺序 F1→F7）
+
+> 用户原话：「你连发送按钮都没有做给我，你应该先把所有的功能对接好，使得可以自动化测试，不要为了像素对齐而像素对齐，你要对齐功能啊。」
+> 每项完成标准 = 协议 DTO → host 接线 → web 交互 → 单测绿 → 真机 CDP E2E（OpenAI.MockServer 确定性上游）→ 证据入本文档。
+
+- [x] **F1 输入闭环**：发送/停止双态、Esc 停止、输入自动增高、错误条（原因+指引+重试）、停止保留已产出正文
+  - 协议（14→15 类型）：`ChatStopMessage`（`chat/stop`，web→host）；`ChatDoneMessage.Stopped`（`stopped:true` = 用户主动停止，非故障语义）
+  - host：`WebChatFlow.Stop()`（每轮 `CreateLinkedTokenSource` 存 `_turnCts` + `volatile _stopRequested`；OCE 四分支：用户停止静默 / 令牌未取消的内部超时→app/error / 关窗静默 / 其它异常→app/error）+ `finally` 恒发 `chat/done(stopped)`
+  - web：`sendBtn.dataset.mode`（`send|stop` 机检锚点）+ `aria-label`、`requestStop()`、`Escape` 停止、`autoGrow()`（空态 48 / 消息态 32 下限 → 192 上限 8 行）、`appendErrorNode`（`.error-reason`/`.error-guidance`/`.error-retry`；重试=移除自身错误条 + 重发 `lastPrompt`）、`buildDivider(seconds, stopped)` → 「已停止」、`.turn-divider.is-stopped` / `.msg-error` 样式
+  - 验收（单测）：GUI **618 通过 / 0 失败 / 3 跳过**（+9：协议 4 + 流 4 + 类型断言 1）；GUI 编译 0 警告 0 错误
+  - 验收（真机 E2E，[ADR 0080](../../../../docs/implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md) 方式，非 mock）：`dumps/f1-webui-flow.mjs`（CDP 9222 驱动真实 exe + 真实引擎 + `OpenAI.MockServer` 9901 十二轮脚本：短文本 / 700 分片长文本 / 10×HTTP500）→ **14/15 PASS**：自动增高 48→72 ✓、发送即双态 ✓、`已完成，用时 N秒` ✓、「已停止」 ✓、停止后保留 2423 字正文且未收全 ✓（证明真中断在途流）、500→错误条含原因+重试 ✓、点重试=重发上一条提示词并再次报错 ✓
+  - 夹具实证：扁平 `settings.json {provider,model,endpoint}` **不生效**（引擎读默认 deepseek → 「未知的 Provider」）；必须 `JCC_VENDOR=openai` + `JCC_MODEL_ID=gpt-4o` + `JCC_ENDPOINT=http://localhost:9901/v1`（`EnvOverrideApplier` 据此写 vendor 预设 + 推断 `OPENAI_API_KEY`）+ `OPENAI_API_KEY=sk-test-...`
+  - 观测：引擎就绪耗时 **24~25s**（`EngineSessionFactory.CreateGuiSessionAsync`）——F7 入 CI 需放宽就绪等待，另评估启动耗时（非 F1 范围）
+- [ ] **F1-x 🔴 流式增量透传缺陷（E2E 红复现，待决策）**：`StreamingFallbackDecorator.GetStreamEventContentsAsync` 因「try-catch 内禁 yield」先 `CollectWithFallbackAsync` 全量收集再统一 yield → 整轮**零增量**，只在流结束时一次性刷出。真机证据：700 分片 / 20ms 上游连续 10s 内 `.msg-column` 文本长度恒为 111（无新节点），停止瞬间批量补发 2423 字。影响面：LLM 层装饰器（`ServiceRegistration` 默认 `Enabled=true` 包装全部流式调用）→ GUI 与 TUI 均无逐字流式
+  - 修复方向（待确认）：首事件前仍可 fallback；一旦已向消费方 yield 内容则不再 fallback（失败上抛，由 GUI 错误条/CLI 报错承接）；配 ADR + 单测 + E2E 转绿
+- [ ] F2 权限对话框（permission/request ↔ permission/response + 超时 fail-closed；host 现一律 Deny 且 UI 无处理）
+- [ ] F3 会话管理（session/create|delete|rename；「新会话」现为静态 DOM）
+- [ ] F4 模型/模式/工作区 chips（model/list + session/set-model|set-mode；现纯静态）
+- [ ] F5 消息动作（重试=以该 user 消息重发并截断后续 / 分支 / 点赞点踩本地态；现死按钮）
+- [ ] F6 设置面板（=P6-4）
+- [ ] F7 一键功能 E2E 入 CI（=P6-6，含 F1 脚本）
+
+---
+
 ## 备注
 
 - 参考物版本锚定 `0.2.0-rc.2`；升级需显式重捕获 + diff 审计（防参考物漂移）
@@ -200,3 +224,21 @@
 <!-- 原因: 几何为准绳：DSH p4 局部 795 = block 底 779 + 16；单探针 11px 疑为 DSH 某中间层读数（若按其实现 assistant h 162≠167 直接反证） -->
 <!-- 替代方案: 保留 11px（assistant[1] h -5、后 8 项连续 -5 漂移，弃） -->
 <!-- 验证: assistant[1] 162→167 精确 + p[4]/p[5]/strong/divider[2] 全 Δ0 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: 真机 E2E 夹具的供应商注入改走 JCC_VENDOR/JCC_MODEL_ID/JCC_ENDPOINT 环境变量通道，弃扁平 settings.json{provider,model,endpoint} -->
+<!-- 原因: 真机实证扁平字段不生效——引擎按默认 deepseek 请求，报「未知的 Provider 'deepseek'，可用值: 」(vendor 注册表空)；EnvOverrideApplier 才是既有唯一入口（JCC_VENDOR→写 vendor 预设 + 由 VendorInferences 推断 protocol/openai apiKeyEnvVar），与 E2eSettingsJsonHelper 的 vendor 节点语义一致 -->
+<!-- 替代方案: ① 手写 settings.json 的 vendor 节点（可行但与既有 E2E 助手重复维护，弃）；② 依赖真实上游 key（上游全失效，弃） -->
+<!-- 验证: 注入后 ENGINE attached vendor=openai model=gpt-4o + 三回合真机链路（正常/停止/500 错误）全通 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: F1 E2E 的流式判据用「.msg-column 文本长度增长」而非「.msg-assistant 计数 +1」，错误条判据用「重发上一条提示词」而非「错误条累加」 -->
+<!-- 原因: 真机 DOM 实证——流式期间不新建节点（decorator 全量缓冲，见 F1-x），计数判据永远不成立；bridge.js 的重试按钮语义是「移除自身错误条 + 重发」（appendErrorNode 内 node.remove()），错误条数量恒为 1，累加判据必假红 -->
+<!-- 替代方案: ① 计数判据 + 拉长等待（掩盖真实缺陷，弃）；② 断言错误条数量递增（需改产品行为增重复条，弃） -->
+<!-- 验证: 长度判据精准命中缺陷（10s 恒 111）；重试判据改为 users 4 > 3 + errors ≥ 1 后 PASS（14/15，唯余 F1-x 红）✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: 「停止生成」真机验收以「chat/stop 上送 + 分隔行改『已停止』+ 已产出正文未收全」三证为准，不以「流式中途断言」为准 -->
+<!-- 原因: 受 F1-x 缓冲缺陷影响，停止时刻正是批量补发的瞬间，mid-stream 断言不可稳定成立；但「未包含结尾标记（长回答结束）」证明流被真实中断，等价更强的验收 --> -->
+<!-- 替代方案: 等 F1-x 修复后再加中途增量断言（作为 F1-x 转绿后的补充验收，保留） -->
+<!-- 验证: 真机 stopped 回合：log chat/stop + divider 已停止 + 正文 2423 字且无结尾标记 ✅ -->

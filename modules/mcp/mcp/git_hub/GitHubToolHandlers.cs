@@ -162,8 +162,8 @@ public partial class GitHubToolHandlers {
         // 应用 skip_lines/start_line 偏移量分页
         if (effectiveSkip > 0) output = SkipLines(output, effectiveSkip);
 
-        // 尝试截断 — 超阈值时在换行符处截断 + 行号 + 页眉 + 续读提示
-        var truncated = TryTruncate(output, effectiveSkip, GetMaxOutputChars(), toolName, compactLinePrefix, addLineNumbers, addPageHeader);
+        // 尝试截断 — 行数主约束 + 字符安全阀取交集,在换行符处截断 + 行号 + 页眉 + 续读提示
+        var truncated = TryTruncate(output, effectiveSkip, GetPageSize(), GetMaxOutputChars(), toolName, compactLinePrefix, addLineNumbers, addPageHeader);
         if (truncated is not null) return truncated;
 
         // 未截断: 为多行输出加行号(单行不加,保持简洁)
@@ -172,15 +172,21 @@ public partial class GitHubToolHandlers {
 
     /// <summary>
     /// 尝试截断 — 超阈值时在换行符处截断,返回格式化文本;未超阈值返回 null
+    /// <para>混合约束: 行数主约束(JCC_PAGE_SIZE 默认200) + 字符安全阀(JCC_MAX_OUTPUT_CHARS 默认30000) 取交集</para>
+    /// <para>行数主约束保行完整,CI消息不在行中间截断;字符安全阀防极端长行撑爆token预算</para>
     /// </summary>
-    private static string? TryTruncate(string output, int effectiveSkip, int threshold, string? toolName, bool compactLinePrefix, bool addLineNumbers, bool addPageHeader) {
-        if (output.Length <= threshold) return null;
+    private static string? TryTruncate(string output, int effectiveSkip, int pageSize, int charThreshold, string? toolName, bool compactLinePrefix, bool addLineNumbers, bool addPageHeader) {
         var ranges = LineSpanIndexer.BuildLineRanges(output.AsSpan());
-        var maxLines = threshold / 80;
+
+        // 未超行数主约束 且 未超字符安全阀 → 不截断
+        if (ranges.Count <= pageSize && output.Length <= charThreshold) return null;
+
+        // 可显示行数: 行数主约束 与 字符安全阀 取交集
+        var maxLines = ComputeMaxLinesWithinCharBudget(ranges, pageSize, charThreshold);
         var (selectedRanges, hasMore, _) = LineRangeReader.Slice<(int Start, int Length)>(ranges, 0, maxLines);
         if (!hasMore) return null;
 
-        var sb = new StringBuilder(threshold + 512);
+        var sb = new StringBuilder(charThreshold + 512);
         var span = output.AsSpan();
 
         // 页眉: │ gh_run_list │ 页 1/3 │ 行 1-50 │ 偏移 0 │
@@ -199,6 +205,20 @@ public partial class GitHubToolHandlers {
         var nextSkip = effectiveSkip + selectedRanges.Count;
         sb.Append($"\n... [已截断，共 {ranges.Count} 行，显示第 {effectiveSkip + 1}-{effectiveSkip + selectedRanges.Count} 行。用 --skip_lines {nextSkip} 或 --start_line {nextSkip + 1} 续读后续内容]");
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// 计算字符预算内可显示的最大行数 — 行数主约束 与 字符安全阀 取交集
+    /// <para>从第0行起累计字符,超过 charThreshold 则停止;至少返回1行避免空输出</para>
+    /// </summary>
+    private static int ComputeMaxLinesWithinCharBudget(IReadOnlyList<(int Start, int Length)> ranges, int pageSize, int charThreshold) {
+        var limit = Math.Min(pageSize, ranges.Count);
+        var accumChars = 0;
+        for (var i = 0; i < limit; i++) {
+            accumChars += ranges[i].Length + 1; // +1 for newline
+            if (accumChars > charThreshold) return Math.Max(i, 1);
+        }
+        return limit;
     }
 
     /// <summary>
@@ -260,6 +280,16 @@ public partial class GitHubToolHandlers {
     private static int GetMaxOutputChars() {
         var env = Environment.GetEnvironmentVariable(ContentReplacementConstants.MaxOutputCharsEnvVar);
         return int.TryParse(env, out var threshold) && threshold > 0 ? threshold : 30000;
+    }
+
+    /// <summary>
+    /// 获取每页行数 — JCC_PAGE_SIZE 环境变量(默认 200)
+    /// <para>行数主约束: 保行完整,CI消息不在行中间截断</para>
+    /// <para>与 JCC_MAX_OUTPUT_CHARS 字符安全阀取交集,防极端长行撑爆token预算</para>
+    /// </summary>
+    private static int GetPageSize() {
+        var env = Environment.GetEnvironmentVariable("JCC_PAGE_SIZE");
+        return int.TryParse(env, out var size) && size > 0 ? size : 200;
     }
 
     /// <summary>

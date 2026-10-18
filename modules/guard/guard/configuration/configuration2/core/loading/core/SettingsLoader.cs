@@ -153,6 +153,11 @@ public static class SettingsLoader {
             }
           },
           "searchProviders": {
+            "deepseek": {
+              "apiKeyEnvVar": "DEEPSEEK_API_KEY",
+              "priority": 90,
+              "enabled": true
+            },
             "tavily": {
               "apiKeyEnvVar": "TAVILY_API_KEY",
               "priority": 100,

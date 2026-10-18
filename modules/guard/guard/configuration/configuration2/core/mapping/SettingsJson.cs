@@ -837,7 +837,7 @@ public sealed class SearchProviderProfileSettings {
     [JsonPropertyName("endpointEnvVar")]
     public string? EndpointEnvVar { get; init; }
 
-    /// <summary>优先级（数字越小越优先，如 Tavily=100、Serper=200、Brave=300、SearXNG=400、Anthropic=500、SubAgent=999）</summary>
+    /// <summary>优先级（数字越小越优先，如 DeepSeek=90、Tavily=100、Serper=200、Brave=300、SearXNG=400、Anthropic=500、SubAgent=999）</summary>
     [JsonPropertyName("priority")]
     public int Priority { get; init; }
 

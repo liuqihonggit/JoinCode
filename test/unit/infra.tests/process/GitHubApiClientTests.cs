@@ -375,6 +375,119 @@ public sealed class GitHubApiClientTest : IDisposable {
         doc.RootElement.GetProperty("total_count").GetInt32().Should().Be(1);
     }
 
+    // ===== ZIP BOM 检测测试（改动 P3：GitHubApiClient ZIP BOM）=====
+
+    /// <summary>
+    /// 构造含 UTF-8 BOM 的 ZIP 条目（模拟 GitHub Actions 日志 ZIP 带 BOM 的情况）。
+    /// </summary>
+    private static byte[] CreateLogZipWithBom((string Name, string Content)[] entries, bool withBom) {
+        using var ms = new MemoryStream();
+        using (var archive = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Create)) {
+            foreach (var (name, content) in entries) {
+                var entry = archive.CreateEntry(name);
+                using var entryStream = entry.Open();
+                if (withBom) {
+                    var bom = new byte[] { 0xEF, 0xBB, 0xBF };
+                    entryStream.Write(bom, 0, bom.Length);
+                }
+                var contentBytes = Encoding.UTF8.GetBytes(content);
+                entryStream.Write(contentBytes, 0, contentBytes.Length);
+            }
+        }
+        return ms.ToArray();
+    }
+
+    /// <summary>
+    /// 含 UTF-8 BOM 的 ZIP 条目能正确读取（BOM 被 StreamReader 的 detectEncodingFromByteOrderMarks 跳过）。
+    /// </summary>
+    [Fact]
+    public async Task GetRunLogsAsync_Zip条目带Utf8Bom_应正确解码跳过Bom() {
+        var zipBytes = CreateLogZipWithBom([("1_build.txt", "Build started\nBuild completed")], withBom: true);
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.OK) {
+            Content = new ByteArrayContent(zipBytes)
+        };
+        _handler.Response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/zip");
+
+        var lines = new List<string>();
+        await foreach (var line in _client.GetRunLogsAsync("foo", "bar", 123)) {
+            lines.Add(line);
+        }
+
+        lines.Should().HaveCount(2);
+        // 行内容不应以 BOM 字符（U+FEFF）开头 — BOM 被 detectEncodingFromByteOrderMarks 跳过
+        lines.Should().NotContain(l => l.StartsWith("\uFEFF"));
+        lines[0].Should().Contain("Build started");
+        lines[1].Should().Contain("Build completed");
+    }
+
+    /// <summary>
+    /// 不含 BOM 的 ZIP 条目能正常读取（回归保护）。
+    /// </summary>
+    [Fact]
+    public async Task GetRunLogsAsync_Zip条目不带Bom_应正常读取() {
+        var zipBytes = CreateLogZipWithBom([("1_test.txt", "Test line 1\nTest line 2")], withBom: false);
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.OK) {
+            Content = new ByteArrayContent(zipBytes)
+        };
+        _handler.Response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/zip");
+
+        var lines = new List<string>();
+        await foreach (var line in _client.GetRunLogsAsync("foo", "bar", 456)) {
+            lines.Add(line);
+        }
+
+        lines.Should().HaveCount(2);
+        lines[0].Should().Contain("Test line 1");
+        lines[1].Should().Contain("Test line 2");
+    }
+
+    /// <summary>
+    /// 含 BOM 的 ZIP 条目带中文内容能正确解码。
+    /// </summary>
+    [Fact]
+    public async Task GetRunLogsAsync_Zip条目带Bom中文_应正确解码中文() {
+        var zipBytes = CreateLogZipWithBom([("1_cn.txt", "中文日志第一行\n中文日志第二行")], withBom: true);
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.OK) {
+            Content = new ByteArrayContent(zipBytes)
+        };
+        _handler.Response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/zip");
+
+        var lines = new List<string>();
+        await foreach (var line in _client.GetRunLogsAsync("foo", "bar", 789)) {
+            lines.Add(line);
+        }
+
+        lines.Should().HaveCount(2);
+        lines.Should().NotContain(l => l.StartsWith("\uFEFF"));
+        lines[0].Should().Contain("中文日志第一行");
+        lines[1].Should().Contain("中文日志第二行");
+    }
+
+    /// <summary>
+    /// 多个 ZIP 条目（部分带 BOM、部分不带）都能正确读取。
+    /// </summary>
+    [Fact]
+    public async Task GetRunLogsAsync_多条目混合Bom_都应正确读取() {
+        var zipBytes = CreateLogZipWithBom([
+            ("1_with_bom.txt", "BOM entry line"),
+            ("2_no_bom.txt", "No BOM entry line")
+        ], withBom: true);
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.OK) {
+            Content = new ByteArrayContent(zipBytes)
+        };
+        _handler.Response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/zip");
+
+        var lines = new List<string>();
+        await foreach (var line in _client.GetRunLogsAsync("foo", "bar", 999)) {
+            lines.Add(line);
+        }
+
+        lines.Should().HaveCount(2);
+        lines.Should().NotContain(l => l.StartsWith("\uFEFF"));
+        lines[0].Should().Contain("BOM entry line");
+        lines[1].Should().Contain("No BOM entry line");
+    }
+
     private sealed class FakeHandler : HttpMessageHandler {
         public HttpRequestMessage? LastRequest;
         public HttpResponseMessage Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };

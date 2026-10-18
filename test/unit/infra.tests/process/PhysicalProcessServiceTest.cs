@@ -88,4 +88,55 @@ public sealed class PhysicalProcessServiceTest {
         var result = PhysicalProcessService.CreateTimeoutResult(TimeSpan.Zero);
         result.Success.Should().BeFalse();
     }
+
+    // ===== PhysicalInteractiveProcess 子进程编码（改动 P3）=====
+
+    /// <summary>
+    /// 交互式进程的 StandardInput 编码应使用 Console.InputEncoding（对齐系统代码页）。
+    /// </summary>
+    [Fact]
+    public async Task 交互式进程_StandardInput编码_应为ConsoleInputEncoding() {
+        await using var interactive = await StartTestInteractiveProcessAsync().ConfigureAwait(true);
+        interactive.StandardInput.Encoding.Should().BeSameAs(Console.InputEncoding);
+    }
+
+    /// <summary>
+    /// 交互式进程的 StandardOutput 编码应使用 Console.OutputEncoding（对齐系统代码页）。
+    /// </summary>
+    [Fact]
+    public async Task 交互式进程_StandardOutput编码_应为ConsoleOutputEncoding() {
+        await using var interactive = await StartTestInteractiveProcessAsync().ConfigureAwait(true);
+        interactive.StandardOutput.CurrentEncoding.Should().BeSameAs(Console.OutputEncoding);
+    }
+
+    /// <summary>
+    /// 交互式进程的 StandardInput 和 StandardOutput 编码应分别对应 Console 的输入/输出编码。
+    /// </summary>
+    [Fact]
+    public async Task 交互式进程_输入输出编码_应分别对齐Console编码() {
+        await using var interactive = await StartTestInteractiveProcessAsync().ConfigureAwait(true);
+        interactive.StandardInput.Encoding.Should().BeSameAs(Console.InputEncoding);
+        interactive.StandardOutput.CurrentEncoding.Should().BeSameAs(Console.OutputEncoding);
+    }
+
+    /// <summary>
+    /// 启动一个测试用交互式进程（跨平台），调用方用 await using 释放。
+    /// </summary>
+    private static async Task<IInteractiveProcess> StartTestInteractiveProcessAsync() {
+        var builder = new ProcessStartInfoBuilder(new ProcessEncodingProvider());
+        var service = new PhysicalProcessService(builder);
+
+        // Windows: cmd.exe 保持运行等待输入；Linux: /bin/sh 保持运行等待输入
+        var fileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh";
+        var arguments = OperatingSystem.IsWindows() ? "" : "";
+
+        var options = new InteractiveProcessOptions {
+            FileName = fileName,
+            Arguments = arguments,
+            RedirectStandardError = true,
+        };
+
+        var interactive = await service.StartInteractiveAsync(options, CancellationToken.None).ConfigureAwait(true);
+        return interactive;
+    }
 }

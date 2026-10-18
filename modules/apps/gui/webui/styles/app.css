@@ -328,7 +328,8 @@ button:disabled { cursor: default; }
 
 .composer-input {
   position: relative;
-  height: 52px;
+  height: auto;
+  min-height: 52px;
   padding: 4px 8px 0 14px;
   font-size: 14px;
   line-height: 24px;
@@ -340,11 +341,13 @@ button:disabled { cursor: default; }
   position: relative;
   z-index: 1;
   width: 100%;
-  height: 100%;
+  height: auto;
+  min-height: 48px;
+  max-height: 192px; /* 8 行（行高 24）：超出后框内滚动，卡随内容增高（F1 输入自动增高） */
   resize: none;
   border: 0;
   outline: none;
-  overflow: hidden;
+  overflow-y: auto;
   background: none;
   font: inherit;
   font-size: 14px;
@@ -386,7 +389,8 @@ body.has-messages .composer-seat { top: auto; bottom: 0; }
 body.has-messages .headline-row,
 body.has-messages .workspace-row { display: none; }
 body.has-messages .composer-stack { padding-bottom: 30px; }
-body.has-messages .composer-input { height: 36px; }
+body.has-messages .composer-input { min-height: 36px; height: auto; }
+body.has-messages .composer-textarea { min-height: 32px; }
 
 /* DSH 滚动条 5px（列居中差以此为基准；轨道透明，拇指用 token） */
 .message-list::-webkit-scrollbar { width: 5px; }
@@ -452,6 +456,42 @@ body.has-messages .composer-input { height: 36px; }
 
 .msg-action:hover { background: var(--dsw-alias-interactive-bg-hover); }
 .msg-action svg { display: block; }
+
+/* —— 用户停止回合的分隔行（chat/done stopped=true） —— */
+
+.turn-divider.is-stopped { color: var(--dsw-alias-label-tertiary); }
+
+/* —— 错误条（app/error 可见化：原因 + 指引 + 重试） —— */
+
+.msg-error {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--dsw-alias-state-error-primary);
+  border-radius: 12px;
+  background: var(--dsw-alias-interactive-bg-hover-danger);
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.msg-error .error-reason { color: var(--dsw-alias-state-error-primary); font-weight: 600; }
+.msg-error .error-guidance { color: var(--dsw-alias-label-secondary); }
+
+.msg-error .error-retry {
+  align-self: flex-start;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.msg-error .error-retry:hover { background: var(--dsw-alias-interactive-bg-hover); }
 
 /* —— 回合分隔行（DSH .l_V-RG_root：flex align-center + border-bottom 发丝线） —— */
 
@@ -637,3 +677,6 @@ body.has-messages .composer-input { height: 36px; }
   align-self: flex-start;
   margin-top: -2px; /* DSH 实测 uV2eYG_primary y515（比 row 内容框高 2px），对齐有效几何 */
 }
+
+/* 生成中：发送键变停止键（F1）；停止待回应期间禁用防连点 */
+.send-btn.is-stop:disabled { opacity: 0.7; }

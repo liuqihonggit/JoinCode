@@ -26,6 +26,7 @@ public static class BridgeProtocol {
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(WebReadyMessage), "web/ready")]
 [JsonDerivedType(typeof(ChatSendMessage), "chat/send")]
+[JsonDerivedType(typeof(ChatStopMessage), "chat/stop")]
 [JsonDerivedType(typeof(PermissionResponseMessage), "permission/response")]
 [JsonDerivedType(typeof(SmokePongMessage), "smoke/pong")]
 [JsonDerivedType(typeof(AppInitMessage), "app/init")]
@@ -47,6 +48,9 @@ public sealed record WebReadyMessage : BridgeMessage;
 /// <param name="Prompt">提示词全文</param>
 public sealed record ChatSendMessage(string Prompt) : BridgeMessage;
 
+/// <summary>web→host：用户请求停止本轮生成（宿主取消在途流，已产出的内容保留）</summary>
+public sealed record ChatStopMessage : BridgeMessage;
+
 /// <summary>web→host：权限确认结果</summary>
 /// <param name="Id">权限请求标识（对应 permission/request）</param>
 /// <param name="Allow">是否放行</param>
@@ -65,8 +69,9 @@ public sealed record AppInitMessage(string Theme, string Version) : BridgeMessag
 /// <param name="Text">增量文本</param>
 public sealed record ChatDeltaMessage(string Text) : BridgeMessage;
 
-/// <summary>host→web：会话文本结束</summary>
-public sealed record ChatDoneMessage : BridgeMessage;
+/// <summary>host→web：会话文本结束（本轮唯一收尾信号，web 侧据此恢复发送按钮）</summary>
+/// <param name="Stopped">是否由用户主动停止（true=用户点了停止/按 Esc，非故障语义；false=正常完成）</param>
+public sealed record ChatDoneMessage(bool Stopped) : BridgeMessage;
 
 /// <summary>host→web：权限确认请求</summary>
 /// <param name="Id">请求标识（web 经 permission/response 回传）</param>

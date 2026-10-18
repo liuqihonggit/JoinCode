@@ -107,6 +107,10 @@ internal sealed class WebUiWindow : Window {
                 }
                 _ = _flow.SendAsync(send.Prompt, _host.Send, _lifetimeCts.Token);
                 break;
+            case ChatStopMessage:
+                App.LogDiag("[WebUI] BRIDGE chat/stop");
+                _flow?.Stop();
+                break;
             case SmokePongMessage pong when _smoke:
                 if (pong.Nonce != _smokeNonce) {
                     App.LogDiag($"[WebUI] BRIDGE-SMOKE mismatch got={pong.Nonce} want={_smokeNonce}");

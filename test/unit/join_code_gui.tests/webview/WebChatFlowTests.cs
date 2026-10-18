@@ -129,6 +129,78 @@ public sealed class WebChatFlowTests {
         flow.IsStreaming.Should().BeFalse();
     }
 
+    [Fact]
+    public async Task Stop_WhileStreaming_EmitsDoneStopped_NoAppError() {
+        var session = new ScriptedSession { GateBeforeFirst = true };
+        session.Events.AddRange([ChatStreamEvent.Text("一"), ChatStreamEvent.Done()]);
+        var flow = new WebChatFlow(session);
+        var emitted = new List<BridgeMessage>();
+
+        var streaming = flow.SendAsync("长回答", emitted.Add);
+        flow.IsStreaming.Should().BeTrue("流已启动且被门控挂起");
+
+        flow.Stop();
+
+        await streaming;
+
+        emitted.Select(m => m.GetType()).Should().Equal(
+            new[] { typeof(ChatDoneMessage) },
+            "用户主动停止：不得回 app/error（那是故障语义），仅一条 done 收尾");
+        emitted.OfType<ChatDoneMessage>().Single().Stopped.Should().BeTrue("done 须标记 Stopped=true");
+        flow.IsStreaming.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Stop_KeepsPartialText_DoneStillSingle() {
+        var session = new ScriptedSession { GateBeforeSecond = true };
+        session.Events.AddRange([ChatStreamEvent.Text("前半"), ChatStreamEvent.Text("后半"), ChatStreamEvent.Done()]);
+        var flow = new WebChatFlow(session);
+        var emitted = new List<BridgeMessage>();
+
+        var streaming = flow.SendAsync("hi", emitted.Add);
+        session.WaitUntilSecondGated();
+        emitted.OfType<ChatDeltaMessage>().Select(d => d.Text).Should().Equal(
+            new[] { "前半" }, "停止前已产出的增量必须保留");
+
+        flow.Stop();
+        await streaming;
+
+        emitted.OfType<ChatDeltaMessage>().Select(d => d.Text).Should().Equal(
+            new[] { "前半" }, "停止后不得再产出增量");
+        emitted.OfType<ChatDoneMessage>().Should().ContainSingle().Which.Stopped.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Stop_WhenIdle_IsNoOp() {
+        var session = new ScriptedSession();
+        var flow = new WebChatFlow(session);
+        var emitted = new List<BridgeMessage>();
+
+        flow.Stop();
+
+        emitted.Should().BeEmpty("空闲态停止不得产生任何消息");
+        flow.IsStreaming.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Stop_ThenSendAgain_NewTurnRunsNormally() {
+        var session = new ScriptedSession { GateBeforeFirst = true };
+        session.Events.AddRange([ChatStreamEvent.Text("一"), ChatStreamEvent.Done()]);
+        var flow = new WebChatFlow(session);
+        var emitted = new List<BridgeMessage>();
+
+        var streaming = flow.SendAsync("p1", emitted.Add);
+        flow.Stop();
+        await streaming;
+
+        session.GateBeforeFirst = false;
+        emitted.Clear();
+        await flow.SendAsync("p2", emitted.Add);
+
+        emitted.OfType<ChatDoneMessage>().Single().Stopped.Should().BeFalse("停止后新一轮不得继承停止标记");
+        session.LastPrompt.Should().Be("p2");
+    }
+
     /// <summary>脚本化假会话 — 事件序列可控（门控首事件/定点抛异常），其余成员最小桩</summary>
     private sealed class ScriptedSession : IJccChatSession {
         public List<ChatStreamEvent> Events { get; } = [];
@@ -138,9 +210,20 @@ public sealed class WebChatFlowTests {
         public Exception? ThrowException { get; set; }
         /// <summary>首个事件前等待门控（并发测试用）</summary>
         public bool GateBeforeFirst { get; set; }
+        /// <summary>第二事件前等待门控（停止测试用：先产出首块再挂起）</summary>
+        public bool GateBeforeSecond { get; set; }
         public string? LastPrompt { get; private set; }
         private readonly TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _gate2 = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _secondReached = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public void ReleaseGate() => _gate.TrySetResult();
+
+        /// <summary>等待流到达第二事件门口（超时即抛，防测试挂死）</summary>
+        public void WaitUntilSecondGated() {
+            if (!_secondReached.Task.Wait(TimeSpan.FromSeconds(5))) {
+                throw new InvalidOperationException("流未在 5s 内到达第二事件门口");
+            }
+        }
 
         public bool IsReady { get; set; } = true;
         public ITranscriptService? TranscriptService => null;
@@ -168,6 +251,10 @@ public sealed class WebChatFlowTests {
             for (var i = 0; i < Events.Count; i++) {
                 if (ThrowAt == i) {
                     throw ThrowException ?? new InvalidOperationException("引擎崩溃");
+                }
+                if (GateBeforeSecond && i == 1) {
+                    _secondReached.TrySetResult();
+                    await _gate2.Task.WaitAsync(cancellationToken);
                 }
                 yield return Events[i];
             }

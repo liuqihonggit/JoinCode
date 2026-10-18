@@ -14,7 +14,9 @@ public sealed class BridgeProtocolTests {
         new SmokePongMessage("nonce-abc"),
         new AppInitMessage("dark", "0.2.0-rc.2"),
         new ChatDeltaMessage("文本增量"),
-        new ChatDoneMessage(),
+        new ChatDoneMessage(false),
+        new ChatDoneMessage(true),
+        new ChatStopMessage(),
         new PermissionRequestMessage("req-1", "bash", "允许在当前目录执行 shell 命令？"),
         new SmokePingMessage("nonce-abc"),
         new AppErrorMessage("未知消息类型", "检查 webui/js/bridge.js 的 type 注册"),
@@ -60,8 +62,20 @@ public sealed class BridgeProtocolTests {
     [Fact]
     public void Serialize_TypeValues_MatchCamelCasePredicate() {
         BridgeProtocol.Serialize(new ChatSendMessage("x")).Should().Contain("\"type\":\"chat/send\"");
+        BridgeProtocol.Serialize(new ChatStopMessage()).Should().Contain("\"type\":\"chat/stop\"");
         BridgeProtocol.Serialize(new SmokePingMessage("x")).Should().Contain("\"type\":\"smoke/ping\"");
         BridgeProtocol.Serialize(new WebReadyMessage()).Should().Contain("\"type\":\"web/ready\"");
+    }
+
+    [Fact]
+    public void ChatDone_StoppedFlag_RoundtripPreservesValue() {
+        BridgeProtocol.TryParse(BridgeProtocol.Serialize(new ChatDoneMessage(true)), out var stopped)
+            .Should().BeTrue("消息应可解析");
+        stopped.Should().BeOfType<ChatDoneMessage>().Subject.Stopped.Should().BeTrue("用户停止标记须往返保真（Web 侧据此渲染已停止）");
+
+        BridgeProtocol.TryParse(BridgeProtocol.Serialize(new ChatDoneMessage(false)), out var completed)
+            .Should().BeTrue("消息应可解析");
+        completed.Should().BeOfType<ChatDoneMessage>().Subject.Stopped.Should().BeFalse("正常完成不得误标停止");
     }
 
     [Fact]

@@ -50,7 +50,7 @@ public class WebServiceBinaryContentTests {
         coordinatorMock.Setup(c => c.SearchAsync(It.IsAny<SearchRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new WebSearchResult(true, "", [], 0));
 
-        return new WebService(pipeline, cache, coordinatorMock.Object);
+        return new WebService(pipeline, cache, coordinatorMock.Object, Array.Empty<IWebFetchProvider>());
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]

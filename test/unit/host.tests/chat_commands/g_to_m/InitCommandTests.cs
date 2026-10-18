@@ -98,9 +98,10 @@ public sealed class InitCommandTests {
         fs.FileExists(Path.Combine(currentDir, "ui.json")).Should().BeTrue("current/ui.json 应存在");
         fs.FileExists(Path.Combine(currentDir, "subagent.json")).Should().BeTrue("current/subagent.json 应存在");
 
-        // P8: providers_search/ 6 子文件夹
+        // P8: providers_search/ 7 子文件夹
         var searchDir = Path.Combine(expectedJccDir, "providers_search");
         fs.DirectoryExists(searchDir).Should().BeTrue("providers_search/ 目录应存在");
+        fs.FileExists(Path.Combine(searchDir, "deepseek", "config.json")).Should().BeTrue("providers_search/deepseek/config.json 应存在");
         fs.FileExists(Path.Combine(searchDir, "tavily", "config.json")).Should().BeTrue("providers_search/tavily/config.json 应存在");
     }
 

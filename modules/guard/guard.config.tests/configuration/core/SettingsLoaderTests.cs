@@ -599,7 +599,7 @@ public class SettingsLoaderTests : IDisposable {
     }
 
     [Fact]
-    public async Task P8_BuildDefaultConfigTreeAsync_生成searchProviders目录6供应商() {
+    public async Task P8_BuildDefaultConfigTreeAsync_生成searchProviders目录7供应商() {
         var baseDir = $"/test/p8_search_{Guid.NewGuid():N}";
         _fs.CreateDirectory(baseDir);
 
@@ -607,7 +607,7 @@ public class SettingsLoaderTests : IDisposable {
 
         var searchDir = Path.Combine(baseDir, "providers_search");
         _fs.DirectoryExists(searchDir).Should().BeTrue("应生成 providers_search/ 目录");
-        var expectedProviders = new[] { "tavily", "serper", "brave", "searxng", "anthropic", "subagent" };
+        var expectedProviders = new[] { "deepseek", "tavily", "serper", "brave", "searxng", "anthropic", "subagent" };
         foreach (var name in expectedProviders) {
             var providerDir = Path.Combine(searchDir, name);
             _fs.DirectoryExists(providerDir).Should().BeTrue($"providers_search/{name}/ 应存在");

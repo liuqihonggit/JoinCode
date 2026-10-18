@@ -309,6 +309,7 @@ button:disabled { cursor: default; }
   gap: 4px;
   font-size: 13px;
   font-weight: 500;
+  line-height: 20px;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -406,7 +407,7 @@ body.has-messages .composer-seat { top: auto; bottom: 24px; }
 
 .composer-row {
   height: 42px;
-  padding: 0 8px 8px;
+  padding: 2px 8px 6px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -430,21 +431,29 @@ body.has-messages .composer-seat { top: auto; bottom: 24px; }
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 0 4px;
+  height: 28px;
+  border-radius: 8px;
+  padding: 0 4px 0 8px;
   font-size: 13px;
   font-weight: 500;
+  line-height: 20px;
   color: var(--dsw-alias-label-primary);
 }
 
 .mode-chip .chev { color: var(--dsw-alias-label-caption); flex: none; }
 
-.trailing { display: flex; align-items: center; gap: 12px; }
+/* DSH 有效间隙 24px（trailing 外层 gap12 + standardControls 内层 gap12 叠加；我方 DOM 扁平化后直接取和） */
+.trailing { display: flex; align-items: center; gap: 24px; align-self: stretch; }
 
 .model-chip {
   display: flex;
   align-items: center;
   gap: 4px;
+  height: 28px;
+  border-radius: 8px;
+  padding: 0 4px 0 8px;
   font-size: 13px;
+  line-height: 20px;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -461,4 +470,6 @@ body.has-messages .composer-seat { top: auto; bottom: 24px; }
   align-items: center;
   justify-content: center;
   flex: none;
+  align-self: flex-start;
+  margin-top: -2px; /* DSH 实测 uV2eYG_primary y515（比 row 内容框高 2px），对齐有效几何 */
 }

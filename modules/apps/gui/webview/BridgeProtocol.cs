@@ -37,6 +37,7 @@ public static class BridgeProtocol {
 [JsonDerivedType(typeof(SessionsListMessage), "sessions/list")]
 [JsonDerivedType(typeof(SessionSelectMessage), "session/select")]
 [JsonDerivedType(typeof(WebSessionsRenderedMessage), "web/sessions-rendered")]
+[JsonDerivedType(typeof(ChatHistoryMessage), "chat/history")]
 public abstract record BridgeMessage;
 
 /// <summary>web→host：页面脚本就绪（握手起点，host 收到后回 app/init）</summary>
@@ -98,6 +99,15 @@ public sealed record SessionSelectMessage(string Id) : BridgeMessage;
 /// <summary>web→host：会话列表渲染完成（冒烟验收钩子；宿主据此确认真实数据链路通）</summary>
 /// <param name="Count">实际渲染的会话行数</param>
 public sealed record WebSessionsRenderedMessage(int Count) : BridgeMessage;
+
+/// <summary>host→web：历史会话消息快照（session/select 后宿主读取持久化下发；空列表表示空会话）</summary>
+/// <param name="Messages">按时间顺序的历史消息</param>
+public sealed record ChatHistoryMessage(IReadOnlyList<ChatHistoryEntry> Messages) : BridgeMessage;
+
+/// <summary>历史消息条目（chat/history 传输单元；Role 为持久化原始值 user/assistant/tool 等）</summary>
+/// <param name="Role">角色原始值</param>
+/// <param name="Content">消息正文</param>
+public sealed record ChatHistoryEntry(string Role, string Content);
 
 /// <summary>桥接协议源生成上下文（属性 camelCase；判别字段 type 由 [JsonPolymorphic] 注入）</summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]

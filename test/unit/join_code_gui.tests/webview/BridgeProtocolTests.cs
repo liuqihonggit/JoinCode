@@ -21,6 +21,7 @@ public sealed class BridgeProtocolTests {
         new SessionsListMessage([new SessionSummaryDto("s1", "重构桥接层"), new SessionSummaryDto("s2", "s2")]),
         new SessionSelectMessage("s1"),
         new WebSessionsRenderedMessage(2),
+        new ChatHistoryMessage([new ChatHistoryEntry("user", "你好"), new ChatHistoryEntry("assistant", "你好！有什么可以帮你的？")]),
     };
 
     [Theory]
@@ -36,12 +37,17 @@ public sealed class BridgeProtocolTests {
 
     /// <summary>结构等价：含集合字段的消息逐元素比较（record 相等性对集合是引用比较，roundtrip 后必然不同）</summary>
     private static void AssertEquivalent(BridgeMessage expected, BridgeMessage actual) {
-        if (expected is SessionsListMessage sessions) {
-            var parsedSessions = actual.Should().BeOfType<SessionsListMessage>().Subject;
-            parsedSessions.Sessions.Should().Equal(sessions.Sessions, "会话摘要须逐项相等");
-            return;
+        switch (expected) {
+            case SessionsListMessage sessions:
+                actual.Should().BeOfType<SessionsListMessage>().Subject.Sessions.Should().Equal(sessions.Sessions, "会话摘要须逐项相等");
+                return;
+            case ChatHistoryMessage history:
+                actual.Should().BeOfType<ChatHistoryMessage>().Subject.Messages.Should().Equal(history.Messages, "历史条目须逐项相等");
+                return;
+            default:
+                actual.Should().Be(expected, "往返后应等值（record 结构相等）");
+                return;
         }
-        actual.Should().Be(expected, "往返后应等值（record 结构相等）");
     }
 
     [Theory]

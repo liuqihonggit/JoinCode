@@ -326,6 +326,7 @@ button:disabled { cursor: default; }
 }
 
 .composer-input {
+  position: relative;
   height: 52px;
   padding: 4px 8px 0 14px;
   font-size: 14px;
@@ -334,9 +335,73 @@ button:disabled { cursor: default; }
   caret-color: var(--dsw-alias-button-info-fill);
 }
 
+.composer-textarea {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  resize: none;
+  border: 0;
+  outline: none;
+  overflow: hidden;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  line-height: 24px;
+  color: var(--dsw-alias-label-primary);
+  caret-color: var(--dsw-alias-button-info-fill);
+}
+
 .composer-placeholder {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 4px 8px 0 14px;
+  font-size: 14px;
+  line-height: 24px;
   color: var(--dsw-alias-label-caption);
   pointer-events: none;
+}
+
+.composer-placeholder.is-hidden { display: none; }
+
+/* ---------- 消息区（会话流 v1；细化对齐见 P6-3） ---------- */
+
+.message-list {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 176px;
+  padding: 24px 28px 0;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+body.has-messages .message-list { display: flex; }
+body.has-messages .composer-seat { top: auto; bottom: 24px; }
+
+.msg {
+  max-width: 720px;
+  font-size: 14px;
+  line-height: 24px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.msg-user {
+  align-self: flex-end;
+  background: var(--dsw-alias-bg-layer-3);
+  border-radius: 16px;
+  padding: 8px 14px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.msg-assistant {
+  align-self: flex-start;
+  color: var(--dsw-alias-label-primary);
 }
 
 .composer-row {

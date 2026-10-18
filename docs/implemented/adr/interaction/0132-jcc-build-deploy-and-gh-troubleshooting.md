@@ -136,6 +136,8 @@ C:\Users\54076\bin\
 | `gh branch audit-protection` | ✅ 可用 | 对比 CI yml matrix 与 GitHub required_status_checks，报告匹配/缺失/多余三类差异。`CiMatrixParser` 解析 yml，`BranchProtectionAuditor` 封装审计逻辑 |
 | `gh run view --expand jobs` 截断 | ✅ 已修复(2026-10-08) | `MergeJsonArrays` 支持对象结构分页合并（识别 jobs/check_runs/items 包裹键），双向对比验证 62 jobs 一致 |
 | `gh api --jq` 字段提取 | ✅ 已修复(2026-10-08) | `SimpleJqEvaluator` 支持 .field/[]/select(.f=="v")/{k:.f}/\| 管道，AI 无需 Python 二次解析 |
+| `--jq` 仅 gh_api 支持 | ✅ 已修复(2026-10-18) | `GitHubCommonOptions.Jq` 加入公共选项，所有 gh 工具通过 `FormatGhOutput` 统一支持 `--jq` 后处理（优先级：jq > json_fields > verbosity）。27 个 `FormatGhOutput` 调用点 + `GhRunListAsync` 独立处理 |
+| `gh run list --workflow` 传显示名称报 404 | ✅ 已修复(2026-10-18) | `ResolveWorkflowIdentifierAsync` 自动将显示名称（如 "CI Daily - Uncovered Tests"）解析为文件名（如 ci-daily-uncovered.yml）：查工作流列表匹配 `name` 字段，提取 `path` 纯文件名。数字 ID/已含 .yml 后缀直接返回 |
 | `gh pr checks` 大量 check 截断 | ✅ 已修复(2026-10-08) | check-runs 端点加 per_page=100 + paginate=true，配合对象分页合并获取全部 |
 | robocopy /MIR 部署 DLL 不更新 | ✅ 已查明 | 跨盘符(D:→C:)时间戳比较不可靠,robocopy 跳过复制。改用 `cp -f` 强制覆盖+部署后验证 DLL 时间戳 |
 | 只复制 jcc.exe 部署 | ✅ 已查明 | jcc.exe(162KB)依赖同目录 Mcp.dll 等多个 DLL,只复制 exe 会运行旧 DLL 导致修复不生效。必须全量复制 *.dll+*.exe+*.json |

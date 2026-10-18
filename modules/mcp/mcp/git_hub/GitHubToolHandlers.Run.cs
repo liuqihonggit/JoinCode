@@ -31,11 +31,19 @@ public partial class GitHubToolHandlers {
             if (!string.IsNullOrWhiteSpace(user)) query["actor"] = user;
             if (!string.IsNullOrWhiteSpace(commit)) query["head_sha"] = commit;
             if (!string.IsNullOrWhiteSpace(created)) query["created"] = created;
-            var basePath = string.IsNullOrWhiteSpace(workflow)
+            var workflowPath = workflow;
+            if (!string.IsNullOrWhiteSpace(workflowPath)) {
+                workflowPath = await ResolveWorkflowIdentifierAsync(client, owner, repoName, workflowPath, cancellationToken).ConfigureAwait(false);
+            }
+            var basePath = string.IsNullOrWhiteSpace(workflowPath)
                 ? $"repos/{owner}/{repoName}/actions/runs"
-                : $"repos/{owner}/{repoName}/actions/workflows/{workflow}/runs";
+                : $"repos/{owner}/{repoName}/actions/workflows/{workflowPath}/runs";
             var result = await client.SendAsync(HttpMethod.Get, basePath, query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(BuildRunListErrorHint(result, workflow));
+            if (!string.IsNullOrEmpty(common?.Jq)) {
+                var jqOutput = SimpleJqEvaluator.Evaluate(result.Body, common.Jq);
+                return Ok(jqOutput ?? result.Body);
+            }
             if (!string.IsNullOrEmpty(common?.JsonFields)) {
                 var filtered = FilterJsonFields(result.Body, common.JsonFields);
                 if (filtered is "[]" or "{}")
@@ -58,10 +66,46 @@ public partial class GitHubToolHandlers {
     private static string BuildRunListErrorHint(GitHubApiResponse result, string? workflow) {
         var baseHint = result.StatusCode == 404
             ? "404 Not Found — 可能原因:"
-              + (string.IsNullOrWhiteSpace(workflow) ? "" : $" ① 工作流名称 '{workflow}' 不匹配(用 gh workflow list 查看可用工作流)")
+              + (string.IsNullOrWhiteSpace(workflow) ? "" : $" ① 工作流 '{workflow}' 不匹配。GitHub API 要求文件名(如 ci-daily.yml)或数字 ID,不是显示名称。用 gh workflow list 查看可用工作流及其 path 列")
               + " ② 当前目录不是 git 仓库根目录 ③ 仓库不存在或无权限"
             : result.Error;
         return baseHint;
+    }
+
+    /// <summary>
+    /// 解析工作流标识 — 宽容接受显示名称(name 字段),自动查找对应文件名(path)
+    /// <para>GitHub API 端点 .../actions/workflows/{workflow}/runs 中 {workflow} 必须是文件名或数字 ID,
+    /// 不是显示名称。AI 常用显示名称(如 "CI Daily - Uncovered Tests"),此方法自动解析为文件名(如 ci-daily-uncovered.yml)。</para>
+    /// <para>解析策略: ① 数字/以 .yml/.yaml 结尾 → 直接返回 ② 否则查工作流列表匹配 name 字段 → 返回 path ③ 匹配不到 → 返回原值(让 API 404 + 错误提示引导)</para>
+    /// </summary>
+    private async Task<string> ResolveWorkflowIdentifierAsync(IGitHubApiClient client, string owner, string repoName, string workflow, CancellationToken ct) {
+        // 数字 ID 或文件名 → 直接返回
+        if (workflow.All(char.IsDigit) || workflow.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) || workflow.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase))
+            return workflow;
+
+        // 尝试当作显示名称,查工作流列表匹配
+        var listResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/workflows",
+            query: new Dictionary<string, string> { ["per_page"] = "100" }, ct: ct).ConfigureAwait(false);
+        if (!listResult.Success) return workflow;
+
+        try {
+            using var doc = JsonDocument.Parse(listResult.Body);
+            if (!doc.RootElement.TryGetProperty("workflows", out var workflows)) return workflow;
+            foreach (var wf in workflows.EnumerateArray()) {
+                if (wf.TryGetProperty("name", out var nameEl) && string.Equals(nameEl.GetString(), workflow, StringComparison.OrdinalIgnoreCase)) {
+                    if (wf.TryGetProperty("path", out var pathEl)) {
+                        var path = pathEl.GetString();
+                        if (!string.IsNullOrEmpty(path)) {
+                            var fileName = path.Contains('/') ? path[(path.LastIndexOf('/') + 1)..] : path;
+                            _logger?.LogDebug("工作流显示名称 '{DisplayName}' 解析为文件名 '{FileName}'", workflow, fileName);
+                            return fileName;
+                        }
+                    }
+                }
+            }
+        } catch (JsonException ex) { _logger?.LogWarning(ex, "解析工作流列表失败"); }
+
+        return workflow;
     }
 
     /// <summary>

@@ -106,7 +106,7 @@ public partial class GitHubToolHandlers {
             if (!string.IsNullOrWhiteSpace(key)) query["key"] = key;
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/caches", query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeCacheList, "id,key,ref,size_in_megabytes,last_used_at"));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeCacheList, "id,key,ref,size_in_megabytes,last_used_at", common?.Jq));
         }).ConfigureAwait(false);
 
     /// <summary>精简缓存列表 — 表格格式(id, key, ref, size, last_used)</summary>
@@ -190,7 +190,7 @@ public partial class GitHubToolHandlers {
             var path = !string.IsNullOrWhiteSpace(org) ? $"orgs/{org}/rulesets" : $"repos/{owner}/{repoName}/rulesets";
             var result = await client.SendAsync(HttpMethod.Get, path, query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeRulesetList, "id,name,target,enforcement"));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeRulesetList, "id,name,target,enforcement", common?.Jq));
         }).ConfigureAwait(false);
 
     /// <summary>精简规则集列表 — 表格格式(id, name, target, enforcement)</summary>
@@ -220,7 +220,7 @@ public partial class GitHubToolHandlers {
             var path = !string.IsNullOrWhiteSpace(org) ? $"orgs/{org}/rulesets/{ruleset_id}" : $"repos/{owner}/{repoName}/rulesets/{ruleset_id}";
             var result = await client.SendAsync(HttpMethod.Get, path, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeRulesetView, "id,name,target,enforcement,html_url"));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeRulesetView, "id,name,target,enforcement,html_url", common?.Jq));
         }).ConfigureAwait(false);
 
     /// <summary>精简规则集详情 — 人类可读文本</summary>
@@ -314,7 +314,7 @@ public partial class GitHubToolHandlers {
         }
         var result = await _apiClient.SendAsync(HttpMethod.Get, path, query: query, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeCodespaceList, "name,display_name,state,repository"));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeCodespaceList, "name,display_name,state,repository", common?.Jq));
     }
 
     /// <summary>精简 Codespace 列表 — 表格格式(name, display_name, repo, state, branch)</summary>
@@ -415,7 +415,7 @@ public partial class GitHubToolHandlers {
             var graphql = BuildGraphQL($"query{{repository(owner:\"{owner}\",name:\"{repoName}\"){{discussions(first:{first}){{nodes{{number title author{{login}} category{{name}} createdAt}}}}}}}}");
             var result = await client.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeDiscussionList, "number,title,author,category,createdAt"));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeDiscussionList, "number,title,author,category,createdAt", common?.Jq));
         }).ConfigureAwait(false);
 
     /// <summary>精简 Discussion 列表 — 表格格式(number, title, author, category)</summary>
@@ -445,7 +445,7 @@ public partial class GitHubToolHandlers {
             var graphql = BuildGraphQL($"query{{repository(owner:\"{owner}\",name:\"{repoName}\"){{discussion(number:{number}){{number title body author{{login}} category{{name}} createdAt url}}}}}}");
             var result = await client.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeDiscussionView, "number,title,body,author,category,createdAt,url"));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeDiscussionView, "number,title,body,author,category,createdAt,url", common?.Jq));
         }).ConfigureAwait(false);
 
     /// <summary>精简 Discussion 详情 — 人类可读文本</summary>
@@ -581,7 +581,7 @@ public partial class GitHubToolHandlers {
             graphql = BuildGraphQL($"query{{viewer{{projectsV2(first:{first}){{nodes{{number title url closed state}}}}}}}}");
         var result = await _apiClient.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeProjectList, "number,title,state,url"));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeProjectList, "number,title,state,url", common?.Jq));
     }
 
     /// <summary>精简 Project 列表 — 表格格式(number, title, state, url)</summary>
@@ -622,7 +622,7 @@ public partial class GitHubToolHandlers {
             graphql = BuildGraphQL($"query{{viewer{{projectV2(number:{number}){{title url closed state items(first:20){{nodes{{content{{...on Issue{{number title}} ...on PullRequest{{number title}}}}}}}}}}}}");
         var result = await _apiClient.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeProjectView, "title,url,state,items"));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeProjectView, "title,url,state,items", common?.Jq));
     }
 
     /// <summary>精简 Project 详情 — 人类可读文本</summary>

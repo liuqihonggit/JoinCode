@@ -22,7 +22,7 @@ public partial class GitHubToolHandlers {
         queryDict["order"] = string.IsNullOrWhiteSpace(order) ? "desc" : order;
         var result = await _apiClient.SendAsync(HttpMethod.Get, "search/repositories", query: queryDict, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeSearchRepos, "full_name,stargazers_count,description,html_url"));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeSearchRepos, "full_name,stargazers_count,description,html_url", common?.Jq));
     }
 
     /// <summary>
@@ -58,7 +58,7 @@ public partial class GitHubToolHandlers {
         queryDict["order"] = string.IsNullOrWhiteSpace(order) ? "desc" : order;
         var result = await _apiClient.SendAsync(HttpMethod.Get, "search/issues", query: queryDict, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeSearchIssues, "number,title,state,html_url,repository_url"));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeSearchIssues, "number,title,state,html_url,repository_url", common?.Jq));
     }
 
     /// <summary>
@@ -79,7 +79,7 @@ public partial class GitHubToolHandlers {
         queryDict["order"] = string.IsNullOrWhiteSpace(order) ? "desc" : order;
         var result = await _apiClient.SendAsync(HttpMethod.Get, "search/issues", query: queryDict, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeSearchIssues, "number,title,state,html_url,repository_url"));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeSearchIssues, "number,title,state,html_url,repository_url", common?.Jq));
     }
 
     /// <summary>

@@ -9,6 +9,7 @@ internal sealed class WebView2Host : NativeControlHost {
     private readonly string _pageUri;
     private readonly string _userDataDir;
     private CoreWebView2Controller? _controller;
+    private CoreWebView2? _core;
 
     /// <summary>构造宿主控件</summary>
     /// <param name="pageUri">页面 URI（file:// 离线加载）</param>
@@ -23,6 +24,14 @@ internal sealed class WebView2Host : NativeControlHost {
 
     /// <summary>WebView2 初始化失败（激活/环境创建）时触发，宿主窗口据此展示回退提示</summary>
     public event Action<string>? InitFailed;
+
+    /// <summary>收到 web→host 桥接消息（协议见 <see cref="BridgeProtocol"/>，ADR 0141）</summary>
+    public event Action<BridgeMessage>? MessageReceived;
+
+    /// <summary>发送 host→web 桥接消息（序列化经 <see cref="BridgeProtocol.Serialize"/> 源生成，AOT 安全）</summary>
+    public void Send(BridgeMessage message) {
+        _core?.PostWebMessageAsJson(BridgeProtocol.Serialize(message));
+    }
 
     /// <inheritdoc/>
     protected override IPlatformHandle CreateNativeControlCore(IPlatformHandle parent) {
@@ -42,12 +51,27 @@ internal sealed class WebView2Host : NativeControlHost {
             core.Settings.AreDefaultContextMenusEnabled = false;
             core.Settings.IsZoomControlEnabled = false;
             core.Settings.AreBrowserAcceleratorKeysEnabled = false;
+            core.WebMessageReceived += OnWebMessage;
+            _core = core;
             UpdateControllerBounds();
             WebViewReady?.Invoke(core);
             core.Navigate(_pageUri);
         } catch (Exception ex) {
             InitFailed?.Invoke(ex.Message);
         }
+    }
+
+    /// <summary>web→host 消息入口：解析成功走 <see cref="MessageReceived"/>；失败 fail-closed 并回错误指引（ADR 0141 决策 4）</summary>
+    private void OnWebMessage(object? sender, CoreWebView2WebMessageReceivedEventArgs e) {
+        var json = e.WebMessageAsJson;
+        if (BridgeProtocol.TryParse(json, out var message)) {
+            MessageReceived?.Invoke(message);
+            return;
+        }
+        var preview = json.Length > 120 ? json[..120] : json;
+        App.LogDiag($"[WebUI] bridge parse failed: {preview}");
+        Send(new AppErrorMessage("桥接消息解析失败",
+            "发送方须为 {type, ...fields} 形状且 type 已在 BridgeProtocol.cs 注册（对照 webui/js/bridge.js）"));
     }
 
     /// <inheritdoc/>
@@ -75,6 +99,7 @@ internal sealed class WebView2Host : NativeControlHost {
     protected override void DestroyNativeControlCore(IPlatformHandle control) {
         _controller?.Close();
         _controller = null;
+        _core = null;
         base.DestroyNativeControlCore(control);
     }
 }

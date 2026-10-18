@@ -42,6 +42,7 @@ global using JoinCode.Gui.SlashCommands;
 global using JoinCode.Gui.Theming;
 global using JoinCode.Gui.ViewModels;
 global using JoinCode.Gui.Views;
+global using JoinCode.Gui.WebView;
 global using JoinCode.Pipelines;
 global using Microsoft.Extensions.Configuration;
 global using Microsoft.Extensions.DependencyInjection;

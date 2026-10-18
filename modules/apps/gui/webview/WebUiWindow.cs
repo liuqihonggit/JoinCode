@@ -12,6 +12,7 @@ internal sealed class WebUiWindow : Window {
     private readonly WebView2Host _host;
     private readonly Persistence.GuiSessionStore _sessionStore = new(new IO.FileSystem.PhysicalFileSystem());
     private readonly CancellationTokenSource _lifetimeCts = new();
+    private readonly PermissionPromptBroker _permissions;
     private IJccChatSession? _session;
     private WebChatFlow? _flow;
     private string? _activeSessionId;
@@ -34,6 +35,7 @@ internal sealed class WebUiWindow : Window {
         _host.InitFailed += ShowFallback;
         _host.WebViewReady += OnWebViewReady;
         _host.MessageReceived += OnBridgeMessage;
+        _permissions = new PermissionPromptBroker(_host.Send);
         Content = _host;
         if (!_smoke) {
             // 冒烟只验桥接链路（确定性），不加载引擎；产品模式后台组装真实引擎（对齐 App.CreateViewModel 模式）
@@ -55,7 +57,7 @@ internal sealed class WebUiWindow : Window {
         });
     }
 
-    /// <summary>挂接真实引擎：建会话流投影层 + 权限 fail-closed 兜底 + 会话存储切换到统一入口后刷新列表</summary>
+    /// <summary>挂接真实引擎：建会话流投影层 + 权限弹窗代理（web 允许/拒绝/始终允许）+ 会话存储切换到统一入口后刷新列表</summary>
     private void AttachEngine(IJccChatSession session) {
         if (_lifetimeCts.IsCancellationRequested) {
             // 窗口已在引擎组装期间关闭（OnClosed 与 Post 回调同在 UI 线程，无 TOCTOU）：迟到的引擎即刻释放
@@ -67,18 +69,12 @@ internal sealed class WebUiWindow : Window {
         }
         _session = session;
         _flow = new WebChatFlow(session);
-        session.PermissionConfirmationHandler = DenyPermissionAsync;
+        session.PermissionConfirmationHandler = request => _permissions.RequestAsync(request, _lifetimeCts.Token);
         if (session.TranscriptService is { } transcript) {
             _sessionStore.SetTranscriptService(transcript);
             _ = SendSessionsListAsync(_lifetimeCts.Token);
         }
         App.LogDiag($"[WebUI] ENGINE attached vendor={session.CurrentVendor} model={session.CurrentModelId}");
-    }
-
-    /// <summary>权限确认 fail-closed 兜底（P6-5 对话框接入前一律拒绝，安全方向）</summary>
-    private static Task<PermissionConfirmationDecision> DenyPermissionAsync(PermissionConfirmationRequest request) {
-        App.LogDiag($"[WebUI] permission denied (P6-5 前 fail-closed) tool={request.ToolName}");
-        return Task.FromResult(PermissionConfirmationDecision.Deny);
     }
 
     /// <summary>桥接消息处理：web/ready 握手回 app/init + 下发会话列表（冒烟附带 ping）；冒烟校验 pong + 列表渲染 ACK</summary>
@@ -110,6 +106,10 @@ internal sealed class WebUiWindow : Window {
             case ChatStopMessage:
                 App.LogDiag("[WebUI] BRIDGE chat/stop");
                 _flow?.Stop();
+                break;
+            case PermissionResponseMessage response:
+                App.LogDiag($"[WebUI] BRIDGE permission/response id={response.Id} decision={response.Decision}");
+                _permissions.Resolve(response);
                 break;
             case SmokePongMessage pong when _smoke:
                 if (pong.Nonce != _smokeNonce) {
@@ -239,8 +239,9 @@ internal sealed class WebUiWindow : Window {
         return true;
     }
 
-    /// <summary>窗口关闭：取消在途流式发送/会话加载 + 释放引擎（HTTP 连接池/FileSystemWatcher/后台任务不得泄漏）</summary>
+    /// <summary>窗口关闭：在途权限请求按 Deny 收口 + 取消在途流式发送/会话加载 + 释放引擎（HTTP 连接池/FileSystemWatcher/后台任务不得泄漏）</summary>
     protected override void OnClosed(EventArgs e) {
+        _permissions.CancelAll();
         _lifetimeCts.CancelAndDisposeSafe();
         _flow = null;
         var session = _session;

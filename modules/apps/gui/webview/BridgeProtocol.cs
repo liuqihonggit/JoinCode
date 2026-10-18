@@ -53,8 +53,8 @@ public sealed record ChatStopMessage : BridgeMessage;
 
 /// <summary>web→host：权限确认结果</summary>
 /// <param name="Id">权限请求标识（对应 permission/request）</param>
-/// <param name="Allow">是否放行</param>
-public sealed record PermissionResponseMessage(string Id, bool Allow) : BridgeMessage;
+/// <param name="Decision">用户决策值 — 取自 <see cref="PermissionConfirmationDecision"/> 的 [EnumValue]（deny/allow/alwaysAllow）；非法值 fail-closed 按 deny</param>
+public sealed record PermissionResponseMessage(string Id, string Decision) : BridgeMessage;
 
 /// <summary>web→host：冒烟回环应答</summary>
 /// <param name="Nonce">回环随机数（须与 smoke/ping 一致）</param>
@@ -74,10 +74,12 @@ public sealed record ChatDeltaMessage(string Text) : BridgeMessage;
 public sealed record ChatDoneMessage(bool Stopped) : BridgeMessage;
 
 /// <summary>host→web：权限确认请求</summary>
-/// <param name="Id">请求标识（web 经 permission/response 回传）</param>
-/// <param name="Command">触发的命令/工具名</param>
-/// <param name="Description">面向用户的说明文案</param>
-public sealed record PermissionRequestMessage(string Id, string Command, string Description) : BridgeMessage;
+/// <param name="Id">请求标识（web 经 permission/response 回传；同一轮唯一）</param>
+/// <param name="Tool">触发的工具名</param>
+/// <param name="Prompt">面向用户的确认文案（含 [黄灯ask]/[红灯ask] 等危险等级标签，驱动弹窗配色）</param>
+/// <param name="RuleContent">命中的规则内容（null = 无，Web 侧不渲染规则块）</param>
+/// <param name="DangerLevel">危险等级值 — 取自 <see cref="CommandDangerLevel"/> 的 [EnumValue]（safe/unknown/light/execution/dangerous；null = 未标记）</param>
+public sealed record PermissionRequestMessage(string Id, string Tool, string Prompt, string? RuleContent, string? DangerLevel) : BridgeMessage;
 
 /// <summary>host→web：冒烟回环发起</summary>
 /// <param name="Nonce">回环随机数</param>

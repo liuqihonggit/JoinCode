@@ -598,6 +598,116 @@
     scrollToBottom();
   });
 
+  // —— 权限确认弹窗（F2）——
+  // 链路：引擎 PermissionPendingConfirmationException → 宿主 PermissionPromptBroker 下发 permission/request
+  //      → 用户点选 拒绝/允许/始终允许 → 回传 permission/response → 宿主批准工具并重发本轮。
+  // fail-closed：宿主侧超时/关窗按 Deny 收口；本侧 Esc 与"拒绝"同义（安全方向）。
+  var DANGER_LABEL = { safe: '白灯', unknown: '黄灯', light: '绿灯', execution: '红灯', dangerous: '黑灯' };
+  var permissionQueue = [];
+  var activePermission = null;
+  var permissionOverlay = null;
+
+  function ensurePermissionOverlay() {
+    if (permissionOverlay) {
+      return permissionOverlay;
+    }
+    permissionOverlay = createEl('div', 'permission-overlay');
+    permissionOverlay.setAttribute('hidden', '');
+    document.body.appendChild(permissionOverlay);
+    return permissionOverlay;
+  }
+
+  function buildPermissionDialog(request) {
+    var level = request.dangerLevel || '';
+    var dialog = createEl('div', 'permission-dialog');
+    dialog.dataset.requestId = request.id;
+    dialog.dataset.tool = request.tool || '';
+    dialog.dataset.level = level;
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+
+    var head = createEl('div', 'permission-head');
+    var title = createEl('div', 'permission-title');
+    title.textContent = '需要你的确认';
+    head.appendChild(title);
+    if (level && DANGER_LABEL[level]) {
+      var badge = createEl('span', 'permission-level');
+      badge.dataset.level = level;
+      badge.textContent = DANGER_LABEL[level];
+      head.appendChild(badge);
+    }
+    dialog.appendChild(head);
+
+    var tool = createEl('div', 'permission-tool');
+    tool.textContent = request.tool || '';
+    dialog.appendChild(tool);
+
+    var prompt = createEl('div', 'permission-prompt');
+    prompt.textContent = request.prompt || '';
+    dialog.appendChild(prompt);
+
+    if (request.ruleContent) {
+      var rule = createEl('pre', 'permission-rule');
+      rule.textContent = request.ruleContent;
+      dialog.appendChild(rule);
+    }
+
+    var actions = createEl('div', 'permission-actions');
+    actions.appendChild(permissionButton('permission-deny', '拒绝', 'deny'));
+    actions.appendChild(permissionButton('permission-allow', '允许', 'allow'));
+    actions.appendChild(permissionButton('permission-always', '始终允许', 'alwaysAllow'));
+    dialog.appendChild(actions);
+    return dialog;
+  }
+
+  function permissionButton(className, label, decision) {
+    var btn = createEl('button', className);
+    btn.type = 'button';
+    btn.dataset.decision = decision;
+    btn.textContent = label;
+    btn.addEventListener('click', function () {
+      resolvePermission(decision);
+    });
+    return btn;
+  }
+
+  function showNextPermission() {
+    if (activePermission || permissionQueue.length === 0) {
+      return;
+    }
+    activePermission = permissionQueue.shift();
+    var overlay = ensurePermissionOverlay();
+    overlay.replaceChildren(buildPermissionDialog(activePermission));
+    overlay.removeAttribute('hidden');
+    scrollToBottom();
+  }
+
+  function resolvePermission(decision) {
+    if (!activePermission) {
+      return;
+    }
+    var request = activePermission;
+    activePermission = null;
+    if (permissionOverlay) {
+      permissionOverlay.setAttribute('hidden', '');
+      permissionOverlay.replaceChildren();
+    }
+    send({ type: 'permission/response', id: request.id, decision: decision });
+    showNextPermission();
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && activePermission) {
+      e.preventDefault();
+      resolvePermission('deny');
+    }
+  });
+
+  handlers.set('permission/request', function (message) {
+    permissionQueue.push(message);
+    showNextPermission();
+  });
+
   // —— 握手：页面脚本就绪（ADR 0141 决策 4，host 收到后回 app/init）——
   send({ type: 'web/ready' });
 })();

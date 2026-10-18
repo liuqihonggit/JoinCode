@@ -680,3 +680,101 @@ body.has-messages .composer-textarea { min-height: 32px; }
 
 /* 生成中：发送键变停止键（F1）；停止待回应期间禁用防连点 */
 .send-btn.is-stop:disabled { opacity: 0.7; }
+
+/* —— 权限确认弹窗（F2）：permission/request → 拒绝/允许/始终允许 → permission/response —— */
+.permission-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+}
+
+.permission-overlay[hidden] { display: none; }
+
+.permission-dialog {
+  width: 480px;
+  max-width: calc(100vw - 64px);
+  max-height: calc(100vh - 128px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-family);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.permission-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.permission-title { font-size: 15px; font-weight: 600; line-height: 22px; }
+
+.permission-level {
+  flex: none;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 22px;
+  font-weight: 500;
+  border: 1px solid var(--dsw-alias-border-l3);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.permission-level[data-level='unknown'] { color: var(--dsw-alias-state-business-primary); border-color: var(--dsw-alias-state-business-primary); }
+.permission-level[data-level='execution'] { color: var(--dsw-alias-state-error-primary); border-color: var(--dsw-alias-state-error-primary); }
+.permission-level[data-level='dangerous'] { color: #fff; border-color: var(--dsw-alias-state-error-primary); background: var(--dsw-alias-state-error-primary); }
+
+.permission-tool {
+  align-self: flex-start;
+  font-family: var(--ds-font-family-code);
+  font-size: 12px;
+  line-height: 20px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--dsw-alias-markdown-inline-code);
+  color: var(--dsw-alias-label-primary);
+}
+
+.permission-prompt { font-size: 14px; line-height: 22px; color: var(--dsw-alias-label-secondary); white-space: pre-wrap; word-break: break-word; }
+
+.permission-rule {
+  margin: 0;
+  max-height: 160px;
+  overflow: auto;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-markdown-code-block);
+  font-family: var(--ds-font-family-code);
+  font-size: 12px;
+  line-height: 20px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.permission-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+.permission-dialog button {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.permission-dialog button:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.permission-deny { border-color: var(--dsw-alias-border-l2); color: var(--dsw-alias-state-error-primary); }
+.permission-deny:hover { background: var(--dsw-alias-interactive-bg-hover-danger); }
+.permission-allow { background: var(--dsw-alias-button-info-fill); border-color: transparent; color: #fff; }
+.permission-always { border-color: var(--dsw-alias-border-l3); }

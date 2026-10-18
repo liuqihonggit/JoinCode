@@ -10,14 +10,17 @@ public sealed class BridgeProtocolTests {
     public static TheoryData<BridgeMessage> AllMessages => new() {
         new WebReadyMessage(),
         new ChatSendMessage("帮我重构这个函数"),
-        new PermissionResponseMessage("req-1", true),
+        new PermissionResponseMessage("req-1", PermissionConfirmationDecision.Allow.ToValue()),
+        new PermissionResponseMessage("req-1", PermissionConfirmationDecision.AlwaysAllow.ToValue()),
+        new PermissionResponseMessage("req-1", PermissionConfirmationDecision.Deny.ToValue()),
         new SmokePongMessage("nonce-abc"),
         new AppInitMessage("dark", "0.2.0-rc.2"),
         new ChatDeltaMessage("文本增量"),
         new ChatDoneMessage(false),
         new ChatDoneMessage(true),
         new ChatStopMessage(),
-        new PermissionRequestMessage("req-1", "bash", "允许在当前目录执行 shell 命令？"),
+        new PermissionRequestMessage("req-1", "bash", "允许在当前目录执行 shell 命令？", "Bash(rm:*)", CommandDangerLevel.Execution.ToValue()),
+        new PermissionRequestMessage("req-2", "write", "写入项目外文件？", null, null),
         new SmokePingMessage("nonce-abc"),
         new AppErrorMessage("未知消息类型", "检查 webui/js/bridge.js 的 type 注册"),
         new SessionsListMessage([new SessionSummaryDto("s1", "重构桥接层"), new SessionSummaryDto("s2", "s2")]),
@@ -89,8 +92,28 @@ public sealed class BridgeProtocolTests {
     }
 
     [Fact]
-    public void TryParse_UnknownType_ReturnsFalse() {        BridgeProtocol.TryParse("""{"type":"evil/msg","x":1}""", out var parsed).Should().BeFalse("未知 type 必须 fail-closed");
+    public void TryParse_UnknownType_ReturnsFalse() {
+        BridgeProtocol.TryParse("""{"type":"evil/msg","x":1}""", out var parsed).Should().BeFalse("未知 type 必须 fail-closed");
         parsed.Should().BeNull();
+    }
+
+    [Fact]
+    public void PermissionResponse_DecisionValues_MatchEnumValues() {
+        BridgeProtocol.Serialize(new PermissionResponseMessage("req-1", PermissionConfirmationDecision.Deny.ToValue()))
+            .Should().Contain("\"decision\":\"deny\"", "决策值须取自 PermissionConfirmationDecision 的 [EnumValue]（唯一数据源）");
+        BridgeProtocol.Serialize(new PermissionResponseMessage("req-1", PermissionConfirmationDecision.Allow.ToValue()))
+            .Should().Contain("\"decision\":\"allow\"");
+        BridgeProtocol.Serialize(new PermissionResponseMessage("req-1", PermissionConfirmationDecision.AlwaysAllow.ToValue()))
+            .Should().Contain("\"decision\":\"alwaysAllow\"");
+    }
+
+    [Fact]
+    public void PermissionRequest_OptionalFields_RoundtripAsNull() {
+        var message = new PermissionRequestMessage("req-3", "read", "读取项目外文件？", null, null);
+        BridgeProtocol.TryParse(BridgeProtocol.Serialize(message), out var parsed).Should().BeTrue("消息应可解析");
+        var request = parsed.Should().BeOfType<PermissionRequestMessage>().Subject;
+        request.RuleContent.Should().BeNull("无规则内容时 Web 侧不渲染规则块");
+        request.DangerLevel.Should().BeNull("未标记危险等级时 Web 侧用中性配色");
     }
 
     [Fact]

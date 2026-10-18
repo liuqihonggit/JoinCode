@@ -96,8 +96,9 @@ public partial class GitHubToolHandlers {
                     if (wf.TryGetProperty("path", out var pathEl)) {
                         var path = pathEl.GetString();
                         if (!string.IsNullOrEmpty(path)) {
-                            _logger?.LogDebug("工作流显示名称 '{DisplayName}' 解析为文件名 '{Path}'", workflow, path);
-                            return path;
+                            var fileName = path.Contains('/') ? path[(path.LastIndexOf('/') + 1)..] : path;
+                            _logger?.LogDebug("工作流显示名称 '{DisplayName}' 解析为文件名 '{FileName}'", workflow, fileName);
+                            return fileName;
                         }
                     }
                 }

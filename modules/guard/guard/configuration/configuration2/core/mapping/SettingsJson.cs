@@ -38,8 +38,17 @@ public sealed class SettingsJson {
     public UpdateSourceConfig? Update { get; init; }
 
     /// <summary>
+    /// 搜索供应商预设 — 命名的搜索供应商配置（TASK054）。
+    /// <para>键: 供应商名（如 "tavily"、"serper"），值: API KEY 环境变量名 + 优先级 + 启用状态</para>
+    /// <para>与 vendor 分离 — search ≠ LLM，语义独立，apiKeyEnvVar 模式复用</para>
+    /// </summary>
+    [JsonPropertyName("searchProviders")]
+    public Dictionary<string, SearchProviderProfileSettings> SearchProviders { get; init; } = [];
+
+    /// <summary>
     /// 合并两个 SettingsJson（低优先级 + 高优先级）
     /// vendor 字典合并（高优先级覆盖同键），current 递归合并
+    /// searchProviders 字典合并（高优先级覆盖同键）
     /// </summary>
     public static SettingsJson Merge(SettingsJson? baseSettings, SettingsJson? overrideSettings) {
         if (baseSettings is null) return overrideSettings ?? new SettingsJson();
@@ -50,6 +59,7 @@ public sealed class SettingsJson {
             Current = CurrentSettings.Merge(baseSettings.Current, overrideSettings.Current),
             AutoFetchModels = overrideSettings.AutoFetchModels,
             Update = overrideSettings.Update ?? baseSettings.Update,
+            SearchProviders = MergeSearchProviderDictionaries(baseSettings.SearchProviders, overrideSettings.SearchProviders) ?? [],
         };
     }
 
@@ -70,6 +80,20 @@ public sealed class SettingsJson {
         if (overrideDict is null) return baseDict;
 
         var result = new Dictionary<string, ProfileSettings>(baseDict, StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in overrideDict)
+            result[key] = value;
+
+        return result;
+    }
+
+    private static Dictionary<string, SearchProviderProfileSettings>? MergeSearchProviderDictionaries(
+        Dictionary<string, SearchProviderProfileSettings>? baseDict,
+        Dictionary<string, SearchProviderProfileSettings>? overrideDict) {
+        if (baseDict is null && overrideDict is null) return null;
+        if (baseDict is null) return overrideDict;
+        if (overrideDict is null) return baseDict;
+
+        var result = new Dictionary<string, SearchProviderProfileSettings>(baseDict, StringComparer.OrdinalIgnoreCase);
         foreach (var (key, value) in overrideDict)
             result[key] = value;
 
@@ -795,6 +819,99 @@ public sealed class ProfileSettings {
     public List<ModelItemConfig> Models { get; init; } = [];
 
     /// <summary>模型列表拉取端点相对路径（如 "models"、"v1/models"）— 拼接 endpoint 得到完整 URL。null 表示不拉取。</summary>
+    [JsonPropertyName("modelsEndpoint")]
+    public string? ModelsEndpoint { get; init; }
+}
+
+/// <summary>
+/// 搜索供应商预设 — searchProviders 字典的值，配置 API KEY 环境变量名 + 优先级 + 启用状态（TASK054）。
+/// <para>与 LLM vendor 的 ProfileSettings 分离 — search ≠ LLM，语义独立。</para>
+/// <para>apiKeyEnvVar 模式：存环境变量名不存明文 key（安全，复用 vendor 模式）。</para>
+/// </summary>
+public sealed class SearchProviderProfileSettings {
+    /// <summary>API Key 环境变量名（如 TAVILY_API_KEY、SERPER_API_KEY）— 不存明文 key</summary>
+    [JsonPropertyName("apiKeyEnvVar")]
+    public string? ApiKeyEnvVar { get; init; }
+
+    /// <summary>端点环境变量名（SearXNG 用，如 SEARXNG_URL）— 其他供应商通常不需要</summary>
+    [JsonPropertyName("endpointEnvVar")]
+    public string? EndpointEnvVar { get; init; }
+
+    /// <summary>优先级（数字越小越优先，如 Tavily=100、Serper=200、Brave=300、SearXNG=400、Anthropic=500、SubAgent=999）</summary>
+    [JsonPropertyName("priority")]
+    public int Priority { get; init; }
+
+    /// <summary>是否启用 — false 时跳过该供应商，默认 true</summary>
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; init; } = true;
+}
+
+/// <summary>
+/// 供应商模型列表文件 — providers_llm/{name}/models.json 的 DTO（TASK054 P6 物理拆分）。
+/// <para>格式：{ "models": [{ "id": "...", "displayName": "...", ... }] }</para>
+/// </summary>
+public sealed class VendorModelsFile {
+    /// <summary>模型列表</summary>
+    [JsonPropertyName("models")]
+    public List<ModelItemConfig> Models { get; init; } = [];
+}
+
+/// <summary>
+/// 极简 settings.json DTO — P8 树状骨架的主入口，只含 current.profile 指针 + 全局开关。
+/// <para>vendor 和 searchProviders 节点不内联 — 按约定从 providers_llm/ 和 providers_search/ 子文件夹加载。</para>
+/// </summary>
+public sealed class MinimalSettingsJson {
+    /// <summary>初始化空的 MinimalSettingsJson 实例</summary>
+    public MinimalSettingsJson() { }
+
+    /// <summary>当前激活的供应商预设名指针 — 对应 providers_llm/{name}/ 子文件夹</summary>
+    [JsonPropertyName("current")]
+    public MinimalCurrentSettings? Current { get; init; }
+
+    /// <summary>是否在启动时自动从远程拉取各供应商模型列表 — 默认 true</summary>
+    [JsonPropertyName("autoFetchModels")]
+    public bool AutoFetchModels { get; init; } = true;
+
+    /// <summary>更新源配置 — 控制自动更新行为（ADR 0064）</summary>
+    [JsonPropertyName("update")]
+    public UpdateSourceConfig? Update { get; init; }
+}
+
+/// <summary>
+/// 极简 current 节点 — 只含 profile 指针，其他偏好字段从 current/ 子文件夹加载。
+/// </summary>
+public sealed class MinimalCurrentSettings {
+    /// <summary>当前激活的供应商预设名 — 对应 providers_llm/{name}/ 子文件夹</summary>
+    [JsonPropertyName("profile")]
+    public string? Profile { get; init; }
+}
+
+/// <summary>
+/// 供应商配置文件 — providers_llm/{name}/config.json 的 DTO（TASK054 P8 物理拆分）。
+/// <para>不含 models 字段 — 模型列表拆到 providers_llm/{name}/models.json（VendorModelsFile）。</para>
+/// </summary>
+public sealed class VendorConfigFile {
+    /// <summary>供应商名称（如 openai/sensenova/agnes/deepseek/anthropic）</summary>
+    [JsonPropertyName("provider")]
+    public string? Provider { get; init; }
+
+    /// <summary>协议类型（openai-compatible / anthropic / azure）</summary>
+    [JsonPropertyName("protocol")]
+    public string? Protocol { get; init; }
+
+    /// <summary>首选模型 ID</summary>
+    [JsonPropertyName("model")]
+    public string? Model { get; init; }
+
+    /// <summary>API 端点</summary>
+    [JsonPropertyName("endpoint")]
+    public string? Endpoint { get; init; }
+
+    /// <summary>API Key 环境变量名</summary>
+    [JsonPropertyName("apiKeyEnvVar")]
+    public string? ApiKeyEnvVar { get; init; }
+
+    /// <summary>模型列表拉取端点相对路径</summary>
     [JsonPropertyName("modelsEndpoint")]
     public string? ModelsEndpoint { get; init; }
 }

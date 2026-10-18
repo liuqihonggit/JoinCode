@@ -10,6 +10,8 @@ public sealed partial class SerperSearchProvider : ServiceEntity, ISearchProvide
     private const string Endpoint = "https://google.serper.dev/search";
     private const int DefaultPriority = 200;
 
+    private const string DefaultApiKeyEnvVar = "SERPER_API_KEY";
+
     private readonly IApiClient _apiClient;
     private readonly string? _apiKey;
     private readonly ILogger<SerperSearchProvider>? _logger;
@@ -18,12 +20,15 @@ public sealed partial class SerperSearchProvider : ServiceEntity, ISearchProvide
     /// 初始化 <see cref="SerperSearchProvider"/> 实例。
     /// </summary>
     /// <param name="apiClient">API 客户端，用于执行 HTTP 请求。</param>
+    /// <param name="config">统一配置入口，读 searchProviders.serper.apiKeyEnvVar（未命中回退 <c>SERPER_API_KEY</c>）。</param>
     /// <param name="logger">可选日志记录器。</param>
     public SerperSearchProvider(
         IApiClient apiClient,
+        IConfigRoot config,
         ILogger<SerperSearchProvider>? logger = null) {
         _apiClient = apiClient;
-        _apiKey = Environment.GetEnvironmentVariable("SERPER_API_KEY");
+        var envVarName = SearchProviderConfigHelper.ResolveEnvVar(config, "serper", "apiKeyEnvVar", DefaultApiKeyEnvVar);
+        _apiKey = Environment.GetEnvironmentVariable(envVarName);
         _logger = logger;
     }
 

@@ -90,9 +90,8 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
         }
 
         if (!fs.FileExists(settingsFile)) {
-            var settingsJson = BuildDefaultSettingsJson();
-            await fs.WriteAllTextAsync(settingsFile, settingsJson, context.CancellationToken).ConfigureAwait(false);
-            TerminalHelper.WriteLine("  ✓ 创建 settings.json (骨架 — 模型列表将由 AutoFetchModels 启动时拉取)");
+            await Core.Configuration.SettingsLoader.BuildDefaultConfigTreeAsync(fs, jccDir, context.CancellationToken).ConfigureAwait(false);
+            TerminalHelper.WriteLine("  ✓ 创建配置树骨架 (settings.json + current/ + providers_llm/ + providers_search/)");
         } else {
             TerminalHelper.WriteLine("  · settings.json 已存在");
         }
@@ -107,8 +106,7 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
     }
 
     /// <summary>
-    /// 构建默认 settings.json 骨架 — 复用 SettingsLoader 的共享实现
-    /// 含所有5个供应商的预设入口点,models 数组留空由 AutoFetchModels 启动时拉取
+    /// 写入配置模板文件到 .jcc/config/ — 源码生成器自动生成，改 C# 类属性后重新编译自动更新（ADR 0114）
     /// </summary>
     private static string BuildDefaultSettingsJson() {
         return Core.Configuration.SettingsLoader.BuildDefaultSettingsJson();

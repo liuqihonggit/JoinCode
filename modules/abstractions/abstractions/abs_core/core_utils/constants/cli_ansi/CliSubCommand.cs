@@ -17,6 +17,11 @@ public enum CliSubCommand {
     [SubCommandInfo("输出 CLI 参数定义 JSON, 供 Agent 动态查询", "自省", Example = "jcc schema")]
     Schema,
 
+    /// <summary>配置打印 — 输出合并后的完整配置树（settings.json + providers_llm/ + providers_search/ + current/）</summary>
+    [EnumValue("config-print")]
+    [SubCommandInfo("打印合并后的完整配置树 — 验证配置加载", "自省", Example = "jcc config-print")]
+    ConfigPrint,
+
     /// <summary>远程控制（主名称）</summary>
     [EnumValue("remote-control")]
     [SubCommandInfo("远程控制 — 启动 HTTP 服务接收外部指令", "远程控制", Example = "jcc remote-control --port 9903")]

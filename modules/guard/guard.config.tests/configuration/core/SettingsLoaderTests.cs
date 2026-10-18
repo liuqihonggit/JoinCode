@@ -324,6 +324,76 @@ public class SettingsLoaderTests : IDisposable {
 
     #endregion
 
+    #region 场景8: 默认骨架含 SearchProviders 配置
+
+    /// <summary>
+    /// BuildDefaultSettingsJson 生成的骨架应包含 searchProviders 节点,
+    /// 含 6 个搜索供应商(tavily/serper/brave/searxng/anthropic/subagent),优先级与 enabled 正确(TASK054)
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Given_默认骨架_When_解析_Then_包含SearchProviders且6供应商配置正确() {
+        var json = SettingsLoader.BuildDefaultSettingsJson();
+        var parsed = JsonSerializer.Deserialize<SettingsJson>(json, ConfigJsonContext.Default.SettingsJson);
+
+        parsed.Should().NotBeNull();
+        parsed!.SearchProviders.Should().NotBeNull();
+        parsed.SearchProviders.Count.Should().Be(6);
+
+        parsed.SearchProviders.Should().ContainKey("tavily");
+        parsed.SearchProviders["tavily"].ApiKeyEnvVar.Should().Be("TAVILY_API_KEY");
+        parsed.SearchProviders["tavily"].Priority.Should().Be(100);
+        parsed.SearchProviders["tavily"].Enabled.Should().BeTrue();
+
+        parsed.SearchProviders.Should().ContainKey("serper");
+        parsed.SearchProviders["serper"].ApiKeyEnvVar.Should().Be("SERPER_API_KEY");
+        parsed.SearchProviders["serper"].Priority.Should().Be(200);
+
+        parsed.SearchProviders.Should().ContainKey("brave");
+        parsed.SearchProviders["brave"].ApiKeyEnvVar.Should().Be("BRAVE_API_KEY");
+        parsed.SearchProviders["brave"].Priority.Should().Be(300);
+
+        parsed.SearchProviders.Should().ContainKey("searxng");
+        parsed.SearchProviders["searxng"].EndpointEnvVar.Should().Be("SEARXNG_URL");
+        parsed.SearchProviders["searxng"].Priority.Should().Be(400);
+
+        parsed.SearchProviders.Should().ContainKey("anthropic");
+        parsed.SearchProviders["anthropic"].Priority.Should().Be(500);
+
+        parsed.SearchProviders.Should().ContainKey("subagent");
+        parsed.SearchProviders["subagent"].Priority.Should().Be(999);
+    }
+
+    /// <summary>
+    /// SettingsJson.Merge 应正确合并 searchProviders 字典(高优先级覆盖同键)
+    /// </summary>
+    [Fact]
+    public void Given_两层settings_When_合并_Then_searchProviders高优先级覆盖同键() {
+        var baseSettings = new SettingsJson {
+            SearchProviders = new Dictionary<string, SearchProviderProfileSettings> {
+                ["tavily"] = new() { ApiKeyEnvVar = "BASE_KEY", Priority = 100, Enabled = true },
+                ["serper"] = new() { ApiKeyEnvVar = "SERPER_API_KEY", Priority = 200, Enabled = true },
+            }
+        };
+        var overrideSettings = new SettingsJson {
+            SearchProviders = new Dictionary<string, SearchProviderProfileSettings> {
+                ["tavily"] = new() { ApiKeyEnvVar = "OVERRIDE_KEY", Priority = 150, Enabled = false },
+                ["brave"] = new() { ApiKeyEnvVar = "BRAVE_API_KEY", Priority = 300, Enabled = true },
+            }
+        };
+
+        var merged = SettingsJson.Merge(baseSettings, overrideSettings);
+
+        merged.SearchProviders.Count.Should().Be(3);
+        merged.SearchProviders["tavily"].ApiKeyEnvVar.Should().Be("OVERRIDE_KEY");
+        merged.SearchProviders["tavily"].Priority.Should().Be(150);
+        merged.SearchProviders["tavily"].Enabled.Should().BeFalse();
+        merged.SearchProviders["serper"].Priority.Should().Be(200);
+        merged.SearchProviders["brave"].Priority.Should().Be(300);
+    }
+
+    #endregion
+
     #region 辅助方法
 
     private string GetUserSettingsPath() => SettingsLoader.GetUserSettingsPath();
@@ -356,6 +426,242 @@ public class SettingsLoaderTests : IDisposable {
     private async Task WriteLocalSettingsAsync(SettingsJson settings) {
         var path = Path.Combine(_projectAppDataDir, "settings.local.json");
         await WriteSettingsAsync(path, settings).ConfigureAwait(true);
+    }
+
+    #endregion
+
+    #region P6: providers_llm/ 子文件夹物理拆分
+
+    [Fact]
+    public async Task P6_LoadVendorSubConfigs_从子文件夹加载供应商配置和模型() {
+        var vendorsDir = Path.Combine(_userAppDataDir, "providers_llm", "openai");
+        _fs.CreateDirectory(vendorsDir);
+
+        var configJson = """{"provider":"openai","protocol":"openai-compatible","model":"gpt-4o","endpoint":"https://api.openai.com/v1","apiKeyEnvVar":"OPENAI_API_KEY","modelsEndpoint":"models"}""";
+        await _fs.WriteAllText(Path.Combine(vendorsDir, "config.json"), configJson);
+
+        var modelsJson = """{"models":[{"id":"gpt-4o","displayName":"GPT-4o","contextWindow":128000}]}""";
+        await _fs.WriteAllText(Path.Combine(vendorsDir, "models.json"), modelsJson);
+
+        var result = await SettingsLoader.LoadVendorSubConfigsAsync(_fs, _userAppDataDir, CancellationToken.None);
+
+        result.Should().ContainKey("openai");
+        var openai = result["openai"];
+        openai.Provider.Should().Be("openai");
+        openai.Endpoint.Should().Be("https://api.openai.com/v1");
+        openai.Models.Should().HaveCount(1);
+        openai.Models[0].Id.Should().Be("gpt-4o");
+        openai.Models[0].ContextWindow.Should().Be(128000);
+    }
+
+    [Fact]
+    public async Task P6_LoadVendorSubConfigs_无vendors目录_返回空字典() {
+        var result = await SettingsLoader.LoadVendorSubConfigsAsync(_fs, _userAppDataDir, CancellationToken.None);
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task P6_LoadVendorSubConfigs_只有config无models_Models为空() {
+        var vendorsDir = Path.Combine(_userAppDataDir, "providers_llm", "anthropic");
+        _fs.CreateDirectory(vendorsDir);
+
+        var configJson = """{"provider":"anthropic","protocol":"anthropic","model":"claude-sonnet-4-5"}""";
+        await _fs.WriteAllText(Path.Combine(vendorsDir, "config.json"), configJson);
+
+        var result = await SettingsLoader.LoadVendorSubConfigsAsync(_fs, _userAppDataDir, CancellationToken.None);
+
+        result.Should().ContainKey("anthropic");
+        result["anthropic"].Models.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task P6b_LoadUserSettingsAsync_子文件覆盖settingsJson内联() {
+        // Given: settings.json 含 vendor.openai 内联 + providers_llm/openai/config.json 子文件(不同 endpoint)
+        var userSettings = new SettingsJson {
+            Vendor = new Dictionary<string, ProfileSettings> {
+                ["openai"] = new ProfileSettings { Provider = "openai", Endpoint = "https://inline-endpoint" },
+            },
+        };
+        await WriteSettingsAsync(GetUserSettingsPath(), userSettings);
+
+        var vendorsDir = Path.Combine(_userAppDataDir, "providers_llm", "openai");
+        _fs.CreateDirectory(vendorsDir);
+        var subConfigJson = """{"provider":"openai","endpoint":"https://subfile-endpoint","apiKeyEnvVar":"OPENAI_API_KEY"}""";
+        await _fs.WriteAllText(Path.Combine(vendorsDir, "config.json"), subConfigJson);
+
+        // When: 加载用户设置
+        var result = await SettingsLoader.LoadUserSettingsAsync(_fs, CancellationToken.None);
+
+        // Then: 子文件 endpoint 覆盖内联
+        result.Should().NotBeNull();
+        result?.Vendor.Should().ContainKey("openai");
+        result?.Vendor["openai"].Endpoint.Should().Be("https://subfile-endpoint");
+    }
+
+    #endregion
+
+    #region P7: current/ 子文件物理拆分
+
+    [Fact]
+    public async Task P7_LoadCurrentSubConfigs_多子文件合并成CurrentSettings() {
+        var currentDir = Path.Combine(_userAppDataDir, "current");
+        _fs.CreateDirectory(currentDir);
+
+        var uiJson = """{"theme":"dark","editorMode":"vim","language":"zh"}""";
+        await _fs.WriteAllText(Path.Combine(currentDir, "ui.json"), uiJson);
+
+        var inferenceJson = """{"effortLevel":"high","fastMode":true}""";
+        await _fs.WriteAllText(Path.Combine(currentDir, "inference.json"), inferenceJson);
+
+        var result = await SettingsLoader.LoadCurrentSubConfigsAsync(_fs, _userAppDataDir, CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result?.Theme.Should().Be("dark");
+        result?.EditorMode.Should().Be("vim");
+        result?.Language.Should().Be("zh");
+        result?.EffortLevel.Should().Be("high");
+        result?.FastMode.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task P7_LoadCurrentSubConfigs_无current目录_返回null() {
+        var result = await SettingsLoader.LoadCurrentSubConfigsAsync(_fs, _userAppDataDir, CancellationToken.None);
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task P7b_LoadUserSettingsAsync_current子文件覆盖settingsJson内联() {
+        var userSettings = new SettingsJson {
+            Current = new CurrentSettings { Theme = "light", Profile = "openai" },
+        };
+        await WriteSettingsAsync(GetUserSettingsPath(), userSettings);
+
+        var currentDir = Path.Combine(_userAppDataDir, "current");
+        _fs.CreateDirectory(currentDir);
+        var uiJson = """{"theme":"dark"}""";
+        await _fs.WriteAllText(Path.Combine(currentDir, "ui.json"), uiJson);
+
+        var result = await SettingsLoader.LoadUserSettingsAsync(_fs, CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result?.Current?.Theme.Should().Be("dark");
+        result?.Current?.Profile.Should().Be("openai");
+    }
+
+    #endregion
+
+    #region P8: BuildDefaultConfigTreeAsync 树状骨架生成
+
+    [Fact]
+    public async Task P8_BuildDefaultConfigTreeAsync_生成current目录10子文件() {
+        var baseDir = $"/test/p8_current_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
+
+        var currentDir = Path.Combine(baseDir, "current");
+        _fs.DirectoryExists(currentDir).Should().BeTrue("应生成 current/ 目录");
+        var expectedFiles = new[] {
+            "ui.json", "inference.json", "behavior.json", "security.json",
+            "mcp.json", "plugins.json", "subagent.json", "tools.json",
+            "worktree.json", "runtime.json"
+        };
+        foreach (var fileName in expectedFiles) {
+            _fs.FileExists(Path.Combine(currentDir, fileName)).Should().BeTrue(
+                $"current/{fileName} 应存在");
+        }
+    }
+
+    [Fact]
+    public async Task P8_BuildDefaultConfigTreeAsync_生成vendors目录7供应商() {
+        var baseDir = $"/test/p8_vendors_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
+
+        var vendorsDir = Path.Combine(baseDir, "providers_llm");
+        _fs.DirectoryExists(vendorsDir).Should().BeTrue("应生成 providers_llm/ 目录");
+        var expectedVendors = new[] {
+            "sensenova", "openai", "anthropic", "deepseek",
+            "deepseek-anthropic", "agnes", "zhipu"
+        };
+        foreach (var name in expectedVendors) {
+            var vendorDir = Path.Combine(vendorsDir, name);
+            _fs.DirectoryExists(vendorDir).Should().BeTrue($"providers_llm/{name}/ 应存在");
+            _fs.FileExists(Path.Combine(vendorDir, "config.json")).Should().BeTrue($"providers_llm/{name}/config.json 应存在");
+            _fs.FileExists(Path.Combine(vendorDir, "models.json")).Should().BeTrue($"providers_llm/{name}/models.json 应存在");
+        }
+    }
+
+    [Fact]
+    public async Task P8_BuildDefaultConfigTreeAsync_生成searchProviders目录6供应商() {
+        var baseDir = $"/test/p8_search_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
+
+        var searchDir = Path.Combine(baseDir, "providers_search");
+        _fs.DirectoryExists(searchDir).Should().BeTrue("应生成 providers_search/ 目录");
+        var expectedProviders = new[] { "tavily", "serper", "brave", "searxng", "anthropic", "subagent" };
+        foreach (var name in expectedProviders) {
+            var providerDir = Path.Combine(searchDir, name);
+            _fs.DirectoryExists(providerDir).Should().BeTrue($"providers_search/{name}/ 应存在");
+            _fs.FileExists(Path.Combine(providerDir, "config.json")).Should().BeTrue($"providers_search/{name}/config.json 应存在");
+            _fs.FileExists(Path.Combine(providerDir, "models.json")).Should().BeTrue($"providers_search/{name}/models.json 应存在");
+        }
+    }
+
+    [Fact]
+    public async Task P8_BuildDefaultConfigTreeAsync_settingsJson极简不含Vendor内联() {
+        var baseDir = $"/test/p8_minimal_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
+
+        var settingsPath = Path.Combine(baseDir, "settings.json");
+        _fs.FileExists(settingsPath).Should().BeTrue("settings.json 应存在");
+        var settingsContent = await _fs.ReadAllText(settingsPath);
+
+        settingsContent.Should().Contain("autoFetchModels", "极简 settings.json 应含 autoFetchModels 全局开关");
+        settingsContent.Should().Contain("profile", "极简 settings.json 应含 current.profile 指针");
+        settingsContent.Should().NotContain("\"vendor\":", "极简 settings.json 不应内联 vendor 节点（已拆到 providers_llm/ 子文件夹）");
+        settingsContent.Should().NotContain("\"searchProviders\":", "极简 settings.json 不应内联 searchProviders 节点（已拆到 providers_search/ 子文件夹）");
+    }
+
+    [Fact]
+    public async Task P8_BuildDefaultConfigTreeAsync_vendors子文件含完整Profile() {
+        var baseDir = $"/test/p8_vendor_content_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
+
+        var openaiConfigPath = Path.Combine(baseDir, "providers_llm", "openai", "config.json");
+        var configContent = await _fs.ReadAllText(openaiConfigPath);
+        configContent.Should().Contain("https://api.openai.com/v1", "openai config.json 应含 endpoint");
+        configContent.Should().Contain("openai-compatible", "openai config.json 应含 protocol");
+        configContent.Should().Contain("apiKeyEnvVar", "openai config.json 应含 apiKeyEnvVar 字段");
+        configContent.Should().NotContain("\"models\":", "config.json 不应含 models 字段（已拆到 models.json）");
+    }
+
+    [Fact]
+    public async Task P8_BuildDefaultConfigTreeAsync_加载侧合并后等价于单文件骨架() {
+        var baseDir = $"/test/p8_roundtrip_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
+
+        var treeSettings = await SettingsLoader.LoadUserSettingsFromDirAsync(_fs, baseDir, CancellationToken.None);
+        treeSettings.Should().NotBeNull();
+        var settings = treeSettings ?? throw new InvalidOperationException("unreachable");
+        settings.Vendor.Should().ContainKey("openai");
+        settings.Vendor["openai"].Endpoint.Should().Be("https://api.openai.com/v1");
+        settings.Vendor["openai"].Protocol.Should().Be("openai-compatible");
+        settings.Vendor.Should().ContainKey("deepseek-anthropic");
+        settings.SearchProviders.Should().ContainKey("tavily");
+        settings.SearchProviders["tavily"].Priority.Should().Be(100);
+        settings.Current?.Profile.Should().NotBeNullOrEmpty();
+        settings.Current?.Actor.Should().NotBeNull("subagent.json 应含 actor 配置");
+        settings.Current?.SubAgentLiveness.Should().NotBeNull("subagent.json 应含 subAgentLiveness 配置");
     }
 
     #endregion

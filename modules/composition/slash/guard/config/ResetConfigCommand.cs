@@ -70,13 +70,8 @@ public sealed class ResetConfigCommand : ChatCommandBase {
     }
 
     private static async Task ResetSettingsAsync(string jccDir, IFileSystem fs, CancellationToken ct) {
-        var settingsFile = Path.Combine(jccDir, AppDataConstants.SettingsFileName);
-        if (fs.FileExists(settingsFile)) {
-            await fs.WriteAllTextAsync(settingsFile, "{}", ct).ConfigureAwait(false);
-            TerminalHelper.WriteLine("  ✓ settings.json 已重置");
-        } else {
-            TerminalHelper.WriteLine("  · settings.json 不存在");
-        }
+        await Core.Configuration.SettingsLoader.BuildDefaultConfigTreeAsync(fs, jccDir, ct).ConfigureAwait(false);
+        TerminalHelper.WriteLine("  ✓ 配置树已重置为默认骨架 (settings.json + current/ + providers_llm/ + providers_search/)");
     }
 
     private static async Task ResetTrustAsync(string jccDir, IFileSystem fs, CancellationToken ct) {

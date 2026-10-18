@@ -58,7 +58,9 @@ internal static class HashUtility {
         try {
             await vs.ReadExactlyAsync(bytes, 0, length, ct).ConfigureAwait(false);
             var hash = ComputeContentHash(bytes.AsSpan(0, length));
-            var content = System.Text.Encoding.UTF8.GetString(bytes, 0, length);
+            // 跳过 UTF-8 BOM（EF BB BF），对齐 ReadAllTextAsync 的 BOM 处理
+            var bomLen = length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? 3 : 0;
+            var content = System.Text.Encoding.UTF8.GetString(bytes, bomLen, length - bomLen);
             return (content, hash);
         } finally {
             System.Buffers.ArrayPool<byte>.Shared.Return(bytes);

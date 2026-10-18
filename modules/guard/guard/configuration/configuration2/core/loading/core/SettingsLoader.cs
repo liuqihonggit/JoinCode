@@ -151,6 +151,36 @@ public static class SettingsLoader {
               "preemptMinWindowRatio": 0.2,
               "activationRecoverySeconds": 10
             }
+          },
+          "searchProviders": {
+            "tavily": {
+              "apiKeyEnvVar": "TAVILY_API_KEY",
+              "priority": 100,
+              "enabled": true
+            },
+            "serper": {
+              "apiKeyEnvVar": "SERPER_API_KEY",
+              "priority": 200,
+              "enabled": true
+            },
+            "brave": {
+              "apiKeyEnvVar": "BRAVE_API_KEY",
+              "priority": 300,
+              "enabled": true
+            },
+            "searxng": {
+              "endpointEnvVar": "SEARXNG_URL",
+              "priority": 400,
+              "enabled": true
+            },
+            "anthropic": {
+              "priority": 500,
+              "enabled": true
+            },
+            "subagent": {
+              "priority": 999,
+              "enabled": true
+            }
           }
         }
         """
@@ -175,6 +205,126 @@ public static class SettingsLoader {
     }
 
     /// <summary>
+    /// 从指定目录加载 settings.json + 合并 providers_llm/current 子文件 — P8 roundtrip 测试用。
+    /// <para>读取 {baseDir}/settings.json，然后合并 {baseDir}/providers_llm/ 和 {baseDir}/current/ 子文件。</para>
+    /// </summary>
+    public static async Task<SettingsJson?> LoadUserSettingsFromDirAsync(
+        IFileSystem fs, string baseDir, CancellationToken cancellationToken = default) {
+        var settingsPath = Path.Combine(baseDir, "settings.json");
+        if (!fs.FileExists(settingsPath)) return null;
+        var json = await fs.ReadAllTextAsync(settingsPath, cancellationToken).ConfigureAwait(false);
+        var settings = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
+        if (settings is null) return null;
+        return await MergeAllSubConfigsAsync(fs, settings, baseDir, cancellationToken, null).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 生成默认配置树骨架到指定目录 — TASK054 P8 物理树状拆分。
+    /// <para>生成结构:</para>
+    /// <list type="bullet">
+    /// <item>settings.json — 极简主入口（current.profile 指针 + autoFetchModels + update）</item>
+    /// <item>current/ — 10 个子文件（ui/inference/behavior/security/mcp/plugins/subagent/tools/worktree/runtime）</item>
+    /// <item>providers_llm/{name}/ — 每个供应商含 config.json（ProfileSettings 除 models）+ models.json（模型列表）</item>
+    /// <item>providers_search/{name}/ — 每个搜索供应商含 config.json + models.json（空列表占位）</item>
+    /// </list>
+    /// <para>消费方无感知 — LoadVendorSubConfigsAsync/LoadCurrentSubConfigsAsync 合并子文件成 DTO（P6/P7 已实现）。</para>
+    /// </summary>
+    /// <param name="fs">文件系统</param>
+    /// <param name="baseDir">jcc 基础目录（如 ~/.jcc/ 或 {projectDir}/.jcc/）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    public static async Task BuildDefaultConfigTreeAsync(
+        IFileSystem fs, string baseDir, CancellationToken cancellationToken = default) {
+        DirectoryHelper.EnsureDirectoryExists(fs, baseDir);
+
+        var fullJson = BuildDefaultSettingsJson();
+        var fullSettings = RelaxedJsonSerializer.Deserialize(fullJson, ConfigJsonContext.Default.SettingsJson)
+            ?? new SettingsJson();
+
+        await WriteMinimalSettingsJsonAsync(fs, baseDir, fullSettings, cancellationToken).ConfigureAwait(false);
+        await WriteCurrentSubFilesAsync(fs, baseDir, fullSettings, cancellationToken).ConfigureAwait(false);
+        await WriteVendorSubFilesAsync(fs, baseDir, fullSettings, cancellationToken).ConfigureAwait(false);
+        await WriteSearchProviderSubFilesAsync(fs, baseDir, fullSettings, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task WriteMinimalSettingsJsonAsync(
+        IFileSystem fs, string baseDir, SettingsJson fullSettings, CancellationToken ct) {
+        var minimal = new MinimalSettingsJson {
+            Current = new MinimalCurrentSettings { Profile = fullSettings.Current?.Profile },
+            AutoFetchModels = fullSettings.AutoFetchModels,
+            Update = fullSettings.Update,
+        };
+        var json = RelaxedJsonSerializer.SerializeIndented(minimal, ConfigIndentedJsonContext.Default);
+        await fs.WriteAllTextAsync(Path.Combine(baseDir, "settings.json"), json, ct).ConfigureAwait(false);
+    }
+
+    private static async Task WriteCurrentSubFilesAsync(
+        IFileSystem fs, string baseDir, SettingsJson fullSettings, CancellationToken ct) {
+        var currentDir = Path.Combine(baseDir, "current");
+        DirectoryHelper.EnsureDirectoryExists(fs, currentDir);
+
+        foreach (var fileName in CurrentSubFiles) {
+            var partial = ExtractCurrentPartial(fileName, fullSettings);
+            var json = RelaxedJsonSerializer.SerializeIndented(partial, ConfigIndentedJsonContext.Default);
+            await fs.WriteAllTextAsync(Path.Combine(currentDir, fileName), json, ct).ConfigureAwait(false);
+        }
+    }
+
+    private static CurrentSettings ExtractCurrentPartial(string fileName, SettingsJson fullSettings) {
+        var current = fullSettings.Current;
+        return fileName switch {
+            "subagent.json" => new CurrentSettings {
+                Actor = current?.Actor,
+                SubAgentLiveness = current?.SubAgentLiveness,
+                SubAgentConcurrency = current?.SubAgentConcurrency,
+            },
+            _ => new CurrentSettings(),
+        };
+    }
+
+    private static async Task WriteVendorSubFilesAsync(
+        IFileSystem fs, string baseDir, SettingsJson fullSettings, CancellationToken ct) {
+        var vendorsDir = Path.Combine(baseDir, "providers_llm");
+        DirectoryHelper.EnsureDirectoryExists(fs, vendorsDir);
+
+        foreach (var (name, profile) in fullSettings.Vendor) {
+            var vendorDir = Path.Combine(vendorsDir, name);
+            DirectoryHelper.EnsureDirectoryExists(fs, vendorDir);
+
+            var configProfile = new VendorConfigFile {
+                Provider = profile.Provider,
+                Protocol = profile.Protocol,
+                Model = profile.Model,
+                Endpoint = profile.Endpoint,
+                ApiKeyEnvVar = profile.ApiKeyEnvVar,
+                ModelsEndpoint = profile.ModelsEndpoint,
+            };
+            var configJson = RelaxedJsonSerializer.SerializeIndented(configProfile, ConfigIndentedJsonContext.Default);
+            await fs.WriteAllTextAsync(Path.Combine(vendorDir, "config.json"), configJson, ct).ConfigureAwait(false);
+
+            var modelsFile = new VendorModelsFile { Models = profile.Models };
+            var modelsJson = RelaxedJsonSerializer.SerializeIndented(modelsFile, ConfigIndentedJsonContext.Default);
+            await fs.WriteAllTextAsync(Path.Combine(vendorDir, "models.json"), modelsJson, ct).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task WriteSearchProviderSubFilesAsync(
+        IFileSystem fs, string baseDir, SettingsJson fullSettings, CancellationToken ct) {
+        var searchDir = Path.Combine(baseDir, "providers_search");
+        DirectoryHelper.EnsureDirectoryExists(fs, searchDir);
+
+        var emptyModelsJson = RelaxedJsonSerializer.SerializeIndented(new VendorModelsFile(), ConfigIndentedJsonContext.Default);
+
+        foreach (var (name, sp) in fullSettings.SearchProviders) {
+            var providerDir = Path.Combine(searchDir, name);
+            DirectoryHelper.EnsureDirectoryExists(fs, providerDir);
+
+            var configJson = RelaxedJsonSerializer.SerializeIndented(sp, ConfigIndentedJsonContext.Default);
+            await fs.WriteAllTextAsync(Path.Combine(providerDir, "config.json"), configJson, ct).ConfigureAwait(false);
+            await fs.WriteAllTextAsync(Path.Combine(providerDir, "models.json"), emptyModelsJson, ct).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
     /// 加载用户全局设置: ~/.jcc/settings.json
     /// 文件不存在或为空(0字节)时自动创建默认骨架
     /// </summary>
@@ -182,7 +332,7 @@ public static class SettingsLoader {
         var path = GetUserSettingsPath();
         var result = await LoadSettingsFileAsync(fs, path, cancellationToken, logger).ConfigureAwait(false);
         if (result is not null)
-            return result;
+            return await MergeAllSubConfigsAsync(fs, result, AppDataConstants.Paths.JccDirectory, cancellationToken, logger).ConfigureAwait(false);
 
         // 文件不存在或为空 → 自动创建默认骨架
         if (fs.FileExists(path) && fs.GetFileLength(path) > 0)
@@ -198,7 +348,7 @@ public static class SettingsLoader {
             DirectoryHelper.EnsureDirectoryExists(fs, directory);
 
         await fs.WriteAllTextAsync(path, skeletonJson, cancellationToken).ConfigureAwait(false);
-        return skeleton;
+        return await MergeAllSubConfigsAsync(fs, skeleton, AppDataConstants.Paths.JccDirectory, cancellationToken, logger).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -209,7 +359,7 @@ public static class SettingsLoader {
         var path = GetUserSettingsPath();
         var result = await LoadSettingsFileSync(fs, path).ConfigureAwait(false);
         if (result is not null)
-            return result;
+            return await MergeAllSubConfigsAsync(fs, result, AppDataConstants.Paths.JccDirectory, CancellationToken.None, null).ConfigureAwait(false);
 
         if (fs.FileExists(path) && fs.GetFileLength(path) > 0)
             return null;
@@ -224,7 +374,7 @@ public static class SettingsLoader {
             DirectoryHelper.EnsureDirectoryExists(fs, directory);
 
         await fs.WriteAllText(path, skeletonJson).ConfigureAwait(false);
-        return skeleton;
+        return await MergeAllSubConfigsAsync(fs, skeleton, AppDataConstants.Paths.JccDirectory, CancellationToken.None, null).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -260,6 +410,195 @@ public static class SettingsLoader {
     public static async Task<SettingsJson?> LoadPolicySettingsAsync(IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null) {
         var path = GetManagedSettingsPath();
         return await LoadSettingsFileAsync(fs, path, cancellationToken, logger).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 从 {baseDir}/providers_llm/ 子文件夹加载供应商配置 — TASK054 P6 物理拆分。
+    /// <para>每个供应商 {name}/config.json 含 ProfileSettings（除 models），{name}/models.json 含模型列表。</para>
+    /// <para>子文件不存在时跳过（约定大于配置，渐进式迁移）。</para>
+    /// </summary>
+    /// <param name="fs">文件系统</param>
+    /// <param name="baseDir">jcc 基础目录（如 ~/.jcc/）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="logger">可选日志</param>
+    /// <returns>供应商名 → ProfileSettings 映射（空字典表示无子文件）</returns>
+    public static async Task<Dictionary<string, ProfileSettings>> LoadVendorSubConfigsAsync(
+        IFileSystem fs, string baseDir, CancellationToken cancellationToken = default, ILogger? logger = null) {
+        var result = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase);
+        var vendorsDir = Path.Combine(baseDir, "providers_llm");
+        if (!fs.DirectoryExists(vendorsDir))
+            return result;
+
+        foreach (var vendorDir in fs.EnumerateDirectories(vendorsDir, "*", SearchOption.TopDirectoryOnly)) {
+            var vendorName = Path.GetFileName(vendorDir);
+            var configPath = Path.Combine(vendorDir, "config.json");
+            var modelsPath = Path.Combine(vendorDir, "models.json");
+
+            ProfileSettings? profile = null;
+            if (fs.FileExists(configPath)) {
+                try {
+                    var configJson = await fs.ReadAllTextAsync(configPath, cancellationToken).ConfigureAwait(false);
+                    profile = RelaxedJsonSerializer.Deserialize(configJson, ConfigJsonContext.Default.ProfileSettings);
+                } catch (Exception ex) {
+                    logger?.LogWarning(ex, "Failed to load vendor config: {Path}", configPath);
+                }
+            }
+
+            if (profile is null)
+                continue;
+
+            if (profile.Models is null)
+                profile = WithModels(profile, []);
+
+            if (fs.FileExists(modelsPath)) {
+                try {
+                    var modelsJson = await fs.ReadAllTextAsync(modelsPath, cancellationToken).ConfigureAwait(false);
+                    var modelsFile = RelaxedJsonSerializer.Deserialize(modelsJson, ConfigJsonContext.Default.VendorModelsFile);
+                    if (modelsFile is not null)
+                        profile = WithModels(profile, modelsFile.Models);
+                } catch (Exception ex) {
+                    logger?.LogWarning(ex, "Failed to load vendor models: {Path}", modelsPath);
+                }
+            }
+
+            result[vendorName] = profile;
+        }
+        return result;
+    }
+
+    private static ProfileSettings WithModels(ProfileSettings profile, List<ModelItemConfig> models)
+        => new() {
+            Provider = profile.Provider,
+            Protocol = profile.Protocol,
+            Model = profile.Model,
+            Endpoint = profile.Endpoint,
+            ApiKeyEnvVar = profile.ApiKeyEnvVar,
+            Models = models,
+            ModelsEndpoint = profile.ModelsEndpoint,
+        };
+
+    /// <summary>
+    /// 合并 providers_llm/ 子文件夹配置到 settings.json 内联配置 — 子文件覆盖内联（更高优先级）。
+    /// </summary>
+    private static async Task<SettingsJson?> MergeVendorSubConfigsAsync(
+        IFileSystem fs, SettingsJson? settings, string baseDir,
+        CancellationToken cancellationToken, ILogger? logger) {
+        if (settings is null) return null;
+        var subConfigs = await LoadVendorSubConfigsAsync(fs, baseDir, cancellationToken, logger).ConfigureAwait(false);
+        if (subConfigs.Count == 0) return settings;
+        return SettingsJson.Merge(settings, new SettingsJson { Vendor = subConfigs });
+    }
+
+    /// <summary>
+    /// current/ 子文件名清单 — CurrentSettings ~45 字段按职责拆成 10 个子文件（TASK054 P7 物理拆分）。
+    /// </summary>
+    private static readonly string[] CurrentSubFiles = [
+        "ui.json", "inference.json", "behavior.json", "security.json",
+        "mcp.json", "plugins.json", "subagent.json", "tools.json",
+        "worktree.json", "runtime.json"
+    ];
+
+    /// <summary>
+    /// 从 {baseDir}/current/*.json 加载 CurrentSettings 子文件 — TASK054 P7 物理拆分。
+    /// <para>每个子文件含 CurrentSettings 的部分字段，用 CurrentSettings.Merge 逐个合并成完整 DTO。</para>
+    /// <para>子文件不存在时跳过（约定大于配置，渐进式迁移）。</para>
+    /// </summary>
+    /// <param name="fs">文件系统</param>
+    /// <param name="baseDir">jcc 基础目录（如 ~/.jcc/）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="logger">可选日志</param>
+    /// <returns>合并后的 CurrentSettings（null 表示无子文件）</returns>
+    public static async Task<CurrentSettings?> LoadCurrentSubConfigsAsync(
+        IFileSystem fs, string baseDir, CancellationToken cancellationToken = default, ILogger? logger = null) {
+        var currentDir = Path.Combine(baseDir, "current");
+        if (!fs.DirectoryExists(currentDir))
+            return null;
+
+        CurrentSettings? merged = null;
+        foreach (var fileName in CurrentSubFiles) {
+            var path = Path.Combine(currentDir, fileName);
+            if (!fs.FileExists(path)) continue;
+            try {
+                var json = await fs.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
+                var partial = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.CurrentSettings);
+                if (partial is not null)
+                    merged = CurrentSettings.Merge(merged, partial);
+            } catch (Exception ex) {
+                logger?.LogWarning(ex, "Failed to load current sub-config: {Path}", path);
+            }
+        }
+        return merged;
+    }
+
+    /// <summary>
+    /// 合并 current/ 子文件配置到 settings.json 内联配置 — 子文件覆盖内联（更高优先级）。
+    /// </summary>
+    private static async Task<SettingsJson?> MergeCurrentSubConfigsAsync(
+        IFileSystem fs, SettingsJson? settings, string baseDir,
+        CancellationToken cancellationToken, ILogger? logger) {
+        if (settings is null) return null;
+        var subCurrent = await LoadCurrentSubConfigsAsync(fs, baseDir, cancellationToken, logger).ConfigureAwait(false);
+        if (subCurrent is null) return settings;
+        var mergedCurrent = CurrentSettings.Merge(settings.Current, subCurrent);
+        return new SettingsJson {
+            Vendor = settings.Vendor,
+            Current = mergedCurrent,
+            AutoFetchModels = settings.AutoFetchModels,
+            Update = settings.Update,
+            SearchProviders = settings.SearchProviders,
+        };
+    }
+
+    /// <summary>
+    /// 合并 providers_llm/ + current/ + providers_search/ 子文件配置到 settings.json 内联 — 统一入口。
+    /// </summary>
+    private static async Task<SettingsJson?> MergeAllSubConfigsAsync(
+        IFileSystem fs, SettingsJson? settings, string baseDir,
+        CancellationToken cancellationToken, ILogger? logger) {
+        settings = await MergeVendorSubConfigsAsync(fs, settings, baseDir, cancellationToken, logger).ConfigureAwait(false);
+        settings = await MergeCurrentSubConfigsAsync(fs, settings, baseDir, cancellationToken, logger).ConfigureAwait(false);
+        settings = await MergeSearchProviderSubConfigsAsync(fs, settings, baseDir, cancellationToken, logger).ConfigureAwait(false);
+        return settings;
+    }
+
+    /// <summary>
+    /// 从 {baseDir}/providers_search/ 子文件夹加载搜索供应商配置 — TASK054 P8 物理拆分。
+    /// <para>每个供应商 {name}/config.json 含 SearchProviderProfileSettings。</para>
+    /// <para>子文件不存在时跳过（约定大于配置，渐进式迁移）。</para>
+    /// </summary>
+    public static async Task<Dictionary<string, SearchProviderProfileSettings>> LoadSearchProviderSubConfigsAsync(
+        IFileSystem fs, string baseDir, CancellationToken cancellationToken = default, ILogger? logger = null) {
+        var result = new Dictionary<string, SearchProviderProfileSettings>(StringComparer.OrdinalIgnoreCase);
+        var searchDir = Path.Combine(baseDir, "providers_search");
+        if (!fs.DirectoryExists(searchDir))
+            return result;
+
+        foreach (var providerDir in fs.EnumerateDirectories(searchDir, "*", SearchOption.TopDirectoryOnly)) {
+            var providerName = Path.GetFileName(providerDir);
+            var configPath = Path.Combine(providerDir, "config.json");
+            if (!fs.FileExists(configPath)) continue;
+            try {
+                var configJson = await fs.ReadAllTextAsync(configPath, cancellationToken).ConfigureAwait(false);
+                var sp = RelaxedJsonSerializer.Deserialize(configJson, ConfigJsonContext.Default.SearchProviderProfileSettings);
+                if (sp is not null)
+                    result[providerName] = sp;
+            } catch (Exception ex) {
+                logger?.LogWarning(ex, "Failed to load search provider config: {Path}", configPath);
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// 合并 providers_search/ 子文件夹配置到 settings.json 内联配置 — 子文件覆盖内联（更高优先级）。
+    /// </summary>
+    private static async Task<SettingsJson?> MergeSearchProviderSubConfigsAsync(
+        IFileSystem fs, SettingsJson? settings, string baseDir,
+        CancellationToken cancellationToken, ILogger? logger) {
+        if (settings is null) return null;
+        var subConfigs = await LoadSearchProviderSubConfigsAsync(fs, baseDir, cancellationToken, logger).ConfigureAwait(false);
+        if (subConfigs.Count == 0) return settings;
+        return SettingsJson.Merge(settings, new SettingsJson { SearchProviders = subConfigs });
     }
 
     /// <summary>

@@ -121,9 +121,11 @@ public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware {
         // 对齐TS版: 始终以 arraybuffer 获取，后续根据 Content-Type 决定处理方式
         var rawBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
         var contentType = response.Content.Headers.ContentType?.MediaType ?? "text/html";
+        var charset = response.Content.Headers.ContentType?.CharSet;
 
-        // 文本内容：UTF-8解码；二进制内容：保留原始字节供持久化
-        var content = Encoding.UTF8.GetString(rawBytes);
+        // 文本内容：按 Content-Type charset 解码（回退 UTF-8）；二进制内容：保留原始字节供持久化
+        var encoding = ResolveEncoding(charset);
+        var content = encoding.GetString(rawBytes);
         var bytes = rawBytes.Length;
 
         return new WebFetchResult(
@@ -135,6 +137,20 @@ public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware {
             StatusText: response.ReasonPhrase ?? "",
             EgressBlocked: egressBlocked,
             RawBytes: rawBytes.ToArray());
+    }
+
+    /// <summary>
+    /// 解析 HTTP 响应的 charset 名称为 Encoding。不支持时回退 UTF-8（保守，不崩溃）。
+    /// </summary>
+    private static Encoding ResolveEncoding(string? charset) {
+        if (string.IsNullOrWhiteSpace(charset))
+            return Encoding.UTF8;
+        try {
+            return Encoding.GetEncoding(charset);
+        } catch (ArgumentException) {
+            System.Diagnostics.Debug.WriteLine($"[WebFetchMiddleware] 不支持的 charset '{charset}'，回退 UTF-8");
+            return Encoding.UTF8;
+        }
     }
 
     private static bool IsPermittedRedirect(string originalUrl, string redirectUrl) {

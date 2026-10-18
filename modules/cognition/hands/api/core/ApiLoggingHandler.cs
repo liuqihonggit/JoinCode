@@ -221,7 +221,12 @@ public sealed partial class ApiLoggingHandler : DelegatingHandler {
 
             var originalPosition = stream.Position;
 
-            using var reader = new StreamReader(stream, leaveOpen: true);
+            // 按 Content-Type charset 解码日志预览（回退 UTF-8），避免中文响应乱码
+            var charset = content.Headers.ContentType?.CharSet;
+            Encoding encoding;
+            try { encoding = string.IsNullOrWhiteSpace(charset) ? Encoding.UTF8 : Encoding.GetEncoding(charset); }
+            catch (ArgumentException) { encoding = Encoding.UTF8; }
+            using var reader = new StreamReader(stream, encoding, leaveOpen: true);
             var buffer = new char[maxLength];
             var readLength = await reader.ReadAsync(buffer, 0, maxLength).ConfigureAwait(false);
             var result = new string(buffer, 0, readLength);

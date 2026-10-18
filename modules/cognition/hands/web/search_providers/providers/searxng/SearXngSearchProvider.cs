@@ -8,6 +8,7 @@ namespace Services.Web;
 [Register(typeof(ISearchProvider), ServiceLifetime.Singleton)]
 public sealed partial class SearXngSearchProvider : ServiceEntity, ISearchProvider {
     private const int DefaultPriority = 400;
+    private const string DefaultEndpointEnvVar = "SEARXNG_URL";
 
     private readonly IApiClient _apiClient;
     private readonly string? _baseUrl;
@@ -17,12 +18,15 @@ public sealed partial class SearXngSearchProvider : ServiceEntity, ISearchProvid
     /// 初始化 <see cref="SearXngSearchProvider"/> 实例。
     /// </summary>
     /// <param name="apiClient">API 客户端，用于执行 HTTP 请求。</param>
+    /// <param name="config">统一配置入口，读 searchProviders.searxng.endpointEnvVar（未命中回退 <c>SEARXNG_URL</c>）。</param>
     /// <param name="logger">可选日志记录器。</param>
     public SearXngSearchProvider(
         IApiClient apiClient,
+        IConfigRoot config,
         ILogger<SearXngSearchProvider>? logger = null) {
         _apiClient = apiClient;
-        _baseUrl = Environment.GetEnvironmentVariable("SEARXNG_URL")?.TrimEnd('/');
+        var envVarName = SearchProviderConfigHelper.ResolveEnvVar(config, "searxng", "endpointEnvVar", DefaultEndpointEnvVar);
+        _baseUrl = Environment.GetEnvironmentVariable(envVarName)?.TrimEnd('/');
         _logger = logger;
     }
 

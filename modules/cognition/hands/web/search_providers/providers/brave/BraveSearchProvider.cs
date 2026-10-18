@@ -10,6 +10,8 @@ public sealed partial class BraveSearchProvider : ServiceEntity, ISearchProvider
     private const string Endpoint = "https://api.search.brave.com/res/v1/web/search";
     private const int DefaultPriority = 300;
 
+    private const string DefaultApiKeyEnvVar = "BRAVE_API_KEY";
+
     private readonly IApiClient _apiClient;
     private readonly string? _apiKey;
     private readonly ILogger<BraveSearchProvider>? _logger;
@@ -18,12 +20,15 @@ public sealed partial class BraveSearchProvider : ServiceEntity, ISearchProvider
     /// 初始化 <see cref="BraveSearchProvider"/> 实例。
     /// </summary>
     /// <param name="apiClient">API 客户端，用于执行 HTTP 请求。</param>
+    /// <param name="config">统一配置入口，读 searchProviders.brave.apiKeyEnvVar（未命中回退 <c>BRAVE_API_KEY</c>）。</param>
     /// <param name="logger">可选日志记录器。</param>
     public BraveSearchProvider(
         IApiClient apiClient,
+        IConfigRoot config,
         ILogger<BraveSearchProvider>? logger = null) {
         _apiClient = apiClient;
-        _apiKey = Environment.GetEnvironmentVariable("BRAVE_API_KEY");
+        var envVarName = SearchProviderConfigHelper.ResolveEnvVar(config, "brave", "apiKeyEnvVar", DefaultApiKeyEnvVar);
+        _apiKey = Environment.GetEnvironmentVariable(envVarName);
         _logger = logger;
     }
 

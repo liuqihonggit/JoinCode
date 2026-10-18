@@ -1,4 +1,5 @@
-﻿namespace JoinCode.Gui.Tests.Views;
+﻿#pragma warning disable JCC9001 // 豁免理由：FindRoot 以 AGENTS.md 为锚点向上定位仓库根目录属测试基础设施，非被测业务行为
+namespace JoinCode.Gui.Tests.Views;
 
 /// <summary>工作台入口与实际可操作界面验收。</summary>
 [Collection("GuiUiSequential")]

@@ -3,6 +3,8 @@
 
 
 
+#pragma warning disable JCC9001 // 豁免理由：① dumps 帧图导出与仓库根定位属诊断产物（dumps/ 约定）非被测业务行为；② 帧落盘后需真实文件校验
+
 namespace JoinCode.Gui.Tests.Views;
 
 /// <summary>

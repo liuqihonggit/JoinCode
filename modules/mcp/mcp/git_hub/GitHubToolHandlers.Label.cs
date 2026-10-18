@@ -21,7 +21,7 @@ public partial class GitHubToolHandlers {
             if (!string.IsNullOrWhiteSpace(order)) query["order"] = order;
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/labels", query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, body => SummarizeLabelList(body, search), "id,name,color,description", common?.Jq));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, body => SummarizeLabelList(body, search), "id,name,color,description", common?.Jq, common?.SkipLines, common?.StartLine, "gh_label_list"));
         }).ConfigureAwait(false);
 
     /// <summary>

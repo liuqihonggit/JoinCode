@@ -20,7 +20,7 @@ public partial class GitHubToolHandlers {
             var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases", query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, body => SummarizeReleaseList(body, exclude_drafts, exclude_prereleases), "id,tag_name,name,draft,prerelease,published_at", common?.Jq));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, body => SummarizeReleaseList(body, exclude_drafts, exclude_prereleases), "id,tag_name,name,draft,prerelease,published_at", common?.Jq, common?.SkipLines, common?.StartLine, "gh_release_list"));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -83,7 +83,7 @@ public partial class GitHubToolHandlers {
                 return string.IsNullOrEmpty(url) ? Fail("无法从 Release 响应中解析 html_url") : Ok(url);
             }
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
-            if (result.Success) return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeReleaseView, "id,tag_name,name,draft,prerelease,published_at,html_url", common?.Jq));
+            if (result.Success) return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeReleaseView, "id,tag_name,name,draft,prerelease,published_at,html_url", common?.Jq, common?.SkipLines, common?.StartLine, "gh_release_view"));
             // 404 时 fallback: draft release 没有关联 tag,需列出所有 release 按 tag_name 匹配
             if (IsNotFound(result)) return await FindReleaseByTagNameAsync(client, owner, repoName, tag, cancellationToken).ConfigureAwait(false);
             return Fail(result.Error);

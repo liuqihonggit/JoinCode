@@ -16,7 +16,7 @@ public partial class GitHubToolHandlers {
         var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
         var result = await _apiClient.SendAsync(HttpMethod.Get, "user/orgs", query: query, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeOrgList, "login,description", common?.Jq));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeOrgList, "login,description", common?.Jq, common?.SkipLines, common?.StartLine, "gh_org_list"));
     }
 
     /// <summary>
@@ -45,7 +45,7 @@ public partial class GitHubToolHandlers {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, "user/keys", ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeSshKeyList, "id,title", common?.Jq));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeSshKeyList, "id,title", common?.Jq, common?.SkipLines, common?.StartLine, "gh_ssh_key_list"));
     }
 
     /// <summary>
@@ -100,7 +100,7 @@ public partial class GitHubToolHandlers {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, "user/gpg_keys", ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeGpgKeyList, "id,key_id,public_key", common?.Jq));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeGpgKeyList, "id,key_id,public_key", common?.Jq, common?.SkipLines, common?.StartLine, "gh_gpg_key_list"));
     }
 
     /// <summary>

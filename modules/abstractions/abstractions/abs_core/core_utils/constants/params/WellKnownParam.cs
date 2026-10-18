@@ -33,6 +33,14 @@ public enum WellKnownParam {
     [ParamMeta("jq 表达式(可选,筛选 JSON 结果。支持 .field/.field.sub/[]/select(.f==\"v\")/{k: .f}/| 管道)", Required = false, TypeName = "string")]
     Jq,
 
+    [EnumValue("skip_lines")]
+    [ParamMeta("跳过前 N 行(偏移量读取,用于截断续读)", Required = false, TypeName = "int")]
+    SkipLines,
+
+    [EnumValue("start_line")]
+    [ParamMeta("从第 N 行开始(1-indexed,等价 skip_lines=N-1)", Required = false, TypeName = "int")]
+    StartLine,
+
     // === GitHub 实体标识 ===
 
     [EnumValue("pr_number")]

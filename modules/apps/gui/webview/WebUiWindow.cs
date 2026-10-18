@@ -14,6 +14,8 @@ internal sealed class WebUiWindow : Window {
     private readonly CancellationTokenSource _lifetimeCts = new();
     private IJccChatSession? _session;
     private WebChatFlow? _flow;
+    private string? _activeSessionId;
+    private int _openSessionSeq;
     private string? _smokeNonce;
     private bool _smokePongOk;
     private bool _smokeRendered;
@@ -55,6 +57,14 @@ internal sealed class WebUiWindow : Window {
 
     /// <summary>挂接真实引擎：建会话流投影层 + 权限 fail-closed 兜底 + 会话存储切换到统一入口后刷新列表</summary>
     private void AttachEngine(IJccChatSession session) {
+        if (_lifetimeCts.IsCancellationRequested) {
+            // 窗口已在引擎组装期间关闭（OnClosed 与 Post 回调同在 UI 线程，无 TOCTOU）：迟到的引擎即刻释放
+            App.LogDiag("[WebUI] engine ready after window closed; disposing");
+            _ = session.DisposeAsync().AsTask().ContinueWith(t => {
+                if (t.IsFaulted) App.LogDiag($"[WebUI] late engine dispose failed: {t.Exception?.Message}");
+            }, TaskScheduler.Default);
+            return;
+        }
         _session = session;
         _flow = new WebChatFlow(session);
         session.PermissionConfirmationHandler = DenyPermissionAsync;
@@ -132,22 +142,45 @@ internal sealed class WebUiWindow : Window {
         }
     }
 
-    /// <summary>打开会话：持久化历史下发 web（chat/history）+ 切换引擎会话并灌入上下文（对齐 MainViewModel.SelectSession 语义）</summary>
+    /// <summary>
+    /// 打开会话：切换引擎会话 + 持久化历史下发 web（chat/history）+ 历史灌入引擎上下文（对齐 MainViewModel.SelectSession 语义）。
+    /// 守卫：ID 白名单（防路径穿越）；流式回复期间拒绝切换（引擎 SwitchSession 不受流支配，
+    /// 中途切换会让 transcript 差量写入错会话并致上下文混流）；重复点击当前会话幂等短路；序号丢弃过期请求（快速连点只认最后一次）。
+    /// </summary>
     private async Task OpenSessionAsync(string sessionId, CancellationToken cancellationToken) {
+        if (!IsValidSessionId(sessionId)) {
+            App.LogDiag($"[WebUI] session/select invalid id={sessionId}");
+            _host.Send(new AppErrorMessage("会话 ID 非法", "ID 仅允许字母/数字/下划线/连字符（1-64 字符），请从侧栏列表点击选择"));
+            return;
+        }
+        if (ReferenceEquals(sessionId, _activeSessionId)) {
+            return;
+        }
+        if (_flow is { IsStreaming: true }) {
+            _host.Send(new AppErrorMessage("本轮回复仍在进行中", "等待回复完成（chat/done）后再切换会话"));
+            return;
+        }
+        var seq = Interlocked.Increment(ref _openSessionSeq);
         try {
-            var data = await _sessionStore.LoadAsync(sessionId);
-            cancellationToken.ThrowIfCancellationRequested();
-            var entries = (data?.Messages ?? [])
-                .Where(m => !string.IsNullOrWhiteSpace(m.Content))
-                .Select(m => new ChatHistoryEntry(m.Role, m.Content))
-                .ToList();
-            _host.Send(new ChatHistoryMessage(entries));
+            // SwitchSession 先于历史读取：transcript 缺失时的引擎内存回退需读"新会话"的上下文（对齐 MainViewModel 顺序）
             if (_session is { } session) {
                 session.SwitchSession(sessionId);
+            }
+            var data = await _sessionStore.LoadAsync(sessionId);
+            cancellationToken.ThrowIfCancellationRequested();
+            var entries = data is not null
+                ? BuildEntries(data.Messages)
+                : await LoadEngineMemoryEntriesAsync(cancellationToken);
+            if (seq != Volatile.Read(ref _openSessionSeq)) {
+                return; // 过期请求：已被更新的选择取代
+            }
+            _host.Send(new ChatHistoryMessage(entries));
+            _activeSessionId = sessionId;
+            if (_session is { } target) {
                 var history = entries
                     .Select(e => (MessageRoleExtensions.FromValue(e.Role) ?? MessageRole.User, e.Content))
                     .ToList();
-                await session.LoadHistoryAsync(history, cancellationToken);
+                await target.LoadHistoryAsync(history, cancellationToken);
             }
             App.LogDiag($"[WebUI] session/select loaded id={sessionId} count={entries.Count}");
         } catch (OperationCanceledException) {
@@ -158,9 +191,54 @@ internal sealed class WebUiWindow : Window {
         }
     }
 
-    /// <summary>窗口关闭：取消在途的流式发送/会话加载（释放后异步操作不得继续访问宿主）</summary>
+    /// <summary>把持久化消息过滤空内容并映射为桥接条目</summary>
+    private static List<ChatHistoryEntry> BuildEntries(IReadOnlyList<Persistence.GuiSessionMessage> messages) =>
+        messages
+            .Where(m => !string.IsNullOrWhiteSpace(m.Content))
+            .Select(m => new ChatHistoryEntry(m.Role, m.Content))
+            .ToList();
+
+    /// <summary>transcript 缺失时从引擎内存读取当前（已切换）会话消息 — 对齐 MainViewModel.SelectSession 回退</summary>
+    private async Task<List<ChatHistoryEntry>> LoadEngineMemoryEntriesAsync(CancellationToken cancellationToken) {
+        if (_session is not { } session) {
+            return [];
+        }
+        try {
+            var records = await session.GetMessagesAsync(cancellationToken);
+            return records
+                .Where(r => !string.IsNullOrWhiteSpace(r.Content))
+                .Select(r => new ChatHistoryEntry(r.Role, r.Content))
+                .ToList();
+        } catch (Exception ex) {
+            App.LogDiag($"[WebUI] engine memory fallback failed: {ex.Message}");
+            return [];
+        }
+    }
+
+    /// <summary>会话 ID 白名单：字母/数字/下划线/连字符，长度 1-64（桥接消息是信任边界，防越目录读写）</summary>
+    private static bool IsValidSessionId(string sessionId) {
+        if (string.IsNullOrEmpty(sessionId) || sessionId.Length > 64) {
+            return false;
+        }
+        foreach (var c in sessionId) {
+            if (!char.IsAsciiLetterOrDigit(c) && c != '-' && c != '_') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// <summary>窗口关闭：取消在途流式发送/会话加载 + 释放引擎（HTTP 连接池/FileSystemWatcher/后台任务不得泄漏）</summary>
     protected override void OnClosed(EventArgs e) {
         _lifetimeCts.CancelAndDisposeSafe();
+        _flow = null;
+        var session = _session;
+        _session = null;
+        if (session is not null) {
+            _ = session.DisposeAsync().AsTask().ContinueWith(t => {
+                if (t.IsFaulted) App.LogDiag($"[WebUI] session dispose failed: {t.Exception?.Message}");
+            }, TaskScheduler.Default);
+        }
         base.OnClosed(e);
     }
 

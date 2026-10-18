@@ -83,11 +83,59 @@ public sealed class WebChatFlowTests {
         session.LastPrompt.Should().BeNull("未就绪时不得触碰引擎流");
     }
 
+    [Fact]
+    public async Task SendAsync_OceWhileTokenAlive_EmitsTimeoutErrorThenDone() {
+        var session = new ScriptedSession { ThrowAt = 0, ThrowException = new OperationCanceledException("请求超时") };
+        session.Events.Add(ChatStreamEvent.Text("不应出现"));
+        var flow = new WebChatFlow(session);
+        var emitted = new List<BridgeMessage>();
+
+        await flow.SendAsync("hi", emitted.Add);
+
+        emitted.Select(m => m.GetType()).Should().Equal(
+            new[] { typeof(AppErrorMessage), typeof(ChatDoneMessage) },
+            "令牌未取消的 OCE=引擎超时，须回错误而非静默");
+        emitted.OfType<AppErrorMessage>().Single().Reason.Should().Contain("超时");
+        flow.IsStreaming.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SendAsync_CancelledToken_SilentThenExactlyOneDone() {
+        var session = new ScriptedSession();
+        session.Events.Add(ChatStreamEvent.Text("不应出现"));
+        var flow = new WebChatFlow(session);
+        var emitted = new List<BridgeMessage>();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await flow.SendAsync("hi", emitted.Add, cts.Token);
+
+        emitted.Should().ContainSingle().Which.Should().BeOfType<ChatDoneMessage>(
+            "主动取消（窗口关闭）静默收尾：无 app/error，仅恰好一条 done");
+        flow.IsStreaming.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SendAsync_ThinkingOnly_NoDelta_ExactlyOneDone() {
+        var session = new ScriptedSession();
+        session.Events.AddRange([ChatStreamEvent.Thinking("纯思考"), ChatStreamEvent.Done()]);
+        var flow = new WebChatFlow(session);
+        var emitted = new List<BridgeMessage>();
+
+        await flow.SendAsync("hi", emitted.Add);
+
+        emitted.Should().ContainSingle().Which.Should().BeOfType<ChatDoneMessage>(
+            "只有 Thinking 无 Content：不透传增量，恰好一条 done");
+        flow.IsStreaming.Should().BeFalse();
+    }
+
     /// <summary>脚本化假会话 — 事件序列可控（门控首事件/定点抛异常），其余成员最小桩</summary>
     private sealed class ScriptedSession : IJccChatSession {
         public List<ChatStreamEvent> Events { get; } = [];
         /// <summary>在产出第 N 个事件前抛出（null=不抛）</summary>
         public int? ThrowAt { get; set; }
+        /// <summary>ThrowAt 处抛出的异常实例（null=InvalidOperationException 默认）</summary>
+        public Exception? ThrowException { get; set; }
         /// <summary>首个事件前等待门控（并发测试用）</summary>
         public bool GateBeforeFirst { get; set; }
         public string? LastPrompt { get; private set; }
@@ -116,9 +164,10 @@ public sealed class WebChatFlowTests {
             if (GateBeforeFirst) {
                 await _gate.Task.WaitAsync(cancellationToken);
             }
+            cancellationToken.ThrowIfCancellationRequested();
             for (var i = 0; i < Events.Count; i++) {
                 if (ThrowAt == i) {
-                    throw new InvalidOperationException("引擎崩溃");
+                    throw ThrowException ?? new InvalidOperationException("引擎崩溃");
                 }
                 yield return Events[i];
             }

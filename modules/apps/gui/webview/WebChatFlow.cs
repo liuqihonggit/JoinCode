@@ -40,8 +40,11 @@ internal sealed class WebChatFlow {
                     emit(new ChatDeltaMessage(evt.Content));
                 }
             }
+        } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
+            // 令牌未取消仍抛 OCE = 引擎内部超时/中断（HttpClient 超时同型），必须回错误而非静默
+            emit(new AppErrorMessage("响应超时或被中断", "检查网络与模型配置后重试；已输出内容已保留"));
         } catch (OperationCanceledException) {
-            // 取消（窗口关闭）：不回错误提示，chat/done 由 finally 统一收尾
+            // 窗口关闭/主动取消：不回错误提示，chat/done 由 finally 统一收尾
         } catch (Exception ex) {
             emit(new AppErrorMessage($"发送失败：{ex.Message}", "检查模型配置与网络后重试；已输出内容已保留"));
         } finally {

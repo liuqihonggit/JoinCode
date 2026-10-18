@@ -40,6 +40,8 @@
   var placeholder = document.querySelector('.composer-placeholder');
   var sendBtn = document.querySelector('.send-btn');
   var sidebarList = document.querySelector('.sidebar .list');
+  var staticSessionRow = sidebarList ? sidebarList.querySelector('.session-row') : null;
+  var selectedSessionId = null;
   var busy = false;
   var currentAssistant = null;
 
@@ -124,38 +126,52 @@
     send({ type: 'smoke/pong', nonce: message.nonce });
   });
 
-  // sessions/list：真实会话列表渲染（P6-1）。首行=最近会话（selected）；点击发 session/select。
-  // 空列表保留静态"新会话"占位行（全新状态）；渲染完成回 web/sessions-rendered（冒烟验收钩子）。
+  // sessions/list：真实会话列表渲染（P6-1）。点击发 session/select；流式回复期间忽略点击（防跨会话混流）。
+  // 选区跨重渲染保持（重渲染不重置用户选择）；空列表回填静态"新会话"占位行；渲染完成恒回 web/sessions-rendered（冒烟验收钩子）。
   handlers.set('sessions/list', function (message) {
-    if (!sidebarList) {
-      console.warn('jccBridge: 找不到侧栏列表容器 .sidebar .list');
-      return;
-    }
     var sessions = message.sessions || [];
-    if (sessions.length > 0) {
-      var iconTemplate = sidebarList.querySelector('.session-row .icon');
+    if (sidebarList) {
+      var iconTemplate = staticSessionRow ? staticSessionRow.querySelector('.icon') : null;
       sidebarList.querySelectorAll('.session-row').forEach(function (el) { el.remove(); });
-      sessions.forEach(function (session, index) {
-        var row = document.createElement('div');
-        row.className = 'session-row' + (index === 0 ? ' selected' : '');
-        row.dataset.sessionId = session.id;
-        if (iconTemplate) {
-          row.appendChild(iconTemplate.cloneNode(true));
+      if (sessions.length === 0) {
+        if (staticSessionRow) {
+          sidebarList.appendChild(staticSessionRow);
         }
-        var title = document.createElement('span');
-        title.textContent = session.title; // textContent 而非 innerHTML：用户数据不进入 HTML 解析
-        row.appendChild(title);
-        row.addEventListener('click', function () {
-          sidebarList.querySelectorAll('.session-row.selected').forEach(function (el) { el.classList.remove('selected'); });
-          row.classList.add('selected');
-          clearConversation();
-          send({ type: 'session/select', id: session.id });
+      } else {
+        if (!sessions.some(function (s) { return s.id === selectedSessionId; })) {
+          selectedSessionId = sessions[0].id;
+        }
+        sessions.forEach(function (session) {
+          var row = document.createElement('div');
+          row.className = 'session-row' + (session.id === selectedSessionId ? ' selected' : '');
+          row.dataset.sessionId = session.id;
+          if (iconTemplate) {
+            row.appendChild(iconTemplate.cloneNode(true));
+          }
+          var title = document.createElement('span');
+          title.textContent = session.title; // textContent 而非 innerHTML：用户数据不进入 HTML 解析
+          row.appendChild(title);
+          row.addEventListener('click', function () { onSessionClick(session, row); });
+          sidebarList.appendChild(row);
         });
-        sidebarList.appendChild(row);
-      });
+      }
+    } else {
+      console.warn('jccBridge: 找不到侧栏列表容器 .sidebar .list');
     }
     send({ type: 'web/sessions-rendered', count: sessions.length });
   });
+
+  function onSessionClick(session, row) {
+    if (busy) {
+      console.info('jccBridge: 回复进行中，暂不切换会话（等待 chat/done）');
+      return;
+    }
+    selectedSessionId = session.id;
+    sidebarList.querySelectorAll('.session-row.selected').forEach(function (el) { el.classList.remove('selected'); });
+    row.classList.add('selected');
+    clearConversation();
+    send({ type: 'session/select', id: session.id });
+  }
 
   // chat/delta：助手正文增量（v1 纯文本累积；Markdown/工具卡随 P6-3）
   handlers.set('chat/delta', function (message) {

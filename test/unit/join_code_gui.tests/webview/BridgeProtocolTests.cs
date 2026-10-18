@@ -22,6 +22,7 @@ public sealed class BridgeProtocolTests {
         new SessionSelectMessage("s1"),
         new WebSessionsRenderedMessage(2),
         new ChatHistoryMessage([new ChatHistoryEntry("user", "你好"), new ChatHistoryEntry("assistant", "你好！有什么可以帮你的？")]),
+        new ChatHistoryMessage([]),
     };
 
     [Theory]

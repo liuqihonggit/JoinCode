@@ -105,14 +105,14 @@
   - 验收（真机 E2E，[ADR 0080](../../../../docs/implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md) 方式，非 mock）：`dumps/f1-webui-flow.mjs`（CDP 9222 驱动真实 exe + 真实引擎 + `OpenAI.MockServer` 9901 十二轮脚本：短文本 / 700 分片长文本 / 10×HTTP500）→ **14/15 PASS**：自动增高 48→72 ✓、发送即双态 ✓、`已完成，用时 N秒` ✓、「已停止」 ✓、停止后保留 2423 字正文且未收全 ✓（证明真中断在途流）、500→错误条含原因+重试 ✓、点重试=重发上一条提示词并再次报错 ✓
   - 夹具实证：扁平 `settings.json {provider,model,endpoint}` **不生效**（引擎读默认 deepseek → 「未知的 Provider」）；必须 `JCC_VENDOR=openai` + `JCC_MODEL_ID=gpt-4o` + `JCC_ENDPOINT=http://localhost:9901/v1`（`EnvOverrideApplier` 据此写 vendor 预设 + 推断 `OPENAI_API_KEY`）+ `OPENAI_API_KEY=sk-test-...`
   - 观测：引擎就绪耗时 **24~25s**（`EngineSessionFactory.CreateGuiSessionAsync`）——F7 入 CI 需放宽就绪等待，另评估启动耗时（非 F1 范围）
-- [ ] **F1-x 🔴 流式增量透传缺陷（E2E 红复现，待决策）**：`StreamingFallbackDecorator.GetStreamEventContentsAsync` 因「try-catch 内禁 yield」先 `CollectWithFallbackAsync` 全量收集再统一 yield → 整轮**零增量**，只在流结束时一次性刷出。真机证据：700 分片 / 20ms 上游连续 10s 内 `.msg-column` 文本长度恒为 111（无新节点），停止瞬间批量补发 2423 字。影响面：LLM 层装饰器（`ServiceRegistration` 默认 `Enabled=true` 包装全部流式调用）→ GUI 与 TUI 均无逐字流式
-  - 修复方向（待确认）：首事件前仍可 fallback；一旦已向消费方 yield 内容则不再 fallback（失败上抛，由 GUI 错误条/CLI 报错承接）；配 ADR + 单测 + E2E 转绿
+- [ ] **F1-x 🔴 流式增量透传缺陷（已另立任务：[TASK043](../../../llm/docs/task/TASK043-流式增量透传与fallback边界任务.md)，用户决策「先提交、后修」）**：`StreamingFallbackDecorator.GetStreamEventContentsAsync` 因「try-catch 内禁 yield」先 `CollectWithFallbackAsync` 全量收集再统一 yield → 整轮**零增量**，只在流结束时一次性刷出。真机证据：700 分片 / 20ms 上游连续 10s 内 `.msg-column` 文本长度恒为 111（无新节点），停止瞬间批量补发 2423 字。影响面：LLM 层装饰器（`ServiceRegistration` 默认 `Enabled=true` 包装全部流式调用）→ GUI 与 TUI 均无逐字流式
+  - 当前处置：E2E 脚本 `dumps/f1-webui-flow.mjs` 将该项登记为**已知缺陷白名单**（输出 `KNOWN-DEFECT`、不计入失败退出码，保证 F7 入 CI 可跑），TASK043 修复后恢复为强制断言
 - [ ] F2 权限对话框（permission/request ↔ permission/response + 超时 fail-closed；host 现一律 Deny 且 UI 无处理）
 - [ ] F3 会话管理（session/create|delete|rename；「新会话」现为静态 DOM）
 - [ ] F4 模型/模式/工作区 chips（model/list + session/set-model|set-mode；现纯静态）
 - [ ] F5 消息动作（重试=以该 user 消息重发并截断后续 / 分支 / 点赞点踩本地态；现死按钮）
 - [ ] F6 设置面板（=P6-4）
-- [ ] F7 一键功能 E2E 入 CI（=P6-6，含 F1 脚本）
+- [ ] F7 一键功能 E2E 入 CI（=P6-6，含 F1 脚本；脚本需从 gitignored `dumps/` 迁至入库位置，启动 = MockServer + exe(`--webui`) + CDP 驱动，就绪等待按引擎 24~25s 放宽）
 
 ---
 

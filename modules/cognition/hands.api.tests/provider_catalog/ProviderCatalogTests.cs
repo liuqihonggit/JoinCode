@@ -60,7 +60,7 @@ public sealed class ProviderCatalogTests {
             new FakeSearchProvider("Tavily", 100, true),
             new FakeSearchProvider("SubAgent", 999, true),
         };
-        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(llmRegistry, searchProviders);
+        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(llmRegistry, searchProviders, Array.Empty<IWebFetchProvider>());
 
         var all = catalog.GetAll();
 
@@ -77,7 +77,7 @@ public sealed class ProviderCatalogTests {
             new FakeLlmDefinition("openai", "OpenAI", ProtocolKind.OpenAiCompatible, "sk-test")
         );
         var searchProviders = new ISearchProvider[] { new FakeSearchProvider("Tavily", 100, true) };
-        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(llmRegistry, searchProviders);
+        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(llmRegistry, searchProviders, Array.Empty<IWebFetchProvider>());
 
         var llms = catalog.GetByCategory(ProviderCategory.Llm);
 
@@ -94,7 +94,7 @@ public sealed class ProviderCatalogTests {
             new FakeSearchProvider("Tavily", 100, true),
             new FakeSearchProvider("Serper", 200, true),
         };
-        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(llmRegistry, searchProviders);
+        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(llmRegistry, searchProviders, Array.Empty<IWebFetchProvider>());
 
         var searches = catalog.GetByCategory(ProviderCategory.Search);
 
@@ -106,7 +106,7 @@ public sealed class ProviderCatalogTests {
         var llmRegistry = new FakeLlmRegistry(
             new FakeLlmDefinition("openai", "OpenAI", ProtocolKind.OpenAiCompatible, "sk-test")
         );
-        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(llmRegistry, Array.Empty<ISearchProvider>());
+        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(llmRegistry, Array.Empty<ISearchProvider>(), Array.Empty<IWebFetchProvider>());
 
         var found = catalog.TryGet("openai", out var descriptor);
 
@@ -117,7 +117,7 @@ public sealed class ProviderCatalogTests {
 
     [Fact]
     public void TryGet_UnknownName_ReturnsFalse() {
-        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(new FakeLlmRegistry(), Array.Empty<ISearchProvider>());
+        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(new FakeLlmRegistry(), Array.Empty<ISearchProvider>(), Array.Empty<IWebFetchProvider>());
 
         var found = catalog.TryGet("nonexistent", out var descriptor);
 
@@ -130,7 +130,7 @@ public sealed class ProviderCatalogTests {
         var llmRegistry = new FakeLlmRegistry(
             new FakeLlmDefinition("openai", "OpenAI", ProtocolKind.OpenAiCompatible, "sk-test")
         );
-        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(llmRegistry, Array.Empty<ISearchProvider>());
+        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(llmRegistry, Array.Empty<ISearchProvider>(), Array.Empty<IWebFetchProvider>());
 
         catalog.TryGet("openai", out var desc);
         Assert.True(desc?.SupportsOpenAiFormat);
@@ -141,7 +141,7 @@ public sealed class ProviderCatalogTests {
         var llmRegistry = new FakeLlmRegistry(
             new FakeLlmDefinition("anthropic", "Anthropic", ProtocolKind.Anthropic, "sk-test")
         );
-        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(llmRegistry, Array.Empty<ISearchProvider>());
+        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(llmRegistry, Array.Empty<ISearchProvider>(), Array.Empty<IWebFetchProvider>());
 
         catalog.TryGet("anthropic", out var desc);
         Assert.False(desc?.SupportsOpenAiFormat);
@@ -150,7 +150,7 @@ public sealed class ProviderCatalogTests {
     [Fact]
     public void SearchDescriptor_SupportsOpenAiFormatAlwaysFalse() {
         var searchProviders = new ISearchProvider[] { new FakeSearchProvider("Tavily", 100, true) };
-        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(new FakeLlmRegistry(), searchProviders);
+        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(new FakeLlmRegistry(), searchProviders, Array.Empty<IWebFetchProvider>());
 
         catalog.TryGet("Tavily", out var desc);
         Assert.False(desc?.SupportsOpenAiFormat);
@@ -161,7 +161,7 @@ public sealed class ProviderCatalogTests {
         var llmRegistry = new FakeLlmRegistry(
             new FakeLlmDefinition("openai", "OpenAI", ProtocolKind.OpenAiCompatible, "sk-test")
         );
-        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(llmRegistry, Array.Empty<ISearchProvider>());
+        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(llmRegistry, Array.Empty<ISearchProvider>(), Array.Empty<IWebFetchProvider>());
 
         catalog.TryGet("openai", out var desc);
         Assert.True(desc?.IsAvailable);
@@ -172,7 +172,7 @@ public sealed class ProviderCatalogTests {
         var llmRegistry = new FakeLlmRegistry(
             new FakeLlmDefinition("openai", "OpenAI", ProtocolKind.OpenAiCompatible, null)
         );
-        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(llmRegistry, Array.Empty<ISearchProvider>());
+        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(llmRegistry, Array.Empty<ISearchProvider>(), Array.Empty<IWebFetchProvider>());
 
         catalog.TryGet("openai", out var desc);
         Assert.False(desc?.IsAvailable);
@@ -183,7 +183,7 @@ public sealed class ProviderCatalogTests {
         var llmRegistry = new FakeLlmRegistry(
             new FakeLlmDefinition("openai", "OpenAI", ProtocolKind.OpenAiCompatible, "sk-test")
         );
-        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(llmRegistry, Array.Empty<ISearchProvider>());
+        var catalog = new Services.Web.ProviderCatalog.ProviderCatalog(llmRegistry, Array.Empty<ISearchProvider>(), Array.Empty<IWebFetchProvider>());
 
         catalog.TryGet("openai", out var desc);
         Assert.Equal("OpenAI", desc?.DisplayName);

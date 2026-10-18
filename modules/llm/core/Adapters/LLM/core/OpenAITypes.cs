@@ -123,7 +123,7 @@ internal sealed class OpenAIMessageContent {
 internal sealed class OpenAIContentPart {
     /// <summary>获取或设置内容块类型。</summary>
     [JsonPropertyName("type")]
-    public string Type { get; set; } = "text";
+    public string Type { get; set; } = AnthropicContentBlockType.Text.ToValue();
 
     /// <summary>获取或设置文本内容。</summary>
     [JsonPropertyName("text")]

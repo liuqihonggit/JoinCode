@@ -478,4 +478,83 @@ public sealed class RgSubCommandTests {
         opts.Should().NotBeNull();
         opts!.OutputMode.Should().Be(SearchOutputMode.Count);
     }
+
+    // ===== stdin `-` 识别（改动 1：jcc rg stdin 支持）=====
+
+    /// <summary>
+    /// 单独的 `-` 作为第一个位置参数时，应被识别为 pattern（从 stdin 读取搜索词）。
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void ParseArgs_连字符作为pattern_应识别为stdinPattern() {
+        var opts = RgSubCommand.ParseArgs(["rg", "-", "src/"]);
+        opts.Should().NotBeNull();
+        opts!.Pattern.Should().Be("-");
+        opts.Paths.Should().ContainSingle().Which.Should().Be("src/");
+    }
+
+    /// <summary>
+    /// `-` 作为第二个位置参数（pattern 已有）时，应被识别为 path（从 stdin 读取搜索内容）。
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void ParseArgs_连字符作为path_应识别为stdinPath() {
+        var opts = RgSubCommand.ParseArgs(["rg", "foo", "-"]);
+        opts.Should().NotBeNull();
+        opts!.Pattern.Should().Be("foo");
+        opts.Paths.Should().ContainSingle().Which.Should().Be("-");
+    }
+
+    /// <summary>
+    /// pattern 和 path 同时为 `-` 时，ParseArgs 不报错（返回 Pattern="-", Paths=["-"]），
+    /// 由 ExecuteAsync 检测两者同时为 `-` 并报错退出码 1（stdin 只能读一次）。
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void ParseArgs_pattern和path同时为连字符_解析层不拦截() {
+        var opts = RgSubCommand.ParseArgs(["rg", "-", "-"]);
+        opts.Should().NotBeNull();
+        opts!.Pattern.Should().Be("-");
+        opts.Paths.Should().ContainSingle().Which.Should().Be("-");
+    }
+
+    /// <summary>
+    /// 多个 path 中混合 `-` 和普通路径时，`-` 应被加入 paths 列表。
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void ParseArgs_混合连字符和普通路径_连字符加入paths() {
+        var opts = RgSubCommand.ParseArgs(["rg", "foo", "-", "src/"]);
+        opts.Should().NotBeNull();
+        opts!.Pattern.Should().Be("foo");
+        opts.Paths.Should().HaveCount(2);
+        opts.Paths.Should().ContainInOrder("-", "src/");
+    }
+
+    /// <summary>
+    /// `-` 作为 pattern 且带选项时，选项应正确解析，pattern 保持为 `-`。
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void ParseArgs_连字符pattern带选项_选项正确解析() {
+        var opts = RgSubCommand.ParseArgs(["rg", "-", "modules/abstractions", "--type", "cs", "-l"]);
+        opts.Should().NotBeNull();
+        opts!.Pattern.Should().Be("-");
+        opts.Paths.Should().ContainSingle().Which.Should().Be("modules/abstractions");
+        opts.FileType.Should().Be("cs");
+        opts.OutputMode.Should().Be(SearchOutputMode.Files);
+    }
+
+    /// <summary>
+    /// `-` 作为 path 且带行号选项时，选项应正确解析，path 保持为 `-`。
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void ParseArgs_连字符path带行号选项_选项正确解析() {
+        var opts = RgSubCommand.ParseArgs(["rg", "foo", "-", "-n"]);
+        opts.Should().NotBeNull();
+        opts!.Pattern.Should().Be("foo");
+        opts.Paths.Should().ContainSingle().Which.Should().Be("-");
+        opts.LineNumbers.Should().BeTrue();
+    }
 }

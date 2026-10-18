@@ -1,4 +1,6 @@
 global using System.Diagnostics.CodeAnalysis;
+global using System.Net.Http;
+global using System.Text;
 global using FluentAssertions;
 global using IO.FileSystem;
 global using JoinCode.Abstractions.Interfaces;
@@ -14,8 +16,11 @@ global using JoinCode.Hands.Desktop.Native;
 global using JoinCode.Vision.Quadtree;
 global using JoinCode.Vision.Rendering;
 global using Moq;
+global using Services.Api;
 global using Services.Notebook.ToolHandlers;
+global using Services.Web;
 global using System.Collections.Frozen;
+global using System.Reflection;
 global using System.Text.Json;
 global using Testing.Common;
 global using Tools;

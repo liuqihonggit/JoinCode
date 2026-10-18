@@ -65,7 +65,8 @@
 - [x] P6-0a 产品 GUI 接入 WebView2 宿主（四件套落地）：TFM 平台化 `net10.0-windows10.0.26100.0` + `WebView2EnableCsWinRTProjection` + x64 + app.manifest 免注册 WinRT；`webui/` 静态资源随包分发；`--webui` 开关（默认 MainWindow 不变），`--webui-smoke` 冒烟（READY + NAVIGATED 双标记，退出码 0/2/3）
   - 验证：Debug 全绿（0 警告 0 错误）；GUI 测试套件 568 通过/0 失败；真机冒烟 `WEBVIEW2-READY runtime=155.0.4283.62` + `WEBUI-NAVIGATED success=True`，退出码 0
   - 附：测试工程 JCC9001 预存编译失败（HEAD 即红）已按诊断产物豁免惯例修复（6 文件 pragma + 豁免理由）
-- [ ] P6-0b 桥接协议（C# ⇄ Web 消息面：会话流/权限确认/工具事件 + token 注入约定）
+- [x] P6-0b 桥接协议（[ADR 0141](../../../../docs/implemented/adr/architecture/0141-webui-bridge-protocol.md) accepted）：类型化判别信封（type + 内联字段，`[JsonPolymorphic]` + `BridgeJsonContext` 源生成，AOT 安全）；首版 10 消息类型（web/ready·chat/send·permission/response·smoke/pong ⇄ app/init·chat/delta·chat/done·permission/request·smoke/ping·app/error）；web/ready 握手 + app/init 应答；未知消息 fail-closed + app/error 诱导；`webui/js/bridge.js` 薄层（jccBridge 零依赖）
+  - 验证：单测 23 绿（全类型 roundtrip/判别字段/未知 type/非法 JSON）；E2E 红→绿（无 bridge.js 退出码 4 超时 → 实现后退出码 0，`BRIDGE web/ready` + `BRIDGE-SMOKE ok nonce=...` ~100ms）；全量 GUI 591 通过；L3 基帧 meanDelta 1.7927 无漂移 + 交互态 0 不一致
 - [ ] P6-1 侧栏（工作区/会话列表）
 - [ ] P6-2 composer（输入区）
 - [ ] P6-3 对话消息区
@@ -98,4 +99,22 @@
 <!-- 原因: 违规点为帧图落盘（dumps 约定）/仓库根定位/临时目录夹具，均为测试基础设施且需真实文件系统语义；项目已有 JCC3010/JCC3013 同款豁免惯例 -->
 <!-- 替代方案: InMemoryFileSystem 替换（帧图产物即真实文件诉求，InMemory 语义错误，弃） -->
 <!-- 验证: HEAD 复现 36 错误（预存红）→ 修复后 0 警告 0 错误，568 测试全绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: 桥接协议用"类型判别信封（type + 内联字段）"而非 JSON-RPC/嵌套 payload -->
+<!-- 原因: [JsonPolymorphic]+源生成在 AOT 下零反射直出，record 结构相等让 roundtrip 单测极简；JSON-RPC 的 params 弱类型违反 ADR 0133 禁动态解析 -->
+<!-- 替代方案: ① JSON-RPC 2.0（params=JsonElement 动态，弃）；② AddHostObjectToScript（AOT 不可用，spike 已证） -->
+<!-- 验证: 23 单测绿 + 真机冒烟退出码 0 + 全量 591 绿 + 像素零漂移 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: 冒烟契约含 web/ready 握手（非仅 ping/pong），退出码新增 4=桥接超时/nonce 不符 -->
+<!-- 原因: 页面脚本先于 NAVIGATED 执行（实测 ready 早 3ms），若 host 订阅晚于页面就绪会丢信号；握手把"页面就绪"显式化为协议事件，看门狗兜底 -->
+<!-- 替代方案: 仅导航完成即发 ping（时序竞态：订阅前消息丢失，弃）；轮询 ExecuteScript 探测（绕协议，弃） -->
+<!-- 验证: E2E 红（无 bridge.js → 退出码 4）→ 绿（握手 + nonce 往返 ~100ms 退出码 0）✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: P6-0b 收尾时 ADR 0141 先以 proposed 写入 docs/proposed/adr/architecture/ 随实现验证后迁 implemented 并改 accepted -->
+<!-- 原因: 遵循 AGENTS "新架构决策必须先写 ADR 再实现 + 实现后改状态" 工作流；编号取 0141 避开 main 上 TASK053 文本预占的 0140（SSRF fail-closed） -->
+<!-- 替代方案: 直接用 0140（与并行分支预占冲突风险，弃） -->
+<!-- 验证: ADR 迁移 + docs/README 计数同步（152→153 / 9→8 / 125→126）✅ -->
 

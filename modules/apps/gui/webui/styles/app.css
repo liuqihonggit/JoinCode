@@ -23,14 +23,18 @@ button:disabled { cursor: default; }
 .chip:hover,
 .mode-chip:hover,
 .model-chip:hover,
-.corner:hover { background-color: var(--dsw-alias-interactive-bg-hover); }
+.corner:hover,
+.project-row:hover,
+.session-row:not(.selected):hover { background-color: var(--dsw-alias-interactive-bg-hover); }
 
 .icon-btn:active,
 .panel-row:active,
 .settings-btn:active,
 .chip:active,
 .mode-chip:active,
-.model-chip:active { background-color: var(--dsw-alias-interactive-bg-hover); }
+.model-chip:active,
+.project-row:active,
+.session-row:not(.selected):active { background-color: var(--dsw-alias-interactive-bg-hover); }
 
 .corner:active { background-color: var(--dsw-alias-interactive-bg-active); }
 
@@ -165,6 +169,7 @@ button:disabled { cursor: default; }
   gap: 6px;
   font-size: 14px;
   color: var(--dsw-alias-label-primary);
+  cursor: pointer;
 }
 
 .project-row .icon {
@@ -179,6 +184,7 @@ button:disabled { cursor: default; }
 
 .session-row {
   height: 32px;
+  margin-top: 2px;
   border-radius: 12px;
   padding: 0 8px;
   display: flex;
@@ -186,6 +192,7 @@ button:disabled { cursor: default; }
   gap: 4px;
   font-size: 14px;
   color: var(--dsw-alias-label-primary);
+  cursor: pointer;
 }
 
 .session-row.selected { background: var(--dsw-alias-interactive-bg-hover); }

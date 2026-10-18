@@ -3,14 +3,17 @@ namespace JoinCode.Gui.WebView;
 /// <summary>
 /// WebUI 宿主窗口 — 内容区由 WebView2 承载自研 Web UI（B2 路线，ADR 0138）。
 /// 由 <c>--webui</c> 启动参数启用；<c>--webui-smoke</c> 为 E2E 冒烟：
-/// 导航成功 → 等 web/ready 握手 → smoke/ping·smoke/pong 往返（5s 看门狗）。
+/// 导航成功 → 等 web/ready 握手 → smoke/ping·smoke/pong 往返 + sessions/list·web/sessions-rendered 往返（5s 看门狗）。
 /// 退出码：0 全通 / 2 导航失败 / 3 初始化失败 / 4 桥接超时或 nonce 不符（ADR 0141 决策 5）。
 /// 初始化失败时窗口内展示回退提示（不崩溃），并写入启动诊断日志。
 /// </summary>
 internal sealed class WebUiWindow : Window {
     private readonly bool _smoke;
     private readonly WebView2Host _host;
+    private readonly Persistence.GuiSessionStore _sessionStore = new(new IO.FileSystem.PhysicalFileSystem());
     private string? _smokeNonce;
+    private bool _smokePongOk;
+    private bool _smokeRendered;
 
     /// <summary>构造 WebUI 窗口</summary>
     /// <param name="pageUri">页面 URI（file:// 离线加载）</param>
@@ -29,7 +32,7 @@ internal sealed class WebUiWindow : Window {
         Content = _host;
     }
 
-    /// <summary>桥接消息处理：web/ready 握手回 app/init（冒烟附带 ping）；冒烟校验 smoke/pong</summary>
+    /// <summary>桥接消息处理：web/ready 握手回 app/init + 下发会话列表（冒烟附带 ping）；冒烟校验 pong + 列表渲染 ACK</summary>
     private void OnBridgeMessage(BridgeMessage message) {
         switch (message) {
             case WebReadyMessage:
@@ -37,19 +40,54 @@ internal sealed class WebUiWindow : Window {
                 _host.Send(new AppInitMessage(
                     GuiPalette.CurrentVariant.ToString(),
                     typeof(WebUiWindow).Assembly.GetName().Version?.ToString() ?? "dev"));
+                _ = SendSessionsListAsync();
                 if (_smoke) {
                     _smokeNonce = Guid.NewGuid().ToString("N");
                     _host.Send(new SmokePingMessage(_smokeNonce));
                 }
                 break;
+            case SessionSelectMessage select:
+                App.LogDiag($"[WebUI] BRIDGE session/select id={select.Id}");
+                break;
             case SmokePongMessage pong when _smoke:
-                var matched = pong.Nonce == _smokeNonce;
-                App.LogDiag(matched
-                    ? $"[WebUI] BRIDGE-SMOKE ok nonce={pong.Nonce}"
-                    : $"[WebUI] BRIDGE-SMOKE mismatch got={pong.Nonce} want={_smokeNonce}");
-                Environment.Exit(matched ? 0 : 4);
+                if (pong.Nonce != _smokeNonce) {
+                    App.LogDiag($"[WebUI] BRIDGE-SMOKE mismatch got={pong.Nonce} want={_smokeNonce}");
+                    Environment.Exit(4);
+                    break;
+                }
+                _smokePongOk = true;
+                TryCompleteSmoke();
+                break;
+            case WebSessionsRenderedMessage rendered when _smoke:
+                App.LogDiag($"[WebUI] BRIDGE-SMOKE sessions-rendered count={rendered.Count}");
+                _smokeRendered = true;
+                TryCompleteSmoke();
                 break;
         }
+    }
+
+    /// <summary>读取真实会话列表下发 web（sessions/list）；失败回 app/error 指引（fail-closed，不崩溃）</summary>
+    private async Task SendSessionsListAsync() {
+        try {
+            var summaries = await _sessionStore.ListSessionsAsync();
+            var sessions = summaries
+                .Select(s => new SessionSummaryDto(s.Id, string.IsNullOrWhiteSpace(s.Title) ? s.Id : s.Title))
+                .ToList();
+            _host.Send(new SessionsListMessage(sessions));
+            App.LogDiag($"[WebUI] BRIDGE sessions/list count={sessions.Count}");
+        } catch (Exception ex) {
+            App.LogDiag($"[WebUI] sessions/list failed: {ex.Message}");
+            _host.Send(new AppErrorMessage("会话列表读取失败", "检查 sessions 目录权限后重开窗口"));
+        }
+    }
+
+    /// <summary>冒烟完成判定：pong nonce 匹配 + 会话列表渲染 ACK 均到达后退出码 0</summary>
+    private void TryCompleteSmoke() {
+        if (!_smokePongOk || !_smokeRendered) {
+            return;
+        }
+        App.LogDiag($"[WebUI] BRIDGE-SMOKE ok nonce={_smokeNonce}");
+        Environment.Exit(0);
     }
 
     /// <summary>WebView2 初始化失败回退：窗口内提示 + 冒烟退出码 3</summary>

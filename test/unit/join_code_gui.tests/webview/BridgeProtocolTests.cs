@@ -18,6 +18,9 @@ public sealed class BridgeProtocolTests {
         new PermissionRequestMessage("req-1", "bash", "允许在当前目录执行 shell 命令？"),
         new SmokePingMessage("nonce-abc"),
         new AppErrorMessage("未知消息类型", "检查 webui/js/bridge.js 的 type 注册"),
+        new SessionsListMessage([new SessionSummaryDto("s1", "重构桥接层"), new SessionSummaryDto("s2", "s2")]),
+        new SessionSelectMessage("s1"),
+        new WebSessionsRenderedMessage(2),
     };
 
     [Theory]
@@ -25,7 +28,20 @@ public sealed class BridgeProtocolTests {
     public void Roundtrip_SerializeThenTryParse_EqualToOriginal(BridgeMessage message) {
         var json = BridgeProtocol.Serialize(message);
         BridgeProtocol.TryParse(json, out var parsed).Should().BeTrue($"消息 {message.GetType().Name} 应可解析");
-        parsed.Should().Be(message, "往返后应等值（record 结构相等）");
+        if (parsed is null) {
+            throw new InvalidOperationException($"TryParse 返回 true 但 parsed 为 null（协议实现违反 NotNullWhen 契约）：{message.GetType().Name}");
+        }
+        AssertEquivalent(message, parsed);
+    }
+
+    /// <summary>结构等价：含集合字段的消息逐元素比较（record 相等性对集合是引用比较，roundtrip 后必然不同）</summary>
+    private static void AssertEquivalent(BridgeMessage expected, BridgeMessage actual) {
+        if (expected is SessionsListMessage sessions) {
+            var parsedSessions = actual.Should().BeOfType<SessionsListMessage>().Subject;
+            parsedSessions.Sessions.Should().Equal(sessions.Sessions, "会话摘要须逐项相等");
+            return;
+        }
+        actual.Should().Be(expected, "往返后应等值（record 结构相等）");
     }
 
     [Theory]

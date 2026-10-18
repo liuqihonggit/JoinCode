@@ -34,6 +34,9 @@ public static class BridgeProtocol {
 [JsonDerivedType(typeof(PermissionRequestMessage), "permission/request")]
 [JsonDerivedType(typeof(SmokePingMessage), "smoke/ping")]
 [JsonDerivedType(typeof(AppErrorMessage), "app/error")]
+[JsonDerivedType(typeof(SessionsListMessage), "sessions/list")]
+[JsonDerivedType(typeof(SessionSelectMessage), "session/select")]
+[JsonDerivedType(typeof(WebSessionsRenderedMessage), "web/sessions-rendered")]
 public abstract record BridgeMessage;
 
 /// <summary>web→host：页面脚本就绪（握手起点，host 收到后回 app/init）</summary>
@@ -78,6 +81,23 @@ public sealed record SmokePingMessage(string Nonce) : BridgeMessage;
 /// <param name="Reason">原因</param>
 /// <param name="Guidance">下一步正确做法</param>
 public sealed record AppErrorMessage(string Reason, string Guidance) : BridgeMessage;
+
+/// <summary>host→web：会话列表快照（web/ready 后宿主读取 GuiSessionStore 下发；空列表表示无历史会话）</summary>
+/// <param name="Sessions">会话摘要列表（按最近修改倒序）</param>
+public sealed record SessionsListMessage(IReadOnlyList<SessionSummaryDto> Sessions) : BridgeMessage;
+
+/// <summary>会话摘要（sessions/list 传输单元）</summary>
+/// <param name="Id">会话标识</param>
+/// <param name="Title">显示标题（宿主保证非空，缺省回填会话 Id）</param>
+public sealed record SessionSummaryDto(string Id, string Title);
+
+/// <summary>web→host：用户点选侧栏会话</summary>
+/// <param name="Id">会话标识</param>
+public sealed record SessionSelectMessage(string Id) : BridgeMessage;
+
+/// <summary>web→host：会话列表渲染完成（冒烟验收钩子；宿主据此确认真实数据链路通）</summary>
+/// <param name="Count">实际渲染的会话行数</param>
+public sealed record WebSessionsRenderedMessage(int Count) : BridgeMessage;
 
 /// <summary>桥接协议源生成上下文（属性 camelCase；判别字段 type 由 [JsonPolymorphic] 注入）</summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]

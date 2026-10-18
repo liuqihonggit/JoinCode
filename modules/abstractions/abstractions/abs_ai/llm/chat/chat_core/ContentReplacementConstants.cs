@@ -9,6 +9,13 @@ public static class ContentReplacementConstants {
     public const string NoOutputTemplate = "({0} completed with no output)";
 
     /// <summary>
+    /// 统一输出截断阈值环境变量名 — 所有工具(bash/gh/grep 等)共用
+    /// <para>默认 30000(对齐 bash), 设置后覆盖 DefaultMaxResultSizeChars 和工具级映射值(除 -1 永不持久化)</para>
+    /// <para>示例: JCC_MAX_OUTPUT_CHARS=10000 可更节省 token</para>
+    /// </summary>
+    public const string MaxOutputCharsEnvVar = "JCC_MAX_OUTPUT_CHARS";
+
+    /// <summary>
     /// 对齐 TS TOOL_RESULT_CLEARED_MESSAGE — 工具结果内容被清除但未持久化时的替换消息
     /// 场景: 上下文压缩(compact)清除旧工具结果时使用
     /// </summary>
@@ -39,16 +46,21 @@ public static class ContentReplacementConstants {
 
     /// <summary>
     /// 获取工具的持久化阈值 — 对齐 TS getPersistenceThreshold
-    /// 逻辑: Infinity(-1) → 返回 -1(永不持久化); 否则 Math.min(声明值, DefaultMaxResultSizeChars)
+    /// <para>逻辑: Infinity(-1) → 返回 -1(永不持久化); 否则返回环境变量 JCC_MAX_OUTPUT_CHARS 值(默认 30000, 对齐 bash)</para>
+    /// <para>统一环境变量: 所有工具(含 gh_*)共用同一阈值, -1 永不持久化除外</para>
     /// </summary>
     public static int GetPersistenceThreshold(string toolName) {
-        if (!ToolMaxResultSizeChars.TryGetValue(toolName, out var declared))
-            return DefaultMaxResultSizeChars; // 未声明的工具使用默认值
-
-        if (declared < 0)
+        if (ToolMaxResultSizeChars.TryGetValue(toolName, out var declared) && declared < 0)
             return declared; // Infinity → 永不持久化
 
-        return Math.Min(declared, DefaultMaxResultSizeChars);
+        var envValue = Environment.GetEnvironmentVariable(MaxOutputCharsEnvVar);
+        if (int.TryParse(envValue, out var envThreshold) && envThreshold > 0)
+            return envThreshold;
+
+        if (ToolMaxResultSizeChars.TryGetValue(toolName, out declared))
+            return Math.Min(declared, DefaultMaxResultSizeChars);
+
+        return DefaultMaxResultSizeChars;
     }
 
     /// <summary>

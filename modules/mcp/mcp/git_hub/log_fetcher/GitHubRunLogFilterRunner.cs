@@ -62,13 +62,14 @@ internal sealed class GitHubRunLogFilterRunner {
     internal static readonly TimeSpan CacheTtl = GhCacheService.LogTtl;
 
     /// <summary>
-    /// 并行下载并发限制 — 从环境变量 JCC_GH_MAX_CONCURRENCY 读取,默认 16
-    /// <para>用户可通过环境变量调整并发度,如 JCC_GH_MAX_CONCURRENCY=32</para>
+    /// 并行下载并发限制 — 从环境变量 JCC_GH_MAX_CONCURRENCY 读取,默认 Math.Max(16, ProcessorCount*4)
+    /// <para>IO 密集型下载: 线程大部分时间等网络,并发应远高于 CPU 核数(典型 8 核 = 32 并发)</para>
+    /// <para>用户可通过环境变量调整并发度,如 JCC_GH_MAX_CONCURRENCY=64</para>
     /// </summary>
     internal static int GetMaxConcurrency() {
         var env = Environment.GetEnvironmentVariable("JCC_GH_MAX_CONCURRENCY");
         if (int.TryParse(env, out var n) && n > 0) return n;
-        return Environment.ProcessorCount + 1;
+        return Math.Max(16, Environment.ProcessorCount * 4);
     }
 
     /// <summary>
@@ -83,6 +84,18 @@ internal sealed class GitHubRunLogFilterRunner {
         _cacheService = cacheService;
         _compactLinePrefix = compactLinePrefix;
         _logger = logger;
+        _runLogFetcher = CreateLogFetcher();
+    }
+
+    /// <summary>Run 日志下载策略 — 默认 ParallelJobLogFetcher(并行最快),JCC_RUN_LOG_FETCHER=zip 用 ZipRunLogFetcher</summary>
+    private readonly IRunLogFetcher _runLogFetcher;
+
+    /// <summary>根据 JCC_RUN_LOG_FETCHER 环境变量创建日志下载策略 — 默认并行,zip=备选</summary>
+    private IRunLogFetcher CreateLogFetcher() {
+        var env = Environment.GetEnvironmentVariable("JCC_RUN_LOG_FETCHER");
+        return string.Equals(env, "zip", StringComparison.OrdinalIgnoreCase)
+            ? new ZipRunLogFetcher(this)
+            : new ParallelJobLogFetcher(this);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -109,7 +122,7 @@ internal sealed class GitHubRunLogFilterRunner {
             var jobIds = GitHubRunLogFilter.ParseJobIds(jobId);
             return DownloadJobsParallelAsync(owner, repo, runId, jobIds, wantRefresh, ct, maxConcurrency);
         }
-        return GetOrFetchRunLogsAsync(owner, repo, runId, wantRefresh, ct);
+        return _runLogFetcher.FetchAsync(owner, repo, runId, wantRefresh, ct, maxConcurrency);
     }
 
     /// <summary>
@@ -593,7 +606,8 @@ internal sealed class GitHubRunLogFilterRunner {
     public async Task<ToolResult> StreamAndFilterAsync(
         string owner, string repo, string runId, string? jobId, bool failedOnly,
         string scope, FrozenSet<string>? markers, GitHubLogFilter? filterLevel,
-        int maxLines, CancellationToken ct, string? hint = null, int skipLines = 0, bool wantRefresh = false) {
+        int maxLines, CancellationToken ct, string? hint = null, int skipLines = 0, bool wantRefresh = false,
+        bool forceSmartStart = false) {
         var matched = new List<string>(maxLines);
         var skipped = 0;
         var lineNumber = 0;
@@ -608,8 +622,9 @@ internal sealed class GitHubRunLogFilterRunner {
 
         // 优化B: expand=failed 无 filter 时智能定位错误行,不从 runner setup 从头开始
         // 优化C: filter=error 也走智能定位(首屏即见真正错误行),但无错误行时不回退 tail(返回空→"未匹配到任何日志行")
-        // 优化E: 指定 jobId + 无 filter 时也走智能定位(expand=failed 按 job 分组,避免从头输出 setup 行)
-        var smartStartNoFilter = markers is null && (failedOnly || !string.IsNullOrWhiteSpace(jobId));
+        // 优化E 已撤销: 指定 jobId + 无 filter 时从开头分页(用户要求第一页首行=1,每页20行按页翻)
+        // forceSmartStart: expand=failed 排障模式强制 smart start(跳到错误行附近)
+        var smartStartNoFilter = markers is null && (failedOnly || forceSmartStart);
         var smartStartWithErrorFilter = markers is not null && markers.Contains(CiLogAnalyzer.ErrorMarker);
         if (smartStartNoFilter || smartStartWithErrorFilter) {
             var fallbackOnNoError = smartStartNoFilter;

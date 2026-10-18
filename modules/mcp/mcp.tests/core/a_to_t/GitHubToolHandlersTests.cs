@@ -1916,8 +1916,12 @@ internal sealed class FakeGitHubApiClient : IGitHubApiClient {
         LastPath = path;
         LastBody = body;
         LastQuery = query ?? new Dictionary<string, string>();
-        var response = _responses.Count > 0 ? _responses.Dequeue() : _default;
-        return Task.FromResult(response);
+        if (_responses.Count > 0)
+            return Task.FromResult(_responses.Dequeue());
+        // job 列表请求且无显式 mock: 返回含异常 job,让 ParallelJobLogFetcher 能下载日志
+        if (path.Contains("/actions/runs/") && path.Contains("/jobs"))
+            return Task.FromResult(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[{"id":1,"conclusion":"failure","status":"completed","name":"test"}]}""" });
+        return Task.FromResult(_default);
     }
 
     public async IAsyncEnumerable<string> GetRunLogsAsync(string owner, string repo, long runId, [EnumeratorCancellation] CancellationToken ct = default) {

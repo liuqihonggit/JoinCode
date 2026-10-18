@@ -29,7 +29,7 @@ public partial class GitHubToolHandlers {
             if (comments == true) {
                 var prResult = await client.SendAsync(HttpMethod.Get, apiPath, ct: cancellationToken).ConfigureAwait(false);
                 if (!prResult.Success) return Fail(prResult.Error);
-                var summary = FormatGhOutput(prResult.Body, common.Verbosity, common.JsonFields, SummarizePr, "number,title,state,head_branch,user,html_url", common.Jq);
+                var summary = FormatGhOutput(prResult.Body, common.Verbosity, common.JsonFields, SummarizePr, "number,title,state,head_branch,user,html_url", common.Jq, common.SkipLines, common.StartLine, "gh_pr_view");
                 var commentsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues/{number}/comments", ct: cancellationToken).ConfigureAwait(false);
                 if (!commentsResult.Success) return Fail(commentsResult.Error);
                 return Ok($"{summary}\n\n## 评论\n{SummarizeComments(commentsResult.Body)}");
@@ -93,14 +93,14 @@ public partial class GitHubToolHandlers {
                 var query = new Dictionary<string, string> { ["q"] = q, ["per_page"] = pageCount };
                 var result = await client.SendAsync(HttpMethod.Get, "search/issues", query: query, ct: cancellationToken).ConfigureAwait(false);
                 if (!result.Success) return Fail(result.Error);
-                return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizePrList, compactFields, common?.Jq));
+                return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizePrList, compactFields, common?.Jq, common?.SkipLines, common?.StartLine, "gh_pr_list"));
             }
             var pullsQuery = new Dictionary<string, string> { ["state"] = stateVal, ["per_page"] = pageCount };
             if (!string.IsNullOrWhiteSpace(@base)) pullsQuery["base"] = @base;
             if (!string.IsNullOrWhiteSpace(head)) pullsQuery["head"] = head;
             var pullsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls", query: pullsQuery, ct: cancellationToken).ConfigureAwait(false);
             if (!pullsResult.Success) return Fail(pullsResult.Error);
-            return Ok(FormatGhOutput(pullsResult.Body, common?.Verbosity, common?.JsonFields, SummarizePrList, compactFields, common?.Jq));
+            return Ok(FormatGhOutput(pullsResult.Body, common?.Verbosity, common?.JsonFields, SummarizePrList, compactFields, common?.Jq, common?.SkipLines, common?.StartLine, "gh_pr_list"));
         }).ConfigureAwait(false);
 
     /// <summary>

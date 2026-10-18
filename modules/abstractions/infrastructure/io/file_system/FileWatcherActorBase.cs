@@ -117,8 +117,7 @@ public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
     }
 
     private async ValueTask StopWatcherCoreAsync() {
-        if (_watcher is null)
-            return;
+        if (_watcher is null) return;
         _watcher.DebouncedChanged -= OnWatcherChanged;
         _watcher.DebouncedCreated -= OnWatcherChanged;
         _watcher.DebouncedDeleted -= OnWatcherChanged;
@@ -136,10 +135,19 @@ public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
         => TrySend(new FileRenamedCmd(e.OldFullPath, e.FullPath, DateTimeOffset.UtcNow));
 
     /// <summary>
-    /// 释放 Actor — 先发停止命令让 Consumer 停 watcher,再等待 Consumer 退出,最后 fallback 释放。
+    /// 释放 Actor — 发停止命令让 Consumer 清理 _watcher,等 Consumer 退出后由 PostStopAsync 兜底。
+    /// <para>不直接访问 _watcher(遵守 Consumer 独占约定),所有状态清理在 Consumer 线程或 PostStopAsync(Consumer 退出后)进行。</para>
     /// </summary>
     public override async ValueTask DisposeAsync() {
         TrySend(new FileWatcherStopCmd());
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Consumer 退出后兜底清理 _watcher — 若 Consumer 已处理 StopCmd 则 _watcher 为 null 跳过;若被强制退出则兜底释放。
+    /// <para>此时 Consumer 已退出,_watcher 不再被任何线程访问,可安全直接访问(无竞态,无需局部变量捕获)。</para>
+    /// </summary>
+    protected override async ValueTask PostStopAsync() {
         if (_watcher is not null) {
             _watcher.DebouncedChanged -= OnWatcherChanged;
             _watcher.DebouncedCreated -= OnWatcherChanged;
@@ -148,6 +156,6 @@ public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
             await _watcher.DisposeAsync().ConfigureAwait(false);
         }
         _watcher = null;
-        await base.DisposeAsync().ConfigureAwait(false);
+        await base.PostStopAsync().ConfigureAwait(false);
     }
 }

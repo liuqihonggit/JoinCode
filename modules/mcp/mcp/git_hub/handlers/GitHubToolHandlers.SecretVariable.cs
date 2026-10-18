@@ -15,7 +15,7 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/secrets", ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeSecretList, "name,created_at", common?.Jq));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeSecretList, "name,created_at", common?.Jq, common?.SkipLines, common?.StartLine, "gh_secret_list"));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -97,7 +97,7 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/variables", ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeVariableList, "name,value,created_at,updated_at", common?.Jq));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeVariableList, "name,value,created_at,updated_at", common?.Jq, common?.SkipLines, common?.StartLine, "gh_variable_list"));
         }).ConfigureAwait(false);
 
     /// <summary>

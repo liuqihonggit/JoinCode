@@ -17,7 +17,7 @@ public partial class GitHubToolHandlers {
             var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 50).ToString() };
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/workflows", query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
-            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, body => SummarizeWorkflowList(body, all == true), "id,name,state,path", common?.Jq));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, body => SummarizeWorkflowList(body, all == true), "id,name,state,path", common?.Jq, common?.SkipLines, common?.StartLine, "gh_workflow_list"));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -62,7 +62,7 @@ public partial class GitHubToolHandlers {
                 var yamlContent = TryExtractWorkflowYaml(result.Body);
                 if (yamlContent is not null) return Ok(yamlContent);
             }
-            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeWorkflowView, "id,name,state,path,html_url", common?.Jq));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeWorkflowView, "id,name,state,path,html_url", common?.Jq, common?.SkipLines, common?.StartLine, "gh_workflow_view"));
         }).ConfigureAwait(false);
 
     /// <summary>

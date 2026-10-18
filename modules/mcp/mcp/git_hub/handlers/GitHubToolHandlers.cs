@@ -118,27 +118,149 @@ public partial class GitHubToolHandlers {
     /// 统一三档输出格式化 — jq > json_fields > verbosity=2 完整JSON > verbosity=1 精简JSON > 默认 Summarizer
     /// <para>jq: 在完整 JSON body 上应用 SimpleJqEvaluator 筛选,优先级最高</para>
     /// <para>verbosity: 0=gh风格人类可读(默认) 1=精简JSON 2=完整JSON</para>
-    /// <para>GAP-038-03: verbosity 为 null 时读 JCC_OUTPUT_FORMAT 环境变量作默认值(gh_style/compact_json/full_json)</para>
+    /// <para>GAP-038-03: verbosity 为 null 时读 JCC_OUTPUT_FORMAT 环境变量作默认值(gh_style/read_offset/compact_json/full_json)</para>
+    /// <para>截断: 超过 JCC_MAX_OUTPUT_CHARS(默认30000)字符时在换行符处截断,提示用 --skip_lines 续读</para>
+    /// <para>偏移量: skip_lines/start_line 支持分页续读截断内容</para>
+    /// <para>行号: gh_style/read_offset 模式为多行输出加行号(tab/箭头),复用 FileOperationConfig.CompactLinePrefix</para>
+    /// <para>full_json: 完整JSON不截断不加行号,直接返回原始body</para>
     /// </summary>
-    internal static string FormatGhOutput(string body, int? verbosity, string? json_fields, Func<string, string> summarize, string? compactFields = null, string? jq = null) {
-        if (!string.IsNullOrEmpty(jq)) return SimpleJqEvaluator.Evaluate(body, jq) ?? body;
-        if (!string.IsNullOrEmpty(json_fields)) return FilterJsonFields(body, json_fields);
+    internal string FormatGhOutput(string body, int? verbosity, string? json_fields, Func<string, string> summarize, string? compactFields = null, string? jq = null, int? skipLines = null, int? startLine = null, string? toolName = null) {
         var effectiveVerbosity = verbosity ?? GetVerbosityFromEnv();
-        return effectiveVerbosity switch {
-            2 => body,
-            1 => FilterJsonFields(body, compactFields ?? "id,number,title,state,name"),
-            _ => summarize(body)
-        };
+        var isFullJson = effectiveVerbosity == 2;
+        var addLineNumbers = !isFullJson;
+
+        // jq: 最高优先级,所有模式均支持
+        if (!string.IsNullOrEmpty(jq))
+            return ApplyPaginationAndTruncation(SimpleJqEvaluator.Evaluate(body, jq) ?? body, skipLines, startLine, toolName, _compactLinePrefix, addLineNumbers);
+
+        // json_fields: 第二优先级
+        if (!string.IsNullOrEmpty(json_fields))
+            return ApplyPaginationAndTruncation(FilterJsonFields(body, json_fields), skipLines, startLine, toolName, _compactLinePrefix, addLineNumbers);
+
+        // full_json: 完整JSON不截断不加行号,直接返回
+        if (isFullJson) return body;
+
+        // compact_json(1) 或 gh_style(0): 格式化 + 分页 + 截断 + 行号
+        var formatted = effectiveVerbosity == 1
+            ? FilterJsonFields(body, compactFields ?? "id,number,title,state,name")
+            : summarize(body);
+        return ApplyPaginationAndTruncation(formatted, skipLines, startLine, toolName, _compactLinePrefix, addLineNumbers);
     }
 
     /// <summary>
-    /// 从 JCC_OUTPUT_FORMAT 环境变量读取默认 verbosity — gh_style/未设置=0, compact_json=1, full_json=2
+    /// 应用偏移量分页 + 换行符截断 + 行号 + 诱导续读提示
+    /// <para>1. start_line/skip_lines 分页: 跳过前 N 行,显示后续内容</para>
+    /// <para>2. 截断: 超过 JCC_MAX_OUTPUT_CHARS(默认30000)字符时在换行符处截断(不断半句),提示用 --skip_lines 续读</para>
+    /// <para>3. 行号: addLineNumbers=true 时用 LineNumberFormatter 为每行加行号前缀(tab/箭头)</para>
+    /// </summary>
+    internal static string ApplyPaginationAndTruncation(string output, int? skipLines, int? startLine, string? toolName = null, bool compactLinePrefix = true, bool addLineNumbers = true) {
+        var ctx = new LogContext {
+            ToolName = toolName, SkipLines = skipLines, StartLine = startLine,
+            PageSize = GetPageSize(), CharThreshold = GetMaxOutputChars(),
+            AddLineNumbers = addLineNumbers, CompactLinePrefix = compactLinePrefix,
+        };
+        var pipeline = LogPipeline.CreateFormatPipeline();
+        var lines = new List<string>();
+        var iter = pipeline.RunAsync(ctx, SplitLinesAsync(output), default).GetAsyncEnumerator();
+        try {
+            while (iter.MoveNextAsync().GetAwaiter().GetResult())
+                lines.Add(iter.Current);
+        } finally {
+            iter.DisposeAsync().GetAwaiter().GetResult();
+        }
+        return string.Join('\n', lines);
+    }
+
+    /// <summary>将字符串按行拆分为异步枚举(Span 切片,零分配)</summary>
+    private static async IAsyncEnumerable<string> SplitLinesAsync(string output, [EnumeratorCancellation] CancellationToken ct = default) {
+        var start = 0;
+        while (start < output.Length) {
+            ct.ThrowIfCancellationRequested();
+            var nl = output.IndexOf('\n', start);
+            if (nl < 0) { yield return output[start..]; yield break; }
+            yield return output[start..nl];
+            start = nl + 1;
+        }
+    }
+
+    /// <summary>
+    /// 计算字符预算内可显示的最大行数 — 行数主约束 与 字符安全阀 取交集
+    /// <para>从第0行起累计字符,超过 charThreshold 则停止;至少返回1行避免空输出</para>
+    /// </summary>
+    private static int ComputeMaxLinesWithinCharBudget(IReadOnlyList<(int Start, int Length)> ranges, int pageSize, int charThreshold) {
+        var limit = Math.Min(pageSize, ranges.Count);
+        var accumChars = 0;
+        for (var i = 0; i < limit; i++) {
+            accumChars += ranges[i].Length + 1; // +1 for newline
+            if (accumChars > charThreshold) return Math.Max(i, 1);
+        }
+        return limit;
+    }
+
+    /// <summary>
+    /// 为多行输出加行号(单行不加,保持简洁)
+    /// </summary>
+    private static string AddLineNumbersIfMultiLine(string output, int effectiveSkip, bool compactLinePrefix, bool addLineNumbers) {
+        if (!addLineNumbers) return output;
+        var ranges = LineSpanIndexer.BuildLineRanges(output.AsSpan());
+        if (ranges.Count <= 1) return output;
+        var sb = new StringBuilder(output.Length + ranges.Count * 8);
+        var span = output.AsSpan();
+        for (var i = 0; i < ranges.Count; i++) {
+            var (start, length) = ranges[i];
+            var line = span.Slice(start, length).ToString();
+            sb.Append(LineNumberFormatter.Format(effectiveSkip + i + 1, line, compactLinePrefix));
+            sb.Append('\n');
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 跳过前 N 行 — 偏移量分页
+    /// </summary>
+    private static string SkipLines(string output, int skipCount) {
+        if (skipCount <= 0) return output;
+        var ranges = LineSpanIndexer.BuildLineRanges(output.AsSpan());
+        if (skipCount >= ranges.Count) return $"[已跳过全部 {ranges.Count} 行，无更多内容]";
+        var sb = new StringBuilder(output.Length - ranges[skipCount - 1].Start);
+        var span = output.AsSpan();
+        for (var i = skipCount; i < ranges.Count; i++) {
+            sb.Append(span.Slice(ranges[i].Start, ranges[i].Length));
+            sb.Append('\n');
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 获取输出截断阈值 — JCC_MAX_OUTPUT_CHARS 环境变量(默认 30000, 对齐 bash)
+    /// </summary>
+    private static int GetMaxOutputChars() {
+        var env = Environment.GetEnvironmentVariable(ContentReplacementConstants.MaxOutputCharsEnvVar);
+        return int.TryParse(env, out var threshold) && threshold > 0 ? threshold : 30000;
+    }
+
+    /// <summary>
+    /// 获取每页行数 — JCC_PAGE_SIZE 环境变量(默认 20)
+    /// <para>行数主约束: 保行完整,CI消息不在行中间截断</para>
+    /// <para>与 JCC_MAX_OUTPUT_CHARS 字符安全阀取交集,防极端长行撑爆token预算</para>
+    /// </summary>
+    private static int GetPageSize() {
+        var env = Environment.GetEnvironmentVariable("JCC_PAGE_SIZE");
+        return int.TryParse(env, out var size) && size > 0 ? size : 20;
+    }
+
+    /// <summary>
+    /// 从 JCC_OUTPUT_FORMAT 环境变量读取默认 verbosity — gh_style/read_offset/未设置=0, compact_json=1, full_json=2
+    /// <para>gh_style(默认): 纯文本/表格 + 行号 + 截断</para>
+    /// <para>read_offset: 与 gh_style 同(带行号 + 截断),页眉已移除(计算有缺陷)</para>
+    /// <para>compact_json: 精简JSON(仅指定字段)</para>
+    /// <para>full_json: 完整JSON,不截断不加行号</para>
     /// </summary>
     private static int GetVerbosityFromEnv() {
         var env = Environment.GetEnvironmentVariable("JCC_OUTPUT_FORMAT");
         if (string.Equals(env, "compact_json", StringComparison.OrdinalIgnoreCase)) return 1;
         if (string.Equals(env, "full_json", StringComparison.OrdinalIgnoreCase)) return 2;
-        return 0;
+        return 0; // gh_style / read_offset / 未设置
     }
 
     /// <summary>

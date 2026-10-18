@@ -40,23 +40,25 @@ public partial class GitHubToolHandlers {
                 : $"repos/{owner}/{repoName}/actions/workflows/{workflowPath}/runs";
             var result = await client.SendAsync(HttpMethod.Get, basePath, query: query, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(BuildRunListErrorHint(result, workflow));
+            var effectiveVerbosity = common?.Verbosity ?? GetVerbosityFromEnv();
             if (!string.IsNullOrEmpty(common?.Jq)) {
                 var jqOutput = SimpleJqEvaluator.Evaluate(result.Body, common.Jq);
-                return Ok(jqOutput ?? result.Body);
+                return Ok(ApplyPaginationAndTruncation(jqOutput ?? result.Body, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: effectiveVerbosity != 2));
             }
             if (!string.IsNullOrEmpty(common?.JsonFields)) {
                 var filtered = FilterJsonFields(result.Body, common.JsonFields);
                 if (filtered is "[]" or "{}")
                     return Ok(filtered + "\n\n⚠️ 返回空: 可能原因: ① 字段名不匹配(用 verbosity=2 查看完整字段) ② 该 run 无此字段");
-                return Ok(filtered);
+                return Ok(ApplyPaginationAndTruncation(filtered, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: effectiveVerbosity != 2));
             }
             var hasFailure = result.Body.Contains("\"conclusion\":\"failure\"", StringComparison.OrdinalIgnoreCase);
             var failureHint = hasFailure ? GitHubRunLogHints.RunListFailureHint : "";
-            return common?.Verbosity switch {
-                2 => Ok(result.Body + failureHint),
-                1 => Ok(GitHubRunListSummarizer.SummarizeRunList(result.Body) + failureHint),
-                _ => Ok(GitHubRunListSummarizer.SummarizeRunListBrief(result.Body) + failureHint)
+            var formattedOutput = effectiveVerbosity switch {
+                2 => result.Body + failureHint,
+                1 => GitHubRunListSummarizer.SummarizeRunList(result.Body) + failureHint,
+                _ => GitHubRunListSummarizer.SummarizeRunListBrief(result.Body) + failureHint
             };
+            return Ok(ApplyPaginationAndTruncation(formattedOutput, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: effectiveVerbosity != 2));
         }).ConfigureAwait(false);
 
 
@@ -420,7 +422,7 @@ public partial class GitHubToolHandlers {
                     var jobResult = await StreamAndFilterAsync(
                         repo.Owner, repo.Repo, target.RunId, job.Id.ToString(),
                         false, $"失败步骤({job.Name})", markers, filterLevel,
-                        perJobMaxLines, repo.Ct, null, skip, wantRefresh).ConfigureAwait(false);
+                        perJobMaxLines, repo.Ct, null, skip, wantRefresh, forceSmartStart: true).ConfigureAwait(false);
                     var jobText = jobResult.Content.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? "";
                     return (job, jobText);
                 } finally {
@@ -454,7 +456,9 @@ public partial class GitHubToolHandlers {
 
         if (wantLog) {
             // log=true: 用 REST API 日志流 + 过滤/分页
-            return await StreamAndFilterAsync(repo.Owner, repo.Repo, target.RunId, job_id, false, "日志", markers, filterLevel, maxLines, repo.Ct, GitHubRunLogHints.LogHint, skip, wantRefresh).ConfigureAwait(false);
+            var logResult = await StreamAndFilterAsync(repo.Owner, repo.Repo, target.RunId, job_id, false, "日志", markers, filterLevel, maxLines, repo.Ct, GitHubRunLogHints.LogHint, skip, wantRefresh).ConfigureAwait(false);
+            // read_offset 模式: 行号已由 StreamAndFilterAsync 内部添加,直接返回
+            return logResult;
         }
 
         // log=false: 获取 run 详情,根据 verbosity 选择输出格式
@@ -865,8 +869,9 @@ public partial class GitHubToolHandlers {
     private Task<ToolResult> StreamAndFilterAsync(
         string owner, string repo, string runId, string? jobId, bool failedOnly,
         string scope, FrozenSet<string>? markers, GitHubLogFilter? filterLevel,
-        int maxLines, CancellationToken ct, string? hint = null, int skipLines = 0, bool wantRefresh = false)
-        => LogFilterRunner.StreamAndFilterAsync(owner, repo, runId, jobId, failedOnly, scope, markers, filterLevel, maxLines, ct, hint, skipLines, wantRefresh);
+        int maxLines, CancellationToken ct, string? hint = null, int skipLines = 0, bool wantRefresh = false,
+        bool forceSmartStart = false)
+        => LogFilterRunner.StreamAndFilterAsync(owner, repo, runId, jobId, failedOnly, scope, markers, filterLevel, maxLines, ct, hint, skipLines, wantRefresh, forceSmartStart);
 
     /// <summary>
     /// 统一日志流入口 — 委托给 LogFilterRunner.GetLogStreamAsync(架构统一: 先入库 LSM 缓存再 yield)

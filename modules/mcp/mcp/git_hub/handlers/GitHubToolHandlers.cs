@@ -157,17 +157,33 @@ public partial class GitHubToolHandlers {
     /// <para>4. 页眉: addPageHeader=true 且截断时添加 │ toolName │ 页 N/M │ 行 X-Y │ 偏移 Z │ 页眉</para>
     /// </summary>
     internal static string ApplyPaginationAndTruncation(string output, int? skipLines, int? startLine, string? toolName = null, bool compactLinePrefix = true, bool addLineNumbers = true, bool addPageHeader = false) {
-        var effectiveSkip = startLine.HasValue ? startLine.Value - 1 : skipLines ?? 0;
+        var ctx = new LogContext {
+            ToolName = toolName, SkipLines = skipLines, StartLine = startLine,
+            PageSize = GetPageSize(), CharThreshold = GetMaxOutputChars(),
+            AddLineNumbers = addLineNumbers, AddPageHeader = addPageHeader, CompactLinePrefix = compactLinePrefix,
+        };
+        var pipeline = LogPipeline.CreateFormatPipeline();
+        var lines = new List<string>();
+        var iter = pipeline.RunAsync(ctx, SplitLinesAsync(output), default).GetAsyncEnumerator();
+        try {
+            while (iter.MoveNextAsync().GetAwaiter().GetResult())
+                lines.Add(iter.Current);
+        } finally {
+            iter.DisposeAsync().GetAwaiter().GetResult();
+        }
+        return string.Join('\n', lines);
+    }
 
-        // 应用 skip_lines/start_line 偏移量分页
-        if (effectiveSkip > 0) output = SkipLines(output, effectiveSkip);
-
-        // 尝试截断 — 行数主约束 + 字符安全阀取交集,在换行符处截断 + 行号 + 页眉 + 续读提示
-        var truncated = TryTruncate(output, effectiveSkip, GetPageSize(), GetMaxOutputChars(), toolName, compactLinePrefix, addLineNumbers, addPageHeader);
-        if (truncated is not null) return truncated;
-
-        // 未截断: 为多行输出加行号(单行不加,保持简洁)
-        return AddLineNumbersIfMultiLine(output, effectiveSkip, compactLinePrefix, addLineNumbers);
+    /// <summary>将字符串按行拆分为异步枚举(Span 切片,零分配)</summary>
+    private static async IAsyncEnumerable<string> SplitLinesAsync(string output, [EnumeratorCancellation] CancellationToken ct = default) {
+        var start = 0;
+        while (start < output.Length) {
+            ct.ThrowIfCancellationRequested();
+            var nl = output.IndexOf('\n', start);
+            if (nl < 0) { yield return output[start..]; yield break; }
+            yield return output[start..nl];
+            start = nl + 1;
+        }
     }
 
     /// <summary>

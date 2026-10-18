@@ -62,13 +62,14 @@ internal sealed class GitHubRunLogFilterRunner {
     internal static readonly TimeSpan CacheTtl = GhCacheService.LogTtl;
 
     /// <summary>
-    /// 并行下载并发限制 — 从环境变量 JCC_GH_MAX_CONCURRENCY 读取,默认 16
-    /// <para>用户可通过环境变量调整并发度,如 JCC_GH_MAX_CONCURRENCY=32</para>
+    /// 并行下载并发限制 — 从环境变量 JCC_GH_MAX_CONCURRENCY 读取,默认 Math.Max(16, ProcessorCount*4)
+    /// <para>IO 密集型下载: 线程大部分时间等网络,并发应远高于 CPU 核数(典型 8 核 = 32 并发)</para>
+    /// <para>用户可通过环境变量调整并发度,如 JCC_GH_MAX_CONCURRENCY=64</para>
     /// </summary>
     internal static int GetMaxConcurrency() {
         var env = Environment.GetEnvironmentVariable("JCC_GH_MAX_CONCURRENCY");
         if (int.TryParse(env, out var n) && n > 0) return n;
-        return Environment.ProcessorCount + 1;
+        return Math.Max(16, Environment.ProcessorCount * 4);
     }
 
     /// <summary>
@@ -83,6 +84,18 @@ internal sealed class GitHubRunLogFilterRunner {
         _cacheService = cacheService;
         _compactLinePrefix = compactLinePrefix;
         _logger = logger;
+        _runLogFetcher = CreateLogFetcher();
+    }
+
+    /// <summary>Run 日志下载策略 — 默认 ParallelJobLogFetcher(并行最快),JCC_RUN_LOG_FETCHER=zip 用 ZipRunLogFetcher</summary>
+    private readonly IRunLogFetcher _runLogFetcher;
+
+    /// <summary>根据 JCC_RUN_LOG_FETCHER 环境变量创建日志下载策略 — 默认并行,zip=备选</summary>
+    private IRunLogFetcher CreateLogFetcher() {
+        var env = Environment.GetEnvironmentVariable("JCC_RUN_LOG_FETCHER");
+        return string.Equals(env, "zip", StringComparison.OrdinalIgnoreCase)
+            ? new ZipRunLogFetcher(this)
+            : new ParallelJobLogFetcher(this);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -109,7 +122,7 @@ internal sealed class GitHubRunLogFilterRunner {
             var jobIds = GitHubRunLogFilter.ParseJobIds(jobId);
             return DownloadJobsParallelAsync(owner, repo, runId, jobIds, wantRefresh, ct, maxConcurrency);
         }
-        return GetOrFetchRunLogsAsync(owner, repo, runId, wantRefresh, ct);
+        return _runLogFetcher.FetchAsync(owner, repo, runId, wantRefresh, ct, maxConcurrency);
     }
 
     /// <summary>

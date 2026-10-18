@@ -75,7 +75,11 @@
   - 差评大师修复（S/M/L 全处理）：S1 窗口关闭释放引擎（防 HTTP 连接池/FW/后台任务泄漏致进程不退）；S2 流式期间拒绝切换会话（`_flow.IsStreaming` 守卫，防 transcript 差量写错会话）+ 连点序号丢弃过期请求 + JS 流中忽略行点击；M1 关闭后迟到引擎即刻释放（`IsCancellationRequested` 守卫）；M2 令牌未取消的 OCE→回"响应超时"错误（原一刀切静默吞 HttpClient 超时）；M3 app/error 复位语义收敛；M4 选区跨重渲染保持；L1 会话 ID 白名单（防越目录）；L3 空列表回填占位行；L4 transcript 缺失回退引擎内存（对齐 MainViewModel）
   - 差评修复验证：单测 **608 通过/0 失败**（+5：超时 OCE/取消 OCE/纯 Thinking/空历史 roundtrip）；冒烟退出码 0（count=30）；交互态 20 目标 PASS；L3 meanDelta 1.779929012345679 比特级零漂移
   - 附：新基线（#426）引入 mcp `GitHubToolHandlers.Run.cs` JCC1009 三层 if 嵌套阻断 Mcp→GUI 编译链，已按语义等价卫语句拍平解阻
-- [ ] P6-2 composer（输入区）
+- [x] P6-2 composer（输入区）：29 元素 DOM 规格逐项收敛（侦察产物 `dumps/dom-dump-web.mjs` 我方几何转储 vs DSH `reference/dsh-dom-1440x900.json`）
+  - 修复：row 内距 `0 8px 8px`→`2px 8px 6px`（tools y518→520 精确）；mode-chip `122×17 br0 pad 0 4`→`126×28 br8 pad 0 4px 0 8px lh20`（x517.3 y520 精确）；model-chip `166.2`→`180.2×28`（trailing 有效间隙 24px = DSH 双层 gap 叠加，x997.5 精确）；chevron svg 12→14（mode/model/工作区 chip2）；send-btn y516→y515 精确（`align-self:flex-start` + `margin-top:-2px` 复刻 DSH 实测微上移，trailing `align-self:stretch` 回到 y517 h34）；工作区 chip 行高 17→20（label y411 精确）+ chip2 宽 104→106
+  - 白名单（已接受）：input 宽 Δ4（DSH 770.4 含 4px 透明滚动槽，不可见）；placeholder 覆盖层盒形（文本原点 483.3,455 一致）
+  - 验证：DOM 转储逐元素与 DSH 表一致（除白名单）；交互态 20 目标 PASS（0 不一致）；L3 meanDelta **1.7799→1.4693**（t4 1.454→1.304 / t12 1.284→1.144 / t24 1.215→1.078）；真机冒烟退出码 0（sessions/list count=30 + sessions-rendered）；纯 CSS/HTML 变更无 C# 面，测试基线 608 不变
+- [ ] P6-2b 输入多行自动增高（首版 textarea 定高 52 + `overflow: hidden`；DSH 输入区随行数增高，需捕获 DSH 多行态 golden 后对齐）
 - [ ] P6-3 对话消息区
 - [ ] P6-4 设置面板
 - [ ] P6-5 对话框（权限/询问/确认）
@@ -106,6 +110,12 @@
 <!-- 原因: 违规点为帧图落盘（dumps 约定）/仓库根定位/临时目录夹具，均为测试基础设施且需真实文件系统语义；项目已有 JCC3010/JCC3013 同款豁免惯例 -->
 <!-- 替代方案: InMemoryFileSystem 替换（帧图产物即真实文件诉求，InMemory 语义错误，弃） -->
 <!-- 验证: HEAD 复现 36 错误（预存红）→ 修复后 0 警告 0 错误，568 测试全绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: composer 几何以 DSH 实测"有效值"复刻（trailing 扁平化取间隙和 24px、send margin-top -2px 上移、chip br8 透明底） -->
+<!-- 原因: DSH DOM 含 standardControls 中间层与视觉微调（send 比内容框高 2px），照搬节点结构会引入无消费者包装层；我方 DOM 扁平，以 getBoundingClientRect 逐元素等效收敛，L3 差可证 -->
+<!-- 替代方案: ① 逐层复刻 DSH DOM 节点（多 2 层包装无消费者，弃）；② 近似对齐忽略 2px 微调（composer 区 L3 残留 diff，弃） -->
+<!-- 验证: DOM 转储逐元素一致（除白名单 input 宽 4px 透明槽）+ 交互态 PASS + L3 1.7799→1.4693 + 冒烟退出码 0 ✅ -->
 
 <!-- 🤖 Auto Decision: 2026-10-18 -->
 <!-- 决策: 桥接协议用"类型判别信封（type + 内联字段）"而非 JSON-RPC/嵌套 payload -->

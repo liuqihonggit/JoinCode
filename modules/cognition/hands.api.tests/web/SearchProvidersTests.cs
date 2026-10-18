@@ -213,6 +213,115 @@ public sealed class SearchProvidersTests {
 
     #endregion
 
+    #region DeepSeekSearchProvider
+
+    [Fact]
+    public async Task DeepSeek_IsAvailable_WithApiKey_ReturnsTrue() {
+        using var env = EnvVarScope.Set("DEEPSEEK_API_KEY", "test-key");
+        await using var provider = new DeepSeekSearchProvider(CreateJsonApiClient("{}").Object, new FakeConfigRoot());
+        provider.IsAvailable.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DeepSeek_IsAvailable_WithoutApiKey_ReturnsFalse() {
+        using var env = EnvVarScope.Set("DEEPSEEK_API_KEY", null);
+        await using var provider = new DeepSeekSearchProvider(CreateJsonApiClient("{}").Object, new FakeConfigRoot());
+        provider.IsAvailable.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task DeepSeek_Name_ReturnsDeepSeek() {
+        using var env = EnvVarScope.Set("DEEPSEEK_API_KEY", "test-key");
+        await using var provider = new DeepSeekSearchProvider(CreateJsonApiClient("{}").Object, new FakeConfigRoot());
+        provider.Name.Should().Be("DeepSeek");
+    }
+
+    [Fact]
+    public async Task DeepSeek_Priority_Returns90_HigherThanTavily() {
+        using var env = EnvVarScope.Set("DEEPSEEK_API_KEY", "test-key");
+        await using var provider = new DeepSeekSearchProvider(CreateJsonApiClient("{}").Object, new FakeConfigRoot());
+        provider.Priority.Should().Be(90);
+        provider.Priority.Should().BeLessThan(new TavilySearchProvider(CreateJsonApiClient("{}").Object, new FakeConfigRoot()).Priority);
+    }
+
+    [Fact]
+    public async Task DeepSeek_SearchAsync_ParsesResults_WithSummaryAndDate() {
+        using var env = EnvVarScope.Set("DEEPSEEK_API_KEY", "test-key");
+        var json = /*lang=json,strict*/ """{"results":[{"rerank_score":2.4,"title":"DeepSeek V4 released","url":"https://example.com/v4","snippet":"short snippet","summary":"long summary for model","content":"","site_name":"Example","site_icon":"https://example.com/favicon.ico","date":"2026-06-01T00:00:00+00:00","authority":3}]}""";
+        await using var provider = new DeepSeekSearchProvider(CreateJsonApiClient(json).Object, new FakeConfigRoot());
+
+        var result = await provider.SearchAsync(new SearchRequest("DeepSeek V4"));
+
+        result.Success.Should().BeTrue();
+        result.Results.Should().HaveCount(1);
+        result.Results[0].Title.Should().Be("DeepSeek V4 released");
+        result.Results[0].Url.Should().Be("https://example.com/v4");
+        result.Results[0].Snippet.Should().Be("long summary for model");
+        result.Results[0].PublishedDate.Should().Be(new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc));
+    }
+
+    [Fact]
+    public async Task DeepSeek_SearchAsync_FallsBackToSnippet_WhenSummaryNull() {
+        using var env = EnvVarScope.Set("DEEPSEEK_API_KEY", "test-key");
+        var json = /*lang=json,strict*/ """{"results":[{"rerank_score":1.0,"title":"Title","url":"https://example.com","snippet":"snippet only","summary":null,"content":"","date":null,"authority":0}]}""";
+        await using var provider = new DeepSeekSearchProvider(CreateJsonApiClient(json).Object, new FakeConfigRoot());
+
+        var result = await provider.SearchAsync(new SearchRequest("test"));
+
+        result.Success.Should().BeTrue();
+        result.Results.Should().HaveCount(1);
+        result.Results[0].Snippet.Should().Be("snippet only");
+        result.Results[0].PublishedDate.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task DeepSeek_SearchAsync_EmptyResults_ReturnsSuccess() {
+        using var env = EnvVarScope.Set("DEEPSEEK_API_KEY", "test-key");
+        var json = /*lang=json,strict*/ """{"results":[]}""";
+        await using var provider = new DeepSeekSearchProvider(CreateJsonApiClient(json).Object, new FakeConfigRoot());
+
+        var result = await provider.SearchAsync(new SearchRequest("test"));
+
+        result.Success.Should().BeTrue();
+        result.Results.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DeepSeek_SearchAsync_SkipsItemsWithEmptyTitleOrUrl() {
+        using var env = EnvVarScope.Set("DEEPSEEK_API_KEY", "test-key");
+        var json = /*lang=json,strict*/ """{"results":[{"title":"","url":"https://example.com","snippet":"s"},{"title":"T","url":"","snippet":"s"},{"title":"Valid","url":"https://valid.com","snippet":"s"}]}""";
+        await using var provider = new DeepSeekSearchProvider(CreateJsonApiClient(json).Object, new FakeConfigRoot());
+
+        var result = await provider.SearchAsync(new SearchRequest("test"));
+
+        result.Success.Should().BeTrue();
+        result.Results.Should().HaveCount(1);
+        result.Results[0].Title.Should().Be("Valid");
+    }
+
+    [Fact]
+    public async Task DeepSeek_SearchAsync_ApiError_ReturnsFailure() {
+        using var env = EnvVarScope.Set("DEEPSEEK_API_KEY", "test-key");
+        await using var provider = new DeepSeekSearchProvider(CreateJsonApiClient("{}", HttpStatusCode.InternalServerError).Object, new FakeConfigRoot());
+
+        var result = await provider.SearchAsync(new SearchRequest("test"));
+
+        result.Success.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task DeepSeek_SearchAsync_WithoutApiKey_ReturnsFailure() {
+        using var env = EnvVarScope.Set("DEEPSEEK_API_KEY", null);
+        await using var provider = new DeepSeekSearchProvider(CreateJsonApiClient("{}").Object, new FakeConfigRoot());
+
+        var result = await provider.SearchAsync(new SearchRequest("test"));
+
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("DEEPSEEK_API_KEY");
+    }
+
+    #endregion
+
     #region ConfigDrivenEnvVar — IConfigRoot 配置驱动环境变量名
 
     [Fact]
@@ -254,6 +363,23 @@ public sealed class SearchProvidersTests {
         var config = new FakeConfigRoot().Set("searchProviders.searxng.endpointEnvVar", "MY_CUSTOM_SEARXNG_URL");
         await using var provider = new SearXngSearchProvider(CreateJsonApiClient("{}").Object, config);
         provider.IsAvailable.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DeepSeek_ConfigDrivenEnvVar_ReadsCustomEnvVarName() {
+        using var env = EnvVarScope.Set("MY_CUSTOM_DEEPSEEK_KEY", "test-key");
+        var config = new FakeConfigRoot().Set("searchProviders.deepseek.apiKeyEnvVar", "MY_CUSTOM_DEEPSEEK_KEY");
+        await using var provider = new DeepSeekSearchProvider(CreateJsonApiClient("{}").Object, config);
+        provider.IsAvailable.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DeepSeek_ConfigDrivenEnvVar_DefaultEnvVarNotRead_WhenCustomConfigured() {
+        using var env1 = EnvVarScope.Set("DEEPSEEK_API_KEY", "should-not-use");
+        using var env2 = EnvVarScope.Set("MY_CUSTOM_DEEPSEEK_KEY", null);
+        var config = new FakeConfigRoot().Set("searchProviders.deepseek.apiKeyEnvVar", "MY_CUSTOM_DEEPSEEK_KEY");
+        await using var provider = new DeepSeekSearchProvider(CreateJsonApiClient("{}").Object, config);
+        provider.IsAvailable.Should().BeFalse();
     }
 
     #endregion

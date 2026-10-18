@@ -1,7 +1,7 @@
 namespace Services.Web;
 
 /// <summary>
-/// 搜索引擎供应商统一抽象 — 所有搜索引擎供应商（Tavily/Serper/Brave/SearXNG/Anthropic/SubAgent）实现此接口。
+/// 搜索引擎供应商统一抽象 — 所有搜索引擎供应商（DeepSeek/Tavily/Serper/Brave/SearXNG/Anthropic/SubAgent）实现此接口。
 /// 由 <see cref="SearchProviderCoordinator"/> 按 <see cref="Priority"/> 升序调度。
 /// </summary>
 public interface ISearchProvider {

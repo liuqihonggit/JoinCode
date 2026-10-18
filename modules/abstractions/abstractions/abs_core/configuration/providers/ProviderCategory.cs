@@ -8,4 +8,5 @@ public enum ProviderCategory {
     [EnumValue("llm")] Llm = 0,
     [EnumValue("search")] Search = 1,
     [EnumValue("embedding")] Embedding = 2,
+    [EnumValue("fetch")] Fetch = 3,
 }

@@ -400,7 +400,7 @@ public interface IConfigLayer {
 | settings.json 主入口极简（只有 profile 指针 + 全局开关） | 检查 `BuildDefaultSettingsJson` 输出 |
 | `current/` 下 10 个子文件，各单一职责 | 目录结构 |
 | `providers_llm/` 下 7 个供应商文件夹，各含 config.json + models.json | 目录结构 |
-| `providers_search/` 下 6 个供应商文件夹，各含 config.json + models.json | 目录结构 |
+| `providers_search/` 下 7 个供应商文件夹，各含 config.json + models.json | 目录结构 |
 | search provider 从 config.json 读 apiKeyEnvVar（配置驱动） | 单元测试 |
 | 消费方无感知（`ConfigKey.Theme` 等平铺访问不变） | 现有测试全绿 |
 | 物理拆分 + 逻辑合并（加载器合并子文件成 DTO） | `ConfigLoader` 单元测试 |
@@ -555,3 +555,9 @@ if (catalog.TryGet("openai", out var desc) && desc.SupportsOpenAiFormat) { ... }
 <!-- 原因: SettingsJson.Vendor/SearchProviders 是非 nullable 字典默认 []，序列化成 {}，极简 DTO 只含 current.profile+autoFetchModels+update -->
 <!-- 替代方案: 改 SettingsJson 字段为 nullable（影响面大）/ 用 JsonNode 动态构造（AOT 不兼容）-->
 <!-- 验证: 6 P8 单元测试 + 9 InitCommand 测试全绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 ADR 0140 -->
+<!-- 决策: 新增 DeepSeek 搜索供应商（priority=90），providers_search/ 从 6 个扩展到 7 个 -->
+<!-- 原因: DeepSeek 官方推出 Search & Fetch API，集成到工程中（ADR 0140） -->
+<!-- 关联: docs/implemented/adr/component_strategy/0140-iwebfetchprovider-deepseek-search-fetch-integration.md -->
+<!-- 验证: 90 web + 68 配置测试全绿 ✅ -->

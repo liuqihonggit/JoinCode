@@ -92,16 +92,16 @@ public partial class GitHubToolHandlers {
             using var doc = JsonDocument.Parse(listResult.Body);
             if (!doc.RootElement.TryGetProperty("workflows", out var workflows)) return workflow;
             foreach (var wf in workflows.EnumerateArray()) {
-                if (wf.TryGetProperty("name", out var nameEl) && string.Equals(nameEl.GetString(), workflow, StringComparison.OrdinalIgnoreCase)) {
-                    if (wf.TryGetProperty("path", out var pathEl)) {
-                        var path = pathEl.GetString();
-                        if (!string.IsNullOrEmpty(path)) {
-                            var fileName = path.Contains('/') ? path[(path.LastIndexOf('/') + 1)..] : path;
-                            _logger?.LogDebug("工作流显示名称 '{DisplayName}' 解析为文件名 '{FileName}'", workflow, fileName);
-                            return fileName;
-                        }
-                    }
-                }
+                if (!wf.TryGetProperty("name", out var nameEl) || !string.Equals(nameEl.GetString(), workflow, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (!wf.TryGetProperty("path", out var pathEl))
+                    continue;
+                var path = pathEl.GetString();
+                if (string.IsNullOrEmpty(path))
+                    continue;
+                var fileName = path.Contains('/') ? path[(path.LastIndexOf('/') + 1)..] : path;
+                _logger?.LogDebug("工作流显示名称 '{DisplayName}' 解析为文件名 '{FileName}'", workflow, fileName);
+                return fileName;
             }
         } catch (JsonException ex) { _logger?.LogWarning(ex, "解析工作流列表失败"); }
 

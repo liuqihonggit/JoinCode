@@ -25,7 +25,7 @@ public sealed class WebServiceTests {
         };
         var pipeline = new MiddlewarePipeline<WebContext>(middlewares.Cast<IMiddleware<WebContext>>());
 
-        return new WebService(pipeline, cache, _coordinatorMock.Object);
+        return new WebService(pipeline, cache, _coordinatorMock.Object, Array.Empty<IWebFetchProvider>());
     }
 
     #region SearchAsync - 输入验证

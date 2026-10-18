@@ -328,17 +328,22 @@ public class SettingsLoaderTests : IDisposable {
 
     /// <summary>
     /// BuildDefaultSettingsJson 生成的骨架应包含 searchProviders 节点,
-    /// 含 6 个搜索供应商(tavily/serper/brave/searxng/anthropic/subagent),优先级与 enabled 正确(TASK054)
+    /// 含 7 个搜索供应商(deepseek/tavily/serper/brave/searxng/anthropic/subagent),优先级与 enabled 正确(TASK054)
     /// </summary>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
-    public void Given_默认骨架_When_解析_Then_包含SearchProviders且6供应商配置正确() {
+    public void Given_默认骨架_When_解析_Then_包含SearchProviders且7供应商配置正确() {
         var json = SettingsLoader.BuildDefaultSettingsJson();
         var parsed = JsonSerializer.Deserialize<SettingsJson>(json, ConfigJsonContext.Default.SettingsJson);
 
         parsed.Should().NotBeNull();
         parsed!.SearchProviders.Should().NotBeNull();
-        parsed.SearchProviders.Count.Should().Be(6);
+        parsed.SearchProviders.Count.Should().Be(7);
+
+        parsed.SearchProviders.Should().ContainKey("deepseek");
+        parsed.SearchProviders["deepseek"].ApiKeyEnvVar.Should().Be("DEEPSEEK_API_KEY");
+        parsed.SearchProviders["deepseek"].Priority.Should().Be(90);
+        parsed.SearchProviders["deepseek"].Enabled.Should().BeTrue();
 
         parsed.SearchProviders.Should().ContainKey("tavily");
         parsed.SearchProviders["tavily"].ApiKeyEnvVar.Should().Be("TAVILY_API_KEY");
@@ -594,7 +599,7 @@ public class SettingsLoaderTests : IDisposable {
     }
 
     [Fact]
-    public async Task P8_BuildDefaultConfigTreeAsync_生成searchProviders目录6供应商() {
+    public async Task P8_BuildDefaultConfigTreeAsync_生成searchProviders目录7供应商() {
         var baseDir = $"/test/p8_search_{Guid.NewGuid():N}";
         _fs.CreateDirectory(baseDir);
 
@@ -602,7 +607,7 @@ public class SettingsLoaderTests : IDisposable {
 
         var searchDir = Path.Combine(baseDir, "providers_search");
         _fs.DirectoryExists(searchDir).Should().BeTrue("应生成 providers_search/ 目录");
-        var expectedProviders = new[] { "tavily", "serper", "brave", "searxng", "anthropic", "subagent" };
+        var expectedProviders = new[] { "deepseek", "tavily", "serper", "brave", "searxng", "anthropic", "subagent" };
         foreach (var name in expectedProviders) {
             var providerDir = Path.Combine(searchDir, name);
             _fs.DirectoryExists(providerDir).Should().BeTrue($"providers_search/{name}/ 应存在");

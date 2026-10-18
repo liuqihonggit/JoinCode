@@ -66,7 +66,7 @@ public sealed partial class SearchProviderCoordinator : ServiceEntity, ISearchPr
 
         stopwatch.Stop();
         var aggregateError = availableCount == 0
-            ? "No search provider is available. Configure at least one provider (TAVILY_API_KEY/SERPER_API_KEY/BRAVE_API_KEY/SEARXNG_URL) or ensure SubAgent fallback is registered."
+            ? "No search provider is available. Configure at least one provider (DEEPSEEK_API_KEY/TAVILY_API_KEY/SERPER_API_KEY/BRAVE_API_KEY/SEARXNG_URL) or ensure SubAgent fallback is registered."
             : "All search providers failed: " + string.Join("; ", failedProviders.Select(p => $"{p.Name}({p.Error})"));
 
         _logger?.LogError("所有搜索供应商失败。可用 {Available}，失败 {Failed}", availableCount, failedProviders.Count);

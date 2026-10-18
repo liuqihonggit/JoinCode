@@ -69,6 +69,9 @@
   - 验证：单测 23 绿（全类型 roundtrip/判别字段/未知 type/非法 JSON）；E2E 红→绿（无 bridge.js 退出码 4 超时 → 实现后退出码 0，`BRIDGE web/ready` + `BRIDGE-SMOKE ok nonce=...` ~100ms）；全量 GUI 591 通过；L3 基帧 meanDelta 1.7927 无漂移 + 交互态 0 不一致
 - [x] P6-1 侧栏（工作区/会话列表）：session-row 几何修复（`margin-top: 2px`，对齐 DSH `margin 2px 0 0`）；行交互态补齐（project-row/session-row hover/active=interactive-bg-hover + `cursor: pointer`，golden 重捕获实证 base/hover/active）；搜索 span→button（对齐 DSH searchButton 语义，选择器随更新）；真实会话数据链路（`sessions/list` 下发 GuiSessionStore 真实会话 + `session/select` 点击回传 + `web/sessions-rendered` 渲染 ACK 冒烟钩子）
   - 验证：桥接单测 29 绿（含 3 新消息 roundtrip，集合字段逐项比较）；E2E 红→绿（宿主先发 `sessions/list count=26` 无应答超时退出码 4 → bridge.js 渲染后退出码 0 `sessions-rendered count=26` + pong ~60ms）；全量 GUI 597 通过/0 失败；交互态 20 目标 PASS（0 不一致）；L3 meanDelta 1.7927 → 1.7799（t4 1.529→1.454%），侧栏行区 diff 1472→1270
+- [x] P6-1b 会话流端到端（v1）：`chat/history` 消息（+`ChatHistoryEntry`，消息类型 13→14）；`WebChatFlow` 投影层（直连 `IJccChatSession.StreamAsync`，并发/未就绪 guard→app/error，异常→app/error+done，取消静默收尾）；WebUiWindow 引擎接线（`JccChatSession.CreateAsync` 后台组装+Dispatcher 热接、权限 fail-closed `DenyPermissionAsync`、transcript 注入会话存储）+ `OpenSessionAsync`（`GuiSessionStore.LoadAsync`→chat/history 渲染 + `SwitchSession`+`LoadHistoryAsync` 灌引擎）；web 侧 textarea+覆盖层 placeholder、消息区（`.msg-user`/`.msg-assistant` + `has-messages` 移底）、bridge.js 状态机（busy 防重入、delta 累积、done 复位、history 整体替换、会话点击先清空）
+  - 验证：单测 35 绿（协议 31 + flow 4，ScriptedSession 假会话含门控/异常注入）+ 全量 GUI **603 通过/0 失败/3 跳过**；真机冒烟退出码 0（`sessions-rendered count=26` + pong）；交互态 20 目标 PASS；L3 meanDelta 1.7799 零漂移（placeholder 覆盖层保 golden 目标位置不变）
+  - 真机手动验证（CDP 驱动真实 exe，非 mock）：26 真实会话行渲染✓、发送→用户消息渲染✓、真实引擎调用异常链路✓（agnes 上游 400 → app/error 引导文案 + done 复位，CLI 同环境同错证环境级）、会话切换→chat/history 替换✓；⚠️ 前排：LLM 成功流（delta 渲染）被上游阻断无法真机实证（agnes 400 / deepseek 401 / sensenova 空响应，CLI 同样失败），delta 路径由单测覆盖，待上游恢复后按 `dumps/manual-webui-flow.mjs` 复验
 - [ ] P6-2 composer（输入区）
 - [ ] P6-3 对话消息区
 - [ ] P6-4 设置面板
@@ -130,4 +133,22 @@
 <!-- 原因: sessionRow 的 selected 态 bg 与 hover 态相同（0.08），凭猜测会掩盖真实差异；golden 实证 projectRow hover/active=0.08 + cursor:pointer，searchBtn 态经 span→button 后保持 -->
 <!-- 替代方案: 按按钮惯例直接加 hover（若 DSH 行无 hover 则引入假差异，弃） -->
 <!-- 验证: 重捕获 20 目标 → 本地 verify 红（projectRow hover/active 2 处）→ 补 CSS 后 PASS（0 不一致）✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: WebUI 会话流用新薄投影层 WebChatFlow 直连 IJccChatSession.StreamAsync，不复用 MainViewModel -->
+<!-- 原因: MainViewModel 绑定 Avalonia/Dock 概念与 ObservableCollection，属 GUI 视图层；WebUI 只需"流事件→桥接消息"纯投影，复用会把 Avalonia 依赖泄漏进 webview 层且带出无关状态机 -->
+<!-- 替代方案: ① MainViewModel 接入（依赖泄漏 + 破坏 webview 层纯度，弃）；② bridge.js 直接解析 ChatStreamEvent（协议双份实现，弃） -->
+<!-- 验证: 4 单测绿（映射顺序/空与 Thinking 跳过/异常 path/并发与未就绪 guard）+ 真机错误链路 app/error+done ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: 打开会话顺序 = 先 chat/history 渲染 UI、再 SwitchSession+LoadHistoryAsync 灌引擎；窗口级 CancellationTokenSource 统一取消在途发送 |
+<!-- 原因: history 先渲染让 UI 立即反馈（引擎历史加载可能较慢）；JCC3001 要求即发即忘传令牌，窗口关闭时取消避免 Dispose 后触碰宿主（WebView2Host.Send 空判兜底） |
+<!-- 替代方案: ① 先灌引擎再渲染（UI 延迟感知差，弃）；② 每消息独立 CTS（生命周期管理冗余，弃） -->
+<!-- 验证: 真机切换会话 chat/history 替换 ✓ + 冒烟/单测全绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-18 -->
+<!-- 决策: 真机手动验证走 WebView2 远程调试端口（WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222）+ playwright connectOverCDP 驱动真实页面（脚本入 dumps/） -->
+<!-- 原因: GUI 无可机读自动化入口；CDP 可执行"输入→发送→观察渲染/切换会话"全链路且对生产 exe 零侵入（仅调试期环境变量） -->
+<!-- 替代方案: ① 肉眼截图（不可复跑/无断言，弃）；② 页面内注入脚本直调 jccBridge（绕真实输入事件，弃） -->
+<!-- 验证: 26 会话渲染/发送→用户消息/真实引擎异常引导/会话切换全通 ✓（delta 成功流待上游可用复验）✅ -->
 

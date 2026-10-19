@@ -1,6 +1,9 @@
+global using System.Text.Json;
+global using System.Text.Json.Serialization;
 global using System.Text;
 global using NativeTui.Core.Ansi;
 global using NativeTui.Core.Animation;
+global using NativeTui.Core.Bridge;
 global using NativeTui.Core.Components;
 global using NativeTui.Core.Diff;
 global using NativeTui.Core.Grid;

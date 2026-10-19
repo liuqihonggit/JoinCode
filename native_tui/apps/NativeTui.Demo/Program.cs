@@ -9,9 +9,12 @@ namespace NativeTui.Demo;
 /// </summary>
 public static class Program
 {
-    /// <summary>入口 — 分发自检/交互模式。</summary>
+    /// <summary>入口 — 分发自检/bridge 自回环/交互模式。</summary>
     public static int Main(string[] args) =>
-        args is ["--selftest"] ? RunSelftest() : RunInteractive();
+        args is ["--selftest"] ? RunSelftest()
+            : args is ["--bridge-selftest"] ? RunBridgeSelftest()
+            : args is ["--bridge-echo-child"] ? RunBridgeEchoChild()
+            : RunInteractive();
 
     /// <summary>交互模式：进 raw mode 跑主循环，退出时清屏复位。</summary>
     private static int RunInteractive()
@@ -31,7 +34,118 @@ public static class Program
         return 0;
     }
 
-    /// <summary>自检模式：三组冒烟断言（无终端依赖，CI 可跑）。</summary>
+    /// <summary>
+    /// bridge 自回环验证（真进程级，ADR 0080）— spawn 自身 echo-child 作为引擎模拟，
+    /// 走完整 stdin/stdout 管道 + 协议 roundtrip：submit → 事件序列 → 退出码 0/1。
+    /// </summary>
+    private static int RunBridgeSelftest()
+    {
+        var exePath = Environment.ProcessPath;
+        if (exePath is null)
+        {
+            Console.Error.WriteLine("FAIL: 无法定位自身 exe 路径");
+            return 1;
+        }
+
+        var psi = new ProcessStartInfo(exePath, "--bridge-echo-child")
+        {
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            StandardOutputEncoding = Encoding.UTF8,
+        };
+        using var process = Process.Start(psi);
+        if (process is null)
+        {
+            Console.Error.WriteLine("FAIL: 子进程启动失败");
+            return 1;
+        }
+
+        BridgeProtocol.WriteRequest(process.StandardInput, new BridgeRequest.Submit("bridge roundtrip"));
+        process.StandardInput.Close();
+
+        var received = new List<BridgeEvent>();
+        var failures = new List<string>();
+        while (BridgeProtocol.TryReadEvent(process.StandardOutput, out var bridgeEvent, out var diagnostic) == BridgeReadResult.Event)
+        {
+            received.Add(bridgeEvent!);
+            if (diagnostic is not null)
+            {
+                failures.Add("诊断泄漏: " + diagnostic);
+            }
+        }
+
+        process.WaitForExit();
+        if (process.ExitCode != 0)
+        {
+            failures.Add($"echo-child 退出码 {process.ExitCode}");
+        }
+
+        ExpectEvent<BridgeEvent.TurnStarted>(received, failures);
+        ExpectEvent<BridgeEvent.ThinkingStarted>(received, failures);
+        AssertEvent(received, e => e is BridgeEvent.ThinkingEnded { DurationMs: > 0 }, "thinking_ended durationMs>0", failures);
+        ExpectEvent<BridgeEvent.ToolCall>(received, failures);
+        ExpectEvent<BridgeEvent.ToolResult>(received, failures);
+        AssertEvent(received, e => e is BridgeEvent.AssistantMessage { Text.Length: > 0 }, "assistant_message 非空", failures);
+        ExpectEvent<BridgeEvent.TurnCompleted>(received, failures);
+
+        if (failures.Count > 0)
+        {
+            foreach (var failure in failures)
+            {
+                Console.Error.WriteLine("FAIL: " + failure);
+            }
+
+            return 1;
+        }
+
+        Console.WriteLine("BRIDGE SELFTEST OK — 跨进程 stdin/stdout 管道 + 行分格 JSON 协议 roundtrip 全部通过");
+        return 0;
+    }
+
+    /// <summary>断言事件序列包含指定类型。</summary>
+    private static void ExpectEvent<T>(List<BridgeEvent> received, List<string> failures)
+        where T : BridgeEvent
+    {
+        if (received.All(e => e is not T))
+        {
+            failures.Add($"缺少事件 {typeof(T).Name}（收到：{string.Join(", ", received.Select(e => e.GetType().Name))}）");
+        }
+    }
+
+    /// <summary>断言事件序列存在满足谓词的事件。</summary>
+    private static void AssertEvent(List<BridgeEvent> received, Func<BridgeEvent, bool> predicate, string what, List<string> failures)
+    {
+        if (!received.Any(predicate))
+        {
+            failures.Add($"断言失败: {what}");
+        }
+    }
+
+    /// <summary>echo-child — 模拟引擎：读 stdin 请求，向 stdout 回放完整回合事件序列。</summary>
+    private static int RunBridgeEchoChild()
+    {
+        var reader = Console.In;
+        var writer = Console.Out;
+        writer.WriteLine(BridgeProtocol.SerializeEvent(new BridgeEvent.TurnStarted()));
+        writer.WriteLine(BridgeProtocol.SerializeEvent(new BridgeEvent.ThinkingStarted()));
+        writer.WriteLine(BridgeProtocol.SerializeEvent(new BridgeEvent.ThinkingEnded(5000)));
+        writer.WriteLine(BridgeProtocol.SerializeEvent(new BridgeEvent.ToolCall("Read", "bridge/echo")));
+        writer.WriteLine(BridgeProtocol.SerializeEvent(new BridgeEvent.ToolResult("6 events")));
+        writer.WriteLine(BridgeProtocol.SerializeEvent(new BridgeEvent.AssistantMessage("bridge 回环回复 — 协议链路正常。")));
+        writer.WriteLine(BridgeProtocol.SerializeEvent(new BridgeEvent.TurnCompleted()));
+        writer.Flush();
+
+        // 读完父进程全部请求行后退出
+        while (reader.ReadLine() is not null)
+        {
+        }
+
+        return 0;
+    }
+
+    /// <summary>自检模式：四组冒烟断言（无终端依赖，CI 可跑）。</summary>
     private static int RunSelftest()
     {
         var failures = new List<string>();

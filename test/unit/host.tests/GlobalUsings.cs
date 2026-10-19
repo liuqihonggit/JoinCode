@@ -94,3 +94,4 @@ global using IMcpToolRegistry = JoinCode.Abstractions.Mcp.Registry.IMcpToolRegis
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using TestInMemFs = Testing.Common.Services.InMemoryFileSystem;
 global using System.Diagnostics.CodeAnalysis;
+global using CliBridge = JoinCode.Cli.Bridge;

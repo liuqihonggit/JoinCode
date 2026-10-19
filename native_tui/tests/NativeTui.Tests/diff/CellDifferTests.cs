@@ -107,7 +107,7 @@ public sealed class CellDifferTests
     }
 
     [Fact]
-    public void CjkWideCharChange_ErasesBothCellsWritesOnce()
+    public void CjkWideCharChange_SingleContiguousSegmentWithWideAdvance()
     {
         using var prev = new Screen(cols: 10, rows: 1);
         using var next = new Screen(cols: 10, rows: 1);
@@ -115,8 +115,8 @@ public sealed class CellDifferTests
         next.WriteText(0, 2, "中");
         var diff = new CellDiffer();
         var output = diff.RenderFrame(prev, next);
-        // 擦除两格（宽字符占位），新位置只输出一次 rune（SpacerTail 跳过，终端自动推进光标）
-        Assert.Equal("\x1b[H  \x1b[1;3H中", output);
+        // 擦除两格+新宽字符合并为一个连续段：双空格后打印"中"，终端自动推进光标两格
+        Assert.Equal("\x1b[H  中", output);
     }
 
     [Fact]

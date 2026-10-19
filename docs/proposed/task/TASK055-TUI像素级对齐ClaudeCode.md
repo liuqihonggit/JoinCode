@@ -161,4 +161,23 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!-- 验证: native_tui 269/269 测试全绿(+4 双缓冲/Insert); Demo --selftest 退出码 0; 重定向守卫退出码 1 ✅ -->
 <!--   commit 1746de5c3(双缓冲基建) + 2e7f95487(Demo exe) -->
 <!-- M6a 手动验收(ADR 0080)待用户真实终端执行: NativeTui.Demo.exe — spinner 动画/输入编辑/停滞红/↑↓滚动 -->
-<!-- M6 剩余: 键盘解码(方向键转义序列/Ctrl 组合), resize 事件化, bridge 进程协议(stdio JSON 与 jcc.exe) -->
+
+<!-- 🤖 Auto Decision: 2026-10-20 (M6b/c/d/e-1: 键盘解码 + 动词表 + 思考生命周期 + bridge 协议层) -->
+<!-- 决策1(M6b): 解码器 chunk 边界契约 — TryParseNext 把 buffer 视为当前全部可用输入, 孤立 ESC 即 Escape 键 -->
+<!--   (基准用 ESC_TIMEOUT flush, 此处以 chunk 边界近似); 未知序列整体吞为 Unknown 防泄漏(对齐基准 suppress 守卫) -->
+<!-- 决策2(M6b): kill 链打断下沉到编辑方法 — 基准 onInput 单点 resetKillAccumulation/resetYankState 分散为 -->
+<!--   InputBuffer 方法级 BeginEditText(kill/yank 方法自身不走), 语义等价且可单测 -->
+<!-- 决策3(M6b): span 消耗方向 — buffer[n..] 是消耗前 n 个, buffer[..n] 是保留前 n 个(曾因写反致解码器死循环) -->
+<!-- 决策4(M6c): 基准 useState 挂载采样一次语义用懒加载缓存字段等价实现(_cachedVerb ??= Sample), -->
+<!--   显式 Message 优先对齐 overrideMessage ?? randomVerb; Demo StartTurn 不再硬编码 Thinking… -->
+<!-- 决策5(M6d): 基准 setTimeout 语义离散化为帧循环 Tick 判定 — ThinkingLifecycle 纯状态机+墙钟注入, -->
+<!--   thinking 最短 2s 补足 → thought for Ns 展示 2s → 消失; SpinnerItem 内部 Mode==Thinking 驱动(删外部属性) -->
+<!-- 决策6(M6e-1): 协议统一 LF 分隔 — 显式 Write('\n') 不受平台 NewLine 影响(Windows WriteLine 会产生 \r\n); -->
+<!--   未知 type 诊断含触发值+合法清单+升级指引(错误提示必须有诱导方式); ADR 0141 已写 -->
+<!-- 替代方案: Esc 双击清空(Demo 单击近似); readline 式异步 IO(主循环同步, M6e-2 接真进程再评估) -->
+<!-- 验证: 379/379 测试全绿(+110: 解码器 38/词编辑 24/动词 10/thinking 10/bridge 16 + 改造); -->
+<!--   Demo --selftest 0 + --bridge-selftest 0(跨进程 stdin/stdout 管道 roundtrip 真进程级) ✅ -->
+<!--   commit 6938da1e6(M6b) 3f365ed5c(M6c) 3740a1b7a(M6d) 708e5b029(M6e-1) -->
+<!-- M6e-2 剩余(建议新窗口): jcc.exe 服务端事件泵(LLM 流式管道 → BridgeEvent) + Demo --bridge <exe> 真实对接; -->
+<!-- M7: 截图校准工具 + Markdown/代码高亮/diff/权限对话框; vim 模式跳过(用户决策 2026-10-20, 代码量大) -->
+<!-- resize 事件化: EnsureScreens 每帧对比已工作, 事件化是优化非必需, 并入 M7 顺手做 -->

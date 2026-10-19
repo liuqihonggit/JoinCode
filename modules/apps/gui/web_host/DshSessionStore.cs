@@ -174,4 +174,7 @@ internal sealed class DshSessionStore {
 
     /// <summary>默认代理预设 — 与 agentPresets/list 返回的 standard 对齐</summary>
     internal const string DefaultAgentPreset = "standard";
+
+    /// <summary>一次投影/列表返回的最大会话条数（前端空 cursor 即从头拉取）</summary>
+    internal const int MaxSessions = 200;
 }

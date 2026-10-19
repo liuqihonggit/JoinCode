@@ -189,7 +189,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
                     new DshWorkspaceBaseline { Value = baseline }, DshJsonContext.Default.DshWorkspaceBaseline))];
             }
             case "session/control": {
-                var projections = await _services.Sessions.ProjectionsMapAsync(200, cancellationToken);
+                var projections = await _services.Sessions.ProjectionsMapAsync(DshSessionStore.MaxSessions, cancellationToken);
                 return [Item(open.StreamId, JsonSerializer.SerializeToElement(
                     new DshSessionControlBaseline { Value = new DshSessionControlValue { Projections = projections } },
                     DshJsonContext.Default.DshSessionControlBaseline))];

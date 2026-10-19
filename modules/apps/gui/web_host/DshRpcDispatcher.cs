@@ -11,7 +11,7 @@ internal sealed class DshRpcDispatcher {
     private readonly DshHostServices _services;
 
     /// <summary>会话列表一次返回的最大条数（前端空 cursor 即从头拉取）</summary>
-    private const int SessionListLimit = 200;
+    private const int SessionListLimit = DshSessionStore.MaxSessions;
 
     /// <summary>分发表：方法名 → 处理器（命名函数，便于替换与检索）</summary>
     private readonly FrozenDictionary<string, Handler> _routes;
@@ -212,7 +212,8 @@ internal sealed class DshRpcDispatcher {
             && await _services.Workspaces.AttachSessionAsync(request.WorkspaceId, session.SessionId, cancellationToken) is null) {
             App.LogDiag($"[DSH-WEB] session/create 会话 {session.SessionId} 未能登记到工作区 {request.WorkspaceId}");
         }
-        return Ok(new DshSessionCreateResult { SessionId = session.SessionId, AgentPreset = session.AgentPreset });
+        var agentPreset = string.IsNullOrWhiteSpace(request?.AgentPreset) ? session.AgentPreset : request.AgentPreset;
+        return Ok(new DshSessionCreateResult { SessionId = session.SessionId, AgentPreset = agentPreset });
     }
 
     /// <summary>解析会话所属工作目录：workspaceId 优先，其次 cwd，最后进程工作目录</summary>

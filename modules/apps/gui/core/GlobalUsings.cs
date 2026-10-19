@@ -73,7 +73,11 @@ global using System.Collections.Generic;
 global using System.Collections.ObjectModel;
 global using System.ComponentModel;
 global using System.Diagnostics.CodeAnalysis;
+global using System.IO.Compression;
 global using System.Linq;
+global using System.Net;
+global using System.Net.Sockets;
+global using System.Net.WebSockets;
 global using System.Runtime.CompilerServices;
 global using System.Text;
 global using System.Text.Json;
@@ -89,4 +93,6 @@ global using Dock.Model.Mvvm.Controls;
 global using JoinCode.Gui.ViewModels.Docking;
 // WebUI 宿主（B2 路线，ADR 0138）
 global using JoinCode.Gui.WebView;
+// DSH 前端宿主（ADR 0143）
+global using JoinCode.Gui.WebHost;
 global using Microsoft.Web.WebView2.Core;

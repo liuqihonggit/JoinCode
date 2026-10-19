@@ -26,8 +26,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- WebUI 静态资源（B2 路线，ADR 0138）：随 exe 分发，file:// 离线加载 -->
+    <!-- WebUI 静态资源（B2 路线，ADR 0138）：随 exe 分发，file:// 离线加载（自研 UI，webui-smoke 对照用） -->
     <Content Include="webui\**" CopyToOutputDirectory="PreserveNewest" />
+    <!-- DSH 前端资产（ADR 0143）：嵌入 zip，首次运行解包到 JccDirectory\dsh_web\{版本} -->
+    <EmbeddedResource Include="dsh_web\dsh_web.zip" LogicalName="JoinCode.Gui.dsh_web.zip" />
   </ItemGroup>
 
   <ItemGroup>

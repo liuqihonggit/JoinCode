@@ -26,13 +26,17 @@ public sealed partial class App : Application {
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) {
             var args = Environment.GetCommandLineArgs();
-            if (args.Contains("--webui")) {
-                // B2 路线（ADR 0138）：内容区由 WebView2 承载自研 Web UI；--webui-smoke 供 E2E 冒烟
+            if (args.Contains("--webui-smoke")) {
+                // 自研 WebUI 冒烟（ADR 0138 遗留对照路径，file:// + chrome.webview 桥）
                 var pagePath = Path.Combine(AppContext.BaseDirectory, "webui", "index.html");
                 var userDataDir = Path.Combine(AppDataConstants.Paths.JccDirectory, "webview2");
-                desktop.MainWindow = new WebUiWindow(
-                    new Uri(pagePath).AbsoluteUri, userDataDir, args.Contains("--webui-smoke"));
-                App.LogDiag("[App] WebUiWindow created");
+                desktop.MainWindow = new WebUiWindow(new Uri(pagePath).AbsoluteUri, userDataDir, smoke: true);
+                App.LogDiag("[App] WebUiWindow(smoke) created");
+            } else if (args.Contains("--webui")) {
+                // DSH 前端整体托管（ADR 0143）：回环 HTTP/WS 宿主 + WebView2
+                var userDataDir = Path.Combine(AppDataConstants.Paths.JccDirectory, "webview2");
+                desktop.MainWindow = new DshWebUiWindow(userDataDir);
+                App.LogDiag("[App] DshWebUiWindow created");
             } else {
                 // 先显示窗口（占位会话），引擎在后台渐进式组装，完成后热切换，避免启动阻塞
                 desktop.MainWindow = new MainWindow {

@@ -133,6 +133,90 @@ internal sealed class DshSessionControlBaseline {
     public DshSessionControlValue Value { get; set; } = new();
 }
 
+/// <summary>workspace/create 参数</summary>
+internal sealed class DshWorkspacePathArgs {
+    /// <summary>要纳入工作区的绝对路径</summary>
+    public string Path { get; set; } = "";
+}
+
+/// <summary>workspace/create 结果</summary>
+internal sealed class DshWorkspaceCreateResult {
+    /// <summary>工作区行</summary>
+    public DshWorkspaceItem Workspace { get; set; } = new();
+    /// <summary>是否新建（false 表示该路径已存在工作区）</summary>
+    public bool Created { get; set; }
+}
+
+/// <summary>按 workspaceId 定位的参数</summary>
+internal sealed class DshWorkspaceIdArgs {
+    /// <summary>目标工作区</summary>
+    public string WorkspaceId { get; set; } = "";
+}
+
+/// <summary>workspace/rename 参数</summary>
+internal sealed class DshWorkspaceRenameArgs {
+    /// <summary>目标工作区</summary>
+    public string WorkspaceId { get; set; } = "";
+    /// <summary>新显示名</summary>
+    public string Title { get; set; } = "";
+}
+
+/// <summary>workspace/insertBefore 参数（beforeWorkspaceId 省略表示追加到末尾）</summary>
+internal sealed class DshWorkspaceInsertBeforeArgs {
+    /// <summary>要移动的工作区</summary>
+    public string WorkspaceId { get; set; } = "";
+    /// <summary>锚点工作区</summary>
+    public string? BeforeWorkspaceId { get; set; }
+}
+
+/// <summary>workspace/insertSessionBefore 参数</summary>
+internal sealed class DshWorkspaceInsertSessionBeforeArgs {
+    /// <summary>所属工作区</summary>
+    public string WorkspaceId { get; set; } = "";
+    /// <summary>要移动的会话</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>锚点会话</summary>
+    public string? BeforeSessionId { get; set; }
+}
+
+/// <summary>单工作区结果（rename / insertSessionBefore）</summary>
+internal sealed class DshWorkspaceResult {
+    /// <summary>工作区行</summary>
+    public DshWorkspaceItem Workspace { get; set; } = new();
+}
+
+/// <summary>工作区顺序结果</summary>
+internal sealed class DshWorkspaceOrderResult {
+    /// <summary>完整顺序</summary>
+    public List<string> WorkspaceIds { get; set; } = [];
+}
+
+/// <summary>workspace/delete 结果</summary>
+internal sealed class DshWorkspaceDeletedResult {
+    /// <summary>固定成功标记</summary>
+    public bool Deleted { get; set; } = true;
+}
+
+/// <summary>按 sessionId 定位的参数（archive / unarchive / pin / unpin 共用）</summary>
+internal sealed class DshSessionIdArgs {
+    /// <summary>目标会话</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>归档时是否中断该会话正在运行的工作（archive 专用）</summary>
+    public bool? StopActivity { get; set; }
+}
+
+/// <summary>归档集合结果</summary>
+internal sealed class DshArchivedResult {
+    /// <summary>完整归档集合</summary>
+    public List<string> ArchivedSessionIds { get; set; } = [];
+}
+
+/// <summary>置顶集合结果</summary>
+internal sealed class DshPinnedResult {
+    /// <summary>完整置顶集合</summary>
+    public List<string> PinnedSessionIds { get; set; } = [];
+}
+
 /// <summary>session/control 基线值</summary>
 internal sealed class DshSessionControlValue {
     /// <summary>会话投影（M1 为空）</summary>
@@ -382,6 +466,12 @@ internal sealed class DshSkillItem {
     public bool ModelInvocable { get; set; }
 }
 
+/// <summary>DSH 生成的远程契约：具名参数统一收在 request 下（生成器里 wire="request"）</summary>
+internal sealed class DshRequestEnvelope<TRequest> where TRequest : new() {
+    /// <summary>参数体</summary>
+    public TRequest Request { get; set; } = new();
+}
+
 /// <summary>失败详情占位对象（协议要求 details 为对象）</summary>
 internal sealed class DshRpcErrorDetails;
 
@@ -392,9 +482,28 @@ internal sealed class DshRpcErrorDetails;
 [JsonSerializable(typeof(DshStreamOpen))]
 [JsonSerializable(typeof(DshStreamItem))]
 [JsonSerializable(typeof(DshEventsReady))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshWorkspacePathArgs>))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshWorkspaceIdArgs>))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshWorkspaceRenameArgs>))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshWorkspaceInsertBeforeArgs>))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshWorkspaceInsertSessionBeforeArgs>))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshSessionIdArgs>))]
 [JsonSerializable(typeof(DshWorkspaceBaseline))]
+[JsonSerializable(typeof(DshWorkspacePathArgs))]
+[JsonSerializable(typeof(DshWorkspaceCreateResult))]
+[JsonSerializable(typeof(DshWorkspaceIdArgs))]
+[JsonSerializable(typeof(DshWorkspaceRenameArgs))]
+[JsonSerializable(typeof(DshWorkspaceInsertBeforeArgs))]
+[JsonSerializable(typeof(DshWorkspaceInsertSessionBeforeArgs))]
+[JsonSerializable(typeof(DshWorkspaceResult))]
+[JsonSerializable(typeof(DshWorkspaceOrderResult))]
+[JsonSerializable(typeof(DshWorkspaceDeletedResult))]
+[JsonSerializable(typeof(DshSessionIdArgs))]
+[JsonSerializable(typeof(DshArchivedResult))]
+[JsonSerializable(typeof(DshPinnedResult))]
 [JsonSerializable(typeof(DshSessionControlBaseline))]
 [JsonSerializable(typeof(DshSessionList))]
+[JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(DshSessionCreateResult))]
 [JsonSerializable(typeof(DshModelCatalog))]
 [JsonSerializable(typeof(DshAgentPresetList))]

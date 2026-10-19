@@ -19,7 +19,20 @@ internal sealed class DshWebUiWindow : Window {
         _view = new WebView2Host(_host.BaseUrl, userDataDir);
         _view.InitFailed += ShowFallback;
         Content = _view;
+        DshDirectoryPicker.Register(PickFolderAsync);
         App.LogDiag($"[DSH-WEB] window created url={_host.BaseUrl}");
+    }
+
+    /// <summary>前端 directoryPicker/pick 的原生实现：UI 线程弹目录选择对话框，取消返回 null</summary>
+    private async Task<string?> PickFolderAsync(CancellationToken cancellationToken) {
+        var folders = await Dispatcher.UIThread.InvokeAsync(() => StorageProvider.OpenFolderPickerAsync(new Avalonia.Platform.Storage.FolderPickerOpenOptions {
+            Title = "选择工作区目录",
+            AllowMultiple = false,
+        }));
+        if (cancellationToken.IsCancellationRequested) {
+            return null;
+        }
+        return folders.FirstOrDefault()?.Path.LocalPath;
     }
 
     /// <summary>WebView2 初始化失败回退（不崩溃，给出可操作提示）</summary>
@@ -36,8 +49,9 @@ internal sealed class DshWebUiWindow : Window {
         };
     }
 
-    /// <summary>窗口关闭：停止 HTTP/WS 宿主（WebView2 由控件自身关闭）</summary>
+    /// <summary>窗口关闭：注销目录选择器 + 停止 HTTP/WS 宿主（WebView2 由控件自身关闭）</summary>
     protected override void OnClosed(EventArgs e) {
+        DshDirectoryPicker.Register(null);
         _ = _host.DisposeAsync().AsTask().ContinueWith(task => {
             if (task.IsFaulted) {
                 App.LogDiag($"[DSH-WEB] host dispose failed: {task.Exception?.Message}");

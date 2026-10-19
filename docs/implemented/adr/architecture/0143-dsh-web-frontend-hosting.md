@@ -73,4 +73,5 @@ ui-settings-general 的 Config = z.object({ welcomeNoticeVersion: z.string().vol
 - 前端升级 = 重新打包 `dsh_web.zip` + 回归宿主协议（`capture/vendor-dsh-web.mjs` + `package_dsh_web.py` 可重复）。
 - 宿主协议成为稳定边界：自有引擎按 `DshRpcDispatcher.Routes` 的命名方法逐个接入，不侵入前端。
 - 需要持续维护「方法实现清单」（见 `docs/implemented/task/TASK053-DSH前端托管与宿主协议对齐任务.md`）。
-- 已实现方法之外的调用会得到 `unimplemented` + 引导文案；`directoryPicker/pick` 等交互型方法在 M2 接入自有引擎时补真实实现。
+- 已实现方法之外的调用会得到 `unimplemented` + 引导文案；`directoryPicker/pick`、`workspace/*` 已于 M2-a 接入真实实现（工作区注册表落 `~/.jcc/dsh-workspaces.json`），会话/消息/权限在 M2-b/c/d 接入自有引擎。
+- **请求参数形状以生成的远程契约为准**（`typert.remote-client.js` 里每个参数的 `wire` 名）：具名参数收在 `request` 下（如 `workspace/create` 的 `{"request":{"path":…}}`），位置参数平铺（如 `directoryPicker/createDirectory` 的 `{"path":…,"name":…}`）。宿主用 `DshRequestEnvelope<T>` 类型化解析，禁止假设平铺参数。

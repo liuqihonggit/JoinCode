@@ -8,22 +8,22 @@ namespace JoinCode.Gui.WebHost;
 /// （不手写 JSON 字符串，遵守 ADR 0133）。
 /// 当前为进程内存储（M2 再接入自有引擎的设置持久化与真实 schema）。
 /// </summary>
-internal static class DshSettingsStore {
+internal sealed class DshSettingsStore {
     /// <summary>前端「预览版说明」确认所在的命名空间</summary>
     private const string WelcomeNamespace = "ui-settings-general";
 
-    private static readonly Lock Gate = new();
-    private static readonly Dictionary<string, NamespaceState> States = new(StringComparer.Ordinal) {
+    private readonly Lock Gate = new();
+    private readonly Dictionary<string, NamespaceState> States = new(StringComparer.Ordinal) {
         [WelcomeNamespace] = new(),
     };
-    private static readonly JsonElement JsonNull = JsonSerializer.SerializeToElement<object?>(null, DshJsonContext.Default.Object);
+    private readonly JsonElement JsonNull = JsonSerializer.SerializeToElement<object?>(null, DshJsonContext.Default.Object);
 
     /// <summary>
     /// <c>ui-settings-general</c> 插件 Config 的 schema 信封，等价于前端插件里
     /// <c>volatileForm(z.object({ welcomeNoticeVersion: z.string().volatile() })).toJSON()</c>。
     /// 前端必须能还原并校验通过 <c>value</c>，否则命名空间停在 loading、提示页不渲染。
     /// </summary>
-    private static readonly JsonElement WelcomeSchema = JsonSerializer.SerializeToElement(
+    private readonly JsonElement WelcomeSchema = JsonSerializer.SerializeToElement(
         new DshSchemaEnvelope {
             Uid = 4,
             Refs = new Dictionary<string, DshSchemaNode>(StringComparer.Ordinal) {
@@ -46,7 +46,7 @@ internal static class DshSettingsStore {
     }
 
     /// <summary>清空并重建为初始状态（测试与重新初始化用）</summary>
-    internal static void Reset() {
+    internal void Reset() {
         lock (Gate) {
             States.Clear();
             States[WelcomeNamespace] = new NamespaceState();
@@ -54,7 +54,7 @@ internal static class DshSettingsStore {
     }
 
     /// <summary>settings/describe：列出全部命名空间视图</summary>
-    internal static DshSettingsDescribe Describe() {
+    internal DshSettingsDescribe Describe() {
         lock (Gate) {
             return new DshSettingsDescribe {
                 Writable = true,
@@ -67,7 +67,7 @@ internal static class DshSettingsStore {
     }
 
     /// <summary>settings/mutate：按路径应用 set/unset，返回该命名空间的新视图</summary>
-    internal static DshRpcResult Mutate(JsonElement args) {
+    internal DshRpcResult Mutate(JsonElement args) {
         DshSettingsMutateArgs? request;
         try {
             request = args.Deserialize(DshJsonContext.Default.DshSettingsMutateArgs);
@@ -130,7 +130,7 @@ internal static class DshSettingsStore {
     }
 
     /// <summary>命名空间视图（value/user 为同一棵树，base 暂为空）</summary>
-    private static DshSettingsNamespaceView View(string ns, NamespaceState state) {
+    private DshSettingsNamespaceView View(string ns, NamespaceState state) {
         var tree = BuildTree(state.Entries);
         var isWelcome = string.Equals(ns, WelcomeNamespace, StringComparison.Ordinal);
         return new DshSettingsNamespaceView {

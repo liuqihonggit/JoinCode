@@ -267,6 +267,9 @@ public static class AppDataConstants {
     /// <summary>用户级引导完成标记文件: ~/.jcc/onboarding_complete.json</summary>
     public static string OnboardingCompleteFilePath => _paths.OnboardingCompleteFilePath;
 
+    /// <summary>用户级 DSH 前端工作区注册表: ~/.jcc/dsh-workspaces.json（ADR 0143）</summary>
+    public static string DshWorkspacesFilePath => _paths.DshWorkspacesFilePath;
+
     /// <summary>用户级运行时目录: ~/.jcc/runtime/ — 持久性运行日志、崩溃快照等（ADR 0055）</summary>
     public static string UserRuntimeDirectory => _paths.UserRuntimeDirectory;
 

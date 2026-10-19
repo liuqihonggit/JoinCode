@@ -34,12 +34,16 @@ internal sealed class DshWebHost : IAsyncDisposable {
 
     private readonly HttpListener _listener = new();
     private readonly string _root;
+    private readonly DshRpcDispatcher _dispatcher;
+    private readonly DshHostServices _services;
     private readonly CancellationTokenSource _lifetime = new();
     private Task? _acceptLoop;
     private int _disposed;
 
-    private DshWebHost(string root, int port) {
+    private DshWebHost(string root, int port, DshHostServices services) {
         _root = root;
+        _services = services;
+        _dispatcher = new DshRpcDispatcher(services);
         Port = port;
         BaseUrl = $"http://127.0.0.1:{port}/";
     }
@@ -51,9 +55,9 @@ internal sealed class DshWebHost : IAsyncDisposable {
     internal string BaseUrl { get; }
 
     /// <summary>解包资产 + 选空闲端口 + 启动监听</summary>
-    internal static DshWebHost Start() {
+    internal static DshWebHost Start(DshHostServices? services = null) {
         var root = DshWebAssets.EnsureExtracted();
-        var host = new DshWebHost(root, FindFreePort());
+        var host = new DshWebHost(root, FindFreePort(), services ?? new DshHostServices(new PhysicalFileSystem()));
         host._listener.Prefixes.Add(host.BaseUrl);
         host._listener.Start();
         host._acceptLoop = host.AcceptLoopAsync();
@@ -109,7 +113,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
     }
 
     /// <summary>一元 RPC：解析信封 → 分发 → 回写信封（失败也回 200，错误在 result.error）</summary>
-    private static async Task HandleRpcAsync(HttpListenerContext context) {
+    private async Task HandleRpcAsync(HttpListenerContext context) {
         var response = context.Response;
         DshRpcRequest? envelope;
         try {
@@ -126,7 +130,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
             return;
         }
         var args = envelope.Payload?.Args;
-        var result = DshRpcDispatcher.Handle(envelope.Method, args ?? default);
+        var result = await _dispatcher.HandleAsync(envelope.Method, args ?? default, _lifetime.Token);
         if (!result.Ok) {
             App.LogDiag($"[DSH-WEB] rpc {envelope.Method} -> {result.Error?.Code}: {result.Error?.Message}");
         }
@@ -163,34 +167,33 @@ internal sealed class DshWebHost : IAsyncDisposable {
             if (open is null || open.Type != "open" || string.IsNullOrEmpty(open.StreamId)) {
                 continue;
             }
-            foreach (var item in OpenStream(open)) {
+            foreach (var item in await OpenStreamAsync(open, _lifetime.Token)) {
                 var bytes = JsonSerializer.SerializeToUtf8Bytes(item, DshJsonContext.Default.DshStreamItem);
                 await socket.SendAsync(bytes, WebSocketMessageType.Text, endOfMessage: true, CancellationToken.None);
             }
         }
     }
 
-    /// <summary>按端点产生初始数据项（M1：$events 就绪、workspace/session 基线为空）</summary>
-    private static IEnumerable<DshStreamItem> OpenStream(DshStreamOpen open) {
+    /// <summary>按端点产生初始数据项（$events 就绪、workspace/follow 读真实注册表、session/control 空投影）</summary>
+    private async Task<IReadOnlyList<DshStreamItem>> OpenStreamAsync(DshStreamOpen open, CancellationToken cancellationToken) {
         App.LogDiag($"[DSH-WEB] stream open endpoint={open.Endpoint} id={open.StreamId}");
         switch (open.Endpoint) {
             case "$events":
-                yield return Item(open.StreamId, JsonSerializer.SerializeToElement(new DshEventsReady {
+                return [Item(open.StreamId, JsonSerializer.SerializeToElement(new DshEventsReady {
                     ClientId = Guid.NewGuid().ToString(),
                     Host = new DshHostInfo { Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) },
-                }, DshJsonContext.Default.DshEventsReady));
-                break;
-            case "workspace/follow":
-                yield return Item(open.StreamId, JsonSerializer.SerializeToElement(
-                    new DshWorkspaceBaseline(), DshJsonContext.Default.DshWorkspaceBaseline));
-                break;
+                }, DshJsonContext.Default.DshEventsReady))];
+            case "workspace/follow": {
+                var baseline = await _services.Workspaces.ReadBaselineAsync(cancellationToken);
+                return [Item(open.StreamId, JsonSerializer.SerializeToElement(
+                    new DshWorkspaceBaseline { Value = baseline }, DshJsonContext.Default.DshWorkspaceBaseline))];
+            }
             case "session/control":
-                yield return Item(open.StreamId, JsonSerializer.SerializeToElement(
-                    new DshSessionControlBaseline(), DshJsonContext.Default.DshSessionControlBaseline));
-                break;
+                return [Item(open.StreamId, JsonSerializer.SerializeToElement(
+                    new DshSessionControlBaseline(), DshJsonContext.Default.DshSessionControlBaseline))];
             default:
                 App.LogDiag($"[DSH-WEB] stream endpoint unimplemented: {open.Endpoint}");
-                break;
+                return [];
         }
     }
 

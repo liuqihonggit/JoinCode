@@ -23,7 +23,7 @@ public sealed class ReplBridgeDriverTests
         _driver.Apply(new BridgeEvent.TurnStarted());
 
         Assert.True(_driver.IsBusy);
-        Assert.True(_view.Busy);
+        Assert.True(_view.Footer.Busy);
         Assert.Equal(SpinnerMode.Thinking, _spinner.Mode);
         Assert.Equal(0, _spinner.ResponseLength);
         Assert.False(_spinner.HasActiveTools);
@@ -65,7 +65,7 @@ public sealed class ReplBridgeDriverTests
         _driver.Apply(new BridgeEvent.TurnCompleted());
 
         Assert.False(_driver.IsBusy);
-        Assert.False(_view.Busy);
+        Assert.False(_view.Footer.Busy);
         Assert.Equal(0, _spinner.ResponseLength);
         Assert.False(_spinner.HasActiveTools);
         Assert.Same(_spinner, _view.Messages.Items[^1]);
@@ -109,7 +109,7 @@ public sealed class ReplBridgeDriverTests
         _driver.Apply(new BridgeEvent.TurnInterrupted());
 
         Assert.False(_driver.IsBusy);
-        Assert.False(_view.Busy);
+        Assert.False(_view.Footer.Busy);
         Assert.Equal(countBefore, _view.Messages.Count);
         Assert.Equal(0, _spinner.ResponseLength);
     }

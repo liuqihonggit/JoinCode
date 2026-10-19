@@ -70,7 +70,7 @@ public sealed class ReplBridgeDriver
     public void BeginTurn()
     {
         IsBusy = true;
-        _view.Busy = true;
+        _view.Footer = _view.Footer with { Busy = true };
         _spinner.Message = string.Empty;
         _spinner.ResetVerb();
         _spinner.Mode = SpinnerMode.Thinking;
@@ -83,7 +83,7 @@ public sealed class ReplBridgeDriver
     public void EndTurn()
     {
         IsBusy = false;
-        _view.Busy = false;
+        _view.Footer = _view.Footer with { Busy = false };
         _spinner.Message = string.Empty;
         _spinner.ResponseLength = 0;
         _spinner.HasActiveTools = false;

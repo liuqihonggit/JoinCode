@@ -395,3 +395,15 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!-- 下一拔(Step 2): CliSession 表现层解耦(CliEventConsumer 已在库侧, TerminalHelper/ -->
 <!--   PrefixCommandRouter 依赖需搬移或改注入) → Step3 EngineSessionFactory+app/modules+ -->
 <!--   CommandLineOptions → Step4 ApplicationBuilder 引擎/宿主逻辑拆分 → Step5 gui/tui 切引 -->
+<!-- 🤖 Auto Decision: 2026-10-20 (ADR 0143 阶段一 Step 2: 提取 EngineAgentFactory) -->
+<!-- 范围修正: CliSession 本质是 CLI 交互编排器(斜杠命令路由+TerminalHelper IO), 真正引擎侧 -->
+<!--   资产只有 CreateMainAgent — Step 2 从"搬整个 CliSession"修正为"提取工厂函数", CliSession -->
+<!--   本体留宿主(表现层, 归宿正确) -->
+<!-- 落地: engine/session/EngineAgentFactory.cs 新建(sealed class, 从 CliSession.CreateMainAgent -->
+<!--   迁移, 去掉未用的 chatService 参数); CliSession/BridgeServeCommand 两处调用点改工厂调用; -->
+<!--   host.tests GlobalUsings 补 JoinCode.Abstractions.Entity -->
+<!-- 关键决策: 命名空间 JoinCode.Cli 保持(宿主调用点零 using 改动); TDD 双确认(先红后绿) -->
+<!-- 坑: 静态类不能做 ILogger<T> 泛型参数(CS0718) — 工厂类用 sealed class+私有构造替代 static -->
+<!-- 验证: engine 0警告0错误 + cli 0警告0错误 + 新测试 3/3 绿(TDD 红→绿) + host.tests 全量 -->
+<!--   1336/1336(原1333+新增3) — 下一拔(Step 3): EngineSessionFactory + app/modules 七模块 + -->
+<!--   CommandLineOptions 搬库(断裂点①②), 消除 gui 对 cli 工程的直达依赖前置条件 -->

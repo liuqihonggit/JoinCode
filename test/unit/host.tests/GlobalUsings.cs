@@ -63,6 +63,7 @@ global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.UI;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Utils.Diagnostics;
+global using JoinCode.Abstractions.Entity;
 global using JoinCode.Adapters;
 global using JoinCode.App.Builder;
 global using JoinCode.ChatCommands;

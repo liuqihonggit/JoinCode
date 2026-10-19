@@ -2,7 +2,7 @@ namespace JoinCode.CliCommands;
 
 /// <summary>
 /// bridge_serve 元命令 — 启动 bridge 引擎服务端（ADR 0141 stdio NDJSON 协议）。
-/// <para>组装胶水：EngineSessionFactory 建引擎会话 → SessionController 回合驱动（复用 CliSession.CreateMainAgent）
+/// <para>组装胶水：EngineSessionFactory 建引擎会话 → SessionController 回合驱动（复用 EngineAgentFactory.CreateMainAgent）
 /// → BridgeServeLoop 协议主循环。协议走 Console.OpenStandardOutput 独立 writer，
 /// Console.Out 全程重定向 stderr 防引擎内部输出污染协议流。</para>
 /// <para>消费方：TUI 进程拉起本命令（native_tui BridgeClient --bridge jcc.exe）。</para>
@@ -52,7 +52,7 @@ internal static class BridgeServeCommand {
             var fastMode = engine.Services.GetService<IFastModeService>();
             WriteEvent(stdout, BuildSessionInfo(permissionChecker, fastMode, options));
 
-            var mainAgent = CliSession.CreateMainAgent(engine.ChatService, engine.Services, new Session().ObjectId);
+            var mainAgent = EngineAgentFactory.CreateMainAgent(engine.Services, new Session().ObjectId);
             SessionController? controller = null;
 
             return await BridgeServeLoop.RunAsync(stdin, stdout, Console.Error, (input, consumer, turnCt) => {

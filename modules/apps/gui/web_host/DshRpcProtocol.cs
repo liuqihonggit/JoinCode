@@ -219,8 +219,8 @@ internal sealed class DshPinnedResult {
 
 /// <summary>session/control 基线值</summary>
 internal sealed class DshSessionControlValue {
-    /// <summary>会话投影（M1 为空）</summary>
-    public Dictionary<string, JsonElement> Projections { get; set; } = [];
+    /// <summary>会话投影（会话 ID → 投影快照）</summary>
+    public Dictionary<string, DshSessionProjectionSnapshot> Projections { get; set; } = [];
 }
 
 /// <summary>session/list 返回值</summary>
@@ -323,6 +323,32 @@ internal sealed class DshSessionCreateResult {
     public string AgentPreset { get; set; } = "standard";
 }
 
+/// <summary>session/create 参数（workspaceId 与 cwd 二选一，都省略时用进程工作目录）</summary>
+internal sealed class DshSessionCreateArgs {
+    /// <summary>目标工作区（优先于 cwd）</summary>
+    public string? WorkspaceId { get; set; }
+    /// <summary>工作目录</summary>
+    public string? Cwd { get; set; }
+    /// <summary>指定会话 ID（省略则生成）</summary>
+    public string? SessionId { get; set; }
+    /// <summary>代理预设（省略则 standard）</summary>
+    public string? AgentPreset { get; set; }
+}
+
+/// <summary>session/projections 参数</summary>
+internal sealed class DshSessionProjectionsArgs {
+    /// <summary>目标会话</summary>
+    public string SessionId { get; set; } = "";
+}
+
+/// <summary>单个会话的投影快照（session/projections 返回；会话不存在时为 null）</summary>
+internal sealed class DshSessionProjectionSnapshot {
+    /// <summary>投影对应的会话事件序号</summary>
+    public long AsOfSeq { get; set; }
+    /// <summary>投影键值</summary>
+    public DshSessionProjectionValues Values { get; set; } = new();
+}
+
 /// <summary>模型目录</summary>
 internal sealed class DshModelCatalog {
     /// <summary>默认选择</summary>
@@ -331,6 +357,18 @@ internal sealed class DshModelCatalog {
     public List<string> RoutableProviders { get; set; } = [];
     /// <summary>供应商分组</summary>
     public List<DshModelGroup> Groups { get; set; } = [];
+    /// <summary>读取失败的供应商（协议必需，缺失会让前端解码失败）</summary>
+    public List<DshModelFailure> Failures { get; set; } = [];
+}
+
+/// <summary>模型目录读取失败项</summary>
+internal sealed class DshModelFailure {
+    /// <summary>供应商 ID</summary>
+    public string Id { get; set; } = "";
+    /// <summary>显示名</summary>
+    public string Name { get; set; } = "";
+    /// <summary>失败原因</summary>
+    public string Message { get; set; } = "";
 }
 
 /// <summary>模型选择</summary>
@@ -587,6 +625,12 @@ internal sealed class DshRpcErrorDetails;
 [JsonSerializable(typeof(DshSessionCancelResult))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(DshSessionCreateResult))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshSessionCreateArgs>))]
+[JsonSerializable(typeof(DshSessionCreateArgs))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshSessionProjectionsArgs>))]
+[JsonSerializable(typeof(DshSessionProjectionsArgs))]
+[JsonSerializable(typeof(DshSessionProjectionSnapshot))]
+[JsonSerializable(typeof(Dictionary<string, DshSessionProjectionSnapshot>))]
 [JsonSerializable(typeof(DshModelCatalog))]
 [JsonSerializable(typeof(DshAgentPresetList))]
 [JsonSerializable(typeof(DshPermissionPresetCatalog))]

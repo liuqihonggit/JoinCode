@@ -298,6 +298,24 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
     }
 
     /// <summary>
+    /// 确保会话实体存在（幂等）— 建目录 + meta.json + 空 transcript.json；已存在不覆盖。
+    /// </summary>
+    public async Task<bool> EnsureSessionAsync(string sessionId, SessionInfo info, CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        ArgumentNullException.ThrowIfNull(info);
+
+        var created = !_fs.FileExists(GetTranscriptPath(sessionId));
+        if (!_fs.FileExists(GetMetaPath(sessionId))) {
+            await SaveSessionInfoAsync(sessionId, info, cancellationToken).ConfigureAwait(false);
+        }
+        if (created) {
+            await _writer.WriteEmptyTranscriptAsync(GetTranscriptPath(sessionId), cancellationToken).ConfigureAwait(false);
+            _logger?.LogDebug("Session entity ensured for {SessionId}", sessionId);
+        }
+        return created;
+    }
+
+    /// <summary>
     /// 迁移旧扁平 .json(直接在 sessions 根目录)到每会话子目录 {id}/transcript.json — 幂等,不删旧文件
     /// 旧格式为 JSONL(每行一个 JSON),新格式为 JSON 数组(带缩进,人类可读)
     /// </summary>

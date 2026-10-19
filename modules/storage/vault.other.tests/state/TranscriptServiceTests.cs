@@ -196,6 +196,42 @@ public sealed class TranscriptServiceTests : IDisposable {
         Assert.Null(info);
     }
 
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 断言保证非空")]
+    [Fact]
+    public async Task EnsureSessionAsync_Should_Create_Meta_And_Empty_Transcript() {
+        var info = new SessionInfo {
+            Id = "ensure-1",
+            ProjectPath = "/proj/ensure",
+            Vendor = "deepseek",
+            ModelId = "deepseek-chat",
+            CreatedAt = new DateTime(2026, 10, 20, 0, 0, 0, DateTimeKind.Utc),
+        };
+
+        var created = await _service.EnsureSessionAsync("ensure-1", info).ConfigureAwait(true);
+
+        Assert.True(created);
+        Assert.True(_fs.FileExists("/test/transcript/ensure-1/transcript.json"));
+        Assert.Empty(await _service.LoadTranscriptAsync("ensure-1").ConfigureAwait(true));
+        var loaded = await _service.GetSessionInfoAsync("ensure-1").ConfigureAwait(true);
+        Assert.NotNull(loaded);
+        Assert.Equal("/proj/ensure", loaded!.ProjectPath);
+        var summary = Assert.Single(await _service.ListTranscriptsAsync().ConfigureAwait(true));
+        Assert.Equal("ensure-1", summary.SessionId);
+        Assert.Equal(0, summary.MessageCount);
+    }
+
+    [Fact]
+    public async Task EnsureSessionAsync_Should_Be_Idempotent() {
+        await _service.AppendEntryAsync("ensure-2", NewEntry("user", "existing")).ConfigureAwait(true);
+
+        var created = await _service.EnsureSessionAsync("ensure-2", new SessionInfo { Id = "ensure-2", ProjectPath = "/other" }).ConfigureAwait(true);
+
+        Assert.False(created);
+        var transcript = await _service.LoadTranscriptAsync("ensure-2").ConfigureAwait(true);
+        Assert.Single(transcript);
+        Assert.Equal("existing", transcript[0].Content);
+    }
+
     [Fact]
     public async Task DeleteTranscriptAsync_Should_Remove_Session_Directory() {
         await _service.AppendEntryAsync("dir-delete", NewEntry("user", "bye")).ConfigureAwait(true);

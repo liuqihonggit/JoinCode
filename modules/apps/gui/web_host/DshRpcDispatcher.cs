@@ -25,7 +25,8 @@ internal sealed class DshRpcDispatcher {
             ["session/create"] = SessionCreate,
             ["session/rename"] = SessionRename,
             ["session/cancel"] = Sync(_ => Ok(new DshSessionCancelResult())),
-            ["session/modelCatalog"] = Sync(_ => Ok(new DshModelCatalog())),
+            ["session/modelCatalog"] = Sync(SessionModelCatalog),
+            ["session/projections"] = SessionProjections,
             ["agentPresets/list"] = Sync(_ => Ok(new DshAgentPresetList {
                 Presets = [new DshAgentPreset { Id = "standard", Order = 1, IsDefault = true }],
             })),
@@ -186,10 +187,55 @@ internal sealed class DshRpcDispatcher {
             : Fail("session/not-found", $"session/rename 找不到会话：{request.SessionId}（引擎会话目录 ~/.jcc/sessions）");
     }
 
-    /// <summary>session/create：M1 回显前端请求的会话 ID（无则生成）</summary>
-    private static Task<DshRpcResult> SessionCreate(JsonElement args, CancellationToken cancellationToken) => Task.FromResult(Ok(new DshSessionCreateResult {
-        SessionId = ReadString(args, "request", "sessionId") ?? $"session-{Guid.NewGuid():N}",
-    }));
+    /// <summary>
+    /// session/create：在自有引擎里建会话实体（meta + 空 transcript），归入工作区后返回会话 ID。
+    /// 参数按契约二选一：<c>workspaceId</c>（取工作区路径）或 <c>cwd</c>；都省略时用进程工作目录。
+    /// </summary>
+    private async Task<DshRpcResult> SessionCreate(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSessionCreateArgs)?.Request;
+        var projectPath = await ResolveSessionCwdAsync(request, cancellationToken);
+        if (projectPath is null) {
+            return Fail("session/rejected",
+                $"session/create 的 workspaceId 不存在：{request?.WorkspaceId}；请先调用 workspace/create 或改用 cwd 参数；收到 args={Describe(args)}");
+        }
+        var catalog = _services.Models.Current;
+        var created = await _services.Sessions.CreateAsync(
+            request?.SessionId,
+            projectPath,
+            catalog.Default.Provider,
+            catalog.Default.Model,
+            cancellationToken);
+        if (created is not { } session) {
+            return Fail("session/not-ready", "session/create 需要引擎会话存储就绪；当前引擎尚未 attach，请稍后重试");
+        }
+        if (!string.IsNullOrWhiteSpace(request?.WorkspaceId)
+            && await _services.Workspaces.AttachSessionAsync(request.WorkspaceId, session.SessionId, cancellationToken) is null) {
+            App.LogDiag($"[DSH-WEB] session/create 会话 {session.SessionId} 未能登记到工作区 {request.WorkspaceId}");
+        }
+        return Ok(new DshSessionCreateResult { SessionId = session.SessionId, AgentPreset = session.AgentPreset });
+    }
+
+    /// <summary>解析会话所属工作目录：workspaceId 优先，其次 cwd，最后进程工作目录</summary>
+    /// <returns>目录路径；workspaceId 未知时返回 null</returns>
+    private async Task<string?> ResolveSessionCwdAsync(DshSessionCreateArgs? request, CancellationToken cancellationToken) {
+        if (!string.IsNullOrWhiteSpace(request?.WorkspaceId)) {
+            return (await _services.Workspaces.FindAsync(request.WorkspaceId, cancellationToken))?.Path;
+        }
+        return !string.IsNullOrWhiteSpace(request?.Cwd) ? request.Cwd : Environment.CurrentDirectory;
+    }
+
+    /// <summary>session/projections：单个会话的投影快照（会话不存在返回 null）</summary>
+    private async Task<DshRpcResult> SessionProjections(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSessionProjectionsArgs)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)) {
+            return Fail("session/rejected", $"session/projections 缺少 sessionId；收到 args={Describe(args)}");
+        }
+        var snapshot = await _services.Sessions.ProjectionsAsync(request.SessionId, cancellationToken);
+        return snapshot is null ? OkNull() : Ok(snapshot);
+    }
+
+    /// <summary>session/modelCatalog：自有引擎的供应商/模型目录</summary>
+    private DshRpcResult SessionModelCatalog(JsonElement args) => Ok(_services.Models.Current);
 
     /// <summary>credentials/describe：按环境变量判断是否已配置</summary>
     private static DshRpcResult Credentials(JsonElement args) =>
@@ -221,6 +267,8 @@ internal sealed class DshRpcDispatcher {
     private static DshRpcResult Ok(DshSessionCreateResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionCreateResult));
 
     private static DshRpcResult Ok(DshModelCatalog value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshModelCatalog));
+
+    private static DshRpcResult Ok(DshSessionProjectionSnapshot value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionProjectionSnapshot));
 
     private static DshRpcResult Ok(DshAgentPresetList value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshAgentPresetList));
 

@@ -66,27 +66,97 @@ internal sealed class DshSessionStore {
         CancellationToken cancellationToken) {
         var customTitle = await transcripts.GetCustomTitleAsync(summary.SessionId, cancellationToken);
         var info = await transcripts.GetSessionInfoAsync(summary.SessionId, cancellationToken);
-        var blank = summary.MessageCount == 0;
         return new DshSessionListItem {
             SessionId = summary.SessionId,
             UpdatedAt = ToUnixMilliseconds(summary.LastModifiedAt),
             AgentAvailable = true,
             Running = false,
-            Blank = blank,
+            Blank = summary.MessageCount == 0,
             Cwd = info?.ProjectPath ?? "",
-            Projections = new DshSessionProjections {
-                AsOfSeq = summary.MessageCount,
-                Values = new DshSessionProjectionValues {
-                    Title = customTitle,
-                    AgentPreset = DefaultAgentPreset,
-                    ModelSelection = new DshSessionModelSelectionProjection {
-                        LastUsed = ToModelRef(info),
-                        Next = null,
-                    },
-                    SessionListMetadata = new DshSessionListMetadata {
-                        Blank = blank,
-                        LastPromptAt = null,
-                    },
+            Projections = ProjectValues(customTitle, info, summary.MessageCount),
+        };
+    }
+
+    /// <summary>
+    /// 单个会话的投影快照（供 <c>session/projections</c> 使用）；会话不存在返回 null。
+    /// </summary>
+    /// <param name="sessionId">目标会话</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    internal async Task<DshSessionProjectionSnapshot?> ProjectionsAsync(string sessionId, CancellationToken cancellationToken) {
+        if (_transcripts is not { } transcripts) {
+            return null;
+        }
+        if (!await transcripts.TranscriptExistsAsync(sessionId, cancellationToken)) {
+            return null;
+        }
+        var customTitle = await transcripts.GetCustomTitleAsync(sessionId, cancellationToken);
+        var info = await transcripts.GetSessionInfoAsync(sessionId, cancellationToken);
+        var messageCount = (await transcripts.LoadTranscriptAsync(sessionId, cancellationToken)).Count;
+        var values = ProjectValues(customTitle, info, messageCount);
+        return new DshSessionProjectionSnapshot { AsOfSeq = values.AsOfSeq, Values = values.Values };
+    }
+
+    /// <summary>
+    /// 全部会话的投影映射（<c>session/control</c> 基线）；引擎未就绪或没有会话时为空。
+    /// </summary>
+    /// <param name="limit">最多返回条数</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    internal async Task<Dictionary<string, DshSessionProjectionSnapshot>> ProjectionsMapAsync(int limit, CancellationToken cancellationToken) {
+        var items = await ListAsync(limit, cancellationToken);
+        return items.ToDictionary(
+            item => item.SessionId,
+            item => new DshSessionProjectionSnapshot { AsOfSeq = item.Projections.AsOfSeq, Values = item.Projections.Values },
+            StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// 确保会话实体存在（落盘 <c>~/.jcc/sessions/{sessionId}/</c>）。
+    /// DSH 语义是「实体先于首条消息诞生」：前端点「新会话」即创建，因此这里建 meta + 空 transcript，
+    /// 让新会话立刻能进列表、能被重命名、重启后仍在。
+    /// </summary>
+    /// <param name="sessionId">指定的会话 ID（null/空则生成引擎风格 32 位十六进制 ID）</param>
+    /// <param name="projectPath">会话所属工作目录</param>
+    /// <param name="vendor">供应商（null 表示尚未确定）</param>
+    /// <param name="modelId">模型（null 表示尚未确定）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>会话 ID 与代理预设；引擎未就绪返回 null</returns>
+    internal async Task<(string SessionId, string AgentPreset)?> CreateAsync(
+        string? sessionId,
+        string projectPath,
+        string? vendor,
+        string? modelId,
+        CancellationToken cancellationToken) {
+        if (_transcripts is not { } transcripts) {
+            return null;
+        }
+        var resolvedId = string.IsNullOrWhiteSpace(sessionId) ? Guid.NewGuid().ToString("N") : sessionId;
+        var info = new SessionInfo {
+            Id = resolvedId,
+            ProjectPath = projectPath,
+            ProjectName = Path.GetFileName(projectPath),
+            Vendor = vendor ?? "",
+            ModelId = modelId ?? "",
+            CreatedAt = DateTime.UtcNow,
+        };
+        await transcripts.EnsureSessionAsync(resolvedId, info, cancellationToken);
+        return (resolvedId, DefaultAgentPreset);
+    }
+
+    /// <summary>投影键值（标题 / 代理预设 / 模型选择 / 列表元数据）</summary>
+    private static DshSessionProjections ProjectValues(string? customTitle, SessionInfo? info, int messageCount) {
+        var blank = messageCount == 0;
+        return new DshSessionProjections {
+            AsOfSeq = messageCount,
+            Values = new DshSessionProjectionValues {
+                Title = customTitle,
+                AgentPreset = DefaultAgentPreset,
+                ModelSelection = new DshSessionModelSelectionProjection {
+                    LastUsed = ToModelRef(info),
+                    Next = null,
+                },
+                SessionListMetadata = new DshSessionListMetadata {
+                    Blank = blank,
+                    LastPromptAt = null,
                 },
             },
         };

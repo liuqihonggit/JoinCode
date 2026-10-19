@@ -153,6 +153,17 @@ internal sealed class DshWorkspaceStore {
         }
     }
 
+    /// <summary>按 workspaceId 找已存在的工作区（会话创建时解析工作目录）</summary>
+    internal async Task<DshWorkspaceItem?> FindAsync(string workspaceId, CancellationToken cancellationToken = default) {
+        await _gate.WaitAsync(cancellationToken);
+        try {
+            var document = await LoadAsync(cancellationToken);
+            return document.Items.FirstOrDefault(item => string.Equals(item.WorkspaceId, workspaceId, StringComparison.Ordinal));
+        } finally {
+            _gate.Release();
+        }
+    }
+
     /// <summary>按路径找已存在的工作区（会话创建时用于回填归属）</summary>
     internal async Task<DshWorkspaceItem?> FindByPathAsync(string path, CancellationToken cancellationToken = default) {
         var normalized = Normalize(path);

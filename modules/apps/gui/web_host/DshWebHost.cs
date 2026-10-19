@@ -174,7 +174,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
         }
     }
 
-    /// <summary>按端点产生初始数据项（$events 就绪、workspace/follow 读真实注册表、session/control 空投影）</summary>
+    /// <summary>按端点产生初始数据项（$events 就绪、workspace/follow 读真实注册表、session/control 读会话投影）</summary>
     private async Task<IReadOnlyList<DshStreamItem>> OpenStreamAsync(DshStreamOpen open, CancellationToken cancellationToken) {
         App.LogDiag($"[DSH-WEB] stream open endpoint={open.Endpoint} id={open.StreamId}");
         switch (open.Endpoint) {
@@ -188,9 +188,12 @@ internal sealed class DshWebHost : IAsyncDisposable {
                 return [Item(open.StreamId, JsonSerializer.SerializeToElement(
                     new DshWorkspaceBaseline { Value = baseline }, DshJsonContext.Default.DshWorkspaceBaseline))];
             }
-            case "session/control":
+            case "session/control": {
+                var projections = await _services.Sessions.ProjectionsMapAsync(200, cancellationToken);
                 return [Item(open.StreamId, JsonSerializer.SerializeToElement(
-                    new DshSessionControlBaseline(), DshJsonContext.Default.DshSessionControlBaseline))];
+                    new DshSessionControlBaseline { Value = new DshSessionControlValue { Projections = projections } },
+                    DshJsonContext.Default.DshSessionControlBaseline))];
+            }
             default:
                 App.LogDiag($"[DSH-WEB] stream endpoint unimplemented: {open.Endpoint}");
                 return [];

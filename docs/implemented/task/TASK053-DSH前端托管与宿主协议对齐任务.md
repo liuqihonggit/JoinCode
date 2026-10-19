@@ -12,7 +12,7 @@
 | M2-a | `directoryPicker/pick` + `workspace/*` 全量 + 工作区注册表持久化（选择工作区闭环） | ✅ |
 | M2-b | `session/*`（create/list/follow/control）接自有引擎会话 | 进行中 |
 | M2-b1 | `session/list` + `session/rename` + `session/cancel`：侧栏显示引擎已有会话（标题/时间/工作目录/空白标记） | ✅ |
-| M2-b2 | `session/create` 落引擎 + `session/control` 基线投影 + `session/modelCatalog` 真实模型目录（消除「正在加载模型…」） | ⬜ |
+| M2-b2 | `session/create` 落引擎 + `session/control` 基线投影 + `session/modelCatalog` 真实模型目录 + `session/projections` | ✅ |
 | M2-b3 | 打开会话：`session/follow` snapshot（含 `projections`）+ 会话投影载入 | ⬜ |
 | M2-c | 聊天主链路：消息发送 + `session/follow` 增量事件流（`assistant/message`、`tool/call|result`、`step/*`…） | ⬜ |
 | M2-d | 权限：`approval/*` 事件 + 判定回传；`sandbox/mode`、`permission/preset` | ⬜ |
@@ -36,7 +36,11 @@
 | `web_host/DshSessionStore.cs`：引擎 `ITranscriptService` → DSH 会话条目投影（`sessionId/updatedAt/blank/agentAvailable/running/cwd/projections{title,agentPreset,modelSelection,sessionListMetadata}`） | `session/list`、`session/rename`、后续 `session/follow` 基线 | ✅ | ✅ 单测 `DshSessionStoreTests` 9/9（真实 `TranscriptService` + 内存文件系统）；E2E 见下 |
 | 启动即读的轻量落盘会话实例（`TranscriptStore`，`~/.jcc/sessions` 只读投影）→ 引擎就绪后热切到引擎实例 | `DshWebUiWindow` 构造期挂载；`AttachEngineAsync` 切换 | ✅ | ✅ 手动 exe E2E：窗口打开 1s 内侧栏已列出引擎会话，无需等引擎组装 |
 | `session/list`（异步分发，上限 200）、`session/rename`（`session/rejected` / `session/not-found` 引导错误）、`session/cancel`（`{accepted:true}`） | 侧栏会话行、会话内重命名快捷键、停止生成 | ✅ | ✅ 单测（含参数校验三态 + 真实落库标题）；E2E 侧栏可见引擎会话标题 |
-| 会话/消息/流式/权限（`session/create|control|follow`、`session/follow` 增量、`approval/*`） | 聊天主链路 | ⬜ | ⬜ M2-b2/b3/c/d |
+| `ITranscriptService.EnsureSessionAsync`（`TranscriptService` + `TranscriptFileWriter.WriteEmptyTranscriptAsync`）：幂等建 `{id}/meta.json` + 空 `transcript.json` | `session/create`（DSH「实体先于首条消息诞生」）、`--continue` 可续上空白会话 | ✅ | ✅ 单测 `TranscriptServiceTests.EnsureSessionAsync_*`（建目录/meta/空转录/幂等不覆盖） |
+| `session/create`（`DshSessionStore.CreateAsync` + 工作区归属）：参数 `workspaceId`/`cwd`/`sessionId`/`agentPreset`，落引擎 meta（供应商/模型取模型目录默认），`workspaceId` 时 `AttachSessionAsync` | 侧栏「新会话」/ 工作区行新建会话 | ✅ | ✅ 单测 4 例（落盘/幂等保留已有转录/workspaceId 归属/未知 workspaceId 引导）；E2E `dumps/dsh-webui-create-session.mjs` ALL_PASS |
+| `session/modelCatalog`（`DshModelCatalogSource`）：启动读 `~/.jcc/settings.json`（`vendor` 预设 + `current.profile`，`JCC_VENDOR` 覆盖），引擎 attach 后热切换 `IJccChatSession.{CurrentVendor,CurrentModelId,VendorModelMap}`；输出 `default/routableProviders/groups/failures` | 模型选择器（消除「正在加载模型…」） | ✅ | ✅ 单测 `DshModelCatalogSourceTests` 4/4；E2E 实调返回 `default={deepseek,deepseek-v4-pro}` + `groups` + `failures:[]` |
+| `session/projections`（`DshSessionStore.ProjectionsAsync`，`null` 或 `{asOfSeq,values}`）+ `session/control` 基线真实投影映射（`ProjectionsMapAsync`） | 会话投影懒加载 / `session/control` 基线种子 | ✅ | ✅ 单测 3 例（未接引擎 null/未知会话 null/空白会话 blank=true）；E2E 实调返回空白会话投影 |
+| 会话/消息/流式/权限（`session/follow` snapshot + 增量事件、`approval/*`） | 聊天主链路 | ⬜ | ⬜ M2-b3/c/d |
 
 ## M1.5 缺陷记录（缺陷驱动）
 
@@ -74,6 +78,29 @@
 5. 隔离环境缺陷（E2E 基建，非产品）：`JCC_APP_DATA_FOLDER` 隔离后无 `settings.json` → 引擎组装抛「未知的 Provider 'deepseek'」（默认 vendor 在 provider 注册表里不存在）；E2E 需在隔离 home 写一份最小 `settings.json`（`vendor.deepseek` + `current.profile=deepseek`，不含密钥）。补上后日志 `engine attached: transcripts ready`，热切换后列表仍正常。
 6. 绿测：单测 25/25（`DshWorkspaceStoreTests` 9 + `DshSettingsStoreTests` 7 + `DshSessionStoreTests` 9）；E2E `dumps/dsh-webui-sessions.mjs` ALL_PASS。
 
+## M2-b2 缺陷/决策记录（缺陷驱动）
+
+1. 现象：侧栏能新建会话，但会话不落盘 —— 关窗即丢，重命名/列表/重启都看不到；模型选择器永远停在「正在加载模型…」。
+2. 红测：`dumps/dsh-webui-create-session.mjs`（新 home + 新 workspace，点「新会话」后断言 `session/create` ok、`modelCatalog` 有分组、`projections` 有值）→ 3 FAIL。
+3. 根因 A（会话实体）：引擎原来只有 `AppendEntryAsync` 才建目录 → 没有「空会话」概念，`session/create` 只能回显 GUID。修复：`ITranscriptService.EnsureSessionAsync`（meta + 空 `transcript.json`，幂等，已有转录不覆盖），语义对齐 DSH「实体先于首条消息诞生」。副作用：`--continue`（`SessionResumeStep` 取 LastModifiedAt 最新）可能续上一个刚建的空白会话 —— 与 DSH 行为一致，记录备查。
+4. 根因 B（模型目录）：`session/modelCatalog` 返回空对象 → 前端 `default` 无供应商/模型 + `modelSelection` 投影缺失。修复：`DshModelCatalogSource` 双来源（settings.json 启动期 → 引擎 `IJccChatSession` 热切换），`failures` 字段补齐（协议必需）。
+5. 根因 C（打开会话）：`session/create` 成功后前端只插一条**本地 placeholder**（`blank:true`、无投影），点击该行要靠 `session/follow` snapshot 填投影 —— 属 M2-b3 范围。故 M2-b2 的 E2E 用「刷新页面」验证：`session/list` 从磁盘读回该会话、投影种子到位后模型选择器显示 `deepseek-v4-pro`。
+6. E2E 抓包坑：早期监听用 `/api/sessions/session/...`，真实一元 URL 是 `/api/session/<method>`（会话方法不在 `/api/sessions` 前缀下），导致「未捕获到调用」的假失败。
+7. 绿测：`TranscriptServiceTests` 22/22（含 2 新增）、`DshSessionStoreTests` 18、`DshModelCatalogSourceTests` 4；GUI 全量 681 通过 / 3 跳过；E2E `dsh-webui-create-session.mjs` ALL_PASS（16 项）、`dsh-webui-sessions.mjs` 回归 ALL_PASS。
+
+## M2-b2 验收记录（ADR 0080 手动 exe）
+
+| 步骤 | 命令/动作 | 结果 |
+|------|-----------|------|
+| 新建会话落引擎 | 隔离 home（最小 `settings.json`）+ 新 workspace → 点「新会话」 | ✅ `session/create` ok:true + 32 位引擎风格 ID（`e5e08bd3…`） |
+| 落盘实体 | 读 `{home}/sessions/{id}/{transcript.json,meta.json}` | ✅ 空转录 `[]` + meta 含 `projectPath/vendor/modelId/createdAt` |
+| 模型目录 | 真实 HTTP `POST /api/session/modelCatalog` | ✅ `default={provider:deepseek,model:deepseek-v4-pro}`、`groups=[{id:deepseek,…}]`、`failures:[]` |
+| 会话投影 | 真实 HTTP `POST /api/session/projections {"request":{"sessionId":…}}` | ✅ `{asOfSeq:0,values:{title:null,agentPreset:standard,modelSelection:{lastUsed:{deepseek,deepseek-v4-pro}},sessionListMetadata:{blank:true}}}` |
+| 重启可见 | 刷新页面（`$events` → `session/list`） | ✅ 会话挂在工作区下（非「未分组」），从磁盘读回 |
+| 模型选择器 | 刷新后读页面文本 | ✅ 显示 `deepseek-v4-pro`，无「正在加载模型…」 |
+| 无错误横幅 | 读页面文本 | ✅ 无「尚未实现」/「创建会话失败」 |
+
+
 ## M2-b1 验收记录（ADR 0080 手动 exe）
 
 | 步骤 | 命令/动作 | 结果 |
@@ -92,7 +119,10 @@
 - 覆盖范围提示：`directoryPicker/list`、`directoryPicker/createDirectory` 仅浏览器内建选择器用到；原生文件夹对话框（宿主侧 Avalonia）不需要，暂不实现。
 - `session/list` 返回 `{items:[…]}`，条目字段：`sessionId/updatedAt(ms)/blank/agentAvailable/running/cwd/archived/pinned/parentSessionId?/projections`。`projections` 在列表里可省略，但**不能给 `null`**（严格 codec 解码失败）；宿主改为总是输出 `{kind:'sequenced', asOfSeq, values}`。
 - 侧栏标题来自 `projections.values.title`（`projectList ← buildListSnapshot ← projectionStore.get('title')`）；`updatedAt = max(summary.updatedAt, values.sessionListMetadata.lastPromptAt ?? 0)`；`sessionListMetadata.blank` 决定是否显示「新建会话」占位。
-- `projections.values.modelSelection` 缺失会让模型选择停在「正在加载模型…」→ M2-b2 与 `session/modelCatalog` 一起补。
+- `projections.values.modelSelection` 缺失会让模型选择停在「正在加载模型…」→ M2-b2 已补（列表投影 + `session/projections` + `session/control` 基线）。
+- `session/modelCatalog` 结果顶层字段全必需：`{default:{provider,model,reasoningEffort?}, routableProviders:[], groups:[{id,name,models:[{id,name,description?,reasoning?}]}], failures:[{id,name,message}]}`（少 `failures` 即解码失败）。
+- `session/projections`（一元，`request.sessionId`）结果为 `null` 或 `{asOfSeq, values}`（**无** `kind` 字段，与列表投影不同）；`session/control` 基线 `value.projections` 是 `Record<sessionId, {asOfSeq, values}>`（同样无 `kind`）。
+- `session/create` 成功后前端只在本地插 placeholder（`blank:true`、无投影），真正可打开/可渲染要等 `session/follow` snapshot → M2-b3；`reuseOrCreateBlank` 只在 `session/writer-held` 重试路径用。
 - `session/follow` 的 snapshot **必须**带 `projections`（缺失即解码失败，和列表不同）；`kind:'sequenced'` 必须同时有 `asOfSeq` + `values`。
 - 会话内重命名入口是快捷键 `Ctrl+Alt+G`（`session.rename` 命令），需要已打开且非空白会话（`sessions.using(...)`）→ 依赖 M2-b3 的打开会话后才可做 UI 验收。
 - 会话事件契约（M2-c 用）：`user/message` data=`UserMessage{id,content:ContentBlock[],source}`；`assistant/message` data=`{turn,step,message,stream,usage?}`；`ContentBlock` 文本 `{type:'text',text}`、`tool-call{type,id,name,arguments}`；`SessionTitleEventData{title,messageSeqs,source}`。
@@ -115,6 +145,7 @@ node dumps/dsh-webui-ack.mjs                           # 提示页确认闭环
 node dumps/dsh-webui-workspace.mjs jcc-e2e-ws          # 选择工作区闭环
 node dumps/dsh-webui-workspace.mjs jcc-e2e-ws --no-pick # 重启后基线恢复（先重启 exe 且不带 JCC_DIRECTORY_PICK）
 node dumps/dsh-webui-sessions.mjs "E2E引擎会话"          # 侧栏显示引擎已有会话（标题/时间）
+node dumps/dsh-webui-create-session.mjs ws-m2b2         # 新建会话落引擎 + 模型目录/投影 + 刷新后读回
 node dumps/dsh-webui-reload-trace.mjs                  # 启动/重载全量请求响应
 # 单测
 dotnet test test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj -c Debug --filter "FullyQualifiedName~WebHost"

@@ -27,8 +27,22 @@ internal sealed class DshWebUiWindow : Window {
         _view.InitFailed += ShowFallback;
         Content = _view;
         DshDirectoryPicker.Register(PickFolderAsync);
+        _ = LoadModelCatalogAsync();
         _ = AttachEngineAsync();
         App.LogDiag($"[DSH-WEB] window created url={_host.BaseUrl}");
+    }
+
+    /// <summary>
+    /// 启动期读 settings.json 构建模型目录（引擎未就绪也能渲染模型选择），引擎 attach 后热切换成引擎真值。
+    /// 读取失败只让目录为空，不影响前端渲染。
+    /// </summary>
+    private async Task LoadModelCatalogAsync() {
+        try {
+            await _services.Models.LoadAsync(new PhysicalFileSystem(), SettingsLoader.GetUserSettingsPath(), CancellationToken.None);
+            App.LogDiag($"[DSH-WEB] model catalog from settings: {_services.Models.Current.Groups.Count} groups");
+        } catch (Exception ex) {
+            App.LogDiag($"[DSH-WEB] model catalog load failed: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -45,6 +59,8 @@ internal sealed class DshWebUiWindow : Window {
             } else {
                 App.LogDiag("[DSH-WEB] engine ready but ITranscriptService unavailable");
             }
+            _services.Models.AttachEngine(engine.CurrentVendor, engine.CurrentModelId, engine.VendorModelMap);
+            App.LogDiag($"[DSH-WEB] engine model catalog: vendor={engine.CurrentVendor} model={engine.CurrentModelId} groups={engine.VendorModelMap.Count}");
         } catch (Exception ex) {
             App.LogDiag($"[DSH-WEB] engine attach failed: {ex.Message}");
         }

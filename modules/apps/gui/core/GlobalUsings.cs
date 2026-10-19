@@ -21,6 +21,8 @@ global using CommunityToolkit.Mvvm.ComponentModel;
 global using CommunityToolkit.Mvvm.Input;
 // 引擎 DI 组装（Composition + 共享管道）
 global using Core.DependencyInjection;
+// 用户 settings.json 的 DTO 与路径（DSH 宿主启动期读模型目录）
+global using Core.Configuration;
 // Hosting 层读取 teammate 子会话列表
 global using Core.Scheduling.Tasks;
 global using Core.Utils;

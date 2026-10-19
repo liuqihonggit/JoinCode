@@ -139,6 +139,169 @@ public sealed class DshSessionStoreTests {
         result.Value.GetValueOrDefault().GetProperty("accepted").GetBoolean().Should().BeTrue();
     }
 
+    [Fact]
+    public async Task Projections_WithoutEngine_ReturnsNull() {
+        var store = new DshSessionStore();
+        (await store.ProjectionsAsync("s1", CancellationToken.None)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Projections_UnknownSession_ReturnsNull() {
+        var (store, _) = CreateStore();
+        (await store.ProjectionsAsync("missing", CancellationToken.None)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Projections_BlankSession_ReportedBlank() {
+        var (store, transcripts) = CreateStore();
+        await transcripts.EnsureSessionAsync("fresh", new SessionInfo {
+            Id = "fresh",
+            ProjectPath = @"C:\demo\fresh",
+            Vendor = "deepseek",
+            ModelId = "deepseek-chat",
+        });
+
+        var projections = await store.ProjectionsAsync("fresh", CancellationToken.None)
+            ?? throw new InvalidOperationException("ProjectionsAsync 未返回会话投影");
+
+        projections.AsOfSeq.Should().Be(0);
+        projections.Values.Title.Should().BeNull();
+        projections.Values.SessionListMetadata.Should().NotBeNull();
+        projections.Values.SessionListMetadata.Blank.Should().BeTrue();
+        projections.Values.ModelSelection.Should().NotBeNull();
+        projections.Values.ModelSelection.Next.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Create_EnsuresSessionEntityOnDisk() {
+        var (store, transcripts) = CreateStore();
+
+        var created = await store.CreateAsync(null, @"C:\demo\proj-b", "deepseek", "deepseek-chat", CancellationToken.None)
+            ?? throw new InvalidOperationException("CreateAsync 未返回会话");
+
+        created.SessionId.Should().NotBeNullOrWhiteSpace();
+        created.AgentPreset.Should().Be("standard");
+        (await transcripts.TranscriptExistsAsync(created.SessionId)).Should().BeTrue();
+        var info = await transcripts.GetSessionInfoAsync(created.SessionId)
+            ?? throw new InvalidOperationException("CreateAsync 未写出 meta.json");
+        info.ProjectPath.Should().Be(@"C:\demo\proj-b");
+        info.Vendor.Should().Be("deepseek");
+        info.ModelId.Should().Be("deepseek-chat");
+        var items = await store.ListAsync(50, CancellationToken.None);
+        items.Should().ContainSingle();
+        items[0].SessionId.Should().Be(created.SessionId);
+        items[0].Blank.Should().BeTrue();
+        items[0].Cwd.Should().Be(@"C:\demo\proj-b");
+    }
+
+    [Fact]
+    public async Task Create_WithRequestedSessionId_KeepsExistingTranscript() {
+        var (store, transcripts) = CreateStore();
+        await transcripts.AppendEntryAsync("kept", new TranscriptEntry { Role = "user", Content = "已有内容" });
+
+        var created = await store.CreateAsync("kept", @"C:\demo\proj-c", "deepseek", "deepseek-chat", CancellationToken.None)
+            ?? throw new InvalidOperationException("CreateAsync 未返回会话");
+
+        created.SessionId.Should().Be("kept");
+        var entries = await transcripts.LoadTranscriptAsync("kept");
+        entries.Should().ContainSingle();
+        var items = await store.ListAsync(50, CancellationToken.None);
+        items.Should().ContainSingle();
+        items[0].Blank.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Dispatcher_SessionCreate_EnsuresEngineSession() {
+        var fs = new InMemoryFileSystem();
+        await using var transcripts = new State.TranscriptService(fs, SessionsDir);
+        var services = new DshHostServices(fs, "/test/dsh-workspaces.json");
+        services.Sessions.AttachTranscripts(transcripts);
+        var dispatcher = new DshRpcDispatcher(services);
+
+        var result = await dispatcher.HandleAsync("session/create", CreateArgs(@"C:\demo\proj-d"));
+
+        result.Ok.Should().BeTrue(result.Error?.Message);
+        var sessionId = result.Value.GetValueOrDefault().GetProperty("sessionId").GetString()
+            ?? throw new InvalidOperationException("session/create 未返回 sessionId");
+        sessionId.Should().NotBeNullOrWhiteSpace();
+        (await transcripts.TranscriptExistsAsync(sessionId)).Should().BeTrue();
+        var info = await transcripts.GetSessionInfoAsync(sessionId)
+            ?? throw new InvalidOperationException("session/create 未写出 meta.json");
+        info.ProjectPath.Should().Be(@"C:\demo\proj-d");
+    }
+
+    [Fact]
+    public async Task Dispatcher_SessionProjections_ReturnsValuesOrNull() {
+        var fs = new InMemoryFileSystem();
+        await using var transcripts = new State.TranscriptService(fs, SessionsDir);
+        await transcripts.EnsureSessionAsync("blank-1", new SessionInfo { Id = "blank-1", ProjectPath = @"C:\demo\p" });
+        var services = new DshHostServices(fs, "/test/dsh-workspaces.json");
+        services.Sessions.AttachTranscripts(transcripts);
+        var dispatcher = new DshRpcDispatcher(services);
+
+        var found = await dispatcher.HandleAsync("session/projections", ProjectionsArgs("blank-1"));
+        found.Ok.Should().BeTrue(found.Error?.Message);
+        found.Value.GetValueOrDefault().GetProperty("asOfSeq").GetInt64().Should().Be(0);
+        found.Value.GetValueOrDefault().GetProperty("values").GetProperty("sessionListMetadata").GetProperty("blank").GetBoolean().Should().BeTrue();
+
+        var missing = await dispatcher.HandleAsync("session/projections", ProjectionsArgs("nope"));
+        missing.Ok.Should().BeTrue(missing.Error?.Message);
+        missing.Value.GetValueOrDefault().ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task Dispatcher_SessionCreate_WithWorkspaceId_UsesWorkspacePathAndAttaches() {
+        var fs = new InMemoryFileSystem();
+        fs.CreateDirectory(@"C:\demo\ws-1");
+        await using var transcripts = new State.TranscriptService(fs, SessionsDir);
+        var services = new DshHostServices(fs, "/test/dsh-workspaces.json");
+        services.Sessions.AttachTranscripts(transcripts);
+        var dispatcher = new DshRpcDispatcher(services);
+        var (workspace, _) = await services.Workspaces.CreateAsync(@"C:\demo\ws-1");
+
+        var result = await dispatcher.HandleAsync("session/create", WorkspaceCreateArgs(workspace.WorkspaceId));
+
+        result.Ok.Should().BeTrue(result.Error?.Message);
+        var sessionId = result.Value.GetValueOrDefault().GetProperty("sessionId").GetString()
+            ?? throw new InvalidOperationException("session/create 未返回 sessionId");
+        var info = await transcripts.GetSessionInfoAsync(sessionId)
+            ?? throw new InvalidOperationException("session/create 未写出 meta.json");
+        info.ProjectPath.Should().Be(@"C:\demo\ws-1");
+        var reloaded = await services.Workspaces.FindAsync(workspace.WorkspaceId)
+            ?? throw new InvalidOperationException("工作区注册表丢失");
+        reloaded.SessionIds.Should().Contain(sessionId);
+    }
+
+    [Fact]
+    public async Task Dispatcher_SessionCreate_WithUnknownWorkspaceId_Guides() {
+        var services = new DshHostServices(new InMemoryFileSystem(), "/test/dsh-workspaces.json");
+        var dispatcher = new DshRpcDispatcher(services);
+
+        var result = await dispatcher.HandleAsync("session/create", WorkspaceCreateArgs("missing"));
+
+        result.Ok.Should().BeFalse();
+        result.Error?.Code.Should().Be("session/rejected");
+        result.Error?.Message.Should().Contain("workspace/create");
+    }
+
+    /// <summary>按 DSH 远程契约形状构造 session/create 参数（具名参数在 request 下）</summary>
+    private static JsonElement CreateArgs(string cwd) =>
+        JsonSerializer.SerializeToElement(
+            new DshRequestEnvelope<DshSessionCreateArgs> { Request = new DshSessionCreateArgs { Cwd = cwd } },
+            DshJsonContext.Default.DshRequestEnvelopeDshSessionCreateArgs);
+
+    /// <summary>按 workspaceId 构造 session/create 参数</summary>
+    private static JsonElement WorkspaceCreateArgs(string workspaceId) =>
+        JsonSerializer.SerializeToElement(
+            new DshRequestEnvelope<DshSessionCreateArgs> { Request = new DshSessionCreateArgs { WorkspaceId = workspaceId } },
+            DshJsonContext.Default.DshRequestEnvelopeDshSessionCreateArgs);
+
+    /// <summary>按 DSH 远程契约形状构造 session/projections 参数</summary>
+    private static JsonElement ProjectionsArgs(string sessionId) =>
+        JsonSerializer.SerializeToElement(
+            new DshRequestEnvelope<DshSessionProjectionsArgs> { Request = new DshSessionProjectionsArgs { SessionId = sessionId } },
+            DshJsonContext.Default.DshRequestEnvelopeDshSessionProjectionsArgs);
+
     /// <summary>按 DSH 远程契约形状构造 session/rename 参数（具名参数在 request 下）</summary>
     private static JsonElement RenameArgs(string sessionId, string title) =>
         JsonSerializer.SerializeToElement(

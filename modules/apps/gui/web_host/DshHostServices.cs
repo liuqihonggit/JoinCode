@@ -13,6 +13,7 @@ internal sealed class DshHostServices {
         Workspaces = new DshWorkspaceStore(fileSystem, workspaceFilePath);
         Settings = new DshSettingsStore();
         Sessions = new DshSessionStore();
+        Models = new DshModelCatalogSource();
     }
 
     /// <summary>工作区注册表（workspace/* 与 workspace/follow 基线）</summary>
@@ -23,4 +24,7 @@ internal sealed class DshHostServices {
 
     /// <summary>会话注册表（session/* — 数据源是引擎会话存储，引擎就绪后注入）</summary>
     internal DshSessionStore Sessions { get; }
+
+    /// <summary>模型目录（session/modelCatalog — 启动读 settings.json，引擎就绪后热切换）</summary>
+    internal DshModelCatalogSource Models { get; }
 }

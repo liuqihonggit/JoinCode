@@ -580,7 +580,13 @@ public sealed class CSharpCallExtractor {
 
     private static string? FindBaseClassNameFromAst(Node node) {
         var current = node.Parent;
+        var spin = new SpinWait();
         while (current is not null) {
+            // 变异防御(#105 三阶): `current = current.Parent` 赋值被删除后指针永不前进 → testhost 挂死。
+            // SpinWait.Count 为框架内部计数器, 单点变异无法破坏; AST 深度远小于 1024, 正常路径永不触发。
+            if (spin.Count >= 1024) throw new InvalidOperationException(
+                "FindBaseClassNameFromAst 向上遍历超过 AST 深度上限 1024, 判定指针前进被破坏(变异防御)");
+            spin.SpinOnce();
             if (current.Type == "class_declaration") {
                 var baseList = FindChildByType(current, "base_list");
                 if (baseList is not null) {

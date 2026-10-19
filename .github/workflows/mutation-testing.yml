@@ -50,7 +50,7 @@ jobs:
       - name: Build matrix
         id: set
         run: |
-          ALL_PROJECTS='["Guard-Config","Guard-Security-ServicesA","Guard-Security-ServicesB","Guard-Security-ServicesC","Guard-Security-PowerShell","Guard-Security-Other","Guard-Hooks","Vault-Memdir","Vault-Other","Brain-CtxAdmin","Brain-CtxChat","Brain-CtxOther","Brain-CtxNonServicesA","Brain-CtxNonServicesB","Brain-PromptsSections","Brain-PromptsOther","Brain-OtherA","Brain-OtherB","Hands-SysTools","Hands-CoreHandlers","Hands-DevTools","Hands-SkillServices","Hands-SkillBuiltIn","Hands-SkillOther","Hands-Api","Hands-Shell","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex-Parsing","CodeIndex-Indexing","CodeIndex-Rest","Browser","Mcp-Protocol","Mcp-Rest","Eyes","Dream","Bridge-SessionA","Bridge-SessionB","Bridge-Transport","Bridge-CoreRuntime","Bridge-CoreOther","Bridge-Messaging","Bridge-ClientServer","Composition","Clock","Infra-IO-FileOps","Infra-IO-FsAndConfig","Infra-IO-ProcessAndOther","Infra-Utils-TextA1a","Infra-Utils-TextA1b","Infra-Utils-TextA2a","Infra-Utils-TextA2b","Infra-Utils-TextB1","Infra-Utils-TextB2","Infra-Utils-Resilience","Infra-Utils-OtherA1a","Infra-Utils-OtherA1b","Infra-Utils-Validation1","Infra-Utils-Validation2","Infra-Utils-Async","Infra-Utils-Services","Infra-Utils-OtherB","Infra-Services","Host-Commands","Host-Other"]'
+          ALL_PROJECTS='["Guard-Config","Guard-Security-ServicesA","Guard-Security-ServicesB","Guard-Security-ServicesC","Guard-Security-ServicesD","Guard-Security-PowerShell","Guard-Security-Other","Guard-Hooks","Vault-Memdir","Vault-Other","Brain-CtxAdmin","Brain-CtxChat","Brain-CtxOther","Brain-CtxNonServicesA","Brain-CtxNonServicesB","Brain-PromptsSections","Brain-PromptsOther","Brain-OtherA","Brain-OtherB","Hands-SysTools","Hands-CoreHandlers","Hands-DevTools","Hands-SkillServices","Hands-SkillBuiltIn","Hands-SkillOther","Hands-Api","Hands-Shell","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex-Parsing","CodeIndex-Indexing","CodeIndex-Rest","Browser","Mcp-Protocol","Mcp-Rest","Eyes","Dream","Bridge-SessionA","Bridge-SessionB","Bridge-Transport","Bridge-CoreRuntime","Bridge-CoreOther","Bridge-Messaging","Bridge-ClientServer","Composition","Clock","Infra-IO-FileOps","Infra-IO-FsAndConfig","Infra-IO-ProcessAndOther","Infra-Utils-TextA1a","Infra-Utils-TextA1b","Infra-Utils-TextA2a","Infra-Utils-TextA2b","Infra-Utils-TextB1","Infra-Utils-TextB2","Infra-Utils-Resilience","Infra-Utils-OtherA1a","Infra-Utils-OtherA1b","Infra-Utils-Validation1","Infra-Utils-Validation2","Infra-Utils-Async","Infra-Utils-Services","Infra-Utils-OtherB","Infra-Services","Host-Commands","Host-Other"]'
           INPUT="${{ github.event.inputs.projects || 'ALL' }}"
           if [ "$INPUT" = "ALL" ]; then
             echo "matrix={\"include\":$(echo $ALL_PROJECTS | jq -c '[.[] | {project: .}]')}" >> $GITHUB_OUTPUT
@@ -60,7 +60,7 @@ jobs:
             for part in "${PARTS[@]}"; do
               trimmed=$(echo "$part" | xargs)
               if [ "$trimmed" = "Guard" ]; then
-                EXPANDED="$EXPANDED,{\"project\":\"Guard-Config\"},{\"project\":\"Guard-Security-ServicesA\"},{\"project\":\"Guard-Security-ServicesB\"},{\"project\":\"Guard-Security-ServicesC\"},{\"project\":\"Guard-Security-PowerShell\"},{\"project\":\"Guard-Security-Other\"},{\"project\":\"Guard-Hooks\"}"
+                EXPANDED="$EXPANDED,{\"project\":\"Guard-Config\"},{\"project\":\"Guard-Security-ServicesA\"},{\"project\":\"Guard-Security-ServicesB\"},{\"project\":\"Guard-Security-ServicesC\"},{\"project\":\"Guard-Security-ServicesD\"},{\"project\":\"Guard-Security-PowerShell\"},{\"project\":\"Guard-Security-Other\"},{\"project\":\"Guard-Hooks\"}"
               elif [ "$trimmed" = "Vault" ]; then
                 EXPANDED="$EXPANDED,{\"project\":\"Vault-Memdir\"},{\"project\":\"Vault-Other\"}"
               elif [ "$trimmed" = "Brain" ]; then
@@ -130,11 +130,13 @@ jobs:
         run: |
           $projectMap = @{
             'Guard-Config'         = @{ Dir = 'modules\guard\guard.config.tests';   Src = 'Guard.csproj';           Mutate = @('configuration/**','dependency_injection/**','policy/**','o_auth/**') }
-            # 30 分钟设计: bash 类测试重(>1s/变异), Guard-Security-Services 拆 A/B/C 控制单 job 时长
-            # ServicesB/C 按代码行数均衡二拆(2711/2676 行): B=分类器+网络杂项+路径校验, C=只读检测器(独立功能域)
+            # 30 分钟设计: bash 类测试重(>1s/变异), Guard-Security-Services 拆 A/B/C/D 控制单 job 时长
+            # #105 实测: B 拆分后 ~1100 变异 19min 过线; C(readonly_detector 全量 2676 行) 1586 变异纯慢超时 → 再按 Git/NonGit 语义二拆
+            # C=Git 侧(GitFlagBuilders+入口+目录+元字符+展开+类型, 1463 行≈869 变异), D=NonGit 侧(NonGitFlagBuilders+校验器, 1213 行≈720 变异)
             'Guard-Security-ServicesA'   = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/services/bash_ast_walker/**','security/services/bash_validation/**') }
             'Guard-Security-ServicesB'   = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/services/classifiers/**','security/services/network_and_misc/**','security/services/path_validation/**') }
-            'Guard-Security-ServicesC'   = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/services/readonly_detector/**') }
+            'Guard-Security-ServicesC'   = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/services/readonly_detector/GitFlagBuilders.cs','security/services/readonly_detector/ReadOnlyCommandDetector.cs','security/services/readonly_detector/CommandCatalog.cs','security/services/readonly_detector/ShellMetacharacterDetector.cs','security/services/readonly_detector/ExpansionDetector.cs','security/services/readonly_detector/ReadOnlyCommandTypes.cs') }
+            'Guard-Security-ServicesD'   = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/services/readonly_detector/NonGitFlagBuilders.cs','security/services/readonly_detector/FlagValidator.cs','security/services/readonly_detector/RegexValidator.cs','security/services/readonly_detector/IReadOnlyServices.cs') }
             'Guard-Security-PowerShell' = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/power_shell/**') }
             'Guard-Security-Other'      = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/danger_classification/**','security/sandbox/**','security/shell/**','security/scanners/**','security/interceptors/**','security/constants/**') }
             'Guard-Hooks'          = @{ Dir = 'modules\guard\guard.hooks.tests';    Src = 'Guard.csproj';           Mutate = @('hooks/**','permission/**') }

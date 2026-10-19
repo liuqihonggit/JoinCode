@@ -179,8 +179,14 @@ internal sealed class CsprojParser {
         var result = new List<string>();
         var rootFullPath = Path.GetFullPath(searchRoot);
         var currentDirPath = Path.GetFullPath(projectDir);
+        var spin = new SpinWait();
 
         while (currentDirPath is not null) {
+            // 变异防御(#105 三阶): `currentDirPath = GetParentPath(...)` 赋值被删除后目录指针永不前进 → testhost 挂死。
+            // 路径深度远小于 1024(MAX_PATH=260), 正常路径永不触发。
+            if (spin.Count >= 1024) throw new InvalidOperationException(
+                "FindDirectoryBuildProps 向上遍历超过路径深度上限 1024, 判定目录指针前进被破坏(变异防御)");
+            spin.SpinOnce();
             var propsPath = Path.Combine(currentDirPath, "Directory.Build.props");
             if (fs.FileExists(propsPath)) {
                 result.Add(propsPath);

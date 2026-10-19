@@ -233,16 +233,29 @@ public sealed class HnswAnn : IAnnSearch, IAnnSearchGraphPersistence {
         var l = (int)Math.Floor(-Math.Log(_rng.NextDouble() + double.Epsilon) * _mL);
         if (l < 0) l = 0;
 
-        while (_layers.Count <= l)
+        // 变异防御(#105 三阶): 层级初始化/逐层下降循环的 `_layers.Add` 删除或 `lc--`→`lc++` 变异
+        // 会造成永不收敛的空转(HNSW 层级上限 ~60, 守卫上限 128 覆盖且正常路径永不触发)。
+        var layerSpin = new SpinWait();
+        while (_layers.Count <= l) {
+            if (layerSpin.Count >= 128) throw new InvalidOperationException(
+                $"HnswAnn 层级初始化超过 128 轮(目标层级 {l}), 判定前进被破坏(变异防御)");
+            layerSpin.SpinOnce();
             _layers.Add(new SwissTable<string, List<string>>());
+        }
 
         var ep = _entryPoint;
         for (var lc = _entryLevel; lc > l; lc--) {
+            if (layerSpin.Count >= 128) throw new InvalidOperationException(
+                "HnswAnn 入口点逐层下降超过 128 轮, 判定游标 lc 前进被破坏(变异防御)");
+            layerSpin.SpinOnce();
             var w = SearchLayer(vector, ep, 1, lc, CancellationToken.None);
             if (w.Count > 0) ep = w[0].Id;
         }
 
         for (var lc = Math.Min(_entryLevel, l); lc >= 0; lc--) {
+            if (layerSpin.Count >= 128) throw new InvalidOperationException(
+                "HnswAnn 逐层插入超过 128 轮, 判定游标 lc 前进被破坏(变异防御)");
+            layerSpin.SpinOnce();
             var w = SearchLayer(vector, ep, _efConstruction, lc, CancellationToken.None);
             var neighbors = SelectNeighbors(vector, w, _m);
 

@@ -89,7 +89,7 @@ public sealed class CliSession {
         _optionalServices?.CronTaskStore?.SetSessionId(_sessionId);
         _optionalServices?.DreamTaskRegistry?.SetSessionId(_sessionId);
 
-        var mainAgent = CreateMainAgent(chatService, optionalServices?.ServiceProvider);
+        var mainAgent = CreateMainAgent(chatService, optionalServices?.ServiceProvider, _sessionObjectId);
         var outputChannelManager = optionalServices?.ServiceProvider?.GetService<JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager>();
         var consumerOutputChannel = mainAgent is null ? outputChannelManager : null;
 
@@ -145,9 +145,10 @@ public sealed class CliSession {
     /// <summary>
     /// 创建主代理 — 通过统一 Spawn 管道创建，IsMainAgent=true
     /// 管道各中间件对主代理 no-op（Definition/Prompt/ContextSetup/LifecycleSpawn 等），仅 RecordContext/PermissionRouting/Metadata 生效
-    /// 返回 null 表示 DI 中无 IQueryEngine，SessionController 回退到直接调用 ChatService
+    /// 返回 null 表示 DI 中无 IQueryEngine，SessionController 回退到直接调用 ChatService。
+    /// internal static — BridgeServeCommand 复用同一主代理构造（禁止散落重复）。
     /// </summary>
-    private AgentBase? CreateMainAgent(IChatService chatService, IServiceProvider? serviceProvider) {
+    internal static AgentBase? CreateMainAgent(IChatService chatService, IServiceProvider? serviceProvider, ObjectId sessionObjectId) {
         if (serviceProvider is null) return null;
         var queryEngine = serviceProvider.GetService<IQueryEngine>();
         if (queryEngine is null) return null;
@@ -161,7 +162,7 @@ public sealed class CliSession {
             logger: null,
             name: "mainAgent",
             role: AgentRole.Coordinator,
-            sessionId: _sessionObjectId,
+            sessionId: sessionObjectId,
             contextManager: contextManager);
 
         var spawnPipeline = serviceProvider.GetService<MiddlewarePipeline<UnifiedSpawnContext>>();

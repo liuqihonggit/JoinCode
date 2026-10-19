@@ -32,6 +32,8 @@ internal static class FlatSubCommandRouter {
             return await RgSubCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.Gh:
             return await GhSubCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
+            case CliSubCommand.BridgeServe:
+            return await BridgeServeCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.ConfigPrint:
             return await ConfigPrintCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
             default:

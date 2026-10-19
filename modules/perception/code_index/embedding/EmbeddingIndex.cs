@@ -17,10 +17,10 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     private readonly IEmbeddingPersistence _persistence;
     private string? _incrementalDir;
 
-    private volatile ImmutableHamT<string, ChunkMetadata> _metadata = ImmutableHamT<string, ChunkMetadata>.Empty;
-    private volatile ImmutableHamT<string, string> _chunkHashes = ImmutableHamT<string, string>.Empty;
-    private volatile ImmutableHamT<string, ImmutableHashSet<string>> _fileToChunks = ImmutableHamT<string, ImmutableHashSet<string>>.Empty;
-    private volatile ImmutableHamT<string, float[]> _vectors = ImmutableHamT<string, float[]>.Empty;
+    private ImmutableHamT<string, ChunkMetadata> _metadata = ImmutableHamT<string, ChunkMetadata>.Empty;
+    private ImmutableHamT<string, string> _chunkHashes = ImmutableHamT<string, string>.Empty;
+    private ImmutableHamT<string, ImmutableHashSet<string>> _fileToChunks = ImmutableHamT<string, ImmutableHashSet<string>>.Empty;
+    private ImmutableHamT<string, float[]> _vectors = ImmutableHamT<string, float[]>.Empty;
     private volatile int _status;
     private int _disposed;
 
@@ -51,7 +51,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     public IndexStatus Status => (IndexStatus)_status;
 
     /// <summary>当前已索引的块数量。无锁读取。</summary>
-    public int ChunkCount => _metadata.Count;
+    public int ChunkCount => Volatile.Read(ref _metadata).Count;
 
     /// <summary>索引类型标识。</summary>
     public IndexKind Kind => IndexKind.Vector;
@@ -73,7 +73,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         var toEmbed = new List<ChunkInfo>();
         var unchanged = new List<ChunkInfo>();
 
-        var hashesSnapshot = _chunkHashes;
+        var hashesSnapshot = Volatile.Read(ref _chunkHashes);
         foreach (var chunk in chunks) {
             ct.ThrowIfCancellationRequested();
             if (hashesSnapshot.TryGetValue(chunk.ChunkId, out var existingHash)
@@ -190,59 +190,47 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
 
     private void CasBulkUpdateMetadata(List<(string ChunkId, ChunkMetadata Meta)> items) {
         if (items.Count == 0) return;
-        var spin = new SpinWait();
-        while (true) {
-            var current = _metadata;
+        CasRetry.Spin(ref _metadata, current => {
             var updated = current;
             foreach (var (chunkId, meta) in items) {
                 updated = updated.SetItem(chunkId, meta);
             }
-            if (Interlocked.CompareExchange(ref _metadata, updated, current) == current) break;
-            spin.SpinOnce();
-        }
+            return updated;
+        });
     }
 
     private void CasBulkUpdateHashes(List<(string ChunkId, string Hash)> items) {
         if (items.Count == 0) return;
-        var spin = new SpinWait();
-        while (true) {
-            var current = _chunkHashes;
+        CasRetry.Spin(ref _chunkHashes, current => {
             var updated = current;
             foreach (var (chunkId, hash) in items) {
                 updated = updated.SetItem(chunkId, hash);
             }
-            if (Interlocked.CompareExchange(ref _chunkHashes, updated, current) == current) break;
-            spin.SpinOnce();
-        }
+            return updated;
+        });
     }
 
     private void CasBulkUpdateFileChunks(List<(string FilePath, string ChunkId)> items) {
         if (items.Count == 0) return;
-        var spin = new SpinWait();
-        while (true) {
-            var current = _fileToChunks;
+        CasRetry.Spin(ref _fileToChunks, current => {
             var updated = current;
             foreach (var (filePath, chunkId) in items) {
                 var existing = updated.TryGetValue(filePath, out var set) ? set : ImmutableHashSet<string>.Empty;
                 updated = updated.SetItem(filePath, existing.Add(chunkId));
             }
-            if (Interlocked.CompareExchange(ref _fileToChunks, updated, current) == current) break;
-            spin.SpinOnce();
-        }
+            return updated;
+        });
     }
 
     private void CasBulkUpdateVectors(List<(string ChunkId, float[] Vector)> items) {
         if (items.Count == 0) return;
-        var spin = new SpinWait();
-        while (true) {
-            var current = _vectors;
+        CasRetry.Spin(ref _vectors, current => {
             var updated = current;
             foreach (var (chunkId, vector) in items) {
                 updated = updated.SetItem(chunkId, vector);
             }
-            if (Interlocked.CompareExchange(ref _vectors, updated, current) == current) break;
-            spin.SpinOnce();
-        }
+            return updated;
+        });
     }
 
     /// <summary>
@@ -267,9 +255,9 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     /// <summary>收集待持久化的块快照 — 向量+元数据+哈希三元组对齐。</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private List<(string ChunkId, float[] Vector, ChunkMetadata Meta, string Hash)> CollectChunksForSave() {
-        var vectorsSnapshot = _vectors;
-        var metadataSnapshot = _metadata;
-        var hashesSnapshot = _chunkHashes;
+        var vectorsSnapshot = Volatile.Read(ref _vectors);
+        var metadataSnapshot = Volatile.Read(ref _metadata);
+        var hashesSnapshot = Volatile.Read(ref _chunkHashes);
         var chunks = new List<(string, float[], ChunkMetadata, string)>(vectorsSnapshot.Count);
         foreach (var (chunkId, vector) in vectorsSnapshot) {
             if (!metadataSnapshot.TryGetValue(chunkId, out var meta)) continue;
@@ -418,7 +406,7 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
         var annResults = _ann.Search(queryVector, oversampleK, ct);
         if (annResults.Count == 0) return [];
 
-        var metadataSnapshot = _metadata;
+        var metadataSnapshot = Volatile.Read(ref _metadata);
         var results = new List<ChunkSearchResult>(annResults.Count);
         var includeSource = options?.IncludeSourceText ?? false;
         var includeParent = options?.IncludeParentDocument ?? false;
@@ -521,38 +509,17 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
     /// </summary>
     public Task RemoveFileAsync(string filePath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(filePath);
-        if (!_fileToChunks.TryGetValue(filePath, out var chunkIds)) {
+        if (!Volatile.Read(ref _fileToChunks).TryGetValue(filePath, out var chunkIds)) {
             return Task.CompletedTask;
         }
         foreach (var chunkId in chunkIds) {
             _ann.Remove(chunkId);
         }
-        var spin = new SpinWait();
-        while (true) {
-            var current = _metadata;
-            var updated = current.RemoveRange(chunkIds);
-            if (Interlocked.CompareExchange(ref _metadata, updated, current) == current) break;
-            spin.SpinOnce();
-        }
-        while (true) {
-            var current = _chunkHashes;
-            var updated = current.RemoveRange(chunkIds);
-            if (Interlocked.CompareExchange(ref _chunkHashes, updated, current) == current) break;
-            spin.SpinOnce();
-        }
-        while (true) {
-            var current = _fileToChunks;
-            var updated = current.Remove(filePath);
-            if (Interlocked.CompareExchange(ref _fileToChunks, updated, current) == current) break;
-            spin.SpinOnce();
-        }
-        while (true) {
-            var current = _vectors;
-            var updated = current.RemoveRange(chunkIds);
-            if (Interlocked.CompareExchange(ref _vectors, updated, current) == current) break;
-            spin.SpinOnce();
-        }
-        if (_metadata.Count == 0) {
+        CasRetry.Spin(ref _metadata, current => current.RemoveRange(chunkIds));
+        CasRetry.Spin(ref _chunkHashes, current => current.RemoveRange(chunkIds));
+        CasRetry.Spin(ref _fileToChunks, current => current.Remove(filePath));
+        CasRetry.Spin(ref _vectors, current => current.RemoveRange(chunkIds));
+        if (Volatile.Read(ref _metadata).Count == 0) {
             Interlocked.Exchange(ref _status, (int)IndexStatus.NotReady);
         }
         return Task.CompletedTask;
@@ -560,9 +527,9 @@ public sealed class EmbeddingIndex : IAsyncDisposable, IIndexStore {
 
     /// <summary>清空索引。</summary>
     public void Clear() {
-        _metadata = ImmutableHamT<string, ChunkMetadata>.Empty;
-        _chunkHashes = ImmutableHamT<string, string>.Empty;
-        _fileToChunks = ImmutableHamT<string, ImmutableHashSet<string>>.Empty;
+        Volatile.Write(ref _metadata, ImmutableHamT<string, ChunkMetadata>.Empty);
+        Volatile.Write(ref _chunkHashes, ImmutableHamT<string, string>.Empty);
+        Volatile.Write(ref _fileToChunks, ImmutableHamT<string, ImmutableHashSet<string>>.Empty);
         Interlocked.Exchange(ref _status, (int)IndexStatus.NotReady);
     }
 

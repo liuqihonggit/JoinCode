@@ -19,16 +19,11 @@ public sealed partial class InMemoryIndexStore : ServiceEntity {
     internal IndexSnapshot GetSnapshot() => Volatile.Read(ref _snapshot);
 
     /// <summary>
-    /// 原子更新索引快照 — CAS 循环，无锁写入
+    /// 原子更新索引快照 — CAS 循环，无锁写入（活锁防御见 CasRetry）
     /// </summary>
     internal void Update(Func<IndexSnapshot, IndexSnapshot> updater) {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
-        while (true) {
-            var current = Volatile.Read(ref _snapshot);
-            var updated = updater(current);
-            if (ReferenceEquals(updated, current)) return;
-            if (Interlocked.CompareExchange(ref _snapshot, updated, current) == current) return;
-        }
+        CasRetry.Spin(ref _snapshot, updater);
     }
 
     /// <summary>

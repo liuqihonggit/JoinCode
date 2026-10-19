@@ -229,7 +229,7 @@ internal sealed class DshSessionList {
     public List<DshSessionListItem> Items { get; set; } = [];
 }
 
-/// <summary>会话列表条目（M1 只回填最小字段，后续接引擎）</summary>
+/// <summary>会话列表条目（引擎会话投影成 DSH 形状）</summary>
 internal sealed class DshSessionListItem {
     /// <summary>会话 ID</summary>
     public string SessionId { get; set; } = "";
@@ -241,8 +241,78 @@ internal sealed class DshSessionListItem {
     public bool Running { get; set; }
     /// <summary>空白会话</summary>
     public bool Blank { get; set; }
-    /// <summary>工作目录</summary>
+    /// <summary>工作目录（缺失时为空串 — 该字段在协议里是可选字符串，不能为 null）</summary>
     public string Cwd { get; set; } = "";
+    /// <summary>会话投影（前端据此取标题/模型选择；必须整体存在，缺失会让前端停在加载态）</summary>
+    public DshSessionProjections Projections { get; set; } = new();
+}
+
+/// <summary>会话投影块（<c>kind=sequenced</c> 表示投影值挂在真实事件序号上）</summary>
+internal sealed class DshSessionProjections {
+    /// <summary>投影种类（sequenced / cached）</summary>
+    public string Kind { get; set; } = "sequenced";
+    /// <summary>投影对应的会话事件序号</summary>
+    public long AsOfSeq { get; set; }
+    /// <summary>投影键值</summary>
+    public DshSessionProjectionValues Values { get; set; } = new();
+}
+
+/// <summary>会话投影键值（前端认得的键；未知键原样透传）</summary>
+internal sealed class DshSessionProjectionValues {
+    /// <summary>会话标题（null = 未命名，前端显示「未命名会话」）</summary>
+    public string? Title { get; set; }
+    /// <summary>代理预设</summary>
+    public string? AgentPreset { get; set; }
+    /// <summary>模型选择投影（缺失会让「模型选择」停在加载态）</summary>
+    public DshSessionModelSelectionProjection? ModelSelection { get; set; }
+    /// <summary>会话列表元数据</summary>
+    public DshSessionListMetadata? SessionListMetadata { get; set; }
+}
+
+/// <summary>模型选择投影（上次使用 / 下次待用，null 表示无）</summary>
+internal sealed class DshSessionModelSelectionProjection {
+    /// <summary>上次使用的模型</summary>
+    public DshModelSelectionRef? LastUsed { get; set; }
+    /// <summary>下次将使用的模型</summary>
+    public DshModelSelectionRef? Next { get; set; }
+}
+
+/// <summary>模型选择的精简形状（协议里 reasoningEffort 可选，缺失时不能输出 null）</summary>
+internal sealed class DshModelSelectionRef {
+    /// <summary>供应商</summary>
+    public string Provider { get; set; } = "";
+    /// <summary>模型</summary>
+    public string Model { get; set; } = "";
+}
+
+/// <summary>会话列表元数据投影</summary>
+internal sealed class DshSessionListMetadata {
+    /// <summary>是否空白会话</summary>
+    public bool Blank { get; set; }
+    /// <summary>最后一次用户提问时间（毫秒时间戳，null = 未知）</summary>
+    public long? LastPromptAt { get; set; }
+}
+
+/// <summary>session/rename 参数</summary>
+internal sealed class DshSessionRenameArgs {
+    /// <summary>目标会话</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>新标题</summary>
+    public string Title { get; set; } = "";
+}
+
+/// <summary>session/rename 结果</summary>
+internal sealed class DshSessionRenameResult {
+    /// <summary>生效标题</summary>
+    public string Title { get; set; } = "";
+    /// <summary>对应的会话事件序号</summary>
+    public long Seq { get; set; }
+}
+
+/// <summary>session/cancel 结果</summary>
+internal sealed class DshSessionCancelResult {
+    /// <summary>固定接受标记</summary>
+    public bool Accepted { get; set; } = true;
 }
 
 /// <summary>session/create 结果</summary>
@@ -269,6 +339,9 @@ internal sealed class DshModelChoice {
     public string Provider { get; set; } = "";
     /// <summary>模型</summary>
     public string Model { get; set; } = "";
+    /// <summary>推理强度（协议里可选 — 缺失时必须整键省略，不能输出 null）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ReasoningEffort { get; set; }
 }
 
 /// <summary>供应商模型分组</summary>
@@ -483,6 +556,7 @@ internal sealed class DshRpcErrorDetails;
 [JsonSerializable(typeof(DshStreamItem))]
 [JsonSerializable(typeof(DshEventsReady))]
 [JsonSerializable(typeof(DshRequestEnvelope<DshWorkspacePathArgs>))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshSessionRenameArgs>))]
 [JsonSerializable(typeof(DshRequestEnvelope<DshWorkspaceIdArgs>))]
 [JsonSerializable(typeof(DshRequestEnvelope<DshWorkspaceRenameArgs>))]
 [JsonSerializable(typeof(DshRequestEnvelope<DshWorkspaceInsertBeforeArgs>))]
@@ -503,6 +577,14 @@ internal sealed class DshRpcErrorDetails;
 [JsonSerializable(typeof(DshPinnedResult))]
 [JsonSerializable(typeof(DshSessionControlBaseline))]
 [JsonSerializable(typeof(DshSessionList))]
+[JsonSerializable(typeof(DshSessionProjections))]
+[JsonSerializable(typeof(DshSessionProjectionValues))]
+[JsonSerializable(typeof(DshSessionModelSelectionProjection))]
+[JsonSerializable(typeof(DshModelSelectionRef))]
+[JsonSerializable(typeof(DshSessionListMetadata))]
+[JsonSerializable(typeof(DshSessionRenameArgs))]
+[JsonSerializable(typeof(DshSessionRenameResult))]
+[JsonSerializable(typeof(DshSessionCancelResult))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(DshSessionCreateResult))]
 [JsonSerializable(typeof(DshModelCatalog))]

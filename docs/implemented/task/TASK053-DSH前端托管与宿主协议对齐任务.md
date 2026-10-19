@@ -10,7 +10,10 @@
 | M1 | 前端资产打包嵌入 + 回环 HTTP/WS 宿主 + 13 个启动 API 骨架 + 启动注入 | ✅ |
 | M1.5 | `settings/describe` / `settings/mutate`（含 schema 信封与 revision）修「预览版说明」确认不关闭 | ✅ |
 | M2-a | `directoryPicker/pick` + `workspace/*` 全量 + 工作区注册表持久化（选择工作区闭环） | ✅ |
-| M2-b | `session/*`（create/list/follow/control）接自有引擎会话 | ⬜ |
+| M2-b | `session/*`（create/list/follow/control）接自有引擎会话 | 进行中 |
+| M2-b1 | `session/list` + `session/rename` + `session/cancel`：侧栏显示引擎已有会话（标题/时间/工作目录/空白标记） | ✅ |
+| M2-b2 | `session/create` 落引擎 + `session/control` 基线投影 + `session/modelCatalog` 真实模型目录（消除「正在加载模型…」） | ⬜ |
+| M2-b3 | 打开会话：`session/follow` snapshot（含 `projections`）+ 会话投影载入 | ⬜ |
 | M2-c | 聊天主链路：消息发送 + `session/follow` 增量事件流（`assistant/message`、`tool/call|result`、`step/*`…） | ⬜ |
 | M2-d | 权限：`approval/*` 事件 + 判定回传；`sandbox/mode`、`permission/preset` | ⬜ |
 | M3 | 自研 WebUI 与旧桥接归档，`--webui-smoke` 删除 | ⬜ |
@@ -30,7 +33,10 @@
 | `DshWorkspaceStore`：`~/.jcc/dsh-workspaces.json` 注册表（create 去重/rename/delete/insertBefore/insertSessionBefore/attachSession/archive/pin） | `workspace/follow` 基线 + 各 workspace 一元方法 | ✅ | ✅ E2E：重启后无任何选择动作，侧栏工作区行由 `workspace/follow` 基线恢复 |
 | `workspace/initializeDefault` → `null`（宿主无默认工作区） | 启动无工作区分支 | ✅ | ✅ 重载抓包确认不再自动弹选择器、无错误横幅 |
 | `DshRequestEnvelope<T>`：DSH 生成远程契约的具名参数信封（生成器 `wire="request"`） | 全部 `workspace/*` 请求解析 | ✅ | ✅ 单测按真实信封构造 args；E2E 真实前端请求通过 |
-| 会话/消息/流式/权限（`session/*` 实数据、`session/follow` 增量） | 聊天主链路 | ⬜ | ⬜ M2-b/c/d |
+| `web_host/DshSessionStore.cs`：引擎 `ITranscriptService` → DSH 会话条目投影（`sessionId/updatedAt/blank/agentAvailable/running/cwd/projections{title,agentPreset,modelSelection,sessionListMetadata}`） | `session/list`、`session/rename`、后续 `session/follow` 基线 | ✅ | ✅ 单测 `DshSessionStoreTests` 9/9（真实 `TranscriptService` + 内存文件系统）；E2E 见下 |
+| 启动即读的轻量落盘会话实例（`TranscriptStore`，`~/.jcc/sessions` 只读投影）→ 引擎就绪后热切到引擎实例 | `DshWebUiWindow` 构造期挂载；`AttachEngineAsync` 切换 | ✅ | ✅ 手动 exe E2E：窗口打开 1s 内侧栏已列出引擎会话，无需等引擎组装 |
+| `session/list`（异步分发，上限 200）、`session/rename`（`session/rejected` / `session/not-found` 引导错误）、`session/cancel`（`{accepted:true}`） | 侧栏会话行、会话内重命名快捷键、停止生成 | ✅ | ✅ 单测（含参数校验三态 + 真实落库标题）；E2E 侧栏可见引擎会话标题 |
+| 会话/消息/流式/权限（`session/create|control|follow`、`session/follow` 增量、`approval/*`） | 聊天主链路 | ⬜ | ⬜ M2-b2/b3/c/d |
 
 ## M1.5 缺陷记录（缺陷驱动）
 
@@ -59,13 +65,37 @@
 | 重启恢复 | 关 exe → 重启（无 `JCC_DIRECTORY_PICK`）→ 只读不点 | ✅ 侧栏工作区行由 `workspace/follow` 基线恢复 |
 | 无错误横幅 | 读页面文本 | ✅ 无「无法打开文件夹」/「尚未实现」 |
 
-## 已确认的协议事实（供 M2 使用）
+## M2-b1 缺陷/决策记录（缺陷驱动）
+
+1. 现象预判的缺陷：引擎组装 28~32s，而前端**只在 `$events` 流连接时**（`manager.handleConnected()`）调一次 `session/list`；若宿主此时还没接引擎 → 列表返回空 → 侧栏永远空白，直到用户手动重载页面。
+2. 红测：`dumps/dsh-webui-sessions.mjs`（隔离 home 预置 `sessions/e2e-session-1/{transcript.json,meta.json}`，含 `custom-title` 条目）在「宿主启动即返回真实列表」前失败。
+3. 根因：会话列表是**纯落盘读取**，不需要引擎组装；把「列表」与「引擎」绑在同一生命周期上是错误耦合。
+4. 修复：`DshWebUiWindow` 构造期先挂一个轻量 `TranscriptStore`（`State.TranscriptService` + `PhysicalFileSystem`，读同一份 `~/.jcc/sessions`），引擎就绪后 `AttachTranscripts` 热切换到引擎实例（写路径改走引擎 actor，避免两个实例并发读改写同一文件）。顺带 `session/rename` 落库走引擎 `SaveCustomTitleAsync`。
+5. 隔离环境缺陷（E2E 基建，非产品）：`JCC_APP_DATA_FOLDER` 隔离后无 `settings.json` → 引擎组装抛「未知的 Provider 'deepseek'」（默认 vendor 在 provider 注册表里不存在）；E2E 需在隔离 home 写一份最小 `settings.json`（`vendor.deepseek` + `current.profile=deepseek`，不含密钥）。补上后日志 `engine attached: transcripts ready`，热切换后列表仍正常。
+6. 绿测：单测 25/25（`DshWorkspaceStoreTests` 9 + `DshSettingsStoreTests` 7 + `DshSessionStoreTests` 9）；E2E `dumps/dsh-webui-sessions.mjs` ALL_PASS。
+
+## M2-b1 验收记录（ADR 0080 手动 exe）
+
+| 步骤 | 命令/动作 | 结果 |
+|------|-----------|------|
+| 侧栏会话 | 隔离 home 预置会话（`custom-title=引擎会话标题`）→ 启动 `--webui` → 读页面文本 | ✅ 侧栏「未分组」下出现 `E2E引擎会话`（字段 `projections.values.title`）+ 相对时间 |
+| 启动即读 | 进程启动 ~1s 内取页面文本 | ✅ 会话已在侧栏（不等引擎） |
+| 引擎热切换 | 读 `{JCC_APP_DATA_FOLDER}/dumps/startup_timing.log` | ✅ `[DSH-WEB] engine attached: transcripts ready`，切换后列表不丢 |
+| 无错误横幅 | 读页面文本 | ✅ 无「尚未实现」/「无法读取」 |
+| 重命名落库（非 UI） | 单测 `DshSessionStoreTests.Rename_WritesCustomTitle_VisibleInList` | ✅ 落 `custom-title` 条目并回读（UI 快捷键 `Ctrl+Alt+G` 需先能打开会话 → M2-b3 验收） |
+
 
 - 启动期 13 个一元方法：`agentPresets/list`、`commands/list`、`credentials/describe`、`dynamicCordisRunner/inventory`、`dynamicCordisRunner/syncInspectManifest`、`llm/listConfigurableProviders`、`llm/listProviders`、`permissionPresets/catalog`、`session/create`、`session/list`、`session/modelCatalog`、`settings/describe`、`skills/list`。
 - 运行期额外：`workspace/initializeDefault`（result `undefined | {workspace:{workspaceId,path,title,sessionIds,createdAt,updatedAt}}`）、`directoryPicker/pick`（result `null | string`）、`settings/mutate`（result = 命名空间视图）、静态路径 `open-in-app/apps`、`plugins/events`。
 - `settings/mutate` 请求：`{"ns":"ui-settings-general","ops":[{"op":"set","path":["welcomeNoticeVersion"],"value":"2026-09-28.1"}]}`，可带 `expectedRevision`；`set` 操作必须携带 `value`。
 - **具名参数信封**：生成的远程契约里每个具名参数都有 `wire` 名；`workspace/*` 全部为 `request`（`{"request":{"path":…}}`），`directoryPicker/createDirectory` 为位置参数 `{"path":…,"name":…}`，`directoryPicker/pick` 无参数，`settings/*` 为 `request`。宿主按此解析，勿假设平铺参数。
 - 覆盖范围提示：`directoryPicker/list`、`directoryPicker/createDirectory` 仅浏览器内建选择器用到；原生文件夹对话框（宿主侧 Avalonia）不需要，暂不实现。
+- `session/list` 返回 `{items:[…]}`，条目字段：`sessionId/updatedAt(ms)/blank/agentAvailable/running/cwd/archived/pinned/parentSessionId?/projections`。`projections` 在列表里可省略，但**不能给 `null`**（严格 codec 解码失败）；宿主改为总是输出 `{kind:'sequenced', asOfSeq, values}`。
+- 侧栏标题来自 `projections.values.title`（`projectList ← buildListSnapshot ← projectionStore.get('title')`）；`updatedAt = max(summary.updatedAt, values.sessionListMetadata.lastPromptAt ?? 0)`；`sessionListMetadata.blank` 决定是否显示「新建会话」占位。
+- `projections.values.modelSelection` 缺失会让模型选择停在「正在加载模型…」→ M2-b2 与 `session/modelCatalog` 一起补。
+- `session/follow` 的 snapshot **必须**带 `projections`（缺失即解码失败，和列表不同）；`kind:'sequenced'` 必须同时有 `asOfSeq` + `values`。
+- 会话内重命名入口是快捷键 `Ctrl+Alt+G`（`session.rename` 命令），需要已打开且非空白会话（`sessions.using(...)`）→ 依赖 M2-b3 的打开会话后才可做 UI 验收。
+- 会话事件契约（M2-c 用）：`user/message` data=`UserMessage{id,content:ContentBlock[],source}`；`assistant/message` data=`{turn,step,message,stream,usage?}`；`ContentBlock` 文本 `{type:'text',text}`、`tool-call{type,id,name,arguments}`；`SessionTitleEventData{title,messageSeqs,source}`。
 
 ## 复现与验证方式
 
@@ -76,6 +106,7 @@ $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--remote-debugging-port=9222'
 $env:JCC_APP_DATA_FOLDER="$env:TEMP\opencode\jcc-e2e-home"
 $env:JCC_WEBVIEW_DATA_DIR="$env:JCC_APP_DATA_FOLDER\webview2"
 $env:JCC_DIRECTORY_PICK="C:\Users\54076\AppData\Local\Temp\opencode\jcc-e2e-ws"   # E2E 注入缝，跳过原生对话框
+# 会话 E2E 还需：隔离 home 下预置 sessions/{id}/{transcript.json,meta.json} + 最小 settings.json（vendor.deepseek，不含密钥），否则引擎组装报“未知的 Provider”
 Start-Process "artifacts\bin\JoinCodeGui\Debug\net10.0-windows10.0.26100.0\JoinCode.Gui.exe" -ArgumentList '--webui' -WorkingDirectory "D:\project\w3"
 
 # 断言（在 non_deliverables_tools/dsh_parity 下，依赖 playwright-core 与 9222 端口）
@@ -83,7 +114,8 @@ node dumps/dsh-webui-verify.mjs                        # 启动契约
 node dumps/dsh-webui-ack.mjs                           # 提示页确认闭环
 node dumps/dsh-webui-workspace.mjs jcc-e2e-ws          # 选择工作区闭环
 node dumps/dsh-webui-workspace.mjs jcc-e2e-ws --no-pick # 重启后基线恢复（先重启 exe 且不带 JCC_DIRECTORY_PICK）
+node dumps/dsh-webui-sessions.mjs "E2E引擎会话"          # 侧栏显示引擎已有会话（标题/时间）
 node dumps/dsh-webui-reload-trace.mjs                  # 启动/重载全量请求响应
 # 单测
-dotnet test test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj -c Debug --filter "FullyQualifiedName~web_host"
+dotnet test test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj -c Debug --filter "FullyQualifiedName~WebHost"
 ```

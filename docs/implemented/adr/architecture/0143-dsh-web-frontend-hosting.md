@@ -75,3 +75,4 @@ ui-settings-general 的 Config = z.object({ welcomeNoticeVersion: z.string().vol
 - 需要持续维护「方法实现清单」（见 `docs/implemented/task/TASK053-DSH前端托管与宿主协议对齐任务.md`）。
 - 已实现方法之外的调用会得到 `unimplemented` + 引导文案；`directoryPicker/pick`、`workspace/*` 已于 M2-a 接入真实实现（工作区注册表落 `~/.jcc/dsh-workspaces.json`），会话/消息/权限在 M2-b/c/d 接入自有引擎。
 - **请求参数形状以生成的远程契约为准**（`typert.remote-client.js` 里每个参数的 `wire` 名）：具名参数收在 `request` 下（如 `workspace/create` 的 `{"request":{"path":…}}`），位置参数平铺（如 `directoryPicker/createDirectory` 的 `{"path":…,"name":…}`）。宿主用 `DshRequestEnvelope<T>` 类型化解析，禁止假设平铺参数。
+- **前端只在 `$events` 流连接那一次拉全量列表**（`manager.handleConnected() → refreshList() → session/list`）：凡是「引擎组装完成后才有数据」的列表，必须让启动期的数据源先可用，否则数据要等用户手动重载页面才出现。会话列表因此不绑引擎生命周期 —— 启动即挂轻量落盘会话实例（`State.TranscriptService` 读同一份 `~/.jcc/sessions`），引擎就绪后热切到引擎实例（M2-b1）。

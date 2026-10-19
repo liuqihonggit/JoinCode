@@ -10,6 +10,9 @@ internal sealed class DshRpcDispatcher {
 
     private readonly DshHostServices _services;
 
+    /// <summary>会话列表一次返回的最大条数（前端空 cursor 即从头拉取）</summary>
+    private const int SessionListLimit = 200;
+
     /// <summary>分发表：方法名 → 处理器（命名函数，便于替换与检索）</summary>
     private readonly FrozenDictionary<string, Handler> _routes;
 
@@ -18,8 +21,10 @@ internal sealed class DshRpcDispatcher {
     internal DshRpcDispatcher(DshHostServices services) {
         _services = services;
         _routes = new Dictionary<string, Handler>(StringComparer.Ordinal) {
-            ["session/list"] = Sync(_ => Ok(new DshSessionList())),
+            ["session/list"] = SessionList,
             ["session/create"] = SessionCreate,
+            ["session/rename"] = SessionRename,
+            ["session/cancel"] = Sync(_ => Ok(new DshSessionCancelResult())),
             ["session/modelCatalog"] = Sync(_ => Ok(new DshModelCatalog())),
             ["agentPresets/list"] = Sync(_ => Ok(new DshAgentPresetList {
                 Presets = [new DshAgentPreset { Id = "standard", Order = 1, IsDefault = true }],
@@ -161,6 +166,26 @@ internal sealed class DshRpcDispatcher {
         return Ok(new DshPinnedResult { PinnedSessionIds = await _services.Workspaces.UnpinAsync(request.SessionId, cancellationToken) });
     }
 
+    /// <summary>session/list：列出引擎里的会话（引擎未就绪时为空列表）</summary>
+    private async Task<DshRpcResult> SessionList(JsonElement args, CancellationToken cancellationToken) {
+        var items = await _services.Sessions.ListAsync(SessionListLimit, cancellationToken);
+        return Ok(new DshSessionList { Items = [.. items] });
+    }
+
+    /// <summary>session/rename：改会话标题（写引擎 custom-title）</summary>
+    private async Task<DshRpcResult> SessionRename(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSessionRenameArgs)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)) {
+            return Fail("session/rejected", $"session/rename 缺少 sessionId；收到 args={Describe(args)}");
+        }
+        if (string.IsNullOrWhiteSpace(request.Title)) {
+            return Fail("session/rejected", $"session/rename 缺少 title（sessionId={request.SessionId}）");
+        }
+        return await _services.Sessions.RenameAsync(request.SessionId, request.Title, cancellationToken) is { } renamed
+            ? Ok(new DshSessionRenameResult { Title = renamed.Title, Seq = renamed.Seq })
+            : Fail("session/not-found", $"session/rename 找不到会话：{request.SessionId}（引擎会话目录 ~/.jcc/sessions）");
+    }
+
     /// <summary>session/create：M1 回显前端请求的会话 ID（无则生成）</summary>
     private static Task<DshRpcResult> SessionCreate(JsonElement args, CancellationToken cancellationToken) => Task.FromResult(Ok(new DshSessionCreateResult {
         SessionId = ReadString(args, "request", "sessionId") ?? $"session-{Guid.NewGuid():N}",
@@ -188,6 +213,10 @@ internal sealed class DshRpcDispatcher {
     }
 
     private static DshRpcResult Ok(DshSessionList value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionList));
+
+    private static DshRpcResult Ok(DshSessionRenameResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionRenameResult));
+
+    private static DshRpcResult Ok(DshSessionCancelResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionCancelResult));
 
     private static DshRpcResult Ok(DshSessionCreateResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionCreateResult));
 

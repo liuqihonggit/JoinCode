@@ -12,6 +12,7 @@ internal sealed class DshHostServices {
     internal DshHostServices(IFileSystem fileSystem, string? workspaceFilePath = null) {
         Workspaces = new DshWorkspaceStore(fileSystem, workspaceFilePath);
         Settings = new DshSettingsStore();
+        Sessions = new DshSessionStore();
     }
 
     /// <summary>工作区注册表（workspace/* 与 workspace/follow 基线）</summary>
@@ -19,4 +20,7 @@ internal sealed class DshHostServices {
 
     /// <summary>设置命名空间（settings/describe 与 settings/mutate）</summary>
     internal DshSettingsStore Settings { get; }
+
+    /// <summary>会话注册表（session/* — 数据源是引擎会话存储，引擎就绪后注入）</summary>
+    internal DshSessionStore Sessions { get; }
 }

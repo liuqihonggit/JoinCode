@@ -95,4 +95,6 @@ global using JoinCode.Gui.ViewModels.Docking;
 global using JoinCode.Gui.WebView;
 // DSH 前端宿主（ADR 0143）
 global using JoinCode.Gui.WebHost;
+// 会话落盘服务的轻量实例（DSH 侧栏启动即读，不必等引擎组装完成）
+global using TranscriptStore = State.TranscriptService;
 global using Microsoft.Web.WebView2.Core;

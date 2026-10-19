@@ -66,6 +66,7 @@ global using JoinCode.Abstractions.Utils.Diagnostics;
 global using JoinCode.Abstractions.Entity;
 global using JoinCode.Adapters;
 global using JoinCode.App.Builder;
+global using JoinCode.App.Modules;
 global using JoinCode.ChatCommands;
 global using JoinCode.ChatCommands.Bridge;
 global using JoinCode.Cli;

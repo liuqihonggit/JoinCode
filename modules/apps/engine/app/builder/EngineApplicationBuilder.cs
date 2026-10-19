@@ -2,7 +2,7 @@ namespace JoinCode.App.Builder;
 
 /// <summary>
 /// 引擎应用构建器 — 链式注册模块并构建 Host（ADR 0143 从 cli ApplicationBuilder 拆分的引擎部分）。
-/// <para>宿主差异（终端日志/参数解析/帮助输出）留在宿主侧：CLI 宿主经 EngineSessionFactory 调用。</para>
+/// <para>宿主差异（终端日志/参数解析/帮助输出）留在宿主侧：CLI 宿主经 <see cref="EngineSessionFactory"/> 调用。</para>
 /// <para>日志 provider 由宿主注入 — 引擎不感知终端（ConsoleActor 等 CLI 表现层由 CLI 宿主传入）。</para>
 /// </summary>
 public sealed class EngineApplicationBuilder {

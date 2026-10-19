@@ -75,7 +75,7 @@ class Program {
 
             var fs = IO.FileSystem.FileSystemFactory.Create();
 
-            var engineResult = await App.Builder.EngineSessionFactory.CreateCliSessionAsync(options, fs).ConfigureAwait(false);
+            var engineResult = await App.Builder.CliSessionFactory.CreateCliSessionAsync(options, fs).ConfigureAwait(false);
 
             var config = engineResult.Config;
             await using var host = engineResult.Host;

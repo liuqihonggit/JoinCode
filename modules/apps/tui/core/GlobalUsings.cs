@@ -29,8 +29,9 @@ global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Permission;
 global using JoinCode.Abstractions.Security.Shell;
 global using JoinCode.Abstractions.Tools;
-// App Builder (EngineSessionFactory)
+// App Builder (EngineSessionFactory) + 引擎/CLI 模块（CliRegistrationModule 兜底注册）
 global using JoinCode.App.Builder;
+global using JoinCode.App.Modules;
 // 底层命令系统 — CmdMap/ChatCommandRegistry/CommandServices（转发斜杠命令，不自己实现一套）
 global using JoinCode.ChatCommands;
 global using JoinCode.Cli;

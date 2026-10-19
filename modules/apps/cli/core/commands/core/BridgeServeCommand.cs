@@ -37,7 +37,7 @@ internal static class BridgeServeCommand {
         Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
 
-        var engine = await EngineSessionFactory.CreateCliSessionAsync(options, fs, ct).ConfigureAwait(false);
+        var engine = await CliSessionFactory.CreateCliSessionAsync(options, fs, ct).ConfigureAwait(false);
         await using var host = engine.Host;
 
         // Console.Out → stderr：引擎内部任何 Console 输出不得污染 stdout 协议流

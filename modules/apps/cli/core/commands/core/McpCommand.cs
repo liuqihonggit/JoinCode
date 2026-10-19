@@ -134,7 +134,7 @@ public sealed class McpCliCommand {
         Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
         // 子命令模式抑制初始化警告（ShellCapabilityInitializer 的 pwsh/python 检测警告）
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
-        var result = await EngineSessionFactory.CreateCliSessionAsync(options, fs, ct).ConfigureAwait(false);
+        var result = await CliSessionFactory.CreateCliSessionAsync(options, fs, ct).ConfigureAwait(false);
         return result.Host;
     }
 

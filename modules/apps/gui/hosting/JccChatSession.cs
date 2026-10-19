@@ -251,14 +251,15 @@ internal sealed class JccChatSession : IJccChatSession {
     }
 
     /// <summary>
-    /// 创建引擎会话：调用 CLI 侧 EngineSessionFactory 一行完成 LoadConfig+BuildHost+ConfigureModules，
+    /// 创建引擎会话：调用引擎侧 EngineSessionFactory 一行完成 LoadConfig+BuildHost+ConfigureModules，
     /// 消除 GUI 和 CLI 的双引擎初始化差异。
+    /// CliRegistrationModule: cli 程序集 [Register] 类型兜底注册（ADR 0143 CoreModule 拆分，行为零变化）。
     /// </summary>
     public static async Task<IJccChatSession> CreateAsync(
         CancellationToken cancellationToken = default) {
         var swTotal = System.Diagnostics.Stopwatch.StartNew();
         var result = await EngineSessionFactory.CreateGuiSessionAsync(
-            [new GuiInteractionModule()], cancellationToken);
+            [new CliRegistrationModule(), new GuiInteractionModule()], cancellationToken);
         App.LogDiag($"[JccChatSession] EngineSessionFactory.CreateGuiSessionAsync: {swTotal.ElapsedMilliseconds}ms");
 
         var executionSettings = result.Services.GetService<IExecutionSettingsProvider>();

@@ -61,28 +61,9 @@ public sealed class EngineSessionFactory {
     }
 
     /// <summary>
-    /// 创建 CLI 引擎会话 — 包含全部 CLI 模块（PipeModule、CliModule、HousekeepingModule）。
-    /// CLI 的 Program.Main 调用此方法，替代手动 LoadConfig+BuildHost+ConfigureModules。
-    /// </summary>
-    public static Task<Result> CreateCliSessionAsync(
-        CommandLineOptions options, IFileSystem fs, CancellationToken cancellationToken = default) {
-        return CreateCoreAsync(
-            options, fs,
-            builder => builder
-                .UseModule<Modules.CoreModule>()
-                .UseModule<Modules.ClockModule>()
-                .UseModule<Modules.BrowserModule>()
-                .UseModule<Modules.PipeModule>()
-                .UseModule<Modules.CliModule>()
-                .UseModule<Modules.HousekeepingModule>()
-                .UseModule<Modules.McpInitModule>(),
-            cancellationToken);
-    }
-
-    /// <summary>
-    /// 创建 GUI 引擎会话 — 不含 PipeModule/CliModule（GUI 不需要命名管道和终端交互），
+    /// 创建 GUI/TUI 引擎会话 — 不含 PipeModule/CliModule（宿主不需要命名管道和终端交互），
     /// 含 HousekeepingModule（后台清理和实体回收）。
-    /// extraModules: GUI 可传入额外模块（如 GuiInteractionModule）覆盖 Core 层默认注册。
+    /// extraModules: 宿主可传入额外模块（如 GuiInteractionModule/TuiInteractionModule/CliRegistrationModule）。
     /// </summary>
     public static Task<Result> CreateGuiSessionAsync(
         IEnumerable<IAppModule>? extraModules = null,
@@ -93,35 +74,36 @@ public sealed class EngineSessionFactory {
             TrustWorkspace = true,
         };
 
-        return CreateCoreAsync(
-            options, fs,
-            builder => {
-                builder = builder
-                    .UseModule<Modules.CoreModule>()
-                    .UseModule<Modules.ClockModule>()
-                    .UseModule<Modules.BrowserModule>()
-                    .UseModule<Modules.HousekeepingModule>()
-                    .UseModule<Modules.McpInitModule>();
-                if (extraModules is not null) {
-                    foreach (var module in extraModules)
-                        builder = builder.UseModule(module);
-                }
-                return builder;
-            },
-            cancellationToken,
-            clearPipeEndpoint: true);
+        List<IAppModule> modules =
+        [
+            new Modules.CoreModule(),
+            new Modules.ClockModule(),
+            new Modules.BrowserModule(),
+            new Modules.HousekeepingModule(),
+            new Modules.McpInitModule(),
+        ];
+        if (extraModules is not null)
+            modules.AddRange(extraModules);
+
+        return CreateSessionAsync(options, fs, modules, loggerProvider: null, cancellationToken, clearPipeEndpoint: true);
     }
 
     /// <summary>
-    /// 核心创建逻辑 — LoadConfig → BuildHost → ConfigureModules → ShellCapabilityInit。
-    /// CLI 和 GUI 的差异仅在于模块列表和 PipeEndpoint 处理，其余全部统一。
-    /// 日志 provider 在宿主侧计算（CLI 表现层 ConsoleActor），引擎 BuildHost 只接收注入。
+    /// 通用会话创建 — LoadConfig → BuildHost → ConfigureModules → ShellCapabilityInit。
+    /// 模块列表与日志 provider 由宿主决定（CLI 宿主经 CliSessionFactory 传入 CLI 模块与 ConsoleActor provider）。
     /// </summary>
-    private static async Task<Result> CreateCoreAsync(
+    /// <param name="options">启动选项 — 引擎配置加载与 DI 注册共用</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="modules">宿主选定的模块列表（按各自 Order 排序执行）</param>
+    /// <param name="loggerProvider">宿主日志 provider（ADR 0100 表现层注入）；null 时引擎回退默认 console</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="clearPipeEndpoint">是否清除 PipeEndpoint 配置（GUI/TUI 会话无命名管道）</param>
+    public static async Task<Result> CreateSessionAsync(
         CommandLineOptions options,
         IFileSystem fs,
-        Func<EngineApplicationBuilder, EngineApplicationBuilder> configureModules,
-        CancellationToken cancellationToken,
+        IEnumerable<IAppModule> modules,
+        ILoggerProvider? loggerProvider = null,
+        CancellationToken cancellationToken = default,
         bool clearPipeEndpoint = false) {
         await EngineConfigInitializer.EnsureConfigFilesExistAsync(fs).ConfigureAwait(false);
 
@@ -131,13 +113,9 @@ public sealed class EngineSessionFactory {
         if (clearPipeEndpoint)
             config = config with { PipeEndpoint = null };
 
-        var builder = configureModules(new EngineApplicationBuilder());
-
-        // ADR 0100: ConsoleActor 日志走 Actor 串行化；无 Actor 时回退默认 console（引擎侧处理）
-        var consoleActor = Cli.TerminalHelper.GetConsoleActor();
-        ILoggerProvider? loggerProvider = consoleActor is not null
-            ? new Cli.Display.ConsoleActorLoggerProvider(consoleActor)
-            : null;
+        var builder = new EngineApplicationBuilder();
+        foreach (var module in modules)
+            builder = builder.UseModule(module);
 
         var host = builder.BuildHost(config, options, loggerProvider);
 

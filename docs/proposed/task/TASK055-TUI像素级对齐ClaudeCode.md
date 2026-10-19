@@ -430,3 +430,28 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!--   → 引擎侧随迁 engine + 5 通用模块(Core 需拆: AddAiWorkflowServices+AddAllPipelines 归 -->
 <!--   引擎, AddJccAutoRegisteredServices 归 cli 的 CliRegistrationModule) → EngineSessionFactory -->
 <!--   搬 engine(CreateCliSessionAsync 薄包装留 cli) → Step4 gui/tui 切直引 engine -->
+<!-- 🤖 Auto Decision: 2026-10-20 (ADR 0143 阶段一 Step 3b: 模块+SessionFactory 搬库, 用户选定方案) -->
+<!-- 用户决策: 先模块+SessionFactory(49 个 [Register] 类型暂留 cli 由 CliRegistrationModule 兜底, -->
+<!--   gui 会话行为零变化), 分类搬移留 Step 3c -->
+<!-- 前置确认: AddAllPipelines 全部工厂 lambda 延迟解析(sp => new PipelineBuilder...Use(sp.GetRequired -->
+<!--   Service...)) — 注册顺序无关, CoreModule 拆分安全; gui/tui 会话当前经 CoreModule→AddJcc 获得 -->
+<!--   全部 49 类型注册(telemetry hooks/ConfirmationGate 等), 拆分后必须由 gui/tui extraModules 传 -->
+<!--   CliRegistrationModule 兜底才能行为零变化 -->
+<!-- 落地: git mv 六件 — 5 模块(Core/Clock/Browser/Housekeeping/McpInit)→engine/app/modules/ + -->
+<!--   EngineSessionFactory→engine/app/builder/(目录纯度: app/ 下 8 文件+modules/ 违规 JCC10002, -->
+<!--   8 件归入 builder/ 子目录镜像 cli 结构); CoreModule 剧 AddJcc 两行(留 AddAiWorkflowServices+ -->
+<!--   AddAllPipelines); cli 新建 CliRegistrationModule(Order=31, 兜底调 AddJccAutoRegisteredServices/ -->
+<!--   Options)+CliSessionFactory(CreateCliSessionAsync 薄包装: 8 模块+ConsoleActor provider); engine -->
+<!--   CreateCoreAsync→公开 CreateSessionAsync(modules+loggerProvider 参数化, TerminalHelper 块删除); -->
+<!--   5 调用点改接(Program/McpCommand/BridgeServe→CliSessionFactory, gui/tui extraModules 补 -->
+<!--   CliRegistrationModule); EngineApplicationBuilder cref 恢复类型引用 -->
+<!-- 关键决策: CliRegistrationModule Order=31 紧随引擎 CoreModule(30) — AddAllPipelines 延迟解析 -->
+<!--   证明顺序无感; gui 无需补 using(JccChatSession 命名空间 walk-up 命中 App.Modules), tui/ -->
+<!--   host.tests 需补 global using JoinCode.App.Modules -->
+<!-- 坑: 单模块测试只能断言注册描述符(Contains ServiceType) — GetService 解析需完整宿主 DI 图, -->
+<!--   [Register] 类型构造依赖来自其他模块, 孤立 BuildServiceProvider 解析必炸 -->
+<!-- 验证: engine/cli/tui 全 0警告0错误 + gui 21 错误=Dock 存量基线(JccChatSession 零新错误) + -->
+<!--   新测试 1/1 绿 + host.tests 全量 1339/1339 — 剩余: Step 3c 49 类型分类搬移(引擎侧 telemetry -->
+<!--   hooks/ConfirmationGate 随迁后 gui/tui 可去 CliRegistrationModule) → Step 4 gui/tui 切直引 -->
+<!--   engine 消除 cli 依赖 → 改名批次(CliServiceContext→EngineServiceContext 等) → ADR 0143 状态 -->
+<!--   accepted; 阶段二 native_tui 宿主另起会话 -->

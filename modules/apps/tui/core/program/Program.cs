@@ -14,8 +14,9 @@ internal static class Program {
         try {
             WriteDiag("[Main] CreateGuiSessionAsync start");
             // T2：注入 TUI 交互模块 — ask_user_question 走 Terminal.Gui 对话框而非 Core Mock
+            // CliRegistrationModule: cli 程序集 [Register] 类型兜底注册（ADR 0143 CoreModule 拆分，行为零变化）
             var result = await EngineSessionFactory.CreateGuiSessionAsync(
-                extraModules: [new Hosting.TuiInteractionModule()],
+                extraModules: [new CliRegistrationModule(), new Hosting.TuiInteractionModule()],
                 cancellationToken: awaitCts.Token);
             var host = result.Host;
             try {

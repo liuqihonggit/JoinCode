@@ -9,19 +9,13 @@ public sealed class CoreModule : IAppModule {
     public int Order => 30;
 
     /// <summary>
-    /// 配置核心服务 — 注册 AI 工作流服务、JoinCode 自动注册服务及全部管道
+    /// 配置核心服务 — 注册 AI 工作流服务及全部管道
+    /// <para>cli 程序集 [Register] 类型（49 个）的自动注册已拆至 cli 宿主 CliRegistrationModule（ADR 0143 Step 3b）</para>
     /// </summary>
     /// <param name="services">服务集合</param>
     /// <param name="context">应用模块上下文，提供配置信息</param>
     public void ConfigureServices(IServiceCollection services, AppModuleContext context) {
         services.AddAiWorkflowServices(context.Config);
-
-        // JoinCode 项目的 [Register] 类型（如 OnboardingFlowController、ExecutionSettingsProvider 等）
-        // 不在 Sync 程序集的扫描范围内，需补调 JoinCode 版本的注册方法
-        // 源码生成器在 Exe 项目仅扫描自身程序集类型，方法名按程序集名生成
-        // JoinCode 程序集名 "jcc" → 清理为 "Jcc"
-        services.AddJccAutoRegisteredServices();
-        services.AddJccAutoRegisteredOptions();
 
         // 中间件已通过 [Register] + AddAutoRegisteredServices 注册到 DI
         // 此处从 DI 解析中间件并按 Order 排序后构建管道

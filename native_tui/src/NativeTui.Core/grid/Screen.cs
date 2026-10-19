@@ -10,13 +10,22 @@ public sealed class Screen : IDisposable
 {
     private Cell[] _cells;
 
-    /// <summary>创建指定尺寸的网格（全空白）。</summary>
+    /// <summary>创建指定尺寸的网格（全空白）。样式池为本帧私有（单缓冲场景）。</summary>
     public Screen(int cols, int rows)
+        : this(cols, rows, new StylePool())
+    {
+    }
+
+    /// <summary>
+    /// 创建指定尺寸的网格并共享样式池 — 帧双缓冲场景：前后帧 Screen 必须共享同一池，
+    /// 否则同一样式在不同帧拿到不同 styleId，CellDiffer 会产生假 diff（每帧全量重绘）。
+    /// </summary>
+    public Screen(int cols, int rows, StylePool sharedStyles)
     {
         Cols = cols;
         Rows = rows;
         _cells = CreateBlankCells(cols, rows);
-        Styles = new StylePool();
+        Styles = sharedStyles;
     }
 
     /// <summary>列数。</summary>

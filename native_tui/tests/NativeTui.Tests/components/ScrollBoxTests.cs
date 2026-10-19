@@ -29,6 +29,36 @@ public sealed class ScrollBoxTests
     }
 
     [Fact]
+    public void Insert_BeforeTailKeepsTailItemLast()
+    {
+        // spinner 常驻尾部：新消息必须插入到它前面（REPL 滚动区尾部 spinner 语义）
+        using var screen = new Screen(cols: 10, rows: 5);
+        var box = new ScrollBox(stickyScroll: true);
+        box.Add(new LineItem('a'));
+        box.Add(new LineItem('z')); // z 模拟常驻 spinner
+        box.Insert(box.Count - 1, new LineItem('m'));
+        Assert.Equal(3, box.Count);
+        box.Render(screen, new Rect(0, 0, 10, 3), Theme.Dark);
+        // 内容 a m z，视口 3 行 → 全部可见且 z 仍在最后
+        Assert.Equal(new Rune('a'), screen[0, 0].Value);
+        Assert.Equal(new Rune('m'), screen[1, 0].Value);
+        Assert.Equal(new Rune('z'), screen[2, 0].Value);
+    }
+
+    [Fact]
+    public void Insert_AtZero_Prepends()
+    {
+        using var screen = new Screen(cols: 10, rows: 3);
+        var box = new ScrollBox(stickyScroll: true);
+        box.Add(new LineItem('b'));
+        box.Insert(0, new LineItem('a'));
+        Assert.Equal(2, box.Count);
+        box.Render(screen, new Rect(0, 0, 10, 3), Theme.Dark);
+        Assert.Equal(new Rune('a'), screen[0, 0].Value);
+        Assert.Equal(new Rune('b'), screen[1, 0].Value);
+    }
+
+    [Fact]
     public void Sticky_PinsToBottomOnFirstRender()
     {
         using var screen = new Screen(cols: 10, rows: 3);

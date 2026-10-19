@@ -212,4 +212,38 @@ public sealed class ScreenTests
         // 行尾回到 Default 不需要发序列
         Assert.Equal("\x1b[1ma\x1b[22mb", screen.ToAnsiText());
     }
+
+    [Fact]
+    public void SharedStylePool_SameStyleSameIdAcrossScreens()
+    {
+        // 帧双缓冲：前后帧 Screen 必须共享样式池，否则同一样式拿到不同 ID → 假 diff
+        using var front = new Screen(cols: 10, rows: 1, sharedStyles: new StylePool());
+        using var back = new Screen(cols: 10, rows: 1, sharedStyles: front.Styles);
+        var boldFront = front.Styles.GetOrAdd(new TextStyle { Bold = true });
+        var boldBack = back.Styles.GetOrAdd(new TextStyle { Bold = true });
+        Assert.Equal(boldFront, boldBack);
+        Assert.Same(front.Styles, back.Styles);
+    }
+
+    [Fact]
+    public void SharedStylePool_PingPongIdenticalFrames_DiffEmpty()
+    {
+        // 双缓冲渲染相同内容 → CellDiffer 零输出（FrameComposer 无变化零输出的前提）
+        var pool = new StylePool();
+        using var front = new Screen(cols: 20, rows: 3, sharedStyles: pool);
+        using var back = new Screen(cols: 20, rows: 3, sharedStyles: pool);
+        RenderDemoFrame(front);
+        RenderDemoFrame(back);
+        Assert.Equal(string.Empty, new CellDiffer().RenderFrame(front, back));
+    }
+
+    private static void RenderDemoFrame(Screen screen)
+    {
+        var theme = Theme.Dark;
+        var claude = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Claude });
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(0, 0, "✢ Working…", claude);
+        screen.WriteText(1, 0, "(0.5s · ↓ 12 tokens)", dim);
+        screen.WriteText(2, 0, "❯ hello", 0);
+    }
 }

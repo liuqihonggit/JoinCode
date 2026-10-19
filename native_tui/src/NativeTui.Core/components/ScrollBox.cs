@@ -38,6 +38,15 @@ public sealed class ScrollBox
     /// <summary>追加内容项（钉底/跟随在下次 Render 时结算）。</summary>
     public void Add(IScrollItem item) => _items.Add(item);
 
+    /// <summary>内容项数量。</summary>
+    public int Count => _items.Count;
+
+    /// <summary>
+    /// 在指定位置插入内容项 — REPL 尾部常驻项（spinner）场景：
+    /// 新消息必须插到常驻项之前（Insert(Count - 1, msg)），保证常驻项始终最后。
+    /// </summary>
+    public void Insert(int index, IScrollItem item) => _items.Insert(index, item);
+
     /// <summary>相对滚动（打破 sticky；边界钳制延迟到渲染，对齐基准 pendingScrollDelta 累加语义）。</summary>
     public void ScrollBy(int dy)
     {

@@ -252,3 +252,32 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!--   程序输出(Write 阻塞), 取消选择后恢复, 与基准 Claude Code 一致 -->
 <!-- 替代方案: 保持禁用+要求用户用 Windows Terminal(违背"可复制"诉求, 环境不可控) -->
 <!-- 验证: 428/428 全绿(ToRawInput 期望更新); selftest 0 ✅ 待用户 conhost 真机复验 -->
+
+<!-- 🤖 Auto Decision: 2026-10-20 (M6e-2f: jcc.exe bridge_serve — M6 引擎接入服务端侧完结) -->
+<!-- 决策1: jcc 侧三件套 — BridgeProtocol(DTO 镜像+Safe 上下文+TryReadRequest 诱导诊断) + -->
+<!--   BridgeEventConsumer(IEventConsumer→ADR 0141 事件行, thinking 回合内单次信号+墙钟差) + -->
+<!--   BridgeServeLoop(协议主循环: submit 起回合任务与读循环并发, interrupt 取消, 忙时 submit -->
+<!--   诱导拒绝, quit/Eof 取消在途回合收尾后退出, 未知 type stderr 诊断不中断) -->
+<!-- 决策2: SessionTurnResult 翻译为 loop 异常语义 — 成功=null(turn_completed)/取消=OCE -->
+<!--   (turn_interrupted)/超时+错误=InvalidOperationException(error 事件带诱导消息); -->
+<!--   PermissionPending 确认按打断处理(bridge 无 UI), 留 M7 权限对话框时扩展协议 -->
+<!-- 决策3: CreateMainAgent 从 CliSession 提取 internal static — BridgeServeCommand 复用同一 -->
+<!--   主代理构造(带 prompt injection/审计/上下文持久化完整链路), 禁止复制散落 -->
+<!-- 决策4: Console.Out 全程重定向 stderr + 协议走 OpenStandardOutput 独立 writer — -->
+<!--   引擎内部任何 Console 输出不得污染 stdout 协议流; JCC_LOG_LEVEL=Error 全程持有 -->
+<!-- 决策5: SessionController 首次 submit 时绑定(闭包 controller ??=) — consumer 由 loop -->
+<!--   构造(TypedWriter.Synchronized 包 stdout), 事件出口唯一; 构造无副作用延迟安全 -->
+<!-- 坑: BridgeJsonContext.Safe 的 TypeInfo 属性(Safe.BridgeEvent)正常工作(生成代码 getter 走 -->
+<!--   Options.GetTypeInfo 绑定实例 Options) — 会话早期"必须 context 实例重载"诊断不成立, -->
+<!--   真正的编译阻塞是 GlobalUsings 缺 System.Text.Encodings.Web(JavaScriptEncoder) -->
+<!-- 顺手修: ApiKeySaveLoadTests 适配 #421 C6 DPAPI 加密(存量失败, 明文断言过时, 对齐 -->
+<!--   ApiKeyProtectorTests 跨平台分支断言) -->
+<!-- 验证: jcc 侧 26/26 bridge 测试 + host.tests 全量 1319/1319 全绿; 跨进程管道冒烟 ✅ -->
+<!--   (quit 立退 0 / submit→error 超时诱导 / interrupt→turn_interrupted / 未知 type stderr -->
+<!--   诱导诊断 / 中文不转义) -->
+<!-- commit ee128f07f(三件套+21 测试) 62175a691(ApiKey 修复) 73adfca24(命令层+路由+5 测试) -->
+<!-- M6e-2f 手动验收(ADR 0080)待用户真实终端执行: NativeTui.Demo.exe --bridge jcc.exe -->
+<!--   (jcc.exe = artifacts/bin/JoinCode/Debug/net10.0/jcc.exe), 配好 API key 后验证真实 -->
+<!--   LLM 流式回合(token_delta 增量/工具事件/思考事件)在 TUI 侧渲染 -->
+<!-- 剩余: M6 完结 — M7 截图校准/Markdown 高亮/diff/权限对话框(session_info 协议扩展) -->
+

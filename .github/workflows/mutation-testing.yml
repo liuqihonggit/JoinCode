@@ -134,69 +134,69 @@ jobs:
           DOTNET_EnableDiagnostics: 0
         run: |
           $projectMap = @{
-            'Guard-Config'         = @{ Dir = 'lib\guard.config.tests';   Src = 'Guard.csproj';           Mutate = @('Configuration/**','DependencyInjection/**','Policy/**','OAuth/**') }
-            'Guard-Security-Services'   = @{ Dir = 'lib\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('Security/Services/**') }
-            'Guard-Security-PowerShell' = @{ Dir = 'lib\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('Security/PowerShell/**') }
-            'Guard-Security-Other'      = @{ Dir = 'lib\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('Security/DangerClassification/**','Security/Sandbox/**','Security/Shell/**','Security/Scanners/**','Security/Interceptors/**','Security/Constants/**') }
-            'Guard-Hooks'          = @{ Dir = 'lib\guard.hooks.tests';    Src = 'Guard.csproj';           Mutate = @('Hooks/**','Permission/**') }
-            'Vault-Memdir'         = @{ Dir = 'lib\vault.memdir.tests';   Src = 'Vault.csproj';           Mutate = @('Memdir/**') }
-            'Vault-Other'          = @{ Dir = 'lib\vault.other.tests';    Src = 'Vault.csproj';           Mutate = @('State/**','Todo/**','UserInteraction/**','StepEvidence/**','Notification/**','DependencyInjection/**') }
-            'Brain-CtxAdmin'       = @{ Dir = 'kit\brain.context.tests'; Src = 'Brain.csproj';         Mutate = @('Context/Services/Admin/**') }
-            'Brain-CtxChat'        = @{ Dir = 'kit\brain.context.tests'; Src = 'Brain.csproj';         Mutate = @('Context/Services/Chat/**','Context/Services/ChatInit/**') }
-            'Brain-CtxOther'       = @{ Dir = 'kit\brain.context.tests'; Src = 'Brain.csproj';         Mutate = @('Context/Services/Preprocess/**','Context/Services/Context/**','Context/Services/Processor/**','Context/Services/Prompt/**','Context/Services/Idle/**','Context/Services/Loop/**') }
-            'Brain-CtxNonServicesA' = @{ Dir = 'kit\brain.context.tests'; Src = 'Brain.csproj';         Mutate = @('Context/Compact/**','Context/Compression/**') }
-            'Brain-CtxNonServicesB' = @{ Dir = 'kit\brain.context.tests'; Src = 'Brain.csproj';         Mutate = @('Context/Collapse/**','Context/Core/**','Context/Resolution/**') }
-            'Brain-PromptsSections'= @{ Dir = 'kit\brain.prompts.tests'; Src = 'Brain.csproj';         Mutate = @('Prompts/Sections/**') }
-            'Brain-PromptsOther'   = @{ Dir = 'kit\brain.prompts.tests'; Src = 'Brain.csproj';         Mutate = @('Prompts/Services/**','Prompts/Testing/**','Prompts/Templates/**','Prompts/Utils/**','Prompts/Core/**') }
-            'Brain-OtherA'         = @{ Dir = 'kit\brain.other.tests';  Src = 'Brain.csproj';           Mutate = @('Context/**','Prompts/**') }
-            'Brain-OtherB'         = @{ Dir = 'kit\brain.other.tests';  Src = 'Brain.csproj';           Mutate = @('Query/**','Planning/**','CostTracking/**','ContextFold/**','Summary/**','Cache/**','DependencyInjection/**') }
-            'Hands-SysTools'       = @{ Dir = 'kit\hands.tool_handlers.tests'; Src = 'Hands.csproj';   Mutate = @('ToolHandlers/Handlers/SystemTools/**') }
-            'Hands-CoreHandlers'   = @{ Dir = 'kit\hands.tool_handlers.tests'; Src = 'Hands.csproj';   Mutate = @('ToolHandlers/Handlers/Core/**') }
-            'Hands-DevTools'       = @{ Dir = 'kit\hands.tool_handlers.tests'; Src = 'Hands.csproj';   Mutate = @('ToolHandlers/Handlers/DevTools/**') }
-            'Hands-SkillServices'  = @{ Dir = 'kit\hands.skills.tests'; Src = 'Hands.csproj';         Mutate = @('Skills/Services/**','Skills/Mcp/**','Skills/Plugin/**') }
-            'Hands-SkillBuiltIn'   = @{ Dir = 'kit\hands.skills.tests'; Src = 'Hands.csproj';         Mutate = @('Skills/BuiltIn/**','Skills/Skills/**') }
-            'Hands-SkillOther'     = @{ Dir = 'kit\hands.skills.tests'; Src = 'Hands.csproj';         Mutate = @('Skills/Discovery/**','Skills/Search/**','Skills/Utils/**') }
-            'Hands-Api'            = @{ Dir = 'kit\hands.api.tests';    Src = 'Hands.csproj';           Mutate = @('Api/**','Web/**','Network/**','Integration/**') }
-            'Hands-Shell'          = @{ Dir = 'kit\hands.shell.tests';  Src = 'Hands.csproj';           Mutate = @('Shell/**','FileOps/**','System/**','Voice/**','Notebook/**','Serialization/**','Build/**','Cache/**','DependencyInjection/**') }
-            'Scheduling'           = @{ Dir = 'lib\scheduling.tests';     Src = 'Scheduling.csproj';      Mutate = @() }
-            'McpToolDispatch'      = @{ Dir = 'kit\mcp_tool_dispatch.tests'; Src = 'McpToolDispatch.csproj'; Mutate = @() }
-            'Llm'                  = @{ Dir = 'llm\llm.tests';                         Src = 'Llm.csproj';             Mutate = @() }
-            'Agents'               = @{ Dir = 'llm\agents.tests';                      Src = 'Agents.csproj';          Mutate = @() }
-            'Reasoning'            = @{ Dir = 'llm\reasoning.tests';                   Src = 'Reasoning.csproj';       Mutate = @() }
-            'CodeIndex'            = @{ Dir = 'server\code_index.tests';        Src = 'CodeIndex.csproj';       Mutate = @() }
-            'Browser'              = @{ Dir = 'server\browser.tests';          Src = 'Browser.csproj';         Mutate = @() }
-            'Mcp'                  = @{ Dir = 'kit\mcp.tests';                 Src = 'Mcp.csproj';             Mutate = @() }
-            'Eyes'                 = @{ Dir = 'server\eyes.tests';                Src = 'Eyes.csproj';            Mutate = @() }
-            'Dream'                = @{ Dir = 'server\dream.tests';               Src = 'Dream.csproj';            Mutate = @() }
-            'Bridge-SessionA'     = @{ Dir = 'server\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('Session/Main/**'); Concurrency = 2 }
-            'Bridge-SessionB'     = @{ Dir = 'server\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('Session/**','!Session/Main/**'); Concurrency = 2 }
-            'Bridge-Transport'    = @{ Dir = 'server\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('Transport/**'); Concurrency = 2 }
-            'Bridge-CoreRuntime'  = @{ Dir = 'server\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('Core/Runtime/**'); Concurrency = 2 }
-            'Bridge-CoreOther'    = @{ Dir = 'server\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('Core/**','!Core/Runtime/**'); Concurrency = 2 }
-            'Bridge-Messaging'    = @{ Dir = 'server\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('Messaging/**'); Concurrency = 2 }
-            'Bridge-ClientServer' = @{ Dir = 'server\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('Client/**','Server/**','Config/**','Security/**'); Concurrency = 2 }
-            'Composition'          = @{ Dir = 'kit\composition.tests';      Src = 'Composition.csproj';     Mutate = @() }
-            'Clock'                = @{ Dir = 'lib\clock.tests';            Src = 'Clock.csproj';           Mutate = @() }
-            'Infra-IO-FileOps'       = @{ Dir = 'test\unit\infra.tests\io';                 Src = 'Infrastructure.csproj';      Test = 'Infra.IO.Tests.csproj';      Mutate = @('IO/Services/FileOps/**') }
-            'Infra-IO-FsAndConfig'   = @{ Dir = 'test\unit\infra.tests\io';                 Src = 'Infrastructure.csproj';      Test = 'Infra.IO.Tests.csproj';      Mutate = @('IO/FileSystem/**','IO/Configuration/**','IO/Services/Throttle/**') }
-            'Infra-IO-ProcessAndOther' = @{ Dir = 'test\unit\infra.tests\io';               Src = 'Infrastructure.csproj';      Test = 'Infra.IO.Tests.csproj';      Mutate = @('IO/Process/**','IO/Console/**','IO/Services/Terminal/**','IO/Services/Diff/**','Http/**','Process/**','Ssh/**','Windows/**','Shell/**') }
-            'Infra-Utils-TextA1a'  = @{ Dir = 'test\unit\infra.tests\utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Text/FrontmatterParser.cs') }
-            'Infra-Utils-TextA1b'  = @{ Dir = 'test\unit\infra.tests\utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Text/MarkdownWalker.cs') }
-            'Infra-Utils-TextA2a'  = @{ Dir = 'test\unit\infra.tests\utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Text/AhoCorasick.cs') }
-            'Infra-Utils-TextA2b'  = @{ Dir = 'test\unit\infra.tests\utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Text/DualBufferAhoCorasick.cs') }
-            'Infra-Utils-TextB1'   = @{ Dir = 'test\unit\infra.tests\utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Text/ErrorMessages.cs','Utils/Text/DurationFormatter.cs','Utils/Text/FileSizeFormatter.cs') }
-            'Infra-Utils-TextB2'   = @{ Dir = 'test\unit\infra.tests\utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Text/GlobMatcher.cs','Utils/Text/JsonArgumentParser.cs','Utils/Text/StringBuilderPool.cs') }
-            'Infra-Utils-Resilience' = @{ Dir = 'test\unit\infra.tests\utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Resilience/**') }
-            'Infra-Utils-OtherA1a'  = @{ Dir = 'test\unit\infra.tests\utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('Housekeeping/**') }
-            'Infra-Utils-OtherA1b'  = @{ Dir = 'test\unit\infra.tests\utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('Cache/**','AsyncFileLock/**') }
-            'Infra-Utils-Validation1' = @{ Dir = 'test\unit\infra.tests\utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('Utils/Validation/ValidationHelper.cs') }
-            'Infra-Utils-Validation2' = @{ Dir = 'test\unit\infra.tests\utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('Utils/Validation/ArgumentValidator.cs') }
-            'Infra-Utils-Async'      = @{ Dir = 'test\unit\infra.tests\utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('Utils/Async/**') }
-            'Infra-Utils-Services'   = @{ Dir = 'test\unit\infra.tests\utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('Utils/Services/**') }
-            'Infra-Utils-OtherB'    = @{ Dir = 'test\unit\infra.tests\utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('Utils/State/**','Utils/Throttle/**','Utils/Collections/**','Utils/Pooling/**','Utils/IO/**','Utils/Generation/**','Utils/System/**','Configuration/**','Time/**','EntityReaper/**','ReaperScheduler/**') }
-            'Infra-Services'         = @{ Dir = 'test\unit\infra.tests\services';           Src = 'Infrastructure.csproj';      Test = 'Infra.Services.Tests.csproj'; Mutate = @('Localization/**','Pipeline/**','Plugins/**','Telemetry/**') }
-            'Host-Commands'        = @{ Dir = 'test\unit\host.tests';                   Src = 'JoinCode.csproj';        Mutate = @('Commands/**') }
-            'Host-Other'           = @{ Dir = 'test\unit\host.tests';                   Src = 'JoinCode.csproj';        Mutate = @('App/**','Cli/**','Entry/**','Pipe/**','Services/**') }
+            'Guard-Config'         = @{ Dir = 'modules\guard\guard.config.tests';   Src = 'Guard.csproj';           Mutate = @('configuration/**','dependency_injection/**','policy/**','o_auth/**') }
+            'Guard-Security-Services'   = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/services/**') }
+            'Guard-Security-PowerShell' = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/power_shell/**') }
+            'Guard-Security-Other'      = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/danger_classification/**','security/sandbox/**','security/shell/**','security/scanners/**','security/interceptors/**','security/constants/**') }
+            'Guard-Hooks'          = @{ Dir = 'modules\guard\guard.hooks.tests';    Src = 'Guard.csproj';           Mutate = @('hooks/**','permission/**') }
+            'Vault-Memdir'         = @{ Dir = 'modules\storage\vault.memdir.tests'; Src = 'Vault.csproj';           Mutate = @('memdir/**') }
+            'Vault-Other'          = @{ Dir = 'modules\storage\vault.other.tests';  Src = 'Vault.csproj';           Mutate = @('state/**','todo/**','user_interaction/**','step_evidence/**','notification/**','dependency_injection/**') }
+            'Brain-CtxAdmin'       = @{ Dir = 'modules\cognition\brain.context.tests'; Src = 'Brain.csproj';       Mutate = @('context/services/admin/**') }
+            'Brain-CtxChat'        = @{ Dir = 'modules\cognition\brain.context.tests'; Src = 'Brain.csproj';       Mutate = @('context/services/chat/**','context/services/chat_init/**') }
+            'Brain-CtxOther'       = @{ Dir = 'modules\cognition\brain.context.tests'; Src = 'Brain.csproj';       Mutate = @('context/services/preprocess/**','context/services/context/**','context/services/processor/**','context/services/prompt/**','context/services/idle/**','context/services/loop/**') }
+            'Brain-CtxNonServicesA' = @{ Dir = 'modules\cognition\brain.context.tests'; Src = 'Brain.csproj';      Mutate = @('context/compact/**','context/compression/**') }
+            'Brain-CtxNonServicesB' = @{ Dir = 'modules\cognition\brain.context.tests'; Src = 'Brain.csproj';      Mutate = @('context/collapse/**','context/core/**','context/resolution/**') }
+            'Brain-PromptsSections'= @{ Dir = 'modules\cognition\brain.prompts.tests'; Src = 'Prompts.csproj';     Mutate = @('sections/**') }
+            'Brain-PromptsOther'   = @{ Dir = 'modules\cognition\brain.prompts.tests'; Src = 'Prompts.csproj';    Mutate = @('services/**','testing/**','templates/**','utils/**','core/**') }
+            'Brain-OtherA'         = @{ Dir = 'modules\cognition\brain.other.tests';  Src = 'Brain.csproj';       Mutate = @('context/**') }
+            'Brain-OtherB'         = @{ Dir = 'modules\cognition\brain.other.tests';  Src = 'Brain.csproj';       Mutate = @('query/**','planning/**','cost_tracking/**','context_fold/**','summary/**','cache/**','dependency_injection/**') }
+            'Hands-SysTools'       = @{ Dir = 'modules\cognition\hands.tool_handlers.tests'; Src = 'Hands.csproj'; Mutate = @('tool_handlers/system_tools/**') }
+            'Hands-CoreHandlers'   = @{ Dir = 'modules\cognition\hands.tool_handlers.tests'; Src = 'Hands.csproj'; Mutate = @('tool_handlers/core/**') }
+            'Hands-DevTools'       = @{ Dir = 'modules\cognition\hands.tool_handlers.tests'; Src = 'Hands.csproj'; Mutate = @('tool_handlers/dev_tools/**') }
+            'Hands-SkillServices'  = @{ Dir = 'modules\cognition\hands.skills.tests'; Src = 'Hands.csproj';       Mutate = @('skills/services/**','skills/mcp/**','skills/plugin/**') }
+            'Hands-SkillBuiltIn'   = @{ Dir = 'modules\cognition\hands.skills.tests'; Src = 'Hands.csproj';       Mutate = @('skills/built_in/**','skills/skills2/**') }
+            'Hands-SkillOther'     = @{ Dir = 'modules\cognition\hands.skills.tests'; Src = 'Hands.csproj';       Mutate = @('skills/discovery/**','skills/search/**','skills/utils/**') }
+            'Hands-Api'            = @{ Dir = 'modules\cognition\hands.api.tests';    Src = 'Hands.csproj';         Mutate = @('api/**','web/**','network/**','integration/**') }
+            'Hands-Shell'          = @{ Dir = 'modules\cognition\hands.shell.tests';  Src = 'Hands.csproj';         Mutate = @('shell/**','system/**','voice/**','notebook/**','serialization/**','build/**','cache/**','dependency_injection/**') }
+            'Scheduling'           = @{ Dir = 'modules\storage\scheduling.tests';     Src = 'Scheduling.csproj';      Mutate = @() }
+            'McpToolDispatch'      = @{ Dir = 'modules\mcp\mcp_tool_dispatch.tests'; Src = 'McpToolDispatch.csproj'; Mutate = @() }
+            'Llm'                  = @{ Dir = 'modules\llm\llm.tests';                Src = 'Llm.csproj';             Mutate = @() }
+            'Agents'               = @{ Dir = 'modules\llm\agents.tests';             Src = 'Agents.csproj';          Mutate = @() }
+            'Reasoning'            = @{ Dir = 'modules\llm\reasoning.tests';          Src = 'Reasoning.csproj';       Mutate = @() }
+            'CodeIndex'            = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @() }
+            'Browser'              = @{ Dir = 'modules\services\browser.tests';       Src = 'Browser.csproj';         Mutate = @() }
+            'Mcp'                  = @{ Dir = 'modules\mcp\mcp.tests';                Src = 'Mcp.csproj';             Mutate = @() }
+            'Eyes'                 = @{ Dir = 'modules\perception\eyes.tests';        Src = 'Eyes.csproj';            Mutate = @() }
+            'Dream'                = @{ Dir = 'modules\services\dream.tests';         Src = 'Dream.csproj';            Mutate = @() }
+            'Bridge-SessionA'     = @{ Dir = 'modules\services\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('session/main/**'); Concurrency = 2 }
+            'Bridge-SessionB'     = @{ Dir = 'modules\services\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('session/**','!session/main/**'); Concurrency = 2 }
+            'Bridge-Transport'    = @{ Dir = 'modules\services\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('transport/**'); Concurrency = 2 }
+            'Bridge-CoreRuntime'  = @{ Dir = 'modules\services\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('core/runtime/**'); Concurrency = 2 }
+            'Bridge-CoreOther'    = @{ Dir = 'modules\services\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('core/**','!core/runtime/**'); Concurrency = 2 }
+            'Bridge-Messaging'    = @{ Dir = 'modules\services\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('messaging/**'); Concurrency = 2 }
+            'Bridge-ClientServer' = @{ Dir = 'modules\services\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('client/**','server/**','config/**','security/**'); Concurrency = 2 }
+            'Composition'          = @{ Dir = 'modules\composition\composition.tests'; Src = 'Composition.csproj';  Mutate = @() }
+            'Clock'                = @{ Dir = 'modules\storage\clock.tests';          Src = 'Clock.csproj';           Mutate = @() }
+            'Infra-IO-FileOps'       = @{ Dir = 'test\unit\infra.tests\io';           Src = 'Infrastructure.csproj';      Test = 'Infra.IO.Tests.csproj';      Mutate = @('io/services/file_ops/**') }
+            'Infra-IO-FsAndConfig'   = @{ Dir = 'test\unit\infra.tests\io';           Src = 'Infrastructure.csproj';      Test = 'Infra.IO.Tests.csproj';      Mutate = @('io/file_system/**','io/configuration/**','io/services/throttle/**') }
+            'Infra-IO-ProcessAndOther' = @{ Dir = 'test\unit\infra.tests\io';         Src = 'Infrastructure.csproj';      Test = 'Infra.IO.Tests.csproj';      Mutate = @('io/process/**','io/console/**','io/services/terminal/**','io/services/diff/**','http/**','process/**','ssh/**','windows/**','shell/**') }
+            'Infra-Utils-TextA1a'  = @{ Dir = 'test\unit\infra.tests\utils';          Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('utils/text/FrontmatterParser.cs') }
+            'Infra-Utils-TextA1b'  = @{ Dir = 'test\unit\infra.tests\utils';          Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('utils/text/MarkdownWalker.cs') }
+            'Infra-Utils-TextA2a'  = @{ Dir = 'test\unit\infra.tests\utils';          Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('utils/text/AhoCorasick.cs') }
+            'Infra-Utils-TextA2b'  = @{ Dir = 'test\unit\infra.tests\utils';          Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('utils/text/DualBufferAhoCorasick.cs') }
+            'Infra-Utils-TextB1'   = @{ Dir = 'test\unit\infra.tests\utils';          Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('utils/text/ErrorMessages.cs','utils/text/DurationFormatter.cs','utils/text/FileSizeFormatter.cs') }
+            'Infra-Utils-TextB2'   = @{ Dir = 'test\unit\infra.tests\utils';          Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('utils/text/GlobMatcher.cs','utils/text/JsonArgumentParser.cs','utils/text/StringBuilderPool.cs') }
+            'Infra-Utils-Resilience' = @{ Dir = 'test\unit\infra.tests\utils';          Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('utils/resilience/**') }
+            'Infra-Utils-OtherA1a'  = @{ Dir = 'test\unit\infra.tests\utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('housekeeping/**') }
+            'Infra-Utils-OtherA1b'  = @{ Dir = 'test\unit\infra.tests\utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('cache/**','async_file_lock/**') }
+            'Infra-Utils-Validation1' = @{ Dir = 'test\unit\infra.tests\utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('utils/validation/ValidationHelper.cs') }
+            'Infra-Utils-Validation2' = @{ Dir = 'test\unit\infra.tests\utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('utils/validation/ArgumentValidator.cs') }
+            'Infra-Utils-Async'      = @{ Dir = 'test\unit\infra.tests\utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('utils/diagnostics/**') }
+            'Infra-Utils-Services'   = @{ Dir = 'test\unit\infra.tests\utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('utils/services/**') }
+            'Infra-Utils-OtherB'    = @{ Dir = 'test\unit\infra.tests\utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('utils/throttle/**','utils/collections/**','utils/pooling/**','utils/io/**','utils/generation/**','utils/system/**','io/services/persistence/**','configuration/**','time/**','entity_reaper/**','reaper_scheduler/**') }
+            'Infra-Services'         = @{ Dir = 'test\unit\infra.tests\services';       Src = 'Infrastructure.csproj';      Test = 'Infra.Services.Tests.csproj'; Mutate = @('localization/**','pipeline/**','network/**','telemetry/**') }
+            'Host-Commands'        = @{ Dir = 'test\unit\host.tests';                   Src = 'JoinCode.csproj';        Mutate = @('core/commands/**') }
+            'Host-Other'           = @{ Dir = 'test\unit\host.tests';                   Src = 'JoinCode.csproj';        Mutate = @('app/**','adapters/**','entry/**','pipe/**','queue/**','services/**','core/**','!core/commands/**') }
           }
 
           $name = $env:STRYKER_PROJECT

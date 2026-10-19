@@ -6,7 +6,7 @@ public interface IScrollItem
     /// <summary>按可用宽度测量的内容高度。</summary>
     int MeasureHeight(int width);
 
-    /// <summary>渲染到指定帧区域（已含滚动平移与视口裁剪后的可见行区间）。</summary>
+    /// <summary>渲染到自身完整帧区域（Y 已含滚动平移，可能为负/越界；越界写入由 Screen 忽略实现裁剪）。</summary>
     void Render(Screen screen, Rect frame, Theme theme);
 }
 
@@ -50,7 +50,8 @@ public sealed class ScrollBox
 
     /// <summary>
     /// 渲染：测量全部项 → 结算 sticky/位置跟随 → 钳制 scrollTop 到 [0, maxScroll]
-    /// → 逐项裁剪平移绘制（部分可见项收到裁剪后的行区间）。
+    /// → 逐项以完整自身 frame（平移 -scrollTop，可能为负/越界）绘制，
+    /// 越界写入由 Screen 索引器忽略实现裁剪；完全在视口外的项跳过（viewport culling）。
     /// </summary>
     public void Render(Screen screen, Rect frame, Theme theme)
     {
@@ -74,9 +75,7 @@ public sealed class ScrollBox
             var itemBottom = itemTop + heights[i];
             if (itemBottom > ScrollTop && itemTop < windowBottom)
             {
-                var visibleTop = Math.Max(itemTop, ScrollTop);
-                var visibleBottom = Math.Min(itemBottom, windowBottom);
-                var itemFrame = new Rect(frame.X, frame.Y + visibleTop - ScrollTop, frame.Width, visibleBottom - visibleTop);
+                var itemFrame = new Rect(frame.X, frame.Y + itemTop - ScrollTop, frame.Width, heights[i]);
                 _items[i].Render(screen, itemFrame, theme);
             }
 

@@ -1,8 +1,8 @@
 # ADR 0142: native_tui 进程内嵌入 — jcc.exe 引用 NativeTui.Core 直连
 
-- 状态：proposed
+- 状态：superseded by 0143（2026-10-20 同日用户澄清真实意图："引擎库化 + GUI/TUI/CLI 多宿主平等 + 协议层唯一数据源在引擎侧"——jcc.exe 当宿主塞 TUI 的方向被 [ADR 0143](0143-engine-library-multi-host-architecture.md) 取代。本 ADR 未实施零代码；其背景陈述（M7 协议税）与风险分析被 0143 继承）
 - 日期：2026-10-20
-- 关联：ADR 0140（native_tui 自研像素级对齐）、ADR 0141（bridge stdio 协议，降级为可选形态）、TASK055
+- 关联：ADR 0140（native_tui 自研像素级对齐）、ADR 0141（bridge stdio 协议，降级为可选形态）、ADR 0143（取代本 ADR）、TASK055
 
 ## 背景与问题
 

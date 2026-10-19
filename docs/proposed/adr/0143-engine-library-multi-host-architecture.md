@@ -1,0 +1,121 @@
+# ADR 0143: 引擎库化多宿主架构 — JoinCode.Engine 抽取 + native_tui 宿主
+
+- 状态：proposed
+- 日期：2026-10-20
+- 关联：ADR 0140（native_tui 自研像素级对齐）、ADR 0141（bridge stdio 协议，降级为可选形态）、ADR 0142（superseded by 本 ADR，jcc 宿主内嵌方向）、TASK055
+
+## 背景与问题
+
+M6 引擎接入完结后，M7 待办暴露进程协议的"协议税"（详见 ADR 0142 背景陈述）：
+session_info / agent_progress（300 子代理分组显示）/ 权限协商每特性都要 DTO 协议化；
+高频 token_delta 走 stdio JSON 序列化。
+
+用户对架构方向做出关键澄清（2026-10-20 原话要点）：
+
+> jcc.exe 是不是可以作为库？然后 GUI/TUI/这些分别引用和使用……这样按理说可以
+> 共享协议层，并且写到 jcc.exe 上面做协议。
+
+即：**引擎能力库化，GUI/TUI/CLI 是平等的多个宿主引用引擎库，协议层（事件模型）
+唯一数据源写在引擎侧**。依赖方向：各宿主 → 引擎库。
+
+这与 ADR 0142 的"jcc.exe 当宿主塞 TUI（`--tui` 入口）"是两个不同架构——用户澄清后
+0142 被本 ADR 取代。
+
+### 现状调查（2026-10-20）
+
+- 引擎当库的**事实先例已存在**：`modules/apps/gui/JoinCodeGui.csproj` 与
+  `modules/apps/tui/JoinCodeTui.csproj` 均 ProjectReference 引用
+  `modules/apps/cli/JoinCode.csproj`（jcc Exe，.NET Exe 工程可直接被引用）；
+  gui 的 Hosting 层（JccChatSession）走 `JoinCode.App.Builder`（EngineSessionFactory）
+  + Abstractions 门面组装
+- **问题**：引擎能力与 CLI 宿主细节耦合在同一个 Exe 工程里——native_tui 若直接
+  引用 jcc Exe，会把 CLI 命令路由、控制台输出等宿主细节一并拖进来，无法"平等复用
+  干净边界"
+
+## 决策
+
+**两阶段：先抽取引擎库，再做 native_tui 宿主**（用户确认的执行顺序）。
+
+### 阶段一：抽取引擎库
+
+`modules/apps/cli/JoinCode.csproj` 拆分为：
+
+**新库工程**（建议 `modules/apps/engine/JoinCode.Engine.csproj`）——引擎能力：
+
+| 目录 | 内容 | 归库依据 |
+|------|------|----------|
+| `app/builder/` | EngineSessionFactory（LoadConfig + BuildHost + ConfigureModules） | gui 已直接消费；宿主无关的组装工厂 |
+| `core/services/` | CliSession（CreateMainAgent：prompt injection/审计/上下文持久化完整链路） | 主代理构造是引擎核心，宿主无关 |
+| `adapters/SessionController.cs` 等 | 回合驱动 + SessionTurnResult + AgentStreamChunkAdapter | 回合生命周期是引擎能力 |
+| `core/bridge/` | 协议三件套（BridgeProtocol / BridgeEventConsumer / BridgeServeLoop） | **协议层在引擎侧**的关键载体（见下） |
+
+**CLI 宿主薄壳**（留在 JoinCode.csproj，jcc.exe）：
+
+| 目录 | 内容 | 留宿主依据 |
+|------|------|-----------|
+| `entry/` | startup / runners | 进程入口是宿主形态 |
+| `core/commands/` | FlatSubCommandRouter 路由 + 各命令（含 BridgeServeCommand——命令是 CLI 宿主形态，消费引擎库 BridgeServeLoop） | 命令体系是 CLI 专属 |
+| `core/display` `output` `interaction` `vim` `trust` `onboarding` | 控制台呈现/交互 | CLI 专属体验 |
+| `adapters/` 的 CliEventConsumer、ConsolePresentationAdapter、PresentationAdapterFactory、CliPermissionConfirmationHandler | CLI 控制台消费形态 | 控制台是宿主 IO |
+| `pipe/` `queue/` | CLI 管道与队列 | CLI 专属 |
+
+**命名清理**：CliSession 等 `Cli` 前缀与多宿主定位不符，随抽取重命名（如
+CliSession → EngineSession，实施时定名）；`CreateMainAgent` 的 internal static
+复用先例保持（跨工程可见性经 InternalsVisibleTo 调整）。
+
+### 阶段二：native_tui 宿主
+
+- **位置**：`native_tui/apps/NativeTui.Host`（对齐既有 `apps/NativeTui.Demo` 先例）
+- **引用**：ProjectReference 跨 slnx 引擎库 + `native_tui/src/NativeTui.Core`
+- **组装**：类比 gui 的 Hosting 层（JccChatSession）——**进程内直连**：
+  IEventConsumer 事件直接喂 ReplView，不经 DTO 序列化
+- **ADR 0140 完整成立**：NativeTui.Core 保持零依赖（组装全在宿主层，Core 不引引擎）
+
+### 协议层唯一数据源（核心架构不变式）
+
+```
+引擎侧（唯一数据源）
+  IEventConsumer 事件模型  ←—— 协议本体（进程内形态，GUI/TUI 宿主消费）
+  BridgeProtocol DTO       ←—— JSON 投影（跨进程形态，bridge_serve/远程/调试消费）
+```
+
+- 两种形态**同源**：bridge DTO 是 IEventConsumer 事件的序列化投影，演进必须先改
+  事件模型再同步投影（禁止投影先行）
+- ADR 0141 bridge stdio 降级为可选部署形态：`bridge_serve` 与协议三件套保留不删，
+  服务远程会话/headless 脚本/协议级调试；不再作为主通路演进首选
+
+## 替代方案（考虑后放弃）
+
+| 方案 | 放弃原因 |
+|------|----------|
+| ADR 0142 方案 C（jcc.exe 当宿主塞 `--tui`） | 用户意图是多宿主平等共享协议层，非单宿主内嵌；jcc 当宿主时 GUI 无法复用同一接入模式 |
+| 宿主直接引用 jcc Exe（gui 现状模式一步到位） | 引擎与 CLI 宿主耦合，native_tui 引用会拖进 CLI 命令路由/控制台输出等宿主细节 |
+| 维持 bridge 唯一通路 | M7 每特性协议税；300 子代理高频事件序列化开销 |
+| TUI 代码搬进 modules/ | 428 测试迁移 + JCC 分析器全套约束砸到现有代码；推翻 ADR 0140 独立工程 |
+
+## 风险与缓解
+
+| 风险 | 缓解 |
+|------|------|
+| 工程拆分结构手术量大 | 渐进式迁移：先建空库工程接好引用 → 逐目录搬移 → 每步编译+测试+commit；禁止一次性大规模重构 |
+| gui/tui 宿主迁移回归 | gui 引用面窄（App.Builder + Abstractions 门面，已查清），切换后全量 gui 测试验证 |
+| 测试归属 | host.tests 中测引擎组件的用例随代码迁到引擎库就近测试工程（ADR 0137 就近隔离原则） |
+| AOT | 库工程沿用 IsAotCompatible；jcc 薄壳与宿主 Release AOT 编译验证兜底 |
+| bridge_serve 命令消费链断裂 | BridgeServeCommand 留 CLI 宿主消费引擎库 BridgeServeLoop，InternalsVisibleTo 同步调整，跨进程冒烟回归 |
+
+## 实施范围
+
+1. **阶段一（先行）**：边界清单落地 → 建库工程 → 逐目录搬移（每步编译+测试+commit）
+   → gui/tui 宿主切引引擎库 → 全量回归（host.tests + gui 测试 + bridge 冒烟）
+2. **阶段二**：NativeTui.Host 宿主工程（TDD：进程内直连适配器）→ Demo 保留 bridge
+   形态回归验证
+3. **M7 特性改道**：session_info / agent_progress / 权限对话框改为进程内事件直连
+   实现（不再扩展 ADR 0141 事件表）
+
+## 后果
+
+- 正向：协议层唯一数据源（事件模型本体 + DTO 投影同源）；GUI/TUI/CLI 三宿主平等；
+  M7 特性零协议税；300 子代理高频事件零序列化；ADR 0140 完整成立；完全对齐 gui 先例
+- 负向：工程结构手术（渐进式缓解）；bridge 协议演进动力下降（0141 降级的天然代价）；
+  CI 编译链多一个工程；`Cli` 前缀重命名触及面广（无后向兼容包袱，按 AGENTS.md
+  大修大改原则一次到位）

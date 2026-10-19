@@ -354,3 +354,22 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!-- M7 多子代理显示实现路径更新: agent_progress/session_info/权限协商改进程内事件直连(原"协议 -->
 <!--   扩展先行"自动简化, 无需 ADR 0141 事件表演进) -->
 <!-- 验证: 本条为纯架构决策, 实现按 ADR 0142 实施范围 TDD 推进; 待实现后 ADR 转 accepted -->
+
+<!-- 🤖 Auto Decision: 2026-10-20 (架构终局修正: ADR 0142 superseded → ADR 0143 引擎库化多宿主) -->
+<!-- 触发: 用户澄清"jcc.exe 是不是可以作为库? GUI/TUI 分别引用使用, 共享协议层, 写到引擎上 -->
+<!--   做协议" — 0142 方案C(jcc 当宿主塞 --tui)理解偏了用户意图, 用户要的是多宿主平等 -->
+<!-- 决策: ADR 0143 两阶段 — ①先抽引擎库: JoinCode.csproj 拆分为 JoinCode.Engine.csproj -->
+<!--   (引擎能力: app/builder[EngineSessionFactory] + core/services[CliSession] + SessionController -->
+<!--   + core/bridge[协议三件套]) 与 CLI 薄壳宿主(entry/commands/display/output 等留 Exe); -->
+<!--   ②再做 native_tui 宿主: native_tui/apps/NativeTui.Host 照抄 gui hosting 先例, 跨 slnx -->
+<!--   ProjectReference 引引擎库 + NativeTui.Core, IEventConsumer 进程内直连 ReplView -->
+<!-- 协议层唯一数据源(核心不变式): 引擎侧 IEventConsumer 事件模型=协议本体(进程内形态), -->
+<!--   BridgeProtocol DTO=JSON 投影(跨进程形态) — 两种形态同源, 演进必须先改事件模型再同步 -->
+<!--   投影, 禁止投影先行; ADR 0141 降级可选形态(远程/headless/调试)保留不删 -->
+<!-- 调查依据: gui/tui 已 ProjectReference 引 JoinCode.csproj(引擎当库先例存在, 无需发明新模式); -->
+<!--   gui 引用面已查清(App.Builder + Abstractions 门面, 迁移面可控); 引擎/CLI 宿主边界已按目录 -->
+<!--   摸清(见 0143 边界清单) -->
+<!-- 替代方案: 宿主直接引 jcc Exe 一步到位(拖进 CLI 宿主细节, 边界不干净) — 放弃 -->
+<!-- M7 特性全部改道进程内直连: session_info/agent_progress/权限对话框不再扩展 0141 事件表 -->
+<!-- 验证: 本条为纯架构决策文档; 阶段一实施每步编译+测试+commit, 全量回归含 host.tests+gui -->
+<!--   测试+bridge 冒烟; 待两阶段落地后 ADR 0143 转 accepted -->

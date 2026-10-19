@@ -1,4 +1,4 @@
-namespace JoinCode.CodeIndex.Tests;
+namespace LockDiagnosis.Tests;
 
 /// <summary>
 /// CasRetry 活锁防御测试 — 验证 CAS 重试循环的终止性与上限防御。
@@ -14,7 +14,7 @@ public sealed class CasRetryTests {
     public void Spin_UpdatesValueAtomically() {
         var box = new Box { Value = 1 };
 
-        Threading.CasRetry.Spin(ref box, current => new Box { Value = current.Value + 1 });
+        CasRetry.Spin(ref box, current => new Box { Value = current.Value + 1 });
 
         Assert.Equal(2, box.Value);
     }
@@ -25,7 +25,7 @@ public sealed class CasRetryTests {
         var updateCalls = 0;
         var stable = box;
 
-        Threading.CasRetry.Spin(ref box, current => {
+        CasRetry.Spin(ref box, current => {
             updateCalls++;
             return current;
         });
@@ -47,7 +47,7 @@ public sealed class CasRetryTests {
                 countdown.Signal();
                 countdown.Wait();
                 for (var i = 0; i < Iterations; i++) {
-                    Threading.CasRetry.Spin(ref box, current => new Box { Value = current.Value + 1 });
+                    CasRetry.Spin(ref box, current => new Box { Value = current.Value + 1 });
                 }
             });
         }
@@ -70,7 +70,7 @@ public sealed class CasRetryTests {
             workers[t] = Task.Run(() => {
                 countdown.Signal();
                 countdown.Wait();
-                Threading.CasRetry.Spin(ref map, current => {
+                CasRetry.Spin(ref map, current => {
                     var updated = current;
                     for (var k = 0; k < KeysPerThread; k++) {
                         updated = updated.SetItem("t" + threadId + "-k" + k, threadId * 1000 + k);

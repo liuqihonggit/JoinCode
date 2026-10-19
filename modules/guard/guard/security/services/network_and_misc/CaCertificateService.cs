@@ -208,7 +208,10 @@ public sealed partial class CaCertificateService : ServiceEntity, ICaCertificate
             var base64Content = pemContent[base64Start..endIdx].Trim();
             blocks.Add(base64Content);
 
-            startIndex = endIdx + endMarker.Length;
+            var nextStart = endIdx + endMarker.Length;
+            if (nextStart <= startIndex) throw new InvalidOperationException(
+                "PEM 解析游标未前进(startIndex=" + startIndex + ", next=" + nextStart + "),检测到循环解析异常。");
+            startIndex = nextStart;
         }
 
         return blocks;

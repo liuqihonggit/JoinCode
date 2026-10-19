@@ -50,7 +50,7 @@ jobs:
       - name: Build matrix
         id: set
         run: |
-          ALL_PROJECTS='["Guard-Config","Guard-Security-ServicesA","Guard-Security-ServicesB","Guard-Security-PowerShell","Guard-Security-Other","Guard-Hooks","Vault-Memdir","Vault-Other","Brain-CtxAdmin","Brain-CtxChat","Brain-CtxOther","Brain-CtxNonServicesA","Brain-CtxNonServicesB","Brain-PromptsSections","Brain-PromptsOther","Brain-OtherA","Brain-OtherB","Hands-SysTools","Hands-CoreHandlers","Hands-DevTools","Hands-SkillServices","Hands-SkillBuiltIn","Hands-SkillOther","Hands-Api","Hands-Shell","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex","Browser","Mcp-Protocol","Mcp-Rest","Eyes","Dream","Bridge-SessionA","Bridge-SessionB","Bridge-Transport","Bridge-CoreRuntime","Bridge-CoreOther","Bridge-Messaging","Bridge-ClientServer","Composition","Clock","Infra-IO-FileOps","Infra-IO-FsAndConfig","Infra-IO-ProcessAndOther","Infra-Utils-TextA1a","Infra-Utils-TextA1b","Infra-Utils-TextA2a","Infra-Utils-TextA2b","Infra-Utils-TextB1","Infra-Utils-TextB2","Infra-Utils-Resilience","Infra-Utils-OtherA1a","Infra-Utils-OtherA1b","Infra-Utils-Validation1","Infra-Utils-Validation2","Infra-Utils-Async","Infra-Utils-Services","Infra-Utils-OtherB","Infra-Services","Host-Commands","Host-Other"]'
+          ALL_PROJECTS='["Guard-Config","Guard-Security-ServicesA","Guard-Security-ServicesB","Guard-Security-ServicesC","Guard-Security-PowerShell","Guard-Security-Other","Guard-Hooks","Vault-Memdir","Vault-Other","Brain-CtxAdmin","Brain-CtxChat","Brain-CtxOther","Brain-CtxNonServicesA","Brain-CtxNonServicesB","Brain-PromptsSections","Brain-PromptsOther","Brain-OtherA","Brain-OtherB","Hands-SysTools","Hands-CoreHandlers","Hands-DevTools","Hands-SkillServices","Hands-SkillBuiltIn","Hands-SkillOther","Hands-Api","Hands-Shell","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex-Parsing","CodeIndex-Indexing","CodeIndex-Rest","Browser","Mcp-Protocol","Mcp-Rest","Eyes","Dream","Bridge-SessionA","Bridge-SessionB","Bridge-Transport","Bridge-CoreRuntime","Bridge-CoreOther","Bridge-Messaging","Bridge-ClientServer","Composition","Clock","Infra-IO-FileOps","Infra-IO-FsAndConfig","Infra-IO-ProcessAndOther","Infra-Utils-TextA1a","Infra-Utils-TextA1b","Infra-Utils-TextA2a","Infra-Utils-TextA2b","Infra-Utils-TextB1","Infra-Utils-TextB2","Infra-Utils-Resilience","Infra-Utils-OtherA1a","Infra-Utils-OtherA1b","Infra-Utils-Validation1","Infra-Utils-Validation2","Infra-Utils-Async","Infra-Utils-Services","Infra-Utils-OtherB","Infra-Services","Host-Commands","Host-Other"]'
           INPUT="${{ github.event.inputs.projects || 'ALL' }}"
           if [ "$INPUT" = "ALL" ]; then
             echo "matrix={\"include\":$(echo $ALL_PROJECTS | jq -c '[.[] | {project: .}]')}" >> $GITHUB_OUTPUT
@@ -60,7 +60,7 @@ jobs:
             for part in "${PARTS[@]}"; do
               trimmed=$(echo "$part" | xargs)
               if [ "$trimmed" = "Guard" ]; then
-                EXPANDED="$EXPANDED,{\"project\":\"Guard-Config\"},{\"project\":\"Guard-Security-ServicesA\"},{\"project\":\"Guard-Security-ServicesB\"},{\"project\":\"Guard-Security-PowerShell\"},{\"project\":\"Guard-Security-Other\"},{\"project\":\"Guard-Hooks\"}"
+                EXPANDED="$EXPANDED,{\"project\":\"Guard-Config\"},{\"project\":\"Guard-Security-ServicesA\"},{\"project\":\"Guard-Security-ServicesB\"},{\"project\":\"Guard-Security-ServicesC\"},{\"project\":\"Guard-Security-PowerShell\"},{\"project\":\"Guard-Security-Other\"},{\"project\":\"Guard-Hooks\"}"
               elif [ "$trimmed" = "Vault" ]; then
                 EXPANDED="$EXPANDED,{\"project\":\"Vault-Memdir\"},{\"project\":\"Vault-Other\"}"
               elif [ "$trimmed" = "Brain" ]; then
@@ -69,6 +69,8 @@ jobs:
                 EXPANDED="$EXPANDED,{\"project\":\"Hands-SysTools\"},{\"project\":\"Hands-CoreHandlers\"},{\"project\":\"Hands-DevTools\"},{\"project\":\"Hands-SkillServices\"},{\"project\":\"Hands-SkillBuiltIn\"},{\"project\":\"Hands-SkillOther\"},{\"project\":\"Hands-Api\"},{\"project\":\"Hands-Shell\"}"
               elif [ "$trimmed" = "Mcp" ]; then
                 EXPANDED="$EXPANDED,{\"project\":\"Mcp-Protocol\"},{\"project\":\"Mcp-Rest\"}"
+              elif [ "$trimmed" = "CodeIndex" ]; then
+                EXPANDED="$EXPANDED,{\"project\":\"CodeIndex-Parsing\"},{\"project\":\"CodeIndex-Indexing\"},{\"project\":\"CodeIndex-Rest\"}"
               elif [ "$trimmed" = "Host" ]; then
                 EXPANDED="$EXPANDED,{\"project\":\"Host-Commands\"},{\"project\":\"Host-Other\"}"
               elif [ "$trimmed" = "Bridge" ]; then
@@ -128,9 +130,11 @@ jobs:
         run: |
           $projectMap = @{
             'Guard-Config'         = @{ Dir = 'modules\guard\guard.config.tests';   Src = 'Guard.csproj';           Mutate = @('configuration/**','dependency_injection/**','policy/**','o_auth/**') }
-            # 30 分钟设计: bash 类测试重(>1s/变异), Guard-Security-Services 拆 A/B 控制单 job 时长
+            # 30 分钟设计: bash 类测试重(>1s/变异), Guard-Security-Services 拆 A/B/C 控制单 job 时长
+            # ServicesB/C 按代码行数均衡二拆(2711/2676 行): B=分类器+网络杂项+路径校验, C=只读检测器(独立功能域)
             'Guard-Security-ServicesA'   = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/services/bash_ast_walker/**','security/services/bash_validation/**') }
-            'Guard-Security-ServicesB'   = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/services/classifiers/**','security/services/network_and_misc/**','security/services/path_validation/**','security/services/readonly_detector/**') }
+            'Guard-Security-ServicesB'   = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/services/classifiers/**','security/services/network_and_misc/**','security/services/path_validation/**') }
+            'Guard-Security-ServicesC'   = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/services/readonly_detector/**') }
             'Guard-Security-PowerShell' = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/power_shell/**') }
             'Guard-Security-Other'      = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/danger_classification/**','security/sandbox/**','security/shell/**','security/scanners/**','security/interceptors/**','security/constants/**') }
             'Guard-Hooks'          = @{ Dir = 'modules\guard\guard.hooks.tests';    Src = 'Guard.csproj';           Mutate = @('hooks/**','permission/**') }
@@ -158,7 +162,9 @@ jobs:
             'Llm'                  = @{ Dir = 'modules\llm\llm.tests';                Src = 'Llm.csproj';             Mutate = @() }
             'Agents'               = @{ Dir = 'modules\llm\agents.tests';             Src = 'Agents.csproj';          Mutate = @() }
             'Reasoning'            = @{ Dir = 'modules\llm\reasoning.tests';          Src = 'Reasoning.csproj';       Mutate = @() }
-            'CodeIndex'            = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @() }
+            'CodeIndex-Parsing'    = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('parsing/**','query/**','plugins/**') }
+            'CodeIndex-Indexing'   = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('indexing/**','incremental/**','graph/**') }
+            'CodeIndex-Rest'       = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('!parsing/**','!query/**','!plugins/**','!indexing/**','!incremental/**','!graph/**') }
             'Browser'              = @{ Dir = 'modules\services\browser.tests';       Src = 'Browser.csproj';         Mutate = @() }
             # 30 分钟设计: Mcp 变异量最大(7000+), 拆协议层/其余 控制单 job 时长
             'Mcp-Protocol'         = @{ Dir = 'modules\mcp\mcp.tests';                Src = 'Mcp.csproj';             Mutate = @('mcp_protocol/**','transports/**','communication/**','protocol.contracts/**','remote/**') }

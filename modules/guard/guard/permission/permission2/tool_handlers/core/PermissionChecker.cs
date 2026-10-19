@@ -107,6 +107,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
 
     /// <summary>
     /// 异步初始化权限模式 — IFileSystem 异步化后从构造函数 fire-and-forget 启动；PhysicalFileSystem UTF-8 走 mmap 同步完成
+    /// <para>完成时序契约：CheckPermissionAsync 决策前 await _loadTask，确保管道模式为初始化后的最终值</para>
     /// </summary>
     private async Task InitializeModeAsync(IFileSystem? fs) {
         _currentMode = await TryGetPermissionModeFromEnvAsync(fs).ConfigureAwait(false) ?? PermissionMode.Auto;
@@ -151,9 +152,13 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
 
     /// <summary>
     /// 检查工具执行权限 — 通过中间件管道执行
+    /// <para>时序契约：决策前等待构造时启动的初始化任务完成（环境变量模式 + settings.json 安全闸），
+    /// 保证管道看到的模式是初始化后的最终值。fast path（同步完成的 fs）下 await 已完成 Task 零调度开销。</para>
     /// </summary>
     public async Task<ToolPermissionCheckResult> CheckPermissionAsync(string toolName, Dictionary<string, JsonElement>? arguments = null, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
+
+        await _loadTask.ConfigureAwait(false);
 
         var context = new PermissionCheckContext {
             ToolName = toolName,

@@ -371,4 +371,55 @@ public sealed class PermissionCheckerTest {
     }
 
     #endregion
+
+    #region 构造初始化 → 决策入口全链路 — CheckPermissionAsync 必须基于初始化完成后的模式
+
+    /// <summary>捕获管道上下文模式的探针中间件 — 验证决策入口看到的 CurrentMode</summary>
+    private sealed class CaptureModeMiddleware : IMiddleware<PermissionCheckContext> {
+        public PermissionMode? CapturedMode;
+        public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
+            CapturedMode = context.CurrentMode;
+            return Task.CompletedTask;
+        }
+    }
+
+    [Fact]
+    public async Task Constructor_EnvBypass_CheckPermissionAsync_SeesBypassMode() {
+        var envVar = JccEnvVar.PermissionMode.ToValue();
+        var original = Environment.GetEnvironmentVariable(envVar);
+        Environment.SetEnvironmentVariable(envVar, "bypass");
+        try {
+            var capture = new CaptureModeMiddleware();
+            await using var checker = new PermissionChecker(
+                new MiddlewarePipeline<PermissionCheckContext>([capture]),
+                Options.Create(PermissionConfig.CreateDefault()),
+                new InMemoryFileSystem());
+            await checker.CheckPermissionAsync(ShellToolNameEnumConstants.Bash);
+            capture.CapturedMode.Should().Be(PermissionMode.Bypass,
+                "决策入口必须看到环境变量初始化完成后的模式(InitializeModeAsync 契约)");
+        } finally {
+            Environment.SetEnvironmentVariable(envVar, original);
+        }
+    }
+
+    [Fact]
+    public async Task Constructor_NoEnv_CheckPermissionAsync_SeesAutoMode() {
+        var envVar = JccEnvVar.PermissionMode.ToValue();
+        var original = Environment.GetEnvironmentVariable(envVar);
+        Environment.SetEnvironmentVariable(envVar, null);
+        try {
+            var capture = new CaptureModeMiddleware();
+            await using var checker = new PermissionChecker(
+                new MiddlewarePipeline<PermissionCheckContext>([capture]),
+                Options.Create(PermissionConfig.CreateDefault()),
+                new InMemoryFileSystem());
+            await checker.CheckPermissionAsync(ShellToolNameEnumConstants.Bash);
+            capture.CapturedMode.Should().Be(PermissionMode.Auto,
+                "无环境变量时决策入口必须看到默认 Auto 模式");
+        } finally {
+            Environment.SetEnvironmentVariable(envVar, original);
+        }
+    }
+
+    #endregion
 }

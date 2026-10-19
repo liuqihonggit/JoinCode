@@ -74,7 +74,7 @@ public sealed class SpinnerItemTests
     {
         using var screen = new Screen(40, 2);
         var item = Item();
-        item.Thinking = new ThinkingState.Active("");
+        item.Mode = SpinnerMode.Thinking;
         item.AnimTimeMs = 4000;
         item.Render(screen, new Rect(0, 0, 40, 2), Theme.Dark);
         // thinkingOnly："(thinking)" 以 shimmer 色整体渲染（无 dim 外层括号）
@@ -85,7 +85,7 @@ public sealed class SpinnerItemTests
         Assert.Equal(shimmer, screen[1, 13].StyleId);
         // 延迟期内（<3s）opacity=0 → 纯 153 灰
         var item2 = Item();
-        item2.Thinking = new ThinkingState.Active("");
+        item2.Mode = SpinnerMode.Thinking;
         item2.AnimTimeMs = 2000;
         item2.Render(screen, new Rect(0, 0, 40, 2), Theme.Dark);
         var gray = screen.Styles.GetOrAdd(new TextStyle { Foreground = Color.FromRgb(153, 153, 153) });
@@ -97,7 +97,8 @@ public sealed class SpinnerItemTests
     {
         using var screen = new Screen(60, 2);
         var item = Item();
-        item.Thinking = new ThinkingState.Active(" hard");
+        item.Mode = SpinnerMode.Thinking;
+        item.EffortSuffix = " hard";
         item.AnimTimeMs = 1000;
         item.Render(screen, new Rect(0, 0, 60, 2), Theme.Dark);
         Assert.Equal("✶ Working… (thinking hard)", RowText.Of(screen, 1, 0, 26));
@@ -109,14 +110,16 @@ public sealed class SpinnerItemTests
         using var screen = new Screen(30, 2);
         // columns=30：availableSpace = 30 - (9+2) - 5 = 14；"thinking hard"=13 → 全显
         var item = Item();
-        item.Thinking = new ThinkingState.Active(" hard");
+        item.Mode = SpinnerMode.Thinking;
+        item.EffortSuffix = " hard";
         item.AnimTimeMs = 1000;
         item.Render(screen, new Rect(0, 0, 30, 2), Theme.Dark);
         Assert.Equal("✶ Working… (thinking hard)", RowText.Of(screen, 1, 0, 26));
 
         // columns=25：availableSpace = 9；13 不行但 >8 → 缩为裸 "thinking"
         var item2 = Item();
-        item2.Thinking = new ThinkingState.Active(" hard");
+        item2.Mode = SpinnerMode.Thinking;
+        item2.EffortSuffix = " hard";
         item2.AnimTimeMs = 1000;
         item2.Render(screen, new Rect(0, 0, 25, 2), Theme.Dark);
         Assert.Equal("✶ Working… (thinking)", RowText.Of(screen, 1, 0, 21));
@@ -125,9 +128,15 @@ public sealed class SpinnerItemTests
     [Fact]
     public void Render_ThoughtFor_DimWithParens()
     {
-        using var screen = new Screen(40, 2);
+        // 先思考一帧（tick 记录 start），再停止 5s 后渲染 → ThoughtFor(5000)
         var item = Item();
-        item.Thinking = new ThinkingState.ThoughtFor(5000);
+        item.Mode = SpinnerMode.Thinking;
+        using var warmup = new Screen(40, 2);
+        item.Render(warmup, new Rect(0, 0, 40, 2), Theme.Dark);
+
+        using var screen = new Screen(40, 2);
+        item.Mode = SpinnerMode.Responding;
+        item.WallNowMs = 5000;
         item.Render(screen, new Rect(0, 0, 40, 2), Theme.Dark);
         // ThoughtFor 非 thinkingOnly → dim 括号包裹
         Assert.Equal("· Working… (thought for 5s)", RowText.Of(screen, 1, 0, 27));

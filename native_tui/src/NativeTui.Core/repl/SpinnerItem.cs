@@ -77,8 +77,11 @@ public sealed class SpinnerItem : IScrollItem
     /// <summary>后缀部件（如 stop hook 提示，首个 part）。</summary>
     public string? SpinnerSuffix { get; set; }
 
-    /// <summary>思考状态输入。</summary>
-    public ThinkingState Thinking { get; set; } = ThinkingState.None;
+    /// <summary>思考力度后缀（如 " hard"，基准 getEffortSuffix）。</summary>
+    public string EffortSuffix { get; set; } = string.Empty;
+
+    /// <summary>思考生命周期状态机（内部驱动，Mode==Thinking 触发）。</summary>
+    private readonly ThinkingLifecycle _thinkingLifecycle = new();
 
     /// <summary>动画时钟（50ms 帧累计；M6 接真实时钟，测试直接注入）。</summary>
     public long AnimTimeMs { get; set; }
@@ -108,7 +111,8 @@ public sealed class SpinnerItem : IScrollItem
         var state = _animator.Tick(AnimTimeMs, ResponseLength, HasActiveTools, ReducedMotion, Mode, glimmerWidth);
         var row = frame with { Y = frame.Y + 1, Height = 1 };
         SpinnerRow.Render(screen, row, theme, message, messageColor, shimmerColor, Mode, RenderState(state), ReducedMotion, AnimTimeMs);
-        RenderStatus(screen, row, theme, state, glimmerWidth);
+        var thinking = _thinkingLifecycle.Tick(Mode == SpinnerMode.Thinking, WallNowMs, EffortSuffix);
+        RenderStatus(screen, row, theme, state, glimmerWidth, thinking);
     }
 
     /// <summary>生效消息：显式 Message 优先，空时随机动词 + '…'（基准 verb = overrideMessage ?? randomVerb; message = verb + '…'）。</summary>
@@ -122,10 +126,10 @@ public sealed class SpinnerItem : IScrollItem
     /// <summary>状态行计算结果（parts + thinkingOnly 标志）。</summary>
     private readonly record struct StatusRow(List<(string Text, int StyleId)> Parts, bool ThinkingOnly);
 
-    private void RenderStatus(Screen screen, Rect row, Theme theme, SpinnerAnimState state, int glimmerWidth)
+    private void RenderStatus(Screen screen, Rect row, Theme theme, SpinnerAnimState state, int glimmerWidth, ThinkingState thinking)
     {
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
-        var status = ComputeStatus(screen, theme, state, dim, glimmerWidth, row.Width);
+        var status = ComputeStatus(screen, theme, state, dim, glimmerWidth, row.Width, thinking);
         if (status.Parts.Count == 0)
         {
             return;
@@ -158,18 +162,18 @@ public sealed class SpinnerItem : IScrollItem
     }
 
     /// <summary>计算状态 parts 与 thinkingOnly（对齐基准 Progressive width gating + parts 组装顺序）。</summary>
-    private StatusRow ComputeStatus(Screen screen, Theme theme, SpinnerAnimState state, int dim, int glimmerWidth, int columns)
+    private StatusRow ComputeStatus(Screen screen, Theme theme, SpinnerAnimState state, int dim, int glimmerWidth, int columns, ThinkingState thinking)
     {
         var elapsedMs = ElapsedMs();
         var leaderTokens = (int)Math.Round(state.DisplayedResponseLength / 4.0, MidpointRounding.AwayFromZero);
         var timerText = Format.Duration(elapsedMs);
         var tokensText = $"{(Mode == SpinnerMode.Requesting ? Figures.UpArrow : Figures.DownArrow)} {Format.Number(leaderTokens)} tokens";
-        var thinkingText = ThinkingText();
+        var thinkingText = ThinkingText(thinking);
 
         var availableSpace = columns - (glimmerWidth + 2) - 5;
         var wantsTimerAndTokens = Verbose || elapsedMs > ShowTokensAfterMs;
         var showThinking = thinkingText != null && availableSpace > StringWidth.Of(thinkingText);
-        if (!showThinking && thinkingText != null && Thinking is ThinkingState.Active { EffortSuffix: { Length: > 0 } } && availableSpace > ThinkingBareWidth)
+        if (!showThinking && thinkingText != null && thinking is ThinkingState.Active { EffortSuffix: { Length: > 0 } } && availableSpace > ThinkingBareWidth)
         {
             thinkingText = "thinking";
             showThinking = true;
@@ -180,7 +184,7 @@ public sealed class SpinnerItem : IScrollItem
         var usedAfterTimer = usedAfterThinking + (showTimer ? StringWidth.Of(timerText) + 3 : 0);
         var showTokens = wantsTimerAndTokens && leaderTokens > 0 && availableSpace > usedAfterTimer + StringWidth.Of(tokensText);
 
-        var thinkingOnly = showThinking && Thinking is ThinkingState.Active && string.IsNullOrEmpty(SpinnerSuffix) && !showTimer && !showTokens;
+        var thinkingOnly = showThinking && thinking is ThinkingState.Active && string.IsNullOrEmpty(SpinnerSuffix) && !showTimer && !showTokens;
         var parts = new List<(string Text, int StyleId)>();
         if (!string.IsNullOrEmpty(SpinnerSuffix))
         {
@@ -199,7 +203,7 @@ public sealed class SpinnerItem : IScrollItem
 
         if (showThinking && thinkingText != null)
         {
-            var styleId = Thinking is ThinkingState.Active && !ReducedMotion
+            var styleId = thinking is ThinkingState.Active && !ReducedMotion
                 ? screen.Styles.GetOrAdd(new TextStyle { Foreground = ThinkingShimmerColor() })
                 : dim;
             parts.Add((thinkingOnly ? $"({thinkingText})" : thinkingText, styleId));
@@ -222,7 +226,7 @@ public sealed class SpinnerItem : IScrollItem
     }
 
     /// <summary>思考文本（Active → "thinking"+后缀；ThoughtFor → "thought for Ns"；Off → null）。</summary>
-    private string? ThinkingText() => Thinking switch
+    private static string? ThinkingText(ThinkingState thinking) => thinking switch
     {
         ThinkingState.Active active => $"thinking{active.EffortSuffix}",
         ThinkingState.ThoughtFor thought => $"thought for {Math.Max(1L, (long)Math.Round(thought.DurationMs / 1000.0, MidpointRounding.AwayFromZero))}s",

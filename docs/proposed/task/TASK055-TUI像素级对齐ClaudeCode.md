@@ -407,3 +407,26 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!-- 验证: engine 0警告0错误 + cli 0警告0错误 + 新测试 3/3 绿(TDD 红→绿) + host.tests 全量 -->
 <!--   1336/1336(原1333+新增3) — 下一拔(Step 3): EngineSessionFactory + app/modules 七模块 + -->
 <!--   CommandLineOptions 搬库(断裂点①②), 消除 gui 对 cli 工程的直达依赖前置条件 -->
+<!-- 🤖 Auto Decision: 2026-10-20 (ADR 0143 阶段一 Step 3a: 契约+选项+构建器拆分先行) -->
+<!-- 调查修正: AppModuleAttribute 实际未搬(Step1 只搬六件); cli 内 [Register(...)] 带参 -->
+<!--   类型共 49 个(telemetry hooks/启动步骤/pipe/Vim/onboarding 混合体) — CoreModule 调 -->
+<!--   AddJccAutoRegisteredServices(生成器按程序集名生成) 不可本批搬 — Step3 拆成 3a(契约层)+ -->
+<!--   3b(49 类型分类搬移+模块搬移+SessionFactory 搬移) -->
+<!-- 3a 落地(git mv 五件+新建两件+改三件): CommandLineOptions/IAppModule/AppModuleContext/ -->
+<!--   AppModuleAttribute/DotEnvConfig → engine/app/(命名空间全部保持); 新建 engine/app/ -->
+<!--   EngineApplicationBuilder(UseModule/BuildHost(+ILoggerProvider 参数化,TerminalHelper 耦合 -->
+<!--   解除)/ConfigureModulesAsync/LoadConfigAsync+DotEnv区域) + EngineConfigInitializer(从 -->
+<!--   StartupWorkflow 提取 EnsureConfigFilesExistAsync+两模板; 交互式 Onboarding 留宿主); -->
+<!--   cli ApplicationBuilder → 纯静态宿主工具(ParseArgs/ShowHelp/ShowVersion/RunSubCommand); -->
+<!--   EngineSessionFactory 接线改 Engine* 类(本批留 cli, provider 在宿主侧计算注入) -->
+<!-- 关键决策1: 引擎侧类名用 EngineApplicationBuilder(非同名) — 避免跨程序集同 namespace+name -->
+<!--   歧义(CS0433), cli 宿主名零改动(Program.cs+host.tests 17 处 BuildBridgeGuardServices 不动) -->
+<!-- 关键决策2: app_module.generator 发射目标 ApplicationBuilder→EngineApplicationBuilder -->
+<!--   (UseAllModules 零消费方纯便利API, 生成器 1 行改) -->
+<!-- 坑: rg 搜 [Register] 必须用 -F "[Register(" (带参特性不匹配 [Register] 精确模式, 首查 -->
+<!--   漏报 49 个); dotnet test 断言序列要与测试模块实现一致(marker 模块不写 calls) -->
+<!-- 验证: engine/cli/tui 全 0警告0错误 + 新测试 2/2 绿(模块顺序+provider注入, TDD红→绿) + -->
+<!--   host.tests 全量 1338/1338 — 下一拔(Step 3b): 49 个 [Register] 类型分类(引擎侧/宿主侧) -->
+<!--   → 引擎侧随迁 engine + 5 通用模块(Core 需拆: AddAiWorkflowServices+AddAllPipelines 归 -->
+<!--   引擎, AddJccAutoRegisteredServices 归 cli 的 CliRegistrationModule) → EngineSessionFactory -->
+<!--   搬 engine(CreateCliSessionAsync 薄包装留 cli) → Step4 gui/tui 切直引 engine -->

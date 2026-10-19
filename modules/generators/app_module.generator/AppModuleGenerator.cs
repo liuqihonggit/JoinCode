@@ -71,7 +71,7 @@ public sealed class AppModuleGenerator : IIncrementalGenerator {
         sb.AppendLine("    /// <summary>");
         sb.AppendLine("    /// 注册所有标记了 [AppModule] 特性的模块");
         sb.AppendLine("    /// </summary>");
-        sb.AppendLine("    public static ApplicationBuilder UseAllModules(this ApplicationBuilder builder)");
+        sb.AppendLine("    public static EngineApplicationBuilder UseAllModules(this EngineApplicationBuilder builder)");
         sb.AppendLine("    {");
 
         foreach (var module in ordered) {

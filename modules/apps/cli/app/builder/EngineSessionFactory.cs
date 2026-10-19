@@ -115,24 +115,31 @@ public sealed class EngineSessionFactory {
     /// <summary>
     /// 核心创建逻辑 — LoadConfig → BuildHost → ConfigureModules → ShellCapabilityInit。
     /// CLI 和 GUI 的差异仅在于模块列表和 PipeEndpoint 处理，其余全部统一。
+    /// 日志 provider 在宿主侧计算（CLI 表现层 ConsoleActor），引擎 BuildHost 只接收注入。
     /// </summary>
     private static async Task<Result> CreateCoreAsync(
         CommandLineOptions options,
         IFileSystem fs,
-        Func<ApplicationBuilder, ApplicationBuilder> configureModules,
+        Func<EngineApplicationBuilder, EngineApplicationBuilder> configureModules,
         CancellationToken cancellationToken,
         bool clearPipeEndpoint = false) {
-        await new Entry.StartupWorkflow().EnsureConfigFilesExistAsync(fs).ConfigureAwait(false);
+        await EngineConfigInitializer.EnsureConfigFilesExistAsync(fs).ConfigureAwait(false);
 
         var modelConfigLoader = new ModelConfigLoader();
-        var config = await ApplicationBuilder.LoadConfigAsync(options, fs, modelConfigLoader).ConfigureAwait(false);
+        var config = await EngineApplicationBuilder.LoadConfigAsync(options, fs, modelConfigLoader).ConfigureAwait(false);
 
         if (clearPipeEndpoint)
             config = config with { PipeEndpoint = null };
 
-        var builder = configureModules(new ApplicationBuilder());
+        var builder = configureModules(new EngineApplicationBuilder());
 
-        var host = builder.BuildHost(config, options);
+        // ADR 0100: ConsoleActor 日志走 Actor 串行化；无 Actor 时回退默认 console（引擎侧处理）
+        var consoleActor = Cli.TerminalHelper.GetConsoleActor();
+        ILoggerProvider? loggerProvider = consoleActor is not null
+            ? new Cli.Display.ConsoleActorLoggerProvider(consoleActor)
+            : null;
+
+        var host = builder.BuildHost(config, options, loggerProvider);
 
         await builder.ConfigureModulesAsync(host.Services).ConfigureAwait(false);
 

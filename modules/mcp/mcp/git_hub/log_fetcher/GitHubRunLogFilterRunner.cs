@@ -219,6 +219,101 @@ internal sealed class GitHubRunLogFilterRunner {
         return null;
     }
 
+    /// <summary>
+    /// 获取超时取消 job ID 集合 — 区分"超过 timeout-minutes 被强制取消"与"手动取消"
+    /// <para>背景: GitHub API 中超时 job 的 conclusion=cancelled,与手动取消完全相同;
+    /// 唯一判据是 check-run annotations 带 "exceeded the maximum execution time"(2026-10-20 真实数据验证)。
+    /// 探测失败(API 错误/无 check_run_url)按非超时处理,不误判。</para>
+    /// <para>缓存 key=gh:jobs:timeout:{runId}(已完成 run 的超时判定不可变,同 jobs 列表缓存策略);
+    /// wantRefresh=true 跳过缓存读(仍写缓存)。无 cancelled job 时直接返回空集,不发任何 API。</para>
+    /// <para>并行探测: SemaphoreSlim 限流,对齐 expand=failed 的并行下载模式。</para>
+    /// </summary>
+    /// <param name="owner">仓库 owner</param>
+    /// <param name="repo">仓库名</param>
+    /// <param name="runId">run ID</param>
+    /// <param name="jobs">已获取的 job 列表(来自 GetOrFetchJobsAsync,复用避免重复 API)</param>
+    /// <param name="wantRefresh">true 跳过缓存读(仍写缓存)</param>
+    /// <param name="ct">取消令牌</param>
+    public async Task<HashSet<long>> GetOrFetchTimeoutJobIdsAsync(
+        string owner, string repo, string runId, List<RunJobItemResponse> jobs, bool wantRefresh, CancellationToken ct) {
+        var cancelledJobs = jobs
+            .Where(j => j.Id != 0 && string.Equals(j.Conclusion, "cancelled", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (cancelledJobs.Count == 0) return [];
+
+        if (!wantRefresh && _cacheService is not null
+            && await TryGetCachedTimeoutJobIdsAsync(runId, ct).ConfigureAwait(false) is { } cachedIds)
+            return cachedIds;
+
+        // 并行探测各 cancelled job 的 check-run annotations
+        var concurrency = Math.Min(cancelledJobs.Count, GetMaxConcurrency());
+        using var semaphore = new SemaphoreSlim(concurrency);
+        var probeTasks = cancelledJobs.Select(async job => {
+            if (!TryExtractCheckRunId(job.CheckRunUrl, out var checkRunId)) return (job.Id, false);
+            await semaphore.WaitAsync(ct).ConfigureAwait(false);
+            try {
+                var isTimeout = await IsTimeoutCancelledAsync(owner, repo, checkRunId, ct).ConfigureAwait(false);
+                return (job.Id, isTimeout);
+            } finally {
+                semaphore.Release();
+            }
+        }).ToArray();
+        var probeResults = await Task.WhenAll(probeTasks).ConfigureAwait(false);
+        var timeoutIds = probeResults.Where(r => r.Item2).Select(r => r.Item1).ToHashSet();
+
+        await WriteCachedTimeoutJobIdsAsync(runId, timeoutIds, ct).ConfigureAwait(false);
+        return timeoutIds;
+    }
+
+    /// <summary>从缓存读取超时 job ID 集合 — JSON List&lt;long&gt; 反序列化,失败返回 null(不误判)</summary>
+    private async Task<HashSet<long>?> TryGetCachedTimeoutJobIdsAsync(string runId, CancellationToken ct) {
+        if (_cacheService is null) return null;
+        try {
+            var cached = await _cacheService.TryGetTimeoutJobsAsync(long.Parse(runId), ct).ConfigureAwait(false);
+            if (cached is null || cached.Length == 0) return null;
+            var ids = JsonSerializer.Deserialize(Encoding.UTF8.GetString(cached), GitHubApiJsonContext.Safe.ListInt64);
+            return ids is null ? null : ids.ToHashSet();
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "解析缓存超时 job 集合失败 runId={RunId}", runId);
+            return null;
+        }
+    }
+
+    /// <summary>写入超时 job ID 集合缓存 — 空集合也写(避免反复探测无超时的 run),缓存异常静默降级</summary>
+    private async Task WriteCachedTimeoutJobIdsAsync(string runId, HashSet<long> timeoutIds, CancellationToken ct) {
+        if (_cacheService is null) return;
+        try {
+            var json = JsonSerializer.Serialize(timeoutIds.ToList(), GitHubApiJsonContext.Safe.ListInt64);
+            await _cacheService.WriteTimeoutJobsAsync(long.Parse(runId), Encoding.UTF8.GetBytes(json), ct).ConfigureAwait(false);
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "写入超时 job 集合缓存失败 runId={RunId}", runId);
+        }
+    }
+
+    /// <summary>探测单个 check-run 的 annotations 是否带超时判据 — API 失败/解析失败按非超时处理(保守,不误判)</summary>
+    private async Task<bool> IsTimeoutCancelledAsync(string owner, string repo, long checkRunId, CancellationToken ct) {
+        var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/check-runs/{checkRunId}/annotations",
+            query: new Dictionary<string, string> { ["per_page"] = "100" }, ct: ct).ConfigureAwait(false);
+        if (!result.Success) return false;
+        try {
+            var annotations = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.ListCheckRunAnnotationResponse);
+            return annotations is not null
+                && annotations.Any(a => a.Message.Contains(CiLogAnalyzer.JobTimeoutAnnotationMarker, StringComparison.OrdinalIgnoreCase));
+        } catch (JsonException ex) {
+            _logger?.LogWarning(ex, "解析 check-run annotations 失败 checkRunId={CheckRunId}", checkRunId);
+            return false;
+        }
+    }
+
+    /// <summary>从 check_run_url 尾段提取 check-run ID — span 切片,long 解析失败返回 false</summary>
+    private static bool TryExtractCheckRunId(string? checkRunUrl, out long checkRunId) {
+        checkRunId = 0;
+        if (string.IsNullOrEmpty(checkRunUrl)) return false;
+        var span = checkRunUrl.AsSpan().TrimEnd('/');
+        var slash = span.LastIndexOf('/');
+        return slash >= 0 && long.TryParse(span[(slash + 1)..], out checkRunId) && checkRunId > 0;
+    }
+
 
     /// <summary>
     /// 统一多 job 日志下载 — 单 job 走缓存,多 job Channel 并行合并(Actor 邮箱模型)

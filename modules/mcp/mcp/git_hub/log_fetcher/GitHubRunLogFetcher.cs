@@ -28,10 +28,14 @@ internal sealed class GitHubRunLogFetcher {
     /// <summary>
     /// 格式化 job 列表输出 — 状态机: 异常完整展开,通过默认折叠
     /// <para>提取为独立方法,供调用方先走缓存(GetOrFetchJobsAsync)再格式化</para>
+    /// <para>超时冒泡: timeoutJobIds 中的 cancelled job 升级为 ⏱ TimedOut 并标注原因,
+    /// 避免把超时误读为手动取消(判据: check-run annotation "exceeded the maximum execution time")</para>
     /// </summary>
-    public static ToolResult FormatJobsList(List<RunJobItemResponse> jobs, string runId) {
-        var jobSeverities = jobs.Select(j => (j.Id, j.Name, j.Conclusion ?? "", severity: CiJobSeverityExtensions.FromConclusion(j.Conclusion, j.Status))).ToList();
+    public static ToolResult FormatJobsList(List<RunJobItemResponse> jobs, string runId, HashSet<long>? timeoutJobIds = null) {
+        timeoutJobIds ??= [];
+        var jobSeverities = jobs.Select(j => (j.Id, j.Name, j.Conclusion ?? "", severity: CiJobSeverityExtensions.FromConclusion(j.Conclusion, j.Status, timeoutJobIds.Contains(j.Id)))).ToList();
         var anomalyCount = jobSeverities.Count(j => j.severity.IsAnomaly());
+        var timeoutCount = jobSeverities.Count(j => j.severity == CiJobSeverity.TimedOut);
         var pendingCount = jobSeverities.Count(j => j.severity == CiJobSeverity.Pending);
         var successCount = jobSeverities.Count(j => j.severity == CiJobSeverity.Success);
         var skippedCount = jobSeverities.Count(j => j.severity == CiJobSeverity.Skipped);
@@ -56,10 +60,10 @@ internal sealed class GitHubRunLogFetcher {
         var omittedNonSuccess = nonSuccess.Count - displayedNonSuccess.Count;
 
         var sb = new StringBuilder();
-        sb.Append($"汇总: {totalCount} 个 job, {anomalyCount} 个异常, {pendingCount} 个进行中, {successCount} 个成功, {skippedCount} 个跳过(依赖链跳过,非失败)");
+        sb.Append($"汇总: {totalCount} 个 job, {anomalyCount} 个异常(含 {timeoutCount} 个超时), {pendingCount} 个进行中, {successCount} 个成功, {skippedCount} 个跳过(依赖链跳过,非失败)");
         foreach (var (id, name, conclusion, severity) in displayedNonSuccess) {
             var marker = severity.Marker();
-            sb.Append($"\n  {marker} {id,15}  {name}  [{conclusion}]");
+            sb.Append($"\n  {marker} {id,15}  {name}  [{severity.ToConclusionDisplay(conclusion)}]");
         }
         if (omittedNonSuccess > 0)
             sb.Append($"\n  … 另有 {omittedNonSuccess} 个非成功 job 未列出(用 --json_fields id,name,conclusion 查看完整列表)");
@@ -71,6 +75,8 @@ internal sealed class GitHubRunLogFetcher {
         var hint = anomalyCount > 0
             ? $"\n\n💡 下一步:\n- expand=failed → 直接拉异常步骤日志(含 failure+timed_out+cancelled,量少)\n- expand=steps job_id=<异常job的ID> → 下载指定 job 日志并查看步骤列表\n- 支持逗号分隔多个 job_id 并行下载,如 job_id=123,456"
             : "\n\n💡 下一步:\n- expand=steps job_id=<job ID> → 下载指定 job 日志并查看步骤列表\n- 支持逗号分隔多个 job_id 并行下载,如 job_id=123,456";
+        if (timeoutCount > 0)
+            hint += $"\n\n⏱ 超时 job 排查(共 {timeoutCount} 个): 超过 timeout-minutes 上限被 GitHub 强制取消,非手动取消(依据 check-run annotation)。用 expand=steps job_id=<超时job的ID> 看步骤日志尾部: 日志停在半截=挂死(死锁/CPU无限自旋,查被测代码防御);日志持续推进到接近上限=纯慢(拆分任务或提高 timeout)";
 
         return GitHubToolHandlers.Ok(sb.ToString() + hint, $"Run {runId} job 列表({totalCount} 个,{anomalyCount} 个异常):");
     }

@@ -1,0 +1,89 @@
+namespace NativeTui.Core.Components;
+
+/// <summary>滚动区渲染项 — 滚动内容的最小单元（消息/分隔等）。</summary>
+public interface IScrollItem
+{
+    /// <summary>按可用宽度测量的内容高度。</summary>
+    int MeasureHeight(int width);
+
+    /// <summary>渲染到指定帧区域（已含滚动平移与视口裁剪后的可见行区间）。</summary>
+    void Render(Screen screen, Rect frame, Theme theme);
+}
+
+/// <summary>
+/// 滚动区 — 对齐基准 ink/components/ScrollBox.tsx 的视口语义：
+/// 内容按全高自上而下布局，仅渲染与 [scrollTop, scrollTop+height) 相交的项并平移 -scrollTop；
+/// sticky 钉底（内容增长时跟随底部，基准 stickyScroll 属性，首渲染即生效）；
+/// ScrollBy 打破 sticky（基准 scrollBy：纯累加器，边界在渲染时钳制）；
+/// 位置跟随：非 sticky 但 scrollTop 恰在旧 max 且内容增长 → 重新钉底（基准 positional follow）。
+/// </summary>
+public sealed class ScrollBox
+{
+    private readonly List<IScrollItem> _items = [];
+    private int _lastMaxScroll = -1;
+    private int _lastScrollTop;
+
+    /// <summary>创建滚动区（stickyScroll 指定首渲染是否钉底）。</summary>
+    public ScrollBox(bool stickyScroll = false)
+    {
+        Sticky = stickyScroll;
+    }
+
+    /// <summary>是否钉底（stickyScroll，含位置跟随触发）。</summary>
+    public bool Sticky { get; private set; }
+
+    /// <summary>当前滚动位置（上次渲染结算后的值）。</summary>
+    public int ScrollTop { get; private set; }
+
+    /// <summary>追加内容项（钉底/跟随在下次 Render 时结算）。</summary>
+    public void Add(IScrollItem item) => _items.Add(item);
+
+    /// <summary>相对滚动（打破 sticky；边界钳制延迟到渲染，对齐基准 pendingScrollDelta 累加语义）。</summary>
+    public void ScrollBy(int dy)
+    {
+        Sticky = false;
+        ScrollTop = Math.Max(0, ScrollTop + dy);
+    }
+
+    /// <summary>钉底（基准 scrollToBottom：sticky=true）。</summary>
+    public void ScrollToBottom() => Sticky = true;
+
+    /// <summary>
+    /// 渲染：测量全部项 → 结算 sticky/位置跟随 → 钳制 scrollTop 到 [0, maxScroll]
+    /// → 逐项裁剪平移绘制（部分可见项收到裁剪后的行区间）。
+    /// </summary>
+    public void Render(Screen screen, Rect frame, Theme theme)
+    {
+        var heights = _items.Select(item => item.MeasureHeight(frame.Width)).ToArray();
+        var contentHeight = heights.Sum();
+        var maxScroll = Math.Max(0, contentHeight - frame.Height);
+        if (Sticky || (_lastMaxScroll >= 0 && _lastScrollTop == _lastMaxScroll && maxScroll > _lastMaxScroll))
+        {
+            Sticky = true;
+            ScrollTop = maxScroll;
+        }
+        else
+        {
+            ScrollTop = Math.Clamp(ScrollTop, 0, maxScroll);
+        }
+
+        var windowBottom = ScrollTop + frame.Height;
+        var itemTop = 0;
+        for (var i = 0; i < _items.Count; i++)
+        {
+            var itemBottom = itemTop + heights[i];
+            if (itemBottom > ScrollTop && itemTop < windowBottom)
+            {
+                var visibleTop = Math.Max(itemTop, ScrollTop);
+                var visibleBottom = Math.Min(itemBottom, windowBottom);
+                var itemFrame = new Rect(frame.X, frame.Y + visibleTop - ScrollTop, frame.Width, visibleBottom - visibleTop);
+                _items[i].Render(screen, itemFrame, theme);
+            }
+
+            itemTop = itemBottom;
+        }
+
+        _lastMaxScroll = maxScroll;
+        _lastScrollTop = ScrollTop;
+    }
+}

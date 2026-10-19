@@ -4,7 +4,9 @@ namespace Core.Tests.Permission;
 /// <summary>
 /// PermissionChecker null 参数守卫测试 — 验证所有公开方法的 null/空/空白参数守卫
 /// <para>ArgumentException.ThrowIfNullOrWhiteSpace 对 null 抛 ArgumentNullException,对空/空白抛 ArgumentException。</para>
+/// <para>构造 PermissionChecker — 必须与设 JCC_PERMISSION_MODE 的测试串行（见 PermissionModeEnvCollection）。</para>
 /// </summary>
+[Collection("permission-mode-env")]
 public sealed class PermissionCheckerNullGuardTests {
 
     #region 辅助构造

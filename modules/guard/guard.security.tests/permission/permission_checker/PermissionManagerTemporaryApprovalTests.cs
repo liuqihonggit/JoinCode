@@ -4,7 +4,9 @@ namespace Core.Tests.Permission;
 /// <summary>
 /// PermissionManager 临时批准（ApproveToolTemporarily）接口契约测试
 /// 验证 GUI/CLI 权限确认闭环所需的接口能力：临时批准后 CheckPermissionAsync 立即 Granted
+/// <para>构造 PermissionChecker — 必须与设 JCC_PERMISSION_MODE 的测试串行（见 PermissionModeEnvCollection）。</para>
 /// </summary>
+[Collection("permission-mode-env")]
 public sealed class PermissionManagerTemporaryApprovalTests {
     private static IToolPermissionManager CreatePermissionManager(FakeTimeProvider? timeProvider = null) {
         var config = Options.Create(PermissionConfig.CreateDefault());

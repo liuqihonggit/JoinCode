@@ -4,7 +4,9 @@ namespace Core.Tests.Permission;
 /// PermissionManager 确定性测试 — mock PermissionChecker 管道 / FakeTimeProvider 消除时序依赖
 /// <para>测试危险规则剥离/恢复、模式切换、临时批准、缓存清理。不依赖时序。</para>
 /// <para>已有 PermissionManagerTemporaryApprovalTests 覆盖临时批准接口契约,本类补充其余方法。</para>
+/// <para>设 JCC_PERMISSION_MODE 环境变量 — 必须与构造 PermissionChecker 的测试串行（见 PermissionModeEnvCollection）。</para>
 /// </summary>
+[Collection("permission-mode-env")]
 public sealed class PermissionManagerTest {
 
     #region 辅助构造

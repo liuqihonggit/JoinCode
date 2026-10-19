@@ -7,7 +7,11 @@ namespace Core.Tests.Permission.Pipeline;
 /// mcp serve / chat 下 write 可写 C:\Windows\Temp 等任意路径。</para>
 /// <para>契约：read/write 工具必须经真实 PathPermissionChecker 判定路径边界，
 /// serve 等无确认处理器环境对 cwd 外写入必须拒绝。</para>
+/// <para>构造 PermissionChecker — 必须与设 JCC_PERMISSION_MODE 的测试串行，
+/// 否则 fire-and-forget InitializeModeAsync 读到污染环境变量把模式翻转为 Bypass
+/// （CI #853 flaky 根因，见 PermissionModeEnvCollection）。</para>
 /// </summary>
+[Collection("permission-mode-env")]
 public sealed class PipelinePathBoundaryTests {
     private readonly IFileSystem _fs = new InMemoryFileSystem();
     private readonly string _workingDir = Path.GetFullPath(

@@ -30,8 +30,28 @@ public sealed class SpinnerItem : IScrollItem
 
     private readonly SpinnerAnimator _animator = new();
 
-    /// <summary>动词文案（调用方拼接 '…'，基准 message = verb + '…'）。</summary>
+    /// <summary>随机源（动词懒采样用，测试注入种子）。</summary>
+    private Random _random = Random.Shared;
+
+    /// <summary>懒采样缓存的随机动词（Message 空时生效；基准 useState 挂载采样一次）。</summary>
+    private string? _cachedVerb;
+
+    /// <summary>动词文案（调用方拼接 '…'，基准 message = verb + '…'）；空时 fallback 随机动词。</summary>
     public string Message { get; set; } = string.Empty;
+
+    /// <summary>随机源（默认 Random.Shared；测试注入种子验证确定性）。</summary>
+    public Random Random
+    {
+        get => _random;
+        set
+        {
+            _random = value;
+            _cachedVerb = null;
+        }
+    }
+
+    /// <summary>重采样动词（新回合挂载语义：ResetVerb 后下一帧重新随机）。</summary>
+    public void ResetVerb() => _cachedVerb = null;
 
     /// <summary>覆盖色（非空时替代 theme.Claude 且抑制停滞红，基准 overrideColor 语义）。</summary>
     public Color? OverrideColor { get; set; }
@@ -78,17 +98,22 @@ public sealed class SpinnerItem : IScrollItem
     /// <summary>内容高度 = marginTop 1 + 行 1。</summary>
     public int MeasureHeight(int width) => 2;
 
-    /// <summary>渲染：margin 行留空，行内容 = glyph + 消息 + 状态 parts。</summary>
+    /// <summary>渲染：margin 行留空，行内容 = glyph + 消息 + 状态 parts（消息空时随机动词 + '…'）。</summary>
     public void Render(Screen screen, Rect frame, Theme theme)
     {
+        var message = EffectiveMessage();
         var messageColor = OverrideColor ?? theme.Claude;
         var shimmerColor = OverrideShimmerColor ?? theme.ClaudeShimmer;
-        var glimmerWidth = StringWidth.Of(Message);
+        var glimmerWidth = StringWidth.Of(message);
         var state = _animator.Tick(AnimTimeMs, ResponseLength, HasActiveTools, ReducedMotion, Mode, glimmerWidth);
         var row = frame with { Y = frame.Y + 1, Height = 1 };
-        SpinnerRow.Render(screen, row, theme, Message, messageColor, shimmerColor, Mode, RenderState(state), ReducedMotion, AnimTimeMs);
+        SpinnerRow.Render(screen, row, theme, message, messageColor, shimmerColor, Mode, RenderState(state), ReducedMotion, AnimTimeMs);
         RenderStatus(screen, row, theme, state, glimmerWidth);
     }
+
+    /// <summary>生效消息：显式 Message 优先，空时随机动词 + '…'（基准 verb = overrideMessage ?? randomVerb; message = verb + '…'）。</summary>
+    private string EffectiveMessage() =>
+        Message.Length > 0 ? Message : (_cachedVerb ??= SpinnerVerbs.Sample(_random)) + "…";
 
     /// <summary>overrideColor 抑制停滞红（基准 stalledIntensity={overrideColor ? 0 : ...}）。</summary>
     private SpinnerAnimState RenderState(SpinnerAnimState state) =>
@@ -106,7 +131,7 @@ public sealed class SpinnerItem : IScrollItem
             return;
         }
 
-        var statusX = row.X + 2 + (Message.Length == 0 ? 0 : glimmerWidth + 1);
+        var statusX = row.X + 2 + glimmerWidth + 1;
         if (statusX >= row.Right)
         {
             return;

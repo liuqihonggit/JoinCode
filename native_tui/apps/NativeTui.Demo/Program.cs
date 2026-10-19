@@ -463,13 +463,14 @@ internal sealed class DemoSession
         StartTurn();
     }
 
-    /// <summary>开始回合：进入 Thinking 阶段，busy + spinner 启动。</summary>
+    /// <summary>开始回合：进入 Thinking 阶段，busy + spinner 启动（消息留空 → 随机动词，对齐基准挂载采样）。</summary>
     private void StartTurn()
     {
         _phase = TurnPhase.Thinking;
         _turnStartMs = Environment.TickCount64;
         _view.Busy = true;
-        _spinner.Message = "Thinking…";
+        _spinner.Message = string.Empty;
+        _spinner.ResetVerb();
         _spinner.Mode = SpinnerMode.Thinking;
         _spinner.LoadingStartMs = _turnStartMs;
         _spinner.ResponseLength = 0;

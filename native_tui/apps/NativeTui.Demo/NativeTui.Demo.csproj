@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>NativeTui.Demo</RootNamespace>
+    <AssemblyName>NativeTui.Demo</AssemblyName>
+    <Description>NativeTui 手动验收 demo — REPL 全链路（raw mode + 50ms 动画 + diff 输出），ADR 0080</Description>
+    <AllowPack>false</AllowPack>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\NativeTui.Core\NativeTui.Core.csproj" />
+  </ItemGroup>
+
+</Project>

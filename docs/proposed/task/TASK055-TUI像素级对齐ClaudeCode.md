@@ -147,3 +147,18 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!-- 验证: native_tui 251/251 测试全绿(204 动画核心+渲染 + 47 状态行/格式化) ✅ commit da863b25c/f1af111f6/fff250a99 -->
 <!-- M5 遗留(并入 M6): 动画时钟真驱动(50ms 定时器), 思考状态生命周期状态机(最短2s展示), spinnerVerbs 动词表随机选 -->
 <!-- M6: 终端真实 IO(raw mode/能力探测/resize) + 渲染循环(diff 输出+动画 tick) + 键盘解码 + bridge 进程协议 → M7 截图校准 -->
+
+<!-- 🤖 Auto Decision: 2026-10-20 (M6a 真实终端渲染循环: 输入缓冲 + 终端层 + Demo exe) -->
+<!-- 决策1: 帧双缓冲必须共享 StylePool — CellDiffer 比较两帧 cell 的 StyleId, 两个 Screen 各自私有池会 -->
+<!--   让同一样式拿到不同 ID → 假 diff(每帧全量重绘); Screen 增 ctor(cols, rows, sharedStyles) 重载 -->
+<!-- 决策2: ScrollBox 增 Insert(index, item)/Count — REPL 滚动区尾部常驻 spinner, 新消息必须前插到它之前 -->
+<!--   (基准 spinner 在 scrollable 区尾部 REPL.tsx:4641, 不是固定行, 长内容时随滚动区滚走) -->
+<!-- 决策3: 双缓冲 ping-pong 用"双屏同建+全量标志"而非 null 交换 — (front,back)=(back,front) 首帧后把 null -->
+<!--   换进 back 导致 NRE(实测踩坑); _frontValid 标志触发首帧/resize 后 Compose(null, next) 全量 EraseScreen -->
+<!-- 决策4: selftest 冒烟用 120ms 步进非 50ms — glyph 帧=floor(t/120), 前 3 个 50ms tick 同帧会误报"帧输出为空" -->
+<!-- 决策5: 重定向守卫(Console.IsInputRedirected)给引导提示退出 1, 符合"错误提示必须有诱导方式"规则 -->
+<!-- 替代方案: IClock/ITimer 抽象注入(过度抽象, selftest 直接注入时间值已够); 三屏缓冲(无必要, 标志位足够) -->
+<!-- 验证: native_tui 269/269 测试全绿(+4 双缓冲/Insert); Demo --selftest 退出码 0; 重定向守卫退出码 1 ✅ -->
+<!--   commit 1746de5c3(双缓冲基建) + 2e7f95487(Demo exe) -->
+<!-- M6a 手动验收(ADR 0080)待用户真实终端执行: NativeTui.Demo.exe — spinner 动画/输入编辑/停滞红/↑↓滚动 -->
+<!-- M6 剩余: 键盘解码(方向键转义序列/Ctrl 组合), resize 事件化, bridge 进程协议(stdio JSON 与 jcc.exe) -->

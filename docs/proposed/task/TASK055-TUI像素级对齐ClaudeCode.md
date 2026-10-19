@@ -281,7 +281,6 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!--   LLM 流式回合(token_delta 增量/工具事件/思考事件)在 TUI 侧渲染 -->
 <!-- 剩余: M6 完结 — M7 截图校准/Markdown 高亮/diff/权限对话框(session_info 协议扩展) -->
 
-
 <!-- 🤖 Auto Decision: 2026-10-20 (M6i: 权限系统对接引擎 + banner 真实数据 + 界面汉化) -->
 <!-- 决策1: TUI PermissionMode 枚举整体重写为引擎 5 值(plan/auto/ask/bypass/unattended) — -->
 <!--   废弃 ClaudeCode 旧值(default/acceptEdits/dontAsk/bypassPermissions, 引擎侧已合并废弃); -->
@@ -311,3 +310,32 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!--   permission_mode_changed plan 回执; banner "当前模型未设置"路径由 Driver 单测覆盖(null→占位文案) -->
 <!-- 剩余: TUI 真实终端联调验收(--bridge jcc.exe 看真实引擎会话/权限循环/footer 汉化); -->
 <!--   M7 权限对话框(permission_pending 确认事件, 替换现"按打断处理"降级)/模型列表切换 UI -->
+
+<!-- 🤖 Auto Decision: 2026-10-20 (M7 预排期: 多子代理分组显示 — 300 子代理场景支撑) -->
+<!-- 触发: 用户提出可能开展 300 个子代理, 要求调查基准 ts 的多子代理显示方案; 用户确认排入 M7 -->
+<!-- 调查结论(基准唯一数据源: claude-code-rev-main): -->
+<!-- 1. 分组条件: utils/groupToolUses.ts — 同一 assistant 消息(同 API 响应)中 2+ 个 Task -->
+<!--    工具调用合并为 grouped_tool_use 渲染块; 仅 AgentTool 注册 renderGroupedToolUse 插槽 -->
+<!--    (Tool.ts:678); 跨消息不合并, verbose 模式不分组 -->
+<!-- 2. 分组视图(AgentTool/UI.tsx:649 renderGroupedAgentToolUse + AgentProgressLine.tsx): -->
+<!--    头部行 = ToolUseLoader(⏺ 闪烁 dim, 完成变 success/error 色) + "Running N agents…"; -->
+<!--    全完成="N agents finished"; 全后台="N background agents launched (↓ to manage)"; -->
+<!--    同类型时="Running 5 Explore agents…"(commonType 替换) -->
+<!--    每代理 2 行: 行1="   ├─ "树字符(dim, 最后项└─) + bold 反色背景 agentType(agentColorManager -->
+<!--    按类型分配色) + "(description)" + " · N tool uses · N tokens"; -->
+<!--    行2="   │  ⎿  " + lastToolInfo 或 "Initializing…"(dim, 最后项无竖线延续) -->
+<!--    全同类型 hideType: 省略反色徽章改 "name: description"; resolved 行取消 dim; -->
+<!--    async 后台代理省略行2(状态="Running in the background") -->
+<!-- 3. 300 个规模: UI 层零截断(agentStats.map 全量渲染, 300 代理=600 行, 超屏靠滚动区 -->
+<!--    滚出视口/inline 滚入 scrollback); 无引擎层并发池上限; 头部 N 是唯一汇总; -->
+<!--    注意: 单代理才有折叠(最近 3 条 + "+N more tool uses (ctrl+o to expand)")和终端过小 -->
+<!--    condensed 单行模式 — 分组视图没有这套保护 -->
+<!-- 4. 后台/teammate 第二显示面: CoordinatorAgentStatus.tsx(CoordinatorTaskPanel)渲染在 -->
+<!--    输入框 footer 下方(非消息流), 1s tick: "  ○ main" + "  ○ name: desc ▶ elapsed · -->
+<!--    ↓ tokens · N queued"(描述 truncate-end 截断, evictAfter 过期自动驱逐, Enter 查看/x 停止) -->
+<!-- 5. bridge 协议扩展需求(ADR 0141 演进): ① tool_use 事件带同消息分组标记(或客户端按 -->
+<!--    事件顺序自算同批次); ② 新增 agent_progress 事件(子代理内部工具活动+token 计数, 带 -->
+<!--    parentToolUseId); ③ 头部 N 由客户端按未解析 task tool_use 数自算 -->
+<!-- 实现顺序(M7 内): 协议扩展先行(jcc 侧 agent_progress 事件) → AgentProgressLine 树形 -->
+<!--   分组渲染(TDD: cell golden 对齐) → CoordinatorTaskPanel 后台面板(视 M7 进度可后延) -->
+<!-- 验证: 本条为纯调查+排期决策, 无代码改动; 实现时按 TDD 红绿流程验证 -->

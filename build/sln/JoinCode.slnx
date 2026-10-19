@@ -104,6 +104,7 @@
   </Folder>
   <Folder Name="/app/">
     <Project Path="../../modules/apps/cli/JoinCode.csproj" />
+    <Project Path="../../modules/apps/engine/JoinCode.Engine.csproj" />
     <Project Path="../../modules/apps/sdk/Sdk.csproj" />
   </Folder>
   <Folder Name="/test/unit/">

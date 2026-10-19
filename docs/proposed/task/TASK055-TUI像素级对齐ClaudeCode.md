@@ -373,3 +373,25 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!-- M7 特性全部改道进程内直连: session_info/agent_progress/权限对话框不再扩展 0141 事件表 -->
 <!-- 验证: 本条为纯架构决策文档; 阶段一实施每步编译+测试+commit, 全量回归含 host.tests+gui -->
 <!--   测试+bridge 冒烟; 待两阶段落地后 ADR 0143 转 accepted -->
+
+<!-- 🤖 Auto Decision: 2026-10-20 (ADR 0143 阶段一第一拔: JoinCode.Engine 库工程落地) -->
+<!-- 搬移(六件, git mv 保历史): BridgeProtocol→engine/bridge + SessionController(含 -->
+<!--   SessionTurnResult)/AgentStreamChunkAdapter/BridgeEventConsumer→engine/adapters + -->
+<!--   SessionIdGenerator/CliServiceContext→engine/session -->
+<!-- 关键决策1: 命名空间全部保持不变(JoinCode.Cli.Bridge/JoinCode.Adapters/JoinCode.Cli 跨程序集 -->
+<!--   同命名空间) — 宿主 GlobalUsings/源码/host.tests/gui/tui 全部零改动, 破坏面最小化; -->
+<!--   CliXxx→EngineXxx 重命名留独立批次(搬移与改名二步走, 禁一步动太多) -->
+<!-- 关键决策2: engine 引用面与 cli 相同六工程(composition/clock/dream/browser/pipelines/ -->
+<!--   pithosdb) — SessionController 依赖闭包横跨 abstractions/slash/brain/agents 传递链 -->
+<!-- 关键决策3: engine/Directory.Build.props 原样复制 cli 版(含 EnableConfigurationBindingGenerator) -->
+<!-- 坑: 手写 props 含"→"等特殊字符导致 MSB4066(<Using> 无法识别 Include)+TargetFramework -->
+<!--   求值丢失 — 新建 props 必须原样复制既有文件改内容, 勿手写特殊字符注释 -->
+<!-- 工程注册: modules/apps/module.slnx + build/sln/JoinCode.slnx /app/ folder; ci-build/ci-e2e/ -->
+<!--   daily-aot 等 workflow 经 slnx/ProjectReference 链自动纳入无需改; ci-unit-tests 仅新建独立 -->
+<!--   engine 测试工程时才需加 matrix -->
+<!-- 验证: engine 0警告0错误 + cli 0警告0错误 + host.tests 全量 1333/1333(bridge 93/93) + tui -->
+<!--   0错误; gui 21 错误系本地 Dock submodule 未初始化的存量环境问题(错误全为 IRootDock/ -->
+<!--   IDocumentDock 等 Dock 类型, 与搬移零关联, CI ubuntu submodule 正常) — 存量问题不在本拔处理 -->
+<!-- 下一拔(Step 2): CliSession 表现层解耦(CliEventConsumer 已在库侧, TerminalHelper/ -->
+<!--   PrefixCommandRouter 依赖需搬移或改注入) → Step3 EngineSessionFactory+app/modules+ -->
+<!--   CommandLineOptions → Step4 ApplicationBuilder 引擎/宿主逻辑拆分 → Step5 gui/tui 切引 -->

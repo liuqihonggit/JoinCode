@@ -32,20 +32,26 @@ public static class CiJobSeverityExtensions {
     /// <summary>从 GitHub API job conclusion + status 映射到 CiJobSeverity</summary>
     /// <param name="conclusion">job conclusion(failure/success/cancelled/timed_out/skipped/null)</param>
     /// <param name="status">job status(queued/in_progress/completed 等)</param>
-    public static CiJobSeverity FromConclusion(string? conclusion, string? status = null)
-        => (conclusion, status) switch {
-            ("failure", _)          => CiJobSeverity.Failure,
-            ("timed_out", _)        => CiJobSeverity.TimedOut,
-            ("cancelled", _)        => CiJobSeverity.Cancelled,
-            ("skipped", _)          => CiJobSeverity.Skipped,
-            ("neutral", _)          => CiJobSeverity.Skipped,
-            ("stale", _)            => CiJobSeverity.Warning,
-            ("action_required", _)  => CiJobSeverity.Warning,
-            ("success", _)          => CiJobSeverity.Success,
-            (_, "in_progress")     => CiJobSeverity.Pending,
-            (_, "queued")          => CiJobSeverity.Pending,
-            (null or "", _)        => CiJobSeverity.Pending,
-            _                      => CiJobSeverity.None,
+    /// <param name="isTimeoutCancelled">
+    /// 超时取消标记 — GitHub API 中超时 job(超过 timeout-minutes 被强制取消)的 conclusion=cancelled,
+    /// 与手动取消完全相同;唯一判据是 check-run annotations 带 "exceeded the maximum execution time"。
+    /// 探测层(GetOrFetchTimeoutJobIdsAsync)拿到该判据后传 true,把 Cancelled 升级为 TimedOut(优先冒泡)。
+    /// </param>
+    public static CiJobSeverity FromConclusion(string? conclusion, string? status = null, bool isTimeoutCancelled = false)
+        => (conclusion, status, isTimeoutCancelled) switch {
+            ("cancelled", _, true)  => CiJobSeverity.TimedOut,
+            ("failure", _, _)       => CiJobSeverity.Failure,
+            ("timed_out", _, _)     => CiJobSeverity.TimedOut,
+            ("cancelled", _, _)     => CiJobSeverity.Cancelled,
+            ("skipped", _, _)       => CiJobSeverity.Skipped,
+            ("neutral", _, _)       => CiJobSeverity.Skipped,
+            ("stale", _, _)         => CiJobSeverity.Warning,
+            ("action_required", _, _) => CiJobSeverity.Warning,
+            ("success", _, _)       => CiJobSeverity.Success,
+            (_, "in_progress", _)   => CiJobSeverity.Pending,
+            (_, "queued", _)        => CiJobSeverity.Pending,
+            (null or "", _, _)      => CiJobSeverity.Pending,
+            _                       => CiJobSeverity.None,
         };
 
     /// <summary>判断是否为异常状态(failure + timed_out + cancelled) — 需完整展开显示</summary>
@@ -89,6 +95,16 @@ public static class CiJobSeverityExtensions {
             _                       => "pending",
         };
 
+    /// <summary>
+    /// 结论显示名 — 超时取消标注原因,让 AI 不把超时误读为手动取消
+    /// <para>超时 job 的 API 原始结论是 cancelled,显示 "cancelled→超时(超过 timeout-minutes 被强制取消)"</para>
+    /// <para>其余情况原样显示 conclusion,不加工</para>
+    /// </summary>
+    public static string ToConclusionDisplay(this CiJobSeverity severity, string? conclusion)
+        => severity == CiJobSeverity.TimedOut && string.Equals(conclusion, "cancelled", StringComparison.OrdinalIgnoreCase)
+            ? "cancelled→超时(超过 timeout-minutes 被强制取消,非手动取消)"
+            : conclusion ?? "";
+
     /// <summary>GraphQL StatusState 映射 — SUCCESS/FAILURE/NEUTRAL/PENDING,对齐 GraphQL statusCheckRollup</summary>
     internal static string ToGraphQLState(this CiJobSeverity severity)
         => severity switch {
@@ -118,6 +134,8 @@ internal static class CiLogAnalyzer {
     internal const string GroupMarker   = "##[group]";
     /// <summary>进程退出码标记</summary>
     internal const string ExitCodeMarker = "Process completed with exit code";
+    /// <summary>job 超时取消判据 — check-run annotation 消息片段(GitHub 超过 timeout-minutes 强制取消时写入,唯一区分超时/手动取消的数据源)</summary>
+    internal const string JobTimeoutAnnotationMarker = "exceeded the maximum execution time";
     /// <summary>.NET native library 加载失败异常</summary>
     internal const string DllNotFoundMarker = "System.DllNotFoundException";
     /// <summary>.NET 类型初始化失败异常（静态构造函数抛异常）</summary>

@@ -3,7 +3,9 @@ namespace Core.Tests.Permission;
 /// <summary>
 /// PermissionChecker 确定性测试 — mock 管道中间件 / InMemoryFileSystem 消除 IO 依赖
 /// <para>测试管道执行逻辑、自动批准/拒绝集合管理、会话级危险等级批准、持久化。不依赖时序。</para>
+/// <para>设 JCC_PERMISSION_MODE 环境变量 — 必须与构造 PermissionChecker 的测试串行（见 PermissionModeEnvCollection）。</para>
 /// </summary>
+[Collection("permission-mode-env")]
 public sealed class PermissionCheckerTest {
 
     #region 辅助构造

@@ -72,12 +72,16 @@ public sealed class TreeCache : IDisposable {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
         var newEntry = new CacheEntry(tree, source);
+        var spin = new SpinWait();
         while (true) {
             if (_entries.TryGetValue(filePath, out var existing)) {
                 if (_entries.TryUpdate(filePath, newEntry, existing)) {
                     existing.Tree.Dispose();
                     return;
                 }
+                if (spin.Count >= CasRetry.MaxSpinCount) throw new InvalidOperationException(
+                    "TreeCache.Add 重试自旋 " + spin.Count + " 次仍未成功,判定为活锁。");
+                spin.SpinOnce();
                 continue;
             }
 
@@ -88,6 +92,9 @@ public sealed class TreeCache : IDisposable {
 
             if (_entries.TryAdd(filePath, newEntry))
                 return;
+            if (spin.Count >= CasRetry.MaxSpinCount) throw new InvalidOperationException(
+                "TreeCache.Add 重试自旋 " + spin.Count + " 次仍未成功,判定为活锁。");
+            spin.SpinOnce();
         }
     }
 

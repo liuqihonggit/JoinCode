@@ -157,6 +157,12 @@ internal interface IGhCacheService {
     /// <summary>写入 jobs 列表缓存 — TTL 7天</summary>
     Task WriteJobsAsync(long runId, byte[] json, CancellationToken ct);
 
+    // === 超时 job 集合缓存 ===
+    /// <summary>尝试读取超时 job ID 集合缓存 — key=gh:jobs:timeout:{runId},命中返回 JSON 字节,未命中返回 null</summary>
+    Task<byte[]?> TryGetTimeoutJobsAsync(long runId, CancellationToken ct);
+    /// <summary>写入超时 job ID 集合缓存 — TTL 7天(已完成 run 的超时判定不可变)</summary>
+    Task WriteTimeoutJobsAsync(long runId, byte[] json, CancellationToken ct);
+
     // === 反查索引(前置表) ===
     /// <summary>反查 PR → run-id — key=gh:runid:pr:{prNumber},TTL 5min</summary>
     Task<string?> TryGetRunIdByPrAsync(int prNumber, CancellationToken ct);
@@ -341,6 +347,30 @@ internal sealed class GhCacheService : IGhCacheService {
             await _kvStore.PutWithTtlAsync(keyBytes, json, LogTtl, ct).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "gh jobs 列表缓存写入失败 runId={RunId}", runId);
+        }
+    }
+
+    // === 超时 job 集合缓存 ===
+    /// <inheritdoc/>
+    public async Task<byte[]?> TryGetTimeoutJobsAsync(long runId, CancellationToken ct) {
+        if (_kvStore is null) return null;
+        var keyBytes = Encoding.UTF8.GetBytes($"gh:jobs:timeout:{runId}");
+        try {
+            return await _kvStore.GetAsync(keyBytes, ct).ConfigureAwait(false);
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "gh 超时 job 集合缓存读取失败 runId={RunId}", runId);
+            return null;
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task WriteTimeoutJobsAsync(long runId, byte[] json, CancellationToken ct) {
+        if (_kvStore is null) return;
+        var keyBytes = Encoding.UTF8.GetBytes($"gh:jobs:timeout:{runId}");
+        try {
+            await _kvStore.PutWithTtlAsync(keyBytes, json, LogTtl, ct).ConfigureAwait(false);
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "gh 超时 job 集合缓存写入失败 runId={RunId}", runId);
         }
     }
 

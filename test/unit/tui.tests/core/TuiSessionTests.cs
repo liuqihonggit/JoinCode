@@ -20,6 +20,7 @@ public class TuiSessionTests {
         var dllPath = typeof(OutputView).Assembly.Location;
         var repoRoot = FindRepoRoot();
 
+#pragma warning disable JCC9001
         var psi = new ProcessStartInfo {
             FileName = "dotnet",
             Arguments = $"exec \"{dllPath}\" --await 2",
@@ -29,6 +30,7 @@ public class TuiSessionTests {
         using var process = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start process");
         var exited = process.WaitForExit(8000);
         if (!exited) process.Kill(entireProcessTree: true);
+#pragma warning restore JCC9001
 
         Assert.True(exited, "jcctui --await 2 应在8秒内退出");
     }
@@ -40,6 +42,7 @@ public class TuiSessionTests {
         var dllPath = typeof(OutputView).Assembly.Location;
         var repoRoot = FindRepoRoot();
 
+#pragma warning disable JCC9001
         var psi = new ProcessStartInfo {
             FileName = "dotnet",
             Arguments = $"exec \"{dllPath}\" --await 1",
@@ -53,14 +56,17 @@ public class TuiSessionTests {
             return;
         }
         var exitCode = process.ExitCode;
+#pragma warning restore JCC9001
 
         Assert.True(exitCode is 0 or 1234 or 1, $"意外退出码: {exitCode}");
     }
 
     private static string FindRepoRoot() {
+#pragma warning disable JCC9001
         var dir = AppContext.BaseDirectory;
         while (dir is not null && !Directory.Exists(System.IO.Path.Combine(dir, "app")))
             dir = System.IO.Path.GetDirectoryName(dir);
         return dir ?? AppContext.BaseDirectory;
+#pragma warning restore JCC9001
     }
 }

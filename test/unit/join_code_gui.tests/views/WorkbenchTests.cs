@@ -167,7 +167,9 @@ public sealed class WorkbenchTests {
 
     private static string FindRoot() {
         var root = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
+#pragma warning disable JCC9001 // Locate the real repository for read-only integration checks and screenshot artifacts.
         while (root.Parent is not null && !System.IO.File.Exists(System.IO.Path.Combine(root.FullName, "AGENTS.md"))) root = root.Parent;
+#pragma warning restore JCC9001
         return root.FullName;
     }
 }

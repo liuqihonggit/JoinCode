@@ -385,8 +385,8 @@ public partial class GitHubToolHandlers {
 
         // === expand=jobs: 列出 job 列表(走 LSM 缓存,不下载日志) ===
         if (string.Equals(opts.Expand, "jobs", StringComparison.OrdinalIgnoreCase)) {
-            var jobs = await LogFilterRunner.GetOrFetchJobsAsync(repo.Owner, repo.Repo, target.RunId, wantRefresh, repo.Ct).ConfigureAwait(false);
-            return GitHubRunLogFetcher.FormatJobsList(jobs, target.RunId);
+            var (jobs, timeoutIds) = await GetJobsWithTimeoutIdsAsync(repo.Owner, repo.Repo, target.RunId, wantRefresh, repo.Ct).ConfigureAwait(false);
+            return GitHubRunLogFetcher.FormatJobsList(jobs, target.RunId, timeoutIds);
         }
 
         // === filter=failed: 智能过滤测试失败(状态机提取 Failed+Error+StackTrace,Rust 风格输出) ===
@@ -396,21 +396,18 @@ public partial class GitHubToolHandlers {
 
         // === expand=failed: 前置失败 job 汇总 + 按 job 分组拉失败步骤日志(走 LSM 缓存,wantRefresh 可强制刷新) ===
         if (string.Equals(opts.Expand, "failed", StringComparison.OrdinalIgnoreCase)) {
-            var jobs = await LogFilterRunner.GetOrFetchJobsAsync(repo.Owner, repo.Repo, target.RunId, wantRefresh, repo.Ct).ConfigureAwait(false);
-            var failedJobs = jobs.Where(j => j.Conclusion is "failure" or "timed_out" or "cancelled").ToList();
+            var (jobs, timeoutIds) = await GetJobsWithTimeoutIdsAsync(repo.Owner, repo.Repo, target.RunId, wantRefresh, repo.Ct).ConfigureAwait(false);
+            var failedJobs = jobs.Where(j => CiJobSeverityExtensions.FromConclusion(j.Conclusion, j.Status, timeoutIds.Contains(j.Id)).IsAnomaly()).ToList();
             if (failedJobs.Count == 0)
                 return Ok("无失败 job");
 
             var sb = new StringBuilder($"⚠️ 失败 job 汇总({failedJobs.Count} 个,先看全貌再修,禁止只修一个就 push):");
             foreach (var job in failedJobs) {
-                var marker = job.Conclusion switch {
-                    "failure" => "❌",
-                    "timed_out" => "⏱️",
-                    "cancelled" => "🚫",
-                    _ => "❌"
-                };
-                sb.Append($"\n  {marker}  {job.Name}  [{job.Conclusion}]");
+                var severity = CiJobSeverityExtensions.FromConclusion(job.Conclusion, job.Status, timeoutIds.Contains(job.Id));
+                sb.Append($"\n  {severity.Marker()}  {job.Name}  [{severity.ToConclusionDisplay(job.Conclusion)}]");
             }
+            if (timeoutIds.Count > 0)
+                sb.Append($"\n\n⏱ 超时 job 排查(共 {timeoutIds.Count} 个): 超过 timeout-minutes 上限被 GitHub 强制取消,非手动取消(依据 check-run annotation)。用 expand=steps job_id=<超时job的ID> 看步骤日志尾部: 日志停在半截=挂死(死锁/CPU无限自旋,查被测代码防御);日志持续推进到接近上限=纯慢(拆分任务或提高 timeout)");
 
             var perJobMaxLines = Math.Max(maxLines / failedJobs.Count, 50);
             // 并行拉取各失败 job 日志(对齐 expand=failures 的 Semaphore+并行模式,避免串行逐个 await)
@@ -486,20 +483,15 @@ public partial class GitHubToolHandlers {
     /// </summary>
     private async Task<string?> BuildFailedJobsSummaryAsync(string owner, string repo, string runId, bool wantRefresh, CancellationToken ct) {
         try {
-            var jobs = await LogFilterRunner.GetOrFetchJobsAsync(owner, repo, runId, wantRefresh, ct).ConfigureAwait(false);
+            var (jobs, timeoutIds) = await GetJobsWithTimeoutIdsAsync(owner, repo, runId, wantRefresh, ct).ConfigureAwait(false);
             var failedJobs = jobs
-                .Where(j => j.Conclusion is "failure" or "timed_out" or "cancelled")
+                .Where(j => CiJobSeverityExtensions.FromConclusion(j.Conclusion, j.Status, timeoutIds.Contains(j.Id)).IsAnomaly())
                 .ToList();
             if (failedJobs.Count == 0) return null;
             var sb = new StringBuilder($"⚠️ 失败 job 汇总({failedJobs.Count} 个,先看全貌再修,禁止只修一个就 push):");
             foreach (var job in failedJobs) {
-                var marker = job.Conclusion switch {
-                    "failure" => "❌",
-                    "timed_out" => "⏱️",
-                    "cancelled" => "🚫",
-                    _ => "❌"
-                };
-                sb.Append($"\n  {marker}  {job.Name}  [{job.Conclusion}]");
+                var severity = CiJobSeverityExtensions.FromConclusion(job.Conclusion, job.Status, timeoutIds.Contains(job.Id));
+                sb.Append($"\n  {severity.Marker()}  {job.Name}  [{severity.ToConclusionDisplay(job.Conclusion)}]");
             }
             return sb.ToString();
         } catch (JsonException) {
@@ -510,15 +502,26 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// 获取 job 列表 + 超时取消 ID 集合 — 组合 GetOrFetchJobsAsync + GetOrFetchTimeoutJobIdsAsync
+    /// <para>超时取消判定(check-run annotation)让 cancelled 区分超时/手动取消,5 处展示消费点统一走此入口,禁止散落重复探测</para>
+    /// </summary>
+    private async Task<(List<RunJobItemResponse> Jobs, HashSet<long> TimeoutIds)> GetJobsWithTimeoutIdsAsync(
+        string owner, string repo, string runId, bool wantRefresh, CancellationToken ct) {
+        var jobs = await LogFilterRunner.GetOrFetchJobsAsync(owner, repo, runId, wantRefresh, ct).ConfigureAwait(false);
+        var timeoutIds = await LogFilterRunner.GetOrFetchTimeoutJobIdsAsync(owner, repo, runId, jobs, wantRefresh, ct).ConfigureAwait(false);
+        return (jobs, timeoutIds);
+    }
+
+    /// <summary>
     /// expand=failures: 跨所有失败 job 并行提取失败测试详情(测试名+错误消息+栈帧)
     /// <para>一站式排障: 不需要先 expand=jobs → expand=steps → section:error 三步</para>
     /// <para>并行下载委托给 ExtractFailuresForJobsAsync(maxConcurrency=8),handler 只格式化输出</para>
     /// </summary>
     private async Task<ToolResult> ExtractAllFailuresAsync(
         GhRepoCtx repo, string runId, int maxLines, int skip, bool wantRefresh, CancellationToken ct) {
-        var jobs = await LogFilterRunner.GetOrFetchJobsAsync(repo.Owner, repo.Repo, runId, wantRefresh, ct).ConfigureAwait(false);
+        var (jobs, timeoutIds) = await GetJobsWithTimeoutIdsAsync(repo.Owner, repo.Repo, runId, wantRefresh, ct).ConfigureAwait(false);
         var failedJobs = jobs
-            .Where(j => j.Conclusion is "failure" or "timed_out" or "cancelled")
+            .Where(j => CiJobSeverityExtensions.FromConclusion(j.Conclusion, j.Status, timeoutIds.Contains(j.Id)).IsAnomaly())
             .ToList();
 
         if (failedJobs.Count == 0) return Ok("没有失败 job。", $"Run {runId} 失败汇总(0 job)");
@@ -538,15 +541,11 @@ public partial class GitHubToolHandlers {
             shown++;
 
             var failures = failuresByJob[job.Id];
-            var marker = job.Conclusion switch {
-                "failure" => "❌",
-                "timed_out" => "⏱️",
-                "cancelled" => "🚫",
-                _ => "❌"
-            };
+            var severity = CiJobSeverityExtensions.FromConclusion(job.Conclusion, job.Status, timeoutIds.Contains(job.Id));
+            var marker = severity.Marker();
 
             if (failures.Count == 0) {
-                sb.Append($"{marker} {job.Name}  [{job.Conclusion}]\n");
+                sb.Append($"{marker} {job.Name}  [{severity.ToConclusionDisplay(job.Conclusion)}]\n");
                 sb.Append("  └─ (无测试失败标记,可能是构建错误或 Permission denied)\n\n");
                 continue;
             }
@@ -692,30 +691,30 @@ public partial class GitHubToolHandlers {
         var isInProgress = string.Equals(status, "in_progress", StringComparison.OrdinalIgnoreCase);
         if (!isFailed && !isInProgress) return baseSummary;
 
-        // 通过 LogFilterRunner 获取 job 列表(走 LSM 缓存,避免重复 API 调用)
-        var jobsResp = await LogFilterRunner.GetOrFetchJobsAsync(owner, repo, runId, wantRefresh, ct).ConfigureAwait(false);
+        // 通过 LogFilterRunner 获取 job 列表(走 LSM 缓存,避免重复 API 调用) + 超时取消判定
+        var (jobsResp, timeoutIds) = await GetJobsWithTimeoutIdsAsync(owner, repo, runId, wantRefresh, ct).ConfigureAwait(false);
 
-        var jobs = new List<(long id, string name, string status, string conclusion)>();
+        var jobs = new List<(long id, string name, string status, string conclusion, bool isTimeout)>();
         foreach (var job in jobsResp) {
             var name = string.IsNullOrEmpty(job.Name) ? "unknown" : job.Name;
             var s = string.IsNullOrEmpty(job.Status) ? "?" : job.Status;
             var c = job.Conclusion ?? "";
-            jobs.Add((job.Id, name, s, c));
+            jobs.Add((job.Id, name, s, c, timeoutIds.Contains(job.Id)));
         }
 
         if (jobs.Count == 0) return baseSummary;
 
-        var anomalyJobs = jobs.Where(j => CiJobSeverityExtensions.FromConclusion(j.conclusion, j.status).IsAnomaly()).ToList();
-        var pendingJobs = jobs.Where(j => CiJobSeverityExtensions.FromConclusion(j.conclusion, j.status) == CiJobSeverity.Pending).ToList();
+        var anomalyJobs = jobs.Where(j => CiJobSeverityExtensions.FromConclusion(j.conclusion, j.status, j.isTimeout).IsAnomaly()).ToList();
+        var pendingJobs = jobs.Where(j => CiJobSeverityExtensions.FromConclusion(j.conclusion, j.status, j.isTimeout) == CiJobSeverity.Pending).ToList();
         // 无异常 job 时不需要附加(全部成功但 run 还在 in_progress 的情况已由 isInProgress 拦截)
         if (anomalyJobs.Count == 0 && pendingJobs.Count == 0) return baseSummary;
 
         var sb = new StringBuilder(baseSummary);
         sb.Append('\n').Append('\n');
 
-        // 状态机: 按 severity 分组,异常(failure>timed_out>cancelled)在前,进行中在后
+        // 状态机: 按 severity 分组,异常(错误>超时>取消)在前,进行中在后 — 超时取消升级为 ⏱ TimedOut 优先冒泡
         var grouped = jobs
-            .Select(j => (j.id, j.name, j.conclusion, severity: CiJobSeverityExtensions.FromConclusion(j.conclusion, j.status)))
+            .Select(j => (j.id, j.name, j.conclusion, severity: CiJobSeverityExtensions.FromConclusion(j.conclusion, j.status, j.isTimeout)))
             .Where(j => j.severity.IsAnomaly() || j.severity == CiJobSeverity.Pending)
             .OrderBy(j => j.severity.SortKey())
             .GroupBy(j => j.severity)
@@ -733,6 +732,10 @@ public partial class GitHubToolHandlers {
             foreach (var item in group)
                 sb.Append($"  {marker} {item.id,15}  {item.name}\n");
         }
+
+        var timeoutCount = jobs.Count(j => CiJobSeverityExtensions.FromConclusion(j.conclusion, j.status, j.isTimeout) == CiJobSeverity.TimedOut);
+        if (timeoutCount > 0)
+            sb.Append($"\n⏱ 超时 job 排查(共 {timeoutCount} 个): 超过 timeout-minutes 上限被 GitHub 强制取消,非手动取消(依据 check-run annotation)。用 expand=steps job_id=<超时job的ID> 看步骤日志尾部: 日志停在半截=挂死(死锁/CPU无限自旋,查被测代码防御);日志持续推进到接近上限=纯慢(拆分任务或提高 timeout)\n");
 
         sb.Append("\n📋 日志尚未拉取(按需阅读):\n");
         if (anomalyJobs.Count > 0)

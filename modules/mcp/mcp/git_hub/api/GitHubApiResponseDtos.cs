@@ -1145,6 +1145,19 @@ internal sealed class RunJobItemResponse {
     /// <summary>结论</summary>
     [JsonPropertyName("conclusion")]
     public string? Conclusion { get; init; }
+    /// <summary>check-run API URL — 尾段为 check_run_id,用于拉 annotations 探测超时取消(exceeded the maximum execution time)</summary>
+    [JsonPropertyName("check_run_url")]
+    public string? CheckRunUrl { get; init; }
+}
+
+/// <summary>Check-run annotation 项 — GET /check-runs/{id}/annotations 直接返回数组</summary>
+internal sealed class CheckRunAnnotationResponse {
+    /// <summary>注解级别(failure/warning/notice)</summary>
+    [JsonPropertyName("annotation_level")]
+    public string AnnotationLevel { get; init; } = "";
+    /// <summary>注解消息 — 超时取消判据: "The job has exceeded the maximum execution time of 35m0s"</summary>
+    [JsonPropertyName("message")]
+    public string Message { get; init; } = "";
 }
 
 /// <summary>CI 告警通知 — 后台监控发现新失败 job 时写入 LSM(gh:ci_alert: 前缀)供 AI 调阅</summary>

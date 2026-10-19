@@ -610,10 +610,31 @@ public sealed class CSharpCallExtractor {
 
     internal static string FindCallerFqn(Node node, List<MethodLookupEntry> methodLookup) {
         var line = node.StartPosition.Row + 1;
+        // 从二分命中位置向前回扫,处理区间重叠(嵌套方法)场景,语义与拆分前一致
+        for (var i = FindLastIndexByStartLine(methodLookup, line); i >= 0; i--) {
+            if (methodLookup[i].EndLine >= line) {
+                return methodLookup[i].Fqn;
+            }
+        }
+        return "<global>";
+    }
 
+    /// <summary>
+    /// 二分查找最后一个 StartLine &lt;= line 的条目索引 — 从 FindCallerFqn 拆出的纯函数(可直测)
+    /// <para>变异防御(#102 CodeIndex 超时根因二阶): 二分边界更新 `lo = mid + 1` 被变异
+    /// (+变-/删更新)后 mid==lo 时死循环。SpinWait.Count 守卫是框架内部计数器,
+    /// Stryker 单点变异无法破坏, 挂死变异被转换为异常 → 测试失败 → 变异体快速 Killed。</para>
+    /// <para>守卫上限 64: log2(10 亿)≈30, 正常二分永不触发。</para>
+    /// </summary>
+    /// <returns>命中条目索引; line 小于全部 StartLine 或列表为空返回 -1</returns>
+    internal static int FindLastIndexByStartLine(List<MethodLookupEntry> methodLookup, int line) {
         var lo = 0;
         var hi = methodLookup.Count;
+        var spin = new SpinWait();
         while (lo < hi) {
+            if (spin.Count >= 64) throw new InvalidOperationException(
+                $"FindLastIndexByStartLine 二分查找超过对数迭代上限(spin={spin.Count}, count={methodLookup.Count}), 判定边界更新被破坏(变异防御)");
+            spin.SpinOnce();
             var mid = (lo + hi) >>> 1;
             if (methodLookup[mid].StartLine <= line) {
                 lo = mid + 1;
@@ -621,14 +642,7 @@ public sealed class CSharpCallExtractor {
                 hi = mid;
             }
         }
-
-        for (var i = lo - 1; i >= 0; i--) {
-            if (methodLookup[i].EndLine >= line) {
-                return methodLookup[i].Fqn;
-            }
-        }
-
-        return "<global>";
+        return lo - 1;
     }
 
     internal static CallKind DetermineCallKind(Node invocationNode, string calleeName, HashSet<string> classNameSet, HashSet<string> interfaceNameSet, Dictionary<string, string> variableTypeMap) {

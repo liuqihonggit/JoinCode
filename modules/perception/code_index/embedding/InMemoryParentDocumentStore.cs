@@ -9,8 +9,8 @@ namespace JoinCode.CodeIndex.Embedding;
 public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IIndexStore, IDisposable {
 
     private readonly IKvStoreLeaseFactory _factory;
-    private volatile ImmutableHamT<string, ParentDocument> _documents = ImmutableHamT<string, ParentDocument>.Empty;
-    private volatile ImmutableHamT<string, ImmutableHashSet<string>> _fileToDocs = ImmutableHamT<string, ImmutableHashSet<string>>.Empty;
+    private ImmutableHamT<string, ParentDocument> _documents = ImmutableHamT<string, ParentDocument>.Empty;
+    private ImmutableHamT<string, ImmutableHashSet<string>> _fileToDocs = ImmutableHamT<string, ImmutableHashSet<string>>.Empty;
     private int _disposed;
     private static readonly byte[] KeyParentDocs = System.Text.Encoding.UTF8.GetBytes("parent-docs");
 
@@ -27,7 +27,7 @@ public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IIndexSt
     public IndexKind Kind => IndexKind.Parent;
 
     /// <summary>当前父文档数量。</summary>
-    public int Count => _documents.Count;
+    public int Count => Volatile.Read(ref _documents).Count;
 
     /// <summary>是否已就绪（有文档即就绪）。</summary>
     public bool IsReady => Count > 0;
@@ -42,48 +42,34 @@ public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IIndexSt
     public void AddRange(IReadOnlyList<ParentDocument> documents) {
         ArgumentNullException.ThrowIfNull(documents);
         if (documents.Count == 0) return;
-        var spin = new SpinWait();
-        while (true) {
-            var current = _documents;
+        CasRetry.Spin(ref _documents, current => {
             var updated = current;
             foreach (var doc in documents)
                 updated = updated.SetItem(doc.ChunkId, doc);
-            if (Interlocked.CompareExchange(ref _documents, updated, current) == current) break;
-            spin.SpinOnce();
-        }
-        while (true) {
-            var current = _fileToDocs;
+            return updated;
+        });
+        CasRetry.Spin(ref _fileToDocs, current => {
             var updated = current;
             foreach (var doc in documents) {
                 var existing = updated.TryGetValue(doc.FilePath, out var set) ? set : ImmutableHashSet<string>.Empty;
                 updated = updated.SetItem(doc.FilePath, existing.Add(doc.ChunkId));
             }
-            if (Interlocked.CompareExchange(ref _fileToDocs, updated, current) == current) break;
-            spin.SpinOnce();
-        }
+            return updated;
+        });
     }
 
     private void AddCore(string chunkId, ParentDocument doc, string filePath) {
-        var spin = new SpinWait();
-        while (true) {
-            var current = _documents;
-            var updated = current.SetItem(chunkId, doc);
-            if (Interlocked.CompareExchange(ref _documents, updated, current) == current) break;
-            spin.SpinOnce();
-        }
-        while (true) {
-            var current = _fileToDocs;
+        CasRetry.Spin(ref _documents, current => current.SetItem(chunkId, doc));
+        CasRetry.Spin(ref _fileToDocs, current => {
             var existing = current.TryGetValue(filePath, out var set) ? set : ImmutableHashSet<string>.Empty;
-            var updated = current.SetItem(filePath, existing.Add(chunkId));
-            if (Interlocked.CompareExchange(ref _fileToDocs, updated, current) == current) break;
-            spin.SpinOnce();
-        }
+            return current.SetItem(filePath, existing.Add(chunkId));
+        });
     }
 
     /// <summary>按 ChunkId 获取父文档 — 不存在返回 null。无锁读取。</summary>
     public ParentDocument? Get(string chunkId) {
         ArgumentNullException.ThrowIfNull(chunkId);
-        return _documents.TryGetValue(chunkId, out var doc) ? doc : null;
+        return Volatile.Read(ref _documents).TryGetValue(chunkId, out var doc) ? doc : null;
     }
 
     /// <summary>删除单个父文档。</summary>
@@ -91,46 +77,26 @@ public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IIndexSt
         ArgumentNullException.ThrowIfNull(chunkId);
         var doc = Get(chunkId);
         if (doc is null) return;
-        var spin = new SpinWait();
-        while (true) {
-            var current = _documents;
-            var updated = current.Remove(chunkId);
-            if (Interlocked.CompareExchange(ref _documents, updated, current) == current) break;
-            spin.SpinOnce();
-        }
-        while (true) {
-            var current = _fileToDocs;
-            if (!current.TryGetValue(doc.FilePath, out var docSet)) break;
+        CasRetry.Spin(ref _documents, current => current.Remove(chunkId));
+        CasRetry.Spin(ref _fileToDocs, current => {
+            if (!current.TryGetValue(doc.FilePath, out var docSet)) return current;
             var newSet = docSet.Remove(chunkId);
-            var updated = newSet.IsEmpty ? current.Remove(doc.FilePath) : current.SetItem(doc.FilePath, newSet);
-            if (Interlocked.CompareExchange(ref _fileToDocs, updated, current) == current) break;
-            spin.SpinOnce();
-        }
+            return newSet.IsEmpty ? current.Remove(doc.FilePath) : current.SetItem(doc.FilePath, newSet);
+        });
     }
 
     /// <summary>删除文件关联的所有父文档。</summary>
     public void RemoveFile(string filePath) {
         ArgumentNullException.ThrowIfNull(filePath);
-        if (!_fileToDocs.TryGetValue(filePath, out var docIds)) return;
-        var spin = new SpinWait();
-        while (true) {
-            var current = _documents;
-            var updated = current.RemoveRange(docIds);
-            if (Interlocked.CompareExchange(ref _documents, updated, current) == current) break;
-            spin.SpinOnce();
-        }
-        while (true) {
-            var current = _fileToDocs;
-            var updated = current.Remove(filePath);
-            if (Interlocked.CompareExchange(ref _fileToDocs, updated, current) == current) break;
-            spin.SpinOnce();
-        }
+        if (!Volatile.Read(ref _fileToDocs).TryGetValue(filePath, out var docIds)) return;
+        CasRetry.Spin(ref _documents, current => current.RemoveRange(docIds));
+        CasRetry.Spin(ref _fileToDocs, current => current.Remove(filePath));
     }
 
     /// <summary>清空所有父文档。</summary>
     public void Clear() {
-        _documents = ImmutableHamT<string, ParentDocument>.Empty;
-        _fileToDocs = ImmutableHamT<string, ImmutableHashSet<string>>.Empty;
+        Volatile.Write(ref _documents, ImmutableHamT<string, ParentDocument>.Empty);
+        Volatile.Write(ref _fileToDocs, ImmutableHamT<string, ImmutableHashSet<string>>.Empty);
     }
 
     /// <summary>
@@ -140,7 +106,7 @@ public sealed class InMemoryParentDocumentStore : IParentDocumentStore, IIndexSt
     /// <param name="ct">取消令牌。</param>
     public async Task SaveAsync(string dirPath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(dirPath);
-        var snapshot = _documents;
+        var snapshot = Volatile.Read(ref _documents);
 
         await using var ms = new MemoryStream();
         await using var bw = new BinaryWriter(ms, System.Text.Encoding.UTF8);

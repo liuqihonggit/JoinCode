@@ -24,6 +24,26 @@ public sealed class ReplView
     /// <summary>footer 状态（模式/busy/agents 提示/登录错误/通知）。</summary>
     public FooterState Footer { get; set; } = new();
 
+    /// <summary>
+    /// 内容总高度（inline 模式建屏用）— 消息全量高度 + 间隔 1 + 输入区 3 + footer 高度；
+    /// 屏高取此值时消息区恰好全量展示（无滚动窗口），历史自然滚入终端 scrollback。
+    /// </summary>
+    public int MeasureContentHeight(int cols) =>
+        Messages.MeasureContentHeight(cols) + 4 + _footer.MeasureHeight(Footer);
+
+    /// <summary>inline 模式尾部动态区行数（间隔 1 + 输入区 3 + footer 高度）— 退出清理用。</summary>
+    public int TailHeight => 4 + _footer.MeasureHeight(Footer);
+
+    /// <summary>
+    /// 输入光标内容坐标（inline 模式帧尾光标位）— 行 = 输入文本行（内容底上方 footer+2），
+    /// 列 = PromptWidth + cursorCol（钳制行宽，右缘即 pending wrap 状态）。
+    /// </summary>
+    public CursorPos InputCursorPos(int contentRows, int cols, int cursorCol)
+    {
+        var footerHeight = _footer.MeasureHeight(Footer);
+        return new CursorPos(Math.Min(cols, PromptInputBox.PromptWidth + cursorCol), contentRows - footerHeight - 2);
+    }
+
     /// <summary>渲染整屏（消息区 → 输入框 → footer）。</summary>
     public void Render(Screen screen, Theme theme)
     {

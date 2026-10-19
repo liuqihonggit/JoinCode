@@ -216,3 +216,29 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!-- 根因: 用户反馈"版本号/模型/工作路径/切换模式都要查数据再展示" — 原硬编码 2.1.303/Opus 5.5 -->
 <!-- 替代方案: 环境变量 NATIVETUI_MODEL(CLI 参数更常规); IPermissionService 接口注入(过度抽象, Demo 无真实权限系统) -->
 <!-- 验证: 417/417 测试全绿(+12: BackTab 解析 1/适配 2/循环器 9); Demo --selftest 退出码 0 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-20 (M6h: inline 渲染模式 — 可复制粘贴的架构正解, 用户反馈驱动) -->
+<!-- 根因: 用户"无法选择界面元素复制粘贴" — 原全屏双缓冲 diff 让整个视口成为永久动态区, -->
+<!--   内容永不进终端 scrollback, 选区被刷新破坏, 退出清屏一切消失; -->
+<!--   基准真相(fullscreen.ts:128): Claude Code 外部用户默认不开 alt-screen/鼠标捕获, -->
+<!--   走 inline 渲染(log-update.ts 主屏路径): 内容溢出自然滚入 scrollback 成为原生文本可复制 -->
+<!-- 决策1: InlineComposer 相对光标模型 — 终端滚动后绝对坐标不可知, 只有 CR/LF/CUU/CUB/CUF -->
+<!--   相对量可靠(对齐基准 VirtualScreen); 帧尾光标由调用方指定(frameEnd=输入位), 返回 -->
+<!--   nextCursor 供下帧传入, 全链路光标状态自洽 -->
+<!-- 决策2: 增长行 append 用 LF 前进 — CUD 在视口底会静默失败(clamp), LF 才能滚屏创建新行 -->
+<!--   (基准 renderFrameSlice 同款注释); 向上用 CUU(不会创建行) -->
+<!-- 决策3: 尺寸重建保留旧帧跨尺寸 diff(_prevOverride) — 消息增长(屏高变化)走 append 而非 -->
+<!--   全量重画; 宽度变/scrollback 行变更才 fullReset(EraseScreen 只清可见区, scrollback 历史保留) -->
+<!-- 决策4: 首帧无条件 CR — 启动光标物理列未知(提示符后), 归零起点; 首帧不清屏保留终端历史 -->
+<!-- 决策5: ↑↓/Ctrl+N/P inline 模式 no-op — 历史由终端滚轮原生回看(基准主屏行为); -->
+<!--   --viewport 参数保留旧全屏 diff 模式(未来 fullscreen Ctrl+O 基础) -->
+<!-- 决策6: CellDiffer 段扫描提取 ScanSegments 共享(行域取共有行 Min) — CellDiffer 绝对定位 -->
+<!--   与 InlineComposer 相对光标消费同一差分扫描, 消除复制粘贴 -->
+<!-- 决策7: 退出 WriteExit inline 只清尾部动态区(TailHeight 行), 历史留 scrollback 可复制 -->
+<!-- 替代方案: 启用鼠标捕获+自行实现选择复制(违背基准默认行为); 常驻 alt-screen(同前); -->
+<!--   每帧全量重画(带宽浪费, 选区更难存活) -->
+<!-- 验证: 428/428 测试全绿(+11: InlineComposer 9/MeasureContentHeight 2, CellDiffer 重构零回归); -->
+<!--   Demo --selftest 0(含新增 inline 链路冒烟: 首帧不清屏/增长 append/零变化零输出) + -->
+<!--   --bridge-selftest 0 ✅ -->
+<!-- M6h 手动验收(ADR 0080)待用户真实终端执行: NativeTui.Demo.exe — 鼠标选择 banner/消息 -->
+<!--   文本复制粘贴、Enter 回合动画、消息超屏后滚轮回看历史、退出后历史保留 -->

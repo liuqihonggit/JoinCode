@@ -44,6 +44,9 @@ public sealed class ScrollBox
     /// <summary>内容项数量。</summary>
     public int Count => _items.Count;
 
+    /// <summary>内容总高度（全部项按指定宽度测量求和）— inline 模式建屏（屏高 = 内容高）用。</summary>
+    public int MeasureContentHeight(int width) => _items.Sum(item => item.MeasureHeight(width));
+
     /// <summary>
     /// 在指定位置插入内容项 — REPL 尾部常驻项（spinner）场景：
     /// 新消息必须插到常驻项之前（Insert(Count - 1, msg)），保证常驻项始终最后。

@@ -100,4 +100,23 @@ public sealed class ReplViewTests
         Assert.Equal($"{Figures.MessageBullet} Read(src/main.rs)", RowText.Of(screen, 5, 0, 20).TrimEnd());
         Assert.Equal($"{Figures.ToolResultIndent}42 lines", RowText.Of(screen, 7, 0, 13).TrimEnd());
     }
+
+    [Fact]
+    public void MeasureContentHeight_MessagesPlusGapInputFooter()
+    {
+        var view = new ReplView { Footer = new FooterState { Mode = PermissionMode.Default } };
+        view.Messages.Add(new UserMessageItem("hello"));
+        view.Messages.Add(new UserMessageItem("world"));
+        // 消息 2×2 + 间隔 1 + 输入区 3 + footer 1 = 9
+        Assert.Equal(9, view.MeasureContentHeight(cols: 40));
+    }
+
+    [Fact]
+    public void MeasureContentHeight_TwoRowFooter_AddsOneRow()
+    {
+        var view = new ReplView { Footer = new FooterState { Notification = "◐ medium · /effort" } };
+        view.Messages.Add(new UserMessageItem("hello"));
+        // 消息 2 + 间隔 1 + 输入区 3 + footer 2 = 8
+        Assert.Equal(8, view.MeasureContentHeight(cols: 40));
+    }
 }

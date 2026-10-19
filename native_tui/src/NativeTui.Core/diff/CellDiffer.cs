@@ -38,7 +38,22 @@ public sealed class CellDiffer
     private static string RenderDiffFrame(Screen prev, Screen next)
     {
         var builder = new System.Text.StringBuilder();
-        for (var row = 0; row < next.Rows; row++)
+        foreach (var (row, startCol, endCol) in ScanSegments(prev, next))
+        {
+            AppendSegment(builder, next, row, startCol, endCol);
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// 扫描前后帧的连续变更段（行级合并）— CellDiffer（绝对定位）与 InlineComposer（相对光标）
+    /// 共享的差分扫描；段 = [startCol, endCol] 闭区间内 prev/next cell 不全等的连续区间；
+    /// 行域取共有行（InlineComposer 场景 prev/next 高度可不同，CellDiffer 场景恒等宽等高）。
+    /// </summary>
+    internal static IEnumerable<(int Row, int StartCol, int EndCol)> ScanSegments(Screen prev, Screen next)
+    {
+        for (var row = 0; row < Math.Min(prev.Rows, next.Rows); row++)
         {
             var col = 0;
             while (col < next.Cols)
@@ -55,11 +70,9 @@ public sealed class CellDiffer
                     col++;
                 }
 
-                AppendSegment(builder, next, row, segmentStart, col - 1);
+                yield return (row, segmentStart, col - 1);
             }
         }
-
-        return builder.ToString();
     }
 
     private static void AppendSegment(StringBuilder builder, Screen next, int row, int startCol, int endCol)

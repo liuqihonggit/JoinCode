@@ -29,6 +29,9 @@ public static class Csi
     /// <summary>擦除光标到行尾。</summary>
     public static string EraseLineToEnd() => "\x1b[0K";
 
+    /// <summary>整行擦除（inline 收缩清底部行）。</summary>
+    public static string EraseLine() => "\x1b[2K";
+
     /// <summary>设置滚动区（DECSTBM，基准用于 ScrollBox 硬件滚动优化）。</summary>
     public static string SetScrollRegion(int top, int bottom) => $"\x1b[{top};{bottom}r";
 

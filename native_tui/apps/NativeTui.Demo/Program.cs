@@ -9,17 +9,40 @@ namespace NativeTui.Demo;
 /// </summary>
 public static class Program
 {
-    /// <summary>入口 — 分发自检/bridge 自回环/交互模式。</summary>
-    public static int Main(string[] args) =>
-        args is ["--selftest"] ? RunSelftest()
-            : args is ["--bridge-selftest"] ? RunBridgeSelftest()
-            : args is ["--bridge-echo-child"] ? RunBridgeEchoChild()
-            : args is ["--bridge", string exePath] ? RunBridgeInteractive(exePath)
-            : args is ["--model", string model] ? RunInteractive(model)
-            : RunInteractive();
+    /// <summary>
+    /// 入口 — 全局选项扫描（--model &lt;name&gt; / --viewport）后按剩余位置参数分派：
+    /// 自检/bridge 自回环/bridge 交互/交互模式（默认 inline 渲染，--viewport 走旧全屏 diff 模式）。
+    /// </summary>
+    public static int Main(string[] args)
+    {
+        string? model = null;
+        var viewport = false;
+        var rest = new List<string>();
+        for (var i = 0; i < args.Length; i++)
+        {
+            if (args[i] == "--model" && i + 1 < args.Length)
+            {
+                model = args[++i];
+            }
+            else if (args[i] == "--viewport")
+            {
+                viewport = true;
+            }
+            else
+            {
+                rest.Add(args[i]);
+            }
+        }
 
-    /// <summary>交互模式：进 raw mode 跑主循环，退出时清屏复位。</summary>
-    private static int RunInteractive(string? model = null)
+        return rest.ToArray() is ["--selftest"] ? RunSelftest()
+            : rest is ["--bridge-selftest"] ? RunBridgeSelftest()
+            : rest is ["--bridge-echo-child"] ? RunBridgeEchoChild()
+            : rest is ["--bridge", string exePath] ? RunBridgeInteractive(exePath, model, viewport)
+            : RunInteractive(model, viewport);
+    }
+
+    /// <summary>交互模式：进 raw mode 跑主循环（inline 模式退出只清尾部动态区，历史留终端 scrollback）。</summary>
+    private static int RunInteractive(string? model = null, bool viewport = false)
     {
         if (Console.IsInputRedirected || Console.IsOutputRedirected)
         {
@@ -30,10 +53,9 @@ public static class Program
         Console.OutputEncoding = Encoding.UTF8;
         using var raw = new RawConsoleMode();
         var version = typeof(Program).Assembly.GetName().Version is { } v ? v.ToString(3) : "0.0.0";
-        var session = new SessionInfo(version, model ?? "Opus 5.5", "API Usage Billing", Environment.CurrentDirectory);
-        new DemoSession(session: session).Run();
-        Console.Out.Write(Sgr.Reset + Csi.EraseScreen() + Csi.CursorPosition(1, 1));
-        Console.Out.Flush();
+        var session = new DemoSession(session: new SessionInfo(version, model ?? "Opus 5.5", "API Usage Billing", Environment.CurrentDirectory), inline: !viewport);
+        session.Run();
+        session.WriteExit();
         Console.WriteLine("NativeTui.Demo 已退出。");
         return 0;
     }
@@ -41,9 +63,9 @@ public static class Program
     /// <summary>
     /// bridge 交互模式（ADR 0141 / ADR 0080 真实进程验收）— 拉起引擎子进程（stdio 管道），
     /// 主循环内排空事件 → ReplBridgeDriver 应用到视图；提交/打断写子进程 stdin。
-    /// 退出（Ctrl+C/闲时 Esc）：Dispose 发 quit → 引擎退出 → 清屏复位。
+    /// 退出（Ctrl+C/闲时 Esc）：Dispose 发 quit → 引擎退出 → inline 清尾部动态区（历史留 scrollback）。
     /// </summary>
-    private static int RunBridgeInteractive(string exePath)
+    private static int RunBridgeInteractive(string exePath, string? model = null, bool viewport = false)
     {
         if (Console.IsInputRedirected || Console.IsOutputRedirected)
         {
@@ -66,9 +88,10 @@ public static class Program
         {
             Console.OutputEncoding = Encoding.UTF8;
             using var raw = new RawConsoleMode();
-            new DemoSession(client).Run();
-            Console.Out.Write(Sgr.Reset + Csi.EraseScreen() + Csi.CursorPosition(1, 1));
-            Console.Out.Flush();
+            var version = typeof(Program).Assembly.GetName().Version is { } v ? v.ToString(3) : "0.0.0";
+            var session = new DemoSession(client, new SessionInfo(version, model ?? "Opus 5.5", "API Usage Billing", Environment.CurrentDirectory), inline: !viewport);
+            session.Run();
+            session.WriteExit();
         }
 
         Console.WriteLine("NativeTui.Demo bridge 会话已退出。");
@@ -223,7 +246,7 @@ public static class Program
         writer.Write('\n');
     }
 
-    /// <summary>自检模式：四组冒烟断言（无终端依赖，CI 可跑）。</summary>
+    /// <summary>自检模式：五组冒烟断言（无终端依赖，CI 可跑）。</summary>
     private static int RunSelftest()
     {
         var failures = new List<string>();
@@ -231,6 +254,7 @@ public static class Program
         SelftestStaticZeroOutput(failures);
         SelftestInputBuffer(failures);
         SelftestKeyPressParser(failures);
+        SelftestInlineChain(failures);
         if (failures.Count > 0)
         {
             foreach (var failure in failures)
@@ -241,8 +265,42 @@ public static class Program
             return 1;
         }
 
-        Console.WriteLine("SELFTEST OK — spinner 动画链路 / 静态零输出 / 输入编辑 全部通过");
+        Console.WriteLine("SELFTEST OK — spinner 动画链路 / 静态零输出 / 输入编辑 / inline 渲染链路 全部通过");
         return 0;
+    }
+
+    /// <summary>inline 渲染链路：首帧逐行写（不清屏）+ 增长 append + 零变化零输出。</summary>
+    private static void SelftestInlineChain(List<string> failures)
+    {
+        var pool = new StylePool();
+        using var screenA = new Screen(cols: 60, rows: 6, sharedStyles: pool);
+        using var screenB = new Screen(cols: 60, rows: 8, sharedStyles: pool);
+        var view = new ReplView();
+        view.Messages.Add(new AssistantMessageItem("inline frame"));
+        var composer = new InlineComposer();
+
+        view.Render(screenA, Theme.Dark);
+        var first = composer.Compose(prev: null, screenA, viewportRows: 24, prevCursor: new(0, 0), frameEndCursor: view.InputCursorPos(screenA.Rows, screenA.Cols, 0), out var cursor);
+        if (first.Length == 0 || first.Contains(Csi.EraseScreen()) || !first.Contains("inline frame"))
+        {
+            failures.Add("inline 首帧: 期望逐行写且不清屏且含消息文本");
+        }
+
+        var view2 = new ReplView();
+        view2.Messages.Add(new AssistantMessageItem("inline frame"));
+        view2.Messages.Add(new AssistantMessageItem("appended row"));
+        view2.Render(screenB, Theme.Dark);
+        var grown = composer.Compose(screenA, screenB, viewportRows: 24, cursor, view2.InputCursorPos(screenB.Rows, screenB.Cols, 0), out _);
+        if (grown.Length == 0 || grown.Contains(Csi.EraseScreen()) || !grown.Contains("appended row"))
+        {
+            failures.Add("inline 增长: 期望 append 新行且不清屏");
+        }
+
+        var steady = view2.InputCursorPos(screenB.Rows, screenB.Cols, 0);
+        if (composer.Compose(screenB, screenB, viewportRows: 24, steady, steady, out _) is { Length: > 0 })
+        {
+            failures.Add("inline 零变化: 期望零输出");
+        }
     }
 
     /// <summary>spinner 动画链路：首帧全量（EraseScreen + 消息可见），后续帧 glyph 变化非空。</summary>
@@ -409,16 +467,29 @@ internal sealed class DemoSession
     private long _turnStartMs;
     private bool _running = true;
 
-    /// <summary>创建会话（传 client 进入 bridge 模式：回合由引擎事件驱动）。</summary>
-    public DemoSession(BridgeClient? client = null, SessionInfo? session = null)
+    /// <summary>创建会话（传 client 进入 bridge 模式：回合由引擎事件驱动；inline 走 log-update 主屏渲染）。</summary>
+    public DemoSession(BridgeClient? client = null, SessionInfo? session = null, bool inline = true)
     {
         _client = client;
+        _inline = inline;
         _session = session ?? new SessionInfo("0.0.0", "Opus 5.5", "API Usage Billing", Environment.CurrentDirectory);
         _driver = client is null ? null : new ReplBridgeDriver(_view, _spinner);
     }
 
     /// <summary>会话信息（banner 真实数据源）。</summary>
     private readonly SessionInfo _session;
+
+    /// <summary>inline（主屏 log-update）渲染模式 — 默认；false = 视口全屏 diff（--viewport 旧模式）。</summary>
+    private readonly bool _inline;
+
+    /// <summary>inline 帧组装器。</summary>
+    private readonly InlineComposer _inlineComposer = new();
+
+    /// <summary>inline 模式上一帧尾光标（内容坐标）。</summary>
+    private CursorPos _cursor;
+
+    /// <summary>inline 模式尺寸重建后的旧帧（跨尺寸 diff：增长走 append、宽度变走 fullReset）。</summary>
+    private Screen? _prevOverride;
 
     /// <summary>主循环 — 每拍：排空键盘 → 推进回合（模拟或 bridge）→ 渲染差分上屏 → 对齐 50ms。</summary>
     public void Run()
@@ -579,10 +650,19 @@ internal sealed class DemoSession
                 _input.Right();
                 break;
             case KeyKind.UpArrow:
-                _view.Messages.ScrollBy(-3);
+                // inline 模式历史由终端滚轮原生回看（基准主屏行为），无视口滚动
+                if (!_inline)
+                {
+                    _view.Messages.ScrollBy(-3);
+                }
+
                 break;
             case KeyKind.DownArrow:
-                _view.Messages.ScrollBy(3);
+                if (!_inline)
+                {
+                    _view.Messages.ScrollBy(3);
+                }
+
                 break;
             case KeyKind.Home:
                 _input.Home();
@@ -641,10 +721,18 @@ internal sealed class DemoSession
                 _input.KillToLineEnd();
                 break;
             case "n":
-                _view.Messages.ScrollBy(3);
+                if (!_inline)
+                {
+                    _view.Messages.ScrollBy(3);
+                }
+
                 break;
             case "p":
-                _view.Messages.ScrollBy(-3);
+                if (!_inline)
+                {
+                    _view.Messages.ScrollBy(-3);
+                }
+
                 break;
             case "u":
                 _input.KillToLineStart();
@@ -819,7 +907,7 @@ internal sealed class DemoSession
         _spinner.HasActiveTools = false;
     }
 
-    /// <summary>渲染一帧并差分上屏：双缓冲 ping-pong，尺寸变化/首帧走全量，光标落输入位。</summary>
+    /// <summary>渲染一帧并差分上屏：inline 走相对光标 + append（历史滚入 scrollback）；视口走绝对定位 diff。</summary>
     private void RenderAndFlush()
     {
         EnsureScreens();
@@ -830,31 +918,69 @@ internal sealed class DemoSession
         _view.Input = _input.Text;
         _view.CursorCol = _input.CursorCol;
         _view.Render(_back, _theme);
-        var output = _composer.Compose(_frontValid ? _front : null, _back);
-        if (output.Length > 0)
+        if (_inline)
         {
-            Console.Out.Write(output);
+            var viewportRows = Math.Max(8, Console.WindowHeight);
+            var frameEnd = _view.InputCursorPos(_back.Rows, _back.Cols, _input.CursorCol);
+            var prev = _frontValid ? _front : _prevOverride;
+            var output = _inlineComposer.Compose(prev, _back, viewportRows, _cursor, frameEnd, out _cursor);
+            _prevOverride = null;
+            if (output.Length > 0)
+            {
+                Console.Out.Write(Csi.SynchronizedOutputBegin() + output + Csi.SynchronizedOutputEnd());
+            }
+        }
+        else
+        {
+            var output = _composer.Compose(_frontValid ? _front : null, _back);
+            if (output.Length > 0)
+            {
+                Console.Out.Write(output);
+            }
+
+            PositionCursor();
         }
 
-        PositionCursor();
         Console.Out.Flush();
         (_front, _back) = (_back, _front);
         _frontValid = true;
     }
 
-    /// <summary>尺寸变化（含首帧）成对重建双缓冲；全量标志触发首帧 EraseScreen。</summary>
+    /// <summary>
+    /// 尺寸计算（含首帧）成对重建双缓冲 — inline 屏高 = 内容总高（消息全量展示，可超视口），
+    /// 重建时保留旧帧跨尺寸 diff（增长 append / 宽度变 fullReset）；视口模式屏高 = 终端行数。
+    /// </summary>
     private void EnsureScreens()
     {
         var cols = Math.Max(20, Console.WindowWidth);
-        var rows = Math.Max(8, Console.WindowHeight);
+        var rows = _inline
+            ? Math.Max(8, _view.MeasureContentHeight(cols))
+            : Math.Max(8, Console.WindowHeight);
         if (_back is not null && cols == _back.Cols && rows == _back.Rows)
         {
             return;
         }
 
+        _prevOverride = _inline && _frontValid ? _front : null;
         _front = new Screen(cols, rows, sharedStyles: _pool);
         _back = new Screen(cols, rows, sharedStyles: _pool);
         _frontValid = false;
+    }
+
+    /// <summary>退出输出 — inline：清尾部动态区（间隔+输入区+footer），历史留终端 scrollback 可复制；视口：清屏复位。</summary>
+    public void WriteExit()
+    {
+        if (!_inline)
+        {
+            Console.Out.Write(Sgr.Reset + Csi.EraseScreen() + Csi.CursorPosition(1, 1));
+            Console.Out.Flush();
+            return;
+        }
+
+        // 光标在输入位（上帧 frameEnd）→ 上移 2 行到顶线 → 清 TailHeight 行 → 内容底行换行
+        var tail = _view.TailHeight;
+        Console.Out.Write(Sgr.Reset + Csi.CursorUp(2) + "\r" + string.Concat(Enumerable.Repeat(Csi.EraseLine() + "\r\n", tail - 1)) + Csi.EraseLine() + "\r\n");
+        Console.Out.Flush();
     }
 
     /// <summary>终端光标落到输入文本行（0 基 Rows-2 → 1 基 Rows-1），列随编辑偏移。</summary>

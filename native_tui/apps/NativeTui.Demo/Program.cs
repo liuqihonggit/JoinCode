@@ -38,6 +38,7 @@ public static class Program
         SelftestSpinnerChain(failures);
         SelftestStaticZeroOutput(failures);
         SelftestInputBuffer(failures);
+        SelftestKeyPressParser(failures);
         if (failures.Count > 0)
         {
             foreach (var failure in failures)
@@ -130,6 +131,31 @@ public static class Program
             failures.Add($"输入编辑: 期望 hi@1 实际 {buffer.Text}@{buffer.CursorCol}");
         }
     }
+
+    /// <summary>按键解码冒烟：方向键/Ctrl/Meta 序列 + kill ring 编辑链。</summary>
+    private static void SelftestKeyPressParser(List<string> failures)
+    {
+        var span = "\u001b[D".AsSpan();
+        if (!KeyPressParser.TryParseNext(ref span, out var left) || left.Kind != KeyKind.LeftArrow)
+        {
+            failures.Add($"按键解码: ESC[D 期望 LeftArrow 实际 {left?.Kind}");
+        }
+
+        var ctrlSpan = "\u0015".AsSpan();
+        if (!KeyPressParser.TryParseNext(ref ctrlSpan, out var ctrlU) || !ctrlU.Ctrl || ctrlU.Input != "u")
+        {
+            failures.Add($"按键解码: Ctrl+U 期望 Ctrl/u 实际 {ctrlU?.Ctrl}/{ctrlU?.Input}");
+        }
+
+        KillRing.Clear();
+        var buffer = InputBuffer.Of("hello world", cursorCol: 6);
+        buffer.KillWordBefore();
+        buffer.Yank();
+        if (buffer.Text != "hello world" || buffer.CursorCol != 6)
+        {
+            failures.Add($"kill/yank: 期望 hello world@6 实际 {buffer.Text}@{buffer.CursorCol}");
+        }
+    }
 }
 
 /// <summary>
@@ -201,7 +227,7 @@ internal sealed class DemoSession
     private void AddMessage(IScrollItem item) =>
         _view.Messages.Insert(_view.Messages.Count - 1, item);
 
-    /// <summary>排空键盘事件（非阻塞）。</summary>
+    /// <summary>排空键盘事件（非阻塞）— ReadKey 归一 KeyPress 后统一分派。</summary>
     private void DrainInput()
     {
         while (_running && Console.KeyAvailable)
@@ -210,67 +236,217 @@ internal sealed class DemoSession
         }
     }
 
-    /// <summary>按键分派：控制键走编辑/滚动，可打印字符插入，Ctrl+C/Esc 退出/打断。</summary>
-    private void HandleKey(ConsoleKeyInfo key)
+    /// <summary>按键归一 + 分派（对齐基准 useTextInput.mapKey 优先级顺序）。</summary>
+    private void HandleKey(ConsoleKeyInfo keyInfo)
     {
-        if (key.KeyChar == '\u0003')
+        var key = ConsoleKeyAdapter.ToKeyPress(keyInfo);
+        if (key is null)
         {
-            _running = false;
             return;
         }
 
-        switch (key.Key)
+        HandleKeyPress(key);
+    }
+
+    /// <summary>按键分派 — Emacs 编辑（Ctrl/Meta 词操作 + kill ring）优先，控制键走编辑/滚动，字符插入。</summary>
+    private void HandleKeyPress(KeyPress key)
+    {
+        if (key.Kind == KeyKind.Escape)
         {
-            case ConsoleKey.Enter:
+            HandleEscape();
+            return;
+        }
+
+        if (key.Ctrl && key.Kind is KeyKind.LeftArrow or KeyKind.RightArrow)
+        {
+            MoveWord(key.Kind == KeyKind.LeftArrow ? -1 : 1);
+            return;
+        }
+
+        if (key.Kind == KeyKind.Backspace)
+        {
+            if (key.Meta || key.Ctrl)
+            {
+                _input.KillWordBefore();
+            }
+            else
+            {
+                _input.Backspace();
+            }
+
+            return;
+        }
+
+        if (key.Kind == KeyKind.Delete)
+        {
+            if (key.Meta)
+            {
+                _input.KillToLineEnd();
+            }
+            else
+            {
+                _input.Delete();
+            }
+
+            return;
+        }
+
+        if (key.Ctrl && key.Kind == KeyKind.Char)
+        {
+            HandleCtrlKey(key.Input);
+            return;
+        }
+
+        if (key.Meta && key.Kind == KeyKind.Char)
+        {
+            HandleMetaKey(key.Input);
+            return;
+        }
+
+        switch (key.Kind)
+        {
+            case KeyKind.Return:
                 Submit();
                 break;
-            case ConsoleKey.Backspace:
-                _input.Backspace();
-                break;
-            case ConsoleKey.Delete:
-                _input.Delete();
-                break;
-            case ConsoleKey.LeftArrow:
+            case KeyKind.LeftArrow:
                 _input.Left();
                 break;
-            case ConsoleKey.RightArrow:
+            case KeyKind.RightArrow:
                 _input.Right();
                 break;
-            case ConsoleKey.Home:
-                _input.Home();
-                break;
-            case ConsoleKey.End:
-                _input.End();
-                break;
-            case ConsoleKey.UpArrow:
+            case KeyKind.UpArrow:
                 _view.Messages.ScrollBy(-3);
                 break;
-            case ConsoleKey.DownArrow:
+            case KeyKind.DownArrow:
                 _view.Messages.ScrollBy(3);
                 break;
-            case ConsoleKey.Escape:
-                HandleEscape();
+            case KeyKind.Home:
+                _input.Home();
                 break;
-            default:
-                if (key.KeyChar >= ' ')
+            case KeyKind.End:
+                _input.End();
+                break;
+            case KeyKind.Char:
+                if (key.Input.Length == 1)
                 {
-                    _input.Insert(key.KeyChar);
+                    _input.Insert(key.Input[0]);
                 }
 
+                break;
+            default:
+                // Tab/PageUp/PageDown/Unknown — 输入域 no-op（对齐基准）
                 break;
         }
     }
 
-    /// <summary>Esc：忙时打断当前回合，闲时退出。</summary>
+    /// <summary>Ctrl 组合分派（对齐基准 handleCtrl 表）。</summary>
+    private void HandleCtrlKey(string name)
+    {
+        switch (name)
+        {
+            case "a":
+                _input.Home();
+                break;
+            case "b":
+                _input.Left();
+                break;
+            case "c":
+                _running = false;
+                break;
+            case "d":
+                if (_input.Text.Length == 0)
+                {
+                    _running = false;
+                }
+                else
+                {
+                    _input.Delete();
+                }
+
+                break;
+            case "e":
+                _input.End();
+                break;
+            case "f":
+                _input.Right();
+                break;
+            case "h":
+                _input.Backspace();
+                break;
+            case "k":
+                _input.KillToLineEnd();
+                break;
+            case "n":
+                _view.Messages.ScrollBy(3);
+                break;
+            case "p":
+                _view.Messages.ScrollBy(-3);
+                break;
+            case "u":
+                _input.KillToLineStart();
+                break;
+            case "w":
+                _input.KillWordBefore();
+                break;
+            case "y":
+                _input.Yank();
+                break;
+            default:
+                break;
+        }
+    }
+
+    /// <summary>Meta/Alt 组合分派（对齐基准 handleMeta 表）。</summary>
+    private void HandleMetaKey(string name)
+    {
+        switch (name)
+        {
+            case "b":
+                MoveWord(-1);
+                break;
+            case "f":
+                MoveWord(1);
+                break;
+            case "d":
+                _input.KillWordAfter();
+                break;
+            case "y":
+                _input.YankPop();
+                break;
+            default:
+                break;
+        }
+    }
+
+    /// <summary>词移动统一入口。</summary>
+    private void MoveWord(int direction)
+    {
+        if (direction < 0)
+        {
+            _input.WordLeft();
+        }
+        else
+        {
+            _input.WordRight();
+        }
+    }
+
+    /// <summary>Esc：忙时打断当前回合；闲时有输入清空（对齐基准双击清空的单击近似），无输入退出。</summary>
     private void HandleEscape()
     {
-        if (_phase == TurnPhase.Idle)
+        if (_phase != TurnPhase.Idle)
         {
-            _running = false;
+            FinishTurn(interrupted: true);
             return;
         }
 
-        FinishTurn(interrupted: true);
+        if (_input.Text.Length > 0)
+        {
+            _input.Clear();
+            return;
+        }
+
+        _running = false;
     }
 
     /// <summary>提交输入：空文本忽略；否则追加用户消息并开始模拟回合。</summary>

@@ -1,6 +1,6 @@
 # TASK055: TUI 像素级对齐 Claude Code — 自研渲染框架
 
-> 状态: in-progress（M1 未开始）
+> 状态: in-progress（M1.1 ✅ 工程骨架 / M1.2 ✅ ANSI 序列库 / M1.3+ 未开始）
 > 日期: 2026-10-20
 > ADR: [0140 自研 TUI 渲染框架](../adr/0140-native-tui-self-rendered-pixel-alignment.md)
 > 对齐基准: `D:\project\claude-code-rust\claude-code-rev-main\src\`（下称"基准源码"）
@@ -84,11 +84,22 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 2. **L2 截图像素级**（M6+）：Windows Terminal 同场景截图（新 TUI vs Claude Code）→ 对齐 → 逐像素 diff → 差异报告 → 差异回流 L1 固化
 3. **L3 动画帧级**（M5+）：`IVirtualClock` 注入，第 N 帧渲染结果必须等于期望帧（spinner 120ms/shimmer 50ms/60fps 渲染节流各成用例）
 
-## 5. ⚠️ 待定决策：bridge 引擎接入方式（阻塞 M6，不阻塞 M1-M5）
+## 5. ✅ 已定决策：bridge 引擎接入方式 = 进程协议（用户 2026-10-20 确认）
 
-- 选项 1：**进程协议** — native_tui.exe 通过 stdio JSON / 本地 socket 与 jcc.exe 通信，完全解耦（清理 modules 后仅需协议契约），对齐"CLI 纯非交互 + TUI 承担交互"的职责分离方向
-- 选项 2：**进程内引用** — 直接引用 abstractions/engine 项目，简单但与 modules 耦合，未来清理需处理
-- M1-M5（纯渲染框架+组件）不依赖此决策，可先行
+- native_tui.exe 通过 **stdio JSON / 本地 socket** 与 jcc.exe 通信，完全解耦
+  （清理 modules 后仅需协议契约，双方可独立演进）；
+- 对齐"CLI 纯非交互 + TUI 承担交互"的职责分离方向；
+- 权限确认 / ask_user 交互走协议回调（TUI 端弹窗 → 协议响应 → 引擎继续）；
+- 协议契约（消息 schema）在 M6 用 ADR + DTO 双向转换落地（遵守 JSON DTO 规范）；
+- 放弃的替代方案：进程内引用 abstractions/engine（与 modules 耦合，清理时被牵连）。
+
+## 5.1 ✅ 已定决策：构建隔离 = native_tui/Directory.Build.props 遮蔽根部
+
+- MSBuild `Directory.Build.props` 就近优先：`native_tui/Directory.Build.props` 完全遮蔽仓库根部配置；
+- 自带全套规范（net10.0 / Nullable / TreatWarningsAsErrors / InvariantGlobalization / AOT 兼容），
+  但**不引用** Structura、不引用 JCC 生成器 analyzer（切断全部 modules 依赖）；
+- 输出路径独立：`native_tui/artifacts/`（不污染根 artifacts）；
+- 效果：把 `native_tui/` 目录整体搬走仍可独立编译（SDK 版本依赖机器默认，nuget 用默认源）。
 
 ## 6. 验收四列表（AGENTS.md 强制）
 

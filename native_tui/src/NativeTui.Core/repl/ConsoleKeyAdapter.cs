@@ -23,11 +23,13 @@ public static class ConsoleKeyAdapter
         }
 
         // 功能键按 Key 枚举映射（KeyChar 通常为 '\0' 或 ESC）
+        // Tab + Shift 归一 BackTab（VT 路径 ESC[Z 的 ReadKey 退化形态）
         var kind = info.Key switch
         {
             ConsoleKey.Enter => KeyKind.Return,
             ConsoleKey.Backspace => KeyKind.Backspace,
             ConsoleKey.Delete => KeyKind.Delete,
+            ConsoleKey.Tab when shift => KeyKind.BackTab,
             ConsoleKey.Tab => KeyKind.Tab,
             ConsoleKey.Escape => KeyKind.Escape,
             ConsoleKey.LeftArrow => KeyKind.LeftArrow,

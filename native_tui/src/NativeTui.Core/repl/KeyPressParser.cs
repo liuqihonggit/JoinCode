@@ -223,6 +223,7 @@ public static class KeyPressParser
             'D' => KeyPress.Named(KeyKind.LeftArrow),
             'H' => KeyPress.Named(KeyKind.Home),
             'F' => KeyPress.Named(KeyKind.End),
+            'Z' => KeyPress.Named(KeyKind.BackTab, shift: true),
             '~' when number == 1 => KeyPress.Named(KeyKind.Home),
             '~' when number == 3 => KeyPress.Named(KeyKind.Delete),
             '~' when number == 4 => KeyPress.Named(KeyKind.End),

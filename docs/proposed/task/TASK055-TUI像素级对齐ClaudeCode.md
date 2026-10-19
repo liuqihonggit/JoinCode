@@ -203,3 +203,16 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!--   commit 6ed7cc51e(泵+驱动) + M6e-2c(对接, 本 commit) -->
 <!-- M6e-2 手动验收(ADR 0080)待用户真实终端执行: NativeTui.Demo.exe --bridge <引擎exe路径> -->
 <!-- 剩余: jcc.exe 服务端事件泵(LLM 流式管道 → BridgeEvent) — M6 完结, M7 截图校准/高亮/diff/权限对话框 -->
+
+<!-- 🤖 Auto Decision: 2026-10-20 (M6g: banner 真实数据源 + Shift+Tab 权限模式循环, 用户反馈驱动) -->
+<!-- 决策1: Shift+Tab 双路径归一 BackTab — VT 路径 ESC[Z(KeyPressParser BuildSimple 'Z') + -->
+<!--   ReadKey 路径 Tab+Shift 修饰(ConsoleKeyAdapter), Kind 统一 BackTab 消费方无感 -->
+<!-- 决策2: PermissionModeCycler 静态纯函数(放 PermissionMode.cs 同文件) — 对齐基准 -->
+<!--   getNextPermissionMode.ts 非 ant 链 default→acceptEdits→plan→bypass→auto→default, -->
+<!--   bypass/auto 可用性参数化(isBypassPermissionsModeAvailable/canCycleToAuto), Demo 模拟全开 -->
+<!-- 决策3: SessionInfo record 为 banner 唯一数据源 — 版本查程序集(VersionPrefix 1.0.0)、 -->
+<!--   cwd 进程快照、模型 --model 参数可配置(默认 Opus 5.5 模拟值)、计费模拟配置(无真实登录态); -->
+<!--   bridge 模式未来由引擎 session_info 事件提供(留待协议扩展) -->
+<!-- 根因: 用户反馈"版本号/模型/工作路径/切换模式都要查数据再展示" — 原硬编码 2.1.303/Opus 5.5 -->
+<!-- 替代方案: 环境变量 NATIVETUI_MODEL(CLI 参数更常规); IPermissionService 接口注入(过度抽象, Demo 无真实权限系统) -->
+<!-- 验证: 417/417 测试全绿(+12: BackTab 解析 1/适配 2/循环器 9); Demo --selftest 退出码 0 ✅ -->

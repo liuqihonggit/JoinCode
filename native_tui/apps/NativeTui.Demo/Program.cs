@@ -15,10 +15,11 @@ public static class Program
             : args is ["--bridge-selftest"] ? RunBridgeSelftest()
             : args is ["--bridge-echo-child"] ? RunBridgeEchoChild()
             : args is ["--bridge", string exePath] ? RunBridgeInteractive(exePath)
+            : args is ["--model", string model] ? RunInteractive(model)
             : RunInteractive();
 
     /// <summary>交互模式：进 raw mode 跑主循环，退出时清屏复位。</summary>
-    private static int RunInteractive()
+    private static int RunInteractive(string? model = null)
     {
         if (Console.IsInputRedirected || Console.IsOutputRedirected)
         {
@@ -28,7 +29,9 @@ public static class Program
 
         Console.OutputEncoding = Encoding.UTF8;
         using var raw = new RawConsoleMode();
-        new DemoSession().Run();
+        var version = typeof(Program).Assembly.GetName().Version is { } v ? v.ToString(3) : "0.0.0";
+        var session = new SessionInfo(version, model ?? "Opus 5.5", "API Usage Billing", Environment.CurrentDirectory);
+        new DemoSession(session: session).Run();
         Console.Out.Write(Sgr.Reset + Csi.EraseScreen() + Csi.CursorPosition(1, 1));
         Console.Out.Flush();
         Console.WriteLine("NativeTui.Demo 已退出。");
@@ -348,6 +351,16 @@ public static class Program
 }
 
 /// <summary>
+/// 会话信息 — banner 真实数据源（版本查程序集、cwd 查进程、模型/计费为启动配置，
+/// bridge 模式未来由引擎 session_info 事件提供）。
+/// </summary>
+/// <param name="Version">程序集版本（major.minor.build）。</param>
+/// <param name="Model">模型名（--model 参数或模拟默认）。</param>
+/// <param name="Billing">计费方式（模拟配置，无真实登录态可查）。</param>
+/// <param name="WorkingDirectory">当前工作目录（进程 cwd 快照）。</param>
+internal sealed record SessionInfo(string Version, string Model, string Billing, string WorkingDirectory);
+
+/// <summary>
 /// demo 会话 — 持有全部运行时状态（视图/输入/双缓冲/回合状态机），
 /// 主循环每 50ms 一拍：排空键盘 → 推进回合（模拟状态机或 bridge 事件排空）→ 渲染差分上屏 → 帧率对齐。
 /// bridge 模式（传入 BridgeClient）：回合生命周期由引擎事件驱动（ReplBridgeDriver 应用），
@@ -397,11 +410,15 @@ internal sealed class DemoSession
     private bool _running = true;
 
     /// <summary>创建会话（传 client 进入 bridge 模式：回合由引擎事件驱动）。</summary>
-    public DemoSession(BridgeClient? client = null)
+    public DemoSession(BridgeClient? client = null, SessionInfo? session = null)
     {
         _client = client;
+        _session = session ?? new SessionInfo("0.0.0", "Opus 5.5", "API Usage Billing", Environment.CurrentDirectory);
         _driver = client is null ? null : new ReplBridgeDriver(_view, _spinner);
     }
+
+    /// <summary>会话信息（banner 真实数据源）。</summary>
+    private readonly SessionInfo _session;
 
     /// <summary>主循环 — 每拍：排空键盘 → 推进回合（模拟或 bridge）→ 渲染差分上屏 → 对齐 50ms。</summary>
     public void Run()
@@ -435,7 +452,7 @@ internal sealed class DemoSession
             LoginError = "Not logged in · Run /login",
             Notification = $"{Figures.EffortMedium} medium · /effort",
         };
-        _view.Messages.Add(new BannerItem("2.1.303", "Opus 5.5", "API Usage Billing", Environment.CurrentDirectory));
+        _view.Messages.Add(new BannerItem(_session.Version, _session.Model, _session.Billing, _session.WorkingDirectory));
         if (_client is null)
         {
             _view.Messages.Add(new UserMessageItem("这个 TUI 是像素级对齐 Claude Code 的自研实现吗？"));
@@ -551,6 +568,9 @@ internal sealed class DemoSession
         {
             case KeyKind.Return:
                 Submit();
+                break;
+            case KeyKind.BackTab:
+                CyclePermissionMode();
                 break;
             case KeyKind.LeftArrow:
                 _input.Left();
@@ -701,6 +721,13 @@ internal sealed class DemoSession
 
     /// <summary>回合进行中（模拟：阶段非空闲；bridge：driver.IsBusy）。</summary>
     private bool IsBusy => _client is null ? _phase != TurnPhase.Idle : _driver!.IsBusy;
+
+    /// <summary>Shift+Tab 循环权限模式（对齐基准 shift+tab carousel；Demo 模拟环境 bypass/auto 开关全开）。</summary>
+    private void CyclePermissionMode() =>
+        _view.Footer = _view.Footer with
+        {
+            Mode = PermissionModeCycler.Next(_view.Footer.Mode, bypassAvailable: true, autoAvailable: true),
+        };
 
     /// <summary>提交输入：空文本忽略；否则追加用户消息并开始回合（模拟状态机或引擎提交）。</summary>
     private void Submit()

@@ -57,3 +57,24 @@ public static class PermissionModeInfo
         _ => theme.Text,
     };
 }
+
+/// <summary>
+/// 权限模式循环器 — 对齐基准 getNextPermissionMode.ts（Shift+Tab carousel，非 ant 链）：
+/// default → acceptEdits → plan → bypassPermissions → auto → default；
+/// bypass/auto 按可用性短路（不可用即跳过），任何未知/未来模式回 default。
+/// </summary>
+public static class PermissionModeCycler
+{
+    /// <summary>计算下一个权限模式（bypass/auto 可用性开关对齐基准 isBypassPermissionsModeAvailable / canCycleToAuto）。</summary>
+    public static PermissionMode Next(PermissionMode current, bool bypassAvailable, bool autoAvailable) => current switch
+    {
+        PermissionMode.Default => PermissionMode.AcceptEdits,
+        PermissionMode.AcceptEdits => PermissionMode.Plan,
+        PermissionMode.Plan => bypassAvailable ? PermissionMode.BypassPermissions
+            : autoAvailable ? PermissionMode.Auto
+            : PermissionMode.Default,
+        PermissionMode.BypassPermissions => autoAvailable ? PermissionMode.Auto : PermissionMode.Default,
+        PermissionMode.DontAsk => PermissionMode.Default,
+        _ => PermissionMode.Default,
+    };
+}

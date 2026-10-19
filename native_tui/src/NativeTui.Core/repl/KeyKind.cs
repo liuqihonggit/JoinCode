@@ -24,6 +24,9 @@ public enum KeyKind
     /// <summary>Tab（\t）。</summary>
     Tab,
 
+    /// <summary>Shift+Tab（ESC[Z，ReadKey 路径 Tab+Shift 归一）— 权限模式循环键。</summary>
+    BackTab,
+
     /// <summary>左方向键。</summary>
     LeftArrow,
 

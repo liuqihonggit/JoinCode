@@ -61,6 +61,14 @@ public sealed class KeyPressParserTests
     }
 
     [Fact]
+    public void EscZ_ParsesAsBackTab()
+    {
+        var key = ParseOne("\x1b[Z");
+        Assert.Equal(KeyKind.BackTab, key.Kind);
+        Assert.True(key.Shift);
+    }
+
+    [Fact]
     public void Del_ParsesAsBackspace()
     {
         var key = ParseOne("\u007f");

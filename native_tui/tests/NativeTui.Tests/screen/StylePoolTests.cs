@@ -1,4 +1,4 @@
-namespace NativeTui.Tests.Screen;
+namespace NativeTui.Tests.ScreenTests;
 
 /// <summary>
 /// Color 值语义测试 — Default/Rgb/Ansi256 三态与相等性。

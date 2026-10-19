@@ -242,3 +242,13 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!--   --bridge-selftest 0 ✅ -->
 <!-- M6h 手动验收(ADR 0080)待用户真实终端执行: NativeTui.Demo.exe — 鼠标选择 banner/消息 -->
 <!--   文本复制粘贴、Enter 回合动画、消息超屏后滚轮回看历史、退出后历史保留 -->
+
+<!-- 🤖 Auto Decision: 2026-10-20 (M6h-2: QuickEdit 保留修复 — 鼠标选择复制的最后一环) -->
+<!-- 根因: 用户验收"显示正常但鼠标无法框选" — ToRawInput 禁用了 ENABLE_QUICK_EDIT_MODE; -->
+<!--   conhost 宿主(explorer 启动默认窗口)下 QuickEdit 是鼠标选择唯一机制, 禁用即无法选择; -->
+<!--   Windows Terminal 不受此位影响(WT 原生选择)但用户环境落在 conhost -->
+<!-- 决策: QuickEdit/EXTENDED 保留原状(仅清 Processed/Line/Echo) — 对齐基准 Node 行为 -->
+<!--   (Node readline raw mode 不碰 QuickEdit); 副作用=QuickEdit 选择期间 conhost 暂停 -->
+<!--   程序输出(Write 阻塞), 取消选择后恢复, 与基准 Claude Code 一致 -->
+<!-- 替代方案: 保持禁用+要求用户用 Windows Terminal(违背"可复制"诉求, 环境不可控) -->
+<!-- 验证: 428/428 全绿(ToRawInput 期望更新); selftest 0 ✅ 待用户 conhost 真机复验 -->

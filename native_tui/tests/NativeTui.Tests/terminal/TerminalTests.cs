@@ -58,21 +58,20 @@ public sealed class FrameComposerTests
 public sealed class ConsoleModeMathTests
 {
     [Fact]
-    public void ToRawInput_ClearsLineEchoProcessedAndQuickEdit()
+    public void ToRawInput_ClearsLineEchoProcessed_KeepsQuickEdit()
     {
         // 典型默认 stdin：PROCESSED|LINE|ECHO|WINDOW|MOUSE|QUICK_EDIT|EXTENDED (0x1F7)
         const uint typical = 0x1 | 0x2 | 0x4 | 0x8 | 0x10 | 0x40 | 0x80;
         var raw = ConsoleModeMath.ToRawInput(typical);
-        // 行/回显/处理输入清零；窗口/鼠标事件保留；QUICK_EDIT 清零、EXTENDED 强制置位
-        Assert.Equal(0x8u | 0x10u | 0x80u, raw);
+        // 行/回显/处理输入清零；QuickEdit/EXTENDED 保留原样（对齐基准 Node 行为：
+        // conhost 宿主下 QuickEdit 是鼠标选择复制的唯一机制，禁用即无法选择）
+        Assert.Equal(0x8u | 0x10u | 0x40u | 0x80u, raw);
     }
 
     [Fact]
-    public void ToRawInput_ForcesExtendedFlagsWhenMissing()
+    public void ToRawInput_MinimalMode_OnlyClearsRawBits()
     {
-        // 无 EXTENDED 位时也强制加上（QuickEdit 禁用生效的前提）
-        var raw = ConsoleModeMath.ToRawInput(0x7);
-        Assert.Equal(0x80u, raw);
+        Assert.Equal(0u, ConsoleModeMath.ToRawInput(0x7));
     }
 
     [Fact]

@@ -2,7 +2,8 @@ namespace NativeTui.Core.Terminal;
 
 /// <summary>
 /// Windows raw 控制台模式 — 进入时保存 stdin/stdout 原模式并切换
-/// （输入：raw 化清除行缓冲/回显/CTRL 处理 + 禁 QuickEdit；输出：启用 VT 处理），
+/// （输入：raw 化清除行缓冲/回显/CTRL 处理，QuickEdit 保留原状 — conhost 宿主下
+/// 鼠标选择复制依赖 QuickEdit，对齐基准 Node 行为；输出：启用 VT 处理），
 /// Dispose 恢复原模式。非 Windows 平台抛 <see cref="PlatformNotSupportedException"/>（跨平台驱动属后续里程碑）。
 /// </summary>
 public sealed class RawConsoleMode : IDisposable

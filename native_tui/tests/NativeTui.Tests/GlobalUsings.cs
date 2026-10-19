@@ -1,5 +1,6 @@
 global using System.Text;
 global using NativeTui.Core.Ansi;
+global using NativeTui.Core.Components;
 global using NativeTui.Core.Diff;
 global using NativeTui.Core.Figures;
 global using NativeTui.Core.Grid;

@@ -25,6 +25,40 @@ public sealed class BridgeJsonContractTests {
     }
 
     [Fact]
+    public void Serialize_SetPermissionMode_CarriesModeField() {
+        var json = JsonSerializer.Serialize(
+            new CliBridge.BridgeRequest.SetPermissionMode("unattended"), CliBridge.BridgeJsonContext.Safe.BridgeRequest);
+        Assert.Equal("{\"type\":\"set_permission_mode\",\"mode\":\"unattended\"}", json);
+    }
+
+    [Fact]
+    public void Serialize_SessionInfo_CarriesCamelCaseFields() {
+        var json = JsonSerializer.Serialize(
+            new CliBridge.BridgeEvent.SessionInfo("2.1.303", "glm-4.7", "plan", false, "D:\\engine"),
+            CliBridge.BridgeJsonContext.Safe.BridgeEvent);
+        Assert.Equal(
+            "{\"type\":\"session_info\",\"version\":\"2.1.303\",\"model\":\"glm-4.7\",\"permissionMode\":\"plan\",\"bypassAvailable\":false,\"cwd\":\"D:\\\\engine\"}",
+            json);
+    }
+
+    [Fact]
+    public void Serialize_SessionInfoWithoutModel_ModelIsNull() {
+        var json = JsonSerializer.Serialize(
+            new CliBridge.BridgeEvent.SessionInfo("1.0.0", null, "auto", true, "C:\\wd"),
+            CliBridge.BridgeJsonContext.Safe.BridgeEvent);
+        Assert.Equal(
+            "{\"type\":\"session_info\",\"version\":\"1.0.0\",\"model\":null,\"permissionMode\":\"auto\",\"bypassAvailable\":true,\"cwd\":\"C:\\\\wd\"}",
+            json);
+    }
+
+    [Fact]
+    public void Serialize_PermissionModeChanged_CarriesMode() {
+        var json = JsonSerializer.Serialize(
+            new CliBridge.BridgeEvent.PermissionModeChanged("bypass"), CliBridge.BridgeJsonContext.Safe.BridgeEvent);
+        Assert.Equal("{\"type\":\"permission_mode_changed\",\"mode\":\"bypass\"}", json);
+    }
+
+    [Fact]
     public void Serialize_MarkerEvents_HaveTypeOnly() {
         var cases = new (CliBridge.BridgeEvent Event, string Expected)[] {
             (new CliBridge.BridgeEvent.TurnStarted(), "{\"type\":\"turn_started\"}"),

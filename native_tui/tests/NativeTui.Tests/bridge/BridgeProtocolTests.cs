@@ -27,6 +27,48 @@ public sealed class BridgeProtocolTests
     }
 
     [Fact]
+    public void WriteRequest_SetPermissionMode_CarriesModeField()
+    {
+        var writer = new StringWriter();
+        BridgeProtocol.WriteRequest(writer, new BridgeRequest.SetPermissionMode("plan"));
+        Assert.Equal("{\"type\":\"set_permission_mode\",\"mode\":\"plan\"}\n", writer.ToString());
+    }
+
+    [Fact]
+    public void ReadEvent_SessionInfo_ParsesEngineHandshake()
+    {
+        var reader = new StringReader("{\"type\":\"session_info\",\"version\":\"2.1.303\",\"model\":\"glm-4.7\",\"permissionMode\":\"plan\",\"bypassAvailable\":false,\"cwd\":\"D:\\\\engine\"}\n");
+        var result = BridgeProtocol.TryReadEvent(reader, out var @event, out var diagnostic);
+        Assert.Equal(BridgeReadResult.Event, result);
+        var info = Assert.IsType<BridgeEvent.SessionInfo>(@event);
+        Assert.Equal("2.1.303", info.Version);
+        Assert.Equal("glm-4.7", info.Model);
+        Assert.Equal("plan", info.PermissionMode);
+        Assert.False(info.BypassAvailable);
+        Assert.Equal(@"D:\engine", info.Cwd);
+        Assert.Null(diagnostic);
+    }
+
+    [Fact]
+    public void ReadEvent_SessionInfoWithoutModel_ParsesNullModel()
+    {
+        var reader = new StringReader("{\"type\":\"session_info\",\"version\":\"1.0.0\",\"model\":null,\"permissionMode\":\"auto\",\"bypassAvailable\":true,\"cwd\":\"C:\\\\wd\"}\n");
+        BridgeProtocol.TryReadEvent(reader, out var @event, out _);
+        var info = Assert.IsType<BridgeEvent.SessionInfo>(@event);
+        Assert.Null(info.Model);
+        Assert.True(info.BypassAvailable);
+    }
+
+    [Fact]
+    public void ReadEvent_PermissionModeChanged_CarriesMode()
+    {
+        var reader = new StringReader("{\"type\":\"permission_mode_changed\",\"mode\":\"unattended\"}\n");
+        BridgeProtocol.TryReadEvent(reader, out var @event, out _);
+        var changed = Assert.IsType<BridgeEvent.PermissionModeChanged>(@event);
+        Assert.Equal("unattended", changed.Mode);
+    }
+
+    [Fact]
     public void WriteRequest_AppendsNewlineDelimiter()
     {
         var writer = new StringWriter();
@@ -194,6 +236,8 @@ public sealed class BridgeProtocolTests
     {
         BridgeEvent[] events =
         [
+            new BridgeEvent.SessionInfo("2.1.303", null, "auto", false, @"D:\engine"),
+            new BridgeEvent.PermissionModeChanged("bypass"),
             new BridgeEvent.TurnStarted(),
             new BridgeEvent.ThinkingStarted(),
             new BridgeEvent.ThinkingEnded(4321),

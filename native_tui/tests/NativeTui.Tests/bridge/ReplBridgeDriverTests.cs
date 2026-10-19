@@ -2,6 +2,8 @@ namespace NativeTui.Tests.Bridge;
 
 /// <summary>
 /// bridge 事件 → REPL 视图应用器测试 — ADR 0141 事件语义的唯一翻译层：
+/// 会话握手（session_info 更新 banner 真实数据 + footer 模式 + bypass 可用性）、
+/// 权限模式回执（permission_mode_changed 更新 footer）、
 /// 回合生命周期（busy/spinner 模式/复位）、消息事件插到 spinner 前、
 /// token_delta 累加、错误消息项、spinner 恒为滚动区末项。
 /// </summary>
@@ -9,12 +11,64 @@ public sealed class ReplBridgeDriverTests
 {
     private readonly ReplView _view = new();
     private readonly SpinnerItem _spinner = new();
+    private readonly BannerItem _banner = new("0.0.0", "占位模型", "API 按量计费", @"C:\placeholder");
     private readonly ReplBridgeDriver _driver;
 
     public ReplBridgeDriverTests()
     {
-        _driver = new ReplBridgeDriver(_view, _spinner);
+        _driver = new ReplBridgeDriver(_view, _spinner, _banner);
+        _view.Messages.Add(_banner);
         _view.Messages.Add(_spinner);
+    }
+
+    [Fact]
+    public void Apply_SessionInfo_UpdatesBannerWithEngineData()
+    {
+        _driver.Apply(new BridgeEvent.SessionInfo("2.1.303", "glm-4.7", "plan", BypassAvailable: false, @"D:\engine\cwd"));
+
+        Assert.Equal("2.1.303", _banner.Version);
+        Assert.Equal("glm-4.7", _banner.Model);
+        Assert.Equal(@"D:\engine\cwd", _banner.Cwd);
+        Assert.Equal(PermissionMode.Plan, _view.Footer.Mode);
+        Assert.False(_driver.BypassAvailable);
+    }
+
+    [Fact]
+    public void Apply_SessionInfoWithoutModel_ShowsNotSetPlaceholder()
+    {
+        _driver.Apply(new BridgeEvent.SessionInfo("2.1.303", null, "auto", BypassAvailable: true, @"D:\wd"));
+
+        Assert.Equal("当前模型未设置", _banner.Model);
+        Assert.Equal(PermissionMode.Auto, _view.Footer.Mode);
+        Assert.True(_driver.BypassAvailable);
+    }
+
+    [Fact]
+    public void Apply_SessionInfoWithUnknownMode_KeepsFooterMode()
+    {
+        _view.Footer = _view.Footer with { Mode = PermissionMode.Ask };
+
+        _driver.Apply(new BridgeEvent.SessionInfo("2.1.303", null, "warp-drive", BypassAvailable: true, @"D:\wd"));
+
+        Assert.Equal(PermissionMode.Ask, _view.Footer.Mode);
+    }
+
+    [Fact]
+    public void Apply_PermissionModeChanged_UpdatesFooterMode()
+    {
+        _driver.Apply(new BridgeEvent.PermissionModeChanged("bypass"));
+
+        Assert.Equal(PermissionMode.Bypass, _view.Footer.Mode);
+    }
+
+    [Fact]
+    public void Apply_PermissionModeChangedWithUnknownValue_KeepsFooterMode()
+    {
+        _view.Footer = _view.Footer with { Mode = PermissionMode.Plan };
+
+        _driver.Apply(new BridgeEvent.PermissionModeChanged("teleport"));
+
+        Assert.Equal(PermissionMode.Plan, _view.Footer.Mode);
     }
 
     [Fact]
@@ -127,9 +181,11 @@ public sealed class ReplBridgeDriverTests
     [Fact]
     public void Apply_UnknownFutureEvent_DerivedTypeCoverageIsExhaustiveByConstruction()
     {
-        // 全部 10 种事件类型逐一应用不抛异常（switch 穷尽由编译器保证）
+        // 全部 12 种事件类型逐一应用不抛异常（switch 穷尽由编译器保证）
         BridgeEvent[] all =
         [
+            new BridgeEvent.SessionInfo("1.0.0", "m", "auto", true, "C:\\"),
+            new BridgeEvent.PermissionModeChanged("plan"),
             new BridgeEvent.TurnStarted(),
             new BridgeEvent.ThinkingStarted(),
             new BridgeEvent.ThinkingEnded(100),

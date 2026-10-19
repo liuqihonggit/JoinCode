@@ -45,6 +45,10 @@ public sealed class BridgeClient : IDisposable
     public void Interrupt() =>
         BridgeProtocol.WriteRequest(_process.StandardInput, new BridgeRequest.Interrupt());
 
+    /// <summary>切换权限模式（mode 为协议值 plan/auto/ask/bypass/unattended；生效值以引擎回执事件为准）。</summary>
+    public void SetPermissionMode(string mode) =>
+        BridgeProtocol.WriteRequest(_process.StandardInput, new BridgeRequest.SetPermissionMode(mode));
+
     /// <summary>排空事件队列（返回本次取出的全部事件）。</summary>
     public IReadOnlyList<BridgeEvent> DrainEvents() => _pump.DrainEvents();
 

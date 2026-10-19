@@ -39,4 +39,41 @@ public sealed class BridgeServeCommandTests {
         ex.Should().BeOfType<OperationCanceledException>()
             .Which.Message.Should().Contain("权限确认");
     }
+
+    [Fact]
+    public void BuildSessionInfo_FastModeModelWins_ThenOptionsFallback_ThenNull() {
+        var fastMode = new FakeFastModeService("glm-4.7");
+
+        var withFastMode = BridgeServeCommand.BuildSessionInfo(null, fastMode, new CommandLineOptions { Model = "fallback-model" });
+        withFastMode.Model.Should().Be("glm-4.7");
+
+        var withOptionsFallback = BridgeServeCommand.BuildSessionInfo(null, new FakeFastModeService(""), new CommandLineOptions { Model = "cli-model" });
+        withOptionsFallback.Model.Should().Be("cli-model");
+
+        var withNothing = BridgeServeCommand.BuildSessionInfo(null, new FakeFastModeService(" "), new CommandLineOptions());
+        withNothing.Model.Should().BeNull();
+    }
+
+    [Fact]
+    public void BuildSessionInfo_WithoutChecker_DefaultsToAutoAndBypassAvailable() {
+        var info = BridgeServeCommand.BuildSessionInfo(null, null, new CommandLineOptions());
+
+        info.PermissionMode.Should().Be("auto");
+        info.BypassAvailable.Should().BeTrue();
+        info.Version.Should().NotBeNullOrEmpty();
+        info.Cwd.Should().NotBeNullOrEmpty();
+    }
+
+    /// <summary>FastModeService 假实现（仅 PrimaryModelId 参与 session_info 组装）。</summary>
+    private sealed class FakeFastModeService(string primaryModelId) : IFastModeService {
+        public bool IsFastModeActive => false;
+        public string FastModelId => string.Empty;
+        public string PrimaryModelId => primaryModelId;
+        public event EventHandler<FastModeChangedEventArgs>? FastModeChanged { add { } remove { } }
+        public void Activate() { }
+        public void Deactivate() { }
+        public void Toggle() { }
+        public void SetFastModel(string modelId) { }
+        public void SetPrimaryModel(string modelId) { }
+    }
 }

@@ -5,6 +5,7 @@ namespace JoinCode.CliCommands;
 /// stdin 逐行读 BridgeRequest，stdout 逐行写 BridgeEvent；回合任务与读循环并发
 /// （interrupt 可随时到达）。submit → turn_started + 回合执行 + turn_completed；
 /// interrupt → 取消回合 → turn_interrupted；忙时 submit → error 诱导提示；
+/// set_permission_mode → 权限应用器（解析+闸门）→ permission_mode_changed 回执（实际生效值）；
 /// 未知 type → stderr 诊断不中断；quit/Eof → 取消在途回合收尾后退出。
 /// 回合内部事件（thinking/tool/token/assistant_message）由 BridgeEventConsumer 实时推送，
 /// 回合生命周期事件（started/completed/interrupted/error）由本循环统一发出。
@@ -17,16 +18,27 @@ internal static class BridgeServeLoop {
     /// <param name="ct">回合取消令牌（interrupt 触发）</param>
     public delegate Task TurnExecutor(string input, IEventConsumer consumer, CancellationToken ct);
 
+    /// <summary>
+    /// 权限模式应用器 — 解析协议字符串并应用到引擎权限系统，返回实际生效模式；
+    /// 未知值 / 引擎未提供权限系统返回 null（loop 发 error 诱导事件）。
+    /// </summary>
+    /// <param name="mode">协议字符串（plan/auto/ask/bypass/unattended）</param>
+    public delegate PermissionMode? PermissionModeApplier(string mode);
+
+    /// <summary>合法权限模式值清单（error 诱导提示用，与 abs_guard [EnumValue] 一致）。</summary>
+    private const string ValidPermissionModes = "plan, auto, ask, bypass, unattended";
+
     /// <summary>支持的退出码 — 正常退出（quit/Eof/外部取消均收尾后返回 0）。</summary>
     private const int ExitOk = 0;
 
-    /// <summary>运行协议主循环直到 quit/Eof/外部取消。</summary>
+    /// <summary>运行协议主循环直到 quit/Eof/外部取消（applyPermissionMode 为 null 时 set_permission_mode 回 error 诱导提示）。</summary>
     public static async Task<int> RunAsync(
         TextReader stdin,
         TextWriter stdout,
         TextWriter stderr,
         TurnExecutor executeTurn,
-        CancellationToken ct) {
+        CancellationToken ct,
+        PermissionModeApplier? applyPermissionMode = null) {
         var synced = TextWriter.Synchronized(stdout);
         var consumer = new BridgeEventConsumer(synced);
         CancellationTokenSource? turnCts = null;
@@ -44,7 +56,7 @@ internal static class BridgeServeLoop {
                     break;
                 default:
                     if (request is not null)
-                        (exit, turnCts, turnTask) = DispatchRequest(request, synced, consumer, executeTurn, turnCts, turnTask);
+                        (exit, turnCts, turnTask) = DispatchRequest(request, synced, consumer, executeTurn, applyPermissionMode, turnCts, turnTask);
                     break;
             }
         }
@@ -56,12 +68,13 @@ internal static class BridgeServeLoop {
         return ExitOk;
     }
 
-    /// <summary>分派单条请求：submit 起新回合（忙时拒绝）/ interrupt 取消 / quit 退出。</summary>
+    /// <summary>分派单条请求：submit 起新回合（忙时拒绝）/ interrupt 取消 / set_permission_mode 权限应用 / quit 退出。</summary>
     private static (bool Exit, CancellationTokenSource? TurnCts, Task? TurnTask) DispatchRequest(
         Cli.Bridge.BridgeRequest request,
         TextWriter stdout,
         BridgeEventConsumer consumer,
         TurnExecutor executeTurn,
+        PermissionModeApplier? applyPermissionMode,
         CancellationTokenSource? turnCts,
         Task? turnTask) {
         switch (request) {
@@ -79,11 +92,29 @@ internal static class BridgeServeLoop {
             case Cli.Bridge.BridgeRequest.Interrupt:
                 turnCts?.Cancel();
                 return (false, turnCts, turnTask);
+            case Cli.Bridge.BridgeRequest.SetPermissionMode(var mode):
+                ApplyPermissionMode(stdout, applyPermissionMode, mode);
+                return (false, turnCts, turnTask);
             case Cli.Bridge.BridgeRequest.Quit:
                 return (true, turnCts, turnTask);
             default:
                 return (false, turnCts, turnTask);
         }
+    }
+
+    /// <summary>
+    /// 应用权限模式：成功 → permission_mode_changed 回执（实际生效值 — 安全闸拦截时与请求值不同）；
+    /// 未知值 / 引擎未提供权限系统 → error 诱导事件（合法值清单 + bypass 安全闸说明）。
+    /// </summary>
+    private static void ApplyPermissionMode(TextWriter stdout, PermissionModeApplier? applyPermissionMode, string mode) {
+        var applied = applyPermissionMode?.Invoke(mode);
+        if (applied is { } actual) {
+            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.PermissionModeChanged(actual.ToValue()));
+            return;
+        }
+
+        WriteEvent(stdout, new Cli.Bridge.BridgeEvent.Error(
+            $"权限模式 '{mode}' 无法应用（未知值或引擎未提供权限系统）。合法值：{ValidPermissionModes}。bypass 受 settings.json 的 disableBypassPermissionsMode 安全闸管控，被拦截时保持原模式。"));
     }
 
     /// <summary>执行一个回合：turn_started → executor（事件实时推送）→ completed/interrupted/error。</summary>

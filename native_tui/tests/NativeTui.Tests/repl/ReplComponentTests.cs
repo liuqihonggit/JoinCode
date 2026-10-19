@@ -147,35 +147,59 @@ public sealed class PromptInputBoxTests
 }
 
 /// <summary>
-/// 底部状态栏 golden 测试 — 像素级对齐基准 PromptInputFooter：
-/// 行1 左侧 PromptInputFooterLeftSide（激活模式 `{symbol} {title} on` 模式色 + dim ` (shift+tab to cycle)`
-/// + busy dim ` · esc to interrupt` / 非 busy agents 导航提示 dim ` · ← for agents`（v2.1.303 实测）；
-/// 默认模式 dim `? for shortcuts`）；行1 右侧 Notifications 登录错误（error 色右对齐）；
-/// 行2 右侧通知（如 effort `◐ medium · /effort`，dim 右对齐，Notification 非空时占行）。
+/// 底部状态栏 golden 测试 — 像素级对齐基准 PromptInputFooter（文案汉化 + jcc 引擎模式集合）：
+/// 行1 左侧（激活模式 `{symbol} {中文标题} 已开启` 模式色 + dim `（shift+tab 切换）`
+/// + busy dim ` · esc 打断` / 非 busy agents 导航提示 dim ` · {AgentsHint}`）；
+/// 标准模式（auto，引擎默认）dim `? 查看快捷键`（busy 时 `esc 打断`）；
+/// 行1 右侧 Notifications 登录错误（error 色右对齐）；
+/// 行2 右侧通知（dim 右对齐，Notification 非空时占行）。
 /// </summary>
 public sealed class FooterBarTests
 {
     [Fact]
-    public void AcceptEditsMode_SymbolTitleOnWithCycleHint()
+    public void PlanMode_SymbolTitleOnWithCycleHint()
     {
         using var screen = new Screen(cols: 60, rows: 1);
         var footer = new FooterBar();
-        footer.Render(screen, new Rect(0, 0, 60, 1), Theme.Dark, new FooterState { Mode = PermissionMode.AcceptEdits });
-        var modeStyle = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.AutoAccept });
+        footer.Render(screen, new Rect(0, 0, 60, 1), Theme.Dark, new FooterState { Mode = PermissionMode.Plan });
+        var modeStyle = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.PlanMode });
         var text = RowText.Of(screen, 0, 0, 60).TrimEnd();
-        Assert.StartsWith("⏵⏵ accept edits on", text);
-        Assert.Contains("(shift+tab to cycle)", text);
+        Assert.StartsWith("⏸ 计划模式 已开启", text);
+        Assert.Contains("（shift+tab 切换）", text);
         Assert.Equal(modeStyle, screen[0, 0].StyleId);
     }
 
     [Fact]
-    public void DefaultMode_ShortcutsHintDim()
+    public void BypassMode_ErrorColorSymbolTitle()
+    {
+        using var screen = new Screen(cols: 60, rows: 1);
+        var footer = new FooterBar();
+        footer.Render(screen, new Rect(0, 0, 60, 1), Theme.Dark, new FooterState { Mode = PermissionMode.Bypass });
+        var error = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.Error });
+        var text = RowText.Of(screen, 0, 0, 60).TrimEnd();
+        Assert.StartsWith("⏵⏵ 全放行 已开启", text);
+        Assert.Equal(error, screen[0, 0].StyleId);
+    }
+
+    [Fact]
+    public void AutoMode_ShortcutsHintDim()
     {
         using var screen = new Screen(cols: 60, rows: 1);
         var footer = new FooterBar();
         footer.Render(screen, new Rect(0, 0, 60, 1), Theme.Dark, new FooterState());
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
-        Assert.Equal("? for shortcuts", RowText.Of(screen, 0, 0, 60).TrimEnd());
+        Assert.Equal("? 查看快捷键", RowText.Of(screen, 0, 0, 60).TrimEnd());
+        Assert.Equal(dim, screen[0, 0].StyleId);
+    }
+
+    [Fact]
+    public void AutoModeBusy_InterruptHintDim()
+    {
+        using var screen = new Screen(cols: 60, rows: 1);
+        var footer = new FooterBar();
+        footer.Render(screen, new Rect(0, 0, 60, 1), Theme.Dark, new FooterState { Busy = true });
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        Assert.Equal("esc 打断", RowText.Of(screen, 0, 0, 60).TrimEnd());
         Assert.Equal(dim, screen[0, 0].StyleId);
     }
 
@@ -184,22 +208,21 @@ public sealed class FooterBarTests
     {
         using var screen = new Screen(cols: 60, rows: 1);
         var footer = new FooterBar();
-        footer.Render(screen, new Rect(0, 0, 60, 1), Theme.Dark, new FooterState { Mode = PermissionMode.AcceptEdits, Busy = true });
+        footer.Render(screen, new Rect(0, 0, 60, 1), Theme.Dark, new FooterState { Mode = PermissionMode.Ask, Busy = true });
         var text = RowText.Of(screen, 0, 0, 60).TrimEnd();
-        Assert.StartsWith("⏵⏵ accept edits on", text);
-        Assert.Contains(" · esc to interrupt", text);
+        Assert.StartsWith("⏵⏵ 询问模式 已开启", text);
+        Assert.Contains(" · esc 打断", text);
     }
 
     [Fact]
-    public void AutoMode_WarningColorAndAgentsHintSuffix()
+    public void UnattendedMode_WarningColorAndAgentsHintSuffix()
     {
         using var screen = new Screen(cols: 80, rows: 1);
         var footer = new FooterBar();
-        footer.Render(screen, new Rect(0, 0, 80, 1), Theme.Dark, new FooterState { Mode = PermissionMode.Auto, AgentsHint = "← for agents" });
+        footer.Render(screen, new Rect(0, 0, 80, 1), Theme.Dark, new FooterState { Mode = PermissionMode.Unattended, AgentsHint = "← agents" });
         var warning = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.Warning });
         var text = RowText.Of(screen, 0, 0, 80).TrimEnd();
-        // v2.1.303 实测：auto mode on (shift+tab to cycle) · ← for agents
-        Assert.Equal("⏵⏵ auto mode on (shift+tab to cycle) · ← for agents", text);
+        Assert.Equal("⏵⏵ 无人值守 已开启（shift+tab 切换） · ← agents", text);
         Assert.Equal(warning, screen[0, 0].StyleId);
     }
 
@@ -208,11 +231,11 @@ public sealed class FooterBarTests
     {
         using var screen = new Screen(cols: 60, rows: 1);
         var footer = new FooterBar();
-        footer.Render(screen, new Rect(0, 0, 60, 1), Theme.Dark, new FooterState { Mode = PermissionMode.Auto, LoginError = "Not logged in · Run /login" });
+        footer.Render(screen, new Rect(0, 0, 60, 1), Theme.Dark, new FooterState { Mode = PermissionMode.Auto, LoginError = "未登录 · 运行 /login" });
         var error = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.Error });
-        // 右对齐：右端贴 frame.Right（60），文本 26 列 → 起始 col 34
-        Assert.Equal("Not logged in · Run /login", RowText.Of(screen, 0, 34, 26));
-        Assert.Equal(error, screen[0, 34].StyleId);
+        // 右对齐：文本 20 屏幕列（中文每字 2 列）→ 起始 col 40（Right=60）
+        Assert.Equal("未登录 · 运行 /login", RowText.Of(screen, 0, 40, 20));
+        Assert.Equal(error, screen[0, 40].StyleId);
         Assert.Equal(error, screen[0, 59].StyleId);
     }
 
@@ -241,12 +264,17 @@ public sealed class FooterBarTests
 /// <summary>行文本提取辅助（golden 断言用）。</summary>
 internal static class RowText
 {
-    /// <summary>拼接指定行 [col, col+width) 的字符值。</summary>
+    /// <summary>拼接指定行 [col, col+width) 的字符值（跳过 SpacerTail 占位列 — 宽字符只输出 rune 一次，与 Screen 渲染语义一致）。</summary>
     public static string Of(Screen screen, int row, int col, int width)
     {
         var builder = new StringBuilder();
         for (var i = 0; i < width; i++)
         {
+            if (screen[row, col + i].Width == CellWidth.SpacerTail)
+            {
+                continue;
+            }
+
             builder.Append(screen[row, col + i].Value.ToString());
         }
 

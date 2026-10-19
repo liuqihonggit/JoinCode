@@ -9,8 +9,8 @@ namespace NativeTui.Core.Repl;
 /// </summary>
 public sealed record FooterState
 {
-    /// <summary>权限模式（左侧模式指示）。</summary>
-    public PermissionMode Mode { get; init; }
+    /// <summary>权限模式（左侧模式指示；默认 Auto = 引擎标准模式 — 无模式指示）。</summary>
+    public PermissionMode Mode { get; init; } = PermissionMode.Auto;
 
     /// <summary>是否忙（输入 ❯ dim + 左侧追加 dim esc to interrupt）。</summary>
     public bool Busy { get; init; }

@@ -2,6 +2,8 @@ namespace NativeTui.Core.Bridge;
 
 /// <summary>
 /// bridge 事件 → REPL 视图状态应用器 — ADR 0141 事件语义的唯一翻译层：
+/// 会话握手（session_info 更新 banner 真实数据 + footer 初始模式 + bypass 可用性）、
+/// 权限模式回执（permission_mode_changed 更新 footer）、
 /// 回合生命周期驱动 Busy + SpinnerItem（BeginTurn/EndTurn），消息事件插入滚动区
 /// （spinner 恒为末项），token_delta 累加 ResponseLength，错误追加 ErrorMessageItem。
 /// 模拟路径与真实 bridge 路径共用同一套回合视图状态。
@@ -10,22 +12,37 @@ public sealed class ReplBridgeDriver
 {
     private readonly ReplView _view;
     private readonly SpinnerItem _spinner;
+    private readonly BannerItem _banner;
 
-    /// <summary>创建应用器（view 与 spinner 由调用方构造并挂载，spinner 须为 Messages 末项）。</summary>
-    public ReplBridgeDriver(ReplView view, SpinnerItem spinner)
+    /// <summary>创建应用器（view/spinner/banner 由调用方构造并挂载，spinner 须为 Messages 末项、banner 为首项）。</summary>
+    public ReplBridgeDriver(ReplView view, SpinnerItem spinner, BannerItem banner)
     {
         _view = view;
         _spinner = spinner;
+        _banner = banner;
     }
 
     /// <summary>回合进行中（turn_started 后未 completed/interrupted）。</summary>
     public bool IsBusy { get; private set; }
+
+    /// <summary>bypass 模式是否可用（引擎 session_info 报告 — settings.json 安全闸禁用时为 false，Cycler 跳过 bypass）。</summary>
+    public bool BypassAvailable { get; private set; } = true;
 
     /// <summary>应用一条事件（全量分派 — switch 模式匹配穷尽由编译器保证）。</summary>
     public void Apply(BridgeEvent bridgeEvent)
     {
         switch (bridgeEvent)
         {
+            case BridgeEvent.SessionInfo(var version, var model, var permissionMode, var bypassAvailable, var cwd):
+                ApplySessionInfo(version, model, permissionMode, bypassAvailable, cwd);
+                break;
+            case BridgeEvent.PermissionModeChanged(var mode):
+                if (PermissionModeInfo.TryFromValue(mode, out var parsed))
+                {
+                    _view.Footer = _view.Footer with { Mode = parsed };
+                }
+
+                break;
             case BridgeEvent.TurnStarted:
                 BeginTurn();
                 break;
@@ -63,6 +80,19 @@ public sealed class ReplBridgeDriver
             case BridgeEvent.Error(var message):
                 AddMessage(new ErrorMessageItem(message));
                 break;
+        }
+    }
+
+    /// <summary>应用会话握手：banner 换引擎真实数据（模型 null → "当前模型未设置"）+ footer 初始模式 + bypass 可用性。</summary>
+    private void ApplySessionInfo(string version, string? model, string permissionMode, bool bypassAvailable, string cwd)
+    {
+        _banner.Version = version;
+        _banner.Model = string.IsNullOrWhiteSpace(model) ? "当前模型未设置" : model;
+        _banner.Cwd = cwd;
+        BypassAvailable = bypassAvailable;
+        if (PermissionModeInfo.TryFromValue(permissionMode, out var parsed))
+        {
+            _view.Footer = _view.Footer with { Mode = parsed };
         }
     }
 

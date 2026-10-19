@@ -11,12 +11,12 @@ public sealed class ReplViewTests
     public void Layout_MessagesGapInputFooter()
     {
         using var screen = new Screen(cols: 40, rows: 10);
-        var view = new ReplView { Input = "hi", CursorCol = 2, Footer = new FooterState { Mode = PermissionMode.AcceptEdits } };
+        var view = new ReplView { Input = "hi", CursorCol = 2, Footer = new FooterState { Mode = PermissionMode.Ask } };
         view.Messages.Add(new UserMessageItem("hello world"));
         view.Render(screen, Theme.Dark);
 
         // footer：最后 1 行，col 2 起（paddingX=2）
-        Assert.StartsWith("⏵⏵ accept edits on", RowText.Of(screen, 9, 2, 38).TrimEnd());
+        Assert.StartsWith("⏵⏵ 询问模式 已开启", RowText.Of(screen, 9, 2, 38).TrimEnd());
         // 输入顶边线：行 6（H-4）全宽纯 ─；底边线：行 8（H-2）
         Assert.Equal(new string('─', 40), RowText.Of(screen, 6, 0, 40));
         Assert.Equal(new string('─', 40), RowText.Of(screen, 8, 0, 40));
@@ -49,18 +49,18 @@ public sealed class ReplViewTests
         Assert.Equal("❯ m14", RowText.Of(screen, 18, 0, 6).TrimEnd());
         // 输入框/footer 不被消息挤占
         Assert.Equal('─', (char)screen[20, 0].Value.Value);
-        Assert.StartsWith("? for shortcuts", RowText.Of(screen, 23, 2, 18).TrimEnd());
+        Assert.StartsWith("? 查看快捷键", RowText.Of(screen, 23, 2, 18).TrimEnd());
     }
 
     [Fact]
     public void Busy_DimPointerAndInterruptHint()
     {
         using var screen = new Screen(cols: 80, rows: 10);
-        var view = new ReplView { Input = "", CursorCol = 0, Footer = new FooterState { Busy = true, Mode = PermissionMode.AcceptEdits } };
+        var view = new ReplView { Input = "", CursorCol = 0, Footer = new FooterState { Busy = true, Mode = PermissionMode.Ask } };
         view.Render(screen, Theme.Dark);
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
         Assert.Equal(dim, screen[7, 0].StyleId);
-        Assert.Contains(" · esc to interrupt", RowText.Of(screen, 9, 2, 78).TrimEnd());
+        Assert.Contains(" · esc 打断", RowText.Of(screen, 9, 2, 78).TrimEnd());
     }
 
     [Fact]
@@ -69,14 +69,16 @@ public sealed class ReplViewTests
         using var screen = new Screen(cols: 60, rows: 10);
         var view = new ReplView
         {
-            Footer = new FooterState { Mode = PermissionMode.Auto, AgentsHint = "← for agents", LoginError = "Not logged in · Run /login", Notification = "◐ medium · /effort" },
+            Footer = new FooterState { Mode = PermissionMode.Plan, AgentsHint = "← agents", LoginError = "未登录 · 运行 /login", Notification = "◐ 中等 · /effort" },
         };
         view.Render(screen, Theme.Dark);
         // footer 两行（行 8-9）：行 8 左模式串 + 右登录错误，行 9 右通知
         // 右对齐基准 = footer frame.Right = 58（paddingX=2：X=2 宽 Cols-4）
-        Assert.StartsWith("⏵⏵ auto mode on", RowText.Of(screen, 8, 2, 40).TrimEnd());
-        Assert.Equal("Not logged in · Run /login", RowText.Of(screen, 8, 32, 26));
-        Assert.Equal("◐ medium · /effort", RowText.Of(screen, 9, 40, 18));
+        Assert.StartsWith("⏸ 计划模式 已开启", RowText.Of(screen, 8, 2, 40).TrimEnd());
+        // 登录错误 20 屏幕列（中文每字 2 列）→ 起始 col 38（Right=58）
+        Assert.Equal("未登录 · 运行 /login", RowText.Of(screen, 8, 38, 20));
+        // 通知 16 屏幕列（◐ 1 + 空格 1 + 中等 4 + " · " 3 + /effort 7）→ 起始 col 42
+        Assert.Equal("◐ 中等 · /effort", RowText.Of(screen, 9, 42, 16));
         // 输入区整体上移 1 行：底边线 7 / 文本 6 / 顶边线 5
         Assert.Equal(new string('─', 60), RowText.Of(screen, 5, 0, 60));
         Assert.Equal(new string('─', 60), RowText.Of(screen, 7, 0, 60));
@@ -104,7 +106,7 @@ public sealed class ReplViewTests
     [Fact]
     public void MeasureContentHeight_MessagesPlusGapInputFooter()
     {
-        var view = new ReplView { Footer = new FooterState { Mode = PermissionMode.Default } };
+        var view = new ReplView { Footer = new FooterState { Mode = PermissionMode.Auto } };
         view.Messages.Add(new UserMessageItem("hello"));
         view.Messages.Add(new UserMessageItem("world"));
         // 消息 2×2 + 间隔 1 + 输入区 3 + footer 1 = 9

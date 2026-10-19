@@ -53,7 +53,7 @@ public static class Program
         Console.OutputEncoding = Encoding.UTF8;
         using var raw = new RawConsoleMode();
         var version = typeof(Program).Assembly.GetName().Version is { } v ? v.ToString(3) : "0.0.0";
-        var session = new DemoSession(session: new SessionInfo(version, model ?? "Opus 5.5", "API Usage Billing", Environment.CurrentDirectory), inline: !viewport);
+        var session = new DemoSession(session: SessionInfo.Create(version, model), inline: !viewport);
         session.Run();
         session.WriteExit();
         Console.WriteLine("NativeTui.Demo 已退出。");
@@ -89,7 +89,7 @@ public static class Program
             Console.OutputEncoding = Encoding.UTF8;
             using var raw = new RawConsoleMode();
             var version = typeof(Program).Assembly.GetName().Version is { } v ? v.ToString(3) : "0.0.0";
-            var session = new DemoSession(client, new SessionInfo(version, model ?? "Opus 5.5", "API Usage Billing", Environment.CurrentDirectory), inline: !viewport);
+            var session = new DemoSession(client, SessionInfo.Create(version, model), inline: !viewport);
             session.Run();
             session.WriteExit();
         }
@@ -127,6 +127,7 @@ public static class Program
         }
 
         BridgeProtocol.WriteRequest(process.StandardInput, new BridgeRequest.Submit("bridge roundtrip"));
+        BridgeProtocol.WriteRequest(process.StandardInput, new BridgeRequest.SetPermissionMode("plan"));
         process.StandardInput.Close();
 
         var received = new List<BridgeEvent>();
@@ -146,6 +147,8 @@ public static class Program
             failures.Add($"echo-child 退出码 {process.ExitCode}");
         }
 
+        AssertEvent(received, e => e is BridgeEvent.SessionInfo { Version.Length: > 0, PermissionMode.Length: > 0, Cwd.Length: > 0 }, "session_info 握手（版本/权限模式/cwd）", failures);
+        AssertEvent(received, e => e is BridgeEvent.PermissionModeChanged { Mode: "plan" }, "permission_mode_changed 回执 plan", failures);
         ExpectEvent<BridgeEvent.TurnStarted>(received, failures);
         ExpectEvent<BridgeEvent.ThinkingStarted>(received, failures);
         AssertEvent(received, e => e is BridgeEvent.ThinkingEnded { DurationMs: > 0 }, "thinking_ended durationMs>0", failures);
@@ -189,12 +192,15 @@ public static class Program
 
     /// <summary>
     /// echo-child — 分派式引擎模拟：读 stdin 请求（TryReadRequest），
-    /// submit → 回放完整回合事件序列（assistant_message 回显提交文本）；interrupt → turn_interrupted；
-    /// quit/Eof → 退出。协议统一 LF（显式 Write('\n')，不受平台 NewLine 影响）。
+    /// 启动即发 session_info 握手（模拟引擎行为）；submit → 回放完整回合事件序列
+    /// （assistant_message 回显提交文本）；set_permission_mode → permission_mode_changed 回执；
+    /// interrupt → turn_interrupted；quit/Eof → 退出。协议统一 LF（显式 Write('\n')）。
     /// </summary>
     private static int RunBridgeEchoChild()
     {
         var writer = Console.Out;
+        WriteLine(writer, BridgeProtocol.SerializeEvent(new BridgeEvent.SessionInfo("1.0.0", "echo-model", "auto", BypassAvailable: true, Environment.CurrentDirectory)));
+        writer.Flush();
         var exit = false;
         while (!exit)
         {
@@ -217,7 +223,7 @@ public static class Program
         return 0;
     }
 
-    /// <summary>分派单条请求：submit → 回放完整回合事件序列（assistant_message 回显提交文本）；interrupt → turn_interrupted。</summary>
+    /// <summary>分派单条请求：submit → 回放完整回合事件序列（assistant_message 回显提交文本）；set_permission_mode → 回执；interrupt → turn_interrupted。</summary>
     private static void HandleEchoRequest(BridgeRequest request, TextWriter writer)
     {
         switch (request)
@@ -230,6 +236,10 @@ public static class Program
                 WriteLine(writer, BridgeProtocol.SerializeEvent(new BridgeEvent.ToolResult("6 events")));
                 WriteLine(writer, BridgeProtocol.SerializeEvent(new BridgeEvent.AssistantMessage($"echo: {text} — 协议链路正常。")));
                 WriteLine(writer, BridgeProtocol.SerializeEvent(new BridgeEvent.TurnCompleted()));
+                writer.Flush();
+                break;
+            case BridgeRequest.SetPermissionMode(var mode):
+                WriteLine(writer, BridgeProtocol.SerializeEvent(new BridgeEvent.PermissionModeChanged(mode)));
                 writer.Flush();
                 break;
             case BridgeRequest.Interrupt:
@@ -409,14 +419,22 @@ public static class Program
 }
 
 /// <summary>
-/// 会话信息 — banner 真实数据源（版本查程序集、cwd 查进程、模型/计费为启动配置，
-/// bridge 模式未来由引擎 session_info 事件提供）。
+/// 会话信息 — banner 真实数据源：版本/模型/计费/cwd。bridge 模式收到引擎 session_info
+/// 事件后由 ReplBridgeDriver 原地更新 BannerItem；模型未设置为"当前模型未设置"。
 /// </summary>
-/// <param name="Version">程序集版本（major.minor.build）。</param>
-/// <param name="Model">模型名（--model 参数或模拟默认）。</param>
+/// <param name="Version">版本（seed=TUI 程序集版本；bridge=引擎 session_info 版本）。</param>
+/// <param name="Model">模型名（--model 参数或"当前模型未设置"）。</param>
 /// <param name="Billing">计费方式（模拟配置，无真实登录态可查）。</param>
-/// <param name="WorkingDirectory">当前工作目录（进程 cwd 快照）。</param>
-internal sealed record SessionInfo(string Version, string Model, string Billing, string WorkingDirectory);
+/// <param name="WorkingDirectory">工作目录（进程 cwd 快照；bridge 模式由 session_info 覆盖）。</param>
+internal sealed record SessionInfo(string Version, string Model, string Billing, string WorkingDirectory)
+{
+    /// <summary>引擎未设置模型时的 banner 显示文案。</summary>
+    public const string NoModel = "当前模型未设置";
+
+    /// <summary>默认会话信息（模型未设置）。</summary>
+    public static SessionInfo Create(string version, string? model = null) =>
+        new(version, model ?? NoModel, "API 按量计费", Environment.CurrentDirectory);
+}
 
 /// <summary>
 /// demo 会话 — 持有全部运行时状态（视图/输入/双缓冲/回合状态机），
@@ -459,6 +477,9 @@ internal sealed class DemoSession
     /// <summary>bridge 事件应用器（bridge 模式构造）。</summary>
     private readonly ReplBridgeDriver? _driver;
 
+    /// <summary>启动 banner（消息首项 — bridge 模式由 session_info 事件原地更新真实数据）。</summary>
+    private readonly BannerItem _banner;
+
     private Screen _front = null!;
     private Screen _back = null!;
     private bool _frontValid;
@@ -472,8 +493,9 @@ internal sealed class DemoSession
     {
         _client = client;
         _inline = inline;
-        _session = session ?? new SessionInfo("0.0.0", "Opus 5.5", "API Usage Billing", Environment.CurrentDirectory);
-        _driver = client is null ? null : new ReplBridgeDriver(_view, _spinner);
+        _session = session ?? SessionInfo.Create("0.0.0");
+        _banner = new BannerItem(_session.Version, _session.Model, _session.Billing, _session.WorkingDirectory);
+        _driver = client is null ? null : new ReplBridgeDriver(_view, _spinner, _banner);
     }
 
     /// <summary>会话信息（banner 真实数据源）。</summary>
@@ -513,17 +535,17 @@ internal sealed class DemoSession
         }
     }
 
-    /// <summary>初始内容 — 启动 banner（两种模式共有，对齐基准 LogoHeader 挂消息列表头部）+ 模拟模式 seed 几条示例消息；bridge 模式滚动区留空（spinner 常驻尾部）。</summary>
+    /// <summary>初始内容 — 启动 banner（两种模式共有，对齐基准 LogoHeader 挂消息列表头部）+ 模拟模式 seed 几条示例消息；bridge 模式滚动区留空（spinner 常驻尾部），banner 真实数据待 session_info 事件。</summary>
     private void SeedContent()
     {
         _view.Footer = new FooterState
         {
             Mode = PermissionMode.Auto,
-            AgentsHint = "← for agents",
-            LoginError = "Not logged in · Run /login",
-            Notification = $"{Figures.EffortMedium} medium · /effort",
+            AgentsHint = "← agents",
+            LoginError = "未登录 · 运行 /login",
+            Notification = $"{Figures.EffortMedium} 中等 · /effort",
         };
-        _view.Messages.Add(new BannerItem(_session.Version, _session.Model, _session.Billing, _session.WorkingDirectory));
+        _view.Messages.Add(_banner);
         if (_client is null)
         {
             _view.Messages.Add(new UserMessageItem("这个 TUI 是像素级对齐 Claude Code 的自研实现吗？"));
@@ -810,12 +832,19 @@ internal sealed class DemoSession
     /// <summary>回合进行中（模拟：阶段非空闲；bridge：driver.IsBusy）。</summary>
     private bool IsBusy => _client is null ? _phase != TurnPhase.Idle : _driver!.IsBusy;
 
-    /// <summary>Shift+Tab 循环权限模式（对齐基准 shift+tab carousel；Demo 模拟环境 bypass/auto 开关全开）。</summary>
-    private void CyclePermissionMode() =>
-        _view.Footer = _view.Footer with
+    /// <summary>Shift+Tab 循环权限模式（jcc 引擎模式集合）：bridge 模式下发 set_permission_mode 请求、footer 以引擎回执为准；seed 模式本地切换。</summary>
+    private void CyclePermissionMode()
+    {
+        var bypassAvailable = _driver?.BypassAvailable ?? true;
+        var next = PermissionModeCycler.Next(_view.Footer.Mode, bypassAvailable);
+        if (_client is not null)
         {
-            Mode = PermissionModeCycler.Next(_view.Footer.Mode, bypassAvailable: true, autoAvailable: true),
-        };
+            _client.SetPermissionMode(PermissionModeInfo.ToValue(next));
+            return;
+        }
+
+        _view.Footer = _view.Footer with { Mode = next };
+    }
 
     /// <summary>提交输入：空文本忽略；否则追加用户消息并开始回合（模拟状态机或引擎提交）。</summary>
     private void Submit()

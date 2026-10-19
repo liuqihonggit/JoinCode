@@ -149,4 +149,74 @@ public sealed class BridgeServeLoopTests {
         Assert.Equal(0, exitCode);
         Assert.Equal(string.Empty, stdout.ToString());
     }
+
+    [Fact]
+    public async Task SetPermissionMode_ValidMode_EmitsChangedWithAppliedValue() {
+        var applied = new List<string>();
+        using var stdin = new StringReader(string.Join('\n',
+            WriteRequest(new CliBridge.BridgeRequest.SetPermissionMode("plan")),
+            WriteRequest(new CliBridge.BridgeRequest.Quit())));
+        await using var stdout = new StringWriter();
+
+        var exitCode = await BridgeServeLoop.RunAsync(stdin, stdout, new StringWriter(),
+            (input, consumer, ct) => Task.CompletedTask, CancellationToken.None,
+            mode => {
+                applied.Add(mode);
+                return PermissionMode.Plan;
+            });
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(["plan"], applied);
+        Assert.Equal("{\"type\":\"permission_mode_changed\",\"mode\":\"plan\"}\n", stdout.ToString());
+    }
+
+    [Fact]
+    public async Task SetPermissionMode_AppliedValueDiffersFromRequest_EmitsActualValue() {
+        // 安全闸场景：请求 bypass 被闸拦截 → 应用器返回实际生效模式（如 auto），回执以实际值为准
+        using var stdin = new StringReader(string.Join('\n',
+            WriteRequest(new CliBridge.BridgeRequest.SetPermissionMode("bypass")),
+            WriteRequest(new CliBridge.BridgeRequest.Quit())));
+        await using var stdout = new StringWriter();
+
+        var exitCode = await BridgeServeLoop.RunAsync(stdin, stdout, new StringWriter(),
+            (input, consumer, ct) => Task.CompletedTask, CancellationToken.None,
+            _ => PermissionMode.Auto);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal("{\"type\":\"permission_mode_changed\",\"mode\":\"auto\"}\n", stdout.ToString());
+    }
+
+    [Fact]
+    public async Task SetPermissionMode_UnknownMode_EmitsErrorWithValidList() {
+        using var stdin = new StringReader(string.Join('\n',
+            WriteRequest(new CliBridge.BridgeRequest.SetPermissionMode("warp-drive")),
+            WriteRequest(new CliBridge.BridgeRequest.Quit())));
+        await using var stdout = new StringWriter();
+
+        var exitCode = await BridgeServeLoop.RunAsync(stdin, stdout, new StringWriter(),
+            (input, consumer, ct) => Task.CompletedTask, CancellationToken.None,
+            _ => null);
+
+        Assert.Equal(0, exitCode);
+        var errorLine = stdout.ToString().Split('\n').Single(l => l.Contains("\"error\""));
+        Assert.Contains("warp-drive", errorLine);
+        Assert.Contains("plan, auto, ask, bypass, unattended", errorLine);
+        Assert.Contains("disableBypassPermissionsMode", errorLine);
+    }
+
+    [Fact]
+    public async Task SetPermissionMode_WithoutApplier_EmitsErrorInductive() {
+        using var stdin = new StringReader(string.Join('\n',
+            WriteRequest(new CliBridge.BridgeRequest.SetPermissionMode("plan")),
+            WriteRequest(new CliBridge.BridgeRequest.Quit())));
+        await using var stdout = new StringWriter();
+
+        var exitCode = await BridgeServeLoop.RunAsync(stdin, stdout, new StringWriter(),
+            (input, consumer, ct) => Task.CompletedTask, CancellationToken.None);
+
+        Assert.Equal(0, exitCode);
+        var errorLine = stdout.ToString().Split('\n').Single(l => l.Contains("\"error\""));
+        Assert.Contains("引擎未提供权限系统", errorLine);
+        Assert.Contains("plan, auto, ask, bypass, unattended", errorLine);
+    }
 }

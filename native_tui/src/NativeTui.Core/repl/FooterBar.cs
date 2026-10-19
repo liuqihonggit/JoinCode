@@ -1,12 +1,12 @@
 namespace NativeTui.Core.Repl;
 
 /// <summary>
-/// 底部状态栏 — 像素级对齐基准 PromptInputFooter（row + space-between + paddingX=2）：
-/// 行 1 左侧 PromptInputFooterLeftSide：激活模式 `{symbol} {title} on`（模式色）+ dim ` (shift+tab to cycle)`
-/// + busy dim ` · esc to interrupt`（U+00B7）/ 非 busy 且有 agents 提示 dim ` · {AgentsHint}`（v2.1.303 实测）；
-/// 默认模式 dim `? for shortcuts`（busy 时 `esc to interrupt`）；
+/// 底部状态栏 — 像素级对齐基准 PromptInputFooter（row + space-between + paddingX=2），文案汉化：
+/// 行 1 左侧：激活模式 `{symbol} {中文标题} 已开启`（模式色）+dim `（shift+tab 切换）`
+/// + busy dim ` · esc 打断`（U+00B7）/ 非 busy 且有 agents 提示 dim ` · {AgentsHint}`；
+/// 标准模式（引擎默认 auto）dim `? 查看快捷键`（busy 时 `esc 打断`）；
 /// 行 1 右侧 Notifications 登录错误（error 色右对齐）；
-/// 行 2 右侧通知（如 effort `◐ medium · /effort`，dim 右对齐）。
+/// 行 2 右侧通知（如 effort `◐ 中等 · /effort`，dim 右对齐）。
 /// 注意：paddingX=2 留白由 REPL 组装层负责（frame.X 从 col 2 起），本组件只渲染内容。
 /// </summary>
 public sealed class FooterBar
@@ -25,20 +25,20 @@ public sealed class FooterBar
         }
     }
 
-    /// <summary>行 1 左侧：模式指示（默认模式快捷键提示 / 激活模式串 + 尾缀提示）。</summary>
+    /// <summary>行 1 左侧：模式指示（标准模式快捷键提示 / 激活模式串 + 尾缀提示）。</summary>
     private static void RenderLeftSide(Screen screen, Rect frame, Theme theme, FooterState state)
     {
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
-        if (state.Mode == PermissionMode.Default)
+        if (state.Mode == PermissionMode.Auto)
         {
-            screen.WriteText(frame.Y, frame.X, state.Busy ? "esc to interrupt" : "? for shortcuts", dim, frame.Right);
+            screen.WriteText(frame.Y, frame.X, state.Busy ? "esc 打断" : "? 查看快捷键", dim, frame.Right);
             return;
         }
 
         var modeStyle = screen.Styles.GetOrAdd(new TextStyle { Foreground = PermissionModeInfo.ColorOf(state.Mode, theme) });
-        var col = screen.WriteText(frame.Y, frame.X, $"{PermissionModeInfo.Symbol(state.Mode)} {PermissionModeInfo.Title(state.Mode)} on", modeStyle, frame.Right);
-        col = screen.WriteText(frame.Y, col, " (shift+tab to cycle)", dim, frame.Right);
-        var suffix = state.Busy ? "esc to interrupt" : state.AgentsHint;
+        var col = screen.WriteText(frame.Y, frame.X, $"{PermissionModeInfo.Symbol(state.Mode)} {PermissionModeInfo.Title(state.Mode)} 已开启", modeStyle, frame.Right);
+        col = screen.WriteText(frame.Y, col, "（shift+tab 切换）", dim, frame.Right);
+        var suffix = state.Busy ? "esc 打断" : state.AgentsHint;
         if (suffix is not null)
         {
             col = screen.WriteText(frame.Y, col, Figures.MiddotSeparator, dim, frame.Right);

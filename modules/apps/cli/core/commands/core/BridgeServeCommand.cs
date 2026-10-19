@@ -25,6 +25,7 @@ internal static class BridgeServeCommand {
     /// <summary>
     /// 组装引擎会话并运行协议主循环 — stdin/stdout 接 OpenStandard 流（UTF-8），
     /// 全程持有 JCC_LOG_LEVEL=Error 抑制日志噪音。
+    /// 启动即发 session_info 握手（版本/当前模型/权限模式/bypass 可用性/cwd — banner 真实数据源）。
     /// </summary>
     private static async Task<int> ExecuteBridgeAsync(string? vendor, string? model, CancellationToken ct) {
         var fs = IO.FileSystem.FileSystemFactory.Create();
@@ -47,6 +48,10 @@ internal static class BridgeServeCommand {
             using var stdin = new StreamReader(Console.OpenStandardInput(), Encoding.UTF8);
             using var stdout = new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false)) { AutoFlush = false };
 
+            var permissionChecker = await ResolvePermissionCheckerAsync(engine.Services).ConfigureAwait(false);
+            var fastMode = engine.Services.GetService<IFastModeService>();
+            WriteEvent(stdout, BuildSessionInfo(permissionChecker, fastMode, options));
+
             var mainAgent = CliSession.CreateMainAgent(engine.ChatService, engine.Services, new Session().ObjectId);
             SessionController? controller = null;
 
@@ -56,10 +61,64 @@ internal static class BridgeServeCommand {
                     engine.ChatService, consumer, new TurnDiffService(), engine.SessionId, engine.Services,
                     mainAgent: mainAgent);
                 return RunTurnAsync(controller, input, turnCt);
-            }, ct).ConfigureAwait(false);
+            }, ct, BuildPermissionModeApplier(permissionChecker)).ConfigureAwait(false);
         } finally {
             Console.SetOut(originalOut);
         }
+    }
+
+    /// <summary>解析引擎权限检查器（等模式/安全闸初始化完成；未注册返回 null — 协议降级为仅展示默认值）。</summary>
+    private static async Task<PermissionChecker?> ResolvePermissionCheckerAsync(IServiceProvider services) {
+        if (services.GetService<IPermissionChecker>() is not PermissionChecker checker)
+            return null;
+
+        await checker.ModeInitialization.ConfigureAwait(false);
+        return checker;
+    }
+
+    /// <summary>
+    /// 组装会话握手事件 — 版本（引擎程序集）/当前模型（FastMode 主模型，未设置回退 --model 参数，仍空为 null）/
+    /// 权限模式（含安全闸后的实际值）/bypass 可用性（!DisableBypassGate）/cwd。
+    /// </summary>
+    internal static Cli.Bridge.BridgeEvent.SessionInfo BuildSessionInfo(
+        PermissionChecker? checker,
+        IFastModeService? fastMode,
+        CommandLineOptions options) {
+        var version = typeof(BridgeServeCommand).Assembly.GetName().Version is { } v ? v.ToString(3) : "0.0.0";
+        var currentModel = !string.IsNullOrWhiteSpace(fastMode?.PrimaryModelId)
+            ? fastMode.PrimaryModelId
+            : string.IsNullOrWhiteSpace(options.Model) ? null : options.Model;
+        var mode = checker?.CurrentMode ?? PermissionMode.Auto;
+        return new Cli.Bridge.BridgeEvent.SessionInfo(
+            Version: version,
+            Model: currentModel,
+            PermissionMode: mode.ToValue(),
+            BypassAvailable: checker?.DisableBypassGate is not true,
+            Cwd: Environment.CurrentDirectory);
+    }
+
+    /// <summary>
+    /// 构造权限模式应用器 — 解析协议字符串（FromValue）→ 应用（CurrentMode setter 含 bypass 安全闸）→
+    /// 返回实际生效模式（读回 CurrentMode，被闸拦截时与请求值不同）；未知值/无权限系统返回 null。
+    /// </summary>
+    private static BridgeServeLoop.PermissionModeApplier? BuildPermissionModeApplier(PermissionChecker? checker) {
+        if (checker is null)
+            return null;
+
+        return mode => {
+            var parsed = PermissionModeExtensions.FromValue(mode);
+            if (parsed is null)
+                return null;
+
+            checker.CurrentMode = parsed.Value;
+            return checker.CurrentMode;
+        };
+    }
+
+    /// <summary>写一条协议事件行（单次 Write + LF + Flush，协议统一 \n）。</summary>
+    private static void WriteEvent(TextWriter stdout, Cli.Bridge.BridgeEvent bridgeEvent) {
+        stdout.Write(Cli.Bridge.BridgeProtocol.SerializeEvent(bridgeEvent) + "\n");
+        stdout.Flush();
     }
 
     /// <summary>

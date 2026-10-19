@@ -21,10 +21,10 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// Bypass 安全闸 — 从 settings.json 的 disableBypassPermissionsMode 加载
     /// <para>
     /// C2 加固: CLI 显式 flag(--force/--bypass/--permission-mode bypass)也过此闸,
-    /// 不仅拦环境变量路径。internal 供测试直接注入。
+    /// 不仅拦环境变量路径。bridge_serve 的 session_info 上报 bypassAvailable = !此闸。
     /// </para>
     /// </summary>
-    internal bool DisableBypassGate {
+    public bool DisableBypassGate {
         get => _disableBypassGate;
         set => _disableBypassGate = value;
     }
@@ -134,6 +134,12 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
             return false;
         }
     }
+
+    /// <summary>
+    /// 启动模式/安全闸异步加载任务 — bridge 握手（session_info 上报 CurrentMode/DisableBypassGate）前等待，
+    /// 确保 fire-and-forget 初始化已完成（PhysicalFileSystem UTF-8 走 mmap 实际同步完成，等待仅兜底）。
+    /// </summary>
+    public Task ModeInitialization => _loadTask;
 
     /// <summary>
     /// 当前权限模式

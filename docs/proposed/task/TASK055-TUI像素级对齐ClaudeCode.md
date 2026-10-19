@@ -281,3 +281,33 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!--   LLM 流式回合(token_delta 增量/工具事件/思考事件)在 TUI 侧渲染 -->
 <!-- 剩余: M6 完结 — M7 截图校准/Markdown 高亮/diff/权限对话框(session_info 协议扩展) -->
 
+
+<!-- 🤖 Auto Decision: 2026-10-20 (M6i: 权限系统对接引擎 + banner 真实数据 + 界面汉化) -->
+<!-- 决策1: TUI PermissionMode 枚举整体重写为引擎 5 值(plan/auto/ask/bypass/unattended) — -->
+<!--   废弃 ClaudeCode 旧值(default/acceptEdits/dontAsk/bypassPermissions, 引擎侧已合并废弃); -->
+<!--   Auto=引擎默认(footer 无模式指示仅快捷键提示), Cycler 链 auto→plan→ask→bypass→unattended→auto, -->
+<!--   bypass 按 session_info.bypassAvailable 短路(settings.json disableBypassPermissionsMode 安全闸) -->
+<!-- 决策2: ADR 0141 协议扩展三消息 — 事件 session_info(version/model?/permissionMode/ -->
+<!--   bypassAvailable/cwd, 引擎启动即发, banner 真实数据源) + 事件 permission_mode_changed -->
+<!--   (实际生效值, 安全闸拦截时与请求值不同, TUI 永以回执为准) + 请求 set_permission_mode; -->
+<!--   model=null 时 TUI 显示"当前模型未设置"(用户明确要求) -->
+<!-- 决策3: 引擎侧接线 — BridgeServeCommand 启动即发 session_info(版本=引擎程序集/模型= -->
+<!--   FastModeService.PrimaryModelId 回退 --model 参数仍空为 null/权限=PermissionChecker.CurrentMode -->
+<!--   /bypass 可用=!DisableBypassGate/cwd); PermissionChecker public 化 DisableBypassGate + -->
+<!--   新增 ModeInitialization(Task) 供握手前等待 fire-and-forget 加载完成; BridgeServeLoop 加 -->
+<!--   PermissionModeApplier delegate 注入(测试友好), 未知值/无权限系统→error 诱导事件(合法值清单) -->
+<!-- 决策4: 界面汉化(功能性文案) — footer "? 查看快捷键"/"esc 打断"/"{symbol} {中文标题} 已开启 -->
+<!--   （shift+tab 切换）"/模式中文标题(计划模式/标准模式/询问模式/全放行/无人值守)/登录错误/effort -->
+<!--   通知; banner 标题 Claude Code→jcc(自有产品 CLI 名); SpinnerVerbs 187 词保留英文 -->
+<!--   (基准像素级对齐资产非功能文案); seed 模式(无引擎)模型显示"当前模型未设置" -->
+<!-- 决策5: RowText.Of 测试辅助升级 — 跳过 SpacerTail 占位列(宽字符只输出 rune 一次, -->
+<!--   与 Screen 渲染语义一致), 中文断言自然; 对存量 ASCII 断言零影响 -->
+<!-- 坑: SpacerTail cell 携带同一 rune(写入时 new Cell(rune,...,SpacerTail)) — 逐列拼接中文会 -->
+<!--   双写, 必须跳过; FooterState.Mode 默认值显式设 Auto(新枚举 Plan=0, 默认构造防踩坑) -->
+<!-- 验证: native_tui 458/458 + selftest/bridge-selftest 双冒烟(session_info/权限回执断言入冒烟); -->
+<!--   host.tests 1333/1333(bridge 36 含 4 个新 case) + guard.security 1104/1104 + gui/tui 编译; -->
+<!--   真实进程管道验证 ✅: jcc.exe bridge_serve → session_info(version=1.0.0, model=agnes-video-2.5-flash -->
+<!--   真实 FastMode 数据, permissionMode=auto, bypassAvailable=true) + set_permission_mode plan → -->
+<!--   permission_mode_changed plan 回执; banner "当前模型未设置"路径由 Driver 单测覆盖(null→占位文案) -->
+<!-- 剩余: TUI 真实终端联调验收(--bridge jcc.exe 看真实引擎会话/权限循环/footer 汉化); -->
+<!--   M7 权限对话框(permission_pending 确认事件, 替换现"按打断处理"降级)/模型列表切换 UI -->

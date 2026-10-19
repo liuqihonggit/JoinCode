@@ -492,3 +492,25 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!--   是 SystemPromptApplyStep/NonInteractiveExitCleanupStep 搬移前置) + pipe 协议族边界案例 -->
 <!--   (BridgeConnectionNegotiator/BridgeHeartbeatService 依赖 100% 干净, 若 0143 协议层唯一数据源 -->
 <!--   覆盖 bridge 协议族可升 ENGINE) → Step 4 gui/tui 切直引 engine → 改名批次 → ADR 0143 accepted -->
+
+<!-- 🤖 Auto Decision: 2026-10-20 (ADR 0143 阶段一 Step 4: gui 切直引 engine + tui 宿主整体移除) -->
+<!-- 用户决策: JoinCodeTui.csproj 完全移除(自研 native_tui 已接任 TUI 职责, M6i 权限对接+bridge -->
+<!--   联调完成), 顺便清理 libs/ 三 submodule(Terminal.Gui/Editor/Dock, ADR 0140 既定清理对象) -->
+<!-- tui 移除范围: modules/apps/tui/ 整工程 + test/unit/tui.tests/ 整测试工程 + ci-tui-daily.yml -->
+<!--   整 workflow + ci-unit-tests.yml apps 域 matrix 行 + daily-aot-publish.yml jcctui 条目 + -->
+<!--   Gui.slnx ×2 行 + apps module.slnx ×1 行 — 全部归档 .xxx/(tui.20261020/tui.tests.20261020) -->
+<!--   而非删除, 保留可追溯性 -->
+<!-- 依赖归位: CommandQueue 搬回 cli/queue/(tui 删除后仅 cli ReplLoopStep 消费, 且 gui 零消费, -->
+<!--   对齐 0143 边界清单 queue 归 CLI 薄壳; 搬回后相对 HEAD 零变化) ; SlashCommandRunner + -->
+<!--   Cli.Commands.Prefix 族 4 件留守 engine(gui 的 JccChatSession 消费 SlashCommandRunner+ -->
+<!--   !/!! 前缀命令, 共享执行链路是跨宿主引擎能力) -->
+<!-- gui 切直引: JoinCodeGui.csproj cli→engine + JccChatSession extraModules 去 CliRegistrationModule -->
+<!--   (engine CoreModule 的 AddJoinCodeEngine 注册链覆盖 24 类型) — gui 42 错误=Dock 存量基线 -->
+<!--   零新增, JccChatSession 零错误 -->
+<!-- 坑: host.tests 基线修正 1341→1337 — worktree 验证法(HEAD 3f0b8c4cd 临时 worktree 跑全量) -->
+<!--   证实 HEAD 基线本身 1337, 记忆中 1341 是历史环境数字, 回归对照以 1337 为准 -->
+<!-- 验证: engine/cli 编译 0警告0错误 + gui 42=Dock 基线零新增 + host.tests 1337/1337 全绿(与 -->
+<!--   HEAD 基线 worktree 对照一致) + jcc.exe bridge_serve 冒烟 session_info 真实输出 -->
+<!-- 后续批次: 三 submodule 移除(.gitmodules+gitlink 归档+gui csproj 5 个 Dock ProjectReference) → -->
+<!--   StartupContext 拆分 → pipe 协议族边界 → 改名批次 → ADR 0143 accepted; 阶段二 native_tui -->
+<!--   宿主(native_tui/apps/NativeTui.Host)另起会话照抄 gui 先例 -->

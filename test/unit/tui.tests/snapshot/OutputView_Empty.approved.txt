@@ -1,2 +1,0 @@
-View [Visible=True, CanFocus=False]
-  Editor [Visible=True, CanFocus=True]

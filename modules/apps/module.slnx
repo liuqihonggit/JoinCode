@@ -3,5 +3,4 @@
   <Project Path="engine/JoinCode.Engine.csproj" />
   <Project Path="gui/JoinCodeGui.csproj" />
   <Project Path="sdk/Sdk.csproj" />
-  <Project Path="tui/JoinCodeTui.csproj" />
 </Solution>

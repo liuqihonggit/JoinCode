@@ -147,11 +147,11 @@ public sealed class PromptInputBoxTests
 }
 
 /// <summary>
-/// 底部状态栏 golden 测试 — 像素级对齐基准 PromptInputFooterLeftSide：
-/// 激活模式 `{symbol} {title} on`（模式色）+ dim ` (shift+tab to cycle)`；
-/// busy 追加 dim ` · esc to interrupt`（分隔符为 U+00B7 middot）；
-/// 默认模式 dim `? for shortcuts`（busy 时 `esc to interrupt`）。
-/// spinner 属于输入框上方的独立行组件（基准 REPL.tsx scrollable 区），不在 footer。
+/// 底部状态栏 golden 测试 — 像素级对齐基准 PromptInputFooter：
+/// 行1 左侧 PromptInputFooterLeftSide（激活模式 `{symbol} {title} on` 模式色 + dim ` (shift+tab to cycle)`
+/// + busy dim ` · esc to interrupt` / 非 busy agents 导航提示 dim ` · ← for agents`（v2.1.303 实测）；
+/// 默认模式 dim `? for shortcuts`）；行1 右侧 Notifications 登录错误（error 色右对齐）；
+/// 行2 右侧通知（如 effort `◐ medium · /effort`，dim 右对齐，Notification 非空时占行）。
 /// </summary>
 public sealed class FooterBarTests
 {
@@ -160,7 +160,7 @@ public sealed class FooterBarTests
     {
         using var screen = new Screen(cols: 60, rows: 1);
         var footer = new FooterBar();
-        footer.Render(screen, new Rect(0, 0, 60, 1), Theme.Dark, PermissionMode.AcceptEdits, busy: false);
+        footer.Render(screen, new Rect(0, 0, 60, 1), Theme.Dark, new FooterState { Mode = PermissionMode.AcceptEdits });
         var modeStyle = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.AutoAccept });
         var text = RowText.Of(screen, 0, 0, 60).TrimEnd();
         Assert.StartsWith("⏵⏵ accept edits on", text);
@@ -173,7 +173,7 @@ public sealed class FooterBarTests
     {
         using var screen = new Screen(cols: 60, rows: 1);
         var footer = new FooterBar();
-        footer.Render(screen, new Rect(0, 0, 60, 1), Theme.Dark, PermissionMode.Default, busy: false);
+        footer.Render(screen, new Rect(0, 0, 60, 1), Theme.Dark, new FooterState());
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
         Assert.Equal("? for shortcuts", RowText.Of(screen, 0, 0, 60).TrimEnd());
         Assert.Equal(dim, screen[0, 0].StyleId);
@@ -184,10 +184,57 @@ public sealed class FooterBarTests
     {
         using var screen = new Screen(cols: 60, rows: 1);
         var footer = new FooterBar();
-        footer.Render(screen, new Rect(0, 0, 60, 1), Theme.Dark, PermissionMode.AcceptEdits, busy: true);
+        footer.Render(screen, new Rect(0, 0, 60, 1), Theme.Dark, new FooterState { Mode = PermissionMode.AcceptEdits, Busy = true });
         var text = RowText.Of(screen, 0, 0, 60).TrimEnd();
         Assert.StartsWith("⏵⏵ accept edits on", text);
         Assert.Contains(" · esc to interrupt", text);
+    }
+
+    [Fact]
+    public void AutoMode_WarningColorAndAgentsHintSuffix()
+    {
+        using var screen = new Screen(cols: 80, rows: 1);
+        var footer = new FooterBar();
+        footer.Render(screen, new Rect(0, 0, 80, 1), Theme.Dark, new FooterState { Mode = PermissionMode.Auto, AgentsHint = "← for agents" });
+        var warning = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.Warning });
+        var text = RowText.Of(screen, 0, 0, 80).TrimEnd();
+        // v2.1.303 实测：auto mode on (shift+tab to cycle) · ← for agents
+        Assert.Equal("⏵⏵ auto mode on (shift+tab to cycle) · ← for agents", text);
+        Assert.Equal(warning, screen[0, 0].StyleId);
+    }
+
+    [Fact]
+    public void LoginError_RightAlignedInErrorColor()
+    {
+        using var screen = new Screen(cols: 60, rows: 1);
+        var footer = new FooterBar();
+        footer.Render(screen, new Rect(0, 0, 60, 1), Theme.Dark, new FooterState { Mode = PermissionMode.Auto, LoginError = "Not logged in · Run /login" });
+        var error = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.Error });
+        // 右对齐：右端贴 frame.Right（60），文本 26 列 → 起始 col 34
+        Assert.Equal("Not logged in · Run /login", RowText.Of(screen, 0, 34, 26));
+        Assert.Equal(error, screen[0, 34].StyleId);
+        Assert.Equal(error, screen[0, 59].StyleId);
+    }
+
+    [Fact]
+    public void Notification_SecondRowRightAlignedDim()
+    {
+        using var screen = new Screen(cols: 60, rows: 2);
+        var footer = new FooterBar();
+        var state = new FooterState { Mode = PermissionMode.Auto, Notification = "◐ medium · /effort" };
+        footer.Render(screen, new Rect(0, 0, 60, 2), Theme.Dark, state);
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        // 行2 右对齐：文本 18 列 → 起始 col 42（Right=60）
+        Assert.Equal("◐ medium · /effort", RowText.Of(screen, 1, 42, 18));
+        Assert.Equal(dim, screen[1, 42].StyleId);
+    }
+
+    [Fact]
+    public void MeasureHeight_TwoRowsOnlyWithNotification()
+    {
+        var footer = new FooterBar();
+        Assert.Equal(1, footer.MeasureHeight(new FooterState { Mode = PermissionMode.Auto }));
+        Assert.Equal(2, footer.MeasureHeight(new FooterState { Notification = "◐ medium · /effort" }));
     }
 }
 

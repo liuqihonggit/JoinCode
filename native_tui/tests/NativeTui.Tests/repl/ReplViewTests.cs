@@ -11,7 +11,7 @@ public sealed class ReplViewTests
     public void Layout_MessagesGapInputFooter()
     {
         using var screen = new Screen(cols: 40, rows: 10);
-        var view = new ReplView { Input = "hi", CursorCol = 2, Mode = PermissionMode.AcceptEdits };
+        var view = new ReplView { Input = "hi", CursorCol = 2, Footer = new FooterState { Mode = PermissionMode.AcceptEdits } };
         view.Messages.Add(new UserMessageItem("hello world"));
         view.Render(screen, Theme.Dark);
 
@@ -56,11 +56,31 @@ public sealed class ReplViewTests
     public void Busy_DimPointerAndInterruptHint()
     {
         using var screen = new Screen(cols: 80, rows: 10);
-        var view = new ReplView { Input = "", CursorCol = 0, Busy = true, Mode = PermissionMode.AcceptEdits };
+        var view = new ReplView { Input = "", CursorCol = 0, Footer = new FooterState { Busy = true, Mode = PermissionMode.AcceptEdits } };
         view.Render(screen, Theme.Dark);
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
         Assert.Equal(dim, screen[7, 0].StyleId);
         Assert.Contains(" · esc to interrupt", RowText.Of(screen, 9, 2, 78).TrimEnd());
+    }
+
+    [Fact]
+    public void FooterNotification_TwoRowFooterShiftsInputUp()
+    {
+        using var screen = new Screen(cols: 60, rows: 10);
+        var view = new ReplView
+        {
+            Footer = new FooterState { Mode = PermissionMode.Auto, AgentsHint = "← for agents", LoginError = "Not logged in · Run /login", Notification = "◐ medium · /effort" },
+        };
+        view.Render(screen, Theme.Dark);
+        // footer 两行（行 8-9）：行 8 左模式串 + 右登录错误，行 9 右通知
+        // 右对齐基准 = footer frame.Right = 58（paddingX=2：X=2 宽 Cols-4）
+        Assert.StartsWith("⏵⏵ auto mode on", RowText.Of(screen, 8, 2, 40).TrimEnd());
+        Assert.Equal("Not logged in · Run /login", RowText.Of(screen, 8, 32, 26));
+        Assert.Equal("◐ medium · /effort", RowText.Of(screen, 9, 40, 18));
+        // 输入区整体上移 1 行：底边线 7 / 文本 6 / 顶边线 5
+        Assert.Equal(new string('─', 60), RowText.Of(screen, 5, 0, 60));
+        Assert.Equal(new string('─', 60), RowText.Of(screen, 7, 0, 60));
+        Assert.Equal('❯', (char)screen[6, 0].Value.Value);
     }
 
     [Fact]

@@ -428,6 +428,13 @@ internal sealed class DemoSession
     /// <summary>初始内容 — 启动 banner（两种模式共有，对齐基准 LogoHeader 挂消息列表头部）+ 模拟模式 seed 几条示例消息；bridge 模式滚动区留空（spinner 常驻尾部）。</summary>
     private void SeedContent()
     {
+        _view.Footer = new FooterState
+        {
+            Mode = PermissionMode.Auto,
+            AgentsHint = "← for agents",
+            LoginError = "Not logged in · Run /login",
+            Notification = $"{Figures.EffortMedium} medium · /effort",
+        };
         _view.Messages.Add(new BannerItem("2.1.303", "Opus 5.5", "API Usage Billing", Environment.CurrentDirectory));
         if (_client is null)
         {
@@ -722,7 +729,7 @@ internal sealed class DemoSession
     {
         _phase = TurnPhase.Thinking;
         _turnStartMs = Environment.TickCount64;
-        _view.Busy = true;
+        _view.Footer = _view.Footer with { Busy = true };
         _spinner.Message = string.Empty;
         _spinner.ResetVerb();
         _spinner.Mode = SpinnerMode.Thinking;
@@ -779,7 +786,7 @@ internal sealed class DemoSession
         }
 
         _phase = TurnPhase.Idle;
-        _view.Busy = false;
+        _view.Footer = _view.Footer with { Busy = false };
         _spinner.Message = string.Empty;
         _spinner.ResponseLength = 0;
         _spinner.HasActiveTools = false;

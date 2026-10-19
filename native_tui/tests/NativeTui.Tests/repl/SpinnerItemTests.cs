@@ -216,7 +216,7 @@ public sealed class SpinnerItemTests
     [Fact]
     public void ScrollIntegration_SpinnerRowAtScrollTail()
     {
-        var view = new ReplView { Busy = true };
+        var view = new ReplView { Footer = new FooterState { Busy = true } };
         view.Messages.Add(new UserMessageItem("hi"));
         view.Messages.Add(Item());
         using var screen = new Screen(40, 8);

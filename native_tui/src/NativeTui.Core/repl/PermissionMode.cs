@@ -17,6 +17,9 @@ public enum PermissionMode : byte
 
     /// <summary>不再询问 ⏵⏵（红）。</summary>
     DontAsk = 4,
+
+    /// <summary>自动模式 ⏵⏵（warning 琥珀，基准 TRANSCRIPT_CLASSIFIER 条件条目）。</summary>
+    Auto = 5,
 }
 
 /// <summary>
@@ -29,7 +32,7 @@ public static class PermissionModeInfo
     public static string Symbol(PermissionMode mode) => mode switch
     {
         PermissionMode.Plan => "⏸",
-        PermissionMode.AcceptEdits or PermissionMode.BypassPermissions or PermissionMode.DontAsk => "⏵⏵",
+        PermissionMode.AcceptEdits or PermissionMode.BypassPermissions or PermissionMode.DontAsk or PermissionMode.Auto => "⏵⏵",
         _ => string.Empty,
     };
 
@@ -40,14 +43,16 @@ public static class PermissionModeInfo
         PermissionMode.AcceptEdits => "accept edits",
         PermissionMode.BypassPermissions => "bypass permissions",
         PermissionMode.DontAsk => "don't ask",
+        PermissionMode.Auto => "auto mode",
         _ => "default",
     };
 
-    /// <summary>模式主题色（plan→planMode，acceptEdits→autoAccept，bypass/dontAsk→error）。</summary>
+    /// <summary>模式主题色（plan→planMode，acceptEdits→autoAccept，auto→warning，bypass/dontAsk→error）。</summary>
     public static Color ColorOf(PermissionMode mode, Theme theme) => mode switch
     {
         PermissionMode.Plan => theme.PlanMode,
         PermissionMode.AcceptEdits => theme.AutoAccept,
+        PermissionMode.Auto => theme.Warning,
         PermissionMode.BypassPermissions or PermissionMode.DontAsk => theme.Error,
         _ => theme.Text,
     };

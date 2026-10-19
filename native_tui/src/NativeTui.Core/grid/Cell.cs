@@ -1,4 +1,4 @@
-namespace NativeTui.Core.Screen;
+namespace NativeTui.Core.Grid;
 
 /// <summary>
 /// 字符终端宽度（对齐基准 ink/screen.ts 的 CellWidth）。

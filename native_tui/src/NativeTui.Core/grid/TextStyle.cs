@@ -1,4 +1,4 @@
-namespace NativeTui.Core.Screen;
+namespace NativeTui.Core.Grid;
 
 /// <summary>颜色种类。</summary>
 public enum ColorKind : byte

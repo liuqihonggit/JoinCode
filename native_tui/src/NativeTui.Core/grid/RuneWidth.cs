@@ -1,4 +1,4 @@
-namespace NativeTui.Core.Screen;
+namespace NativeTui.Core.Grid;
 
 /// <summary>
 /// Rune 终端显示宽度 — East Asian Width 简化判定表。

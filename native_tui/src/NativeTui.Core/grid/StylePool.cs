@@ -1,4 +1,4 @@
-namespace NativeTui.Core.Screen;
+namespace NativeTui.Core.Grid;
 
 /// <summary>
 /// 样式 intern 池 — 对齐基准 ink/screen.ts 的 StylePool。

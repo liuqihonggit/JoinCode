@@ -1,4 +1,4 @@
-namespace NativeTui.Core.Screen;
+namespace NativeTui.Core.Grid;
 
 /// <summary>
 /// 终端 cell 网格 — 渲染管线的帧缓冲（对齐基准 ink/screen.ts）。

@@ -44,9 +44,9 @@ public interface IJccChatSession : IAsyncDisposable {
     event Action? ExitRequested;
 
     /// <summary>
-    /// 权限确认回调 — 引擎抛出 <c>PermissionPendingConfirmationException</c> 时由网关调用。
-    /// UI 注入后返回决策；为 null 时网关默认拒绝（等价于 Deny）。
-    /// 决策为 Allow/AlwaysAllow 时网关自动批准工具并重发同一条消息完成闭环。
+    /// 权限确认回调 — 引擎权限确认点（<c>IPermissionConfirmationHandler.ConfirmAsync</c>）经此询问 UI。
+    /// UI 注入后返回决策；为 null 时引擎默认拒绝（等价于 Deny）。
+    /// 决策为 Allow/AlwaysAllow 时引擎自行临时批准工具并在同轮继续执行，无需重发消息。
     /// </summary>
     Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
 

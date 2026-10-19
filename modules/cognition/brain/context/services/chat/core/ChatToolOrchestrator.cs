@@ -79,9 +79,8 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
     /// <param name="toolCallArguments">工具调用参数（已解析）</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>工具调用结果</returns>
-    /// <exception cref="PermissionPendingConfirmationException">
-    /// 交互模式下权限待确认时向上传播，由 Host 层弹出确认框
-    /// </exception>
+    /// <remarks>权限待确认在工具执行网关内解决（<c>IPermissionConfirmationHandler.ConfirmAsync</c>），
+    /// 不在本方法上抛异常。</remarks>
     public async Task<ToolCallResult> ExecuteToolCallAsync(
         string toolCallName,
         string? toolCallId,

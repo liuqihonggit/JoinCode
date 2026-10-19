@@ -147,7 +147,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         }
 
         var prompt = context.PermissionConfirmationPrompt ?? "需要确认";
-        var action = _confirmationHandler.Confirm(toolName, prompt);
+        var action = await _confirmationHandler.ConfirmAsync(toolName, prompt, cancellationToken).ConfigureAwait(false);
 
         if (action != PermissionConfirmAction.Allow && action != PermissionConfirmAction.AlwaysAllow) {
             _logger.LogWarning("用户拒绝工具执行: {ToolName}", toolName);

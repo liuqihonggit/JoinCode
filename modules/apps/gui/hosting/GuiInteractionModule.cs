@@ -13,6 +13,8 @@ public sealed class GuiInteractionModule : IAppModule {
     public void ConfigureServices(IServiceCollection services, AppModuleContext context) {
         services.AddSingleton<IInteractiveService, AvaloniaInteractiveService>();
         services.AddSingleton<IWindowShakeService, GuiWindowShakeService>();
+        // 权限确认器 — 引擎确认点转接宿主异步委托（WebUI broker / Avalonia 对话框），未注入委托时 fail-closed 拒绝
+        services.AddSingleton<IPermissionConfirmationHandler, GuiPermissionConfirmationHandler>();
     }
 
     /// <summary>异步配置</summary>

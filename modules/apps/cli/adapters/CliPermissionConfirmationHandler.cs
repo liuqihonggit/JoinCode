@@ -20,8 +20,17 @@ public sealed class CliPermissionConfirmationHandler : IPermissionConfirmationHa
     /// <summary>在控制台显示权限确认提示并解析用户响应，按结果临时批准工具或等级</summary>
     /// <param name="toolName">待确认的工具名称</param>
     /// <param name="confirmationPrompt">展示给用户的确认提示文本</param>
+    /// <param name="cancellationToken">取消令牌 — 取消视为拒绝</param>
     /// <returns>用户选择的确认动作（允许/始终允许/拒绝）；非交互环境自动拒绝</returns>
-    public PermissionConfirmAction Confirm(string toolName, string confirmationPrompt) {
+    public Task<PermissionConfirmAction> ConfirmAsync(string toolName, string confirmationPrompt, CancellationToken cancellationToken = default) {
+        if (cancellationToken.IsCancellationRequested)
+            return Task.FromResult(PermissionConfirmAction.Deny);
+
+        return Task.FromResult(ConfirmBlocking(toolName, confirmationPrompt));
+    }
+
+    /// <summary>同步阻塞确认 — 复用 REPL 单通道门控读取 stdin（CLI 专属交互形态）</summary>
+    private PermissionConfirmAction ConfirmBlocking(string toolName, string confirmationPrompt) {
         Cli.TerminalHelper.WriteLine();
         using (Cli.TerminalHelper.SetColor(ConsoleColor.Cyan))
             Cli.TerminalHelper.WriteRaw("^ ");

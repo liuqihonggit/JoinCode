@@ -77,10 +77,12 @@ public sealed class Screen : IDisposable
 
     /// <summary>
     /// 在指定行列写入文本（宽字符占 Wide+SpacerTail 两格，零宽字符跳过，
-    /// 宽字符放不下或越过行尾即停止）。返回下一个可写列。
+    /// 宽字符放不下或越过 rightBound 即停止）。返回下一个可写列。
+    /// rightBound 为 exclusive 右边界（帧裁剪），默认不限制（屏幕全宽）。
     /// </summary>
-    public int WriteText(int row, int col, ReadOnlySpan<char> text, int styleId = 0)
+    public int WriteText(int row, int col, ReadOnlySpan<char> text, int styleId = 0, int rightBound = int.MaxValue)
     {
+        var bound = Math.Min(rightBound, Cols);
         foreach (var rune in text.EnumerateRunes())
         {
             var width = RuneWidth.Of(rune);
@@ -91,7 +93,7 @@ public sealed class Screen : IDisposable
 
             if (width == 2)
             {
-                if (col + 1 >= Cols)
+                if (col + 1 >= bound)
                 {
                     break;
                 }
@@ -102,7 +104,7 @@ public sealed class Screen : IDisposable
             }
             else
             {
-                if (col >= Cols)
+                if (col >= bound)
                 {
                     break;
                 }

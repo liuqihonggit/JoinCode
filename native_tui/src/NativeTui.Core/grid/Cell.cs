@@ -22,13 +22,13 @@ public enum CellWidth : byte
 public readonly record struct Cell
 {
     /// <summary>字符（UTF-32 scalar）。</summary>
-    public Rune Value { get; }
+    public Rune Value { get; init; }
 
     /// <summary>样式 intern id（StylePool）。</summary>
-    public int StyleId { get; }
+    public int StyleId { get; init; }
 
     /// <summary>宽度标记。</summary>
-    public CellWidth Width { get; }
+    public CellWidth Width { get; init; }
 
     /// <summary>构造 cell。</summary>
     public Cell(Rune value, int styleId, CellWidth width)

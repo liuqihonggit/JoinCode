@@ -1,4 +1,4 @@
-namespace NativeTui.Core.Theme;
+namespace NativeTui.Core;
 
 /// <summary>
 /// 主题 — 语义色键全量对齐基准 utils/theme.ts 的 darkTheme/lightTheme（75 键）。

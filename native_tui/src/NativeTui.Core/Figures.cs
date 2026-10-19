@@ -1,4 +1,4 @@
-namespace NativeTui.Core.Figures;
+namespace NativeTui.Core;
 
 /// <summary>
 /// 统一符号常量表 — 全量对齐基准 constants/figures.ts + figures 库（pointer）+ MessageResponse 的工具结果缩进。
@@ -17,6 +17,9 @@ public static class Figures
 
     /// <summary>分隔符 ∙。</summary>
     public const string BulletOperator = "∙";
+
+    /// <summary>Byline/footer 部件分隔符 ·（U+00B7 middot，基准字面量 " · "，非 ∙）。</summary>
+    public const string MiddotSeparator = " · ";
 
     /// <summary>spinner 相关 ✻。</summary>
     public const string TeardropAsterisk = "✻";

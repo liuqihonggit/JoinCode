@@ -9,6 +9,11 @@
     <NoWarn>$(NoWarn);JCC9001;CS8604;CS1573;CS1587</NoWarn>
   </PropertyGroup>
 
+  <!-- 限定生成器只扫描 engine 自身程序集 — 引用闭包类型已由各聚合方注册，聚合再扫会重复注册+internal 可见性错误 -->
+  <ItemGroup>
+    <AssemblyMetadata Include="AutoRegisterScope" Value="CurrentAssembly" />
+  </ItemGroup>
+
   <!-- 引用面与 cli 宿主相同（引擎组件传递闭包横跨 composition/slash/brain/agents） -->
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)modules/composition/composition/Composition.csproj" />
@@ -17,6 +22,11 @@
     <ProjectReference Include="$(RepoRoot)modules/services/browser/Browser.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/composition/pipelines/Pipelines.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/persistence/pithosdb/PithosDB.Core.csproj" />
+  </ItemGroup>
+
+  <!-- 源码生成器 — 扫描 engine 程序集 [Register] 类型生成 AddJoinCodeEngineAutoRegisteredServices/Options（ADR 0143 Step 3c） -->
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/generators/mcp_tool_dispatch.generator/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

@@ -455,3 +455,40 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!--   hooks/ConfirmationGate 随迁后 gui/tui 可去 CliRegistrationModule) → Step 4 gui/tui 切直引 -->
 <!--   engine 消除 cli 依赖 → 改名批次(CliServiceContext→EngineServiceContext 等) → ADR 0143 状态 -->
 <!--   accepted; 阶段二 native_tui 宿主另起会话 -->
+
+<!-- 🤖 Auto Decision: 2026-10-20 (ADR 0143 阶段一 Step 3c: 49 类型分类搬移首批 24 个) -->
+<!-- 分类调查(explore 代理): 49 个 [Register] 类型 = ENGINE 25 + HOST 24 -->
+<!--   ENGINE 25 = 17 telemetry hooks(零 cli 专属依赖, 唯一伴生基类 TelemetryPostHook<TContext> -->
+<!--   无[Register]必须连搬) + TrustFolderManager(ITrustFolderManager 在 abstractions, 工作目录 -->
+<!--   信任是三宿主共性安全基座, 依赖 100% 干净) + user_experience 5 件(AssistantMode/Buddy/ -->
+<!--   Clipboard/ProactiveState/Sticker, 全部经 abstractions+IProcessService 抽象零 cli 依赖) -->
+<!--   + SystemPromptApplyStep + NonInteractiveExitCleanupStep(此 2 件受 StartupContext 阻塞) -->
+<!--   HOST 24 = CliPermissionConfirmationHandler(TerminalHelper y/a/n 交互) + Onboarding 2 件 + -->
+<!--   VimEngine + 10 startup/core 步骤(ConfirmationGate/ReplLoop/SessionInit 等重度 TerminalHelper/ -->
+<!--   CliSession) + 3 non_interactive + pipe 6 件(用户预设宿主侧) + ConsoleOutput(System.Console) -->
+<!-- 本批搬移(开心路径 24 个零阻塞): git mv 18 件 middlewares(17 hooks+基类)→engine/app/middlewares/ -->
+<!--   + TrustFolderManager→engine/core/trust/ + user_experience 5 件→engine/services/user_experience/ -->
+<!--   (ProactiveTickScheduler/TerminalFocusDetector 是 HOST 伴生物留 cli; 2 个 StartupContext 阻塞 -->
+<!--   步骤留待 StartupContext 拆分批次, 见剩余清单) -->
+<!-- 接线方案 X: 注册入口挂 CoreModule(三宿主零改动) — CoreModule 加 AddJoinCodeEngine -->
+<!--   AutoRegisteredServices/Options 两行("JoinCode.Engine"→"JoinCodeEngine" 由 sanitize 逻辑生成); -->
+<!--   弃用 EngineRegistrationModule(曾建 Order=29 又删: UseAllModules 是零消费方死代码, 运行时 -->
+<!--   模块链是 EngineSessionFactory 基础5模块+extraModules 手写列表, 新模块不进链=engine 24 类型 -->
+<!--   运行时丢注册, 测试绿是假象因单模块直测不走全链) -->
+<!-- 生成器新开关: ServiceRegistrationGenerator 加 IsCurrentAssemblyScope — 程序集声明 -->
+<!--   AssemblyMetadata("AutoRegisterScope","CurrentAssembly") 则只扫自身; 根因: 生成器对库项目 -->
+<!--   扫全部引用闭包(注释明示因子系统库未启用生成器), engine 作为启用生成器的聚合库会扫到 bridge -->
+<!--   的 internal pipe 中间件(CS0122, bridge IVT 含 Composition 故 Composition 不炸而 engine 炸) -->
+<!--   且加 IVT 会导致重复注册(hook 双执行, 46 注册翻倍≈92 是回归信号); AssemblyMetadata 是 -->
+<!--   ItemGroup 项非 PropertyGroup(踩 MSB4066) -->
+<!-- 测试联动: CliRegistrationModuleTests 收窄断言(删 IClipboard/IProactiveState 两行, 留 -->
+<!--   ConfirmationGate/Onboarding/VimEngine 三个 HOST 代表); 新建 CoreModuleRegistrationTests -->
+<!--   (2 用例: 6 服务描述符 + 3 管道 hook 描述符); host.tests GlobalUsings 补 3 行(Interfaces. -->
+<!--   Security/Pipeline/Services.Web) -->
+<!-- 验证: engine/cli/tui 三编译 0警告0错误 + gui 42 错误全 CS0246 Dock 存量(JccChatSession 零错误, -->
+<!--   搬移类型零出现) + host.tests 1341/1341(1339+2 TDD 闭环) + jcc.exe bridge_serve 冒烟 -->
+<!--   session_info 真实输出(DI 全链健康: AddJoinCodeEngine 注册链+hooks 管道+会话工厂) -->
+<!-- 剩余(Step 3c 后续): StartupContext 拆分(含 CliSession/CliOutputContract 两 cli 专属字段, -->
+<!--   是 SystemPromptApplyStep/NonInteractiveExitCleanupStep 搬移前置) + pipe 协议族边界案例 -->
+<!--   (BridgeConnectionNegotiator/BridgeHeartbeatService 依赖 100% 干净, 若 0143 协议层唯一数据源 -->
+<!--   覆盖 bridge 协议族可升 ENGINE) → Step 4 gui/tui 切直引 engine → 改名批次 → ADR 0143 accepted -->

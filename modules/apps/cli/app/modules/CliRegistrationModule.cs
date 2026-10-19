@@ -1,9 +1,10 @@
 namespace JoinCode.App.Modules;
 
 /// <summary>
-/// CLI 自动注册兜底模块 — 注册 cli 程序集内 49 个 [Register] 类型（ADR 0143 Step 3b 从 CoreModule 拆出）。
-/// <para>telemetry hooks/ConfirmationGate/OnboardingFlowController/VimEngine 等宿主侧资产由生成器方法兜底；</para>
-/// <para>gui/tui 会话经 extraModules 传入本模块，保持 CoreModule 拆分后行为零变化。</para>
+/// CLI 自动注册兜底模块 — 注册 cli 程序集内 25 个宿主侧 [Register] 类型（ADR 0143 Step 3b 从 CoreModule 拆出，Step 3c 搬走 24 个引擎侧类型后剩余）。
+/// <para>ConfirmationGate/OnboardingFlowController/VimEngine/pipe 等宿主侧资产由生成器方法兜底；</para>
+/// <para>telemetry hooks/TrustFolderManager/user_experience 5 件已搬 engine（Step 3c），由引擎侧 EngineRegistrationModule(29) 注册；</para>
+/// <para>gui/tui 会话经 extraModules 传入本模块，保持拆分后行为零变化。</para>
 /// </summary>
 [AppModule(Order = 31)]
 public sealed class CliRegistrationModule : IAppModule {

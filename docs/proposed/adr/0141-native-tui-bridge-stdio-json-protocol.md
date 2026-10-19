@@ -1,6 +1,6 @@
 # ADR 0141: native_tui bridge 进程协议 — stdio 行分格 JSON
 
-- 状态：proposed
+- 状态：proposed（主通路地位被 [ADR 0142](0142-native-tui-in-process-embedding.md) 取代：jcc.exe 进程内直连为主，本协议降级为可选部署形态——远程会话/headless/协议级调试；协议契约与 bridge_serve 实现保留不删）
 - 日期：2026-10-20
 - 关联：ADR 0140（native_tui 自研像素级对齐）、TASK055（M6 引擎接入里程碑）
 

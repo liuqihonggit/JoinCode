@@ -339,3 +339,18 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!-- 实现顺序(M7 内): 协议扩展先行(jcc 侧 agent_progress 事件) → AgentProgressLine 树形 -->
 <!--   分组渲染(TDD: cell golden 对齐) → CoordinatorTaskPanel 后台面板(视 M7 进度可后延) -->
 <!-- 验证: 本条为纯调查+排期决策, 无代码改动; 实现时按 TDD 红绿流程验证 -->
+
+<!-- 🤖 Auto Decision: 2026-10-20 (架构转向: ADR 0142 进程内嵌入 — jcc.exe 引用 NativeTui.Core) -->
+<!-- 触发: 用户"是不是直接写到 jcc.exe" — M7 协议税(每特性协议化)+300 子代理序列化开销+单 exe 诉求 -->
+<!-- 决策: 方案 C — jcc.exe 工程引用 NativeTui.Core(依赖单向 jcc→native_tui, ADR 0140 零依赖 -->
+<!--   字面成立), 新增 --tui 入口分流 Console, 进程内适配器直连(IEventConsumer→ReplView 零 DTO); -->
+<!--   ADR 0141 bridge stdio 降级为可选形态(远程/headless/调试), 协议三件套+bridge_serve 保留不删 -->
+<!-- 方向澄清: 0141 当年否决的进程内嵌是"引擎做库进 TUI 宿主", 本决策是反向"TUI 做库进 jcc 宿主", -->
+<!--   不复用该否决结论 -->
+<!-- 替代方案: 维持 bridge 唯一通路(协议税+序列化+双 exe); TUI 搬进 modules/(428 测试迁移+分析器 -->
+<!--   约束+编译耦合, 代价最大无增量收益) — 均放弃 -->
+<!-- 风险缓解: 双 Build.props 共存验证先行(实现首步); TUI 适配层异常边界+断言; AOT 风格本就满足; -->
+<!--   --tui 与 CLI 入口互斥(对齐 bridge_serve stderr 重定向先例) -->
+<!-- M7 多子代理显示实现路径更新: agent_progress/session_info/权限协商改进程内事件直连(原"协议 -->
+<!--   扩展先行"自动简化, 无需 ADR 0141 事件表演进) -->
+<!-- 验证: 本条为纯架构决策, 实现按 ADR 0142 实施范围 TDD 推进; 待实现后 ADR 转 accepted -->

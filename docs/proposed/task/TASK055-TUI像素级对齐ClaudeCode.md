@@ -181,3 +181,25 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!-- M6e-2 剩余(建议新窗口): jcc.exe 服务端事件泵(LLM 流式管道 → BridgeEvent) + Demo --bridge <exe> 真实对接; -->
 <!-- M7: 截图校准工具 + Markdown/代码高亮/diff/权限对话框; vim 模式跳过(用户决策 2026-10-20, 代码量大) -->
 <!-- resize 事件化: EnsureScreens 每帧对比已工作, 事件化是优化非必需, 并入 M7 顺手做 -->
+
+<!-- 🤖 Auto Decision: 2026-10-20 (M6e-2: bridge 事件泵 + REPL 驱动器 + Demo 真实对接) -->
+<!-- 决策1: 事件泵用 Actor 邮箱模型 — 后台 reader 线程生产/主循环消费 ConcurrentQueue, 无共享锁 -->
+<!--   (AGENTS.md 死锁处理用 Actor 邮箱模型); IOException(引擎 stdout 崩溃)记录诊断后正常完成 -->
+<!-- 决策2: ThreadState 是 [Flags] 枚举 — IsBackground 未启动线程 = Background|Unstarted, 相等比较 -->
+<!--   != Unstarted 永真 → Wait 死锁(测试 120s 超时); 必须位测试 (& Unstarted) == 0; -->
+<!--   定位手法: throw 探针法三轮二分(方法头过/构造后挂/Thread 探针过且暴露组合值真相) -->
+<!-- 决策3: ReplBridgeDriver 是事件语义唯一翻译层 — 模拟路径与真实 bridge 共用同一套回合视图状态 -->
+<!--   (BeginTurn/EndTurn 幂等, Submit 后乐观 BeginTurn, turn_started 事件到达重复应用无害) -->
+<!-- 决策4: TurnCompleted 复位 ResponseLength → 累加断言必须放在回合结束前(测试时机修正) -->
+<!-- 决策5: DemoSession 注入可选 BridgeClient — null=模拟状态机/非 null=事件驱动, 主循环二选一推进; -->
+<!--   引擎退出检测(!IsEngineAlive && !IsBusy)追加错误消息后结束会话(不静默退出) -->
+<!-- 决策6: echo-child 升级分派式 — TryReadRequest 循环 + HandleEchoRequest 有名函数, -->
+<!--   assistant_message 回显提交文本(加强 selftest 断言); Skipped 诊断写 stderr(不吞诊断) -->
+<!-- 决策7: BridgeClient stderr 直通不重定向 — 诊断可见且无管道缓冲填满死锁风险 -->
+<!-- 替代方案: 事件泵异步流 IAsyncEnumerable(主循环同步 50ms 拍, 队列排空更简单); -->
+<!--   引擎退出强杀 Process.Kill(quit 优雅关闭优先, 强杀丢失尾部事件) -->
+<!-- 验证: 397/397 测试全绿(+18: 泵 5/驱动 9/请求读取 4); Demo --selftest 0 + --bridge-selftest 0 -->
+<!--   (分派式 echo-child + submit 文本回显断言); --bridge 重定向守卫 1 + 诱导消息 ✅ -->
+<!--   commit 6ed7cc51e(泵+驱动) + M6e-2c(对接, 本 commit) -->
+<!-- M6e-2 手动验收(ADR 0080)待用户真实终端执行: NativeTui.Demo.exe --bridge <引擎exe路径> -->
+<!-- 剩余: jcc.exe 服务端事件泵(LLM 流式管道 → BridgeEvent) — M6 完结, M7 截图校准/高亮/diff/权限对话框 -->

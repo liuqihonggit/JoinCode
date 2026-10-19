@@ -14,6 +14,7 @@ public static class Program
         args is ["--selftest"] ? RunSelftest()
             : args is ["--bridge-selftest"] ? RunBridgeSelftest()
             : args is ["--bridge-echo-child"] ? RunBridgeEchoChild()
+            : args is ["--bridge", string exePath] ? RunBridgeInteractive(exePath)
             : RunInteractive();
 
     /// <summary>交互模式：进 raw mode 跑主循环，退出时清屏复位。</summary>
@@ -31,6 +32,43 @@ public static class Program
         Console.Out.Write(Sgr.Reset + Csi.EraseScreen() + Csi.CursorPosition(1, 1));
         Console.Out.Flush();
         Console.WriteLine("NativeTui.Demo 已退出。");
+        return 0;
+    }
+
+    /// <summary>
+    /// bridge 交互模式（ADR 0141 / ADR 0080 真实进程验收）— 拉起引擎子进程（stdio 管道），
+    /// 主循环内排空事件 → ReplBridgeDriver 应用到视图；提交/打断写子进程 stdin。
+    /// 退出（Ctrl+C/闲时 Esc）：Dispose 发 quit → 引擎退出 → 清屏复位。
+    /// </summary>
+    private static int RunBridgeInteractive(string exePath)
+    {
+        if (Console.IsInputRedirected || Console.IsOutputRedirected)
+        {
+            Console.Error.WriteLine("bridge 交互模式需要真实终端（stdin/stdout 被重定向）。请直接在终端运行，引擎 stderr 会直通显示。");
+            return 1;
+        }
+
+        BridgeClient client;
+        try
+        {
+            client = BridgeClient.Start(exePath);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or FileNotFoundException)
+        {
+            Console.Error.WriteLine($"引擎启动失败：{ex.Message}。请核对 --bridge <exe完整路径> 参数（本地联调可用本程序自身：NativeTui.Demo.exe --bridge NativeTui.Demo.exe 不支持，请改用 --bridge-selftest 验证协议）。");
+            return 1;
+        }
+
+        using (client)
+        {
+            Console.OutputEncoding = Encoding.UTF8;
+            using var raw = new RawConsoleMode();
+            new DemoSession(client).Run();
+            Console.Out.Write(Sgr.Reset + Csi.EraseScreen() + Csi.CursorPosition(1, 1));
+            Console.Out.Flush();
+        }
+
+        Console.WriteLine("NativeTui.Demo bridge 会话已退出。");
         return 0;
     }
 
@@ -87,7 +125,7 @@ public static class Program
         AssertEvent(received, e => e is BridgeEvent.ThinkingEnded { DurationMs: > 0 }, "thinking_ended durationMs>0", failures);
         ExpectEvent<BridgeEvent.ToolCall>(received, failures);
         ExpectEvent<BridgeEvent.ToolResult>(received, failures);
-        AssertEvent(received, e => e is BridgeEvent.AssistantMessage { Text.Length: > 0 }, "assistant_message 非空", failures);
+        AssertEvent(received, e => e is BridgeEvent.AssistantMessage { Text.Length: > 0 } am && am.Text.Contains("bridge roundtrip"), "assistant_message 回显提交文本", failures);
         ExpectEvent<BridgeEvent.TurnCompleted>(received, failures);
 
         if (failures.Count > 0)
@@ -123,26 +161,63 @@ public static class Program
         }
     }
 
-    /// <summary>echo-child — 模拟引擎：读 stdin 请求，向 stdout 回放完整回合事件序列。</summary>
+    /// <summary>
+    /// echo-child — 分派式引擎模拟：读 stdin 请求（TryReadRequest），
+    /// submit → 回放完整回合事件序列（assistant_message 回显提交文本）；interrupt → turn_interrupted；
+    /// quit/Eof → 退出。协议统一 LF（显式 Write('\n')，不受平台 NewLine 影响）。
+    /// </summary>
     private static int RunBridgeEchoChild()
     {
-        var reader = Console.In;
         var writer = Console.Out;
-        writer.WriteLine(BridgeProtocol.SerializeEvent(new BridgeEvent.TurnStarted()));
-        writer.WriteLine(BridgeProtocol.SerializeEvent(new BridgeEvent.ThinkingStarted()));
-        writer.WriteLine(BridgeProtocol.SerializeEvent(new BridgeEvent.ThinkingEnded(5000)));
-        writer.WriteLine(BridgeProtocol.SerializeEvent(new BridgeEvent.ToolCall("Read", "bridge/echo")));
-        writer.WriteLine(BridgeProtocol.SerializeEvent(new BridgeEvent.ToolResult("6 events")));
-        writer.WriteLine(BridgeProtocol.SerializeEvent(new BridgeEvent.AssistantMessage("bridge 回环回复 — 协议链路正常。")));
-        writer.WriteLine(BridgeProtocol.SerializeEvent(new BridgeEvent.TurnCompleted()));
-        writer.Flush();
-
-        // 读完父进程全部请求行后退出
-        while (reader.ReadLine() is not null)
+        var exit = false;
+        while (!exit)
         {
+            var result = BridgeProtocol.TryReadRequest(Console.In, out var request, out var diagnostic);
+            switch (result)
+            {
+                case BridgeReadResult.Eof:
+                    exit = true;
+                    break;
+                case BridgeReadResult.Skipped:
+                    Console.Error.WriteLine(diagnostic);
+                    break;
+                default:
+                    HandleEchoRequest(request!, writer);
+                    exit = request is BridgeRequest.Quit;
+                    break;
+            }
         }
 
         return 0;
+    }
+
+    /// <summary>分派单条请求：submit → 回放完整回合事件序列（assistant_message 回显提交文本）；interrupt → turn_interrupted。</summary>
+    private static void HandleEchoRequest(BridgeRequest request, TextWriter writer)
+    {
+        switch (request)
+        {
+            case BridgeRequest.Submit(var text):
+                WriteLine(writer, BridgeProtocol.SerializeEvent(new BridgeEvent.TurnStarted()));
+                WriteLine(writer, BridgeProtocol.SerializeEvent(new BridgeEvent.ThinkingStarted()));
+                WriteLine(writer, BridgeProtocol.SerializeEvent(new BridgeEvent.ThinkingEnded(5000)));
+                WriteLine(writer, BridgeProtocol.SerializeEvent(new BridgeEvent.ToolCall("Read", "bridge/echo")));
+                WriteLine(writer, BridgeProtocol.SerializeEvent(new BridgeEvent.ToolResult("6 events")));
+                WriteLine(writer, BridgeProtocol.SerializeEvent(new BridgeEvent.AssistantMessage($"echo: {text} — 协议链路正常。")));
+                WriteLine(writer, BridgeProtocol.SerializeEvent(new BridgeEvent.TurnCompleted()));
+                writer.Flush();
+                break;
+            case BridgeRequest.Interrupt:
+                WriteLine(writer, BridgeProtocol.SerializeEvent(new BridgeEvent.TurnInterrupted()));
+                writer.Flush();
+                break;
+        }
+    }
+
+    /// <summary>写一行 + 显式 LF + Flush（协议统一 \n）。</summary>
+    private static void WriteLine(TextWriter writer, string line)
+    {
+        writer.Write(line);
+        writer.Write('\n');
     }
 
     /// <summary>自检模式：四组冒烟断言（无终端依赖，CI 可跑）。</summary>
@@ -273,8 +348,10 @@ public static class Program
 }
 
 /// <summary>
-/// demo 会话 — 持有全部运行时状态（视图/输入/双缓冲/模拟回合状态机），
-/// 主循环每 50ms 一拍：排空键盘 → 推进模拟 → 渲染差分上屏 → 帧率对齐。
+/// demo 会话 — 持有全部运行时状态（视图/输入/双缓冲/回合状态机），
+/// 主循环每 50ms 一拍：排空键盘 → 推进回合（模拟状态机或 bridge 事件排空）→ 渲染差分上屏 → 帧率对齐。
+/// bridge 模式（传入 BridgeClient）：回合生命周期由引擎事件驱动（ReplBridgeDriver 应用），
+/// 提交/打断写子进程 stdin；引擎退出时追加错误消息并结束会话。
 /// </summary>
 internal sealed class DemoSession
 {
@@ -305,6 +382,12 @@ internal sealed class DemoSession
     private readonly StylePool _pool = new();
     private readonly Stopwatch _clock = Stopwatch.StartNew();
 
+    /// <summary>bridge 引擎客户端（null = 模拟回合模式）。</summary>
+    private readonly BridgeClient? _client;
+
+    /// <summary>bridge 事件应用器（bridge 模式构造）。</summary>
+    private readonly ReplBridgeDriver? _driver;
+
     private Screen _front = null!;
     private Screen _back = null!;
     private bool _frontValid;
@@ -313,7 +396,14 @@ internal sealed class DemoSession
     private long _turnStartMs;
     private bool _running = true;
 
-    /// <summary>主循环 — 每拍：排空键盘 → 推进模拟 → 渲染差分上屏 → 对齐 50ms。</summary>
+    /// <summary>创建会话（传 client 进入 bridge 模式：回合由引擎事件驱动）。</summary>
+    public DemoSession(BridgeClient? client = null)
+    {
+        _client = client;
+        _driver = client is null ? null : new ReplBridgeDriver(_view, _spinner);
+    }
+
+    /// <summary>主循环 — 每拍：排空键盘 → 推进回合（模拟或 bridge）→ 渲染差分上屏 → 对齐 50ms。</summary>
     public void Run()
     {
         SeedContent();
@@ -321,20 +411,52 @@ internal sealed class DemoSession
         {
             var tickStart = _clock.ElapsedMilliseconds;
             DrainInput();
-            AdvanceTurn();
+            if (_client is null)
+            {
+                AdvanceTurn();
+            }
+            else
+            {
+                DrainBridge();
+            }
+
             RenderAndFlush();
             PaceTick(tickStart);
         }
     }
 
-    /// <summary>初始内容 — 几条示例消息 + spinner 常驻滚动区尾部。</summary>
+    /// <summary>初始内容 — 模拟模式 seed 几条示例消息；bridge 模式滚动区留空（spinner 常驻尾部）。</summary>
     private void SeedContent()
     {
-        _view.Messages.Add(new UserMessageItem("这个 TUI 是像素级对齐 Claude Code 的自研实现吗？"));
-        _view.Messages.Add(new AssistantMessageItem("是的 — 纯 C# 自研渲染管线：Screen cell 网格 + CellDiffer 差分 + DEC 2026 原子上屏。"));
-        _view.Messages.Add(new ToolCallItem("Read", "native_tui/src/NativeTui.Core/repl/ReplView.cs"));
-        _view.Messages.Add(new ToolResultItem("41 行 — REPL 整屏视图（footer + 输入框 + 消息滚动区）"));
+        if (_client is null)
+        {
+            _view.Messages.Add(new UserMessageItem("这个 TUI 是像素级对齐 Claude Code 的自研实现吗？"));
+            _view.Messages.Add(new AssistantMessageItem("是的 — 纯 C# 自研渲染管线：Screen cell 网格 + CellDiffer 差分 + DEC 2026 原子上屏。"));
+            _view.Messages.Add(new ToolCallItem("Read", "native_tui/src/NativeTui.Core/repl/ReplView.cs"));
+            _view.Messages.Add(new ToolResultItem("41 行 — REPL 整屏视图（footer + 输入框 + 消息滚动区）"));
+        }
+
         _view.Messages.Add(_spinner);
+    }
+
+    /// <summary>排空 bridge 事件泵：事件应用视图 + 诊断记 stderr + 引擎退出检测。</summary>
+    private void DrainBridge()
+    {
+        foreach (var bridgeEvent in _client!.DrainEvents())
+        {
+            _driver!.Apply(bridgeEvent);
+        }
+
+        foreach (var diagnostic in _client.DrainDiagnostics())
+        {
+            Console.Error.WriteLine(diagnostic);
+        }
+
+        if (!_client.IsEngineAlive && !_driver!.IsBusy)
+        {
+            _view.Messages.Insert(_view.Messages.Count - 1, new ErrorMessageItem("引擎进程已退出，会话结束。"));
+            _running = false;
+        }
     }
 
     /// <summary>新消息插入到常驻 spinner 之前（spinner 恒为滚动区最后一项）。</summary>
@@ -548,8 +670,14 @@ internal sealed class DemoSession
     /// <summary>Esc：忙时打断当前回合；闲时有输入清空（对齐基准双击清空的单击近似），无输入退出。</summary>
     private void HandleEscape()
     {
-        if (_phase != TurnPhase.Idle)
+        if (IsBusy)
         {
+            if (_client is not null)
+            {
+                _client.Interrupt();
+                return;
+            }
+
             FinishTurn(interrupted: true);
             return;
         }
@@ -563,7 +691,10 @@ internal sealed class DemoSession
         _running = false;
     }
 
-    /// <summary>提交输入：空文本忽略；否则追加用户消息并开始模拟回合。</summary>
+    /// <summary>回合进行中（模拟：阶段非空闲；bridge：driver.IsBusy）。</summary>
+    private bool IsBusy => _client is null ? _phase != TurnPhase.Idle : _driver!.IsBusy;
+
+    /// <summary>提交输入：空文本忽略；否则追加用户消息并开始回合（模拟状态机或引擎提交）。</summary>
     private void Submit()
     {
         var text = _input.Text;
@@ -574,7 +705,15 @@ internal sealed class DemoSession
 
         _input.Clear();
         AddMessage(new UserMessageItem(text));
-        StartTurn();
+        if (_client is null)
+        {
+            StartTurn();
+        }
+        else
+        {
+            _driver!.BeginTurn();
+            _client.Submit(text);
+        }
     }
 
     /// <summary>开始回合：进入 Thinking 阶段，busy + spinner 启动（消息留空 → 随机动词，对齐基准挂载采样）。</summary>

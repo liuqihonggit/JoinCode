@@ -129,8 +129,10 @@ internal static class SolutionParser {
     internal static List<string> SplitQuotedParts(ReadOnlySpan<char> input) {
         var result = new List<string>();
         var i = 0;
+        var spin = new SpinWait();
 
         while (i < input.Length) {
+            var prev = i;
             while (i < input.Length && input[i] != '"') {
                 i++;
             }
@@ -150,6 +152,16 @@ internal static class SolutionParser {
             }
 
             i++;
+
+            // 游标停滞防御(#102 CodeIndex 超时同类根因): 尾部 i++ 被变异(i--)后,
+            // 相邻引号场景 i 在 c/c+1 震荡永不前进 → testhost 挂死。
+            // 正常路径每轮至少前进 1(停滞检测永不触发); SpinWait.Count 为框架内部计数器,
+            // Stryker 单点变异无法破坏, 上限=输入长度(正常扫描轮数上界)。
+            if (i <= prev) {
+                spin.SpinOnce();
+                if (spin.Count > input.Length) throw new InvalidOperationException(
+                    $"SplitQuotedParts 游标停滞于 {i}(轮首 {prev}), 判定游标前进被破坏(变异防御)");
+            }
         }
 
         return result;

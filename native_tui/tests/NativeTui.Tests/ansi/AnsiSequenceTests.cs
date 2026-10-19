@@ -1,0 +1,271 @@
+namespace NativeTui.Tests.Ansi;
+
+/// <summary>
+/// ANSI 转义序列构建器的 golden 测试（M1.2）。
+/// 期望值提取自基准源码 src/ink/termio/（csi/osc/sgr/dec）与 screen.ts 的 SGR 常量。
+/// </summary>
+public sealed class SgrTests
+{
+    [Fact]
+    public void Reset_EmitsZero()
+    {
+        Assert.Equal("\x1b[0m", Sgr.Reset);
+    }
+
+    [Fact]
+    public void Bold_EmitsOne()
+    {
+        Assert.Equal("\x1b[1m", Sgr.Bold);
+    }
+
+    [Fact]
+    public void Italic_EmitsThree()
+    {
+        Assert.Equal("\x1b[3m", Sgr.Italic);
+    }
+
+    [Fact]
+    public void Underline_EmitsFour()
+    {
+        Assert.Equal("\x1b[4m", Sgr.Underline);
+    }
+
+    [Fact]
+    public void Dim_EmitsTwo()
+    {
+        Assert.Equal("\x1b[2m", Sgr.Dim);
+    }
+
+    [Fact]
+    public void Inverse_EmitsSeven()
+    {
+        Assert.Equal("\x1b[7m", Sgr.Inverse);
+    }
+
+    [Fact]
+    public void Strikethrough_EmitsNine()
+    {
+        Assert.Equal("\x1b[9m", Sgr.Strikethrough);
+    }
+
+    [Fact]
+    public void ResetBold_EmitsTwentyTwo_BaselineUses22Not21()
+    {
+        // 基准 screen.ts: BOLD_CODE 关闭用 22（同时关 bold+dim），不用 21
+        Assert.Equal("\x1b[22m", Sgr.ResetBold);
+    }
+
+    [Fact]
+    public void ResetUnderline_EmitsTwentyFour()
+    {
+        Assert.Equal("\x1b[24m", Sgr.ResetUnderline);
+    }
+
+    [Fact]
+    public void ResetInverse_EmitsTwentySeven()
+    {
+        Assert.Equal("\x1b[27m", Sgr.ResetInverse);
+    }
+
+    [Fact]
+    public void DefaultForeground_EmitsThirtyNine()
+    {
+        Assert.Equal("\x1b[39m", Sgr.DefaultForeground);
+    }
+
+    [Fact]
+    public void DefaultBackground_EmitsFortyNine()
+    {
+        Assert.Equal("\x1b[49m", Sgr.DefaultBackground);
+    }
+
+    [Fact]
+    public void Foreground_TrueColor_Emits38_2_RGB()
+    {
+        // Claude 橙 rgb(215,119,87)
+        Assert.Equal("\x1b[38;2;215;119;87m", Sgr.Foreground(215, 119, 87));
+    }
+
+    [Fact]
+    public void Background_TrueColor_Emits48_2_RGB()
+    {
+        // 用户消息灰底 dark rgb(55,55,55)
+        Assert.Equal("\x1b[48;2;55;55;55m", Sgr.Background(55, 55, 55));
+    }
+
+    [Theory]
+    [InlineData(0, "\x1b[38;5;0m")]
+    [InlineData(174, "\x1b[38;5;174m")]
+    [InlineData(255, "\x1b[38;5;255m")]
+    public void Foreground_Ansi256_Emits38_5_Index(int index, string expected)
+    {
+        Assert.Equal(expected, Sgr.ForegroundAnsi256(index));
+    }
+
+    [Theory]
+    [InlineData(231, "\x1b[48;5;231m")]
+    public void Background_Ansi256_Emits48_5_Index(int index, string expected)
+    {
+        Assert.Equal(expected, Sgr.BackgroundAnsi256(index));
+    }
+}
+
+/// <summary>
+/// CSI（Control Sequence Introducer）序列测试 — 光标/擦除/滚动/DECSTBM。
+/// </summary>
+public sealed class CsiTests
+{
+    [Fact]
+    public void CursorPosition_OneBased_EmitsH()
+    {
+        Assert.Equal("\x1b[5;10H", Csi.CursorPosition(row: 5, col: 10));
+    }
+
+    [Fact]
+    public void CursorPosition_Origin_EmitsPlainH()
+    {
+        Assert.Equal("\x1b[H", Csi.CursorPosition(row: 1, col: 1));
+    }
+
+    [Fact]
+    public void CursorUp_EmitsA()
+    {
+        Assert.Equal("\x1b[3A", Csi.CursorUp(3));
+    }
+
+    [Fact]
+    public void CursorUp_One_OmitsCount()
+    {
+        Assert.Equal("\x1b[A", Csi.CursorUp(1));
+    }
+
+    [Fact]
+    public void CursorDown_EmitsB()
+    {
+        Assert.Equal("\x1b[2B", Csi.CursorDown(2));
+    }
+
+    [Fact]
+    public void CursorForward_EmitsC()
+    {
+        Assert.Equal("\x1b[7C", Csi.CursorForward(7));
+    }
+
+    [Fact]
+    public void CursorBackward_EmitsD()
+    {
+        Assert.Equal("\x1b[4D", Csi.CursorBackward(4));
+    }
+
+    [Fact]
+    public void EraseScreen_Full_Emits2J()
+    {
+        Assert.Equal("\x1b[2J", Csi.EraseScreen());
+    }
+
+    [Fact]
+    public void EraseLineToEnd_Emits0K()
+    {
+        Assert.Equal("\x1b[0K", Csi.EraseLineToEnd());
+    }
+
+    [Fact]
+    public void SetScrollRegion_EmitsDecstm_R()
+    {
+        // 基准 log-update.ts: DECSTBM CSI top;bot r 用于硬件滚动
+        Assert.Equal("\x1b[5;20r", Csi.SetScrollRegion(top: 5, bottom: 20));
+    }
+
+    [Fact]
+    public void ScrollUp_EmitsS()
+    {
+        Assert.Equal("\x1b[2S", Csi.ScrollUp(2));
+    }
+
+    [Fact]
+    public void ScrollDown_EmitsT()
+    {
+        Assert.Equal("\x1b[3T", Csi.ScrollDown(3));
+    }
+
+    [Fact]
+    public void SynchronizedOutputBegin_EmitsDec2026()
+    {
+        Assert.Equal("\x1b[?2026h", Csi.SynchronizedOutputBegin());
+    }
+
+    [Fact]
+    public void SynchronizedOutputEnd_EmitsDec2026Reset()
+    {
+        Assert.Equal("\x1b[?2026l", Csi.SynchronizedOutputEnd());
+    }
+}
+
+/// <summary>
+/// DEC 私有模式开关测试 — alt-screen/鼠标/bracketed paste（对齐基准 AlternateScreen.tsx 生命周期）。
+/// </summary>
+public sealed class DecPrivateModeTests
+{
+    [Fact]
+    public void AltScreen_Enable_Emits1049h_ThenClear()
+    {
+        // 基准 AlternateScreen: 进入 alt-screen 用 1049h（1049 = 1047+清屏语义）
+        Assert.Equal("\x1b[?1049h", DecPrivateMode.Enable(DecPrivateModeKind.AlternateScreen));
+    }
+
+    [Fact]
+    public void AltScreen_Disable_Emits1049l()
+    {
+        Assert.Equal("\x1b[?1049l", DecPrivateMode.Disable(DecPrivateModeKind.AlternateScreen));
+    }
+
+    [Theory]
+    [InlineData(DecPrivateModeKind.MouseClickTracking, "\x1b[?1000h")]
+    [InlineData(DecPrivateModeKind.MouseEventTracking, "\x1b[?1002h")]
+    [InlineData(DecPrivateModeKind.MouseAnyEventTracking, "\x1b[?1003h")]
+    [InlineData(DecPrivateModeKind.MouseSgrEncoding, "\x1b[?1006h")]
+    [InlineData(DecPrivateModeKind.BracketedPaste, "\x1b[?2004h")]
+    [InlineData(DecPrivateModeKind.CursorVisibility, "\x1b[?25h")]
+    public void Enable_EmitsQuestionMarkCodeH(DecPrivateModeKind kind, string expected)
+    {
+        Assert.Equal(expected, DecPrivateMode.Enable(kind));
+    }
+
+    [Fact]
+    public void Disable_EmitsQuestionMarkCodeL()
+    {
+        Assert.Equal("\x1b[?1006l", DecPrivateMode.Disable(DecPrivateModeKind.MouseSgrEncoding));
+    }
+}
+
+/// <summary>
+/// OSC（Operating System Command）测试 — 标题/超链接/进度条。
+/// </summary>
+public sealed class OscTests
+{
+    [Fact]
+    public void SetTitle_EmitsBelTerminated()
+    {
+        Assert.Equal("\x1b]0;jcctui\x07", Osc.SetTitle("jcctui"));
+    }
+
+    [Fact]
+    public void Hyperlink_EmitsOsc8WithStTerminator()
+    {
+        // 基准 HyperlinkPool: OSC 8 ; params ; uri ST
+        Assert.Equal("\x1b]8;;https://example.com\x1b\\", Osc.Hyperlink("https://example.com"));
+    }
+
+    [Fact]
+    public void Hyperlink_Close_EmitsEmptyUri()
+    {
+        Assert.Equal("\x1b]8;;\x1b\\", Osc.HyperlinkEnd());
+    }
+
+    [Fact]
+    public void Progress_EmitsNineFour()
+    {
+        // 基准 isProgressReportingAvailable: OSC 9;4;state;progress（Windows Terminal 排除）
+        Assert.Equal("\x1b]9;4;1;50\x07", Osc.Progress(state: 1, progress: 50));
+    }
+}

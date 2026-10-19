@@ -221,13 +221,14 @@ public sealed class SpinnerItemTests
         view.Messages.Add(Item());
         using var screen = new Screen(40, 8);
         view.Render(screen, Theme.Dark);
-        // rows=8：footer 1 行 + 输入 2 行 + 间隔 1 行 → 消息区 0..3
-        // user 项占 0-1（margin+正文），spinner 占 2-3（margin+正文）→ 行 3 为 spinner
-        Assert.Equal(new Rune('h'), screen[1, 2].Value);
-        Assert.Equal(new Rune('·'), screen[3, 0].Value);
-        Assert.Equal("· Working… ", RowText.Of(screen, 3, 0, 11));
-        // 输入框在行 5-6，footer 行 7
-        Assert.Equal(new Rune('❯'), screen[6, 0].Value);
-        Assert.Equal(new Rune('╭'), screen[5, 0].Value);
+        // rows=8：footer 1 行 + 输入 3 行（顶线/文本/底线）+ 间隔 1 行 → 消息区 0..2（高 3）
+        // 内容高 4（user 2 + spinner 2）> 视口 3，sticky → scrollTop=1：user 正文滚至行 0，spinner 占行 1-2
+        Assert.Equal(new Rune('h'), screen[0, 2].Value);
+        Assert.Equal(new Rune('·'), screen[2, 0].Value);
+        Assert.Equal("· Working… ", RowText.Of(screen, 2, 0, 11));
+        // 输入区行 4-6（顶线/❯/底线），footer 行 7
+        Assert.Equal(new Rune('─'), screen[4, 0].Value);
+        Assert.Equal(new Rune('❯'), screen[5, 0].Value);
+        Assert.Equal(new Rune('─'), screen[6, 0].Value);
     }
 }

@@ -2,9 +2,10 @@ namespace NativeTui.Core.Repl;
 
 /// <summary>
 /// REPL 整屏视图 — 对齐基准 REPL.tsx bottom slot 布局（自底向上）：
-/// footer 1 行（paddingX=2，基准 PromptInputFooter）+ 输入文本 1 行 + 输入顶边框 1 行
-/// + 间隔 1 行（输入框 marginTop=1），其余全部给消息滚动区（sticky 钉底）。
-/// spinner 行（输入框上方，基准 scrollable 区尾部）属 M5 动画系统，本版本不渲染。
+/// footer 1 行（paddingX=2，基准 PromptInputFooter）+ 输入底边线 1 行 + 输入文本 1 行
+/// + 输入顶边线 1 行（基准 PromptInput 上下全宽 ─ 分隔线）+ 间隔 1 行（输入框 marginTop=1），
+/// 其余全部给消息滚动区（sticky 钉底）。
+/// spinner 行（输入框上方，基准 scrollable 区尾部）属 M5 动画系统，由滚动区尾部 SpinnerItem 承载。
 /// </summary>
 public sealed class ReplView
 {
@@ -32,10 +33,10 @@ public sealed class ReplView
         var footerFrame = new Rect(2, screen.Rows - 1, Math.Max(0, screen.Cols - 4), 1);
         _footer.Render(screen, footerFrame, theme, Mode, Busy);
 
-        var inputFrame = new Rect(0, screen.Rows - 3, screen.Cols, 2);
+        var inputFrame = new Rect(0, screen.Rows - 4, screen.Cols, 3);
         _inputBox.Render(screen, inputFrame, theme, Input, CursorCol, Busy);
 
-        var messagesFrame = new Rect(0, 0, screen.Cols, screen.Rows - 4);
+        var messagesFrame = new Rect(0, 0, screen.Cols, screen.Rows - 5);
         Messages.Render(screen, messagesFrame, theme);
     }
 }

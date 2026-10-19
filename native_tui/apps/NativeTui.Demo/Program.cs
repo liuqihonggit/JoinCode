@@ -425,9 +425,10 @@ internal sealed class DemoSession
         }
     }
 
-    /// <summary>初始内容 — 模拟模式 seed 几条示例消息；bridge 模式滚动区留空（spinner 常驻尾部）。</summary>
+    /// <summary>初始内容 — 启动 banner（两种模式共有，对齐基准 LogoHeader 挂消息列表头部）+ 模拟模式 seed 几条示例消息；bridge 模式滚动区留空（spinner 常驻尾部）。</summary>
     private void SeedContent()
     {
+        _view.Messages.Add(new BannerItem("2.1.303", "Opus 5.5", "API Usage Billing", Environment.CurrentDirectory));
         if (_client is null)
         {
             _view.Messages.Add(new UserMessageItem("这个 TUI 是像素级对齐 Claude Code 的自研实现吗？"));

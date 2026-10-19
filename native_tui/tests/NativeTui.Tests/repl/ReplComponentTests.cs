@@ -88,22 +88,24 @@ public sealed class MessageRendererTests
 
 /// <summary>
 /// 输入框 golden 测试 — 像素级对齐基准 PromptInput.tsx 标志性样式：
-/// 仅顶部圆角单边框（PromptBorder 灰）+ ❯ 提示符（busy 时 dim）+
-/// 光标（文本 offset 处字符反色，行尾为反色空格块，屏幕列 = 前缀 2 + offset）。
+/// 上下全宽纯 ─ 分隔线（borderStyle=round 但 borderLeft/Right=false → 无角字符）
+/// + ❯ 提示符（busy 时 dim）+ 光标（文本 offset 处字符反色，行尾为反色空格块，屏幕列 = 前缀 2 + offset）。
 /// </summary>
 public sealed class PromptInputBoxTests
 {
     [Fact]
-    public void Render_TopBorderWithPromptBorderGray()
+    public void Render_TopAndBottomFullWidthRules()
     {
         using var screen = new Screen(cols: 12, rows: 3);
         var box = new PromptInputBox();
         box.Render(screen, new Rect(0, 0, 12, 3), Theme.Dark, text: "hi", cursorCol: 2);
         var border = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.PromptBorder });
-        // 顶边 ╭──────────╮（仅顶边，cli-boxes round）
-        Assert.Equal("╭──────────╮", RowText.Of(screen, 0, 0, 12));
+        // 顶边与底边均为全宽纯 ─（render-border borderLeft/Right=false 时角字符为空串）
+        Assert.Equal("────────────", RowText.Of(screen, 0, 0, 12));
+        Assert.Equal("────────────", RowText.Of(screen, 2, 0, 12));
         Assert.Equal(border, screen[0, 0].StyleId);
-        // 第二行 ❯ hi（❯ 默认色，非 busy 不 dim）
+        Assert.Equal(border, screen[2, 11].StyleId);
+        // 中间行 ❯ hi（❯ 默认色，非 busy 不 dim）
         Assert.Equal(0, screen[1, 0].StyleId);
         Assert.Equal($"{Figures.Pointer} hi", RowText.Of(screen, 1, 0, 4).TrimEnd());
     }

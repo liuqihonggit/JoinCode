@@ -31,6 +31,15 @@ public static class BorderPainter
         }
     }
 
+    /// <summary>画全宽水平分隔线（无角字符）— 对齐基准 render-border 在 borderLeft/Right=false 时 round 边框的顶/底边：topLeft/topRight 为空串、─ 占满 width。</summary>
+    public static void DrawRule(Screen screen, int row, int x, int width, int styleId)
+    {
+        for (var col = x; col < x + width; col++)
+        {
+            screen[row, col] = new Cell(new Rune('─'), styleId, CellWidth.Default);
+        }
+    }
+
     /// <summary>画完整圆角边框（宽高 ≥ 2 才绘制）。</summary>
     public static void DrawFull(Screen screen, Rect rect, int styleId)
     {

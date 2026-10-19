@@ -38,6 +38,9 @@ public sealed class ScrollBox
     /// <summary>追加内容项（钉底/跟随在下次 Render 时结算）。</summary>
     public void Add(IScrollItem item) => _items.Add(item);
 
+    /// <summary>内容项只读视图（驱动层与测试断言用；变更走 Add/Insert）。</summary>
+    public IReadOnlyList<IScrollItem> Items => _items;
+
     /// <summary>内容项数量。</summary>
     public int Count => _items.Count;
 

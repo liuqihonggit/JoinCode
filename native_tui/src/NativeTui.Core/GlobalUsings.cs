@@ -1,6 +1,9 @@
 global using System.Text.Json;
 global using System.Text.Json.Serialization;
+global using System.Text.Json.Serialization.Metadata;
 global using System.Text;
+global using System.Collections.Concurrent;
+global using System.Diagnostics;
 global using NativeTui.Core.Ansi;
 global using NativeTui.Core.Animation;
 global using NativeTui.Core.Bridge;

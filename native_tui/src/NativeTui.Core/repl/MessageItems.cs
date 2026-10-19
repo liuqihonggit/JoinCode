@@ -48,3 +48,17 @@ public sealed class ToolResultItem(string text) : IScrollItem
     public void Render(Screen screen, Rect frame, Theme theme) =>
         MessageRenderer.RenderToolResult(screen, frame with { Y = frame.Y + 1, Height = 1 }, theme, text);
 }
+
+/// <summary>错误消息项（● theme.Error 红色 + 正文，bridge error 事件载体）。</summary>
+public sealed class ErrorMessageItem(string text) : IScrollItem
+{
+    /// <summary>错误正文。</summary>
+    public string Text { get; } = text;
+
+    /// <summary>内容高度 = margin 1 + 正文 1。</summary>
+    public int MeasureHeight(int width) => 2;
+
+    /// <summary>margin 行留空，正文画在 frame.Y+1。</summary>
+    public void Render(Screen screen, Rect frame, Theme theme) =>
+        MessageRenderer.RenderError(screen, frame with { Y = frame.Y + 1, Height = 1 }, theme, Text);
+}

@@ -146,6 +146,50 @@ public sealed class BridgeProtocolTests
     }
 
     [Fact]
+    public void ReadRequest_Submit_ParsesText()
+    {
+        var reader = new StringReader("{\"type\":\"submit\",\"text\":\"你好 world\"}\n");
+        var result = BridgeProtocol.TryReadRequest(reader, out var request, out var diagnostic);
+        Assert.Equal(BridgeReadResult.Event, result);
+        var submit = Assert.IsType<BridgeRequest.Submit>(request);
+        Assert.Equal("你好 world", submit.Text);
+        Assert.Null(diagnostic);
+    }
+
+    [Fact]
+    public void ReadRequest_InterruptAndQuit_ParseByType()
+    {
+        var reader = new StringReader("{\"type\":\"interrupt\"}\n{\"type\":\"quit\"}\n");
+        Assert.Equal(BridgeReadResult.Event, BridgeProtocol.TryReadRequest(reader, out var first, out _));
+        Assert.IsType<BridgeRequest.Interrupt>(first);
+        Assert.Equal(BridgeReadResult.Event, BridgeProtocol.TryReadRequest(reader, out var second, out _));
+        Assert.IsType<BridgeRequest.Quit>(second);
+    }
+
+    [Fact]
+    public void ReadRequest_UnknownType_SkippedWithInductiveDiagnostic()
+    {
+        var reader = new StringReader("{\"type\":\"teleport\"}\n{\"type\":\"quit\"}\n");
+        var result = BridgeProtocol.TryReadRequest(reader, out var request, out var diagnostic);
+        Assert.Equal(BridgeReadResult.Skipped, result);
+        Assert.Null(request);
+        Assert.NotNull(diagnostic);
+        Assert.Contains("teleport", diagnostic);
+        Assert.Contains("submit", diagnostic);
+
+        Assert.Equal(BridgeReadResult.Event, BridgeProtocol.TryReadRequest(reader, out var resumed, out _));
+        Assert.IsType<BridgeRequest.Quit>(resumed);
+    }
+
+    [Fact]
+    public void ReadRequest_EmptyLineSkipped_EofAtStreamEnd()
+    {
+        var reader = new StringReader("\n{\"type\":\"interrupt\"}\n");
+        Assert.Equal(BridgeReadResult.Event, BridgeProtocol.TryReadRequest(reader, out _, out _));
+        Assert.Equal(BridgeReadResult.Eof, BridgeProtocol.TryReadRequest(reader, out _, out _));
+    }
+
+    [Fact]
     public void Roundtrip_AllEvents_SurviveSerializeDeserialize()
     {
         BridgeEvent[] events =

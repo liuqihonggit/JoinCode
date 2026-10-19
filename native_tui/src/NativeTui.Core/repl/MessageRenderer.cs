@@ -54,4 +54,12 @@ public static class MessageRenderer
         screen.WriteText(frame.Y, frame.X, Figures.ToolResultIndent, dim, frame.Right);
         screen.WriteText(frame.Y, frame.X + Figures.ToolResultIndent.Length, text, 0, frame.Right);
     }
+
+    /// <summary>渲染错误消息：● + 空格 + 正文，全部 theme.Error 红色（bridge error 事件）。</summary>
+    public static void RenderError(Screen screen, Rect frame, Theme theme, string text)
+    {
+        var style = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Error });
+        screen.WriteText(frame.Y, frame.X, $"{Figures.MessageBullet} ", style, frame.Right);
+        screen.WriteText(frame.Y, frame.X + 2, text, style, frame.Right);
+    }
 }

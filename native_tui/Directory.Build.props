@@ -1,0 +1,65 @@
+<Project>
+
+  <!-- native_tui 独立构建配置：完全遮蔽仓库根部 Directory.Build.props（MSBuild 就近优先）。
+       刻意不引用 Structura / JCC 生成器 analyzer（切断全部 modules 依赖，ADR 0140）。
+       本目录可整体搬离仓库独立编译（SDK 用机器默认，nuget 用默认 nuget.org 源）。 -->
+
+  <PropertyGroup>
+    <RepoRoot>$(MSBuildThisFileDirectory)</RepoRoot>
+    <GenerateAssemblyInfoCache>false</GenerateAssemblyInfoCache>
+    <TargetFramework>net10.0</TargetFramework>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Platform Condition="'$(Platform)' == ''">AnyCPU</Platform>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(OS)' == 'Windows_NT'">win-x64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(OS)' == 'Unix'">linux-x64</RuntimeIdentifier>
+    <DefineConstants Condition="'$(OS)' == 'Windows_NT'">$(DefineConstants);WINDOWS</DefineConstants>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+    <WarningsNotAsErrors />
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>zh-CN</SatelliteResourceLanguages>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <EmitCompilerGeneratedFiles>false</EmitCompilerGeneratedFiles>
+    <Company>JoinCode</Company>
+    <Product>JoinCode</Product>
+    <Copyright>Copyright © JoinCode 2025</Copyright>
+    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionSuffix Condition="'$(CI_BUILD)' == 'true'">ci-$(BUILD_NUMBER)</VersionSuffix>
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+    <OutputPath>$(MSBuildThisFileDirectory)artifacts\bin\$(MSBuildProjectName)\$(Configuration)\</OutputPath>
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)artifacts\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)$(Configuration)\</IntermediateOutputPath>
+    <UseSharedCompilation>true</UseSharedCompilation>
+    <UseArtifactsOutput>false</UseArtifactsOutput>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <MicrosoftNETTestSdkVersion>18.7.0</MicrosoftNETTestSdkVersion>
+    <XunitVersion>2.9.3</XunitVersion>
+    <XunitRunnerVisualStudioVersion>3.1.5</XunitRunnerVisualStudioVersion>
+  </PropertyGroup>
+
+  <!-- AOT / 裁剪 统一配置（对齐根部规范，源码项目 AOT 兼容 + Release 发布 AOT） -->
+  <PropertyGroup Condition="'$(IsTestProject)' != 'true'">
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(IsTestProject)' != 'true' AND '$(Configuration)' == 'Release'">
+    <PublishAot>true</PublishAot>
+    <TrimMode>full</TrimMode>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(OutputType)' == 'Exe' AND '$(Configuration)' == 'Release'">
+    <StackTraceSupport>false</StackTraceSupport>
+    <UseWindowsThreadPool>true</UseWindowsThreadPool>
+    <MetricsSupport>false</MetricsSupport>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(OutputType)' == 'Exe' AND '$(Configuration)' == 'Release'">
+    <RuntimeHostConfigurationOption Include="System.Globalization.Invariant" Value="true" />
+  </ItemGroup>
+
+</Project>

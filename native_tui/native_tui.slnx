@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/NativeTui.Core/NativeTui.Core.csproj" />
+  <Project Path="tests/NativeTui.Tests/NativeTui.Tests.csproj" />
+</Solution>

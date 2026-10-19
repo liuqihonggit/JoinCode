@@ -42,7 +42,7 @@ public static class SpinnerRow
             return;
         }
 
-        var messageWidth = WidthOf(message);
+        var messageWidth = StringWidth.Of(message);
         var col = frame.X;
         if (state.StalledIntensity > 0)
         {
@@ -146,16 +146,4 @@ public static class SpinnerRow
 
     private static int StyleOf(Screen screen, Color foreground) =>
         screen.Styles.GetOrAdd(new TextStyle { Foreground = foreground });
-
-    /// <summary>消息显示宽度（rune 宽求和，零宽 rune 不占列）。</summary>
-    private static int WidthOf(string message)
-    {
-        var width = 0;
-        foreach (var rune in message.EnumerateRunes())
-        {
-            width += RuneWidth.Of(rune);
-        }
-
-        return width;
-    }
 }

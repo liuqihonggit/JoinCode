@@ -15,7 +15,8 @@ internal static class DshRpcDispatcher {
                 Presets = [new DshAgentPreset { Id = "standard", Order = 1, IsDefault = true }],
             }),
             ["permissionPresets/catalog"] = _ => Ok(DefaultPermissionPresets()),
-            ["settings/describe"] = _ => Ok(new DshSettingsDescribe()),
+            ["settings/describe"] = _ => Ok(DshSettingsStore.Describe()),
+            ["settings/mutate"] = DshSettingsStore.Mutate,
             ["credentials/describe"] = Credentials,
             ["llm/listProviders"] = _ => Ok(new List<DshProviderInfo>()),
             ["llm/listConfigurableProviders"] = _ => OkEmptyArray(),
@@ -24,6 +25,8 @@ internal static class DshRpcDispatcher {
             ["dynamicCordisRunner/inventory"] = _ => OkEmptyArray(),
             ["dynamicCordisRunner/syncInspectManifest"] = _ => OkNull(),
             ["workspace/list"] = _ => OkEmptyArray(),
+            // 宿主暂不提供默认工作区（M2 起由自有引擎的会话/工作区目录决定）
+            ["workspace/initializeDefault"] = _ => OkNull(),
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>分发一次一元调用；未知方法返回稳定错误码（前端日志可见）</summary>
@@ -80,16 +83,9 @@ internal static class DshRpcDispatcher {
 
     private static DshRpcResult OkNull() => Success(JsonSerializer.SerializeToElement<object?>(null, DshJsonContext.Default.Object));
 
-    private static DshRpcResult Success(JsonElement value) => new() { Ok = true, Value = value };
+    private static DshRpcResult Success(JsonElement value) => DshRpcResults.Ok(value);
 
-    private static DshRpcResult Fail(string code, string message) => new() {
-        Ok = false,
-        Error = new DshRpcError {
-            Code = code,
-            Message = message,
-            Details = JsonSerializer.SerializeToElement(new DshRpcErrorDetails(), DshJsonContext.Default.DshRpcErrorDetails),
-        },
-    };
+    private static DshRpcResult Fail(string code, string message) => DshRpcResults.Fail(code, message);
 
     private static string? ReadString(JsonElement args, string parent, string name) =>
         args.ValueKind == JsonValueKind.Object

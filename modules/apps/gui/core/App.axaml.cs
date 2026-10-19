@@ -29,13 +29,11 @@ public sealed partial class App : Application {
             if (args.Contains("--webui-smoke")) {
                 // 自研 WebUI 冒烟（ADR 0138 遗留对照路径，file:// + chrome.webview 桥）
                 var pagePath = Path.Combine(AppContext.BaseDirectory, "webui", "index.html");
-                var userDataDir = Path.Combine(AppDataConstants.Paths.JccDirectory, "webview2");
-                desktop.MainWindow = new WebUiWindow(new Uri(pagePath).AbsoluteUri, userDataDir, smoke: true);
+                desktop.MainWindow = new WebUiWindow(new Uri(pagePath).AbsoluteUri, ResolveWebViewProfile(), smoke: true);
                 App.LogDiag("[App] WebUiWindow(smoke) created");
             } else if (args.Contains("--webui")) {
                 // DSH 前端整体托管（ADR 0143）：回环 HTTP/WS 宿主 + WebView2
-                var userDataDir = Path.Combine(AppDataConstants.Paths.JccDirectory, "webview2");
-                desktop.MainWindow = new DshWebUiWindow(userDataDir);
+                desktop.MainWindow = new DshWebUiWindow(ResolveWebViewProfile());
                 App.LogDiag("[App] DshWebUiWindow created");
             } else {
                 // 先显示窗口（占位会话），引擎在后台渐进式组装，完成后热切换，避免启动阻塞
@@ -49,6 +47,15 @@ public sealed partial class App : Application {
         base.OnFrameworkInitializationCompleted();
         App.LogDiag("[App] OnFrameworkInitializationCompleted end");
     }
+
+    /// <summary>
+    /// WebView2 用户数据目录：默认 <c>~/.jcc/webview2</c>；
+    /// 环境变量 <c>JCC_WEBVIEW_DATA_DIR</c> 可覆盖（E2E 用干净配置目录，避免上次运行的 localStorage/IndexedDB 状态干扰断言）。
+    /// </summary>
+    private static string ResolveWebViewProfile() =>
+        Environment.GetEnvironmentVariable("JCC_WEBVIEW_DATA_DIR") is { Length: > 0 } overridden
+            ? overridden
+            : Path.Combine(AppDataConstants.Paths.JccDirectory, "webview2");
 
     /// <summary>
     /// 创建 ViewModel — 立即以占位会话返回（窗口快速显示），同时后台异步组装真实引擎，

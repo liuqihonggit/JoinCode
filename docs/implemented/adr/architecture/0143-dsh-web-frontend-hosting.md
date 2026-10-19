@@ -1,0 +1,76 @@
+# 0143 — GUI 托管 DSH 前端并实现宿主 RPC/WS 协议
+
+- 状态：accepted
+- 日期：2026-10-20
+- 取代：修订 [0138](0138-gui-webview2-webui-rendering.md)（自研 WebUI 渲染方案不再是主路径）
+
+## 背景
+
+GUI 目标是「UI 全量对齐 DSH（DeepSeek Harness）」，同时保留本项目自有 C# 引擎作为后端。
+自研 WebUI（`modules/apps/gui/webui/**` + `webview/WebChatFlow` + `PermissionPromptBroker`）每补一个界面都要重写一遍 DSH 的交互细节，
+且与 DSH 前端的 DOM/行为持续漂移，对齐成本随功能数线性增长。
+
+DSH 前端产物 `@deepseek-ai/dsh-web-frontend@0.2.0-rc.2` 及其 `dsh-client-ui-*` 插件为 MIT 许可，产物是完整的静态包：
+页面通过宿主注入的 `window.__ModuleLoader__` / `window.__DSH_BOOT__` 启动，之后只经由
+`POST /api/<method>`（一元）与 `GET /api/remote.mux`（WebSocket 流）与「宿主」通信。
+换言之：**前端可以原样托管，只要实现它假定的宿主半边协议**。
+
+## 决策
+
+1. **前端口径**：整体移植 DSH 前端构建产物，不再逐页重写 UI；`dsh_web/dsh_web.zip` 以 `EmbeddedResource` 嵌入 GUI
+   （`LogicalName=JoinCode.Gui.dsh_web.zip`），运行时解包到 `{JccDirectory}/dsh_web/0.2.0-rc.2/`（越界防护 + `meta.json` 完成标记）。
+   MIT 许可与来源记录在 `modules/apps/gui/dsh_web/{LICENSE,README.md}`。
+2. **同源托管**：`DshWebHost` 用 `HttpListener` 监听回环临时端口，同一个 origin 同时提供静态资源、一元 RPC 与 WS。
+   同源即可免除 token/cookie 交换；页面 `<base href="./">`，`plugins/??a/client.js&b/client.js` 的 combo 路由由宿主按序拼接（`;` 分隔）。
+3. **宿主半边协议优先**：先把 DSH 启动/运行期实际调用到的方法逐个实现（fail-closed + 引导信息），再把数据来源逐步替换为自有引擎。
+   未知方法返回 `code=unimplemented` + 「在哪注册处理器」的引导文案，便于 AI/人定位。
+4. **不保留后向兼容**：自研 WebUI 不作为主路径维护；`--webui-smoke` 仅留作对照入口，待 M2 后归档。
+   `--webui` 启动 `DshWebUiWindow`。
+5. **WebView2 配置目录可注入**：`JCC_WEBVIEW_DATA_DIR` 覆盖默认 `~/.jcc/webview2`，
+   E2E 用一次性干净目录，避免上次运行残留的 localStorage/IndexedDB 影响断言。
+
+## 协议契约（抓包确证，`non_deliverables_tools/dsh_parity/dumps/dsh-web-snapshot/`）
+
+- 一元：`POST /api/<controller>/<method>`，体 `{type:"client-request", rpcId, method, payload:{args}}`；
+  成功 `{type:"server-response", rpcId, result:{ok:true, value}}`；
+  失败 `result:{ok:false, error:{code, message, details:{...}}}`（`details` 必须是对象）。
+- WS：`GET /api/remote.mux`；client→ `{type:"open", streamId, endpoint, payload:{args}}`，server→ `{type:"item", streamId, value}`。
+  启动期端点：`$events`（`{type:"ready", clientId, host:{home}}`）、`workspace/follow`（baseline `items/archived/pinned`）、
+  `session/control`（`{type:"baseline", value:{projections:{}}}`）、`session/follow`。
+- 启动注入：`window.__ModuleLoader__`、`window.__DSH_BOOT__`（`{rev, entries[], batches[]}`），
+  可选 `__DSH_TRANSPORT__`、`__DSH_CONTACT_CONFIG__`。
+- 设置命名空间视图（`settings/describe` / `settings/mutate` 返回项）：
+  `{autoGenerate, ns, schema, value, base, user, applies:"live", secrets:[{path,set}], revision}`。
+
+### 「schema 信封」是硬契约（M1.5 根因）
+
+`ui-settings-general` 的确认状态由前端 `configForms` 管理：`decode(view)` 用
+`new Schema(view.schema)` 还原 schemastery 节点并校验 `view.value`；**`schema` 缺失或非法时解码返回 undefined，
+命名空间永远停在 `loading`，依赖它的界面（首个「预览版说明」提示页）根本不渲染**。
+因此宿主必须回传与插件 `volatileForm(Config).toJSON()` 同构的信封：
+
+```
+ui-settings-general 的 Config = z.object({ welcomeNoticeVersion: z.string().volatile() })
+信封 = {"uid":4,"refs":{"3":{"type":"string","meta":{}},
+                        "4":{"type":"object","meta":{"default":{}},"dict":{"welcomeNoticeVersion":3}}}}
+```
+
+`autoGenerate=false` 对应插件侧的 `settings.configure({auto:false})`；`revision` 每次成功写入 +1，
+`expectedRevision` 不符返回 `settings/conflict`。
+「确认成功」的判定由前端**读回** `value.welcomeNoticeVersion === "2026-09-28.1"` 完成——宿主假装成功无效。
+
+## 放弃的替代方案
+
+| 方案 | 放弃原因 |
+|------|----------|
+| 继续补自研 WebUI 逐页对齐 | 每个功能都要复刻 DSH 行为与样式，漂移不可控，成本随功能数线性增长 |
+| iframe 跨源嵌入 + token 交换 | 同源回环托管即可，跨源只会引入鉴权与 CORS 复杂度 |
+| 无头浏览器 / CDP 自动化驱动 DSH | 需要外挂 Node 运行时与进程编排，产品形态错误（用户要的是桌面 GUI）|
+| 把 DSH 前端当成黑盒只做协议 mock | 无法交付真实交互；M1 已用真实协议抓包驱动实现，逐方法替换更可控 |
+
+## 后果
+
+- 前端升级 = 重新打包 `dsh_web.zip` + 回归宿主协议（`capture/vendor-dsh-web.mjs` + `package_dsh_web.py` 可重复）。
+- 宿主协议成为稳定边界：自有引擎按 `DshRpcDispatcher.Routes` 的命名方法逐个接入，不侵入前端。
+- 需要持续维护「方法实现清单」（见 `docs/implemented/task/TASK053-DSH前端托管与宿主协议对齐任务.md`）。
+- 已实现方法之外的调用会得到 `unimplemented` + 引导文案；`directoryPicker/pick` 等交互型方法在 M2 接入自有引擎时补真实实现。

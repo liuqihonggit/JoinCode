@@ -245,8 +245,107 @@ internal sealed class DshSettingsDescribe {
     public bool Writable { get; set; }
     /// <summary>是否有文档</summary>
     public bool HasDocument { get; set; }
-    /// <summary>命名空间</summary>
-    public List<JsonElement> Namespaces { get; set; } = [];
+    /// <summary>命名空间视图列表</summary>
+    public List<DshSettingsNamespaceView> Namespaces { get; set; } = [];
+}
+
+/// <summary>settings/mutate 参数</summary>
+internal sealed class DshSettingsMutateArgs {
+    /// <summary>命名空间键</summary>
+    public string Ns { get; set; } = "";
+    /// <summary>按序应用的编辑操作</summary>
+    public List<DshSettingsOp> Ops { get; set; } = [];
+    /// <summary>调用方读到的 revision；提供则做乐观并发校验</summary>
+    public int? ExpectedRevision { get; set; }
+}
+
+/// <summary>单条设置编辑操作</summary>
+internal sealed class DshSettingsOp {
+    /// <summary>set 或 unset</summary>
+    public string Op { get; set; } = "";
+    /// <summary>路径段</summary>
+    public List<string> Path { get; set; } = [];
+    /// <summary>set 的值（unset 操作不携带；缺失即拒绝该操作）</summary>
+    public JsonElement? Value { get; set; }
+}
+
+/// <summary>命名空间视图（settings/describe / settings/mutate 返回项）</summary>
+internal sealed class DshSettingsNamespaceView {
+    /// <summary>是否自动生成</summary>
+    public bool AutoGenerate { get; set; }
+    /// <summary>命名空间键</summary>
+    public string Ns { get; set; } = "";
+    /// <summary>值 schema（未知为 null）</summary>
+    public JsonElement Schema { get; set; }
+    /// <summary>生效值</summary>
+    public JsonElement Value { get; set; }
+    /// <summary>默认值层</summary>
+    public JsonElement Base { get; set; }
+    /// <summary>用户覆盖层</summary>
+    public JsonElement User { get; set; }
+    /// <summary>生效时机（DSH 目前仅 live）</summary>
+    public string Applies { get; set; } = "live";
+    /// <summary>密钥字段标记</summary>
+    public List<DshSettingsSecretFlag> Secrets { get; set; } = [];
+    /// <summary>写入代数</summary>
+    public int Revision { get; set; }
+}
+
+/// <summary>密钥字段标记</summary>
+internal sealed class DshSettingsSecretFlag {
+    /// <summary>字段路径段</summary>
+    public List<string> Path { get; set; } = [];
+    /// <summary>是否已设置</summary>
+    public bool Set { get; set; }
+}
+
+/// <summary>
+/// schemastery 序列化信封（宿主 <c>schema.toJSON()</c> 的原样形状）：
+/// 根节点 uid 指向 <see cref="Refs"/> 中的实际节点，节点之间同样以 uid 引用。
+/// 前端 <c>configForms</c> 用 <c>new Schema(serialized)</c> 还原它校验 <c>value</c>；
+/// 信封非法时命名空间停在 loading，界面（如「预览版说明」）不会渲染。
+/// </summary>
+internal sealed class DshSchemaEnvelope {
+    /// <summary>根节点 uid</summary>
+    public int Uid { get; set; }
+    /// <summary>uid → 节点</summary>
+    public Dictionary<string, DshSchemaNode> Refs { get; set; } = [];
+}
+
+/// <summary>schemastery 节点（type + meta + 子节点 uid 表）</summary>
+internal sealed class DshSchemaNode {
+    /// <summary>类型名（string / object / number / array ...）</summary>
+    public string Type { get; set; } = "";
+    /// <summary>元信息（default 等）</summary>
+    public DshSchemaMeta Meta { get; set; } = new();
+    /// <summary>对象字段名 → 子节点 uid（非对象节点为空表，schemastery 容忍）</summary>
+    public Dictionary<string, int> Dict { get; set; } = [];
+}
+
+/// <summary>schemastery 元信息（只保留需回传给前端的键，未设置的键省略）</summary>
+internal sealed class DshSchemaMeta {
+    /// <summary>默认值（对象默认值此处只需空对象占位；volatile 已在投影阶段剔除，不回传）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DshSchemaEmptyObject? Default { get; set; }
+}
+
+/// <summary>空对象占位（序列化为 <c>{}</c>）</summary>
+internal sealed class DshSchemaEmptyObject;
+
+/// <summary>一元调用结果工厂（成功/失败信封的唯一构造点）</summary>
+internal static class DshRpcResults {
+    /// <summary>构造成功信封</summary>
+    internal static DshRpcResult Ok(JsonElement value) => new() { Ok = true, Value = value };
+
+    /// <summary>构造失败信封（details 恒为对象，前端按对象解析）</summary>
+    internal static DshRpcResult Fail(string code, string message) => new() {
+        Ok = false,
+        Error = new DshRpcError {
+            Code = code,
+            Message = message,
+            Details = JsonSerializer.SerializeToElement(new DshRpcErrorDetails(), DshJsonContext.Default.DshRpcErrorDetails),
+        },
+    };
 }
 
 /// <summary>凭据状态</summary>
@@ -301,6 +400,9 @@ internal sealed class DshRpcErrorDetails;
 [JsonSerializable(typeof(DshAgentPresetList))]
 [JsonSerializable(typeof(DshPermissionPresetCatalog))]
 [JsonSerializable(typeof(DshSettingsDescribe))]
+[JsonSerializable(typeof(DshSettingsNamespaceView))]
+[JsonSerializable(typeof(DshSettingsMutateArgs))]
+[JsonSerializable(typeof(DshSchemaEnvelope))]
 [JsonSerializable(typeof(DshSkillList))]
 [JsonSerializable(typeof(DshProviderInfo))]
 [JsonSerializable(typeof(List<DshProviderInfo>))]

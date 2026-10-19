@@ -7,6 +7,7 @@
     <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/cognition/prompts/Prompts.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/cognition/brain/Brain.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/mcp/mcp/Mcp.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />

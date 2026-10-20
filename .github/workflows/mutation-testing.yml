@@ -215,7 +215,7 @@ jobs:
           $slnx = 'build/sln/Stryker.slnx'
           $slnxPath = Join-Path $env:GITHUB_WORKSPACE $slnx
 
-          $strykerArgs = @("-p", $info.Src, "-s", $slnxPath, "-c", $concurrency, "-b", $breakThreshold, "--configuration", "Debug", "--threshold-low", "60", "--threshold-high", "80", "-r", "progress", "-r", "html", "-r", "json", "-r", "markdown", "--log-file", "StrykerOutput-debug.log")
+          $strykerArgs = @("-p", $info.Src, "-s", $slnxPath, "-c", $concurrency, "-b", $breakThreshold, "--configuration", "Debug", "--threshold-low", "60", "--threshold-high", "80", "-r", "progress", "-r", "html", "-r", "json", "-r", "markdown")
 
           if ($info.ContainsKey('Test') -and $info.Test) {
             $strykerArgs += @("--test-project", $info.Test)
@@ -253,5 +253,4 @@ jobs:
             **/StrykerOutput/**/reports/mutation-report.html
             **/StrykerOutput/**/reports/mutation-report.json
             **/StrykerOutput/**/reports/mutation-report.md
-            **/StrykerOutput-debug.log
           retention-days: 30

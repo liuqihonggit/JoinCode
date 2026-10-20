@@ -153,8 +153,17 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         string repo,
         long runId,
         [EnumeratorCancellation] CancellationToken ct = default) {
-        var token = ResolveToken();
         var path = $"repos/{owner}/{repo}/actions/runs/{runId}/logs";
+        if (_downloader is not null) {
+            var shard = await TryShardDownloadLogFileAsync(_downloader, path, ct).ConfigureAwait(false);
+            if (shard is not null) {
+                await foreach (var line in ReadShardedLogLinesAsync(shard, $"run {runId}", ct).ConfigureAwait(false)) {
+                    yield return line;
+                }
+                yield break;
+            }
+        }
+        var token = ResolveToken();
         HttpResponseMessage? response = null;
         var retry5xx = 0;
         while (true) {
@@ -216,8 +225,17 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         string repo,
         long jobId,
         [EnumeratorCancellation] CancellationToken ct = default) {
-        var token = ResolveToken();
         var path = $"repos/{owner}/{repo}/actions/jobs/{jobId}/logs";
+        if (_downloader is not null) {
+            var shard = await TryShardDownloadLogFileAsync(_downloader, path, ct).ConfigureAwait(false);
+            if (shard is not null) {
+                await foreach (var line in ReadShardedLogLinesAsync(shard, $"job {jobId}", ct).ConfigureAwait(false)) {
+                    yield return line;
+                }
+                yield break;
+            }
+        }
+        var token = ResolveToken();
         HttpResponseMessage? response = null;
         var retry5xx = 0;
         while (true) {
@@ -521,6 +539,60 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
     }
 
     // === 私有辅助方法 ===
+
+    /// <summary>
+    /// 分片下载落盘文件 — 持有临时目录作用域,消费方 Dispose 时递归清理
+    /// </summary>
+    private sealed record ShardDownloadedFile(TempDirScope Scope, string FilePath);
+
+    /// <summary>
+    /// 尝试分片下载日志到临时文件 — 复用 IDownloader 探测→PLINQ 分片→合并,对 302 签名 blob 提速
+    /// <para>失败返回 null,调用方回退单线程流式路径;临时目录异常路径幂等清理</para>
+    /// <para>GitHub 日志端点 302 到 Azure blob(实测 Accept-Ranges: bytes),HttpClient 自动跟随,Authorization 跨域自动 strip</para>
+    /// </summary>
+    private async Task<ShardDownloadedFile?> TryShardDownloadLogFileAsync(IDownloader downloader, string apiPath, CancellationToken ct) {
+        TempDirScope? scope = null;
+        try {
+            var token = ResolveToken();
+            scope = TempDirScope.Create(_fs, "gh_log_");
+            var filePath = _fs.CombinePath(scope.Path, "log");
+            var fullUrl = new Uri(_httpClient.BaseAddress ?? new Uri(DefaultBaseUrl), apiPath).ToString();
+            var headers = new Dictionary<string, string> {
+                ["Authorization"] = $"Bearer {token}",
+                ["Accept"] = AcceptHeader,
+                ["User-Agent"] = UserAgent,
+            };
+            var options = new DownloadOptions { MaxThreads = 4, Resume = false, Headers = headers };
+            await using var session = downloader.StartDownload(fullUrl, filePath, options, null, ct);
+            var result = await session.WaitForCompletionAsync(ct).ConfigureAwait(false);
+            if (!result.Success) {
+                _logger?.LogWarning("日志分片下载失败({Error}), 回退单线程流式: {Path}", result.ErrorMessage, apiPath);
+                await scope.DisposeAsync().ConfigureAwait(false);
+                return null;
+            }
+            return new ShardDownloadedFile(scope, filePath);
+        } catch (OperationCanceledException) {
+            throw;
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "日志分片下载异常, 回退单线程流式: {Path}", apiPath);
+            if (scope is not null) await scope.DisposeAsync().ConfigureAwait(false);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 读取分片落盘的日志文件并逐行 yield — 消费完(含提前 break)自动清理临时目录
+    /// </summary>
+    private async IAsyncEnumerable<string> ReadShardedLogLinesAsync(
+        ShardDownloadedFile shard, string scope,
+        [EnumeratorCancellation] CancellationToken ct) {
+        await using (shard.Scope) {
+            await using var stream = _fs.CreateStream(shard.FilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            await foreach (var line in ReadLogStreamLinesAsync(stream, scope, ct).ConfigureAwait(false)) {
+                yield return line;
+            }
+        }
+    }
 
     /// <summary>
     /// 下载 Actions Run artifact — 复用 IDownloader 多线程分片+断点续传

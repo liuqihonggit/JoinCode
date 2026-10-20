@@ -569,6 +569,101 @@ public sealed class GitHubApiClientTest : IDisposable {
         lines[1].Should().Contain("No BOM entry line");
     }
 
+    // === Job/Run 日志分片下载(IDownloader)路径 ===
+
+    /// <summary>
+    /// 注入 IDownloader 时 job 日志走分片下载 — 内容来自分片落盘文件,不走 HttpClient 单流。
+    /// </summary>
+    [Fact]
+    public async Task GetJobLogsAsync_注入Downloader_应走分片下载并读取行() {
+        var fs = new InMemoryFileSystem();
+        var downloader = new FakeDownloader(fs) { FileContent = "shard line 1\nshard line 2\n"u8.ToArray() };
+        await using var client = new GitHubApiClient(new HttpClient(_handler) { BaseAddress = new Uri("https://api.github.com/") }, fs, downloader: downloader);
+
+        var lines = new List<string>();
+        await foreach (var line in client.GetJobLogsAsync("foo", "bar", 42)) {
+            lines.Add(line);
+        }
+
+        lines.Should().Equal("shard line 1", "shard line 2");
+        downloader.DownloadedUrls.Should().ContainSingle()
+            .Which.Should().Contain("repos/foo/bar/actions/jobs/42/logs");
+        _handler.LastRequest.Should().BeNull("分片路径不应发 HttpClient 单流请求");
+    }
+
+    /// <summary>
+    /// 分片下载应传递鉴权头(Authorization Bearer)给下载请求(302 到 blob 前的初始鉴权)。
+    /// </summary>
+    [Fact]
+    public async Task GetJobLogsAsync_分片下载_应传递鉴权头() {
+        var fs = new InMemoryFileSystem();
+        var downloader = new FakeDownloader(fs);
+        await using var client = new GitHubApiClient(new HttpClient(_handler) { BaseAddress = new Uri("https://api.github.com/") }, fs, downloader: downloader);
+
+        await foreach (var _ in client.GetJobLogsAsync("foo", "bar", 42)) { }
+
+        var headers = downloader.ReceivedHeaders.Should().ContainSingle().Which;
+        headers.Should().NotBeNull();
+        headers.Should().ContainKey("Authorization").WhoseValue.Should().Be("Bearer test-token");
+    }
+
+    /// <summary>
+    /// 分片下载失败时回退单线程流式路径 — blob 偶发失败不应让日志完全不可用。
+    /// </summary>
+    [Fact]
+    public async Task GetJobLogsAsync_Downloader失败_应回退单流路径() {
+        var fs = new InMemoryFileSystem();
+        var downloader = new FakeDownloader(fs) { NextSuccess = false };
+        await using var client = new GitHubApiClient(new HttpClient(_handler) { BaseAddress = new Uri("https://api.github.com/") }, fs, downloader: downloader);
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("fallback line 1\nfallback line 2\n") };
+
+        var lines = new List<string>();
+        await foreach (var line in client.GetJobLogsAsync("foo", "bar", 42)) {
+            lines.Add(line);
+        }
+
+        lines.Should().Equal("fallback line 1", "fallback line 2");
+        downloader.DownloadedUrls.Should().HaveCount(1, "分片尝试应发生一次后回退");
+    }
+
+    /// <summary>
+    /// 分片下载消费完后临时目录应被清理(TempDirScope 幂等清理)。
+    /// </summary>
+    [Fact]
+    public async Task GetJobLogsAsync_分片完成_应清理临时目录() {
+        var fs = new InMemoryFileSystem();
+        var downloader = new FakeDownloader(fs);
+        await using var client = new GitHubApiClient(new HttpClient(_handler) { BaseAddress = new Uri("https://api.github.com/") }, fs, downloader: downloader);
+
+        await foreach (var _ in client.GetJobLogsAsync("foo", "bar", 42)) { }
+
+        var dir = System.IO.Path.GetDirectoryName(downloader.LastFilePath);
+        dir.Should().NotBeNull("分片文件路径应有父目录");
+        fs.DirectoryExists(dir ?? "").Should().BeFalse("临时目录应被 TempDirScope 清理");
+    }
+
+    /// <summary>
+    /// run 日志(zip)同样走分片下载 — zip 魔数检测在分片落盘文件流上工作。
+    /// </summary>
+    [Fact]
+    public async Task GetRunLogsAsync_注入Downloader_应走分片下载并解压zip() {
+        var fs = new InMemoryFileSystem();
+        var zipBytes = CreateLogZipWithBom([("1_build.txt", "Build started\nBuild completed")], withBom: false);
+        var downloader = new FakeDownloader(fs) { FileContent = zipBytes };
+        await using var client = new GitHubApiClient(new HttpClient(_handler) { BaseAddress = new Uri("https://api.github.com/") }, fs, downloader: downloader);
+
+        var lines = new List<string>();
+        await foreach (var line in client.GetRunLogsAsync("foo", "bar", 123)) {
+            lines.Add(line);
+        }
+
+        lines.Should().HaveCount(2);
+        lines[0].Should().Contain("Build started");
+        lines[1].Should().Contain("Build completed");
+        downloader.DownloadedUrls.Should().ContainSingle()
+            .Which.Should().Contain("repos/foo/bar/actions/runs/123/logs");
+    }
+
     private sealed class FakeHandler : HttpMessageHandler {
         public HttpRequestMessage? LastRequest;
         public HttpResponseMessage Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };
@@ -618,5 +713,36 @@ public sealed class GitHubApiClientTest : IDisposable {
         public override long Seek(long offset, SeekOrigin origin) => _inner.Seek(offset, origin);
         public override void SetLength(long value) => _inner.SetLength(value);
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    /// <summary>模拟 IDownloader — 把预设内容写入目标文件,记录 URL 与请求头</summary>
+    private sealed class FakeDownloader(IFileSystem fs) : IDownloader {
+        public List<string> DownloadedUrls { get; } = [];
+        public List<IReadOnlyDictionary<string, string>?> ReceivedHeaders { get; } = [];
+        public byte[] FileContent { get; set; } = "fake log\n"u8.ToArray();
+        public bool NextSuccess { get; set; } = true;
+        public string? LastFilePath { get; private set; }
+
+        public IDownloadSession StartDownload(string url, string filePath, DownloadOptions? options = null, IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default) {
+            DownloadedUrls.Add(url);
+            ReceivedHeaders.Add(options?.Headers);
+            LastFilePath = filePath;
+            if (NextSuccess) {
+                using var stream = fs.CreateStream(filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+                stream.Write(FileContent, 0, FileContent.Length);
+            }
+            return new FakeDownloadSession(NextSuccess, filePath);
+        }
+    }
+
+    /// <summary>模拟下载会话 — 立即返回预设结果</summary>
+    private sealed class FakeDownloadSession(bool success, string filePath) : IDownloadSession {
+        public DownloadState State => success ? DownloadState.Completed : DownloadState.Failed;
+        public Task PauseAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task ResumeAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task CancelAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task<DownloadResult> WaitForCompletionAsync(CancellationToken ct = default)
+            => Task.FromResult(new DownloadResult(success, filePath, 100, success ? 100 : 0, TimeSpan.Zero, State, success ? null : "fake download failure"));
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

@@ -88,6 +88,17 @@ native_tui（TUI 宿主）子代理分组渲染全链已落地（SubagentGroupCo
 - SessionController.ProcessEvent 前置分流 **RouteSubagentEvent**：AgentId 非 null 即子代理事件——AgentStarted→OnSubagentStarted（身份三元组）、AgentFinished→OnSubagentFinished（**AgentSuccess 成功语义取反为 isError**）、带 AgentId 工具事件→OnSubagentToolUse（tokenGain 恒 0 兜底，批2 填真实值）；返回 true 跳过主 Switch
 - 实施坑：AgentSuccess→isError 语义取反（首轮直传 false 导致 finished.IsError 断言反）；mixed 流中子代理 Content 事件暂不投影返回 false 走主路径（消费面仅三回调）
 
+## 9. 各批验收方式定义（2026-10-21 用户确认"先定义验收方式再逐个进行"）
+
+> 原则：TDD 红绿循环（每批先红测试后实现）+ 层级递进验收（单测 → E2E → 真实运行），全链最终以 ADR 0080 真实运行收口。
+
+| 批次 | 单元级验收（红绿循环） | 集成级验收 | 通过判定 |
+|------|----------------------|-----------|---------|
+| 批2 L1 通道接通 | AgentBase/AgentServiceImpl 新单测：通道挂载后子代理事件随主流 yield（EnterScope 前后 Current 值断言 + 排空转 chunk 断言） | **E2E 复制 SubAgentEventStreamE2ETests 先例**（test/mock/mock_server.e2e.tests）——改造为 QueryEngine 主代理路径（AgentBase.ExecuteStreamAsync 直连，不经 ChatService 管道），断言 AgentStarted/带 AgentId 活动/AgentFinished 全序列可观察 | E2E 绿 + 既有全量回归零破坏（agents/llm/brain 域测试） |
+| 批3 L2 chunk 传播 | AgentStreamChunkAdapter 单测：chunk.AgentId → ChatStreamEvent.AgentId、新 chunk 类型（AgentStarted/AgentFinished）→ 对应事件工厂映射 | SessionControllerSubagentEventTests 扩 chunk 路径用例（主代理路径 chunk→事件→回调全链） | adapter 输出事件 AgentId 非空 + 类型映射正确 |
+| 批4 L4 引擎侧 DTO | BridgeEventConsumer 映射单测（三方法→三 record 字段对齐）+ **BridgeJsonContractTests 锁 JSON 形状**（subagent_started/subagent_tool_use/subagent_finished 序列化快照） | bridge_serve 形态冒烟（进程级 stdout JSON 投影） | JSON 形状锁定 + 双端字段一致（与 native_tui BridgeEvent 逐字段核对） |
+| 批5 TUI 映射+真链 | InProcessEventConsumer 映射单测（NativeTui.Host.Tests：三方法→BridgeEvent 三事件投影） | **Host --selftest 扩子代理断言**（MockServer 假 LLM + 真实 spawn 路径，不依赖真实 API Key）→ 用户真实终端收口（agents 场景真实分组显示） | selftest 绿 + 用户真机确认分组渲染正确 |
+
 <!-- 🤖 Auto Decision: 2026-10-21 -->
 <!-- 决策: 方案A主干=沿既有 SubAgentEventChannel 机制打通（发射侧零新代码），四层改造 L3协议→L1通道→L2传播→L4投影（ADR 0143 先本体后投影次序）；方案B轮询仅补充位不采纳 -->
 <!-- 原因: 事件源已存在（AgentStreamExecutionMiddleware 等三点已 Emit），根因是主代理路径无通道作用域+协议三层缺子代理粒度；轮询方案延迟/非增量/双实现三违 -->

@@ -49,12 +49,12 @@ account（11）、pluginManager（12）、dynamicCordisRunner（9）、productAn
 | 批次 | 内容 | 状态 |
 |------|------|------|
 | B1 | 权限确认链闭环：注入 handler + `approval/request` waterfall + `$events/result` 回帖 + 权限预设接 `PermissionMode` 映射与 `SetPermissionModeAsync` 路由 | ✅ 单元+冒烟（选择路由落 B3 settings 统一；真机审批弹窗待手动验收） |
-| B2 | 模型切换：`session/selectModel` → `SetModelAsync/SetVendorAsync` + `ModelSelection` 投影真值 + `llm/listProviders` 接 `VendorModelMap` | ⬜ |
-| B3 | 设置统一：`DshSettingsStore` → 引擎 settings.json 读写（相同 DTO），保留前端 schema 信封契约 | ⬜ |
-| B4 | 流事件扩展：Thinking/ToolProgress/`Complete.Usage`/AgentStarted/Finished 映射 + token 统计落 UI | ⬜ |
-| B5 | 斜杠命令：`commands/list` + `commands/execute` | ⬜ |
-| B6 | 子代理暴露：agents 列表 + interrupt + `session/follow` 子代理地址 | ⬜ |
-| B7 | 会话管理：fork/清空/回退 | ⬜ |
+| B2 | 模型切换：`session/selectModel` → `SetModelAsync/SetVendorAsync` + `llm/listProviders` 接 `VendorModelMap` | ✅ 单元（引擎分支真机验收） |
+| B3 | 设置统一：`DshSettingsStore` → dsh-settings.json 持久化 + permission/defaultPreset 路由 `SetPermissionModeAsync` | ✅ 单元 12/12 |
+| B4 | 流事件扩展：Thinking → reasoning 块 + `Complete.Usage` → data.usage 四桶（ToolProgress 暂缓） | ✅ 单元 4/4 |
+| B5 | 斜杠命令：`commands/list` 投影 [ChatCommand] 目录 + `commands/execute` 委托 SlashCommandRunner | ✅ 单元 5/5 |
+| B6 | 子代理流事件：AgentStarted/Finished → tool-workflow 事件族（subagentCatalog 运行实例目录另立任务） | ✅ 单元 7/7 |
+| B7 | 会话管理：`session/fork` 复制 meta/转录/journal（清空/回退无前端 RPC 消费点，不做） | ✅ 单元 3/3 |
 
 ## 四列验收表
 

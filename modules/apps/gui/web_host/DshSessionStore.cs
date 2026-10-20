@@ -244,6 +244,38 @@ internal sealed class DshSessionStore {
         return (resolvedId, DefaultAgentPreset);
     }
 
+    /// <summary>
+    /// 分叉会话（TASK058 B7）：复制源会话 meta + 转录 + journal 事件到新 ID（v1 全量复制，atSeq 截断为深化项）。
+    /// 源会话不受影响；新会话立即可被列表/打开/续聊。
+    /// </summary>
+    /// <param name="sourceSessionId">源会话</param>
+    /// <param name="journal">宿主事件日志（journal 事件随分叉复制）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>新会话 ID；源会话不存在或存储未就绪返回 null</returns>
+    internal async Task<string?> ForkAsync(string sourceSessionId, DshSessionJournal journal, CancellationToken cancellationToken) {
+        if (_transcripts is not { } transcripts) {
+            return null;
+        }
+        var sourceInfo = await transcripts.GetSessionInfoAsync(sourceSessionId, cancellationToken);
+        if (sourceInfo is null) {
+            return null;
+        }
+        var newId = Guid.NewGuid().ToString("N");
+        await transcripts.EnsureSessionAsync(newId, sourceInfo with {
+            Id = newId,
+            CreatedAt = DateTime.UtcNow,
+        }, cancellationToken);
+        var entries = await transcripts.LoadTranscriptAsync(sourceSessionId, cancellationToken);
+        if (entries.Count > 0) {
+            await transcripts.AppendEntriesAsync(newId, entries, cancellationToken);
+        }
+        var events = await journal.LoadAsync(sourceSessionId, cancellationToken);
+        foreach (var journalEvent in events) {
+            await journal.AppendAsync(newId, journalEvent, cancellationToken);
+        }
+        return newId;
+    }
+
     /// <summary>投影键值（标题 / 代理预设 / 模型选择 / 列表元数据）</summary>
     private static DshSessionProjections ProjectValues(string? customTitle, SessionInfo? info, IReadOnlyList<TranscriptEntry> entries) {
         var lastPrompt = entries.LastOrDefault(entry => entry.Type is null && !entry.IsSidechain && entry.Role == "user");

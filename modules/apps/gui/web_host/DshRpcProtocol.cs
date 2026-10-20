@@ -834,6 +834,21 @@ internal sealed class DshSessionSelectModelResult {
     public DshModelChoice Selected { get; set; } = new();
 }
 
+/// <summary>session/fork 参数</summary>
+internal sealed class DshSessionForkArgs {
+    /// <summary>源会话 ID</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>分叉点事件序号（可选；v1 全量复制，深化项）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? AtSeq { get; set; }
+}
+
+/// <summary>session/fork 响应 — 新会话 ID</summary>
+internal sealed class DshSessionForkResult {
+    /// <summary>新会话 ID</summary>
+    public string SessionId { get; set; } = "";
+}
+
 /// <summary>供应商模型分组</summary>
 internal sealed class DshModelGroup {
     /// <summary>供应商 ID</summary>
@@ -1178,7 +1193,10 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshModelCatalog))]
 [JsonSerializable(typeof(DshSessionSelectModelArgs))]
 [JsonSerializable(typeof(DshSessionSelectModelResult))]
+[JsonSerializable(typeof(DshSessionForkArgs))]
+[JsonSerializable(typeof(DshSessionForkResult))]
 [JsonSerializable(typeof(DshRequestEnvelope<DshSessionSelectModelArgs>))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshSessionForkArgs>))]
 [JsonSerializable(typeof(DshAgentPresetList))]
 [JsonSerializable(typeof(DshPermissionPresetCatalog))]
 [JsonSerializable(typeof(DshWaterfallFrame))]

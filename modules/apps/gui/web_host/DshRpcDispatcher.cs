@@ -32,6 +32,7 @@ internal sealed class DshRpcDispatcher {
             ["session/cancel"] = Sync(args => SessionCancel(args, CancellationToken.None)),
             ["session/modelCatalog"] = Sync(SessionModelCatalog),
             ["session/selectModel"] = SessionSelectModel,
+            ["session/fork"] = SessionFork,
             ["session/projections"] = SessionProjections,
             ["session/page"] = SessionPage,
             ["agentPresets/list"] = Sync(_ => Ok(new DshAgentPresetList {
@@ -321,6 +322,24 @@ internal sealed class DshRpcDispatcher {
         });
     }
 
+    /// <summary>
+    /// session/fork：分叉会话（TASK058 B7）。复制源会话 meta/转录/journal 到新 ID（v1 全量复制，
+    /// atSeq 截断为深化项）；源会话不受影响。未知会话返回引导错误。
+    /// </summary>
+    private async Task<DshRpcResult> SessionFork(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSessionForkArgs)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)) {
+            return Fail("session/rejected", $"session/fork 需要 {{sessionId, atSeq?}}；收到 args={Describe(args)}");
+        }
+        if (!_services.Sessions.IsReady) {
+            return Fail("session/not-ready", "会话存储尚未就绪（引擎仍在组装中），稍后重试即可");
+        }
+        var newId = await _services.Sessions.ForkAsync(request.SessionId, _services.Journal, cancellationToken);
+        return newId is null
+            ? Fail("session/unknown", $"会话 {request.SessionId} 不在磁盘上（~/.jcc/sessions/{request.SessionId}/transcript.json 不存在）；从侧栏选择一个已有会话再分叉")
+            : Ok(new DshSessionForkResult { SessionId = newId });
+    }
+
     /// <summary>llm/listProviders：模型目录分组投影（与 session/modelCatalog 同源，TASK058 B2）</summary>
     private DshRpcResult LlmListProviders(JsonElement args) => Ok(_services.Models.Current.Groups
         .Select(group => new DshProviderInfo { Id = group.Id, Name = group.Name })
@@ -431,6 +450,8 @@ internal sealed class DshRpcDispatcher {
     private static DshRpcResult Ok(DshPinnedResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshPinnedResult));
 
     private static DshRpcResult Ok(DshSessionSelectModelResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionSelectModelResult));
+
+    private static DshRpcResult Ok(DshSessionForkResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionForkResult));
 
     private static DshRpcResult Ok(List<DshProviderInfo> value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.ListDshProviderInfo));
 

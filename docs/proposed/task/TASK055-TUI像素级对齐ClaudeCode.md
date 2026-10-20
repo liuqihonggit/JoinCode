@@ -570,8 +570,12 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!-- 验证: Host.Tests 21/21 + Core 458/458 + Demo selftest 回归通过; Host --selftest 真实冒烟 -->
 <!--   OK(引擎组装+session_info 真实数据+PermissionChecker 真实回执+无效模式诱导); 负路径 -->
 <!--   (重定向检测/未知参数)退出码 1 -->
-<!-- 遗留: ReplShell 提取(HostSession/DemoSession 键处理+渲染循环约 270 行结构重复) = M7 权限 -->
-<!--   对话框前置任务; 权限挂起首版按打断处理(M7 扩展交互确认) -->
+<!-- ReplShell 提取已完成 (commit a92bc1a16): IReplEngine(Submit/Interrupt/SetPermissionMode/ -->
+<!--   DrainEvents/DrainDiagnostics/IsAlive) 统一引擎交互面; HostSession/DemoSession 归档 .xxx; -->
+<!--   SimulatedEngine 时钟注入+忙时拒绝 Error 诱导(对齐 EngineTurnClient); BridgeEngine 适配 -->
+<!--   BridgeClient; 模拟回合事件驱动(spinner Message 直改弃用=对齐真实路径空消息+随机动词); -->
+<!--   权限本地回执统一走 PermissionModeChanged 事件; Core 480/480 + Host 21/21 + 三 selftest 回归 -->
+<!-- 遗留: 权限挂起首版按打断处理(M7 扩展交互确认); M7 权限对话框在 ReplShell 单点扩展 -->
 
 ### ADR 0143 阶段二手动验收（ADR 0080，待用户执行）
 
@@ -584,3 +588,140 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 | 5 权限 | Shift+Tab 循环 | footer 模式 plan→ask→bypass→unattended→auto（引擎回执为准） |
 | 6 退出 | 空闲时 Esc 或 Ctrl+C | 清尾部动态区，历史留 scrollback，`NativeTui.Host 已退出。` |
 
+
+## M7-1 截图校准工具链落地（2026-10-20，L2 像素级验收基建）
+
+<!-- 🤖 Auto Decision: 2026-10-20 -->
+<!-- 决策: M7 第一项落地=截图校准工具链, 从青蛙TUI(D:\project\青蛙的TUI, JoinCode 旧分叉)复制四件套 -->
+<!-- 来源调查: 两并行探查代理结论 — 青蛙TUI 是 Terminal.Gui v2 驱动的 jcctui, 渲染引擎不可搬, -->
+<!--   但 tool/tui 截图校准工具链独有且与像素级对齐方法论完全同构(ANSI→cell→同字体栅格化→ImageChops 像素 diff) -->
+<!-- 落位: native_tui/tool/screenshot/{compare/(compare_reference.py+README), reference/(TS 采集端 7 文件)} -->
+<!--   + tests/NativeTui.Tests/snapshot/(SnapshotVerifier approved/received 快照基建) -->
+<!--   + Core repl/ReferenceScene(80×24 固定 fixture 场景→ToAnsiText) + Demo --capture 薄壳 -->
+<!-- 首验结果: clawd 9×3 与 prompt 边框 80×3 两 region 均 0 字符/0 像素差异(退出码 0) — -->
+<!--   M6e 的 Clawd/banner 对齐与 prompt 全宽─线修正获基准像素级自动化验收 -->
+<!-- 过程修正: 首跑 prompt 差异 12 字符=TS 参考端输入框 fixture("fixture input")与 native_tui 空输入不对齐 — -->
+<!--   属两侧 fixture 不对齐非渲染 bug, ReferenceScene.Input 补同 fixture 后归零 -->
+<!-- 已知限制: py cells() 解析器不支持 SGR 7(inverse) — 光标反色被按默认样式解析(与青蛙TUI 原版一致, -->
+<!--   scope=border properties); 需要光标像素验收时增强 py 支持 code 7 -->
+<!-- TDD: 红测试 CS0103 先行→SnapshotVerifier 3 用例+ReferenceScene 4 用例(含 Verify 模式快照) -->
+<!--   →approved 快照人工审核批准; 全量 487/487(480+新增 7) + Demo selftest 回归通过 -->
+<!-- 验证命令(真实运行): cd native_tui/tool/screenshot/reference && npm ci && node build.mjs <基准src> && -->
+<!--   FORCE_COLOR=3 node reference.mjs; dotnet run --project apps/NativeTui.Demo -- --capture .xxx/screen.ansi; -->
+<!--   python tool/screenshot/compare/compare_reference.py --reference tool/screenshot/reference --capture .xxx/screen.ansi --output .xxx/visual -->
+
+### M7 前置调查结论（青蛙TUI 资产盘点，2026-10-20）
+
+| M7 项 | 青蛙TUI 状态 | 复用结论 |
+|---|---|---|
+| 截图校准 | ✅ 完整工具链独有 | ✅ 已落地（本决策块） |
+| Markdown 渲染 | ✅ TranscriptWriter(Markdig AST→终端投影) | 可抄投影算法；**用户已决策引入 Markdig NuGet**（纯 AST 解析库 AOT 兼容，不违反 ADR 0140 精神） |
+| 代码高亮 | ⚠️ 绑 Terminal.Gui.Editor xshd | 不可搬，维持先调研结论 |
+| StructuredDiff | ✅ 完整 | **无需复制** — w1 引擎侧已全通（IEventConsumer.OnToolEnd 带 StructuredPatchHunk[]，InProcessEventConsumer 已收参当前丢弃），M7 只差透传+渲染（⎿ 折叠思路抄青蛙TUI TranscriptDocument） |
+| 权限对话框 | ✅ 三档+DialogRequest TCS 桥+Rewind+重试预算 | 高价值复用（桥模式+编排），接 ReplShell 扩展点 |
+| 模型列表 UI | ✅ 本地配置拉取 | ⚠️ 与既定要求（后端获取）不符，只抄 Picker 交互 |
+| 多子代理分组 | ⚠️ 半成品（基建未接线） | 按已固化基准调查自建；SubAgentCardManager LRU 可参考 |
+| resize 事件化 | ✅ TerminalResizeMonitor | 小件可搬，低优先 |
+
+<!-- 决策依据: 青蛙TUI 渲染引擎=Terminal.Gui v2 与 native_tui 自研 cell 管线根本不同不可整体搬运; -->
+<!--   复用判据=纯逻辑零耦合优先(diff 全套/权限桥/Markdown 投影算法), 框架耦合组件只抄思路 -->
+
+## M7-2 StructuredDiff 渲染落地（2026-10-20，引擎补丁→TUI diff 块全链路）
+
+<!-- 🤖 Auto Decision: 2026-10-20 -->
+<!-- 决策: 四批渐进落地(每批编译+测试+commit): ①Core 零依赖投影 ②Host 投影 ③引擎 JSON 投影同步 ④模拟引擎演示 -->
+<!-- ①Core: bridge/DiffModels.cs 自带 DiffHunk/DiffLine/DiffLineKind(DiffLineKind 数值对齐引擎 PatchLineType 0/1/2 可直转 byte); -->
+<!--   BridgeEvent.ToolResult 加 Patch 可选参数(旧构造零改动); DiffResultItem 多行渲染(summary ⎿ 行+hunk 块 4 空格缩进+折叠); -->
+<!--   着色用基准 theme.ts diff 前景键 DiffAddedWord/DiffRemovedWord 替代青蛙TUI 硬编码十六进制(#4eba65/#ab2b3f — 唯一数据源) -->
+<!-- ②Host: InProcessEventConsumer.OnToolEnd ProjectPatch LINQ 链式投影; JoinCode.Cli.DiffLine 同名歧义沿用 -->
+<!--   EnginePermissionMode 别名先例加 CoreDiffLine 全局别名 -->
+<!-- ③引擎: ADR 0143 先事件模型后投影 — IEventConsumer.OnToolEnd 本就带 patch(协议本体), 本批补 JSON 投影; -->
+<!--   定义 BridgeDiffHunk/BridgeDiffLine 镜像 DTO 而非直接序列化 StructuredPatchHunk — 其 type/oldStart 等字段 -->
+<!--   会被 native_tui DiffLine 忽略致 kind 全部静默退化为 context(语义丢失); 两侧 Patch 均 WhenWritingNull -->
+<!--   (null 不输出字段 — 引擎旧 golden 契约不变, 旧 TUI 反序列化兼容) -->
+<!-- 折叠策略: 预览 2 行(summary 外)对齐青蛙TUI ToolResultPreview.Take(3) 先例, 超出折叠 "… +N lines (Ctrl+O)" dim; -->
+<!--   Ctrl+O 展开交互=M7 后续项 -->
+<!-- TDD: Core 12 用例(渲染 golden cell 级+JSON 往返+驱动分派) + Host 2 用例(投影) + 引擎 2 用例(stdout JSON golden) -->
+<!--   全绿: NativeTui.Tests 500/500(基线 487+新增 13) + Host.Tests 23/23 + host.tests 1343/1343 -->
+<!-- 自动化回归: M7-1 像素校准重跑 clawd+prompt 两 region 0 字符/0 像素差异(渲染基线未破坏) -->
+<!-- 手动验收路径: dotnet run --project apps/NativeTui.Demo(模拟引擎 Edit 回合含 4 行 hunk, 2.4s 后 ToolResult -->
+<!--   渲染 diff 块+折叠提示); 真实终端颜色肉眼验收待用户执行(下表) -->
+
+### M7-2 手动验收（ADR 0080，待用户执行）
+
+| 步骤 | 命令 | 预期 |
+|------|------|------|
+| 1 模拟 diff | `dotnet run --project native_tui/apps/NativeTui.Demo`（真实终端） | 提交任意文本 → 2.4s 后 ⎿ Updated demo/simulated.cs + hunk 块（+行绿/-行红/@@ dim）+ "… +2 lines (Ctrl+O)" |
+| 2 真实引擎 | `NativeTui.Host.exe`（需配置模型） | 引擎跑 Edit 类工具 → 工具结果渲染真实补丁 diff 块 |
+
+## M7-3 权限对话框落地（2026-10-20，引擎 PendingConfirmation → TUI 对话框闭环）
+
+<!-- 🤖 Auto Decision: 2026-10-20 -->
+<!-- 决策: 三批渐进落地(每批编译+测试+commit): ①Core 对话框渲染+模态改道 ②Host 引擎闭环 ③文档收尾 -->
+<!-- ①Core(2def5f5e8): PermissionCoordinator TCS 桥(Begin 取消旧等待者=青蛙TUI DialogRequest 取代语义, -->
+<!--   Complete 幂等, 焦点三档环绕) + PermissionRequestItem 像素对齐基准 FallbackPermissionRequest -->
+<!--   (仅顶边框 permission 色 round 无角全宽/bold permission 标题 paddingX=1/工具行 3 缩进(外1+内2 paddingX 累计)/ -->
+<!--   描述 dim(空折叠)/"Do you want to proceed?"/Select 三档数字前缀选项(1.Yes 2.Yes-dont-ask-again 3.No, -->
+<!--   焦点行 ❯ suggestion+index dim+label suggestion, 非焦点空格 indicator+label 默认)/"Esc to cancel" dim; -->
+<!--   MeasureHeight 12+描述行) + ReplShell 挂起时键盘模态路由(数字1-3 直选/Esc=Deny/Enter=焦点档/上下环绕, -->
+<!--   其余按键吞掉防输入污染)且回合结束(完成/打断)自动 Deny 收尾防对话框残留; -->
+<!--   渲染方法按 DiffResultItem 先例收口 MessageRenderer(7 个 RenderPermission*) -->
+<!-- ②Host(24a1fd826): TuiPermissionBridge(引擎线程 Confirm→BeginPermissionRequest→TCS 同步阻塞等按键, -->
+<!--   未绑定 shell 降级 Deny 防死锁 — 对齐 CLI IConfirmationGate 单通道路由先例) + -->
+<!--   TuiPermissionConfirmationHandler(转发 bridge + 临时批准: Allow 1 分钟/AlwaysAllow 30 分钟 + -->
+<!--   [红绿灯ask] 标签同级批准 — 对齐 CliPermissionConfirmationHandler) + TuiInteractionModule(Order=80) -->
+<!--   经 CreateGuiSessionAsync extraModules 注册(对齐 GuiInteractionModule 先例); -->
+<!--   BeginPermissionRequest/Permission 升 public(宿主生产消费面, 与 Run/WriteExit 同级); -->
+<!--   权威路径=引擎返回值模式: PermissionCheckMiddleware→PendingConfirmation→ -->
+<!--   PermissionAwareToolExecutor→IPermissionConfirmationHandler.Confirm(ADR 0143 进程内闭环, 不扩展事件表) -->
+<!-- TDD: Core 21 用例(coordinator TCS 6+渲染 golden 8+shell 模态 7) + Host 10 用例(module 注册 1+bridge 4+ -->
+<!--   handler 批准 4+真容器解析 1); 全绿: NativeTui.Tests 521/521(基线 500+新增 21) + Host.Tests 33/33(基线 23+新增 10) -->
+<!-- 自动化回归: M7-1 像素校准重跑 clawd+prompt 两 region 0 字符/0 像素差异 + selftest 真实容器组装通过 -->
+<!-- 测试陷阱: 引擎 PermissionRequest(JoinCode.Abstractions.Security) 与 Core Repl.PermissionRequest 同名 — -->
+<!--   fake 接口实现须全限定; PermissionResult 同在 Security 父命名空间(非 Security.Permission) -->
+
+### M7-3 手动验收（ADR 0080，待用户执行）
+
+| 步骤 | 命令 | 预期 |
+|------|------|------|
+| 1 权限模式 | （真实终端+配置模型）Shift+Tab 切到 plan | footer 模式轮换 |
+| 2 触发确认 | 提交让引擎调用写文件类工具的请求 | 对话框浮现: 顶边框紫 + **Tool use** + 工具名(描述) + Do you want to proceed? + 1/2/3 选项 |
+| 3 三档交互 | 按 1 → 引擎继续执行; 再触发按 2 → 同会话不再问; 再触发按 3/Esc → 工具被拒 | 对话框消失, 回合继续, footer 无残留 |
+| 4 焦点导航 | 上/下箭头移动 ❯ 指示 + Enter 选择 | 焦点环绕(1→3→2→1) |
+
+## M7-4 Markdown 渲染落地（2026-10-20，Markdig 投影 → 块模型 → 终端渲染全链路）
+
+<!-- 🤖 Auto Decision: 2026-10-20 -->
+<!-- 决策: 四批渐进落地(每批编译+测试+commit): ①Core 块模型+布局器+渲染 ②卫星 Markdig 投影器 -->
+<!--   ③引擎闭环(bridge 协议+Driver 分流+Host 投影) ④Demo 演示回合 -->
+<!-- 架构三层(Core 零依赖铁律 ADR 0140): Core DTO(MarkdownStyle flags+8 块 record, 主题/宽度无关可零依赖直测) -->
+<!--   → 卫星 NativeTui.Markdown(Markdig 1.3.2 投影只产结构+行内 flags, 标题级别样式由布局层施加=职责分离) -->
+<!--   → Core MarkdownLayout(块→物理行)+MessageRenderer(段样式→SGR); Markdig 不进 Core 保 AOT+零依赖 -->
+<!-- 基准对齐(formatToken 权威映射, utils/markdown.ts 381 行全读): h1=bold+italic+underline, h2+=bold; -->
+<!--   引用=每行 ▎ dim 前缀+内容叠 Italic(修青蛙TUI 前缀只加一次坑); 列表 2 空格/层+有序分级编号 -->
+<!--   (深度 0/1 数字/2 字母/3 罗马); 表格列宽=max(显示宽,3)+"|"分隔行; hr=三字符"---"; -->
+<!--   顶层块间空 1 行=基准 Box gap 视觉主路径; codespan→permission 色对齐基准 color('permission') -->
+<!-- 青蛙TUI 坑全规避: 标题不分级/引用前缀只加一次/~~删除线误判 Bold/表格单元格样式丢失 -->
+<!-- 快路径: ProjectOptional 采样前 500 字符查语法字符(对齐基准 hasMarkdownSyntax), 无语法→null→降级纯文本 -->
+<!-- bridge 协议: AssistantMessage 扩 Markdown 可空字段(WhenWritingNull 保旧 JSON 逐字节兼容)+ -->
+<!--   MarkdownBlock 树 JsonPolymorphic discriminator(同 ADR 0141 风格); 投影决策在 Host -->
+<!--   InProcessEventConsumer.OnDone(进程内直连内存对象零序列化税, 未来引擎 JSON 携带同字段自动升级) -->
+<!-- ④Demo: SimulatedEngine.DemoMarkdown 手构 8 类块(对齐 SimulatedPatch 先例直接构 DTO 不经投影器), -->
+<!--   完成事件走 Driver 分流; SeedMessages 首条 assistant 回复升级行内样式(启动即见渲染) -->
+<!-- TDD: 批1 Core 22 用例(布局 14+消息项 8) + 批2 卫星 18 用例 + 批3a 5+2 用例(Driver 分流/JSON 往返/Host 投影) -->
+<!--   + 批3b 1 用例(演示回合全形态); 全绿: NativeTui.Tests 549/549(基线 521+批3a 5+批3b 1+M7-3 基线含 22) -->
+<!--   + NativeTui.Markdown.Tests 18/18 + Host.Tests 35/35 + Demo selftest OK -->
+<!-- 自动化回归: M7-1 像素校准重跑 clawd+prompt 两 region 0 字符/0 像素差异(渲染基线未破坏) -->
+<!-- 测试陷阱: 集合表达式表格 Headers 须扁平单元格构造(深层嵌套推断失败 CS0029, Seg/Cell 辅助方法先例); -->
+<!--   Markdig 的 MarkdownDocument 与 Core 同名→卫星全局别名先例; 测试渲染换行用窄 frame 触发按宽布局 -->
+
+### M7-4 手动验收（ADR 0080，待用户执行）
+
+| 步骤 | 命令 | 预期 |
+|------|------|------|
+| 1 种子渲染 | dotnet run --project native_tui/apps/NativeTui.Demo（真实终端） | 启动即见 ● 圆点 + 行内样式：粗体"Screen cell 网格"、permission 色行内代码 |
+| 2 全形态回合 | 同上提交任意文本 → 等 5.4s 回合完成 | assistant 消息渲染 8 类块：h2 粗体标题/段落行内样式/无序+有序列表/▎ 引用斜体/csharp 代码块/---/表格（表头粗体+对齐分隔行） |
+| 3 真实引擎 | NativeTui.Host.exe（需配置模型） | 引擎回复含 Markdown 语法 → ProjectOptional 投影 → 块模型渲染（无语法回复仍纯文本快路径） |
+| 4 窄终端换行 | 终端调窄后重跑步骤 2 | 段落软换行（词边界贪心+CJK 逐字）、列表续行对齐内容列、代码块不换行 |
+
+<!-- M7-4 接续: M7-5 代码高亮调研(MarkdownCode.Language 已保留消费面) → M7-6 模型列表 → M7-7 多子代理分组 -->

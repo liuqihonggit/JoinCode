@@ -4,10 +4,10 @@ namespace NativeTui.Host;
 /// 引擎回合客户端 — BridgeServeLoop 的进程内直连版本（ADR 0143 阶段二）：
 /// 回合生命周期事件（turn_started/completed/interrupted/error）由本类统一发出，回合内部事件由
 /// InProcessEventConsumer 发（共享队列 FIFO 保序：turn_started 必先于回合内部事件，终态必最后）。
-/// 主循环消费面与 bridge 形态的 BridgeClient 对齐（DrainEvents 排空模式）。
+/// 实现 IReplEngine 供 ReplShell 消费（主循环消费面与 bridge 形态的 BridgeClient 对齐 — DrainEvents 排空模式）。
 /// 委托注入回合执行器与权限模式应用器 — 组装层绑定 SessionController/PermissionChecker，本类零 engine DI 依赖。
 /// </summary>
-public sealed class EngineTurnClient : IDisposable {
+public sealed class EngineTurnClient : IReplEngine, IDisposable {
     /// <summary>合法权限模式值清单（Error 诱导提示用，对齐 bridge 协议与 abs_guard [EnumValue]）。</summary>
     private const string ValidPermissionModes = "plan, auto, ask, bypass, unattended";
 
@@ -87,6 +87,12 @@ public sealed class EngineTurnClient : IDisposable {
             (drained ??= []).Add(bridgeEvent);
         return (IReadOnlyList<BridgeEvent>?)drained ?? [];
     }
+
+    /// <summary>进程内引擎 — 恒存活（引擎异常经回合 Error 事件路径报告）。</summary>
+    bool IReplEngine.IsAlive => true;
+
+    /// <summary>显式接口实现 — ReplShell 消费面（bool 版本保留供 selftest 断言）。</summary>
+    void IReplEngine.SetPermissionMode(string mode) => SetPermissionMode(mode);
 
     /// <summary>执行单个回合 — 终态翻译对齐 BridgeServeCommand.RunTurnAsync：成功 → turn_completed；
     /// 取消 → turn_interrupted；异常 → error(异常消息含诱导上下文)。终态事件入队先于回合 Task 完成（无竞态窗口）。</summary>

@@ -100,6 +100,54 @@ public sealed class InProcessEventConsumerTests
     }
 
     [Fact]
+    public void OnToolEnd_WithPatch_ProjectsHunksToToolResult()
+    {
+        var consumer = new InProcessEventConsumer();
+        var patch = new[]
+        {
+            new StructuredPatchHunk
+            {
+                OldStart = 1, OldLines = 3, NewStart = 1, NewLines = 4,
+                Header = "@@ -1,3 +1,4 @@",
+                Lines = new PatchLine[]
+                {
+                    new() { Type = PatchLineType.Context, Content = "keep" },
+                    new() { Type = PatchLineType.Added, Content = "add" },
+                    new() { Type = PatchLineType.Removed, Content = "drop" },
+                },
+            },
+        };
+
+        consumer.OnToolEnd("Edit", "Edited a.cs", "call-1", isError: false, patch);
+
+        var events = consumer.DrainEvents();
+        var result = Assert.IsType<BridgeEvent.ToolResult>(Assert.Single(events));
+        Assert.Equal("Edited a.cs", result.Summary);
+        // 引擎 StructuredPatchHunk → Core 零依赖 DiffHunk 投影（Kind 数值对齐可直转）
+        var hunk = Assert.Single(result.Patch!);
+        Assert.Equal("@@ -1,3 +1,4 @@", hunk.Header);
+        Assert.Equal(3, hunk.Lines.Length);
+        Assert.Equal(DiffLineKind.Context, hunk.Lines[0].Kind);
+        Assert.Equal("keep", hunk.Lines[0].Content);
+        Assert.Equal(DiffLineKind.Added, hunk.Lines[1].Kind);
+        Assert.Equal("add", hunk.Lines[1].Content);
+        Assert.Equal(DiffLineKind.Removed, hunk.Lines[2].Kind);
+        Assert.Equal("drop", hunk.Lines[2].Content);
+    }
+
+    [Fact]
+    public void OnToolEnd_WithEmptyPatch_KeepsPatchNull()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnToolEnd("Read", "41 lines", "call-1", isError: false, patch: []);
+
+        var events = consumer.DrainEvents();
+        var result = Assert.IsType<BridgeEvent.ToolResult>(Assert.Single(events));
+        Assert.Null(result.Patch);
+    }
+
+    [Fact]
     public void OnDone_EmitsAssistantMessageWithFullText()
     {
         var consumer = new InProcessEventConsumer();
@@ -141,5 +189,34 @@ public sealed class InProcessEventConsumerTests
         consumer.OnTimingSummary("耗时 1s");
 
         Assert.Empty(consumer.DrainEvents());
+    }
+
+    [Fact]
+    public void OnDone_MarkdownTextCarriesProjectedDocument()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnText("# 标题\n\n**加粗** 与 `code`");
+        consumer.OnDone(usage: null, modelId: "test-model");
+
+        var events = consumer.DrainEvents();
+        var message = Assert.IsType<BridgeEvent.AssistantMessage>(events[^1]);
+        Assert.NotNull(message.Markdown);
+        var heading = Assert.IsType<MarkdownHeading>(message.Markdown.Blocks[0]);
+        Assert.Equal(1, heading.Level);
+        Assert.Contains(message.Markdown.Blocks, block => block is MarkdownParagraph);
+    }
+
+    [Fact]
+    public void OnDone_PlainTextKeepsMarkdownNull()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnText("普通纯文本回答");
+        consumer.OnDone(usage: null, modelId: "test-model");
+
+        var events = consumer.DrainEvents();
+        var message = Assert.IsType<BridgeEvent.AssistantMessage>(events[^1]);
+        Assert.Null(message.Markdown);
     }
 }

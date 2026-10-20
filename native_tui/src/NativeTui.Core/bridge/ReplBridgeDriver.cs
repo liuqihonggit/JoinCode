@@ -59,8 +59,10 @@ public sealed class ReplBridgeDriver
                 _spinner.Mode = SpinnerMode.ToolUse;
                 _spinner.HasActiveTools = true;
                 break;
-            case BridgeEvent.ToolResult(var summary):
-                AddMessage(new ToolResultItem(summary));
+            case BridgeEvent.ToolResult(var summary, var patch):
+                AddMessage(patch is { Length: > 0 }
+                    ? new DiffResultItem(summary, patch)
+                    : new ToolResultItem(summary));
                 _spinner.HasActiveTools = false;
                 break;
             case BridgeEvent.TokenDelta(var length):
@@ -68,8 +70,10 @@ public sealed class ReplBridgeDriver
                 _spinner.HasActiveTools = false;
                 _spinner.ResponseLength += length;
                 break;
-            case BridgeEvent.AssistantMessage(var text):
-                AddMessage(new AssistantMessageItem(text));
+            case BridgeEvent.AssistantMessage(var text, var markdown):
+                AddMessage(markdown is not null
+                    ? new MarkdownMessageItem(markdown)
+                    : new AssistantMessageItem(text));
                 break;
             case BridgeEvent.TurnCompleted:
                 EndTurn();

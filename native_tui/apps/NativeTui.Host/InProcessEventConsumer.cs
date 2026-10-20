@@ -6,7 +6,7 @@ namespace NativeTui.Host;
 /// （Actor 邮箱模型：回合线程生产，主循环 tick 排空消费，无共享锁，对齐 Core BridgeEventPump 的 ConcurrentQueue 先例），
 /// 不经 JSON 序列化。语义与 engine BridgeEventConsumer 完全对齐（唯一差异：WriteEvent 序列化 stdout → 队列写内存对象）：
 /// OnText → token_delta；OnThinking 回合内单次信号 + 墙钟差结算 thinking_ended；
-/// OnToolStart/OnToolEnd → tool_call/tool_result（摘要截断 200 + error 前缀）；
+/// OnToolStart/OnToolEnd → tool_call/tool_result（摘要截断 200 + error 前缀 + StructuredPatch → DiffHunk 投影）；
 /// OnDone → assistant_message(完整文本)；OnToolProgress/OnLoopDetected/OnTimingSummary 不消费。
 /// </summary>
 public sealed class InProcessEventConsumer : IResettableEventConsumer {
@@ -61,9 +61,9 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         _events.Enqueue(new BridgeEvent.ToolCall(toolName, arguments ?? string.Empty));
     }
 
-    /// <summary>工具调用结束 → tool_result(截断摘要 + error 标记)。</summary>
+    /// <summary>工具调用结束 → tool_result(截断摘要 + error 标记 + 结构化补丁投影)。</summary>
     public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch) {
-        _events.Enqueue(new BridgeEvent.ToolResult(BuildSummary(resultText, isError)));
+        _events.Enqueue(new BridgeEvent.ToolResult(BuildSummary(resultText, isError), ProjectPatch(patch)));
     }
 
     /// <summary>工具调用进度 — TUI 不消费，忽略（对齐 bridge 形态）。</summary>
@@ -78,11 +78,13 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
     public void OnTimingSummary(string summary) {
     }
 
-    /// <summary>流式响应完成 → 思考结算 + assistant_message(完整文本)。</summary>
+    /// <summary>流式响应完成 → 思考结算 + assistant_message(完整文本 + Markdown 投影；无语法快路径降级纯文本)。</summary>
     public void OnDone(TokenUsage? usage, string? modelId) {
         EndThinkingIfActive();
-        if (_fullResponse.Length > 0)
-            _events.Enqueue(new BridgeEvent.AssistantMessage(_fullResponse.ToString()));
+        if (_fullResponse.Length == 0)
+            return;
+        var fullText = _fullResponse.ToString();
+        _events.Enqueue(new BridgeEvent.AssistantMessage(fullText, MarkdigProjector.ProjectOptional(fullText)));
     }
 
     /// <summary>排空事件队列 — 主循环每 tick 调用，取走全部待处理事件（ConcurrentQueue 多生产单消费安全）。</summary>
@@ -112,4 +114,15 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
             : text;
         return isError ? $"[error] {truncated}" : truncated;
     }
+
+    /// <summary>引擎 StructuredPatchHunk[] → Core 零依赖 DiffHunk[] 渲染投影（空/ null → null 维持纯文本摘要形态）。</summary>
+    private static DiffHunk[]? ProjectPatch(StructuredPatchHunk[]? patch) =>
+        patch is null || patch.Length == 0 ? null
+            : patch.Select(static hunk => new DiffHunk {
+                Header = hunk.Header,
+                Lines = hunk.Lines.Select(static line => new CoreDiffLine {
+                    Kind = (DiffLineKind)(byte)line.Type,
+                    Content = line.Content,
+                }).ToArray(),
+            }).ToArray();
 }

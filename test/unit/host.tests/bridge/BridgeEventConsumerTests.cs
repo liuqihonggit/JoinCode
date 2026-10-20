@@ -91,6 +91,43 @@ public sealed class BridgeEventConsumerTests {
     }
 
     [Fact]
+    public void OnToolEnd_WithPatch_EmitsToolResultWithStructuredDiff() {
+        var (consumer, @out) = Create();
+        var patch = new[] {
+            new StructuredPatchHunk {
+                OldStart = 1, OldLines = 3, NewStart = 1, NewLines = 4,
+                Header = "@@ -1,3 +1,4 @@",
+                Lines = new PatchLine[] {
+                    new() { Type = PatchLineType.Context, Content = "keep" },
+                    new() { Type = PatchLineType.Added, Content = "add" },
+                    new() { Type = PatchLineType.Removed, Content = "drop" },
+                },
+            },
+        };
+
+        consumer.OnToolEnd("Edit", "Edited a.cs", "call-1", isError: false, patch);
+
+        // patch 投影为 hunk 渲染子集（header + lines[kind,content]，kind 数值 0/1/2 对齐 native_tui DiffLineKind）
+        Assert.Equal(
+            "{\"type\":\"tool_result\",\"summary\":\"Edited a.cs\",\"patch\":[" +
+            "{\"header\":\"@@ -1,3 +1,4 @@\",\"lines\":[" +
+            "{\"kind\":0,\"content\":\"keep\"}," +
+            "{\"kind\":1,\"content\":\"add\"}," +
+            "{\"kind\":2,\"content\":\"drop\"}]}]}\n",
+            @out.ToString());
+    }
+
+    [Fact]
+    public void OnToolEnd_WithEmptyPatch_OmitsPatchField() {
+        var (consumer, @out) = Create();
+
+        consumer.OnToolEnd("Read", "41 lines", "call-1", isError: false, patch: []);
+
+        // 空/ null 补丁不输出 patch 字段（WhenWritingNull — 旧 golden 契约不变）
+        Assert.Equal("{\"type\":\"tool_result\",\"summary\":\"41 lines\"}\n", @out.ToString());
+    }
+
+    [Fact]
     public void OnDone_WithoutText_EmitsNoAssistantMessage() {
         var (consumer, @out) = Create();
 

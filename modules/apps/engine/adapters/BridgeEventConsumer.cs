@@ -54,9 +54,9 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
         WriteEvent(new Cli.Bridge.BridgeEvent.ToolCall(toolName, arguments ?? string.Empty));
     }
 
-    /// <summary>工具调用结束 → tool_result(截断摘要 + error 标记)。</summary>
+    /// <summary>工具调用结束 → tool_result(截断摘要 + error 标记 + 结构化补丁投影)。</summary>
     public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch) {
-        WriteEvent(new Cli.Bridge.BridgeEvent.ToolResult(BuildSummary(resultText, isError)));
+        WriteEvent(new Cli.Bridge.BridgeEvent.ToolResult(BuildSummary(resultText, isError), ProjectPatch(patch)));
     }
 
     /// <summary>工具调用进度 — TUI 不消费，忽略。</summary>
@@ -94,6 +94,18 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
             : text;
         return isError ? $"[error] {truncated}" : truncated;
     }
+
+    /// <summary>引擎 StructuredPatchHunk[] → BridgeDiffHunk[] 协议投影（渲染子集 header+lines[kind,content]；
+    /// 空/null → null，WhenWritingNull 不输出字段 — 与 native_tui InProcessEventConsumer.ProjectPatch 语义一致）。</summary>
+    private static Cli.Bridge.BridgeEvent.BridgeDiffHunk[]? ProjectPatch(StructuredPatchHunk[]? patch) =>
+        patch is null || patch.Length == 0 ? null
+            : patch.Select(static hunk => new Cli.Bridge.BridgeEvent.BridgeDiffHunk {
+                Header = hunk.Header,
+                Lines = hunk.Lines.Select(static line => new Cli.Bridge.BridgeEvent.BridgeDiffLine {
+                    Kind = (Cli.Bridge.BridgeEvent.BridgeDiffLineKind)(byte)line.Type,
+                    Content = line.Content,
+                }).ToArray(),
+            }).ToArray();
 
     /// <summary>写一条事件行（单次 Write 保证行原子性 + LF + Flush，协议统一 \n；外层配 TextWriter.Synchronized）。</summary>
     private void WriteEvent(Cli.Bridge.BridgeEvent bridgeEvent) {

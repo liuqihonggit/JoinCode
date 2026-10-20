@@ -67,8 +67,48 @@ public abstract record BridgeEvent
     /// <summary>工具调用消息（bullet + bold 工具名 + args）。</summary>
     public sealed record ToolCall(string Name, string Args) : BridgeEvent;
 
-    /// <summary>工具结果摘要（⎿ 缩进项）。</summary>
-    public sealed record ToolResult(string Summary) : BridgeEvent;
+    /// <summary>
+    /// diff 行种类 — 数值对齐 native_tui DiffLineKind（Context=0/Added=1/Removed=2），
+    /// 与引擎 PatchLineType 同序可直转 byte；JSON 投影为数字。
+    /// </summary>
+    public enum BridgeDiffLineKind : byte
+    {
+        /// <summary>上下文行。</summary>
+        Context = 0,
+
+        /// <summary>新增行。</summary>
+        Added = 1,
+
+        /// <summary>删除行。</summary>
+        Removed = 2,
+    }
+
+    /// <summary>diff 行投影（渲染子集：kind + content，不含行号）— 与 native_tui DiffLine 逐字节镜像。</summary>
+    public sealed record BridgeDiffLine
+    {
+        /// <summary>行种类（渲染前缀与着色依据）。</summary>
+        public required BridgeDiffLineKind Kind { get; init; }
+
+        /// <summary>行内容（不含 +/-/空格前缀）。</summary>
+        public required string Content { get; init; }
+    }
+
+    /// <summary>diff hunk 投影（渲染子集：header + lines）— 与 native_tui DiffHunk 逐字节镜像。</summary>
+    public sealed record BridgeDiffHunk
+    {
+        /// <summary>Hunk 头（如 "@@ -1,3 +1,4 @@"）。</summary>
+        public required string Header { get; init; }
+
+        /// <summary>Diff 行数组（渲染顺序）。</summary>
+        public required BridgeDiffLine[] Lines { get; init; }
+    }
+
+    /// <summary>
+    /// 工具结果摘要（⎿ 缩进项）+ 结构化补丁投影（M7-2 StructuredDiff）。
+    /// Patch null/空不输出字段（WhenWritingNull — 旧契约 golden 不变，旧 TUI 反序列化兼容）。
+    /// </summary>
+    public sealed record ToolResult(string Summary,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] BridgeDiffHunk[]? Patch = null) : BridgeEvent;
 
     /// <summary>流式 token 增量（spinner ResponseLength 累加）。</summary>
     public sealed record TokenDelta(int Length) : BridgeEvent;

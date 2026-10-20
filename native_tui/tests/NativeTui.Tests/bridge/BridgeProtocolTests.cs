@@ -232,6 +232,65 @@ public sealed class BridgeProtocolTests
     }
 
     [Fact]
+    public void Roundtrip_ToolResultWithPatch_SurvivesSerializeDeserialize()
+    {
+        var withPatch = new BridgeEvent.ToolResult("Edited a.cs", [
+            new DiffHunk
+            {
+                Header = "@@ -1,3 +1,4 @@",
+                Lines =
+                [
+                    new DiffLine { Kind = DiffLineKind.Context, Content = "keep" },
+                    new DiffLine { Kind = DiffLineKind.Removed, Content = "drop" },
+                    new DiffLine { Kind = DiffLineKind.Added, Content = "add" },
+                ],
+            },
+        ]);
+
+        var line = BridgeProtocol.SerializeEvent(withPatch);
+        var reader = new StringReader(line + "\n");
+
+        var result = BridgeProtocol.TryReadEvent(reader, out var actual, out var diagnostic);
+        Assert.Equal(BridgeReadResult.Event, result);
+        Assert.Null(diagnostic);
+        // record 含数组字段为引用相等 — 逐字段断言（hunk/行/种类/内容全量回读）
+        var roundTripped = Assert.IsType<BridgeEvent.ToolResult>(actual);
+        Assert.Equal("Edited a.cs", roundTripped.Summary);
+        var hunk = Assert.Single(roundTripped.Patch!);
+        Assert.Equal("@@ -1,3 +1,4 @@", hunk.Header);
+        Assert.Equal(3, hunk.Lines.Length);
+        Assert.Equal(DiffLineKind.Context, hunk.Lines[0].Kind);
+        Assert.Equal("keep", hunk.Lines[0].Content);
+        Assert.Equal(DiffLineKind.Removed, hunk.Lines[1].Kind);
+        Assert.Equal("drop", hunk.Lines[1].Content);
+        Assert.Equal(DiffLineKind.Added, hunk.Lines[2].Kind);
+        Assert.Equal("add", hunk.Lines[2].Content);
+    }
+
+    [Fact]
+    public void SerializeEvent_ToolResultWithoutPatch_OmitsPatchField()
+    {
+        // null 补丁不输出 patch 字段（WhenWritingNull — 与引擎侧契约逐字节一致）
+        var line = BridgeProtocol.SerializeEvent(new BridgeEvent.ToolResult("41 lines"));
+        Assert.Equal("{\"type\":\"tool_result\",\"summary\":\"41 lines\"}", line);
+    }
+
+    [Fact]
+    public void ReadEvent_ToolResultWithoutPatchField_ParsesLegacyJson()
+    {
+        // 旧引擎（M7-2 投影同步前）不输出 patch 字段 → 反序列化为 null，不报坏行
+        var reader = new StringReader("{\"type\":\"tool_result\",\"summary\":\"41 lines\"}\n");
+
+        var result = BridgeProtocol.TryReadEvent(reader, out var actual, out var diagnostic);
+
+        Assert.Equal(BridgeReadResult.Event, result);
+        var toolResult = Assert.IsType<BridgeEvent.ToolResult>(actual);
+        Assert.Equal("41 lines", toolResult.Summary);
+        Assert.Null(toolResult.Patch);
+        Assert.Null(diagnostic);
+    }
+
+    [Fact]
     public void Roundtrip_AllEvents_SurviveSerializeDeserialize()
     {
         BridgeEvent[] events =

@@ -62,4 +62,132 @@ public static class MessageRenderer
         screen.WriteText(frame.Y, frame.X, $"{Figures.MessageBullet} ", style, frame.Right);
         screen.WriteText(frame.Y, frame.X + 2, text, style, frame.Right);
     }
+
+    /// <summary>渲染 diff hunk 头："    @@ … @@"（4 空格缩进，整行 dim 弱化）。</summary>
+    public static void RenderDiffHeader(Screen screen, Rect frame, Theme theme, string header)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $"    {header}", dim, frame.Right);
+    }
+
+    /// <summary>
+    /// 渲染单个 diff 行："    " + 前缀字符 + 正文（4 空格缩进对齐青蛙TUI 先例）：
+    /// added 整行 DiffAddedWord 前景 / removed 整行 DiffRemovedWord 前景 / context 整行 dim。
+    /// </summary>
+    public static void RenderDiffLine(Screen screen, Rect frame, Theme theme, DiffLine line)
+    {
+        var style = line.Kind switch
+        {
+            DiffLineKind.Added => screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.DiffAddedWord }),
+            DiffLineKind.Removed => screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.DiffRemovedWord }),
+            _ => screen.Styles.GetOrAdd(new TextStyle { Dim = true }),
+        };
+        var prefix = line.Kind switch
+        {
+            DiffLineKind.Added => "+",
+            DiffLineKind.Removed => "-",
+            _ => " ",
+        };
+        screen.WriteText(frame.Y, frame.X, $"    {prefix}{line.Content}", style, frame.Right);
+    }
+
+    /// <summary>渲染折叠提示："    … +N lines (Ctrl+O)"（dim；Ctrl+O 展开交互为 M7 后续项）。</summary>
+    public static void RenderDiffCollapseHint(Screen screen, Rect frame, Theme theme, int hiddenLines)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $"    … +{hiddenLines} lines (Ctrl+O)", dim, frame.Right);
+    }
+
+    /// <summary>渲染权限对话框顶边框 — 整行 ─ 前景 permission 色（基准 borderStyle=round 无角，仅 top，全宽）。</summary>
+    public static void RenderPermissionBorder(Screen screen, Rect frame, Theme theme)
+    {
+        var border = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Permission });
+        for (var col = frame.X; col < frame.Right; col++)
+        {
+            screen[frame.Y, col] = new Cell(new Rune('─'), border, CellWidth.Default);
+        }
+    }
+
+    /// <summary>渲染权限对话框标题行 — 1 空格缩进 + bold permission 色（基准 PermissionRequestTitle）。</summary>
+    public static void RenderPermissionTitle(Screen screen, Rect frame, Theme theme, string title)
+    {
+        var style = screen.Styles.GetOrAdd(new TextStyle { Bold = true, Foreground = theme.Permission });
+        screen.WriteText(frame.Y, frame.X, $" {title}", style, frame.Right);
+    }
+
+    /// <summary>渲染权限工具行 — 3 空格缩进（外 1 + 内 2 paddingX 累计）+ bold 工具名 + 默认样式 (描述参数)。</summary>
+    public static void RenderPermissionToolLine(Screen screen, Rect frame, Theme theme, string toolName, string description)
+    {
+        var bold = screen.Styles.GetOrAdd(new TextStyle { Bold = true });
+        screen.WriteText(frame.Y, frame.X, "   ", 0, frame.Right);
+        var col = screen.WriteText(frame.Y, frame.X + 3, toolName, bold, frame.Right);
+        screen.WriteText(frame.Y, col, $"({description})", 0, frame.Right);
+    }
+
+    /// <summary>渲染权限描述行 — 3 空格缩进整行 dim。</summary>
+    public static void RenderPermissionDescription(Screen screen, Rect frame, Theme theme, string description)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $"   {description}", dim, frame.Right);
+    }
+
+    /// <summary>渲染权限问题行 — 1 空格缩进默认样式（基准 PermissionPrompt 固定文案）。</summary>
+    public static void RenderPermissionQuestion(Screen screen, Rect frame, Theme theme)
+    {
+        screen.WriteText(frame.Y, frame.X, " Do you want to proceed?", 0, frame.Right);
+    }
+
+    /// <summary>
+    /// 渲染权限选项行（基准 CustomSelect compact + ListItem）：
+    /// 焦点 = ❯ suggestion + gap 1 + "N. " dim + label suggestion；非焦点 = 空格 indicator + gap 1 + "N. " dim + label 默认。
+    /// </summary>
+    public static void RenderPermissionOption(Screen screen, Rect frame, Theme theme, int index, string label, bool focused)
+    {
+        if (focused)
+        {
+            var suggestion = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Suggestion });
+            var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+            screen[frame.Y, frame.X] = new Cell(new Rune('❯'), suggestion, CellWidth.Default);
+            screen.WriteText(frame.Y, frame.X + 1, $" ", dim, frame.Right);
+            screen.WriteText(frame.Y, frame.X + 2, $"{index + 1}. ", dim, frame.Right);
+            screen.WriteText(frame.Y, frame.X + 5, label, suggestion, frame.Right);
+            return;
+        }
+
+        var plain = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $"  {index + 1}. ", plain, frame.Right);
+        screen.WriteText(frame.Y, frame.X + 5, label, 0, frame.Right);
+    }
+
+    /// <summary>渲染权限取消提示行 — 1 空格缩进 dim（基准 "Esc to cancel"）。</summary>
+    public static void RenderPermissionEscHint(Screen screen, Rect frame, Theme theme)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, " Esc to cancel", dim, frame.Right);
+    }
+
+    /// <summary>
+    /// 渲染 Markdown 物理行（M7-4）— 从指定列起逐段写，段样式经 MapMarkdownStyle 映射
+    ///（Code → permission 色前景，对齐基准 codespan color('permission')；修饰开关直转 TextStyle）。
+    /// </summary>
+    public static void RenderMarkdownLine(Screen screen, Rect frame, Theme theme, int startCol, IReadOnlyList<MarkdownSegment> segments)
+    {
+        var col = frame.X + startCol;
+        foreach (var segment in segments)
+        {
+            var style = screen.Styles.GetOrAdd(MapMarkdownStyle(segment.Style, theme));
+            col = screen.WriteText(frame.Y, col, segment.Text, style, frame.Right);
+        }
+    }
+
+    /// <summary>Markdown 语义样式 → TextStyle（Code 取 permission 色；Link 首版无 OSC 8 纯文本降级）。</summary>
+    internal static TextStyle MapMarkdownStyle(MarkdownStyle style, Theme theme) => new()
+    {
+        Bold = style.HasFlag(MarkdownStyle.Bold),
+        Italic = style.HasFlag(MarkdownStyle.Italic),
+        Underline = style.HasFlag(MarkdownStyle.Underline),
+        Dim = style.HasFlag(MarkdownStyle.Dim),
+        Strikethrough = style.HasFlag(MarkdownStyle.Strikethrough),
+        Foreground = style.HasFlag(MarkdownStyle.Code) ? theme.Permission : default,
+    };
 }

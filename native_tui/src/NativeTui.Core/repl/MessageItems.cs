@@ -49,6 +49,73 @@ public sealed class ToolResultItem(string text) : IScrollItem
         MessageRenderer.RenderToolResult(screen, frame with { Y = frame.Y + 1, Height = 1 }, theme, text);
 }
 
+/// <summary>
+/// 带补丁的工具结果项（M7-2 StructuredDiff）— summary 行沿用 MessageResponse 形态，
+/// 后接 hunk 块（4 空格缩进：header dim / added DiffAddedWord / removed DiffRemovedWord / context dim）；
+/// patch 行数超预览折叠为 "… +N lines (Ctrl+O)" dim（预览行数对齐青蛙TUI Take(3) = summary + 2 行先例，
+/// Ctrl+O 展开交互为 M7 后续项）。
+/// </summary>
+public sealed class DiffResultItem(string summary, DiffHunk[] patch) : IScrollItem
+{
+    /// <summary>patch 预览行数（summary 之外；对齐青蛙TUI ToolResultPreview 3 行中的 2 行 patch）。</summary>
+    private const int PreviewPatchRows = 2;
+
+    /// <summary>diff 块缩进列数（对齐青蛙TUI "    " 缩进先例）。</summary>
+    private const int IndentCols = 4;
+
+    /// <summary>工具结果摘要（首行 ⎿ 正文）。</summary>
+    public string Summary { get; } = summary;
+
+    /// <summary>结构化补丁 hunks（驱动侧断言与渲染共享）。</summary>
+    public DiffHunk[] Patch { get; } = patch;
+
+    /// <summary>补丁总行数（每 hunk = header 1 行 + diff 行数）。</summary>
+    private int TotalPatchRows => Patch.Sum(static hunk => 1 + hunk.Lines.Length);
+
+    /// <summary>内容高度 = margin 1 + summary 1 + 预览行数（超预览时为预览上限 + 折叠提示 1 行）。</summary>
+    public int MeasureHeight(int width) =>
+        2 + Math.Min(TotalPatchRows, PreviewPatchRows) + (TotalPatchRows > PreviewPatchRows ? 1 : 0);
+
+    /// <summary>渲染：margin 留空 → summary（⎿ 形态）→ hunk 预览行 → 折叠提示（如有）。</summary>
+    public void Render(Screen screen, Rect frame, Theme theme)
+    {
+        MessageRenderer.RenderToolResult(screen, frame with { Y = frame.Y + 1, Height = 1 }, theme, Summary);
+
+        var renderedRows = Math.Min(TotalPatchRows, PreviewPatchRows);
+        var row = frame.Y + 2;
+        foreach (var hunk in Patch)
+        {
+            if (renderedRows == 0)
+            {
+                break;
+            }
+
+            MessageRenderer.RenderDiffHeader(screen, RowFrame(frame, row), theme, hunk.Header);
+            row++;
+            renderedRows--;
+            foreach (var line in hunk.Lines)
+            {
+                if (renderedRows == 0)
+                {
+                    break;
+                }
+
+                MessageRenderer.RenderDiffLine(screen, RowFrame(frame, row), theme, line);
+                row++;
+                renderedRows--;
+            }
+        }
+
+        if (TotalPatchRows > PreviewPatchRows)
+        {
+            MessageRenderer.RenderDiffCollapseHint(screen, RowFrame(frame, row), theme, TotalPatchRows - PreviewPatchRows);
+        }
+    }
+
+    /// <summary>单行 frame（Y 为该渲染行，高度 1）。</summary>
+    private static Rect RowFrame(Rect frame, int row) => frame with { Y = row, Height = 1 };
+}
+
 /// <summary>错误消息项（● theme.Error 红色 + 正文，bridge error 事件载体）。</summary>
 public sealed class ErrorMessageItem(string text) : IScrollItem
 {

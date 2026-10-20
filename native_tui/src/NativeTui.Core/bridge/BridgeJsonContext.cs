@@ -7,4 +7,6 @@ namespace NativeTui.Core.Bridge;
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false)]
 [JsonSerializable(typeof(BridgeRequest))]
 [JsonSerializable(typeof(BridgeEvent))]
+[JsonSerializable(typeof(DiffHunk))]
+[JsonSerializable(typeof(MarkdownDocument))]
 public sealed partial class BridgeJsonContext : JsonSerializerContext;

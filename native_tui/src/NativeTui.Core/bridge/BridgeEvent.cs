@@ -42,14 +42,22 @@ public abstract record BridgeEvent
     /// <summary>工具调用消息（bullet + bold 工具名 + args）。</summary>
     public sealed record ToolCall(string Name, string Args) : BridgeEvent;
 
-    /// <summary>工具结果摘要（⎿ 缩进项）。</summary>
-    public sealed record ToolResult(string Summary) : BridgeEvent;
+    /// <summary>
+    /// 工具结果摘要（⎿ 缩进项）；Patch 非空时渲染为结构化 diff 块（M7-2 StructuredDiff）。
+    /// Patch null 不输出字段（WhenWritingNull — 与引擎侧 ToolResult 契约逐字节一致，旧 JSON 兼容）。
+    /// </summary>
+    public sealed record ToolResult(string Summary,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DiffHunk[]? Patch = null) : BridgeEvent;
 
     /// <summary>流式 token 增量（spinner ResponseLength 累加）。</summary>
     public sealed record TokenDelta(int Length) : BridgeEvent;
 
-    /// <summary>完整助手消息（追加滚动区）。</summary>
-    public sealed record AssistantMessage(string Text) : BridgeEvent;
+    /// <summary>
+    /// 完整助手消息（追加滚动区）。Markdown 非空时渲染为块模型（M7-4）；
+    /// null 不输出字段（WhenWritingNull — 引擎侧旧协议逐字节一致，降级纯文本路径）。
+    /// </summary>
+    public sealed record AssistantMessage(string Text,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] MarkdownDocument? Markdown = null) : BridgeEvent;
 
     /// <summary>回合完成（idle）。</summary>
     public sealed record TurnCompleted() : BridgeEvent;

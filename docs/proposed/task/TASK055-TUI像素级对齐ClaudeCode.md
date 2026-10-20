@@ -653,3 +653,40 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 |------|------|------|
 | 1 模拟 diff | `dotnet run --project native_tui/apps/NativeTui.Demo`（真实终端） | 提交任意文本 → 2.4s 后 ⎿ Updated demo/simulated.cs + hunk 块（+行绿/-行红/@@ dim）+ "… +2 lines (Ctrl+O)" |
 | 2 真实引擎 | `NativeTui.Host.exe`（需配置模型） | 引擎跑 Edit 类工具 → 工具结果渲染真实补丁 diff 块 |
+
+## M7-3 权限对话框落地（2026-10-20，引擎 PendingConfirmation → TUI 对话框闭环）
+
+<!-- 🤖 Auto Decision: 2026-10-20 -->
+<!-- 决策: 三批渐进落地(每批编译+测试+commit): ①Core 对话框渲染+模态改道 ②Host 引擎闭环 ③文档收尾 -->
+<!-- ①Core(2def5f5e8): PermissionCoordinator TCS 桥(Begin 取消旧等待者=青蛙TUI DialogRequest 取代语义, -->
+<!--   Complete 幂等, 焦点三档环绕) + PermissionRequestItem 像素对齐基准 FallbackPermissionRequest -->
+<!--   (仅顶边框 permission 色 round 无角全宽/bold permission 标题 paddingX=1/工具行 3 缩进(外1+内2 paddingX 累计)/ -->
+<!--   描述 dim(空折叠)/"Do you want to proceed?"/Select 三档数字前缀选项(1.Yes 2.Yes-dont-ask-again 3.No, -->
+<!--   焦点行 ❯ suggestion+index dim+label suggestion, 非焦点空格 indicator+label 默认)/"Esc to cancel" dim; -->
+<!--   MeasureHeight 12+描述行) + ReplShell 挂起时键盘模态路由(数字1-3 直选/Esc=Deny/Enter=焦点档/上下环绕, -->
+<!--   其余按键吞掉防输入污染)且回合结束(完成/打断)自动 Deny 收尾防对话框残留; -->
+<!--   渲染方法按 DiffResultItem 先例收口 MessageRenderer(7 个 RenderPermission*) -->
+<!-- ②Host(24a1fd826): TuiPermissionBridge(引擎线程 Confirm→BeginPermissionRequest→TCS 同步阻塞等按键, -->
+<!--   未绑定 shell 降级 Deny 防死锁 — 对齐 CLI IConfirmationGate 单通道路由先例) + -->
+<!--   TuiPermissionConfirmationHandler(转发 bridge + 临时批准: Allow 1 分钟/AlwaysAllow 30 分钟 + -->
+<!--   [红绿灯ask] 标签同级批准 — 对齐 CliPermissionConfirmationHandler) + TuiInteractionModule(Order=80) -->
+<!--   经 CreateGuiSessionAsync extraModules 注册(对齐 GuiInteractionModule 先例); -->
+<!--   BeginPermissionRequest/Permission 升 public(宿主生产消费面, 与 Run/WriteExit 同级); -->
+<!--   权威路径=引擎返回值模式: PermissionCheckMiddleware→PendingConfirmation→ -->
+<!--   PermissionAwareToolExecutor→IPermissionConfirmationHandler.Confirm(ADR 0143 进程内闭环, 不扩展事件表) -->
+<!-- TDD: Core 21 用例(coordinator TCS 6+渲染 golden 8+shell 模态 7) + Host 10 用例(module 注册 1+bridge 4+ -->
+<!--   handler 批准 4+真容器解析 1); 全绿: NativeTui.Tests 521/521(基线 500+新增 21) + Host.Tests 33/33(基线 23+新增 10) -->
+<!-- 自动化回归: M7-1 像素校准重跑 clawd+prompt 两 region 0 字符/0 像素差异 + selftest 真实容器组装通过 -->
+<!-- 测试陷阱: 引擎 PermissionRequest(JoinCode.Abstractions.Security) 与 Core Repl.PermissionRequest 同名 — -->
+<!--   fake 接口实现须全限定; PermissionResult 同在 Security 父命名空间(非 Security.Permission) -->
+
+### M7-3 手动验收（ADR 0080，待用户执行）
+
+| 步骤 | 命令 | 预期 |
+|------|------|------|
+| 1 权限模式 | （真实终端+配置模型）Shift+Tab 切到 plan | footer 模式轮换 |
+| 2 触发确认 | 提交让引擎调用写文件类工具的请求 | 对话框浮现: 顶边框紫 + **Tool use** + 工具名(描述) + Do you want to proceed? + 1/2/3 选项 |
+| 3 三档交互 | 按 1 → 引擎继续执行; 再触发按 2 → 同会话不再问; 再触发按 3/Esc → 工具被拒 | 对话框消失, 回合继续, footer 无残留 |
+| 4 焦点导航 | 上/下箭头移动 ❯ 指示 + Enter 选择 | 焦点环绕(1→3→2→1) |
+
+<!-- M7-3 接续: M7-4 Markdown(Markdig) → M7-5 代码高亮调研 → M7-6 模型列表 → M7-7 多子代理分组 -->

@@ -52,13 +52,14 @@ public sealed class ToolResultItem(string text) : IScrollItem
 /// <summary>
 /// 带补丁的工具结果项（M7-2 StructuredDiff）— summary 行沿用 MessageResponse 形态，
 /// 后接 hunk 块（4 空格缩进：header dim / added DiffAddedWord / removed DiffRemovedWord / context dim）；
-/// patch 行数超预览折叠为 "… +N lines (Ctrl+O)" dim（预览行数对齐青蛙TUI Take(3) = summary + 2 行先例，
+/// patch 全量渲染（基准 update 渲染完整 diff 不截断 — FileWriteTool/UI.tsx "update renders the full diff"），
+/// 仅超 10 行预览上限折叠为 "… +N lines (Ctrl+O)" dim（上限对齐基准 Write MAX_LINES_TO_RENDER=10 防刷屏先例，
 /// Ctrl+O 展开交互为 M7 后续项）。
 /// </summary>
 public sealed class DiffResultItem(string summary, DiffHunk[] patch) : IScrollItem
 {
-    /// <summary>patch 预览行数（summary 之外；对齐青蛙TUI ToolResultPreview 3 行中的 2 行 patch）。</summary>
-    private const int PreviewPatchRows = 2;
+    /// <summary>patch 预览行数上限（summary 之外；超限折叠 — 对齐基准 Write MAX_LINES_TO_RENDER=10 先例）。</summary>
+    private const int PreviewPatchRows = 10;
 
     /// <summary>diff 块缩进列数（对齐青蛙TUI "    " 缩进先例）。</summary>
     private const int IndentCols = 4;

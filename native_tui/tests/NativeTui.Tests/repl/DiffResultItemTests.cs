@@ -5,7 +5,8 @@ namespace NativeTui.Tests.Repl;
 /// summary 行沿用 MessageResponse 形态（"  ⎿  " dim 前缀 + 默认正文）；
 /// hunk 块 4 空格缩进 — header dim / context dim / added 行 DiffAddedWord 前景 / removed 行 DiffRemovedWord 前景
 ///（对齐青蛙TUI TranscriptWriter ±行前景色先例，色键换用基准 theme.ts diff 前景键）；
-/// patch 行数超预览折叠为 "… +N lines (Ctrl+O)" dim（青蛙TUI Take(3) = summary + 2 行预览先例）。
+/// patch 全量渲染（基准 update 渲染完整 diff — FileWriteTool/UI.tsx L138-141），
+/// 仅超 10 行预览上限折叠为 "… +N lines (Ctrl+O)"（上限对齐基准 Write MAX_LINES_TO_RENDER=10 先例）。
 /// </summary>
 public sealed class DiffResultItemTests
 {
@@ -14,6 +15,13 @@ public sealed class DiffResultItemTests
 
     /// <summary>构造 diff 行。</summary>
     private static DiffLine Line(DiffLineKind kind, string content) => new() { Kind = kind, Content = content };
+
+    /// <summary>构造超预览上限的 patch（header + N 行，总行数 = 1 + N）。</summary>
+    private static DiffHunk LongHunk(int lineCount) => new()
+    {
+        Header = "@@ -1,3 +1,4 @@",
+        Lines = Enumerable.Range(0, lineCount).Select(i => Line(DiffLineKind.Context, $"line {i}")).ToArray(),
+    };
 
     [Fact]
     public void Render_SummaryRowKeepsToolResultStyle()
@@ -90,64 +98,78 @@ public sealed class DiffResultItemTests
     }
 
     [Fact]
-    public void Render_CollapsesBeyondPreviewWithHint()
+    public void Render_DemoPatchShowsRedAndGreenLines()
     {
-        // 1 hunk = header + 4 行 → patch 5 行 > 预览 2 行 → 渲染 header + 首行 + 折叠提示
-        using var screen = new Screen(cols: 40, rows: 5);
-        var item = new DiffResultItem("Edited a.cs", [Hunk(
-            Line(DiffLineKind.Context, "keep"),
-            Line(DiffLineKind.Removed, "drop"),
-            Line(DiffLineKind.Added, "add1"),
-            Line(DiffLineKind.Added, "add2"))]);
+        // 回归（用户真实终端验收反馈）：SimulatedEngine 演示补丁渲染后预览窗口内必须可见红绿行 —
+        // 4 行 hunk 全量渲染（≤10 行预览上限），Removed 行 DiffRemovedWord + Added 行 DiffAddedWord 都在屏上
+        var patch = SimulatedEngine.SimulatedPatch;
+        using var screen = new Screen(cols: 80, rows: 2 + 1 + 1 + patch.Sum(static h => 1 + h.Lines.Length));
 
-        item.Render(screen, new Rect(0, 0, 40, 5), Theme.Dark);
+        var item = new DiffResultItem("Updated demo/simulated.cs (simulated)", patch);
+        item.Render(screen, new Rect(0, 0, screen.Cols, screen.Rows), Theme.Dark);
 
-        // row2 header（预览第 1 行）→ row3 首个 diff 行（预览第 2 行）→ row4 折叠提示 dim
-        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
-        Assert.Equal("    @@ -1,3 +1,4 @@", RowText.Of(screen, 2, 0, 19));
-        Assert.Equal("     keep", RowText.Of(screen, 3, 0, 9));
-        Assert.Equal("    … +3 lines (Ctrl+O)", RowText.Of(screen, 4, 0, 23));
-        Assert.Equal(dim, screen[4, 4].StyleId);
+        var removed = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.DiffRemovedWord });
+        var added = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.DiffAddedWord });
+        Assert.Equal("-old behavior", RowText.Of(screen, 3, 4, 13));
+        Assert.Equal(removed, screen[3, 4].StyleId);
+        Assert.Equal("+new behavior + diff render", RowText.Of(screen, 4, 4, 27));
+        Assert.Equal(added, screen[4, 4].StyleId);
     }
 
     [Fact]
-    public void Render_MultipleHunksPreviewSpansHunks()
+    public void Render_CollapsesBeyondPreviewWithHint()
     {
-        // 2 hunks（各 header + 1 行）→ patch 4 行 > 预览 2 → 预览行 = h1 header + h1 line，折叠 +2
-        using var screen = new Screen(cols: 40, rows: 5);
+        // header + 12 行 = 13 行 > 预览上限 10 → 渲染 header + 前 9 行 + 折叠提示 +3
+        using var screen = new Screen(cols: 40, rows: 2 + 10 + 1);
+        var item = new DiffResultItem("Edited a.cs", [LongHunk(12)]);
+
+        item.Render(screen, new Rect(0, 0, 40, screen.Rows), Theme.Dark);
+
+        // row2 header → row3..row11 预览 9 行 → row12 折叠提示 dim
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        Assert.Equal("    @@ -1,3 +1,4 @@", RowText.Of(screen, 2, 0, 19));
+        Assert.Equal("     line 0", RowText.Of(screen, 3, 0, 11));
+        Assert.Equal("     line 8", RowText.Of(screen, 11, 0, 11));
+        Assert.Equal("    … +3 lines (Ctrl+O)", RowText.Of(screen, 12, 0, 23));
+        Assert.Equal(dim, screen[12, 4].StyleId);
+    }
+
+    [Fact]
+    public void Render_MultipleHunksAllRendered()
+    {
+        // 2 hunks（各 header + 1 行）共 4 行 ≤ 预览上限 → 全量渲染无折叠
+        using var screen = new Screen(cols: 40, rows: 6);
         var item = new DiffResultItem("2 files", [
             Hunk(Line(DiffLineKind.Added, "a")),
             new DiffHunk { Header = "@@ -9 +9 @@", Lines = [Line(DiffLineKind.Removed, "b")] },
         ]);
 
-        item.Render(screen, new Rect(0, 0, 40, 5), Theme.Dark);
+        item.Render(screen, new Rect(0, 0, 40, 6), Theme.Dark);
 
         Assert.Equal("    @@ -1,3 +1,4 @@", RowText.Of(screen, 2, 0, 19));
         Assert.Equal("    +a", RowText.Of(screen, 3, 0, 6));
-        Assert.Equal("    … +2 lines (Ctrl+O)", RowText.Of(screen, 4, 0, 23));
+        Assert.Equal("    @@ -9 +9 @@", RowText.Of(screen, 4, 0, 15));
+        Assert.Equal("    -b", RowText.Of(screen, 5, 0, 6));
     }
 
     [Fact]
     public void MeasureHeight_MarginPlusSummaryPlusRenderedPatchRows()
     {
-        // patch 2 行（header+1 行）恰在预览内 → 1 margin + 1 summary + 2 = 4
+        // patch 2 行（header+1 行）→ 1 margin + 1 summary + 2 = 4（预览内全渲染）
         var fits = new DiffResultItem("s", [Hunk(Line(DiffLineKind.Added, "x"))]);
         Assert.Equal(4, fits.MeasureHeight(width: 80));
 
-        // patch 5 行超预览 → 1 + 1 + 2 预览 + 1 折叠提示 = 5
+        // patch 5 行 ≤ 预览上限 10 → 1 + 1 + 5 = 7（全渲染无折叠）
         var collapsed = new DiffResultItem("s", [Hunk(
             Line(DiffLineKind.Context, "a"),
             Line(DiffLineKind.Context, "b"),
             Line(DiffLineKind.Context, "c"),
             Line(DiffLineKind.Context, "d"))]);
-        Assert.Equal(5, collapsed.MeasureHeight(width: 80));
+        Assert.Equal(7, collapsed.MeasureHeight(width: 80));
 
-        // 2 hunks 共 4 行 → 折叠 → 5
-        var multiHunk = new DiffResultItem("s", [
-            Hunk(Line(DiffLineKind.Added, "a")),
-            Hunk(Line(DiffLineKind.Removed, "b")),
-        ]);
-        Assert.Equal(5, multiHunk.MeasureHeight(width: 80));
+        // patch 13 行（header+12）> 预览 10 → 1 + 1 + 10 预览 + 1 折叠提示 = 13
+        var overflow = new DiffResultItem("s", [LongHunk(12)]);
+        Assert.Equal(13, overflow.MeasureHeight(width: 80));
     }
 
     [Fact]

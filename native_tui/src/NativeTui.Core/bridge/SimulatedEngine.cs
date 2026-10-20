@@ -66,19 +66,21 @@ public sealed class SimulatedEngine : IReplEngine
     }
 
     /// <summary>
-    /// 模拟补丁 — Demo 演示 StructuredDiff 渲染链路（M7-2）：4 行 hunk 超 2 行预览，同时演示折叠提示。
+    /// 模拟补丁 — Demo 演示 StructuredDiff 渲染链路（M7-2）：Removed/Added 行在前（红绿可见），
+    /// Context 行殿后；4 行 hunk 全量渲染（≤ DiffResultItem 预览上限 10 行）。
+    /// 公开静态供渲染可见性回归测试与 Demo 构造复用（对齐 DemoMarkdown 先例）。
     /// </summary>
-    private static readonly DiffHunk[] SimulatedPatch =
+    public static readonly DiffHunk[] SimulatedPatch =
     [
         new()
         {
             Header = "@@ -1,4 +1,5 @@",
             Lines =
             [
-                new DiffLine { Kind = DiffLineKind.Context, Content = "existing line" },
                 new DiffLine { Kind = DiffLineKind.Removed, Content = "old behavior" },
                 new DiffLine { Kind = DiffLineKind.Added, Content = "new behavior + diff render" },
                 new DiffLine { Kind = DiffLineKind.Added, Content = "extra line to show collapse" },
+                new DiffLine { Kind = DiffLineKind.Context, Content = "existing line" },
             ],
         },
     ];

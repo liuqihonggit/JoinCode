@@ -268,6 +268,14 @@ public sealed class BridgeProtocolTests
     }
 
     [Fact]
+    public void SerializeEvent_ToolResultWithoutPatch_OmitsPatchField()
+    {
+        // null 补丁不输出 patch 字段（WhenWritingNull — 与引擎侧契约逐字节一致）
+        var line = BridgeProtocol.SerializeEvent(new BridgeEvent.ToolResult("41 lines"));
+        Assert.Equal("{\"type\":\"tool_result\",\"summary\":\"41 lines\"}", line);
+    }
+
+    [Fact]
     public void ReadEvent_ToolResultWithoutPatchField_ParsesLegacyJson()
     {
         // 旧引擎（M7-2 投影同步前）不输出 patch 字段 → 反序列化为 null，不报坏行

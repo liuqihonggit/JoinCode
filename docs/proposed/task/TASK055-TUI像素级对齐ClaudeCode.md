@@ -995,13 +995,14 @@ ReferenceScene.cs 不含任何 Markdown 渲染调用（纯手工 cell 构造，g
 | Core IAnimatable 接口 + ReplShell.AdvanceAnimClock 广播（50ms/拍喂全部动画项） | SpinnerItem（glimmer/shimmer 相位）+ SubagentGroupItem（组头 ● 600ms 方波闪烁） | ✅ | ✅ ReplShellTests 广播同步断言（spinner 与注入项同值）+ SubagentGroupTests 4/4 相位断言（0 亮/600 暗/错误完成恒亮）；全量 714/714 |
 | MessageRenderer.RenderSubagentHeader 闪烁三态（运行中 dim 闪烁 / 错误恒红 / 完成恒绿） | SubagentGroupItem.Render 投影（AnimTimeMs 相位） | ✅ | ✅ 部分错误+运行中 dim 恒亮（基准 isUnresolved 色优先）断言；真实终端闪烁视觉验收归用户 |
 | SimulatedEngine Subagents 脚本（并行子回合交错时间线） | Demo agents 命令（真实终端输入 agents / agents 300） | ✅ | ✅ SubagentGroupTests 4/4（虚拟时钟确定性：批量启动/交错活动/完成收束/300 规模一拍批量）+ Demo --selftest 绿；真实终端 agents 交互验收待用户跑 NativeTui.Demo.exe 确认 |
+| Core ITerminalSizeSource + ConsoleTerminalSizeSource（resize 事件化注入面，a8ab838f1） | ReplShell 三处 Console.Window* 消费点（EnsureScreens cols/rows + RenderAndFlush viewportRows） | ✅ | ✅ ReplShellResizeTests 5/5（尺寸注入/cols 变化重建+旧帧保留/不变复用/inline rows 无关/视口 rows 取源）；全量 734/734 |
 | Host 接线 | — | ⏸ 后置 | 引擎侧子代理事件源未确认（引擎是否发 subagent_* 事件待实测），Core 事件契约已就绪 |
 
 ### 遗留项
 
 1. Host 接线（前置：引擎侧子代理事件源实测确认）
-2. 基准 P2 细节未对齐：ctrl+o transcript 展开模式 / 小终端自适应单行塌缩 / lastToolInfo "Searched/Read N files" 聚合摘要 / 失焦暂停闪烁（基准 useBlink useTerminalFocus）
-3. 用户真实终端验收（agents 12 默认 + agents 300 规模 + 组头闪烁视觉）
+2. 基准 P2 细节未对齐：ctrl+o transcript 展开模式 / 小终端自适应单行塌缩 / lastToolInfo "Searched/Read N files" 聚合摘要 / 失焦暂停闪烁（基准 useBlink useTerminalFocus）/ Unix SIGWINCH 物理事件源（当前 Console 轮询已满足 50ms 拍内响应）
+3. 用户真实终端验收（agents 12 默认 + agents 300 规模 + 组头闪烁视觉 + resize 拖拽窗口）
 
 <!-- 🤖 Auto Decision: 2026-10-21 -->
 <!-- 决策: 组内可见窗口(方案A用户确认) + 分组语义按turn(bridge协议无messageId边界) + 组头静态三态色(闪烁归后续) + 窗口活动跟随(分组非模态无焦点,区别于ModelPicker焦点跟随) -->
@@ -1015,5 +1016,11 @@ ReferenceScene.cs 不含任何 Markdown 渲染调用（纯手工 cell 构造，g
 <!-- 替代方案: Screen 挂帧时间(渲染缓冲承担双职责否决);每 item 自持 Stopwatch(无同步性+测试不确定性否决) -->
 <!-- 验证: 全量714/714绿含5新测试(相位0亮/600暗/错误完成恒亮/部分错误dim恒亮/广播同步) + Demo selftest真实exe绿 ✅ -->
 
-<!-- M7-7 完成: 用户真实终端 agents 交互验收(含闪烁视觉) → resize 事件化 → Host 接线(引擎侧事件源确认后) -->
+<!-- 🤖 Auto Decision: 2026-10-21（resize 事件化） -->
+<!-- 决策: ITerminalSizeSource 抽象 + ConsoleTerminalSizeSource 轮询默认实现 + ReplShell 构造注入 -->
+<!-- 原因: 尺寸从 Console 静态环境依赖解耦为事件源契约(基准 useTerminalSize/Node stdout resize 等价物,Node 在 Windows 底层同为轮询);inline 语义钉死=屏宽 cols 为唯一 resize 敏感维度(屏高=内容高与终端 rows 无关);EnsureScreens/RenderAndFlush internal 化暴露单帧测试驱动面 -->
+<!-- 替代方案: Windows ReadConsoleInputW 物理事件(与 Console.ReadKey 抢 stdin 输入队列,双平台复杂度高否决);后台线程监听(跨线程 Console 非线程安全否决);保持现状轮询(不可测试,resize 路径零覆盖否决) -->
+<!-- 验证: 全量734/734绿含5新resize测试(尺寸注入/重建+旧帧保留/复用/inline rows 无关/视口取源) + Demo selftest真实exe绿 ✅ -->
+
+<!-- M7-7 完成: 用户真实终端 agents 交互验收(含闪烁+resize 视觉) → Host 接线(引擎侧事件源确认后) -->
 

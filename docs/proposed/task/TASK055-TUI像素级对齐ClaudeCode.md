@@ -689,4 +689,39 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 | 3 三档交互 | 按 1 → 引擎继续执行; 再触发按 2 → 同会话不再问; 再触发按 3/Esc → 工具被拒 | 对话框消失, 回合继续, footer 无残留 |
 | 4 焦点导航 | 上/下箭头移动 ❯ 指示 + Enter 选择 | 焦点环绕(1→3→2→1) |
 
-<!-- M7-3 接续: M7-4 Markdown(Markdig) → M7-5 代码高亮调研 → M7-6 模型列表 → M7-7 多子代理分组 -->
+## M7-4 Markdown 渲染落地（2026-10-20，Markdig 投影 → 块模型 → 终端渲染全链路）
+
+<!-- 🤖 Auto Decision: 2026-10-20 -->
+<!-- 决策: 四批渐进落地(每批编译+测试+commit): ①Core 块模型+布局器+渲染 ②卫星 Markdig 投影器 -->
+<!--   ③引擎闭环(bridge 协议+Driver 分流+Host 投影) ④Demo 演示回合 -->
+<!-- 架构三层(Core 零依赖铁律 ADR 0140): Core DTO(MarkdownStyle flags+8 块 record, 主题/宽度无关可零依赖直测) -->
+<!--   → 卫星 NativeTui.Markdown(Markdig 1.3.2 投影只产结构+行内 flags, 标题级别样式由布局层施加=职责分离) -->
+<!--   → Core MarkdownLayout(块→物理行)+MessageRenderer(段样式→SGR); Markdig 不进 Core 保 AOT+零依赖 -->
+<!-- 基准对齐(formatToken 权威映射, utils/markdown.ts 381 行全读): h1=bold+italic+underline, h2+=bold; -->
+<!--   引用=每行 ▎ dim 前缀+内容叠 Italic(修青蛙TUI 前缀只加一次坑); 列表 2 空格/层+有序分级编号 -->
+<!--   (深度 0/1 数字/2 字母/3 罗马); 表格列宽=max(显示宽,3)+"|"分隔行; hr=三字符"---"; -->
+<!--   顶层块间空 1 行=基准 Box gap 视觉主路径; codespan→permission 色对齐基准 color('permission') -->
+<!-- 青蛙TUI 坑全规避: 标题不分级/引用前缀只加一次/~~删除线误判 Bold/表格单元格样式丢失 -->
+<!-- 快路径: ProjectOptional 采样前 500 字符查语法字符(对齐基准 hasMarkdownSyntax), 无语法→null→降级纯文本 -->
+<!-- bridge 协议: AssistantMessage 扩 Markdown 可空字段(WhenWritingNull 保旧 JSON 逐字节兼容)+ -->
+<!--   MarkdownBlock 树 JsonPolymorphic discriminator(同 ADR 0141 风格); 投影决策在 Host -->
+<!--   InProcessEventConsumer.OnDone(进程内直连内存对象零序列化税, 未来引擎 JSON 携带同字段自动升级) -->
+<!-- ④Demo: SimulatedEngine.DemoMarkdown 手构 8 类块(对齐 SimulatedPatch 先例直接构 DTO 不经投影器), -->
+<!--   完成事件走 Driver 分流; SeedMessages 首条 assistant 回复升级行内样式(启动即见渲染) -->
+<!-- TDD: 批1 Core 22 用例(布局 14+消息项 8) + 批2 卫星 18 用例 + 批3a 5+2 用例(Driver 分流/JSON 往返/Host 投影) -->
+<!--   + 批3b 1 用例(演示回合全形态); 全绿: NativeTui.Tests 549/549(基线 521+批3a 5+批3b 1+M7-3 基线含 22) -->
+<!--   + NativeTui.Markdown.Tests 18/18 + Host.Tests 35/35 + Demo selftest OK -->
+<!-- 自动化回归: M7-1 像素校准重跑 clawd+prompt 两 region 0 字符/0 像素差异(渲染基线未破坏) -->
+<!-- 测试陷阱: 集合表达式表格 Headers 须扁平单元格构造(深层嵌套推断失败 CS0029, Seg/Cell 辅助方法先例); -->
+<!--   Markdig 的 MarkdownDocument 与 Core 同名→卫星全局别名先例; 测试渲染换行用窄 frame 触发按宽布局 -->
+
+### M7-4 手动验收（ADR 0080，待用户执行）
+
+| 步骤 | 命令 | 预期 |
+|------|------|------|
+| 1 种子渲染 | dotnet run --project native_tui/apps/NativeTui.Demo（真实终端） | 启动即见 ● 圆点 + 行内样式：粗体"Screen cell 网格"、permission 色行内代码 |
+| 2 全形态回合 | 同上提交任意文本 → 等 5.4s 回合完成 | assistant 消息渲染 8 类块：h2 粗体标题/段落行内样式/无序+有序列表/▎ 引用斜体/csharp 代码块/---/表格（表头粗体+对齐分隔行） |
+| 3 真实引擎 | NativeTui.Host.exe（需配置模型） | 引擎回复含 Markdown 语法 → ProjectOptional 投影 → 块模型渲染（无语法回复仍纯文本快路径） |
+| 4 窄终端换行 | 终端调窄后重跑步骤 2 | 段落软换行（词边界贪心+CJK 逐字）、列表续行对齐内容列、代码块不换行 |
+
+<!-- M7-4 接续: M7-5 代码高亮调研(MarkdownCode.Language 已保留消费面) → M7-6 模型列表 → M7-7 多子代理分组 -->

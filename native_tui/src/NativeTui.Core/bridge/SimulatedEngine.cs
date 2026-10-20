@@ -37,6 +37,22 @@ public sealed class SimulatedEngine : IReplEngine
     /// <summary>时钟（默认墙钟 — 测试注入虚拟时钟）。</summary>
     private readonly Func<long> _clock;
 
+    /// <summary>模拟补丁 — Demo 演示 StructuredDiff 渲染链路（M7-2）：4 行 hunk 超 2 行预览，同时演示折叠提示。</summary>
+    private static readonly DiffHunk[] SimulatedPatch =
+    [
+        new()
+        {
+            Header = "@@ -1,4 +1,5 @@",
+            Lines =
+            [
+                new DiffLine { Kind = DiffLineKind.Context, Content = "existing line" },
+                new DiffLine { Kind = DiffLineKind.Removed, Content = "old behavior" },
+                new DiffLine { Kind = DiffLineKind.Added, Content = "new behavior + diff render" },
+                new DiffLine { Kind = DiffLineKind.Added, Content = "extra line to show collapse" },
+            ],
+        },
+    ];
+
     /// <summary>默认时间源 — 墙钟毫秒。</summary>
     private static long DefaultClock() => Environment.TickCount64;
 
@@ -98,13 +114,13 @@ public sealed class SimulatedEngine : IReplEngine
         if (_stage == 0 && elapsed >= ToolUseAtMs)
         {
             _stage = 1;
-            _pending.Enqueue(new BridgeEvent.ToolCall("Read", "demo/simulated.cs"));
+            _pending.Enqueue(new BridgeEvent.ToolCall("Edit", "demo/simulated.cs"));
         }
 
         if (_stage == 1 && elapsed >= RespondingAtMs)
         {
             _stage = 2;
-            _pending.Enqueue(new BridgeEvent.ToolResult("7 lines (simulated)"));
+            _pending.Enqueue(new BridgeEvent.ToolResult("Updated demo/simulated.cs (simulated)", SimulatedPatch));
         }
 
         if (_stage == 2 && elapsed >= CompletedAtMs)

@@ -29,7 +29,7 @@ public sealed class SimulatedEngineTests
         Assert.Equal([new BridgeEvent.TurnStarted()], events);
     }
 
-    /// <summary>虚拟时钟 1.3s：进入 ToolUse 阶段，产出 ToolCall 事件。</summary>
+    /// <summary>虚拟时钟 1.3s：进入 ToolUse 阶段，产出 ToolCall 事件（Edit — 演示 StructuredDiff 链路）。</summary>
     [Fact]
     public void Advance_ToToolUse_Emits_ToolCall()
     {
@@ -39,12 +39,12 @@ public sealed class SimulatedEngineTests
         engine.DrainEvents();
 
         clock.Advance(1300);
-        Assert.Contains(engine.DrainEvents(), e => e is BridgeEvent.ToolCall { Name: "Read" });
+        Assert.Contains(engine.DrainEvents(), e => e is BridgeEvent.ToolCall { Name: "Edit" });
     }
 
-    /// <summary>虚拟时钟 2.5s：进入 Responding 阶段，产出 ToolResult + TokenDelta。</summary>
+    /// <summary>虚拟时钟 2.5s：进入 Responding 阶段，产出 ToolResult（带结构化补丁）+ TokenDelta。</summary>
     [Fact]
-    public void Advance_ToResponding_Emits_ToolResultAndTokenDelta()
+    public void Advance_ToResponding_Emits_ToolResultWithPatchAndTokenDelta()
     {
         var clock = new VirtualClock();
         var engine = new SimulatedEngine(() => clock.Now);
@@ -54,6 +54,9 @@ public sealed class SimulatedEngineTests
         clock.Advance(2500);
         var events = engine.DrainEvents();
         Assert.Contains(events, e => e is BridgeEvent.ToolResult);
+        var result = Assert.IsType<BridgeEvent.ToolResult>(events.First(e => e is BridgeEvent.ToolResult));
+        Assert.NotNull(result.Patch);
+        Assert.All(result.Patch, hunk => Assert.False(string.IsNullOrEmpty(hunk.Header)));
         Assert.Contains(events, e => e is BridgeEvent.TokenDelta { Length: 9 });
     }
 

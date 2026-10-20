@@ -25,6 +25,9 @@ public sealed class BannerItem(string version, string model, string billing, str
     /// <summary>模型名（引擎未设置时为"当前模型未设置"）。</summary>
     public string Model { get; set; } = model;
 
+    /// <summary>供应商（引擎上报时 banner 第二行显示 "{vendor}/{model}"；空退化无前缀）。</summary>
+    public string Vendor { get; set; } = string.Empty;
+
     /// <summary>计费方式（无真实登录态可查，模拟配置）。</summary>
     public string Billing { get; set; } = billing;
 
@@ -55,11 +58,12 @@ public sealed class BannerItem(string version, string model, string billing, str
         screen.WriteText(row + 1, frame.X + 7, "▛▘", body, right);
         screen.WriteText(row + 2, frame.X, "  ▘▘ ▝▝  ", body, right);
 
-        // 信息列：bold 名 + 默认空格 + dim 版本 / dim 模型·计费 / dim cwd
+        // 信息列：bold 名 + 默认空格 + dim 版本 / dim 供应商/模型·计费 / dim cwd
         var col = screen.WriteText(row, right, Title, bold, infoRight);
         col = screen.WriteText(row, col, " ", 0, infoRight);
         screen.WriteText(row, col, $"v{Version}", dim, infoRight);
-        screen.WriteText(row + 1, right, $"{Model} · {Billing}", dim, infoRight);
+        var vendorPrefix = Vendor.Length > 0 ? $"{Vendor}/" : string.Empty;
+        screen.WriteText(row + 1, right, $"{vendorPrefix}{Model} · {Billing}", dim, infoRight);
         screen.WriteText(row + 2, right, Cwd, dim, infoRight);
     }
 }

@@ -44,6 +44,25 @@ public sealed class ReplBridgeDriverTests
     }
 
     [Fact]
+    public void Apply_SessionInfoWithVendor_UpdatesBannerVendor()
+    {
+        _driver.Apply(new BridgeEvent.SessionInfo("2.1.303", "glm-4.7", "auto", BypassAvailable: true, @"D:\wd", Vendor: "zhipu"));
+
+        Assert.Equal("zhipu", _banner.Vendor);
+        Assert.Equal("glm-4.7", _banner.Model);
+    }
+
+    [Fact]
+    public void Apply_SessionInfoWithoutVendor_ClearsBannerVendor()
+    {
+        _banner.Vendor = "zhipu";
+
+        _driver.Apply(new BridgeEvent.SessionInfo("2.1.303", "glm-4.7", "auto", BypassAvailable: true, @"D:\wd"));
+
+        Assert.Equal(string.Empty, _banner.Vendor);
+    }
+
+    [Fact]
     public void Apply_SessionInfoWithUnknownMode_KeepsFooterMode()
     {
         _view.Footer = _view.Footer with { Mode = PermissionMode.Ask };

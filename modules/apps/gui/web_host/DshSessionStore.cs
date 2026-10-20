@@ -10,6 +10,13 @@ internal sealed class DshSessionStore {
     /// <summary>当前会话存储（启动为轻量落盘实例，引擎就绪后切换为引擎实例）</summary>
     private ITranscriptService? _transcripts;
 
+    /// <summary>宿主事件日志（subagentCatalog 投影回放源，TASK058 B8；null 时目录恒空）</summary>
+    private readonly DshSessionJournal? _journal;
+
+    /// <summary>构造会话注册表</summary>
+    /// <param name="journal">宿主事件日志（可选 — subagentCatalog 回放）</param>
+    internal DshSessionStore(DshSessionJournal? journal = null) => _journal = journal;
+
     /// <summary>注入会话存储 — 支持热切换（唯一数据源：同一份 <c>~/.jcc/sessions</c> 落盘数据）</summary>
     /// <param name="transcripts">会话存储（轻量落盘实例或引擎实例）</param>
     internal void AttachTranscripts(ITranscriptService transcripts) => _transcripts = transcripts;
@@ -59,14 +66,15 @@ internal sealed class DshSessionStore {
         return (title, entries.Count);
     }
 
-    /// <summary>把一条引擎会话摘要投影成 DSH 会话条目</summary>
-    private static async Task<DshSessionListItem> ProjectAsync(
+    /// <summary>把一条引擎会话摘要投影成 DSH 会话条目（含 journal 回放的子代理目录）</summary>
+    private async Task<DshSessionListItem> ProjectAsync(
         ITranscriptService transcripts,
         TranscriptSummary summary,
         CancellationToken cancellationToken) {
         var customTitle = await transcripts.GetCustomTitleAsync(summary.SessionId, cancellationToken);
         var info = await transcripts.GetSessionInfoAsync(summary.SessionId, cancellationToken);
         var entries = await transcripts.LoadTranscriptAsync(summary.SessionId, cancellationToken);
+        var journalEvents = _journal is null ? [] : await _journal.LoadAsync(summary.SessionId, cancellationToken);
         return new DshSessionListItem {
             SessionId = summary.SessionId,
             UpdatedAt = ToUnixMilliseconds(summary.LastModifiedAt),
@@ -74,7 +82,7 @@ internal sealed class DshSessionStore {
             Running = false,
             Blank = entries.Count == 0,
             Cwd = info?.ProjectPath ?? "",
-            Projections = ProjectValues(customTitle, info, entries),
+            Projections = ProjectValues(customTitle, info, entries, journalEvents),
         };
     }
 
@@ -195,7 +203,8 @@ internal sealed class DshSessionStore {
         var customTitle = await transcripts.GetCustomTitleAsync(sessionId, cancellationToken);
         var info = await transcripts.GetSessionInfoAsync(sessionId, cancellationToken);
         var entries = await transcripts.LoadTranscriptAsync(sessionId, cancellationToken);
-        return (ProjectValues(customTitle, info, entries), info, entries);
+        var journalEvents = _journal is null ? [] : await _journal.LoadAsync(sessionId, cancellationToken);
+        return (ProjectValues(customTitle, info, entries, journalEvents), info, entries);
     }
 
     /// <summary>
@@ -276,8 +285,8 @@ internal sealed class DshSessionStore {
         return newId;
     }
 
-    /// <summary>投影键值（标题 / 代理预设 / 模型选择 / 列表元数据）</summary>
-    private static DshSessionProjections ProjectValues(string? customTitle, SessionInfo? info, IReadOnlyList<TranscriptEntry> entries) {
+    /// <summary>投影键值（标题 / 代理预设 / 模型选择 / 列表元数据 / 子代理实例目录 — TASK058 B8）</summary>
+    private static DshSessionProjections ProjectValues(string? customTitle, SessionInfo? info, IReadOnlyList<TranscriptEntry> entries, IReadOnlyList<DshSessionEvent>? journalEvents = null) {
         var lastPrompt = entries.LastOrDefault(entry => entry.Type is null && !entry.IsSidechain && entry.Role == "user");
         return new DshSessionProjections {
             AsOfSeq = entries.Count,
@@ -292,6 +301,7 @@ internal sealed class DshSessionStore {
                     Blank = entries.Count == 0,
                     LastPromptAt = lastPrompt is null ? null : ToUnixMilliseconds(lastPrompt.Timestamp),
                 },
+                SubagentCatalog = DshSubagentCatalogProjector.Project(journalEvents ?? []),
             },
         };
     }

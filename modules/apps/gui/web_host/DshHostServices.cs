@@ -13,9 +13,9 @@ internal sealed class DshHostServices {
     internal DshHostServices(IFileSystem fileSystem, string? workspaceFilePath = null, string? journalDirectory = null) {
         Workspaces = new DshWorkspaceStore(fileSystem, workspaceFilePath);
         Settings = new DshSettingsStore(fileSystem);
-        Sessions = new DshSessionStore();
-        Models = new DshModelCatalogSource();
         Journal = new DshSessionJournal(fileSystem, journalDirectory ?? Path.Combine(AppDataPaths.Default.JccDirectory, "dsh_journal"));
+        Sessions = new DshSessionStore(Journal);
+        Models = new DshModelCatalogSource();
         Streams = new DshSessionStreamHub(Journal);
         Approvals = new DshApprovalBroker();
     }

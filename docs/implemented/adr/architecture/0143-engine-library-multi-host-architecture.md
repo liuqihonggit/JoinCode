@@ -197,5 +197,10 @@ CliSession → EngineSession，实施时定名）；`CreateMainAgent` 的 intern
 - M7 特性改道：session_info 已进程内直连；agent_progress / 权限对话框待 M7 走进程内
   事件（不再扩展 ADR 0141 事件表）；权限挂起首版按打断处理
   （PermissionPendingConfirmationException 翻译 OCE + 诱导文案）
-- ReplShell 提取：HostSession 与 DemoSession 键处理/渲染循环结构重复（约 270 行），
-  M7 权限对话框前置任务（TASK055）
+- ~~ReplShell 提取~~ 已完成（commit a92bc1a16）：IReplEngine 接口
+  （Submit/Interrupt/SetPermissionMode/DrainEvents/DrainDiagnostics/IsAlive）统一引擎
+  交互面 — HostSession/DemoSession 删除归档 `.xxx/`，Host 直连 EngineTurnClient、
+  Demo 走 SimulatedEngine（时钟注入+忙时拒绝 Error 诱导）与 BridgeEngine（子进程适配），
+  模拟回合改事件驱动（spinner Message 直改弃用 — 真实路径本就空消息+随机动词）、
+  权限本地回执统一走事件；Core 新增 22 单元测试（480/480），净删约 920 行重复代码。
+  M7 权限对话框可直接在 ReplShell 单点扩展

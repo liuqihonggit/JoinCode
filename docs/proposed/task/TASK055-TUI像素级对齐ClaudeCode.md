@@ -570,8 +570,12 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!-- 验证: Host.Tests 21/21 + Core 458/458 + Demo selftest 回归通过; Host --selftest 真实冒烟 -->
 <!--   OK(引擎组装+session_info 真实数据+PermissionChecker 真实回执+无效模式诱导); 负路径 -->
 <!--   (重定向检测/未知参数)退出码 1 -->
-<!-- 遗留: ReplShell 提取(HostSession/DemoSession 键处理+渲染循环约 270 行结构重复) = M7 权限 -->
-<!--   对话框前置任务; 权限挂起首版按打断处理(M7 扩展交互确认) -->
+<!-- ReplShell 提取已完成 (commit a92bc1a16): IReplEngine(Submit/Interrupt/SetPermissionMode/ -->
+<!--   DrainEvents/DrainDiagnostics/IsAlive) 统一引擎交互面; HostSession/DemoSession 归档 .xxx; -->
+<!--   SimulatedEngine 时钟注入+忙时拒绝 Error 诱导(对齐 EngineTurnClient); BridgeEngine 适配 -->
+<!--   BridgeClient; 模拟回合事件驱动(spinner Message 直改弃用=对齐真实路径空消息+随机动词); -->
+<!--   权限本地回执统一走 PermissionModeChanged 事件; Core 480/480 + Host 21/21 + 三 selftest 回归 -->
+<!-- 遗留: 权限挂起首版按打断处理(M7 扩展交互确认); M7 权限对话框在 ReplShell 单点扩展 -->
 
 ### ADR 0143 阶段二手动验收（ADR 0080，待用户执行）
 

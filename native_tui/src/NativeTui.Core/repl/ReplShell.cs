@@ -43,6 +43,9 @@ public sealed class ReplShell
     /// <summary>斜杠命令补全状态机（TASK056 — 宿主注入命令清单后启用；null = 无补全能力）。</summary>
     private readonly SlashSuggester? _suggester;
 
+    /// <summary>终端尺寸源（resize 事件化注入面 — 每拍取尺寸，变化触发屏重建跨尺寸 diff）。</summary>
+    private readonly ITerminalSizeSource _sizeSource;
+
     /// <summary>建议列表渲染组件。</summary>
     private readonly SuggestionBox _suggestionBox = new();
 
@@ -82,7 +85,8 @@ public sealed class ReplShell
     /// <summary>创建外壳 — engine=引擎交互面；banner=启动横幅（首项）；output=渲染 writer；
     /// inline=渲染模式（默认主屏 log-update）；seedMessages=种子消息（banner 之后、spinner 之前）；
     /// commands=斜杠命令清单（宿主注入；null = 无补全能力）；
-    /// codeHighlighter=代码高亮插件（M7-5 卫星注入；null = 高亮禁用降级纯文本）。</summary>
+    /// codeHighlighter=代码高亮插件（M7-5 卫星注入；null = 高亮禁用降级纯文本）；
+    /// sizeSource=终端尺寸源（resize 事件化注入面；null = Console 轮询默认实现）。</summary>
     public ReplShell(
         IReplEngine engine,
         BannerItem banner,
@@ -90,7 +94,8 @@ public sealed class ReplShell
         bool inline = true,
         IReadOnlyList<IScrollItem>? seedMessages = null,
         IReadOnlyList<CommandSuggestion>? commands = null,
-        ICodeHighlighter? codeHighlighter = null)
+        ICodeHighlighter? codeHighlighter = null,
+        ITerminalSizeSource? sizeSource = null)
     {
         _engine = engine;
         _banner = banner;
@@ -98,6 +103,7 @@ public sealed class ReplShell
         _inline = inline;
         _seedMessages = seedMessages ?? [];
         _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands) : null;
+        _sizeSource = sizeSource ?? new ConsoleTerminalSizeSource();
         _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter);
     }
 
@@ -808,8 +814,9 @@ public sealed class ReplShell
         _engine.Submit(text);
     }
 
-    /// <summary>渲染一帧并差分上屏：inline 走相对光标 + append（历史滚入 scrollback）+ DEC 2026 原子上屏；视口走绝对定位 diff。</summary>
-    private void RenderAndFlush()
+    /// <summary>渲染一帧并差分上屏：inline 走相对光标 + append（历史滚入 scrollback）+ DEC 2026 原子上屏；视口走绝对定位 diff。
+    /// internal = resize/渲染测试的单帧驱动面。</summary>
+    internal void RenderAndFlush()
     {
         SyncSuggestionState();
         EnsureScreens();
@@ -820,7 +827,7 @@ public sealed class ReplShell
         _view.Render(_back, _theme);
         if (_inline)
         {
-            var viewportRows = Math.Max(8, Console.WindowHeight);
+            var viewportRows = _sizeSource.Current.Rows;
             var frameEnd = _view.InputCursorPos(_back.Rows, _back.Cols, _input.CursorCol);
             var prev = _frontValid ? _front : _prevOverride;
             var output = _inlineComposer.Compose(prev, _back, viewportRows, _cursor, frameEnd, out _cursor);
@@ -862,6 +869,12 @@ public sealed class ReplShell
         _spinner.WallNowMs = Environment.TickCount64;
     }
 
+    /// <summary>后缓冲（resize 测试断言面 — 屏尺寸/重建复用判定）。</summary>
+    internal Screen? BackBuffer => _back;
+
+    /// <summary>resize 跨尺寸 diff 旧帧（测试断言面 — 重建时保留旧屏供 InlineComposer append/fullReset）。</summary>
+    internal Screen? PrevOverride => _prevOverride;
+
     /// <summary>同步补全建议到视图（渲染前状态投影 — EnsureScreens 屏高计算依赖建议区高度，必须先行）。</summary>
     private void SyncSuggestionState()
     {
@@ -873,23 +886,24 @@ public sealed class ReplShell
     }
 
     /// <summary>
-    /// 尺寸计算（含首帧）成对重建双缓冲 — inline 屏高 = 内容总高（消息全量展示，可超视口），
-    /// 重建时保留旧帧跨尺寸 diff（增长 append / 宽度变 fullReset）；视口模式屏高 = 终端行数。
+    /// 尺寸计算（含首帧）成对重建双缓冲 — 尺寸取自注入源（resize 事件化，不读 Console 静态环境）；
+    /// inline 屏高 = 内容总高（消息全量展示，可超视口 — 终端 rows 非 resize 敏感维度），
+    /// 重建时保留旧帧跨尺寸 diff（增长 append / 宽度变 fullReset）；视口模式屏高 = 尺寸源行数。
     /// </summary>
-    private void EnsureScreens()
+    internal void EnsureScreens()
     {
-        var cols = Math.Max(20, Console.WindowWidth);
-        var rows = _inline
+        var (cols, rows) = _sizeSource.Current;
+        var backRows = _inline
             ? Math.Max(8, _view.MeasureContentHeight(cols))
-            : Math.Max(8, Console.WindowHeight);
-        if (_back is not null && cols == _back.Cols && rows == _back.Rows)
+            : rows;
+        if (_back is not null && cols == _back.Cols && backRows == _back.Rows)
         {
             return;
         }
 
         _prevOverride = _inline && _frontValid ? _front : null;
-        _front = new Screen(cols, rows, sharedStyles: _pool);
-        _back = new Screen(cols, rows, sharedStyles: _pool);
+        _front = new Screen(cols, backRows, sharedStyles: _pool);
+        _back = new Screen(cols, backRows, sharedStyles: _pool);
         _frontValid = false;
     }
 

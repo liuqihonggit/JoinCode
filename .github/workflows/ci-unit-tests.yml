@@ -46,7 +46,7 @@ jobs:
           - domain: composition
             csprojs: modules/composition/composition.tests/Composition.Tests.csproj modules/composition/pipelines.tests/Pipelines.Tests.csproj
           - domain: apps
-            csprojs: test/unit/host.tests/Host.Tests.csproj test/unit/tui.tests/Tui.Tests.csproj test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj
+            csprojs: test/unit/host.tests/Host.Tests.csproj test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj
 
     steps:
       - name: Checkout

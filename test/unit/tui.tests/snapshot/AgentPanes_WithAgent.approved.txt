@@ -1,5 +1,0 @@
-View [Visible=True, CanFocus=False]
-  Label [Visible=True, CanFocus=False] Text="[sub-1]"
-  View [Visible=True, CanFocus=False]
-    View [Visible=True, CanFocus=False]
-      Editor [Visible=True, CanFocus=True]

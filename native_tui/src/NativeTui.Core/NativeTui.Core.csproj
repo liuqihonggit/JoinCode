@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>NativeTui.Core</RootNamespace>
+    <AssemblyName>NativeTui.Core</AssemblyName>
+    <Description>NativeTui 自研终端渲染框架 — 像素级对齐 Claude Code（ADR 0140）</Description>
+    <AllowPack>false</AllowPack>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>

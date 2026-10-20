@@ -251,8 +251,10 @@ internal sealed class JccChatSession : IJccChatSession {
     }
 
     /// <summary>
-    /// 创建引擎会话：调用 CLI 侧 EngineSessionFactory 一行完成 LoadConfig+BuildHost+ConfigureModules，
+    /// 创建引擎会话：调用引擎侧 EngineSessionFactory 一行完成 LoadConfig+BuildHost+ConfigureModules，
     /// 消除 GUI 和 CLI 的双引擎初始化差异。
+    /// ADR 0143 Step 4：gui 切直引 engine 后不再传 cli 的 CliRegistrationModule——
+    /// HOST 25 类型全是终端交互/pipe/CLI 启动步骤形态，Avalonia GUI 有自己的交互栈。
     /// </summary>
     public static async Task<IJccChatSession> CreateAsync(
         CancellationToken cancellationToken = default) {

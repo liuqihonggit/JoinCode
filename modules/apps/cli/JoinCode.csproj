@@ -10,6 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/apps/engine/JoinCode.Engine.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/composition/composition/Composition.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/storage/clock/Clock.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/services/dream/Dream.csproj" />

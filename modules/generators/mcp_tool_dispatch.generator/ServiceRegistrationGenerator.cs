@@ -36,10 +36,11 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator {
                 var assemblyName = compilation.AssemblyName ?? "CurrentAssembly";
                 var sanitized = SanitizeAssemblyName(assemblyName);
                 var isExe = compilation.Options.OutputKind == OutputKind.ConsoleApplication;
+                var scanCurrentOnly = isExe || IsCurrentAssemblyScope(compilation);
 
                 var results = new List<ServiceRegistrationInfo>();
                 if (registerAttr is not null)
-                    VisitNamespaces(compilation.GlobalNamespace, registerAttr, allowCycleAttr, results, assemblyName, isExe);
+                    VisitNamespaces(compilation.GlobalNamespace, registerAttr, allowCycleAttr, results, assemblyName, scanCurrentOnly);
 
                 return new ServiceGenerationContext(sanitized, results.ToImmutableArray());
             });
@@ -52,13 +53,14 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator {
         var optionsRegistrations = context.CompilationProvider
             .Select(static (compilation, _) => {
                 var optionsAttr = compilation.GetTypeByMetadataName(RegisterOptionsAttributeFullName);
-                var assemblyName = compilation.AssemblyName ?? "CurrentAssembly";
-                var sanitized = SanitizeAssemblyName(assemblyName);
-                var isExe = compilation.Options.OutputKind == OutputKind.ConsoleApplication;
+                    var assemblyName = compilation.AssemblyName ?? "CurrentAssembly";
+                    var sanitized = SanitizeAssemblyName(assemblyName);
+                    var isExe = compilation.Options.OutputKind == OutputKind.ConsoleApplication;
+                    var scanCurrentOnly = isExe || IsCurrentAssemblyScope(compilation);
 
-                var results = new List<OptionsRegistration>();
-                if (optionsAttr is not null)
-                    VisitNamespacesForOptions(compilation.GlobalNamespace, optionsAttr, results, assemblyName, isExe);
+                    var results = new List<OptionsRegistration>();
+                    if (optionsAttr is not null)
+                        VisitNamespacesForOptions(compilation.GlobalNamespace, optionsAttr, results, assemblyName, scanCurrentOnly);
 
                 return new OptionsGenerationContext(sanitized, results.ToImmutableArray());
             });
@@ -116,6 +118,22 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator {
         return string.Equals(typeSymbol.ContainingAssembly?.Name, currentAssemblyName, System.StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// 判断程序集是否声明了 AssemblyMetadata("AutoRegisterScope", "CurrentAssembly") — 显式限定生成器只扫描自身程序集。
+    /// <para>用于启用生成器的聚合库（如 JoinCode.Engine）：其引用闭包内的子系统类型已由各聚合方注册，</para>
+    /// <para>聚合库再扫全部会产生重复注册（枚举接口多实现叠加导致 hook 双执行）与跨程序集 internal 可见性错误（CS0122）。</para>
+    /// </summary>
+    private static bool IsCurrentAssemblyScope(Compilation compilation) {
+        foreach (var attr in compilation.Assembly.GetAttributes()) {
+            if (attr.ConstructorArguments.Length != 2) continue;
+            if (!string.Equals(attr.AttributeClass?.ToDisplayString(), "System.Reflection.AssemblyMetadataAttribute", System.StringComparison.Ordinal)) continue;
+            var key = attr.ConstructorArguments[0].Value as string;
+            var value = attr.ConstructorArguments[1].Value as string;
+            if (key == "AutoRegisterScope" && value == "CurrentAssembly") return true;
+        }
+        return false;
+    }
+
     private static void VisitNamespaces(
         INamespaceSymbol namespaceSymbol,
         INamedTypeSymbol? registerAttr,
@@ -127,8 +145,10 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator {
             if (member is INamespaceSymbol childNamespace)
                 VisitNamespaces(childNamespace, registerAttr, allowCycleAttr, results, currentAssemblyName, filterByCurrentAssembly);
             else if (member is INamedTypeSymbol typeSymbol) {
-                // Exe 项目仅扫描自身程序集的类型，避免与被引用库项目生成的同名方法产生 CS0121 歧义
-                // 库项目扫描全部类型（含引用程序集），因为依赖的子系统库未启用生成器
+                // Exe 项目与声明 AutoRegisterScope=CurrentAssembly 的聚合库仅扫描自身程序集：
+                // - Exe 避免与被引用库项目生成的同名方法产生 CS0121 歧义
+                // - 聚合库（如 JoinCode.Engine）避免与各聚合方重复注册 + 跨程序集 internal 可见性错误
+                // 其余库项目扫描全部类型（含引用程序集），因为依赖的子系统库未启用生成器
                 if (filterByCurrentAssembly && !IsFromCurrentAssembly(typeSymbol, currentAssemblyName))
                     continue;
 

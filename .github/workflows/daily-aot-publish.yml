@@ -22,7 +22,6 @@ jobs:
       matrix:
         project:
           - { name: 'jcc', path: 'modules/apps/cli/JoinCode.csproj', artifact: 'jcc-aot' }
-          - { name: 'jcctui', path: 'modules/apps/tui/JoinCodeTui.csproj', artifact: 'jcctui-aot' }
           - { name: 'jccgui', path: 'modules/apps/gui/JoinCodeGui.csproj', artifact: 'jccgui-aot' }
 
     steps:

@@ -105,13 +105,24 @@ public class ApiKeySaveLoadTests {
 
             var authPath = paths.AuthFilePath;
             var json1 = await fs.ReadAllTextAsync(authPath).ConfigureAwait(true);
-            json1.Should().Contain("old-key");
+            if (OperatingSystem.IsWindows()) {
+                json1.Should().Contain("dpapi:", "C6 加密落盘：auth.json 应存 DPAPI 密文而非明文");
+                json1.Should().NotContain("old-key");
+            } else {
+                json1.Should().Contain("old-key");
+            }
 
             await ConfigLoader.SaveApiKeyToJccAsync(provider, "new-key-123", fs, paths: paths).ConfigureAwait(true);
 
             var json2 = await fs.ReadAllTextAsync(authPath).ConfigureAwait(true);
-            json2.Should().Contain("new-key-123");
-            json2.Should().NotContain("old-key");
+            if (OperatingSystem.IsWindows()) {
+                json2.Should().Contain("dpapi:", "C6 加密落盘：auth.json 应存 DPAPI 密文而非明文");
+                json2.Should().NotContain("old-key");
+                json2.Should().NotContain("new-key-123");
+            } else {
+                json2.Should().Contain("new-key-123");
+                json2.Should().NotContain("old-key");
+            }
 
             var loadedKey = await Loader.LoadApiKeyFromJccAsync(provider, fs, paths: paths).ConfigureAwait(true);
             loadedKey.Should().Be("new-key-123", "Should load the new key after overwrite");
@@ -142,7 +153,12 @@ public class ApiKeySaveLoadTests {
 
             var json = await fs.ReadAllTextAsync(authPath).ConfigureAwait(true);
             json.Should().Contain(provider);
-            json.Should().Contain(apiKey);
+            if (OperatingSystem.IsWindows()) {
+                json.Should().Contain("dpapi:", "C6 加密落盘：auth.json 应存 DPAPI 密文而非明文");
+                json.Should().NotContain(apiKey);
+            } else {
+                json.Should().Contain(apiKey);
+            }
 
             var loadedKey = await Loader.LoadApiKeyFromJccAsync(provider, fs, paths: paths).ConfigureAwait(true);
             loadedKey.Should().Be(apiKey, $"Loaded key for {provider} should match");

@@ -13,9 +13,9 @@
 
 | 状态目录 | 含义 | 维护义务 | 文档数 |
 |----------|------|----------|--------|
-| [`implemented/`](implemented/) | 当前有效的决策记录 | **活跃维护** — 每个路径/符号/默认值/链接都形成维护义务，需持续同步更新 | 151 |
+| [`implemented/`](implemented/) | 当前有效的决策记录 | **活跃维护** — 每个路径/符号/默认值/链接都形成维护义务，需持续同步更新 | 153 |
 | [`archived/`](archived/) | 已实施但不再作为活跃指导 | **冻结只读** — 永久冻结，只作历史背景，不得因后续变化而更新 | 19 |
-| [`proposed/`](proposed/) | 提议中、待讨论 | **待转化** — 讨论后转为 implemented 或 rejected | 7 |
+| [`proposed/`](proposed/) | 提议中、待讨论 | **待转化** — 讨论后转为 implemented 或 rejected | 8 |
 | `rejected/` | 被否决的方案 | **仅保留能防止重蹈覆辙的** — 否则完整删除 | 0 |
 
 ### 状态转换规则
@@ -36,7 +36,7 @@ proposed ──讨论通过──→ implemented ──不再活跃──→ arc
 
 ```
 implemented/
-  adr/        — accepted ADR (114 个)
+  adr/        — accepted ADR (126 个)
   AI交互/     — git 交互 ADR (10 个)
   design/     — 当前有效设计文档 (3 个)
   plan/       — 已实施计划 (1 个)

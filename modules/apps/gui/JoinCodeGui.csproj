@@ -10,11 +10,29 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <NoWarn>$(NoWarn);JCC9001;JCC10001;JCC10002;CS8604;CS1573;CS1587;NU1903;CS0618</NoWarn>
+    <!-- WebView2 生产接入四件套（ADR 0138，spike 实测 TASK054）：
+         1) windows TFM（CsWinRT 投影消费 net8.0 分支，TPV 与本机 UAP SDK 对齐）
+         2) 投影开关（托管 COM 互操作在 NativeAOT 运行时不可用）
+         3) x64 显式（包 targets 对 AnyCPU 误判 x86 → 组件架构错配 BadImageFormatException）
+         4) app.manifest（supportedOS + 免注册 WinRT activatableClass 条目） -->
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <WebView2EnableCsWinRTProjection>true</WebView2EnableCsWinRTProjection>
   </PropertyGroup>
 
   <ItemGroup>
-    <AvaloniaResource Include="assets\**" Exclude="assets\*.xshd" />
-    <EmbeddedResource Include="assets\ChatHighlighting.xshd" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="$(WebView2Version)" />
+    <PackageReference Include="Microsoft.Windows.CsWinRT" Version="$(CsWinRTVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- WebUI 静态资源（B2 路线，ADR 0138）：随 exe 分发，file:// 离线加载（自研 UI，webui-smoke 对照用） -->
+    <Content Include="webui\**" CopyToOutputDirectory="PreserveNewest" />
+    <!-- DSH 前端资产（ADR 0143）：嵌入 zip，首次运行解包到 JccDirectory\dsh_web\{版本} -->
+    <EmbeddedResource Include="dsh_web\dsh_web.zip" LogicalName="JoinCode.Gui.dsh_web.zip" />
+  </ItemGroup>
+
+  <ItemGroup>
     <EmbeddedResource Include="theming\Appearance.json" LogicalName="JoinCode.Gui.Appearance.json" />
   </ItemGroup>
 
@@ -22,16 +40,6 @@
     <PackageReference Include="Avalonia" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="$(AvaloniaVersion)" />
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="$(CommunityToolkitMvvmVersion)" />
-    <PackageReference Include="Markdig" Version="$(MarkdigVersion)" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\libs\Dock\src\Dock.Avalonia\Dock.Avalonia.csproj" />
-    <ProjectReference Include="..\..\..\libs\Dock\src\Dock.Avalonia.Themes.Fluent\Dock.Avalonia.Themes.Fluent.csproj" />
-    <ProjectReference Include="..\..\..\libs\Dock\src\Dock.Model\Dock.Model.csproj" />
-    <ProjectReference Include="..\..\..\libs\Dock\src\Dock.Model.Mvvm\Dock.Model.Mvvm.csproj" />
-    <ProjectReference Include="..\..\..\libs\Dock\src\Dock.Serializer.SystemTextJson\Dock.Serializer.SystemTextJson.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -41,6 +49,11 @@
     <!-- Hosting 层（JccChatSession）读取 teammate 子会话列表，需直接引用 Scheduling -->
     <ProjectReference Include="$(RepoRoot)modules/storage/scheduling/Scheduling.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/async_primitives/bcl_bridge/BclBridge.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 枚举 [EnumValue] 元数据生成（本项目枚举如 GuiPalette.GuiThemeVariant 的 ToValue/FromValue 扩展），与 Abstractions 同款接入 -->
+    <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

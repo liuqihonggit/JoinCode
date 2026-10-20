@@ -18,8 +18,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          submodules: recursive
       - uses: ./.github/actions/setup-test-env
         with:
           build-e2e-exes: true
@@ -57,8 +55,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          submodules: recursive
       - uses: ./.github/actions/setup-test-env
         with:
           build-e2e-exes: true
@@ -96,8 +92,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          submodules: recursive
       - uses: ./.github/actions/setup-test-env
         with:
           build-e2e-exes: true
@@ -135,8 +129,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          submodules: recursive
       - uses: ./.github/actions/setup-test-env
         with:
           build-e2e-exes: true
@@ -174,8 +166,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          submodules: recursive
       - uses: ./.github/actions/setup-test-env
         with:
           build-e2e-exes: true
@@ -215,8 +205,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          submodules: recursive
       - uses: ./.github/actions/setup-test-env
         with:
           build-e2e-exes: true
@@ -254,9 +242,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          submodules: recursive
-
       - uses: ./.github/actions/setup-test-env
         with:
           build-e2e-exes: true

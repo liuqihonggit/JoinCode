@@ -6,15 +6,6 @@ namespace JoinCode.Gui.Hosting;
 /// 引擎具体组装收敛在本类，不蔓延到 Views/ViewModels。
 /// </summary>
 internal sealed class JccChatSession : IJccChatSession {
-    /// <summary>权限确认最大重试次数（同一消息连续触发确认）</summary>
-    private const int MaxPermissionRetries = 3;
-
-    /// <summary>临时批准时长 — 选择"允许本次"（对齐 CLI 5 分钟窗口）</summary>
-    private static readonly TimeSpan AllowDuration = TimeSpan.FromMinutes(5);
-
-    /// <summary>临时批准时长 — 选择"始终允许"（较长窗口，视为会话级始终允许）</summary>
-    private static readonly TimeSpan AlwaysAllowDuration = TimeSpan.FromHours(24);
-
     private readonly IServiceProvider _services;
     private readonly IChatService _chat;
     private readonly JoinCode.Abstractions.Configuration.WorkflowConfig _config;
@@ -22,8 +13,20 @@ internal sealed class JccChatSession : IJccChatSession {
     private readonly IModelConfigLoader _modelConfigLoader;
     private readonly Func<ValueTask>? _disposeAsync;
 
+    /// <summary>引擎侧权限确认器 — 宿主注入的委托在此转发（引擎确认点由 GuiPermissionConfirmationHandler 转接）</summary>
+    private readonly GuiPermissionConfirmationHandler? _enginePermissionHandler;
+
+    private Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? _permissionConfirmationHandler;
+
     /// <inheritdoc />
-    public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
+    public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler {
+        get => _permissionConfirmationHandler;
+        set {
+            _permissionConfirmationHandler = value;
+            if (_enginePermissionHandler is not null)
+                _enginePermissionHandler.Handler = value;
+        }
+    }
 
     /// <summary>
     /// AskUserQuestion 弹窗回调 — 由 MainWindow 在初始化时设置。
@@ -51,6 +54,7 @@ internal sealed class JccChatSession : IJccChatSession {
         _disposeAsync = disposeAsync;
 
         _interactiveService = services.GetService<IInteractiveService>() as AvaloniaInteractiveService;
+        _enginePermissionHandler = services.GetService<IPermissionConfirmationHandler>() as GuiPermissionConfirmationHandler;
 
         // 订阅 settings.json 变更 — theme 键变更时触发 ThemeChanged 驱动 GUI 热重载（双向绑定）
         var configService = services.GetService<IConfigurationService>();
@@ -66,13 +70,13 @@ internal sealed class JccChatSession : IJccChatSession {
     /// <summary>
     /// 获取后台子代理快照 — IAgentService 运行列表 + 活跃 fork 归并（forkId 亦为合法终止键）
     /// </summary>
-    public async Task<IReadOnlyList<ViewModels.BackgroundAgentInfo>> GetBackgroundAgentsAsync(CancellationToken cancellationToken = default) {
-        var result = new List<ViewModels.BackgroundAgentInfo>();
+    public async Task<IReadOnlyList<BackgroundAgentInfo>> GetBackgroundAgentsAsync(CancellationToken cancellationToken = default) {
+        var result = new List<BackgroundAgentInfo>();
 
         var agentService = _services.GetService<IAgentService>();
         if (agentService is not null) {
             foreach (var info in await agentService.GetRunningAgentsAsync(cancellationToken)) {
-                result.Add(new ViewModels.BackgroundAgentInfo(
+                result.Add(new BackgroundAgentInfo(
                     info.Id,
                     Name: info.DisplayName ?? info.Variant?.ToString() ?? info.Role.ToString().ToLowerInvariant(),
                     Description: info.Description,
@@ -94,7 +98,7 @@ internal sealed class JccChatSession : IJccChatSession {
             foreach (var fork in await forkManager.GetActiveForksAsync(cancellationToken)) {
                 if (fork.State != ForkState.Running)
                     continue;
-                result.Add(new ViewModels.BackgroundAgentInfo(
+                result.Add(new BackgroundAgentInfo(
                     fork.ForkId,
                     Name: "fork",
                     Description: $"fork {fork.ForkId}",
@@ -480,11 +484,11 @@ internal sealed class JccChatSession : IJccChatSession {
         return Task.CompletedTask;
     }
 
-    /// <summary>流式发送用户消息 — 委托带权限确认重试的事件流实现</summary>
+    /// <summary>流式发送用户消息 — 权限确认由引擎侧 <see cref="IPermissionConfirmationHandler.ConfirmAsync"/> 同轮处理，此处直通</summary>
     public IAsyncEnumerable<ChatStreamEvent> StreamAsync(
         string message,
         CancellationToken cancellationToken = default)
-        => StreamWithPermissionRetryAsync(message, cancellationToken);
+        => _chat.StreamWithEventsAsync(message, cancellationToken);
 
     /// <summary>
     /// 执行斜杠命令 — 委托共享 <see cref="SlashCommandRunner"/>（与 TUI 同一链路）。
@@ -504,80 +508,6 @@ internal sealed class JccChatSession : IJccChatSession {
             onExitRequested: () => ExitRequested?.Invoke(),
             cancellationToken: cancellationToken);
         return result.Output;
-    }
-
-    /// <summary>
-    /// 带权限确认闭环的事件流：引擎抛出 <see cref="PermissionPendingConfirmationException"/>
-    /// 时调用 <see cref="PermissionConfirmationHandler"/> 获取用户决策；
-    /// Allow/AlwaysAllow → 临时批准工具 + 撤回本轮（用户消息已在 ChatPreprocessor 入上下文，
-    /// 不撤回会重复）→ 重发同一条消息（无重复）；Deny → 产出工具错误事件后结束。
-    /// </summary>
-    private async IAsyncEnumerable<ChatStreamEvent> StreamWithPermissionRetryAsync(
-        string message,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
-        var retries = 0;
-        while (true) {
-            // 手动枚举器：yield return 不能出现在 try/catch 内（CS1626），
-            // 因此 try 只包住 MoveNextAsync，yield return 在 try 外。
-            PermissionPendingConfirmationException? pending = null;
-            await using var enumerator = _chat.StreamWithEventsAsync(message, cancellationToken).GetAsyncEnumerator(cancellationToken);
-            while (true) {
-                bool hasNext;
-                try {
-                    hasNext = await enumerator.MoveNextAsync();
-                } catch (PermissionPendingConfirmationException ex) {
-                    pending = ex;
-                    break;
-                }
-
-                if (!hasNext) {
-                    // 正常完成，无权限异常
-                    yield break;
-                }
-
-                yield return enumerator.Current;
-            }
-
-            if (retries >= MaxPermissionRetries) {
-                if (pending is null) yield break;
-                yield return ChatStreamEvent.ToolEnd(pending.ToolName,
-                    $"权限确认重试次数超限: {pending.ConfirmationPrompt}", isError: true);
-                yield break;
-            }
-
-            var decision = PermissionConfirmationDecision.Deny;
-            var dangerLevel = DangerLevelPromptParser.ParseLevelFromPrompt(pending.ConfirmationPrompt);
-            if (PermissionConfirmationHandler is not null) {
-                decision = await PermissionConfirmationHandler(
-                    new PermissionConfirmationRequest(
-                        pending.ToolName, pending.ConfirmationPrompt, pending.RequestId, pending.RuleContent) { DangerLevel = dangerLevel })
-                    ;
-            }
-
-            if (decision == PermissionConfirmationDecision.Deny) {
-                yield return ChatStreamEvent.ToolEnd(pending.ToolName,
-                    $"权限确认被拒绝: {pending.ConfirmationPrompt}", isError: true);
-                yield break;
-            }
-
-            // 允许/始终允许 → 批准工具（共享 PermissionManager，与 CLI 同源）
-            var permissionManager = _services.GetService<IToolPermissionManager>();
-            if (permissionManager is not null) {
-                var duration = decision == PermissionConfirmationDecision.AlwaysAllow
-                    ? AlwaysAllowDuration
-                    : AllowDuration;
-                permissionManager.ApproveToolTemporarily(pending.ToolName, duration);
-
-                // 同级别自动通过 — 复用上方已解析的 dangerLevel，批准对应等级（会话级非持久化）
-                if (dangerLevel is not null)
-                    permissionManager.ApproveLevelTemporarily(dangerLevel.Value);
-            }
-
-            // 撤回本轮（含用户消息 + 部分助手回复），重发同一条消息无重复
-            await RewindLastTurnAsync(cancellationToken);
-            retries++;
-            // while 循环重发同一条消息
-        }
     }
 
     /// <summary>获取底层对话消息记录 — 委托引擎 IChatService.GetMessageListAsync</summary>

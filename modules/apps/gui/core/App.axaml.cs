@@ -9,8 +9,6 @@ public sealed partial class App : Application {
         App.LogDiag("[App] Initialize begin");
         AvaloniaXamlLoader.Load(this);
         GuiAppResources.Register(this);
-        // Dock 面板 View 映射 — 把 PanelTool 映射到对应面板 View
-        DataTemplates.Add(new Views.Docking.PanelViewLocator());
         App.LogDiag("[App] Initialize end");
     }
 
@@ -18,18 +16,24 @@ public sealed partial class App : Application {
     public override void OnFrameworkInitializationCompleted() {
         App.LogDiag("[App] OnFrameworkInitializationCompleted begin");
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
-            WriteCrashLog(e.ExceptionObject as Exception ?? new Exception("未知异常"));
+            WriteCrashLog(e.ExceptionObject as Exception ?? new Exception("未知"));
         TaskScheduler.UnobservedTaskException += (_, e) => {
             WriteCrashLog(e.Exception);
             e.SetObserved();
         };
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) {
-            // 先显示窗口（占位会话），引擎在后台渐进式组装，完成后热切换，避免启动阻塞
-            desktop.MainWindow = new MainWindow {
-                DataContext = CreateViewModel()
-            };
-            App.LogDiag("[App] MainWindow created");
+            var args = Environment.GetCommandLineArgs();
+            if (args.Contains("--webui-smoke")) {
+                // 自研 WebUI 冒烟（ADR 0138 遗留对照路径，file:// + chrome.webview 桥）
+                var pagePath = Path.Combine(AppContext.BaseDirectory, "webui", "index.html");
+                desktop.MainWindow = new WebUiWindow(new Uri(pagePath).AbsoluteUri, ResolveWebViewProfile(), smoke: true);
+                App.LogDiag("[App] WebUiWindow(smoke) created");
+            } else {
+                // DSH 前端整体托管（ADR 0143）— 默认路径：回环 HTTP/WS 宿主 + WebView2
+                desktop.MainWindow = new DshWebUiWindow(ResolveWebViewProfile());
+                App.LogDiag("[App] DshWebUiWindow created");
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -37,33 +41,13 @@ public sealed partial class App : Application {
     }
 
     /// <summary>
-    /// 创建 ViewModel — 立即以占位会话返回（窗口快速显示），同时后台异步组装真实引擎，
-    /// 组装完成后在 UI 线程热切换。引擎失败时占位会话兜底，UI 保持可用。
+    /// WebView2 用户数据目录：默认 <c>~/.jcc/webview2</c>；
+    /// 环境变量 <c>JCC_WEBVIEW_DATA_DIR</c> 可覆盖（E2E 用干净配置目录，避免上次运行的 localStorage/IndexedDB 状态干扰断言）。
     /// </summary>
-    private static MainViewModel CreateViewModel() {
-        var viewModel = new MainViewModel();
-
-        // 需求6：--design 模式填充设计时数据，供截图美观分析（不启动引擎）
-        if (Environment.GetCommandLineArgs().Contains("--design")) {
-            Design.DesignData.Populate(viewModel);
-            return viewModel;
-        }
-
-        _ = Task.Run(() => Hosting.JccChatSession.CreateAsync())
-            .ContinueWith(t => {
-                try {
-                    var session = t.GetAwaiter().GetResult();
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() => viewModel.AttachRealSession(session));
-                } catch (Exception ex) {
-                    WriteCrashLog(ex);
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() => {
-                        viewModel.FallbackToMock();
-                        viewModel.StatusText = $"引擎加载失败，已回退到 Mock 引擎: {ex.Message}";
-                    });
-                }
-            }, TaskContinuationOptions.ExecuteSynchronously);
-        return viewModel;
-    }
+    private static string ResolveWebViewProfile() =>
+        Environment.GetEnvironmentVariable("JCC_WEBVIEW_DATA_DIR") is { Length: > 0 } overridden
+            ? overridden
+            : Path.Combine(AppDataConstants.Paths.JccDirectory, "webview2");
 
     /// <summary>临时诊断日志：写入 dumps 目录，用于定位启动耗时</summary>
     internal static void LogDiag(string message) => _ = LogDiagAsync(message);

@@ -44,9 +44,9 @@ public interface IJccChatSession : IAsyncDisposable {
     event Action? ExitRequested;
 
     /// <summary>
-    /// 权限确认回调 — 引擎抛出 <c>PermissionPendingConfirmationException</c> 时由网关调用。
-    /// UI 注入后返回决策；为 null 时网关默认拒绝（等价于 Deny）。
-    /// 决策为 Allow/AlwaysAllow 时网关自动批准工具并重发同一条消息完成闭环。
+    /// 权限确认回调 — 引擎权限确认点（<c>IPermissionConfirmationHandler.ConfirmAsync</c>）经此询问 UI。
+    /// UI 注入后返回决策；为 null 时引擎默认拒绝（等价于 Deny）。
+    /// 决策为 Allow/AlwaysAllow 时引擎自行临时批准工具并在同轮继续执行，无需重发消息。
     /// </summary>
     Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
 
@@ -221,8 +221,8 @@ public interface IJccChatSession : IAsyncDisposable {
     /// 获取后台子代理快照 — 权威数据源（IAgentService 运行列表 + 活跃 fork 归并），
     /// 驱动 GUI 后台代理管理面板。默认空实现：占位/测试桩无需关心。
     /// </summary>
-    Task<IReadOnlyList<ViewModels.BackgroundAgentInfo>> GetBackgroundAgentsAsync(CancellationToken cancellationToken = default)
-        => Task.FromResult<IReadOnlyList<ViewModels.BackgroundAgentInfo>>([]);
+    Task<IReadOnlyList<BackgroundAgentInfo>> GetBackgroundAgentsAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>([]);
 
     /// <summary>终止后台代理（先按 agentId 停止，未命中再按 forkId 取消）。默认不支持（返回 false）</summary>
     Task<bool> StopBackgroundAgentAsync(string agentId, CancellationToken cancellationToken = default)

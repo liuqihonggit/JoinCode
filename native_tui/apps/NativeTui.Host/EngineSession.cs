@@ -92,17 +92,14 @@ public sealed class EngineSession : IAsyncDisposable {
         };
     }
 
-    /// <summary>执行单个回合 — SessionTurnResult 翻译为 EngineTurnClient 异常语义；
-    /// PermissionPendingConfirmationException（无 UI 确认）按打断处理并携带诱导说明。</summary>
+    /// <summary>执行单个回合 — SessionTurnResult 翻译为 EngineTurnClient 异常语义。
+    /// 权限确认已改 ConfirmAsync 异步等待（ADR 0142）：Host 无 UI 时处理器自动 Deny，
+    /// 工具拒绝走回合失败 → Error 事件（消息含 Esc 打断诱导），无抛异常重试路径。</summary>
     private static async Task RunTurnAsync(SessionController controller, string input, CancellationToken ct) {
-        try {
-            var result = await controller.StreamResponseAsync(input, ct).ConfigureAwait(false);
-            var ex = TranslateTurnResult(result);
-            if (ex is not null)
-                throw ex;
-        } catch (PermissionPendingException) {
-            throw TranslatePendingPermission();
-        }
+        var result = await controller.StreamResponseAsync(input, ct).ConfigureAwait(false);
+        var ex = TranslateTurnResult(result);
+        if (ex is not null)
+            throw ex;
     }
 
     /// <summary>翻译轮次结果 — 成功=null（client 发 turn_completed）；取消=OperationCanceledException（turn_interrupted）；
@@ -117,10 +114,6 @@ public sealed class EngineSession : IAsyncDisposable {
                 $"API 请求超时（{result.TimeoutMs}ms 无响应）。可按 Esc 打断后重试，或检查网络连接与 API 服务状态。");
         return new InvalidOperationException(result.ErrorMessage ?? "回合执行失败（未知错误）");
     }
-
-    /// <summary>权限挂起翻译 — Host 首版按打断处理并携带诱导说明（M7 权限对话框时扩展为交互式确认）。</summary>
-    private static OperationCanceledException TranslatePendingPermission() =>
-        new("回合等待权限确认，已按打断处理。当前版本暂不支持交互式权限确认，请调整工具白名单或按 Shift+Tab 切换权限模式后重新提交。");
 
     /// <summary>释放 — 取消在途回合（client.Dispose 快速返回）+ 异步释放引擎 Host。</summary>
     public async ValueTask DisposeAsync() {

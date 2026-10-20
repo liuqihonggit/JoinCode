@@ -144,6 +144,13 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
         await _fs.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>写空转录数组到文件（仅当文件不存在时）— 会话实体先于首条消息诞生</summary>
+    public async Task WriteEmptyTranscriptAsync(string filePath, CancellationToken cancellationToken = default) {
+        if (_fs.FileExists(filePath)) return;
+        EnsureDirectoryExists(Path.GetDirectoryName(filePath));
+        await WriteJsonAsync(filePath, [], cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>
     /// 验证 ID 只包含合法字符
     /// </summary>

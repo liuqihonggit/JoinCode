@@ -53,6 +53,17 @@ public interface ITranscriptService {
     Task<SessionInfo?> GetSessionInfoAsync(string sessionId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 确保会话实体存在（幂等）— 建会话目录 + <c>meta.json</c> + 空 <c>transcript.json</c>。
+    /// 语义对齐「实体先于首条消息诞生」：新会话在首次提问前就能被列表/重命名/打开，与 DSH 契约一致。
+    /// 已存在时只补缺失的 meta（不覆盖已有 meta，也不动已有 transcript）。
+    /// </summary>
+    /// <param name="sessionId">会话标识（引擎风格：32 位十六进制）</param>
+    /// <param name="info">会话元数据（项目路径/供应商/模型/创建时间）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>本次是否新建了会话实体</returns>
+    Task<bool> EnsureSessionAsync(string sessionId, SessionInfo info, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 迁移旧扁平格式(.json 直接在 sessions 根目录)到每会话子目录格式 — 幂等,不删旧文件
     /// 修复路径重构后现有扁平 .json 扫不到的 regression
     /// </summary>

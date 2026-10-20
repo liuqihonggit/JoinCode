@@ -56,7 +56,6 @@ public sealed class SessionController {
 
     /// <summary>
     /// 流式处理用户输入 — 统一的事件消费逻辑
-    /// PermissionPendingConfirmationException 不会被捕获，会向上传播供调用方处理
     /// </summary>
     public async Task<SessionTurnResult> StreamResponseAsync(string input, CancellationToken cancellationToken) {
         if (_consumer is IResettableEventConsumer resettable)
@@ -125,9 +124,6 @@ public sealed class SessionController {
             LastResponse = fullResponse.ToString();
             await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, CancellationToken.None).ConfigureAwait(false);
             return SessionTurnResult.FromCancellation(LastResponse);
-        } catch (PermissionPendingConfirmationException) {
-            LastResponse = fullResponse.ToString();
-            throw;
         } catch (Exception ex) {
             LastResponse = fullResponse.ToString();
             await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, CancellationToken.None).ConfigureAwait(false);

@@ -2,6 +2,8 @@ namespace JoinCode.Abstractions.LLM.Chat;
 
 public enum ChatStreamEventType {
     [EnumValue("content")] Content,
+    /// <summary>系统通知（宿主/中间件旁白，不属于助手回复正文）</summary>
+    [EnumValue("systemNotice")] SystemNotice,
     [EnumValue("thinking")] Thinking,
     [EnumValue("toolCallStart")] ToolCallStart,
     [EnumValue("toolCallEnd")] ToolCallEnd,
@@ -91,6 +93,13 @@ public sealed class ChatStreamEvent {
     /// <summary>创建文本内容事件。</summary>
     public static ChatStreamEvent Text(string content) => new() {
         Type = ChatStreamEventType.Content,
+        Content = content
+    };
+
+    /// <summary>创建系统通知事件（旁白，不混入助手回复正文）。</summary>
+    /// <param name="content">通知文本</param>
+    public static ChatStreamEvent SystemNotice(string content) => new() {
+        Type = ChatStreamEventType.SystemNotice,
         Content = content
     };
 

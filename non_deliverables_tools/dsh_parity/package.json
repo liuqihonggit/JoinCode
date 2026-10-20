@@ -1,0 +1,14 @@
+{
+  "name": "dsh-parity",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DSH 参考物捕获与像素对齐校验（非交付品工具，不合入 slnx/CI build）",
+  "type": "module",
+  "dependencies": {
+    "@deepseek-ai/dsh": "0.2.0-rc.2",
+    "playwright-core": "1.64.1"
+  },
+  "scripts": {
+    "capture": "powershell -NoProfile -ExecutionPolicy Bypass -File capture/capture-all.ps1"
+  }
+}

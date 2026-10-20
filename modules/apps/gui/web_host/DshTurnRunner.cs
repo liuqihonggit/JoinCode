@@ -1,0 +1,201 @@
+namespace JoinCode.Gui.WebHost;
+
+/// <summary>
+/// 一轮对话的执行器（ADR 0143 M2-c2）：校验 <c>session/prompt</c> 请求 → 立即落用户消息事件 →
+/// 后台跑自有引擎并把结果落成助手消息事件。事件经 <see cref="DshSessionStreamHub"/> 推给已打开的
+/// <c>session/follow</c> 连接；同一会话同时只允许一轮。
+/// </summary>
+internal sealed class DshTurnRunner {
+    private const int Step = 1;
+
+    private readonly DshHostServices _services;
+
+    /// <summary>会话 → 待跑队列（mode=queue：上一轮进行中时把新输入排队，轮次结束后按序执行）</summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentQueue<PendingPrompt>> _pending = new(StringComparer.Ordinal);
+
+    /// <summary>构造执行器</summary>
+    /// <param name="services">宿主服务容器</param>
+    internal DshTurnRunner(DshHostServices services) => _services = services;
+
+    /// <summary>
+    /// 受理一条用户输入：成功后立即返回（本轮在后台跑），失败返回可执行的引导错误。
+    /// </summary>
+    /// <param name="request">prompt 参数</param>
+    /// <param name="cancellationToken">受理阶段的取消令牌</param>
+    /// <returns>失败时的错误码与引导文案；受理成功返回 null</returns>
+    internal async Task<(string Code, string Message)?> StartAsync(DshSessionPromptArgs request, CancellationToken cancellationToken) {
+        if (_services.Engine is not { } engine) {
+            return ("session/not-ready", "引擎仍在组装中，稍后重试；若长时间未就绪查看 dumps/startup_timing.log");
+        }
+        if (request.Content.Any(part => part.Type != "text")) {
+            return ("session/rejected", "session/prompt 目前只支持文本输入；图片与文件请先在输入框里移除，等 M2-c3 接入附件后重试");
+        }
+        var text = string.Concat(request.Content.Select(part => part.Text));
+        if (string.IsNullOrWhiteSpace(text)) {
+            return ("session/rejected", "session/prompt 需要非空文本内容；在输入框里输入文字后重试");
+        }
+        if (await _services.Sessions.SnapshotAsync(request.SessionId, cancellationToken) is not { } snapshot) {
+            return ("session/unknown", $"会话 {request.SessionId} 不在磁盘上；先用 session/create 建会话，或从侧栏选一个已有会话");
+        }
+        _services.Streams.Observe(request.SessionId, snapshot.Cursor, MaxTurn(snapshot.Records));
+        if (_services.Streams.TryBeginTurn(request.SessionId) is not { } turn) {
+            if (string.Equals(request.Mode, "queue", StringComparison.Ordinal)) {
+                Queue(request.SessionId, new PendingPrompt(request.RequestId, text));
+                return null;
+            }
+            return ("session/busy", $"会话 {request.SessionId} 上一轮仍在生成；等它结束（接口完成/停止）后再发送，排队请用 mode=queue");
+        }
+        await BeginTurnAsync(engine, request.SessionId, new PendingPrompt(request.RequestId, text), turn);
+        return null;
+    }
+
+    /// <summary>落用户消息并启动后台轮次（开启/排队复用）</summary>
+    /// <param name="engine">引擎会话</param>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="prompt">已校验的输入</param>
+    /// <param name="turn">轮次占用</param>
+    private async Task BeginTurnAsync(Hosting.IJccChatSession engine, string sessionId, PendingPrompt prompt, (int Turn, CancellationToken Token) turn) {
+        await _services.Streams.PublishAsync(sessionId, "turn/start", new DshTurnStartData { Turn = turn.Turn });
+        await _services.Streams.PublishAsync(sessionId, "step/start", new DshStepData { Turn = turn.Turn, Step = Step });
+        await _services.Streams.PublishAsync(sessionId, "user/message", new DshWireMessage {
+            Id = $"{sessionId}:{turn.Turn}:user",
+            Role = "user",
+            Content = [new DshWireContentBlock { Text = prompt.Text }],
+            Source = new DshWireMessageSource { Kind = "user", RpcId = prompt.RequestId },
+        }, surfaceOp: "append");
+        _ = RunTurnAsync(engine, sessionId, prompt.Text, turn.Turn, turn.Token);
+    }
+
+    /// <summary>把输入放进会话队列</summary>
+    private void Queue(string sessionId, PendingPrompt prompt) =>
+        _pending.GetOrAdd(sessionId, _ => new System.Collections.Concurrent.ConcurrentQueue<PendingPrompt>()).Enqueue(prompt);
+
+    /// <summary>轮次收尾后启动下一条排队输入（无排队则返回）</summary>
+    private void StartQueued(Hosting.IJccChatSession engine, string sessionId) {
+        if (!_pending.TryGetValue(sessionId, out var queue) || !queue.TryDequeue(out var prompt)) {
+            return;
+        }
+        if (_services.Streams.TryBeginTurn(sessionId) is not { } turn) {
+            Queue(sessionId, prompt);
+            return;
+        }
+        _ = BeginTurnAsync(engine, sessionId, prompt, turn);
+    }
+
+    /// <summary>后台跑一轮生成：成功落助手消息，停止/失败各自落对应收尾（异常只记日志，不让进程崩）</summary>
+    private async Task RunTurnAsync(Hosting.IJccChatSession engine, string sessionId, string text, int turn, CancellationToken cancellationToken) {
+        try {
+            engine.SwitchSession(sessionId);
+            if (await _services.Sessions.HistoryAsync(sessionId, cancellationToken) is { Count: > 0 } history) {
+                await engine.LoadHistoryAsync(history, cancellationToken);
+            }
+            App.LogDiag($"[DSH-WEB] turn streaming session={sessionId} turn={turn}");
+            var content = new StringBuilder();
+            var events = 0;
+            var calls = new List<(string CallId, string Name, string Arguments)>();
+            await foreach (var evt in engine.StreamAsync(text, cancellationToken)) {
+                events += 1;
+                if (events == 1) {
+                    App.LogDiag($"[DSH-WEB] turn first event type={evt.Type} session={sessionId}");
+                }
+                if (evt.Type == ChatStreamEventType.Content && !string.IsNullOrEmpty(evt.Content)) {
+                    content.Append(evt.Content);
+                } else if (evt.Type == ChatStreamEventType.SystemNotice) {
+                    App.LogDiag($"[DSH-WEB] turn system notice session={sessionId}: {evt.Content}");
+                } else if (evt.Type == ChatStreamEventType.ToolCallEnd || evt.Type == ChatStreamEventType.ToolCallStart) {
+                    await PublishToolCallAsync(sessionId, turn, evt, calls);
+                }
+            }
+            App.LogDiag($"[DSH-WEB] turn stream done session={sessionId} events={events} chars={content.Length}");
+            await PublishReplyAsync(sessionId, turn, content.ToString(), engine);
+            await EndTurnAsync(sessionId, turn, new DshTurnEndReason { Kind = "completed" });
+        } catch (OperationCanceledException) {
+            App.LogDiag($"[DSH-WEB] turn cancelled session={sessionId} turn={turn}");
+            await EndTurnAsync(sessionId, turn, new DshTurnEndReason {
+                Kind = "aborted",
+                Reason = new DshTurnEndCancelCause { Kind = "user" },
+            });
+        } catch (Exception ex) {
+            App.LogDiag($"[DSH-WEB] turn failed session={sessionId} turn={turn}: {ex.Message}");
+            await EndTurnAsync(sessionId, turn, new DshTurnEndReason {
+                Kind = "error",
+                Error = new DshTurnEndError { Code = "UNKNOWN", Message = ex.Message },
+            });
+        } finally {
+            _services.Streams.EndTurn(sessionId);
+            if (_services.Engine is { } ready) {
+                StartQueued(ready, sessionId);
+            }
+        }
+    }
+
+    /// <summary>落一次工具调用或工具结果事件（callId 缺失时按序号补齐，保证调用与结果可配对）</summary>
+    private async Task PublishToolCallAsync(string sessionId, int turn, ChatStreamEvent evt, List<(string CallId, string Name, string Arguments)> calls) {
+        var callId = string.IsNullOrEmpty(evt.ToolCallId) ? $"{sessionId}:{turn}:tool:{calls.Count + 1}" : evt.ToolCallId;
+        var name = evt.ToolName ?? "tool";
+        if (evt.Type == ChatStreamEventType.ToolCallStart) {
+            var arguments = evt.ToolArguments ?? evt.Content ?? "";
+            calls.Add((callId, name, arguments));
+            await _services.Streams.PublishAsync(sessionId, "tool/call", new DshToolCallData {
+                Turn = turn,
+                Step = Step,
+                CallId = callId,
+                Name = name,
+                Arguments = arguments,
+            });
+            return;
+        }
+        var text = evt.ToolResultText ?? evt.Content ?? "";
+        await _services.Streams.PublishAsync(sessionId, "tool/result", new DshToolResultData {
+            Turn = turn,
+            Step = Step,
+            Message = new DshWireMessage {
+                Id = $"{callId}:result",
+                Role = "tool",
+                ToolCallId = callId,
+                IsError = evt.IsToolError,
+                Content = [new DshWireContentBlock { Text = text }],
+                Source = new DshWireMessageSource { Kind = "tool", CallId = callId },
+            },
+        }, surfaceOp: "append");
+    }
+
+    /// <summary>落助手回复事件（空回复不落，避免空气泡）</summary>
+    private async Task PublishReplyAsync(string sessionId, int turn, string reply, Hosting.IJccChatSession engine) {
+        if (!string.IsNullOrWhiteSpace(reply)) {
+            await _services.Streams.PublishAsync(sessionId, "assistant/message", new DshAssistantMessageData {
+                Turn = turn,
+                Step = Step,
+                Message = new DshWireMessage {
+                    Id = $"{sessionId}:{turn}:assistant",
+                    Role = "assistant",
+                    Content = [new DshWireContentBlock { Text = reply }],
+                    Source = new DshWireMessageSource {
+                        Kind = "model",
+                        Provider = engine.CurrentVendor,
+                        Model = engine.CurrentModelId,
+                    },
+                },
+            }, surfaceOp: "append");
+        }
+    }
+
+    /// <summary>落步骤结束与轮次结束（先 step/end 再 turn/end）</summary>
+    private async Task EndTurnAsync(string sessionId, int turn, DshTurnEndReason reason) {
+        await _services.Streams.PublishAsync(sessionId, "step/end", new DshStepData { Turn = turn, Step = Step });
+        await _services.Streams.PublishAsync(sessionId, "turn/end", new DshTurnEndData { Turn = turn, Reason = reason });
+    }
+
+    /// <summary>快照事件页里的最大轮次（无事件为 0），用于让新轮次接着历史编号</summary>
+    private static int MaxTurn(IReadOnlyList<DshSessionRecord> records) =>
+        records
+            .Where(record => record.Event.Type == "turn/start")
+            .Select(record => record.Event.Data.TryGetProperty("turn", out var turn) && turn.TryGetInt32(out var value) ? value : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+
+    /// <summary>排队中的一条用户输入</summary>
+    /// <param name="RequestId">提交身份（回填 user/message 的 source.rpcId）</param>
+    /// <param name="Text">已校验文本</param>
+    private sealed record PendingPrompt(string RequestId, string Text);
+}

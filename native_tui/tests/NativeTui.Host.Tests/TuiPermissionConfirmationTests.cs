@@ -216,7 +216,7 @@ public sealed class TuiPermissionConfirmationTests {
 
     /// <summary>引擎 DI 解析 handler（真 bridge 注入路径 — Program 组装等价冒烟）。</summary>
     [Fact]
-    public void Module_HandlerResolvableWithRealBridge() {
+    public async Task Module_HandlerResolvableWithRealBridge() {
         var services = new ServiceCollection();
         var context = new AppModuleContext {
             Options = new CommandLineOptions(),
@@ -229,6 +229,6 @@ public sealed class TuiPermissionConfirmationTests {
         var resolved = provider.GetRequiredService<IPermissionConfirmationHandler>();
 
         Assert.IsType<TuiPermissionConfirmationHandler>(resolved);
-        Assert.Equal(PermissionConfirmAction.Deny, resolved.Confirm("Bash", "x"));
+        Assert.Equal(PermissionConfirmAction.Deny, await resolved.ConfirmAsync("Bash", "x"));
     }
 }

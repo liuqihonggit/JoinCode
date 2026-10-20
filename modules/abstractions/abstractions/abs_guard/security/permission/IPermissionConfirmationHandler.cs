@@ -2,16 +2,17 @@ namespace JoinCode.Abstractions.Security.Permission;
 
 /// <summary>
 /// 权限确认处理器 — 工具执行需要用户确认时的交互入口
-/// CLI 层实现 ^ 提示符交互，非交互环境返回 Deny
+/// CLI 层实现 ^ 提示符交互，非交互环境返回 Deny；GUI 层实现浏览器异步确认（TASK053 F2）
 /// </summary>
 public interface IPermissionConfirmationHandler {
     /// <summary>
-    /// 请求用户确认工具执行权限
+    /// 请求用户确认工具执行权限 — 异步形态，适配 GUI 浏览器回帖 / TUI 按键 / CLI 提示符
     /// </summary>
     /// <param name="toolName">工具名称</param>
     /// <param name="confirmationPrompt">确认提示文本</param>
+    /// <param name="cancellationToken">取消令牌 — 取消视为拒绝（fail-closed）</param>
     /// <returns>用户确认结果</returns>
-    PermissionConfirmAction Confirm(string toolName, string confirmationPrompt);
+    Task<PermissionConfirmAction> ConfirmAsync(string toolName, string confirmationPrompt, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

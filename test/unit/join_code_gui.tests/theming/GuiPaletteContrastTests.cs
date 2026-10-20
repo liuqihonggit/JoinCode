@@ -4,7 +4,6 @@
 /// GuiPalette 配色合规性测试 —— 用 WCAG 相对亮度计算所有"文字/背景"语义对对比度，
 /// 校验 ≥ 4.5:1（AA 普通文字）。防止出现黑字配深底之类的低对比配色侵入。
 /// </summary>
-[Collection("GuiUiSequential")]
 public class GuiPaletteContrastTests {
     /// <summary>普通文字最低对比度（WCAG AA）</summary>
     private const double MinContrast = 4.5;
@@ -115,34 +114,6 @@ public class GuiPaletteContrastTests {
         AssertContrast(light.PrimaryText, light.InputBarBackground, "浅:弹窗输入框文字/输入框底");
     }
 
-    /// <summary>取转换器输出的画刷色值。</summary>
-    private static Color BrushColor(object result) {
-        result.Should().BeAssignableTo<ISolidColorBrush>();
-        return ((ISolidColorBrush)result).Color;
-    }
-
-    [AvaloniaFact]
-    public void RoleAndStatusConverters_UnderLight_ReturnLightColors() {
-        var light = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Light);
-
-        try {
-            GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Light;
-            var role = new BoolToRoleBrushConverter();
-            var status = new StatusToBrushConverter();
-
-            #nullable disable
-            BrushColor(role.Convert(true, typeof(ISolidColorBrush), null, null))
-            #nullable enable
-                .ToString().Should().Be(Color.Parse(light.RoleUser).ToString());
-            #nullable disable
-            BrushColor(status.Convert(StatusKind.Error, typeof(ISolidColorBrush), null, null))
-            #nullable enable
-                .ToString().Should().Be(Color.Parse(light.ErrorText).ToString());
-        } finally {
-            GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;
-        }
-    }
-
     [AvaloniaFact]
     public void ResourceDictionaries_ContainBothThemeBrushes() {
         var dicts = GuiPalette.BuildResourceDictionaries();
@@ -155,24 +126,6 @@ public class GuiPaletteContrastTests {
         light.ContainsKey("GuiWindowBackground").Should().BeTrue();
         var brush = light["GuiWindowBackground"].Should().BeAssignableTo<ISolidColorBrush>().Subject;
         brush.Color.ToString().Should().Be(Color.Parse("#f5f5f5").ToString());
-    }
-
-    [Fact]
-    public async Task ToggleThemeVm_CyclesThrough4Themes() {
-        await using var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
-        vm.CurrentTheme.Should().Be(GuiPalette.GuiThemeVariant.Dark);
-
-        vm.ToggleThemeCommand.Execute(null);
-        vm.CurrentTheme.Should().Be(GuiPalette.GuiThemeVariant.Light);
-
-        vm.ToggleThemeCommand.Execute(null);
-        vm.CurrentTheme.Should().Be(GuiPalette.GuiThemeVariant.SolarizedDark);
-
-        vm.ToggleThemeCommand.Execute(null);
-        vm.CurrentTheme.Should().Be(GuiPalette.GuiThemeVariant.SolarizedLight);
-
-        vm.ToggleThemeCommand.Execute(null);
-        vm.CurrentTheme.Should().Be(GuiPalette.GuiThemeVariant.Dark, "4 主题循环回 Dark");
     }
 
     [Fact]
@@ -191,19 +144,5 @@ public class GuiPaletteContrastTests {
 
         solLight.WindowBackground.Should().NotBe(light.WindowBackground, "Solarized Light 底色应与基础 Light 不同");
         solLight.AccentText.Should().NotBe(light.AccentText);
-    }
-
-    [Fact]
-    public async Task ToggleThemeVm_FlipsIsDarkTheme() {
-        // InMemory store → ConfigurationService 走内存文件系统，LoadThemeFromSettings 读到 Auto
-        // 提前返回，不会异步覆盖 IsDarkTheme（B8：裸构造读真实 settings.json 的 theme 键导致偶发翻转）
-        await using var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
-        vm.IsDarkTheme.Should().BeTrue();
-
-        vm.ToggleThemeCommand.Execute(null);
-        vm.IsDarkTheme.Should().BeFalse();
-
-        vm.ToggleThemeCommand.Execute(null);
-        vm.IsDarkTheme.Should().BeTrue();
     }
 }

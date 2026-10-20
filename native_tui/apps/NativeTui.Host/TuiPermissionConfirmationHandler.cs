@@ -31,6 +31,16 @@ public sealed class TuiPermissionConfirmationHandler(TuiPermissionBridge bridge,
         return action;
     }
 
+    /// <summary>
+    /// 异步确认入口（ADR 0142 接口形态）— 取消视为拒绝（fail-closed，对齐 CLI 先例）；
+    /// 同步转发 bridge 挂起对话框（TCS 异步续延，引擎回合线程等按键解除）。
+    /// </summary>
+    public Task<PermissionConfirmAction> ConfirmAsync(string toolName, string confirmationPrompt, CancellationToken cancellationToken = default) {
+        if (cancellationToken.IsCancellationRequested)
+            return Task.FromResult(PermissionConfirmAction.Deny);
+        return Task.FromResult(Confirm(toolName, confirmationPrompt));
+    }
+
     /// <summary>按确认结果应用临时批准（工具档位时长 + levelTag 同级批准 — Deny 不批准）。</summary>
     private void ApplyTemporaryApproval(string toolName, string confirmationPrompt, PermissionConfirmAction action) {
         if (PermissionManager is null)

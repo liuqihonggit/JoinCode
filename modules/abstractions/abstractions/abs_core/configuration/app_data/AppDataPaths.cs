@@ -188,6 +188,9 @@ public sealed record AppDataPaths(
     /// <summary>用户级引导完成标记文件: ~/.jcc/onboarding_complete.json</summary>
     public string OnboardingCompleteFilePath => Path.Combine(JccDirectory, "onboarding_complete.json");
 
+    /// <summary>用户级 DSH 前端工作区注册表: ~/.jcc/dsh-workspaces.json（ADR 0143）</summary>
+    public string DshWorkspacesFilePath => Path.Combine(JccDirectory, "dsh-workspaces.json");
+
     /// <summary>用户级运行时目录: ~/.jcc/runtime/ — 持久性运行日志、崩溃快照、工具结果溢出等（ADR 0055）</summary>
     public string UserRuntimeDirectory => Path.Combine(JccDirectory, "runtime");
 

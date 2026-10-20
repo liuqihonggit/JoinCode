@@ -95,12 +95,14 @@ public sealed class PipeOpenAIMockServer : IAsyncDisposable {
             }
         } catch (IOException ex) when (ex.Message.Contains("broken pipe", StringComparison.OrdinalIgnoreCase)) {
             _logger.LogInformation("[MockServer] 客户端断开连接");
+        } catch (OperationCanceledException) {
+            // 停止/取消时 SSE 延迟写被中断属正常收尾，静默
         } catch (Exception ex) {
             _logger.LogError(ex, "[MockServer] 处理单次连接时发生错误");
         }
     }
 
-    private static async Task<HttpRequest?> ReadRequestAsync(NamedPipeServerStream pipeServer, CancellationToken ct) {
+    private async Task<HttpRequest?> ReadRequestAsync(NamedPipeServerStream pipeServer, CancellationToken ct) {
         if (!pipeServer.IsConnected) {
             return null;
         }
@@ -113,6 +115,7 @@ public sealed class PipeOpenAIMockServer : IAsyncDisposable {
                 var readTask = pipeServer.ReadAsync(buffer, ct).AsTask();
                 var completed = await Task.WhenAny(readTask, Task.Delay(5000, ct)).ConfigureAwait(true);
                 if (completed != readTask) {
+                    _logger.LogWarning("[MockServer] 读请求超时(5000ms)无新数据，视为连接结束（区别于客户端主动断开：若紧随\"处理请求\"后出现此日志，说明响应写入后客户端未发后续请求，run #858 排障线索）");
                     return null;
                 }
 
@@ -635,20 +638,36 @@ public sealed class PipeOpenAIMockServer : IAsyncDisposable {
         return new HttpResponse(200, JsonSerializer.Serialize(response, MockServerJsonContext.Default.MockModelsResponse));
     }
 
-    private static async Task WriteResponseAsync(NamedPipeServerStream pipeServer, HttpResponse response, CancellationToken ct) {
+    private async Task WriteResponseAsync(NamedPipeServerStream pipeServer, HttpResponse response, CancellationToken ct) {
         if (!pipeServer.IsConnected) {
+            _logger.LogError("[MockServer] 写响应被跳过：连接已断开（客户端可能早退或存在竞态，此日志为响应静默丢失的排障线索，run #858）");
             return;
         }
 
-        var sb = new StringBuilder();
-        sb.Append($"HTTP/1.1 {response.StatusCode} {GetStatusText(response.StatusCode)}\r\n");
-        sb.Append($"Content-Type: {response.ContentType}\r\n");
-        sb.Append($"Content-Length: {Encoding.UTF8.GetByteCount(response.Body)}\r\n");
-        sb.Append("Connection: close\r\n");
-        sb.Append("\r\n");
-        sb.Append(response.Body);
+        var header = new StringBuilder();
+        header.Append($"HTTP/1.1 {response.StatusCode} {GetStatusText(response.StatusCode)}\r\n");
+        header.Append($"Content-Type: {response.ContentType}\r\n");
+        header.Append($"Content-Length: {Encoding.UTF8.GetByteCount(response.Body)}\r\n");
+        header.Append("Connection: close\r\n");
+        header.Append("\r\n");
 
-        var responseBytes = Encoding.UTF8.GetBytes(sb.ToString());
+        var headerBytes = Encoding.UTF8.GetBytes(header.ToString());
+
+        // SSE 慢流模式：headers 立即写（客户端 SendAsync 尽快拿到响应头），data 行之间注入延迟模拟慢/卡流
+        if (response.ContentType == "text/event-stream" && _options.SseChunkDelayMs > 0) {
+            await pipeServer.WriteAsync(headerBytes, ct).ConfigureAwait(true);
+            await pipeServer.FlushAsync(ct).ConfigureAwait(true);
+
+            foreach (var line in response.Body.Split('\n')) {
+                await Task.Delay(_options.SseChunkDelayMs, ct).ConfigureAwait(true);
+                var lineBytes = Encoding.UTF8.GetBytes(line + "\n");
+                await pipeServer.WriteAsync(lineBytes, ct).ConfigureAwait(true);
+                await pipeServer.FlushAsync(ct).ConfigureAwait(true);
+            }
+            return;
+        }
+
+        var responseBytes = Encoding.UTF8.GetBytes(header.ToString() + response.Body);
         await pipeServer.WriteAsync(responseBytes, ct).ConfigureAwait(true);
         await pipeServer.FlushAsync(ct).ConfigureAwait(true);
     }

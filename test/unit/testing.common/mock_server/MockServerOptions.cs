@@ -11,6 +11,12 @@ public sealed record MockServerOptions {
     public string ApiKey { get; }
     public string Model { get; }
 
+    /// <summary>
+    /// SSE 响应每个 data 行之间的注入延迟（毫秒，默认 0 = 不延迟）。
+    /// 用于测试流式读取的超时防御与慢流场景（run #858 挂死回归背景）。
+    /// </summary>
+    public int SseChunkDelayMs { get; init; }
+
     public MockServerOptions(string pipeName, string? apiKey = null, string? model = null) {
         ArgumentException.ThrowIfNullOrEmpty(pipeName);
         PipeName = pipeName;

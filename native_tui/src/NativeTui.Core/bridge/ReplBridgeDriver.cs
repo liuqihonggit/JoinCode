@@ -5,7 +5,8 @@ namespace NativeTui.Core.Bridge;
 /// 会话握手（session_info 更新 banner 真实数据 + footer 初始模式 + bypass 可用性）、
 /// 权限模式回执（permission_mode_changed 更新 footer）、
 /// 回合生命周期驱动 Busy + SpinnerItem（BeginTurn/EndTurn），消息事件插入滚动区
-/// （spinner 恒为末项），token_delta 累加 ResponseLength，错误追加 ErrorMessageItem。
+/// （spinner 恒为末项），token_delta 累加 ResponseLength，错误追加 ErrorMessageItem；
+/// 权限请求（permission_request）经注入钩子转交 shell 挂起对话框（权限模态是 shell 层状态）。
 /// 模拟路径与真实 bridge 路径共用同一套回合视图状态。
 /// </summary>
 public sealed class ReplBridgeDriver
@@ -14,12 +15,17 @@ public sealed class ReplBridgeDriver
     private readonly SpinnerItem _spinner;
     private readonly BannerItem _banner;
 
-    /// <summary>创建应用器（view/spinner/banner 由调用方构造并挂载，spinner 须为 Messages 末项、banner 为首项）。</summary>
-    public ReplBridgeDriver(ReplView view, SpinnerItem spinner, BannerItem banner)
+    /// <summary>权限请求挂起钩子（shell 注入 BeginPermissionRequest — 权限模态是 shell 层状态，Driver 只路由不持有）。</summary>
+    private readonly Action<string, string>? _onPermissionRequest;
+
+    /// <summary>创建应用器（view/spinner/banner 由调用方构造并挂载，spinner 须为 Messages 末项、banner 为首项；
+    /// onPermissionRequest = 权限请求挂起钩子，null = 忽略权限请求事件（纯视图断言测试场景））。</summary>
+    public ReplBridgeDriver(ReplView view, SpinnerItem spinner, BannerItem banner, Action<string, string>? onPermissionRequest = null)
     {
         _view = view;
         _spinner = spinner;
         _banner = banner;
+        _onPermissionRequest = onPermissionRequest;
     }
 
     /// <summary>回合进行中（turn_started 后未 completed/interrupted）。</summary>
@@ -64,6 +70,13 @@ public sealed class ReplBridgeDriver
                     ? new DiffResultItem(summary, patch)
                     : new ToolResultItem(summary));
                 _spinner.HasActiveTools = false;
+                break;
+            case BridgeEvent.PermissionRequest(var toolName, var description):
+                if (_onPermissionRequest is { } beginPermission)
+                {
+                    beginPermission(toolName, description);
+                }
+
                 break;
             case BridgeEvent.TokenDelta(var length):
                 _spinner.Mode = SpinnerMode.Responding;

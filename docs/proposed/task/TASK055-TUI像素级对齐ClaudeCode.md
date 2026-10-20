@@ -720,8 +720,39 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 | 步骤 | 命令 | 预期 |
 |------|------|------|
 | 1 种子渲染 | dotnet run --project native_tui/apps/NativeTui.Demo（真实终端） | 启动即见 ● 圆点 + 行内样式：粗体"Screen cell 网格"、permission 色行内代码 |
-| 2 全形态回合 | 同上提交任意文本 → 等 5.4s 回合完成 | assistant 消息渲染 8 类块：h2 粗体标题/段落行内样式/无序+有序列表/▎ 引用斜体/csharp 代码块/---/表格（表头粗体+对齐分隔行） |
+| 2 全形态回合 | 同上提交 `md` → 等 5.4s 回合完成 | assistant 消息渲染 8 类块：h2 粗体标题/段落行内样式/无序+有序列表/▎ 引用斜体/csharp 代码块/---/表格（表头粗体+对齐分隔行） |
 | 3 真实引擎 | NativeTui.Host.exe（需配置模型） | 引擎回复含 Markdown 语法 → ProjectOptional 投影 → 块模型渲染（无语法回复仍纯文本快路径） |
 | 4 窄终端换行 | 终端调窄后重跑步骤 2 | 段落软换行（词边界贪心+CJK 逐字）、列表续行对齐内容列、代码块不换行 |
+
+## M7-4b Demo 演示命令路由（2026-10-21，用户验收模式驱动）
+
+<!-- 🤖 Auto Decision: 2026-10-21 -->
+<!-- 决策: SimulatedEngine.Submit 改演示命令路由(md/diff/perm/all 四命令+未知命令 Error 诱导), -->
+<!--   回合脚本 TurnScript 枚举四值, AdvanceStages 拆三个有名函数(Thinking/ToolUse/Responding)按脚本分派 -->
+<!-- 需求来源: 用户验收方式=直接跑 Demo.exe 输演示命令逐条看效果(不依赖真实引擎/不要启动参数), -->
+<!--   单一"任意文本"回合无法分开验收 Markdown/diff/权限三链路 → 命令路由把三链路拆成可独立触发的演示 -->
+<!-- 权限对话框演示路径(perm): 1.2s 产 BridgeEvent.PermissionRequest(ToolName/Description) → -->
+<!--   挂起期无 TokenDelta(权限等待语义) → 8s 延迟完成(交互窗口加长,用户从容选档) -->
+<!-- PermissionRequest 分派架构: Driver 加可选权限钩子 Action<string,string>(null=纯视图断言场景忽略), -->
+<!--   ReplShell 构造时注入 BeginPermissionRequest — 权限模态是 shell 层状态,Driver 只路由不持有 -->
+<!--   (对齐"Driver 唯一翻译层"先例;真实宿主路径仍走 TuiPermissionBridge.Confirm 同步回调不经此事件) -->
+<!-- 未知命令诱导: Error 消息含四命令名+各自用途+怎么做(对齐九荣九耻"错误提示必须有诱导方式") -->
+<!-- 基建修复(顺带,缺陷驱动): SnapshotVerifier 行尾无关比对(CRLF→LF 折叠) — 根因 git autocrlf=true -->
+<!--   物化改写 approved.txt 为 CRLF 击穿裸 Ordinal 比较; .gitattributes 钉死 *.approved.txt eol=lf -->
+<!--   + 工作区 approved 归一 LF 双保险; 先写红测试(Verify_ApprovedWithCrlfLineEndings)再修复 -->
+<!-- TDD: 红测试 6 新增(md/diff/perm/perm 挂起/all/未知命令 Theory×2) + 既有 5 测试 hello→all 迁移; -->
+<!--   全绿 NativeTui.Tests 558/558 + Markdown.Tests 18/18 + Demo selftest/bridge-selftest OK -->
+<!-- M7-4 验收表步骤 2 语义更新: "提交任意文本"已被命令路由取代(任意文本现回 Error 诱导) -->
+
+### M7-4b 手动验收（ADR 0080，待用户执行）
+
+| 步骤 | 命令 | 预期 |
+|------|------|------|
+| 1 命令提示 | 直接运行 NativeTui.Demo.exe（真实终端） | 种子消息末条显示四命令说明（md/diff/perm/all） |
+| 2 md | 输入 `md` 回车 → 等 5.4s | 纯 Markdown 回合：8 类块全形态渲染，全程无工具事件（无 ⎿ 工具行） |
+| 3 diff | 输入 `diff` 回车 → 等 5.4s | 纯补丁回合：⎿ 工具结果 + 结构化 diff 块（+绿/-红/折叠提示），完成消息纯文本 |
+| 4 perm | 输入 `perm` 回车 → 1.2s 后弹权限对话框 | 数字 1-3 直选/Esc=Deny/上下环绕/Enter=焦点档；等待期 spinner 无 token 计数；8s 回合自动收束（未选择时 Deny 收尾） |
+| 5 all | 输入 `all` 回车 → 等 5.4s | 完整回合：工具调用+补丁+Markdown 完成消息（既有默认演示） |
+| 6 未知命令 | 输入任意其他文本回车 | Error 诱导消息：列出四命令名+用途+正确写法，无 TurnStarted |
 
 <!-- M7-4 接续: M7-5 代码高亮调研(MarkdownCode.Language 已保留消费面) → M7-6 模型列表 → M7-7 多子代理分组 -->

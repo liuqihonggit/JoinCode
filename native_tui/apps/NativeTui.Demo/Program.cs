@@ -4,7 +4,7 @@ namespace NativeTui.Demo;
 /// M6a 手动验收 demo（ADR 0080）— REPL 全链路真实运行（非 mock）：
 /// raw mode + 50ms 动画 tick + 帧双缓冲（共享 StylePool）+ CellDiffer 差分 + DEC 2026 原子上屏
 /// + InputBuffer 编辑 + 模拟回合（Thinking → ToolUse → Responding）。
-/// 交互：Enter 提交（触发模拟回合）；Esc 忙时打断/闲时退出；Ctrl+C 退出；↑↓ 滚动消息区。
+/// 交互：Enter 提交演示命令（md / diff / perm / all — 未知命令回 Error 诱导）；Esc 忙时打断/闲时退出；Ctrl+C 退出；↑↓ 滚动消息区。
 /// --selftest：非交互冒烟（spinner 三帧链路 + 静态零输出 + 输入编辑），退出码 0/1。
 /// </summary>
 public static class Program
@@ -53,7 +53,7 @@ public static class Program
         return 0;
     }
 
-    /// <summary>交互模式：进 raw mode 跑共享 REPL 外壳（ReplShell + SimulatedEngine 事件驱动模拟回合；inline 模式退出只清尾部动态区，历史留终端 scrollback）。</summary>
+    /// <summary>交互模式：进 raw mode 跑共享 REPL 外壳（ReplShell + SimulatedEngine 演示命令路由 md/diff/perm/all；inline 模式退出只清尾部动态区，历史留终端 scrollback）。</summary>
     private static int RunInteractive(string? model = null, bool viewport = false)
     {
         if (Console.IsInputRedirected || Console.IsOutputRedirected)
@@ -74,7 +74,7 @@ public static class Program
         return 0;
     }
 
-    /// <summary>模拟模式种子消息（示例对话 — banner 之后、spinner 之前插入滚动区；assistant 回复为 Markdown 行内样式演示，M7-4 启动即见渲染）。</summary>
+    /// <summary>模拟模式种子消息（示例对话 — banner 之后、spinner 之前插入滚动区；assistant 回复为 Markdown 行内样式演示，M7-4 启动即见渲染；末条为演示命令提示）。</summary>
     private static IReadOnlyList<IScrollItem> SeedMessages() =>
     [
         new UserMessageItem("这个 TUI 是像素级对齐 Claude Code 的自研实现吗？"),
@@ -93,6 +93,7 @@ public static class Program
         ])),
         new ToolCallItem("Read", "native_tui/src/NativeTui.Core/repl/ReplView.cs"),
         new ToolResultItem("41 行 — REPL 整屏视图（footer + 输入框 + 消息滚动区）"),
+        new AssistantMessageItem("演示命令：md（Markdown 全形态）/ diff（结构化补丁）/ perm（权限对话框）/ all（完整回合）— 输入命令回车触发；其他输入回 Error 诱导。"),
     ];
 
     /// <summary>

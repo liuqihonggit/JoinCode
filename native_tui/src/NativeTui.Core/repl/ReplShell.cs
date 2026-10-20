@@ -64,7 +64,7 @@ public sealed class ReplShell
         _output = output;
         _inline = inline;
         _seedMessages = seedMessages ?? [];
-        _driver = new ReplBridgeDriver(_view, _spinner, _banner);
+        _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest);
     }
 
     /// <summary>视图（测试断言面）。</summary>

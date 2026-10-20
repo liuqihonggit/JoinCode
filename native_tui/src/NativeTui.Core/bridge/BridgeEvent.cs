@@ -4,7 +4,7 @@ namespace NativeTui.Core.Bridge;
 /// bridge 事件（Engine → TUI，读子进程 stdout）— ADR 0141 事件契约：
 /// 会话握手（session_info）、权限模式（permission_mode_changed）、
 /// 回合生命周期（turn_started/completed/interrupted）、思考（thinking_started/ended）、
-/// 工具（tool_call/tool_result）、流式（token_delta）、消息（assistant_message/error）。
+/// 工具（tool_call/tool_result/permission_request）、流式（token_delta）、消息（assistant_message/error）。
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(SessionInfo), "session_info")]
@@ -14,6 +14,7 @@ namespace NativeTui.Core.Bridge;
 [JsonDerivedType(typeof(ThinkingEnded), "thinking_ended")]
 [JsonDerivedType(typeof(ToolCall), "tool_call")]
 [JsonDerivedType(typeof(ToolResult), "tool_result")]
+[JsonDerivedType(typeof(PermissionRequest), "permission_request")]
 [JsonDerivedType(typeof(TokenDelta), "token_delta")]
 [JsonDerivedType(typeof(AssistantMessage), "assistant_message")]
 [JsonDerivedType(typeof(TurnCompleted), "turn_completed")]
@@ -48,6 +49,12 @@ public abstract record BridgeEvent
     /// </summary>
     public sealed record ToolResult(string Summary,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DiffHunk[]? Patch = null) : BridgeEvent;
+
+    /// <summary>
+    /// 权限请求（工具执行前需用户确认 — TUI 模态对话框）。Demo 进程内路径由 SimulatedEngine 事件驱动；
+    /// 真实宿主路径不经此事件（TuiPermissionBridge.Confirm 同步回调直挂 ReplShell.BeginPermissionRequest）。
+    /// </summary>
+    public sealed record PermissionRequest(string ToolName, string Description) : BridgeEvent;
 
     /// <summary>流式 token 增量（spinner ResponseLength 累加）。</summary>
     public sealed record TokenDelta(int Length) : BridgeEvent;

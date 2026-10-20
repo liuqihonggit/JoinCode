@@ -126,6 +126,21 @@ public sealed class ReplShellTests
         Assert.Equal(PermissionMode.Plan, shell.View.Footer.Mode);
     }
 
+    /// <summary>DrainEngine：PermissionRequest 事件经 Driver 钩子分派到权限对话框（模态挂起 + 对话框项插入滚动区）。</summary>
+    [Fact]
+    public void DrainEngine_PermissionRequestEvent_BeginsPermissionDialog()
+    {
+        var (shell, engine) = CreateShell();
+        shell.SeedContent();
+
+        engine.Events.Enqueue(new BridgeEvent.TurnStarted());
+        engine.Events.Enqueue(new BridgeEvent.PermissionRequest("Bash", "运行演示命令"));
+        shell.DrainEngine();
+
+        Assert.True(shell.Permission.IsPending);
+        Assert.Contains(shell.View.Messages.Items, m => m is PermissionRequestItem);
+    }
+
     /// <summary>DrainEngine：引擎死亡（非忙）— 追加错误消息并请求停止。</summary>
     [Fact]
     public void DrainEngine_EngineDead_AppendsErrorAndStops()

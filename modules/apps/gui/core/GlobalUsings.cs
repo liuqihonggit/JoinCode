@@ -17,8 +17,6 @@ global using Avalonia.Styling;
 global using Avalonia.Themes.Fluent;
 global using Avalonia.Threading;
 global using Avalonia.VisualTree;
-global using CommunityToolkit.Mvvm.ComponentModel;
-global using CommunityToolkit.Mvvm.Input;
 // 引擎 DI 组装（Composition + 共享管道）
 global using Core.DependencyInjection;
 // 用户 settings.json 的 DTO 与路径（DSH 宿主启动期读模型目录）
@@ -50,23 +48,13 @@ global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.UI;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.App.Builder;
-global using JoinCode.ChatCommands;
-// 共享斜杠命令执行器（与 TUI 同一链路）
+global using JoinCode.BclBridge;
+// 共享斜杠命令执行器（与 TUI 同一链路，engine 侧 SlashCommandRunner）
 global using JoinCode.Cli.Commands;
-global using JoinCode.Cli.Commands.Prefix;
 global using JoinCode.Gui.Hosting;
-// GUI 斜杠命令核心逻辑（Trie 前缀树、光标解析、匹配排序）
-global using JoinCode.Gui.SlashCommands;
 global using JoinCode.Gui.Theming;
-// GUI ViewModel 层 DTO（SlashCommandItem 等）
-global using JoinCode.Gui.ViewModels;
-global using JoinCode.Gui.Views;
 global using JoinCode.Pipelines;
 global using JoinCode.Pipelines.Middlewares;
-global using Markdig;
-global using Markdig.Extensions.Tables;
-global using Markdig.Syntax;
-global using Markdig.Syntax.Inlines;
 global using McpBridge;
 global using System;
 global using System.Collections.Concurrent;
@@ -86,17 +74,10 @@ global using System.Text.Json;
 global using System.Text.Json.Serialization;
 global using System.Threading;
 global using System.Threading.Tasks;
-global using JoinCode.BclBridge;
-global using Inline = Markdig.Syntax.Inlines.Inline;
-global using Dock.Model.Core;
-global using Dock.Model.Controls;
-global using Dock.Model.Mvvm;
-global using Dock.Model.Mvvm.Controls;
-global using JoinCode.Gui.ViewModels.Docking;
+global using Microsoft.Web.WebView2.Core;
 // WebUI 宿主（B2 路线，ADR 0138）
 global using JoinCode.Gui.WebView;
 // DSH 前端宿主（ADR 0143）
 global using JoinCode.Gui.WebHost;
 // 会话落盘服务的轻量实例（DSH 侧栏启动即读，不必等引擎组装完成）
 global using TranscriptStore = State.TranscriptService;
-global using Microsoft.Web.WebView2.Core;

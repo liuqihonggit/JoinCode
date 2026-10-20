@@ -70,13 +70,13 @@ internal sealed class JccChatSession : IJccChatSession {
     /// <summary>
     /// 获取后台子代理快照 — IAgentService 运行列表 + 活跃 fork 归并（forkId 亦为合法终止键）
     /// </summary>
-    public async Task<IReadOnlyList<ViewModels.BackgroundAgentInfo>> GetBackgroundAgentsAsync(CancellationToken cancellationToken = default) {
-        var result = new List<ViewModels.BackgroundAgentInfo>();
+    public async Task<IReadOnlyList<BackgroundAgentInfo>> GetBackgroundAgentsAsync(CancellationToken cancellationToken = default) {
+        var result = new List<BackgroundAgentInfo>();
 
         var agentService = _services.GetService<IAgentService>();
         if (agentService is not null) {
             foreach (var info in await agentService.GetRunningAgentsAsync(cancellationToken)) {
-                result.Add(new ViewModels.BackgroundAgentInfo(
+                result.Add(new BackgroundAgentInfo(
                     info.Id,
                     Name: info.DisplayName ?? info.Variant?.ToString() ?? info.Role.ToString().ToLowerInvariant(),
                     Description: info.Description,
@@ -98,7 +98,7 @@ internal sealed class JccChatSession : IJccChatSession {
             foreach (var fork in await forkManager.GetActiveForksAsync(cancellationToken)) {
                 if (fork.State != ForkState.Running)
                     continue;
-                result.Add(new ViewModels.BackgroundAgentInfo(
+                result.Add(new BackgroundAgentInfo(
                     fork.ForkId,
                     Name: "fork",
                     Description: $"fork {fork.ForkId}",

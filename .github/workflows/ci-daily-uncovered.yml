@@ -39,7 +39,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          submodules: recursive
       - uses: ./.github/actions/setup-test-env
       - name: Benchmark - ${{ matrix.name }}
         shell: bash
@@ -71,7 +70,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          submodules: recursive
       - uses: ./.github/actions/setup-test-env
       - name: AOT - ${{ matrix.name }}
         shell: bash
@@ -91,7 +89,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          submodules: recursive
       - uses: ./.github/actions/setup-test-env
       - name: ONNX Embedding Tests
         shell: pwsh

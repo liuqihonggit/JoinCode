@@ -19,7 +19,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          submodules: recursive
       - uses: ./.github/actions/setup-test-env
       - name: Integration Tests
         shell: bash
@@ -59,7 +58,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          submodules: recursive
       - uses: ./.github/actions/setup-test-env
       - name: Build and set execute permission
         shell: bash
@@ -103,7 +101,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          submodules: recursive
       - uses: ./.github/actions/setup-test-env
       - name: Integration Tests - Hand + Host + McpTools
         shell: bash

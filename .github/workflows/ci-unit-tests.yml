@@ -51,9 +51,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          submodules: recursive
-
       - uses: ./.github/actions/setup-test-env
       - name: Test - ${{ matrix.domain }}
         shell: bash
@@ -65,6 +62,7 @@ jobs:
             dotnet test "$proj" -c Debug --nologo \
               -p:UsePackedComponents=true \
               -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
+              -p:EnableWindowsTargeting=true \
               --filter "Category!=Integration&Category!=Benchmark" \
               --logger "console;verbosity=normal" \
               --logger "trx;LogFileName=$name.trx"

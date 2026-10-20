@@ -12,12 +12,12 @@ public sealed class TranscriptServiceTests : IDisposable {
     }
 
     [Fact]
-    public async Task AppendEntryAsync_Should_Create_Json_File() {
+    public async Task AppendEntryAsync_Should_Create_Jsonl_File() {
         var entry = NewEntry("user", "Hello world");
 
         await _service.AppendEntryAsync("session-1", entry).ConfigureAwait(true);
 
-        var filePath = "/test/transcript/session-1/transcript.json";
+        var filePath = "/test/transcript/session-1/transcript.jsonl";
         Assert.True(_fs.FileExists(filePath));
 
         var json = await _fs.ReadAllTextAsync(filePath).ConfigureAwait(true);
@@ -68,15 +68,30 @@ public sealed class TranscriptServiceTests : IDisposable {
     }
 
     [Fact]
-    public async Task LoadTranscriptAsync_Should_Read_Valid_Json_Array() {
-        var filePath = "/test/transcript/malformed/transcript.json";
-        var json = "[{\"sessionId\":\"s\",\"role\":\"user\",\"content\":\"ok\",\"timestamp\":\"2025-01-01T00:00:00Z\"}]";
-        await _fs.WriteAllTextAsync(filePath, json).ConfigureAwait(true);
+    public async Task LoadTranscriptAsync_Should_Read_Valid_Jsonl_Lines() {
+        var filePath = "/test/transcript/malformed/transcript.jsonl";
+        _fs.CreateDirectory("/test/transcript/malformed");
+        var line = RelaxedJsonSerializer.Serialize(new TranscriptEntry { SessionId = "malformed", Role = "user", Content = "ok", Timestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc) }, TranscriptJsonlContext.Default);
+        await _fs.WriteAllTextAsync(filePath, line + "\n").ConfigureAwait(true);
 
         var transcript = await _service.LoadTranscriptAsync("malformed").ConfigureAwait(true);
 
         Assert.Single(transcript);
         Assert.Equal("ok", transcript[0].Content);
+    }
+
+    /// <summary>存量兼容：仅存在旧 .json(JSON 数组)的会话仍可读取（零迁移可用）。</summary>
+    [Fact]
+    public async Task LoadTranscriptAsync_Should_Read_Legacy_Json_Array() {
+        var filePath = "/test/transcript/legacy-array/transcript.json";
+        _fs.CreateDirectory("/test/transcript/legacy-array");
+        var json = "[{\"sessionId\":\"legacy-array\",\"role\":\"user\",\"content\":\"legacy-ok\",\"timestamp\":\"2025-01-01T00:00:00Z\"}]";
+        await _fs.WriteAllTextAsync(filePath, json).ConfigureAwait(true);
+
+        var transcript = await _service.LoadTranscriptAsync("legacy-array").ConfigureAwait(true);
+
+        Assert.Single(transcript);
+        Assert.Equal("legacy-ok", transcript[0].Content);
     }
 
     [Fact]
@@ -107,7 +122,7 @@ public sealed class TranscriptServiceTests : IDisposable {
         await _service.AppendEntryAsync("older", NewEntry("user", "old")).ConfigureAwait(true);
 
         // 等待时间戳变化 - 使用 SpinWait 替代 Task.Delay 反模式
-        var olderTime = _fs.GetLastWriteTimeUtc("/test/transcript/older/transcript.json");
+        var olderTime = _fs.GetLastWriteTimeUtc("/test/transcript/older/transcript.jsonl");
         SpinWait.SpinUntil(() => DateTime.UtcNow > olderTime, TimeSpan.FromMilliseconds(100));
 
         await _service.AppendEntryAsync("newer", NewEntry("user", "new")).ConfigureAwait(true);
@@ -246,6 +261,7 @@ public sealed class TranscriptServiceTests : IDisposable {
         Assert.Null(await _service.GetSessionInfoAsync("dir-delete").ConfigureAwait(true));
     }
 
+    /// <summary>迁移源1：旧扁平 .json(JSONL 行格式) → {id}/transcript.jsonl。</summary>
     [Fact]
     public async Task MigrateLegacyAsync_Should_Move_Flat_Jsonl_To_SessionDirectory() {
         var flatPath = "/test/transcript/legacy-migrate-1.json";
@@ -253,10 +269,31 @@ public sealed class TranscriptServiceTests : IDisposable {
 
         await _service.MigrateLegacyAsync().ConfigureAwait(true);
 
-        var newPath = "/test/transcript/legacy-migrate-1/transcript.json";
+        var newPath = "/test/transcript/legacy-migrate-1/transcript.jsonl";
         Assert.True(_fs.FileExists(newPath));
         var content = await _fs.ReadAllTextAsync(newPath).ConfigureAwait(true);
         Assert.Contains("old-data", content);
+        // 迁移后可正常读取（含写入时 SessionId 等字段）
+        var loaded = await _service.LoadTranscriptAsync("legacy-migrate-1").ConfigureAwait(true);
+        Assert.Single(loaded);
+        Assert.Equal("old-data", loaded[0].Content);
+    }
+
+    /// <summary>迁移源2：子目录 transcript.json(JSON 数组) → 同目录 transcript.jsonl（ADR 0144 数组→JSONL）。</summary>
+    [Fact]
+    public async Task MigrateLegacyAsync_Should_Convert_SessionJsonArray_To_Jsonl() {
+        _fs.CreateDirectory("/test/transcript/array-migrate");
+        await _fs.WriteAllTextAsync("/test/transcript/array-migrate/transcript.json",
+            "[{\"sessionId\":\"array-migrate\",\"role\":\"user\",\"content\":\"array-entry\",\"timestamp\":\"2025-06-01T00:00:00Z\"},{\"sessionId\":\"array-migrate\",\"role\":\"assistant\",\"content\":\"reply\",\"timestamp\":\"2025-06-01T00:00:01Z\"}]").ConfigureAwait(true);
+
+        await _service.MigrateLegacyAsync().ConfigureAwait(true);
+
+        var jsonlPath = "/test/transcript/array-migrate/transcript.jsonl";
+        Assert.True(_fs.FileExists(jsonlPath));
+        var loaded = await _service.LoadTranscriptAsync("array-migrate").ConfigureAwait(true);
+        Assert.Equal(["array-entry", "reply"], loaded.Select(e => e.Content));
+        // 幂等：旧 .json 保留（不删旧文件红线）
+        Assert.True(_fs.FileExists("/test/transcript/array-migrate/transcript.json"));
     }
 
     [Fact]
@@ -267,8 +304,11 @@ public sealed class TranscriptServiceTests : IDisposable {
         await _service.MigrateLegacyAsync().ConfigureAwait(true);
         await _service.MigrateLegacyAsync().ConfigureAwait(true);
 
-        var newPath = "/test/transcript/legacy-migrate-2/transcript.json";
+        var newPath = "/test/transcript/legacy-migrate-2/transcript.jsonl";
         Assert.True(_fs.FileExists(newPath));
+        // 幂等：重复迁移不产生重复条目
+        var loaded = await _service.LoadTranscriptAsync("legacy-migrate-2").ConfigureAwait(true);
+        Assert.Single(loaded);
     }
 
     private static TranscriptEntry NewEntry(string role, string content, string sessionId = "test") {

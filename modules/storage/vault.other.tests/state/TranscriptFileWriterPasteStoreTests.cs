@@ -20,7 +20,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IAsyncDisposable {
 
     [Fact]
     public async Task AppendEntryAsync_SmallContent_ShouldStoreInline() {
-        var filePath = Path.Combine(_tempDir, "test.json");
+        var filePath = Path.Combine(_tempDir, "test.jsonl");
         var entry = new TranscriptEntry {
             SessionId = "s1",
             Role = "user",
@@ -45,7 +45,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IAsyncDisposable {
         _pasteStore.Setup(p => p.HashPastedText(largeContent)).Returns(hash);
         _pasteStore.Setup(p => p.StorePastedText(hash, largeContent));
 
-        var filePath = Path.Combine(_tempDir, "large.json");
+        var filePath = Path.Combine(_tempDir, "large.jsonl");
         var entry = new TranscriptEntry {
             SessionId = "s1",
             Role = "user",
@@ -96,7 +96,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IAsyncDisposable {
         await using var writerNoPaste = new TranscriptFileWriter(_fs, _tempDir, NullLogger.Instance, pasteStore: null);
         var largeContent = new string('y', 2000);
 
-        var filePath = Path.Combine(_tempDir, "nopaste.json");
+        var filePath = Path.Combine(_tempDir, "nopaste.jsonl");
         var entry = new TranscriptEntry {
             SessionId = "s1",
             Role = "user",

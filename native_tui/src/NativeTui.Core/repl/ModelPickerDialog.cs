@@ -9,15 +9,10 @@ namespace NativeTui.Core.Repl;
 /// 当前项尾 ✓ success；描述行：5 空格缩进 dim，空描述折叠）+ 溢出行（1 缩进 dim "and N more…"）
 /// + 空行 + 快捷键行（1 缩进 dim "Enter confirm · Esc exit"）。
 /// 状态源 = ModelPickerCoordinator（焦点/窗口/挂起），Begin 时插入 Messages，确认/取消时移除。
+/// title/subtitle 构造参数化（默认模型文案）— vendor 选择器复用同条渲染链。
 /// </summary>
-public sealed class ModelPickerDialog(ModelPickerCoordinator coordinator) : IScrollItem
+public sealed class ModelPickerDialog(ModelPickerCoordinator coordinator, string title = "Select model", string subtitle = "Switch between models. Applies to this session and future sessions.") : IScrollItem
 {
-    /// <summary>固定标题（基准 ModelPicker title="Select model"）。</summary>
-    private const string Title = "Select model";
-
-    /// <summary>固定副标题（基准 "Switch between Claude models. Applies to this session and future sessions."，本项目语境改模）。</summary>
-    private const string Subtitle = "Switch between models. Applies to this session and future sessions.";
-
     /// <summary>固定快捷键行（基准 Byline "Enter confirm · Esc exit"）。</summary>
     private const string Shortcuts = "Enter confirm · Esc exit";
 
@@ -43,8 +38,8 @@ public sealed class ModelPickerDialog(ModelPickerCoordinator coordinator) : IScr
 
         var row = frame.Y + 1;
         MessageRenderer.RenderPermissionBorder(screen, RowFrame(frame, row++), theme);
-        MessageRenderer.RenderModelTitle(screen, RowFrame(frame, row++), theme, Title);
-        MessageRenderer.RenderModelSubtitle(screen, RowFrame(frame, row++), theme, Subtitle);
+        MessageRenderer.RenderModelTitle(screen, RowFrame(frame, row++), theme, title);
+        MessageRenderer.RenderModelSubtitle(screen, RowFrame(frame, row++), theme, subtitle);
         row++;
 
         for (var i = 0; i < Coordinator.VisibleCount; i++)

@@ -34,8 +34,8 @@ public sealed class EngineSession : IAsyncDisposable {
     /// <summary>当前会话标识 — 历史种子排除当前会话防双份。</summary>
     public string SessionId => _engine.SessionId;
 
-    /// <summary>重发 session_info 事件 — 模型切换等运行时状态变化后刷新 banner（ReplBridgeDriver.ApplySessionInfo 差分上屏）。</summary>
-    public void RefreshSessionInfo() => _client.Enqueue(BuildSessionInfoEvent(_checker, _fastMode));
+    /// <summary>重发 session_info 事件 — 模型/供应商切换等运行时状态变化后刷新 banner（ReplBridgeDriver.ApplySessionInfo 差分上屏）。</summary>
+    public void RefreshSessionInfo() => _client.Enqueue(BuildSessionInfoEvent(_checker, _fastMode, _engine.Config));
 
     /// <summary>组装引擎会话 — 建会话（TuiInteractionModule 注册权限确认 handler）→ 解析权限/模型 → 构造回合客户端 → 种子 session_info；失败时释放已建引擎 Host。</summary>
     public static async Task<EngineSession> CreateAsync(CancellationToken cancellationToken = default) {
@@ -60,7 +60,7 @@ public sealed class EngineSession : IAsyncDisposable {
                 BuildPermissionModeApplier(checker));
 
             var session = new EngineSession(engine, client, permissionBridge, checker, fastMode);
-            client.Enqueue(BuildSessionInfoEvent(checker, fastMode));
+            client.Enqueue(BuildSessionInfoEvent(checker, fastMode, engine.Config));
             return session;
         } catch {
             await engine.Host.DisposeAsync().ConfigureAwait(false);
@@ -78,16 +78,18 @@ public sealed class EngineSession : IAsyncDisposable {
     }
 
     /// <summary>组装会话握手事件（internal — 测试断言 SetPrimaryModel 后 Model 字段更新）。版本（引擎程序集）/当前模型（FastMode 主模型，未设置为 null）/
-    /// 权限模式（安全闸后的实际值）/bypass 可用性（!DisableBypassGate）/cwd。</summary>
-    internal static BridgeEvent.SessionInfo BuildSessionInfoEvent(PermissionChecker? checker, IFastModeService? fastMode) {
+    /// 权限模式（安全闸后的实际值）/bypass 可用性（!DisableBypassGate）/cwd/供应商（WorkflowConfig.Provider.Vendor，TASK058 banner 显示）。</summary>
+    internal static BridgeEvent.SessionInfo BuildSessionInfoEvent(PermissionChecker? checker, IFastModeService? fastMode, WorkflowConfig? config = null) {
         var version = typeof(EngineSessionFactory).Assembly.GetName().Version is { } v ? v.ToString(3) : "0.0.0";
         var mode = checker?.CurrentMode ?? EnginePermissionMode.Auto;
+        var vendor = config?.Provider?.Vendor;
         return new BridgeEvent.SessionInfo(
             Version: version,
             Model: string.IsNullOrWhiteSpace(fastMode?.PrimaryModelId) ? null : fastMode.PrimaryModelId,
             PermissionMode: EnginePermissionModeExtensions.ToValue(mode),
             BypassAvailable: checker?.DisableBypassGate is not true,
-            Cwd: Environment.CurrentDirectory);
+            Cwd: Environment.CurrentDirectory,
+            Vendor: string.IsNullOrWhiteSpace(vendor) ? null : vendor);
     }
 
     /// <summary>构造权限模式应用器 — 解析字符串（FromValue）→ 应用（CurrentMode setter 含 bypass 安全闸）→

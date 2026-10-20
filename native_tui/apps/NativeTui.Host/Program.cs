@@ -52,11 +52,22 @@ public static class Program {
                 var commands = SlashCommandSource.Load(session.Services);
                 // M7-6 模型选择器 — 装饰引擎拦截 /model（清单从引擎 IModelCatalog 后端获取，切换链自研）；
                 // 切换成功后 RefreshSessionInfo 重发握手事件刷新 banner（当前模型显示同步）
-                var pickerEngine = new ModelPickerEngine(
-                    session.Client,
-                    () => ModelPickerAssembly.LoadItems(session.Services),
-                    id => {
-                        ModelPickerAssembly.ApplyModel(session.Services, id);
+                // TASK058 供应商选择器 — 外层再装饰拦截 /vendor（清单 VendorKind 枚举投影，切换链对齐 GUI SetVendorAsync）
+                var pickerEngine = new CommandPickerEngine(
+                    new CommandPickerEngine(
+                        session.Client,
+                        "/model",
+                        "模型",
+                        () => ModelPickerAssembly.LoadItems(session.Services),
+                        id => {
+                            ModelPickerAssembly.ApplyModel(session.Services, id);
+                            session.RefreshSessionInfo();
+                        }),
+                    "/vendor",
+                    "供应商",
+                    () => VendorPickerAssembly.LoadItems(session.Services),
+                    vendor => {
+                        VendorPickerAssembly.ApplyVendor(session.Services, vendor);
                         session.RefreshSessionInfo();
                     });
                 var shell = new ReplShell(pickerEngine, banner, tuiOutput, commands: commands);

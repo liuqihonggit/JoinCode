@@ -220,12 +220,13 @@ public sealed class ReplShell
     /// <summary>
     /// 挂起模型选择器（M7-6 — 宿主装饰器拦截 /model 后调此打开，全链自研不依赖 slash 命令系统）：
     /// 清单由宿主从引擎 IModelCatalog 投影（后端获取）；完成回调参数 = 选中模型 id（Esc 取消为 null）。
+    /// title/subtitle 可选参数化（默认模型文案）— vendor 选择器复用同条模态链。
     /// </summary>
-    public void BeginModelPicker(IReadOnlyList<ModelPickerItem> items, Action<string?>? onCompleted = null)
+    public void BeginModelPicker(IReadOnlyList<ModelPickerItem> items, Action<string?>? onCompleted = null, string title = "Select model", string subtitle = "Switch between models. Applies to this session and future sessions.")
     {
         _modelPicker.Begin(items);
         _modelPickerCallback = onCompleted;
-        AddMessage(new ModelPickerDialog(_modelPicker));
+        AddMessage(new ModelPickerDialog(_modelPicker, title, subtitle));
     }
 
     /// <summary>完成模型选择并移除对话框项（id = null 表示 Esc 取消）。</summary>

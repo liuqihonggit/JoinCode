@@ -56,4 +56,18 @@ public sealed class EngineSessionTests {
         var after = EngineSession.BuildSessionInfoEvent(checker: null, fastMode);
         Assert.Equal("switched-model", after.Model);
     }
+
+    /// <summary>session_info 事件供应商字段（TASK058）— WorkflowConfig.Provider.Vendor 透传；无 config 时 Vendor 为 null（旧引擎兼容退化）。</summary>
+    [Fact]
+    public async Task BuildSessionInfoEvent_WithConfig_CarriesVendor()
+    {
+        await using var fastMode = new FastModeService();
+        var config = new WorkflowConfig { Provider = new ProviderConfig { Vendor = "zhipu" } };
+
+        var withConfig = EngineSession.BuildSessionInfoEvent(checker: null, fastMode, config);
+        Assert.Equal("zhipu", withConfig.Vendor);
+
+        var withoutConfig = EngineSession.BuildSessionInfoEvent(checker: null, fastMode, config: null);
+        Assert.Null(withoutConfig.Vendor);
+    }
 }

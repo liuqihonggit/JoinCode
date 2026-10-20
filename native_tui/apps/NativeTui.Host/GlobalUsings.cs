@@ -1,9 +1,11 @@
 global using System.Collections.Concurrent;
 global using System.Diagnostics;
 global using System.Text;
+global using Core.Configuration;
 global using Core.Permission;
 global using Core.Utils;
 global using JoinCode.Abstractions.Entity;
+global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Configuration.Providers;
 global using JoinCode.Abstractions.Interfaces;

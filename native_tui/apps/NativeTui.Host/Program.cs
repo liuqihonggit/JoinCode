@@ -7,16 +7,24 @@ namespace NativeTui.Host;
 /// （Enter 提交 / Esc 忙时打断或闲时退出 / Shift+Tab 权限循环 / Ctrl+C 退出）。
 /// </summary>
 public static class Program {
-    /// <summary>入口 — --selftest 非交互冒烟；无参数进入交互 REPL；未知参数报错诱导。</summary>
+    /// <summary>入口 — --selftest 非交互冒烟；无参数进入交互 REPL；未知参数报错诱导。
+    /// 顶层 catch ConfigurationException — 配置错误友好呈现（两级 profile 覆盖链 + auth key 状态 + 修复指引，
+    /// 修复：配置错误直接闪退刷未处理异常堆栈），退出码 2。</summary>
     public static async Task<int> Main(string[] args) {
-        if (args is ["--selftest"])
-            return await RunSelftestAsync().ConfigureAwait(false);
-        if (args.Length > 0) {
-            Console.Error.WriteLine($"未知参数: {string.Join(' ', args)}。用法: NativeTui.Host [--selftest]（无参数进入交互模式，需真实终端）");
-            return 1;
-        }
+        try {
+            if (args is ["--selftest"])
+                return await RunSelftestAsync().ConfigureAwait(false);
+            if (args.Length > 0) {
+                Console.Error.WriteLine($"未知参数: {string.Join(' ', args)}。用法: NativeTui.Host [--selftest]（无参数进入交互模式，需真实终端）");
+                return 1;
+            }
 
-        return await RunInteractiveAsync().ConfigureAwait(false);
+            return await RunInteractiveAsync().ConfigureAwait(false);
+        } catch (ConfigurationException ex) {
+            var vendor = StartupErrorPrinter.ExtractVendor(ex.Message) ?? "未知";
+            Console.Error.WriteLine(StartupErrorPrinter.Format(ex, StartupErrorPrinter.ProbeLive(vendor)));
+            return 2;
+        }
     }
 
     /// <summary>交互模式 — TTY 检查 → UTF-8 → raw mode → 引擎组装（Console.Out 重定向 stderr 防引擎污染渲染）→ REPL 主循环。</summary>
@@ -41,6 +49,8 @@ public static class Program {
             EngineSession session;
             try {
                 session = await EngineSession.CreateAsync().ConfigureAwait(false);
+            } catch (ConfigurationException) {
+                throw; // 冒泡 Main 统一友好呈现（raw mode 由 using 恢复后再打印）
             } catch (Exception ex) {
                 Console.Error.WriteLine($"引擎启动失败: {ex.Message}。请检查 jcc 引擎配置（settings.json / providers）后重试。");
                 return 1;

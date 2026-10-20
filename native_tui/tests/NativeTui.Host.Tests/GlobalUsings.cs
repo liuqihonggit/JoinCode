@@ -6,6 +6,7 @@ global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Configuration.Providers;
 global using JoinCode.Abstractions.Configuration.Settings;
+global using JoinCode.Abstractions.Exceptions;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Models.Diff;

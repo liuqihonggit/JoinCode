@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>NativeTui.Markdown</RootNamespace>
+    <AssemblyName>NativeTui.Markdown</AssemblyName>
+    <Description>NativeTui Markdown 卫星项目 — Markdig AST 投影为 Core 块模型（ADR 0140：Markdig 隔离在本层，Core 保持零依赖）</Description>
+    <AllowPack>false</AllowPack>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Markdig" Version="1.3.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NativeTui.Core\NativeTui.Core.csproj" />
+  </ItemGroup>
+
+</Project>

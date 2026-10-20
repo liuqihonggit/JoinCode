@@ -10,6 +10,9 @@ internal sealed class DshRpcDispatcher {
 
     private readonly DshHostServices _services;
 
+    /// <summary>一轮对话执行器（session/prompt）</summary>
+    private readonly DshTurnRunner _turns;
+
     /// <summary>会话列表一次返回的最大条数（前端空 cursor 即从头拉取）</summary>
     private const int SessionListLimit = DshSessionStore.MaxSessions;
 
@@ -20,10 +23,12 @@ internal sealed class DshRpcDispatcher {
     /// <param name="services">宿主服务容器</param>
     internal DshRpcDispatcher(DshHostServices services) {
         _services = services;
+        _turns = new DshTurnRunner(services);
         _routes = new Dictionary<string, Handler>(StringComparer.Ordinal) {
             ["session/list"] = SessionList,
             ["session/create"] = SessionCreate,
             ["session/rename"] = SessionRename,
+            ["session/prompt"] = SessionPrompt,
             ["session/cancel"] = Sync(_ => Ok(new DshSessionCancelResult())),
             ["session/modelCatalog"] = Sync(SessionModelCatalog),
             ["session/projections"] = SessionProjections,
@@ -173,6 +178,17 @@ internal sealed class DshRpcDispatcher {
         return Ok(new DshSessionList { Items = [.. items] });
     }
 
+    /// <summary>session/prompt：把用户输入交给自有引擎执行（受理即返回，事件走 session/follow 流）</summary>
+    private async Task<DshRpcResult> SessionPrompt(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSessionPromptArgs)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)) {
+            return Fail("session/rejected", $"session/prompt 缺少 sessionId；收到 args={Describe(args)}");
+        }
+        return await _turns.StartAsync(request, cancellationToken) is { } error
+            ? Fail(error.Code, error.Message)
+            : Ok(new DshSessionPromptValue());
+    }
+
     /// <summary>session/rename：改会话标题（写引擎 custom-title）</summary>
     private async Task<DshRpcResult> SessionRename(JsonElement args, CancellationToken cancellationToken) {
         var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSessionRenameArgs)?.Request;
@@ -264,6 +280,8 @@ internal sealed class DshRpcDispatcher {
     private static DshRpcResult Ok(DshSessionRenameResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionRenameResult));
 
     private static DshRpcResult Ok(DshSessionCancelResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionCancelResult));
+
+    private static DshRpcResult Ok(DshSessionPromptValue value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionPromptValue));
 
     private static DshRpcResult Ok(DshSessionCreateResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionCreateResult));
 

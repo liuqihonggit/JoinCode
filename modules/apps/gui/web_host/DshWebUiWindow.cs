@@ -53,6 +53,7 @@ internal sealed class DshWebUiWindow : Window {
         try {
             var engine = await Hosting.JccChatSession.CreateAsync();
             _engine = engine;
+            _services.AttachEngine(engine);
             if (engine.TranscriptService is { } transcripts) {
                 _services.Sessions.AttachTranscripts(transcripts);
                 App.LogDiag("[DSH-WEB] engine attached: transcripts ready");

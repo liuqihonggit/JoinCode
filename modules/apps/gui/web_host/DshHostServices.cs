@@ -16,6 +16,16 @@ internal sealed class DshHostServices {
         Models = new DshModelCatalogSource();
     }
 
+    /// <summary>自有引擎会话门面（组装完成后注入；未就绪时发送消息返回引导错误）</summary>
+    internal Hosting.IJccChatSession? Engine { get; private set; }
+
+    /// <summary>会话事件流中枢（session/follow 实时推送）</summary>
+    internal DshSessionStreamHub Streams { get; } = new();
+
+    /// <summary>注入已组装的引擎（DshWebUiWindow 完成后台初始化时调用）</summary>
+    /// <param name="engine">引擎会话门面</param>
+    internal void AttachEngine(Hosting.IJccChatSession engine) => Engine = engine;
+
     /// <summary>工作区注册表（workspace/* 与 workspace/follow 基线）</summary>
     internal DshWorkspaceStore Workspaces { get; }
 

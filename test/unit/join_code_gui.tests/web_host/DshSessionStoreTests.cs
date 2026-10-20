@@ -59,7 +59,8 @@ public sealed class DshSessionStoreTests {
         item.Projections.Values.AgentPreset.Should().Be("standard");
         item.Projections.Values.SessionListMetadata.Should().NotBeNull();
         item.Projections.Values.SessionListMetadata.Blank.Should().BeFalse();
-        item.Projections.Values.SessionListMetadata.LastPromptAt.Should().BeNull();
+        item.Projections.Values.SessionListMetadata.LastPromptAt.Should().Be(
+            new DateTimeOffset(2026, 10, 19, 12, 0, 0, TimeSpan.Zero).ToUnixTimeMilliseconds());
         item.Projections.Values.ModelSelection.Should().NotBeNull();
         item.Projections.Values.ModelSelection.LastUsed.Should().NotBeNull();
         item.Projections.Values.ModelSelection.LastUsed.Provider.Should().Be("deepseek");
@@ -252,8 +253,9 @@ public sealed class DshSessionStoreTests {
     [Fact]
     public async Task Snapshot_WithMessages_ReportsSeqAndTitle() {
         var (store, transcripts) = CreateStore();
-        await transcripts.AppendEntryAsync("s2", new TranscriptEntry { Role = "user", Content = "hi" });
-        await transcripts.AppendEntryAsync("s2", new TranscriptEntry { Role = "assistant", Content = "yo" });
+        var promptAt = new DateTime(2026, 5, 6, 7, 8, 9, DateTimeKind.Utc);
+        await transcripts.AppendEntryAsync("s2", new TranscriptEntry { Role = "user", Content = "hi", Timestamp = promptAt });
+        await transcripts.AppendEntryAsync("s2", new TranscriptEntry { Role = "assistant", Content = "yo", Timestamp = promptAt.AddSeconds(2) });
         await transcripts.SaveCustomTitleAsync("s2", "聊两句");
 
         var snapshot = await store.SnapshotAsync("s2", CancellationToken.None)
@@ -263,10 +265,27 @@ public sealed class DshSessionStoreTests {
         snapshot.Projections.Values.Title.Should().Be("聊两句");
         snapshot.Projections.Values.SessionListMetadata.Should().NotBeNull();
         snapshot.Projections.Values.SessionListMetadata.Blank.Should().BeFalse();
+        snapshot.Projections.Values.SessionListMetadata.LastPromptAt.Should().Be(
+            new DateTimeOffset(promptAt).ToUnixTimeMilliseconds());
         snapshot.Records.Select(record => record.Event.Type).Should().Equal(
             "turn/start", "step/start", "user/message", "assistant/message", "step/end", "turn/end");
         snapshot.Cursor.Should().Be(snapshot.Records[^1].Event.Seq);
         snapshot.HasMore.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task List_WithUserMessage_ReportsLastPromptAt() {
+        var (store, transcripts) = CreateStore();
+        var promptAt = new DateTime(2026, 5, 6, 7, 8, 9, DateTimeKind.Utc);
+        await transcripts.AppendEntryAsync("s3", new TranscriptEntry { Role = "user", Content = "hi", Timestamp = promptAt });
+
+        var items = await store.ListAsync(10, CancellationToken.None);
+
+        var item = items.Single(entry => entry.SessionId == "s3");
+        item.Blank.Should().BeFalse();
+        var metadata = item.Projections.Values.SessionListMetadata
+            ?? throw new InvalidOperationException("列表条目缺少 sessionListMetadata 投影");
+        metadata.LastPromptAt.Should().Be(new DateTimeOffset(promptAt).ToUnixTimeMilliseconds());
     }
 
     [Fact]

@@ -15,7 +15,7 @@
 | M2-b2 | `session/create` 落引擎 + `session/control` 基线投影 + `session/modelCatalog` 真实模型目录 + `session/projections` | ✅ |
 | M2-b3 | 打开会话：`session/follow` snapshot（含 `projections` + `assistantStream` 基线） | ✅ |
 | M2-c1 | 历史渲染：引擎转录 → DSH 事件（`turn/start`→`step/start`→`user/message`→`assistant/message`→`step/end`→`turn/end`，消息带 `surfaceOp:'append'`） | ✅ |
-| M2-c2 | 聊天主链路：消息发送 + `session/follow` 增量事件流（`assistant/message`、`tool/call|result`、`step/*`…） | ⬜ |
+| M2-c2 | 聊天主链路：`session/prompt` 发送 + `session/follow` 增量事件流（`turn/start`/`step/*`/`user|assistant/message`） | ✅ |
 | M2-d | 权限：`approval/*` 事件 + 判定回传；`sandbox/mode`、`permission/preset` | ⬜ |
 | M3 | 自研 WebUI 与旧桥接归档，`--webui-smoke` 删除 | ⬜ |
 
@@ -43,8 +43,12 @@
 | `session/projections`（`DshSessionStore.ProjectionsAsync`，`null` 或 `{asOfSeq,values}`）+ `session/control` 基线真实投影映射（`ProjectionsMapAsync`） | 会话投影懒加载 / `session/control` 基线种子 | ✅ | ✅ 单测 3 例（未接引擎 null/未知会话 null/空白会话 blank=true）；E2E 实调返回空白会话投影 |
 | `session/follow` 打开快照（`DshWebHost.OpenSessionAsync` + `DshSessionStore.SnapshotAsync` + `FollowSessionId`）：`header{version,id,createdAt,cwd,isSeeded,agentPreset}` + `cursor=-1` + `records:[]` + `hasMore:false` + `projections` + `assistantStream{revision:0}`；未知会话/子代理地址/存储未就绪走引导式 `error` 帧 | 点侧栏会话打开会话（`manager.retain → SessionEventStream.follow`） | ✅ | ✅ 单测 6 例（未接引擎 null/未知会话 null/空白会话 cursor=-1/多条消息 seq+标题/普通地址解析/子代理地址拒绝）；E2E `dumps/dsh-webui-open-session.mjs` ALL_PASS（19 项，开流与快照头均为被点击会话） |
 | 会话历史事件页（`records` 从引擎转录映射 `user/message`/`assistant/message`） | 打开会话看到历史消息（`DshTranscriptProjector` ← `SnapshotAsync`） | ✅ | ✅ M2-c1（`dsh-webui-history.mjs`） |
-| 历史页工具事件与向上翻页（`tool/call|result`、`session/page`） | 长会话滚动加载 | ⬜ | ⬜ M2-c2 |
-| 会话/消息/流式/权限（增量事件、`approval/*`） | 聊天主链路 | ⬜ | ⬜ M2-c/d |
+| 发送主链路：`session/prompt` → 用户消息事件（`source.rpcId` 回执）+ 后台跑引擎 → 助手消息事件 + `step/end`/`turn/end` | 输入框回车/发送按钮，界面出现回复 | ✅ M2-c2（`DshTurnRunner` + `DshSessionStreamHub`） | ✅ `dsh-webui-prompt.mjs` ALL_PASS（19 项，本地 OpenAI 桩） |
+| 会话增量事件流：`session/follow` 打开后推送 `{type:'event'}`（seq 全局单调，与本会话历史 seq 接续） | 打开会话期间实时收消息 | ✅ M2-c2 | ✅ 同上（抓到 `turn/start,step/start,user/message,assistant/message,step/end,turn/end`） |
+| 会话列表元数据补 `lastPromptAt`（取最后一条 user 条目时间） | 侧栏排序/相对时间 | ✅ M2-c2（`DshSessionStore.ProjectValues`） | ✅ 单测 2 例 + E2E 断言 `blank:false` + `lastPromptAt` 为数字 |
+| 历史页工具事件与向上翻页（`tool/call|result`、`session/page`） | 长会话滚动加载 | ⬜ | ⬜ M2-c3 |
+| 流式增量（`assistant-stream` 帧、逐字输出）与 `queue`/`steer`、取消 | 打字机效果 / 中途插话 / 停止生成 | ⬜ | ⬜ M2-c3 |
+| 会话/消息/流式/权限（`approval/*`、`sandbox/mode`、`permission/preset`） | 工具确认 | ⬜ | ⬜ M2-d |
 
 ## M1.5 缺陷记录（缺陷驱动）
 
@@ -146,6 +150,33 @@
 | 界面渲染 | 等页面出现两段历史文本 | ✅ 主区显示「历史问题：请介绍仓库结构」+「历史回答：三层结构依次是能力层、模块层、应用层」，右上「1 轮 1 步」、「已完成」 |
 | 无错误帧 | 读 WS 下行全集 | ✅ 无 `{"type":"error"}`、无 `unimplemented`、页面无「尚未实现」 |
 
+## M2-c2 缺陷/决策记录（缺陷驱动）
+
+1. 现象：会话能打开、历史能渲染，但输入框回车后只有本地气泡，**引擎不产生任何模型请求**（桩服务零请求），也没有 `turn/end`——一轮永远悬着。
+2. 红测：`dumps/dsh-webui-prompt.mjs`（本地 OpenAI 兼容桩 + 真实前端输入框回车 → 断言 `session/prompt` 上行、`user/message`/`assistant/message` 下行、`turn/end`、界面出现回复、转录落盘）→ 首跑 7 FAIL。
+3. 根因（产品）：`session/prompt` 完全没实现，前端拿不到 `accepted` 回执，也无人跑轮次；`session/follow` 打开后只回快照、不推增量 → 就算引擎跑了也看不见。
+4. 修复：新增 `DshTurnRunner`（校验 → 立刻发 `turn/start`+`step/start`+`user/message` → 后台跑引擎 → `assistant/message`+`step/end`+`turn/end`，异常也以 `turn/end{kind:'error'}` 收尾）与 `DshSessionStreamHub`（streamId 订阅、全局 seq 分配、单会话单轮占用）。`DshWebHost` 改为「打开项 + 租约」：开流先发打开帧，再挂订阅者，后续 `PublishAsync` 逐订阅者推 `{type:'item',value:{type:'event',…}}`。
+5. 决策：**先落用户消息再跑引擎**。前端的待发气泡靠「`user/message.source.rpcId == 请求里的 requestId`」来撤除（`observedInputs`），所以用户事件必须在 HTTP 回执前/后尽早到达，且 `rpcId` 必须原样回填。
+6. 决策：seq 必须**接续**该会话历史（打开时 `Observe(sessionId, snapshot.Cursor, maxTurn)`），否则前端会把新事件当旧事件去重丢掉；`turn` 号从历史最大轮次 +1 起算，避免同一会话两段 `turn` 号撞车。
+7. 决策：v1 不实现 `assistant-stream` 帧（`start/chunk/end`）——引擎的 `Content` 事件在内存里攒齐后整段落 `assistant/message`（DSH 允许无流式帧的消息）。收益是不用处理帧 revision/attempt 契约，代价是没有逐字效果；令牌级流式留 M2-c3。
+8. 决策：单会话同时只允许一轮（`TryBeginTurn` 占位，占用中报 `session/busy`），与引擎「一个 chat 实例一条流」的约束一致；跨会话并发由引擎自己排队。
+9. 已知缺陷（M2-c3 处理）：引擎会把循环干预提示（`💡 [低频诱导] loop-intervention-health…`）作为 `Content` 混进回复，DSH 界面上表现为助手多一段旁白；需要按事件类型过滤或映射成 `system/message`。
+10. E2E 坑（非产品缺陷）：① `session/prompt` 是**一元 HTTP**（`POST /api/session/prompt`），不在 WS 帧里 → 断言要监听 `page.on('request'/'response')`；② 前端刷新会还原上次会话并自动开流，输入框发给了「当前打开的会话」而不是本轮 `session/create` 的那条 → 断言用请求体里的 `sessionId` 反查；③ `lastPromptAt` 在 `projections.values.sessionListMetadata` 里，不在投影顶层。
+11. 绿测：`DshTurnRunnerTests` 6 例（正常一轮 / 并发 busy / 未知会话 / 非文本拒绝 / 无引擎 not-ready / 引擎抛错收尾）+ `DshSessionStoreTests` 新增 `List_WithUserMessage_ReportsLastPromptAt`；GUI 全量 700 通过 / 3 跳过；E2E `dsh-webui-prompt.mjs` ALL_PASS（19 项），`dsh-webui-history.mjs`（15 项）、`dsh-webui-open-session.mjs`（19 项）、`dsh-webui-create-session.mjs` 回归 ALL_PASS。
+
+## M2-c2 验收记录（ADR 0080 手动 exe）
+
+| 步骤 | 命令/动作 | 结果 |
+|------|-----------|------|
+| 引擎可达（隔离环境） | 隔离 home 写最小 `settings.json`（`vendor.stub` 指向 `http://127.0.0.1:8899`）+ 桩模型 | ✅ 模型选择器显示 `stub-model`，无「正在加载模型…」 |
+| 输入框发送 | 真实前端输入框填 `E2E 发送的一条消息` + 回车 | ✅ 上行 `POST /api/session/prompt`，args.request 含 `requestId/sessionId/mode:"queue"/content:[{type:"text",text:…}]`，回执 `{"ok":true,"value":{"accepted":true}}` |
+| 用户事件 | 读 WS 下行 | ✅ `turn/start` → `step/start` → `user/message`（`surfaceOp:"append"`，`source.rpcId` = 请求 requestId） |
+| 助手回复 | 等界面出现回复文本 | ✅ `assistant/message`（`surfaceOp:"append"`）→ `step/end` → `turn/end{kind:"completed"}`；界面显示「已完成，用时 1秒」+ 回复全文 |
+| 转录落盘 | 读 `{home}/sessions/{id}/transcript.json` | ✅ 含用户消息与助手回复（561~1118 字节） |
+| 列表元数据 | 真实 HTTP `POST /api/session/list` | ✅ 该会话 `blank:false`、`sessionListMetadata.lastPromptAt` 为毫秒时间戳 |
+| 无错误 | 读页面文本 + WS 全集 | ✅ 无「尚未实现」、无 `{"type":"error"}`、无 `unimplemented` |
+
+
 ## M2-b1 验收记录（ADR 0080 手动 exe）
 
 | 步骤 | 命令/动作 | 结果 |
@@ -175,6 +206,10 @@
 - 会话事件契约（M2-c 用）：`user/message` data=`UserMessage{id,content:ContentBlock[],source}`；`assistant/message` data=`{turn,step,message,stream,usage?}`；`ContentBlock` 文本 `{type:'text',text}`、`tool-call{type,id,name,arguments}`；`SessionTitleEventData{title,messageSeqs,source}`。
 - 消息事件只有带 `surfaceOp`（`'append'`）才被前端收进会话表面（`isSurfaceEvent`：类型属 `{system,developer,user,assistant}/message` + `tool/result`，且 `surfaceOp !== undefined`）；`turn/start`/`step/start`/`step/end`/`turn/end` 提供分组脚手架。
 - WS 帧是 JSON（非 ASCII 被转义成 `\uXXXX`）：E2E 断言必须 `JSON.parse` 帧后查字段，禁止直接对帧做中文字符串 `includes`。
+- `session/prompt` 是**一元 HTTP**（不是 WS 帧）：`POST /api/session/prompt`，args.request=`{requestId,sessionId,mode:'queue'|'steer',content:[{type:'text',text}|{type:'image',…}|{type:'file',receiptId}],clientTimeZone?}`，成功回 `{accepted:true}`。用户消息事件的 `source.rpcId` 必须等于 `requestId`，前端才撤掉本地待发气泡。
+- `session/follow` 打开后的增量帧是 `{type:'item',streamId,value:{type:'event',event}}`（事件项的 value 形状与打开快照的 `records[]` 元素一致），seq 必须接续该会话历史（回放页尾光标）；`{type:'assistant-stream',frame}` 帧 M2-c2 未实现（无逐字输出）。
+- `turn/end` 的 `reason` 形状：`{kind:'completed'}` / `{kind:'aborted',reason}` / `{kind:'error',error:{message,code}}`。
+- `projections.values.sessionListMetadata.lastPromptAt` 取最后一条 user 条目时间（毫秒），侧栏 `updatedAt = max(summary.updatedAt, lastPromptAt ?? 0)`；`blank` 由转录条目数是否为 0 决定。
 
 ## 复现与验证方式
 
@@ -197,6 +232,7 @@ node dumps/dsh-webui-sessions.mjs "E2E引擎会话"          # 侧栏显示引�
 node dumps/dsh-webui-create-session.mjs ws-m2b2         # 新建会话落引擎 + 模型目录/投影 + 刷新后读回
 node dumps/dsh-webui-open-session.mjs ws-m2b3           # 点侧栏会话开流 + 打开快照（投影/assistantStream/空日志页）
 node dumps/dsh-webui-history.mjs ws-m2b3 <工作区路径> <隔离 home>   # 历史渲染：转录→DSH 事件，界面出现历史问答
+node dumps/dsh-webui-prompt.mjs ws-m2c2 <隔离 home>    # 发送主链路：输入框回车→用户/助手事件→turn/end→转录落盘（自带本地 OpenAI 桩 stub-openai-server.mjs）
 node dumps/dsh-webui-reload-trace.mjs                  # 启动/重载全量请求响应
 # 单测
 dotnet test test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj -c Debug --filter "FullyQualifiedName~WebHost"

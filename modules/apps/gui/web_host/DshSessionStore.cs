@@ -66,14 +66,15 @@ internal sealed class DshSessionStore {
         CancellationToken cancellationToken) {
         var customTitle = await transcripts.GetCustomTitleAsync(summary.SessionId, cancellationToken);
         var info = await transcripts.GetSessionInfoAsync(summary.SessionId, cancellationToken);
+        var entries = await transcripts.LoadTranscriptAsync(summary.SessionId, cancellationToken);
         return new DshSessionListItem {
             SessionId = summary.SessionId,
             UpdatedAt = ToUnixMilliseconds(summary.LastModifiedAt),
             AgentAvailable = true,
             Running = false,
-            Blank = summary.MessageCount == 0,
+            Blank = entries.Count == 0,
             Cwd = info?.ProjectPath ?? "",
-            Projections = ProjectValues(customTitle, info, summary.MessageCount),
+            Projections = ProjectValues(customTitle, info, entries),
         };
     }
 
@@ -119,6 +120,20 @@ internal sealed class DshSessionStore {
     }
 
     /// <summary>
+    /// 会话的历史对话（供发送前把上下文灌回引擎）：只取普通 user/assistant 消息。
+    /// 会话不存在或引擎未就绪返回 null。
+    /// </summary>
+    /// <param name="sessionId">目标会话</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    internal async Task<IReadOnlyList<(MessageRole Role, string Content)>?> HistoryAsync(string sessionId, CancellationToken cancellationToken) {
+        var read = await ReadAsync(sessionId, cancellationToken);
+        return read?.Entries
+            .Where(entry => entry.Type is null && !entry.IsSidechain && entry.Role is "user" or "assistant" && !string.IsNullOrWhiteSpace(entry.Content))
+            .Select(entry => (entry.Role == "user" ? MessageRole.User : MessageRole.Assistant, entry.Content))
+            .ToArray();
+    }
+
+    /// <summary>
     /// 读一个会话的投影、元信息与转录条目（一次读盘供 projections / follow 两个入口共用）；会话不存在返回 null。
     /// </summary>
     /// <param name="sessionId">目标会话</param>
@@ -134,7 +149,7 @@ internal sealed class DshSessionStore {
         var customTitle = await transcripts.GetCustomTitleAsync(sessionId, cancellationToken);
         var info = await transcripts.GetSessionInfoAsync(sessionId, cancellationToken);
         var entries = await transcripts.LoadTranscriptAsync(sessionId, cancellationToken);
-        return (ProjectValues(customTitle, info, entries.Count), info, entries);
+        return (ProjectValues(customTitle, info, entries), info, entries);
     }
 
     /// <summary>
@@ -184,10 +199,10 @@ internal sealed class DshSessionStore {
     }
 
     /// <summary>投影键值（标题 / 代理预设 / 模型选择 / 列表元数据）</summary>
-    private static DshSessionProjections ProjectValues(string? customTitle, SessionInfo? info, int messageCount) {
-        var blank = messageCount == 0;
+    private static DshSessionProjections ProjectValues(string? customTitle, SessionInfo? info, IReadOnlyList<TranscriptEntry> entries) {
+        var lastPrompt = entries.LastOrDefault(entry => entry.Type is null && !entry.IsSidechain && entry.Role == "user");
         return new DshSessionProjections {
-            AsOfSeq = messageCount,
+            AsOfSeq = entries.Count,
             Values = new DshSessionProjectionValues {
                 Title = customTitle,
                 AgentPreset = DefaultAgentPreset,
@@ -196,8 +211,8 @@ internal sealed class DshSessionStore {
                     Next = null,
                 },
                 SessionListMetadata = new DshSessionListMetadata {
-                    Blank = blank,
-                    LastPromptAt = null,
+                    Blank = entries.Count == 0,
+                    LastPromptAt = lastPrompt is null ? null : ToUnixMilliseconds(lastPrompt.Timestamp),
                 },
             },
         };

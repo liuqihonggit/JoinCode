@@ -315,6 +315,42 @@ internal sealed class DshSessionCancelResult {
     public bool Accepted { get; set; } = true;
 }
 
+/// <summary>session/prompt 参数（前端发送一条用户输入）</summary>
+internal sealed class DshSessionPromptArgs {
+    /// <summary>本次提交身份（用户消息事件的 source.rpcId 必须回填它，前端据此撤掉本地待发气泡）</summary>
+    public string RequestId { get; set; } = "";
+    /// <summary>目标会话</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>提交方式（queue = 排队，steer = 打断当前轮）</summary>
+    public string Mode { get; set; } = "queue";
+    /// <summary>输入内容块</summary>
+    public List<DshPromptContent> Content { get; set; } = [];
+    /// <summary>客户端时区（可选，宿主当前不消费）</summary>
+    public string? ClientTimeZone { get; set; }
+}
+
+/// <summary>session/prompt 内容块（当前只消费 text）</summary>
+internal sealed class DshPromptContent {
+    /// <summary>块类型（text / image / file）</summary>
+    public string Type { get; set; } = "text";
+    /// <summary>文本内容</summary>
+    public string? Text { get; set; }
+    /// <summary>图片媒体类型</summary>
+    public string? MediaType { get; set; }
+    /// <summary>图片数据（base64）</summary>
+    public string? Data { get; set; }
+    /// <summary>文件/图片名</summary>
+    public string? Name { get; set; }
+    /// <summary>已上传文件的回执标识</summary>
+    public string? ReceiptId { get; set; }
+}
+
+/// <summary>session/prompt 结果</summary>
+internal sealed class DshSessionPromptValue {
+    /// <summary>固定接受标记</summary>
+    public bool Accepted { get; set; } = true;
+}
+
 /// <summary>session/create 结果</summary>
 internal sealed class DshSessionCreateResult {
     /// <summary>会话 ID</summary>
@@ -485,8 +521,19 @@ internal sealed class DshTurnEndData {
 
 /// <summary>轮次结束原因</summary>
 internal sealed class DshTurnEndReason {
-    /// <summary>原因类型</summary>
+    /// <summary>原因类型（completed / error / aborted）</summary>
     public string Kind { get; set; } = "completed";
+    /// <summary>错误详情（仅 kind=error）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DshTurnEndError? Error { get; set; }
+}
+
+/// <summary>轮次失败原因</summary>
+internal sealed class DshTurnEndError {
+    /// <summary>错误码</summary>
+    public string Code { get; set; } = "UNKNOWN";
+    /// <summary>错误信息</summary>
+    public string Message { get; set; } = "";
 }
 
 /// <summary>assistant/message 载荷</summary>
@@ -801,6 +848,11 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshSessionRenameArgs))]
 [JsonSerializable(typeof(DshSessionRenameResult))]
 [JsonSerializable(typeof(DshSessionCancelResult))]
+[JsonSerializable(typeof(DshSessionPromptArgs))]
+[JsonSerializable(typeof(DshPromptContent))]
+[JsonSerializable(typeof(DshSessionPromptValue))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshSessionPromptArgs>))]
+[JsonSerializable(typeof(DshTurnEndError))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(DshSessionCreateResult))]
 [JsonSerializable(typeof(DshRequestEnvelope<DshSessionCreateArgs>))]

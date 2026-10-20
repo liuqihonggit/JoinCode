@@ -99,6 +99,9 @@ public sealed class ReplShell
     /// <summary>斜杠补全状态机（测试断言面；null = 无命令清单）。</summary>
     internal SlashSuggester? Suggester => _suggester;
 
+    /// <summary>输入历史环（测试断言面）。</summary>
+    internal HistoryRing History => _history;
+
     /// <summary>历史种子注入（宿主启动时从 transcript 加载最近输入）。</summary>
     public void SeedHistory(IEnumerable<string> entries) => _history.Seed(entries);
 

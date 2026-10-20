@@ -49,7 +49,9 @@ public static class Program {
             await using (session) {
                 // banner 占位值 — 首拍 session_info 种子事件覆盖为引擎真实数据（EngineSession.Enqueue）
                 var banner = new BannerItem("0.0.0", "当前模型未设置", "API 按量计费", Environment.CurrentDirectory);
-                var shell = new ReplShell(session.Client, banner, tuiOutput);
+                var commands = SlashCommandSource.Load(session.Services);
+                var shell = new ReplShell(session.Client, banner, tuiOutput, commands: commands);
+                await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);
                 shell.Run();
                 shell.WriteExit();

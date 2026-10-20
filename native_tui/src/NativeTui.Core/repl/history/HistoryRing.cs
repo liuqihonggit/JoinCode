@@ -22,6 +22,9 @@ public sealed class HistoryRing
     /// <summary>历史条数。</summary>
     public int Count => _entries.Count;
 
+    /// <summary>历史条目快照（旧→新；测试断言面）。</summary>
+    internal IReadOnlyList<string> Entries => _entries;
+
     /// <summary>提交入史：空文本忽略；末条相同去重；超容量淘汰最旧。</summary>
     public void Add(string text)
     {

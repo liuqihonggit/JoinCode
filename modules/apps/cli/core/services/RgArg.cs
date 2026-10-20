@@ -31,6 +31,10 @@ public enum RgArg {
     [CliOption("no-ignore", "", "禁用 .gitignore", Category = "过滤")]
     NoIgnore,
 
+    /// <summary>列出匹配过滤规则的文件（无需 pattern）</summary>
+    [CliOption("files", "", "列出匹配过滤规则的文件(无需 pattern,对齐 rg --files)", Category = "过滤")]
+    Files,
+
     /// <summary>忽略大小写</summary>
     [CliOption("ignore-case", "-i", "忽略大小写", Category = "输出")]
     IgnoreCase,

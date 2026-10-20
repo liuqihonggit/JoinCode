@@ -45,6 +45,23 @@ internal static class RgEngine {
     }
 
     /// <summary>
+    /// 执行 --files 列文件模式。跳过正则编译与内容搜索，直接复用 CollectFiles 过滤链（gitignore/glob/type/二进制排除）→ 排序 → 分页。
+    /// </summary>
+    public static RgOutcome ListFiles(RgQuery q, CancellationToken ct) {
+        ct.ThrowIfCancellationRequested();
+
+        var files = CollectFiles(q, ct);
+        if (files.Count == 0)
+            return RgOutcome.Empty();
+
+        var asResults = files.Select(f => new RgFileResult(f, 0, null)).ToList();
+        var ordered = ApplySort(asResults, q.Sort);
+        var (paged, appliedLimit, appliedOffset) = ApplyPaging(ordered, q.HeadLimit, q.Offset);
+
+        return RgOutcome.Ok(paged, appliedLimit, appliedOffset);
+    }
+
+    /// <summary>
     /// 编译正则。smart-case: 模式含大写则区分大小写，否则忽略。
     /// </summary>
     private static (Regex? Regex, string? Error) CompileRegex(RgQuery q) {
@@ -358,7 +375,7 @@ internal static class RgEngine {
         return allMatches;
     }
 
-    private static List<RgFileResult> ApplySort(ConcurrentBag<RgFileResult> results, string? sort) {
+    private static List<RgFileResult> ApplySort(IEnumerable<RgFileResult> results, string? sort) {
         var list = results.ToList();
         if (string.IsNullOrEmpty(sort))
             return list;

@@ -193,6 +193,13 @@ public interface IJccChatSession : IAsyncDisposable {
     Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 当前权限模式 — 读引擎 IToolPermissionManager.GetCurrentModeAsync（安全闸后的实际生效值）。
+    /// 未注册权限系统时返回 <see cref="PermissionMode.Auto"/>（DSH 权限预设目录默认值，TASK058 B1）。
+    /// </summary>
+    Task<PermissionMode> GetCurrentPermissionModeAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(PermissionMode.Auto);
+
+    /// <summary>
     /// 获取可用子代理清单 — 从 IAgentDefinitionProvider 提取全部代理定义
     /// （内置 + 插件 + 用户.md + 项目.md），供 GUI @子代理补全消费。引擎未注册时返回空列表。
     /// </summary>

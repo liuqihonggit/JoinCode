@@ -48,7 +48,7 @@ account（11）、pluginManager（12）、dynamicCordisRunner（9）、productAn
 
 | 批次 | 内容 | 状态 |
 |------|------|------|
-| B1 | 权限确认链闭环：注入 handler + `approval/request` waterfall + `$events/result` 回帖 + 权限预设接 `PermissionMode` 映射与 `SetPermissionModeAsync` 路由 | ⬜ |
+| B1 | 权限确认链闭环：注入 handler + `approval/request` waterfall + `$events/result` 回帖 + 权限预设接 `PermissionMode` 映射与 `SetPermissionModeAsync` 路由 | ✅ 单元+冒烟（选择路由落 B3 settings 统一；真机审批弹窗待手动验收） |
 | B2 | 模型切换：`session/selectModel` → `SetModelAsync/SetVendorAsync` + `ModelSelection` 投影真值 + `llm/listProviders` 接 `VendorModelMap` | ⬜ |
 | B3 | 设置统一：`DshSettingsStore` → 引擎 settings.json 读写（相同 DTO），保留前端 schema 信封契约 | ⬜ |
 | B4 | 流事件扩展：Thinking/ToolProgress/`Complete.Usage`/AgentStarted/Finished 映射 + token 统计落 UI | ⬜ |
@@ -60,7 +60,7 @@ account（11）、pluginManager（12）、dynamicCordisRunner（9）、productAn
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |----------|--------|--------|--------|
-| B1 `DshWebUiWindow.AttachEngineAsync` 注入 `PermissionConfirmationHandler` + `approval/request` waterfall 事件 + `$events/result` 回帖 + `permissionPresets/catalog` 枚举映射 | 前端权限对话框弹窗/权限预设选择器 | ⬜ | ⬜ |
+| B1 `DshApprovalBroker`（waterfall 帧/挂起结算/断开 fail-closed）+ `DshWebUiWindow.AttachEngineAsync` 注入 `PermissionConfirmationHandler` + `$events/result` 路由 + `permissionPresets/catalog` 枚举映射（`PermissionMode` 唯一数据源） | 前端权限对话框弹窗（approval/request）/权限预设选择器 | ✅ 单测 11/11（帧契约五键硬校验/三态 outcome/断开清理/路由引导错误/枚举投影）+ 冒烟 `$events` attach 日志 | ⬜ 真机：发触发权限确认的消息 → 审批面板弹出 → Enter 允许工具执行 |
 | B2 `session/selectModel` 路由 + `ModelSelection.Next` 真值 + `llm/listProviders` | 模型选择器切换/Provider 列表 | ⬜ | ⬜ |
 | B3 `DshSettingsStore` 改造读写引擎 settings.json | 前端设置页（general 等） | ⬜ | ⬜ |
 | B4 `DshTurnRunner` 事件映射扩展（5 类） | 思考块/工具进度/子代理卡片/token 统计 | ⬜ | ⬜ |

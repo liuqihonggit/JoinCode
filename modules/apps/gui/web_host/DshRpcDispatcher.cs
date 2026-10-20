@@ -36,7 +36,8 @@ internal sealed class DshRpcDispatcher {
             ["agentPresets/list"] = Sync(_ => Ok(new DshAgentPresetList {
                 Presets = [new DshAgentPreset { Id = "standard", Order = 1, IsDefault = true }],
             })),
-            ["permissionPresets/catalog"] = Sync(_ => Ok(DefaultPermissionPresets())),
+            ["permissionPresets/catalog"] = PermissionPresetsCatalog,
+            ["$events/result"] = EventsResult,
             ["settings/describe"] = Sync(_ => Ok(services.Settings.Describe())),
             ["settings/mutate"] = Sync(args => services.Settings.Mutate(args)),
             ["credentials/describe"] = Sync(Credentials),
@@ -293,18 +294,37 @@ internal sealed class DshRpcDispatcher {
             name => new DshCredentialState { Configured = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(name)) },
             StringComparer.Ordinal));
 
-    /// <summary>权限预设目录：与 DSH 默认值一致（read-only / workspace-write / danger-full-access）</summary>
-    private static DshPermissionPresetCatalog DefaultPermissionPresets() {
-        List<DshPresetOption> options = [
-            new() { Value = "read-only", Name = "read-only" },
-            new() { Value = "workspace-write", Name = "workspace-write" },
-            new() { Value = "danger-full-access", Name = "danger-full-access" },
-        ];
-        return new DshPermissionPresetCatalog {
+    /// <summary>
+    /// $events/result：前端对 waterfall 帧的回帖（approval 决策等）。
+    /// 载荷 {clientId, eventId, outcome}；结算结果对前端不可见（回帖 RPC 只需 ok），
+    /// 未知 eventId / clientId 不符幂等返回 ok（bridge 内部记录）。
+    /// </summary>
+    private async Task<DshRpcResult> EventsResult(JsonElement args, CancellationToken cancellationToken) {
+        var body = args.Deserialize(DshJsonContext.Default.DshEventsResultArgs);
+        if (body is null || string.IsNullOrEmpty(body.EventId) || body.Outcome is null) {
+            return Fail("events/result-rejected", $"$events/result 需要 {{clientId, eventId, outcome}} 三字段；收到 args={Describe(args)}");
+        }
+        await _services.Approvals.SettleAsync(body.ClientId, body.EventId, body.Outcome);
+        return Ok(new DshEventsResultValue());
+    }
+
+    /// <summary>
+    /// 权限预设目录 — 引擎 <see cref="PermissionMode"/> 枚举为唯一数据源（TASK058 DTO 统一原则）：
+    /// 枚举 [EnumValue] 值即前端词汇（plan/auto/ask/bypass/unattended），默认取引擎当前模式，未就绪回退 auto。
+    /// </summary>
+    private async Task<DshRpcResult> PermissionPresetsCatalog(JsonElement args, CancellationToken cancellationToken) {
+        var current = _services.Engine is { } engine
+            ? await engine.GetCurrentPermissionModeAsync(cancellationToken)
+            : PermissionMode.Auto;
+        var options = Enum.GetValues<PermissionMode>()
+            .Select(mode => new DshPresetOption { Value = mode.ToValue(), Name = mode.ToValue() })
+            .ToList();
+        var currentName = current.ToValue();
+        return Ok(new DshPermissionPresetCatalog {
             Options = options,
             DefaultOptions = options,
-            DefaultPreset = "workspace-write",
-        };
+            DefaultPreset = options.Any(option => option.Value == currentName) ? currentName : PermissionMode.Auto.ToValue(),
+        });
     }
 
     private static DshRpcResult Ok(DshSessionList value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionList));
@@ -325,6 +345,8 @@ internal sealed class DshRpcDispatcher {
     private static DshRpcResult Ok(DshAgentPresetList value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshAgentPresetList));
 
     private static DshRpcResult Ok(DshPermissionPresetCatalog value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshPermissionPresetCatalog));
+
+    private static DshRpcResult Ok(DshEventsResultValue value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshEventsResultValue));
 
     private static DshRpcResult Ok(DshSettingsDescribe value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSettingsDescribe));
 

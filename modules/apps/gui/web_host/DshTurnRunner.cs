@@ -84,6 +84,8 @@ internal sealed class DshTurnRunner {
 
     /// <summary>后台跑一轮生成：成功落助手消息，停止/失败各自落对应收尾（异常只记日志，不让进程崩）</summary>
     private async Task RunTurnAsync(Hosting.IJccChatSession engine, string sessionId, string text, int turn, CancellationToken cancellationToken) {
+        // 权限确认 waterfall 的目标会话（前端按 agentId 路由到对应会话 scope 的审批面板，TASK058 B1）
+        _services.Approvals.SetAgent(sessionId);
         try {
             engine.SwitchSession(sessionId);
             if (await _services.Sessions.HistoryAsync(sessionId, cancellationToken) is { Count: > 0 } history) {
@@ -122,6 +124,7 @@ internal sealed class DshTurnRunner {
                 Error = new DshTurnEndError { Code = "UNKNOWN", Message = ex.Message },
             });
         } finally {
+            _services.Approvals.SetAgent(null);
             _services.Streams.EndTurn(sessionId);
             if (_services.Engine is { } ready) {
                 StartQueued(ready, sessionId);

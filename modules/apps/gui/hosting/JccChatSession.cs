@@ -246,6 +246,12 @@ internal sealed class JccChatSession : IJccChatSession {
             await manager.SetPermissionModeAsync(mode, cancellationToken);
     }
 
+    /// <inheritdoc />
+    public async Task<PermissionMode> GetCurrentPermissionModeAsync(CancellationToken cancellationToken = default) {
+        var manager = _services.GetService<IToolPermissionManager>();
+        return manager is not null ? await manager.GetCurrentModeAsync(cancellationToken) : PermissionMode.Auto;
+    }
+
     /// <summary>settings.json 变更转发 — theme 键变更时解析为 ThemeKind 并触发 ThemeChanged</summary>
     private void OnSettingChanged(object? sender, SettingChangeEventArgs e) {
         if (e.Key == ConfigKeyEnumConstants.Theme && e.NewValue is not null) {

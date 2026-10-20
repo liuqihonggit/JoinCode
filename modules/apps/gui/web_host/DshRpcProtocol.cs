@@ -91,6 +91,56 @@ internal sealed class DshHostInfo {
     public string Home { get; set; } = "";
 }
 
+/// <summary>
+/// $events 流上的 waterfall 帧（宿主→前端）。前端 dsh-api-gateway parseRemoteEventFrame 硬校验：
+/// 必须且只能含 type/event/eventId/agentId/request 五键；request 禁含 agent/signal（前端 dispatchWaterfall 自行注入）。
+/// </summary>
+internal sealed class DshWaterfallFrame {
+    /// <summary>固定为 waterfall</summary>
+    public string Type { get; set; } = "waterfall";
+    /// <summary>事件名（如 approval/request）</summary>
+    public string Event { get; set; } = "";
+    /// <summary>本次请求的关联 ID（回帖 $events/result 用）</summary>
+    public string EventId { get; set; } = "";
+    /// <summary>目标 Agent/会话身份（前端按此路由到对应会话 scope 的监听器）</summary>
+    public string AgentId { get; set; } = "";
+    /// <summary>请求载荷（事件专属结构；approval 为 toolName/reason/callId?）</summary>
+    public JsonElement Request { get; set; }
+}
+
+/// <summary>$events/result 回帖参数（前端→宿主，POST /api/$events/result）</summary>
+internal sealed class DshEventsResultArgs {
+    /// <summary>$events 就绪帧下发的 clientId</summary>
+    public string ClientId { get; set; } = "";
+    /// <summary>waterfall 帧的 eventId</summary>
+    public string EventId { get; set; } = "";
+    /// <summary>监听器处理结果</summary>
+    public DshEventOutcome? Outcome { get; set; }
+}
+
+/// <summary>waterfall 监听器处理结果（kind=next 表示无人处理；result 携带决策值；rejected 表示监听器抛错）</summary>
+internal sealed class DshEventOutcome {
+    /// <summary>next / result / rejected</summary>
+    public string Kind { get; set; } = "";
+    /// <summary>决策值（approval 域为 allowed-once / rejected）</summary>
+    public JsonElement? Value { get; set; }
+    /// <summary>rejected 时的错误信息</summary>
+    public DshEventErrorBody? Error { get; set; }
+}
+
+/// <summary>rejected 错误体（前端 projectRemoteEventRejection 投影）</summary>
+internal sealed class DshEventErrorBody {
+    /// <summary>错误名</summary>
+    public string Name { get; set; } = "Error";
+    /// <summary>错误消息</summary>
+    public string Message { get; set; } = "";
+    /// <summary>稳定错误码（可选）</summary>
+    public string? Code { get; set; }
+}
+
+/// <summary>$events/result 回帖响应（前端只看 ok，无业务载荷）</summary>
+internal sealed class DshEventsResultValue;
+
 /// <summary>workspace/follow 基线</summary>
 internal sealed class DshWorkspaceBaseline {
     /// <summary>固定为 baseline</summary>
@@ -1004,6 +1054,12 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshModelCatalog))]
 [JsonSerializable(typeof(DshAgentPresetList))]
 [JsonSerializable(typeof(DshPermissionPresetCatalog))]
+[JsonSerializable(typeof(DshWaterfallFrame))]
+[JsonSerializable(typeof(DshApprovalRequestBody))]
+[JsonSerializable(typeof(DshEventsResultArgs))]
+[JsonSerializable(typeof(DshEventOutcome))]
+[JsonSerializable(typeof(DshEventsResultValue))]
+[JsonSerializable(typeof(DshEventErrorBody))]
 [JsonSerializable(typeof(DshSettingsDescribe))]
 [JsonSerializable(typeof(DshSettingsNamespaceView))]
 [JsonSerializable(typeof(DshSettingsMutateArgs))]

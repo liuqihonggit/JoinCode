@@ -48,12 +48,15 @@ internal sealed class DshWebUiWindow : Window {
     /// <summary>
     /// 后台组装自有引擎，就绪后把会话存储交给宿主（渐进式：窗口先显示，数据后到）。
     /// 引擎失败只影响数据，Web UI 仍可用（宿主方法返回空结果 + 引导错误）。引擎随窗口关闭释放。
+    /// 权限确认链（TASK058 B1）：注入 PermissionConfirmationHandler — 引擎确认点经 DshApprovalBridge
+    /// 发 $events waterfall 帧给前端审批面板，回帖结算后返回决策（前端未连接/断开一律 fail-closed Deny）。
     /// </summary>
     private async Task AttachEngineAsync() {
         try {
             var engine = await Hosting.JccChatSession.CreateAsync();
             _engine = engine;
             _services.AttachEngine(engine);
+            engine.PermissionConfirmationHandler = request => _services.Approvals.RequestAsync(request);
             if (engine.TranscriptService is { } transcripts) {
                 _services.Sessions.AttachTranscripts(transcripts);
                 App.LogDiag("[DSH-WEB] engine attached: transcripts ready");

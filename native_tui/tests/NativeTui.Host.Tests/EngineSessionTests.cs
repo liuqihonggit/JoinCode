@@ -40,4 +40,43 @@ public sealed class EngineSessionTests {
         var invalid = Assert.IsType<InvalidOperationException>(ex);
         Assert.Contains("未知错误", invalid.Message);
     }
+
+    /// <summary>session_info 事件构造（修复验收缺陷：/model 切换后 banner 不同步）：
+    /// SetPrimaryModel 后 BuildSessionInfoEvent 反映新模型 — ApplyModel 委托刷新 banner 的数据基础。
+    /// FIFO 保证：SetPrimaryModelCmd 先入队，GetPrimaryModelQuery 后入队，QuerySync 返回时状态已更新（确定性无时序）。
+    /// ⚠️ Dispose 前完成全部查询 — TrySend 在释放后静默返回 false，QuerySync 将永久阻塞。</summary>
+    [Fact]
+    public async Task BuildSessionInfoEvent_AfterModelSwitch_ReflectsNewModel() {
+        await using var fastMode = new FastModeService(
+            config: new WorkflowConfig { Provider = new ProviderConfig { ModelId = "initial-model" } });
+        var before = EngineSession.BuildSessionInfoEvent(checker: null, fastMode);
+        Assert.Equal("initial-model", before.Model);
+
+        fastMode.SetPrimaryModel("switched-model");
+        var after = EngineSession.BuildSessionInfoEvent(checker: null, fastMode);
+        Assert.Equal("switched-model", after.Model);
+    }
+
+    /// <summary>session_info 事件供应商字段（TASK058）— WorkflowConfig.Provider.Vendor 透传；无 config 时 Vendor 为 null（旧引擎兼容退化）。</summary>
+    [Fact]
+    public async Task BuildSessionInfoEvent_WithConfig_CarriesVendor()
+    {
+        await using var fastMode = new FastModeService();
+        var config = new WorkflowConfig { Provider = new ProviderConfig { Vendor = "zhipu" } };
+
+        var withConfig = EngineSession.BuildSessionInfoEvent(checker: null, fastMode, config);
+        Assert.Equal("zhipu", withConfig.Vendor);
+
+        var withoutConfig = EngineSession.BuildSessionInfoEvent(checker: null, fastMode, config: null);
+        Assert.Null(withoutConfig.Vendor);
+    }
+
+    /// <summary>TUI 静默日志（修复：引擎 Console 日志直写 stderr 与 inline 渲染交错致光标错乱/横向线残影）—
+    /// provider 必须是 SilentLoggerProvider（禁止 Console 系 provider）。</summary>
+    [Fact]
+    public void LoggerProvider_IsSilent_NotConsoleProvider()
+    {
+        Assert.Same(SilentLoggerProvider.Instance, EngineSession.LoggerProvider);
+        Assert.DoesNotContain("Console", EngineSession.LoggerProvider.GetType().Name, StringComparison.Ordinal);
+    }
 }

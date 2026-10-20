@@ -11,6 +11,9 @@ public interface IAsyncHost : IHost, IAsyncDisposable;
 /// <summary>
 /// 异步 Host 包装器 — 将 <see cref="IHost"/> 包装为 <see cref="IAsyncHost"/>。
 /// <para>运行时 Host 实例已实现 IAsyncDisposable,此包装器仅让编译时类型暴露 DisposeAsync。</para>
+/// <para>释放顺序保证:DisposeAsync 先收尾 <see cref="JoinCode.App.Modules.McpPluginBootstrapHandle"/>
+/// (取消 + 等后台插件链完成)再释放内层 Host — 容器本体 dispose 先于后台链收尾时,插件
+/// InitializeAsync 内服务解析撞 ObjectDisposedException(退出竞态,全宿主统一在此收口)。</para>
 /// </summary>
 internal sealed class AsyncHostWrapper : IAsyncHost {
     private readonly IHost _inner;
@@ -22,10 +25,14 @@ internal sealed class AsyncHostWrapper : IAsyncHost {
     public Task StartAsync(CancellationToken cancellationToken = default) => _inner.StartAsync(cancellationToken);
     /// <summary>停止 Host — 透传到内部 Host</summary>
     public Task StopAsync(CancellationToken cancellationToken = default) => _inner.StopAsync(cancellationToken);
-    /// <summary>同步释放 — 透传到内部 Host</summary>
+    /// <summary>同步释放 — 透传到内部 Host（后台链收尾由容器自身释放 Handle 单例兜底；
+    /// 全量保序走 DisposeAsync 主路径，同步 Dispose 是死锁高危遗留调用面不动原语义）</summary>
     public void Dispose() => _inner.Dispose();
-    /// <summary>异步释放 — 优先用内部 Host 的 DisposeAsync,回退到同步 Dispose</summary>
+    /// <summary>异步释放 — 先收尾后台插件链（取消 + 无超时等待链完成，容器存活期内断链），
+    /// 再释放内部 Host(优先 DisposeAsync,回退同步 Dispose)</summary>
     public async ValueTask DisposeAsync() {
+        if (_inner.Services.GetService<JoinCode.App.Modules.McpPluginBootstrapHandle>() is { } bootstrap)
+            await bootstrap.DisposeAsync().ConfigureAwait(false);
         if (_inner is IAsyncDisposable ad)
             await ad.DisposeAsync().ConfigureAwait(false);
         else
@@ -64,9 +71,12 @@ public sealed class EngineSessionFactory {
     /// 创建 GUI/TUI 引擎会话 — 不含 PipeModule/CliModule（宿主不需要命名管道和终端交互），
     /// 含 HousekeepingModule（后台清理和实体回收）。
     /// extraModules: 宿主可传入额外模块（如 GuiInteractionModule/TuiInteractionModule/CliRegistrationModule）。
+    /// loggerProvider: 宿主日志 provider（ADR 0100 表现层注入）；null 时引擎回退默认 console —
+    /// TUI 宿主必须传静默 provider（Console 日志直写 stderr 会与 inline 渲染交错，光标追踪错乱致残影）。
     /// </summary>
     public static Task<Result> CreateGuiSessionAsync(
         IEnumerable<IAppModule>? extraModules = null,
+        ILoggerProvider? loggerProvider = null,
         CancellationToken cancellationToken = default) {
         var fs = IO.FileSystem.FileSystemFactory.Create();
         var options = new CommandLineOptions {
@@ -85,7 +95,7 @@ public sealed class EngineSessionFactory {
         if (extraModules is not null)
             modules.AddRange(extraModules);
 
-        return CreateSessionAsync(options, fs, modules, loggerProvider: null, cancellationToken, clearPipeEndpoint: true);
+        return CreateSessionAsync(options, fs, modules, loggerProvider, cancellationToken, clearPipeEndpoint: true);
     }
 
     /// <summary>

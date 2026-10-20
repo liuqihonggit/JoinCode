@@ -150,10 +150,15 @@ public sealed class SessionController {
     }
 
     /// <summary>
-    /// 处理单个 ChatStreamEvent — 分发到 IEventConsumer，返回 Done 事件的 modelId（否则 null）
+    /// 处理单个 ChatStreamEvent — 子代理活动事件（AgentId 非 null）前置分流到子代理回调（DSG041 批1），
+    /// 其余分发到 IEventConsumer 既有回调，返回 Done 事件的 modelId（否则 null）
     /// </summary>
     private string? ProcessEvent(ChatStreamEvent evt, StringBuilder fullResponse, StringBuilder thinkingContent) {
         string? modelId = null;
+        if (RouteSubagentEvent(evt)) {
+            return null;
+        }
+
         evt.Switch(
             onText: content => {
                 if (content.Length > 0) fullResponse.Append(content);
@@ -184,6 +189,39 @@ public sealed class SessionController {
                 _consumer.OnDone(usage, mid);
             });
         return modelId;
+    }
+
+    /// <summary>
+    /// 子代理活动事件前置分流（DSG041 批1 — AgentId 非 null 即子代理事件，路由到三子代理回调）：
+    /// AgentStarted → OnSubagentStarted（身份三元组）、AgentFinished → OnSubagentFinished（成败）、
+    /// 带 AgentId 的工具事件 → OnSubagentToolUse（工具名 + 摘要；tokenGain 批2 通道接通后填充）。
+    /// 返回 true = 已消费（主 Switch 跳过）；false = 主对话事件走既有路径。
+    /// </summary>
+    private bool RouteSubagentEvent(ChatStreamEvent evt) {
+        if (evt.AgentId is not { } agentId) {
+            return false;
+        }
+
+        switch (evt.Type) {
+            case ChatStreamEventType.AgentStarted:
+                _consumer.OnSubagentStarted(agentId, evt.AgentName ?? string.Empty, evt.AgentDescription ?? string.Empty);
+                return true;
+            case ChatStreamEventType.AgentFinished:
+                _consumer.OnSubagentFinished(agentId, isError: evt.AgentSuccess is not true);
+                return true;
+            case ChatStreamEventType.ToolCallStart:
+                _consumer.OnSubagentToolUse(agentId, evt.ToolName ?? string.Empty, evt.ToolArguments ?? string.Empty, tokenGain: 0);
+                return true;
+            case ChatStreamEventType.ToolCallEnd:
+                _consumer.OnSubagentToolUse(agentId, evt.ToolName ?? string.Empty, evt.ToolResultText ?? string.Empty, tokenGain: 0);
+                return true;
+            case ChatStreamEventType.ToolProgress:
+                _consumer.OnSubagentToolUse(agentId, evt.ToolName ?? string.Empty, evt.ProgressMessage ?? string.Empty, tokenGain: 0);
+                return true;
+            default:
+                // 子代理的其他事件类型（Content/Thinking 等）暂不投影 — 消费面仅三回调
+                return false;
+        }
     }
 
     /// <summary>

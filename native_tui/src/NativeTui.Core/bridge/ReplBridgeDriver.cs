@@ -52,8 +52,8 @@ public sealed class ReplBridgeDriver
     {
         switch (bridgeEvent)
         {
-            case BridgeEvent.SessionInfo(var version, var model, var permissionMode, var bypassAvailable, var cwd):
-                ApplySessionInfo(version, model, permissionMode, bypassAvailable, cwd);
+            case BridgeEvent.SessionInfo(var version, var model, var permissionMode, var bypassAvailable, var cwd, var vendor):
+                ApplySessionInfo(version, model, permissionMode, bypassAvailable, cwd, vendor);
                 break;
             case BridgeEvent.PermissionModeChanged(var mode):
                 if (PermissionModeInfo.TryFromValue(mode, out var parsed))
@@ -141,11 +141,12 @@ public sealed class ReplBridgeDriver
         _spinner.HasActiveTools = true;
     }
 
-    /// <summary>应用会话握手：banner 换引擎真实数据（模型 null → "当前模型未设置"）+ footer 初始模式 + bypass 可用性。</summary>
-    private void ApplySessionInfo(string version, string? model, string permissionMode, bool bypassAvailable, string cwd)
+    /// <summary>应用会话握手：banner 换引擎真实数据（模型 null → "当前模型未设置"；供应商 null → 空，banner 退化无前缀）+ footer 初始模式 + bypass 可用性。</summary>
+    private void ApplySessionInfo(string version, string? model, string permissionMode, bool bypassAvailable, string cwd, string? vendor)
     {
         _banner.Version = version;
         _banner.Model = string.IsNullOrWhiteSpace(model) ? "当前模型未设置" : model;
+        _banner.Vendor = vendor ?? string.Empty;
         _banner.Cwd = cwd;
         BypassAvailable = bypassAvailable;
         if (PermissionModeInfo.TryFromValue(permissionMode, out var parsed))

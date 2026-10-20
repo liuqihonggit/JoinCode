@@ -34,3 +34,21 @@
 <!-- 原因: 对齐权限对话框/模型选择器既有模态先例,优先级链 权限>模型选择器>搜索>补全>历史 -->
 <!-- 替代方案: 每功能独立浮层组件(渲染侵入大,复用 ghost/建议区渲染更轻) -->
 <!-- 验证: 751+45 全绿 + Demo 双自检 ✅ -->
+
+## 验收缺陷修复（2026-10-21 用户真机验收反馈）
+
+| # | 缺陷 | 根因 | 修复 | 提交 |
+|---|------|------|------|------|
+| 1 | `/theme d` 无效果（值域缺失） | TUI 硬编码 theme=3值 vs 引擎 `[ChatCommandArg]` 真值 7 值 — 参数值域双源 | `SlashCommandMetadata.Arguments` 字段 + 生成器从 `[ChatCommandArg].Enum` 提取注入，TUI 删硬编码改消费元数据 | 0e19963c |
+| 2 | `/model` 切换后 banner 模型名不更新 | session_info 只在启动发一次，`ApplyModel` 后无人重发 | `EngineSession` 持有 checker/fastMode 字段 + `RefreshSessionInfo()` 重发；Program 的 applyModel 委托组合 ApplyModel+刷新 | 041013bd3 |
+
+- Bug2 测试：`EngineSessionTests.BuildSessionInfoEvent_AfterModelSwitch_ReflectsNewModel`（真实 FastModeService，FIFO 确定性）
+- 踩坑：QuerySync 在 Actor Dispose 后 TrySend 静默返回 false → 永久阻塞（测试必须 Dispose 前完成查询，用 `await using var`）
+- 基线更新：NativeTui.Host.Tests 45 → **47**；Host exe 已 `--no-incremental` 全量重建供复验
+
+<!-- 🤖 Auto Decision: 2026-10-21 -->
+<!-- 决策: applyModel 委托组合（ApplyModel + RefreshSessionInfo）而非让 ModelPickerEngine 依赖宿主刷新 -->
+<!-- 原因: ModelPickerEngine 属 Core 零依赖层,刷新 session_info 需 EngineSession 内部状态,委托组合保持分层 + ADR 0140 零依赖 -->
+<!-- 替代方案: ModelPickerEngine 直接回调宿主接口(引入 Core→Host 反向依赖,破坏零依赖) -->
+<!-- 验证: EngineSession 6/6 + 双项目全量 751+47 全绿 + Host exe 全量重建 ✅ -->
+

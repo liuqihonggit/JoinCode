@@ -35,6 +35,10 @@ public sealed class ScrollBox
     /// <summary>当前滚动位置（上次渲染结算后的值）。</summary>
     public int ScrollTop { get; private set; }
 
+    /// <summary>选中高亮项（消息光标导航 — 交互层 Step1）— 渲染后整块背景覆写
+    /// MessageActionsBackground（前景字符保留）；null = 无高亮。基准消息选中背景语义。</summary>
+    public IScrollItem? HighlightItem { get; set; }
+
     /// <summary>追加内容项（钉底/跟随在下次 Render 时结算）。</summary>
     public void Add(IScrollItem item) => _items.Add(item);
 
@@ -95,6 +99,10 @@ public sealed class ScrollBox
             {
                 var itemFrame = new Rect(frame.X, frame.Y + itemTop - ScrollTop, frame.Width, heights[i]);
                 _items[i].Render(screen, itemFrame, theme);
+                if (ReferenceEquals(_items[i], HighlightItem))
+                {
+                    ApplyHighlightBackground(screen, itemFrame, theme);
+                }
             }
 
             itemTop = itemBottom;
@@ -102,5 +110,22 @@ public sealed class ScrollBox
 
         _lastMaxScroll = maxScroll;
         _lastScrollTop = ScrollTop;
+    }
+
+    /// <summary>整块背景覆写 — 选中项 frame 区域全行换 MessageActionsBackground（字符与前景保留，
+    /// 越界写入由 Screen 索引器忽略裁剪；含 margin 行 — 基准 React 包裹整条消息语义）。</summary>
+    private static void ApplyHighlightBackground(Screen screen, Rect frame, Theme theme)
+    {
+        for (var row = frame.Y; row < frame.Y + frame.Height; row++)
+        {
+            for (var col = frame.X; col < frame.X + frame.Width; col++)
+            {
+                var cell = screen[row, col];
+                screen[row, col] = cell with
+                {
+                    StyleId = screen.Styles.GetOrAdd(screen.Styles.Get(cell.StyleId) with { Background = theme.MessageActionsBackground }),
+                };
+            }
+        }
     }
 }

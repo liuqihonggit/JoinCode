@@ -370,7 +370,7 @@ public sealed class ModelPickerTests
         Assert.True(shell.ModelPicker.IsPending);
     }
 
-    // ---- ModelPickerEngine 装饰器 ----
+    // ---- CommandPickerEngine 装饰器（ModelPickerEngine 泛化 — command/noun 参数化，/model 与 /vendor 共用） ----
 
     /// <summary>Submit "/model" — 拦截打开选择器，不透传内层引擎。</summary>
     [Fact]
@@ -378,7 +378,7 @@ public sealed class ModelPickerTests
     {
         var inner = new FakeModelEngine();
         var (shell, _) = CreateShell();
-        var pickerEngine = new ModelPickerEngine(inner, () => SampleItems, _ => { });
+        var pickerEngine = new CommandPickerEngine(inner, "/model", "模型", () => SampleItems, _ => { });
         pickerEngine.Attach(shell);
 
         pickerEngine.Submit("/model");
@@ -393,7 +393,7 @@ public sealed class ModelPickerTests
     {
         var inner = new FakeModelEngine();
         var (shell, _) = CreateShell();
-        var pickerEngine = new ModelPickerEngine(inner, () => SampleItems, _ => { });
+        var pickerEngine = new CommandPickerEngine(inner, "/model", "模型", () => SampleItems, _ => { });
         pickerEngine.Attach(shell);
 
         pickerEngine.Submit("/model mini");
@@ -402,14 +402,14 @@ public sealed class ModelPickerTests
         Assert.False(shell.ModelPicker.IsPending);
     }
 
-    /// <summary>确认选择 — applyModel 收到 id + PostInfo 反馈消息入滚动区。</summary>
+    /// <summary>确认选择 — applyItem 收到 id + PostInfo 反馈消息入滚动区。</summary>
     [Fact]
     public void Engine_ConfirmSelection_AppliesModelAndPostsFeedback()
     {
         var inner = new FakeModelEngine();
         var applied = new List<string>();
         var (shell, _) = CreateShell();
-        var pickerEngine = new ModelPickerEngine(inner, () => SampleItems, applied.Add);
+        var pickerEngine = new CommandPickerEngine(inner, "/model", "模型", () => SampleItems, applied.Add);
         pickerEngine.Attach(shell);
 
         pickerEngine.Submit("/model");
@@ -419,14 +419,14 @@ public sealed class ModelPickerTests
         Assert.Contains(shell.View.Messages.Items, m => m is AssistantMessageItem { } a && a.Text.Contains("GPT Mini"));
     }
 
-    /// <summary>Esc 取消 — applyModel 不调用 + 无反馈消息。</summary>
+    /// <summary>Esc 取消 — applyItem 不调用 + 无反馈消息。</summary>
     [Fact]
     public void Engine_EscapeCancel_NoApplyNoFeedback()
     {
         var inner = new FakeModelEngine();
         var applied = new List<string>();
         var (shell, _) = CreateShell();
-        var pickerEngine = new ModelPickerEngine(inner, () => SampleItems, applied.Add);
+        var pickerEngine = new CommandPickerEngine(inner, "/model", "模型", () => SampleItems, applied.Add);
         pickerEngine.Attach(shell);
 
         pickerEngine.Submit("/model");
@@ -442,7 +442,7 @@ public sealed class ModelPickerTests
     {
         var inner = new FakeModelEngine();
         inner.Events.Enqueue(new BridgeEvent.TurnStarted());
-        var pickerEngine = new ModelPickerEngine(inner, () => SampleItems, _ => { });
+        var pickerEngine = new CommandPickerEngine(inner, "/model", "模型", () => SampleItems, _ => { });
 
         pickerEngine.Interrupt();
         pickerEngine.SetPermissionMode("plan");
@@ -452,6 +452,54 @@ public sealed class ModelPickerTests
         Assert.Equal(["plan"], inner.PermissionModes);
         Assert.Single(drained);
         Assert.True(pickerEngine.IsAlive);
+    }
+
+    /// <summary>vendor 装饰器（TASK058）— Submit "/vendor" 拦截打开选择器 + 反馈文案带供应商名词；"/model" 透传内层。</summary>
+    [Fact]
+    public void Engine_VendorCommand_OpensPickerAndModelForwards()
+    {
+        var inner = new FakeModelEngine();
+        var applied = new List<string>();
+        var (shell, _) = CreateShell();
+        var vendorEngine = new CommandPickerEngine(inner, "/vendor", "供应商", () => SampleItems, applied.Add);
+        vendorEngine.Attach(shell);
+
+        vendorEngine.Submit("/model");
+        Assert.Equal(["/model"], inner.Submits);
+        Assert.False(shell.ModelPicker.IsPending);
+
+        vendorEngine.Submit("/vendor");
+        Assert.True(shell.ModelPicker.IsPending);
+        shell.HandleKey(new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false));
+
+        Assert.Equal(["gpt-mini"], applied);
+        Assert.Contains(shell.View.Messages.Items, m => m is AssistantMessageItem { } a && a.Text.Contains("已切换供应商"));
+    }
+
+    /// <summary>叠层装饰（TASK058 Host 组装形态）— vendor 外层 + model 内层，两命令各自拦截互不干扰。</summary>
+    [Fact]
+    public void Engine_StackedVendorsOuterModelInner_BothIntercept()
+    {
+        var inner = new FakeModelEngine();
+        var modelApplied = new List<string>();
+        var vendorApplied = new List<string>();
+        var (shell, _) = CreateShell();
+        var modelEngine = new CommandPickerEngine(inner, "/model", "模型", () => SampleItems, modelApplied.Add);
+        var vendorEngine = new CommandPickerEngine(modelEngine, "/vendor", "供应商", () => SampleItems, vendorApplied.Add);
+        vendorEngine.Attach(shell);
+
+        vendorEngine.Submit("/model");
+        Assert.True(shell.ModelPicker.IsPending);
+        shell.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.Escape, false, false, false));
+        Assert.Empty(modelApplied);
+
+        vendorEngine.Submit("/vendor");
+        Assert.True(shell.ModelPicker.IsPending);
+        shell.HandleKey(new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false));
+
+        Assert.Empty(modelApplied);
+        Assert.Equal(["gpt-mini"], vendorApplied);
+        Assert.Empty(inner.Submits);
     }
 
     /// <summary>记录型假引擎（PermissionDialogTests.FakePermissionEngine 同构）。</summary>

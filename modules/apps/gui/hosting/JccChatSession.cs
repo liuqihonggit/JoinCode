@@ -270,7 +270,7 @@ internal sealed class JccChatSession : IJccChatSession {
         CancellationToken cancellationToken = default) {
         var swTotal = System.Diagnostics.Stopwatch.StartNew();
         var result = await EngineSessionFactory.CreateGuiSessionAsync(
-            [new GuiInteractionModule()], cancellationToken);
+            [new GuiInteractionModule()], cancellationToken: cancellationToken);
         App.LogDiag($"[JccChatSession] EngineSessionFactory.CreateGuiSessionAsync: {swTotal.ElapsedMilliseconds}ms");
 
         var executionSettings = result.Services.GetService<IExecutionSettingsProvider>();

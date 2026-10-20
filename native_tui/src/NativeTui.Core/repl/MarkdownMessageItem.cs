@@ -7,7 +7,7 @@ namespace NativeTui.Core.Repl;
 /// 段样式经 MessageRenderer.MapMarkdownStyle 映射（Code → permission 色，对齐基准 codespan）；
 /// 代码行高亮在段写完后按色段覆写前景（M7-5 — 高亮器由宿主注入，null = 降级纯文本）。
 /// </summary>
-public sealed class MarkdownMessageItem(MarkdownDocument document, ICodeHighlighter? highlighter = null) : IScrollItem
+public sealed class MarkdownMessageItem(MarkdownDocument document, ICodeHighlighter? highlighter = null) : IScrollItem, ICursorNavigable
 {
     /// <summary>Markdown 正文缩进列（● + 空格，对齐基准 NoSelect minWidth 2）。</summary>
     private const int BodyIndentCols = 2;

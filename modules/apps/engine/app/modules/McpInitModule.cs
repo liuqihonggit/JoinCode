@@ -1,7 +1,9 @@
 namespace JoinCode.App.Modules;
 
 /// <summary>
-/// MCP 初始化模块 — 启动后初始化 MCP 服务和桥接
+/// MCP 初始化模块 — 启动后初始化 MCP 服务和桥接：挂工具/资源/提示词变更事件（增量刷新）+
+/// 接线技能桥；八插件加载经 <see cref="McpPluginBootstrap"/> 后台化（启动开销优化 — TASK037 后续：
+/// 不阻塞启动等加载墙钟，工具就绪后自动补齐 kernel.Plugins）。
 /// </summary>
 [AppModule(Order = 90)]
 public sealed class McpInitModule : IAppModule {
@@ -11,11 +13,12 @@ public sealed class McpInitModule : IAppModule {
     public int Order => 90;
 
     /// <summary>
-    /// 注册模块所需的服务到 DI 容器
+    /// 注册模块所需的服务到 DI 容器 — 后台加载生命周期句柄（Host DisposeAsync 释放时等待链收尾）
     /// </summary>
     /// <param name="services">服务集合</param>
     /// <param name="context">模块配置上下文</param>
     public void ConfigureServices(IServiceCollection services, AppModuleContext context) {
+        services.AddSingleton<McpPluginBootstrapHandle>();
     }
 
     /// <summary>
@@ -48,17 +51,50 @@ public sealed class McpInitModule : IAppModule {
 
         services.WirePluginSkillBridge();
 
-        // 并行：所有插件加载（八者逻辑独立，IToolRegistry 线程安全）
-        var dreamTask = LoadDreamPluginSafeAsync(services, logger, ct);
-        var fixHooksTask = LoadFixHooksPluginSafeAsync(services, logger, ct);
-        var sandboxTask = LoadSandboxProvidersPluginSafeAsync(services, logger, ct);
-        var telemetryTask = LoadTelemetryPluginSafeAsync(services, logger, ct);
-        var agentRolesTask = LoadAgentRolesPluginSafeAsync(services, logger, ct);
-        var csharpLangTask = LoadCSharpLanguagePluginSafeAsync(services, logger, ct);
-        var llmTask = LoadLlmProvidersPluginSafeAsync(services, logger, ct);
-        var mcpInitTask = LoadMcpInitPluginSafeAsync(services, logger, ct);
-        await Task.WhenAll(dreamTask, fixHooksTask, sandboxTask, telemetryTask, agentRolesTask, csharpLangTask, llmTask, mcpInitTask).ConfigureAwait(false);
+        // 启动开销优化（TASK037 后续）— 八插件加载后台化：启动不阻塞等待加载墙钟（实测 ~1.6s，
+        // mcpInit 插件 MCP 客户端握手为关键路径）；工具就绪后就绪钩子自动补齐
+        // （toolsBridge 同步 + kernel.Plugins 刷新 — 与 ToolsListChanged 事件增量刷新双保险）；
+        // 生命周期经 Handle 单例绑定宿主 Dispose（退出竞态防护 — 先取消加速断链再无超时等待收尾）
+        services.GetRequiredService<McpPluginBootstrapHandle>()
+            .Run(ct => McpPluginBootstrap.StartAsync(
+                ct => StartPluginLoads(services, logger, ct),
+                ct => OnPluginsReadyAsync(services, logger, ct),
+                ct));
+    }
 
+    /// <summary>八插件并行加载清单（逻辑独立，IToolRegistry 线程安全 — WhenAll 墙钟语义）。</summary>
+    private static Task[] StartPluginLoads(IServiceProvider services, ILogger? logger, CancellationToken ct) =>
+    [
+        LoadPluginSafeAsync<JoinCode.Dream.DreamPlugin>("DreamPlugin", services, logger, ct),
+        LoadPluginSafeAsync<Core.Plugins.FixHooksPlugin>("FixHooksPlugin", services, logger, ct),
+        LoadPluginSafeAsync<Core.Plugins.SandboxProvidersPlugin>("SandboxProvidersPlugin", services, logger, ct),
+        LoadPluginSafeAsync<Core.Telemetry.TelemetryPlugin>("TelemetryPlugin", services, logger, ct),
+        LoadPluginSafeAsync<Core.Agents.AgentRolesPlugin>("AgentRolesPlugin", services, logger, ct),
+        LoadPluginSafeAsync<JoinCode.CodeIndex.CSharpLanguagePlugin>("CSharpLanguagePlugin", services, logger, ct),
+        LoadPluginSafeAsync<JoinCode.Llm.Plugins.LlmProvidersPlugin>("LlmProvidersPlugin", services, logger, ct),
+        LoadPluginSafeAsync<JoinCode.Mcp.Plugins.McpInitPlugin>("McpInitPlugin", services, logger, ct),
+    ];
+
+    /// <summary>
+    /// 安全加载工作流插件（八插件公共路径 — 原八个 SafeAsync 方法收敛）：
+    /// 失败仅记日志不阻断启动；宿主关闭取消静默（Handle Dispose 触发的取消非失败 —
+    /// 否则取消噪音淹没真实加载错误日志）。
+    /// </summary>
+    private static async Task LoadPluginSafeAsync<TPlugin>(string name, IServiceProvider services, ILogger? logger, CancellationToken ct)
+        where TPlugin : class, IWorkflowPlugin, new() {
+        try {
+            var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
+            await pluginManager.LoadWorkflowPluginAsync<TPlugin>(ct).ConfigureAwait(false);
+        } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+            // 宿主关闭取消 — 静默收尾（非失败）
+        } catch (Exception ex) {
+            logger?.LogError(ex, "[MCP] Load{name} failed", name);
+        }
+    }
+
+    /// <summary>插件就绪钩子 — 全部加载成功后同步工具列表 + 刷新 kernel.Plugins
+    /// （原 ConfigureAsync 尾部逻辑原样迁移；异常由 Bootstrap SafeAsync 兜底吞掉）。</summary>
+    private static async Task OnPluginsReadyAsync(IServiceProvider services, ILogger? logger, CancellationToken ct) {
         // 所有工具注册完成后，同步工具列表 + 刷新 kernel.Plugins
         try {
             var toolsBridge = services.GetRequiredService<Core.DependencyInjection.McpToolSyncBridge>();
@@ -71,102 +107,6 @@ public sealed class McpInitModule : IAppModule {
         // McpToolBridge.CreatePluginAsync 从 IToolRegistry 提取所有工具（含 SlashToMcpAdapter 注册的斜杠命令）
         // 挂载到 IChatClient.Plugins 后，AnthropicQueryService/OpenAIQueryService 能通过 BuildXxxToolsFromKernel 构建工具列表发送给 LLM
         await RefreshKernelPluginsAsync(services, logger).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// 安全加载 DreamPlugin — 失败仅记日志，不阻断启动
-    /// </summary>
-    private static async Task LoadDreamPluginSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct) {
-        try {
-            var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
-            await pluginManager.LoadWorkflowPluginAsync<JoinCode.Dream.DreamPlugin>(ct).ConfigureAwait(false);
-        } catch (Exception ex) {
-            logger?.LogError(ex, "[MCP] LoadDreamPlugin failed");
-        }
-    }
-
-    /// <summary>
-    /// 安全加载 FixHooksPlugin — 失败仅记日志，不阻断启动
-    /// </summary>
-    private static async Task LoadFixHooksPluginSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct) {
-        try {
-            var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
-            await pluginManager.LoadWorkflowPluginAsync<Core.Plugins.FixHooksPlugin>(ct).ConfigureAwait(false);
-        } catch (Exception ex) {
-            logger?.LogError(ex, "[MCP] LoadFixHooksPlugin failed");
-        }
-    }
-
-    /// <summary>
-    /// 安全加载 SandboxProvidersPlugin — 失败仅记日志，不阻断启动
-    /// </summary>
-    private static async Task LoadSandboxProvidersPluginSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct) {
-        try {
-            var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
-            await pluginManager.LoadWorkflowPluginAsync<Core.Plugins.SandboxProvidersPlugin>(ct).ConfigureAwait(false);
-        } catch (Exception ex) {
-            logger?.LogError(ex, "[MCP] LoadSandboxProvidersPlugin failed");
-        }
-    }
-
-    /// <summary>
-    /// 安全加载 TelemetryPlugin — 失败仅记日志，不阻断启动
-    /// </summary>
-    private static async Task LoadTelemetryPluginSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct) {
-        try {
-            var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
-            await pluginManager.LoadWorkflowPluginAsync<Core.Telemetry.TelemetryPlugin>(ct).ConfigureAwait(false);
-        } catch (Exception ex) {
-            logger?.LogError(ex, "[MCP] LoadTelemetryPlugin failed");
-        }
-    }
-
-    /// <summary>
-    /// 安全加载 AgentRolesPlugin — 失败仅记日志，不阻断启动
-    /// </summary>
-    private static async Task LoadAgentRolesPluginSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct) {
-        try {
-            var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
-            await pluginManager.LoadWorkflowPluginAsync<Core.Agents.AgentRolesPlugin>(ct).ConfigureAwait(false);
-        } catch (Exception ex) {
-            logger?.LogError(ex, "[MCP] LoadAgentRolesPlugin failed");
-        }
-    }
-
-    /// <summary>
-    /// 安全加载 CSharpLanguagePlugin — 失败仅记日志，不阻断启动
-    /// </summary>
-    private static async Task LoadCSharpLanguagePluginSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct) {
-        try {
-            var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
-            await pluginManager.LoadWorkflowPluginAsync<JoinCode.CodeIndex.CSharpLanguagePlugin>(ct).ConfigureAwait(false);
-        } catch (Exception ex) {
-            logger?.LogError(ex, "[MCP] LoadCSharpLanguagePlugin failed");
-        }
-    }
-
-    /// <summary>
-    /// 安全加载 LlmProvidersPlugin — 失败仅记日志，不阻断启动
-    /// </summary>
-    private static async Task LoadLlmProvidersPluginSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct) {
-        try {
-            var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
-            await pluginManager.LoadWorkflowPluginAsync<JoinCode.Llm.Plugins.LlmProvidersPlugin>(ct).ConfigureAwait(false);
-        } catch (Exception ex) {
-            logger?.LogError(ex, "[MCP] LoadLlmProvidersPlugin failed");
-        }
-    }
-
-    /// <summary>
-    /// 安全加载 McpInitPlugin — 失败仅记日志，不阻断启动
-    /// </summary>
-    private static async Task LoadMcpInitPluginSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct) {
-        try {
-            var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
-            await pluginManager.LoadWorkflowPluginAsync<JoinCode.Mcp.Plugins.McpInitPlugin>(ct).ConfigureAwait(false);
-        } catch (Exception ex) {
-            logger?.LogError(ex, "[MCP] LoadMcpInitPlugin failed");
-        }
     }
 
     /// <summary>

@@ -20,7 +20,7 @@ internal static class ModelPickerAssembly
             return [new ModelPickerItem(fallback, fallback, string.Empty, IsCurrent: true)];
         }
 
-        var provider = CurrentProvider();
+        var provider = CurrentProvider(services);
         var models = catalog.EnsureCurrentModelInList(catalog.GetModelsForProvider(provider), current);
         return models
             .Select(m => new ModelPickerItem(m.Id, m.DisplayName, m.Description, m.Id.Equals(current, StringComparison.OrdinalIgnoreCase)))
@@ -37,14 +37,15 @@ internal static class ModelPickerAssembly
         if (fastMode is { IsFastModeActive: true })
         {
             var catalog = services.GetService<IModelCatalog>();
-            if (catalog is not null && !catalog.SupportsFastMode(modelId, CurrentProvider()))
+            if (catalog is not null && !catalog.SupportsFastMode(modelId, CurrentProvider(services)))
             {
                 fastMode.Deactivate();
             }
         }
     }
 
-    /// <summary>当前提供商 — 环境变量兜底链（对齐 ModelCommand.GetCurrentProvider 同款取值顺序，Host 无 ChatCommandContext）。</summary>
-    private static string CurrentProvider() =>
-        Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue()) ?? VendorKind.OpenAi.ToValue();
+    /// <summary>当前提供商 — WorkflowConfig DI 单例优先（/vendor 切换后清单实时跟随，TASK058），
+    /// 环境变量兜底（对齐 ModelCommand.GetCurrentProvider 同款取值顺序，Host 无 ChatCommandContext）。</summary>
+    private static string CurrentProvider(IServiceProvider services) =>
+        VendorPickerAssembly.CurrentVendor(services);
 }

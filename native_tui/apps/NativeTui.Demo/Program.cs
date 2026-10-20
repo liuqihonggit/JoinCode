@@ -69,7 +69,13 @@ public static class Program
         var info = SessionInfo.Create(version, model);
         var banner = new BannerItem(info.Version, info.Model, info.Billing, info.WorkingDirectory);
         // M7-6 模型选择器演示 — 装饰模拟引擎拦截 /model 打开 Picker（模拟清单，真实引擎见 NativeTui.Host）
-        var pickerEngine = new ModelPickerEngine(new SimulatedEngine(), DemoModelItems, _ => { });
+        // TASK058 供应商选择器演示 — 外层装饰拦截 /vendor（模拟清单）
+        var pickerEngine = new CommandPickerEngine(
+            new CommandPickerEngine(new SimulatedEngine(), "/model", "模型", DemoModelItems, _ => { }),
+            "/vendor",
+            "供应商",
+            DemoVendorItems,
+            _ => { });
         var shell = new ReplShell(pickerEngine, banner, Console.Out, inline: !viewport, seedMessages: SeedMessages(), commands: DemoCommands(), codeHighlighter: new TextMateCodeHighlighter(dark: true));
         pickerEngine.Attach(shell);
         shell.Run();
@@ -78,7 +84,7 @@ public static class Program
         return 0;
     }
 
-    /// <summary>Demo 演示命令清单（斜杠补全数据源）— 与 SimulatedEngine.ParseCommand 路由同源 + /model（ModelPickerEngine 装饰器拦截）。</summary>
+    /// <summary>Demo 演示命令清单（斜杠补全数据源）— 与 SimulatedEngine.ParseCommand 路由同源 + /model、/vendor（CommandPickerEngine 装饰器拦截）。</summary>
     private static IReadOnlyList<CommandSuggestion> DemoCommands() =>
     [
         new CommandSuggestion("md", "Markdown 全形态渲染", [], IsHidden: false),
@@ -87,6 +93,7 @@ public static class Program
         new CommandSuggestion("all", "完整回合（补丁 + Markdown）", [], IsHidden: false),
         new CommandSuggestion("agents", "并行子代理分组（可带数量 agents 300）", [], IsHidden: false),
         new CommandSuggestion("model", "切换模型（M7-6 选择器）", [], IsHidden: false),
+        new CommandSuggestion("vendor", "切换供应商（TASK058 选择器）", [], IsHidden: false),
     ];
 
     /// <summary>Demo 模拟模型清单（M7-6 选择器演示 — 真实引擎从 IModelCatalog 后端获取，见 NativeTui.Host ModelPickerAssembly）。</summary>
@@ -95,6 +102,15 @@ public static class Program
         new ModelPickerItem("gpt-5.3", "GPT 5.3", "最强推理 · $3/$0.22 per token", IsCurrent: true),
         new ModelPickerItem("gpt-5.3-mini", "GPT 5.3 Mini", "日常任务最佳 · $0.4/$0.03 per token", IsCurrent: false),
         new ModelPickerItem("gpt-nano", "GPT Nano", "最快响应 · 轻量便宜", IsCurrent: false),
+    ];
+
+    /// <summary>Demo 模拟供应商清单（TASK058 选择器演示 — 真实引擎从 VendorKind 枚举投影，见 NativeTui.Host VendorPickerAssembly）。</summary>
+    private static IReadOnlyList<ModelPickerItem> DemoVendorItems() =>
+    [
+        new ModelPickerItem("zhipu", "智谱 AI", "GLM 系列 · 默认 glm-4.7", IsCurrent: true),
+        new ModelPickerItem("deepseek", "DeepSeek", "深度求索 · 默认 deepseek-chat", IsCurrent: false),
+        new ModelPickerItem("openai", "OpenAI", "GPT 系列 · 默认 gpt-5.3", IsCurrent: false),
+        new ModelPickerItem("anthropic", "Anthropic", "Claude 系列 · 默认 claude-sonnet-4", IsCurrent: false),
     ];
 
     /// <summary>模拟模式种子消息（示例对话 — banner 之后、spinner 之前插入滚动区；assistant 回复为 Markdown 行内样式演示，M7-4 启动即见渲染；末条为演示命令提示）。</summary>

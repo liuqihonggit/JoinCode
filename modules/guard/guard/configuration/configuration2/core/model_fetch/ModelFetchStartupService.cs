@@ -33,7 +33,7 @@ public sealed class ModelFetchStartupService {
     /// <para>1. 检查 autoFetchModels 开关</para>
     /// <para>2. 并行拉取各供应商模型 id 列表</para>
     /// <para>3. 智能合并：以远程 id 为准增删，保留本地元数据</para>
-    /// <para>4. 写回 settings.json（触发文件监控自动刷新内存和GUI）</para>
+    /// <para>4. 写回 providers_llm/{vendor}/models.json（触发文件监控自动刷新内存和GUI）</para>
     /// </summary>
     public async Task ExecuteAsync(
         SettingsJson settings,
@@ -58,7 +58,7 @@ public sealed class ModelFetchStartupService {
             }
 
             if (updates.Count > 0)
-                await WriteWithRetryAsync(settings, updates, cancellationToken).ConfigureAwait(false);
+                await WriteWithRetryAsync(updates, cancellationToken).ConfigureAwait(false);
 
             _logger?.LogInformation("[ModelFetchStartupService] 模型列表拉取完成，更新了 {Count} 个供应商", updates.Count);
         } catch (Exception ex) {
@@ -67,26 +67,24 @@ public sealed class ModelFetchStartupService {
     }
 
     /// <summary>
-    /// 写回 settings.json — 对文件锁异常重试最多3次（间隔递增），记录 HResult 辅助诊断锁源
+    /// 写回 providers_llm/{vendor}/models.json — 对文件锁异常重试最多3次（间隔递增），记录 HResult 辅助诊断锁源
     /// <para>常见 HResult: -2147024891=ACCESS_DENIED(5, 权限/Defender扫描), -2147024864=SHARING_VIOLATION(32, 被独占)</para>
     /// </summary>
     private async Task WriteWithRetryAsync(
-        SettingsJson settings,
         IReadOnlyDictionary<string, List<ModelItemConfig>> updates,
         CancellationToken cancellationToken) {
         var delays = new[] { 500, 1000, 1500 };
         for (var attempt = 0; ; attempt++) {
             try {
-                await _writer.WriteAsync(settings, updates, cancellationToken).ConfigureAwait(false);
+                await _writer.WriteAsync(updates, cancellationToken).ConfigureAwait(false);
                 await RefreshInMemoryConfigAsync(cancellationToken).ConfigureAwait(false);
                 return;
             } catch (UnauthorizedAccessException ex) {
                 if (attempt >= delays.Length) {
-                    var path = SettingsLoader.GetUserSettingsPath();
-                    _logger?.LogWarning(ex, "[ModelFetchStartupService] settings.json 写入仍被拒（HResult={HResult}），跳过本次更新 | 路径: {Path} | 不影响启动", ex.HResult, path);
+                    _logger?.LogWarning(ex, "[ModelFetchStartupService] providers_llm models.json 写入仍被拒（HResult={HResult}），跳过本次更新 | 不影响启动", ex.HResult);
                     return;
                 }
-                _logger?.LogWarning(ex, "[ModelFetchStartupService] settings.json 写入被拒（HResult={HResult}），{Delay}ms 后重试（第{Attempt}次）", ex.HResult, delays[attempt], attempt + 1);
+                _logger?.LogWarning(ex, "[ModelFetchStartupService] providers_llm models.json 写入被拒（HResult={HResult}），{Delay}ms 后重试（第{Attempt}次）", ex.HResult, delays[attempt], attempt + 1);
                 await Task.Delay(delays[attempt], cancellationToken).ConfigureAwait(false);
             }
         }

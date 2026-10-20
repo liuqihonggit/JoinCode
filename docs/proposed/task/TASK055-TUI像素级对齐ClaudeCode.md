@@ -1024,3 +1024,60 @@ ReferenceScene.cs 不含任何 Markdown 渲染调用（纯手工 cell 构造，g
 
 <!-- M7-7 完成: 用户真实终端 agents 交互验收(含闪烁+resize 视觉) → Host 接线(引擎侧事件源确认后) -->
 
+## 子代理交互层落地（2026-10-21，用户验收三缺口之①：点击进入查看内容 — Step1+2）
+
+> 基准机制调研闭环：查看子代理内容的基准等价物 = **消息导航系统**（MESSAGE_ACTIONS feature flag + 全屏模式）——
+> Shift+↑ 进入（enterCursor 定位最后一条用户消息）、↑/↓/k/j 逐条、Shift+↑/↓ 跳用户消息、Ctrl+↑/↓ 首末、
+> Enter 展开 grouped_tool_use（verbose 不分组 → 300 代理拆 300 条独立详细消息）、Esc 两级退出（先收起展开再退出）；
+> 无逐代理专项选择，靠消息级导航；ctrl+o 是全局 transcript 切换（不拆分组）；选中高亮 = messageActionsBackground。
+
+### 实施记录（2 commit 链）
+
+| 阶段 | commit | 内容 |
+|------|--------|------|
+| Step1 消息光标导航 | 368de96b9 | MessageCursor 协调器（纯状态机：Begin 定位最后用户消息/相邻可导航移动/用户消息跳转/首末/退出，每次传 items 引用不持有 — 消息动态增删安全）+ ICursorNavigable 空标记接口（8 消息类实现；banner/spinner/对话框排除）+ ReplShell 第四交互态（HandleCursorNavKey 模态 — 优先级 permission>modelPicker>search>cursor>suggestion；Shift+↑ 进入；光标态吞字符键 = 基准全屏 PromptInput 卸载语义）+ ScrollBox.HighlightItem 渲染后整块背景覆写（前景保留，MessageActionsBackground）+ SubagentGroupCoordinator.IsExpanded（展开全量渲染突破 min(10,n) + 窗口归零）；全量 775/775 绿（含 24 新测试） |
+| Step2 每代理活动日志 | 41750dd0d | SubagentActivity record + SubagentEntry 追加 RecentActivities（环形保留最近 3 条）+ HiddenActivityCount（丢弃计数）+ Coordinator.RecordToolUse 环形追加（超容量丢最旧）+ SubagentGroupItem 展开态逐活动行渲染（"tool: summary" 复用 RenderSubagentActivityRow + "+N more tool uses" 丢弃行；零活动 Initializing…/Done 兜底单行）+ MeasureHeight 展开态逐条目计数；全量 778/778 绿（含 3 新测试） |
+
+### 与基准的对齐与偏离（决策记录）
+
+| 项 | 基准 | 本项目 | 依据 |
+|----|------|--------|------|
+| 进入键 | Shift+↑（idle 绑定） | 同基准（Shift+UpArrow 无修饰） | KeyKind.UpArrow+Shift 空闲可用（普通↑历史导航不冲突） |
+| 光标态输入框 | PromptInput 卸载（全屏模式） | **模态吞键**（字符不进输入缓冲） | 权限/模型对话框模态先例 — ReplShell 第四交互态 |
+| Enter 展开 | grouped_tool_use 拆 N 条独立消息（verbose 渲染） | **单 Item 展开态**（全量代理 + 逐活动日志） | 本项目分组是单 Item 非 N 条消息；展开语义等价（折叠窗口↔全量+活动详情） |
+| 选中高亮 | 消息包裹 messageActionsBackground | **ScrollBox 渲染后整块覆写**（前景保留） | 零侵入 8 消息类 — 高亮独立于各消息渲染逻辑 |
+| 活动日志 | 单代理折叠尾部窗口 3 条 + "+N more (ctrl+o)" | **每代理环形 3 条 + "+N more tool uses"（展开态）** | 分组展开态的逐代理对等机制 |
+| Esc 两级 | 先收起 expanded 再退出 | 同基准 | — |
+
+### 四列验收表（AGENTS.md 强制）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| Core MessageCursor.cs（协调器 + ICursorNavigable 标记） | ReplShell.HandleCursorNavKey 模态路由 + ScrollBox 高亮投影 | ✅ | ✅ MessageCursorTests 协调器 8/8（定位/移动/跳转/首末/退出） |
+| ReplShell 第四交互态（HandleKeyPress 分派链 + Shift+↑ 进入 + Esc 两级退出） | 键盘交互（真实终端按键） | ✅ | ✅ MessageCursorTests 键路由 12/12（进入/移动/kj/Shift跳转/Ctrl首末/Enter展开/Esc两级/吞键/无冲突） |
+| ScrollBox.HighlightItem + ApplyHighlightBackground（整块背景覆写） | SyncCursorHighlight 渲染前投影 → 每帧选中高亮 | ✅ | ✅ 渲染断言 2/2（选中背景 MessageActionsBackground + 无光标无高亮；双缓冲交换语义渲染两次断言） |
+| SubagentGroupCoordinator.IsExpanded（展开全量 + 窗口归零） | MessageCursor Enter 切换 + Esc 收起 | ✅ | ✅ 展开 4/4（全量窗口/高度/渲染无溢出/Enter 切换） |
+| SubagentEntry 活动日志（RecentActivities 环形 3 + HiddenActivityCount） | SubagentGroupItem 展开态逐活动行渲染 | ✅ | ✅ 活动日志 3/3（环形保留/展开渲染+hidden 行/高度计数） |
+| 全链真实终端交互验收 | Demo agents 场景 + Shift+↑ 导航 | ✅ | ⏳ 待用户真实终端（agents 12/300 → Shift+↑ → ↑↓ 导航 → Enter 展开 → Esc 两级）；Demo --selftest 绿 |
+
+### 遗留项
+
+1. 引擎侧 subagent 事件源改造（跨模块独立 spec — InProcessEventConsumer 无子代理事件，Host 真实引擎接线前置）
+2. 用户真实终端交互验收（Shift+↑ 进入/导航/Enter 展开/活动日志/Esc 两级）
+3. P2 细节：k/j 之外 vim 键扩展（gg/G）、光标态滚动跟随选中项（超屏时）
+
+<!-- 🤖 Auto Decision: 2026-10-21（交互层 Step1） -->
+<!-- 决策: MessageCursor 纯状态机(每次传 items 不持有引用) + ICursorNavigable 空标记接口 + ScrollBox 渲染后整块背景覆写 + IsExpanded 落 Coordinator -->
+<!-- 原因: 照抄 ModelPicker/权限模态先例(第四交互态分派链语义一致);标记接口零侵入消息类排除装饰项;高亮覆写独立于 8 个消息渲染逻辑(前景保留);展开态落 Coordinator 使 Item 渲染自动响应 -->
+<!-- 替代方案: 消息类各自实现选中背景(8 类侵入否决);ReplShell 渲染后遍历覆写(ScrollBox 不暴露 item frame 否决);基准式拆 N 条消息(本项目分组是单 Item,展开态等价) -->
+<!-- 验证: 全量775/775绿(24新测试) + Demo selftest真实exe绿 ✅ -->
+<!-- 过程坑: Move clamp 首版"扫描停在越界前位置"错(应保持原位);IsExpanded 展开时未重置 WindowStart 致索引越界;高亮测试双缓冲交换语义需渲染两次;单代理组全同型 hideType 形态 -->
+
+<!-- 🤖 Auto Decision: 2026-10-21（交互层 Step2） -->
+<!-- 决策: 活动日志落 SubagentEntry 不可变 record 追加字段(RecentActivities+HiddenActivityCount),Coordinator RecordToolUse 环形追加丢最旧,展开态复用 RenderSubagentActivityRow 逐行渲染 -->
+<!-- 原因: record with 替换式更新与既有状态机一致;容量3对齐基准单代理折叠尾部窗口语义;复用活动行渲染方法零新增 MessageRenderer 方法 -->
+<!-- 替代方案: 独立活动日志集合类(过度设计否决);全量日志无上限(300 规模内存/渲染风险否决) -->
+<!-- 验证: 全量778/778绿(3新测试) + Demo/Host 编译绿 + Demo selftest真实exe绿 ✅ -->
+
+<!-- 交互层 Step1+2 完成: 用户真实终端交互验收(Shift+↑/导航/Enter展开/活动日志/Esc两级) → 引擎侧 subagent 事件源 spec(独立后续) -->
+

@@ -42,8 +42,8 @@ public abstract record BridgeEvent
     /// <summary>工具调用消息（bullet + bold 工具名 + args）。</summary>
     public sealed record ToolCall(string Name, string Args) : BridgeEvent;
 
-    /// <summary>工具结果摘要（⎿ 缩进项）。</summary>
-    public sealed record ToolResult(string Summary) : BridgeEvent;
+    /// <summary>工具结果摘要（⎿ 缩进项）；Patch 非空时渲染为结构化 diff 块（M7-2 StructuredDiff）。</summary>
+    public sealed record ToolResult(string Summary, DiffHunk[]? Patch = null) : BridgeEvent;
 
     /// <summary>流式 token 增量（spinner ResponseLength 累加）。</summary>
     public sealed record TokenDelta(int Length) : BridgeEvent;

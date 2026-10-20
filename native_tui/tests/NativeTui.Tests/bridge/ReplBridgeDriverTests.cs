@@ -169,6 +169,31 @@ public sealed class ReplBridgeDriverTests
     }
 
     [Fact]
+    public void Apply_ToolResultWithPatch_AppendsDiffResultItem()
+    {
+        var hunks = new[]
+        {
+            new DiffHunk { Header = "@@ -1 +1 @@", Lines = [new DiffLine { Kind = DiffLineKind.Added, Content = "new" }] },
+        };
+
+        _driver.Apply(new BridgeEvent.ToolResult("Edited a.cs", hunks));
+
+        var item = Assert.IsType<DiffResultItem>(_view.Messages.Items[^2]);
+        Assert.Equal("Edited a.cs", item.Summary);
+        Assert.Same(hunks, item.Patch);
+        Assert.Same(_spinner, _view.Messages.Items[^1]);
+        Assert.False(_spinner.HasActiveTools);
+    }
+
+    [Fact]
+    public void Apply_ToolResultWithoutPatch_KeepsPlainToolResultItem()
+    {
+        _driver.Apply(new BridgeEvent.ToolResult("42 lines"));
+
+        Assert.IsType<ToolResultItem>(_view.Messages.Items[^2]);
+    }
+
+    [Fact]
     public void Apply_Error_AppendsErrorMessageItemBeforeSpinner()
     {
         _driver.Apply(new BridgeEvent.Error("引擎异常退出"));

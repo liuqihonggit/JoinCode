@@ -59,8 +59,10 @@ public sealed class ReplBridgeDriver
                 _spinner.Mode = SpinnerMode.ToolUse;
                 _spinner.HasActiveTools = true;
                 break;
-            case BridgeEvent.ToolResult(var summary):
-                AddMessage(new ToolResultItem(summary));
+            case BridgeEvent.ToolResult(var summary, var patch):
+                AddMessage(patch is { Length: > 0 }
+                    ? new DiffResultItem(summary, patch)
+                    : new ToolResultItem(summary));
                 _spinner.HasActiveTools = false;
                 break;
             case BridgeEvent.TokenDelta(var length):

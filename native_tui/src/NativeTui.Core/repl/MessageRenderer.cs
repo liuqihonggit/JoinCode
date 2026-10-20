@@ -62,4 +62,39 @@ public static class MessageRenderer
         screen.WriteText(frame.Y, frame.X, $"{Figures.MessageBullet} ", style, frame.Right);
         screen.WriteText(frame.Y, frame.X + 2, text, style, frame.Right);
     }
+
+    /// <summary>渲染 diff hunk 头："    @@ … @@"（4 空格缩进，整行 dim 弱化）。</summary>
+    public static void RenderDiffHeader(Screen screen, Rect frame, Theme theme, string header)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $"    {header}", dim, frame.Right);
+    }
+
+    /// <summary>
+    /// 渲染单个 diff 行："    " + 前缀字符 + 正文（4 空格缩进对齐青蛙TUI 先例）：
+    /// added 整行 DiffAddedWord 前景 / removed 整行 DiffRemovedWord 前景 / context 整行 dim。
+    /// </summary>
+    public static void RenderDiffLine(Screen screen, Rect frame, Theme theme, DiffLine line)
+    {
+        var style = line.Kind switch
+        {
+            DiffLineKind.Added => screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.DiffAddedWord }),
+            DiffLineKind.Removed => screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.DiffRemovedWord }),
+            _ => screen.Styles.GetOrAdd(new TextStyle { Dim = true }),
+        };
+        var prefix = line.Kind switch
+        {
+            DiffLineKind.Added => "+",
+            DiffLineKind.Removed => "-",
+            _ => " ",
+        };
+        screen.WriteText(frame.Y, frame.X, $"    {prefix}{line.Content}", style, frame.Right);
+    }
+
+    /// <summary>渲染折叠提示："    … +N lines (Ctrl+O)"（dim；Ctrl+O 展开交互为 M7 后续项）。</summary>
+    public static void RenderDiffCollapseHint(Screen screen, Rect frame, Theme theme, int hiddenLines)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $"    … +{hiddenLines} lines (Ctrl+O)", dim, frame.Right);
+    }
 }

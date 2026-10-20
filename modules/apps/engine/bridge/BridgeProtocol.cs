@@ -41,6 +41,9 @@ public abstract record BridgeRequest
 [JsonDerivedType(typeof(BridgeEvent.ToolResult), "tool_result")]
 [JsonDerivedType(typeof(BridgeEvent.TokenDelta), "token_delta")]
 [JsonDerivedType(typeof(BridgeEvent.AssistantMessage), "assistant_message")]
+[JsonDerivedType(typeof(BridgeEvent.SubagentStarted), "subagent_started")]
+[JsonDerivedType(typeof(BridgeEvent.SubagentToolUse), "subagent_tool_use")]
+[JsonDerivedType(typeof(BridgeEvent.SubagentFinished), "subagent_finished")]
 [JsonDerivedType(typeof(BridgeEvent.TurnCompleted), "turn_completed")]
 [JsonDerivedType(typeof(BridgeEvent.TurnInterrupted), "turn_interrupted")]
 [JsonDerivedType(typeof(BridgeEvent.Error), "error")]
@@ -112,6 +115,16 @@ public abstract record BridgeEvent
 
     /// <summary>流式 token 增量（spinner ResponseLength 累加）。</summary>
     public sealed record TokenDelta(int Length) : BridgeEvent;
+
+    /// <summary>子代理启动（DSG041 批3 — 与 native_tui 侧 BridgeEvent.SubagentStarted 逐字段镜像；
+    /// 同回合内全部子代理归一组，TUI 侧 SubagentGroupCoordinator 建组条目）。</summary>
+    public sealed record SubagentStarted(string SubagentId, string AgentType, string Description) : BridgeEvent;
+
+    /// <summary>子代理工具活动（DSG041 批3 — 原地更新组条目不逐条刷屏；TokenGain 为本次活动新增令牌）。</summary>
+    public sealed record SubagentToolUse(string SubagentId, string ToolName, string Summary, int TokenGain) : BridgeEvent;
+
+    /// <summary>子代理完成（DSG041 批3 — 条目定格，isError 聚合组头 ● 红）。</summary>
+    public sealed record SubagentFinished(string SubagentId, bool IsError) : BridgeEvent;
 
     /// <summary>完整助手消息（追加滚动区）。</summary>
     public sealed record AssistantMessage(string Text) : BridgeEvent;

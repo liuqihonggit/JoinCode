@@ -78,6 +78,21 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
             WriteEvent(new Cli.Bridge.BridgeEvent.AssistantMessage(_fullResponse.ToString()));
     }
 
+    /// <summary>子代理启动 → subagent_started（DSG041 批3 — 显式实现：DIM 默认实现经类类型调用不可见）。</summary>
+    public void OnSubagentStarted(string subagentId, string agentType, string description) {
+        WriteEvent(new Cli.Bridge.BridgeEvent.SubagentStarted(subagentId, agentType, description));
+    }
+
+    /// <summary>子代理工具活动 → subagent_tool_use（原地更新组条目不逐条刷屏）。</summary>
+    public void OnSubagentToolUse(string subagentId, string toolName, string summary, int tokenGain) {
+        WriteEvent(new Cli.Bridge.BridgeEvent.SubagentToolUse(subagentId, toolName, summary, tokenGain));
+    }
+
+    /// <summary>子代理完成 → subagent_finished（条目定格，isError 聚合组头）。</summary>
+    public void OnSubagentFinished(string subagentId, bool isError) {
+        WriteEvent(new Cli.Bridge.BridgeEvent.SubagentFinished(subagentId, isError));
+    }
+
     /// <summary>思考结束结算（进入产出或回合结束时调用，幂等）。</summary>
     private void EndThinkingIfActive() {
         if (_thinkingStartMs is not long start)

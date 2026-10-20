@@ -102,4 +102,23 @@ public sealed class BridgeJsonContractTests {
         var submit = Assert.IsType<CliBridge.BridgeRequest.Submit>(request);
         Assert.Equal("你好 world", submit.Text);
     }
+
+    /// <summary>子代理三事件 JSON 形状（DSG041 批3 — 与 native_tui 侧 BridgeEvent 逐字段镜像：
+    /// subagent_started/subagent_tool_use/subagent_finished，camelCase 字段）。</summary>
+    [Fact]
+    public void Serialize_SubagentEvents_CarryCamelCaseFields() {
+        var events = new CliBridge.BridgeEvent[] {
+            new CliBridge.BridgeEvent.SubagentStarted("agent-1", "explore", "搜索渲染链"),
+            new CliBridge.BridgeEvent.SubagentToolUse("agent-1", "Grep", "命中 3 处", 120),
+            new CliBridge.BridgeEvent.SubagentFinished("agent-1", IsError: true),
+        };
+        var expected = new[] {
+            "{\"type\":\"subagent_started\",\"subagentId\":\"agent-1\",\"agentType\":\"explore\",\"description\":\"搜索渲染链\"}",
+            "{\"type\":\"subagent_tool_use\",\"subagentId\":\"agent-1\",\"toolName\":\"Grep\",\"summary\":\"命中 3 处\",\"tokenGain\":120}",
+            "{\"type\":\"subagent_finished\",\"subagentId\":\"agent-1\",\"isError\":true}",
+        };
+        for (var i = 0; i < events.Length; i++) {
+            Assert.Equal(expected[i], JsonSerializer.Serialize(events[i], CliBridge.BridgeJsonContext.Safe.BridgeEvent));
+        }
+    }
 }

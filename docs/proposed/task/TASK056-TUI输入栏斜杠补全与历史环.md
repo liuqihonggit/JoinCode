@@ -14,7 +14,8 @@
 | 4+5 | ReplView/ReplShell 集成 | 键位仲裁 + 建议区渲染 + 历史导航 + 提交入史 + 47 集成测试 | ✅ 6264f58 |
 | 6 | Host 组装 | `tui_assembly/SlashCommandSource.cs` + `HistorySeeder.cs` + 9 测试 | ✅ ea5bdf2 |
 | 6b | 渲染时序修复 | SyncSuggestionState 先于 EnsureScreens | ✅ e86a001 |
-| 7 | 手动 exe 验收 | ADR 0080 方式（需真实终端交互） | ⬜ 待用户执行 |
+| 6c | Demo 验收入口接线 | DemoCommands 注入 + SimulatedEngine 兼容 / 前缀路由 | ✅ c7bf4e7 |
+| 7 | 手动 exe 验收 | ADR 0080 方式（需真实终端交互） | ⬜ 待用户执行（入口 NativeTui.Demo.exe） |
 
 ## 四列验收表
 

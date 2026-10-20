@@ -225,7 +225,7 @@ public sealed class TranscriptServiceTests : IDisposable {
         var created = await _service.EnsureSessionAsync("ensure-1", info).ConfigureAwait(true);
 
         Assert.True(created);
-        Assert.True(_fs.FileExists("/test/transcript/ensure-1/transcript.json"));
+        Assert.True(_fs.FileExists("/test/transcript/ensure-1/transcript.jsonl"));
         Assert.Empty(await _service.LoadTranscriptAsync("ensure-1").ConfigureAwait(true));
         var loaded = await _service.GetSessionInfoAsync("ensure-1").ConfigureAwait(true);
         Assert.NotNull(loaded);

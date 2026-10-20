@@ -750,9 +750,23 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 |------|------|------|
 | 1 命令提示 | 直接运行 NativeTui.Demo.exe（真实终端） | 种子消息末条显示四命令说明（md/diff/perm/all） |
 | 2 md | 输入 `md` 回车 → 等 5.4s | 纯 Markdown 回合：8 类块全形态渲染，全程无工具事件（无 ⎿ 工具行） |
-| 3 diff | 输入 `diff` 回车 → 等 5.4s | 纯补丁回合：⎿ 工具结果 + 结构化 diff 块（+绿/-红/折叠提示），完成消息纯文本 |
+| 3 diff | 输入 `diff` 回车 → 等 5.4s | 纯补丁回合：⎿ 工具结果 + 结构化 diff 块（+绿/-红 着色可见），完成消息纯文本 |
 | 4 perm | 输入 `perm` 回车 → 1.2s 后弹权限对话框 | 数字 1-3 直选/Esc=Deny/上下环绕/Enter=焦点档；等待期 spinner 无 token 计数；8s 回合自动收束（未选择时 Deny 收尾） |
 | 5 all | 输入 `all` 回车 → 等 5.4s | 完整回合：工具调用+补丁+Markdown 完成消息（既有默认演示） |
 | 6 未知命令 | 输入任意其他文本回车 | Error 诱导消息：列出四命令名+用途+正确写法，无 TurnStarted |
 
+## M7-4b 用户验收反馈修复（2026-10-21，真实终端验收驱动）
+
+<!-- 🤖 Auto Decision: 2026-10-21 -->
+<!-- 决策: DiffResultItem 预览上限 2→10 行 — 对齐基准 Edit diff 全量渲染先例 -->
+<!--   (claude-code-rev-main/src/tools/FileWriteTool/UI.tsx L138-141: "update renders the full diff -->
+<!--   regardless of verbose"), 折叠上限采 Write MAX_LINES_TO_RENDER=10 防刷屏先例 -->
+<!-- 根因(缺陷驱动定位): 渲染链路无缺陷 — MessageRenderer 红绿前景/Theme 色值/StylePool SGR/ -->
+<!--   InlineComposer 输出全链路正常; 真因=旧预览上限 2 行被 hunk header+context 行吃光额度, -->
+<!--   Removed/Added 行全被折叠吞掉, 用户在真实终端看到的全是灰(dim)行 -->
+<!-- 修复内容: ① PreviewPatchRows 2→10 ② SimulatedPatch 行序 Removed/Added 前置+Context 殿后 -->
+<!--   (保证演示补丁红绿行可见) ③ SimulatedPatch 公开 static 供渲染可见性回归测试(对齐 DemoMarkdown 先例) -->
+<!-- TDD: 红测试 Render_DemoPatchShowsRedAndGreenLines(编译红=SimulatedPatch 未公开) → -->
+<!--   修复后 9/9 绿; 全量回归 NativeTui.Tests 559/559 + Demo selftest OK + Demo.exe 重编 -->
+<!-- 用户反馈①输入历史(↑↓)与②/命令补全: 用户明确指示移交其他人做, 本线不实现 -->
 <!-- M7-4 接续: M7-5 代码高亮调研(MarkdownCode.Language 已保留消费面) → M7-6 模型列表 → M7-7 多子代理分组 -->

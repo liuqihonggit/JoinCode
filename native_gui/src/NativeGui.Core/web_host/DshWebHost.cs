@@ -61,7 +61,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
         host._listener.Prefixes.Add(host.BaseUrl);
         host._listener.Start();
         host._acceptLoop = host.AcceptLoopAsync();
-        App.LogDiag($"[DSH-WEB] listening {host.BaseUrl} root={root}");
+        GuiDiag.Log($"[DSH-WEB] listening {host.BaseUrl} root={root}");
         return host;
     }
 
@@ -83,7 +83,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
         try {
             await RouteAsync(context);
         } catch (Exception ex) {
-            App.LogDiag($"[DSH-WEB] request failed {context.Request.RawUrl}: {ex.Message}");
+            GuiDiag.Log($"[DSH-WEB] request failed {context.Request.RawUrl}: {ex.Message}");
             TryClose(context.Response, 500);
         }
     }
@@ -120,19 +120,19 @@ internal sealed class DshWebHost : IAsyncDisposable {
             envelope = await JsonSerializer.DeserializeAsync(context.Request.InputStream, DshJsonContext.Default.DshRpcRequest)
                 ;
         } catch (JsonException ex) {
-            App.LogDiag($"[DSH-WEB] rpc parse failed {context.Request.Url}: {ex.Message}");
+            GuiDiag.Log($"[DSH-WEB] rpc parse failed {context.Request.Url}: {ex.Message}");
             TryClose(response, 400);
             return;
         }
         if (envelope is null || envelope.Type != "client-request" || string.IsNullOrEmpty(envelope.RpcId)) {
-            App.LogDiag($"[DSH-WEB] rpc invalid envelope {context.Request.Url}");
+            GuiDiag.Log($"[DSH-WEB] rpc invalid envelope {context.Request.Url}");
             TryClose(response, 400);
             return;
         }
         var args = envelope.Payload?.Args;
         var result = await _dispatcher.HandleAsync(envelope.Method, args ?? default, _lifetime.Token);
         if (!result.Ok) {
-            App.LogDiag($"[DSH-WEB] rpc {envelope.Method} -> {result.Error?.Code}: {result.Error?.Message}");
+            GuiDiag.Log($"[DSH-WEB] rpc {envelope.Method} -> {result.Error?.Code}: {result.Error?.Message}");
         }
         var reply = new DshRpcResponse { RpcId = envelope.RpcId, Result = result };
         try {
@@ -164,7 +164,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
                 try {
                     open = JsonSerializer.Deserialize(received, DshJsonContext.Default.DshStreamOpen);
                 } catch (JsonException ex) {
-                    App.LogDiag($"[DSH-WEB] stream parse failed: {ex.Message}");
+                    GuiDiag.Log($"[DSH-WEB] stream parse failed: {ex.Message}");
                     continue;
                 }
                 if (open is null || open.Type != "open" || string.IsNullOrEmpty(open.StreamId)) {
@@ -208,7 +208,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
     /// </summary>
     private async Task<(IReadOnlyList<DshStreamItem> Opening, IDisposable? Lease, Func<Task>? Ready)> OpenStreamAsync(
         DshStreamOpen open, Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
-        App.LogDiag($"[DSH-WEB] stream open endpoint={open.Endpoint} id={open.StreamId}");
+        GuiDiag.Log($"[DSH-WEB] stream open endpoint={open.Endpoint} id={open.StreamId}");
         switch (open.Endpoint) {
             case "$events": {
                 // ready 首帧 + 挂接权限确认桥（后续 waterfall 帧走同一条流；连接关闭时 fail-closed 清挂起请求）
@@ -234,7 +234,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
             case "session/follow":
                 return await OpenSessionAsync(open, send, cancellationToken);
             default:
-                App.LogDiag($"[DSH-WEB] stream endpoint unimplemented: {open.Endpoint}");
+                GuiDiag.Log($"[DSH-WEB] stream endpoint unimplemented: {open.Endpoint}");
                 return ([], null, null);
         }
     }
@@ -327,7 +327,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
         foreach (var item in list.Split(',', StringSplitOptions.RemoveEmptyEntries)) {
             var file = ResolveUnderRoot(Path.Combine("plugins", item));
             if (file is null || !File.Exists(file)) {
-                App.LogDiag($"[DSH-WEB] combo item missing: {item}");
+                GuiDiag.Log($"[DSH-WEB] combo item missing: {item}");
                 continue;
             }
             await using var stream = File.OpenRead(file);
@@ -342,7 +342,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
         var response = context.Response;
         var file = ResolveUnderRoot(relative);
         if (file is null || !File.Exists(file)) {
-            App.LogDiag($"[DSH-WEB] 404 {relative}");
+            GuiDiag.Log($"[DSH-WEB] 404 {relative}");
             TryClose(response, 404);
             return;
         }
@@ -369,7 +369,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
             response.StatusCode = statusCode;
             response.Close();
         } catch (Exception ex) {
-            App.LogDiag($"[DSH-WEB] close {statusCode} skipped: {ex.GetType().Name}");
+            GuiDiag.Log($"[DSH-WEB] close {statusCode} skipped: {ex.GetType().Name}");
         }
     }
 
@@ -392,12 +392,12 @@ internal sealed class DshWebHost : IAsyncDisposable {
             _listener.Stop();
             _listener.Close();
         } catch (Exception ex) {
-            App.LogDiag($"[DSH-WEB] listener stop skipped: {ex.GetType().Name}");
+            GuiDiag.Log($"[DSH-WEB] listener stop skipped: {ex.GetType().Name}");
         }
         if (_acceptLoop is not null) {
             await _acceptLoop;
         }
         _lifetime.Dispose();
-        App.LogDiag($"[DSH-WEB] stopped {BaseUrl}");
+        GuiDiag.Log($"[DSH-WEB] stopped {BaseUrl}");
     }
 }

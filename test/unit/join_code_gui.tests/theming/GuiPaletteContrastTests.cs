@@ -12,7 +12,7 @@ public class GuiPaletteContrastTests {
 
     /// <summary>校验"文字色 相对 背景色"对比度足够。</summary>
     private static void AssertContrast(string textual, string back, string label, double min = MinContrast) {
-        var ratio = GuiPalette.ContrastRatio(C(textual), C(back));
+        var ratio = GuiPaletteRenderer.ContrastRatio(C(textual), C(back));
         ratio.Should().BeGreaterThanOrEqualTo(min, $"{label}: {textual} on {back}");
     }
 
@@ -116,7 +116,7 @@ public class GuiPaletteContrastTests {
 
     [AvaloniaFact]
     public void ResourceDictionaries_ContainBothThemeBrushes() {
-        var dicts = GuiPalette.BuildResourceDictionaries();
+        var dicts = GuiPaletteRenderer.BuildResourceDictionaries();
         dicts.Should().ContainKey(GuiPalette.GuiThemeVariant.Dark);
         dicts.Should().ContainKey(GuiPalette.GuiThemeVariant.Light);
         dicts.Should().ContainKey(GuiPalette.GuiThemeVariant.SolarizedDark);

@@ -414,29 +414,11 @@ public static class GuiPalette {
     /// <summary>当前主题配色方案。</summary>
     public static Scheme Current => SchemeFor(_currentVariant);
 
-    /// <summary>以"主题 → Brush 资源字典"的形式生成 ThemeDictionaries，供 Application 注入。</summary>
-    public static IReadOnlyDictionary<GuiThemeVariant, ResourceDictionary> BuildResourceDictionaries() {
-        var result = new Dictionary<GuiThemeVariant, ResourceDictionary> {
-            [GuiThemeVariant.Dark] = BuildDictionary(Dark),
-            [GuiThemeVariant.Light] = BuildDictionary(Light),
-            [GuiThemeVariant.SolarizedDark] = BuildDictionary(SolarizedDark),
-            [GuiThemeVariant.SolarizedLight] = BuildDictionary(SolarizedLight)
-        };
-        return result;
-    }
-
-    /// <summary>构建指定主题的资源字典（供 GuiAppResources 主题切换时替换 ThemeDictionaries 槽位）。</summary>
-    public static ResourceDictionary BuildDictionaryFor(GuiThemeVariant variant)
-        => BuildDictionary(SchemeFor(variant));
-
-    private static ResourceDictionary BuildDictionary(Scheme scheme) {
-        var dict = new ResourceDictionary();
-        foreach (var (key, value) in SemanticTuples(scheme))
-            dict[key] = ToBrush(value);
-        return dict;
-    }
-
-    private static IEnumerable<(string Key, string Value)> SemanticTuples(Scheme s) {
+    /// <summary>
+    /// 语义键 → 方案色值的元组序列（ADR 0145 Core/Host 拆分点）：纯数据投影零 Avalonia 依赖，
+    /// Host 侧 <c>GuiPaletteRenderer</c> 消费此序列构建 <c>ResourceDictionary</c>。
+    /// </summary>
+    internal static IEnumerable<(string Key, string Value)> SemanticTuples(Scheme s) {
         yield return ("GuiWindowBackground", s.WindowBackground);
         yield return ("GuiSidebarBackground", s.SidebarBackground);
         yield return ("GuiSidebarTitle", s.SidebarTitle);
@@ -493,26 +475,5 @@ public static class GuiPalette {
         yield return ("GuiDangerLevelBlack", s.DangerLevelBlack);
         yield return ("GuiTurnColorA", s.TurnColorA);
         yield return ("GuiTurnColorB", s.TurnColorB);
-    }
-
-    /// <summary>解析十六进制色为不可变画刷（供资源和转换器共用）。</summary>
-    public static ISolidColorBrush ToBrush(string hex)
-        => new SolidColorBrush(Color.Parse(hex));
-
-    /// <summary>计算两色 WCAG 相对亮度。</summary>
-    public static double RelativeLuminance(Color c) {
-        double L(double v) => v <= 0.03928
-            ? v / 12.92
-            : Math.Pow((v + 0.055) / 1.055, 2.4);
-        return 0.2126 * L(c.R / 255.0) + 0.7152 * L(c.G / 255.0) + 0.0722 * L(c.B / 255.0);
-    }
-
-    /// <summary>计算两色对比度（1 到 21）。</summary>
-    public static double ContrastRatio(Color a, Color b) {
-        var la = RelativeLuminance(a);
-        var lb = RelativeLuminance(b);
-        var lighter = Math.Max(la, lb);
-        var darker = Math.Min(la, lb);
-        return (lighter + 0.05) / (darker + 0.05);
     }
 }

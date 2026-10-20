@@ -13,6 +13,8 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)modules/apps/gui/JoinCodeGui.csproj" />
+    <!-- 协议核心（ADR 0145）：DshXxx/hosting 契约 internal 类型现居 NativeGui.Core 程序集 -->
+    <ProjectReference Include="$(RepoRoot)native_gui/src/NativeGui.Core/NativeGui.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

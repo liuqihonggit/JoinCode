@@ -53,7 +53,7 @@ internal sealed class DshSettingsStore {
                 document = RelaxedJsonSerializer.Deserialize(json, DshJsonContext.Default.DshSettingsDocument);
             }
         } catch (Exception ex) {
-            App.LogDiag($"[DSH-SETTINGS] load failed: {ex.Message}");
+            GuiDiag.Log($"[DSH-SETTINGS] load failed: {ex.Message}");
         }
         ApplyLoadedDocument(document);
     }
@@ -171,7 +171,7 @@ internal sealed class DshSettingsStore {
             var json = RelaxedJsonSerializer.Serialize(document, DshJsonContext.Default);
             _ = _fs.WriteAllText(_filePath, json);
         } catch (Exception ex) {
-            App.LogDiag($"[DSH-SETTINGS] persist failed: {ex.Message}");
+            GuiDiag.Log($"[DSH-SETTINGS] persist failed: {ex.Message}");
         }
     }
 

@@ -25,7 +25,7 @@ internal sealed class DshApprovalBroker {
     /// <param name="clientId">就绪帧下发的客户端标识</param>
     internal void Attach(Func<JsonElement, Task> send, string clientId) {
         lock (_gate) { _events = (send, clientId); }
-        App.LogDiag($"[DSH-APPROVAL] events stream attached client={clientId}");
+        GuiDiag.Log($"[DSH-APPROVAL] events stream attached client={clientId}");
     }
 
     /// <summary>连接状态读写锁（volatile 元组不可用；读写互斥保护 _events 与 _pending 的结算一致性）</summary>
@@ -39,7 +39,7 @@ internal sealed class DshApprovalBroker {
                 pending.Decision.TrySetResult(Hosting.PermissionConfirmationDecision.Deny);
             }
         }
-        App.LogDiag("[DSH-APPROVAL] events stream detached: pending requests denied");
+        GuiDiag.Log("[DSH-APPROVAL] events stream detached: pending requests denied");
     }
 
     /// <summary>设置 waterfall 目标会话（DshTurnRunner 轮次开始时调用；前端按 agentId 路由到对应会话 scope）</summary>
@@ -73,10 +73,10 @@ internal sealed class DshApprovalBroker {
         _pending[eventId] = new Pending(completion);
         try {
             await send(JsonSerializer.SerializeToElement(frame, DshJsonContext.Default.DshWaterfallFrame));
-            App.LogDiag($"[DSH-APPROVAL] waterfall sent event=approval/request id={eventId} tool={request.ToolName}");
+            GuiDiag.Log($"[DSH-APPROVAL] waterfall sent event=approval/request id={eventId} tool={request.ToolName}");
         } catch (Exception ex) {
             _pending.TryRemove(eventId, out _);
-            App.LogDiag($"[DSH-APPROVAL] waterfall send failed: {ex.Message}");
+            GuiDiag.Log($"[DSH-APPROVAL] waterfall send failed: {ex.Message}");
             return Hosting.PermissionConfirmationDecision.Deny;
         }
 
@@ -112,7 +112,7 @@ internal sealed class DshApprovalBroker {
             decision = Hosting.PermissionConfirmationDecision.Allow;
         }
         pending.Decision.TrySetResult(decision);
-        App.LogDiag($"[DSH-APPROVAL] settled id={eventId} kind={outcome?.Kind} value={outcome?.Value} -> {decision}");
+        GuiDiag.Log($"[DSH-APPROVAL] settled id={eventId} kind={outcome?.Kind} value={outcome?.Value} -> {decision}");
         return Task.FromResult(true);
     }
 }

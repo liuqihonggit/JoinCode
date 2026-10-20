@@ -93,7 +93,7 @@ internal sealed class DshTurnRunner {
             if (await _services.Sessions.HistoryAsync(sessionId, cancellationToken) is { Count: > 0 } history) {
                 await engine.LoadHistoryAsync(history, cancellationToken);
             }
-            App.LogDiag($"[DSH-WEB] turn streaming session={sessionId} turn={turn}");
+            GuiDiag.Log($"[DSH-WEB] turn streaming session={sessionId} turn={turn}");
             var content = new StringBuilder();
             var thinking = new StringBuilder();
             TokenUsage? usage = null;
@@ -102,7 +102,7 @@ internal sealed class DshTurnRunner {
             await foreach (var evt in engine.StreamAsync(text, cancellationToken)) {
                 events += 1;
                 if (events == 1) {
-                    App.LogDiag($"[DSH-WEB] turn first event type={evt.Type} session={sessionId}");
+                    GuiDiag.Log($"[DSH-WEB] turn first event type={evt.Type} session={sessionId}");
                 }
                 if (evt.Type == ChatStreamEventType.Content && !string.IsNullOrEmpty(evt.Content)) {
                     content.Append(evt.Content);
@@ -115,24 +115,24 @@ internal sealed class DshTurnRunner {
                 } else if (evt.Type == ChatStreamEventType.AgentStarted || evt.Type == ChatStreamEventType.AgentFinished) {
                     await PublishAgentEventsAsync(sessionId, agents, evt);
                 } else if (evt.Type == ChatStreamEventType.SystemNotice) {
-                    App.LogDiag($"[DSH-WEB] turn system notice session={sessionId}: {evt.Content}");
+                    GuiDiag.Log($"[DSH-WEB] turn system notice session={sessionId}: {evt.Content}");
                 } else if (evt.Type == ChatStreamEventType.ToolCallEnd || evt.Type == ChatStreamEventType.ToolCallStart) {
                     await PublishToolCallAsync(sessionId, turn, evt, calls);
                 }
             }
-            App.LogDiag($"[DSH-WEB] turn stream done session={sessionId} events={events} chars={content.Length} thinking={thinking.Length}");
+            GuiDiag.Log($"[DSH-WEB] turn stream done session={sessionId} events={events} chars={content.Length} thinking={thinking.Length}");
             await PublishReplyAsync(sessionId, turn, thinking.Length > 0 ? thinking.ToString() : null, content.ToString(), usage, engine);
             await PublishWorkflowRunEndAsync(sessionId, agents, "completed");
             await EndTurnAsync(sessionId, turn, new DshTurnEndReason { Kind = "completed" });
         } catch (OperationCanceledException) {
-            App.LogDiag($"[DSH-WEB] turn cancelled session={sessionId} turn={turn}");
+            GuiDiag.Log($"[DSH-WEB] turn cancelled session={sessionId} turn={turn}");
             await PublishWorkflowRunEndAsync(sessionId, agents, "cancelled");
             await EndTurnAsync(sessionId, turn, new DshTurnEndReason {
                 Kind = "aborted",
                 Reason = new DshTurnEndCancelCause { Kind = "user" },
             });
         } catch (Exception ex) {
-            App.LogDiag($"[DSH-WEB] turn failed session={sessionId} turn={turn}: {ex.Message}");
+            GuiDiag.Log($"[DSH-WEB] turn failed session={sessionId} turn={turn}: {ex.Message}");
             await PublishWorkflowRunEndAsync(sessionId, agents, "error");
             await EndTurnAsync(sessionId, turn, new DshTurnEndReason {
                 Kind = "error",

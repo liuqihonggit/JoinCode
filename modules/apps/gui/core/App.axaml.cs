@@ -49,20 +49,8 @@ public sealed partial class App : Application {
             ? overridden
             : Path.Combine(AppDataConstants.Paths.JccDirectory, "webview2");
 
-    /// <summary>临时诊断日志：写入 dumps 目录，用于定位启动耗时</summary>
-    internal static void LogDiag(string message) => _ = LogDiagAsync(message);
-
-    private static async Task LogDiagAsync(string message) {
-        try {
-            var dir = AppDataConstants.Paths.DumpsDirectory;
-            Directory.CreateDirectory(dir);
-            await SafeFileIO.AppendAllText(
-                Path.Combine(dir, "startup_timing.log"),
-                $"{DateTime.Now:HH:mm:ss.fff} {message}\n");
-        } catch (Exception logEx) {
-            Console.Error.WriteLine($"[diag] timing log failed: {logEx.Message}");
-        }
-    }
+    /// <summary>临时诊断日志：委托 Core 的 <see cref="GuiDiag"/>（ADR 0145 拆分后实现单点在 Core），用于定位启动耗时</summary>
+    internal static void LogDiag(string message) => GuiDiag.Log(message);
 
     /// <summary>将未处理异常写入日志（GUI 进程无控制台，崩溃时便于诊断）</summary>
     private static void WriteCrashLog(Exception ex) => _ = WriteCrashLogAsync(ex);

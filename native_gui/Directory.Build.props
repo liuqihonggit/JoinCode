@@ -1,0 +1,8 @@
+<Project>
+
+  <!-- native_gui 构建配置：继承仓库根（引擎 DTO/生成器 analyzer/artifacts 输出版本变量全继承），
+       与 native_tui 的"完全遮蔽独立编译"策略相反 — GUI 协议层与引擎深度同源（ADR 0145），
+       刻意保持 ProjectReference 直连 modules。 -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+</Project>

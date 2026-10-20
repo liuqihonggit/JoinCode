@@ -43,6 +43,4 @@ public sealed class AccentOption {
     public string LightSubtle { get; set; } = "";
     /// <summary>白字按钮实底。</summary>
     public string Fill { get; set; } = "";
-    /// <summary>强调色预览画刷。</summary>
-    public IBrush PreviewBrush => GuiPalette.ToBrush(Fill);
 }

@@ -205,7 +205,7 @@ internal sealed class DshRpcDispatcher {
             return Fail("session/rejected", $"session/cancel 缺少 sessionId；收到 args={Describe(args)}");
         }
         if (_services.Streams.Cancel(request.SessionId)) {
-            App.LogDiag($"[DSH-WEB] cancel requested session={request.SessionId}");
+            GuiDiag.Log($"[DSH-WEB] cancel requested session={request.SessionId}");
         }
         return Ok(new DshSessionCancelResult());
     }
@@ -247,7 +247,7 @@ internal sealed class DshRpcDispatcher {
         }
         if (!string.IsNullOrWhiteSpace(request?.WorkspaceId)
             && await _services.Workspaces.AttachSessionAsync(request.WorkspaceId, session.SessionId, cancellationToken) is null) {
-            App.LogDiag($"[DSH-WEB] session/create 会话 {session.SessionId} 未能登记到工作区 {request.WorkspaceId}");
+            GuiDiag.Log($"[DSH-WEB] session/create 会话 {session.SessionId} 未能登记到工作区 {request.WorkspaceId}");
         }
         var agentPreset = string.IsNullOrWhiteSpace(request?.AgentPreset) ? session.AgentPreset : request.AgentPreset;
         return Ok(new DshSessionCreateResult { SessionId = session.SessionId, AgentPreset = agentPreset });

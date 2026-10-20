@@ -33,7 +33,7 @@ internal sealed class PermissionPromptBroker {
         var completion = new TaskCompletionSource<PermissionConfirmationDecision>(TaskCreationOptions.RunContinuationsAsynchronously);
         if (!_pending.TryAdd(id, completion)) {
             // 同 Id 重复请求（引擎复用 RequestId）：拒绝新请求，避免覆盖在途应答
-            App.LogDiag($"[WebUI] permission id 冲突 id={id} tool={request.ToolName}; fail-closed deny");
+            GuiDiag.Log($"[WebUI] permission id 冲突 id={id} tool={request.ToolName}; fail-closed deny");
             return PermissionConfirmationDecision.Deny;
         }
         try {
@@ -45,10 +45,10 @@ internal sealed class PermissionPromptBroker {
                 request.DangerLevel?.ToValue()));
             return await completion.Task.WaitAsync(_timeout, cancellationToken);
         } catch (TimeoutException) {
-            App.LogDiag($"[WebUI] permission timeout id={id} tool={request.ToolName}; fail-closed deny");
+            GuiDiag.Log($"[WebUI] permission timeout id={id} tool={request.ToolName}; fail-closed deny");
             return PermissionConfirmationDecision.Deny;
         } catch (OperationCanceledException) {
-            App.LogDiag($"[WebUI] permission canceled id={id} tool={request.ToolName}; fail-closed deny");
+            GuiDiag.Log($"[WebUI] permission canceled id={id} tool={request.ToolName}; fail-closed deny");
             return PermissionConfirmationDecision.Deny;
         } finally {
             _pending.TryRemove(id, out _);
@@ -63,10 +63,10 @@ internal sealed class PermissionPromptBroker {
         ArgumentNullException.ThrowIfNull(response);
         var decision = ParseDecision(response.Decision);
         if (!_pending.TryRemove(response.Id, out var completion)) {
-            App.LogDiag($"[WebUI] permission response 无匹配请求 id={response.Id} decision={response.Decision}");
+            GuiDiag.Log($"[WebUI] permission response 无匹配请求 id={response.Id} decision={response.Decision}");
             return;
         }
-        App.LogDiag($"[WebUI] permission response id={response.Id} decision={decision.ToValue()}");
+        GuiDiag.Log($"[WebUI] permission response id={response.Id} decision={decision.ToValue()}");
         completion.TrySetResult(decision);
     }
 

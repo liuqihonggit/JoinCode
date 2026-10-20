@@ -250,7 +250,7 @@ internal sealed class DshSessionStreamHub {
                 await subscription.Send(sessionEvent);
                 subscription.LastSeq = sessionEvent.Seq;
             } catch (Exception ex) {
-                App.LogDiag($"[DSH-WEB] stream push failed stream={subscription.StreamId}: {ex.Message}");
+                GuiDiag.Log($"[DSH-WEB] stream push failed stream={subscription.StreamId}: {ex.Message}");
                 return;
             }
         }

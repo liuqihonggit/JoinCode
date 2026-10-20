@@ -261,7 +261,7 @@ internal sealed class DshWorkspaceStore {
             return _document = RelaxedJsonSerializer.Deserialize(json, DshWorkspaceJsonContext.Default.DshWorkspaceBaselineValue)
                 ?? new DshWorkspaceBaselineValue();
         } catch (Exception ex) when (ex is IOException or JsonException) {
-            App.LogDiag($"[DSH-WEB] workspace registry unreadable: {ex.Message}");
+            GuiDiag.Log($"[DSH-WEB] workspace registry unreadable: {ex.Message}");
             return _document = new DshWorkspaceBaselineValue();
         }
     }

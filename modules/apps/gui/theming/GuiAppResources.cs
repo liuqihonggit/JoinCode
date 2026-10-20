@@ -56,14 +56,14 @@ public static class GuiAppResources {
         var avaVariant = variant is GuiPalette.GuiThemeVariant.Light or GuiPalette.GuiThemeVariant.SolarizedLight
             ? ThemeVariant.Light
             : ThemeVariant.Dark;
-        var dictionary = GuiPalette.BuildDictionaryFor(variant);
+        var dictionary = GuiPaletteRenderer.BuildDictionaryFor(variant);
         if (_accent is not null) {
             var light = avaVariant == ThemeVariant.Light;
-            dictionary["GuiAccentText"] = GuiPalette.ToBrush(light ? _accent.LightText : _accent.DarkText);
-            dictionary["GuiAccentSubtle"] = GuiPalette.ToBrush(light ? _accent.LightSubtle : _accent.DarkSubtle);
-            dictionary["GuiAccentSubtleHover"] = GuiPalette.ToBrush(light ? _accent.LightSubtle : _accent.DarkSubtle);
-            dictionary["GuiAccentFill"] = GuiPalette.ToBrush(_accent.Fill);
-            dictionary["GuiAccentHover"] = GuiPalette.ToBrush(_accent.Fill);
+            dictionary["GuiAccentText"] = GuiPaletteRenderer.ToBrush(light ? _accent.LightText : _accent.DarkText);
+            dictionary["GuiAccentSubtle"] = GuiPaletteRenderer.ToBrush(light ? _accent.LightSubtle : _accent.DarkSubtle);
+            dictionary["GuiAccentSubtleHover"] = GuiPaletteRenderer.ToBrush(light ? _accent.LightSubtle : _accent.DarkSubtle);
+            dictionary["GuiAccentFill"] = GuiPaletteRenderer.ToBrush(_accent.Fill);
+            dictionary["GuiAccentHover"] = GuiPaletteRenderer.ToBrush(_accent.Fill);
         }
         if (_themeHost is { } host)
             host.ThemeDictionaries[avaVariant] = dictionary;

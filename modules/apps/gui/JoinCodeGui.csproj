@@ -28,12 +28,6 @@
   <ItemGroup>
     <!-- WebUI 静态资源（B2 路线，ADR 0138）：随 exe 分发，file:// 离线加载（自研 UI，webui-smoke 对照用） -->
     <Content Include="webui\**" CopyToOutputDirectory="PreserveNewest" />
-    <!-- DSH 前端资产（ADR 0143）：嵌入 zip，首次运行解包到 JccDirectory\dsh_web\{版本} -->
-    <EmbeddedResource Include="dsh_web\dsh_web.zip" LogicalName="JoinCode.Gui.dsh_web.zip" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="theming\Appearance.json" LogicalName="JoinCode.Gui.Appearance.json" />
   </ItemGroup>
 
   <ItemGroup>
@@ -49,6 +43,8 @@
     <!-- Hosting 层（JccChatSession）读取 teammate 子会话列表，需直接引用 Scheduling -->
     <ProjectReference Include="$(RepoRoot)modules/storage/scheduling/Scheduling.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/async_primitives/bcl_bridge/BclBridge.csproj" />
+    <!-- 协议核心（ADR 0145）：web_host/hosting 契约/persistence/theming 数据面已迁 native_gui -->
+    <ProjectReference Include="$(RepoRoot)native_gui/src/NativeGui.Core/NativeGui.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

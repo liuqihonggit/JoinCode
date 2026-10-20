@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>JoinCode.Gui</RootNamespace>
+    <AssemblyName>NativeGui.Core</AssemblyName>
+    <Description>NativeGui 协议核心 — DSH web_host 协议层/hosting 契约/persistence/theming 数据面（ADR 0145，纯 net10.0 零 Avalonia/WebView2 依赖）</Description>
+    <TargetFramework>net10.0</TargetFramework>
+    <AllowPack>false</AllowPack>
+    <IsPackable>false</IsPackable>
+    <!-- 与旧 JoinCodeGui 同款豁免（存量代码随迁，行为不变；JCC9001=启动期资源解包/诊断日志的物理 IO，CS8604=源生成 TypeInfo 非空约定） -->
+    <NoWarn>$(NoWarn);JCC9001;JCC10001;JCC10002;CS8604;CS1573;CS1587;NU1903;CS0618</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 显式 AssemblyInfo（properties/AssemblyInfo.cs）— SDK ItemGroup 机制在 analyzer 管线下未生效，显式 attribute 最稳 -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- TranscriptStore(State.TranscriptService) 会话落盘 -->
+    <ProjectReference Include="$(RepoRoot)modules/storage/scheduling/Scheduling.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/async_primitives/bcl_bridge/BclBridge.csproj" />
+    <!-- 配置链（SettingsLoader/SettingsJson，DshModelCatalogSource/DshSettingsStore 消费，与 TUI 同源） -->
+    <ProjectReference Include="$(RepoRoot)modules/guard/guard/Guard.csproj" />
+    <!-- 枚举 [EnumValue] 元数据生成（PermissionConfirmationDecision/GuiThemeVariant 等） -->
+    <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- DSH 前端资产（ADR 0143）：嵌入 zip，DshWebAssets 首次运行解包（LogicalName 保持不变与程序集名解耦） -->
+    <EmbeddedResource Include="dsh_web\dsh_web.zip" LogicalName="JoinCode.Gui.dsh_web.zip" />
+    <EmbeddedResource Include="theming\Appearance.json" LogicalName="JoinCode.Gui.Appearance.json" />
+  </ItemGroup>
+
+</Project>

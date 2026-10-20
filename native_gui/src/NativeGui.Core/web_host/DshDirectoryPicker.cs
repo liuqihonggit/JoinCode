@@ -29,15 +29,15 @@ internal static class DshDirectoryPicker {
     /// <summary>请求选择目录：返回绝对路径，未选择/未注册返回 null</summary>
     internal static async Task<string?> PickAsync(CancellationToken cancellationToken) {
         if (Environment.GetEnvironmentVariable("JCC_DIRECTORY_PICK") is { Length: > 0 } injected) {
-            App.LogDiag($"[DSH-WEB] directory pick injected={injected}");
+            GuiDiag.Log($"[DSH-WEB] directory pick injected={injected}");
             return injected;
         }
         if (ResolveHandler() is not { } handler) {
-            App.LogDiag("[DSH-WEB] directory pick cancelled: no handler registered");
+            GuiDiag.Log("[DSH-WEB] directory pick cancelled: no handler registered");
             return null;
         }
         var picked = await handler(cancellationToken);
-        App.LogDiag($"[DSH-WEB] directory pick result={(picked is null ? "<cancelled>" : picked)}");
+        GuiDiag.Log($"[DSH-WEB] directory pick result={(picked is null ? "<cancelled>" : picked)}");
         return picked;
     }
 

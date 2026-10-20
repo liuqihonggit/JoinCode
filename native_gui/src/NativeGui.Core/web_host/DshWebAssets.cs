@@ -47,6 +47,6 @@ internal static class DshWebAssets {
             Directory.CreateDirectory(Path.GetDirectoryName(destination) ?? target);
             entry.ExtractToFile(destination, overwrite: true);
         }
-        App.LogDiag($"[DSH-WEB] assets extracted to {target}");
+        GuiDiag.Log($"[DSH-WEB] assets extracted to {target}");
     }
 }

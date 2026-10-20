@@ -263,6 +263,10 @@ public sealed class DshSessionStoreTests {
         snapshot.Projections.Values.Title.Should().Be("聊两句");
         snapshot.Projections.Values.SessionListMetadata.Should().NotBeNull();
         snapshot.Projections.Values.SessionListMetadata.Blank.Should().BeFalse();
+        snapshot.Records.Select(record => record.Event.Type).Should().Equal(
+            "turn/start", "step/start", "user/message", "assistant/message", "step/end", "turn/end");
+        snapshot.Cursor.Should().Be(snapshot.Records[^1].Event.Seq);
+        snapshot.HasMore.Should().BeFalse();
     }
 
     [Fact]

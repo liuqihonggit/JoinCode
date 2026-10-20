@@ -369,13 +369,15 @@ internal sealed class DshSessionAddress {
 
 /// <summary>session/follow 打开快照（前端据 <c>cursor=-1</c> + 空 <c>records</c> 判定空日志）</summary>
 internal sealed class DshSessionFollowSnapshot {
+    /// <summary>空日志页尾光标（与前端 emptyCursor 对齐；页尾光标必须等于请求光标）</summary>
+    internal const long EmptyCursor = -1;
     /// <summary>固定为 snapshot</summary>
     public string Type { get; set; } = "snapshot";
     /// <summary>会话头</summary>
     public DshSessionHeader Header { get; set; } = new();
     /// <summary>页尾光标（空日志固定 -1，与前端 emptyCursor 对齐）</summary>
-    public long Cursor { get; set; } = -1;
-    /// <summary>历史事件页（当前恒为空：消息映射属 M2-c）</summary>
+    public long Cursor { get; set; } = EmptyCursor;
+    /// <summary>历史事件页（由引擎转录投影：turn/step 脚手架 + 消息）</summary>
     public List<DshSessionRecord> Records { get; set; } = [];
     /// <summary>是否还有更早的历史页（空日志为 false，前端据此不再请求 session/page）</summary>
     public bool HasMore { get; set; }
@@ -419,6 +421,84 @@ internal sealed class DshSessionEvent {
     public long Time { get; set; }
     /// <summary>事件载荷</summary>
     public JsonElement Data { get; set; }
+    /// <summary>会话表面操作（消息类事件为 append，其余不输出）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SurfaceOp { get; set; }
+}
+
+/// <summary>消息内容块（当前仅文本）</summary>
+internal sealed class DshWireContentBlock {
+    /// <summary>块类型</summary>
+    public string Type { get; set; } = "text";
+    /// <summary>文本内容</summary>
+    public string Text { get; set; } = "";
+}
+
+/// <summary>消息来源（用户输入或模型产出）</summary>
+internal sealed class DshWireMessageSource {
+    /// <summary>来源类型（user / model）</summary>
+    public string Kind { get; set; } = "user";
+    /// <summary>触发该消息的请求标识（用户来源）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? RpcId { get; set; }
+    /// <summary>供应商（模型来源）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Provider { get; set; }
+    /// <summary>模型标识（模型来源）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Model { get; set; }
+}
+
+/// <summary>会话消息（user/message、assistant/message 共用形状）</summary>
+internal sealed class DshWireMessage {
+    /// <summary>消息身份</summary>
+    public string Id { get; set; } = "";
+    /// <summary>角色（user / assistant）</summary>
+    public string Role { get; set; } = "";
+    /// <summary>内容块</summary>
+    public List<DshWireContentBlock> Content { get; set; } = [];
+    /// <summary>消息来源</summary>
+    public DshWireMessageSource Source { get; set; } = new();
+}
+
+/// <summary>turn/start 载荷</summary>
+internal sealed class DshTurnStartData {
+    /// <summary>轮次</summary>
+    public int Turn { get; set; }
+}
+
+/// <summary>step/start、step/end 载荷</summary>
+internal sealed class DshStepData {
+    /// <summary>轮次</summary>
+    public int Turn { get; set; }
+    /// <summary>步骤</summary>
+    public int Step { get; set; }
+}
+
+/// <summary>turn/end 载荷</summary>
+internal sealed class DshTurnEndData {
+    /// <summary>轮次</summary>
+    public int Turn { get; set; }
+    /// <summary>结束原因</summary>
+    public DshTurnEndReason Reason { get; set; } = new();
+}
+
+/// <summary>轮次结束原因</summary>
+internal sealed class DshTurnEndReason {
+    /// <summary>原因类型</summary>
+    public string Kind { get; set; } = "completed";
+}
+
+/// <summary>assistant/message 载荷</summary>
+internal sealed class DshAssistantMessageData {
+    /// <summary>轮次</summary>
+    public int Turn { get; set; }
+    /// <summary>步骤</summary>
+    public int Step { get; set; }
+    /// <summary>消息体</summary>
+    public DshWireMessage Message { get; set; } = new();
+    /// <summary>流式块（历史消息为空数组）</summary>
+    public List<JsonElement> Stream { get; set; } = [];
 }
 
 /// <summary>助手流基线（revision=0 表示无进行中的尝试）</summary>
@@ -735,6 +815,16 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshSessionHeader))]
 [JsonSerializable(typeof(DshSessionRecord))]
 [JsonSerializable(typeof(DshSessionEvent))]
+[JsonSerializable(typeof(DshWireContentBlock))]
+[JsonSerializable(typeof(DshWireMessageSource))]
+[JsonSerializable(typeof(DshWireMessage))]
+[JsonSerializable(typeof(List<DshWireContentBlock>))]
+[JsonSerializable(typeof(DshTurnStartData))]
+[JsonSerializable(typeof(DshStepData))]
+[JsonSerializable(typeof(DshTurnEndData))]
+[JsonSerializable(typeof(DshTurnEndReason))]
+[JsonSerializable(typeof(DshAssistantMessageData))]
+[JsonSerializable(typeof(List<JsonElement>))]
 [JsonSerializable(typeof(DshAssistantStreamBaseline))]
 [JsonSerializable(typeof(Dictionary<string, DshSessionProjectionSnapshot>))]
 [JsonSerializable(typeof(DshModelCatalog))]

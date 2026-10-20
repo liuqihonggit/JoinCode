@@ -14,7 +14,8 @@
 | M2-b1 | `session/list` + `session/rename` + `session/cancel`：侧栏显示引擎已有会话（标题/时间/工作目录/空白标记） | ✅ |
 | M2-b2 | `session/create` 落引擎 + `session/control` 基线投影 + `session/modelCatalog` 真实模型目录 + `session/projections` | ✅ |
 | M2-b3 | 打开会话：`session/follow` snapshot（含 `projections` + `assistantStream` 基线） | ✅ |
-| M2-c | 聊天主链路：消息发送 + `session/follow` 增量事件流（`assistant/message`、`tool/call|result`、`step/*`…） | ⬜ |
+| M2-c1 | 历史渲染：引擎转录 → DSH 事件（`turn/start`→`step/start`→`user/message`→`assistant/message`→`step/end`→`turn/end`，消息带 `surfaceOp:'append'`） | ✅ |
+| M2-c2 | 聊天主链路：消息发送 + `session/follow` 增量事件流（`assistant/message`、`tool/call|result`、`step/*`…） | ⬜ |
 | M2-d | 权限：`approval/*` 事件 + 判定回传；`sandbox/mode`、`permission/preset` | ⬜ |
 | M3 | 自研 WebUI 与旧桥接归档，`--webui-smoke` 删除 | ⬜ |
 
@@ -41,7 +42,8 @@
 | `session/modelCatalog`（`DshModelCatalogSource`）：启动读 `~/.jcc/settings.json`（`vendor` 预设 + `current.profile`，`JCC_VENDOR` 覆盖），引擎 attach 后热切换 `IJccChatSession.{CurrentVendor,CurrentModelId,VendorModelMap}`；输出 `default/routableProviders/groups/failures` | 模型选择器（消除「正在加载模型…」） | ✅ | ✅ 单测 `DshModelCatalogSourceTests` 4/4；E2E 实调返回 `default={deepseek,deepseek-v4-pro}` + `groups` + `failures:[]` |
 | `session/projections`（`DshSessionStore.ProjectionsAsync`，`null` 或 `{asOfSeq,values}`）+ `session/control` 基线真实投影映射（`ProjectionsMapAsync`） | 会话投影懒加载 / `session/control` 基线种子 | ✅ | ✅ 单测 3 例（未接引擎 null/未知会话 null/空白会话 blank=true）；E2E 实调返回空白会话投影 |
 | `session/follow` 打开快照（`DshWebHost.OpenSessionAsync` + `DshSessionStore.SnapshotAsync` + `FollowSessionId`）：`header{version,id,createdAt,cwd,isSeeded,agentPreset}` + `cursor=-1` + `records:[]` + `hasMore:false` + `projections` + `assistantStream{revision:0}`；未知会话/子代理地址/存储未就绪走引导式 `error` 帧 | 点侧栏会话打开会话（`manager.retain → SessionEventStream.follow`） | ✅ | ✅ 单测 6 例（未接引擎 null/未知会话 null/空白会话 cursor=-1/多条消息 seq+标题/普通地址解析/子代理地址拒绝）；E2E `dumps/dsh-webui-open-session.mjs` ALL_PASS（19 项，开流与快照头均为被点击会话） |
-| 会话历史事件页（`records` 从引擎转录映射 `user/message`/`assistant/message`/工具事件） | 打开会话看到历史消息、`session/page` 向上翻页 | ⬜ | ⬜ M2-c |
+| 会话历史事件页（`records` 从引擎转录映射 `user/message`/`assistant/message`） | 打开会话看到历史消息（`DshTranscriptProjector` ← `SnapshotAsync`） | ✅ | ✅ M2-c1（`dsh-webui-history.mjs`） |
+| 历史页工具事件与向上翻页（`tool/call|result`、`session/page`） | 长会话滚动加载 | ⬜ | ⬜ M2-c2 |
 | 会话/消息/流式/权限（增量事件、`approval/*`） | 聊天主链路 | ⬜ | ⬜ M2-c/d |
 
 ## M1.5 缺陷记录（缺陷驱动）
@@ -123,6 +125,27 @@
 | 点击目标正确 | 抓包按 sessionId 过滤 | ✅ 开流与快照头 id 都等于被点会话，不是刷新还原的那条 |
 | 无错误帧 | 读 WS 下行全集 | ✅ 无 `{"type":"error"}`、无 `unimplemented`、页面无「尚未实现」 |
 
+## M2-c1 缺陷/决策记录（缺陷驱动）
+
+1. 现象：会话能打开（投影/标题/输入框都在），但主区**没有任何历史消息**——`records` 恒为空，前端把会话画成空白新会话。
+2. 红测：`dumps/dsh-webui-history.mjs`（写一份带两条消息的落盘会话 → 真实 RPC 收养进工作区 → 刷新 → 点该行 → 断言快照 `records` 是消息事件且界面上出现两段文本）。
+3. 根因：转录条目（`TranscriptEntry{role,content,timestamp}`）与 DSH 会话事件是两套形状；前端 `Session` 只把带 `surfaceOp` 的消息事件收进会话表面，且靠 `turn/step` 分组渲染。修复：新增 `DshTranscriptProjector` 把条目投影成完整脚手架事件（`turn/start→step/start→user/message→assistant/message→step/end→turn/end`），消息事件带 `surfaceOp:'append'`。
+4. 决策：seq 从 0 单调递增、消息 id 用 `{sessionId}:{seq}`（稳定可重放），时间取条目时间戳；元数据条目（`custom-title`/`agent-name`）与侧链（`IsSidechain`）不参与投影。空内容条目跳过（避免渲染空气泡）。
+5. 决策：一轮 = 一条用户消息 + 其后的助手消息（step 恒为 1）；会话以助手消息开头时补 `turn/start`+`step/start`。多轮工具循环（step 递增、`tool/call`）留 M2-c2，因为它需要真实流式事件而不是历史速写。
+6. 决策：`ReadAsync` 一次读盘同时返回投影/元信息/条目，`session/projections` 与 `session/follow` 不各读一遍；页尾 `cursor` 取最后一条事件的 seq（无事件时仍为 `-1`），`hasMore:false`。
+7. E2E 坑（非产品缺陷）：System.Text.Json 默认把中文转义成 `\uXXXX`，对 WS 帧做 `includes('中文')` 必然失败 → 断言必须先 `JSON.parse` 帧再查字段（解析后仍失败才是真缺陷）。
+8. 绿测：`DshTranscriptProjectorTests` 5 例（空转录 / 脚手架形状 / 元数据与侧链剔除 / 每轮递增 / 助手开头补轮次）+ `DshSessionStoreTests.Snapshot_WithMessages_ReportsSeqAndTitle` 增补 records/cursor 断言；GUI 全量 693 通过 / 3 跳过；E2E `dsh-webui-history.mjs` ALL_PASS（15 项），`dsh-webui-open-session.mjs`（19 项）与 `dsh-webui-create-session.mjs` 回归 ALL_PASS。
+
+## M2-c1 验收记录（ADR 0080 手动 exe）
+
+| 步骤 | 命令/动作 | 结果 |
+|------|-----------|------|
+| 种子会话 | E2E 写 `sessions/history-e2e/{transcript.json,meta.json}`（2 条消息 + `custom-title`）+ `session/create` 附到工作区 | ✅ `session/create` 回 `{sessionId:"history-e2e"}` |
+| 侧栏行 | 刷新后读页面文本 | ✅ 出现 `历史渲染会话` |
+| 快照历史页 | 点该行读 WS 下行 | ✅ `records=6`（`turn/start,step/start,user/message,assistant/message,step/end,turn/end`），`cursor:5`，消息事件 `surfaceOp:"append"` |
+| 界面渲染 | 等页面出现两段历史文本 | ✅ 主区显示「历史问题：请介绍仓库结构」+「历史回答：三层结构依次是能力层、模块层、应用层」，右上「1 轮 1 步」、「已完成」 |
+| 无错误帧 | 读 WS 下行全集 | ✅ 无 `{"type":"error"}`、无 `unimplemented`、页面无「尚未实现」 |
+
 ## M2-b1 验收记录（ADR 0080 手动 exe）
 
 | 步骤 | 命令/动作 | 结果 |
@@ -150,6 +173,8 @@
 - 会话内重命名入口是快捷键 `Ctrl+Alt+G`（`session.rename` 命令），需要已打开且非空白会话（`sessions.using(...)`）→ 依赖 M2-b3 的打开会话后才可做 UI 验收。
 - 前端对**已经打开的会话**再点不重新开流（`manager` 复用已开的 `SessionEventStream`）；页面刷新会按上次选择还原并自动发一条 `session/follow` → E2E 断言要按 `sessionId` 过滤，不能取第一条。
 - 会话事件契约（M2-c 用）：`user/message` data=`UserMessage{id,content:ContentBlock[],source}`；`assistant/message` data=`{turn,step,message,stream,usage?}`；`ContentBlock` 文本 `{type:'text',text}`、`tool-call{type,id,name,arguments}`；`SessionTitleEventData{title,messageSeqs,source}`。
+- 消息事件只有带 `surfaceOp`（`'append'`）才被前端收进会话表面（`isSurfaceEvent`：类型属 `{system,developer,user,assistant}/message` + `tool/result`，且 `surfaceOp !== undefined`）；`turn/start`/`step/start`/`step/end`/`turn/end` 提供分组脚手架。
+- WS 帧是 JSON（非 ASCII 被转义成 `\uXXXX`）：E2E 断言必须 `JSON.parse` 帧后查字段，禁止直接对帧做中文字符串 `includes`。
 
 ## 复现与验证方式
 
@@ -171,6 +196,7 @@ node dumps/dsh-webui-workspace.mjs jcc-e2e-ws --no-pick # 重启后基线恢复�
 node dumps/dsh-webui-sessions.mjs "E2E引擎会话"          # 侧栏显示引擎已有会话（标题/时间）
 node dumps/dsh-webui-create-session.mjs ws-m2b2         # 新建会话落引擎 + 模型目录/投影 + 刷新后读回
 node dumps/dsh-webui-open-session.mjs ws-m2b3           # 点侧栏会话开流 + 打开快照（投影/assistantStream/空日志页）
+node dumps/dsh-webui-history.mjs ws-m2b3 <工作区路径> <隔离 home>   # 历史渲染：转录→DSH 事件，界面出现历史问答
 node dumps/dsh-webui-reload-trace.mjs                  # 启动/重载全量请求响应
 # 单测
 dotnet test test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj -c Debug --filter "FullyQualifiedName~WebHost"

@@ -588,3 +588,40 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 | 5 权限 | Shift+Tab 循环 | footer 模式 plan→ask→bypass→unattended→auto（引擎回执为准） |
 | 6 退出 | 空闲时 Esc 或 Ctrl+C | 清尾部动态区，历史留 scrollback，`NativeTui.Host 已退出。` |
 
+
+## M7-1 截图校准工具链落地（2026-10-20，L2 像素级验收基建）
+
+<!-- 🤖 Auto Decision: 2026-10-20 -->
+<!-- 决策: M7 第一项落地=截图校准工具链, 从青蛙TUI(D:\project\青蛙的TUI, JoinCode 旧分叉)复制四件套 -->
+<!-- 来源调查: 两并行探查代理结论 — 青蛙TUI 是 Terminal.Gui v2 驱动的 jcctui, 渲染引擎不可搬, -->
+<!--   但 tool/tui 截图校准工具链独有且与像素级对齐方法论完全同构(ANSI→cell→同字体栅格化→ImageChops 像素 diff) -->
+<!-- 落位: native_tui/tool/screenshot/{compare/(compare_reference.py+README), reference/(TS 采集端 7 文件)} -->
+<!--   + tests/NativeTui.Tests/snapshot/(SnapshotVerifier approved/received 快照基建) -->
+<!--   + Core repl/ReferenceScene(80×24 固定 fixture 场景→ToAnsiText) + Demo --capture 薄壳 -->
+<!-- 首验结果: clawd 9×3 与 prompt 边框 80×3 两 region 均 0 字符/0 像素差异(退出码 0) — -->
+<!--   M6e 的 Clawd/banner 对齐与 prompt 全宽─线修正获基准像素级自动化验收 -->
+<!-- 过程修正: 首跑 prompt 差异 12 字符=TS 参考端输入框 fixture("fixture input")与 native_tui 空输入不对齐 — -->
+<!--   属两侧 fixture 不对齐非渲染 bug, ReferenceScene.Input 补同 fixture 后归零 -->
+<!-- 已知限制: py cells() 解析器不支持 SGR 7(inverse) — 光标反色被按默认样式解析(与青蛙TUI 原版一致, -->
+<!--   scope=border properties); 需要光标像素验收时增强 py 支持 code 7 -->
+<!-- TDD: 红测试 CS0103 先行→SnapshotVerifier 3 用例+ReferenceScene 4 用例(含 Verify 模式快照) -->
+<!--   →approved 快照人工审核批准; 全量 487/487(480+新增 7) + Demo selftest 回归通过 -->
+<!-- 验证命令(真实运行): cd native_tui/tool/screenshot/reference && npm ci && node build.mjs <基准src> && -->
+<!--   FORCE_COLOR=3 node reference.mjs; dotnet run --project apps/NativeTui.Demo -- --capture .xxx/screen.ansi; -->
+<!--   python tool/screenshot/compare/compare_reference.py --reference tool/screenshot/reference --capture .xxx/screen.ansi --output .xxx/visual -->
+
+### M7 前置调查结论（青蛙TUI 资产盘点，2026-10-20）
+
+| M7 项 | 青蛙TUI 状态 | 复用结论 |
+|---|---|---|
+| 截图校准 | ✅ 完整工具链独有 | ✅ 已落地（本决策块） |
+| Markdown 渲染 | ✅ TranscriptWriter(Markdig AST→终端投影) | 可抄投影算法；**用户已决策引入 Markdig NuGet**（纯 AST 解析库 AOT 兼容，不违反 ADR 0140 精神） |
+| 代码高亮 | ⚠️ 绑 Terminal.Gui.Editor xshd | 不可搬，维持先调研结论 |
+| StructuredDiff | ✅ 完整 | **无需复制** — w1 引擎侧已全通（IEventConsumer.OnToolEnd 带 StructuredPatchHunk[]，InProcessEventConsumer 已收参当前丢弃），M7 只差透传+渲染（⎿ 折叠思路抄青蛙TUI TranscriptDocument） |
+| 权限对话框 | ✅ 三档+DialogRequest TCS 桥+Rewind+重试预算 | 高价值复用（桥模式+编排），接 ReplShell 扩展点 |
+| 模型列表 UI | ✅ 本地配置拉取 | ⚠️ 与既定要求（后端获取）不符，只抄 Picker 交互 |
+| 多子代理分组 | ⚠️ 半成品（基建未接线） | 按已固化基准调查自建；SubAgentCardManager LRU 可参考 |
+| resize 事件化 | ✅ TerminalResizeMonitor | 小件可搬，低优先 |
+
+<!-- 决策依据: 青蛙TUI 渲染引擎=Terminal.Gui v2 与 native_tui 自研 cell 管线根本不同不可整体搬运; -->
+<!--   复用判据=纯逻辑零耦合优先(diff 全套/权限桥/Markdown 投影算法), 框架耦合组件只抄思路 -->

@@ -1,0 +1,20 @@
+import React from 'react';
+import {render, Box, Text} from 'ink';
+import {Writable, PassThrough} from 'node:stream';
+import {writeFileSync} from 'node:fs';
+import {Clawd} from 'reference-clawd';
+const captures: string[] = [];
+const stdout: any = new Writable({write(chunk, _encoding, done) {captures.push(String(chunk)); done();}});
+stdout.columns = 80; stdout.rows = 24; stdout.isTTY = false;
+const stdin: any = new PassThrough(); stdin.isTTY = false;
+const instance = render(<Box flexDirection="column"><Clawd/></Box>, {stdout, stdin, debug: true, patchConsole: false, exitOnCtrlC: false});
+await new Promise(resolve => setTimeout(resolve, 200));
+instance.unmount();
+writeFileSync('reference_clawd.ansi', captures.find(frame => frame.includes('▛')) ?? captures.join(''));
+const promptCaptures: string[] = [];
+const promptOutput: any = new Writable({write(chunk, _encoding, done) {promptCaptures.push(String(chunk)); done();}});
+promptOutput.columns = 80; promptOutput.rows = 24; promptOutput.isTTY = false;
+// PromptInput.tsx 的展示边界属性原样：round、left=false、right=false、bottom=true、width=100%。
+const prompt = render(<Box flexDirection="row" borderStyle="round" borderColor="#888888" borderLeft={false} borderRight={false} borderBottom width={80}><Text>{'❯ '}</Text><Text>fixture input</Text></Box>, {stdout: promptOutput, stdin, debug: true, patchConsole: false, exitOnCtrlC: false});
+await new Promise(resolve => setTimeout(resolve, 200)); prompt.unmount();
+writeFileSync('reference_prompt.ansi', promptCaptures.find(frame => frame.includes('❯')) ?? promptCaptures.join(''));

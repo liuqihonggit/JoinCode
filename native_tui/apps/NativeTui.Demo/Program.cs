@@ -37,8 +37,20 @@ public static class Program
         return rest.ToArray() is ["--selftest"] ? RunSelftest()
             : rest is ["--bridge-selftest"] ? RunBridgeSelftest()
             : rest is ["--bridge-echo-child"] ? RunBridgeEchoChild()
+            : rest is ["--capture", string capturePath] ? RunCapture(capturePath)
             : rest is ["--bridge", string exePath] ? RunBridgeInteractive(exePath, model, viewport)
             : RunInteractive(model, viewport);
+    }
+
+    /// <summary>
+    /// 采集模式（L2 截图校准的 C# 侧采集端）— 渲染 80×24 固定基准场景（ReferenceScene）
+    /// 并把整帧 ANSI 写入指定文件，供 tool/screenshot/compare/compare_reference.py 与 TS 参考帧做像素比对。
+    /// </summary>
+    private static int RunCapture(string capturePath)
+    {
+        File.WriteAllText(capturePath, ReferenceScene.ComposeAnsi());
+        Console.WriteLine($"CAPTURE OK — 80×24 基准场景已写入 {capturePath}（clawd 9×3 + prompt 边框 region 可比对）");
+        return 0;
     }
 
     /// <summary>交互模式：进 raw mode 跑共享 REPL 外壳（ReplShell + SimulatedEngine 事件驱动模拟回合；inline 模式退出只清尾部动态区，历史留终端 scrollback）。</summary>

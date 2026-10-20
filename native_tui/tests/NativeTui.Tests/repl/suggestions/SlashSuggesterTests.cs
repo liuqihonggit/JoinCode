@@ -274,4 +274,68 @@ public sealed class SlashSuggesterTests
         var suggester = Suggester("/zzz ");
         Assert.False(suggester.IsActive);
     }
+
+    /// <summary>幽灵文本（TASK057-3）：中途 " /com" token → 前缀匹配第一个命令，GhostSuffix 为剩余部分。</summary>
+    [Fact]
+    public void Update_MidInputSlashToken_ComputesGhostSuffix()
+    {
+        var suggester = Suggester("hello /comp");
+        Assert.Equal("act", suggester.GhostSuffix);
+        Assert.False(suggester.IsActive);
+    }
+
+    /// <summary>输入以 / 开头：走下拉建议，无 ghost。</summary>
+    [Fact]
+    public void Update_LeadingSlash_NoGhost()
+    {
+        var suggester = Suggester("/comp");
+        Assert.Equal(string.Empty, suggester.GhostSuffix);
+        Assert.True(suggester.IsActive);
+    }
+
+    /// <summary>token 无匹配命令：无 ghost。</summary>
+    [Fact]
+    public void Update_MidInputNoMatch_NoGhost()
+    {
+        var suggester = Suggester("hello /zzz");
+        Assert.Equal(string.Empty, suggester.GhostSuffix);
+    }
+
+    /// <summary>仅 " /"（空前缀）：无 ghost（查询非空才触发）。</summary>
+    [Fact]
+    public void Update_EmptyMidInputPrefix_NoGhost()
+    {
+        var suggester = Suggester("hello /");
+        Assert.Equal(string.Empty, suggester.GhostSuffix);
+    }
+
+    /// <summary>非斜杠输入：无 ghost。</summary>
+    [Fact]
+    public void Update_PlainText_NoGhost()
+    {
+        var suggester = Suggester("plain text");
+        Assert.Equal(string.Empty, suggester.GhostSuffix);
+    }
+
+    /// <summary>多词中途 token：取最后一个空白后的 / 查询。</summary>
+    [Fact]
+    public void Update_LastTokenAfterWhitespace_Wins()
+    {
+        var suggester = Suggester("run /he then /theme");
+        Assert.Equal(string.Empty, suggester.GhostSuffix);
+        var exact = Suggester("run /he then /the");
+        Assert.Equal("me", exact.GhostSuffix);
+    }
+
+    /// <summary>ghost 激活时 Esc dismiss 后同输入不再触发（含 ghost 与下拉共用的抑制）。</summary>
+    [Fact]
+    public void Dismiss_SuppressesGhostForSameInput()
+    {
+        var suggester = Suggester("hello /comp");
+        Assert.Equal("act", suggester.GhostSuffix);
+        suggester.Dismiss();
+        Assert.Equal(string.Empty, suggester.GhostSuffix);
+        suggester.Update("hello /comp");
+        Assert.Equal(string.Empty, suggester.GhostSuffix);
+    }
 }

@@ -34,6 +34,9 @@ public sealed class ReplView
     /// <summary>参数补全模式（建议项为参数值，渲染不带 / 前缀）。</summary>
     public bool SuggestionArgumentMode { get; set; }
 
+    /// <summary>幽灵文本后缀（输入中途 "/前缀" 的命令补全剩余部分 — dim 渲染在文本后）。</summary>
+    public string GhostSuffix { get; set; } = string.Empty;
+
     /// <summary>footer 状态（模式/busy/agents 提示/登录错误/通知）。</summary>
     public FooterState Footer { get; set; } = new();
 
@@ -75,7 +78,7 @@ public sealed class ReplView
         }
 
         var inputFrame = new Rect(0, screen.Rows - footerHeight - suggestionHeight - 3, screen.Cols, 3);
-        _inputBox.Render(screen, inputFrame, theme, Input, CursorCol, Footer.Busy);
+        _inputBox.Render(screen, inputFrame, theme, Input, CursorCol, Footer.Busy, GhostSuffix);
 
         var messagesHeight = Math.Max(0, screen.Rows - footerHeight - suggestionHeight - 4);
         var messagesFrame = new Rect(0, 0, screen.Cols, messagesHeight);

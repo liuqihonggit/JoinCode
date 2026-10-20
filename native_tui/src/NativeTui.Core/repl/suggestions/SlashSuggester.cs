@@ -28,6 +28,10 @@ public sealed class SlashSuggester
     /// <summary>参数补全模式（"/cmd 参数前缀" 态 — 建议项为参数值或提示，渲染不带 / 前缀）。</summary>
     public bool IsArgumentMode { get; private set; }
 
+    /// <summary>幽灵文本后缀（基准 ghost text — 输入中途 " /前缀" token 的命令补全剩余部分，如 "act"；
+    /// 激活时下拉互斥为空；空串 = 未激活）。</summary>
+    public string GhostSuffix { get; private set; } = string.Empty;
+
     /// <summary>命令列宽 — 全量命令最长名 + 6（含 / 与列间距，基准预计算防过滤时布局跳动）。</summary>
     public int NameColumnWidth { get; }
 
@@ -44,19 +48,21 @@ public sealed class SlashSuggester
         _currentInput = input;
         if (input == _suppressedInput)
         {
-            (Items, SelectedIndex, IsArgumentMode) = ([], 0, false);
+            (Items, SelectedIndex, IsArgumentMode, GhostSuffix) = ([], 0, false, string.Empty);
             return;
         }
 
         _suppressedInput = string.Empty;
-        (Items, SelectedIndex, IsArgumentMode) = (Match(input), 0, IsArgumentInput(input));
+        var items = Match(input);
+        GhostSuffix = items.Count == 0 && input.Length > 0 && input[0] != '/' ? MatchGhostSuffix(input) : string.Empty;
+        (Items, SelectedIndex, IsArgumentMode) = (items, 0, IsArgumentInput(input));
     }
 
-    /// <summary>Esc 关闭建议并抑制同一输入（基准 autocomplete:dismiss — dismissedForInputRef）。</summary>
+    /// <summary>Esc 关闭建议并抑制同一输入（基准 autocomplete:dismiss — dismissedForInputRef，ghost 与下拉共用抑制）。</summary>
     public void Dismiss()
     {
         _suppressedInput = _currentInput;
-        (Items, SelectedIndex, IsArgumentMode) = ([], 0, false);
+        (Items, SelectedIndex, IsArgumentMode, GhostSuffix) = ([], 0, false, string.Empty);
     }
 
     /// <summary>选中索引循环移动（正 = 向下，负 = 向上；越界回绕，基准循环语义）。</summary>
@@ -68,6 +74,37 @@ public sealed class SlashSuggester
         }
 
         SelectedIndex = ((SelectedIndex + delta) % Items.Count + Items.Count) % Items.Count;
+    }
+
+    /// <summary>幽灵后缀计算（基准 getBestCommandMatch）— 取最后一个空白后 "/" 起始的尾部 token 查询，
+    /// 找第一个前缀匹配命令名的剩余部分；无 token/空前缀/无匹配返回空串。</summary>
+    private string MatchGhostSuffix(string input)
+    {
+        var queryStart = -1;
+        for (var i = input.Length - 1; i >= 0; i--)
+        {
+            var ch = input[i];
+            if (ch == '/' && (i == 0 || char.IsWhiteSpace(input[i - 1])))
+            {
+                queryStart = i + 1;
+                break;
+            }
+
+            if (char.IsWhiteSpace(ch))
+            {
+                break;
+            }
+        }
+
+        if (queryStart <= 0 || queryStart >= input.Length)
+        {
+            return string.Empty;
+        }
+
+        var query = input[queryStart..];
+        var command = _commands.FirstOrDefault(c =>
+            !c.IsHidden && c.Name.StartsWith(query, StringComparison.OrdinalIgnoreCase) && c.Name.Length > query.Length);
+        return command is null ? string.Empty : command.Name[query.Length..];
     }
 
     /// <summary>匹配与排序 — 命令模式（"/前缀"）或参数模式（"/cmd 参数前缀"）；

@@ -555,35 +555,56 @@ public sealed class ReplShell
     }
 
     /// <summary>补全激活时的专属键拦截（基准 Autocomplete 上下文）：
-    /// Up/Down 循环导航、Tab 接受不执行、Enter 接受并提交、Esc 仅关建议（优先于打断/清输入/退出）；
+    /// 下拉激活：Up/Down 循环导航、Tab 接受不执行、Enter 接受并提交、Esc 仅关建议（优先于打断/清输入/退出）；
+    /// ghost 激活（下拉互斥为空）：RightArrow（光标在末尾）接受幽灵补全、Esc 仅关 ghost；
     /// 其余键返回 false 走正常编辑路径（编辑后刷新建议）。</summary>
     private bool HandleSuggestionKey(KeyPress key)
     {
-        if (_suggester is not { IsActive: true } suggester)
+        if (_suggester is not { } suggester)
         {
             return false;
         }
 
-        switch (key.Kind)
+        if (suggester.IsActive)
         {
-            case KeyKind.UpArrow:
-                suggester.Move(-1);
+            switch (key.Kind)
+            {
+                case KeyKind.UpArrow:
+                    suggester.Move(-1);
+                    return true;
+                case KeyKind.DownArrow:
+                    suggester.Move(1);
+                    return true;
+                case KeyKind.Tab:
+                    AcceptSuggestion(execute: false);
+                    return true;
+                case KeyKind.Return:
+                    AcceptSuggestion(execute: true);
+                    return true;
+                case KeyKind.Escape:
+                    suggester.Dismiss();
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        if (suggester.GhostSuffix.Length > 0)
+        {
+            if (key.Kind == KeyKind.RightArrow && _input.CursorCol == _input.Text.Length)
+            {
+                FillInput(_input.Text + suggester.GhostSuffix, cursorToStart: false);
                 return true;
-            case KeyKind.DownArrow:
-                suggester.Move(1);
-                return true;
-            case KeyKind.Tab:
-                AcceptSuggestion(execute: false);
-                return true;
-            case KeyKind.Return:
-                AcceptSuggestion(execute: true);
-                return true;
-            case KeyKind.Escape:
+            }
+
+            if (key.Kind == KeyKind.Escape)
+            {
                 suggester.Dismiss();
                 return true;
-            default:
-                return false;
+            }
         }
+
+        return false;
     }
 
     /// <summary>接受选中建议（基准 applyCommandSuggestion）— 命令模式：Tab 补全 "/命令 "（尾随空格进参数态）/
@@ -745,6 +766,7 @@ public sealed class ReplShell
         _view.SuggestionIndex = _suggester?.SelectedIndex ?? 0;
         _view.SuggestionNameColumnWidth = _suggester?.NameColumnWidth ?? 0;
         _view.SuggestionArgumentMode = _suggester?.IsArgumentMode ?? false;
+        _view.GhostSuffix = _suggester?.GhostSuffix ?? string.Empty;
     }
 
     /// <summary>

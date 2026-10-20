@@ -210,4 +210,62 @@ public sealed class ReplShellSuggestionsTests
         Assert.True(shell.Suggester?.IsArgumentMode);
         Assert.Equal(["dark", "light", "auto"], shell.Suggester!.Items.Select(i => i.Name).ToArray());
     }
+
+    /// <summary>幽灵文本（TASK057-3）：中途 "/comp" token 计算出 ghost，不弹下拉。</summary>
+    [Fact]
+    public void GhostText_MidInputSlash_ComputedWithoutPopup()
+    {
+        var (shell, _) = CreateShell();
+        Type(shell, "run /comp");
+        Assert.Equal("act", shell.Suggester?.GhostSuffix);
+        Assert.False(shell.Suggester?.IsActive);
+    }
+
+    /// <summary>幽灵文本右箭头接受：光标在末尾 + ghost 激活 → RightArrow 补全文本。</summary>
+    [Fact]
+    public void GhostText_RightArrow_AtEnd_AcceptsGhost()
+    {
+        var (shell, _) = CreateShell();
+        Type(shell, "run /comp");
+        Press(shell, ConsoleKey.RightArrow);
+        Assert.Equal("run /compact", shell.Input.Text);
+        Assert.Equal("run /compact".Length, shell.Input.CursorCol);
+    }
+
+    /// <summary>光标不在末尾：RightArrow 保持正常光标移动（不接受 ghost）。</summary>
+    [Fact]
+    public void GhostText_RightArrow_MidText_MovesCursorOnly()
+    {
+        var (shell, _) = CreateShell();
+        Type(shell, "run /comp");
+        Press(shell, ConsoleKey.LeftArrow);
+        Press(shell, ConsoleKey.RightArrow);
+        Assert.Equal("run /comp", shell.Input.Text);
+    }
+
+    /// <summary>无 ghost：RightArrow 在末尾为 no-op（文本不变）。</summary>
+    [Fact]
+    public void GhostText_Absent_RightArrowAtEnd_NoOp()
+    {
+        var (shell, _) = CreateShell();
+        Type(shell, "plain");
+        Press(shell, ConsoleKey.RightArrow);
+        Assert.Equal("plain", shell.Input.Text);
+    }
+
+    /// <summary>Esc 关闭 ghost：同输入抑制（与下拉共用 dismiss）。</summary>
+    [Fact]
+    public void GhostText_Escape_DismissesAndSuppresses()
+    {
+        var (shell, _) = CreateShell();
+        Type(shell, "run /comp");
+        Assert.Equal("act", shell.Suggester?.GhostSuffix);
+        Press(shell, ConsoleKey.Escape);
+        Assert.Equal(string.Empty, shell.Suggester?.GhostSuffix);
+        Assert.Equal("run /comp", shell.Input.Text);
+        Assert.True(shell.Running);
+        Press(shell, ConsoleKey.LeftArrow);
+        Press(shell, ConsoleKey.RightArrow);
+        Assert.Equal("run /comp", shell.Input.Text);
+    }
 }

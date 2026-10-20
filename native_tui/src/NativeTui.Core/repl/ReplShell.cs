@@ -58,6 +58,9 @@ public sealed class ReplShell
     /// <summary>历史反向搜索态（Ctrl+R — TASK057-4；null = 未激活）。</summary>
     private HistorySearch? _search;
 
+    /// <summary>消息光标导航协调器（交互层 Step1 — 第四交互态，优先级低于权限/模型/搜索模态）。</summary>
+    private readonly MessageCursor _cursorNav = new();
+
     /// <summary>进入搜索前的输入草稿（Esc 退出恢复）。</summary>
     private string _preSearchDraft = string.Empty;
 
@@ -130,6 +133,9 @@ public sealed class ReplShell
 
     /// <summary>历史反向搜索激活态（Ctrl+R — 测试断言面）。</summary>
     internal bool IsSearching => _search is not null;
+
+    /// <summary>消息光标导航协调器（交互层 Step1 — 测试断言面）。</summary>
+    internal MessageCursor CursorNav => _cursorNav;
 
     /// <summary>输入历史环（测试断言面）。</summary>
     internal HistoryRing History => _history;
@@ -287,7 +293,8 @@ public sealed class ReplShell
     }
 
     /// <summary>按键分派 — 权限对话框模态优先（数字/Esc/上下/Enter 路由对话框）→ 模型选择器模态
-    /// （M7-6：Esc/上下/Enter 路由选择器）→ 补全激活专属键
+    /// （M7-6：Esc/上下/Enter 路由选择器）→ 搜索模态（Ctrl+R 反向搜索）→ 消息光标导航模态
+    /// （交互层 Step1：光标激活时 ↑↓/kj/Shift 跳转/Enter 展开/Esc 两级退出）→ 补全激活专属键
     /// （Up/Down 导航/Tab 接受/Enter 执行/Esc 关闭，基准 Autocomplete 上下文优先于 Chat），
     /// 其余 Emacs 编辑（Ctrl/Meta 词操作 + kill ring），控制键走编辑/提交/权限，字符插入。</summary>
     private void HandleKeyPress(KeyPress key)
@@ -310,8 +317,20 @@ public sealed class ReplShell
             return;
         }
 
+        if (_cursorNav.IsCursorActive)
+        {
+            HandleCursorNavKey(key);
+            return;
+        }
+
         if (HandleSuggestionKey(key))
         {
+            return;
+        }
+
+        if (key is { Kind: KeyKind.UpArrow, Shift: true, Ctrl: false, Meta: false })
+        {
+            BeginCursorNavigation();
             return;
         }
 
@@ -649,6 +668,106 @@ public sealed class ReplShell
         }
     }
 
+    /// <summary>
+    /// 消息光标导航模态按键（交互层 Step1，对齐基准 MESSAGE_ACTIONS 上下文键绑定）：
+    /// ↑/↓/k/j 相邻可导航消息逐条移动、Shift+↑/↓ 跳相邻用户消息、Ctrl+↑/↓ 首末可导航消息、
+    /// Enter 切换选中分组展开态（基准展开 grouped_tool_use → verbose 逐代理详细渲染）、
+    /// Esc 两级退出（任一分组展开先全部收起、再退出导航）；
+    /// 其余按键全部吞掉（模态 — 基准全屏模式 PromptInput 卸载语义，不进输入缓冲）。
+    /// </summary>
+    private void HandleCursorNavKey(KeyPress key)
+    {
+        if (key.Kind == KeyKind.Return)
+        {
+            ToggleSelectedGroupExpansion();
+            return;
+        }
+
+        if (key.Kind == KeyKind.Escape)
+        {
+            EscapeCursorNavigation();
+            return;
+        }
+
+        var items = _view.Messages.Items;
+        if (key is { Kind: KeyKind.UpArrow, Shift: true, Ctrl: false, Meta: false })
+        {
+            _cursorNav.MoveToUserMessage(items, -1);
+            return;
+        }
+
+        if (key is { Kind: KeyKind.DownArrow, Shift: true, Ctrl: false, Meta: false })
+        {
+            _cursorNav.MoveToUserMessage(items, 1);
+            return;
+        }
+
+        if (key is { Kind: KeyKind.UpArrow, Ctrl: true, Shift: false, Meta: false })
+        {
+            _cursorNav.MoveToEdge(items, first: true);
+            return;
+        }
+
+        if (key is { Kind: KeyKind.DownArrow, Ctrl: true, Shift: false, Meta: false })
+        {
+            _cursorNav.MoveToEdge(items, first: false);
+            return;
+        }
+
+        switch (key.Kind)
+        {
+            case KeyKind.UpArrow:
+                _cursorNav.Move(items, -1);
+                return;
+            case KeyKind.DownArrow:
+                _cursorNav.Move(items, 1);
+                return;
+            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "k":
+                _cursorNav.Move(items, -1);
+                return;
+            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "j":
+                _cursorNav.Move(items, 1);
+                return;
+            default:
+                // 模态：其余键吞掉（不进输入缓冲 — 基准光标态 PromptInput 卸载）
+                return;
+        }
+    }
+
+    /// <summary>进入消息光标导航（Shift+↑ — 定位最后一条用户消息；无可导航消息 no-op）。</summary>
+    private void BeginCursorNavigation() => _cursorNav.Begin(_view.Messages.Items);
+
+    /// <summary>Enter 切换选中分组展开态（选中非分组消息 no-op — 基准仅 grouped_tool_use 可展开）。</summary>
+    private void ToggleSelectedGroupExpansion()
+    {
+        if (_cursorNav.SelectedIndex is >= 0 and var index
+            && index < _view.Messages.Count
+            && _view.Messages.Items[index] is SubagentGroupItem group)
+        {
+            group.Coordinator.IsExpanded = !group.Coordinator.IsExpanded;
+        }
+    }
+
+    /// <summary>Esc 两级退出 — 任一分组展开先全部收起（导航保持）；否则退出光标导航。</summary>
+    private void EscapeCursorNavigation()
+    {
+        var expandedGroups = _view.Messages.Items
+            .OfType<SubagentGroupItem>()
+            .Where(static group => group.Coordinator.IsExpanded)
+            .ToList();
+        if (expandedGroups.Count > 0)
+        {
+            foreach (var group in expandedGroups)
+            {
+                group.Coordinator.IsExpanded = false;
+            }
+
+            return;
+        }
+
+        _cursorNav.Exit();
+    }
+
     /// <summary>补全激活时的专属键拦截（基准 Autocomplete 上下文）：
     /// 下拉激活：Up/Down 循环导航、Tab 接受不执行、Enter 接受并提交、Esc 仅关建议（优先于打断/清输入/退出）；
     /// ghost 激活（下拉互斥为空）：RightArrow（光标在末尾）接受幽灵补全、Esc 仅关 ghost；
@@ -819,6 +938,7 @@ public sealed class ReplShell
     internal void RenderAndFlush()
     {
         SyncSuggestionState();
+        SyncCursorHighlight();
         EnsureScreens();
         _back.Clear();
         AdvanceAnimClock();
@@ -883,6 +1003,16 @@ public sealed class ReplShell
         _view.SuggestionNameColumnWidth = _suggester?.NameColumnWidth ?? 0;
         _view.SuggestionArgumentMode = _suggester?.IsArgumentMode ?? false;
         _view.GhostSuffix = _search is { Current.Length: > 0 } ? _search.Current : _suggester?.GhostSuffix ?? string.Empty;
+    }
+
+    /// <summary>同步消息光标选中高亮到滚动区（渲染前状态投影 — ScrollBox 渲染后整块背景覆写）。</summary>
+    private void SyncCursorHighlight()
+    {
+        _view.Messages.HighlightItem = _cursorNav.IsCursorActive
+            && _cursorNav.SelectedIndex is >= 0 and var index
+            && index < _view.Messages.Count
+                ? _view.Messages.Items[index]
+                : null;
     }
 
     /// <summary>

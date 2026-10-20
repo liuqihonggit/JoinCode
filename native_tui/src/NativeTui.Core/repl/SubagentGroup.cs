@@ -48,11 +48,26 @@ public sealed class SubagentGroupCoordinator
     /// <summary>条目总数。</summary>
     public int Count => _agents.Count;
 
-    /// <summary>可见条数 = min(10, n)。</summary>
-    public int VisibleCount => Math.Min(MaxVisible, _agents.Count);
+    /// <summary>展开态（消息光标 Enter 切换 — 交互层 Step1）— true = 全量渲染突破 min(10,n) 窗口
+    /// （对齐基准 Enter 展开 grouped_tool_use → verbose 不分组 → 逐代理独立详细渲染）；
+    /// 收起时窗口归零回到组头视角（后续事件活动跟随自动拉回）。</summary>
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set
+        {
+            _isExpanded = value;
+            WindowStart = 0;
+        }
+    }
 
-    /// <summary>折叠条数 = max(0, n - 10)（"and N more…" 行依据）。</summary>
-    public int HiddenCount => Math.Max(0, _agents.Count - VisibleCount);
+    private bool _isExpanded;
+
+    /// <summary>可见条数 = 展开全量，折叠 min(10, n)。</summary>
+    public int VisibleCount => _isExpanded ? _agents.Count : Math.Min(MaxVisible, _agents.Count);
+
+    /// <summary>折叠条数 = 展开恒 0，折叠 max(0, n - 10)（"and N more…" 行依据）。</summary>
+    public int HiddenCount => _isExpanded ? 0 : Math.Max(0, _agents.Count - VisibleCount);
 
     /// <summary>滚动窗口起点（0 起，活动跟随保证最新活动条目可见）。</summary>
     public int WindowStart { get; private set; }
@@ -123,9 +138,14 @@ public sealed class SubagentGroupCoordinator
         EnsureVisible(index);
     }
 
-    /// <summary>窗口跟随 — 活动条目滚入可见窗口（上边界推进）。</summary>
+    /// <summary>窗口跟随 — 活动条目滚入可见窗口（上边界推进；展开态全量可见 no-op）。</summary>
     private void EnsureVisible(int index)
     {
+        if (_isExpanded)
+        {
+            return;
+        }
+
         if (index < WindowStart)
         {
             WindowStart = index;

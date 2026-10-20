@@ -6,7 +6,7 @@ namespace NativeTui.Core.Repl;
 /// </summary>
 
 /// <summary>用户消息项（整行灰底 + ❯ subtle + 正文）。</summary>
-public sealed class UserMessageItem(string text) : IScrollItem
+public sealed class UserMessageItem(string text) : IScrollItem, ICursorNavigable
 {
     /// <summary>内容高度 = margin 1 + 正文 1。</summary>
     public int MeasureHeight(int width) => 2;
@@ -17,7 +17,7 @@ public sealed class UserMessageItem(string text) : IScrollItem
 }
 
 /// <summary>助手文本消息项（● text 色 + 正文）。</summary>
-public sealed class AssistantMessageItem(string text) : IScrollItem
+public sealed class AssistantMessageItem(string text) : IScrollItem, ICursorNavigable
 {
     /// <summary>正文（宿主反馈消息断言面 — M7-6 模型切换反馈等）。</summary>
     public string Text => text;
@@ -31,7 +31,7 @@ public sealed class AssistantMessageItem(string text) : IScrollItem
 }
 
 /// <summary>工具调用消息项（● + bold 工具名 + (参数摘要)）。</summary>
-public sealed class ToolCallItem(string toolName, string args) : IScrollItem
+public sealed class ToolCallItem(string toolName, string args) : IScrollItem, ICursorNavigable
 {
     /// <summary>内容高度 = margin 1 + 正文 1。</summary>
     public int MeasureHeight(int width) => 2;
@@ -42,7 +42,7 @@ public sealed class ToolCallItem(string toolName, string args) : IScrollItem
 }
 
 /// <summary>工具结果消息项（"  ⎿  " dim 前缀 + 正文）。</summary>
-public sealed class ToolResultItem(string text) : IScrollItem
+public sealed class ToolResultItem(string text) : IScrollItem, ICursorNavigable
 {
     /// <summary>内容高度 = margin 1 + 正文 1。</summary>
     public int MeasureHeight(int width) => 2;
@@ -59,7 +59,7 @@ public sealed class ToolResultItem(string text) : IScrollItem
 /// 仅超 10 行预览上限折叠为 "… +N lines (Ctrl+O)" dim（上限对齐基准 Write MAX_LINES_TO_RENDER=10 防刷屏先例，
 /// Ctrl+O 展开交互为 M7 后续项）。
 /// </summary>
-public sealed class DiffResultItem(string summary, DiffHunk[] patch) : IScrollItem
+public sealed class DiffResultItem(string summary, DiffHunk[] patch) : IScrollItem, ICursorNavigable
 {
     /// <summary>patch 预览行数上限（summary 之外；超限折叠 — 对齐基准 Write MAX_LINES_TO_RENDER=10 先例）。</summary>
     private const int PreviewPatchRows = 10;
@@ -121,7 +121,7 @@ public sealed class DiffResultItem(string summary, DiffHunk[] patch) : IScrollIt
 }
 
 /// <summary>错误消息项（● theme.Error 红色 + 正文，bridge error 事件载体）。</summary>
-public sealed class ErrorMessageItem(string text) : IScrollItem
+public sealed class ErrorMessageItem(string text) : IScrollItem, ICursorNavigable
 {
     /// <summary>错误正文。</summary>
     public string Text { get; } = text;

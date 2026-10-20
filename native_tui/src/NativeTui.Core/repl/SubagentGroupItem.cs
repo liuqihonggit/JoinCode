@@ -11,7 +11,7 @@ namespace NativeTui.Core.Repl;
 /// Driver 每事件更新即生效 — 无需失效通知，ScrollBox 每帧全量重渲）。
 /// IAnimatable — ReplShell 每帧广播动画时钟，组头 ● 600ms 方波闪烁（基准 ToolUseLoader + useBlink）。
 /// </summary>
-public sealed class SubagentGroupItem(SubagentGroupCoordinator coordinator) : IScrollItem, IAnimatable
+public sealed class SubagentGroupItem(SubagentGroupCoordinator coordinator) : IScrollItem, IAnimatable, ICursorNavigable
 {
     /// <summary>协调器（分组状态的唯一来源 — Driver 事件路由更新）。</summary>
     public SubagentGroupCoordinator Coordinator { get; } = coordinator;

@@ -50,7 +50,7 @@ jobs:
       - name: Build matrix
         id: set
         run: |
-          ALL_PROJECTS='["Guard-Config","Guard-Security-ServicesA","Guard-Security-ServicesB","Guard-Security-ServicesC","Guard-Security-PowerShell","Guard-Security-Other","Guard-Hooks","Vault-Memdir","Vault-Other","Brain-CtxAdmin","Brain-CtxChat","Brain-CtxOther","Brain-CtxNonServicesA","Brain-CtxNonServicesB","Brain-PromptsSections","Brain-PromptsOther","Brain-OtherA","Brain-OtherB","Hands-SysTools","Hands-CoreHandlers","Hands-DevTools","Hands-SkillServices","Hands-SkillBuiltIn","Hands-SkillOther","Hands-Api","Hands-Shell","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex-Parsing","CodeIndex-Indexing","CodeIndex-Rest","Browser","Mcp-Protocol","Mcp-Rest","Eyes","Dream","Bridge-SessionA","Bridge-SessionB","Bridge-Transport","Bridge-CoreRuntime","Bridge-CoreOther","Bridge-Messaging","Bridge-ClientServer","Composition","Clock","Infra-IO-FileOps","Infra-IO-FsAndConfig","Infra-IO-ProcessAndOther","Infra-Utils-TextA1a","Infra-Utils-TextA1b","Infra-Utils-TextA2a","Infra-Utils-TextA2b","Infra-Utils-TextB1","Infra-Utils-TextB2","Infra-Utils-Resilience","Infra-Utils-OtherA1a","Infra-Utils-OtherA1b","Infra-Utils-Validation1","Infra-Utils-Validation2","Infra-Utils-Async","Infra-Utils-Services","Infra-Utils-OtherB","Infra-Services","Host-Commands","Host-Other"]'
+          ALL_PROJECTS='["Guard-Config","Guard-Security-ServicesA","Guard-Security-ServicesB","Guard-Security-ServicesC","Guard-Security-ServicesD","Guard-Security-PowerShell","Guard-Security-Other","Guard-Hooks","Vault-Memdir","Vault-Other","Brain-CtxAdmin","Brain-CtxChat","Brain-CtxOther","Brain-CtxNonServicesA","Brain-CtxNonServicesB","Brain-PromptsSections","Brain-PromptsOther","Brain-OtherA","Brain-OtherB","Hands-SysTools","Hands-CoreHandlers","Hands-DevTools","Hands-SkillServices","Hands-SkillBuiltIn","Hands-SkillOther","Hands-Api","Hands-Shell","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex-Parsing-Bash","CodeIndex-Parsing-Sharp","CodeIndex-Parsing-Dep","CodeIndex-Parsing-Docs","CodeIndex-Indexing","CodeIndex-Analytics","CodeIndex-Embedding","CodeIndex-Vector","CodeIndex-Core","Browser","Mcp-Protocol","Mcp-Rest","Eyes","Dream","Bridge-SessionA","Bridge-SessionB","Bridge-Transport","Bridge-CoreRuntime","Bridge-CoreOther","Bridge-Messaging","Bridge-ClientServer","Composition","Clock","Infra-IO-FileOps","Infra-IO-FsAndConfig","Infra-IO-ProcessAndOther","Infra-Utils-TextA1a","Infra-Utils-TextA1b","Infra-Utils-TextA2a","Infra-Utils-TextA2b","Infra-Utils-TextB1","Infra-Utils-TextB2","Infra-Utils-Resilience","Infra-Utils-OtherA1a","Infra-Utils-OtherA1b","Infra-Utils-Validation1","Infra-Utils-Validation2","Infra-Utils-Async","Infra-Utils-Services","Infra-Utils-OtherB","Infra-Services","Host-Commands","Host-Other"]'
           INPUT="${{ github.event.inputs.projects || 'ALL' }}"
           if [ "$INPUT" = "ALL" ]; then
             echo "matrix={\"include\":$(echo $ALL_PROJECTS | jq -c '[.[] | {project: .}]')}" >> $GITHUB_OUTPUT
@@ -60,7 +60,7 @@ jobs:
             for part in "${PARTS[@]}"; do
               trimmed=$(echo "$part" | xargs)
               if [ "$trimmed" = "Guard" ]; then
-                EXPANDED="$EXPANDED,{\"project\":\"Guard-Config\"},{\"project\":\"Guard-Security-ServicesA\"},{\"project\":\"Guard-Security-ServicesB\"},{\"project\":\"Guard-Security-ServicesC\"},{\"project\":\"Guard-Security-PowerShell\"},{\"project\":\"Guard-Security-Other\"},{\"project\":\"Guard-Hooks\"}"
+                EXPANDED="$EXPANDED,{\"project\":\"Guard-Config\"},{\"project\":\"Guard-Security-ServicesA\"},{\"project\":\"Guard-Security-ServicesB\"},{\"project\":\"Guard-Security-ServicesC\"},{\"project\":\"Guard-Security-ServicesD\"},{\"project\":\"Guard-Security-PowerShell\"},{\"project\":\"Guard-Security-Other\"},{\"project\":\"Guard-Hooks\"}"
               elif [ "$trimmed" = "Vault" ]; then
                 EXPANDED="$EXPANDED,{\"project\":\"Vault-Memdir\"},{\"project\":\"Vault-Other\"}"
               elif [ "$trimmed" = "Brain" ]; then
@@ -70,7 +70,7 @@ jobs:
               elif [ "$trimmed" = "Mcp" ]; then
                 EXPANDED="$EXPANDED,{\"project\":\"Mcp-Protocol\"},{\"project\":\"Mcp-Rest\"}"
               elif [ "$trimmed" = "CodeIndex" ]; then
-                EXPANDED="$EXPANDED,{\"project\":\"CodeIndex-Parsing\"},{\"project\":\"CodeIndex-Indexing\"},{\"project\":\"CodeIndex-Rest\"}"
+                EXPANDED="$EXPANDED,{\"project\":\"CodeIndex-Parsing-Bash\"},{\"project\":\"CodeIndex-Parsing-Sharp\"},{\"project\":\"CodeIndex-Parsing-Dep\"},{\"project\":\"CodeIndex-Parsing-Docs\"},{\"project\":\"CodeIndex-Indexing\"},{\"project\":\"CodeIndex-Analytics\"},{\"project\":\"CodeIndex-Embedding\"},{\"project\":\"CodeIndex-Vector\"},{\"project\":\"CodeIndex-Core\"}"
               elif [ "$trimmed" = "Host" ]; then
                 EXPANDED="$EXPANDED,{\"project\":\"Host-Commands\"},{\"project\":\"Host-Other\"}"
               elif [ "$trimmed" = "Bridge" ]; then
@@ -90,7 +90,8 @@ jobs:
     needs: prepare
     runs-on: windows-latest
     # 30 分钟设计: 目标每个 job ≤30min, +5min 容差; 超时=必须拆分该 job 的变异范围
-    timeout-minutes: 35
+    # #109 实测: Vector 挂死源=VsTest crash 重试(12 次, 差 ~2min 跑完), 45min 给足重试余量吸收波动
+    timeout-minutes: ${{ matrix.project == 'CodeIndex-Vector' && 45 || 35 }}
     strategy:
       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
       fail-fast: false
@@ -130,11 +131,13 @@ jobs:
         run: |
           $projectMap = @{
             'Guard-Config'         = @{ Dir = 'modules\guard\guard.config.tests';   Src = 'Guard.csproj';           Mutate = @('configuration/**','dependency_injection/**','policy/**','o_auth/**') }
-            # 30 分钟设计: bash 类测试重(>1s/变异), Guard-Security-Services 拆 A/B/C 控制单 job 时长
-            # ServicesB/C 按代码行数均衡二拆(2711/2676 行): B=分类器+网络杂项+路径校验, C=只读检测器(独立功能域)
+            # 30 分钟设计: bash 类测试重(>1s/变异), Guard-Security-Services 拆 A/B/C/D 控制单 job 时长
+            # #105 实测: B 拆分后 ~1100 变异 19min 过线; C(readonly_detector 全量 2676 行) 1586 变异纯慢超时 → 再按 Git/NonGit 语义二拆
+            # C=Git 侧(GitFlagBuilders+入口+目录+元字符+展开+类型, 1463 行≈869 变异), D=NonGit 侧(NonGitFlagBuilders+校验器, 1213 行≈720 变异)
             'Guard-Security-ServicesA'   = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/services/bash_ast_walker/**','security/services/bash_validation/**') }
             'Guard-Security-ServicesB'   = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/services/classifiers/**','security/services/network_and_misc/**','security/services/path_validation/**') }
-            'Guard-Security-ServicesC'   = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/services/readonly_detector/**') }
+            'Guard-Security-ServicesC'   = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/services/readonly_detector/GitFlagBuilders.cs','security/services/readonly_detector/ReadOnlyCommandDetector.cs','security/services/readonly_detector/CommandCatalog.cs','security/services/readonly_detector/ShellMetacharacterDetector.cs','security/services/readonly_detector/ExpansionDetector.cs','security/services/readonly_detector/ReadOnlyCommandTypes.cs') }
+            'Guard-Security-ServicesD'   = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/services/readonly_detector/NonGitFlagBuilders.cs','security/services/readonly_detector/FlagValidator.cs','security/services/readonly_detector/RegexValidator.cs','security/services/readonly_detector/IReadOnlyServices.cs') }
             'Guard-Security-PowerShell' = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/power_shell/**') }
             'Guard-Security-Other'      = @{ Dir = 'modules\guard\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('security/danger_classification/**','security/sandbox/**','security/shell/**','security/scanners/**','security/interceptors/**','security/constants/**') }
             'Guard-Hooks'          = @{ Dir = 'modules\guard\guard.hooks.tests';    Src = 'Guard.csproj';           Mutate = @('hooks/**','permission/**') }
@@ -162,9 +165,20 @@ jobs:
             'Llm'                  = @{ Dir = 'modules\llm\llm.tests';                Src = 'Llm.csproj';             Mutate = @() }
             'Agents'               = @{ Dir = 'modules\llm\agents.tests';             Src = 'Agents.csproj';          Mutate = @() }
             'Reasoning'            = @{ Dir = 'modules\llm\reasoning.tests';          Src = 'Reasoning.csproj';       Mutate = @() }
-            'CodeIndex-Parsing'    = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('parsing/**','query/**','plugins/**') }
+            # #108 排查拆分: Parsing 纯慢(21min 窗口仅完成 96/1343, CSharpDependencyExtractor 的 String mutant 每个触发全量 800 测试 ~110s)
+            # Rest 挂死(VsTest cancel 失败 14 次 retry, 挂死现场批次含 embedding/analytics mutant, 重试后同批次 success = 时序敏感)
+            # 一拆四策略: 大户隔离(Dep 单文件/Embedding 挂死嫌疑) + 语义分组, 超时的子 job 即为下一轮精准处理目标
+            # #109 拆分验证(8 过 2 超时): Dep 纯慢实锤(String mutant 4.6/min) → IgnoreMutations 排除 string(语言/类型名常量无业务语义)
+            # Vector 挂死源实锤(12 次 VsTest crash 重试, 差 ~2min 跑完) → job timeout 45min 吸收重试波动
+            'CodeIndex-Parsing-Bash'  = @{ Dir = 'modules\perception\code_index.tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/BashAstParser.cs','parsing/TreeSitterParser.cs','parsing/TreeSitterParserPool.cs') }
+            'CodeIndex-Parsing-Sharp' = @{ Dir = 'modules\perception\code_index.tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/CSharpCallExtractor.cs','parsing/CSharpSymbolExtractor.cs') }
+            'CodeIndex-Parsing-Dep'   = @{ Dir = 'modules\perception\code_index.tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/CSharpDependencyExtractor.cs'); IgnoreMutations = @('string') }
+            'CodeIndex-Parsing-Docs'  = @{ Dir = 'modules\perception\code_index.tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/CsprojParser.cs','parsing/LineBasedChunkExtractor.cs','parsing/MarkdownChunkExtractor.cs','parsing/SolutionParser.cs','query/**','plugins/**') }
             'CodeIndex-Indexing'   = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('indexing/**','incremental/**','graph/**') }
-            'CodeIndex-Rest'       = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('!parsing/**','!query/**','!plugins/**','!indexing/**','!incremental/**','!graph/**') }
+            'CodeIndex-Analytics'  = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('analytics/**') }
+            'CodeIndex-Embedding'  = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('embedding/**') }
+            'CodeIndex-Vector'     = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('vector/**') }
+            'CodeIndex-Core'       = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('core/**') }
             'Browser'              = @{ Dir = 'modules\services\browser.tests';       Src = 'Browser.csproj';         Mutate = @() }
             # 30 分钟设计: Mcp 变异量最大(7000+), 拆协议层/其余 控制单 job 时长
             'Mcp-Protocol'         = @{ Dir = 'modules\mcp\mcp.tests';                Src = 'Mcp.csproj';             Mutate = @('mcp_protocol/**','transports/**','communication/**','protocol.contracts/**','remote/**') }
@@ -230,8 +244,18 @@ jobs:
 
           # Stryker 4.16 的 test-case-filter 只能通过配置文件设置（命令行 N/A）
           # 注意: 此文件会遮蔽上级目录 stryker-config.json,必须携带 additional-timeout 防止变异死锁时测试session无限hang
+          # 临时(#106 后挂死定位): verbosity=debug 记录每个 mutant 的测试事件, 挂死前最后一个 mutant 即凶手
+          # #110 后 Vector 挂死根因: HnswBenchmarkTests(2000×384 构图,无标记)混入变异测试, 8 Runner 争 2 核下单用例 10-30s
+          # → 超时连锁(timeout 压缩~12s 后结构性反复超时)。排除 Benchmark 类别(已加 Trait)
+          # #111 教训: Stryker 自带的 net462 vstest.console 只支持单字符操作符(& | ! = !=), 不支持 &&/||
+          # → && 被静默判定为非法 filter, 测试发现返回 0 个测试直接 exit 1(dotnet test 新版两种都支持,本地无法暴露)
+          # projectMap 的 IgnoreMutations 键(如 Dep 排除 string) → 写入 ignore-mutations 数组
           $configPath = Join-Path $testDir "stryker-config.json"
-          '{"stryker-config":{"test-case-filter":"Category!=Integration","additional-timeout":5000}}' | Out-File -FilePath $configPath -Encoding utf8 -NoNewline
+          $config = [ordered]@{ 'stryker-config' = [ordered]@{ 'test-case-filter' = 'Category!=Integration&Category!=Benchmark'; 'additional-timeout' = 5000; 'verbosity' = 'debug' } }
+          if ($info.ContainsKey('IgnoreMutations') -and $info.IgnoreMutations.Count -gt 0) {
+            $config['stryker-config']['ignore-mutations'] = $info.IgnoreMutations
+          }
+          ($config | ConvertTo-Json -Depth 5 -Compress) | Out-File -FilePath $configPath -Encoding utf8 -NoNewline
 
           Push-Location $testDir
           try {

@@ -15,6 +15,9 @@ internal static class RgSubCommand {
         if (parsed is null)
             return 1;
 
+        if (parsed.ListFiles)
+            return await ExecuteListFilesAsync(parsed, ct).ConfigureAwait(false);
+
         var tempFiles = new List<string>();
         try {
             var pattern = parsed.Pattern;
@@ -52,49 +55,15 @@ internal static class RgSubCommand {
                 return 1;
             }
 
-            foreach (var p in paths) {
-                if (IsRootOrUnsafePath(p)) {
-                    TerminalHelper.WriteError($"拒绝在根目录或无效路径上扫盘: {p}。请指定具体子目录（如 . 或 src/）。");
-                    return 1;
-                }
-                if (!File.Exists(p) && !Directory.Exists(p)) {
-                    TerminalHelper.WriteError($"路径不存在: {p}");
-                    return 1;
-                }
-            }
+            if (!ValidatePaths(paths))
+                return 1;
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(parsed.TimeoutSeconds));
             var token = timeoutCts.Token;
 
             try {
-                var query = new RgQuery(
-                    Pattern: pattern,
-                    Paths: paths,
-                    Globs: parsed.Globs,
-                    FileType: parsed.FileType,
-                    CaseInsensitive: parsed.CaseInsensitive,
-                    SmartCase: parsed.SmartCase,
-                    WordRegexp: parsed.WordRegexp,
-                    OnlyMatching: parsed.OnlyMatching,
-                    Replace: parsed.Replace,
-                    Multiline: parsed.Multiline,
-                    FixedStrings: parsed.FixedStrings,
-                    Hidden: parsed.Hidden,
-                    NoIgnore: parsed.NoIgnore,
-                    Before: parsed.Before,
-                    After: parsed.After,
-                    Context: parsed.Context,
-                    LineNumbers: parsed.LineNumbers,
-                    HeadLimit: parsed.HeadLimit,
-                    Offset: parsed.Offset,
-                    OutputMode: parsed.OutputMode,
-                    Sort: parsed.Sort,
-                    InvertMatch: parsed.InvertMatch,
-                    LineRegexp: parsed.LineRegexp,
-                    MaxCount: parsed.MaxCount,
-                    Threads: parsed.Threads,
-                    MaxFilesize: parsed.MaxFilesize);
+                var query = BuildQuery(parsed, pattern);
 
                 RgOutcome outcome;
                 try {
@@ -114,6 +83,78 @@ internal static class RgSubCommand {
                 try { if (File.Exists(f)) File.Delete(f); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[RgSubCommand] 清理临时文件失败: {f} - {ex.Message}"); }
             }
         }
+    }
+
+    /// <summary>
+    /// 执行 --files 列文件模式 — 校验路径（防扫盘约束不放松）后复用 RgEngine.ListFiles 过滤链（gitignore/glob/type/二进制排除）。
+    /// </summary>
+    private static async Task<int?> ExecuteListFilesAsync(RgOptions opts, CancellationToken ct) {
+        if (!ValidatePaths(opts.Paths))
+            return 1;
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(opts.TimeoutSeconds));
+        var token = timeoutCts.Token;
+
+        try {
+            var query = BuildQuery(opts, pattern: "");
+            RgOutcome outcome;
+            try {
+                outcome = await Task.Run(() => RgEngine.ListFiles(query, token), token).ConfigureAwait(false);
+            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+                TerminalHelper.WriteError($"列文件超时（{opts.TimeoutSeconds}s）。请缩小范围、用 --type/-g 过滤，或增加 --timeout。");
+                return (int)ExitCode.ToolExecutionTimeout;
+            }
+
+            return OutputOutcome(outcome, opts);
+        } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+            TerminalHelper.WriteError($"列文件超时（{opts.TimeoutSeconds}s）— 已硬终止。");
+            return (int)ExitCode.ToolExecutionTimeout;
+        }
+    }
+
+    /// <summary>从解析结果构造 RgQuery（搜索与列文件模式共用）。</summary>
+    private static RgQuery BuildQuery(RgOptions parsed, string pattern) => new(
+        Pattern: pattern,
+        Paths: parsed.Paths,
+        Globs: parsed.Globs,
+        FileType: parsed.FileType,
+        CaseInsensitive: parsed.CaseInsensitive,
+        SmartCase: parsed.SmartCase,
+        WordRegexp: parsed.WordRegexp,
+        OnlyMatching: parsed.OnlyMatching,
+        Replace: parsed.Replace,
+        Multiline: parsed.Multiline,
+        FixedStrings: parsed.FixedStrings,
+        Hidden: parsed.Hidden,
+        NoIgnore: parsed.NoIgnore,
+        Before: parsed.Before,
+        After: parsed.After,
+        Context: parsed.Context,
+        LineNumbers: parsed.LineNumbers,
+        HeadLimit: parsed.HeadLimit,
+        Offset: parsed.Offset,
+        OutputMode: parsed.OutputMode,
+        Sort: parsed.Sort,
+        InvertMatch: parsed.InvertMatch,
+        LineRegexp: parsed.LineRegexp,
+        MaxCount: parsed.MaxCount,
+        Threads: parsed.Threads,
+        MaxFilesize: parsed.MaxFilesize);
+
+    /// <summary>校验路径安全与存在性（搜索与列文件共用，防扫盘约束不放松）。</summary>
+    private static bool ValidatePaths(IReadOnlyList<string> paths) {
+        foreach (var p in paths) {
+            if (IsRootOrUnsafePath(p)) {
+                TerminalHelper.WriteError($"拒绝在根目录或无效路径上扫盘: {p}。请指定具体子目录（如 . 或 src/）。");
+                return false;
+            }
+            if (!File.Exists(p) && !Directory.Exists(p)) {
+                TerminalHelper.WriteError($"路径不存在: {p}");
+                return false;
+            }
+        }
+        return true;
     }
 
     internal static RgOptions? ParseArgs(string[] args) {
@@ -146,6 +187,7 @@ internal static class RgSubCommand {
         int? threads = null;
         long? maxFilesize = null;
         var regexpPatterns = new List<string>();
+        var listFiles = false;
 
         for (var i = 1; i < args.Length; i++) {
             var arg = args[i];
@@ -204,6 +246,7 @@ internal static class RgSubCommand {
                     case "--content": outputMode = SearchOutputMode.Content; break;
                     case "--invert-match": invertMatch = true; break;
                     case "--line-regexp": lineRegexp = true; break;
+                    case "--files": listFiles = true; outputMode = SearchOutputMode.Files; break;
                     case "--max-count": maxCount = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
                     case "--regexp": { var v = inlineValue ?? ReadNextValue(args, ref i); if (v is not null) regexpPatterns.Add(v); } break;
                     case "--threads": threads = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
@@ -243,7 +286,13 @@ internal static class RgSubCommand {
             }
         }
 
-        if (regexpPatterns.Count > 0) {
+        if (listFiles) {
+            // --files 无 pattern 概念:已收集的位置参数(含 --files 出现在位置参数之后的场景)统一归入 paths
+            if (pattern is not null && pattern != "-") {
+                paths = [pattern, .. paths];
+                pattern = null;
+            }
+        } else if (regexpPatterns.Count > 0) {
             if (pattern is not null)
                 paths.Add(pattern);
             pattern = string.Join("|", regexpPatterns);
@@ -252,8 +301,8 @@ internal static class RgSubCommand {
         if (lineRegexp && pattern is not null)
             pattern = $"^(?:{pattern})$";
 
-        if (pattern is null) {
-            TerminalHelper.WriteError("错误: 缺少 pattern 参数。用法: jcc rg <pattern> <path> [path...]");
+        if (pattern is null && !listFiles) {
+            TerminalHelper.WriteError("错误: 缺少 pattern 参数。用法: jcc rg <pattern> <path> [path...] 或 jcc rg --files <path>");
             PrintUsage();
             return null;
         }
@@ -296,7 +345,8 @@ internal static class RgSubCommand {
             LineRegexp: lineRegexp,
             MaxCount: maxCount,
             Threads: threads,
-            MaxFilesize: maxFilesize);
+            MaxFilesize: maxFilesize,
+            ListFiles: listFiles);
     }
 
     private static string? ReadNextValue(string[] args, ref int i) {
@@ -575,7 +625,8 @@ internal static class RgSubCommand {
         bool LineRegexp,
         int? MaxCount,
         int? Threads,
-        long? MaxFilesize);
+        long? MaxFilesize,
+        bool ListFiles);
 }
 
 /// <summary>rg --json 单条匹配结果 DTO</summary>

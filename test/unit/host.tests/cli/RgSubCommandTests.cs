@@ -557,4 +557,67 @@ public sealed class RgSubCommandTests {
         opts.Paths.Should().ContainSingle().Which.Should().Be("-");
         opts.LineNumbers.Should().BeTrue();
     }
+
+    // ===== --files 列文件模式（对齐 rg --files：无需 pattern，列出匹配过滤规则的文件）=====
+
+    /// <summary>
+    /// --files 时无需 pattern，ListFiles 置位，输出模式为 Files（文件名列表）。
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void ParseArgs_Files_应设置ListFiles并跳过Pattern校验() {
+        var opts = RgSubCommand.ParseArgs(["rg", "--files", "src/"]);
+        opts.Should().NotBeNull();
+        opts!.ListFiles.Should().BeTrue();
+        opts.OutputMode.Should().Be(SearchOutputMode.Files);
+        opts.Paths.Should().ContainSingle().Which.Should().Be("src/");
+        opts.Pattern.Should().BeNullOrEmpty();
+    }
+
+    /// <summary>
+    /// --files 配合 glob/type 过滤时，过滤参数应正常携带。
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void ParseArgs_Files配合Glob_应携带过滤参数() {
+        var opts = RgSubCommand.ParseArgs(["rg", "--files", "src/", "-g", "*.cs"]);
+        opts.Should().NotBeNull();
+        opts!.ListFiles.Should().BeTrue();
+        opts.Globs.Should().ContainSingle().Which.Should().Be("*.cs");
+    }
+
+    /// <summary>
+    /// --files 仍然必须指定路径（禁止无路径扫盘的安全约束不因列文件模式放松）。
+    /// </summary>
+    [Fact]
+    public void ParseArgs_Files无路径_应报错() {
+        var opts = RgSubCommand.ParseArgs(["rg", "--files"]);
+        opts.Should().BeNull();
+    }
+
+    /// <summary>
+    /// --files 时所有位置参数都应归入 paths（列文件模式无 pattern 概念）。
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void ParseArgs_Files位置参数应全部进路径() {
+        var opts = RgSubCommand.ParseArgs(["rg", "--files", "src/", "core/"]);
+        opts.Should().NotBeNull();
+        opts!.Paths.Should().HaveCount(2);
+        opts.Paths.Should().ContainInOrder("src/", "core/");
+        opts.Pattern.Should().BeNullOrEmpty();
+    }
+
+    /// <summary>
+    /// --files 出现在位置参数之后时（如 jcc rg src/ --files），位置参数仍应归入 paths 而非 pattern。
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void ParseArgs_Files出现在位置参数之后_位置参数应归入路径() {
+        var opts = RgSubCommand.ParseArgs(["rg", "src/", "--files"]);
+        opts.Should().NotBeNull();
+        opts!.ListFiles.Should().BeTrue();
+        opts.Paths.Should().ContainSingle().Which.Should().Be("src/");
+        opts.Pattern.Should().BeNullOrEmpty();
+    }
 }

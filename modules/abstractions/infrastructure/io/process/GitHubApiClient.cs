@@ -153,8 +153,17 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         string repo,
         long runId,
         [EnumeratorCancellation] CancellationToken ct = default) {
-        var token = ResolveToken();
         var path = $"repos/{owner}/{repo}/actions/runs/{runId}/logs";
+        if (_downloader is not null) {
+            var shard = await TryShardDownloadLogFileAsync(_downloader, path, ct).ConfigureAwait(false);
+            if (shard is not null) {
+                await foreach (var line in ReadShardedLogLinesAsync(shard, $"run {runId}", ct).ConfigureAwait(false)) {
+                    yield return line;
+                }
+                yield break;
+            }
+        }
+        var token = ResolveToken();
         HttpResponseMessage? response = null;
         var retry5xx = 0;
         while (true) {
@@ -199,7 +208,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
 
         var runResp = response ?? throw new InvalidOperationException("GitHub API response was null");
         using (runResp) {
-            await using var stream = await runResp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            await using var stream = await OpenContentStreamAsync(runResp, ct).ConfigureAwait(false);
             await foreach (var line in ReadLogStreamLinesAsync(stream, $"run {runId}", ct).ConfigureAwait(false)) {
                 yield return line;
             }
@@ -216,8 +225,17 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         string repo,
         long jobId,
         [EnumeratorCancellation] CancellationToken ct = default) {
-        var token = ResolveToken();
         var path = $"repos/{owner}/{repo}/actions/jobs/{jobId}/logs";
+        if (_downloader is not null) {
+            var shard = await TryShardDownloadLogFileAsync(_downloader, path, ct).ConfigureAwait(false);
+            if (shard is not null) {
+                await foreach (var line in ReadShardedLogLinesAsync(shard, $"job {jobId}", ct).ConfigureAwait(false)) {
+                    yield return line;
+                }
+                yield break;
+            }
+        }
+        var token = ResolveToken();
         HttpResponseMessage? response = null;
         var retry5xx = 0;
         while (true) {
@@ -262,7 +280,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
 
         var jobResp = response ?? throw new InvalidOperationException("GitHub API response was null");
         using (jobResp) {
-            await using var stream = await jobResp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            await using var stream = await OpenContentStreamAsync(jobResp, ct).ConfigureAwait(false);
             await foreach (var line in ReadLogStreamLinesAsync(stream, $"job {jobId}", ct).ConfigureAwait(false)) {
                 yield return line;
             }
@@ -523,6 +541,60 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
     // === 私有辅助方法 ===
 
     /// <summary>
+    /// 分片下载落盘文件 — 持有临时目录作用域,消费方 Dispose 时递归清理
+    /// </summary>
+    private sealed record ShardDownloadedFile(TempDirScope Scope, string FilePath);
+
+    /// <summary>
+    /// 尝试分片下载日志到临时文件 — 复用 IDownloader 探测→PLINQ 分片→合并,对 302 签名 blob 提速
+    /// <para>失败返回 null,调用方回退单线程流式路径;临时目录异常路径幂等清理</para>
+    /// <para>GitHub 日志端点 302 到 Azure blob(实测 Accept-Ranges: bytes),HttpClient 自动跟随,Authorization 跨域自动 strip</para>
+    /// </summary>
+    private async Task<ShardDownloadedFile?> TryShardDownloadLogFileAsync(IDownloader downloader, string apiPath, CancellationToken ct) {
+        TempDirScope? scope = null;
+        try {
+            var token = ResolveToken();
+            scope = TempDirScope.Create(_fs, "gh_log_");
+            var filePath = _fs.CombinePath(scope.Path, "log");
+            var fullUrl = new Uri(_httpClient.BaseAddress ?? new Uri(DefaultBaseUrl), apiPath).ToString();
+            var headers = new Dictionary<string, string> {
+                ["Authorization"] = $"Bearer {token}",
+                ["Accept"] = AcceptHeader,
+                ["User-Agent"] = UserAgent,
+            };
+            var options = new DownloadOptions { MaxThreads = 4, Resume = false, Headers = headers };
+            await using var session = downloader.StartDownload(fullUrl, filePath, options, null, ct);
+            var result = await session.WaitForCompletionAsync(ct).ConfigureAwait(false);
+            if (!result.Success) {
+                _logger?.LogWarning("日志分片下载失败({Error}), 回退单线程流式: {Path}", result.ErrorMessage, apiPath);
+                await scope.DisposeAsync().ConfigureAwait(false);
+                return null;
+            }
+            return new ShardDownloadedFile(scope, filePath);
+        } catch (OperationCanceledException) {
+            throw;
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "日志分片下载异常, 回退单线程流式: {Path}", apiPath);
+            if (scope is not null) await scope.DisposeAsync().ConfigureAwait(false);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 读取分片落盘的日志文件并逐行 yield — 消费完(含提前 break)自动清理临时目录
+    /// </summary>
+    private async IAsyncEnumerable<string> ReadShardedLogLinesAsync(
+        ShardDownloadedFile shard, string scope,
+        [EnumeratorCancellation] CancellationToken ct) {
+        await using (shard.Scope) {
+            await using var stream = _fs.CreateStream(shard.FilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            await foreach (var line in ReadLogStreamLinesAsync(stream, scope, ct).ConfigureAwait(false)) {
+                yield return line;
+            }
+        }
+    }
+
+    /// <summary>
     /// 下载 Actions Run artifact — 复用 IDownloader 多线程分片+断点续传
     /// <para>注入 IDownloader 时走多线程分片;未注入时回退单线程流式(测试场景)</para>
     /// <para>GitHub artifact 端点 302 重定向到临时签名 URL,HttpClient 自动跟随,Authorization 头自动 strip</para>
@@ -685,10 +757,31 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         var request = new HttpRequestMessage(method, uri);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
+        // 日志/API 传输压缩: 跨境裸带宽 ~27KB/s,gzip 压缩率 5-10x(响应侧 OpenContentStreamAsync 手动解压,
+        // handler 的 AutomaticDecompression 未启用时 .NET 保留原始 gzip 流由我们解压)
+        if (!request.Headers.AcceptEncoding.Any()) {
+            request.Headers.AcceptEncoding.ParseAdd("gzip");
+        }
+
         if (!string.IsNullOrEmpty(body)) {
             request.Content = new StringContent(body, Encoding.UTF8, "application/json");
         }
         return request;
+    }
+
+    /// <summary>
+    /// 打开响应内容流 — Content-Encoding: gzip 时包 GZipStream 解压(手动协商压缩的响应侧配对)
+    /// <para>请求侧 BuildRequest 已声明 Accept-Encoding: gzip;服务器不支持时无该头,原文直读(向后兼容)</para>
+    /// <para>gzip 解压后是原始字节流(zip 魔数检测/纯文本逐行由 ReadLogStreamLinesAsync 处理,双层解压天然支持)</para>
+    /// </summary>
+    private static async ValueTask<Stream> OpenContentStreamAsync(HttpResponseMessage resp, CancellationToken ct) {
+        var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        foreach (var encoding in resp.Content.Headers.ContentEncoding) {
+            if (string.Equals(encoding, "gzip", StringComparison.OrdinalIgnoreCase)) {
+                return new System.IO.Compression.GZipStream(stream, System.IO.Compression.CompressionMode.Decompress);
+            }
+        }
+        return stream;
     }
 
     private static Uri BuildUri(string path, IReadOnlyDictionary<string, string>? query) {
@@ -719,8 +812,14 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         return TimeSpan.FromSeconds(seconds);
     }
 
+    /// <summary>
+    /// 读取响应体文本 — Content-Encoding: gzip 时先解压(与 OpenContentStreamAsync 同语义,JSON API 路径配对)
+    /// <para>BuildRequest 已全局声明 Accept-Encoding: gzip,所有响应读取点都必须配对解压,否则 gzip 字节被当 UTF-8 文本产生乱码</para>
+    /// </summary>
     private static async Task<string> ReadBodyAsync(HttpResponseMessage response, CancellationToken ct) {
-        return await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        await using var stream = await OpenContentStreamAsync(response, ct).ConfigureAwait(false);
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        return await reader.ReadToEndAsync(ct).ConfigureAwait(false);
     }
 
     private static string? ParseLinkHeaderNext(System.Net.Http.Headers.HttpResponseHeaders headers) {

@@ -66,6 +66,11 @@ public static partial class ServiceRegistration {
             _ => new InMemoryKvStoreLeaseFactory(),
             _ => new PithosKvStoreLeaseFactory(Path.Combine(AppDataConstants.Paths.JccDirectory, "kvstore")));
 
+        // IKvStore — 短租约适配器（每次操作 Acquire→执行→Dispose，遵守 ADR 0139 短租约协议）
+        // 修复: gh 缓存(GitHubToolHandlers/GhCacheService)此前因 IKvStore 未注册而 NoOp → 永远 miss 每次网络重下
+        // 不直接注册 PithosKvStore 单例: 进程级持库绕过跨进程锁会与常驻进程冲突(SST 损坏),短租约才是协议正道
+        services.AddSingleton<IKvStore>(sp => new LeasedKvStoreAdapter(sp.GetRequiredService<IKvStoreLeaseFactory>()));
+
         // FileOperationConfig — 直接注册供 FileOperationService 构造函数使用
         // （FileOperationService 有手动构造函数，不使用 生成器）
         services.AddSingleton(sp => {

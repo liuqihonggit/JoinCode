@@ -573,7 +573,13 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
         var pathNodes = new List<string>();
         var pathEdges = new List<CallEdge>();
         var step = toSymbol;
+        var spin = new SpinWait();
+        // 变异防御(#105 三阶): `step = prev` 赋值被删除后回溯指针永不前进 → testhost 挂死。
+        // BFS 前驱链无环, 路径长度 ≤ predecessor.Count, 正常路径永不触发守卫。
         while (!string.Equals(step, fromSymbol, StringComparison.Ordinal)) {
+            if (spin.Count > predecessor.Count) throw new InvalidOperationException(
+                $"RebuildPath 回溯步数超过前驱表规模 {predecessor.Count}, 判定回溯指针前进被破坏(变异防御)");
+            spin.SpinOnce();
             pathNodes.Add(step);
             var (prev, edge) = predecessor[step];
             pathEdges.Add(edge);

@@ -191,6 +191,87 @@ public sealed class GitHubApiClientTest : IDisposable {
         lines[2].Should().Contain("line3");
     }
 
+    /// <summary>
+    /// gzip 压缩的纯文本日志 — Content-Encoding: gzip 时应 GZipStream 解压后逐行 yield
+    /// <para>背景: 跨境拉 GitHub 日志未压缩 ~27KB/s,Accept-Encoding: gzip 压缩率 5-10x 显著提速</para>
+    /// </summary>
+    [Fact]
+    public async Task GetJobLogsAsync_GzipEncoded_PlainText_DecodesAndYieldsLines() {
+        var raw = "gzip line1\ngzip line2\ngzip line3";
+        var gzipped = GzipBytes(raw);
+        var content = new ByteArrayContent(gzipped);
+        content.Headers.Add("Content-Encoding", "gzip");
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+
+        var lines = new List<string>();
+        await foreach (var line in _client.GetJobLogsAsync("foo", "bar", 789)) {
+            lines.Add(line);
+        }
+
+        lines.Should().HaveCount(3);
+        lines[0].Should().Contain("gzip line1");
+        lines[2].Should().Contain("gzip line3");
+    }
+
+    /// <summary>
+    /// gzip 压缩的 zip 日志 — 双层解压(gzip → zip → entry 逐行)仍正确
+    /// </summary>
+    [Fact]
+    public async Task GetJobLogsAsync_GzipEncoded_Zip_DoubleDecompressionWorks() {
+        var zipBytes = await CreateLogZip([("job-log.txt", "gz zip line1\ngz zip line2")]);
+        var gzipped = GzipBytes(zipBytes);
+        var content = new ByteArrayContent(gzipped);
+        content.Headers.Add("Content-Encoding", "gzip");
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+
+        var lines = new List<string>();
+        await foreach (var line in _client.GetJobLogsAsync("foo", "bar", 321)) {
+            lines.Add(line);
+        }
+
+        lines.Should().HaveCount(2);
+        lines[0].Should().Contain("gz zip line1");
+        lines[1].Should().Contain("gz zip line2");
+    }
+
+    /// <summary>
+    /// 请求头应声明 Accept-Encoding: gzip(未压缩响应时服务器忽略,向后兼容)
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: FakeHandler.LastRequest 测试内保证非空")]
+    [Fact]
+    public async Task GetJobLogsAsync_SendsAcceptEncodingGzip() {
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.OK) {
+            Content = new StringContent("plain line")
+        };
+
+        await foreach (var _ in _client.GetJobLogsAsync("foo", "bar", 654)) {
+            break;
+        }
+
+        _handler.LastRequest!.Headers.AcceptEncoding.Should().Contain(a =>
+            string.Equals(a.Value, "gzip", StringComparison.OrdinalIgnoreCase),
+            "日志下载请求应声明 Accept-Encoding: gzip 让服务器返回压缩流");
+    }
+
+    /// <summary>构造 gzip 压缩字节</summary>
+    private static byte[] GzipBytes(string raw) {
+        var src = Encoding.UTF8.GetBytes(raw);
+        using var ms = new MemoryStream();
+        using (var gz = new System.IO.Compression.GZipStream(ms, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true)) {
+            gz.Write(src, 0, src.Length);
+        }
+        return ms.ToArray();
+    }
+
+    /// <summary>构造 gzip 压缩字节(重载:字节数组输入)</summary>
+    private static byte[] GzipBytes(byte[] src) {
+        using var ms = new MemoryStream();
+        using (var gz = new System.IO.Compression.GZipStream(ms, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true)) {
+            gz.Write(src, 0, src.Length);
+        }
+        return ms.ToArray();
+    }
+
     /// <summary>构造 GitHub Actions 日志格式的 zip(每个 entry 是一个 step 的日志)</summary>
     private static async Task<byte[]> CreateLogZip((string Name, string Content)[] entries) {
         await using var ms = new MemoryStream();
@@ -488,6 +569,117 @@ public sealed class GitHubApiClientTest : IDisposable {
         lines[1].Should().Contain("No BOM entry line");
     }
 
+    // === Job/Run 日志分片下载(IDownloader)路径 ===
+
+    /// <summary>
+    /// 注入 IDownloader 时 job 日志走分片下载 — 内容来自分片落盘文件,不走 HttpClient 单流。
+    /// </summary>
+    [Fact]
+    public async Task GetJobLogsAsync_注入Downloader_应走分片下载并读取行() {
+        var fs = new InMemoryFileSystem();
+        var downloader = new FakeDownloader(fs) { FileContent = "shard line 1\nshard line 2\n"u8.ToArray() };
+        await using var client = new GitHubApiClient(new HttpClient(_handler) { BaseAddress = new Uri("https://api.github.com/") }, fs, downloader: downloader);
+
+        var lines = new List<string>();
+        await foreach (var line in client.GetJobLogsAsync("foo", "bar", 42)) {
+            lines.Add(line);
+        }
+
+        lines.Should().Equal("shard line 1", "shard line 2");
+        downloader.DownloadedUrls.Should().ContainSingle()
+            .Which.Should().Contain("repos/foo/bar/actions/jobs/42/logs");
+        _handler.LastRequest.Should().BeNull("分片路径不应发 HttpClient 单流请求");
+    }
+
+    /// <summary>
+    /// 分片下载应传递鉴权头(Authorization Bearer)给下载请求(302 到 blob 前的初始鉴权)。
+    /// </summary>
+    [Fact]
+    public async Task GetJobLogsAsync_分片下载_应传递鉴权头() {
+        var fs = new InMemoryFileSystem();
+        var downloader = new FakeDownloader(fs);
+        await using var client = new GitHubApiClient(new HttpClient(_handler) { BaseAddress = new Uri("https://api.github.com/") }, fs, downloader: downloader);
+
+        await foreach (var _ in client.GetJobLogsAsync("foo", "bar", 42)) { }
+
+        var headers = downloader.ReceivedHeaders.Should().ContainSingle().Which;
+        headers.Should().NotBeNull();
+        headers.Should().ContainKey("Authorization").WhoseValue.Should().Be("Bearer test-token");
+    }
+
+    /// <summary>
+    /// 分片下载失败时回退单线程流式路径 — blob 偶发失败不应让日志完全不可用。
+    /// </summary>
+    [Fact]
+    public async Task GetJobLogsAsync_Downloader失败_应回退单流路径() {
+        var fs = new InMemoryFileSystem();
+        var downloader = new FakeDownloader(fs) { NextSuccess = false };
+        await using var client = new GitHubApiClient(new HttpClient(_handler) { BaseAddress = new Uri("https://api.github.com/") }, fs, downloader: downloader);
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("fallback line 1\nfallback line 2\n") };
+
+        var lines = new List<string>();
+        await foreach (var line in client.GetJobLogsAsync("foo", "bar", 42)) {
+            lines.Add(line);
+        }
+
+        lines.Should().Equal("fallback line 1", "fallback line 2");
+        downloader.DownloadedUrls.Should().HaveCount(1, "分片尝试应发生一次后回退");
+    }
+
+    /// <summary>
+    /// 分片下载消费完后临时目录应被清理(TempDirScope 幂等清理)。
+    /// </summary>
+    [Fact]
+    public async Task GetJobLogsAsync_分片完成_应清理临时目录() {
+        var fs = new InMemoryFileSystem();
+        var downloader = new FakeDownloader(fs);
+        await using var client = new GitHubApiClient(new HttpClient(_handler) { BaseAddress = new Uri("https://api.github.com/") }, fs, downloader: downloader);
+
+        await foreach (var _ in client.GetJobLogsAsync("foo", "bar", 42)) { }
+
+        var dir = System.IO.Path.GetDirectoryName(downloader.LastFilePath);
+        dir.Should().NotBeNull("分片文件路径应有父目录");
+        fs.DirectoryExists(dir ?? "").Should().BeFalse("临时目录应被 TempDirScope 清理");
+    }
+
+    /// <summary>
+    /// run 日志(zip)同样走分片下载 — zip 魔数检测在分片落盘文件流上工作。
+    /// </summary>
+    [Fact]
+    public async Task GetRunLogsAsync_注入Downloader_应走分片下载并解压zip() {
+        var fs = new InMemoryFileSystem();
+        var zipBytes = CreateLogZipWithBom([("1_build.txt", "Build started\nBuild completed")], withBom: false);
+        var downloader = new FakeDownloader(fs) { FileContent = zipBytes };
+        await using var client = new GitHubApiClient(new HttpClient(_handler) { BaseAddress = new Uri("https://api.github.com/") }, fs, downloader: downloader);
+
+        var lines = new List<string>();
+        await foreach (var line in client.GetRunLogsAsync("foo", "bar", 123)) {
+            lines.Add(line);
+        }
+
+        lines.Should().HaveCount(2);
+        lines[0].Should().Contain("Build started");
+        lines[1].Should().Contain("Build completed");
+        downloader.DownloadedUrls.Should().ContainSingle()
+            .Which.Should().Contain("repos/foo/bar/actions/runs/123/logs");
+    }
+
+    /// <summary>
+    /// JSON API 响应 gzip 编码时，SendAsync 应解压后返回明文 body（ReadBodyAsync 回归保护）。
+    /// </summary>
+    [Fact]
+    public async Task SendAsync_GzipJsonResponse_应解码后返回Body() {
+        var gzipped = GzipBytes("{\"id\":1,\"name\":\"pr\"}");
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(gzipped) };
+        _handler.Response.Content.Headers.ContentEncoding.Add("gzip");
+        _handler.Response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+        var result = await _client.SendAsync(HttpMethod.Get, "repos/foo/bar/pulls/1");
+
+        result.Success.Should().BeTrue();
+        result.Body.Should().Be("{\"id\":1,\"name\":\"pr\"}");
+    }
+
     private sealed class FakeHandler : HttpMessageHandler {
         public HttpRequestMessage? LastRequest;
         public HttpResponseMessage Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };
@@ -537,5 +729,36 @@ public sealed class GitHubApiClientTest : IDisposable {
         public override long Seek(long offset, SeekOrigin origin) => _inner.Seek(offset, origin);
         public override void SetLength(long value) => _inner.SetLength(value);
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    /// <summary>模拟 IDownloader — 把预设内容写入目标文件,记录 URL 与请求头</summary>
+    private sealed class FakeDownloader(IFileSystem fs) : IDownloader {
+        public List<string> DownloadedUrls { get; } = [];
+        public List<IReadOnlyDictionary<string, string>?> ReceivedHeaders { get; } = [];
+        public byte[] FileContent { get; set; } = "fake log\n"u8.ToArray();
+        public bool NextSuccess { get; set; } = true;
+        public string? LastFilePath { get; private set; }
+
+        public IDownloadSession StartDownload(string url, string filePath, DownloadOptions? options = null, IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default) {
+            DownloadedUrls.Add(url);
+            ReceivedHeaders.Add(options?.Headers);
+            LastFilePath = filePath;
+            if (NextSuccess) {
+                using var stream = fs.CreateStream(filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+                stream.Write(FileContent, 0, FileContent.Length);
+            }
+            return new FakeDownloadSession(NextSuccess, filePath);
+        }
+    }
+
+    /// <summary>模拟下载会话 — 立即返回预设结果</summary>
+    private sealed class FakeDownloadSession(bool success, string filePath) : IDownloadSession {
+        public DownloadState State => success ? DownloadState.Completed : DownloadState.Failed;
+        public Task PauseAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task ResumeAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task CancelAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task<DownloadResult> WaitForCompletionAsync(CancellationToken ct = default)
+            => Task.FromResult(new DownloadResult(success, filePath, 100, success ? 100 : 0, TimeSpan.Zero, State, success ? null : "fake download failure"));
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

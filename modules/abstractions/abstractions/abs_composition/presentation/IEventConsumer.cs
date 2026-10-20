@@ -45,6 +45,31 @@ public interface IEventConsumer {
     /// 流式响应完成
     /// </summary>
     void OnDone(TokenUsage? usage, string? modelId);
+
+    /// <summary>
+    /// 子代理启动（DSG041 批1 — 协议本体先扩，投影层后跟；默认空实现 — 既有实现方零改动，
+    /// 默认实现须经接口类型调用才可见）
+    /// </summary>
+    /// <param name="subagentId">子代理标识（事件路由键，分组渲染 AddAgent 键）</param>
+    /// <param name="agentType">代理类型（组头同型拼接 + 八色取色键）</param>
+    /// <param name="description">任务描述（状态行括号段）</param>
+    void OnSubagentStarted(string subagentId, string agentType, string description) { }
+
+    /// <summary>
+    /// 子代理工具活动（DSG041 批1 — Started 与 Finished 间的过程事件；默认空实现）
+    /// </summary>
+    /// <param name="subagentId">子代理标识</param>
+    /// <param name="toolName">工具名</param>
+    /// <param name="summary">活动摘要（参数/结果/进度文本）</param>
+    /// <param name="tokenGain">令牌增量（批2 通道接通后填充真实值；批1 恒 0）</param>
+    void OnSubagentToolUse(string subagentId, string toolName, string summary, int tokenGain) { }
+
+    /// <summary>
+    /// 子代理完成（DSG041 批1 — 终态定格；默认空实现）
+    /// </summary>
+    /// <param name="subagentId">子代理标识</param>
+    /// <param name="isError">是否失败</param>
+    void OnSubagentFinished(string subagentId, bool isError) { }
 }
 
 /// <summary>

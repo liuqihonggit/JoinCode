@@ -672,8 +672,28 @@ internal sealed class DshAssistantMessageData {
     public int Step { get; set; }
     /// <summary>消息体</summary>
     public DshWireMessage Message { get; set; } = new();
+    /// <summary>本轮用量（引擎 Complete.Usage 投影，未报告时整键省略，TASK058 B4）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DshTurnUsage? Usage { get; set; }
     /// <summary>流式块（历史消息为空数组）</summary>
     public List<JsonElement> Stream { get; set; } = [];
+}
+
+/// <summary>本轮用量 — 前端 TurnUsagePanel 四桶（totalTokens = 四桶之和，对齐前端 tokenTotal 语义）</summary>
+internal sealed class DshTurnUsage {
+    /// <summary>未缓存输入 token（prompt − cacheRead）</summary>
+    public int UncachedInputTokens { get; set; }
+    /// <summary>输出 token</summary>
+    public int OutputTokens { get; set; }
+    /// <summary>缓存读取 token</summary>
+    public int CacheReadTokens { get; set; }
+    /// <summary>缓存写入 token</summary>
+    public int CacheWriteTokens { get; set; }
+    /// <summary>总 token（四桶之和）</summary>
+    public int TotalTokens { get; set; }
+    /// <summary>推理 token（可选，未报告时整键省略）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? ReasoningTokens { get; set; }
 }
 
 /// <summary>助手流基线（revision=0 表示无进行中的尝试）</summary>
@@ -1067,6 +1087,7 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshTurnEndData))]
 [JsonSerializable(typeof(DshTurnEndReason))]
 [JsonSerializable(typeof(DshAssistantMessageData))]
+[JsonSerializable(typeof(DshTurnUsage))]
 [JsonSerializable(typeof(List<JsonElement>))]
 [JsonSerializable(typeof(DshAssistantStreamBaseline))]
 [JsonSerializable(typeof(Dictionary<string, DshSessionProjectionSnapshot>))]

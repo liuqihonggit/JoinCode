@@ -93,6 +93,8 @@ internal sealed class DshTurnRunner {
             }
             App.LogDiag($"[DSH-WEB] turn streaming session={sessionId} turn={turn}");
             var content = new StringBuilder();
+            var thinking = new StringBuilder();
+            TokenUsage? usage = null;
             var events = 0;
             var calls = new List<(string CallId, string Name, string Arguments)>();
             await foreach (var evt in engine.StreamAsync(text, cancellationToken)) {
@@ -102,14 +104,20 @@ internal sealed class DshTurnRunner {
                 }
                 if (evt.Type == ChatStreamEventType.Content && !string.IsNullOrEmpty(evt.Content)) {
                     content.Append(evt.Content);
+                } else if (evt.Type == ChatStreamEventType.Thinking && !string.IsNullOrEmpty(evt.ThinkingContent)) {
+                    // 思考内容 → assistant/message 前置 reasoning 块（TASK058 B4，前端折叠渲染）
+                    thinking.Append(evt.ThinkingContent);
+                } else if (evt.Type == ChatStreamEventType.Complete && evt.Usage is { } turnUsage) {
+                    // 用量 → data.usage 四桶（前端"本轮用量"弹窗，TASK058 B4）
+                    usage = turnUsage;
                 } else if (evt.Type == ChatStreamEventType.SystemNotice) {
                     App.LogDiag($"[DSH-WEB] turn system notice session={sessionId}: {evt.Content}");
                 } else if (evt.Type == ChatStreamEventType.ToolCallEnd || evt.Type == ChatStreamEventType.ToolCallStart) {
                     await PublishToolCallAsync(sessionId, turn, evt, calls);
                 }
             }
-            App.LogDiag($"[DSH-WEB] turn stream done session={sessionId} events={events} chars={content.Length}");
-            await PublishReplyAsync(sessionId, turn, content.ToString(), engine);
+            App.LogDiag($"[DSH-WEB] turn stream done session={sessionId} events={events} chars={content.Length} thinking={thinking.Length}");
+            await PublishReplyAsync(sessionId, turn, thinking.Length > 0 ? thinking.ToString() : null, content.ToString(), usage, engine);
             await EndTurnAsync(sessionId, turn, new DshTurnEndReason { Kind = "completed" });
         } catch (OperationCanceledException) {
             App.LogDiag($"[DSH-WEB] turn cancelled session={sessionId} turn={turn}");
@@ -163,24 +171,27 @@ internal sealed class DshTurnRunner {
         }, surfaceOp: "append");
     }
 
-    /// <summary>落助手回复事件（空回复不落，避免空气泡）</summary>
-    private async Task PublishReplyAsync(string sessionId, int turn, string reply, Hosting.IJccChatSession engine) {
-        if (!string.IsNullOrWhiteSpace(reply)) {
-            await _services.Streams.PublishAsync(sessionId, "assistant/message", new DshAssistantMessageData {
-                Turn = turn,
-                Step = Step,
-                Message = new DshWireMessage {
-                    Id = $"{sessionId}:{turn}:assistant",
-                    Role = "assistant",
-                    Content = [new DshWireContentBlock { Text = reply }],
-                    Source = new DshWireMessageSource {
-                        Kind = "model",
-                        Provider = engine.CurrentVendor,
-                        Model = engine.CurrentModelId,
-                    },
-                },
-            }, surfaceOp: "append");
+    /// <summary>落助手回复事件（空块序列不落，避免空气泡；思考/正文/用量经投影单点翻译，TASK058 B4）</summary>
+    private async Task PublishReplyAsync(string sessionId, int turn, string? thinking, string reply, TokenUsage? usage, Hosting.IJccChatSession engine) {
+        var (content, mappedUsage) = DshAssistantReplyProjection.Project(thinking, reply, usage);
+        if (content.Count == 0) {
+            return;
         }
+        await _services.Streams.PublishAsync(sessionId, "assistant/message", new DshAssistantMessageData {
+            Turn = turn,
+            Step = Step,
+            Message = new DshWireMessage {
+                Id = $"{sessionId}:{turn}:assistant",
+                Role = "assistant",
+                Content = content,
+                Source = new DshWireMessageSource {
+                    Kind = "model",
+                    Provider = engine.CurrentVendor,
+                    Model = engine.CurrentModelId,
+                },
+            },
+            Usage = mappedUsage,
+        }, surfaceOp: "append");
     }
 
     /// <summary>落步骤结束与轮次结束（先 step/end 再 turn/end）</summary>

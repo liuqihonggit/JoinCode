@@ -67,6 +67,7 @@ account（11）、pluginManager（12）、dynamicCordisRunner（9）、productAn
 | B5 `commands/list|execute` 路由 | 斜杠命令补全与执行 | ⬜ | ⬜ |
 | B6 agents/interrupt/follow 子代理 | 子代理面板/轨迹 | ⬜ | ⬜ |
 | B7 fork/clear/rewind | 会话菜单操作 | ⬜ | ⬜ |
+| B8 DshSubagentCatalogProjector journal 回放 subagentCatalog（空数组消除前端 loading 挂起） | 子代理面板目录 | ✅ 单元 3/3 | ⬜ 真机验收待做 |
 
 ## 风险与前提
 

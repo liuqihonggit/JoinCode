@@ -90,7 +90,8 @@ jobs:
     needs: prepare
     runs-on: windows-latest
     # 30 分钟设计: 目标每个 job ≤30min, +5min 容差; 超时=必须拆分该 job 的变异范围
-    timeout-minutes: 35
+    # #109 实测: Vector 挂死源=VsTest crash 重试(12 次, 差 ~2min 跑完), 45min 给足重试余量吸收波动
+    timeout-minutes: ${{ matrix.project == 'CodeIndex-Vector' && 45 || 35 }}
     strategy:
       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
       fail-fast: false
@@ -167,9 +168,11 @@ jobs:
             # #108 排查拆分: Parsing 纯慢(21min 窗口仅完成 96/1343, CSharpDependencyExtractor 的 String mutant 每个触发全量 800 测试 ~110s)
             # Rest 挂死(VsTest cancel 失败 14 次 retry, 挂死现场批次含 embedding/analytics mutant, 重试后同批次 success = 时序敏感)
             # 一拆四策略: 大户隔离(Dep 单文件/Embedding 挂死嫌疑) + 语义分组, 超时的子 job 即为下一轮精准处理目标
+            # #109 拆分验证(8 过 2 超时): Dep 纯慢实锤(String mutant 4.6/min) → IgnoreMutations 排除 string(语言/类型名常量无业务语义)
+            # Vector 挂死源实锤(12 次 VsTest crash 重试, 差 ~2min 跑完) → job timeout 45min 吸收重试波动
             'CodeIndex-Parsing-Bash'  = @{ Dir = 'modules\perception\code_index.tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/BashAstParser.cs','parsing/TreeSitterParser.cs','parsing/TreeSitterParserPool.cs') }
             'CodeIndex-Parsing-Sharp' = @{ Dir = 'modules\perception\code_index.tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/CSharpCallExtractor.cs','parsing/CSharpSymbolExtractor.cs') }
-            'CodeIndex-Parsing-Dep'   = @{ Dir = 'modules\perception\code_index.tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/CSharpDependencyExtractor.cs') }
+            'CodeIndex-Parsing-Dep'   = @{ Dir = 'modules\perception\code_index.tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/CSharpDependencyExtractor.cs'); IgnoreMutations = @('string') }
             'CodeIndex-Parsing-Docs'  = @{ Dir = 'modules\perception\code_index.tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/CsprojParser.cs','parsing/LineBasedChunkExtractor.cs','parsing/MarkdownChunkExtractor.cs','parsing/SolutionParser.cs','query/**','plugins/**') }
             'CodeIndex-Indexing'   = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('indexing/**','incremental/**','graph/**') }
             'CodeIndex-Analytics'  = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('analytics/**') }
@@ -242,8 +245,13 @@ jobs:
           # Stryker 4.16 的 test-case-filter 只能通过配置文件设置（命令行 N/A）
           # 注意: 此文件会遮蔽上级目录 stryker-config.json,必须携带 additional-timeout 防止变异死锁时测试session无限hang
           # 临时(#106 后挂死定位): verbosity=debug 记录每个 mutant 的测试事件, 挂死前最后一个 mutant 即凶手
+          # projectMap 的 IgnoreMutations 键(如 Dep 排除 string) → 写入 ignore-mutations 数组
           $configPath = Join-Path $testDir "stryker-config.json"
-          '{"stryker-config":{"test-case-filter":"Category!=Integration","additional-timeout":5000,"verbosity":"debug"}}' | Out-File -FilePath $configPath -Encoding utf8 -NoNewline
+          $config = [ordered]@{ 'stryker-config' = [ordered]@{ 'test-case-filter' = 'Category!=Integration'; 'additional-timeout' = 5000; 'verbosity' = 'debug' } }
+          if ($info.ContainsKey('IgnoreMutations') -and $info.IgnoreMutations.Count -gt 0) {
+            $config['stryker-config']['ignore-mutations'] = $info.IgnoreMutations
+          }
+          ($config | ConvertTo-Json -Depth 5 -Compress) | Out-File -FilePath $configPath -Encoding utf8 -NoNewline
 
           Push-Location $testDir
           try {

@@ -165,4 +165,29 @@ public static class MessageRenderer
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
         screen.WriteText(frame.Y, frame.X, " Esc to cancel", dim, frame.Right);
     }
+
+    /// <summary>
+    /// 渲染 Markdown 物理行（M7-4）— 从指定列起逐段写，段样式经 MapMarkdownStyle 映射
+    ///（Code → permission 色前景，对齐基准 codespan color('permission')；修饰开关直转 TextStyle）。
+    /// </summary>
+    public static void RenderMarkdownLine(Screen screen, Rect frame, Theme theme, int startCol, IReadOnlyList<MarkdownSegment> segments)
+    {
+        var col = frame.X + startCol;
+        foreach (var segment in segments)
+        {
+            var style = screen.Styles.GetOrAdd(MapMarkdownStyle(segment.Style, theme));
+            col = screen.WriteText(frame.Y, col, segment.Text, style, frame.Right);
+        }
+    }
+
+    /// <summary>Markdown 语义样式 → TextStyle（Code 取 permission 色；Link 首版无 OSC 8 纯文本降级）。</summary>
+    internal static TextStyle MapMarkdownStyle(MarkdownStyle style, Theme theme) => new()
+    {
+        Bold = style.HasFlag(MarkdownStyle.Bold),
+        Italic = style.HasFlag(MarkdownStyle.Italic),
+        Underline = style.HasFlag(MarkdownStyle.Underline),
+        Dim = style.HasFlag(MarkdownStyle.Dim),
+        Strikethrough = style.HasFlag(MarkdownStyle.Strikethrough),
+        Foreground = style.HasFlag(MarkdownStyle.Code) ? theme.Permission : default,
+    };
 }

@@ -191,6 +191,87 @@ public sealed class GitHubApiClientTest : IDisposable {
         lines[2].Should().Contain("line3");
     }
 
+    /// <summary>
+    /// gzip 压缩的纯文本日志 — Content-Encoding: gzip 时应 GZipStream 解压后逐行 yield
+    /// <para>背景: 跨境拉 GitHub 日志未压缩 ~27KB/s,Accept-Encoding: gzip 压缩率 5-10x 显著提速</para>
+    /// </summary>
+    [Fact]
+    public async Task GetJobLogsAsync_GzipEncoded_PlainText_DecodesAndYieldsLines() {
+        var raw = "gzip line1\ngzip line2\ngzip line3";
+        var gzipped = GzipBytes(raw);
+        var content = new ByteArrayContent(gzipped);
+        content.Headers.Add("Content-Encoding", "gzip");
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+
+        var lines = new List<string>();
+        await foreach (var line in _client.GetJobLogsAsync("foo", "bar", 789)) {
+            lines.Add(line);
+        }
+
+        lines.Should().HaveCount(3);
+        lines[0].Should().Contain("gzip line1");
+        lines[2].Should().Contain("gzip line3");
+    }
+
+    /// <summary>
+    /// gzip 压缩的 zip 日志 — 双层解压(gzip → zip → entry 逐行)仍正确
+    /// </summary>
+    [Fact]
+    public async Task GetJobLogsAsync_GzipEncoded_Zip_DoubleDecompressionWorks() {
+        var zipBytes = await CreateLogZip([("job-log.txt", "gz zip line1\ngz zip line2")]);
+        var gzipped = GzipBytes(zipBytes);
+        var content = new ByteArrayContent(gzipped);
+        content.Headers.Add("Content-Encoding", "gzip");
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+
+        var lines = new List<string>();
+        await foreach (var line in _client.GetJobLogsAsync("foo", "bar", 321)) {
+            lines.Add(line);
+        }
+
+        lines.Should().HaveCount(2);
+        lines[0].Should().Contain("gz zip line1");
+        lines[1].Should().Contain("gz zip line2");
+    }
+
+    /// <summary>
+    /// 请求头应声明 Accept-Encoding: gzip(未压缩响应时服务器忽略,向后兼容)
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: FakeHandler.LastRequest 测试内保证非空")]
+    [Fact]
+    public async Task GetJobLogsAsync_SendsAcceptEncodingGzip() {
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.OK) {
+            Content = new StringContent("plain line")
+        };
+
+        await foreach (var _ in _client.GetJobLogsAsync("foo", "bar", 654)) {
+            break;
+        }
+
+        _handler.LastRequest!.Headers.AcceptEncoding.Should().Contain(a =>
+            string.Equals(a.Value, "gzip", StringComparison.OrdinalIgnoreCase),
+            "日志下载请求应声明 Accept-Encoding: gzip 让服务器返回压缩流");
+    }
+
+    /// <summary>构造 gzip 压缩字节</summary>
+    private static byte[] GzipBytes(string raw) {
+        var src = Encoding.UTF8.GetBytes(raw);
+        using var ms = new MemoryStream();
+        using (var gz = new System.IO.Compression.GZipStream(ms, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true)) {
+            gz.Write(src, 0, src.Length);
+        }
+        return ms.ToArray();
+    }
+
+    /// <summary>构造 gzip 压缩字节(重载:字节数组输入)</summary>
+    private static byte[] GzipBytes(byte[] src) {
+        using var ms = new MemoryStream();
+        using (var gz = new System.IO.Compression.GZipStream(ms, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true)) {
+            gz.Write(src, 0, src.Length);
+        }
+        return ms.ToArray();
+    }
+
     /// <summary>构造 GitHub Actions 日志格式的 zip(每个 entry 是一个 step 的日志)</summary>
     private static async Task<byte[]> CreateLogZip((string Name, string Content)[] entries) {
         await using var ms = new MemoryStream();

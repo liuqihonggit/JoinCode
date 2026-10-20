@@ -199,7 +199,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
 
         var runResp = response ?? throw new InvalidOperationException("GitHub API response was null");
         using (runResp) {
-            await using var stream = await runResp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            await using var stream = await OpenContentStreamAsync(runResp, ct).ConfigureAwait(false);
             await foreach (var line in ReadLogStreamLinesAsync(stream, $"run {runId}", ct).ConfigureAwait(false)) {
                 yield return line;
             }
@@ -262,7 +262,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
 
         var jobResp = response ?? throw new InvalidOperationException("GitHub API response was null");
         using (jobResp) {
-            await using var stream = await jobResp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            await using var stream = await OpenContentStreamAsync(jobResp, ct).ConfigureAwait(false);
             await foreach (var line in ReadLogStreamLinesAsync(stream, $"job {jobId}", ct).ConfigureAwait(false)) {
                 yield return line;
             }
@@ -685,10 +685,31 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         var request = new HttpRequestMessage(method, uri);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
+        // 日志/API 传输压缩: 跨境裸带宽 ~27KB/s,gzip 压缩率 5-10x(响应侧 OpenContentStreamAsync 手动解压,
+        // handler 的 AutomaticDecompression 未启用时 .NET 保留原始 gzip 流由我们解压)
+        if (!request.Headers.AcceptEncoding.Any()) {
+            request.Headers.AcceptEncoding.ParseAdd("gzip");
+        }
+
         if (!string.IsNullOrEmpty(body)) {
             request.Content = new StringContent(body, Encoding.UTF8, "application/json");
         }
         return request;
+    }
+
+    /// <summary>
+    /// 打开响应内容流 — Content-Encoding: gzip 时包 GZipStream 解压(手动协商压缩的响应侧配对)
+    /// <para>请求侧 BuildRequest 已声明 Accept-Encoding: gzip;服务器不支持时无该头,原文直读(向后兼容)</para>
+    /// <para>gzip 解压后是原始字节流(zip 魔数检测/纯文本逐行由 ReadLogStreamLinesAsync 处理,双层解压天然支持)</para>
+    /// </summary>
+    private static async ValueTask<Stream> OpenContentStreamAsync(HttpResponseMessage resp, CancellationToken ct) {
+        var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        foreach (var encoding in resp.Content.Headers.ContentEncoding) {
+            if (string.Equals(encoding, "gzip", StringComparison.OrdinalIgnoreCase)) {
+                return new System.IO.Compression.GZipStream(stream, System.IO.Compression.CompressionMode.Decompress);
+            }
+        }
+        return stream;
     }
 
     private static Uri BuildUri(string path, IReadOnlyDictionary<string, string>? query) {

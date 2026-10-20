@@ -320,6 +320,72 @@ public sealed class SubagentGroupTests
         Assert.Equal(23, new SubagentGroupItem(coordinator).MeasureHeight(60));
     }
 
+    // ---- 每代理活动日志（交互层 Step2 — 展开态显示） ----
+
+    /// <summary>RecordToolUse — 活动日志环形缓冲：保留最近 3 条 + 丢弃计数（基准单代理尾部窗口 3 条语义）。</summary>
+    [Fact]
+    public void RecordToolUse_AppendsRecentActivities_RingKeepsLastThree()
+    {
+        var coordinator = new SubagentGroupCoordinator();
+        coordinator.AddAgent("a1", "explore", "搜索");
+        coordinator.RecordToolUse("a1", "Read", "f1", 100);
+        coordinator.RecordToolUse("a1", "Grep", "f2", 100);
+        coordinator.RecordToolUse("a1", "Read", "f3", 100);
+        coordinator.RecordToolUse("a1", "Bash", "f4", 100);
+
+        var agent = coordinator.Agents[0];
+        Assert.Equal(4, agent.ToolUseCount);
+        Assert.Equal(3, agent.RecentActivities.Count);
+        Assert.Equal("Grep", agent.RecentActivities[0].ToolName);
+        Assert.Equal("f2", agent.RecentActivities[0].Summary);
+        Assert.Equal("Read", agent.RecentActivities[1].ToolName);
+        Assert.Equal("Bash", agent.RecentActivities[2].ToolName);
+        Assert.Equal(1, agent.HiddenActivityCount);
+    }
+
+    /// <summary>展开态渲染 — 每条活动独立行 + "+N more tool uses" 丢弃计数行（末代理 "   ⎿" 收口前缀；
+    /// 单代理组全同型 hideType：状态行描述直起无类型徽章）。</summary>
+    [Fact]
+    public void Render_ExpandedShowsActivityLogAndHiddenCount()
+    {
+        var coordinator = new SubagentGroupCoordinator();
+        coordinator.AddAgent("a1", "explore", "搜索");
+        coordinator.RecordToolUse("a1", "Read", "f1", 100);
+        coordinator.RecordToolUse("a1", "Grep", "f2", 100);
+        coordinator.RecordToolUse("a1", "Read", "f3", 100);
+        coordinator.RecordToolUse("a1", "Bash", "f4", 100);
+
+        coordinator.IsExpanded = true;
+        using var screen = new Screen(cols: 60, rows: 10);
+        new SubagentGroupItem(coordinator).Render(screen, new Rect(0, 0, 60, 10), Theme.Dark);
+
+        Assert.StartsWith("└─ 搜索 · 4 tool uses · 400 tokens", RowText.Of(screen, 2, 0, 60));
+        Assert.StartsWith("   ⎿ Grep: f2", RowText.Of(screen, 3, 0, 60));
+        Assert.StartsWith("   ⎿ Read: f3", RowText.Of(screen, 4, 0, 60));
+        Assert.StartsWith("   ⎿ Bash: f4", RowText.Of(screen, 5, 0, 60));
+        Assert.StartsWith("   ⎿ +1 more tool uses", RowText.Of(screen, 6, 0, 60));
+    }
+
+    /// <summary>展开态高度 — 每代理状态行 + 活动行数（零活动 Initializing… 兜底 1 行）+ hidden 行 0/1。</summary>
+    [Fact]
+    public void MeasureHeight_ExpandedCountsActivityRows()
+    {
+        var coordinator = new SubagentGroupCoordinator();
+        coordinator.AddAgent("a1", "explore", "搜索");
+        coordinator.RecordToolUse("a1", "Read", "f1", 100);
+        coordinator.RecordToolUse("a1", "Grep", "f2", 100);
+        coordinator.RecordToolUse("a1", "Read", "f3", 100);
+        coordinator.RecordToolUse("a1", "Bash", "f4", 100);
+
+        coordinator.IsExpanded = true;
+        Assert.Equal(7, new SubagentGroupItem(coordinator).MeasureHeight(60));
+
+        var fresh = new SubagentGroupCoordinator();
+        fresh.AddAgent("a1", "explore", "搜索");
+        fresh.IsExpanded = true;
+        Assert.Equal(4, new SubagentGroupItem(fresh).MeasureHeight(60));
+    }
+
     /// <summary>运行中行 dim / 完成行不 dim（基准 AgentProgressLine 运行中整行 dim）。</summary>
     [Fact]
     public void Render_RunningRowsDimDoneRowsNot()

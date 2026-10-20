@@ -1,5 +1,5 @@
 global using System.Text;
-global using System.Threading.Channels;
+global using System.Collections.Concurrent;
 global using NativeTui.Core.Bridge;
 global using NativeTui.Host;
 global using Xunit;

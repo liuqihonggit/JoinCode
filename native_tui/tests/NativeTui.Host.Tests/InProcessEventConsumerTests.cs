@@ -13,7 +13,7 @@ public sealed class InProcessEventConsumerTests
     [Fact]
     public void OnText_EmitsTokenDeltaPerCall()
     {
-        using var consumer = new InProcessEventConsumer();
+        var consumer = new InProcessEventConsumer();
 
         consumer.OnText("你好");
         consumer.OnText("，世界");
@@ -30,7 +30,7 @@ public sealed class InProcessEventConsumerTests
     [Fact]
     public void OnThinking_SignalsOncePerTurn()
     {
-        using var consumer = new InProcessEventConsumer();
+        var consumer = new InProcessEventConsumer();
 
         consumer.OnThinking("第一步推理");
         consumer.OnThinking("继续推理");
@@ -43,7 +43,7 @@ public sealed class InProcessEventConsumerTests
     [Fact]
     public void OnText_AfterThinking_EndsThinkingWithWallClockDelta()
     {
-        using var consumer = new InProcessEventConsumer(static () => 1_000);
+        var consumer = new InProcessEventConsumer(static () => 1_000);
 
         consumer.OnThinking("思考");
         consumer.OnText("产出");
@@ -59,7 +59,7 @@ public sealed class InProcessEventConsumerTests
     [Fact]
     public void OnToolStartEmitsToolCall_AfterThinkingEnds()
     {
-        using var consumer = new InProcessEventConsumer();
+        var consumer = new InProcessEventConsumer();
 
         consumer.OnThinking("要用工具");
         consumer.OnToolStart("Read", "call-1", "{\"path\":\"a.cs\"}");
@@ -76,7 +76,7 @@ public sealed class InProcessEventConsumerTests
     [Fact]
     public void OnToolEnd_EmitsToolResultWithTruncatedSummary()
     {
-        using var consumer = new InProcessEventConsumer();
+        var consumer = new InProcessEventConsumer();
         var longText = new string('x', 250);
 
         consumer.OnToolEnd("Bash", longText, "call-1", isError: false, patch: null);
@@ -90,7 +90,7 @@ public sealed class InProcessEventConsumerTests
     [Fact]
     public void OnToolEnd_ErrorPrefixesSummary()
     {
-        using var consumer = new InProcessEventConsumer();
+        var consumer = new InProcessEventConsumer();
 
         consumer.OnToolEnd("Bash", "boom", "call-1", isError: true, patch: null);
 
@@ -102,7 +102,7 @@ public sealed class InProcessEventConsumerTests
     [Fact]
     public void OnDone_EmitsAssistantMessageWithFullText()
     {
-        using var consumer = new InProcessEventConsumer();
+        var consumer = new InProcessEventConsumer();
 
         consumer.OnText("部分");
         consumer.OnText("回答");
@@ -119,7 +119,7 @@ public sealed class InProcessEventConsumerTests
     [Fact]
     public void Reset_ClearsTurnState_ForNewThinkingSignal()
     {
-        using var consumer = new InProcessEventConsumer();
+        var consumer = new InProcessEventConsumer();
 
         consumer.OnThinking("第一回合");
         consumer.Reset();
@@ -134,7 +134,7 @@ public sealed class InProcessEventConsumerTests
     [Fact]
     public void IgnoredCallbacks_EmitNothing()
     {
-        using var consumer = new InProcessEventConsumer();
+        var consumer = new InProcessEventConsumer();
 
         consumer.OnToolProgress("WebSearch", "query_update", "搜索中");
         consumer.OnLoopDetected(3, 0, "重复模式");

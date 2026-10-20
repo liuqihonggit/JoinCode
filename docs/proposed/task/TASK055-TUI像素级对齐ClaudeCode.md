@@ -963,3 +963,50 @@ ReferenceScene.cs 不含任何 Markdown 渲染调用（纯手工 cell 构造，g
 
 <!-- M7-7 调研完成: 待用户确认组内渲染策略(A窗口/B全量)后实现 → 事件协议加子代理粒度事件(3个) + SubagentGroupCoordinator/Item + 时钟广播 + Demo agents 演示命令 → Host 接线待引擎侧子代理事件源确认后置 -->
 
+## M7-7 多子代理分组落地（2026-10-21，方案 A 可见窗口全链贯通）
+
+### 实施记录（2 commit 链）
+
+| 阶段 | commit | 内容 |
+|------|--------|------|
+| Core 层 | 6fa2d10cc | SubagentEntry + SubagentGroupCoordinator（事件驱动状态机 + FinalizePending 回合定格 + 窗口 min(10,n) **活动跟随滚动** — 区别于模型选择器的焦点跟随，分组非模态无焦点）+ SubagentGroupItem（两行式树形 ├─/└─ + "│ ⎿"/" ⎿" 活动行 + Initializing…/Done 状态 + and N more 溢出复用）+ MessageRenderer 三方法（组头●三态色：任一错误 Error/全完成 Success/运行中 Suggestion + Running N {type} agents 文案 + FormatTokens "N.Nk"）+ Theme.SubagentColor（**八色板首个消费者**，FNV-1a 稳定哈希）+ BridgeEvent 3 事件（SubagentStarted/ToolUse/Finished，参数名 TokenGain 避开嵌套类型撞名）+ Driver 惰性建组路由（回合定格脱离 + 多回合多组共存）；全量 694/694 绿（含 22 新测试） |
+| Demo 接线 | 14619cd87 | SimulatedEngine 加 Subagents 脚本（**独立并行子回合列表** — 区别于主回合三段状态机；交错时间线 i×25ms 演示窗口活动跟随；agents 默认 12 / agents N 1..999；每第 7 个失败演示组头红态）+ DemoCommands/种子提示加 agents 条目；全量 698/698 绿（含 4 新 engine 测试）+ Demo selftest 绿 |
+
+### 与基准的对齐与偏离（决策记录）
+
+| 项 | 基准 | 本项目 | 依据 |
+|----|------|--------|------|
+| 组内 300 行渲染 | 不截断，React 虚拟化扛 | **可见窗口 min(10,n) + "and N more…"** | 方案 A 用户确认 — 本项目无虚拟化（inline 全量屏），窗口是对等机制 |
+| 分组键 | messageId+toolName（一次 API 响应内 ≥2） | **按 turn**（TurnStarted~TurnCompleted 归一组） | bridge 协议无消息边界；turn 边界事件已存在零新增协议负担；基准跨轮拆组语义近似 |
+| 组头动画 | ● 闪烁（ToolUseLoader） | **静态三态色** | 第一版开心路径；闪烁需时钟广播改造（ReplShell 单 spinner 硬编码 → 多动画项广播），归后续增强 |
+| 错误汇总 | 无数值汇总（loader 红 + 行级呈现） | 同基准（● Error 红 + 行级 Done） | 一致对齐 |
+| 状态聚合 | anyUnresolved/anyError/allComplete 组头三态 | 同基准 | 一致对齐 |
+| 同型去重 | allSameType 组头带类型名 + 行内 hideType | 同基准 | 一致对齐 |
+| 子代理事件流 | agent_progress 流式 append + UI 整组重算 | 事件路由组条目**原地更新** | ScrollBox 每帧全量重渲 = 无需失效通知，Coordinator 更新即生效 |
+
+### 四列验收表（AGENTS.md 强制）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| Core SubagentGroup.cs（Entry + Coordinator：事件驱动/FinalizePending/窗口活动跟随） | ReplBridgeDriver 路由 + SubagentGroupItem 投影 | ✅ | ✅ SubagentGroupTests 9/9（状态机/聚合/窗口/断言） |
+| Core SubagentGroupItem.cs + MessageRenderer 三方法（组头三态/树形两行式/溢出） | Driver 建组落位（AddMessage Insert spinner 前） | ✅ | ✅ SubagentGroupTests 8/8（渲染断言含树形收口/dim/八色/溢出） |
+| Core Theme.SubagentColor（八色板 FNV-1a 稳定取色） | RenderSubagentStatusRow 类型段 | ✅ | ✅ 渲染测试样式断言（SubagentColor("explore") 取色一致） |
+| Core BridgeEvent 3 事件 + Driver 路由（惰性建组/回合定格脱离/多组共存） | SimulatedEngine agents 脚本（Demo）+ Host 未来接线 | ✅ | ✅ SubagentGroupTests 4/4（Driver 路由）+ 全量 698/698 |
+| SimulatedEngine Subagents 脚本（并行子回合交错时间线） | Demo agents 命令（真实终端输入 agents / agents 300） | ✅ | ✅ SubagentGroupTests 4/4（虚拟时钟确定性：批量启动/交错活动/完成收束/300 规模一拍批量）+ Demo --selftest 绿；真实终端 agents 交互验收待用户跑 NativeTui.Demo.exe 确认 |
+| Host 接线 | — | ⏸ 后置 | 引擎侧子代理事件源未确认（引擎是否发 subagent_* 事件待实测），Core 事件契约已就绪 |
+
+### 遗留项
+
+1. 组头 ● 闪烁动画（需 ReplShell 时钟注入点从单 spinner 扩展为多动画项广播）
+2. Host 接线（前置：引擎侧子代理事件源实测确认）
+3. 基准 P2 细节未对齐：ctrl+o transcript 展开模式 / 小终端自适应单行塌缩 / lastToolInfo "Searched/Read N files" 聚合摘要
+4. 用户真实终端验收（agents 12 默认 + agents 300 规模）
+
+<!-- 🤖 Auto Decision: 2026-10-21 -->
+<!-- 决策: 组内可见窗口(方案A用户确认) + 分组语义按turn(bridge协议无messageId边界) + 组头静态三态色(闪烁归后续) + 窗口活动跟随(分组非模态无焦点,区别于ModelPicker焦点跟随) -->
+<!-- 原因: 本项目无React虚拟化(inline全量屏O(n)测量),窗口+"and N more"是对等机制;turn边界事件已存在零协议负担;Coordinator原地更新+ScrollBox每帧全量重渲无需失效通知 -->
+<!-- 替代方案: B组内全量渲染(用户否决,性能风险);messageId分组(协议无消息边界);TCS桥(无阻塞等待方,同ModelPicker回调先例) -->
+<!-- 验证: 全量698/698绿(26新测试) + Demo selftest真实exe绿 ✅ -->
+
+<!-- M7-7 完成: 用户真实终端 agents 交互验收 → 组头闪烁动画(时钟广播) → resize 事件化 → Host 接线(引擎侧事件源确认后) -->
+

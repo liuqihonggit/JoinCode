@@ -171,12 +171,15 @@ internal sealed class DshWebHost : IAsyncDisposable {
                     continue;
                 }
                 var send = (Func<DshStreamItem, Task>)(item => SendItemAsync(socket, sendGate, item));
-                var (opening, lease) = await OpenStreamAsync(open, send, _lifetime.Token);
+                var (opening, lease, ready) = await OpenStreamAsync(open, send, _lifetime.Token);
                 if (lease is not null) {
                     leases.Add(lease);
                 }
                 foreach (var item in opening) {
                     await send(item);
+                }
+                if (ready is not null) {
+                    await ready();
                 }
             }
         } finally {
@@ -203,7 +206,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
     /// 按端点产生初始数据项（$events 就绪、workspace/follow 读真实注册表、session/control 读会话投影）；
     /// <c>session/follow</c> 额外返回一个订阅句柄，宿主把后续事件持续推到该连接。
     /// </summary>
-    private async Task<(IReadOnlyList<DshStreamItem> Opening, IDisposable? Lease)> OpenStreamAsync(
+    private async Task<(IReadOnlyList<DshStreamItem> Opening, IDisposable? Lease, Func<Task>? Ready)> OpenStreamAsync(
         DshStreamOpen open, Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
         App.LogDiag($"[DSH-WEB] stream open endpoint={open.Endpoint} id={open.StreamId}");
         switch (open.Endpoint) {
@@ -211,45 +214,49 @@ internal sealed class DshWebHost : IAsyncDisposable {
                 return ([Item(open.StreamId, JsonSerializer.SerializeToElement(new DshEventsReady {
                     ClientId = Guid.NewGuid().ToString(),
                     Host = new DshHostInfo { Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) },
-                }, DshJsonContext.Default.DshEventsReady))], null);
+                }, DshJsonContext.Default.DshEventsReady))], null, null);
             case "workspace/follow": {
                 var baseline = await _services.Workspaces.ReadBaselineAsync(cancellationToken);
                 return ([Item(open.StreamId, JsonSerializer.SerializeToElement(
-                    new DshWorkspaceBaseline { Value = baseline }, DshJsonContext.Default.DshWorkspaceBaseline))], null);
+                    new DshWorkspaceBaseline { Value = baseline }, DshJsonContext.Default.DshWorkspaceBaseline))], null, null);
             }
             case "session/control": {
                 var projections = await _services.Sessions.ProjectionsMapAsync(DshSessionStore.MaxSessions, cancellationToken);
                 return ([Item(open.StreamId, JsonSerializer.SerializeToElement(
                     new DshSessionControlBaseline { Value = new DshSessionControlValue { Projections = projections } },
-                    DshJsonContext.Default.DshSessionControlBaseline))], null);
+                    DshJsonContext.Default.DshSessionControlBaseline))], null, null);
             }
             case "session/follow":
                 return await OpenSessionAsync(open, send, cancellationToken);
             default:
                 App.LogDiag($"[DSH-WEB] stream endpoint unimplemented: {open.Endpoint}");
-                return ([], null);
+                return ([], null, null);
         }
     }
 
-    /// <summary>打开会话事件流的首帧：磁盘会话 → snapshot + 订阅后续事件；否则给出可执行的引导错误</summary>
-    private async Task<(IReadOnlyList<DshStreamItem> Opening, IDisposable? Lease)> OpenSessionAsync(
+    /// <summary>打开会话事件流的首帧：宿主事件日志（或转录投影）→ snapshot + 订阅后续事件；否则给出可执行的引导错误</summary>
+    private async Task<(IReadOnlyList<DshStreamItem> Opening, IDisposable? Lease, Func<Task>? Ready)> OpenSessionAsync(
         DshStreamOpen open, Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
         var sessionId = FollowSessionId(open);
         if (string.IsNullOrWhiteSpace(sessionId)) {
-            return ([Item(open.StreamId, StreamError("session/rejected", "打开会话需要 {address:{kind:'session',sessionId:'<会话 ID>'}}；子代理地址暂不支持，请先在侧栏选择普通会话"))], null);
+            return ([Item(open.StreamId, StreamError("session/rejected", "打开会话需要 {address:{kind:'session',sessionId:'<会话 ID>'}}；子代理地址暂不支持，请先在侧栏选择普通会话"))], null, null);
         }
         if (!_services.Sessions.IsReady) {
-            return ([Item(open.StreamId, StreamError("session/not-ready", "会话存储尚未就绪（引擎仍在组装中），稍后重试即可"))], null);
+            return ([Item(open.StreamId, StreamError("session/not-ready", "会话存储尚未就绪（引擎仍在组装中），稍后重试即可"))], null, null);
         }
-        var snapshot = await _services.Sessions.SnapshotAsync(sessionId, cancellationToken);
+        var snapshot = await _services.Sessions.SnapshotAsync(sessionId, cancellationToken, _services.Streams);
         if (snapshot is null) {
-            return ([Item(open.StreamId, StreamError("session/unknown", $"会话 {sessionId} 不在磁盘上（~/.jcc/sessions/{sessionId}/transcript.json 不存在）；用 session/create 建一个新会话，或从侧栏的会话列表里选一个"))], null);
+            return ([Item(open.StreamId, StreamError("session/unknown", $"会话 {sessionId} 不在磁盘上（~/.jcc/sessions/{sessionId}/transcript.json 不存在）；用 session/create 建一个新会话，或从侧栏的会话列表里选一个"))], null, null);
         }
         _services.Streams.Observe(sessionId, snapshot.Cursor, MaxTurn(snapshot.Records));
         var lease = _services.Streams.Subscribe(sessionId, open.StreamId, sessionEvent => send(Item(
             open.StreamId,
-            JsonSerializer.SerializeToElement(new DshSessionRecord { Event = sessionEvent }, DshJsonContext.Default.DshSessionRecord))));
-        return ([Item(open.StreamId, JsonSerializer.SerializeToElement(snapshot, DshJsonContext.Default.DshSessionFollowSnapshot))], lease);
+            JsonSerializer.SerializeToElement(new DshSessionRecord { Event = sessionEvent }, DshJsonContext.Default.DshSessionRecord))),
+            snapshot.Cursor);
+        return (
+            [Item(open.StreamId, JsonSerializer.SerializeToElement(snapshot, DshJsonContext.Default.DshSessionFollowSnapshot))],
+            lease,
+            () => _services.Streams.FlushAsync(open.StreamId));
     }
 
     /// <summary>快照事件页里的最大轮次（无事件为 0）</summary>

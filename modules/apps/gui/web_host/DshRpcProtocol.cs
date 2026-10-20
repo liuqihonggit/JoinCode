@@ -860,6 +860,40 @@ internal sealed class DshSkillItem {
     public bool ModelInvocable { get; set; }
 }
 
+/// <summary>消息反馈列表请求</summary>
+internal sealed class DshMessageFeedbackListRequest {
+    /// <summary>会话 ID</summary>
+    public string SessionId { get; set; } = "";
+}
+
+/// <summary>消息反馈列表结果（Remote 契约自带成功包装：{ok:true,value:{items}}）</summary>
+internal sealed class DshMessageFeedbackListResult {
+    /// <summary>是否成功</summary>
+    public bool Ok { get; set; } = true;
+    /// <summary>成功值</summary>
+    public DshMessageFeedbackListValue? Value { get; set; }
+}
+
+/// <summary>消息反馈列表值（自有引擎暂不落反馈，恒为空）</summary>
+internal sealed class DshMessageFeedbackListValue {
+    /// <summary>反馈条目</summary>
+    public List<DshMessageFeedbackItem> Items { get; set; } = [];
+}
+
+/// <summary>单条消息反馈</summary>
+internal sealed class DshMessageFeedbackItem {
+    /// <summary>消息 ID</summary>
+    public string MessageId { get; set; } = "";
+    /// <summary>评价（positive / negative）</summary>
+    public string Rating { get; set; } = "positive";
+    /// <summary>版本号</summary>
+    public long Version { get; set; }
+    /// <summary>创建时间（Unix 毫秒）</summary>
+    public long CreatedAt { get; set; }
+    /// <summary>更新时间（Unix 毫秒）</summary>
+    public long UpdatedAt { get; set; }
+}
+
 /// <summary>DSH 生成的远程契约：具名参数统一收在 request 下（生成器里 wire="request"）</summary>
 internal sealed class DshRequestEnvelope<TRequest> where TRequest : new() {
     /// <summary>参数体</summary>
@@ -944,6 +978,7 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshRequestEnvelope<DshSessionFollowArgs>))]
 [JsonSerializable(typeof(DshSessionFollowArgs))]
 [JsonSerializable(typeof(DshRequestEnvelope<DshSessionPageArgs>))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshMessageFeedbackListRequest>))]
 [JsonSerializable(typeof(DshSessionPageArgs))]
 [JsonSerializable(typeof(DshTurnWindow))]
 [JsonSerializable(typeof(DshSessionPageResult))]
@@ -974,6 +1009,7 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshSettingsMutateArgs))]
 [JsonSerializable(typeof(DshSchemaEnvelope))]
 [JsonSerializable(typeof(DshSkillList))]
+[JsonSerializable(typeof(DshMessageFeedbackListResult))]
 [JsonSerializable(typeof(DshProviderInfo))]
 [JsonSerializable(typeof(List<DshProviderInfo>))]
 [JsonSerializable(typeof(JsonElement[]))]

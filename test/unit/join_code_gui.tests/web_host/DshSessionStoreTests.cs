@@ -133,6 +133,50 @@ public sealed class DshSessionStoreTests {
     }
 
     [Fact]
+    public async Task Journal_SurvivesRestart_AndPageEndsAtRequestedCursor() {
+        var fs = new InMemoryFileSystem();
+        await using var transcripts = new State.TranscriptService(fs, SessionsDir);
+        await transcripts.EnsureSessionAsync("s1", new SessionInfo { Id = "s1", ProjectPath = "/ws" });
+        var first = new DshHostServices(fs, "/test/dsh-workspaces.json", "/test/dsh_journal");
+        first.Sessions.AttachTranscripts(transcripts);
+
+        await first.Streams.PublishAsync("s1", "turn/start", new DshTurnStartData { Turn = 1 });
+        await first.Streams.PublishAsync("s1", "step/start", new DshStepData { Turn = 1, Step = 1 });
+        await first.Streams.PublishAsync("s1", "tool/call", new DshToolCallData { Turn = 1, Step = 1, CallId = "c1", Name = "StubTool", Arguments = "{}" });
+        await first.Streams.PublishAsync("s1", "turn/end", new DshTurnEndData { Turn = 1, Reason = new DshTurnEndReason { Kind = "completed" } });
+
+        var second = new DshHostServices(fs, "/test/dsh-workspaces.json", "/test/dsh_journal");
+        second.Sessions.AttachTranscripts(transcripts);
+        var snapshot = await second.Sessions.SnapshotAsync("s1", CancellationToken.None, second.Streams);
+
+        var restored = snapshot ?? throw new InvalidOperationException("重启后必须能打开会话");
+        restored.Cursor.Should().Be(3, "事件序号必须跨进程续写，不能回落到转录条目数");
+        restored.Records.Should().HaveCount(4);
+        restored.Records[2].Event.Type.Should().Be("tool/call", "工具事件不落引擎转录，必须由宿主日志保留");
+
+        var dispatcher = new DshRpcDispatcher(second);
+        var page = await dispatcher.HandleAsync("session/page", PageArgs("s1", 3, maxMessages: 2));
+        page.Ok.Should().BeTrue(page.Error?.Message);
+        var records = page.Value.GetValueOrDefault().GetProperty("records");
+        records.GetArrayLength().Should().Be(2);
+        records[1].GetProperty("event").GetProperty("seq").GetInt64().Should().Be(3, "翻页必须恰好结束在请求光标");
+        page.Value.GetValueOrDefault().GetProperty("hasMore").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Dispatcher_MessageFeedbackList_ReturnsEmptySuccess() {
+        var services = new DshHostServices(new InMemoryFileSystem(), "/test/dsh-workspaces.json");
+        var dispatcher = new DshRpcDispatcher(services);
+
+        var result = await dispatcher.HandleAsync("messageFeedback/list", Args(new DshMessageFeedbackListRequest { SessionId = "s1" }));
+
+        result.Ok.Should().BeTrue(result.Error?.Message);
+        var value = result.Value.GetValueOrDefault();
+        value.GetProperty("ok").GetBoolean().Should().BeTrue("Remote 契约自带成功包装");
+        value.GetProperty("value").GetProperty("items").GetArrayLength().Should().Be(0);
+    }
+
+    [Fact]
     public async Task Dispatcher_SessionPage_ReturnsOlderRecords() {
         var fs = new InMemoryFileSystem();
         await using var transcripts = new State.TranscriptService(fs, SessionsDir);
@@ -151,8 +195,8 @@ public sealed class DshSessionStoreTests {
         page.Ok.Should().BeTrue(page.Error?.Message);
         var records = page.Value.GetValueOrDefault().GetProperty("records");
         records.GetArrayLength().Should().Be(2);
-        records[0].GetProperty("event").GetProperty("seq").GetInt64().Should().Be(cursor - 2);
-        records[1].GetProperty("event").GetProperty("seq").GetInt64().Should().Be(cursor - 1);
+        records[0].GetProperty("event").GetProperty("seq").GetInt64().Should().Be(cursor - 1, "页尾必须恰好结束在 throughSeq");
+        records[1].GetProperty("event").GetProperty("seq").GetInt64().Should().Be(cursor);
         page.Value.GetValueOrDefault().GetProperty("hasMore").GetBoolean().Should().BeTrue("更早还有记录");
 
         var missing = await dispatcher.HandleAsync("session/page", PageArgs("nope", cursor));
@@ -470,6 +514,11 @@ public sealed class DshSessionStoreTests {
             DshJsonContext.Default.DshRequestEnvelopeDshSessionRenameArgs);
 
     /// <summary>按 DSH 远程契约形状构造 session/cancel 参数（具名参数在 request 下）</summary>
+    private static JsonElement Args(DshMessageFeedbackListRequest request) =>
+        JsonSerializer.SerializeToElement(
+            new DshRequestEnvelope<DshMessageFeedbackListRequest> { Request = request },
+            DshJsonContext.Default.DshRequestEnvelopeDshMessageFeedbackListRequest);
+
     private static JsonElement Args(DshSessionCancelArgs request) =>
         JsonSerializer.SerializeToElement(
             new DshRequestEnvelope<DshSessionCancelArgs> { Request = request },

@@ -43,6 +43,7 @@ internal sealed class DshRpcDispatcher {
             ["llm/listProviders"] = Sync(_ => Ok(new List<DshProviderInfo>())),
             ["llm/listConfigurableProviders"] = Sync(_ => OkEmptyArray()),
             ["commands/list"] = Sync(_ => OkEmptyArray()),
+            ["messageFeedback/list"] = Sync(_ => Ok(new DshMessageFeedbackListResult { Value = new DshMessageFeedbackListValue() })),
             ["skills/list"] = Sync(_ => Ok(new DshSkillList())),
             ["dynamicCordisRunner/inventory"] = Sync(_ => OkEmptyArray()),
             ["dynamicCordisRunner/syncInspectManifest"] = Sync(_ => OkNull()),
@@ -276,7 +277,7 @@ internal sealed class DshRpcDispatcher {
         if (request?.Address is not { Kind: "session" } address || string.IsNullOrWhiteSpace(address.SessionId)) {
             return Fail("session/rejected", $"session/page 需要 request.address.sessionId（kind=session）；收到 args={Describe(args)}");
         }
-        var page = await _services.Sessions.PageAsync(request, cancellationToken);
+        var page = await _services.Sessions.PageAsync(request, cancellationToken, _services.Streams);
         return page is null
             ? Fail("session/not-found", $"会话 {address.SessionId} 不在磁盘上；从侧栏重新选择会话后重试")
             : Ok(page);
@@ -328,6 +329,8 @@ internal sealed class DshRpcDispatcher {
     private static DshRpcResult Ok(DshSettingsDescribe value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSettingsDescribe));
 
     private static DshRpcResult Ok(DshSkillList value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSkillList));
+
+    private static DshRpcResult Ok(DshMessageFeedbackListResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshMessageFeedbackListResult));
 
     private static DshRpcResult Ok(DshWorkspaceCreateResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshWorkspaceCreateResult));
 

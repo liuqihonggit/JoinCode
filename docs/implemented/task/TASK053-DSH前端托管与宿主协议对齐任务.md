@@ -49,7 +49,9 @@
 | 会话增量事件流：`session/follow` 打开后推送 `{type:'event'}`（seq 全局单调，与本会话历史 seq 接续） | 打开会话期间实时收消息 | ✅ M2-c2 | ✅ 同上（抓到 `turn/start,step/start,user/message,assistant/message,step/end,turn/end`） |
 | 停止生成：`session/cancel` 真正取消引擎流，轮次以 `turn/end{kind:'aborted',reason:{kind:'user'}}` 收尾 | 输入框旁「停止」按钮 | ✅ M2-c2（`DshSessionStreamHub.Cancel` + `DshTurnRunner` 取消分支） | ✅ `dsh-webui-cancel.mjs` ALL_PASS（11 项，慢速桩 + 中途取消） |
 | 会话列表元数据补 `lastPromptAt`（取最后一条 user 条目时间） | 侧栏排序/相对时间 | ✅ M2-c2（`DshSessionStore.ProjectValues`） | ✅ 单测 2 例 + E2E 断言 `blank:false` + `lastPromptAt` 为数字 |
-| 历史页工具事件（`tool/call|result`，含 `callId` 配对与 `surfaceOp='append'`）与向上翻页（`session/page`） | 工具卡片渲染 / 长会话滚动加载 | ✅ M2-c3（`DshTurnRunner.PublishToolCallAsync` + `DshSessionStore.PageAsync`） | ✅ `dsh-webui-tool.mjs` ALL_PASS（13 项）；`dsh-webui-prompt.mjs` 回归 ALL_PASS（历史超 50 条后不再报「宿主尚未实现 session/page」） |
+| 历史页工具事件（`tool/call|result`，含 `callId` 配对与 `surfaceOp='append'`）与向上翻页（`session/page`） | 工具卡片渲染 / 长会话滚动加载 | ✅ M2-c3（`DshTurnRunner.PublishToolCallAsync` + `DshSessionStore.PageAsync`） | ✅ `dsh-webui-tool.mjs` ALL_PASS（13 项）；`dsh-webui-reload.mjs` ALL_PASS（刷新重载后历史/工具卡片/翻页光标对齐） |
+| 宿主事件日志（`~/.jcc/dsh_journal/{sessionId}.jsonl`）：事件序号跨进程续写，翻页页尾严格等于请求光标 | 刷新/重启后历史可还原、不再报游标错误 | ✅ M2-c3（`DshSessionJournal` + `DshSessionStreamHub`） | ✅ 单测 3 例（跨重启快照、页尾对齐、日志优先）+ `dsh-webui-reload.mjs` |
+| 消息反馈列表（`messageFeedback/list`，恒空） | 消息气泡反馈按钮不再显示「反馈状态加载失败」 | ✅ M2-c3（`DshRpcDispatcher` 路由 + `DshMessageFeedbackListResult`） | ✅ 单测 1 例 + `dsh-webui-reload.mjs` 断言 |
 | 流式增量（`assistant-stream` 帧、逐字输出）与 `queue`/`steer` 模式 | 打字机效果 / 中途插话 | ⬜ | ⬜ M2-c3' |
 | 会话/消息/流式/权限（`approval/*`、`sandbox/mode`、`permission/preset`） | 工具确认 | ⬜ | ⬜ M2-d |
 
@@ -191,6 +193,19 @@
 5. 修复：流中把 `ToolCallStart`/`ToolCallEnd` 映射为 DSH `tool/call{turn,step,callId,name,arguments}`（不带 `surfaceOp`，属过程事件）与 `tool/result{turn,step,message}`（`message.role='tool'`、`source.kind='tool'+callId`、`isError`、`surfaceOp:'append'`），`callId` 缺失时按 `${sessionId}:${turn}:tool:${n}` 补齐保证配对。
 6. 决策：v1 全程 `step=1`（引擎一轮内的多次 LLM 调用不拆 step）。DSH 允许同 step 内多次工具调用；拆分需要引擎暴露 round 边界，留到引擎事件补齐后再做。
 7. 决策：`assistant/message` 仍只落「本轮全部文本」，工具事件与文本事件共用同一轮次；不把工具结果拼进助手气泡（`tool/result` 自带消息体）。
+8. 现象（M2-c3 修正）：刷新页面后历史加载报 `gateway/internal: session event stream page did not end at its requested cursor`，长会话/带工具轮次的会话概率更高。
+9. 根因：宿主事件 seq 由 `DshSessionStreamHub` 内存计数器分配，而 `session/page` 从引擎转录投影重算 seq；工具事件不落 transcript、轮次进行中事件也未落盘 → 重算页尾 `< throughSeq`，前端 `assertPageThrough`（`dsh-api-gateway/lib/client.js:1497`）直接拒绝。
+10. 修复：新增宿主事件日志 `DshSessionJournal`（每会话 JSONL，一行一事件），`PublishAsync` 先落盘再推送；打开会话/翻页先 `EnsureLoadedAsync` 以日志重建 `History/Cursor/Turn`；`session/page` 改为「取 `seq <= throughSeq` 的尾 N 条」，**忽略 `beforeSeq`**，保证页尾恰等于请求光标（与前端实际只传 `throughSeq` 的行为一致）；首次对旧会话开流时用转录投影播种日志，之后序号只由宿主续写。
+11. 决策：日志是宿主事件的持久化唯一来源，转录投影只在日志为空时用于播种。理由：DSH 客户端把「页尾==光标」「seq 连续」「重连游标不倒退」当硬断言，宿主不能把引擎的条目序号当成事件序号；代价是日志目录多一份数据（每会话一个文件），收益是刷新/重启后历史与游标完全可复现。
+12. 现象：刷新后页面出现「反馈状态加载失败」（`messageFeedback/list` 落 `unimplemented`）。
+13. 修复：实现 `messageFeedback/list` 返回 Remote 契约自带的成功包装 `{ok:true,value:{items:[]}}`（自有引擎暂不落反馈）；不在 UI 上暴露未实现噪声。
+
+## GUI 与 TUI/CLI 是否共享引擎（调查结论）
+
+- **共享同一套引擎**：GUI 经 `JccChatSession.CreateAsync` → `EngineSessionFactory.CreateGuiSessionAsync`，CLI/TUI 经 `CliSessionFactory.CreateCliSessionAsync` → `EngineSessionFactory.CreateSessionAsync`；两者最终走同一个 `CreateSessionAsync`（`CoreModule/ClockModule/BrowserModule/HousekeepingModule/McpInitModule` + 宿主专属交互模块）。
+- **数据同源**：`ITranscriptService` 为单例（`[Register(typeof(ITranscriptService), ServiceLifetime.Singleton)]`），默认读写 `AppDataPaths.Default.JccDirectory/sessions/{sessionId}/transcript.json`；GUI/TUI 看到的会话列表、历史、标题都是同一份磁盘数据。
+- **差异仅在交互层**：GUI 注入 `GuiInteractionModule`；CLI/TUI 注入 `CliRegistrationModule/PipeModule/CliModule` 与 ConsoleActor 日志 provider。`IChatService` 的流式事件形状一致。
+- **对 DSH 宿主的影响**：`DshSessionJournal` 是 GUI 宿主追加的事件层，不改引擎转录；因此 TUI/CLI 的会话仍能直接被 DSH 界面打开（以转录投影播种），反之 TUI 也不会读到宿主 journal。若未来要统一 seq 归属，应把「事件日志」下沉到引擎事件总线，而不是继续在宿主侧复制。
 
 ## M2-c3 验收记录（ADR 0080 手动 exe）
 
@@ -200,6 +215,9 @@
 | 工具结果下发 | 同上继续读 WS | ✅ `tool/result`（`message.role:"tool"`、`toolCallId` 与 `source.callId` 均为 `call_stub_1`、`isError:true`、`surfaceOp:"append"`） |
 | 界面渲染 | 读页面文本 | ✅ 出现「工具调用 Error: Tool 'StubTool' not found.」卡片，轮次正常收尾 |
 | 历史翻页 | 会话事件超 50 条后重新打开 | ✅ 前端调 `session/page` 得到历史页，页面无「历史加载失败」 |
+| 刷新重载 | `dsh-webui-reload.mjs`：刷新页面 → 继续欢迎页 → 选中会话 | ✅ 历史文本/工具卡片按 `callId` 还原；`session/page` 页尾 `seq==throughSeq`；无 `did not end at its requested cursor`、无「历史加载失败」「反馈状态加载失败」 |
+| 主动翻页 | 同一脚本内 `POST /api/session/page {throughSeq:cursor-3,maxMessages:2}` | ✅ `ok:true`，页尾 `seq==cursor-3` |
+| 跨进程续写 | 单测 `Journal_SurvivesRestart_AndPageEndsAtRequestedCursor` | ✅ 重启后 cursor 续写（不回落到转录条目数），工具事件仍在 |
 | 回归 | `dsh-webui-prompt.mjs` / `dsh-webui-cancel.mjs` / `dsh-webui-tool.mjs` | ✅ 三者 ALL_PASS（19 / 11 / 13 项） |
 
 

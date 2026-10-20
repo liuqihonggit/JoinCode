@@ -97,12 +97,19 @@ internal sealed class DshSessionStore {
     /// </summary>
     /// <param name="sessionId">目标会话</param>
     /// <param name="cancellationToken">取消令牌</param>
-    internal async Task<DshSessionFollowSnapshot?> SnapshotAsync(string sessionId, CancellationToken cancellationToken) {
+    /// <param name="hub">事件流中枢（有宿主事件日志时以日志为准，保证序号与已推送事件一致）</param>
+    internal async Task<DshSessionFollowSnapshot?> SnapshotAsync(string sessionId, CancellationToken cancellationToken, DshSessionStreamHub? hub = null) {
         var read = await ReadAsync(sessionId, cancellationToken);
         if (read is not { } session) {
             return null;
         }
-        var records = DshTranscriptProjector.Project(sessionId, session.Entries);
+        if (hub is not null) {
+            await hub.EnsureLoadedAsync(sessionId, cancellationToken);
+            if (hub.IsLoaded(sessionId) && hub.Events(sessionId).Length == 0) {
+                await hub.SeedAsync(sessionId, DshTranscriptProjector.Project(sessionId, session.Entries));
+            }
+        }
+        var records = Records(sessionId, session.Entries, hub);
         return new DshSessionFollowSnapshot {
             Header = new DshSessionHeader {
                 Id = sessionId,
@@ -120,12 +127,27 @@ internal sealed class DshSessionStore {
     }
 
     /// <summary>
-    /// 取一页更早的历史记录（供前端向上翻页）：只返回 <paramref name="request"/> 窗口内、
-    /// <c>beforeSeq</c> 之前的最多 <c>maxMessages</c> 条，按 seq 升序；会话不存在返回 null。
+    /// 会话的历史事件页：优先取宿主事件日志（与已推送事件同一序号），没有日志时用引擎转录投影。
+    /// </summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="entries">引擎转录条目</param>
+    /// <param name="hub">事件流中枢</param>
+    private static List<DshSessionRecord> Records(string sessionId, IReadOnlyList<TranscriptEntry> entries, DshSessionStreamHub? hub) {
+        var events = hub?.Events(sessionId) ?? [];
+        return events.Length > 0
+            ? [.. events.Select(sessionEvent => new DshSessionRecord { Event = sessionEvent })]
+            : DshTranscriptProjector.Project(sessionId, entries);
+    }
+
+    /// <summary>
+    /// 取一页历史记录（供前端向上翻页）：返回恰好结束在 <c>throughSeq</c>、最多 <c>maxMessages</c> 条的事件，
+    /// 按 seq 升序。前端会断言页尾必须等于请求光标（<c>beforeSeq</c> 因此不参与截断）；
+    /// 会话不存在返回 null。
     /// </summary>
     /// <param name="request">分页参数</param>
     /// <param name="cancellationToken">取消令牌</param>
-    internal async Task<DshSessionPageResult?> PageAsync(DshSessionPageArgs request, CancellationToken cancellationToken) {
+    /// <param name="hub">事件流中枢（有宿主事件日志时以日志为准）</param>
+    internal async Task<DshSessionPageResult?> PageAsync(DshSessionPageArgs request, CancellationToken cancellationToken, DshSessionStreamHub? hub = null) {
         if (request.Address is not { } address || !string.Equals(address.Kind, "session", StringComparison.Ordinal)) {
             return null;
         }
@@ -133,11 +155,12 @@ internal sealed class DshSessionStore {
         if (read is null) {
             return null;
         }
+        if (hub is not null) {
+            await hub.EnsureLoadedAsync(address.SessionId, cancellationToken);
+        }
         var max = request.MaxMessages is > 0 and var limit ? limit : DefaultPageSize;
-        var upper = request.BeforeSeq is { } beforeSeq ? Math.Min(beforeSeq - 1, request.ThroughSeq) : request.ThroughSeq;
-        var older = DshTranscriptProjector.Project(address.SessionId, read.Value.Entries)
-            .Where(record => record.Event.Seq <= upper)
-            .ToArray();
+        var all = Records(address.SessionId, read.Value.Entries, hub);
+        var older = all.Where(record => record.Event.Seq <= request.ThroughSeq).ToArray();
         var page = older.Skip(Math.Max(0, older.Length - max)).ToArray();
         return new DshSessionPageResult { Records = [.. page], HasMore = older.Length > page.Length };
     }

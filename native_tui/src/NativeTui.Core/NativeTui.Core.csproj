@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="NativeTui.Tests" />
+    <InternalsVisibleTo Include="NativeTui.Host.Tests" />
   </ItemGroup>
 
 </Project>

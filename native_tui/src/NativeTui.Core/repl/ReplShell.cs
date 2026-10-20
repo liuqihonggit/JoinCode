@@ -79,8 +79,8 @@ public sealed class ReplShell
     /// <summary>主循环运行标记（false = Esc/Ctrl+C/引擎死亡请求退出）。</summary>
     internal bool Running => _running;
 
-    /// <summary>权限对话框协调器（Host handler Begin/Wait + 测试断言面）。</summary>
-    internal PermissionCoordinator Permission => _permission;
+    /// <summary>权限对话框协调器（宿主权限桥 Begin/Wait 消费面 + 测试断言面）。</summary>
+    public PermissionCoordinator Permission => _permission;
 
     /// <summary>主循环 — 每拍：排空键盘 → 排空引擎事件 → 差分上屏 → 对齐 50ms。</summary>
     public void Run()
@@ -142,8 +142,8 @@ public sealed class ReplShell
         }
     }
 
-    /// <summary>挂起权限请求（Host 层 TuiPermissionConfirmationHandler.Confirm → 此处 → 用户按键 Complete）。</summary>
-    internal void BeginPermissionRequest(string toolName, string description)
+    /// <summary>挂起权限请求（宿主 TuiPermissionBridge.Confirm → 此处 → 用户按键 Complete）。</summary>
+    public void BeginPermissionRequest(string toolName, string description)
     {
         _permission.Begin(new PermissionRequest(toolName, description));
         AddMessage(new PermissionRequestItem(_permission));

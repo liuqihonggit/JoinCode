@@ -10,18 +10,26 @@ namespace NativeTui.Host;
 public sealed class EngineSession : IAsyncDisposable {
     private readonly EngineSessionFactory.Result _engine;
     private readonly EngineTurnClient _client;
+    private readonly TuiPermissionBridge _permissionBridge;
 
-    private EngineSession(EngineSessionFactory.Result engine, EngineTurnClient client) {
+    private EngineSession(EngineSessionFactory.Result engine, EngineTurnClient client, TuiPermissionBridge permissionBridge) {
         _engine = engine;
         _client = client;
+        _permissionBridge = permissionBridge;
     }
 
     /// <summary>回合客户端 — 主循环消费面（Submit/Interrupt/SetPermissionMode/DrainEvents）。</summary>
     public EngineTurnClient Client => _client;
 
-    /// <summary>组装引擎会话 — 建会话 → 解析权限/模型 → 构造回合客户端 → 种子 session_info；失败时释放已建引擎 Host。</summary>
+    /// <summary>权限确认桥 — Program 在 shell 构造后 Bind（引擎 PendingConfirmation → TUI 对话框闭环，M7-3）。</summary>
+    public TuiPermissionBridge PermissionBridge => _permissionBridge;
+
+    /// <summary>组装引擎会话 — 建会话（TuiInteractionModule 注册权限确认 handler）→ 解析权限/模型 → 构造回合客户端 → 种子 session_info；失败时释放已建引擎 Host。</summary>
     public static async Task<EngineSession> CreateAsync(CancellationToken cancellationToken = default) {
-        var engine = await EngineSessionFactory.CreateGuiSessionAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        var permissionBridge = new TuiPermissionBridge();
+        var engine = await EngineSessionFactory.CreateGuiSessionAsync(
+            extraModules: [new TuiInteractionModule(permissionBridge)],
+            cancellationToken: cancellationToken).ConfigureAwait(false);
         try {
             var checker = await ResolvePermissionCheckerAsync(engine.Services).ConfigureAwait(false);
             var fastMode = engine.Services.GetService<IFastModeService>();
@@ -38,7 +46,7 @@ public sealed class EngineSession : IAsyncDisposable {
                 },
                 BuildPermissionModeApplier(checker));
 
-            var session = new EngineSession(engine, client);
+            var session = new EngineSession(engine, client, permissionBridge);
             client.Enqueue(BuildSessionInfoEvent(checker, fastMode));
             return session;
         } catch {

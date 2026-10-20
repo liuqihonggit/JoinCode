@@ -52,6 +52,12 @@ public sealed class ReplShell
     /// <summary>程序化填充标记（历史导航/补全接受 — HandleKey 尾部跳过建议刷新）。</summary>
     private bool _programmaticFill;
 
+    /// <summary>历史反向搜索态（Ctrl+R — TASK057-4；null = 未激活）。</summary>
+    private HistorySearch? _search;
+
+    /// <summary>进入搜索前的输入草稿（Esc 退出恢复）。</summary>
+    private string _preSearchDraft = string.Empty;
+
     /// <summary>启动 banner（首项 — 真实引擎由 session_info 事件原地更新）。</summary>
     private readonly BannerItem _banner;
 
@@ -115,6 +121,9 @@ public sealed class ReplShell
 
     /// <summary>斜杠补全状态机（测试断言面；null = 无命令清单）。</summary>
     internal SlashSuggester? Suggester => _suggester;
+
+    /// <summary>历史反向搜索激活态（Ctrl+R — 测试断言面）。</summary>
+    internal bool IsSearching => _search is not null;
 
     /// <summary>输入历史环（测试断言面）。</summary>
     internal HistoryRing History => _history;
@@ -289,6 +298,12 @@ public sealed class ReplShell
             return;
         }
 
+        if (_search is not null)
+        {
+            HandleSearchKey(key);
+            return;
+        }
+
         if (HandleSuggestionKey(key))
         {
             return;
@@ -422,6 +437,9 @@ public sealed class ReplShell
             case "k":
                 _input.KillToLineEnd();
                 break;
+            case "r":
+                BeginOrCycleSearch();
+                break;
             case "n":
                 ScrollIfViewport(3);
                 break;
@@ -551,6 +569,77 @@ public sealed class ReplShell
         if (!_inline)
         {
             _view.Messages.ScrollBy(rows);
+        }
+    }
+
+    /// <summary>进入或循环搜索（Ctrl+R）— 未激活：以当前输入为查询进入（暂存草稿）；
+    /// 已激活由 HandleSearchKey 拦截（本分支不会命中，防御保留）。</summary>
+    private void BeginOrCycleSearch()
+    {
+        if (_search is not null)
+        {
+            _search.Next();
+            return;
+        }
+
+        _preSearchDraft = _input.Text;
+        _search = HistorySearch.Begin(_input.Text, _history.Entries);
+    }
+
+    /// <summary>搜索态按键模态（基准 ctrl+r 反向搜索交互）：
+    /// Ctrl+R 循环下一个匹配；Enter 接受当前匹配（填入输入并提交，无匹配 no-op）；
+    /// Esc 退出恢复草稿；Up/Down 匹配间导航；字符/退格编辑查询（刷新匹配、重置最新）；
+    /// 其余键吞掉（模态 — 查询编辑设程序化标记防触发斜杠补全）。</summary>
+    private void HandleSearchKey(KeyPress key)
+    {
+        var search = _search;
+        if (search is null)
+        {
+            return;
+        }
+
+        if (key.Ctrl && key is { Kind: KeyKind.Char, Input: "r" })
+        {
+            search.Next();
+            return;
+        }
+
+        switch (key.Kind)
+        {
+            case KeyKind.Return:
+                if (search.Current.Length > 0)
+                {
+                    var accepted = search.Current;
+                    _search = null;
+                    FillInput(accepted, cursorToStart: false);
+                    Submit();
+                }
+
+                return;
+            case KeyKind.Escape:
+                var draft = _preSearchDraft;
+                _search = null;
+                FillInput(draft, cursorToStart: false);
+                return;
+            case KeyKind.UpArrow:
+                search.Previous();
+                return;
+            case KeyKind.DownArrow:
+                search.Next();
+                return;
+            case KeyKind.Backspace:
+                _input.Backspace();
+                search.UpdateQuery(_input.Text);
+                _programmaticFill = true;
+                return;
+            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input.Length == 1:
+                _input.Insert(key.Input[0]);
+                search.UpdateQuery(_input.Text);
+                _programmaticFill = true;
+                return;
+            default:
+                // 模态：其余键吞掉（Home/End/Delete 等编辑能力后续按需开放）
+                return;
         }
     }
 
@@ -780,7 +869,7 @@ public sealed class ReplShell
         _view.SuggestionIndex = _suggester?.SelectedIndex ?? 0;
         _view.SuggestionNameColumnWidth = _suggester?.NameColumnWidth ?? 0;
         _view.SuggestionArgumentMode = _suggester?.IsArgumentMode ?? false;
-        _view.GhostSuffix = _suggester?.GhostSuffix ?? string.Empty;
+        _view.GhostSuffix = _search is { Current.Length: > 0 } ? _search.Current : _suggester?.GhostSuffix ?? string.Empty;
     }
 
     /// <summary>

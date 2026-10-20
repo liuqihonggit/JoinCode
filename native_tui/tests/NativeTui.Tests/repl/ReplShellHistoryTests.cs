@@ -30,6 +30,10 @@ public sealed class ReplShellHistoryTests
         }
     }
 
+    /// <summary>Ctrl+R 按键注入。</summary>
+    private static void PressCtrlR(ReplShell shell) =>
+        shell.HandleKey(new ConsoleKeyInfo('', ConsoleKey.R, true, false, false));
+
     /// <summary>提交两条并回到空输入态。</summary>
     private static void SubmitTwo(ReplShell shell)
     {
@@ -167,5 +171,98 @@ public sealed class ReplShellHistoryTests
         Press(shell, ConsoleKey.Enter);
         Press(shell, ConsoleKey.UpArrow);
         Assert.Equal("second", shell.Input.Text);
+    }
+
+    /// <summary>Ctrl+R 反向搜索（TASK057-4）：以当前输入为查询，Enter 接受最新匹配并提交。</summary>
+    [Fact]
+    public void CtrlR_Search_AcceptsNewestMatchOnEnter()
+    {
+        var (shell, engine) = CreateShell();
+        SubmitTwo(shell);
+        Type(shell, "fir");
+        PressCtrlR(shell);
+        Assert.True(shell.IsSearching);
+        Press(shell, ConsoleKey.Enter);
+        Assert.Equal(["first", "second", "first"], engine.Submits);
+        Assert.False(shell.IsSearching);
+    }
+
+    /// <summary>Ctrl+R 循环：再按 Ctrl+R 跳到下一个匹配。</summary>
+    [Fact]
+    public void CtrlR_Repeat_CyclesToNextMatch()
+    {
+        var (shell, engine) = CreateShell();
+        shell.SeedHistory(["git a", "git b", "git c"]);
+        Type(shell, "git");
+        PressCtrlR(shell);
+        PressCtrlR(shell);
+        PressCtrlR(shell);
+        Press(shell, ConsoleKey.Enter);
+        Assert.Equal(["git a"], engine.Submits);
+    }
+
+    /// <summary>搜索态查询编辑：输入字符细化查询。</summary>
+    [Fact]
+    public void CtrlR_Typing_RefinesQuery()
+    {
+        var (shell, engine) = CreateShell();
+        shell.SeedHistory(["git status", "git commit", "run x"]);
+        PressCtrlR(shell);
+        Type(shell, "git");
+        Type(shell, " co");
+        Press(shell, ConsoleKey.Enter);
+        Assert.Equal(["git commit"], engine.Submits);
+    }
+
+    /// <summary>Esc 退出搜索：恢复进入前草稿，不提交。</summary>
+    [Fact]
+    public void CtrlR_Escape_RestoresDraftWithoutSubmit()
+    {
+        var (shell, engine) = CreateShell();
+        SubmitTwo(shell);
+        Type(shell, "draft");
+        PressCtrlR(shell);
+        Press(shell, ConsoleKey.Escape);
+        Assert.False(shell.IsSearching);
+        Assert.Equal("draft", shell.Input.Text);
+        Assert.Equal(2, engine.Submits.Count);
+    }
+
+    /// <summary>搜索态 Up/Down 在匹配间导航（Up = 向旧 = git a）。</summary>
+    [Fact]
+    public void CtrlR_ArrowsNavigate_Matches()
+    {
+        var (shell, engine) = CreateShell();
+        shell.SeedHistory(["git a", "git b"]);
+        Type(shell, "git");
+        PressCtrlR(shell);
+        Press(shell, ConsoleKey.UpArrow);
+        Press(shell, ConsoleKey.Enter);
+        Assert.Equal(["git a"], engine.Submits);
+    }
+
+    /// <summary>搜索态下补全不触发（查询 "fir" 前无 /，且优先级搜索最高）。</summary>
+    [Fact]
+    public void CtrlR_SearchSuppressesSuggestions()
+    {
+        var engine = new FakeReplEngine();
+        var shell = new ReplShell(engine, new BannerItem("1.0.0", "m", "API 按量计费", "/tmp"), new StringWriter(),
+            commands: [new("first-cmd", "d", [], IsHidden: false)]);
+        shell.SeedContent();
+        shell.SeedHistory(["first-cmd ran"]);
+        Type(shell, "fir");
+        PressCtrlR(shell);
+        Assert.False(shell.Suggester?.IsActive);
+    }
+
+    /// <summary>空历史 Ctrl+R：进入搜索态但无匹配，Enter 无提交、Esc 恢复。</summary>
+    [Fact]
+    public void CtrlR_EmptyHistory_EnterSubmitsNothing()
+    {
+        var (shell, engine) = CreateShell();
+        PressCtrlR(shell);
+        Type(shell, "q");
+        Press(shell, ConsoleKey.Enter);
+        Assert.Empty(engine.Submits);
     }
 }

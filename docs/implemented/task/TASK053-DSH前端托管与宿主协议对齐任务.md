@@ -16,6 +16,8 @@
 | M2-b3 | 打开会话：`session/follow` snapshot（含 `projections` + `assistantStream` 基线） | ✅ |
 | M2-c1 | 历史渲染：引擎转录 → DSH 事件（`turn/start`→`step/start`→`user/message`→`assistant/message`→`step/end`→`turn/end`，消息带 `surfaceOp:'append'`） | ✅ |
 | M2-c2 | 聊天主链路：`session/prompt` 发送 + `session/follow` 增量事件流（`turn/start`/`step/*`/`user|assistant/message`）+ `session/cancel` 停止生成 | ✅ |
+| M2-c3 | 工具事件（`tool/call`/`tool/result`）+ 历史向上翻页（`session/page`） | ✅ |
+| M2-c3' | 流式增量（`assistant-stream` 帧）+ `queue`/`steer` 模式 + 循环干预旁白过滤 | ⬜ |
 | M2-d | 权限：`approval/*` 事件 + 判定回传；`sandbox/mode`、`permission/preset` | ⬜ |
 | M3 | 自研 WebUI 与旧桥接归档，`--webui-smoke` 删除 | ⬜ |
 
@@ -47,8 +49,8 @@
 | 会话增量事件流：`session/follow` 打开后推送 `{type:'event'}`（seq 全局单调，与本会话历史 seq 接续） | 打开会话期间实时收消息 | ✅ M2-c2 | ✅ 同上（抓到 `turn/start,step/start,user/message,assistant/message,step/end,turn/end`） |
 | 停止生成：`session/cancel` 真正取消引擎流，轮次以 `turn/end{kind:'aborted',reason:{kind:'user'}}` 收尾 | 输入框旁「停止」按钮 | ✅ M2-c2（`DshSessionStreamHub.Cancel` + `DshTurnRunner` 取消分支） | ✅ `dsh-webui-cancel.mjs` ALL_PASS（11 项，慢速桩 + 中途取消） |
 | 会话列表元数据补 `lastPromptAt`（取最后一条 user 条目时间） | 侧栏排序/相对时间 | ✅ M2-c2（`DshSessionStore.ProjectValues`） | ✅ 单测 2 例 + E2E 断言 `blank:false` + `lastPromptAt` 为数字 |
-| 历史页工具事件与向上翻页（`tool/call|result`、`session/page`） | 长会话滚动加载 | ⬜ | ⬜ M2-c3 |
-| 流式增量（`assistant-stream` 帧、逐字输出）与 `queue`/`steer` 模式 | 打字机效果 / 中途插话 | ⬜ | ⬜ M2-c3 |
+| 历史页工具事件（`tool/call|result`，含 `callId` 配对与 `surfaceOp='append'`）与向上翻页（`session/page`） | 工具卡片渲染 / 长会话滚动加载 | ✅ M2-c3（`DshTurnRunner.PublishToolCallAsync` + `DshSessionStore.PageAsync`） | ✅ `dsh-webui-tool.mjs` ALL_PASS（13 项）；`dsh-webui-prompt.mjs` 回归 ALL_PASS（历史超 50 条后不再报「宿主尚未实现 session/page」） |
+| 流式增量（`assistant-stream` 帧、逐字输出）与 `queue`/`steer` 模式 | 打字机效果 / 中途插话 | ⬜ | ⬜ M2-c3' |
 | 会话/消息/流式/权限（`approval/*`、`sandbox/mode`、`permission/preset`） | 工具确认 | ⬜ | ⬜ M2-d |
 
 ## M1.5 缺陷记录（缺陷驱动）
@@ -180,6 +182,27 @@
 | 无错误 | 读页面文本 + WS 全集 | ✅ 无「尚未实现」、无 `{"type":"error"}`、无 `unimplemented` |
 
 
+## M2-c3 缺陷/决策记录（缺陷驱动）
+
+1. 现象：会话历史累计超过约 50 条事件后，打开会话顶部出现「历史加载失败：宿主尚未实现方法 session/page」。
+2. 根因：前端 `session/follow` 请求固定带 `turnWindow:{minMessages:50,minTurns:2}`；宿主忽略该窗口、一次返回全部记录且不实现 `session/page`，前端补齐窗口时调用翻页接口落 `unimplemented`。
+3. 修复：实现 `session/page`（`request.address{kind:'session',sessionId}` + `throughSeq` + 可选 `beforeSeq/maxMessages`），返回 `beforeSeq` 之前最多 `maxMessages`（默认 100）条、按 seq 升序，`hasMore` 按是否仍有更早记录置位；地址非法走引导式 `session/rejected`，会话不存在走 `session/not-found`。
+4. 现象：引擎工具轮次（`ToolCallStart`/`ToolCallEnd`）在界面上完全不可见，只有最终文本。
+5. 修复：流中把 `ToolCallStart`/`ToolCallEnd` 映射为 DSH `tool/call{turn,step,callId,name,arguments}`（不带 `surfaceOp`，属过程事件）与 `tool/result{turn,step,message}`（`message.role='tool'`、`source.kind='tool'+callId`、`isError`、`surfaceOp:'append'`），`callId` 缺失时按 `${sessionId}:${turn}:tool:${n}` 补齐保证配对。
+6. 决策：v1 全程 `step=1`（引擎一轮内的多次 LLM 调用不拆 step）。DSH 允许同 step 内多次工具调用；拆分需要引擎暴露 round 边界，留到引擎事件补齐后再做。
+7. 决策：`assistant/message` 仍只落「本轮全部文本」，工具事件与文本事件共用同一轮次；不把工具结果拼进助手气泡（`tool/result` 自带消息体）。
+
+## M2-c3 验收记录（ADR 0080 手动 exe）
+
+| 步骤 | 命令/动作 | 结果 |
+|------|-----------|------|
+| 工具调用下发 | 桩模型返回 `tool_calls`（`StubTool`，`{"marker":"stub-arg"}`）→ 读 WS 下行 | ✅ `tool/call`（`callId:"call_stub_1"`、`name:"StubTool"`、`arguments` 原样、无 `surfaceOp`） |
+| 工具结果下发 | 同上继续读 WS | ✅ `tool/result`（`message.role:"tool"`、`toolCallId` 与 `source.callId` 均为 `call_stub_1`、`isError:true`、`surfaceOp:"append"`） |
+| 界面渲染 | 读页面文本 | ✅ 出现「工具调用 Error: Tool 'StubTool' not found.」卡片，轮次正常收尾 |
+| 历史翻页 | 会话事件超 50 条后重新打开 | ✅ 前端调 `session/page` 得到历史页，页面无「历史加载失败」 |
+| 回归 | `dsh-webui-prompt.mjs` / `dsh-webui-cancel.mjs` / `dsh-webui-tool.mjs` | ✅ 三者 ALL_PASS（19 / 11 / 13 项） |
+
+
 ## M2-b1 验收记录（ADR 0080 手动 exe）
 
 | 步骤 | 命令/动作 | 结果 |
@@ -237,6 +260,7 @@ node dumps/dsh-webui-open-session.mjs ws-m2b3           # 点侧栏会话开流 
 node dumps/dsh-webui-history.mjs ws-m2b3 <工作区路径> <隔离 home>   # 历史渲染：转录→DSH 事件，界面出现历史问答
 node dumps/dsh-webui-prompt.mjs ws-m2c2 <隔离 home>    # 发送主链路：输入框回车→用户/助手事件→turn/end→转录落盘（自带本地 OpenAI 桩 stub-openai-server.mjs）
 node dumps/dsh-webui-cancel.mjs ws-m2c2 <隔离 home>    # 停止生成：慢速桩中途 session/cancel→turn/end aborted(user)
+node dumps/dsh-webui-tool.mjs ws-m2c2 <隔离 home>      # 工具事件：桩返回 tool_calls→tool/call+tool/result→界面工具卡片
 node dumps/dsh-webui-reload-trace.mjs                  # 启动/重载全量请求响应
 # 单测
 dotnet test test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj -c Debug --filter "FullyQualifiedName~WebHost"

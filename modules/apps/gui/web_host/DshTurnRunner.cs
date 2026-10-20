@@ -60,6 +60,7 @@ internal sealed class DshTurnRunner {
             App.LogDiag($"[DSH-WEB] turn streaming session={sessionId} turn={turn}");
             var content = new StringBuilder();
             var events = 0;
+            var calls = new List<(string CallId, string Name, string Arguments)>();
             await foreach (var evt in engine.StreamAsync(text, cancellationToken)) {
                 events += 1;
                 if (events == 1) {
@@ -67,6 +68,8 @@ internal sealed class DshTurnRunner {
                 }
                 if (evt.Type == ChatStreamEventType.Content && !string.IsNullOrEmpty(evt.Content)) {
                     content.Append(evt.Content);
+                } else if (evt.Type == ChatStreamEventType.ToolCallEnd || evt.Type == ChatStreamEventType.ToolCallStart) {
+                    await PublishToolCallAsync(sessionId, turn, evt, calls);
                 }
             }
             App.LogDiag($"[DSH-WEB] turn stream done session={sessionId} events={events} chars={content.Length}");
@@ -87,6 +90,37 @@ internal sealed class DshTurnRunner {
         } finally {
             _services.Streams.EndTurn(sessionId);
         }
+    }
+
+    /// <summary>落一次工具调用或工具结果事件（callId 缺失时按序号补齐，保证调用与结果可配对）</summary>
+    private async Task PublishToolCallAsync(string sessionId, int turn, ChatStreamEvent evt, List<(string CallId, string Name, string Arguments)> calls) {
+        var callId = string.IsNullOrEmpty(evt.ToolCallId) ? $"{sessionId}:{turn}:tool:{calls.Count + 1}" : evt.ToolCallId;
+        var name = evt.ToolName ?? "tool";
+        if (evt.Type == ChatStreamEventType.ToolCallStart) {
+            var arguments = evt.ToolArguments ?? evt.Content ?? "";
+            calls.Add((callId, name, arguments));
+            await _services.Streams.PublishAsync(sessionId, "tool/call", new DshToolCallData {
+                Turn = turn,
+                Step = Step,
+                CallId = callId,
+                Name = name,
+                Arguments = arguments,
+            });
+            return;
+        }
+        var text = evt.ToolResultText ?? evt.Content ?? "";
+        await _services.Streams.PublishAsync(sessionId, "tool/result", new DshToolResultData {
+            Turn = turn,
+            Step = Step,
+            Message = new DshWireMessage {
+                Id = $"{callId}:result",
+                Role = "tool",
+                ToolCallId = callId,
+                IsError = evt.IsToolError,
+                Content = [new DshWireContentBlock { Text = text }],
+                Source = new DshWireMessageSource { Kind = "tool", CallId = callId },
+            },
+        }, surfaceOp: "append");
     }
 
     /// <summary>落助手回复事件（空回复不落，避免空气泡）</summary>

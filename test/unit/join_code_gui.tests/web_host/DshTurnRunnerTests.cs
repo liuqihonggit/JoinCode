@@ -132,6 +132,46 @@ public sealed class DshTurnRunnerTests {
         hub.Cancel("idle-session").Should().BeFalse();
     }
 
+    [Fact]
+    public async Task ToolCalls_PublishCallAndResultEvents() {
+        var harness = await Harness.CreateAsync("已读取", emitToolCalls: true);
+        await using var transcripts = harness.Transcripts;
+
+        (await harness.Runner.StartAsync(TextRequest("rpc-1", "读一下 a.txt"), CancellationToken.None)).Should().BeNull();
+        await harness.WaitForAsync("turn/end");
+
+        harness.Types().Should().Equal(
+            "turn/start", "step/start", "user/message",
+            "tool/call", "tool/result", "assistant/message", "step/end", "turn/end");
+
+        var call = harness.Events[3].Event.Data;
+        call.GetProperty("callId").GetString().Should().Be("call-1");
+        call.GetProperty("name").GetString().Should().Be("Read");
+        call.GetProperty("arguments").GetString().Should().Be("{\"path\":\"a.txt\"}");
+        call.GetProperty("turn").GetInt32().Should().Be(1);
+        call.GetProperty("step").GetInt32().Should().Be(1);
+
+        var result = harness.Events[4].Event.Data.GetProperty("message");
+        result.GetProperty("role").GetString().Should().Be("tool");
+        result.GetProperty("toolCallId").GetString().Should().Be("call-1");
+        result.GetProperty("source").GetProperty("callId").GetString().Should().Be("call-1");
+        result.GetProperty("content")[0].GetProperty("text").GetString().Should().Be("ok");
+        result.GetProperty("isError").GetBoolean().Should().BeFalse();
+        harness.Events[4].Event.SurfaceOp.Should().Be("append");
+    }
+
+    [Fact]
+    public async Task ToolCallFailed_MarksResultAsError() {
+        var harness = await Harness.CreateAsync("失败", emitToolCalls: true, toolFails: true);
+        await using var transcripts = harness.Transcripts;
+
+        (await harness.Runner.StartAsync(TextRequest("rpc-1", "读一下"), CancellationToken.None)).Should().BeNull();
+        await harness.WaitForAsync("turn/end");
+
+        var result = harness.Events.Single(entry => entry.Event.Type == "tool/result").Event.Data.GetProperty("message");
+        result.GetProperty("isError").GetBoolean().Should().BeTrue();
+    }
+
     private static DshSessionPromptArgs TextRequest(string requestId, string text) => new() {
         RequestId = requestId,
         SessionId = SessionId,
@@ -155,7 +195,7 @@ public sealed class DshTurnRunnerTests {
         public State.TranscriptService Transcripts { get; }
         public List<DshSessionRecord> Events { get; } = [];
 
-        public static async Task<Harness> CreateAsync(string reply, bool gate = false, bool createSession = true, bool throwOnStream = false) {
+        public static async Task<Harness> CreateAsync(string reply, bool gate = false, bool createSession = true, bool throwOnStream = false, bool emitToolCalls = false, bool toolFails = false) {
             var fs = new InMemoryFileSystem();
             var services = new DshHostServices(fs);
             var transcripts = new State.TranscriptService(fs, SessionsDir);
@@ -163,7 +203,7 @@ public sealed class DshTurnRunnerTests {
             if (createSession) {
                 await transcripts.EnsureSessionAsync(SessionId, new SessionInfo { Id = SessionId, ProjectPath = "/ws" });
             }
-            var engine = new StubChatSession { Reply = reply, Gate = gate, ThrowOnStream = throwOnStream };
+            var engine = new StubChatSession { Reply = reply, Gate = gate, ThrowOnStream = throwOnStream, EmitToolCalls = emitToolCalls, ToolFails = toolFails };
             services.AttachEngine(engine);
             var harness = new Harness(new DshTurnRunner(services), services.Streams, engine, transcripts);
             services.Streams.Subscribe(SessionId, "stream-1", sessionEvent => {
@@ -193,6 +233,8 @@ public sealed class DshTurnRunnerTests {
         public string Reply { get; init; } = "";
         public bool Gate { get; init; }
         public bool ThrowOnStream { get; init; }
+        public bool EmitToolCalls { get; init; }
+        public bool ToolFails { get; init; }
         public string? LastPrompt { get; private set; }
 
         /// <summary>引擎流是否收到了取消（验证停止生成确实传到引擎）</summary>
@@ -225,6 +267,10 @@ public sealed class DshTurnRunnerTests {
             }
             if (ThrowOnStream) {
                 throw new InvalidOperationException("引擎崩溃");
+            }
+            if (EmitToolCalls) {
+                yield return ChatStreamEvent.ToolStart("Read", "call-1", "{\"path\":\"a.txt\"}");
+                yield return ChatStreamEvent.ToolEnd("Read", ToolFails ? "文件不存在" : "ok", "call-1", ToolFails);
             }
             yield return ChatStreamEvent.Text(Reply);
         }

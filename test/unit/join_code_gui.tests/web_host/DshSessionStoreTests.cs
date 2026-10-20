@@ -133,6 +133,34 @@ public sealed class DshSessionStoreTests {
     }
 
     [Fact]
+    public async Task Dispatcher_SessionPage_ReturnsOlderRecords() {
+        var fs = new InMemoryFileSystem();
+        await using var transcripts = new State.TranscriptService(fs, SessionsDir);
+        await transcripts.AppendEntryAsync("s1", new TranscriptEntry { Role = "user", Content = "第一条" });
+        await transcripts.AppendEntryAsync("s1", new TranscriptEntry { Role = "assistant", Content = "第一答" });
+        await transcripts.AppendEntryAsync("s1", new TranscriptEntry { Role = "user", Content = "第二条" });
+        await transcripts.AppendEntryAsync("s1", new TranscriptEntry { Role = "assistant", Content = "第二答" });
+        var services = new DshHostServices(fs, "/test/dsh-workspaces.json");
+        services.Sessions.AttachTranscripts(transcripts);
+        var dispatcher = new DshRpcDispatcher(services);
+
+        var snapshot = await services.Sessions.SnapshotAsync("s1", CancellationToken.None);
+        var cursor = snapshot?.Cursor ?? throw new InvalidOperationException("会话快照必须存在");
+
+        var page = await dispatcher.HandleAsync("session/page", PageArgs("s1", cursor, beforeSeq: cursor, maxMessages: 2));
+        page.Ok.Should().BeTrue(page.Error?.Message);
+        var records = page.Value.GetValueOrDefault().GetProperty("records");
+        records.GetArrayLength().Should().Be(2);
+        records[0].GetProperty("event").GetProperty("seq").GetInt64().Should().Be(cursor - 2);
+        records[1].GetProperty("event").GetProperty("seq").GetInt64().Should().Be(cursor - 1);
+        page.Value.GetValueOrDefault().GetProperty("hasMore").GetBoolean().Should().BeTrue("更早还有记录");
+
+        var missing = await dispatcher.HandleAsync("session/page", PageArgs("nope", cursor));
+        missing.Ok.Should().BeFalse();
+        missing.Error?.Code.Should().Be("session/not-found");
+    }
+
+    [Fact]
     public async Task Dispatcher_SessionCancel_AcceptsKnownSession() {
         var dispatcher = new DshRpcDispatcher(new DshHostServices(new InMemoryFileSystem(), "/test/dsh-workspaces.json"));
         var result = await dispatcher.HandleAsync("session/cancel", Args(new DshSessionCancelArgs { SessionId = "s1" }));
@@ -415,6 +443,19 @@ public sealed class DshSessionStoreTests {
         JsonSerializer.SerializeToElement(
             new DshRequestEnvelope<DshSessionCreateArgs> { Request = new DshSessionCreateArgs { WorkspaceId = workspaceId } },
             DshJsonContext.Default.DshRequestEnvelopeDshSessionCreateArgs);
+
+    /// <summary>按 DSH 远程契约形状构造 session/page 参数（具名参数在 request 下）</summary>
+    private static JsonElement PageArgs(string sessionId, long throughSeq, long? beforeSeq = null, int? maxMessages = null) =>
+        JsonSerializer.SerializeToElement(
+            new DshRequestEnvelope<DshSessionPageArgs> {
+                Request = new DshSessionPageArgs {
+                    Address = new DshSessionAddress { Kind = "session", SessionId = sessionId },
+                    ThroughSeq = throughSeq,
+                    BeforeSeq = beforeSeq,
+                    MaxMessages = maxMessages,
+                },
+            },
+            DshJsonContext.Default.DshRequestEnvelopeDshSessionPageArgs);
 
     /// <summary>按 DSH 远程契约形状构造 session/projections 参数</summary>
     private static JsonElement ProjectionsArgs(string sessionId) =>

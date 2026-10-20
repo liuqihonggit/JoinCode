@@ -120,6 +120,29 @@ internal sealed class DshSessionStore {
     }
 
     /// <summary>
+    /// 取一页更早的历史记录（供前端向上翻页）：只返回 <paramref name="request"/> 窗口内、
+    /// <c>beforeSeq</c> 之前的最多 <c>maxMessages</c> 条，按 seq 升序；会话不存在返回 null。
+    /// </summary>
+    /// <param name="request">分页参数</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    internal async Task<DshSessionPageResult?> PageAsync(DshSessionPageArgs request, CancellationToken cancellationToken) {
+        if (request.Address is not { } address || !string.Equals(address.Kind, "session", StringComparison.Ordinal)) {
+            return null;
+        }
+        var read = await ReadAsync(address.SessionId, cancellationToken);
+        if (read is null) {
+            return null;
+        }
+        var max = request.MaxMessages is > 0 and var limit ? limit : DefaultPageSize;
+        var upper = request.BeforeSeq is { } beforeSeq ? Math.Min(beforeSeq - 1, request.ThroughSeq) : request.ThroughSeq;
+        var older = DshTranscriptProjector.Project(address.SessionId, read.Value.Entries)
+            .Where(record => record.Event.Seq <= upper)
+            .ToArray();
+        var page = older.Skip(Math.Max(0, older.Length - max)).ToArray();
+        return new DshSessionPageResult { Records = [.. page], HasMore = older.Length > page.Length };
+    }
+
+    /// <summary>
     /// 会话的历史对话（供发送前把上下文灌回引擎）：只取普通 user/assistant 消息。
     /// 会话不存在或引擎未就绪返回 null。
     /// </summary>
@@ -230,6 +253,8 @@ internal sealed class DshSessionStore {
 
     /// <summary>默认代理预设 — 与 agentPresets/list 返回的 standard 对齐</summary>
     internal const string DefaultAgentPreset = "standard";
+
+    private const int DefaultPageSize = 100;
 
     /// <summary>一次投影/列表返回的最大会话条数（前端空 cursor 即从头拉取）</summary>
     internal const int MaxSessions = 200;

@@ -32,6 +32,7 @@ internal sealed class DshRpcDispatcher {
             ["session/cancel"] = Sync(args => SessionCancel(args, CancellationToken.None)),
             ["session/modelCatalog"] = Sync(SessionModelCatalog),
             ["session/projections"] = SessionProjections,
+            ["session/page"] = SessionPage,
             ["agentPresets/list"] = Sync(_ => Ok(new DshAgentPresetList {
                 Presets = [new DshAgentPreset { Id = "standard", Order = 1, IsDefault = true }],
             })),
@@ -266,6 +267,21 @@ internal sealed class DshRpcDispatcher {
         return snapshot is null ? OkNull() : Ok(snapshot);
     }
 
+    /// <summary>session/page：向上翻页取更早的历史记录</summary>
+    private async Task<DshRpcResult> SessionPage(JsonElement args, CancellationToken cancellationToken) {
+        if (args.ValueKind != JsonValueKind.Object) {
+            return Fail("session/rejected", $"session/page 需要 request.address 参数；收到 args={Describe(args)}");
+        }
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSessionPageArgs)?.Request;
+        if (request?.Address is not { Kind: "session" } address || string.IsNullOrWhiteSpace(address.SessionId)) {
+            return Fail("session/rejected", $"session/page 需要 request.address.sessionId（kind=session）；收到 args={Describe(args)}");
+        }
+        var page = await _services.Sessions.PageAsync(request, cancellationToken);
+        return page is null
+            ? Fail("session/not-found", $"会话 {address.SessionId} 不在磁盘上；从侧栏重新选择会话后重试")
+            : Ok(page);
+    }
+
     /// <summary>session/modelCatalog：自有引擎的供应商/模型目录</summary>
     private DshRpcResult SessionModelCatalog(JsonElement args) => Ok(_services.Models.Current);
 
@@ -303,6 +319,7 @@ internal sealed class DshRpcDispatcher {
     private static DshRpcResult Ok(DshModelCatalog value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshModelCatalog));
 
     private static DshRpcResult Ok(DshSessionProjectionSnapshot value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionProjectionSnapshot));
+    private static DshRpcResult Ok(DshSessionPageResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionPageResult));
 
     private static DshRpcResult Ok(DshAgentPresetList value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshAgentPresetList));
 

@@ -401,6 +401,36 @@ internal sealed class DshSessionFollowArgs {
     public int? MaxMessages { get; set; }
 }
 
+/// <summary>session/page 参数：取 throughSeq 之前（不含 beforeSeq 及之后）的较早历史</summary>
+internal sealed class DshSessionPageArgs {
+    /// <summary>订阅地址</summary>
+    public DshSessionAddress? Address { get; set; }
+    /// <summary>窗口上界（含）</summary>
+    public long ThroughSeq { get; set; }
+    /// <summary>分页游标（不含），省略表示从最新往下取</summary>
+    public long? BeforeSeq { get; set; }
+    /// <summary>最多返回的记录条数</summary>
+    public int? MaxMessages { get; set; }
+    /// <summary>按轮次补齐的窗口（暂忽略）</summary>
+    public DshTurnWindow? TurnWindow { get; set; }
+}
+
+/// <summary>按轮次补齐历史的窗口参数</summary>
+internal sealed class DshTurnWindow {
+    /// <summary>最少消息条数</summary>
+    public int MinMessages { get; set; }
+    /// <summary>最少轮次数</summary>
+    public int MinTurns { get; set; }
+}
+
+/// <summary>session/page 结果</summary>
+internal sealed class DshSessionPageResult {
+    /// <summary>历史记录（按 seq 升序）</summary>
+    public List<DshSessionRecord> Records { get; set; } = [];
+    /// <summary>是否还有更早的记录</summary>
+    public bool HasMore { get; set; }
+}
+
 /// <summary>会话订阅地址（kind=session 时为普通会话；子代理地址暂不支持）</summary>
 internal sealed class DshSessionAddress {
     /// <summary>地址种类</summary>
@@ -489,6 +519,9 @@ internal sealed class DshWireMessageSource {
     /// <summary>模型标识（模型来源）</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Model { get; set; }
+    /// <summary>工具调用标识（工具结果来源）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? CallId { get; set; }
 }
 
 /// <summary>会话消息（user/message、assistant/message 共用形状）</summary>
@@ -501,6 +534,12 @@ internal sealed class DshWireMessage {
     public List<DshWireContentBlock> Content { get; set; } = [];
     /// <summary>消息来源</summary>
     public DshWireMessageSource Source { get; set; } = new();
+    /// <summary>工具结果对应的调用标识（仅 tool 角色）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ToolCallId { get; set; }
+    /// <summary>是否工具错误（仅 tool 角色）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? IsError { get; set; }
 }
 
 /// <summary>turn/start 载荷</summary>
@@ -515,6 +554,30 @@ internal sealed class DshStepData {
     public int Turn { get; set; }
     /// <summary>步骤</summary>
     public int Step { get; set; }
+}
+
+/// <summary>tool/call 载荷（模型请求调用工具）</summary>
+internal sealed class DshToolCallData {
+    /// <summary>轮次</summary>
+    public int Turn { get; set; }
+    /// <summary>步骤</summary>
+    public int Step { get; set; }
+    /// <summary>工具调用标识</summary>
+    public string CallId { get; set; } = "";
+    /// <summary>工具名</summary>
+    public string Name { get; set; } = "";
+    /// <summary>调用参数（原始 JSON 文本）</summary>
+    public string Arguments { get; set; } = "";
+}
+
+/// <summary>tool/result 载荷（工具执行结果）</summary>
+internal sealed class DshToolResultData {
+    /// <summary>轮次</summary>
+    public int Turn { get; set; }
+    /// <summary>步骤</summary>
+    public int Step { get; set; }
+    /// <summary>工具结果消息</summary>
+    public DshWireMessage Message { get; set; } = new();
 }
 
 /// <summary>turn/end 载荷</summary>
@@ -880,6 +943,10 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshSessionProjectionSnapshot))]
 [JsonSerializable(typeof(DshRequestEnvelope<DshSessionFollowArgs>))]
 [JsonSerializable(typeof(DshSessionFollowArgs))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshSessionPageArgs>))]
+[JsonSerializable(typeof(DshSessionPageArgs))]
+[JsonSerializable(typeof(DshTurnWindow))]
+[JsonSerializable(typeof(DshSessionPageResult))]
 [JsonSerializable(typeof(DshSessionAddress))]
 [JsonSerializable(typeof(DshSessionFollowSnapshot))]
 [JsonSerializable(typeof(DshSessionHeader))]
@@ -891,6 +958,8 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(List<DshWireContentBlock>))]
 [JsonSerializable(typeof(DshTurnStartData))]
 [JsonSerializable(typeof(DshStepData))]
+[JsonSerializable(typeof(DshToolCallData))]
+[JsonSerializable(typeof(DshToolResultData))]
 [JsonSerializable(typeof(DshTurnEndData))]
 [JsonSerializable(typeof(DshTurnEndReason))]
 [JsonSerializable(typeof(DshAssistantMessageData))]

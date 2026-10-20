@@ -625,3 +625,31 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 
 <!-- 决策依据: 青蛙TUI 渲染引擎=Terminal.Gui v2 与 native_tui 自研 cell 管线根本不同不可整体搬运; -->
 <!--   复用判据=纯逻辑零耦合优先(diff 全套/权限桥/Markdown 投影算法), 框架耦合组件只抄思路 -->
+
+## M7-2 StructuredDiff 渲染落地（2026-10-20，引擎补丁→TUI diff 块全链路）
+
+<!-- 🤖 Auto Decision: 2026-10-20 -->
+<!-- 决策: 四批渐进落地(每批编译+测试+commit): ①Core 零依赖投影 ②Host 投影 ③引擎 JSON 投影同步 ④模拟引擎演示 -->
+<!-- ①Core: bridge/DiffModels.cs 自带 DiffHunk/DiffLine/DiffLineKind(DiffLineKind 数值对齐引擎 PatchLineType 0/1/2 可直转 byte); -->
+<!--   BridgeEvent.ToolResult 加 Patch 可选参数(旧构造零改动); DiffResultItem 多行渲染(summary ⎿ 行+hunk 块 4 空格缩进+折叠); -->
+<!--   着色用基准 theme.ts diff 前景键 DiffAddedWord/DiffRemovedWord 替代青蛙TUI 硬编码十六进制(#4eba65/#ab2b3f — 唯一数据源) -->
+<!-- ②Host: InProcessEventConsumer.OnToolEnd ProjectPatch LINQ 链式投影; JoinCode.Cli.DiffLine 同名歧义沿用 -->
+<!--   EnginePermissionMode 别名先例加 CoreDiffLine 全局别名 -->
+<!-- ③引擎: ADR 0143 先事件模型后投影 — IEventConsumer.OnToolEnd 本就带 patch(协议本体), 本批补 JSON 投影; -->
+<!--   定义 BridgeDiffHunk/BridgeDiffLine 镜像 DTO 而非直接序列化 StructuredPatchHunk — 其 type/oldStart 等字段 -->
+<!--   会被 native_tui DiffLine 忽略致 kind 全部静默退化为 context(语义丢失); 两侧 Patch 均 WhenWritingNull -->
+<!--   (null 不输出字段 — 引擎旧 golden 契约不变, 旧 TUI 反序列化兼容) -->
+<!-- 折叠策略: 预览 2 行(summary 外)对齐青蛙TUI ToolResultPreview.Take(3) 先例, 超出折叠 "… +N lines (Ctrl+O)" dim; -->
+<!--   Ctrl+O 展开交互=M7 后续项 -->
+<!-- TDD: Core 12 用例(渲染 golden cell 级+JSON 往返+驱动分派) + Host 2 用例(投影) + 引擎 2 用例(stdout JSON golden) -->
+<!--   全绿: NativeTui.Tests 500/500(基线 487+新增 13) + Host.Tests 23/23 + host.tests 1343/1343 -->
+<!-- 自动化回归: M7-1 像素校准重跑 clawd+prompt 两 region 0 字符/0 像素差异(渲染基线未破坏) -->
+<!-- 手动验收路径: dotnet run --project apps/NativeTui.Demo(模拟引擎 Edit 回合含 4 行 hunk, 2.4s 后 ToolResult -->
+<!--   渲染 diff 块+折叠提示); 真实终端颜色肉眼验收待用户执行(下表) -->
+
+### M7-2 手动验收（ADR 0080，待用户执行）
+
+| 步骤 | 命令 | 预期 |
+|------|------|------|
+| 1 模拟 diff | `dotnet run --project native_tui/apps/NativeTui.Demo`（真实终端） | 提交任意文本 → 2.4s 后 ⎿ Updated demo/simulated.cs + hunk 块（+行绿/-行红/@@ dim）+ "… +2 lines (Ctrl+O)" |
+| 2 真实引擎 | `NativeTui.Host.exe`（需配置模型） | 引擎跑 Edit 类工具 → 工具结果渲染真实补丁 diff 块 |

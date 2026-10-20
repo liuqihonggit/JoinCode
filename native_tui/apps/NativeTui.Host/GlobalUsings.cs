@@ -19,8 +19,10 @@ global using NativeTui.Core.Ansi;
 global using NativeTui.Core.Bridge;
 global using NativeTui.Core.Components;
 global using NativeTui.Core.Grid;
+global using NativeTui.Core.Markdown;
 global using NativeTui.Core.Repl;
 global using NativeTui.Core.Terminal;
+global using NativeTui.Markdown;
 // 引擎侧权限类型别名 — 引擎 JoinCode.Abstractions.Security.PermissionMode 与 Core NativeTui.Core.Repl.PermissionMode
 // 同名（枚举集合一致，各属两侧），不能同时裸导入命名空间，Security 侧统一走别名消除歧义
 global using EnginePermissionMode = JoinCode.Abstractions.Security.PermissionMode;

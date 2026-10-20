@@ -78,11 +78,13 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
     public void OnTimingSummary(string summary) {
     }
 
-    /// <summary>流式响应完成 → 思考结算 + assistant_message(完整文本)。</summary>
+    /// <summary>流式响应完成 → 思考结算 + assistant_message(完整文本 + Markdown 投影；无语法快路径降级纯文本)。</summary>
     public void OnDone(TokenUsage? usage, string? modelId) {
         EndThinkingIfActive();
-        if (_fullResponse.Length > 0)
-            _events.Enqueue(new BridgeEvent.AssistantMessage(_fullResponse.ToString()));
+        if (_fullResponse.Length == 0)
+            return;
+        var fullText = _fullResponse.ToString();
+        _events.Enqueue(new BridgeEvent.AssistantMessage(fullText, MarkdigProjector.ProjectOptional(fullText)));
     }
 
     /// <summary>排空事件队列 — 主循环每 tick 调用，取走全部待处理事件（ConcurrentQueue 多生产单消费安全）。</summary>

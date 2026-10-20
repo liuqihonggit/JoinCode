@@ -190,4 +190,33 @@ public sealed class InProcessEventConsumerTests
 
         Assert.Empty(consumer.DrainEvents());
     }
+
+    [Fact]
+    public void OnDone_MarkdownTextCarriesProjectedDocument()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnText("# 标题\n\n**加粗** 与 `code`");
+        consumer.OnDone(usage: null, modelId: "test-model");
+
+        var events = consumer.DrainEvents();
+        var message = Assert.IsType<BridgeEvent.AssistantMessage>(events[^1]);
+        Assert.NotNull(message.Markdown);
+        var heading = Assert.IsType<MarkdownHeading>(message.Markdown.Blocks[0]);
+        Assert.Equal(1, heading.Level);
+        Assert.Contains(message.Markdown.Blocks, block => block is MarkdownParagraph);
+    }
+
+    [Fact]
+    public void OnDone_PlainTextKeepsMarkdownNull()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnText("普通纯文本回答");
+        consumer.OnDone(usage: null, modelId: "test-model");
+
+        var events = consumer.DrainEvents();
+        var message = Assert.IsType<BridgeEvent.AssistantMessage>(events[^1]);
+        Assert.Null(message.Markdown);
+    }
 }

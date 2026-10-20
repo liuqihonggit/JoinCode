@@ -11,6 +11,9 @@ public sealed class MarkdownMessageItem(MarkdownDocument document) : IScrollItem
     /// <summary>Markdown 正文缩进列（● + 空格，对齐基准 NoSelect minWidth 2）。</summary>
     private const int BodyIndentCols = 2;
 
+    /// <summary>块模型文档（暴露供宿主断言与演示构造）。</summary>
+    public MarkdownDocument Document { get; } = document;
+
     /// <summary>缓存的布局宽度（-1 = 未布局）。</summary>
     private int _layoutWidth = -1;
 
@@ -37,7 +40,7 @@ public sealed class MarkdownMessageItem(MarkdownDocument document) : IScrollItem
     {
         if (_layoutWidth != width)
         {
-            _layout = MarkdownLayout.Layout(document, Math.Max(0, width - BodyIndentCols));
+            _layout = MarkdownLayout.Layout(Document, Math.Max(0, width - BodyIndentCols));
             _layoutWidth = width;
         }
 

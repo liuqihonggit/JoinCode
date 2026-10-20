@@ -13,9 +13,64 @@ public static class MarkdigProjector
     /// <summary>解析管线 — UseAdvancedExtensions（表格/自动链接等 GFM 扩展，对齐青蛙TUI 先例）。</summary>
     private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
 
+    /// <summary>
+    /// 快路径投影 — 无 Markdown 语法字符返回 null（纯文本降级渲染），有则投影文档
+    ///（对齐基准 hasMarkdownSyntax：前 500 字符采样检查，短回复跳过 ~3ms 解析成本）。
+    /// </summary>
+    public static MarkdownDocument? ProjectOptional(string text) =>
+        HasMarkdownSyntax(text) ? Project(text) : null;
+
     /// <summary>Markdown 源文本 → Core 块模型文档。</summary>
     public static MarkdownDocument Project(string markdown) =>
         new(Markdig.Markdown.Parse(markdown, Pipeline).Select(ProjectBlock).OfType<MarkdownBlock>().ToList());
+
+    /// <summary>Markdown 语法标记检测（基准 MD_SYNTAX_RE 移植：任意位置语法字符 / 空行 / 行首有序列表，采样前 500 字符）。</summary>
+    private static bool HasMarkdownSyntax(string text)
+    {
+        var sample = text.Length > 500 ? text.AsSpan(0, 500) : text.AsSpan();
+        foreach (var current in sample)
+        {
+            if (current is '#' or '*' or '`' or '[' or '|' or '>' or '~' or '-' or '_')
+            {
+                return true;
+            }
+        }
+
+        if (sample.IndexOf("\n\n".AsSpan(), StringComparison.Ordinal) >= 0)
+        {
+            return true;
+        }
+
+        var lineStart = 0;
+        for (var index = 0; index <= sample.Length; index++)
+        {
+            if (index < sample.Length && sample[index] != '\n')
+            {
+                continue;
+            }
+
+            if (HasOrderedPrefix(sample[lineStart..index]))
+            {
+                return true;
+            }
+
+            lineStart = index + 1;
+        }
+
+        return false;
+    }
+
+    /// <summary>行首有序列表前缀 "N. " 检测。</summary>
+    private static bool HasOrderedPrefix(ReadOnlySpan<char> line)
+    {
+        var digits = 0;
+        while (digits < line.Length && char.IsDigit(line[digits]))
+        {
+            digits++;
+        }
+
+        return digits > 0 && digits + 1 < line.Length && line[digits] == '.' && line[digits + 1] == ' ';
+    }
 
     /// <summary>块投影分派 — 未覆盖的块类型丢弃（返回 null）。</summary>
     private static MarkdownBlock? ProjectBlock(Block block) => block switch

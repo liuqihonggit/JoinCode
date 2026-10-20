@@ -9,6 +9,7 @@ global using JoinCode.Adapters;
 global using JoinCode.App.Builder;
 global using Microsoft.Extensions.DependencyInjection;
 global using NativeTui.Core.Bridge;
+global using NativeTui.Core.Markdown;
 global using NativeTui.Core.Repl;
 global using NativeTui.Host;
 global using Xunit;

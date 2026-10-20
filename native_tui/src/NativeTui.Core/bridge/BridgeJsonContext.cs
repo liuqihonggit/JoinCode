@@ -8,4 +8,5 @@ namespace NativeTui.Core.Bridge;
 [JsonSerializable(typeof(BridgeRequest))]
 [JsonSerializable(typeof(BridgeEvent))]
 [JsonSerializable(typeof(DiffHunk))]
+[JsonSerializable(typeof(MarkdownDocument))]
 public sealed partial class BridgeJsonContext : JsonSerializerContext;

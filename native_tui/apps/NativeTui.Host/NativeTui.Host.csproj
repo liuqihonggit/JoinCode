@@ -17,6 +17,8 @@
   <ItemGroup>
     <!-- ADR 0140：NativeTui.Core 保持零依赖；引擎组装全在本宿主层 -->
     <ProjectReference Include="..\..\src\NativeTui.Core\NativeTui.Core.csproj" />
+    <!-- M7-4：Markdown 投影卫星层（Markdig 隔离在此，Core 零依赖不变） -->
+    <ProjectReference Include="..\..\src\NativeTui.Markdown\NativeTui.Markdown.csproj" />
     <!-- ADR 0143：跨 slnx 直引引擎库（照抄 gui 先例），不走 bridge_serve 子进程协议 -->
     <ProjectReference Include="..\..\..\modules\apps\engine\JoinCode.Engine.csproj" />
   </ItemGroup>

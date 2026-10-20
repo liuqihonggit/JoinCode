@@ -37,7 +37,18 @@ public enum MarkdownStyle : ushort
 /// <summary>一行内一段同样式文本 — Markdown 行模型的最小单元。</summary>
 public readonly record struct MarkdownSegment(string Text, MarkdownStyle Style);
 
-/// <summary>Markdown 块模型（抽象基类）— 投影器产出，布局器消费。</summary>
+/// <summary>
+/// Markdown 块模型（抽象基类）— 投影器产出，布局器消费；
+/// JSON 多态序列化（bridge 协议 assistant_message.markdown 字段，type discriminator 同 ADR 0141 风格）。
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(MarkdownParagraph), "paragraph")]
+[JsonDerivedType(typeof(MarkdownHeading), "heading")]
+[JsonDerivedType(typeof(MarkdownCode), "code")]
+[JsonDerivedType(typeof(MarkdownQuote), "quote")]
+[JsonDerivedType(typeof(MarkdownList), "list")]
+[JsonDerivedType(typeof(MarkdownRule), "rule")]
+[JsonDerivedType(typeof(MarkdownTable), "table")]
 public abstract record MarkdownBlock;
 
 /// <summary>段落 — 行内段序列，布局期按宽度软换行。</summary>

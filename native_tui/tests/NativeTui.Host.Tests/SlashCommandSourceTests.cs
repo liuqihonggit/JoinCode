@@ -21,9 +21,9 @@ public sealed class SlashCommandSourceTests
                 ["Session"] =
                 [
                     new SlashCommandMetadata { Name = "clear", Description = "清屏" },
-                    new SlashCommandMetadata { Name = "theme", Description = "主题" },
-                    new SlashCommandMetadata { Name = "effort", Description = "力度" },
-                    new SlashCommandMetadata { Name = "config", Description = "配置" },
+                    new SlashCommandMetadata { Name = "theme", Description = "主题", Arguments = ["dark", "light", "auto"] },
+                    new SlashCommandMetadata { Name = "effort", Description = "力度", Arguments = ["auto", "low", "medium", "high", "max"] },
+                    new SlashCommandMetadata { Name = "config", Description = "配置", Arguments = ["get", "set", "list", "remove"] },
                 ],
             };
     }
@@ -45,7 +45,7 @@ public sealed class SlashCommandSourceTests
         Assert.True(commands.Single(c => c.Name == "secret").IsHidden);
     }
 
-    /// <summary>参数元数据注入：ArgumentHint 透传特性；theme/effort/config 静态参数清单注入。</summary>
+    /// <summary>参数元数据注入：ArgumentHint 透传特性；参数值域来自元数据 Arguments 字段（生成目录注入引擎真值）。</summary>
     [Fact]
     public void Load_InjectsArgumentMetadata()
     {
@@ -57,6 +57,26 @@ public sealed class SlashCommandSourceTests
         var config = commands.Single(c => c.Name == "config");
         Assert.Equal(["get", "set", "list", "remove"], config.ArgumentValues);
         Assert.Empty(commands.Single(c => c.Name == "clear").ArgumentValues);
+    }
+
+    /// <summary>真实生成目录参数值域（修复验收缺陷：/theme d 无效果）— theme 7 值（含 daltonized/ansi）、
+    /// effort 6 值（含 unset）、config 4 值，全部来自引擎 [ChatCommandArg].Enum 特性（唯一数据源，双源消除）。</summary>
+    [Fact]
+    public void Load_GeneratedCatalog_ArgumentValuesFromEngineTruth()
+    {
+        var commands = SlashCommandSource.Load(new ServiceCollection().BuildServiceProvider());
+
+        var theme = commands.Single(c => c.Name == "theme");
+        Assert.Equal(
+            ["dark", "light", "auto", "dark-daltonized", "light-daltonized", "dark-ansi", "light-ansi"],
+            theme.ArgumentValues);
+
+        var effort = commands.Single(c => c.Name == "effort");
+        Assert.Equal(6, effort.ArgumentValues.Length);
+        Assert.Contains("unset", effort.ArgumentValues);
+
+        var config = commands.Single(c => c.Name == "config");
+        Assert.Equal(["get", "set", "list", "remove"], config.ArgumentValues);
     }
 
     /// <summary>ArgumentHint 透传：特性声明的参数提示进建议项。</summary>

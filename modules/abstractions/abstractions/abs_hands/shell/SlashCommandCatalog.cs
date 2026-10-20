@@ -20,6 +20,10 @@ public sealed record SlashCommandMetadata {
     /// <summary>参数提示（命令后空格时的补全提示，如 "model-id"）— 从 [ChatCommand] 特性提取</summary>
     public string ArgumentHint { get; init; } = string.Empty;
 
+    /// <summary>首个参数的枚举值域（如 theme 的 7 主题值）— 从 [ChatCommandArg].Enum 特性提取，
+    /// 参数补全唯一数据源（GUI/TUI 补全消费，替代各自硬编码清单）</summary>
+    public string[] Arguments { get; init; } = [];
+
     /// <summary>是否隐藏（隐藏命令不在面板展示）</summary>
     public bool IsHidden { get; init; }
 

@@ -4,7 +4,7 @@ namespace NativeTui.Demo;
 /// M6a 手动验收 demo（ADR 0080）— REPL 全链路真实运行（非 mock）：
 /// raw mode + 50ms 动画 tick + 帧双缓冲（共享 StylePool）+ CellDiffer 差分 + DEC 2026 原子上屏
 /// + InputBuffer 编辑 + 模拟回合（Thinking → ToolUse → Responding）。
-/// 交互：Enter 提交（触发模拟回合）；Esc 忙时打断/闲时退出；Ctrl+C 退出；↑↓ 滚动消息区。
+/// 交互：Enter 提交演示命令（md / diff / perm / all — 未知命令回 Error 诱导）；Esc 忙时打断/闲时退出；Ctrl+C 退出；↑↓ 滚动消息区。
 /// --selftest：非交互冒烟（spinner 三帧链路 + 静态零输出 + 输入编辑），退出码 0/1。
 /// </summary>
 public static class Program
@@ -53,7 +53,8 @@ public static class Program
         return 0;
     }
 
-    /// <summary>交互模式：进 raw mode 跑共享 REPL 外壳（ReplShell + SimulatedEngine 事件驱动模拟回合；inline 模式退出只清尾部动态区，历史留终端 scrollback）。</summary>
+    /// <summary>交互模式：进 raw mode 跑共享 REPL 外壳（ReplShell + SimulatedEngine 演示命令路由 md/diff/perm/all；inline 模式退出只清尾部动态区，历史留终端 scrollback）。
+    /// TASK056：注入演示命令清单启用斜杠补全（输入 / 弹建议列表）+ 历史环默认启用（↑↓ 翻阅提交记录）。</summary>
     private static int RunInteractive(string? model = null, bool viewport = false)
     {
         if (Console.IsInputRedirected || Console.IsOutputRedirected)
@@ -67,14 +68,36 @@ public static class Program
         var version = typeof(Program).Assembly.GetName().Version is { } v ? v.ToString(3) : "0.0.0";
         var info = SessionInfo.Create(version, model);
         var banner = new BannerItem(info.Version, info.Model, info.Billing, info.WorkingDirectory);
-        var shell = new ReplShell(new SimulatedEngine(), banner, Console.Out, inline: !viewport, seedMessages: SeedMessages());
+        // M7-6 模型选择器演示 — 装饰模拟引擎拦截 /model 打开 Picker（模拟清单，真实引擎见 NativeTui.Host）
+        var pickerEngine = new ModelPickerEngine(new SimulatedEngine(), DemoModelItems, _ => { });
+        var shell = new ReplShell(pickerEngine, banner, Console.Out, inline: !viewport, seedMessages: SeedMessages(), commands: DemoCommands(), codeHighlighter: new TextMateCodeHighlighter(dark: true));
+        pickerEngine.Attach(shell);
         shell.Run();
         shell.WriteExit();
         Console.WriteLine("NativeTui.Demo 已退出。");
         return 0;
     }
 
-    /// <summary>模拟模式种子消息（示例对话 — banner 之后、spinner 之前插入滚动区；assistant 回复为 Markdown 行内样式演示，M7-4 启动即见渲染）。</summary>
+    /// <summary>Demo 演示命令清单（斜杠补全数据源）— 与 SimulatedEngine.ParseCommand 路由同源 + /model（ModelPickerEngine 装饰器拦截）。</summary>
+    private static IReadOnlyList<CommandSuggestion> DemoCommands() =>
+    [
+        new CommandSuggestion("md", "Markdown 全形态渲染", [], IsHidden: false),
+        new CommandSuggestion("diff", "结构化补丁", [], IsHidden: false),
+        new CommandSuggestion("perm", "权限对话框", [], IsHidden: false),
+        new CommandSuggestion("all", "完整回合（补丁 + Markdown）", [], IsHidden: false),
+        new CommandSuggestion("agents", "并行子代理分组（可带数量 agents 300）", [], IsHidden: false),
+        new CommandSuggestion("model", "切换模型（M7-6 选择器）", [], IsHidden: false),
+    ];
+
+    /// <summary>Demo 模拟模型清单（M7-6 选择器演示 — 真实引擎从 IModelCatalog 后端获取，见 NativeTui.Host ModelPickerAssembly）。</summary>
+    private static IReadOnlyList<ModelPickerItem> DemoModelItems() =>
+    [
+        new ModelPickerItem("gpt-5.3", "GPT 5.3", "最强推理 · $3/$0.22 per token", IsCurrent: true),
+        new ModelPickerItem("gpt-5.3-mini", "GPT 5.3 Mini", "日常任务最佳 · $0.4/$0.03 per token", IsCurrent: false),
+        new ModelPickerItem("gpt-nano", "GPT Nano", "最快响应 · 轻量便宜", IsCurrent: false),
+    ];
+
+    /// <summary>模拟模式种子消息（示例对话 — banner 之后、spinner 之前插入滚动区；assistant 回复为 Markdown 行内样式演示，M7-4 启动即见渲染；末条为演示命令提示）。</summary>
     private static IReadOnlyList<IScrollItem> SeedMessages() =>
     [
         new UserMessageItem("这个 TUI 是像素级对齐 Claude Code 的自研实现吗？"),
@@ -93,6 +116,7 @@ public static class Program
         ])),
         new ToolCallItem("Read", "native_tui/src/NativeTui.Core/repl/ReplView.cs"),
         new ToolResultItem("41 行 — REPL 整屏视图（footer + 输入框 + 消息滚动区）"),
+        new AssistantMessageItem("演示命令：md（Markdown 全形态）/ diff（结构化补丁）/ perm（权限对话框）/ all（完整回合）/ agents（并行子代理分组，300 规模可带数量）— 输入命令回车触发；其他输入回 Error 诱导。"),
     ];
 
     /// <summary>
@@ -126,7 +150,7 @@ public static class Program
             var version = typeof(Program).Assembly.GetName().Version is { } v ? v.ToString(3) : "0.0.0";
             var info = SessionInfo.Create(version, model);
             var banner = new BannerItem(info.Version, info.Model, info.Billing, info.WorkingDirectory);
-            var shell = new ReplShell(engine, banner, Console.Out, inline: !viewport);
+            var shell = new ReplShell(engine, banner, Console.Out, inline: !viewport, codeHighlighter: new TextMateCodeHighlighter(dark: true));
             shell.Run();
             shell.WriteExit();
         }

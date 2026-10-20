@@ -3,8 +3,8 @@ namespace State;
 
 /// <summary>
 /// 共享的 Transcript 文件写入器 — 提取自 TranscriptService 和 AgentTranscriptService
-/// 封装 JSONL 格式的追加写入和读取逻辑，消除两个服务间的重复代码
-/// 并发保护：Actor 邮箱管道串行化写操作，消除显式锁 — TASK001
+/// 封装 JSONL 格式的纯追加写入(O(1))和逐行流式读取,消除两个服务间的重复代码 — ADR 0144
+/// 读取兼容回退存量 .json(JSON 数组);并发保护:Actor 邮箱管道串行化写操作,消除显式锁 — TASK001
 /// </summary>
 internal sealed class TranscriptFileWriter : IAsyncDisposable {
     private readonly TranscriptFileWriterActor _actor;
@@ -50,7 +50,7 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
     }
 
     /// <summary>
-    /// 追加单条记录到 JSON 文件(整存整取:读旧数组+追加+写新数组)
+    /// 追加单条记录到 JSONL 文件(纯追加,O(1) — ADR 0144)
     /// </summary>
     public async Task AppendEntryAsync(string filePath, TranscriptEntry entry, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(entry);
@@ -64,9 +64,8 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
         var entryToWrite = await MaybeOffloadToPasteStore(entry).ConfigureAwait(false);
         try {
             EnsureDirectoryExists(Path.GetDirectoryName(filePath));
-            var entries = await ReadJsonAsync(filePath, cancellationToken).ConfigureAwait(false);
-            entries.Add(entryToWrite);
-            await WriteJsonAsync(filePath, entries, cancellationToken).ConfigureAwait(false);
+            var line = RelaxedJsonSerializer.Serialize(entryToWrite, TranscriptJsonlContext.Default);
+            await _fs.AppendAllTextAsync(filePath, line + '\n', cancellationToken).ConfigureAwait(false);
         } catch (UnauthorizedAccessException) {
             LogRestrictedWarning("[Transcript:WRITE:71]", filePath);
         } catch (Exception ex) when (ex is not OperationCanceledException) {
@@ -75,7 +74,7 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
     }
 
     /// <summary>
-    /// 追加多条记录到 JSON 文件(整存整取:读旧数组+追加+写新数组)
+    /// 追加多条记录到 JSONL 文件(纯追加,批量拼行单次 IO — ADR 0144)
     /// </summary>
     public async Task AppendEntriesAsync(string filePath, IReadOnlyList<TranscriptEntry> entries, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(entries);
@@ -91,11 +90,13 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
     private async Task AppendEntriesInternalAsync(string filePath, IReadOnlyList<TranscriptEntry> entries, CancellationToken cancellationToken) {
         try {
             EnsureDirectoryExists(Path.GetDirectoryName(filePath));
-            var existing = await ReadJsonAsync(filePath, cancellationToken).ConfigureAwait(false);
+            var builder = new StringBuilder();
             foreach (var entry in entries) {
-                existing.Add(await MaybeOffloadToPasteStore(entry).ConfigureAwait(false));
+                var entryToWrite = await MaybeOffloadToPasteStore(entry).ConfigureAwait(false);
+                builder.Append(RelaxedJsonSerializer.Serialize(entryToWrite, TranscriptJsonlContext.Default)).Append('\n');
             }
-            await WriteJsonAsync(filePath, existing, cancellationToken).ConfigureAwait(false);
+
+            await _fs.AppendAllTextAsync(filePath, builder.ToString(), cancellationToken).ConfigureAwait(false);
             _logger?.LogDebug("{Count} transcript entries appended to {FilePath}", entries.Count, filePath);
         } catch (UnauthorizedAccessException) {
             LogRestrictedWarning("[Transcript:WRITE:108]", filePath);
@@ -105,23 +106,62 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
     }
 
     /// <summary>
-    /// 从 JSON 文件加载所有记录(整存整取:一次反序列化为数组)
+    /// 从转录文件加载所有记录 — .jsonl 逐行流式解析(行级容错+paste-cache 还原,ADR 0144)；
+    /// .jsonl 不存在时回退存量 .json(JSON 数组整体解析)。
     /// </summary>
     public async Task<IReadOnlyList<TranscriptEntry>> LoadTranscriptAsync(string filePath, CancellationToken cancellationToken = default) {
-        if (!_fs.FileExists(filePath)) {
+        var readablePath = ResolveReadablePath(filePath);
+        if (readablePath is null) {
             return Array.Empty<TranscriptEntry>();
         }
 
         try {
-            var entries = await ReadJsonAsync(filePath, cancellationToken).ConfigureAwait(false);
-            return entries;
+            return IsJsonlPath(readablePath)
+                ? await ReadJsonlLinesAsync(readablePath, cancellationToken).ConfigureAwait(false)
+                : await ReadJsonAsync(readablePath, cancellationToken).ConfigureAwait(false);
         } catch (Exception ex) when (ex is not OperationCanceledException) {
-            _logger?.LogError(ex, "Failed to load transcript from {FilePath}", filePath);
+            _logger?.LogError(ex, "Failed to load transcript from {FilePath}", readablePath);
             return Array.Empty<TranscriptEntry>();
         }
     }
 
-    /// <summary>读 JSON 文件为 List(不存在返回空列表)</summary>
+    /// <summary>可读路径解析 — .jsonl 优先；不存在时回退同目录 .json(存量数组格式)；都不存在返回 null。</summary>
+    private string? ResolveReadablePath(string filePath) {
+        if (_fs.FileExists(filePath)) return filePath;
+        var legacyPath = ToLegacyJsonPath(filePath);
+        return _fs.FileExists(legacyPath) ? legacyPath : null;
+    }
+
+    /// <summary>.jsonl 路径 → 同目录 .json 存量路径；非 .jsonl 路径返回原值。</summary>
+    private static string ToLegacyJsonPath(string filePath) =>
+        filePath.EndsWith(".jsonl", StringComparison.OrdinalIgnoreCase) ? filePath[..^6] + ".json" : filePath;
+
+    /// <summary>是否 JSONL 路径(扩展名判定 — 追加路径与回退路径的分派依据)。</summary>
+    private static bool IsJsonlPath(string filePath) =>
+        filePath.EndsWith(".jsonl", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>逐行流式解析 JSONL — 行级容错(坏行跳过) + 逐条 paste-cache 还原。</summary>
+    private async Task<List<TranscriptEntry>> ReadJsonlLinesAsync(string filePath, CancellationToken cancellationToken) {
+        var json = await ReadAllTextWithWriteShareAsync(filePath, cancellationToken).ConfigureAwait(false);
+        var result = new List<TranscriptEntry>();
+        if (json.Length == 0) return result;
+
+        foreach (var line in json.Split('\n')) {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            try {
+                var entry = RelaxedJsonSerializer.Deserialize(line, TranscriptJsonContext.Default.TranscriptEntry);
+                if (entry is not null) {
+                    result.Add(await ResolveFromPasteStore(entry).ConfigureAwait(false));
+                }
+            } catch (JsonException ex) {
+                _logger?.LogWarning(ex, "Skipping malformed line in transcript {FilePath}", filePath);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>读 JSON 数组文件为 List(存量 .json 回退读取 — 不存在返回空列表)。</summary>
     private async Task<List<TranscriptEntry>> ReadJsonAsync(string filePath, CancellationToken cancellationToken) {
         if (!_fs.FileExists(filePath)) return new List<TranscriptEntry>();
 
@@ -138,19 +178,12 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
         return result;
     }
 
-    /// <summary>写 List 为 JSON 文件(带缩进,人类可读)</summary>
-    private async Task WriteJsonAsync(string filePath, List<TranscriptEntry> entries, CancellationToken cancellationToken) {
-        var json = RelaxedJsonSerializer.Serialize(entries, TranscriptJsonContext.Default);
-        await _fs.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>写空转录数组到文件（仅当文件不存在时）— 会话实体先于首条消息诞生</summary>
+    /// <summary>写空转录文件（仅当文件不存在时）— 会话实体先于首条消息诞生;JSONL 空文件即 0 字节文件(ADR 0144)。</summary>
     public async Task WriteEmptyTranscriptAsync(string filePath, CancellationToken cancellationToken = default) {
         if (_fs.FileExists(filePath)) return;
         EnsureDirectoryExists(Path.GetDirectoryName(filePath));
-        await WriteJsonAsync(filePath, [], cancellationToken).ConfigureAwait(false);
+        await _fs.WriteAllTextAsync(filePath, string.Empty, cancellationToken).ConfigureAwait(false);
     }
-
     /// <summary>
     /// 验证 ID 只包含合法字符
     /// </summary>

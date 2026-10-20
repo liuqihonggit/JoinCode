@@ -144,6 +144,44 @@ public sealed class PromptInputBoxTests
         Assert.Equal(new Rune(Figures.Pointer[0]), screen[1, 0].Value);
         Assert.Equal(dim, screen[1, 0].StyleId);
     }
+
+    [Fact]
+    public void Render_GhostSuffixDimmedAfterText()
+    {
+        using var screen = new Screen(cols: 20, rows: 3);
+        var box = new PromptInputBox();
+        box.Render(screen, new Rect(0, 0, 20, 3), Theme.Dark, text: "run /comp", cursorCol: 9, ghostSuffix: "act");
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var inverse = screen.Styles.GetOrAdd(new TextStyle { Inverse = true });
+        // ghost "act" 自文本末尾列（2 前缀 + 9 文本 = 列 11）起；光标也在列 11 → 首字符 'a' 反色（基准光标覆盖 ghost 起点）
+        Assert.Equal("act", RowText.Of(screen, 1, 11, 3));
+        Assert.Equal(inverse, screen[1, 11].StyleId);
+        // 后续 ghost 字符 dim 渲染
+        Assert.Equal(dim, screen[1, 12].StyleId);
+        Assert.Equal(dim, screen[1, 13].StyleId);
+        // 正文保持默认样式
+        Assert.Equal(0, screen[1, 2].StyleId);
+    }
+
+    [Fact]
+    public void Render_GhostSuffixTruncatedToFrame()
+    {
+        using var screen = new Screen(cols: 8, rows: 3);
+        var box = new PromptInputBox();
+        // 文本 "hi"（占列 2-3），ghost "xyz" 从列 4 起，frame 右界 8 → 只渲染 "xyz" 完整放下前 4 列
+        box.Render(screen, new Rect(0, 0, 8, 3), Theme.Dark, text: "hi", cursorCol: 2, ghostSuffix: "xyzw");
+        Assert.Equal("xyzw", RowText.Of(screen, 1, 4, 4));
+    }
+
+    [Fact]
+    public void Render_EmptyGhostSuffix_NoExtraCells()
+    {
+        using var screen = new Screen(cols: 12, rows: 3);
+        var box = new PromptInputBox();
+        box.Render(screen, new Rect(0, 0, 12, 3), Theme.Dark, text: "hi", cursorCol: 2, ghostSuffix: "");
+        // 空 ghost：光标列（4）之外无渲染（列 5 为空白）
+        Assert.Equal(Cell.Blank, screen[1, 5]);
+    }
 }
 
 /// <summary>

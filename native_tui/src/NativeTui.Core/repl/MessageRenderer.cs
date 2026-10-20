@@ -166,6 +166,136 @@ public static class MessageRenderer
         screen.WriteText(frame.Y, frame.X, " Esc to cancel", dim, frame.Right);
     }
 
+    /// <summary>渲染模型选择器标题行 — 1 空格缩进 + bold permission 色（M7-6，基准 "Select model" remember bold）。</summary>
+    public static void RenderModelTitle(Screen screen, Rect frame, Theme theme, string title)
+    {
+        var style = screen.Styles.GetOrAdd(new TextStyle { Bold = true, Foreground = theme.Permission });
+        screen.WriteText(frame.Y, frame.X, $" {title}", style, frame.Right);
+    }
+
+    /// <summary>渲染模型选择器副标题行 — 1 空格缩进整行 dim（基准 "Switch between Claude models..."）。</summary>
+    public static void RenderModelSubtitle(Screen screen, Rect frame, Theme theme, string subtitle)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $" {subtitle}", dim, frame.Right);
+    }
+
+    /// <summary>
+    /// 渲染模型列表行（M7-6，基准 CustomSelect + ListItem）：
+    /// 焦点 = ❯ suggestion + "N. " dim + 名称 suggestion + 当前项尾 ✓ success；
+    /// 非焦点 = 空格指示 + "N. " dim + 名称默认样式（当前项尾 ✓ success 恒显）。
+    /// </summary>
+    public static void RenderModelListRow(Screen screen, Rect frame, Theme theme, int index, string displayName, bool isCurrent, bool focused)
+    {
+        if (focused)
+        {
+            var suggestion = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Suggestion });
+            var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+            screen[frame.Y, frame.X] = new Cell(new Rune('❯'), suggestion, CellWidth.Default);
+            screen.WriteText(frame.Y, frame.X + 1, $" {index + 1}. ", dim, frame.Right);
+            var col = screen.WriteText(frame.Y, frame.X + 5, displayName, suggestion, frame.Right);
+            if (isCurrent)
+            {
+                var success = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Success });
+                screen.WriteText(frame.Y, col, " ✓", success, frame.Right);
+            }
+
+            return;
+        }
+
+        var plain = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $"  {index + 1}. ", plain, frame.Right);
+        var nameCol = screen.WriteText(frame.Y, frame.X + 5, displayName, 0, frame.Right);
+        if (isCurrent)
+        {
+            var success = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Success });
+            screen.WriteText(frame.Y, nameCol, " ✓", success, frame.Right);
+        }
+    }
+
+    /// <summary>渲染模型描述行 — 5 空格缩进（对齐名称行列起点）整行 dim（基准 description inactive 色）。</summary>
+    public static void RenderModelDescription(Screen screen, Rect frame, Theme theme, string description)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $"     {description}", dim, frame.Right);
+    }
+
+    /// <summary>渲染模型溢出行 — 1 空格缩进 dim "and N more…"（基准 hiddenCount 折叠提示）。</summary>
+    public static void RenderModelOverflow(Screen screen, Rect frame, Theme theme, int hiddenCount)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $" and {hiddenCount} more…", dim, frame.Right);
+    }
+
+    /// <summary>渲染模型选择器快捷键行 — 1 空格缩进 dim（基准 Byline "Enter confirm · Esc exit"）。</summary>
+    public static void RenderModelShortcuts(Screen screen, Rect frame, Theme theme, string shortcuts)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $" {shortcuts}", dim, frame.Right);
+    }
+
+    /// <summary>
+    /// 渲染子代理组头行（M7-7，基准 ToolUseLoader + useBlink）：
+    /// ● + 空格 + 文案（"Running N {type} agents…" / "N {type} agents finished"）。
+    /// 闪烁：运行中且无错时 600ms 方波 ●↔空格（基准 BLINK_INTERVAL_MS，布局不跳动 — 文案恒 X+2 起）；
+    /// 错误恒亮、完成恒亮（基准 t1 = isError || !isUnresolved || isBlinking ? ● : " "）。
+    /// 色：运行中 dim 默认前景（基准 isUnresolved → undefined+dimColor，优先于错误红）/ 错误 Error 红 / 完成 Success 绿。
+    /// </summary>
+    public static void RenderSubagentHeader(Screen screen, Rect frame, Theme theme, string text, bool isDone, bool hasError, long animTimeMs)
+    {
+        const int BlinkIntervalMs = 600;
+        var isRunning = !isDone;
+        var bullet = hasError || isDone || animTimeMs / BlinkIntervalMs % 2 == 0 ? Figures.MessageBullet : " ";
+        var bulletStyle = isRunning
+            ? screen.Styles.GetOrAdd(new TextStyle { Dim = true })
+            : screen.Styles.GetOrAdd(new TextStyle { Foreground = hasError ? theme.Error : theme.Success });
+        screen.WriteText(frame.Y, frame.X, $"{bullet} ", bulletStyle, frame.Right);
+        screen.WriteText(frame.Y, frame.X + 2, text, 0, frame.Right);
+    }
+
+    /// <summary>
+    /// 渲染子代理状态行（M7-7，基准 AgentProgressLine 首行）：
+    /// 树形前缀 "├─ "/"└─ "（组末条目收口）dim + 类型名八色（hideType 时描述提升行首、空描述兜底显示类型）+
+    /// " (描述)" + " · N tool uses" + " · M tokens" 统计 dim（零令牌省略 token 段）；
+    /// 运行中整行 dim（各段样式叠加 Dim=true）。
+    /// </summary>
+    public static void RenderSubagentStatusRow(Screen screen, Rect frame, Theme theme, bool isLastOfGroup, SubagentEntry entry, bool isRunning, bool hideType)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var typeStyle = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.SubagentColor(entry.AgentType), Dim = isRunning });
+        var bodyStyle = isRunning ? dim : 0;
+        screen.WriteText(frame.Y, frame.X, isLastOfGroup ? "└─ " : "├─ ", dim, frame.Right);
+        var col = hideType && !string.IsNullOrEmpty(entry.Description)
+            ? screen.WriteText(frame.Y, frame.X + 3, entry.Description, bodyStyle, frame.Right)
+            : screen.WriteText(frame.Y, frame.X + 3, entry.AgentType, typeStyle, frame.Right);
+        if (!hideType && !string.IsNullOrEmpty(entry.Description))
+        {
+            col = screen.WriteText(frame.Y, col, $" ({entry.Description})", bodyStyle, frame.Right);
+        }
+
+        col = screen.WriteText(frame.Y, col, $" · {entry.ToolUseCount} tool uses", dim, frame.Right);
+        if (entry.TokenCount > 0)
+        {
+            screen.WriteText(frame.Y, col, $" · {FormatTokens(entry.TokenCount)} tokens", dim, frame.Right);
+        }
+    }
+
+    /// <summary>
+    /// 渲染子代理活动行（M7-7，基准 AgentProgressLine 次行）：
+    /// 树延续前缀 "│  ⎿ "/"   ⎿ "（组末条目空格收口）dim + 活动文本（运行中 dim — 基准整行 dim）。
+    /// </summary>
+    public static void RenderSubagentActivityRow(Screen screen, Rect frame, Theme theme, bool isLastOfGroup, string text, bool isRunning)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var prefix = isLastOfGroup ? "   ⎿ " : "│  ⎿ ";
+        screen.WriteText(frame.Y, frame.X, prefix, dim, frame.Right);
+        screen.WriteText(frame.Y, frame.X + prefix.Length, text, isRunning ? dim : 0, frame.Right);
+    }
+
+    /// <summary>令牌数格式化 — 0 省略 / &lt;1000 原数 / ≥1000 "N.Nk"（基准 "34.5k tokens" 形态）。</summary>
+    internal static string FormatTokens(int tokens) =>
+        tokens < 1000 ? tokens.ToString() : $"{tokens / 1000.0:0.#}k";
+
     /// <summary>
     /// 渲染 Markdown 物理行（M7-4）— 从指定列起逐段写，段样式经 MapMarkdownStyle 映射
     ///（Code → permission 色前景，对齐基准 codespan color('permission')；修饰开关直转 TextStyle）。
@@ -190,4 +320,22 @@ public static class MessageRenderer
         Strikethrough = style.HasFlag(MarkdownStyle.Strikethrough),
         Foreground = style.HasFlag(MarkdownStyle.Code) ? theme.Permission : default,
     };
+
+    /// <summary>
+    /// 代码行高亮覆写（M7-5）— 段文本已写完后按 token 色段覆写前景（保留 rune 与宽度标记，
+    /// 只换 StyleId；色段坐标系 = 行段文本，调用方补 startCol 偏移；同色相邻段由 StylePool intern 合并）。
+    /// </summary>
+    public static void ApplyCodeHighlight(Screen screen, int row, int startCol, IReadOnlyList<HighlightSpan> spans)
+    {
+        foreach (var span in spans)
+        {
+            var styleId = screen.Styles.GetOrAdd(new TextStyle { Foreground = Color.FromRgb(span.R, span.G, span.B) });
+            for (var offset = 0; offset < span.Length; offset++)
+            {
+                var col = startCol + span.Start + offset;
+                var cell = screen[row, col];
+                screen[row, col] = cell with { StyleId = styleId };
+            }
+        }
+    }
 }

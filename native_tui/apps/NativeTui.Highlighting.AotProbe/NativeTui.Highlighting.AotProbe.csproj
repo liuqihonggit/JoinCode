@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>NativeTui.Highlighting.AotProbe</RootNamespace>
+    <AssemblyName>NativeTui.Highlighting.AotProbe</AssemblyName>
+    <Description>NativeTui 高亮 AOT 探针 — PublishAot 发布实测 TextMateSharp/Onigwrap 原生依赖链（验证后保留为 AOT 回归工具）</Description>
+    <AllowPack>false</AllowPack>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\NativeTui.Highlighting\NativeTui.Highlighting.csproj" />
+  </ItemGroup>
+
+</Project>

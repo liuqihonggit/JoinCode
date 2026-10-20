@@ -720,8 +720,307 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 | 步骤 | 命令 | 预期 |
 |------|------|------|
 | 1 种子渲染 | dotnet run --project native_tui/apps/NativeTui.Demo（真实终端） | 启动即见 ● 圆点 + 行内样式：粗体"Screen cell 网格"、permission 色行内代码 |
-| 2 全形态回合 | 同上提交任意文本 → 等 5.4s 回合完成 | assistant 消息渲染 8 类块：h2 粗体标题/段落行内样式/无序+有序列表/▎ 引用斜体/csharp 代码块/---/表格（表头粗体+对齐分隔行） |
+| 2 全形态回合 | 同上提交 `md` → 等 5.4s 回合完成 | assistant 消息渲染 8 类块：h2 粗体标题/段落行内样式/无序+有序列表/▎ 引用斜体/csharp 代码块/---/表格（表头粗体+对齐分隔行） |
 | 3 真实引擎 | NativeTui.Host.exe（需配置模型） | 引擎回复含 Markdown 语法 → ProjectOptional 投影 → 块模型渲染（无语法回复仍纯文本快路径） |
 | 4 窄终端换行 | 终端调窄后重跑步骤 2 | 段落软换行（词边界贪心+CJK 逐字）、列表续行对齐内容列、代码块不换行 |
 
+## M7-4b Demo 演示命令路由（2026-10-21，用户验收模式驱动）
+
+<!-- 🤖 Auto Decision: 2026-10-21 -->
+<!-- 决策: SimulatedEngine.Submit 改演示命令路由(md/diff/perm/all 四命令+未知命令 Error 诱导), -->
+<!--   回合脚本 TurnScript 枚举四值, AdvanceStages 拆三个有名函数(Thinking/ToolUse/Responding)按脚本分派 -->
+<!-- 需求来源: 用户验收方式=直接跑 Demo.exe 输演示命令逐条看效果(不依赖真实引擎/不要启动参数), -->
+<!--   单一"任意文本"回合无法分开验收 Markdown/diff/权限三链路 → 命令路由把三链路拆成可独立触发的演示 -->
+<!-- 权限对话框演示路径(perm): 1.2s 产 BridgeEvent.PermissionRequest(ToolName/Description) → -->
+<!--   挂起期无 TokenDelta(权限等待语义) → 8s 延迟完成(交互窗口加长,用户从容选档) -->
+<!-- PermissionRequest 分派架构: Driver 加可选权限钩子 Action<string,string>(null=纯视图断言场景忽略), -->
+<!--   ReplShell 构造时注入 BeginPermissionRequest — 权限模态是 shell 层状态,Driver 只路由不持有 -->
+<!--   (对齐"Driver 唯一翻译层"先例;真实宿主路径仍走 TuiPermissionBridge.Confirm 同步回调不经此事件) -->
+<!-- 未知命令诱导: Error 消息含四命令名+各自用途+怎么做(对齐九荣九耻"错误提示必须有诱导方式") -->
+<!-- 基建修复(顺带,缺陷驱动): SnapshotVerifier 行尾无关比对(CRLF→LF 折叠) — 根因 git autocrlf=true -->
+<!--   物化改写 approved.txt 为 CRLF 击穿裸 Ordinal 比较; .gitattributes 钉死 *.approved.txt eol=lf -->
+<!--   + 工作区 approved 归一 LF 双保险; 先写红测试(Verify_ApprovedWithCrlfLineEndings)再修复 -->
+<!-- TDD: 红测试 6 新增(md/diff/perm/perm 挂起/all/未知命令 Theory×2) + 既有 5 测试 hello→all 迁移; -->
+<!--   全绿 NativeTui.Tests 558/558 + Markdown.Tests 18/18 + Demo selftest/bridge-selftest OK -->
+<!-- M7-4 验收表步骤 2 语义更新: "提交任意文本"已被命令路由取代(任意文本现回 Error 诱导) -->
+
+### M7-4b 手动验收（ADR 0080，待用户执行）
+
+| 步骤 | 命令 | 预期 |
+|------|------|------|
+| 1 命令提示 | 直接运行 NativeTui.Demo.exe（真实终端） | 种子消息末条显示四命令说明（md/diff/perm/all） |
+| 2 md | 输入 `md` 回车 → 等 5.4s | 纯 Markdown 回合：8 类块全形态渲染，全程无工具事件（无 ⎿ 工具行） |
+| 3 diff | 输入 `diff` 回车 → 等 5.4s | 纯补丁回合：⎿ 工具结果 + 结构化 diff 块（+绿/-红 着色可见），完成消息纯文本 |
+| 4 perm | 输入 `perm` 回车 → 1.2s 后弹权限对话框 | 数字 1-3 直选/Esc=Deny/上下环绕/Enter=焦点档；等待期 spinner 无 token 计数；8s 回合自动收束（未选择时 Deny 收尾） |
+| 5 all | 输入 `all` 回车 → 等 5.4s | 完整回合：工具调用+补丁+Markdown 完成消息（既有默认演示） |
+| 6 未知命令 | 输入任意其他文本回车 | Error 诱导消息：列出四命令名+用途+正确写法，无 TurnStarted |
+
+## M7-4b 用户验收反馈修复（2026-10-21，真实终端验收驱动）
+
+<!-- 🤖 Auto Decision: 2026-10-21 -->
+<!-- 决策: DiffResultItem 预览上限 2→10 行 — 对齐基准 Edit diff 全量渲染先例 -->
+<!--   (claude-code-rev-main/src/tools/FileWriteTool/UI.tsx L138-141: "update renders the full diff -->
+<!--   regardless of verbose"), 折叠上限采 Write MAX_LINES_TO_RENDER=10 防刷屏先例 -->
+<!-- 根因(缺陷驱动定位): 渲染链路无缺陷 — MessageRenderer 红绿前景/Theme 色值/StylePool SGR/ -->
+<!--   InlineComposer 输出全链路正常; 真因=旧预览上限 2 行被 hunk header+context 行吃光额度, -->
+<!--   Removed/Added 行全被折叠吞掉, 用户在真实终端看到的全是灰(dim)行 -->
+<!-- 修复内容: ① PreviewPatchRows 2→10 ② SimulatedPatch 行序 Removed/Added 前置+Context 殿后 -->
+<!--   (保证演示补丁红绿行可见) ③ SimulatedPatch 公开 static 供渲染可见性回归测试(对齐 DemoMarkdown 先例) -->
+<!-- TDD: 红测试 Render_DemoPatchShowsRedAndGreenLines(编译红=SimulatedPatch 未公开) → -->
+<!--   修复后 9/9 绿; 全量回归 NativeTui.Tests 559/559 + Demo selftest OK + Demo.exe 重编 -->
+<!-- 用户反馈①输入历史(↑↓)与②/命令补全: 用户明确指示移交其他人做, 本线不实现 -->
 <!-- M7-4 接续: M7-5 代码高亮调研(MarkdownCode.Language 已保留消费面) → M7-6 模型列表 → M7-7 多子代理分组 -->
+
+## M7-5 代码高亮调研（2026-10-21，基准源码全读 + nuget 生态调研）
+
+### 基准双引擎体系真相（claude-code-rev-main 全读结论）
+
+| 引擎 | 底层 | 场景 | 颜色策略 |
+|------|------|------|---------|
+| A: cli-highlight | highlight.js + 库内置主题 | Markdown ```代码块 | 库直出 ANSI（还原树无源码，从调用方推断） |
+| B: color-diff-napi | Rust 原版=syntect+bat；TS 移植版=highlight.js+手写 scope 表 | StructuredDiff / HighlightedCode | scope→RGB 手写表 + 自拼 ANSI |
+
+**关键事实**：
+1. Rust 原版（syntect+Monokai Extended）才是基准真实架构；TS 移植版用 highlight.js 是 vendor 缺失的无奈替代（`src/native-ts/color-diff/index.ts` L1-17 头注释自证）
+2. token 树 → scope 映射表只需 ~24 键（MONOKAI_SCOPES dark / GITHUB_SCOPES light，L188-243），三级回退查表：精确 scope → `scope.split('.')[0]` 前缀 → 默认前景
+3. **diff 删除行有意跳过语法高亮**（`-` 行默认样式+红背景；`+`/context 行全高亮，L913-918）
+4. 语言检测：特殊文件名表（Dockerfile/Makefile/Rakefile→ruby...）→ 扩展名 getLanguage(ext) → shebang（#!/bin/bash→bash 等，L422-451）
+5. highlight.js 全量注册 190+ 语法代价 ~50MB/100-200ms → 惰性 require + LRU 500 缓存（token/render 两级）
+6. 降级链五层全落"默认前景纯文本"无崩溃：env 开关 → 设置开关 → 加载失败 → 语言不支持(plaintext/markdown 回退) → emitter 形状校验
+7. STORAGE_KEYWORDS 重拆：const/let/var/class/fn 等从 keyword 色重拆为 _storage 色（对齐 syntect storage.type 着色，L248-265）
+
+### C# NativeAOT 候选方案对比
+
+| 方案 | 语言覆盖 | AOT 风险 | 依赖 | 基准接近度 |
+|------|---------|---------|------|-----------|
+| **A: TextMateSharp + Grammars（推荐）** | VS Code 全量语法 | 中：Onigwrap 原生 DLL（P/Invoke，AOT 支持需卫星实测） | 2 nuget，活跃维护（2.0.4 2026-06） | **=基准 Rust 原版 syntect 路线**（TextMate 引擎同源） |
+| B: ColorCode.NET | ~23 语言 | 低（纯托管） | 1 nuget | 低（颜色体系不同需重做映射） |
+| C: 手写词法引擎 | 自选子集 | 零 | 零 | 中（scope 表可照抄基准 24 键） |
+
+**A 方案背书**：Terminal.Gui v2（2.3M 下载）高亮即建在 TextMateSharp 上且官方支持 NativeAOT；语法 JSON 数据驱动无反射 emit；Monokai Extended 主题文件可直接复用（对齐基准 Rust 原版行为而非 TS 替代品）。
+
+**A 方案架构（ADR 0140 先例）**：卫星项目 `NativeTui.Highlighting` 隔离 Onigwrap/TextMateSharp（对齐 NativeTui.Markdown 隔离 Markdig），Core 零依赖只消费 DTO（`HighlightedSpan(text, Rgb)` 列表）；Markdown 代码块 + diff 行高亮共用单管线（基准两引擎合一启示）；语言检测照抄基准 detectLanguage 三级；diff 删除行跳过高亮语义直接复用。
+
+<!-- M7-5 调研完成: 待用户确认方案(A/B/C)后进卫星项目 AOT 实测(A 方案前置条件) → 实现 -->
+<!-- AOT 实测点: ①Onigwrap 原生 DLL 在 PublishAot 发布的正确携带 ②语法 JSON 嵌入资源加载 ③win/linux 双平台 -->
+
+## M7-5 代码高亮落地（2026-10-21，A 方案 TextMateSharp 全链贯通）
+
+### 实施记录（5 commit 链）
+
+| 阶段 | commit | 内容 |
+|------|--------|------|
+| AOT 探针 | 7e706d905 | 卫星项目 NativeTui.Highlighting + AotProbe：PublishAot 编译零错 + libonigwrap.dll 正确携带 + AOT 产物输出与 Debug 一致（三关全过） |
+| 卫星实现 | 22d8fa618 | TextMateCodeHighlighter：整块高亮 API（独立会话 ruleStack 跨行状态）+ 语言三级检测（手动别名表 14 项→id 精确→Grammar Aliases 遍历）+ Monokai(dark)/LightPlus(light) + 负结果缓存；16/16 测试绿 |
+| Core 接线 | c6df3d26a | ICodeHighlighter 接口 + HighlightSpan DTO（Core 零依赖）→ LayoutWithHighlights 双入口 → MessageRenderer.ApplyCodeHighlight 覆写 cell 前景 → ReplBridgeDriver/ReplShell 可选注入（null=纯文本零行为变化）；全量 642/642 绿 |
+| Demo 接入 | 18eee0b13 | 交互/bridge 两处 ReplShell 构造注入 TextMateCodeHighlighter(dark)，md 命令 csharp 代码块启动即见 Monokai 配色 |
+
+### TextMateSharp 2.0.4 API 与 README 差异（实现期实证）
+
+- `GetScopeByLanguageId`（非 README 的 GetScopeNameFromLanguageId）；`TextMateSharp.Registry.Registry`（非 Internal.Registry）
+- `ThemeTrieElementRule.foreground` 是 **int colorId**（-1=无色），经 `theme.GetColor(id)` 得 "#RRGGBB"；`Language` 无 Name 字段（仅 Id/Aliases/Extensions）
+
+### 四列验收表（AGENTS.md 强制）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| NativeTui.Highlighting 卫星项目（TextMateCodeHighlighter + Monokai/LightPlus 主题） | Demo Program.cs 两处 ReplShell 注入（交互 :70 / bridge :130） | ✅ | ✅ ADR 0080：--selftest 绿 + Onigwrap 原生 DLL 齐备（libonigwrap.dll/Onigwrap.dll/TextMateSharp*.dll）+ capture 基准帧 911 字节不变；真实终端 Monokai 视觉验收待用户跑 md 命令确认 |
+| Core ICodeHighlighter + HighlightSpan DTO（CodeHighlighting.cs） | ReplBridgeDriver → MarkdownMessageItem(:98) → MarkdownLayout.LayoutWithHighlights → MessageRenderer.ApplyCodeHighlight | ✅ | ✅ MarkdownHighlightTests 8/8（stub 高亮器纯 Core 断言）+ 全量 642/642 + Highlighting.Tests 16/16 |
+| AOT 三关（PublishAot 编译/原生 DLL 携带/AOT 产物等价） | AotProbe 卫星项目（保留为回归工具） | ✅ | ✅ AotProbe 实测三关全过（7e706d905） |
+
+### 像素回归跳过依据（双依据成立）
+
+ReferenceScene.cs 不含任何 Markdown 渲染调用（纯手工 cell 构造，grep 零命中）且本次改动未触碰 → capture 911 字节与历史基准一致 → 高亮属新渲染路径不影响既有基准 region。
+
+<!-- M7-5 完成: 用户真实终端 md 命令视觉验收 → M7-6 模型列表(后端获取) → M7-7 多子代理分组 → resize 事件化 -->
+
+## M7-6 模型列表调研（2026-10-21，基准源码 + 本项目引擎侧现状盘点）
+
+### 基准 /model 链路真相（claude-code-rev-main 全读结论）
+
+| 项 | 基准实现 | 文件:行号 |
+|----|---------|----------|
+| 命令入口 | local-jsx 懒加载命令 + alt+p 热键内联打开 | commands/model/index.ts:1-16, PromptInput.tsx:2061 |
+| 数据来源 | **本地硬编码主体**（5 套订阅层级列表）+ **bootstrap 后端增量**（GET /api/claude_cli/bootstrap → additional_model_options[{model,name,description}] → 磁盘缓存 isEqual 跳写 → 下次启动生效）+ 当前在用模型兜底追加 + 组织 allowlist 过滤 | modelOptions.ts:271-540, bootstrap.ts:63-137 |
+| Picker 形态 | 单列平铺 Select **不分组**（排序隐含家族：Default→Opus→Sonnet→Haiku），min(10,n) 可见超出 "and N more…"，✓ 选中标记 + ❯ 焦点指示，Default (recommended) 永远首项（value=null 哨兵） | ModelPicker.tsx:135-136/263-310 |
+| effort 行 | 焦点行联动 ←→ 循环 low/medium/high/max，不支持时显示提示 | ModelPicker.tsx:327-336 |
+| 切换链路 | setAppState(mainLoopModel) → onChangeAppState diff 自动持久化 userSettings → getRuntimeMainLoopModel（session→flag→env→settings→内置默认五级）→ 请求体 model | model.tsx:47-57, onChangeAppState.ts:94-112 |
+| 附带逻辑 | fast mode 自动关（不支持时）+ effort max 降级 + 切换反馈 "Set model to X" + /model ? 显示当前 | model.tsx:63-80, ModelPicker.tsx |
+
+**对齐要点**：基准本质"本地清单优先、后端只做增量补充"，非实时 listModels；本项目语境的"后端获取"= **从引擎（进程内 IModelCatalog）取列表**，非 TUI 本地配置直读（青蛙TUI 的做法已被否决）。
+
+### 本项目引擎侧现状（可直接复用的资产）
+
+| 资产 | 位置 | 状态 |
+|------|------|------|
+| IModelCatalog（列表/别名/能力/窗口查询 12 方法） | modules/composition/slash/ai/model/IModelCatalog.cs | ✅ 接口齐备 |
+| ModelCatalog 实现（[Register] Singleton，注入 IProviderDefinitionRegistry + IModelConfigLoader） | modules/composition/slash/ai/model/ModelCatalog.cs:7-8 | ✅ 待验证 GUI 会话链注册 |
+| /model 命令全逻辑（切换+持久化+fast mode 自关+effort 降级+20 条历史） | modules/composition/slash/ai/model/ModelCommand.cs | ✅ 但交互用 TerminalHelper |
+| SlashCommandRunner（TUI/GUI 共享执行链路，接 IServiceProvider） | modules/apps/engine/commands/slash/SlashCommandRunner.cs | ✅ Host 可直接调 |
+| Host 引擎 DI 暴露 | native_tui/apps/NativeTui.Host/EngineSession.cs:28（Services => _engine.Services） | ✅ 已就绪 |
+| ReplShell 模态对话框先例 | M7-3 PermissionCoordinator + BeginPermissionRequest 回调注入（ReplShell.cs:35/89/177） | ✅ 模式可照抄 |
+
+### 核心冲突与方案对比
+
+**核心冲突**：ModelCommand 的 ModelPicker 交互走 TerminalHelper.ReadKey/WriteRaw 直写终端——与 native_tui 的 raw mode + cell 网格 + 差分上屏渲染管线**根本冲突**（绕过渲染管线即破坏像素级对齐，同青蛙TUI 不可搬同理）。
+
+| 方案 | 内容 | 优劣 |
+|------|------|------|
+| **A: TUI 原生 Picker（推荐）** | Core 加 ModelListItem DTO + ModelPickerCoordinator（照抄 M7-3 权限对话框模式：ReplShell 键盘模态 + driver 回调）；Host 侧 Submit 拦截 /model → Services.GetService&lt;IModelCatalog&gt;() 取列表 → BeginModelPicker；选中后委托 SlashCommandRunner 执行 `/model &lt;id&gt;`（复用全部切换逻辑） | UI 像素级对齐基准 Picker（✓/❯/Default 首项/10 条/effort 行）；切换逻辑零重写；Core 零依赖不受破坏 |
+| B: 委托 ModelCommand 现成 Picker | Host 集成 SlashCommandRunner 直跑 /model | 零新 UI 代码；但 TerminalHelper 直写破坏渲染管线，非交互回退是文本列表——像素级对齐不可能 |
+| C: 通用斜杠路由 + 交互命令特判 | 全部 / 命令走 SlashCommandRunner，仅 /model 类交互命令走 A 的原生 Picker | 覆盖面最大但超出 M7-6 范畴（通用斜杠执行属独立任务） |
+
+<!-- M7-6 调研完成: 待用户确认方案(A/B/C)后实现 → 实现期前置验证: GUI 会话模块链 GetService<IModelCatalog> 是否可解析(实测,勿猜) -->
+
+## M7-6 模型选择器落地（2026-10-21，用户决策"全部自研"）
+
+### 方案决策（用户原话："全部自研啊，之前的功能说不定有什么隐藏的bug，我们自己干才是最好的"）
+
+| 维度 | 落地选择 | 与调研方案 A 的差异 |
+|------|---------|-------------------|
+| UI 渲染 | 自研 ModelPickerDialog（IScrollItem + ReplShell 键盘模态） | 同 A |
+| 数据来源 | 引擎进程内 IModelCatalog（后端获取） | 同 A |
+| 切换链路 | **自研 ApplyModel**（SetPrimaryModel + IConfigurationService.SetAsync("model") 持久化 + IFastModeService 自关），**不经 SlashCommandRunner/ModelCommand** | A 原推荐委托 SlashCommandRunner 执行 /model &lt;id&gt;，用户否决——避免继承 TerminalHelper 隐藏 bug 面 |
+| 装配方式 | ModelPickerEngine 装饰 IReplEngine 拦截无参 "/model"（带参透传），Attach(shell) 延迟绑定（new 后调，避免构造环） | A 未细化 |
+
+### 实施记录（2 commit 链）
+
+| 阶段 | commit | 内容 |
+|------|--------|------|
+| Core 层 | d0b07e441 | ModelPickerItem DTO + Coordinator（MaxVisible=10 窗口滚动 clamp）+ ModelPickerDialog（IScrollItem 渲染：边框/标题/副标题/列表行 ✓❯/描述/溢出 "and N more…"/快捷键行）+ ModelPickerEngine 装饰器（拦截+Attach+确认回调自持清单闭包）+ ReplShell 三方法（BeginModelPicker/CompleteModelPicker/PostInfo）+ HandleModelPickerKey 模态（优先级：权限对话框 > 模型选择器）；全量 672/672 绿（含 27 新测试） |
+| Host/Demo 接线 | c56ae3dc3 | Host：ModelPickerAssembly（LoadItems 投影 IModelCatalog→ModelPickerItem + ApplyModel 三步切换链）+ pickerEngine 装配 + selftest 加模型清单断言（IModelCatalog 可解析实证）；Demo：RunInteractive 同装配 + DemoCommands 加 model 条目 + DemoModelItems 模拟清单 |
+
+### 实现期实证
+
+- **IModelCatalog 在引擎 DI 可解析**（Host selftest 断言实证，GUI 会话模块链注册确认——调研块存疑项闭环）
+- 键名实证：IConfigurationService.SetAsync("model", id) 的 "model" 与 SettingsJson jsonName 一致（ModelCommand.ApplyModelSwitchAsync 同源）
+- ModelPickerCoordinator 用**回调而非 TCS**（区别于权限对话框——无引擎侧阻塞等待方，选中即回调解册）
+- 测试坑：IDE0007 强制 var → 可空捕获用 `var selected = new[] { (string?)"sentinel" }` 数组模式；RowText.Of 返回全宽含尾空格 → 行文本断言用 StartsWith
+
+### 四列验收表（AGENTS.md 强制）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| Core ModelPicker.cs（Item DTO + Coordinator：MaxVisible=10/窗口滚动/clamp） | ModelPickerEngine 装饰器 + ReplShell.BeginModelPicker | ✅ | ✅ ModelPickerTests 7/7（Coordinator 窗口/边界） |
+| Core ModelPickerDialog.cs（边框/标题/列表行 ✓❯/描述/溢出/快捷键行渲染） | ReplShell 滚动区对话框项 | ✅ | ✅ ModelPickerTests 9/9（渲染断言含溢出行/当前标记） |
+| Core ModelPickerEngine.cs（"/model" 无参拦截 + Attach 延迟绑定 + 回调闭包） | Host/Demo Program.cs 装配（装饰 session.Client / SimulatedEngine） | ✅ | ✅ ModelPickerTests 5/5（拦截/透传/确认链） |
+| Core ReplShell 模态（HandleModelPickerKey 优先级在权限后 + CompleteModelPicker 收尾） | 键盘路由 + ModelPickerEngine 确认回调 | ✅ | ✅ ModelPickerTests 6/6（模态打开/Esc 取消/Enter 确认）+ 全量 672/672 |
+| Host ModelPickerAssembly（LoadItems ← IModelCatalog + ApplyModel 三步切换链） | Host Program.cs pickerEngine 装配 | ✅ | ✅ ADR 0080：Host --selftest 真实 exe 绿（含 IModelCatalog 可解析断言）；真实终端 /model 交互验收待用户跑 NativeTui.Host.exe 确认 |
+| Demo 装配（DemoModelItems 模拟清单 + DemoCommands 加 model 条目） | Demo Program.cs RunInteractive | ✅ | ✅ ADR 0080：Demo --selftest 绿；真实终端 /model 交互验收待用户跑 NativeTui.Demo.exe 确认 |
+
+### 基准对齐要点核对（对照调研块 Picker 形态行）
+
+单列平铺不分组 ✅ / min(10,n) 可见 ✅（MaxVisible=10）/ 超出 "and N more…" ✅ / ✓ 当前标记 + ❯ 焦点指示 ✅ / 切换反馈（PostInfo 消息）✅ / fast mode 自关 ✅（ApplyModel 三步之一）。未对齐项：effort 行（基准 ModelPicker.tsx:327-336 的 low/medium/high/max 循环——本项目 effort 概念尚未进入模型配置，属后续里程碑）。
+
+<!-- 🤖 Auto Decision: 2026-10-21 -->
+<!-- 决策: 切换链路自研 ApplyModel 三步链(SetPrimaryModel + settings 持久化 + fast mode 自关)，不经 SlashCommandRunner -->
+<!-- 原因: 用户明令"全部自研"避免继承 ModelCommand/TerminalHelper 隐藏 bug 面；且引擎侧切换逻辑只有 3 步，复刻成本低 -->
+<!-- 替代方案: 调研方案 A 的 SlashCommandRunner 委托执行(被用户否决)；ModelPickerCoordinator 用回调而非权限对话框的 TCS 模式(无阻塞等待方) -->
+<!-- 验证: 全量 672/672 绿 + Host/Demo selftest 真实 exe 双绿 ✅ -->
+
+<!-- M7-6 完成: 用户真实终端 /model 选择器交互验收 → M7-7 多子代理分组(300 规模) → resize 事件化 → effort 行(后续里程碑) -->
+
+## M7-7 多子代理分组调研（2026-10-21，基准源码 + 本项目渲染现状双 explore）
+
+### 基准机制真相（claude-code-rev-main 全读结论）
+
+| 项 | 基准实现 | 文件:行号 |
+|----|---------|----------|
+| 分组数据结构 | `GroupedToolUseMessage {toolName, messages[], results[]}`；分组键 = `${messageId}:${toolName}`，**同一条 assistant API 响应内 ≥2 个同类 tool_use 才聚合**；verbose 跳过分组 | utils/groupToolUses.ts:54-181, 76, 91 |
+| 分发接口 | Tool.ts 可选 `renderGroupedToolUse`，**目前仅 AgentTool 实现** | Tool.ts:678-694, messageActions.tsx:121 |
+| 组头三态 | `● Running N {type} agents…`（运行中，圆点闪烁）/ `N {type} agents finished`（全完成，绿）/ `N background agents launched (↓ manage)`（全后台）；全组同类型时组头带类型名、行内隐藏类型 | AgentTool/UI.tsx:732-756, ToolUseLoader.tsx:11-41 |
+| 逐代理行 | 两行式：`├─ Type (desc) · N tool uses · M tokens` + `│  ⎿ <lastToolInfo\|Initializing…\|Done>`，最后一行 `└─`/`   ⎿`；运行中整行 dim | AgentProgressLine.tsx:23-135 |
+| 组内规模 | **组内行数无截断**（N 代理 N 行），靠消息级虚拟化 + 行级 React memo + OffscreenFreeze 静态冻结扛 | Messages.tsx:307, VirtualMessageList.tsx:289-343 |
+| 状态聚合 | 组级 anyUnresolved/anyError/allComplete → 组头文案与 loader 颜色（错误红）；**无数值汇总**（无 "N succeeded, M failed" 字样），失败仅组级视觉 | AgentTool/UI.tsx:728-737 |
+| 单代理进度截断 | 行内只显示最后 3 条工具活动 + `+N more tool uses (ctrl+o to expand)` | AgentTool/UI.tsx:33, 564-567 |
+| agent 配色 | 8 色板（red/blue/green/yellow/purple/orange/pink/cyan）按 agentType 全局分配，general-purpose 无色 | agentColorManager.ts:14-50 |
+| 数据流 | 子代理每条消息 → `agent_progress` 流式 append 进主消息数组（**禁止替换**否则卡死 Initializing）；UI 每次 commit 整组重算整组替换 | AgentTool.tsx:795-804, REPL.tsx:2647-2650 |
+| 小终端自适应 | 行数 < 并发数×9+7 时单代理进度塌缩单行 `In progress… · N tool uses · M tokens` | AgentTool/UI.tsx:181-182, 469-503 |
+
+**关键边界**：分组单元是"一次 API 响应内的 tool_use 批次"——300 个子代理跨多条 assistant 消息派发会拆成多组。
+
+### 本项目现状（可复用资产 + 核心缺口）
+
+| 资产 | 位置 | 状态 |
+|------|------|------|
+| ModelPicker "Coordinator + Dialog 投影"整套模式（窗口/HiddenCount/"and N more…"/clamp） | repl/ModelPicker.cs:17-99 + ModelPickerDialog.cs:13-84 | ✅ 分组项直接模板 |
+| ReplBridgeDriver 唯一翻译层（Apply switch） | bridge/ReplBridgeDriver.cs:48-111 | ✅ 接线点明确 |
+| **Theme 子代理八色板（已定义已赋值零消费者）** | Theme.cs:107-130, :259-266 | ✅ 就等消费 |
+| SpinnerAnimator 时钟注入 + Render 自绘 | ReplShell.cs:690-692 + SpinnerItem.cs:105-116 | ⚠️ 单时钟硬编码给 spinner，需扩展广播 |
+| FooterState.AgentsHint 提示位 | FooterState.cs:19 + FooterBar.cs:41 | ✅ 已埋 |
+| 溢出行文案先例（" and N more…" dim / "… +N lines"） | MessageRenderer.cs:223-228, :95-99 | ✅ 照抄 |
+
+**核心缺口**：① BridgeEvent 无子代理粒度事件（ToolCall 仅 Name+Args，tool 名 "Task" 与普通工具同路径——300 子代理=1200 行逐条刷屏，即本任务要解决的问题）；② 无消息级虚拟化（inline 模式全量屏 EnsureScreens，300 组行=600+ 行 Screen，分组折叠同时是性能需求）；③ ScrollBox 无"替换/合并已有项"API（分组项需原地合并非追加）；④ SimulatedEngine 单阶段 int 状态机，并行子回合需改列表。
+
+### 方案对比（组内 300 行渲染策略）
+
+| 方案 | 内容 | 优劣 |
+|------|------|------|
+| **A: 组内可见窗口（推荐）** | SubagentGroupItem 复用 ModelPicker 模式：MaxVisible 常量 + WindowStart 滚动 + " and N more…" 溢出行 | 性能稳（高度 O(MaxVisible) 不随 N 膨胀，300 规模下 inline 全量屏不炸）；与基准"组头+逐行"视觉一致；**有意偏离基准**（基准组内不截断，但靠 React 虚拟化扛——我们没有虚拟化，窗口是对等机制） |
+| B: 组内全量渲染 | 对齐基准 N 代理 N 行全渲染 | 像素级对齐最彻底；但 300×2 行全量屏每帧 O(n) 测量+渲染，且 ScrollBox 内容仍在 sticky 视口外仍测量；性能风险实际存在 |
+
+**分组语义（自主决策）**：本项目 bridge 协议无 messageId 概念，采用**按 turn 分组**——TurnStarted 建组、TurnCompleted 定格（一组 = 一轮用户提交的全部 Task 类子代理）。基准的 messageId 分组跨轮也拆组，语义近似（一次响应 ≈ 一轮内的一个批次），且 turn 边界事件已存在协议中，零新增协议负担。
+
+<!-- M7-7 调研完成: 待用户确认组内渲染策略(A窗口/B全量)后实现 → 事件协议加子代理粒度事件(3个) + SubagentGroupCoordinator/Item + 时钟广播 + Demo agents 演示命令 → Host 接线待引擎侧子代理事件源确认后置 -->
+
+## M7-7 多子代理分组落地（2026-10-21，方案 A 可见窗口全链贯通）
+
+### 实施记录（2 commit 链）
+
+| 阶段 | commit | 内容 |
+|------|--------|------|
+| Core 层 | 6fa2d10cc | SubagentEntry + SubagentGroupCoordinator（事件驱动状态机 + FinalizePending 回合定格 + 窗口 min(10,n) **活动跟随滚动** — 区别于模型选择器的焦点跟随，分组非模态无焦点）+ SubagentGroupItem（两行式树形 ├─/└─ + "│ ⎿"/" ⎿" 活动行 + Initializing…/Done 状态 + and N more 溢出复用）+ MessageRenderer 三方法（组头●三态色：任一错误 Error/全完成 Success/运行中 Suggestion + Running N {type} agents 文案 + FormatTokens "N.Nk"）+ Theme.SubagentColor（**八色板首个消费者**，FNV-1a 稳定哈希）+ BridgeEvent 3 事件（SubagentStarted/ToolUse/Finished，参数名 TokenGain 避开嵌套类型撞名）+ Driver 惰性建组路由（回合定格脱离 + 多回合多组共存）；全量 694/694 绿（含 22 新测试） |
+| Demo 接线 | 14619cd87 | SimulatedEngine 加 Subagents 脚本（**独立并行子回合列表** — 区别于主回合三段状态机；交错时间线 i×25ms 演示窗口活动跟随；agents 默认 12 / agents N 1..999；每第 7 个失败演示组头红态）+ DemoCommands/种子提示加 agents 条目；全量 698/698 绿（含 4 新 engine 测试）+ Demo selftest 绿 |
+
+### 与基准的对齐与偏离（决策记录）
+
+| 项 | 基准 | 本项目 | 依据 |
+|----|------|--------|------|
+| 组内 300 行渲染 | 不截断，React 虚拟化扛 | **可见窗口 min(10,n) + "and N more…"** | 方案 A 用户确认 — 本项目无虚拟化（inline 全量屏），窗口是对等机制 |
+| 分组键 | messageId+toolName（一次 API 响应内 ≥2） | **按 turn**（TurnStarted~TurnCompleted 归一组） | bridge 协议无消息边界；turn 边界事件已存在零新增协议负担；基准跨轮拆组语义近似 |
+| 组头动画 | ● 闪烁（ToolUseLoader + useBlink 600ms 方波） | **同基准：600ms 方波 ●↔空格 + IAnimatable 时钟广播（全实例同步闪烁）** | bab57cbfc 落地 — ReplShell 每拍广播 AnimTimeMs 给滚动区全部 IAnimatable（基准共享动画时钟等价物）；运行中色修正为 dim 默认前景（基准 isUnresolved → undefined+dimColor，原 Suggestion 系误用）；错误/完成恒亮不闪（基准 t1 isError 优先） |
+| 错误汇总 | 无数值汇总（loader 红 + 行级呈现） | 同基准（● Error 红 + 行级 Done） | 一致对齐 |
+| 状态聚合 | anyUnresolved/anyError/allComplete 组头三态 | 同基准 | 一致对齐 |
+| 同型去重 | allSameType 组头带类型名 + 行内 hideType | 同基准 | 一致对齐 |
+| 子代理事件流 | agent_progress 流式 append + UI 整组重算 | 事件路由组条目**原地更新** | ScrollBox 每帧全量重渲 = 无需失效通知，Coordinator 更新即生效 |
+
+### 四列验收表（AGENTS.md 强制）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| Core SubagentGroup.cs（Entry + Coordinator：事件驱动/FinalizePending/窗口活动跟随） | ReplBridgeDriver 路由 + SubagentGroupItem 投影 | ✅ | ✅ SubagentGroupTests 9/9（状态机/聚合/窗口/断言） |
+| Core SubagentGroupItem.cs + MessageRenderer 三方法（组头三态/树形两行式/溢出） | Driver 建组落位（AddMessage Insert spinner 前） | ✅ | ✅ SubagentGroupTests 8/8（渲染断言含树形收口/dim/八色/溢出） |
+| Core Theme.SubagentColor（八色板 FNV-1a 稳定取色） | RenderSubagentStatusRow 类型段 | ✅ | ✅ 渲染测试样式断言（SubagentColor("explore") 取色一致） |
+| Core BridgeEvent 3 事件 + Driver 路由（惰性建组/回合定格脱离/多组共存） | SimulatedEngine agents 脚本（Demo）+ Host 未来接线 | ✅ | ✅ SubagentGroupTests 4/4（Driver 路由）+ 全量 698/698 |
+| Core IAnimatable 接口 + ReplShell.AdvanceAnimClock 广播（50ms/拍喂全部动画项） | SpinnerItem（glimmer/shimmer 相位）+ SubagentGroupItem（组头 ● 600ms 方波闪烁） | ✅ | ✅ ReplShellTests 广播同步断言（spinner 与注入项同值）+ SubagentGroupTests 4/4 相位断言（0 亮/600 暗/错误完成恒亮）；全量 714/714 |
+| MessageRenderer.RenderSubagentHeader 闪烁三态（运行中 dim 闪烁 / 错误恒红 / 完成恒绿） | SubagentGroupItem.Render 投影（AnimTimeMs 相位） | ✅ | ✅ 部分错误+运行中 dim 恒亮（基准 isUnresolved 色优先）断言；真实终端闪烁视觉验收归用户 |
+| SimulatedEngine Subagents 脚本（并行子回合交错时间线） | Demo agents 命令（真实终端输入 agents / agents 300） | ✅ | ✅ SubagentGroupTests 4/4（虚拟时钟确定性：批量启动/交错活动/完成收束/300 规模一拍批量）+ Demo --selftest 绿；真实终端 agents 交互验收待用户跑 NativeTui.Demo.exe 确认 |
+| Core ITerminalSizeSource + ConsoleTerminalSizeSource（resize 事件化注入面，a8ab838f1） | ReplShell 三处 Console.Window* 消费点（EnsureScreens cols/rows + RenderAndFlush viewportRows） | ✅ | ✅ ReplShellResizeTests 5/5（尺寸注入/cols 变化重建+旧帧保留/不变复用/inline rows 无关/视口 rows 取源）；全量 734/734 |
+| Host 接线 | — | ⏸ 后置 | 引擎侧子代理事件源未确认（引擎是否发 subagent_* 事件待实测），Core 事件契约已就绪 |
+
+### 遗留项
+
+1. Host 接线（前置：引擎侧子代理事件源实测确认）
+2. 基准 P2 细节未对齐：ctrl+o transcript 展开模式 / 小终端自适应单行塌缩 / lastToolInfo "Searched/Read N files" 聚合摘要 / 失焦暂停闪烁（基准 useBlink useTerminalFocus）/ Unix SIGWINCH 物理事件源（当前 Console 轮询已满足 50ms 拍内响应）
+3. 用户真实终端验收（agents 12 默认 + agents 300 规模 + 组头闪烁视觉 + resize 拖拽窗口）
+
+<!-- 🤖 Auto Decision: 2026-10-21 -->
+<!-- 决策: 组内可见窗口(方案A用户确认) + 分组语义按turn(bridge协议无messageId边界) + 组头静态三态色(闪烁归后续) + 窗口活动跟随(分组非模态无焦点,区别于ModelPicker焦点跟随) -->
+<!-- 原因: 本项目无React虚拟化(inline全量屏O(n)测量),窗口+"and N more"是对等机制;turn边界事件已存在零协议负担;Coordinator原地更新+ScrollBox每帧全量重渲无需失效通知 -->
+<!-- 替代方案: B组内全量渲染(用户否决,性能风险);messageId分组(协议无消息边界);TCS桥(无阻塞等待方,同ModelPicker回调先例) -->
+<!-- 验证: 全量698/698绿(26新测试) + Demo selftest真实exe绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-21（组头闪烁补落） -->
+<!-- 决策: IAnimatable 广播接口(ReplShell.AdvanceAnimClock 每拍50ms喂滚动区全部动画项) + 600ms方波●↔空格 + 运行中色 dim 默认前景 -->
+<!-- 原因: 基准 useBlink 共享动画时钟(全实例同相位同步闪烁)的等价物=单源广播;基准 ToolUseLoader isUnresolved→undefined+dimColor 优先于 isError 色,原 Suggestion 实现系误用;墙钟(WallNowMs elapsed 暂停感知)与动画相位时钟(AnimTimeMs)语义分离,后者才广播 -->
+<!-- 替代方案: Screen 挂帧时间(渲染缓冲承担双职责否决);每 item 自持 Stopwatch(无同步性+测试不确定性否决) -->
+<!-- 验证: 全量714/714绿含5新测试(相位0亮/600暗/错误完成恒亮/部分错误dim恒亮/广播同步) + Demo selftest真实exe绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-21（resize 事件化） -->
+<!-- 决策: ITerminalSizeSource 抽象 + ConsoleTerminalSizeSource 轮询默认实现 + ReplShell 构造注入 -->
+<!-- 原因: 尺寸从 Console 静态环境依赖解耦为事件源契约(基准 useTerminalSize/Node stdout resize 等价物,Node 在 Windows 底层同为轮询);inline 语义钉死=屏宽 cols 为唯一 resize 敏感维度(屏高=内容高与终端 rows 无关);EnsureScreens/RenderAndFlush internal 化暴露单帧测试驱动面 -->
+<!-- 替代方案: Windows ReadConsoleInputW 物理事件(与 Console.ReadKey 抢 stdin 输入队列,双平台复杂度高否决);后台线程监听(跨线程 Console 非线程安全否决);保持现状轮询(不可测试,resize 路径零覆盖否决) -->
+<!-- 验证: 全量734/734绿含5新resize测试(尺寸注入/重建+旧帧保留/复用/inline rows 无关/视口取源) + Demo selftest真实exe绿 ✅ -->
+
+<!-- M7-7 完成: 用户真实终端 agents 交互验收(含闪烁+resize 视觉) → Host 接线(引擎侧事件源确认后) -->
+

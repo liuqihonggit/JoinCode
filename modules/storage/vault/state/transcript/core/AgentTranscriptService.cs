@@ -147,7 +147,7 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
     private string GetAgentTranscriptPath(string sessionId, string agentId) {
         TranscriptFileWriter.ValidateId(sessionId, nameof(sessionId));
         TranscriptFileWriter.ValidateId(agentId, nameof(agentId));
-        return Path.Combine(_sessionsDirectory, sessionId, "subagents", agentId, "transcript.json");
+        return Path.Combine(_sessionsDirectory, sessionId, "subagents", agentId, "transcript.jsonl");
     }
 
     private string GetAgentMetadataPath(string sessionId, string agentId) {

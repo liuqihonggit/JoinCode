@@ -79,3 +79,11 @@ public sealed class TranscriptSummary {
 [JsonSerializable(typeof(List<TranscriptSummary>))]
 [JsonSerializable(typeof(SessionInfo))]
 public sealed partial class TranscriptJsonContext : JsonSerializerContext;
+
+/// <summary>
+/// JSONL 行序列化上下文 — 紧凑单行(WriteIndented=false,ADR 0144)：transcript.jsonl 每行一条的写侧专用。
+/// 与 TranscriptJsonContext 同命名策略(CamelCase)与宽容读策略,仅缩进差异 — 反序列化两侧通用。
+/// </summary>
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+[JsonSerializable(typeof(TranscriptEntry))]
+public sealed partial class TranscriptJsonlContext : JsonSerializerContext;

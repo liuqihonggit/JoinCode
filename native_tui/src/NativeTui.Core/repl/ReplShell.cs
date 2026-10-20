@@ -34,6 +34,33 @@ public sealed class ReplShell
     /// <summary>权限对话框协调器（M7-3 — 挂起时键盘模态改道）。</summary>
     private readonly PermissionCoordinator _permission = new();
 
+    /// <summary>模型选择器协调器（M7-6 — 挂起时键盘模态改道，优先级低于权限对话框）。</summary>
+    private readonly ModelPickerCoordinator _modelPicker = new();
+
+    /// <summary>模型选择完成回调（BeginModelPicker 注入；参数 = 选中模型 id，Esc 取消为 null）。</summary>
+    private Action<string?>? _modelPickerCallback;
+
+    /// <summary>斜杠命令补全状态机（TASK056 — 宿主注入命令清单后启用；null = 无补全能力）。</summary>
+    private readonly SlashSuggester? _suggester;
+
+    /// <summary>终端尺寸源（resize 事件化注入面 — 每拍取尺寸，变化触发屏重建跨尺寸 diff）。</summary>
+    private readonly ITerminalSizeSource _sizeSource;
+
+    /// <summary>建议列表渲染组件。</summary>
+    private readonly SuggestionBox _suggestionBox = new();
+
+    /// <summary>输入历史环（TASK056 — 提交入史 + 上下键翻阅）。</summary>
+    private readonly HistoryRing _history = new();
+
+    /// <summary>程序化填充标记（历史导航/补全接受 — HandleKey 尾部跳过建议刷新）。</summary>
+    private bool _programmaticFill;
+
+    /// <summary>历史反向搜索态（Ctrl+R — TASK057-4；null = 未激活）。</summary>
+    private HistorySearch? _search;
+
+    /// <summary>进入搜索前的输入草稿（Esc 退出恢复）。</summary>
+    private string _preSearchDraft = string.Empty;
+
     /// <summary>启动 banner（首项 — 真实引擎由 session_info 事件原地更新）。</summary>
     private readonly BannerItem _banner;
 
@@ -56,15 +83,28 @@ public sealed class ReplShell
     private Screen? _prevOverride;
 
     /// <summary>创建外壳 — engine=引擎交互面；banner=启动横幅（首项）；output=渲染 writer；
-    /// inline=渲染模式（默认主屏 log-update）；seedMessages=种子消息（banner 之后、spinner 之前）。</summary>
-    public ReplShell(IReplEngine engine, BannerItem banner, TextWriter output, bool inline = true, IReadOnlyList<IScrollItem>? seedMessages = null)
+    /// inline=渲染模式（默认主屏 log-update）；seedMessages=种子消息（banner 之后、spinner 之前）；
+    /// commands=斜杠命令清单（宿主注入；null = 无补全能力）；
+    /// codeHighlighter=代码高亮插件（M7-5 卫星注入；null = 高亮禁用降级纯文本）；
+    /// sizeSource=终端尺寸源（resize 事件化注入面；null = Console 轮询默认实现）。</summary>
+    public ReplShell(
+        IReplEngine engine,
+        BannerItem banner,
+        TextWriter output,
+        bool inline = true,
+        IReadOnlyList<IScrollItem>? seedMessages = null,
+        IReadOnlyList<CommandSuggestion>? commands = null,
+        ICodeHighlighter? codeHighlighter = null,
+        ITerminalSizeSource? sizeSource = null)
     {
         _engine = engine;
         _banner = banner;
         _output = output;
         _inline = inline;
         _seedMessages = seedMessages ?? [];
-        _driver = new ReplBridgeDriver(_view, _spinner, _banner);
+        _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands) : null;
+        _sizeSource = sizeSource ?? new ConsoleTerminalSizeSource();
+        _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter);
     }
 
     /// <summary>视图（测试断言面）。</summary>
@@ -81,6 +121,21 @@ public sealed class ReplShell
 
     /// <summary>权限对话框协调器（宿主权限桥 Begin/Wait 消费面 + 测试断言面）。</summary>
     public PermissionCoordinator Permission => _permission;
+
+    /// <summary>模型选择器协调器（测试断言面）。</summary>
+    internal ModelPickerCoordinator ModelPicker => _modelPicker;
+
+    /// <summary>斜杠补全状态机（测试断言面；null = 无命令清单）。</summary>
+    internal SlashSuggester? Suggester => _suggester;
+
+    /// <summary>历史反向搜索激活态（Ctrl+R — 测试断言面）。</summary>
+    internal bool IsSearching => _search is not null;
+
+    /// <summary>输入历史环（测试断言面）。</summary>
+    internal HistoryRing History => _history;
+
+    /// <summary>历史种子注入（宿主启动时从 transcript 加载最近输入）。</summary>
+    public void SeedHistory(IEnumerable<string> entries) => _history.Seed(entries);
 
     /// <summary>主循环 — 每拍：排空键盘 → 排空引擎事件 → 差分上屏 → 对齐 50ms。</summary>
     public void Run()
@@ -153,9 +208,40 @@ public sealed class ReplShell
     private void CompletePermission(PermissionChoice choice)
     {
         _permission.Complete(choice);
+        RemoveDialogItem<PermissionRequestItem>();
+    }
+
+    /// <summary>
+    /// 挂起模型选择器（M7-6 — 宿主装饰器拦截 /model 后调此打开，全链自研不依赖 slash 命令系统）：
+    /// 清单由宿主从引擎 IModelCatalog 投影（后端获取）；完成回调参数 = 选中模型 id（Esc 取消为 null）。
+    /// </summary>
+    public void BeginModelPicker(IReadOnlyList<ModelPickerItem> items, Action<string?>? onCompleted = null)
+    {
+        _modelPicker.Begin(items);
+        _modelPickerCallback = onCompleted;
+        AddMessage(new ModelPickerDialog(_modelPicker));
+    }
+
+    /// <summary>完成模型选择并移除对话框项（id = null 表示 Esc 取消）。</summary>
+    private void CompleteModelPicker(string? id)
+    {
+        _modelPicker.Complete();
+        RemoveDialogItem<ModelPickerDialog>();
+        var callback = _modelPickerCallback;
+        _modelPickerCallback = null;
+        callback?.Invoke(id);
+    }
+
+    /// <summary>追加信息反馈消息到滚动区（宿主确认切换后的反馈面 — M7-6 起）。</summary>
+    public void PostInfo(string text) => AddMessage(new AssistantMessageItem(text));
+
+    /// <summary>移除滚动区内首个指定类型对话框项（权限/模型对话框共用收尾）。</summary>
+    private void RemoveDialogItem<TDialog>()
+        where TDialog : class, IScrollItem
+    {
         for (var i = 0; i < _view.Messages.Count; i++)
         {
-            if (_view.Messages.Items[i] is PermissionRequestItem)
+            if (_view.Messages.Items[i] is TDialog)
             {
                 _view.Messages.RemoveAt(i);
                 return;
@@ -176,7 +262,8 @@ public sealed class ReplShell
         }
     }
 
-    /// <summary>按键归一 + 分派（对齐基准 useTextInput.mapKey 优先级顺序 — 测试经 ConsoleKeyInfo 全链注入）。</summary>
+    /// <summary>按键归一 + 分派（对齐基准 useTextInput.mapKey 优先级顺序 — 测试经 ConsoleKeyInfo 全链注入）；
+    /// 文本变化才刷新建议（导航/移动键不重置选中索引；程序化填充跳过 — 历史导航不触发补全）。</summary>
     internal void HandleKey(ConsoleKeyInfo keyInfo)
     {
         var key = ConsoleKeyAdapter.ToKeyPress(keyInfo);
@@ -185,15 +272,46 @@ public sealed class ReplShell
             return;
         }
 
+        var textBefore = _input.Text;
         HandleKeyPress(key);
+        if (_programmaticFill)
+        {
+            _programmaticFill = false;
+            return;
+        }
+
+        if (_input.Text != textBefore)
+        {
+            UpdateSuggestions();
+        }
     }
 
-    /// <summary>按键分派 — 权限对话框模态优先（数字/Esc/上下/Enter 路由对话框），其余 Emacs 编辑（Ctrl/Meta 词操作 + kill ring），控制键走编辑/提交/权限，字符插入。</summary>
+    /// <summary>按键分派 — 权限对话框模态优先（数字/Esc/上下/Enter 路由对话框）→ 模型选择器模态
+    /// （M7-6：Esc/上下/Enter 路由选择器）→ 补全激活专属键
+    /// （Up/Down 导航/Tab 接受/Enter 执行/Esc 关闭，基准 Autocomplete 上下文优先于 Chat），
+    /// 其余 Emacs 编辑（Ctrl/Meta 词操作 + kill ring），控制键走编辑/提交/权限，字符插入。</summary>
     private void HandleKeyPress(KeyPress key)
     {
         if (_permission.IsPending)
         {
             HandlePermissionKey(key);
+            return;
+        }
+
+        if (_modelPicker.IsPending)
+        {
+            HandleModelPickerKey(key);
+            return;
+        }
+
+        if (_search is not null)
+        {
+            HandleSearchKey(key);
+            return;
+        }
+
+        if (HandleSuggestionKey(key))
+        {
             return;
         }
 
@@ -264,10 +382,10 @@ public sealed class ReplShell
                 _input.Right();
                 break;
             case KeyKind.UpArrow:
-                ScrollIfViewport(-3);
+                NavigateHistory(-1);
                 break;
             case KeyKind.DownArrow:
-                ScrollIfViewport(3);
+                NavigateHistory(1);
                 break;
             case KeyKind.Home:
                 _input.Home();
@@ -324,6 +442,9 @@ public sealed class ReplShell
                 break;
             case "k":
                 _input.KillToLineEnd();
+                break;
+            case "r":
+                BeginOrCycleSearch();
                 break;
             case "n":
                 ScrollIfViewport(3);
@@ -417,6 +538,37 @@ public sealed class ReplShell
         }
     }
 
+    /// <summary>
+    /// 模型选择器模态按键（M7-6，对齐基准 ModelPicker Select 交互）：
+    /// Esc 取消（回调 null）+ Enter 选焦点项（回调携带 id）+ 上/下 clamp 移动焦点；
+    /// 其余按键全部吞掉（模态 — 不进输入缓冲、不提交、不打断）。
+    /// </summary>
+    private void HandleModelPickerKey(KeyPress key)
+    {
+        if (key.Kind == KeyKind.Escape)
+        {
+            CompleteModelPicker(null);
+            return;
+        }
+
+        if (key.Kind == KeyKind.Return)
+        {
+            CompleteModelPicker(_modelPicker.Focused?.Id);
+            return;
+        }
+
+        if (key.Kind == KeyKind.UpArrow)
+        {
+            _modelPicker.MoveFocus(-1);
+            return;
+        }
+
+        if (key.Kind == KeyKind.DownArrow)
+        {
+            _modelPicker.MoveFocus(1);
+        }
+    }
+
     /// <summary>视口模式滚动（inline 模式历史由终端滚轮原生回看，no-op）。</summary>
     private void ScrollIfViewport(int rows)
     {
@@ -425,6 +577,200 @@ public sealed class ReplShell
             _view.Messages.ScrollBy(rows);
         }
     }
+
+    /// <summary>进入或循环搜索（Ctrl+R）— 未激活：以当前输入为查询进入（暂存草稿）；
+    /// 已激活由 HandleSearchKey 拦截（本分支不会命中，防御保留）。</summary>
+    private void BeginOrCycleSearch()
+    {
+        if (_search is not null)
+        {
+            _search.Next();
+            return;
+        }
+
+        _preSearchDraft = _input.Text;
+        _search = HistorySearch.Begin(_input.Text, _history.Entries);
+    }
+
+    /// <summary>搜索态按键模态（基准 ctrl+r 反向搜索交互）：
+    /// Ctrl+R 循环下一个匹配；Enter 接受当前匹配（填入输入并提交，无匹配 no-op）；
+    /// Esc 退出恢复草稿；Up/Down 匹配间导航；字符/退格编辑查询（刷新匹配、重置最新）；
+    /// 其余键吞掉（模态 — 查询编辑设程序化标记防触发斜杠补全）。</summary>
+    private void HandleSearchKey(KeyPress key)
+    {
+        var search = _search;
+        if (search is null)
+        {
+            return;
+        }
+
+        if (key.Ctrl && key is { Kind: KeyKind.Char, Input: "r" })
+        {
+            search.Next();
+            return;
+        }
+
+        switch (key.Kind)
+        {
+            case KeyKind.Return:
+                if (search.Current.Length > 0)
+                {
+                    var accepted = search.Current;
+                    _search = null;
+                    FillInput(accepted, cursorToStart: false);
+                    Submit();
+                }
+
+                return;
+            case KeyKind.Escape:
+                var draft = _preSearchDraft;
+                _search = null;
+                FillInput(draft, cursorToStart: false);
+                return;
+            case KeyKind.UpArrow:
+                search.Previous();
+                return;
+            case KeyKind.DownArrow:
+                search.Next();
+                return;
+            case KeyKind.Backspace:
+                _input.Backspace();
+                search.UpdateQuery(_input.Text);
+                _programmaticFill = true;
+                return;
+            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input.Length == 1:
+                _input.Insert(key.Input[0]);
+                search.UpdateQuery(_input.Text);
+                _programmaticFill = true;
+                return;
+            default:
+                // 模态：其余键吞掉（Home/End/Delete 等编辑能力后续按需开放）
+                return;
+        }
+    }
+
+    /// <summary>补全激活时的专属键拦截（基准 Autocomplete 上下文）：
+    /// 下拉激活：Up/Down 循环导航、Tab 接受不执行、Enter 接受并提交、Esc 仅关建议（优先于打断/清输入/退出）；
+    /// ghost 激活（下拉互斥为空）：RightArrow（光标在末尾）接受幽灵补全、Esc 仅关 ghost；
+    /// 其余键返回 false 走正常编辑路径（编辑后刷新建议）。</summary>
+    private bool HandleSuggestionKey(KeyPress key)
+    {
+        if (_suggester is not { } suggester)
+        {
+            return false;
+        }
+
+        if (suggester.IsActive)
+        {
+            switch (key.Kind)
+            {
+                case KeyKind.UpArrow:
+                    suggester.Move(-1);
+                    return true;
+                case KeyKind.DownArrow:
+                    suggester.Move(1);
+                    return true;
+                case KeyKind.Tab:
+                    AcceptSuggestion(execute: false);
+                    return true;
+                case KeyKind.Return:
+                    AcceptSuggestion(execute: true);
+                    return true;
+                case KeyKind.Escape:
+                    suggester.Dismiss();
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        if (suggester.GhostSuffix.Length > 0)
+        {
+            if (key.Kind == KeyKind.RightArrow && _input.CursorCol == _input.Text.Length)
+            {
+                FillInput(_input.Text + suggester.GhostSuffix, cursorToStart: false);
+                return true;
+            }
+
+            if (key.Kind == KeyKind.Escape)
+            {
+                suggester.Dismiss();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>接受选中建议（基准 applyCommandSuggestion）— 命令模式：Tab 补全 "/命令 "（尾随空格进参数态）/
+    /// Enter 直接提交 "/命令"；参数模式（IsArgumentMode）：命令名取自输入前缀，补全 "/命令 参数 " 或提交 "/命令 参数"。</summary>
+    private void AcceptSuggestion(bool execute)
+    {
+        if (_suggester?.Selected is not { } selected)
+        {
+            return;
+        }
+
+        string completed;
+        if (_suggester.IsArgumentMode)
+        {
+            var spaceIndex = _input.Text.IndexOf(' ');
+            if (spaceIndex <= 1)
+            {
+                return;
+            }
+
+            var commandName = _input.Text[1..spaceIndex];
+            completed = $"/{commandName} {selected.Name}";
+        }
+        else
+        {
+            completed = $"/{selected.Name}";
+        }
+
+        FillInput(execute ? completed : completed + " ", cursorToStart: false);
+        UpdateSuggestions();
+        if (execute)
+        {
+            Submit();
+        }
+    }
+
+    /// <summary>历史导航（inline 主模式）— 上=翻旧（光标置行首，基准 cursorToStart）、下=翻新（恢复草稿光标置末尾）；
+    /// 到底/到顶保持不动（不回绕）；viewport 旧模式保留滚动语义。</summary>
+    private void NavigateHistory(int direction)
+    {
+        if (!_inline)
+        {
+            ScrollIfViewport(direction * 3);
+            return;
+        }
+
+        string text;
+        if (direction < 0)
+        {
+            if (!_history.TryUp(out text, _input.Text))
+            {
+                return;
+            }
+        }
+        else if (!_history.TryDown(out text))
+        {
+            return;
+        }
+
+        FillInput(text, cursorToStart: direction < 0);
+    }
+
+    /// <summary>程序化填充输入（历史导航/补全接受）— 设置跳过标记，HandleKey 尾部不刷新建议。</summary>
+    private void FillInput(string text, bool cursorToStart)
+    {
+        _programmaticFill = true;
+        _input.Replace(text, cursorToStart);
+    }
+
+    /// <summary>刷新建议（用户编辑路径；建议状态机内部判定触发条件）。</summary>
+    private void UpdateSuggestions() => _suggester?.Update(_input.Text);
 
     /// <summary>Esc：忙时打断当前回合；闲时有输入清空（对齐基准双击清空的单击近似），无输入退出。</summary>
     internal void HandleEscape()
@@ -451,7 +797,8 @@ public sealed class ReplShell
         _engine.SetPermissionMode(PermissionModeInfo.ToValue(next));
     }
 
-    /// <summary>提交输入：空文本忽略；否则追加用户消息并提交引擎（TurnStarted 事件驱动 busy，忙时由实现拒绝并 Error 诱导）。</summary>
+    /// <summary>提交输入：空文本忽略；否则追加用户消息并提交引擎（TurnStarted 事件驱动 busy，忙时由实现拒绝并 Error 诱导）；
+    /// 提交文本入历史环（末条去重）+ 导航态复位。</summary>
     internal void Submit()
     {
         var text = _input.Text;
@@ -461,24 +808,26 @@ public sealed class ReplShell
         }
 
         _input.Clear();
+        _history.Add(text);
+        _history.Reset();
         AddMessage(new UserMessageItem(text));
         _engine.Submit(text);
     }
 
-    /// <summary>渲染一帧并差分上屏：inline 走相对光标 + append（历史滚入 scrollback）+ DEC 2026 原子上屏；视口走绝对定位 diff。</summary>
-    private void RenderAndFlush()
+    /// <summary>渲染一帧并差分上屏：inline 走相对光标 + append（历史滚入 scrollback）+ DEC 2026 原子上屏；视口走绝对定位 diff。
+    /// internal = resize/渲染测试的单帧驱动面。</summary>
+    internal void RenderAndFlush()
     {
+        SyncSuggestionState();
         EnsureScreens();
         _back.Clear();
-        _animTimeMs += TickMs;
-        _spinner.AnimTimeMs = _animTimeMs;
-        _spinner.WallNowMs = Environment.TickCount64;
+        AdvanceAnimClock();
         _view.Input = _input.Text;
         _view.CursorCol = _input.CursorCol;
         _view.Render(_back, _theme);
         if (_inline)
         {
-            var viewportRows = Math.Max(8, Console.WindowHeight);
+            var viewportRows = _sizeSource.Current.Rows;
             var frameEnd = _view.InputCursorPos(_back.Rows, _back.Cols, _input.CursorCol);
             var prev = _frontValid ? _front : _prevOverride;
             var output = _inlineComposer.Compose(prev, _back, viewportRows, _cursor, frameEnd, out _cursor);
@@ -504,24 +853,57 @@ public sealed class ReplShell
         _frontValid = true;
     }
 
-    /// <summary>
-    /// 尺寸计算（含首帧）成对重建双缓冲 — inline 屏高 = 内容总高（消息全量展示，可超视口），
-    /// 重建时保留旧帧跨尺寸 diff（增长 append / 宽度变 fullReset）；视口模式屏高 = 终端行数。
-    /// </summary>
-    private void EnsureScreens()
+    /// <summary>动画时钟推进 + 广播：每拍 +50ms，喂给滚动区全部 IAnimatable（基准 useBlink 共享时钟 — 全实例同步闪烁）；
+    /// spinner 专属墙钟一并注入（elapsed 暂停感知，语义区别于动画相位时钟）。</summary>
+    internal void AdvanceAnimClock()
     {
-        var cols = Math.Max(20, Console.WindowWidth);
-        var rows = _inline
+        _animTimeMs += TickMs;
+        foreach (var item in _view.Messages.Items)
+        {
+            if (item is IAnimatable animatable)
+            {
+                animatable.AnimTimeMs = _animTimeMs;
+            }
+        }
+
+        _spinner.WallNowMs = Environment.TickCount64;
+    }
+
+    /// <summary>后缓冲（resize 测试断言面 — 屏尺寸/重建复用判定）。</summary>
+    internal Screen? BackBuffer => _back;
+
+    /// <summary>resize 跨尺寸 diff 旧帧（测试断言面 — 重建时保留旧屏供 InlineComposer append/fullReset）。</summary>
+    internal Screen? PrevOverride => _prevOverride;
+
+    /// <summary>同步补全建议到视图（渲染前状态投影 — EnsureScreens 屏高计算依赖建议区高度，必须先行）。</summary>
+    private void SyncSuggestionState()
+    {
+        _view.Suggestions = _suggester is { IsActive: true } ? _suggester.Items : null;
+        _view.SuggestionIndex = _suggester?.SelectedIndex ?? 0;
+        _view.SuggestionNameColumnWidth = _suggester?.NameColumnWidth ?? 0;
+        _view.SuggestionArgumentMode = _suggester?.IsArgumentMode ?? false;
+        _view.GhostSuffix = _search is { Current.Length: > 0 } ? _search.Current : _suggester?.GhostSuffix ?? string.Empty;
+    }
+
+    /// <summary>
+    /// 尺寸计算（含首帧）成对重建双缓冲 — 尺寸取自注入源（resize 事件化，不读 Console 静态环境）；
+    /// inline 屏高 = 内容总高（消息全量展示，可超视口 — 终端 rows 非 resize 敏感维度），
+    /// 重建时保留旧帧跨尺寸 diff（增长 append / 宽度变 fullReset）；视口模式屏高 = 尺寸源行数。
+    /// </summary>
+    internal void EnsureScreens()
+    {
+        var (cols, rows) = _sizeSource.Current;
+        var backRows = _inline
             ? Math.Max(8, _view.MeasureContentHeight(cols))
-            : Math.Max(8, Console.WindowHeight);
-        if (_back is not null && cols == _back.Cols && rows == _back.Rows)
+            : rows;
+        if (_back is not null && cols == _back.Cols && backRows == _back.Rows)
         {
             return;
         }
 
         _prevOverride = _inline && _frontValid ? _front : null;
-        _front = new Screen(cols, rows, sharedStyles: _pool);
-        _back = new Screen(cols, rows, sharedStyles: _pool);
+        _front = new Screen(cols, backRows, sharedStyles: _pool);
+        _back = new Screen(cols, backRows, sharedStyles: _pool);
         _frontValid = false;
     }
 

@@ -7,49 +7,10 @@ namespace NativeTui.Tests.Repl;
 /// </summary>
 public sealed class ReplShellTests
 {
-    /// <summary>记录型假引擎 — 捕获 Submit/Interrupt/SetPermissionMode 调用 + 可注入事件队列。</summary>
-    private sealed class FakeEngine : IReplEngine
-    {
-        /// <summary>收到的提交文本。</summary>
-        public List<string> Submits { get; } = [];
-
-        /// <summary>收到的打断次数。</summary>
-        public int Interrupts;
-
-        /// <summary>收到的权限模式。</summary>
-        public List<string> PermissionModes { get; } = [];
-
-        /// <summary>待排空事件队列（DrainEvents 一次清空）。</summary>
-        public Queue<BridgeEvent> Events { get; } = new();
-
-        /// <summary>引擎存活标记（测试可置 false 模拟死亡）。</summary>
-        public bool Alive = true;
-
-        /// <summary>记录提交。</summary>
-        public void Submit(string text) => Submits.Add(text);
-
-        /// <summary>记录打断。</summary>
-        public void Interrupt() => Interrupts++;
-
-        /// <summary>记录权限模式。</summary>
-        public void SetPermissionMode(string mode) => PermissionModes.Add(mode);
-
-        /// <summary>排空事件队列。</summary>
-        public IReadOnlyList<BridgeEvent> DrainEvents()
-        {
-            var drained = Events.ToList();
-            Events.Clear();
-            return drained;
-        }
-
-        /// <summary>存活标记。</summary>
-        public bool IsAlive => Alive;
-    }
-
     /// <summary>构造测试 shell（StringWriter 收渲染输出，seed 消息可缺省）。</summary>
-    private static (ReplShell Shell, FakeEngine Engine) CreateShell(IReadOnlyList<IScrollItem>? seed = null)
+    private static (ReplShell Shell, FakeReplEngine Engine) CreateShell(IReadOnlyList<IScrollItem>? seed = null)
     {
-        var engine = new FakeEngine();
+        var engine = new FakeReplEngine();
         var banner = new BannerItem("1.0.0", "test-model", "API 按量计费", "/tmp");
         var shell = new ReplShell(engine, banner, new StringWriter(), seedMessages: seed);
         return (shell, engine);
@@ -124,6 +85,21 @@ public sealed class ReplShellTests
         engine.Events.Enqueue(new BridgeEvent.PermissionModeChanged("plan"));
         shell.DrainEngine();
         Assert.Equal(PermissionMode.Plan, shell.View.Footer.Mode);
+    }
+
+    /// <summary>DrainEngine：PermissionRequest 事件经 Driver 钩子分派到权限对话框（模态挂起 + 对话框项插入滚动区）。</summary>
+    [Fact]
+    public void DrainEngine_PermissionRequestEvent_BeginsPermissionDialog()
+    {
+        var (shell, engine) = CreateShell();
+        shell.SeedContent();
+
+        engine.Events.Enqueue(new BridgeEvent.TurnStarted());
+        engine.Events.Enqueue(new BridgeEvent.PermissionRequest("Bash", "运行演示命令"));
+        shell.DrainEngine();
+
+        Assert.True(shell.Permission.IsPending);
+        Assert.Contains(shell.View.Messages.Items, m => m is PermissionRequestItem);
     }
 
     /// <summary>DrainEngine：引擎死亡（非忙）— 追加错误消息并请求停止。</summary>
@@ -231,5 +207,37 @@ public sealed class ReplShellTests
         shell.CyclePermissionMode();
         Assert.Single(engine.PermissionModes);
         Assert.Equal(PermissionMode.Auto, shell.View.Footer.Mode);
+    }
+
+    /// <summary>AdvanceAnimClock：动画时钟广播给滚动区全部 IAnimatable — spinner 与注入项同值（基准 useBlink 共享时钟 → 全实例同步闪烁）；每拍 +50ms。</summary>
+    [Fact]
+    public void AdvanceAnimClock_BroadcastsToAllAnimatableItems()
+    {
+        var (shell, _) = CreateShell();
+        shell.SeedContent();
+        var fake = new FakeAnimatableItem();
+        shell.View.Messages.Insert(shell.View.Messages.Count - 1, fake);
+
+        shell.AdvanceAnimClock();
+        Assert.Equal(50, fake.AnimTimeMs);
+        var spinner = (SpinnerItem)shell.View.Messages.Items[^1];
+        Assert.Equal(50, spinner.AnimTimeMs);
+        Assert.Equal(fake.AnimTimeMs, spinner.AnimTimeMs);
+
+        shell.AdvanceAnimClock();
+        Assert.Equal(100, fake.AnimTimeMs);
+        Assert.Equal(fake.AnimTimeMs, spinner.AnimTimeMs);
+    }
+}
+
+/// <summary>测试注入用动画项（IAnimatable 消费面 — 广播路由断言）。</summary>
+internal sealed class FakeAnimatableItem : IScrollItem, IAnimatable
+{
+    public long AnimTimeMs { get; set; }
+
+    public int MeasureHeight(int width) => 1;
+
+    public void Render(Screen screen, Rect frame, Theme theme)
+    {
     }
 }

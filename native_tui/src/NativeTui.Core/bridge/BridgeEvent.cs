@@ -4,7 +4,7 @@ namespace NativeTui.Core.Bridge;
 /// bridge 事件（Engine → TUI，读子进程 stdout）— ADR 0141 事件契约：
 /// 会话握手（session_info）、权限模式（permission_mode_changed）、
 /// 回合生命周期（turn_started/completed/interrupted）、思考（thinking_started/ended）、
-/// 工具（tool_call/tool_result）、流式（token_delta）、消息（assistant_message/error）。
+/// 工具（tool_call/tool_result/permission_request）、流式（token_delta）、消息（assistant_message/error）。
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(SessionInfo), "session_info")]
@@ -14,10 +14,14 @@ namespace NativeTui.Core.Bridge;
 [JsonDerivedType(typeof(ThinkingEnded), "thinking_ended")]
 [JsonDerivedType(typeof(ToolCall), "tool_call")]
 [JsonDerivedType(typeof(ToolResult), "tool_result")]
+[JsonDerivedType(typeof(PermissionRequest), "permission_request")]
 [JsonDerivedType(typeof(TokenDelta), "token_delta")]
 [JsonDerivedType(typeof(AssistantMessage), "assistant_message")]
 [JsonDerivedType(typeof(TurnCompleted), "turn_completed")]
 [JsonDerivedType(typeof(TurnInterrupted), "turn_interrupted")]
+[JsonDerivedType(typeof(SubagentStarted), "subagent_started")]
+[JsonDerivedType(typeof(SubagentToolUse), "subagent_tool_use")]
+[JsonDerivedType(typeof(SubagentFinished), "subagent_finished")]
 [JsonDerivedType(typeof(Error), "error")]
 public abstract record BridgeEvent
 {
@@ -49,6 +53,12 @@ public abstract record BridgeEvent
     public sealed record ToolResult(string Summary,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DiffHunk[]? Patch = null) : BridgeEvent;
 
+    /// <summary>
+    /// 权限请求（工具执行前需用户确认 — TUI 模态对话框）。Demo 进程内路径由 SimulatedEngine 事件驱动；
+    /// 真实宿主路径不经此事件（TuiPermissionBridge.Confirm 同步回调直挂 ReplShell.BeginPermissionRequest）。
+    /// </summary>
+    public sealed record PermissionRequest(string ToolName, string Description) : BridgeEvent;
+
     /// <summary>流式 token 增量（spinner ResponseLength 累加）。</summary>
     public sealed record TokenDelta(int Length) : BridgeEvent;
 
@@ -64,6 +74,21 @@ public abstract record BridgeEvent
 
     /// <summary>回合被打断（idle）。</summary>
     public sealed record TurnInterrupted() : BridgeEvent;
+
+    /// <summary>
+    /// 子代理启动（M7-7 分组渲染入口）— Driver 惰性建组（回合内首个子代理创建组项落位滚动区），
+    /// 同回合内全部子代理归一组（分组语义 = 按 turn，基准按 messageId 批次 — 本项目 bridge 协议无消息边界）。
+    /// </summary>
+    public sealed record SubagentStarted(string SubagentId, string AgentType, string Description) : BridgeEvent;
+
+    /// <summary>
+    /// 子代理工具活动（进度增量）— 组内条目计数/令牌累计 + 最后活动更新（基准 agent_progress 流式 append 语义；
+    /// 本项目路由到组条目原地更新，不逐条刷屏）。TokenGain = 本次活动新增令牌（参数名避开嵌套类型 TokenDelta）。
+    /// </summary>
+    public sealed record SubagentToolUse(string SubagentId, string ToolName, string Summary, int TokenGain) : BridgeEvent;
+
+    /// <summary>子代理完成 — 条目定格（isError 聚合组头 ● 红；基准基准 agent 完成态 Done）。</summary>
+    public sealed record SubagentFinished(string SubagentId, bool IsError) : BridgeEvent;
 
     /// <summary>错误（含诱导说明）。</summary>
     public sealed record Error(string Message) : BridgeEvent;

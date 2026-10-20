@@ -33,6 +33,25 @@ runs:
         name: ${{ inputs.nuget-artifact-name }}
         path: artifacts/nuget/
 
+    # NuGet 缓存 key 只哈希 csproj+props，不含 .cs 源码 — 只改源码的 PR 会命中旧缓存里的
+    # 过期 JoinCode 组件包（版本恒 1.0.0 无法靠版本号辨新旧），而源码生成器（analyzer 恒新）
+    # 输出引用新 API → CS0117 编译错。删缓存里的自家组件包强制从 local-feed（本次 pack 的
+    # 最新 artifact）重解析；第三方大包（网络下载大头）缓存照常命中，仅本地磁盘重拷秒级。
+    - name: Purge Stale JoinCode Component Packages from Cache
+      shell: pwsh
+      run: |
+        $pkgRoot = Join-Path $env:GITHUB_WORKSPACE ".nuget" "packages"
+        if (Test-Path $pkgRoot) {
+          $stale = Get-ChildItem -Path $pkgRoot -Directory -Filter "joincode.*"
+          if ($stale) {
+            $stale | ForEach-Object { Write-Host "purging: $($_.Name)" }
+            Remove-Item -Path $stale.FullName -Recurse -Force
+            Write-Host "Purged $($stale.Count) JoinCode package(s) — restore re-resolves from local feed (latest pack)"
+          } else {
+            Write-Host "No JoinCode packages in cache — nothing to purge"
+          }
+        }
+
     - name: Add Local NuGet Feed
       shell: pwsh
       run: |

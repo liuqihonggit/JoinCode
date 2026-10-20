@@ -24,6 +24,12 @@ public sealed class EngineSession : IAsyncDisposable {
     /// <summary>权限确认桥 — Program 在 shell 构造后 Bind（引擎 PendingConfirmation → TUI 对话框闭环，M7-3）。</summary>
     public TuiPermissionBridge PermissionBridge => _permissionBridge;
 
+    /// <summary>引擎服务容器 — 宿主组装层消费（命令清单/历史种子等只读解析）。</summary>
+    public IServiceProvider Services => _engine.Services;
+
+    /// <summary>当前会话标识 — 历史种子排除当前会话防双份。</summary>
+    public string SessionId => _engine.SessionId;
+
     /// <summary>组装引擎会话 — 建会话（TuiInteractionModule 注册权限确认 handler）→ 解析权限/模型 → 构造回合客户端 → 种子 session_info；失败时释放已建引擎 Host。</summary>
     public static async Task<EngineSession> CreateAsync(CancellationToken cancellationToken = default) {
         var permissionBridge = new TuiPermissionBridge();

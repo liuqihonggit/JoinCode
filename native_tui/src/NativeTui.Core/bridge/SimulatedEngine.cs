@@ -1,26 +1,59 @@
 namespace NativeTui.Core.Bridge;
 
 /// <summary>
-/// 模拟引擎 — Demo 模拟回合的事件化改造（ReplShell 提取后替代 DemoSession 内嵌状态机）：
-/// 时间驱动三阶段（Thinking 1.2s → ToolUse 2.4s → Responding 5.4s），
-/// 阶段迁移产出 BridgeEvent（ToolCall/ToolResult/TokenDelta/TurnCompleted），
+/// 模拟引擎 — Demo 演示命令路由（md/diff/perm/all — 未知命令 Error 诱导）：
+/// Submit 按命令选定回合脚本（TurnScript），时间驱动阶段状态机按脚本产出 BridgeEvent
+/// （ToolCall/ToolResult/TokenDelta/PermissionRequest/TurnCompleted），
 /// 与真实 bridge 路径共用同一事件协议（ReplBridgeDriver 唯一翻译层）。
 /// 时钟注入（默认墙钟）— 单元测试可注入虚拟时钟做确定性验证。
 /// spinner Message 不经事件协议（真实路径空消息+随机动词采样，模拟直改属可弃糖）。
 /// </summary>
 public sealed class SimulatedEngine : IReplEngine
 {
-    /// <summary>Thinking → ToolUse 迁移时刻（ms）。</summary>
+    /// <summary>Thinking → 下一阶段迁移时刻（ms）— 工具脚本产 ToolCall、权限脚本产 PermissionRequest。</summary>
     private const long ToolUseAtMs = 1200;
 
-    /// <summary>ToolUse → Responding 迁移时刻（ms）。</summary>
+    /// <summary>ToolUse → Responding 迁移时刻（ms）— 工具脚本产 ToolResult + 补丁。</summary>
     private const long RespondingAtMs = 2400;
 
-    /// <summary>回合完成时刻（ms）。</summary>
+    /// <summary>回合完成时刻（ms）— md/diff/all 脚本。</summary>
     private const long CompletedAtMs = 5400;
+
+    /// <summary>权限脚本回合完成时刻（ms）— 交互窗口加长（用户从容选择档位）。</summary>
+    private const long PermissionCompletedAtMs = 8000;
 
     /// <summary>Responding 阶段每拍 token 增量。</summary>
     private const int TokenDeltaPerTick = 9;
+
+    /// <summary>子代理批量启动时刻（ms）— Submit 后一拍内全部 SubagentStarted（_pending 队列承载 300 规模）。</summary>
+    private const long SubagentStartedAtMs = 200;
+
+    /// <summary>子代理首个工具活动基准时刻（ms）— 后续按序号错开（i×25ms 交错演示窗口活动跟随）。</summary>
+    private const long SubagentFirstToolAtMs = 500;
+
+    /// <summary>子代理相邻工具活动间隔（ms）。</summary>
+    private const long SubagentToolIntervalMs = 350;
+
+    /// <summary>子代理每代理工具活动次数。</summary>
+    private const int SubagentToolUsesPerAgent = 2;
+
+    /// <summary>子代理完成时刻基准（ms）— 末次工具活动后 300ms 交错完成。</summary>
+    private const long SubagentFinishBaseMs = SubagentFirstToolAtMs + SubagentToolUsesPerAgent * SubagentToolIntervalMs + 300;
+
+    /// <summary>agents 默认子代理数量（不带参数）。</summary>
+    private const int DefaultSubagentCount = 12;
+
+    /// <summary>子代理类型池（轮转分配 — 混合类型组演示 hideType=false 形态与八色板多色）。</summary>
+    private static readonly string[] SubagentTypes = ["explore", "reviewer", "builder"];
+
+    /// <summary>子代理工具名池（轮转 — 活动行文本变化演示）。</summary>
+    private static readonly string[] SubagentToolNames = ["Read", "Grep", "Edit"];
+
+    /// <summary>权限演示工具名（对话框标题）。</summary>
+    private const string PermissionToolName = "Bash";
+
+    /// <summary>权限演示描述（对话框正文 — 说明将执行什么）。</summary>
+    private const string PermissionDescription = "运行演示命令 demo/simulated.sh（模拟需确认的工具调用）";
 
     /// <summary>回合计时起点（clock 值）。</summary>
     private long _turnStart;
@@ -31,26 +64,84 @@ public sealed class SimulatedEngine : IReplEngine
     /// <summary>回合进行中。</summary>
     private bool _inTurn;
 
+    /// <summary>当前回合演示脚本（Submit 命令路由产物 — 决定阶段迁移事件序列）。</summary>
+    private TurnScript _script = TurnScript.Full;
+
+    /// <summary>agents 脚本并行子代理列表（Submit 时建列表，200ms 批量发启动事件）。</summary>
+    private List<SimulatedSubagent> _subagents = [];
+
+    /// <summary>agents 脚本是否已发批量启动事件。</summary>
+    private bool _subagentStartedSent;
+
+    /// <summary>agents 脚本是否已发回合收束（全部完成后一次）。</summary>
+    private bool _subagentTurnCompleted;
+
     /// <summary>待排空事件队列（Submit/Interrupt 立即入队，DrainEvents 阶段迁移追加）。</summary>
     private readonly Queue<BridgeEvent> _pending = new();
 
     /// <summary>时钟（默认墙钟 — 测试注入虚拟时钟）。</summary>
     private readonly Func<long> _clock;
 
+    /// <summary>回合演示脚本 — Submit 命令路由产物，决定阶段迁移产出的事件序列。</summary>
+    private enum TurnScript
+    {
+        /// <summary>md — 纯 Markdown 演示：无工具事件，完成消息携带全形态块模型。</summary>
+        Markdown,
+
+        /// <summary>diff — 纯 StructuredDiff 演示：ToolResult 带补丁，完成消息纯文本。</summary>
+        Diff,
+
+        /// <summary>perm — 权限对话框演示：1.2s PermissionRequest，挂起期无 token 流式，8s 延迟完成。</summary>
+        Permission,
+
+        /// <summary>all — 完整回合：补丁 + Markdown（既有默认演示）。</summary>
+        Full,
+
+        /// <summary>agents — 并行子代理分组演示（M7-7）：批量启动 + 交错工具活动 + 交错完成（每第 7 个失败）。</summary>
+        Subagents,
+    }
+
+    /// <summary>模拟子代理（agents 脚本并行子回合 — 独立时间线推进，区别于主回合三段状态机）。</summary>
+    private sealed class SimulatedSubagent
+    {
+        /// <summary>序号（事件 id 与交错时刻基数）。</summary>
+        public required int Index { get; init; }
+
+        /// <summary>代理类型（类型池轮转）。</summary>
+        public required string AgentType { get; init; }
+
+        /// <summary>任务描述。</summary>
+        public required string Description { get; init; }
+
+        /// <summary>剩余工具活动次数。</summary>
+        public int ToolUsesLeft { get; set; }
+
+        /// <summary>下次工具活动时刻（ms，回合内偏移）。</summary>
+        public long NextToolAtMs { get; set; }
+
+        /// <summary>完成时刻（ms，回合内偏移）。</summary>
+        public long FinishAtMs { get; init; }
+
+        /// <summary>是否已完成。</summary>
+        public bool IsDone { get; set; }
+    }
+
     /// <summary>
-    /// 模拟补丁 — Demo 演示 StructuredDiff 渲染链路（M7-2）：4 行 hunk 超 2 行预览，同时演示折叠提示。
+    /// 模拟补丁 — Demo 演示 StructuredDiff 渲染链路（M7-2）：Removed/Added 行在前（红绿可见），
+    /// Context 行殿后；4 行 hunk 全量渲染（≤ DiffResultItem 预览上限 10 行）。
+    /// 公开静态供渲染可见性回归测试与 Demo 构造复用（对齐 DemoMarkdown 先例）。
     /// </summary>
-    private static readonly DiffHunk[] SimulatedPatch =
+    public static readonly DiffHunk[] SimulatedPatch =
     [
         new()
         {
             Header = "@@ -1,4 +1,5 @@",
             Lines =
             [
-                new DiffLine { Kind = DiffLineKind.Context, Content = "existing line" },
                 new DiffLine { Kind = DiffLineKind.Removed, Content = "old behavior" },
                 new DiffLine { Kind = DiffLineKind.Added, Content = "new behavior + diff render" },
                 new DiffLine { Kind = DiffLineKind.Added, Content = "extra line to show collapse" },
+                new DiffLine { Kind = DiffLineKind.Context, Content = "existing line" },
             ],
         },
     ];
@@ -113,7 +204,8 @@ public sealed class SimulatedEngine : IReplEngine
     /// <summary>进程内模拟 — 恒存活。</summary>
     public bool IsAlive => true;
 
-    /// <summary>提交回合：忙时拒绝回 Error 诱导（对齐 EngineTurnClient 语义），否则入队 TurnStarted 并开始计时。</summary>
+    /// <summary>提交回合：忙时拒绝回 Error 诱导（对齐 EngineTurnClient 语义）；未知命令拒绝回 Error 诱导
+    /// （列出全部演示命令与用途 — 含为什么拒绝/怎么做）；有效命令选定脚本、入队 TurnStarted 并开始计时。</summary>
     public void Submit(string text)
     {
         if (_inTurn)
@@ -122,11 +214,75 @@ public sealed class SimulatedEngine : IReplEngine
             return;
         }
 
+        if (ParseCommand(text) is not { } script)
+        {
+            _pending.Enqueue(new BridgeEvent.Error(UnknownCommandMessage(text)));
+            return;
+        }
+
+        _script = script;
         _inTurn = true;
         _stage = 0;
         _turnStart = _clock();
+        if (script is TurnScript.Subagents)
+        {
+            _subagents = CreateSubagents(ParseSubagentCount(text));
+            _subagentStartedSent = false;
+            _subagentTurnCompleted = false;
+        }
+
         _pending.Enqueue(new BridgeEvent.TurnStarted());
     }
+
+    /// <summary>演示命令路由（trim 后匹配，兼容斜杠前缀 /md 形态 — TUI 补全接受后提交带 /）— null = 未知命令；
+    /// agents 支持 "agents" / "agents N"（N=1..999，非法后缀拒绝）。</summary>
+    private static TurnScript? ParseCommand(string text)
+    {
+        var command = text.Trim();
+        if (command.StartsWith('/'))
+        {
+            command = command[1..];
+        }
+
+        if (command == "agents" || (command.StartsWith("agents ", StringComparison.Ordinal) && int.TryParse(command["agents ".Length..], out var count) && count is >= 1 and <= 999))
+        {
+            return TurnScript.Subagents;
+        }
+
+        return command switch
+        {
+            "md" => TurnScript.Markdown,
+            "diff" => TurnScript.Diff,
+            "perm" => TurnScript.Permission,
+            "all" => TurnScript.Full,
+            "theme" => TurnScript.Markdown,
+            "model" => TurnScript.Full,
+            _ => null,
+        };
+    }
+
+    /// <summary>解析子代理数量 — "agents" 默认 12；"agents N" 取 N（调用方已校验合法）。</summary>
+    private static int ParseSubagentCount(string text)
+    {
+        var command = text.Trim().TrimStart('/');
+        return int.TryParse(command["agents".Length..].Trim(), out var count) ? count : DefaultSubagentCount;
+    }
+
+    /// <summary>构造并行子代理列表（类型/工具名轮转 + 交错时间线 + 每 7 个一个失败演示组头红态）。</summary>
+    private static List<SimulatedSubagent> CreateSubagents(int count) =>
+        Enumerable.Range(0, count).Select(i => new SimulatedSubagent
+        {
+            Index = i,
+            AgentType = SubagentTypes[i % SubagentTypes.Length],
+            Description = $"并行任务 {i + 1}",
+            ToolUsesLeft = SubagentToolUsesPerAgent,
+            NextToolAtMs = SubagentFirstToolAtMs + i * 25,
+            FinishAtMs = SubagentFinishBaseMs + i * 25,
+        }).ToList();
+
+    /// <summary>未知命令 Error 诱导 — 列出全部演示命令与各自用途（含怎么做，提示可输入 / 弹补全列表）。</summary>
+    private static string UnknownCommandMessage(string input) =>
+        $"未知演示命令「{input}」。可用命令：md（Markdown 全形态渲染）、diff（结构化补丁）、perm（权限对话框）、all（完整回合 = 补丁 + Markdown）、agents（并行子代理分组，可带数量如 agents 300）。可直接输入命令或输入 / 弹出补全列表选择。";
 
     /// <summary>打断当前回合（闲时 no-op）。</summary>
     public void Interrupt()
@@ -153,7 +309,8 @@ public sealed class SimulatedEngine : IReplEngine
         return drained;
     }
 
-    /// <summary>按已流逝时间推进阶段状态机（到期迁移入队事件；Responding 阶段每拍 token 增量）。</summary>
+    /// <summary>按已流逝时间推进阶段状态机（阶段迁移按脚本分派事件；Responding 阶段非权限脚本每拍 token 增量；
+    /// agents 脚本走独立并行子回合推进）。</summary>
     private void AdvanceStages()
     {
         if (!_inTurn)
@@ -162,30 +319,126 @@ public sealed class SimulatedEngine : IReplEngine
         }
 
         var elapsed = _clock() - _turnStart;
-        if (_stage == 0 && elapsed >= ToolUseAtMs)
+        if (_script is TurnScript.Subagents)
         {
-            _stage = 1;
+            AdvanceSubagents(elapsed);
+            return;
+        }
+
+        AdvanceThinking(elapsed);
+        AdvanceToolUse(elapsed);
+        AdvanceResponding(elapsed);
+    }
+
+    /// <summary>agents 脚本并行子回合推进：批量启动（一拍）→ 交错工具活动（各自时间线）→ 交错完成（每第 7 个失败）→ 全部完成收束回合。</summary>
+    private void AdvanceSubagents(long elapsed)
+    {
+        if (!_subagentStartedSent && elapsed >= SubagentStartedAtMs)
+        {
+            _subagentStartedSent = true;
+            foreach (var subagent in _subagents)
+            {
+                _pending.Enqueue(new BridgeEvent.SubagentStarted($"agent-{subagent.Index}", subagent.AgentType, subagent.Description));
+            }
+        }
+
+        foreach (var subagent in _subagents.Where(s => !s.IsDone))
+        {
+            while (subagent.ToolUsesLeft > 0 && subagent.NextToolAtMs <= elapsed)
+            {
+                var useIndex = SubagentToolUsesPerAgent - subagent.ToolUsesLeft;
+                _pending.Enqueue(new BridgeEvent.SubagentToolUse(
+                    $"agent-{subagent.Index}",
+                    SubagentToolNames[(subagent.Index + useIndex) % SubagentToolNames.Length],
+                    $"demo/file{subagent.Index % 5}.cs",
+                    TokenGain: 100 + (subagent.Index * 37) % 800));
+                subagent.ToolUsesLeft--;
+                subagent.NextToolAtMs += SubagentToolIntervalMs;
+            }
+
+            if (subagent.ToolUsesLeft == 0 && subagent.FinishAtMs <= elapsed)
+            {
+                subagent.IsDone = true;
+                _pending.Enqueue(new BridgeEvent.SubagentFinished($"agent-{subagent.Index}", IsError: subagent.Index % 7 == 6));
+            }
+        }
+
+        if (!_subagentTurnCompleted && _subagents.All(static subagent => subagent.IsDone))
+        {
+            _subagentTurnCompleted = true;
+            _inTurn = false;
+            var failures = _subagents.Count(static subagent => subagent.Index % 7 == 6);
+            _pending.Enqueue(new BridgeEvent.AssistantMessage($"演示回复 — {_subagents.Count} 个子代理并行完成（{failures} 个失败）分组渲染链路运行正常。"));
+            _pending.Enqueue(new BridgeEvent.TurnCompleted());
+        }
+    }
+
+    /// <summary>Thinking → 下一阶段（1.2s 到点）：工具脚本产 ToolCall，权限脚本产 PermissionRequest，md 无事件直入。</summary>
+    private void AdvanceThinking(long elapsed)
+    {
+        if (_stage != 0 || elapsed < ToolUseAtMs)
+        {
+            return;
+        }
+
+        _stage = 1;
+        if (_script is TurnScript.Full or TurnScript.Diff)
+        {
             _pending.Enqueue(new BridgeEvent.ToolCall("Edit", "demo/simulated.cs"));
         }
-
-        if (_stage == 1 && elapsed >= RespondingAtMs)
+        else if (_script is TurnScript.Permission)
         {
-            _stage = 2;
-            _pending.Enqueue(new BridgeEvent.ToolResult("Updated demo/simulated.cs (simulated)", SimulatedPatch));
+            _pending.Enqueue(new BridgeEvent.PermissionRequest(PermissionToolName, PermissionDescription));
+        }
+    }
+
+    /// <summary>ToolUse → Responding（2.4s 到点）：工具脚本产 ToolResult + 结构化补丁，其余脚本无事件。</summary>
+    private void AdvanceToolUse(long elapsed)
+    {
+        if (_stage != 1 || elapsed < RespondingAtMs)
+        {
+            return;
         }
 
-        if (_stage == 2 && elapsed >= CompletedAtMs)
+        _stage = 2;
+        if (_script is TurnScript.Full or TurnScript.Diff)
+        {
+            _pending.Enqueue(new BridgeEvent.ToolResult("Updated demo/simulated.cs (simulated)", SimulatedPatch));
+        }
+    }
+
+    /// <summary>Responding → 完成（脚本完成时刻到点）：完成消息（md/all 携带 Markdown 块模型）+ TurnCompleted；
+    /// 权限脚本挂起期无 token 流式（权限等待语义），其余脚本每拍 token 增量。</summary>
+    private void AdvanceResponding(long elapsed)
+    {
+        if (_stage == 2 && elapsed >= CompletionAtMs(_script))
         {
             _stage = 3;
             _inTurn = false;
-            _pending.Enqueue(new BridgeEvent.AssistantMessage("演示回复 — markdown 全形态渲染管线运行正常。", DemoMarkdown));
+            _pending.Enqueue(new BridgeEvent.AssistantMessage(CompletionText(_script), CompletionMarkdown(_script)));
             _pending.Enqueue(new BridgeEvent.TurnCompleted());
             return;
         }
 
-        if (_stage == 2)
+        if (_stage == 2 && _script is not TurnScript.Permission)
         {
             _pending.Enqueue(new BridgeEvent.TokenDelta(TokenDeltaPerTick));
         }
     }
+
+    /// <summary>完成时刻（ms）— 权限脚本 8s（交互窗口），其余 5.4s。</summary>
+    private static long CompletionAtMs(TurnScript script) => script is TurnScript.Permission ? PermissionCompletedAtMs : CompletedAtMs;
+
+    /// <summary>完成消息文本（按脚本语义区分）。</summary>
+    private static string CompletionText(TurnScript script) => script switch
+    {
+        TurnScript.Diff => "演示回复 — StructuredDiff 补丁渲染链路运行正常。",
+        TurnScript.Permission => "演示回复 — 权限对话框交互完成（挂起期无 token 流式，回合正常收束）。",
+        TurnScript.Markdown => "演示回复 — Markdown 全形态渲染管线运行正常。",
+        _ => "演示回复 — 完整回合（补丁 + Markdown）运行正常。",
+    };
+
+    /// <summary>完成消息 Markdown 块模型 — md/all 携带全形态演示文档，diff/perm 纯文本。</summary>
+    private static MarkdownDocument? CompletionMarkdown(TurnScript script) =>
+        script is TurnScript.Markdown or TurnScript.Full ? DemoMarkdown : null;
 }

@@ -222,6 +222,36 @@ public sealed record Theme
     /// <summary>彩虹紫 shimmer。</summary>
     public Color RainbowVioletShimmer { get; init; }
 
+    /// <summary>
+    /// 子代理类型取色（M7-7）— 八色板按 AgentType 稳定哈希分配（基准 agentColorManager 按 agentType
+    /// 全局分配 8 色板；本项目 FNV-1a 哈希 → 色板索引，同类型恒同色、进程间稳定）。
+    /// </summary>
+    public Color SubagentColor(string agentType) =>
+        (Fnv1a(agentType) % 8) switch
+        {
+            0 => RedForSubagentsOnly,
+            1 => BlueForSubagentsOnly,
+            2 => GreenForSubagentsOnly,
+            3 => YellowForSubagentsOnly,
+            4 => PurpleForSubagentsOnly,
+            5 => OrangeForSubagentsOnly,
+            6 => PinkForSubagentsOnly,
+            _ => CyanForSubagentsOnly,
+        };
+
+    /// <summary>FNV-1a 稳定哈希（跨进程确定 — 字符串 GetHashCode 进程随机化不可用于稳定取色）。</summary>
+    private static uint Fnv1a(string text)
+    {
+        var hash = 2166136261u;
+        foreach (var c in text)
+        {
+            hash ^= c;
+            hash *= 16777619;
+        }
+
+        return hash;
+    }
+
     /// <summary>暗色主题（默认）— 全量对齐基准 theme.ts darkTheme。</summary>
     public static Theme Dark { get; } = new()
     {

@@ -225,7 +225,9 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator {
             sb.AppendLine($"            [\"{EscapeString(catName)}\"] = [");
             foreach (var cmd in orderedCmds) {
                 var aliases = string.Join(", ", cmd.Aliases.Select(a => $"\"{EscapeString(a)}\""));
-                sb.AppendLine($"                new SlashCommandMetadata {{ Name = \"/{EscapeString(cmd.Name)}\", Description = \"{EscapeString(cmd.Description)}\", Usage = \"{EscapeString(cmd.Usage)}\", Aliases = [{aliases}], IsHidden = {cmd.IsHidden.ToString().ToLowerInvariant()}, IsEnabled = {cmd.IsEnabled.ToString().ToLowerInvariant()}, Category = \"{EscapeString(catName)}\" }},");
+                var arguments = string.Join(", ", (cmd.Args.FirstOrDefault(a => a.Enum is { Length: > 0 })?.Enum ?? [])
+                    .Select(v => $"\"{EscapeString(v)}\""));
+                sb.AppendLine($"                new SlashCommandMetadata {{ Name = \"/{EscapeString(cmd.Name)}\", Description = \"{EscapeString(cmd.Description)}\", Usage = \"{EscapeString(cmd.Usage)}\", Aliases = [{aliases}], ArgumentHint = \"{EscapeString(cmd.ArgumentHint)}\", Arguments = [{arguments}], IsHidden = {cmd.IsHidden.ToString().ToLowerInvariant()}, IsEnabled = {cmd.IsEnabled.ToString().ToLowerInvariant()}, Category = \"{EscapeString(catName)}\" }},");
             }
             sb.AppendLine("            ],");
         }

@@ -77,8 +77,8 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
                     var sessionId = Path.GetFileName(dir);
                     if (string.IsNullOrEmpty(sessionId)) continue;
 
-                    var transcriptPath = Path.Combine(dir, "transcript.json");
-                    if (!_fs.FileExists(transcriptPath)) continue;
+                    var (transcriptPath, isJsonl) = ResolveTranscriptFile(dir);
+                    if (transcriptPath is null) continue;
 
                     var entryCount = 0;
                     string? preview = null;
@@ -86,8 +86,8 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
                     try {
                         await using var stream = _fs.CreateStream(transcriptPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                         using var reader = new StreamReader(stream);
-                        var json = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
-                        (entryCount, preview) = ExtractPreview(json);
+                        var text = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+                        (entryCount, preview) = isJsonl ? ExtractJsonlPreview(text) : ExtractPreview(text);
                     } catch (Exception ex) {
                         // preview extraction 非关键，保留日志可见性
                         _logger?.LogDebug(ex, "TranscriptService: 会话摘要读取失败");
@@ -115,6 +115,44 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogError(ex, "Failed to list transcripts");
             return Array.Empty<TranscriptSummary>();
+        }
+    }
+
+    /// <summary>会话目录的转录文件解析 — .jsonl 优先,回退存量 .json(数组格式);都不存在返回 (null, false)。</summary>
+    private (string? Path, bool IsJsonl) ResolveTranscriptFile(string sessionDir) {
+        var jsonlPath = Path.Combine(sessionDir, "transcript.jsonl");
+        if (_fs.FileExists(jsonlPath)) return (jsonlPath, true);
+        var jsonPath = Path.Combine(sessionDir, "transcript.json");
+        return _fs.FileExists(jsonPath) ? (jsonPath, false) : (null, false);
+    }
+
+    /// <summary>
+    /// 从 JSONL 文本流式提取条目数与最后一条消息预览(截断至 80 字符) — 只解析尾行,不整块反序列化(ADR 0144)。
+    /// </summary>
+    /// <param name="text">JSONL 文件全文。</param>
+    /// <returns>(条目数, 预览文本);文本为空时返回 (0, null)。</returns>
+    private static (int EntryCount, string? Preview) ExtractJsonlPreview(string text) {
+        if (string.IsNullOrWhiteSpace(text)) return (0, null);
+
+        var entryCount = 0;
+        string? lastLine = null;
+        foreach (var line in text.Split('\n')) {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            entryCount++;
+            lastLine = line;
+        }
+
+        if (entryCount is 0 || lastLine is null) return (entryCount, null);
+        try {
+            var entry = RelaxedJsonSerializer.Deserialize(lastLine, TranscriptJsonContext.Default.TranscriptEntry);
+            if (entry is null) return (entryCount, null);
+            var preview = entry.Content;
+            if (preview is not null && preview.Length > 80) {
+                preview = preview[..80] + "...";
+            }
+            return (entryCount, preview);
+        } catch (JsonException) {
+            return (entryCount, null);
         }
     }
 
@@ -158,8 +196,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
     /// <inheritdoc />
     public Task<bool> TranscriptExistsAsync(string sessionId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
-        var filePath = GetTranscriptPath(sessionId);
-        return Task.FromResult(_fs.FileExists(filePath));
+        return Task.FromResult(_fs.FileExists(GetTranscriptPath(sessionId)) || _fs.FileExists(GetLegacyTranscriptPath(sessionId)));
     }
 
     /// <inheritdoc />
@@ -245,6 +282,12 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
 
     private string GetTranscriptPath(string sessionId) {
         TranscriptFileWriter.ValidateId(sessionId, nameof(sessionId));
+        return Path.Combine(_sessionsDirectory, sessionId, "transcript.jsonl");
+    }
+
+    /// <summary>存量会话路径(JSON 数组格式,ADR 0144 前的会话) — 读取回退与迁移源。</summary>
+    private string GetLegacyTranscriptPath(string sessionId) {
+        TranscriptFileWriter.ValidateId(sessionId, nameof(sessionId));
         return Path.Combine(_sessionsDirectory, sessionId, "transcript.json");
     }
 
@@ -298,7 +341,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
     }
 
     /// <summary>
-    /// 确保会话实体存在（幂等）— 建目录 + meta.json + 空 transcript.json；已存在不覆盖。
+    /// 确保会话实体存在（幂等）— 建目录 + meta.json + 空 transcript.jsonl；已存在不覆盖。
     /// </summary>
     public async Task<bool> EnsureSessionAsync(string sessionId, SessionInfo info, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
@@ -316,45 +359,94 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
     }
 
     /// <summary>
-    /// 迁移旧扁平 .json(直接在 sessions 根目录)到每会话子目录 {id}/transcript.json — 幂等,不删旧文件
-    /// 旧格式为 JSONL(每行一个 JSON),新格式为 JSON 数组(带缩进,人类可读)
+    /// 迁移存量转录到 JSONL(ADR 0144) — 双源,幂等,不删旧文件:
+    /// ①旧扁平 .json(sessions 根目录,JSONL 行格式) → {id}/transcript.jsonl
+    /// ②子目录 {id}/transcript.json(JSON 数组) → 同目录 {id}/transcript.jsonl
+    /// 目标 .jsonl 已存在则跳过(幂等)。
     /// </summary>
     public async Task MigrateLegacyAsync(CancellationToken cancellationToken = default) {
         if (!_fs.DirectoryExists(_sessionsDirectory)) return;
 
+        await MigrateFlatFilesAsync(cancellationToken).ConfigureAwait(false);
+        await MigrateSessionJsonArraysAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>迁移源①:旧扁平 .json(JSONL 行) → {id}/transcript.jsonl。</summary>
+    private async Task MigrateFlatFilesAsync(CancellationToken cancellationToken) {
         foreach (var file in _fs.EnumerateFiles(_sessionsDirectory, "*.json", SearchOption.TopDirectoryOnly)) {
             cancellationToken.ThrowIfCancellationRequested();
             var sessionId = Path.GetFileNameWithoutExtension(file);
             if (string.IsNullOrEmpty(sessionId)) continue;
 
             try {
-                var newDir = GetSessionDir(sessionId);
-                var newPath = Path.Combine(newDir, "transcript.json");
-                if (_fs.FileExists(newPath)) continue; // 幂等
-
-                // 读旧 JSONL(逐行解析)转 JSON 数组
-                var lines = await _fs.ReadAllLinesAsync(file, cancellationToken).ConfigureAwait(false);
-                var entries = new List<TranscriptEntry>(lines.Length);
-                foreach (var line in lines) {
-                    if (string.IsNullOrWhiteSpace(line)) continue;
-                    try {
-                        var entry = RelaxedJsonSerializer.Deserialize(line, TranscriptJsonContext.Default.TranscriptEntry);
-                        if (entry is not null) entries.Add(entry);
-                    } catch (JsonException ex) {
-                        _logger?.LogWarning(ex, "Skipping malformed line in legacy transcript {SessionId}", sessionId);
-                    }
-                }
-
-                if (!_fs.DirectoryExists(newDir)) {
-                    DirectoryHelper.EnsureDirectoryExists(_fs, newDir);
-                }
-                var json = RelaxedJsonSerializer.Serialize(entries, TranscriptJsonContext.Default);
-                await _fs.WriteAllTextAsync(newPath, json, cancellationToken).ConfigureAwait(false);
-                _logger?.LogInformation("Migrated legacy transcript {SessionId} to session directory (jsonl→json)", sessionId);
+                var entries = await ReadLegacyJsonlEntriesAsync(file, cancellationToken).ConfigureAwait(false);
+                await WriteJsonlEntriesAsync(sessionId, entries, cancellationToken).ConfigureAwait(false);
             } catch (Exception ex) when (ex is not OperationCanceledException) {
                 _logger?.LogWarning(ex, "Failed to migrate legacy transcript {SessionId}", sessionId);
             }
         }
+    }
+
+    /// <summary>迁移源②:子目录 transcript.json(JSON 数组) → 同目录 transcript.jsonl。</summary>
+    private async Task MigrateSessionJsonArraysAsync(CancellationToken cancellationToken) {
+        foreach (var dir in _fs.EnumerateDirectories(_sessionsDirectory, "*", SearchOption.TopDirectoryOnly)) {
+            cancellationToken.ThrowIfCancellationRequested();
+            var sessionId = Path.GetFileName(dir);
+            if (string.IsNullOrEmpty(sessionId)) continue;
+
+            try {
+                var jsonPath = Path.Combine(dir, "transcript.json");
+                if (!_fs.FileExists(jsonPath)) continue;
+
+                var json = await _fs.ReadAllTextAsync(jsonPath, cancellationToken).ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(json)) continue;
+
+                var entries = RelaxedJsonSerializer.Deserialize(json, TranscriptJsonContext.Default.ListTranscriptEntry);
+                if (entries is null || entries.Count == 0) continue;
+
+                await WriteJsonlEntriesAsync(sessionId, entries, cancellationToken).ConfigureAwait(false);
+                _logger?.LogInformation("Migrated session transcript {SessionId} to JSONL (json→jsonl)", sessionId);
+            } catch (Exception ex) when (ex is not OperationCanceledException) {
+                _logger?.LogWarning(ex, "Failed to migrate session transcript {SessionId} to JSONL", sessionId);
+            }
+        }
+    }
+
+    /// <summary>读旧 JSONL 行文件(逐行解析,坏行跳过)。</summary>
+    private async Task<List<TranscriptEntry>> ReadLegacyJsonlEntriesAsync(string filePath, CancellationToken cancellationToken) {
+        var lines = await _fs.ReadAllLinesAsync(filePath, cancellationToken).ConfigureAwait(false);
+        var entries = new List<TranscriptEntry>(lines.Length);
+        foreach (var line in lines) {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            try {
+                var entry = RelaxedJsonSerializer.Deserialize(line, TranscriptJsonContext.Default.TranscriptEntry);
+                if (entry is not null) entries.Add(entry);
+            } catch (JsonException ex) {
+                _logger?.LogWarning(ex, "Skipping malformed line in legacy transcript {FilePath}", filePath);
+            }
+        }
+
+        return entries;
+    }
+
+    /// <summary>写 JSONL 条目到 {id}/transcript.jsonl — 目标已存在跳过(幂等);空条目列表跳过。</summary>
+    private async Task WriteJsonlEntriesAsync(string sessionId, List<TranscriptEntry> entries, CancellationToken cancellationToken) {
+        var newDir = GetSessionDir(sessionId);
+        var newPath = GetTranscriptPath(sessionId);
+        if (_fs.FileExists(newPath)) return; // 幂等
+        if (entries.Count == 0) return;
+
+        if (!_fs.DirectoryExists(newDir)) {
+            DirectoryHelper.EnsureDirectoryExists(_fs, newDir);
+        }
+
+        var builder = new StringBuilder();
+        foreach (var entry in entries) {
+            builder.Append(RelaxedJsonSerializer.Serialize(entry, TranscriptJsonlContext.Default)).Append('\n');
+        }
+
+        await _fs.WriteAllTextAsync(newPath, builder.ToString(), cancellationToken).ConfigureAwait(false);
+        _logger?.LogInformation("Migrated legacy transcript {SessionId} to session directory JSONL", sessionId);
     }
 
     /// <summary>

@@ -17,12 +17,16 @@ public static class MarkdownLayout
     /// <summary>列表缩进宽度（列/层，基准 '  '.repeat(listDepth)）。</summary>
     private const int ListIndentCols = 2;
 
-    /// <summary>块模型 → 物理行列表（空行 = 空段列表；顶层块间空 1 行）。</summary>
-    public static IReadOnlyList<IReadOnlyList<MarkdownSegment>> Layout(MarkdownDocument document, int width)
+    /// <summary>块模型 → 物理行列表（无高亮 — 旧入口兼容既有调用方；高亮场景走 LayoutWithHighlights）。</summary>
+    public static IReadOnlyList<IReadOnlyList<MarkdownSegment>> Layout(MarkdownDocument document, int width) =>
+        LayoutWithHighlights(document, width, null).Lines;
+
+    /// <summary>块模型 → 布局结果（行 + 逐行代码高亮；highlighter null = 高亮禁用降级纯文本）。</summary>
+    public static MarkdownLayoutResult LayoutWithHighlights(MarkdownDocument document, int width, ICodeHighlighter? highlighter)
     {
-        var lines = new List<List<MarkdownSegment>>();
+        var lines = new LayoutLines(highlighter);
         AppendBlocks(document.Blocks, Math.Max(0, width), [], [], MarkdownStyle.None, lines, gapBetweenBlocks: true);
-        return lines;
+        return lines.ToResult();
     }
 
     /// <summary>追加块序列 — 顶层块间空 1 行，引用/列表内子块连续（gapBetweenBlocks 由调用方决定）。</summary>
@@ -32,7 +36,7 @@ public static class MarkdownLayout
         IReadOnlyList<MarkdownSegment> prefix,
         IReadOnlyList<MarkdownSegment> continuationPrefix,
         MarkdownStyle extraStyle,
-        List<List<MarkdownSegment>> lines,
+        LayoutLines lines,
         bool gapBetweenBlocks)
     {
         var first = true;
@@ -55,7 +59,7 @@ public static class MarkdownLayout
         IReadOnlyList<MarkdownSegment> prefix,
         IReadOnlyList<MarkdownSegment> continuationPrefix,
         MarkdownStyle extraStyle,
-        List<List<MarkdownSegment>> lines)
+        LayoutLines lines)
     {
         switch (block)
         {
@@ -103,7 +107,7 @@ public static class MarkdownLayout
         IReadOnlyList<MarkdownSegment> prefix,
         IReadOnlyList<MarkdownSegment> continuationPrefix,
         MarkdownStyle extraStyle,
-        List<List<MarkdownSegment>> lines)
+        LayoutLines lines)
     {
         var prefixWidth = SegmentsWidth(prefix);
         var segments = ApplyStyle(paragraph.Segments, extraStyle);
@@ -123,7 +127,7 @@ public static class MarkdownLayout
         IReadOnlyList<MarkdownSegment> prefix,
         IReadOnlyList<MarkdownSegment> continuationPrefix,
         MarkdownStyle extraStyle,
-        List<List<MarkdownSegment>> lines)
+        LayoutLines lines)
     {
         var quotePrefix = AppendSegment(prefix, new MarkdownSegment(QuotePrefix, MarkdownStyle.Dim));
         var innerWidth = Math.Max(0, width - SegmentsWidth(quotePrefix));
@@ -136,7 +140,7 @@ public static class MarkdownLayout
         int width,
         IReadOnlyList<MarkdownSegment> prefix,
         MarkdownStyle extraStyle,
-        List<List<MarkdownSegment>> lines)
+        LayoutLines lines)
     {
         var indentWidth = SegmentsWidth(prefix);
         for (var index = 0; index < list.Items.Count; index++)
@@ -155,7 +159,7 @@ public static class MarkdownLayout
         int indentWidth,
         string marker,
         MarkdownStyle extraStyle,
-        List<List<MarkdownSegment>> lines)
+        LayoutLines lines)
     {
         var markerPrefix = new List<MarkdownSegment> { new(new string(' ', indentWidth) + marker, MarkdownStyle.None) };
         var continuationPrefix = new List<MarkdownSegment> { new(new string(' ', indentWidth + marker.Length), MarkdownStyle.None) };
@@ -172,8 +176,8 @@ public static class MarkdownLayout
         }
     }
 
-    /// <summary>代码块 — 原文逐行（不换行，超宽由 Screen 裁剪），前缀段打头。</summary>
-    private static void AppendCode(MarkdownCode code, IReadOnlyList<MarkdownSegment> prefix, List<List<MarkdownSegment>> lines)
+    /// <summary>代码块 — 原文逐行（不换行，超宽由 Screen 裁剪），前缀段打头；高亮器在位时整块高亮（跨行语法状态）。</summary>
+    private static void AppendCode(MarkdownCode code, IReadOnlyList<MarkdownSegment> prefix, LayoutLines lines)
     {
         var text = code.Text.TrimEnd('\n');
         if (text.Length == 0)
@@ -181,22 +185,44 @@ public static class MarkdownLayout
             return;
         }
 
-        foreach (var lineText in text.Split('\n'))
+        var codeLines = text.Split('\n');
+        var highlights = HighlightCodeBlock(lines.Highlighter, code.Language, codeLines, SegmentsWidth(prefix));
+        for (var index = 0; index < codeLines.Length; index++)
         {
-            var line = new List<MarkdownSegment>(prefix) { new(lineText, MarkdownStyle.None) };
-            lines.Add(line);
+            var line = new List<MarkdownSegment>(prefix) { new(codeLines[index], MarkdownStyle.None) };
+            lines.AddCode(line, highlights?[index]);
         }
     }
 
+    /// <summary>整块高亮 → 逐行色段（Start 平移前缀宽度，坐标系 = 布局行完整段文本；null = 高亮器缺席/语言不支持）。</summary>
+    private static IReadOnlyList<CodeLineHighlight?>? HighlightCodeBlock(
+        ICodeHighlighter? highlighter,
+        string language,
+        string[] codeLines,
+        int prefixWidth)
+    {
+        var spans = highlighter?.Highlight(language, codeLines);
+        if (spans is null)
+        {
+            return null;
+        }
+
+        return spans.Select(lineSpans => new CodeLineHighlight(
+            lineSpans
+                .Where(span => span.Length > 0)
+                .Select(span => span with { Start = span.Start + prefixWidth })
+                .ToArray())).ToArray();
+    }
+
     /// <summary>分隔线 — "---" 三字符（基准 hr）。</summary>
-    private static void AppendRule(IReadOnlyList<MarkdownSegment> prefix, List<List<MarkdownSegment>> lines)
+    private static void AppendRule(IReadOnlyList<MarkdownSegment> prefix, LayoutLines lines)
     {
         var line = new List<MarkdownSegment>(prefix) { new("---", MarkdownStyle.None) };
         lines.Add(line);
     }
 
     /// <summary>表格 — 列宽 = max(显示宽, 3)；表头/数据行 "| x | y |"（末格 trimEnd 语义），分隔行 "|---|---|"。</summary>
-    private static void AppendTable(MarkdownTable table, IReadOnlyList<MarkdownSegment> prefix, List<List<MarkdownSegment>> lines)
+    private static void AppendTable(MarkdownTable table, IReadOnlyList<MarkdownSegment> prefix, LayoutLines lines)
     {
         var columnCount = table.Headers.Count;
         if (columnCount == 0)

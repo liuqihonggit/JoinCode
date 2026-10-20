@@ -12,10 +12,11 @@ public sealed class PromptInputBox
     public const int PromptWidth = 2;
 
     /// <summary>
-    /// 渲染到指定帧区域：row 0 顶部分隔线，row 1 提示符 + 文本 + 光标，row 2 底部分隔线。
+    /// 渲染到指定帧区域：row 0 顶部分隔线，row 1 提示符 + 文本 + 光标（+ ghost 幽灵后缀），row 2 底部分隔线。
     /// cursorCol 为文本内偏移（0 = 首字符之前），光标屏幕列 = frame.X + PromptWidth + cursorCol。
+    /// ghostSuffix 非空时以 dim 色渲染在文本之后（帧右界截断 — 基准 ghost text dim 提示）。
     /// </summary>
-    public void Render(Screen screen, Rect frame, Theme theme, string text, int cursorCol, bool busy = false)
+    public void Render(Screen screen, Rect frame, Theme theme, string text, int cursorCol, bool busy = false, string ghostSuffix = "")
     {
         var border = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.PromptBorder });
         BorderPainter.DrawRule(screen, frame.Y, frame.X, frame.Width, border);
@@ -25,6 +26,12 @@ public sealed class PromptInputBox
         var row = frame.Y + 1;
         screen.WriteText(row, frame.X, $"{Figures.Pointer} ", promptStyle, frame.Right);
         screen.WriteText(row, frame.X + PromptWidth, text, 0, frame.Right);
+        if (ghostSuffix.Length > 0)
+        {
+            var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+            screen.WriteText(row, frame.X + PromptWidth + text.Length, ghostSuffix, dim, frame.Right);
+        }
+
         DrawCursor(screen, frame, row, cursorCol);
     }
 

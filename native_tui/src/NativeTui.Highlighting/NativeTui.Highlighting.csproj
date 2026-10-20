@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>NativeTui.Highlighting</RootNamespace>
+    <AssemblyName>NativeTui.Highlighting</AssemblyName>
+    <Description>NativeTui 语法高亮卫星项目 — TextMateSharp 隔离在本层（ADR 0140：Onigwrap 原生依赖不进 Core，Core 只消费 HighlightedSpan DTO）</Description>
+    <AllowPack>false</AllowPack>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TextMateSharp" Version="2.0.4" />
+    <PackageReference Include="TextMateSharp.Grammars" Version="2.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NativeTui.Core\NativeTui.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -100,4 +100,22 @@ public sealed class InputBufferTests
         Assert.Equal(string.Empty, buffer.Text);
         Assert.Equal(0, buffer.CursorCol);
     }
+
+    [Fact]
+    public void Replace_SetsTextAndCursorToEnd()
+    {
+        var buffer = InputBuffer.Of("old", cursorCol: 2);
+        buffer.Replace("new text");
+        Assert.Equal("new text", buffer.Text);
+        Assert.Equal("new text".Length, buffer.CursorCol);
+    }
+
+    [Fact]
+    public void Replace_CursorToStart_PutsCursorAtZero()
+    {
+        var buffer = InputBuffer.Of("old", cursorCol: 2);
+        buffer.Replace("new text", cursorToStart: true);
+        Assert.Equal("new text", buffer.Text);
+        Assert.Equal(0, buffer.CursorCol);
+    }
 }

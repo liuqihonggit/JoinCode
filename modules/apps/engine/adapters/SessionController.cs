@@ -91,13 +91,24 @@ public sealed class SessionController {
 
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 _mainAgent.CurrentInput = input;
-                await foreach (var chunk in _mainAgent.ExecuteStreamAsync(timeoutToken).ConfigureAwait(false)) {
-                    hasReceivedEvent = true;
-                    var evt = AgentStreamChunkAdapter.ToChatStreamEvent(chunk);
-                    if (evt is null) continue;
-                    var mid = ProcessEvent(evt, fullResponse, thinkingContent);
-                    if (mid is not null) lastModelId = mid;
+                // DSG041 批2 — 子代理事件通道：主代理路径回合级作用域（对齐 QueryLoopMiddleware 先例 —
+                // 作用域覆盖 QueryEngine 工具执行段，Agent 工具中间件 Emit 的子代理事件进通道；
+                // chunk 循环逐拍排空直投 ProcessEvent[批1 分流已就绪]，不经 chunk 转换层）
+                var subAgentChannel = new SubAgentEventChannel();
+                using (var subAgentScope = subAgentChannel.EnterScope()) {
+                    await foreach (var chunk in _mainAgent.ExecuteStreamAsync(timeoutToken).ConfigureAwait(false)) {
+                        hasReceivedEvent = true;
+                        DrainSubAgentEvents(subAgentChannel, fullResponse, thinkingContent);
+                        var evt = AgentStreamChunkAdapter.ToChatStreamEvent(chunk);
+                        if (evt is null) continue;
+                        var mid = ProcessEvent(evt, fullResponse, thinkingContent);
+                        if (mid is not null) lastModelId = mid;
+                    }
                 }
+
+                // 末批冲刷（循环结束后通道可能仍有缓冲事件）+ 完成标记（迟到 Emit 静默丢弃防泄漏）
+                DrainSubAgentEvents(subAgentChannel, fullResponse, thinkingContent);
+                subAgentChannel.Complete();
                 sw.Stop();
 
                 if (Diag.IsDebugLog) {
@@ -159,6 +170,16 @@ public sealed class SessionController {
             if (ex is JoinCode.Abstractions.Exceptions.WorkflowException wfEx)
                 return SessionTurnResult.Error(wfEx.Message, LastResponse, wfEx.ErrorCode);
             return SessionTurnResult.Error(ex.Message, LastResponse);
+        }
+    }
+
+    /// <summary>
+    /// 排空子代理事件通道并直投 ProcessEvent（DSG041 批2 — chunk 循环逐拍调用；
+    /// 子代理事件带 AgentId 走 RouteSubagentEvent 分流，主对话零影响）
+    /// </summary>
+    private void DrainSubAgentEvents(SubAgentEventChannel channel, StringBuilder fullResponse, StringBuilder thinkingContent) {
+        foreach (var subEvent in channel.TryDrain()) {
+            ProcessEvent(subEvent, fullResponse, thinkingContent);
         }
     }
 

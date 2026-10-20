@@ -106,6 +106,32 @@ public sealed class DshTurnRunnerTests {
         harness.Types().Should().NotContain("assistant/message");
     }
 
+    [Fact]
+    public async Task Cancel_DuringTurn_EndsAbortedByUser() {
+        var harness = await Harness.CreateAsync("慢回答", gate: true);
+        await using var transcripts = harness.Transcripts;
+
+        (await harness.Runner.StartAsync(TextRequest("rpc-1", "hi"), CancellationToken.None)).Should().BeNull();
+        await harness.WaitForAsync("user/message");
+
+        harness.Hub.Cancel(SessionId).Should().BeTrue("有轮次在跑时停止生成必须真正取消");
+        await harness.WaitForAsync("turn/end");
+
+        var reason = harness.Events[^1].Event.Data.GetProperty("reason");
+        reason.GetProperty("kind").GetString().Should().Be("aborted");
+        reason.GetProperty("reason").GetProperty("kind").GetString().Should().Be("user");
+        harness.Types().Should().NotContain("assistant/message");
+        harness.Hub.RunningTurn(SessionId).Should().Be(0, "取消后必须释放占用");
+        harness.Engine.Cancelled.Should().BeTrue("引擎的流必须收到取消令牌");
+    }
+
+    [Fact]
+    public void Cancel_WithoutRunningTurn_ReturnsFalse() {
+        var hub = new DshSessionStreamHub();
+
+        hub.Cancel("idle-session").Should().BeFalse();
+    }
+
     private static DshSessionPromptArgs TextRequest(string requestId, string text) => new() {
         RequestId = requestId,
         SessionId = SessionId,
@@ -169,6 +195,9 @@ public sealed class DshTurnRunnerTests {
         public bool ThrowOnStream { get; init; }
         public string? LastPrompt { get; private set; }
 
+        /// <summary>引擎流是否收到了取消（验证停止生成确实传到引擎）</summary>
+        public bool Cancelled { get; private set; }
+
         public bool IsReady => true;
         public ITranscriptService? TranscriptService => null;
 #pragma warning disable CS0067
@@ -187,7 +216,12 @@ public sealed class DshTurnRunnerTests {
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
             LastPrompt = message;
             if (Gate) {
-                await _gate.Task.WaitAsync(cancellationToken);
+                try {
+                    await _gate.Task.WaitAsync(cancellationToken);
+                } catch (OperationCanceledException) {
+                    Cancelled = true;
+                    throw;
+                }
             }
             if (ThrowOnStream) {
                 throw new InvalidOperationException("引擎崩溃");

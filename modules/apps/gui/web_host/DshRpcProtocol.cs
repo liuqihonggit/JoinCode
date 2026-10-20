@@ -309,6 +309,12 @@ internal sealed class DshSessionRenameResult {
     public long Seq { get; set; }
 }
 
+/// <summary>session/cancel 参数（停止该会话正在进行的生成）</summary>
+internal sealed class DshSessionCancelArgs {
+    /// <summary>目标会话</summary>
+    public string SessionId { get; set; } = "";
+}
+
 /// <summary>session/cancel 结果</summary>
 internal sealed class DshSessionCancelResult {
     /// <summary>固定接受标记</summary>
@@ -526,6 +532,15 @@ internal sealed class DshTurnEndReason {
     /// <summary>错误详情（仅 kind=error）</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public DshTurnEndError? Error { get; set; }
+    /// <summary>取消原因（仅 kind=aborted）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DshTurnEndCancelCause? Reason { get; set; }
+}
+
+/// <summary>轮次取消原因（`{kind:'user'}` 表示用户点了停止生成）</summary>
+internal sealed class DshTurnEndCancelCause {
+    /// <summary>取消来源（user / parent / hook / disposed / legacy）</summary>
+    public string Kind { get; set; } = "user";
 }
 
 /// <summary>轮次失败原因</summary>
@@ -853,6 +868,9 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshSessionPromptValue))]
 [JsonSerializable(typeof(DshRequestEnvelope<DshSessionPromptArgs>))]
 [JsonSerializable(typeof(DshTurnEndError))]
+[JsonSerializable(typeof(DshTurnEndCancelCause))]
+[JsonSerializable(typeof(DshSessionCancelArgs))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshSessionCancelArgs>))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(DshSessionCreateResult))]
 [JsonSerializable(typeof(DshRequestEnvelope<DshSessionCreateArgs>))]

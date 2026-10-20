@@ -29,7 +29,7 @@ internal sealed class DshRpcDispatcher {
             ["session/create"] = SessionCreate,
             ["session/rename"] = SessionRename,
             ["session/prompt"] = SessionPrompt,
-            ["session/cancel"] = Sync(_ => Ok(new DshSessionCancelResult())),
+            ["session/cancel"] = Sync(args => SessionCancel(args, CancellationToken.None)),
             ["session/modelCatalog"] = Sync(SessionModelCatalog),
             ["session/projections"] = SessionProjections,
             ["agentPresets/list"] = Sync(_ => Ok(new DshAgentPresetList {
@@ -187,6 +187,21 @@ internal sealed class DshRpcDispatcher {
         return await _turns.StartAsync(request, cancellationToken) is { } error
             ? Fail(error.Code, error.Message)
             : Ok(new DshSessionPromptValue());
+    }
+
+    /// <summary>session/cancel：停止该会话正在进行的生成（无轮次在跑也回 accepted，前端不区分）</summary>
+    private DshRpcResult SessionCancel(JsonElement args, CancellationToken cancellationToken) {
+        if (args.ValueKind != JsonValueKind.Object) {
+            return Fail("session/rejected", $"session/cancel 需要 request.sessionId 参数；收到 args={Describe(args)}");
+        }
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSessionCancelArgs)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)) {
+            return Fail("session/rejected", $"session/cancel 缺少 sessionId；收到 args={Describe(args)}");
+        }
+        if (_services.Streams.Cancel(request.SessionId)) {
+            App.LogDiag($"[DSH-WEB] cancel requested session={request.SessionId}");
+        }
+        return Ok(new DshSessionCancelResult());
     }
 
     /// <summary>session/rename：改会话标题（写引擎 custom-title）</summary>

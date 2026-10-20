@@ -38,29 +38,29 @@ internal sealed class DshTurnRunner {
         if (_services.Streams.TryBeginTurn(request.SessionId) is not { } turn) {
             return ("session/busy", $"会话 {request.SessionId} 上一轮仍在生成；等它结束（接口完成/停止）后再发送，排队与打断在 M2-c3 接入");
         }
-        await _services.Streams.PublishAsync(request.SessionId, "turn/start", new DshTurnStartData { Turn = turn });
-        await _services.Streams.PublishAsync(request.SessionId, "step/start", new DshStepData { Turn = turn, Step = Step });
+        await _services.Streams.PublishAsync(request.SessionId, "turn/start", new DshTurnStartData { Turn = turn.Turn });
+        await _services.Streams.PublishAsync(request.SessionId, "step/start", new DshStepData { Turn = turn.Turn, Step = Step });
         await _services.Streams.PublishAsync(request.SessionId, "user/message", new DshWireMessage {
-            Id = $"{request.SessionId}:{turn}:user",
+            Id = $"{request.SessionId}:{turn.Turn}:user",
             Role = "user",
             Content = [new DshWireContentBlock { Text = text }],
             Source = new DshWireMessageSource { Kind = "user", RpcId = request.RequestId },
         }, surfaceOp: "append");
-        _ = RunTurnAsync(engine, request.SessionId, text, turn);
+        _ = RunTurnAsync(engine, request.SessionId, text, turn.Turn, turn.Token);
         return null;
     }
 
-    /// <summary>后台跑一轮生成：成功落助手消息，失败落错误收尾（异常只记日志，不让进程崩）</summary>
-    private async Task RunTurnAsync(Hosting.IJccChatSession engine, string sessionId, string text, int turn) {
+    /// <summary>后台跑一轮生成：成功落助手消息，停止/失败各自落对应收尾（异常只记日志，不让进程崩）</summary>
+    private async Task RunTurnAsync(Hosting.IJccChatSession engine, string sessionId, string text, int turn, CancellationToken cancellationToken) {
         try {
             engine.SwitchSession(sessionId);
-            if (await _services.Sessions.HistoryAsync(sessionId, CancellationToken.None) is { Count: > 0 } history) {
-                await engine.LoadHistoryAsync(history, CancellationToken.None);
+            if (await _services.Sessions.HistoryAsync(sessionId, cancellationToken) is { Count: > 0 } history) {
+                await engine.LoadHistoryAsync(history, cancellationToken);
             }
             App.LogDiag($"[DSH-WEB] turn streaming session={sessionId} turn={turn}");
             var content = new StringBuilder();
             var events = 0;
-            await foreach (var evt in engine.StreamAsync(text, CancellationToken.None)) {
+            await foreach (var evt in engine.StreamAsync(text, cancellationToken)) {
                 events += 1;
                 if (events == 1) {
                     App.LogDiag($"[DSH-WEB] turn first event type={evt.Type} session={sessionId}");
@@ -72,6 +72,12 @@ internal sealed class DshTurnRunner {
             App.LogDiag($"[DSH-WEB] turn stream done session={sessionId} events={events} chars={content.Length}");
             await PublishReplyAsync(sessionId, turn, content.ToString(), engine);
             await EndTurnAsync(sessionId, turn, new DshTurnEndReason { Kind = "completed" });
+        } catch (OperationCanceledException) {
+            App.LogDiag($"[DSH-WEB] turn cancelled session={sessionId} turn={turn}");
+            await EndTurnAsync(sessionId, turn, new DshTurnEndReason {
+                Kind = "aborted",
+                Reason = new DshTurnEndCancelCause { Kind = "user" },
+            });
         } catch (Exception ex) {
             App.LogDiag($"[DSH-WEB] turn failed session={sessionId} turn={turn}: {ex.Message}");
             await EndTurnAsync(sessionId, turn, new DshTurnEndReason {

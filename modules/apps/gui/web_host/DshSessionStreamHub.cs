@@ -36,8 +36,8 @@ internal sealed class DshSessionStreamHub {
 
     /// <summary>尝试占用一轮生成（同一会话同时只允许一轮）</summary>
     /// <param name="sessionId">会话 ID</param>
-    /// <returns>占用成功返回下一轮编号，否则 null（已有轮次在跑）</returns>
-    internal int? TryBeginTurn(string sessionId) {
+    /// <returns>占用成功返回下一轮编号与取消令牌，否则 null（已有轮次在跑）</returns>
+    internal (int Turn, CancellationToken Token)? TryBeginTurn(string sessionId) {
         lock (_gate) {
             var state = State(sessionId);
             if (state.Running) {
@@ -45,16 +45,37 @@ internal sealed class DshSessionStreamHub {
             }
             state.Running = true;
             state.Turn += 1;
-            return state.Turn;
+            state.Cancellation = new CancellationTokenSource();
+            return (state.Turn, state.Cancellation.Token);
         }
+    }
+
+    /// <summary>停止该会话正在进行的生成（没有轮次在跑时返回 false）</summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <returns>是否真的取消了一轮生成</returns>
+    internal bool Cancel(string sessionId) {
+        CancellationTokenSource? cancellation;
+        lock (_gate) {
+            cancellation = _sessions.TryGetValue(sessionId, out var state) && state.Running ? state.Cancellation : null;
+        }
+        if (cancellation is null) {
+            return false;
+        }
+        cancellation.Cancel();
+        return true;
     }
 
     /// <summary>结束一轮生成（释放占用，允许下一轮）</summary>
     /// <param name="sessionId">会话 ID</param>
     internal void EndTurn(string sessionId) {
+        CancellationTokenSource? cancellation;
         lock (_gate) {
-            State(sessionId).Running = false;
+            var state = State(sessionId);
+            state.Running = false;
+            cancellation = state.Cancellation;
+            state.Cancellation = null;
         }
+        cancellation?.Dispose();
     }
 
     /// <summary>当前进行中的轮次编号（空闲为 0）</summary>
@@ -122,6 +143,8 @@ internal sealed class DshSessionStreamHub {
         internal int Turn { get; set; }
         /// <summary>是否有轮次在进行</summary>
         internal bool Running { get; set; }
+        /// <summary>进行中轮次的取消源（空闲为 null）</summary>
+        internal CancellationTokenSource? Cancellation { get; set; }
 
         /// <summary>取下一个序号（并推进游标）</summary>
         internal long NextSeq() => ++Cursor;

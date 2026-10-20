@@ -133,11 +133,20 @@ public sealed class DshSessionStoreTests {
     }
 
     [Fact]
-    public async Task Dispatcher_SessionCancel_Accepts() {
+    public async Task Dispatcher_SessionCancel_AcceptsKnownSession() {
         var dispatcher = new DshRpcDispatcher(new DshHostServices(new InMemoryFileSystem(), "/test/dsh-workspaces.json"));
-        var result = await dispatcher.HandleAsync("session/cancel", default);
+        var result = await dispatcher.HandleAsync("session/cancel", Args(new DshSessionCancelArgs { SessionId = "s1" }));
         result.Ok.Should().BeTrue(result.Error?.Message);
         result.Value.GetValueOrDefault().GetProperty("accepted").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Dispatcher_SessionCancel_MissingSessionId_Guides() {
+        var dispatcher = new DshRpcDispatcher(new DshHostServices(new InMemoryFileSystem(), "/test/dsh-workspaces.json"));
+        var result = await dispatcher.HandleAsync("session/cancel", default);
+        result.Ok.Should().BeFalse();
+        result.Error?.Code.Should().Be("session/rejected");
+        result.Error?.Message.Should().Contain("sessionId");
     }
 
     [Fact]
@@ -418,4 +427,10 @@ public sealed class DshSessionStoreTests {
         JsonSerializer.SerializeToElement(
             new DshRequestEnvelope<DshSessionRenameArgs> { Request = new DshSessionRenameArgs { SessionId = sessionId, Title = title } },
             DshJsonContext.Default.DshRequestEnvelopeDshSessionRenameArgs);
+
+    /// <summary>按 DSH 远程契约形状构造 session/cancel 参数（具名参数在 request 下）</summary>
+    private static JsonElement Args(DshSessionCancelArgs request) =>
+        JsonSerializer.SerializeToElement(
+            new DshRequestEnvelope<DshSessionCancelArgs> { Request = request },
+            DshJsonContext.Default.DshRequestEnvelopeDshSessionCancelArgs);
 }

@@ -15,7 +15,7 @@
 | M2-b2 | `session/create` 落引擎 + `session/control` 基线投影 + `session/modelCatalog` 真实模型目录 + `session/projections` | ✅ |
 | M2-b3 | 打开会话：`session/follow` snapshot（含 `projections` + `assistantStream` 基线） | ✅ |
 | M2-c1 | 历史渲染：引擎转录 → DSH 事件（`turn/start`→`step/start`→`user/message`→`assistant/message`→`step/end`→`turn/end`，消息带 `surfaceOp:'append'`） | ✅ |
-| M2-c2 | 聊天主链路：`session/prompt` 发送 + `session/follow` 增量事件流（`turn/start`/`step/*`/`user|assistant/message`） | ✅ |
+| M2-c2 | 聊天主链路：`session/prompt` 发送 + `session/follow` 增量事件流（`turn/start`/`step/*`/`user|assistant/message`）+ `session/cancel` 停止生成 | ✅ |
 | M2-d | 权限：`approval/*` 事件 + 判定回传；`sandbox/mode`、`permission/preset` | ⬜ |
 | M3 | 自研 WebUI 与旧桥接归档，`--webui-smoke` 删除 | ⬜ |
 
@@ -45,9 +45,10 @@
 | 会话历史事件页（`records` 从引擎转录映射 `user/message`/`assistant/message`） | 打开会话看到历史消息（`DshTranscriptProjector` ← `SnapshotAsync`） | ✅ | ✅ M2-c1（`dsh-webui-history.mjs`） |
 | 发送主链路：`session/prompt` → 用户消息事件（`source.rpcId` 回执）+ 后台跑引擎 → 助手消息事件 + `step/end`/`turn/end` | 输入框回车/发送按钮，界面出现回复 | ✅ M2-c2（`DshTurnRunner` + `DshSessionStreamHub`） | ✅ `dsh-webui-prompt.mjs` ALL_PASS（19 项，本地 OpenAI 桩） |
 | 会话增量事件流：`session/follow` 打开后推送 `{type:'event'}`（seq 全局单调，与本会话历史 seq 接续） | 打开会话期间实时收消息 | ✅ M2-c2 | ✅ 同上（抓到 `turn/start,step/start,user/message,assistant/message,step/end,turn/end`） |
+| 停止生成：`session/cancel` 真正取消引擎流，轮次以 `turn/end{kind:'aborted',reason:{kind:'user'}}` 收尾 | 输入框旁「停止」按钮 | ✅ M2-c2（`DshSessionStreamHub.Cancel` + `DshTurnRunner` 取消分支） | ✅ `dsh-webui-cancel.mjs` ALL_PASS（11 项，慢速桩 + 中途取消） |
 | 会话列表元数据补 `lastPromptAt`（取最后一条 user 条目时间） | 侧栏排序/相对时间 | ✅ M2-c2（`DshSessionStore.ProjectValues`） | ✅ 单测 2 例 + E2E 断言 `blank:false` + `lastPromptAt` 为数字 |
 | 历史页工具事件与向上翻页（`tool/call|result`、`session/page`） | 长会话滚动加载 | ⬜ | ⬜ M2-c3 |
-| 流式增量（`assistant-stream` 帧、逐字输出）与 `queue`/`steer`、取消 | 打字机效果 / 中途插话 / 停止生成 | ⬜ | ⬜ M2-c3 |
+| 流式增量（`assistant-stream` 帧、逐字输出）与 `queue`/`steer` 模式 | 打字机效果 / 中途插话 | ⬜ | ⬜ M2-c3 |
 | 会话/消息/流式/权限（`approval/*`、`sandbox/mode`、`permission/preset`） | 工具确认 | ⬜ | ⬜ M2-d |
 
 ## M1.5 缺陷记录（缺陷驱动）
@@ -163,6 +164,7 @@
 9. 已知缺陷（M2-c3 处理）：引擎会把循环干预提示（`💡 [低频诱导] loop-intervention-health…`）作为 `Content` 混进回复，DSH 界面上表现为助手多一段旁白；需要按事件类型过滤或映射成 `system/message`。
 10. E2E 坑（非产品缺陷）：① `session/prompt` 是**一元 HTTP**（`POST /api/session/prompt`），不在 WS 帧里 → 断言要监听 `page.on('request'/'response')`；② 前端刷新会还原上次会话并自动开流，输入框发给了「当前打开的会话」而不是本轮 `session/create` 的那条 → 断言用请求体里的 `sessionId` 反查；③ `lastPromptAt` 在 `projections.values.sessionListMetadata` 里，不在投影顶层。
 11. 绿测：`DshTurnRunnerTests` 6 例（正常一轮 / 并发 busy / 未知会话 / 非文本拒绝 / 无引擎 not-ready / 引擎抛错收尾）+ `DshSessionStoreTests` 新增 `List_WithUserMessage_ReportsLastPromptAt`；GUI 全量 700 通过 / 3 跳过；E2E `dsh-webui-prompt.mjs` ALL_PASS（19 项），`dsh-webui-history.mjs`（15 项）、`dsh-webui-open-session.mjs`（19 项）、`dsh-webui-create-session.mjs` 回归 ALL_PASS。
+12. 停止生成（同一里程碑补齐）：`session/cancel` 原来只回 `{accepted:true}` 不做事，点停止后轮次照跑。修复：`TryBeginTurn` 同时分配 `CancellationTokenSource`，`Cancel(sessionId)` 取消它，`EndTurn` 释放；`RunTurnAsync` 用该令牌跑 `HistoryAsync`/`LoadHistoryAsync`/`StreamAsync`，捕 `OperationCanceledException` 落 `turn/end{kind:'aborted',reason:{kind:'user'}}`（对齐 DSH `TurnEndReasonMap.aborted + AgentCancelCause.user`）。`session/cancel` 缺参数走 `session/rejected` 引导（args 不是对象时先判 `ValueKind`，否则 `JsonSerializer.Deserialize(default(JsonElement))` 直接抛）。
 
 ## M2-c2 验收记录（ADR 0080 手动 exe）
 
@@ -174,6 +176,7 @@
 | 助手回复 | 等界面出现回复文本 | ✅ `assistant/message`（`surfaceOp:"append"`）→ `step/end` → `turn/end{kind:"completed"}`；界面显示「已完成，用时 1秒」+ 回复全文 |
 | 转录落盘 | 读 `{home}/sessions/{id}/transcript.json` | ✅ 含用户消息与助手回复（561~1118 字节） |
 | 列表元数据 | 真实 HTTP `POST /api/session/list` | ✅ 该会话 `blank:false`、`sessionListMetadata.lastPromptAt` 为毫秒时间戳 |
+| 停止生成 | 慢速桩（400ms/块）+ 发送消息 → 中途 `POST /api/session/cancel {request:{sessionId}}` | ✅ 回 `{accepted:true}`；轮次收尾 `{"kind":"aborted","reason":{"kind":"user"}}`；无 `assistant/message`；占用已释放（可继续发下一条） |
 | 无错误 | 读页面文本 + WS 全集 | ✅ 无「尚未实现」、无 `{"type":"error"}`、无 `unimplemented` |
 
 
@@ -233,6 +236,7 @@ node dumps/dsh-webui-create-session.mjs ws-m2b2         # 新建会话落引擎 
 node dumps/dsh-webui-open-session.mjs ws-m2b3           # 点侧栏会话开流 + 打开快照（投影/assistantStream/空日志页）
 node dumps/dsh-webui-history.mjs ws-m2b3 <工作区路径> <隔离 home>   # 历史渲染：转录→DSH 事件，界面出现历史问答
 node dumps/dsh-webui-prompt.mjs ws-m2c2 <隔离 home>    # 发送主链路：输入框回车→用户/助手事件→turn/end→转录落盘（自带本地 OpenAI 桩 stub-openai-server.mjs）
+node dumps/dsh-webui-cancel.mjs ws-m2c2 <隔离 home>    # 停止生成：慢速桩中途 session/cancel→turn/end aborted(user)
 node dumps/dsh-webui-reload-trace.mjs                  # 启动/重载全量请求响应
 # 单测
 dotnet test test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj -c Debug --filter "FullyQualifiedName~WebHost"

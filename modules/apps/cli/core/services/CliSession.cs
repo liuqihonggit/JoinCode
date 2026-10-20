@@ -8,7 +8,7 @@ public sealed class CliSession {
     private readonly IPlanService _planService;
     private readonly IToolRegistry _toolRegistry;
     private readonly IFileSystem _fs;
-    private readonly CliServiceContext? _optionalServices;
+    private readonly EngineServiceContext? _optionalServices;
     private readonly ChatCommandRegistry _commandRegistry;
     private readonly TurnDiffService _turnDiffService = new();
     private readonly DateTime _sessionStartedAt;
@@ -61,7 +61,7 @@ public sealed class CliSession {
         IPlanService planService,
         IToolRegistry toolRegistry,
         IFileSystem fs,
-        CliServiceContext? optionalServices = null,
+        EngineServiceContext? optionalServices = null,
         IClockService? clock = null,
         ILogger<CliSession>? logger = null,
         string? sessionId = null) {

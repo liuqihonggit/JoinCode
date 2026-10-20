@@ -522,3 +522,30 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!-- 状态: gui 42 错=Dock 存量基线保持(Dock 类型 CS0246 是 gui 代码引用, 待 gui Dock 体系重构 -->
 <!--   批次处理, 本批不动 gui 代码); 全仓 grep 零 libs/ 残留引用; Terminal.Gui/Editor submodule -->
 <!--   早已无用(tui 删除前已改 NuGet 包引用) -->
+
+<!-- 🤖 Auto Decision: 2026-10-20 (终局修正: GUI 保留原样 + Dock submodule 恢复, commit fb4ac1c4c) -->
+<!-- 用户决策撤销: "我后悔了,你不要碰GUI的任何东西" — gui 工程从 .xxx/ 完整归位(gui + -->
+<!--   join_code_gui.tests + Gui.slnx + ci-gui-daily.yml), Dock submodule 恢复(gitlink + .gitmodules -->
+<!--   精简为仅 Dock + gui csproj 5 个 ProjectReference); Terminal.Gui/Editor 保持移除(tui 已删 -->
+<!--   无消费者); CreateGuiSessionAsync 永久保留(e2e 活代码 + 阶段二 native_tui 接入点, 误删已纠正) -->
+<!-- 契约: 本分支禁止触碰 modules/apps/gui/ 任何内容(用户新 GUI 在其他分支开发) -->
+<!-- 验证: PR #431 通过 squash 合并 main(680f725cb), CI 全绿含 gui 编译(submodules:recursive -->
+<!--   初始化 Dock 后 GUI 实际可编译, 本地 42 错是 submodule 未初始化时的状态) -->
+
+<!-- 🤖 Auto Decision: 2026-10-20 (ADR 0143 阶段一收尾: 两项边界决策关闭 + 改名批次) -->
+<!-- StartupContext 拆分批次取消: 调查证实启动中间件管道组装只在 cli 的两个 ModeRunner -->
+<!--   (Interactive/NonInteractive), gui 走 CreateGuiSessionAsync(clearPipeEndpoint:true), -->
+<!--   native_tui 阶段二走 bridge_serve 路径 — 管道是 CLI 宿主专属启动编排设施; -->
+<!--   SystemPromptApplyStep/NonInteractiveExitCleanupStep 的 Step 3c "ENGINE" 判定是过度判定 -->
+<!--   (引擎能力已在 IChatService.SetSystemPromptAsync/IStopHookManager 接口上, 步骤只是 CLI -->
+<!--   参数翻译层), 12+ 启动步骤全部留 cli(HOST), StartupContext 无需拆分 -->
+<!-- pipe 协议族边界关闭: BridgeConnectionNegotiator/BridgeHeartbeatService 留 cli — 命名管道 -->
+<!--   是 CLI 宿主专属设施(CreateGuiSessionAsync 显式 clearPipeEndpoint 证明 GUI/TUI 会话无 -->
+<!--   命名管道; native_tui 走 stdin/stdout bridge 协议非命名管道), "依赖 100% 干净"不构成升 -->
+<!--   ENGINE 的充分条件, 边界判据=是否存在跨宿主消费 -->
+<!-- 改名批次: CliServiceContext→EngineServiceContext(git mv 100% rename + 类名 + cli 侧 3 处 -->
+<!--   消费点[CliSession ×2 + SessionInitStep ×1 限定写法 Cli.EngineServiceContext]), 命名空间 -->
+<!--   保持 JoinCode.Cli 跨程序集兼容; engine 内 Cli 前缀类型清零(唯一残留即此件) -->
+<!-- 验证: engine/cli 双编译 0警告0错误 + host.tests 1337/1337 全绿(基线保持) -->
+<!-- ADR 0143 阶段一完结: 转 accepted; 剩余=阶段二 native_tui 宿主(native_tui/apps/NativeTui.Host) -->
+<!--   另起会话照抄 gui 先例(CreateGuiSessionAsync 是组装入口) -->

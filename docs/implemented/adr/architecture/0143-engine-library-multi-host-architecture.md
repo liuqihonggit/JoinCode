@@ -1,7 +1,8 @@
 # ADR 0143: 引擎库化多宿主架构 — JoinCode.Engine 抽取 + native_tui 宿主
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-10-20
+- 实施完成：2026-10-20（PR #431 合并 main=680f725cb；阶段二另起会话）
 - 关联：ADR 0140（native_tui 自研像素级对齐）、ADR 0141（bridge stdio 协议，降级为可选形态）、ADR 0142（superseded by 本 ADR，jcc 宿主内嵌方向）、TASK055
 
 ## 背景与问题
@@ -119,3 +120,39 @@ CliSession → EngineSession，实施时定名）；`CreateMainAgent` 的 intern
 - 负向：工程结构手术（渐进式缓解）；bridge 协议演进动力下降（0141 降级的天然代价）；
   CI 编译链多一个工程；`Cli` 前缀重命名触及面广（无后向兼容包袱，按 AGENTS.md
   大修大改原则一次到位）
+
+## 实施结果（2026-10-20，阶段一完结）
+
+阶段一全程渐进式落地（每步编译+测试+commit，PR #431 squash 合并 main）：
+
+| 批次 | 内容 |
+|------|------|
+| Step 0 | ADR 0143 制定（取代 0142） |
+| Step 1 | 建 JoinCode.Engine 库工程，协议与会话核心六件 git mv（命名空间不变，跨程序集同命名空间） |
+| Step 2 | EngineAgentFactory 主代理工厂提取（CliSession 留宿主，仅提取 CreateMainAgent） |
+| Step 3a | 契约与构建器引擎化（EngineApplicationBuilder/EngineConfigInitializer 拆分） |
+| Step 3b | 五模块 + EngineSessionFactory 搬库 + CoreModule 拆分（CliRegistrationModule 兜底 49 类型） |
+| Step 3c | 24 个引擎侧 [Register] 资产搬移（17 telemetry hooks + TrustFolderManager + user_experience 5 件）；生成器新增 AssemblyMetadata `AutoRegisterScope=CurrentAssembly` 开关（解决聚合库扫引用闭包 CS0122 + 重复注册） |
+| Step 4 | tui 宿主整体移除（Terminal.Gui 旧 TUI 归档，native_tui 自研接任）；gui 切直引 engine；CommandQueue 搬回 cli、SlashCommandRunner + Prefix 族留守 engine |
+| 收尾 | CliServiceContext→EngineServiceContext 改名（engine 内 Cli 前缀清零） |
+
+### 实施期决策修订（与原决策的差异）
+
+1. **CliSession 未改名**——分类调查后 CliSession 是 CLI 宿主表现层（TerminalHelper 终端
+   交互重度耦合），留 cli 不搬，无需 EngineSession 改名；进 engine 的服务上下文已改名
+   EngineServiceContext
+2. **启动管道留 cli**——StartupContext + 12+ 启动步骤全部 HOST（管道组装只在 cli 两个
+   ModeRunner；gui 走 CreateGuiSessionAsync、native_tui 阶段二走 bridge_serve，
+   均不经启动管道），原"SystemPromptApplyStep/NonInteractiveExitCleanupStep 属 ENGINE
+   待 StartupContext 拆分后随迁"判定撤销——引擎能力已在 IChatService/IStopHookManager
+   接口上，步骤只是 CLI 参数翻译层
+3. **pipe 协议族留 cli**——命名管道是 CLI 宿主专属设施（CreateGuiSessionAsync 显式
+   clearPipeEndpoint；native_tui 走 stdin/stdout bridge 协议），边界判据=是否存在
+   跨宿主消费而非"依赖干净"
+4. **Dock submodule 恢复**——三 submodule 移除后用户撤销 GUI 侧部分：GUI 保留原样
+   （新 GUI 在其他分支开发），Dock 恢复；Terminal.Gui/Editor 保持移除（tui 已删）
+
+### 遗留
+
+- 阶段二 native_tui 宿主（`native_tui/apps/NativeTui.Host`）：照抄 gui 先例，
+  CreateGuiSessionAsync 是组装入口，进程内事件直连（M7 特性零协议税）——另起会话

@@ -1,4 +1,5 @@
 global using Api.Chat;
+global using Core.Configuration;
 global using Core.Hooks.Execution.Interception;
 global using Core.Hooks.Execution.Interception.Guards;
 global using Avalonia;

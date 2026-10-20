@@ -12,25 +12,24 @@ internal sealed class DshModelCatalogSource {
     internal DshModelCatalog Current => _catalog;
 
     /// <summary>
-    /// 从 settings.json 构建模型目录 — 读用户配置的供应商预设与模型清单；
+    /// 从用户配置构建模型目录 — 委托 guard 公共加载链（SettingsLoader.LoadUserSettingsFromDirAsync）：
+    /// settings.json 指针 + providers_llm/{name}/config.json + models.json 子文件统一合并，
+    /// 配置形状/路径变更由公共层单点负责，GUI 零知识（对齐 TUI VendorPickerAssembly 同源消费原则）。
     /// 文件缺失或损坏时退化为空目录（不抛错，前端仍可渲染）。
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
-    /// <param name="settingsPath">settings.json 路径</param>
+    /// <param name="settingsPath">settings.json 路径（baseDir 取其所在目录）</param>
     /// <param name="cancellationToken">取消令牌</param>
     internal async Task LoadAsync(IFileSystem fs, string settingsPath, CancellationToken cancellationToken) {
-        if (!fs.FileExists(settingsPath)) {
-            _catalog = Build(null, null, null);
-            return;
-        }
-        var json = await fs.ReadAllTextAsync(settingsPath, cancellationToken);
-        var settings = RelaxedJsonSerializer.Deserialize<SettingsJson>(json, ConfigJsonContext.Default);
+        var baseDir = Path.GetDirectoryName(settingsPath) ?? ".";
+        var settings = await SettingsLoader.LoadUserSettingsFromDirAsync(fs, baseDir, cancellationToken);
         var profile = Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue());
         if (string.IsNullOrWhiteSpace(profile)) {
             profile = settings?.Current?.Profile;
         }
         var models = ToModelMap(settings);
-        var defaultModel = profile is not null && settings?.Vendor.TryGetValue(profile, out var preset) == true
+        var defaultModel = profile is not null && settings?.Vendor is not null
+            && settings.Vendor.TryGetValue(profile, out var preset)
             ? preset.Model
             : null;
         _catalog = Build(profile, defaultModel, models);
@@ -45,13 +44,13 @@ internal sealed class DshModelCatalogSource {
     internal void AttachEngine(string? vendor, string? modelId, IReadOnlyDictionary<string, IReadOnlyList<string>>? models) =>
         _catalog = Build(vendor, modelId, models);
 
-    /// <summary>把 settings.json 的 vendor 预设投影成「供应商 → 模型 ID」映射</summary>
+    /// <summary>把合并后的 SettingsJson.vendor 预设投影成「供应商 → 模型 ID」映射（Vendor 可能为 null — 无 vendor 节点的指针形状，公共层 Merge 未触达时保留原始对象）</summary>
     private static Dictionary<string, IReadOnlyList<string>> ToModelMap(SettingsJson? settings) {
         var map = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
-        if (settings is null) {
+        if (settings?.Vendor is not { } vendors) {
             return map;
         }
-        foreach (var (name, preset) in settings.Vendor) {
+        foreach (var (name, preset) in vendors) {
             var ids = preset.Models.Select(model => model.Id).Where(id => !string.IsNullOrWhiteSpace(id)).ToArray();
             if (ids.Length > 0) {
                 map[name] = ids;

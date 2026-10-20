@@ -133,6 +133,38 @@ public sealed class DshTurnRunnerTests {
     }
 
     [Fact]
+    public async Task Queue_WhileRunning_RunsAfterCurrentTurn() {
+        var harness = await Harness.CreateAsync("排队回复", gate: true);
+        await using var transcripts = harness.Transcripts;
+
+        (await harness.Runner.StartAsync(TextRequest("rpc-1", "第一条"), CancellationToken.None)).Should().BeNull();
+        await harness.WaitForAsync("user/message");
+
+        (await harness.Runner.StartAsync(QueueRequest("rpc-2", "第二条"), CancellationToken.None)).Should().BeNull("mode=queue 在忙时应受理而不是拒绝");
+        harness.Types().Count(type => type == "turn/start").Should().Be(1, "排队输入不得抢占当前轮");
+
+        harness.Engine.Release();
+        await harness.WaitForCountAsync("turn/end", 2);
+
+        harness.Types().Count(type => type == "turn/start").Should().Be(2);
+        harness.Types().Count(type => type == "user/message").Should().Be(2);
+        harness.Hub.RunningTurn(SessionId).Should().Be(0, "两条排队轮次都结束后必须释放占用");
+    }
+
+    [Fact]
+    public async Task SystemNotice_NotMixedIntoAssistantReply() {
+        var harness = await Harness.CreateAsync("真正的回复", emitSystemNotice: true);
+        await using var transcripts = harness.Transcripts;
+
+        (await harness.Runner.StartAsync(TextRequest("rpc-1", "你好"), CancellationToken.None)).Should().BeNull();
+        await harness.WaitForAsync("turn/end");
+
+        harness.Types().Should().NotContain("system/message");
+        var assistant = harness.Events.Single(entry => entry.Event.Type == "assistant/message").Event.Data.GetProperty("message");
+        assistant.GetProperty("content")[0].GetProperty("text").GetString().Should().Be("真正的回复", "系统旁白不得混入助手回复正文");
+    }
+
+    [Fact]
     public async Task ToolCalls_PublishCallAndResultEvents() {
         var harness = await Harness.CreateAsync("已读取", emitToolCalls: true);
         await using var transcripts = harness.Transcripts;
@@ -175,6 +207,14 @@ public sealed class DshTurnRunnerTests {
     private static DshSessionPromptArgs TextRequest(string requestId, string text) => new() {
         RequestId = requestId,
         SessionId = SessionId,
+        Mode = "direct",
+        Content = [new DshPromptContent { Type = "text", Text = text }],
+    };
+
+    private static DshSessionPromptArgs QueueRequest(string requestId, string text) => new() {
+        RequestId = requestId,
+        SessionId = SessionId,
+        Mode = "queue",
         Content = [new DshPromptContent { Type = "text", Text = text }],
     };
 
@@ -195,7 +235,7 @@ public sealed class DshTurnRunnerTests {
         public State.TranscriptService Transcripts { get; }
         public List<DshSessionRecord> Events { get; } = [];
 
-        public static async Task<Harness> CreateAsync(string reply, bool gate = false, bool createSession = true, bool throwOnStream = false, bool emitToolCalls = false, bool toolFails = false) {
+        public static async Task<Harness> CreateAsync(string reply, bool gate = false, bool createSession = true, bool throwOnStream = false, bool emitToolCalls = false, bool toolFails = false, bool emitSystemNotice = false) {
             var fs = new InMemoryFileSystem();
             var services = new DshHostServices(fs);
             var transcripts = new State.TranscriptService(fs, SessionsDir);
@@ -203,7 +243,7 @@ public sealed class DshTurnRunnerTests {
             if (createSession) {
                 await transcripts.EnsureSessionAsync(SessionId, new SessionInfo { Id = SessionId, ProjectPath = "/ws" });
             }
-            var engine = new StubChatSession { Reply = reply, Gate = gate, ThrowOnStream = throwOnStream, EmitToolCalls = emitToolCalls, ToolFails = toolFails };
+            var engine = new StubChatSession { Reply = reply, Gate = gate, ThrowOnStream = throwOnStream, EmitToolCalls = emitToolCalls, ToolFails = toolFails, EmitSystemNotice = emitSystemNotice };
             services.AttachEngine(engine);
             var harness = new Harness(new DshTurnRunner(services), services.Streams, engine, transcripts);
             services.Streams.Subscribe(SessionId, "stream-1", sessionEvent => {
@@ -222,6 +262,14 @@ public sealed class DshTurnRunnerTests {
             }
         }
 
+        /// <summary>等某类事件累计出现指定次数（超时即抛，防测试挂死）</summary>
+        public async Task WaitForCountAsync(string type, int count) {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            while (Events.Count(entry => entry.Event.Type == type) < count) {
+                await _signal.WaitAsync(timeout.Token);
+            }
+        }
+
         public IEnumerable<string> Types() => Events.Select(entry => entry.Event.Type);
 
         public IEnumerable<long> Seqls() => Events.Select(entry => entry.Event.Seq);
@@ -235,10 +283,14 @@ public sealed class DshTurnRunnerTests {
         public bool ThrowOnStream { get; init; }
         public bool EmitToolCalls { get; init; }
         public bool ToolFails { get; init; }
+        public bool EmitSystemNotice { get; init; }
         public string? LastPrompt { get; private set; }
 
         /// <summary>引擎流是否收到了取消（验证停止生成确实传到引擎）</summary>
         public bool Cancelled { get; private set; }
+
+        /// <summary>放行被门控的引擎流（排队测试用）</summary>
+        public void Release() => _gate.TrySetResult();
 
         public bool IsReady => true;
         public ITranscriptService? TranscriptService => null;
@@ -271,6 +323,9 @@ public sealed class DshTurnRunnerTests {
             if (EmitToolCalls) {
                 yield return ChatStreamEvent.ToolStart("Read", "call-1", "{\"path\":\"a.txt\"}");
                 yield return ChatStreamEvent.ToolEnd("Read", ToolFails ? "文件不存在" : "ok", "call-1", ToolFails);
+            }
+            if (EmitSystemNotice) {
+                yield return ChatStreamEvent.SystemNotice("系统旁白不得出现");
             }
             yield return ChatStreamEvent.Text(Reply);
         }

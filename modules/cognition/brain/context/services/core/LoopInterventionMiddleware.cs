@@ -70,7 +70,7 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
         [EnumeratorCancellation] CancellationToken ct) {
         var awarenessPrompt = BuildContextAwarenessPrompts();
         if (!string.IsNullOrEmpty(awarenessPrompt))
-            yield return ChatStreamEvent.Text(awarenessPrompt);
+            yield return ChatStreamEvent.SystemNotice(awarenessPrompt);
 
         var hasLoopDetected = false;
         var loopTriggerCount = 0;

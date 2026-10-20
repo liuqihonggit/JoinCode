@@ -1,4 +1,4 @@
-# TASK053 — DSH 前端托管与宿主协议对齐
+﻿# TASK053 — DSH 前端托管与宿主协议对齐
 
 > ADR：[0143](../adr/architecture/0143-dsh-web-frontend-hosting.md)
 > 目标：GUI 直接托管 DSH 前端产物，C# 侧实现 DSH 假定的「宿主半边」协议，随后把数据源逐方法替换为自己引擎。
@@ -17,7 +17,7 @@
 | M2-c1 | 历史渲染：引擎转录 → DSH 事件（`turn/start`→`step/start`→`user/message`→`assistant/message`→`step/end`→`turn/end`，消息带 `surfaceOp:'append'`） | ✅ |
 | M2-c2 | 聊天主链路：`session/prompt` 发送 + `session/follow` 增量事件流（`turn/start`/`step/*`/`user|assistant/message`）+ `session/cancel` 停止生成 | ✅ |
 | M2-c3 | 工具事件（`tool/call`/`tool/result`）+ 历史向上翻页（`session/page`） | ✅ |
-| M2-c3' | 流式增量（`assistant-stream` 帧）+ `queue`/`steer` 模式 + 循环干预旁白过滤 | ⬜ |
+| M2-c3' | 流式增量（`assistant-stream` 帧）+ `queue`/`steer` 模式 + 循环干预旁白过滤 | 🟡 旁白过滤/queue 已完成；`steer` 与 `assistant-stream` 未做 |
 | M2-d | 权限：`approval/*` 事件 + 判定回传；`sandbox/mode`、`permission/preset` | ⬜ |
 | M3 | 自研 WebUI 与旧桥接归档，`--webui-smoke` 删除 | ⬜ |
 
@@ -52,7 +52,7 @@
 | 历史页工具事件（`tool/call|result`，含 `callId` 配对与 `surfaceOp='append'`）与向上翻页（`session/page`） | 工具卡片渲染 / 长会话滚动加载 | ✅ M2-c3（`DshTurnRunner.PublishToolCallAsync` + `DshSessionStore.PageAsync`） | ✅ `dsh-webui-tool.mjs` ALL_PASS（13 项）；`dsh-webui-reload.mjs` ALL_PASS（刷新重载后历史/工具卡片/翻页光标对齐） |
 | 宿主事件日志（`~/.jcc/dsh_journal/{sessionId}.jsonl`）：事件序号跨进程续写，翻页页尾严格等于请求光标 | 刷新/重启后历史可还原、不再报游标错误 | ✅ M2-c3（`DshSessionJournal` + `DshSessionStreamHub`） | ✅ 单测 3 例（跨重启快照、页尾对齐、日志优先）+ `dsh-webui-reload.mjs` |
 | 消息反馈列表（`messageFeedback/list`，恒空） | 消息气泡反馈按钮不再显示「反馈状态加载失败」 | ✅ M2-c3（`DshRpcDispatcher` 路由 + `DshMessageFeedbackListResult`） | ✅ 单测 1 例 + `dsh-webui-reload.mjs` 断言 |
-| 流式增量（`assistant-stream` 帧、逐字输出）与 `queue`/`steer` 模式 | 打字机效果 / 中途插话 | ⬜ | ⬜ M2-c3' |
+| 循环干预旁白过滤（`ChatStreamEventType.SystemNotice` + `LoopInterventionMiddleware` 改发旁白、`DshTurnRunner` 只记日志不推帧）+ `session/prompt` 的 `queue` 模式（`DshTurnRunner` 每会话队列，轮次结束自动续跑） | 助手气泡不再混入旁白；生成中继续发送按队列串行执行 | ✅ M2-c3'（`ChatStreamEvent.SystemNotice` / `DshTurnRunner.PendingPrompt`） | ✅ 单测 `SystemNotice_NotMixedIntoAssistantReply` + `Queue_WhileRunning_RunsAfterCurrentTurn`；`dsh-webui-queue.mjs` ALL_PASS（8 项） |
 | 会话/消息/流式/权限（`approval/*`、`sandbox/mode`、`permission/preset`） | 工具确认 | ⬜ | ⬜ M2-d |
 
 ## M1.5 缺陷记录（缺陷驱动）
@@ -219,6 +219,25 @@
 | 主动翻页 | 同一脚本内 `POST /api/session/page {throughSeq:cursor-3,maxMessages:2}` | ✅ `ok:true`，页尾 `seq==cursor-3` |
 | 跨进程续写 | 单测 `Journal_SurvivesRestart_AndPageEndsAtRequestedCursor` | ✅ 重启后 cursor 续写（不回落到转录条目数），工具事件仍在 |
 | 回归 | `dsh-webui-prompt.mjs` / `dsh-webui-cancel.mjs` / `dsh-webui-tool.mjs` | ✅ 三者 ALL_PASS（19 / 11 / 13 项） |
+
+
+## M2-c3' 缺陷/决策记录（缺陷驱动）
+
+1. 现象：助手回复里出现 `💡 [低频诱导] loop-intervention-health…`、注意力疲劳提示等旁白，与正文混在同一个 `assistant/message` 里。
+2. 根因：`LoopInterventionMiddleware.BuildContextAwarenessPrompts()` 用 `ChatStreamEvent.Text` 注入提示，与模型正文同为 `Text` 类型，宿主无法区分，于是拼接进助手消息。
+3. 修复：新增 `ChatStreamEventType.SystemNotice` + `ChatStreamEvent.SystemNotice(...)`；循环干预旁白改发该类型；`DshTurnRunner` 收到后只写诊断日志，**不推 `system/message`、不并入正文**。v1 选择「直接隐藏」而非映射 `system/message`（前端该节点默认 hidden），需要可见提示时再切换。
+4. 现象：生成中继续发送，宿主回 `session/busy`；DSH 前端固定用 `mode:"queue"`，用户预期排队。
+5. 修复：`DshTurnRunner` 增加每会话 `ConcurrentQueue<PendingPrompt>`；`mode=queue` 且忙时入队并立即返回受理；轮次 `finally` 释放占用后 `StartQueued` 自动开下一轮（用户消息的 `source.rpcId` 仍回填原请求）。
+6. 决策：`mode="direct"` 保持忙时拒绝（单测用），`steer`（打断当前轮）暂不实现——打断语义需要引擎暴露「轮到哪一步」并可安全取消，先保证 queue 的正确性。
+
+## E2E 基建约定（本轮新增）
+
+- **禁止固定 `sleep`/`waitForTimeout`**：一律轮询真实条件（`dumps/_e2e.mjs` 的 `until`），超时立即抛错并带上标签；条件不满足不进入下一步，避免假绿与无谓等待。
+- **启动即探测**：`launch-webui.mjs` 在不驻留子进程的前提下启动 GUI，`wait-webui.mjs` 轮询 `/json/version`；GUI 起不来/页面不存在/桩服务未监听都立即报错。
+- **每步 fail-fast**：发送/受理/事件/渲染等关键节点用 `until`，超时抛异常终止脚本；`page.setDefaultTimeout(10000)` 防止单次点击挂 30s。
+- **欢迎浮层常驻关闭**：`autoDismissWelcome` 安装 `MutationObserver`，切主题/刷新导致「预览版说明」再次弹出时自动点「继续」，避免遮罩拦住后续点击。
+- **工作区选择按浮层判定**：刷新后侧栏可能已有工作区名，但主区仍显示「选择工作区」；只按 `选择工作区` 是否可点来决定是否点击，不能依赖侧栏文本。
+- 实测：queue/prompt/tool/cancel/reload 五个脚本全部 ALL_PASS，单个脚本 1–2 秒完成。
 
 
 ## M2-b1 验收记录（ADR 0080 手动 exe）

@@ -10,6 +10,9 @@ internal sealed class DshTurnRunner {
 
     private readonly DshHostServices _services;
 
+    /// <summary>会话 → 待跑队列（mode=queue：上一轮进行中时把新输入排队，轮次结束后按序执行）</summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentQueue<PendingPrompt>> _pending = new(StringComparer.Ordinal);
+
     /// <summary>构造执行器</summary>
     /// <param name="services">宿主服务容器</param>
     internal DshTurnRunner(DshHostServices services) => _services = services;
@@ -36,18 +39,47 @@ internal sealed class DshTurnRunner {
         }
         _services.Streams.Observe(request.SessionId, snapshot.Cursor, MaxTurn(snapshot.Records));
         if (_services.Streams.TryBeginTurn(request.SessionId) is not { } turn) {
-            return ("session/busy", $"会话 {request.SessionId} 上一轮仍在生成；等它结束（接口完成/停止）后再发送，排队与打断在 M2-c3 接入");
+            if (string.Equals(request.Mode, "queue", StringComparison.Ordinal)) {
+                Queue(request.SessionId, new PendingPrompt(request.RequestId, text));
+                return null;
+            }
+            return ("session/busy", $"会话 {request.SessionId} 上一轮仍在生成；等它结束（接口完成/停止）后再发送，排队请用 mode=queue");
         }
-        await _services.Streams.PublishAsync(request.SessionId, "turn/start", new DshTurnStartData { Turn = turn.Turn });
-        await _services.Streams.PublishAsync(request.SessionId, "step/start", new DshStepData { Turn = turn.Turn, Step = Step });
-        await _services.Streams.PublishAsync(request.SessionId, "user/message", new DshWireMessage {
-            Id = $"{request.SessionId}:{turn.Turn}:user",
-            Role = "user",
-            Content = [new DshWireContentBlock { Text = text }],
-            Source = new DshWireMessageSource { Kind = "user", RpcId = request.RequestId },
-        }, surfaceOp: "append");
-        _ = RunTurnAsync(engine, request.SessionId, text, turn.Turn, turn.Token);
+        await BeginTurnAsync(engine, request.SessionId, new PendingPrompt(request.RequestId, text), turn);
         return null;
+    }
+
+    /// <summary>落用户消息并启动后台轮次（开启/排队复用）</summary>
+    /// <param name="engine">引擎会话</param>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="prompt">已校验的输入</param>
+    /// <param name="turn">轮次占用</param>
+    private async Task BeginTurnAsync(Hosting.IJccChatSession engine, string sessionId, PendingPrompt prompt, (int Turn, CancellationToken Token) turn) {
+        await _services.Streams.PublishAsync(sessionId, "turn/start", new DshTurnStartData { Turn = turn.Turn });
+        await _services.Streams.PublishAsync(sessionId, "step/start", new DshStepData { Turn = turn.Turn, Step = Step });
+        await _services.Streams.PublishAsync(sessionId, "user/message", new DshWireMessage {
+            Id = $"{sessionId}:{turn.Turn}:user",
+            Role = "user",
+            Content = [new DshWireContentBlock { Text = prompt.Text }],
+            Source = new DshWireMessageSource { Kind = "user", RpcId = prompt.RequestId },
+        }, surfaceOp: "append");
+        _ = RunTurnAsync(engine, sessionId, prompt.Text, turn.Turn, turn.Token);
+    }
+
+    /// <summary>把输入放进会话队列</summary>
+    private void Queue(string sessionId, PendingPrompt prompt) =>
+        _pending.GetOrAdd(sessionId, _ => new System.Collections.Concurrent.ConcurrentQueue<PendingPrompt>()).Enqueue(prompt);
+
+    /// <summary>轮次收尾后启动下一条排队输入（无排队则返回）</summary>
+    private void StartQueued(Hosting.IJccChatSession engine, string sessionId) {
+        if (!_pending.TryGetValue(sessionId, out var queue) || !queue.TryDequeue(out var prompt)) {
+            return;
+        }
+        if (_services.Streams.TryBeginTurn(sessionId) is not { } turn) {
+            Queue(sessionId, prompt);
+            return;
+        }
+        _ = BeginTurnAsync(engine, sessionId, prompt, turn);
     }
 
     /// <summary>后台跑一轮生成：成功落助手消息，停止/失败各自落对应收尾（异常只记日志，不让进程崩）</summary>
@@ -68,6 +100,8 @@ internal sealed class DshTurnRunner {
                 }
                 if (evt.Type == ChatStreamEventType.Content && !string.IsNullOrEmpty(evt.Content)) {
                     content.Append(evt.Content);
+                } else if (evt.Type == ChatStreamEventType.SystemNotice) {
+                    App.LogDiag($"[DSH-WEB] turn system notice session={sessionId}: {evt.Content}");
                 } else if (evt.Type == ChatStreamEventType.ToolCallEnd || evt.Type == ChatStreamEventType.ToolCallStart) {
                     await PublishToolCallAsync(sessionId, turn, evt, calls);
                 }
@@ -89,6 +123,9 @@ internal sealed class DshTurnRunner {
             });
         } finally {
             _services.Streams.EndTurn(sessionId);
+            if (_services.Engine is { } ready) {
+                StartQueued(ready, sessionId);
+            }
         }
     }
 
@@ -156,4 +193,9 @@ internal sealed class DshTurnRunner {
             .Select(record => record.Event.Data.TryGetProperty("turn", out var turn) && turn.TryGetInt32(out var value) ? value : 0)
             .DefaultIfEmpty(0)
             .Max();
+
+    /// <summary>排队中的一条用户输入</summary>
+    /// <param name="RequestId">提交身份（回填 user/message 的 source.rpcId）</param>
+    /// <param name="Text">已校验文本</param>
+    private sealed record PendingPrompt(string RequestId, string Text);
 }

@@ -53,7 +53,7 @@ account（11）、pluginManager（12）、dynamicCordisRunner（9）、productAn
 | B3 | 设置统一：`DshSettingsStore` → dsh-settings.json 持久化 + permission/defaultPreset 路由 `SetPermissionModeAsync` | ✅ 单元 12/12 |
 | B4 | 流事件扩展：Thinking → reasoning 块 + `Complete.Usage` → data.usage 四桶（ToolProgress 暂缓） | ✅ 单元 4/4 |
 | B5 | 斜杠命令：`commands/list` 投影 [ChatCommand] 目录 + `commands/execute` 委托 SlashCommandRunner | ✅ 单元 5/5 |
-| B6 | 子代理流事件：AgentStarted/Finished → tool-workflow 事件族（subagentCatalog 运行实例目录另立任务） | ✅ 单元 7/7 |
+| B6 | 子代理流事件：AgentStarted/Finished → tool-workflow 事件族 + subagentCatalog 投影回放（B8） | ✅ 单元 10/10 |
 | B7 | 会话管理：`session/fork` 复制 meta/转录/journal（清空/回退无前端 RPC 消费点，不做） | ✅ 单元 3/3 |
 
 ## 四列验收表

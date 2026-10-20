@@ -359,6 +359,21 @@ internal sealed class DshSessionProjectionValues {
     public DshSessionModelSelectionProjection? ModelSelection { get; set; }
     /// <summary>会话列表元数据</summary>
     public DshSessionListMetadata? SessionListMetadata { get; set; }
+    /// <summary>子代理实例目录（undefined 会让前端子代理面板永久 loading，必须输出数组；TASK058 B8）</summary>
+    public List<DshSubagentCatalogEntry> SubagentCatalog { get; set; } = [];
+}
+
+/// <summary>子代理实例目录条目（实例目录含已完成条目；运行态由前端另查会话状态）</summary>
+internal sealed class DshSubagentCatalogEntry {
+    /// <summary>子代理实例 ID</summary>
+    public string Id { get; set; } = "";
+    /// <summary>创建时间（Unix 毫秒）</summary>
+    public long CreatedAt { get; set; }
+    /// <summary>实例模式（one-shot / continuable / unknown — 引擎后台代理为一次性）</summary>
+    public string Mode { get; set; } = "one-shot";
+    /// <summary>显示名（可选）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Label { get; set; }
 }
 
 /// <summary>模型选择投影（上次使用 / 下次待用，null 表示无）</summary>
@@ -1159,6 +1174,8 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshRequestEnvelope<DshSessionProjectionsArgs>))]
 [JsonSerializable(typeof(DshSessionProjectionsArgs))]
 [JsonSerializable(typeof(DshSessionProjectionSnapshot))]
+[JsonSerializable(typeof(DshSubagentCatalogEntry))]
+[JsonSerializable(typeof(List<DshSubagentCatalogEntry>))]
 [JsonSerializable(typeof(DshRequestEnvelope<DshSessionFollowArgs>))]
 [JsonSerializable(typeof(DshSessionFollowArgs))]
 [JsonSerializable(typeof(DshRequestEnvelope<DshSessionPageArgs>))]

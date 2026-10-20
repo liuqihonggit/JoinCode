@@ -74,11 +74,23 @@ public static class Program
         return 0;
     }
 
-    /// <summary>模拟模式种子消息（示例对话 — banner 之后、spinner 之前插入滚动区）。</summary>
+    /// <summary>模拟模式种子消息（示例对话 — banner 之后、spinner 之前插入滚动区；assistant 回复为 Markdown 行内样式演示，M7-4 启动即见渲染）。</summary>
     private static IReadOnlyList<IScrollItem> SeedMessages() =>
     [
         new UserMessageItem("这个 TUI 是像素级对齐 Claude Code 的自研实现吗？"),
-        new AssistantMessageItem("是的 — 纯 C# 自研渲染管线：Screen cell 网格 + CellDiffer 差分 + DEC 2026 原子上屏。"),
+        new MarkdownMessageItem(new MarkdownDocument(
+        [
+            new MarkdownParagraph(
+            [
+                new MarkdownSegment("是的 — 纯 C# 自研渲染管线：", MarkdownStyle.None),
+                new MarkdownSegment("Screen cell 网格", MarkdownStyle.Bold),
+                new MarkdownSegment(" + ", MarkdownStyle.None),
+                new MarkdownSegment("CellDiffer", MarkdownStyle.Code),
+                new MarkdownSegment(" 差分 + ", MarkdownStyle.None),
+                new MarkdownSegment("DEC 2026", MarkdownStyle.Code),
+                new MarkdownSegment(" 原子上屏。", MarkdownStyle.None),
+            ]),
+        ])),
         new ToolCallItem("Read", "native_tui/src/NativeTui.Core/repl/ReplView.cs"),
         new ToolResultItem("41 行 — REPL 整屏视图（footer + 输入框 + 消息滚动区）"),
     ];

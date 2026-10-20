@@ -37,7 +37,9 @@ public sealed class SimulatedEngine : IReplEngine
     /// <summary>时钟（默认墙钟 — 测试注入虚拟时钟）。</summary>
     private readonly Func<long> _clock;
 
-    /// <summary>模拟补丁 — Demo 演示 StructuredDiff 渲染链路（M7-2）：4 行 hunk 超 2 行预览，同时演示折叠提示。</summary>
+    /// <summary>
+    /// 模拟补丁 — Demo 演示 StructuredDiff 渲染链路（M7-2）：4 行 hunk 超 2 行预览，同时演示折叠提示。
+    /// </summary>
     private static readonly DiffHunk[] SimulatedPatch =
     [
         new()
@@ -52,6 +54,55 @@ public sealed class SimulatedEngine : IReplEngine
             ],
         },
     ];
+
+    /// <summary>
+    /// 演示 Markdown（M7-4）— Demo 模拟回合完成消息的块模型，覆盖全 8 类块形态
+    /// （heading/paragraph 行内样式/无序+有序 list/quote/code/rule/table）；
+    /// 与 SimulatedPatch 同理直接手构块模型（Core 零依赖，不经 Markdig 投影器），
+    /// 公开静态供 Demo SeedMessages 等演示构造复用。
+    /// </summary>
+    public static readonly MarkdownDocument DemoMarkdown = new(
+    [
+        new MarkdownHeading(2, [Seg("Markdown 渲染管线")]),
+        new MarkdownParagraph(
+        [
+            Seg("Core 块模型 → 布局 → 渲染三层分离；"),
+            Seg("行内代码", MarkdownStyle.Code),
+            Seg(" 取 permission 色，"),
+            Seg("粗体", MarkdownStyle.Bold),
+            Seg(" / "),
+            Seg("斜体", MarkdownStyle.Italic),
+            Seg(" 组合 SGR。"),
+        ]),
+        new MarkdownList(false, 0,
+        [
+            new MarkdownListItem([new MarkdownParagraph([Seg("无序项 — 两空格缩进")])]),
+            new MarkdownListItem([new MarkdownParagraph([Seg("第二项")])]),
+        ]),
+        new MarkdownList(true, 1,
+        [
+            new MarkdownListItem([new MarkdownParagraph([Seg("有序项 — 数字编号")])]),
+            new MarkdownListItem([new MarkdownParagraph([Seg("第二项 — 自动递增")])]),
+        ]),
+        new MarkdownQuote([new MarkdownParagraph([Seg("引用 — ▎ 前缀 + 内容斜体（布局层叠加）。")])]),
+        new MarkdownCode("csharp", "var doc = Markdown.Parse(text, Pipeline);\nvar blocks = MarkdigProjector.Project(doc);"),
+        new MarkdownRule(),
+        new MarkdownTable(
+        [
+            Cell(Seg("块形态", MarkdownStyle.Bold)),
+            Cell(Seg("演示要点", MarkdownStyle.Bold)),
+        ],
+        [
+            [Cell(Seg("代码块")), Cell(Seg("Language 原样保留，逐行不换行"))],
+            [Cell(Seg("表格")), Cell(Seg("列宽 = max(显示宽, 3)"))],
+        ]),
+    ]);
+
+    /// <summary>行内段速构（演示文档构造）。</summary>
+    private static MarkdownSegment Seg(string text, MarkdownStyle style = MarkdownStyle.None) => new(text, style);
+
+    /// <summary>表格单元格速构（深层嵌套集合表达式推断失败规避 — 对齐 MarkdownLayoutTests 先例）。</summary>
+    private static IReadOnlyList<MarkdownSegment> Cell(params MarkdownSegment[] segments) => segments;
 
     /// <summary>默认时间源 — 墙钟毫秒。</summary>
     private static long DefaultClock() => Environment.TickCount64;
@@ -127,7 +178,7 @@ public sealed class SimulatedEngine : IReplEngine
         {
             _stage = 3;
             _inTurn = false;
-            _pending.Enqueue(new BridgeEvent.AssistantMessage("演示回复 — diff 渲染管线运行正常。"));
+            _pending.Enqueue(new BridgeEvent.AssistantMessage("演示回复 — markdown 全形态渲染管线运行正常。", DemoMarkdown));
             _pending.Enqueue(new BridgeEvent.TurnCompleted());
             return;
         }

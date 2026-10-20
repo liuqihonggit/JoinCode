@@ -77,6 +77,29 @@ public sealed class SimulatedEngineTests
         Assert.Empty(engine.DrainEvents());
     }
 
+    /// <summary>虚拟时钟 5.5s：完成事件携带 Markdown 块模型（M7-4 演示全形态 — 8 类块全覆盖）。</summary>
+    [Fact]
+    public void Advance_ToCompletion_Emits_AssistantMessageWithMarkdown()
+    {
+        var clock = new VirtualClock();
+        var engine = new SimulatedEngine(() => clock.Now);
+        engine.Submit("hello");
+        engine.DrainEvents();
+
+        clock.Advance(5500);
+        var events = engine.DrainEvents();
+        var message = Assert.IsType<BridgeEvent.AssistantMessage>(events.First(e => e is BridgeEvent.AssistantMessage));
+        Assert.NotNull(message.Markdown);
+        Assert.Contains(message.Markdown.Blocks, b => b is MarkdownHeading);
+        Assert.Contains(message.Markdown.Blocks, b => b is MarkdownParagraph);
+        Assert.Contains(message.Markdown.Blocks, b => b is MarkdownList { Ordered: false });
+        Assert.Contains(message.Markdown.Blocks, b => b is MarkdownList { Ordered: true });
+        Assert.Contains(message.Markdown.Blocks, b => b is MarkdownQuote);
+        Assert.Contains(message.Markdown.Blocks, b => b is MarkdownCode);
+        Assert.Contains(message.Markdown.Blocks, b => b is MarkdownRule);
+        Assert.Contains(message.Markdown.Blocks, b => b is MarkdownTable);
+    }
+
     /// <summary>忙时 Interrupt：产出 TurnInterrupted，回合终止。</summary>
     [Fact]
     public void Interrupt_WhileBusy_Emits_TurnInterrupted()

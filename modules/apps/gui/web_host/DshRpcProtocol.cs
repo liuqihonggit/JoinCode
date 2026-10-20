@@ -1085,6 +1085,8 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshSettingsDescribe))]
 [JsonSerializable(typeof(DshSettingsNamespaceView))]
 [JsonSerializable(typeof(DshSettingsMutateArgs))]
+[JsonSerializable(typeof(DshSettingsDocument))]
+[JsonSerializable(typeof(DshSettingsNamespaceDocument))]
 [JsonSerializable(typeof(DshSchemaEnvelope))]
 [JsonSerializable(typeof(DshSkillList))]
 [JsonSerializable(typeof(DshMessageFeedbackListResult))]

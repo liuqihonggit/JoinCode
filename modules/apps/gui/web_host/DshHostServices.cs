@@ -12,7 +12,7 @@ internal sealed class DshHostServices {
     /// <param name="journalDirectory">宿主事件日志目录（默认 <c>~/.jcc/dsh_journal</c>）</param>
     internal DshHostServices(IFileSystem fileSystem, string? workspaceFilePath = null, string? journalDirectory = null) {
         Workspaces = new DshWorkspaceStore(fileSystem, workspaceFilePath);
-        Settings = new DshSettingsStore();
+        Settings = new DshSettingsStore(fileSystem);
         Sessions = new DshSessionStore();
         Models = new DshModelCatalogSource();
         Journal = new DshSessionJournal(fileSystem, journalDirectory ?? Path.Combine(AppDataPaths.Default.JccDirectory, "dsh_journal"));

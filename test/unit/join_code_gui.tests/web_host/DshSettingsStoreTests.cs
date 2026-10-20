@@ -8,8 +8,8 @@ namespace JoinCode.Gui.Tests.WebHost;
 /// ④ 未知命名空间按需创建。
 /// </summary>
 public sealed class DshSettingsStoreTests {
-    /// <summary>被测设置存储（每个测试类实例独立，避免静态状态串味）</summary>
-    private readonly DshSettingsStore _store = new();
+    /// <summary>被测设置存储（每个测试类实例独立文件系统，物理隔离免 Reset）</summary>
+    private readonly DshSettingsStore _store = new(new InMemoryFileSystem());
 
     /// <summary>构造一元调用参数（DTO + JsonContext，与 DSH 前端 settings/mutate 请求体同形状）</summary>
     private static JsonElement MutateArgs(string ns, IReadOnlyList<DshSettingsOp> ops, int? expectedRevision = null) =>
@@ -35,7 +35,6 @@ public sealed class DshSettingsStoreTests {
 
     [Fact]
     public void Describe_AlwaysContainsWelcomeNamespace() {
-        _store.Reset();
         var describe = _store.Describe();
         describe.Writable.Should().BeTrue();
         var welcome = describe.Namespaces.Single(view => view.Ns == "ui-settings-general");
@@ -46,7 +45,6 @@ public sealed class DshSettingsStoreTests {
 
     [Fact]
     public void Mutate_SetWelcomeVersion_PersistsAndDescribeReadsBack() {
-        _store.Reset();
         var result = _store.Mutate(MutateArgs(
             "ui-settings-general",
             [Set("welcomeNoticeVersion", "\"2026-09-28.1\"")]));
@@ -59,7 +57,6 @@ public sealed class DshSettingsStoreTests {
 
     [Fact]
     public void Mutate_NestedPath_BuildsNestedObject() {
-        _store.Reset();
         var result = _store.Mutate(
             MutateArgs("demo-nested", [Set("llm/retry/maxRetries", "5")]));
         var inner = ValueOf(result).GetProperty("llm").GetProperty("retry");
@@ -68,7 +65,6 @@ public sealed class DshSettingsStoreTests {
 
     [Fact]
     public void Mutate_Unset_RemovesFieldAndSubtree() {
-        _store.Reset();
         _store.Mutate(MutateArgs("demo-unset", [Set("a/b", "1"), Set("a/c", "2")]));
         var result = _store.Mutate(MutateArgs("demo-unset", [Unset("a/b")]));
         var node = ValueOf(result).GetProperty("a");
@@ -78,7 +74,6 @@ public sealed class DshSettingsStoreTests {
 
     [Fact]
     public void Mutate_StaleExpectedRevision_FailsWithConflict() {
-        _store.Reset();
         _store.Mutate(MutateArgs("demo-conflict", [Set("x", "1")]));
         var result = _store.Mutate(MutateArgs("demo-conflict", [Set("x", "2")], expectedRevision: 0));
         result.Ok.Should().BeFalse();
@@ -88,7 +83,6 @@ public sealed class DshSettingsStoreTests {
 
     [Fact]
     public void Mutate_UnknownNamespace_MutateCreatesIt() {
-        _store.Reset();
         _store.Describe().Namespaces.Should().NotContain(view => view.Ns == "demo-new");
         _store.Mutate(MutateArgs("demo-new", [Set("flag", "true")]));
         _store.Describe().Namespaces.Single(view => view.Ns == "demo-new")
@@ -97,7 +91,6 @@ public sealed class DshSettingsStoreTests {
 
     [Fact]
     public void Describe_WelcomeNamespace_CarriesSchemasteryEnvelope() {
-        _store.Reset();
         var welcome = _store.Describe().Namespaces.Single(view => view.Ns == "ui-settings-general");
         welcome.AutoGenerate.Should().BeFalse();
         welcome.Schema.ValueKind.Should().Be(JsonValueKind.Object);

@@ -245,9 +245,11 @@ jobs:
           # Stryker 4.16 的 test-case-filter 只能通过配置文件设置（命令行 N/A）
           # 注意: 此文件会遮蔽上级目录 stryker-config.json,必须携带 additional-timeout 防止变异死锁时测试session无限hang
           # 临时(#106 后挂死定位): verbosity=debug 记录每个 mutant 的测试事件, 挂死前最后一个 mutant 即凶手
+          # #110 后 Vector 挂死根因: HnswBenchmarkTests(2000×384 构图,无标记)混入变异测试, 8 Runner 争 2 核下单用例 10-30s
+          # → 超时连锁(timeout 压缩~12s 后结构性反复超时)。排除 Benchmark 类别(已加 Trait)
           # projectMap 的 IgnoreMutations 键(如 Dep 排除 string) → 写入 ignore-mutations 数组
           $configPath = Join-Path $testDir "stryker-config.json"
-          $config = [ordered]@{ 'stryker-config' = [ordered]@{ 'test-case-filter' = 'Category!=Integration'; 'additional-timeout' = 5000; 'verbosity' = 'debug' } }
+          $config = [ordered]@{ 'stryker-config' = [ordered]@{ 'test-case-filter' = 'Category!=Integration&&Category!=Benchmark'; 'additional-timeout' = 5000; 'verbosity' = 'debug' } }
           if ($info.ContainsKey('IgnoreMutations') -and $info.IgnoreMutations.Count -gt 0) {
             $config['stryker-config']['ignore-mutations'] = $info.IgnoreMutations
           }

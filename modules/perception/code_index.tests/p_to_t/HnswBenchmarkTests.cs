@@ -1,5 +1,7 @@
 namespace JoinCode.CodeIndex.Tests;
 
+/// <summary>HNSW 性能基准测试 — 2000×384 构图级重量负载,排除出常规 CI/变异测试(否则 8 Runner 争 2 核下放大 4-8 倍触发超时连锁)</summary>
+[Trait("Category", "Benchmark")]
 public sealed class HnswBenchmarkTests
  {
 

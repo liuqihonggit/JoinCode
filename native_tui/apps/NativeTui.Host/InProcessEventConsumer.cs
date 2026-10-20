@@ -87,6 +87,22 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         _events.Enqueue(new BridgeEvent.AssistantMessage(fullText, MarkdigProjector.ProjectOptional(fullText)));
     }
 
+    /// <summary>子代理启动 → SubagentStarted（DSG041 批4 — 显式实现：DIM 默认实现经类类型调用不可见；
+    /// ReplBridgeDriver 路由已就绪，分组渲染零改动验收面）。</summary>
+    public void OnSubagentStarted(string subagentId, string agentType, string description) {
+        _events.Enqueue(new BridgeEvent.SubagentStarted(subagentId, agentType, description));
+    }
+
+    /// <summary>子代理工具活动 → SubagentToolUse（原地更新组条目 + 活动日志环形缓冲）。</summary>
+    public void OnSubagentToolUse(string subagentId, string toolName, string summary, int tokenGain) {
+        _events.Enqueue(new BridgeEvent.SubagentToolUse(subagentId, toolName, summary, tokenGain));
+    }
+
+    /// <summary>子代理完成 → SubagentFinished（条目定格，isError 聚合组头 ● 红）。</summary>
+    public void OnSubagentFinished(string subagentId, bool isError) {
+        _events.Enqueue(new BridgeEvent.SubagentFinished(subagentId, isError));
+    }
+
     /// <summary>排空事件队列 — 主循环每 tick 调用，取走全部待处理事件（ConcurrentQueue 多生产单消费安全）。</summary>
     public IReadOnlyList<BridgeEvent> DrainEvents() {
         List<BridgeEvent>? drained = null;

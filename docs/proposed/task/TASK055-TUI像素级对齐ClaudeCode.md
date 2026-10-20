@@ -549,3 +549,38 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!-- 验证: engine/cli 双编译 0警告0错误 + host.tests 1337/1337 全绿(基线保持) -->
 <!-- ADR 0143 阶段一完结: 转 accepted; 剩余=阶段二 native_tui 宿主(native_tui/apps/NativeTui.Host) -->
 <!--   另起会话照抄 gui 先例(CreateGuiSessionAsync 是组装入口) -->
+
+<!-- 🤖 Auto Decision: 2026-10-20 (ADR 0143 阶段二完结: native_tui 宿主四批次落地) -->
+<!-- 批次1 079065e23: Host 工程 + InProcessEventConsumer(IEventConsumer 第四实现, 语义对齐 -->
+<!--   engine BridgeEventConsumer, WriteEvent 序列化 stdout→ConcurrentQueue 内存 record, -->
+<!--   对齐 Core BridgeEventPump 邮箱模型先例) -->
+<!-- 批次2 9649bb7d5: EngineTurnClient(BridgeServeLoop.DispatchRequest 进程内版, 委托注入 -->
+<!--   TurnExecutor/PermissionModeApplier 字符串化避免 PermissionMode 同名冲突, 共享队列 -->
+<!--   FIFO 保序: turn_started 必先于回合内部事件) -->
+<!-- 批次3 c096a0e11: EngineSession 组装照抄 BridgeServeCommand(CreateGuiSessionAsync→延迟绑定 -->
+<!--   SessionController→PermissionChecker 安全闸→session_info 种子事件经 internal Enqueue); -->
+<!--   HostSession 只取 DemoSession bridge 模式(inline 独占/无模拟回合/无引擎退出检测); -->
+<!--   决策1: 回合 busy 全事件驱动不乐观预挂 BeginTurn(进程内 TurnStarted 零延迟, 预挂+忙时 -->
+<!--   拒绝会导致 busy 卡死 — 无 TurnStarted 事件匹配 EndTurn) -->
+<!--   决策2: OutputType 修正 WinExe→Exe(TUI 需控制台子系统, WinExe 不继承父控制台 raw mode 不可用) -->
+<!--   决策3: 引擎侧 JoinCode.Abstractions.Security.PermissionMode 与 Core NativeTui.Core.Repl.PermissionMode -->
+<!--   同名, GlobalUsings 4 别名消歧(EnginePermissionMode 等), 协议值字符串互转 -->
+<!--   决策4: Console.SetOut(stderr) + 重定向前捕获独立 writer(对齐 bridge 先例, 引擎日志不污染渲染流) -->
+<!-- 批次4: native_tui.slnx 注册 Host+Host.Tests(5 工程), ADR 0143 阶段二实施结果段落, 本决策块 -->
+<!-- 验证: Host.Tests 21/21 + Core 458/458 + Demo selftest 回归通过; Host --selftest 真实冒烟 -->
+<!--   OK(引擎组装+session_info 真实数据+PermissionChecker 真实回执+无效模式诱导); 负路径 -->
+<!--   (重定向检测/未知参数)退出码 1 -->
+<!-- 遗留: ReplShell 提取(HostSession/DemoSession 键处理+渲染循环约 270 行结构重复) = M7 权限 -->
+<!--   对话框前置任务; 权限挂起首版按打断处理(M7 扩展交互确认) -->
+
+### ADR 0143 阶段二手动验收（ADR 0080，待用户执行）
+
+| 步骤 | 命令 | 预期 |
+|------|------|------|
+| 1 冒烟 | `native_tui/artifacts/bin/NativeTui.Host/Debug/net10.0/NativeTui.Host.exe --selftest` | `HOST SELFTEST OK`，退出码 0 |
+| 2 交互 | 同 exe 无参数（真实终端） | banner 显示引擎版本/真实模型/cwd；"引擎启动中…"后进入输入框 |
+| 3 提交 | 输入文本 + Enter | 用户消息上屏 → spinner 思考动画 → 助手回复（需已配置模型） |
+| 4 打断 | 回合中按 Esc | spinner 消失回空闲（turn_interrupted） |
+| 5 权限 | Shift+Tab 循环 | footer 模式 plan→ask→bypass→unattended→auto（引擎回执为准） |
+| 6 退出 | 空闲时 Esc 或 Ctrl+C | 清尾部动态区，历史留 scrollback，`NativeTui.Host 已退出。` |
+

@@ -64,6 +64,22 @@ public sealed class ReplShell
     /// <summary>进入搜索前的输入草稿（Esc 退出恢复）。</summary>
     private string _preSearchDraft = string.Empty;
 
+    /// <summary>上次 Esc 按下时间戳（ms — 双击窗口判定；0 = 无先前击）。</summary>
+    private long _lastEscapeMs;
+
+    /// <summary>Esc 双击窗口时长（ms — 窗口内两击构成双击中断）。</summary>
+    internal const int EscapeDoubleClickWindowMs = 500;
+
+    /// <summary>Esc 时钟源（internal — 测试注入可控时间戳；默认墙钟）。</summary>
+    internal Func<long> EscClock { get; set; } = static () => Environment.TickCount64;
+
+    /// <summary>剪贴板写入委托（TASK059 — Ctrl+C 复制最后 assistant 消息；宿主注入引擎
+    /// IClipboardService 适配，Core 零依赖不持接口；null = 复制能力降级无操作）。</summary>
+    private readonly Action<string>? _copyToClipboard;
+
+    /// <summary>主循环存活标记（internal — 退出安全测试断言面：Esc/Ctrl+C 永不置 false）。</summary>
+    internal bool IsRunning => _running;
+
     /// <summary>启动 banner（首项 — 真实引擎由 session_info 事件原地更新）。</summary>
     private readonly BannerItem _banner;
 
@@ -89,7 +105,8 @@ public sealed class ReplShell
     /// inline=渲染模式（默认主屏 log-update）；seedMessages=种子消息（banner 之后、spinner 之前）；
     /// commands=斜杠命令清单（宿主注入；null = 无补全能力）；
     /// codeHighlighter=代码高亮插件（M7-5 卫星注入；null = 高亮禁用降级纯文本）；
-    /// sizeSource=终端尺寸源（resize 事件化注入面；null = Console 轮询默认实现）。</summary>
+    /// sizeSource=终端尺寸源（resize 事件化注入面；null = Console 轮询默认实现）；
+    /// clipboard=剪贴板写入委托（TASK059 Ctrl+C 复制；null = 复制降级无操作）。</summary>
     public ReplShell(
         IReplEngine engine,
         BannerItem banner,
@@ -98,7 +115,8 @@ public sealed class ReplShell
         IReadOnlyList<IScrollItem>? seedMessages = null,
         IReadOnlyList<CommandSuggestion>? commands = null,
         ICodeHighlighter? codeHighlighter = null,
-        ITerminalSizeSource? sizeSource = null)
+        ITerminalSizeSource? sizeSource = null,
+        Action<string>? clipboard = null)
     {
         _engine = engine;
         _banner = banner;
@@ -107,6 +125,7 @@ public sealed class ReplShell
         _seedMessages = seedMessages ?? [];
         _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands) : null;
         _sizeSource = sizeSource ?? new ConsoleTerminalSizeSource();
+        _copyToClipboard = clipboard;
         _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter);
     }
 
@@ -438,7 +457,7 @@ public sealed class ReplShell
                 _input.Left();
                 break;
             case "c":
-                _running = false;
+                CopyLastAssistantMessage();
                 break;
             case "d":
                 if (_input.Text.Length == 0)
@@ -893,21 +912,48 @@ public sealed class ReplShell
     private void UpdateSuggestions() => _suggester?.Update(_input.Text);
 
     /// <summary>Esc：忙时打断当前回合；闲时有输入清空（对齐基准双击清空的单击近似），无输入退出。</summary>
+    /// <summary>Esc 处置（TASK059 退出安全 — Esc 永不退出）：忙时 500ms 双击 → 打断（单击等窗口无操作）；
+    /// 闲时有文本 → 清空输入（既有行为）；闲时空输入 → 无操作。退出路径只剩 Ctrl+D 与 /exit 命令。</summary>
     internal void HandleEscape()
     {
+        var now = EscClock();
+        var isDoubleTap = _lastEscapeMs != 0 && now - _lastEscapeMs <= EscapeDoubleClickWindowMs;
+        _lastEscapeMs = now;
+
         if (IsBusy)
         {
-            _engine.Interrupt();
+            if (isDoubleTap)
+            {
+                _lastEscapeMs = 0;
+                _engine.Interrupt();
+            }
+
             return;
         }
 
         if (_input.Text.Length > 0)
         {
             _input.Clear();
+        }
+    }
+
+    /// <summary>Ctrl+C 复制（TASK059 — 原退出行为移除）：滚动区最后一条 assistant 消息文本 →
+    /// 剪贴板委托（宿主注入；null = 降级无操作）+ PostInfo 反馈；无 assistant 消息时无操作。</summary>
+    internal void CopyLastAssistantMessage()
+    {
+        if (_copyToClipboard is null)
+        {
             return;
         }
 
-        _running = false;
+        var last = _view.Messages.Items.OfType<AssistantMessageItem>().LastOrDefault();
+        if (last is null)
+        {
+            return;
+        }
+
+        _copyToClipboard(last.Text);
+        PostInfo("已复制到剪贴板");
     }
 
     /// <summary>Shift+Tab 循环权限模式（jcc 引擎模式集合）— 发引擎应用请求，footer 以 permission_mode_changed 回执为准。</summary>

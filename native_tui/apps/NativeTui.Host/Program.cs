@@ -80,7 +80,11 @@ public static class Program {
                         VendorPickerAssembly.ApplyVendor(session.Services, vendor);
                         session.RefreshSessionInfo();
                     });
-                var shell = new ReplShell(pickerEngine, banner, tuiOutput, commands: commands);
+                // TASK059 退出安全 — Esc 永不退出（忙时双击中断）、Ctrl+C 复制最后 assistant 消息；
+                // 退出路径：Ctrl+D（空输入）或 /exit 命令。剪贴板走引擎 IClipboardService（fire-and-forget 写入）。
+                var clipboardService = session.Services.GetService<IClipboardService>();
+                var shell = new ReplShell(pickerEngine, banner, tuiOutput, commands: commands,
+                    clipboard: text => _ = clipboardService?.SetTextAsync(text));
                 pickerEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);

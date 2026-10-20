@@ -53,7 +53,8 @@ public static class Program
         return 0;
     }
 
-    /// <summary>交互模式：进 raw mode 跑共享 REPL 外壳（ReplShell + SimulatedEngine 演示命令路由 md/diff/perm/all；inline 模式退出只清尾部动态区，历史留终端 scrollback）。</summary>
+    /// <summary>交互模式：进 raw mode 跑共享 REPL 外壳（ReplShell + SimulatedEngine 演示命令路由 md/diff/perm/all；inline 模式退出只清尾部动态区，历史留终端 scrollback）。
+    /// TASK056：注入演示命令清单启用斜杠补全（输入 / 弹建议列表）+ 历史环默认启用（↑↓ 翻阅提交记录）。</summary>
     private static int RunInteractive(string? model = null, bool viewport = false)
     {
         if (Console.IsInputRedirected || Console.IsOutputRedirected)
@@ -67,12 +68,21 @@ public static class Program
         var version = typeof(Program).Assembly.GetName().Version is { } v ? v.ToString(3) : "0.0.0";
         var info = SessionInfo.Create(version, model);
         var banner = new BannerItem(info.Version, info.Model, info.Billing, info.WorkingDirectory);
-        var shell = new ReplShell(new SimulatedEngine(), banner, Console.Out, inline: !viewport, seedMessages: SeedMessages(), codeHighlighter: new TextMateCodeHighlighter(dark: true));
+        var shell = new ReplShell(new SimulatedEngine(), banner, Console.Out, inline: !viewport, seedMessages: SeedMessages(), commands: DemoCommands(), codeHighlighter: new TextMateCodeHighlighter(dark: true));
         shell.Run();
         shell.WriteExit();
         Console.WriteLine("NativeTui.Demo 已退出。");
         return 0;
     }
+
+    /// <summary>Demo 演示命令清单（斜杠补全数据源）— 与 SimulatedEngine.ParseCommand 路由同源。</summary>
+    private static IReadOnlyList<CommandSuggestion> DemoCommands() =>
+    [
+        new CommandSuggestion("md", "Markdown 全形态渲染", [], IsHidden: false),
+        new CommandSuggestion("diff", "结构化补丁", [], IsHidden: false),
+        new CommandSuggestion("perm", "权限对话框", [], IsHidden: false),
+        new CommandSuggestion("all", "完整回合（补丁 + Markdown）", [], IsHidden: false),
+    ];
 
     /// <summary>模拟模式种子消息（示例对话 — banner 之后、spinner 之前插入滚动区；assistant 回复为 Markdown 行内样式演示，M7-4 启动即见渲染；末条为演示命令提示）。</summary>
     private static IReadOnlyList<IScrollItem> SeedMessages() =>

@@ -166,19 +166,28 @@ public sealed class SimulatedEngine : IReplEngine
         _pending.Enqueue(new BridgeEvent.TurnStarted());
     }
 
-    /// <summary>演示命令路由（trim 后精确匹配）— null = 未知命令。</summary>
-    private static TurnScript? ParseCommand(string text) => text.Trim() switch
+    /// <summary>演示命令路由（trim 后匹配，兼容斜杠前缀 /md 形态 — TUI 补全接受后提交带 /）— null = 未知命令。</summary>
+    private static TurnScript? ParseCommand(string text)
     {
-        "md" => TurnScript.Markdown,
-        "diff" => TurnScript.Diff,
-        "perm" => TurnScript.Permission,
-        "all" => TurnScript.Full,
-        _ => null,
-    };
+        var command = text.Trim();
+        if (command.StartsWith('/'))
+        {
+            command = command[1..];
+        }
 
-    /// <summary>未知命令 Error 诱导 — 列出全部演示命令与各自用途（含怎么做）。</summary>
+        return command switch
+        {
+            "md" => TurnScript.Markdown,
+            "diff" => TurnScript.Diff,
+            "perm" => TurnScript.Permission,
+            "all" => TurnScript.Full,
+            _ => null,
+        };
+    }
+
+    /// <summary>未知命令 Error 诱导 — 列出全部演示命令与各自用途（含怎么做，提示可输入 / 弹补全列表）。</summary>
     private static string UnknownCommandMessage(string input) =>
-        $"未知演示命令「{input}」。可用命令：md（Markdown 全形态渲染）、diff（结构化补丁）、perm（权限对话框）、all（完整回合 = 补丁 + Markdown）。请输入上述命令之一后回车。";
+        $"未知演示命令「{input}」。可用命令：md（Markdown 全形态渲染）、diff（结构化补丁）、perm（权限对话框）、all（完整回合 = 补丁 + Markdown）。可直接输入命令或输入 / 弹出补全列表选择。";
 
     /// <summary>打断当前回合（闲时 no-op）。</summary>
     public void Interrupt()

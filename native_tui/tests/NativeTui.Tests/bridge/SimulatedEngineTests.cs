@@ -202,6 +202,26 @@ public sealed class SimulatedEngineTests
         Assert.DoesNotContain(events, e => e is BridgeEvent.TurnStarted);
     }
 
+    /// <summary>斜杠前缀命令（TUI 补全接受形态）：/md 等价 md 路由 — TurnStarted 而非 Error。</summary>
+    [Theory]
+    [InlineData("/md")]
+    [InlineData("/all")]
+    public void Submit_SlashPrefixedCommand_RoutesLikeBareCommand(string input)
+    {
+        var engine = new SimulatedEngine(static () => 0L);
+        engine.Submit(input);
+        Assert.Equal([new BridgeEvent.TurnStarted()], engine.DrainEvents());
+    }
+
+    /// <summary>斜杠前缀带尾随空格（Tab 接受形态 "/cmd "）：trim 后等价路由。</summary>
+    [Fact]
+    public void Submit_SlashCommandWithTrailingSpace_RoutesAfterTrim()
+    {
+        var engine = new SimulatedEngine(static () => 0L);
+        engine.Submit("/md ");
+        Assert.Equal([new BridgeEvent.TurnStarted()], engine.DrainEvents());
+    }
+
     /// <summary>忙时 Interrupt：产出 TurnInterrupted，回合终止。</summary>
     [Fact]
     public void Interrupt_WhileBusy_Emits_TurnInterrupted()

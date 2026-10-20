@@ -834,3 +834,41 @@ ReferenceScene.cs 不含任何 Markdown 渲染调用（纯手工 cell 构造，g
 
 <!-- M7-5 完成: 用户真实终端 md 命令视觉验收 → M7-6 模型列表(后端获取) → M7-7 多子代理分组 → resize 事件化 -->
 
+## M7-6 模型列表调研（2026-10-21，基准源码 + 本项目引擎侧现状盘点）
+
+### 基准 /model 链路真相（claude-code-rev-main 全读结论）
+
+| 项 | 基准实现 | 文件:行号 |
+|----|---------|----------|
+| 命令入口 | local-jsx 懒加载命令 + alt+p 热键内联打开 | commands/model/index.ts:1-16, PromptInput.tsx:2061 |
+| 数据来源 | **本地硬编码主体**（5 套订阅层级列表）+ **bootstrap 后端增量**（GET /api/claude_cli/bootstrap → additional_model_options[{model,name,description}] → 磁盘缓存 isEqual 跳写 → 下次启动生效）+ 当前在用模型兜底追加 + 组织 allowlist 过滤 | modelOptions.ts:271-540, bootstrap.ts:63-137 |
+| Picker 形态 | 单列平铺 Select **不分组**（排序隐含家族：Default→Opus→Sonnet→Haiku），min(10,n) 可见超出 "and N more…"，✓ 选中标记 + ❯ 焦点指示，Default (recommended) 永远首项（value=null 哨兵） | ModelPicker.tsx:135-136/263-310 |
+| effort 行 | 焦点行联动 ←→ 循环 low/medium/high/max，不支持时显示提示 | ModelPicker.tsx:327-336 |
+| 切换链路 | setAppState(mainLoopModel) → onChangeAppState diff 自动持久化 userSettings → getRuntimeMainLoopModel（session→flag→env→settings→内置默认五级）→ 请求体 model | model.tsx:47-57, onChangeAppState.ts:94-112 |
+| 附带逻辑 | fast mode 自动关（不支持时）+ effort max 降级 + 切换反馈 "Set model to X" + /model ? 显示当前 | model.tsx:63-80, ModelPicker.tsx |
+
+**对齐要点**：基准本质"本地清单优先、后端只做增量补充"，非实时 listModels；本项目语境的"后端获取"= **从引擎（进程内 IModelCatalog）取列表**，非 TUI 本地配置直读（青蛙TUI 的做法已被否决）。
+
+### 本项目引擎侧现状（可直接复用的资产）
+
+| 资产 | 位置 | 状态 |
+|------|------|------|
+| IModelCatalog（列表/别名/能力/窗口查询 12 方法） | modules/composition/slash/ai/model/IModelCatalog.cs | ✅ 接口齐备 |
+| ModelCatalog 实现（[Register] Singleton，注入 IProviderDefinitionRegistry + IModelConfigLoader） | modules/composition/slash/ai/model/ModelCatalog.cs:7-8 | ✅ 待验证 GUI 会话链注册 |
+| /model 命令全逻辑（切换+持久化+fast mode 自关+effort 降级+20 条历史） | modules/composition/slash/ai/model/ModelCommand.cs | ✅ 但交互用 TerminalHelper |
+| SlashCommandRunner（TUI/GUI 共享执行链路，接 IServiceProvider） | modules/apps/engine/commands/slash/SlashCommandRunner.cs | ✅ Host 可直接调 |
+| Host 引擎 DI 暴露 | native_tui/apps/NativeTui.Host/EngineSession.cs:28（Services => _engine.Services） | ✅ 已就绪 |
+| ReplShell 模态对话框先例 | M7-3 PermissionCoordinator + BeginPermissionRequest 回调注入（ReplShell.cs:35/89/177） | ✅ 模式可照抄 |
+
+### 核心冲突与方案对比
+
+**核心冲突**：ModelCommand 的 ModelPicker 交互走 TerminalHelper.ReadKey/WriteRaw 直写终端——与 native_tui 的 raw mode + cell 网格 + 差分上屏渲染管线**根本冲突**（绕过渲染管线即破坏像素级对齐，同青蛙TUI 不可搬同理）。
+
+| 方案 | 内容 | 优劣 |
+|------|------|------|
+| **A: TUI 原生 Picker（推荐）** | Core 加 ModelListItem DTO + ModelPickerCoordinator（照抄 M7-3 权限对话框模式：ReplShell 键盘模态 + driver 回调）；Host 侧 Submit 拦截 /model → Services.GetService&lt;IModelCatalog&gt;() 取列表 → BeginModelPicker；选中后委托 SlashCommandRunner 执行 `/model &lt;id&gt;`（复用全部切换逻辑） | UI 像素级对齐基准 Picker（✓/❯/Default 首项/10 条/effort 行）；切换逻辑零重写；Core 零依赖不受破坏 |
+| B: 委托 ModelCommand 现成 Picker | Host 集成 SlashCommandRunner 直跑 /model | 零新 UI 代码；但 TerminalHelper 直写破坏渲染管线，非交互回退是文本列表——像素级对齐不可能 |
+| C: 通用斜杠路由 + 交互命令特判 | 全部 / 命令走 SlashCommandRunner，仅 /model 类交互命令走 A 的原生 Picker | 覆盖面最大但超出 M7-6 范畴（通用斜杠执行属独立任务） |
+
+<!-- M7-6 调研完成: 待用户确认方案(A/B/C)后实现 → 实现期前置验证: GUI 会话模块链 GetService<IModelCatalog> 是否可解析(实测,勿猜) -->
+

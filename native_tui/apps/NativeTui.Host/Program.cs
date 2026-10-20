@@ -50,7 +50,13 @@ public static class Program {
                 // banner 占位值 — 首拍 session_info 种子事件覆盖为引擎真实数据（EngineSession.Enqueue）
                 var banner = new BannerItem("0.0.0", "当前模型未设置", "API 按量计费", Environment.CurrentDirectory);
                 var commands = SlashCommandSource.Load(session.Services);
-                var shell = new ReplShell(session.Client, banner, tuiOutput, commands: commands);
+                // M7-6 模型选择器 — 装饰引擎拦截 /model（清单从引擎 IModelCatalog 后端获取，切换链自研）
+                var pickerEngine = new ModelPickerEngine(
+                    session.Client,
+                    () => ModelPickerAssembly.LoadItems(session.Services),
+                    id => ModelPickerAssembly.ApplyModel(session.Services, id));
+                var shell = new ReplShell(pickerEngine, banner, tuiOutput, commands: commands);
+                pickerEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);
                 shell.Run();
@@ -83,6 +89,13 @@ public static class Program {
         events = session.Client.DrainEvents();
         AssertEvent(events, e => e is BridgeEvent.Error err && err.Message.Contains("plan"), "无效模式 Error 诱导（含合法值提示）", failures);
 
+        // M7-6 — 模型选择器后端获取链路：引擎 DI 必须可解析 IModelCatalog（GUI 会话模块链注册验证）
+        var catalog = session.Services.GetService<IModelCatalog>();
+        if (catalog is null)
+            failures.Add("IModelCatalog 未在引擎 DI 注册（模型选择器将降级单条项）");
+        else
+            AssertModelItems(ModelPickerAssembly.LoadItems(session.Services), failures);
+
         if (failures.Count > 0) {
             foreach (var failure in failures)
                 Console.Error.WriteLine("FAIL: " + failure);
@@ -97,5 +110,15 @@ public static class Program {
     private static void AssertEvent(IReadOnlyList<BridgeEvent> events, Func<BridgeEvent, bool> predicate, string what, List<string> failures) {
         if (!events.Any(predicate))
             failures.Add($"断言失败: {what}（收到：{string.Join(", ", events.Select(e => e.GetType().Name))}）");
+    }
+
+    /// <summary>断言模型选择器清单有效（M7-6 — 非空 + 含当前模型标记 + 显示名非空）。</summary>
+    private static void AssertModelItems(IReadOnlyList<ModelPickerItem> items, List<string> failures) {
+        if (items.Count == 0)
+            failures.Add("模型清单为空（GetModelsForProvider 返回空且降级项未生效）");
+        else if (items.All(m => !m.IsCurrent))
+            failures.Add($"模型清单无当前模型标记（{items.Count} 项，EnsureCurrentModelInList 语义失效）");
+        if (items.Any(m => string.IsNullOrWhiteSpace(m.DisplayName)))
+            failures.Add("模型清单存在空 DisplayName");
     }
 }

@@ -4,6 +4,8 @@ global using System.Text;
 global using Core.Permission;
 global using Core.Utils;
 global using JoinCode.Abstractions.Entity;
+global using JoinCode.Abstractions.Configuration.AppData;
+global using JoinCode.Abstractions.Configuration.Providers;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Models.Diff;

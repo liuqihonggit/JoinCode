@@ -25,3 +25,5 @@ global using EnginePermissionMode = JoinCode.Abstractions.Security.PermissionMod
 global using EnginePermissionModeExtensions = JoinCode.Abstractions.Security.PermissionModeExtensions;
 global using SecurityPermissionChecker = JoinCode.Abstractions.Security.Permission.IPermissionChecker;
 global using PermissionPendingException = JoinCode.Abstractions.Security.PermissionPendingConfirmationException;
+// Core diff 行类型别名 — NativeTui.Core.Bridge.DiffLine 与引擎 JoinCode.Cli.DiffLine 同名（各属两侧），投影走别名消除歧义
+global using CoreDiffLine = NativeTui.Core.Bridge.DiffLine;

@@ -1,6 +1,6 @@
 # TASK058 — TUI 供应商选择器（/vendor 模态）
 
-> 状态：in_progress（2026-10-21 开工）
+> 状态：implemented（2026-10-21 全链落地 + 双 selftest 通过；剩余用户真机验收）
 > 前置：TASK057 完结；Bug1/Bug2 验收通过后用户新需求："怎么切换供应商，你好像没有做"
 > 用户决策：模态选择器方案（对齐 /model 交互；引擎切换逻辑现成，只做 TUI 交互层）
 
@@ -27,7 +27,28 @@
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| VendorPickerEngine（Core） | Program 装饰链 + Demo | ✅ | ✅ ADR 0080 真机（/vendor 弹框 10 项 + 切换 + banner vendor/model 同步） |
-| BannerItem.Vendor 渲染 | ReplBridgeDriver.ApplySessionInfo | ✅ | ✅ |
-| VendorPickerAssembly（Host） | Program applyVendor 委托 | ✅ | ✅ |
-| SessionInfo.Vendor 字段 | EngineSession/Demo 种子事件 | ✅ | ✅ |
+| CommandPickerEngine（Core，ModelPickerEngine 泛化） | Program 装饰链（vendor 外层包 model）+ Demo | ✅ | ✅ ADR 0080 真机（待用户：/vendor 弹框 10 项 + 切换 + banner vendor/model 同步） |
+| BannerItem.Vendor 渲染（SessionInfo.Vendor 字段链） | ReplBridgeDriver.ApplySessionInfo | ✅ | ✅ 单元 782+52 全绿 |
+| VendorPickerAssembly（Host） | Program applyVendor 委托 | ✅ | ✅ 单元 4 测试 + selftest |
+| ModelPickerAssembly.CurrentProvider 读 config | /model 清单跟随供应商 | ✅ | ✅ selftest |
+
+## 最终基线
+
+- NativeTui.Tests：753 → **782**（+29：vendor bridge 2 + CommandPickerEngine vendor/叠层 2 + banner/demo 等）
+- NativeTui.Host.Tests：47 → **52**（+5：VendorPickerAssembly 4 + EngineSession vendor 1）
+- Demo --selftest + --bridge-selftest 双通过；Host --selftest 通过（假 key 冒烟 — 真实引擎组装链）
+- Host exe 已 `--no-incremental` 全量重建
+- 提交：4e496d776（banner vendor 数据链）+ 439fda3（选择器全链）
+- 归档：ModelPickerEngine.cs → `.xxx/ModelPickerEngine.cs.20261021.del`（泛化为 CommandPickerEngine 替代）
+
+## 踩坑记录
+
+- AI shell 无 OPENAI_API_KEY 且 auth.json openai 键为空串 → Host selftest LoadConfigAsync 抛 ConfigurationException；用户真实环境不受影响（假 key 冒烟通过）
+- 构造参数默认值不能引用类内 const（CS0103）— ModelPickerDialog 参数化时用字面量默认值
+- 叠层装饰 Attach 只绑外层 → 内层拦截失效；Attach 递归传播内层同族（CommandPickerEngine.Attach）
+
+<!-- 🤖 Auto Decision: 2026-10-21 -->
+<!-- 决策: ModelPickerEngine 泛化为 CommandPickerEngine（command/switchedNoun 参数化）而非新建 VendorPickerEngine -->
+<!-- 原因: 交互完全同构（列表选择+焦点+窗口滚动），泛化后 model/vendor 共用一条模态链零新增状态机，符合"万物皆复用" -->
+<!-- 替代方案: 独立 VendorPickerEngine 三件套（复制粘贴式冗余，弃） -->
+<!-- 验证: 782+52 全绿 + Demo 双 selftest + Host selftest（假 key）✅ -->

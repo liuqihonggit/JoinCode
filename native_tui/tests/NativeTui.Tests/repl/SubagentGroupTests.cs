@@ -368,4 +368,88 @@ public sealed class SubagentGroupTests
 
         Assert.DoesNotContain(view.Messages.Items, m => m is SubagentGroupItem);
     }
+
+    // ---- SimulatedEngine agents 脚本（虚拟时钟确定性验证）----
+
+    /// <summary>虚拟时钟引擎（推进时刻数组捕获 — 可变捕获模式）。</summary>
+    private static SimulatedEngine CreateEngineAt(long elapsedMs)
+    {
+        var clock = new long[] { 0 };
+        var engine = new SimulatedEngine(() => clock[0]);
+        clock[0] = elapsedMs;
+        return engine;
+    }
+
+    /// <summary>agents 脚本 — 250ms 批量 SubagentStarted（类型轮转混合组）+ 后续交错工具活动。</summary>
+    [Fact]
+    public void Engine_Agents_BatchStartedThenStaggeredToolUse()
+    {
+        var clock = new long[] { 0 };
+        var engine = new SimulatedEngine(() => clock[0]);
+        engine.Submit("agents 3");
+        clock[0] = 250;
+
+        var events = engine.DrainEvents();
+
+        Assert.Equal(3, events.Count(e => e is BridgeEvent.SubagentStarted));
+        Assert.Contains(events, e => e is BridgeEvent.SubagentStarted(var _, var type, _) && type == "explore");
+        Assert.Contains(events, e => e is BridgeEvent.SubagentStarted(var _, var type, _) && type == "reviewer");
+
+        clock[0] = 600;
+        var toolUses = engine.DrainEvents().OfType<BridgeEvent.SubagentToolUse>().ToList();
+        Assert.NotEmpty(toolUses);
+        Assert.All(toolUses, e => Assert.False(string.IsNullOrEmpty(e.ToolName)));
+    }
+
+    /// <summary>agents 脚本 — 全部完成后 AssistantMessage + TurnCompleted 收束（错误子代理 IsError 传递）。</summary>
+    [Fact]
+    public void Engine_Agents_CompletesWhenAllAgentsFinished()
+    {
+        var clock = new long[] { 0 };
+        var engine = new SimulatedEngine(() => clock[0]);
+        engine.Submit("agents 8");
+        clock[0] = 5000;
+
+        var events = engine.DrainEvents();
+
+        Assert.Equal(8, events.Count(e => e is BridgeEvent.SubagentStarted));
+        // i % 7 == 6 → 第 7 个（i=6）失败
+        Assert.Equal(1, events.Count(e => e is BridgeEvent.SubagentFinished { IsError: true }));
+        Assert.Equal(8, events.Count(e => e is BridgeEvent.SubagentFinished));
+        Assert.Contains(events, e => e is BridgeEvent.AssistantMessage { Text: var text } && text.Contains("子代理"));
+        Assert.Contains(events, e => e is BridgeEvent.TurnCompleted);
+    }
+
+    /// <summary>agents 300 规模 — 一拍批量产出 300 启动 + 300 完成（_pending 队列承载）。</summary>
+    [Fact]
+    public void Engine_Agents300_BatchesAllAgentsInOneDrain()
+    {
+        var clock = new long[] { 0 };
+        var engine = new SimulatedEngine(() => clock[0]);
+        engine.Submit("agents 300");
+        clock[0] = 250;
+        Assert.Equal(300, engine.DrainEvents().Count(e => e is BridgeEvent.SubagentStarted));
+
+        clock[0] = 10000;
+        var completion = engine.DrainEvents();
+        Assert.Equal(300, completion.Count(e => e is BridgeEvent.SubagentFinished));
+        Assert.Contains(completion, e => e is BridgeEvent.TurnCompleted);
+    }
+
+    /// <summary>agents 命令路由 — 纯 "agents" 与 "agents N" 接受；非法后缀回 Error 诱导。</summary>
+    [Fact]
+    public void Engine_AgentsCommandParsing()
+    {
+        var engine = CreateEngineAt(0);
+        engine.Submit("agents");
+        Assert.True(engine.IsAlive);
+
+        engine = CreateEngineAt(0);
+        engine.Submit("agents 5");
+        Assert.DoesNotContain(engine.DrainEvents(), e => e is BridgeEvent.Error);
+
+        engine = CreateEngineAt(0);
+        engine.Submit("agents xyz");
+        Assert.Contains(engine.DrainEvents(), e => e is BridgeEvent.Error);
+    }
 }

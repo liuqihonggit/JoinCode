@@ -85,6 +85,7 @@ public static class Program
         new CommandSuggestion("diff", "结构化补丁", [], IsHidden: false),
         new CommandSuggestion("perm", "权限对话框", [], IsHidden: false),
         new CommandSuggestion("all", "完整回合（补丁 + Markdown）", [], IsHidden: false),
+        new CommandSuggestion("agents", "并行子代理分组（可带数量 agents 300）", [], IsHidden: false),
         new CommandSuggestion("model", "切换模型（M7-6 选择器）", [], IsHidden: false),
     ];
 
@@ -115,7 +116,7 @@ public static class Program
         ])),
         new ToolCallItem("Read", "native_tui/src/NativeTui.Core/repl/ReplView.cs"),
         new ToolResultItem("41 行 — REPL 整屏视图（footer + 输入框 + 消息滚动区）"),
-        new AssistantMessageItem("演示命令：md（Markdown 全形态）/ diff（结构化补丁）/ perm（权限对话框）/ all（完整回合）— 输入命令回车触发；其他输入回 Error 诱导。"),
+        new AssistantMessageItem("演示命令：md（Markdown 全形态）/ diff（结构化补丁）/ perm（权限对话框）/ all（完整回合）/ agents（并行子代理分组，300 规模可带数量）— 输入命令回车触发；其他输入回 Error 诱导。"),
     ];
 
     /// <summary>

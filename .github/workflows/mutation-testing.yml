@@ -50,7 +50,7 @@ jobs:
       - name: Build matrix
         id: set
         run: |
-          ALL_PROJECTS='["Guard-Config","Guard-Security-ServicesA","Guard-Security-ServicesB","Guard-Security-ServicesC","Guard-Security-ServicesD","Guard-Security-PowerShell","Guard-Security-Other","Guard-Hooks","Vault-Memdir","Vault-Other","Brain-CtxAdmin","Brain-CtxChat","Brain-CtxOther","Brain-CtxNonServicesA","Brain-CtxNonServicesB","Brain-PromptsSections","Brain-PromptsOther","Brain-OtherA","Brain-OtherB","Hands-SysTools","Hands-CoreHandlers","Hands-DevTools","Hands-SkillServices","Hands-SkillBuiltIn","Hands-SkillOther","Hands-Api","Hands-Shell","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex-Parsing","CodeIndex-Indexing","CodeIndex-Rest","Browser","Mcp-Protocol","Mcp-Rest","Eyes","Dream","Bridge-SessionA","Bridge-SessionB","Bridge-Transport","Bridge-CoreRuntime","Bridge-CoreOther","Bridge-Messaging","Bridge-ClientServer","Composition","Clock","Infra-IO-FileOps","Infra-IO-FsAndConfig","Infra-IO-ProcessAndOther","Infra-Utils-TextA1a","Infra-Utils-TextA1b","Infra-Utils-TextA2a","Infra-Utils-TextA2b","Infra-Utils-TextB1","Infra-Utils-TextB2","Infra-Utils-Resilience","Infra-Utils-OtherA1a","Infra-Utils-OtherA1b","Infra-Utils-Validation1","Infra-Utils-Validation2","Infra-Utils-Async","Infra-Utils-Services","Infra-Utils-OtherB","Infra-Services","Host-Commands","Host-Other"]'
+          ALL_PROJECTS='["Guard-Config","Guard-Security-ServicesA","Guard-Security-ServicesB","Guard-Security-ServicesC","Guard-Security-ServicesD","Guard-Security-PowerShell","Guard-Security-Other","Guard-Hooks","Vault-Memdir","Vault-Other","Brain-CtxAdmin","Brain-CtxChat","Brain-CtxOther","Brain-CtxNonServicesA","Brain-CtxNonServicesB","Brain-PromptsSections","Brain-PromptsOther","Brain-OtherA","Brain-OtherB","Hands-SysTools","Hands-CoreHandlers","Hands-DevTools","Hands-SkillServices","Hands-SkillBuiltIn","Hands-SkillOther","Hands-Api","Hands-Shell","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex-Parsing-Bash","CodeIndex-Parsing-Sharp","CodeIndex-Parsing-Dep","CodeIndex-Parsing-Docs","CodeIndex-Indexing","CodeIndex-Analytics","CodeIndex-Embedding","CodeIndex-Vector","CodeIndex-Core","Browser","Mcp-Protocol","Mcp-Rest","Eyes","Dream","Bridge-SessionA","Bridge-SessionB","Bridge-Transport","Bridge-CoreRuntime","Bridge-CoreOther","Bridge-Messaging","Bridge-ClientServer","Composition","Clock","Infra-IO-FileOps","Infra-IO-FsAndConfig","Infra-IO-ProcessAndOther","Infra-Utils-TextA1a","Infra-Utils-TextA1b","Infra-Utils-TextA2a","Infra-Utils-TextA2b","Infra-Utils-TextB1","Infra-Utils-TextB2","Infra-Utils-Resilience","Infra-Utils-OtherA1a","Infra-Utils-OtherA1b","Infra-Utils-Validation1","Infra-Utils-Validation2","Infra-Utils-Async","Infra-Utils-Services","Infra-Utils-OtherB","Infra-Services","Host-Commands","Host-Other"]'
           INPUT="${{ github.event.inputs.projects || 'ALL' }}"
           if [ "$INPUT" = "ALL" ]; then
             echo "matrix={\"include\":$(echo $ALL_PROJECTS | jq -c '[.[] | {project: .}]')}" >> $GITHUB_OUTPUT
@@ -70,7 +70,7 @@ jobs:
               elif [ "$trimmed" = "Mcp" ]; then
                 EXPANDED="$EXPANDED,{\"project\":\"Mcp-Protocol\"},{\"project\":\"Mcp-Rest\"}"
               elif [ "$trimmed" = "CodeIndex" ]; then
-                EXPANDED="$EXPANDED,{\"project\":\"CodeIndex-Parsing\"},{\"project\":\"CodeIndex-Indexing\"},{\"project\":\"CodeIndex-Rest\"}"
+                EXPANDED="$EXPANDED,{\"project\":\"CodeIndex-Parsing-Bash\"},{\"project\":\"CodeIndex-Parsing-Sharp\"},{\"project\":\"CodeIndex-Parsing-Dep\"},{\"project\":\"CodeIndex-Parsing-Docs\"},{\"project\":\"CodeIndex-Indexing\"},{\"project\":\"CodeIndex-Analytics\"},{\"project\":\"CodeIndex-Embedding\"},{\"project\":\"CodeIndex-Vector\"},{\"project\":\"CodeIndex-Core\"}"
               elif [ "$trimmed" = "Host" ]; then
                 EXPANDED="$EXPANDED,{\"project\":\"Host-Commands\"},{\"project\":\"Host-Other\"}"
               elif [ "$trimmed" = "Bridge" ]; then
@@ -164,9 +164,18 @@ jobs:
             'Llm'                  = @{ Dir = 'modules\llm\llm.tests';                Src = 'Llm.csproj';             Mutate = @() }
             'Agents'               = @{ Dir = 'modules\llm\agents.tests';             Src = 'Agents.csproj';          Mutate = @() }
             'Reasoning'            = @{ Dir = 'modules\llm\reasoning.tests';          Src = 'Reasoning.csproj';       Mutate = @() }
-            'CodeIndex-Parsing'    = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('parsing/**','query/**','plugins/**') }
+            # #108 排查拆分: Parsing 纯慢(21min 窗口仅完成 96/1343, CSharpDependencyExtractor 的 String mutant 每个触发全量 800 测试 ~110s)
+            # Rest 挂死(VsTest cancel 失败 14 次 retry, 挂死现场批次含 embedding/analytics mutant, 重试后同批次 success = 时序敏感)
+            # 一拆四策略: 大户隔离(Dep 单文件/Embedding 挂死嫌疑) + 语义分组, 超时的子 job 即为下一轮精准处理目标
+            'CodeIndex-Parsing-Bash'  = @{ Dir = 'modules\perception\code_index.tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/BashAstParser.cs','parsing/TreeSitterParser.cs','parsing/TreeSitterParserPool.cs') }
+            'CodeIndex-Parsing-Sharp' = @{ Dir = 'modules\perception\code_index.tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/CSharpCallExtractor.cs','parsing/CSharpSymbolExtractor.cs') }
+            'CodeIndex-Parsing-Dep'   = @{ Dir = 'modules\perception\code_index.tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/CSharpDependencyExtractor.cs') }
+            'CodeIndex-Parsing-Docs'  = @{ Dir = 'modules\perception\code_index.tests'; Src = 'CodeIndex.csproj'; Mutate = @('parsing/CsprojParser.cs','parsing/LineBasedChunkExtractor.cs','parsing/MarkdownChunkExtractor.cs','parsing/SolutionParser.cs','query/**','plugins/**') }
             'CodeIndex-Indexing'   = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('indexing/**','incremental/**','graph/**') }
-            'CodeIndex-Rest'       = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('!parsing/**','!query/**','!plugins/**','!indexing/**','!incremental/**','!graph/**') }
+            'CodeIndex-Analytics'  = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('analytics/**') }
+            'CodeIndex-Embedding'  = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('embedding/**') }
+            'CodeIndex-Vector'     = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('vector/**') }
+            'CodeIndex-Core'       = @{ Dir = 'modules\perception\code_index.tests';  Src = 'CodeIndex.csproj';       Mutate = @('core/**') }
             'Browser'              = @{ Dir = 'modules\services\browser.tests';       Src = 'Browser.csproj';         Mutate = @() }
             # 30 分钟设计: Mcp 变异量最大(7000+), 拆协议层/其余 控制单 job 时长
             'Mcp-Protocol'         = @{ Dir = 'modules\mcp\mcp.tests';                Src = 'Mcp.csproj';             Mutate = @('mcp_protocol/**','transports/**','communication/**','protocol.contracts/**','remote/**') }

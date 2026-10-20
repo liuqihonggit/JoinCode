@@ -31,6 +31,7 @@ internal sealed class DshRpcDispatcher {
             ["session/prompt"] = SessionPrompt,
             ["session/cancel"] = Sync(args => SessionCancel(args, CancellationToken.None)),
             ["session/modelCatalog"] = Sync(SessionModelCatalog),
+            ["session/selectModel"] = SessionSelectModel,
             ["session/projections"] = SessionProjections,
             ["session/page"] = SessionPage,
             ["agentPresets/list"] = Sync(_ => Ok(new DshAgentPresetList {
@@ -41,7 +42,7 @@ internal sealed class DshRpcDispatcher {
             ["settings/describe"] = Sync(_ => Ok(services.Settings.Describe())),
             ["settings/mutate"] = Sync(args => services.Settings.Mutate(args)),
             ["credentials/describe"] = Sync(Credentials),
-            ["llm/listProviders"] = Sync(_ => Ok(new List<DshProviderInfo>())),
+            ["llm/listProviders"] = Sync(LlmListProviders),
             ["llm/listConfigurableProviders"] = Sync(_ => OkEmptyArray()),
             ["commands/list"] = Sync(_ => OkEmptyArray()),
             ["messageFeedback/list"] = Sync(_ => Ok(new DshMessageFeedbackListResult { Value = new DshMessageFeedbackListValue() })),
@@ -287,6 +288,43 @@ internal sealed class DshRpcDispatcher {
     /// <summary>session/modelCatalog：自有引擎的供应商/模型目录</summary>
     private DshRpcResult SessionModelCatalog(JsonElement args) => Ok(_services.Models.Current);
 
+    /// <summary>
+    /// session/selectModel：切换会话模型（TASK058 B2）。供应商变化时先 <c>SetVendorAsync</c>
+    /// （引擎重置默认模型并持久化）再 <c>SetModelAsync</c> 覆盖；reasoningEffort 按引擎枚举值解析，
+    /// 未知值忽略不报错。响应回显实际生效的供应商/模型。
+    /// </summary>
+    private async Task<DshRpcResult> SessionSelectModel(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSessionSelectModelArgs)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)) {
+            return Fail("session/rejected", $"session/selectModel 需要 {{sessionId, provider, model}}（reasoningEffort 可选）；收到 args={Describe(args)}");
+        }
+        if (string.IsNullOrWhiteSpace(request.Provider) || string.IsNullOrWhiteSpace(request.Model)) {
+            return Fail("session/rejected", $"session/selectModel 的 provider 与 model 均为必填；收到 provider={request.Provider} model={request.Model}");
+        }
+        if (_services.Engine is not { } engine) {
+            return Fail("session/not-ready", "引擎仍在组装中，稍后重试；若长时间未就绪查看 dumps/startup_timing.log");
+        }
+        if (!string.Equals(engine.CurrentVendor, request.Provider, StringComparison.OrdinalIgnoreCase)) {
+            await engine.SetVendorAsync(request.Provider, cancellationToken);
+        }
+        await engine.SetModelAsync(request.Model, cancellationToken);
+        if (request.ReasoningEffort is { } effort && EffortLevelExtensions.FromValue(effort) is { } level) {
+            await engine.SetEffortLevelAsync(level, cancellationToken);
+        }
+        return Ok(new DshSessionSelectModelResult {
+            Selected = new DshModelChoice {
+                Provider = engine.CurrentVendor,
+                Model = engine.CurrentModelId,
+                ReasoningEffort = request.ReasoningEffort,
+            },
+        });
+    }
+
+    /// <summary>llm/listProviders：模型目录分组投影（与 session/modelCatalog 同源，TASK058 B2）</summary>
+    private DshRpcResult LlmListProviders(JsonElement args) => Ok(_services.Models.Current.Groups
+        .Select(group => new DshProviderInfo { Id = group.Id, Name = group.Name })
+        .ToList());
+
     /// <summary>credentials/describe：按环境变量判断是否已配置</summary>
     private static DshRpcResult Credentials(JsonElement args) =>
         Ok(ReadStrings(args, "refs").ToDictionary(
@@ -365,6 +403,8 @@ internal sealed class DshRpcDispatcher {
     private static DshRpcResult Ok(DshArchivedResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshArchivedResult));
 
     private static DshRpcResult Ok(DshPinnedResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshPinnedResult));
+
+    private static DshRpcResult Ok(DshSessionSelectModelResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionSelectModelResult));
 
     private static DshRpcResult Ok(List<DshProviderInfo> value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.ListDshProviderInfo));
 

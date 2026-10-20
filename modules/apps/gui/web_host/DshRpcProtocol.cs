@@ -715,6 +715,25 @@ internal sealed class DshModelChoice {
     public string? ReasoningEffort { get; set; }
 }
 
+/// <summary>session/selectModel 参数</summary>
+internal sealed class DshSessionSelectModelArgs {
+    /// <summary>会话 ID</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>供应商</summary>
+    public string Provider { get; set; } = "";
+    /// <summary>模型 ID</summary>
+    public string Model { get; set; } = "";
+    /// <summary>推理强度（low/medium/high/max，可选）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ReasoningEffort { get; set; }
+}
+
+/// <summary>session/selectModel 响应 — 回显实际选中的模型</summary>
+internal sealed class DshSessionSelectModelResult {
+    /// <summary>选中的模型</summary>
+    public DshModelChoice Selected { get; set; } = new();
+}
+
 /// <summary>供应商模型分组</summary>
 internal sealed class DshModelGroup {
     /// <summary>供应商 ID</summary>
@@ -1052,6 +1071,9 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshAssistantStreamBaseline))]
 [JsonSerializable(typeof(Dictionary<string, DshSessionProjectionSnapshot>))]
 [JsonSerializable(typeof(DshModelCatalog))]
+[JsonSerializable(typeof(DshSessionSelectModelArgs))]
+[JsonSerializable(typeof(DshSessionSelectModelResult))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshSessionSelectModelArgs>))]
 [JsonSerializable(typeof(DshAgentPresetList))]
 [JsonSerializable(typeof(DshPermissionPresetCatalog))]
 [JsonSerializable(typeof(DshWaterfallFrame))]

@@ -235,15 +235,21 @@ public static class MessageRenderer
     }
 
     /// <summary>
-    /// 渲染子代理组头行（M7-7，基准 ToolUseLoader + 组头文案）：
+    /// 渲染子代理组头行（M7-7，基准 ToolUseLoader + useBlink）：
     /// ● + 空格 + 文案（"Running N {type} agents…" / "N {type} agents finished"）。
-    /// ● 三态色：任一错误 Error 红（基准 anyError loader 变红）/ 全完成 Success 绿 / 运行中 Suggestion。
+    /// 闪烁：运行中且无错时 600ms 方波 ●↔空格（基准 BLINK_INTERVAL_MS，布局不跳动 — 文案恒 X+2 起）；
+    /// 错误恒亮、完成恒亮（基准 t1 = isError || !isUnresolved || isBlinking ? ● : " "）。
+    /// 色：运行中 dim 默认前景（基准 isUnresolved → undefined+dimColor，优先于错误红）/ 错误 Error 红 / 完成 Success 绿。
     /// </summary>
-    public static void RenderSubagentHeader(Screen screen, Rect frame, Theme theme, string text, bool isDone, bool hasError)
+    public static void RenderSubagentHeader(Screen screen, Rect frame, Theme theme, string text, bool isDone, bool hasError, long animTimeMs)
     {
-        var bulletColor = hasError ? theme.Error : isDone ? theme.Success : theme.Suggestion;
-        var bullet = screen.Styles.GetOrAdd(new TextStyle { Foreground = bulletColor });
-        screen.WriteText(frame.Y, frame.X, $"{Figures.MessageBullet} ", bullet, frame.Right);
+        const int BlinkIntervalMs = 600;
+        var isRunning = !isDone;
+        var bullet = hasError || isDone || animTimeMs / BlinkIntervalMs % 2 == 0 ? Figures.MessageBullet : " ";
+        var bulletStyle = isRunning
+            ? screen.Styles.GetOrAdd(new TextStyle { Dim = true })
+            : screen.Styles.GetOrAdd(new TextStyle { Foreground = hasError ? theme.Error : theme.Success });
+        screen.WriteText(frame.Y, frame.X, $"{bullet} ", bulletStyle, frame.Right);
         screen.WriteText(frame.Y, frame.X + 2, text, 0, frame.Right);
     }
 

@@ -9,21 +9,25 @@ namespace NativeTui.Core.Repl;
 /// 运行中条目整行 dim（基准 AgentProgressLine isResolved 前提色）；树形收口 └─ 按"组最后一个条目"判定
 /// （窗口截断时可见条目均不收口，树延续到溢出行之后语义）。状态源 = SubagentGroupCoordinator（投影，
 /// Driver 每事件更新即生效 — 无需失效通知，ScrollBox 每帧全量重渲）。
+/// IAnimatable — ReplShell 每帧广播动画时钟，组头 ● 600ms 方波闪烁（基准 ToolUseLoader + useBlink）。
 /// </summary>
-public sealed class SubagentGroupItem(SubagentGroupCoordinator coordinator) : IScrollItem
+public sealed class SubagentGroupItem(SubagentGroupCoordinator coordinator) : IScrollItem, IAnimatable
 {
     /// <summary>协调器（分组状态的唯一来源 — Driver 事件路由更新）。</summary>
     public SubagentGroupCoordinator Coordinator { get; } = coordinator;
+
+    /// <summary>动画时钟（ReplShell 每帧广播；600ms 方波相位计算）。</summary>
+    public long AnimTimeMs { get; set; }
 
     /// <summary>内容高度 = margin 1 + 组头 1 + 可见条目 ×2 + 溢出 0/1。</summary>
     public int MeasureHeight(int width) =>
         2 + Coordinator.VisibleCount * 2 + (Coordinator.HiddenCount > 0 ? 1 : 0);
 
-    /// <summary>渲染：margin 留空 → 组头（● 三态色 + 文案）→ 可见条目两行式 → 溢出行（如有）。</summary>
+    /// <summary>渲染：margin 留空 → 组头（● 闪烁三态 + 文案）→ 可见条目两行式 → 溢出行（如有）。</summary>
     public void Render(Screen screen, Rect frame, Theme theme)
     {
         var row = frame.Y + 1;
-        MessageRenderer.RenderSubagentHeader(screen, RowFrame(frame, row++), theme, Coordinator.HeaderText, Coordinator.AllComplete, Coordinator.AnyError);
+        MessageRenderer.RenderSubagentHeader(screen, RowFrame(frame, row++), theme, Coordinator.HeaderText, Coordinator.AllComplete, Coordinator.AnyError, AnimTimeMs);
 
         var hideType = Coordinator.AllSameType;
         for (var i = 0; i < Coordinator.VisibleCount; i++)

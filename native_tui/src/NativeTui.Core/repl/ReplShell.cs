@@ -725,9 +725,7 @@ public sealed class ReplShell
         SyncSuggestionState();
         EnsureScreens();
         _back.Clear();
-        _animTimeMs += TickMs;
-        _spinner.AnimTimeMs = _animTimeMs;
-        _spinner.WallNowMs = Environment.TickCount64;
+        AdvanceAnimClock();
         _view.Input = _input.Text;
         _view.CursorCol = _input.CursorCol;
         _view.Render(_back, _theme);
@@ -757,6 +755,22 @@ public sealed class ReplShell
         _output.Flush();
         (_front, _back) = (_back, _front);
         _frontValid = true;
+    }
+
+    /// <summary>动画时钟推进 + 广播：每拍 +50ms，喂给滚动区全部 IAnimatable（基准 useBlink 共享时钟 — 全实例同步闪烁）；
+    /// spinner 专属墙钟一并注入（elapsed 暂停感知，语义区别于动画相位时钟）。</summary>
+    internal void AdvanceAnimClock()
+    {
+        _animTimeMs += TickMs;
+        foreach (var item in _view.Messages.Items)
+        {
+            if (item is IAnimatable animatable)
+            {
+                animatable.AnimTimeMs = _animTimeMs;
+            }
+        }
+
+        _spinner.WallNowMs = Environment.TickCount64;
     }
 
     /// <summary>同步补全建议到视图（渲染前状态投影 — EnsureScreens 屏高计算依赖建议区高度，必须先行）。</summary>

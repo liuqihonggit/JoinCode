@@ -156,17 +156,74 @@ public sealed class SubagentGroupTests
 
     // ---- SubagentGroupItem 渲染 ----
 
-    /// <summary>渲染组头 — ● 三态色（运行中 Suggestion）+ "Running N agents…" 文案。</summary>
+    /// <summary>渲染组头 — 运行中 ● dim 默认色（基准 ToolUseLoader isUnresolved → undefined+dim）+ 600ms 方波亮相位 ● + "Running N agents…" 文案。</summary>
     [Fact]
     public void Render_HeaderBulletAndRunningText()
     {
         using var screen = new Screen(cols: 60, rows: 10);
         var coordinator = CreateMixedGroup();
-        new SubagentGroupItem(coordinator).Render(screen, new Rect(0, 0, 60, 10), Theme.Dark);
+        new SubagentGroupItem(coordinator) { AnimTimeMs = 0 }.Render(screen, new Rect(0, 0, 60, 10), Theme.Dark);
 
         Assert.StartsWith("● Running 3 agents…", RowText.Of(screen, 1, 0, 60));
-        var suggestion = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.Suggestion });
-        Assert.Equal(suggestion, screen[1, 0].StyleId);
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        Assert.Equal(dim, screen[1, 0].StyleId);
+    }
+
+    /// <summary>组头闪烁 — 600ms 暗相位运行中 ● 隐藏为空格（基准 useBlink 方波；布局不跳动：文案仍 X+2 起）。</summary>
+    [Fact]
+    public void Render_HeaderBulletBlinks_OffPhaseHidden()
+    {
+        using var screen = new Screen(cols: 60, rows: 10);
+        var coordinator = CreateMixedGroup();
+        new SubagentGroupItem(coordinator) { AnimTimeMs = 600 }.Render(screen, new Rect(0, 0, 60, 10), Theme.Dark);
+
+        Assert.Equal(new Rune(' '), screen[1, 0].Value);
+        Assert.StartsWith("  Running 3 agents…", RowText.Of(screen, 1, 0, 60));
+    }
+
+    /// <summary>组头闪烁 — 暗相位错误恒亮 ● 红（基准 t1 isError 优先恒亮；全完成态）。</summary>
+    [Fact]
+    public void Render_HeaderBulletSolidAtOffPhase_WhenError()
+    {
+        using var screen = new Screen(cols: 60, rows: 10);
+        var coordinator = new SubagentGroupCoordinator();
+        coordinator.AddAgent("a1", "explore", "搜索");
+        coordinator.FinishAgent("a1", isError: true);
+        new SubagentGroupItem(coordinator) { AnimTimeMs = 600 }.Render(screen, new Rect(0, 0, 60, 10), Theme.Dark);
+
+        Assert.Equal(new Rune('●'), screen[1, 0].Value);
+        var error = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.Error });
+        Assert.Equal(error, screen[1, 0].StyleId);
+    }
+
+    /// <summary>组头闪烁 — 暗相位完成恒亮 ● 绿（基准 !isUnresolved 恒亮）。</summary>
+    [Fact]
+    public void Render_HeaderBulletSolidAtOffPhase_WhenDone()
+    {
+        using var screen = new Screen(cols: 60, rows: 10);
+        var coordinator = CreateMixedGroup();
+        coordinator.FinalizePending();
+        new SubagentGroupItem(coordinator) { AnimTimeMs = 600 }.Render(screen, new Rect(0, 0, 60, 10), Theme.Dark);
+
+        Assert.Equal(new Rune('●'), screen[1, 0].Value);
+        var success = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.Success });
+        Assert.Equal(success, screen[1, 0].StyleId);
+    }
+
+    /// <summary>组头闪烁 — 部分错误+运行中：dim 色 + 恒亮 ●（基准 isUnresolved 色优先于 isError；t1 isError 恒亮不闪）。</summary>
+    [Fact]
+    public void Render_HeaderPartialErrorRunning_DimSolidBullet()
+    {
+        using var screen = new Screen(cols: 60, rows: 10);
+        var coordinator = new SubagentGroupCoordinator();
+        coordinator.AddAgent("a1", "explore", "搜索");
+        coordinator.AddAgent("a2", "explore", "深挖");
+        coordinator.FinishAgent("a1", isError: true);
+        new SubagentGroupItem(coordinator) { AnimTimeMs = 600 }.Render(screen, new Rect(0, 0, 60, 10), Theme.Dark);
+
+        Assert.Equal(new Rune('●'), screen[1, 0].Value);
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        Assert.Equal(dim, screen[1, 0].StyleId);
     }
 
     /// <summary>渲染组头完成态 — ● Success 绿 + "N agents finished"。</summary>

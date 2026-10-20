@@ -208,4 +208,36 @@ public sealed class ReplShellTests
         Assert.Single(engine.PermissionModes);
         Assert.Equal(PermissionMode.Auto, shell.View.Footer.Mode);
     }
+
+    /// <summary>AdvanceAnimClock：动画时钟广播给滚动区全部 IAnimatable — spinner 与注入项同值（基准 useBlink 共享时钟 → 全实例同步闪烁）；每拍 +50ms。</summary>
+    [Fact]
+    public void AdvanceAnimClock_BroadcastsToAllAnimatableItems()
+    {
+        var (shell, _) = CreateShell();
+        shell.SeedContent();
+        var fake = new FakeAnimatableItem();
+        shell.View.Messages.Insert(shell.View.Messages.Count - 1, fake);
+
+        shell.AdvanceAnimClock();
+        Assert.Equal(50, fake.AnimTimeMs);
+        var spinner = (SpinnerItem)shell.View.Messages.Items[^1];
+        Assert.Equal(50, spinner.AnimTimeMs);
+        Assert.Equal(fake.AnimTimeMs, spinner.AnimTimeMs);
+
+        shell.AdvanceAnimClock();
+        Assert.Equal(100, fake.AnimTimeMs);
+        Assert.Equal(fake.AnimTimeMs, spinner.AnimTimeMs);
+    }
+}
+
+/// <summary>测试注入用动画项（IAnimatable 消费面 — 广播路由断言）。</summary>
+internal sealed class FakeAnimatableItem : IScrollItem, IAnimatable
+{
+    public long AnimTimeMs { get; set; }
+
+    public int MeasureHeight(int width) => 1;
+
+    public void Render(Screen screen, Rect frame, Theme theme)
+    {
+    }
 }

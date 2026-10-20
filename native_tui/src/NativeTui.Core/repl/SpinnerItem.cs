@@ -8,7 +8,7 @@ namespace NativeTui.Core.Repl;
 /// 整体 dim 括号包裹（thinkingOnly 例外：单 part shimmer 色无括号）；
 /// 渐进宽度门控 availableSpace = columns - messageWidth - 5（对齐基准 Progressive width gating）。
 /// </summary>
-public sealed class SpinnerItem : IScrollItem
+public sealed class SpinnerItem : IScrollItem, IAnimatable
 {
     /// <summary>思考 shimmer 常量（基准 THINKING_INACTIVE，非 theme 键）。</summary>
     private static readonly Color ThinkingInactive = Color.FromRgb(153, 153, 153);

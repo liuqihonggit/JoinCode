@@ -247,9 +247,11 @@ jobs:
           # 临时(#106 后挂死定位): verbosity=debug 记录每个 mutant 的测试事件, 挂死前最后一个 mutant 即凶手
           # #110 后 Vector 挂死根因: HnswBenchmarkTests(2000×384 构图,无标记)混入变异测试, 8 Runner 争 2 核下单用例 10-30s
           # → 超时连锁(timeout 压缩~12s 后结构性反复超时)。排除 Benchmark 类别(已加 Trait)
+          # #111 教训: Stryker 自带的 net462 vstest.console 只支持单字符操作符(& | ! = !=), 不支持 &&/||
+          # → && 被静默判定为非法 filter, 测试发现返回 0 个测试直接 exit 1(dotnet test 新版两种都支持,本地无法暴露)
           # projectMap 的 IgnoreMutations 键(如 Dep 排除 string) → 写入 ignore-mutations 数组
           $configPath = Join-Path $testDir "stryker-config.json"
-          $config = [ordered]@{ 'stryker-config' = [ordered]@{ 'test-case-filter' = 'Category!=Integration&&Category!=Benchmark'; 'additional-timeout' = 5000; 'verbosity' = 'debug' } }
+          $config = [ordered]@{ 'stryker-config' = [ordered]@{ 'test-case-filter' = 'Category!=Integration&Category!=Benchmark'; 'additional-timeout' = 5000; 'verbosity' = 'debug' } }
           if ($info.ContainsKey('IgnoreMutations') -and $info.IgnoreMutations.Count -gt 0) {
             $config['stryker-config']['ignore-mutations'] = $info.IgnoreMutations
           }

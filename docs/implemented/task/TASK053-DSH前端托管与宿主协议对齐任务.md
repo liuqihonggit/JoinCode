@@ -299,6 +299,15 @@ node dumps/dsh-webui-prompt.mjs ws-m2c2 <隔离 home>    # 发送主链路：输
 node dumps/dsh-webui-cancel.mjs ws-m2c2 <隔离 home>    # 停止生成：慢速桩中途 session/cancel→turn/end aborted(user)
 node dumps/dsh-webui-tool.mjs ws-m2c2 <隔离 home>      # 工具事件：桩返回 tool_calls→tool/call+tool/result→界面工具卡片
 node dumps/dsh-webui-reload-trace.mjs                  # 启动/重载全量请求响应
+node dumps/dsh-webui-queue.mjs ws-m2c2                 # 排队：生成中再发一条（mode=queue）→两轮串行、两次 accepted
 # 单测
 dotnet test test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj -c Debug --filter "FullyQualifiedName~WebHost"
 ```
+
+## 剩余任务（下一会话继续）
+
+1. **`steer`（插话发送）**：DSH 语义是 `agent.steer(message)` 注入**当前轮的下一步**（`dsh-agent-loop` 的 `next-step` inbox），前端会把它渲染成 `steering` 行；宿主当前引擎 `IJccChatSession.StreamAsync(message)` 只有「单条消息进、整轮出」的接口，无法在轮内注入。落地前必须先给引擎加「轮内插话」能力（或事件总线），否则只能退化成 `queue`，会误导用户。**决策：暂不实现，避免假 steer。**
+2. **`assistant-stream`（逐字流式）**：引擎的 `Content` 事件整段到达，没有 token 边界；宿主可按字符切分伪造帧，但会破坏「revision/attempt 与落盘文本一致」的契约，且取消时容易出现半截帧。**决策：等引擎暴露增量事件后再做。**
+3. **`session/updateQueue`**：前端队列 UI 依赖 `session/control` 快照里的 inbox 项；宿主当前未投影队列，故该按钮不会出现。实现需先让 `DshSessionStreamHub` 暴露待跑队列并映射为 inbox 项。
+4. **M2-d 权限**：`approval/request` 是 remote waterfall 事件（WS `remote.mux` 的 `$respond` 通道），不是普通一元方法；宿主需要把引擎的审批请求（`GuiInteractionModule` 的对话框）桥接成该事件，并把 `allowed-once/rejected` 回传给引擎。`permissionPresets/catalog` 已实现；`sandbox/mode`、`permission/preset` 是会话事件而非前端 RPC，需随审批一起落日志。
+5. **回归基线**：每次改协议层后跑 `dsh-webui-{prompt,tool,cancel,reload,queue}.mjs` 五个脚本（全部 1–2 秒），单测 `JoinCodeGui.Tests` 全量。

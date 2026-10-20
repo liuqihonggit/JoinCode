@@ -67,7 +67,7 @@ public static class Program
         var version = typeof(Program).Assembly.GetName().Version is { } v ? v.ToString(3) : "0.0.0";
         var info = SessionInfo.Create(version, model);
         var banner = new BannerItem(info.Version, info.Model, info.Billing, info.WorkingDirectory);
-        var shell = new ReplShell(new SimulatedEngine(), banner, Console.Out, inline: !viewport, seedMessages: SeedMessages());
+        var shell = new ReplShell(new SimulatedEngine(), banner, Console.Out, inline: !viewport, seedMessages: SeedMessages(), codeHighlighter: new TextMateCodeHighlighter(dark: true));
         shell.Run();
         shell.WriteExit();
         Console.WriteLine("NativeTui.Demo 已退出。");
@@ -127,7 +127,7 @@ public static class Program
             var version = typeof(Program).Assembly.GetName().Version is { } v ? v.ToString(3) : "0.0.0";
             var info = SessionInfo.Create(version, model);
             var banner = new BannerItem(info.Version, info.Model, info.Billing, info.WorkingDirectory);
-            var shell = new ReplShell(engine, banner, Console.Out, inline: !viewport);
+            var shell = new ReplShell(engine, banner, Console.Out, inline: !viewport, codeHighlighter: new TextMateCodeHighlighter(dark: true));
             shell.Run();
             shell.WriteExit();
         }

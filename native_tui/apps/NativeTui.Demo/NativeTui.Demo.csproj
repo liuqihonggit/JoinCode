@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\NativeTui.Core\NativeTui.Core.csproj" />
+    <ProjectReference Include="..\..\src\NativeTui.Highlighting\NativeTui.Highlighting.csproj" />
   </ItemGroup>
 
 </Project>

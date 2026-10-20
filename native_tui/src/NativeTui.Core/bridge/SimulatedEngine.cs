@@ -255,6 +255,8 @@ public sealed class SimulatedEngine : IReplEngine
             "diff" => TurnScript.Diff,
             "perm" => TurnScript.Permission,
             "all" => TurnScript.Full,
+            "theme" => TurnScript.Markdown,
+            "model" => TurnScript.Full,
             _ => null,
         };
     }

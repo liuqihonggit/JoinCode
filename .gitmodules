@@ -1,0 +1,4 @@
+[submodule "libs/Dock"]
+	path = libs/Dock
+	url = git@github.com:liuqihonggit/Dock.git
+	branch = fix/aot-compiled-bindings

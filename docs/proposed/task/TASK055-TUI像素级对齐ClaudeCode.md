@@ -803,3 +803,34 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 
 <!-- M7-5 调研完成: 待用户确认方案(A/B/C)后进卫星项目 AOT 实测(A 方案前置条件) → 实现 -->
 <!-- AOT 实测点: ①Onigwrap 原生 DLL 在 PublishAot 发布的正确携带 ②语法 JSON 嵌入资源加载 ③win/linux 双平台 -->
+
+## M7-5 代码高亮落地（2026-10-21，A 方案 TextMateSharp 全链贯通）
+
+### 实施记录（5 commit 链）
+
+| 阶段 | commit | 内容 |
+|------|--------|------|
+| AOT 探针 | 7e706d905 | 卫星项目 NativeTui.Highlighting + AotProbe：PublishAot 编译零错 + libonigwrap.dll 正确携带 + AOT 产物输出与 Debug 一致（三关全过） |
+| 卫星实现 | 22d8fa618 | TextMateCodeHighlighter：整块高亮 API（独立会话 ruleStack 跨行状态）+ 语言三级检测（手动别名表 14 项→id 精确→Grammar Aliases 遍历）+ Monokai(dark)/LightPlus(light) + 负结果缓存；16/16 测试绿 |
+| Core 接线 | c6df3d26a | ICodeHighlighter 接口 + HighlightSpan DTO（Core 零依赖）→ LayoutWithHighlights 双入口 → MessageRenderer.ApplyCodeHighlight 覆写 cell 前景 → ReplBridgeDriver/ReplShell 可选注入（null=纯文本零行为变化）；全量 642/642 绿 |
+| Demo 接入 | 18eee0b13 | 交互/bridge 两处 ReplShell 构造注入 TextMateCodeHighlighter(dark)，md 命令 csharp 代码块启动即见 Monokai 配色 |
+
+### TextMateSharp 2.0.4 API 与 README 差异（实现期实证）
+
+- `GetScopeByLanguageId`（非 README 的 GetScopeNameFromLanguageId）；`TextMateSharp.Registry.Registry`（非 Internal.Registry）
+- `ThemeTrieElementRule.foreground` 是 **int colorId**（-1=无色），经 `theme.GetColor(id)` 得 "#RRGGBB"；`Language` 无 Name 字段（仅 Id/Aliases/Extensions）
+
+### 四列验收表（AGENTS.md 强制）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| NativeTui.Highlighting 卫星项目（TextMateCodeHighlighter + Monokai/LightPlus 主题） | Demo Program.cs 两处 ReplShell 注入（交互 :70 / bridge :130） | ✅ | ✅ ADR 0080：--selftest 绿 + Onigwrap 原生 DLL 齐备（libonigwrap.dll/Onigwrap.dll/TextMateSharp*.dll）+ capture 基准帧 911 字节不变；真实终端 Monokai 视觉验收待用户跑 md 命令确认 |
+| Core ICodeHighlighter + HighlightSpan DTO（CodeHighlighting.cs） | ReplBridgeDriver → MarkdownMessageItem(:98) → MarkdownLayout.LayoutWithHighlights → MessageRenderer.ApplyCodeHighlight | ✅ | ✅ MarkdownHighlightTests 8/8（stub 高亮器纯 Core 断言）+ 全量 642/642 + Highlighting.Tests 16/16 |
+| AOT 三关（PublishAot 编译/原生 DLL 携带/AOT 产物等价） | AotProbe 卫星项目（保留为回归工具） | ✅ | ✅ AotProbe 实测三关全过（7e706d905） |
+
+### 像素回归跳过依据（双依据成立）
+
+ReferenceScene.cs 不含任何 Markdown 渲染调用（纯手工 cell 构造，grep 零命中）且本次改动未触碰 → capture 911 字节与历史基准一致 → 高亮属新渲染路径不影响既有基准 region。
+
+<!-- M7-5 完成: 用户真实终端 md 命令视觉验收 → M7-6 模型列表(后端获取) → M7-7 多子代理分组 → resize 事件化 -->
+

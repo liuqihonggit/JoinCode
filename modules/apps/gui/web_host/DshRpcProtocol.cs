@@ -738,6 +738,44 @@ internal sealed class DshTurnUsage {
     public int? ReasoningTokens { get; set; }
 }
 
+/// <summary>tool-workflow/run-start 载荷（子代理卡片创建，TASK058 B6）</summary>
+internal sealed class DshWorkflowRunStartData {
+    /// <summary>运行标识（宿主按轮合成 {sessionId}:{turn}:agents）</summary>
+    public string RunId { get; set; } = "";
+    /// <summary>运行名</summary>
+    public string Name { get; set; } = "";
+}
+
+/// <summary>tool-workflow/agent-start 载荷（成员加入）</summary>
+internal sealed class DshWorkflowAgentStartData {
+    /// <summary>运行标识</summary>
+    public string RunId { get; set; } = "";
+    /// <summary>轮内成员序号（start/end 配对键）</summary>
+    public int Seq { get; set; }
+    /// <summary>显示名</summary>
+    public string Label { get; set; } = "";
+    /// <summary>子代理会话 ID</summary>
+    public string ChildId { get; set; } = "";
+}
+
+/// <summary>tool-workflow/agent-end 载荷（成员定格；outcome 值域 completed/cancelled/failed）</summary>
+internal sealed class DshWorkflowAgentEndData {
+    /// <summary>运行标识</summary>
+    public string RunId { get; set; } = "";
+    /// <summary>轮内成员序号</summary>
+    public int Seq { get; set; }
+    /// <summary>结果</summary>
+    public string Outcome { get; set; } = "";
+}
+
+/// <summary>tool-workflow/run-end 载荷（stopReason 值域 completed/cancelled/error）</summary>
+internal sealed class DshWorkflowRunEndData {
+    /// <summary>运行标识</summary>
+    public string RunId { get; set; } = "";
+    /// <summary>停止原因</summary>
+    public string StopReason { get; set; } = "";
+}
+
 /// <summary>助手流基线（revision=0 表示无进行中的尝试）</summary>
 internal sealed class DshAssistantStreamBaseline {
     /// <summary>流版本</summary>
@@ -1130,6 +1168,10 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshTurnEndReason))]
 [JsonSerializable(typeof(DshAssistantMessageData))]
 [JsonSerializable(typeof(DshTurnUsage))]
+[JsonSerializable(typeof(DshWorkflowRunStartData))]
+[JsonSerializable(typeof(DshWorkflowAgentStartData))]
+[JsonSerializable(typeof(DshWorkflowAgentEndData))]
+[JsonSerializable(typeof(DshWorkflowRunEndData))]
 [JsonSerializable(typeof(List<JsonElement>))]
 [JsonSerializable(typeof(DshAssistantStreamBaseline))]
 [JsonSerializable(typeof(Dictionary<string, DshSessionProjectionSnapshot>))]

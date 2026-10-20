@@ -7,5 +7,6 @@
   <Project Path="apps/NativeTui.Highlighting.AotProbe/NativeTui.Highlighting.AotProbe.csproj" />
   <Project Path="tests/NativeTui.Tests/NativeTui.Tests.csproj" />
   <Project Path="tests/NativeTui.Markdown.Tests/NativeTui.Markdown.Tests.csproj" />
+  <Project Path="tests/NativeTui.Highlighting.Tests/NativeTui.Highlighting.Tests.csproj" />
   <Project Path="tests/NativeTui.Host.Tests/NativeTui.Host.Tests.csproj" />
 </Solution>

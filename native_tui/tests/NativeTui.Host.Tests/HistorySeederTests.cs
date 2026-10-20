@@ -52,6 +52,18 @@ public sealed class HistorySeederTests
 
         public Task SaveSessionInfoAsync(string sessionId, SessionInfo info, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
+        public Task<bool> EnsureSessionAsync(string sessionId, SessionInfo info, CancellationToken cancellationToken = default)
+        {
+            var index = Sessions.FindIndex(s => s.SessionId == sessionId);
+            if (index >= 0)
+            {
+                return Task.FromResult(false);
+            }
+
+            Sessions.Add((sessionId, info.ProjectPath, []));
+            return Task.FromResult(true);
+        }
+
         public Task MigrateLegacyAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 

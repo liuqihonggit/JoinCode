@@ -13,6 +13,7 @@ public sealed class ReplShellSuggestionsTests
         new("help", "显示帮助", [], IsHidden: false),
         new("hello", "问候", [], IsHidden: false),
         new("compact", "压缩上下文", [], IsHidden: false),
+        new("theme", "切换主题", [], IsHidden: false, Arguments: ["dark", "light", "auto"]),
     ];
 
     /// <summary>构造带命令清单的测试 shell（SeedContent 就绪消息区）。</summary>
@@ -45,7 +46,7 @@ public sealed class ReplShellSuggestionsTests
         var (shell, _) = CreateShell();
         Type(shell, "/");
         Assert.True(shell.Suggester?.IsActive);
-        Assert.Equal(3, shell.Suggester?.Items.Count);
+        Assert.Equal(4, shell.Suggester?.Items.Count);
         Assert.Equal("compact", shell.Suggester?.Selected?.Name);
     }
 
@@ -55,7 +56,7 @@ public sealed class ReplShellSuggestionsTests
     {
         var (shell, _) = CreateShell();
         Type(shell, "/he");
-        Assert.Equal(["help", "hello"], shell.Suggester!.Items.Select(i => i.Name).ToArray());
+        Assert.Equal(["help", "hello", "theme"], shell.Suggester!.Items.Select(i => i.Name).ToArray());
     }
 
     /// <summary>普通文本输入不触发建议。</summary>
@@ -67,7 +68,7 @@ public sealed class ReplShellSuggestionsTests
         Assert.False(shell.Suggester?.IsActive);
     }
 
-    /// <summary>退格后建议刷新：/c 仅 compact；退格回 / 后全量 3 条。</summary>
+    /// <summary>退格后建议刷新：/c 仅 compact；退格回 / 后全量 4 条。</summary>
     [Fact]
     public void Backspace_RefreshesSuggestions()
     {
@@ -75,7 +76,7 @@ public sealed class ReplShellSuggestionsTests
         Type(shell, "/c");
         Assert.Equal(["compact"], shell.Suggester!.Items.Select(i => i.Name).ToArray());
         Press(shell, ConsoleKey.Backspace);
-        Assert.Equal(3, shell.Suggester!.Items.Count);
+        Assert.Equal(4, shell.Suggester!.Items.Count);
     }
 
     /// <summary>建议激活时 Up/Down 循环导航（不消费历史）。</summary>
@@ -89,7 +90,7 @@ public sealed class ReplShellSuggestionsTests
         Press(shell, ConsoleKey.UpArrow);
         Assert.Equal(0, shell.Suggester?.SelectedIndex);
         Press(shell, ConsoleKey.UpArrow);
-        Assert.Equal(1, shell.Suggester?.SelectedIndex);
+        Assert.Equal(2, shell.Suggester?.SelectedIndex);
     }
 
     /// <summary>Tab 接受：补全为 "/help "（带尾随空格），不提交引擎，建议关闭。</summary>
@@ -161,5 +162,52 @@ public sealed class ReplShellSuggestionsTests
         Press(shell, ConsoleKey.UpArrow);
         Assert.Equal("/help", shell.Input.Text);
         Assert.False(shell.Suggester?.IsActive);
+    }
+
+    /// <summary>参数补全（TASK057-2）：命令后空格弹参数建议，Tab 接受为 "/命令 参数 "。</summary>
+    [Fact]
+    public void ArgumentCompletion_Tab_AcceptsParameterValue()
+    {
+        var (shell, _) = CreateShell();
+        Type(shell, "/theme ");
+        Assert.True(shell.Suggester?.IsArgumentMode);
+        Assert.Equal(["dark", "light", "auto"], shell.Suggester!.Items.Select(i => i.Name).ToArray());
+        Press(shell, ConsoleKey.Tab);
+        Assert.Equal("/theme dark ", shell.Input.Text);
+        Assert.False(shell.Suggester?.IsActive);
+    }
+
+    /// <summary>参数前缀过滤 + Tab 接受：/theme l → light。</summary>
+    [Fact]
+    public void ArgumentCompletion_PrefixFilter_AcceptsFiltered()
+    {
+        var (shell, _) = CreateShell();
+        Type(shell, "/theme l");
+        Assert.Equal(["light"], shell.Suggester!.Items.Select(i => i.Name).ToArray());
+        Press(shell, ConsoleKey.Tab);
+        Assert.Equal("/theme light ", shell.Input.Text);
+    }
+
+    /// <summary>参数模式 Enter：接受并提交 "/命令 参数"。</summary>
+    [Fact]
+    public void ArgumentCompletion_Enter_AcceptsAndSubmits()
+    {
+        var (shell, engine) = CreateShell();
+        Type(shell, "/theme d");
+        Press(shell, ConsoleKey.Enter);
+        Assert.Equal(["/theme dark"], engine.Submits);
+        Assert.Equal(string.Empty, shell.Input.Text);
+    }
+
+    /// <summary>命令接受后进入参数态：Tab 接受命令 → 参数建议自动弹出。</summary>
+    [Fact]
+    public void CommandAccept_TabThenArguments_Chain()
+    {
+        var (shell, _) = CreateShell();
+        Type(shell, "/the");
+        Press(shell, ConsoleKey.Tab);
+        Assert.Equal("/theme ", shell.Input.Text);
+        Assert.True(shell.Suggester?.IsArgumentMode);
+        Assert.Equal(["dark", "light", "auto"], shell.Suggester!.Items.Select(i => i.Name).ToArray());
     }
 }

@@ -16,6 +16,8 @@ public sealed class SlashSuggesterTests
         new("help-me", "求助", ["hm"], IsHidden: false),
         new("compact", "压缩上下文", [], IsHidden: false),
         new("secret", "隐藏命令", [], IsHidden: true),
+        new("theme", "切换主题", [], IsHidden: false, Arguments: ["dark", "light", "auto"]),
+        new("model", "切换模型", [], IsHidden: false, ArgumentHint: "model-id"),
     ];
 
     /// <summary>构造 suggester 并指定输入。</summary>
@@ -31,7 +33,7 @@ public sealed class SlashSuggesterTests
     public void Update_SlashOnly_AllVisibleAlphabetical()
     {
         var suggester = Suggester("/");
-        Assert.Equal(["compact", "hello", "help", "help-me"], suggester.Items.Select(i => i.Name).ToArray());
+        Assert.Equal(["compact", "hello", "help", "help-me", "model", "theme"], suggester.Items.Select(i => i.Name).ToArray());
     }
 
     /// <summary>隐藏命令默认不参与建议。</summary>
@@ -47,7 +49,7 @@ public sealed class SlashSuggesterTests
     public void Update_PrefixQuery_MatchesPrefixCommands()
     {
         var suggester = Suggester("/he");
-        Assert.Equal(["help", "hello", "help-me"], suggester.Items.Select(i => i.Name).ToArray());
+        Assert.Equal(["help", "hello", "help-me", "theme"], suggester.Items.Select(i => i.Name).ToArray());
     }
 
     /// <summary>精确名优先：/help 排在 help-me 与 hello 之前。</summary>
@@ -181,6 +183,8 @@ public sealed class SlashSuggesterTests
         suggester.Move(1);
         Assert.Equal(2, suggester.SelectedIndex);
         suggester.Move(1);
+        Assert.Equal(3, suggester.SelectedIndex);
+        suggester.Move(1);
         Assert.Equal(0, suggester.SelectedIndex);
     }
 
@@ -190,7 +194,7 @@ public sealed class SlashSuggesterTests
     {
         var suggester = Suggester("/he");
         suggester.Move(-1);
-        Assert.Equal(2, suggester.SelectedIndex);
+        Assert.Equal(3, suggester.SelectedIndex);
     }
 
     /// <summary>列表更新后选中回零（简单回退，基准按 id 找回的简化）。</summary>
@@ -208,6 +212,66 @@ public sealed class SlashSuggesterTests
     public void Update_CaseInsensitive()
     {
         var suggester = Suggester("/HE");
-        Assert.Equal(["help", "hello", "help-me"], suggester.Items.Select(i => i.Name).ToArray());
+        Assert.Equal(["help", "hello", "help-me", "theme"], suggester.Items.Select(i => i.Name).ToArray());
+    }
+
+    /// <summary>参数模式（TASK057-2）：命令后空格触发 — /theme 弹全部参数值。</summary>
+    [Fact]
+    public void Update_CommandWithSpace_EntersArgumentMode()
+    {
+        var suggester = Suggester("/theme ");
+        Assert.True(suggester.IsArgumentMode);
+        Assert.Equal(["dark", "light", "auto"], suggester.Items.Select(i => i.Name).ToArray());
+    }
+
+    /// <summary>参数模式前缀过滤：/theme d → dark。</summary>
+    [Fact]
+    public void Update_ArgumentPrefix_FiltersArguments()
+    {
+        var suggester = Suggester("/theme d");
+        Assert.True(suggester.IsArgumentMode);
+        Assert.Equal(["dark"], suggester.Items.Select(i => i.Name).ToArray());
+    }
+
+    /// <summary>参数模式大小写不敏感过滤。</summary>
+    [Fact]
+    public void Update_ArgumentPrefix_CaseInsensitive()
+    {
+        var suggester = Suggester("/theme L");
+        Assert.Equal(["light"], suggester.Items.Select(i => i.Name).ToArray());
+    }
+
+    /// <summary>Hint-only 命令（无静态参数清单）：/model 显示 ArgumentHint 单条提示。</summary>
+    [Fact]
+    public void Update_HintOnlyCommand_ShowsArgumentHint()
+    {
+        var suggester = Suggester("/model ");
+        Assert.True(suggester.IsArgumentMode);
+        var item = Assert.Single(suggester.Items);
+        Assert.Equal("model-id", item.Name);
+    }
+
+    /// <summary>无参数元数据的命令：命令后空格不触发建议。</summary>
+    [Fact]
+    public void Update_CommandWithoutArguments_Inactive()
+    {
+        var suggester = Suggester("/help ");
+        Assert.False(suggester.IsActive);
+    }
+
+    /// <summary>参数已含空格（第二参数态）：不触发。</summary>
+    [Fact]
+    public void Update_ArgumentWithSpace_Inactive()
+    {
+        var suggester = Suggester("/theme dark ");
+        Assert.False(suggester.IsActive);
+    }
+
+    /// <summary>未知命令后空格：不触发。</summary>
+    [Fact]
+    public void Update_UnknownCommandWithSpace_Inactive()
+    {
+        var suggester = Suggester("/zzz ");
+        Assert.False(suggester.IsActive);
     }
 }

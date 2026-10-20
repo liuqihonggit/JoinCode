@@ -21,6 +21,9 @@ public sealed class SlashCommandSourceTests
                 ["Session"] =
                 [
                     new SlashCommandMetadata { Name = "clear", Description = "清屏" },
+                    new SlashCommandMetadata { Name = "theme", Description = "主题" },
+                    new SlashCommandMetadata { Name = "effort", Description = "力度" },
+                    new SlashCommandMetadata { Name = "config", Description = "配置" },
                 ],
             };
     }
@@ -34,12 +37,39 @@ public sealed class SlashCommandSourceTests
     public void Load_ConvertsMetadataToSuggestions()
     {
         var commands = SlashCommandSource.Load(Services());
-        Assert.Equal(["clear", "help", "secret"], commands.Select(c => c.Name).OrderBy(n => n).ToArray());
+        Assert.Equal(["clear", "config", "effort", "help", "secret", "theme"], commands.Select(c => c.Name).OrderBy(n => n).ToArray());
         var help = commands.Single(c => c.Name == "help");
         Assert.Equal("显示帮助", help.Description);
         Assert.Equal(["h"], help.Aliases);
         Assert.False(help.IsHidden);
         Assert.True(commands.Single(c => c.Name == "secret").IsHidden);
+    }
+
+    /// <summary>参数元数据注入：ArgumentHint 透传特性；theme/effort/config 静态参数清单注入。</summary>
+    [Fact]
+    public void Load_InjectsArgumentMetadata()
+    {
+        var commands = SlashCommandSource.Load(Services());
+        var theme = commands.Single(c => c.Name == "theme");
+        Assert.Equal(["dark", "light", "auto"], theme.ArgumentValues);
+        var effort = commands.Single(c => c.Name == "effort");
+        Assert.Equal(5, effort.ArgumentValues.Length);
+        var config = commands.Single(c => c.Name == "config");
+        Assert.Equal(["get", "set", "list", "remove"], config.ArgumentValues);
+        Assert.Empty(commands.Single(c => c.Name == "clear").ArgumentValues);
+    }
+
+    /// <summary>ArgumentHint 透传：特性声明的参数提示进建议项。</summary>
+    [Fact]
+    public void Load_PassesThroughArgumentHint()
+    {
+        var catalog = new FakeCatalog();
+        var services = new ServiceCollection().AddSingleton<ISlashCommandCatalog>(catalog).BuildServiceProvider();
+        var commands = SlashCommandSource.Load(services);
+        // FakeCatalog 未声明 ArgumentHint → 空串；真实生成目录的 model 命令带 "model-id"（生成器提取）
+        Assert.All(commands, c => Assert.NotNull(c.ArgumentHint));
+        var generated = SlashCommandSource.Load(new ServiceCollection().BuildServiceProvider());
+        Assert.Contains(generated, c => c.Name == "model" && c.ArgumentHint.Length > 0);
     }
 
     /// <summary>DI 未注册目录：兜底直接实例化生成目录（真实生成器输出，非空）。</summary>

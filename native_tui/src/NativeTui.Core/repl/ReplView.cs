@@ -31,6 +31,9 @@ public sealed class ReplView
     /// <summary>建议命令列宽（全量命令最长名 + 6，防布局跳动）。</summary>
     public int SuggestionNameColumnWidth { get; set; }
 
+    /// <summary>参数补全模式（建议项为参数值，渲染不带 / 前缀）。</summary>
+    public bool SuggestionArgumentMode { get; set; }
+
     /// <summary>footer 状态（模式/busy/agents 提示/登录错误/通知）。</summary>
     public FooterState Footer { get; set; } = new();
 
@@ -68,7 +71,7 @@ public sealed class ReplView
         if (suggestionHeight > 0 && Suggestions is { Count: > 0 })
         {
             var suggestionFrame = new Rect(0, screen.Rows - footerHeight - suggestionHeight, screen.Cols, suggestionHeight);
-            _suggestionBox.Render(screen, suggestionFrame, theme, Suggestions, SuggestionIndex, SuggestionNameColumnWidth);
+            _suggestionBox.Render(screen, suggestionFrame, theme, Suggestions, SuggestionIndex, SuggestionNameColumnWidth, SuggestionArgumentMode);
         }
 
         var inputFrame = new Rect(0, screen.Rows - footerHeight - suggestionHeight - 3, screen.Cols, 3);

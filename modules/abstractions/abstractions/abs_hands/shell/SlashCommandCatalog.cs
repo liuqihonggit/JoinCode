@@ -17,6 +17,9 @@ public sealed record SlashCommandMetadata {
     /// <summary>命令别名</summary>
     public string[] Aliases { get; init; } = [];
 
+    /// <summary>参数提示（命令后空格时的补全提示，如 "model-id"）— 从 [ChatCommand] 特性提取</summary>
+    public string ArgumentHint { get; init; } = string.Empty;
+
     /// <summary>是否隐藏（隐藏命令不在面板展示）</summary>
     public bool IsHidden { get; init; }
 

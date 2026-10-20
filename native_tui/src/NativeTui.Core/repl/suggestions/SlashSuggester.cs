@@ -25,6 +25,9 @@ public sealed class SlashSuggester
     /// <summary>选中项（无建议时 null）。</summary>
     public CommandSuggestion? Selected => Items.Count > 0 ? Items[SelectedIndex] : null;
 
+    /// <summary>参数补全模式（"/cmd 参数前缀" 态 — 建议项为参数值或提示，渲染不带 / 前缀）。</summary>
+    public bool IsArgumentMode { get; private set; }
+
     /// <summary>命令列宽 — 全量命令最长名 + 6（含 / 与列间距，基准预计算防过滤时布局跳动）。</summary>
     public int NameColumnWidth { get; }
 
@@ -41,21 +44,19 @@ public sealed class SlashSuggester
         _currentInput = input;
         if (input == _suppressedInput)
         {
-            Items = [];
-            SelectedIndex = 0;
+            (Items, SelectedIndex, IsArgumentMode) = ([], 0, false);
             return;
         }
 
         _suppressedInput = string.Empty;
-        (Items, SelectedIndex) = (Match(input), 0);
+        (Items, SelectedIndex, IsArgumentMode) = (Match(input), 0, IsArgumentInput(input));
     }
 
     /// <summary>Esc 关闭建议并抑制同一输入（基准 autocomplete:dismiss — dismissedForInputRef）。</summary>
     public void Dismiss()
     {
         _suppressedInput = _currentInput;
-        Items = [];
-        SelectedIndex = 0;
+        (Items, SelectedIndex, IsArgumentMode) = ([], 0, false);
     }
 
     /// <summary>选中索引循环移动（正 = 向下，负 = 向上；越界回绕，基准循环语义）。</summary>
@@ -69,15 +70,29 @@ public sealed class SlashSuggester
         SelectedIndex = ((SelectedIndex + delta) % Items.Count + Items.Count) % Items.Count;
     }
 
-    /// <summary>匹配与排序 — 返回新建议列表；不触发（非 / 开头/含空格/空输入）时为空。</summary>
+    /// <summary>匹配与排序 — 命令模式（"/前缀"）或参数模式（"/cmd 参数前缀"）；
+    /// 不触发（非 / 开头/第二空格/未知命令/无参数元数据）时为空。</summary>
     private List<CommandSuggestion> Match(string input)
     {
-        if (input.Length == 0 || input[0] != '/' || input.Contains(' '))
+        if (input.Length == 0 || input[0] != '/')
         {
             return [];
         }
 
-        var query = input[1..];
+        var firstSpace = input.IndexOf(' ');
+        return firstSpace < 0 ? MatchCommand(input[1..]) : MatchArgument(input, firstSpace);
+    }
+
+    /// <summary>参数模式输入判定（供 IsArgumentMode 同步）。</summary>
+    private bool IsArgumentInput(string input)
+    {
+        var firstSpace = input.IndexOf(' ');
+        return firstSpace >= 0 && MatchArgument(input, firstSpace).Count > 0;
+    }
+
+    /// <summary>命令名模式匹配（无空格 — 二级排序链）。</summary>
+    private List<CommandSuggestion> MatchCommand(string query)
+    {
         if (query.Length == 0)
         {
             return _commands.Where(c => !c.IsHidden)
@@ -101,6 +116,36 @@ public sealed class SlashSuggester
         }
 
         return ranked;
+    }
+
+    /// <summary>参数模式匹配 — "/cmd 参数前缀"（恰好一个空格；第二空格不触发）：
+    /// 有静态参数清单 → 前缀过滤参数值项；仅 ArgumentHint → 单条提示项；均无 → 不触发。</summary>
+    private List<CommandSuggestion> MatchArgument(string input, int firstSpace)
+    {
+        var commandName = input[1..firstSpace];
+        var argumentPrefix = input[(firstSpace + 1)..];
+        if (argumentPrefix.Contains(' '))
+        {
+            return [];
+        }
+
+        var command = _commands.FirstOrDefault(c => c.Name == commandName);
+        if (command is null)
+        {
+            return [];
+        }
+
+        if (command.ArgumentValues.Length > 0)
+        {
+            return command.ArgumentValues
+                .Where(a => a.StartsWith(argumentPrefix, StringComparison.OrdinalIgnoreCase))
+                .Select(a => new CommandSuggestion(a, command.Description, [], IsHidden: false))
+                .ToList();
+        }
+
+        return command.ArgumentHint.Length > 0
+            ? [new CommandSuggestion(command.ArgumentHint, command.Description, [], IsHidden: false)]
+            : [];
     }
 
     /// <summary>精确匹配（名或切名等于查询）。</summary>

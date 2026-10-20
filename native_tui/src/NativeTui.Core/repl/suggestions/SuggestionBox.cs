@@ -14,8 +14,8 @@ public sealed class SuggestionBox
     public int MeasureHeight(int itemCount) => Math.Min(itemCount, MaxVisibleItems);
 
     /// <summary>渲染建议列表 — frame 内自顶向下每行一条；选中项 Suggestion 色，未选中 dim；
-    /// 命令名自 frame.X 起，描述自 frame.X + nameColumnWidth 起（超宽截断）。</summary>
-    public void Render(Screen screen, Rect frame, Theme theme, IReadOnlyList<CommandSuggestion> items, int selectedIndex, int nameColumnWidth)
+    /// 命令模式命令名带 / 前缀自 frame.X 起，参数模式裸参数值；描述自 frame.X + nameColumnWidth 起（超宽截断）。</summary>
+    public void Render(Screen screen, Rect frame, Theme theme, IReadOnlyList<CommandSuggestion> items, int selectedIndex, int nameColumnWidth, bool argumentMode = false)
     {
         if (items.Count == 0)
         {
@@ -26,13 +26,14 @@ public sealed class SuggestionBox
         var startIndex = Math.Clamp(selectedIndex - visible / 2, 0, items.Count - visible);
         var selectedStyle = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Suggestion });
         var dimStyle = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var prefix = argumentMode ? string.Empty : "/";
 
         for (var row = 0; row < visible; row++)
         {
             var index = startIndex + row;
             var item = items[index];
             var style = index == selectedIndex ? selectedStyle : dimStyle;
-            screen.WriteText(frame.Y + row, frame.X, $"/{item.Name}", style, frame.X + nameColumnWidth);
+            screen.WriteText(frame.Y + row, frame.X, $"{prefix}{item.Name}", style, frame.X + nameColumnWidth);
             if (item.Description.Length > 0)
             {
                 screen.WriteText(frame.Y + row, frame.X + nameColumnWidth, item.Description, style, frame.Right);

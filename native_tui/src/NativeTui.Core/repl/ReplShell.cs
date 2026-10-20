@@ -586,8 +586,8 @@ public sealed class ReplShell
         }
     }
 
-    /// <summary>接受选中建议（基准 applyCommandSuggestion）— Tab 补全为 "/命令 "（带尾随空格进入参数态，不执行）；
-    /// Enter 直接提交 "/命令"（不带尾随空格，历史与解析干净）。</summary>
+    /// <summary>接受选中建议（基准 applyCommandSuggestion）— 命令模式：Tab 补全 "/命令 "（尾随空格进参数态）/
+    /// Enter 直接提交 "/命令"；参数模式（IsArgumentMode）：命令名取自输入前缀，补全 "/命令 参数 " 或提交 "/命令 参数"。</summary>
     private void AcceptSuggestion(bool execute)
     {
         if (_suggester?.Selected is not { } selected)
@@ -595,7 +595,24 @@ public sealed class ReplShell
             return;
         }
 
-        FillInput(execute ? $"/{selected.Name}" : $"/{selected.Name} ", cursorToStart: false);
+        string completed;
+        if (_suggester.IsArgumentMode)
+        {
+            var spaceIndex = _input.Text.IndexOf(' ');
+            if (spaceIndex <= 1)
+            {
+                return;
+            }
+
+            var commandName = _input.Text[1..spaceIndex];
+            completed = $"/{commandName} {selected.Name}";
+        }
+        else
+        {
+            completed = $"/{selected.Name}";
+        }
+
+        FillInput(execute ? completed : completed + " ", cursorToStart: false);
         UpdateSuggestions();
         if (execute)
         {
@@ -727,6 +744,7 @@ public sealed class ReplShell
         _view.Suggestions = _suggester is { IsActive: true } ? _suggester.Items : null;
         _view.SuggestionIndex = _suggester?.SelectedIndex ?? 0;
         _view.SuggestionNameColumnWidth = _suggester?.NameColumnWidth ?? 0;
+        _view.SuggestionArgumentMode = _suggester?.IsArgumentMode ?? false;
     }
 
     /// <summary>

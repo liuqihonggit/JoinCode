@@ -122,18 +122,15 @@ internal static class BridgeServeCommand {
     }
 
     /// <summary>
-    /// 执行单个回合 — SessionTurnResult 翻译为 BridgeServeLoop 异常语义；
-    /// PermissionPendingConfirmationException（无 UI 确认）按打断处理并携带诱导说明。
+    /// 执行单个回合 — SessionTurnResult 翻译为 BridgeServeLoop 异常语义。
+    /// 权限确认已改 ConfirmAsync 异步等待（ADR 0142）：NonInteractive 下 CLI 处理器自动 Deny，
+    /// 工具拒绝走回合失败 → error 事件（消息含引擎诱导说明），无抛异常重试路径。
     /// </summary>
     private static async Task RunTurnAsync(SessionController controller, string input, CancellationToken ct) {
-        try {
-            var result = await controller.StreamResponseAsync(input, ct).ConfigureAwait(false);
-            var ex = TranslateTurnResult(result);
-            if (ex is not null)
-                throw ex;
-        } catch (PermissionPendingConfirmationException) {
-            throw TranslatePendingPermission();
-        }
+        var result = await controller.StreamResponseAsync(input, ct).ConfigureAwait(false);
+        var ex = TranslateTurnResult(result);
+        if (ex is not null)
+            throw ex;
     }
 
     /// <summary>
@@ -150,10 +147,4 @@ internal static class BridgeServeCommand {
                 $"API 请求超时（{result.TimeoutMs}ms 无响应）。可发送 interrupt 打断后重试，或检查网络连接与 API 服务状态。");
         return new InvalidOperationException(result.ErrorMessage ?? "回合执行失败（未知错误）");
     }
-
-    /// <summary>
-    /// 权限挂起翻译 — bridge 协议暂无交互式确认事件，按打断处理并携带诱导说明（M7 权限对话框时扩展协议）。
-    /// </summary>
-    internal static OperationCanceledException TranslatePendingPermission() =>
-        new("回合等待权限确认，已按打断处理。bridge 协议暂不支持交互式权限确认，请调整工具白名单或权限模式后重新提交。");
 }

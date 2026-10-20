@@ -33,14 +33,6 @@ public sealed class BridgeServeCommandTests {
     }
 
     [Fact]
-    public void TranslateTurnResult_PendingPermission_ThrowsOperationCanceledWithHint() {
-        // PermissionPending 确认在 bridge 协议（无 UI）中按打断处理，消息带诱导说明
-        var ex = BridgeServeCommand.TranslatePendingPermission();
-        ex.Should().BeOfType<OperationCanceledException>()
-            .Which.Message.Should().Contain("权限确认");
-    }
-
-    [Fact]
     public void BuildSessionInfo_FastModeModelWins_ThenOptionsFallback_ThenNull() {
         var fastMode = new FakeFastModeService("glm-4.7");
 

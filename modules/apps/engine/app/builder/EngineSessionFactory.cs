@@ -11,6 +11,9 @@ public interface IAsyncHost : IHost, IAsyncDisposable;
 /// <summary>
 /// 异步 Host 包装器 — 将 <see cref="IHost"/> 包装为 <see cref="IAsyncHost"/>。
 /// <para>运行时 Host 实例已实现 IAsyncDisposable,此包装器仅让编译时类型暴露 DisposeAsync。</para>
+/// <para>释放顺序保证:DisposeAsync 先收尾 <see cref="JoinCode.App.Modules.McpPluginBootstrapHandle"/>
+/// (取消 + 等后台插件链完成)再释放内层 Host — 容器本体 dispose 先于后台链收尾时,插件
+/// InitializeAsync 内服务解析撞 ObjectDisposedException(退出竞态,全宿主统一在此收口)。</para>
 /// </summary>
 internal sealed class AsyncHostWrapper : IAsyncHost {
     private readonly IHost _inner;
@@ -22,10 +25,14 @@ internal sealed class AsyncHostWrapper : IAsyncHost {
     public Task StartAsync(CancellationToken cancellationToken = default) => _inner.StartAsync(cancellationToken);
     /// <summary>停止 Host — 透传到内部 Host</summary>
     public Task StopAsync(CancellationToken cancellationToken = default) => _inner.StopAsync(cancellationToken);
-    /// <summary>同步释放 — 透传到内部 Host</summary>
+    /// <summary>同步释放 — 透传到内部 Host（后台链收尾由容器自身释放 Handle 单例兜底；
+    /// 全量保序走 DisposeAsync 主路径，同步 Dispose 是死锁高危遗留调用面不动原语义）</summary>
     public void Dispose() => _inner.Dispose();
-    /// <summary>异步释放 — 优先用内部 Host 的 DisposeAsync,回退到同步 Dispose</summary>
+    /// <summary>异步释放 — 先收尾后台插件链（取消 + 无超时等待链完成，容器存活期内断链），
+    /// 再释放内部 Host(优先 DisposeAsync,回退同步 Dispose)</summary>
     public async ValueTask DisposeAsync() {
+        if (_inner.Services.GetService<JoinCode.App.Modules.McpPluginBootstrapHandle>() is { } bootstrap)
+            await bootstrap.DisposeAsync().ConfigureAwait(false);
         if (_inner is IAsyncDisposable ad)
             await ad.DisposeAsync().ConfigureAwait(false);
         else

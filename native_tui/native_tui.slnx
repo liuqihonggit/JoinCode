@@ -1,8 +1,10 @@
 <Solution>
   <Project Path="src/NativeTui.Core/NativeTui.Core.csproj" />
   <Project Path="src/NativeTui.Markdown/NativeTui.Markdown.csproj" />
+  <Project Path="src/NativeTui.Highlighting/NativeTui.Highlighting.csproj" />
   <Project Path="apps/NativeTui.Demo/NativeTui.Demo.csproj" />
   <Project Path="apps/NativeTui.Host/NativeTui.Host.csproj" />
+  <Project Path="apps/NativeTui.Highlighting.AotProbe/NativeTui.Highlighting.AotProbe.csproj" />
   <Project Path="tests/NativeTui.Tests/NativeTui.Tests.csproj" />
   <Project Path="tests/NativeTui.Markdown.Tests/NativeTui.Markdown.Tests.csproj" />
   <Project Path="tests/NativeTui.Host.Tests/NativeTui.Host.Tests.csproj" />

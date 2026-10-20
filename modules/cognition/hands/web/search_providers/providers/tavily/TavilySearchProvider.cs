@@ -102,8 +102,9 @@ internal sealed record TavilyRequestDto {
     [JsonPropertyName("max_results")]
     public int MaxResults { get; init; } = 10;
 
-    /// <summary>搜索深度：basic 或 advanced。</summary>
+    /// <summary>搜索深度：basic 或 advanced（Tavily API 协议值）。</summary>
     [JsonPropertyName("search_depth")]
+    [SuppressMessage("AotSafety", "JCC10007", Justification = "外部协议: Tavily API search_depth 协议值 basic/advanced，与 ApiLoggingLevel 枚举值撞名纯巧合，非同源字符串")]
     public string SearchDepth { get; init; } = "basic";
 
     /// <summary>是否包含 AI 摘要答案。</summary>

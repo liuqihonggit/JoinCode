@@ -70,4 +70,13 @@ public sealed class EngineSessionTests {
         var withoutConfig = EngineSession.BuildSessionInfoEvent(checker: null, fastMode, config: null);
         Assert.Null(withoutConfig.Vendor);
     }
+
+    /// <summary>TUI 静默日志（修复：引擎 Console 日志直写 stderr 与 inline 渲染交错致光标错乱/横向线残影）—
+    /// provider 必须是 SilentLoggerProvider（禁止 Console 系 provider）。</summary>
+    [Fact]
+    public void LoggerProvider_IsSilent_NotConsoleProvider()
+    {
+        Assert.Same(SilentLoggerProvider.Instance, EngineSession.LoggerProvider);
+        Assert.DoesNotContain("Console", EngineSession.LoggerProvider.GetType().Name, StringComparison.Ordinal);
+    }
 }

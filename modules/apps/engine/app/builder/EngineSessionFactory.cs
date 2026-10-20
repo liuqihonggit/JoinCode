@@ -64,9 +64,12 @@ public sealed class EngineSessionFactory {
     /// 创建 GUI/TUI 引擎会话 — 不含 PipeModule/CliModule（宿主不需要命名管道和终端交互），
     /// 含 HousekeepingModule（后台清理和实体回收）。
     /// extraModules: 宿主可传入额外模块（如 GuiInteractionModule/TuiInteractionModule/CliRegistrationModule）。
+    /// loggerProvider: 宿主日志 provider（ADR 0100 表现层注入）；null 时引擎回退默认 console —
+    /// TUI 宿主必须传静默 provider（Console 日志直写 stderr 会与 inline 渲染交错，光标追踪错乱致残影）。
     /// </summary>
     public static Task<Result> CreateGuiSessionAsync(
         IEnumerable<IAppModule>? extraModules = null,
+        ILoggerProvider? loggerProvider = null,
         CancellationToken cancellationToken = default) {
         var fs = IO.FileSystem.FileSystemFactory.Create();
         var options = new CommandLineOptions {
@@ -85,7 +88,7 @@ public sealed class EngineSessionFactory {
         if (extraModules is not null)
             modules.AddRange(extraModules);
 
-        return CreateSessionAsync(options, fs, modules, loggerProvider: null, cancellationToken, clearPipeEndpoint: true);
+        return CreateSessionAsync(options, fs, modules, loggerProvider, cancellationToken, clearPipeEndpoint: true);
     }
 
     /// <summary>

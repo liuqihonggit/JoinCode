@@ -19,6 +19,7 @@ global using JoinCode.App.Builder;
 global using JoinCode.ChatCommands;
 global using JoinCode.Cli;
 global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Logging;
 global using NativeTui.Core;
 global using NativeTui.Core.Ansi;
 global using NativeTui.Core.Bridge;

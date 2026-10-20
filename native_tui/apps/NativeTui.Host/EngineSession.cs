@@ -37,11 +37,18 @@ public sealed class EngineSession : IAsyncDisposable {
     /// <summary>重发 session_info 事件 — 模型/供应商切换等运行时状态变化后刷新 banner（ReplBridgeDriver.ApplySessionInfo 差分上屏）。</summary>
     public void RefreshSessionInfo() => _client.Enqueue(BuildSessionInfoEvent(_checker, _fastMode, _engine.Config));
 
-    /// <summary>组装引擎会话 — 建会话（TuiInteractionModule 注册权限确认 handler）→ 解析权限/模型 → 构造回合客户端 → 种子 session_info；失败时释放已建引擎 Host。</summary>
+    /// <summary>TUI 静默日志 provider（internal — 测试断言非 Console：Console 直写 stderr 与 inline 渲染交错致光标错乱/横向线残影）。
+    /// 错误反馈走 EngineTurnClient Error 事件链（● 回合执行失败），不依赖引擎日志。</summary>
+    internal static ILoggerProvider LoggerProvider => SilentLoggerProvider.Instance;
+
+    /// <summary>组装引擎会话 — 建会话（TuiInteractionModule 注册权限确认 handler；静默 logger —
+    /// Console 日志直写 stderr 会与 inline 渲染交错破坏光标追踪，错误反馈走 EngineTurnClient Error 事件链）
+    /// → 解析权限/模型 → 构造回合客户端 → 种子 session_info；失败时释放已建引擎 Host。</summary>
     public static async Task<EngineSession> CreateAsync(CancellationToken cancellationToken = default) {
         var permissionBridge = new TuiPermissionBridge();
         var engine = await EngineSessionFactory.CreateGuiSessionAsync(
             extraModules: [new TuiInteractionModule(permissionBridge)],
+            loggerProvider: LoggerProvider,
             cancellationToken: cancellationToken).ConfigureAwait(false);
         try {
             var checker = await ResolvePermissionCheckerAsync(engine.Services).ConfigureAwait(false);

@@ -84,6 +84,10 @@ internal sealed class DshTurnRunner {
 
     /// <summary>后台跑一轮生成：成功落助手消息，停止/失败各自落对应收尾（异常只记日志，不让进程崩）</summary>
     private async Task RunTurnAsync(Hosting.IJccChatSession engine, string sessionId, string text, int turn, CancellationToken cancellationToken) {
+        // 权限确认 waterfall 的目标会话（前端按 agentId 路由到对应会话 scope 的审批面板，TASK058 B1）
+        _services.Approvals.SetAgent(sessionId);
+        // 子代理轮内运行追踪（tool-workflow 事件族，TASK058 B6）— try 外声明，取消/异常分支也要收尾
+        var agents = new DshAgentRunTracker($"{sessionId}:{turn}:agents");
         try {
             engine.SwitchSession(sessionId);
             if (await _services.Sessions.HistoryAsync(sessionId, cancellationToken) is { Count: > 0 } history) {
@@ -91,6 +95,8 @@ internal sealed class DshTurnRunner {
             }
             App.LogDiag($"[DSH-WEB] turn streaming session={sessionId} turn={turn}");
             var content = new StringBuilder();
+            var thinking = new StringBuilder();
+            TokenUsage? usage = null;
             var events = 0;
             var calls = new List<(string CallId, string Name, string Arguments)>();
             await foreach (var evt in engine.StreamAsync(text, cancellationToken)) {
@@ -100,33 +106,67 @@ internal sealed class DshTurnRunner {
                 }
                 if (evt.Type == ChatStreamEventType.Content && !string.IsNullOrEmpty(evt.Content)) {
                     content.Append(evt.Content);
+                } else if (evt.Type == ChatStreamEventType.Thinking && !string.IsNullOrEmpty(evt.ThinkingContent)) {
+                    // 思考内容 → assistant/message 前置 reasoning 块（TASK058 B4，前端折叠渲染）
+                    thinking.Append(evt.ThinkingContent);
+                } else if (evt.Type == ChatStreamEventType.Complete && evt.Usage is { } turnUsage) {
+                    // 用量 → data.usage 四桶（前端"本轮用量"弹窗，TASK058 B4）
+                    usage = turnUsage;
+                } else if (evt.Type == ChatStreamEventType.AgentStarted || evt.Type == ChatStreamEventType.AgentFinished) {
+                    await PublishAgentEventsAsync(sessionId, agents, evt);
                 } else if (evt.Type == ChatStreamEventType.SystemNotice) {
                     App.LogDiag($"[DSH-WEB] turn system notice session={sessionId}: {evt.Content}");
                 } else if (evt.Type == ChatStreamEventType.ToolCallEnd || evt.Type == ChatStreamEventType.ToolCallStart) {
                     await PublishToolCallAsync(sessionId, turn, evt, calls);
                 }
             }
-            App.LogDiag($"[DSH-WEB] turn stream done session={sessionId} events={events} chars={content.Length}");
-            await PublishReplyAsync(sessionId, turn, content.ToString(), engine);
+            App.LogDiag($"[DSH-WEB] turn stream done session={sessionId} events={events} chars={content.Length} thinking={thinking.Length}");
+            await PublishReplyAsync(sessionId, turn, thinking.Length > 0 ? thinking.ToString() : null, content.ToString(), usage, engine);
+            await PublishWorkflowRunEndAsync(sessionId, agents, "completed");
             await EndTurnAsync(sessionId, turn, new DshTurnEndReason { Kind = "completed" });
         } catch (OperationCanceledException) {
             App.LogDiag($"[DSH-WEB] turn cancelled session={sessionId} turn={turn}");
+            await PublishWorkflowRunEndAsync(sessionId, agents, "cancelled");
             await EndTurnAsync(sessionId, turn, new DshTurnEndReason {
                 Kind = "aborted",
                 Reason = new DshTurnEndCancelCause { Kind = "user" },
             });
         } catch (Exception ex) {
             App.LogDiag($"[DSH-WEB] turn failed session={sessionId} turn={turn}: {ex.Message}");
+            await PublishWorkflowRunEndAsync(sessionId, agents, "error");
             await EndTurnAsync(sessionId, turn, new DshTurnEndReason {
                 Kind = "error",
                 Error = new DshTurnEndError { Code = "UNKNOWN", Message = ex.Message },
             });
         } finally {
+            _services.Approvals.SetAgent(null);
             _services.Streams.EndTurn(sessionId);
             if (_services.Engine is { } ready) {
                 StartQueued(ready, sessionId);
             }
         }
+    }
+
+    /// <summary>发布子代理事件族（agent start/end → tool-workflow，TASK058 B6）</summary>
+    private async Task PublishAgentEventsAsync(string sessionId, DshAgentRunTracker agents, ChatStreamEvent evt) {
+        var events = evt.Type == ChatStreamEventType.AgentStarted
+            ? agents.OnAgentStarted(evt)
+            : agents.OnAgentFinished(evt);
+        foreach (var workflowEvent in events) {
+            await PublishWorkflowEventAsync(sessionId, workflowEvent);
+        }
+    }
+
+    /// <summary>发布 run-end 收尾（无成员时 tracker 返回 null，跳过）</summary>
+    private async Task PublishWorkflowRunEndAsync(string sessionId, DshAgentRunTracker agents, string stopReason) {
+        if (agents.BuildRunEnd(stopReason) is { } runEnd) {
+            await PublishWorkflowEventAsync(sessionId, runEnd);
+        }
+    }
+
+    /// <summary>落一条 workflow 事件（data 已是树，直接进事件流）</summary>
+    private async Task PublishWorkflowEventAsync(string sessionId, DshAgentRunTracker.WorkflowEvent workflowEvent) {
+        await _services.Streams.PublishAsync(sessionId, workflowEvent.Type, workflowEvent.Data);
     }
 
     /// <summary>落一次工具调用或工具结果事件（callId 缺失时按序号补齐，保证调用与结果可配对）</summary>
@@ -160,24 +200,27 @@ internal sealed class DshTurnRunner {
         }, surfaceOp: "append");
     }
 
-    /// <summary>落助手回复事件（空回复不落，避免空气泡）</summary>
-    private async Task PublishReplyAsync(string sessionId, int turn, string reply, Hosting.IJccChatSession engine) {
-        if (!string.IsNullOrWhiteSpace(reply)) {
-            await _services.Streams.PublishAsync(sessionId, "assistant/message", new DshAssistantMessageData {
-                Turn = turn,
-                Step = Step,
-                Message = new DshWireMessage {
-                    Id = $"{sessionId}:{turn}:assistant",
-                    Role = "assistant",
-                    Content = [new DshWireContentBlock { Text = reply }],
-                    Source = new DshWireMessageSource {
-                        Kind = "model",
-                        Provider = engine.CurrentVendor,
-                        Model = engine.CurrentModelId,
-                    },
-                },
-            }, surfaceOp: "append");
+    /// <summary>落助手回复事件（空块序列不落，避免空气泡；思考/正文/用量经投影单点翻译，TASK058 B4）</summary>
+    private async Task PublishReplyAsync(string sessionId, int turn, string? thinking, string reply, TokenUsage? usage, Hosting.IJccChatSession engine) {
+        var (content, mappedUsage) = DshAssistantReplyProjection.Project(thinking, reply, usage);
+        if (content.Count == 0) {
+            return;
         }
+        await _services.Streams.PublishAsync(sessionId, "assistant/message", new DshAssistantMessageData {
+            Turn = turn,
+            Step = Step,
+            Message = new DshWireMessage {
+                Id = $"{sessionId}:{turn}:assistant",
+                Role = "assistant",
+                Content = content,
+                Source = new DshWireMessageSource {
+                    Kind = "model",
+                    Provider = engine.CurrentVendor,
+                    Model = engine.CurrentModelId,
+                },
+            },
+            Usage = mappedUsage,
+        }, surfaceOp: "append");
     }
 
     /// <summary>落步骤结束与轮次结束（先 step/end 再 turn/end）</summary>

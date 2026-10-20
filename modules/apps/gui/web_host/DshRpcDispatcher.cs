@@ -31,18 +31,22 @@ internal sealed class DshRpcDispatcher {
             ["session/prompt"] = SessionPrompt,
             ["session/cancel"] = Sync(args => SessionCancel(args, CancellationToken.None)),
             ["session/modelCatalog"] = Sync(SessionModelCatalog),
+            ["session/selectModel"] = SessionSelectModel,
+            ["session/fork"] = SessionFork,
             ["session/projections"] = SessionProjections,
             ["session/page"] = SessionPage,
             ["agentPresets/list"] = Sync(_ => Ok(new DshAgentPresetList {
                 Presets = [new DshAgentPreset { Id = "standard", Order = 1, IsDefault = true }],
             })),
-            ["permissionPresets/catalog"] = Sync(_ => Ok(DefaultPermissionPresets())),
+            ["permissionPresets/catalog"] = PermissionPresetsCatalog,
+            ["$events/result"] = EventsResult,
             ["settings/describe"] = Sync(_ => Ok(services.Settings.Describe())),
             ["settings/mutate"] = Sync(args => services.Settings.Mutate(args)),
             ["credentials/describe"] = Sync(Credentials),
-            ["llm/listProviders"] = Sync(_ => Ok(new List<DshProviderInfo>())),
+            ["llm/listProviders"] = Sync(LlmListProviders),
             ["llm/listConfigurableProviders"] = Sync(_ => OkEmptyArray()),
-            ["commands/list"] = Sync(_ => OkEmptyArray()),
+            ["commands/list"] = Sync(CommandsList),
+            ["commands/execute"] = CommandsExecute,
             ["messageFeedback/list"] = Sync(_ => Ok(new DshMessageFeedbackListResult { Value = new DshMessageFeedbackListValue() })),
             ["skills/list"] = Sync(_ => Ok(new DshSkillList())),
             ["dynamicCordisRunner/inventory"] = Sync(_ => OkEmptyArray()),
@@ -286,6 +290,86 @@ internal sealed class DshRpcDispatcher {
     /// <summary>session/modelCatalog：自有引擎的供应商/模型目录</summary>
     private DshRpcResult SessionModelCatalog(JsonElement args) => Ok(_services.Models.Current);
 
+    /// <summary>
+    /// session/selectModel：切换会话模型（TASK058 B2）。供应商变化时先 <c>SetVendorAsync</c>
+    /// （引擎重置默认模型并持久化）再 <c>SetModelAsync</c> 覆盖；reasoningEffort 按引擎枚举值解析，
+    /// 未知值忽略不报错。响应回显实际生效的供应商/模型。
+    /// </summary>
+    private async Task<DshRpcResult> SessionSelectModel(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSessionSelectModelArgs)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)) {
+            return Fail("session/rejected", $"session/selectModel 需要 {{sessionId, provider, model}}（reasoningEffort 可选）；收到 args={Describe(args)}");
+        }
+        if (string.IsNullOrWhiteSpace(request.Provider) || string.IsNullOrWhiteSpace(request.Model)) {
+            return Fail("session/rejected", $"session/selectModel 的 provider 与 model 均为必填；收到 provider={request.Provider} model={request.Model}");
+        }
+        if (_services.Engine is not { } engine) {
+            return Fail("session/not-ready", "引擎仍在组装中，稍后重试；若长时间未就绪查看 dumps/startup_timing.log");
+        }
+        if (!string.Equals(engine.CurrentVendor, request.Provider, StringComparison.OrdinalIgnoreCase)) {
+            await engine.SetVendorAsync(request.Provider, cancellationToken);
+        }
+        await engine.SetModelAsync(request.Model, cancellationToken);
+        if (request.ReasoningEffort is { } effort && EffortLevelExtensions.FromValue(effort) is { } level) {
+            await engine.SetEffortLevelAsync(level, cancellationToken);
+        }
+        return Ok(new DshSessionSelectModelResult {
+            Selected = new DshModelChoice {
+                Provider = engine.CurrentVendor,
+                Model = engine.CurrentModelId,
+                ReasoningEffort = request.ReasoningEffort,
+            },
+        });
+    }
+
+    /// <summary>
+    /// session/fork：分叉会话（TASK058 B7）。复制源会话 meta/转录/journal 到新 ID（v1 全量复制，
+    /// atSeq 截断为深化项）；源会话不受影响。未知会话返回引导错误。
+    /// </summary>
+    private async Task<DshRpcResult> SessionFork(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSessionForkArgs)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)) {
+            return Fail("session/rejected", $"session/fork 需要 {{sessionId, atSeq?}}；收到 args={Describe(args)}");
+        }
+        if (!_services.Sessions.IsReady) {
+            return Fail("session/not-ready", "会话存储尚未就绪（引擎仍在组装中），稍后重试即可");
+        }
+        var newId = await _services.Sessions.ForkAsync(request.SessionId, _services.Journal, cancellationToken);
+        return newId is null
+            ? Fail("session/unknown", $"会话 {request.SessionId} 不在磁盘上（~/.jcc/sessions/{request.SessionId}/transcript.json 不存在）；从侧栏选择一个已有会话再分叉")
+            : Ok(new DshSessionForkResult { SessionId = newId });
+    }
+
+    /// <summary>llm/listProviders：模型目录分组投影（与 session/modelCatalog 同源，TASK058 B2）</summary>
+    private DshRpcResult LlmListProviders(JsonElement args) => Ok(_services.Models.Current.Groups
+        .Select(group => new DshProviderInfo { Id = group.Id, Name = group.Name })
+        .ToList());
+
+    /// <summary>commands/list：引擎斜杠命令目录投影（TASK058 B5 — 引擎 [ChatCommand] 特性为唯一数据源）</summary>
+    private DshRpcResult CommandsList(JsonElement args) => Ok(
+        (_services.Engine?.GetAvailableSlashCommands() ?? [])
+        .Select(DshCommandsProjection.Project)
+        .ToList());
+
+    /// <summary>
+    /// commands/execute：执行斜杠命令（TASK058 B5）。委托引擎 SlashCommandRunner（与 CLI/TUI 同一链路）；
+    /// v1 不支持附件参数。成功与未知命令都带输出文本（前端即时反馈渲染）。
+    /// </summary>
+    private async Task<DshRpcResult> CommandsExecute(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshCommandsExecuteArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.AgentId) || string.IsNullOrWhiteSpace(request.Line)) {
+            return Fail("commands/rejected", $"commands/execute 需要 {{agentId, line}}；收到 args={Describe(args)}（附件参数暂不支持）");
+        }
+        if (_services.Engine is not { } engine) {
+            return Fail("commands/not-ready", "引擎仍在组装中，稍后重试；若长时间未就绪查看 dumps/startup_timing.log");
+        }
+        var output = await engine.ExecuteSlashCommandAsync(request.Line, cancellationToken);
+        return Ok(new DshCommandsExecuteResult {
+            CommandId = request.Line.Split(' ', 2)[0].TrimStart('/'),
+            Result = new DshCommandOutcome { Kind = "success", Text = output },
+        });
+    }
+
     /// <summary>credentials/describe：按环境变量判断是否已配置</summary>
     private static DshRpcResult Credentials(JsonElement args) =>
         Ok(ReadStrings(args, "refs").ToDictionary(
@@ -293,18 +377,37 @@ internal sealed class DshRpcDispatcher {
             name => new DshCredentialState { Configured = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(name)) },
             StringComparer.Ordinal));
 
-    /// <summary>权限预设目录：与 DSH 默认值一致（read-only / workspace-write / danger-full-access）</summary>
-    private static DshPermissionPresetCatalog DefaultPermissionPresets() {
-        List<DshPresetOption> options = [
-            new() { Value = "read-only", Name = "read-only" },
-            new() { Value = "workspace-write", Name = "workspace-write" },
-            new() { Value = "danger-full-access", Name = "danger-full-access" },
-        ];
-        return new DshPermissionPresetCatalog {
+    /// <summary>
+    /// $events/result：前端对 waterfall 帧的回帖（approval 决策等）。
+    /// 载荷 {clientId, eventId, outcome}；结算结果对前端不可见（回帖 RPC 只需 ok），
+    /// 未知 eventId / clientId 不符幂等返回 ok（bridge 内部记录）。
+    /// </summary>
+    private async Task<DshRpcResult> EventsResult(JsonElement args, CancellationToken cancellationToken) {
+        var body = args.Deserialize(DshJsonContext.Default.DshEventsResultArgs);
+        if (body is null || string.IsNullOrEmpty(body.EventId) || body.Outcome is null) {
+            return Fail("events/result-rejected", $"$events/result 需要 {{clientId, eventId, outcome}} 三字段；收到 args={Describe(args)}");
+        }
+        await _services.Approvals.SettleAsync(body.ClientId, body.EventId, body.Outcome);
+        return Ok(new DshEventsResultValue());
+    }
+
+    /// <summary>
+    /// 权限预设目录 — 引擎 <see cref="PermissionMode"/> 枚举为唯一数据源（TASK058 DTO 统一原则）：
+    /// 枚举 [EnumValue] 值即前端词汇（plan/auto/ask/bypass/unattended），默认取引擎当前模式，未就绪回退 auto。
+    /// </summary>
+    private async Task<DshRpcResult> PermissionPresetsCatalog(JsonElement args, CancellationToken cancellationToken) {
+        var current = _services.Engine is { } engine
+            ? await engine.GetCurrentPermissionModeAsync(cancellationToken)
+            : PermissionMode.Auto;
+        var options = Enum.GetValues<PermissionMode>()
+            .Select(mode => new DshPresetOption { Value = mode.ToValue(), Name = mode.ToValue() })
+            .ToList();
+        var currentName = current.ToValue();
+        return Ok(new DshPermissionPresetCatalog {
             Options = options,
             DefaultOptions = options,
-            DefaultPreset = "workspace-write",
-        };
+            DefaultPreset = options.Any(option => option.Value == currentName) ? currentName : PermissionMode.Auto.ToValue(),
+        });
     }
 
     private static DshRpcResult Ok(DshSessionList value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionList));
@@ -326,6 +429,8 @@ internal sealed class DshRpcDispatcher {
 
     private static DshRpcResult Ok(DshPermissionPresetCatalog value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshPermissionPresetCatalog));
 
+    private static DshRpcResult Ok(DshEventsResultValue value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshEventsResultValue));
+
     private static DshRpcResult Ok(DshSettingsDescribe value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSettingsDescribe));
 
     private static DshRpcResult Ok(DshSkillList value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSkillList));
@@ -344,7 +449,15 @@ internal sealed class DshRpcDispatcher {
 
     private static DshRpcResult Ok(DshPinnedResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshPinnedResult));
 
+    private static DshRpcResult Ok(DshSessionSelectModelResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionSelectModelResult));
+
+    private static DshRpcResult Ok(DshSessionForkResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionForkResult));
+
     private static DshRpcResult Ok(List<DshProviderInfo> value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.ListDshProviderInfo));
+
+    private static DshRpcResult Ok(List<DshCommandInfo> value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.ListDshCommandInfo));
+
+    private static DshRpcResult Ok(DshCommandsExecuteResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshCommandsExecuteResult));
 
     private static DshRpcResult Ok(Dictionary<string, DshCredentialState> value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DictionaryStringDshCredentialState));
 

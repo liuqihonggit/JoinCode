@@ -210,11 +210,16 @@ internal sealed class DshWebHost : IAsyncDisposable {
         DshStreamOpen open, Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
         App.LogDiag($"[DSH-WEB] stream open endpoint={open.Endpoint} id={open.StreamId}");
         switch (open.Endpoint) {
-            case "$events":
+            case "$events": {
+                // ready 首帧 + 挂接权限确认桥（后续 waterfall 帧走同一条流；连接关闭时 fail-closed 清挂起请求）
+                var clientId = Guid.NewGuid().ToString();
+                Func<JsonElement, Task> sendFrame = frame => send(Item(open.StreamId, frame));
+                _services.Approvals.Attach(sendFrame, clientId);
                 return ([Item(open.StreamId, JsonSerializer.SerializeToElement(new DshEventsReady {
-                    ClientId = Guid.NewGuid().ToString(),
+                    ClientId = clientId,
                     Host = new DshHostInfo { Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) },
-                }, DshJsonContext.Default.DshEventsReady))], null, null);
+                }, DshJsonContext.Default.DshEventsReady))], new DetachLease(() => _services.Approvals.Detach()), null);
+            }
             case "workspace/follow": {
                 var baseline = await _services.Workspaces.ReadBaselineAsync(cancellationToken);
                 return ([Item(open.StreamId, JsonSerializer.SerializeToElement(
@@ -286,6 +291,12 @@ internal sealed class DshWebHost : IAsyncDisposable {
             DshJsonContext.Default.DshStreamError);
 
     private static DshStreamItem Item(string streamId, JsonElement value) => new() { StreamId = streamId, Value = value };
+
+    /// <summary>流连接关闭时的清理动作句柄（$events 摘除权限桥通道等）</summary>
+    private sealed record DetachLease(Action Detach) : IDisposable {
+        /// <summary>执行清理（幂等由被调方保证）</summary>
+        public void Dispose() => Detach();
+    }
 
     /// <summary>读取一条完整文本消息（分片聚合），连接关闭/空消息返回 null</summary>
     private static async Task<string?> ReceiveTextAsync(WebSocket socket, byte[] buffer) {

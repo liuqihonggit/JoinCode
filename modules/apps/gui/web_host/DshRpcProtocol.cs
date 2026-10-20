@@ -91,6 +91,98 @@ internal sealed class DshHostInfo {
     public string Home { get; set; } = "";
 }
 
+/// <summary>
+/// $events 流上的 waterfall 帧（宿主→前端）。前端 dsh-api-gateway parseRemoteEventFrame 硬校验：
+/// 必须且只能含 type/event/eventId/agentId/request 五键；request 禁含 agent/signal（前端 dispatchWaterfall 自行注入）。
+/// </summary>
+internal sealed class DshWaterfallFrame {
+    /// <summary>固定为 waterfall</summary>
+    public string Type { get; set; } = "waterfall";
+    /// <summary>事件名（如 approval/request）</summary>
+    public string Event { get; set; } = "";
+    /// <summary>本次请求的关联 ID（回帖 $events/result 用）</summary>
+    public string EventId { get; set; } = "";
+    /// <summary>目标 Agent/会话身份（前端按此路由到对应会话 scope 的监听器）</summary>
+    public string AgentId { get; set; } = "";
+    /// <summary>请求载荷（事件专属结构；approval 为 toolName/reason/callId?）</summary>
+    public JsonElement Request { get; set; }
+}
+
+/// <summary>$events/result 回帖参数（前端→宿主，POST /api/$events/result）</summary>
+internal sealed class DshEventsResultArgs {
+    /// <summary>$events 就绪帧下发的 clientId</summary>
+    public string ClientId { get; set; } = "";
+    /// <summary>waterfall 帧的 eventId</summary>
+    public string EventId { get; set; } = "";
+    /// <summary>监听器处理结果</summary>
+    public DshEventOutcome? Outcome { get; set; }
+}
+
+/// <summary>waterfall 监听器处理结果（kind=next 表示无人处理；result 携带决策值；rejected 表示监听器抛错）</summary>
+internal sealed class DshEventOutcome {
+    /// <summary>next / result / rejected</summary>
+    public string Kind { get; set; } = "";
+    /// <summary>决策值（approval 域为 allowed-once / rejected）</summary>
+    public JsonElement? Value { get; set; }
+    /// <summary>rejected 时的错误信息</summary>
+    public DshEventErrorBody? Error { get; set; }
+}
+
+/// <summary>rejected 错误体（前端 projectRemoteEventRejection 投影）</summary>
+internal sealed class DshEventErrorBody {
+    /// <summary>错误名</summary>
+    public string Name { get; set; } = "Error";
+    /// <summary>错误消息</summary>
+    public string Message { get; set; } = "";
+    /// <summary>稳定错误码（可选）</summary>
+    public string? Code { get; set; }
+}
+
+/// <summary>$events/result 回帖响应（前端只看 ok，无业务载荷）</summary>
+internal sealed class DshEventsResultValue;
+
+/// <summary>commands/list 条目（前端以 /{name} 组装命令行）</summary>
+internal sealed class DshCommandInfo {
+    /// <summary>命令名（无 / 前缀）</summary>
+    public string Name { get; set; } = "";
+    /// <summary>描述</summary>
+    public string Description { get; set; } = "";
+    /// <summary>输入提示（可选）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DshCommandInputInfo? Input { get; set; }
+}
+
+/// <summary>命令输入提示</summary>
+internal sealed class DshCommandInputInfo {
+    /// <summary>参数提示（如 model-id）</summary>
+    public string Hint { get; set; } = "";
+}
+
+/// <summary>commands/execute 参数（位置参数 wire 平铺：agentId + line；attachments v1 不支持）</summary>
+internal sealed class DshCommandsExecuteArgs {
+    /// <summary>目标会话（scope agent）</summary>
+    public string AgentId { get; set; } = "";
+    /// <summary>命令行（如 /model deepseek-v4-pro）</summary>
+    public string? Line { get; set; }
+}
+
+/// <summary>commands/execute 响应 — commandId + 成败结果</summary>
+internal sealed class DshCommandsExecuteResult {
+    /// <summary>命令标识</summary>
+    public string CommandId { get; set; } = "";
+    /// <summary>执行结果</summary>
+    public DshCommandOutcome Result { get; set; } = new();
+}
+
+/// <summary>命令执行结果体（success 带输出文本，error 带提示文本）</summary>
+internal sealed class DshCommandOutcome {
+    /// <summary>success / error</summary>
+    public string Kind { get; set; } = "success";
+    /// <summary>输出或错误文本（可选）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Text { get; set; }
+}
+
 /// <summary>workspace/follow 基线</summary>
 internal sealed class DshWorkspaceBaseline {
     /// <summary>固定为 baseline</summary>
@@ -622,8 +714,66 @@ internal sealed class DshAssistantMessageData {
     public int Step { get; set; }
     /// <summary>消息体</summary>
     public DshWireMessage Message { get; set; } = new();
+    /// <summary>本轮用量（引擎 Complete.Usage 投影，未报告时整键省略，TASK058 B4）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DshTurnUsage? Usage { get; set; }
     /// <summary>流式块（历史消息为空数组）</summary>
     public List<JsonElement> Stream { get; set; } = [];
+}
+
+/// <summary>本轮用量 — 前端 TurnUsagePanel 四桶（totalTokens = 四桶之和，对齐前端 tokenTotal 语义）</summary>
+internal sealed class DshTurnUsage {
+    /// <summary>未缓存输入 token（prompt − cacheRead）</summary>
+    public int UncachedInputTokens { get; set; }
+    /// <summary>输出 token</summary>
+    public int OutputTokens { get; set; }
+    /// <summary>缓存读取 token</summary>
+    public int CacheReadTokens { get; set; }
+    /// <summary>缓存写入 token</summary>
+    public int CacheWriteTokens { get; set; }
+    /// <summary>总 token（四桶之和）</summary>
+    public int TotalTokens { get; set; }
+    /// <summary>推理 token（可选，未报告时整键省略）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? ReasoningTokens { get; set; }
+}
+
+/// <summary>tool-workflow/run-start 载荷（子代理卡片创建，TASK058 B6）</summary>
+internal sealed class DshWorkflowRunStartData {
+    /// <summary>运行标识（宿主按轮合成 {sessionId}:{turn}:agents）</summary>
+    public string RunId { get; set; } = "";
+    /// <summary>运行名</summary>
+    public string Name { get; set; } = "";
+}
+
+/// <summary>tool-workflow/agent-start 载荷（成员加入）</summary>
+internal sealed class DshWorkflowAgentStartData {
+    /// <summary>运行标识</summary>
+    public string RunId { get; set; } = "";
+    /// <summary>轮内成员序号（start/end 配对键）</summary>
+    public int Seq { get; set; }
+    /// <summary>显示名</summary>
+    public string Label { get; set; } = "";
+    /// <summary>子代理会话 ID</summary>
+    public string ChildId { get; set; } = "";
+}
+
+/// <summary>tool-workflow/agent-end 载荷（成员定格；outcome 值域 completed/cancelled/failed）</summary>
+internal sealed class DshWorkflowAgentEndData {
+    /// <summary>运行标识</summary>
+    public string RunId { get; set; } = "";
+    /// <summary>轮内成员序号</summary>
+    public int Seq { get; set; }
+    /// <summary>结果</summary>
+    public string Outcome { get; set; } = "";
+}
+
+/// <summary>tool-workflow/run-end 载荷（stopReason 值域 completed/cancelled/error）</summary>
+internal sealed class DshWorkflowRunEndData {
+    /// <summary>运行标识</summary>
+    public string RunId { get; set; } = "";
+    /// <summary>停止原因</summary>
+    public string StopReason { get; set; } = "";
 }
 
 /// <summary>助手流基线（revision=0 表示无进行中的尝试）</summary>
@@ -663,6 +813,40 @@ internal sealed class DshModelChoice {
     /// <summary>推理强度（协议里可选 — 缺失时必须整键省略，不能输出 null）</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ReasoningEffort { get; set; }
+}
+
+/// <summary>session/selectModel 参数</summary>
+internal sealed class DshSessionSelectModelArgs {
+    /// <summary>会话 ID</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>供应商</summary>
+    public string Provider { get; set; } = "";
+    /// <summary>模型 ID</summary>
+    public string Model { get; set; } = "";
+    /// <summary>推理强度（low/medium/high/max，可选）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ReasoningEffort { get; set; }
+}
+
+/// <summary>session/selectModel 响应 — 回显实际选中的模型</summary>
+internal sealed class DshSessionSelectModelResult {
+    /// <summary>选中的模型</summary>
+    public DshModelChoice Selected { get; set; } = new();
+}
+
+/// <summary>session/fork 参数</summary>
+internal sealed class DshSessionForkArgs {
+    /// <summary>源会话 ID</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>分叉点事件序号（可选；v1 全量复制，深化项）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? AtSeq { get; set; }
+}
+
+/// <summary>session/fork 响应 — 新会话 ID</summary>
+internal sealed class DshSessionForkResult {
+    /// <summary>新会话 ID</summary>
+    public string SessionId { get; set; } = "";
 }
 
 /// <summary>供应商模型分组</summary>
@@ -998,15 +1182,40 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshTurnEndData))]
 [JsonSerializable(typeof(DshTurnEndReason))]
 [JsonSerializable(typeof(DshAssistantMessageData))]
+[JsonSerializable(typeof(DshTurnUsage))]
+[JsonSerializable(typeof(DshWorkflowRunStartData))]
+[JsonSerializable(typeof(DshWorkflowAgentStartData))]
+[JsonSerializable(typeof(DshWorkflowAgentEndData))]
+[JsonSerializable(typeof(DshWorkflowRunEndData))]
 [JsonSerializable(typeof(List<JsonElement>))]
 [JsonSerializable(typeof(DshAssistantStreamBaseline))]
 [JsonSerializable(typeof(Dictionary<string, DshSessionProjectionSnapshot>))]
 [JsonSerializable(typeof(DshModelCatalog))]
+[JsonSerializable(typeof(DshSessionSelectModelArgs))]
+[JsonSerializable(typeof(DshSessionSelectModelResult))]
+[JsonSerializable(typeof(DshSessionForkArgs))]
+[JsonSerializable(typeof(DshSessionForkResult))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshSessionSelectModelArgs>))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshSessionForkArgs>))]
 [JsonSerializable(typeof(DshAgentPresetList))]
 [JsonSerializable(typeof(DshPermissionPresetCatalog))]
+[JsonSerializable(typeof(DshWaterfallFrame))]
+[JsonSerializable(typeof(DshApprovalRequestBody))]
+[JsonSerializable(typeof(DshEventsResultArgs))]
+[JsonSerializable(typeof(DshEventOutcome))]
+[JsonSerializable(typeof(DshEventsResultValue))]
+[JsonSerializable(typeof(DshEventErrorBody))]
+[JsonSerializable(typeof(DshCommandInfo))]
+[JsonSerializable(typeof(DshCommandInputInfo))]
+[JsonSerializable(typeof(DshCommandsExecuteArgs))]
+[JsonSerializable(typeof(DshCommandsExecuteResult))]
+[JsonSerializable(typeof(DshCommandOutcome))]
+[JsonSerializable(typeof(List<DshCommandInfo>))]
 [JsonSerializable(typeof(DshSettingsDescribe))]
 [JsonSerializable(typeof(DshSettingsNamespaceView))]
 [JsonSerializable(typeof(DshSettingsMutateArgs))]
+[JsonSerializable(typeof(DshSettingsDocument))]
+[JsonSerializable(typeof(DshSettingsNamespaceDocument))]
 [JsonSerializable(typeof(DshSchemaEnvelope))]
 [JsonSerializable(typeof(DshSkillList))]
 [JsonSerializable(typeof(DshMessageFeedbackListResult))]

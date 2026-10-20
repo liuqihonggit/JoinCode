@@ -27,9 +27,27 @@ internal sealed class DshWebUiWindow : Window {
         _view.InitFailed += ShowFallback;
         Content = _view;
         DshDirectoryPicker.Register(PickFolderAsync);
+        _ = _services.Settings.InitializeAsync(CancellationToken.None);
+        // 权限预设写路径 → 引擎 SetPermissionModeAsync 立即生效（TASK058 B3）
+        _services.Settings.PermissionPresetChanged += OnPermissionPresetChanged;
         _ = LoadModelCatalogAsync();
         _ = AttachEngineAsync();
         App.LogDiag($"[DSH-WEB] window created url={_host.BaseUrl}");
+    }
+
+    /// <summary>权限预设变更路由：settings/mutate 写 defaultPreset 成功后应用到引擎（未就绪只记日志，引擎 attach 时读存档补应用）</summary>
+    private void OnPermissionPresetChanged(string preset) {
+        if (PermissionModeExtensions.FromValue(preset) is not { } mode) {
+            App.LogDiag($"[DSH-WEB] permission preset ignored unknown value: {preset}");
+            return;
+        }
+        if (_engine is not { } engine) {
+            App.LogDiag($"[DSH-WEB] permission preset deferred until engine ready: {preset}");
+            return;
+        }
+        _ = engine.SetPermissionModeAsync(mode).ContinueWith(
+            task => App.LogDiag($"[DSH-WEB] permission preset applied={preset} failed={task.Exception?.Message}"),
+            TaskScheduler.Default);
     }
 
     /// <summary>
@@ -48,12 +66,15 @@ internal sealed class DshWebUiWindow : Window {
     /// <summary>
     /// 后台组装自有引擎，就绪后把会话存储交给宿主（渐进式：窗口先显示，数据后到）。
     /// 引擎失败只影响数据，Web UI 仍可用（宿主方法返回空结果 + 引导错误）。引擎随窗口关闭释放。
+    /// 权限确认链（TASK058 B1）：注入 PermissionConfirmationHandler — 引擎确认点经 DshApprovalBridge
+    /// 发 $events waterfall 帧给前端审批面板，回帖结算后返回决策（前端未连接/断开一律 fail-closed Deny）。
     /// </summary>
     private async Task AttachEngineAsync() {
         try {
             var engine = await Hosting.JccChatSession.CreateAsync();
             _engine = engine;
             _services.AttachEngine(engine);
+            engine.PermissionConfirmationHandler = request => _services.Approvals.RequestAsync(request);
             if (engine.TranscriptService is { } transcripts) {
                 _services.Sessions.AttachTranscripts(transcripts);
                 App.LogDiag("[DSH-WEB] engine attached: transcripts ready");
@@ -61,9 +82,26 @@ internal sealed class DshWebUiWindow : Window {
                 App.LogDiag("[DSH-WEB] engine ready but ITranscriptService unavailable");
             }
             _services.Models.AttachEngine(engine.CurrentVendor, engine.CurrentModelId, engine.VendorModelMap);
+            await ApplyStoredPermissionPresetAsync(engine);
             App.LogDiag($"[DSH-WEB] engine model catalog: vendor={engine.CurrentVendor} model={engine.CurrentModelId} groups={engine.VendorModelMap.Count}");
         } catch (Exception ex) {
             App.LogDiag($"[DSH-WEB] engine attach failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>引擎就绪后补应用存档的权限预设（用户上次会话保存的 defaultPreset，TASK058 B3）</summary>
+    private async Task ApplyStoredPermissionPresetAsync(Hosting.IJccChatSession engine) {
+        try {
+            var describe = _services.Settings.Describe();
+            var view = describe.Namespaces.FirstOrDefault(ns => string.Equals(ns.Ns, "permission", StringComparison.Ordinal));
+            if (view?.Value.TryGetProperty("defaultPreset", out var preset) is true
+                && preset.ValueKind == JsonValueKind.String
+                && PermissionModeExtensions.FromValue(preset.GetString()) is { } mode) {
+                await engine.SetPermissionModeAsync(mode);
+                App.LogDiag($"[DSH-WEB] stored permission preset applied: {preset.GetString()}");
+            }
+        } catch (Exception ex) {
+            App.LogDiag($"[DSH-WEB] stored permission preset apply failed: {ex.Message}");
         }
     }
 

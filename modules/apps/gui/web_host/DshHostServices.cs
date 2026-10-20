@@ -12,11 +12,12 @@ internal sealed class DshHostServices {
     /// <param name="journalDirectory">宿主事件日志目录（默认 <c>~/.jcc/dsh_journal</c>）</param>
     internal DshHostServices(IFileSystem fileSystem, string? workspaceFilePath = null, string? journalDirectory = null) {
         Workspaces = new DshWorkspaceStore(fileSystem, workspaceFilePath);
-        Settings = new DshSettingsStore();
+        Settings = new DshSettingsStore(fileSystem);
         Sessions = new DshSessionStore();
         Models = new DshModelCatalogSource();
         Journal = new DshSessionJournal(fileSystem, journalDirectory ?? Path.Combine(AppDataPaths.Default.JccDirectory, "dsh_journal"));
         Streams = new DshSessionStreamHub(Journal);
+        Approvals = new DshApprovalBroker();
     }
 
     /// <summary>自有引擎会话门面（组装完成后注入；未就绪时发送消息返回引导错误）</summary>
@@ -43,4 +44,7 @@ internal sealed class DshHostServices {
 
     /// <summary>模型目录（session/modelCatalog — 启动读 settings.json，引擎就绪后热切换）</summary>
     internal DshModelCatalogSource Models { get; }
+
+    /// <summary>权限确认桥（引擎确认点 → $events waterfall → 前端回帖，TASK058 B1）</summary>
+    internal DshApprovalBroker Approvals { get; }
 }

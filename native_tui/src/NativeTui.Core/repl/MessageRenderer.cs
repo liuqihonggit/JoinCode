@@ -166,6 +166,74 @@ public static class MessageRenderer
         screen.WriteText(frame.Y, frame.X, " Esc to cancel", dim, frame.Right);
     }
 
+    /// <summary>渲染模型选择器标题行 — 1 空格缩进 + bold permission 色（M7-6，基准 "Select model" remember bold）。</summary>
+    public static void RenderModelTitle(Screen screen, Rect frame, Theme theme, string title)
+    {
+        var style = screen.Styles.GetOrAdd(new TextStyle { Bold = true, Foreground = theme.Permission });
+        screen.WriteText(frame.Y, frame.X, $" {title}", style, frame.Right);
+    }
+
+    /// <summary>渲染模型选择器副标题行 — 1 空格缩进整行 dim（基准 "Switch between Claude models..."）。</summary>
+    public static void RenderModelSubtitle(Screen screen, Rect frame, Theme theme, string subtitle)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $" {subtitle}", dim, frame.Right);
+    }
+
+    /// <summary>
+    /// 渲染模型列表行（M7-6，基准 CustomSelect + ListItem）：
+    /// 焦点 = ❯ suggestion + "N. " dim + 名称 suggestion + 当前项尾 ✓ success；
+    /// 非焦点 = 空格指示 + "N. " dim + 名称默认样式（当前项尾 ✓ success 恒显）。
+    /// </summary>
+    public static void RenderModelListRow(Screen screen, Rect frame, Theme theme, int index, string displayName, bool isCurrent, bool focused)
+    {
+        if (focused)
+        {
+            var suggestion = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Suggestion });
+            var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+            screen[frame.Y, frame.X] = new Cell(new Rune('❯'), suggestion, CellWidth.Default);
+            screen.WriteText(frame.Y, frame.X + 1, $" {index + 1}. ", dim, frame.Right);
+            var col = screen.WriteText(frame.Y, frame.X + 5, displayName, suggestion, frame.Right);
+            if (isCurrent)
+            {
+                var success = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Success });
+                screen.WriteText(frame.Y, col, " ✓", success, frame.Right);
+            }
+
+            return;
+        }
+
+        var plain = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $"  {index + 1}. ", plain, frame.Right);
+        var nameCol = screen.WriteText(frame.Y, frame.X + 5, displayName, 0, frame.Right);
+        if (isCurrent)
+        {
+            var success = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Success });
+            screen.WriteText(frame.Y, nameCol, " ✓", success, frame.Right);
+        }
+    }
+
+    /// <summary>渲染模型描述行 — 5 空格缩进（对齐名称行列起点）整行 dim（基准 description inactive 色）。</summary>
+    public static void RenderModelDescription(Screen screen, Rect frame, Theme theme, string description)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $"     {description}", dim, frame.Right);
+    }
+
+    /// <summary>渲染模型溢出行 — 1 空格缩进 dim "and N more…"（基准 hiddenCount 折叠提示）。</summary>
+    public static void RenderModelOverflow(Screen screen, Rect frame, Theme theme, int hiddenCount)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $" and {hiddenCount} more…", dim, frame.Right);
+    }
+
+    /// <summary>渲染模型选择器快捷键行 — 1 空格缩进 dim（基准 Byline "Enter confirm · Esc exit"）。</summary>
+    public static void RenderModelShortcuts(Screen screen, Rect frame, Theme theme, string shortcuts)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $" {shortcuts}", dim, frame.Right);
+    }
+
     /// <summary>
     /// 渲染 Markdown 物理行（M7-4）— 从指定列起逐段写，段样式经 MapMarkdownStyle 映射
     ///（Code → permission 色前景，对齐基准 codespan color('permission')；修饰开关直转 TextStyle）。

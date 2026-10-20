@@ -19,6 +19,9 @@ public sealed class UserMessageItem(string text) : IScrollItem
 /// <summary>助手文本消息项（● text 色 + 正文）。</summary>
 public sealed class AssistantMessageItem(string text) : IScrollItem
 {
+    /// <summary>正文（宿主反馈消息断言面 — M7-6 模型切换反馈等）。</summary>
+    public string Text => text;
+
     /// <summary>内容高度 = margin 1 + 正文 1。</summary>
     public int MeasureHeight(int width) => 2;
 

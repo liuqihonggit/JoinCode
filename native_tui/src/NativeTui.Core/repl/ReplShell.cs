@@ -34,6 +34,12 @@ public sealed class ReplShell
     /// <summary>权限对话框协调器（M7-3 — 挂起时键盘模态改道）。</summary>
     private readonly PermissionCoordinator _permission = new();
 
+    /// <summary>模型选择器协调器（M7-6 — 挂起时键盘模态改道，优先级低于权限对话框）。</summary>
+    private readonly ModelPickerCoordinator _modelPicker = new();
+
+    /// <summary>模型选择完成回调（BeginModelPicker 注入；参数 = 选中模型 id，Esc 取消为 null）。</summary>
+    private Action<string?>? _modelPickerCallback;
+
     /// <summary>斜杠命令补全状态机（TASK056 — 宿主注入命令清单后启用；null = 无补全能力）。</summary>
     private readonly SlashSuggester? _suggester;
 
@@ -103,6 +109,9 @@ public sealed class ReplShell
 
     /// <summary>权限对话框协调器（宿主权限桥 Begin/Wait 消费面 + 测试断言面）。</summary>
     public PermissionCoordinator Permission => _permission;
+
+    /// <summary>模型选择器协调器（测试断言面）。</summary>
+    internal ModelPickerCoordinator ModelPicker => _modelPicker;
 
     /// <summary>斜杠补全状态机（测试断言面；null = 无命令清单）。</summary>
     internal SlashSuggester? Suggester => _suggester;
@@ -184,9 +193,40 @@ public sealed class ReplShell
     private void CompletePermission(PermissionChoice choice)
     {
         _permission.Complete(choice);
+        RemoveDialogItem<PermissionRequestItem>();
+    }
+
+    /// <summary>
+    /// 挂起模型选择器（M7-6 — 宿主装饰器拦截 /model 后调此打开，全链自研不依赖 slash 命令系统）：
+    /// 清单由宿主从引擎 IModelCatalog 投影（后端获取）；完成回调参数 = 选中模型 id（Esc 取消为 null）。
+    /// </summary>
+    public void BeginModelPicker(IReadOnlyList<ModelPickerItem> items, Action<string?>? onCompleted = null)
+    {
+        _modelPicker.Begin(items);
+        _modelPickerCallback = onCompleted;
+        AddMessage(new ModelPickerDialog(_modelPicker));
+    }
+
+    /// <summary>完成模型选择并移除对话框项（id = null 表示 Esc 取消）。</summary>
+    private void CompleteModelPicker(string? id)
+    {
+        _modelPicker.Complete();
+        RemoveDialogItem<ModelPickerDialog>();
+        var callback = _modelPickerCallback;
+        _modelPickerCallback = null;
+        callback?.Invoke(id);
+    }
+
+    /// <summary>追加信息反馈消息到滚动区（宿主确认切换后的反馈面 — M7-6 起）。</summary>
+    public void PostInfo(string text) => AddMessage(new AssistantMessageItem(text));
+
+    /// <summary>移除滚动区内首个指定类型对话框项（权限/模型对话框共用收尾）。</summary>
+    private void RemoveDialogItem<TDialog>()
+        where TDialog : class, IScrollItem
+    {
         for (var i = 0; i < _view.Messages.Count; i++)
         {
-            if (_view.Messages.Items[i] is PermissionRequestItem)
+            if (_view.Messages.Items[i] is TDialog)
             {
                 _view.Messages.RemoveAt(i);
                 return;
@@ -231,7 +271,8 @@ public sealed class ReplShell
         }
     }
 
-    /// <summary>按键分派 — 权限对话框模态优先（数字/Esc/上下/Enter 路由对话框）→ 补全激活专属键
+    /// <summary>按键分派 — 权限对话框模态优先（数字/Esc/上下/Enter 路由对话框）→ 模型选择器模态
+    /// （M7-6：Esc/上下/Enter 路由选择器）→ 补全激活专属键
     /// （Up/Down 导航/Tab 接受/Enter 执行/Esc 关闭，基准 Autocomplete 上下文优先于 Chat），
     /// 其余 Emacs 编辑（Ctrl/Meta 词操作 + kill ring），控制键走编辑/提交/权限，字符插入。</summary>
     private void HandleKeyPress(KeyPress key)
@@ -239,6 +280,12 @@ public sealed class ReplShell
         if (_permission.IsPending)
         {
             HandlePermissionKey(key);
+            return;
+        }
+
+        if (_modelPicker.IsPending)
+        {
+            HandleModelPickerKey(key);
             return;
         }
 
@@ -464,6 +511,37 @@ public sealed class ReplShell
         if (key is { Kind: KeyKind.Char, Ctrl: false, Meta: false, Shift: false } && key.Input is "1" or "2" or "3")
         {
             CompletePermission((PermissionChoice)(key.Input[0] - '1'));
+        }
+    }
+
+    /// <summary>
+    /// 模型选择器模态按键（M7-6，对齐基准 ModelPicker Select 交互）：
+    /// Esc 取消（回调 null）+ Enter 选焦点项（回调携带 id）+ 上/下 clamp 移动焦点；
+    /// 其余按键全部吞掉（模态 — 不进输入缓冲、不提交、不打断）。
+    /// </summary>
+    private void HandleModelPickerKey(KeyPress key)
+    {
+        if (key.Kind == KeyKind.Escape)
+        {
+            CompleteModelPicker(null);
+            return;
+        }
+
+        if (key.Kind == KeyKind.Return)
+        {
+            CompleteModelPicker(_modelPicker.Focused?.Id);
+            return;
+        }
+
+        if (key.Kind == KeyKind.UpArrow)
+        {
+            _modelPicker.MoveFocus(-1);
+            return;
+        }
+
+        if (key.Kind == KeyKind.DownArrow)
+        {
+            _modelPicker.MoveFocus(1);
         }
     }
 

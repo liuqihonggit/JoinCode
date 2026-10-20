@@ -38,7 +38,6 @@ jobs:
             proj: test/benchmarks/structura.benchmarks/Structura.Benchmarks.csproj
     steps:
       - uses: actions/checkout@v5
-        with:
       - uses: ./.github/actions/setup-test-env
       - name: Benchmark - ${{ matrix.name }}
         shell: bash
@@ -69,7 +68,6 @@ jobs:
             proj: test/aot/pptr_api_check/PptrApiCheck.csproj
     steps:
       - uses: actions/checkout@v5
-        with:
       - uses: ./.github/actions/setup-test-env
       - name: AOT - ${{ matrix.name }}
         shell: bash
@@ -88,7 +86,6 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
-        with:
       - uses: ./.github/actions/setup-test-env
       - name: ONNX Embedding Tests
         shell: pwsh

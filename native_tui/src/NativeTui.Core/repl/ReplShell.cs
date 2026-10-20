@@ -31,6 +31,9 @@ public sealed class ReplShell
     /// <summary>bridge 事件应用器（引擎事件 → 视图状态唯一翻译层）。</summary>
     private readonly ReplBridgeDriver _driver;
 
+    /// <summary>权限对话框协调器（M7-3 — 挂起时键盘模态改道）。</summary>
+    private readonly PermissionCoordinator _permission = new();
+
     /// <summary>启动 banner（首项 — 真实引擎由 session_info 事件原地更新）。</summary>
     private readonly BannerItem _banner;
 
@@ -75,6 +78,9 @@ public sealed class ReplShell
 
     /// <summary>主循环运行标记（false = Esc/Ctrl+C/引擎死亡请求退出）。</summary>
     internal bool Running => _running;
+
+    /// <summary>权限对话框协调器（Host handler Begin/Wait + 测试断言面）。</summary>
+    internal PermissionCoordinator Permission => _permission;
 
     /// <summary>主循环 — 每拍：排空键盘 → 排空引擎事件 → 差分上屏 → 对齐 50ms。</summary>
     public void Run()
@@ -128,6 +134,33 @@ public sealed class ReplShell
             AddMessage(new ErrorMessageItem("引擎进程已退出，会话结束。"));
             _running = false;
         }
+
+        // 回合结束（完成/打断/异常）时挂起中的权限对话框自动收尾 — 引擎不会再等用户，Deny 关闭避免对话框残留
+        if (!_driver.IsBusy && _permission.IsPending)
+        {
+            CompletePermission(PermissionChoice.Deny);
+        }
+    }
+
+    /// <summary>挂起权限请求（Host 层 TuiPermissionConfirmationHandler.Confirm → 此处 → 用户按键 Complete）。</summary>
+    internal void BeginPermissionRequest(string toolName, string description)
+    {
+        _permission.Begin(new PermissionRequest(toolName, description));
+        AddMessage(new PermissionRequestItem(_permission));
+    }
+
+    /// <summary>完成权限请求并移除对话框项。</summary>
+    private void CompletePermission(PermissionChoice choice)
+    {
+        _permission.Complete(choice);
+        for (var i = 0; i < _view.Messages.Count; i++)
+        {
+            if (_view.Messages.Items[i] is PermissionRequestItem)
+            {
+                _view.Messages.RemoveAt(i);
+                return;
+            }
+        }
     }
 
     /// <summary>新消息插入到常驻 spinner 之前（spinner 恒为滚动区最后一项）。</summary>
@@ -143,8 +176,8 @@ public sealed class ReplShell
         }
     }
 
-    /// <summary>按键归一 + 分派（对齐基准 useTextInput.mapKey 优先级顺序）。</summary>
-    private void HandleKey(ConsoleKeyInfo keyInfo)
+    /// <summary>按键归一 + 分派（对齐基准 useTextInput.mapKey 优先级顺序 — 测试经 ConsoleKeyInfo 全链注入）。</summary>
+    internal void HandleKey(ConsoleKeyInfo keyInfo)
     {
         var key = ConsoleKeyAdapter.ToKeyPress(keyInfo);
         if (key is null)
@@ -155,9 +188,15 @@ public sealed class ReplShell
         HandleKeyPress(key);
     }
 
-    /// <summary>按键分派 — Emacs 编辑（Ctrl/Meta 词操作 + kill ring）优先，控制键走编辑/提交/权限，字符插入。</summary>
+    /// <summary>按键分派 — 权限对话框模态优先（数字/Esc/上下/Enter 路由对话框），其余 Emacs 编辑（Ctrl/Meta 词操作 + kill ring），控制键走编辑/提交/权限，字符插入。</summary>
     private void HandleKeyPress(KeyPress key)
     {
+        if (_permission.IsPending)
+        {
+            HandlePermissionKey(key);
+            return;
+        }
+
         if (key.Kind == KeyKind.Escape)
         {
             HandleEscape();
@@ -338,6 +377,43 @@ public sealed class ReplShell
         else
         {
             _input.WordRight();
+        }
+    }
+
+    /// <summary>
+    /// 权限对话框模态按键（M7-3，对齐基准 CustomSelect useSelectInput）：
+    /// 数字 1/2/3 直接选档（yes/dont-ask-again/no）+ Esc 取消（Deny）+ Enter 选焦点档 + 上/下环绕移动焦点；
+    /// 其余按键全部吞掉（模态 — 不进输入缓冲、不打断回合、不退出）。
+    /// </summary>
+    private void HandlePermissionKey(KeyPress key)
+    {
+        if (key.Kind == KeyKind.Escape)
+        {
+            CompletePermission(PermissionChoice.Deny);
+            return;
+        }
+
+        if (key.Kind == KeyKind.Return)
+        {
+            CompletePermission((PermissionChoice)_permission.FocusIndex);
+            return;
+        }
+
+        if (key.Kind == KeyKind.UpArrow)
+        {
+            _permission.MoveFocus(-1);
+            return;
+        }
+
+        if (key.Kind == KeyKind.DownArrow)
+        {
+            _permission.MoveFocus(1);
+            return;
+        }
+
+        if (key is { Kind: KeyKind.Char, Ctrl: false, Meta: false, Shift: false } && key.Input is "1" or "2" or "3")
+        {
+            CompletePermission((PermissionChoice)(key.Input[0] - '1'));
         }
     }
 

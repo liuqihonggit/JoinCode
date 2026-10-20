@@ -53,6 +53,9 @@ public sealed class ScrollBox
     /// </summary>
     public void Insert(int index, IScrollItem item) => _items.Insert(index, item);
 
+    /// <summary>移除指定位置内容项（权限对话框完成/收尾移除场景 — 项类型由调用方判定）。</summary>
+    public void RemoveAt(int index) => _items.RemoveAt(index);
+
     /// <summary>相对滚动（打破 sticky；边界钳制延迟到渲染，对齐基准 pendingScrollDelta 累加语义）。</summary>
     public void ScrollBy(int dy)
     {

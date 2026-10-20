@@ -97,4 +97,72 @@ public static class MessageRenderer
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
         screen.WriteText(frame.Y, frame.X, $"    … +{hiddenLines} lines (Ctrl+O)", dim, frame.Right);
     }
+
+    /// <summary>渲染权限对话框顶边框 — 整行 ─ 前景 permission 色（基准 borderStyle=round 无角，仅 top，全宽）。</summary>
+    public static void RenderPermissionBorder(Screen screen, Rect frame, Theme theme)
+    {
+        var border = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Permission });
+        for (var col = frame.X; col < frame.Right; col++)
+        {
+            screen[frame.Y, col] = new Cell(new Rune('─'), border, CellWidth.Default);
+        }
+    }
+
+    /// <summary>渲染权限对话框标题行 — 1 空格缩进 + bold permission 色（基准 PermissionRequestTitle）。</summary>
+    public static void RenderPermissionTitle(Screen screen, Rect frame, Theme theme, string title)
+    {
+        var style = screen.Styles.GetOrAdd(new TextStyle { Bold = true, Foreground = theme.Permission });
+        screen.WriteText(frame.Y, frame.X, $" {title}", style, frame.Right);
+    }
+
+    /// <summary>渲染权限工具行 — 3 空格缩进（外 1 + 内 2 paddingX 累计）+ bold 工具名 + 默认样式 (描述参数)。</summary>
+    public static void RenderPermissionToolLine(Screen screen, Rect frame, Theme theme, string toolName, string description)
+    {
+        var bold = screen.Styles.GetOrAdd(new TextStyle { Bold = true });
+        screen.WriteText(frame.Y, frame.X, "   ", 0, frame.Right);
+        var col = screen.WriteText(frame.Y, frame.X + 3, toolName, bold, frame.Right);
+        screen.WriteText(frame.Y, col, $"({description})", 0, frame.Right);
+    }
+
+    /// <summary>渲染权限描述行 — 3 空格缩进整行 dim。</summary>
+    public static void RenderPermissionDescription(Screen screen, Rect frame, Theme theme, string description)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $"   {description}", dim, frame.Right);
+    }
+
+    /// <summary>渲染权限问题行 — 1 空格缩进默认样式（基准 PermissionPrompt 固定文案）。</summary>
+    public static void RenderPermissionQuestion(Screen screen, Rect frame, Theme theme)
+    {
+        screen.WriteText(frame.Y, frame.X, " Do you want to proceed?", 0, frame.Right);
+    }
+
+    /// <summary>
+    /// 渲染权限选项行（基准 CustomSelect compact + ListItem）：
+    /// 焦点 = ❯ suggestion + gap 1 + "N. " dim + label suggestion；非焦点 = 空格 indicator + gap 1 + "N. " dim + label 默认。
+    /// </summary>
+    public static void RenderPermissionOption(Screen screen, Rect frame, Theme theme, int index, string label, bool focused)
+    {
+        if (focused)
+        {
+            var suggestion = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Suggestion });
+            var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+            screen[frame.Y, frame.X] = new Cell(new Rune('❯'), suggestion, CellWidth.Default);
+            screen.WriteText(frame.Y, frame.X + 1, $" ", dim, frame.Right);
+            screen.WriteText(frame.Y, frame.X + 2, $"{index + 1}. ", dim, frame.Right);
+            screen.WriteText(frame.Y, frame.X + 5, label, suggestion, frame.Right);
+            return;
+        }
+
+        var plain = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $"  {index + 1}. ", plain, frame.Right);
+        screen.WriteText(frame.Y, frame.X + 5, label, 0, frame.Right);
+    }
+
+    /// <summary>渲染权限取消提示行 — 1 空格缩进 dim（基准 "Esc to cancel"）。</summary>
+    public static void RenderPermissionEscHint(Screen screen, Rect frame, Theme theme)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, " Esc to cancel", dim, frame.Right);
+    }
 }

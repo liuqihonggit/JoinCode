@@ -11,11 +11,15 @@ public sealed class EngineSession : IAsyncDisposable {
     private readonly EngineSessionFactory.Result _engine;
     private readonly EngineTurnClient _client;
     private readonly TuiPermissionBridge _permissionBridge;
+    private readonly PermissionChecker? _checker;
+    private readonly IFastModeService? _fastMode;
 
-    private EngineSession(EngineSessionFactory.Result engine, EngineTurnClient client, TuiPermissionBridge permissionBridge) {
+    private EngineSession(EngineSessionFactory.Result engine, EngineTurnClient client, TuiPermissionBridge permissionBridge, PermissionChecker? checker, IFastModeService? fastMode) {
         _engine = engine;
         _client = client;
         _permissionBridge = permissionBridge;
+        _checker = checker;
+        _fastMode = fastMode;
     }
 
     /// <summary>回合客户端 — 主循环消费面（Submit/Interrupt/SetPermissionMode/DrainEvents）。</summary>
@@ -29,6 +33,9 @@ public sealed class EngineSession : IAsyncDisposable {
 
     /// <summary>当前会话标识 — 历史种子排除当前会话防双份。</summary>
     public string SessionId => _engine.SessionId;
+
+    /// <summary>重发 session_info 事件 — 模型切换等运行时状态变化后刷新 banner（ReplBridgeDriver.ApplySessionInfo 差分上屏）。</summary>
+    public void RefreshSessionInfo() => _client.Enqueue(BuildSessionInfoEvent(_checker, _fastMode));
 
     /// <summary>组装引擎会话 — 建会话（TuiInteractionModule 注册权限确认 handler）→ 解析权限/模型 → 构造回合客户端 → 种子 session_info；失败时释放已建引擎 Host。</summary>
     public static async Task<EngineSession> CreateAsync(CancellationToken cancellationToken = default) {
@@ -52,7 +59,7 @@ public sealed class EngineSession : IAsyncDisposable {
                 },
                 BuildPermissionModeApplier(checker));
 
-            var session = new EngineSession(engine, client, permissionBridge);
+            var session = new EngineSession(engine, client, permissionBridge, checker, fastMode);
             client.Enqueue(BuildSessionInfoEvent(checker, fastMode));
             return session;
         } catch {
@@ -70,9 +77,9 @@ public sealed class EngineSession : IAsyncDisposable {
         return checker;
     }
 
-    /// <summary>组装会话握手事件 — 版本（引擎程序集）/当前模型（FastMode 主模型，未设置为 null）/
+    /// <summary>组装会话握手事件（internal — 测试断言 SetPrimaryModel 后 Model 字段更新）。版本（引擎程序集）/当前模型（FastMode 主模型，未设置为 null）/
     /// 权限模式（安全闸后的实际值）/bypass 可用性（!DisableBypassGate）/cwd。</summary>
-    private static BridgeEvent.SessionInfo BuildSessionInfoEvent(PermissionChecker? checker, IFastModeService? fastMode) {
+    internal static BridgeEvent.SessionInfo BuildSessionInfoEvent(PermissionChecker? checker, IFastModeService? fastMode) {
         var version = typeof(EngineSessionFactory).Assembly.GetName().Version is { } v ? v.ToString(3) : "0.0.0";
         var mode = checker?.CurrentMode ?? EnginePermissionMode.Auto;
         return new BridgeEvent.SessionInfo(

@@ -40,4 +40,20 @@ public sealed class EngineSessionTests {
         var invalid = Assert.IsType<InvalidOperationException>(ex);
         Assert.Contains("未知错误", invalid.Message);
     }
+
+    /// <summary>session_info 事件构造（修复验收缺陷：/model 切换后 banner 不同步）：
+    /// SetPrimaryModel 后 BuildSessionInfoEvent 反映新模型 — ApplyModel 委托刷新 banner 的数据基础。
+    /// FIFO 保证：SetPrimaryModelCmd 先入队，GetPrimaryModelQuery 后入队，QuerySync 返回时状态已更新（确定性无时序）。
+    /// ⚠️ Dispose 前完成全部查询 — TrySend 在释放后静默返回 false，QuerySync 将永久阻塞。</summary>
+    [Fact]
+    public async Task BuildSessionInfoEvent_AfterModelSwitch_ReflectsNewModel() {
+        await using var fastMode = new FastModeService(
+            config: new WorkflowConfig { Provider = new ProviderConfig { ModelId = "initial-model" } });
+        var before = EngineSession.BuildSessionInfoEvent(checker: null, fastMode);
+        Assert.Equal("initial-model", before.Model);
+
+        fastMode.SetPrimaryModel("switched-model");
+        var after = EngineSession.BuildSessionInfoEvent(checker: null, fastMode);
+        Assert.Equal("switched-model", after.Model);
+    }
 }

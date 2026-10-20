@@ -50,11 +50,15 @@ public static class Program {
                 // banner 占位值 — 首拍 session_info 种子事件覆盖为引擎真实数据（EngineSession.Enqueue）
                 var banner = new BannerItem("0.0.0", "当前模型未设置", "API 按量计费", Environment.CurrentDirectory);
                 var commands = SlashCommandSource.Load(session.Services);
-                // M7-6 模型选择器 — 装饰引擎拦截 /model（清单从引擎 IModelCatalog 后端获取，切换链自研）
+                // M7-6 模型选择器 — 装饰引擎拦截 /model（清单从引擎 IModelCatalog 后端获取，切换链自研）；
+                // 切换成功后 RefreshSessionInfo 重发握手事件刷新 banner（当前模型显示同步）
                 var pickerEngine = new ModelPickerEngine(
                     session.Client,
                     () => ModelPickerAssembly.LoadItems(session.Services),
-                    id => ModelPickerAssembly.ApplyModel(session.Services, id));
+                    id => {
+                        ModelPickerAssembly.ApplyModel(session.Services, id);
+                        session.RefreshSessionInfo();
+                    });
                 var shell = new ReplShell(pickerEngine, banner, tuiOutput, commands: commands);
                 pickerEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);

@@ -1,0 +1,235 @@
+namespace NativeTui.Tests.Repl;
+
+/// <summary>
+/// ReplShell 单元测试 — 共享 REPL 外壳（HostSession/DemoSession 提取，TASK055 M7 前置）：
+/// 种子内容挂载顺序、引擎事件应用链（经 ReplBridgeDriver 唯一翻译层）、引擎死亡检测、
+/// Esc 三态分派（忙打断/闲清输入/闲退出）、提交路径（用户消息 + 引擎 Submit）、权限循环透传。
+/// </summary>
+public sealed class ReplShellTests
+{
+    /// <summary>记录型假引擎 — 捕获 Submit/Interrupt/SetPermissionMode 调用 + 可注入事件队列。</summary>
+    private sealed class FakeEngine : IReplEngine
+    {
+        /// <summary>收到的提交文本。</summary>
+        public List<string> Submits { get; } = [];
+
+        /// <summary>收到的打断次数。</summary>
+        public int Interrupts;
+
+        /// <summary>收到的权限模式。</summary>
+        public List<string> PermissionModes { get; } = [];
+
+        /// <summary>待排空事件队列（DrainEvents 一次清空）。</summary>
+        public Queue<BridgeEvent> Events { get; } = new();
+
+        /// <summary>引擎存活标记（测试可置 false 模拟死亡）。</summary>
+        public bool Alive = true;
+
+        /// <summary>记录提交。</summary>
+        public void Submit(string text) => Submits.Add(text);
+
+        /// <summary>记录打断。</summary>
+        public void Interrupt() => Interrupts++;
+
+        /// <summary>记录权限模式。</summary>
+        public void SetPermissionMode(string mode) => PermissionModes.Add(mode);
+
+        /// <summary>排空事件队列。</summary>
+        public IReadOnlyList<BridgeEvent> DrainEvents()
+        {
+            var drained = Events.ToList();
+            Events.Clear();
+            return drained;
+        }
+
+        /// <summary>存活标记。</summary>
+        public bool IsAlive => Alive;
+    }
+
+    /// <summary>构造测试 shell（StringWriter 收渲染输出，seed 消息可缺省）。</summary>
+    private static (ReplShell Shell, FakeEngine Engine) CreateShell(IReadOnlyList<IScrollItem>? seed = null)
+    {
+        var engine = new FakeEngine();
+        var banner = new BannerItem("1.0.0", "test-model", "API 按量计费", "/tmp");
+        var shell = new ReplShell(engine, banner, new StringWriter(), seedMessages: seed);
+        return (shell, engine);
+    }
+
+    /// <summary>模拟键入（逐字符插入输入缓冲）。</summary>
+    private static void TypeText(ReplShell shell, string text)
+    {
+        foreach (var c in text)
+        {
+            shell.Input.Insert(c);
+        }
+    }
+
+    /// <summary>SeedContent：banner 首项、seed 消息居中、spinner 恒为滚动区末项，footer 四字段就位。</summary>
+    [Fact]
+    public void SeedContent_BannerFirst_SpinnerLast_SeedMessagesBetween()
+    {
+        var (shell, _) = CreateShell(seed: [new UserMessageItem("seed q"), new AssistantMessageItem("seed a")]);
+        shell.SeedContent();
+
+        var messages = shell.View.Messages.Items;
+        Assert.Equal(4, messages.Count);
+        Assert.IsType<BannerItem>(messages[0]);
+        Assert.IsType<UserMessageItem>(messages[1]);
+        Assert.IsType<AssistantMessageItem>(messages[2]);
+        Assert.IsType<SpinnerItem>(messages[^1]);
+
+        Assert.Equal(PermissionMode.Auto, shell.View.Footer.Mode);
+        Assert.Equal("未登录 · 运行 /login", shell.View.Footer.LoginError);
+        Assert.NotNull(shell.View.Footer.AgentsHint);
+        Assert.NotNull(shell.View.Footer.Notification);
+    }
+
+    /// <summary>DrainEngine：TurnStarted 事件驱动 busy（footer.Busy + 内部忙标记）。</summary>
+    [Fact]
+    public void DrainEngine_TurnStarted_SetsBusy()
+    {
+        var (shell, engine) = CreateShell();
+        shell.SeedContent();
+        Assert.False(shell.IsBusy);
+
+        engine.Events.Enqueue(new BridgeEvent.TurnStarted());
+        shell.DrainEngine();
+        Assert.True(shell.IsBusy);
+        Assert.True(shell.View.Footer.Busy);
+    }
+
+    /// <summary>DrainEngine：TurnCompleted 解除 busy。</summary>
+    [Fact]
+    public void DrainEngine_TurnCompleted_ClearsBusy()
+    {
+        var (shell, engine) = CreateShell();
+        shell.SeedContent();
+        engine.Events.Enqueue(new BridgeEvent.TurnStarted());
+        shell.DrainEngine();
+
+        engine.Events.Enqueue(new BridgeEvent.TurnCompleted());
+        shell.DrainEngine();
+        Assert.False(shell.IsBusy);
+        Assert.False(shell.View.Footer.Busy);
+    }
+
+    /// <summary>DrainEngine：权限回执事件更新 footer 模式（引擎回执为准）。</summary>
+    [Fact]
+    public void DrainEngine_PermissionModeChanged_UpdatesFooter()
+    {
+        var (shell, engine) = CreateShell();
+        shell.SeedContent();
+        Assert.Equal(PermissionMode.Auto, shell.View.Footer.Mode);
+
+        engine.Events.Enqueue(new BridgeEvent.PermissionModeChanged("plan"));
+        shell.DrainEngine();
+        Assert.Equal(PermissionMode.Plan, shell.View.Footer.Mode);
+    }
+
+    /// <summary>DrainEngine：引擎死亡（非忙）— 追加错误消息并请求停止。</summary>
+    [Fact]
+    public void DrainEngine_EngineDead_AppendsErrorAndStops()
+    {
+        var (shell, engine) = CreateShell();
+        shell.SeedContent();
+        engine.Alive = false;
+
+        shell.DrainEngine();
+        Assert.False(shell.Running);
+        Assert.Contains(shell.View.Messages.Items, m => m is ErrorMessageItem);
+    }
+
+    /// <summary>DrainEngine：忙时引擎死亡不立即退出（回合收尾事件优先）。</summary>
+    [Fact]
+    public void DrainEngine_EngineDeadWhileBusy_KeepsRunning()
+    {
+        var (shell, engine) = CreateShell();
+        shell.SeedContent();
+        engine.Events.Enqueue(new BridgeEvent.TurnStarted());
+        shell.DrainEngine();
+
+        engine.Alive = false;
+        shell.DrainEngine();
+        Assert.True(shell.Running);
+    }
+
+    /// <summary>Esc 忙时：请求引擎打断（Interrupt 透传）。</summary>
+    [Fact]
+    public void Escape_WhileBusy_InterruptsEngine()
+    {
+        var (shell, engine) = CreateShell();
+        shell.SeedContent();
+        engine.Events.Enqueue(new BridgeEvent.TurnStarted());
+        shell.DrainEngine();
+
+        shell.HandleEscape();
+        Assert.Equal(1, engine.Interrupts);
+        Assert.True(shell.Running);
+    }
+
+    /// <summary>Esc 闲时有输入：清空输入不退出。</summary>
+    [Fact]
+    public void Escape_IdleWithText_ClearsInput()
+    {
+        var (shell, _) = CreateShell();
+        shell.SeedContent();
+        TypeText(shell, "draft");
+
+        shell.HandleEscape();
+        Assert.True(shell.Running);
+        Assert.Equal(string.Empty, shell.Input.Text);
+    }
+
+    /// <summary>Esc 闲时无输入：请求退出。</summary>
+    [Fact]
+    public void Escape_IdleEmpty_Stops()
+    {
+        var (shell, _) = CreateShell();
+        shell.SeedContent();
+
+        shell.HandleEscape();
+        Assert.False(shell.Running);
+    }
+
+    /// <summary>提交：空文本忽略（不产用户消息、不透传引擎）。</summary>
+    [Fact]
+    public void Submit_EmptyText_Ignored()
+    {
+        var (shell, engine) = CreateShell();
+        shell.SeedContent();
+
+        shell.Submit();
+        Assert.Empty(engine.Submits);
+        Assert.DoesNotContain(shell.View.Messages.Items, m => m is UserMessageItem);
+    }
+
+    /// <summary>提交：非空文本 — 用户消息插入 spinner 之前 + 透传引擎 + 输入清空。</summary>
+    [Fact]
+    public void Submit_Text_AddsUserMessageAndForwards()
+    {
+        var (shell, engine) = CreateShell();
+        shell.SeedContent();
+        TypeText(shell, "hello engine");
+
+        shell.Submit();
+        Assert.Equal(["hello engine"], engine.Submits);
+        Assert.Contains(shell.View.Messages.Items, m => m is UserMessageItem);
+        Assert.Equal(string.Empty, shell.Input.Text);
+
+        var spinnerIndex = shell.View.Messages.Count - 1;
+        var userIndex = shell.View.Messages.Items.ToList().FindIndex(m => m is UserMessageItem);
+        Assert.True(userIndex < spinnerIndex);
+    }
+
+    /// <summary>Shift+Tab 权限循环：透传引擎请求，footer 不本地直改（回执事件为准）。</summary>
+    [Fact]
+    public void CyclePermissionMode_ForwardsToEngine()
+    {
+        var (shell, engine) = CreateShell();
+        shell.SeedContent();
+
+        shell.CyclePermissionMode();
+        Assert.Single(engine.PermissionModes);
+        Assert.Equal(PermissionMode.Auto, shell.View.Footer.Mode);
+    }
+}

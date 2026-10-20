@@ -1,6 +1,6 @@
 # TASK056 — TUI 输入栏：斜杠命令补全 + 历史环
 
-> 状态：implemented（待手动 exe 验收）
+> 状态：completed（2026-10-21 用户手动 exe 验收通过 — Demo + Host 双入口"非常完美"）
 > 参考基准：`D:\project\claude-code-rust\claude-code-rev-main\src\`（useTypeahead.tsx / commandSuggestions.ts / useArrowKeyHistory.tsx / PromptInputFooterSuggestions.tsx）
 > 历史数据源：复用现有 `~/.jcc/sessions/{id}/transcript.json`（`ITranscriptService`，`TranscriptPersistMiddleware` 已自动落盘，无需新存储）
 
@@ -15,7 +15,7 @@
 | 6 | Host 组装 | `tui_assembly/SlashCommandSource.cs` + `HistorySeeder.cs` + 9 测试 | ✅ ea5bdf2 |
 | 6b | 渲染时序修复 | SyncSuggestionState 先于 EnsureScreens | ✅ e86a001 |
 | 6c | Demo 验收入口接线 | DemoCommands 注入 + SimulatedEngine 兼容 / 前缀路由 | ✅ c7bf4e7 |
-| 7 | 手动 exe 验收 | ADR 0080 方式（需真实终端交互） | ⬜ 待用户执行（入口 NativeTui.Demo.exe） |
+| 7 | 手动 exe 验收 | ADR 0080 方式（需真实终端交互） | ✅ 2026-10-21 用户跑 Demo + Host 双入口验收通过 |
 
 ## 四列验收表
 
@@ -27,7 +27,7 @@
 | 键位仲裁（Autocomplete 上下文优先于 Chat）`ReplShell.HandleKeyPress/HandleSuggestionKey` | inline 模式 Up/Down=历史、Tab/Enter/Esc=补全 | ✅ | ✅ 集成测试（建议激活时 Up 归补全不翻历史等） |
 | 命令清单注入 `Host/tui_assembly/SlashCommandSource.cs`（DI 解析 Catalog 兜底直接实例化） | `Program.RunInteractiveAsync` 构造 ReplShell | ✅ | ✅ 单元 2 + selftest 引擎组装真实链路 |
 | 历史种子 `Host/tui_assembly/HistorySeeder.cs`（同项目最近5会话聚合+排除当前会话） | `Program.RunInteractiveAsync` SeedAsync | ✅ | ✅ 单元 6（项目过滤/时序/容量/降级） |
-| 视觉/手感验收（建议浮层像素 + 历史翻阅手感） | 真实终端 | ✅ 代码 | ⬜ 用户手动：`dotnet run --project native_tui/apps/NativeTui.Host` |
+| 视觉/手感验收（建议浮层像素 + 历史翻阅手感） | 真实终端 | ✅ 代码 | ✅ 用户 2026-10-21 跑 Demo.exe 与 Host.exe 验收："非常完美" |
 
 ## 回归基线
 

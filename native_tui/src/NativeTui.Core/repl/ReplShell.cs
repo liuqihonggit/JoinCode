@@ -69,8 +69,16 @@ public sealed class ReplShell
 
     /// <summary>创建外壳 — engine=引擎交互面；banner=启动横幅（首项）；output=渲染 writer；
     /// inline=渲染模式（默认主屏 log-update）；seedMessages=种子消息（banner 之后、spinner 之前）；
-    /// commands=斜杠命令清单（宿主注入；null = 无补全能力）。</summary>
-    public ReplShell(IReplEngine engine, BannerItem banner, TextWriter output, bool inline = true, IReadOnlyList<IScrollItem>? seedMessages = null, IReadOnlyList<CommandSuggestion>? commands = null)
+    /// commands=斜杠命令清单（宿主注入；null = 无补全能力）；
+    /// codeHighlighter=代码高亮插件（M7-5 卫星注入；null = 高亮禁用降级纯文本）。</summary>
+    public ReplShell(
+        IReplEngine engine,
+        BannerItem banner,
+        TextWriter output,
+        bool inline = true,
+        IReadOnlyList<IScrollItem>? seedMessages = null,
+        IReadOnlyList<CommandSuggestion>? commands = null,
+        ICodeHighlighter? codeHighlighter = null)
     {
         _engine = engine;
         _banner = banner;
@@ -78,7 +86,7 @@ public sealed class ReplShell
         _inline = inline;
         _seedMessages = seedMessages ?? [];
         _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands) : null;
-        _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest);
+        _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter);
     }
 
     /// <summary>视图（测试断言面）。</summary>

@@ -18,14 +18,24 @@ public sealed class ReplBridgeDriver
     /// <summary>权限请求挂起钩子（shell 注入 BeginPermissionRequest — 权限模态是 shell 层状态，Driver 只路由不持有）。</summary>
     private readonly Action<string, string>? _onPermissionRequest;
 
+    /// <summary>代码高亮器（宿主注入的卫星插件 — null = 高亮禁用降级纯文本，MarkdownMessageItem 消费）。</summary>
+    private readonly ICodeHighlighter? _codeHighlighter;
+
     /// <summary>创建应用器（view/spinner/banner 由调用方构造并挂载，spinner 须为 Messages 末项、banner 为首项；
-    /// onPermissionRequest = 权限请求挂起钩子，null = 忽略权限请求事件（纯视图断言测试场景））。</summary>
-    public ReplBridgeDriver(ReplView view, SpinnerItem spinner, BannerItem banner, Action<string, string>? onPermissionRequest = null)
+    /// onPermissionRequest = 权限请求挂起钩子，null = 忽略权限请求事件（纯视图断言测试场景）；
+    /// codeHighlighter = 代码高亮插件（M7-5），null = 高亮禁用）。</summary>
+    public ReplBridgeDriver(
+        ReplView view,
+        SpinnerItem spinner,
+        BannerItem banner,
+        Action<string, string>? onPermissionRequest = null,
+        ICodeHighlighter? codeHighlighter = null)
     {
         _view = view;
         _spinner = spinner;
         _banner = banner;
         _onPermissionRequest = onPermissionRequest;
+        _codeHighlighter = codeHighlighter;
     }
 
     /// <summary>回合进行中（turn_started 后未 completed/interrupted）。</summary>
@@ -85,7 +95,7 @@ public sealed class ReplBridgeDriver
                 break;
             case BridgeEvent.AssistantMessage(var text, var markdown):
                 AddMessage(markdown is not null
-                    ? new MarkdownMessageItem(markdown)
+                    ? new MarkdownMessageItem(markdown, _codeHighlighter)
                     : new AssistantMessageItem(text));
                 break;
             case BridgeEvent.TurnCompleted:

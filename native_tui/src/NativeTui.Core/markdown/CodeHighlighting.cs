@@ -14,3 +14,11 @@ public interface ICodeHighlighter
     /// <summary>按语言整块高亮 — 返回每行的 token 色段列表（索引对齐代码行；空行 = 空列表）；null = 语言不支持。</summary>
     IReadOnlyList<IReadOnlyList<HighlightSpan>>? Highlight(string language, IReadOnlyList<string> lines);
 }
+
+/// <summary>单行代码高亮结果 — token 色段（Start 已含行首前缀宽度偏移，坐标系 = 布局行完整段文本）。</summary>
+public sealed record CodeLineHighlight(IReadOnlyList<HighlightSpan> Spans);
+
+/// <summary>布局产物 — 物理行模型 + 逐行高亮上下文（与 Lines 等长；null = 非代码行或无色段）。</summary>
+public sealed record MarkdownLayoutResult(
+    IReadOnlyList<IReadOnlyList<MarkdownSegment>> Lines,
+    IReadOnlyList<CodeLineHighlight?> Highlights);

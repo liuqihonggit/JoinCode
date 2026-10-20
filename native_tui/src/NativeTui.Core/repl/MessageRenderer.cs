@@ -190,4 +190,22 @@ public static class MessageRenderer
         Strikethrough = style.HasFlag(MarkdownStyle.Strikethrough),
         Foreground = style.HasFlag(MarkdownStyle.Code) ? theme.Permission : default,
     };
+
+    /// <summary>
+    /// 代码行高亮覆写（M7-5）— 段文本已写完后按 token 色段覆写前景（保留 rune 与宽度标记，
+    /// 只换 StyleId；色段坐标系 = 行段文本，调用方补 startCol 偏移；同色相邻段由 StylePool intern 合并）。
+    /// </summary>
+    public static void ApplyCodeHighlight(Screen screen, int row, int startCol, IReadOnlyList<HighlightSpan> spans)
+    {
+        foreach (var span in spans)
+        {
+            var styleId = screen.Styles.GetOrAdd(new TextStyle { Foreground = Color.FromRgb(span.R, span.G, span.B) });
+            for (var offset = 0; offset < span.Length; offset++)
+            {
+                var col = startCol + span.Start + offset;
+                var cell = screen[row, col];
+                screen[row, col] = cell with { StyleId = styleId };
+            }
+        }
+    }
 }

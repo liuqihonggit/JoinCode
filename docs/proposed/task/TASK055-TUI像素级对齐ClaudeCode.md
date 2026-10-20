@@ -978,7 +978,7 @@ ReferenceScene.cs 不含任何 Markdown 渲染调用（纯手工 cell 构造，g
 |----|------|--------|------|
 | 组内 300 行渲染 | 不截断，React 虚拟化扛 | **可见窗口 min(10,n) + "and N more…"** | 方案 A 用户确认 — 本项目无虚拟化（inline 全量屏），窗口是对等机制 |
 | 分组键 | messageId+toolName（一次 API 响应内 ≥2） | **按 turn**（TurnStarted~TurnCompleted 归一组） | bridge 协议无消息边界；turn 边界事件已存在零新增协议负担；基准跨轮拆组语义近似 |
-| 组头动画 | ● 闪烁（ToolUseLoader） | **静态三态色** | 第一版开心路径；闪烁需时钟广播改造（ReplShell 单 spinner 硬编码 → 多动画项广播），归后续增强 |
+| 组头动画 | ● 闪烁（ToolUseLoader + useBlink 600ms 方波） | **同基准：600ms 方波 ●↔空格 + IAnimatable 时钟广播（全实例同步闪烁）** | bab57cbfc 落地 — ReplShell 每拍广播 AnimTimeMs 给滚动区全部 IAnimatable（基准共享动画时钟等价物）；运行中色修正为 dim 默认前景（基准 isUnresolved → undefined+dimColor，原 Suggestion 系误用）；错误/完成恒亮不闪（基准 t1 isError 优先） |
 | 错误汇总 | 无数值汇总（loader 红 + 行级呈现） | 同基准（● Error 红 + 行级 Done） | 一致对齐 |
 | 状态聚合 | anyUnresolved/anyError/allComplete 组头三态 | 同基准 | 一致对齐 |
 | 同型去重 | allSameType 组头带类型名 + 行内 hideType | 同基准 | 一致对齐 |
@@ -992,15 +992,16 @@ ReferenceScene.cs 不含任何 Markdown 渲染调用（纯手工 cell 构造，g
 | Core SubagentGroupItem.cs + MessageRenderer 三方法（组头三态/树形两行式/溢出） | Driver 建组落位（AddMessage Insert spinner 前） | ✅ | ✅ SubagentGroupTests 8/8（渲染断言含树形收口/dim/八色/溢出） |
 | Core Theme.SubagentColor（八色板 FNV-1a 稳定取色） | RenderSubagentStatusRow 类型段 | ✅ | ✅ 渲染测试样式断言（SubagentColor("explore") 取色一致） |
 | Core BridgeEvent 3 事件 + Driver 路由（惰性建组/回合定格脱离/多组共存） | SimulatedEngine agents 脚本（Demo）+ Host 未来接线 | ✅ | ✅ SubagentGroupTests 4/4（Driver 路由）+ 全量 698/698 |
+| Core IAnimatable 接口 + ReplShell.AdvanceAnimClock 广播（50ms/拍喂全部动画项） | SpinnerItem（glimmer/shimmer 相位）+ SubagentGroupItem（组头 ● 600ms 方波闪烁） | ✅ | ✅ ReplShellTests 广播同步断言（spinner 与注入项同值）+ SubagentGroupTests 4/4 相位断言（0 亮/600 暗/错误完成恒亮）；全量 714/714 |
+| MessageRenderer.RenderSubagentHeader 闪烁三态（运行中 dim 闪烁 / 错误恒红 / 完成恒绿） | SubagentGroupItem.Render 投影（AnimTimeMs 相位） | ✅ | ✅ 部分错误+运行中 dim 恒亮（基准 isUnresolved 色优先）断言；真实终端闪烁视觉验收归用户 |
 | SimulatedEngine Subagents 脚本（并行子回合交错时间线） | Demo agents 命令（真实终端输入 agents / agents 300） | ✅ | ✅ SubagentGroupTests 4/4（虚拟时钟确定性：批量启动/交错活动/完成收束/300 规模一拍批量）+ Demo --selftest 绿；真实终端 agents 交互验收待用户跑 NativeTui.Demo.exe 确认 |
 | Host 接线 | — | ⏸ 后置 | 引擎侧子代理事件源未确认（引擎是否发 subagent_* 事件待实测），Core 事件契约已就绪 |
 
 ### 遗留项
 
-1. 组头 ● 闪烁动画（需 ReplShell 时钟注入点从单 spinner 扩展为多动画项广播）
-2. Host 接线（前置：引擎侧子代理事件源实测确认）
-3. 基准 P2 细节未对齐：ctrl+o transcript 展开模式 / 小终端自适应单行塌缩 / lastToolInfo "Searched/Read N files" 聚合摘要
-4. 用户真实终端验收（agents 12 默认 + agents 300 规模）
+1. Host 接线（前置：引擎侧子代理事件源实测确认）
+2. 基准 P2 细节未对齐：ctrl+o transcript 展开模式 / 小终端自适应单行塌缩 / lastToolInfo "Searched/Read N files" 聚合摘要 / 失焦暂停闪烁（基准 useBlink useTerminalFocus）
+3. 用户真实终端验收（agents 12 默认 + agents 300 规模 + 组头闪烁视觉）
 
 <!-- 🤖 Auto Decision: 2026-10-21 -->
 <!-- 决策: 组内可见窗口(方案A用户确认) + 分组语义按turn(bridge协议无messageId边界) + 组头静态三态色(闪烁归后续) + 窗口活动跟随(分组非模态无焦点,区别于ModelPicker焦点跟随) -->
@@ -1008,5 +1009,11 @@ ReferenceScene.cs 不含任何 Markdown 渲染调用（纯手工 cell 构造，g
 <!-- 替代方案: B组内全量渲染(用户否决,性能风险);messageId分组(协议无消息边界);TCS桥(无阻塞等待方,同ModelPicker回调先例) -->
 <!-- 验证: 全量698/698绿(26新测试) + Demo selftest真实exe绿 ✅ -->
 
-<!-- M7-7 完成: 用户真实终端 agents 交互验收 → 组头闪烁动画(时钟广播) → resize 事件化 → Host 接线(引擎侧事件源确认后) -->
+<!-- 🤖 Auto Decision: 2026-10-21（组头闪烁补落） -->
+<!-- 决策: IAnimatable 广播接口(ReplShell.AdvanceAnimClock 每拍50ms喂滚动区全部动画项) + 600ms方波●↔空格 + 运行中色 dim 默认前景 -->
+<!-- 原因: 基准 useBlink 共享动画时钟(全实例同相位同步闪烁)的等价物=单源广播;基准 ToolUseLoader isUnresolved→undefined+dimColor 优先于 isError 色,原 Suggestion 实现系误用;墙钟(WallNowMs elapsed 暂停感知)与动画相位时钟(AnimTimeMs)语义分离,后者才广播 -->
+<!-- 替代方案: Screen 挂帧时间(渲染缓冲承担双职责否决);每 item 自持 Stopwatch(无同步性+测试不确定性否决) -->
+<!-- 验证: 全量714/714绿含5新测试(相位0亮/600暗/错误完成恒亮/部分错误dim恒亮/广播同步) + Demo selftest真实exe绿 ✅ -->
+
+<!-- M7-7 完成: 用户真实终端 agents 交互验收(含闪烁视觉) → resize 事件化 → Host 接线(引擎侧事件源确认后) -->
 

@@ -94,3 +94,9 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+###############################################################################
+# 快照基线字节稳定 — approved 快照含 ANSI 控制序列且比对期望 LF 行尾，
+# 钉死 eol=lf 防 autocrlf 物化改写字节（stash/checkout 周期免疫）
+###############################################################################
+*.approved.txt text eol=lf

@@ -21,6 +21,9 @@ public sealed class ReplBridgeDriver
     /// <summary>代码高亮器（宿主注入的卫星插件 — null = 高亮禁用降级纯文本，MarkdownMessageItem 消费）。</summary>
     private readonly ICodeHighlighter? _codeHighlighter;
 
+    /// <summary>活动子代理组（M7-7）— 回合内惰性建组，TurnCompleted/Interrupted 定格脱离；历史组留滚动区。</summary>
+    private SubagentGroupCoordinator? _activeSubagentGroup;
+
     /// <summary>创建应用器（view/spinner/banner 由调用方构造并挂载，spinner 须为 Messages 末项、banner 为首项；
     /// onPermissionRequest = 权限请求挂起钩子，null = 忽略权限请求事件（纯视图断言测试场景）；
     /// codeHighlighter = 代码高亮插件（M7-5），null = 高亮禁用）。</summary>
@@ -104,10 +107,38 @@ public sealed class ReplBridgeDriver
             case BridgeEvent.TurnInterrupted:
                 EndTurn();
                 break;
+            case BridgeEvent.SubagentStarted(var subagentId, var agentType, var description):
+                ApplySubagentStarted(subagentId, agentType, description);
+                break;
+            case BridgeEvent.SubagentToolUse(var subagentId, var toolName, var summary, var tokenGain):
+                _activeSubagentGroup?.RecordToolUse(subagentId, toolName, summary, tokenGain);
+                break;
+            case BridgeEvent.SubagentFinished(var subagentId, var isError):
+                _activeSubagentGroup?.FinishAgent(subagentId, isError);
+                if (_activeSubagentGroup is { AllComplete: true })
+                {
+                    _spinner.HasActiveTools = false;
+                }
+
+                break;
             case BridgeEvent.Error(var message):
                 AddMessage(new ErrorMessageItem(message));
                 break;
         }
+    }
+
+    /// <summary>子代理启动 — 惰性建组（组项落位 spinner 前）+ 条目追加 + spinner 切 ToolUse（子代理运行中主循环有活跃工具）。</summary>
+    private void ApplySubagentStarted(string subagentId, string agentType, string description)
+    {
+        if (_activeSubagentGroup is null)
+        {
+            _activeSubagentGroup = new SubagentGroupCoordinator();
+            AddMessage(new SubagentGroupItem(_activeSubagentGroup));
+        }
+
+        _activeSubagentGroup.AddAgent(subagentId, agentType, description);
+        _spinner.Mode = SpinnerMode.ToolUse;
+        _spinner.HasActiveTools = true;
     }
 
     /// <summary>应用会话握手：banner 换引擎真实数据（模型 null → "当前模型未设置"）+ footer 初始模式 + bypass 可用性。</summary>
@@ -123,10 +154,11 @@ public sealed class ReplBridgeDriver
         }
     }
 
-    /// <summary>开始回合：busy + spinner 挂载（Thinking 乐观模式，动词重采样，停滞计时重置）。</summary>
+    /// <summary>开始回合：busy + spinner 挂载（Thinking 乐观模式，动词重采样，停滞计时重置）；防御性脱离子代理组（引擎漏发回合收尾时不串组）。</summary>
     public void BeginTurn()
     {
         IsBusy = true;
+        _activeSubagentGroup = null;
         _view.Footer = _view.Footer with { Busy = true };
         _spinner.Message = string.Empty;
         _spinner.ResetVerb();
@@ -136,10 +168,12 @@ public sealed class ReplBridgeDriver
         _spinner.HasActiveTools = false;
     }
 
-    /// <summary>结束回合：idle + spinner 复位（消息由事件驱动，interrupted 不额外追加）。</summary>
+    /// <summary>结束回合：idle + spinner 复位（消息由事件驱动，interrupted 不额外追加）；子代理组定格脱离（未完成条目定格为非错误完成）。</summary>
     public void EndTurn()
     {
         IsBusy = false;
+        _activeSubagentGroup?.FinalizePending();
+        _activeSubagentGroup = null;
         _view.Footer = _view.Footer with { Busy = false };
         _spinner.Message = string.Empty;
         _spinner.ResponseLength = 0;

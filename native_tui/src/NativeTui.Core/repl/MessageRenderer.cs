@@ -235,6 +235,62 @@ public static class MessageRenderer
     }
 
     /// <summary>
+    /// 渲染子代理组头行（M7-7，基准 ToolUseLoader + 组头文案）：
+    /// ● + 空格 + 文案（"Running N {type} agents…" / "N {type} agents finished"）。
+    /// ● 三态色：任一错误 Error 红（基准 anyError loader 变红）/ 全完成 Success 绿 / 运行中 Suggestion。
+    /// </summary>
+    public static void RenderSubagentHeader(Screen screen, Rect frame, Theme theme, string text, bool isDone, bool hasError)
+    {
+        var bulletColor = hasError ? theme.Error : isDone ? theme.Success : theme.Suggestion;
+        var bullet = screen.Styles.GetOrAdd(new TextStyle { Foreground = bulletColor });
+        screen.WriteText(frame.Y, frame.X, $"{Figures.MessageBullet} ", bullet, frame.Right);
+        screen.WriteText(frame.Y, frame.X + 2, text, 0, frame.Right);
+    }
+
+    /// <summary>
+    /// 渲染子代理状态行（M7-7，基准 AgentProgressLine 首行）：
+    /// 树形前缀 "├─ "/"└─ "（组末条目收口）dim + 类型名八色（hideType 时描述提升行首、空描述兜底显示类型）+
+    /// " (描述)" + " · N tool uses" + " · M tokens" 统计 dim（零令牌省略 token 段）；
+    /// 运行中整行 dim（各段样式叠加 Dim=true）。
+    /// </summary>
+    public static void RenderSubagentStatusRow(Screen screen, Rect frame, Theme theme, bool isLastOfGroup, SubagentEntry entry, bool isRunning, bool hideType)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var typeStyle = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.SubagentColor(entry.AgentType), Dim = isRunning });
+        var bodyStyle = isRunning ? dim : 0;
+        screen.WriteText(frame.Y, frame.X, isLastOfGroup ? "└─ " : "├─ ", dim, frame.Right);
+        var col = hideType && !string.IsNullOrEmpty(entry.Description)
+            ? screen.WriteText(frame.Y, frame.X + 3, entry.Description, bodyStyle, frame.Right)
+            : screen.WriteText(frame.Y, frame.X + 3, entry.AgentType, typeStyle, frame.Right);
+        if (!hideType && !string.IsNullOrEmpty(entry.Description))
+        {
+            col = screen.WriteText(frame.Y, col, $" ({entry.Description})", bodyStyle, frame.Right);
+        }
+
+        col = screen.WriteText(frame.Y, col, $" · {entry.ToolUseCount} tool uses", dim, frame.Right);
+        if (entry.TokenCount > 0)
+        {
+            screen.WriteText(frame.Y, col, $" · {FormatTokens(entry.TokenCount)} tokens", dim, frame.Right);
+        }
+    }
+
+    /// <summary>
+    /// 渲染子代理活动行（M7-7，基准 AgentProgressLine 次行）：
+    /// 树延续前缀 "│  ⎿ "/"   ⎿ "（组末条目空格收口）dim + 活动文本（运行中 dim — 基准整行 dim）。
+    /// </summary>
+    public static void RenderSubagentActivityRow(Screen screen, Rect frame, Theme theme, bool isLastOfGroup, string text, bool isRunning)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var prefix = isLastOfGroup ? "   ⎿ " : "│  ⎿ ";
+        screen.WriteText(frame.Y, frame.X, prefix, dim, frame.Right);
+        screen.WriteText(frame.Y, frame.X + prefix.Length, text, isRunning ? dim : 0, frame.Right);
+    }
+
+    /// <summary>令牌数格式化 — 0 省略 / &lt;1000 原数 / ≥1000 "N.Nk"（基准 "34.5k tokens" 形态）。</summary>
+    internal static string FormatTokens(int tokens) =>
+        tokens < 1000 ? tokens.ToString() : $"{tokens / 1000.0:0.#}k";
+
+    /// <summary>
     /// 渲染 Markdown 物理行（M7-4）— 从指定列起逐段写，段样式经 MapMarkdownStyle 映射
     ///（Code → permission 色前景，对齐基准 codespan color('permission')；修饰开关直转 TextStyle）。
     /// </summary>

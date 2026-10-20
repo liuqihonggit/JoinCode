@@ -19,6 +19,9 @@ namespace NativeTui.Core.Bridge;
 [JsonDerivedType(typeof(AssistantMessage), "assistant_message")]
 [JsonDerivedType(typeof(TurnCompleted), "turn_completed")]
 [JsonDerivedType(typeof(TurnInterrupted), "turn_interrupted")]
+[JsonDerivedType(typeof(SubagentStarted), "subagent_started")]
+[JsonDerivedType(typeof(SubagentToolUse), "subagent_tool_use")]
+[JsonDerivedType(typeof(SubagentFinished), "subagent_finished")]
 [JsonDerivedType(typeof(Error), "error")]
 public abstract record BridgeEvent
 {
@@ -71,6 +74,21 @@ public abstract record BridgeEvent
 
     /// <summary>回合被打断（idle）。</summary>
     public sealed record TurnInterrupted() : BridgeEvent;
+
+    /// <summary>
+    /// 子代理启动（M7-7 分组渲染入口）— Driver 惰性建组（回合内首个子代理创建组项落位滚动区），
+    /// 同回合内全部子代理归一组（分组语义 = 按 turn，基准按 messageId 批次 — 本项目 bridge 协议无消息边界）。
+    /// </summary>
+    public sealed record SubagentStarted(string SubagentId, string AgentType, string Description) : BridgeEvent;
+
+    /// <summary>
+    /// 子代理工具活动（进度增量）— 组内条目计数/令牌累计 + 最后活动更新（基准 agent_progress 流式 append 语义；
+    /// 本项目路由到组条目原地更新，不逐条刷屏）。TokenGain = 本次活动新增令牌（参数名避开嵌套类型 TokenDelta）。
+    /// </summary>
+    public sealed record SubagentToolUse(string SubagentId, string ToolName, string Summary, int TokenGain) : BridgeEvent;
+
+    /// <summary>子代理完成 — 条目定格（isError 聚合组头 ● 红；基准基准 agent 完成态 Done）。</summary>
+    public sealed record SubagentFinished(string SubagentId, bool IsError) : BridgeEvent;
 
     /// <summary>错误（含诱导说明）。</summary>
     public sealed record Error(string Message) : BridgeEvent;

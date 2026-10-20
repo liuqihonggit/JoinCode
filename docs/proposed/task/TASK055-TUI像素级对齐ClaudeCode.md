@@ -920,3 +920,46 @@ ReferenceScene.cs 不含任何 Markdown 渲染调用（纯手工 cell 构造，g
 
 <!-- M7-6 完成: 用户真实终端 /model 选择器交互验收 → M7-7 多子代理分组(300 规模) → resize 事件化 → effort 行(后续里程碑) -->
 
+## M7-7 多子代理分组调研（2026-10-21，基准源码 + 本项目渲染现状双 explore）
+
+### 基准机制真相（claude-code-rev-main 全读结论）
+
+| 项 | 基准实现 | 文件:行号 |
+|----|---------|----------|
+| 分组数据结构 | `GroupedToolUseMessage {toolName, messages[], results[]}`；分组键 = `${messageId}:${toolName}`，**同一条 assistant API 响应内 ≥2 个同类 tool_use 才聚合**；verbose 跳过分组 | utils/groupToolUses.ts:54-181, 76, 91 |
+| 分发接口 | Tool.ts 可选 `renderGroupedToolUse`，**目前仅 AgentTool 实现** | Tool.ts:678-694, messageActions.tsx:121 |
+| 组头三态 | `● Running N {type} agents…`（运行中，圆点闪烁）/ `N {type} agents finished`（全完成，绿）/ `N background agents launched (↓ manage)`（全后台）；全组同类型时组头带类型名、行内隐藏类型 | AgentTool/UI.tsx:732-756, ToolUseLoader.tsx:11-41 |
+| 逐代理行 | 两行式：`├─ Type (desc) · N tool uses · M tokens` + `│  ⎿ <lastToolInfo\|Initializing…\|Done>`，最后一行 `└─`/`   ⎿`；运行中整行 dim | AgentProgressLine.tsx:23-135 |
+| 组内规模 | **组内行数无截断**（N 代理 N 行），靠消息级虚拟化 + 行级 React memo + OffscreenFreeze 静态冻结扛 | Messages.tsx:307, VirtualMessageList.tsx:289-343 |
+| 状态聚合 | 组级 anyUnresolved/anyError/allComplete → 组头文案与 loader 颜色（错误红）；**无数值汇总**（无 "N succeeded, M failed" 字样），失败仅组级视觉 | AgentTool/UI.tsx:728-737 |
+| 单代理进度截断 | 行内只显示最后 3 条工具活动 + `+N more tool uses (ctrl+o to expand)` | AgentTool/UI.tsx:33, 564-567 |
+| agent 配色 | 8 色板（red/blue/green/yellow/purple/orange/pink/cyan）按 agentType 全局分配，general-purpose 无色 | agentColorManager.ts:14-50 |
+| 数据流 | 子代理每条消息 → `agent_progress` 流式 append 进主消息数组（**禁止替换**否则卡死 Initializing）；UI 每次 commit 整组重算整组替换 | AgentTool.tsx:795-804, REPL.tsx:2647-2650 |
+| 小终端自适应 | 行数 < 并发数×9+7 时单代理进度塌缩单行 `In progress… · N tool uses · M tokens` | AgentTool/UI.tsx:181-182, 469-503 |
+
+**关键边界**：分组单元是"一次 API 响应内的 tool_use 批次"——300 个子代理跨多条 assistant 消息派发会拆成多组。
+
+### 本项目现状（可复用资产 + 核心缺口）
+
+| 资产 | 位置 | 状态 |
+|------|------|------|
+| ModelPicker "Coordinator + Dialog 投影"整套模式（窗口/HiddenCount/"and N more…"/clamp） | repl/ModelPicker.cs:17-99 + ModelPickerDialog.cs:13-84 | ✅ 分组项直接模板 |
+| ReplBridgeDriver 唯一翻译层（Apply switch） | bridge/ReplBridgeDriver.cs:48-111 | ✅ 接线点明确 |
+| **Theme 子代理八色板（已定义已赋值零消费者）** | Theme.cs:107-130, :259-266 | ✅ 就等消费 |
+| SpinnerAnimator 时钟注入 + Render 自绘 | ReplShell.cs:690-692 + SpinnerItem.cs:105-116 | ⚠️ 单时钟硬编码给 spinner，需扩展广播 |
+| FooterState.AgentsHint 提示位 | FooterState.cs:19 + FooterBar.cs:41 | ✅ 已埋 |
+| 溢出行文案先例（" and N more…" dim / "… +N lines"） | MessageRenderer.cs:223-228, :95-99 | ✅ 照抄 |
+
+**核心缺口**：① BridgeEvent 无子代理粒度事件（ToolCall 仅 Name+Args，tool 名 "Task" 与普通工具同路径——300 子代理=1200 行逐条刷屏，即本任务要解决的问题）；② 无消息级虚拟化（inline 模式全量屏 EnsureScreens，300 组行=600+ 行 Screen，分组折叠同时是性能需求）；③ ScrollBox 无"替换/合并已有项"API（分组项需原地合并非追加）；④ SimulatedEngine 单阶段 int 状态机，并行子回合需改列表。
+
+### 方案对比（组内 300 行渲染策略）
+
+| 方案 | 内容 | 优劣 |
+|------|------|------|
+| **A: 组内可见窗口（推荐）** | SubagentGroupItem 复用 ModelPicker 模式：MaxVisible 常量 + WindowStart 滚动 + " and N more…" 溢出行 | 性能稳（高度 O(MaxVisible) 不随 N 膨胀，300 规模下 inline 全量屏不炸）；与基准"组头+逐行"视觉一致；**有意偏离基准**（基准组内不截断，但靠 React 虚拟化扛——我们没有虚拟化，窗口是对等机制） |
+| B: 组内全量渲染 | 对齐基准 N 代理 N 行全渲染 | 像素级对齐最彻底；但 300×2 行全量屏每帧 O(n) 测量+渲染，且 ScrollBox 内容仍在 sticky 视口外仍测量；性能风险实际存在 |
+
+**分组语义（自主决策）**：本项目 bridge 协议无 messageId 概念，采用**按 turn 分组**——TurnStarted 建组、TurnCompleted 定格（一组 = 一轮用户提交的全部 Task 类子代理）。基准的 messageId 分组跨轮也拆组，语义近似（一次响应 ≈ 一轮内的一个批次），且 turn 边界事件已存在协议中，零新增协议负担。
+
+<!-- M7-7 调研完成: 待用户确认组内渲染策略(A窗口/B全量)后实现 → 事件协议加子代理粒度事件(3个) + SubagentGroupCoordinator/Item + 时钟广播 + Demo agents 演示命令 → Host 接线待引擎侧子代理事件源确认后置 -->
+

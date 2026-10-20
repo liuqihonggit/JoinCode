@@ -83,6 +83,44 @@ internal sealed class DshSessionStore {
     /// <param name="sessionId">目标会话</param>
     /// <param name="cancellationToken">取消令牌</param>
     internal async Task<DshSessionProjectionSnapshot?> ProjectionsAsync(string sessionId, CancellationToken cancellationToken) {
+        var read = await ReadAsync(sessionId, cancellationToken);
+        return read is null
+            ? null
+            : new DshSessionProjectionSnapshot { AsOfSeq = read.Value.Projections.AsOfSeq, Values = read.Value.Projections.Values };
+    }
+
+    /// <summary>
+    /// 打开会话所需的快照（供 <c>session/follow</c> 的打开帧使用）：会话头 + 投影 + 空日志页。
+    /// 会话不存在或引擎未就绪返回 null。当前历史事件页恒为空——把引擎转录映射成 DSH 会话事件属 M2-c。
+    /// </summary>
+    /// <param name="sessionId">目标会话</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    internal async Task<DshSessionFollowSnapshot?> SnapshotAsync(string sessionId, CancellationToken cancellationToken) {
+        var read = await ReadAsync(sessionId, cancellationToken);
+        if (read is not { } session) {
+            return null;
+        }
+        return new DshSessionFollowSnapshot {
+            Header = new DshSessionHeader {
+                Id = sessionId,
+                CreatedAt = session.Info is { } info ? ToUnixMilliseconds(info.CreatedAt) : 0,
+                Cwd = session.Info?.ProjectPath,
+                AgentPreset = DefaultAgentPreset,
+            },
+            Projections = new DshSessionProjectionSnapshot {
+                AsOfSeq = session.Projections.AsOfSeq,
+                Values = session.Projections.Values,
+            },
+        };
+    }
+
+    /// <summary>
+    /// 读一个会话的投影与元信息（一次读盘供 projections / follow 两个入口共用）；会话不存在返回 null。
+    /// </summary>
+    /// <param name="sessionId">目标会话</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>投影块与元信息（元信息可能缺失）</returns>
+    private async Task<(DshSessionProjections Projections, SessionInfo? Info)?> ReadAsync(string sessionId, CancellationToken cancellationToken) {
         if (_transcripts is not { } transcripts) {
             return null;
         }
@@ -92,8 +130,7 @@ internal sealed class DshSessionStore {
         var customTitle = await transcripts.GetCustomTitleAsync(sessionId, cancellationToken);
         var info = await transcripts.GetSessionInfoAsync(sessionId, cancellationToken);
         var messageCount = (await transcripts.LoadTranscriptAsync(sessionId, cancellationToken)).Count;
-        var values = ProjectValues(customTitle, info, messageCount);
-        return new DshSessionProjectionSnapshot { AsOfSeq = values.AsOfSeq, Values = values.Values };
+        return (ProjectValues(customTitle, info, messageCount), info);
     }
 
     /// <summary>

@@ -13,7 +13,7 @@
 | M2-b | `session/*`（create/list/follow/control）接自有引擎会话 | 进行中 |
 | M2-b1 | `session/list` + `session/rename` + `session/cancel`：侧栏显示引擎已有会话（标题/时间/工作目录/空白标记） | ✅ |
 | M2-b2 | `session/create` 落引擎 + `session/control` 基线投影 + `session/modelCatalog` 真实模型目录 + `session/projections` | ✅ |
-| M2-b3 | 打开会话：`session/follow` snapshot（含 `projections`）+ 会话投影载入 | ⬜ |
+| M2-b3 | 打开会话：`session/follow` snapshot（含 `projections` + `assistantStream` 基线） | ✅ |
 | M2-c | 聊天主链路：消息发送 + `session/follow` 增量事件流（`assistant/message`、`tool/call|result`、`step/*`…） | ⬜ |
 | M2-d | 权限：`approval/*` 事件 + 判定回传；`sandbox/mode`、`permission/preset` | ⬜ |
 | M3 | 自研 WebUI 与旧桥接归档，`--webui-smoke` 删除 | ⬜ |
@@ -40,7 +40,9 @@
 | `session/create`（`DshSessionStore.CreateAsync` + 工作区归属）：参数 `workspaceId`/`cwd`/`sessionId`/`agentPreset`，落引擎 meta（供应商/模型取模型目录默认），`workspaceId` 时 `AttachSessionAsync` | 侧栏「新会话」/ 工作区行新建会话 | ✅ | ✅ 单测 4 例（落盘/幂等保留已有转录/workspaceId 归属/未知 workspaceId 引导）；E2E `dumps/dsh-webui-create-session.mjs` ALL_PASS |
 | `session/modelCatalog`（`DshModelCatalogSource`）：启动读 `~/.jcc/settings.json`（`vendor` 预设 + `current.profile`，`JCC_VENDOR` 覆盖），引擎 attach 后热切换 `IJccChatSession.{CurrentVendor,CurrentModelId,VendorModelMap}`；输出 `default/routableProviders/groups/failures` | 模型选择器（消除「正在加载模型…」） | ✅ | ✅ 单测 `DshModelCatalogSourceTests` 4/4；E2E 实调返回 `default={deepseek,deepseek-v4-pro}` + `groups` + `failures:[]` |
 | `session/projections`（`DshSessionStore.ProjectionsAsync`，`null` 或 `{asOfSeq,values}`）+ `session/control` 基线真实投影映射（`ProjectionsMapAsync`） | 会话投影懒加载 / `session/control` 基线种子 | ✅ | ✅ 单测 3 例（未接引擎 null/未知会话 null/空白会话 blank=true）；E2E 实调返回空白会话投影 |
-| 会话/消息/流式/权限（`session/follow` snapshot + 增量事件、`approval/*`） | 聊天主链路 | ⬜ | ⬜ M2-b3/c/d |
+| `session/follow` 打开快照（`DshWebHost.OpenSessionAsync` + `DshSessionStore.SnapshotAsync` + `FollowSessionId`）：`header{version,id,createdAt,cwd,isSeeded,agentPreset}` + `cursor=-1` + `records:[]` + `hasMore:false` + `projections` + `assistantStream{revision:0}`；未知会话/子代理地址/存储未就绪走引导式 `error` 帧 | 点侧栏会话打开会话（`manager.retain → SessionEventStream.follow`） | ✅ | ✅ 单测 6 例（未接引擎 null/未知会话 null/空白会话 cursor=-1/多条消息 seq+标题/普通地址解析/子代理地址拒绝）；E2E `dumps/dsh-webui-open-session.mjs` ALL_PASS（19 项，开流与快照头均为被点击会话） |
+| 会话历史事件页（`records` 从引擎转录映射 `user/message`/`assistant/message`/工具事件） | 打开会话看到历史消息、`session/page` 向上翻页 | ⬜ | ⬜ M2-c |
+| 会话/消息/流式/权限（增量事件、`approval/*`） | 聊天主链路 | ⬜ | ⬜ M2-c/d |
 
 ## M1.5 缺陷记录（缺陷驱动）
 
@@ -101,6 +103,26 @@
 | 无错误横幅 | 读页面文本 | ✅ 无「尚未实现」/「创建会话失败」 |
 
 
+## M2-b3 缺陷/决策记录（缺陷驱动）
+
+1. 现象：侧栏点会话行，主区切到该会话（标题/「标准模式」/输入框都在），但**没有历史、模型选择器与投影全靠刷新前种下的种子**；关掉重开若引擎未 attach 则整片空白。抓包显示前端确实发了 `open:session/follow`，宿主 `default: return []` 什么都不回。
+2. 红测：`dumps/dsh-webui-open-session.mjs`（刷新捕获 WS → 真实 RPC 造两条新会话并重命名 → 再刷新 → 点其中一条 → 断言上行 `session/follow` 的 sessionId 与下行 snapshot 头的 id 都是被点的那条）→ 5 FAIL（无 snapshot、无投影、无 assistantStream）。
+3. 根因：`session/follow` 端点未实现。前端 `SessionEventStream.follow` 要求首帧必须是 `type:'snapshot'`，且因为 `assistantStream:true`，**snapshot 必须带 `assistantStream`**（缺失抛 `gateway/internal: session assistant stream omitted its opted-in opening baseline`）。修复：`DshWebHost.OpenSessionAsync` 回打开快照，数据源仍是引擎落盘会话（`DshSessionStore.SnapshotAsync`，与 `session/projections` 共用 `ReadAsync` 一次读盘）。
+4. 决策：空日志页尾 `cursor` 必须是 **-1**（`RemoteJournalStream.emptyCursor = -1`，与 `assertPageThrough` 一致：空页的页尾光标必须等于请求光标，否则 `protocolViolation`）；`hasMore:false` 让前端不再发 `session/page`。历史事件映射（`records` 非空）留到 M2-c，避免与消息事件契约（seq/turn/step）搅在一起。
+5. 决策：打开失败给**引导式 error 帧**（`{type:'error',error:{code,message,details}}`）而不是静默空响应：`session/rejected`（缺地址/子代理地址 → 提示用 `{address:{kind:'session',sessionId}}`）、`session/not-ready`（存储未就绪）、`session/unknown`（磁盘无该会话 → 提示 `session/create` 或从侧栏选）。
+6. E2E 坑（非产品缺陷）：① 前端对**已经打开过**的会话再点不会重新开流（`manager` 复用实例）→ 用例必须点本轮新建、从未打开过的会话；② 页面刷新会还原上次选中的会话并自动开流 → 抓到的第一条 `session/follow` 可能是还原流，断言必须按 `sessionId` 过滤而不是取第一条；③ `dsh-webui-create-session.mjs` 的「点新建 → 行数增加」启发式在同工作区已有空白会话时不成立（前端走 `reuseOrCreateBlank` 复用），改为断言 `session/create` 的响应本身，并等待响应到达（原先立即取 `calls` 会漏）。
+7. 绿测：`DshSessionStoreTests` 24 例（新增 4：快照 null 两态 + 空白会话 + 有消息 seq/标题；另有 3 例 `FollowSessionId` 解析）；GUI 全量 688 通过 / 3 跳过；E2E `dsh-webui-open-session.mjs` ALL_PASS（19 项）+ `dsh-webui-create-session.mjs` 回归 ALL_PASS。
+
+## M2-b3 验收记录（ADR 0080 手动 exe）
+
+| 步骤 | 命令/动作 | 结果 |
+|------|-----------|------|
+| 点会话开流 | 隔离 home + 真实 RPC 建两条会话并重命名 → 刷新 → 点其中一条 | ✅ 上行 `{"type":"open","streamId":…,"endpoint":"session/follow","payload":{"args":{"request":{"address":{"kind":"session","sessionId":"<被点 id>"},"assistantStream":true,…}}}}` |
+| 宿主回快照 | 同上读 WS 下行 | ✅ `{"type":"item","value":{"type":"snapshot","header":{"version":1,"id":"<被点 id>","createdAt":…,"cwd":"…","isSeeded":true,"agentPreset":"standard"},"cursor":-1,"records":[],"hasMore":false,"projections":{…},"assistantStream":{"revision":0}}}` |
+| 视图切换 | 点另一条会话行后读页面文本 | ✅ 主区标题变 `E2E点击会话` + 「标准模式」+ 「发消息或创建任务」输入框 |
+| 点击目标正确 | 抓包按 sessionId 过滤 | ✅ 开流与快照头 id 都等于被点会话，不是刷新还原的那条 |
+| 无错误帧 | 读 WS 下行全集 | ✅ 无 `{"type":"error"}`、无 `unimplemented`、页面无「尚未实现」 |
+
 ## M2-b1 验收记录（ADR 0080 手动 exe）
 
 | 步骤 | 命令/动作 | 结果 |
@@ -124,7 +146,9 @@
 - `session/projections`（一元，`request.sessionId`）结果为 `null` 或 `{asOfSeq, values}`（**无** `kind` 字段，与列表投影不同）；`session/control` 基线 `value.projections` 是 `Record<sessionId, {asOfSeq, values}>`（同样无 `kind`）。
 - `session/create` 成功后前端只在本地插 placeholder（`blank:true`、无投影），真正可打开/可渲染要等 `session/follow` snapshot → M2-b3；`reuseOrCreateBlank` 只在 `session/writer-held` 重试路径用。
 - `session/follow` 的 snapshot **必须**带 `projections`（缺失即解码失败，和列表不同）；`kind:'sequenced'` 必须同时有 `asOfSeq` + `values`。
+- `session/follow`（流式，参数 `request:{address,assistantStream?,maxMessages?,turnWindow?}`，地址 `{kind:'session',sessionId}` 或 `{kind:'subagent',parentSessionId,childSessionId,mode}`）：打开帧必须回 `{type:'snapshot',header,cursor,records,hasMore,projections,assistantStream}`。因为前端固定传 `assistantStream:true`，**`assistantStream` 字段必需**（`{revision:n,activeAttempt?}`，`revision:0` 表示无进行中尝试），缺失即 `gateway/internal`。空日志页 `cursor` 必须等于 `emptyCursor=-1`（页尾光标与请求光标不一致即 `protocolViolation`）；后续增量帧是 `{type:'event',event}` 或 `{type:'assistant-stream',frame}`。
 - 会话内重命名入口是快捷键 `Ctrl+Alt+G`（`session.rename` 命令），需要已打开且非空白会话（`sessions.using(...)`）→ 依赖 M2-b3 的打开会话后才可做 UI 验收。
+- 前端对**已经打开的会话**再点不重新开流（`manager` 复用已开的 `SessionEventStream`）；页面刷新会按上次选择还原并自动发一条 `session/follow` → E2E 断言要按 `sessionId` 过滤，不能取第一条。
 - 会话事件契约（M2-c 用）：`user/message` data=`UserMessage{id,content:ContentBlock[],source}`；`assistant/message` data=`{turn,step,message,stream,usage?}`；`ContentBlock` 文本 `{type:'text',text}`、`tool-call{type,id,name,arguments}`；`SessionTitleEventData{title,messageSeqs,source}`。
 
 ## 复现与验证方式
@@ -146,6 +170,7 @@ node dumps/dsh-webui-workspace.mjs jcc-e2e-ws          # 选择工作区闭环
 node dumps/dsh-webui-workspace.mjs jcc-e2e-ws --no-pick # 重启后基线恢复（先重启 exe 且不带 JCC_DIRECTORY_PICK）
 node dumps/dsh-webui-sessions.mjs "E2E引擎会话"          # 侧栏显示引擎已有会话（标题/时间）
 node dumps/dsh-webui-create-session.mjs ws-m2b2         # 新建会话落引擎 + 模型目录/投影 + 刷新后读回
+node dumps/dsh-webui-open-session.mjs ws-m2b3           # 点侧栏会话开流 + 打开快照（投影/assistantStream/空日志页）
 node dumps/dsh-webui-reload-trace.mjs                  # 启动/重载全量请求响应
 # 单测
 dotnet test test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj -c Debug --filter "FullyQualifiedName~WebHost"

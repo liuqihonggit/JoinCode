@@ -194,11 +194,47 @@ internal sealed class DshWebHost : IAsyncDisposable {
                     new DshSessionControlBaseline { Value = new DshSessionControlValue { Projections = projections } },
                     DshJsonContext.Default.DshSessionControlBaseline))];
             }
+            case "session/follow":
+                return [Item(open.StreamId, await OpenSessionAsync(open, cancellationToken))];
             default:
                 App.LogDiag($"[DSH-WEB] stream endpoint unimplemented: {open.Endpoint}");
                 return [];
         }
     }
+
+    /// <summary>打开会话事件流的首帧：磁盘会话 → snapshot；否则给出可执行的引导错误</summary>
+    private async Task<JsonElement> OpenSessionAsync(DshStreamOpen open, CancellationToken cancellationToken) {
+        var sessionId = FollowSessionId(open);
+        if (string.IsNullOrWhiteSpace(sessionId)) {
+            return StreamError("session/rejected", "打开会话需要 {address:{kind:'session',sessionId:'<会话 ID>'}}；子代理地址暂不支持，请先在侧栏选择普通会话");
+        }
+        if (!_services.Sessions.IsReady) {
+            return StreamError("session/not-ready", "会话存储尚未就绪（引擎仍在组装中），稍后重试即可");
+        }
+        var snapshot = await _services.Sessions.SnapshotAsync(sessionId, cancellationToken);
+        if (snapshot is null) {
+            return StreamError("session/unknown", $"会话 {sessionId} 不在磁盘上（~/.jcc/sessions/{sessionId}/transcript.json 不存在）；用 session/create 建一个新会话，或从侧栏的会话列表里选一个");
+        }
+        return JsonSerializer.SerializeToElement(snapshot, DshJsonContext.Default.DshSessionFollowSnapshot);
+    }
+
+    /// <summary>取出 session/follow 请求里的目标会话 ID（非普通会话地址返回 null）</summary>
+    /// <param name="open">流打开帧</param>
+    /// <returns>会话 ID；地址缺失或非 kind=session 时为 null</returns>
+    internal static string? FollowSessionId(DshStreamOpen open) {
+        if (open.Payload?.Args is not { ValueKind: JsonValueKind.Object } args) {
+            return null;
+        }
+        var envelope = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSessionFollowArgs);
+        var address = envelope?.Request?.Address;
+        return address is null || address.Kind != "session" ? null : address.SessionId;
+    }
+
+    /// <summary>构造流式端点失败帧（引导式错误：说明期望参数与下一步可执行动作）</summary>
+    private static JsonElement StreamError(string code, string message) =>
+        JsonSerializer.SerializeToElement(
+            new DshStreamError { Error = new DshStreamErrorBody { Code = code, Message = message } },
+            DshJsonContext.Default.DshStreamError);
 
     private static DshStreamItem Item(string streamId, JsonElement value) => new() { StreamId = streamId, Value = value };
 

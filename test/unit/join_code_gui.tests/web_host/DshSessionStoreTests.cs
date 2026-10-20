@@ -211,6 +211,76 @@ public sealed class DshSessionStoreTests {
     }
 
     [Fact]
+    public async Task Snapshot_WithoutEngine_ReturnsNull() {
+        var store = new DshSessionStore();
+        (await store.SnapshotAsync("s1", CancellationToken.None)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Snapshot_UnknownSession_ReturnsNull() {
+        var (store, _) = CreateStore();
+        (await store.SnapshotAsync("missing", CancellationToken.None)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Snapshot_BlankSession_OpensEmptyJournalWithProjections() {
+        var (store, transcripts) = CreateStore();
+        await transcripts.EnsureSessionAsync("blank-1", new SessionInfo {
+            Id = "blank-1",
+            ProjectPath = @"C:\demo\proj-e",
+            CreatedAt = new DateTime(2026, 10, 19, 12, 0, 0, DateTimeKind.Utc),
+        });
+
+        var snapshot = await store.SnapshotAsync("blank-1", CancellationToken.None)
+            ?? throw new InvalidOperationException("SnapshotAsync 未返回快照");
+
+        snapshot.Type.Should().Be("snapshot");
+        snapshot.Header.Id.Should().Be("blank-1");
+        snapshot.Header.Cwd.Should().Be(@"C:\demo\proj-e");
+        snapshot.Header.CreatedAt.Should().BeGreaterThan(0);
+        snapshot.Header.AgentPreset.Should().Be("standard");
+        snapshot.Header.IsSeeded.Should().BeTrue();
+        snapshot.Cursor.Should().Be(-1);
+        snapshot.Records.Should().BeEmpty();
+        snapshot.HasMore.Should().BeFalse();
+        snapshot.Projections.AsOfSeq.Should().Be(0);
+        snapshot.Projections.Values.SessionListMetadata.Should().NotBeNull();
+        snapshot.Projections.Values.SessionListMetadata.Blank.Should().BeTrue();
+        snapshot.AssistantStream.Revision.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Snapshot_WithMessages_ReportsSeqAndTitle() {
+        var (store, transcripts) = CreateStore();
+        await transcripts.AppendEntryAsync("s2", new TranscriptEntry { Role = "user", Content = "hi" });
+        await transcripts.AppendEntryAsync("s2", new TranscriptEntry { Role = "assistant", Content = "yo" });
+        await transcripts.SaveCustomTitleAsync("s2", "聊两句");
+
+        var snapshot = await store.SnapshotAsync("s2", CancellationToken.None)
+            ?? throw new InvalidOperationException("SnapshotAsync 未返回快照");
+
+        snapshot.Projections.AsOfSeq.Should().Be(3);
+        snapshot.Projections.Values.Title.Should().Be("聊两句");
+        snapshot.Projections.Values.SessionListMetadata.Should().NotBeNull();
+        snapshot.Projections.Values.SessionListMetadata.Blank.Should().BeFalse();
+    }
+
+    [Fact]
+    public void FollowSessionId_DirectSessionAddress_ReturnsId() {
+        DshWebHost.FollowSessionId(FollowOpen("session", "s1")).Should().Be("s1");
+    }
+
+    [Fact]
+    public void FollowSessionId_SubagentAddress_ReturnsNull() {
+        DshWebHost.FollowSessionId(FollowOpen("subagent", "child")).Should().BeNull();
+    }
+
+    [Fact]
+    public void FollowSessionId_MissingPayload_ReturnsNull() {
+        DshWebHost.FollowSessionId(new DshStreamOpen { Type = "open", StreamId = "x", Endpoint = "session/follow" }).Should().BeNull();
+    }
+
+    [Fact]
     public async Task Dispatcher_SessionCreate_EnsuresEngineSession() {
         var fs = new InMemoryFileSystem();
         await using var transcripts = new State.TranscriptService(fs, SessionsDir);
@@ -283,6 +353,24 @@ public sealed class DshSessionStoreTests {
         result.Error?.Code.Should().Be("session/rejected");
         result.Error?.Message.Should().Contain("workspace/create");
     }
+
+    /// <summary>按 DSH 远程契约形状构造 session/follow 的流打开帧</summary>
+    private static DshStreamOpen FollowOpen(string kind, string sessionId) =>
+        new() {
+            Type = "open",
+            StreamId = "stream-1",
+            Endpoint = "session/follow",
+            Payload = new DshRpcRequestPayload {
+                Args = JsonSerializer.SerializeToElement(
+                    new DshRequestEnvelope<DshSessionFollowArgs> {
+                        Request = new DshSessionFollowArgs {
+                            Address = new DshSessionAddress { Kind = kind, SessionId = sessionId },
+                            AssistantStream = true,
+                        },
+                    },
+                    DshJsonContext.Default.DshRequestEnvelopeDshSessionFollowArgs),
+            },
+        };
 
     /// <summary>按 DSH 远程契约形状构造 session/create 参数（具名参数在 request 下）</summary>
     private static JsonElement CreateArgs(string cwd) =>

@@ -349,6 +349,84 @@ internal sealed class DshSessionProjectionSnapshot {
     public DshSessionProjectionValues Values { get; set; } = new();
 }
 
+/// <summary>session/follow 参数（流式端点：打开会话事件流）</summary>
+internal sealed class DshSessionFollowArgs {
+    /// <summary>订阅地址（普通会话或子代理）</summary>
+    public DshSessionAddress? Address { get; set; }
+    /// <summary>是否订阅助手流式增量基线（前端固定传 true）</summary>
+    public bool? AssistantStream { get; set; }
+    /// <summary>快照最多携带的历史条数（省略表示默认窗口）</summary>
+    public int? MaxMessages { get; set; }
+}
+
+/// <summary>会话订阅地址（kind=session 时为普通会话；子代理地址暂不支持）</summary>
+internal sealed class DshSessionAddress {
+    /// <summary>地址种类</summary>
+    public string Kind { get; set; } = "session";
+    /// <summary>持久化会话身份</summary>
+    public string SessionId { get; set; } = "";
+}
+
+/// <summary>session/follow 打开快照（前端据 <c>cursor=-1</c> + 空 <c>records</c> 判定空日志）</summary>
+internal sealed class DshSessionFollowSnapshot {
+    /// <summary>固定为 snapshot</summary>
+    public string Type { get; set; } = "snapshot";
+    /// <summary>会话头</summary>
+    public DshSessionHeader Header { get; set; } = new();
+    /// <summary>页尾光标（空日志固定 -1，与前端 emptyCursor 对齐）</summary>
+    public long Cursor { get; set; } = -1;
+    /// <summary>历史事件页（当前恒为空：消息映射属 M2-c）</summary>
+    public List<DshSessionRecord> Records { get; set; } = [];
+    /// <summary>是否还有更早的历史页（空日志为 false，前端据此不再请求 session/page）</summary>
+    public bool HasMore { get; set; }
+    /// <summary>会话投影（协议必需；前端用来渲染标题与模型选择）</summary>
+    public DshSessionProjectionSnapshot Projections { get; set; } = new();
+    /// <summary>助手流基线（前端传 assistantStream:true 时必需，revision=0 表示无进行中的尝试）</summary>
+    public DshAssistantStreamBaseline AssistantStream { get; set; } = new();
+}
+
+/// <summary>会话头（快照携带）</summary>
+internal sealed class DshSessionHeader {
+    /// <summary>头版本</summary>
+    public int Version { get; set; } = 1;
+    /// <summary>会话身份</summary>
+    public string Id { get; set; } = "";
+    /// <summary>创建时间（毫秒时间戳）</summary>
+    public long CreatedAt { get; set; }
+    /// <summary>工作目录</summary>
+    public string? Cwd { get; set; }
+    /// <summary>是否由持久化记录播种（磁盘读回的会话恒为 true）</summary>
+    public bool IsSeeded { get; set; } = true;
+    /// <summary>代理预设</summary>
+    public string? AgentPreset { get; set; }
+}
+
+/// <summary>会话日志条目（type 固定 event）</summary>
+internal sealed class DshSessionRecord {
+    /// <summary>固定为 event</summary>
+    public string Type { get; set; } = "event";
+    /// <summary>会话事件</summary>
+    public DshSessionEvent Event { get; set; } = new();
+}
+
+/// <summary>会话事件（seq 单调递增；data 为事件载荷，保持 JSON 原样透传）</summary>
+internal sealed class DshSessionEvent {
+    /// <summary>事件类型（如 user/message）</summary>
+    public string Type { get; set; } = "";
+    /// <summary>事件序号</summary>
+    public long Seq { get; set; }
+    /// <summary>事件时间（毫秒时间戳）</summary>
+    public long Time { get; set; }
+    /// <summary>事件载荷</summary>
+    public JsonElement Data { get; set; }
+}
+
+/// <summary>助手流基线（revision=0 表示无进行中的尝试）</summary>
+internal sealed class DshAssistantStreamBaseline {
+    /// <summary>流版本</summary>
+    public int Revision { get; set; }
+}
+
 /// <summary>模型目录</summary>
 internal sealed class DshModelCatalog {
     /// <summary>默认选择</summary>
@@ -586,12 +664,32 @@ internal sealed class DshRequestEnvelope<TRequest> where TRequest : new() {
 /// <summary>失败详情占位对象（协议要求 details 为对象）</summary>
 internal sealed class DshRpcErrorDetails;
 
+/// <summary>流式端点失败项（如会话不存在）</summary>
+internal sealed class DshStreamError {
+    /// <summary>固定为 error</summary>
+    public string Type { get; set; } = "error";
+    /// <summary>失败体</summary>
+    public DshStreamErrorBody Error { get; set; } = new();
+}
+
+/// <summary>流式端点失败体</summary>
+internal sealed class DshStreamErrorBody {
+    /// <summary>稳定错误码</summary>
+    public string Code { get; set; } = "";
+    /// <summary>面向人（和 AI）的说明</summary>
+    public string Message { get; set; } = "";
+    /// <summary>附加细节</summary>
+    public JsonElement Details { get; set; }
+}
+
 /// <summary>DSH 宿主协议 JSON 上下文（AOT 源生成）</summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(DshRpcRequest))]
 [JsonSerializable(typeof(DshRpcResponse))]
 [JsonSerializable(typeof(DshStreamOpen))]
 [JsonSerializable(typeof(DshStreamItem))]
+[JsonSerializable(typeof(DshStreamError))]
+[JsonSerializable(typeof(DshStreamErrorBody))]
 [JsonSerializable(typeof(DshEventsReady))]
 [JsonSerializable(typeof(DshRequestEnvelope<DshWorkspacePathArgs>))]
 [JsonSerializable(typeof(DshRequestEnvelope<DshSessionRenameArgs>))]
@@ -630,6 +728,14 @@ internal sealed class DshRpcErrorDetails;
 [JsonSerializable(typeof(DshRequestEnvelope<DshSessionProjectionsArgs>))]
 [JsonSerializable(typeof(DshSessionProjectionsArgs))]
 [JsonSerializable(typeof(DshSessionProjectionSnapshot))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshSessionFollowArgs>))]
+[JsonSerializable(typeof(DshSessionFollowArgs))]
+[JsonSerializable(typeof(DshSessionAddress))]
+[JsonSerializable(typeof(DshSessionFollowSnapshot))]
+[JsonSerializable(typeof(DshSessionHeader))]
+[JsonSerializable(typeof(DshSessionRecord))]
+[JsonSerializable(typeof(DshSessionEvent))]
+[JsonSerializable(typeof(DshAssistantStreamBaseline))]
 [JsonSerializable(typeof(Dictionary<string, DshSessionProjectionSnapshot>))]
 [JsonSerializable(typeof(DshModelCatalog))]
 [JsonSerializable(typeof(DshAgentPresetList))]

@@ -33,6 +33,8 @@ global using System.Net.Http;
 global using System.Runtime.CompilerServices;
 global using System.Text;
 global using System.Text.Json;
+global using MockServerOptions = Testing.Common.MockServer.MockServerOptions;
+global using PipeOpenAIMockServer = Testing.Common.MockServer.PipeOpenAIMockServer;
 global using ChatApiMessage = JoinCode.Abstractions.LLM.Chat.ApiMessage;
 global using ChatMessageRole = JoinCode.Abstractions.LLM.Chat.MessageRole;
 global using MessageList = JoinCode.Abstractions.LLM.Chat.MessageList;

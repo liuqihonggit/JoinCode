@@ -165,15 +165,33 @@ public sealed partial class PipeQueryService : IQueryService {
         _logger?.LogDebug("Sending streaming chat request to pipe");
 
         var response = await QueryServiceBase.SendWithResilienceCoreAsync(
-            _httpClient, _resilientExecutor, json, "/v1/chat/completions", "Pipe.StreamingChatCompletion", cancellationToken).ConfigureAwait(false);
+            _httpClient, _resilientExecutor, json, "/v1/chat/completions", "Pipe.StreamingChatCompletion", cancellationToken,
+            HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
 
         response.EnsureSuccessStatusCode();
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using var reader = stream.AsUtf8Reader();
 
+        // SSE 逐行读取空闲超时 — HttpClient.Timeout 只覆盖到响应头，ReadAsStreamAsync 之后的
+        // 流读取无兜底（run #858 回归：流卡死导致测试无限挂死直至 job 10 分钟超时）。
+        // 每行读取独立计时，行间有数据的正常慢流不会误杀，行间静默超过上限才快速失败。
+        using var idleCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var idleTimeout = TimeSpan.FromMilliseconds(Math.Max(_config.RequestTimeoutMs, 1_000));
+
         string? line;
-        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null) {
+        while (true) {
+            idleCts.CancelAfter(idleTimeout);
+            try {
+                line = await reader.ReadLineAsync(idleCts.Token).ConfigureAwait(false);
+            } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
+                throw new TimeoutException(
+                    $"SSE 流式响应超过 {idleTimeout.TotalSeconds:F0}s 无新数据（管道 {_config.PipeName}）。" +
+                    "触发点：PipeQueryService.SendStreamingRequestAsync 逐行读取空闲超时。" +
+                    "处理指引：检查对端服务是否仍在推送流；对端正常但响应慢时上调 PipeTransportConfig.RequestTimeoutMs。");
+            }
+
+            if (line == null) yield break;
             if (cancellationToken.IsCancellationRequested) yield break;
             if (string.IsNullOrWhiteSpace(line)) continue;
             if (!line.StartsWith("data: ")) continue;

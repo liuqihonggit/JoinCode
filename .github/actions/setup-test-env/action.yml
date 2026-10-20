@@ -58,7 +58,13 @@ runs:
     - name: Install Linux Dependencies for SkiaSharp
       if: runner.os == 'Linux'
       shell: bash
-      run: sudo apt-get update && sudo apt-get install -y libfontconfig1
+      run: |
+        if dpkg -s libfontconfig1 >/dev/null 2>&1; then
+          echo "libfontconfig1 already installed, skipping apt"
+          exit 0
+        fi
+        sudo apt-get update || echo "::warning::apt-get update failed (third-party repo flaky, e.g. MS repo 403), continuing with cached indexes"
+        sudo apt-get install -y libfontconfig1
 
     - name: Download E2E Exes (for E2E)
       if: inputs.build-e2e-exes == 'true'

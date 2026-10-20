@@ -1,7 +1,8 @@
 # ADR 0143: 引擎库化多宿主架构 — JoinCode.Engine 抽取 + native_tui 宿主
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-10-20
+- 实施完成：2026-10-20（阶段一 PR #431 合并 main=680f725cb + 收尾 PR #432；阶段二同日四批次落地，见下文阶段二实施结果）
 - 关联：ADR 0140（native_tui 自研像素级对齐）、ADR 0141（bridge stdio 协议，降级为可选形态）、ADR 0142（superseded by 本 ADR，jcc 宿主内嵌方向）、TASK055
 
 ## 背景与问题
@@ -119,3 +120,82 @@ CliSession → EngineSession，实施时定名）；`CreateMainAgent` 的 intern
 - 负向：工程结构手术（渐进式缓解）；bridge 协议演进动力下降（0141 降级的天然代价）；
   CI 编译链多一个工程；`Cli` 前缀重命名触及面广（无后向兼容包袱，按 AGENTS.md
   大修大改原则一次到位）
+
+## 实施结果（2026-10-20，阶段一完结）
+
+阶段一全程渐进式落地（每步编译+测试+commit，PR #431 squash 合并 main）：
+
+| 批次 | 内容 |
+|------|------|
+| Step 0 | ADR 0143 制定（取代 0142） |
+| Step 1 | 建 JoinCode.Engine 库工程，协议与会话核心六件 git mv（命名空间不变，跨程序集同命名空间） |
+| Step 2 | EngineAgentFactory 主代理工厂提取（CliSession 留宿主，仅提取 CreateMainAgent） |
+| Step 3a | 契约与构建器引擎化（EngineApplicationBuilder/EngineConfigInitializer 拆分） |
+| Step 3b | 五模块 + EngineSessionFactory 搬库 + CoreModule 拆分（CliRegistrationModule 兜底 49 类型） |
+| Step 3c | 24 个引擎侧 [Register] 资产搬移（17 telemetry hooks + TrustFolderManager + user_experience 5 件）；生成器新增 AssemblyMetadata `AutoRegisterScope=CurrentAssembly` 开关（解决聚合库扫引用闭包 CS0122 + 重复注册） |
+| Step 4 | tui 宿主整体移除（Terminal.Gui 旧 TUI 归档，native_tui 自研接任）；gui 切直引 engine；CommandQueue 搬回 cli、SlashCommandRunner + Prefix 族留守 engine |
+| 收尾 | CliServiceContext→EngineServiceContext 改名（engine 内 Cli 前缀清零） |
+
+### 实施期决策修订（与原决策的差异）
+
+1. **CliSession 未改名**——分类调查后 CliSession 是 CLI 宿主表现层（TerminalHelper 终端
+   交互重度耦合），留 cli 不搬，无需 EngineSession 改名；进 engine 的服务上下文已改名
+   EngineServiceContext
+2. **启动管道留 cli**——StartupContext + 12+ 启动步骤全部 HOST（管道组装只在 cli 两个
+   ModeRunner；gui 走 CreateGuiSessionAsync、native_tui 阶段二走 bridge_serve，
+   均不经启动管道），原"SystemPromptApplyStep/NonInteractiveExitCleanupStep 属 ENGINE
+   待 StartupContext 拆分后随迁"判定撤销——引擎能力已在 IChatService/IStopHookManager
+   接口上，步骤只是 CLI 参数翻译层
+3. **pipe 协议族留 cli**——命名管道是 CLI 宿主专属设施（CreateGuiSessionAsync 显式
+   clearPipeEndpoint；native_tui 走 stdin/stdout bridge 协议），边界判据=是否存在
+   跨宿主消费而非"依赖干净"
+4. **Dock submodule 恢复**——三 submodule 移除后用户撤销 GUI 侧部分：GUI 保留原样
+   （新 GUI 在其他分支开发），Dock 恢复；Terminal.Gui/Editor 保持移除（tui 已删）
+
+## 阶段二实施结果（2026-10-20，native_tui 宿主落地）
+
+四个渐进批次落地（每批编译+测试+commit），`native_tui/apps/NativeTui.Host` 进程内直连引擎：
+
+| 批次 | commit | 内容 |
+|------|--------|------|
+| 1 | 079065e23 | Host 工程（csproj 跨 slnx 直引 engine）+ InProcessEventConsumer（IEventConsumer 第四实现：语义对齐 engine BridgeEventConsumer，WriteEvent 序列化 stdout → ConcurrentQueue 内存 record）+ 9 测试 |
+| 2 | 9649bb7d5 | EngineTurnClient（BridgeServeLoop.DispatchRequest 进程内版：Submit 忙时拒绝/Interrupt 取消/终态翻译；共享队列 FIFO 保序）+ consumer 注入重构 + 7 测试 |
+| 3 | c096a0e11 | EngineSession 组装（照抄 BridgeServeCommand 样板：CreateGuiSessionAsync + 延迟绑定 SessionController + PermissionChecker 安全闸 + session_info 种子事件）+ HostSession 交互主循环（inline 渲染独占）+ --selftest 真实冒烟 + 5 测试 |
+| 4 | 本提交 | native_tui.slnx 注册 Host+Host.Tests + ADR/TASK055 文档收口 |
+
+### 阶段二关键决策
+
+1. **组装照抄 BridgeServeCommand**——CreateGuiSessionAsync 组装入口（gui 先例），
+   SessionController 首次 submit 延迟绑定（consumer 即事件出口），权限应用器经
+   PermissionChecker（CurrentMode setter 含 bypass 安全闸），session_info 种子事件经
+   client 内部 Enqueue 入队（事件流统一走 DrainEvents 消费面）
+2. **回合 busy 全事件驱动**——不做乐观预挂 BeginTurn（进程内 TurnStarted 零延迟）；
+   忙时提交由 EngineTurnClient 拒绝（Error 诱导 Esc 打断），避免预挂后无 TurnStarted
+   事件导致 busy 卡死
+3. **HostSession 只取 DemoSession bridge 模式**——inline 渲染独占（无视口模式、无模拟
+   回合、无引擎退出检测）；键处理/渲染循环与 DemoSession 结构相同（约 270 行形似），
+   ReplShell 提取列为 M7 前置任务（权限对话框需共享外壳，见 TASK055）
+4. **引擎侧 PermissionMode 与 Core 同名消歧**——GlobalUsings 别名
+   （EnginePermissionMode/EnginePermissionModeExtensions 等 4 别名），两侧枚举值一致
+   经字符串互转（协议值 plan/auto/ask/bypass/unattended 唯一约定）
+5. **Console.Out 重定向 stderr**——对齐 bridge 先例：TUI 渲染走重定向前捕获的独立
+   writer，引擎内部 Console 输出（日志默认 console provider）不污染渲染流
+
+### 验证
+
+- 单元：Host.Tests 21/21（consumer 9 + client 7 + 终态翻译 5）
+- selftest（ADR 0080 真实组装非 mock）：引擎进程内组装 + session_info 真实数据 +
+  PermissionChecker 真实回执（GUI 模块链 IPermissionChecker 注册实测确认）+ 无效模式
+  Error 诱导，退出码 0；负路径（stdout 重定向检测/未知参数诱导）退出码 1
+- 回归：Core NativeTui.Tests 458/458 + Demo selftest 通过（Demo 未触碰）
+- 交互模式手动验收（ADR 0080）：待用户真实终端运行（Enter 提交/Esc 打断/Shift+Tab
+  权限循环），验收记录见 TASK055
+
+### 遗留（阶段二收口后更新）
+
+- ~~阶段二 native_tui 宿主~~ 已完成（上文）
+- M7 特性改道：session_info 已进程内直连；agent_progress / 权限对话框待 M7 走进程内
+  事件（不再扩展 ADR 0141 事件表）；权限挂起首版按打断处理
+  （PermissionPendingConfirmationException 翻译 OCE + 诱导文案）
+- ReplShell 提取：HostSession 与 DemoSession 键处理/渲染循环结构重复（约 270 行），
+  M7 权限对话框前置任务（TASK055）

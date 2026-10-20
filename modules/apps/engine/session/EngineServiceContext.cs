@@ -1,9 +1,10 @@
 namespace JoinCode.Cli;
 
 /// <summary>
-/// CLI 服务上下文 — 聚合所有可选服务引用，替代 TuiServiceContext
+/// 引擎服务上下文 — 聚合所有可选服务引用（ADR 0143 改名批次：CliServiceContext→EngineServiceContext，
+/// 迁移自 cli 宿主，命名空间保持 JoinCode.Cli 跨程序集兼容）
 /// </summary>
-public sealed record CliServiceContext {
+public sealed record EngineServiceContext {
     /// <summary>目标引擎 — 负责目标分解与执行调度</summary>
     public IGoalEngine? GoalEngine { get; init; }
     /// <summary>目标注册表 — 管理已注册的目标定义</summary>
@@ -60,7 +61,7 @@ public sealed record CliServiceContext {
     /// <summary>
     /// 从 DI 容器解析所有可选服务
     /// </summary>
-    public static CliServiceContext FromServiceProvider(
+    public static EngineServiceContext FromServiceProvider(
         IServiceProvider? sp,
         IGoalEngine? goalEngine = null,
         IGoalRegistry? goalRegistry = null,

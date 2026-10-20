@@ -78,7 +78,7 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
             Diag.WriteLine($"[STEP] StackTrace:\n{ex.StackTrace}");
         }
 
-        var services = Cli.CliServiceContext.FromServiceProvider(host.Services, goalEngine, cronTaskStore: cronTaskStore, workflowConfig: context.Config);
+        var services = Cli.EngineServiceContext.FromServiceProvider(host.Services, goalEngine, cronTaskStore: cronTaskStore, workflowConfig: context.Config);
         // T6：sessionId 同源 — 复用引擎工厂生成的 ID（transcript 落盘已下沉引擎管道，双方必须一致）
         var engineSessionId = context.SessionId ?? host.Services.GetService<IChatContextManager>()?.SessionId;
         context.SessionId = engineSessionId;

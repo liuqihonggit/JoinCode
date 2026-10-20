@@ -812,8 +812,14 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         return TimeSpan.FromSeconds(seconds);
     }
 
+    /// <summary>
+    /// 读取响应体文本 — Content-Encoding: gzip 时先解压(与 OpenContentStreamAsync 同语义,JSON API 路径配对)
+    /// <para>BuildRequest 已全局声明 Accept-Encoding: gzip,所有响应读取点都必须配对解压,否则 gzip 字节被当 UTF-8 文本产生乱码</para>
+    /// </summary>
     private static async Task<string> ReadBodyAsync(HttpResponseMessage response, CancellationToken ct) {
-        return await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        await using var stream = await OpenContentStreamAsync(response, ct).ConfigureAwait(false);
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        return await reader.ReadToEndAsync(ct).ConfigureAwait(false);
     }
 
     private static string? ParseLinkHeaderNext(System.Net.Http.Headers.HttpResponseHeaders headers) {

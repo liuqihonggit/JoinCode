@@ -664,6 +664,22 @@ public sealed class GitHubApiClientTest : IDisposable {
             .Which.Should().Contain("repos/foo/bar/actions/runs/123/logs");
     }
 
+    /// <summary>
+    /// JSON API 响应 gzip 编码时，SendAsync 应解压后返回明文 body（ReadBodyAsync 回归保护）。
+    /// </summary>
+    [Fact]
+    public async Task SendAsync_GzipJsonResponse_应解码后返回Body() {
+        var gzipped = GzipBytes("{\"id\":1,\"name\":\"pr\"}");
+        _handler.Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(gzipped) };
+        _handler.Response.Content.Headers.ContentEncoding.Add("gzip");
+        _handler.Response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+        var result = await _client.SendAsync(HttpMethod.Get, "repos/foo/bar/pulls/1");
+
+        result.Success.Should().BeTrue();
+        result.Body.Should().Be("{\"id\":1,\"name\":\"pr\"}");
+    }
+
     private sealed class FakeHandler : HttpMessageHandler {
         public HttpRequestMessage? LastRequest;
         public HttpResponseMessage Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };

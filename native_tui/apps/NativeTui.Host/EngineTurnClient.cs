@@ -77,6 +77,9 @@ public sealed class EngineTurnClient : IDisposable {
         return true;
     }
 
+    /// <summary>种子事件入队 — 组装层专用（EngineSession 启动握手 session_info）；回合生命周期事件仍由本类统一管理。</summary>
+    internal void Enqueue(BridgeEvent bridgeEvent) => _events.Enqueue(bridgeEvent);
+
     /// <summary>排空事件队列 — 主循环每 tick 调用（生命周期 + 回合内部事件同队 FIFO）。</summary>
     public IReadOnlyList<BridgeEvent> DrainEvents() {
         List<BridgeEvent>? drained = null;

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType>
     <RootNamespace>NativeTui.Host</RootNamespace>
     <AssemblyName>NativeTui.Host</AssemblyName>
     <Description>NativeTui 宿主 — 进程内直连 jcc 引擎（ADR 0143 阶段二：IEventConsumer 事件直喂 ReplView，零协议税）</Description>
@@ -9,6 +9,10 @@
     <IsPackable>false</IsPackable>
     <ServerGarbageCollection>true</ServerGarbageCollection>
   </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="NativeTui.Host.Tests" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- ADR 0140：NativeTui.Core 保持零依赖；引擎组装全在本宿主层 -->

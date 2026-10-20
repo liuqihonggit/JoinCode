@@ -13,7 +13,7 @@ env:
 jobs:
   unit-tests:
     name: Unit - ${{ matrix.domain }}
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.os || 'ubuntu-24.04' }}
     timeout-minutes: 10
     strategy:
       fail-fast: false
@@ -46,7 +46,12 @@ jobs:
           - domain: composition
             csprojs: modules/composition/composition.tests/Composition.Tests.csproj modules/composition/pipelines.tests/Pipelines.Tests.csproj
           - domain: apps
-            csprojs: test/unit/host.tests/Host.Tests.csproj test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj
+            # Host.Tests（CLI 侧）跨平台，ubuntu 跑
+            csprojs: test/unit/host.tests/Host.Tests.csproj
+          - domain: apps-gui
+            # GUI 测试：CsWinRT 投影工具链（Windows PE）+ WebView2 仅 Windows 原生可跑，双平台拆分
+            os: windows-latest
+            csprojs: test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj
 
     steps:
       - name: Checkout
@@ -62,7 +67,6 @@ jobs:
             dotnet test "$proj" -c Debug --nologo \
               -p:UsePackedComponents=true \
               -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
-              -p:EnableWindowsTargeting=true \
               --filter "Category!=Integration&Category!=Benchmark" \
               --logger "console;verbosity=normal" \
               --logger "trx;LogFileName=$name.trx"

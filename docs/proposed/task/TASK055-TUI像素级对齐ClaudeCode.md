@@ -872,3 +872,51 @@ ReferenceScene.cs 不含任何 Markdown 渲染调用（纯手工 cell 构造，g
 
 <!-- M7-6 调研完成: 待用户确认方案(A/B/C)后实现 → 实现期前置验证: GUI 会话模块链 GetService<IModelCatalog> 是否可解析(实测,勿猜) -->
 
+## M7-6 模型选择器落地（2026-10-21，用户决策"全部自研"）
+
+### 方案决策（用户原话："全部自研啊，之前的功能说不定有什么隐藏的bug，我们自己干才是最好的"）
+
+| 维度 | 落地选择 | 与调研方案 A 的差异 |
+|------|---------|-------------------|
+| UI 渲染 | 自研 ModelPickerDialog（IScrollItem + ReplShell 键盘模态） | 同 A |
+| 数据来源 | 引擎进程内 IModelCatalog（后端获取） | 同 A |
+| 切换链路 | **自研 ApplyModel**（SetPrimaryModel + IConfigurationService.SetAsync("model") 持久化 + IFastModeService 自关），**不经 SlashCommandRunner/ModelCommand** | A 原推荐委托 SlashCommandRunner 执行 /model &lt;id&gt;，用户否决——避免继承 TerminalHelper 隐藏 bug 面 |
+| 装配方式 | ModelPickerEngine 装饰 IReplEngine 拦截无参 "/model"（带参透传），Attach(shell) 延迟绑定（new 后调，避免构造环） | A 未细化 |
+
+### 实施记录（2 commit 链）
+
+| 阶段 | commit | 内容 |
+|------|--------|------|
+| Core 层 | d0b07e441 | ModelPickerItem DTO + Coordinator（MaxVisible=10 窗口滚动 clamp）+ ModelPickerDialog（IScrollItem 渲染：边框/标题/副标题/列表行 ✓❯/描述/溢出 "and N more…"/快捷键行）+ ModelPickerEngine 装饰器（拦截+Attach+确认回调自持清单闭包）+ ReplShell 三方法（BeginModelPicker/CompleteModelPicker/PostInfo）+ HandleModelPickerKey 模态（优先级：权限对话框 > 模型选择器）；全量 672/672 绿（含 27 新测试） |
+| Host/Demo 接线 | c56ae3dc3 | Host：ModelPickerAssembly（LoadItems 投影 IModelCatalog→ModelPickerItem + ApplyModel 三步切换链）+ pickerEngine 装配 + selftest 加模型清单断言（IModelCatalog 可解析实证）；Demo：RunInteractive 同装配 + DemoCommands 加 model 条目 + DemoModelItems 模拟清单 |
+
+### 实现期实证
+
+- **IModelCatalog 在引擎 DI 可解析**（Host selftest 断言实证，GUI 会话模块链注册确认——调研块存疑项闭环）
+- 键名实证：IConfigurationService.SetAsync("model", id) 的 "model" 与 SettingsJson jsonName 一致（ModelCommand.ApplyModelSwitchAsync 同源）
+- ModelPickerCoordinator 用**回调而非 TCS**（区别于权限对话框——无引擎侧阻塞等待方，选中即回调解册）
+- 测试坑：IDE0007 强制 var → 可空捕获用 `var selected = new[] { (string?)"sentinel" }` 数组模式；RowText.Of 返回全宽含尾空格 → 行文本断言用 StartsWith
+
+### 四列验收表（AGENTS.md 强制）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| Core ModelPicker.cs（Item DTO + Coordinator：MaxVisible=10/窗口滚动/clamp） | ModelPickerEngine 装饰器 + ReplShell.BeginModelPicker | ✅ | ✅ ModelPickerTests 7/7（Coordinator 窗口/边界） |
+| Core ModelPickerDialog.cs（边框/标题/列表行 ✓❯/描述/溢出/快捷键行渲染） | ReplShell 滚动区对话框项 | ✅ | ✅ ModelPickerTests 9/9（渲染断言含溢出行/当前标记） |
+| Core ModelPickerEngine.cs（"/model" 无参拦截 + Attach 延迟绑定 + 回调闭包） | Host/Demo Program.cs 装配（装饰 session.Client / SimulatedEngine） | ✅ | ✅ ModelPickerTests 5/5（拦截/透传/确认链） |
+| Core ReplShell 模态（HandleModelPickerKey 优先级在权限后 + CompleteModelPicker 收尾） | 键盘路由 + ModelPickerEngine 确认回调 | ✅ | ✅ ModelPickerTests 6/6（模态打开/Esc 取消/Enter 确认）+ 全量 672/672 |
+| Host ModelPickerAssembly（LoadItems ← IModelCatalog + ApplyModel 三步切换链） | Host Program.cs pickerEngine 装配 | ✅ | ✅ ADR 0080：Host --selftest 真实 exe 绿（含 IModelCatalog 可解析断言）；真实终端 /model 交互验收待用户跑 NativeTui.Host.exe 确认 |
+| Demo 装配（DemoModelItems 模拟清单 + DemoCommands 加 model 条目） | Demo Program.cs RunInteractive | ✅ | ✅ ADR 0080：Demo --selftest 绿；真实终端 /model 交互验收待用户跑 NativeTui.Demo.exe 确认 |
+
+### 基准对齐要点核对（对照调研块 Picker 形态行）
+
+单列平铺不分组 ✅ / min(10,n) 可见 ✅（MaxVisible=10）/ 超出 "and N more…" ✅ / ✓ 当前标记 + ❯ 焦点指示 ✅ / 切换反馈（PostInfo 消息）✅ / fast mode 自关 ✅（ApplyModel 三步之一）。未对齐项：effort 行（基准 ModelPicker.tsx:327-336 的 low/medium/high/max 循环——本项目 effort 概念尚未进入模型配置，属后续里程碑）。
+
+<!-- 🤖 Auto Decision: 2026-10-21 -->
+<!-- 决策: 切换链路自研 ApplyModel 三步链(SetPrimaryModel + settings 持久化 + fast mode 自关)，不经 SlashCommandRunner -->
+<!-- 原因: 用户明令"全部自研"避免继承 ModelCommand/TerminalHelper 隐藏 bug 面；且引擎侧切换逻辑只有 3 步，复刻成本低 -->
+<!-- 替代方案: 调研方案 A 的 SlashCommandRunner 委托执行(被用户否决)；ModelPickerCoordinator 用回调而非权限对话框的 TCS 模式(无阻塞等待方) -->
+<!-- 验证: 全量 672/672 绿 + Host/Demo selftest 真实 exe 双绿 ✅ -->
+
+<!-- M7-6 完成: 用户真实终端 /model 选择器交互验收 → M7-7 多子代理分组(300 规模) → resize 事件化 → effort 行(后续里程碑) -->
+

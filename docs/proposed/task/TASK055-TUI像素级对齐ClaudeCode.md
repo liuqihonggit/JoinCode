@@ -770,3 +770,36 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!--   修复后 9/9 绿; 全量回归 NativeTui.Tests 559/559 + Demo selftest OK + Demo.exe 重编 -->
 <!-- 用户反馈①输入历史(↑↓)与②/命令补全: 用户明确指示移交其他人做, 本线不实现 -->
 <!-- M7-4 接续: M7-5 代码高亮调研(MarkdownCode.Language 已保留消费面) → M7-6 模型列表 → M7-7 多子代理分组 -->
+
+## M7-5 代码高亮调研（2026-10-21，基准源码全读 + nuget 生态调研）
+
+### 基准双引擎体系真相（claude-code-rev-main 全读结论）
+
+| 引擎 | 底层 | 场景 | 颜色策略 |
+|------|------|------|---------|
+| A: cli-highlight | highlight.js + 库内置主题 | Markdown ```代码块 | 库直出 ANSI（还原树无源码，从调用方推断） |
+| B: color-diff-napi | Rust 原版=syntect+bat；TS 移植版=highlight.js+手写 scope 表 | StructuredDiff / HighlightedCode | scope→RGB 手写表 + 自拼 ANSI |
+
+**关键事实**：
+1. Rust 原版（syntect+Monokai Extended）才是基准真实架构；TS 移植版用 highlight.js 是 vendor 缺失的无奈替代（`src/native-ts/color-diff/index.ts` L1-17 头注释自证）
+2. token 树 → scope 映射表只需 ~24 键（MONOKAI_SCOPES dark / GITHUB_SCOPES light，L188-243），三级回退查表：精确 scope → `scope.split('.')[0]` 前缀 → 默认前景
+3. **diff 删除行有意跳过语法高亮**（`-` 行默认样式+红背景；`+`/context 行全高亮，L913-918）
+4. 语言检测：特殊文件名表（Dockerfile/Makefile/Rakefile→ruby...）→ 扩展名 getLanguage(ext) → shebang（#!/bin/bash→bash 等，L422-451）
+5. highlight.js 全量注册 190+ 语法代价 ~50MB/100-200ms → 惰性 require + LRU 500 缓存（token/render 两级）
+6. 降级链五层全落"默认前景纯文本"无崩溃：env 开关 → 设置开关 → 加载失败 → 语言不支持(plaintext/markdown 回退) → emitter 形状校验
+7. STORAGE_KEYWORDS 重拆：const/let/var/class/fn 等从 keyword 色重拆为 _storage 色（对齐 syntect storage.type 着色，L248-265）
+
+### C# NativeAOT 候选方案对比
+
+| 方案 | 语言覆盖 | AOT 风险 | 依赖 | 基准接近度 |
+|------|---------|---------|------|-----------|
+| **A: TextMateSharp + Grammars（推荐）** | VS Code 全量语法 | 中：Onigwrap 原生 DLL（P/Invoke，AOT 支持需卫星实测） | 2 nuget，活跃维护（2.0.4 2026-06） | **=基准 Rust 原版 syntect 路线**（TextMate 引擎同源） |
+| B: ColorCode.NET | ~23 语言 | 低（纯托管） | 1 nuget | 低（颜色体系不同需重做映射） |
+| C: 手写词法引擎 | 自选子集 | 零 | 零 | 中（scope 表可照抄基准 24 键） |
+
+**A 方案背书**：Terminal.Gui v2（2.3M 下载）高亮即建在 TextMateSharp 上且官方支持 NativeAOT；语法 JSON 数据驱动无反射 emit；Monokai Extended 主题文件可直接复用（对齐基准 Rust 原版行为而非 TS 替代品）。
+
+**A 方案架构（ADR 0140 先例）**：卫星项目 `NativeTui.Highlighting` 隔离 Onigwrap/TextMateSharp（对齐 NativeTui.Markdown 隔离 Markdig），Core 零依赖只消费 DTO（`HighlightedSpan(text, Rgb)` 列表）；Markdown 代码块 + diff 行高亮共用单管线（基准两引擎合一启示）；语言检测照抄基准 detectLanguage 三级；diff 删除行跳过高亮语义直接复用。
+
+<!-- M7-5 调研完成: 待用户确认方案(A/B/C)后进卫星项目 AOT 实测(A 方案前置条件) → 实现 -->
+<!-- AOT 实测点: ①Onigwrap 原生 DLL 在 PublishAot 发布的正确携带 ②语法 JSON 嵌入资源加载 ③win/linux 双平台 -->

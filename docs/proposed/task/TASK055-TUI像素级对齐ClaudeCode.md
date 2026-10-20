@@ -514,3 +514,11 @@ native_tui/                        # 顶层独立工程，零 modules/libs 依�
 <!-- 后续批次: 三 submodule 移除(.gitmodules+gitlink 归档+gui csproj 5 个 Dock ProjectReference) → -->
 <!--   StartupContext 拆分 → pipe 协议族边界 → 改名批次 → ADR 0143 accepted; 阶段二 native_tui -->
 <!--   宿主(native_tui/apps/NativeTui.Host)另起会话照抄 gui 先例 -->
+
+<!-- 🤖 Auto Decision: 2026-10-20 (commit 9cb7765bd: libs/ 三 submodule 移除) -->
+<!-- 落地: .gitmodules 整体归档(三 submodule 全清后无存在意义) + git rm --cached 三 gitlink + -->
+<!--   submodule git 数据(Editor/Terminal.Gui)归档 .xxx/submodules.20261020/ + gui csproj 5 个 -->
+<!--   Dock ProjectReference 移除 + libs/ 空目录清理(仅留 Directory.Build.targets) -->
+<!-- 状态: gui 42 错=Dock 存量基线保持(Dock 类型 CS0246 是 gui 代码引用, 待 gui Dock 体系重构 -->
+<!--   批次处理, 本批不动 gui 代码); 全仓 grep 零 libs/ 残留引用; Terminal.Gui/Editor submodule -->
+<!--   早已无用(tui 删除前已改 NuGet 包引用) -->

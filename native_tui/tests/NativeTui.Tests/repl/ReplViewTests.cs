@@ -121,4 +121,61 @@ public sealed class ReplViewTests
         // 消息 2 + 间隔 1 + 输入区 3 + footer 2 = 8
         Assert.Equal(8, view.MeasureContentHeight(cols: 40));
     }
+
+    [Fact]
+    public void SuggestionsActive_RenderedBetweenInputAndFooter()
+    {
+        using var screen = new Screen(cols: 40, rows: 12);
+        var view = new ReplView
+        {
+            Input = "/he",
+            CursorCol = 3,
+            Footer = new FooterState { Mode = PermissionMode.Auto },
+            Suggestions =
+            [
+                new CommandSuggestion("help", "显示帮助", [], IsHidden: false),
+                new CommandSuggestion("hello", "问候", [], IsHidden: false),
+            ],
+            SuggestionIndex = 0,
+            SuggestionNameColumnWidth = 11,
+        };
+        view.Render(screen, Theme.Dark);
+
+        // 自底向上：footer 行 11 / 建议区行 9-10 / 输入底边线 8 / 文本 7 / 顶边线 6 / 间隔 5
+        Assert.StartsWith("? 查看快捷键", RowText.Of(screen, 11, 2, 20).TrimEnd());
+        Assert.Equal("/help      显示帮助", RowText.Of(screen, 9, 0, 19).TrimEnd());
+        Assert.Equal("/hello     问候", RowText.Of(screen, 10, 0, 15).TrimEnd());
+        Assert.Equal(new string('─', 40), RowText.Of(screen, 8, 0, 40));
+        Assert.Equal("❯ /he", RowText.Of(screen, 7, 0, 5).TrimEnd());
+        Assert.Equal(new string('─', 40), RowText.Of(screen, 6, 0, 40));
+        // 选中首项 Suggestion 色
+        var selected = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.Suggestion });
+        Assert.Equal(selected, screen[9, 0].StyleId);
+    }
+
+    [Fact]
+    public void SuggestionsInactive_LayoutUnchanged()
+    {
+        using var screen = new Screen(cols: 40, rows: 10);
+        var view = new ReplView { Input = "hi", CursorCol = 2, Footer = new FooterState { Mode = PermissionMode.Auto } };
+        view.Render(screen, Theme.Dark);
+
+        // 建议未激活：布局与原版一致（footer 9 / 底边线 8 / 文本 7 / 顶边线 6）
+        Assert.Equal(new string('─', 40), RowText.Of(screen, 6, 0, 40));
+        Assert.Equal(new string('─', 40), RowText.Of(screen, 8, 0, 40));
+        Assert.StartsWith("? 查看快捷键", RowText.Of(screen, 9, 2, 20).TrimEnd());
+    }
+
+    [Fact]
+    public void MeasureContentHeight_WithSuggestions_AddsSuggestionRows()
+    {
+        var view = new ReplView
+        {
+            Footer = new FooterState { Mode = PermissionMode.Auto },
+            Suggestions = [new("help", "h", [], IsHidden: false)],
+        };
+        view.Messages.Add(new UserMessageItem("hello"));
+        // 消息 2 + 间隔 1 + 输入区 3 + 建议 1 + footer 1 = 8
+        Assert.Equal(8, view.MeasureContentHeight(cols: 40));
+    }
 }

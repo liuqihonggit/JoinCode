@@ -13,12 +13,6 @@ public sealed class SlashSuggester
     private string _currentInput = string.Empty;
     private string _suppressedInput = string.Empty;
 
-    /// <summary>创建补全状态机 — commands 为宿主注入的全量命令清单。</summary>
-    public SlashSuggester(IReadOnlyList<CommandSuggestion> commands)
-    {
-        _commands = commands;
-    }
-
     /// <summary>当前建议列表（已过滤排序）。</summary>
     public IReadOnlyList<CommandSuggestion> Items { get; private set; } = [];
 
@@ -30,6 +24,16 @@ public sealed class SlashSuggester
 
     /// <summary>选中项（无建议时 null）。</summary>
     public CommandSuggestion? Selected => Items.Count > 0 ? Items[SelectedIndex] : null;
+
+    /// <summary>命令列宽 — 全量命令最长名 + 6（含 / 与列间距，基准预计算防过滤时布局跳动）。</summary>
+    public int NameColumnWidth { get; }
+
+    /// <summary>创建补全状态机 — commands 为宿主注入的全量命令清单。</summary>
+    public SlashSuggester(IReadOnlyList<CommandSuggestion> commands)
+    {
+        _commands = commands;
+        NameColumnWidth = commands.Count > 0 ? commands.Max(c => c.Name.Length) + 6 : 0;
+    }
 
     /// <summary>输入变化时刷新建议（用户按键编辑路径调用；程序化填充如历史导航不调用）。</summary>
     public void Update(string input)

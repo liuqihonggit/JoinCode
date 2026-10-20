@@ -34,6 +34,18 @@ public sealed class ReplShell
     /// <summary>权限对话框协调器（M7-3 — 挂起时键盘模态改道）。</summary>
     private readonly PermissionCoordinator _permission = new();
 
+    /// <summary>斜杠命令补全状态机（TASK056 — 宿主注入命令清单后启用；null = 无补全能力）。</summary>
+    private readonly SlashSuggester? _suggester;
+
+    /// <summary>建议列表渲染组件。</summary>
+    private readonly SuggestionBox _suggestionBox = new();
+
+    /// <summary>输入历史环（TASK056 — 提交入史 + 上下键翻阅）。</summary>
+    private readonly HistoryRing _history = new();
+
+    /// <summary>程序化填充标记（历史导航/补全接受 — HandleKey 尾部跳过建议刷新）。</summary>
+    private bool _programmaticFill;
+
     /// <summary>启动 banner（首项 — 真实引擎由 session_info 事件原地更新）。</summary>
     private readonly BannerItem _banner;
 
@@ -56,14 +68,16 @@ public sealed class ReplShell
     private Screen? _prevOverride;
 
     /// <summary>创建外壳 — engine=引擎交互面；banner=启动横幅（首项）；output=渲染 writer；
-    /// inline=渲染模式（默认主屏 log-update）；seedMessages=种子消息（banner 之后、spinner 之前）。</summary>
-    public ReplShell(IReplEngine engine, BannerItem banner, TextWriter output, bool inline = true, IReadOnlyList<IScrollItem>? seedMessages = null)
+    /// inline=渲染模式（默认主屏 log-update）；seedMessages=种子消息（banner 之后、spinner 之前）；
+    /// commands=斜杠命令清单（宿主注入；null = 无补全能力）。</summary>
+    public ReplShell(IReplEngine engine, BannerItem banner, TextWriter output, bool inline = true, IReadOnlyList<IScrollItem>? seedMessages = null, IReadOnlyList<CommandSuggestion>? commands = null)
     {
         _engine = engine;
         _banner = banner;
         _output = output;
         _inline = inline;
         _seedMessages = seedMessages ?? [];
+        _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands) : null;
         _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest);
     }
 
@@ -81,6 +95,12 @@ public sealed class ReplShell
 
     /// <summary>权限对话框协调器（宿主权限桥 Begin/Wait 消费面 + 测试断言面）。</summary>
     public PermissionCoordinator Permission => _permission;
+
+    /// <summary>斜杠补全状态机（测试断言面；null = 无命令清单）。</summary>
+    internal SlashSuggester? Suggester => _suggester;
+
+    /// <summary>历史种子注入（宿主启动时从 transcript 加载最近输入）。</summary>
+    public void SeedHistory(IEnumerable<string> entries) => _history.Seed(entries);
 
     /// <summary>主循环 — 每拍：排空键盘 → 排空引擎事件 → 差分上屏 → 对齐 50ms。</summary>
     public void Run()
@@ -176,7 +196,8 @@ public sealed class ReplShell
         }
     }
 
-    /// <summary>按键归一 + 分派（对齐基准 useTextInput.mapKey 优先级顺序 — 测试经 ConsoleKeyInfo 全链注入）。</summary>
+    /// <summary>按键归一 + 分派（对齐基准 useTextInput.mapKey 优先级顺序 — 测试经 ConsoleKeyInfo 全链注入）；
+    /// 文本变化才刷新建议（导航/移动键不重置选中索引；程序化填充跳过 — 历史导航不触发补全）。</summary>
     internal void HandleKey(ConsoleKeyInfo keyInfo)
     {
         var key = ConsoleKeyAdapter.ToKeyPress(keyInfo);
@@ -185,15 +206,33 @@ public sealed class ReplShell
             return;
         }
 
+        var textBefore = _input.Text;
         HandleKeyPress(key);
+        if (_programmaticFill)
+        {
+            _programmaticFill = false;
+            return;
+        }
+
+        if (_input.Text != textBefore)
+        {
+            UpdateSuggestions();
+        }
     }
 
-    /// <summary>按键分派 — 权限对话框模态优先（数字/Esc/上下/Enter 路由对话框），其余 Emacs 编辑（Ctrl/Meta 词操作 + kill ring），控制键走编辑/提交/权限，字符插入。</summary>
+    /// <summary>按键分派 — 权限对话框模态优先（数字/Esc/上下/Enter 路由对话框）→ 补全激活专属键
+    /// （Up/Down 导航/Tab 接受/Enter 执行/Esc 关闭，基准 Autocomplete 上下文优先于 Chat），
+    /// 其余 Emacs 编辑（Ctrl/Meta 词操作 + kill ring），控制键走编辑/提交/权限，字符插入。</summary>
     private void HandleKeyPress(KeyPress key)
     {
         if (_permission.IsPending)
         {
             HandlePermissionKey(key);
+            return;
+        }
+
+        if (HandleSuggestionKey(key))
+        {
             return;
         }
 
@@ -264,10 +303,10 @@ public sealed class ReplShell
                 _input.Right();
                 break;
             case KeyKind.UpArrow:
-                ScrollIfViewport(-3);
+                NavigateHistory(-1);
                 break;
             case KeyKind.DownArrow:
-                ScrollIfViewport(3);
+                NavigateHistory(1);
                 break;
             case KeyKind.Home:
                 _input.Home();
@@ -426,6 +465,91 @@ public sealed class ReplShell
         }
     }
 
+    /// <summary>补全激活时的专属键拦截（基准 Autocomplete 上下文）：
+    /// Up/Down 循环导航、Tab 接受不执行、Enter 接受并提交、Esc 仅关建议（优先于打断/清输入/退出）；
+    /// 其余键返回 false 走正常编辑路径（编辑后刷新建议）。</summary>
+    private bool HandleSuggestionKey(KeyPress key)
+    {
+        if (_suggester is not { IsActive: true } suggester)
+        {
+            return false;
+        }
+
+        switch (key.Kind)
+        {
+            case KeyKind.UpArrow:
+                suggester.Move(-1);
+                return true;
+            case KeyKind.DownArrow:
+                suggester.Move(1);
+                return true;
+            case KeyKind.Tab:
+                AcceptSuggestion(execute: false);
+                return true;
+            case KeyKind.Return:
+                AcceptSuggestion(execute: true);
+                return true;
+            case KeyKind.Escape:
+                suggester.Dismiss();
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>接受选中建议（基准 applyCommandSuggestion）— Tab 补全为 "/命令 "（带尾随空格进入参数态，不执行）；
+    /// Enter 直接提交 "/命令"（不带尾随空格，历史与解析干净）。</summary>
+    private void AcceptSuggestion(bool execute)
+    {
+        if (_suggester?.Selected is not { } selected)
+        {
+            return;
+        }
+
+        FillInput(execute ? $"/{selected.Name}" : $"/{selected.Name} ", cursorToStart: false);
+        UpdateSuggestions();
+        if (execute)
+        {
+            Submit();
+        }
+    }
+
+    /// <summary>历史导航（inline 主模式）— 上=翻旧（光标置行首，基准 cursorToStart）、下=翻新（恢复草稿光标置末尾）；
+    /// 到底/到顶保持不动（不回绕）；viewport 旧模式保留滚动语义。</summary>
+    private void NavigateHistory(int direction)
+    {
+        if (!_inline)
+        {
+            ScrollIfViewport(direction * 3);
+            return;
+        }
+
+        string text;
+        if (direction < 0)
+        {
+            if (!_history.TryUp(out text, _input.Text))
+            {
+                return;
+            }
+        }
+        else if (!_history.TryDown(out text))
+        {
+            return;
+        }
+
+        FillInput(text, cursorToStart: direction < 0);
+    }
+
+    /// <summary>程序化填充输入（历史导航/补全接受）— 设置跳过标记，HandleKey 尾部不刷新建议。</summary>
+    private void FillInput(string text, bool cursorToStart)
+    {
+        _programmaticFill = true;
+        _input.Replace(text, cursorToStart);
+    }
+
+    /// <summary>刷新建议（用户编辑路径；建议状态机内部判定触发条件）。</summary>
+    private void UpdateSuggestions() => _suggester?.Update(_input.Text);
+
     /// <summary>Esc：忙时打断当前回合；闲时有输入清空（对齐基准双击清空的单击近似），无输入退出。</summary>
     internal void HandleEscape()
     {
@@ -451,7 +575,8 @@ public sealed class ReplShell
         _engine.SetPermissionMode(PermissionModeInfo.ToValue(next));
     }
 
-    /// <summary>提交输入：空文本忽略；否则追加用户消息并提交引擎（TurnStarted 事件驱动 busy，忙时由实现拒绝并 Error 诱导）。</summary>
+    /// <summary>提交输入：空文本忽略；否则追加用户消息并提交引擎（TurnStarted 事件驱动 busy，忙时由实现拒绝并 Error 诱导）；
+    /// 提交文本入历史环（末条去重）+ 导航态复位。</summary>
     internal void Submit()
     {
         var text = _input.Text;
@@ -461,6 +586,8 @@ public sealed class ReplShell
         }
 
         _input.Clear();
+        _history.Add(text);
+        _history.Reset();
         AddMessage(new UserMessageItem(text));
         _engine.Submit(text);
     }
@@ -475,6 +602,9 @@ public sealed class ReplShell
         _spinner.WallNowMs = Environment.TickCount64;
         _view.Input = _input.Text;
         _view.CursorCol = _input.CursorCol;
+        _view.Suggestions = _suggester is { IsActive: true } ? _suggester.Items : null;
+        _view.SuggestionIndex = _suggester?.SelectedIndex ?? 0;
+        _view.SuggestionNameColumnWidth = _suggester?.NameColumnWidth ?? 0;
         _view.Render(_back, _theme);
         if (_inline)
         {

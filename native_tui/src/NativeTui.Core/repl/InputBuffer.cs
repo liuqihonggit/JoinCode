@@ -97,6 +97,15 @@ public sealed class InputBuffer
         CursorCol = 0;
     }
 
+    /// <summary>全量替换文本（历史导航/补全接受用）— cursorToStart=true 光标置行首（基准历史导航语义），否则置末尾。</summary>
+    public void Replace(string text, bool cursorToStart = false)
+    {
+        BeginEditText();
+        _text.Clear();
+        _text.Append(text);
+        CursorCol = cursorToStart ? 0 : text.Length;
+    }
+
     /// <summary>词左移（Alt+B / Ctrl+Left）— 跳到前一个词首：词内回到词首，词首跳过非词字符落前词首；CJK 单字成词。</summary>
     public void WordLeft()
     {

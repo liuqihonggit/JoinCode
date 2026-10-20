@@ -598,6 +598,7 @@ public sealed class ReplShell
     /// <summary>渲染一帧并差分上屏：inline 走相对光标 + append（历史滚入 scrollback）+ DEC 2026 原子上屏；视口走绝对定位 diff。</summary>
     private void RenderAndFlush()
     {
+        SyncSuggestionState();
         EnsureScreens();
         _back.Clear();
         _animTimeMs += TickMs;
@@ -605,9 +606,6 @@ public sealed class ReplShell
         _spinner.WallNowMs = Environment.TickCount64;
         _view.Input = _input.Text;
         _view.CursorCol = _input.CursorCol;
-        _view.Suggestions = _suggester is { IsActive: true } ? _suggester.Items : null;
-        _view.SuggestionIndex = _suggester?.SelectedIndex ?? 0;
-        _view.SuggestionNameColumnWidth = _suggester?.NameColumnWidth ?? 0;
         _view.Render(_back, _theme);
         if (_inline)
         {
@@ -635,6 +633,14 @@ public sealed class ReplShell
         _output.Flush();
         (_front, _back) = (_back, _front);
         _frontValid = true;
+    }
+
+    /// <summary>同步补全建议到视图（渲染前状态投影 — EnsureScreens 屏高计算依赖建议区高度，必须先行）。</summary>
+    private void SyncSuggestionState()
+    {
+        _view.Suggestions = _suggester is { IsActive: true } ? _suggester.Items : null;
+        _view.SuggestionIndex = _suggester?.SelectedIndex ?? 0;
+        _view.SuggestionNameColumnWidth = _suggester?.NameColumnWidth ?? 0;
     }
 
     /// <summary>

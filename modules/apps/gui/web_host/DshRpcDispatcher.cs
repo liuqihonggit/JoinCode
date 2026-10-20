@@ -44,7 +44,8 @@ internal sealed class DshRpcDispatcher {
             ["credentials/describe"] = Sync(Credentials),
             ["llm/listProviders"] = Sync(LlmListProviders),
             ["llm/listConfigurableProviders"] = Sync(_ => OkEmptyArray()),
-            ["commands/list"] = Sync(_ => OkEmptyArray()),
+            ["commands/list"] = Sync(CommandsList),
+            ["commands/execute"] = CommandsExecute,
             ["messageFeedback/list"] = Sync(_ => Ok(new DshMessageFeedbackListResult { Value = new DshMessageFeedbackListValue() })),
             ["skills/list"] = Sync(_ => Ok(new DshSkillList())),
             ["dynamicCordisRunner/inventory"] = Sync(_ => OkEmptyArray()),
@@ -325,6 +326,31 @@ internal sealed class DshRpcDispatcher {
         .Select(group => new DshProviderInfo { Id = group.Id, Name = group.Name })
         .ToList());
 
+    /// <summary>commands/list：引擎斜杠命令目录投影（TASK058 B5 — 引擎 [ChatCommand] 特性为唯一数据源）</summary>
+    private DshRpcResult CommandsList(JsonElement args) => Ok(
+        (_services.Engine?.GetAvailableSlashCommands() ?? [])
+        .Select(DshCommandsProjection.Project)
+        .ToList());
+
+    /// <summary>
+    /// commands/execute：执行斜杠命令（TASK058 B5）。委托引擎 SlashCommandRunner（与 CLI/TUI 同一链路）；
+    /// v1 不支持附件参数。成功与未知命令都带输出文本（前端即时反馈渲染）。
+    /// </summary>
+    private async Task<DshRpcResult> CommandsExecute(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshCommandsExecuteArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.AgentId) || string.IsNullOrWhiteSpace(request.Line)) {
+            return Fail("commands/rejected", $"commands/execute 需要 {{agentId, line}}；收到 args={Describe(args)}（附件参数暂不支持）");
+        }
+        if (_services.Engine is not { } engine) {
+            return Fail("commands/not-ready", "引擎仍在组装中，稍后重试；若长时间未就绪查看 dumps/startup_timing.log");
+        }
+        var output = await engine.ExecuteSlashCommandAsync(request.Line, cancellationToken);
+        return Ok(new DshCommandsExecuteResult {
+            CommandId = request.Line.Split(' ', 2)[0].TrimStart('/'),
+            Result = new DshCommandOutcome { Kind = "success", Text = output },
+        });
+    }
+
     /// <summary>credentials/describe：按环境变量判断是否已配置</summary>
     private static DshRpcResult Credentials(JsonElement args) =>
         Ok(ReadStrings(args, "refs").ToDictionary(
@@ -407,6 +433,10 @@ internal sealed class DshRpcDispatcher {
     private static DshRpcResult Ok(DshSessionSelectModelResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionSelectModelResult));
 
     private static DshRpcResult Ok(List<DshProviderInfo> value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.ListDshProviderInfo));
+
+    private static DshRpcResult Ok(List<DshCommandInfo> value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.ListDshCommandInfo));
+
+    private static DshRpcResult Ok(DshCommandsExecuteResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshCommandsExecuteResult));
 
     private static DshRpcResult Ok(Dictionary<string, DshCredentialState> value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DictionaryStringDshCredentialState));
 

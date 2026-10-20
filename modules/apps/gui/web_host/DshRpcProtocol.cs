@@ -141,6 +141,48 @@ internal sealed class DshEventErrorBody {
 /// <summary>$events/result 回帖响应（前端只看 ok，无业务载荷）</summary>
 internal sealed class DshEventsResultValue;
 
+/// <summary>commands/list 条目（前端以 /{name} 组装命令行）</summary>
+internal sealed class DshCommandInfo {
+    /// <summary>命令名（无 / 前缀）</summary>
+    public string Name { get; set; } = "";
+    /// <summary>描述</summary>
+    public string Description { get; set; } = "";
+    /// <summary>输入提示（可选）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DshCommandInputInfo? Input { get; set; }
+}
+
+/// <summary>命令输入提示</summary>
+internal sealed class DshCommandInputInfo {
+    /// <summary>参数提示（如 model-id）</summary>
+    public string Hint { get; set; } = "";
+}
+
+/// <summary>commands/execute 参数（位置参数 wire 平铺：agentId + line；attachments v1 不支持）</summary>
+internal sealed class DshCommandsExecuteArgs {
+    /// <summary>目标会话（scope agent）</summary>
+    public string AgentId { get; set; } = "";
+    /// <summary>命令行（如 /model deepseek-v4-pro）</summary>
+    public string? Line { get; set; }
+}
+
+/// <summary>commands/execute 响应 — commandId + 成败结果</summary>
+internal sealed class DshCommandsExecuteResult {
+    /// <summary>命令标识</summary>
+    public string CommandId { get; set; } = "";
+    /// <summary>执行结果</summary>
+    public DshCommandOutcome Result { get; set; } = new();
+}
+
+/// <summary>命令执行结果体（success 带输出文本，error 带提示文本）</summary>
+internal sealed class DshCommandOutcome {
+    /// <summary>success / error</summary>
+    public string Kind { get; set; } = "success";
+    /// <summary>输出或错误文本（可选）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Text { get; set; }
+}
+
 /// <summary>workspace/follow 基线</summary>
 internal sealed class DshWorkspaceBaseline {
     /// <summary>固定为 baseline</summary>
@@ -1103,6 +1145,12 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshEventOutcome))]
 [JsonSerializable(typeof(DshEventsResultValue))]
 [JsonSerializable(typeof(DshEventErrorBody))]
+[JsonSerializable(typeof(DshCommandInfo))]
+[JsonSerializable(typeof(DshCommandInputInfo))]
+[JsonSerializable(typeof(DshCommandsExecuteArgs))]
+[JsonSerializable(typeof(DshCommandsExecuteResult))]
+[JsonSerializable(typeof(DshCommandOutcome))]
+[JsonSerializable(typeof(List<DshCommandInfo>))]
 [JsonSerializable(typeof(DshSettingsDescribe))]
 [JsonSerializable(typeof(DshSettingsNamespaceView))]
 [JsonSerializable(typeof(DshSettingsMutateArgs))]

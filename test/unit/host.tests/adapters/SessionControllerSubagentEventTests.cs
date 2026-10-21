@@ -46,7 +46,7 @@ public sealed class SessionControllerSubagentEventTests
         var controller = CreateController(
         [
             ChatStreamEvent.AgentStarted("agent-1", "explore", "搜索"),
-            new ChatStreamEvent { Type = ChatStreamEventType.AgentFinished, AgentId = "agent-1", AgentSuccess = false },
+            new ChatStreamEvent { Type = ChatStreamEventType.AgentFinished, AgentId = "agent-1", AgentSuccess = false, Usage = new TokenUsage(300, 50) },
             ChatStreamEvent.Done(),
         ], consumer);
 
@@ -56,6 +56,7 @@ public sealed class SessionControllerSubagentEventTests
         var finished = Assert.Single(consumer.SubagentFinishes);
         Assert.Equal("agent-1", finished.SubagentId);
         Assert.True(finished.IsError);
+        Assert.Equal(350, finished.TokenTotal);
     }
 
     /// <summary>带 AgentId 的工具事件 — 路由 OnSubagentToolUse 且不走普通 OnToolStart/OnToolEnd（分流）。</summary>
@@ -262,7 +263,7 @@ public sealed class SessionControllerSubagentEventTests
         public List<(TokenUsage? usage, string? modelId)> DoneEvents { get; } = [];
         public List<(string SubagentId, string AgentType, string Description)> SubagentStarts { get; } = [];
         public List<(string SubagentId, string ToolName, string Summary, int TokenGain)> SubagentToolUses { get; } = [];
-        public List<(string SubagentId, bool IsError)> SubagentFinishes { get; } = [];
+        public List<(string SubagentId, bool IsError, int TokenTotal)> SubagentFinishes { get; } = [];
 
         public void OnText(string content) => TextEvents.Add(content);
         public void OnThinking(string thinking) { }
@@ -274,6 +275,6 @@ public sealed class SessionControllerSubagentEventTests
         public void OnDone(TokenUsage? usage, string? modelId) => DoneEvents.Add((usage, modelId));
         public void OnSubagentStarted(string subagentId, string agentType, string description) => SubagentStarts.Add((subagentId, agentType, description));
         public void OnSubagentToolUse(string subagentId, string toolName, string summary, int tokenGain) => SubagentToolUses.Add((subagentId, toolName, summary, tokenGain));
-        public void OnSubagentFinished(string subagentId, bool isError) => SubagentFinishes.Add((subagentId, isError));
+        public void OnSubagentFinished(string subagentId, bool isError, int tokenTotal) => SubagentFinishes.Add((subagentId, isError, tokenTotal));
     }
 }

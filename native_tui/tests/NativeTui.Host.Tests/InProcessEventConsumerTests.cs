@@ -36,7 +36,7 @@ public sealed class InProcessEventConsumerTests
 
         consumer.OnSubagentStarted("agent-1", "explore", "搜索渲染链");
         consumer.OnSubagentToolUse("agent-1", "Grep", "命中 3 处", 120);
-        consumer.OnSubagentFinished("agent-1", isError: false);
+        consumer.OnSubagentFinished("agent-1", isError: false, tokenTotal: 350);
 
         var events = consumer.DrainEvents();
         Assert.Equal(3, events.Count);
@@ -52,6 +52,7 @@ public sealed class InProcessEventConsumerTests
         var finished = Assert.IsType<BridgeEvent.SubagentFinished>(events[2]);
         Assert.Equal("agent-1", finished.SubagentId);
         Assert.False(finished.IsError);
+        Assert.Equal(350, finished.TokenTotal);
     }
 
     [Fact]

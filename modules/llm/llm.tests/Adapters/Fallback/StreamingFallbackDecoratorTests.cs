@@ -12,7 +12,7 @@ public class StreamingFallbackDecoratorTests {
                     It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),
                     It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
                 .Returns((MessageList h, ChatOptions? s, IChatClient? k, CancellationToken ct) =>
-                    FailStreamAsync(exception ?? new HttpRequestException("Stream error"), ct));
+                    FailAtStartStreamAsync(exception ?? new HttpRequestException("Stream error"), ct));
 
             mock.Setup(s => s.GetApiMessageContentsAsync(
                     It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),
@@ -57,6 +57,100 @@ public class StreamingFallbackDecoratorTests {
         await Task.Yield();
         yield return new StreamEvent(MessageRole.Assistant, "partial", "test-model");
         throw exception;
+    }
+
+    /// <summary>首事件前失败形态 — 对齐真实连接级错误（529/超时/IOException 建立请求即失败，拿不到任何事件）。
+    /// ADR 0146 语义下此形态仍触发 fallback；中途失败形态（FailStreamCoreAsync）改为上抛守卫。</summary>
+    private static IAsyncEnumerable<StreamEvent> FailAtStartStreamAsync(
+        Exception exception, CancellationToken ct) {
+        return FailAtStartCoreAsync(exception);
+    }
+
+    private static async IAsyncEnumerable<StreamEvent> FailAtStartCoreAsync(Exception exception) {
+        await Task.Yield();
+        if (exception is null) {
+            yield break;
+        }
+        throw exception;
+    }
+
+    /// <summary>门闩两分片流 — 首分片即时产出、第二分片等门闩放行（确定性时序，禁固定延时）。</summary>
+    private static async IAsyncEnumerable<StreamEvent> GatedTwoChunkStreamAsync(
+        TaskCompletionSource secondChunkGate,
+        [EnumeratorCancellation] CancellationToken ct = default) {
+        await Task.Yield();
+        yield return new StreamEvent(MessageRole.Assistant, "first", "test-model");
+        await secondChunkGate.Task;
+        yield return new StreamEvent(MessageRole.Assistant, " second", "test-model");
+    }
+
+    private sealed class DelegateQueryService(Func<CancellationToken, IAsyncEnumerable<StreamEvent>> streamFactory) : IQueryService {
+        public Task<IReadOnlyList<ApiMessage>> GetApiMessageContentsAsync(
+            MessageList chatHistory, ChatOptions? executionSettings = null, IChatClient? kernel = null, CancellationToken cancellationToken = default) {
+            return Task.FromResult<IReadOnlyList<ApiMessage>>([new(MessageRole.Assistant, "non-streaming response")]);
+        }
+
+        public IAsyncEnumerable<StreamEvent> GetStreamEventContentsAsync(
+            MessageList chatHistory, ChatOptions? executionSettings = null, IChatClient? kernel = null, CancellationToken cancellationToken = default) {
+            return streamFactory(cancellationToken);
+        }
+    }
+
+    [Fact]
+    public async Task GetStreamEventContentsAsync_StreamsIncrementally_FirstEventBeforeUpstreamCompletes() {
+        // TASK043 红（ADR 0146 绿）：首分片必须在整条流完成前到达 — 全量收集缺陷下首 MoveNextAsync
+        // 挂死至上游流结束（门闩不放行则永不返回），超时保护判红
+        var secondChunkGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var inner = new DelegateQueryService(_ => GatedTwoChunkStreamAsync(secondChunkGate));
+        var decorator = new StreamingFallbackDecorator(inner, new StreamingFallbackConfig {
+            StreamWatchdogEnabled = false
+        });
+
+        var enumerator = decorator.GetStreamEventContentsAsync(new MessageList()).GetAsyncEnumerator();
+        var firstArrived = true;
+        try {
+            await enumerator.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(3));
+        } catch (TimeoutException) {
+            firstArrived = false;
+        }
+        firstArrived.Should().BeTrue("首分片应在整条流完成前到达 — 当前实现全量收集后整发，逐字流式失效（TASK043 根因）");
+
+        enumerator.Current.Content.Should().Be("first");
+
+        secondChunkGate.SetResult();
+        (await enumerator.MoveNextAsync()).Should().BeTrue();
+        enumerator.Current.Content.Should().Be(" second");
+        (await enumerator.MoveNextAsync()).Should().BeFalse();
+        await enumerator.DisposeAsync();
+        decorator.LastRequestFellBack.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetStreamEventContentsAsync_MidStreamFailure_ThrowsAfterYielded_NoFallback() {
+        // ADR 0146 新语义：已 yield 内容后失败 → 上抛不 fallback（非流式重试会重复输出已产出内容）
+        var mock = new Mock<IQueryService>();
+        mock.Setup(s => s.GetStreamEventContentsAsync(
+                It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),
+                It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
+            .Returns(FailStreamCoreAsync(new TimeoutException("mid-stream"), CancellationToken.None));
+        mock.Setup(s => s.GetApiMessageContentsAsync(
+                It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),
+                It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new(MessageRole.Assistant, "fallback response")]);
+        var decorator = new StreamingFallbackDecorator(mock.Object, new StreamingFallbackConfig {
+            StreamWatchdogEnabled = false
+        });
+
+        var events = new List<StreamEvent>();
+        var act = async () => {
+            await foreach (var evt in decorator.GetStreamEventContentsAsync(new MessageList())) {
+                events.Add(evt);
+            }
+        };
+
+        await act.Should().ThrowAsync<TimeoutException>();
+        events.Should().ContainSingle(e => e.Content == "partial");
+        decorator.LastRequestFellBack.Should().BeFalse("中途失败不触发 fallback");
     }
 
     [Fact]
@@ -192,7 +286,7 @@ public class StreamingFallbackDecoratorTests {
         mock.Setup(s => s.GetStreamEventContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),
                 It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
-            .Returns(FailStreamAsync(new TimeoutException("stream failed"), CancellationToken.None));
+            .Returns(FailAtStartStreamAsync(new TimeoutException("stream failed"), CancellationToken.None));
 
         mock.Setup(s => s.GetApiMessageContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),
@@ -479,7 +573,7 @@ public class StreamingFallbackDecoratorTests {
         mock.Setup(s => s.GetStreamEventContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),
                 It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
-            .Returns(FailStreamAsync(new TimeoutException(), CancellationToken.None));
+            .Returns(FailAtStartStreamAsync(new TimeoutException(), CancellationToken.None));
         mock.Setup(s => s.GetApiMessageContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),
                 It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
@@ -511,7 +605,7 @@ public class StreamingFallbackDecoratorTests {
         mock.Setup(s => s.GetStreamEventContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),
                 It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
-            .Returns(FailStreamAsync(new TimeoutException("stream down"), CancellationToken.None));
+            .Returns(FailAtStartStreamAsync(new TimeoutException("stream down"), CancellationToken.None));
 
         // 非流式 fallback 返回固定消息(含原始 metadata + modelId)
         var fallbackMessages = new List<ApiMessage> {
@@ -564,7 +658,7 @@ public class StreamingFallbackDecoratorTests {
         mock.Setup(s => s.GetStreamEventContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),
                 It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
-            .Returns(FailStreamAsync(new HttpRequestException("overload"), CancellationToken.None));
+            .Returns(FailAtStartStreamAsync(new HttpRequestException("overload"), CancellationToken.None));
 
         mock.Setup(s => s.GetApiMessageContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),
@@ -605,7 +699,7 @@ public class StreamingFallbackDecoratorTests {
         mock.Setup(s => s.GetStreamEventContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),
                 It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
-            .Returns(FailStreamAsync(new TimeoutException("stream failed"), CancellationToken.None));
+            .Returns(FailAtStartStreamAsync(new TimeoutException("stream failed"), CancellationToken.None));
 
         mock.Setup(s => s.GetApiMessageContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),

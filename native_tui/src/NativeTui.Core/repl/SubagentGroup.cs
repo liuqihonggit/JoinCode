@@ -135,10 +135,17 @@ public sealed class SubagentGroupCoordinator
         });
     }
 
-    /// <summary>定格子代理条目（isError 聚合组头 ● 红）+ 窗口跟随。</summary>
-    public void FinishAgent(string id, bool isError)
+    /// <summary>定格子代理条目（isError 聚合组头 ● 红）+ token 权威校正 + 窗口跟随。
+    /// tokenTotal &gt; 0 时覆盖 TokenCount（AgentFinished 事件 Usage.TotalTokens — 引擎完成态权威值，
+    /// 优于逐活动增量累加）；0 = 无 usage 数据（FinalizePending 兜底路径）保持原累计。</summary>
+    public void FinishAgent(string id, bool isError, int tokenTotal = 0)
     {
-        UpdateEntry(id, entry => entry with { IsDone = true, IsError = isError });
+        UpdateEntry(id, entry => entry with
+        {
+            IsDone = true,
+            IsError = isError,
+            TokenCount = tokenTotal > 0 ? tokenTotal : entry.TokenCount,
+        });
     }
 
     /// <summary>回合收尾 — 未完成条目定格为非错误完成（TurnCompleted/TurnInterrupted 调用；幂等 — 全完成 no-op）。</summary>

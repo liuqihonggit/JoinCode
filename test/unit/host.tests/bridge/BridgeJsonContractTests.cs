@@ -110,12 +110,12 @@ public sealed class BridgeJsonContractTests {
         var events = new CliBridge.BridgeEvent[] {
             new CliBridge.BridgeEvent.SubagentStarted("agent-1", "explore", "搜索渲染链"),
             new CliBridge.BridgeEvent.SubagentToolUse("agent-1", "Grep", "命中 3 处", 120),
-            new CliBridge.BridgeEvent.SubagentFinished("agent-1", IsError: true),
+            new CliBridge.BridgeEvent.SubagentFinished("agent-1", IsError: true, TokenTotal: 1250),
         };
         var expected = new[] {
             "{\"type\":\"subagent_started\",\"subagentId\":\"agent-1\",\"agentType\":\"explore\",\"description\":\"搜索渲染链\"}",
             "{\"type\":\"subagent_tool_use\",\"subagentId\":\"agent-1\",\"toolName\":\"Grep\",\"summary\":\"命中 3 处\",\"tokenGain\":120}",
-            "{\"type\":\"subagent_finished\",\"subagentId\":\"agent-1\",\"isError\":true}",
+            "{\"type\":\"subagent_finished\",\"subagentId\":\"agent-1\",\"isError\":true,\"tokenTotal\":1250}",
         };
         for (var i = 0; i < events.Length; i++) {
             Assert.Equal(expected[i], JsonSerializer.Serialize(events[i], CliBridge.BridgeJsonContext.Safe.BridgeEvent));

@@ -89,6 +89,26 @@ public sealed class SubagentGroupTests
         Assert.False(coordinator.Agents[0].IsError);
     }
 
+    /// <summary>FinishAgent tokenTotal 权威校正（TASK062 P7）— tokenTotal&gt;0 覆盖累计值
+    /// （AgentFinished Usage.TotalTokens 引擎完成态权威值）；0 保持原累计（FinalizePending 兜底路径）。</summary>
+    [Fact]
+    public void FinishAgent_TokenTotal_CorrectsTokenCount()
+    {
+        var coordinator = new SubagentGroupCoordinator();
+        coordinator.AddAgent("a1", "explore", "搜索");
+        coordinator.RecordToolUse("a1", "Read", "f1", 120);
+        coordinator.RecordToolUse("a1", "Grep", "f2", 80);
+        Assert.Equal(200, coordinator.Agents[0].TokenCount);
+
+        coordinator.FinishAgent("a1", isError: false, tokenTotal: 350);
+        Assert.Equal(350, coordinator.Agents[0].TokenCount);
+
+        coordinator.AddAgent("a2", "reviewer", "审查");
+        coordinator.RecordToolUse("a2", "Read", "f3", 50);
+        coordinator.FinishAgent("a2", isError: false, tokenTotal: 0);
+        Assert.Equal(50, coordinator.Agents[1].TokenCount);
+    }
+
     /// <summary>组头文案 — 运行中 "Running N agents…"，完成 "N agents finished"（混合类型不带类型名）。</summary>
     [Fact]
     public void HeaderText_MixedTypesRunningAndFinished()

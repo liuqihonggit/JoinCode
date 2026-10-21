@@ -120,9 +120,9 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         _events.Enqueue(new BridgeEvent.SubagentToolUse(subagentId, toolName, summary, tokenGain));
     }
 
-    /// <summary>子代理完成 → SubagentFinished（条目定格，isError 聚合组头 ● 红）。</summary>
-    public void OnSubagentFinished(string subagentId, bool isError) {
-        _events.Enqueue(new BridgeEvent.SubagentFinished(subagentId, isError));
+    /// <summary>子代理完成 → SubagentFinished（条目定格，isError 聚合组头 ● 红；tokenTotal 完成态权威校正）。</summary>
+    public void OnSubagentFinished(string subagentId, bool isError, int tokenTotal) {
+        _events.Enqueue(new BridgeEvent.SubagentFinished(subagentId, isError, tokenTotal));
     }
 
     /// <summary>排空事件队列 — 主循环每 tick 调用，取走全部待处理事件（ConcurrentQueue 多生产单消费安全）。</summary>

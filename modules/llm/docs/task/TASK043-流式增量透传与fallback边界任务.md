@@ -1,7 +1,12 @@
 # TASK043 — 流式增量透传与 fallback 边界（缺陷驱动）
 
 > 来源：TASK053 F1-x（GUI 输入闭环真机 E2E 红复现）。用户决策：先提交现状、另立本任务后修。
-> 状态：待修复（E2E 复现已入库；修复需先写 ADR，见「实现前置」）。
+> 状态：**implemented（2026-10-22 — ADR 0146 两阶段重构落地，本会话）**：
+> 单元红→绿（门闩确定性增量测试 + 中途失败上抛守卫）+ llm.tests 605 全绿 + 实弹 E2E
+> `StreamingIncrementalE2ETests`（真实 MockServer 50 分片×20ms 流，首末 Content 到达时间差
+> 反映真实流时长——已进 CI 白名单 errors-permission 组）。真机 CDP 复现脚本
+> （f1-webui-flow.mjs）未入库，15/15 验收以实弹 E2E 等价覆盖。
+> 关联 ADR：`docs/proposed/adr/component_strategy/0146-streaming-incremental-passthrough-fallback-boundary.md`
 
 ## 1. 现象（真机可复现）
 

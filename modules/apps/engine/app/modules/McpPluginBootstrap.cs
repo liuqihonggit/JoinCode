@@ -86,8 +86,13 @@ internal sealed class McpPluginBootstrapHandle : IAsyncDisposable
         _background = background(_cts.Token);
     }
 
-    /// <summary>插件就绪完成信号（邮箱/通知语义）— Run 前为已完成 Task（无可等之物）；
-    /// Run 后为后台链 Task（八插件加载 + 就绪钩子全部完成）。消费方等此信号确认工具注册就绪，
+    /// <summary>插件就绪完成信号（邮箱/通知语义）— <b>Run 前为占位 Task.CompletedTask（无可等之物 ≠ 就绪！）</b>；
+    /// Run 后为后台链 Task（八插件加载 + 就绪钩子全部完成）。
+    /// ⚠️ 契约（TASK063 P8 文档化）：Run 前 await 此属性立即通过，但此时插件链尚未启动 —
+    /// 误用形态：DI 解析后立刻 await Completion（Run 由 ConfigureAsync 稍后调用）→ 假就绪 →
+    /// 查工具表只剩同步注册子集（gh_pr_* 缺失）→ "Tool not found" 假象。
+    /// ✅ 正确写法：等待方必须确保 Run 已发生（宿主启动序列 ConfigureAsync 先于消费方查询，
+    /// 或消费方经宿主协调拿到"已 Run"保证）；E2E 等就绪在宿主启动完成后 await。
     /// 替代时间性等待（Task.Delay 固定延时在 CI 快慢机上均不可靠）。两类消费方：
     /// E2E/宿主等就绪；CLI 单次命令（gh/mcp_call/mcp_list）在查询工具前等待 —
     /// 后台化后单次进程不等插件加载完成即查 registry，工具表只剩同步注册的 15 个（gh_pr_* 全缺失）；

@@ -116,8 +116,8 @@ public sealed class ReplBridgeDriver
             case BridgeEvent.SubagentToolUse(var subagentId, var toolName, var summary, var tokenGain):
                 _activeSubagentGroup?.RecordToolUse(subagentId, toolName, summary, tokenGain);
                 break;
-            case BridgeEvent.SubagentFinished(var subagentId, var isError):
-                _activeSubagentGroup?.FinishAgent(subagentId, isError);
+            case BridgeEvent.SubagentFinished(var subagentId, var isError, var tokenTotal):
+                _activeSubagentGroup?.FinishAgent(subagentId, isError, tokenTotal);
                 if (_activeSubagentGroup is { AllComplete: true })
                 {
                     _spinner.HasActiveTools = false;
@@ -161,7 +161,8 @@ public sealed class ReplBridgeDriver
         }
     }
 
-    /// <summary>开始回合：busy + spinner 挂载（Thinking 乐观模式，动词重采样，停滞计时重置）；防御性脱离子代理组（引擎漏发回合收尾时不串组）。</summary>
+    /// <summary>开始回合：busy + spinner 挂载（Thinking 乐观模式，动词重采样，停滞计时重置）；防御性脱离子代理组（引擎漏发回合收尾时不串组）。
+    /// spinner 显示（对齐基准 REPL.tsx showSpinner：isLoading 期 = 等待/思考/工具运行的唯一反馈 — TUI 无流式正文时尤其如此）。</summary>
     public void BeginTurn()
     {
         IsBusy = true;
@@ -173,10 +174,12 @@ public sealed class ReplBridgeDriver
         _spinner.LoadingStartMs = Environment.TickCount64;
         _spinner.ResponseLength = 0;
         _spinner.HasActiveTools = false;
+        _spinner.Hidden = false;
     }
 
     /// <summary>结束回合：idle + spinner 复位（消息由事件驱动，interrupted 不额外追加）；子代理组定格脱离（未完成条目定格为非错误完成）。
-    /// spinner Mode 复位 Thinking→Responding（修复：回合结束后思考动画续转 — Thinking 态渲染器持续 shimmer）。</summary>
+    /// spinner Mode 复位 Thinking→Responding（修复：回合结束后思考动画续转 — Thinking 态渲染器持续 shimmer）；
+    /// Hidden 置位（对齐基准：空闲非 busy 完全不渲染 spinner 行 — 不再常驻闪烁）。</summary>
     public void EndTurn()
     {
         IsBusy = false;
@@ -186,6 +189,7 @@ public sealed class ReplBridgeDriver
         _spinner.Message = string.Empty;
         _spinner.ResponseLength = 0;
         _spinner.HasActiveTools = false;
+        _spinner.Hidden = true;
         if (_spinner.Mode == SpinnerMode.Thinking)
         {
             _spinner.Mode = SpinnerMode.Responding;

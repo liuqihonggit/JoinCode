@@ -217,7 +217,7 @@ internal static class SubagentSelftest
     {
         public List<(string SubagentId, string AgentType, string Description)> SubagentStarts { get; } = [];
         public List<(string SubagentId, string ToolName, string Summary, int TokenGain)> SubagentToolUses { get; } = [];
-        public List<(string SubagentId, bool IsError)> SubagentFinishes { get; } = [];
+        public List<(string SubagentId, bool IsError, int TokenTotal)> SubagentFinishes { get; } = [];
 
         public void OnText(string content) { }
         public void OnThinking(string thinking) { }
@@ -229,6 +229,6 @@ internal static class SubagentSelftest
         public void OnDone(TokenUsage? usage, string? modelId) { }
         public void OnSubagentStarted(string subagentId, string agentType, string description) => SubagentStarts.Add((subagentId, agentType, description));
         public void OnSubagentToolUse(string subagentId, string toolName, string summary, int tokenGain) => SubagentToolUses.Add((subagentId, toolName, summary, tokenGain));
-        public void OnSubagentFinished(string subagentId, bool isError) => SubagentFinishes.Add((subagentId, isError));
+        public void OnSubagentFinished(string subagentId, bool isError, int tokenTotal) => SubagentFinishes.Add((subagentId, isError, tokenTotal));
     }
 }

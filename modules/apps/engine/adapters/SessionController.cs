@@ -243,7 +243,7 @@ public sealed class SessionController {
                 _consumer.OnSubagentStarted(agentId, evt.AgentName ?? string.Empty, evt.AgentDescription ?? string.Empty);
                 return true;
             case ChatStreamEventType.AgentFinished:
-                _consumer.OnSubagentFinished(agentId, isError: evt.AgentSuccess is not true);
+                _consumer.OnSubagentFinished(agentId, isError: evt.AgentSuccess is not true, tokenTotal: evt.Usage?.TotalTokens ?? 0);
                 return true;
             case ChatStreamEventType.ToolCallStart:
                 _consumer.OnSubagentToolUse(agentId, evt.ToolName ?? string.Empty, evt.ToolArguments ?? string.Empty, tokenGain: 0);

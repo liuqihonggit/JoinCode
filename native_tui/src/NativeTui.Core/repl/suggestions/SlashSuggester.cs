@@ -28,6 +28,23 @@ public sealed class SlashSuggester
     /// <summary>参数补全模式（"/cmd 参数前缀" 态 — 建议项为参数值或提示，渲染不带 / 前缀）。</summary>
     public bool IsArgumentMode { get; private set; }
 
+    /// <summary>参数模式建议是真实值清单（可 Tab 补全/Enter 填入）— false 表示仅 ArgumentHint 占位提示
+    ///（如 "&lt;question&gt;" — Tab/Enter 不得当参数值填入，修复：占位符被补全提交致 `/btw &lt;question&gt;` 字面量发给 AI）。</summary>
+    public bool HasRealArgumentValues
+    {
+        get
+        {
+            if (!IsArgumentMode || Items.Count == 0)
+            {
+                return false;
+            }
+
+            var commandName = CurrentArgumentCommandName();
+            return commandName is not null
+                && _commands.FirstOrDefault(c => c.Name == commandName) is { ArgumentValues.Length: > 0 };
+        }
+    }
+
     /// <summary>幽灵文本后缀（基准 ghost text — 输入中途 " /前缀" token 的命令补全剩余部分，如 "act"；
     /// 激活时下拉互斥为空；空串 = 未激活）。</summary>
     public string GhostSuffix { get; private set; } = string.Empty;
@@ -40,6 +57,19 @@ public sealed class SlashSuggester
     {
         _commands = commands;
         NameColumnWidth = commands.Count > 0 ? commands.Max(c => c.Name.Length) + 6 : 0;
+    }
+
+    /// <summary>当前参数模式命令名（非参数模式或无空格时 null）。</summary>
+    private string? CurrentArgumentCommandName()
+    {
+        var input = _currentInput;
+        if (input.Length == 0 || input[0] != '/')
+        {
+            return null;
+        }
+
+        var spaceIndex = input.IndexOf(' ');
+        return spaceIndex > 1 ? input[1..spaceIndex] : null;
     }
 
     /// <summary>输入变化时刷新建议（用户按键编辑路径调用；程序化填充如历史导航不调用）。</summary>

@@ -102,4 +102,26 @@ public sealed class McpPluginBootstrapHandleTests
         await completion.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(handle.Completion.IsCompleted);
     }
+
+    /// <summary>Completion 占位语义契约锁（TASK063 P8）— Run 前占位是"无可等之物"设计决定而非就绪信号：
+    /// ①Run 前 await 立即通过（占位完成 ≠ 插件就绪 — 误用后果见 xml 契约）；
+    /// ②Run 后 Completion 必须切换为后台链 Task 实例（引用变更守卫 — 防实现退化为恒返回占位，
+    /// 该退化会令就绪信号永远假完成 → 消费方全部拿到空工具表且零异常暴露）。</summary>
+    [Fact]
+    public async Task Completion_BeforeRun_Placeholder_NotReadinessSignal()
+    {
+        await using var handle = new McpPluginBootstrapHandle();
+        var placeholder = handle.Completion;
+        Assert.True(placeholder.IsCompleted);
+        await placeholder.WaitAsync(TimeSpan.FromSeconds(1));
+
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        handle.Run(_ => gate.Task);
+        var chainTask = handle.Completion;
+        Assert.NotSame(placeholder, chainTask);
+        Assert.False(chainTask.IsCompleted);
+
+        gate.SetResult();
+        await chainTask.WaitAsync(TimeSpan.FromSeconds(5));
+    }
 }

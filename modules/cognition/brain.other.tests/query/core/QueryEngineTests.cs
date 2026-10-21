@@ -269,6 +269,24 @@ public class QueryEngineTests {
     }
 
     [Fact]
+    public void BuildCompletionChunk_ShouldCarryUsage_ForSubagentTokenCorrection() {
+        var usage = new JoinCode.Abstractions.LLM.Chat.TokenUsage(promptTokens: 300, completionTokens: 50);
+        var chunk = QueryEngine.BuildCompletionChunk("done", 100L, 0, 0m, null, usage);
+        chunk.Usage.Should().BeSameAs(usage);
+        if (chunk.Usage is { } carried) {
+            carried.TotalTokens.Should().Be(350);
+        } else {
+            throw new Xunit.Sdk.XunitException("Usage 应随 Complete chunk 携带（P7 权威校正数据源断裂）");
+        }
+    }
+
+    [Fact]
+    public void BuildCompletionChunk_WithoutUsage_ShouldKeepNull() {
+        var chunk = QueryEngine.BuildCompletionChunk("done", 100L, 0, 0m, null);
+        chunk.Usage.Should().BeNull();
+    }
+
+    [Fact]
     public void IsRetryable_HttpRequestException_ShouldReturnTrue() {
         IsRetryableWithEnvCleared(new HttpRequestException()).Should().BeTrue();
     }

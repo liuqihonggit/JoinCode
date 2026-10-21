@@ -359,7 +359,7 @@ public sealed class SimulatedEngine : IReplEngine
             if (subagent.ToolUsesLeft == 0 && subagent.FinishAtMs <= elapsed)
             {
                 subagent.IsDone = true;
-                _pending.Enqueue(new BridgeEvent.SubagentFinished($"agent-{subagent.Index}", IsError: subagent.Index % 7 == 6));
+                _pending.Enqueue(new BridgeEvent.SubagentFinished($"agent-{subagent.Index}", IsError: subagent.Index % 7 == 6, TokenTotal: 1200 + (subagent.Index * 311) % 9000));
             }
         }
 

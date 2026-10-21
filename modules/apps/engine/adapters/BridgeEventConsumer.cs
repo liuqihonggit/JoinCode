@@ -88,9 +88,9 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
         WriteEvent(new Cli.Bridge.BridgeEvent.SubagentToolUse(subagentId, toolName, summary, tokenGain));
     }
 
-    /// <summary>子代理完成 → subagent_finished（条目定格，isError 聚合组头）。</summary>
-    public void OnSubagentFinished(string subagentId, bool isError) {
-        WriteEvent(new Cli.Bridge.BridgeEvent.SubagentFinished(subagentId, isError));
+    /// <summary>子代理完成 → subagent_finished（条目定格，isError 聚合组头；tokenTotal 完成态权威校正）。</summary>
+    public void OnSubagentFinished(string subagentId, bool isError, int tokenTotal) {
+        WriteEvent(new Cli.Bridge.BridgeEvent.SubagentFinished(subagentId, isError, tokenTotal));
     }
 
     /// <summary>思考结束结算（进入产出或回合结束时调用，幂等）。</summary>

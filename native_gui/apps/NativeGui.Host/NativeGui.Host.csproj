@@ -4,8 +4,8 @@
         <ProjectType>ui</ProjectType>
   <OutputType>WinExe</OutputType>
     <RootNamespace>JoinCode.Gui</RootNamespace>
-    <AssemblyName>JoinCode.Gui</AssemblyName>
-    <Description>JoinCode Ava GUI</Description>
+    <AssemblyName>NativeGui.Host</AssemblyName>
+    <Description>NativeGui 宿主 — WebView2 + Avalonia 表现层 + JccChatSession 引擎装配（ADR 0145；协议核心在 NativeGui.Core）</Description>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
@@ -37,18 +37,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 解耦边界：Views/ViewModels 只依赖 Abstractions 门面接口与 DTO，不引 Core.Brain/Hands 实现
-         引擎组装收敛在 Hosting/ 触碰处（ADR 0143 Step 4 切直引 engine，消除 cli 依赖） -->
+    <!-- 引擎装配（ADR 0143 Step 4 直引 engine）+ 协议核心（ADR 0145） -->
+    <ProjectReference Include="$(RepoRoot)native_gui/src/NativeGui.Core/NativeGui.Core.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/apps/engine/JoinCode.Engine.csproj" />
     <!-- Hosting 层（JccChatSession）读取 teammate 子会话列表，需直接引用 Scheduling -->
     <ProjectReference Include="$(RepoRoot)modules/storage/scheduling/Scheduling.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/async_primitives/bcl_bridge/BclBridge.csproj" />
-    <!-- 协议核心（ADR 0145）：web_host/hosting 契约/persistence/theming 数据面已迁 native_gui -->
-    <ProjectReference Include="$(RepoRoot)native_gui/src/NativeGui.Core/NativeGui.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 枚举 [EnumValue] 元数据生成（本项目枚举如 GuiPalette.GuiThemeVariant 的 ToValue/FromValue 扩展），与 Abstractions 同款接入 -->
+    <!-- 枚举 [EnumValue] 元数据生成（GuiThemeVariant 等扩展；Core 内生成物 internal 不可跨程序集，Host 独立生成一份） -->
     <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 

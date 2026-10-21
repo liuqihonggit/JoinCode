@@ -1,3 +1,6 @@
+// DI/日志（原 modules/apps/gui 级 Directory.Build.props 的 Using Include，随迁）
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Logging;
 global using Avalonia;
 global using Avalonia.Controls;
 global using Avalonia.Controls.ApplicationLifetimes;

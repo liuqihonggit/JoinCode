@@ -51,7 +51,7 @@ jobs:
           - domain: apps-gui
             # GUI 测试：CsWinRT 投影工具链（Windows PE）+ WebView2 仅 Windows 原生可跑，双平台拆分
             os: windows-latest
-            csprojs: test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj
+            csprojs: native_gui/tests/join_code_gui.tests/JoinCodeGui.Tests.csproj
 
     steps:
       - name: Checkout

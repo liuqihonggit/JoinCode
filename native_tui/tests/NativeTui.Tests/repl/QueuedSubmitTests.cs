@@ -33,9 +33,9 @@ public sealed class QueuedSubmitTests
         shell.DrainEngine();
     }
 
-    /// <summary>忙时提交 — 上屏用户输入 + ⎿ 已排队行，不调引擎。</summary>
+    /// <summary>忙时提交 — 不上滚动区（TASK062 排队面板语义）+ 进输入栏上方 queued 面板 + 不调引擎。</summary>
     [Fact]
-    public void BusySubmit_QueuesLocallyWithoutEngineCall()
+    public void BusySubmit_QueuesInPanelWithoutEngineCall()
     {
         var (shell, engine) = CreateShell();
         MakeBusy(shell, engine);
@@ -43,23 +43,25 @@ public sealed class QueuedSubmitTests
         TypeAndSubmit(shell, "3333");
 
         Assert.Empty(engine.Submits);
-        Assert.Contains(shell.View.Messages.Items, m => m is UserMessageItem u && u.Text == "3333");
-        Assert.Contains(shell.View.Messages.Items, m => m is ToolResultItem t && t.Text.Contains("已排队"));
+        Assert.DoesNotContain(shell.View.Messages.Items, m => m is UserMessageItem);
+        Assert.DoesNotContain(shell.View.Messages.Items, m => m is ToolResultItem t && t.Text.Contains("已排队"));
+        Assert.Equal(["3333"], shell.View.QueuedInputs);
     }
 
-    /// <summary>回合结束 — 队首自动发送（不重复上屏用户消息）。</summary>
+    /// <summary>回合结束 — 队首自动发送（此时才上屏用户消息 — 发送时刻进滚动区）。</summary>
     [Fact]
     public void TurnCompleted_AutoSendsQueuedInput()
     {
         var (shell, engine) = CreateShell();
         MakeBusy(shell, engine);
         TypeAndSubmit(shell, "3333");
-        Assert.Single(shell.View.Messages.Items.OfType<UserMessageItem>());
+        Assert.Empty(shell.View.Messages.Items.OfType<UserMessageItem>());
 
         EndTurn(shell, engine);
 
         Assert.Equal(["3333"], engine.Submits);
         Assert.Single(shell.View.Messages.Items.OfType<UserMessageItem>());
+        Assert.Empty(shell.View.QueuedInputs);
     }
 
     /// <summary>多条排队 — 按序逐回合发送（一问一答节奏）。</summary>
@@ -126,9 +128,10 @@ public sealed class QueuedSubmitTests
             shell.DrainEngine();
         }
         Assert.Equal(Enumerable.Range(1, ReplShell.MaxQueuedInputs).Select(i => $"第{i}条"), engine.Submits);
+        Assert.Empty(shell.View.QueuedInputs);
     }
 
-    /// <summary>上限内排队 — 正常入队（边界值恰好 10 条不误拦）。</summary>
+    /// <summary>上限内排队 — 正常入队（边界值恰好 10 条不误拦；全部进 queued 面板不上滚动区）。</summary>
     [Fact]
     public void QueuedInputs_AtLimit_AllQueued()
     {
@@ -139,8 +142,8 @@ public sealed class QueuedSubmitTests
             TypeAndSubmit(shell, $"第{i}条");
         }
 
-        var notes = shell.View.Messages.Items.OfType<ToolResultItem>().ToList();
-        Assert.Equal(ReplShell.MaxQueuedInputs, notes.Count(t => t.Text.Contains("已排队")));
-        Assert.DoesNotContain(notes, t => t.Text.Contains("排队已满"));
+        Assert.Equal(ReplShell.MaxQueuedInputs, shell.View.QueuedInputs.Count);
+        Assert.Equal($"第1条", shell.View.QueuedInputs[0]);
+        Assert.DoesNotContain(shell.View.Messages.Items, m => m is ToolResultItem t && t.Text.Contains("排队已满"));
     }
 }

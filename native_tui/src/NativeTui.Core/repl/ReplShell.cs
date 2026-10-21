@@ -1012,9 +1012,10 @@ public sealed class ReplShell
         _engine.SetPermissionMode(PermissionModeInfo.ToValue(next));
     }
 
-    /// <summary>提交输入（TASK060 一问一答节奏）：空文本忽略；未登录本地反馈（基准 ⎿ Not logged in —
-    /// 不调引擎不傻等）；忙时改排队（基准 queued 语义）— 用户消息上屏 + ⎿ 已排队 dim 行
-    /// （ToolResultItem 复用）、入历史环，回合结束自动按序发送（DrainEngine 队列泵）；闲时正常直发。</summary>
+    /// <summary>提交输入（TASK060 一问一答节奏 + TASK062 后续排队面板）：空文本忽略；未登录本地反馈
+    /// （基准 ⎿ Not logged in — 不调引擎不傻等）；忙时改排队（基准 queued 语义）— **不上滚动区**
+    ///（输入栏上方 queued 面板渲染 — TASK062 用户验收反馈：滚动区排队提示破坏消息流），入历史环，
+    /// 回合结束自动按序发送（DrainEngine 队列泵 — 发送时才上屏用户消息）；闲时正常直发。</summary>
     internal void Submit()
     {
         var text = _input.Text;
@@ -1026,9 +1027,9 @@ public sealed class ReplShell
         _input.Clear();
         _history.Add(text);
         _history.Reset();
-        AddMessage(new UserMessageItem(text));
         if (!LoginGateOpen)
         {
+            AddMessage(new UserMessageItem(text));
             AddMessage(new ToolResultItem("未登录 · 请在 auth.json 配置有效 API key 或运行 /login 后重试"));
             return;
         }
@@ -1038,19 +1039,22 @@ public sealed class ReplShell
             if (_queuedInputs.Count >= MaxQueuedInputs)
             {
                 AddMessage(new ToolResultItem($"排队已满（{MaxQueuedInputs} 条上限）— 本条丢弃，请等当前回合结束"));
+                _view.QueuedInputs = _queuedInputs;
                 return;
             }
 
             _queuedInputs.Add(text);
-            AddMessage(new ToolResultItem("已排队，当前回合结束后自动发送"));
+            _view.QueuedInputs = _queuedInputs;
             return;
         }
 
+        AddMessage(new UserMessageItem(text));
         _engine.Submit(text);
     }
 
-    /// <summary>排队输入发送泵（DrainEngine 回合结束时调用）— 非忙态且有排队时取队首直发引擎
-    ///（用户消息排队时已上屏，此处不重复）；逐回合发一条维持一问一答节奏。</summary>
+    /// <summary>排队输入发送泵（DrainEngine 回合结束时调用）— 非忙态且有排队时取队首：
+    /// 上屏用户消息（发送时才进滚动区 — 排队期间只在输入栏上方面板）+ 直发引擎；
+    /// 逐回合发一条维持一问一答节奏。</summary>
     private void PumpQueuedInputs()
     {
         if (IsBusy || _queuedInputs.Count == 0)
@@ -1058,8 +1062,11 @@ public sealed class ReplShell
             return;
         }
 
-        _engine.Submit(_queuedInputs[0]);
+        var text = _queuedInputs[0];
         _queuedInputs.RemoveAt(0);
+        AddMessage(new UserMessageItem(text));
+        _view.QueuedInputs = _queuedInputs;
+        _engine.Submit(text);
     }
 
     /// <summary>渲染一帧并差分上屏：inline 走相对光标 + append（历史滚入 scrollback）+ DEC 2026 原子上屏；视口走绝对定位 diff。
@@ -1132,6 +1139,7 @@ public sealed class ReplShell
         _view.SuggestionNameColumnWidth = _suggester?.NameColumnWidth ?? 0;
         _view.SuggestionArgumentMode = _suggester?.IsArgumentMode ?? false;
         _view.GhostSuffix = _search is { Current.Length: > 0 } ? _search.Current : _suggester?.GhostSuffix ?? string.Empty;
+        _view.QueuedInputs = _queuedInputs;
     }
 
     /// <summary>同步消息光标选中高亮到滚动区（渲染前状态投影 — ScrollBox 渲染后整块背景覆写）。</summary>

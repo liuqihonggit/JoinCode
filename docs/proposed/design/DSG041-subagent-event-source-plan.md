@@ -73,8 +73,8 @@ native_tui（TUI 宿主）子代理分组渲染全链已落地（SubagentGroupCo
 | L1 SubAgentEventChannel 接通主代理路径（**宿主层直投方案**） | AgentStreamExecutionMiddleware/ForkSubAgentManagerActor 发射侧（零改动） | ✅ 批2（6b762c145） | ✅ 单元级：MainAgentPath 2/2（通道事件全序列直投三回调 + 子代理工具事件不走普通回调）+ host.tests 1373 全绿 + Host 编译绿；✅ 集成级：SubAgentEventMainAgentPathE2ETests 1/1 绿（00f2a77ae — MockServer 真实 LLM 全链：agent 工具→子代理 spawn（含工具轮）→Emit→通道→Drain 直投→三回调全达消费者，16s 干净收尾；过程中根治 Host.DisposeAsync 永挂死锁三处 ReceiveAsync 漏传 ct） |
 | ~~L2 AgentStreamChunkAdapter AgentId 传播~~ | ~~SessionController chunk→ChatStreamEvent 翻译~~ | **✅ 被批2 宿主层直投方案吸收**（通道事件不经 chunk 转换层，AgentBase/adapter 零改动；批3 撤销） | —（无独立交付物） |
 | L4 引擎侧 BridgeEvent 三 record + BridgeEventConsumer 显式映射 | bridge_serve JSON 协议消费方 | ✅ 批3（6d55a8215） | ✅ BridgeJsonContractTests JSON 形状快照锁定（subagent_started/subagent_tool_use/subagent_finished camelCase）+ BridgeEventConsumerTests 映射断言 + host.tests 1375 + engine/cli/Host 三链编译绿 |
-| InProcessEventConsumer 映射 | EngineTurnClient → ReplBridgeDriver（既有路由零改动） | ✅ 批4（3f7f88919） | ✅ InProcessEventConsumerTests 映射断言（三 record 字段逐一对齐）+ NativeTui.Host.Tests 61 全绿 + Host 编译绿；⏳ Host --selftest 扩断言（真实运行收口） |
-| TUI 真实链路分组显示 | SubagentGroupCoordinator → 分组渲染（既有零改动） | ✅ 链路闭合（批1-4） | ⏳ 用户真实终端（agents 场景真实引擎 spawn） |
+| InProcessEventConsumer 映射 | EngineTurnClient → ReplBridgeDriver（既有路由零改动） | ✅ 批4（3f7f88919） | ✅ InProcessEventConsumerTests 映射断言（三 record 字段逐一对齐）+ NativeTui.Host.Tests 61 全绿 + Host 编译绿；✅ Host --selftest 扩子代理断言（2d267cd5b — SubagentSelftest 真实 MockServer+引擎+主代理路径完整回合，三回调断言实测通过退出 0） |
+| TUI 真实链路分组显示 | SubagentGroupCoordinator → 分组渲染（既有零改动） | ✅ 链路闭合（批1-4） | ⏳ 用户真实终端（agents 场景真实引擎 spawn — 唯一剩余项） |
 
 ## 8. 后续
 
@@ -83,8 +83,8 @@ native_tui（TUI 宿主）子代理分组渲染全链已落地（SubagentGroupCo
 - ~~批3（L2 chunk 传播）~~ **✅ 撤销 — 被批2 宿主层直投方案吸收**
 - ~~批4（原批3 引擎侧 DTO + BridgeEventConsumer 映射）~~ **✅ 已完成（6d55a8215）**
 - ~~批5（原批4 InProcessEventConsumer 映射）~~ **✅ 已完成（3f7f88919）— 代码批次全部落地，链路闭合**
-- **剩余集成级验收**（收尾项）：~~① 批2 E2E~~ **✅ 已完成（00f2a77ae）**——顺带根治 Host.DisposeAsync 永挂死锁（三处邮箱 ReceiveAsync 漏传 ct：AgentServiceImpl/SwarmPermissionMessageRouter/PlanApprovalMessageRouter；dumpasync 取证完整链）② Host --selftest 扩子代理断言 ③ 用户真实终端收口
-- ⚠️ 遗留登记：ChatService 路径 E2E（SubAgentEventStreamE2ETests）仍红——子代理 LLM 流以无 AgentId 的 Content 透传主流（疑 TASK043 StreamingFallbackDecorator 域），独立缺陷非 DSG041 接线问题
+- **剩余集成级验收**：~~① 批2 E2E~~ **✅（00f2a77ae，顺带根治 Host.DisposeAsync 永挂死锁——三处邮箱 ReceiveAsync 漏传 ct）** ~~② Host --selftest 扩子代理断言~~ **✅（2d267cd5b）** ③ 用户真实终端收口（唯一剩余项）
+- ✅ ChatService 路径 E2E 亦三绿（b7e4ea782）——误诊修正：非串话缺陷，真实根因=插件就绪等待缺失+xunit 跨 class 并行污染（详见 TASK062 P1）；CI 白名单 subagent-events 三用例全覆盖
 - 本 DSG 落地后 TASK055 三缺口③关闭
 
 ### 批1 实施记录（hash 已随 PR #439 squash，内容在库）

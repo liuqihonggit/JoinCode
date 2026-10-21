@@ -102,4 +102,45 @@ public sealed class QueuedSubmitTests
 
         Assert.Contains("排队也入历史", shell.History.Entries);
     }
+
+    /// <summary>排队上限守卫 — 满 10 条后新输入丢弃（⎿ 反馈），不调引擎不无限膨胀。</summary>
+    [Fact]
+    public void QueuedInputs_OverLimit_DroppedWithFeedback()
+    {
+        var (shell, engine) = CreateShell();
+        MakeBusy(shell, engine);
+        for (var i = 1; i <= ReplShell.MaxQueuedInputs; i++)
+        {
+            TypeAndSubmit(shell, $"第{i}条");
+        }
+
+        TypeAndSubmit(shell, "超限条");
+
+        var notes = shell.View.Messages.Items.OfType<ToolResultItem>().ToList();
+        Assert.Contains(notes, t => t.Text.Contains("排队已满"));
+        Assert.DoesNotContain(notes.Where(t => t.Text.Contains("排队已满")), t => t.Text.Contains("自动发送"));
+
+        EndTurn(shell, engine);
+        for (var i = 1; i < ReplShell.MaxQueuedInputs; i++)
+        {
+            shell.DrainEngine();
+        }
+        Assert.Equal(Enumerable.Range(1, ReplShell.MaxQueuedInputs).Select(i => $"第{i}条"), engine.Submits);
+    }
+
+    /// <summary>上限内排队 — 正常入队（边界值恰好 10 条不误拦）。</summary>
+    [Fact]
+    public void QueuedInputs_AtLimit_AllQueued()
+    {
+        var (shell, engine) = CreateShell();
+        MakeBusy(shell, engine);
+        for (var i = 1; i <= ReplShell.MaxQueuedInputs; i++)
+        {
+            TypeAndSubmit(shell, $"第{i}条");
+        }
+
+        var notes = shell.View.Messages.Items.OfType<ToolResultItem>().ToList();
+        Assert.Equal(ReplShell.MaxQueuedInputs, notes.Count(t => t.Text.Contains("已排队")));
+        Assert.DoesNotContain(notes, t => t.Text.Contains("排队已满"));
+    }
 }

@@ -380,7 +380,10 @@ public sealed class SessionController {
         var env = Environment.GetEnvironmentVariable("JCC_API_TIMEOUT_MS");
         if (int.TryParse(env, out var ms) && ms > 0)
             return ms;
-        return 10_000;
+        // 默认 120s（修复：原 10s 对慢推理模型过短 — 巨型请求时代曾在重试后被掐致空回复；
+        // 推理型/长思考模型首包常 > 10s，120s 对齐主流 CLI 惯例，
+        // 超时兜底已有空回合防御 + Timeout 诱导呈现，不怕过长等待）
+        return 120_000;
     }
 
     private static int _apiTimeoutLogged;

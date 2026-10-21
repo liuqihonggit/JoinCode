@@ -61,6 +61,9 @@ public sealed class ReplShell
     /// <summary>忙时排队输入队列（TASK060 — 基准 queued 语义，回合结束逐条自动发送）。</summary>
     private readonly List<string> _queuedInputs = [];
 
+    /// <summary>排队输入条数上限（守卫 — 狂敲防队列无限膨胀：满后新输入丢弃带反馈）。</summary>
+    internal const int MaxQueuedInputs = 10;
+
     /// <summary>消息光标导航协调器（交互层 Step1 — 第四交互态，优先级低于权限/模型/搜索模态）。</summary>
     private readonly MessageCursor _cursorNav = new();
 
@@ -995,6 +998,12 @@ public sealed class ReplShell
 
         if (IsBusy)
         {
+            if (_queuedInputs.Count >= MaxQueuedInputs)
+            {
+                AddMessage(new ToolResultItem($"排队已满（{MaxQueuedInputs} 条上限）— 本条丢弃，请等当前回合结束"));
+                return;
+            }
+
             _queuedInputs.Add(text);
             AddMessage(new ToolResultItem("已排队，当前回合结束后自动发送"));
             return;

@@ -1,5 +1,6 @@
 # TASK064 — TUI 对齐 Claude Code 下一批差距（M8 规划）
 
+> 状态：**M8-1/2/3（P0 三连）已 implemented**（2026-10-22，提交链 689f830b3 → 423187e9d → aef776136）；M8-4..M8-8 + P3 池待做
 > 状态：proposed（2026-10-22；PR #446 合并后双调研挖掘——native_tui 现状侧 + 基准源码侧）
 > 来源：用户指令"挖掘还有什么没对齐 Claude Code TUI 功能的，构建新规划"
 > 双调研证据：①native_tui 逐文件实证（InProcessEventConsumer/ReplShell/ReplBridgeDriver 等）②基准源码逐项核实（claude-code-rev-main/src，文件:行号 见各项）
@@ -40,6 +41,15 @@
 
 **验收**：busy 期滚动区正文逐字增长（E2E/selftest-turn 实证首 token 到达后正文行长度递增）；打断时已流文本不丢（衔接 M8-2）；像素回归 0 差异；JSON 契约旧用例零破坏。
 
+**✅ M8-1 实施收口（2026-10-22，689f830b3）**：
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| TokenDelta 协议 +Text 字段（WhenWritingNull 旧形态零破坏）双镜像 | InProcessEventConsumer/BridgeEventConsumer OnText | ✅ | ✅ 单元：协议 JSON 新旧双形态 + Consumer 文本透传 |
+| StreamingTextItem 可变缓冲逐帧增长 | Driver 惰性建项/原地追加/AssistantMessage 原位替换 | ✅ | ✅ 渲染 6 测试（前缀/续行 6 显示列对齐/多行）+ Driver 8 测试（替换/EndTurn 兜底定格 partial/BeginTurn 防残留） |
+| SimulatedEngine 预分片演示 | Demo 流式可观测 | ✅ | ✅ 虚拟时钟确定性（进入 Responding 即带文本增量） |
+| 全链回归 | — | ✅ | ✅ Core 841 + Host.Tests 64 + host.tests 1382 + 子代理 E2E 3/3 + selftest 真跑 EXIT=0 |
+
 ### M8-2 Esc 打断闭环（P0，依赖：M8-1——partial 定格需流式 buffer）
 
 - 打断时流式 buffer 定格为 partial AssistantMessage（基准 `[user, partial, interrupted]` 顺序）
@@ -47,6 +57,14 @@
 - Esc 重载链补全：排队命令弹回输入框（基准 popAllCommandsFromQueue 语义——本地已有队列，补弹回）
 
 **验收**：打断后 partial 文本可见且标记 interrupted；恢复路径输入框文本回填；单测锁守卫条件（有响应/无响应两分支）。
+
+**✅ M8-2 实施收口（2026-10-22，423187e9d）**：
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| partial 定格（EndTurn 兜底） | Driver EndTurn 非空流式项 → AssistantMessage | ✅ | ✅ M8-1 测试集（EndTurn_WithLeftoverStreamingText） |
+| 无响应自动恢复 | DrainEngine 截获 TurnInterrupted → RestoreInterruptedInput | ✅ | ✅ 三分支测试：无响应恢复（输入回填+用户消息移除+历史 RemoveLast）/partial 不恢复/完整不恢复 |
+| 队列弹回 | HandleEscape 忙时优先于双击打断 | ✅ | ✅ 单击弹回按行拼接+清队列+不 Interrupt；无队列双击打断回归守卫 |
 
 ### M8-3 ctrl+o 全局 transcript 模式（P0，依赖：无——与 M8-1 可并行）
 
@@ -56,6 +74,16 @@
 - 专用 footer：`详细转录 · ctrl+o 切换 · ↑↓ 滚动 · ctrl+e 全部展开/收起`
 
 **验收**：ctrl+o 双向切换；搜索高亮+跳转；verbose 下 thinking/diff/工具全展开（与折叠提示行联动消隐）。
+
+**✅ M8-3 实施收口（2026-10-22，aef776136）**：
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| 第六交互态（分派链 search 后 cursor 前） | HandleTranscriptKey 全键模态 | ✅ | ✅ 吞键守卫（字符不进输入框） |
+| verbose 全展开/收起 | Enter/Exit + footer Notification 存还原 | ✅ | ✅ 进=全部 CoT 展开+提示；出=收起+还原；无 CoT 仍可切 |
+| less 键位 | j/k/↑↓/g/G/Home/End/ctrl+u/d/PageUp/Down | ✅ | ✅ 视口滚动路径复用（inline 原生回看语义保持） |
+| / 搜索 | ITextMatchable 七消息项 + Enter 跳匹配（环形）+ Esc 清 | ✅ | ✅ 查询累积/footer 显示/跳转 ScrollTop 断言/Esc 清除/退模态 |
+| 语义演进回归 | ctrl+o 单条→全局（旧测试同步全局断言） | ✅ | ✅ Core 853 全绿（含 StructuredMessageTests 更新） |
 
 ### M8-4 工具折叠交互统一 + Read N files 聚合（P1，依赖：M8-3——展开消费 transcript/局部展开双通道）
 

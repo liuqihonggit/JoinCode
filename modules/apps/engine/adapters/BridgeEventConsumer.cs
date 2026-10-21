@@ -98,6 +98,12 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
         WriteEvent(new Cli.Bridge.BridgeEvent.ContextUsage(promptTokens, contextWindowTokens, percentLeft));
     }
 
+    /// <summary>后台任务状态更新 → background_task（M8-8 — 事件泵直推；显式实现：DIM 默认实现经类类型调用不可见，
+    /// 缺显式实现时泵经 IEventConsumer 调用会静默落入接口空实现 — DSG041 批3 先例）。</summary>
+    public void OnBackgroundTask(string kind, string taskId, string description, string state) {
+        WriteEvent(new Cli.Bridge.BridgeEvent.BackgroundTask(kind, taskId, description, state));
+    }
+
     /// <summary>思考结束结算（进入产出或回合结束时调用，幂等）。</summary>
     private void EndThinkingIfActive() {
         if (_thinkingStartMs is not long start)

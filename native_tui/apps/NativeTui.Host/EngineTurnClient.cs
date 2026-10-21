@@ -15,16 +15,23 @@ public sealed class EngineTurnClient : IReplEngine, IDisposable {
     private readonly InProcessEventConsumer _consumer;
     private readonly TurnExecutor _executeTurn;
     private readonly PermissionModeApplier? _applyPermissionMode;
+    private readonly BackgroundTaskEventPump? _backgroundPump;
     private readonly Lock _turnLock = new();
     private CancellationTokenSource? _turnCts;
     private Task? _turnTask;
 
-    /// <summary>构造函数 — 注入回合执行器（生产侧绑定 SessionController.StreamResponseAsync）与权限模式应用器（可选）。</summary>
-    public EngineTurnClient(TurnExecutor executeTurn, PermissionModeApplier? applyPermissionMode = null) {
+    /// <summary>构造函数 — 注入回合执行器（生产侧绑定 SessionController.StreamResponseAsync）、权限模式应用器（可选）
+    /// 与后台任务事件泵（M8-8 可选 — 回合终态后快照下发，null = 无后台任务事件）。</summary>
+    public EngineTurnClient(TurnExecutor executeTurn, PermissionModeApplier? applyPermissionMode = null,
+        BackgroundTaskEventPump? backgroundPump = null) {
         _consumer = new InProcessEventConsumer(_events);
         _executeTurn = executeTurn;
         _applyPermissionMode = applyPermissionMode;
+        _backgroundPump = backgroundPump;
     }
+
+    /// <summary>进程内事件出口 — 组装层后台任务泵 Bind 用（M8-8；全程单实例）。</summary>
+    internal IEventConsumer Consumer => _consumer;
 
     /// <summary>回合执行器 — 生产侧绑定 SessionController，测试侧注入假执行器模拟 LLM 流（对齐 BridgeServeLoop.TurnExecutor）。</summary>
     /// <param name="input">用户提交文本</param>
@@ -95,7 +102,8 @@ public sealed class EngineTurnClient : IReplEngine, IDisposable {
     void IReplEngine.SetPermissionMode(string mode) => SetPermissionMode(mode);
 
     /// <summary>执行单个回合 — 终态翻译对齐 BridgeServeCommand.RunTurnAsync：成功 → turn_completed；
-    /// 取消 → turn_interrupted；异常 → error(异常消息含诱导上下文)。终态事件入队先于回合 Task 完成（无竞态窗口）。</summary>
+    /// 取消 → turn_interrupted；异常 → error(异常消息含诱导上下文)。终态事件入队先于回合 Task 完成（无竞态窗口）。
+    /// M8-8：回合终态后发后台任务快照（background_task 行晚于 turn_completed — 对齐 bridge 路径时序）。</summary>
     private async Task RunTurnAsync(string input, CancellationToken ct) {
         try {
             await _executeTurn(input, _consumer, ct).ConfigureAwait(false);
@@ -104,6 +112,9 @@ public sealed class EngineTurnClient : IReplEngine, IDisposable {
             _events.Enqueue(new BridgeEvent.TurnInterrupted());
         } catch (Exception ex) {
             _events.Enqueue(new BridgeEvent.Error($"回合执行失败: {ex.Message}"));
+        } finally {
+            if (_backgroundPump is not null)
+                await _backgroundPump.PublishSnapshotAsync(CancellationToken.None).ConfigureAwait(false);
         }
     }
 

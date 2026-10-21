@@ -31,16 +31,23 @@ internal static class BridgeServeLoop {
     /// <summary>支持的退出码 — 正常退出（quit/Eof/外部取消均收尾后返回 0）。</summary>
     private const int ExitOk = 0;
 
-    /// <summary>运行协议主循环直到 quit/Eof/外部取消（applyPermissionMode 为 null 时 set_permission_mode 回 error 诱导提示）。</summary>
+    /// <summary>运行协议主循环直到 quit/Eof/外部取消（applyPermissionMode 为 null 时 set_permission_mode 回 error 诱导提示）。
+    /// backgroundPump 可选 — 组装层（BridgeServeCommand）注入时：consumer 构造后 Bind+Start（订阅后台 fork/teammate
+    /// 完成事件直推 background_task 行），每回合终态后 PublishSnapshotAsync（TUI 面板与引擎状态对齐），循环退出前 StopAsync。</summary>
     public static async Task<int> RunAsync(
         TextReader stdin,
         TextWriter stdout,
         TextWriter stderr,
         TurnExecutor executeTurn,
         CancellationToken ct,
-        PermissionModeApplier? applyPermissionMode = null) {
+        PermissionModeApplier? applyPermissionMode = null,
+        BackgroundTaskEventPump? backgroundPump = null) {
         var synced = TextWriter.Synchronized(stdout);
         var consumer = new BridgeEventConsumer(synced);
+        if (backgroundPump is not null) {
+            backgroundPump.Bind(consumer);
+            await backgroundPump.StartAsync().ConfigureAwait(false);
+        }
         CancellationTokenSource? turnCts = null;
         Task? turnTask = null;
         var exit = false;
@@ -56,7 +63,7 @@ internal static class BridgeServeLoop {
                     break;
                 default:
                     if (request is not null)
-                        (exit, turnCts, turnTask) = DispatchRequest(request, synced, consumer, executeTurn, applyPermissionMode, turnCts, turnTask);
+                        (exit, turnCts, turnTask) = DispatchRequest(request, synced, consumer, executeTurn, applyPermissionMode, backgroundPump, turnCts, turnTask);
                     break;
             }
         }
@@ -65,6 +72,8 @@ internal static class BridgeServeLoop {
         if (turnTask is not null)
             await turnTask.ConfigureAwait(false);
         turnCts?.Dispose();
+        if (backgroundPump is not null)
+            await backgroundPump.StopAsync().ConfigureAwait(false);
         return ExitOk;
     }
 
@@ -75,6 +84,7 @@ internal static class BridgeServeLoop {
         BridgeEventConsumer consumer,
         TurnExecutor executeTurn,
         PermissionModeApplier? applyPermissionMode,
+        BackgroundTaskEventPump? backgroundPump,
         CancellationTokenSource? turnCts,
         Task? turnTask) {
         switch (request) {
@@ -87,7 +97,7 @@ internal static class BridgeServeLoop {
 
                 turnCts?.Dispose();
                 var newCts = new CancellationTokenSource();
-                var newTask = RunTurnAsync(stdout, consumer, executeTurn, text, newCts.Token);
+                var newTask = RunTurnAsync(stdout, consumer, executeTurn, backgroundPump, text, newCts.Token);
                 return (false, newCts, newTask);
             case Cli.Bridge.BridgeRequest.Interrupt:
                 turnCts?.Cancel();
@@ -117,11 +127,14 @@ internal static class BridgeServeLoop {
             $"权限模式 '{mode}' 无法应用（未知值或引擎未提供权限系统）。合法值：{ValidPermissionModes}。bypass 受 settings.json 的 disableBypassPermissionsMode 安全闸管控，被拦截时保持原模式。"));
     }
 
-    /// <summary>执行一个回合：turn_started → executor（事件实时推送）→ completed/interrupted/error。</summary>
+    /// <summary>执行一个回合：turn_started → executor（事件实时推送）→ completed/interrupted/error
+    /// → 后台任务快照全量 upsert（回合结束边界 — idle 期 TUI 面板与引擎后台任务状态对齐；
+    /// 泵内部吞查询异常，快照失败不杀回合收尾）。</summary>
     private static async Task RunTurnAsync(
         TextWriter stdout,
         BridgeEventConsumer consumer,
         TurnExecutor executeTurn,
+        BackgroundTaskEventPump? backgroundPump,
         string input,
         CancellationToken ct) {
         WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnStarted());
@@ -133,6 +146,9 @@ internal static class BridgeServeLoop {
             WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnInterrupted());
         } catch (Exception ex) {
             WriteEvent(stdout, new Cli.Bridge.BridgeEvent.Error($"回合执行失败：{ex.Message}"));
+        } finally {
+            if (backgroundPump is not null)
+                await backgroundPump.PublishSnapshotAsync(CancellationToken.None).ConfigureAwait(false);
         }
     }
 

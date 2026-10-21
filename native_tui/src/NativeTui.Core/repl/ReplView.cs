@@ -4,6 +4,7 @@ namespace NativeTui.Core.Repl;
 /// REPL 整屏视图 — 对齐基准 REPL.tsx bottom slot 布局（自底向上）：
 /// footer 1-2 行（paddingX=2，通知非空时 2 行）+ 建议区 0-6 行（斜杠补全激活时，基准 PromptInputFooterSuggestions）
 /// + 输入底边线 1 行 + 输入文本 1 行 + 输入顶边线 1 行（基准 PromptInput 上下全宽 ─ 分隔线）
+/// + 排队面板 0-N 行（输入框上方，基准 queued）+ 后台任务面板 0-N 行（排队面板之上，M8-8 常驻 — 基准 CoordinatorAgentStatus）
 /// + 间隔 1 行（输入框 marginTop=1），其余全部给消息滚动区（sticky 钉底）。
 /// spinner 行（输入框上方，基准 scrollable 区尾部）由滚动区尾部 SpinnerItem 承载。
 /// </summary>
@@ -44,21 +45,27 @@ public sealed class ReplView
     /// 回合结束自动发送时才上屏为用户消息）。</summary>
     public IReadOnlyList<string> QueuedInputs { get; set; } = [];
 
+    /// <summary>后台任务常驻面板（M8-8 — 可变实例原地 upsert，Driver 经此引用直接更新；渲染在排队面板之上）。</summary>
+    public BackgroundTaskPanel BackgroundTasks { get; } = new();
+
     /// <summary>建议区高度（0 = 未激活）。</summary>
     private int SuggestionHeight => _suggestionBox.MeasureHeight(Suggestions?.Count ?? 0);
 
     /// <summary>排队面板高度（0 = 无排队）。</summary>
     private int QueueHeight => QueuedInputs.Count;
 
+    /// <summary>后台任务面板高度（0 = 无任务 — 空面板零渲染）。</summary>
+    private int BackgroundTaskHeight => BackgroundTasks.MeasureHeight();
+
     /// <summary>
-    /// 内容总高度（inline 模式建屏用）— 消息全量高度 + 间隔 1 + 输入区 3 + 排队面板 + 建议区 + footer 高度；
+    /// 内容总高度（inline 模式建屏用）— 消息全量高度 + 间隔 1 + 输入区 3 + 排队面板 + 后台任务面板 + 建议区 + footer 高度；
     /// 屏高取此值时消息区恰好全量展示（无滚动窗口），历史自然滚入终端 scrollback。
     /// </summary>
     public int MeasureContentHeight(int cols) =>
-        Messages.MeasureContentHeight(cols) + 4 + QueueHeight + SuggestionHeight + _footer.MeasureHeight(Footer);
+        Messages.MeasureContentHeight(cols) + 4 + QueueHeight + BackgroundTaskHeight + SuggestionHeight + _footer.MeasureHeight(Footer);
 
-    /// <summary>inline 模式尾部动态区行数（间隔 1 + 输入区 3 + 排队面板 + 建议区 + footer 高度）— 退出清理用。</summary>
-    public int TailHeight => 4 + QueueHeight + SuggestionHeight + _footer.MeasureHeight(Footer);
+    /// <summary>inline 模式尾部动态区行数（间隔 1 + 输入区 3 + 排队面板 + 后台任务面板 + 建议区 + footer 高度）— 退出清理用。</summary>
+    public int TailHeight => 4 + QueueHeight + BackgroundTaskHeight + SuggestionHeight + _footer.MeasureHeight(Footer);
 
     /// <summary>
     /// 输入光标内容坐标（inline 模式帧尾光标位）— 行 = 输入文本行（内容底上方 footer+建议区+2），
@@ -71,12 +78,13 @@ public sealed class ReplView
         return new CursorPos(Math.Min(cols, PromptInputBox.PromptWidth + displayCol), contentRows - footerHeight - SuggestionHeight - 2);
     }
 
-    /// <summary>渲染整屏（消息区 → 排队面板 → 输入框 → 建议区 → footer）。</summary>
+    /// <summary>渲染整屏（消息区 → 后台任务面板 → 排队面板 → 输入框 → 建议区 → footer）。</summary>
     public void Render(Screen screen, Theme theme)
     {
         var footerHeight = _footer.MeasureHeight(Footer);
         var suggestionHeight = SuggestionHeight;
         var queueHeight = QueueHeight;
+        var backgroundHeight = BackgroundTaskHeight;
         var footerFrame = new Rect(2, screen.Rows - footerHeight, Math.Max(0, screen.Cols - 4), footerHeight);
         _footer.Render(screen, footerFrame, theme, Footer);
 
@@ -94,7 +102,13 @@ public sealed class ReplView
             RenderQueuePanel(screen, new Rect(0, inputFrame.Y - queueHeight, screen.Cols, queueHeight), theme);
         }
 
-        var messagesHeight = Math.Max(0, screen.Rows - footerHeight - suggestionHeight - queueHeight - 4);
+        // 后台任务面板在排队面板之上（排队输入紧贴输入框 — 现有语义零变化；常驻任务是环境状态居一层之上）
+        if (backgroundHeight > 0)
+        {
+            BackgroundTasks.Render(screen, new Rect(0, inputFrame.Y - queueHeight - backgroundHeight, screen.Cols, backgroundHeight), theme);
+        }
+
+        var messagesHeight = Math.Max(0, screen.Rows - footerHeight - suggestionHeight - queueHeight - backgroundHeight - 4);
         var messagesFrame = new Rect(0, 0, screen.Cols, messagesHeight);
         Messages.Render(screen, messagesFrame, theme);
     }

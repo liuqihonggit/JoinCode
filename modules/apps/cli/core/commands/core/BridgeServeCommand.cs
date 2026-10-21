@@ -52,6 +52,10 @@ internal static class BridgeServeCommand {
             var fastMode = engine.Services.GetService<IFastModeService>();
             WriteEvent(stdout, BuildSessionInfo(permissionChecker, fastMode, options));
 
+            // M8-8 后台任务事件泵 — 订阅 ForkCompleted/TeammateCompleted 直推 consumer（绕开回合作用域通道），
+            // 每回合终态后全量快照 upsert；两查询面均可选（引擎未注册时泵为 null，零行为变化）
+            var backgroundPump = CreateBackgroundTaskPump(engine.Services);
+
             var mainAgent = EngineAgentFactory.CreateMainAgent(engine.Services, new Session().ObjectId);
             SessionController? controller = null;
 
@@ -61,10 +65,20 @@ internal static class BridgeServeCommand {
                     engine.ChatService, consumer, new TurnDiffService(), engine.SessionId, engine.Services,
                     mainAgent: mainAgent);
                 return RunTurnAsync(controller, input, turnCt);
-            }, ct, BuildPermissionModeApplier(permissionChecker)).ConfigureAwait(false);
+            }, ct, BuildPermissionModeApplier(permissionChecker), backgroundPump).ConfigureAwait(false);
         } finally {
             Console.SetOut(originalOut);
         }
+    }
+
+    /// <summary>构造后台任务事件泵（M8-8）— 解析 fork/teammate 查询面（均引擎单例注册，可选），
+    /// 任一可用即建泵；两者皆缺返回 null（协议无 background_task 事件流，TUI 面板空置）。</summary>
+    private static BackgroundTaskEventPump? CreateBackgroundTaskPump(IServiceProvider services) {
+        var forkManager = services.GetService<IForkSubAgentManager>();
+        var teammateExecutor = services.GetService<IInProcessTeammateTaskExecutor>();
+        return forkManager is not null || teammateExecutor is not null
+            ? new BackgroundTaskEventPump(forkManager, teammateExecutor)
+            : null;
     }
 
     /// <summary>解析引擎权限检查器（等模式/安全闸初始化完成；未注册返回 null — 协议降级为仅展示默认值）。</summary>

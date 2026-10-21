@@ -214,7 +214,7 @@ jobs:
         run: |
           $tests = @(
             @{Name="chatcmd-auth"; Filter="FullyQualifiedName~ChatCommandAuthExportCoverageTests"},
-            @{Name="errors-permission"; Filter="FullyQualifiedName~ApiErrorRecoveryE2ETests|FullyQualifiedName~StreamInterruptionE2ETests|FullyQualifiedName~PermissionDenialE2ETests"}
+            @{Name="errors-permission"; Filter="FullyQualifiedName~ApiErrorRecoveryE2ETests|FullyQualifiedName~StreamInterruptionE2ETests|FullyQualifiedName~PermissionDenialE2ETests|FullyQualifiedName~StreamingIncrementalE2ETests"}
           )
           foreach ($t in $tests) {
               $name = $t.Name

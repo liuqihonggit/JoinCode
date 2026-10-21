@@ -1,6 +1,6 @@
 # ADR 0146 — 流式增量透传与 fallback 首事件边界
 
-> 状态：proposed（2026-10-22；随 TASK043 实施转 accepted）
+> 状态：accepted（2026-10-22 落地：单元红→绿 + llm.tests 605 全绿 + 实弹 E2E StreamingIncrementalE2ETests 绿，随 TASK043 实施）
 > 关联：TASK043（modules/llm/docs/task/TASK043-流式增量透传与fallback边界任务.md）、ADR 0080（手动 exe 验收）
 
 ## 上下文

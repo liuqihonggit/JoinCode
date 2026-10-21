@@ -230,15 +230,61 @@ DSH 语义与落地方案见 [ADR 0147](../../proposed/adr/0147-assistant-stream
 
 | 步骤 | 内容 | 状态 |
 |------|------|------|
-| B13-a | 契约与 ADR：帧/基线 DTO + `assistantStream` 严格 revision 密度规则（ADR 0147 proposed） | ⬜ |
-| B13-b | E2E 红：`dsh-webui-assistant-stream.mjs`（慢桩逐字 → 断言快照基线、帧序 start→chunk*→end、partial 文本、end.seq 指向持久事件） | ⬜ |
-| B13-c | 宿主单元红→绿：hub 状态机（revision 单调 + 基线重建）+ TurnRunner delta→帧翻译 | ⬜ |
-| B13-d | 全量回归 + 文档四列表 + commit | ⬜ |
+| B13-a | 契约与 ADR：帧/基线 DTO + `assistantStream` 严格 revision 密度规则（ADR 0147） | ✅ 契约 DTO/JsonContext 注册完成，ADR 状态 accepted |
+| B13-b | E2E 红：`dsh-webui-assistant-stream.mjs`（慢桩逐字 → 断言快照基线、帧序 start→chunk*→end、partial 文本、end.seq 指向持久事件） | ✅ 红→绿，最终 ALL_PASS |
+| B13-c | 宿主单元红→绿：hub 状态机（revision 单调 + 基线重建）+ TurnRunner delta→帧翻译 | ✅ 单测 5/5（含新增 `TurnRunner_TextOnlyAttemptStartsAtBlockZero`） |
+| B13-d | 全量回归 + 文档四列表 + commit | ✅ 10 个 WebUI E2E 全绿（含 steer harness 修复），commit `35be87720` |
+
+### 实现要点与根因（B13-c）
+
+| 事实 | 证据 |
+|------|------|
+| 前端 `updateChunk` 按 `chunk.index` 写**稀疏**块数组，`visibleBlocks` 过滤空块 | `dsh-client-ui-chat/lib/client.js`（`updateChunk`/`compactBlocks`） |
+| 初版把正文块下标**固定为 1**（预设 reasoning=0），无思考块时 0 号是空洞 → `visibleBlocks=0` → 流式正文完全不渲染（DOM 5s 内零增量） | 探针：`textContent`/`innerText` + `MutationObserver` 双证；`[DSH-WEB] turn stream done events=… chars=…` 有字数但界面不动 |
+| 修复：块下标按**块首次出现顺序**动态分配（`BlockIndex(family)` 字典），删掉固定常量 | `DshTurnRunner.cs`；`DshDeltaChunk.Index` 注释同步改为「按块首次出现顺序从 0 分配」 |
+| `end.index` 必须等于下一 chunk 序号（前端 `assistant-stream.js` 用 `frame.index !== attempt.nextIndex → rebaseline`） | 帧序号与 `chunk.index` 分离：前者是帧计数，后者是内容块下标 |
 
 ### 验收四列表
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |----------|--------|--------|--------|
-| hub 瞬态帧通道（不占 seq、不落 journal，revision 严格 +1） | `session/follow` 推送 | ⬜ | ⬜ |
-| 快照 `assistantStream` 基线（`activeAttempt` + 紧凑原始 chunk 流） | 中途打开/刷新的前端重建未完成文本 | ⬜ | ⬜ |
-| `DshTurnRunner` delta → `start/chunk/end`（reasoning=index 0、text=index 1，committed 带 `assistant/message` 的 seq） | 前端 `assistant/live-chunk` 逐字渲染 + 结算替换 | ⬜ | ⬜ |
+| hub 瞬态帧通道（不占 seq、不落 journal，revision 严格 +1） | `session/follow` 推送 | ✅ `DshSessionStreamHub`（Start/Append/End + `AssistantBaseline`） | ✅ [ADR 0080](../../implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md) 手动 exe：`dsh-webui-assistant-stream.mjs` ALL_PASS（`revision=1..16`，无 `skipped revision` 断流） |
+| 快照 `assistantStream` 基线（`activeAttempt` + 紧凑原始 chunk 流） | 中途打开/刷新的前端重建未完成文本 | ✅ `DshSessionStore.SnapshotAsync` 取 `hub.AssistantBaseline` | ✅ 同上：快照带 `assistantStream`，缺基线会抛 `gateway/internal` 的路径未触发 |
+| `DshTurnRunner` delta → `start/chunk/end`（**块下标按首次出现动态分配**，committed 带 `assistant/message` 的 seq） | 前端 `assistant/live-chunk` 逐字渲染 + 结算替换 | ✅ `DshTurnRunner` + `PlaceholderChatSession.EmitThinking` 测试接缝 | ✅ 手动 exe：`PASS 界面在流式过程中已显示正文前缀 live={"maxPrefix":2,"partial":true}`、`PASS 文本 chunk 使用统一 index 0,0,0…`、`PASS end{committed,seq=3}` |
+
+### B13 遗留观察（不影响验收，记录备查）
+
+1. **工具调用流式未合成**：DSH 前端对 `tool/call` 也有瞬态增量，本轮只做正文/思考，工具事件仍是整段落盘（界面表现一致，不影响断言）。
+2. **`cdp.close()` 会杀掉宿主 WebView2**：E2E 脚本结束即让页面消失，所以每个脚本前必须重启 exe；已在回归流程固化。
+3. **assistant-stream 脚本 reload 后偶发点不到工作区菜单**（`locator.click` 10s 超时）：`_e2e.mjs` 的 `ensureWorkspace` 已改为「菜单点击失败→重开一次再点」的容错。
+
+### B13-d 回归中修掉的 E2E 缺陷（steer 脚本，非产品缺陷）
+
+`dsh-webui-steer.mjs` 长期红灯（7 条），排查结论是**脚本打错了会话**，不是引擎丢注入：
+
+| 证据 | 结论 |
+|------|------|
+| 探针时间线：`turn start session=43c8… turn=5` → `steer accept session=43c8… accepted=True` → `steer event session=43c8… turn=5` → `turn stream done events=23 chars=16`；**全程未开 `JCC_DEBUGLOG`** | 注入在同一轮内被步首 drain 并投影为轮内 `user/message`，产品链路正确 |
+| 旧脚本用「最后一个 snapshot 的 header.id」当会话 ID → 拿到别的前端流上的**旧会话**（340d…），`mode=steer` 打到空闲会话（宿主按新轮处理 → 桩回 ack），而真正的工具轮在 43c8… 上跑 | 判据与观察流错位 → `steer=-1`、`turn/start x1` 却全红 |
+| 修复：① `page.on('request')` 抓页面自己的 `session/prompt` 请求体拿会话 ID（唯一可信来源）；② 按 `header.id` 反查该会话的 `streamId`，`merged()` 只认本流的快照/实时帧 | 修复后 `ALL_PASS`（`tool/result=4 steer=5 ack=6 turn/end=8`、`surfaceOp=append`、`只有一次 turn/start`） |
+
+### B13 全量回归（同一 exe + 桩，未开 JCC_DEBUGLOG）
+
+| 脚本 | 结果 |
+|------|------|
+| dsh-webui-prompt.mjs | ALL_PASS |
+| dsh-webui-tool.mjs | ALL_PASS |
+| dsh-webui-queue.mjs | ALL_PASS |
+| dsh-webui-cancel.mjs | ALL_PASS |
+| dsh-webui-reload.mjs | ALL_PASS |
+| dsh-webui-history.mjs | ALL_PASS（3 参：workspace / workspacePath / home） |
+| dsh-webui-approval.mjs | ALL_PASS |
+| dsh-webui-approval-edges.mjs | ALL_PASS |
+| dsh-webui-assistant-stream.mjs | ALL_PASS（B13 主线；干净构建复跑仍 ALL_PASS） |
+| dsh-webui-steer.mjs | ALL_PASS（修掉「打错会话」的脚本缺陷后，干净构建复跑 ALL_PASS） |
+
+<!-- 🤖 Auto Decision: 2026-10-22 -->
+<!-- 决策: assistant-stream 的内容块下标改为「按块首次出现顺序动态分配」（BlockIndex(family) 字典），删除 ReasoningBlockIndex=0 / TextBlockIndex=1 固定常量 -->
+<!-- 原因: 前端 updateChunk 写稀疏块数组并按「非空块数量」决定是否渲染；无思考块时 0 号空洞导致 visibleBlocks=0，正文一个字都不渲染（DOM MutationObserver 双证） -->
+<!-- 替代方案: 让宿主把 text 也塞进 0 号块（会与最终 assistant/message 的 reasoning 在前语义冲突，且思考块出现时错位）；改为前端打补丁（改原版 DSH 产物，不可接受） -->
+<!-- 验证: DshAssistantStreamTests 5/5 + 真机 dsh-webui-assistant-stream.mjs ALL_PASS（partial=true, chunk.index 全 0, end{committed,seq}），10 个 WebUI E2E 全绿 -->

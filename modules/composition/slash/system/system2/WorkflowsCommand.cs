@@ -79,13 +79,20 @@ public sealed class WorkflowsCommand : ChatCommandBase {
             return ChatCommandResult.Continue();
         }
 
-        await using var pluginHost = pluginManager.GetWorkflowPlugin(name);
-        if (pluginHost is null) {
+        // TASK065 断层9 — pluginHost 是 PluginManager 字典持有的共享宿主（借用不拥有生命周期），
+        // is-pattern 变量只读传递；原 await using 会在命令结束时卸载插件宿主+插件容器
+        if (pluginManager.GetWorkflowPlugin(name) is not { } pluginHost) {
             TerminalHelper.WriteLine(L.T(StringKey.HostWorkflowsPluginNotFound, name));
             TerminalHelper.WriteLine(L.T(StringKey.HostWorkflowsListHint));
             return ChatCommandResult.Continue();
         }
 
+        return await ExecuteWorkflowPluginAsync(executor, pluginHost, name, context.CancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>执行工作流插件定义（TASK065 断层9 — pluginHost 借用段提取，传参所有权转移）。</summary>
+    private static async Task<ChatCommandResult> ExecuteWorkflowPluginAsync(
+        IWorkflowTaskExecutor executor, WorkflowPluginHost pluginHost, string name, CancellationToken ct) {
         var definition = pluginHost.GetService<WorkflowDefinition>();
         if (definition is null) {
             TerminalHelper.WriteLine(L.T(StringKey.HostWorkflowsPluginNoDefinition, name));
@@ -98,7 +105,7 @@ public sealed class WorkflowsCommand : ChatCommandBase {
         TerminalHelper.NewLine();
 
         try {
-            var result = await executor.ExecuteWorkflowAsync(definition, context.CancellationToken).ConfigureAwait(false);
+            var result = await executor.ExecuteWorkflowAsync(definition, ct).ConfigureAwait(false);
 
             TerminalHelper.WriteLine(L.T(StringKey.HostWorkflowsExecutionComplete, result.Status));
             TerminalHelper.WriteLine(L.T(StringKey.HostWorkflowsWorkflowId, result.WorkflowId));

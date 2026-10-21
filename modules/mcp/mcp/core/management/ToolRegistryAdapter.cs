@@ -301,11 +301,15 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry {
     }
 
     /// <summary>
-    /// 异步释放适配器资源（委托给底层工具注册表）
+    /// 异步释放适配器资源 — 非 owner 零转发（TASK065 断层9 修复）：
+    /// 底层 LocalToolRegistry 是 DI 单例（生命周期归容器），适配器仅是 IMcpToolRegistry 视图包装；
+    /// 原转发释放使命令层 8 处 await using 借用（/mcp /doctor /debuglog 等）在命令结束时
+    /// 释放共享注册表——TUI 长驻会话一条命令后 /tools 即报"锁 'AsyncLock#2' 已释放"（探针实证）。
+    /// 借用单例 ≠ 拥有生命周期；RemoteClientManager 亦为 DI 单例由容器自管。
     /// </summary>
-    /// <returns>表示异步释放操作的值任务</returns>
+    /// <returns>已完成的值任务（无自有资源）</returns>
     public ValueTask DisposeAsync() {
-        return _toolRegistry.DisposeAsync();
+        return ValueTask.CompletedTask;
     }
 
     #endregion

@@ -1543,10 +1543,23 @@ public sealed class ReplShell
         _screenClearPending = true;
     }
 
-    /// <summary>请求退出主循环（M8-5 — /exit 接线，引擎回合线程回调）：
-    /// 置 _running=false 对齐 Ctrl+D 语义，Run() 当前拍收尾返回后由宿主 WriteExit 收尾。</summary>
-    public void RequestExit() => _running = false;
+    /// <summary>请求退出主循环（M8-5 + TASK065 F1 — /exit /quit /logout 命令退出链）：
+    /// 上屏命令退出提示（dim ⎿ 行，reason 为命令名）+ 置 _running=false 终止主循环
+    ///（对齐 CLI ShouldContinue=false→Stop；Run() 当前拍收尾返回后由宿主 WriteExit 收尾）。
+    /// 无参重载兼容 Action 接线形态。</summary>
+    public void RequestExit() => RequestExit("exit");
 
+    /// <summary>请求退出主循环（带命令名 — 退出提示行显示 /{reason}）。</summary>
+    public void RequestExit(string reason)
+    {
+        if (!_running)
+        {
+            return;
+        }
+
+        AddMessage(new ToolResultItem($"/{reason} — 退出 jcc"));
+        _running = false;
+    }
     /// <summary>终端光标落到输入文本行（视口模式 — 0 基 Rows-2 → 1 基 Rows-1），列随编辑偏移。</summary>
     private void PositionCursor()
     {

@@ -59,6 +59,11 @@ public sealed class EngineSession : IAsyncDisposable {
             SessionController? controller = null;
             var client = new EngineTurnClient(
                 (input, consumer, turnCt) => {
+                    // TASK064 斜杠命令分流（对齐 CliSession.ProcessInputAsync：/ 开头走命令执行不进 LLM）
+                    if (input.StartsWith('/')) {
+                        return DispatchSlashCommandAsync(engine.Services, input, consumer, turnCt);
+                    }
+
                     controller ??= new SessionController(
                         engine.ChatService, consumer, new TurnDiffService(), engine.SessionId, engine.Services,
                         mainAgent: mainAgent);
@@ -125,6 +130,26 @@ public sealed class EngineSession : IAsyncDisposable {
         var ex = TranslateTurnResult(result);
         if (ex is not null)
             throw ex;
+    }
+
+    /// <summary>斜杠命令回合（TASK064 — 引擎 SlashCommandRunner 共享链路：解析→路由→执行→输出捕获）：
+    /// 输出经 consumer.OnText/OnDone 上屏（AssistantMessage）；未知命令同样上屏诱导（/help 提示）— 不落 LLM
+    ///（对齐"命令不触发 AI"：注册命令走命令执行，未知命令报错，两者都不消耗模型调用）。</summary>
+    private static async Task DispatchSlashCommandAsync(
+        IServiceProvider services, string input, IEventConsumer consumer, CancellationToken ct) {
+        var result = await SlashCommandRunner.RunAsync(
+            input, services,
+            confirm: null,
+            prompt: null,
+            readPassword: null,
+            cancellationToken: ct).ConfigureAwait(false);
+
+        var output = result.Output.TrimEnd();
+        if (output.Length > 0) {
+            consumer.OnText(output);
+        }
+
+        consumer.OnDone(usage: null, modelId: null);
     }
 
     /// <summary>翻译轮次结果 — 成功=null（client 发 turn_completed）；取消=OperationCanceledException（turn_interrupted）；

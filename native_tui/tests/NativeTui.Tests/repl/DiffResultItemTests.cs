@@ -181,4 +181,52 @@ public sealed class DiffResultItemTests
         Assert.Equal("summary", item.Summary);
         Assert.Same(hunks, item.Patch);
     }
+
+    [Fact]
+    public void IsExpanded_DefaultsFalse()
+    {
+        Assert.False(new DiffResultItem("s", [Hunk(Line(DiffLineKind.Added, "x"))]).IsExpanded);
+    }
+
+    [Fact]
+    public void ToggleExpand_RendersFullPatchWithoutCollapseHint()
+    {
+        // 13 行 patch（header+12）：折叠 = 预览 10 + 提示 +3（高度 13）；展开 = 全量 13 行（高度 15），
+        // 原提示行位置（row12）起接续渲染隐藏行 line 9..11 — 无折叠提示行
+        using var screen = new Screen(cols: 40, rows: 2 + 13);
+        var item = new DiffResultItem("Edited a.cs", [LongHunk(12)]);
+        Assert.Equal(13, item.MeasureHeight(width: 80));
+
+        item.ToggleExpand();
+
+        Assert.True(item.IsExpanded);
+        Assert.Equal(15, item.MeasureHeight(width: 80));
+        item.Render(screen, new Rect(0, 0, 40, screen.Rows), Theme.Dark);
+        Assert.Equal("     line 9", RowText.Of(screen, 12, 0, 11));
+        Assert.Equal("     line 10", RowText.Of(screen, 13, 0, 12));
+        Assert.Equal("     line 11", RowText.Of(screen, 14, 0, 12));
+    }
+
+    [Fact]
+    public void ToggleExpand_Twice_ReturnsToCollapsedPreview()
+    {
+        var item = new DiffResultItem("s", [LongHunk(12)]);
+
+        item.ToggleExpand();
+        item.ToggleExpand();
+
+        Assert.False(item.IsExpanded);
+        Assert.Equal(13, item.MeasureHeight(width: 80));
+    }
+
+    [Fact]
+    public void ToggleExpand_WithinPreviewLimit_HeightUnchanged()
+    {
+        // patch 2 行 ≤ 预览上限 10：展开态无折叠提示，高度不变（展开只对超限 patch 有视觉差异）
+        var item = new DiffResultItem("s", [Hunk(Line(DiffLineKind.Added, "x"))]);
+
+        item.ToggleExpand();
+
+        Assert.Equal(4, item.MeasureHeight(width: 80));
+    }
 }

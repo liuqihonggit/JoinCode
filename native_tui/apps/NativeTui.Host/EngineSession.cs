@@ -13,13 +13,15 @@ public sealed class EngineSession : IAsyncDisposable {
     private readonly TuiPermissionBridge _permissionBridge;
     private readonly PermissionChecker? _checker;
     private readonly IFastModeService? _fastMode;
+    private readonly TuiCommandCallbacks _commandCallbacks;
 
-    private EngineSession(EngineSessionFactory.Result engine, EngineTurnClient client, TuiPermissionBridge permissionBridge, PermissionChecker? checker, IFastModeService? fastMode) {
+    private EngineSession(EngineSessionFactory.Result engine, EngineTurnClient client, TuiPermissionBridge permissionBridge, PermissionChecker? checker, IFastModeService? fastMode, TuiCommandCallbacks commandCallbacks) {
         _engine = engine;
         _client = client;
         _permissionBridge = permissionBridge;
         _checker = checker;
         _fastMode = fastMode;
+        _commandCallbacks = commandCallbacks;
     }
 
     /// <summary>回合客户端 — 主循环消费面（Submit/Interrupt/SetPermissionMode/DrainEvents）。</summary>
@@ -27,6 +29,9 @@ public sealed class EngineSession : IAsyncDisposable {
 
     /// <summary>权限确认桥 — Program 在 shell 构造后 Bind（引擎 PendingConfirmation → TUI 对话框闭环，M7-3）。</summary>
     public TuiPermissionBridge PermissionBridge => _permissionBridge;
+
+    /// <summary>命令交互回调桥 — Program 在 shell 构造后 Bind（/clear 清滚动区、/exit 结束主循环 → ReplShell 能力，M8-5）。</summary>
+    public TuiCommandCallbacks CommandCallbacks => _commandCallbacks;
 
     /// <summary>引擎服务容器 — 宿主组装层消费（命令清单/历史种子等只读解析）。</summary>
     public IServiceProvider Services => _engine.Services;
@@ -55,13 +60,17 @@ public sealed class EngineSession : IAsyncDisposable {
             var fastMode = engine.Services.GetService<IFastModeService>();
             var mainAgent = EngineAgentFactory.CreateMainAgent(engine.Services, new Session().ObjectId);
 
+            // M8-5 命令交互回调桥 — 回调管道随回合执行器闭包传递（Bind 前回调为 null 安全降级，
+            // Program 在 shell 构造后 Bind：/clear → 清滚动区、/exit → 主循环结束）
+            var commandCallbacks = new TuiCommandCallbacks();
+
             // 首次 submit 时绑定回合驱动器 — consumer 即进程内事件出口（client 构造，全程同一实例，对齐 BridgeServeCommand 先例）
             SessionController? controller = null;
             var client = new EngineTurnClient(
                 (input, consumer, turnCt) => {
                     // TASK064 斜杠命令分流（对齐 CliSession.ProcessInputAsync：/ 开头走命令执行不进 LLM）
                     if (input.StartsWith('/')) {
-                        return DispatchSlashCommandAsync(engine.Services, input, consumer, turnCt);
+                        return DispatchSlashCommandAsync(engine.Services, input, consumer, commandCallbacks, turnCt);
                     }
 
                     controller ??= new SessionController(
@@ -71,7 +80,7 @@ public sealed class EngineSession : IAsyncDisposable {
                 },
                 BuildPermissionModeApplier(checker));
 
-            var session = new EngineSession(engine, client, permissionBridge, checker, fastMode);
+            var session = new EngineSession(engine, client, permissionBridge, checker, fastMode, commandCallbacks);
             client.Enqueue(BuildSessionInfoEvent(checker, fastMode, engine.Config));
             return session;
         } catch {
@@ -136,14 +145,20 @@ public sealed class EngineSession : IAsyncDisposable {
     /// 输出经 AnsiStripper 剥离 SGR 色码（命令侧彩色输出与 TUI Cell/StyleId 渲染模型不兼容 —
     /// ESC 零宽跳过后残骸显示为 "38;2;153;153;153m──" 形态）再经 consumer.OnText/OnDone 上屏
     ///（AssistantMessage Markdown 渲染）；未知命令同样上屏诱导（/help 提示）— 不落 LLM
-    ///（对齐"命令不触发 AI"：注册命令走命令执行，未知命令报错，两者都不消耗模型调用）。</summary>
-    private static async Task DispatchSlashCommandAsync(
-        IServiceProvider services, string input, IEventConsumer consumer, CancellationToken ct) {
+    ///（对齐"命令不触发 AI"：注册命令走命令执行，未知命令报错，两者都不消耗模型调用）。
+    /// M8-5 交互回调接线：clearScreen/onExitRequested 经 TuiCommandCallbacks 透传（/clear 清 TUI 滚动区、
+    /// /exit 结束主循环；Bind 前为 null — 命令侧 ?.Invoke 安全降级对齐 Runner 可空语义）；
+    /// confirm/prompt/readPassword 首版不接（TUI raw mode 无同步 Console 通道 — 模态对话框增强项遗留，
+    /// 命令侧降级：确认默认拒绝/输入 null）。internal static — 回调透传链测试面（fake DI 驱动真实命令注册链）。</summary>
+    internal static async Task DispatchSlashCommandAsync(
+        IServiceProvider services, string input, IEventConsumer consumer, TuiCommandCallbacks commandCallbacks, CancellationToken ct) {
         var result = await SlashCommandRunner.RunAsync(
             input, services,
+            clearScreen: commandCallbacks.ClearScreen,
             confirm: null,
             prompt: null,
             readPassword: null,
+            onExitRequested: commandCallbacks.OnExitRequested,
             cancellationToken: ct).ConfigureAwait(false);
 
         var output = AnsiStripper.Strip(result.Output).TrimEnd();
@@ -172,4 +187,31 @@ public sealed class EngineSession : IAsyncDisposable {
         _client.Dispose();
         await _engine.Host.DisposeAsync().ConfigureAwait(false);
     }
+}
+
+/// <summary>
+/// TUI 命令交互回调桥（M8-5）— SlashCommandRunner 交互回调的延迟绑定容器：
+/// EngineSession.CreateAsync 组装期创建并随回合执行器闭包传递（Bind 前回调为 null —
+/// 命令侧 ?.Invoke 安全降级，对齐 Runner 可空语义：清屏跳过/退出信号丢弃/确认默认拒绝）；
+/// Program 在 shell 构造后 Bind：/clear → ReplShell 清滚动区、/exit → ReplShell 主循环结束。
+/// 对齐 TuiPermissionBridge.Bind 延迟绑定形态（shell 构造晚于引擎会话，引擎回合线程并发读 — volatile）。
+/// </summary>
+public sealed class TuiCommandCallbacks {
+    private volatile Action? _clearScreen;
+    private volatile Action? _onExitRequested;
+
+    /// <summary>绑定 TUI 能力（Program 交互模式组装点 — shell 构造后、Run 前调用；重绑幂等覆盖）。</summary>
+    public void Bind(Action? clearScreen, Action? onExitRequested) {
+        _clearScreen = clearScreen;
+        _onExitRequested = onExitRequested;
+    }
+
+    /// <summary>清屏回调（/clear → 清 TUI 滚动区，保留 banner+spinner 常驻项；Bind 前为 null — 命令侧跳过）。</summary>
+    public Action? ClearScreen => _clearScreen;
+
+    /// <summary>退出请求回调（/exit ShouldContinue=false → 结束 TUI 主循环；Bind 前为 null — 信号降级丢弃）。</summary>
+    public Action? OnExitRequested => _onExitRequested;
+
+    /// <summary>已绑定任一回调（internal — Program 接线测试断言面）。</summary>
+    internal bool IsBound => _clearScreen is not null || _onExitRequested is not null;
 }

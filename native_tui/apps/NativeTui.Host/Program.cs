@@ -164,6 +164,11 @@ public static class Program {
                 pickerEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);
+                // M8-5 命令交互回调接线（/clear 清 TUI 滚动区+scrollback、/exit 结束主循环）—
+                // ReplShell 公开入口已由主智能体收编落地（ClearMessagesExceptBannerAndSpinner/RequestExit）
+                session.CommandCallbacks.Bind(
+                    clearScreen: shell.ClearMessagesExceptBannerAndSpinner,
+                    onExitRequested: shell.RequestExit);
                 shell.Run();
                 shell.WriteExit();
             }

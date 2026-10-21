@@ -6,6 +6,8 @@ namespace NativeTui.Core.Bridge;
 /// 权限模式回执（permission_mode_changed 更新 footer）、
 /// 回合生命周期驱动 Busy + SpinnerItem（BeginTurn/EndTurn），消息事件插入滚动区
 /// （spinner 恒为末项），token_delta 累加 ResponseLength，错误追加 ErrorMessageItem；
+/// 工具调用聚合（M8-4）：连续同名可聚合调用（Read/Grep/Glob）合并为 CollapsedToolItem
+/// （首次独立 ToolCallItem，第二次同名替换，后续 Record — 工具结果不断链，其他消息事件/回合边界断链）；
 /// 权限请求（permission_request）经注入钩子转交 shell 挂起对话框（权限模态是 shell 层状态）。
 /// 模拟路径与真实 bridge 路径共用同一套回合视图状态。
 /// </summary>
@@ -27,6 +29,31 @@ public sealed class ReplBridgeDriver
     /// <summary>活动流式正文项（M8-1 逐字流式）— 首个带 Text 的 token_delta 惰性创建落位 spinner 前，
     /// 后续增量原地追加；AssistantMessage 原位替换为完整消息项；EndTurn 兜底定格/清理。</summary>
     private StreamingTextItem? _streamingItem;
+
+    /// <summary>活动工具调用聚合链（M8-4）— null = 无链（最近事件已断；详见 ToolCallChain）。</summary>
+    private ToolCallChain? _activeToolChain;
+
+    /// <summary>
+    /// 工具调用聚合链（M8-4）— Driver 私有状态：连续同名可聚合调用（Read/Grep/Glob）的合并追踪。
+    /// 链生命周期：首次调用独立上屏 ToolCallItem（链头候选）→ 第二次同名到达原位替换为 CollapsedToolItem
+    /// （Count=2 起折叠形态）→ 后续同名 RecordCall 原地更新。断链条件：不同名/非聚合工具到达、
+    /// 其他消息事件产生（流式正文/助手消息/错误/子代理组）、回合边界（BeginTurn/EndTurn）；
+    /// 工具结果不断链（聚合仅统计 ToolCallItem — Read→Result→Read 仍聚合，结果照旧独立上屏）。
+    /// </summary>
+    private sealed class ToolCallChain(string toolName, string firstArgs, ToolCallItem head)
+    {
+        /// <summary>链工具名（同名合并键）。</summary>
+        public string ToolName => toolName;
+
+        /// <summary>链首次调用参数（替换链头时构造聚合项的历史首条）。</summary>
+        public string FirstArgs => firstArgs;
+
+        /// <summary>链头独立项（首次上屏的 ToolCallItem — 第二次同名到达时定位原位替换）。</summary>
+        public ToolCallItem Head => head;
+
+        /// <summary>激活的聚合项（null = 尚未聚合 — 链头仍为独立 ToolCallItem）。</summary>
+        public CollapsedToolItem? Collapsed { get; set; }
+    }
 
     /// <summary>创建应用器（view/spinner/banner 由调用方构造并挂载，spinner 须为 Messages 末项、banner 为首项；
     /// onPermissionRequest = 权限请求挂起钩子，null = 忽略权限请求事件（纯视图断言测试场景）；
@@ -81,7 +108,7 @@ public sealed class ReplBridgeDriver
                 // durationMs 供引擎侧比对，视图侧模式切换由后续事件（tool_call/token_delta）驱动。
                 break;
             case BridgeEvent.ToolCall(var name, var args):
-                AddMessage(new ToolCallItem(name, args));
+                ApplyToolCall(name, args);
                 _spinner.Mode = SpinnerMode.ToolUse;
                 _spinner.HasActiveTools = true;
                 break;
@@ -105,6 +132,7 @@ public sealed class ReplBridgeDriver
                 if (text is { Length: > 0 }) {
                     // M8-1 逐字流式 — 惰性建流式项（spinner 前）+ 原地追加（每帧全量重渲自然增长）
                     if (_streamingItem is null) {
+                        EndToolChain();
                         _streamingItem = new StreamingTextItem();
                         AddMessage(_streamingItem);
                     }
@@ -112,6 +140,7 @@ public sealed class ReplBridgeDriver
                 }
                 break;
             case BridgeEvent.AssistantMessage(var text, var markdown, var messageId, var thinkingDurationMs, var thinkingContent):
+                EndToolChain();
                 ReplaceStreamingWithFinal(markdown is not null
                     ? new MarkdownMessageItem(markdown, _codeHighlighter, thinkingDurationMs, thinkingContent, messageId)
                     : new AssistantMessageItem(text, thinkingDurationMs, thinkingContent, messageId));
@@ -137,6 +166,7 @@ public sealed class ReplBridgeDriver
 
                 break;
             case BridgeEvent.Error(var message):
+                EndToolChain();
                 AddMessage(new ErrorMessageItem(message));
                 break;
         }
@@ -145,6 +175,7 @@ public sealed class ReplBridgeDriver
     /// <summary>子代理启动 — 惰性建组（组项落位 spinner 前）+ 条目追加 + spinner 切 ToolUse（子代理运行中主循环有活跃工具）。</summary>
     private void ApplySubagentStarted(string subagentId, string agentType, string description)
     {
+        EndToolChain();
         if (_activeSubagentGroup is null)
         {
             _activeSubagentGroup = new SubagentGroupCoordinator();
@@ -154,6 +185,60 @@ public sealed class ReplBridgeDriver
         _activeSubagentGroup.AddAgent(subagentId, agentType, description);
         _spinner.Mode = SpinnerMode.ToolUse;
         _spinner.HasActiveTools = true;
+    }
+
+    /// <summary>ToolCall 路由（M8-4 聚合）— 同名可聚合链上合并（已聚合 Record / 未聚合替换链头），
+    /// 不同名或非聚合工具断链后独立上屏（单次调用保持 ToolCallItem 类型 — 视觉与断言面零变化）。</summary>
+    private void ApplyToolCall(string name, string args)
+    {
+        if (_activeToolChain is { } chain && chain.ToolName == name)
+        {
+            ExtendChain(chain, args);
+            return;
+        }
+
+        EndToolChain();
+        if (CollapsedToolItem.IsAggregatable(name))
+        {
+            var head = new ToolCallItem(name, args);
+            AddMessage(head);
+            _activeToolChain = new ToolCallChain(name, args, head);
+            return;
+        }
+
+        AddMessage(new ToolCallItem(name, args));
+    }
+
+    /// <summary>链上后续同名调用 — 已聚合则原地 Record（计数与最新提示行更新），
+    /// 未聚合则原位替换链头为聚合项（Count=2 起折叠形态 — 位置不变视觉无跳变）。</summary>
+    private void ExtendChain(ToolCallChain chain, string args)
+    {
+        if (chain.Collapsed is { } collapsed)
+        {
+            collapsed.RecordCall(args);
+            return;
+        }
+
+        var merged = new CollapsedToolItem(chain.ToolName, [chain.FirstArgs, args]);
+        ReplaceItem(chain.Head, merged);
+        chain.Collapsed = merged;
+    }
+
+    /// <summary>断链（幂等）— 不同名工具/其他消息事件/回合边界调用。</summary>
+    private void EndToolChain() => _activeToolChain = null;
+
+    /// <summary>消息项原位替换（聚合链头 → 聚合项；位置不变视觉无跳变，未找到时退化为 AddMessage）。</summary>
+    private void ReplaceItem(IScrollItem oldItem, IScrollItem newItem)
+    {
+        var index = _view.Messages.IndexOf(oldItem);
+        if (index < 0)
+        {
+            AddMessage(newItem);
+            return;
+        }
+
+        _view.Messages.RemoveAt(index);
+        _view.Messages.Insert(index, newItem);
     }
 
     /// <summary>应用会话握手：banner 换引擎真实数据（模型 null → "当前模型未设置"；供应商 null → 空，banner 退化无前缀）
@@ -179,6 +264,7 @@ public sealed class ReplBridgeDriver
     {
         IsBusy = true;
         _activeSubagentGroup = null;
+        EndToolChain();
         DiscardStreamingItem();
         _view.Footer = _view.Footer with { Busy = true };
         _spinner.Message = string.Empty;
@@ -200,6 +286,7 @@ public sealed class ReplBridgeDriver
         IsBusy = false;
         _activeSubagentGroup?.FinalizePending();
         _activeSubagentGroup = null;
+        EndToolChain();
         FinalizeStreamingItem();
         _view.Footer = _view.Footer with { Busy = false };
         _spinner.Message = string.Empty;

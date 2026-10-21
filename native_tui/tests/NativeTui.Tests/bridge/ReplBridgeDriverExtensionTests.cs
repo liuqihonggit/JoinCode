@@ -79,7 +79,7 @@ public sealed class ReplBridgeDriverExtensionTests
         BridgeEvent[] turn =
         [
             new BridgeEvent.TurnStarted(),
-            new BridgeEvent.ToolCall("Read", "src/main.cs"),
+            new BridgeEvent.ToolCall("Bash", "ls -la"),
             new BridgeEvent.ToolResult("41 lines"),
             new BridgeEvent.TokenDelta(24),
             new BridgeEvent.AssistantMessage("回复正文"),

@@ -137,26 +137,6 @@ public static class MessageRenderer
     }
 
     /// <summary>
-    /// 渲染聚合摘要行（M8-4，基准 CollapsedReadSearchContent "Read N files" 形态）：
-    /// ● + 空格 + 动词段 bold + 空格 + 数量段默认样式（结构对齐 RenderToolCall 的 bold 段 + 默认段）。
-    /// </summary>
-    public static void RenderCollapsedToolHeader(Screen screen, Rect frame, Theme theme, string verb, string countPhrase)
-    {
-        var bullet = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Text });
-        var bold = screen.Styles.GetOrAdd(new TextStyle { Bold = true });
-        screen.WriteText(frame.Y, frame.X, $"{Figures.MessageBullet} ", bullet, frame.Right);
-        var col = screen.WriteText(frame.Y, frame.X + 2, verb, bold, frame.Right);
-        screen.WriteText(frame.Y, col, $" {countPhrase}", 0, frame.Right);
-    }
-
-    /// <summary>渲染聚合最新操作提示行（M8-4）："  ⎿  " 前缀 + 最新参数摘要，整行 dim（基准组下方 latest file_path 行）。</summary>
-    public static void RenderCollapsedToolLastHint(Screen screen, Rect frame, Theme theme, string lastArgs)
-    {
-        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
-        screen.WriteText(frame.Y, frame.X, $"{Figures.ToolResultIndent}{lastArgs}", dim, frame.Right);
-    }
-
-    /// <summary>
     /// 渲染工具输出续行（折叠首行之后的后续行）— ToolResultIndent 等宽空格缩进（5 列）+ 行内容默认样式
     ///（基准 MessageResponse row 布局：⎿ 前缀列固定，续行在右列 wrap 对齐；行尾 \r 去除 — 模型输出统一 \n）。
     /// </summary>

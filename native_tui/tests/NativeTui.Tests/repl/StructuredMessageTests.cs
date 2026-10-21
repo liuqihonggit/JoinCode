@@ -113,12 +113,13 @@ public sealed class StructuredMessageTests
 
     // ---- 交互（ReplShell Ctrl+O） ----
 
-    /// <summary>Ctrl+O — 进入 transcript 全局模式（M8-3 语义演进：原单条切换 → 全部 CoT 展开 verbose）。</summary>
+    /// <summary>Ctrl+O — 进入 transcript 全局模式（M8-3/S6 收敛语义演进：单条切换 → Controller
+    /// 快照 verbose 行投影 + ReplView verbose 联动开 — CoT 全文进快照行）。</summary>
     [Fact]
     public void CtrlO_TogglesLastMessageWithCoT()
     {
         var engine = new FakeReplEngine();
-        var shell = new ReplShell(engine, new BannerItem("0", "m", "b", "C:\\"), new StringWriter());
+        var shell = new ReplShell(engine, new BannerItem("0", "m", "b", "C:\\"), new StringWriter(), sizeSource: new FakeTerminalSizeSource(80, 24));
         shell.SeedContent();
         engine.Events.Enqueue(new BridgeEvent.AssistantMessage("第一条", MessageId: 1, ThinkingDurationMs: 100, ThinkingContent: "CoT1"));
         engine.Events.Enqueue(new BridgeEvent.AssistantMessage("第二条", MessageId: 2, ThinkingDurationMs: 200, ThinkingContent: "CoT2"));
@@ -126,25 +127,26 @@ public sealed class StructuredMessageTests
 
         shell.HandleKey(new ConsoleKeyInfo('\x0f', ConsoleKey.O, false, false, false));
 
-        var items = shell.View.Messages.Items.OfType<AssistantMessageItem>().ToList();
-        Assert.True(items[0].IsThinkingExpanded, "transcript verbose 全展开（M8-3 — 基准 verbose=true 渲染）");
-        Assert.True(items[1].IsThinkingExpanded);
+        Assert.True(shell.IsTranscriptMode);
+        Assert.True(shell.View.VerboseMode);
+        Assert.Contains(shell.Transcript.Snapshot!.Lines, static line => line.Contains("CoT1"));
+        Assert.Contains(shell.Transcript.Snapshot.Lines, static line => line.Contains("CoT2"));
     }
 
-    /// <summary>Ctrl+O 无 CoT — 静默无操作（非思考模型路径不弹错误）。</summary>
+    /// <summary>Ctrl+O 无 CoT — 静默无操作（非思考模型路径不弹错误 — 快照仅正文行）。</summary>
     [Fact]
     public void CtrlO_NoCoTAnywhere_SilentNoOp()
     {
         var engine = new FakeReplEngine();
-        var shell = new ReplShell(engine, new BannerItem("0", "m", "b", "C:\\"), new StringWriter());
+        var shell = new ReplShell(engine, new BannerItem("0", "m", "b", "C:\\"), new StringWriter(), sizeSource: new FakeTerminalSizeSource(80, 24));
         shell.SeedContent();
         engine.Events.Enqueue(new BridgeEvent.AssistantMessage("无思考回复"));
         shell.DrainEngine();
 
         shell.HandleKey(new ConsoleKeyInfo('\x0f', ConsoleKey.O, false, false, false));
 
-        var item = shell.View.Messages.Items.OfType<AssistantMessageItem>().Single();
-        Assert.False(item.IsThinkingExpanded);
+        Assert.True(shell.IsTranscriptMode);
+        Assert.DoesNotContain(shell.Transcript.Snapshot!.Lines, static line => line.Contains("CoT"));
     }
 }
 

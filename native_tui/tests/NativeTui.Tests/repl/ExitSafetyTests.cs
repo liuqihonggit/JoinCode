@@ -4,7 +4,7 @@ namespace NativeTui.Tests.Repl;
 /// 退出安全按键测试（TASK059 — 用户痛点：Esc/Ctrl+C 误触直接关闭终端）—
 /// Esc 永不退出（忙时 500ms 双击中断，单击等窗口；闲时清输入）；
 /// Ctrl+C 复制最后 assistant 消息（剪贴板委托注入，零依赖 ADR 0140）；
-/// 退出路径只剩 Ctrl+D（空输入）与 /exit 命令。
+/// 退出路径只剩 Ctrl+D（空输入双击确认 — S6 对齐基准 useExitOnCtrlCD）与 /exit 命令。
 /// </summary>
 public sealed class ExitSafetyTests
 {
@@ -149,15 +149,41 @@ public sealed class ExitSafetyTests
 
     // ---- 退出路径保留 ----
 
-    /// <summary>Ctrl+D 空输入 → 退出（唯一按键退出路径，对齐基准）。</summary>
+    /// <summary>Ctrl+D 空输入首按 — 不退出（双击确认链 S6：通知提示"再按一次"，窗口 3s）。</summary>
     [Fact]
-    public void CtrlD_EmptyInput_Exits()
+    public void CtrlD_EmptyInput_FirstPress_DoesNotExit()
     {
         var (shell, _, _) = CreateShell();
 
         shell.HandleKey(new ConsoleKeyInfo('\x04', ConsoleKey.D, false, false, false));
 
+        Assert.True(shell.IsRunning);
+        Assert.Equal(1, shell.View.Footer.Notifications!.QueuedCount);
+    }
+
+    /// <summary>Ctrl+D 空输入双击（确认窗口内）→ 退出（唯一按键退出路径 — 双击确认）。</summary>
+    [Fact]
+    public void CtrlD_EmptyInput_DoublePress_Exits()
+    {
+        var (shell, _, _) = CreateShell();
+
+        shell.HandleKey(new ConsoleKeyInfo('\x04', ConsoleKey.D, false, false, false));
+        shell.HandleKey(new ConsoleKeyInfo('\x04', ConsoleKey.D, false, false, false));
+
         Assert.False(shell.IsRunning);
+    }
+
+    /// <summary>Ctrl+D 确认窗口过期（>3s）— 二按视为新首按不退出（重新计提示）。</summary>
+    [Fact]
+    public void CtrlD_WindowExpired_SecondPress_RestartsConfirmation()
+    {
+        var (shell, _, clock) = CreateShell();
+
+        shell.HandleKey(new ConsoleKeyInfo('\x04', ConsoleKey.D, false, false, false));
+        clock.Advance(ReplShell.ExitConfirmWindowMs + 1);
+        shell.HandleKey(new ConsoleKeyInfo('\x04', ConsoleKey.D, false, false, false));
+
+        Assert.True(shell.IsRunning);
     }
 
     /// <summary>Ctrl+D 有文本 → 删除光标字符不退出（既有行为保留）。</summary>

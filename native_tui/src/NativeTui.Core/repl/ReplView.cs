@@ -44,6 +44,7 @@ public sealed class ReplView
     private readonly PromptInputBox _inputBox = new();
     private readonly SuggestionBox _suggestionBox = new();
     private readonly MessageActionsFooter _actionsBar = new();
+    private readonly HelpPanel _helpPanel = new();
 
     /// <summary>未读分界 divider（null = 未挂载 — 分界后新消息到达时惰性挂载）。</summary>
     private UnreadDividerItem? _unreadDivider;
@@ -92,6 +93,15 @@ public sealed class ReplView
     /// MessageActionsState.Of(选中项)）。</summary>
     public MessageActionsState? MessageActions { get; set; }
 
+    /// <summary>transcript 全屏渲染数据（S6 收敛 — 非 null 即整屏 transcript 模态渲染：
+    /// PromptInput/建议区/排队面板卸载，行窗口+footer 由 TranscriptRenderer 执行；
+    /// ReplShell 每帧从 TranscriptController 投影，null = 正常主屏布局）。</summary>
+    public TranscriptScreenData? Transcript { get; set; }
+
+    /// <summary>帮助面板开关（S6 任务 5 — 空闲态 '?' 弹出/Esc 关闭；true 时输入框上方渲染
+    /// HelpPanel 键位清单，对齐基准 PromptInputHelpMenu 位置语义）。</summary>
+    public bool HelpOpen { get; set; }
+
     /// <summary>全局 verbose 开关（transcript 模式 — 渲染前经 IVerboseAware 投影给展开态 item）。</summary>
     public bool VerboseMode { get; private set; }
 
@@ -111,6 +121,9 @@ public sealed class ReplView
 
     /// <summary>操作条高度（0 = 光标态未激活）。</summary>
     private int ActionsHeight => MessageActions is null ? 0 : MessageActionsFooter.Height;
+
+    /// <summary>帮助面板高度（0 = 未开启）。</summary>
+    private int HelpHeight => HelpOpen ? HelpPanel.Height : 0;
 
     /// <summary>设置全局 verbose 开关（transcript 模式消费 — 渲染时经 IVerboseAware 投影给 item 的
     /// 展开接口；item 侧 IsExpanded 联动接线在 item 域，见未决问题）。</summary>
@@ -145,14 +158,14 @@ public sealed class ReplView
     }
 
     /// <summary>
-    /// 内容总高度（inline 模式建屏用）— 消息全量高度 + 间隔 1 + 输入区 3 + 排队面板 + 后台任务面板 + 建议区 + 操作条 + footer 高度；
+    /// 内容总高度（inline 模式建屏用）— 消息全量高度 + 间隔 1 + 输入区 3 + 排队面板 + 后台任务面板 + 建议区 + 操作条 + 帮助面板 + footer 高度；
     /// 屏高取此值时消息区恰好全量展示（无滚动窗口），历史自然滚入终端 scrollback。
     /// </summary>
     public int MeasureContentHeight(int cols) =>
-        Messages.MeasureContentHeight(cols) + 4 + QueueHeight + BackgroundTaskHeight + SuggestionHeight + ActionsHeight + _footer.MeasureHeight(Footer);
+        Messages.MeasureContentHeight(cols) + 4 + QueueHeight + BackgroundTaskHeight + SuggestionHeight + ActionsHeight + HelpHeight + _footer.MeasureHeight(Footer);
 
-    /// <summary>inline 模式尾部动态区行数（间隔 1 + 输入区 3 + 排队面板 + 后台任务面板 + 建议区 + 操作条 + footer 高度）— 退出清理用。</summary>
-    public int TailHeight => 4 + QueueHeight + BackgroundTaskHeight + SuggestionHeight + ActionsHeight + _footer.MeasureHeight(Footer);
+    /// <summary>inline 模式尾部动态区行数（间隔 1 + 输入区 3 + 排队面板 + 建议区 + 操作条 + 帮助面板 + footer 高度）— 退出清理用。</summary>
+    public int TailHeight => 4 + QueueHeight + SuggestionHeight + ActionsHeight + HelpHeight + _footer.MeasureHeight(Footer);
 
     /// <summary>
     /// 输入光标内容坐标（inline 模式帧尾光标位）— 行 = 输入文本行（内容底上方 footer+操作条+建议区+2），
@@ -167,8 +180,15 @@ public sealed class ReplView
 
     /// <summary>渲染整屏（消息区 → 后台任务面板 → 排队面板 → 输入框 → 建议区 → 操作条 → footer）。
     /// 渲染前列表域同步：未读分界（sticky 通道）→ 项投影（verbose/连续用户消息）→ 渲染上限裁剪 → divider 挂载计数。</summary>
+
     public void Render(Screen screen, Theme theme)
     {
+        if (Transcript is { } transcript)
+        {
+            TranscriptRenderer.Render(screen, theme, transcript);
+            return;
+        }
+
         SyncUnreadBoundary();
         SyncItemProjections();
         EnforceVisibleLimit();
@@ -208,7 +228,12 @@ public sealed class ReplView
             BackgroundTasks.Render(screen, new Rect(0, inputFrame.Y - queueHeight - backgroundHeight, screen.Cols, backgroundHeight), theme);
         }
 
-        var messagesHeight = Math.Max(0, screen.Rows - footerHeight - actionsHeight - suggestionHeight - queueHeight - backgroundHeight - 4);
+        if (HelpOpen)
+        {
+            _helpPanel.Render(screen, new Rect(0, inputFrame.Y - queueHeight - backgroundHeight - HelpHeight, screen.Cols, HelpHeight), theme);
+        }
+
+        var messagesHeight = Math.Max(0, screen.Rows - footerHeight - actionsHeight - suggestionHeight - queueHeight - backgroundHeight - HelpHeight - 4);
         var messagesFrame = new Rect(0, 0, screen.Cols, messagesHeight);
         Messages.Render(screen, messagesFrame, theme);
     }

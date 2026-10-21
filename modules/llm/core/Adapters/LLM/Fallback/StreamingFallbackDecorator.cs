@@ -9,9 +9,9 @@ namespace Api.LLM.Fallback;
 /// 装饰器模式：包装任意 IQueryService 实现，透明添加 fallback 能力
 /// 非流式调用直接委托给内部服务，流式调用包裹 fallback 逻辑
 ///
-/// 注意：C# 不允许在 try-catch 块中使用 yield return（CS1626/CS1631），
-/// 因此流式+fallback 逻辑通过 CollectStreamingEventsAsync 辅助方法实现：
-/// 先收集流式事件到列表，如果失败则执行 fallback，最后统一 yield
+/// 两阶段增量透传（ADR 0146 — TASK043 修复）：预热阶段（首事件前，可 fallback）+
+/// 透传阶段（已产出后，异常上抛）——消除 CS1626/CS1631（try-catch 内禁 yield）的
+/// 「全量收集后整发」旧实现（逐字流式失效/首字延迟=整轮时长/停止批量闪现三缺陷根因）
 /// </remarks>
 public sealed class StreamingFallbackDecorator : IQueryService {
     private readonly IQueryService _inner;
@@ -55,9 +55,16 @@ public sealed class StreamingFallbackDecorator : IQueryService {
     }
 
     /// <summary>
-    /// 流式调用 — 包裹看门狗 + fallback 逻辑
-    /// 对齐 TS queryModelWithStreaming 的 catch 块 + executeNonStreamingRequest
+    /// 流式调用 — 两阶段增量透传（ADR 0146）：
+    /// 预热阶段拉首事件（可 fallback — 连接级错误拿不到任何事件时降级非流式无损重试）；
+    /// 透传阶段逐事件 yield（不可 fallback — 已产出内容无法回收，中途失败上抛防重复输出）。
     /// </summary>
+    /// <remarks>
+    /// 消除 CS1626/CS1631（try-catch 内禁 yield）的手法：预热为非迭代器方法（可 try-catch），
+    /// 透传为迭代器（仅 try-finally 做释放 — finally 中 await 合法）。
+    /// watchdog 与 enumerator 所有权：预热成功时经 PrimeOutcome 转移给迭代器 finally 统一释放；
+    /// fallback/取消路径由预热方法自释放。
+    /// </remarks>
     public async IAsyncEnumerable<StreamEvent> GetStreamEventContentsAsync(
         MessageList chatHistory,
         ChatOptions? executionSettings = null,
@@ -73,73 +80,94 @@ public sealed class StreamingFallbackDecorator : IQueryService {
             yield break;
         }
 
-        var result = await CollectWithFallbackAsync(chatHistory, executionSettings, kernel, cancellationToken).ConfigureAwait(false);
+        var outcome = await TryPrimeAsync(chatHistory, executionSettings, kernel, cancellationToken).ConfigureAwait(false);
 
-        foreach (var evt in result.Events) {
-            yield return evt;
+        if (outcome.FirstEvent is not { } first) {
+            // Fallback/Cancelled 形态 — 非流式重试全量事件（取消=空列表零事件）
+            foreach (var evt in outcome.FallbackEvents) {
+                yield return evt;
+            }
+            yield break;
+        }
+
+        if (outcome.Enumerator is not { } enumerator || outcome.Watchdog is not { } watchdog) {
+            // Primed 形态三件套由工厂保证同时非空 — 到达此处为内部状态损坏（开心路径断言屏蔽）
+            throw new InvalidOperationException(
+                "PrimeOutcome Primed 形态完整性破坏（FirstEvent 非空但 Enumerator/Watchdog 为空）— 请检查 TryPrimeAsync 的 Primed 工厂调用");
+        }
+
+        try {
+            yield return first;
+            watchdog.Reset();
+            while (await enumerator.MoveNextAsync().ConfigureAwait(false)) {
+                watchdog.Reset();
+                yield return enumerator.Current;
+            }
+        } finally {
+            await enumerator.DisposeAsync().ConfigureAwait(false);
+            watchdog.Dispose();
         }
     }
 
     /// <summary>
-    /// 收集流式事件 + fallback 逻辑 — 因 C# 不允许 try-catch 中 yield return，
-    /// 将流式收集和 fallback 合并为一个返回列表的异步方法
+    /// 预热阶段 — 拉取首个上游事件（非迭代器，可 try-catch）：
+    /// 空流（IncompleteStream）/看门狗超时/可 fallback 异常 → 非流式重试并返回全量事件；
+    /// 用户取消 → 空结果（原语义 — 无可吐内容直接结束）；
+    /// 成功 → 首事件 + 活的会话（watchdog/enumerator 转移给调用方释放）。
     /// </summary>
-    private async Task<StreamingResult> CollectWithFallbackAsync(
+    private async Task<PrimeOutcome> TryPrimeAsync(
         MessageList chatHistory,
         ChatOptions? executionSettings,
         IChatClient? kernel,
         CancellationToken cancellationToken) {
-        using var watchdog = new StreamIdleWatchdog(
+        var watchdog = new StreamIdleWatchdog(
             _config.StreamIdleTimeoutMs,
             cancellationToken,
             _config.StreamWatchdogEnabled);
-
-        var events = new List<StreamEvent>();
+        var enumerator = _inner.GetStreamEventContentsAsync(chatHistory, executionSettings, kernel, watchdog.CombinedToken)
+            .GetAsyncEnumerator(cancellationToken);
 
         try {
-            await foreach (var evt in _inner.GetStreamEventContentsAsync(
-                chatHistory, executionSettings, kernel, watchdog.CombinedToken).ConfigureAwait(false)) {
-                watchdog.Reset();
-                events.Add(evt);
-            }
-
-            if (watchdog.WasIdleAborted) {
-                throw new StreamingFallbackTriggeredException(
-                    "Stream idle timeout - no chunks received",
-                    FallbackCause.Watchdog);
-            }
-
-            if (events.Count == 0) {
+            if (!await enumerator.MoveNextAsync().ConfigureAwait(false)) {
                 throw new StreamingFallbackTriggeredException(
                     "Stream completed without receiving any events",
                     FallbackCause.IncompleteStream);
             }
-
-            return new StreamingResult(events, fellBack: false);
         } catch (OperationCanceledException ex) when (watchdog.WasIdleAborted) {
+            await DisposeSessionAsync(enumerator, watchdog).ConfigureAwait(false);
             return await ExecuteFallbackAsync(
                 chatHistory, executionSettings, kernel, cancellationToken,
-                new StreamingFallbackTriggeredException("Stream idle timeout", FallbackCause.Watchdog, ex),
-                events).ConfigureAwait(false);
+                new StreamingFallbackTriggeredException("Stream idle timeout", FallbackCause.Watchdog, ex)).ConfigureAwait(false);
         } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
-            return new StreamingResult(events, fellBack: false);
+            await DisposeSessionAsync(enumerator, watchdog).ConfigureAwait(false);
+            return PrimeOutcome.Cancelled();
         } catch (StreamingFallbackTriggeredException ex) {
-            return await ExecuteFallbackAsync(chatHistory, executionSettings, kernel, cancellationToken, ex, events).ConfigureAwait(false);
+            await DisposeSessionAsync(enumerator, watchdog).ConfigureAwait(false);
+            return await ExecuteFallbackAsync(chatHistory, executionSettings, kernel, cancellationToken, ex).ConfigureAwait(false);
         } catch (Exception ex) when (ShouldFallback(ex, cancellationToken)) {
-            return await ExecuteFallbackAsync(chatHistory, executionSettings, kernel, cancellationToken, ex, events).ConfigureAwait(false);
+            await DisposeSessionAsync(enumerator, watchdog).ConfigureAwait(false);
+            return await ExecuteFallbackAsync(chatHistory, executionSettings, kernel, cancellationToken, ex).ConfigureAwait(false);
         }
+
+        return PrimeOutcome.Primed(enumerator.Current, enumerator, watchdog);
+    }
+
+    /// <summary>释放预热失败/取消路径的会话资源（成功路径所有权已转移，勿在此释放）。</summary>
+    private static async Task DisposeSessionAsync(
+        IAsyncEnumerator<StreamEvent> enumerator, StreamIdleWatchdog watchdog) {
+        await enumerator.DisposeAsync().ConfigureAwait(false);
+        watchdog.Dispose();
     }
 
     /// <summary>
-    /// 执行非流式 fallback — 对齐 TS executeNonStreamingRequest
+    /// 执行非流式 fallback — 对齐 TS executeNonStreamingRequest（ADR 0146：仅预热阶段调用 — 首事件前失败才降级）
     /// </summary>
-    private async Task<StreamingResult> ExecuteFallbackAsync(
+    private async Task<PrimeOutcome> ExecuteFallbackAsync(
         MessageList chatHistory,
         ChatOptions? executionSettings,
         IChatClient? kernel,
         CancellationToken cancellationToken,
-        Exception originalError,
-        List<StreamEvent> partialEvents) {
+        Exception originalError) {
         _logger?.LogWarning("[FALLBACK {CallId}:161] 流式失败, 降级为非流式 | {ExType}: {Message}", CallTrace.CurrentId, originalError.GetType().Name, originalError.Message);
 
         LastRequestFellBack = true;
@@ -160,7 +188,7 @@ public sealed class StreamingFallbackDecorator : IQueryService {
         }
 
         var fallbackEvents = ConvertToStreamEvents(messages);
-        return new StreamingResult(fallbackEvents, fellBack: true);
+        return PrimeOutcome.FromFallback(fallbackEvents);
     }
 
     /// <summary>
@@ -249,13 +277,23 @@ public sealed class StreamingFallbackDecorator : IQueryService {
     }
 
     /// <summary>
-    /// 流式收集结果 — 事件列表 + 是否触发过 fallback
+    /// 预热结果 — 三形态（ADR 0146）：
+    /// Primed（首事件 + 活会话，透传阶段消费）/ Fallback（非流式重试全量事件）/ Cancelled（用户取消，空流结束）
     /// </summary>
-    private sealed class StreamingResult(List<StreamEvent> events, bool fellBack) {
-        /// <summary>获取流式事件列表。</summary>
-        public List<StreamEvent> Events { get; } = events;
-        /// <summary>获取是否触发了 fallback。</summary>
-        public bool FellBack { get; } = fellBack;
+    private sealed record PrimeOutcome(
+        StreamEvent? FirstEvent,
+        IAsyncEnumerator<StreamEvent>? Enumerator,
+        StreamIdleWatchdog? Watchdog,
+        List<StreamEvent> FallbackEvents) {
+        /// <summary>构造 Primed 形态 — 首事件 + 活会话（三件套同时非空，透传阶段消费）。</summary>
+        public static PrimeOutcome Primed(StreamEvent first, IAsyncEnumerator<StreamEvent> enumerator, StreamIdleWatchdog watchdog)
+            => new(first, enumerator, watchdog, []);
+        /// <summary>构造 Fallback 形态 — 非流式重试的全量事件（FirstEvent=null 为判别依据）。</summary>
+        public static PrimeOutcome FromFallback(List<StreamEvent> events)
+            => new(null, null, null, events);
+        /// <summary>构造 Cancelled 形态 — 用户取消（零事件空流结束，语义同 Fallback 零事件）。</summary>
+        public static PrimeOutcome Cancelled()
+            => new(null, null, null, []);
     }
 }
 

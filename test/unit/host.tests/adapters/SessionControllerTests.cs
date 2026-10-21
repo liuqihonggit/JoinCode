@@ -97,6 +97,7 @@ public sealed class SessionControllerTests {
         var events = new List<ChatStreamEvent>
         {
             ChatStreamEvent.LoopDetected(3, 0, "repeated pattern"),
+            ChatStreamEvent.Text("ok"),
             ChatStreamEvent.Done()
         };
         var chatService = CreateMockChatService(events);
@@ -116,6 +117,7 @@ public sealed class SessionControllerTests {
         var events = new List<ChatStreamEvent>
         {
             ChatStreamEvent.ToolProgress("web_search", "query_update", "searching..."),
+            ChatStreamEvent.Text("ok"),
             ChatStreamEvent.Done()
         };
         var chatService = CreateMockChatService(events);
@@ -136,6 +138,7 @@ public sealed class SessionControllerTests {
         var events = new List<ChatStreamEvent>
         {
             ChatStreamEvent.TimingSummary("TTFT: 1.2s, Total: 3.5s"),
+            ChatStreamEvent.Text("ok"),
             ChatStreamEvent.Done()
         };
         var chatService = CreateMockChatService(events);
@@ -177,7 +180,7 @@ public sealed class SessionControllerTests {
     }
 
     [Fact]
-    public async Task StreamResponseAsync_EmptyEvents_ReturnsSuccessWithEmptyResponse() {
+    public async Task StreamResponseAsync_EmptyEvents_ReturnsErrorNotSilentSuccess() {
         var events = new List<ChatStreamEvent>
         {
             ChatStreamEvent.Done()
@@ -189,8 +192,44 @@ public sealed class SessionControllerTests {
 
         var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
 
+        Assert.False(result.Succeeded);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.Contains("空回复", result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task StreamResponseAsync_ToolOnlyTurn_EmptyTextStaysSuccess() {
+        var events = new List<ChatStreamEvent>
+        {
+            ChatStreamEvent.ToolStart("read_file", "call1", "{}"),
+            ChatStreamEvent.ToolEnd("read_file", "content", "call1", false),
+            ChatStreamEvent.Done()
+        };
+        var chatService = CreateMockChatService(events);
+        var consumer = new RecordingEventConsumer();
+        var turnDiffService = new TurnDiffService();
+        var controller = new SessionController(chatService, consumer, turnDiffService, "test-session");
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
         Assert.True(result.Succeeded);
-        Assert.Equal(string.Empty, result.Response);
+    }
+
+    [Fact]
+    public async Task StreamResponseAsync_ThinkingOnlyTurn_EmptyTextStaysSuccess() {
+        var events = new List<ChatStreamEvent>
+        {
+            ChatStreamEvent.Thinking("思考中"),
+            ChatStreamEvent.Done()
+        };
+        var chatService = CreateMockChatService(events);
+        var consumer = new RecordingEventConsumer();
+        var turnDiffService = new TurnDiffService();
+        var controller = new SessionController(chatService, consumer, turnDiffService, "test-session");
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(result.Succeeded);
     }
 
     [Fact]

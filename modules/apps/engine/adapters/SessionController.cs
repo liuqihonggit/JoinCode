@@ -8,6 +8,9 @@ public sealed class SessionController {
     private readonly IChatService _chatService;
     private readonly IEventConsumer _consumer;
     private readonly TurnDiffService _turnDiffService;
+
+    /// <summary>本回合是否有实质产出（空回合防御判定 — 工具调用/子代理事件置位、回合开始复位；文本/思考经长度判定不入此标记）。</summary>
+    private bool _hasSubstantiveOutput;
     private readonly string _sessionId;
     private readonly IServiceProvider? _serviceProvider;
     private readonly IClockService _clock;
@@ -71,6 +74,7 @@ public sealed class SessionController {
         using var timeoutCts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromMilliseconds(apiTimeoutMs));
         var timeoutToken = timeoutCts.Token;
         var hasReceivedEvent = false;
+        _hasSubstantiveOutput = false;
 
         try {
             if (_mainAgent is not null) {
@@ -116,6 +120,15 @@ public sealed class SessionController {
             // 等待思考内容持久化完成，避免 fire-and-forget 丢失
             await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, cancellationToken).ConfigureAwait(false);
 
+            // 空回合防御（修复：流式超时重试后拿到空流被当成功静默返回 — TUI 傻等无消息无错误）：
+            // 无文本 + 无思考 + 无工具调用 = 全空产出，判 Error 带诱导（重试提示）；
+            // 工具回合/思考回合文本空属合法半产出（onToolEnd/onThinking 已独立消费），不误判。
+            if (LastResponse.Length == 0 && thinkingContent.Length == 0 && !_hasSubstantiveOutput) {
+                return SessionTurnResult.Error(
+                    "模型返回空回复（无文本/思考/工具产出）。可能为请求过大超时或供应商响应异常，请按 Esc 打断后重试，或切换模型/供应商。",
+                    partialResponse: string.Empty);
+            }
+
             return SessionTurnResult.Success(LastResponse, requestTimestamp);
         } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && !hasReceivedEvent) {
             await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, CancellationToken.None).ConfigureAwait(false);
@@ -156,6 +169,7 @@ public sealed class SessionController {
     private string? ProcessEvent(ChatStreamEvent evt, StringBuilder fullResponse, StringBuilder thinkingContent) {
         string? modelId = null;
         if (RouteSubagentEvent(evt)) {
+            _hasSubstantiveOutput = true;
             return null;
         }
 
@@ -169,6 +183,7 @@ public sealed class SessionController {
                 _consumer.OnThinking(thinking);
             },
             onToolStart: (toolName, callId, arguments) => {
+                _hasSubstantiveOutput = true;
                 _consumer.OnToolStart(toolName, callId, arguments);
             },
             onToolEnd: (toolName, resultText, callId, isToolError, structuredPatch) => {

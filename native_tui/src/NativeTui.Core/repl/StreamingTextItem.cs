@@ -8,12 +8,15 @@ namespace NativeTui.Core.Repl;
 /// ScrollBox 每帧全量重渲（MeasureHeight/Render 每帧调用）— 追加后自然逐帧增长，无需失效通知。
 /// 接口按方案 B（块级增量 Markdown）的增量契约设计（Append 语义不变），后续升级替换实现不破消费方。
 /// </summary>
-public sealed class StreamingTextItem : IScrollItem
+public sealed class StreamingTextItem : IScrollItem, ITextMatchable
 {
     private readonly StringBuilder _buffer = new();
 
     /// <summary>当前累积文本（测试断言面 + Driver 替换/定格语义消费）。</summary>
     public string Text => _buffer.ToString();
+
+    /// <summary>流式缓冲文本匹配（transcript 搜索）。</summary>
+    public bool ContainsText(string query) => _buffer.ToString().Contains(query, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>追加一段增量文本（引擎 OnText 粒度 — 空串无操作）。</summary>
     public void Append(string text) {

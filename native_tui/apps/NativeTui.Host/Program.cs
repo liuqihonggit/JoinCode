@@ -60,7 +60,7 @@ public static class Program {
                             Console.WriteLine($"[probe] t={firstThinking} 首思考");
                         }
                         break;
-                    case BridgeEvent.TokenDelta(var delta):
+                    case BridgeEvent.TokenDelta(var delta, _):
                         if (firstToken is null) {
                             firstToken = $"{sw.ElapsedMilliseconds}ms";
                             Console.WriteLine($"[probe] t={firstToken} 首 token");

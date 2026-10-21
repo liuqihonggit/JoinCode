@@ -85,6 +85,18 @@ public sealed class ReplShell
     /// <summary>最近一次直发提交的用户消息项位置（M8-2 打断恢复 — 无有效响应时移除该条上屏）。</summary>
     private int _lastSubmittedIndex = -1;
 
+    /// <summary>ctrl+o 全局 transcript 模式（M8-3 — 基准 app:toggleTranscript）：全屏 verbose 模态。</summary>
+    private bool _transcriptMode;
+
+    /// <summary>transcript 内 `/` 搜索查询（null = 非搜索态；非空 = 搜索输入态，字符累积）。</summary>
+    private string? _transcriptQuery;
+
+    /// <summary>进入 transcript 前的 footer Notification 槽原值（退出还原）。</summary>
+    private string? _savedNotification;
+
+    /// <summary>transcript 模式态（internal — 测试断言面）。</summary>
+    internal bool IsTranscriptMode => _transcriptMode;
+
     /// <summary>剪贴板写入委托（TASK059 — Ctrl+C 复制最后 assistant 消息；宿主注入引擎
     /// IClipboardService 适配，Core 零依赖不持接口；null = 复制能力降级无操作）。</summary>
     private readonly Action<string>? _copyToClipboard;
@@ -394,6 +406,12 @@ public sealed class ReplShell
             return;
         }
 
+        if (_transcriptMode)
+        {
+            HandleTranscriptKey(key);
+            return;
+        }
+
         if (_cursorNav.IsCursorActive)
         {
             HandleCursorNavKey(key);
@@ -543,7 +561,7 @@ public sealed class ReplShell
                 BeginOrCycleSearch();
                 break;
             case "o":
-                ToggleLastThinking();
+                ToggleTranscriptMode();
                 break;
             case "n":
                 ScrollIfViewport(3);
@@ -675,6 +693,217 @@ public sealed class ReplShell
         {
             _view.Messages.ScrollBy(rows);
         }
+    }
+
+    /// <summary>ctrl+o 切换 transcript 模式（M8-3 — 基准 app:toggleTranscript 双向）。</summary>
+    private void ToggleTranscriptMode()
+    {
+        if (_transcriptMode)
+        {
+            ExitTranscriptMode();
+        }
+        else
+        {
+            EnterTranscriptMode();
+        }
+    }
+
+    /// <summary>进入 transcript：全部 CoT 展开（verbose — 基准 verbose=true 渲染）+ footer 专用提示 + 清查询态。</summary>
+    private void EnterTranscriptMode()
+    {
+        _transcriptMode = true;
+        _transcriptQuery = null;
+        foreach (var item in _view.Messages.Items)
+        {
+            if (item is AssistantMessageItem { ThinkingContent: { Length: > 0 } } plain && !plain.IsThinkingExpanded)
+            {
+                plain.ToggleThinking();
+            }
+            else if (item is MarkdownMessageItem { ThinkingContent: { Length: > 0 } } md && !md.IsThinkingExpanded)
+            {
+                md.ToggleThinking();
+            }
+        }
+
+        _savedNotification = _view.Footer.Notification;
+        _view.Footer = _view.Footer with { Notification = TranscriptFooterHint };
+    }
+
+    /// <summary>退出 transcript：全部 CoT 收起（基准 hidePastThinking）+ footer 还原。</summary>
+    private void ExitTranscriptMode()
+    {
+        _transcriptMode = false;
+        _transcriptQuery = null;
+        foreach (var item in _view.Messages.Items)
+        {
+            if (item is AssistantMessageItem { IsThinkingExpanded: true } plain)
+            {
+                plain.ToggleThinking();
+            }
+            else if (item is MarkdownMessageItem { IsThinkingExpanded: true } md)
+            {
+                md.ToggleThinking();
+            }
+        }
+
+        _view.Footer = _view.Footer with { Notification = _savedNotification };
+    }
+
+    /// <summary>transcript footer 提示文案（基准 TranscriptModeFooter 汉化）。</summary>
+    private const string TranscriptFooterHint = "详细转录 · ctrl+o 切换 · ↑↓ 滚动 · / 搜索";
+
+    /// <summary>transcript 模态按键（M8-3 — 基准 transcript 屏 less 键位）：
+    /// 搜索态：字符累积查询/Enter 跳匹配/Backspace 删/Esc 清查询；
+    /// 普通态：ctrl+o 或 Esc 退出、j/k/↑/↓ 滚动、g/G 首末、ctrl+u/d 半页、/ 进入搜索；
+    /// 其余键吞掉（模态 — 字符不进输入框）。</summary>
+    private void HandleTranscriptKey(KeyPress key)
+    {
+        if (_transcriptQuery is not null)
+        {
+            HandleTranscriptSearchKey(key);
+            return;
+        }
+
+        if (key.Ctrl && key is { Kind: KeyKind.Char, Input: "o" })
+        {
+            ExitTranscriptMode();
+            return;
+        }
+
+        switch (key.Kind)
+        {
+            case KeyKind.Escape:
+                ExitTranscriptMode();
+                return;
+            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "j":
+                ScrollIfViewport(3);
+                return;
+            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "k":
+                ScrollIfViewport(-3);
+                return;
+            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "g":
+                ScrollIfViewport(int.MinValue);
+                return;
+            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "G":
+                _view.Messages.ScrollToBottom();
+                return;
+            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "/":
+                _transcriptQuery = string.Empty;
+                return;
+            case KeyKind.UpArrow:
+                ScrollIfViewport(-3);
+                return;
+            case KeyKind.DownArrow:
+                ScrollIfViewport(3);
+                return;
+            case KeyKind.PageUp:
+                ScrollIfViewport(-10);
+                return;
+            case KeyKind.PageDown:
+                ScrollIfViewport(10);
+                return;
+            case KeyKind.Home:
+                ScrollIfViewport(int.MinValue);
+                return;
+            case KeyKind.End:
+                _view.Messages.ScrollToBottom();
+                return;
+            default:
+                // 模态：其余键吞掉（含 ctrl+u/ctrl+d 编辑键 — transcript 态非编辑上下文）
+                if (key.Ctrl && key is { Kind: KeyKind.Char, Input: "u" })
+                {
+                    ScrollIfViewport(-10);
+                }
+                else if (key.Ctrl && key is { Kind: KeyKind.Char, Input: "d" })
+                {
+                    ScrollIfViewport(10);
+                }
+
+                return;
+        }
+    }
+
+    /// <summary>transcript 搜索态按键：字符累积/Backspace 删/Enter 跳下一个匹配项/非搜索态 Esc 退出。</summary>
+    private void HandleTranscriptSearchKey(KeyPress key)
+    {
+        switch (key.Kind)
+        {
+            case KeyKind.Escape:
+                _transcriptQuery = null;
+                _view.Footer = _view.Footer with { Notification = TranscriptFooterHint };
+                return;
+            case KeyKind.Return:
+                JumpToNextTranscriptMatch();
+                return;
+            case KeyKind.Backspace:
+                if (_transcriptQuery is { Length: > 0 })
+                {
+                    _transcriptQuery = _transcriptQuery[..^1];
+                    UpdateTranscriptSearchFooter();
+                }
+
+                return;
+            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input.Length == 1:
+                _transcriptQuery += key.Input[0];
+                UpdateTranscriptSearchFooter();
+                return;
+            default:
+                return;
+        }
+    }
+
+    /// <summary>搜索态 footer 显示查询（`/查询` 形态）。</summary>
+    private void UpdateTranscriptSearchFooter() =>
+        _view.Footer = _view.Footer with { Notification = $"/{_transcriptQuery}" };
+
+    /// <summary>Enter 跳转到下一个含查询的滚动项（从当前滚动位置向下环形找 — 视口模式滚动定位）。</summary>
+    private void JumpToNextTranscriptMatch()
+    {
+        if (string.IsNullOrEmpty(_transcriptQuery))
+        {
+            return;
+        }
+
+        var items = _view.Messages.Items;
+        var query = _transcriptQuery;
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (items[i] is not ITextMatchable matchable || !matchable.ContainsText(query))
+            {
+                continue;
+            }
+
+            var targetTop = ItemContentTop(i);
+            if (targetTop > _view.Messages.ScrollTop)
+            {
+                _view.Messages.ScrollBy(targetTop - _view.Messages.ScrollTop);
+                return;
+            }
+        }
+
+        // 无更靠下的匹配 — 环形回卷首个匹配（基准 n/N 循环语义）
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (items[i] is ITextMatchable matchable && matchable.ContainsText(query))
+            {
+                var targetTop = ItemContentTop(i);
+                _view.Messages.ScrollBy(targetTop - _view.Messages.ScrollTop);
+                return;
+            }
+        }
+    }
+
+    /// <summary>第 index 项的内容起始 Y（前缀高度和 — 跳转定位用）。</summary>
+    private int ItemContentTop(int index)
+    {
+        var width = _sizeSource.Current.Cols;
+        var top = 0;
+        for (var i = 0; i < index; i++)
+        {
+            top += _view.Messages.Items[i].MeasureHeight(width);
+        }
+
+        return top;
     }
 
     /// <summary>进入或循环搜索（Ctrl+R）— 未激活：以当前输入为查询进入（暂存草稿）；

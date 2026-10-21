@@ -120,7 +120,10 @@ public sealed class ReplShell
     private Screen _back = null!;
     private bool _frontValid;
     private long _animTimeMs;
-    private bool _running = true;
+    private volatile bool _running = true;
+
+    /// <summary>滚动区已请求清屏标记（M8-5 — /clear 回调置位，主循环渲染前消费；volatile 跨线程）。</summary>
+    private volatile bool _screenClearPending;
 
     /// <summary>inline 模式上一帧尾光标（内容坐标）。</summary>
     private CursorPos _cursor;
@@ -708,7 +711,7 @@ public sealed class ReplShell
         }
     }
 
-    /// <summary>进入 transcript：全部 CoT 展开（verbose — 基准 verbose=true 渲染）+ footer 专用提示 + 清查询态。</summary>
+    /// <summary>进入 transcript：全部 CoT 展开 + Diff 全量展开（verbose — 基准 verbose=true 渲染）+ footer 专用提示 + 清查询态。</summary>
     private void EnterTranscriptMode()
     {
         _transcriptMode = true;
@@ -723,13 +726,17 @@ public sealed class ReplShell
             {
                 md.ToggleThinking();
             }
+            else if (item is DiffResultItem { IsExpanded: false } diff)
+            {
+                diff.ToggleExpand();
+            }
         }
 
         _savedNotification = _view.Footer.Notification;
         _view.Footer = _view.Footer with { Notification = TranscriptFooterHint };
     }
 
-    /// <summary>退出 transcript：全部 CoT 收起（基准 hidePastThinking）+ footer 还原。</summary>
+    /// <summary>退出 transcript：全部 CoT 收起 + Diff 收起（基准 hidePastThinking + 折叠还原）+ footer 还原。</summary>
     private void ExitTranscriptMode()
     {
         _transcriptMode = false;
@@ -743,6 +750,10 @@ public sealed class ReplShell
             else if (item is MarkdownMessageItem { IsThinkingExpanded: true } md)
             {
                 md.ToggleThinking();
+            }
+            else if (item is DiffResultItem { IsExpanded: true } diff)
+            {
+                diff.ToggleExpand();
             }
         }
 
@@ -977,10 +988,14 @@ public sealed class ReplShell
         }
     }
 
+    /// <summary>底部操作条渲染项（M8-6 消息操作复制 — 导航态激活挂载于 spinner 之前 / 退出卸载）。</summary>
+    private readonly MessageActionsBar _actionsBar = new();
+
     /// <summary>
     /// 消息光标导航模态按键（交互层 Step1，对齐基准 MESSAGE_ACTIONS 上下文键绑定）：
     /// ↑/↓/k/j 相邻可导航消息逐条移动、Shift+↑/↓ 跳相邻用户消息、Ctrl+↑/↓ 首末可导航消息、
     /// Enter 切换选中分组展开态（基准展开 grouped_tool_use → verbose 逐代理详细渲染）、
+    /// c 复制选中消息全文 / p 复制工具主参数（M8-6 — 复制后不退出导航，基准 copy 键位）、
     /// Esc 两级退出（任一分组展开先全部收起、再退出导航）；
     /// 其余按键全部吞掉（模态 — 基准全屏模式 PromptInput 卸载语义，不进输入缓冲）。
     /// </summary>
@@ -1037,14 +1052,25 @@ public sealed class ReplShell
             case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "j":
                 _cursorNav.Move(items, 1);
                 return;
+            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "c":
+                CopySelectedMessage(primaryOnly: false);
+                return;
+            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "p":
+                CopySelectedMessage(primaryOnly: true);
+                return;
             default:
                 // 模态：其余键吞掉（不进输入缓冲 — 基准光标态 PromptInput 卸载）
                 return;
         }
     }
 
-    /// <summary>进入消息光标导航（Shift+↑ — 定位最后一条用户消息；无可导航消息 no-op）。</summary>
-    private void BeginCursorNavigation() => _cursorNav.Begin(_view.Messages.Items);
+    /// <summary>进入消息光标导航（Shift+↑ — 定位最后一条用户消息；无可导航消息 no-op）
+    /// + 挂载底部操作条（激活成功才挂 — 无可导航消息空会话不出操作条）。</summary>
+    private void BeginCursorNavigation()
+    {
+        _cursorNav.Begin(_view.Messages.Items);
+        ShowActionsBar();
+    }
 
     /// <summary>Enter 切换选中分组展开态（选中非分组消息 no-op — 基准仅 grouped_tool_use 可展开）。</summary>
     private void ToggleSelectedGroupExpansion()
@@ -1057,7 +1083,8 @@ public sealed class ReplShell
         }
     }
 
-    /// <summary>Esc 两级退出 — 任一分组展开先全部收起（导航保持）；否则退出光标导航。</summary>
+    /// <summary>Esc 两级退出 — 任一分组展开先全部收起（导航保持、操作条保持）；
+    /// 否则退出光标导航并卸载底部操作条。</summary>
     private void EscapeCursorNavigation()
     {
         var expandedGroups = _view.Messages.Items
@@ -1075,6 +1102,7 @@ public sealed class ReplShell
         }
 
         _cursorNav.Exit();
+        HideActionsBar();
     }
 
     /// <summary>补全激活时的专属键拦截（基准 Autocomplete 上下文）：
@@ -1373,6 +1401,17 @@ public sealed class ReplShell
     /// internal = resize/渲染测试的单帧驱动面。</summary>
     internal void RenderAndFlush()
     {
+        if (_screenClearPending)
+        {
+            _screenClearPending = false;
+            // 终端层清屏 + 清 scrollback（对话历史滚入区）+ 光标回原点；渲染基线重置 — 下一帧按首帧语义重绘 banner+spinner+输入区
+            _output.Write(Sgr.Reset + Csi.EraseScreen() + Csi.EraseSavedLines() + Csi.CursorPosition(1, 1));
+            _output.Flush();
+            _frontValid = false;
+            _prevOverride = null;
+            _cursor = new CursorPos(Col: 0, Row: 0);
+        }
+
         SyncSuggestionState();
         SyncCursorHighlight();
         EnsureScreens();
@@ -1490,6 +1529,24 @@ public sealed class ReplShell
         _output.Flush();
     }
 
+    /// <summary>清滚动区（M8-5 — /clear 接线，引擎回合线程回调）：
+    /// 移除 banner 与常驻 spinner 之间全部消息项（保留 SeedContent 不变式）+ 置清屏待决标记 —
+    /// 终端层 2J+3J 清屏延到主循环 RenderAndFlush 消费（回调线程不写终端 — 与渲染循环并发写交错）。</summary>
+    public void ClearMessagesExceptBannerAndSpinner()
+    {
+        for (var i = _view.Messages.Count - 2; i > 0; i--)
+        {
+            _view.Messages.RemoveAt(i);
+        }
+
+        _view.Messages.ScrollToBottom();
+        _screenClearPending = true;
+    }
+
+    /// <summary>请求退出主循环（M8-5 — /exit 接线，引擎回合线程回调）：
+    /// 置 _running=false 对齐 Ctrl+D 语义，Run() 当前拍收尾返回后由宿主 WriteExit 收尾。</summary>
+    public void RequestExit() => _running = false;
+
     /// <summary>终端光标落到输入文本行（视口模式 — 0 基 Rows-2 → 1 基 Rows-1），列随编辑偏移。</summary>
     private void PositionCursor()
     {
@@ -1506,6 +1563,69 @@ public sealed class ReplShell
         if (sleepMs > 0)
         {
             Thread.Sleep(sleepMs);
+        }
+    }
+
+    /// <summary>复制选中消息（M8-6 消息操作复制 — 光标导航态 c 全文 / p 工具主参数）：
+    /// 剪贴板委托 null（未注入）或选中项无可复制文本时静默无操作（对齐 CopyLastAssistantMessage
+    /// 降级先例）；复制后不退出导航（基准 copy 键位后光标保持 — 继续导航）。</summary>
+    private void CopySelectedMessage(bool primaryOnly)
+    {
+        if (_copyToClipboard is null)
+        {
+            return;
+        }
+
+        if (_cursorNav.SelectedIndex is not (>= 0 and var index) || index >= _view.Messages.Count)
+        {
+            return;
+        }
+
+        var text = MessageActionsCopy.TryGetText(_view.Messages.Items[index], primaryOnly);
+        if (text is null)
+        {
+            return;
+        }
+
+        _copyToClipboard(text);
+        PostCopyFeedback();
+    }
+
+    /// <summary>复制反馈 — "已复制到剪贴板" 消息插到操作条之前（消息流末尾语义，操作条/spinner
+    /// 尾部常驻位保持；反馈插入选中项之后不影响光标索引）；无操作条（非导航态防御）退回
+    /// AddMessage 语义。</summary>
+    private void PostCopyFeedback()
+    {
+        var feedback = new AssistantMessageItem("已复制到剪贴板");
+        var barIndex = _view.Messages.IndexOf(_actionsBar);
+        if (barIndex < 0)
+        {
+            AddMessage(feedback);
+            return;
+        }
+
+        _view.Messages.Insert(barIndex, feedback);
+    }
+
+    /// <summary>挂载底部操作条 — 导航态激活时插到常驻 spinner 之前（SpinnerItem 同款尾部常驻模式；
+    /// 闲时 spinner 高度 0 = 操作条即滚动区末行，视觉输入框上方）；未激活/已挂载幂等 no-op。</summary>
+    private void ShowActionsBar()
+    {
+        if (!_cursorNav.IsCursorActive || _view.Messages.IndexOf(_actionsBar) >= 0)
+        {
+            return;
+        }
+
+        _view.Messages.Insert(_view.Messages.Count - 1, _actionsBar);
+    }
+
+    /// <summary>卸载底部操作条 — 导航态退出时移除（未挂载幂等 no-op）。</summary>
+    private void HideActionsBar()
+    {
+        var index = _view.Messages.IndexOf(_actionsBar);
+        if (index >= 0)
+        {
+            _view.Messages.RemoveAt(index);
         }
     }
 }

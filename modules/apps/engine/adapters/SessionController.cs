@@ -223,8 +223,31 @@ public sealed class SessionController {
             onDone: (usage, mid) => {
                 modelId = mid;
                 _consumer.OnDone(usage, mid);
+                EmitContextUsage(usage);
             });
         return modelId;
+    }
+
+    /// <summary>缺省上下文窗口兜底（对齐 ChatContextManager.DefaultContextWindowResolver 的 200K）。</summary>
+    private const int DefaultContextWindowTokens = 200_000;
+
+    /// <summary>
+    /// 发射上下文余量事件（M8-7 — Done 权威 usage 快照口径）：PromptTokens 即当前上下文窗口占用；
+    /// 窗口优先 IContextWindowResolver（不可达兜底 200K），percentLeft 走 ICompactService.CalculateWarningState
+    /// 权威阈值算法（不可达时朴素窗口百分比兜底）→ _consumer.OnContextUsage。
+    /// usage 为 null 或 PromptTokens=0（mock/无计量路径）不发射，防消费侧噪音。
+    /// </summary>
+    private void EmitContextUsage(TokenUsage? usage) {
+        if (usage is not { PromptTokens: > 0 })
+            return;
+
+        var promptTokens = usage.PromptTokens;
+        var contextWindowTokens = _serviceProvider?.GetService<IContextWindowResolver>()?.ResolveCurrentContextWindow()
+            ?? DefaultContextWindowTokens;
+        var percentLeft = _serviceProvider?.GetService<ICompactService>() is { } compact
+            ? compact.CalculateWarningState(promptTokens, contextWindowTokens).PercentLeft
+            : Math.Max(0, (int)Math.Round((contextWindowTokens - promptTokens) * 100.0 / contextWindowTokens));
+        _consumer.OnContextUsage(promptTokens, contextWindowTokens, percentLeft);
     }
 
     /// <summary>

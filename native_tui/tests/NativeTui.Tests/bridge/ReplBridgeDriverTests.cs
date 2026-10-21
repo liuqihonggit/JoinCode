@@ -368,4 +368,206 @@ public sealed class ReplBridgeDriverTests
 
         Assert.DoesNotContain(_view.Messages.Items, static item => item is StreamingTextItem);
     }
+
+    [Fact]
+    public void Apply_ConsecutiveSameToolCalls_CollapseIntoSingleItem()
+    {
+        // M8-4 聚合路由：首次独立上屏 ToolCallItem，第二次同名到达替换为 CollapsedToolItem（Count=2）
+        _driver.BeginTurn();
+
+        _driver.Apply(new BridgeEvent.ToolCall("Read", "src/a.cs"));
+        _driver.Apply(new BridgeEvent.ToolCall("Read", "src/b.cs"));
+
+        var collapsed = Assert.IsType<CollapsedToolItem>(_view.Messages.Items[^2]);
+        Assert.Equal("Read", collapsed.ToolName);
+        Assert.Equal(2, collapsed.Count);
+        Assert.Equal("src/b.cs", collapsed.LastArgs);
+        Assert.Same(_spinner, _view.Messages.Items[^1]);
+        Assert.Equal(3, _view.Messages.Count);
+    }
+
+    [Fact]
+    public void Apply_SingleAggregatableCall_StaysPlainToolCallItem()
+    {
+        // 单次调用不聚合 — 保持 ToolCallItem 类型（现有断言面/视觉形态零变化）
+        _driver.BeginTurn();
+
+        _driver.Apply(new BridgeEvent.ToolCall("Read", "src/a.cs"));
+
+        Assert.IsType<ToolCallItem>(_view.Messages.Items[^2]);
+        Assert.DoesNotContain(_view.Messages.Items, static item => item is CollapsedToolItem);
+    }
+
+    [Fact]
+    public void Apply_ThirdSameCall_RecordsIntoExistingCollapsedItem()
+    {
+        _driver.BeginTurn();
+        _driver.Apply(new BridgeEvent.ToolCall("Read", "a.cs"));
+        _driver.Apply(new BridgeEvent.ToolCall("Read", "b.cs"));
+        var collapsed = Assert.IsType<CollapsedToolItem>(_view.Messages.Items[^2]);
+
+        _driver.Apply(new BridgeEvent.ToolCall("Read", "c.cs"));
+
+        // 聚合激活后后续同名原地 Record — 不新增消息项
+        Assert.Same(collapsed, _view.Messages.Items[^2]);
+        Assert.Equal(3, collapsed.Count);
+        Assert.Equal("c.cs", collapsed.LastArgs);
+        Assert.Equal(3, _view.Messages.Count);
+    }
+
+    [Fact]
+    public void Apply_ToolResultBetweenSameCalls_DoesNotBreakAggregation()
+    {
+        // 聚合仅统计 ToolCallItem — 工具结果照旧独立上屏且不打断链
+        _driver.BeginTurn();
+        _driver.Apply(new BridgeEvent.ToolCall("Read", "a.cs"));
+        _driver.Apply(new BridgeEvent.ToolResult("41 lines"));
+
+        _driver.Apply(new BridgeEvent.ToolCall("Read", "b.cs"));
+
+        var collapsed = Assert.IsType<CollapsedToolItem>(_view.Messages.Items[^3]);
+        Assert.Equal(2, collapsed.Count);
+        Assert.Equal(1, _view.Messages.Items.Count(static item => item is ToolResultItem));
+    }
+
+    [Fact]
+    public void Apply_DifferentAggregatableTool_BreaksChainForIndependentItems()
+    {
+        // 不同名工具到达即结束当前聚合 — 三次调用互不聚合，各自独立上屏
+        _driver.BeginTurn();
+        _driver.Apply(new BridgeEvent.ToolCall("Read", "a.cs"));
+        _driver.Apply(new BridgeEvent.ToolCall("Grep", "pattern"));
+        _driver.Apply(new BridgeEvent.ToolCall("Read", "b.cs"));
+
+        Assert.Equal(3, _view.Messages.Items.Count(static item => item is ToolCallItem));
+        Assert.DoesNotContain(_view.Messages.Items, static item => item is CollapsedToolItem);
+    }
+
+    [Fact]
+    public void Apply_NonAggregatableTools_NeverAggregate()
+    {
+        // Edit/Bash/Write 等非聚合类工具照旧独立上屏
+        _driver.BeginTurn();
+        _driver.Apply(new BridgeEvent.ToolCall("Bash", "ls"));
+        _driver.Apply(new BridgeEvent.ToolCall("Bash", "pwd"));
+
+        Assert.Equal(2, _view.Messages.Items.Count(static item => item is ToolCallItem));
+        Assert.DoesNotContain(_view.Messages.Items, static item => item is CollapsedToolItem);
+    }
+
+    [Fact]
+    public void Apply_AssistantMessage_BreaksAggregationChain()
+    {
+        // 文本消息到达断链 — 之后的同名调用重新独立上屏（不被旧聚合吸收）
+        _driver.BeginTurn();
+        _driver.Apply(new BridgeEvent.ToolCall("Read", "a.cs"));
+        _driver.Apply(new BridgeEvent.ToolCall("Read", "b.cs"));
+        _driver.Apply(new BridgeEvent.AssistantMessage("正文"));
+
+        _driver.Apply(new BridgeEvent.ToolCall("Read", "c.cs"));
+
+        var collapsedItems = _view.Messages.Items.OfType<CollapsedToolItem>().ToList();
+        Assert.Single(collapsedItems);
+        Assert.Equal(2, collapsedItems[0].Count);
+        Assert.Equal(1, _view.Messages.Items.Count(static item => item is ToolCallItem));
+    }
+
+    [Fact]
+    public void EndTurn_BreaksAggregationChain()
+    {
+        // 回合边界断链 — 新回合同名调用重新独立上屏
+        _driver.BeginTurn();
+        _driver.Apply(new BridgeEvent.ToolCall("Read", "a.cs"));
+        _driver.Apply(new BridgeEvent.ToolCall("Read", "b.cs"));
+        _driver.EndTurn();
+
+        _driver.BeginTurn();
+        _driver.Apply(new BridgeEvent.ToolCall("Read", "c.cs"));
+
+        Assert.Equal(1, _view.Messages.Items.Count(static item => item is CollapsedToolItem));
+        Assert.Equal(1, _view.Messages.Items.Count(static item => item is ToolCallItem));
+    }
+
+    [Fact]
+    public void Apply_GrepConsecutiveCalls_AggregatesWithSearchVerb()
+    {
+        _driver.BeginTurn();
+
+        _driver.Apply(new BridgeEvent.ToolCall("Grep", "TODO"));
+        _driver.Apply(new BridgeEvent.ToolCall("Grep", "FIXME"));
+
+        var collapsed = Assert.IsType<CollapsedToolItem>(_view.Messages.Items[^2]);
+        Assert.Equal("搜索 2 次", collapsed.SummaryText);
+        Assert.Equal("FIXME", collapsed.LastArgs);
+    }
+
+    /// <summary>M8-7 上下文余量 — percentLeft 阈值路由（TokenWarning.tsx:166-177 汉化）：
+    /// ≤10% 告急（Critical + error 文案）、≤25% 不足（Warning + warning 文案）、&gt;25% 清空（防噪音）。</summary>
+    [Fact]
+    public void Apply_ContextUsage_CriticalThreshold_SetsCriticalWarning()
+    {
+        _driver.Apply(new BridgeEvent.ContextUsage(180_000, 200_000, PercentLeft: 8));
+
+        Assert.Equal("上下文告急 (8%) · 运行 /compact", _view.Footer.ContextWarning);
+        Assert.Equal(ContextAlertLevel.Critical, _view.Footer.ContextWarningLevel);
+    }
+
+    [Fact]
+    public void Apply_ContextUsage_AtBoundary10_IsCritical()
+    {
+        _driver.Apply(new BridgeEvent.ContextUsage(180_000, 200_000, PercentLeft: 10));
+
+        Assert.Equal("上下文告急 (10%) · 运行 /compact", _view.Footer.ContextWarning);
+        Assert.Equal(ContextAlertLevel.Critical, _view.Footer.ContextWarningLevel);
+    }
+
+    [Fact]
+    public void Apply_ContextUsage_WarningThreshold_SetsWarning()
+    {
+        _driver.Apply(new BridgeEvent.ContextUsage(150_000, 200_000, PercentLeft: 20));
+
+        Assert.Equal("上下文不足 (20%) · 运行 /compact", _view.Footer.ContextWarning);
+        Assert.Equal(ContextAlertLevel.Warning, _view.Footer.ContextWarningLevel);
+    }
+
+    [Fact]
+    public void Apply_ContextUsage_AtBoundary25_IsWarning()
+    {
+        _driver.Apply(new BridgeEvent.ContextUsage(150_000, 200_000, PercentLeft: 25));
+
+        Assert.Equal("上下文不足 (25%) · 运行 /compact", _view.Footer.ContextWarning);
+        Assert.Equal(ContextAlertLevel.Warning, _view.Footer.ContextWarningLevel);
+    }
+
+    [Fact]
+    public void Apply_ContextUsage_AboveThreshold_ClearsWarning()
+    {
+        _driver.Apply(new BridgeEvent.ContextUsage(180_000, 200_000, PercentLeft: 8));
+
+        _driver.Apply(new BridgeEvent.ContextUsage(90_000, 200_000, PercentLeft: 55));
+
+        Assert.Null(_view.Footer.ContextWarning);
+        Assert.Equal(ContextAlertLevel.None, _view.Footer.ContextWarningLevel);
+    }
+
+    [Fact]
+    public void Apply_ContextUsage_AtBoundary26_IsCleared()
+    {
+        _driver.Apply(new BridgeEvent.ContextUsage(90_000, 200_000, PercentLeft: 26));
+
+        Assert.Null(_view.Footer.ContextWarning);
+        Assert.Equal(ContextAlertLevel.None, _view.Footer.ContextWarningLevel);
+    }
+
+    /// <summary>告警独立槽位 — 不触碰 Notification（临时通知语义由 ReplShell 管理，互不覆盖）。</summary>
+    [Fact]
+    public void Apply_ContextUsage_DoesNotTouchNotification()
+    {
+        _view.Footer = _view.Footer with { Notification = "◐ 中等 · /effort" };
+
+        _driver.Apply(new BridgeEvent.ContextUsage(180_000, 200_000, PercentLeft: 8));
+
+        Assert.Equal("◐ 中等 · /effort", _view.Footer.Notification);
+        Assert.Equal("上下文告急 (8%) · 运行 /compact", _view.Footer.ContextWarning);
+    }
 }

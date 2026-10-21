@@ -138,8 +138,9 @@ public sealed class ToolResultItem(string text) : IScrollItem, ICursorNavigable,
 /// 带补丁的工具结果项（M7-2 StructuredDiff）— summary 行沿用 MessageResponse 形态，
 /// 后接 hunk 块（4 空格缩进：header dim / added DiffAddedWord / removed DiffRemovedWord / context dim）；
 /// patch 全量渲染（基准 update 渲染完整 diff 不截断 — FileWriteTool/UI.tsx "update renders the full diff"），
-/// 仅超 10 行预览上限折叠为 "… +N lines (Ctrl+O)" dim（上限对齐基准 Write MAX_LINES_TO_RENDER=10 防刷屏先例，
-/// Ctrl+O 展开交互为 M7 后续项）。
+/// 仅超 10 行预览上限折叠为 "… +N lines (Ctrl+O)" dim（上限对齐基准 Write MAX_LINES_TO_RENDER=10 防刷屏先例）；
+/// M8-4 工具折叠交互统一：IsExpanded/ToggleExpand 切换展开态 — 展开全量渲染 patch（折叠提示行消失）、
+/// 折叠回 10 行预览 + 提示行；MeasureHeight 随展开态变化（ScrollBox 每帧全量重渲自动生效 — 无需失效通知）。
 /// </summary>
 public sealed class DiffResultItem(string summary, DiffHunk[] patch) : IScrollItem, ICursorNavigable, ITextMatchable
 {
@@ -155,19 +156,27 @@ public sealed class DiffResultItem(string summary, DiffHunk[] patch) : IScrollIt
     /// <summary>结构化补丁 hunks（驱动侧断言与渲染共享）。</summary>
     public DiffHunk[] Patch { get; } = patch;
 
+    /// <summary>展开态（Ctrl+O 切换 — M8-4 工具折叠交互统一）：true = 全量渲染 patch，false = 10 行预览 + 折叠提示。</summary>
+    public bool IsExpanded { get; private set; }
+
+    /// <summary>切换展开态（高度变化由下次 MeasureHeight 反映 — 对齐 ToggleThinking 先例）。</summary>
+    public void ToggleExpand() => IsExpanded = !IsExpanded;
+
     /// <summary>补丁总行数（每 hunk = header 1 行 + diff 行数）。</summary>
     private int TotalPatchRows => Patch.Sum(static hunk => 1 + hunk.Lines.Length);
 
-    /// <summary>内容高度 = margin 1 + summary 1 + 预览行数（超预览时为预览上限 + 折叠提示 1 行）。</summary>
+    /// <summary>内容高度 = margin 1 + summary 1 + 展开全量 patch 行数 / 折叠 min(总行数, 预览上限) + 超限折叠提示 1。</summary>
     public int MeasureHeight(int width) =>
-        2 + Math.Min(TotalPatchRows, PreviewPatchRows) + (TotalPatchRows > PreviewPatchRows ? 1 : 0);
+        2 + (IsExpanded
+            ? TotalPatchRows
+            : Math.Min(TotalPatchRows, PreviewPatchRows) + (TotalPatchRows > PreviewPatchRows ? 1 : 0));
 
-    /// <summary>渲染：margin 留空 → summary（⎿ 形态）→ hunk 预览行 → 折叠提示（如有）。</summary>
+    /// <summary>渲染：margin 留空 → summary（⎿ 形态）→ hunk 行（展开全量 / 折叠预览上限）→ 折叠提示（折叠态超限时）。</summary>
     public void Render(Screen screen, Rect frame, Theme theme)
     {
         MessageRenderer.RenderToolResult(screen, frame with { Y = frame.Y + 1, Height = 1 }, theme, Summary);
 
-        var renderedRows = Math.Min(TotalPatchRows, PreviewPatchRows);
+        var renderedRows = Math.Min(TotalPatchRows, IsExpanded ? TotalPatchRows : PreviewPatchRows);
         var row = frame.Y + 2;
         foreach (var hunk in Patch)
         {
@@ -192,7 +201,7 @@ public sealed class DiffResultItem(string summary, DiffHunk[] patch) : IScrollIt
             }
         }
 
-        if (TotalPatchRows > PreviewPatchRows)
+        if (!IsExpanded && TotalPatchRows > PreviewPatchRows)
         {
             MessageRenderer.RenderDiffCollapseHint(screen, RowFrame(frame, row), theme, TotalPatchRows - PreviewPatchRows);
         }

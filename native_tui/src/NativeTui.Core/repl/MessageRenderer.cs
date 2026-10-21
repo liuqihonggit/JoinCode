@@ -119,11 +119,31 @@ public static class MessageRenderer
         screen.WriteText(frame.Y, frame.X, $"    {prefix}{line.Content}", style, frame.Right);
     }
 
-    /// <summary>渲染折叠提示："    … +N lines (Ctrl+O)"（dim；Ctrl+O 展开交互为 M7 后续项）。</summary>
+    /// <summary>渲染折叠提示："    … +N lines (Ctrl+O)"（dim；Ctrl+O 切换 DiffResultItem.IsExpanded — M8-4 展开后此行消失）。</summary>
     public static void RenderDiffCollapseHint(Screen screen, Rect frame, Theme theme, int hiddenLines)
     {
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
         screen.WriteText(frame.Y, frame.X, $"    … +{hiddenLines} lines (Ctrl+O)", dim, frame.Right);
+    }
+
+    /// <summary>
+    /// 渲染聚合摘要行（M8-4，基准 CollapsedReadSearchContent "Read N files" 形态）：
+    /// ● + 空格 + 动词段 bold + 空格 + 数量段默认样式（结构对齐 RenderToolCall 的 bold 段 + 默认段）。
+    /// </summary>
+    public static void RenderCollapsedToolHeader(Screen screen, Rect frame, Theme theme, string verb, string countPhrase)
+    {
+        var bullet = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Text });
+        var bold = screen.Styles.GetOrAdd(new TextStyle { Bold = true });
+        screen.WriteText(frame.Y, frame.X, $"{Figures.MessageBullet} ", bullet, frame.Right);
+        var col = screen.WriteText(frame.Y, frame.X + 2, verb, bold, frame.Right);
+        screen.WriteText(frame.Y, col, $" {countPhrase}", 0, frame.Right);
+    }
+
+    /// <summary>渲染聚合最新操作提示行（M8-4）："  ⎿  " 前缀 + 最新参数摘要，整行 dim（基准组下方 latest file_path 行）。</summary>
+    public static void RenderCollapsedToolLastHint(Screen screen, Rect frame, Theme theme, string lastArgs)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $"{Figures.ToolResultIndent}{lastArgs}", dim, frame.Right);
     }
 
     /// <summary>渲染权限对话框顶边框 — 整行 ─ 前景 permission 色（基准 borderStyle=round 无角，仅 top，全宽）。</summary>

@@ -302,4 +302,20 @@ public sealed class InProcessEventConsumerTests
         Assert.All(all, m => Assert.Equal(0, m.ThinkingDurationMs));
         Assert.All(all, m => Assert.Null(m.ThinkingContent));
     }
+
+    /// <summary>M8-7 上下文余量 — OnContextUsage 三参直传 ContextUsage 内存事件
+    /// （percentLeft 引擎侧算好，TUI 侧零计算直路由 footer 告警）。</summary>
+    [Fact]
+    public void OnContextUsage_EnqueuesContextUsageEvent()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnContextUsage(180_000, 200_000, 8);
+
+        var events = consumer.DrainEvents();
+        var usage = Assert.IsType<BridgeEvent.ContextUsage>(Assert.Single(events));
+        Assert.Equal(180_000, usage.PromptTokens);
+        Assert.Equal(200_000, usage.ContextWindowTokens);
+        Assert.Equal(8, usage.PercentLeft);
+    }
 }

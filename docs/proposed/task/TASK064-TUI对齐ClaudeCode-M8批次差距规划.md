@@ -1,6 +1,6 @@
 # TASK064 — TUI 对齐 Claude Code 下一批差距（M8 规划）
 
-> 状态：**M8-1/2/3（P0 三连）已 implemented**（2026-10-22，提交链 689f830b3 → 423187e9d → aef776136）；M8-4..M8-8 + P3 池待做
+> 状态：**M8-1..M8-6 已 implemented**（2026-10-22；P0 三连 689f830b3→423187e9d→aef776136，M8-4/5/6 并行子代理批次 f59a6a99e）；M8-7/M8-8 + P3 池待做（引擎侧调研已完成：context_usage 小-中 / background_task 快照+终态 中）
 > 状态：proposed（2026-10-22；PR #446 合并后双调研挖掘——native_tui 现状侧 + 基准源码侧）
 > 来源：用户指令"挖掘还有什么没对齐 Claude Code TUI 功能的，构建新规划"
 > 双调研证据：①native_tui 逐文件实证（InProcessEventConsumer/ReplShell/ReplBridgeDriver 等）②基准源码逐项核实（claude-code-rev-main/src，文件:行号 见各项）
@@ -84,6 +84,15 @@
 | less 键位 | j/k/↑↓/g/G/Home/End/ctrl+u/d/PageUp/Down | ✅ | ✅ 视口滚动路径复用（inline 原生回看语义保持） |
 | / 搜索 | ITextMatchable 七消息项 + Enter 跳匹配（环形）+ Esc 清 | ✅ | ✅ 查询累积/footer 显示/跳转 ScrollTop 断言/Esc 清除/退模态 |
 | 语义演进回归 | ctrl+o 单条→全局（旧测试同步全局断言） | ✅ | ✅ Core 853 全绿（含 StructuredMessageTests 更新） |
+
+**✅ M8-4/5/6 并行子代理批次实施收口（2026-10-22，f59a6a99e）**：三子代理文件面互斥分工 + 主智能体收编 ReplShell 落地件。
+
+| 批次 | 基建实现 | 已实现 | 已验收 |
+|------|---------|--------|--------|
+| M8-4 | CollapsedToolItem 替换式聚合（连续 Read/Grep/Glob 第二次起原位折叠 + 最新操作⎿提示行）+ DiffResultItem ToggleExpand + transcript verbose 态 Diff 全展开 | ✅ | ✅ 20 新测试（聚合 9 + 折叠 4 + 渲染 7）|
+| M8-5 | TuiCommandCallbacks 延迟绑定容器 + clearScreen/onExitRequested 全链 + ReplShell 清屏/退出公开入口 + RenderAndFlush 2J+3J 消费块 + Csi.EraseSavedLines | ✅ | ✅ 6 新测试（回调触发/反馈上屏/降级契约）；confirm/prompt 登记遗留（TUI 命令确认模态独立任务）|
+| M8-6 | 导航态 c 复制全文/p 复制主参数 + MessageActionsBar 底部操作条（滚动区尾部常驻项模式）| ✅ | ✅ 16 新测试 |
+| 批次回归 | — | ✅ | ✅ Core 889 + Host.Tests 74 + host.tests 1382 + selftest 真跑 EXIT=0 |
 
 ### M8-4 工具折叠交互统一 + Read N files 聚合（P1，依赖：M8-3——展开消费 transcript/局部展开双通道）
 

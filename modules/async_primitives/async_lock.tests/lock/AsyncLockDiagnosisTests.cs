@@ -85,7 +85,14 @@ public class AsyncLockDiagnosisTests : IDisposable {
         using var holder = await lk.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
         // TryLock 同步阻塞, 在另一线程调用以记录等待诊断
         var waitTask = Task.Run(async () => await lk.TryLockAsync());
-        await Task.Delay(150);
+        // 确定性等待: LOCK-WAIT-START 诊断消息 = 等待者已进入排队的信号(AsyncLock 排队开始时发射)。
+        // 旧形态固定 Delay(150) 假设 Task.Run 在窗口内开始等待 — CI 线程池饥饿下等待者晚于释放才启动
+        // (等待 0ms 不超阈值 → 漏 LOCK-WAIT-SLOW 告警 flaky); 改等信号后排队的起止时序由测试编排保证
+        var startedWaiting = System.Threading.SpinWait.SpinUntil(
+            () => messages.Any(m => m.Contains("LOCK-WAIT-START") && m.Contains("wait-long-test")),
+            TimeSpan.FromSeconds(5));
+        startedWaiting.Should().BeTrue("等待者应在 5s 内进入等待状态(LOCK-WAIT-START 诊断信号,容忍CI调度延迟)");
+        await Task.Delay(100);
         holder.Dispose();
         var acquired = await waitTask;
         acquired.Should().NotBeNull();

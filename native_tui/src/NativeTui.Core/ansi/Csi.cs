@@ -26,6 +26,9 @@ public static class Csi
     /// <summary>全屏擦除。</summary>
     public static string EraseScreen() => "\x1b[2J";
 
+    /// <summary>清滚动缓冲区（scrollback — CSI 3J，/clear 清对话历史滚入区）。</summary>
+    public static string EraseSavedLines() => "\x1b[3J";
+
     /// <summary>擦除光标到行尾。</summary>
     public static string EraseLineToEnd() => "\x1b[0K";
 

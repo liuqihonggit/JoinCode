@@ -73,6 +73,16 @@ public interface IEventConsumer {
     /// 完成态一次性校正优于逐活动增量 — 引擎数据流中 token 仅回合/完成粒度存在（RecordTokenUsage 亦完成时调用）；
     /// 0 = 无 usage 数据（FinalizePending 等兜底路径），消费方保持原累计值）</param>
     void OnSubagentFinished(string subagentId, bool isError, int tokenTotal) { }
+
+    /// <summary>
+    /// 上下文窗口余量上报（M8-7 — 每回合 Done 后消费侧 footer 告警显示；默认空实现，
+    /// 既有实现方零改动，默认实现须经接口类型调用才可见）
+    /// </summary>
+    /// <param name="promptTokens">当前上下文窗口占用（回合 Done 权威 usage.PromptTokens 快照）</param>
+    /// <param name="contextWindowTokens">上下文窗口大小（IContextWindowResolver 实时解析，缺省 200K）</param>
+    /// <param name="percentLeft">剩余百分比 0-100（引擎侧 ICompactService.CalculateWarningState 权威算法；
+    /// 阈值标志不进接口 — TUI 侧只显示百分比+文案，UI 自己判颜色）</param>
+    void OnContextUsage(int promptTokens, int contextWindowTokens, int percentLeft) { }
 }
 
 /// <summary>

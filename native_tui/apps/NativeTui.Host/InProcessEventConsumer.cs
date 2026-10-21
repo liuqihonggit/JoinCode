@@ -125,6 +125,12 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         _events.Enqueue(new BridgeEvent.SubagentFinished(subagentId, isError, tokenTotal));
     }
 
+    /// <summary>上下文余量 → ContextUsage（M8-7 TASK064 P1 — 引擎回调三参直传内存事件；
+    /// percentLeft 引擎侧算好，ReplBridgeDriver 路由 footer 告警。接口同步由引擎侧 IEventConsumer DIM 完成）。</summary>
+    public void OnContextUsage(int promptTokens, int contextWindowTokens, int percentLeft) {
+        _events.Enqueue(new BridgeEvent.ContextUsage(promptTokens, contextWindowTokens, percentLeft));
+    }
+
     /// <summary>排空事件队列 — 主循环每 tick 调用，取走全部待处理事件（ConcurrentQueue 多生产单消费安全）。</summary>
     public IReadOnlyList<BridgeEvent> DrainEvents() {
         List<BridgeEvent>? drained = null;

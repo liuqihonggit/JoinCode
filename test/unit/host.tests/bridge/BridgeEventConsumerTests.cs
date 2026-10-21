@@ -30,6 +30,18 @@ public sealed class BridgeEventConsumerTests {
             @out.ToString());
     }
 
+    /// <summary>上下文余量回调映射（M8-7）— OnContextUsage → context_usage 事件行（与 native_tui 侧字段逐一对齐）。</summary>
+    [Fact]
+    public void OnContextUsage_EmitsContextUsageEventLine() {
+        var (consumer, @out) = Create();
+
+        consumer.OnContextUsage(150_000, 200_000, 13);
+
+        Assert.Equal(
+            "{\"type\":\"context_usage\",\"promptTokens\":150000,\"contextWindowTokens\":200000,\"percentLeft\":13}\n",
+            @out.ToString());
+    }
+
     [Fact]
     public void OnText_EmitsTokenDelta_AndOnDoneEmitsFullAssistantMessage() {
         var (consumer, @out) = Create();

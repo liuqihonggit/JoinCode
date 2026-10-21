@@ -297,6 +297,72 @@ public sealed class FooterBarTests
         Assert.Equal(1, footer.MeasureHeight(new FooterState { Mode = PermissionMode.Auto }));
         Assert.Equal(2, footer.MeasureHeight(new FooterState { Notification = "◐ medium · /effort" }));
     }
+
+    /// <summary>M8-7 上下文余量告警 — 行2 右对齐三色形态（TokenWarning.tsx:166-177 汉化）：
+    /// Warning 级 warning 色 / Critical 级 error 色；与 Notification 共存时告警优先（持续告警语义 > 临时通知）。</summary>
+    [Fact]
+    public void ContextWarning_WarningLevel_SecondRowRightAlignedWarningColor()
+    {
+        using var screen = new Screen(cols: 60, rows: 2);
+        var footer = new FooterBar();
+        footer.Render(screen, new Rect(0, 0, 60, 2), Theme.Dark, new FooterState
+        {
+            Mode = PermissionMode.Auto,
+            ContextWarning = "上下文不足 (20%) · 运行 /compact",
+            ContextWarningLevel = ContextAlertLevel.Warning,
+        });
+        var warning = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.Warning });
+        // 文本 32 屏幕列（中文 7 字 ×2 + "(20%) · " 9 + "/compact" 8 + 空格）→ 起始 col 28（Right=60）
+        Assert.Equal("上下文不足 (20%) · 运行 /compact", RowText.Of(screen, 1, 28, 32));
+        Assert.Equal(warning, screen[1, 28].StyleId);
+        Assert.Equal(warning, screen[1, 59].StyleId);
+    }
+
+    [Fact]
+    public void ContextWarning_CriticalLevel_SecondRowRightAlignedErrorColor()
+    {
+        using var screen = new Screen(cols: 60, rows: 2);
+        var footer = new FooterBar();
+        footer.Render(screen, new Rect(0, 0, 60, 2), Theme.Dark, new FooterState
+        {
+            Mode = PermissionMode.Auto,
+            ContextWarning = "上下文告急 (8%) · 运行 /compact",
+            ContextWarningLevel = ContextAlertLevel.Critical,
+        });
+        var error = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.Error });
+        // 文本 31 屏幕列（中文 7 字 ×2 + "(8%) · " 8 + "运行" 4 + "/compact" 8 + 空格 1）→ 起始 col 29
+        Assert.Equal("上下文告急 (8%) · 运行 /compact", RowText.Of(screen, 1, 29, 31));
+        Assert.Equal(error, screen[1, 29].StyleId);
+        Assert.Equal(error, screen[1, 59].StyleId);
+    }
+
+    /// <summary>告警与通知同为行2 右对齐 — 同时非空时只渲染告警（Notification 由 12s 超时自然消亡，告警持续到余量回升）。</summary>
+    [Fact]
+    public void ContextWarning_OverridesNotificationWhenBothSet()
+    {
+        using var screen = new Screen(cols: 60, rows: 2);
+        var footer = new FooterBar();
+        footer.Render(screen, new Rect(0, 0, 60, 2), Theme.Dark, new FooterState
+        {
+            Mode = PermissionMode.Auto,
+            Notification = "◐ 中等 · /effort",
+            ContextWarning = "上下文告急 (8%) · 运行 /compact",
+            ContextWarningLevel = ContextAlertLevel.Critical,
+        });
+        var error = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.Error });
+        Assert.Equal("上下文告急 (8%) · 运行 /compact", RowText.Of(screen, 1, 29, 31));
+        // 通知文本不出现在行2（被告警优先占位）
+        Assert.DoesNotContain("◐", RowText.Of(screen, 1, 0, 29));
+        Assert.Equal(error, screen[1, 29].StyleId);
+    }
+
+    [Fact]
+    public void MeasureHeight_TwoRowsWithContextWarning()
+    {
+        var footer = new FooterBar();
+        Assert.Equal(2, footer.MeasureHeight(new FooterState { ContextWarning = "上下文不足 (20%) · 运行 /compact" }));
+        Assert.Equal(1, footer.MeasureHeight(new FooterState { Mode = PermissionMode.Auto }));
+    }
 }
 
 /// <summary>行文本提取辅助（golden 断言用）。</summary>

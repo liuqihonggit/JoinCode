@@ -116,8 +116,8 @@ public sealed class ReplBridgeDriver
             case BridgeEvent.SubagentToolUse(var subagentId, var toolName, var summary, var tokenGain):
                 _activeSubagentGroup?.RecordToolUse(subagentId, toolName, summary, tokenGain);
                 break;
-            case BridgeEvent.SubagentFinished(var subagentId, var isError):
-                _activeSubagentGroup?.FinishAgent(subagentId, isError);
+            case BridgeEvent.SubagentFinished(var subagentId, var isError, var tokenTotal):
+                _activeSubagentGroup?.FinishAgent(subagentId, isError, tokenTotal);
                 if (_activeSubagentGroup is { AllComplete: true })
                 {
                     _spinner.HasActiveTools = false;

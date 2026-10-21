@@ -150,6 +150,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
     /// </summary>
     private async Task ExecuteCoreLoopAsync(QueryMiddlewareContext context, CancellationToken cancellationToken) {
         var retryCount = 0;
+        var totalInputTokens = 0;
+        var totalOutputTokens = 0;
 
         while (context.TotalToolCalls < _config.MaxToolCallIterations) {
             cancellationToken.ThrowIfCancellationRequested();
@@ -192,9 +194,11 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 context.OutputChunks.Add(chunk);
             }
 
-            // 更新上下文的 Token 使用信息
+            // 更新上下文的 Token 使用信息（最后一轮值 — 钩子消费语义不变）+ 跨轮累计（P7 权威校正数据源）
             context.InputTokens = iterationResult.InputTokens;
             context.OutputTokens = iterationResult.OutputTokens;
+            totalInputTokens += iterationResult.InputTokens;
+            totalOutputTokens += iterationResult.OutputTokens;
             context.ToolName = iterationResult.ToolCall?.ToolName;
             context.HasToolCall = iterationResult.ToolCall is not null;
 
@@ -216,7 +220,11 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 _logger?.LogInformation("[QueryEngine] 查询完成，耗时 {ElapsedMs}ms", context.Stopwatch.ElapsedMilliseconds);
 
                 var content = iterationResult.Content ?? string.Empty;
-                context.OutputChunks.Add(BuildCompletionChunk(content, context.Stopwatch.ElapsedMilliseconds, context.TotalToolCalls, context.TotalCostUsd, BuildCacheSafeParams(context)));
+                // P7：累计 usage 随 Complete chunk 透传 — metadata 未提供 token 数时保持 null（禁伪 0）
+                var usage = (totalInputTokens > 0 || totalOutputTokens > 0)
+                    ? new JoinCode.Abstractions.LLM.Chat.TokenUsage(totalInputTokens, totalOutputTokens)
+                    : null;
+                context.OutputChunks.Add(BuildCompletionChunk(content, context.Stopwatch.ElapsedMilliseconds, context.TotalToolCalls, context.TotalCostUsd, BuildCacheSafeParams(context), usage));
                 return;
             }
 
@@ -295,22 +303,24 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
     }
 
     /// <summary>
-    /// 构建查询完成的 chunk — 纯函数（TASK031 阶段2.1 提取）
+    /// 构建查询完成的 chunk — 纯函数（TASK031 阶段2.1 提取；TASK063 P7 补 usage 透传）
     /// </summary>
     /// <param name="content">完成内容</param>
     /// <param name="elapsedMs">耗时毫秒</param>
     /// <param name="totalToolCalls">总工具调用次数</param>
     /// <param name="costUsd">USD 成本</param>
     /// <param name="cacheSafeParams">缓存安全参数</param>
+    /// <param name="usage">累计 token 用量 — 沿链透传到子代理 AgentFinished 事件（P7 完成态权威校正数据源）</param>
     /// <returns>完成类型的 QueryStreamChunk</returns>
-    internal static QueryStreamChunk BuildCompletionChunk(string content, long elapsedMs, int totalToolCalls, decimal costUsd, JoinCode.Abstractions.LLM.Chat.CacheSafeParams? cacheSafeParams) {
+    internal static QueryStreamChunk BuildCompletionChunk(string content, long elapsedMs, int totalToolCalls, decimal costUsd, JoinCode.Abstractions.LLM.Chat.CacheSafeParams? cacheSafeParams, JoinCode.Abstractions.LLM.Chat.TokenUsage? usage = null) {
         return new QueryStreamChunk {
             Type = AgentStreamChunkType.Complete,
             Content = content,
             ExecutionTimeMs = elapsedMs,
             TotalToolCalls = totalToolCalls,
             CostUsd = costUsd,
-            CacheSafeParams = cacheSafeParams
+            CacheSafeParams = cacheSafeParams,
+            Usage = usage
         };
     }
 
@@ -403,17 +413,17 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 });
             }
 
-            // 追踪Token使用量
-            if (streamChunk.Metadata?.TryGetValue("InputTokens", out var inputTokensEl) == true &&
-                inputTokensEl.ValueKind == JsonValueKind.Number) {
-                try { inputTokens = inputTokensEl.GetInt32(); } catch (FormatException ex) {
-                    _logger?.LogWarning(ex, "[QueryEngine] InputTokens 值不是有效 int32(可能是浮点/科学计数法),跳过");
-                }
-            }
-            if (streamChunk.Metadata?.TryGetValue("OutputTokens", out var outputTokensEl) == true &&
-                outputTokensEl.ValueKind == JsonValueKind.Number) {
-                try { outputTokens = outputTokensEl.GetInt32(); } catch (FormatException ex) {
-                    _logger?.LogWarning(ex, "[QueryEngine] OutputTokens 值不是有效 int32(可能是浮点/科学计数法),跳过");
+            // 追踪 Token 使用量 — 消费 provider 统一约定 metadata["Usage"]（TokenUsage JSON，OpenAI/Anthropic 双侧一致）；
+            // 旧 InputTokens/OutputTokens 平铺 key 为孤儿读法（全仓无生产者）已删除（TASK063 P7 根因修复）
+            if (streamChunk.Metadata?.TryGetValue("Usage", out var usageEl) == true &&
+                usageEl.ValueKind == JsonValueKind.Object) {
+                try {
+                    if (JsonSerializer.Deserialize<JoinCode.Abstractions.LLM.Chat.TokenUsage>(usageEl, Core.Context.ChatServiceJsonContext.Default.TokenUsage) is { } tokenUsage) {
+                        inputTokens = tokenUsage.PromptTokens;
+                        outputTokens = tokenUsage.CompletionTokens;
+                    }
+                } catch (JsonException ex) {
+                    _logger?.LogWarning(ex, "[QueryEngine] Usage metadata 反序列化失败，跳过");
                 }
             }
         }

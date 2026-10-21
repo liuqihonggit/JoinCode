@@ -96,7 +96,7 @@ public abstract record BridgeEvent
     public sealed record SubagentToolUse(string SubagentId, string ToolName, string Summary, int TokenGain) : BridgeEvent;
 
     /// <summary>子代理完成 — 条目定格（isError 聚合组头 ● 红；基准基准 agent 完成态 Done）。</summary>
-    public sealed record SubagentFinished(string SubagentId, bool IsError) : BridgeEvent;
+    public sealed record SubagentFinished(string SubagentId, bool IsError, int TokenTotal) : BridgeEvent;
 
     /// <summary>错误（含诱导说明）。</summary>
     public sealed record Error(string Message) : BridgeEvent;

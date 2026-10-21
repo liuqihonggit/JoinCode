@@ -69,7 +69,10 @@ public interface IEventConsumer {
     /// </summary>
     /// <param name="subagentId">子代理标识</param>
     /// <param name="isError">是否失败</param>
-    void OnSubagentFinished(string subagentId, bool isError) { }
+    /// <param name="tokenTotal">子代理总令牌消耗（TASK062 P7 — AgentFinished 事件 Usage.TotalTokens 权威值；
+    /// 完成态一次性校正优于逐活动增量 — 引擎数据流中 token 仅回合/完成粒度存在（RecordTokenUsage 亦完成时调用）；
+    /// 0 = 无 usage 数据（FinalizePending 等兜底路径），消费方保持原累计值）</param>
+    void OnSubagentFinished(string subagentId, bool isError, int tokenTotal) { }
 }
 
 /// <summary>

@@ -36,6 +36,7 @@ public sealed class SubAgentEventMainAgentPathE2ETests {
         var finished = Assert.Single(consumer.SubagentFinishes);
         Assert.Equal(started.SubagentId, finished.SubagentId);
         Assert.False(finished.IsError);
+        Assert.True(finished.TokenTotal > 0, $"子代理完成事件应携带权威 token 总数（实际 {finished.TokenTotal}）——P7 完成态校正链路断裂");
     }
 
     /// <summary>
@@ -183,7 +184,7 @@ public sealed class SubAgentEventMainAgentPathE2ETests {
         public List<string> TextEvents { get; } = [];
         public List<(string SubagentId, string AgentType, string Description)> SubagentStarts { get; } = [];
         public List<(string SubagentId, string ToolName, string Summary, int TokenGain)> SubagentToolUses { get; } = [];
-        public List<(string SubagentId, bool IsError)> SubagentFinishes { get; } = [];
+        public List<(string SubagentId, bool IsError, int TokenTotal)> SubagentFinishes { get; } = [];
 
         public void OnText(string content) => TextEvents.Add(content);
         public List<(string toolName, string? arguments)> ToolStarts { get; } = [];
@@ -197,7 +198,7 @@ public sealed class SubAgentEventMainAgentPathE2ETests {
         public void OnDone(TokenUsage? usage, string? modelId) { }
         public void OnSubagentStarted(string subagentId, string agentType, string description) => SubagentStarts.Add((subagentId, agentType, description));
         public void OnSubagentToolUse(string subagentId, string toolName, string summary, int tokenGain) => SubagentToolUses.Add((subagentId, toolName, summary, tokenGain));
-        public void OnSubagentFinished(string subagentId, bool isError) => SubagentFinishes.Add((subagentId, isError));
+        public void OnSubagentFinished(string subagentId, bool isError, int tokenTotal) => SubagentFinishes.Add((subagentId, isError, tokenTotal));
     }
 
     private System.Diagnostics.Process StartMockServer(JoinCode.Abstractions.Interfaces.IFileSystem fs, string configPath,

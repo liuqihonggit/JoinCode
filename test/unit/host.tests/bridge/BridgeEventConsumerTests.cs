@@ -21,12 +21,12 @@ public sealed class BridgeEventConsumerTests {
 
         consumer.OnSubagentStarted("agent-1", "explore", "搜索渲染链");
         consumer.OnSubagentToolUse("agent-1", "Grep", "命中 3 处", 120);
-        consumer.OnSubagentFinished("agent-1", isError: false);
+        consumer.OnSubagentFinished("agent-1", isError: false, tokenTotal: 1250);
 
         Assert.Equal(
             "{\"type\":\"subagent_started\",\"subagentId\":\"agent-1\",\"agentType\":\"explore\",\"description\":\"搜索渲染链\"}\n" +
             "{\"type\":\"subagent_tool_use\",\"subagentId\":\"agent-1\",\"toolName\":\"Grep\",\"summary\":\"命中 3 处\",\"tokenGain\":120}\n" +
-            "{\"type\":\"subagent_finished\",\"subagentId\":\"agent-1\",\"isError\":false}\n",
+            "{\"type\":\"subagent_finished\",\"subagentId\":\"agent-1\",\"isError\":false,\"tokenTotal\":1250}\n",
             @out.ToString());
     }
 

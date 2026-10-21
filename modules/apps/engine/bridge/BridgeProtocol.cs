@@ -123,8 +123,9 @@ public abstract record BridgeEvent
     /// <summary>子代理工具活动（DSG041 批3 — 原地更新组条目不逐条刷屏；TokenGain 为本次活动新增令牌）。</summary>
     public sealed record SubagentToolUse(string SubagentId, string ToolName, string Summary, int TokenGain) : BridgeEvent;
 
-    /// <summary>子代理完成（DSG041 批3 — 条目定格，isError 聚合组头 ● 红）。</summary>
-    public sealed record SubagentFinished(string SubagentId, bool IsError) : BridgeEvent;
+    /// <summary>子代理完成（DSG041 批3 — 条目定格，isError 聚合组头 ● 红；TokenTotal = 总令牌消耗
+    /// 完成态权威校正 TASK062 P7 — 与 native_tui 侧逐字段镜像）。</summary>
+    public sealed record SubagentFinished(string SubagentId, bool IsError, int TokenTotal) : BridgeEvent;
 
     /// <summary>完整助手消息（追加滚动区）。</summary>
     public sealed record AssistantMessage(string Text) : BridgeEvent;

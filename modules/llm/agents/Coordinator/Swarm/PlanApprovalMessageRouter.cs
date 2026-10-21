@@ -15,7 +15,7 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity {
     private readonly IClockService _clock;
     private CancellationTokenSource? _leaderCts;
     private Task? _leaderRoutingTask;
-    private readonly List<(CancellationTokenSource Cts, Task Routing)> _teammateRoutings = [];
+    private readonly List<(string TeammateId, AgentMessageRouteLoop Loop)> _teammateRoutings = [];
 
     /// <summary>初始化计划审批消息路由器</summary>
     /// <param name="messageBroker">消息邮箱，用于订阅/发布审批消息</param>
@@ -52,24 +52,35 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity {
     /// 启动 Teammate 侧路由：监听 plan_approval_response 并调用 HandlePlanApprovalResponseAsync
     /// </summary>
     public void StartTeammateRouting(string teammateAgentId) {
-        // ct 传入 ReceiveAsync — MailboxBase 底层 ReadAllAsync(ct) 随取消退出（漏传时无消息场景
-        // Channel 读永不退出，StopRoutingAsync/Dispose 无法收尾 teammate 路由 — 同 AgentServiceImpl:679 缺陷）
-        var cts = new CancellationTokenSource();
-        _teammateRoutings.Add((cts, RouteTeammateResponsesAsync(teammateAgentId, cts.Token)));
+        // 经 AgentMessageRouteLoop 单一职责循环 — ct 传递为类内构造契约，
+        // 防 ReceiveAsync 漏传 ct 缺陷模式再犯（同 AgentServiceImpl:679 缺陷）
+        _teammateRoutings.Add((teammateAgentId, StartTeammateLoop(teammateAgentId)));
+    }
+
+    /// <summary>构造并启动 Teammate 响应路由循环（所有权随返回值转移给调用方列表 — StopRoutingAsync 统一收尾）。</summary>
+    private AgentMessageRouteLoop StartTeammateLoop(string teammateAgentId) {
+        var loop = new AgentMessageRouteLoop(_messageBroker, teammateAgentId, RouteTeammateResponseMessageAsync);
+        loop.Start();
+        return loop;
+    }
+
+    /// <summary>Teammate 响应消息处理器 — plan_approval_response 经审批管理器处理。</summary>
+    private async Task RouteTeammateResponseMessageAsync(CoordinatorMessage message, CancellationToken ct) {
+        if (message.MessageType == TeammateMessageType.PlanApprovalResponse.ToValue()) {
+            try {
+                await ProcessPlanApprovalResponseAsync(message).ConfigureAwait(false);
+            } catch (Exception ex) {
+                _logger?.LogError(ex, "Teammate Plan 审批响应处理失败: To={ToAgentId}", message.ToAgentId);
+            }
+        }
     }
 
     /// <summary>
     /// 停止 Leader 侧路由 + Teammate 侧路由（全部收尾）
     /// </summary>
     public async Task StopRoutingAsync() {
-        foreach (var (cts, routing) in _teammateRoutings) {
-            cts.Cancel();
-            try {
-                await routing.ConfigureAwait(false);
-            } catch (OperationCanceledException) {
-            }
-
-            cts.Dispose();
+        foreach (var (_, loop) in _teammateRoutings) {
+            await loop.DisposeAsync().ConfigureAwait(false);
         }
 
         _teammateRoutings.Clear();
@@ -113,22 +124,6 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity {
         } catch (OperationCanceledException) {
         } catch (Exception ex) {
             _logger?.LogError(ex, "Plan 审批消息路由异常退出: CoordinatorId={CoordinatorId}", coordinatorAgentId);
-        }
-    }
-
-    /// <summary>
-    /// Teammate 侧响应路由：监听 plan_approval_response 并调用 HandlePlanApprovalResponseAsync
-    /// </summary>
-    private async Task RouteTeammateResponsesAsync(string teammateAgentId, CancellationToken ct) {
-        try {
-            await foreach (var message in _messageBroker.ReceiveAsync(teammateAgentId, ct).ConfigureAwait(false)) {
-                if (message.MessageType == TeammateMessageType.PlanApprovalResponse.ToValue()) {
-                    await ProcessPlanApprovalResponseAsync(message).ConfigureAwait(false);
-                }
-            }
-        } catch (OperationCanceledException) {
-        } catch (Exception ex) {
-            _logger?.LogError(ex, "Teammate Plan 审批响应路由异常退出: TeammateId={TeammateId}", teammateAgentId);
         }
     }
 

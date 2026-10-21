@@ -244,6 +244,84 @@ public sealed class SessionControllerTests {
         Assert.False(controller.IsRunning);
     }
 
+    /// <summary>Done 携带真实 usage → 发射 OnContextUsage（M8-7 — 权威算法口径：
+    /// IContextWindowResolver 窗口 + ICompactService.CalculateWarningState.PercentLeft）。</summary>
+    [Fact]
+    public async Task StreamResponseAsync_DoneWithUsage_EmitsContextUsageViaCompactAlgorithm() {
+        var compact = new Mock<ICompactService>();
+        compact.Setup(c => c.CalculateWarningState(150_000, 200_000))
+            .Returns(new CompactWarningState {
+                PercentLeft = 37,
+                IsAboveWarningThreshold = false,
+                IsAboveErrorThreshold = false,
+                IsAboveAutoCompactThreshold = false,
+                IsAtBlockingLimit = false,
+                IsAboveSoftCompactThreshold = false,
+            });
+        var resolver = new Mock<IContextWindowResolver>();
+        resolver.Setup(r => r.ResolveCurrentContextWindow()).Returns(200_000);
+        var services = new ServiceCollection();
+        services.AddSingleton(compact.Object);
+        services.AddSingleton(resolver.Object);
+        var sp = services.BuildServiceProvider();
+
+        var events = new List<ChatStreamEvent> {
+            ChatStreamEvent.Text("ok"),
+            ChatStreamEvent.Done(usage: new TokenUsage(150_000, 500)),
+        };
+        var chatService = CreateMockChatService(events);
+        var consumer = new RecordingEventConsumer();
+        var turnDiffService = new TurnDiffService();
+        var controller = new SessionController(chatService, consumer, turnDiffService, "test-session", sp);
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(result.Succeeded);
+        var usage = Assert.Single(consumer.ContextUsages);
+        Assert.Equal(150_000, usage.promptTokens);
+        Assert.Equal(200_000, usage.contextWindowTokens);
+        Assert.Equal(37, usage.percentLeft);
+    }
+
+    /// <summary>Done 携带 usage 但解析器/压缩服务不可达（无 sp）→ 朴素兜底（200K 窗口 + 窗口百分比）。</summary>
+    [Fact]
+    public async Task StreamResponseAsync_DoneWithUsage_NoServices_FallsBackToNaivePercent() {
+        var events = new List<ChatStreamEvent> {
+            ChatStreamEvent.Text("ok"),
+            ChatStreamEvent.Done(usage: new TokenUsage(100_000, 200)),
+        };
+        var chatService = CreateMockChatService(events);
+        var consumer = new RecordingEventConsumer();
+        var turnDiffService = new TurnDiffService();
+        var controller = new SessionController(chatService, consumer, turnDiffService, "test-session");
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(result.Succeeded);
+        var usage = Assert.Single(consumer.ContextUsages);
+        Assert.Equal(100_000, usage.promptTokens);
+        Assert.Equal(200_000, usage.contextWindowTokens);
+        Assert.Equal(50, usage.percentLeft);
+    }
+
+    /// <summary>Done 无 usage（mock/无计量路径）→ 不发射 OnContextUsage（防噪音）。</summary>
+    [Fact]
+    public async Task StreamResponseAsync_DoneWithoutUsage_DoesNotEmitContextUsage() {
+        var events = new List<ChatStreamEvent> {
+            ChatStreamEvent.Text("ok"),
+            ChatStreamEvent.Done(),
+        };
+        var chatService = CreateMockChatService(events);
+        var consumer = new RecordingEventConsumer();
+        var turnDiffService = new TurnDiffService();
+        var controller = new SessionController(chatService, consumer, turnDiffService, "test-session");
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(result.Succeeded);
+        Assert.Empty(consumer.ContextUsages);
+    }
+
     [Fact]
     public async Task StreamResponseAsync_MainAgentPath_CallsSaveContext() {
         var queryEngine = CreateMockQueryEngine();
@@ -376,6 +454,7 @@ public sealed class SessionControllerTests {
         public List<(int triggerCount, int loopStartIndex, string? repeatedPattern)> LoopDetectedEvents { get; } = [];
         public List<string> TimingSummaryEvents { get; } = [];
         public List<(TokenUsage? usage, string? modelId)> DoneEvents { get; } = [];
+        public List<(int promptTokens, int contextWindowTokens, int percentLeft)> ContextUsages { get; } = [];
 
         public void OnText(string content) => TextEvents.Add(content);
         public void OnThinking(string thinking) => ThinkingEvents.Add(thinking);
@@ -385,5 +464,6 @@ public sealed class SessionControllerTests {
         public void OnLoopDetected(int triggerCount, int loopStartIndex, string? repeatedPattern) => LoopDetectedEvents.Add((triggerCount, loopStartIndex, repeatedPattern));
         public void OnTimingSummary(string summary) => TimingSummaryEvents.Add(summary);
         public void OnDone(TokenUsage? usage, string? modelId) => DoneEvents.Add((usage, modelId));
+        public void OnContextUsage(int promptTokens, int contextWindowTokens, int percentLeft) => ContextUsages.Add((promptTokens, contextWindowTokens, percentLeft));
     }
 }

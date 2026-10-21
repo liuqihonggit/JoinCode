@@ -103,6 +103,17 @@ public sealed class BridgeJsonContractTests {
         Assert.Equal("你好 world", submit.Text);
     }
 
+    /// <summary>上下文余量事件 JSON 形状（M8-7 — 与 native_tui 侧 BridgeEvent.ContextUsage 逐字段镜像：
+    /// context_usage + promptTokens/contextWindowTokens/percentLeft camelCase 字段）。</summary>
+    [Fact]
+    public void Serialize_ContextUsage_CarriesCamelCaseFields() {
+        var json = JsonSerializer.Serialize(
+            new CliBridge.BridgeEvent.ContextUsage(150_000, 200_000, 13), CliBridge.BridgeJsonContext.Safe.BridgeEvent);
+        Assert.Equal(
+            "{\"type\":\"context_usage\",\"promptTokens\":150000,\"contextWindowTokens\":200000,\"percentLeft\":13}",
+            json);
+    }
+
     /// <summary>子代理三事件 JSON 形状（DSG041 批3 — 与 native_tui 侧 BridgeEvent 逐字段镜像：
     /// subagent_started/subagent_tool_use/subagent_finished，camelCase 字段）。</summary>
     [Fact]

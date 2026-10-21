@@ -500,4 +500,74 @@ public sealed class ReplBridgeDriverTests
         Assert.Equal("搜索 2 次", collapsed.SummaryText);
         Assert.Equal("FIXME", collapsed.LastArgs);
     }
+
+    /// <summary>M8-7 上下文余量 — percentLeft 阈值路由（TokenWarning.tsx:166-177 汉化）：
+    /// ≤10% 告急（Critical + error 文案）、≤25% 不足（Warning + warning 文案）、&gt;25% 清空（防噪音）。</summary>
+    [Fact]
+    public void Apply_ContextUsage_CriticalThreshold_SetsCriticalWarning()
+    {
+        _driver.Apply(new BridgeEvent.ContextUsage(180_000, 200_000, PercentLeft: 8));
+
+        Assert.Equal("上下文告急 (8%) · 运行 /compact", _view.Footer.ContextWarning);
+        Assert.Equal(ContextAlertLevel.Critical, _view.Footer.ContextWarningLevel);
+    }
+
+    [Fact]
+    public void Apply_ContextUsage_AtBoundary10_IsCritical()
+    {
+        _driver.Apply(new BridgeEvent.ContextUsage(180_000, 200_000, PercentLeft: 10));
+
+        Assert.Equal("上下文告急 (10%) · 运行 /compact", _view.Footer.ContextWarning);
+        Assert.Equal(ContextAlertLevel.Critical, _view.Footer.ContextWarningLevel);
+    }
+
+    [Fact]
+    public void Apply_ContextUsage_WarningThreshold_SetsWarning()
+    {
+        _driver.Apply(new BridgeEvent.ContextUsage(150_000, 200_000, PercentLeft: 20));
+
+        Assert.Equal("上下文不足 (20%) · 运行 /compact", _view.Footer.ContextWarning);
+        Assert.Equal(ContextAlertLevel.Warning, _view.Footer.ContextWarningLevel);
+    }
+
+    [Fact]
+    public void Apply_ContextUsage_AtBoundary25_IsWarning()
+    {
+        _driver.Apply(new BridgeEvent.ContextUsage(150_000, 200_000, PercentLeft: 25));
+
+        Assert.Equal("上下文不足 (25%) · 运行 /compact", _view.Footer.ContextWarning);
+        Assert.Equal(ContextAlertLevel.Warning, _view.Footer.ContextWarningLevel);
+    }
+
+    [Fact]
+    public void Apply_ContextUsage_AboveThreshold_ClearsWarning()
+    {
+        _driver.Apply(new BridgeEvent.ContextUsage(180_000, 200_000, PercentLeft: 8));
+
+        _driver.Apply(new BridgeEvent.ContextUsage(90_000, 200_000, PercentLeft: 55));
+
+        Assert.Null(_view.Footer.ContextWarning);
+        Assert.Equal(ContextAlertLevel.None, _view.Footer.ContextWarningLevel);
+    }
+
+    [Fact]
+    public void Apply_ContextUsage_AtBoundary26_IsCleared()
+    {
+        _driver.Apply(new BridgeEvent.ContextUsage(90_000, 200_000, PercentLeft: 26));
+
+        Assert.Null(_view.Footer.ContextWarning);
+        Assert.Equal(ContextAlertLevel.None, _view.Footer.ContextWarningLevel);
+    }
+
+    /// <summary>告警独立槽位 — 不触碰 Notification（临时通知语义由 ReplShell 管理，互不覆盖）。</summary>
+    [Fact]
+    public void Apply_ContextUsage_DoesNotTouchNotification()
+    {
+        _view.Footer = _view.Footer with { Notification = "◐ 中等 · /effort" };
+
+        _driver.Apply(new BridgeEvent.ContextUsage(180_000, 200_000, PercentLeft: 8));
+
+        Assert.Equal("◐ 中等 · /effort", _view.Footer.Notification);
+        Assert.Equal("上下文告急 (8%) · 运行 /compact", _view.Footer.ContextWarning);
+    }
 }

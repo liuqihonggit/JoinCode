@@ -44,6 +44,7 @@ public abstract record BridgeRequest
 [JsonDerivedType(typeof(BridgeEvent.SubagentStarted), "subagent_started")]
 [JsonDerivedType(typeof(BridgeEvent.SubagentToolUse), "subagent_tool_use")]
 [JsonDerivedType(typeof(BridgeEvent.SubagentFinished), "subagent_finished")]
+[JsonDerivedType(typeof(BridgeEvent.ContextUsage), "context_usage")]
 [JsonDerivedType(typeof(BridgeEvent.TurnCompleted), "turn_completed")]
 [JsonDerivedType(typeof(BridgeEvent.TurnInterrupted), "turn_interrupted")]
 [JsonDerivedType(typeof(BridgeEvent.Error), "error")]
@@ -131,6 +132,13 @@ public abstract record BridgeEvent
     /// <summary>子代理完成（DSG041 批3 — 条目定格，isError 聚合组头 ● 红；TokenTotal = 总令牌消耗
     /// 完成态权威校正 TASK062 P7 — 与 native_tui 侧逐字段镜像）。</summary>
     public sealed record SubagentFinished(string SubagentId, bool IsError, int TokenTotal) : BridgeEvent;
+
+    /// <summary>
+    /// 上下文窗口余量（M8-7 — 每回合 Done 后 TUI footer 告警显示；与 native_tui 侧镜像）。
+    /// PromptTokens = 回合权威 usage.PromptTokens；PercentLeft 0-100（引擎侧阈值算法口径），
+    /// 阈值标志不进协议 — UI 侧自判颜色文案。
+    /// </summary>
+    public sealed record ContextUsage(int PromptTokens, int ContextWindowTokens, int PercentLeft) : BridgeEvent;
 
     /// <summary>完整助手消息（追加滚动区）。</summary>
     public sealed record AssistantMessage(string Text) : BridgeEvent;

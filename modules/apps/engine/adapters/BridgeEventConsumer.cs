@@ -93,6 +93,11 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
         WriteEvent(new Cli.Bridge.BridgeEvent.SubagentFinished(subagentId, isError, tokenTotal));
     }
 
+    /// <summary>上下文余量 → context_usage（M8-7 — 每回合 Done 后 footer 告警；显式实现：DIM 默认实现经类类型调用不可见）。</summary>
+    public void OnContextUsage(int promptTokens, int contextWindowTokens, int percentLeft) {
+        WriteEvent(new Cli.Bridge.BridgeEvent.ContextUsage(promptTokens, contextWindowTokens, percentLeft));
+    }
+
     /// <summary>思考结束结算（进入产出或回合结束时调用，幂等）。</summary>
     private void EndThinkingIfActive() {
         if (_thinkingStartMs is not long start)

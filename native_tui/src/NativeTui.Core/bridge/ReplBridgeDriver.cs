@@ -165,6 +165,9 @@ public sealed class ReplBridgeDriver
                 }
 
                 break;
+            case BridgeEvent.ContextUsage(_, _, var percentLeft):
+                ApplyContextUsage(percentLeft);
+                break;
             case BridgeEvent.Error(var message):
                 EndToolChain();
                 AddMessage(new ErrorMessageItem(message));
@@ -185,6 +188,14 @@ public sealed class ReplBridgeDriver
         _activeSubagentGroup.AddAgent(subagentId, agentType, description);
         _spinner.Mode = SpinnerMode.ToolUse;
         _spinner.HasActiveTools = true;
+    }
+
+    /// <summary>上下文余量路由（M8-7）— percentLeft 阈值形态写入 footer 告警槽
+    /// （≤10% 告急 error / ≤25% 不足 warning / &gt;25% 清空防噪音；独立于 Notification 临时通知槽）。</summary>
+    private void ApplyContextUsage(int percentLeft)
+    {
+        var (text, level) = FooterState.ResolveContextWarning(percentLeft);
+        _view.Footer = _view.Footer with { ContextWarning = text, ContextWarningLevel = level };
     }
 
     /// <summary>ToolCall 路由（M8-4 聚合）— 同名可聚合链上合并（已聚合 Record / 未聚合替换链头），

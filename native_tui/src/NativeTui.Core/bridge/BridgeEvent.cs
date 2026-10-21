@@ -22,6 +22,7 @@ namespace NativeTui.Core.Bridge;
 [JsonDerivedType(typeof(SubagentStarted), "subagent_started")]
 [JsonDerivedType(typeof(SubagentToolUse), "subagent_tool_use")]
 [JsonDerivedType(typeof(SubagentFinished), "subagent_finished")]
+[JsonDerivedType(typeof(ContextUsage), "context_usage")]
 [JsonDerivedType(typeof(Error), "error")]
 public abstract record BridgeEvent
 {
@@ -102,6 +103,13 @@ public abstract record BridgeEvent
 
     /// <summary>子代理完成 — 条目定格（isError 聚合组头 ● 红；基准基准 agent 完成态 Done）。</summary>
     public sealed record SubagentFinished(string SubagentId, bool IsError, int TokenTotal) : BridgeEvent;
+
+    /// <summary>
+    /// 上下文余量（M8-7 TASK064 P1 — 引擎回合粒度上报，footer 告警数据源）：
+    /// PromptTokens 当前回合已耗 / ContextWindowTokens 窗口总量 / PercentLeft 剩余百分比
+    /// （引擎侧算好 — TUI 侧零计算直路由：≤10% 告急 error、≤25% 不足 warning、&gt;25% 清空防噪音）。
+    /// </summary>
+    public sealed record ContextUsage(int PromptTokens, int ContextWindowTokens, int PercentLeft) : BridgeEvent;
 
     /// <summary>错误（含诱导说明）。</summary>
     public sealed record Error(string Message) : BridgeEvent;

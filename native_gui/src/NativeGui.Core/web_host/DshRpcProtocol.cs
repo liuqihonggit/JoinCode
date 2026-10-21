@@ -1137,10 +1137,104 @@ internal sealed class DshWorkflowRunEndData {
     public string StopReason { get; set; } = "";
 }
 
-/// <summary>助手流基线（revision=0 表示无进行中的尝试）</summary>
+/// <summary>
+/// 助手流基线（ADR 0147）：重连时前端据此重建「进行中尝试」已收到的文本，
+/// <c>revision=0</c> 表示从未有过帧；有 <see cref="ActiveAttempt"/> 时后续帧必须从 <c>revision+1</c> 续上。
+/// </summary>
 internal sealed class DshAssistantStreamBaseline {
-    /// <summary>流版本</summary>
+    /// <summary>流版本（单调递增，跨轮次不重置）</summary>
     public int Revision { get; set; }
+    /// <summary>进行中的尝试（空闲时不下发该键）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DshAssistantStreamAttempt? ActiveAttempt { get; set; }
+}
+
+/// <summary>进行中的助手尝试（基线里的可重建状态）</summary>
+internal sealed class DshAssistantStreamAttempt {
+    /// <summary>尝试身份（start/end 帧共用）</summary>
+    public string AttemptId { get; set; } = "";
+    /// <summary>该尝试开始时的持久游标（之后的帧都属于这条消息）</summary>
+    public long StartedAfterSeq { get; set; }
+    /// <summary>轮次号</summary>
+    public int Turn { get; set; }
+    /// <summary>步骤号</summary>
+    public int Step { get; set; }
+    /// <summary>下一条 chunk 帧的序号（前端据此校验不跳号）</summary>
+    public int NextIndex { get; set; }
+    /// <summary>已收到的 chunk 记录（供前端展开重建，不含 revision）</summary>
+    public List<DshAssistantStreamRecord> Stream { get; set; } = [];
+}
+
+/// <summary>尝试内的一条 chunk 记录（基线里只允许 chunk 形状）</summary>
+internal sealed class DshAssistantStreamRecord {
+    /// <summary>固定为 chunk</summary>
+    public string Type { get; set; } = "chunk";
+    /// <summary>产出时间（毫秒时间戳）</summary>
+    public long Time { get; set; }
+    /// <summary>delta 载荷（text-delta / reasoning-delta）</summary>
+    public JsonElement Chunk { get; set; }
+}
+
+/// <summary>逐字流信封（推给 <c>session/follow</c> 流的瞬态项，<c>type</c> 用于前端分流）</summary>
+internal sealed class DshAssistantStreamEnvelope {
+    /// <summary>固定为 assistant-stream</summary>
+    public string Type { get; set; } = "assistant-stream";
+    /// <summary>帧内容</summary>
+    public DshAssistantStreamFrame Frame { get; set; } = new();
+}
+
+/// <summary>逐字流的一帧：start → chunk* → end（瞬态，不落日志、不占序号）</summary>
+internal sealed class DshAssistantStreamFrame {
+    /// <summary>帧类型（start / chunk / end）</summary>
+    public string Type { get; set; } = "start";
+    /// <summary>尝试身份</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? AttemptId { get; set; }
+    /// <summary>流版本（每帧 +1，前端强校验）</summary>
+    public int Revision { get; set; }
+    /// <summary>尝试开始时的持久游标（仅 start）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? StartedAfterSeq { get; set; }
+    /// <summary>轮次号（仅 start）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Turn { get; set; }
+    /// <summary>步骤号（仅 start）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Step { get; set; }
+    /// <summary>chunk 序号（仅 chunk，从 0 起）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Index { get; set; }
+    /// <summary>产出时间（仅 chunk，毫秒时间戳）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? Time { get; set; }
+    /// <summary>delta 载荷（仅 chunk）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public JsonElement? Chunk { get; set; }
+    /// <summary>结算（仅 end）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DshAssistantStreamOutcome? Outcome { get; set; }
+}
+
+/// <summary>流帧的结算：committed 指向已落盘的助手消息事件，abandoned 表示本轮作废</summary>
+internal sealed class DshAssistantStreamOutcome {
+    /// <summary>结算类型（committed / abandoned）</summary>
+    public string Kind { get; set; } = "abandoned";
+    /// <summary>落盘事件类型（committed 时固定 assistant/message）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? EventType { get; set; }
+    /// <summary>落盘事件序号（committed 时必须等于 assistant/message 的 seq）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? Seq { get; set; }
+}
+
+/// <summary>文本/思考 delta（组装器容忍纯 delta 协议，无需 block-start/block-end）</summary>
+internal sealed class DshDeltaChunk {
+    /// <summary>delta 类型（text-delta / reasoning-delta）</summary>
+    public string Type { get; set; } = "text-delta";
+    /// <summary>内容块下标（按块首次出现顺序从 0 分配：思考先到则 0、正文 1；纯正文轮正文 0）</summary>
+    public int Index { get; set; }
+    /// <summary>本次追加的文本</summary>
+    public string Text { get; set; } = "";
 }
 
 /// <summary>模型目录</summary>
@@ -1552,6 +1646,12 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshWorkflowRunEndData))]
 [JsonSerializable(typeof(List<JsonElement>))]
 [JsonSerializable(typeof(DshAssistantStreamBaseline))]
+[JsonSerializable(typeof(DshAssistantStreamAttempt))]
+[JsonSerializable(typeof(DshAssistantStreamRecord))]
+[JsonSerializable(typeof(DshAssistantStreamFrame))]
+[JsonSerializable(typeof(DshAssistantStreamEnvelope))]
+[JsonSerializable(typeof(DshAssistantStreamOutcome))]
+[JsonSerializable(typeof(DshDeltaChunk))]
 [JsonSerializable(typeof(Dictionary<string, DshSessionProjectionSnapshot>))]
 [JsonSerializable(typeof(DshModelCatalog))]
 [JsonSerializable(typeof(DshSessionSelectModelArgs))]

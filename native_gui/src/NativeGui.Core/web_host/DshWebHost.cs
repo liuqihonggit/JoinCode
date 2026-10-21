@@ -363,15 +363,37 @@ internal sealed class DshWebHost : IAsyncDisposable {
             return ([Item(open.StreamId, StreamError("session/unknown", $"会话 {sessionId} 不在磁盘上（~/.jcc/sessions/{sessionId}/transcript.json 不存在）；用 session/create 建一个新会话，或从侧栏的会话列表里选一个"))], null, null);
         }
         _services.Streams.Observe(sessionId, snapshot.Cursor, MaxTurn(snapshot.Records));
-        var lease = _services.Streams.Subscribe(sessionId, open.StreamId, sessionEvent => send(Item(
+        var follow = FollowRequest(open);
+        // 基线必须与订阅在同一把锁里取（ADR 0147）：否则快照与首帧之间可能漏帧 → 前端断流
+        var (baseline, lease) = _services.Streams.SubscribeSession(
+            sessionId,
             open.StreamId,
-            JsonSerializer.SerializeToElement(new DshSessionRecord { Event = sessionEvent }, DshJsonContext.Default.DshSessionRecord))),
+            sessionEvent => send(Item(
+                open.StreamId,
+                JsonSerializer.SerializeToElement(new DshSessionRecord { Event = sessionEvent }, DshJsonContext.Default.DshSessionRecord))),
+            follow?.AssistantStream == true
+                ? frame => SendAssistantFrameAsync(open.StreamId, send, frame)
+                : null,
             snapshot.Cursor);
+        snapshot.AssistantStream = baseline;
         return (
             [Item(open.StreamId, JsonSerializer.SerializeToElement(snapshot, DshJsonContext.Default.DshSessionFollowSnapshot))],
             lease,
-            () => _services.Streams.FlushAsync(open.StreamId));
+            async () => {
+                // 开场项（快照）已发出：先补发持久事件，再放行缓存的瞬态帧
+                await _services.Streams.FlushAsync(open.StreamId);
+                await _services.Streams.ActivateAsync(open.StreamId);
+            });
     }
+
+    /// <summary>包装一帧 assistant-stream（瞬态通道信封，前端按 type 分流）</summary>
+    /// <param name="streamId">前端流身份</param>
+    /// <param name="send">底层发送回调</param>
+    /// <param name="frame">帧内容</param>
+    private static Task SendAssistantFrameAsync(string streamId, Func<DshStreamItem, Task> send, DshAssistantStreamFrame frame) =>
+        send(Item(streamId, JsonSerializer.SerializeToElement(new DshAssistantStreamEnvelope {
+            Frame = frame,
+        }, DshJsonContext.Default.DshAssistantStreamEnvelope)));
 
     /// <summary>快照事件页里的最大轮次（无事件为 0）</summary>
     private static int MaxTurn(IReadOnlyList<DshSessionRecord> records) =>
@@ -385,12 +407,17 @@ internal sealed class DshWebHost : IAsyncDisposable {
     /// <param name="open">流打开帧</param>
     /// <returns>会话 ID；地址缺失或非 kind=session 时为 null</returns>
     internal static string? FollowSessionId(DshStreamOpen open) {
+        var address = FollowRequest(open)?.Address;
+        return address is null || address.Kind != "session" ? null : address.SessionId;
+    }
+
+    /// <summary>解出 session/follow 的请求体（args 是 {request:{...}} 信封）</summary>
+    /// <param name="open">流打开帧</param>
+    private static DshSessionFollowArgs? FollowRequest(DshStreamOpen open) {
         if (open.Payload?.Args is not { ValueKind: JsonValueKind.Object } args) {
             return null;
         }
-        var envelope = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSessionFollowArgs);
-        var address = envelope?.Request?.Address;
-        return address is null || address.Kind != "session" ? null : address.SessionId;
+        return args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSessionFollowArgs)?.Request;
     }
 
     /// <summary>构造流式端点失败帧（引导式错误：说明期望参数与下一步可执行动作）</summary>

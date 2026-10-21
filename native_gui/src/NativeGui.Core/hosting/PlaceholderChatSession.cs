@@ -176,6 +176,9 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
     /// <summary>最近一次轮内注入（测试追踪字段）</summary>
     internal (string SessionId, string Text)? LastSteer { get; private set; }
 
+    /// <summary>思考块开关（测试接缝）：false 时只产出正文，用于验证纯正文轮的块下标分配</summary>
+    internal bool EmitThinking { get; set; } = true;
+
     /// <inheritdoc />
     public bool TrySteerInput(string sessionId, string text) {
         if (SteerSink is not { } sink) {
@@ -192,13 +195,15 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
         if (TurnGate is { } gate) {
             await gate(cancellationToken);
         }
-        foreach (var ch in "让我先分析一下你的问题。") {
-            cancellationToken.ThrowIfCancellationRequested();
+        if (EmitThinking) {
+            foreach (var ch in "让我先分析一下你的问题。") {
+                cancellationToken.ThrowIfCancellationRequested();
+                await Task.Yield();
+                yield return ChatStreamEvent.Thinking(ch.ToString());
+            }
             await Task.Yield();
-            yield return ChatStreamEvent.Thinking(ch.ToString());
+            yield return ChatStreamEvent.Thinking("\n[推理过程] 用户询问：");
         }
-        await Task.Yield();
-        yield return ChatStreamEvent.Thinking("\n[推理过程] 用户询问：");
 
         // 后台 agent 动作 1：搜索
         yield return ChatStreamEvent.ToolStart("web_search", "call_search_01", "{\"query\":\"" + message + "\"}");
@@ -214,10 +219,12 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
         yield return ChatStreamEvent.ToolEnd("ReadFile", "读取 120 行，包含示例代码", "call_read_01");
 
         // 思考结论
-        foreach (var ch in "\n[结论] 综合搜索结果与代码分析，给出以下回答：") {
-            cancellationToken.ThrowIfCancellationRequested();
-            await Task.Yield();
-            yield return ChatStreamEvent.Thinking(ch.ToString());
+        if (EmitThinking) {
+            foreach (var ch in "\n[结论] 综合搜索结果与代码分析，给出以下回答：") {
+                cancellationToken.ThrowIfCancellationRequested();
+                await Task.Yield();
+                yield return ChatStreamEvent.Thinking(ch.ToString());
+            }
         }
 
         // 正式回复内容（Markdown 示例，供 UI Markdown 渲染目视验证）

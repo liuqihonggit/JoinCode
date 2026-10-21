@@ -110,6 +110,8 @@ internal sealed class DshTurnRunner {
         _services.Approvals.SetAgent(sessionId);
         // 子代理轮内运行追踪（tool-workflow 事件族，TASK058 B6）— try 外声明，取消/异常分支也要收尾
         var agents = new DshAgentRunTracker($"{sessionId}:{turn}:agents");
+        // 助手流尝试是否已开启（取消/失败分支也要据此补 abandoned 结算）
+        var streaming = false;
         try {
             engine.SwitchSession(sessionId);
             if (await _services.Sessions.HistoryAsync(sessionId, cancellationToken) is { Count: > 0 } history) {
@@ -118,6 +120,16 @@ internal sealed class DshTurnRunner {
             GuiDiag.Log($"[DSH-WEB] turn streaming session={sessionId} turn={turn}");
             var content = new StringBuilder();
             var thinking = new StringBuilder();
+            // 内容块下标按首次出现的块顺序分配（reasoning 先到则 0、正文 1；纯正文轮正文 0）。
+            // 固定槽位会留下 0 号空洞，前端块数组首元素缺失 → 流式正文渲染不出来（DSH 语义：下标即内容块序号）
+            var blockIndexes = new Dictionary<string, int>(StringComparer.Ordinal);
+            int BlockIndex(string family) {
+                if (!blockIndexes.TryGetValue(family, out var index)) {
+                    index = blockIndexes.Count;
+                    blockIndexes[family] = index;
+                }
+                return index;
+            }
             TokenUsage? usage = null;
             var events = 0;
             var steers = 0;
@@ -129,9 +141,14 @@ internal sealed class DshTurnRunner {
                 }
                 if (evt.Type == ChatStreamEventType.Content && !string.IsNullOrEmpty(evt.Content)) {
                     content.Append(evt.Content);
+                    // 逐字流（ADR 0147）：首条 delta 开尝试，之后每字符一帧；结算在落盘后发 end
+                    streaming = await StartAssistantStreamAsync(sessionId, turn, streaming);
+                    await _services.Streams.AppendAssistantChunkAsync(sessionId, "text-delta", BlockIndex("text"), evt.Content);
                 } else if (evt.Type == ChatStreamEventType.Thinking && !string.IsNullOrEmpty(evt.ThinkingContent)) {
                     // 思考内容 → assistant/message 前置 reasoning 块（TASK058 B4，前端折叠渲染）
                     thinking.Append(evt.ThinkingContent);
+                    streaming = await StartAssistantStreamAsync(sessionId, turn, streaming);
+                    await _services.Streams.AppendAssistantChunkAsync(sessionId, "reasoning-delta", BlockIndex("reasoning"), evt.ThinkingContent);
                 } else if (evt.Type == ChatStreamEventType.Complete && evt.Usage is { } turnUsage) {
                     // 用量 → data.usage 四桶（前端"本轮用量"弹窗，TASK058 B4）
                     usage = turnUsage;
@@ -148,11 +165,18 @@ internal sealed class DshTurnRunner {
                 }
             }
             GuiDiag.Log($"[DSH-WEB] turn stream done session={sessionId} events={events} chars={content.Length} thinking={thinking.Length}");
-            await PublishReplyAsync(sessionId, turn, thinking.Length > 0 ? thinking.ToString() : null, content.ToString(), usage, engine);
+            var replySeq = await PublishReplyAsync(sessionId, turn, thinking.Length > 0 ? thinking.ToString() : null, content.ToString(), usage, engine);
+            if (streaming) {
+                // end 必须在 assistant/message 落盘之后：outcome.seq 指向它，前端据此把流式文本换成持久消息
+                await _services.Streams.EndAssistantAttemptAsync(sessionId, replySeq is { } committedSeq
+                    ? new DshAssistantStreamOutcome { Kind = "committed", EventType = "assistant/message", Seq = committedSeq }
+                    : new DshAssistantStreamOutcome { Kind = "abandoned" });
+            }
             await PublishWorkflowRunEndAsync(sessionId, agents, "completed");
             await FinishTurnAsync(sessionId, turn, new DshTurnEndReason { Kind = "completed" });
         } catch (OperationCanceledException) {
             GuiDiag.Log($"[DSH-WEB] turn cancelled session={sessionId} turn={turn}");
+            await AbandonAssistantStreamAsync(sessionId, streaming);
             await PublishWorkflowRunEndAsync(sessionId, agents, "cancelled");
             await FinishTurnAsync(sessionId, turn, new DshTurnEndReason {
                 Kind = "aborted",
@@ -160,6 +184,7 @@ internal sealed class DshTurnRunner {
             });
         } catch (Exception ex) {
             GuiDiag.Log($"[DSH-WEB] turn failed session={sessionId} turn={turn}: {ex.Message}");
+            await AbandonAssistantStreamAsync(sessionId, streaming);
             await PublishWorkflowRunEndAsync(sessionId, agents, "error");
             await FinishTurnAsync(sessionId, turn, new DshTurnEndReason {
                 Kind = "error",
@@ -239,13 +264,37 @@ internal sealed class DshTurnRunner {
         }, surfaceOp: "append");
     }
 
-    /// <summary>落助手回复事件（空块序列不落，避免空气泡；思考/正文/用量经投影单点翻译，TASK058 B4）</summary>
-    private async Task PublishReplyAsync(string sessionId, int turn, string? thinking, string reply, TokenUsage? usage, Hosting.IJccChatSession engine) {
-        var (content, mappedUsage) = DshAssistantReplyProjection.Project(thinking, reply, usage);
-        if (content.Count == 0) {
+    /// <summary>首条 delta 时开启助手流尝试（已开启则原样返回）</summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="turn">轮次号</param>
+    /// <param name="streaming">当前是否已开启</param>
+    /// <returns>开启后的状态（恒为 true）</returns>
+    private async Task<bool> StartAssistantStreamAsync(string sessionId, int turn, bool streaming) {
+        if (streaming) {
+            return true;
+        }
+        await _services.Streams.StartAssistantAttemptAsync(sessionId, turn, Step);
+        return true;
+    }
+
+    /// <summary>取消/失败时作废进行中的助手流（前端丢弃半截气泡，等下一轮重建）</summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="streaming">本轮是否开启过助手流</param>
+    private async Task AbandonAssistantStreamAsync(string sessionId, bool streaming) {
+        if (!streaming) {
             return;
         }
-        await _services.Streams.PublishAsync(sessionId, "assistant/message", new DshAssistantMessageData {
+        await _services.Streams.EndAssistantAttemptAsync(sessionId, new DshAssistantStreamOutcome { Kind = "abandoned" });
+    }
+
+    /// <summary>落助手回复事件（空块序列不落，避免空气泡；思考/正文/用量经投影单点翻译，TASK058 B4）</summary>
+    /// <returns>该事件的序号（无内容未落盘时返回 null，供结算帧引用）</returns>
+    private async Task<long?> PublishReplyAsync(string sessionId, int turn, string? thinking, string reply, TokenUsage? usage, Hosting.IJccChatSession engine) {
+        var (content, mappedUsage) = DshAssistantReplyProjection.Project(thinking, reply, usage);
+        if (content.Count == 0) {
+            return null;
+        }
+        return await _services.Streams.PublishAsync(sessionId, "assistant/message", new DshAssistantMessageData {
             Turn = turn,
             Step = Step,
             Message = new DshWireMessage {

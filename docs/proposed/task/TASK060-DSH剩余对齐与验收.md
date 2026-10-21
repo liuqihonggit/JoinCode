@@ -221,3 +221,24 @@ E2E 场景（`dumps/dsh-webui-steer.mjs`，桩加两个 marker）：
 2. **`session/list` 的 `Running` 恒 `false`**（`DshSessionStore.ProjectAsync` 写死），别用它判断在跑，取 `Streams.RunningTurn` 或 `session/follow` 快照。
 3. **`artifacts/bin` 曾整目录消失 / 宿主进程意外退出**（两次，原因未查明，疑似外部清理或用户侧操作）：表现是 E2E 报 `Target page, context or browser has been closed` 或找不到 exe。处置：重新 `dotnet build native_gui/apps/NativeGui.Host/NativeGui.Host.csproj -c Debug` + 重启 exe，同一调用里 `Test-Path` 确认。
 4. **转录落盘与界面渲染无强顺序**：`dsh-webui-prompt.mjs` 曾出现「界面已渲染但 `transcript.jsonl` 还没写完」的假红（`bytes=871`）。已改为 `until` 轮询文件内容（禁固定 sleep）。
+
+## 八、B13 assistant-stream 逐字流式（计划与验收）
+
+DSH 语义与落地方案见 [ADR 0147](../../proposed/adr/0147-assistant-stream-transient-frames.md)：**引擎 delta（宿主）→ 瞬态 start/chunk/end 帧 → 前端 `assistant/live-chunk` 逐字渲染**，帧不落会话日志（重连靠快照 `assistantStream.activeAttempt` 重建）。
+
+### 批次步骤（红 → 实现 → 编译 → 绿 → 文档 → commit）
+
+| 步骤 | 内容 | 状态 |
+|------|------|------|
+| B13-a | 契约与 ADR：帧/基线 DTO + `assistantStream` 严格 revision 密度规则（ADR 0147 proposed） | ⬜ |
+| B13-b | E2E 红：`dsh-webui-assistant-stream.mjs`（慢桩逐字 → 断言快照基线、帧序 start→chunk*→end、partial 文本、end.seq 指向持久事件） | ⬜ |
+| B13-c | 宿主单元红→绿：hub 状态机（revision 单调 + 基线重建）+ TurnRunner delta→帧翻译 | ⬜ |
+| B13-d | 全量回归 + 文档四列表 + commit | ⬜ |
+
+### 验收四列表
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|----------|--------|--------|--------|
+| hub 瞬态帧通道（不占 seq、不落 journal，revision 严格 +1） | `session/follow` 推送 | ⬜ | ⬜ |
+| 快照 `assistantStream` 基线（`activeAttempt` + 紧凑原始 chunk 流） | 中途打开/刷新的前端重建未完成文本 | ⬜ | ⬜ |
+| `DshTurnRunner` delta → `start/chunk/end`（reasoning=index 0、text=index 1，committed 带 `assistant/message` 的 seq） | 前端 `assistant/live-chunk` 逐字渲染 + 结算替换 | ⬜ | ⬜ |

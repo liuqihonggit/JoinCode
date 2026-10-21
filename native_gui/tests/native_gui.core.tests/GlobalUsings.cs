@@ -29,6 +29,7 @@ global using JoinCode.Gui.WebView;
 global using Microsoft.Extensions.Configuration;
 global using Microsoft.Extensions.DependencyInjection;
 global using System;
+global using System.Collections.Concurrent;
 global using System.Collections.ObjectModel;
 global using System.Collections.Generic;
 global using System.Collections.Frozen;

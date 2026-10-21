@@ -114,7 +114,7 @@ public sealed class StructuredMessageTests
 
     // ---- 交互（ReplShell Ctrl+O） ----
 
-    /// <summary>Ctrl+O — 切换最近一条带 CoT 消息（含多条时取最后）。</summary>
+    /// <summary>Ctrl+O — 进入 transcript 全局模式（M8-3 语义演进：原单条切换 → 全部 CoT 展开 verbose）。</summary>
     [Fact]
     public void CtrlO_TogglesLastMessageWithCoT()
     {
@@ -128,7 +128,7 @@ public sealed class StructuredMessageTests
         shell.HandleKey(new ConsoleKeyInfo('\x0f', ConsoleKey.O, false, false, false));
 
         var items = shell.View.Messages.Items.OfType<AssistantMessageItem>().ToList();
-        Assert.False(items[0].IsThinkingExpanded);
+        Assert.True(items[0].IsThinkingExpanded, "transcript verbose 全展开（M8-3 — 基准 verbose=true 渲染）");
         Assert.True(items[1].IsThinkingExpanded);
     }
 

@@ -24,6 +24,10 @@ public sealed class ReplBridgeDriver
     /// <summary>活动子代理组（M7-7）— 回合内惰性建组，TurnCompleted/Interrupted 定格脱离；历史组留滚动区。</summary>
     private SubagentGroupCoordinator? _activeSubagentGroup;
 
+    /// <summary>活动流式正文项（M8-1 逐字流式）— 首个带 Text 的 token_delta 惰性创建落位 spinner 前，
+    /// 后续增量原地追加；AssistantMessage 原位替换为完整消息项；EndTurn 兜底定格/清理。</summary>
+    private StreamingTextItem? _streamingItem;
+
     /// <summary>创建应用器（view/spinner/banner 由调用方构造并挂载，spinner 须为 Messages 末项、banner 为首项；
     /// onPermissionRequest = 权限请求挂起钩子，null = 忽略权限请求事件（纯视图断言测试场景）；
     /// codeHighlighter = 代码高亮插件（M7-5），null = 高亮禁用）。</summary>
@@ -94,13 +98,21 @@ public sealed class ReplBridgeDriver
                 }
 
                 break;
-            case BridgeEvent.TokenDelta(var length):
+            case BridgeEvent.TokenDelta(var length, var text):
                 _spinner.Mode = SpinnerMode.Responding;
                 _spinner.HasActiveTools = false;
                 _spinner.ResponseLength += length;
+                if (text is { Length: > 0 }) {
+                    // M8-1 逐字流式 — 惰性建流式项（spinner 前）+ 原地追加（每帧全量重渲自然增长）
+                    if (_streamingItem is null) {
+                        _streamingItem = new StreamingTextItem();
+                        AddMessage(_streamingItem);
+                    }
+                    _streamingItem.Append(text);
+                }
                 break;
             case BridgeEvent.AssistantMessage(var text, var markdown, var messageId, var thinkingDurationMs, var thinkingContent):
-                AddMessage(markdown is not null
+                ReplaceStreamingWithFinal(markdown is not null
                     ? new MarkdownMessageItem(markdown, _codeHighlighter, thinkingDurationMs, thinkingContent, messageId)
                     : new AssistantMessageItem(text, thinkingDurationMs, thinkingContent, messageId));
                 break;
@@ -161,12 +173,13 @@ public sealed class ReplBridgeDriver
         }
     }
 
-    /// <summary>开始回合：busy + spinner 挂载（Thinking 乐观模式，动词重采样，停滞计时重置）；防御性脱离子代理组（引擎漏发回合收尾时不串组）。
-    /// spinner 显示（对齐基准 REPL.tsx showSpinner：isLoading 期 = 等待/思考/工具运行的唯一反馈 — TUI 无流式正文时尤其如此）。</summary>
+    /// <summary>开始回合：busy + spinner 挂载（Thinking 乐观模式，动词重采样，停滞计时重置）；防御性脱离子代理组与流式项（引擎漏发回合收尾时不串组/不残留）。
+    /// spinner 显示（对齐基准 REPL.tsx showSpinner：isLoading 期等待/思考/工具运行的反馈 — 流式正文到达前 M8-1 前为唯一反馈）。</summary>
     public void BeginTurn()
     {
         IsBusy = true;
         _activeSubagentGroup = null;
+        DiscardStreamingItem();
         _view.Footer = _view.Footer with { Busy = true };
         _spinner.Message = string.Empty;
         _spinner.ResetVerb();
@@ -178,6 +191,8 @@ public sealed class ReplBridgeDriver
     }
 
     /// <summary>结束回合：idle + spinner 复位（消息由事件驱动，interrupted 不额外追加）；子代理组定格脱离（未完成条目定格为非错误完成）。
+    /// 流式项兜底（M8-1）：引擎被打断/异常未发 assistant_message 时 — 非空定格为 partial AssistantMessage
+    /// （基准 [user, partial, interrupted] 顺序 — 已流文本不丢），空则移除（无正文零残留）。
     /// spinner Mode 复位 Thinking→Responding（修复：回合结束后思考动画续转 — Thinking 态渲染器持续 shimmer）；
     /// Hidden 置位（对齐基准：空闲非 busy 完全不渲染 spinner 行 — 不再常驻闪烁）。</summary>
     public void EndTurn()
@@ -185,6 +200,7 @@ public sealed class ReplBridgeDriver
         IsBusy = false;
         _activeSubagentGroup?.FinalizePending();
         _activeSubagentGroup = null;
+        FinalizeStreamingItem();
         _view.Footer = _view.Footer with { Busy = false };
         _spinner.Message = string.Empty;
         _spinner.ResponseLength = 0;
@@ -199,4 +215,53 @@ public sealed class ReplBridgeDriver
     /// <summary>消息插入 spinner 之前（spinner 恒为滚动区最后一项）。</summary>
     public void AddMessage(IScrollItem item) =>
         _view.Messages.Insert(_view.Messages.Count - 1, item);
+
+    /// <summary>流式项原位替换为完整消息项（OnDone 路径）— 流式项位置不变（视觉无跳变），
+    /// 无流式项时退化为普通 AddMessage。</summary>
+    private void ReplaceStreamingWithFinal(IScrollItem final)
+    {
+        if (_streamingItem is null) {
+            AddMessage(final);
+            return;
+        }
+
+        var index = _view.Messages.IndexOf(_streamingItem);
+        _streamingItem = null;
+        if (index < 0) {
+            AddMessage(final);
+            return;
+        }
+
+        _view.Messages.RemoveAt(index);
+        _view.Messages.Insert(index, final);
+    }
+
+    /// <summary>EndTurn 兜底 — 残留流式项定格（非空 → partial AssistantMessage）或移除（空 — 无正文零残留）。</summary>
+    private void FinalizeStreamingItem()
+    {
+        if (_streamingItem is null) {
+            return;
+        }
+
+        if (_streamingItem.Text.Length == 0) {
+            DiscardStreamingItem();
+            return;
+        }
+
+        ReplaceStreamingWithFinal(new AssistantMessageItem(_streamingItem.Text));
+    }
+
+    /// <summary>BeginTurn 防御 — 清除上一回合残留流式项（引擎漏发收尾事件时不跨回合泄漏）。</summary>
+    private void DiscardStreamingItem()
+    {
+        if (_streamingItem is null) {
+            return;
+        }
+
+        var index = _view.Messages.IndexOf(_streamingItem);
+        _streamingItem = null;
+        if (index >= 0) {
+            _view.Messages.RemoveAt(index);
+        }
+    }
 }

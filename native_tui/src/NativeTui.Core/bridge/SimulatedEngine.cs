@@ -25,6 +25,9 @@ public sealed class SimulatedEngine : IReplEngine
     /// <summary>Responding 阶段每拍 token 增量。</summary>
     private const int TokenDeltaPerTick = 9;
 
+    /// <summary>流式分片队列（M8-1 逐字流式演示 — stage 2 进入时按完成文本预切分，Responding 每拍弹一段）。</summary>
+    private readonly Queue<string> _streamSlices = new();
+
     /// <summary>子代理批量启动时刻（ms）— Submit 后一拍内全部 SubagentStarted（_pending 队列承载 300 规模）。</summary>
     private const long SubagentStartedAtMs = 200;
 
@@ -401,6 +404,11 @@ public sealed class SimulatedEngine : IReplEngine
         }
 
         _stage = 2;
+        // M8-1 逐字流式演示 — 完成文本按空格预分片，Responding 期每拍携带一段增量（对齐 MockServer word 流形态）
+        _streamSlices.Clear();
+        foreach (var slice in SliceBySpaces(CompletionText(_script))) {
+            _streamSlices.Enqueue(slice);
+        }
         if (_script is TurnScript.Full or TurnScript.Diff)
         {
             _pending.Enqueue(new BridgeEvent.ToolResult("Updated demo/simulated.cs (simulated)", SimulatedPatch));
@@ -422,8 +430,34 @@ public sealed class SimulatedEngine : IReplEngine
 
         if (_stage == 2 && _script is not TurnScript.Permission)
         {
-            _pending.Enqueue(new BridgeEvent.TokenDelta(TokenDeltaPerTick));
+            // M8-1：分片队列非空发带文本增量（StreamingTextItem 逐字上屏），耗尽后回落纯计数形态
+            if (_streamSlices.TryDequeue(out var slice)) {
+                _pending.Enqueue(new BridgeEvent.TokenDelta(slice.Length, slice));
+            } else {
+                _pending.Enqueue(new BridgeEvent.TokenDelta(TokenDeltaPerTick));
+            }
         }
+    }
+
+    /// <summary>按空格切分文本为流式分片（保留空格 — 逐段 Append 拼回原文；空文本零分片）。</summary>
+    private static List<string> SliceBySpaces(string text) {
+        var slices = new List<string>();
+        if (string.IsNullOrEmpty(text)) {
+            return slices;
+        }
+
+        var start = 0;
+        while (start < text.Length) {
+            var next = text.IndexOf(' ', start);
+            if (next < 0) {
+                slices.Add(text[start..]);
+                break;
+            }
+
+            slices.Add(text[start..(next + 1)]);
+            start = next + 1;
+        }
+        return slices;
     }
 
     /// <summary>完成时刻（ms）— 权限脚本 8s（交互窗口），其余 5.4s。</summary>

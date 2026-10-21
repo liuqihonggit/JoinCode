@@ -5,8 +5,15 @@ namespace NativeTui.Core.Repl;
 /// 每项 = marginTop 1（基准 addMargin）+ 正文 1 行；裁剪由 Screen 越界忽略实现。
 /// </summary>
 
+/// <summary>transcript `/` 搜索文本匹配（M8-3）— 消息项暴露可搜索文本（大小写不敏感）。</summary>
+public interface ITextMatchable
+{
+    /// <summary>是否包含查询文本。</summary>
+    bool ContainsText(string query);
+}
+
 /// <summary>用户消息项（整行灰底 + ❯ subtle + 正文）。</summary>
-public sealed class UserMessageItem(string text) : IScrollItem, ICursorNavigable
+public sealed class UserMessageItem(string text) : IScrollItem, ICursorNavigable, ITextMatchable
 {
     /// <summary>用户正文（测试断言面 — 排队消息等场景）。</summary>
     public string Text => text;
@@ -17,12 +24,15 @@ public sealed class UserMessageItem(string text) : IScrollItem, ICursorNavigable
     /// <summary>margin 行留空，正文画在 frame.Y+1。</summary>
     public void Render(Screen screen, Rect frame, Theme theme) =>
         MessageRenderer.RenderUser(screen, frame with { Y = frame.Y + 1, Height = 1 }, theme, text);
+
+    /// <summary>正文匹配。</summary>
+    public bool ContainsText(string query) => text.Contains(query, StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>助手文本消息项（● text 色 + 正文）。TASK062 结构化：思考时长 &gt; 0 时正文上方渲染
 /// dim 思考摘要行（⎿ 思考 {s} · ctrl+o 展开推理）；ThinkingContent 非空支持 Ctrl+O 展开 CoT 全文
 ///（展开态 ▾ + dim 缩进逐行）；MessageId 会话序号（定位/对账，UI 不显示）。</summary>
-public sealed class AssistantMessageItem(string text, int thinkingDurationMs = 0, string? thinkingContent = null, int messageId = 0) : IScrollItem, ICursorNavigable
+public sealed class AssistantMessageItem(string text, int thinkingDurationMs = 0, string? thinkingContent = null, int messageId = 0) : IScrollItem, ICursorNavigable, ITextMatchable
 {
     /// <summary>思考内容行数上限守卫（超限折叠为截断提示 — CoT 刷屏防护）。</summary>
     private const int MaxThinkingLines = 200;
@@ -84,10 +94,15 @@ public sealed class AssistantMessageItem(string text, int thinkingDurationMs = 0
             ? string.Join("\n", lines[..MaxThinkingLines]) + $"\n… 思考内容超 {MaxThinkingLines} 行已截断"
             : thinkingContent;
     }
+
+    /// <summary>正文 + CoT 匹配（transcript 搜索）。</summary>
+    public bool ContainsText(string query) =>
+        text.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || (thinkingContent?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false);
 }
 
 /// <summary>工具调用消息项（● + bold 工具名 + (参数摘要)）。</summary>
-public sealed class ToolCallItem(string toolName, string args) : IScrollItem, ICursorNavigable
+public sealed class ToolCallItem(string toolName, string args) : IScrollItem, ICursorNavigable, ITextMatchable
 {
     /// <summary>内容高度 = margin 1 + 正文 1。</summary>
     public int MeasureHeight(int width) => 2;
@@ -95,10 +110,15 @@ public sealed class ToolCallItem(string toolName, string args) : IScrollItem, IC
     /// <summary>margin 行留空，正文画在 frame.Y+1。</summary>
     public void Render(Screen screen, Rect frame, Theme theme) =>
         MessageRenderer.RenderToolCall(screen, frame with { Y = frame.Y + 1, Height = 1 }, theme, toolName, args);
+
+    /// <summary>工具名 + 参数匹配。</summary>
+    public bool ContainsText(string query) =>
+        toolName.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || args.Contains(query, StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>工具结果消息项（"  ⎿  " dim 前缀 + 正文）。</summary>
-public sealed class ToolResultItem(string text) : IScrollItem, ICursorNavigable
+public sealed class ToolResultItem(string text) : IScrollItem, ICursorNavigable, ITextMatchable
 {
     /// <summary>结果正文（测试断言面 — 排队反馈等复用场景）。</summary>
     public string Text => text;
@@ -109,6 +129,9 @@ public sealed class ToolResultItem(string text) : IScrollItem, ICursorNavigable
     /// <summary>margin 行留空，正文画在 frame.Y+1。</summary>
     public void Render(Screen screen, Rect frame, Theme theme) =>
         MessageRenderer.RenderToolResult(screen, frame with { Y = frame.Y + 1, Height = 1 }, theme, text);
+
+    /// <summary>结果正文匹配。</summary>
+    public bool ContainsText(string query) => text.Contains(query, StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>
@@ -118,7 +141,7 @@ public sealed class ToolResultItem(string text) : IScrollItem, ICursorNavigable
 /// 仅超 10 行预览上限折叠为 "… +N lines (Ctrl+O)" dim（上限对齐基准 Write MAX_LINES_TO_RENDER=10 防刷屏先例，
 /// Ctrl+O 展开交互为 M7 后续项）。
 /// </summary>
-public sealed class DiffResultItem(string summary, DiffHunk[] patch) : IScrollItem, ICursorNavigable
+public sealed class DiffResultItem(string summary, DiffHunk[] patch) : IScrollItem, ICursorNavigable, ITextMatchable
 {
     /// <summary>patch 预览行数上限（summary 之外；超限折叠 — 对齐基准 Write MAX_LINES_TO_RENDER=10 先例）。</summary>
     private const int PreviewPatchRows = 10;
@@ -177,10 +200,15 @@ public sealed class DiffResultItem(string summary, DiffHunk[] patch) : IScrollIt
 
     /// <summary>单行 frame（Y 为该渲染行，高度 1）。</summary>
     private static Rect RowFrame(Rect frame, int row) => frame with { Y = row, Height = 1 };
+
+    /// <summary>摘要 + diff 行内容匹配（transcript 搜索）。</summary>
+    public bool ContainsText(string query) =>
+        Summary.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || Patch.Any(hunk => hunk.Lines.Any(line => line.Content.Contains(query, StringComparison.OrdinalIgnoreCase)));
 }
 
 /// <summary>错误消息项（● theme.Error 红色 + 正文，bridge error 事件载体）。</summary>
-public sealed class ErrorMessageItem(string text) : IScrollItem, ICursorNavigable
+public sealed class ErrorMessageItem(string text) : IScrollItem, ICursorNavigable, ITextMatchable
 {
     /// <summary>错误正文。</summary>
     public string Text { get; } = text;
@@ -191,4 +219,7 @@ public sealed class ErrorMessageItem(string text) : IScrollItem, ICursorNavigabl
     /// <summary>margin 行留空，正文画在 frame.Y+1。</summary>
     public void Render(Screen screen, Rect frame, Theme theme) =>
         MessageRenderer.RenderError(screen, frame with { Y = frame.Y + 1, Height = 1 }, theme, Text);
+
+    /// <summary>错误正文匹配。</summary>
+    public bool ContainsText(string query) => Text.Contains(query, StringComparison.OrdinalIgnoreCase);
 }

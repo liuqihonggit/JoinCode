@@ -8,7 +8,7 @@ namespace NativeTui.Core.Repl;
 /// 代码行高亮在段写完后按色段覆写前景（M7-5 — 高亮器由宿主注入，null = 降级纯文本）。
 /// TASK062 结构化：思考时长 &gt; 0 时正文上方 dim 思考摘要行 + Ctrl+O 展开 CoT（同 AssistantMessageItem 语义）。
 /// </summary>
-public sealed class MarkdownMessageItem(MarkdownDocument document, ICodeHighlighter? highlighter = null, int thinkingDurationMs = 0, string? thinkingContent = null, int messageId = 0) : IScrollItem, ICursorNavigable
+public sealed class MarkdownMessageItem(MarkdownDocument document, ICodeHighlighter? highlighter = null, int thinkingDurationMs = 0, string? thinkingContent = null, int messageId = 0) : IScrollItem, ICursorNavigable, ITextMatchable
 {
     /// <summary>思考内容行数上限守卫（超限折叠截断提示 — CoT 刷屏防护）。</summary>
     private const int MaxThinkingLines = 200;
@@ -36,6 +36,32 @@ public sealed class MarkdownMessageItem(MarkdownDocument document, ICodeHighligh
         if (thinkingContent is { Length: > 0 }) {
             IsThinkingExpanded = !IsThinkingExpanded;
         }
+    }
+
+    /// <summary>段落/标题文本 + CoT 匹配（transcript 搜索 — 块段拼接为可搜索纯文本）。</summary>
+    public bool ContainsText(string query) {
+        if (thinkingContent?.Contains(query, StringComparison.OrdinalIgnoreCase) == true) {
+            return true;
+        }
+
+        foreach (var block in Document.Blocks) {
+            var segments = block switch {
+                MarkdownParagraph paragraph => paragraph.Segments,
+                MarkdownHeading heading => heading.Segments,
+                _ => null,
+            };
+            if (segments is null) {
+                continue;
+            }
+
+            foreach (var segment in segments) {
+                if (segment.Text.Contains(query, StringComparison.OrdinalIgnoreCase)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /// <summary>内容高度 = margin 1 + 布局行数（空文档至少 1 行圆点行）+ 思考摘要行（有思考）+ CoT 行数（展开态）。</summary>

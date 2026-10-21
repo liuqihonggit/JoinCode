@@ -31,7 +31,7 @@ public sealed class BridgeServeLoopTests {
         Assert.Equal("{\"type\":\"thinking_started\"}", lines[1]);
         Assert.StartsWith("{\"type\":\"thinking_ended\",\"durationMs\":", lines[2]);
         Assert.EndsWith("}", lines[2]);
-        Assert.Equal("{\"type\":\"token_delta\",\"length\":4}", lines[3]);
+        Assert.Equal("{\"type\":\"token_delta\",\"length\":4,\"text\":\"回复正文\"}", lines[3]);
         Assert.Equal("{\"type\":\"assistant_message\",\"text\":\"回复正文\"}", lines[4]);
         Assert.Equal("{\"type\":\"turn_completed\"}", lines[5]);
     }

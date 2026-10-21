@@ -130,6 +130,23 @@ public sealed class BridgeProtocolTests
         Assert.Equal(9, delta.Length);
     }
 
+    /// <summary>M8-1 逐字流式 — token_delta 携带 text 增量字段（StreamingTextItem 消费）；
+    /// 旧无 text 形态反序列化兼容（Text=null，Length 计数语义保留）。</summary>
+    [Fact]
+    public void ReadEvent_TokenDeltaCarriesText_LegacyWithoutTextStaysNull()
+    {
+        var reader = new StringReader("{\"type\":\"token_delta\",\"length\":5,\"text\":\"你好\"}\n{\"type\":\"token_delta\",\"length\":9}\n");
+        BridgeProtocol.TryReadEvent(reader, out var first, out _);
+        var withText = Assert.IsType<BridgeEvent.TokenDelta>(first);
+        Assert.Equal("你好", withText.Text);
+        Assert.Equal(5, withText.Length);
+
+        BridgeProtocol.TryReadEvent(reader, out var second, out _);
+        var legacy = Assert.IsType<BridgeEvent.TokenDelta>(second);
+        Assert.Null(legacy.Text);
+        Assert.Equal(9, legacy.Length);
+    }
+
     [Fact]
     public void ReadEvent_AssistantMessageCarriesText_ErrorCarriesMessage()
     {

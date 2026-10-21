@@ -84,7 +84,13 @@ public sealed class MeshTransport : ITransportTopology {
         }
 
         var conn = await GetOrCreatePeerConnectionAsync(targetProcessId, ct).ConfigureAwait(false);
-        if (conn is null) return;
+        if (conn is null) {
+            // 守卫：连接失败静默丢消息是传输层健壮性缺陷（CI Linux 实测单向点对点丢帧的嫌疑路径）——
+            // 诊断日志让丢消息点在 CI 输出直接可定位（TransportDiagnostics.Enabled 开启时）
+            TransportDiagnostics.Log("MESH", () => $"send dropped: connect failed, target={targetProcessId}, len={data.Length}");
+            _logger?.LogWarning("MeshTransport: SendAsync 连接目标 {Peer} 失败，消息被丢弃（len={Len}）", targetProcessId, data.Length);
+            return;
+        }
 
         var envelope = BinaryProtocol.Encode(MessageType.Data, ProcessId, targetProcessId, data);
         await conn.WriteAsync(envelope, ct).ConfigureAwait(false);
@@ -123,6 +129,9 @@ public sealed class MeshTransport : ITransportTopology {
 
     /// <summary>
     /// 获取或创建到目标进程的连接 — 连接缓存复用。
+    /// <para>连接失败时有限重试（3 次退避）：接收方 accept 循环是"单实例 accept 后才创建下一实例"的
+    /// 串行模型（PipeAcceptLoop），重连恰好落在该窗口会 ECONNREFUSED — 退避重试穿透窗口，
+    /// 正常路径（首连即成）零额外开销（重试仅在失败分支触发）。</para>
     /// </summary>
     private async ValueTask<MeshPeerConnection?> GetOrCreatePeerConnectionAsync(string peerPid, CancellationToken ct) {
         if (Volatile.Read(ref _peerConnections).TryGetValue(peerPid, out var existing) && existing.IsConnected) {
@@ -130,6 +139,30 @@ public sealed class MeshTransport : ITransportTopology {
         }
 
         var pipeName = GetPeerPipeName(peerPid);
+        for (var attempt = 1; ; attempt++) {
+            var conn = await TryConnectPeerAsync(peerPid, pipeName, ct).ConfigureAwait(false);
+            if (conn is not null) {
+                return conn;
+            }
+
+            if (attempt >= ConnectRetryLimit || ct.IsCancellationRequested) {
+                return null;
+            }
+
+            // 退避重试 — 穿透对端 accept 循环的实例创建间隙（仅失败分支）
+            TransportDiagnostics.Log("MESH", () => $"connect retry {attempt}/{ConnectRetryLimit}: peer={peerPid}");
+            await Task.Delay(ConnectRetryBackoffMs * attempt, ct).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>连接重试上限。</summary>
+    private const int ConnectRetryLimit = 3;
+
+    /// <summary>连接重试退避基数（毫秒，按尝试次数线性放大）。</summary>
+    private const int ConnectRetryBackoffMs = 100;
+
+    /// <summary>单次连接尝试 — 建管道 + 写握手 + 注册缓存；失败返回 null（重试由调用方决定）。</summary>
+    private async ValueTask<MeshPeerConnection?> TryConnectPeerAsync(string peerPid, string pipeName, CancellationToken ct) {
         var client = NamedPipeFactory.CreateClient(pipeName);
 
         try {
@@ -137,6 +170,7 @@ public sealed class MeshTransport : ITransportTopology {
             connectCts.CancelAfter(TimeSpan.FromSeconds(5));
             await client.ConnectAsync(connectCts.Token).ConfigureAwait(false);
         } catch (OperationCanceledException) { return null; } catch (Exception ex) when (ex is IOException or TimeoutException) {
+            TransportDiagnostics.Log("MESH", () => $"connect failed: peer={peerPid}, pipe={pipeName}, {ex.GetType().Name}: {ex.Message}");
             _logger?.LogDebug("MeshTransport: failed to connect to peer {Peer} on {Pipe}", peerPid, pipeName);
             await client.DisposeAsync().ConfigureAwait(false);
             return null;
@@ -151,6 +185,7 @@ public sealed class MeshTransport : ITransportTopology {
 
         var conn = new MeshPeerConnection(peerPid, client, _logger);
         ImmutableInterlocked.Update(ref _peerConnections, d => d.SetItem(peerPid, conn));
+        TransportDiagnostics.Log("MESH", () => $"connected to peer {peerPid} on {pipeName} (attempt ok)");
         _logger?.LogDebug("MeshTransport: connected to peer {Peer} on {Pipe}", peerPid, pipeName);
         return conn;
     }

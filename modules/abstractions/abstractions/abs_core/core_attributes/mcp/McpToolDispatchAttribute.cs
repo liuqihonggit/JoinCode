@@ -14,10 +14,11 @@ public sealed class McpToolDispatchAttribute : Attribute {
     public bool Optional { get; set; }
 
     /// <summary>
-    /// 工具类型 — 决定注入策略：System(始终注入) / Mcp(按分组注入) / OnError(报错时动态注入)
-    /// 默认 System，保持向后兼容
+    /// 工具类型 — 决定注入策略：System(始终注入+完整 schema) / Mcp(按分组注入，首次只发名称 — 两阶段加载) / OnError(报错时动态注入)
+    /// 默认 Mcp（修复：默认 System 致 506 工具全量 schema 466KB 巨型请求被 10s 超时撞断 —
+    /// 核心工具须显式声明 System，对齐基准 Claude Code 核心工具集 Read/Write/Edit/Grep/Glob/Bash/Task）
     /// </summary>
-    public ToolKind Kind { get; set; } = ToolKind.System;
+    public ToolKind Kind { get; set; } = ToolKind.Mcp;
 
     /// <summary>
     /// 二级分组名 — MCP工具必填，系统工具可选

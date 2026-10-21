@@ -8,7 +8,7 @@
 
 | # | 问题 | 性质 | 状态 | 守卫方案 |
 |---|------|------|------|---------|
-| P1 | **ChatService 路径子代理 LLM 流无 AgentId 透传主流**——SubAgentEventStreamE2ETests 红：子代理输出以无标记 Content 串入主流、无 AgentStarted（疑 StreamingFallbackDecorator 全量收集透传——TASK043 域） | 独立缺陷 | ⏳ 待修 | E2E 断言（已有红测试守护）+ 透传点单一职责化 |
+| P1 | ~~ChatService 路径子代理 LLM 流无 AgentId 透传主流~~ **误诊修正**：真实根因=①E2E 未等插件就绪（八插件后台化后 kernel.Plugins 挂载延迟→agent 工具 not found 短路→无子代理事件、主 LLM 二轮直拿 turn2 文本——"串话"假象）②跨 class 并行污染（同 testhost 两引擎 session 进程级干扰→turn 被跨测试消耗）。修复=Completion 等待（通知语义）+ [Collection] 串行 + fork 断言对齐 teammate 演进 | 误诊→已修 | ✅ 3/3 全绿（含 CI 白名单增补） | E2E 断言守护 |
 | P2 | **邮箱 ReceiveAsync 漏传 ct 模式**（已修三处：AgentServiceImpl/SwarmPermissionMessageRouter/PlanApprovalMessageRouter）——"ct 挂在参数上但没传给底层"是静默缺陷，Dispose 挂死才暴露 | 缺陷模式（防再犯） | ✅ 已修 | **路由器取消收尾测试**（TDD 防回归）+ 单一职责提取 |
 | P3 | **路由循环内嵌大类**——RouteWorkerPermissionResponsesAsync 等三个消息路由循环内嵌在 AgentServiceImpl（900+ 行）等大类里，取消语义/生命周期/分发逻辑耦合，缺陷难以局部暴露 | 结构性风险 | ⏳ 待守卫 | 提取独立路由类（单一职责）+ 取消收尾单元测试 |
 | P4 | **E2E/测试工具名 magic string**——SubAgentEventStreamE2ETests/MainAgentPath E2E 脚本手写 "Agent"/"agent_spawn" 均错（真值 `agent`，AgentToolName [EnumValue]）——两轮排障才定位 | 可维护性 | ⏳ 待守卫 | 脚本改引用 AgentToolNameEnumConstants 常量（单一数据源） |

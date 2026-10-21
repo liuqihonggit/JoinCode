@@ -11,6 +11,7 @@ namespace MockServer.E2E.Tests.E2E;
 /// SubAgentEventChannel → SessionController chunk 循环排空直投 RouteSubagentEvent →
 /// IEventConsumer 三子代理回调（OnSubagentStarted/OnSubagentToolUse/OnSubagentFinished）。
 /// </summary>
+[Collection("SubAgentEventSerial")]
 [Trait("Category", "Integration")]
 public sealed class SubAgentEventMainAgentPathE2ETests {
     private readonly ITestOutputHelper _output;

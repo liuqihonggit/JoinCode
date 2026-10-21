@@ -16,7 +16,7 @@ public sealed class ReplShell
     private readonly Theme _theme = Theme.Dark;
     private readonly ReplView _view = new();
     private readonly InputBuffer _input = new();
-    private readonly SpinnerItem _spinner = new() { Message = string.Empty };
+    private readonly SpinnerItem _spinner = new() { Message = string.Empty, Hidden = true };
     private readonly StylePool _pool = new();
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly InlineComposer _inlineComposer = new();

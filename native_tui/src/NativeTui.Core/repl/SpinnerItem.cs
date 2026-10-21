@@ -98,12 +98,22 @@ public sealed class SpinnerItem : IScrollItem, IAnimatable
     /// <summary>累计已暂停毫秒。</summary>
     public long TotalPausedMs { get; set; }
 
-    /// <summary>内容高度 = marginTop 1 + 行 1。</summary>
-    public int MeasureHeight(int width) => 2;
+    /// <summary>隐藏态（对齐基准 REPL.tsx showSpinner：空闲非 busy 完全不渲染 — 高度 0）。
+    /// driver BeginTurn/EndTurn 驱动（busy=显示：等待/思考/工具运行反馈；idle=隐藏：基准空闲无 spinner 行）。</summary>
+    public bool Hidden { get; set; }
 
-    /// <summary>渲染：margin 行留空，行内容 = glyph + 消息 + 状态 parts（消息空时随机动词 + '…'）。</summary>
+    /// <summary>内容高度 = Hidden ? 0 : marginTop 1 + 行 1。</summary>
+    public int MeasureHeight(int width) => Hidden ? 0 : 2;
+
+    /// <summary>渲染：margin 行留空，行内容 = glyph + 消息 + 状态 parts（消息空时随机动词 + '…'）；
+    /// Hidden 时零输出（不动画不占行）。</summary>
     public void Render(Screen screen, Rect frame, Theme theme)
     {
+        if (Hidden)
+        {
+            return;
+        }
+
         var message = EffectiveMessage();
         var messageColor = OverrideColor ?? theme.Claude;
         var shimmerColor = OverrideShimmerColor ?? theme.ClaudeShimmer;

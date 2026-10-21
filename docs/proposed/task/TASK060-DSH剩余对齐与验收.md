@@ -142,3 +142,59 @@
 <!-- 原因: 审计对必须被本轮包住；取消路径实测 decided(=8) 晚于 turn/end(=7)。根因是 fire-and-forget 的 detach 补写与异常分支直接在 EndTurnAsync 前收尾，finally 里的关轮太晚。抽 FinishTurnAsync 让"关轮"成为结束轮次的唯一入口，顺序在类型层面不可颠倒 -->
 <!-- 替代方案: ①只在 finally 提前关轮（异常分支已发 turn/end，仍违规）②审计改为同步阻塞等待（拖慢放行路径）③给审计加时间戳后置排序（掩盖问题且不符合 DSH 事件即时语义）—— 都不采用 -->
 <!-- 验证: 边界脚本 detach/cancel 全 ALL_PASS（0/4/5/9 与 0/4/6/8）；单测 277/0；approval 48/48；prompt/tool/queue/cancel/reload/history 回归全绿 -->
+
+## 七、B11 steer（轮内注入）计划与验收
+
+DSH 语义（权威源 `dsh-agent-loop/lib/index.js:998-1006`、`:1061`、`dsh-api-session-controller/lib/index.js:882`）与落地方案见 [ADR 0146](../../proposed/adr/0146-steer-in-turn-injection-mailbox.md)：**邮箱投递（宿主）→ 步首 drain（引擎）→ 轮内 `user/message` 事件（宿主投影）**，且「模型本步无工具调用但邮箱非空」不结束轮次。
+
+### 批次步骤（红 → 实现 → 编译 → 绿 → 文档 → commit）
+
+| 步骤 | 内容 | 状态 |
+|------|------|------|
+| B11-a | 契约与 ADR：`ISteerInputMailbox` + `MessageOriginKind.SteerInput` + `ChatStreamEventType.SteerInput`（ADR 0146 proposed） | ✅ |
+| B11-b | E2E 红：`dsh-webui-steer.mjs`（桩按注入文本应答；断言受理、轮内 `user/message`、单轮、下一步请求含注入文本） | ✅ 红已确认 |
+| B11-c | 引擎单元红→绿：步首 drain 进下一次请求 + 有待注入不收尾 | ⬜ |
+| B11-d | 宿主路由绿：`session/prompt mode=steer`（运行中受理 / 空闲回落开轮）+ `updateQueue action.kind=steer` 升级 | ⬜ |
+| B11-e | 全量回归（approval/edges/prompt/tool/queue/cancel/reload/history）+ 文档四列表 + commit | ⬜ |
+
+### B11-b 红灯证据（真机 exe + 桩，非 mock）
+
+E2E 场景（`dumps/dsh-webui-steer.mjs`，桩加两个 marker）：
+
+1. 桩 `USE_STEER_WAIT`：工具结果之后的这一步**挂起 6s**（`STUB_STEER_HOLD_MS`）再回一句**无工具调用**的正文 —— 制造确定性的「轮次仍在运行」窗口，同时天然命中「本步无工具调用但有待注入」分支。
+2. 轮内 `session/prompt {mode:"steer", content:[STEER_MARK ...]}`。
+3. 桩 `STEER_MARK`：请求体在**最后一次工具结果之后**出现注入文本时回 `steer 已收到：轮内注入成功`（证明确实是注入文本驱动了下一步）。
+
+红灯矩阵（`FAILED 9`，脚本自行退出）：
+
+| 断言 | 结果 | 实测 |
+|------|------|------|
+| `session/prompt mode=steer` 受理 | ❌ | `{"code":"session/busy","message":"会话 … 上一轮仍在生成；… 排队请用 mode=queue"}` |
+| 得到 accepted（非 `steer-unavailable`/`busy`） | ❌ | `session/busy` |
+| 本轮收尾 `turn/end` | ✅ | `turn/start,step/start,user/message,tool/call,tool/result,assistant/message,step/end,turn/end` |
+| 注入文本进入事件流 | ❌ | 无 `STEER_MARK` |
+| 注入未开启新轮次（单 `turn/start`） | ✅ | `turn/start x1` |
+| 注入落轮内 `user/message`（`surfaceOp=append`） | ❌ | `index=-1` |
+| 注入在工具结果之后 / 最终回复之前 | ❌ | `tool/result=4 steer=-1 ack=-1` |
+| 最终回复来自注入分支 | ❌ | 无 ack |
+| 界面渲染注入文本 | ❌ | 无 |
+
+关键旁证：桩日志本轮只有 **2 次** `/chat/completions` 请求（无第三次带 `STEER_MARK` 的请求）→ 注入从未抵达引擎，问题在宿主受理层而非事件投影层。
+
+**结论（对齐 DSH 的差距）**：宿主把 `mode:"steer"` 当成「非 queue 的普通 prompt」落到 `session/busy`，既没受理也没按 DSH 语义投递；引擎侧完全没有轮内注入通道。
+
+### E2E 工具链修正（三次试跑踩出来的）
+
+1. **红灯脚本禁把「预期为红」的断言写成会抛错的 `until`** —— 第一个不满足就抛异常中断，后半段报告全丢，看起来像「卡住」。改为有界软等待 `waitFor()`（内部 catch `until` 超时，返回 bool）+ `check()`，一次运行输出完整矩阵；整脚本再套 `try/catch` → `check('流程无异常中断')`，保证必定走到 `finish()`/`process.exit()`。
+2. **桩进程必须先按命令行清理再启动** —— `_e2e.mjs#ensureStub` 无条件 `spawn` 新桩，若旧桩仍占 8899，新桩静默 `EADDRINUSE` 而探活仍通过 → 跑的就是**旧代码**（改了 marker 却不生效）。跑前先 `Get-CimInstance Win32_Process` 匹配 `stub-openai-server.mjs` 杀掉。
+3. **exe 必须由「短 bash 调用」启动** —— 单次 bash 超时被掐时整个进程树（含 `Start-Process` 的 exe）一起死；把「起 exe + wait-webui」与「跑 E2E」拆成两次调用，单次都在限时内结束。
+4. **拿会话 ID 别依赖 `session/list` 的 `running`** —— 该字段恒为 `false`（`DshSessionStore.ProjectAsync` 里写死），改为取 `session/follow` 快照的 `header.id`，回退 `session/list` 首条。
+
+### 验收四列表（待 B11-e 填验收列）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|----------|--------|--------|--------|
+| `ISteerInputMailbox`（按会话寻址的 FIFO 邮箱，Actor 邮箱模型） | 宿主投递 / 引擎步首 drain | ⬜ | ⬜ |
+| `QueryLoopMiddleware` 步首 drain → `AddUserMessageAsync(SteerInput)` + `ChatStreamEventType.SteerInput` | 下一步 LLM 请求携带注入文本；宿主投影 `user/message` | ⬜ | ⬜ |
+| 收尾分支「邮箱非空则继续下一步」（对齐 DSH `next-step` 非空不结束轮） | 模型最后一步收到 steer 仍继续 | ⬜ | ⬜ |
+| `DshTurnRunner`/`DshRpcDispatcher` steer 路由（替换 `session/steer-unavailable`） | 前端/协议 `session/prompt mode=steer`、`updateQueue action.kind=steer` | ⬜ | ⬜ |

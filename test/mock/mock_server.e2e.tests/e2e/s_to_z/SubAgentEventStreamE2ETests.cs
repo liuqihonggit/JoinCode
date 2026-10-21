@@ -144,7 +144,7 @@ public sealed class SubAgentEventStreamE2ETests {
         sb.AppendLine("      \"thinking_content\": null,");
         sb.AppendLine("      \"tool_calls\": [");
         sb.AppendLine("        {");
-        sb.AppendLine("          \"tool_name\": \"agent\",");
+        sb.Append("          \"tool_name\": \"").Append(AgentToolNameEnumConstants.Agent).AppendLine("\",");
         sb.Append("          \"arguments\": \"").Append(EscapeJsonString(toolCallArguments)).AppendLine("\",");
         sb.AppendLine("        }".TrimEnd(','));
         sb.AppendLine("      ],");

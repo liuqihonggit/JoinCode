@@ -37,11 +37,11 @@
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| P2 守卫测试（路由器取消收尾） | AgentServiceImpl/Swarm/PlanApproval 三路由器 | ⏳ | ⏳ |
-| P3 单一职责提取 AgentMessageRouteLoop | 三路由器重构消费 | ⏳ | ⏳ |
-| P4 E2E 工具名常量化 | 两 E2E 脚本 | ⏳ | ⏳ |
-| P5 TeammatePane 角色守卫 | TeammatePaneMiddleware | ⏳ | ⏳ |
-| P6 CI matrix 增补 | ci-e2e.yml | ⏳ | ⏳ |
+| P2 守卫测试（路由器取消收尾） | AgentServiceImpl/Swarm/PlanApproval 三路由器 | ✅（10ba6e250） | ✅ AgentMessageRouteLoopTests 4/4（无消息 Dispose 时限收尾=挂死回归形态/路由派发/停止语义/未注册空流）+ agents.tests 632 |
+| P3 单一职责提取 AgentMessageRouteLoop | Swarm/PlanApproval 两路由器重构消费（AgentServiceImpl 保留 BackgroundTaskActor 调度语义） | ✅（10ba6e250） | ✅ ct 传递收敛类内一处构造契约 + analyzer JCC9108 所有权守卫触发验证 + E2E 复验绿 |
+| P4 E2E 工具名常量化 | 两 E2E 脚本 | ✅ | ✅ AgentToolNameEnumConstants.Agent + FileToolNameEnumConstants.FileRead 引用 + E2E 复验绿 |
+| P5 TeammatePane 角色守卫 | TeammatePaneMiddleware（Variant==Teammate 判定） | ✅ | ✅ E2E 警告噪音归零 + 耗时 16s→7s（免 tmux 进程尝试） |
+| P6 CI matrix 增补 | ci-e2e.yml subagent-events 条目（MainAgentPath） | ✅ | ✅ 本地等价验证绿（ChatService 路径待 P1 修复后增补） |
 
 ## 4. 遗留
 

@@ -19,18 +19,71 @@ public sealed class UserMessageItem(string text) : IScrollItem, ICursorNavigable
         MessageRenderer.RenderUser(screen, frame with { Y = frame.Y + 1, Height = 1 }, theme, text);
 }
 
-/// <summary>助手文本消息项（● text 色 + 正文）。</summary>
-public sealed class AssistantMessageItem(string text) : IScrollItem, ICursorNavigable
+/// <summary>助手文本消息项（● text 色 + 正文）。TASK062 结构化：思考时长 &gt; 0 时正文上方渲染
+/// dim 思考摘要行（⎿ 思考 {s} · ctrl+o 展开推理）；ThinkingContent 非空支持 Ctrl+O 展开 CoT 全文
+///（展开态 ▾ + dim 缩进逐行）；MessageId 会话序号（定位/对账，UI 不显示）。</summary>
+public sealed class AssistantMessageItem(string text, int thinkingDurationMs = 0, string? thinkingContent = null, int messageId = 0) : IScrollItem, ICursorNavigable
 {
+    /// <summary>思考内容行数上限守卫（超限折叠为截断提示 — CoT 刷屏防护）。</summary>
+    private const int MaxThinkingLines = 200;
+
     /// <summary>正文（宿主反馈消息断言面 — M7-6 模型切换反馈等）。</summary>
     public string Text => text;
 
-    /// <summary>内容高度 = margin 1 + 正文 1。</summary>
-    public int MeasureHeight(int width) => 2;
+    /// <summary>思考总时长 ms（0 = 无思考不渲染思考行）。</summary>
+    public int ThinkingDurationMs => thinkingDurationMs;
 
-    /// <summary>margin 行留空，正文画在 frame.Y+1。</summary>
-    public void Render(Screen screen, Rect frame, Theme theme) =>
-        MessageRenderer.RenderAssistant(screen, frame with { Y = frame.Y + 1, Height = 1 }, theme, text);
+    /// <summary>CoT 全文（null = 无内容不可展开）。</summary>
+    public string? ThinkingContent => thinkingContent;
+
+    /// <summary>消息序号（会话级 — Ctrl+O 定位/transcript 对账）。</summary>
+    public int MessageId => messageId;
+
+    /// <summary>思考块展开态（Ctrl+O 切换 — Toggle）。</summary>
+    public bool IsThinkingExpanded { get; private set; }
+
+    /// <summary>切换思考块展开态（有 CoT 才有效；高度变化由下次 MeasureHeight 反映）。</summary>
+    public void ToggleThinking() {
+        if (thinkingContent is { Length: > 0 }) {
+            IsThinkingExpanded = !IsThinkingExpanded;
+        }
+    }
+
+    /// <summary>内容高度 = margin 1 + 正文 1 + 思考摘要行（有思考）+ CoT 行数（展开态，含截断守卫）。</summary>
+    public int MeasureHeight(int width) =>
+        2
+        + (thinkingDurationMs > 0 ? 1 : 0)
+        + (IsThinkingExpanded ? CountThinkingLines() : 0);
+
+    /// <summary>margin 行留空 → 思考摘要行（有思考）→ CoT 全文（展开态）→ 正文。</summary>
+    public void Render(Screen screen, Rect frame, Theme theme) {
+        var row = frame.Y + 1;
+        if (thinkingDurationMs > 0) {
+            MessageRenderer.RenderThinkingSummary(screen, frame with { Y = row++, Height = 1 }, theme, thinkingDurationMs, IsThinkingExpanded);
+        }
+
+        if (IsThinkingExpanded && thinkingContent is { Length: > 0 }) {
+            var lines = CountThinkingLines();
+            MessageRenderer.RenderThinkingContent(screen, frame with { Y = row, Height = lines }, theme, TruncateThinking());
+            row += lines;
+        }
+
+        MessageRenderer.RenderAssistant(screen, frame with { Y = row, Height = 1 }, theme, text);
+    }
+
+    /// <summary>CoT 展开行数（含超限截断行）。</summary>
+    private int CountThinkingLines() => TruncateThinking().Split('\n').Length;
+
+    /// <summary>CoT 截断守卫 — 超行数上限时截断并附提示行。</summary>
+    private string TruncateThinking() {
+        if (thinkingContent is not { Length: > 0 })
+            return string.Empty;
+
+        var lines = thinkingContent.Split('\n');
+        return lines.Length > MaxThinkingLines
+            ? string.Join("\n", lines[..MaxThinkingLines]) + $"\n… 思考内容超 {MaxThinkingLines} 行已截断"
+            : thinkingContent;
+    }
 }
 
 /// <summary>工具调用消息项（● + bold 工具名 + (参数摘要)）。</summary>

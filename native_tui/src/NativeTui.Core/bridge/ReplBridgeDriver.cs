@@ -99,10 +99,10 @@ public sealed class ReplBridgeDriver
                 _spinner.HasActiveTools = false;
                 _spinner.ResponseLength += length;
                 break;
-            case BridgeEvent.AssistantMessage(var text, var markdown):
+            case BridgeEvent.AssistantMessage(var text, var markdown, var messageId, var thinkingDurationMs, var thinkingContent):
                 AddMessage(markdown is not null
-                    ? new MarkdownMessageItem(markdown, _codeHighlighter)
-                    : new AssistantMessageItem(text));
+                    ? new MarkdownMessageItem(markdown, _codeHighlighter, thinkingDurationMs, thinkingContent, messageId)
+                    : new AssistantMessageItem(text, thinkingDurationMs, thinkingContent, messageId));
                 break;
             case BridgeEvent.TurnCompleted:
                 EndTurn();

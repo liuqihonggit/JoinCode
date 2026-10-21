@@ -497,6 +497,9 @@ public sealed class ReplShell
             case "r":
                 BeginOrCycleSearch();
                 break;
+            case "o":
+                ToggleLastThinking();
+                break;
             case "n":
                 ScrollIfViewport(3);
                 break;
@@ -966,6 +969,40 @@ public sealed class ReplShell
 
         _copyToClipboard(last.Text);
         PostInfo("已复制到剪贴板");
+    }
+
+    /// <summary>Ctrl+O 切换最近一条消息的思考块展开/收起（TASK062 结构化消息 — 基准单条聚焦语义）：
+    /// 找最后一条带 CoT 的消息 Toggle（Assistant/Markdown 两类取滚动区更靠后者）；
+    /// 无 CoT 无操作（静默 — 非思考模型路径）；高度变化由下次 MeasureHeight 反映（渲染循环自动重排）。</summary>
+    internal void ToggleLastThinking()
+    {
+        var items = _view.Messages.Items;
+        var markdownIndex = IndexOfItem(items, items.OfType<MarkdownMessageItem>().LastOrDefault(m => m.ThinkingContent is { Length: > 0 }));
+        var plainIndex = IndexOfItem(items, items.OfType<AssistantMessageItem>().LastOrDefault(m => m.ThinkingContent is { Length: > 0 }));
+        if (markdownIndex < 0 && plainIndex < 0)
+        {
+            return;
+        }
+
+        if (markdownIndex > plainIndex)
+        {
+            ((MarkdownMessageItem)items[markdownIndex]).ToggleThinking();
+        }
+        else
+        {
+            ((AssistantMessageItem)items[plainIndex]).ToggleThinking();
+        }
+    }
+
+    /// <summary>滚动区项索引（引用相等查找；null = -1）。</summary>
+    private static int IndexOfItem(IReadOnlyList<IScrollItem> items, IScrollItem? target) {
+        if (target is null)
+            return -1;
+        for (var i = items.Count - 1; i >= 0; i--) {
+            if (ReferenceEquals(items[i], target))
+                return i;
+        }
+        return -1;
     }
 
     /// <summary>Shift+Tab 循环权限模式（jcc 引擎模式集合）— 发引擎应用请求，footer 以 permission_mode_changed 回执为准。</summary>

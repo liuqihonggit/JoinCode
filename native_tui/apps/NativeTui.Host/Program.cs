@@ -67,9 +67,9 @@ public static class Program {
                         }
                         tokenTotal += delta;
                         break;
-                    case BridgeEvent.AssistantMessage(var text, var markdown):
+                    case BridgeEvent.AssistantMessage(var text, var markdown, var msgId, var thinkMs, var cot):
                         assistantMessages.Add(text);
-                        Console.WriteLine($"[probe] t={sw.ElapsedMilliseconds}ms assistant_message #{assistantMessages.Count} | textLen={text.Length} markdown={(markdown is not null ? "有" : "null")} | 首部: {text[..Math.Min(60, text.Length)]}");
+                        Console.WriteLine($"[probe] t={sw.ElapsedMilliseconds}ms assistant_message #{assistantMessages.Count} | id={msgId} thinkMs={thinkMs} cotLen={cot?.Length ?? 0} | textLen={text.Length} markdown={(markdown is not null ? "有" : "null")} | 首部: {text[..Math.Min(60, text.Length)]}");
                         break;
                     case BridgeEvent.TurnCompleted:
                         Console.WriteLine($"[probe] t={sw.ElapsedMilliseconds}ms turn_completed | 首思考={firstThinking} 首 token={firstToken} | token总长={tokenTotal} | assistant_message数={assistantMessages.Count}");

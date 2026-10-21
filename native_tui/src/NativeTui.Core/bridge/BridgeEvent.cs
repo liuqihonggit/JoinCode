@@ -67,9 +67,15 @@ public abstract record BridgeEvent
     /// <summary>
     /// 完整助手消息（追加滚动区）。Markdown 非空时渲染为块模型（M7-4）；
     /// null 不输出字段（WhenWritingNull — 引擎侧旧协议逐字节一致，降级纯文本路径）。
+    /// TASK062 结构化：MessageId（回合序号 — Ctrl+O 定位/transcript 对账，UI 不显示数字本身）/
+    /// ThinkingDurationMs（思考时长 — 0 = 无思考不渲染思考行）/ ThinkingContent（CoT 全文 —
+    /// null 不输出字段，Ctrl+O 展开渲染）；三者末尾可选参数向后兼容（同 SessionInfo.Vendor 先例）。
     /// </summary>
     public sealed record AssistantMessage(string Text,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] MarkdownDocument? Markdown = null) : BridgeEvent;
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] MarkdownDocument? Markdown = null,
+        int MessageId = 0,
+        int ThinkingDurationMs = 0,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ThinkingContent = null) : BridgeEvent;
 
     /// <summary>回合完成（idle）。</summary>
     public sealed record TurnCompleted() : BridgeEvent;

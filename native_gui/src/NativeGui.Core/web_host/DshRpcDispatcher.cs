@@ -64,6 +64,16 @@ internal sealed class DshRpcDispatcher {
             ["workspace/unpinSession"] = WorkspaceUnpinSession,
             // 宿主暂不提供默认工作区（M2 起由自有引擎的会话/工作区目录决定）
             ["workspace/initializeDefault"] = Sync(_ => OkNull()),
+            // 工作区文件树（TASK058 P2-B1；changes 流属深化项，前端会收到未注册引导错误）
+            ["workspaceFiles/list"] = WorkspaceFilesList,
+            ["workspaceFiles/read"] = WorkspaceFilesRead,
+            ["workspaceFiles/readBytes"] = WorkspaceFilesReadBytes,
+            ["workspaceFiles/stat"] = WorkspaceFilesStat,
+            // 附件链（TASK058 P2-B2；uploadFileBinary 直传路由在 DshWebHost octet-stream 分支）
+            ["fileUploads/upload"] = FileUploadsUpload,
+            ["session/attachment"] = SessionAttachment,
+            // 队列编辑（TASK058 P2-B3；steer=引擎无注入点诚实拒绝）
+            ["session/updateQueue"] = SessionUpdateQueue,
         }.ToFrozenDictionary(StringComparer.Ordinal);
     }
 
@@ -345,6 +355,114 @@ internal sealed class DshRpcDispatcher {
         .Select(group => new DshProviderInfo { Id = group.Id, Name = group.Name })
         .ToList());
 
+    /// <summary>workspaceFiles 四方法共用参数解析（失败返回稳定引导错误）</summary>
+    private DshRpcResult? ParseWorkspaceFilesArgs(JsonElement args, out string sessionId, out string path) {
+        var request = args.Deserialize(DshJsonContext.Default.DshWorkspaceFilesArgs);
+        sessionId = request?.WorkspaceFileScopeId ?? "";
+        path = request?.Path ?? "";
+        if (string.IsNullOrWhiteSpace(sessionId)) {
+            return Fail("workspaceFiles/rejected",
+                $"workspaceFiles 方法需要 workspaceFileScopeId（会话 ID）与 path；收到 args={Describe(args)}");
+        }
+        return null;
+    }
+
+    /// <summary>workspaceFiles/list：目录条目（目录在前按名排序）</summary>
+    private async Task<DshRpcResult> WorkspaceFilesList(JsonElement args, CancellationToken cancellationToken) {
+        var error = ParseWorkspaceFilesArgs(args, out var sessionId, out var path);
+        if (error is not null) {
+            return error;
+        }
+        return await _services.WorkspaceFiles.ListAsync(sessionId, path, cancellationToken);
+    }
+
+    /// <summary>workspaceFiles/read：读文本（全量 + 行数 + eof）</summary>
+    private async Task<DshRpcResult> WorkspaceFilesRead(JsonElement args, CancellationToken cancellationToken) {
+        var error = ParseWorkspaceFilesArgs(args, out var sessionId, out var path);
+        if (error is not null) {
+            return error;
+        }
+        return await _services.WorkspaceFiles.ReadAsync(sessionId, path, cancellationToken);
+    }
+
+    /// <summary>workspaceFiles/readBytes：读字节（base64）</summary>
+    private async Task<DshRpcResult> WorkspaceFilesReadBytes(JsonElement args, CancellationToken cancellationToken) {
+        var error = ParseWorkspaceFilesArgs(args, out var sessionId, out var path);
+        if (error is not null) {
+            return error;
+        }
+        return await _services.WorkspaceFiles.ReadBytesAsync(sessionId, path, cancellationToken);
+    }
+
+    /// <summary>workspaceFiles/stat：文件元数据（绝对路径 + version）</summary>
+    private async Task<DshRpcResult> WorkspaceFilesStat(JsonElement args, CancellationToken cancellationToken) {
+        var error = ParseWorkspaceFilesArgs(args, out var sessionId, out var path);
+        if (error is not null) {
+            return error;
+        }
+        return await _services.WorkspaceFiles.StatAsync(sessionId, path, cancellationToken);
+    }
+
+    /// <summary>fileUploads/upload：base64 附件 → 魔数校验 → receipt 落盘（TASK058 P2-B2）</summary>
+    private async Task<DshRpcResult> FileUploadsUpload(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshFileUploadsUploadArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.AgentId) || request.Request is null
+            || string.IsNullOrEmpty(request.Request.Data)) {
+            return Fail("fileUploads/rejected",
+                $"fileUploads/upload 需要 {{agentId, request:{{data, name?}}}}；收到 args={Describe(args)}");
+        }
+        return await _services.Attachments.UploadAsync(request.AgentId, request.Request.Data, request.Request.Name, cancellationToken);
+    }
+
+    /// <summary>会话队列快照透传（updateQueue 响应与测试消费；internal 接缝）</summary>
+    internal IReadOnlyList<DshTurnRunner.QueueItem> ListQueue(string sessionId) => _turns.ListQueue(sessionId);
+
+    /// <summary>
+    /// session/updateQueue：排队项编辑（TASK058 P2-B3）。edit=重写文本，remove=移除；
+    /// steer 返回 session/steer-unavailable（引擎 StreamAsync 一轮独占无轮内注入点 — 诚实引导，
+    /// 消息保持排队将在下一轮执行）。行不在队列/已被 claim 返回 session/queue-item-not-found。
+    /// </summary>
+    private Task<DshRpcResult> SessionUpdateQueue(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshUpdateQueueArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)
+            || string.IsNullOrWhiteSpace(request.ItemId) || request.Action is null) {
+            return Task.FromResult(Fail("session/rejected",
+                $"session/updateQueue 需要 {{sessionId, itemId, action:{{kind, content?}}}}；收到 args={Describe(args)}"));
+        }
+        if (string.Equals(request.Action.Kind, "steer", StringComparison.Ordinal)) {
+            return Task.FromResult(Fail("session/steer-unavailable",
+                "引擎暂不支持轮内注入（steer）；该消息保持排队，将在当前轮结束后的下一轮执行"));
+        }
+        if (string.Equals(request.Action.Kind, "remove", StringComparison.Ordinal)) {
+            return Task.FromResult(_turns.TryRemoveQueueItem(request.SessionId, request.ItemId)
+                ? Ok(new DshQueueAcceptedResult())
+                : Fail("session/queue-item-not-found",
+                    $"队列项 {request.ItemId} 不在队列中（可能已被下一轮 claim）；刷新队列后重试"));
+        }
+        if (string.Equals(request.Action.Kind, "edit", StringComparison.Ordinal)) {
+            var text = string.Concat(request.Action.Content?.Select(part => part.Text ?? "") ?? []);
+            if (string.IsNullOrWhiteSpace(text)) {
+                return Task.FromResult(Fail("session/rejected", "edit 的 content 需要非空文本"));
+            }
+            return Task.FromResult(_turns.TryEditQueueItem(request.SessionId, request.ItemId, text)
+                ? Ok(new DshQueueAcceptedResult())
+                : Fail("session/queue-item-not-found",
+                    $"队列项 {request.ItemId} 不在队列中（可能已被下一轮 claim）；刷新队列后重试"));
+        }
+        return Task.FromResult(Fail("session/rejected",
+            $"updateQueue 的 action.kind 必须是 edit/remove/steer 之一；收到 {request.Action.Kind}"));
+    }
+
+    /// <summary>session/attachment：读附件（元数据 + base64 数据，前端聊天内图片渲染）</summary>
+    private async Task<DshRpcResult> SessionAttachment(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshSessionAttachmentArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId) || string.IsNullOrWhiteSpace(request.AttachmentId)) {
+            return Fail("session/attachment-not-found",
+                $"session/attachment 需要 {{sessionId, attachmentId}}；收到 args={Describe(args)}");
+        }
+        return await _services.Attachments.ReadAsync(request.SessionId, request.AttachmentId, cancellationToken);
+    }
+
     /// <summary>commands/list：引擎斜杠命令目录投影（TASK058 B5 — 引擎 [ChatCommand] 特性为唯一数据源）</summary>
     private DshRpcResult CommandsList(JsonElement args) => Ok(
         (_services.Engine?.GetAvailableSlashCommands() ?? [])
@@ -410,6 +528,7 @@ internal sealed class DshRpcDispatcher {
         });
     }
 
+    private static DshRpcResult Ok(DshQueueAcceptedResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshQueueAcceptedResult));
     private static DshRpcResult Ok(DshSessionList value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionList));
 
     private static DshRpcResult Ok(DshSessionRenameResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionRenameResult));

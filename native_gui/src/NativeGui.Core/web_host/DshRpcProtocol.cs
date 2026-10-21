@@ -141,6 +141,179 @@ internal sealed class DshEventErrorBody {
 /// <summary>$events/result 回帖响应（前端只看 ok，无业务载荷）</summary>
 internal sealed class DshEventsResultValue;
 
+/// <summary>fileUploads/upload 参数（前端 lookup 字段 agentId 即会话/代理 ID；request 包裹 data+name）</summary>
+internal sealed class DshFileUploadsUploadArgs {
+    /// <summary>目标会话/代理</summary>
+    public string AgentId { get; set; } = "";
+    /// <summary>上传请求体</summary>
+    public DshFileUploadRequest? Request { get; set; }
+}
+
+/// <summary>上传请求体</summary>
+internal sealed class DshFileUploadRequest {
+    /// <summary>base64 数据</summary>
+    public string Data { get; set; } = "";
+    /// <summary>文件名（可选）</summary>
+    public string? Name { get; set; }
+}
+
+/// <summary>fileUploads/upload 响应（receiptId 进 prompt 的 file part）</summary>
+internal sealed class DshFileUploadResult {
+    /// <summary>回执 ID（同时是 attachmentId）</summary>
+    public string ReceiptId { get; set; } = "";
+    /// <summary>文件元数据</summary>
+    public DshUploadedFileInfo File { get; set; } = new();
+}
+
+/// <summary>上传文件元数据</summary>
+internal sealed class DshUploadedFileInfo {
+    /// <summary>附件 ID</summary>
+    public string AttachmentId { get; set; } = "";
+    /// <summary>文件名</summary>
+    public string Name { get; set; } = "";
+    /// <summary>字节数</summary>
+    public int Bytes { get; set; }
+}
+
+/// <summary>附件落盘记录（{receiptId}.json）</summary>
+internal sealed class DshAttachmentRecord {
+    /// <summary>附件 ID</summary>
+    public string AttachmentId { get; set; } = "";
+    /// <summary>文件名</summary>
+    public string Name { get; set; } = "";
+    /// <summary>媒体类型（四类图片）</summary>
+    public string MediaType { get; set; } = "";
+    /// <summary>字节数</summary>
+    public int Bytes { get; set; }
+    /// <summary>宽</summary>
+    public int Width { get; set; }
+    /// <summary>高</summary>
+    public int Height { get; set; }
+}
+
+/// <summary>session/attachment 参数</summary>
+internal sealed class DshSessionAttachmentArgs {
+    /// <summary>会话/代理（上传时的 owner）</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>附件 ID</summary>
+    public string AttachmentId { get; set; } = "";
+}
+
+/// <summary>session/attachment 响应（前端聊天内图片渲染）</summary>
+internal sealed class DshSessionAttachmentResult {
+    /// <summary>附件元数据</summary>
+    public DshAttachmentInfo Attachment { get; set; } = new();
+    /// <summary>base64 数据</summary>
+    public string Data { get; set; } = "";
+}
+
+/// <summary>附件元数据</summary>
+internal sealed class DshAttachmentInfo {
+    /// <summary>附件 ID</summary>
+    public string AttachmentId { get; set; } = "";
+    /// <summary>媒体类型</summary>
+    public string MediaType { get; set; } = "";
+    /// <summary>字节数</summary>
+    public int Bytes { get; set; }
+    /// <summary>宽</summary>
+    public int Width { get; set; }
+    /// <summary>高</summary>
+    public int Height { get; set; }
+    /// <summary>文件名</summary>
+    public string? Name { get; set; }
+}
+
+/// <summary>session/updateQueue 参数（QueueDock 行操作）</summary>
+internal sealed class DshUpdateQueueArgs {
+    /// <summary>会话 ID</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>队列项 ID（入队时分配的 GUID）</summary>
+    public string ItemId { get; set; } = "";
+    /// <summary>操作（edit/remove/steer）</summary>
+    public DshUpdateQueueAction? Action { get; set; }
+}
+
+/// <summary>队列操作</summary>
+internal sealed class DshUpdateQueueAction {
+    /// <summary>操作类型</summary>
+    public string Kind { get; set; } = "";
+    /// <summary>edit 的新内容（text part 数组；其他 kind 恒空）</summary>
+    public List<DshPromptContent> Content { get; set; } = [];
+}
+
+/// <summary>updateQueue 受理响应</summary>
+internal sealed class DshQueueAcceptedResult {
+    /// <summary>受理标志</summary>
+    public bool Accepted => true;
+}
+
+/// <summary>workspaceFiles 四方法共用参数（前端 lookup 字段 workspaceFileScopeId 即 sessionId）</summary>
+internal sealed class DshWorkspaceFilesArgs {
+    /// <summary>会话 ID（文件树根 = 会话 cwd）</summary>
+    public string WorkspaceFileScopeId { get; set; } = "";
+    /// <summary>相对路径（空 = 根目录）</summary>
+    public string Path { get; set; } = "";
+}
+
+/// <summary>workspaceFiles/list 响应</summary>
+internal sealed class DshWorkspaceFilesListResult {
+    /// <summary>请求的相对路径（回显）</summary>
+    public string Path { get; set; } = "";
+    /// <summary>目录条目（目录在前按名排序）</summary>
+    public List<DshWorkspaceFileEntry> Entries { get; set; } = [];
+    /// <summary>是否超过截断阈值</summary>
+    public bool Truncated { get; set; }
+}
+
+/// <summary>文件树条目</summary>
+internal sealed class DshWorkspaceFileEntry {
+    /// <summary>名称（不含路径）</summary>
+    public string Name { get; set; } = "";
+    /// <summary>类型（file/directory/other）</summary>
+    public string Type { get; set; } = "file";
+    /// <summary>字节数（文件可选）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? Size { get; set; }
+}
+
+/// <summary>workspaceFiles/read 响应</summary>
+internal sealed class DshWorkspaceFilesReadResult {
+    /// <summary>文本起始偏移（v1 恒 0）</summary>
+    public int Offset { get; set; }
+    /// <summary>文本内容</summary>
+    public string Text { get; set; } = "";
+    /// <summary>行数</summary>
+    public int Lines { get; set; }
+    /// <summary>是否读到末尾</summary>
+    public bool Eof { get; set; }
+    /// <summary>绝对路径</summary>
+    public string AbsolutePath { get; set; } = "";
+    /// <summary>版本（size-mtime 合成，前端透传比较失效）</summary>
+    public string Version { get; set; } = "";
+}
+
+/// <summary>workspaceFiles/readBytes 响应（data 为 base64）</summary>
+internal sealed class DshWorkspaceFilesReadBytesResult {
+    /// <summary>字节起始偏移（v1 恒 0）</summary>
+    public int Offset { get; set; }
+    /// <summary>base64 编码字节</summary>
+    public string Data { get; set; } = "";
+    /// <summary>是否读到末尾</summary>
+    public bool Eof { get; set; }
+    /// <summary>绝对路径</summary>
+    public string AbsolutePath { get; set; } = "";
+    /// <summary>版本</summary>
+    public string Version { get; set; } = "";
+}
+
+/// <summary>workspaceFiles/stat 响应</summary>
+internal sealed class DshWorkspaceFilesStatResult {
+    /// <summary>绝对路径</summary>
+    public string AbsolutePath { get; set; } = "";
+    /// <summary>版本</summary>
+    public string Version { get; set; } = "";
+}
+
 /// <summary>commands/list 条目（前端以 /{name} 组装命令行）</summary>
 internal sealed class DshCommandInfo {
     /// <summary>命令名（无 / 前缀）</summary>
@@ -1241,5 +1414,17 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(JsonElement[]))]
 [JsonSerializable(typeof(Dictionary<string, DshCredentialState>))]
 [JsonSerializable(typeof(DshRpcErrorDetails))]
+[JsonSerializable(typeof(DshWorkspaceFilesArgs))]
+[JsonSerializable(typeof(DshWorkspaceFilesListResult))]
+[JsonSerializable(typeof(DshWorkspaceFilesReadResult))]
+[JsonSerializable(typeof(DshWorkspaceFilesReadBytesResult))]
+[JsonSerializable(typeof(DshWorkspaceFilesStatResult))]
+[JsonSerializable(typeof(DshFileUploadsUploadArgs))]
+[JsonSerializable(typeof(DshFileUploadResult))]
+[JsonSerializable(typeof(DshAttachmentRecord))]
+[JsonSerializable(typeof(DshSessionAttachmentArgs))]
+[JsonSerializable(typeof(DshSessionAttachmentResult))]
+[JsonSerializable(typeof(DshUpdateQueueArgs))]
+[JsonSerializable(typeof(DshQueueAcceptedResult))]
 [JsonSerializable(typeof(object))]
 internal sealed partial class DshJsonContext : JsonSerializerContext;

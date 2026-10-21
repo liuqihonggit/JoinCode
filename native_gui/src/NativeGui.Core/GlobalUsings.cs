@@ -32,6 +32,7 @@ global using JoinCode.Abstractions.Utils;
 global using JoinCode.BclBridge;
 global using JoinCode.Gui.Hosting;
 global using JoinCode.Gui.Theming;
+global using System.Buffers.Binary;
 global using System;
 global using System.Collections.Concurrent;
 global using System.Collections.Frozen;

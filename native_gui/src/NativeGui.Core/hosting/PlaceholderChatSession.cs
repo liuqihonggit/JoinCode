@@ -164,10 +164,16 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
     /// <summary>最后一次执行的斜杠命令 — 测试追踪字段</summary>
     public string? LastExecutedSlashCommand { get; private set; }
 
+    /// <summary>轮次闸门（测试接缝）：StreamAsync 开头等待此委托返回；null=立即生成。用于测试保持 busy 占用</summary>
+    internal Func<CancellationToken, Task>? TurnGate { get; set; }
+
     /// <summary>占位会话流式回显 — 产出思考/工具/正文示例事件供 UI 渲染验证</summary>
     public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
         string message,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
+        if (TurnGate is { } gate) {
+            await gate(cancellationToken);
+        }
         foreach (var ch in "让我先分析一下你的问题。") {
             cancellationToken.ThrowIfCancellationRequested();
             await Task.Yield();

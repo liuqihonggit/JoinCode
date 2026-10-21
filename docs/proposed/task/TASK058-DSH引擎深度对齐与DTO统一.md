@@ -31,8 +31,17 @@
 | 10 | 逐字流式 | `assistant-stream` 恒 revision 0 | TASK043 已登记（引擎侧缺陷） |
 | 11 | steer | `mode≠queue` 返回 `session/busy` | 引擎未暴露轮内注入（0945d7d32 前提记录） |
 
-### P2 — 大块新功能（另行立项）
-附件（fileUploads/attachment）、文件树（workspaceFiles 5）、终端（10）、goals 6、`session/updateQueue`。
+### P2 — 大块新功能
+
+| # | 功能 | 状态 |
+|---|------|------|
+| 12 | 文件树 workspaceFiles/list\|read\|readBytes\|stat | ✅ 真机（弹栈式防穿越+version 合成；changes 流深化项） |
+| 13 | 附件 fileUploads/upload + session/attachment + uploadFileBinary 直传 | ✅ 真机（魔数探测+四格式尺寸头解析；prompt file part 消费属引擎多模态深化） |
+| 14 | 队列 session/updateQueue（edit/remove） | ✅ 单元 4/4+真机契约（steer 诚实返回 steer-unavailable；队列可见性 inbox 投影深化） |
+| 15 | 终端（10 方法） | ⬜ 需引擎大扩展（ConPTY/屏幕缓冲/多 shell），另行立项 |
+| 16 | goals（7 方法+事件） | ⬜ 需引擎中扩展（clock/goal 生命周期模型映射+revision CAS 适配），另行立项 |
+| 17 | steer / prompt mode:"steer" | ⬜ 需引擎大扩展（StreamAsync 轮内注入点），另行立项 |
+| 18 | workspaceFiles/changes 流 | ⬜ watcher 桥接深化项 |
 
 ### 不接 ❌（DSH 在线服务，与本项目无关）
 account（11）、pluginManager（12）、dynamicCordisRunner（9）、productAnalytics、schedule、officeToPdf —— 保持 `unimplemented` 引导错误。

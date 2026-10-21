@@ -40,12 +40,12 @@ internal sealed class DshTurnRunner {
         _services.Streams.Observe(request.SessionId, snapshot.Cursor, MaxTurn(snapshot.Records));
         if (_services.Streams.TryBeginTurn(request.SessionId) is not { } turn) {
             if (string.Equals(request.Mode, "queue", StringComparison.Ordinal)) {
-                Queue(request.SessionId, new PendingPrompt(request.RequestId, text));
+                Queue(request.SessionId, NewPending(request.RequestId, text));
                 return null;
             }
             return ("session/busy", $"会话 {request.SessionId} 上一轮仍在生成；等它结束（接口完成/停止）后再发送，排队请用 mode=queue");
         }
-        await BeginTurnAsync(engine, request.SessionId, new PendingPrompt(request.RequestId, text), turn);
+        await BeginTurnAsync(engine, request.SessionId, NewPending(request.RequestId, text), turn);
         return null;
     }
 
@@ -66,9 +66,13 @@ internal sealed class DshTurnRunner {
         _ = RunTurnAsync(engine, sessionId, prompt.Text, turn.Turn, turn.Token);
     }
 
-    /// <summary>把输入放进会话队列</summary>
+    /// <summary>把输入放进会话队列（ItemId = GUID，前端 updateQueue 的行操作句柄）</summary>
     private void Queue(string sessionId, PendingPrompt prompt) =>
         _pending.GetOrAdd(sessionId, _ => new System.Collections.Concurrent.ConcurrentQueue<PendingPrompt>()).Enqueue(prompt);
+
+    /// <summary>构造带操作句柄的排队项</summary>
+    private static PendingPrompt NewPending(string requestId, string text) =>
+        new(Guid.NewGuid().ToString("N"), requestId, text);
 
     /// <summary>轮次收尾后启动下一条排队输入（无排队则返回）</summary>
     private void StartQueued(Hosting.IJccChatSession engine, string sessionId) {
@@ -240,5 +244,67 @@ internal sealed class DshTurnRunner {
     /// <summary>排队中的一条用户输入</summary>
     /// <param name="RequestId">提交身份（回填 user/message 的 source.rpcId）</param>
     /// <param name="Text">已校验文本</param>
-    private sealed record PendingPrompt(string RequestId, string Text);
+    private sealed record PendingPrompt(string ItemId, string RequestId, string Text);
+
+    /// <summary>队列项快照（ListQueue 供 updateQueue 与测试消费）</summary>
+    internal sealed record QueueItem(string ItemId, string RequestId, string Text);
+
+    /// <summary>会话队列快照（按入队顺序）</summary>
+    internal IReadOnlyList<QueueItem> ListQueue(string sessionId) {
+        if (!_pending.TryGetValue(sessionId, out var queue)) {
+            return [];
+        }
+        var snapshot = new List<QueueItem>();
+        foreach (var prompt in queue) {
+            snapshot.Add(new QueueItem(prompt.ItemId, prompt.RequestId, prompt.Text));
+        }
+        return snapshot;
+    }
+
+    /// <summary>编辑排队项文本（无该项返回 false）</summary>
+    internal bool TryEditQueueItem(string sessionId, string itemId, string text) {
+        if (!_pending.TryGetValue(sessionId, out var queue)) {
+            return false;
+        }
+        lock (queue) {
+            var rewritten = false;
+            var rebuilt = new System.Collections.Concurrent.ConcurrentQueue<PendingPrompt>();
+            foreach (var prompt in queue) {
+                if (string.Equals(prompt.ItemId, itemId, StringComparison.Ordinal)) {
+                    rebuilt.Enqueue(prompt with { Text = text });
+                    rewritten = true;
+                } else {
+                    rebuilt.Enqueue(prompt);
+                }
+            }
+            if (!rewritten) {
+                return false;
+            }
+            _pending[sessionId] = rebuilt;
+            return true;
+        }
+    }
+
+    /// <summary>移除排队项（无该项返回 false）</summary>
+    internal bool TryRemoveQueueItem(string sessionId, string itemId) {
+        if (!_pending.TryGetValue(sessionId, out var queue)) {
+            return false;
+        }
+        lock (queue) {
+            var removed = false;
+            var rebuilt = new System.Collections.Concurrent.ConcurrentQueue<PendingPrompt>();
+            foreach (var prompt in queue) {
+                if (string.Equals(prompt.ItemId, itemId, StringComparison.Ordinal)) {
+                    removed = true;
+                } else {
+                    rebuilt.Enqueue(prompt);
+                }
+            }
+            if (!removed) {
+                return false;
+            }
+            _pending[sessionId] = rebuilt;
+            return true;
+        }
+    }
 }

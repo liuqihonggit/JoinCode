@@ -16,6 +16,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
     private const string StreamPath = "/api/remote.mux";
     private const string ApiPrefix = "/api/";
     private const string ComboPrefix = "/plugins/??";
+    private const string BinaryUploadPath = "/api/session/uploadFileBinary";
 
     private static readonly FrozenDictionary<string, string> ContentTypes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
@@ -102,6 +103,11 @@ internal sealed class DshWebHost : IAsyncDisposable {
         }
         var path = request.Url?.AbsolutePath ?? "/";
         if (path.StartsWith(ApiPrefix, StringComparison.Ordinal) || path == "/api") {
+            // 附件直传（TASK058 P2-B2）：POST /api/session/uploadFileBinary?sessionId=&name=，body 为 octet-stream
+            if (string.Equals(path, BinaryUploadPath, StringComparison.Ordinal)) {
+                await HandleBinaryUploadAsync(context);
+                return;
+            }
             await HandleRpcAsync(context);
             return;
         }
@@ -110,6 +116,50 @@ internal sealed class DshWebHost : IAsyncDisposable {
             return;
         }
         await ServeFileAsync(context, path.TrimStart('/'));
+    }
+
+    /// <summary>
+    /// 附件二进制直传：body 原样字节（Blob/流式大文件免 base64 膨胀），魔数校验与落盘复用
+    /// <see cref="DshAttachmentStore"/>；响应与 RPC 同信封（前端 parseFileUploadResult 统一解析）。
+    /// </summary>
+    private async Task HandleBinaryUploadAsync(HttpListenerContext context) {
+        var response = context.Response;
+        try {
+            var query = context.Request.Url?.Query ?? "";
+            var sessionId = QueryValue(query, "sessionId");
+            var name = QueryValue(query, "name");
+            DshRpcResult result;
+            if (string.IsNullOrWhiteSpace(sessionId)) {
+                result = DshRpcResults.Fail("fileUploads/rejected", "uploadFileBinary 需要 sessionId 与 name 查询参数");
+            } else {
+                using var buffer = new MemoryStream();
+                await context.Request.InputStream.CopyToAsync(buffer);
+                result = await _services.Attachments.UploadAsync(sessionId, Convert.ToBase64String(buffer.ToArray()), name, _lifetime.Token);
+            }
+            var reply = new DshRpcResponse { RpcId = "upload", Result = result };
+            var payload = JsonSerializer.SerializeToUtf8Bytes(reply, DshJsonContext.Default.DshRpcResponse);
+            response.StatusCode = 200;
+            response.ContentType = "application/json; charset=utf-8";
+            response.Headers["Cache-Control"] = "no-store";
+            response.ContentLength64 = payload.Length;
+            await response.OutputStream.WriteAsync(payload);
+        } catch (Exception ex) {
+            GuiDiag.Log($"[DSH-WEB] binary upload failed: {ex.Message}");
+            TryClose(response, 500);
+        } finally {
+            TryClose(response, 200);
+        }
+    }
+
+    /// <summary>解析查询串单值（无解码需求：sessionId/name 均为简单 ASCII）</summary>
+    private static string? QueryValue(string query, string key) {
+        foreach (var pair in query.TrimStart('?').Split('&')) {
+            var equals = pair.IndexOf('=');
+            if (equals > 0 && string.Equals(pair[..equals], key, StringComparison.OrdinalIgnoreCase)) {
+                return pair[(equals + 1)..];
+            }
+        }
+        return null;
     }
 
     /// <summary>一元 RPC：解析信封 → 分发 → 回写信封（失败也回 200，错误在 result.error）</summary>

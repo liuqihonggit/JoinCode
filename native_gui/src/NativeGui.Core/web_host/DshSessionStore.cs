@@ -207,6 +207,14 @@ internal sealed class DshSessionStore {
         return (ProjectValues(customTitle, info, entries, journalEvents), info, entries);
     }
 
+    /// <summary>读会话工作目录（workspaceFiles 文件树根）；meta 缺失/无 ProjectPath 返回 null</summary>
+    internal async Task<string?> GetSessionCwdAsync(string sessionId, CancellationToken cancellationToken) {
+        if (_transcripts is not { } transcripts) {
+            return null;
+        }
+        return (await transcripts.GetSessionInfoAsync(sessionId, cancellationToken))?.ProjectPath;
+    }
+
     /// <summary>
     /// 全部会话的投影映射（<c>session/control</c> 基线）；引擎未就绪或没有会话时为空。
     /// </summary>

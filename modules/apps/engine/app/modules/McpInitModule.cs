@@ -129,6 +129,10 @@ public sealed class McpInitModule : IAppModule {
 
             var totalCount = plugins.Sum(p => p.Functions.Count());
             logger?.LogDebug("[MCP] kernel.Plugins 已刷新，{GroupCount} 组 {Count} 个工具", plugins.Count, totalCount);
+        } catch (ObjectDisposedException ex) {
+            // 引擎关闭期良性竞态：Host 已 dispose（AsyncLock 释放）而后台刷新任务晚到 — 非故障，
+            // 降级 Debug 避免 E2E NoErrors 断言误报（CLI 每轮退出与 McpPluginBootstrap 后台加载的时序差）
+            logger?.LogDebug(ex, "[MCP] 刷新 kernel.Plugins 跳过：引擎已关闭");
         } catch (Exception ex) {
             logger?.LogError(ex, "[MCP] 刷新 kernel.Plugins 失败");
         }

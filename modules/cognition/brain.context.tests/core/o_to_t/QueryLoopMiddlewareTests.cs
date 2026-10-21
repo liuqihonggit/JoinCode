@@ -268,6 +268,60 @@ public sealed class QueryLoopMiddlewareTests {
         ToolUseContext = new ToolUseContext()
     };
 
+    /// <summary>TASK061 请求前上下文预算守卫（孤儿接线 — DecidePreflight 此前无消费方）：
+    /// 估算比率 ≥ 1.0（消息+工具已超模型上下文窗口本体）→ 直接抛 ContextOverflowException
+    ///（不发 API — 用户要求"超 1M 窗口直接报错"；错误带估算/窗口/诱导清上下文）。</summary>
+    [Fact]
+    public async Task InvokeAsync_EstimatedRatioOverWindow_ThrowsContextOverflow() {
+        var contextManager = new Mock<IChatContextManager>();
+        contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList());
+        contextManager.Setup(c => c.DecidePreflightWithCurrentSpecs())
+            .Returns(new PreflightDecision { NeedsAction = true, EstimatedRatio = 1.5 });
+
+        await using var middleware = CreateMiddleware(contextManager, new Mock<IChatToolOrchestrator>(), []);
+
+        var act = async () => {
+            await foreach (var _ in middleware.InvokeAsync(
+                CreateContext(), (ctx, ct) => AsyncEnumerableEmpty<ChatStreamEvent>(), CancellationToken.None)) { }
+        };
+
+        (await act.Should().ThrowAsync<ContextOverflowException>())
+            .Which.Message.Should().Contain("上下文");
+    }
+
+    /// <summary>TASK061 — 估算比率 &lt; 1.0（窗口内）：不拦截正常流（守卫静默放行）。</summary>
+    [Fact]
+    public async Task InvokeAsync_EstimatedRatioWithinWindow_NoThrow() {
+        var contextManager = new Mock<IChatContextManager>();
+        contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList());
+        contextManager.Setup(c => c.DecidePreflightWithCurrentSpecs())
+            .Returns(new PreflightDecision { NeedsAction = false, EstimatedRatio = 0.3 });
+        contextManager.Setup(c => c.GetContextMaxTokens()).Returns(200_000);
+        contextManager.Setup(c => c.AddAssistantMessageAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        contextManager.Setup(c => c.AddAssistantToolCallMessageAsync(
+                It.IsAny<string?>(), It.IsAny<IReadOnlyDictionary<string, JsonElement>>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        contextManager.Setup(c => c.AddToolResultMessageAsync(
+                It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, JsonElement>>(), It.IsAny<IReadOnlyList<ToolContent>?>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var orchestrator = new Mock<IChatToolOrchestrator>();
+        orchestrator.Setup(t => t.ExecuteToolCallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ToolCallResult { ResultText = "ok", IsError = false });
+
+        await using var middleware = CreateMiddleware(contextManager, orchestrator, []);
+
+        var act = async () => {
+            await foreach (var _ in middleware.InvokeAsync(
+                CreateContext(), (ctx, ct) => AsyncEnumerableEmpty<ChatStreamEvent>(), CancellationToken.None)) { }
+        };
+
+        await act.Should().NotThrowAsync();
+    }
+
     private static async IAsyncEnumerable<T> AsyncEnumerableEmpty<T>([EnumeratorCancellation] CancellationToken ct = default) {
         await Task.CompletedTask.ConfigureAwait(true);
         yield break;

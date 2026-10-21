@@ -77,6 +77,9 @@ public interface IChatContextManager {
     /// <summary>预检决策。</summary>
     /// <param name="toolSpecs">工具规格列表。</param>
     PreflightDecision DecidePreflight(IReadOnlyList<ToolSpec> toolSpecs);
+    /// <summary>预检决策（当前工具规格自取版 — TASK061 请求前预算守卫消费面：
+    /// 中间件每轮迭代取历史快照后调用，估算比率 ≥ 1.0 直接拦截不发 API）。</summary>
+    PreflightDecision DecidePreflightWithCurrentSpecs();
     /// <param name="decision">折叠决策。</param>
     /// <param name="agentId">代理标识，null 表示主代理。</param>
     /// <param name="cancellationToken">取消令牌。</param>

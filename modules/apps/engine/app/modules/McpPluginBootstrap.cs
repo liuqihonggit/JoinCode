@@ -87,8 +87,11 @@ internal sealed class McpPluginBootstrapHandle : IAsyncDisposable
     }
 
     /// <summary>插件就绪完成信号（邮箱/通知语义）— Run 前为已完成 Task（无可等之物）；
-    /// Run 后为后台链 Task（八插件加载 + 就绪钩子全部完成）。消费方（E2E/宿主）等此信号
-    /// 确认工具注册就绪，替代时间性等待（Task.Delay 固定延时在 CI 快慢机上均不可靠）。</summary>
+    /// Run 后为后台链 Task（八插件加载 + 就绪钩子全部完成）。消费方等此信号确认工具注册就绪，
+    /// 替代时间性等待（Task.Delay 固定延时在 CI 快慢机上均不可靠）。两类消费方：
+    /// E2E/宿主等就绪；CLI 单次命令（gh/mcp_call/mcp_list）在查询工具前等待 —
+    /// 后台化后单次进程不等插件加载完成即查 registry，工具表只剩同步注册的 15 个（gh_pr_* 全缺失）；
+    /// 长驻宿主（GUI/TUI/交互会话）不等待 — 保留启动开销优化收益。</summary>
     public Task Completion => _background;
 
     /// <summary>收尾 — 取消（尽力加速断链）→ 无超时等待链完成（链恒成功语义由 Bootstrap 保证，兜底吞）；幂等。</summary>

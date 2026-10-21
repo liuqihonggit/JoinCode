@@ -1906,6 +1906,8 @@ internal sealed class FakeGitHubApiClient : IGitHubApiClient {
     private readonly GitHubApiResponse _default = new() { Success = true, StatusCode = 200, Body = "[]" };
     public string? LastPath { get; private set; }
     public HttpMethod? LastMethod { get; private set; }
+    /// <summary>调用序列诊断（refresh evict 测试用）：每次 SendAsync 追加 "method path body前40"</summary>
+    public List<string> CallLog { get; } = [];
     public string? LastBody { get; private set; }
     public IReadOnlyDictionary<string, string> LastQuery { get; private set; } = new Dictionary<string, string>();
     public void EnqueueResponse(GitHubApiResponse response) => _responses.Enqueue(response);
@@ -1914,6 +1916,8 @@ internal sealed class FakeGitHubApiClient : IGitHubApiClient {
     public Task<GitHubApiResponse> SendAsync(HttpMethod method, string path, string? body = null, IReadOnlyDictionary<string, string>? query = null, bool paginate = false, CancellationToken ct = default) {
         LastMethod = method;
         LastPath = path;
+        CallLog.Add(string.Create(System.Globalization.CultureInfo.InvariantCulture,
+            $"{method} {path} <- {(_responses.Count > 0 ? _responses.Peek().Body[..Math.Min(40, _responses.Peek().Body.Length)] : "<empty>")}"));
         LastBody = body;
         LastQuery = query ?? new Dictionary<string, string>();
         if (_responses.Count > 0)

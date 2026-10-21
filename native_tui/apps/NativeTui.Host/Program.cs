@@ -41,7 +41,7 @@ public static class Program {
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
         session.Client.Submit("只回复两个字母: ok");
-        Console.WriteLine($"[probe] t={sw.ElapsedMilliseconds}ms 提交回合");
+        Console.WriteLine($"[probe] t={sw.ElapsedMilliseconds}ms 提交 /btw");
 
         string? firstThinking = null;
         string? firstToken = null;
@@ -85,6 +85,22 @@ public static class Program {
 
         Console.WriteLine($"[probe] t={sw.ElapsedMilliseconds}ms 超时（60s 无 turn_completed）| 首思考={firstThinking} 首 token={firstToken}");
         return 1;
+    }
+
+    /// <summary>等待当前回合终态（turn_completed/interrupted/error — 排空事件循环）。</summary>
+    private static async Task WaitTurnCompleteAsync(EngineSession session, TimeSpan timeout) {
+        using var cts = new CancellationTokenSource(timeout);
+        try {
+            while (!cts.Token.IsCancellationRequested) {
+                await Task.Delay(100, cts.Token).ConfigureAwait(false);
+                foreach (var evt in session.Client.DrainEvents()) {
+                    if (evt is BridgeEvent.TurnCompleted or BridgeEvent.TurnInterrupted or BridgeEvent.Error) {
+                        return;
+                    }
+                }
+            }
+        } catch (OperationCanceledException) {
+        }
     }
 
     /// <summary>交互模式 — TTY 检查 → UTF-8 → raw mode → 引擎组装（Console.Out 重定向 stderr 防引擎污染渲染）→ REPL 主循环。</summary>

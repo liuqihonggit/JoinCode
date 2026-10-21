@@ -7,15 +7,18 @@ namespace NativeTui.Host;
 /// （Enter 提交 / Esc 忙时打断或闲时退出 / Shift+Tab 权限循环 / Ctrl+C 退出）。
 /// </summary>
 public static class Program {
-    /// <summary>入口 — --selftest 非交互冒烟；无参数进入交互 REPL；未知参数报错诱导。
+    /// <summary>入口 — --selftest 非交互冒烟；--selftest-turn 真实回合计时探针（诊断用）；
+    /// 无参数进入交互 REPL；未知参数报错诱导。
     /// 顶层 catch ConfigurationException — 配置错误友好呈现（两级 profile 覆盖链 + auth key 状态 + 修复指引，
     /// 修复：配置错误直接闪退刷未处理异常堆栈），退出码 2。</summary>
     public static async Task<int> Main(string[] args) {
         try {
             if (args is ["--selftest"])
                 return await RunSelftestAsync().ConfigureAwait(false);
+            if (args is ["--selftest-turn"])
+                return await RunSelftestTurnAsync().ConfigureAwait(false);
             if (args.Length > 0) {
-                Console.Error.WriteLine($"未知参数: {string.Join(' ', args)}。用法: NativeTui.Host [--selftest]（无参数进入交互模式，需真实终端）");
+                Console.Error.WriteLine($"未知参数: {string.Join(' ', args)}。用法: NativeTui.Host [--selftest | --selftest-turn]（无参数进入交互模式，需真实终端）");
                 return 1;
             }
 
@@ -25,6 +28,57 @@ public static class Program {
             Console.Error.WriteLine(StartupErrorPrinter.Format(ex, StartupErrorPrinter.ProbeLive(vendor)));
             return 2;
         }
+    }
+
+    /// <summary>真实回合计时探针（ADR 0080 — 诊断 TUI 链路回复延迟）— 提交一个真实回合
+    /// （走用户交互同链：EngineTurnClient → SessionController(mainAgent) → QueryEngine），
+    /// 逐事件打印相对时间戳（turn_started/首思考/首 token/完成/错误），60s 超时兜底。</summary>
+    private static async Task<int> RunSelftestTurnAsync() {
+        using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
+        TestEnvironmentDetector.ForceNonInteractive = true;
+        await using var session = await EngineSession.CreateAsync().ConfigureAwait(false);
+        _ = session.Client.DrainEvents();
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        session.Client.Submit("只回复两个字母: ok");
+        Console.WriteLine($"[probe] t={sw.ElapsedMilliseconds}ms 提交回合");
+
+        string? firstThinking = null;
+        string? firstToken = null;
+        string? finalText = null;
+        while (sw.ElapsedMilliseconds < 60_000) {
+            await Task.Delay(100).ConfigureAwait(false);
+            foreach (var evt in session.Client.DrainEvents()) {
+                switch (evt) {
+                    case BridgeEvent.TurnStarted:
+                        Console.WriteLine($"[probe] t={sw.ElapsedMilliseconds}ms turn_started");
+                        break;
+                    case BridgeEvent.ThinkingStarted:
+                        if (firstThinking is null) {
+                            firstThinking = $"{sw.ElapsedMilliseconds}ms";
+                            Console.WriteLine($"[probe] t={firstThinking} 首思考");
+                        }
+                        break;
+                    case BridgeEvent.TokenDelta(var delta):
+                        if (firstToken is null) {
+                            firstToken = $"{sw.ElapsedMilliseconds}ms";
+                            Console.WriteLine($"[probe] t={firstToken} 首 token");
+                        }
+                        finalText += delta;
+                        break;
+                    case BridgeEvent.TurnCompleted:
+                        Console.WriteLine($"[probe] t={sw.ElapsedMilliseconds}ms turn_completed | 首思考={firstThinking} 首 token={firstToken} | 累计文本={finalText?.Length ?? 0} 字符");
+                        Console.WriteLine("[probe] 回合文本: " + (finalText is { Length: > 0 } ? finalText[..Math.Min(200, finalText.Length)] : "(空)"));
+                        return 0;
+                    case BridgeEvent.Error(var message):
+                        Console.WriteLine($"[probe] t={sw.ElapsedMilliseconds}ms ERROR: {message}");
+                        return 1;
+                }
+            }
+        }
+
+        Console.WriteLine($"[probe] t={sw.ElapsedMilliseconds}ms 超时（60s 无 turn_completed）| 首思考={firstThinking} 首 token={firstToken}");
+        return 1;
     }
 
     /// <summary>交互模式 — TTY 检查 → UTF-8 → raw mode → 引擎组装（Console.Out 重定向 stderr 防引擎污染渲染）→ REPL 主循环。</summary>

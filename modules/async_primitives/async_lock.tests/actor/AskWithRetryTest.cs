@@ -18,14 +18,24 @@ public class AskWithRetryTest {
 
     /// <summary>
     /// 首次超时,重试后成功 — CallCount>=2。
+    /// <para>flaky 根治（AGENTS 规范：重试16次+延长窗口）：本机全量并行高压下 Actor 邮箱处理延迟
+    /// 可超过单次 100ms 超时 → 多轮超时后返回 success-at-3/4 撞死精确断言（8 轮全量 3 红实证）。
+    /// 修复：单次超时放宽 200ms + 结果改前缀断言（第几次成功是实现细节，契约是"重试后成功"）
+    /// + 外层 Retry16（Actor 彻底饿死才判红）。</para>
     /// </summary>
     [Fact]
-    public async Task FirstAttemptTimesOut_RetriesAndSucceeds() {
-        await using var actor = new RetryDemoActor();
-        actor.SetSuccessAfter(1);
-        var result = await actor.AskWithRetryTestAsync(singleTimeoutMs: 100, maxRetries: 5);
-        result.Should().Be("success-at-2");
-        actor.CallCount.Should().BeGreaterThanOrEqualTo(2);
+    [Trait("Category", "Flaky")]
+    public async Task FirstAttemptTimesOut_RetriesAndSucceeds_Retry16Times() {
+        for (var attempt = 0; attempt < 16; attempt++) {
+            await using var actor = new RetryDemoActor();
+            actor.SetSuccessAfter(1);
+            var result = await actor.AskWithRetryTestAsync(singleTimeoutMs: 200, maxRetries: 5);
+            if (result.StartsWith("success-at-", StringComparison.Ordinal)
+                && actor.CallCount >= 2) {
+                return;
+            }
+        }
+        throw new Xunit.Sdk.XunitException("16次重试均失败: 首次超时后重试未能成功（每次都未拿到 success-at-* 或 CallCount<2）");
     }
 
     /// <summary>

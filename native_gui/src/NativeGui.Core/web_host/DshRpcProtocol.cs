@@ -306,6 +306,32 @@ internal sealed class DshWorkspaceFilesReadBytesResult {
     public string Version { get; set; } = "";
 }
 
+/// <summary>workspaceFiles/changes 就绪帧（kind=ready — 无附加载荷）</summary>
+internal sealed class DshChangeReady {
+    /// <summary>帧类型（ready）</summary>
+    public string Kind => "ready";
+}
+
+/// <summary>workspaceFiles/changes 变更帧（kind=change；ready 帧由宿主直接发）</summary>
+internal sealed class DshFileChangeFrame {
+    /// <summary>帧类型（change）</summary>
+    public string Kind => "change";
+    /// <summary>变更详情</summary>
+    public DshFileChange Change { get; set; } = new();
+}
+
+/// <summary>单条文件变更（version 与 absent 互斥 — 删除无版本）</summary>
+internal sealed class DshFileChange {
+    /// <summary>绝对路径</summary>
+    public string AbsolutePath { get; set; } = "";
+    /// <summary>新版本（size-mtime 合成；删除时省略）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Version { get; set; }
+    /// <summary>是否已删除（删除事件为 true）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Absent { get; set; }
+}
+
 /// <summary>workspaceFiles/stat 响应</summary>
 internal sealed class DshWorkspaceFilesStatResult {
     /// <summary>绝对路径</summary>
@@ -1419,6 +1445,8 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshWorkspaceFilesReadResult))]
 [JsonSerializable(typeof(DshWorkspaceFilesReadBytesResult))]
 [JsonSerializable(typeof(DshWorkspaceFilesStatResult))]
+[JsonSerializable(typeof(DshFileChangeFrame))]
+[JsonSerializable(typeof(DshChangeReady))]
 [JsonSerializable(typeof(DshFileUploadsUploadArgs))]
 [JsonSerializable(typeof(DshFileUploadResult))]
 [JsonSerializable(typeof(DshAttachmentRecord))]

@@ -283,10 +283,51 @@ internal sealed class DshWebHost : IAsyncDisposable {
             }
             case "session/follow":
                 return await OpenSessionAsync(open, send, cancellationToken);
+            case "workspaceFiles/changes":
+                return await OpenWorkspaceFilesChangesAsync(open, send, cancellationToken);
             default:
                 GuiDiag.Log($"[DSH-WEB] stream endpoint unimplemented: {open.Endpoint}");
                 return ([], null, null);
         }
+    }
+
+    /// <summary>
+    /// 打开文件变更流（TASK058 P2-B4）：ready 首帧 + 后台泵把 watcher 变更帧推到连接；
+    /// 关闭时取消泵并释放 watcher 租约（幂等）。会话/路径非法时发可执行引导错误帧。
+    /// </summary>
+    private async Task<(IReadOnlyList<DshStreamItem> Opening, IDisposable? Lease, Func<Task>? Ready)> OpenWorkspaceFilesChangesAsync(
+        DshStreamOpen open, Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
+        var request = open.Payload?.Args.Deserialize(DshJsonContext.Default.DshWorkspaceFilesArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.WorkspaceFileScopeId)) {
+            var raw = open.Payload?.Args.ToString() ?? "<null>";
+            return ([Item(open.StreamId, StreamError("workspaceFiles/rejected",
+                $"workspaceFiles/changes 需要 {{workspaceFileScopeId, path}}；收到 args={raw[..Math.Min(120, raw.Length)]}"))], null, null);
+        }
+        var feed = await _services.WorkspaceFiles.CreateChangeFeedAsync(request.WorkspaceFileScopeId, request.Path, cancellationToken);
+        if (feed.Error is { } error) {
+            return ([Item(open.StreamId, StreamError(error.Error?.Code ?? "workspaceFiles/rejected", error.Error?.Message ?? "变更流打开失败"))], null, null);
+        }
+        var frames = feed.Frames ?? throw new InvalidOperationException("变更流产物缺帧通道（内部不变量破坏）");
+        var pumpCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var pump = Task.Run(async () => {
+            try {
+                await foreach (var frame in frames.Reader.ReadAllAsync(pumpCts.Token).ConfigureAwait(false)) {
+                    await send(Item(open.StreamId, frame)).ConfigureAwait(false);
+                }
+            } catch (OperationCanceledException) {
+                // 连接关闭/宿主停机 — 泵静默收尾
+            } catch (Exception ex) {
+                GuiDiag.Log($"[DSH-WEB] changes pump failed: {ex.Message}");
+            }
+        }, pumpCts.Token);
+        return (
+            [Item(open.StreamId, JsonSerializer.SerializeToElement(new DshChangeReady(), DshJsonContext.Default.DshChangeReady))],
+            new DetachLease(() => {
+                pumpCts.Cancel();
+                feed.Lease?.Dispose();
+                pumpCts.Dispose();
+            }),
+            null);
     }
 
     /// <summary>打开会话事件流的首帧：宿主事件日志（或转录投影）→ snapshot + 订阅后续事件；否则给出可执行的引导错误</summary>

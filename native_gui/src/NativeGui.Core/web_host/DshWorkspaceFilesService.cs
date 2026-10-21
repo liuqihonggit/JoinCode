@@ -131,4 +131,71 @@ internal sealed class DshWorkspaceFilesService(DshSessionStore sessions, IFileSy
 
     private static DshRpcResult AsInternalError() => DshRpcResults.Fail(
         "workspaceFiles/rejected", "路径解析失败（内部错误）；请刷新文件树后重试");
+
+    /// <summary>变更帧通道产物（Lease 释放 = 解绑 watcher + 完成通道；宿主发 ready 帧后消费 Frames）</summary>
+    internal sealed record ChangeFeed(DshRpcResult? Error, Channel<JsonElement>? Frames, IDisposable? Lease);
+
+    /// <summary>
+    /// 创建目录变更帧流（workspaceFiles/changes，TASK058 P2-B4）：
+    /// IFileSystem.Watch 统一工厂（内存实现自带写联动，物理实现包装 FileSystemWatcher 内置防抖）；
+    /// 事件 → 帧：Created/Changed → <c>{kind:"change", change:{absolutePath, version}}</c>（version 复用
+    /// size-mtime 合成），Deleted → <c>change.absent=true</c>。lease 释放即解绑并完成通道（幂等）。
+    /// </summary>
+    /// <param name="sessionId">会话 ID（根 = 会话 cwd）</param>
+    /// <param name="path">相对目录路径</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    internal async Task<ChangeFeed> CreateChangeFeedAsync(string sessionId, string path, CancellationToken cancellationToken) {
+        var (error, absolutePath) = await ResolveRootedAsync(sessionId, path, cancellationToken);
+        if (error is not null || absolutePath is null) {
+            return new ChangeFeed(error ?? AsInternalError(), null, null);
+        }
+        if (!fs.DirectoryExists(absolutePath)) {
+            return new ChangeFeed(DshRpcResults.Fail("workspaceFiles/not-found",
+                $"目录不存在：{path}；在文件树里刷新后重试"), null, null);
+        }
+        var watcher = fs.Watch(absolutePath);
+        watcher.IncludeSubdirectories = false;
+        watcher.EnableRaisingEvents = true;
+        var frames = Channel.CreateUnbounded<JsonElement>(new UnboundedChannelOptions {
+            SingleReader = true,
+            SingleWriter = false,
+        });
+        void OnChange(object? sender, FileChangedEventArgs e) {
+            if (e.ChangeType == WatcherChangeTypes.Deleted) {
+                frames.Writer.TryWrite(JsonSerializer.SerializeToElement(
+                    new DshFileChangeFrame { Change = new DshFileChange { AbsolutePath = e.FullPath, Absent = true } },
+                    DshJsonContext.Default.DshFileChangeFrame));
+                return;
+            }
+            var version = fs.FileExists(e.FullPath) ? VersionFor(e.FullPath) : "0";
+            frames.Writer.TryWrite(JsonSerializer.SerializeToElement(
+                new DshFileChangeFrame { Change = new DshFileChange { AbsolutePath = e.FullPath, Version = version } },
+                DshJsonContext.Default.DshFileChangeFrame));
+        }
+        watcher.Changed += OnChange;
+        watcher.Created += OnChange;
+        watcher.Deleted += OnChange;
+        var lease = new ChangeFeedLease(watcher, OnChange, frames);
+        return new ChangeFeed(null, frames, lease);
+    }
+
+    /// <summary>变更流租约 — 释放时解绑三事件 + 完成通道 + 异步释放 watcher（幂等）</summary>
+    private sealed class ChangeFeedLease(IFileSystemWatcher watcher, EventHandler<FileChangedEventArgs> onChange, Channel<JsonElement> frames) : IDisposable {
+        private int _disposed;
+
+        /// <summary>解绑事件 + 完成通道 + 后台释放 watcher（幂等）</summary>
+        [SuppressMessage("AotSafety", "JCC9200", Justification = "AGENTS 资源规范允许的 fire-and-forget 后台释放：同步 Dispose 内不能 await 自己；异常经 ContinueWith 记日志不吞")]
+        public void Dispose() {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) {
+                return;
+            }
+            watcher.Changed -= onChange;
+            watcher.Created -= onChange;
+            watcher.Deleted -= onChange;
+            frames.Writer.TryComplete();
+            _ = watcher.DisposeAsync().AsTask().ContinueWith(
+                static t => GuiDiag.Log($"[DSH-FILES] watcher dispose failed: {t.Exception?.Message}"),
+                CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+        }
+    }
 }

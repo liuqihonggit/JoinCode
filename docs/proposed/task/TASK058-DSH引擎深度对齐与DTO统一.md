@@ -41,7 +41,7 @@
 | 15 | 终端（10 方法） | ⬜ 需引擎大扩展（ConPTY/屏幕缓冲/多 shell），另行立项 |
 | 16 | goals（7 方法+事件） | ⬜ 需引擎中扩展（clock/goal 生命周期模型映射+revision CAS 适配），另行立项 |
 | 17 | steer / prompt mode:"steer" | ⬜ 需引擎大扩展（StreamAsync 轮内注入点），另行立项 |
-| 18 | workspaceFiles/changes 流 | ⬜ watcher 桥接深化项 |
+| 18 | workspaceFiles/changes 流 | ✅ 2026-10-22 P2-B4：CreateChangeFeedAsync（IFileSystem.Watch 统一工厂；Created/Changed→version 帧、Deleted→absent 帧）+ DshWebHost 流端点（ready 首帧+后台泵+租约清理）；单元 4/4 + 真机 WS 全链（ready→change 帧含 absolutePath+version） |
 
 ### 不接 ❌（DSH 在线服务，与本项目无关）
 account（11）、pluginManager（12）、dynamicCordisRunner（9）、productAnalytics、schedule、officeToPdf —— 保持 `unimplemented` 引导错误。

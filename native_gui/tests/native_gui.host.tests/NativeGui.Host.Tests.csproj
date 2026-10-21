@@ -3,7 +3,7 @@
   <PropertyGroup>
         <ProjectType>test</ProjectType>
   <RootNamespace>JoinCode.Gui.Tests</RootNamespace>
-    <AssemblyName>JoinCode.Gui.Tests</AssemblyName>
+    <AssemblyName>NativeGui.Host.Tests</AssemblyName>
     <!-- xunit.v3 MTP 模式要求可执行测试项目（原 test/ 层级由 Test.Sdk 隐式满足，native_gui 层显式声明） -->
     <OutputType>Exe</OutputType>
     <!-- 与 NativeGui.Host 平台化 TFM 对齐（WebView2 投影要求，ADR 0138 四件套之一） -->
@@ -14,7 +14,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- 宿主表现层（ADR 0145：windows TFM）+ 协议核心（DshXxx/hosting 契约 internal 类型居 NativeGui.Core） -->
+    <!-- 宿主表现层（ADR 0145：windows TFM）+ 协议核心（internal 类型经 IVT 可见） -->
     <ProjectReference Include="$(RepoRoot)native_gui/apps/NativeGui.Host/NativeGui.Host.csproj" />
     <ProjectReference Include="$(RepoRoot)native_gui/src/NativeGui.Core/NativeGui.Core.csproj" />
   </ItemGroup>

@@ -51,7 +51,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="JoinCode.Gui.Tests" />
+    <InternalsVisibleTo Include="NativeGui.Host.Tests" />
   </ItemGroup>
 
   <!-- R2R 发布时排除 Abstractions（直接+传递引用导致 SDK 重复项 bug MSB4094，门面程序集保持 JIT） -->

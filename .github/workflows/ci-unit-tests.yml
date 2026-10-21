@@ -48,10 +48,14 @@ jobs:
           - domain: apps
             # Host.Tests（CLI 侧）跨平台，ubuntu 跑
             csprojs: test/unit/host.tests/Host.Tests.csproj
-          - domain: apps-gui
-            # GUI 测试：CsWinRT 投影工具链（Windows PE）+ WebView2 仅 Windows 原生可跑，双平台拆分
+          - domain: gui-core
+            # GUI 协议核心（ADR 0145 B3）：纯 net10.0 零 Avalonia/WebView2 — ubuntu 可跑，windows job 收窄
+            os: ubuntu-latest
+            csprojs: native_gui/tests/native_gui.core.tests/NativeGui.Core.Tests.csproj
+          - domain: gui-host
+            # GUI 宿主表现层：CsWinRT 投影工具链（Windows PE）+ WebView2 仅 Windows 原生可跑
             os: windows-latest
-            csprojs: native_gui/tests/join_code_gui.tests/JoinCodeGui.Tests.csproj
+            csprojs: native_gui/tests/native_gui.host.tests/NativeGui.Host.Tests.csproj
 
     steps:
       - name: Checkout

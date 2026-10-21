@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>JoinCode.Gui.Tests</RootNamespace>
+    <AssemblyName>NativeGui.Core.Tests</AssemblyName>
+    <Description>NativeGui 协议核心测试（ADR 0145 B3）：web_host/webview/persistence/hosting 契约 — 纯 net10.0 零 Avalonia，ubuntu CI 可跑</Description>
+    <!-- xunit.v3 MTP 模式要求可执行测试项目 -->
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MSB3277</MSBuildWarningsAsMessages>
+    <NoWarn>$(NoWarn);NU1903;xUnit1051</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)native_gui/src/NativeGui.Core/NativeGui.Core.csproj" />
+    <!-- TranscriptService（State 命名空间，居 Vault）— 测试直建落盘实例用；Scheduling 为 Core 同款依赖 -->
+    <ProjectReference Include="$(RepoRoot)modules/storage/scheduling/Scheduling.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/storage/vault/Vault.csproj" />
+    <!-- GeneratedSlashCommandCatalog（Slash 源码生成物，commands 测试消费） -->
+    <ProjectReference Include="$(RepoRoot)modules/composition/slash/Slash.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Remove="xunit" />
+    <PackageReference Remove="Xunit.SkippableFact" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="xunit.runner.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

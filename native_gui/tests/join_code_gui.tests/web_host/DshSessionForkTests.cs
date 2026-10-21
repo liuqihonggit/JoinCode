@@ -59,6 +59,32 @@ public sealed class DshSessionForkTests {
     }
 
     [Fact]
+    public async Task Fork_WithoutMetaFile_FallsBackToTranscriptOnlySession() {
+        // 真机验收发现：历史会话只有 transcript.jsonl 无 meta.json（旧宿主/#436 迁移遗留），
+        // GetSessionInfoAsync 返回 null → fork 误报 session/unknown。修复后应容错分叉。
+        var fs = new InMemoryFileSystem();
+        var services = new DshHostServices(fs);
+        await using var transcripts = new State.TranscriptService(fs, "/test/sessions");
+        services.Sessions.AttachTranscripts(transcripts);
+        var created = await services.Sessions.CreateAsync(null, @"D:\proj\demo", "deepseek", "deepseek-v4-pro", CancellationToken.None);
+        var sourceId = (created ?? throw new Xunit.Sdk.XunitException("session/create 失败")).SessionId;
+        await transcripts.AppendEntriesAsync(sourceId, [
+            new TranscriptEntry { Role = "user", Content = "历史问" },
+        ], CancellationToken.None);
+        fs.DeleteFile($"/test/sessions/{sourceId}/meta.json");
+
+        var dispatcher = new DshRpcDispatcher(services);
+        var result = await dispatcher.HandleAsync("session/fork", ForkArgs(sourceId));
+
+        result.Ok.Should().BeTrue(result.Error?.Message);
+        if (result.Ok) {
+            var newId = result.Value.GetValueOrDefault().GetProperty("sessionId").GetString()
+                ?? throw new Xunit.Sdk.XunitException("fork 未返回新会话 ID");
+            (await transcripts.LoadTranscriptAsync(newId, CancellationToken.None)).Count.Should().Be(1);
+        }
+    }
+
+    [Fact]
     public async Task Fork_CopiesJournalEvents() {
         var (services, _, sourceId) = await CreateSourceAsync();
         services.Streams.Observe(sourceId, -1, 0);

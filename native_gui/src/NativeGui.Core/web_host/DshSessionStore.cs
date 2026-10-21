@@ -265,9 +265,13 @@ internal sealed class DshSessionStore {
         if (_transcripts is not { } transcripts) {
             return null;
         }
+        // meta 缺失但转录存在的历史会话（旧宿主写入/JSONL 迁移遗留）容错：构造最小 SessionInfo 继续分叉
         var sourceInfo = await transcripts.GetSessionInfoAsync(sourceSessionId, cancellationToken);
         if (sourceInfo is null) {
-            return null;
+            if (!await transcripts.TranscriptExistsAsync(sourceSessionId, cancellationToken)) {
+                return null;
+            }
+            sourceInfo = new SessionInfo { Id = sourceSessionId, CreatedAt = DateTime.UtcNow };
         }
         var newId = Guid.NewGuid().ToString("N");
         await transcripts.EnsureSessionAsync(newId, sourceInfo with {

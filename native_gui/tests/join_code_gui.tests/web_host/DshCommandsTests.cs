@@ -15,6 +15,14 @@ public sealed class DshCommandsTests {
     private static DshRpcDispatcher NewDispatcher() =>
         new(new DshHostServices(new InMemoryFileSystem()));
 
+
+    [Fact]
+    public void GeneratedCatalog_Probe_ByCategoryShouldHaveCommands() {
+        var catalog = new JoinCode.ChatCommands.GeneratedSlashCommandCatalog();
+        var count = catalog.ByCategory.SelectMany(g => g.Value).Count();
+        count.Should().BeGreaterThan(0, "GeneratedSlashCommandCatalog 应含引擎 [ChatCommand] 目录真值");
+    }
+
     [Fact]
     public async Task CommandsList_WithoutEngine_ReturnsEmptyStableOk() {
         var result = await NewDispatcher().HandleAsync("commands/list", default(JsonElement));

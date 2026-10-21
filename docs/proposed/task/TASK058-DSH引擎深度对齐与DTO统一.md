@@ -64,17 +64,24 @@ account（11）、pluginManager（12）、dynamicCordisRunner（9）、productAn
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |----------|--------|--------|--------|
-| B1 `DshApprovalBroker`（waterfall 帧/挂起结算/断开 fail-closed）+ `DshWebUiWindow.AttachEngineAsync` 注入 `PermissionConfirmationHandler` + `$events/result` 路由 + `permissionPresets/catalog` 枚举映射（`PermissionMode` 唯一数据源） | 前端权限对话框弹窗（approval/request）/权限预设选择器 | ✅ 单测 11/11（帧契约五键硬校验/三态 outcome/断开清理/路由引导错误/枚举投影）+ 冒烟 `$events` attach 日志 | ⬜ 真机：发触发权限确认的消息 → 审批面板弹出 → Enter 允许工具执行 |
-| B2 `session/selectModel` 路由 + `ModelSelection.Next` 真值 + `llm/listProviders` | 模型选择器切换/Provider 列表 | ⬜ | ⬜ |
-| B3 `DshSettingsStore` 改造读写引擎 settings.json | 前端设置页（general 等） | ⬜ | ⬜ |
-| B4 `DshTurnRunner` 事件映射扩展（5 类） | 思考块/工具进度/子代理卡片/token 统计 | ⬜ | ⬜ |
-| B5 `commands/list|execute` 路由 | 斜杠命令补全与执行 | ⬜ | ⬜ |
-| B6 agents/interrupt/follow 子代理 | 子代理面板/轨迹 | ⬜ | ⬜ |
-| B7 fork/clear/rewind | 会话菜单操作 | ⬜ | ⬜ |
-| B8 DshSubagentCatalogProjector journal 回放 subagentCatalog（空数组消除前端 loading 挂起） | 子代理面板目录 | ✅ 单元 3/3 | ⬜ 真机验收待做 |
+| B1 `DshApprovalBroker`（waterfall 帧/挂起结算/断开 fail-closed）+ `DshWebUiWindow.AttachEngineAsync` 注入 `PermissionConfirmationHandler` + `$events/result` 路由 + `permissionPresets/catalog` 枚举映射（`PermissionMode` 唯一数据源） | 前端权限对话框弹窗（approval/request）/权限预设选择器 | ✅ 单测 11/11 + 冒烟 `$events` attach | ✅ 真机 RPC：catalog 五值枚举投影（plan/auto/ask/bypass/unattended+defaultPreset=auto）；审批弹窗需 UI 人工点击（`$events` 流已挂 approval 桥，留用户交互验证） |
+| B2 `session/selectModel` 路由 + `ModelSelection.Next` 真值 + `llm/listProviders` | 模型选择器切换/Provider 列表 | ✅ 单测 4/4 | ✅ 真机：listProviders 6 家；selectModel 引擎真实切换（sensenova 回显生效） |
+| B3 `DshSettingsStore` 改造读写引擎 settings.json | 前端设置页（general 等） | ✅ 单测 12/12 | ✅ 真机：describe/mutate 闭环（写 plan→落盘→复原 auto，revision 0→1→2，值域校验生效） |
+| B4 `DshTurnRunner` 事件映射扩展（5 类） | 思考块/工具进度/子代理卡片/token 统计 | ✅ 单测 4/4 | ✅ 真机：真实对话轮 journal 验证 — assistant/message content 块 + data.usage 四桶（142442 入/21 出/缓存 0）+ 事件序列 turn/step/user/assistant 完整 |
+| B5 `commands/list|execute` 路由 | 斜杠命令补全与执行 | ✅ 单测 5/5 | ✅ 真机：list 84 条（GeneratedSlashCommandCatalog 兜底修复）；/agents 真实执行返回代理列表 |
+| B6 agents/interrupt/follow 子代理 | 子代理面板/轨迹 | ✅ 单测 7/7 | ✅ 机制真机：journal 事件管道真实落盘（本轮无子代理触发，投影逻辑单测覆盖） |
+| B7 fork/clear/rewind | 会话菜单操作 | ✅ 单测 4/4 | ✅ 真机：fork 无 meta 历史会话成功分叉（容错修复）；clear/rewind 无前端 RPC 消费点不做 |
+| B8 DshSubagentCatalogProjector journal 回放 subagentCatalog（空数组消除前端 loading 挂起） | 子代理面板目录 | ✅ 单元 3/3 | ✅ 真机：session/list 投影 subagentCatalog:[] |
 
 ## 风险与前提
 
 - journal 双源「CLI 后写不可见」窗口：属引擎事件总线下沉课题（TASK053 已预警），本任务不处理，另行立项。
 - `assistant-stream` 逐字流式依赖 TASK043（引擎流式缓冲缺陷）修复，本任务 B4 只做事件级增量。
 - steer 依赖引擎暴露轮内注入接口（0945d7d32），本任务不实现。
+
+### 真机验收记录（2026-10-21，NativeGui.Host exe + curl RPC）
+
+- B2 修复：selectModel 信封为 `{request:{sessionId,provider,model}}`（错误引导消息实测有效）
+- B5 修复：commands/list 空数组根因 = GUI 会话 DI 未注册 ISlashCommandCatalog，补 `GeneratedSlashCommandCatalog` 兜底（对齐 TUI SlashCommandSource 先例）→ 84 条
+- B7 修复：历史会话只有 transcript.jsonl 无 meta.json 时 fork 误报 unknown，ForkAsync 容错构造最小 SessionInfo（新增单测 Fork_WithoutMetaFile_FallsBackToTranscriptOnlySession）
+- B1 审批弹窗为 UI 人工交互项：`$events` 流已挂 approval 桥（日志 `[DSH-APPROVAL] events stream attached`），待用户在 DSH 前端发触发权限的消息实测

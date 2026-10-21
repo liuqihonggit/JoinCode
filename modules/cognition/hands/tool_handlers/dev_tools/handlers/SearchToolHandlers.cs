@@ -139,7 +139,7 @@ public sealed record SymbolSearchOptions {
 /// Search tool handlers - provides Glob and Grep search capabilities
 /// Aligned with JoinCode's GlobTool and GrepTool
 /// </summary>
-[McpToolDispatch(ToolCategory.Search)]
+[McpToolDispatch(ToolCategory.Search, Kind = ToolKind.System)]
 public class SearchToolHandlers : OneShotCommandGroup {
     private readonly ISearchService _searchService;
     private readonly IFileOperationService _fileOperationService;

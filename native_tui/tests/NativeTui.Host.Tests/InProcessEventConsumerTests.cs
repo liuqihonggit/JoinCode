@@ -27,6 +27,33 @@ public sealed class InProcessEventConsumerTests
         Assert.Empty(consumer.DrainEvents());
     }
 
+    /// <summary>子代理三回调映射（DSG041 批4）— OnSubagentStarted/OnSubagentToolUse/OnSubagentFinished
+    /// → SubagentStarted/SubagentToolUse/SubagentFinished 内存事件（ReplBridgeDriver 路由既有，零改动验收面）。</summary>
+    [Fact]
+    public void SubagentCallbacks_EnqueueSubagentEvents()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnSubagentStarted("agent-1", "explore", "搜索渲染链");
+        consumer.OnSubagentToolUse("agent-1", "Grep", "命中 3 处", 120);
+        consumer.OnSubagentFinished("agent-1", isError: false);
+
+        var events = consumer.DrainEvents();
+        Assert.Equal(3, events.Count);
+        var started = Assert.IsType<BridgeEvent.SubagentStarted>(events[0]);
+        Assert.Equal("agent-1", started.SubagentId);
+        Assert.Equal("explore", started.AgentType);
+        Assert.Equal("搜索渲染链", started.Description);
+        var toolUse = Assert.IsType<BridgeEvent.SubagentToolUse>(events[1]);
+        Assert.Equal("agent-1", toolUse.SubagentId);
+        Assert.Equal("Grep", toolUse.ToolName);
+        Assert.Equal("命中 3 处", toolUse.Summary);
+        Assert.Equal(120, toolUse.TokenGain);
+        var finished = Assert.IsType<BridgeEvent.SubagentFinished>(events[2]);
+        Assert.Equal("agent-1", finished.SubagentId);
+        Assert.False(finished.IsError);
+    }
+
     [Fact]
     public void OnThinking_SignalsOncePerTurn()
     {
@@ -218,5 +245,46 @@ public sealed class InProcessEventConsumerTests
         var events = consumer.DrainEvents();
         var message = Assert.IsType<BridgeEvent.AssistantMessage>(events[^1]);
         Assert.Null(message.Markdown);
+    }
+
+    /// <summary>TASK062 结构化组装 — OnThinking 全量累积 CoT + OnDone 带 MessageId/思考时长/内容；
+    /// 多段思考（think→text→think）时长累计。</summary>
+    [Fact]
+    public void OnDone_AssemblesStructuredFields_ThinkingAccumulated()
+    {
+        var clock = 0L;
+        var consumer = new InProcessEventConsumer(() => clock);
+
+        clock = 1000;
+        consumer.OnThinking("第一段推理");
+        clock = 2500;
+        consumer.OnText("中间产出");
+        consumer.OnThinking("第二段推理");
+        clock = 4000;
+        consumer.OnDone(null, "m");
+
+        var events = consumer.DrainEvents();
+        var message = Assert.IsType<BridgeEvent.AssistantMessage>(events[^1]);
+        Assert.Equal(1, message.MessageId);
+        Assert.Equal(1500 + 1500, message.ThinkingDurationMs);
+        Assert.Equal("第一段推理第二段推理", message.ThinkingContent);
+    }
+
+    /// <summary>TASK062 — 消息序号跨回合递增（Reset 不清）；无思考回合字段为默认值。</summary>
+    [Fact]
+    public void MessageId_IncrementsAcrossTurns_NoThinkingDefaults()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnText("第一回合");
+        consumer.OnDone(null, null);
+        consumer.Reset();
+        consumer.OnText("第二回合");
+        consumer.OnDone(null, null);
+
+        var all = consumer.DrainEvents().OfType<BridgeEvent.AssistantMessage>().ToList();
+        Assert.Equal([1, 2], all.Select(m => m.MessageId));
+        Assert.All(all, m => Assert.Equal(0, m.ThinkingDurationMs));
+        Assert.All(all, m => Assert.Null(m.ThinkingContent));
     }
 }

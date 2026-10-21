@@ -8,6 +8,9 @@ public sealed class SessionController {
     private readonly IChatService _chatService;
     private readonly IEventConsumer _consumer;
     private readonly TurnDiffService _turnDiffService;
+
+    /// <summary>本回合是否有实质产出（空回合防御判定 — 工具调用/子代理事件置位、回合开始复位；文本/思考经长度判定不入此标记）。</summary>
+    private bool _hasSubstantiveOutput;
     private readonly string _sessionId;
     private readonly IServiceProvider? _serviceProvider;
     private readonly IClockService _clock;
@@ -71,6 +74,7 @@ public sealed class SessionController {
         using var timeoutCts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromMilliseconds(apiTimeoutMs));
         var timeoutToken = timeoutCts.Token;
         var hasReceivedEvent = false;
+        _hasSubstantiveOutput = false;
 
         try {
             if (_mainAgent is not null) {
@@ -87,13 +91,24 @@ public sealed class SessionController {
 
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 _mainAgent.CurrentInput = input;
-                await foreach (var chunk in _mainAgent.ExecuteStreamAsync(timeoutToken).ConfigureAwait(false)) {
-                    hasReceivedEvent = true;
-                    var evt = AgentStreamChunkAdapter.ToChatStreamEvent(chunk);
-                    if (evt is null) continue;
-                    var mid = ProcessEvent(evt, fullResponse, thinkingContent);
-                    if (mid is not null) lastModelId = mid;
+                // DSG041 批2 — 子代理事件通道：主代理路径回合级作用域（对齐 QueryLoopMiddleware 先例 —
+                // 作用域覆盖 QueryEngine 工具执行段，Agent 工具中间件 Emit 的子代理事件进通道；
+                // chunk 循环逐拍排空直投 ProcessEvent[批1 分流已就绪]，不经 chunk 转换层）
+                var subAgentChannel = new SubAgentEventChannel();
+                using (var subAgentScope = subAgentChannel.EnterScope()) {
+                    await foreach (var chunk in _mainAgent.ExecuteStreamAsync(timeoutToken).ConfigureAwait(false)) {
+                        hasReceivedEvent = true;
+                        DrainSubAgentEvents(subAgentChannel, fullResponse, thinkingContent);
+                        var evt = AgentStreamChunkAdapter.ToChatStreamEvent(chunk);
+                        if (evt is null) continue;
+                        var mid = ProcessEvent(evt, fullResponse, thinkingContent);
+                        if (mid is not null) lastModelId = mid;
+                    }
                 }
+
+                // 末批冲刷（循环结束后通道可能仍有缓冲事件）+ 完成标记（迟到 Emit 静默丢弃防泄漏）
+                DrainSubAgentEvents(subAgentChannel, fullResponse, thinkingContent);
+                subAgentChannel.Complete();
                 sw.Stop();
 
                 if (Diag.IsDebugLog) {
@@ -115,6 +130,15 @@ public sealed class SessionController {
 
             // 等待思考内容持久化完成，避免 fire-and-forget 丢失
             await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, cancellationToken).ConfigureAwait(false);
+
+            // 空回合防御（修复：流式超时重试后拿到空流被当成功静默返回 — TUI 傻等无消息无错误）：
+            // 无文本 + 无思考 + 无工具调用 = 全空产出，判 Error 带诱导（重试提示）；
+            // 工具回合/思考回合文本空属合法半产出（onToolEnd/onThinking 已独立消费），不误判。
+            if (LastResponse.Length == 0 && thinkingContent.Length == 0 && !_hasSubstantiveOutput) {
+                return SessionTurnResult.Error(
+                    "模型返回空回复（无文本/思考/工具产出）。可能为请求过大超时或供应商响应异常，请按 Esc 打断后重试，或切换模型/供应商。",
+                    partialResponse: string.Empty);
+            }
 
             return SessionTurnResult.Success(LastResponse, requestTimestamp);
         } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && !hasReceivedEvent) {
@@ -150,12 +174,23 @@ public sealed class SessionController {
     }
 
     /// <summary>
+    /// 排空子代理事件通道并直投 ProcessEvent（DSG041 批2 — chunk 循环逐拍调用；
+    /// 子代理事件带 AgentId 走 RouteSubagentEvent 分流，主对话零影响）
+    /// </summary>
+    private void DrainSubAgentEvents(SubAgentEventChannel channel, StringBuilder fullResponse, StringBuilder thinkingContent) {
+        foreach (var subEvent in channel.TryDrain()) {
+            ProcessEvent(subEvent, fullResponse, thinkingContent);
+        }
+    }
+
+    /// <summary>
     /// 处理单个 ChatStreamEvent — 子代理活动事件（AgentId 非 null）前置分流到子代理回调（DSG041 批1），
     /// 其余分发到 IEventConsumer 既有回调，返回 Done 事件的 modelId（否则 null）
     /// </summary>
     private string? ProcessEvent(ChatStreamEvent evt, StringBuilder fullResponse, StringBuilder thinkingContent) {
         string? modelId = null;
         if (RouteSubagentEvent(evt)) {
+            _hasSubstantiveOutput = true;
             return null;
         }
 
@@ -169,6 +204,7 @@ public sealed class SessionController {
                 _consumer.OnThinking(thinking);
             },
             onToolStart: (toolName, callId, arguments) => {
+                _hasSubstantiveOutput = true;
                 _consumer.OnToolStart(toolName, callId, arguments);
             },
             onToolEnd: (toolName, resultText, callId, isToolError, structuredPatch) => {
@@ -344,7 +380,10 @@ public sealed class SessionController {
         var env = Environment.GetEnvironmentVariable("JCC_API_TIMEOUT_MS");
         if (int.TryParse(env, out var ms) && ms > 0)
             return ms;
-        return 10_000;
+        // 默认 120s（修复：原 10s 对慢推理模型过短 — 巨型请求时代曾在重试后被掐致空回复；
+        // 推理型/长思考模型首包常 > 10s，120s 对齐主流 CLI 惯例，
+        // 超时兜底已有空回合防御 + Timeout 诱导呈现，不怕过长等待）
+        return 120_000;
     }
 
     private static int _apiTimeoutLogged;

@@ -32,6 +32,8 @@
   <ItemGroup>
     <InternalsVisibleTo Include="JoinCode.Host.Tests" />
     <InternalsVisibleTo Include="JoinCode.Integration.Tests" />
+    <InternalsVisibleTo Include="JoinCode.MockServer.E2E.Tests" />
+    <InternalsVisibleTo Include="NativeTui.Host" />
   </ItemGroup>
 
   <ItemGroup>

@@ -16,8 +16,11 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
     private readonly ConcurrentQueue<BridgeEvent> _events;
     private readonly Func<long> _wallClock;
     private readonly StringBuilder _fullResponse = new();
+    private readonly StringBuilder _thinkingContent = new();
     private long? _thinkingStartMs;
     private bool _thinkingSignalled;
+    private int _thinkingTotalMs;
+    private int _messageId;
 
     /// <summary>构造函数 — 自建队列（独立使用场景）；注入墙钟（测试注入确定性时钟）。</summary>
     public InProcessEventConsumer(Func<long>? wallClock = null)
@@ -30,11 +33,14 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         _wallClock = wallClock ?? (static () => Environment.TickCount64);
     }
 
-    /// <summary>重置回合内状态（新一轮对话前由宿主调用，防跨回合泄漏；队列不清 — 回合边界由生命周期事件标记）。</summary>
+    /// <summary>重置回合内状态（新一轮对话前由宿主调用，防跨回合泄漏；队列不清 — 回合边界由生命周期事件标记）。
+    /// 消息序号不重置（跨回合递增 — 会话级 MessageId）。</summary>
     public void Reset() {
         _fullResponse.Clear();
+        _thinkingContent.Clear();
         _thinkingStartMs = null;
         _thinkingSignalled = false;
+        _thinkingTotalMs = 0;
     }
 
     /// <summary>收到文本内容 → token_delta(length)；思考结束时结算 thinking_ended。</summary>
@@ -46,13 +52,21 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         _events.Enqueue(new BridgeEvent.TokenDelta(content.Length));
     }
 
-    /// <summary>收到思考内容 — 回合内首个思考发 thinking_started 并记录墙钟（回合内单次信号，Reset 后新回合再发）。</summary>
+    /// <summary>收到思考内容 — 回合内首个思考发 thinking_started（回合内单次信号，Reset 后新回合再发）；
+    /// 多段思考（think→text→think）每段重启计时（时长累计语义）；内容全量累积（TASK062 CoT）。</summary>
     public void OnThinking(string thinking) {
-        if (thinking.Length == 0 || _thinkingSignalled)
-            return;
-        _thinkingSignalled = true;
-        _thinkingStartMs = _wallClock();
-        _events.Enqueue(new BridgeEvent.ThinkingStarted());
+        if (thinking.Length > 0) {
+            if (!_thinkingSignalled) {
+                _thinkingSignalled = true;
+                _events.Enqueue(new BridgeEvent.ThinkingStarted());
+            }
+
+            if (_thinkingStartMs is null) {
+                _thinkingStartMs = _wallClock();
+            }
+
+            _thinkingContent.Append(thinking);
+        }
     }
 
     /// <summary>工具调用开始 → tool_call(name, args)；思考结束时结算 thinking_ended。</summary>
@@ -84,7 +98,31 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         if (_fullResponse.Length == 0)
             return;
         var fullText = _fullResponse.ToString();
-        _events.Enqueue(new BridgeEvent.AssistantMessage(fullText, MarkdigProjector.ProjectOptional(fullText)));
+        // TASK062 结构化组装 — MessageId 会话级递增（Ctrl+O 定位/transcript 对账）+
+        // 思考总时长（多段累计）+ CoT 全文（Ctrl+O 展开渲染；空 → null 不输出字段）
+        var thinking = _thinkingContent.ToString();
+        _events.Enqueue(new BridgeEvent.AssistantMessage(
+            fullText,
+            MarkdigProjector.ProjectOptional(fullText),
+            MessageId: ++_messageId,
+            ThinkingDurationMs: _thinkingTotalMs,
+            ThinkingContent: thinking.Length > 0 ? thinking : null));
+    }
+
+    /// <summary>子代理启动 → SubagentStarted（DSG041 批4 — 显式实现：DIM 默认实现经类类型调用不可见；
+    /// ReplBridgeDriver 路由已就绪，分组渲染零改动验收面）。</summary>
+    public void OnSubagentStarted(string subagentId, string agentType, string description) {
+        _events.Enqueue(new BridgeEvent.SubagentStarted(subagentId, agentType, description));
+    }
+
+    /// <summary>子代理工具活动 → SubagentToolUse（原地更新组条目 + 活动日志环形缓冲）。</summary>
+    public void OnSubagentToolUse(string subagentId, string toolName, string summary, int tokenGain) {
+        _events.Enqueue(new BridgeEvent.SubagentToolUse(subagentId, toolName, summary, tokenGain));
+    }
+
+    /// <summary>子代理完成 → SubagentFinished（条目定格，isError 聚合组头 ● 红）。</summary>
+    public void OnSubagentFinished(string subagentId, bool isError) {
+        _events.Enqueue(new BridgeEvent.SubagentFinished(subagentId, isError));
     }
 
     /// <summary>排空事件队列 — 主循环每 tick 调用，取走全部待处理事件（ConcurrentQueue 多生产单消费安全）。</summary>
@@ -98,12 +136,14 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
     /// <summary>写入一条事件 — 无界 Channel TryWrite 永远成功（回合线程不阻塞）。</summary>
     private void WriteEvent(BridgeEvent bridgeEvent) => _events.Enqueue(bridgeEvent);
 
-    /// <summary>思考结束结算（进入产出或回合结束时调用，幂等）。</summary>
+    /// <summary>思考结束结算（进入产出或回合结束时调用，幂等）— 段时长累计入回合思考总时长（TASK062）。</summary>
     private void EndThinkingIfActive() {
         if (_thinkingStartMs is not long start)
             return;
         _thinkingStartMs = null;
-        WriteEvent(new BridgeEvent.ThinkingEnded(Math.Max(0, _wallClock() - start)));
+        var duration = Math.Max(0, _wallClock() - start);
+        _thinkingTotalMs += (int)Math.Min(int.MaxValue, duration);
+        WriteEvent(new BridgeEvent.ThinkingEnded(duration));
     }
 
     /// <summary>工具结果摘要：error 前缀 + 截断。</summary>

@@ -40,6 +40,9 @@ public interface IAgent : IAsyncDisposable {
     void Pause();
     /// <summary>恢复执行。</summary>
     void Resume();
+    /// <summary>请求打断当前轮（TASK063 steer — 邮箱 InterruptAndSend 消息路由触发；
+    /// 当前 LLM 轮尽快收尾，转发消息下轮开头消费）。</summary>
+    void RequestSteer();
     /// <summary>取消执行。</summary>
     void Cancel();
     /// <summary>重置代理状态。</summary>

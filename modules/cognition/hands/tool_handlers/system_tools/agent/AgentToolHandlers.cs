@@ -56,7 +56,7 @@ public sealed record AgentCreateOptions {
 /// 消息通信 → <see cref="AgentToolHandlers"/>.Messaging.cs（partial）。
 /// 诊断消息 → <see cref="AgentDiagnostics"/>。
 /// </summary>
-[McpToolDispatch(ToolCategory.Agent, Optional = true)]
+[McpToolDispatch(ToolCategory.Agent, Optional = true, Kind = ToolKind.System)]
 public partial class AgentToolHandlers {
     private readonly MiddlewarePipeline<AgentToolContext> _pipeline;
     private readonly IAgentService _agentService;

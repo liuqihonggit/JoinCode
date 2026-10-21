@@ -26,11 +26,12 @@ namespace NativeTui.Core.Bridge;
 public abstract record BridgeEvent
 {
     /// <summary>
-    /// 会话握手（引擎启动后首条事件）— 版本/当前模型/权限模式/bypass 可用性/cwd/供应商。
+    /// 会话握手（引擎启动后首条事件）— 版本/当前模型/权限模式/bypass 可用性/cwd/供应商/登录态。
     /// Model 为 null 表示引擎未设置模型（banner 显示"当前模型未设置"）；
-    /// Vendor 为 null 表示引擎未上报（banner 退化为不带供应商前缀，旧引擎兼容）。
+    /// Vendor 为 null 表示引擎未上报（banner 退化为不带供应商前缀，旧引擎兼容）；
+    /// LoggedIn 默认 true（旧引擎未上报登录态不拦截 — 仅新引擎显式 false 时 TUI 门禁关闭）。
     /// </summary>
-    public sealed record SessionInfo(string Version, string? Model, string PermissionMode, bool BypassAvailable, string Cwd, string? Vendor = null) : BridgeEvent;
+    public sealed record SessionInfo(string Version, string? Model, string PermissionMode, bool BypassAvailable, string Cwd, string? Vendor = null, bool LoggedIn = true) : BridgeEvent;
 
     /// <summary>权限模式切换回执（mode 为引擎实际生效值 — 安全闸拦截时与请求值不同）。</summary>
     public sealed record PermissionModeChanged(string Mode) : BridgeEvent;
@@ -66,9 +67,15 @@ public abstract record BridgeEvent
     /// <summary>
     /// 完整助手消息（追加滚动区）。Markdown 非空时渲染为块模型（M7-4）；
     /// null 不输出字段（WhenWritingNull — 引擎侧旧协议逐字节一致，降级纯文本路径）。
+    /// TASK062 结构化：MessageId（回合序号 — Ctrl+O 定位/transcript 对账，UI 不显示数字本身）/
+    /// ThinkingDurationMs（思考时长 — 0 = 无思考不渲染思考行）/ ThinkingContent（CoT 全文 —
+    /// null 不输出字段，Ctrl+O 展开渲染）；三者末尾可选参数向后兼容（同 SessionInfo.Vendor 先例）。
     /// </summary>
     public sealed record AssistantMessage(string Text,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] MarkdownDocument? Markdown = null) : BridgeEvent;
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] MarkdownDocument? Markdown = null,
+        int MessageId = 0,
+        int ThinkingDurationMs = 0,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? ThinkingContent = null) : BridgeEvent;
 
     /// <summary>回合完成（idle）。</summary>
     public sealed record TurnCompleted() : BridgeEvent;

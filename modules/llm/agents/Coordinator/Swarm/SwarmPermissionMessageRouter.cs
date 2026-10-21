@@ -10,6 +10,7 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity {
     private readonly ILogger<SwarmPermissionMessageRouter>? _logger;
     private CancellationTokenSource? _cts;
     private Task? _routingTask;
+    private readonly List<(string WorkerId, AgentMessageRouteLoop Loop)> _workerLoops = [];
 
     /// <summary>
     /// 初始化 Swarm 权限消息路由器
@@ -43,10 +44,16 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity {
     }
 
     /// <summary>
-    /// 异步停止消息路由并释放相关资源
+    /// 异步停止消息路由并释放相关资源（Leader 路由 + 全部 Worker 路由统一收尾）
     /// </summary>
     /// <returns>表示异步操作的任务</returns>
     public async Task StopRoutingAsync() {
+        foreach (var (_, loop) in _workerLoops) {
+            await loop.DisposeAsync().ConfigureAwait(false);
+        }
+
+        _workerLoops.Clear();
+
         if (_cts == null) return;
 
         _cts.Cancel();
@@ -71,11 +78,30 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity {
     }
 
     /// <summary>
-    /// 启动 Worker 侧响应路由，监听权限响应消息
+    /// 启动 Worker 侧响应路由，监听权限响应消息（经 AgentMessageRouteLoop 单一职责循环 —
+    /// ct 传递为类内构造契约，防 ReceiveAsync 漏传 ct 缺陷模式再犯）
     /// </summary>
     /// <param name="workerAgentId">Worker 智能体标识</param>
     public void StartWorkerResponseRouting(string workerAgentId) {
-        _ = RouteWorkerResponsesAsync(workerAgentId);
+        _workerLoops.Add((workerAgentId, StartWorkerLoop(workerAgentId)));
+    }
+
+    /// <summary>构造并启动 Worker 响应路由循环（所有权随返回值转移给调用方列表 — StopRoutingAsync 统一收尾）。</summary>
+    private AgentMessageRouteLoop StartWorkerLoop(string workerAgentId) {
+        var loop = new AgentMessageRouteLoop(_messageBroker, workerAgentId, RouteWorkerResponseMessageAsync);
+        loop.Start();
+        return loop;
+    }
+
+    /// <summary>Worker 响应消息处理器 — 权限响应经回调服务处理。</summary>
+    private async Task RouteWorkerResponseMessageAsync(CoordinatorMessage message, CancellationToken ct) {
+        if (message.MessageType == SwarmPermissionMessageType.PermissionResponse.ToValue()) {
+            try {
+                await _callbackService.ProcessIncomingResponseMessageAsync(message).ConfigureAwait(false);
+            } catch (Exception ex) {
+                _logger?.LogError(ex, "Worker 权限响应处理失败: To={ToAgentId}", message.ToAgentId);
+            }
+        }
     }
 
     private async Task RouteMessagesAsync(string coordinatorAgentId, CancellationToken ct) {
@@ -90,19 +116,6 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity {
         } catch (OperationCanceledException) {
         } catch (Exception ex) {
             _logger?.LogError(ex, "Swarm 权限消息路由异常退出: CoordinatorId={CoordinatorId}", coordinatorAgentId);
-        }
-    }
-
-    private async Task RouteWorkerResponsesAsync(string workerAgentId) {
-        try {
-            await foreach (var message in _messageBroker.ReceiveAsync(workerAgentId).ConfigureAwait(false)) {
-                if (message.MessageType == SwarmPermissionMessageType.PermissionResponse.ToValue()) {
-                    await _callbackService.ProcessIncomingResponseMessageAsync(message).ConfigureAwait(false);
-                }
-            }
-        } catch (OperationCanceledException) {
-        } catch (Exception ex) {
-            _logger?.LogError(ex, "Worker 权限响应路由异常退出: WorkerId={WorkerId}", workerAgentId);
         }
     }
 

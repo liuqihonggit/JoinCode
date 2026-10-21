@@ -58,11 +58,36 @@ public sealed class ReplShell
     /// <summary>历史反向搜索态（Ctrl+R — TASK057-4；null = 未激活）。</summary>
     private HistorySearch? _search;
 
+    /// <summary>忙时排队输入队列（TASK060 — 基准 queued 语义，回合结束逐条自动发送）。</summary>
+    private readonly List<string> _queuedInputs = [];
+
+    /// <summary>排队输入条数上限（守卫 — 狂敲防队列无限膨胀：满后新输入丢弃带反馈）。</summary>
+    internal const int MaxQueuedInputs = 10;
+
     /// <summary>消息光标导航协调器（交互层 Step1 — 第四交互态，优先级低于权限/模型/搜索模态）。</summary>
     private readonly MessageCursor _cursorNav = new();
 
     /// <summary>进入搜索前的输入草稿（Esc 退出恢复）。</summary>
     private string _preSearchDraft = string.Empty;
+
+    /// <summary>上次 Esc 按下时间戳（ms — 双击窗口判定；0 = 无先前击）。</summary>
+    private long _lastEscapeMs;
+
+    /// <summary>Esc 双击窗口时长（ms — 窗口内两击构成双击中断）。</summary>
+    internal const int EscapeDoubleClickWindowMs = 500;
+
+    /// <summary>Esc 时钟源（internal — 测试注入可控时间戳；默认墙钟）。</summary>
+    internal Func<long> EscClock { get; set; } = static () => Environment.TickCount64;
+
+    /// <summary>剪贴板写入委托（TASK059 — Ctrl+C 复制最后 assistant 消息；宿主注入引擎
+    /// IClipboardService 适配，Core 零依赖不持接口；null = 复制能力降级无操作）。</summary>
+    private readonly Action<string>? _copyToClipboard;
+
+    /// <summary>主循环存活标记（internal — 退出安全测试断言面：Esc/Ctrl+C 永不置 false）。</summary>
+    internal bool IsRunning => _running;
+
+    /// <summary>登录门禁开（driver 投影 — 引擎 session_info 报告；false 时提交本地反馈不调引擎）。</summary>
+    internal bool LoginGateOpen => _driver.IsLoggedIn;
 
     /// <summary>启动 banner（首项 — 真实引擎由 session_info 事件原地更新）。</summary>
     private readonly BannerItem _banner;
@@ -89,7 +114,8 @@ public sealed class ReplShell
     /// inline=渲染模式（默认主屏 log-update）；seedMessages=种子消息（banner 之后、spinner 之前）；
     /// commands=斜杠命令清单（宿主注入；null = 无补全能力）；
     /// codeHighlighter=代码高亮插件（M7-5 卫星注入；null = 高亮禁用降级纯文本）；
-    /// sizeSource=终端尺寸源（resize 事件化注入面；null = Console 轮询默认实现）。</summary>
+    /// sizeSource=终端尺寸源（resize 事件化注入面；null = Console 轮询默认实现）；
+    /// clipboard=剪贴板写入委托（TASK059 Ctrl+C 复制；null = 复制降级无操作）。</summary>
     public ReplShell(
         IReplEngine engine,
         BannerItem banner,
@@ -98,7 +124,8 @@ public sealed class ReplShell
         IReadOnlyList<IScrollItem>? seedMessages = null,
         IReadOnlyList<CommandSuggestion>? commands = null,
         ICodeHighlighter? codeHighlighter = null,
-        ITerminalSizeSource? sizeSource = null)
+        ITerminalSizeSource? sizeSource = null,
+        Action<string>? clipboard = null)
     {
         _engine = engine;
         _banner = banner;
@@ -107,6 +134,7 @@ public sealed class ReplShell
         _seedMessages = seedMessages ?? [];
         _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands) : null;
         _sizeSource = sizeSource ?? new ConsoleTerminalSizeSource();
+        _copyToClipboard = clipboard;
         _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter);
     }
 
@@ -201,6 +229,9 @@ public sealed class ReplShell
         {
             CompletePermission(PermissionChoice.Deny);
         }
+
+        // 回合结束 — 排队输入自动发送（TASK060 一问一答节奏：逐回合发队首）
+        PumpQueuedInputs();
     }
 
     /// <summary>挂起权限请求（宿主 TuiPermissionBridge.Confirm → 此处 → 用户按键 Complete）。</summary>
@@ -438,7 +469,7 @@ public sealed class ReplShell
                 _input.Left();
                 break;
             case "c":
-                _running = false;
+                CopyLastAssistantMessage();
                 break;
             case "d":
                 if (_input.Text.Length == 0)
@@ -465,6 +496,9 @@ public sealed class ReplShell
                 break;
             case "r":
                 BeginOrCycleSearch();
+                break;
+            case "o":
+                ToggleLastThinking();
                 break;
             case "n":
                 ScrollIfViewport(3);
@@ -893,21 +927,82 @@ public sealed class ReplShell
     private void UpdateSuggestions() => _suggester?.Update(_input.Text);
 
     /// <summary>Esc：忙时打断当前回合；闲时有输入清空（对齐基准双击清空的单击近似），无输入退出。</summary>
+    /// <summary>Esc 处置（TASK059 退出安全 — Esc 永不退出）：忙时 500ms 双击 → 打断（单击等窗口无操作）；
+    /// 闲时有文本 → 清空输入（既有行为）；闲时空输入 → 无操作。退出路径只剩 Ctrl+D 与 /exit 命令。</summary>
     internal void HandleEscape()
     {
+        var now = EscClock();
+        var isDoubleTap = _lastEscapeMs != 0 && now - _lastEscapeMs <= EscapeDoubleClickWindowMs;
+        _lastEscapeMs = now;
+
         if (IsBusy)
         {
-            _engine.Interrupt();
+            if (isDoubleTap)
+            {
+                _lastEscapeMs = 0;
+                _engine.Interrupt();
+            }
+
             return;
         }
 
         if (_input.Text.Length > 0)
         {
             _input.Clear();
+        }
+    }
+
+    /// <summary>Ctrl+C 复制（TASK059 — 原退出行为移除）：滚动区最后一条 assistant 消息文本 →
+    /// 剪贴板委托（宿主注入；null = 降级无操作）+ PostInfo 反馈；无 assistant 消息时无操作。</summary>
+    internal void CopyLastAssistantMessage()
+    {
+        if (_copyToClipboard is null)
+        {
             return;
         }
 
-        _running = false;
+        var last = _view.Messages.Items.OfType<AssistantMessageItem>().LastOrDefault();
+        if (last is null)
+        {
+            return;
+        }
+
+        _copyToClipboard(last.Text);
+        PostInfo("已复制到剪贴板");
+    }
+
+    /// <summary>Ctrl+O 切换最近一条消息的思考块展开/收起（TASK062 结构化消息 — 基准单条聚焦语义）：
+    /// 找最后一条带 CoT 的消息 Toggle（Assistant/Markdown 两类取滚动区更靠后者）；
+    /// 无 CoT 无操作（静默 — 非思考模型路径）；高度变化由下次 MeasureHeight 反映（渲染循环自动重排）。</summary>
+    internal void ToggleLastThinking()
+    {
+        var items = _view.Messages.Items;
+        var markdownIndex = IndexOfItem(items, items.OfType<MarkdownMessageItem>().LastOrDefault(m => m.ThinkingContent is { Length: > 0 }));
+        var plainIndex = IndexOfItem(items, items.OfType<AssistantMessageItem>().LastOrDefault(m => m.ThinkingContent is { Length: > 0 }));
+        if (markdownIndex < 0 && plainIndex < 0)
+        {
+            return;
+        }
+
+        if (markdownIndex > plainIndex)
+        {
+            ((MarkdownMessageItem)items[markdownIndex]).ToggleThinking();
+        }
+        else
+        {
+            ((AssistantMessageItem)items[plainIndex]).ToggleThinking();
+        }
+    }
+
+    /// <summary>滚动区项索引（引用相等查找；null = -1）。</summary>
+    private static int IndexOfItem(IReadOnlyList<IScrollItem> items, IScrollItem? target) {
+        if (target is null)
+            return -1;
+        for (var i = items.Count - 1; i >= 0; i--) {
+            if (ReferenceEquals(items[i], target))
+                return i;
+        }
+        return -1;
     }
 
     /// <summary>Shift+Tab 循环权限模式（jcc 引擎模式集合）— 发引擎应用请求，footer 以 permission_mode_changed 回执为准。</summary>
@@ -917,8 +1012,10 @@ public sealed class ReplShell
         _engine.SetPermissionMode(PermissionModeInfo.ToValue(next));
     }
 
-    /// <summary>提交输入：空文本忽略；否则追加用户消息并提交引擎（TurnStarted 事件驱动 busy，忙时由实现拒绝并 Error 诱导）；
-    /// 提交文本入历史环（末条去重）+ 导航态复位。</summary>
+    /// <summary>提交输入（TASK060 一问一答节奏 + TASK062 后续排队面板）：空文本忽略；未登录本地反馈
+    /// （基准 ⎿ Not logged in — 不调引擎不傻等）；忙时改排队（基准 queued 语义）— **不上滚动区**
+    ///（输入栏上方 queued 面板渲染 — TASK062 用户验收反馈：滚动区排队提示破坏消息流），入历史环，
+    /// 回合结束自动按序发送（DrainEngine 队列泵 — 发送时才上屏用户消息）；闲时正常直发。</summary>
     internal void Submit()
     {
         var text = _input.Text;
@@ -930,7 +1027,45 @@ public sealed class ReplShell
         _input.Clear();
         _history.Add(text);
         _history.Reset();
+        if (!LoginGateOpen)
+        {
+            AddMessage(new UserMessageItem(text));
+            AddMessage(new ToolResultItem("未登录 · 请在 auth.json 配置有效 API key 或运行 /login 后重试"));
+            return;
+        }
+
+        if (IsBusy)
+        {
+            if (_queuedInputs.Count >= MaxQueuedInputs)
+            {
+                AddMessage(new ToolResultItem($"排队已满（{MaxQueuedInputs} 条上限）— 本条丢弃，请等当前回合结束"));
+                _view.QueuedInputs = _queuedInputs;
+                return;
+            }
+
+            _queuedInputs.Add(text);
+            _view.QueuedInputs = _queuedInputs;
+            return;
+        }
+
         AddMessage(new UserMessageItem(text));
+        _engine.Submit(text);
+    }
+
+    /// <summary>排队输入发送泵（DrainEngine 回合结束时调用）— 非忙态且有排队时取队首：
+    /// 上屏用户消息（发送时才进滚动区 — 排队期间只在输入栏上方面板）+ 直发引擎；
+    /// 逐回合发一条维持一问一答节奏。</summary>
+    private void PumpQueuedInputs()
+    {
+        if (IsBusy || _queuedInputs.Count == 0)
+        {
+            return;
+        }
+
+        var text = _queuedInputs[0];
+        _queuedInputs.RemoveAt(0);
+        AddMessage(new UserMessageItem(text));
+        _view.QueuedInputs = _queuedInputs;
         _engine.Submit(text);
     }
 
@@ -1004,6 +1139,7 @@ public sealed class ReplShell
         _view.SuggestionNameColumnWidth = _suggester?.NameColumnWidth ?? 0;
         _view.SuggestionArgumentMode = _suggester?.IsArgumentMode ?? false;
         _view.GhostSuffix = _search is { Current.Length: > 0 } ? _search.Current : _suggester?.GhostSuffix ?? string.Empty;
+        _view.QueuedInputs = _queuedInputs;
     }
 
     /// <summary>同步消息光标选中高亮到滚动区（渲染前状态投影 — ScrollBox 渲染后整块背景覆写）。</summary>

@@ -275,6 +275,12 @@ public sealed class ChatContextManager : IChatContextManager, IAsyncDisposable {
     }
 
     /// <summary>
+    /// 预检决策（当前工具规格自取版 — TASK061 请求前预算守卫消费面）
+    /// </summary>
+    public PreflightDecision DecidePreflightWithCurrentSpecs()
+        => DecidePreflight(_toolSpecStore.CurrentSpecs);
+
+    /// <summary>
     /// 根据折叠决策执行上下文折叠操作（普通/激进/摘要退出）
     /// </summary>
     public async Task<ContextFoldResult> FoldIfNeededAsync(ContextFoldDecision decision, string? agentId = null, CancellationToken cancellationToken = default) {

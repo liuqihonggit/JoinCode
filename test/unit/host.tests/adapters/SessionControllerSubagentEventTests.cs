@@ -135,6 +135,109 @@ public sealed class SessionControllerSubagentEventTests
         Assert.Equal("test-model", done.modelId);
     }
 
+    // ---- 批2 L1：主代理路径 SubAgentEventChannel 直投（DSG041） ----
+
+    /// <summary>主代理路径通道事件直投 — QueryEngine 工具执行段 Emit 到通道（AsyncLocal 作用域内），
+    /// SessionController chunk 循环排空后经 ProcessEvent 分流到三子代理回调（不经 chunk 转换层）。</summary>
+    [Fact]
+    public async Task MainAgentPath_ChannelEvents_DispatchToSubagentCallbacks()
+    {
+        var consumer = new RecordingSubagentConsumer();
+        var controller = CreateMainAgentController(
+        [
+            new QueryStreamChunk { Type = AgentStreamChunkType.Content, Content = "主回复" },
+            new QueryStreamChunk { Type = AgentStreamChunkType.Complete, ModelId = "test-model" },
+        ],
+        chunkIndex => EmitChannelEvents(chunkIndex), consumer);
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(result.Succeeded, $"回合失败: {result.ErrorMessage ?? "(无)"}");
+        Assert.Equal("主回复", result.Response);
+        var started = Assert.Single(consumer.SubagentStarts);
+        Assert.Equal("sub-1", started.SubagentId);
+        Assert.Equal("explore", started.AgentType);
+        Assert.Equal("搜索渲染链", started.Description);
+        Assert.Equal(2, consumer.SubagentToolUses.Count);
+        Assert.All(consumer.SubagentToolUses, use => Assert.Equal("sub-1", use.SubagentId));
+        var finished = Assert.Single(consumer.SubagentFinishes);
+        Assert.Equal("sub-1", finished.SubagentId);
+        Assert.False(finished.IsError);
+    }
+
+    /// <summary>主代理路径 — 子代理带 AgentId 工具事件经通道直投不产生普通 OnToolStart/OnToolEnd（分流一致）。</summary>
+    [Fact]
+    public async Task MainAgentPath_ChannelSubagentToolEvent_NotPlainToolCallbacks()
+    {
+        var consumer = new RecordingSubagentConsumer();
+        var controller = CreateMainAgentController(
+        [
+            new QueryStreamChunk { Type = AgentStreamChunkType.Complete, ModelId = "test-model" },
+        ],
+        chunkIndex => {
+            if (chunkIndex == 0) {
+                SubAgentEventChannel.Current?.Emit(new ChatStreamEvent {
+                    Type = ChatStreamEventType.ToolCallStart, AgentId = "sub-1", ToolName = "Read", ToolArguments = "file.cs" });
+            }
+        }, consumer);
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(result.Succeeded);
+        var use = Assert.Single(consumer.SubagentToolUses);
+        Assert.Equal("Read", use.ToolName);
+        Assert.Equal("file.cs", use.Summary);
+        Assert.Empty(consumer.ToolStarts);
+        Assert.Empty(consumer.ToolEnds);
+    }
+
+    /// <summary>构造主代理路径 controller（mock QueryEngine 喂 chunk 流，每 chunk yield 前回调发射通道事件）。</summary>
+    private static SessionController CreateMainAgentController(
+        IReadOnlyList<QueryStreamChunk> chunks,
+        Action<int> onBeforeYield,
+        RecordingSubagentConsumer consumer) {
+        var queryEngine = CreateMockQueryEngine(chunks, onBeforeYield);
+        var agent = new AgentBase(task: string.Empty, options: null, queryEngine: queryEngine, logger: null, name: "main", role: AgentRole.Coordinator);
+        var sp = new ServiceCollection().BuildServiceProvider();
+        var chatService = CreateMockChatService(Array.Empty<ChatStreamEvent>());
+        return new SessionController(chatService, consumer, new TurnDiffService(), "test-session", sp, mainAgent: agent);
+    }
+
+    /// <summary>mock QueryEngine — chunk 流的 enumerator 在 yield 前回调（模拟工具执行段发射子代理事件到通道）。</summary>
+    private static IQueryEngine CreateMockQueryEngine(IReadOnlyList<QueryStreamChunk> chunks, Action<int> onBeforeYield) {
+        var mock = new Mock<IQueryEngine>();
+        mock.Setup(e => e.QueryAsync(It.IsAny<string>(), It.IsAny<MessageList>(), It.IsAny<CancellationToken>()))
+            .Returns((string input, MessageList history, CancellationToken ct) => EmitChunksWithEventsAsync(chunks, onBeforeYield, ct));
+        mock.Setup(e => e.QueryAsync(It.IsAny<string>(), It.IsAny<MessageList>(), It.IsAny<QueryOptions?>(), It.IsAny<CancellationToken>()))
+            .Returns((string input, MessageList history, QueryOptions? opts, CancellationToken ct) => EmitChunksWithEventsAsync(chunks, onBeforeYield, ct));
+        return mock.Object;
+    }
+
+    /// <summary>按 chunk 序号发射完整子代理事件序列（Started → 工具×2 → Finished）。</summary>
+    private static void EmitChannelEvents(int chunkIndex) {
+        var channel = SubAgentEventChannel.Current;
+        if (channel is null || chunkIndex != 0) {
+            return;
+        }
+
+        channel.Emit(ChatStreamEvent.AgentStarted("sub-1", "explore", "搜索渲染链"));
+        channel.Emit(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallStart, AgentId = "sub-1", ToolName = "Grep", ToolArguments = "pattern" });
+        channel.Emit(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallEnd, AgentId = "sub-1", ToolName = "Grep", ToolResultText = "命中" });
+        channel.Emit(ChatStreamEvent.AgentFinished("sub-1", success: true));
+    }
+
+    /// <summary>chunk 流 + yield 前回调（AsyncLocal 作用域在 enumerator 恢复时继承调用方作用域）。</summary>
+    private static async IAsyncEnumerable<QueryStreamChunk> EmitChunksWithEventsAsync(
+        IReadOnlyList<QueryStreamChunk> chunks,
+        Action<int> onBeforeYield,
+        [EnumeratorCancellation] CancellationToken ct) {
+        for (var i = 0; i < chunks.Count; i++) {
+            ct.ThrowIfCancellationRequested();
+            onBeforeYield(i);
+            yield return chunks[i];
+        }
+    }
+
     private static IChatService CreateMockChatService(IReadOnlyList<ChatStreamEvent> events) {
         var mock = new Mock<IChatService>();
         mock.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))

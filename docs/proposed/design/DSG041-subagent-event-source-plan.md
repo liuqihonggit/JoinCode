@@ -69,24 +69,37 @@ native_tui（TUI 宿主）子代理分组渲染全链已落地（SubagentGroupCo
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| L3 IEventConsumer 三方法（DIM 默认空）+ SessionController RouteSubagentEvent 前置分流 | BridgeEventConsumer / InProcessEventConsumer（批4/批5 接映射） | ✅ 批1（b64c5d16d） | ✅ SessionControllerSubagentEventTests 5/5（Started/Finished/工具分流/普通零回归/混合流）+ host.tests 1371 + abs.tests 694 + engine/cli/Host 三链编译绿 |
-| L1 SubAgentEventChannel 接通 QueryEngine 主代理路径 | AgentStreamExecutionMiddleware/ForkSubAgentManagerActor 发射侧（零改动） | ⏳ 批2 | ⏳ E2E 复制先例 + agents 单测 |
-| L2 AgentStreamChunkAdapter AgentId 传播 + 类型映射 | SessionController chunk→ChatStreamEvent 翻译 | ⏳ 批3 | ⏳ adapters 单测 |
-| L4 引擎侧 BridgeEvent 三 record | bridge_serve JSON 协议消费方 | ⏳ 批4 | ⏳ BridgeJsonContractTests |
-| InProcessEventConsumer 映射 | EngineTurnClient → ReplBridgeDriver（既有路由零改动） | ⏳ 批5 | ⏳ Host --selftest 扩断言（ADR 0080 真实运行） |
-| TUI 真实链路分组显示 | SubagentGroupCoordinator → 分组渲染（既有零改动） | ⏳ 批5 | ⏳ 用户真实终端（agents 场景真实引擎 spawn） |
+| L3 IEventConsumer 三方法（DIM 默认空）+ SessionController RouteSubagentEvent 前置分流 | BridgeEventConsumer / InProcessEventConsumer（批4/批5 接映射） | ✅ 批1（hash 已随 PR #439 squash，内容在库） | ✅ SessionControllerSubagentEventTests 5/5（Started/Finished/工具分流/普通零回归/混合流）+ host.tests 1371 + abs.tests 694 + engine/cli/Host 三链编译绿 |
+| L1 SubAgentEventChannel 接通主代理路径（**宿主层直投方案**） | AgentStreamExecutionMiddleware/ForkSubAgentManagerActor 发射侧（零改动） | ✅ 批2（6b762c145） | ✅ 单元级：MainAgentPath 2/2（通道事件全序列直投三回调 + 子代理工具事件不走普通回调）+ host.tests 1373 全绿 + Host 编译绿；✅ 集成级：SubAgentEventMainAgentPathE2ETests 1/1 绿（00f2a77ae — MockServer 真实 LLM 全链：agent 工具→子代理 spawn（含工具轮）→Emit→通道→Drain 直投→三回调全达消费者，16s 干净收尾；过程中根治 Host.DisposeAsync 永挂死锁三处 ReceiveAsync 漏传 ct） |
+| ~~L2 AgentStreamChunkAdapter AgentId 传播~~ | ~~SessionController chunk→ChatStreamEvent 翻译~~ | **✅ 被批2 宿主层直投方案吸收**（通道事件不经 chunk 转换层，AgentBase/adapter 零改动；批3 撤销） | —（无独立交付物） |
+| L4 引擎侧 BridgeEvent 三 record + BridgeEventConsumer 显式映射 | bridge_serve JSON 协议消费方 | ✅ 批3（6d55a8215） | ✅ BridgeJsonContractTests JSON 形状快照锁定（subagent_started/subagent_tool_use/subagent_finished camelCase）+ BridgeEventConsumerTests 映射断言 + host.tests 1375 + engine/cli/Host 三链编译绿 |
+| InProcessEventConsumer 映射 | EngineTurnClient → ReplBridgeDriver（既有路由零改动） | ✅ 批4（3f7f88919） | ✅ InProcessEventConsumerTests 映射断言（三 record 字段逐一对齐）+ NativeTui.Host.Tests 61 全绿 + Host 编译绿；✅ Host --selftest 扩子代理断言（2d267cd5b — SubagentSelftest 真实 MockServer+引擎+主代理路径完整回合，三回调断言实测通过退出 0） |
+| TUI 真实链路分组显示 | SubagentGroupCoordinator → 分组渲染（既有零改动） | ✅ 链路闭合（批1-4） | ⏳ 用户真实终端（agents 场景真实引擎 spawn — 唯一剩余项） |
 
 ## 8. 后续
 
-- ~~批1（L3 协议扩展）可立即开工（无前置依赖）~~ **✅ 已完成（b64c5d16d，2026-10-21）**
-- 批2（L1 通道接通）：挂点二选一决策见风险1（倾向 AgentBase 循环内排空先行）
+- ~~批1（L3 协议扩展）~~ **✅ 已完成（内容随 PR #439 squash 入库）**
+- ~~批2（L1 通道接通）~~ **✅ 已完成（6b762c145，宿主层直投方案 — 见批2 实施记录）**
+- ~~批3（L2 chunk 传播）~~ **✅ 撤销 — 被批2 宿主层直投方案吸收**
+- ~~批4（原批3 引擎侧 DTO + BridgeEventConsumer 映射）~~ **✅ 已完成（6d55a8215）**
+- ~~批5（原批4 InProcessEventConsumer 映射）~~ **✅ 已完成（3f7f88919）— 代码批次全部落地，链路闭合**
+- **剩余集成级验收**：~~① 批2 E2E~~ **✅（00f2a77ae，顺带根治 Host.DisposeAsync 永挂死锁——三处邮箱 ReceiveAsync 漏传 ct）** ~~② Host --selftest 扩子代理断言~~ **✅（2d267cd5b）** ③ 用户真实终端收口（唯一剩余项）
+- ✅ ChatService 路径 E2E 亦三绿（b7e4ea782）——误诊修正：非串话缺陷，真实根因=插件就绪等待缺失+xunit 跨 class 并行污染（详见 TASK062 P1）；CI 白名单 subagent-events 三用例全覆盖
 - 本 DSG 落地后 TASK055 三缺口③关闭
 
-### 批1 实施记录（b64c5d16d）
+### 批1 实施记录（hash 已随 PR #439 squash，内容在库）
 
 - IEventConsumer 三方法走 **DIM 默认空实现**（既有 8+ 实现方零改动；默认实现须经接口类型调用的既有坑已规避）
 - SessionController.ProcessEvent 前置分流 **RouteSubagentEvent**：AgentId 非 null 即子代理事件——AgentStarted→OnSubagentStarted（身份三元组）、AgentFinished→OnSubagentFinished（**AgentSuccess 成功语义取反为 isError**）、带 AgentId 工具事件→OnSubagentToolUse（tokenGain 恒 0 兜底，批2 填真实值）；返回 true 跳过主 Switch
 - 实施坑：AgentSuccess→isError 语义取反（首轮直传 false 导致 finished.IsError 断言反）；mixed 流中子代理 Content 事件暂不投影返回 false 走主路径（消费面仅三回调）
+
+### 批2 实施记录（6b762c145 — 方案变更：宿主层直投）
+
+- **挂点决策结果**：既非 AgentBase 循环排空也非 QueryCoreMiddleware 排空，而是 **SessionController 主代理路径**（第三方案，实施时发现的最优解）——通道作用域 + 排空全部落宿主层，AgentBase/QueryEngine/adapter 全零改动
+- 结构：`StreamResponseAsync` 主代理分支内 `new SubAgentEventChannel() + EnterScope()`（AsyncLocal 沿 await 链传播覆盖 QueryEngine 工具执行段 → Agent 工具中间件 Emit 点可见）→ chunk 循环逐拍 `TryDrain` 直投 `ProcessEvent`（复用批1 分流）→ 循环后末批冲刷 + `Complete()`（迟到 Emit 静默丢弃防泄漏，对齐 QueryLoopMiddleware 先例）
+- **L2 被吸收**：通道事件不经 chunk 转换层直接是 ChatStreamEvent，AgentStreamChunkAdapter 不需要传播 AgentId（主代理 chunk 的 AgentId 是主代理自身 id，传播反而会误分流——这也是直投方案的正确性优势）
+- 实施坑：Moq 泛型回调返回类型必须精确匹配（QueryAsync 返回 IAsyncEnumerable<QueryStreamChunk> 非 AgentStreamChunk）；QueryStreamChunk.AgentId 非必填（与 AgentStreamChunk 不同）
+- tokenGain：批2 后仍恒 0（通道事件无 token 语义字段；真实 token 增量待 ChatStreamEvent.Usage 传播或 TUI 侧 TokenDelta 近似，列为低优先后续项）
 
 ## 9. 各批验收方式定义（2026-10-21 用户确认"先定义验收方式再逐个进行"）
 

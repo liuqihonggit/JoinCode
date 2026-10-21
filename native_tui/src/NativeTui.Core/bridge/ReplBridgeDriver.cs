@@ -47,13 +47,16 @@ public sealed class ReplBridgeDriver
     /// <summary>bypass 模式是否可用（引擎 session_info 报告 — settings.json 安全闸禁用时为 false，Cycler 跳过 bypass）。</summary>
     public bool BypassAvailable { get; private set; } = true;
 
+    /// <summary>登录门禁开（引擎 session_info 报告 LoggedIn — ApiKey 有效即能对话；false 时 shell 提交本地反馈不调引擎）。</summary>
+    public bool IsLoggedIn { get; private set; } = true;
+
     /// <summary>应用一条事件（全量分派 — switch 模式匹配穷尽由编译器保证）。</summary>
     public void Apply(BridgeEvent bridgeEvent)
     {
         switch (bridgeEvent)
         {
-            case BridgeEvent.SessionInfo(var version, var model, var permissionMode, var bypassAvailable, var cwd, var vendor):
-                ApplySessionInfo(version, model, permissionMode, bypassAvailable, cwd, vendor);
+            case BridgeEvent.SessionInfo(var version, var model, var permissionMode, var bypassAvailable, var cwd, var vendor, var loggedIn):
+                ApplySessionInfo(version, model, permissionMode, bypassAvailable, cwd, vendor, loggedIn);
                 break;
             case BridgeEvent.PermissionModeChanged(var mode):
                 if (PermissionModeInfo.TryFromValue(mode, out var parsed))
@@ -96,10 +99,10 @@ public sealed class ReplBridgeDriver
                 _spinner.HasActiveTools = false;
                 _spinner.ResponseLength += length;
                 break;
-            case BridgeEvent.AssistantMessage(var text, var markdown):
+            case BridgeEvent.AssistantMessage(var text, var markdown, var messageId, var thinkingDurationMs, var thinkingContent):
                 AddMessage(markdown is not null
-                    ? new MarkdownMessageItem(markdown, _codeHighlighter)
-                    : new AssistantMessageItem(text));
+                    ? new MarkdownMessageItem(markdown, _codeHighlighter, thinkingDurationMs, thinkingContent, messageId)
+                    : new AssistantMessageItem(text, thinkingDurationMs, thinkingContent, messageId));
                 break;
             case BridgeEvent.TurnCompleted:
                 EndTurn();
@@ -141,14 +144,17 @@ public sealed class ReplBridgeDriver
         _spinner.HasActiveTools = true;
     }
 
-    /// <summary>应用会话握手：banner 换引擎真实数据（模型 null → "当前模型未设置"；供应商 null → 空，banner 退化无前缀）+ footer 初始模式 + bypass 可用性。</summary>
-    private void ApplySessionInfo(string version, string? model, string permissionMode, bool bypassAvailable, string cwd, string? vendor)
+    /// <summary>应用会话握手：banner 换引擎真实数据（模型 null → "当前模型未设置"；供应商 null → 空，banner 退化无前缀）
+    /// + footer 初始模式 + bypass 可用性 + 登录门禁态（footer 未登录提示真实化 — TASK060）。</summary>
+    private void ApplySessionInfo(string version, string? model, string permissionMode, bool bypassAvailable, string cwd, string? vendor, bool loggedIn)
     {
         _banner.Version = version;
         _banner.Model = string.IsNullOrWhiteSpace(model) ? "当前模型未设置" : model;
         _banner.Vendor = vendor ?? string.Empty;
         _banner.Cwd = cwd;
         BypassAvailable = bypassAvailable;
+        IsLoggedIn = loggedIn;
+        _view.Footer = _view.Footer with { LoginError = loggedIn ? null : "未登录 · 运行 /login" };
         if (PermissionModeInfo.TryFromValue(permissionMode, out var parsed))
         {
             _view.Footer = _view.Footer with { Mode = parsed };
@@ -169,7 +175,8 @@ public sealed class ReplBridgeDriver
         _spinner.HasActiveTools = false;
     }
 
-    /// <summary>结束回合：idle + spinner 复位（消息由事件驱动，interrupted 不额外追加）；子代理组定格脱离（未完成条目定格为非错误完成）。</summary>
+    /// <summary>结束回合：idle + spinner 复位（消息由事件驱动，interrupted 不额外追加）；子代理组定格脱离（未完成条目定格为非错误完成）。
+    /// spinner Mode 复位 Thinking→Responding（修复：回合结束后思考动画续转 — Thinking 态渲染器持续 shimmer）。</summary>
     public void EndTurn()
     {
         IsBusy = false;
@@ -179,6 +186,10 @@ public sealed class ReplBridgeDriver
         _spinner.Message = string.Empty;
         _spinner.ResponseLength = 0;
         _spinner.HasActiveTools = false;
+        if (_spinner.Mode == SpinnerMode.Thinking)
+        {
+            _spinner.Mode = SpinnerMode.Responding;
+        }
     }
 
     /// <summary>消息插入 spinner 之前（spinner 恒为滚动区最后一项）。</summary>

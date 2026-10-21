@@ -567,13 +567,20 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             FromAgentId = "parent",
             ToAgentId = agentId,
             MessageType = "user_message",
-            Content = message
+            Content = message,
+            // TASK063 steer — @子代理邮箱转发打断并发送：消息入邮箱同时请求目标代理打断当前轮
+            //（用户语义：转发必须打断并提示，不躺着等下轮消费）
+            InterruptAndSend = true
         };
 
         var sent = await _messageBroker.SendAsync(agentId, agentMessage, cancellationToken).ConfigureAwait(false);
 
         if (sent) {
-            _logger?.LogInformation("[AgentServiceImpl] 消息已发送给代理 {AgentId}", agentId);
+            // 打断路由 — 运行中的代理实例直接 RequestSteer（chunk 循环检查点尽快收尾；
+            // 未运行实例无轮可打断静默跳过 — 消息仍在邮箱等下轮消费）
+            var target = await _lifecycleManager.GetAgentAsync(agentId, cancellationToken).ConfigureAwait(false);
+            target?.RequestSteer();
+            _logger?.LogInformation("[AgentServiceImpl] 消息已发送给代理 {AgentId}（steer 打断已请求）", agentId);
             await AppendTranscriptEntryAsync(agentId, "user", $"[MESSAGE] {message}", cancellationToken).ConfigureAwait(false);
         }
 
@@ -582,7 +589,8 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
     /// <summary>
     /// 将用户输入转发给运行中的子代理 — 用户在子代理运行期间追加的输入
-    /// 消息入 IAgentInputForwardQueue，由子代理每轮 LLM 调用前主动 TryDrain 消费
+    /// 消息入 IAgentInputForwardQueue，由子代理每轮 LLM 调用前主动 TryDrain 消费；
+    /// TASK063 steer — 转发同时请求打断当前轮（对齐邮箱路径语义，两条转发链一致）
     /// </summary>
     public async Task<bool> ForwardUserInputToAgentAsync(string agentId, string userInput, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
@@ -595,7 +603,11 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         await _inputForwardQueue.EnqueueAsync(agentId, userInput, cancellationToken).ConfigureAwait(false);
 
-        _logger?.LogInformation("[AgentServiceImpl] 用户输入已转发给子代理 {AgentId}", agentId);
+        // steer 打断路由 — 运行中实例打断当前轮（转发消息在检查点收尾后的下轮 TryDrain 消费）
+        var target = await _lifecycleManager.GetAgentAsync(agentId, cancellationToken).ConfigureAwait(false);
+        target?.RequestSteer();
+
+        _logger?.LogInformation("[AgentServiceImpl] 用户输入已转发给子代理 {AgentId}（steer 打断已请求）", agentId);
         await AppendTranscriptEntryAsync(agentId, "user", $"[USER_FORWARD] {userInput}", cancellationToken).ConfigureAwait(false);
 
         return true;
@@ -676,8 +688,10 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task RouteWorkerPermissionResponsesAsync(string agentId, CancellationToken ct) {
-        await foreach (var message in _messageBroker!.ReceiveAsync(agentId).ConfigureAwait(false)) {
-            ct.ThrowIfCancellationRequested();
+        // ct 传入 ReceiveAsync — MailboxBase 底层 ReadAllAsync(ct) 随取消退出；
+        // 漏传时无消息场景 Channel 读永不退出（E2E 实测 Host.DisposeAsync WhenAll 永挂 —
+        // dumpasync 链：AgentServiceImpl.DisposeAsync → BackgroundTaskActor → 本循环）
+        await foreach (var message in _messageBroker!.ReceiveAsync(agentId, ct).ConfigureAwait(false)) {
             if (message.MessageType == SwarmPermissionMessageType.PermissionResponse.ToValue()) {
                 await _permissionCallbackService!.ProcessIncomingResponseMessageAsync(message).ConfigureAwait(false);
             }

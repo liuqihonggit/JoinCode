@@ -11,6 +11,7 @@ global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.Entry;
 global using Microsoft.Extensions.Logging.Abstractions;
+global using Microsoft.Extensions.DependencyInjection;
 global using MockServer.E2E.Tests.Core;
 global using MockServer.E2E.Tests.Fixtures;
 global using MockServer.E2E.Tests.Scripts;

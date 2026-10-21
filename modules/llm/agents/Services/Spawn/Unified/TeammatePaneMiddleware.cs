@@ -30,9 +30,13 @@ public sealed partial class TeammatePaneMiddleware : ServiceEntity, IUnifiedSpaw
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct) {
-        if (!context.IsMainAgent && _layoutManager is not null && context.Agent is not null) {
+        // 角色守卫（TASK062 P5）— 仅 teammate 变体创建 UI Pane；executor 等普通前台子代理
+        // 无 pane 语义（Windows 无 tmux 场景曾对每个 executor spawn 打警告噪音 — E2E 实测）
+        var current = _subAgentContextAccessor.Current;
+        var isTeammate = current?.Variant == ExecutorVariant.Teammate;
+        if (!context.IsMainAgent && isTeammate && _layoutManager is not null && context.Agent is not null) {
             try {
-                var agentType = _subAgentContextAccessor.Current?.Variant?.ToValue() ?? _subAgentContextAccessor.Current?.Role.ToValue() ?? "agent";
+                var agentType = current?.Variant?.ToValue() ?? current?.Role.ToValue() ?? "agent";
                 var command = $"# Agent: {context.Task}";
                 await _layoutManager.CreateTeammatePaneAsync(context.AgentId, agentType, command, context.CancellationToken).ConfigureAwait(false);
                 context.TeammatePaneCreated = true;

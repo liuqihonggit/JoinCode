@@ -100,7 +100,7 @@ public sealed class McpInitModule : IAppModule {
             var toolsBridge = services.GetRequiredService<Core.DependencyInjection.McpToolSyncBridge>();
             await toolsBridge.OnToolsListChangedAsync(ct).ConfigureAwait(false);
         } catch (Exception ex) {
-            logger?.LogError(ex, "[MCP] OnToolsListChangedAsync failed");
+            HandleRefreshError(ex, logger);
         }
 
         // 把 IToolRegistry 中的工具挂载到 kernel.Plugins — 修复断裂的工具管线
@@ -134,7 +134,20 @@ public sealed class McpInitModule : IAppModule {
             // 降级 Debug 避免 E2E NoErrors 断言误报（CLI 每轮退出与 McpPluginBootstrap 后台加载的时序差）
             logger?.LogDebug(ex, "[MCP] 刷新 kernel.Plugins 跳过：引擎已关闭");
         } catch (Exception ex) {
-            logger?.LogError(ex, "[MCP] 刷新 kernel.Plugins 失败");
+            HandleRefreshError(ex, logger);
         }
+    }
+
+    /// <summary>刷新错误分类处置（internal — 退出竞态降级测试面）：ObjectDisposedException =
+    /// 退出竞态良性噪音（宿主释放容器后 LocalToolRegistry 内部锁已释放，后台就绪钩子/变更事件仍
+    /// 触发刷新 — 进程将亡刷新无意义）→ Debug 静默，对齐 McpPluginBootstrap"宿主关闭取消静默"先例；
+    /// 其余异常保持 Error（真实故障不得静默 — CI E2E NoErrors 断言依赖 stderr 无 fail 级噪音）。</summary>
+    internal static void HandleRefreshError(Exception ex, ILogger? logger) {
+        if (ex is ObjectDisposedException) {
+            logger?.LogDebug(ex, "[MCP] 刷新 kernel.Plugins 跳过 — 退出竞态（工具注册表已随宿主释放）");
+            return;
+        }
+
+        logger?.LogError(ex, "[MCP] 刷新 kernel.Plugins 失败");
     }
 }

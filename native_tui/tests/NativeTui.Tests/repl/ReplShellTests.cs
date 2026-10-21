@@ -129,7 +129,7 @@ public sealed class ReplShellTests
         Assert.True(shell.Running);
     }
 
-    /// <summary>Esc 忙时：请求引擎打断（Interrupt 透传）。</summary>
+    /// <summary>Esc 忙时：双击才请求引擎打断（TASK059 退出安全 — 单击等双击窗口无操作）。</summary>
     [Fact]
     public void Escape_WhileBusy_InterruptsEngine()
     {
@@ -138,6 +138,8 @@ public sealed class ReplShellTests
         engine.Events.Enqueue(new BridgeEvent.TurnStarted());
         shell.DrainEngine();
 
+        shell.HandleEscape();
+        Assert.Equal(0, engine.Interrupts);
         shell.HandleEscape();
         Assert.Equal(1, engine.Interrupts);
         Assert.True(shell.Running);
@@ -156,15 +158,16 @@ public sealed class ReplShellTests
         Assert.Equal(string.Empty, shell.Input.Text);
     }
 
-    /// <summary>Esc 闲时无输入：请求退出。</summary>
+    /// <summary>Esc 闲时无输入：永不退出（TASK059 退出安全 — 退出路径只剩 Ctrl+D 与 /exit 命令）。</summary>
     [Fact]
-    public void Escape_IdleEmpty_Stops()
+    public void Escape_IdleEmpty_NeverStops()
     {
         var (shell, _) = CreateShell();
         shell.SeedContent();
 
         shell.HandleEscape();
-        Assert.False(shell.Running);
+        shell.HandleEscape();
+        Assert.True(shell.Running);
     }
 
     /// <summary>提交：空文本忽略（不产用户消息、不透传引擎）。</summary>

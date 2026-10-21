@@ -47,7 +47,9 @@ public sealed partial class ContextWindowResolver : ServiceEntity, IContextWindo
         if (_modelConfigLoader is not null) {
             var modelConfig = _modelConfigLoader.FindModel(provider, currentModel);
             if (modelConfig is not null)
-                return modelConfig.ContextWindow;
+                // TASK061 强校验 — contextWindow<=0 直接报错（不再静默透传 0 致下游 ArgumentOutOfRange；
+                // agnes 9 模型 0 值脏数据形态，错误带模型/供应商/providers_llm 修复指引）
+                return ModelInfo.FromModelItemConfig(provider, modelConfig).ValidateOrThrow().ContextWindow;
         }
 
         var definition = _registry.TryGet(provider);
@@ -55,10 +57,11 @@ public sealed partial class ContextWindowResolver : ServiceEntity, IContextWindo
             var match = definition.AvailableModels
                 .FirstOrDefault(m => m.Id.Equals(currentModel, StringComparison.OrdinalIgnoreCase));
             if (match is not null)
-                return match.ContextWindow;
+                // TASK061 — Provider 定义路径同强校验（两源一致，0 值配置统一报错）
+                return ModelInfo.FromEntry(provider, match).ValidateOrThrow().ContextWindow;
         }
 
-        // 3. 默认值
+        // 3. 默认值（模型未注册两源皆未命中 — 未知模型不阻断启动，保守兜底）
         return DefaultContextWindow;
     }
 

@@ -100,7 +100,8 @@ jobs:
         run: |
           $tests = @(
             @{Name="file-tools"; Filter="FullyQualifiedName~FileToolCoverageTests|FullyQualifiedName~SearchToolCoverageTests|FullyQualifiedName~ShellGitToolCoverageTests|FullyQualifiedName~ExtendedToolCoverageTests"},
-            @{Name="agent-tools"; Filter="FullyQualifiedName~AgentToolCoverageTests|FullyQualifiedName~BatchToolCoverageTests|FullyQualifiedName~TaskToolCoverageTests|FullyQualifiedName~AstIntegrationTests"}
+            @{Name="agent-tools"; Filter="FullyQualifiedName~AgentToolCoverageTests|FullyQualifiedName~BatchToolCoverageTests|FullyQualifiedName~TaskToolCoverageTests|FullyQualifiedName~AstIntegrationTests"},
+            @{Name="subagent-events"; Filter="FullyQualifiedName~SubAgentEventStreamE2ETests|FullyQualifiedName~SubAgentEventMainAgentPathE2ETests"}
           )
           foreach ($t in $tests) {
               $name = $t.Name

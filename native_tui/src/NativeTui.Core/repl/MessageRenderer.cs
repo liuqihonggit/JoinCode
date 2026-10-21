@@ -55,6 +55,34 @@ public static class MessageRenderer
         screen.WriteText(frame.Y, frame.X + Figures.ToolResultIndent.Length, text, 0, frame.Right);
     }
 
+    /// <summary>渲染思考摘要行（TASK062 结构化消息）：⎿ 前缀 + "思考 {秒} · ctrl+o 展开推理"（收起态）/
+    /// "思考 {秒} ▾"（展开态），整行 dim（基准思考块折叠形态；时长 &lt;1s 显示小数）。</summary>
+    public static void RenderThinkingSummary(Screen screen, Rect frame, Theme theme, int durationMs, bool expanded)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var seconds = durationMs / 1000.0;
+        var label = seconds >= 1
+            ? $"思考 {seconds:F0}s"
+            : $"思考 {seconds:F1}s";
+        var suffix = expanded ? " ▾" : " · ctrl+o 展开推理";
+        screen.WriteText(frame.Y, frame.X, $"{Figures.ToolResultIndent}{label}{suffix}", dim, frame.Right);
+    }
+
+    /// <summary>渲染思考内容行（展开态 CoT 全文）：⎿ 前缀 + 2 空格缩进 dim 正文（逐行 — 换行拆分多行渲染）。</summary>
+    public static void RenderThinkingContent(Screen screen, Rect frame, Theme theme, string content)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var indent = $"{Figures.ToolResultIndent}  ";
+        var row = frame.Y;
+        foreach (var line in content.Split('\n')) {
+            var text = line.TrimEnd('\r');
+            if (text.Length > 0) {
+                screen.WriteText(row, frame.X, $"{indent}{text}", dim, frame.Right);
+            }
+            row++;
+        }
+    }
+
     /// <summary>渲染错误消息：● + 空格 + 正文，全部 theme.Error 红色（bridge error 事件）。</summary>
     public static void RenderError(Screen screen, Rect frame, Theme theme, string text)
     {

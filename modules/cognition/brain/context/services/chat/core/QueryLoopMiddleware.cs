@@ -126,6 +126,11 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
 
             var historySnapshot = await _contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
             Diag.WriteLine($"[LOOP] 迭代 #{totalToolCalls} | 消息={historySnapshot.Count}");
+
+            // TASK061 请求前上下文预算守卫（孤儿接线 — DecidePreflight 此前无消费方）：
+            // 估算消息+工具 token 比率 ≥ 1.0（超模型上下文窗口本体）→ 直接拦截不发 API
+            //（用户要求"超窗直接报错"；null 容错 — mock/旧实现未提供决策时静默放行）
+            GuardContextBudget();
 #if DEBUG
             if (System.Diagnostics.Debugger.IsAttached) System.Diagnostics.Debugger.Break();
 #endif
@@ -209,6 +214,25 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         }
 
         yield return ChatStreamEvent.Done(finalUsage, finalModelId);
+    }
+
+    /// <summary>请求前上下文预算守卫（TASK061）— 估算比率 ≥ 1.0（消息+工具已超模型上下文窗口本体，
+    /// 主流模型已达 1M）→ 抛 ContextOverflowException 直接拦截不发 API（对齐"超窗直接报错"；
+    /// 错误诱导：窗口数/估算数/清上下文或切大窗口模型）；决策 null 容错（mock/旧实现静默放行）。</summary>
+    private void GuardContextBudget() {
+        var preflight = _contextManager.DecidePreflightWithCurrentSpecs();
+        if (preflight is not { EstimatedRatio: >= 1.0 }) {
+            return;
+        }
+
+        var ctxMax = _contextManager.GetContextMaxTokens();
+        var estimatedTokens = (int)(ctxMax * preflight.EstimatedRatio);
+        throw new ContextOverflowException(
+            $"上下文预算超限：当前消息+工具估算约 {estimatedTokens} token，已超过模型上下文窗口 {ctxMax} token" +
+            $"（比率 {preflight.EstimatedRatio:F2}）。请用 /compact 压缩对话历史、运行 /clear 清空上下文，" +
+            $"或切换到更大上下文窗口的模型（主流已达 1M token）。",
+            ctxMax,
+            estimatedTokens);
     }
 
     /// <summary>

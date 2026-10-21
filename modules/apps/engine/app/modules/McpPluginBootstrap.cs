@@ -86,6 +86,11 @@ internal sealed class McpPluginBootstrapHandle : IAsyncDisposable
         _background = background(_cts.Token);
     }
 
+    /// <summary>插件就绪完成信号（邮箱/通知语义）— Run 前为已完成 Task（无可等之物）；
+    /// Run 后为后台链 Task（八插件加载 + 就绪钩子全部完成）。消费方（E2E/宿主）等此信号
+    /// 确认工具注册就绪，替代时间性等待（Task.Delay 固定延时在 CI 快慢机上均不可靠）。</summary>
+    public Task Completion => _background;
+
     /// <summary>收尾 — 取消（尽力加速断链）→ 无超时等待链完成（链恒成功语义由 Bootstrap 保证，兜底吞）；幂等。</summary>
     public async ValueTask DisposeAsync()
     {

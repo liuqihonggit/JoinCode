@@ -6,7 +6,7 @@ namespace Tools.Handlers;
 /// <summary>
 /// 文件工具处理器 — 提供 Read/Write/Edit/List/Patch/Snip/Delete/Diagnostics 等文件操作工具
 /// </summary>
-[McpToolDispatch(ToolCategory.File)]
+[McpToolDispatch(ToolCategory.File, Kind = ToolKind.System)]
 public partial class FileToolHandlers : IDisposable {
     private readonly CancellationTokenSource _disposeCts = new();
     private bool _disposed;

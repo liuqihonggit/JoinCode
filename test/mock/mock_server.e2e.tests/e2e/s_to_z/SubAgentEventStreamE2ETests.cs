@@ -10,6 +10,7 @@ namespace MockServer.E2E.Tests.E2E;
 /// ① 显式 subagent_type → 前台流式路径（AgentStarted/带身份活动/AgentFinished 全量）
 /// ② 省略 subagent_type → fork 后台路径（AgentStarted 即时可见，终态经通道/通知回填）
 /// </summary>
+[Collection("SubAgentEventSerial")]
 [Trait("Category", "Integration")]
 public sealed class SubAgentEventStreamE2ETests {
     private readonly ITestOutputHelper _output;
@@ -61,10 +62,11 @@ public sealed class SubAgentEventStreamE2ETests {
 
         var started = events.FirstOrDefault(e => e.Type == ChatStreamEventType.AgentStarted);
         Assert.True(started is not null,
-            "fork 路径应即时发射 AgentStarted。" +
+            "无 subagent_type 路径应即时发射 AgentStarted。" +
             $"实际事件类型序列: {string.Join(",", events.Select(e => e.Type))}");
-        started!.AgentName.Should().Be("fork");
-        started.AgentId.Should().StartWith("fork-");
+        // 引擎演进：省略 subagent_type 现走 teammate 路径（InProcessTeammateTaskExecutor 优先于 fork）
+        started!.AgentName.Should().Be("teammate");
+        started.AgentId.Should().StartWith("teammate-");
 
         // 主对话的 Agent 工具调用本身不受影响
         events.Should().Contain(e => !e.IsSubAgentActivity && e.Type == ChatStreamEventType.ToolCallEnd,
@@ -103,6 +105,14 @@ public sealed class SubAgentEventStreamE2ETests {
             var session = await JoinCode.App.Builder.EngineSessionFactory.CreateGuiSessionAsync()
                 .ConfigureAwait(true);
             try {
+                // 确定性等待插件就绪（邮箱/通知语义 — 八插件后台化后 kernel.Plugins 工具挂载晚于启动；
+                // 不等则 agent 工具 not found 短路、子代理不执行、无子代理事件 — 超时仅挂死保护）
+                var bootstrapHandle = session.Services.GetService<JoinCode.App.Modules.McpPluginBootstrapHandle>();
+                if (bootstrapHandle is not null)
+                {
+                    await bootstrapHandle.Completion.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(true);
+                }
+
                 var events = new List<ChatStreamEvent>();
                 await foreach (var evt in session.ChatService.StreamWithEventsAsync(
                     "帮我检查项目中的README文件", ct).ConfigureAwait(true)) {
@@ -144,7 +154,7 @@ public sealed class SubAgentEventStreamE2ETests {
         sb.AppendLine("      \"thinking_content\": null,");
         sb.AppendLine("      \"tool_calls\": [");
         sb.AppendLine("        {");
-        sb.AppendLine("          \"tool_name\": \"Agent\",");
+        sb.Append("          \"tool_name\": \"").Append(AgentToolNameEnumConstants.Agent).AppendLine("\",");
         sb.Append("          \"arguments\": \"").Append(EscapeJsonString(toolCallArguments)).AppendLine("\",");
         sb.AppendLine("        }".TrimEnd(','));
         sb.AppendLine("      ],");

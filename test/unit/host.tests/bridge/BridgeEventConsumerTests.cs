@@ -13,6 +13,23 @@ public sealed class BridgeEventConsumerTests {
         return (consumer, @out);
     }
 
+    /// <summary>子代理三回调映射（DSG041 批3）— OnSubagentStarted/OnSubagentToolUse/OnSubagentFinished
+    /// → subagent_started/subagent_tool_use/subagent_finished 事件行（与 native_tui 侧字段逐一对齐）。</summary>
+    [Fact]
+    public void SubagentCallbacks_EmitSubagentEventLines() {
+        var (consumer, @out) = Create();
+
+        consumer.OnSubagentStarted("agent-1", "explore", "搜索渲染链");
+        consumer.OnSubagentToolUse("agent-1", "Grep", "命中 3 处", 120);
+        consumer.OnSubagentFinished("agent-1", isError: false);
+
+        Assert.Equal(
+            "{\"type\":\"subagent_started\",\"subagentId\":\"agent-1\",\"agentType\":\"explore\",\"description\":\"搜索渲染链\"}\n" +
+            "{\"type\":\"subagent_tool_use\",\"subagentId\":\"agent-1\",\"toolName\":\"Grep\",\"summary\":\"命中 3 处\",\"tokenGain\":120}\n" +
+            "{\"type\":\"subagent_finished\",\"subagentId\":\"agent-1\",\"isError\":false}\n",
+            @out.ToString());
+    }
+
     [Fact]
     public void OnText_EmitsTokenDelta_AndOnDoneEmitsFullAssistantMessage() {
         var (consumer, @out) = Create();

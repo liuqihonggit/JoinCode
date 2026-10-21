@@ -62,28 +62,36 @@ public class TransportE2ETest {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task MeshTransport_TwoPeers_PointToPointMessage() {
-        var baseName = $"e2e-mesh-{Guid.NewGuid():N}";
-        var pid1 = "300001";
-        var pid2 = "300002";
+        // 诊断日志开启（finally 复位）：CI 失败时 stderr 输出 PIPE-ACCEPT/MESH/MESH-WRITE 全链，
+        // 丢帧断点直接可定位（TransportDiagnostics.Enabled 是进程级静态，仅本测试窗口内开启）
+        TransportDiagnostics.Enabled = true;
+        try {
+            var baseName = $"e2e-mesh-{Guid.NewGuid():N}";
+            var pid1 = "300001";
+            var pid2 = "300002";
 
-        await using var peer1 = new MeshTransport(basePipeName: baseName, processId: pid1);
-        await using var peer2 = new MeshTransport(basePipeName: baseName, processId: pid2);
+            await using var peer1 = new MeshTransport(basePipeName: baseName, processId: pid1);
+            await using var peer2 = new MeshTransport(basePipeName: baseName, processId: pid2);
 
-        await peer1.StartAsync();
-        await peer2.StartAsync();
+            await peer1.StartAsync();
+            await peer2.StartAsync();
 
-        var connected = await peer1.AddPeerAsync(pid2, CancellationToken.None);
-        connected.Should().BeTrue("应能连接到 peer2");
+            var connected = await peer1.AddPeerAsync(pid2, CancellationToken.None);
+            connected.Should().BeTrue("应能连接到 peer2");
 
-        await Task.Delay(100);
+            // 确定性发送：立即发送（对齐同文件双向测试的 CI 绿形态 — AddPeer 后无需延时等待；
+            // 数据经 peer1 连接缓存直写，peer2 侧读循环由管道内核缓冲保底，原先的 Task.Delay(100)
+            // 是时间耦合反模式：Windows 上碰巧够、Linux CI 慢机上无正确性保证）
+            var data = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes("mesh-p2p-msg"));
+            await peer1.SendAsync(pid2, data);
 
-        var data = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes("mesh-p2p-msg"));
-        await peer1.SendAsync(pid2, data);
-
-        var received = await ReceiveWithTimeoutAsync(peer2.ReceiveAsync(), TimeSpan.FromSeconds(5));
-        received.Should().NotBeNull();
-        Encoding.UTF8.GetString(received!.Data.Span).Should().Be("mesh-p2p-msg");
-        received.SourceProcessId.Should().Be(pid1);
+            var received = await ReceiveWithTimeoutAsync(peer2.ReceiveAsync(), TimeSpan.FromSeconds(5));
+            received.Should().NotBeNull();
+            Encoding.UTF8.GetString(received!.Data.Span).Should().Be("mesh-p2p-msg");
+            received.SourceProcessId.Should().Be(pid1);
+        } finally {
+            TransportDiagnostics.Enabled = false;
+        }
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]

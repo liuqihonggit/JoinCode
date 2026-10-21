@@ -59,7 +59,10 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
                 if (attribute is not null) {
                     var displayName = attribute.ConstructorArguments.FirstOrDefault().Value as string ?? typeSymbol.Name;
                     var optional = false;
-                    var kind = "system";
+                    // 默认 mcp（修复：默认 system 致全部工具全量 schema 466KB 巨型请求被超时撞断 —
+                    // 两阶段工具加载：核心工具须显式 [McpToolDispatch(Kind = ToolKind.System)]，
+                    // 对齐基准 Claude Code 核心工具集 Read/Write/Edit/Grep/Glob/Bash/Task）
+                    var kind = "mcp";
                     string? groupName = null;
                     foreach (var namedArg in attribute.NamedArguments) {
                         if (namedArg.Key == "Optional" && namedArg.Value.Value is bool b)
@@ -69,7 +72,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
                             if (resolved is not null)
                                 displayName = resolved;
                         } else if (namedArg.Key == "Kind" && namedArg.Value.Value is int kindValue) {
-                            kind = TryResolveToolKindValue(compilation, kindValue) ?? "system";
+                            kind = TryResolveToolKindValue(compilation, kindValue) ?? "mcp";
                         } else if (namedArg.Key == "GroupName" && namedArg.Value.Value is string gn) {
                             groupName = gn;
                         }

@@ -40,34 +40,43 @@ public sealed class ReplView
     /// <summary>footer 状态（模式/busy/agents 提示/登录错误/通知）。</summary>
     public FooterState Footer { get; set; } = new();
 
+    /// <summary>排队待发送输入（TASK062 后续 — 基准 queued 面板：输入栏上方逐行 dim 渲染，不上滚动区；
+    /// 回合结束自动发送时才上屏为用户消息）。</summary>
+    public IReadOnlyList<string> QueuedInputs { get; set; } = [];
+
     /// <summary>建议区高度（0 = 未激活）。</summary>
     private int SuggestionHeight => _suggestionBox.MeasureHeight(Suggestions?.Count ?? 0);
 
+    /// <summary>排队面板高度（0 = 无排队）。</summary>
+    private int QueueHeight => QueuedInputs.Count;
+
     /// <summary>
-    /// 内容总高度（inline 模式建屏用）— 消息全量高度 + 间隔 1 + 输入区 3 + 建议区 + footer 高度；
+    /// 内容总高度（inline 模式建屏用）— 消息全量高度 + 间隔 1 + 输入区 3 + 排队面板 + 建议区 + footer 高度；
     /// 屏高取此值时消息区恰好全量展示（无滚动窗口），历史自然滚入终端 scrollback。
     /// </summary>
     public int MeasureContentHeight(int cols) =>
-        Messages.MeasureContentHeight(cols) + 4 + SuggestionHeight + _footer.MeasureHeight(Footer);
+        Messages.MeasureContentHeight(cols) + 4 + QueueHeight + SuggestionHeight + _footer.MeasureHeight(Footer);
 
-    /// <summary>inline 模式尾部动态区行数（间隔 1 + 输入区 3 + 建议区 + footer 高度）— 退出清理用。</summary>
-    public int TailHeight => 4 + SuggestionHeight + _footer.MeasureHeight(Footer);
+    /// <summary>inline 模式尾部动态区行数（间隔 1 + 输入区 3 + 排队面板 + 建议区 + footer 高度）— 退出清理用。</summary>
+    public int TailHeight => 4 + QueueHeight + SuggestionHeight + _footer.MeasureHeight(Footer);
 
     /// <summary>
     /// 输入光标内容坐标（inline 模式帧尾光标位）— 行 = 输入文本行（内容底上方 footer+建议区+2），
-    /// 列 = PromptWidth + cursorCol（钳制行宽，右缘即 pending wrap 状态）。
+    /// 列 = PromptWidth + 显示宽度（修复：中文宽字符 — char 偏移换算显示列，钳制行宽，右缘即 pending wrap 状态）。
     /// </summary>
     public CursorPos InputCursorPos(int contentRows, int cols, int cursorCol)
     {
         var footerHeight = _footer.MeasureHeight(Footer);
-        return new CursorPos(Math.Min(cols, PromptInputBox.PromptWidth + cursorCol), contentRows - footerHeight - SuggestionHeight - 2);
+        var displayCol = PromptInputBox.MeasureDisplayWidth(Input.AsSpan(0, Math.Min(cursorCol, Input.Length)));
+        return new CursorPos(Math.Min(cols, PromptInputBox.PromptWidth + displayCol), contentRows - footerHeight - SuggestionHeight - 2);
     }
 
-    /// <summary>渲染整屏（消息区 → 输入框 → 建议区 → footer）。</summary>
+    /// <summary>渲染整屏（消息区 → 排队面板 → 输入框 → 建议区 → footer）。</summary>
     public void Render(Screen screen, Theme theme)
     {
         var footerHeight = _footer.MeasureHeight(Footer);
         var suggestionHeight = SuggestionHeight;
+        var queueHeight = QueueHeight;
         var footerFrame = new Rect(2, screen.Rows - footerHeight, Math.Max(0, screen.Cols - 4), footerHeight);
         _footer.Render(screen, footerFrame, theme, Footer);
 
@@ -80,8 +89,28 @@ public sealed class ReplView
         var inputFrame = new Rect(0, screen.Rows - footerHeight - suggestionHeight - 3, screen.Cols, 3);
         _inputBox.Render(screen, inputFrame, theme, Input, CursorCol, Footer.Busy, GhostSuffix);
 
-        var messagesHeight = Math.Max(0, screen.Rows - footerHeight - suggestionHeight - 4);
+        if (queueHeight > 0)
+        {
+            RenderQueuePanel(screen, new Rect(0, inputFrame.Y - queueHeight, screen.Cols, queueHeight), theme);
+        }
+
+        var messagesHeight = Math.Max(0, screen.Rows - footerHeight - suggestionHeight - queueHeight - 4);
         var messagesFrame = new Rect(0, 0, screen.Cols, messagesHeight);
         Messages.Render(screen, messagesFrame, theme);
+    }
+
+    /// <summary>渲染排队面板（基准 queued 形态 — 输入栏上方）：每条一行 ❯ 前缀 + 文本 + dim " (queued)"，
+    /// 整行 dim（待发态弱化；首条不带 queued 标记 — 即将发送语义，对齐基准下一条高亮）。</summary>
+    private void RenderQueuePanel(Screen screen, Rect frame, Theme theme)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var promptStyle = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.PromptBorder, Dim = true });
+        for (var i = 0; i < QueuedInputs.Count; i++)
+        {
+            var row = frame.Y + i;
+            var col = screen.WriteText(row, frame.X, $"{Figures.Pointer} ", promptStyle, frame.Right);
+            var suffix = i == 0 ? string.Empty : " (queued)";
+            screen.WriteText(row, col, $"{QueuedInputs[i]}{suffix}", dim, frame.Right);
+        }
     }
 }

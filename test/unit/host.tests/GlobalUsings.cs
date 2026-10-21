@@ -20,6 +20,7 @@ global using Core.Hooks.Configuration;
 global using Core.Hooks.Events;
 global using Core.Memdir;
 global using Core.Plugins;
+global using Core.Scheduling.Tasks;
 global using Core.Policy;
 global using Core.Utils;
 global using Infrastructure.Localization;

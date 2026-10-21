@@ -3,6 +3,7 @@ global using System.Diagnostics;
 global using System.Text;
 global using Core.Configuration;
 global using Core.Permission;
+global using Core.Scheduling.Tasks;
 global using Core.Utils;
 global using JoinCode.Abstractions.Entity;
 global using JoinCode.Abstractions.Configuration;

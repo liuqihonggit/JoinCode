@@ -1,6 +1,6 @@
 # TASK064 — TUI 对齐 Claude Code 下一批差距（M8 规划）
 
-> 状态：**M8-1..M8-6 已 implemented**（2026-10-22；P0 三连 689f830b3→423187e9d→aef776136，M8-4/5/6 并行子代理批次 f59a6a99e）；M8-7/M8-8 + P3 池待做（引擎侧调研已完成：context_usage 小-中 / background_task 快照+终态 中）
+> 状态：**M8-1..M8-8 全部 implemented（2026-10-22）**；提交链：P0 三连 689f830b3→423187e9d→aef776136，M8-4/5/6 并行批次 f59a6a99e，M8-7 643a400e5，M8-8 7946994c3。剩余 P3 池不排期随机会动；已登记遗留=confirm/prompt 交互模态、evictAfter 终态驱逐、停止交互（x 键）、fork 快照描述字段、方案 B 块级增量 Markdown
 > 状态：proposed（2026-10-22；PR #446 合并后双调研挖掘——native_tui 现状侧 + 基准源码侧）
 > 来源：用户指令"挖掘还有什么没对齐 Claude Code TUI 功能的，构建新规划"
 > 双调研证据：①native_tui 逐文件实证（InProcessEventConsumer/ReplShell/ReplBridgeDriver 等）②基准源码逐项核实（claude-code-rev-main/src，文件:行号 见各项）
@@ -117,6 +117,21 @@
 - Windows 剪贴板路径（现有引擎剪贴板服务复用）
 
 **验收**：导航态 c/p 写入剪贴板可粘贴验证；操作条渲染像素对齐（上边框+间隔符）。
+
+**✅ M8-7 实施收口（2026-10-22，643a400e5）**：
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| 引擎侧：IEventConsumer.OnContextUsage DIM + ContextUsage 协议事件 + BridgeEventConsumer 显式实现 | SessionController.ProcessEvent onDone 发射（ChatUsageProcessor 在中间件链外且 Singleton 作用域错配弃） | ✅ | ✅ host.tests 41（发射 3 + 映射 + JSON 契约） |
+| TUI 侧：ContextWarning 独立槽位 + ResolveContextWarning 三色（≤10 error/≤25 warning/>25 清空） | FooterBar 行 2 告警优先渲染 | ✅ | ✅ 13 新测试（路由 8 + 渲染 4 + 映射 1） |
+
+**✅ M8-8 实施收口（2026-10-22，7946994c3）**：
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| 引擎侧：BackgroundTaskEventPump（订阅 ForkCompleted/TeammateCompleted 绕开回合作用域通道 + 回合终态快照） | BridgeServeLoop 可选参接线 + EngineTurnClient Consumer 出口（主收编） | ✅ | ✅ 泵 12 + consumer/契约 |
+| TUI 侧：BackgroundTaskPanel 常驻面板（upsert/终态驻留/空面板零渲染/上限10窗口/三态色） | 排队面板上方渲染 | ✅ | ✅ 面板 15 + 路由 4 + 映射 1 |
+| 批次回归 | — | ✅ | ✅ Core 919 + Host.Tests 76 + host.tests 1401 + selftest 真跑 EXIT=0 |
 
 ### M8-7 上下文告警（P1，依赖：引擎侧 token 余量事件——需先调研引擎 contextWindow 消费链）
 

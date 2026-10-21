@@ -114,6 +114,18 @@ public sealed class BridgeJsonContractTests {
             json);
     }
 
+    /// <summary>后台任务事件 JSON 形状（M8-8 — 与 native_tui 侧 BridgeEvent.BackgroundTask 逐字段镜像：
+    /// background_task + kind/taskId/description/state camelCase 字段，协议契约快照）。</summary>
+    [Fact]
+    public void Serialize_BackgroundTask_CarriesCamelCaseFields() {
+        var json = JsonSerializer.Serialize(
+            new CliBridge.BridgeEvent.BackgroundTask("fork", "fork-123", "检查README", "running"),
+            CliBridge.BridgeJsonContext.Safe.BridgeEvent);
+        Assert.Equal(
+            "{\"type\":\"background_task\",\"kind\":\"fork\",\"taskId\":\"fork-123\",\"description\":\"检查README\",\"state\":\"running\"}",
+            json);
+    }
+
     /// <summary>子代理三事件 JSON 形状（DSG041 批3 — 与 native_tui 侧 BridgeEvent 逐字段镜像：
     /// subagent_started/subagent_tool_use/subagent_finished，camelCase 字段）。</summary>
     [Fact]

@@ -14,14 +14,16 @@ public sealed class EngineSession : IAsyncDisposable {
     private readonly PermissionChecker? _checker;
     private readonly IFastModeService? _fastMode;
     private readonly TuiCommandCallbacks _commandCallbacks;
+    private readonly BackgroundTaskEventPump? _backgroundPump;
 
-    private EngineSession(EngineSessionFactory.Result engine, EngineTurnClient client, TuiPermissionBridge permissionBridge, PermissionChecker? checker, IFastModeService? fastMode, TuiCommandCallbacks commandCallbacks) {
+    private EngineSession(EngineSessionFactory.Result engine, EngineTurnClient client, TuiPermissionBridge permissionBridge, PermissionChecker? checker, IFastModeService? fastMode, TuiCommandCallbacks commandCallbacks, BackgroundTaskEventPump? backgroundPump) {
         _engine = engine;
         _client = client;
         _permissionBridge = permissionBridge;
         _checker = checker;
         _fastMode = fastMode;
         _commandCallbacks = commandCallbacks;
+        _backgroundPump = backgroundPump;
     }
 
     /// <summary>回合客户端 — 主循环消费面（Submit/Interrupt/SetPermissionMode/DrainEvents）。</summary>
@@ -64,6 +66,15 @@ public sealed class EngineSession : IAsyncDisposable {
             // Program 在 shell 构造后 Bind：/clear → 清滚动区、/exit → 主循环结束）
             var commandCallbacks = new TuiCommandCallbacks();
 
+            // M8-8 后台任务事件泵 — 订阅 ForkCompleted/TeammateCompleted 直推 consumer
+            // （绕开回合作用域 SubAgentEventChannel 的 idle 丢弃 gap）；两面任一可解析即建泵
+            var forkManager = engine.Services.GetService<IForkSubAgentManager>();
+            var teammateExecutor = engine.Services.GetService<IInProcessTeammateTaskExecutor>();
+            BackgroundTaskEventPump? backgroundPump = null;
+            if (forkManager is not null || teammateExecutor is not null) {
+                backgroundPump = new BackgroundTaskEventPump(forkManager, teammateExecutor);
+            }
+
             // 首次 submit 时绑定回合驱动器 — consumer 即进程内事件出口（client 构造，全程同一实例，对齐 BridgeServeCommand 先例）
             SessionController? controller = null;
             var client = new EngineTurnClient(
@@ -78,9 +89,15 @@ public sealed class EngineSession : IAsyncDisposable {
                         mainAgent: mainAgent);
                     return RunTurnAsync(controller, input, turnCt);
                 },
-                BuildPermissionModeApplier(checker));
+                BuildPermissionModeApplier(checker),
+                backgroundPump);
 
-            var session = new EngineSession(engine, client, permissionBridge, checker, fastMode, commandCallbacks);
+            if (backgroundPump is not null) {
+                backgroundPump.Bind(client.Consumer);
+                await backgroundPump.StartAsync().ConfigureAwait(false);
+            }
+
+            var session = new EngineSession(engine, client, permissionBridge, checker, fastMode, commandCallbacks, backgroundPump);
             client.Enqueue(BuildSessionInfoEvent(checker, fastMode, engine.Config));
             return session;
         } catch {
@@ -182,8 +199,12 @@ public sealed class EngineSession : IAsyncDisposable {
         return new InvalidOperationException(result.ErrorMessage ?? "回合执行失败（未知错误）");
     }
 
-    /// <summary>释放 — 取消在途回合（client.Dispose 快速返回）+ 异步释放引擎 Host。</summary>
+    /// <summary>释放 — 后台任务泵退订（先于引擎 Host — Actor 释放后事件源消失）+ 取消在途回合（client.Dispose 快速返回）+ 异步释放引擎 Host。</summary>
     public async ValueTask DisposeAsync() {
+        if (_backgroundPump is not null) {
+            await _backgroundPump.DisposeAsync().ConfigureAwait(false);
+        }
+
         _client.Dispose();
         await _engine.Host.DisposeAsync().ConfigureAwait(false);
     }

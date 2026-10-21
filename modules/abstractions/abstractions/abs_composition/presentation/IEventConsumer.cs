@@ -83,6 +83,10 @@ public interface IEventConsumer {
     /// <param name="percentLeft">剩余百分比 0-100（引擎侧 ICompactService.CalculateWarningState 权威算法；
     /// 阈值标志不进接口 — TUI 侧只显示百分比+文案，UI 自己判颜色）</param>
     void OnContextUsage(int promptTokens, int contextWindowTokens, int percentLeft) { }
+
+    /// <summary>后台任务状态更新（M8-8 — 后台 fork/teammate 代理生命周期，TUI 常驻任务面板显示）。
+    /// kind: fork|teammate；state: running|completed|failed|cancelled；upsert 语义按 (kind,taskId)。</summary>
+    void OnBackgroundTask(string kind, string taskId, string description, string state) { }
 }
 
 /// <summary>

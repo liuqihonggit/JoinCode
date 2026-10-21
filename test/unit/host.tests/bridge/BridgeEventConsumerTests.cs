@@ -42,6 +42,21 @@ public sealed class BridgeEventConsumerTests {
             @out.ToString());
     }
 
+    /// <summary>后台任务状态更新映射（M8-8）— OnBackgroundTask → background_task 事件行
+    /// （事件泵直推，四参 upsert 透传；与 native_tui 侧字段逐一对齐）。</summary>
+    [Fact]
+    public void OnBackgroundTask_EmitsBackgroundTaskEventLine() {
+        var (consumer, @out) = Create();
+
+        consumer.OnBackgroundTask("fork", "fork-123", "检查README", "running");
+        consumer.OnBackgroundTask("teammate", "teammate-9", "调研渲染链", "completed");
+
+        Assert.Equal(
+            "{\"type\":\"background_task\",\"kind\":\"fork\",\"taskId\":\"fork-123\",\"description\":\"检查README\",\"state\":\"running\"}\n" +
+            "{\"type\":\"background_task\",\"kind\":\"teammate\",\"taskId\":\"teammate-9\",\"description\":\"调研渲染链\",\"state\":\"completed\"}\n",
+            @out.ToString());
+    }
+
     [Fact]
     public void OnText_EmitsTokenDelta_AndOnDoneEmitsFullAssistantMessage() {
         var (consumer, @out) = Create();

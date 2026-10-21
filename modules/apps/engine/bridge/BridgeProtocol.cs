@@ -45,6 +45,7 @@ public abstract record BridgeRequest
 [JsonDerivedType(typeof(BridgeEvent.SubagentToolUse), "subagent_tool_use")]
 [JsonDerivedType(typeof(BridgeEvent.SubagentFinished), "subagent_finished")]
 [JsonDerivedType(typeof(BridgeEvent.ContextUsage), "context_usage")]
+[JsonDerivedType(typeof(BridgeEvent.BackgroundTask), "background_task")]
 [JsonDerivedType(typeof(BridgeEvent.TurnCompleted), "turn_completed")]
 [JsonDerivedType(typeof(BridgeEvent.TurnInterrupted), "turn_interrupted")]
 [JsonDerivedType(typeof(BridgeEvent.Error), "error")]
@@ -139,6 +140,9 @@ public abstract record BridgeEvent
     /// 阈值标志不进协议 — UI 侧自判颜色文案。
     /// </summary>
     public sealed record ContextUsage(int PromptTokens, int ContextWindowTokens, int PercentLeft) : BridgeEvent;
+
+    /// <summary>后台任务状态更新（M8-8 — upsert 语义：TUI 按 (kind,taskId) 更新/插入面板条目；终态由 state 自含）。</summary>
+    public sealed record BackgroundTask(string Kind, string TaskId, string Description, string State) : BridgeEvent;
 
     /// <summary>完整助手消息（追加滚动区）。</summary>
     public sealed record AssistantMessage(string Text) : BridgeEvent;

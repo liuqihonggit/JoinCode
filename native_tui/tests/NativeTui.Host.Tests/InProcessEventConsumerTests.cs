@@ -318,4 +318,21 @@ public sealed class InProcessEventConsumerTests
         Assert.Equal(200_000, usage.ContextWindowTokens);
         Assert.Equal(8, usage.PercentLeft);
     }
+
+    /// <summary>M8-8 后台任务状态更新 — OnBackgroundTask 四参直传 BackgroundTask 内存事件
+    /// （(kind,taskId) upsert 面板条目；接口同步由引擎侧 IEventConsumer DIM 完成）。</summary>
+    [Fact]
+    public void OnBackgroundTask_EnqueuesBackgroundTaskEvent()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnBackgroundTask("fork", "fork-123", "检查README", "running");
+
+        var events = consumer.DrainEvents();
+        var task = Assert.IsType<BridgeEvent.BackgroundTask>(Assert.Single(events));
+        Assert.Equal("fork", task.Kind);
+        Assert.Equal("fork-123", task.TaskId);
+        Assert.Equal("检查README", task.Description);
+        Assert.Equal("running", task.State);
+    }
 }

@@ -225,7 +225,7 @@ public sealed class ReplBridgeDriverTests
     [Fact]
     public void Apply_UnknownFutureEvent_DerivedTypeCoverageIsExhaustiveByConstruction()
     {
-        // 全部 12 种事件类型逐一应用不抛异常（switch 穷尽由编译器保证）
+        // 全部事件类型逐一应用不抛异常（switch 穷尽由编译器保证）
         BridgeEvent[] all =
         [
             new BridgeEvent.SessionInfo("1.0.0", "m", "auto", true, "C:\\"),
@@ -239,6 +239,7 @@ public sealed class ReplBridgeDriverTests
             new BridgeEvent.AssistantMessage("z"),
             new BridgeEvent.TurnCompleted(),
             new BridgeEvent.TurnInterrupted(),
+            new BridgeEvent.BackgroundTask("fork", "fork-1", "后台任务", "running"),
             new BridgeEvent.Error("e"),
         ];
         foreach (var bridgeEvent in all)
@@ -569,5 +570,62 @@ public sealed class ReplBridgeDriverTests
 
         Assert.Equal("◐ 中等 · /effort", _view.Footer.Notification);
         Assert.Equal("上下文告急 (8%) · 运行 /compact", _view.Footer.ContextWarning);
+    }
+
+    /// <summary>M8-8 后台任务常驻面板 — BackgroundTask 事件路由 view.BackgroundTasks 按 (kind,taskId) upsert：
+    /// 新任务插入面板条目。</summary>
+    [Fact]
+    public void Apply_BackgroundTask_InsertsPanelEntry()
+    {
+        _driver.Apply(new BridgeEvent.BackgroundTask("fork", "fork-123", "检查README", "running"));
+
+        var task = Assert.Single(_view.BackgroundTasks.Tasks);
+        Assert.Equal("fork", task.Kind);
+        Assert.Equal("fork-123", task.TaskId);
+        Assert.Equal("检查README", task.Description);
+        Assert.Equal("running", task.State);
+    }
+
+    [Fact]
+    public void Apply_BackgroundTask_SameKeyUpsertsStateAndDescription()
+    {
+        _driver.Apply(new BridgeEvent.BackgroundTask("fork", "fork-123", "检查README", "running"));
+
+        _driver.Apply(new BridgeEvent.BackgroundTask("fork", "fork-123", "检查README与文档", "completed"));
+
+        var task = Assert.Single(_view.BackgroundTasks.Tasks);
+        Assert.Equal("completed", task.State);
+        Assert.Equal("检查README与文档", task.Description);
+    }
+
+    [Fact]
+    public void Apply_BackgroundTask_TerminalEntrySurvivesTurnBoundary()
+    {
+        _driver.Apply(new BridgeEvent.BackgroundTask("fork", "fork-1", "检查", "completed"));
+        _driver.BeginTurn();
+
+        _driver.EndTurn();
+
+        // 常驻语义 — 回合边界不清理面板条目（区别于子代理组的定格脱离）
+        var task = Assert.Single(_view.BackgroundTasks.Tasks);
+        Assert.Equal("completed", task.State);
+    }
+
+    /// <summary>协议契约（与引擎侧约定写死）— background_task JSON 判别符反序列化 + Driver 路由面板。</summary>
+    [Fact]
+    public void Apply_BackgroundTaskFromJson_ParsesAndRoutesToPanel()
+    {
+        var reader = new StringReader(
+            "{\"type\":\"background_task\",\"kind\":\"fork\",\"taskId\":\"fork-123\",\"description\":\"检查README\",\"state\":\"running\"}\n");
+        var result = BridgeProtocol.TryReadEvent(reader, out var parsed, out var diagnostic);
+
+        Assert.Equal(BridgeReadResult.Event, result);
+        Assert.Null(diagnostic);
+        _driver.Apply(parsed!);
+        var task = Assert.Single(_view.BackgroundTasks.Tasks);
+        Assert.Equal("fork", task.Kind);
+        Assert.Equal("fork-123", task.TaskId);
+        Assert.Equal("检查README", task.Description);
+        Assert.Equal("running", task.State);
     }
 }

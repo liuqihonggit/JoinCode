@@ -7,7 +7,8 @@ namespace NativeTui.Host;
 /// 不经 JSON 序列化。语义与 engine BridgeEventConsumer 完全对齐（唯一差异：WriteEvent 序列化 stdout → 队列写内存对象）：
 /// OnText → token_delta；OnThinking 回合内单次信号 + 墙钟差结算 thinking_ended；
 /// OnToolStart/OnToolEnd → tool_call/tool_result（摘要截断 200 + error 前缀 + StructuredPatch → DiffHunk 投影）；
-/// OnDone → assistant_message(完整文本)；OnToolProgress/OnLoopDetected/OnTimingSummary 不消费。
+/// OnDone → assistant_message(完整文本)；OnBackgroundTask → background_task(M8-8 常驻面板 upsert)；
+/// OnToolProgress/OnLoopDetected/OnTimingSummary 不消费。
 /// </summary>
 public sealed class InProcessEventConsumer : IResettableEventConsumer {
     /// <summary>工具结果摘要截断上限（对齐 engine BridgeEventConsumer 的 200 字符显示截断）。</summary>
@@ -129,6 +130,12 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
     /// percentLeft 引擎侧算好，ReplBridgeDriver 路由 footer 告警。接口同步由引擎侧 IEventConsumer DIM 完成）。</summary>
     public void OnContextUsage(int promptTokens, int contextWindowTokens, int percentLeft) {
         _events.Enqueue(new BridgeEvent.ContextUsage(promptTokens, contextWindowTokens, percentLeft));
+    }
+
+    /// <summary>后台任务状态更新 → BackgroundTask（M8-8 — 四参直传内存事件；(kind,taskId) upsert 常驻面板条目，
+    /// 终态驻留。接口同步由引擎侧 IEventConsumer DIM 完成 — 签名一致自动成为实现，未就位时孤立方法编译即过）。</summary>
+    public void OnBackgroundTask(string kind, string taskId, string description, string state) {
+        _events.Enqueue(new BridgeEvent.BackgroundTask(kind, taskId, description, state));
     }
 
     /// <summary>排空事件队列 — 主循环每 tick 调用，取走全部待处理事件（ConcurrentQueue 多生产单消费安全）。</summary>

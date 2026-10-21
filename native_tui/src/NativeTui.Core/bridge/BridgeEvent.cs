@@ -4,7 +4,8 @@ namespace NativeTui.Core.Bridge;
 /// bridge 事件（Engine → TUI，读子进程 stdout）— ADR 0141 事件契约：
 /// 会话握手（session_info）、权限模式（permission_mode_changed）、
 /// 回合生命周期（turn_started/completed/interrupted）、思考（thinking_started/ended）、
-/// 工具（tool_call/tool_result/permission_request）、流式（token_delta）、消息（assistant_message/error）。
+/// 工具（tool_call/tool_result/permission_request）、流式（token_delta）、消息（assistant_message/error）、
+/// 后台任务（background_task — M8-8 常驻面板 upsert）。
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(SessionInfo), "session_info")]
@@ -23,6 +24,7 @@ namespace NativeTui.Core.Bridge;
 [JsonDerivedType(typeof(SubagentToolUse), "subagent_tool_use")]
 [JsonDerivedType(typeof(SubagentFinished), "subagent_finished")]
 [JsonDerivedType(typeof(ContextUsage), "context_usage")]
+[JsonDerivedType(typeof(BackgroundTask), "background_task")]
 [JsonDerivedType(typeof(Error), "error")]
 public abstract record BridgeEvent
 {
@@ -110,6 +112,9 @@ public abstract record BridgeEvent
     /// （引擎侧算好 — TUI 侧零计算直路由：≤10% 告急 error、≤25% 不足 warning、&gt;25% 清空防噪音）。
     /// </summary>
     public sealed record ContextUsage(int PromptTokens, int ContextWindowTokens, int PercentLeft) : BridgeEvent;
+
+    /// <summary>后台任务状态更新（M8-8 — upsert 语义：按 (kind,taskId) 更新/插入面板条目；终态由 state 自含）。</summary>
+    public sealed record BackgroundTask(string Kind, string TaskId, string Description, string State) : BridgeEvent;
 
     /// <summary>错误（含诱导说明）。</summary>
     public sealed record Error(string Message) : BridgeEvent;

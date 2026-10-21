@@ -8,7 +8,8 @@ namespace NativeTui.Core.Bridge;
 /// （spinner 恒为末项），token_delta 累加 ResponseLength，错误追加 ErrorMessageItem；
 /// 工具调用聚合（M8-4）：连续同名可聚合调用（Read/Grep/Glob）合并为 CollapsedToolItem
 /// （首次独立 ToolCallItem，第二次同名替换，后续 Record — 工具结果不断链，其他消息事件/回合边界断链）；
-/// 权限请求（permission_request）经注入钩子转交 shell 挂起对话框（权限模态是 shell 层状态）。
+/// 权限请求（permission_request）经注入钩子转交 shell 挂起对话框（权限模态是 shell 层状态）；
+/// 后台任务（background_task）路由常驻面板 upsert（M8-8 — (kind,taskId) 更新/插入，终态驻留）。
 /// 模拟路径与真实 bridge 路径共用同一套回合视图状态。
 /// </summary>
 public sealed class ReplBridgeDriver
@@ -167,6 +168,10 @@ public sealed class ReplBridgeDriver
                 break;
             case BridgeEvent.ContextUsage(_, _, var percentLeft):
                 ApplyContextUsage(percentLeft);
+                break;
+            case BridgeEvent.BackgroundTask(var kind, var taskId, var description, var state):
+                // M8-8 常驻面板 upsert — (kind,taskId) 更新/插入条目，终态驻留不随回合清理
+                _view.BackgroundTasks.Upsert(kind, taskId, description, state);
                 break;
             case BridgeEvent.Error(var message):
                 EndToolChain();

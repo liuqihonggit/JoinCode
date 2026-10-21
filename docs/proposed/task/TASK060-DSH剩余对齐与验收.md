@@ -153,9 +153,9 @@ DSH 语义（权威源 `dsh-agent-loop/lib/index.js:998-1006`、`:1061`、`dsh-a
 |------|------|------|
 | B11-a | 契约与 ADR：`ISteerInputMailbox` + `MessageOriginKind.SteerInput` + `ChatStreamEventType.SteerInput`（ADR 0146 proposed） | ✅ |
 | B11-b | E2E 红：`dsh-webui-steer.mjs`（桩按注入文本应答；断言受理、轮内 `user/message`、单轮、下一步请求含注入文本） | ✅ 红已确认 |
-| B11-c | 引擎单元红→绿：步首 drain 进下一次请求 + 有待注入不收尾 | ⬜ |
-| B11-d | 宿主路由绿：`session/prompt mode=steer`（运行中受理 / 空闲回落开轮）+ `updateQueue action.kind=steer` 升级 | ⬜ |
-| B11-e | 全量回归（approval/edges/prompt/tool/queue/cancel/reload/history）+ 文档四列表 + commit | ⬜ |
+| B11-c | 引擎单元红→绿：步首 drain 进下一次请求 + 有待注入不收尾 | ✅ 单测 2 例（红：CS0246/CS1739/CS0117 → 绿 9/9） |
+| B11-d | 宿主路由绿：`session/prompt mode=steer`（运行中受理 / 空闲回落开轮）+ `updateQueue action.kind=steer` 升级 | ✅ WebHost 单测 142/0 |
+| B11-e | 全量回归（approval/edges/prompt/tool/queue/cancel/reload/history）+ 文档四列表 + commit | ✅ 9 脚本全 ALL_PASS |
 
 ### B11-b 红灯证据（真机 exe + 桩，非 mock）
 
@@ -190,11 +190,34 @@ E2E 场景（`dumps/dsh-webui-steer.mjs`，桩加两个 marker）：
 3. **exe 必须由「短 bash 调用」启动** —— 单次 bash 超时被掐时整个进程树（含 `Start-Process` 的 exe）一起死；把「起 exe + wait-webui」与「跑 E2E」拆成两次调用，单次都在限时内结束。
 4. **拿会话 ID 别依赖 `session/list` 的 `running`** —— 该字段恒为 `false`（`DshSessionStore.ProjectAsync` 里写死），改为取 `session/follow` 快照的 `header.id`，回退 `session/list` 首条。
 
-### 验收四列表（待 B11-e 填验收列）
+### B11-e 绿灯证据（真机 exe + 桩，非 mock）
+
+| 断言 | 结果 | 实测 |
+|------|------|------|
+| `session/prompt mode=steer` 受理 | ✅ | `{"accepted":true}` |
+| 注入文本进入事件流（驱动下一步） | ✅ | 桩回 `steer 已收到：轮内注入成功` |
+| 注入未开启新轮次 | ✅ | `turn/start x1`，`RunningTurn=1` |
+| 注入落轮内 `user/message`（`surfaceOp=append`） | ✅ | `index=5` |
+| 注入在工具结果之后 / 最终回复之前 | ✅ | `tool/result=4 < steer=5 < ack=6 < turn/end=8` |
+| 界面渲染注入文本 | ✅ | 侧栏/气泡均出现注入文本 |
+
+- 事件序：`turn/start,step/start,user/message,tool/call,tool/result,user/message,assistant/message,step/end,turn/end`；`dsh-webui-steer.mjs` **ALL_PASS，9.6s**（`lifecycle` 看门狗：单步 10s / 总预算 60s）。
+- 单元：`QueryLoopMiddlewareTests` 9/9（`drain→AddUserMessage(SteerInput)→下一步 LLM`、`无工具调用但邮箱非空→不收尾`）。
+- 宿主管辖：`DshSteerInputTests` 3 例（运行中注入不新开轮 / 空闲回落开轮 / 引擎无邮箱 → `session/steer-unavailable` 且不排队）+ `DshUpdateQueueTests` steer 正反 2 例（投递即出队 / 不可收时消息留在队列）。
+- 全量回归（同一 exe + 桩）：`prompt / tool / queue / cancel / reload / history / approval / approval-edges` 全 `ALL_PASS`。
+
+### 验收四列表
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |----------|--------|--------|--------|
-| `ISteerInputMailbox`（按会话寻址的 FIFO 邮箱，Actor 邮箱模型） | 宿主投递 / 引擎步首 drain | ⬜ | ⬜ |
-| `QueryLoopMiddleware` 步首 drain → `AddUserMessageAsync(SteerInput)` + `ChatStreamEventType.SteerInput` | 下一步 LLM 请求携带注入文本；宿主投影 `user/message` | ⬜ | ⬜ |
-| 收尾分支「邮箱非空则继续下一步」（对齐 DSH `next-step` 非空不结束轮） | 模型最后一步收到 steer 仍继续 | ⬜ | ⬜ |
-| `DshTurnRunner`/`DshRpcDispatcher` steer 路由（替换 `session/steer-unavailable`） | 前端/协议 `session/prompt mode=steer`、`updateQueue action.kind=steer` | ⬜ | ⬜ |
+| `ISteerInputMailbox`（按会话寻址的 FIFO 邮箱，Actor 邮箱模型；`SteerInputMailbox` 单例 + 同步 lock） | 宿主投递（`JccChatSession.TrySteerInput`）/ 引擎步首 drain | ✅ | ✅ `dsh-webui-steer.mjs` ALL_PASS + `DshSteerInputTests`（[ADR 0080](../../implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md) 手动 exe 真机） |
+| `QueryLoopMiddleware` 步首 drain → `AddUserMessageAsync(SteerInput)` + `ChatStreamEventType.SteerInput` | 下一步 LLM 请求携带注入文本；宿主投影 `user/message` | ✅ | ✅ `QueryLoopMiddlewareTests` 9/9 + 真机事件 `steer=5`（注入驱动桩回 ack） |
+| 收尾分支「邮箱非空则继续下一步」（对齐 DSH `next-step` 非空不结束轮） | 模型最后一步收到 steer 仍继续 | ✅ | ✅ `InvokeAsync_TextOnlyResponseButSteerPending_DoesNotEndTurn` + 真机单 `turn/start` 内含注入 |
+| `DshTurnRunner`/`DshRpcDispatcher` steer 路由（替换 `session/steer-unavailable` 的旧拒绝语义） | 前端/协议 `session/prompt mode=steer`、`updateQueue action.kind=steer` | ✅ | ✅ WebHost 单测 142/0（含正反例）+ `dsh-webui-queue.mjs` ALL_PASS |
+
+### B11 遗留观察（不影响验收，记录备查）
+
+1. **测试项目已重组**：`native_gui/tests/join_code_gui.tests` → `native_gui/tests/native_gui.core.tests`（`NativeGui.Core.Tests.csproj`，程序集名仍 `JoinCode.Gui.Tests`）。本文档历史段落里的旧路径保留原样，实际运行请用新路径。
+2. **`session/list` 的 `Running` 恒 `false`**（`DshSessionStore.ProjectAsync` 写死），别用它判断在跑，取 `Streams.RunningTurn` 或 `session/follow` 快照。
+3. **`artifacts/bin` 曾整目录消失 / 宿主进程意外退出**（两次，原因未查明，疑似外部清理或用户侧操作）：表现是 E2E 报 `Target page, context or browser has been closed` 或找不到 exe。处置：重新 `dotnet build native_gui/apps/NativeGui.Host/NativeGui.Host.csproj -c Debug` + 重启 exe，同一调用里 `Test-Path` 确认。
+4. **转录落盘与界面渲染无强顺序**：`dsh-webui-prompt.mjs` 曾出现「界面已渲染但 `transcript.jsonl` 还没写完」的假红（`bytes=871`）。已改为 `until` 轮询文件内容（禁固定 sleep）。

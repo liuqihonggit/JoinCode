@@ -30,6 +30,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
     private readonly IToolConcurrencyClassifier? _concurrencyClassifier;
     private readonly ToolExecutionSettings? _toolExecutionSettings;
     private readonly ILogger<QueryLoopMiddleware>? _logger;
+    private readonly ISteerInputMailbox? _steerMailbox;
 
     /// <summary>
     /// 初始化查询循环中间件，注入各处理器和可选服务
@@ -45,6 +46,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
     /// <param name="concurrencyClassifier">工具并发安全性分类器（可选）</param>
     /// <param name="toolExecutionSettings">工具执行设置（可选）</param>
     /// <param name="logger">可选日志记录器</param>
+    /// <param name="steerMailbox">轮内注入邮箱（可选；null 时 steer 事件永不产生，等价旧行为）</param>
     public QueryLoopMiddleware(
         IBackgroundNotificationHandler notificationHandler,
         ILLMInvocationHandler llmHandler,
@@ -56,7 +58,8 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         ILoopDetectionStrategy? loopDetectionStrategy = null,
         IToolConcurrencyClassifier? concurrencyClassifier = null,
         ToolExecutionSettings? toolExecutionSettings = null,
-        ILogger<QueryLoopMiddleware>? logger = null) {
+        ILogger<QueryLoopMiddleware>? logger = null,
+        ISteerInputMailbox? steerMailbox = null) {
         _notificationHandler = notificationHandler;
         _llmHandler = llmHandler;
         _toolHandler = toolHandler;
@@ -67,6 +70,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         _concurrencyClassifier = concurrencyClassifier;
         _toolExecutionSettings = toolExecutionSettings;
         _logger = logger;
+        _steerMailbox = steerMailbox;
         _loopDetectionStrategy = loopDetectionStrategy ?? new InformationEntropyGuardian(logger: logger);
     }
 
@@ -124,6 +128,13 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
 
             await _notificationHandler.ProcessPendingNotificationsAsync(ct).ConfigureAwait(false);
 
+            // B11 steer：步首把轮内注入的输入落成用户消息（对齐 DSH dsh-agent-loop:1061
+            // 「步首 session.append("user/message", message)」）——下一步请求才带得上。
+            // 事件后续由宿主投影成轮内 user/message（surfaceOp=append）。
+            foreach (var evt in await DrainSteerInputsAsync(context, ct).ConfigureAwait(false)) {
+                yield return evt;
+            }
+
             var historySnapshot = await _contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
             Diag.WriteLine($"[LOOP] 迭代 #{totalToolCalls} | 消息={historySnapshot.Count}");
 
@@ -161,6 +172,12 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
 
             if (!string.IsNullOrWhiteSpace(iterState.FullResponse.ToString())) {
                 _emptyResponseTracker.Reset();
+                // B11 steer：本步无工具调用，但邮箱里还有待注入输入 → 不得收尾（DSH :998-1006），
+                // 否则注入会被丢弃或拖到下一轮。下一步步首统一 drain。
+                if (HasPendingSteerInput(context)) {
+                    Diag.WriteLine($"[LOOP {iterState.CallId}] 本步无工具调用但存在轮内注入, 继续下一步");
+                    continue;
+                }
                 break;
             }
 
@@ -409,6 +426,33 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                 }
             }
         }
+    }
+
+    /// <summary>该会话是否有待注入输入（未装配邮箱时恒 false，等价旧行为）。</summary>
+    /// <param name="context">当前中间件上下文（提供会话 ID）</param>
+    private bool HasPendingSteerInput(ChatMiddlewareContext context) =>
+        _steerMailbox?.HasPending(context.SessionId) == true;
+
+    /// <summary>取走本会话全部轮内注入，按 FIFO 落为用户消息并返回对应事件。</summary>
+    /// <param name="context">当前中间件上下文（提供会话 ID）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>每条注入对应一个 <see cref="ChatStreamEventType.SteerInput"/> 事件</returns>
+    private async Task<IReadOnlyList<ChatStreamEvent>> DrainSteerInputsAsync(
+        ChatMiddlewareContext context, CancellationToken ct) {
+        if (_steerMailbox is null) {
+            return [];
+        }
+        var pending = _steerMailbox.DrainAll(context.SessionId);
+        if (pending.Count == 0) {
+            return [];
+        }
+        var events = new List<ChatStreamEvent>(pending.Count);
+        foreach (var text in pending) {
+            await _contextManager.AddUserMessageAsync(text, MessageOriginKind.SteerInput, ct).ConfigureAwait(false);
+            Diag.WriteLine($"[STEER] 轮内注入进入上下文 session={context.SessionId} 长度={text.Length}");
+            events.Add(ChatStreamEvent.SteerInput(text));
+        }
+        return events;
     }
 
     private (List<ChatStreamEvent> Events, string FinalResponse) BuildPureTextResponse(

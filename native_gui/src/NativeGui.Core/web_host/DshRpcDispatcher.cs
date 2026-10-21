@@ -418,9 +418,10 @@ internal sealed class DshRpcDispatcher {
     internal IReadOnlyList<DshTurnRunner.QueueItem> ListQueue(string sessionId) => _turns.ListQueue(sessionId);
 
     /// <summary>
-    /// session/updateQueue：排队项编辑（TASK058 P2-B3）。edit=重写文本，remove=移除；
-    /// steer 返回 session/steer-unavailable（引擎 StreamAsync 一轮独占无轮内注入点 — 诚实引导，
-    /// 消息保持排队将在下一轮执行）。行不在队列/已被 claim 返回 session/queue-item-not-found。
+    /// session/updateQueue：排队项编辑（TASK058 P2-B3 + B11）。edit=重写文本，remove=移除，
+    /// steer=把排队项**升级为轮内注入**（出队 → 投递引擎邮箱，DSH `action.kind==='steer'` 语义）。
+    /// 项不存在返回 session/queue-item-not-found；轮次未运行或引擎未装配邮箱返回
+    /// session/steer-unavailable（此时该消息**仍留在队列**，不会丢）。
     /// </summary>
     private Task<DshRpcResult> SessionUpdateQueue(JsonElement args, CancellationToken cancellationToken) {
         var request = args.Deserialize(DshJsonContext.Default.DshUpdateQueueArgs);
@@ -430,8 +431,7 @@ internal sealed class DshRpcDispatcher {
                 $"session/updateQueue 需要 {{sessionId, itemId, action:{{kind, content?}}}}；收到 args={Describe(args)}"));
         }
         if (string.Equals(request.Action.Kind, "steer", StringComparison.Ordinal)) {
-            return Task.FromResult(Fail("session/steer-unavailable",
-                "引擎暂不支持轮内注入（steer）；该消息保持排队，将在当前轮结束后的下一轮执行"));
+            return Task.FromResult(SteerQueueItem(request.SessionId, request.ItemId));
         }
         if (string.Equals(request.Action.Kind, "remove", StringComparison.Ordinal)) {
             return Task.FromResult(_turns.TryRemoveQueueItem(request.SessionId, request.ItemId)
@@ -451,6 +451,33 @@ internal sealed class DshRpcDispatcher {
         }
         return Task.FromResult(Fail("session/rejected",
             $"updateQueue 的 action.kind 必须是 edit/remove/steer 之一；收到 {request.Action.Kind}"));
+    }
+
+    /// <summary>
+    /// 把排队项升级为轮内注入：先确认项还在、轮次在跑、引擎能收，再出队并投递。
+    /// 顺序保证失败路径**不动队列**（消息不丢，前端可继续 edit/remove/等下一轮）。
+    /// </summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="itemId">排队项句柄</param>
+    private DshRpcResult SteerQueueItem(string sessionId, string itemId) {
+        if (_services.Engine is not { } engine) {
+            return Fail("session/not-ready", "引擎仍在组装中，稍后重试；若长时间未就绪查看 dumps/startup_timing.log");
+        }
+        var item = _turns.ListQueue(sessionId).FirstOrDefault(entry => string.Equals(entry.ItemId, itemId, StringComparison.Ordinal));
+        if (item is null) {
+            return Fail("session/queue-item-not-found",
+                $"队列项 {itemId} 不在队列中（可能已被下一轮 claim）；刷新队列后重试");
+        }
+        if (_services.Streams.RunningTurn(sessionId) == 0) {
+            return Fail("session/steer-unavailable",
+                $"会话 {sessionId} 当前没有运行中的轮次，轮内注入无处投放；该消息仍在队列，可用 remove 取消或等下一轮自动执行");
+        }
+        if (!engine.TrySteerInput(sessionId, item.Text)) {
+            return Fail("session/steer-unavailable",
+                $"会话 {sessionId} 的引擎未装配轮内注入邮箱（ISteerInputMailbox）；请重启宿主。该消息仍在队列，将在本轮结束后顺序执行");
+        }
+        _turns.TryRemoveQueueItem(sessionId, itemId);
+        return Ok(new DshQueueAcceptedResult());
     }
 
     /// <summary>session/attachment：读附件（元数据 + base64 数据，前端聊天内图片渲染）</summary>

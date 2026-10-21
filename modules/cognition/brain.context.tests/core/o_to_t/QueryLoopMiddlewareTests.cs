@@ -268,6 +268,115 @@ public sealed class QueryLoopMiddlewareTests {
         ToolUseContext = new ToolUseContext()
     };
 
+    private static ChatMiddlewareContext CreateContext(string sessionId) => new() {
+        Message = "test",
+        ToolUseContext = new ToolUseContext(),
+        SessionId = sessionId
+    };
+
+    /// <summary>B11 steer：轮内注入的文本必须在**步首**落成用户消息（下一步请求才带得上），
+    /// 并以 <see cref="ChatStreamEventType.SteerInput"/> 事件流式通知宿主投影轮内 user/message。
+    /// 对齐 DSH `dsh-agent-loop` 步首 `session.append("user/message", message)`。</summary>
+    [Fact]
+    public async Task InvokeAsync_SteerPending_AddsUserMessageBeforeNextLlmCall_AndEmitsSteerInput() {
+        const string sessionId = "session-steer-1";
+        var mailbox = new SteerInputMailbox();
+        mailbox.Enqueue(sessionId, "STEER_MARK 轮内注入");
+
+        var order = new List<string>();
+        var userMessages = new List<(string Content, MessageOriginKind? Origin)>();
+        var contextManager = new Mock<IChatContextManager>();
+        contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new MessageList());
+        contextManager.Setup(c => c.AddUserMessageAsync(It.IsAny<string>(), It.IsAny<MessageOriginKind?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, MessageOriginKind?, CancellationToken>((content, origin, _) => {
+                userMessages.Add((content, origin));
+                order.Add("add-user");
+            })
+            .Returns(Task.CompletedTask);
+        contextManager.Setup(c => c.AddAssistantMessageAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        contextManager.Setup(c => c.SyncDiscoveredToolsFromHistoryAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
+        var llmHandler = new Mock<ILLMInvocationHandler>();
+        llmHandler.Setup(h => h.InvokeLLMAsync(
+                It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<ChatMiddlewareContext>(),
+                It.IsAny<int>(), It.IsAny<IterationState>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Callback<MessageList, ChatOptions?, ChatMiddlewareContext, int, IterationState, bool, CancellationToken>(
+                (_, _, _, _, state, _, _) => {
+                    order.Add("llm");
+                    state.FullResponse.Append("收到注入");
+                })
+            .Returns(AsyncEnumerableEmpty<ChatStreamEvent>());
+
+        await using var middleware = new QueryLoopMiddleware(
+            new BackgroundNotificationHandler(contextManager.Object),
+            llmHandler.Object,
+            new ToolExecutionHandler(new Mock<IChatToolOrchestrator>().Object, contextManager.Object),
+            new TelemetryRecorder(),
+            contextManager.Object,
+            new EmptyResponseTracker(),
+            steerMailbox: mailbox);
+
+        var events = new List<ChatStreamEvent>();
+        await foreach (var evt in middleware.InvokeAsync(
+            CreateContext(sessionId), (ctx, ct) => AsyncEnumerableEmpty<ChatStreamEvent>(), CancellationToken.None)) {
+            events.Add(evt);
+        }
+
+        userMessages.Should().ContainSingle(m => m.Content == "STEER_MARK 轮内注入" && m.Origin == MessageOriginKind.SteerInput);
+        order.Should().Equal("add-user", "llm");
+        events.Should().ContainSingle(e => e.Type == ChatStreamEventType.SteerInput && e.Content == "STEER_MARK 轮内注入");
+        mailbox.HasPending(sessionId).Should().BeFalse("注入被 step 首取走后邮箱必须清空");
+    }
+
+    /// <summary>B11 steer：模型本步**无工具调用**但邮箱非空时不得结束轮次（对齐 DSH
+    /// `dsh-agent-loop`:998-1006 —— 否则轮内注入会被丢弃/拖到下一轮）。</summary>
+    [Fact]
+    public async Task InvokeAsync_TextOnlyResponseButSteerPending_DoesNotEndTurn() {
+        const string sessionId = "session-steer-2";
+        var mailbox = new SteerInputMailbox();
+        var llmCalls = 0;
+        var contextManager = new Mock<IChatContextManager>();
+        contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new MessageList());
+        contextManager.Setup(c => c.AddUserMessageAsync(It.IsAny<string>(), It.IsAny<MessageOriginKind?>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        contextManager.Setup(c => c.AddAssistantMessageAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        contextManager.Setup(c => c.SyncDiscoveredToolsFromHistoryAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
+        var llmHandler = new Mock<ILLMInvocationHandler>();
+        llmHandler.Setup(h => h.InvokeLLMAsync(
+                It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<ChatMiddlewareContext>(),
+                It.IsAny<int>(), It.IsAny<IterationState>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Callback<MessageList, ChatOptions?, ChatMiddlewareContext, int, IterationState, bool, CancellationToken>(
+                (_, _, _, _, state, _, _) => {
+                    llmCalls++;
+                    if (llmCalls == 1) {
+                        // 模拟用户在本步 LLM 调用**进行中**键入 steer：步末检查邮箱时才发现
+                        state.FullResponse.Append("第一次回复（无工具调用）");
+                        mailbox.Enqueue(sessionId, "STEER_MARK 迟到的注入");
+                    }
+                })
+            .Returns(AsyncEnumerableEmpty<ChatStreamEvent>());
+
+        await using var middleware = new QueryLoopMiddleware(
+            new BackgroundNotificationHandler(contextManager.Object),
+            llmHandler.Object,
+            new ToolExecutionHandler(new Mock<IChatToolOrchestrator>().Object, contextManager.Object),
+            new TelemetryRecorder(),
+            contextManager.Object,
+            new EmptyResponseTracker(),
+            steerMailbox: mailbox);
+
+        var events = new List<ChatStreamEvent>();
+        await foreach (var evt in middleware.InvokeAsync(
+            CreateContext(sessionId), (ctx, ct) => AsyncEnumerableEmpty<ChatStreamEvent>(), CancellationToken.None)) {
+            events.Add(evt);
+        }
+
+        llmCalls.Should().Be(2, "有待注入时必须继续下一步，而不是在文本回复处收尾");
+        events.Should().Contain(e => e.Type == ChatStreamEventType.SteerInput && e.Content == "STEER_MARK 迟到的注入");
+        mailbox.HasPending(sessionId).Should().BeFalse();
+    }
+
     /// <summary>TASK061 请求前上下文预算守卫（孤儿接线 — DecidePreflight 此前无消费方）：
     /// 估算比率 ≥ 1.0（消息+工具已超模型上下文窗口本体）→ 直接抛 ContextOverflowException
     ///（不发 API — 用户要求"超 1M 窗口直接报错"；错误带估算/窗口/诱导清上下文）。</summary>

@@ -39,15 +39,32 @@ internal sealed class DshTurnRunner {
         }
         _services.Streams.Observe(request.SessionId, snapshot.Cursor, MaxTurn(snapshot.Records));
         if (_services.Streams.TryBeginTurn(request.SessionId) is not { } turn) {
+            // 轮内注入（B11）：轮次运行中不排队、不开新轮，直接投递到引擎邮箱（DSH agent.steer）
+            if (string.Equals(request.Mode, "steer", StringComparison.Ordinal)) {
+                return TrySteer(engine, request.SessionId, text);
+            }
             if (string.Equals(request.Mode, "queue", StringComparison.Ordinal)) {
                 Queue(request.SessionId, NewPending(request.RequestId, text));
                 return null;
             }
-            return ("session/busy", $"会话 {request.SessionId} 上一轮仍在生成；等它结束（接口完成/停止）后再发送，排队请用 mode=queue");
+            return ("session/busy", $"会话 {request.SessionId} 上一轮仍在生成；等它结束（接口完成/停止）后再发送。选项：①轮内注入请在请求里带 mode=steer；②排队等下一轮请用 mode=queue；③停止当前轮用 session/cancel");
         }
         await BeginTurnAsync(engine, request.SessionId, NewPending(request.RequestId, text), turn);
         return null;
     }
+
+    /// <summary>
+    /// 投递轮内注入（轮次运行中）。引擎未装配邮箱时诚实拒绝并引导（不静默丢弃、不改排队语义）。
+    /// </summary>
+    /// <param name="engine">引擎会话</param>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="text">已校验文本</param>
+    /// <returns>失败时的错误码与引导文案；受理成功返回 null</returns>
+    private static (string Code, string Message)? TrySteer(Hosting.IJccChatSession engine, string sessionId, string text) =>
+        engine.TrySteerInput(sessionId, text)
+            ? null
+            : ("session/steer-unavailable",
+                $"会话 {sessionId} 的引擎未装配轮内注入邮箱（ISteerInputMailbox）；请重启宿主。当前输入未被丢弃：改用 mode=queue 会在本轮结束后顺序执行");
 
     /// <summary>落用户消息并启动后台轮次（开启/排队复用）</summary>
     /// <param name="engine">引擎会话</param>
@@ -102,6 +119,7 @@ internal sealed class DshTurnRunner {
             var thinking = new StringBuilder();
             TokenUsage? usage = null;
             var events = 0;
+            var steers = 0;
             var calls = new List<(string CallId, string Name, string Arguments)>();
             await foreach (var evt in engine.StreamAsync(text, cancellationToken)) {
                 events += 1;
@@ -122,6 +140,10 @@ internal sealed class DshTurnRunner {
                     GuiDiag.Log($"[DSH-WEB] turn system notice session={sessionId}: {evt.Content}");
                 } else if (evt.Type == ChatStreamEventType.ToolCallEnd || evt.Type == ChatStreamEventType.ToolCallStart) {
                     await PublishToolCallAsync(sessionId, turn, evt, calls);
+                } else if (evt.Type == ChatStreamEventType.SteerInput && !string.IsNullOrEmpty(evt.Content)) {
+                    // 轮内注入在步首已进入上下文 → 这里补投影为轮内 user/message（DSH :1061 语义）
+                    steers += 1;
+                    await PublishSteerMessageAsync(sessionId, turn, evt.Content, steers);
                 }
             }
             GuiDiag.Log($"[DSH-WEB] turn stream done session={sessionId} events={events} chars={content.Length} thinking={thinking.Length}");
@@ -236,6 +258,23 @@ internal sealed class DshTurnRunner {
                 },
             },
             Usage = mappedUsage,
+        }, surfaceOp: "append");
+    }
+
+    /// <summary>
+    /// 落一条轮内注入的用户消息（轮内 <c>user/message</c>，<c>surfaceOp=append</c>）：
+    /// 与开轮时的首条用户消息同形，前端据此在对话流中插入新的用户气泡（不新开轮次）。
+    /// </summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="turn">轮次号</param>
+    /// <param name="text">注入文本</param>
+    /// <param name="index">本轮第几条注入（保证消息 ID 唯一）</param>
+    private async Task PublishSteerMessageAsync(string sessionId, int turn, string text, int index) {
+        await _services.Streams.PublishAsync(sessionId, "user/message", new DshWireMessage {
+            Id = $"{sessionId}:{turn}:steer:{index}",
+            Role = "user",
+            Content = [new DshWireContentBlock { Text = text }],
+            Source = new DshWireMessageSource { Kind = "user" },
         }, surfaceOp: "append");
     }
 

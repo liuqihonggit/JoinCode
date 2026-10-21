@@ -8,4 +8,6 @@ public enum MessageOriginKind {
     [EnumValue("task-notification")] TaskNotification,
     [EnumValue("coordinator")] Coordinator,
     [EnumValue("channel")] Channel,
+    /// <summary>轮内注入（steer）— 轮次运行中用户插入的输入，在下一 step 开头进入上下文</summary>
+    [EnumValue("steer")] SteerInput,
 }

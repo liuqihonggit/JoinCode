@@ -1,6 +1,6 @@
 # ADR 0146: 轮内注入（steer）— 步首邮箱 drain + 引擎事件投影
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-10-22
 - 决策者：liuqihong（TASK060 B11：宿主 `session/prompt mode:"steer"` 目前诚实拒绝 `session/steer-unavailable`，需补齐 DSH 轮内注入）
 

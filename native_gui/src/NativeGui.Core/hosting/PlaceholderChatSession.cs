@@ -167,6 +167,24 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
     /// <summary>轮次闸门（测试接缝）：StreamAsync 开头等待此委托返回；null=立即生成。用于测试保持 busy 占用</summary>
     internal Func<CancellationToken, Task>? TurnGate { get; set; }
 
+    /// <summary>
+    /// 轮内注入接收器（测试接缝）：null=引擎未装配注入通道 → <see cref="TrySteerInput"/> 返回 false
+    /// （宿主据此回 session/steer-unavailable）；设置后返回其返回值并记录 (sessionId, text)。
+    /// </summary>
+    internal Func<string, string, bool>? SteerSink { get; set; }
+
+    /// <summary>最近一次轮内注入（测试追踪字段）</summary>
+    internal (string SessionId, string Text)? LastSteer { get; private set; }
+
+    /// <inheritdoc />
+    public bool TrySteerInput(string sessionId, string text) {
+        if (SteerSink is not { } sink) {
+            return false;
+        }
+        LastSteer = (sessionId, text);
+        return sink(sessionId, text);
+    }
+
     /// <summary>占位会话流式回显 — 产出思考/工具/正文示例事件供 UI 渲染验证</summary>
     public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
         string message,

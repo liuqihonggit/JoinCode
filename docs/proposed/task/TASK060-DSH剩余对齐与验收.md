@@ -29,7 +29,7 @@
 | 批次 | 内容 | 状态 |
 |------|------|------|
 | B9 | E2E 脚本同步：`transcript.jsonl` 优先/`.json` 回退、播种改写 JSONL、exe 路径与文档对齐 | ✅ 已验收（见 §四） |
-| B10 | 审批弹窗真机验收：桩返回需审批的工具调用 → 断言 `approval/request` waterfall → 前端面板 → `$events/result` 回帖 → 引擎按判定放行/拒绝 | ⬜ |
+| B10 | 审批弹窗真机验收：桩返回需审批的工具调用 → 断言 `approval/request` waterfall → 前端面板 → `$events/result` 回帖 → 引擎按判定放行/拒绝 | ✅ 已验收（见 §五） |
 | B11 | steer 引擎扩展：ADR 记录轮内注入点（Actor 邮箱/邮箱队列）→ `StreamAsync` 支持下一 step 注入 → 宿主 `mode:"steer"` 路由 + 事件投影 | ⬜ |
 
 ## 四、B9 验收（四列）
@@ -54,8 +54,39 @@
 - **窗口尺寸被外部改小会让断言假失败**：实测 GUI 窗口曾从 1440×900 缩到 533×458，侧栏折叠成 56px rail，`工作区 ws-m2c2 就绪` 断言随之超时（与代码无关）。E2E 前应确认窗口尺寸；必要时脚本显式断言 `window.innerWidth >= 1000`。
 
 
+## 五、B10 验收（四列）
+
+验收脚本 `dumps/dsh-webui-approval.mjs`（工具目录，gitignored），同 §四 的隔离 home / 工作区 / CDP 环境，另加两项前置：
+
+- `home/settings.json`：`current.permissions.ask = ["read(approval-probe.txt)"]`（`PermissionConfig.AskRules` 在 **引擎启动时** 由 `LoadPermissionsFromSettingsAsync` 一次性装入，改后必须重启 exe）。
+- 工作区 `ws-m2c2/approval-probe.txt`，内容含哨兵串 `APPROVAL_PROBE_CONTENT_7f3a`。
+
+桩新增分支：提示词含 `USE_APPROVAL_TOOL` 时返回**真实** `read` 工具调用（`{"file_path": <STUB_APPROVAL_PATH 绝对路径>}`），取代旧的假工具 `StubTool`——这样才会走引擎的路径权限守卫而不是「工具不存在」错误分支。
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|----------|--------|--------|--------|
+| `PathPermissionMiddleware` 步骤4（`MatchRule` 命中 `Read+Ask` 规则 → `Ask`），早于步骤6「工作目录内 allow」 | 桩返回 `read(approval-probe.txt)` → 引擎在 `auto` 模式下仍判定 `PendingConfirmation` | ✅ | ✅ `request.toolName = read`、`request.reason = 读取路径 …\approval-probe.txt 需要用户确认。` |
+| `DshApprovalBroker.RequestAsync`（构造 waterfall 帧，前端硬校验「必须且只能含 type/event/eventId/agentId/request」） | `$events` 流下发 `approval/request` | ✅ | ✅ 帧键集实测 `agentId,event,eventId,request,type`；`request` 不含 `agent`/`signal`；`agentId` = 会话 ID（`DshTurnRunner.SetAgent`） |
+| `dsh-client-ui-approval` 面板渲染（`data-approval-key` + 「等待审批」条） | composer 内嵌审批面板 | ✅ | ✅ 出现 `data-approval-key=approval:1|2`，文案含「允许一次」「拒绝」；截图 `dumps/dsh-webui-approval-panel-{allow,reject}.png` |
+| `$events/result` → `DshApprovalBroker.SettleAsync`（`allowed-once`=Allow，其余=Deny，clientId 校验 + 幂等） | 前端点按钮回帖 | ✅ | ✅ 两条路径都实测：`拒绝` → `tool/result.isError=true`，文案 `Error: 用户拒绝工具执行: read`，哨兵串**未**进事件流/界面；`允许一次` → `tool/result` 内容即文件内容（含哨兵串），界面 `[data-tool="read"][data-state="ok"]` |
+| `GuiPermissionConfirmationHandler.ApproveDecision`（Allow → `ApproveToolTemporarily("read", 1min)` → 重跑管线放行） | 引擎重试管线，工具**真正执行** | ✅ | ✅ 允许后工具真实读到文件（哨兵串出现在 `tool/result` 与事件流）；两轮均以 `turn/end{kind:"completed"}` 收尾；`ALL_PASS`（33 项，连续两次确定性通过） |
+
+### B10 遗留观察（不影响验收，记录备查）
+
+- **批准顺序有副作用，E2E 必须先拒绝后允许**：`ApproveToolTemporarily(toolName, 1min)` 按**工具名**缓存，先允许再发第二轮会让第二轮不再弹面板（被临时批准短路）。脚本因此固定 `reject → allow` 顺序；跨轮验证应用不同工具名或重启 exe。
+- **审批面板只关 UI 不等待 BP 层结果**：点击后面板立即消失（`aria-busy` 期间），断言必须转到 `tool/result` 事件而不是面板本身。
+- **`approval/asked` / `approval/decided` 审计事件未落会话日志**：`DshApprovalBroker` 目前只发 `$events` 瞬时帧，不回写 `approval/*` 会话事件。DSH 参考实现（`dsh-user-approval`）会在轮内落审计事件便于历史回放。属**待补缺口**，本批不阻塞（前端面板不依赖），列入 B11 或后续批次。
+- **测试桩触发判定改为「标记出现在最后一次 `"role":"tool"` 之后」**：原判定 `!body.includes('"role":"tool"')` 在多轮会话里会让第二轮起不再触发（历史含旧工具消息），改用 `lastIndexOf` 比较，`USE_TOOL` / `USE_APPROVAL_TOOL` 同时受益。
+
+
 <!-- 🤖 Auto Decision: 2026-10-21 -->
 <!-- 决策: 先修 E2E 脚本再推进新能力 -->
 <!-- 原因: 脚本断言过期会让后续每批实现失去可信回归手段；审批/steer 都需要 script 级验证 -->
 <!-- 替代方案: 先做 steer 引擎扩展（风险高且无回归护栏）—— 暂不采用 -->
 <!-- 验证: TASK060 建档，B9 起步 -->
+
+<!-- 🤖 Auto Decision: 2026-10-21 -->
+<!-- 决策: B10 用「真实 read 工具 + settings ask 规则」触发审批，而非测试专用 seam / 仅协议层断言 -->
+<!-- 原因: 用户选定；真实守卫链路（auto 模式 + PathPermissionMiddleware 步骤4）才算端到端验收；假工具只会命中「工具不存在」错误分支 -->
+<!-- 替代方案: ①引擎注入测试 seam ②只在协议层回放 waterfall 帧 —— 都绕过了真实权限管线，暂不采用 -->
+<!-- 验证: dumps/dsh-webui-approval.mjs ALL_PASS（33 项，连续两次），截图存 dumps/ -->

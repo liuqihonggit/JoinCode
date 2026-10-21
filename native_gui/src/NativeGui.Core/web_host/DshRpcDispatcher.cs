@@ -69,6 +69,9 @@ internal sealed class DshRpcDispatcher {
             ["workspaceFiles/read"] = WorkspaceFilesRead,
             ["workspaceFiles/readBytes"] = WorkspaceFilesReadBytes,
             ["workspaceFiles/stat"] = WorkspaceFilesStat,
+            // 附件链（TASK058 P2-B2；uploadFileBinary 直传路由在 DshWebHost octet-stream 分支）
+            ["fileUploads/upload"] = FileUploadsUpload,
+            ["session/attachment"] = SessionAttachment,
         }.ToFrozenDictionary(StringComparer.Ordinal);
     }
 
@@ -396,6 +399,27 @@ internal sealed class DshRpcDispatcher {
             return error;
         }
         return await _services.WorkspaceFiles.StatAsync(sessionId, path, cancellationToken);
+    }
+
+    /// <summary>fileUploads/upload：base64 附件 → 魔数校验 → receipt 落盘（TASK058 P2-B2）</summary>
+    private async Task<DshRpcResult> FileUploadsUpload(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshFileUploadsUploadArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.AgentId) || request.Request is null
+            || string.IsNullOrEmpty(request.Request.Data)) {
+            return Fail("fileUploads/rejected",
+                $"fileUploads/upload 需要 {{agentId, request:{{data, name?}}}}；收到 args={Describe(args)}");
+        }
+        return await _services.Attachments.UploadAsync(request.AgentId, request.Request.Data, request.Request.Name, cancellationToken);
+    }
+
+    /// <summary>session/attachment：读附件（元数据 + base64 数据，前端聊天内图片渲染）</summary>
+    private async Task<DshRpcResult> SessionAttachment(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshSessionAttachmentArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId) || string.IsNullOrWhiteSpace(request.AttachmentId)) {
+            return Fail("session/attachment-not-found",
+                $"session/attachment 需要 {{sessionId, attachmentId}}；收到 args={Describe(args)}");
+        }
+        return await _services.Attachments.ReadAsync(request.SessionId, request.AttachmentId, cancellationToken);
     }
 
     /// <summary>commands/list：引擎斜杠命令目录投影（TASK058 B5 — 引擎 [ChatCommand] 特性为唯一数据源）</summary>

@@ -141,6 +141,88 @@ internal sealed class DshEventErrorBody {
 /// <summary>$events/result 回帖响应（前端只看 ok，无业务载荷）</summary>
 internal sealed class DshEventsResultValue;
 
+/// <summary>fileUploads/upload 参数（前端 lookup 字段 agentId 即会话/代理 ID；request 包裹 data+name）</summary>
+internal sealed class DshFileUploadsUploadArgs {
+    /// <summary>目标会话/代理</summary>
+    public string AgentId { get; set; } = "";
+    /// <summary>上传请求体</summary>
+    public DshFileUploadRequest? Request { get; set; }
+}
+
+/// <summary>上传请求体</summary>
+internal sealed class DshFileUploadRequest {
+    /// <summary>base64 数据</summary>
+    public string Data { get; set; } = "";
+    /// <summary>文件名（可选）</summary>
+    public string? Name { get; set; }
+}
+
+/// <summary>fileUploads/upload 响应（receiptId 进 prompt 的 file part）</summary>
+internal sealed class DshFileUploadResult {
+    /// <summary>回执 ID（同时是 attachmentId）</summary>
+    public string ReceiptId { get; set; } = "";
+    /// <summary>文件元数据</summary>
+    public DshUploadedFileInfo File { get; set; } = new();
+}
+
+/// <summary>上传文件元数据</summary>
+internal sealed class DshUploadedFileInfo {
+    /// <summary>附件 ID</summary>
+    public string AttachmentId { get; set; } = "";
+    /// <summary>文件名</summary>
+    public string Name { get; set; } = "";
+    /// <summary>字节数</summary>
+    public int Bytes { get; set; }
+}
+
+/// <summary>附件落盘记录（{receiptId}.json）</summary>
+internal sealed class DshAttachmentRecord {
+    /// <summary>附件 ID</summary>
+    public string AttachmentId { get; set; } = "";
+    /// <summary>文件名</summary>
+    public string Name { get; set; } = "";
+    /// <summary>媒体类型（四类图片）</summary>
+    public string MediaType { get; set; } = "";
+    /// <summary>字节数</summary>
+    public int Bytes { get; set; }
+    /// <summary>宽</summary>
+    public int Width { get; set; }
+    /// <summary>高</summary>
+    public int Height { get; set; }
+}
+
+/// <summary>session/attachment 参数</summary>
+internal sealed class DshSessionAttachmentArgs {
+    /// <summary>会话/代理（上传时的 owner）</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>附件 ID</summary>
+    public string AttachmentId { get; set; } = "";
+}
+
+/// <summary>session/attachment 响应（前端聊天内图片渲染）</summary>
+internal sealed class DshSessionAttachmentResult {
+    /// <summary>附件元数据</summary>
+    public DshAttachmentInfo Attachment { get; set; } = new();
+    /// <summary>base64 数据</summary>
+    public string Data { get; set; } = "";
+}
+
+/// <summary>附件元数据</summary>
+internal sealed class DshAttachmentInfo {
+    /// <summary>附件 ID</summary>
+    public string AttachmentId { get; set; } = "";
+    /// <summary>媒体类型</summary>
+    public string MediaType { get; set; } = "";
+    /// <summary>字节数</summary>
+    public int Bytes { get; set; }
+    /// <summary>宽</summary>
+    public int Width { get; set; }
+    /// <summary>高</summary>
+    public int Height { get; set; }
+    /// <summary>文件名</summary>
+    public string? Name { get; set; }
+}
+
 /// <summary>workspaceFiles 四方法共用参数（前端 lookup 字段 workspaceFileScopeId 即 sessionId）</summary>
 internal sealed class DshWorkspaceFilesArgs {
     /// <summary>会话 ID（文件树根 = 会话 cwd）</summary>
@@ -1313,5 +1395,10 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshWorkspaceFilesReadResult))]
 [JsonSerializable(typeof(DshWorkspaceFilesReadBytesResult))]
 [JsonSerializable(typeof(DshWorkspaceFilesStatResult))]
+[JsonSerializable(typeof(DshFileUploadsUploadArgs))]
+[JsonSerializable(typeof(DshFileUploadResult))]
+[JsonSerializable(typeof(DshAttachmentRecord))]
+[JsonSerializable(typeof(DshSessionAttachmentArgs))]
+[JsonSerializable(typeof(DshSessionAttachmentResult))]
 [JsonSerializable(typeof(object))]
 internal sealed partial class DshJsonContext : JsonSerializerContext;

@@ -19,6 +19,7 @@ internal sealed class DshHostServices {
         Streams = new DshSessionStreamHub(Journal);
         Approvals = new DshApprovalBroker();
         WorkspaceFiles = new DshWorkspaceFilesService(Sessions, fileSystem);
+        Attachments = new DshAttachmentStore(fileSystem);
     }
 
     /// <summary>自有引擎会话门面（组装完成后注入；未就绪时发送消息返回引导错误）</summary>
@@ -51,4 +52,7 @@ internal sealed class DshHostServices {
 
     /// <summary>工作区文件树（workspaceFiles/list|read|readBytes|stat，TASK058 P2-B1）</summary>
     internal DshWorkspaceFilesService WorkspaceFiles { get; }
+
+    /// <summary>附件存储（fileUploads/upload 与 session/attachment，TASK058 P2-B2）</summary>
+    internal DshAttachmentStore Attachments { get; }
 }

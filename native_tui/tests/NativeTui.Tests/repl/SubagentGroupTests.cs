@@ -472,7 +472,7 @@ public sealed class SubagentGroupTests
 
         driver.Apply(new BridgeEvent.SubagentStarted("a1", "explore", "搜索"));
         driver.Apply(new BridgeEvent.SubagentToolUse("a1", "Read", "file.cs", 100));
-        driver.Apply(new BridgeEvent.SubagentFinished("a1", IsError: false));
+        driver.Apply(new BridgeEvent.SubagentFinished("a1", IsError: false, TokenTotal: 0));
 
         var group = view.Messages.Items.OfType<SubagentGroupItem>().Single();
         Assert.Equal(1, group.Coordinator.Count);
@@ -507,7 +507,7 @@ public sealed class SubagentGroupTests
         var (driver, view, _) = CreateDriver();
 
         driver.Apply(new BridgeEvent.SubagentToolUse("ghost", "Read", "f", 1));
-        driver.Apply(new BridgeEvent.SubagentFinished("ghost", IsError: false));
+        driver.Apply(new BridgeEvent.SubagentFinished("ghost", IsError: false, TokenTotal: 0));
 
         Assert.DoesNotContain(view.Messages.Items, m => m is SubagentGroupItem);
     }

@@ -39,8 +39,8 @@ public sealed class BridgeEventConsumerTests {
         consumer.OnDone(null, null);
 
         Assert.Equal(
-            "{\"type\":\"token_delta\",\"length\":6}\n" +
-            "{\"type\":\"token_delta\",\"length\":5}\n" +
+            "{\"type\":\"token_delta\",\"length\":6,\"text\":\"Hello \"}\n" +
+            "{\"type\":\"token_delta\",\"length\":5,\"text\":\"World\"}\n" +
             "{\"type\":\"assistant_message\",\"text\":\"Hello World\"}\n",
             @out.ToString());
     }
@@ -59,7 +59,7 @@ public sealed class BridgeEventConsumerTests {
         Assert.Equal(
             "{\"type\":\"thinking_started\"}\n" +
             "{\"type\":\"thinking_ended\",\"durationMs\":2500}\n" +
-            "{\"type\":\"token_delta\",\"length\":2}\n" +
+            "{\"type\":\"token_delta\",\"length\":2,\"text\":\"产出\"}\n" +
             "{\"type\":\"assistant_message\",\"text\":\"产出\"}\n",
             @out.ToString());
     }
@@ -173,9 +173,9 @@ public sealed class BridgeEventConsumerTests {
         Assert.Equal(
             "{\"type\":\"thinking_started\"}\n" +
             "{\"type\":\"thinking_ended\",\"durationMs\":1000}\n" +
-            "{\"type\":\"token_delta\",\"length\":3}\n" +
+            "{\"type\":\"token_delta\",\"length\":3,\"text\":\"第一轮\"}\n" +
             "{\"type\":\"assistant_message\",\"text\":\"第一轮\"}\n" +
-            "{\"type\":\"token_delta\",\"length\":3}\n" +
+            "{\"type\":\"token_delta\",\"length\":3,\"text\":\"第二轮\"}\n" +
             "{\"type\":\"assistant_message\",\"text\":\"第二轮\"}\n",
             @out.ToString());
     }
@@ -196,7 +196,7 @@ public sealed class BridgeEventConsumerTests {
         Assert.Equal(
             "{\"type\":\"thinking_started\"}\n" +
             "{\"type\":\"thinking_ended\",\"durationMs\":1000}\n" +
-            "{\"type\":\"token_delta\",\"length\":1}\n" +
+            "{\"type\":\"token_delta\",\"length\":1,\"text\":\"t\"}\n" +
             "{\"type\":\"assistant_message\",\"text\":\"t\"}\n",
             @out.ToString());
     }

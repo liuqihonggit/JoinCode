@@ -30,13 +30,13 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
         _thinkingSignalled = false;
     }
 
-    /// <summary>收到文本内容 → token_delta(length)；思考结束时结算 thinking_ended。</summary>
+    /// <summary>收到文本内容 → token_delta(length, text)（M8-1 逐字流式 — 携带增量文本，TUI StreamingTextItem 消费）；思考结束时结算 thinking_ended。</summary>
     public void OnText(string content) {
         EndThinkingIfActive();
         if (content.Length == 0)
             return;
         _fullResponse.Append(content);
-        WriteEvent(new Cli.Bridge.BridgeEvent.TokenDelta(content.Length));
+        WriteEvent(new Cli.Bridge.BridgeEvent.TokenDelta(content.Length, content));
     }
 
     /// <summary>收到思考内容 — 回合内首个思考发 thinking_started 并记录墙钟（回合内单次信号，Reset 后新回合再发）。</summary>

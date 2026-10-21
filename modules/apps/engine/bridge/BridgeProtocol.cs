@@ -113,8 +113,13 @@ public abstract record BridgeEvent
     public sealed record ToolResult(string Summary,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] BridgeDiffHunk[]? Patch = null) : BridgeEvent;
 
-    /// <summary>流式 token 增量（spinner ResponseLength 累加）。</summary>
-    public sealed record TokenDelta(int Length) : BridgeEvent;
+    /// <summary>
+    /// 流式 token 增量（spinner ResponseLength 累加）。M8-1 逐字流式 — 与 native_tui 侧镜像：
+    /// Text 携带本次增量文本（TUI StreamingTextItem 原地追加）；null 不输出字段（WhenWritingNull —
+    /// 旧 TUI 纯计数形态逐字节兼容）。
+    /// </summary>
+    public sealed record TokenDelta(int Length,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Text = null) : BridgeEvent;
 
     /// <summary>子代理启动（DSG041 批3 — 与 native_tui 侧 BridgeEvent.SubagentStarted 逐字段镜像；
     /// 同回合内全部子代理归一组，TUI 侧 SubagentGroupCoordinator 建组条目）。</summary>

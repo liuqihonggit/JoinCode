@@ -57,7 +57,8 @@ public sealed class SimulatedEngineTests
         var result = Assert.IsType<BridgeEvent.ToolResult>(events.First(e => e is BridgeEvent.ToolResult));
         Assert.NotNull(result.Patch);
         Assert.All(result.Patch, hunk => Assert.False(string.IsNullOrEmpty(hunk.Header)));
-        Assert.Contains(events, e => e is BridgeEvent.TokenDelta { Length: 9 });
+        // M8-1：进入 Responding 即开始逐字流式 — 首拍发带文本增量（预分片首段）
+        Assert.Contains(events, e => e is BridgeEvent.TokenDelta { Length: > 0, Text: { Length: > 0 } });
     }
 
     /// <summary>虚拟时钟 5.5s：回合完成，产出 AssistantMessage + TurnCompleted，后续拍空。</summary>

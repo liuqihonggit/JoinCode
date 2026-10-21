@@ -43,13 +43,13 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         _thinkingTotalMs = 0;
     }
 
-    /// <summary>收到文本内容 → token_delta(length)；思考结束时结算 thinking_ended。</summary>
+    /// <summary>收到文本内容 → token_delta(length, text)（M8-1 逐字流式 — 携带增量文本供 StreamingTextItem 原地追加）；思考结束时结算 thinking_ended。</summary>
     public void OnText(string content) {
         EndThinkingIfActive();
         if (content.Length == 0)
             return;
         _fullResponse.Append(content);
-        _events.Enqueue(new BridgeEvent.TokenDelta(content.Length));
+        _events.Enqueue(new BridgeEvent.TokenDelta(content.Length, content));
     }
 
     /// <summary>收到思考内容 — 回合内首个思考发 thinking_started（回合内单次信号，Reset 后新回合再发）；

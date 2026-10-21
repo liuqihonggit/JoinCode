@@ -61,8 +61,13 @@ public abstract record BridgeEvent
     /// </summary>
     public sealed record PermissionRequest(string ToolName, string Description) : BridgeEvent;
 
-    /// <summary>流式 token 增量（spinner ResponseLength 累加）。</summary>
-    public sealed record TokenDelta(int Length) : BridgeEvent;
+    /// <summary>
+    /// 流式 token 增量（spinner ResponseLength 累加）。M8-1 逐字流式：Text 携带本次增量文本
+    /// （渲染层 StreamingTextItem 原地追加 — 对齐基准流式行）；null 不输出字段（WhenWritingNull —
+    /// 旧引擎纯计数形态逐字节兼容，Length 语义保留供 spinner 计数）。
+    /// </summary>
+    public sealed record TokenDelta(int Length,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Text = null) : BridgeEvent;
 
     /// <summary>
     /// 完整助手消息（追加滚动区）。Markdown 非空时渲染为块模型（M7-4）；

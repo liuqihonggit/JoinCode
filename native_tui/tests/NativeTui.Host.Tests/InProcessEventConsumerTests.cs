@@ -27,6 +27,20 @@ public sealed class InProcessEventConsumerTests
         Assert.Empty(consumer.DrainEvents());
     }
 
+    /// <summary>M8-1 逐字流式 — OnText 发携带文本的 TokenDelta（渲染层 StreamingTextItem 消费）。</summary>
+    [Fact]
+    public void OnText_EmitsTokenDeltaWithTextContent()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnText("你好");
+
+        var events = consumer.DrainEvents();
+        var delta = Assert.IsType<BridgeEvent.TokenDelta>(events[0]);
+        Assert.Equal("你好", delta.Text);
+        Assert.Equal(2, delta.Length);
+    }
+
     /// <summary>子代理三回调映射（DSG041 批4）— OnSubagentStarted/OnSubagentToolUse/OnSubagentFinished
     /// → SubagentStarted/SubagentToolUse/SubagentFinished 内存事件（ReplBridgeDriver 路由既有，零改动验收面）。</summary>
     [Fact]

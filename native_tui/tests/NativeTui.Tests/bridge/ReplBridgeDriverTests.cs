@@ -265,4 +265,107 @@ public sealed class ReplBridgeDriverTests
         Assert.False(_spinner.HasActiveTools);
         Assert.Equal(string.Empty, _spinner.Message);
     }
+
+    [Fact]
+    public void Apply_TokenDeltaWithText_CreatesStreamingItemBeforeSpinner()
+    {
+        _driver.BeginTurn();
+
+        _driver.Apply(new BridgeEvent.TokenDelta(5, "hello"));
+
+        var streaming = Assert.IsType<StreamingTextItem>(_view.Messages.Items[^2]);
+        Assert.Equal("hello", streaming.Text);
+        Assert.Same(_spinner, _view.Messages.Items[^1]);
+        Assert.Equal(SpinnerMode.Responding, _spinner.Mode);
+        Assert.Equal(5, _spinner.ResponseLength);
+    }
+
+    [Fact]
+    public void Apply_SubsequentTokenDelta_AppendsToSameStreamingItem()
+    {
+        _driver.BeginTurn();
+        _driver.Apply(new BridgeEvent.TokenDelta(5, "hello"));
+        var streaming = Assert.IsType<StreamingTextItem>(_view.Messages.Items[^2]);
+
+        _driver.Apply(new BridgeEvent.TokenDelta(6, " world"));
+
+        Assert.Same(streaming, _view.Messages.Items[^2]);
+        Assert.Equal("hello world", streaming.Text);
+        Assert.Equal(11, _spinner.ResponseLength);
+    }
+
+    [Fact]
+    public void Apply_TokenDeltaWithoutText_KeepsSpinnerCounterOnly()
+    {
+        _driver.BeginTurn();
+
+        _driver.Apply(new BridgeEvent.TokenDelta(9));
+
+        Assert.Equal(2, _view.Messages.Count);
+        Assert.Equal(9, _spinner.ResponseLength);
+    }
+
+    [Fact]
+    public void Apply_AssistantMessage_ReplacesStreamingItemInPlace()
+    {
+        _driver.BeginTurn();
+        _driver.Apply(new BridgeEvent.TokenDelta(5, "hello"));
+        var streamingIndex = _view.Messages.Count - 2;
+
+        _driver.Apply(new BridgeEvent.AssistantMessage("hello world", MessageId: 1));
+
+        // 流式项被完整消息替换（原位置），不残留流式项
+        var final = Assert.IsType<AssistantMessageItem>(_view.Messages.Items[streamingIndex]);
+        Assert.Equal("hello world", final.Text);
+        Assert.DoesNotContain(_view.Messages.Items, static item => item is StreamingTextItem);
+        Assert.Same(_spinner, _view.Messages.Items[^1]);
+    }
+
+    [Fact]
+    public void Apply_AssistantMessageWithoutStreaming_AppendsDirectly()
+    {
+        _driver.BeginTurn();
+
+        _driver.Apply(new BridgeEvent.AssistantMessage("direct", MessageId: 1));
+
+        var final = Assert.IsType<AssistantMessageItem>(_view.Messages.Items[^2]);
+        Assert.Equal("direct", final.Text);
+    }
+
+    [Fact]
+    public void EndTurn_WithLeftoverStreamingText_FinalizesAsPartialAssistantMessage()
+    {
+        // 打断场景（M8-1 兜底）：引擎被打断时 OnDone 不发，流式 buffer 残留 →
+        // EndTurn 定格为 partial AssistantMessage（基准 [user, partial, interrupted] 顺序）
+        _driver.BeginTurn();
+        _driver.Apply(new BridgeEvent.TokenDelta(7, "partial "));
+
+        _driver.EndTurn();
+
+        var final = Assert.IsType<AssistantMessageItem>(_view.Messages.Items[^2]);
+        Assert.Equal("partial ", final.Text);
+        Assert.DoesNotContain(_view.Messages.Items, static item => item is StreamingTextItem);
+    }
+
+    [Fact]
+    public void EndTurn_WithEmptyStreamingLeftover_RemovesItem()
+    {
+        _driver.BeginTurn();
+        _driver.Apply(new BridgeEvent.TokenDelta(3, "abc"));
+        _driver.Apply(new BridgeEvent.AssistantMessage("abc", MessageId: 1));
+
+        _driver.EndTurn();
+
+        Assert.DoesNotContain(_view.Messages.Items, static item => item is StreamingTextItem);
+    }
+
+    [Fact]
+    public void BeginTurn_ClearsLeftoverStreamingItem()
+    {
+        _driver.Apply(new BridgeEvent.TokenDelta(5, "residual"));
+
+        _driver.BeginTurn();
+
+        Assert.DoesNotContain(_view.Messages.Items, static item => item is StreamingTextItem);
+    }
 }

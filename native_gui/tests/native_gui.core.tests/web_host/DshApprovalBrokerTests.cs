@@ -257,6 +257,33 @@ public sealed class DshApprovalBrokerTests {
         AuditSnapshot(audit).Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task CloseTurn_WaitsForDetachedAudit_SoPairStillLandsInsideTurn() {
+        // 断流（前端刷新/关页）时挂起确认的审计补写是后台任务（释放路径禁阻塞，ADR 0093）；
+        // 轮次收尾必须等它落库，否则 approval/decided 会排到 turn/end 之后 —— 违反 DSH「审计对被开放轮次包住」。
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var decided = 0;
+        _broker.Audit = async (_, type, _) => {
+            if (type == "approval/decided") {
+                await gate.Task;
+                Interlocked.Increment(ref decided);
+            }
+        };
+        _broker.SetAgent("s1");
+        var (_, signal) = AttachCapture();
+        var pending = _broker.RequestAsync(EngineRequest());
+        await WaitFrameAsync(signal);
+
+        _broker.Detach();
+        (await pending).Should().Be(PermissionConfirmationDecision.Deny);
+
+        var close = _broker.CloseTurnAsync("s1");
+        close.IsCompleted.Should().BeFalse("断流补写的审计未落库前，轮次收尾不得返回（decided 会落到 turn/end 之后）");
+        gate.SetResult();
+        await close;
+        decided.Should().Be(1);
+    }
+
     /// <summary>构造 $events/result 请求体（DTO + JsonContext，与前端 connection.rpc.call 载荷同形状）</summary>
     private static JsonElement ResultArgs(string clientId, string eventId, DshEventOutcome outcome) =>
         JsonSerializer.SerializeToElement(

@@ -127,28 +127,40 @@ internal sealed class DshTurnRunner {
             GuiDiag.Log($"[DSH-WEB] turn stream done session={sessionId} events={events} chars={content.Length} thinking={thinking.Length}");
             await PublishReplyAsync(sessionId, turn, thinking.Length > 0 ? thinking.ToString() : null, content.ToString(), usage, engine);
             await PublishWorkflowRunEndAsync(sessionId, agents, "completed");
-            await EndTurnAsync(sessionId, turn, new DshTurnEndReason { Kind = "completed" });
+            await FinishTurnAsync(sessionId, turn, new DshTurnEndReason { Kind = "completed" });
         } catch (OperationCanceledException) {
             GuiDiag.Log($"[DSH-WEB] turn cancelled session={sessionId} turn={turn}");
             await PublishWorkflowRunEndAsync(sessionId, agents, "cancelled");
-            await EndTurnAsync(sessionId, turn, new DshTurnEndReason {
+            await FinishTurnAsync(sessionId, turn, new DshTurnEndReason {
                 Kind = "aborted",
                 Reason = new DshTurnEndCancelCause { Kind = "user" },
             });
         } catch (Exception ex) {
             GuiDiag.Log($"[DSH-WEB] turn failed session={sessionId} turn={turn}: {ex.Message}");
             await PublishWorkflowRunEndAsync(sessionId, agents, "error");
-            await EndTurnAsync(sessionId, turn, new DshTurnEndReason {
+            await FinishTurnAsync(sessionId, turn, new DshTurnEndReason {
                 Kind = "error",
                 Error = new DshTurnEndError { Code = "UNKNOWN", Message = ex.Message },
             });
         } finally {
-            await _services.Approvals.CloseTurnAsync(sessionId);
             _services.Streams.EndTurn(sessionId);
             if (_services.Engine is { } ready) {
                 StartQueued(ready, sessionId);
             }
         }
+    }
+
+    /// <summary>
+    /// 收尾一轮：**先**结清审批审计对（挂起确认结算 + 断流补写排空），**再**落 <c>turn/end</c>。
+    /// 顺序不可颠倒：DSH 要求 <c>approval/asked</c>/<c>approval/decided</c> 必须被开放轮次包住
+    /// （<c>invariant.js</c> 判定 outside an open turn 即错），取消/失败路径同样适用。
+    /// </summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="turn">轮次号</param>
+    /// <param name="reason">轮次结束原因</param>
+    private async Task FinishTurnAsync(string sessionId, int turn, DshTurnEndReason reason) {
+        await _services.Approvals.CloseTurnAsync(sessionId);
+        await EndTurnAsync(sessionId, turn, reason);
     }
 
     /// <summary>发布子代理事件族（agent start/end → tool-workflow，TASK058 B6）</summary>

@@ -53,6 +53,13 @@ internal sealed class DshApprovalBroker {
     /// <summary>连接状态读写锁（volatile 元组不可用；读写互斥保护 _events 与 _pending 的结算一致性）</summary>
     private readonly object _gate = new();
 
+    /// <summary>
+    /// 断流补写的审计写入屏障：<see cref="Detach"/> 的审计是后台任务（释放路径禁阻塞，ADR 0093），
+    /// 这里累积它们的完成任务，由 <see cref="CloseTurnAsync"/> 在轮次收尾前排空 ——
+    /// 否则 <c>approval/decided</c> 可能排到 <c>turn/end</c> 之后，违反 DSH「审计对被开放轮次包住」。
+    /// </summary>
+    private Task _detachedAudit = Task.CompletedTask;
+
     /// <summary>$events 流关闭时摘除通道：挂起中的请求立即拒绝（不挂引擎轮次），后续请求直接拒绝</summary>
     internal void Detach() {
         lock (_gate) { _events = null; }
@@ -62,9 +69,10 @@ internal sealed class DshApprovalBroker {
                 orphans.Add(removed);
             }
         }
-        // 释放路径禁止阻塞，审计 decided 交后台补写（无前端可回放，仅日志卫生）
+        // 释放路径禁止阻塞：审计 decided 交后台补写，并把补写任务挂进屏障供轮次收尾排空（无前端可回放，仅日志卫生）
         foreach (var orphan in orphans) {
-            _ = SettleAsync(orphan, DeniedUnavailable);
+            var settle = SettleAsync(orphan, DeniedUnavailable);
+            lock (_gate) { _detachedAudit = Task.WhenAll(_detachedAudit, settle); }
         }
         GuiDiag.Log("[DSH-APPROVAL] events stream detached: pending requests denied");
     }
@@ -73,12 +81,12 @@ internal sealed class DshApprovalBroker {
     internal void SetAgent(string? sessionId) => _agentId = sessionId;
 
     /// <summary>
-    /// 轮次收尾：清空 waterfall 目标会话，并把该会话仍挂起的确认结算为 cancelled
-    /// （对齐 DSH：signal aborted → cancelled；同时避免挂起请求在轮次结束后残留）。
+    /// 轮次收尾：清空 waterfall 目标会话，把该会话仍挂起的确认结算为 cancelled，并排空断流补写的审计。
+    /// （对齐 DSH：signal aborted → cancelled；同时避免挂起请求在轮次结束后残留）
     /// 必须在 <c>Streams.EndTurn</c> 之前调用，审计对才仍被本轮包住。
     /// </summary>
     /// <param name="sessionId">轮次所属会话</param>
-    /// <returns>结算完成的任务</returns>
+    /// <returns>结算与审计落库完成的任务</returns>
     internal async Task CloseTurnAsync(string sessionId) {
         _agentId = null;
         var orphans = new List<Pending>();
@@ -90,6 +98,26 @@ internal sealed class DshApprovalBroker {
         foreach (var orphan in orphans) {
             await SettleAsync(orphan, DeniedCancelled);
         }
+        // 排空断流补写（含并发新到的）：审计必须是发起调用者的责任，返回时保证 decided 已落库
+        while (true) {
+            var barrier = DetachedAuditBarrier();
+            await barrier;
+            if (!DetachedAuditReplaced(barrier)) {
+                break;
+            }
+        }
+    }
+
+    /// <summary>同步读取断流审计屏障（lock 收敛在同步方法内，规避 async 方法持锁，JCC4001）</summary>
+    private Task DetachedAuditBarrier() {
+        lock (_gate) { return _detachedAudit; }
+    }
+
+    /// <summary>同步判定屏障是否已被新到任务替换（同上：避免 async 方法持锁）</summary>
+    /// <param name="barrier">先前读取到的屏障</param>
+    /// <returns>是否已被替换</returns>
+    private bool DetachedAuditReplaced(Task barrier) {
+        lock (_gate) { return !ReferenceEquals(_detachedAudit, barrier); }
     }
 
     /// <summary>

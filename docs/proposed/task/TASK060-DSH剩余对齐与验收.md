@@ -104,20 +104,41 @@
 | `DshApprovalAskedData` / `DshApprovalDecidedData` DTO（`ToolName`/`CallId`/`Reason`/`Outcome`，`DshJsonContext` camelCase） | `approval/asked` / `approval/decided` 会话事件的序列化 | ✅ | ✅ 日志实测形状 `{"id":"11123f8d…","toolName":"read","callId":null,"reason":"读取路径 …\approval-probe.txt 需要用户确认。"}` 与 `{"id":"11123f8d…","outcome":"rejected"}`；`id` 非空、`decided.id == asked.id` |
 | `DshSessionStreamHub.PublishElementAsync`（分配 seq + `DshSessionJournal` 落盘 + 推送订阅者） | 审计事件写会话日志并进入 `$events` 流 | ✅ | ✅ 事件流实测 `turn/start,step/start,user/message,tool/call,approval/asked,approval/decided,tool/result,assistant/message,step/end,turn/end` |
 | `DshApprovalBroker.RequestAsync` / `SettleAsync` / `AppendAuditAsync`（`asked` 在发帧前落，`decided` 由 `TrySetResult` 赢家只落一次） | 每轮审批恰好一对审计事件 | ✅ | ✅ `asked` 紧跟 `tool/call`、`decided` 早于 `tool/result`；拒绝轮 `outcome=rejected`、允许轮 `outcome=allowed-once` |
-| `DshTurnRunner` finally → `Approvals.CloseTurnAsync(sessionId)`（先结清审计对，再 `Streams.EndTurn`） | 审计对必须被本轮 `hasOpenTurn` 包住（DSH invariant 否则抛 "outside an open turn"） | ✅ | ✅ 实测 `turn/start(=0) < asked(=4) < decided(=5) < turn/end(=9)`；两轮均以 `turn/end{kind:"completed"}` 收尾 |
+| `DshTurnRunner.FinishTurnAsync`（**先** `Approvals.CloseTurnAsync` 结清审计对，**再** `EndTurnAsync` 落 `step/end`+`turn/end`），三个分支（completed/aborted/error）统一走它，`finally` 不再关轮 | 审计对必须被本轮 `hasOpenTurn` 包住（DSH invariant 否则抛 "outside an open turn"），取消/失败路径同样适用 | ✅ | ✅ 完成轮 `turn/start(=0) < asked(=4) < decided(=5) < turn/end(=9)`；取消轮改前 `decided(=8) > turn/end(=7)`（违规）→ 改后 `decided(=6) < turn/end(=8)` |
 | `DshSessionStore.SnapshotAsync`（不过滤事件类型）+ 前端历史渲染 | 刷新后审计事件随快照回放 | ✅ | ✅ 刷新后回放到 `approval/asked`、`approval/decided + allowed-once`、以及 `rejected` 判定，界面同时渲染历史问答 |
-| 单测 `DshApprovalBrokerTests` 新增 6 例（词表映射 / 无开放轮次跳过 / 监听者抛错→`unavailable` / 关轮→`cancelled` 且闭环） | 审计语义的确定性验证（不依赖真机） | ✅ | ✅ `dotnet test native_gui/tests/join_code_gui.tests` = **276 通过 / 0 失败**（原 270 + 6）；真机 `ALL_PASS`（48/48，连跑两次） |
+| 单测 `DshApprovalBrokerTests` 新增 7 例（词表映射 / 无开放轮次跳过 / 监听者抛错→`unavailable` / 关轮→`cancelled` 且闭环 / 关轮等待断流补写屏障） | 审计语义的确定性验证（不依赖真机） | ✅ | ✅ `dotnet test native_gui/tests/join_code_gui.tests` = **277 通过 / 0 失败**（原 270 + 7）；真机 `ALL_PASS`（48/48，连跑三次） |
+
+### B12 边界验收（detach / cancel，脚本 `dumps/dsh-webui-approval-edges.mjs`）
+
+非正常路径同样要求「询问与判定成对、且被本轮包住」。合并「最后一次 `snapshot.records`」与「live `$events` 事件帧」后断言 `turn/start < asked < decided < turn/end`、`decided.id == asked.id`、`outcome` 词表、工具 `isError`、哨兵未入流。
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|----------|--------|--------|--------|
+| `DshApprovalBroker.Detach`（`$events` 断开 → 挂起请求 Deny + `unavailable` 审计）+ `_detachedAudit` 屏障（`Task.WhenAll` 累积 fire-and-forget 补写） | detach 路径：前端不回答直接刷新页面 | ✅ | ✅ `ALL_PASS`：`outcome=unavailable`、工具 `isError=true`、哨兵未入流、`0/4/5/9` 轮内闭合 |
+| `CloseTurnAsync` 排空 `_detachedAudit` 屏障（同步 helper 取锁，规避 async 持锁 JCC4001） | 关轮返回时保证 `decided` 已落库，不会晚于 `turn/end` | ✅ | ✅ `ALL_PASS`：cancel 路径 `outcome=cancelled`、`turn/end{kind:"aborted",reason:{kind:"user"}}`、`running=false`、`0/4/6/8` 轮内闭合 |
+| 红→绿证据 | 缺陷驱动（TDD 铁律2） | ✅ | ✅ 先红：新单测 `CloseTurn_WaitsForDetachedAudit_SoPairStillLandsInsideTurn` 失败（`失败: 1，通过: 17，总计: 18`）；后绿：同过滤集 `18/18`，全量 `277/0` |
+
+回归（本轮改动后全跑）：`approval` 48/48、`edges` ALL_PASS、`prompt`/`tool`/`queue`/`cancel`/`reload`/`history` 全 `ALL_PASS`；`NativeGui.Host` Debug 编译 0 警告。
 
 ### B12 遗留观察（不影响验收，记录备查）
 
 - **审计写入失败不阻塞审批**：`AppendAuditAsync` 只记日志（无会话 ID / 无 sink / 序列化异常都吞掉），放行流程永远不被日志问题拖死。
-- **孤儿审批后台补写**：`$events` 断开时挂起请求结算为 `unavailable`，审计补写 fire-and-forget（释放函数禁阻塞，ADR 0093）。
+- **孤儿审批后台补写**：`$events` 断开时挂起请求结算为 `unavailable`，审计补写 fire-and-forget（释放函数禁阻塞，ADR 0093）；但**关轮必须排空它**，否则 `decided` 会落到 `turn/end` 之后（本轮修复的正是这条）。
+- **取消路径比正常路径更易暴露顺序缺陷**：取消时工具结果先回（`tool/result`）、轮次立即收尾，若关轮晚于 `turn/end` 则必然违规；正常路径因工具执行耗时掩盖了竞态，故必须单独造 cancel/detach 边界脚本。
 - **E2E 选工作区必须重载页面（脚本侧）**：前端点选工作区后 composer 阶段不当帧刷新（实测停在 `data-phase=plain`），`ensureWorkspace` 统一为「点菜单项 → `page.reload()` → 等可编辑」；并容错「异步恢复会话时选择入口闪现又消失（点击途中 `element was detached`）」。自查发现 `dsh-webui-prompt.mjs` 重载后未等输入框就断言（无 `until` 的竞态），已改为确定性等待。
-- **`dsh-webui-reload.mjs` 去掉隐式耦合**：原脚本假设「侧栏第一行 = 上一条脚本留下的会话」，会话数一多就漂移。改为自建内容（普通一轮 + `USE_TOOL` 一轮）后再刷新断言，并可独立运行（自带 `ensureStub`）。
+- **`dsh-webui-reload.mjs` 去掉隐式耦合**：原脚本假设「侧栏第一行 = 上一条脚本留下的会话」，会话数一多就漂移。改为自建内容（普通一轮 + `USE_TOOL` 一轮）后再刷新断言，并可独立运行（自带 `ensureStub`）；默认会话还原已渲染历史内容时不再要求点侧栏行。
+- **窗口尺寸漂移是所有侧栏断言的共同假失败源**：真实窗口实测从 1440×900 漂到 575×425 时侧栏折叠成 rail（`div[class*=sessionRow]` 数为 0），`dsh-webui-history.mjs` 因此连续两次假失败。已在 `_e2e.mjs#connectDshPage` 统一 `page.setViewportSize({1440,900})` 固定视口，并把 `history.mjs` 从自建 CDP 连接迁到共享连接；固定 5s 等待改为等「点行后的打开快照」到达。
 - **单脚本执行必须限时**：脚本收尾 `cdp.close()` 偶发不返回（工作已完成但进程不退出），运行方对每个脚本设硬超时（≤3 分钟）并读日志判定，禁止无上限等待。
+
 
 <!-- 🤖 Auto Decision: 2026-10-21 -->
 <!-- 决策: 审批审计事件由宿主侧 DshApprovalBroker 写入会话流（Audit 委托注入 PublishElementAsync），而非引擎侧落盘 -->
 <!-- 原因: 审批是宿主与前端之间的协议对象（waterfall 帧 + $events/result 回帖），引擎只看到"工具需要确认"；审计必须与帧同一时刻产生才能保证 asked/decided 成对且轮内闭合 -->
 <!-- 替代方案: ①引擎在权限拦截层落事件（会与宿主的 eventId 体系割裂，且无法表达 unavailable/cancelled）②只在日志文件写不推进事件流（刷新回放看不到）—— 都不采用 -->
 <!-- 验证: 真机 ALL_PASS（48/48 两次）+ 单测 276/0；审计对轮内闭合断言 turn/start < asked < decided < turn/end -->
+
+<!-- 🤖 Auto Decision: 2026-10-22 -->
+<!-- 决策: 轮次收尾顺序固化为「先 CloseTurnAsync（结算 + 排空断流补写屏障）再 EndTurnAsync」，通过 DshTurnRunner.FinishTurnAsync 统一三个结束分支 -->
+<!-- 原因: 审计对必须被本轮包住；取消路径实测 decided(=8) 晚于 turn/end(=7)。根因是 fire-and-forget 的 detach 补写与异常分支直接在 EndTurnAsync 前收尾，finally 里的关轮太晚。抽 FinishTurnAsync 让"关轮"成为结束轮次的唯一入口，顺序在类型层面不可颠倒 -->
+<!-- 替代方案: ①只在 finally 提前关轮（异常分支已发 turn/end，仍违规）②审计改为同步阻塞等待（拖慢放行路径）③给审计加时间戳后置排序（掩盖问题且不符合 DSH 事件即时语义）—— 都不采用 -->
+<!-- 验证: 边界脚本 detach/cancel 全 ALL_PASS（0/4/5/9 与 0/4/6/8）；单测 277/0；approval 48/48；prompt/tool/queue/cancel/reload/history 回归全绿 -->

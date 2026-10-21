@@ -122,12 +122,18 @@ public class AsyncLockDiagnosisTests : IDisposable {
         LockRegistry.SetDiagnosticsEnabled(false);
         var messages = new ConcurrentQueue<string>();
         LockRegistry.SetDiagnosticSink(messages.Enqueue);
-        using var lk = new AsyncLock("disabled-test");
-        using (await lk.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-            await Task.Delay(60);
+        try {
+            using var lk = new AsyncLock("disabled-test");
+            using (await lk.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
+                await Task.Delay(60);
+            }
+            // 断言本锁无诊断（而非队列全空）：DiagnosticSink 是静态全局，并行测试类的锁诊断
+            // 也会进本队列 —— "全空"断言在跨类并行下偶发红（flaky 同族，LockRegistry 静态互踩）
+            messages.Should().NotContain(m => m.Contains("disabled-test"),
+                "诊断关闭时本锁不应产生任何告警");
+        } finally {
+            LockRegistry.SetDiagnosticsEnabled(true);
         }
-        messages.Should().BeEmpty("诊断关闭时不应产生任何告警");
-        LockRegistry.SetDiagnosticsEnabled(true);
     }
 
     [Fact]
@@ -142,14 +148,38 @@ public class AsyncLockDiagnosisTests : IDisposable {
 
     [Fact]
     [Trait("Category", "Timing")]
-    public Task 死锁检测_两个线程互相等待时自动检测() {
+    [Trait("Category", "Flaky")]
+    public async Task 死锁检测_两个线程互相等待时自动检测_Retry16Times() {
+        // flaky 根治（AGENTS 规范：重试16次+延长窗口）：后台 Timer 扫描在高负载（CI/本机全量并行）下回调
+        // 延迟可远超单次窗口 —— 单轮 15s 检测窗口 × 16 轮重试，全部失败才判红（run 885 及本机全量偶发红实证）。
+        // 每轮完整恢复 LockRegistry 全局（threshold/sink/扫描），防状态泄漏到下一轮。
         var originalWaitThreshold = LockRegistry.WaitTimeoutThreshold;
+        string? lastReport = null;
+        try {
+            for (var attempt = 0; attempt < 16; attempt++) {
+                var detected = await RunDeadlockRoundAsync(attempt);
+                if (detected is { } report) {
+                    return;
+                }
+                lastReport = LockRegistry.LastDeadlockReport;
+            }
+        } finally {
+            LockRegistry.StopBackgroundScan();
+            LockRegistry.SetWaitTimeoutThreshold(originalWaitThreshold);
+            LockRegistry.SetDiagnosticSink(null);
+        }
+        throw new Xunit.Sdk.XunitException(
+            $"16次重试均失败: 后台扫描在 16×15s 窗口内未检测到互相等待死锁（最后一次报告: {lastReport ?? "<null>"}）");
+    }
+
+    /// <summary>单轮死锁检测场景（两个线程经后台扫描路径互相等待）——返回检测报告字符串表示本轮命中；null=本轮未检测到</summary>
+    private static async Task<string?> RunDeadlockRoundAsync(int attempt) {
         LockRegistry.SetWaitTimeoutThreshold(TimeSpan.FromMilliseconds(100));
         LockRegistry.StartBackgroundScan(TimeSpan.FromMilliseconds(50));
         var messages = new ConcurrentQueue<string>();
         LockRegistry.SetDiagnosticSink(messages.Enqueue);
-        using var lockA = new AsyncLock("deadlock-A", TimeSpan.FromSeconds(3));
-        using var lockB = new AsyncLock("deadlock-B", TimeSpan.FromSeconds(3));
+        using var lockA = new AsyncLock($"deadlock-A-{attempt}", TimeSpan.FromSeconds(3));
+        using var lockB = new AsyncLock($"deadlock-B-{attempt}", TimeSpan.FromSeconds(3));
 
         using var barrier = new Barrier(2);
         using var t1Done = new ManualResetEventSlim();
@@ -174,20 +204,24 @@ public class AsyncLockDiagnosisTests : IDisposable {
         t1.Start();
         t2.Start();
 
-        var detected = System.Threading.SpinWait.SpinUntil(() => LockRegistry.DeadlockDetected, TimeSpan.FromSeconds(5));
-        detected.Should().BeTrue("两个线程互相等待对方持有的锁应被自动检测为死锁(5s 轮询等待,容忍 CI 调度延迟)");
-        LockRegistry.LastDeadlockReport.Should().Contain("DEADLOCK-DETECTED");
-        LockRegistry.LastDeadlockReport.Should().Contain("deadlock-A");
-        LockRegistry.LastDeadlockReport.Should().Contain("deadlock-B");
-        messages.Should().Contain(m => m.Contains("DEADLOCK-DETECTED"));
+        // 窗口 15s：CI 高负载 Timer 回调延迟留足余量（原 5s 曾被压满）
+        var detected = System.Threading.SpinWait.SpinUntil(() => LockRegistry.DeadlockDetected, TimeSpan.FromSeconds(15));
+        var report = detected ? LockRegistry.LastDeadlockReport : null;
+        if (detected) {
+            report.Should().Contain("DEADLOCK-DETECTED");
+            report.Should().Contain(lockA.Name);
+            report.Should().Contain(lockB.Name);
+            messages.Should().Contain(m => m.Contains("DEADLOCK-DETECTED"));
+        }
 
         t1Done.Wait(8000);
         t2Done.Wait(8000);
-
-        LockRegistry.StopBackgroundScan();
-        LockRegistry.SetWaitTimeoutThreshold(originalWaitThreshold);
-        LockRegistry.SetDiagnosticSink(null);
-        return Task.CompletedTask;
+        // 本轮收尾：清检测标志/报告/flow 身份（internal ClearForTesting 先例），让下一轮从干净状态开始；
+        // 锁对象带 attempt 后缀避免注册表残留互相干扰。ClearForTesting 内部会 StopBackgroundScan，
+        // 下一轮开头的 StartBackgroundScan 重新拉起
+        LockRegistry.ClearForTesting();
+        await Task.CompletedTask;
+        return report;
     }
 
     /// <summary>

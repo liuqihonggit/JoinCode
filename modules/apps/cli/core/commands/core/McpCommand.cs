@@ -241,6 +241,11 @@ public sealed class McpCliCommand {
         // 历史注释"host.Dispose() 调 Environment.Exit(210)"已过时:退出码 210 在代码中不存在,
         // 且 ExecuteServeAsync 已用 await using var appHost 验证 DisposeAsync 安全。
         await using var host = await BuildHostAsync(vendor, model, ct).ConfigureAwait(false);
+        // 单次命令等待插件后台链完成：八插件加载后台化后 registry 同步可见仅 15 个工具（gh_pr_* 全缺失），
+        // gh/mcp_call/mcp_list 查询前等 Completion 补齐工具表（长驻宿主不等待，保留启动优化收益）
+        if (host.Services.GetService<JoinCode.App.Modules.McpPluginBootstrapHandle>() is { } bootstrap) {
+            await bootstrap.Completion.WaitAsync(ct).ConfigureAwait(false);
+        }
         return await action(host.Services).ConfigureAwait(false);
     }
 

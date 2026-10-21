@@ -188,17 +188,25 @@ public sealed class UpgradeServiceUpdateTests {
             Sha256 = sha256,
             SizeBytes = content.Length
         };
-        var progressReports = new List<UpdateDownloadProgress>();
-        var progress = new Progress<UpdateDownloadProgress>(p => progressReports.Add(p));
+        // 内联同步 IProgress（禁用 Progress<T>）：Progress<T> 回调经同步上下文异步投递，
+        // DownloadUpdateAsync 返回时末条进度可能尚未执行 → 断言停在块边界偶发红（CI run 39629867210 实证：
+        // 期望 246760 实收 163840）。内联 Report 在下载线程直接调用，返回后队列必然完整
+        var progressReports = new System.Collections.Concurrent.ConcurrentQueue<UpdateDownloadProgress>();
+        IProgress<UpdateDownloadProgress> progress = new InlineProgress<UpdateDownloadProgress>(progressReports.Enqueue);
 
         var result = await service.DownloadUpdateAsync(entry, progress);
 
         result.Success.Should().BeTrue();
         progressReports.Should().NotBeEmpty();
-        progressReports[^1].BytesDownloaded.Should().Be(content.Length);
+        progressReports.Last().BytesDownloaded.Should().Be(content.Length);
 
         if (result.DownloadedPath is not null && _fs.FileExists(result.DownloadedPath))
             _fs.DeleteFile(result.DownloadedPath);
+    }
+
+    /// <summary>同步内联 IProgress — Report 在调用线程直接执行回调（无异步投递竞态，测试确定性等待用）</summary>
+    private sealed class InlineProgress<T>(Action<T> report) : IProgress<T> {
+        public void Report(T value) => report(value);
     }
 
     [Fact]

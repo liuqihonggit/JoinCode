@@ -132,6 +132,8 @@ internal interface IGhCacheService {
     Task<string?> TryGetApiAsync(string path, IReadOnlyDictionary<string, string>? query, CancellationToken ct);
     /// <summary>写入 API 缓存 — 按端点自动选择 TTL(search 2min/detail 10min/default 5min)</summary>
     Task WriteApiAsync(string path, IReadOnlyDictionary<string, string>? query, string body, CancellationToken ct);
+    /// <summary>删除指定 API 缓存 — refresh 强刷通道（key 与 TryGet/Write 同构；PR state/check-runs 等 detail 类状态查询用）</summary>
+    Task EvictApiAsync(string path, IReadOnlyDictionary<string, string>? query, CancellationToken ct);
     /// <summary>尝试读取 GraphQL 查询缓存 — 命中返回 body,未命中返回 null</summary>
     Task<string?> TryGetGraphqlAsync(string body, CancellationToken ct);
     /// <summary>写入 GraphQL 查询缓存 — TTL 5min</summary>
@@ -235,6 +237,17 @@ internal sealed class GhCacheService : IGhCacheService {
             await _kvStore.PutWithTtlAsync(keyBytes, bytes, ttl, ct).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "gh API 缓存写入失败 path={Path}", path);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task EvictApiAsync(string path, IReadOnlyDictionary<string, string>? query, CancellationToken ct) {
+        if (_kvStore is null) return;
+        var keyBytes = BuildApiCacheKey(path, query);
+        try {
+            await _kvStore.DeleteAsync(keyBytes, ct).ConfigureAwait(false);
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "gh API 缓存清除失败 path={Path}", path);
         }
     }
 

@@ -358,7 +358,7 @@ internal static class BinaryProtocol {
         return new DecodedMessage(type, sourcePid, targetPid, payload);
     }
 
-    /// <summary>持续从流异步读取消息序列，直到流结束或取消。</summary>
+    /// <summary>持续从流异步读取消息序列，直到流结束、取消或 IO 错误（对端关闭/重置以 IOException 呈现，帧错位以 InvalidDataException 呈现 — 均按流终止处理而非炸调用方）。</summary>
     /// <param name="stream">数据流。</param>
     /// <param name="ct">取消令牌。</param>
     public static async IAsyncEnumerable<DecodedMessage> ReadStreamAsync(
@@ -369,6 +369,7 @@ internal static class BinaryProtocol {
             try {
                 msg = await ReadAsync(stream, ct).ConfigureAwait(false);
             } catch (OperationCanceledException) { yield break; } catch (EndOfStreamException) { yield break; }
+            catch (IOException) { yield break; } catch (InvalidDataException) { yield break; }
             yield return msg;
         }
     }

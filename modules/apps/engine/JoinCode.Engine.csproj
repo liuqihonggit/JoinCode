@@ -34,6 +34,8 @@
     <InternalsVisibleTo Include="JoinCode.Integration.Tests" />
     <InternalsVisibleTo Include="JoinCode.MockServer.E2E.Tests" />
     <InternalsVisibleTo Include="NativeTui.Host" />
+    <!-- CLI 单次命令等待插件后台链（McpPluginBootstrapHandle.Completion — 工具表补齐守卫） -->
+    <InternalsVisibleTo Include="jcc" />
   </ItemGroup>
 
   <ItemGroup>

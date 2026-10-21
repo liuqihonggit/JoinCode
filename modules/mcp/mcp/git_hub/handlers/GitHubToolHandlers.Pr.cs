@@ -16,10 +16,14 @@ public partial class GitHubToolHandlers {
         [McpToolOptions] GitHubCommonOptions common,
         [McpToolParameter("comments=true 附带评论列表", Required = false)] bool? comments = null,
         [McpToolParameter("web=true 只返回 PR 浏览器 URL", Required = false)] bool? web = null,
+        [McpToolParameter("强制刷新缓存(默认 false,绕过 detail 10min TTL 直拉最新 state — 已知误导案例: PR 已合并仍显示 open)", Required = false)] bool? refresh = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common.Repo, common.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
             var apiPath = $"repos/{owner}/{repoName}/pulls/{number}";
+            if (refresh == true && _cacheService is { } cache) {
+                await cache.EvictApiAsync(apiPath, null, cancellationToken).ConfigureAwait(false);
+            }
             if (web == true) {
                 var prResult = await client.SendAsync(HttpMethod.Get, apiPath, ct: cancellationToken).ConfigureAwait(false);
                 if (!prResult.Success) return Fail(prResult.Error);
@@ -249,11 +253,12 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("轮询间隔秒数(可选,默认 10)", Required = false)] int? interval = null,
         [McpToolParameter("有失败立即标记(可选)", Required = false)] bool? fail_fast = null,
         [McpToolParameter("最大显示 check 数量(可选,默认全部,pass 最多 5)", Required = false)] int? limit = null,
+        [McpToolParameter("强制刷新缓存(默认 false,绕过 detail TTL 直拉最新 check-runs — 状态冻结/已 rerun 时用)", Required = false)] bool? refresh = null,
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             if (watch == true) return await GhPrChecksWatchAsync(client, owner, repoName, pr_number, interval, fail_fast, required, limit, cancellationToken).ConfigureAwait(false);
-            return await GhPrChecksCoreAsync(client, owner, repoName, pr_number, fail_fast, required, common?.JsonFields, limit, cancellationToken).ConfigureAwait(false);
+            return await GhPrChecksCoreAsync(client, owner, repoName, pr_number, fail_fast, required, common?.JsonFields, limit, refresh == true, cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -266,11 +271,16 @@ public partial class GitHubToolHandlers {
         if (tracker is not null) tracker.CacheDisabled = true;
         try {
             for (var i = 0; i < 120; i++) {
-                var checkResult = await GhPrChecksCoreAsync(client, owner, repoName, prNumber, failFast, required, null, limit, ct).ConfigureAwait(false);
+                // 每轮强制 evict（双保险：tracker.CacheDisabled 依赖 AsyncLocal 存在，直调/无 tracker 场景由此兜底）
+                var checkResult = await GhPrChecksCoreAsync(client, owner, repoName, prNumber, failFast, required, null, limit, forceRefresh: true, ct).ConfigureAwait(false);
                 if (checkResult.IsError) return checkResult;
                 var text = checkResult.GetFirstText() ?? "";
-                if (!text.Contains("进行中")) return checkResult;
-                if (failFast == true && text.Contains("失败")) return checkResult;
+                // 汇总行由 Core 唯一构造（"汇总: N 通过, N 失败, N 警告, N 进行中, N 跳过"）——
+                // 存量 bug：Contains("进行中")/"失败" 恒真（"0 进行中" 也含该词）导致 watch 永不提前返回、fail-fast 恒触发；
+                // 修正为精确子串 ", 0 进行中," / ", 0 失败,"（完成=无进行中，有失败=失败数非 0）
+                if (text.Contains(", 0 进行中,", StringComparison.Ordinal)) return checkResult;
+                var hasFailure = !text.Contains(", 0 失败,", StringComparison.Ordinal);
+                if (failFast == true && hasFailure) return checkResult;
                 await Task.Delay(delay, ct).ConfigureAwait(false);
             }
             return Ok("轮询超时，仍有 checks 进行中");
@@ -357,8 +367,11 @@ public partial class GitHubToolHandlers {
     /// GhPrChecks 核心逻辑 — 调 REST API 获取 check-runs,正确处理 skipping 语义(非失败),支持 required 过滤和 fail-fast 标记
     /// </summary>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    private async Task<ToolResult> GhPrChecksCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, bool? failFast, bool? required, string? json_fields, int? limit, CancellationToken ct) {
+    private async Task<ToolResult> GhPrChecksCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, bool? failFast, bool? required, string? json_fields, int? limit, bool forceRefresh = false, CancellationToken ct = default) {
         var number = ParseNumberFromRef(prNumber);
+        if (forceRefresh && _cacheService is { } cache) {
+            await cache.EvictApiAsync($"repos/{owner}/{repoName}/pulls/{number}", null, ct).ConfigureAwait(false);
+        }
         var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: ct).ConfigureAwait(false);
         if (!prResult.Success) return Fail(prResult.Error);
         string? headSha; string? headRef;
@@ -368,6 +381,10 @@ public partial class GitHubToolHandlers {
             headRef = prDetail?.Head?.Ref;
         } catch (Exception ex) { return Fail($"解析 PR head sha 失败: {ex.Message}"); }
         if (string.IsNullOrEmpty(headSha)) return Fail("无法从 PR 响应中解析 head.sha");
+        if (forceRefresh && _cacheService is { } checksCache) {
+            await checksCache.EvictApiAsync($"repos/{owner}/{repoName}/commits/{headSha}/check-runs",
+                new Dictionary<string, string> { ["per_page"] = "100" }, ct).ConfigureAwait(false);
+        }
         var checksResult = await client.SendAsync(
             HttpMethod.Get,
             $"repos/{owner}/{repoName}/commits/{headSha}/check-runs",

@@ -32,7 +32,8 @@
 | B9 | E2E 脚本同步：`transcript.jsonl` 优先/`.json` 回退、播种改写 JSONL、exe 路径与文档对齐 | ✅ 已验收（见 §四） |
 | B10 | 审批弹窗真机验收：桩返回需审批的工具调用 → 断言 `approval/request` waterfall → 前端面板 → `$events/result` 回帖 → 引擎按判定放行/拒绝 | ✅ 已验收（见 §五） |
 | B12 | 审批审计事件补口：`approval/asked` + `approval/decided` 轮内成对落会话日志（含刷新回放） | ✅ 已验收（见 §六） |
-| B11 | steer 引擎扩展：ADR 记录轮内注入点（Actor 邮箱/邮箱队列）→ `StreamAsync` 支持下一 step 注入 → 宿主 `mode:"steer"` 路由 + 事件投影 | ⬜ |
+| B11 | steer 引擎扩展：ADR 记录轮内注入点（Actor 邮箱/邮箱队列）→ `StreamAsync` 支持下一 step 注入 → 宿主 `mode:"steer"` 路由 + 事件投影 | ✅ 已验收（见 §七） |
+| B13 | assistant-stream 逐字流式：宿主合成 DSH 瞬态 start/chunk/end 帧 + 快照基线 → 前端逐字渲染 | ✅ 已验收（见 §八） |
 
 ## 四、B9 验收（四列）
 

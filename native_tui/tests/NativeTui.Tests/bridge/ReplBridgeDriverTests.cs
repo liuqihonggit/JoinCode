@@ -188,7 +188,7 @@ public sealed class ReplBridgeDriverTests
     }
 
     [Fact]
-    public void Apply_ToolResultWithPatch_AppendsDiffResultItem()
+    public void Apply_ToolResultWithPatch_AppendsToolResultItemUnifiedContract()
     {
         var hunks = new[]
         {
@@ -197,7 +197,7 @@ public sealed class ReplBridgeDriverTests
 
         _driver.Apply(new BridgeEvent.ToolResult("Edited a.cs", hunks));
 
-        var item = Assert.IsType<DiffResultItem>(_view.Messages.Items[^2]);
+        var item = Assert.IsType<ToolResultItem>(_view.Messages.Items[^2]);
         Assert.Equal("Edited a.cs", item.Summary);
         Assert.Same(hunks, item.Patch);
         Assert.Same(_spinner, _view.Messages.Items[^1]);

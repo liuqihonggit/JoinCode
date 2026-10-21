@@ -37,14 +37,26 @@ public static class MessageRenderer
         screen.WriteText(frame.Y, frame.X + 2, text, style, frame.Right);
     }
 
-    /// <summary>渲染工具调用消息：● + 空格 + bold 工具名 + 默认样式 (参数摘要)，名字与摘要间无间隔。</summary>
+    /// <summary>
+    /// 渲染工具调用消息：● + 空格 + bold 工具名 + 默认样式 (参数摘要)，名字与摘要间无间隔。
+    /// 参数含换行时多行显示（Bash 多行命令 — 基准 Ink wrap 语义）：首行 "(" + 首段不闭合，
+    /// 续行缩进对齐参数列（工具名后括号列），末行尾闭合括号（基准 AssistantToolUseMessage 括号包全文）。
+    /// </summary>
     public static void RenderToolCall(Screen screen, Rect frame, Theme theme, string toolName, string args)
     {
         var bullet = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Text });
         var bold = screen.Styles.GetOrAdd(new TextStyle { Bold = true });
         screen.WriteText(frame.Y, frame.X, $"{Figures.MessageBullet} ", bullet, frame.Right);
         var col = screen.WriteText(frame.Y, frame.X + 2, toolName, bold, frame.Right);
-        screen.WriteText(frame.Y, col, $"({args})", 0, frame.Right);
+        var lines = args.Split('\n');
+        var firstSegment = lines[0].TrimEnd('\r');
+        screen.WriteText(frame.Y, col, lines.Length == 1 ? $"({firstSegment})" : $"({firstSegment}", 0, frame.Right);
+        for (var i = 1; i < lines.Length; i++)
+        {
+            var text = lines[i].TrimEnd('\r');
+            var isLast = i == lines.Length - 1;
+            screen.WriteText(frame.Y + i, col, isLast ? $"{text})" : text, 0, frame.Right);
+        }
     }
 
     /// <summary>渲染工具结果消息："  ⎿  " 前缀整体 dim（单一 Text span），正文默认样式。</summary>
@@ -55,17 +67,15 @@ public static class MessageRenderer
         screen.WriteText(frame.Y, frame.X + Figures.ToolResultIndent.Length, text, 0, frame.Right);
     }
 
-    /// <summary>渲染思考摘要行（TASK062 结构化消息）：⎿ 前缀 + "思考 {秒} · ctrl+o 展开推理"（收起态）/
-    /// "思考 {秒} ▾"（展开态），整行 dim（基准思考块折叠形态；时长 &lt;1s 显示小数）。</summary>
+    /// <summary>渲染思考摘要行（结构化消息）：∴ 前缀 + "思考"（收起态带 " · ctrl+o 展开推理" /
+    /// 展开态 " ▾"），整行 dim。时长不在此行显示 — 归 spinner 行 "thought for Ns"（对齐基准
+    /// SpinnerAnimationRow thinkingStatus 口径；durationMs 参数仅为既有调用方兼容保留，
+    /// 渲染不消费）。</summary>
     public static void RenderThinkingSummary(Screen screen, Rect frame, Theme theme, int durationMs, bool expanded)
     {
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
-        var seconds = durationMs / 1000.0;
-        var label = seconds >= 1
-            ? $"思考 {seconds:F0}s"
-            : $"思考 {seconds:F1}s";
         var suffix = expanded ? " ▾" : " · ctrl+o 展开推理";
-        screen.WriteText(frame.Y, frame.X, $"{Figures.ToolResultIndent}{label}{suffix}", dim, frame.Right);
+        screen.WriteText(frame.Y, frame.X, $"{Figures.ThereforeSign} 思考{suffix}", dim, frame.Right);
     }
 
     /// <summary>渲染思考内容行（展开态 CoT 全文）：⎿ 前缀 + 2 空格缩进 dim 正文（逐行 — 换行拆分多行渲染）。</summary>
@@ -145,6 +155,69 @@ public static class MessageRenderer
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
         screen.WriteText(frame.Y, frame.X, $"{Figures.ToolResultIndent}{lastArgs}", dim, frame.Right);
     }
+
+    /// <summary>
+    /// 渲染工具输出续行（折叠首行之后的后续行）— ToolResultIndent 等宽空格缩进（5 列）+ 行内容默认样式
+    ///（基准 MessageResponse row 布局：⎿ 前缀列固定，续行在右列 wrap 对齐；行尾 \r 去除 — 模型输出统一 \n）。
+    /// </summary>
+    public static void RenderToolOutputLine(Screen screen, Rect frame, Theme theme, string line)
+    {
+        var indent = new string(' ', Figures.ToolResultIndent.Length);
+        screen.WriteText(frame.Y, frame.X, $"{indent}{line.TrimEnd('\r')}", 0, frame.Right);
+    }
+
+    /// <summary>
+    /// 渲染工具输出折叠提示行 — ToolResultIndent 等宽缩进 + "… +N lines (ctrl+o)" 整行 dim
+    ///（基准 terminal.ts renderTruncatedContent L107 ctrlOToExpand 展开引导）。
+    /// </summary>
+    public static void RenderToolOutputHint(Screen screen, Rect frame, Theme theme, int hiddenLines)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var indent = new string(' ', Figures.ToolResultIndent.Length);
+        screen.WriteText(frame.Y, frame.X, $"{indent}{ToolFoldingPolicy.HiddenLinesHint(hiddenLines)}", dim, frame.Right);
+    }
+
+    /// <summary>渲染无输出占位行 — "  ⎿  (No output)" 整行 dim（BashToolResultMessage.tsx L156 stdout/stderr 皆空）。</summary>
+    public static void RenderNoOutput(Screen screen, Rect frame, Theme theme)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $"{Figures.ToolResultIndent}{ToolFoldingPolicy.NoOutputText}", dim, frame.Right);
+    }
+
+    /// <summary>
+    /// 渲染工具分组聚合摘要行（CollapsedReadSearchContent.tsx L448-461 汉化形态）：
+    /// ● + 摘要文案 + 活动态 "…" + dim " (ctrl+o)"（活动态 ● 600ms 方波闪烁 — 基准 ToolUseLoader+useBlink，
+    /// 与 RenderSubagentHeader 同相位口径）；完成态整行 dim（基准 dimColor={!isActiveGroup}）。
+    /// </summary>
+    public static void RenderCollapsedGroupSummary(Screen screen, Rect frame, Theme theme, string text, bool isActive, long animTimeMs)
+    {
+        const int BlinkIntervalMs = 600;
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var bullet = !isActive || animTimeMs / BlinkIntervalMs % 2 == 0 ? Figures.MessageBullet : " ";
+        screen.WriteText(frame.Y, frame.X, $"{bullet} ", dim, frame.Right);
+        if (isActive)
+        {
+            var col = screen.WriteText(frame.Y, frame.X + 2, $"{text}…", 0, frame.Right);
+            screen.WriteText(frame.Y, col, " (ctrl+o)", dim, frame.Right);
+        }
+        else
+        {
+            screen.WriteText(frame.Y, frame.X + 2, text, dim, frame.Right);
+        }
+    }
+
+    /// <summary>
+    /// 渲染小终端塌缩进度单行（AgentTool/UI.tsx L495-502 condensed 形态）：
+    /// "  ⎿  In progress… · N tool use(s)" — 前缀与文案 dim、计数 bold（单数 tool use / 复数 tool uses）。
+    /// </summary>
+    public static void RenderCondensedToolProgress(Screen screen, Rect frame, Theme theme, int toolUses)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var bold = screen.Styles.GetOrAdd(new TextStyle { Bold = true });
+        screen.WriteText(frame.Y, frame.X, Figures.ToolResultIndent, dim, frame.Right);
+        var col = screen.WriteText(frame.Y, frame.X + Figures.ToolResultIndent.Length, "In progress… · ", dim, frame.Right);
+        col = screen.WriteText(frame.Y, col, toolUses.ToString(), bold, frame.Right);
+        screen.WriteText(frame.Y, col, toolUses == 1 ? " tool use" : " tool uses", dim, frame.Right);    }
 
     /// <summary>渲染权限对话框顶边框 — 整行 ─ 前景 permission 色（基准 borderStyle=round 无角，仅 top，全宽）。</summary>
     public static void RenderPermissionBorder(Screen screen, Rect frame, Theme theme)

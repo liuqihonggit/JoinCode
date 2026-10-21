@@ -29,7 +29,7 @@ public abstract record BridgeRequest
 /// bridge 事件（jcc → TUI，写 stdout）— ADR 0141 契约的 jcc 侧镜像：
 /// 会话握手（session_info）、权限模式（permission_mode_changed）、
 /// 回合生命周期（turn_started/completed/interrupted）、思考（thinking_started/ended）、
-/// 工具（tool_call/tool_result）、流式（token_delta）、消息（assistant_message/error）。
+/// 工具（tool_call/tool_result）、流式（token_delta）、用量汇总（token_usage）、消息（assistant_message/error）。
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(BridgeEvent.SessionInfo), "session_info")]
@@ -41,6 +41,7 @@ public abstract record BridgeRequest
 [JsonDerivedType(typeof(BridgeEvent.ToolResult), "tool_result")]
 [JsonDerivedType(typeof(BridgeEvent.TokenDelta), "token_delta")]
 [JsonDerivedType(typeof(BridgeEvent.AssistantMessage), "assistant_message")]
+[JsonDerivedType(typeof(BridgeEvent.TokenUsage), "token_usage")]
 [JsonDerivedType(typeof(BridgeEvent.SubagentStarted), "subagent_started")]
 [JsonDerivedType(typeof(BridgeEvent.SubagentToolUse), "subagent_tool_use")]
 [JsonDerivedType(typeof(BridgeEvent.SubagentFinished), "subagent_finished")]
@@ -111,9 +112,15 @@ public abstract record BridgeEvent
     /// <summary>
     /// 工具结果摘要（⎿ 缩进项）+ 结构化补丁投影（M7-2 StructuredDiff）。
     /// Patch null/空不输出字段（WhenWritingNull — 旧契约 golden 不变，旧 TUI 反序列化兼容）。
+    /// RawOutput 为工具原始输出多行文本（超长预截断防 64MB 原始输出撑爆 JSON 行 — 对齐基准
+    /// terminal.ts renderTruncatedContent 的 PADDING 预截断语义；null 不输出字段 WhenWritingNull —
+    /// 单行结果 summary 已表达不带此字段，旧 golden 零破坏）；HiddenLines 为折叠隐藏行数
+    /// （0 不输出字段 WhenWritingDefault — 与 native_tui 侧 ToolResult 逐字节镜像）。
     /// </summary>
     public sealed record ToolResult(string Summary,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] BridgeDiffHunk[]? Patch = null) : BridgeEvent;
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] BridgeDiffHunk[]? Patch = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RawOutput = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] int HiddenLines = 0) : BridgeEvent;
 
     /// <summary>
     /// 流式 token 增量（spinner ResponseLength 累加）。M8-1 逐字流式 — 与 native_tui 侧镜像：
@@ -146,6 +153,17 @@ public abstract record BridgeEvent
 
     /// <summary>完整助手消息（追加滚动区）。</summary>
     public sealed record AssistantMessage(string Text) : BridgeEvent;
+
+    /// <summary>
+    /// 回合令牌用量汇总（OnDone 收尾发射 — 紧随 assistant_message 之后、turn_completed 之前；
+    /// TUI 侧 TokenUsageTracker 记账驱动 footer 展示）— 与 native_tui 侧 BridgeEvent.TokenUsage 逐字段镜像。
+    /// InputTokens/OutputTokens 恒输出（OnDone usage 的 PromptTokens/CompletionTokens 投影）；
+    /// ContextTokens/ContextLimitTokens 为上下文窗口占用/上限（null 不输出字段 WhenWritingNull —
+    /// 引擎暂无 context window 数据源时省略，通道预留待接线）。
+    /// </summary>
+    public sealed record TokenUsage(long InputTokens, long OutputTokens,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ContextTokens = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ContextLimitTokens = null) : BridgeEvent;
 
     /// <summary>回合完成（idle）。</summary>
     public sealed record TurnCompleted() : BridgeEvent;

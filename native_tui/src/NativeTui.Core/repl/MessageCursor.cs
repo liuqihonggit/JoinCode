@@ -125,6 +125,22 @@ public sealed class MessageCursor
         SelectedIndex = -1;
     }
 
+    /// <summary>提取当前选中项的可复制全文（消费 CopyTextExtractor — 光标态 c 复制动作数据面；
+    /// 未激活/索引越界/不可复制类型 → null。剪贴板写入由调用方接线）。</summary>
+    public string? ExtractFullText(IReadOnlyList<IScrollItem> items) =>
+        SelectedItem(items) is { } item ? CopyTextExtractor.Extract(item) : null;
+
+    /// <summary>提取当前选中工具调用的主参数值（消费 PrimaryInputMap — 光标态 p 复制参数动作数据面；
+    /// 未激活/非工具调用项/映射外工具 → null）。</summary>
+    public string? ExtractPrimaryInput(IReadOnlyList<IScrollItem> items) =>
+        SelectedItem(items) is IToolCallInfo toolCall
+            ? PrimaryInputMap.ExtractPrimaryInput(toolCall.ToolName, toolCall.Args)
+            : null;
+
+    /// <summary>当前选中项（null = 未激活/索引越界 — 消息动态增删安全防御）。</summary>
+    private IScrollItem? SelectedItem(IReadOnlyList<IScrollItem> items) =>
+        IsCursorActive && SelectedIndex >= 0 && SelectedIndex < items.Count ? items[SelectedIndex] : null;
+
     /// <summary>首个可导航项索引（-1 = 无）。</summary>
     private static int FirstNavigable(IReadOnlyList<IScrollItem> items)
     {

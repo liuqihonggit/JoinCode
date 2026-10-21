@@ -6,13 +6,24 @@ namespace NativeTui.Host;
 /// （Actor 邮箱模型：回合线程生产，主循环 tick 排空消费，无共享锁，对齐 Core BridgeEventPump 的 ConcurrentQueue 先例），
 /// 不经 JSON 序列化。语义与 engine BridgeEventConsumer 完全对齐（唯一差异：WriteEvent 序列化 stdout → 队列写内存对象）：
 /// OnText → token_delta；OnThinking 回合内单次信号 + 墙钟差结算 thinking_ended；
-/// OnToolStart/OnToolEnd → tool_call/tool_result（摘要截断 200 + error 前缀 + StructuredPatch → DiffHunk 投影）；
-/// OnDone → assistant_message(完整文本)；OnBackgroundTask → background_task(M8-8 常驻面板 upsert)；
-/// OnToolProgress/OnLoopDetected/OnTimingSummary 不消费。
+/// OnToolStart/OnToolEnd → tool_call/tool_result（摘要截断 200 + error 前缀 + StructuredPatch → DiffHunk 投影 +
+
+/// 原始输出预截断投影 raw_output/hidden_lines）；OnDone → assistant_message(完整文本) + token_usage(用量汇总)；
+/// OnBackgroundTask → background_task(M8-8 常驻面板 upsert)。/// OnToolProgress/OnLoopDetected/OnTimingSummary 不消费。
 /// </summary>
 public sealed class InProcessEventConsumer : IResettableEventConsumer {
     /// <summary>工具结果摘要截断上限（对齐 engine BridgeEventConsumer 的 200 字符显示截断）。</summary>
     private const int ToolResultSummaryLimit = 200;
+
+    /// <summary>工具结果原始输出预览行数上限（对齐基准 terminal.ts MAX_LINES_TO_SHOW=3 — 超出折叠）。</summary>
+    private const int ToolResultPreviewLines = 3;
+
+    /// <summary>工具结果原始输出假定折行宽度（进程内路径无终端宽度回传 — 保守取 80 列，对齐基准 wrapWidth 语义）。</summary>
+    private const int ToolResultAssumedWrapWidth = 80;
+
+    /// <summary>工具结果原始输出预截断字符上限（对齐基准 maxChars = MAX_LINES × wrapWidth × 4 —
+    /// 防 64MB 原始输出（如二进制 dump）撑爆内存事件链与渲染管线；与 engine BridgeEventConsumer 常量镜像）。</summary>
+    private const int ToolResultRawOutputLimit = ToolResultPreviewLines * ToolResultAssumedWrapWidth * 4;
 
     private readonly ConcurrentQueue<BridgeEvent> _events;
     private readonly Func<long> _wallClock;
@@ -76,9 +87,10 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         _events.Enqueue(new BridgeEvent.ToolCall(toolName, arguments ?? string.Empty));
     }
 
-    /// <summary>工具调用结束 → tool_result(截断摘要 + error 标记 + 结构化补丁投影)。</summary>
+    /// <summary>工具调用结束 → tool_result(截断摘要 + error 标记 + 结构化补丁投影 + 原始输出预截断投影)。</summary>
     public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch) {
-        _events.Enqueue(new BridgeEvent.ToolResult(BuildSummary(resultText, isError), ProjectPatch(patch)));
+        var (rawOutput, hiddenLines) = ProjectRawOutput(resultText);
+        _events.Enqueue(new BridgeEvent.ToolResult(BuildSummary(resultText, isError), ProjectPatch(patch), rawOutput, hiddenLines));
     }
 
     /// <summary>工具调用进度 — TUI 不消费，忽略（对齐 bridge 形态）。</summary>
@@ -93,21 +105,24 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
     public void OnTimingSummary(string summary) {
     }
 
-    /// <summary>流式响应完成 → 思考结算 + assistant_message(完整文本 + Markdown 投影；无语法快路径降级纯文本)。</summary>
+    /// <summary>流式响应完成 → 思考结算 + assistant_message(完整文本 + Markdown 投影；无语法快路径降级纯文本)
+    /// + token_usage(用量汇总 — usage null 不发；与 engine BridgeEventConsumer 行序镜像：assistant 前、收尾发)。</summary>
     public void OnDone(TokenUsage? usage, string? modelId) {
         EndThinkingIfActive();
-        if (_fullResponse.Length == 0)
-            return;
-        var fullText = _fullResponse.ToString();
-        // TASK062 结构化组装 — MessageId 会话级递增（Ctrl+O 定位/transcript 对账）+
-        // 思考总时长（多段累计）+ CoT 全文（Ctrl+O 展开渲染；空 → null 不输出字段）
-        var thinking = _thinkingContent.ToString();
-        _events.Enqueue(new BridgeEvent.AssistantMessage(
-            fullText,
-            MarkdigProjector.ProjectOptional(fullText),
-            MessageId: ++_messageId,
-            ThinkingDurationMs: _thinkingTotalMs,
-            ThinkingContent: thinking.Length > 0 ? thinking : null));
+        if (_fullResponse.Length > 0) {
+            var fullText = _fullResponse.ToString();
+            // TASK062 结构化组装 — MessageId 会话级递增（Ctrl+O 定位/transcript 对账）+
+            // 思考总时长（多段累计）+ CoT 全文（Ctrl+O 展开渲染；空 → null 不输出字段）
+            var thinking = _thinkingContent.ToString();
+            _events.Enqueue(new BridgeEvent.AssistantMessage(
+                fullText,
+                MarkdigProjector.ProjectOptional(fullText),
+                MessageId: ++_messageId,
+                ThinkingDurationMs: _thinkingTotalMs,
+                ThinkingContent: thinking.Length > 0 ? thinking : null));
+        }
+
+        EnqueueTokenUsageIfAvailable(usage);
     }
 
     /// <summary>子代理启动 → SubagentStarted（DSG041 批4 — 显式实现：DIM 默认实现经类类型调用不可见；
@@ -149,6 +164,16 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
     /// <summary>写入一条事件 — 无界 Channel TryWrite 永远成功（回合线程不阻塞）。</summary>
     private void WriteEvent(BridgeEvent bridgeEvent) => _events.Enqueue(bridgeEvent);
 
+    /// <summary>回合用量汇总 → TokenUsage 事件（OnDone 收尾发射；usage null 不发 — 无数据不噪音；
+    /// ContextTokens/ContextLimitTokens 引擎暂无 context window 数据源，null 通道留待接线）。</summary>
+    private void EnqueueTokenUsageIfAvailable(TokenUsage? usage) {
+        if (usage is null) {
+            return;
+        }
+
+        WriteEvent(new BridgeEvent.TokenUsage(usage.PromptTokens, usage.CompletionTokens));
+    }
+
     /// <summary>思考结束结算（进入产出或回合结束时调用，幂等）— 段时长累计入回合思考总时长（TASK062）。</summary>
     private void EndThinkingIfActive() {
         if (_thinkingStartMs is not long start)
@@ -166,6 +191,32 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
             ? string.Concat(text.AsSpan(0, ToolResultSummaryLimit), "...")
             : text;
         return isError ? $"[error] {truncated}" : truncated;
+    }
+
+    /// <summary>
+    /// 工具结果原始输出投影（raw_output + hidden_lines）— 多行折叠语义，对齐基准 terminal.ts
+    /// renderTruncatedContent：单行结果不投影（summary 已完整表达，旧事件形态零变化）；
+    /// 多行超预览上限（3+1 行）折叠，hiddenLines = 估算总行数 − 预览上限（预截断时对齐基准
+    /// estimatedRemaining 的 ceil(总长/折行宽) 估算）；超长预截断（960 字符上限）防 64MB
+    /// 原始输出撑爆内存事件链；折叠外仅多 1 行时全显（基准特例 — 4 行直显比折叠提示省一行）。
+    /// 与 engine BridgeEventConsumer.ProjectRawOutput 逐行为镜像（Core 零依赖，双端各自维护）。
+    /// </summary>
+    private static (string? RawOutput, int HiddenLines) ProjectRawOutput(string? resultText) {
+        var text = resultText?.TrimEnd();
+        if (string.IsNullOrEmpty(text) || text.AsSpan().IndexOf('\n') < 0) {
+            return (null, 0);
+        }
+
+        var preTruncated = text.Length > ToolResultRawOutputLimit;
+        var content = preTruncated ? text[..ToolResultRawOutputLimit] : text;
+        var contentLines = 1 + content.AsSpan().Count('\n');
+        var estimatedTotalLines = preTruncated
+            ? Math.Max(contentLines, (text.Length + ToolResultAssumedWrapWidth - 1) / ToolResultAssumedWrapWidth)
+            : contentLines;
+        var hiddenLines = estimatedTotalLines - ToolResultPreviewLines;
+        return hiddenLines <= 1
+            ? (content, 0)
+            : (content, hiddenLines);
     }
 
     /// <summary>引擎 StructuredPatchHunk[] → Core 零依赖 DiffHunk[] 渲染投影（空/ null → null 维持纯文本摘要形态）。</summary>

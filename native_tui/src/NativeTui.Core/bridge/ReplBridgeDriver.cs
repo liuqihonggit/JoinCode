@@ -5,7 +5,8 @@ namespace NativeTui.Core.Bridge;
 /// 会话握手（session_info 更新 banner 真实数据 + footer 初始模式 + bypass 可用性）、
 /// 权限模式回执（permission_mode_changed 更新 footer）、
 /// 回合生命周期驱动 Busy + SpinnerItem（BeginTurn/EndTurn），消息事件插入滚动区
-/// （spinner 恒为末项），token_delta 累加 ResponseLength，错误追加 ErrorMessageItem；
+/// （spinner 恒为末项），token_delta 累加 ResponseLength，token_usage 转交 TokenUsageTracker
+/// 记账（footer 用量展示归 tracker，Driver 只路由不持有 UI 态），错误追加 ErrorMessageItem；
 /// 工具调用聚合（M8-4）：连续同名可聚合调用（Read/Grep/Glob）合并为 CollapsedToolItem
 /// （首次独立 ToolCallItem，第二次同名替换，后续 Record — 工具结果不断链，其他消息事件/回合边界断链）；
 /// 权限请求（permission_request）经注入钩子转交 shell 挂起对话框（权限模态是 shell 层状态）；
@@ -23,6 +24,10 @@ public sealed class ReplBridgeDriver
 
     /// <summary>代码高亮器（宿主注入的卫星插件 — null = 高亮禁用降级纯文本，MarkdownMessageItem 消费）。</summary>
     private readonly ICodeHighlighter? _codeHighlighter;
+
+    /// <summary>令牌用量记账器（S4 契约 — 引擎 token_usage 事件转交 RecordUsage；null = 未注入不记账，
+    /// 事件静默容忍（纯视图断言测试场景），footer 用量展示归 tracker 内部驱动）。</summary>
+    private readonly TokenUsageTracker? _tokenUsageTracker;
 
     /// <summary>活动子代理组（M7-7）— 回合内惰性建组，TurnCompleted/Interrupted 定格脱离；历史组留滚动区。</summary>
     private SubagentGroupCoordinator? _activeSubagentGroup;
@@ -58,19 +63,22 @@ public sealed class ReplBridgeDriver
 
     /// <summary>创建应用器（view/spinner/banner 由调用方构造并挂载，spinner 须为 Messages 末项、banner 为首项；
     /// onPermissionRequest = 权限请求挂起钩子，null = 忽略权限请求事件（纯视图断言测试场景）；
-    /// codeHighlighter = 代码高亮插件（M7-5），null = 高亮禁用）。</summary>
+    /// codeHighlighter = 代码高亮插件（M7-5），null = 高亮禁用；
+    /// tokenUsageTracker = 令牌用量记账器（S4 契约，token_usage 事件转交），null = 不记账）。</summary>
     public ReplBridgeDriver(
         ReplView view,
         SpinnerItem spinner,
         BannerItem banner,
         Action<string, string>? onPermissionRequest = null,
-        ICodeHighlighter? codeHighlighter = null)
+        ICodeHighlighter? codeHighlighter = null,
+        TokenUsageTracker? tokenUsageTracker = null)
     {
         _view = view;
         _spinner = spinner;
         _banner = banner;
         _onPermissionRequest = onPermissionRequest;
         _codeHighlighter = codeHighlighter;
+        _tokenUsageTracker = tokenUsageTracker;
     }
 
     /// <summary>回合进行中（turn_started 后未 completed/interrupted）。</summary>
@@ -113,10 +121,10 @@ public sealed class ReplBridgeDriver
                 _spinner.Mode = SpinnerMode.ToolUse;
                 _spinner.HasActiveTools = true;
                 break;
-            case BridgeEvent.ToolResult(var summary, var patch):
-                AddMessage(patch is { Length: > 0 }
-                    ? new DiffResultItem(summary, patch)
-                    : new ToolResultItem(summary));
+            case BridgeEvent.ToolResult(var summary, var patch, var rawOutput, var hiddenLines):
+                // S2 契约统一结果项：ToolResultItem(Summary, Patch, RawOutput, HiddenLines) —
+                // patch/rawOutput/hiddenLines 全量透传（折叠/展开渲染归 item，Driver 只路由不解释）
+                AddMessage(new ToolResultItem(summary, patch, rawOutput, hiddenLines));
                 _spinner.HasActiveTools = false;
                 break;
             case BridgeEvent.PermissionRequest(var toolName, var description):
@@ -145,6 +153,10 @@ public sealed class ReplBridgeDriver
                 ReplaceStreamingWithFinal(markdown is not null
                     ? new MarkdownMessageItem(markdown, _codeHighlighter, thinkingDurationMs, thinkingContent, messageId)
                     : new AssistantMessageItem(text, thinkingDurationMs, thinkingContent, messageId));
+                break;
+            case BridgeEvent.TokenUsage(var inputTokens, var outputTokens, var contextTokens, var contextLimitTokens):
+                // S4 契约 — 用量记账归 tracker（footer 展示由 tracker 内部驱动）；未注入时静默容忍
+                _tokenUsageTracker?.RecordUsage(inputTokens, outputTokens, contextTokens, contextLimitTokens);
                 break;
             case BridgeEvent.TurnCompleted:
                 EndTurn();

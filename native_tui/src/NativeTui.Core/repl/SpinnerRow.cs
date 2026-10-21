@@ -8,10 +8,11 @@ namespace NativeTui.Core.Repl;
 /// </summary>
 public static class SpinnerRow
 {
-    /// <summary>渲染整行（glyph + 消息）。状态 parts（timer/tokens/thinking）由后续批次接入。</summary>
-    public static void Render(Screen screen, Rect frame, Theme theme, string message, Color messageColor, Color shimmerColor, SpinnerMode mode, in SpinnerAnimState state, bool reducedMotion, long timeMs)
+    /// <summary>渲染整行（glyph + 消息）。状态 parts（timer/tokens/thinking）由后续批次接入。
+    /// frames：终端字符集 12 帧往返序列（null = 默认集 <see cref="SpinnerMath.SpinnerFrames"/>）。</summary>
+    public static void Render(Screen screen, Rect frame, Theme theme, string message, Color messageColor, Color shimmerColor, SpinnerMode mode, in SpinnerAnimState state, bool reducedMotion, long timeMs, string[]? frames = null)
     {
-        RenderGlyph(screen, frame, theme, messageColor, state, reducedMotion, timeMs);
+        RenderGlyph(screen, frame, theme, messageColor, state, reducedMotion, timeMs, frames);
         var messageFrame = new Rect(frame.X + 2, frame.Y, Math.Max(0, frame.Width - 2), frame.Height);
         RenderGlimmer(screen, messageFrame, theme, messageColor, shimmerColor, message, mode, state);
     }
@@ -19,12 +20,14 @@ public static class SpinnerRow
     /// <summary>
     /// 渲染 glyph（占 2 列：帧字符 + 空格）。reducedMotion 用 ● + 1s 亮/1s dim 半周期，
     /// 且忽略停滞红（基准 reducedMotion 分支先返回）。
+    /// frames：终端字符集 12 帧往返序列（null = 默认集 — darwin/ghostty 分支见 <see cref="SpinnerCharsets"/>）。
     /// </summary>
-    public static void RenderGlyph(Screen screen, Rect frame, Theme theme, Color messageColor, in SpinnerAnimState state, bool reducedMotion, long timeMs)
+    public static void RenderGlyph(Screen screen, Rect frame, Theme theme, Color messageColor, in SpinnerAnimState state, bool reducedMotion, long timeMs, string[]? frames = null)
     {
+        var sequence = frames ?? SpinnerMath.SpinnerFrames;
         var glyph = reducedMotion
             ? "●"
-            : SpinnerMath.SpinnerFrames[state.Frame % SpinnerMath.SpinnerFrames.Length];
+            : sequence[state.Frame % sequence.Length];
         var color = reducedMotion ? messageColor : StallColor(theme, messageColor, state.StalledIntensity);
         var isDim = reducedMotion && timeMs / 1000 % 2 == 1;
         var style = screen.Styles.GetOrAdd(new TextStyle { Foreground = color, Dim = isDim });
@@ -146,4 +149,43 @@ public static class SpinnerRow
 
     private static int StyleOf(Screen screen, Color foreground) =>
         screen.Styles.GetOrAdd(new TextStyle { Foreground = foreground });
+}
+
+/// <summary>
+/// Spinner 终端字符集 — 对齐基准 Spinner/utils.ts:4-11 getDefaultCharacters 分支：
+/// ghostty（TERM=xterm-ghostty）✽→*（该终端渲染偏移规避）、darwin ✳ 保留、
+/// 其余（Windows Terminal/Linux/未知）✳→*（= <see cref="SpinnerMath.DefaultCharacters"/> 默认集）。
+/// 输出为 12 帧往返弹跳序列（字符集 + 反转拼接 — 基准 SPINNER_FRAMES 构造）。
+/// 探测：TERM 环境变量 + OperatingSystem.IsMacOS，进程内缓存一次（终端类型会话期不变）。
+/// </summary>
+public static class SpinnerCharsets
+{
+    /// <summary>ghostty 6 字符集（✽→* — 渲染偏移规避）。</summary>
+    public static readonly string[] GhosttyCharacters = ["·", "✢", "✳", "✶", "✻", "*"];
+
+    /// <summary>darwin 6 字符集（✳ 保留 — mac 终端渲染正常）。</summary>
+    public static readonly string[] DarwinCharacters = ["·", "✢", "✳", "✶", "✻", "✽"];
+
+    /// <summary>默认 12 帧序列（SpinnerMath 唯一数据源 — 非 darwin/ghostty 终端复用，不重复定义）。</summary>
+    public static readonly string[] DefaultFrames = SpinnerMath.SpinnerFrames;
+
+    /// <summary>探测结果缓存（null = 未探测）。</summary>
+    private static string[]? _detected;
+
+    /// <summary>当前终端 12 帧序列（探测一次并缓存 — 会话期终端类型不变；测试经 <see cref="Of"/> 注入绕过）。</summary>
+    public static string[] Detect() =>
+        _detected ??= Of(Environment.GetEnvironmentVariable("TERM"), OperatingSystem.IsMacOS());
+
+    /// <summary>12 帧序列选择纯函数（term/isDarwin 注入可测 — darwin &gt; ghostty &gt; 默认分支序对齐基准）。</summary>
+    /// <param name="term">TERM 环境变量值（null = 未设置）。</param>
+    /// <param name="isDarwin">是否 macOS 平台。</param>
+    /// <returns>12 帧往返弹跳序列。</returns>
+    public static string[] Of(string? term, bool isDarwin) =>
+        isDarwin ? Bounce(DarwinCharacters)
+        : term == "xterm-ghostty" ? Bounce(GhosttyCharacters)
+        : DefaultFrames;
+
+    /// <summary>6 字符集 → 12 帧往返弹跳（前向 + 反转拼接 — 基准 SPINNER_FRAMES 构造式）。</summary>
+    private static string[] Bounce(string[] characters) =>
+        [.. characters, .. characters.Reverse()];
 }

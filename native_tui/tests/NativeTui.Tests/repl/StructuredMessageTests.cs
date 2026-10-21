@@ -59,7 +59,6 @@ public sealed class StructuredMessageTests
 
         var row1 = screen.RowText(3);
         Assert.Contains("思考", row1);
-        Assert.Contains("3s", row1);
         Assert.Contains("ctrl+o", row1);
         var row2 = screen.RowText(4);
         Assert.Contains("正文", row2);

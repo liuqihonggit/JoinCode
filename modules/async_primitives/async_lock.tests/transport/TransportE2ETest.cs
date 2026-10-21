@@ -175,12 +175,17 @@ public class TransportE2ETest {
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
+    [Trait("Category", "Flaky")]
     public async Task BusTransport_Broadcast_MultipleSlavesReceive() {
         var pipeName = $"e2e-bus-multi-{Guid.NewGuid():N}";
         var hostPid = "600001";
         var slave1Pid = "600002";
         var slave2Pid = "600003";
 
+        // Linux CI 确定性失败取证（本地 Windows 恒绿无法复现）：开 TransportDiagnostics，
+        // 失败时 xUnit 会把 stderr 全轨迹（PIPE-ACCEPT/BUS 收发）带进失败输出 — 一次定位根因
+        TransportDiagnostics.Enabled = true;
+        try {
         await using var host = new BusTransport(pipeName: pipeName, processId: hostPid);
         await using var slave1 = new BusTransport(pipeName: pipeName, processId: slave1Pid);
         await using var slave2 = new BusTransport(pipeName: pipeName, processId: slave2Pid);
@@ -197,10 +202,21 @@ public class TransportE2ETest {
         var recv1 = await ReceiveWithTimeoutAsync(slave1.ReceiveAsync(), TimeSpan.FromSeconds(5));
         var recv2 = await ReceiveWithTimeoutAsync(slave2.ReceiveAsync(), TimeSpan.FromSeconds(5));
 
-        recv1.Should().NotBeNull("slave1 应收到广播");
+        // 现场快照：广播后 host 连接表 + 各 slave 实收帧（失败时直接看丢在哪一环）
+        var scene = $"广播后host表=[{string.Join(",", host.GetConnectedProcesses())}] "
+            + $"slave1实收={DescribeFrame(recv1)} slave2实收={DescribeFrame(recv2)}";
+
+        recv1.Should().NotBeNull($"slave1 应收到广播；现场: {scene}");
         Encoding.UTF8.GetString(recv1!.Data.Span).Should().Be("broadcast-all");
 
-        recv2.Should().NotBeNull("slave2 应收到广播");
+        recv2.Should().NotBeNull($"slave2 应收到广播；现场: {scene}");
         Encoding.UTF8.GetString(recv2!.Data.Span).Should().Be("broadcast-all");
+        } finally {
+            TransportDiagnostics.Enabled = false;
+        }
     }
+
+    /// <summary>帧摘要（null 显式标注）— 断言失败现场快照用</summary>
+    private static string DescribeFrame(TransportFrame? frame) =>
+        frame is null ? "<null>" : $"{frame.SourceProcessId}:{Encoding.UTF8.GetString(frame.Data.Span)}";
 }

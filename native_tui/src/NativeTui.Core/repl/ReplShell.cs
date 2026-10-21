@@ -79,6 +79,12 @@ public sealed class ReplShell
     /// <summary>Esc 时钟源（internal — 测试注入可控时间戳；默认墙钟）。</summary>
     internal Func<long> EscClock { get; set; } = static () => Environment.TickCount64;
 
+    /// <summary>最近一次直发提交的文本（M8-2 打断恢复 — 无有效响应时弹回输入框）。</summary>
+    private string _lastSubmittedText = string.Empty;
+
+    /// <summary>最近一次直发提交的用户消息项位置（M8-2 打断恢复 — 无有效响应时移除该条上屏）。</summary>
+    private int _lastSubmittedIndex = -1;
+
     /// <summary>剪贴板写入委托（TASK059 — Ctrl+C 复制最后 assistant 消息；宿主注入引擎
     /// IClipboardService 适配，Core 零依赖不持接口；null = 复制能力降级无操作）。</summary>
     private readonly Action<string>? _copyToClipboard;
@@ -208,14 +214,27 @@ public sealed class ReplShell
     /// <summary>排空引擎事件：全部经 ReplBridgeDriver 应用到视图 + 诊断旁路写 stderr + 引擎死亡检测（非忙时追加退出消息并结束）。</summary>
     internal void DrainEngine()
     {
+        var interrupted = false;
         foreach (var bridgeEvent in _engine.DrainEvents())
         {
+            if (bridgeEvent is BridgeEvent.TurnInterrupted)
+            {
+                interrupted = true;
+            }
             _driver.Apply(bridgeEvent);
         }
 
         foreach (var diagnostic in _engine.DrainDiagnostics())
         {
             Console.Error.WriteLine(diagnostic);
+        }
+
+        // M8-2 打断恢复（基准 REPL.tsx auto-restore）：打断且无任何有效响应到达 →
+        // 恢复用户输入到输入框 + 移除该条用户消息上屏 + 撤销历史条目（等同 rewind 到上一条）。
+        // 守卫：输入框为空（不打扰用户已开始的新输入）+ 队列空（队列有独立泵语义）。
+        if (interrupted && _input.Text.Length == 0 && _queuedInputs.Count == 0)
+        {
+            RestoreInterruptedInput();
         }
 
         if (!_engine.IsAlive && !_driver.IsBusy)
@@ -232,6 +251,32 @@ public sealed class ReplShell
 
         // 回合结束 — 排队输入自动发送（TASK060 一问一答节奏：逐回合发队首）
         PumpQueuedInputs();
+    }
+
+    /// <summary>打断恢复（M8-2）— 该回合用户消息之后无实质响应项（assistant/工具/流式/错误/子代理）
+    /// 时移除该条用户消息 + 恢复文本到输入框 + 历史撤销；有实质响应（含 partial 定格）不恢复。</summary>
+    private void RestoreInterruptedInput()
+    {
+        if (_lastSubmittedIndex < 0 || _lastSubmittedText.Length == 0)
+        {
+            return;
+        }
+
+        for (var i = _lastSubmittedIndex + 1; i < _view.Messages.Count - 1; i++)
+        {
+            if (_view.Messages.Items[i] is AssistantMessageItem or MarkdownMessageItem or ToolCallItem
+                or ToolResultItem or DiffResultItem or ErrorMessageItem or StreamingTextItem
+                or SubagentGroupItem or PermissionRequestItem)
+            {
+                return;
+            }
+        }
+
+        _view.Messages.RemoveAt(_lastSubmittedIndex);
+        FillInput(_lastSubmittedText, cursorToStart: false);
+        _history.RemoveLast(_lastSubmittedText);
+        _lastSubmittedIndex = -1;
+        _lastSubmittedText = string.Empty;
     }
 
     /// <summary>挂起权限请求（宿主 TuiPermissionBridge.Confirm → 此处 → 用户按键 Complete）。</summary>
@@ -938,9 +983,10 @@ public sealed class ReplShell
     /// <summary>刷新建议（用户编辑路径；建议状态机内部判定触发条件）。</summary>
     private void UpdateSuggestions() => _suggester?.Update(_input.Text);
 
-    /// <summary>Esc：忙时打断当前回合；闲时有输入清空（对齐基准双击清空的单击近似），无输入退出。</summary>
-    /// <summary>Esc 处置（TASK059 退出安全 — Esc 永不退出）：忙时 500ms 双击 → 打断（单击等窗口无操作）；
-    /// 闲时有文本 → 清空输入（既有行为）；闲时空输入 → 无操作。退出路径只剩 Ctrl+D 与 /exit 命令。</summary>
+    /// <summary>Esc 处置（TASK059 退出安全 — Esc 永不退出；M8-2 打断闭环补全基准重载链）：
+    /// 忙时：有排队输入 → 单击弹回全部到输入框（基准 popAllCommandsFromQueue — 优先于打断判定）；
+    /// 无排队 → 500ms 双击打断（单击等窗口无操作）。
+    /// 闲时：有文本 → 清空输入；空输入 → 无操作。退出路径只剩 Ctrl+D 与 /exit 命令。</summary>
     internal void HandleEscape()
     {
         var now = EscClock();
@@ -949,6 +995,17 @@ public sealed class ReplShell
 
         if (IsBusy)
         {
+            if (_queuedInputs.Count > 0)
+            {
+                // M8-2 基准重载链⑤ — 可编辑排队命令全部弹回输入框（按行拼接）+ 清空队列 + 重置双击窗口
+                var merged = string.Join("\n", _queuedInputs);
+                _queuedInputs.Clear();
+                _view.QueuedInputs = _queuedInputs;
+                FillInput(merged, cursorToStart: false);
+                _lastEscapeMs = 0;
+                return;
+            }
+
             if (isDoubleTap)
             {
                 _lastEscapeMs = 0;
@@ -1061,6 +1118,8 @@ public sealed class ReplShell
         }
 
         AddMessage(new UserMessageItem(text));
+        _lastSubmittedText = text;
+        _lastSubmittedIndex = _view.Messages.Count - 2;
         _engine.Submit(text);
     }
 

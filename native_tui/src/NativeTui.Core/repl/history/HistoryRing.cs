@@ -54,6 +54,20 @@ public sealed class HistoryRing
         }
     }
 
+    /// <summary>撤销末条历史（M8-2 打断恢复 — 基准 removeLastFromHistory）：
+    /// 仅当末条与给定文本一致才移除（防误撤他人条目 — 弹回输入与历史撤销原子配套）。</summary>
+    public void RemoveLast(string text)
+    {
+        if (_entries.Count > 0 && _entries[^1] == text)
+        {
+            _entries.RemoveAt(_entries.Count - 1);
+            if (Index > _entries.Count)
+            {
+                Index = _entries.Count;
+            }
+        }
+    }
+
     /// <summary>翻上一条（旧方向）：index 递增，返回目标历史文本；
     /// 首次离开输入框以 draft 暂存当前输入（缺省空串）；越过最旧一条返回 false（index 保持，不回绕）。</summary>
     public bool TryUp(out string text, string? draft = null)

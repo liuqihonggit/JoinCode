@@ -56,6 +56,10 @@ account（11）、pluginManager（12）、dynamicCordisRunner（9）、productAn
 | B6 | 子代理流事件：AgentStarted/Finished → tool-workflow 事件族 + subagentCatalog 投影回放（B8） | ✅ 单元 10/10 |
 | B7 | 会话管理：`session/fork` 复制 meta/转录/journal（清空/回退无前端 RPC 消费点，不做） | ✅ 单元 3/3 |
 
+### 后续修复（真机验收期间发现）
+
+- **2026-10-21 `4e4088744`**：#439 纯指针形状引发 GUI 启动期模型目录 NRE（`SettingsJson.Vendor` 反序列化为 null）。修复 = 删除 GUI 侧第二套 settings.json 手写解析，委托 guard 公共链 `SettingsLoader.LoadUserSettingsFromDirAsync`（指针 + providers_llm/current 子文件单点合并）。**架构原则（用户确认）：宿主配置解析必须在公共引擎层单点，GUI/TUI 同源消费，配置路径/形状再变宿主零改动。**
+
 ## 四列验收表
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |

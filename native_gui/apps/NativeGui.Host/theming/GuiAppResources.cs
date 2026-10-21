@@ -1,0 +1,71 @@
+namespace JoinCode.Gui.Theming;
+
+/// <summary>
+/// 应用资源统一注册 —— 供真实 App 与 headless 测试 App 复用同一份配置：
+/// Fluent 主题 + 语义配色 ThemeDictionaries + 转换器。避免真实/测试两处资源漂移。
+/// 支持 4 主题（Dark/Light/SolarizedDark/SolarizedLight）— Solarized 通过替换 ThemeDictionaries 槽位实现。
+/// </summary>
+public static class GuiAppResources {
+    private static ResourceDictionary? _themeHost;
+    private static FluentTheme? _fluentTheme;
+    private static AccentOption? _accent;
+    private static Application? _app;
+
+    /// <summary>将 Fluent 主题、语义配色 ThemeDictionaries注册进应用资源。</summary>
+    public static void Register(Application app) {
+        _app = app;
+        _fluentTheme = app.Styles.OfType<FluentTheme>().FirstOrDefault();
+        // 共享控件样式（设计语言单一数据源）：必须在 FluentTheme 之后追加以覆盖默认外观
+        app.Styles.Add(new GuiControlStyles());
+        app.Resources["GuiMonoFont"] = new Avalonia.Media.FontFamily("Consolas,Cascadia Mono,Menlo,monospace");
+        app.Resources["GuiMotionDuration"] = TimeSpan.FromMilliseconds(160);
+        app.Resources["GuiPopupShadow"] = new Avalonia.Media.BoxShadows(Avalonia.Media.BoxShadow.Parse("0 6 16 0 #90000000"));
+        // 底部升起式补全面板专用：向上弥散的环境阴影（面板从输入栏背后向上滑出，阴影朝上）
+        app.Resources["GuiPaletteShadowUp"] = new Avalonia.Media.BoxShadows(Avalonia.Media.BoxShadow.Parse("0 -10 28 0 #55000000"));
+        _themeHost = new ResourceDictionary();
+        ApplySchemeToHost(GuiPalette.GuiThemeVariant.Dark);
+        app.Resources.MergedDictionaries.Add(_themeHost);
+        ApplyAccent(AppearanceCatalog.Load().Accents[0]);
+    }
+
+    /// <summary>应用配置驱动的强调色，保留消息角色和安全状态的语义颜色。</summary>
+    public static void ApplyAccent(AccentOption accent) {
+        _accent = accent;
+        if (_fluentTheme is not null) {
+            var color = Color.Parse(accent.Fill);
+            _fluentTheme.Palettes[ThemeVariant.Dark] = new Avalonia.Themes.Fluent.ColorPaletteResources { Accent = color };
+            _fluentTheme.Palettes[ThemeVariant.Light] = new Avalonia.Themes.Fluent.ColorPaletteResources { Accent = color };
+        }
+        ApplySchemeToHost(GuiPalette.CurrentVariant);
+    }
+
+    /// <summary>
+    /// 切换主题 — 更新 ThemeDictionaries 槽位为指定主题的配色。
+    /// Solarized 主题复用 Dark/Light 槽位（FluentTheme 内置控件用基础明暗，自定义语义色用 Solarized 配色）。
+    /// </summary>
+    public static void ApplyTheme(GuiPalette.GuiThemeVariant variant) {
+        if (_themeHost is null) return;
+        ApplySchemeToHost(variant);
+        if (_app is not null) {
+            var isLight = variant is GuiPalette.GuiThemeVariant.Light or GuiPalette.GuiThemeVariant.SolarizedLight;
+            _app.RequestedThemeVariant = isLight ? ThemeVariant.Light : ThemeVariant.Dark;
+        }
+    }
+
+    private static void ApplySchemeToHost(GuiPalette.GuiThemeVariant variant) {
+        var avaVariant = variant is GuiPalette.GuiThemeVariant.Light or GuiPalette.GuiThemeVariant.SolarizedLight
+            ? ThemeVariant.Light
+            : ThemeVariant.Dark;
+        var dictionary = GuiPaletteRenderer.BuildDictionaryFor(variant);
+        if (_accent is not null) {
+            var light = avaVariant == ThemeVariant.Light;
+            dictionary["GuiAccentText"] = GuiPaletteRenderer.ToBrush(light ? _accent.LightText : _accent.DarkText);
+            dictionary["GuiAccentSubtle"] = GuiPaletteRenderer.ToBrush(light ? _accent.LightSubtle : _accent.DarkSubtle);
+            dictionary["GuiAccentSubtleHover"] = GuiPaletteRenderer.ToBrush(light ? _accent.LightSubtle : _accent.DarkSubtle);
+            dictionary["GuiAccentFill"] = GuiPaletteRenderer.ToBrush(_accent.Fill);
+            dictionary["GuiAccentHover"] = GuiPaletteRenderer.ToBrush(_accent.Fill);
+        }
+        if (_themeHost is { } host)
+            host.ThemeDictionaries[avaVariant] = dictionary;
+    }
+}

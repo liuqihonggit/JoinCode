@@ -22,7 +22,7 @@ jobs:
       matrix:
         project:
           - { name: 'jcc', path: 'modules/apps/cli/JoinCode.csproj', artifact: 'jcc-aot' }
-          - { name: 'jccgui', path: 'modules/apps/gui/JoinCodeGui.csproj', artifact: 'jccgui-aot' }
+          - { name: 'jccgui', path: 'native_gui/apps/NativeGui.Host/NativeGui.Host.csproj', artifact: 'jccgui-aot' }
 
     steps:
       - name: Checkout

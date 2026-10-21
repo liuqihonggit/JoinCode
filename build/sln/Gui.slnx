@@ -1,8 +1,11 @@
 <Solution>
+  <Folder Name="/core/">
+    <Project Path="../../native_gui/src/NativeGui.Core/NativeGui.Core.csproj" />
+  </Folder>
   <Folder Name="/app/">
-    <Project Path="../../modules/apps/gui/JoinCodeGui.csproj" />
+    <Project Path="../../native_gui/apps/NativeGui.Host/NativeGui.Host.csproj" />
   </Folder>
   <Folder Name="/test/JoinCodeGui.Tests/">
-    <Project Path="../../test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj" />
+    <Project Path="../../native_gui/tests/join_code_gui.tests/JoinCodeGui.Tests.csproj" />
   </Folder>
 </Solution>

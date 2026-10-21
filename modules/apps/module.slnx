@@ -1,6 +1,5 @@
 <Solution>
   <Project Path="cli/JoinCode.csproj" />
   <Project Path="engine/JoinCode.Engine.csproj" />
-  <Project Path="gui/JoinCodeGui.csproj" />
   <Project Path="sdk/Sdk.csproj" />
 </Solution>

@@ -857,11 +857,23 @@ public sealed class ReplShell
     }
 
     /// <summary>接受选中建议（基准 applyCommandSuggestion）— 命令模式：Tab 补全 "/命令 "（尾随空格进参数态）/
-    /// Enter 直接提交 "/命令"；参数模式（IsArgumentMode）：命令名取自输入前缀，补全 "/命令 参数 " 或提交 "/命令 参数"。</summary>
+    /// Enter 直接提交 "/命令"；参数模式（IsArgumentMode）：真实值清单时补全 "/命令 参数 " 或提交 "/命令 参数"，
+    /// 仅占位提示（HasRealArgumentValues=false，如 "&lt;question&gt;"）时 Tab 不填入、Enter 提交输入原文
+    ///（修复：占位符被当参数值填入提交，`/btw &lt;question&gt;` 字面量发给了 AI）。</summary>
     private void AcceptSuggestion(bool execute)
     {
         if (_suggester?.Selected is not { } selected)
         {
+            return;
+        }
+
+        if (_suggester.IsArgumentMode && !_suggester.HasRealArgumentValues)
+        {
+            if (execute)
+            {
+                Submit();
+            }
+
             return;
         }
 

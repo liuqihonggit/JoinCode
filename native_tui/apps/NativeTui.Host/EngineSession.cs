@@ -133,7 +133,9 @@ public sealed class EngineSession : IAsyncDisposable {
     }
 
     /// <summary>斜杠命令回合（TASK064 — 引擎 SlashCommandRunner 共享链路：解析→路由→执行→输出捕获）：
-    /// 输出经 consumer.OnText/OnDone 上屏（AssistantMessage）；未知命令同样上屏诱导（/help 提示）— 不落 LLM
+    /// 输出经 AnsiStripper 剥离 SGR 色码（命令侧彩色输出与 TUI Cell/StyleId 渲染模型不兼容 —
+    /// ESC 零宽跳过后残骸显示为 "38;2;153;153;153m──" 形态）再经 consumer.OnText/OnDone 上屏
+    ///（AssistantMessage Markdown 渲染）；未知命令同样上屏诱导（/help 提示）— 不落 LLM
     ///（对齐"命令不触发 AI"：注册命令走命令执行，未知命令报错，两者都不消耗模型调用）。</summary>
     private static async Task DispatchSlashCommandAsync(
         IServiceProvider services, string input, IEventConsumer consumer, CancellationToken ct) {
@@ -144,7 +146,7 @@ public sealed class EngineSession : IAsyncDisposable {
             readPassword: null,
             cancellationToken: ct).ConfigureAwait(false);
 
-        var output = result.Output.TrimEnd();
+        var output = AnsiStripper.Strip(result.Output).TrimEnd();
         if (output.Length > 0) {
             consumer.OnText(output);
         }

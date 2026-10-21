@@ -115,7 +115,15 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
     /// 缺显式实现时泵经 IEventConsumer 调用会静默落入接口空实现 — DSG041 批3 先例）。</summary>
     public void OnBackgroundTask(string kind, string taskId, string description, string state) {
         WriteEvent(new Cli.Bridge.BridgeEvent.BackgroundTask(kind, taskId, description, state));
-    }
+
+    /// <summary>回合用量汇总 → token_usage 事件（OnDone 收尾发射；usage null 不发 — 无数据不噪音；
+    /// context 余量走 context_usage 独立事件（OnContextUsage — 上游 M8-7 权威数据源））。</summary>
+    private void WriteTokenUsageIfAvailable(TokenUsage? usage) {
+        if (usage is null) {
+            return;
+        }
+
+        WriteEvent(new Cli.Bridge.BridgeEvent.TokenUsage(usage.PromptTokens, usage.CompletionTokens));    }
 
     /// <summary>回合用量汇总 → token_usage 事件（OnDone 收尾发射；usage null 不发 — 无数据不噪音；
     /// context 余量走 context_usage 独立事件（OnContextUsage — 上游 M8-7 权威数据源））。</summary>

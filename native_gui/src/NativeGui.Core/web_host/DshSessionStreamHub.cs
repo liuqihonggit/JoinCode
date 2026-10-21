@@ -213,6 +213,24 @@ internal sealed class DshSessionStreamHub {
         }
     }
 
+    /// <summary>
+    /// 用已序列化的载荷分配序号并推送（审批审计等由外部构造 <see cref="JsonElement"/> 的场景，
+    /// 避免经 object 泛型序列化丢失具体形状）。
+    /// </summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="type">事件类型</param>
+    /// <param name="data">事件载荷（已是 JsonElement）</param>
+    /// <param name="surfaceOp">会话表面操作（消息类事件用 append）</param>
+    internal async Task PublishElementAsync(string sessionId, string type, JsonElement data, string? surfaceOp = null) {
+        var (sessionEvent, targets) = Allocate(sessionId, type, data, surfaceOp);
+        if (_journal is not null) {
+            await _journal.AppendAsync(sessionId, sessionEvent);
+        }
+        foreach (var target in targets) {
+            await DeliverAsync(target, PendingFor(target, sessionId));
+        }
+    }
+
     /// <summary>取某订阅者针对该会话的待发事件（同步持锁）</summary>
     private DshSessionEvent[] PendingFor(Subscription subscription, string sessionId) {
         lock (_gate) {

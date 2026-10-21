@@ -17,7 +17,9 @@ internal sealed class DshHostServices {
         Sessions = new DshSessionStore(Journal);
         Models = new DshModelCatalogSource();
         Streams = new DshSessionStreamHub(Journal);
-        Approvals = new DshApprovalBroker();
+        Approvals = new DshApprovalBroker {
+            Audit = (sessionId, type, payload) => Streams.PublishElementAsync(sessionId, type, payload),
+        };
         WorkspaceFiles = new DshWorkspaceFilesService(Sessions, fileSystem);
         Attachments = new DshAttachmentStore(fileSystem);
     }

@@ -23,6 +23,7 @@
 | 3 | steer（轮内注入） | `session/steer-unavailable` 诚实拒绝 | **B11**（先 ADR/spec，再改引擎 StreamAsync） |
 | 4 | `assistant-stream` 逐字流式 | `revision=0` | 依赖引擎增量事件边界，随 B11 一并评估 |
 | 5 | terminal（10 方法）/ goals（7 方法+事件）/ workspaceFiles/changes | 未实现 | ⬜ 另立项目（需引擎大扩展），本任务不展开 |
+| 6 | 审批**审计事件**（`approval/asked` + `approval/decided`）落会话日志 | 只发 `$events` 瞬时帧，无会话日志 | **B12**（补齐后历史回放与 DSH 一致） |
 
 ## 三、批次计划（每批 红测试 → 实现 → 编译 → 绿测试 → 文档 → commit）
 
@@ -30,6 +31,7 @@
 |------|------|------|
 | B9 | E2E 脚本同步：`transcript.jsonl` 优先/`.json` 回退、播种改写 JSONL、exe 路径与文档对齐 | ✅ 已验收（见 §四） |
 | B10 | 审批弹窗真机验收：桩返回需审批的工具调用 → 断言 `approval/request` waterfall → 前端面板 → `$events/result` 回帖 → 引擎按判定放行/拒绝 | ✅ 已验收（见 §五） |
+| B12 | 审批审计事件补口：`approval/asked` + `approval/decided` 轮内成对落会话日志（含刷新回放） | ✅ 已验收（见 §六） |
 | B11 | steer 引擎扩展：ADR 记录轮内注入点（Actor 邮箱/邮箱队列）→ `StreamAsync` 支持下一 step 注入 → 宿主 `mode:"steer"` 路由 + 事件投影 | ⬜ |
 
 ## 四、B9 验收（四列）
@@ -75,7 +77,7 @@
 
 - **批准顺序有副作用，E2E 必须先拒绝后允许**：`ApproveToolTemporarily(toolName, 1min)` 按**工具名**缓存，先允许再发第二轮会让第二轮不再弹面板（被临时批准短路）。脚本因此固定 `reject → allow` 顺序；跨轮验证应用不同工具名或重启 exe。
 - **审批面板只关 UI 不等待 BP 层结果**：点击后面板立即消失（`aria-busy` 期间），断言必须转到 `tool/result` 事件而不是面板本身。
-- **`approval/asked` / `approval/decided` 审计事件未落会话日志**：`DshApprovalBroker` 目前只发 `$events` 瞬时帧，不回写 `approval/*` 会话事件。DSH 参考实现（`dsh-user-approval`）会在轮内落审计事件便于历史回放。属**待补缺口**，本批不阻塞（前端面板不依赖），列入 B11 或后续批次。
+- **`approval/asked` / `approval/decided` 审计事件未落会话日志**：`DshApprovalBroker` 当时只发 `$events` 瞬时帧，不回写 `approval/*` 会话事件；DSH 参考实现（`dsh-user-approval`）会在轮内落审计事件便于历史回放。**B12 已补齐**（见 §六）。
 - **测试桩触发判定改为「标记出现在最后一次 `"role":"tool"` 之后」**：原判定 `!body.includes('"role":"tool"')` 在多轮会话里会让第二轮起不再触发（历史含旧工具消息），改用 `lastIndexOf` 比较，`USE_TOOL` / `USE_APPROVAL_TOOL` 同时受益。
 
 
@@ -90,3 +92,32 @@
 <!-- 原因: 用户选定；真实守卫链路（auto 模式 + PathPermissionMiddleware 步骤4）才算端到端验收；假工具只会命中「工具不存在」错误分支 -->
 <!-- 替代方案: ①引擎注入测试 seam ②只在协议层回放 waterfall 帧 —— 都绕过了真实权限管线，暂不采用 -->
 <!-- 验证: dumps/dsh-webui-approval.mjs ALL_PASS（33 项，连续两次），截图存 dumps/ -->
+
+
+## 六、B12 验收（四列）
+
+补齐 §五 遗留缺口：审批**审计事件**落会话日志，使历史回放与 DSH 参考实现（`dsh-user-approval/lib/index.js`：轮内 `approval/asked` → 等结果 → `approval/decided`）一致。
+同一验收脚本 `dumps/dsh-webui-approval.mjs`（同 §五 的隔离 home / 工作区 / 桩分支）追加断言：两轮各 7 项审计断言 + 刷新重载 4 项回放断言，脚本现共 **48 项**。
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|----------|--------|--------|--------|
+| `DshApprovalAskedData` / `DshApprovalDecidedData` DTO（`ToolName`/`CallId`/`Reason`/`Outcome`，`DshJsonContext` camelCase） | `approval/asked` / `approval/decided` 会话事件的序列化 | ✅ | ✅ 日志实测形状 `{"id":"11123f8d…","toolName":"read","callId":null,"reason":"读取路径 …\approval-probe.txt 需要用户确认。"}` 与 `{"id":"11123f8d…","outcome":"rejected"}`；`id` 非空、`decided.id == asked.id` |
+| `DshSessionStreamHub.PublishElementAsync`（分配 seq + `DshSessionJournal` 落盘 + 推送订阅者） | 审计事件写会话日志并进入 `$events` 流 | ✅ | ✅ 事件流实测 `turn/start,step/start,user/message,tool/call,approval/asked,approval/decided,tool/result,assistant/message,step/end,turn/end` |
+| `DshApprovalBroker.RequestAsync` / `SettleAsync` / `AppendAuditAsync`（`asked` 在发帧前落，`decided` 由 `TrySetResult` 赢家只落一次） | 每轮审批恰好一对审计事件 | ✅ | ✅ `asked` 紧跟 `tool/call`、`decided` 早于 `tool/result`；拒绝轮 `outcome=rejected`、允许轮 `outcome=allowed-once` |
+| `DshTurnRunner` finally → `Approvals.CloseTurnAsync(sessionId)`（先结清审计对，再 `Streams.EndTurn`） | 审计对必须被本轮 `hasOpenTurn` 包住（DSH invariant 否则抛 "outside an open turn"） | ✅ | ✅ 实测 `turn/start(=0) < asked(=4) < decided(=5) < turn/end(=9)`；两轮均以 `turn/end{kind:"completed"}` 收尾 |
+| `DshSessionStore.SnapshotAsync`（不过滤事件类型）+ 前端历史渲染 | 刷新后审计事件随快照回放 | ✅ | ✅ 刷新后回放到 `approval/asked`、`approval/decided + allowed-once`、以及 `rejected` 判定，界面同时渲染历史问答 |
+| 单测 `DshApprovalBrokerTests` 新增 6 例（词表映射 / 无开放轮次跳过 / 监听者抛错→`unavailable` / 关轮→`cancelled` 且闭环） | 审计语义的确定性验证（不依赖真机） | ✅ | ✅ `dotnet test native_gui/tests/join_code_gui.tests` = **276 通过 / 0 失败**（原 270 + 6）；真机 `ALL_PASS`（48/48，连跑两次） |
+
+### B12 遗留观察（不影响验收，记录备查）
+
+- **审计写入失败不阻塞审批**：`AppendAuditAsync` 只记日志（无会话 ID / 无 sink / 序列化异常都吞掉），放行流程永远不被日志问题拖死。
+- **孤儿审批后台补写**：`$events` 断开时挂起请求结算为 `unavailable`，审计补写 fire-and-forget（释放函数禁阻塞，ADR 0093）。
+- **E2E 选工作区必须重载页面（脚本侧）**：前端点选工作区后 composer 阶段不当帧刷新（实测停在 `data-phase=plain`），`ensureWorkspace` 统一为「点菜单项 → `page.reload()` → 等可编辑」；并容错「异步恢复会话时选择入口闪现又消失（点击途中 `element was detached`）」。自查发现 `dsh-webui-prompt.mjs` 重载后未等输入框就断言（无 `until` 的竞态），已改为确定性等待。
+- **`dsh-webui-reload.mjs` 去掉隐式耦合**：原脚本假设「侧栏第一行 = 上一条脚本留下的会话」，会话数一多就漂移。改为自建内容（普通一轮 + `USE_TOOL` 一轮）后再刷新断言，并可独立运行（自带 `ensureStub`）。
+- **单脚本执行必须限时**：脚本收尾 `cdp.close()` 偶发不返回（工作已完成但进程不退出），运行方对每个脚本设硬超时（≤3 分钟）并读日志判定，禁止无上限等待。
+
+<!-- 🤖 Auto Decision: 2026-10-21 -->
+<!-- 决策: 审批审计事件由宿主侧 DshApprovalBroker 写入会话流（Audit 委托注入 PublishElementAsync），而非引擎侧落盘 -->
+<!-- 原因: 审批是宿主与前端之间的协议对象（waterfall 帧 + $events/result 回帖），引擎只看到"工具需要确认"；审计必须与帧同一时刻产生才能保证 asked/decided 成对且轮内闭合 -->
+<!-- 替代方案: ①引擎在权限拦截层落事件（会与宿主的 eventId 体系割裂，且无法表达 unavailable/cancelled）②只在日志文件写不推进事件流（刷新回放看不到）—— 都不采用 -->
+<!-- 验证: 真机 ALL_PASS（48/48 两次）+ 单测 276/0；审计对轮内闭合断言 turn/start < asked < decided < turn/end -->

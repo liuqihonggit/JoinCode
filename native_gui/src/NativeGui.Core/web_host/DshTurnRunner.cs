@@ -143,7 +143,7 @@ internal sealed class DshTurnRunner {
                 Error = new DshTurnEndError { Code = "UNKNOWN", Message = ex.Message },
             });
         } finally {
-            _services.Approvals.SetAgent(null);
+            await _services.Approvals.CloseTurnAsync(sessionId);
             _services.Streams.EndTurn(sessionId);
             if (_services.Engine is { } ready) {
                 StartQueued(ready, sessionId);

@@ -141,6 +141,29 @@ internal sealed class DshEventErrorBody {
 /// <summary>$events/result 回帖响应（前端只看 ok，无业务载荷）</summary>
 internal sealed class DshEventsResultValue;
 
+/// <summary>
+/// 会话日志的审批审计事件 <c>approval/asked</c>（对齐 DSH dsh-user-approval：审批请求必须先落审计，
+/// 且与 <see cref="DshApprovalDecidedData"/> 成对、被 turn/start…turn/end 包住，否则回放时是崩溃残尾）。
+/// </summary>
+internal sealed class DshApprovalAskedData {
+    /// <summary>审批请求 ID（与 waterfall 帧的 eventId 无关，审计对内部自洽）</summary>
+    public string Id { get; set; } = "";
+    /// <summary>请求审批的工具名（不可为空）</summary>
+    public string ToolName { get; set; } = "";
+    /// <summary>关联的工具调用 ID（可选）</summary>
+    public string? CallId { get; set; }
+    /// <summary>人类可读原因（可选）</summary>
+    public string? Reason { get; set; }
+}
+
+/// <summary>会话日志的审批审计事件 <c>approval/decided</c>（词汇表 allowed-once/rejected/cancelled/unavailable）</summary>
+internal sealed class DshApprovalDecidedData {
+    /// <summary>与 approval/asked 相同的审批请求 ID</summary>
+    public string Id { get; set; } = "";
+    /// <summary>判定结果（allowed-once 是唯一放行值）</summary>
+    public string Outcome { get; set; } = "";
+}
+
 /// <summary>fileUploads/upload 参数（前端 lookup 字段 agentId 即会话/代理 ID；request 包裹 data+name）</summary>
 internal sealed class DshFileUploadsUploadArgs {
     /// <summary>目标会话/代理</summary>
@@ -1420,6 +1443,8 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshEventsResultArgs))]
 [JsonSerializable(typeof(DshEventOutcome))]
 [JsonSerializable(typeof(DshEventsResultValue))]
+[JsonSerializable(typeof(DshApprovalAskedData))]
+[JsonSerializable(typeof(DshApprovalDecidedData))]
 [JsonSerializable(typeof(DshEventErrorBody))]
 [JsonSerializable(typeof(DshCommandInfo))]
 [JsonSerializable(typeof(DshCommandInputInfo))]

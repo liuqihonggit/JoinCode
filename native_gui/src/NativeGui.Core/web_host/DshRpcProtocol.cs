@@ -223,6 +223,30 @@ internal sealed class DshAttachmentInfo {
     public string? Name { get; set; }
 }
 
+/// <summary>session/updateQueue 参数（QueueDock 行操作）</summary>
+internal sealed class DshUpdateQueueArgs {
+    /// <summary>会话 ID</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>队列项 ID（入队时分配的 GUID）</summary>
+    public string ItemId { get; set; } = "";
+    /// <summary>操作（edit/remove/steer）</summary>
+    public DshUpdateQueueAction? Action { get; set; }
+}
+
+/// <summary>队列操作</summary>
+internal sealed class DshUpdateQueueAction {
+    /// <summary>操作类型</summary>
+    public string Kind { get; set; } = "";
+    /// <summary>edit 的新内容（text part 数组；其他 kind 恒空）</summary>
+    public List<DshPromptContent> Content { get; set; } = [];
+}
+
+/// <summary>updateQueue 受理响应</summary>
+internal sealed class DshQueueAcceptedResult {
+    /// <summary>受理标志</summary>
+    public bool Accepted => true;
+}
+
 /// <summary>workspaceFiles 四方法共用参数（前端 lookup 字段 workspaceFileScopeId 即 sessionId）</summary>
 internal sealed class DshWorkspaceFilesArgs {
     /// <summary>会话 ID（文件树根 = 会话 cwd）</summary>
@@ -1400,5 +1424,7 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshAttachmentRecord))]
 [JsonSerializable(typeof(DshSessionAttachmentArgs))]
 [JsonSerializable(typeof(DshSessionAttachmentResult))]
+[JsonSerializable(typeof(DshUpdateQueueArgs))]
+[JsonSerializable(typeof(DshQueueAcceptedResult))]
 [JsonSerializable(typeof(object))]
 internal sealed partial class DshJsonContext : JsonSerializerContext;

@@ -72,6 +72,8 @@ internal sealed class DshRpcDispatcher {
             // 附件链（TASK058 P2-B2；uploadFileBinary 直传路由在 DshWebHost octet-stream 分支）
             ["fileUploads/upload"] = FileUploadsUpload,
             ["session/attachment"] = SessionAttachment,
+            // 队列编辑（TASK058 P2-B3；steer=引擎无注入点诚实拒绝）
+            ["session/updateQueue"] = SessionUpdateQueue,
         }.ToFrozenDictionary(StringComparer.Ordinal);
     }
 
@@ -412,6 +414,45 @@ internal sealed class DshRpcDispatcher {
         return await _services.Attachments.UploadAsync(request.AgentId, request.Request.Data, request.Request.Name, cancellationToken);
     }
 
+    /// <summary>会话队列快照透传（updateQueue 响应与测试消费；internal 接缝）</summary>
+    internal IReadOnlyList<DshTurnRunner.QueueItem> ListQueue(string sessionId) => _turns.ListQueue(sessionId);
+
+    /// <summary>
+    /// session/updateQueue：排队项编辑（TASK058 P2-B3）。edit=重写文本，remove=移除；
+    /// steer 返回 session/steer-unavailable（引擎 StreamAsync 一轮独占无轮内注入点 — 诚实引导，
+    /// 消息保持排队将在下一轮执行）。行不在队列/已被 claim 返回 session/queue-item-not-found。
+    /// </summary>
+    private Task<DshRpcResult> SessionUpdateQueue(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshUpdateQueueArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)
+            || string.IsNullOrWhiteSpace(request.ItemId) || request.Action is null) {
+            return Task.FromResult(Fail("session/rejected",
+                $"session/updateQueue 需要 {{sessionId, itemId, action:{{kind, content?}}}}；收到 args={Describe(args)}"));
+        }
+        if (string.Equals(request.Action.Kind, "steer", StringComparison.Ordinal)) {
+            return Task.FromResult(Fail("session/steer-unavailable",
+                "引擎暂不支持轮内注入（steer）；该消息保持排队，将在当前轮结束后的下一轮执行"));
+        }
+        if (string.Equals(request.Action.Kind, "remove", StringComparison.Ordinal)) {
+            return Task.FromResult(_turns.TryRemoveQueueItem(request.SessionId, request.ItemId)
+                ? Ok(new DshQueueAcceptedResult())
+                : Fail("session/queue-item-not-found",
+                    $"队列项 {request.ItemId} 不在队列中（可能已被下一轮 claim）；刷新队列后重试"));
+        }
+        if (string.Equals(request.Action.Kind, "edit", StringComparison.Ordinal)) {
+            var text = string.Concat(request.Action.Content?.Select(part => part.Text ?? "") ?? []);
+            if (string.IsNullOrWhiteSpace(text)) {
+                return Task.FromResult(Fail("session/rejected", "edit 的 content 需要非空文本"));
+            }
+            return Task.FromResult(_turns.TryEditQueueItem(request.SessionId, request.ItemId, text)
+                ? Ok(new DshQueueAcceptedResult())
+                : Fail("session/queue-item-not-found",
+                    $"队列项 {request.ItemId} 不在队列中（可能已被下一轮 claim）；刷新队列后重试"));
+        }
+        return Task.FromResult(Fail("session/rejected",
+            $"updateQueue 的 action.kind 必须是 edit/remove/steer 之一；收到 {request.Action.Kind}"));
+    }
+
     /// <summary>session/attachment：读附件（元数据 + base64 数据，前端聊天内图片渲染）</summary>
     private async Task<DshRpcResult> SessionAttachment(JsonElement args, CancellationToken cancellationToken) {
         var request = args.Deserialize(DshJsonContext.Default.DshSessionAttachmentArgs);
@@ -487,6 +528,7 @@ internal sealed class DshRpcDispatcher {
         });
     }
 
+    private static DshRpcResult Ok(DshQueueAcceptedResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshQueueAcceptedResult));
     private static DshRpcResult Ok(DshSessionList value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionList));
 
     private static DshRpcResult Ok(DshSessionRenameResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionRenameResult));

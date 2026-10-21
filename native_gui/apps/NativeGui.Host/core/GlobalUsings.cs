@@ -1,3 +1,6 @@
+// 引擎斜杠命令生成目录（GeneratedSlashCommandCatalog 兜底，JoinCode.ChatCommands 命名空间）
+global using JoinCode.ChatCommands;
+
 // DI/日志（原 modules/apps/gui 级 Directory.Build.props 的 Using Include，随迁）
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging;

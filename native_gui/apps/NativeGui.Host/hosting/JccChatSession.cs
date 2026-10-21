@@ -558,13 +558,12 @@ internal sealed class JccChatSession : IJccChatSession {
         => _chat.RewindLastTurnAsync(cancellationToken);
 
     /// <summary>
-    /// 获取可用斜杠命令清单 — 从 DI 解析 <c>ISlashCommandCatalog</c>（源码生成器在 Composition 中生成）。
-    /// 未注册时返回空列表（兜底）。
+    /// 获取可用斜杠命令清单 — 从 DI 解析 <c>ISlashCommandCatalog</c>，未注册时兜底直接实例化
+    /// <c>GeneratedSlashCommandCatalog</c>（对齐 TUI SlashCommandSource.Load 先例 — GUI 会话模块列表
+    /// 不含 Composition slash 注册，靠源码生成目录兜底）。仍为空时返回空列表（降级）。
     /// </summary>
     public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() {
-        var catalog = _services.GetService<ISlashCommandCatalog>();
-        if (catalog is null)
-            return [];
+        var catalog = _services.GetService<ISlashCommandCatalog>() ?? new GeneratedSlashCommandCatalog();
         return catalog.ByCategory.SelectMany(g => g.Value).Where(c => !c.IsHidden).ToList();
     }
 

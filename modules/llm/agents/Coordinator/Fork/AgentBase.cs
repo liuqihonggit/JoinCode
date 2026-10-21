@@ -103,6 +103,11 @@ public class AgentBase : Entity, IAgent {
     /// </summary>
     public ConcurrentQueue<string> ContractChangeNotifications { get; set; } = new();
 
+    /// <summary>steer 打断信号（TASK063 — CoordinatorMessage.InterruptAndSend 路由触发）：
+    /// volatile 标记，ExecuteStreamAsync chunk 循环每次迭代检查 — 置位后跳出当前流尽快收尾
+    ///（收尾补发 Complete 兜底，转发消息在下轮开头 TryDrain 消费）；轮结束自动复位。</summary>
+    private volatile bool _steerRequested;
+
     /// <summary>
     /// 延迟邮件服务 — 每轮 LLM 调用前消费到期延迟邮件, 注入 ChatHistory
     /// null 表示未接入延迟邮件(默认); 由 ForkSpawnMiddleware 注入
@@ -344,6 +349,7 @@ public class AgentBase : Entity, IAgent {
         StartedAt = _clock.GetUtcNow();
         Status = TaskExecutionStatus.Running;
         _executionCount++;
+        _steerRequested = false;
 
         if (_executionCount > Options.MaxIterations) {
             _logger?.LogWarning("[Agent {AgentId}] 已达最大迭代次数 {MaxIterations},停止执行", UniqueId, Options.MaxIterations);
@@ -401,6 +407,11 @@ public class AgentBase : Entity, IAgent {
             : _queryEngine.QueryAsync(prompt, chatHistory, linkedToken);
 
         await foreach (var chunk in queryStream.ConfigureAwait(false)) {
+            // TASK063 steer 检查点 — 打断信号置位即跳出当前流（已产出的 chunk 透传收尾，Complete 兜底补发）
+            if (_steerRequested) {
+                break;
+            }
+
             if (Status == TaskExecutionStatus.Paused) {
                 try {
                     using (await _pauseLock.TryLockAsync(linkedToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_pauseLock.Name}' 等待超时")) { }
@@ -485,6 +496,16 @@ public class AgentBase : Entity, IAgent {
             Status = TaskExecutionStatus.Paused;
             _logger?.LogInformation("[{AgentType} {AgentId}] 任务已暂停，等待恢复信号", GetType().Name, UniqueId);
         }
+    }
+
+    /// <summary>
+    /// 请求打断当前轮（TASK063 steer）— volatile 置位，ExecuteStreamAsync chunk 循环检查点
+    /// 尽快跳出（对齐用户语义"@子代理消息必须打断"：不打断则消息躺着等下轮 TryDrain）。
+    /// 信号轮结束自动复位；调用方（AgentServiceImpl 邮箱路由）负责消息已入转发队列。
+    /// </summary>
+    public void RequestSteer() {
+        _steerRequested = true;
+        _logger?.LogInformation("[Agent {AgentId}] 收到 steer 打断信号，当前轮将尽快收尾", UniqueId);
     }
 
     /// <summary>

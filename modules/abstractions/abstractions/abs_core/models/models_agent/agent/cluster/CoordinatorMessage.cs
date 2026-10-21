@@ -41,6 +41,11 @@ public sealed class CoordinatorMessage {
     /// <summary>消息可见性 — 控制跨通道路由范围，对标 QQ 系统消息/私信/撤回 — ADR 0111 决策8。</summary>
     public MessageVisibility Visibility { get; init; } = MessageVisibility.Public;
 
+    /// <summary>打断并发送（TASK063 steer 协议）— true 时邮箱层投递消息同时请求目标代理打断当前轮
+    ///（对齐用户语义"@子代理消息必须打断并提示"：不躺着等下轮 TryDrain）；默认 false 保持既有
+    ///"排队到下轮"语义向后兼容。消费方：AgentServiceImpl.SendMessageToAgentAsync 路由。</summary>
+    public bool InterruptAndSend { get; init; }
+
     /// <summary>投影为 MessageEndpoints</summary>
     public MessageEndpoints ToEndpoints() => new(FromAgentId, ToAgentId);
 }

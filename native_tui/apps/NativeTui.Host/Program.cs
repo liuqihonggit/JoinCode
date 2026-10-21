@@ -185,6 +185,17 @@ public static class Program {
         else
             AssertModelItems(ModelPickerAssembly.LoadItems(session.Services), failures);
 
+        // DSG041 集成验收第②项 — 子代理事件链冒烟（真实 spawn 路径；MockServer 未构建时跳过非失败）
+        var subagentResult = await SubagentSelftest.RunAsync().ConfigureAwait(false);
+        switch (subagentResult.Status) {
+            case SubagentSelftest.Result.Failed:
+                failures.AddRange(subagentResult.Failures);
+                break;
+            case SubagentSelftest.Result.Skipped:
+                Console.WriteLine("SKIP: " + subagentResult.Failures[0]);
+                break;
+        }
+
         if (failures.Count > 0) {
             foreach (var failure in failures)
                 Console.Error.WriteLine("FAIL: " + failure);

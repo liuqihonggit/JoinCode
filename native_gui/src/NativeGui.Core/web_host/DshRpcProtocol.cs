@@ -141,6 +141,73 @@ internal sealed class DshEventErrorBody {
 /// <summary>$events/result 回帖响应（前端只看 ok，无业务载荷）</summary>
 internal sealed class DshEventsResultValue;
 
+/// <summary>workspaceFiles 四方法共用参数（前端 lookup 字段 workspaceFileScopeId 即 sessionId）</summary>
+internal sealed class DshWorkspaceFilesArgs {
+    /// <summary>会话 ID（文件树根 = 会话 cwd）</summary>
+    public string WorkspaceFileScopeId { get; set; } = "";
+    /// <summary>相对路径（空 = 根目录）</summary>
+    public string Path { get; set; } = "";
+}
+
+/// <summary>workspaceFiles/list 响应</summary>
+internal sealed class DshWorkspaceFilesListResult {
+    /// <summary>请求的相对路径（回显）</summary>
+    public string Path { get; set; } = "";
+    /// <summary>目录条目（目录在前按名排序）</summary>
+    public List<DshWorkspaceFileEntry> Entries { get; set; } = [];
+    /// <summary>是否超过截断阈值</summary>
+    public bool Truncated { get; set; }
+}
+
+/// <summary>文件树条目</summary>
+internal sealed class DshWorkspaceFileEntry {
+    /// <summary>名称（不含路径）</summary>
+    public string Name { get; set; } = "";
+    /// <summary>类型（file/directory/other）</summary>
+    public string Type { get; set; } = "file";
+    /// <summary>字节数（文件可选）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? Size { get; set; }
+}
+
+/// <summary>workspaceFiles/read 响应</summary>
+internal sealed class DshWorkspaceFilesReadResult {
+    /// <summary>文本起始偏移（v1 恒 0）</summary>
+    public int Offset { get; set; }
+    /// <summary>文本内容</summary>
+    public string Text { get; set; } = "";
+    /// <summary>行数</summary>
+    public int Lines { get; set; }
+    /// <summary>是否读到末尾</summary>
+    public bool Eof { get; set; }
+    /// <summary>绝对路径</summary>
+    public string AbsolutePath { get; set; } = "";
+    /// <summary>版本（size-mtime 合成，前端透传比较失效）</summary>
+    public string Version { get; set; } = "";
+}
+
+/// <summary>workspaceFiles/readBytes 响应（data 为 base64）</summary>
+internal sealed class DshWorkspaceFilesReadBytesResult {
+    /// <summary>字节起始偏移（v1 恒 0）</summary>
+    public int Offset { get; set; }
+    /// <summary>base64 编码字节</summary>
+    public string Data { get; set; } = "";
+    /// <summary>是否读到末尾</summary>
+    public bool Eof { get; set; }
+    /// <summary>绝对路径</summary>
+    public string AbsolutePath { get; set; } = "";
+    /// <summary>版本</summary>
+    public string Version { get; set; } = "";
+}
+
+/// <summary>workspaceFiles/stat 响应</summary>
+internal sealed class DshWorkspaceFilesStatResult {
+    /// <summary>绝对路径</summary>
+    public string AbsolutePath { get; set; } = "";
+    /// <summary>版本</summary>
+    public string Version { get; set; } = "";
+}
+
 /// <summary>commands/list 条目（前端以 /{name} 组装命令行）</summary>
 internal sealed class DshCommandInfo {
     /// <summary>命令名（无 / 前缀）</summary>
@@ -1241,5 +1308,10 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(JsonElement[]))]
 [JsonSerializable(typeof(Dictionary<string, DshCredentialState>))]
 [JsonSerializable(typeof(DshRpcErrorDetails))]
+[JsonSerializable(typeof(DshWorkspaceFilesArgs))]
+[JsonSerializable(typeof(DshWorkspaceFilesListResult))]
+[JsonSerializable(typeof(DshWorkspaceFilesReadResult))]
+[JsonSerializable(typeof(DshWorkspaceFilesReadBytesResult))]
+[JsonSerializable(typeof(DshWorkspaceFilesStatResult))]
 [JsonSerializable(typeof(object))]
 internal sealed partial class DshJsonContext : JsonSerializerContext;

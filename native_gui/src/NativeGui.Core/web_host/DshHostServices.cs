@@ -18,6 +18,7 @@ internal sealed class DshHostServices {
         Models = new DshModelCatalogSource();
         Streams = new DshSessionStreamHub(Journal);
         Approvals = new DshApprovalBroker();
+        WorkspaceFiles = new DshWorkspaceFilesService(Sessions, fileSystem);
     }
 
     /// <summary>自有引擎会话门面（组装完成后注入；未就绪时发送消息返回引导错误）</summary>
@@ -47,4 +48,7 @@ internal sealed class DshHostServices {
 
     /// <summary>权限确认桥（引擎确认点 → $events waterfall → 前端回帖，TASK058 B1）</summary>
     internal DshApprovalBroker Approvals { get; }
+
+    /// <summary>工作区文件树（workspaceFiles/list|read|readBytes|stat，TASK058 P2-B1）</summary>
+    internal DshWorkspaceFilesService WorkspaceFiles { get; }
 }

@@ -64,6 +64,11 @@ internal sealed class DshRpcDispatcher {
             ["workspace/unpinSession"] = WorkspaceUnpinSession,
             // 宿主暂不提供默认工作区（M2 起由自有引擎的会话/工作区目录决定）
             ["workspace/initializeDefault"] = Sync(_ => OkNull()),
+            // 工作区文件树（TASK058 P2-B1；changes 流属深化项，前端会收到未注册引导错误）
+            ["workspaceFiles/list"] = WorkspaceFilesList,
+            ["workspaceFiles/read"] = WorkspaceFilesRead,
+            ["workspaceFiles/readBytes"] = WorkspaceFilesReadBytes,
+            ["workspaceFiles/stat"] = WorkspaceFilesStat,
         }.ToFrozenDictionary(StringComparer.Ordinal);
     }
 
@@ -344,6 +349,54 @@ internal sealed class DshRpcDispatcher {
     private DshRpcResult LlmListProviders(JsonElement args) => Ok(_services.Models.Current.Groups
         .Select(group => new DshProviderInfo { Id = group.Id, Name = group.Name })
         .ToList());
+
+    /// <summary>workspaceFiles 四方法共用参数解析（失败返回稳定引导错误）</summary>
+    private DshRpcResult? ParseWorkspaceFilesArgs(JsonElement args, out string sessionId, out string path) {
+        var request = args.Deserialize(DshJsonContext.Default.DshWorkspaceFilesArgs);
+        sessionId = request?.WorkspaceFileScopeId ?? "";
+        path = request?.Path ?? "";
+        if (string.IsNullOrWhiteSpace(sessionId)) {
+            return Fail("workspaceFiles/rejected",
+                $"workspaceFiles 方法需要 workspaceFileScopeId（会话 ID）与 path；收到 args={Describe(args)}");
+        }
+        return null;
+    }
+
+    /// <summary>workspaceFiles/list：目录条目（目录在前按名排序）</summary>
+    private async Task<DshRpcResult> WorkspaceFilesList(JsonElement args, CancellationToken cancellationToken) {
+        var error = ParseWorkspaceFilesArgs(args, out var sessionId, out var path);
+        if (error is not null) {
+            return error;
+        }
+        return await _services.WorkspaceFiles.ListAsync(sessionId, path, cancellationToken);
+    }
+
+    /// <summary>workspaceFiles/read：读文本（全量 + 行数 + eof）</summary>
+    private async Task<DshRpcResult> WorkspaceFilesRead(JsonElement args, CancellationToken cancellationToken) {
+        var error = ParseWorkspaceFilesArgs(args, out var sessionId, out var path);
+        if (error is not null) {
+            return error;
+        }
+        return await _services.WorkspaceFiles.ReadAsync(sessionId, path, cancellationToken);
+    }
+
+    /// <summary>workspaceFiles/readBytes：读字节（base64）</summary>
+    private async Task<DshRpcResult> WorkspaceFilesReadBytes(JsonElement args, CancellationToken cancellationToken) {
+        var error = ParseWorkspaceFilesArgs(args, out var sessionId, out var path);
+        if (error is not null) {
+            return error;
+        }
+        return await _services.WorkspaceFiles.ReadBytesAsync(sessionId, path, cancellationToken);
+    }
+
+    /// <summary>workspaceFiles/stat：文件元数据（绝对路径 + version）</summary>
+    private async Task<DshRpcResult> WorkspaceFilesStat(JsonElement args, CancellationToken cancellationToken) {
+        var error = ParseWorkspaceFilesArgs(args, out var sessionId, out var path);
+        if (error is not null) {
+            return error;
+        }
+        return await _services.WorkspaceFiles.StatAsync(sessionId, path, cancellationToken);
+    }
 
     /// <summary>commands/list：引擎斜杠命令目录投影（TASK058 B5 — 引擎 [ChatCommand] 特性为唯一数据源）</summary>
     private DshRpcResult CommandsList(JsonElement args) => Ok(

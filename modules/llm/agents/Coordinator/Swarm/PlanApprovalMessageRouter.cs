@@ -15,6 +15,7 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity {
     private readonly IClockService _clock;
     private CancellationTokenSource? _leaderCts;
     private Task? _leaderRoutingTask;
+    private readonly List<(CancellationTokenSource Cts, Task Routing)> _teammateRoutings = [];
 
     /// <summary>初始化计划审批消息路由器</summary>
     /// <param name="messageBroker">消息邮箱，用于订阅/发布审批消息</param>
@@ -51,13 +52,28 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity {
     /// 启动 Teammate 侧路由：监听 plan_approval_response 并调用 HandlePlanApprovalResponseAsync
     /// </summary>
     public void StartTeammateRouting(string teammateAgentId) {
-        _ = RouteTeammateResponsesAsync(teammateAgentId);
+        // ct 传入 ReceiveAsync — MailboxBase 底层 ReadAllAsync(ct) 随取消退出（漏传时无消息场景
+        // Channel 读永不退出，StopRoutingAsync/Dispose 无法收尾 teammate 路由 — 同 AgentServiceImpl:679 缺陷）
+        var cts = new CancellationTokenSource();
+        _teammateRoutings.Add((cts, RouteTeammateResponsesAsync(teammateAgentId, cts.Token)));
     }
 
     /// <summary>
-    /// 停止 Leader 侧路由
+    /// 停止 Leader 侧路由 + Teammate 侧路由（全部收尾）
     /// </summary>
     public async Task StopRoutingAsync() {
+        foreach (var (cts, routing) in _teammateRoutings) {
+            cts.Cancel();
+            try {
+                await routing.ConfigureAwait(false);
+            } catch (OperationCanceledException) {
+            }
+
+            cts.Dispose();
+        }
+
+        _teammateRoutings.Clear();
+
         if (_leaderCts == null) return;
 
         _leaderCts.Cancel();
@@ -103,9 +119,9 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity {
     /// <summary>
     /// Teammate 侧响应路由：监听 plan_approval_response 并调用 HandlePlanApprovalResponseAsync
     /// </summary>
-    private async Task RouteTeammateResponsesAsync(string teammateAgentId) {
+    private async Task RouteTeammateResponsesAsync(string teammateAgentId, CancellationToken ct) {
         try {
-            await foreach (var message in _messageBroker.ReceiveAsync(teammateAgentId).ConfigureAwait(false)) {
+            await foreach (var message in _messageBroker.ReceiveAsync(teammateAgentId, ct).ConfigureAwait(false)) {
                 if (message.MessageType == TeammateMessageType.PlanApprovalResponse.ToValue()) {
                     await ProcessPlanApprovalResponseAsync(message).ConfigureAwait(false);
                 }

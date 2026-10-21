@@ -676,8 +676,10 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task RouteWorkerPermissionResponsesAsync(string agentId, CancellationToken ct) {
-        await foreach (var message in _messageBroker!.ReceiveAsync(agentId).ConfigureAwait(false)) {
-            ct.ThrowIfCancellationRequested();
+        // ct 传入 ReceiveAsync — MailboxBase 底层 ReadAllAsync(ct) 随取消退出；
+        // 漏传时无消息场景 Channel 读永不退出（E2E 实测 Host.DisposeAsync WhenAll 永挂 —
+        // dumpasync 链：AgentServiceImpl.DisposeAsync → BackgroundTaskActor → 本循环）
+        await foreach (var message in _messageBroker!.ReceiveAsync(agentId, ct).ConfigureAwait(false)) {
             if (message.MessageType == SwarmPermissionMessageType.PermissionResponse.ToValue()) {
                 await _permissionCallbackService!.ProcessIncomingResponseMessageAsync(message).ConfigureAwait(false);
             }

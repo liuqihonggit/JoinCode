@@ -75,7 +75,23 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity {
     /// </summary>
     /// <param name="workerAgentId">Worker 智能体标识</param>
     public void StartWorkerResponseRouting(string workerAgentId) {
-        _ = RouteWorkerResponsesAsync(workerAgentId);
+        // ct 传入 ReceiveAsync — MailboxBase 底层 ReadAllAsync(ct) 随取消退出（漏传时无消息场景
+        // Channel 读永不退出，StopRoutingAsync/Dispose 无法收尾 worker 路由 — 同 AgentServiceImpl:679 缺陷）
+        _cts ??= new CancellationTokenSource();
+        _ = RouteWorkerResponsesAsync(workerAgentId, _cts.Token);
+    }
+
+    private async Task RouteWorkerResponsesAsync(string workerAgentId, CancellationToken ct) {
+        try {
+            await foreach (var message in _messageBroker.ReceiveAsync(workerAgentId, ct).ConfigureAwait(false)) {
+                if (message.MessageType == SwarmPermissionMessageType.PermissionResponse.ToValue()) {
+                    await _callbackService.ProcessIncomingResponseMessageAsync(message).ConfigureAwait(false);
+                }
+            }
+        } catch (OperationCanceledException) {
+        } catch (Exception ex) {
+            _logger?.LogError(ex, "Worker 权限响应路由异常退出: WorkerId={WorkerId}", workerAgentId);
+        }
     }
 
     private async Task RouteMessagesAsync(string coordinatorAgentId, CancellationToken ct) {

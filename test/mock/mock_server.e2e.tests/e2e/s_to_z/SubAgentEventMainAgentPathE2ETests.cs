@@ -18,9 +18,7 @@ public sealed class SubAgentEventMainAgentPathE2ETests {
     public SubAgentEventMainAgentPathE2ETests(ITestOutputHelper output) => _output = output;
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    [Fact(Skip = "引擎侧子代理执行链缺陷（非 DSG041 接线问题——批1-4 单测全绿）：agent 工具真实执行后 testhost 崩溃；"
-        + "对照 ChatService 路径 SubAgentEventStreamE2ETests 同域红（子代理 LLM 输出无 AgentId 串入主流、无 AgentStarted），"
-        + "疑流式透传缺陷域（TASK043 StreamingFallbackDecorator 关联）。引擎缺陷修复后移除 Skip 复验。")]
+    [Fact]
     public async Task MainAgentPath_AgentSpawn_ShouldDispatchSubagentCallbacks() {
         const string args = "{\"name\":\"e2e-main\",\"subagent_type\":\"executor:search\",\"description\":\"检查README文件\",\"prompt\":\"读取当前目录README并总结\"}";
 
@@ -99,7 +97,9 @@ public sealed class SubAgentEventMainAgentPathE2ETests {
 
                 return consumer;
             } finally {
-                try { await session.Host.DisposeAsync(); } catch (Exception disposeEx) { _output.WriteLine($"[E2E清理] Host.DisposeAsync 异常(已忽略): {disposeEx.Message}"); }
+                try {
+                    await session.Host.DisposeAsync();
+                } catch (Exception disposeEx) { _output.WriteLine($"[E2E清理] Host.DisposeAsync 异常(已忽略): {disposeEx.Message}"); }
             }
         } finally {
             if (!mockServer.HasExited) {
@@ -126,12 +126,27 @@ public sealed class SubAgentEventMainAgentPathE2ETests {
         sb.AppendLine("  \"default_response\": \"(script exhausted)\",");
         sb.AppendLine("  \"scripted_turns\": [");
 
+        // Turn 1: 主对话 → agent 工具调用
         sb.AppendLine("    {");
         sb.AppendLine("      \"thinking_content\": null,");
         sb.AppendLine("      \"tool_calls\": [");
         sb.AppendLine("        {");
         sb.AppendLine("          \"tool_name\": \"agent\",");
         sb.Append("          \"arguments\": \"").Append(EscapeJsonString(toolCallArguments)).AppendLine("\",");
+        sb.AppendLine("        }".TrimEnd(','));
+        sb.AppendLine("      ],");
+        sb.AppendLine("      \"text_response\": null,");
+        sb.AppendLine("      \"follow_up_text\": null,");
+        sb.AppendLine("      \"http_status_code\": null");
+        sb.AppendLine("    },");
+
+        // Turn 2: 子代理 → 工具调用（产生子代理工具活动事件 ToolCallStart/End 带 AgentId）
+        sb.AppendLine("    {");
+        sb.AppendLine("      \"thinking_content\": null,");
+        sb.AppendLine("      \"tool_calls\": [");
+        sb.AppendLine("        {");
+        sb.AppendLine("          \"tool_name\": \"read\",");
+        sb.AppendLine("          \"arguments\": \"{\\\"file_path\\\":\\\"README.md\\\"}\",");
         sb.AppendLine("        }".TrimEnd(','));
         sb.AppendLine("      ],");
         sb.AppendLine("      \"text_response\": null,");

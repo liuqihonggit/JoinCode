@@ -83,4 +83,23 @@ public sealed class McpPluginBootstrapHandleTests
         await handle.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
         Assert.False(secondObserved);
     }
+
+    /// <summary>Completion — 插件就绪完成信号（邮箱/通知语义，替代时间性等待）：Run 前已完成
+    /// （无可等之物）；Run 后反映后台链 — 门闩放行前挂起、放行后完成。消费方（E2E/宿主）等
+    /// 此信号确认工具注册就绪，禁止 Task.Delay 固定延时（CI 快慢机均不可靠）。</summary>
+    [Fact]
+    public async Task Completion_ReflectsBackgroundChain_NotElapsed()
+    {
+        await using var handle = new McpPluginBootstrapHandle();
+        Assert.True(handle.Completion.IsCompleted);
+
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        handle.Run(_ => gate.Task);
+        var completion = handle.Completion;
+        Assert.False(completion.IsCompleted);
+
+        gate.SetResult();
+        await completion.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(handle.Completion.IsCompleted);
+    }
 }

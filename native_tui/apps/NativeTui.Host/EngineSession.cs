@@ -175,8 +175,8 @@ public sealed class EngineSession : IAsyncDisposable {
     /// M8-5 交互回调接线：clearScreen/onExitRequested 经 TuiCommandCallbacks 透传（/clear 清 TUI 滚动区、
     /// /exit 结束主循环；Bind 前为 null — 命令侧 ?.Invoke 安全降级对齐 Runner 可空语义）；
     /// S8 confirm/prompt/readPassword 经 TuiCommandCallbacks 交互面透传（confirm 组装期闭环走权限对话框
-    /// TCS 桥；prompt/readPassword 接线未决 — BindInteractions 前 null，命令侧降级：输入 null）。
-    /// internal static — 回调透传链测试面（fake DI 驱动真实命令注册链）。
+    /// TCS 桥；交互模式经 BindInteractions 重绑 prompt 为 ReplShell 命令对话框桥 — TASK065 F2，
+    /// readPassword 未接降级 null）。internal static — 回调透传链测试面（fake DI 驱动真实命令注册链）。
     /// TASK065 F1 融合 — onExitRequested 包装带命令名（Runner 回调无参 → 解析 input 补 reason 上提示行）。</summary>
     internal static async Task DispatchSlashCommandAsync(
         IServiceProvider services, string input, IEventConsumer consumer, TuiCommandCallbacks commandCallbacks, CancellationToken ct) {

@@ -175,7 +175,8 @@ public sealed class ReplBridgeDriver
         _spinner.HasActiveTools = false;
     }
 
-    /// <summary>结束回合：idle + spinner 复位（消息由事件驱动，interrupted 不额外追加）；子代理组定格脱离（未完成条目定格为非错误完成）。</summary>
+    /// <summary>结束回合：idle + spinner 复位（消息由事件驱动，interrupted 不额外追加）；子代理组定格脱离（未完成条目定格为非错误完成）。
+    /// spinner Mode 复位 Thinking→Responding（修复：回合结束后思考动画续转 — Thinking 态渲染器持续 shimmer）。</summary>
     public void EndTurn()
     {
         IsBusy = false;
@@ -185,6 +186,10 @@ public sealed class ReplBridgeDriver
         _spinner.Message = string.Empty;
         _spinner.ResponseLength = 0;
         _spinner.HasActiveTools = false;
+        if (_spinner.Mode == SpinnerMode.Thinking)
+        {
+            _spinner.Mode = SpinnerMode.Responding;
+        }
     }
 
     /// <summary>消息插入 spinner 之前（spinner 恒为滚动区最后一项）。</summary>

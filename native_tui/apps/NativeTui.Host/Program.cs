@@ -45,7 +45,8 @@ public static class Program {
 
         string? firstThinking = null;
         string? firstToken = null;
-        string? finalText = null;
+        var tokenTotal = 0;
+        var assistantMessages = new List<string>();
         while (sw.ElapsedMilliseconds < 60_000) {
             await Task.Delay(100).ConfigureAwait(false);
             foreach (var evt in session.Client.DrainEvents()) {
@@ -64,11 +65,16 @@ public static class Program {
                             firstToken = $"{sw.ElapsedMilliseconds}ms";
                             Console.WriteLine($"[probe] t={firstToken} 首 token");
                         }
-                        finalText += delta;
+                        tokenTotal += delta;
+                        break;
+                    case BridgeEvent.AssistantMessage(var text, var markdown):
+                        assistantMessages.Add(text);
+                        Console.WriteLine($"[probe] t={sw.ElapsedMilliseconds}ms assistant_message #{assistantMessages.Count} | textLen={text.Length} markdown={(markdown is not null ? "有" : "null")} | 首部: {text[..Math.Min(60, text.Length)]}");
                         break;
                     case BridgeEvent.TurnCompleted:
-                        Console.WriteLine($"[probe] t={sw.ElapsedMilliseconds}ms turn_completed | 首思考={firstThinking} 首 token={firstToken} | 累计文本={finalText?.Length ?? 0} 字符");
-                        Console.WriteLine("[probe] 回合文本: " + (finalText is { Length: > 0 } ? finalText[..Math.Min(200, finalText.Length)] : "(空)"));
+                        Console.WriteLine($"[probe] t={sw.ElapsedMilliseconds}ms turn_completed | 首思考={firstThinking} 首 token={firstToken} | token总长={tokenTotal} | assistant_message数={assistantMessages.Count}");
+                        foreach (var (msg, idx) in assistantMessages.Select((m, i) => (m, i + 1)))
+                            Console.WriteLine($"[probe] 消息#{idx} 长度={msg.Length} 双倍检测={(msg.Length > 2 && msg[..(msg.Length / 2)] == msg[(msg.Length / 2)..] ? "前半==后半（内容双倍）" : "无")}");
                         return 0;
                     case BridgeEvent.Error(var message):
                         Console.WriteLine($"[probe] t={sw.ElapsedMilliseconds}ms ERROR: {message}");

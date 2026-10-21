@@ -55,12 +55,13 @@ public sealed class ReplView
 
     /// <summary>
     /// 输入光标内容坐标（inline 模式帧尾光标位）— 行 = 输入文本行（内容底上方 footer+建议区+2），
-    /// 列 = PromptWidth + cursorCol（钳制行宽，右缘即 pending wrap 状态）。
+    /// 列 = PromptWidth + 显示宽度（修复：中文宽字符 — char 偏移换算显示列，钳制行宽，右缘即 pending wrap 状态）。
     /// </summary>
     public CursorPos InputCursorPos(int contentRows, int cols, int cursorCol)
     {
         var footerHeight = _footer.MeasureHeight(Footer);
-        return new CursorPos(Math.Min(cols, PromptInputBox.PromptWidth + cursorCol), contentRows - footerHeight - SuggestionHeight - 2);
+        var displayCol = PromptInputBox.MeasureDisplayWidth(Input.AsSpan(0, Math.Min(cursorCol, Input.Length)));
+        return new CursorPos(Math.Min(cols, PromptInputBox.PromptWidth + displayCol), contentRows - footerHeight - SuggestionHeight - 2);
     }
 
     /// <summary>渲染整屏（消息区 → 输入框 → 建议区 → footer）。</summary>

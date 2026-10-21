@@ -394,6 +394,7 @@ public class AgentBase : Entity, IAgent {
         var queryOptions = BuildChatOptions();
         var succeeded = true;
         string? errorMessage = null;
+        var sawComplete = false;
 
         var queryStream = queryOptions is not null
             ? _queryEngine.QueryAsync(prompt, chatHistory, queryOptions, linkedToken)
@@ -407,6 +408,9 @@ public class AgentBase : Entity, IAgent {
                     Status = TaskExecutionStatus.Running;
                 }
             }
+
+            if (chunk.Type == AgentStreamChunkType.Complete)
+                sawComplete = true;
 
             if (chunk.Type == AgentStreamChunkType.Content) {
                 responseBuilder.Append(chunk.Content);
@@ -460,12 +464,17 @@ public class AgentBase : Entity, IAgent {
         if (succeeded) Output.Text = finalOutput;
         else Output.ErrorMessage = errorMessage;
 
-        yield return new AgentStreamChunk {
-            Type = AgentStreamChunkType.Complete,
-            Content = finalOutput,
-            ExecutionTimeMs = stopwatch.ElapsedMilliseconds,
-            AgentId = UniqueId
-        };
+        // 完成信号只发一次（修复双发：QueryEngine 已发 Complete chunk 时不再补发 —
+        // 双发致 SessionController onDone 两次 → bridge/TUI 累积式消费者 assistant_message 双上屏；
+        // CLI 流式直写无感掩盖此缺陷。sawComplete 覆盖正常路径；异常/提前退出未发时仍兜底补发）
+        if (!sawComplete) {
+            yield return new AgentStreamChunk {
+                Type = AgentStreamChunkType.Complete,
+                Content = finalOutput,
+                ExecutionTimeMs = stopwatch.ElapsedMilliseconds,
+                AgentId = UniqueId
+            };
+        }
     }
 
     /// <summary>

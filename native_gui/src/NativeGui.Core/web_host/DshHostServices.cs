@@ -22,6 +22,7 @@ internal sealed class DshHostServices {
         };
         WorkspaceFiles = new DshWorkspaceFilesService(Sessions, fileSystem);
         Attachments = new DshAttachmentStore(fileSystem);
+        Goals = new DshGoalStore(fileSystem);
     }
 
     /// <summary>自有引擎会话门面（组装完成后注入；未就绪时发送消息返回引导错误）</summary>
@@ -57,4 +58,7 @@ internal sealed class DshHostServices {
 
     /// <summary>附件存储（fileUploads/upload 与 session/attachment，TASK058 P2-B2）</summary>
     internal DshAttachmentStore Attachments { get; }
+
+    /// <summary>目标存储（goals 七方法 + activation-changed 事件，TASK058 P2-B5）</summary>
+    internal DshGoalStore Goals { get; }
 }

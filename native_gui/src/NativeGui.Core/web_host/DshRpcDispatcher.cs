@@ -74,6 +74,14 @@ internal sealed class DshRpcDispatcher {
             ["session/attachment"] = SessionAttachment,
             // 队列编辑（TASK058 P2-B3；steer=引擎无注入点诚实拒绝）
             ["session/updateQueue"] = SessionUpdateQueue,
+            // 目标七方法（TASK058 P2-B5；引擎节点图 goal 联动属深化项）
+            ["goals/get"] = Sync(GoalsGet),
+            ["goals/create"] = Sync(GoalsCreate),
+            ["goals/edit"] = Sync(GoalsEdit),
+            ["goals/pause"] = Sync(GoalsPause),
+            ["goals/resume"] = Sync(GoalsResume),
+            ["goals/clear"] = Sync(GoalsClear),
+            ["goals/complete"] = Sync(GoalsComplete),
         }.ToFrozenDictionary(StringComparer.Ordinal);
     }
 
@@ -412,6 +420,79 @@ internal sealed class DshRpcDispatcher {
                 $"fileUploads/upload 需要 {{agentId, request:{{data, name?}}}}；收到 args={Describe(args)}");
         }
         return await _services.Attachments.UploadAsync(request.AgentId, request.Request.Data, request.Request.Name, cancellationToken);
+    }
+
+    /// <summary>goals/get：会话目标（无目标 null）</summary>
+    private DshRpcResult GoalsGet(JsonElement args) {
+        var request = args.Deserialize(DshJsonContext.Default.DshGoalsRefArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)) {
+            return Fail("goals/rejected", $"goals/get 需要 {{sessionId}}；收到 args={Describe(args)}");
+        }
+        var goal = _services.Goals.Get(request.SessionId);
+        return goal is null
+            ? OkNull()
+            : Success(JsonSerializer.SerializeToElement(goal, DshJsonContext.Default.DshGoal));
+    }
+
+    /// <summary>goals/create：创建目标（已存在 conflict 引导）</summary>
+    private DshRpcResult GoalsCreate(JsonElement args) {
+        var request = args.Deserialize(DshJsonContext.Default.DshGoalsCreateArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)) {
+            return Fail("goals/rejected", $"goals/create 需要 {{sessionId, objective, maxGoalRounds?}}；收到 args={Describe(args)}");
+        }
+        var (reference, error) = _services.Goals.Create(request.SessionId, request.Objective, request.MaxGoalRounds);
+        if (error is not null || reference is null) {
+            return error ?? Fail("goals/rejected", "创建失败");
+        }
+        return Success(JsonSerializer.SerializeToElement(new DshGoalsCreateResult { Ref = reference },
+            DshJsonContext.Default.DshGoalsCreateResult));
+    }
+
+    /// <summary>goals/edit：CAS 编辑（objective/maxGoalRounds）</summary>
+    private DshRpcResult GoalsEdit(JsonElement args) {
+        var request = args.Deserialize(DshJsonContext.Default.DshGoalsEditArgs);
+        if (request is null || request.SessionId is not { Length: > 0 } || request.Ref is null || request.Changes is null) {
+            return Fail("goals/rejected", $"goals/edit 需要 {{sessionId, ref, changes}}；收到 args={Describe(args)}");
+        }
+        var (goal, error) = _services.Goals.Edit(request.SessionId, request.Ref, request.Changes.Objective, request.Changes.MaxGoalRounds);
+        return error is not null
+            ? error
+            : Success(JsonSerializer.SerializeToElement(goal, DshJsonContext.Default.DshGoal));
+    }
+
+    /// <summary>状态迁移路由共用（ref 校验 + 委托）</summary>
+    private DshRpcResult GoalsTransition(JsonElement args, Func<string, DshGoalRef, (DshGoal? Goal, DshRpcResult? Error)> action) {
+        var request = args.Deserialize(DshJsonContext.Default.DshGoalsRefArgs);
+        if (request is null || request.SessionId is not { Length: > 0 } || request.Ref is null) {
+            return Fail("goals/rejected", $"goals 方法需要 {{sessionId, ref:{{id, revision}}}}；收到 args={Describe(args)}");
+        }
+        var (goal, error) = action(request.SessionId, request.Ref);
+        return error is not null
+            ? error
+            : Success(JsonSerializer.SerializeToElement(goal, DshJsonContext.Default.DshGoal));
+    }
+
+    /// <summary>goals/pause</summary>
+    private DshRpcResult GoalsPause(JsonElement args) => GoalsTransition(args, _services.Goals.Pause);
+
+    /// <summary>goals/resume</summary>
+    private DshRpcResult GoalsResume(JsonElement args) => GoalsTransition(args, _services.Goals.Resume);
+
+    /// <summary>goals/complete</summary>
+    private DshRpcResult GoalsComplete(JsonElement args) => GoalsTransition(args, _services.Goals.Complete);
+
+    /// <summary>goals/clear：清除（返回被清引用）</summary>
+    private DshRpcResult GoalsClear(JsonElement args) {
+        var request = args.Deserialize(DshJsonContext.Default.DshGoalsRefArgs);
+        if (request is null || request.SessionId is not { Length: > 0 } || request.Ref is null) {
+            return Fail("goals/rejected", $"goals/clear 需要 {{sessionId, ref:{{id, revision}}}}；收到 args={Describe(args)}");
+        }
+        var (reference, error) = _services.Goals.Clear(request.SessionId, request.Ref);
+        if (error is not null || reference is null) {
+            return error ?? Fail("goals/rejected", "清除失败");
+        }
+        return Success(JsonSerializer.SerializeToElement(new DshGoalsClearResult { Ref = reference },
+            DshJsonContext.Default.DshGoalsClearResult));
     }
 
     /// <summary>会话队列快照透传（updateQueue 响应与测试消费；internal 接缝）</summary>

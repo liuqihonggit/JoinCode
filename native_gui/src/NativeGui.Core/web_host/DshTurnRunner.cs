@@ -72,6 +72,7 @@ internal sealed class DshTurnRunner {
     /// <param name="prompt">已校验的输入</param>
     /// <param name="turn">轮次占用</param>
     private async Task BeginTurnAsync(Hosting.IJccChatSession engine, string sessionId, PendingPrompt prompt, (int Turn, CancellationToken Token) turn) {
+        _services.Goals.IncrementRounds(sessionId);
         await _services.Streams.PublishAsync(sessionId, "turn/start", new DshTurnStartData { Turn = turn.Turn });
         await _services.Streams.PublishAsync(sessionId, "step/start", new DshStepData { Turn = turn.Turn, Step = Step });
         await _services.Streams.PublishAsync(sessionId, "user/message", new DshWireMessage {

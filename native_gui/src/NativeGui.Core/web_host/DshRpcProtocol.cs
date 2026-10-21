@@ -329,6 +329,130 @@ internal sealed class DshWorkspaceFilesReadBytesResult {
     public string Version { get; set; } = "";
 }
 
+/// <summary>goals/get 响应（无目标时 null）</summary>
+internal sealed class DshGoal {
+    /// <summary>目标 ID（GUID）</summary>
+    public string Id { get; set; } = "";
+    /// <summary>版本（每次变更 +1，CAS 用）</summary>
+    public int Revision { get; set; }
+    /// <summary>目标描述</summary>
+    public string Objective { get; set; } = "";
+    /// <summary>阶段（active/paused/complete）</summary>
+    public string Phase { get; set; } = "active";
+    /// <summary>武装状态（armed=驱动轮次；disarmed=暂停驱动）</summary>
+    public string Activation { get; set; } = "armed";
+    /// <summary>已启动轮次（prompt 受理递增）</summary>
+    public int RoundsStarted { get; set; }
+    /// <summary>轮次上限</summary>
+    public int MaxGoalRounds { get; set; }
+    /// <summary>创建时间（Unix 毫秒）</summary>
+    public long CreatedAt { get; set; }
+    /// <summary>更新时间（Unix 毫秒）</summary>
+    public long UpdatedAt { get; set; }
+}
+
+/// <summary>目标引用（CAS 句柄：id + 期望 revision）</summary>
+internal sealed class DshGoalRef {
+    /// <summary>目标 ID</summary>
+    public string Id { get; set; } = "";
+    /// <summary>期望版本（须与当前一致否则 conflict）</summary>
+    public int Revision { get; set; }
+}
+
+/// <summary>goals/get|pause|resume|complete 共用参数（ref 由各方法携带）</summary>
+internal sealed class DshGoalsRefArgs {
+    /// <summary>会话 ID</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>目标引用</summary>
+    public DshGoalRef? Ref { get; set; }
+}
+
+/// <summary>goals/create 参数</summary>
+internal sealed class DshGoalsCreateArgs {
+    /// <summary>会话 ID</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>目标描述</summary>
+    public string Objective { get; set; } = "";
+    /// <summary>轮次上限（可选，默认 10）</summary>
+    public int? MaxGoalRounds { get; set; }
+}
+
+/// <summary>goals/create 响应</summary>
+internal sealed class DshGoalsCreateResult {
+    /// <summary>新目标引用</summary>
+    public DshGoalRef Ref { get; set; } = new();
+}
+
+/// <summary>goals/edit 参数</summary>
+internal sealed class DshGoalsEditArgs {
+    /// <summary>会话 ID</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>目标引用（CAS）</summary>
+    public DshGoalRef? Ref { get; set; }
+    /// <summary>变更内容</summary>
+    public DshGoalChanges? Changes { get; set; }
+}
+
+/// <summary>目标变更内容（均可选）</summary>
+internal sealed class DshGoalChanges {
+    /// <summary>新目标描述</summary>
+    public string? Objective { get; set; }
+    /// <summary>新轮次上限</summary>
+    public int? MaxGoalRounds { get; set; }
+}
+
+/// <summary>goals/clear 响应</summary>
+internal sealed class DshGoalsClearResult {
+    /// <summary>被清目标引用（revision 为清算后值）</summary>
+    public DshGoalRef Ref { get; set; } = new();
+}
+
+/// <summary>目标落盘文档（~/.jcc/dsh_goals.json 条目）</summary>
+internal sealed record DshGoalDocument {
+    /// <summary>目标 ID</summary>
+    public string Id { get; init; } = "";
+    /// <summary>版本</summary>
+    public int Revision { get; init; }
+    /// <summary>目标描述</summary>
+    public string Objective { get; init; } = "";
+    /// <summary>阶段</summary>
+    public string Phase { get; init; } = "active";
+    /// <summary>武装状态</summary>
+    public string Activation { get; init; } = "armed";
+    /// <summary>已启动轮次</summary>
+    public int RoundsStarted { get; init; }
+    /// <summary>轮次上限</summary>
+    public int MaxGoalRounds { get; init; }
+    /// <summary>创建时间（Unix 毫秒）</summary>
+    public long CreatedAt { get; init; }
+    /// <summary>更新时间（Unix 毫秒）</summary>
+    public long UpdatedAt { get; init; }
+}
+
+/// <summary>goal/activation-changed 事件载荷（前端 $on 监听）</summary>
+internal sealed class DshGoalActivationChanged {
+    /// <summary>会话 ID</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>目标状态摘要</summary>
+    public DshGoalActivation Goal { get; set; } = new();
+}
+
+/// <summary>目标激活状态摘要</summary>
+internal sealed class DshGoalActivation {
+    /// <summary>目标 ID</summary>
+    public string Id { get; set; } = "";
+    /// <summary>版本</summary>
+    public int Revision { get; set; }
+    /// <summary>武装状态（armed/disarmed）</summary>
+    public string Activation { get; set; } = "";
+}
+
+/// <summary>dsh_goals.json 根文档</summary>
+internal sealed class DshGoalsDocument {
+    /// <summary>会话 → 目标</summary>
+    public Dictionary<string, DshGoalDocument> Goals { get; set; } = new(StringComparer.Ordinal);
+}
+
 /// <summary>workspaceFiles/changes 就绪帧（kind=ready — 无附加载荷）</summary>
 internal sealed class DshChangeReady {
     /// <summary>帧类型（ready）</summary>
@@ -1472,6 +1596,16 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshWorkspaceFilesStatResult))]
 [JsonSerializable(typeof(DshFileChangeFrame))]
 [JsonSerializable(typeof(DshChangeReady))]
+[JsonSerializable(typeof(DshGoal))]
+[JsonSerializable(typeof(DshGoalRef))]
+[JsonSerializable(typeof(DshGoalsRefArgs))]
+[JsonSerializable(typeof(DshGoalsCreateArgs))]
+[JsonSerializable(typeof(DshGoalsCreateResult))]
+[JsonSerializable(typeof(DshGoalsEditArgs))]
+[JsonSerializable(typeof(DshGoalChanges))]
+[JsonSerializable(typeof(DshGoalsClearResult))]
+[JsonSerializable(typeof(DshGoalsDocument))]
+[JsonSerializable(typeof(DshGoalActivationChanged))]
 [JsonSerializable(typeof(DshFileUploadsUploadArgs))]
 [JsonSerializable(typeof(DshFileUploadResult))]
 [JsonSerializable(typeof(DshAttachmentRecord))]

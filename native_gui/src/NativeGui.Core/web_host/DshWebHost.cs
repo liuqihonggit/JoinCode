@@ -265,10 +265,28 @@ internal sealed class DshWebHost : IAsyncDisposable {
                 var clientId = Guid.NewGuid().ToString();
                 Func<JsonElement, Task> sendFrame = frame => send(Item(open.StreamId, frame));
                 _services.Approvals.Attach(sendFrame, clientId);
+                // goal/activation-changed 事件桥（TASK058 P2-B5）：activation 翻转即推 waterfall 帧
+                void OnGoalChanged(string sessionId, DshGoalDocument goal) {
+                    _ = sendFrame(JsonSerializer.SerializeToElement(new DshWaterfallFrame {
+                        Event = "goal/activation-changed",
+                        EventId = Guid.NewGuid().ToString("N"),
+                        AgentId = sessionId,
+                        Request = JsonSerializer.SerializeToElement(new DshGoalActivationChanged {
+                            SessionId = sessionId,
+                            Goal = new DshGoalActivation { Id = goal.Id, Revision = goal.Revision, Activation = goal.Activation },
+                        }, DshJsonContext.Default.DshGoalActivationChanged),
+                    }, DshJsonContext.Default.DshWaterfallFrame)).ContinueWith(
+                        static t => GuiDiag.Log($"[DSH-GOALS] activation frame send failed: {t.Exception?.Message}"),
+                        CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+                }
+                _services.Goals.GoalChanged += OnGoalChanged;
                 return ([Item(open.StreamId, JsonSerializer.SerializeToElement(new DshEventsReady {
                     ClientId = clientId,
                     Host = new DshHostInfo { Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) },
-                }, DshJsonContext.Default.DshEventsReady))], new DetachLease(() => _services.Approvals.Detach()), null);
+                }, DshJsonContext.Default.DshEventsReady))], new DetachLease(() => {
+                    _services.Goals.GoalChanged -= OnGoalChanged;
+                    _services.Approvals.Detach();
+                }), null);
             }
             case "workspace/follow": {
                 var baseline = await _services.Workspaces.ReadBaselineAsync(cancellationToken);

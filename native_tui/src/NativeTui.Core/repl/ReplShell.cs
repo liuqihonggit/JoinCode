@@ -58,6 +58,9 @@ public sealed class ReplShell
     /// <summary>历史反向搜索态（Ctrl+R — TASK057-4；null = 未激活）。</summary>
     private HistorySearch? _search;
 
+    /// <summary>忙时排队输入队列（TASK060 — 基准 queued 语义，回合结束逐条自动发送）。</summary>
+    private readonly List<string> _queuedInputs = [];
+
     /// <summary>消息光标导航协调器（交互层 Step1 — 第四交互态，优先级低于权限/模型/搜索模态）。</summary>
     private readonly MessageCursor _cursorNav = new();
 
@@ -79,6 +82,9 @@ public sealed class ReplShell
 
     /// <summary>主循环存活标记（internal — 退出安全测试断言面：Esc/Ctrl+C 永不置 false）。</summary>
     internal bool IsRunning => _running;
+
+    /// <summary>登录门禁开（driver 投影 — 引擎 session_info 报告；false 时提交本地反馈不调引擎）。</summary>
+    internal bool LoginGateOpen => _driver.IsLoggedIn;
 
     /// <summary>启动 banner（首项 — 真实引擎由 session_info 事件原地更新）。</summary>
     private readonly BannerItem _banner;
@@ -220,6 +226,9 @@ public sealed class ReplShell
         {
             CompletePermission(PermissionChoice.Deny);
         }
+
+        // 回合结束 — 排队输入自动发送（TASK060 一问一答节奏：逐回合发队首）
+        PumpQueuedInputs();
     }
 
     /// <summary>挂起权限请求（宿主 TuiPermissionBridge.Confirm → 此处 → 用户按键 Complete）。</summary>
@@ -963,8 +972,9 @@ public sealed class ReplShell
         _engine.SetPermissionMode(PermissionModeInfo.ToValue(next));
     }
 
-    /// <summary>提交输入：空文本忽略；否则追加用户消息并提交引擎（TurnStarted 事件驱动 busy，忙时由实现拒绝并 Error 诱导）；
-    /// 提交文本入历史环（末条去重）+ 导航态复位。</summary>
+    /// <summary>提交输入（TASK060 一问一答节奏）：空文本忽略；未登录本地反馈（基准 ⎿ Not logged in —
+    /// 不调引擎不傻等）；忙时改排队（基准 queued 语义）— 用户消息上屏 + ⎿ 已排队 dim 行
+    /// （ToolResultItem 复用）、入历史环，回合结束自动按序发送（DrainEngine 队列泵）；闲时正常直发。</summary>
     internal void Submit()
     {
         var text = _input.Text;
@@ -977,7 +987,33 @@ public sealed class ReplShell
         _history.Add(text);
         _history.Reset();
         AddMessage(new UserMessageItem(text));
+        if (!LoginGateOpen)
+        {
+            AddMessage(new ToolResultItem("未登录 · 请在 auth.json 配置有效 API key 或运行 /login 后重试"));
+            return;
+        }
+
+        if (IsBusy)
+        {
+            _queuedInputs.Add(text);
+            AddMessage(new ToolResultItem("已排队，当前回合结束后自动发送"));
+            return;
+        }
+
         _engine.Submit(text);
+    }
+
+    /// <summary>排队输入发送泵（DrainEngine 回合结束时调用）— 非忙态且有排队时取队首直发引擎
+    ///（用户消息排队时已上屏，此处不重复）；逐回合发一条维持一问一答节奏。</summary>
+    private void PumpQueuedInputs()
+    {
+        if (IsBusy || _queuedInputs.Count == 0)
+        {
+            return;
+        }
+
+        _engine.Submit(_queuedInputs[0]);
+        _queuedInputs.RemoveAt(0);
     }
 
     /// <summary>渲染一帧并差分上屏：inline 走相对光标 + append（历史滚入 scrollback）+ DEC 2026 原子上屏；视口走绝对定位 diff。

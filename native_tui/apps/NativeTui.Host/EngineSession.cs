@@ -85,18 +85,21 @@ public sealed class EngineSession : IAsyncDisposable {
     }
 
     /// <summary>组装会话握手事件（internal — 测试断言 SetPrimaryModel 后 Model 字段更新）。版本（引擎程序集）/当前模型（FastMode 主模型，未设置为 null）/
-    /// 权限模式（安全闸后的实际值）/bypass 可用性（!DisableBypassGate）/cwd/供应商（WorkflowConfig.Provider.Vendor，TASK058 banner 显示）。</summary>
+    /// 权限模式（安全闸后的实际值）/bypass 可用性（!DisableBypassGate）/cwd/供应商（WorkflowConfig.Provider.Vendor，TASK058 banner 显示）/
+    /// 登录态（Provider.ApiKey 非空 = 能对话，TASK060 TUI 提交门禁依据）。</summary>
     internal static BridgeEvent.SessionInfo BuildSessionInfoEvent(PermissionChecker? checker, IFastModeService? fastMode, WorkflowConfig? config = null) {
         var version = typeof(EngineSessionFactory).Assembly.GetName().Version is { } v ? v.ToString(3) : "0.0.0";
         var mode = checker?.CurrentMode ?? EnginePermissionMode.Auto;
         var vendor = config?.Provider?.Vendor;
+        var loggedIn = !string.IsNullOrWhiteSpace(config?.Provider?.ApiKey);
         return new BridgeEvent.SessionInfo(
             Version: version,
             Model: string.IsNullOrWhiteSpace(fastMode?.PrimaryModelId) ? null : fastMode.PrimaryModelId,
             PermissionMode: EnginePermissionModeExtensions.ToValue(mode),
             BypassAvailable: checker?.DisableBypassGate is not true,
             Cwd: Environment.CurrentDirectory,
-            Vendor: string.IsNullOrWhiteSpace(vendor) ? null : vendor);
+            Vendor: string.IsNullOrWhiteSpace(vendor) ? null : vendor,
+            LoggedIn: loggedIn);
     }
 
     /// <summary>构造权限模式应用器 — 解析字符串（FromValue）→ 应用（CurrentMode setter 含 bypass 安全闸）→

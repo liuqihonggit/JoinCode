@@ -26,11 +26,12 @@ namespace NativeTui.Core.Bridge;
 public abstract record BridgeEvent
 {
     /// <summary>
-    /// 会话握手（引擎启动后首条事件）— 版本/当前模型/权限模式/bypass 可用性/cwd/供应商。
+    /// 会话握手（引擎启动后首条事件）— 版本/当前模型/权限模式/bypass 可用性/cwd/供应商/登录态。
     /// Model 为 null 表示引擎未设置模型（banner 显示"当前模型未设置"）；
-    /// Vendor 为 null 表示引擎未上报（banner 退化为不带供应商前缀，旧引擎兼容）。
+    /// Vendor 为 null 表示引擎未上报（banner 退化为不带供应商前缀，旧引擎兼容）；
+    /// LoggedIn 默认 true（旧引擎未上报登录态不拦截 — 仅新引擎显式 false 时 TUI 门禁关闭）。
     /// </summary>
-    public sealed record SessionInfo(string Version, string? Model, string PermissionMode, bool BypassAvailable, string Cwd, string? Vendor = null) : BridgeEvent;
+    public sealed record SessionInfo(string Version, string? Model, string PermissionMode, bool BypassAvailable, string Cwd, string? Vendor = null, bool LoggedIn = true) : BridgeEvent;
 
     /// <summary>权限模式切换回执（mode 为引擎实际生效值 — 安全闸拦截时与请求值不同）。</summary>
     public sealed record PermissionModeChanged(string Mode) : BridgeEvent;

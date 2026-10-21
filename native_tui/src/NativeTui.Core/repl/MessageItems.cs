@@ -8,6 +8,9 @@ namespace NativeTui.Core.Repl;
 /// <summary>用户消息项（整行灰底 + ❯ subtle + 正文）。</summary>
 public sealed class UserMessageItem(string text) : IScrollItem, ICursorNavigable
 {
+    /// <summary>用户正文（测试断言面 — 排队消息等场景）。</summary>
+    public string Text => text;
+
     /// <summary>内容高度 = margin 1 + 正文 1。</summary>
     public int MeasureHeight(int width) => 2;
 
@@ -44,6 +47,9 @@ public sealed class ToolCallItem(string toolName, string args) : IScrollItem, IC
 /// <summary>工具结果消息项（"  ⎿  " dim 前缀 + 正文）。</summary>
 public sealed class ToolResultItem(string text) : IScrollItem, ICursorNavigable
 {
+    /// <summary>结果正文（测试断言面 — 排队反馈等复用场景）。</summary>
+    public string Text => text;
+
     /// <summary>内容高度 = margin 1 + 正文 1。</summary>
     public int MeasureHeight(int width) => 2;
 

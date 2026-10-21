@@ -71,6 +71,18 @@ public sealed class EngineSessionTests {
         Assert.Null(withoutConfig.Vendor);
     }
 
+    /// <summary>登录态判定（TASK060 TUI 提交门禁）— ApiKey 非空 = 已登录；空 = 未登录（TUI 本地反馈不调引擎）。</summary>
+    [Fact]
+    public async Task BuildSessionInfoEvent_LoginStateFollowsApiKey()
+    {
+        await using var fastMode = new FastModeService();
+        var withKey = new WorkflowConfig { Provider = new ProviderConfig { Vendor = "sensenova", ApiKey = "sk-有效密钥" } };
+        var withoutKey = new WorkflowConfig { Provider = new ProviderConfig { Vendor = "sensenova", ApiKey = "" } };
+
+        Assert.True(EngineSession.BuildSessionInfoEvent(checker: null, fastMode, withKey).LoggedIn);
+        Assert.False(EngineSession.BuildSessionInfoEvent(checker: null, fastMode, withoutKey).LoggedIn);
+    }
+
     /// <summary>TUI 静默日志（修复：引擎 Console 日志直写 stderr 与 inline 渲染交错致光标错乱/横向线残影）—
     /// provider 必须是 SilentLoggerProvider（禁止 Console 系 provider）。</summary>
     [Fact]

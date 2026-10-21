@@ -78,20 +78,20 @@ public sealed class BtwCommandTests {
     }
 
     [Fact]
-    public async Task Execute_WithQuestion_Should_SendMessage() {
+    public async Task Execute_WithQuestion_Should_InvokeForkQueryEngine() {
+        var engine = new CaptureQueryEngine("侧边回答文本");
+        var services = new ServiceCollection();
+        services.AddSingleton<IQueryEngine>(engine);
         var cmd = new BtwCommand();
-        var chatService = new Mock<IChatService>();
-        chatService.Setup(c => c.SendMessageAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("Test answer");
-
         var context = new ChatCommandContext {
             Arguments = "test question",
             CancellationToken = CancellationToken.None,
             Services = new CommandServiceProvider(new CommandServices {
-                ChatService = chatService.Object,
+                ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 FileSystem = TestFileSystem.Current,
+                ServiceProvider = services.BuildServiceProvider(),
             }),
         };
 
@@ -99,26 +99,26 @@ public sealed class BtwCommandTests {
 
         result.ShouldContinue.Should().BeTrue();
         result.IsHandled.Should().BeTrue();
-        chatService.Verify(c => c.SendMessageAsync(
-            It.Is<string>(s => s.Contains("test question")),
-            It.IsAny<CancellationToken>()), Times.Once);
+        engine.QueryCallCount.Should().Be(1, "fork 路径走 IQueryEngine（对齐基准 runForkedAgent），不再走 ChatService.SendMessageAsync");
+        engine.CapturedPrompt.Should().Contain("test question");
     }
 
+    /// <summary>fork 异常路径 — QueryEngine 抛异常时 HandleError 吞掉，命令仍 Continue 不中断主对话流。</summary>
     [Fact]
-    public async Task Execute_WhenSendMessageThrows_Should_Return_Continue() {
+    public async Task Execute_WhenQueryEngineThrows_Should_Return_Continue() {
         var cmd = new BtwCommand();
-        var chatService = new Mock<IChatService>();
-        chatService.Setup(c => c.SendMessageAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("chat error"));
-
+        var engine = new CaptureQueryEngine(throwOnQuery: true);
+        var services = new ServiceCollection();
+        services.AddSingleton<IQueryEngine>(engine);
         var context = new ChatCommandContext {
             Arguments = "test question",
             CancellationToken = CancellationToken.None,
             Services = new CommandServiceProvider(new CommandServices {
-                ChatService = chatService.Object,
+                ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 FileSystem = TestFileSystem.Current,
+                ServiceProvider = services.BuildServiceProvider(),
             }),
         };
 
@@ -126,5 +126,37 @@ public sealed class BtwCommandTests {
 
         result.ShouldContinue.Should().BeTrue();
         result.IsHandled.Should().BeTrue();
+    }
+
+    /// <summary>捕获型 QueryEngine 假体 — fork 调用计数与 prompt 捕获（IQueryEngine 最小面）。</summary>
+    private sealed class CaptureQueryEngine(string? fixedResponse = null, bool throwOnQuery = false) : IQueryEngine {
+        public int QueryCallCount { get; private set; }
+        public string CapturedPrompt { get; private set; } = string.Empty;
+
+        public Task<string> ExecuteQueryAsync(string query, CancellationToken cancellationToken = default)
+            => Task.FromResult(fixedResponse ?? string.Empty);
+
+        public async IAsyncEnumerable<QueryStreamChunk> QueryAsync(
+            string userInput, MessageList chatHistory,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
+            QueryCallCount++;
+            CapturedPrompt = userInput;
+            if (throwOnQuery) {
+                throw new InvalidOperationException("fork query error");
+            }
+
+            await Task.Yield();
+            yield return new QueryStreamChunk { Type = AgentStreamChunkType.Content, Content = fixedResponse ?? string.Empty };
+        }
+
+        public IAsyncEnumerable<QueryStreamChunk> QueryAsync(
+            string userInput, MessageList chatHistory, QueryOptions? options, CancellationToken cancellationToken = default)
+            => QueryAsync(userInput, chatHistory, cancellationToken);
+
+        public JoinCode.Abstractions.LLM.IQueryService GetChatCompletionService()
+            => throw new NotSupportedException("测试假体不提供查询服务");
+
+        public JoinCode.Abstractions.LLM.IChatClient GetKernel()
+            => throw new NotSupportedException("测试假体不提供 kernel");
     }
 }

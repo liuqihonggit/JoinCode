@@ -1,6 +1,6 @@
 # TASK061 — ModelInfo 信息类 + 上下文窗口配置校验（1M 时代）
 
-> 状态：in_progress（2026-10-21 开工）
+> 状态：implemented（2026-10-21 三层落地 + 全绿 + 真机验证；剩余用户验收 agnes 场景报错呈现）
 > 前置：巨型请求修复（4c27592ab）完结；用户指令："主流模型上下文已达 1M，模型配置里写模型名称+上下文大小，不对的直接报错；建一个 modelInfo 信息类"
 
 ## 调研结论
@@ -31,6 +31,25 @@ agnes models.json 9 模型 contextWindow=0 — 校验报错即用户要求的"�
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| ModelInfo + ValidateOrThrow（abstractions） | resolver/切换链复用 | 待做 | 待真机 |
-| resolver 0 值严格化（guard） | 启动/请求前窗口解析 | 待做 | 待真机（agnes 报错/sensenova 正常） |
-| 错误友好呈现 | TUI StartupErrorPrinter 链 | 已有 | 复用 |
+| ModelInfo + ValidateOrThrow（abstractions） | resolver/两源投影 | ✅ 4 测试 | ✅ 单元 13/13 |
+| resolver 0 值严格化（guard） | 启动/请求前窗口解析 | ✅ 2 测试 | ✅ 1284/1284 + 真机 sensenova 正常 |
+| 请求前预算守卫（QueryLoopMiddleware.GuardContextBudget 孤儿接线） | 每轮迭代 historySnapshot 后 | ✅ 2 测试 | ✅ 933/933 |
+| IChatContextManager.DecidePreflightWithCurrentSpecs | 中间件守卫消费面 | ✅ | ✅ |
+
+## 最终基线
+
+- guard.config.tests：1281 → **1284**（+ModelInfo 4 + resolver 2 - 既有调整）
+- brain.context.tests：931 → **933**（+守卫 2）
+- 提交：5a5d7fa89
+- 真机：sensenova 窗口临时置 0 → 报错链验证通过后恢复；正常路径回复 `ok` 恢复
+
+## 额外发现（调研结论）
+
+- **DecidePreflight 是孤儿**（接口+实现齐全但无任何消费方）——请求前预算守卫此前根本没挂主链，本任务接线修复
+- agnes 9 模型 contextWindow 全 0（真实脏数据）——严格化后被使用到时立即报错（带修复指引），非当前 profile 不阻断启动
+
+<!-- 🤖 Auto Decision: 2026-10-21 -->
+<!-- 决策: 三层修复（信息类+配置校验+请求前守卫）而非单点校验 -->
+<!-- 原因: 用户三诉求（ModelInfo 信息类/配置不对直接报错/超窗直接报错）分别对应元数据/加载校验/运行守卫三层，且调研发现 DecidePreflight 孤儿缺陷（守卫从未挂主链）一并接线 -->
+<!-- 替代方案: 仅配置加载校验（治标——0 值被兜底 200K 掩盖、超窗请求仍发 API）-->
+<!-- 验证: 1284+933 全绿 + 真机 sensenova 正常/0 值报错链验证 ✅ -->

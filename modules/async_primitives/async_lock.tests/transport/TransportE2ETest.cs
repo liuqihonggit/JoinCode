@@ -13,6 +13,20 @@ public class TransportE2ETest {
         try { return await source.FirstOrDefaultAsync(cts.Token); } catch (OperationCanceledException) { return null; }
     }
 
+    /// <summary>
+    /// 等待 host 的已连接进程表收敛到包含全部期望 PID（状态收敛轮询，非固定延迟祈祷）。
+    /// BroadcastAsync 只对「此刻已入 _clientConnections」的 slave 发包（fire-and-forget 无回放），
+    /// 而 slave StartAsync 返回 ≠ 握手完成入表 — 固定 Task.Delay 在慢机（CI）上不够，
+    /// 曾致 BusTransport_Broadcast_MultipleSlavesReceive slave2 收不到广播（599/600 flaky）。
+    /// </summary>
+    private static async Task WaitForConnectedAsync(
+        BusTransport host, IReadOnlyList<string> expectedPids, TimeSpan timeout) {
+        using var cts = new CancellationTokenSource(timeout);
+        while (!expectedPids.All(host.GetConnectedProcesses().Contains)) {
+            await Task.Delay(50, cts.Token);
+        }
+    }
+
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task BusTransport_HostSlave_MessageRoundTrip() {
@@ -172,11 +186,10 @@ public class TransportE2ETest {
         await using var slave2 = new BusTransport(pipeName: pipeName, processId: slave2Pid);
 
         await host.StartAsync();
-        await Task.Delay(300);
         await slave1.StartAsync();
-        await Task.Delay(300);
         await slave2.StartAsync();
-        await Task.Delay(300);
+        // 确定性等待两个 slave 握手入表（BroadcastAsync 只发已连接者，无回放 — 参见 WaitForConnectedAsync 注释）
+        await WaitForConnectedAsync(host, [slave1Pid, slave2Pid], TimeSpan.FromSeconds(10));
 
         var data = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes("broadcast-all"));
         await host.BroadcastAsync(data);

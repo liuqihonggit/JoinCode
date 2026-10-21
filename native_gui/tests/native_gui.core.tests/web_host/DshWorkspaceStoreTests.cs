@@ -6,8 +6,9 @@ namespace JoinCode.Gui.Tests.WebHost;
 /// 以及分发器 <c>workspace/*</c> 路由的参数校验与引导错误。
 /// </summary>
 public sealed class DshWorkspaceStoreTests {
-    private const string RootA = @"C:\demo\proj-a";
-    private const string RootB = @"C:\demo\proj-b";
+    /// <summary>双平台绝对路径（Linux: /demo/proj-a；Windows: 盘根 C://demo//proj-a）— CI gui-core(ubuntu) 恒可跑</summary>
+    private static readonly string RootA = Path.GetFullPath("/demo/proj-a");
+    private static readonly string RootB = Path.GetFullPath("/demo/proj-b");
 
     /// <summary>建一个带两个已存在目录的存储</summary>
     private static async Task<(DshWorkspaceStore Store, InMemoryFileSystem FileSystem)> CreateStoreAsync() {

@@ -96,18 +96,37 @@ public sealed class DownloadSessionStateTransitionTests {
 
     // === Pause 后元数据已保存 ===
 
+    /// <summary>Pause 后元数据已保存 — Retry16 外壳（flaky 根治，AGENTS 规范）
+    /// <para>CI 高压下 ThreadPool 调度可饿死 GET 发出链超过单轮 10s 信号窗（run 39656665694 实证），
+    /// 每轮全新 session/handler 最多 16 次，任一轮走通即过；全部超时才判红。</para></summary>
     [Fact]
-    public async Task Pause_PersistsMetadata() {
+    [Trait("Category", "Flaky")]
+    public async Task Pause_PersistsMetadata_Retry16Times() {
+        for (var attempt = 0; attempt < 16; attempt++) {
+            if (await TryPausePersistsMetadataOnceAsync()) {
+                return;
+            }
+        }
+        throw new Xunit.Sdk.XunitException("16次重试均失败: GET 信号窗内未能进入 Downloading 并 Pause（调度饿死超窗）");
+    }
+
+    /// <summary>单轮 Pause 元数据验证 — false = 本轮超时（调度饿死，非断言失败）</summary>
+    private static async Task<bool> TryPausePersistsMetadataOnceAsync() {
         var getStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var handler = CreateDelayedHandler(1024, delayMs: 2000, etag: "\"etag1\"", getStarted);
         await using var fs = new InMemoryFileSystem();
         await using var downloader = new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs);
 
         await using var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
-        await WaitDownloadingAndPauseAsync(session, getStarted);
+        try {
+            await WaitDownloadingAndPauseAsync(session, getStarted);
+        } catch (TimeoutException) {
+            return false;
+        }
 
         var metaPath = MetadataStore.GetMetadataPath(FilePath);
         fs.FileExists(metaPath).Should().BeTrue("Pause 后应持久化 .meta.json 供 Resume 恢复");
+        return true;
     }
 
     // === 辅助 ===

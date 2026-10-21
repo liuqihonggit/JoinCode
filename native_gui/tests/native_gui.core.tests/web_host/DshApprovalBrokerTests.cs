@@ -55,6 +55,11 @@ public sealed class DshApprovalBrokerTests {
         lock (sent) { return sent[0]; }
     }
 
+    /// <summary>取最近一帧的 eventId（同一桥发过多次 waterfall 时用）</summary>
+    private static string LastFrameEventId(List<JsonElement> sent) {
+        lock (sent) { return sent[^1].GetProperty("eventId").GetString() ?? string.Empty; }
+    }
+
     [Fact]
     public async Task Request_WithoutEventsStream_DeniesImmediately() {
         // $events 未连接（引擎先于前端就绪/前端已断开）→ fail-closed 拒绝，不挂起引擎轮次
@@ -139,7 +144,145 @@ public sealed class DshApprovalBrokerTests {
         (await _broker.SettleAsync("client-1", eventId, Outcome("result", "rejected"))).Should().BeFalse();
     }
 
-    // ---- DshRpcDispatcher 路由（$events/result 与 permissionPresets/catalog）----
+    // ---- 审批审计对（approval/asked + approval/decided，对齐 DSH dsh-user-approval）----
+
+    /// <summary>捕获审计落库调用（宿主注入 Audit 委托的形状：sessionId/type/payload）</summary>
+    private List<(string SessionId, string Type, JsonElement Payload)> CaptureAudit() {
+        var entries = new List<(string, string, JsonElement)>();
+        _broker.Audit = (sessionId, type, payload) => {
+            lock (entries) { entries.Add((sessionId, type, payload)); }
+            return Task.CompletedTask;
+        };
+        return entries;
+    }
+
+    /// <summary>取审计条目快照（避免与落库回调并发读写）</summary>
+    private static List<(string SessionId, string Type, JsonElement Payload)> AuditSnapshot(
+        List<(string SessionId, string Type, JsonElement Payload)> entries) {
+        lock (entries) { return [.. entries]; }
+    }
+
+    /// <summary>发起一次「开放轮次内的确认」并在回帖后返回决策</summary>
+    private async Task<PermissionConfirmationDecision> RoundInTurnAsync(DshEventOutcome outcome) {
+        _broker.SetAgent("s1");
+        var (sent, signal) = AttachCapture();
+        var pending = _broker.RequestAsync(EngineRequest());
+        await WaitFrameAsync(signal);
+        await _broker.SettleAsync("client-1", FrameEventId(sent), outcome);
+        return await pending;
+    }
+
+    [Fact]
+    public async Task Request_InOpenTurn_AuditsAskedBeforeSettling_ThenDecided() {
+        var audit = CaptureAudit();
+        _broker.SetAgent("s1");
+        var (sent, signal) = AttachCapture();
+        var pending = _broker.RequestAsync(EngineRequest());
+        await WaitFrameAsync(signal);
+
+        // 前端尚未回帖：只应有 approval/asked（审计先于等待）
+        var askedOnly = AuditSnapshot(audit);
+        askedOnly.Should().HaveCount(1);
+        askedOnly[0].SessionId.Should().Be("s1");
+        askedOnly[0].Type.Should().Be("approval/asked");
+        var asked = askedOnly[0].Payload;
+        asked.GetProperty("id").GetString().Should().NotBeNullOrEmpty();
+        asked.GetProperty("toolName").GetString().Should().Be("Bash");
+        asked.GetProperty("reason").GetString().Should().Contain("权限确认");
+        asked.GetProperty("callId").GetString().Should().Be("req-1");
+
+        await _broker.SettleAsync("client-1", FrameEventId(sent), Outcome("result", "allowed-once"));
+        (await pending).Should().Be(PermissionConfirmationDecision.Allow);
+
+        // 回帖后闭合审计对：同 id、outcome=allowed-once
+        var pair = AuditSnapshot(audit);
+        pair.Should().HaveCount(2);
+        pair[1].Type.Should().Be("approval/decided");
+        pair[1].Payload.GetProperty("id").GetString().Should().Be(asked.GetProperty("id").GetString());
+        pair[1].Payload.GetProperty("outcome").GetString().Should().Be("allowed-once");
+    }
+
+    [Theory]
+    [InlineData("result", "rejected", "rejected")]
+    [InlineData("next", null, "unavailable")]
+    public async Task Request_AuditOutcomeVocabulary_MatchesDsh(string kind, string? value, string expected) {
+        var audit = CaptureAudit();
+        await RoundInTurnAsync(Outcome(kind, value));
+
+        var decided = AuditSnapshot(audit).Single(entry => entry.Type == "approval/decided");
+        decided.Payload.GetProperty("outcome").GetString().Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task Request_ListenerThrew_AuditsUnavailable() {
+        var audit = CaptureAudit();
+        await RoundInTurnAsync(new DshEventOutcome { Kind = "rejected", Error = new DshEventErrorBody { Name = "Error", Message = "boom" } });
+
+        AuditSnapshot(audit).Single(entry => entry.Type == "approval/decided").Payload.GetProperty("outcome").GetString()
+            .Should().Be("unavailable");
+    }
+
+    [Fact]
+    public async Task Request_WithoutOpenTurn_SkipsAuditButStillDecides() {
+        var audit = CaptureAudit();
+        var (sent, signal) = AttachCapture();
+        var pending = _broker.RequestAsync(EngineRequest());
+        await WaitFrameAsync(signal);
+        await _broker.SettleAsync("client-1", FrameEventId(sent), Outcome("result", "allowed-once"));
+
+        (await pending).Should().Be(PermissionConfirmationDecision.Allow);
+        AuditSnapshot(audit).Should().BeEmpty("没有开放轮次就不该落审计（DSH 要求审计对被轮次包住）");
+    }
+
+    [Fact]
+    public async Task CloseTurn_SettlesPendingAsCancelled_AndClosesAuditPair() {
+        var audit = CaptureAudit();
+        _broker.SetAgent("s1");
+        var (sent, signal) = AttachCapture();
+        var pending = _broker.RequestAsync(EngineRequest());
+        await WaitFrameAsync(signal);
+
+        // 轮次收尾（用户取消/引擎异常）→ 挂起确认结算为 cancelled，不残留
+        await _broker.CloseTurnAsync("s1");
+        (await pending).Should().Be(PermissionConfirmationDecision.Deny);
+        AuditSnapshot(audit).Single(entry => entry.Type == "approval/decided").Payload.GetProperty("outcome").GetString()
+            .Should().Be("cancelled");
+
+        // 目标会话已清空：后续请求不再落审计（等价「无开放轮次」）
+        audit.Clear();
+        var later = _broker.RequestAsync(EngineRequest());
+        await WaitFrameAsync(signal);
+        await _broker.SettleAsync("client-1", LastFrameEventId(sent), Outcome("result", "rejected"));
+        await later;
+        AuditSnapshot(audit).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CloseTurn_WaitsForDetachedAudit_SoPairStillLandsInsideTurn() {
+        // 断流（前端刷新/关页）时挂起确认的审计补写是后台任务（释放路径禁阻塞，ADR 0093）；
+        // 轮次收尾必须等它落库，否则 approval/decided 会排到 turn/end 之后 —— 违反 DSH「审计对被开放轮次包住」。
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var decided = 0;
+        _broker.Audit = async (_, type, _) => {
+            if (type == "approval/decided") {
+                await gate.Task;
+                Interlocked.Increment(ref decided);
+            }
+        };
+        _broker.SetAgent("s1");
+        var (_, signal) = AttachCapture();
+        var pending = _broker.RequestAsync(EngineRequest());
+        await WaitFrameAsync(signal);
+
+        _broker.Detach();
+        (await pending).Should().Be(PermissionConfirmationDecision.Deny);
+
+        var close = _broker.CloseTurnAsync("s1");
+        close.IsCompleted.Should().BeFalse("断流补写的审计未落库前，轮次收尾不得返回（decided 会落到 turn/end 之后）");
+        gate.SetResult();
+        await close;
+        decided.Should().Be(1);
+    }
 
     /// <summary>构造 $events/result 请求体（DTO + JsonContext，与前端 connection.rpc.call 载荷同形状）</summary>
     private static JsonElement ResultArgs(string clientId, string eventId, DshEventOutcome outcome) =>

@@ -50,6 +50,7 @@ global using System.Text;
 global using System.Text.Json;
 global using System.Text.Json.Serialization;
 global using System.Threading;
+global using System.Threading.Channels;
 global using System.Threading.Tasks;
 // webview 协议面（BridgeProtocol/PermissionPromptBroker/WebChatFlow，ADR 0145 随迁 Core）
 global using JoinCode.Gui.WebView;

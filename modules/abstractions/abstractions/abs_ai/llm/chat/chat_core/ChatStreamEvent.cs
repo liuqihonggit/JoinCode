@@ -13,7 +13,9 @@ public enum ChatStreamEventType {
     [EnumValue("complete")] Complete,
     [EnumValue("tombstone")] Tombstone,
     [EnumValue("agentStarted")] AgentStarted,
-    [EnumValue("agentFinished")] AgentFinished
+    [EnumValue("agentFinished")] AgentFinished,
+    /// <summary>轮内注入的输入已在步首进入上下文（宿主据此投影轮内 <c>user/message</c>）</summary>
+    [EnumValue("steerInput")] SteerInput
 }
 
 public sealed class ChatStreamEvent {
@@ -184,6 +186,13 @@ public sealed class ChatStreamEvent {
             Content = finalOutput
         };
 
+    /// <summary>创建轮内注入事件 — 注入文本已在该 step 开头写入上下文（宿主投影为轮内 user/message）。</summary>
+    /// <param name="content">注入的用户输入文本</param>
+    public static ChatStreamEvent SteerInput(string content) => new() {
+        Type = ChatStreamEventType.SteerInput,
+        Content = content
+    };
+
     /// <summary>按事件类型匹配并返回结果。</summary>
     public T Match<T>(
         Func<string, T> onText,
@@ -195,7 +204,8 @@ public sealed class ChatStreamEvent {
         Func<string, T> onTimingSummary,
         Func<TokenUsage?, string?, T> onDone,
         Func<string, T>? onAgentStarted = null,
-        Func<string, bool?, T>? onAgentFinished = null) {
+        Func<string, bool?, T>? onAgentFinished = null,
+        Func<string, T>? onSteerInput = null) {
         return Type switch {
             ChatStreamEventType.Content => onText(Content ?? string.Empty),
             ChatStreamEventType.Thinking => onThinking(ThinkingContent ?? string.Empty),
@@ -211,6 +221,9 @@ public sealed class ChatStreamEvent {
             ChatStreamEventType.AgentFinished => onAgentFinished is not null
                 ? onAgentFinished(AgentId ?? string.Empty, AgentSuccess)
                 : throw new InvalidOperationException($"AgentFinished 事件需要 {nameof(onAgentFinished)} 回调"),
+            ChatStreamEventType.SteerInput => onSteerInput is not null
+                ? onSteerInput(Content ?? string.Empty)
+                : throw new InvalidOperationException($"SteerInput 事件需要 {nameof(onSteerInput)} 回调"),
             _ => throw new InvalidOperationException($"Unknown event type: {Type}")
         };
     }
@@ -226,7 +239,8 @@ public sealed class ChatStreamEvent {
         Action<string> onTimingSummary,
         Action<TokenUsage?, string?> onDone,
         Action<string>? onAgentStarted = null,
-        Action<string, bool?>? onAgentFinished = null) {
+        Action<string, bool?>? onAgentFinished = null,
+        Action<string>? onSteerInput = null) {
         switch (Type) {
             case ChatStreamEventType.Content:
             onText(Content ?? string.Empty);
@@ -258,6 +272,10 @@ public sealed class ChatStreamEvent {
             break;
             case ChatStreamEventType.AgentFinished:
             onAgentFinished?.Invoke(AgentId ?? string.Empty, AgentSuccess);
+            break;
+            // 轮内注入在未提供回调时静默忽略 — 既有 CLI 消费方（未启用 steer）零改动
+            case ChatStreamEventType.SteerInput:
+            onSteerInput?.Invoke(Content ?? string.Empty);
             break;
             default:
             throw new InvalidOperationException($"Unknown event type: {Type}");

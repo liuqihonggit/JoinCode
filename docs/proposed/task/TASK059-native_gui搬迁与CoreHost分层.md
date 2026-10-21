@@ -19,7 +19,7 @@
 |------|------|------|
 | B1 | NativeGui.Core 建立 + 31 文件 git mv + GuiDiag + theming partial + 旧项目引 Core | ✅ 8de8686eb（编译 0 错误 + 253 绿） |
 | B2 | NativeGui.Host（AssemblyName=NativeGui.Host）+ 表现层 23 文件 git mv + 旧 csproj 归档 .xxx | ✅ 真机启动全链路（listening/目录 6 组/引擎 attach/前端 RPC） |
-| B3 | 测试项目整体 git mv native_gui/tests + tests 层 Directory.Build.props 承接测试包注入 + OutputType=Exe | ✅ 253/253 绿（ubuntu 拆分另立优化项） |
+| B3 | 测试拆分 NativeGui.Core.Tests（纯 net10.0，236 测试 ubuntu 可跑）+ NativeGui.Host.Tests（windows TFM，34 测试） | ✅ 2026-10-22 拆分落地（CI matrix gui-core=ubuntu/gui-host=windows + 分支保护 required 同步） |
 | B4 | Gui.slnx 三段登记/module.slnx 删 gui/CI 三 workflow 路径更新（python yaml 校验过） | ✅ CI 合入后验收 |
 | B5 | （可选独立 PR）命名空间统一 NativeGui.* | ⬜ |
 

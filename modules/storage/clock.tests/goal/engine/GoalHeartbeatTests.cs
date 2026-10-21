@@ -153,14 +153,31 @@ public sealed class GoalHeartbeatTests {
         await heartbeat.StopActivityAsync(SessionActivityReason.ApiCall).ConfigureAwait(true);
     }
 
+    /// <summary>回调抛异常不炸循环 — 确定性信号 + Retry16（flaky 根治，AGENTS 规范）
+    /// <para>原 150ms 固定窗两缺陷：①RegisterCallback 是 TrySend（fire-and-forget），与 Start 命令
+    /// 乱序时首个 tick 前回调未注册（run 39662954991 实证 callCount=0）②窗内回调未触发即假红。
+    /// 修法：回调进站即 Set 信号量（注册+触发双确认），20s 收敛窗；未触发换新实例最多 16 次。</para></summary>
     [Fact]
-    public async Task HeartbeatCallback_Exception_DoesNotCrashLoop() {
+    [Trait("Category", "Flaky")]
+    public async Task HeartbeatCallback_Exception_DoesNotCrashLoop_Retry16Times() {
+        for (var attempt = 0; attempt < 16; attempt++) {
+            if (await TryHeartbeatExceptionLoopOnceAsync()) {
+                return;
+            }
+        }
+        throw new Xunit.Sdk.XunitException("16次重试均失败: 20s 信号窗内回调从未触发（注册/定时链断裂）");
+    }
+
+    /// <summary>单轮异常回调循环验证 — false = 本轮信号窗内回调未触发（注册乱序，非断言失败）</summary>
+    private static async Task<bool> TryHeartbeatExceptionLoopOnceAsync() {
+        var called = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var callCount = 0;
         await using var heartbeat = CreateHeartbeat(TimeSpan.FromMilliseconds(50));
 
         heartbeat.RegisterCallback(_ => {
-            callCount++;
-            if (callCount == 1) {
+            var count = Interlocked.Increment(ref callCount);
+            called.TrySetResult();
+            if (count == 1) {
                 throw new InvalidOperationException("test");
             }
 
@@ -169,11 +186,16 @@ public sealed class GoalHeartbeatTests {
 
         await heartbeat.StartActivityAsync(SessionActivityReason.ApiCall).ConfigureAwait(true);
 
-        await Task.Delay(150).ConfigureAwait(true);
+        try {
+            await called.Task.WaitAsync(TimeSpan.FromSeconds(20)).ConfigureAwait(true);
+        } catch (TimeoutException) {
+            return false;
+        }
 
-        Assert.True(callCount >= 1);
+        Assert.True(Volatile.Read(ref callCount) >= 1);
 
         await heartbeat.ResetAsync().ConfigureAwait(true);
+        return true;
     }
 
     [Fact]

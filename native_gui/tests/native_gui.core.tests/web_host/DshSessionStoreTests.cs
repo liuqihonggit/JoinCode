@@ -425,13 +425,15 @@ public sealed class DshSessionStoreTests {
 
     [Fact]
     public async Task Dispatcher_SessionCreate_WithWorkspaceId_UsesWorkspacePathAndAttaches() {
+        // 双平台绝对路径（Linux 拼盘符前缀会撞 workspace Normalize 的 GetFullPath — CI gui-core 实证）
+        var wsPath = Path.GetFullPath("/demo/ws-1");
         var fs = new InMemoryFileSystem();
-        fs.CreateDirectory(@"C:\demo\ws-1");
+        fs.CreateDirectory(wsPath);
         await using var transcripts = new State.TranscriptService(fs, SessionsDir);
         var services = new DshHostServices(fs, "/test/dsh-workspaces.json");
         services.Sessions.AttachTranscripts(transcripts);
         var dispatcher = new DshRpcDispatcher(services);
-        var (workspace, _) = await services.Workspaces.CreateAsync(@"C:\demo\ws-1");
+        var (workspace, _) = await services.Workspaces.CreateAsync(wsPath);
 
         var result = await dispatcher.HandleAsync("session/create", WorkspaceCreateArgs(workspace.WorkspaceId));
 
@@ -440,7 +442,7 @@ public sealed class DshSessionStoreTests {
             ?? throw new InvalidOperationException("session/create 未返回 sessionId");
         var info = await transcripts.GetSessionInfoAsync(sessionId)
             ?? throw new InvalidOperationException("session/create 未写出 meta.json");
-        info.ProjectPath.Should().Be(@"C:\demo\ws-1");
+        info.ProjectPath.Should().Be(wsPath);
         var reloaded = await services.Workspaces.FindAsync(workspace.WorkspaceId)
             ?? throw new InvalidOperationException("工作区注册表丢失");
         reloaded.SessionIds.Should().Contain(sessionId);

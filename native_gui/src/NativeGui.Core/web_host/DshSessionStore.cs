@@ -131,6 +131,8 @@ internal sealed class DshSessionStore {
                 AsOfSeq = session.Projections.AsOfSeq,
                 Values = session.Projections.Values,
             },
+            // 打开流时调用方会用 SubscribeSession 的原子基线覆盖（ADR 0147）；这里仅供只读快照使用
+            AssistantStream = hub?.AssistantBaseline(sessionId) ?? new(),
         };
     }
 

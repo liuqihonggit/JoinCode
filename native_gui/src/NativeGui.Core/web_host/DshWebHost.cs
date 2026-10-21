@@ -265,10 +265,28 @@ internal sealed class DshWebHost : IAsyncDisposable {
                 var clientId = Guid.NewGuid().ToString();
                 Func<JsonElement, Task> sendFrame = frame => send(Item(open.StreamId, frame));
                 _services.Approvals.Attach(sendFrame, clientId);
+                // goal/activation-changed 事件桥（TASK058 P2-B5）：activation 翻转即推 waterfall 帧
+                void OnGoalChanged(string sessionId, DshGoalDocument goal) {
+                    _ = sendFrame(JsonSerializer.SerializeToElement(new DshWaterfallFrame {
+                        Event = "goal/activation-changed",
+                        EventId = Guid.NewGuid().ToString("N"),
+                        AgentId = sessionId,
+                        Request = JsonSerializer.SerializeToElement(new DshGoalActivationChanged {
+                            SessionId = sessionId,
+                            Goal = new DshGoalActivation { Id = goal.Id, Revision = goal.Revision, Activation = goal.Activation },
+                        }, DshJsonContext.Default.DshGoalActivationChanged),
+                    }, DshJsonContext.Default.DshWaterfallFrame)).ContinueWith(
+                        static t => GuiDiag.Log($"[DSH-GOALS] activation frame send failed: {t.Exception?.Message}"),
+                        CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+                }
+                _services.Goals.GoalChanged += OnGoalChanged;
                 return ([Item(open.StreamId, JsonSerializer.SerializeToElement(new DshEventsReady {
                     ClientId = clientId,
                     Host = new DshHostInfo { Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) },
-                }, DshJsonContext.Default.DshEventsReady))], new DetachLease(() => _services.Approvals.Detach()), null);
+                }, DshJsonContext.Default.DshEventsReady))], new DetachLease(() => {
+                    _services.Goals.GoalChanged -= OnGoalChanged;
+                    _services.Approvals.Detach();
+                }), null);
             }
             case "workspace/follow": {
                 var baseline = await _services.Workspaces.ReadBaselineAsync(cancellationToken);
@@ -283,10 +301,51 @@ internal sealed class DshWebHost : IAsyncDisposable {
             }
             case "session/follow":
                 return await OpenSessionAsync(open, send, cancellationToken);
+            case "workspaceFiles/changes":
+                return await OpenWorkspaceFilesChangesAsync(open, send, cancellationToken);
             default:
                 GuiDiag.Log($"[DSH-WEB] stream endpoint unimplemented: {open.Endpoint}");
                 return ([], null, null);
         }
+    }
+
+    /// <summary>
+    /// 打开文件变更流（TASK058 P2-B4）：ready 首帧 + 后台泵把 watcher 变更帧推到连接；
+    /// 关闭时取消泵并释放 watcher 租约（幂等）。会话/路径非法时发可执行引导错误帧。
+    /// </summary>
+    private async Task<(IReadOnlyList<DshStreamItem> Opening, IDisposable? Lease, Func<Task>? Ready)> OpenWorkspaceFilesChangesAsync(
+        DshStreamOpen open, Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
+        var request = open.Payload?.Args.Deserialize(DshJsonContext.Default.DshWorkspaceFilesArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.WorkspaceFileScopeId)) {
+            var raw = open.Payload?.Args.ToString() ?? "<null>";
+            return ([Item(open.StreamId, StreamError("workspaceFiles/rejected",
+                $"workspaceFiles/changes 需要 {{workspaceFileScopeId, path}}；收到 args={raw[..Math.Min(120, raw.Length)]}"))], null, null);
+        }
+        var feed = await _services.WorkspaceFiles.CreateChangeFeedAsync(request.WorkspaceFileScopeId, request.Path, cancellationToken);
+        if (feed.Error is { } error) {
+            return ([Item(open.StreamId, StreamError(error.Error?.Code ?? "workspaceFiles/rejected", error.Error?.Message ?? "变更流打开失败"))], null, null);
+        }
+        var frames = feed.Frames ?? throw new InvalidOperationException("变更流产物缺帧通道（内部不变量破坏）");
+        var pumpCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var pump = Task.Run(async () => {
+            try {
+                await foreach (var frame in frames.Reader.ReadAllAsync(pumpCts.Token).ConfigureAwait(false)) {
+                    await send(Item(open.StreamId, frame)).ConfigureAwait(false);
+                }
+            } catch (OperationCanceledException) {
+                // 连接关闭/宿主停机 — 泵静默收尾
+            } catch (Exception ex) {
+                GuiDiag.Log($"[DSH-WEB] changes pump failed: {ex.Message}");
+            }
+        }, pumpCts.Token);
+        return (
+            [Item(open.StreamId, JsonSerializer.SerializeToElement(new DshChangeReady(), DshJsonContext.Default.DshChangeReady))],
+            new DetachLease(() => {
+                pumpCts.Cancel();
+                feed.Lease?.Dispose();
+                pumpCts.Dispose();
+            }),
+            null);
     }
 
     /// <summary>打开会话事件流的首帧：宿主事件日志（或转录投影）→ snapshot + 订阅后续事件；否则给出可执行的引导错误</summary>
@@ -304,15 +363,37 @@ internal sealed class DshWebHost : IAsyncDisposable {
             return ([Item(open.StreamId, StreamError("session/unknown", $"会话 {sessionId} 不在磁盘上（~/.jcc/sessions/{sessionId}/transcript.json 不存在）；用 session/create 建一个新会话，或从侧栏的会话列表里选一个"))], null, null);
         }
         _services.Streams.Observe(sessionId, snapshot.Cursor, MaxTurn(snapshot.Records));
-        var lease = _services.Streams.Subscribe(sessionId, open.StreamId, sessionEvent => send(Item(
+        var follow = FollowRequest(open);
+        // 基线必须与订阅在同一把锁里取（ADR 0147）：否则快照与首帧之间可能漏帧 → 前端断流
+        var (baseline, lease) = _services.Streams.SubscribeSession(
+            sessionId,
             open.StreamId,
-            JsonSerializer.SerializeToElement(new DshSessionRecord { Event = sessionEvent }, DshJsonContext.Default.DshSessionRecord))),
+            sessionEvent => send(Item(
+                open.StreamId,
+                JsonSerializer.SerializeToElement(new DshSessionRecord { Event = sessionEvent }, DshJsonContext.Default.DshSessionRecord))),
+            follow?.AssistantStream == true
+                ? frame => SendAssistantFrameAsync(open.StreamId, send, frame)
+                : null,
             snapshot.Cursor);
+        snapshot.AssistantStream = baseline;
         return (
             [Item(open.StreamId, JsonSerializer.SerializeToElement(snapshot, DshJsonContext.Default.DshSessionFollowSnapshot))],
             lease,
-            () => _services.Streams.FlushAsync(open.StreamId));
+            async () => {
+                // 开场项（快照）已发出：先补发持久事件，再放行缓存的瞬态帧
+                await _services.Streams.FlushAsync(open.StreamId);
+                await _services.Streams.ActivateAsync(open.StreamId);
+            });
     }
+
+    /// <summary>包装一帧 assistant-stream（瞬态通道信封，前端按 type 分流）</summary>
+    /// <param name="streamId">前端流身份</param>
+    /// <param name="send">底层发送回调</param>
+    /// <param name="frame">帧内容</param>
+    private static Task SendAssistantFrameAsync(string streamId, Func<DshStreamItem, Task> send, DshAssistantStreamFrame frame) =>
+        send(Item(streamId, JsonSerializer.SerializeToElement(new DshAssistantStreamEnvelope {
+            Frame = frame,
+        }, DshJsonContext.Default.DshAssistantStreamEnvelope)));
 
     /// <summary>快照事件页里的最大轮次（无事件为 0）</summary>
     private static int MaxTurn(IReadOnlyList<DshSessionRecord> records) =>
@@ -326,12 +407,17 @@ internal sealed class DshWebHost : IAsyncDisposable {
     /// <param name="open">流打开帧</param>
     /// <returns>会话 ID；地址缺失或非 kind=session 时为 null</returns>
     internal static string? FollowSessionId(DshStreamOpen open) {
+        var address = FollowRequest(open)?.Address;
+        return address is null || address.Kind != "session" ? null : address.SessionId;
+    }
+
+    /// <summary>解出 session/follow 的请求体（args 是 {request:{...}} 信封）</summary>
+    /// <param name="open">流打开帧</param>
+    private static DshSessionFollowArgs? FollowRequest(DshStreamOpen open) {
         if (open.Payload?.Args is not { ValueKind: JsonValueKind.Object } args) {
             return null;
         }
-        var envelope = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSessionFollowArgs);
-        var address = envelope?.Request?.Address;
-        return address is null || address.Kind != "session" ? null : address.SessionId;
+        return args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSessionFollowArgs)?.Request;
     }
 
     /// <summary>构造流式端点失败帧（引导式错误：说明期望参数与下一步可执行动作）</summary>

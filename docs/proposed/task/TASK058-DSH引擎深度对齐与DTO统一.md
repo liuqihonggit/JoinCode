@@ -38,10 +38,10 @@
 | 12 | 文件树 workspaceFiles/list\|read\|readBytes\|stat | ✅ 真机（弹栈式防穿越+version 合成；changes 流深化项） |
 | 13 | 附件 fileUploads/upload + session/attachment + uploadFileBinary 直传 | ✅ 真机（魔数探测+四格式尺寸头解析；prompt file part 消费属引擎多模态深化） |
 | 14 | 队列 session/updateQueue（edit/remove） | ✅ 单元 4/4+真机契约（steer 诚实返回 steer-unavailable；队列可见性 inbox 投影深化） |
-| 15 | 终端（10 方法） | ⬜ 需引擎大扩展（ConPTY/屏幕缓冲/多 shell），另行立项 |
-| 16 | goals（7 方法+事件） | ⬜ 需引擎中扩展（clock/goal 生命周期模型映射+revision CAS 适配），另行立项 |
-| 17 | steer / prompt mode:"steer" | ⬜ 需引擎大扩展（StreamAsync 轮内注入点），另行立项 |
-| 18 | workspaceFiles/changes 流 | ⬜ watcher 桥接深化项 |
+| 15 | 终端（10 方法） | ⬜ proposed ADR [0147](../adr/0147-dsh-terminal-conpty.md)（ConPTY 功能域+TerminalService+宿主桥；开放问题拍板后实施） |
+| 16 | goals（7 方法+事件） | ✅ 2026-10-22 P2-B5：DshGoalStore 宿主数据闭环（七方法状态机+revision CAS+roundsStarted 受理递增+activation 翻转事件桥 $events waterfall 帧）；引擎节点图 goal 联动（每 N 轮自动 evaluate）属深化项 |
+| 17 | steer / prompt mode:"steer" | ⬜ proposed ADR [0146](../adr/0146-steer-in-turn-injection.md)（SteerInjectionMiddleware 工具间隙注入+ISteerChannel；开放问题拍板后实施） |
+| 18 | workspaceFiles/changes 流 | ✅ 2026-10-22 P2-B4：CreateChangeFeedAsync（IFileSystem.Watch 统一工厂；Created/Changed→version 帧、Deleted→absent 帧）+ DshWebHost 流端点（ready 首帧+后台泵+租约清理）；单元 4/4 + 真机 WS 全链（ready→change 帧含 absolutePath+version） |
 
 ### 不接 ❌（DSH 在线服务，与本项目无关）
 account（11）、pluginManager（12）、dynamicCordisRunner（9）、productAnalytics、schedule、officeToPdf —— 保持 `unimplemented` 引导错误。

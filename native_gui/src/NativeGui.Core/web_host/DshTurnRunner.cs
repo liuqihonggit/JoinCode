@@ -39,15 +39,32 @@ internal sealed class DshTurnRunner {
         }
         _services.Streams.Observe(request.SessionId, snapshot.Cursor, MaxTurn(snapshot.Records));
         if (_services.Streams.TryBeginTurn(request.SessionId) is not { } turn) {
+            // 轮内注入（B11）：轮次运行中不排队、不开新轮，直接投递到引擎邮箱（DSH agent.steer）
+            if (string.Equals(request.Mode, "steer", StringComparison.Ordinal)) {
+                return TrySteer(engine, request.SessionId, text);
+            }
             if (string.Equals(request.Mode, "queue", StringComparison.Ordinal)) {
                 Queue(request.SessionId, NewPending(request.RequestId, text));
                 return null;
             }
-            return ("session/busy", $"会话 {request.SessionId} 上一轮仍在生成；等它结束（接口完成/停止）后再发送，排队请用 mode=queue");
+            return ("session/busy", $"会话 {request.SessionId} 上一轮仍在生成；等它结束（接口完成/停止）后再发送。选项：①轮内注入请在请求里带 mode=steer；②排队等下一轮请用 mode=queue；③停止当前轮用 session/cancel");
         }
         await BeginTurnAsync(engine, request.SessionId, NewPending(request.RequestId, text), turn);
         return null;
     }
+
+    /// <summary>
+    /// 投递轮内注入（轮次运行中）。引擎未装配邮箱时诚实拒绝并引导（不静默丢弃、不改排队语义）。
+    /// </summary>
+    /// <param name="engine">引擎会话</param>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="text">已校验文本</param>
+    /// <returns>失败时的错误码与引导文案；受理成功返回 null</returns>
+    private static (string Code, string Message)? TrySteer(Hosting.IJccChatSession engine, string sessionId, string text) =>
+        engine.TrySteerInput(sessionId, text)
+            ? null
+            : ("session/steer-unavailable",
+                $"会话 {sessionId} 的引擎未装配轮内注入邮箱（ISteerInputMailbox）；请重启宿主。当前输入未被丢弃：改用 mode=queue 会在本轮结束后顺序执行");
 
     /// <summary>落用户消息并启动后台轮次（开启/排队复用）</summary>
     /// <param name="engine">引擎会话</param>
@@ -55,6 +72,7 @@ internal sealed class DshTurnRunner {
     /// <param name="prompt">已校验的输入</param>
     /// <param name="turn">轮次占用</param>
     private async Task BeginTurnAsync(Hosting.IJccChatSession engine, string sessionId, PendingPrompt prompt, (int Turn, CancellationToken Token) turn) {
+        _services.Goals.IncrementRounds(sessionId);
         await _services.Streams.PublishAsync(sessionId, "turn/start", new DshTurnStartData { Turn = turn.Turn });
         await _services.Streams.PublishAsync(sessionId, "step/start", new DshStepData { Turn = turn.Turn, Step = Step });
         await _services.Streams.PublishAsync(sessionId, "user/message", new DshWireMessage {
@@ -92,6 +110,8 @@ internal sealed class DshTurnRunner {
         _services.Approvals.SetAgent(sessionId);
         // 子代理轮内运行追踪（tool-workflow 事件族，TASK058 B6）— try 外声明，取消/异常分支也要收尾
         var agents = new DshAgentRunTracker($"{sessionId}:{turn}:agents");
+        // 助手流尝试是否已开启（取消/失败分支也要据此补 abandoned 结算）
+        var streaming = false;
         try {
             engine.SwitchSession(sessionId);
             if (await _services.Sessions.HistoryAsync(sessionId, cancellationToken) is { Count: > 0 } history) {
@@ -100,8 +120,19 @@ internal sealed class DshTurnRunner {
             GuiDiag.Log($"[DSH-WEB] turn streaming session={sessionId} turn={turn}");
             var content = new StringBuilder();
             var thinking = new StringBuilder();
+            // 内容块下标按首次出现的块顺序分配（reasoning 先到则 0、正文 1；纯正文轮正文 0）。
+            // 固定槽位会留下 0 号空洞，前端块数组首元素缺失 → 流式正文渲染不出来（DSH 语义：下标即内容块序号）
+            var blockIndexes = new Dictionary<string, int>(StringComparer.Ordinal);
+            int BlockIndex(string family) {
+                if (!blockIndexes.TryGetValue(family, out var index)) {
+                    index = blockIndexes.Count;
+                    blockIndexes[family] = index;
+                }
+                return index;
+            }
             TokenUsage? usage = null;
             var events = 0;
+            var steers = 0;
             var calls = new List<(string CallId, string Name, string Arguments)>();
             await foreach (var evt in engine.StreamAsync(text, cancellationToken)) {
                 events += 1;
@@ -110,9 +141,14 @@ internal sealed class DshTurnRunner {
                 }
                 if (evt.Type == ChatStreamEventType.Content && !string.IsNullOrEmpty(evt.Content)) {
                     content.Append(evt.Content);
+                    // 逐字流（ADR 0147）：首条 delta 开尝试，之后每字符一帧；结算在落盘后发 end
+                    streaming = await StartAssistantStreamAsync(sessionId, turn, streaming);
+                    await _services.Streams.AppendAssistantChunkAsync(sessionId, "text-delta", BlockIndex("text"), evt.Content);
                 } else if (evt.Type == ChatStreamEventType.Thinking && !string.IsNullOrEmpty(evt.ThinkingContent)) {
                     // 思考内容 → assistant/message 前置 reasoning 块（TASK058 B4，前端折叠渲染）
                     thinking.Append(evt.ThinkingContent);
+                    streaming = await StartAssistantStreamAsync(sessionId, turn, streaming);
+                    await _services.Streams.AppendAssistantChunkAsync(sessionId, "reasoning-delta", BlockIndex("reasoning"), evt.ThinkingContent);
                 } else if (evt.Type == ChatStreamEventType.Complete && evt.Usage is { } turnUsage) {
                     // 用量 → data.usage 四桶（前端"本轮用量"弹窗，TASK058 B4）
                     usage = turnUsage;
@@ -122,33 +158,57 @@ internal sealed class DshTurnRunner {
                     GuiDiag.Log($"[DSH-WEB] turn system notice session={sessionId}: {evt.Content}");
                 } else if (evt.Type == ChatStreamEventType.ToolCallEnd || evt.Type == ChatStreamEventType.ToolCallStart) {
                     await PublishToolCallAsync(sessionId, turn, evt, calls);
+                } else if (evt.Type == ChatStreamEventType.SteerInput && !string.IsNullOrEmpty(evt.Content)) {
+                    // 轮内注入在步首已进入上下文 → 这里补投影为轮内 user/message（DSH :1061 语义）
+                    steers += 1;
+                    await PublishSteerMessageAsync(sessionId, turn, evt.Content, steers);
                 }
             }
             GuiDiag.Log($"[DSH-WEB] turn stream done session={sessionId} events={events} chars={content.Length} thinking={thinking.Length}");
-            await PublishReplyAsync(sessionId, turn, thinking.Length > 0 ? thinking.ToString() : null, content.ToString(), usage, engine);
+            var replySeq = await PublishReplyAsync(sessionId, turn, thinking.Length > 0 ? thinking.ToString() : null, content.ToString(), usage, engine);
+            if (streaming) {
+                // end 必须在 assistant/message 落盘之后：outcome.seq 指向它，前端据此把流式文本换成持久消息
+                await _services.Streams.EndAssistantAttemptAsync(sessionId, replySeq is { } committedSeq
+                    ? new DshAssistantStreamOutcome { Kind = "committed", EventType = "assistant/message", Seq = committedSeq }
+                    : new DshAssistantStreamOutcome { Kind = "abandoned" });
+            }
             await PublishWorkflowRunEndAsync(sessionId, agents, "completed");
-            await EndTurnAsync(sessionId, turn, new DshTurnEndReason { Kind = "completed" });
+            await FinishTurnAsync(sessionId, turn, new DshTurnEndReason { Kind = "completed" });
         } catch (OperationCanceledException) {
             GuiDiag.Log($"[DSH-WEB] turn cancelled session={sessionId} turn={turn}");
+            await AbandonAssistantStreamAsync(sessionId, streaming);
             await PublishWorkflowRunEndAsync(sessionId, agents, "cancelled");
-            await EndTurnAsync(sessionId, turn, new DshTurnEndReason {
+            await FinishTurnAsync(sessionId, turn, new DshTurnEndReason {
                 Kind = "aborted",
                 Reason = new DshTurnEndCancelCause { Kind = "user" },
             });
         } catch (Exception ex) {
             GuiDiag.Log($"[DSH-WEB] turn failed session={sessionId} turn={turn}: {ex.Message}");
+            await AbandonAssistantStreamAsync(sessionId, streaming);
             await PublishWorkflowRunEndAsync(sessionId, agents, "error");
-            await EndTurnAsync(sessionId, turn, new DshTurnEndReason {
+            await FinishTurnAsync(sessionId, turn, new DshTurnEndReason {
                 Kind = "error",
                 Error = new DshTurnEndError { Code = "UNKNOWN", Message = ex.Message },
             });
         } finally {
-            _services.Approvals.SetAgent(null);
             _services.Streams.EndTurn(sessionId);
             if (_services.Engine is { } ready) {
                 StartQueued(ready, sessionId);
             }
         }
+    }
+
+    /// <summary>
+    /// 收尾一轮：**先**结清审批审计对（挂起确认结算 + 断流补写排空），**再**落 <c>turn/end</c>。
+    /// 顺序不可颠倒：DSH 要求 <c>approval/asked</c>/<c>approval/decided</c> 必须被开放轮次包住
+    /// （<c>invariant.js</c> 判定 outside an open turn 即错），取消/失败路径同样适用。
+    /// </summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="turn">轮次号</param>
+    /// <param name="reason">轮次结束原因</param>
+    private async Task FinishTurnAsync(string sessionId, int turn, DshTurnEndReason reason) {
+        await _services.Approvals.CloseTurnAsync(sessionId);
+        await EndTurnAsync(sessionId, turn, reason);
     }
 
     /// <summary>发布子代理事件族（agent start/end → tool-workflow，TASK058 B6）</summary>
@@ -204,13 +264,37 @@ internal sealed class DshTurnRunner {
         }, surfaceOp: "append");
     }
 
-    /// <summary>落助手回复事件（空块序列不落，避免空气泡；思考/正文/用量经投影单点翻译，TASK058 B4）</summary>
-    private async Task PublishReplyAsync(string sessionId, int turn, string? thinking, string reply, TokenUsage? usage, Hosting.IJccChatSession engine) {
-        var (content, mappedUsage) = DshAssistantReplyProjection.Project(thinking, reply, usage);
-        if (content.Count == 0) {
+    /// <summary>首条 delta 时开启助手流尝试（已开启则原样返回）</summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="turn">轮次号</param>
+    /// <param name="streaming">当前是否已开启</param>
+    /// <returns>开启后的状态（恒为 true）</returns>
+    private async Task<bool> StartAssistantStreamAsync(string sessionId, int turn, bool streaming) {
+        if (streaming) {
+            return true;
+        }
+        await _services.Streams.StartAssistantAttemptAsync(sessionId, turn, Step);
+        return true;
+    }
+
+    /// <summary>取消/失败时作废进行中的助手流（前端丢弃半截气泡，等下一轮重建）</summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="streaming">本轮是否开启过助手流</param>
+    private async Task AbandonAssistantStreamAsync(string sessionId, bool streaming) {
+        if (!streaming) {
             return;
         }
-        await _services.Streams.PublishAsync(sessionId, "assistant/message", new DshAssistantMessageData {
+        await _services.Streams.EndAssistantAttemptAsync(sessionId, new DshAssistantStreamOutcome { Kind = "abandoned" });
+    }
+
+    /// <summary>落助手回复事件（空块序列不落，避免空气泡；思考/正文/用量经投影单点翻译，TASK058 B4）</summary>
+    /// <returns>该事件的序号（无内容未落盘时返回 null，供结算帧引用）</returns>
+    private async Task<long?> PublishReplyAsync(string sessionId, int turn, string? thinking, string reply, TokenUsage? usage, Hosting.IJccChatSession engine) {
+        var (content, mappedUsage) = DshAssistantReplyProjection.Project(thinking, reply, usage);
+        if (content.Count == 0) {
+            return null;
+        }
+        return await _services.Streams.PublishAsync(sessionId, "assistant/message", new DshAssistantMessageData {
             Turn = turn,
             Step = Step,
             Message = new DshWireMessage {
@@ -224,6 +308,23 @@ internal sealed class DshTurnRunner {
                 },
             },
             Usage = mappedUsage,
+        }, surfaceOp: "append");
+    }
+
+    /// <summary>
+    /// 落一条轮内注入的用户消息（轮内 <c>user/message</c>，<c>surfaceOp=append</c>）：
+    /// 与开轮时的首条用户消息同形，前端据此在对话流中插入新的用户气泡（不新开轮次）。
+    /// </summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="turn">轮次号</param>
+    /// <param name="text">注入文本</param>
+    /// <param name="index">本轮第几条注入（保证消息 ID 唯一）</param>
+    private async Task PublishSteerMessageAsync(string sessionId, int turn, string text, int index) {
+        await _services.Streams.PublishAsync(sessionId, "user/message", new DshWireMessage {
+            Id = $"{sessionId}:{turn}:steer:{index}",
+            Role = "user",
+            Content = [new DshWireContentBlock { Text = text }],
+            Source = new DshWireMessageSource { Kind = "user" },
         }, surfaceOp: "append");
     }
 

@@ -141,6 +141,29 @@ internal sealed class DshEventErrorBody {
 /// <summary>$events/result 回帖响应（前端只看 ok，无业务载荷）</summary>
 internal sealed class DshEventsResultValue;
 
+/// <summary>
+/// 会话日志的审批审计事件 <c>approval/asked</c>（对齐 DSH dsh-user-approval：审批请求必须先落审计，
+/// 且与 <see cref="DshApprovalDecidedData"/> 成对、被 turn/start…turn/end 包住，否则回放时是崩溃残尾）。
+/// </summary>
+internal sealed class DshApprovalAskedData {
+    /// <summary>审批请求 ID（与 waterfall 帧的 eventId 无关，审计对内部自洽）</summary>
+    public string Id { get; set; } = "";
+    /// <summary>请求审批的工具名（不可为空）</summary>
+    public string ToolName { get; set; } = "";
+    /// <summary>关联的工具调用 ID（可选）</summary>
+    public string? CallId { get; set; }
+    /// <summary>人类可读原因（可选）</summary>
+    public string? Reason { get; set; }
+}
+
+/// <summary>会话日志的审批审计事件 <c>approval/decided</c>（词汇表 allowed-once/rejected/cancelled/unavailable）</summary>
+internal sealed class DshApprovalDecidedData {
+    /// <summary>与 approval/asked 相同的审批请求 ID</summary>
+    public string Id { get; set; } = "";
+    /// <summary>判定结果（allowed-once 是唯一放行值）</summary>
+    public string Outcome { get; set; } = "";
+}
+
 /// <summary>fileUploads/upload 参数（前端 lookup 字段 agentId 即会话/代理 ID；request 包裹 data+name）</summary>
 internal sealed class DshFileUploadsUploadArgs {
     /// <summary>目标会话/代理</summary>
@@ -304,6 +327,156 @@ internal sealed class DshWorkspaceFilesReadBytesResult {
     public string AbsolutePath { get; set; } = "";
     /// <summary>版本</summary>
     public string Version { get; set; } = "";
+}
+
+/// <summary>goals/get 响应（无目标时 null）</summary>
+internal sealed class DshGoal {
+    /// <summary>目标 ID（GUID）</summary>
+    public string Id { get; set; } = "";
+    /// <summary>版本（每次变更 +1，CAS 用）</summary>
+    public int Revision { get; set; }
+    /// <summary>目标描述</summary>
+    public string Objective { get; set; } = "";
+    /// <summary>阶段（active/paused/complete）</summary>
+    public string Phase { get; set; } = "active";
+    /// <summary>武装状态（armed=驱动轮次；disarmed=暂停驱动）</summary>
+    public string Activation { get; set; } = "armed";
+    /// <summary>已启动轮次（prompt 受理递增）</summary>
+    public int RoundsStarted { get; set; }
+    /// <summary>轮次上限</summary>
+    public int MaxGoalRounds { get; set; }
+    /// <summary>创建时间（Unix 毫秒）</summary>
+    public long CreatedAt { get; set; }
+    /// <summary>更新时间（Unix 毫秒）</summary>
+    public long UpdatedAt { get; set; }
+}
+
+/// <summary>目标引用（CAS 句柄：id + 期望 revision）</summary>
+internal sealed class DshGoalRef {
+    /// <summary>目标 ID</summary>
+    public string Id { get; set; } = "";
+    /// <summary>期望版本（须与当前一致否则 conflict）</summary>
+    public int Revision { get; set; }
+}
+
+/// <summary>goals/get|pause|resume|complete 共用参数（ref 由各方法携带）</summary>
+internal sealed class DshGoalsRefArgs {
+    /// <summary>会话 ID</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>目标引用</summary>
+    public DshGoalRef? Ref { get; set; }
+}
+
+/// <summary>goals/create 参数</summary>
+internal sealed class DshGoalsCreateArgs {
+    /// <summary>会话 ID</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>目标描述</summary>
+    public string Objective { get; set; } = "";
+    /// <summary>轮次上限（可选，默认 10）</summary>
+    public int? MaxGoalRounds { get; set; }
+}
+
+/// <summary>goals/create 响应</summary>
+internal sealed class DshGoalsCreateResult {
+    /// <summary>新目标引用</summary>
+    public DshGoalRef Ref { get; set; } = new();
+}
+
+/// <summary>goals/edit 参数</summary>
+internal sealed class DshGoalsEditArgs {
+    /// <summary>会话 ID</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>目标引用（CAS）</summary>
+    public DshGoalRef? Ref { get; set; }
+    /// <summary>变更内容</summary>
+    public DshGoalChanges? Changes { get; set; }
+}
+
+/// <summary>目标变更内容（均可选）</summary>
+internal sealed class DshGoalChanges {
+    /// <summary>新目标描述</summary>
+    public string? Objective { get; set; }
+    /// <summary>新轮次上限</summary>
+    public int? MaxGoalRounds { get; set; }
+}
+
+/// <summary>goals/clear 响应</summary>
+internal sealed class DshGoalsClearResult {
+    /// <summary>被清目标引用（revision 为清算后值）</summary>
+    public DshGoalRef Ref { get; set; } = new();
+}
+
+/// <summary>目标落盘文档（~/.jcc/dsh_goals.json 条目）</summary>
+internal sealed record DshGoalDocument {
+    /// <summary>目标 ID</summary>
+    public string Id { get; init; } = "";
+    /// <summary>版本</summary>
+    public int Revision { get; init; }
+    /// <summary>目标描述</summary>
+    public string Objective { get; init; } = "";
+    /// <summary>阶段</summary>
+    public string Phase { get; init; } = "active";
+    /// <summary>武装状态</summary>
+    public string Activation { get; init; } = "armed";
+    /// <summary>已启动轮次</summary>
+    public int RoundsStarted { get; init; }
+    /// <summary>轮次上限</summary>
+    public int MaxGoalRounds { get; init; }
+    /// <summary>创建时间（Unix 毫秒）</summary>
+    public long CreatedAt { get; init; }
+    /// <summary>更新时间（Unix 毫秒）</summary>
+    public long UpdatedAt { get; init; }
+}
+
+/// <summary>goal/activation-changed 事件载荷（前端 $on 监听）</summary>
+internal sealed class DshGoalActivationChanged {
+    /// <summary>会话 ID</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>目标状态摘要</summary>
+    public DshGoalActivation Goal { get; set; } = new();
+}
+
+/// <summary>目标激活状态摘要</summary>
+internal sealed class DshGoalActivation {
+    /// <summary>目标 ID</summary>
+    public string Id { get; set; } = "";
+    /// <summary>版本</summary>
+    public int Revision { get; set; }
+    /// <summary>武装状态（armed/disarmed）</summary>
+    public string Activation { get; set; } = "";
+}
+
+/// <summary>dsh_goals.json 根文档</summary>
+internal sealed class DshGoalsDocument {
+    /// <summary>会话 → 目标</summary>
+    public Dictionary<string, DshGoalDocument> Goals { get; set; } = new(StringComparer.Ordinal);
+}
+
+/// <summary>workspaceFiles/changes 就绪帧（kind=ready — 无附加载荷）</summary>
+internal sealed class DshChangeReady {
+    /// <summary>帧类型（ready）</summary>
+    public string Kind => "ready";
+}
+
+/// <summary>workspaceFiles/changes 变更帧（kind=change；ready 帧由宿主直接发）</summary>
+internal sealed class DshFileChangeFrame {
+    /// <summary>帧类型（change）</summary>
+    public string Kind => "change";
+    /// <summary>变更详情</summary>
+    public DshFileChange Change { get; set; } = new();
+}
+
+/// <summary>单条文件变更（version 与 absent 互斥 — 删除无版本）</summary>
+internal sealed class DshFileChange {
+    /// <summary>绝对路径</summary>
+    public string AbsolutePath { get; set; } = "";
+    /// <summary>新版本（size-mtime 合成；删除时省略）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Version { get; set; }
+    /// <summary>是否已删除（删除事件为 true）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Absent { get; set; }
 }
 
 /// <summary>workspaceFiles/stat 响应</summary>
@@ -964,10 +1137,104 @@ internal sealed class DshWorkflowRunEndData {
     public string StopReason { get; set; } = "";
 }
 
-/// <summary>助手流基线（revision=0 表示无进行中的尝试）</summary>
+/// <summary>
+/// 助手流基线（ADR 0147）：重连时前端据此重建「进行中尝试」已收到的文本，
+/// <c>revision=0</c> 表示从未有过帧；有 <see cref="ActiveAttempt"/> 时后续帧必须从 <c>revision+1</c> 续上。
+/// </summary>
 internal sealed class DshAssistantStreamBaseline {
-    /// <summary>流版本</summary>
+    /// <summary>流版本（单调递增，跨轮次不重置）</summary>
     public int Revision { get; set; }
+    /// <summary>进行中的尝试（空闲时不下发该键）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DshAssistantStreamAttempt? ActiveAttempt { get; set; }
+}
+
+/// <summary>进行中的助手尝试（基线里的可重建状态）</summary>
+internal sealed class DshAssistantStreamAttempt {
+    /// <summary>尝试身份（start/end 帧共用）</summary>
+    public string AttemptId { get; set; } = "";
+    /// <summary>该尝试开始时的持久游标（之后的帧都属于这条消息）</summary>
+    public long StartedAfterSeq { get; set; }
+    /// <summary>轮次号</summary>
+    public int Turn { get; set; }
+    /// <summary>步骤号</summary>
+    public int Step { get; set; }
+    /// <summary>下一条 chunk 帧的序号（前端据此校验不跳号）</summary>
+    public int NextIndex { get; set; }
+    /// <summary>已收到的 chunk 记录（供前端展开重建，不含 revision）</summary>
+    public List<DshAssistantStreamRecord> Stream { get; set; } = [];
+}
+
+/// <summary>尝试内的一条 chunk 记录（基线里只允许 chunk 形状）</summary>
+internal sealed class DshAssistantStreamRecord {
+    /// <summary>固定为 chunk</summary>
+    public string Type { get; set; } = "chunk";
+    /// <summary>产出时间（毫秒时间戳）</summary>
+    public long Time { get; set; }
+    /// <summary>delta 载荷（text-delta / reasoning-delta）</summary>
+    public JsonElement Chunk { get; set; }
+}
+
+/// <summary>逐字流信封（推给 <c>session/follow</c> 流的瞬态项，<c>type</c> 用于前端分流）</summary>
+internal sealed class DshAssistantStreamEnvelope {
+    /// <summary>固定为 assistant-stream</summary>
+    public string Type { get; set; } = "assistant-stream";
+    /// <summary>帧内容</summary>
+    public DshAssistantStreamFrame Frame { get; set; } = new();
+}
+
+/// <summary>逐字流的一帧：start → chunk* → end（瞬态，不落日志、不占序号）</summary>
+internal sealed class DshAssistantStreamFrame {
+    /// <summary>帧类型（start / chunk / end）</summary>
+    public string Type { get; set; } = "start";
+    /// <summary>尝试身份</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? AttemptId { get; set; }
+    /// <summary>流版本（每帧 +1，前端强校验）</summary>
+    public int Revision { get; set; }
+    /// <summary>尝试开始时的持久游标（仅 start）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? StartedAfterSeq { get; set; }
+    /// <summary>轮次号（仅 start）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Turn { get; set; }
+    /// <summary>步骤号（仅 start）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Step { get; set; }
+    /// <summary>chunk 序号（仅 chunk，从 0 起）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Index { get; set; }
+    /// <summary>产出时间（仅 chunk，毫秒时间戳）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? Time { get; set; }
+    /// <summary>delta 载荷（仅 chunk）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public JsonElement? Chunk { get; set; }
+    /// <summary>结算（仅 end）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DshAssistantStreamOutcome? Outcome { get; set; }
+}
+
+/// <summary>流帧的结算：committed 指向已落盘的助手消息事件，abandoned 表示本轮作废</summary>
+internal sealed class DshAssistantStreamOutcome {
+    /// <summary>结算类型（committed / abandoned）</summary>
+    public string Kind { get; set; } = "abandoned";
+    /// <summary>落盘事件类型（committed 时固定 assistant/message）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? EventType { get; set; }
+    /// <summary>落盘事件序号（committed 时必须等于 assistant/message 的 seq）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? Seq { get; set; }
+}
+
+/// <summary>文本/思考 delta（组装器容忍纯 delta 协议，无需 block-start/block-end）</summary>
+internal sealed class DshDeltaChunk {
+    /// <summary>delta 类型（text-delta / reasoning-delta）</summary>
+    public string Type { get; set; } = "text-delta";
+    /// <summary>内容块下标（按块首次出现顺序从 0 分配：思考先到则 0、正文 1；纯正文轮正文 0）</summary>
+    public int Index { get; set; }
+    /// <summary>本次追加的文本</summary>
+    public string Text { get; set; } = "";
 }
 
 /// <summary>模型目录</summary>
@@ -1379,6 +1646,12 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshWorkflowRunEndData))]
 [JsonSerializable(typeof(List<JsonElement>))]
 [JsonSerializable(typeof(DshAssistantStreamBaseline))]
+[JsonSerializable(typeof(DshAssistantStreamAttempt))]
+[JsonSerializable(typeof(DshAssistantStreamRecord))]
+[JsonSerializable(typeof(DshAssistantStreamFrame))]
+[JsonSerializable(typeof(DshAssistantStreamEnvelope))]
+[JsonSerializable(typeof(DshAssistantStreamOutcome))]
+[JsonSerializable(typeof(DshDeltaChunk))]
 [JsonSerializable(typeof(Dictionary<string, DshSessionProjectionSnapshot>))]
 [JsonSerializable(typeof(DshModelCatalog))]
 [JsonSerializable(typeof(DshSessionSelectModelArgs))]
@@ -1394,6 +1667,8 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshEventsResultArgs))]
 [JsonSerializable(typeof(DshEventOutcome))]
 [JsonSerializable(typeof(DshEventsResultValue))]
+[JsonSerializable(typeof(DshApprovalAskedData))]
+[JsonSerializable(typeof(DshApprovalDecidedData))]
 [JsonSerializable(typeof(DshEventErrorBody))]
 [JsonSerializable(typeof(DshCommandInfo))]
 [JsonSerializable(typeof(DshCommandInputInfo))]
@@ -1419,6 +1694,18 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshWorkspaceFilesReadResult))]
 [JsonSerializable(typeof(DshWorkspaceFilesReadBytesResult))]
 [JsonSerializable(typeof(DshWorkspaceFilesStatResult))]
+[JsonSerializable(typeof(DshFileChangeFrame))]
+[JsonSerializable(typeof(DshChangeReady))]
+[JsonSerializable(typeof(DshGoal))]
+[JsonSerializable(typeof(DshGoalRef))]
+[JsonSerializable(typeof(DshGoalsRefArgs))]
+[JsonSerializable(typeof(DshGoalsCreateArgs))]
+[JsonSerializable(typeof(DshGoalsCreateResult))]
+[JsonSerializable(typeof(DshGoalsEditArgs))]
+[JsonSerializable(typeof(DshGoalChanges))]
+[JsonSerializable(typeof(DshGoalsClearResult))]
+[JsonSerializable(typeof(DshGoalsDocument))]
+[JsonSerializable(typeof(DshGoalActivationChanged))]
 [JsonSerializable(typeof(DshFileUploadsUploadArgs))]
 [JsonSerializable(typeof(DshFileUploadResult))]
 [JsonSerializable(typeof(DshAttachmentRecord))]

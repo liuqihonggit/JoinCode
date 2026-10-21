@@ -53,12 +53,236 @@ internal sealed class DshSessionStreamHub {
     /// <param name="streamId">前端流身份</param>
     /// <param name="send">推送一条事件的回调（由 WebSocket 层串行发送）</param>
     /// <param name="lastSeq">该流已经拿到的最后一个序号（快照光标；无快照为 -1）</param>
-    internal IDisposable Subscribe(string sessionId, string streamId, Func<DshSessionEvent, Task> send, long lastSeq = -1) {
-        var subscription = new Subscription(sessionId, streamId, send) { LastSeq = lastSeq };
+    internal IDisposable Subscribe(string sessionId, string streamId, Func<DshSessionEvent, Task> send, long lastSeq = -1) =>
+        SubscribeCore(sessionId, streamId, send, null, lastSeq, activated: true).Lease;
+
+    /// <summary>
+    /// 原子地「读助手流基线 + 登记订阅」（ADR 0147）：返回的基线就是该流应使用的起点，
+    /// 之后的帧从 <c>Baseline.Revision + 1</c> 续上；未 <see cref="ActivateAsync"/> 前帧先缓存。
+    /// </summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="streamId">前端流身份</param>
+    /// <param name="send">持久事件推送回调</param>
+    /// <param name="sendAssistantFrame">瞬态帧推送回调（null = 该流未订阅 assistantStream）</param>
+    /// <param name="lastSeq">该流已经拿到的最后一个持久序号（快照光标）</param>
+    /// <returns>该流起点处的助手流基线，以及注销句柄</returns>
+    internal (DshAssistantStreamBaseline Baseline, IDisposable Lease) SubscribeSession(
+        string sessionId,
+        string streamId,
+        Func<DshSessionEvent, Task> send,
+        Func<DshAssistantStreamFrame, Task>? sendAssistantFrame,
+        long lastSeq = -1) =>
+        SubscribeCore(sessionId, streamId, send, sendAssistantFrame, lastSeq, activated: false);
+
+    /// <summary>登记订阅并在同一把锁内取基线（激活态决定帧立即发送还是先缓存）</summary>
+    private (DshAssistantStreamBaseline Baseline, IDisposable Lease) SubscribeCore(
+        string sessionId,
+        string streamId,
+        Func<DshSessionEvent, Task> send,
+        Func<DshAssistantStreamFrame, Task>? sendAssistantFrame,
+        long lastSeq,
+        bool activated) {
+        var subscription = new Subscription(sessionId, streamId, send, sendAssistantFrame) {
+            LastSeq = lastSeq,
+            Activated = activated,
+        };
         lock (_gate) {
             _subscriptions[streamId] = subscription;
+            return (BaselineCore(sessionId), new Unsubscriber(this, streamId));
         }
-        return new Unsubscriber(this, streamId);
+    }
+
+    /// <summary>
+    /// 打开流的开场载荷（快照等）已发出：把订阅期间缓存的帧按序补发。
+    /// 必须在快照发送之后调用，否则前端会先收到帧、后知基线而断流。
+    /// </summary>
+    /// <param name="streamId">前端流身份</param>
+    internal async Task ActivateAsync(string streamId) {
+        var (subscription, buffered) = TakeBuffered(streamId);
+        if (subscription is not null && buffered.Length > 0) {
+            await SendAssistantAsync(subscription, buffered);
+        }
+    }
+
+    /// <summary>激活订阅并取走缓存帧（同步持锁，await 一律在锁外）</summary>
+    private (Subscription? Subscription, DshAssistantStreamFrame[] Buffered) TakeBuffered(string streamId) {
+        lock (_gate) {
+            if (!_subscriptions.TryGetValue(streamId, out var subscription)) {
+                return (null, []);
+            }
+            subscription.Activated = true;
+            var buffered = subscription.PendingAssistant.ToArray();
+            subscription.PendingAssistant.Clear();
+            return (subscription, buffered);
+        }
+    }
+
+    /// <summary>该会话当前的助手流基线（重连重建与快照下发共用）</summary>
+    /// <param name="sessionId">会话 ID</param>
+    internal DshAssistantStreamBaseline AssistantBaseline(string sessionId) {
+        lock (_gate) {
+            return BaselineCore(sessionId);
+        }
+    }
+
+    /// <summary>开一条成功尝试（本轮首个 delta 到达时）：分配 start 帧并置为进行中</summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="turn">轮次号</param>
+    /// <param name="step">步骤号</param>
+    internal async Task StartAssistantAttemptAsync(string sessionId, int turn, int step) {
+        var (frame, targets) = AllocateStart(sessionId, turn, step);
+        await BroadcastAssistantAsync(targets, frame);
+    }
+
+    /// <summary>分配 start 帧（同步持锁）</summary>
+    private (DshAssistantStreamFrame Frame, List<(Subscription Subscription, bool Direct)> Targets) AllocateStart(string sessionId, int turn, int step) {
+        lock (_gate) {
+            var state = State(sessionId);
+            var attempt = new AssistantAttempt {
+                AttemptId = Guid.NewGuid().ToString("N"),
+                StartedAfterSeq = state.Cursor,
+                Turn = turn,
+                Step = step,
+            };
+            state.Assistant = attempt;
+            state.AssistantRevision += 1;
+            var frame = new DshAssistantStreamFrame {
+                Type = "start",
+                AttemptId = attempt.AttemptId,
+                Revision = state.AssistantRevision,
+                StartedAfterSeq = attempt.StartedAfterSeq,
+                Turn = turn,
+                Step = step,
+            };
+            return (frame, TargetsCore(sessionId, frame));
+        }
+    }
+
+    /// <summary>追加一条 delta：帧携带尝试内递增的 chunk 序号，同时把记录进基线</summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="chunkType">delta 类型（text-delta / reasoning-delta）</param>
+    /// <param name="blockIndex">内容块下标（reasoning=0、正文=1）</param>
+    /// <param name="text">本次追加文本</param>
+    internal async Task AppendAssistantChunkAsync(string sessionId, string chunkType, int blockIndex, string text) {
+        var (frame, targets) = AllocateChunk(sessionId, chunkType, blockIndex, text);
+        if (frame is null) {
+            return;
+        }
+        await BroadcastAssistantAsync(targets, frame);
+    }
+
+    /// <summary>分配 chunk 帧（同步持锁；无进行中尝试时返回 null 并记日志）</summary>
+    private (DshAssistantStreamFrame? Frame, List<(Subscription Subscription, bool Direct)> Targets) AllocateChunk(string sessionId, string chunkType, int blockIndex, string text) {
+        lock (_gate) {
+            var state = State(sessionId);
+            if (state.Assistant is not { } attempt) {
+                GuiDiag.Log($"[DSH-WEB] assistant chunk without attempt session={sessionId} type={chunkType}");
+                return (null, []);
+            }
+            var time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var chunk = JsonSerializer.SerializeToElement(new DshDeltaChunk {
+                Type = chunkType,
+                Index = blockIndex,
+                Text = text,
+            }, DshJsonContext.Default.DshDeltaChunk);
+            attempt.Stream.Add(new DshAssistantStreamRecord { Time = time, Chunk = chunk });
+            state.AssistantRevision += 1;
+            var frame = new DshAssistantStreamFrame {
+                Type = "chunk",
+                AttemptId = attempt.AttemptId,
+                Revision = state.AssistantRevision,
+                Index = attempt.NextIndex,
+                Time = time,
+                Chunk = chunk,
+            };
+            attempt.NextIndex += 1;
+            return (frame, TargetsCore(sessionId, frame));
+        }
+    }
+
+    /// <summary>结算尝试：committed 指向已落盘的助手消息，abandoned 表示取消/失败</summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="outcome">结算内容</param>
+    internal async Task EndAssistantAttemptAsync(string sessionId, DshAssistantStreamOutcome outcome) {
+        var (frame, targets) = AllocateEnd(sessionId, outcome);
+        if (frame is null) {
+            return;
+        }
+        await BroadcastAssistantAsync(targets, frame);
+    }
+
+    /// <summary>分配 end 帧并清空进行中尝试（同步持锁）</summary>
+    private (DshAssistantStreamFrame? Frame, List<(Subscription Subscription, bool Direct)> Targets) AllocateEnd(string sessionId, DshAssistantStreamOutcome outcome) {
+        lock (_gate) {
+            var state = State(sessionId);
+            if (state.Assistant is not { } attempt) {
+                return (null, []);
+            }
+            state.Assistant = null;
+            state.AssistantRevision += 1;
+            var frame = new DshAssistantStreamFrame {
+                Type = "end",
+                AttemptId = attempt.AttemptId,
+                Revision = state.AssistantRevision,
+                // 前端按 end.index 校验「chunk 序号连续」：必须等于下一条 chunk 序号
+                Index = attempt.NextIndex,
+                Outcome = outcome,
+            };
+            return (frame, TargetsCore(sessionId, frame));
+        }
+    }
+
+    /// <summary>取订阅者与该帧（调用方持锁）：未激活的先缓存，激活的直接发送</summary>
+    private List<(Subscription Subscription, bool Direct)> TargetsCore(string sessionId, DshAssistantStreamFrame frame) {
+        var targets = new List<(Subscription, bool)>();
+        foreach (var subscription in _subscriptions.Values.Where(subscription => subscription.SessionId == sessionId && subscription.SendAssistant is not null)) {
+            if (subscription.Activated) {
+                targets.Add((subscription, true));
+            } else {
+                subscription.PendingAssistant.Add(frame);
+            }
+        }
+        return targets;
+    }
+
+    /// <summary>把帧推给各订阅者（发送失败只记日志：前端会走 repair 重连，不拖垮其它流）</summary>
+    private static async Task BroadcastAssistantAsync(List<(Subscription Subscription, bool Direct)> targets, DshAssistantStreamFrame frame) {
+        foreach (var (subscription, direct) in targets) {
+            if (direct) {
+                await SendAssistantAsync(subscription, [frame]);
+            }
+        }
+    }
+
+    /// <summary>按序发送一批帧</summary>
+    private static async Task SendAssistantAsync(Subscription subscription, IReadOnlyList<DshAssistantStreamFrame> frames) {
+        if (subscription.SendAssistant is not { } send) {
+            return;
+        }
+        foreach (var frame in frames) {
+            try {
+                await send(frame);
+            } catch (Exception ex) {
+                GuiDiag.Log($"[DSH-WEB] assistant frame push failed stream={subscription.StreamId}: {ex.Message}");
+                return;
+            }
+        }
+    }
+
+    /// <summary>基线快照（调用方持锁）</summary>
+    private DshAssistantStreamBaseline BaselineCore(string sessionId) {
+        var state = State(sessionId);
+        return new DshAssistantStreamBaseline {
+            Revision = state.AssistantRevision,
+            ActiveAttempt = state.Assistant is { } attempt ? new DshAssistantStreamAttempt {
+                AttemptId = attempt.AttemptId,
+                StartedAfterSeq = attempt.StartedAfterSeq,
+                Turn = attempt.Turn,
+                Step = attempt.Step,
+                NextIndex = attempt.NextIndex,
+                Stream = [.. attempt.Stream],
+            } : null,
+        };
     }
 
     /// <summary>把订阅者尚未收到的历史事件补发一遍（打开流送出快照后调用，闭合「快照与订阅之间」的窗口）</summary>
@@ -203,7 +427,27 @@ internal sealed class DshSessionStreamHub {
     /// <param name="type">事件类型</param>
     /// <param name="data">事件载荷（已注册到 <see cref="DshJsonContext"/>）</param>
     /// <param name="surfaceOp">会话表面操作（消息类事件用 append）</param>
-    internal async Task PublishAsync<T>(string sessionId, string type, T data, string? surfaceOp = null) {
+    /// <returns>该事件分配的序号（结算帧的 outcome.seq 指向它）</returns>
+    internal async Task<long> PublishAsync<T>(string sessionId, string type, T data, string? surfaceOp = null) {
+        var (sessionEvent, targets) = Allocate(sessionId, type, data, surfaceOp);
+        if (_journal is not null) {
+            await _journal.AppendAsync(sessionId, sessionEvent);
+        }
+        foreach (var target in targets) {
+            await DeliverAsync(target, PendingFor(target, sessionId));
+        }
+        return sessionEvent.Seq;
+    }
+
+    /// <summary>
+    /// 用已序列化的载荷分配序号并推送（审批审计等由外部构造 <see cref="JsonElement"/> 的场景，
+    /// 避免经 object 泛型序列化丢失具体形状）。
+    /// </summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="type">事件类型</param>
+    /// <param name="data">事件载荷（已是 JsonElement）</param>
+    /// <param name="surfaceOp">会话表面操作（消息类事件用 append）</param>
+    internal async Task PublishElementAsync(string sessionId, string type, JsonElement data, string? surfaceOp = null) {
         var (sessionEvent, targets) = Allocate(sessionId, type, data, surfaceOp);
         if (_journal is not null) {
             await _journal.AppendAsync(sessionId, sessionEvent);
@@ -279,9 +523,19 @@ internal sealed class DshSessionStreamHub {
     }
 
     /// <summary>一条打开的事件流</summary>
-    private sealed record Subscription(string SessionId, string StreamId, Func<DshSessionEvent, Task> Send) {
+    private sealed record Subscription(
+        string SessionId,
+        string StreamId,
+        Func<DshSessionEvent, Task> Send,
+        Func<DshAssistantStreamFrame, Task>? SendAssistant) {
         /// <summary>已推给该流的最后序号（初始为快照光标）</summary>
         internal long LastSeq { get; set; } = -1;
+
+        /// <summary>开场载荷是否已发出（未发出时 assistant 帧先缓存，避免早于快照到达）</summary>
+        internal bool Activated { get; set; }
+
+        /// <summary>等待激活期间收到的 assistant 帧（按 revision 升序）</summary>
+        internal List<DshAssistantStreamFrame> PendingAssistant { get; } = [];
     }
 
     /// <summary>会话的事件游标与生成状态</summary>
@@ -299,8 +553,30 @@ internal sealed class DshSessionStreamHub {
         /// <summary>该会话已分配的全部事件（与日志文件一致）</summary>
         internal List<DshSessionEvent> History { get; } = [];
 
+        /// <summary>助手流版本（跨尝试单调递增，前端逐帧校验 +1）</summary>
+        internal int AssistantRevision { get; set; }
+
+        /// <summary>进行中的助手尝试（空闲为 null）</summary>
+        internal AssistantAttempt? Assistant { get; set; }
+
         /// <summary>取下一个序号（并推进游标）</summary>
         internal long NextSeq() => ++Cursor;
+    }
+
+    /// <summary>进行中的助手尝试（基线重建用）</summary>
+    private sealed class AssistantAttempt {
+        /// <summary>尝试身份</summary>
+        internal string AttemptId { get; init; } = "";
+        /// <summary>开始时的持久游标</summary>
+        internal long StartedAfterSeq { get; init; }
+        /// <summary>轮次号</summary>
+        internal int Turn { get; init; }
+        /// <summary>步骤号</summary>
+        internal int Step { get; init; }
+        /// <summary>下一条 chunk 帧序号</summary>
+        internal int NextIndex { get; set; }
+        /// <summary>已产出的 chunk 记录</summary>
+        internal List<DshAssistantStreamRecord> Stream { get; } = [];
     }
 
     /// <summary>订阅句柄</summary>

@@ -5,7 +5,10 @@
   <Folder Name="/app/">
     <Project Path="../../native_gui/apps/NativeGui.Host/NativeGui.Host.csproj" />
   </Folder>
-  <Folder Name="/test/JoinCodeGui.Tests/">
-    <Project Path="../../native_gui/tests/join_code_gui.tests/JoinCodeGui.Tests.csproj" />
+  <Folder Name="/test/NativeGui.Core.Tests/">
+    <Project Path="../../native_gui/tests/native_gui.core.tests/NativeGui.Core.Tests.csproj" />
+  </Folder>
+  <Folder Name="/test/NativeGui.Host.Tests/">
+    <Project Path="../../native_gui/tests/native_gui.host.tests/NativeGui.Host.Tests.csproj" />
   </Folder>
 </Solution>

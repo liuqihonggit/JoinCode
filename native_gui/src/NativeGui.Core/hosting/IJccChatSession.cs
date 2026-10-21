@@ -27,6 +27,16 @@ public interface IJccChatSession : IAsyncDisposable {
     IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 轮内注入（steer）— 把用户输入投递给**当前轮的下一个 step**（不排队、不开新轮）。
+    /// 对齐 DSH <c>agent.steer(input)</c>：引擎在该步开头把文本落成用户消息，并在流里回
+    /// <see cref="ChatStreamEventType.SteerInput"/> 事件。默认实现返回 false（引擎未装配注入通道）。
+    /// </summary>
+    /// <param name="sessionId">目标会话（须与正在运行的轮次同一会话）</param>
+    /// <param name="text">用户输入文本</param>
+    /// <returns>投递成功返回 true；引擎未装配注入邮箱返回 false</returns>
+    bool TrySteerInput(string sessionId, string text) => false;
+
+    /// <summary>
     /// 执行斜杠命令（G1 对齐 TUI）：解析 → CmdMap 路由（斜杠命令→MCP 工具）→ 捕获输出。
     /// 返回命令输出文本；未知命令返回带提示的错误文案。非 / 前缀输入行为未定义。
     /// </summary>

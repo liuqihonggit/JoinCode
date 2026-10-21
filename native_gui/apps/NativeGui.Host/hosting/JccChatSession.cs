@@ -309,6 +309,21 @@ internal sealed class JccChatSession : IJccChatSession {
     }
 
     /// <summary>
+    /// 轮内注入（B11）— 投递到引擎的 steer 邮箱，由查询循环在下一 step 开头落成用户消息。
+    /// 邮箱是单例（按会话寻址），因此投递与会话切换顺序无关。
+    /// </summary>
+    /// <param name="sessionId">目标会话</param>
+    /// <param name="text">用户输入文本</param>
+    /// <returns>投递成功 true；引擎未装配邮箱返回 false（调用方据此回 session/steer-unavailable）</returns>
+    public bool TrySteerInput(string sessionId, string text) {
+        if (_services.GetService<ISteerInputMailbox>() is not { } mailbox) {
+            return false;
+        }
+        mailbox.Enqueue(sessionId, text);
+        return true;
+    }
+
+    /// <summary>
     /// 从持久化历史灌入底层对话上下文 — GUI 新进程 StateService 内存为空，
     /// 先 ClearMessagesAsync 清空当前桶，再逐条灌入历史消息到 IChatContextManager。
     /// 对齐 CLI /resume 的 LoadContextAsync 语义。

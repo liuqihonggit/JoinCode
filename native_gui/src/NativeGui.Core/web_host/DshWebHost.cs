@@ -57,8 +57,9 @@ internal sealed class DshWebHost : IAsyncDisposable {
 
     /// <summary>解包资产 + 选空闲端口 + 启动监听</summary>
     internal static DshWebHost Start(DshHostServices? services = null) {
-        var root = DshWebAssets.EnsureExtracted();
-        var host = new DshWebHost(root, FindFreePort(), services ?? new DshHostServices(new PhysicalFileSystem()));
+        var fileSystem = new PhysicalFileSystem();
+        var root = DshWebAssets.EnsureExtracted(fileSystem);
+        var host = new DshWebHost(root, FindFreePort(), services ?? new DshHostServices(fileSystem));
         host._listener.Prefixes.Add(host.BaseUrl);
         host._listener.Start();
         host._acceptLoop = host.AcceptLoopAsync();
@@ -84,7 +85,8 @@ internal sealed class DshWebHost : IAsyncDisposable {
         try {
             await RouteAsync(context);
         } catch (Exception ex) {
-            GuiDiag.Log($"[DSH-WEB] request failed {context.Request.RawUrl}: {ex.Message}");
+            Console.Error.WriteLine($"[DSH-WEB] request failed {context.Request.RawUrl}: {ex}");
+            GuiDiag.Log($"[DSH-WEB] request failed {context.Request.RawUrl}: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
             TryClose(context.Response, 500);
         }
     }
@@ -307,6 +309,10 @@ internal sealed class DshWebHost : IAsyncDisposable {
                 return await OpenJobListAsync(open, send, cancellationToken);
             case "job/follow":
                 return await OpenJobFollowAsync(open, send, cancellationToken);
+            case "terminal/follow":
+                return OpenTerminalFollow(open, send, cancellationToken);
+            case "terminal/retain":
+                return OpenTerminalRetain(open);
             default:
                 GuiDiag.Log($"[DSH-WEB] stream endpoint unimplemented: {open.Endpoint}");
                 return ([], null, null);
@@ -358,10 +364,10 @@ internal sealed class DshWebHost : IAsyncDisposable {
     /// </summary>
     private async Task<(IReadOnlyList<DshStreamItem> Opening, IDisposable? Lease, Func<Task>? Ready)> OpenJobListAsync(
         DshStreamOpen open, Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
-        var request = open.Payload?.Args.Deserialize(DshJsonContext.Default.DshJobListArgs);
+        var request = open.Payload?.Args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshJobListArgs)?.Request;
         if (request is null || string.IsNullOrWhiteSpace(request.SessionId)) {
             return ([Item(open.StreamId, StreamError("job/rejected",
-                "job/list 需要 {sessionId}；请先选择一个会话再打开任务面板"))], null, null);
+                "job/list 需要 {request:{sessionId}}；请先选择一个会话再打开任务面板"))], null, null);
         }
         var sessionId = request.SessionId;
         var initial = await _services.Jobs.ListAsync(sessionId, cancellationToken);
@@ -407,10 +413,10 @@ internal sealed class DshWebHost : IAsyncDisposable {
     /// </summary>
     private async Task<(IReadOnlyList<DshStreamItem> Opening, IDisposable? Lease, Func<Task>? Ready)> OpenJobFollowAsync(
         DshStreamOpen open, Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
-        var request = open.Payload?.Args.Deserialize(DshJsonContext.Default.DshJobFollowArgs);
+        var request = open.Payload?.Args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshJobFollowArgs)?.Request;
         if (request is null || string.IsNullOrWhiteSpace(request.JobId)) {
             return ([Item(open.StreamId, StreamError("job/rejected",
-                "job/follow 需要 {jobId, sessionId?, from?}；请先在任务列表里选择一个任务"))], null, null);
+                "job/follow 需要 {request:{jobId, sessionId?, from?}}；请先在任务列表里选择一个任务"))], null, null);
         }
         var sessionId = request.SessionId ?? "";
         var snapshot = await _services.Jobs.SnapshotAsync(sessionId, request.JobId, cancellationToken);
@@ -477,6 +483,74 @@ internal sealed class DshWebHost : IAsyncDisposable {
 
     /// <summary>后台任务轮询间隔（引擎是拉取式快照；500ms 足够覆盖任务面板刷新）</summary>
     private static readonly TimeSpan JobPollInterval = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>
+    /// 打开终端跟随流（TASK066 C3）：snapshot（屏幕基线 + 元数据）→ output/state 增量。
+    /// 断开只释放跟随者，PTY 进程继续运行；重新 follow 从最新基线恢复。
+    /// </summary>
+    private (IReadOnlyList<DshStreamItem> Opening, IDisposable? Lease, Func<Task>? Ready) OpenTerminalFollow(
+        DshStreamOpen open, Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
+        var request = open.Payload?.Args.Deserialize(DshJsonContext.Default.DshTerminalFollowArgs);
+        if (request is null
+            || string.IsNullOrWhiteSpace(request.AgentId)
+            || string.IsNullOrWhiteSpace(request.Id)
+            || string.IsNullOrWhiteSpace(request.AttachmentId)) {
+            return ([Item(open.StreamId, StreamError("terminal/rejected",
+                "terminal/follow 需要 {agentId, id, attachmentId}；先用 terminal/create 建立终端并保存 attachmentId"))], null, null);
+        }
+        DshTerminalSnapshotFrame snapshot;
+        DshTerminalFollower follower;
+        try {
+            (snapshot, follower) = _services.Terminals.Follow(request.AgentId, request.Id, request.AttachmentId);
+        } catch (DshTerminalException ex) {
+            return ([Item(open.StreamId, StreamError(ex.Code, ex.Message))], null, null);
+        }
+        var pumpCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var pump = Task.Run(() => PumpTerminalFramesAsync(open.StreamId, follower, send, pumpCts.Token), pumpCts.Token);
+        return (
+            [Item(open.StreamId, JsonSerializer.SerializeToElement(snapshot, DshJsonContext.Default.DshTerminalSnapshotFrame))],
+            new DetachLease(() => {
+                pumpCts.Cancel();
+                follower.Dispose();
+                pumpCts.Dispose();
+            }),
+            null);
+    }
+
+    /// <summary>终端跟随泵：把输出/状态帧转成 DSH 流项；跟随者结束（进程退出）后自然收尾</summary>
+    private static async Task PumpTerminalFramesAsync(
+        string streamId, DshTerminalFollower follower, Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
+        try {
+            await foreach (var frame in follower.Frames.ReadAllAsync(cancellationToken).ConfigureAwait(false)) {
+                var value = frame switch {
+                    DshTerminalOutputFrame output => JsonSerializer.SerializeToElement(output, DshJsonContext.Default.DshTerminalOutputFrame),
+                    DshTerminalStateFrame state => JsonSerializer.SerializeToElement(state, DshJsonContext.Default.DshTerminalStateFrame),
+                    _ => throw new InvalidOperationException($"未知终端帧类型 {frame.GetType().Name}"),
+                };
+                await send(Item(streamId, value)).ConfigureAwait(false);
+            }
+        } catch (OperationCanceledException) {
+            // 连接关闭/宿主停机 — 泵静默收尾
+        } catch (Exception ex) {
+            GuiDiag.Log($"[DSH-TERMINAL] follow pump failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>终端保留声明（TASK066 C3）：终端存在即回 retained；进程生命周期与流无关</summary>
+    private (IReadOnlyList<DshStreamItem> Opening, IDisposable? Lease, Func<Task>? Ready) OpenTerminalRetain(DshStreamOpen open) {
+        var request = open.Payload?.Args.Deserialize(DshJsonContext.Default.DshTerminalRetainArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId) || string.IsNullOrWhiteSpace(request.Id)) {
+            return ([Item(open.StreamId, StreamError("terminal/rejected",
+                "terminal/retain 需要 {sessionId, id}；请从 terminal/list 取得实际终端 ID"))], null, null);
+        }
+        try {
+            _services.Terminals.Retain(request.SessionId, request.Id);
+        } catch (DshTerminalException ex) {
+            return ([Item(open.StreamId, StreamError(ex.Code, ex.Message))], null, null);
+        }
+        return ([Item(open.StreamId, JsonSerializer.SerializeToElement(
+            new DshTerminalRetainedFrame(), DshJsonContext.Default.DshTerminalRetainedFrame))], null, null);
+    }
 
     /// <summary>打开会话事件流的首帧：宿主事件日志（或转录投影）→ snapshot + 订阅后续事件；否则给出可执行的引导错误</summary>
     private async Task<(IReadOnlyList<DshStreamItem> Opening, IDisposable? Lease, Func<Task>? Ready)> OpenSessionAsync(
@@ -553,7 +627,13 @@ internal sealed class DshWebHost : IAsyncDisposable {
     /// <summary>构造流式端点失败帧（引导式错误：说明期望参数与下一步可执行动作）</summary>
     private static JsonElement StreamError(string code, string message) =>
         JsonSerializer.SerializeToElement(
-            new DshStreamError { Error = new DshStreamErrorBody { Code = code, Message = message } },
+            new DshStreamError {
+                Error = new DshStreamErrorBody {
+                    Code = code,
+                    Message = message,
+                    Details = JsonSerializer.SerializeToElement(new DshRpcErrorDetails(), DshJsonContext.Default.DshRpcErrorDetails),
+                },
+            },
             DshJsonContext.Default.DshStreamError);
 
     private static DshStreamItem Item(string streamId, JsonElement value) => new() { StreamId = streamId, Value = value };

@@ -76,6 +76,15 @@ internal sealed class DshRpcDispatcher {
             ["session/updateQueue"] = SessionUpdateQueue,
             // 后台任务（TASK066 C2；list/follow 是 WS 流，路由在 DshWebHost）
             ["job/kill"] = JobKill,
+            // 侧栏终端（TASK066 C3；follow/retain 是 WS 流）
+            ["terminal/environment"] = TerminalEnvironment,
+            ["terminal/shells"] = Sync(TerminalShells),
+            ["terminal/list"] = Sync(TerminalList),
+            ["terminal/create"] = TerminalCreate,
+            ["terminal/write"] = Sync(TerminalWrite),
+            ["terminal/resize"] = Sync(TerminalResize),
+            ["terminal/rename"] = Sync(TerminalRename),
+            ["terminal/close"] = TerminalClose,
             // 目标七方法（TASK058 P2-B5；引擎节点图 goal 联动属深化项）
             ["goals/get"] = Sync(GoalsGet),            ["goals/create"] = Sync(GoalsCreate),
             ["goals/edit"] = Sync(GoalsEdit),
@@ -515,6 +524,130 @@ internal sealed class DshRpcDispatcher {
         return outcome is { } value
             ? Ok(new DshJobKillResult { Outcome = value })
             : Fail("job/unavailable", $"停止任务 {request.JobId} 未返回结果；请刷新任务列表确认任务状态");
+    }
+
+    /// <summary>terminal/environment：会话工作目录 + 终端限制</summary>
+    private Task<DshRpcResult> TerminalEnvironment(JsonElement args, CancellationToken cancellationToken) =>
+        TerminalAsync(async () => {
+            var request = args.Deserialize(DshJsonContext.Default.DshTerminalAgentArgs);
+            var sessionId = RequireSession(request?.AgentId, "terminal/environment");
+            return JsonSerializer.SerializeToElement(
+                await _services.Terminals.EnvironmentAsync(sessionId, cancellationToken),
+                DshJsonContext.Default.DshTerminalEnvironmentResult);
+        });
+
+    /// <summary>terminal/shells：已安装 shell 清单（默认在最前）</summary>
+    private DshRpcResult TerminalShells(JsonElement args) =>
+        TerminalSync(() => {
+            var request = args.Deserialize(DshJsonContext.Default.DshTerminalAgentArgs);
+            RequireSession(request?.AgentId, "terminal/shells");
+            return JsonSerializer.SerializeToElement(
+                _services.Terminals.Shells().ToArray(), DshJsonContext.Default.DshTerminalShellProfileArray);
+        });
+
+    /// <summary>terminal/list：该会话保留的终端</summary>
+    private DshRpcResult TerminalList(JsonElement args) =>
+        TerminalSync(() => {
+            var request = args.Deserialize(DshJsonContext.Default.DshTerminalListArgs);
+            var sessionId = RequireSession(request?.SessionId, "terminal/list");
+            return JsonSerializer.SerializeToElement(
+                _services.Terminals.List(sessionId).ToArray(), DshJsonContext.Default.DshTerminalInfoArray);
+        });
+
+    /// <summary>terminal/create：创建或幂等返回终端</summary>
+    private Task<DshRpcResult> TerminalCreate(JsonElement args, CancellationToken cancellationToken) =>
+        TerminalAsync(async () => {
+            var create = args.Deserialize(DshJsonContext.Default.DshTerminalCreateArgs);
+            var sessionId = RequireSession(create?.AgentId, "terminal/create");
+            var request = create?.Request;
+            if (request is null || string.IsNullOrWhiteSpace(request.Id)) {
+                throw new DshTerminalException("terminal/rejected",
+                    "terminal/create 缺少 request.id（前端生成的终端标识）；请刷新页面重新打开终端面板");
+            }
+            return JsonSerializer.SerializeToElement(
+                await _services.Terminals.CreateAsync(sessionId, request, cancellationToken),
+                DshJsonContext.Default.DshTerminalInfo);
+        });
+
+    /// <summary>terminal/write：写入原始输入（仅当前 attachment）</summary>
+    private DshRpcResult TerminalWrite(JsonElement args) =>
+        TerminalSync(() => {
+            var request = args.Deserialize(DshJsonContext.Default.DshTerminalWriteArgs);
+            var sessionId = RequireSession(request?.AgentId, "terminal/write");
+            var terminalId = RequireTerminalId(request?.Id, "terminal/write");
+            var attachmentId = RequireAttachment(request?.AttachmentId, "terminal/write");
+            _services.Terminals.Write(sessionId, terminalId, attachmentId, request?.Data ?? "");
+            return JsonSerializer.SerializeToElement<object?>(null, DshJsonContext.Default.Object);
+        });
+
+    /// <summary>terminal/resize：调整 PTY 尺寸（仅当前 attachment）</summary>
+    private DshRpcResult TerminalResize(JsonElement args) =>
+        TerminalSync(() => {
+            var request = args.Deserialize(DshJsonContext.Default.DshTerminalResizeArgs);
+            var sessionId = RequireSession(request?.AgentId, "terminal/resize");
+            var terminalId = RequireTerminalId(request?.Id, "terminal/resize");
+            var attachmentId = RequireAttachment(request?.AttachmentId, "terminal/resize");
+            _services.Terminals.Resize(sessionId, terminalId, attachmentId, request?.Cols ?? 0, request?.Rows ?? 0);
+            return JsonSerializer.SerializeToElement<object?>(null, DshJsonContext.Default.Object);
+        });
+
+    /// <summary>terminal/rename：改显示标题</summary>
+    private DshRpcResult TerminalRename(JsonElement args) =>
+        TerminalSync(() => {
+            var request = args.Deserialize(DshJsonContext.Default.DshTerminalIdArgs);
+            var sessionId = RequireSession(request?.AgentId, "terminal/rename");
+            var terminalId = RequireTerminalId(request?.Id, "terminal/rename");
+            _services.Terminals.Rename(sessionId, terminalId, request?.Title ?? "");
+            return JsonSerializer.SerializeToElement<object?>(null, DshJsonContext.Default.Object);
+        });
+
+    /// <summary>terminal/close：终止进程并移除终端（幂等）</summary>
+    private Task<DshRpcResult> TerminalClose(JsonElement args, CancellationToken cancellationToken) =>
+        TerminalAsync(async () => {
+            var request = args.Deserialize(DshJsonContext.Default.DshTerminalIdArgs);
+            var sessionId = RequireSession(request?.AgentId, "terminal/close");
+            var terminalId = RequireTerminalId(request?.Id, "terminal/close");
+            await _services.Terminals.CloseAsync(sessionId, terminalId).ConfigureAwait(false);
+            return JsonSerializer.SerializeToElement<object?>(null, DshJsonContext.Default.Object);
+        });
+
+    /// <summary>终端处理器包装：把服务层异常映射成稳定错误码（单 try-catch）</summary>
+    private async Task<DshRpcResult> TerminalAsync(Func<Task<JsonElement>> action) {
+        try {
+            return Success(await action());
+        } catch (DshTerminalException ex) {
+            return Fail(ex.Code, ex.Message);
+        } catch (PlatformNotSupportedException ex) {
+            return Fail("terminal/unavailable", ex.Message);
+        } catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException) {
+            GuiDiag.Log($"[DSH-TERMINAL] {ex.GetType().Name}: {ex.Message}");
+            return Fail("terminal/unavailable", $"终端操作失败：{ex.Message}；请关闭该终端后重新打开");
+        }
+    }
+
+    /// <summary>同步终端处理器包装</summary>
+    private DshRpcResult TerminalSync(Func<JsonElement> action) => TerminalAsync(() => Task.FromResult(action())).GetAwaiter().GetResult();
+
+    /// <summary>校验会话 ID（缺失 → 引导错误）</summary>
+    private static string RequireSession(string? sessionId, string method) =>
+        string.IsNullOrWhiteSpace(sessionId)
+            ? throw new DshTerminalException("terminal/rejected", $"{method} 缺少 agentId/sessionId；请先选择一个会话再使用终端")
+            : sessionId;
+
+    /// <summary>校验终端 ID（返回非空值）</summary>
+    private static string RequireTerminalId(string? id, string method) {
+        if (string.IsNullOrWhiteSpace(id)) {
+            throw new DshTerminalException("terminal/rejected", $"{method} 缺少 id（终端标识）；请刷新终端列表后重试");
+        }
+        return id;
+    }
+
+    /// <summary>校验 attachment ID（返回非空值）</summary>
+    private static string RequireAttachment(string? attachmentId, string method) {
+        if (string.IsNullOrWhiteSpace(attachmentId)) {
+            throw new DshTerminalException("terminal/rejected", $"{method} 缺少 attachmentId；请重新打开终端面板以建立可写连接");
+        }
+        return attachmentId;
     }
 
     /// <summary>

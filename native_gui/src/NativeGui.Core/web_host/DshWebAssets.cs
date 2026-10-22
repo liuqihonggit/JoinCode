@@ -13,20 +13,35 @@ internal static class DshWebAssets {
     private static readonly Lock Gate = new();
     private static string? _root;
 
+    /// <summary>缓存必须包含的懒加载分片（旧缓存缺任一分片会让对应面板静默失败）</summary>
+    private static readonly string[] RequiredChunks = [
+        "plugins/@deepseek-ai/dsh-client-ui-sidebar-terminal/client.terminal.js",
+        "plugins/@deepseek-ai/dsh-client-ui-sidebar-documentpreview/client.pdf.js",
+        "plugins/@deepseek-ai/dsh-client-ui-sidebar-documentpreview/client.excel.js",
+    ];
+
     /// <summary>解包（幂等）并返回资产根目录</summary>
-    internal static string EnsureExtracted() {
+    /// <param name="fileSystem">文件系统抽象（缓存完整性探测）</param>
+    internal static string EnsureExtracted(IFileSystem fileSystem) {
         lock (Gate) {
             if (_root is not null) {
                 return _root;
             }
             var target = Path.Combine(AppDataConstants.Paths.JccDirectory, "dsh_web", Version);
-            if (!File.Exists(Path.Combine(target, "meta.json"))) {
+            if (!IsComplete(fileSystem, target)) {
                 Extract(target);
             }
             _root = target;
             return target;
         }
     }
+
+    /// <summary>缓存是否完整：完成标记 + 全部懒加载分片落盘</summary>
+    /// <param name="fileSystem">文件系统抽象</param>
+    /// <param name="target">缓存目录</param>
+    internal static bool IsComplete(IFileSystem fileSystem, string target) =>
+        fileSystem.FileExists(Path.Combine(target, "meta.json"))
+        && RequiredChunks.All(chunk => fileSystem.FileExists(Path.Combine(target, chunk.Replace('/', Path.DirectorySeparatorChar))));
 
     /// <summary>把嵌入 zip 展开到目标目录（覆盖写；不做删除，避免与其他进程竞态）</summary>
     private static void Extract(string target) {

@@ -16,10 +16,10 @@
 |---|---|---|---|---|
 | `dsh-client-ui-chat` / `conversation` / `renderer` | 对话流、助手逐字 | `session/prompt`、`session/follow`、`$events`、`assistantStream` 基线 | ✅ TASK058/060 | 已有 10 个 E2E 脚本 |
 | `dsh-client-ui-sidebar` / `workspace` | 工作区与会话侧栏 | `workspace/*`、`session/list|page|fork` | ✅ | E2E `reload/history` |
-| `dsh-client-ui-sidebar-terminal` + `dsh-api-terminal-controller` | 侧栏终端面板 | `terminal/{environment,list,shells,create,write,resize,rename,close,retain}` + `terminal/follow` 流 | ❌ 全部未实现 | 新增 `dsh-webui-terminal.mjs`（创建→echo→快照→关闭）+ 单测 |
-| `dsh-client-ui-jobs` + `dsh-api-job-controller` | 后台任务面板 | `job/list`、`job/follow` 流、`job/kill` | ❌ 全部未实现 | 新增 `dsh-webui-jobs.mjs`（后台代理→列表→跟随→kill）+ 单测 |
+| `dsh-client-ui-sidebar-terminal` + `dsh-api-terminal-controller` | 侧栏终端面板 | `terminal/{environment,list,shells,create,write,resize,rename,close,retain}` + `terminal/follow` 流 | ✅ ConPTY + 10 方法 + follow/retain | 单测 9 例 + `dsh-webui-terminal.mjs` RPC ALL_PASS + `dsh-webui-terminal-panel.mjs` 界面 ALL_PASS |
+| `dsh-client-ui-jobs` + `dsh-api-job-controller` | 后台任务面板 | `job/list`、`job/follow` 流、`job/kill` | ✅ 后台代理投影 + rows/output/status | 单测 5 例 + `dsh-webui-jobs.mjs` ALL_PASS（opened 需存在后台代理时覆盖） |
 | `dsh-client-ui-sidebar-files` + `dsh-api-workspace-files` | 文件树 | `workspaceFiles/{list,read,readBytes,stat}` | ✅ 一元；`workspaceFiles/changes` 流 ❌ | 补 changes 流 + 文件树 E2E |
-| `dsh-client-ui-sidebar-documentpreview` | PDF/Excel/图片预览 | 仅静态资产 + `workspaceFiles/readBytes` | ✅ 资产缺懒加载分片 → **已修复打包**（本批） | 真机打开 pdf/xlsx 截图 |
+| `dsh-client-ui-sidebar-documentpreview` | PDF/Excel/图片预览 | 仅静态资产 + `workspaceFiles/readBytes` | ✅ 资产打包 + 运行时缓存完整性校验（缺分片自动重解包） | 终端面板真机验证懒加载链路；pdf/xlsx 待 C5 |
 | `dsh-client-ui-approval` | 审批面板 | `$events` waterfall + `$events/result` + 审计事件 | ✅ TASK060 B10/B12 | `dsh-webui-approval.mjs` 48/48 |
 | `dsh-client-ui-goal` | 目标条 | `goals/*` 七方法 | ✅ | 既有单测（真机 E2E 待补） |
 | `dsh-client-ui-plan` | 计划面板 | 无宿主方法（纯前端 + 会话事件） | ⚠️ 事件未投影 | 以 `session/updateQueue` 同层事件补齐 |
@@ -55,9 +55,9 @@
 
 | 批次 | 内容 | 状态 |
 |---|---|---|
-| C1 | 懒加载分片打包修复（terminal/pdf/excel）+ 校验 | ✅ 已完成（待提交） |
-| C2 | jobs：`job/list`、`job/follow` 流 + `job/kill`，映射后台代理 | ⬜ |
-| C3 | terminal：ConPTY 会话管理器 + 10 方法 + `terminal/follow`/`retain` 流 | ⬜ |
+| C1 | 懒加载分片打包修复（terminal/pdf/excel）+ 运行时缓存完整性校验 | ✅ 已验收（终端面板真机 xterm + echo） |
+| C2 | jobs：`job/list`、`job/follow` 流 + `job/kill`，映射后台代理 | ✅ 已验收（单测 5 + E2E ALL_PASS） |
+| C3 | terminal：ConPTY 会话管理器 + 10 方法 + `terminal/follow`/`retain` 流 | ✅ 已验收（单测 9 + RPC/界面 E2E ALL_PASS） |
 | C4 | 小型缺失方法：`session/search`、`settings/{set,unset,update,replace}`、`agentPresets/{read,select}`、`session/{openWorkspacePath,workspacePathApplications}`、`messageFeedback` 写 | ⬜ |
 | C5 | `workspaceFiles/changes` 流 + 文档预览真机验收 | ⬜ |
 | C6 | TUI 差异收敛（后台任务/子代理/权限模式）与文档四列表 | ⬜ |
@@ -67,11 +67,26 @@
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---|---|---|---|
-| `package_dsh_web.py` 纳入懒加载分片并校验缺失 | `dsh_web.zip` → `require.async` 加载 terminal/pdf/excel | ✅ 281 文件/11.46MB | ⬜ 待真机打开终端面板 |
-| — | — | — | — |
+| `DshConPty`（Windows ConPTY，CreatePseudoConsole + 原始管道 I/O） | `DshTerminalService` 创建/写入/缩放/关闭真实 shell | ✅ | ✅ 单测 9 例 + `dsh-webui-terminal.mjs` ALL_PASS（真实 pwsh echo） |
+| `DshTerminalService.Follow/Retain` + `DshWebHost` terminal 流 | 侧栏终端面板快照/输出/state/retained 帧 | ✅ | ✅ `dsh-webui-terminal-panel.mjs` ALL_PASS（xterm 挂载、controller、界面 echo） |
+| `DshJobService` 投影 + `DshWebHost` job 路由 | 后台任务面板 `rows/output/status/kill` | ✅ | ✅ 单测 5 例 + `dsh-webui-jobs.mjs` ALL_PASS（rows、job/not-found） |
+| `DshWebAssets` 缓存完整性校验 + `package_dsh_web.py` 分片校验 | 侧栏 terminal/pdf/excel 懒加载分片 | ✅ | ✅ 终端面板真机 ALL_PASS；pdf/excel 待 C5 |
+| `DshWebHost.StreamError` 补齐 details 对象 | 所有流式端点错误帧（job/terminal/workspaceFiles） | ✅ | ✅ `dsh-webui-jobs.mjs` 收到 `job/not-found`（修复前 WS 1006） |
 
 <!-- 🤖 Auto Decision: 2026-10-22 -->
 <!-- 决策: 新建 TASK066 而非复用 TASK065（同名文档已被 TUI 任务占用） -->
 <!-- 原因: 避免覆盖既有 TUI 全量对齐文档；GUI 对接范围独立建档便于四列验收 -->
 <!-- 替代方案: 追加到 TASK060 —— 会混淆「DSH 宿主」与「TUI 差异」两条主线，不采用 -->
 <!-- 验证: 文档创建，覆盖矩阵以启动清单 + remotes schema + 路由表三方交叉核对 -->
+
+<!-- 🤖 Auto Decision: 2026-10-22 -->
+<!-- 决策: job/* 流参数按生成器 wire="request" 统一包成 {request:{...}}，terminal/* 保持扁平参数 -->
+<!-- 原因: 生成器描述符是协议事实源；此前按扁平解析导致 job/list 一直空、job/follow 报 not-found -->
+<!-- 替代方案: 同时兼容两种形态 —— 增加无意义分支，前端只有一个真实调用形态，不采用 -->
+<!-- 验证: dsh-webui-jobs.mjs ALL_PASS（rows 首帧 + job/not-found 错误帧） -->
+
+<!-- 🤖 Auto Decision: 2026-10-22 -->
+<!-- 决策: 流式错误帧 details 显式序列化为空对象；资产缓存按「meta.json + 三个懒加载分片」判定完整 -->
+<!-- 原因: JsonElement 默认 Undefined 序列化抛 InvalidOperationException 导致 WS 1006；旧缓存只有 meta 会让新分片永远不落盘 -->
+<!-- 替代方案: 前端忽略 details / 每次启动重解包全量资产 —— 前者破坏协议形状，后者浪费 IO，不采用 -->
+<!-- 验证: jobs E2E 错误帧恢复；终端面板真机 xterm 挂载并回显 echo UI_TERMINAL_OK（ALL_PASS） -->

@@ -5,6 +5,8 @@
     <AssemblyName>NativeGui.Core</AssemblyName>
     <Description>NativeGui 协议核心 — DSH web_host 协议层/hosting 契约/persistence/theming 数据面（ADR 0145，纯 net10.0 零 Avalonia/WebView2 依赖）</Description>
     <TargetFramework>net10.0</TargetFramework>
+    <!-- ConPTY 互操作（LibraryImport 生成代码）需要 unsafe -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AllowPack>false</AllowPack>
     <IsPackable>false</IsPackable>
     <!-- 与旧 JoinCodeGui 同款豁免（存量代码随迁，行为不变；JCC9001=启动期资源解包/诊断日志的物理 IO，CS8604=源生成 TypeInfo 非空约定） -->

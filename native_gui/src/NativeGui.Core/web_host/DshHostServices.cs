@@ -24,6 +24,7 @@ internal sealed class DshHostServices {
         Attachments = new DshAttachmentStore(fileSystem);
         Goals = new DshGoalStore(fileSystem);
         Jobs = new DshJobService(this);
+        Terminals = new DshTerminalService(this);
     }
 
     /// <summary>自有引擎会话门面（组装完成后注入；未就绪时发送消息返回引导错误）</summary>
@@ -65,4 +66,7 @@ internal sealed class DshHostServices {
 
     /// <summary>后台任务投影（job/list|follow|kill → 引擎后台代理，TASK066 C2）</summary>
     internal DshJobService Jobs { get; }
+
+    /// <summary>侧栏终端（terminal/* 十方法 + follow/retain 流，TASK066 C3）</summary>
+    internal DshTerminalService Terminals { get; }
 }

@@ -19,6 +19,7 @@ global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.Adapters;
 global using JoinCode.App.Builder;
+global using JoinCode.ChatCommands;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging;
 global using NativeTui.Core.Bridge;

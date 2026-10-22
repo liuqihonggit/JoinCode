@@ -87,6 +87,7 @@ public sealed class EngineSessionFactory {
         List<IAppModule> modules =
         [
             new Modules.CoreModule(),
+            new Modules.SlashCommandModule(),
             new Modules.ClockModule(),
             new Modules.BrowserModule(),
             new Modules.HousekeepingModule(),

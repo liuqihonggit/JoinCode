@@ -338,4 +338,48 @@ public sealed class SlashSuggesterTests
         suggester.Update("hello /comp");
         Assert.Equal(string.Empty, suggester.GhostSuffix);
     }
+
+    /// <summary>F8 大小写统一（TASK065）— 精确名 tier0 匹配 OrdinalIgnoreCase（基准命令补全大小写不敏感）：
+    /// /EXIT 对 exit 命令 tier0 精确（IC），压过别名精确（tier1）的竞争命令 quit。</summary>
+    [Fact]
+    public void Update_ExactNameCaseInsensitive_RanksTier0OverExactAlias()
+    {
+        var commands = new List<CommandSuggestion>
+        {
+            new("exit", "退出", [], IsHidden: false),
+            new("quit", "退出程序", ["EXIT"], IsHidden: false),
+        };
+        var suggester = new SlashSuggester(commands);
+        suggester.Update("/EXIT");
+        Assert.Equal("exit", suggester.Items[0].Name);
+        Assert.Equal("quit", suggester.Items[1].Name);
+    }
+
+    /// <summary>F8 — 隐藏命令全名前插（MatchesExactly 名匹配 IC）：大写名命令 /exit 小写查询仍前插。</summary>
+    [Fact]
+    public void Update_HiddenCommandNameCaseInsensitive_FullNamePrepended()
+    {
+        var commands = new List<CommandSuggestion> { new("Exit", "隐藏大写名", [], IsHidden: true) };
+        var suggester = new SlashSuggester(commands);
+        suggester.Update("/exit");
+        Assert.Equal("Exit", Assert.Single(suggester.Items).Name);
+    }
+
+    /// <summary>F8 — 参数模式命令名匹配 IC：/Theme （大写）进参数模式弹 theme 值域。</summary>
+    [Fact]
+    public void Update_ArgumentMode_CommandNameCaseInsensitive()
+    {
+        var suggester = Suggester("/Theme ");
+        Assert.True(suggester.IsArgumentMode);
+        Assert.Equal(["dark", "light", "auto"], suggester.Items.Select(i => i.Name).ToArray());
+    }
+
+    /// <summary>F8 — HasRealArgumentValues 命令名匹配 IC：/THEME d 参数为真实值清单（可 Tab 补全）。</summary>
+    [Fact]
+    public void Update_HasRealArgumentValues_CommandNameCaseInsensitive()
+    {
+        var suggester = Suggester("/THEME d");
+        Assert.True(suggester.IsArgumentMode);
+        Assert.True(suggester.HasRealArgumentValues);
+    }
 }

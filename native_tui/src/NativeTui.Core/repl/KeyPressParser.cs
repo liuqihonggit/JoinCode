@@ -139,6 +139,21 @@ public static class KeyPressParser
             return ParseSgrMouse(ref buffer, out key);
         }
 
+        // linux console 功能键变体（ESC[[A-E = F1-F5 — 基准 parse-keypress.ts:310-312）
+        if (rest[0] == '[' && rest.Length >= 2 && rest[1] is >= 'A' and <= 'E')
+        {
+            key = KeyPress.Named(rest[1] switch
+            {
+                'A' => KeyKind.F1,
+                'B' => KeyKind.F2,
+                'C' => KeyKind.F3,
+                'D' => KeyKind.F4,
+                _ => KeyKind.F5,
+            });
+            buffer = buffer[4..];
+            return true;
+        }
+
         var scan = rest.IndexOfAnyExceptInRange('\u0020', '\u003f');
         if (scan < 0)
         {
@@ -210,7 +225,7 @@ public static class KeyPressParser
         };
     }
 
-    /// <summary>SS3 应用模式（ESC O final）：方向键/Home/End，其余单字符吞掉。</summary>
+    /// <summary>SS3 应用模式（ESC O final）：方向键/Home/End/Clear/F1-F4，其余单字符吞掉。</summary>
     private static bool ParseSs3(ref ReadOnlySpan<char> buffer, out KeyPress key)
     {
         if (buffer.Length == 2)
@@ -226,8 +241,13 @@ public static class KeyPressParser
             'B' => KeyPress.Named(KeyKind.DownArrow),
             'C' => KeyPress.Named(KeyKind.RightArrow),
             'D' => KeyPress.Named(KeyKind.LeftArrow),
+            'E' => KeyPress.Named(KeyKind.Clear),
             'H' => KeyPress.Named(KeyKind.Home),
             'F' => KeyPress.Named(KeyKind.End),
+            'P' => KeyPress.Named(KeyKind.F1),
+            'Q' => KeyPress.Named(KeyKind.F2),
+            'R' => KeyPress.Named(KeyKind.F3),
+            'S' => KeyPress.Named(KeyKind.F4),
             _ => NamedUnknown(),
         };
         buffer = buffer[3..];
@@ -262,7 +282,8 @@ public static class KeyPressParser
         return true;
     }
 
-    /// <summary>简单序列 → 按键（final + 可选数字）：字母终点 / ~ 终点数字表 /
+    /// <summary>简单序列 → 按键（final + 可选数字）：字母终点 / ~ 终点数字表
+    ///（F1-F12/Insert/Clear/rxvt Home/End — 对齐基准 parse-keypress.ts:304-406 keyName 表）/
     /// u 终点 kitty 键位码（CSI codepoint;mods u — Windows Terminal 等 kitty 协议终端的
     /// ctrl+shift+字母唯一可区分形态：标准 xterm 下该组合与 ctrl+字母同码不可区分）。</summary>
     private static KeyPress? BuildSimple(char final, int number) =>
@@ -272,14 +293,34 @@ public static class KeyPressParser
             'B' => KeyPress.Named(KeyKind.DownArrow),
             'C' => KeyPress.Named(KeyKind.RightArrow),
             'D' => KeyPress.Named(KeyKind.LeftArrow),
+            'E' => KeyPress.Named(KeyKind.Clear),
             'H' => KeyPress.Named(KeyKind.Home),
             'F' => KeyPress.Named(KeyKind.End),
             'Z' => KeyPress.Named(KeyKind.BackTab, shift: true),
-            '~' when number == 1 => KeyPress.Named(KeyKind.Home),
-            '~' when number == 3 => KeyPress.Named(KeyKind.Delete),
-            '~' when number == 4 => KeyPress.Named(KeyKind.End),
-            '~' when number == 5 => KeyPress.Named(KeyKind.PageUp),
-            '~' when number == 6 => KeyPress.Named(KeyKind.PageDown),
+            '~' => number switch
+            {
+                1 => KeyPress.Named(KeyKind.Home),
+                2 => KeyPress.Named(KeyKind.Insert),
+                3 => KeyPress.Named(KeyKind.Delete),
+                4 => KeyPress.Named(KeyKind.End),
+                5 => KeyPress.Named(KeyKind.PageUp),
+                6 => KeyPress.Named(KeyKind.PageDown),
+                7 => KeyPress.Named(KeyKind.Home),
+                8 => KeyPress.Named(KeyKind.End),
+                11 => KeyPress.Named(KeyKind.F1),
+                12 => KeyPress.Named(KeyKind.F2),
+                13 => KeyPress.Named(KeyKind.F3),
+                14 => KeyPress.Named(KeyKind.F4),
+                15 => KeyPress.Named(KeyKind.F5),
+                17 => KeyPress.Named(KeyKind.F6),
+                18 => KeyPress.Named(KeyKind.F7),
+                19 => KeyPress.Named(KeyKind.F8),
+                20 => KeyPress.Named(KeyKind.F9),
+                21 => KeyPress.Named(KeyKind.F10),
+                23 => KeyPress.Named(KeyKind.F11),
+                24 => KeyPress.Named(KeyKind.F12),
+                _ => null,
+            },
             'u' when number is > 0 and not (>= 0xD800 and <= 0xDFFF) =>
                 // kitty 码点为无修饰形态（小写字母），Shift 由修饰位表达 — codepoint 转字符
                 new KeyPress(KeyKind.Char, char.ConvertFromUtf32(number)),

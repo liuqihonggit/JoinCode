@@ -188,4 +188,36 @@ public sealed class RawStdinPumpTests
         pump.Drain(keys.Add);
         Assert.Single(keys);
     }
+
+    /// <summary>终端查询响应前置分流（TASK067 批4）— DA1 回复路由给 querier 等待方，
+    /// 不入键流（对齐基准 parse-keypress.ts:484-487 路由语义）；后续键正常解析。</summary>
+    [Fact]
+    public async Task TerminalReply_RoutesToQuerier_NotIntoKeyStream()
+    {
+        using var querier = new TerminalQuerier(new StringWriter());
+        using var pump = new RawStdinPump(querier);
+        var query = querier.QueryAsync("\u001b[c", TerminalResponseKind.Da1, TimeSpan.FromSeconds(5));
+
+        var keys = FeedAndDrain(pump, "\u001b[?62;1c" + "a");
+
+        // DA1 回复被路由（键流零产出 — "a" 之前无 Unknown/泄漏键）
+        var response = await query.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.NotNull(response);
+        Assert.Equal([62, 1], response.Numbers);
+        var key = Assert.Single(keys);
+        Assert.Equal(KeyKind.Char, key.Kind);
+        Assert.Equal("a", key.Input);
+        Assert.Equal(0, pump.PendingCount);
+    }
+
+    /// <summary>querier 未注入 — 回复序列走键解析路径（Unknown 吞噬防泄漏，泵独立场景兼容）。</summary>
+    [Fact]
+    public void TerminalReply_WithoutQuerier_SwallowsAsUnknownKey()
+    {
+        using var pump = CreatePump();
+        var keys = FeedAndDrain(pump, "\u001b[?62;1c");
+        var key = Assert.Single(keys);
+        Assert.Equal(KeyKind.Unknown, key.Kind);
+        Assert.Equal(0, pump.PendingCount);
+    }
 }

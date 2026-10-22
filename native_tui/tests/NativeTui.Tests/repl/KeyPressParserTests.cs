@@ -325,4 +325,38 @@ public sealed class KeyPressParserTests
         Assert.Equal(KeyKind.Char, keys[1].Kind);
         Assert.Equal("b", keys[1].Input);
     }
+
+    /// <summary>功能键域覆盖（基准 parse-keypress.ts:304-406 keyName 全表）：
+    /// F1-F12 三种变体（SS3 OP-OS / ~数字表 / linux console [[A-E）+ Insert/Clear + rxvt Home/End。</summary>
+    [Theory]
+    [InlineData("\u001bOP", KeyKind.F1)]
+    [InlineData("\u001bOQ", KeyKind.F2)]
+    [InlineData("\u001bOR", KeyKind.F3)]
+    [InlineData("\u001bOS", KeyKind.F4)]
+    [InlineData("\u001b[11~", KeyKind.F1)]
+    [InlineData("\u001b[12~", KeyKind.F2)]
+    [InlineData("\u001b[13~", KeyKind.F3)]
+    [InlineData("\u001b[14~", KeyKind.F4)]
+    [InlineData("\u001b[15~", KeyKind.F5)]
+    [InlineData("\u001b[17~", KeyKind.F6)]
+    [InlineData("\u001b[18~", KeyKind.F7)]
+    [InlineData("\u001b[19~", KeyKind.F8)]
+    [InlineData("\u001b[20~", KeyKind.F9)]
+    [InlineData("\u001b[21~", KeyKind.F10)]
+    [InlineData("\u001b[23~", KeyKind.F11)]
+    [InlineData("\u001b[24~", KeyKind.F12)]
+    [InlineData("\u001b[[A", KeyKind.F1)]
+    [InlineData("\u001b[[B", KeyKind.F2)]
+    [InlineData("\u001b[[C", KeyKind.F3)]
+    [InlineData("\u001b[[D", KeyKind.F4)]
+    [InlineData("\u001b[[E", KeyKind.F5)]
+    [InlineData("\u001b[2~", KeyKind.Insert)]
+    [InlineData("\u001b[7~", KeyKind.Home)]
+    [InlineData("\u001b[8~", KeyKind.End)]
+    [InlineData("\u001b[E", KeyKind.Clear)]
+    [InlineData("\u001bOE", KeyKind.Clear)]
+    public void FunctionKeySequences_ParseAsNamedKeys(string chunk, KeyKind expected)
+    {
+        Assert.Equal(expected, ParseOne(chunk).Kind);
+    }
 }

@@ -51,6 +51,48 @@ public enum KeyKind
     /// <summary>PageDown 键。</summary>
     PageDown,
 
+    /// <summary>Insert 键（ESC[2~）。</summary>
+    Insert,
+
+    /// <summary>Clear 键（键盘中区 5 键 — ESC[E / ESC OE，基准 parse-keypress.ts:354）。</summary>
+    Clear,
+
+    /// <summary>F1 功能键（SS3 OP / ESC[11~ / ESC[[A 三变体）。</summary>
+    F1,
+
+    /// <summary>F2 功能键。</summary>
+    F2,
+
+    /// <summary>F3 功能键。</summary>
+    F3,
+
+    /// <summary>F4 功能键。</summary>
+    F4,
+
+    /// <summary>F5 功能键（ESC[15~ / ESC[[E）。</summary>
+    F5,
+
+    /// <summary>F6 功能键（ESC[17~）。</summary>
+    F6,
+
+    /// <summary>F7 功能键（ESC[18~）。</summary>
+    F7,
+
+    /// <summary>F8 功能键（ESC[19~）。</summary>
+    F8,
+
+    /// <summary>F9 功能键（ESC[20~）。</summary>
+    F9,
+
+    /// <summary>F10 功能键（ESC[21~）。</summary>
+    F10,
+
+    /// <summary>F11 功能键（ESC[23~）。</summary>
+    F11,
+
+    /// <summary>F12 功能键（ESC[24~）。</summary>
+    F12,
+
     /// <summary>bracketed paste 粘贴块（\x1b[200~ 内容 \x1b[201~ — Input 携带粘贴原文，修饰符全 false）。</summary>
     Paste,
 

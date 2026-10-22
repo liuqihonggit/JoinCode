@@ -29,10 +29,13 @@ public sealed class RawStdinPump : IInputPump, IDisposable
     private readonly object _gate = new();
     private readonly StringBuilder _pending = new();
     private readonly Thread _reader;
+    private readonly TerminalQuerier? _querier;
 
-    /// <summary>创建并启动读线程（构造即开始消费 stdin — 生命周期由 Dispose/进程退出终结）。</summary>
-    public RawStdinPump()
+    /// <summary>创建并启动读线程（构造即开始消费 stdin — 生命周期由 Dispose/进程退出终结）。
+    /// querier 可选注入 — 终端查询响应前置分流（探测回复路由给等待方，非键事件不入键流）。</summary>
+    public RawStdinPump(TerminalQuerier? querier = null)
     {
+        _querier = querier;
         _reader = new Thread(ReadLoop)
         {
             IsBackground = true,
@@ -145,6 +148,16 @@ public sealed class RawStdinPump : IInputPump, IDisposable
             var rest = span;
             while (true)
             {
+                // 终端查询响应前置分流 — 探测回复（DECRPM/DA1/DA2/kitty flags/DSR/OSC）路由给
+                // 等待方 promise，非键事件不入键流（对齐基准 parse-keypress.ts:484-487）；
+                // querier 未注入时保持键解析路径（纯泵场景回复序列走 Unknown 吞噬防泄漏）
+                if (_querier is not null && TerminalResponseParser.TryParse(rest, out var consumedByResponse) is { } response)
+                {
+                    _querier.Route(response);
+                    rest = rest[consumedByResponse..];
+                    continue;
+                }
+
                 var before = rest;
                 if (!KeyPressParser.TryParseNext(ref rest, out var key))
                 {

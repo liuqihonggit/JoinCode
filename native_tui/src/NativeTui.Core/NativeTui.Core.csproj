@@ -11,6 +11,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="NativeTui.Tests" />
     <InternalsVisibleTo Include="NativeTui.Host.Tests" />
+    <InternalsVisibleTo Include="NativeTui.Host" />
   </ItemGroup>
 
 </Project>

@@ -318,6 +318,12 @@ public sealed class ReplShell
     /// <summary>上次渲染拍观察到的终端视口行数（inline 高度变化检测 — reflow 后强制 fullReset）。</summary>
     private int _lastViewportRows;
 
+    /// <summary>stdin 静默 gap 自愈检测器（基准 App.tsx:30-35 STDIN_RESUME_GAP_MS — tmux/ssh 重连后重断言终端模式）。</summary>
+    private readonly TerminalModeReasserter _modeReasserter = new(TerminalResumeGapMs);
+
+    /// <summary>stdin 静默 gap 阈值（ms）— 超过即重断言终端模式（bracketed paste 等可能被外部重置）。</summary>
+    private const long TerminalResumeGapMs = 5000;
+
     /// <summary>强制重绘空白前置帧（零尺寸屏 — InlineComposer 判 prev.Cols ≠ next.Cols 走
     /// FullReset 路径：光标移视口顶 + EraseScreen + 重绘可见区；缓存复用零分配）。</summary>
     private Screen? _blankPrev;
@@ -725,6 +731,7 @@ public sealed class ReplShell
     /// 共用 textBefore/建议刷新链（paste 后文本变化同样刷新 @ 文件补全）。</summary>
     internal void HandleRawKeyPress(KeyPress key)
     {
+        _modeReasserter.MarkInputReceived(Environment.TickCount64);
         var textBefore = _input.Text;
         HandleKeyPress(key);
         if (_programmaticFill)
@@ -2702,6 +2709,7 @@ public sealed class ReplShell
         SyncCursorHighlight();
         SyncTranscriptView();
         _view.HelpOpen = _helpOpen;
+        ReassertTerminalModesIfIdle();
         EnsureScreens();
         _back.Clear();
         AdvanceAnimClock();
@@ -2827,6 +2835,20 @@ public sealed class ReplShell
     /// 重建时保留旧帧跨尺寸 diff（增长 append / 宽度变 fullReset）；视口模式屏高 = 尺寸源行数；
     /// transcript 模态屏高 = 终端行数（整屏模态 — 进出 transcript 行数变化触发重建跨尺寸 diff）。
     /// </summary>
+    /// <summary>stdin 长静默 gap 自愈（基准 App.tsx:359-368 — tmux detach→attach / ssh 重连 / 休眠唤醒
+    /// 场景终端侧 DEC 模式被外部重置）：静默超 5s 重发 bracketed paste Enable（幂等 —
+    /// 模式已生效时无害 no-op；持续静默每周期重断言直到输入恢复）。</summary>
+    private void ReassertTerminalModesIfIdle()
+    {
+        if (!_modeReasserter.ShouldReassert(Environment.TickCount64))
+        {
+            return;
+        }
+
+        _output.Write(DecPrivateMode.Enable(DecPrivateModeKind.BracketedPaste));
+        _output.Flush();
+    }
+
     internal void EnsureScreens()
     {
         var (cols, rows) = _sizeSource.Current;

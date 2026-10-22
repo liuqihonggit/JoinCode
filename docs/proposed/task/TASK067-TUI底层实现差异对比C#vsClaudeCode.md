@@ -8,9 +8,20 @@
 
 | 类别 | 数量 | 处置 |
 |------|------|------|
-| C# 确认 bug（行为错误） | 13 项（去重） | 已直接修复（TDD 红绿循环），见下文"已修复 bug 清单" |
+| C# 确认 bug（行为错误） | 12 项（初判 13，C2 降级差异） | 已直接修复（TDD 红绿循环），见下文"已修复 bug 清单" |
 | 功能相同但实现不同 | 98 项 | 本文档差异清单，**待用户逐项决策是否修复** |
 | 基准有 C# 缺失的功能 | 74 项 | 本文档缺失清单，随差异项一并决策 |
+
+## 用户决策记录
+
+**2026-10-23 第 1 问：高优先级缺失批次 → 四项全部立项**，已全部 TDD 落地：
+
+| 批次 | 功能 | 落点 | 验收 |
+|------|------|------|------|
+| 批1 | F1-F12/Insert/Clear 功能键映射（三变体：SS3 OP-OS/~数字表/linux console [[A-E + rxvt Home/End） | KeyKind.cs + KeyPressParser.cs（BuildSimple/ParseSs3/[[A-E 分支） | KeyPressParserTests 26 用例 |
+| 批2 | stdin 静默 gap 自愈（>5s 重断言 bracketed paste — tmux/ssh 重连场景） | TerminalModeReasserter.cs + ReplShell（HandleRawKeyPress 打点/RenderAndFlush 检测重发） | TerminalModeReasserterTests 5 用例 |
+| 批3 | earlyInput 启动期输入捕获（引擎组装窗口期按键回填输入框） | EarlyInputBuffer.cs + Program.cs（raw mode 后捕获/Run 前回灌） | EarlyInputBufferTests 2 用例 + selftest |
+| 批4 | 终端查询响应解析路由（8 类回复 + 查询 promise 路由器 + RawStdinPump 前置分流） | TerminalResponse.cs/Parser.cs/Querier.cs + RawStdinPump（querier 注入） | 18 用例；**主动发探测查询接入 TerminalCapabilities 为后续增量**（ReadKey 通道无原始流，response 分流仅 RawStdin 灰度通道可达 — 与 TASK066-B3 切默认衔接） |
 
 ---
 

@@ -18,7 +18,16 @@ public interface ICodeHighlighter
 /// <summary>单行代码高亮结果 — token 色段（Start 已含行首前缀宽度偏移，坐标系 = 布局行完整段文本）。</summary>
 public sealed record CodeLineHighlight(IReadOnlyList<HighlightSpan> Spans);
 
-/// <summary>布局产物 — 物理行模型 + 逐行高亮上下文（与 Lines 等长；null = 非代码行或无色段）。</summary>
+/// <summary>
+/// 链接区间（DSG043 P2）— 行内 OSC 8 注入依据：StartCol/EndCol 为布局行物理显示列区间
+///（含前缀偏移，半开区间 [StartCol, EndCol)），Url 为链接目标（P3 终流注入消费）。
+/// 折行拆分后每行区间独立（链接 token 跨行时各行的区间只覆盖本行物理列）。
+/// </summary>
+public readonly record struct LinkSpan(int StartCol, int EndCol, string Url);
+
+/// <summary>布局产物 — 物理行模型 + 逐行高亮上下文（与 Lines 等长；null = 非代码行或无色段）
+/// + 逐行链接区间表（与 Lines 等长；空表 = 该行无链接 — P3 渲染注入零判断成本）。</summary>
 public sealed record MarkdownLayoutResult(
     IReadOnlyList<IReadOnlyList<MarkdownSegment>> Lines,
-    IReadOnlyList<CodeLineHighlight?> Highlights);
+    IReadOnlyList<CodeLineHighlight?> Highlights,
+    IReadOnlyList<IReadOnlyList<LinkSpan>> Links);

@@ -298,7 +298,13 @@ public static class Program {
                     clipboard: text => _ = clipboardService?.SetTextAsync(text),
                     themeName: themeName,
                     commandUsage: commandUsage,
-                    workspaceRoot: Environment.CurrentDirectory);
+                    workspaceRoot: Environment.CurrentDirectory,
+                    // M8-8 后续 — x 停止后台任务委托：面板运行中条目 → 引擎泵 CancelFork/StopTeammate 分派
+                    //（cancelled 终态 upsert 由泵推回面板即时反馈）
+                    onStopTask: (kind, taskId) => session.StopBackgroundTask(kind, taskId),
+                    // 方案 B — 流式期 Markdown 块级增量投影（Markdig 卫星注入：稳定前缀 memoize +
+                    // 增长尾纯文本，对齐基准 StreamingMarkdown；落定替换 MarkdownMessageItem 全量渲染）
+                    streamingProjector: new StreamingMarkdownProjector());
                 pickerEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);

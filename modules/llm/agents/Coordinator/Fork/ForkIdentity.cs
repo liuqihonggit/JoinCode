@@ -7,6 +7,8 @@ namespace Core.Agents.Coordinator;
 /// </summary>
 /// <param name="ParentSessionId">父会话标识(必填),发起 Fork 的主代理会话 ID</param>
 /// <param name="CreatedAt">Fork 条目创建时间(UTC),用于超时检测与统计</param>
+/// <param name="TaskDescription">任务描述(默认空串),取自 ForkOptions.TaskDescription — 快照路径(GetActiveForksList)据此向 TUI 面板透传描述,终态事件路径由调用参数直传,两者同源</param>
 internal sealed record ForkIdentity(
     string ParentSessionId,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    string TaskDescription = "");

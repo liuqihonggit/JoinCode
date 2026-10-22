@@ -9,6 +9,7 @@ namespace JoinCode.Cli.Bridge;
 [JsonDerivedType(typeof(BridgeRequest.Submit), "submit")]
 [JsonDerivedType(typeof(BridgeRequest.Interrupt), "interrupt")]
 [JsonDerivedType(typeof(BridgeRequest.SetPermissionMode), "set_permission_mode")]
+[JsonDerivedType(typeof(BridgeRequest.StopTask), "stop_task")]
 [JsonDerivedType(typeof(BridgeRequest.Quit), "quit")]
 public abstract record BridgeRequest
 {
@@ -20,6 +21,10 @@ public abstract record BridgeRequest
 
     /// <summary>切换权限模式（mode 取值 plan/auto/ask/bypass/unattended，与 [EnumValue] 一致）。</summary>
     public sealed record SetPermissionMode(string Mode) : BridgeRequest;
+
+    /// <summary>停止后台任务（M8-8 后续 — kind: fork|teammate 分派 CancelFork/StopTeammate；
+    /// 面板 cancelled 终态 upsert 事件回执，引擎真实终态事件随后覆盖）。</summary>
+    public sealed record StopTask(string Kind, string TaskId) : BridgeRequest;
 
     /// <summary>退出会话。</summary>
     public sealed record Quit() : BridgeRequest;
@@ -205,7 +210,7 @@ public sealed partial class BridgeJsonContext : JsonSerializerContext
 public static class BridgeProtocol
 {
     /// <summary>支持的请求 type 清单（诊断用，与 BridgeRequest 的 [JsonDerivedType] 一一对应）。</summary>
-    private const string SupportedRequestTypes = "submit, interrupt, set_permission_mode, quit";
+    private const string SupportedRequestTypes = "submit, interrupt, set_permission_mode, stop_task, quit";
 
     /// <summary>读结果：成功 / 流终止 / 跳过（带诊断）。</summary>
     public enum ReadResult

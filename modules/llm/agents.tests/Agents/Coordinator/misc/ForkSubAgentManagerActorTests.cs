@@ -187,6 +187,97 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime {
         forks[0].State.Should().Be(ForkState.Completed);
     }
 
+    /// <summary>
+    /// M8-8 快照描述字段: 同步路径创建带描述的 fork → GetActiveForksAsync 投影含描述（ForkOptions.TaskDescription → ForkIdentity → ForkSubAgent）。
+    /// </summary>
+    [Fact]
+    public async Task GetActiveForksAsync_AfterFork_ShouldExposeTaskDescription() {
+        var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
+        var agent = new AgentBase("Desc task", null, queryEngineMock.Object, null);
+
+        _lifecycleManagerMock
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
+            .ReturnsAsync(agent);
+        _lifecycleManagerMock
+            .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubAgentResult { AgentId = "fork-agent-desc", IsSuccess = true, Output = "Done" });
+
+        await _manager.ForkAsync(new ForkOptions {
+            ParentSessionId = "parent-session-desc",
+            TaskDescription = "面板应显示的 fork 描述",
+            ShareCache = true
+        }).ConfigureAwait(true);
+
+        var forks = await _manager.GetActiveForksAsync().ConfigureAwait(true);
+
+        forks.Should().ContainSingle();
+        forks[0].TaskDescription.Should().Be("面板应显示的 fork 描述");
+    }
+
+    /// <summary>
+    /// M8-8 快照描述字段: 后台 running 态（快照路径真实消费场景）→ 投影仍含描述。
+    /// <para>ExecuteAsync 挂长延迟任务保持 Running;局部 manager + DisposeAsync(CleanupAll 取消 CTS)收尾。</para>
+    /// </summary>
+    [Fact]
+    public async Task GetActiveForksAsync_BackgroundRunning_ShouldExposeTaskDescription() {
+        var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
+        var agent = new AgentBase("Background desc task", null, queryEngineMock.Object, null);
+
+        _lifecycleManagerMock
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
+            .ReturnsAsync(agent);
+        _lifecycleManagerMock
+            .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
+            .Returns(Task.Delay(TimeSpan.FromSeconds(30)).ContinueWith(
+                _ => new SubAgentResult { AgentId = "fork-agent-bg-desc", IsSuccess = true, Output = "BG done" },
+                TaskScheduler.Default));
+
+        await using var manager = new ForkSubAgentManagerActor(
+            CreatePipeline(),
+            new ForkManagerDependencies(_lifecycleManagerMock.Object, _messageBrokerMock.Object),
+            NullLogger<ForkSubAgentManagerActor>.Instance);
+
+        var result = await manager.ForkAsync(new ForkOptions {
+            ParentSessionId = "parent-bg-desc",
+            TaskDescription = "后台运行期快照描述",
+            RunInBackground = true
+        }).ConfigureAwait(true);
+        result.State.Should().Be(ForkState.Running);
+
+        var forks = await manager.GetActiveForksAsync().ConfigureAwait(true);
+
+        forks.Should().ContainSingle();
+        forks[0].State.Should().Be(ForkState.Running);
+        forks[0].TaskDescription.Should().Be("后台运行期快照描述");
+    }
+
+    /// <summary>
+    /// M8-8 快照描述字段: ForkOptions.TaskDescription 为空串 → 投影描述为空串（pump 侧归一化为空串, TUI 回退显示 taskId）。
+    /// </summary>
+    [Fact]
+    public async Task GetActiveForksAsync_EmptyDescription_ShouldProjectEmpty() {
+        var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
+        var agent = new AgentBase("Empty desc task", null, queryEngineMock.Object, null);
+
+        _lifecycleManagerMock
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
+            .ReturnsAsync(agent);
+        _lifecycleManagerMock
+            .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubAgentResult { AgentId = "fork-agent-empty-desc", IsSuccess = true, Output = "Done" });
+
+        await _manager.ForkAsync(new ForkOptions {
+            ParentSessionId = "parent-session-empty-desc",
+            TaskDescription = "",
+            ShareCache = true
+        }).ConfigureAwait(true);
+
+        var forks = await _manager.GetActiveForksAsync().ConfigureAwait(true);
+
+        forks.Should().ContainSingle();
+        forks[0].TaskDescription.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task CancelForkAsync_NonExistentFork_ShouldNotThrow() {
         var act = () => _manager.CancelForkAsync("nonexistent");

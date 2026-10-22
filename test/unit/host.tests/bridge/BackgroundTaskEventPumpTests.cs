@@ -124,6 +124,43 @@ public sealed class BackgroundTaskEventPumpTests {
             consumer.Calls);
     }
 
+    /// <summary>M8-8 快照描述透传 — ForkSubAgent.TaskDescription 非空时快照路径原样推送（与终态事件路径同源）。</summary>
+    [Fact]
+    public async Task PublishSnapshot_ForkDescription_PassedThrough() {
+        var forkManager = CreateForkManager(
+            new ForkSubAgent { ForkId = "fork-1", ParentSessionId = "sess-1", State = ForkState.Running, CreatedAt = DateTime.UtcNow, TaskDescription = "后台调研渲染链" },
+            new ForkSubAgent { ForkId = "fork-2", ParentSessionId = "sess-1", State = ForkState.Completed, CreatedAt = DateTime.UtcNow, Result = "ok", TaskDescription = "已完成的分叉任务" });
+        var consumer = new RecordingConsumer();
+        await using var pump = new BackgroundTaskEventPump(forkManager.Object, teammateExecutor: null);
+        pump.Bind(consumer);
+
+        await pump.PublishSnapshotAsync();
+
+        Assert.Equal(
+            [
+                ("fork", "fork-1", "后台调研渲染链", "running"),
+                ("fork", "fork-2", "已完成的分叉任务", "completed"),
+            ],
+            consumer.Calls);
+    }
+
+    /// <summary>M8-8 快照描述回退 — null/空白描述归一化空串（TUI 侧空 description 显示 taskId, 对齐既有 fallback 形态）。</summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task PublishSnapshot_ForkBlankDescription_FallsBackToEmpty(string? description) {
+        var forkManager = CreateForkManager(
+            new ForkSubAgent { ForkId = "fork-1", ParentSessionId = "sess-1", State = ForkState.Running, CreatedAt = DateTime.UtcNow, TaskDescription = description });
+        var consumer = new RecordingConsumer();
+        await using var pump = new BackgroundTaskEventPump(forkManager.Object, teammateExecutor: null);
+        pump.Bind(consumer);
+
+        await pump.PublishSnapshotAsync();
+
+        Assert.Equal([("fork", "fork-1", "", "running")], consumer.Calls);
+    }
+
     /// <summary>Bind 前到达的完成事件丢弃（consumer 未就绪零推送）— 组装顺序保证先 Bind 后 Start。</summary>
     [Fact]
     public async Task ForkCompletedBeforeBind_IsDropped() {
@@ -207,5 +244,89 @@ public sealed class BackgroundTaskEventPumpTests {
         await pump.PublishSnapshotAsync();
 
         Assert.Empty(consumer.Calls);
+    }
+
+    /// <summary>StopTask fork 分派 — CancelForkAsync 被调 + cancelled 终态 upsert
+    /// （description 空串 — TUI 面板空描述保留旧值语义）。</summary>
+    [Fact]
+    public async Task StopTask_Fork_CancelsAndPushesCancelledUpsert() {
+        var forkManager = new Mock<IForkSubAgentManager>();
+        forkManager.Setup(m => m.CancelForkAsync("fork-123", It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask)
+            .Verifiable();
+        var consumer = new RecordingConsumer();
+        await using var pump = new BackgroundTaskEventPump(forkManager.Object, teammateExecutor: null);
+        pump.Bind(consumer);
+
+        await pump.StopTaskAsync("fork", "fork-123");
+
+        forkManager.VerifyAll();
+        Assert.Equal([("fork", "fork-123", "", "cancelled")], consumer.Calls);
+    }
+
+    /// <summary>StopTask teammate 分派 — StopTeammateAsync 被调（Stop 档：取消生命周期）+ cancelled 终态 upsert。</summary>
+    [Fact]
+    public async Task StopTask_Teammate_StopsAndPushesCancelledUpsert() {
+        var teammateExecutor = new Mock<IInProcessTeammateTaskExecutor>();
+        teammateExecutor.Setup(m => m.StopTeammateAsync("teammate-9", It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask)
+            .Verifiable();
+        var consumer = new RecordingConsumer();
+        await using var pump = new BackgroundTaskEventPump(forkManager: null, teammateExecutor: teammateExecutor.Object);
+        pump.Bind(consumer);
+
+        await pump.StopTaskAsync("teammate", "teammate-9");
+
+        teammateExecutor.VerifyAll();
+        Assert.Equal([("teammate", "teammate-9", "", "cancelled")], consumer.Calls);
+    }
+
+    /// <summary>引擎停止调用抛异常 — 仍发 cancelled 终态 upsert（TUI 反馈优先，真实终态事件随后覆盖）
+    /// + 未交叉分派另一面（fork 失败不触发 teammate 停止）。</summary>
+    [Fact]
+    public async Task StopTask_EngineCallThrows_StillPushesCancelledUpsert() {
+        var forkManager = new Mock<IForkSubAgentManager>();
+        forkManager.Setup(m => m.CancelForkAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("actor disposed"));
+        var teammateExecutor = new Mock<IInProcessTeammateTaskExecutor>();
+        var consumer = new RecordingConsumer();
+        await using var pump = new BackgroundTaskEventPump(forkManager.Object, teammateExecutor.Object);
+        pump.Bind(consumer);
+
+        await pump.StopTaskAsync("fork", "fork-404");
+
+        Assert.Equal([("fork", "fork-404", "", "cancelled")], consumer.Calls);
+        teammateExecutor.Verify(m => m.StopTeammateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>未知 kind / 对应查询面未注册 — 零分派零推送（面板不可能存在对应条目，防脏数据直插）。</summary>
+    [Fact]
+    public async Task StopTask_UnknownKindOrMissingManager_NoDispatchNoUpsert() {
+        var forkManager = new Mock<IForkSubAgentManager>();
+        var consumer = new RecordingConsumer();
+        await using var pump = new BackgroundTaskEventPump(forkManager.Object, teammateExecutor: null);
+        pump.Bind(consumer);
+
+        // 未知 kind
+        await pump.StopTaskAsync("warp", "task-1");
+        // kind 对应查询面未注册（teammate 面缺失）
+        await pump.StopTaskAsync("teammate", "teammate-1");
+
+        Assert.Empty(consumer.Calls);
+        forkManager.Verify(m => m.CancelForkAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>Bind 前停止调用 — consumer 未就绪零推送（引擎分派仍执行 — 停止语义不依赖消费面就绪）。</summary>
+    [Fact]
+    public async Task StopTask_BeforeBind_EngineStillCancelled_NoPush() {
+        var forkManager = new Mock<IForkSubAgentManager>();
+        forkManager.Setup(m => m.CancelForkAsync("fork-7", It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask)
+            .Verifiable();
+        await using var pump = new BackgroundTaskEventPump(forkManager.Object, teammateExecutor: null);
+
+        await pump.StopTaskAsync("fork", "fork-7");
+
+        forkManager.VerifyAll();
     }
 }

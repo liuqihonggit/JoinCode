@@ -34,6 +34,22 @@ public sealed class BridgeProtocolTests
         Assert.Equal("{\"type\":\"set_permission_mode\",\"mode\":\"plan\"}\n", writer.ToString());
     }
 
+    /// <summary>停止后台任务请求 roundtrip（M8-8 后续 — stop_task + kind/taskId camelCase 字段，
+    /// 与 jcc 侧 BridgeRequest.StopTask 逐字段镜像，BridgeJsonContractTests 锁定防漂移）。</summary>
+    [Fact]
+    public void WriteRequest_StopTask_CarriesKindAndTaskIdFields()
+    {
+        var writer = new StringWriter();
+        BridgeProtocol.WriteRequest(writer, new BridgeRequest.StopTask("teammate", "teammate-9"));
+        Assert.Equal("{\"type\":\"stop_task\",\"kind\":\"teammate\",\"taskId\":\"teammate-9\"}\n", writer.ToString());
+
+        // jcc 侧产出的请求行反解析回读（双镜像 roundtrip）
+        var reader = new StringReader("{\"type\":\"stop_task\",\"kind\":\"fork\",\"taskId\":\"fork-123\"}\n");
+        Assert.Equal(BridgeReadResult.Event, BridgeProtocol.TryReadRequest(reader, out var request, out _));
+        var stopTask = Assert.IsType<BridgeRequest.StopTask>(request);
+        Assert.Equal(("fork", "fork-123"), (stopTask.Kind, stopTask.TaskId));
+    }
+
     [Fact]
     public void ReadEvent_SessionInfo_ParsesEngineHandshake()
     {

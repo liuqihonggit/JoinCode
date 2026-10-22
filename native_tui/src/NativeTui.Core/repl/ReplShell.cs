@@ -182,6 +182,11 @@ public sealed class ReplShell
     /// IClipboardService 适配，Core 零依赖不持接口；null = 复制能力降级无操作）。</summary>
     private readonly Action<string>? _copyToClipboard;
 
+    /// <summary>后台任务停止委托（M8-8 后续 — 空闲态 x 停止面板运行中任务，参数 = (kind, taskId)；
+    /// 宿主注入引擎泵转发（进程内直连 EngineSession.StopBackgroundTask），Core 零依赖不持泵
+    /// （对齐 clipboard 注入先例）；null = 停止能力降级，x 走正常字符插入）。</summary>
+    private readonly Action<string, string>? _onStopTask;
+
     /// <summary>主循环存活标记（internal — 退出安全测试断言面：Esc/Ctrl+C 永不置 false）。</summary>
     internal bool IsRunning => _running;
 
@@ -227,7 +232,10 @@ public sealed class ReplShell
     /// clipboard=剪贴板写入委托（TASK059 Ctrl+C 复制；null = 复制降级无操作）；
     /// themeName=主题配置名（S9 接线 — ThemeSelection.Resolve 解析，null/未知名回退 dark）；
     /// commandUsage=命令使用记忆（S10 接线 — 宿主启动加载持久化数据注入；null = 空记忆）；
-    /// workspaceRoot=工作区根目录（S10 接线 — @ 文件补全索引根；null = @ 补全禁用降级）。</summary>
+    /// workspaceRoot=工作区根目录（S10 接线 — @ 文件补全索引根；null = @ 补全禁用降级）；
+    /// onStopTask=后台任务停止委托（M8-8 后续 — 空闲态 x 停止面板运行中任务，参数 = (kind, taskId)；
+    /// null = 停止能力降级，x 走正常字符插入）；
+    /// streamingProjector=流式 Markdown 块级增量投影器（方案 B 卫星注入；null = 纯文本降级 M8-1 行为）。</summary>
     public ReplShell(
         IReplEngine engine,
         BannerItem banner,
@@ -240,7 +248,9 @@ public sealed class ReplShell
         Action<string>? clipboard = null,
         string? themeName = null,
         CommandUsageMemory? commandUsage = null,
-        string? workspaceRoot = null)
+        string? workspaceRoot = null,
+        Action<string, string>? onStopTask = null,
+        IStreamingMarkdownProjector? streamingProjector = null)
     {
         _engine = engine;
         _banner = banner;
@@ -252,6 +262,7 @@ public sealed class ReplShell
         _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands, new CommandGrouping(_commandUsage)) : null;
         _sizeSource = sizeSource ?? new ConsoleTerminalSizeSource();
         _copyToClipboard = clipboard;
+        _onStopTask = onStopTask;
         _theme = ThemeSelection.Resolve(themeName);
         _atFileSuggester = workspaceRoot is null ? null : new AtFileSuggester(workspaceRoot);
         // S9 接线 — spinner 终端字符集探测注入一次（会话期终端类型不变；Windows Terminal/默认 `*` 集）
@@ -259,7 +270,7 @@ public sealed class ReplShell
         // S8 接线 — 挂起态 BackTab 权限模式循环请求转发引擎回执通道（复用 Shift+Tab 循环实现）
         _permission.ModeCycleRequested += CyclePermissionMode;
         _transcript = new TranscriptController(BuildTranscriptSnapshot, verbose => _view.SetVerboseMode(verbose));
-        _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter, _tokenUsage, _sizeSource);
+        _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter, _tokenUsage, _sizeSource, streamingProjector);
     }
 
     /// <summary>视图（测试断言面）。</summary>
@@ -760,6 +771,14 @@ public sealed class ReplShell
             return;
         }
 
+        // M8-8 后续 — 空闲态 x 停止后台任务（置于帮助面板之后：面板有 running 条目时 x 优先停止，
+        // 无 running 时 x 落入下方字符插入 — 打字语义不受影响）
+        if (IsStopTaskTrigger(key))
+        {
+            StopRunningBackgroundTask();
+            return;
+        }
+
         if (key is { Kind: KeyKind.UpArrow, Shift: true, Ctrl: false, Meta: false })
         {
             BeginCursorNavigation();
@@ -1193,6 +1212,47 @@ public sealed class ReplShell
     {
         _helpOpen = true;
         _view.HelpOpen = true;
+    }
+
+    /// <summary>x 停止触发判定（M8-8 后续 — 对齐 IsHelpTrigger '?' 形态）— 空闲态（非忙 + 空输入 +
+    /// 无修饰）的裸 'x' 且面板有运行中条目且停止委托已注入（三门槛任一不满足 x 走正常字符插入 —
+    /// 打字优先，斜杠补全激活态在分派链更早拦截不可达此处）。</summary>
+    private bool IsStopTaskTrigger(KeyPress key) =>
+        key is { Kind: KeyKind.Char, Input: "x", Ctrl: false, Meta: false, Shift: false }
+        && _input.Text.Length == 0
+        && !IsBusy
+        && _onStopTask is not null
+        && _view.BackgroundTasks.HasRunning;
+
+    /// <summary>停止后台任务（M8-8 后续 — 基准 BackgroundTasksDialog.tsx:268-289 x 停止）：
+    /// 目标 = 选中条目（仅 running 可选）回退首个 running 条目（首版无选中导航键位 — 选中态
+    /// API 已备，导航键位与历史导航冲突留后续）；经注入委托 fire-and-forget 转发引擎泵
+    /// （cancelled 终态 upsert 由泵推回面板）+ 通知队列反馈。</summary>
+    private void StopRunningBackgroundTask()
+    {
+        var target = _view.BackgroundTasks.SelectedEntry ?? FirstRunningTask();
+        if (target is not { } entry)
+        {
+            return;
+        }
+
+        _onStopTask?.Invoke(entry.Kind, entry.TaskId);
+        _notifications.Enqueue($"已请求停止后台任务（{entry.Kind}）");
+    }
+
+    /// <summary>首个运行中条目（无选中回退目标 — 插入序首个 running；IsStopTaskTrigger 已保证
+    /// HasRunning，此处必命中，null 仅为防御兜底）。</summary>
+    private (string Kind, string TaskId)? FirstRunningTask()
+    {
+        foreach (var task in _view.BackgroundTasks.Tasks)
+        {
+            if (task.State == BackgroundTaskPanel.RunningState)
+            {
+                return (task.Kind, task.TaskId);
+            }
+        }
+
+        return null;
     }
 
     /// <summary>帮助面板模态按键 — Esc 或 '?' 关闭（对齐基准 help menu 双关闭键）；

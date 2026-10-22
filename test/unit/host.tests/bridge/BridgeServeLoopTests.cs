@@ -219,4 +219,41 @@ public sealed class BridgeServeLoopTests {
         Assert.Contains("引擎未提供权限系统", errorLine);
         Assert.Contains("plan, auto, ask, bypass, unattended", errorLine);
     }
+
+    /// <summary>stop_task 分派（M8-8 后续）— 泵停止 fork 任务：CancelForkAsync 被调 +
+    /// cancelled 终态 background_task 事件行回推（请求循环不等待 — fire-and-forget 后立即处理 quit）。</summary>
+    [Fact]
+    public async Task StopTask_DispatchesToPump_EmitsCancelledBackgroundTask() {
+        var forkManager = new Mock<IForkSubAgentManager>();
+        forkManager.Setup(m => m.CancelForkAsync("fork-123", It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask)
+            .Verifiable();
+        await using var pump = new BackgroundTaskEventPump(forkManager.Object, teammateExecutor: null);
+        using var stdin = new StringReader(string.Join('\n',
+            WriteRequest(new CliBridge.BridgeRequest.StopTask("fork", "fork-123")),
+            WriteRequest(new CliBridge.BridgeRequest.Quit())));
+        await using var stdout = new StringWriter();
+
+        var exitCode = await BridgeServeLoop.RunAsync(stdin, stdout, new StringWriter(),
+            (input, consumer, ct) => Task.CompletedTask, CancellationToken.None,
+            backgroundPump: pump);
+
+        Assert.Equal(0, exitCode);
+        forkManager.VerifyAll();
+        Assert.Contains("\"type\":\"background_task\",\"kind\":\"fork\",\"taskId\":\"fork-123\",\"description\":\"\",\"state\":\"cancelled\"", stdout.ToString());
+    }
+    /// <summary>stop_task 泵未注入（引擎无后台能力）— 静默跳过不中断循环（面板无条目，请求实际不可达）。</summary>
+    [Fact]
+    public async Task StopTask_WithoutPump_SkipsSilently() {
+        using var stdin = new StringReader(string.Join('\n',
+            WriteRequest(new CliBridge.BridgeRequest.StopTask("fork", "fork-404")),
+            WriteRequest(new CliBridge.BridgeRequest.Quit())));
+        await using var stdout = new StringWriter();
+
+        var exitCode = await BridgeServeLoop.RunAsync(stdin, stdout, new StringWriter(),
+            (input, consumer, ct) => Task.CompletedTask, CancellationToken.None);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(string.Empty, stdout.ToString());
+    }
 }

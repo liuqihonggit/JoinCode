@@ -57,8 +57,186 @@ public sealed class BackgroundTaskPanelTests
         panel.Upsert("fork", "fork-2", "构建", "failed");
         panel.Upsert("teammate", "tm-1", "审阅", "cancelled");
 
-        // 终态驻留 — 首版不自动驱逐（基准 evictAfter 过期驱逐下批做）
+        // 终态驻留 — 驱逐由 TickEvict 驱动（默认 5s 后过期移除，非立即）
         Assert.Equal(3, panel.Tasks.Count);
+    }
+
+    /// <summary>终态 upsert 首翻写入 FinalizedAtMs，幂等重发保留首个（防快照重发无限续期驻留）。</summary>
+    [Fact]
+    public void Upsert_FinalState_RecordsFinalizedTimestamp_IdempotentRerefreshKeepsFirst()
+    {
+        var panel = new BackgroundTaskPanel();
+        panel.Upsert("fork", "fork-1", "检查", "running");
+        Assert.Equal(0, panel.Tasks[0].FinalizedAtMs);
+
+        panel.Upsert("fork", "fork-1", "检查", "completed");
+        var firstFinalized = panel.Tasks[0].FinalizedAtMs;
+        Assert.True(firstFinalized > 0);
+
+        // 终态幂等重发（快照路径）不刷新时间戳 — 驱逐倒计时不重置
+        panel.Upsert("fork", "fork-1", "检查", "completed");
+        Assert.Equal(firstFinalized, panel.Tasks[0].FinalizedAtMs);
+    }
+
+    /// <summary>空描述保留旧值（快照/停止路径 description 恒空串 — 防清屏；非空描述正常更新）。</summary>
+    [Fact]
+    public void Upsert_EmptyDescription_PreservesExistingDescription()
+    {
+        var panel = new BackgroundTaskPanel();
+        panel.Upsert("fork", "fork-1", "检查README", "running");
+
+        panel.Upsert("fork", "fork-1", "", "completed");
+
+        Assert.Equal("检查README", panel.Tasks[0].Description);
+        Assert.Equal("completed", panel.Tasks[0].State);
+    }
+
+    /// <summary>MoveSelection 无选中 → 向前取首个 running 条目。</summary>
+    [Fact]
+    public void MoveSelection_NoSelection_ForwardTakesFirstRunning()
+    {
+        var panel = new BackgroundTaskPanel();
+        panel.Upsert("fork", "f-1", "任务1", "running");
+        panel.Upsert("fork", "f-2", "任务2", "running");
+
+        panel.MoveSelection(1);
+
+        Assert.Equal(0, panel.SelectedIndex);
+        Assert.Equal(("fork", "f-1"), panel.SelectedEntry);
+    }
+
+    /// <summary>MoveSelection 跳过终态条目 — 仅 running 态条目可选。</summary>
+    [Fact]
+    public void MoveSelection_SkipsFinalEntries_OnlyRunningSelectable()
+    {
+        var panel = new BackgroundTaskPanel();
+        panel.Upsert("fork", "f-1", "任务1", "completed");
+        panel.Upsert("fork", "f-2", "任务2", "running");
+        panel.Upsert("fork", "f-3", "任务3", "failed");
+        panel.Upsert("fork", "f-4", "任务4", "running");
+
+        panel.MoveSelection(1);
+
+        // f-1 终态跳过 → 选中首个 running f-2
+        Assert.Equal(1, panel.SelectedIndex);
+        Assert.Equal(("fork", "f-2"), panel.SelectedEntry);
+
+        // 再向后移：f-3 终态跳过 → f-4
+        panel.MoveSelection(1);
+        Assert.Equal(3, panel.SelectedIndex);
+        Assert.Equal(("fork", "f-4"), panel.SelectedEntry);
+    }
+
+    /// <summary>MoveSelection 到头不动（不环绕）；反向同理。</summary>
+    [Fact]
+    public void MoveSelection_AtEdge_StaysPut()
+    {
+        var panel = new BackgroundTaskPanel();
+        panel.Upsert("fork", "f-1", "任务1", "running");
+        panel.MoveSelection(1);
+        Assert.Equal(0, panel.SelectedIndex);
+
+        panel.MoveSelection(-1);
+        Assert.Equal(0, panel.SelectedIndex);
+        panel.MoveSelection(1);
+        Assert.Equal(0, panel.SelectedIndex);
+    }
+
+    /// <summary>SelectedEntry 终态守卫 — 选中条目翻终态后返回 null（停止键消费方回退首个 running）。</summary>
+    [Fact]
+    public void SelectedEntry_WhenSelectedTurnsFinal_ReturnsNull()
+    {
+        var panel = new BackgroundTaskPanel();
+        panel.Upsert("fork", "f-1", "任务1", "running");
+        panel.MoveSelection(1);
+        Assert.NotNull(panel.SelectedEntry);
+
+        panel.Upsert("fork", "f-1", "任务1", "cancelled");
+
+        Assert.Null(panel.SelectedEntry);
+        Assert.Equal(0, panel.SelectedIndex);
+    }
+
+    /// <summary>TickEvict 驱逐窗口内终态驻留（running 永不驱逐）。</summary>
+    [Fact]
+    public void TickEvict_WithinWindow_FinalStateStays_RunningNeverEvicted()
+    {
+        var panel = new BackgroundTaskPanel();
+        panel.Upsert("fork", "f-1", "任务1", "running");
+        panel.Upsert("fork", "f-2", "任务2", "completed");
+        var finalizedAt = panel.Tasks[1].FinalizedAtMs;
+
+        // 5s 窗口内（4999ms）终态驻留
+        panel.TickEvict(finalizedAt + BackgroundTaskPanel.EvictAfterMs - 1);
+
+        Assert.Equal(2, panel.Tasks.Count);
+        Assert.Equal("running", panel.Tasks[0].State);
+        Assert.Equal("completed", panel.Tasks[1].State);
+    }
+
+    /// <summary>TickEvict 超时驱逐终态条目（running 不驱逐 — 全终态+全驱逐后面板回到零渲染）。</summary>
+    [Fact]
+    public void TickEvict_AfterWindow_FinalStateEvicted()
+    {
+        var panel = new BackgroundTaskPanel();
+        panel.Upsert("fork", "f-1", "任务1", "running");
+        panel.Upsert("fork", "f-2", "任务2", "completed");
+        panel.Upsert("teammate", "tm-1", "审阅", "failed");
+        var finalizedAt = panel.Tasks[1].FinalizedAtMs;
+
+        panel.TickEvict(finalizedAt + BackgroundTaskPanel.EvictAfterMs);
+
+        // 两终态条目驱逐，running 条目保留
+        var remaining = Assert.Single(panel.Tasks);
+        Assert.Equal(("fork", "f-1", "running"), (remaining.Kind, remaining.TaskId, remaining.State));
+
+        // 全终态 + 全驱逐 → 零渲染
+        panel.Upsert("fork", "f-1", "任务1", "cancelled");
+        panel.TickEvict(panel.Tasks[0].FinalizedAtMs + BackgroundTaskPanel.EvictAfterMs);
+        Assert.Empty(panel.Tasks);
+        Assert.Equal(0, panel.MeasureHeight());
+    }
+
+    /// <summary>TickEvict 选中索引钳制 — 选中位被删置 -1，后续条目前移索引平移，超界钳到末位。</summary>
+    [Fact]
+    public void TickEvict_SelectionClamped_WhenEntriesEvicted()
+    {
+        var panel = new BackgroundTaskPanel();
+        panel.Upsert("fork", "f-1", "任务1", "completed");
+        panel.Upsert("fork", "f-2", "任务2", "running");
+        panel.Upsert("fork", "f-3", "任务3", "running");
+        panel.MoveSelection(1);
+        panel.MoveSelection(1);
+        Assert.Equal(2, panel.SelectedIndex);
+        Assert.Equal(("fork", "f-3"), panel.SelectedEntry);
+
+        // f-1 终态驱逐 — 选中位 2 > 移除位 0 → 前移为 1（仍指向 f-3）
+        panel.TickEvict(panel.Tasks[0].FinalizedAtMs + BackgroundTaskPanel.EvictAfterMs);
+        Assert.Equal(1, panel.SelectedIndex);
+        Assert.Equal(("fork", "f-3"), panel.SelectedEntry);
+
+        // 选中位自身被删（f-3 翻终态后驱逐）→ 置 -1
+        panel.Upsert("fork", "f-3", "任务3", "cancelled");
+        panel.TickEvict(panel.Tasks[1].FinalizedAtMs + BackgroundTaskPanel.EvictAfterMs);
+        Assert.Equal(-1, panel.SelectedIndex);
+        Assert.Null(panel.SelectedEntry);
+    }
+
+    /// <summary>HasRunning 门槛 — 存在 running 条目为 true，全终态/空面板为 false。</summary>
+    [Fact]
+    public void HasRunning_ReflectsRunningPresence()
+    {
+        var panel = new BackgroundTaskPanel();
+        Assert.False(panel.HasRunning);
+
+        panel.Upsert("fork", "f-1", "任务1", "completed");
+        Assert.False(panel.HasRunning);
+
+        panel.Upsert("teammate", "tm-1", "审阅", "running");
+        Assert.True(panel.HasRunning);
+
+        panel.Upsert("teammate", "tm-1", "审阅", "cancelled");
+        Assert.False(panel.HasRunning);
     }
 
     [Fact]

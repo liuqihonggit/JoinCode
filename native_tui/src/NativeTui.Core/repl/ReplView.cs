@@ -192,6 +192,9 @@ public sealed class ReplView
 
     public void Render(Screen screen, Theme theme)
     {
+        // M8-8 后续 evictAfter 终态驱逐 — 每帧拍驱动（墙钟直取，对齐 spinner WallNowMs 先例）；
+        // 置于 transcript 分支之前：全屏模态期间驱逐持续，回到主屏不积压过期终态条目
+        BackgroundTasks.TickEvict(Environment.TickCount64);
         if (Transcript is { } transcript)
         {
             TranscriptRenderer.Render(screen, theme, transcript);

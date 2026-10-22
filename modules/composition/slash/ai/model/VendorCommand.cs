@@ -50,9 +50,10 @@ public sealed class VendorCommand : ChatCommandBase {
         }
 
         // 切换 — 对齐 GUI SetVendorAsync 语义：内存 Vendor + 默认模型跟随 + profile 持久化
-        // WorkflowConfig 是 immutable record，一次性构造新对象后无锁替换引用（避免中间对象）
-        var catalog = ResolveCatalog(context);
-        var defaultModelId = catalog.GetDefaultModelForProvider(targetValue);
+        // WorkflowConfig 是 immutable record，一次性构造新对象后无锁替换引用（避免中间对象）；
+        // 目录缺失（精简启动）降级：默认模型保持原值不跟随（TASK065 补测代理登记 bug —
+        // 原 [APP003] 未捕获异常传播 REPL，对齐 ModelCommand/EffortCommand 降级先例）
+        var defaultModelId = ResolveCatalog(context)?.GetDefaultModelForProvider(targetValue) ?? string.Empty;
         var newProvider = config.Provider! with {
             Vendor = targetValue,
             ModelId = string.IsNullOrEmpty(defaultModelId) ? config.Provider!.ModelId : defaultModelId,
@@ -75,8 +76,8 @@ public sealed class VendorCommand : ChatCommandBase {
         return ChatCommandResult.Continue();
     }
 
-    private static IModelCatalog ResolveCatalog(ChatCommandContext context) {
-        return ChatCommandBase.GetService<IModelCatalog>(context, typeof(IModelCatalog))
-            ?? throw new InvalidOperationException("[APP003] 模型目录服务未初始化");
+    /// <summary>模型目录可空解析（catalog 缺失精简启动形态 — 切换降级不跟随默认模型）。</summary>
+    private static IModelCatalog? ResolveCatalog(ChatCommandContext context) {
+        return ChatCommandBase.GetService<IModelCatalog>(context, typeof(IModelCatalog));
     }
 }

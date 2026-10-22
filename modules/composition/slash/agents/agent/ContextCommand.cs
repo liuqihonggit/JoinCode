@@ -28,7 +28,10 @@ public sealed class ContextCommand : ChatCommandBase {
         var provider = context.GetCommandServices().WorkflowConfig?.Provider?.Vendor
             ?? Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue())
             ?? VendorKind.OpenAi.ToValue();
-        var maxTokens = ResolveModelCatalog(context).FindModelContextWindow(currentModel, provider)
+        // catalog 缺失（精简启动形态）降级 128k 窗口（对齐"未知模型回退"同一语义 —
+        // TASK065 补测代理登记 bug：原 [APP001] 未捕获异常传播 REPL，与 EffortCommand 降级先例不一致）
+        var catalog = ChatCommandBase.GetService<IModelCatalog>(context, typeof(IModelCatalog));
+        var maxTokens = catalog?.FindModelContextWindow(currentModel, provider)
             ?? 128_000;
 
         var contextData = new ContextData {
@@ -65,11 +68,6 @@ public sealed class ContextCommand : ChatCommandBase {
         TerminalHelper.NewLine();
 
         return ChatCommandResult.Continue();
-    }
-
-    private static IModelCatalog ResolveModelCatalog(ChatCommandContext context) {
-        return ChatCommandBase.GetService<IModelCatalog>(context, typeof(IModelCatalog))
-            ?? throw new InvalidOperationException("[APP001] 模型目录服务未初始化");
     }
 
     private static int EstimateTokens(IReadOnlyList<ApiMessageRecord> history) {

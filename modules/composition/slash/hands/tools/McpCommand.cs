@@ -26,6 +26,7 @@ public sealed class McpCommand : ChatCommandBase {
             break;
             case CrudActionEnumConstants.Create:
             case CrudActionEnumConstants.New:
+            case CrudActionEnumConstants.Add:
             await AddServerAsync(context, args).ConfigureAwait(false);
             break;
             case CrudActionEnumConstants.Delete:

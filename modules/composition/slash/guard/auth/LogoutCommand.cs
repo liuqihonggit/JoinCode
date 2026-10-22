@@ -24,8 +24,7 @@ public sealed class LogoutCommand : ChatCommandBase {
 
         if (provider == "all") {
             // 对齐 TS: Dialog 确认框 — 登出前确认
-            var confirmed = await Confirmation.ConfirmAsync("确定要登出所有服务吗？", context.CancellationToken).ConfigureAwait(false);
-            if (confirmed)
+            if (await ConfirmLogoutAllAsync(context).ConfigureAwait(false))
                 return await PerformLogoutAllAsync(context).ConfigureAwait(false);
         } else {
             // 清除指定 Provider 的 OAuth Token
@@ -60,8 +59,25 @@ public sealed class LogoutCommand : ChatCommandBase {
     }
 
     /// <summary>
-    /// 执行登出全部服务 — 删除 API Key、清除 OAuth Token、刷新缓存后返回 Exit
+    /// 确认登出全部 — context.Confirm 回调优先（GUI 弹窗/TUI 对话框注入），null 降级 CLI 终端 y/N
+    /// <para>对齐 CommitCommand/ExitCommand 先例：回调可注入使确认分支可单测触达，
+    /// 未注入时保持静态 Dialog.ConfirmAsync 行为（非交互环境恒拒绝）零回退</para>
     /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>用户确认返回 true，否则返回 false</returns>
+    private static async Task<bool> ConfirmLogoutAllAsync(ChatCommandContext context) {
+        const string message = "确定要登出所有服务吗？";
+        if (context.Confirm is { } confirm)
+            return confirm(message);
+        return await Confirmation.ConfirmAsync(message, context.CancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 从 auth.json 原始字节中移除指定 Provider 的 API Key — 保留其余 Provider 与原文件编码
+    /// </summary>
+    /// <param name="bytes">auth.json 原始字节内容</param>
+    /// <param name="provider">要移除的供应商名称</param>
+    /// <returns>(重写后的字节, 是否成功移除)；未包含该 provider 时 Success=false</returns>
     private static (byte[]? NewBytes, bool Success) RemoveProviderFromAuthData(byte[] bytes, string provider) {
         var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
         Dictionary<string, string> authData;
@@ -76,6 +92,9 @@ public sealed class LogoutCommand : ChatCommandBase {
         return (newBytes, true);
     }
 
+    /// <summary>
+    /// 执行登出全部服务 — 删除 API Key、清除 OAuth Token、刷新缓存后返回 Exit
+    /// </summary>
     private static async Task<ChatCommandResult> PerformLogoutAllAsync(ChatCommandContext context) {
         var services = context.GetCommandServices();
 

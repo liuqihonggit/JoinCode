@@ -63,6 +63,7 @@ internal static class CommandTestHarness {
     /// <param name="services">命令服务包</param>
     /// <param name="arguments">命令参数(不含命令名)</param>
     /// <param name="sessionId">会话标识</param>
+    /// <param name="confirm">用户确认回调 — 注入后命令走回调分支,null 走静态 Dialog 降级分支</param>
     /// <param name="prompt">用户输入回调</param>
     /// <param name="readPassword">密码输入回调</param>
     /// <returns>命令执行上下文</returns>
@@ -70,6 +71,7 @@ internal static class CommandTestHarness {
         CommandServices services,
         string arguments = "",
         string sessionId = "test-session",
+        Func<string, bool>? confirm = null,
         Func<string, string?>? prompt = null,
         Func<string, string?>? readPassword = null) {
         return new ChatCommandContext {
@@ -77,6 +79,7 @@ internal static class CommandTestHarness {
             SessionId = sessionId,
             CancellationToken = CancellationToken.None,
             Services = new CommandServiceProvider(services),
+            Confirm = confirm,
             Prompt = prompt,
             ReadPassword = readPassword,
         };

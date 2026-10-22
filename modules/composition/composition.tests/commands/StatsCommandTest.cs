@@ -2,8 +2,9 @@ namespace Composition.Tests.Commands;
 
 /// <summary>
 /// /stats 命令单元测试 — 覆盖 scope 分发(today/--today 去横线/total/session/无效回退)/
-/// UsageTracker 缺失降级默认数据/统计为空提示/缓存 Token 明细/跨会话模式(7d)三级:
-/// 扫描器缺失/空会话/有会话渲染概览
+/// UsageTracker 缺失降级默认数据/空统计(全零)渲染面板/缓存 Token 明细/
+/// 跨会话模式(7d)三级:扫描器缺失/空会话/有会话渲染概览
+/// <para>桩对齐 IUsageTracker 非空契约 — 实现方无记录时返回全零统计而非 null,无需 pragma 模拟 null</para>
 /// </summary>
 [Collection("command-output")]
 public sealed class StatsCommandTest {
@@ -21,17 +22,6 @@ public sealed class StatsCommandTest {
         return (new StatsCommand(), context, usageTracker);
     }
 
-    /// <summary>
-    /// 配置统计桩返回 null — IUsageTracker 接口签名非空,但 StatsCommand 存在 stats is null
-    /// 防御分支(契约与实现不一致的生产侧隐患),此处显式模拟 null 验证降级路径
-    /// </summary>
-    private static void SetupNullStats(Mock<IUsageTracker> tracker, System.Linq.Expressions.Expression<Func<IUsageTracker, TokenUsageStatistics>> getter) {
-#pragma warning disable CS8603 // 边界桩:模拟接口契约外的 null 返回,验证命令侧 null 防御分支
-        tracker.Setup(getter).Returns(() => null);
-#pragma warning restore CS8603
-    }
-
-
     private static TokenUsageStatistics CreateStats(
         long input = 1200,
         long output = 800,
@@ -44,6 +34,12 @@ public sealed class StatsCommandTest {
         TotalCacheReadTokens = cacheRead,
         TotalCostUsd = 0.05m,
     };
+
+    /// <summary>
+    /// 构造空统计桩 — 对齐 UsageTracker 实现语义：无记录时返回全零 TokenUsageStatistics 而非 null
+    /// （IUsageTracker 接口契约非空,实现方从不返回 null,无需 pragma 模拟 null）
+    /// </summary>
+    private static TokenUsageStatistics CreateEmptyStats() => new();
 
     [Fact]
     public async Task Execute_WithoutUsageTracker_ShowsFallbackData() {
@@ -58,22 +54,23 @@ public sealed class StatsCommandTest {
     }
 
     [Fact]
-    public async Task Execute_TodayWithoutStatistics_ShowsEmptyHint() {
+    public async Task Execute_TodayWithoutRecords_RendersEmptyStatsPanel() {
         var tracker = new Mock<IUsageTracker>();
-        SetupNullStats(tracker, t => t.GetTodayStatistics());
+        tracker.Setup(t => t.GetTodayStatistics()).Returns(CreateEmptyStats());
         var (cmd, context, _) = Arrange("", tracker: tracker);
 
         var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
 
         result.ShouldContinue.Should().BeTrue();
         tracker.Verify(t => t.GetTodayStatistics(), Times.Once, "空参默认 today 范围");
-        output.Should().Contain("暂无统计数据");
+        output.Should().Contain("Stats", "空统计(全零)应渲染统计面板而非空输出或崩溃");
+        output.Should().NotContain("暂无统计数据", "接口契约非空且实现从不返回 null,不应出现 null 防御提示");
     }
 
     [Fact]
     public async Task Execute_TodayFlag_StripsLeadingDashes() {
         var tracker = new Mock<IUsageTracker>();
-        SetupNullStats(tracker, t => t.GetTodayStatistics());
+        tracker.Setup(t => t.GetTodayStatistics()).Returns(CreateEmptyStats());
         var (cmd, context, _) = Arrange("--today", tracker: tracker);
 
         var (_, _) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
@@ -97,7 +94,7 @@ public sealed class StatsCommandTest {
     [Fact]
     public async Task Execute_Session_ScopesToSessionStatisticsWithId() {
         var tracker = new Mock<IUsageTracker>();
-        SetupNullStats(tracker, t => t.GetSessionStatistics(It.IsAny<string>()));
+        tracker.Setup(t => t.GetSessionStatistics(It.IsAny<string>())).Returns(CreateEmptyStats());
         var (cmd, context, _) = Arrange("session", tracker: tracker);
 
         var (result, _) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
@@ -110,7 +107,7 @@ public sealed class StatsCommandTest {
     [Fact]
     public async Task Execute_InvalidScope_FallsBackToToday() {
         var tracker = new Mock<IUsageTracker>();
-        SetupNullStats(tracker, t => t.GetTodayStatistics());
+        tracker.Setup(t => t.GetTodayStatistics()).Returns(CreateEmptyStats());
         var (cmd, context, _) = Arrange("bogus", tracker: tracker);
 
         var (result, _) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));

@@ -85,10 +85,18 @@ public static class Program {
         var results = new List<(string Cmd, string Note, string Verdict, string Detail)>();
         foreach (var (cmd, note) in probes) {
             var (verdict, detail) = await ProbeOneCommandAsync(session, cmd).ConfigureAwait(false);
-            // 退出类命令（/exit /quit /q 及别名）— 期望触发 ExitRequested 钩子而非有输出
+            // 退出类命令（/quit /q 无确认直接退 — 期望 ExitRequested 钩子触发；
+            // /exit 走 S8 confirm 闭环 — 探针未 Bind 权限 UI 时 bridge 自动 Deny → 不退出是预期降级
+            //（确认拒绝语义），两类都算链路通）
             if (cmd is "/quit" or "/exit" or "/q") {
-                verdict = exitRequests.Count > 0 ? "EXIT-OK" : verdict;
-                detail = exitRequests.Count > 0 ? $"ExitRequested={string.Join(",", exitRequests)}" : detail;
+                if (exitRequests.Count > 0) {
+                    verdict = "EXIT-OK";
+                    detail = $"ExitRequested={string.Join(",", exitRequests)}";
+                } else if (cmd == "/exit") {
+                    verdict = "OK";
+                    detail = "confirm Deny 降级（无 UI 宿主预期行为 — 确认拒绝不退出）";
+                }
+
                 exitRequests.Clear();
             }
             results.Add((cmd, note, verdict, detail));
@@ -257,7 +265,7 @@ public static class Program {
             await using (session) {
                 // banner 占位值 — 首拍 session_info 种子事件覆盖为引擎真实数据（EngineSession.Enqueue）
                 var banner = new BannerItem("0.0.0", "当前模型未设置", "API 按量计费", Environment.CurrentDirectory);
-                var commands = SlashCommandSource.Load(session.Services);
+                var commands = ApplyPickerHints(SlashCommandSource.Load(session.Services));
                 // M7-6 模型选择器 — 装饰引擎拦截 /model（清单从引擎 IModelCatalog 后端获取，切换链自研）；
                 // 切换成功后 RefreshSessionInfo 重发握手事件刷新 banner（当前模型显示同步）
                 // TASK058 供应商选择器 — 外层再装饰拦截 /vendor（清单 VendorKind 枚举投影，切换链对齐 GUI SetVendorAsync）
@@ -288,10 +296,18 @@ public static class Program {
                 session.PermissionBridge.Bind(shell);
                 // M8-5 命令交互回调接线（/clear 清 TUI 滚动区+scrollback、/exit /quit /logout 结束主循环）—
                 // ReplShell 公开入口已由主智能体收编落地（ClearMessagesExceptBannerAndSpinner/RequestExit）；
-                /// TASK065 F1 融合 — 退出回调带命令名（RequestExit(reason) 上 "⎿ /{reason} — 退出 jcc" 提示行）
+                // TASK065 F1 融合 — 退出回调带命令名（RequestExit(reason) 上 "⎿ /{reason} — 退出 jcc" 提示行）
                 session.CommandCallbacks.Bind(
                     clearScreen: shell.ClearMessagesExceptBannerAndSpinner,
                     onExitRequested: () => shell.RequestExit("exit"));
+                // TASK065 F2/S8 融合 — 交互面重绑：confirm/prompt 从组装期权限对话框初值升级为
+                // ReplShell 命令对话框同步桥（语义更准：命令确认非工具权限；/commit /login /resume 等
+                // 交互命令解锁 — 回合线程挂起等模态按键，对齐 TuiPermissionBridge 先例）；
+                // readPassword 未接（密文输入框复杂度高 — /login 交互流程降级，遗留项登记）
+                session.CommandCallbacks.BindInteractions(
+                    confirm: shell.ConfirmCommand,
+                    prompt: shell.PromptCommand,
+                    readPassword: null);
                 shell.Run();
                 shell.WriteExit();
             }
@@ -365,4 +381,11 @@ public static class Program {
         if (items.Any(m => string.IsNullOrWhiteSpace(m.DisplayName)))
             failures.Add("模型清单存在空 DisplayName");
     }
+
+    /// <summary>TASK065 F7 — 无参选择器拦截命令的参数提示对齐：/model 无参被下方 CommandPickerEngine
+    /// 拦截走选择器模态，静态 ArgumentHint "[model-id|default|info]" 诱导用户走带参路径与拦截行为失配 →
+    /// 装配 commands 清单时改写为无参选择器诱导（与拦截声明同点维护；GUI 宿主不拦截 /model，
+    /// 其 hint 保持引擎真值不受影响）。record with 纯投影 — 源清单不可变。internal — 装配策略测试面。</summary>
+    internal static IReadOnlyList<CommandSuggestion> ApplyPickerHints(IReadOnlyList<CommandSuggestion> commands) =>
+        commands.Select(c => c.Name is "model" ? c with { ArgumentHint = "（无参打开选择器）" } : c).ToList();
 }

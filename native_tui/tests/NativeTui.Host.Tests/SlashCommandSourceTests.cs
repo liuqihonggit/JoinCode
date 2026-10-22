@@ -100,4 +100,70 @@ public sealed class SlashCommandSourceTests
         Assert.NotEmpty(commands);
         Assert.All(commands, c => Assert.False(c.Name.StartsWith('/')));
     }
+
+    /// <summary>F5 运行时门控（TASK065）— DI 提供 ChatCommandRegistry 时按运行时实例 IsEnabled 过滤：
+    /// 静态 IsEnabled=true 但 registry 实例禁用的命令（entitlement 门控形态）不进 TUI 建议列表。</summary>
+    [Fact]
+    public void Load_WithRuntimeRegistry_FiltersByRuntimeIsEnabled()
+    {
+        var registry = new ChatCommandRegistry();
+        registry.Register(RuntimeGateCommand.Disabled("help"));
+        registry.Register(RuntimeGateCommand.Enabled("theme"));
+        var services = new ServiceCollection()
+            .AddSingleton<ISlashCommandCatalog>(new FakeCatalog())
+            .AddSingleton(registry)
+            .BuildServiceProvider();
+
+        var commands = SlashCommandSource.Load(services);
+
+        Assert.DoesNotContain(commands, c => c.Name == "help");
+        Assert.Contains(commands, c => c.Name == "theme");
+    }
+
+    /// <summary>F5 — registry 缺席（DI 未注册/精简宿主）：保持现状降级，静态目录全量（静态 IsEnabled 过滤依旧）。</summary>
+    [Fact]
+    public void Load_WithoutRuntimeRegistry_KeepsStaticCatalog()
+    {
+        var services = new ServiceCollection().AddSingleton<ISlashCommandCatalog>(new FakeCatalog()).BuildServiceProvider();
+
+        var commands = SlashCommandSource.Load(services);
+
+        Assert.Contains(commands, c => c.Name == "help");
+        Assert.DoesNotContain(commands, c => c.Name == "disabled");
+    }
+
+    /// <summary>F5 — registry 有实例但命令未注册（目录与注册表理论同源，容错面）：以静态 IsEnabled 兜底不过滤。</summary>
+    [Fact]
+    public void Load_RegistryMissingCommand_FallsBackToStaticIsEnabled()
+    {
+        var registry = new ChatCommandRegistry();
+        registry.Register(RuntimeGateCommand.Disabled("no-such-catalog-entry"));
+        var services = new ServiceCollection()
+            .AddSingleton<ISlashCommandCatalog>(new FakeCatalog())
+            .AddSingleton(registry)
+            .BuildServiceProvider();
+
+        var commands = SlashCommandSource.Load(services);
+
+        Assert.Contains(commands, c => c.Name == "help");
+    }
+
+    /// <summary>运行时门控假命令 — IsEnabled 可控的 IChatCommand 最小面（F5 测试专用）。</summary>
+    private sealed class RuntimeGateCommand(string name, bool enabled) : IChatCommand
+    {
+        public string Name => name;
+        public string Description => string.Empty;
+        public string Usage => string.Empty;
+        public string[] Aliases => [];
+        public string ArgumentHint => string.Empty;
+        public bool IsHidden => false;
+        public bool IsEnabled => enabled;
+        public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) => Task.FromResult(ChatCommandResult.Continue());
+
+        /// <summary>构造启用命令。</summary>
+        public static RuntimeGateCommand Enabled(string name) => new(name, true);
+
+        /// <summary>构造禁用命令。</summary>
+        public static RuntimeGateCommand Disabled(string name) => new(name, false);
+    }
 }

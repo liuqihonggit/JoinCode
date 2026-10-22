@@ -82,24 +82,17 @@ public sealed class BtwCommandTests {
         last.Content.Should().Contain("没有任何可用工具");
     }
 
-    /// <summary>空参 — 用法提示不调引擎（输出捕获经 Console.SetOut，不经 TerminalHelper 门面 —
-    /// 测试项目无 cli 域引用，SetOut 与命令侧 TerminalHelper.WriteLine 底层同为 Console.Out）。</summary>
+    /// <summary>空参 — 用法提示不调引擎（捕获统一走 CommandTestHarness.CaptureOutputAsync —
+    /// 全局互斥锁串行 SetOut 段，修复 CI 类间并行输出互串：裸 SetOut 曾与 LoginCommandTest
+    /// 的 harness 捕获并发踩恢复链，本用例捕到空串/Login 捕到 /btw 输出）。</summary>
     [Fact]
     public async Task Execute_EmptyQuestion_ShowsUsageWithoutEngineCall() {
         var engine = new CaptureQueryEngine();
         var context = CreateContext(engine, arguments: "");
-        var output = new System.Text.StringBuilder();
-        var originalOut = System.Console.Out;
-        await using var writer = new StringWriter(output);
-        System.Console.SetOut(writer);
-        try {
-            var cmd = new BtwCommand();
-            await cmd.ExecuteAsync(context);
-        } finally {
-            System.Console.SetOut(originalOut);
-        }
+
+        var (_, output) = await CommandTestHarness.CaptureOutputAsync(() => new BtwCommand().ExecuteAsync(context));
 
         engine.CapturedHistory.Should().BeNull("空参不应触发 fork 调用");
-        output.ToString().Should().Contain("用法: /btw");
+        output.Should().Contain("用法: /btw");
     }
 }

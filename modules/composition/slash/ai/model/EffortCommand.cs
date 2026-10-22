@@ -54,7 +54,9 @@ public sealed class EffortCommand : ChatCommandBase {
         }
 
         if (effort == EffortLevel.Max) {
-            // max effort 仅限 Opus 级别模型 — 对齐 TS modelSupportsMaxEffort
+            // max effort 仅限 Opus 级别模型 — 对齐 TS modelSupportsMaxEffort；
+            // 目录缺失（精简启动形态）保守降级 high 不抛（TASK065 代理 C 登记 bug：原 [APP002]
+            // 未捕获异常传播 REPL — "无法验证 max 支持性即不给 max"与不支持分支同一降级语义）
             var currentModel = fastModeService?.PrimaryModelId
                 ?? Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue())
                 ?? "unknown";
@@ -62,7 +64,9 @@ public sealed class EffortCommand : ChatCommandBase {
                 ?? Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue())
                 ?? VendorKind.OpenAi.ToValue();
 
-            if (!ResolveModelCatalog(context).SupportsMaxEffort(currentModel, provider)) {
+            var catalog = ChatCommandBase.GetService<IModelCatalog>(context, typeof(IModelCatalog));
+            var supportsMax = catalog is not null && catalog.SupportsMaxEffort(currentModel, provider);
+            if (!supportsMax) {
                 // 自动降级为 high — 对齐 TS effortAutoDowngrade
                 UpdateEffort(statusBar, settingsProvider, EffortLevel.High);
                 TerminalHelper.WriteLine($"{TerminalColors.Warning}模型 {currentModel} 不支持 max effort，已降级为 high{AnsiStyleEnumConstants.Reset}");
@@ -157,11 +161,6 @@ public sealed class EffortCommand : ChatCommandBase {
         if (settingsProvider is not null) {
             settingsProvider.EffortLevel = effectiveLevel;
         }
-    }
-
-    private static IModelCatalog ResolveModelCatalog(ChatCommandContext context) {
-        return ChatCommandBase.GetService<IModelCatalog>(context, typeof(IModelCatalog))
-            ?? throw new InvalidOperationException("[APP002] 模型目录服务未初始化");
     }
 
     private static string GetEffortDescription(EffortLevel level) => level switch {

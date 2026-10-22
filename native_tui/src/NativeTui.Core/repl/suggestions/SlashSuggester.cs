@@ -44,7 +44,7 @@ public sealed class SlashSuggester
 
             var commandName = CurrentArgumentCommandName();
             return commandName is not null
-                && _commands.FirstOrDefault(c => c.Name == commandName) is { ArgumentValues.Length: > 0 };
+                && _commands.FirstOrDefault(c => c.Name.Equals(commandName, StringComparison.OrdinalIgnoreCase)) is { ArgumentValues.Length: > 0 };
         }
     }
 
@@ -202,7 +202,7 @@ public sealed class SlashSuggester
             return [];
         }
 
-        var command = _commands.FirstOrDefault(c => c.Name == commandName);
+        var command = _commands.FirstOrDefault(c => c.Name.Equals(commandName, StringComparison.OrdinalIgnoreCase));
         if (command is null)
         {
             return [];
@@ -221,14 +221,16 @@ public sealed class SlashSuggester
             : [];
     }
 
-    /// <summary>精确匹配（名或切名等于查询）。</summary>
+    /// <summary>精确匹配（名或切名等于查询 — 名/别名统一 OrdinalIgnoreCase，F8 大小写不敏感对齐基准命令补全）。</summary>
     private static bool MatchesExactly(CommandSuggestion command, string query) =>
-        command.Name == query || command.Aliases.Contains(query, StringComparer.OrdinalIgnoreCase);
+        command.Name.Equals(query, StringComparison.OrdinalIgnoreCase)
+        || command.Aliases.Contains(query, StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>匹配层级 — -1 = 不匹配；0 = 精确名；1 = 精确切名；2 = 前缀名；3 = 前缀切名；4 = 子序列名；5 = 子序列切名。</summary>
+    /// <summary>匹配层级 — -1 = 不匹配；0 = 精确名；1 = 精确切名；2 = 前缀名；3 = 前缀切名；4 = 子序列名；5 = 子序列切名。
+    /// 名匹配统一 OrdinalIgnoreCase（F8 — /EXIT 精确匹配 exit 命令名，对齐基准命令补全大小写不敏感）。</summary>
     private static int MatchTier(CommandSuggestion command, string query)
     {
-        if (command.Name == query)
+        if (command.Name.Equals(query, StringComparison.OrdinalIgnoreCase))
         {
             return 0;
         }

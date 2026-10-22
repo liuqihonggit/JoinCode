@@ -34,6 +34,11 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
     private int _thinkingTotalMs;
     private int _messageId;
 
+    /// <summary>命令回合纯文本模式（TASK065 F6 — DispatchSlashCommandAsync 置位：OnDone 跳过
+    /// Markdig 投影发 Markdown:null，防 /help 类缩进对齐文本被解释为代码块/框线表格错位；
+    /// OnDone 后自动复位，Reset 兜底复位 — 对话回合 Markdown 投影不受影响）。</summary>
+    private bool _commandPlainTextMode;
+
     /// <summary>构造函数 — 自建队列（独立使用场景）；注入墙钟（测试注入确定性时钟）。</summary>
     public InProcessEventConsumer(Func<long>? wallClock = null)
         : this([], wallClock) {
@@ -46,14 +51,19 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
     }
 
     /// <summary>重置回合内状态（新一轮对话前由宿主调用，防跨回合泄漏；队列不清 — 回合边界由生命周期事件标记）。
-    /// 消息序号不重置（跨回合递增 — 会话级 MessageId）。</summary>
+    /// 消息序号不重置（跨回合递增 — 会话级 MessageId）；命令纯文本模式兜底复位（异常中断的命令回合）。</summary>
     public void Reset() {
         _fullResponse.Clear();
         _thinkingContent.Clear();
         _thinkingStartMs = null;
         _thinkingSignalled = false;
         _thinkingTotalMs = 0;
+        _commandPlainTextMode = false;
     }
+
+    /// <summary>进入命令回合纯文本模式（internal — DispatchSlashCommandAsync 命令回合开头置位；
+    /// OnDone 发纯文本 AssistantMessage 后自动复位）。</summary>
+    internal void BeginCommandTurn() => _commandPlainTextMode = true;
 
     /// <summary>收到文本内容 → token_delta(length, text)（M8-1 逐字流式 — 携带增量文本供 StreamingTextItem 原地追加）；思考结束时结算 thinking_ended。</summary>
     public void OnText(string content) {
@@ -105,7 +115,8 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
     public void OnTimingSummary(string summary) {
     }
 
-    /// <summary>流式响应完成 → 思考结算 + assistant_message(完整文本 + Markdown 投影；无语法快路径降级纯文本)
+    /// <summary>流式响应完成 → 思考结算 + assistant_message(完整文本 + Markdown 投影；无语法快路径降级纯文本
+    /// ；命令回合纯文本模式强制 Markdown=null — TASK065 F6 防缩进对齐文本被 Markdig 重排，发后自动复位)
     /// + token_usage(用量汇总 — usage null 不发；与 engine BridgeEventConsumer 行序镜像：assistant 前、收尾发)。</summary>
     public void OnDone(TokenUsage? usage, string? modelId) {
         EndThinkingIfActive();
@@ -116,10 +127,11 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
             var thinking = _thinkingContent.ToString();
             _events.Enqueue(new BridgeEvent.AssistantMessage(
                 fullText,
-                MarkdigProjector.ProjectOptional(fullText),
+                _commandPlainTextMode ? null : MarkdigProjector.ProjectOptional(fullText),
                 MessageId: ++_messageId,
                 ThinkingDurationMs: _thinkingTotalMs,
                 ThinkingContent: thinking.Length > 0 ? thinking : null));
+            _commandPlainTextMode = false;
         }
 
         EnqueueTokenUsageIfAvailable(usage);

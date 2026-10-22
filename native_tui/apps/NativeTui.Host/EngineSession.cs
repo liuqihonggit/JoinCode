@@ -170,16 +170,24 @@ public sealed class EngineSession : IAsyncDisposable {
     /// <summary>斜杠命令回合（TASK064 — 引擎 SlashCommandRunner 共享链路：解析→路由→执行→输出捕获）：
     /// 输出经 AnsiStripper 剥离 SGR 色码（命令侧彩色输出与 TUI Cell/StyleId 渲染模型不兼容 —
     /// ESC 零宽跳过后残骸显示为 "38;2;153;153;153m──" 形态）再经 consumer.OnText/OnDone 上屏
-    ///（AssistantMessage Markdown 渲染）；未知命令同样上屏诱导（/help 提示）— 不落 LLM
+    ///（AssistantMessage 纯文本渲染）；未知命令同样上屏诱导（/help 提示）— 不落 LLM
     ///（对齐"命令不触发 AI"：注册命令走命令执行，未知命令报错，两者都不消耗模型调用）。
     /// M8-5 交互回调接线：clearScreen/onExitRequested 经 TuiCommandCallbacks 透传（/clear 清 TUI 滚动区、
     /// /exit 结束主循环；Bind 前为 null — 命令侧 ?.Invoke 安全降级对齐 Runner 可空语义）；
-    /// S8 confirm/prompt/readPassword 经 TuiCommandCallbacks 交互面透传（confirm 组装期闭环走权限对话框
-    /// TCS 桥；prompt/readPassword 接线未决 — BindInteractions 前 null，命令侧降级：输入 null）。
+    /// S8/TASK065 F2 交互面透传：confirm 组装期闭环走权限对话框 TCS 桥（selftest 等非交互宿主
+    /// 也有 confirm 能力）；交互模式 Program 在 shell 构造后 BindInteractions 重绑 confirm/prompt
+    /// 为 ReplShell 命令对话框同步桥（语义更准；解锁 /commit /login /resume 等交互命令）；
+    /// readPassword 双方均未接（密文输入框复杂度高 — 空输入降级，遗留项登记）。
+    /// TASK065 F6 — 命令回合标记 consumer 纯文本模式（OnDone 跳过 Markdig 投影，防 /help 类
+    /// 缩进对齐文本被解释为代码块/表格错位；对话回合 Markdown 不受影响）。
     /// internal static — 回调透传链测试面（fake DI 驱动真实命令注册链）。
     /// TASK065 F1 融合 — onExitRequested 包装带命令名（Runner 回调无参 → 解析 input 补 reason 上提示行）。</summary>
     internal static async Task DispatchSlashCommandAsync(
         IServiceProvider services, string input, IEventConsumer consumer, TuiCommandCallbacks commandCallbacks, CancellationToken ct) {
+        if (consumer is InProcessEventConsumer inProcess) {
+            inProcess.BeginCommandTurn();
+        }
+
         var result = await SlashCommandRunner.RunAsync(
             input, services,
             clearScreen: commandCallbacks.ClearScreen,
@@ -233,8 +241,9 @@ public sealed class EngineSession : IAsyncDisposable {
 /// EngineSession.CreateAsync 组装期创建并随回合执行器闭包传递（Bind 前回调为 null —
 /// 命令侧 ?.Invoke 安全降级，对齐 Runner 可空语义：清屏跳过/退出信号丢弃/确认默认拒绝/输入 null）；
 /// Program 在 shell 构造后 Bind：/clear → ReplShell 清滚动区、/exit → ReplShell 主循环结束。
-/// S8 交互面（BindInteractions）：confirm 组装期闭环（TuiPermissionBridge TCS 桥两档映射）、
-/// prompt/readPassword 待 S7 输入模态接线（null 降级）— 独立于 Bind 的 shell 能力面，互不覆盖。
+/// S8 交互面（BindInteractions）：confirm 组装期闭环（TuiPermissionBridge TCS 桥两档映射）；
+/// TASK065 F2 融合 — 交互模式 BindInteractions 重绑 confirm/prompt 为 ReplShell 命令对话框
+/// 同步桥（语义更准：命令确认非工具权限；重绑幂等，独立于 Bind 的 shell 能力面互不覆盖）。
 /// 对齐 TuiPermissionBridge.Bind 延迟绑定形态（shell 构造晚于引擎会话，引擎回合线程并发读 — volatile）。
 /// </summary>
 public sealed class TuiCommandCallbacks {
@@ -265,13 +274,15 @@ public sealed class TuiCommandCallbacks {
     /// <summary>退出请求回调（/exit ShouldContinue=false → 结束 TUI 主循环；Bind 前为 null — 信号降级丢弃）。</summary>
     public Action? OnExitRequested => _onExitRequested;
 
-    /// <summary>确认回调（命令确认 → TUI 权限对话框两档映射 true/false；null — 命令侧默认拒绝）。</summary>
+    /// <summary>确认回调（交互模式经 BindInteractions 重绑为 ReplShell 命令确认对话框同步桥 —
+    /// TASK065 F2，/commit /exit 等；组装期初值为权限对话框两档映射。null — 命令侧默认拒绝）。</summary>
     public Func<string, bool>? Confirm => _confirm;
 
-    /// <summary>自由输入回调（命令 prompt → TUI 输入模态；null — 命令侧默认空输入。S7 接线未决）。</summary>
+    /// <summary>自由输入回调（交互模式经 BindInteractions 重绑为 ReplShell 命令输入对话框同步桥 —
+    /// TASK065 F2，/login /resume 等。null — 命令侧默认空输入）。</summary>
     public Func<string, string?>? Prompt => _prompt;
 
-    /// <summary>密码输入回调（命令 readPassword → TUI 遮蔽输入模态；null — 命令侧默认空串。S7 接线未决）。</summary>
+    /// <summary>密码输入回调（命令 readPassword → TUI 遮蔽输入模态；null — 命令侧默认空串。双方均未接线，遗留项）。</summary>
     public Func<string, string?>? ReadPassword => _readPassword;
 
     /// <summary>已绑定任一回调（internal — Program 接线测试断言面）。</summary>

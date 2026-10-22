@@ -74,6 +74,7 @@ global using JoinCode.App.Modules;
 global using JoinCode.ChatCommands;
 global using JoinCode.ChatCommands.Bridge;
 global using JoinCode.Cli;
+global using JoinCode.Cli.Commands;
 global using JoinCode.Cli.Commands.Prefix;
 global using JoinCode.Cli.Interaction;
 global using JoinCode.Cli.Output;

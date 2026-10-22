@@ -44,20 +44,51 @@
 
 status/version/help/context/doctor/env/usage/stats/cost/config list/tasks/history/files/tag list/trust list/privacy-settings show/theme/effort/vendor/model info/agents/summary/worktree list/branch list/session list/debuglog/?（别名）
 
-## 四、修复计划（登记后逐个守卫修复）
+## 四、修复计划（登记后逐个守卫修复 — 全部完成）
 
-- [ ] F1（断层1+实锤10）：/exit /quit /logout 退出链（ShouldContinue 消费 + 退出反馈）
-- [ ] F2（断层9）：LocalToolRegistry 过早释放根因修复（TUI 模块链差异调查）
-- [ ] F3（断层2）：交互回调接 TUI 权限对话框桥（Confirm/Prompt 最小面）
-- [ ] F4（断层3）：/clear 屏幕清（ClearScreen 回调接 ReplShell 清滚动区）
-- [ ] F5（断层4）：ChatCommandRegistry 引擎 DI 单例注册（消除每次重建）
-- [ ] F6-F8：按优先级排期
-- [ ] 修后探针复跑全绿 + 扩全命令集 + 用户手工验证清单
+- [x] F1 退出链：/exit /quit /logout ShouldContinue 消费（上游 M8-5 TuiCommandCallbacks 架构 + 本侧命令名提示行融合，rebase 已收）
+- [x] F2 registry 过早释放：8 处命令 await using DI 单例违规根因修复（is-pattern 借用 + ToolRegistryAdapter 非 owner 零转发 + 守卫测试）
+- [x] F2b 交互命令模态化：confirm/prompt 接 TUI 对话框（CommandDialogCoordinator TCS 桥，照抄 TuiPermissionBridge 先例；ReadPassword 降级遗留）
+- [x] F3 /clear 屏幕清：上游 M8-5 ClearMessagesExceptBannerAndSpinner（rebase 融合收编）
+- [x] F4 registry DI 单例：引擎域 SlashCommandModule(Order=50) 注册（CLI 链由 CliModule 自有注册职责分离）+ Runner DI 优先
+- [x] F5 IsEnabled 动态门控：SlashCommandSource 运行时过滤（registry 缺席降级静态值）
+- [x] F6 命令输出纯文本渲染：InProcessEventConsumer.BeginCommandTurn 纯文本模式（Markdown=null 跳过投影，/help 不再重排）
+- [x] F7 /model hint 失配：Host 装配层 ApplyPickerHints（model → "（无参打开选择器）"）
+- [x] F8 大小写统一：SlashSuggester 四处 OrdinalIgnoreCase（/EXIT 可匹配）
+- [x] 生产 bug：EffortCommand max + ModelCatalog 缺失未捕获崩溃 → 保守降级 high（代理 C 登记 + 红绿修复）
+- [x] 探针复跑全绿 33/33
+
+### 三代理并行批次（2026-10-22 第二波）
+
+| 代理 | 任务 | 交付 |
+|------|------|------|
+| A | F2b 交互模态化 + F6 纯文本 | CommandDialogCoordinator/Item + ReplShell 桥门面 + 30 测试（含 xunit 并行互踩真缺陷修复：slash-command-serial Collection） |
+| B | F4/F5/F7/F8 | SlashCommandModule + Runner 测试锁定 + SlashCommandSource 门控 + ApplyPickerHints + 大小写 4 处，4+3+3+38 测试 |
+| C | 零测试命令补测 P1+P2 | 13 命令 129 测试（login/logout/trust/permissions/reset-config/privacy-settings/help/stats/quit/fork/effort/fast/version）+ 3 生产隐患登记（effort 已修；UsageTracker 可空契约、Dialog 静态不可注入待排期） |
 
 ## 五、验收表
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
 | 三代理调研报告 | 本文档 | ✅ | — |
-| --selftest-commands 批量探针 | 真实链路逐命令实测 | 待做 | 待做 |
-| 断层 F1-F8 修复 | 各命令 | 待做 | 待用户手工验证 |
+| --selftest-commands 批量探针 | 真实链路逐命令实测 | ✅ 33/33 两轮全绿 | ✅ ADR 0080 探针实证 |
+| 断层 F1-F8 修复 | 各命令 | ✅ | 待用户手工验证 |
+| 测试基线 | composition 408 / NativeTui 1265 / Host 99 / host.tests 1419 | ✅ 全绿 | ✅ |
+
+## 六、用户手工验证清单（真机 Host.exe）
+
+| # | 命令 | 预期 |
+|---|------|------|
+| 1 | /exit | 弹 y/N 确认对话框（F2b 模态）→ y 后显示 "⎿ /exit — 退出 jcc" 退出 |
+| 2 | /help | 对齐纯文本不重排（F6：缩进不被 Markdown 解释） |
+| 3 | /model | 补全提示 "（无参打开选择器）"（F7），回车弹选择器 |
+| 4 | /EXIT（大写） | 补全列表命中 exit（F8） |
+| 5 | /effort max | sensenova 模型降级 high 提示不崩溃（生产 bug 修复） |
+| 6 | /mcp list 后再 /tools | 无"锁已释放"（F2 registry 存活） |
+| 7 | /commit（有暂存时） | 弹确认对话框（F2b）而非静默拒绝 |
+
+<!-- 🤖 Auto Decision: 2026-10-22 -->
+<!-- 决策: 三代理文件域零重叠并行（A 交互模态 / B DI 化+补全层 / C 补测），禁 commit 由主代理统一收尾 -->
+<!-- 原因: 用户指令"后续任务能并行多个子代理去实现吗"；撞车风险已先行排查（上游 M8 八批收口无新批次在飞） -->
+<!-- 替代方案: 串行（慢三倍且三域独立无依赖） -->
+<!-- 验证: 四域 408+1265+99+1419 全绿 + 双探针 33/33 + effort 崩溃红转绿 17/17 ✅ -->

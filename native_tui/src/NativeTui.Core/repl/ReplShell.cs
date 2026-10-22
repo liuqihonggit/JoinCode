@@ -34,6 +34,10 @@ public sealed class ReplShell
     /// <summary>权限对话框协调器（M7-3 — 挂起时键盘模态改道）。</summary>
     private readonly PermissionCoordinator _permission = new();
 
+    /// <summary>命令交互对话框协调器（TASK065 F2 — 斜杠命令 confirm/prompt 挂起时键盘模态改道，
+    /// 优先级低于权限对话框）。</summary>
+    private readonly CommandDialogCoordinator _commandDialog = new();
+
     /// <summary>模型选择器协调器（M7-6 — 挂起时键盘模态改道，优先级低于权限对话框）。</summary>
     private readonly ModelPickerCoordinator _modelPicker = new();
 
@@ -220,6 +224,9 @@ public sealed class ReplShell
     /// <summary>权限对话框协调器（宿主权限桥 Begin/Wait 消费面 + 测试断言面）。</summary>
     public PermissionCoordinator Permission => _permission;
 
+    /// <summary>命令交互对话框协调器（TASK065 F2 — 宿主命令桥 Begin/Wait 消费面 + 测试断言面）。</summary>
+    public CommandDialogCoordinator CommandDialog => _commandDialog;
+
     /// <summary>模型选择器协调器（测试断言面）。</summary>
     internal ModelPickerCoordinator ModelPicker => _modelPicker;
 
@@ -320,6 +327,12 @@ public sealed class ReplShell
             CompletePermission(PermissionChoice.Deny);
         }
 
+        // 回合结束时挂起中的命令对话框自动收尾（取消语义 — 命令回调线程解除阻塞，confirm 拒绝/prompt 取消）
+        if (!_driver.IsBusy && _commandDialog.IsPending)
+        {
+            CompleteCommandDialog(accepted: false, promptInput: null);
+        }
+
         // 回合结束 — 排队输入自动发送（TASK060 一问一答节奏：逐回合发队首）
         PumpQueuedInputs();
     }
@@ -362,6 +375,55 @@ public sealed class ReplShell
     {
         _permission.Complete(choice);
         RemoveDialogItem<PermissionRequestItem>();
+    }
+
+    /// <summary>
+    /// 命令确认同步桥（TASK065 F2 — 宿主 Bind 接线点：TuiCommandCallbacks.Confirm → 此处）：
+    /// 挂起确认对话框 + 同步阻塞等用户按键（回合在后台线程 — 对齐 TuiPermissionBridge.Confirm 先例，
+    /// 主循环模态按键解除）。仅 Begin 的轻量形态供测试注入（不阻塞）。
+    /// </summary>
+    public bool ConfirmCommand(string message)
+    {
+        BeginCommandConfirm(message);
+        return _commandDialog.WaitConfirm().GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// 命令输入同步桥（同上 — prompt 形态；Esc 取消返回 null 对齐命令侧可空语义）。
+    /// </summary>
+    public string? PromptCommand(string message)
+    {
+        BeginCommandPrompt(message);
+        return _commandDialog.WaitPrompt().GetAwaiter().GetResult();
+    }
+
+    /// <summary>挂起命令确认对话框（插入滚动区，模态路由生效）。</summary>
+    public void BeginCommandConfirm(string message)
+    {
+        _commandDialog.BeginConfirm(message);
+        AddMessage(new CommandDialogItem(_commandDialog));
+    }
+
+    /// <summary>挂起命令输入对话框（插入滚动区，模态路由生效）。</summary>
+    public void BeginCommandPrompt(string message)
+    {
+        _commandDialog.BeginPrompt(message);
+        AddMessage(new CommandDialogItem(_commandDialog));
+    }
+
+    /// <summary>完成命令对话框并移除对话框项。</summary>
+    private void CompleteCommandDialog(bool accepted, string? promptInput)
+    {
+        if (_commandDialog.IsPrompt)
+        {
+            _commandDialog.CompletePrompt(promptInput);
+        }
+        else
+        {
+            _commandDialog.CompleteConfirm(accepted);
+        }
+
+        RemoveDialogItem<CommandDialogItem>();
     }
 
     /// <summary>
@@ -453,6 +515,12 @@ public sealed class ReplShell
         if (_permission.IsPending)
         {
             HandlePermissionKey(key);
+            return;
+        }
+
+        if (_commandDialog.IsPending)
+        {
+            HandleCommandDialogKey(key);
             return;
         }
 
@@ -730,6 +798,77 @@ public sealed class ReplShell
         if (key is { Kind: KeyKind.Char, Ctrl: false, Meta: false, Shift: false } && key.Input is "1" or "2" or "3")
         {
             CompletePermission((PermissionChoice)(key.Input[0] - '1'));
+        }
+    }
+
+    /// <summary>
+    /// 命令交互对话框模态按键（TASK065 F2，对齐权限对话框交互形态）：
+    /// confirm — 数字 1/2 直选（Yes/No）+ Enter 选焦点档 + 上下环绕移动焦点 + Esc 取消（No）；
+    /// prompt — 字符尾追加 + Backspace 尾退格 + Enter 提交 + Esc 取消（null）；
+    /// 其余按键全部吞掉（模态 — 不进输入缓冲、不打断回合、不退出）。
+    /// </summary>
+    private void HandleCommandDialogKey(KeyPress key)
+    {
+        if (key.Kind == KeyKind.Escape)
+        {
+            CompleteCommandDialog(accepted: false, promptInput: null);
+            return;
+        }
+
+        if (_commandDialog.IsPrompt)
+        {
+            HandlePromptDialogKey(key);
+            return;
+        }
+
+        HandleConfirmDialogKey(key);
+    }
+
+    /// <summary>confirm 形态按键 — Enter 选焦点档 + 数字直选 + 上下环绕。</summary>
+    private void HandleConfirmDialogKey(KeyPress key)
+    {
+        if (key.Kind == KeyKind.Return)
+        {
+            CompleteCommandDialog(accepted: _commandDialog.ConfirmFocusIndex == 0, promptInput: null);
+            return;
+        }
+
+        if (key.Kind == KeyKind.UpArrow)
+        {
+            _commandDialog.MoveConfirmFocus(-1);
+            return;
+        }
+
+        if (key.Kind == KeyKind.DownArrow)
+        {
+            _commandDialog.MoveConfirmFocus(1);
+            return;
+        }
+
+        if (key is { Kind: KeyKind.Char, Ctrl: false, Meta: false, Shift: false } && key.Input is "1" or "2")
+        {
+            CompleteCommandDialog(accepted: key.Input[0] == '1', promptInput: null);
+        }
+    }
+
+    /// <summary>prompt 形态按键 — 字符尾追加 + 退格 + Enter 提交（空输入视为提交空串，对齐 CLI 语义）。</summary>
+    private void HandlePromptDialogKey(KeyPress key)
+    {
+        if (key.Kind == KeyKind.Return)
+        {
+            CompleteCommandDialog(accepted: false, promptInput: _commandDialog.PromptInput);
+            return;
+        }
+
+        if (key.Kind == KeyKind.Backspace && !key.Ctrl && !key.Meta)
+        {
+            _commandDialog.BackspacePromptInput();
+            return;
+        }
+
+        if (key is { Kind: KeyKind.Char, Ctrl: false, Meta: false } && key.Input.Length == 1)
+        {
+            _commandDialog.AppendPromptInput(key.Input[0]);
         }
     }
 

@@ -105,6 +105,27 @@ public sealed class ReplShellWiringPermissionThemeTests
         Assert.Equal(1, shell.View.Footer.Notifications!.QueuedCount);
     }
 
+    /// <summary>S11 遗留#3 双通道裁决 — /theme auto：TUI 侧支持 auto 名（本地色板按当前时段解析
+    /// + 持久化写 auto 字面量 — 与引擎侧 SetAsync("theme","auto") 语义一致，重启后 Host 侧再解析）。</summary>
+    [Fact]
+    public async Task ThemeCommand_Auto_PersistsAutoLiteral()
+    {
+        var engine = new FakeReplEngine();
+        var saved = new List<string>();
+        var shell = new ReplShell(engine, new BannerItem("1", "m", "b", "/tmp"), new StringWriter(),
+            sizeSource: new FakeTerminalSizeSource(80, 24),
+            saveThemeAsync: name => { saved.Add(name); return Task.CompletedTask; });
+        shell.SeedContent();
+
+        Type(shell, "/theme auto");
+        shell.Submit();
+
+        await WaitForAsync(() => saved.Count > 0);
+        // 持久化写原名 auto 字面量（非解析后的 dark/light）
+        Assert.Equal(["auto"], saved);
+        Assert.Empty(engine.Submits);
+    }
+
     /// <summary>S11 遗留#1 — /theme 合法名：持久化委托 fire-and-forget 收到主题名
     ///（宿主写回 settings.json 闭环；未知名不触发持久化）。</summary>
     [Fact]

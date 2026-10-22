@@ -5,6 +5,8 @@ namespace NativeTui.Tests.Repl;
 /// 结构性编辑前压快照（text+cursor），Undo 弹栈恢复；相同文本去重；容量 100 淘汰最旧；
 /// 纯移动不产生 undo 点；Clear（提交语义）联动清栈。
 /// </summary>
+/// <summary>KillRing 静态单例串行编排（全局态断言跨类并行碰撞根治 — 同 Collection 类串行执行）。</summary>
+[Collection("kill-ring")]
 public sealed class InputUndoTests
 {
     public InputUndoTests()

@@ -339,7 +339,7 @@ public static class Program {
     }
 
     /// <summary>加载主题配置名（S9 接线 — 引擎 settings.json 的 theme 键经 IConfigurationService 读取）：
-    /// auto 按本地小时解析 light/dark（6-18 点 light，对齐引擎 ThemeCommand.ApplyTheme 的 auto 分支）；
+    /// auto 经 ThemeSelection.ResolveAutoName 唯一数据源解析（S11 遗留#3 收编 — 小时判定不再本地重写）；
     /// 未配置/读取失败返回 null（ReplShell 侧 ThemeSelection.Resolve 回退 dark）。</summary>
     private static async Task<string?> LoadThemeNameAsync(IServiceProvider services) {
         try {
@@ -351,7 +351,7 @@ public static class Program {
             var theme = await config.GetAsync("theme").ConfigureAwait(false);
             if (string.IsNullOrEmpty(theme) || theme == "auto") {
                 return theme == "auto"
-                    ? (DateTime.Now.Hour is >= 6 and < 18 ? ThemeSelection.LightName : ThemeSelection.DarkName)
+                    ? ThemeSelection.ResolveAutoName(DateTime.Now.Hour)
                     : null;
             }
 

@@ -5,6 +5,8 @@ namespace NativeTui.Tests.Repl;
 /// 词 = 字母数字连续段（CJK 每字自成一词），kill ring 全局共享（MaxSize 10），
 /// 连续 kill 累积（append/prepend），Ctrl+Y yank、Alt+Y yank-pop 替换。
 /// </summary>
+/// <summary>KillRing 静态单例串行编排（全局态断言跨类并行碰撞根治 — 同 Collection 类串行执行）。</summary>
+[Collection("kill-ring")]
 public sealed class InputBufferWordTests
 {
     public InputBufferWordTests()

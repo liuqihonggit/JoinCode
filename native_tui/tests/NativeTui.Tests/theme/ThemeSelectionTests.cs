@@ -12,6 +12,7 @@ public sealed class ThemeSelectionTests
     {
         string[] expected =
         [
+            "auto",
             "dark",
             "light",
             "light-daltonized",
@@ -19,14 +20,16 @@ public sealed class ThemeSelectionTests
             "light-ansi",
             "dark-ansi",
         ];
+        // S11 遗留#3 — auto 收编清单首位（七名，对齐引擎侧 ThemeCommand）
         Assert.Equal(expected, ThemeSelection.Names);
     }
 
     [Fact]
     public void Names_MatchNameConstants()
     {
-        // 名称常量与清单同源锁定（防清单与常量两套硬编码漂移）
-        Assert.Equal(6, ThemeSelection.Names.Count);
+        // 名称常量与清单同源锁定（防清单与常量两套硬编码漂移；auto 收编后七名）
+        Assert.Equal(7, ThemeSelection.Names.Count);
+        Assert.Contains(ThemeSelection.AutoName, ThemeSelection.Names);
         Assert.Contains(ThemeSelection.DarkName, ThemeSelection.Names);
         Assert.Contains(ThemeSelection.LightName, ThemeSelection.Names);
         Assert.Contains(ThemeSelection.LightDaltonizedName, ThemeSelection.Names);

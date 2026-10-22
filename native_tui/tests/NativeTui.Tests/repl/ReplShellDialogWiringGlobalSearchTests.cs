@@ -191,6 +191,10 @@ public sealed class ReplShellDialogWiringGlobalSearchTests
         shell.DrainEngine();
         await WaitForAsync(() => source.Tokens.Count > 0);
         var token = source.Tokens[0];
+        // flaky 根治：等异步搜索完成 Results 填充再 enter（Tokens>0 只证 searcher 被调，
+        // BeginSearchAsync 的 await 续体可能尚未给 dialog.Results 赋值 — Results 空时
+        // Confirm 置 null 走空态关闭分支不插入引用）
+        await WaitForAsync(() => shell.GlobalSearchDialog?.Results.Count > 0);
 
         shell.HandleRawKeyPress(new KeyPress(KeyKind.Return, string.Empty));
 

@@ -1527,13 +1527,32 @@ public sealed class ReplShell
         }
 
         var queryBefore = dialog.Query;
+        var confirmKey = key.Kind == KeyKind.Return;
         dialog.TryHandleKey(key);
-        if (dialog.SelectedMatch is { } match)
+        if (confirmKey)
         {
-            // enter 确认 — 组件契约"消费后调 Close 接管"：宿主取走选中项关闭并接管插入
+            // enter 确认（flaky 根治：无论 SelectedMatch 有无都关闭 — 异步搜索未完成时 Results 空
+            // → Confirm 置 null，用户确认动作即结束对话框，不应残留空态模态）
+            if (dialog.SelectedMatch is { } match)
+            {
+                RemoveGlobalSearchDialog();
+                InsertAtCursor($"@{match.File}#L{match.Line} ");
+                _notifications.Enqueue($"已引用 {match.File}#L{match.Line}");
+            }
+            else
+            {
+                RemoveGlobalSearchDialog();
+            }
+
+            return;
+        }
+
+        if (dialog.SelectedMatch is { } lateMatch)
+        {
+            // 防御：非 enter 路径的选中残留（组件契约外形态）— 同形态收尾
             RemoveGlobalSearchDialog();
-            InsertAtCursor($"@{match.File}#L{match.Line} ");
-            _notifications.Enqueue($"已引用 {match.File}#L{match.Line}");
+            InsertAtCursor($"@{lateMatch.File}#L{lateMatch.Line} ");
+            _notifications.Enqueue($"已引用 {lateMatch.File}#L{lateMatch.Line}");
             return;
         }
 

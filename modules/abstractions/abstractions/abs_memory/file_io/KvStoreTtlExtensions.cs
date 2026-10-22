@@ -49,6 +49,8 @@ public static class KvStoreTtlExtensions {
     /// <summary>
     /// 读取带 TTL 的缓存值并续期 — 命中时用 renewTtl 重新写入,延长缓存生命周期
     /// <para>缓存被读取说明还有用,续期避免热点 key 被清理服务回收</para>
+    /// <para>续期抑制窗口:条目剩余寿命 &gt; renewTtl - SuppressThreshold(默认 1min)时跳过写回 —
+    /// 刚写入不久的新鲜条目无需续期,抑制短间隔重复查询的 LSM 写放大(gh CLI 高频轮询场景)</para>
     /// <para>过期或不存在返回 null(不续期)</para>
     /// </summary>
     /// <param name="store">KV 存储</param>
@@ -62,10 +64,24 @@ public static class KvStoreTtlExtensions {
         if (wrapped is null || wrapped.Length < TimestampSize) return null;
         if (IsExpired(wrapped)) return null;
         var content = wrapped[TimestampSize..];
-        if (renewTtl is not null) {
+        if (renewTtl is not null && ShouldRenew(wrapped, renewTtl.Value)) {
             await store.PutWithTtlAsync(key, content, renewTtl, ct).ConfigureAwait(false);
         }
         return content;
+    }
+
+    /// <summary>续期抑制窗口 — 剩余寿命高于此阈值内的新鲜条目跳过续期写回（1 分钟）。</summary>
+    public static readonly TimeSpan RenewSuppressThreshold = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    /// 续期判定 — 剩余寿命 &gt; renewTtl - SuppressThreshold 时条目新鲜无需续期
+    ///（写入后 1 分钟内的重复查询零写回；仅当寿命进入最后 1 分钟窗口才续期拉满）。
+    /// </summary>
+    private static bool ShouldRenew(byte[] wrapped, TimeSpan renewTtl) {
+        var expiryTicks = BitConverter.ToInt64(wrapped, 0);
+        if (expiryTicks < DateTime.MinValue.Ticks || expiryTicks > DateTime.MaxValue.Ticks) return false;
+        var remaining = new DateTime(expiryTicks, DateTimeKind.Utc) - DateTime.UtcNow;
+        return remaining < renewTtl - RenewSuppressThreshold;
     }
 
     /// <summary>

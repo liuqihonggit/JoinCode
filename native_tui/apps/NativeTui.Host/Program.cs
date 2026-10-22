@@ -350,6 +350,14 @@ public static class Program {
                 var terminalStatus = new TerminalStatusCoordinator(
                     tuiOutput, titleTracker, tabStatusEnabled,
                     progressEnabled: TerminalCapabilities.IsProgressReportingAvailable());
+                // TASK066 板块B 连线B4 — 用户键位装配（~/.jcc/keybindings.json 覆盖默认表）：
+                // 缺文件静默回退默认（ENOENT 语义）；坏条目尽力合并（合法条目生效、错误条目跳过）
+                // + 校验错误 stderr 诊断不中断启动（对齐 command-history 坏文件降级 + 诊断先例）
+                var keybindingLoad = KeybindingLoader.Load();
+                foreach (var keybindingError in keybindingLoad.Errors)
+                {
+                    Console.Error.WriteLine(keybindingError.ToString());
+                }
                 var shell = new ReplShell(pickerEngine, banner, tuiOutput, commands: commands,
                     clipboard: text => _ = clipboardService?.SetTextAsync(text),
                     themeName: themeName,
@@ -379,7 +387,10 @@ public static class Program {
                     // paste 整块直出；双终端实测矩阵跑齐后 P3 切默认）；引用留 Host 收尾 Dispose
                     inputPump: rawInputPump,
                     // TASK066 板块A — 终端状态协调器（null 降级路径仅测试用 — 宿主恒装配）
-                    terminalStatus: terminalStatus);
+                    terminalStatus: terminalStatus,
+                    // TASK066 板块B — 键位绑定表（用户 json 合并结果 — 全局键层表驱动数据源，
+                    // esc/ctrl+g/ctrl+o/ctrl+l/ctrl+r/ctrl+s/ctrl+d 等非模态全局键走表查询）
+                    keybindings: keybindingLoad.Profile);
                 pickerEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);

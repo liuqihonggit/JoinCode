@@ -5,7 +5,9 @@ namespace NativeTui.Core.Repl;
 /// 主循环每 50ms 一拍：排空键盘 → 排空引擎事件（ReplBridgeDriver 应用到视图）→ 差分上屏 → 帧率对齐。
 /// 回合生命周期全事件驱动（TurnStarted 挂 busy，TurnCompleted/TurnInterrupted 解除 — 不乐观预挂）；
 /// 引擎交互经 IReplEngine（提交/打断/权限模式），渲染双模式（inline 主屏 log-update / viewport 全屏 diff）；
-/// Esc 忙时打断/闲时清输入或退出，Shift+Tab 权限循环（引擎回执为准）。
+/// Esc 忙时打断/闲时清输入或退出，Shift+Tab 权限循环（引擎回执为准）；
+/// 全局键层表驱动（TASK066 B4 — KeybindingProfile 数据源：非模态全局键匹配走键位表查询，
+/// 用户 json 覆盖/解绑即生效；模态内部键保持硬编码）。
 /// 渲染走注入的独立 writer — 宿主负责隔离引擎内部输出（Host 重定向 stderr）。
 /// </summary>
 public sealed class ReplShell
@@ -107,7 +109,7 @@ public sealed class ReplShell
 
     /// <summary>ctrl+d 退出确认链（S6 任务 6 — 基准 useExitOnCtrlCD/useDoublePress 语义）：
     /// 窗口内二次按下 → 退出；首次按下 → 通知提示"再按一次 ctrl+d 退出"（3s 到期自动清除 = 窗口过期）；
-    /// 空输入门槛由 HandleCtrlKey "d" 分支保证（有文本时 ctrl+d 是删除字符）。
+    /// 空输入门槛由 DispatchCtrlAction AppExit 分支保证（B4 表驱动 — 有文本时 ctrl+d 是删除字符）。
     /// 时钟复用 EscClock 注入面（测试可控时间戳）。</summary>
     private void HandleExitCtrlD()
     {
@@ -252,12 +254,22 @@ public sealed class ReplShell
     /// 元组 = (发起时原文, 编辑后文本 — null = 编辑器失败/取消丢弃信号)。</summary>
     private readonly ConcurrentQueue<(string Original, string? Edited)> _externalEditorResults = new();
 
-    /// <summary>ctrl+x 前缀序列标记（M2 — 基准 defaultBindings.ts:83-84 ctrl+x ctrl+e →
-    /// chat:externalEditor 第二键位）：ctrl+x 置位，紧随其后的 ctrl+e 消费触发外部编辑器；
+    /// <summary>键位绑定表（TASK066 板块 B 连线 B4 — 全局键层表驱动数据源）：
+    /// esc 识别（chat:cancel）与 ctrl 组合分派（chat:externalEditor/app:toggleTranscript/app:redraw/
+    /// history:search/chat:stash/app:exit）等非模态全局键匹配走 MatchAction/MatchSequence/
+    /// IsSequenceStart 查询（用户表覆盖/解绑即生效）；
+    /// 默认 KeybindingProfile.Default（构造不注入 = 零行为变化 — 既有测试契约兜底）；
+    /// 模态内部键（权限对话框数字键/模型选择器方向键/transcript less 键位）保持硬编码，渐进式后续迁移。</summary>
+    private readonly KeybindingProfile _keybindings;
+
+    /// <summary>序列前缀首键（M2 → B4 数据源化 — 原布尔 _ctrlXPrefix 升级承载首键数据）：
+    /// IsSequenceStart 命中的序列首键（默认 ctrl+x ctrl+e / ctrl+x ctrl+k 的 ctrl+x）置位等待后续，
+    /// 紧随其后的第二键经 MatchSequence 完整触发分派（chat:externalEditor 等序列 action）；
     /// HandleCtrlKey 入口捕获复位 — 任何其他 ctrl 键到达即作废前缀态（无超时简化：基准无超时，
-    /// 陈旧前缀由下一次 ctrl 键到达自然清除；ctrl+x 自身重新置位延续等待 — readline 前缀语义，
-    /// 可扩展承载后续 ctrl+x ctrl+k 等序列，本批次仅接编辑器不预埋）。</summary>
-    private bool _ctrlXPrefix;
+    /// 陈旧前缀由下一次 ctrl 键到达自然清除；序列首键自身重新置位延续等待 — readline 前缀语义，
+    /// 可扩展承载后续序列键，表驱动后用户表可自行绑定新序列）；
+    /// 非 ctrl 键由 HandleKeyPress 入口清除；null = 无挂起前缀。</summary>
+    private KeyPress? _sequenceFirstKey;
 
     /// <summary>导出对话对话框挂载态（S12 四域接线 — /export 命令拦截挂载 ExportDialog 模态；
     /// null = 未挂载；互斥由分派链序保证 — 模态激活期间其余对话框触发键被吞）。</summary>
@@ -368,7 +380,11 @@ public sealed class ReplShell
     /// saveExportAsync=导出文件写委托（S12 — /export 确认 File 目标后写盘；导出全文 →
     /// 写入文件名（null = 失败）；null 委托 = 文件导出降级错误反馈）；
     /// searchSource=全局搜索源（S12 — ctrl+shift+f 对话框搜索后端；宿主注入 rg 执行器，
-    /// null = 无后端降级提示 rg 不可用）。</summary>
+    /// null = 无后端降级提示 rg 不可用）；
+    /// terminalStatus=终端状态协调器（TASK066 A5-A8 — 标题/21337 tab/9;4 进度三路输出；
+    /// null = 能力降级全静默）；
+    /// keybindings=键位绑定表（TASK066 B4 — 全局键层数据源；null = KeybindingProfile.Default
+    /// 零行为变化；宿主注入 KeybindingLoader 用户合并表 — ~/.jcc/keybindings.json 覆盖默认键）。</summary>
     public ReplShell(
         IReplEngine engine,
         BannerItem banner,
@@ -389,7 +405,8 @@ public sealed class ReplShell
         IInputPump? inputPump = null,
         Func<string, Task<string?>>? saveExportAsync = null,
         ISearchSource? searchSource = null,
-        TerminalStatusCoordinator? terminalStatus = null)
+        TerminalStatusCoordinator? terminalStatus = null,
+        KeybindingProfile? keybindings = null)
     {
         _engine = engine;
         _banner = banner;
@@ -404,6 +421,8 @@ public sealed class ReplShell
         _saveThemeAsync = saveThemeAsync;
         _inputPump = inputPump ?? new ReadKeyPump();
         _terminalStatus = terminalStatus;
+        // TASK066 B4 — 键位表注入（null = 默认表零行为变化 — 既有测试契约兜底）
+        _keybindings = keybindings ?? KeybindingProfile.Default;
         _onStopTask = onStopTask;
         _launchExternalEditor = launchExternalEditor;
         _saveExportAsync = saveExportAsync;
@@ -783,9 +802,12 @@ public sealed class ReplShell
     /// → transcript 全屏模态（S6 收敛：Controller.IsActive 时整屏独占 — 激活时光标态不可达
     /// （进入被建议后分派拦截），j/k 归 transcript less 键位）
     /// → 帮助面板模态（S6：空闲态 '?' 弹出/Esc 关闭）
-    /// ，其余 Emacs 编辑（Ctrl/Meta 词操作 + kill ring），控制键走编辑/提交/权限，字符插入。</summary>
+    /// ，其余 Emacs 编辑（Ctrl/Meta 词操作 + kill ring），控制键走编辑/提交/权限，字符插入。
+    /// 全局键层表驱动（TASK066 B4 — esc 识别（chat:cancel）与 ctrl 组合分派走 _keybindings
+    /// 键位表查询：单键 MatchAction / 序列 MatchSequence / 首键 IsSequenceStart；模态内部键保持硬编码）。</summary>
     private void HandleKeyPress(KeyPress key)
     {
+
         // A7 接线 — 焦点事件拦截（DEC 1004 CSI I/O）：吞掉不分派（不插入字符），
         // 更新失焦态 + 转发协调器（标题动画暂停/恢复）
         if (key.Kind is KeyKind.FocusIn or KeyKind.FocusOut)
@@ -795,11 +817,11 @@ public sealed class ReplShell
             return;
         }
 
-        // M2 序列前缀清除 — 非 ctrl 键（打字/箭头/Esc 等）插断 ctrl+x 序列：
-        // 防陈旧前缀被后续 ctrl+e 误触外部编辑器（HandleCtrlKey 入口只清 ctrl 键路径）
-        if (!key.Ctrl && _ctrlXPrefix)
+        // M2 序列前缀清除 — 非 ctrl 键（打字/箭头/Esc 等）插断序列前缀（B4 数据源化后清首键记录）：
+        // 防陈旧前缀被后续第二键误触序列（HandleCtrlKey 入口只清 ctrl 键路径）
+        if (!key.Ctrl && _sequenceFirstKey is not null)
         {
-            _ctrlXPrefix = false;
+            _sequenceFirstKey = null;
         }
 
         if (_permission.IsPending)
@@ -923,7 +945,10 @@ public sealed class ReplShell
             return;
         }
 
-        if (key.Kind == KeyKind.Escape)
+        // TASK066 B4 — esc 键识别走表（chat:cancel 默认绑定 escape — 用户表改绑/解绑即生效）；
+        // 语义分支保持不动：忙时排队弹回/双击打断（时间窗逻辑在 HandleEscape）、闲时清输入
+        //（输入框空/有内容语义分流沿用 — 只换键识别不换语义）
+        if (_keybindings.MatchAction(KeybindingContext.Chat, key) == KeybindingAction.ChatCancel)
         {
             HandleEscape();
             return;
@@ -981,7 +1006,7 @@ public sealed class ReplShell
 
         if (key.Ctrl && key.Kind == KeyKind.Char)
         {
-            HandleCtrlKey(key.Input);
+            HandleCtrlKey(key);
             return;
         }
 
@@ -1049,18 +1074,45 @@ public sealed class ReplShell
         }
     }
 
-    /// <summary>Ctrl 组合分派（对齐基准 handleCtrl 表）。
-    /// M2 新增 ctrl+x ctrl+e 第二键位（基准 defaultBindings.ts:83-84 chat:externalEditor —
-    /// ctrl+x 为前缀键：置 _ctrlXPrefix 序列标记，紧随其后的 ctrl+e 触发外部编辑器；
+    /// <summary>Ctrl 组合分派（对齐基准 handleCtrl 表 + TASK066 B4 全局键层表驱动）：
+    /// 非模态全局键匹配走 <see cref="_keybindings"/> 查询 — 完整序列（MatchSequence）与单键
+    ///（MatchAction，Chat 桶键级回退 Global）命中后经 <see cref="DispatchCtrlAction"/> 分派，
+    /// 序列首键（IsSequenceStart）置前缀等待（用户表覆盖/解绑即生效）；
+    /// 未接管键落字面 Emacs 编辑 switch（a/b/c/d/f/h/k/n/p/u/w/y/_ — 编辑域键位表不管辖）。
     /// 入口捕获复位 — 任何其他 ctrl 键到达即作废前缀态，无超时简化；
-    /// 前缀态优先于 End() 编辑语义 — 单独 ctrl+e 仍是行尾，语义不破坏）。</summary>
-    private void HandleCtrlKey(string name)
+    /// 前缀态优先于 End() 编辑语义 — 单独 ctrl+e 仍是行尾，语义不破坏。</summary>
+    private void HandleCtrlKey(KeyPress key)
     {
-        // ctrl+x 前缀捕获复位（M2 — 进入即复位：仅 "e" 分支消费触发；
-        // "x" 分支重新置位延续等待，其余 ctrl 键到达即作废前缀态）
-        var ctrlXPrefix = _ctrlXPrefix;
-        _ctrlXPrefix = false;
-        switch (name)
+        // B4 — 序列前缀捕获复位（进入即复位：完整序列分支消费触发；
+        // 序列首键分支重新置位延续等待，其余 ctrl 键到达即作废前缀态）
+        var prefixKey = _sequenceFirstKey;
+        _sequenceFirstKey = null;
+
+        // B4 — 完整序列触发（chat:externalEditor 默认 ctrl+x ctrl+e — 用户表改绑序列即生效；
+        // 序列命中但未接管（如 app:exit 有文本）时继续落下方单键/编辑路径）
+        if (prefixKey is { } first && _keybindings.MatchSequence(KeybindingContext.Chat, [first, key]) is { } sequenceAction
+            && DispatchCtrlAction(sequenceAction))
+        {
+            return;
+        }
+
+        // B4 — 单键全局键分派（chat:externalEditor=ctrl+g / app:toggleTranscript=ctrl+o /
+        // app:redraw=ctrl+l / history:search=ctrl+r / chat:stash=ctrl+s / app:exit=ctrl+d 空输入 —
+        // 序列键不参与单键匹配，MatchAction 跳过多键 chord 对齐基准 resolver Phase 1）
+        if (_keybindings.MatchAction(KeybindingContext.Chat, key) is { } action && DispatchCtrlAction(action))
+        {
+            return;
+        }
+
+        // B4 — 序列首键挂起（IsSequenceStart — ctrl+x 为 Chat 桶序列首键时置前缀等待后续；
+        // 基准 killAgents ctrl+x ctrl+k 未做不预埋，表驱动后用户表可自行扩展序列）
+        if (_keybindings.IsSequenceStart(KeybindingContext.Chat, key))
+        {
+            _sequenceFirstKey = key;
+            return;
+        }
+
+        switch (key.Input)
         {
             case "a":
                 _input.Home();
@@ -1072,53 +1124,27 @@ public sealed class ReplShell
                 CopyLastAssistantMessage();
                 break;
             case "d":
-                if (_input.Text.Length == 0)
-                {
-                    HandleExitCtrlD();
-                }
-                else
+                // B4 — 空输入双击退出路径已上移 DispatchCtrlAction(AppExit)；
+                // 此处仅有文本时的删除字符（编辑语义 — 键位表不管辖；表解绑 app:exit 时空输入 no-op）
+                if (_input.Text.Length > 0)
                 {
                     _input.Delete();
                 }
 
                 break;
             case "e":
-                // M2 — 前缀态优先劫持进外部编辑器；非前缀保持 End() 编辑语义（单独 ctrl+e 仍是行尾）
-                if (ctrlXPrefix)
-                {
-                    LaunchExternalEditor();
-                }
-                else
-                {
-                    _input.End();
-                }
-
+                // B4 — 前缀态消费已上移 MatchSequence 分支（序列第二键不再到达此处）；
+                // 非前缀保持 End() 编辑语义（单独 ctrl+e 仍是行尾）
+                _input.End();
                 break;
             case "f":
                 _input.Right();
-                break;
-            case "g":
-                // TASK064 P3 — 基准 defaultBindings.ts:83-84 ctrl+g/ctrl+x ctrl+e → chat:externalEditor → $EDITOR
-                LaunchExternalEditor();
                 break;
             case "h":
                 _input.Backspace();
                 break;
             case "k":
                 _input.KillToLineEnd();
-                break;
-            case "l":
-                ForceFullRepaint();
-                break;
-            case "r":
-                BeginOrCycleSearch();
-                break;
-            case "s":
-                // TASK064 P3 — 基准 chat:stash：收起当前输入（忙/闲均可用），提交后自动恢复
-                StashInput();
-                break;
-            case "o":
-                ToggleTranscript();
                 break;
             case "n":
                 ScrollIfViewport(3);
@@ -1132,11 +1158,6 @@ public sealed class ReplShell
             case "w":
                 _input.KillWordBefore();
                 break;
-            case "x":
-                // M2 — ctrl+x 前缀键（仅接 ctrl+x ctrl+e 编辑器；基准 killAgents ctrl+x ctrl+k
-                // 未做不预埋 — 序列标记 _ctrlXPrefix 可扩展承载后续序列）
-                _ctrlXPrefix = true;
-                break;
             case "y":
                 _input.Yank();
                 break;
@@ -1146,6 +1167,56 @@ public sealed class ReplShell
                 break;
             default:
                 break;
+        }
+    }
+
+    /// <summary>TASK066 B4 — 全局键层表驱动分派（ctrl 组合键路径，MatchAction/MatchSequence 命中后路由）：
+    /// chat:cancel→取消/打断（esc 识别在 HandleKeyPress 表查询，ctrl 改绑路径在此分派 —
+    /// 语义分支忙时排队弹回/双击打断/闲时清输入在 HandleEscape 统一承载）；
+    /// chat:externalEditor→外部编辑器 / app:toggleTranscript→转录切换 / app:redraw→强制重绘 /
+    /// history:search→反向搜索 / chat:stash→输入暂存 / app:exit→双击退出（空输入门槛 — 有文本时
+    /// 返回 false 落 ctrl+d 删除字符编辑语义）；
+    /// app:interrupt 恒 false — 保留键 ctrl+c 固定复制（TASK059 退出安全决策；打断由 Esc 双击承载，
+    /// 表绑定 app:interrupt 不新增打断通道）；
+    /// 其余 action 返回 false 落 HandleCtrlKey 字面编辑 switch（编辑域/未接线 action 不管辖）。
+    /// </summary>
+    /// <param name="action">表命中的键位动作。</param>
+    /// <returns>是否已消费（true = 分派完成，不再落编辑键路径）。</returns>
+    private bool DispatchCtrlAction(KeybindingAction action)
+    {
+        switch (action)
+        {
+            case KeybindingAction.ChatCancel: // chat:cancel（默认 escape — 改绑 ctrl 组合键在此承接取消语义）
+                HandleEscape();
+                return true;
+            case KeybindingAction.ChatExternalEditor: // chat:externalEditor（默认 ctrl+g / ctrl+x ctrl+e）
+                LaunchExternalEditor();
+                return true;
+            case KeybindingAction.AppToggleTranscript: // app:toggleTranscript（默认 ctrl+o）
+                _transcript.Toggle();
+                SyncTranscriptView();
+                return true;
+            case KeybindingAction.AppRedraw: // app:redraw（默认 ctrl+l）
+                ForceFullRepaint();
+                return true;
+            case KeybindingAction.HistorySearch: // history:search（默认 ctrl+r）
+                BeginOrCycleSearch();
+                return true;
+            case KeybindingAction.ChatStash: // chat:stash（默认 ctrl+s）
+                StashInput();
+                return true;
+            case KeybindingAction.AppExit: // app:exit（默认 ctrl+d — 双击确认窗口逻辑在 HandleExitCtrlD 保留）
+                if (_input.Text.Length == 0)
+                {
+                    HandleExitCtrlD();
+                    return true;
+                }
+
+                return false; // 有文本 — ctrl+d 是删除字符（编辑语义，落字面 switch "d"）
+            case KeybindingAction.AppInterrupt: // app:interrupt（默认 ctrl+c）— 保留键固定复制，见方法注释
+                return false;
+            default:
+                return false;
         }
     }
 
@@ -1701,9 +1772,10 @@ public sealed class ReplShell
     }
 
     /// <summary>transcript 模态按键（S6 收敛 — S5 TranscriptController 唯一引擎）：
-    /// ctrl+o 分派契约 `IsActive ? (TryHandleKey || toggle) : toggle` — Controller 未消费
-    /// （less 键位/搜索/退出之外）且是 ctrl+o 时切换退出（搜索栏打开时 ctrl+o 故意穿透
-    /// 供此路径退出）；ctrl+c 穿透回宿主继续分派（TranscriptController 注释契约 — 复制/全局路径）；
+    /// 分派契约 `IsActive ? (TryHandleKey || toggle) : toggle` — Controller 未消费
+    ///（less 键位/搜索/退出之外）且命中 app:toggleTranscript 绑定时切换退出（默认 ctrl+o —
+    /// B4 表驱动与外层进入键同源；搜索栏打开时该键故意穿透供此路径退出）；
+    /// ctrl+c 穿透回宿主继续分派（TranscriptController 注释契约 — 复制/全局路径）；
     /// 其余未消费键吞掉（模态 — 字符不进输入框）。
     /// 每键后同步视图投影（滚动/搜索/进出态立即反映 — 渲染帧兜底刷新）。</summary>
     private void HandleTranscriptKey(KeyPress key)
@@ -1714,7 +1786,9 @@ public sealed class ReplShell
             return;
         }
 
-        if (key.Ctrl && key is { Kind: KeyKind.Char, Input: "o" })
+        // TASK066 B4 — transcript 退出切换键走表（app:toggleTranscript 默认 ctrl+o — 用户表
+        // 改绑后进出键一致；Transcript 桶键级回退 Global，less 键位等模态内部键保持硬编码）
+        if (_keybindings.MatchAction(KeybindingContext.Transcript, key) == KeybindingAction.AppToggleTranscript)
         {
             ToggleTranscript();
             return;
@@ -1723,10 +1797,10 @@ public sealed class ReplShell
         if (key.Ctrl && key is { Kind: KeyKind.Char, Input: "c" })
         {
             // TranscriptController 契约兑现 — ctrl+c 不吞键，穿透回宿主全局分派（TASK059 复制路径）
-            HandleCtrlKey(key.Input);
+            HandleCtrlKey(key);
         }
 
-        // 其余未消费键吞掉（模态 — 修饰组合穿透回宿主仅 ctrl+o/ctrl+c 语义）
+        // 其余未消费键吞掉（模态 — 修饰组合穿透回宿主仅 toggle 绑定/ctrl+c 语义）
     }
 
     /// <summary>切换 transcript 模态 + 视图投影同步 — 进入整屏独占模态时清除建议态
@@ -1741,6 +1815,7 @@ public sealed class ReplShell
         }
 
         SyncTranscriptView();
+
     }
 
     /// <summary>'?' 触发判定 — 空闲态（非忙 + 空输入 + 无修饰）的裸 '?'（有输入时 '?' 走正常字符插入；

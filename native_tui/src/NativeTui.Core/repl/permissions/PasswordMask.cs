@@ -2,7 +2,8 @@ namespace NativeTui.Core.Repl;
 
 /// <summary>
 /// 密码遮蔽（S8）— readPassword 输入的等宽 * 遮蔽纯函数（数据层）：
-/// 渲染层消费方为输入框（PromptInputBox S7 域 — 接线未决，届时输入回显走本函数替换原文）。
+/// 渲染层消费方为命令密文输入对话框（CommandDialogItem — TASK065 F2b 已接线，
+/// 密文形态回显走本函数替换原文）。
 /// 长度 1:1 保持（光标定位/退格语义与普通输入一致 — 渲染层无需特判宽度）。
 /// </summary>
 public static class PasswordMask

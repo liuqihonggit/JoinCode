@@ -299,9 +299,10 @@ public static class Program {
                     themeName: themeName,
                     commandUsage: commandUsage,
                     workspaceRoot: Environment.CurrentDirectory,
-                    // M8-8 后续 — x 停止后台任务委托：面板运行中条目 → 引擎泵 CancelFork/StopTeammate 分派
-                    //（cancelled 终态 upsert 由泵推回面板即时反馈）
-                    onStopTask: (kind, taskId) => session.StopBackgroundTask(kind, taskId),
+                    // M8-8 后续 — x 停止后台任务委托：面板运行中条目 → 回合客户端停止入口（多态统一面 —
+                    // 进程内 EngineTurnClient 泵分派 CancelFork/StopTeammate，bridge 形态走同接口的
+                    // BridgeEngine 写 stop_task 请求；cancelled 终态 upsert 由泵推回面板即时反馈）
+                    onStopTask: (kind, taskId) => session.Client.StopBackgroundTask(kind, taskId),
                     // 方案 B — 流式期 Markdown 块级增量投影（Markdig 卫星注入：稳定前缀 memoize +
                     // 增长尾纯文本，对齐基准 StreamingMarkdown；落定替换 MarkdownMessageItem 全量渲染）
                     streamingProjector: new StreamingMarkdownProjector());
@@ -317,11 +318,12 @@ public static class Program {
                 // TASK065 F2/S8 融合 — 交互面重绑：confirm/prompt 从组装期权限对话框初值升级为
                 // ReplShell 命令对话框同步桥（语义更准：命令确认非工具权限；/commit /login /resume 等
                 // 交互命令解锁 — 回合线程挂起等模态按键，对齐 TuiPermissionBridge 先例）；
-                // readPassword 未接（密文输入框复杂度高 — /login 交互流程降级，遗留项登记）
+                // readPassword 密文模态（TASK065 F2b — 回显 PasswordMask 遮蔽 + Enter 提交原文/Esc null，
+                // /login 等密文输入命令解锁）
                 session.CommandCallbacks.BindInteractions(
                     confirm: shell.ConfirmCommand,
                     prompt: shell.PromptCommand,
-                    readPassword: null);
+                    readPassword: shell.ReadPasswordCommand);
                 shell.Run();
                 shell.WriteExit();
             }

@@ -51,6 +51,9 @@ public sealed class CommandPickerEngine(
     /// <summary>权限模式 — 透传内层。</summary>
     public void SetPermissionMode(string mode) => inner.SetPermissionMode(mode);
 
+    /// <summary>停止后台任务（M8-8 — 透传内层；装饰器完整转发防吞停止请求）。</summary>
+    public void StopBackgroundTask(string kind, string taskId) => inner.StopBackgroundTask(kind, taskId);
+
     /// <summary>排空事件 — 透传内层。</summary>
     public IReadOnlyList<BridgeEvent> DrainEvents() => inner.DrainEvents();
 

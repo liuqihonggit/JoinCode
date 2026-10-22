@@ -1,11 +1,13 @@
 namespace NativeTui.Core.Repl;
 
 /// <summary>
-/// 命令交互对话框协调器（TASK065 F2）— 斜杠命令 confirm/prompt 回调的 TCS 桥 + 对话框状态：
+/// 命令交互对话框协调器（TASK065 F2）— 斜杠命令 confirm/prompt/readPassword 回调的 TCS 桥 + 对话框状态：
 /// 引擎回合线程（SlashCommandRunner 命令侧同步回调）→ ReplShell.BeginCommandConfirm/BeginCommandPrompt
 /// 挂起对话框 → 主循环模态按键路由 → Complete 解除等待（对齐 PermissionCoordinator 形态：
 /// Begin 取代旧等待者 / Complete 幂等 / 无挂起 Wait 返回已完成降级占位防调用线程死等）。
-/// confirm 两档焦点（Yes/No）环绕；prompt 输入缓冲尾追加/尾退格（光标移动属对话框增强遗留项）。
+/// confirm 两档焦点（Yes/No）环绕；prompt 输入缓冲尾追加/尾退格（光标移动属对话框增强遗留项）；
+/// 输入形态分 Text 明文回显 / Password 密文遮蔽回显（TASK065 F2b — InputRequestKind 唯一数据源，
+/// 渲染层走 PasswordMask）。
 /// </summary>
 public sealed class CommandDialogCoordinator
 {
@@ -24,17 +26,24 @@ public sealed class CommandDialogCoordinator
     /// <summary>当前对话框消息（确认问题/输入提示；无挂起为 null）。</summary>
     public string? Message { get; private set; }
 
-    /// <summary>prompt 输入缓冲（挂起期间的编辑文本，Enter 提交）。</summary>
+    /// <summary>prompt 输入缓冲（挂起期间的编辑文本，Enter 提交 — 密文形态明文仅存本层，渲染走 PasswordMask）。</summary>
     public string PromptInput { get; private set; } = string.Empty;
 
     /// <summary>confirm 焦点选项索引（0=Yes / 1=No，环绕移动，Begin 重置 0）。</summary>
     public int ConfirmFocusIndex { get; private set; }
+
+    /// <summary>当前输入形态（S8 InputRequestKind — Text 明文回显 / Password 密文遮蔽回显；
+    /// 非输入挂起态为 Text 默认值）。</summary>
+    public InputRequestKind PromptKind { get; private set; }
 
     /// <summary>是否挂起中（对话框模态路由依据）。</summary>
     public bool IsPending => _confirmPending is not null || _promptPending is not null;
 
     /// <summary>挂起的是输入对话框（false = 确认对话框）。</summary>
     public bool IsPrompt => _promptPending is not null;
+
+    /// <summary>挂起的是密文输入框（readPassword — 渲染层走 PasswordMask 遮蔽，明文仅存数据层）。</summary>
+    public bool IsPassword => IsPrompt && PromptKind == InputRequestKind.Password;
 
     /// <summary>等待确认结果（命令回调线程同步阻塞 GetAwaiter().GetResult()；无挂起时为已完成 false 占位任务）。</summary>
     public Task<bool> WaitConfirm() =>
@@ -53,13 +62,15 @@ public sealed class CommandDialogCoordinator
         ConfirmFocusIndex = 0;
     }
 
-    /// <summary>Begin 输入请求 — 取消旧等待者 + 输入缓冲清空。</summary>
-    public void BeginPrompt(string message)
+    /// <summary>Begin 输入请求 — 取消旧等待者 + 输入缓冲清空 + 形态记录
+    /// （kind — Text 明文回显 / Password 密文遮蔽回显，默认 Text 兼容既有调用）。</summary>
+    public void BeginPrompt(string message, InputRequestKind kind = InputRequestKind.Text)
     {
         CancelPending();
         _promptPending = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
         Message = message;
         PromptInput = string.Empty;
+        PromptKind = kind;
     }
 
     /// <summary>Complete 确认 — 解除等待 + 清空状态（幂等 — 二次调用 no-op）。</summary>

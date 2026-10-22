@@ -183,8 +183,8 @@ public sealed class ReplShell
     private readonly Action<string>? _copyToClipboard;
 
     /// <summary>后台任务停止委托（M8-8 后续 — 空闲态 x 停止面板运行中任务，参数 = (kind, taskId)；
-    /// 宿主注入引擎泵转发（进程内直连 EngineSession.StopBackgroundTask），Core 零依赖不持泵
-    /// （对齐 clipboard 注入先例）；null = 停止能力降级，x 走正常字符插入）。</summary>
+    /// 宿主注入引擎停止转发（进程内 EngineTurnClient / bridge BridgeEngine — IReplEngine 多态统一面），
+    /// Core 零依赖不持接口（对齐 clipboard 注入先例）；null = 停止能力降级，x 走正常字符插入）。</summary>
     private readonly Action<string, string>? _onStopTask;
 
     /// <summary>主循环存活标记（internal — 退出安全测试断言面：Esc/Ctrl+C 永不置 false）。</summary>
@@ -470,11 +470,23 @@ public sealed class ReplShell
     }
 
     /// <summary>
-    /// 命令输入同步桥（同上 — prompt 形态；Esc 取消返回 null 对齐命令侧可空语义）。
+    /// 命令输入同步桥（同上 — prompt 形态；Esc 取消返回 null 对齐命令侧可空语义；
+    /// kind 透传 — Password 密文形态回显 PasswordMask 遮蔽）。
     /// </summary>
     public string? PromptCommand(string message)
     {
         BeginCommandPrompt(message);
+        return _commandDialog.WaitPrompt().GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// 命令密文输入同步桥（TASK065 F2b — readPassword 形态：Enter 提交原文/Esc 取消 null，
+    /// 回显 PasswordMask 等宽遮蔽、明文仅存协调器数据层；签名同步对齐
+    /// TuiCommandCallbacks.ReadPassword 的 Func&lt;string,string?&gt;，阻塞桥先例同 ConfirmCommand）。
+    /// </summary>
+    public string? ReadPasswordCommand(string message)
+    {
+        BeginCommandPrompt(message, InputRequestKind.Password);
         return _commandDialog.WaitPrompt().GetAwaiter().GetResult();
     }
 
@@ -485,10 +497,11 @@ public sealed class ReplShell
         AddMessage(new CommandDialogItem(_commandDialog));
     }
 
-    /// <summary>挂起命令输入对话框（插入滚动区，模态路由生效）。</summary>
-    public void BeginCommandPrompt(string message)
+    /// <summary>挂起命令输入对话框（插入滚动区，模态路由生效；kind — Text 明文回显 /
+    /// Password 密文遮蔽回显，默认 Text 兼容既有 prompt 调用）。</summary>
+    public void BeginCommandPrompt(string message, InputRequestKind kind = InputRequestKind.Text)
     {
-        _commandDialog.BeginPrompt(message);
+        _commandDialog.BeginPrompt(message, kind);
         AddMessage(new CommandDialogItem(_commandDialog));
     }
 
@@ -710,7 +723,9 @@ public sealed class ReplShell
 
     /// <summary>按键分派 — 权限对话框模态优先（数字/Esc/上下/Enter 路由对话框）→ 模型选择器模态
     /// （M7-6：Esc/上下/Enter 路由选择器）→ 搜索模态（Ctrl+R 反向搜索）→ 消息光标导航模态
-    /// （交互层 Step1：光标激活时 ↑↓/kj/Shift 跳转/Enter 展开/Esc 两级退出）→ 补全激活专属键
+    /// （交互层 Step1：光标激活时 ↑↓/kj/Shift 跳转/Enter 展开/Esc 两级退出）→ 后台任务面板
+    /// 选中导航模态（M8-8 登记遗留：选中态激活时 ↑↓/kj 移动/Enter 查看/x 停止/Esc 退出，
+    /// 其余键吞掉 — 与光标导航互斥且后于其分派）→ 补全激活专属键
     /// （Up/Down 导航/Tab 接受/Enter 执行/Esc 关闭，基准 Autocomplete 上下文优先于 Chat）
     /// → transcript 全屏模态（S6 收敛：Controller.IsActive 时整屏独占 — 激活时光标态不可达
     /// （进入被建议后分派拦截），j/k 归 transcript less 键位）
@@ -748,6 +763,16 @@ public sealed class ReplShell
             return;
         }
 
+        // M8-8 登记遗留 — 后台任务面板选中导航模态（对齐 _cursorNav 轻量模态形态 — 纯状态机
+        // 不新增对话框项）：置于光标导航之后（两模态互斥，光标导航优先 — 任务选中态激活时
+        // Shift+Up 等键在本分支被吞，不会误入光标导航）、补全之前（选中态吞全部字符键 —
+        // 模态语义，字符不进输入框不触发补全）
+        if (_view.BackgroundTasks.IsSelectionActive)
+        {
+            HandleBackgroundTaskSelectionKey(key);
+            return;
+        }
+
         if (HandleSuggestionKey(key))
         {
             return;
@@ -776,6 +801,19 @@ public sealed class ReplShell
         if (IsStopTaskTrigger(key))
         {
             StopRunningBackgroundTask();
+            return;
+        }
+
+        // M8-8 登记遗留 — Shift+Down 进入后台任务面板选中态（基准 useBackgroundTaskNavigation.ts:181-189：
+        // 有后台任务时进入导航；与下方 Shift+Up 进消息光标导航对称）。门槛 = 空闲空输入 + 面板有
+        // running 条目（忙时/打字中不进入 — 回合中面板仍渲染但不可交互；无 running 落入下方
+        // 历史导航；不需停止委托 — 导航与查看无外部依赖，x 停止在选中态内降级无操作）
+        if (key is { Kind: KeyKind.DownArrow, Shift: true, Ctrl: false, Meta: false }
+            && !IsBusy
+            && _input.Text.Length == 0
+            && _view.BackgroundTasks.HasRunning)
+        {
+            BeginBackgroundTaskSelection();
             return;
         }
 
@@ -1253,6 +1291,70 @@ public sealed class ReplShell
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// 后台任务面板选中导航模态按键（M8-8 登记遗留 — 基准 BackgroundTasksDialog.tsx 导航态 +
+    /// useBackgroundTaskNavigation.ts:181-189，对齐 HandleCursorNavKey 轻量模态形态）：
+    /// ↑/↓/k/j 相邻 running 条目移动（MoveSelection 跳终态 + 窗口跟随）、Enter 查看选中任务
+    /// （首版 = ToolResultItem 消息四元组 — 全屏详情对话框留后续）、x 停止选中（复用
+    /// StopRunningBackgroundTask — SelectedEntry 终态守卫回退首个 running；选中态为用户
+    /// 主动保持的模态，忙时不强制退出，后台任务与前台回合独立可停）、Esc 退出选中态
+    /// （ClearSelection 归 -1 + 窗口归 0）；其余按键全部吞掉（模态 — 字符不进输入缓冲）。
+    /// </summary>
+    private void HandleBackgroundTaskSelectionKey(KeyPress key)
+    {
+        if (key.Kind == KeyKind.Escape)
+        {
+            _view.BackgroundTasks.ClearSelection();
+            return;
+        }
+
+        if (key.Kind == KeyKind.Return)
+        {
+            ShowSelectedBackgroundTask();
+            return;
+        }
+
+        switch (key.Kind)
+        {
+            case KeyKind.UpArrow:
+                _view.BackgroundTasks.MoveSelection(-1);
+                return;
+            case KeyKind.DownArrow:
+                _view.BackgroundTasks.MoveSelection(1);
+                return;
+            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "k":
+                _view.BackgroundTasks.MoveSelection(-1);
+                return;
+            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "j":
+                _view.BackgroundTasks.MoveSelection(1);
+                return;
+            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "x":
+                StopRunningBackgroundTask();
+                return;
+            default:
+                // 模态：其余键吞掉（不进输入缓冲 — 选中态激活期间打字暂停）
+                return;
+        }
+    }
+
+    /// <summary>进入后台任务面板选中态（Shift+Down — MoveSelection(+1) 无选中取首个 running 条目；
+    /// 键位门槛已由分派链进入点保证 HasRunning，此处必命中）。</summary>
+    private void BeginBackgroundTaskSelection() => _view.BackgroundTasks.MoveSelection(1);
+
+    /// <summary>Enter 查看选中任务详情（首版 = ToolResultItem 消息显示 kind/taskId/description/state
+    /// 四元组，协议 state 原串直显 — 与面板汉化文案对照无歧义；查看后保持选中态支持连续操作；
+    /// 全屏详情对话框留后续登记）。无选中/索引越界防御 no-op。</summary>
+    private void ShowSelectedBackgroundTask()
+    {
+        var tasks = _view.BackgroundTasks.Tasks;
+        if (_view.BackgroundTasks.SelectedIndex is >= 0 and var index && index < tasks.Count)
+        {
+            var task = tasks[index];
+            AddMessage(new ToolResultItem(
+                $"后台任务详情 — kind: {task.Kind} · id: {task.TaskId} · 描述: {task.Description} · 状态: {task.State}"));
+        }
     }
 
     /// <summary>帮助面板模态按键 — Esc 或 '?' 关闭（对齐基准 help menu 双关闭键）；

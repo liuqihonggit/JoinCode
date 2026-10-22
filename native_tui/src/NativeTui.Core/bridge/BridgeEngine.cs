@@ -25,6 +25,10 @@ public sealed class BridgeEngine : IReplEngine, IDisposable
     /// <summary>请求权限模式切换 — 写子进程 stdin（回执事件为准）。</summary>
     public void SetPermissionMode(string mode) => _client.SetPermissionMode(mode);
 
+    /// <summary>停止后台任务（M8-8 — 写子进程 stdin stop_task 请求；cancelled 终态 background_task
+    /// 事件由泵回推面板，即发即返不等回执）。</summary>
+    public void StopBackgroundTask(string kind, string taskId) => _client.StopBackgroundTask(kind, taskId);
+
     /// <summary>排空事件泵待应用事件。</summary>
     public IReadOnlyList<BridgeEvent> DrainEvents() => _client.DrainEvents();
 

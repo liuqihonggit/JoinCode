@@ -23,6 +23,13 @@ public interface IReplEngine
     /// <summary>排空诊断旁路（shell 写 stderr；无诊断实现返回空 — 默认空）。</summary>
     IReadOnlyList<string> DrainDiagnostics() => Array.Empty<string>();
 
+    /// <summary>停止后台任务（M8-8 — kind: fork|teammate；默认空实现 — 无后台任务能力的实现
+    /// （模拟引擎/测试桩）零成本，对齐 DrainDiagnostics 默认成员先例；进程内 EngineTurnClient
+    /// 泵分派 / 子进程 BridgeEngine 写 stop_task 请求为显式实现）。</summary>
+    /// <param name="kind">任务类别（fork|teammate）</param>
+    /// <param name="taskId">任务标识</param>
+    void StopBackgroundTask(string kind, string taskId) { }
+
     /// <summary>引擎存活（进程内恒 true；子进程退出后 false — shell 空闲时追加退出消息并结束）。</summary>
     bool IsAlive { get; }
 }

@@ -166,7 +166,11 @@ public static class Program
             var version = typeof(Program).Assembly.GetName().Version is { } v ? v.ToString(3) : "0.0.0";
             var info = SessionInfo.Create(version, model);
             var banner = new BannerItem(info.Version, info.Model, info.Billing, info.WorkingDirectory);
-            var shell = new ReplShell(engine, banner, Console.Out, inline: !viewport, codeHighlighter: new TextMateCodeHighlighter(dark: true));
+            // M8-8 后续 — x 停止后台任务：bridge 模式经 IReplEngine 接口写子进程 stdin stop_task 请求
+            //（引擎侧分派 CancelFork/StopTeammate 后 cancelled 终态事件泵回推面板）
+            var shell = new ReplShell(engine, banner, Console.Out, inline: !viewport,
+                onStopTask: engine.StopBackgroundTask,
+                codeHighlighter: new TextMateCodeHighlighter(dark: true));
             shell.Run();
             shell.WriteExit();
         }

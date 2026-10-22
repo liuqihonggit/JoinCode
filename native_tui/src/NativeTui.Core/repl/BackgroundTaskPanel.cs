@@ -21,10 +21,12 @@ public sealed record BackgroundTaskEntry(string Kind, string TaskId, string Desc
 /// 区别：不落滚动区、终态驻留 5s 后过期驱逐）、上限窗口 min(10, n) + "+N more" 溢出行
 /// （基准全量渲染靠 React 虚拟化扛 300 规模，本项目无虚拟化 — 窗口+提示为对等机制，
 /// 对齐 MaxQueuedInputs=10 / SubagentGroupCoordinator.MaxVisible 先例）。
-/// 选中态（M8-8 后续）：仅 running 条目可选（终态不可选 — 驱逐倒计时中无操作意义），
-/// 选中导航键位留后续（首版 x 停止走"选中或首个 running"回退）。
+/// 选中态（M8-8 登记遗留 — Shift+Down 进入 / ↑↓kj 移动 / Enter 查看 / x 停止 / Esc 退出，
+/// 键位接线在 ReplShell）：仅 running 条目可选（终态不可选 — 驱逐倒计时中无操作意义），
+/// 选中导航窗口跟随（WindowStart — 对齐 ModelPicker.MoveFocus 先例，选中行恒可见）。
 /// 消费方：ReplBridgeDriver 路由（BackgroundTask 事件）+ ReplView 渲染（排队面板之上，
-/// Render 内每帧 TickEvict 驱逐）+ ReplShell x 停止键（SelectedEntry/HasRunning 门槛）。
+/// Render 内每帧 TickEvict 驱逐）+ ReplShell 选中导航模态（IsSelectionActive/MoveSelection/
+/// SelectedEntry/HasRunning）。
 /// </summary>
 public sealed class BackgroundTaskPanel
 {
@@ -67,6 +69,13 @@ public sealed class BackgroundTaskPanel
     /// 驱逐/Upsert 状态翻转后不主动校正，SelectedEntry 守卫兜底）。</summary>
     public int SelectedIndex { get; private set; } = -1;
 
+    /// <summary>选中态激活（M8-8 登记遗留 — SelectedIndex >= 0 语义糖，ReplShell 选中导航模态分派依据）。</summary>
+    public bool IsSelectionActive => SelectedIndex >= 0;
+
+    /// <summary>滚动窗口起点（0 起 — 选中导航窗口跟随，对齐 ModelPicker.WindowStart 先例：
+    /// MoveSelection 保证选中行可见的最小窗口位移；常态恒 0，ClearSelection 归零回默认视图）。</summary>
+    public int WindowStart { get; private set; }
+
     /// <summary>选中条目（M8-8 后续 — 返回 (Kind,TaskId) 元组；仅 running 态可选：无选中或选中条目
     /// 已翻终态返回 null — 停止键消费方回退首个 running 条目）。</summary>
     public (string Kind, string TaskId)? SelectedEntry =>
@@ -99,7 +108,9 @@ public sealed class BackgroundTaskPanel
     }
 
     /// <summary>移动选中（M8-8 后续 — delta ±1 沿方向找最近 running 条目，跳过终态条目；
-    /// 无选中时按 delta 方向取首个 running（向前从条目 0、向后从末条）；无 running 或到头保持不变（不环绕））。</summary>
+    /// 无选中时按 delta 方向取首个 running（向前从条目 0、向后从末条）；无 running 或到头保持不变
+    /// （不环绕 — 对齐 ModelPicker.MoveFocus clamp 列表语义）；命中后窗口跟随保证选中行可见）。
+    /// 消费方：ReplShell 选中导航模态 ↑↓/kj 键 + Shift+Down 进入（无选中 → 首个 running）。</summary>
     /// <param name="delta">移动方向与步数符号（+1 向后 / -1 向前）</param>
     public void MoveSelection(int delta)
     {
@@ -118,15 +129,39 @@ public sealed class BackgroundTaskPanel
             if (_tasks[i].State == RunningState)
             {
                 SelectedIndex = i;
+                FollowWindowToSelection();
                 return;
             }
         }
     }
 
+    /// <summary>退出选中态（M8-8 登记遗留 — ReplShell 选中导航模态 Esc 消费）：
+    /// SelectedIndex 归 -1 + 窗口归 0（回默认视图 — 对齐 ModelPicker.Complete 归零先例，
+    /// 常驻面板常态展示插入序前 N 条）。</summary>
+    public void ClearSelection()
+    {
+        SelectedIndex = -1;
+        WindowStart = 0;
+    }
+
+    /// <summary>窗口跟随（对齐 ModelPicker.MoveFocus 先例）— 保证选中索引可见的最小窗口位移。</summary>
+    private void FollowWindowToSelection()
+    {
+        if (SelectedIndex < WindowStart)
+        {
+            WindowStart = SelectedIndex;
+        }
+        else if (SelectedIndex >= WindowStart + VisibleCount)
+        {
+            WindowStart = SelectedIndex - VisibleCount + 1;
+        }
+    }
+
     /// <summary>终态驱逐（M8-8 后续 evictAfter — 基准 CoordinatorAgentStatus.tsx:51-63）：
-    /// 终态条目定格超 <paramref name="evictAfterMs"/> 移除（仅删终态 — running 永不驱逐；
+    /// 终态条目定格超 <paramref name="evictAfterMs"/> 秒移除（仅删终态 — running 永不驱逐；
     /// FinalizedAtMs=0 非终态不受影响）；选中索引随移除位平移/钳制（选中位被删置 -1、
-    /// 后移条目索引前移、超界钳到末位；-1 不动）。全终态+全驱逐后面板回到零渲染。
+    /// 后移条目索引前移、超界钳到末位；-1 不动）+ 滚动窗口钳制（防删除后悬空）。
+    /// 全终态+全驱逐后面板回到零渲染。
     /// 调用方：ReplView.Render 每帧拍（墙钟直取，对齐 spinner WallNowMs 先例）；测试传可控时间。</summary>
     /// <param name="nowMs">当前墙钟（Environment.TickCount64 — 测试可传偏移值控制过期）</param>
     /// <param name="evictAfterMs">终态驻留时长（默认 <see cref="EvictAfterMs"/>）</param>
@@ -155,20 +190,33 @@ public sealed class BackgroundTaskPanel
         {
             SelectedIndex = _tasks.Count - 1;
         }
+
+        var maxWindowStart = Math.Max(0, _tasks.Count - VisibleCount);
+        if (WindowStart > maxWindowStart)
+        {
+            WindowStart = maxWindowStart;
+        }
     }
 
     /// <summary>渲染 — 每任务一行 "● kind: 描述 · 状态"：● 状态色（running text / completed success /
-    /// failed、cancelled error）、kind+描述 normal、状态 dim；超窗末行 "+N more" dim；空面板零输出。</summary>
+    /// failed、cancelled error）、kind+描述 normal、状态 dim；超窗末行 "+N more" dim；空面板零输出。
+    /// 选中行（M8-8 登记遗留）— 对齐 ModelPicker.RenderModelListRow 焦点形态：❯ 前缀（suggestion 色）
+    /// 替换 ● 状态点 + 正文段 suggestion 色（状态文字信息由行尾状态段保留）；渲染循环按 WindowStart
+    /// 偏移取条目（选中导航窗口跟随）。</summary>
     public void Render(Screen screen, Rect frame, Theme theme)
     {
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var selection = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Suggestion });
         for (var i = 0; i < VisibleCount; i++)
         {
-            var task = _tasks[i];
+            var itemIndex = WindowStart + i;
+            var task = _tasks[itemIndex];
             var row = frame.Y + i;
-            var dotStyle = screen.Styles.GetOrAdd(new TextStyle { Foreground = DotColor(task.State, theme) });
-            var col = screen.WriteText(row, frame.X, $"{Figures.BlackCircle} ", dotStyle, frame.Right);
-            col = screen.WriteText(row, col, $"{task.Kind}: {task.Description}", styleId: 0, rightBound: frame.Right);
+            var selected = itemIndex == SelectedIndex;
+            var col = selected
+                ? screen.WriteText(row, frame.X, $"{Figures.Pointer} ", selection, frame.Right)
+                : screen.WriteText(row, frame.X, $"{Figures.BlackCircle} ", screen.Styles.GetOrAdd(new TextStyle { Foreground = DotColor(task.State, theme) }), frame.Right);
+            col = screen.WriteText(row, col, $"{task.Kind}: {task.Description}", styleId: selected ? selection : 0, rightBound: frame.Right);
             screen.WriteText(row, col, $"{Figures.MiddotSeparator}{StatusText(task.State)}", dim, frame.Right);
         }
 

@@ -441,6 +441,19 @@ internal sealed class PrListItemResponse {
     /// <summary>作者</summary>
     [JsonPropertyName("user")]
     public UserRefResponse? User { get; init; }
+    /// <summary>源分支引用（head.ref — gh CLI BRANCH 列数据源；search API 精简响应可能缺省 null）</summary>
+    [JsonPropertyName("head")]
+    public PrHeadRefResponse? Head { get; init; }
+    /// <summary>目标分支引用（base.ref — 与源分支合成 head→base 列）</summary>
+    [JsonPropertyName("base")]
+    public PrHeadRefResponse? Base { get; init; }
+}
+
+/// <summary>PR 分支引用（head/base 共用 — pulls API {ref: "..."} 形态）</summary>
+internal sealed class PrHeadRefResponse {
+    /// <summary>分支名</summary>
+    [JsonPropertyName("ref")]
+    public string Ref { get; init; } = "";
 }
 
 /// <summary>PR 列表 items 包装 — search API {items:[...]} 格式</summary>

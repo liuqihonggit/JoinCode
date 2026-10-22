@@ -337,6 +337,109 @@ public sealed class CommandDialogTests
         Assert.True(await bridge);
     }
 
+    // ---- TASK065 F2b readPassword 密文模态 ----
+
+    /// <summary>密文挂起 — IsPassword 置位（InputRequestKind.Password）+ 渲染回显等宽遮蔽（***），
+    /// 数据层保持原文（明文仅存协调器）。</summary>
+    [Fact]
+    public void PasswordDialog_Pending_RendersMaskedEcho()
+    {
+        var coordinator = new CommandDialogCoordinator();
+        coordinator.BeginPrompt("请输入密码：", InputRequestKind.Password);
+        coordinator.AppendPromptInput('a');
+        coordinator.AppendPromptInput('b');
+        coordinator.AppendPromptInput('c');
+
+        Assert.True(coordinator.IsPassword);
+        Assert.Equal("abc", coordinator.PromptInput);
+        using var screen = new Screen(cols: 40, rows: 9);
+        new CommandDialogItem(coordinator).Render(screen, new Rect(0, 0, 40, 9), Theme.Dark);
+
+        // row6 输入行 — 回显遮蔽（3 缩进 + ❯ + 空格 + ***）
+        Assert.Equal("   ❯ ***", RowText.Of(screen, 6, 0, 8));
+    }
+
+    /// <summary>明文形态回归 — kind 默认 Text 回显原文（既有 prompt 行为零变化）。</summary>
+    [Fact]
+    public void PromptDialog_TextKind_RendersPlainEcho()
+    {
+        var coordinator = new CommandDialogCoordinator();
+        coordinator.BeginPrompt("输入");
+        coordinator.AppendPromptInput('o');
+        coordinator.AppendPromptInput('k');
+
+        Assert.False(coordinator.IsPassword);
+        using var screen = new Screen(cols: 40, rows: 9);
+        new CommandDialogItem(coordinator).Render(screen, new Rect(0, 0, 40, 9), Theme.Dark);
+
+        Assert.Equal("   ❯ ok", RowText.Of(screen, 6, 0, 7));
+    }
+
+    /// <summary>密文退格 — 尾字符删除（掩码长度随原文同步缩短后提交）。</summary>
+    [Fact]
+    public async Task PasswordDialog_Backspace_EditsSecretBeforeSubmit()
+    {
+        var (shell, _) = CreateShell();
+        shell.BeginCommandPrompt("密码", InputRequestKind.Password);
+        var task = shell.CommandDialog.WaitPrompt();
+
+        Press(shell, ConsoleKey.A, 'a');
+        Press(shell, ConsoleKey.B, 'b');
+        Press(shell, ConsoleKey.Backspace);
+        Press(shell, ConsoleKey.Enter);
+
+        Assert.Equal("a", await task);
+    }
+
+    /// <summary>密文 Enter — 提交原文（非掩码串，掩码仅渲染层）。</summary>
+    [Fact]
+    public async Task PasswordDialog_Enter_SubmitsPlainTextNotMask()
+    {
+        var (shell, _) = CreateShell();
+        shell.BeginCommandPrompt("密码", InputRequestKind.Password);
+        var task = shell.CommandDialog.WaitPrompt();
+
+        Press(shell, ConsoleKey.S, 's');
+        Press(shell, ConsoleKey.E, 'e');
+        Press(shell, ConsoleKey.C, 'c');
+        Press(shell, ConsoleKey.Enter);
+
+        Assert.Equal("sec", await task);
+    }
+
+    /// <summary>密文 Esc — 取消完成为 null（对齐 prompt 可空取消语义）。</summary>
+    [Fact]
+    public async Task PasswordDialog_Escape_CompletesNull()
+    {
+        var (shell, _) = CreateShell();
+        shell.BeginCommandPrompt("密码", InputRequestKind.Password);
+        var task = shell.CommandDialog.WaitPrompt();
+
+        Press(shell, ConsoleKey.A, 'a');
+        Press(shell, ConsoleKey.Escape);
+
+        Assert.True(task.IsCompleted);
+        Assert.Null(await task);
+    }
+
+    /// <summary>同步桥接线契约（TASK065 F2b）— ReadPasswordCommand 后台线程阻塞等密文模态，
+    /// 用户输入 + Enter 后释放返回原文（对齐 ConfirmCommand 同步桥先例 — 宿主 BindInteractions
+    /// readPassword 接线形态）。</summary>
+    [Fact]
+    public async Task ReadPasswordCommand_BackgroundThreadBridge_ReturnsPlainText()
+    {
+        var (shell, _) = CreateShell();
+        var bridge = Task.Run(() => shell.ReadPasswordCommand("请输入 API key："));
+
+        Assert.True(SpinWaitUntil(() => shell.CommandDialog.IsPending && shell.CommandDialog.IsPassword), "桥线程应挂起密文对话框");
+        Press(shell, ConsoleKey.K, 'k');
+        Press(shell, ConsoleKey.Enter);
+
+        var winner = await Task.WhenAny(bridge, Task.Delay(TimeSpan.FromSeconds(5)));
+        Assert.Same(bridge, winner);
+        Assert.Equal("k", await bridge);
+    }
+
     /// <summary>自旋等待谓词成立（2s 预算 — 单进程内存操作，确定性足够）。</summary>
     private static bool SpinWaitUntil(Func<bool> condition)
     {

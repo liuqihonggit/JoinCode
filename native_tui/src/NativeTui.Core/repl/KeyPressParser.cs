@@ -119,7 +119,11 @@ public static class KeyPressParser
         };
     }
 
-    /// <summary>CSI 序列：ESC [ params {;mod} final — 方向键/Home/End/Delete/Page + 修饰符 + SGR 鼠标吞噬。</summary>
+    /// <summary>CSI 序列：ESC [ params {;mod} final — 方向键/Home/End/Delete/Page + 修饰符 + SGR 鼠标吞噬。
+    /// 序列边界 = 参数区（0x30-0x3F 数字/;/…）+ intermediate（0x20-0x2F）扫描至 final（0x40-0x7E）；
+    /// 非「数字{;数字}」两段形态（私有参数 ESC[?…、intermediate ESC[…$…、三段 modifyOtherKeys、超长数字）
+    /// 整体吞 Unknown（防泄漏契约）；数字解析全部 TryParse — 空第一段按 xterm 默认 1、
+    /// 超长数字 -1 无匹配（对齐基准 parseInt 永不抛，外部畸形输入不可击穿读线程）。</summary>
     private static bool ParseCsi(ref ReadOnlySpan<char> buffer, out KeyPress key)
     {
         var rest = buffer[2..];
@@ -135,64 +139,75 @@ public static class KeyPressParser
             return ParseSgrMouse(ref buffer, out key);
         }
 
+        var scan = rest.IndexOfAnyExceptInRange('\u0020', '\u003f');
+        if (scan < 0)
+        {
+            scan = rest.Length;
+        }
+
+        if (scan == rest.Length)
+        {
+            // 参数区未闭合（final 未到）— 不完整前缀，等待更多输入
+            key = NamedUnknown();
+            return false;
+        }
+
+        key = ParseTwoSegmentForm(rest, scan, rest[scan]) ?? NamedUnknown();
+        buffer = buffer[(2 + scan + 1)..];
+        return true;
+    }
+
+    /// <summary>「数字{;数字}」两段形态语义解析：单段=简单键、双段=修饰键；空第一段=xterm 默认 1；畸形/超长=null（整体吞 Unknown）。</summary>
+    private static KeyPress? ParseTwoSegmentForm(ReadOnlySpan<char> rest, int scan, char final)
+    {
         var numEnd = 0;
-        while (numEnd < rest.Length && char.IsDigit(rest[numEnd]))
+        while (numEnd < scan && char.IsDigit(rest[numEnd]))
         {
             numEnd++;
         }
 
-        if (numEnd < rest.Length && rest[numEnd] == ';')
+        if (numEnd == scan)
         {
-            return ParseCsiWithModifier(ref buffer, rest, numEnd, out key);
+            var number = numEnd == 0 ? 1 : int.TryParse(rest[..numEnd], out var plain) ? plain : -1;
+            return BuildSimple(final, number);
         }
 
-        if (numEnd == rest.Length)
+        if (rest[numEnd] != ';')
         {
-            // 数字后无终点符 — 不完整
-            key = NamedUnknown();
-            return false;
+            return null;
         }
 
-        var final = rest[numEnd];
-        var number = numEnd == 0 ? -1 : int.Parse(rest[..numEnd]);
-        key = BuildSimple(final, number) ?? NamedUnknown();
-        buffer = buffer[(2 + numEnd + 1)..];
-        return true;
-    }
-
-    /// <summary>带修饰符的 CSI（ESC [ n ; mod final）：mod-1 位掩码 bit0=Shift bit1=Alt bit2=Ctrl。</summary>
-    private static bool ParseCsiWithModifier(ref ReadOnlySpan<char> buffer, ReadOnlySpan<char> rest, int numEnd, out KeyPress key)
-    {
         var modStart = numEnd + 1;
         var modEnd = modStart;
-        while (modEnd < rest.Length && char.IsDigit(rest[modEnd]))
+        while (modEnd < scan && char.IsDigit(rest[modEnd]))
         {
             modEnd++;
         }
 
-        if (modEnd == modStart || modEnd == rest.Length)
+        if (modEnd != scan || modEnd == modStart)
         {
-            key = NamedUnknown();
-            return false;
+            return null;
         }
 
-        var final = rest[modEnd];
-        var number = int.Parse(rest[..numEnd]);
-        var mod = int.Parse(rest[modStart..modEnd]);
-        key = BuildSimple(final, number) ?? NamedUnknown();
-        if (key.Kind != KeyKind.Unknown)
+        var number2 = int.TryParse(rest[..numEnd], out var head) ? head : -1;
+        if (!int.TryParse(rest[modStart..modEnd], out var mod))
         {
-            var bits = Math.Max(0, mod - 1);
-            key = key with
-            {
-                Shift = key.Shift || (bits & 1) != 0,
-                Meta = key.Meta || (bits & 2) != 0,
-                Ctrl = key.Ctrl || (bits & 4) != 0,
-            };
+            return null;
         }
 
-        buffer = buffer[(2 + modEnd + 1)..];
-        return true;
+        var simple = BuildSimple(final, number2);
+        if (simple is null)
+        {
+            return null;
+        }
+
+        var bits = Math.Max(0, mod - 1);
+        return simple with
+        {
+            Shift = simple.Shift || (bits & 1) != 0,
+            Meta = simple.Meta || (bits & 2) != 0,
+            Ctrl = simple.Ctrl || (bits & 4) != 0,
+        };
     }
 
     /// <summary>SS3 应用模式（ESC O final）：方向键/Home/End，其余单字符吞掉。</summary>

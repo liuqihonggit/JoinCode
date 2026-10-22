@@ -127,4 +127,25 @@ public sealed class InlineComposerTests
         Assert.Equal("\r\x1b[A\x1b[C", output);
         Assert.Equal(new CursorPos(1, 0), nextCursor);
     }
+
+    /// <summary>收缩清除超出视口可达范围（被清首行在 scrollback 区 — CUU 被终端钳制在视口顶，
+    /// 从视口顶清行会错擦可见区并引发多余滚屏，后续帧物理失同步）→ 必须走 fullReset
+    /// （对齐基准 log-update.ts:259-271 shrink 守卫：linesToClear &gt; viewport.height → fullReset）。</summary>
+    [Fact]
+    public void ShrinkBeyondViewport_TriggersFullReset()
+    {
+        using var prev = new Screen(cols: 10, rows: 30);
+        using var next = new Screen(cols: 10, rows: 5);
+        for (var row = 0; row < 5; row++)
+        {
+            prev.WriteText(row, 0, "keep" + row);
+            next.WriteText(row, 0, "keep" + row);
+        }
+
+        // prev 30 行 / viewport 10 → 20 行在 scrollback；收缩到 5 行 → 被清 25 行 > 视口 10
+        var output = Compose(prev, next, viewportRows: 10, prevCursor: new(0, 29), frameEnd: new(0, 4), out _);
+
+        Assert.Contains("\x1b[2J", output);
+        Assert.Contains("keep0", output);
+    }
 }

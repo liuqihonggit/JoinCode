@@ -149,4 +149,54 @@ public sealed class TranscriptModeTests
 
         Assert.False(shell.IsTranscriptMode);
     }
+
+    /// <summary>带激活建议进 transcript — 建议必须被清除（整屏独占模态契约：
+    /// 残留建议会劫持 transcript 激活期的 Up/Tab/Enter/Esc，滚动与退出失效）。</summary>
+    [Fact]
+    public void EnterTranscript_WithActiveSuggestions_DismissesSuggestions()
+    {
+        var engine = new FakeReplEngine();
+        var shell = new ReplShell(
+            engine,
+            new BannerItem("0.0.0", "m", "b", "C:\\"),
+            new StringWriter(),
+            sizeSource: new FakeTerminalSizeSource(80, 24),
+            commands: [new("help", "显示帮助", [], IsHidden: false)]);
+        shell.SeedContent();
+        Type(shell, "/he");
+        Assert.True(shell.Suggester?.IsActive);
+
+        CtrlO(shell);
+
+        Assert.True(shell.IsTranscriptMode);
+        Assert.False(shell.Suggester?.IsActive);
+
+        // transcript 激活期 Up 走 transcript 滚动 — 不再被残留建议劫持
+        shell.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.UpArrow, false, false, false));
+        Assert.False(shell.Suggester?.IsActive);
+    }
+
+    /// <summary>transcript 态 ctrl+c — TranscriptController 注释契约（宿主继续分派 ctrl+c）：
+    /// 穿透到宿主全局路径（TASK059 复制最后 assistant 消息），不退出 transcript。</summary>
+    [Fact]
+    public void TranscriptMode_CtrlC_DispatchesToHostCopyPath()
+    {
+        var copied = new List<string>();
+        var engine = new FakeReplEngine();
+        var shell = new ReplShell(
+            engine,
+            new BannerItem("0.0.0", "m", "b", "C:\\"),
+            new StringWriter(),
+            sizeSource: new FakeTerminalSizeSource(80, 24),
+            clipboard: text => copied.Add(text));
+        shell.SeedContent();
+        shell.PostInfo("assistant text");
+        CtrlO(shell);
+        Assert.True(shell.IsTranscriptMode);
+
+        shell.HandleKey(new ConsoleKeyInfo('\x03', ConsoleKey.C, false, false, false));
+
+        Assert.Equal(["assistant text"], copied);
+        Assert.True(shell.IsTranscriptMode);
+    }
 }

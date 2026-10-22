@@ -268,4 +268,61 @@ public sealed class KeyPressParserTests
         Assert.Equal(KeyKind.Char, key.Kind);
         Assert.Equal("你", key.Input);
     }
+
+    [Fact]
+    public void EmptyNumberParam_DoesNotThrow()
+    {
+        // ESC[;5A — xterm 空参数（默认值 1）+ 修饰 5 = Ctrl+Up；基准 parseInt("")→NaN 永不抛
+        var key = ParseOne("\u001b[;5A");
+        Assert.Equal(KeyKind.UpArrow, key.Kind);
+        Assert.True(key.Ctrl);
+    }
+
+    [Fact]
+    public void OverflowingNumberParam_DoesNotThrowOrLeak()
+    {
+        // 超长数字参数 — 基准 parseInt 返回数值不抛；C# int.Parse 曾抛 OverflowException 击穿读线程
+        var keys = ParseAll("\u001b[9999999999999999~x");
+        Assert.Equal(2, keys.Count);
+        Assert.Equal(KeyKind.Unknown, keys[0].Kind);
+        Assert.Equal(string.Empty, keys[0].Input);
+        Assert.Equal(KeyKind.Char, keys[1].Kind);
+        Assert.Equal("x", keys[1].Input);
+    }
+
+    [Fact]
+    public void ModifyOtherKeysThreePartSequence_SwallowsWithoutLeaking()
+    {
+        // ESC[27;2;13~ = modifyOtherKeys Shift+Enter（SSH/终端预配置场景真实到达）
+        // 契约：无法识别的序列整体吞掉，禁止碎片泄漏为文本
+        var keys = ParseAll("\u001b[27;2;13~x");
+        Assert.Equal(2, keys.Count);
+        Assert.Equal(KeyKind.Unknown, keys[0].Kind);
+        Assert.Equal(string.Empty, keys[0].Input);
+        Assert.Equal(KeyKind.Char, keys[1].Kind);
+        Assert.Equal("x", keys[1].Input);
+    }
+
+    [Fact]
+    public void PrivateParamSequence_SwallowsWithoutLeaking()
+    {
+        // ESC[?1$y = DECRPM 终端响应（私有参数 + intermediate 字节）— 整体吞噬禁止 1$y 泄漏
+        var keys = ParseAll("\u001b[?1$y" + "a");
+        Assert.Equal(2, keys.Count);
+        Assert.Equal(KeyKind.Unknown, keys[0].Kind);
+        Assert.Equal(string.Empty, keys[0].Input);
+        Assert.Equal(KeyKind.Char, keys[1].Kind);
+        Assert.Equal("a", keys[1].Input);
+    }
+
+    [Fact]
+    public void OverflowingModifierParam_DoesNotThrow()
+    {
+        var keys = ParseAll("\u001b[1;9999999999999999D" + "b");
+        Assert.Equal(2, keys.Count);
+        Assert.Equal(KeyKind.Unknown, keys[0].Kind);
+        Assert.Equal(string.Empty, keys[0].Input);
+        Assert.Equal(KeyKind.Char, keys[1].Kind);
+        Assert.Equal("b", keys[1].Input);
+    }
 }

@@ -281,6 +281,10 @@ public static class Program {
         var tuiOutput = Console.Out;
         var originalOut = Console.Out;
         Console.SetOut(Console.Error);
+        // E1 崩溃兜底 — CursorLifecycle 注释契约兑现：raw mode 运行期内任何未处理异常/信号退出路径，
+        // 钩子统一补发硬件光标 Show + bracketed paste Disable（using RawConsoleMode 只恢复 console mode，
+        // 覆盖不了 DEC 25/2004 两个终端层状态 — 对齐基准 ink.tsx signal-exit 恢复链）
+        using var restoreGuard = new TerminalRestoreGuard(tuiOutput);
         try {
             EngineSession session;
             try {

@@ -21,7 +21,7 @@ public sealed class HelpPanel
         "shift+tab  切换权限模式",
         "ctrl+c  复制最后回复",
         "ctrl+d  退出（再按一次确认）",
-        "esc  打断 · 空输入时清空",
+        "esc  打断 · 有输入时清空",
     ];
 
     /// <summary>面板行数（高度 — ReplView 布局链消费；派生自 Lines 唯一数据源）。</summary>

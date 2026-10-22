@@ -315,6 +315,9 @@ public sealed class ReplShell
     /// <summary>强制全量重绘标记（S6 任务 8 — ctrl+l 清 Screen 下一帧全量重绘；消费后复位）。</summary>
     private bool _forceFullReset;
 
+    /// <summary>上次渲染拍观察到的终端视口行数（inline 高度变化检测 — reflow 后强制 fullReset）。</summary>
+    private int _lastViewportRows;
+
     /// <summary>强制重绘空白前置帧（零尺寸屏 — InlineComposer 判 prev.Cols ≠ next.Cols 走
     /// FullReset 路径：光标移视口顶 + EraseScreen + 重绘可见区；缓存复用零分配）。</summary>
     private Screen? _blankPrev;
@@ -946,8 +949,9 @@ public sealed class ReplShell
 
         switch (key.Kind)
         {
-            case KeyKind.Return when key.Shift:
-                // S7 接线 — 基准 multiline：shift+enter 插入换行不提交（enter 才发送）
+            case KeyKind.Return when key.Shift || key.Meta:
+                // S7 接线 — 基准 multiline：shift+enter 插入换行不提交（enter 才发送）；
+                // meta+enter 同为换行（基准 useTextInput.ts:257-265 meta||shift → insert '\n'）
                 _input.InsertNewline();
                 return;
             case KeyKind.Return:
@@ -985,8 +989,8 @@ public sealed class ReplShell
             case KeyKind.Paste:
                 // S7 接线 — bracketed paste 整块到达（KeyPressParser 通道 VT 序列 / ReadKey 通道重组）：
                 // InputBuffer.Paste 清洗 + 超阈值折叠登记 [Pasted text #N]（提交取 ExpandedText 全文）；
-                // 可见行数上限随终端高度自适应（基准 rows-10 语义）
-                _input.Paste(key.Input, Math.Max(0, _sizeSource.Current.Rows - 10));
+                // 可见行数上限 = min(rows-10, 2)（基准 PromptInput.tsx:1220 — 防多行原文直插挤爆输入区）
+                _input.Paste(key.Input, Math.Min(Math.Max(0, _sizeSource.Current.Rows - 10), PastedContentTracker.DefaultMaxVisibleLines));
                 break;
             case KeyKind.Char:
                 if (key.Input.Length == 1)
@@ -1070,8 +1074,7 @@ public sealed class ReplShell
                 StashInput();
                 break;
             case "o":
-                _transcript.Toggle();
-                SyncTranscriptView();
+                ToggleTranscript();
                 break;
             case "n":
                 ScrollIfViewport(3);
@@ -1656,7 +1659,8 @@ public sealed class ReplShell
     /// <summary>transcript 模态按键（S6 收敛 — S5 TranscriptController 唯一引擎）：
     /// ctrl+o 分派契约 `IsActive ? (TryHandleKey || toggle) : toggle` — Controller 未消费
     /// （less 键位/搜索/退出之外）且是 ctrl+o 时切换退出（搜索栏打开时 ctrl+o 故意穿透
-    /// 供此路径退出）；其余未消费键吞掉（模态 — 字符不进输入框）。
+    /// 供此路径退出）；ctrl+c 穿透回宿主继续分派（TranscriptController 注释契约 — 复制/全局路径）；
+    /// 其余未消费键吞掉（模态 — 字符不进输入框）。
     /// 每键后同步视图投影（滚动/搜索/进出态立即反映 — 渲染帧兜底刷新）。</summary>
     private void HandleTranscriptKey(KeyPress key)
     {
@@ -1668,11 +1672,31 @@ public sealed class ReplShell
 
         if (key.Ctrl && key is { Kind: KeyKind.Char, Input: "o" })
         {
-            _transcript.Toggle();
-            SyncTranscriptView();
+            ToggleTranscript();
+            return;
         }
 
-        // 其余未消费键吞掉（模态 — 修饰组合穿透回宿主仅 ctrl+o 语义）
+        if (key.Ctrl && key is { Kind: KeyKind.Char, Input: "c" })
+        {
+            // TranscriptController 契约兑现 — ctrl+c 不吞键，穿透回宿主全局分派（TASK059 复制路径）
+            HandleCtrlKey(key.Input);
+        }
+
+        // 其余未消费键吞掉（模态 — 修饰组合穿透回宿主仅 ctrl+o/ctrl+c 语义）
+    }
+
+    /// <summary>切换 transcript 模态 + 视图投影同步 — 进入整屏独占模态时清除建议态
+    /// （防激活期建议劫持 Up/Tab/Enter/Esc — 独占不变量：transcript 激活时建议不可达）。</summary>
+    private void ToggleTranscript()
+    {
+        _transcript.Toggle();
+        if (_transcript.IsActive)
+        {
+            _suggester?.Dismiss();
+            _atSuggestions = null;
+        }
+
+        SyncTranscriptView();
     }
 
     /// <summary>'?' 触发判定 — 空闲态（非忙 + 空输入 + 无修饰）的裸 '?'（有输入时 '?' 走正常字符插入；
@@ -2079,10 +2103,11 @@ public sealed class ReplShell
         {
             switch (key.Kind)
             {
-                case KeyKind.UpArrow:
+                // 修饰组合不劫持（基准 match.ts:60-79 修饰符精确全等 — shift+up 落 Chat 上下文进光标导航）
+                case KeyKind.UpArrow when !key.Shift && !key.Ctrl && !key.Meta:
                     _atSuggestionIndex = (_atSuggestionIndex - 1 + _atSuggestions.Count) % _atSuggestions.Count;
                     return true;
-                case KeyKind.DownArrow:
+                case KeyKind.DownArrow when !key.Shift && !key.Ctrl && !key.Meta:
                     _atSuggestionIndex = (_atSuggestionIndex + 1) % _atSuggestions.Count;
                     return true;
                 case KeyKind.Tab:
@@ -2109,10 +2134,11 @@ public sealed class ReplShell
         {
             switch (key.Kind)
             {
-                case KeyKind.UpArrow:
+                // 修饰组合不劫持（基准 match.ts:60-79 修饰符精确全等 — shift+up 落 Chat 上下文进光标导航）
+                case KeyKind.UpArrow when !key.Shift && !key.Ctrl && !key.Meta:
                     suggester.Move(-1);
                     return true;
-                case KeyKind.DownArrow:
+                case KeyKind.DownArrow when !key.Shift && !key.Ctrl && !key.Meta:
                     suggester.Move(1);
                     return true;
                 case KeyKind.Tab:
@@ -2134,6 +2160,9 @@ public sealed class ReplShell
             if (key.Kind == KeyKind.RightArrow && _input.CursorCol == _input.Text.Length)
             {
                 FillInput(_input.Text + suggester.GhostSuffix, cursorToStart: false);
+                // 接受后建议状态必须失效（基准：输入变化→updateSuggestions 重算→ghost 清空）—
+                // FillInput 的 _programmaticFill 会跳过 HandleRawKeyPress 尾部刷新，需显式重算防旧后缀残留
+                UpdateSuggestions();
                 return true;
             }
 
@@ -2801,6 +2830,15 @@ public sealed class ReplShell
     internal void EnsureScreens()
     {
         var (cols, rows) = _sizeSource.Current;
+        if (_inline && _lastViewportRows != 0 && rows != _lastViewportRows)
+        {
+            // inline 终端高度变化 — 物理屏已被终端 reflow 重排（相对光标模型失同步），
+            // 屏对象可复用（屏高=内容高与 rows 无关）但必须强制 fullReset 重绘
+            // （对齐基准 log-update.ts:142-147 高度变化无条件 fullReset）
+            _forceFullReset = true;
+        }
+
+        _lastViewportRows = rows;
         var backRows = _inline
             ? (_transcript.IsActive ? rows : Math.Max(8, _view.MeasureContentHeight(cols)))
             : rows;

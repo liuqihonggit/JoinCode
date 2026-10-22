@@ -335,6 +335,21 @@ public static class Program {
                 var themeName = await LoadThemeNameAsync(session.Services).ConfigureAwait(false);
                 var commandUsage = await CommandUsageMemory.LoadAsync(CommandUsageMemory.DefaultFilePath).ConfigureAwait(false);
                 var rawInputPump = useRawStdinPump ? new RawStdinPump(terminalQuerier) : null;
+                // TASK066 板块A — 终端状态三路装配（标题/21337 tab/9;4 进度）：
+                // 标题写通道平台分流（基准 use-terminal-title.ts：Windows=process.title → Console.Title，
+                // 其余 OSC 0 经 TUI 输出流）；CLAUDE_CODE_DISABLE_TERMINAL_TITLE 对齐禁用；
+                // tab 状态默认开 + JCC_TUI_TAB_STATUS=0 关闭；进度走能力判定（WT 排除/ConEmu 白名单）
+                var titleTracker = new TerminalTitleTracker(
+                    "JoinCode",
+                    OperatingSystem.IsWindows()
+                        ? title => Console.Title = title
+                        : title => tuiOutput.Write(Osc.SetTitle(title)),
+                    disabled: Environment.GetEnvironmentVariable("CLAUDE_CODE_DISABLE_TERMINAL_TITLE") is not null
+                        and not ("0" or "false"));
+                var tabStatusEnabled = Environment.GetEnvironmentVariable("JCC_TUI_TAB_STATUS") != "0";
+                var terminalStatus = new TerminalStatusCoordinator(
+                    tuiOutput, titleTracker, tabStatusEnabled,
+                    progressEnabled: TerminalCapabilities.IsProgressReportingAvailable());
                 var shell = new ReplShell(pickerEngine, banner, tuiOutput, commands: commands,
                     clipboard: text => _ = clipboardService?.SetTextAsync(text),
                     themeName: themeName,
@@ -362,7 +377,9 @@ public static class Program {
                     // DSG042 P2 — 输入泵通道：默认 ReadKeyPump（现役稳定）；
                     // --raw-input 灰度启用 RawStdinPump（stdin 原始流 VT 全链 — 修饰组合键保留/
                     // paste 整块直出；双终端实测矩阵跑齐后 P3 切默认）；引用留 Host 收尾 Dispose
-                    inputPump: rawInputPump);
+                    inputPump: rawInputPump,
+                    // TASK066 板块A — 终端状态协调器（null 降级路径仅测试用 — 宿主恒装配）
+                    terminalStatus: terminalStatus);
                 pickerEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);

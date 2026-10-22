@@ -187,4 +187,23 @@
 
 ## 收口记录
 
-（各板块实施时逐批追加）
+### 板块 A — 终端集成与通知（2026-10-23 完成，主智能体实施）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| A1 `ansi/Osc.cs` TabStatus/ClearTabStatus（21337 三字段+转义） | TerminalSessionStatusExtensions / Coordinator | ✅ | ✅ 单元 7 测试 golden |
+| A2 `repl/terminal_status/TerminalTitleTracker.cs`（⠂⠐ 960ms/✳/失焦冻结/去抖） | TerminalStatusCoordinator → ReplShell | ✅ | ✅ 单元 15 测试 |
+| A2 `TerminalSessionStatus.cs` 三态枚举 + 21337 preset 扩展（唯一数据源） | ComputeSessionStatus 归并 | ✅ | ✅ 单元 3 preset 逐色 |
+| A3 `KeyKind.FocusIn/FocusOut` + KeyPressParser CSI I/O + FocusReporting(1004) | HandleKeyPress 顶部拦截 | ✅ | ✅ 单元 3 解析测试 |
+| A4 `TerminalCapabilities.IsProgressReportingAvailable`（WT 排除/ConEmu/Ghostty/iTerm2） | Host 装配门控 | ✅ | ✅ 单元 7 测试 |
+| A5-A8 `TerminalStatusCoordinator.cs` 三路统一（标题/tab/进度 + waiting 挂起不清进度） | ReplShell 每拍驱动 + WriteExit 对称清理 | ✅ | ✅ 单元 11+7 接线测试 |
+| 宿主装配 Program.cs（Windows Console.Title/Unix OSC0 分流 + 环境开关） | 交互 REPL 主路径 | ✅ | ✅ Host.Tests 125 + selftest OK |
+
+- 测试：NativeTui.Tests 1762→**1802 全绿**（+40）；Host.Tests 125 全绿；`--selftest` OK
+- 决策记录：①进度 waiting 挂起不清（权限期任务仍进行）②tab 门控默认关由宿主开（golden 零污染）③协调器组件化替代散写三路 ④ReadKey 通道恒 unknown 视同 focused（基准语义）
+- 手动验收（ADR 0080 待用户真机）：Windows Terminal 观察 tab 标题 `✳`/`⠂⠐` 动画、21337 彩点三态（Windows Terminal 实际丢弃 21337 静默安全）、失焦冻结动画
+- 提交链：6d9694c61(A1) → d192a147a(A3) → ff9d2cf57(A4) → 8710e169a(A2) → 5ed934a5d(A5-A8) → 宿主装配
+
+### 其他板块
+
+B/C/D/E/F 待分派其他人；G 跨板块收口最后做。

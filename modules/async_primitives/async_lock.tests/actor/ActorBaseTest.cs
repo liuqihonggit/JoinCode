@@ -168,13 +168,18 @@ public class ActorBaseTest {
     /// </summary>
     [Fact]
     public async Task RetryWriteBack_Failed_TriggersSendFailed() {
-        var bp = new ActorBackpressure(Capacity: 1, RetryQueueCapacity: 1);
+        var bp = new ActorBackpressure(Capacity: 1, RetryQueueCapacity: 2);
         await using var actor = new TestActor(bp);
 
         var sendFailedEvents = new List<BackpressureSendFailedEventArgs<string>>();
         actor.SendFailed += (_, e) => sendFailedEvents.Add(e);
 
-        actor.RetryQueueInternal.Writer.TryWrite(new RetryEntry<string>("occupier", 1));
+        // 竞态根治（CI 慢机假红）：RunLoop await foreach 取出首条后卡 Task.Delay — 取出即队列空，
+        // 断言前被抢跑则 TryWrite 成功假阳。占位 2 条 + 10s 背压信号拉长首条消费延迟
+        // （RunLoop 串行：首条卡 Delay 期间第二条稳占队列，TryRequeue 满判定确定性成立）
+        actor.ReceiveBackpressureSignal(TimeSpan.FromSeconds(10));
+        actor.RetryQueueInternal.Writer.TryWrite(new RetryEntry<string>("occupier1", 1));
+        actor.RetryQueueInternal.Writer.TryWrite(new RetryEntry<string>("occupier2", 1));
 
         var result = actor.TryRequeueRetryEntry(new RetryEntry<string>("D", 1));
 
@@ -205,14 +210,18 @@ public class ActorBaseTest {
     /// </summary>
     [Fact]
     public async Task SendFailed_Multicast_FirstHandlerThrows_SecondStillCalled() {
-        var bp = new ActorBackpressure(Capacity: 1, RetryQueueCapacity: 1);
+        var bp = new ActorBackpressure(Capacity: 1, RetryQueueCapacity: 2);
         await using var actor = new TestActor(bp);
 
         var handler2Called = false;
         actor.SendFailed += (_, _) => throw new InvalidOperationException("handler1 crash");
         actor.SendFailed += (_, _) => handler2Called = true;
 
-        actor.RetryQueueInternal.Writer.TryWrite(new RetryEntry<string>("occupier", 1));
+        // 竞态根治同 RetryWriteBack_Failed_TriggersSendFailed：占位 2 条 + 10s 背压信号
+        // 锁住 RunLoop 首条消费（断言前占位被抢跑吃掉则 TryWrite 成功不触发 SendFailed 假阴）
+        actor.ReceiveBackpressureSignal(TimeSpan.FromSeconds(10));
+        actor.RetryQueueInternal.Writer.TryWrite(new RetryEntry<string>("occupier1", 1));
+        actor.RetryQueueInternal.Writer.TryWrite(new RetryEntry<string>("occupier2", 1));
         actor.TryRequeueRetryEntry(new RetryEntry<string>("D", 1));
 
         handler2Called.Should().BeTrue();

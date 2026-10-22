@@ -18,36 +18,36 @@ internal static class E2eSettingsJsonHelper {
               "protocol": "openai-compatible",
               "apiKeyEnvVar": "OPENAI_API_KEY",
               "models": [
-                { "id": "gpt-4o", "displayName": "GPT-4o", "capabilities": { "modalities": ["text"] } },
-                { "id": "gpt-4o-mini", "displayName": "GPT-4o Mini", "capabilities": { "modalities": ["text"] } }
+                { "id": "gpt-4o", "displayName": "GPT-4o", "contextWindow": 128000, "capabilities": { "modalities": ["text"] } },
+                { "id": "gpt-4o-mini", "displayName": "GPT-4o Mini", "contextWindow": 128000, "capabilities": { "modalities": ["text"] } }
               ]
             },
             "anthropic": {
               "protocol": "anthropic",
               "apiKeyEnvVar": "ANTHROPIC_API_KEY",
               "models": [
-                { "id": "claude-sonnet-4-20250514", "displayName": "Claude Sonnet 4", "capabilities": { "modalities": ["text"] } }
+                { "id": "claude-sonnet-4-20250514", "displayName": "Claude Sonnet 4", "contextWindow": 200000, "capabilities": { "modalities": ["text"] } }
               ]
             },
             "deepseek": {
               "protocol": "openai-compatible",
               "apiKeyEnvVar": "DEEPSEEK_API_KEY",
               "models": [
-                { "id": "deepseek-v4-flash", "displayName": "DeepSeek V4 Flash", "capabilities": { "modalities": ["text"] } }
+                { "id": "deepseek-v4-flash", "displayName": "DeepSeek V4 Flash", "contextWindow": 128000, "capabilities": { "modalities": ["text"] } }
               ]
             },
             "agnes": {
               "protocol": "openai-compatible",
               "apiKeyEnvVar": "AGNES_API_KEY",
               "models": [
-                { "id": "agnes-image-2.0-flash", "displayName": "Agnes Image 2.0 Flash", "capabilities": { "modalities": ["text", "readImage"] } }
+                { "id": "agnes-image-2.0-flash", "displayName": "Agnes Image 2.0 Flash", "contextWindow": 128000, "capabilities": { "modalities": ["text", "readImage"] } }
               ]
             },
             "sensenova": {
               "protocol": "openai-compatible",
               "apiKeyEnvVar": "SENSENOVA_API_KEY",
               "models": [
-                { "id": "sensenova-6.8-flash-lite", "displayName": "SenseNova 6.8 Flash Lite", "capabilities": { "modalities": ["text"] } }
+                { "id": "sensenova-6.8-flash-lite", "displayName": "SenseNova 6.8 Flash Lite", "contextWindow": 128000, "capabilities": { "modalities": ["text"] } }
               ]
             }
           }

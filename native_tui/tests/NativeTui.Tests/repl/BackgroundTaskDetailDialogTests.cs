@@ -80,24 +80,24 @@ public sealed class BackgroundTaskDetailDialogTests
         Assert.Equal(" 终态时间  —", RowText.Of(runningScreen, 8, 0, 40).TrimEnd());
     }
 
-    /// <summary>描述超宽折行 — 词边界折行（PermissionTextWrap 复用）续行缩进对齐值列 col 11 +
+    /// <summary>描述超宽折行 — 词边界折行（PermissionTextWrap 复用，显示列宽计量）续行缩进对齐值列 col 11 +
     /// MeasureHeight 随折行数增长（MeasureHeight/Render 同参数防行数漂移）。
-    /// 描述用 ASCII 词组 — PermissionTextWrap 按字符数折行（ASCII 语义），汉字 2 cell
-    /// 显示宽会超值区被 Screen 截断（既有工具局限，宽字符折行为登记遗留非本对话框回归）。</summary>
+    /// 描述用汉字词组 — 值区宽 13 显示列："检查构建" 8 列收首行，
+    /// "验证发布" 8+1+8=17 &gt; 13 换行 → 描述 2 行（宽字符 2 cell 语义下折行正确不超宽）。</summary>
     [Fact]
     public void Render_LongDescription_WrapsAtValueColumn()
     {
         using var screen = new Screen(cols: 24, rows: 12);
         var dialog = new BackgroundTaskDetailDialog(
-            new BackgroundTaskEntry("fork", "f-1", "aaaa bbbb cccc dddd", "running"), nowMs: 10_000);
+            new BackgroundTaskEntry("fork", "f-1", "检查构建 验证发布", "running"), nowMs: 10_000);
 
-        // 值区宽 = 24 - 11 = 13 字符：第一行收 2 词（9 字符），"cccc dddd" 换行 → 描述 2 行
+        // 值区宽 = 24 - 11 = 13 显示列：第一行收 "检查构建"（8 列），"验证发布"（8+1+8=17 > 13）换行 → 描述 2 行
         Assert.Equal(12, dialog.MeasureHeight(24));
         dialog.Render(screen, new Rect(0, 0, 24, 12), Theme.Dark);
 
-        Assert.Equal(" 任务描述  aaaa bbbb", RowText.Of(screen, 6, 0, 24).TrimEnd());
-        // 续行缩进对齐值列（col 11 起 — 与字段值共用起点）
-        Assert.Equal("cccc dddd", RowText.Of(screen, 7, 11, 13).TrimEnd());
+        Assert.Equal(" 任务描述  检查构建", RowText.Of(screen, 6, 0, 24).TrimEnd());
+        // 续行缩进对齐值列（col 11 起 — 与字段值共用起点，8 列 ≤ 13 不被 Screen 截断）
+        Assert.Equal("验证发布", RowText.Of(screen, 7, 11, 13).TrimEnd());
         // 折行后状态/终态/提示行随之下移一行（row 8/9/11）
         Assert.Equal(" 任务状态  运行中", RowText.Of(screen, 8, 0, 24).TrimEnd());
         Assert.Equal(" esc 返回 · left 关闭", RowText.Of(screen, 11, 0, 24).TrimEnd());

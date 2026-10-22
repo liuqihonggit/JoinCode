@@ -229,6 +229,13 @@ public sealed class ReplShell
     /// 元组 = (发起时原文, 编辑后文本 — null = 编辑器失败/取消丢弃信号)。</summary>
     private readonly ConcurrentQueue<(string Original, string? Edited)> _externalEditorResults = new();
 
+    /// <summary>ctrl+x 前缀序列标记（M2 — 基准 defaultBindings.ts:83-84 ctrl+x ctrl+e →
+    /// chat:externalEditor 第二键位）：ctrl+x 置位，紧随其后的 ctrl+e 消费触发外部编辑器；
+    /// HandleCtrlKey 入口捕获复位 — 任何其他 ctrl 键到达即作废前缀态（无超时简化：基准无超时，
+    /// 陈旧前缀由下一次 ctrl 键到达自然清除；ctrl+x 自身重新置位延续等待 — readline 前缀语义，
+    /// 可扩展承载后续 ctrl+x ctrl+k 等序列，本批次仅接编辑器不预埋）。</summary>
+    private bool _ctrlXPrefix;
+
     /// <summary>主循环存活标记（internal — 退出安全测试断言面：Esc/Ctrl+C 永不置 false）。</summary>
     internal bool IsRunning => _running;
 
@@ -784,6 +791,13 @@ public sealed class ReplShell
     /// ，其余 Emacs 编辑（Ctrl/Meta 词操作 + kill ring），控制键走编辑/提交/权限，字符插入。</summary>
     private void HandleKeyPress(KeyPress key)
     {
+        // M2 序列前缀清除 — 非 ctrl 键（打字/箭头/Esc 等）插断 ctrl+x 序列：
+        // 防陈旧前缀被后续 ctrl+e 误触外部编辑器（HandleCtrlKey 入口只清 ctrl 键路径）
+        if (!key.Ctrl && _ctrlXPrefix)
+        {
+            _ctrlXPrefix = false;
+        }
+
         if (_permission.IsPending)
         {
             HandlePermissionKey(key);
@@ -993,9 +1007,17 @@ public sealed class ReplShell
         }
     }
 
-    /// <summary>Ctrl 组合分派（对齐基准 handleCtrl 表）。</summary>
+    /// <summary>Ctrl 组合分派（对齐基准 handleCtrl 表）。
+    /// M2 新增 ctrl+x ctrl+e 第二键位（基准 defaultBindings.ts:83-84 chat:externalEditor —
+    /// ctrl+x 为前缀键：置 _ctrlXPrefix 序列标记，紧随其后的 ctrl+e 触发外部编辑器；
+    /// 入口捕获复位 — 任何其他 ctrl 键到达即作废前缀态，无超时简化；
+    /// 前缀态优先于 End() 编辑语义 — 单独 ctrl+e 仍是行尾，语义不破坏）。</summary>
     private void HandleCtrlKey(string name)
     {
+        // ctrl+x 前缀捕获复位（M2 — 进入即复位：仅 "e" 分支消费触发；
+        // "x" 分支重新置位延续等待，其余 ctrl 键到达即作废前缀态）
+        var ctrlXPrefix = _ctrlXPrefix;
+        _ctrlXPrefix = false;
         switch (name)
         {
             case "a":
@@ -1019,7 +1041,16 @@ public sealed class ReplShell
 
                 break;
             case "e":
-                _input.End();
+                // M2 — 前缀态优先劫持进外部编辑器；非前缀保持 End() 编辑语义（单独 ctrl+e 仍是行尾）
+                if (ctrlXPrefix)
+                {
+                    LaunchExternalEditor();
+                }
+                else
+                {
+                    _input.End();
+                }
+
                 break;
             case "f":
                 _input.Right();
@@ -1059,6 +1090,11 @@ public sealed class ReplShell
                 break;
             case "w":
                 _input.KillWordBefore();
+                break;
+            case "x":
+                // M2 — ctrl+x 前缀键（仅接 ctrl+x ctrl+e 编辑器；基准 killAgents ctrl+x ctrl+k
+                // 未做不预埋 — 序列标记 _ctrlXPrefix 可扩展承载后续序列）
+                _ctrlXPrefix = true;
                 break;
             case "y":
                 _input.Yank();

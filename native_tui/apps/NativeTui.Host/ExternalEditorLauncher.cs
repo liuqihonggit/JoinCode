@@ -45,18 +45,18 @@ public static class ExternalEditorLauncher
         }
     }
 
-    /// <summary>解析并启动编辑器进程 — $EDITOR 环境变量（支持带参数形态如 "code -w"，
-    /// 按空白拆分首段为可执行名 + 余段前置参数 + temp 文件路径尾参）；未设置时平台兜底
+    /// <summary>解析并启动编辑器进程 — $EDITOR 环境变量（支持带参数形态如 "code -w" 与
+    /// 引号路径形态如 "C:\Program Files\editor\e.exe" -w — 经 ParseEditorCommand 手写扫描解析；
+    /// 旧空白 Split 会把含空格路径拆成残引号断路径）；未设置时平台兜底
     ///（Windows notepad.exe / 其余 vi）。启动失败返回 null。</summary>
     private static Process? StartEditor(string filePath)
     {
-        var editor = Environment.GetEnvironmentVariable("EDITOR");
-        var fileName = string.IsNullOrWhiteSpace(editor)
+        // M1 — 引号路径解析（解析后仍异常的形态由下方 catch 统一 null 降级）
+        var (exe, args) = ParseEditorCommand(Environment.GetEnvironmentVariable("EDITOR") ?? string.Empty);
+        var fileName = exe.Length == 0
             ? (OperatingSystem.IsWindows() ? "notepad.exe" : "vi")
-            : editor.Trim().Split(' ', 2)[0];
-        var prefixArguments = string.IsNullOrWhiteSpace(editor) || !editor.Contains(' ')
-            ? string.Empty
-            : editor[(editor.IndexOf(' ') + 1)..].Trim() + " ";
+            : exe;
+        var prefixArguments = args.Length == 0 ? string.Empty : args + " ";
 
         try
         {
@@ -85,5 +85,34 @@ public static class ExternalEditorLauncher
         {
             return null;
         }
+    }
+
+    /// <summary>解析 $EDITOR 命令串为可执行名 + 前置参数（M1 — 引号路径支持）：
+    /// 手写扫描替代空白 Split — 跳过前导空白 → 首字符为引号时读闭合引号内段为可执行名
+    ///（残缺引号防御：到串尾未闭合则引号后整段当 exe — 含空格启动失败由 StartEditor 容错降级）→
+    /// 否则读到首个空白为可执行名（shell 惯例 — 无引号空格即分隔符，含空格路径需引号包裹）→
+    /// 余段（含引号原样透传 ProcessStartInfo.Arguments）Trim 为前置参数；
+    /// 空/全空白输入返回 ("", "") 由调用方走平台兜底。</summary>
+    internal static (string Exe, string Args) ParseEditorCommand(string editor)
+    {
+        var span = editor.AsSpan().TrimStart();
+        if (span.IsEmpty)
+        {
+            return (string.Empty, string.Empty);
+        }
+
+        if (span[0] == '"')
+        {
+            var rest = span[1..];
+            var close = rest.IndexOf('"');
+            return close < 0
+                ? (rest.ToString(), string.Empty)
+                : (rest[..close].ToString(), rest[(close + 1)..].Trim().ToString());
+        }
+
+        var split = span.IndexOf(' ');
+        return split < 0
+            ? (span.ToString(), string.Empty)
+            : (span[..split].ToString(), span[(split + 1)..].Trim().ToString());
     }
 }

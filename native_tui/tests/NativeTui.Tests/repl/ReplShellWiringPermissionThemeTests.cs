@@ -105,6 +105,81 @@ public sealed class ReplShellWiringPermissionThemeTests
         Assert.Equal(1, shell.View.Footer.Notifications!.QueuedCount);
     }
 
+    /// <summary>S11 遗留#3 双通道裁决 — /theme auto：TUI 侧支持 auto 名（本地色板按当前时段解析
+    /// + 持久化写 auto 字面量 — 与引擎侧 SetAsync("theme","auto") 语义一致，重启后 Host 侧再解析）。</summary>
+    [Fact]
+    public async Task ThemeCommand_Auto_PersistsAutoLiteral()
+    {
+        var engine = new FakeReplEngine();
+        var saved = new List<string>();
+        var shell = new ReplShell(engine, new BannerItem("1", "m", "b", "/tmp"), new StringWriter(),
+            sizeSource: new FakeTerminalSizeSource(80, 24),
+            saveThemeAsync: name => { saved.Add(name); return Task.CompletedTask; });
+        shell.SeedContent();
+
+        Type(shell, "/theme auto");
+        shell.Submit();
+
+        await WaitForAsync(() => saved.Count > 0);
+        // 持久化写原名 auto 字面量（非解析后的 dark/light）
+        Assert.Equal(["auto"], saved);
+        Assert.Empty(engine.Submits);
+    }
+
+    /// <summary>S11 遗留#1 — /theme 合法名：持久化委托 fire-and-forget 收到主题名
+    ///（宿主写回 settings.json 闭环；未知名不触发持久化）。</summary>
+    [Fact]
+    public async Task ThemeCommand_ValidName_InvokesSaveThemeDelegate()
+    {
+        var engine = new FakeReplEngine();
+        var saved = new List<string>();
+        var shell = new ReplShell(engine, new BannerItem("1", "m", "b", "/tmp"), new StringWriter(),
+            sizeSource: new FakeTerminalSizeSource(80, 24),
+            saveThemeAsync: name => { saved.Add(name); return Task.CompletedTask; });
+        shell.SeedContent();
+
+        Type(shell, "/theme light");
+        shell.Submit();
+
+        await WaitForAsync(() => saved.Count > 0);
+        Assert.Equal(["light"], saved);
+
+        // 未知名不触发持久化（错误提示路径无写盘）
+        var savedBefore = saved.Count;
+        Type(shell, "/theme nosuch");
+        shell.Submit();
+        await Task.Delay(50);
+        Assert.Equal(savedBefore, saved.Count);
+    }
+
+    /// <summary>S11 遗留#1 — 持久化委托抛异常静默降级（切换仍生效 + 通知仍发 — 写盘失败不打扰用户）。</summary>
+    [Fact]
+    public void ThemeCommand_SaveDelegateThrows_DegradesSilently()
+    {
+        var engine = new FakeReplEngine();
+        var shell = new ReplShell(engine, new BannerItem("1", "m", "b", "/tmp"), new StringWriter(),
+            sizeSource: new FakeTerminalSizeSource(80, 24),
+            saveThemeAsync: _ => throw new IOException("disk full"));
+        shell.SeedContent();
+
+        Type(shell, "/theme dark");
+        shell.Submit();
+
+        // 切换本地生效 + 通知入队（持久化失败不影响会话级切换）
+        Assert.Equal(1, shell.View.Footer.Notifications!.QueuedCount);
+    }
+
+    /// <summary>轮询等待异步完成（fire-and-forget 委托投递 — 16 次 × 25ms 收敛窗）。</summary>
+    private static async Task WaitForAsync(Func<bool> condition)
+    {
+        for (var i = 0; i < 16 && !condition(); i++)
+        {
+            await Task.Delay(25);
+        }
+
+        Assert.True(condition(), "异步条件未在收敛窗内满足");
+    }
+
     /// <summary>接线点8 — /theme 未知名：错误提示带诱导（合法值清单 + 正确写法）。</summary>
     [Fact]
     public void ThemeCommand_UnknownName_ShowsGuidance()

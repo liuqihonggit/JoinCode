@@ -305,7 +305,10 @@ public static class Program {
                     onStopTask: (kind, taskId) => session.Client.StopBackgroundTask(kind, taskId),
                     // 方案 B — 流式期 Markdown 块级增量投影（Markdig 卫星注入：稳定前缀 memoize +
                     // 增长尾纯文本，对齐基准 StreamingMarkdown；落定替换 MarkdownMessageItem 全量渲染）
-                    streamingProjector: new StreamingMarkdownProjector());
+                    streamingProjector: new StreamingMarkdownProjector(),
+                    // S11 遗留#1 — /theme 持久化：合法切换写回引擎 settings.json theme 键
+                    //（IConfigurationService.SetAsync；写盘失败静默降级会话级 — ReplShell 侧容错）
+                    saveThemeAsync: name => SaveThemeAsync(session.Services, name));
                 pickerEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);
@@ -336,7 +339,7 @@ public static class Program {
     }
 
     /// <summary>加载主题配置名（S9 接线 — 引擎 settings.json 的 theme 键经 IConfigurationService 读取）：
-    /// auto 按本地小时解析 light/dark（6-18 点 light，对齐引擎 ThemeCommand.ApplyTheme 的 auto 分支）；
+    /// auto 经 ThemeSelection.ResolveAutoName 唯一数据源解析（S11 遗留#3 收编 — 小时判定不再本地重写）；
     /// 未配置/读取失败返回 null（ReplShell 侧 ThemeSelection.Resolve 回退 dark）。</summary>
     private static async Task<string?> LoadThemeNameAsync(IServiceProvider services) {
         try {
@@ -348,13 +351,29 @@ public static class Program {
             var theme = await config.GetAsync("theme").ConfigureAwait(false);
             if (string.IsNullOrEmpty(theme) || theme == "auto") {
                 return theme == "auto"
-                    ? (DateTime.Now.Hour is >= 6 and < 18 ? ThemeSelection.LightName : ThemeSelection.DarkName)
+                    ? ThemeSelection.ResolveAutoName(DateTime.Now.Hour)
                     : null;
             }
 
             return theme;
         } catch (Exception ex) when (ex is InvalidOperationException or IOException) {
             return null;
+        }
+    }
+
+    /// <summary>持久化主题配置（S11 遗留#1 — /theme 合法切换后写回引擎 settings.json 的 theme 键，
+    /// 下次启动 LoadThemeNameAsync 读回同一值形成闭环）。配置服务缺失/写盘失败静默
+    ///（ReplShell 侧 PersistThemeAsync 已有同形态容错，此处兜底委托链路上其他 IO 异常）。</summary>
+    private static async Task SaveThemeAsync(IServiceProvider services, string themeName) {
+        try {
+            var config = services.GetService<IConfigurationService>();
+            if (config is null) {
+                return;
+            }
+
+            await config.SetAsync("theme", themeName).ConfigureAwait(false);
+        } catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException) {
+            // 写盘失败静默降级 — 会话级主题仍生效，下次启动回退原配置
         }
     }
 

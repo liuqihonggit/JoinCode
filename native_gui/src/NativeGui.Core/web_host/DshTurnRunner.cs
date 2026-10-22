@@ -86,16 +86,23 @@ internal sealed class DshTurnRunner {
     }
 
     /// <summary>
-    /// 把引擎当前权限模式投影为 <c>plan/mode</c> 事件（前端计划模式指示器，TASK066 C6）。
-    /// 引擎权限模式是应用级状态，Plan 即计划模式；投影失败只记日志，不阻断本轮对话。
+    /// 把引擎当前权限模式投影为 <c>plan/mode</c> 事件与 <c>session/control</c> 投影帧
+    /// （前端计划 chip / 权限选择器，TASK066 C7）。引擎权限模式是应用级状态，Plan 即计划模式；
+    /// 期间若引擎模式被外部改变，同步会话投影并补发控制帧；投影失败只记日志，不阻断本轮对话。
     /// </summary>
     private async Task PublishPlanModeAsync(Hosting.IJccChatSession engine, string sessionId) {
         try {
             var mode = await engine.GetCurrentPermissionModeAsync(CancellationToken.None);
+            var preset = mode.ToValue();
             var active = mode is PermissionMode.Plan;
+            var changed = !string.Equals(_services.Sessions.CurrentPermissionPreset, preset, StringComparison.Ordinal);
+            _services.Sessions.SetCurrentPermissionPreset(preset);
             await _services.Streams.EnsureLoadedAsync(sessionId, CancellationToken.None);
             if (_services.Streams.LastPlanMode(sessionId) != active) {
                 await _services.Streams.PublishAsync(sessionId, "plan/mode", new DshPlanModeData { Active = active });
+            }
+            if (changed) {
+                await _services.PublishPermissionProjectionAsync(sessionId, preset, CancellationToken.None);
             }
         } catch (Exception ex) {
             GuiDiag.Log($"[DSH-WEB] plan mode publish failed session={sessionId}: {ex.Message}");

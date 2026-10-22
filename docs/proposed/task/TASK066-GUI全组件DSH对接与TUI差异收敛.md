@@ -22,12 +22,12 @@
 | `dsh-client-ui-sidebar-documentpreview` | PDF/Excel/图片预览 | `workspaceFiles/readBytes`（multipart 字节附件） | ✅ 资产打包 + 缓存完整性校验 + 二进制契约 | `dsh-webui-c5-preview.mjs` 12 项 ALL_PASS（PDF 3 页、Excel 画布渲染） |
 | `dsh-client-ui-approval` | 审批面板 | `$events` waterfall + `$events/result` + 审计事件 | ✅ TASK060 B10/B12 | `dsh-webui-approval.mjs` 48/48 |
 | `dsh-client-ui-goal` | 目标条 | `goals/*` 七方法 | ✅ | 既有单测（真机 E2E 待补） |
-| `dsh-client-ui-plan` | 计划面板 | `plan/mode` 事件 + `exit_plan_mode` 工具调用 | ✅ 轮次起点投影 plan/mode（状态未变去重）+ 权限预设切换广播；工具调用已走 `tool/call` | 单测 4 例 + 真机 E2E |
-| `dsh-client-ui-subagent` | 子代理卡片 | `subagents/{prompt,interruptByParent}`（catalog 已由 `DshSubagentCatalogProjector` 投影） | ✅ 文本投递 + 中断（image 显式拒绝并引导） | 单测 8 例 + 真机 E2E |
-| `dsh-client-ui-commands` / `input-trigger` | 斜杠命令/引用补全 | `commands/list|execute`、`fileReferences/list` | ✅ 斜杠命令 + @ 文件引用补全（索引缓存 5s、排除目录、20 条） | `dsh-webui-prompt` 回归 + 单测 6 例 |
+| `dsh-client-ui-plan` | 计划面板 | `plan/mode` 事件 + `session/control` 投影 + `/plan on|off|status` | ✅ 权限预设 → 引擎 `PermissionMode` → `plan{active,pending=false}` / `permissions{currentValue}` 投影；前端 chip 点击走 `commands/execute /plan off` 宿主拦截 | 单测 8 例 + `c6-e2e.mjs` 真机 30 项（chip 出现/点击/选择器同步） |
+| `dsh-client-ui-subagent` | 子代理卡片 | `subagents/{prompt,interruptByParent}`（catalog 已由 `DshSubagentCatalogProjector` 投影） | ✅ 文本投递 + 中断（image 显式拒绝并引导） | 单测 8 例 + `c6-e2e.mjs` 真机 3 项引导断言 |
+| `dsh-client-ui-commands` / `input-trigger` | 斜杠命令/引用补全 | `commands/list|execute`、`fileReferences/list` | ✅ 斜杠命令 + @ 文件引用补全（索引缓存 5s、排除目录、20 条）+ `/plan` 语义接管 | `dsh-webui-prompt` 回归 + 单测 6 例 + c6 真机 |
 | `dsh-client-ui-settings*`（general/models/shell/agent-loop/subagent/web-search/account/plugins） | 设置中心 | `settings/{describe,mutate,replace,update}` | ✅ 四条写/读路径齐全 | 单测（整段替换/顶层补丁/revision 冲突）+ 真机 E2E |
 | `dsh-client-ui-model-selection` | 模型选择 | `session/modelCatalog|selectModel` | ✅ | 既有 E2E |
-| `dsh-client-ui-skill` | 技能面板 | `skills/list` | ✅ 引擎 `ISkillService` 映射（名称/描述/模型可调用/源路径） | 单测（RPC 4 例 + 映射 2 例）+ 真机 E2E |
+| `dsh-client-ui-skill` | 技能面板 | `skills/list` | ✅ 引擎 `ISkillService` 映射（名称/描述/模型可调用/源路径） | 单测（RPC 4 例 + 映射 2 例）+ `c6-e2e.mjs` 真机 19 条技能 |
 | `dsh-client-ui-message-feedback` | 消息反馈 | `messageFeedback/{list,put,delete}` | ✅ 落盘 + 乐观并发 + 契约错误联合体 | 单测（版本冲突/备注规则）+ 真机 E2E |
 | `dsh-client-ui-directory-picker-native` | 原生目录选择 | `directoryPicker/{pick,list,createDirectory}` | ✅ 原生选择 + 目录浏览（面包屑/隐藏项/1000 条截断）+ 新建目录 | 单测 13 例 + 真机 E2E |
 | `dsh-client-ui-session` | 会话搜索/标题 | `session/rename`、`session/search` | ✅ 字面量搜索 + 20 条上限 + 240 字片段 | 单测（片段/hasMore）+ 真机 E2E |
@@ -44,7 +44,7 @@
 |---|---|---|---|---|
 | 后台任务 | `BackgroundTaskPanel` + `GetBackgroundAgentsAsync` | jobs 面板无宿主数据 | GUI 缺整块 | 引擎后台代理投影为 `JobView`；`job/list` 流推 `rows`、`job/follow` 推 `output/status`、`job/kill` 映射停止代理 |
 | 子代理 | `SubagentGroup` | 卡片 + `subagents/{prompt,interruptByParent}` | 无（文本投递；图片暂不支持） | 投递映射 `ForwardInputToSubAgentAsync`（queue/steer 同路径），中断映射 `InterruptSubAgentAsync`；image 块显式拒绝并引导先落盘再用路径 |
-| 权限模式 | `PermissionMode` 循环（default/auto/plan） | `permissionPresets/*` + `settings/mutate` 写路径 | 无（写路径已生效） | 写路径 → `engine.SetPermissionModeAsync`；同时向打开会话广播 `plan/mode`，前端计划指示器与引擎模式一致 |
+| 权限模式 | `PermissionMode` 循环（default/auto/plan） | `permissionPresets/*` + `settings/mutate` + `session/control` 投影 + `/plan` 命令 | 无 | 写路径 → `engine.SetPermissionModeAsync`；宿主计算 `plan{active,pending=false}` / `permissions{currentValue}` 并推控制帧；`/plan on|off|status` 由宿主拦截（对齐 Claude Code 语义），完成后静默落 `permission/defaultPreset` |
 | 模型选择 | `ModelPickerDialog` | 已接 | 无 | 维持，补变更事件广播 |
 | 斜杠命令 | `CommandPickerEngine` + `SlashCommandCatalog` | `commands/list|execute` | 无 | 维持，补 GUI 分类/隐藏字段 |
 | 终端 | TUI 本体即终端 | 侧栏终端 ❌ | GUI 缺 | ConPTY 会话管理器 + 原始输出快照回放 |
@@ -60,7 +60,7 @@
 | C3 | terminal：ConPTY 会话管理器 + 10 方法 + `terminal/follow`/`retain` 流 | ✅ 已验收（单测 9 + RPC/界面 E2E ALL_PASS） |
 | C4 | 小型缺失方法：`session/search`、`settings/{replace,update}`、`agentPresets/{list,read,select}`、`session/{openWorkspacePath,workspacePathApplications}`、`messageFeedback/{list,put,delete}` | ✅ 已验收（单测 13 + `c4-e2e.mjs` 真机 19 项 ALL_PASS） |
 | C5 | `workspaceFiles/changes` 流 + 文档预览真机验收 | ✅ 已验收（流 8 项 + 预览 12 项 ALL_PASS） |
-| C6 | TUI 差异收敛（后台任务/子代理/权限模式）与文档四列表 | 🔄 进行中（目录浏览/@ 引用/能力探测/技能/子代理/计划模式已完成并单测；C6 真机 E2E 待跑） |
+| C6 | TUI 差异收敛（后台任务/子代理/权限模式）与文档四列表 | ✅ 已验收（目录浏览/@ 引用/能力探测/技能/子代理/计划模式与权限投影；`c6-e2e.mjs` 真机 30 项 ALL_PASS） |
 | C7 | 全量 E2E 回归 + 完成审计 | ⬜ |
 
 ## 四、验收四列表（滚动更新）
@@ -88,6 +88,9 @@
 | `DshRpcDispatcher.SubagentPrompt`（DshRequestEnvelope → `ForwardInputToSubAgentAsync`，requestId 回显 messageId） | 子代理卡片发送框 `subagents/prompt` | ✅ | ✅ 单测 5 例（文本拼接/图片拒绝/未知子代理/非法 mode/回显） |
 | `DshRpcDispatcher.SubagentInterruptByParent`（扁平 childSessionId → `InterruptSubAgentAsync`） | 子代理卡片停止按钮 `subagents/interruptByParent` | ✅ | ✅ 单测 3 例（受理/未知/缺参） |
 | `DshSessionStreamHub.PublishToOpenSessionsAsync` + `LastPlanMode` 去重 | 计划模式指示器 `plan/mode` 事件（轮次起点 + 权限预设切换） | ✅ | ✅ 单测 4 例（轮次前投影/两次只发一次/离开发 false/多会话广播） |
+| `DshSessionControlHub`（订阅者快照广播、单订阅异常隔离、开场缓冲补发） | `session/control` 实时投影帧 | ✅ | ✅ 单测 2 例（投递/解绑、异常订阅者不阻塞）+ `c6-e2e.mjs` 控制帧 plan/permissions |
+| `DshHostServices.ApplyPermissionPresetAsync`（校验 → 引擎 → 会话投影 → 静默落设置 → plan/mode + 控制帧） | 权限选择器 `settings/mutate`、计划 chip `/plan off`、引擎 attach 补应用 | ✅ | ✅ 单测 5 例（plan 生效/非法拒绝/未就绪/off/on）+ `c6-e2e.mjs` seq 水位与 UI chip 同步 |
+| `DshSessionStore` plan/permissions 投影 + `DshRpcDispatcher` `/plan` 拦截 | `plan` chip、`permissions` 选择器、`/plan on|off|status` | ✅ | ✅ 单测 3 例 + `c6-e2e.mjs` 30 项（技能/子代理引导/控制帧/UI 截图） |
 
 <!-- 🤖 Auto Decision: 2026-10-22 -->
 <!-- 决策: 新建 TASK066 而非复用 TASK065（同名文档已被 TUI 任务占用） -->
@@ -131,3 +134,9 @@
 <!-- 原因: 引擎 SkillDefinition 只有名称/描述/DisableModelInvocation/SourcePath，无 WhenToUse（DTO 可空省略）；ForwardUserInputToAgentAsync 是纯文本通道，直接静默丢弃图片会让前端以为已送达；DSH 计划面板按会话折叠 plan/mode 持久事件，而引擎权限模式是应用级状态，需要投影 + 取最近一次事件去重（无记录视为 false） -->
 <!-- 替代方案: 伪造技能数据 / 图片转 base64 塞进文本 / 每轮无条件写 plan/mode —— 前者欺骗 UI，中者子代理无法解析，后者污染日志且破坏既有事件序列断言，均不采用 -->
 <!-- 验证: 单测 15 例全绿（RPC 11 + 计划模式 4）+ 计划模式广播 1 例 + Host 技能映射 2 例；NativeGui.Core 全量 334/334、Host.Tests 技能 2/2 -->
+
+<!-- 🤖 Auto Decision: 2026-10-23 (C7 计划/权限投影) -->
+<!-- 决策: 权限预设作为应用级状态投影到每个会话；plan{active,pending=false} / permissions{currentValue} 由宿主计算并经 session/control 推实时帧；/plan on|off|status 由宿主拦截并映射到引擎 PermissionMode，静默落 permission/defaultPreset -->
+<!-- 原因: 前端 ui-plan 读 useProjection("plan")（pending 时 chip 显示规则相反）、ui-permission-presets 读 permissions.currentValue；引擎 PlanCommand 的 PlanModeManager 与 PermissionMode 是两套状态，直接委托会让 chip 与引擎权限不一致；settings/mutate 回环再写 setting 会递增 revision 造成前端 expectedRevision 冲突 -->
+<!-- 替代方案: 前端改读 plan/mode 持久事件（chip 只在轮次后刷新，交互延迟）/ 委托引擎 PlanCommand（chip 不反映引擎权限模式）/ 每次应用都重写设置（revision 双跳），均不采用 -->
+<!-- 验证: 单测 8 例全绿 + NativeGui.Core 全量 342/342 + NativeGui.Host 0 警告；c6-e2e.mjs 真机 30 项 ALL_PASS（19 条技能、子代理引导 3 项、控制帧 seq>基线水位、计划 chip 出现/点击/权限选择器 Plan→Auto、截图 dsh-webui-c6-plan-on/off.png） -->

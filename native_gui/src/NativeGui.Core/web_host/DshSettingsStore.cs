@@ -204,6 +204,26 @@ internal sealed class DshSettingsStore {
         });
     }
 
+    /// <summary>
+    /// 宿主命令路径静默写入 defaultPreset（TASK066 C7）：值未变化时不递增版本；不触发
+    /// <see cref="PermissionPresetChanged"/>（调用方已完成引擎应用，避免回环重复应用）。
+    /// </summary>
+    /// <param name="preset">引擎枚举词汇（调用方已校验）</param>
+    internal void SetPermissionPreset(string preset) {
+        lock (Gate) {
+            EnsurePermissionDefaults();
+            var state = States[PermissionNamespace];
+            if (state.Entries.TryGetValue("defaultPreset", out var current)
+                && current.ValueKind == JsonValueKind.String
+                && string.Equals(current.GetString(), preset, StringComparison.Ordinal)) {
+                return;
+            }
+            state.Entries["defaultPreset"] = JsonSerializer.SerializeToElement(preset, DshJsonContext.Default.String);
+            state.Revision++;
+            Persist();
+        }
+    }
+
     /// <summary>读取命名空间某个扁平路径的字符串值（agentPresets/list 默认预设等）</summary>
     internal string? ReadString(string ns, params string[] path) {
         lock (Gate) {

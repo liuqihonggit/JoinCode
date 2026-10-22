@@ -1117,6 +1117,8 @@ internal sealed class DshRpcDispatcher {
     /// <summary>
     /// commands/execute：执行斜杠命令（TASK058 B5）。委托引擎 SlashCommandRunner（与 CLI/TUI 同一链路）；
     /// v1 不支持附件参数。成功与未知命令都带输出文本（前端即时反馈渲染）。
+    /// <c>/plan on|off|status</c> 由宿主拦截：对齐 Claude Code 的计划模式语义，映射到引擎
+    /// <see cref="PermissionMode.Plan"/> 并同步 plan/permissions 投影（TASK066 C7）。
     /// </summary>
     private async Task<DshRpcResult> CommandsExecute(JsonElement args, CancellationToken cancellationToken) {
         var request = args.Deserialize(DshJsonContext.Default.DshCommandsExecuteArgs);
@@ -1126,10 +1128,71 @@ internal sealed class DshRpcDispatcher {
         if (_services.Engine is not { } engine) {
             return Fail("commands/not-ready", "引擎仍在组装中，稍后重试；若长时间未就绪查看 dumps/startup_timing.log");
         }
+        if (TryParsePlanCommand(request.Line, out var planAction)) {
+            return await ExecutePlanCommandAsync(planAction, request.AgentId, engine, cancellationToken);
+        }
         var output = await engine.ExecuteSlashCommandAsync(request.Line, cancellationToken);
         return Ok(new DshCommandsExecuteResult {
             CommandId = request.Line.Split(' ', 2)[0].TrimStart('/'),
             Result = new DshCommandOutcome { Kind = "success", Text = output },
+        });
+    }
+
+    /// <summary>
+    /// 解析宿主接管的 <c>/plan</c> 动作：裸命令或 on/enter 开启，off/exit 关闭，status 查询。
+    /// 其它子参数返回 false，交还引擎 <c>PlanCommand</c>（保留 TUI 自己的计划任务能力）。
+    /// </summary>
+    /// <param name="line">前端命令行</param>
+    /// <param name="action">on / off / status</param>
+    private static bool TryParsePlanCommand(string line, out string action) {
+        action = "";
+        var parts = line.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0 || !string.Equals(parts[0], "/plan", StringComparison.OrdinalIgnoreCase)) {
+            return false;
+        }
+        if (parts.Length == 1) {
+            action = "on";
+            return true;
+        }
+        action = parts[1].ToLowerInvariant() switch {
+            "on" or "enter" => "on",
+            "off" or "exit" => "off",
+            "status" => "status",
+            _ => "",
+        };
+        return action.Length > 0;
+    }
+
+    /// <summary>执行宿主接管的一步 <c>/plan</c> 动作（引擎权限模式是应用级状态，作用于全部会话）</summary>
+    private async Task<DshRpcResult> ExecutePlanCommandAsync(
+        string action,
+        string sessionId,
+        Hosting.IJccChatSession engine,
+        CancellationToken cancellationToken) {
+        if (string.Equals(action, "status", StringComparison.Ordinal)) {
+            var current = await engine.GetCurrentPermissionModeAsync(cancellationToken);
+            var planOn = current is PermissionMode.Plan;
+            return Ok(new DshCommandsExecuteResult {
+                CommandId = "plan",
+                Result = new DshCommandOutcome {
+                    Kind = "success",
+                    Text = $"计划模式：{(planOn ? "已开启" : "已关闭")}（当前权限预设 {current.ToValue()}）",
+                },
+            });
+        }
+        var preset = action == "on" ? PermissionMode.Plan.ToValue() : PermissionMode.Auto.ToValue();
+        var (ok, message) = await _services.ApplyPermissionPresetAsync(preset, cancellationToken);
+        if (!ok) {
+            return Fail("commands/rejected", message);
+        }
+        return Ok(new DshCommandsExecuteResult {
+            CommandId = "plan",
+            Result = new DshCommandOutcome {
+                Kind = "success",
+                Text = action == "on"
+                    ? $"计划模式已开启（会话 {sessionId}）：只读分析并给出计划，执行前需退出（/plan off）"
+                    : $"计划模式已关闭（会话 {sessionId}，权限预设 {preset}）",
+            },
         });
     }
 

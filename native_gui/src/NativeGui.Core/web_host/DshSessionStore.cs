@@ -13,9 +13,15 @@ internal sealed class DshSessionStore {
     /// <summary>宿主事件日志（subagentCatalog 投影回放源，TASK058 B8；null 时目录恒空）</summary>
     private readonly DshSessionJournal? _journal;
 
+    /// <summary>引擎当前权限预设（应用级状态；供 plan/permissions 投影在无历史事件时兜底）</summary>
+    private volatile string _permissionPreset = PermissionMode.Auto.ToValue();
+
     /// <summary>构造会话注册表</summary>
     /// <param name="journal">宿主事件日志（可选 — subagentCatalog 回放）</param>
     internal DshSessionStore(DshSessionJournal? journal = null) => _journal = journal;
+
+    /// <summary>设置投影使用的当前权限预设（引擎权限模式变化时由宿主同步）</summary>
+    internal string CurrentPermissionPreset => _permissionPreset;
 
     /// <summary>注入会话存储 — 支持热切换（唯一数据源：同一份 <c>~/.jcc/sessions</c> 落盘数据）</summary>
     /// <param name="transcripts">会话存储（轻量落盘实例或引擎实例）</param>
@@ -23,6 +29,10 @@ internal sealed class DshSessionStore {
 
     /// <summary>会话存储是否已就绪</summary>
     internal bool IsReady => _transcripts is not null;
+
+    /// <summary>记录引擎当前权限预设（权限路由 / 引擎 attach / 轮次起点校正时调用）</summary>
+    /// <param name="preset">引擎枚举词汇（plan/auto/ask/bypass/unattended）</param>
+    internal void SetCurrentPermissionPreset(string preset) => _permissionPreset = preset;
 
     /// <summary>列出会话（投影 id / 更新时间 / 空白标记 / 工作目录 / 标题投影）</summary>
     /// <param name="limit">最多返回条数</param>
@@ -371,8 +381,9 @@ internal sealed class DshSessionStore {
     }
 
     /// <summary>投影键值（标题 / 代理预设 / 模型选择 / 列表元数据 / 子代理实例目录 — TASK058 B8）</summary>
-    private static DshSessionProjections ProjectValues(string? customTitle, SessionInfo? info, IReadOnlyList<TranscriptEntry> entries, IReadOnlyList<DshSessionEvent>? journalEvents = null) {
+    private DshSessionProjections ProjectValues(string? customTitle, SessionInfo? info, IReadOnlyList<TranscriptEntry> entries, IReadOnlyList<DshSessionEvent>? journalEvents = null) {
         var lastPrompt = entries.LastOrDefault(entry => entry.Type is null && !entry.IsSidechain && entry.Role == "user");
+        var preset = _permissionPreset;
         return new DshSessionProjections {
             AsOfSeq = entries.Count,
             Values = new DshSessionProjectionValues {
@@ -387,6 +398,12 @@ internal sealed class DshSessionStore {
                     LastPromptAt = lastPrompt is null ? null : ToUnixMilliseconds(lastPrompt.Timestamp),
                 },
                 SubagentCatalog = DshSubagentCatalogProjector.Project(journalEvents ?? []),
+                // 引擎权限模式是应用级状态：Plan 即计划模式，其余预设原样投影给权限选择器
+                Plan = new DshSessionPlanProjection {
+                    Active = string.Equals(preset, PermissionMode.Plan.ToValue(), StringComparison.Ordinal),
+                    Pending = false,
+                },
+                Permissions = new DshSessionPermissionProjection { CurrentValue = preset },
             },
         };
     }

@@ -487,7 +487,7 @@ internal sealed class DshSessionStreamHub {
     }
 
     /// <summary>当前有打开订阅的会话 ID 快照（同步持锁，供 async 广播在锁外逐个 await）</summary>
-    private string[] OpenSessionIds() {
+    internal string[] OpenSessionIds() {
         lock (_gate) {
             return [.. _subscriptions.Values.Select(subscription => subscription.SessionId).Distinct(StringComparer.Ordinal)];
         }

@@ -46,9 +46,81 @@ internal sealed class DshHostServices {
     /// <summary>宿主事件日志（事件序号与内容的唯一持久化来源）</summary>
     internal DshSessionJournal Journal { get; }
 
+    /// <summary>会话控制流中枢（session/control 的 plan / permissions 投影帧，TASK066 C7）</summary>
+    internal DshSessionControlHub Control { get; } = new();
+
     /// <summary>注入已组装的引擎（DshWebUiWindow 完成后台初始化时调用）</summary>
     /// <param name="engine">引擎会话门面</param>
     internal void AttachEngine(Hosting.IJccChatSession engine) => Engine = engine;
+
+    /// <summary>控制帧序号（会话 → 最后分配值；前端按 seq 单调丢弃过期帧）</summary>
+    private readonly Lock _controlSeqGate = new();
+    private readonly Dictionary<string, long> _controlSeq = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// 应用权限预设（TASK066 C7）：校验 → 写引擎 → 更新会话投影 → 落设置 → 广播
+    /// <c>plan/mode</c> 事件与 <c>session/control</c> 投影帧。设置写入静默（不回环触发
+    /// <see cref="DshSettingsStore.PermissionPresetChanged"/>，调用方已在此完成引擎应用）。
+    /// </summary>
+    /// <param name="preset">引擎 <see cref="PermissionMode"/> 枚举词汇（plan/auto/ask/bypass/unattended）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>成功标记与失败引导文案（成功时文案为空）</returns>
+    internal async Task<(bool Ok, string Message)> ApplyPermissionPresetAsync(string preset, CancellationToken cancellationToken) {
+        if (PermissionModeExtensions.FromValue(preset) is not { } mode) {
+            return (false,
+                $"权限预设必须是引擎枚举词汇（plan/auto/ask/bypass/unattended）之一；收到 {preset}。未改动引擎与设置");
+        }
+        if (Engine is not { } engine) {
+            return (false, "引擎仍在组装中，权限预设暂不能应用；请稍后重试（已保存的预设会在引擎就绪后自动生效）");
+        }
+        await engine.SetPermissionModeAsync(mode, cancellationToken);
+        Sessions.SetCurrentPermissionPreset(preset);
+        Settings.SetPermissionPreset(preset);
+        await Streams.PublishToOpenSessionsAsync("plan/mode", new DshPlanModeData { Active = mode is PermissionMode.Plan });
+        foreach (var sessionId in Streams.OpenSessionIds()) {
+            await PublishPermissionProjectionAsync(sessionId, preset, cancellationToken);
+        }
+        return (true, "");
+    }
+
+    /// <summary>
+    /// 向一个会话推送 <c>plan</c> 与 <c>permissions</c> 两条控制帧（TASK066 C7）。
+    /// 序号下限取该会话投影快照的 <c>AsOfSeq</c>：前端只接受 <c>seq &gt; 已有行 seq</c> 的帧，
+    /// 否则会把刚算出的投影当过期帧丢弃。
+    /// </summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="preset">当前权限预设（引擎枚举词汇）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    internal async Task PublishPermissionProjectionAsync(string sessionId, string preset, CancellationToken cancellationToken) {
+        var snapshot = await Sessions.ProjectionsAsync(sessionId, cancellationToken);
+        var floor = snapshot?.AsOfSeq ?? -1;
+        var active = string.Equals(preset, PermissionMode.Plan.ToValue(), StringComparison.Ordinal);
+        await Control.PublishAsync(new DshSessionControlProjection {
+            SessionId = sessionId,
+            Key = "plan",
+            Value = JsonSerializer.SerializeToElement(
+                new DshSessionPlanProjection { Active = active },
+                DshJsonContext.Default.DshSessionPlanProjection),
+            Seq = NextControlSeq(sessionId, floor),
+        });
+        await Control.PublishAsync(new DshSessionControlProjection {
+            SessionId = sessionId,
+            Key = "permissions",
+            Value = JsonSerializer.SerializeToElement(
+                new DshSessionPermissionProjection { CurrentValue = preset },
+                DshJsonContext.Default.DshSessionPermissionProjection),
+            Seq = NextControlSeq(sessionId, floor),
+        });
+    }
+
+    /// <summary>分配控制帧序号（单调递增，且不低于投影快照水位）</summary>
+    private long NextControlSeq(string sessionId, long floor) {
+        lock (_controlSeqGate) {
+            var next = Math.Max(floor, _controlSeq.TryGetValue(sessionId, out var last) ? last : -1) + 1;
+            _controlSeq[sessionId] = next;
+            return next;
+        }
+    }
 
     /// <summary>工作区注册表（workspace/* 与 workspace/follow 基线）</summary>
     internal DshWorkspaceStore Workspaces { get; }

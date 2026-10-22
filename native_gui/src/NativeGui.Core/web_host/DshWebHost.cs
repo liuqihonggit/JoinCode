@@ -300,6 +300,10 @@ internal sealed class DshWebHost : IAsyncDisposable {
         }
     }
 
+    /// <summary>把一条会话控制投影帧作为流项发送（session/control）</summary>
+    private static Task SendControlAsync(Func<DshStreamItem, Task> send, string streamId, DshSessionControlProjection frame) =>
+        send(Item(streamId, JsonSerializer.SerializeToElement(frame, DshJsonContext.Default.DshSessionControlProjection)));
+
     /// <summary>
     /// 按端点产生初始数据项（$events 就绪、workspace/follow 读真实注册表、session/control 读会话投影）；
     /// <c>session/follow</c> 额外返回一个订阅句柄，宿主把后续事件持续推到该连接。
@@ -342,10 +346,24 @@ internal sealed class DshWebHost : IAsyncDisposable {
                     new DshWorkspaceBaseline { Value = baseline }, DshJsonContext.Default.DshWorkspaceBaseline))], null, null);
             }
             case "session/control": {
-                var projections = await _services.Sessions.ProjectionsMapAsync(DshSessionStore.MaxSessions, cancellationToken);
-                return ([Item(open.StreamId, JsonSerializer.SerializeToElement(
-                    new DshSessionControlBaseline { Value = new DshSessionControlValue { Projections = projections } },
-                    DshJsonContext.Default.DshSessionControlBaseline))], null, null);
+                // 先挂控制帧订阅再读基线：期间产生的帧先缓冲，基线发出后按序补发（不漏帧）
+                var buffer = new ControlFrameBuffer();
+                var lease = _services.Control.Attach(frame =>
+                    buffer.AcceptAsync(frame, pending => SendControlAsync(send, open.StreamId, pending)));
+                try {
+                    var projections = await _services.Sessions.ProjectionsMapAsync(DshSessionStore.MaxSessions, cancellationToken);
+                    Func<Task> ready = async () => {
+                        foreach (var frame in buffer.StartDelivering()) {
+                            await SendControlAsync(send, open.StreamId, frame);
+                        }
+                    };
+                    return ([Item(open.StreamId, JsonSerializer.SerializeToElement(
+                        new DshSessionControlBaseline { Value = new DshSessionControlValue { Projections = projections } },
+                        DshJsonContext.Default.DshSessionControlBaseline))], lease, ready);
+                } catch {
+                    lease.Dispose();
+                    throw;
+                }
             }
             case "session/follow":
                 return await OpenSessionAsync(open, send, cancellationToken);
@@ -683,6 +701,37 @@ internal sealed class DshWebHost : IAsyncDisposable {
             DshJsonContext.Default.DshStreamError);
 
     private static DshStreamItem Item(string streamId, JsonElement value) => new() { StreamId = streamId, Value = value };
+
+    /// <summary>
+    /// session/control 的开场缓冲：基线读取期间收到的投影帧先缓存，基线发出后由
+    /// <see cref="StartDelivering"/> 一次性取出补发，之后到达的帧直接下发（不漏帧、不乱序）。
+    /// </summary>
+    private sealed class ControlFrameBuffer {
+        private readonly Lock _gate = new();
+        private readonly List<DshSessionControlProjection> _pending = [];
+        private bool _delivering;
+
+        /// <summary>接收一帧：开场阶段缓存，开场完成后直接投递</summary>
+        internal Task AcceptAsync(DshSessionControlProjection frame, Func<DshSessionControlProjection, Task> deliver) {
+            lock (_gate) {
+                if (!_delivering) {
+                    _pending.Add(frame);
+                    return Task.CompletedTask;
+                }
+            }
+            return deliver(frame);
+        }
+
+        /// <summary>结束缓冲并取走待补发帧（同步方法，避免在 async 上下文持锁）</summary>
+        internal DshSessionControlProjection[] StartDelivering() {
+            lock (_gate) {
+                _delivering = true;
+                var frames = _pending.ToArray();
+                _pending.Clear();
+                return frames;
+            }
+        }
+    }
 
     /// <summary>流连接关闭时的清理动作句柄（$events 摘除权限桥通道等）</summary>
     private sealed record DetachLease(Action Detach) : IDisposable {

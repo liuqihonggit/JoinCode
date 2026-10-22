@@ -743,6 +743,38 @@ internal sealed class DshSessionProjectionValues {
     public DshSessionListMetadata? SessionListMetadata { get; set; }
     /// <summary>子代理实例目录（undefined 会让前端子代理面板永久 loading，必须输出数组；TASK058 B8）</summary>
     public List<DshSubagentCatalogEntry> SubagentCatalog { get; set; } = [];
+    /// <summary>计划模式投影（前端 composer 计划 chip 读此值；TASK066 C6）</summary>
+    public DshSessionPlanProjection Plan { get; set; } = new();
+    /// <summary>权限选择投影（前端 composer 权限选择器读此值；TASK066 C6）</summary>
+    public DshSessionPermissionProjection Permissions { get; set; } = new();
+}
+
+/// <summary>计划模式投影（<c>pending</c> 对齐 DSH：选中值尚未在步骤边界生效时为 true；本宿主立即生效恒 false）</summary>
+internal sealed class DshSessionPlanProjection {
+    /// <summary>当前是否处于计划模式</summary>
+    public bool Active { get; set; }
+    /// <summary>是否存在待生效切换</summary>
+    public bool Pending { get; set; }
+}
+
+/// <summary>权限选择投影（值是引擎 <see cref="PermissionMode"/> 枚举词汇）</summary>
+internal sealed class DshSessionPermissionProjection {
+    /// <summary>当前生效的权限预设</summary>
+    public string CurrentValue { get; set; } = "auto";
+}
+
+/// <summary>session/control 实时投影帧（帧类型固定 projection，单键整值替换）</summary>
+internal sealed class DshSessionControlProjection {
+    /// <summary>帧类型（baseline 之外的实时替换帧）</summary>
+    public string Type { get; set; } = "projection";
+    /// <summary>目标会话</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>投影键（plan / permissions / ...）</summary>
+    public string Key { get; set; } = "";
+    /// <summary>整值</summary>
+    public JsonElement Value { get; set; }
+    /// <summary>投影水位（客户端按 key 取大值）</summary>
+    public long Seq { get; set; }
 }
 
 /// <summary>子代理实例目录条目（实例目录含已完成条目；运行态由前端另查会话状态）</summary>
@@ -1626,6 +1658,9 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshSessionList))]
 [JsonSerializable(typeof(DshSessionProjections))]
 [JsonSerializable(typeof(DshSessionProjectionValues))]
+[JsonSerializable(typeof(DshSessionPlanProjection))]
+[JsonSerializable(typeof(DshSessionPermissionProjection))]
+[JsonSerializable(typeof(DshSessionControlProjection))]
 [JsonSerializable(typeof(DshSessionModelSelectionProjection))]
 [JsonSerializable(typeof(DshModelSelectionRef))]
 [JsonSerializable(typeof(DshSessionListMetadata))]

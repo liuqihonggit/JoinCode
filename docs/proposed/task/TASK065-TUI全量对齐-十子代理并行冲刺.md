@@ -86,3 +86,17 @@ P3 池（本轮不做）：vim 模式、图片粘贴、GlobalSearch/QuickOpen �
 <!-- 原因: ReplShell/MessageRenderer/BridgeEvent 是共享热点，并行 Edit 会互相覆盖；契约先行让并行代码可一次编译对齐；用户要求子代理最少编译次数 -->
 <!-- 替代方案: 各子代理端到端自编译（冲突大、编译次数多）；串行批次（慢，违背用户并行要求）——均弃 -->
 <!-- 验证: 独占文件清单已逐项查重（每文件唯一 owner）✅ -->
+
+## 七、执行状态（2026-10-22 收口）
+
+| 批次 | 提交 | 内容 |
+|------|------|------|
+| S1-S5 并行+集成 | b001b0d13/49a228b30 | 桥接协议扩展/折叠渲染/消息操作/通知队列/transcript 控制器 |
+| S6 串行接线 | 3ab5c7624 | transcript 收敛+键位接线+聚合路由+帮助面板+退出确认 |
+| S7-S10 并行+集成 | cf51e9d92 | 多行编辑+粘贴折叠+undo/per-tool 权限形态+Light 主题修正+命令分组+bash 直通 |
+
+三轮 rebase 融合上游 #448-450（M8 全八批）：聚合/复制保我们的实现，BackgroundTaskPanel/context_usage/命令面闭环取上游，MessageActionsBar 类名让渡上游、我们版改名 MessageActionsFooter。
+
+验证：NativeTui.Tests 1549 + Host.Tests 95 + bridge 126 全绿；Core/Tests/Host/Engine 编译 0 警告。
+
+⚠️ 未接线项（ReplShell/Host 域，下批）：shift+enter 换行/bracketed-paste 启用/undo 键位/ExpandedText 提交（S7）；权限四键位/ModeCycleRequested 订阅（S8）；主题切换入口/光标恢复/DEC 2026 探测/spinner 字符集（S9）；SlashSuggester 分组注入/RecordUse 时机/`!` 前缀检测/@ 触发（S10）。

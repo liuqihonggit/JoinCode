@@ -59,6 +59,11 @@ public sealed class AtFileSuggester
             .ToList();
     }
 
+    /// <summary>全清单（S12 四域接线 — QuickOpen 对话框数据源）：索引就绪后的完整相对路径清单
+    ///（EnsureIndexed 懒加载 + MaxIndexedFiles 截断守卫 + TTL 复用同一语义 — 大仓库防御由
+    /// 索引层 Take 截断保证）；副本投影（[..] 展开 — 内部索引不别名暴露，消费方排序/过滤不回写）。</summary>
+    public IReadOnlyList<string> AllFiles() => [.. EnsureIndexed()];
+
     /// <summary>清空索引（下次建议重建 — 显式立即失效通道，供接线方目录变更后主动消费）。</summary>
     public void Invalidate() => _indexedFiles = null;
 

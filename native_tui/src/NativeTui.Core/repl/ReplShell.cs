@@ -135,6 +135,18 @@ public sealed class ReplShell
     /// <summary>外部编辑器会话进行中（internal — 测试断言面）。</summary>
     internal bool ExternalEditorActive => _externalEditorActive;
 
+    /// <summary>导出对话框挂载态（S12 — internal 测试断言面）。</summary>
+    internal bool IsExportDialogOpen => _exportDialog is not null;
+
+    /// <summary>快速打开对话框挂载态（S12 — internal 测试断言面）。</summary>
+    internal bool IsQuickOpenOpen => _quickOpenDialog is not null;
+
+    /// <summary>全局搜索对话框挂载态（S12 — internal 测试断言面）。</summary>
+    internal bool IsGlobalSearchOpen => _globalSearchDialog is not null;
+
+    /// <summary>全局搜索对话框实例（S12 — internal 测试断言面：查询/结果/选中状态机）。</summary>
+    internal GlobalSearchDialog? GlobalSearchDialog => _globalSearchDialog;
+
     /// <summary>外部编辑器进行中任务句柄（internal — 测试 await 完成面；null = 无进行中会话）。</summary>
     internal Task? ExternalEditorTask => _externalEditorTask;
 
@@ -239,6 +251,48 @@ public sealed class ReplShell
     /// 可扩展承载后续 ctrl+x ctrl+k 等序列，本批次仅接编辑器不预埋）。</summary>
     private bool _ctrlXPrefix;
 
+    /// <summary>导出对话对话框挂载态（S12 四域接线 — /export 命令拦截挂载 ExportDialog 模态；
+    /// null = 未挂载；互斥由分派链序保证 — 模态激活期间其余对话框触发键被吞）。</summary>
+    private ExportDialog? _exportDialog;
+
+    /// <summary>导出快照文本（S12 — 挂载时 TranscriptExporter.Export 一次性拍平；
+    /// string 不可变 = 防御拷贝，挂载后滚动区变化不影响导出内容）。</summary>
+    private string _pendingExportText = string.Empty;
+
+    /// <summary>导出文件写委托（S12 — ExportDialog 确认 File 目标后写盘；参数 = 导出全文，
+    /// 返回写入文件名（null = 失败）；Core 零依赖不触 IO — 宿主注入，对齐 clipboard 注入先例）。</summary>
+    private readonly Func<string, Task<string?>>? _saveExportAsync;
+
+    /// <summary>导出文件写完成结果缓冲（S12 — 完成于线程池线程，通知反馈必须回主循环线程
+    ///（与渲染循环竞争 _notifications），复用 bash 直通跨线程缓冲 + DrainEngine 主循环消费先例）：
+    /// null = 写盘失败信号。</summary>
+    private readonly ConcurrentQueue<string?> _exportFileResults = new();
+
+    /// <summary>快速打开对话框挂载态（S12 四域接线 — ctrl+shift+p 触发挂载；
+    /// null = 未挂载；互斥由分派链序保证）。</summary>
+    private QuickOpenDialog? _quickOpenDialog;
+
+    /// <summary>全局搜索对话框挂载态（S12 四域接线 — ctrl+shift+f 触发挂载；
+    /// null = 未挂载；互斥由分派链序保证）。</summary>
+    private GlobalSearchDialog? _globalSearchDialog;
+
+    /// <summary>全局搜索根目录（S12 — 构造 workspaceRoot 注入留存；对话框构造透传搜索源）。</summary>
+    private readonly string? _workspaceRoot;
+
+    /// <summary>全局搜索源（S12 四域接线 — 宿主注入 rg 执行器/测试注入假源；null = 无后端降级）。</summary>
+    private readonly ISearchSource? _searchSource;
+
+    /// <summary>全局搜索防抖待派发时间戳（S12 — 查询变化记帧拍时间戳，Tick 到期派发；
+    /// 0 = 无待派发。禁 Task.Delay — 对齐 ToolGroupAggregator.OnFrame 帧拍时间戳先例）。</summary>
+    private long _globalSearchPendingSinceMs;
+
+    /// <summary>全局搜索已派发查询（防抖幂等 — 查询与已派发一致时不重复派发）。</summary>
+    private string _globalSearchDispatchedQuery = string.Empty;
+
+    /// <summary>全局搜索进行中令牌源（S12 — 组件不持运行中任务契约：宿主持有，
+    /// 重入派发先 Cancel 旧令牌（取消为常态 — 组件保留已收集部分静默收尾），关闭时终结）。</summary>
+    private CancellationTokenSource? _globalSearchCts;
+
     /// <summary>主循环存活标记（internal — 退出安全测试断言面：Esc/Ctrl+C 永不置 false）。</summary>
     internal bool IsRunning => _running;
 
@@ -289,7 +343,11 @@ public sealed class ReplShell
     /// null = 停止能力降级，x 走正常字符插入）；
     /// streamingProjector=流式 Markdown 块级增量投影器（方案 B 卫星注入；null = 纯文本降级 M8-1 行为）；
     /// launchExternalEditor=外部编辑器启动委托（TASK064 P3 — ctrl+g 编辑当前输入；
-    /// 输入文本 → 编辑后文本，null = 失败/取消降级丢弃；null 委托 = 能力降级 ctrl+g 无操作）。</summary>
+    /// 输入文本 → 编辑后文本，null = 失败/取消降级丢弃；null 委托 = 能力降级 ctrl+g 无操作）；
+    /// saveExportAsync=导出文件写委托（S12 — /export 确认 File 目标后写盘；导出全文 →
+    /// 写入文件名（null = 失败）；null 委托 = 文件导出降级错误反馈）；
+    /// searchSource=全局搜索源（S12 — ctrl+shift+f 对话框搜索后端；宿主注入 rg 执行器，
+    /// null = 无后端降级提示 rg 不可用）。</summary>
     public ReplShell(
         IReplEngine engine,
         BannerItem banner,
@@ -307,7 +365,9 @@ public sealed class ReplShell
         IStreamingMarkdownProjector? streamingProjector = null,
         Func<string, Task>? saveThemeAsync = null,
         Func<string, Task<string?>>? launchExternalEditor = null,
-        IInputPump? inputPump = null)
+        IInputPump? inputPump = null,
+        Func<string, Task<string?>>? saveExportAsync = null,
+        ISearchSource? searchSource = null)
     {
         _engine = engine;
         _banner = banner;
@@ -323,8 +383,11 @@ public sealed class ReplShell
         _inputPump = inputPump ?? new ReadKeyPump();
         _onStopTask = onStopTask;
         _launchExternalEditor = launchExternalEditor;
+        _saveExportAsync = saveExportAsync;
         _theme = ThemeSelection.Resolve(themeName);
         _atFileSuggester = workspaceRoot is null ? null : new AtFileSuggester(workspaceRoot);
+        _workspaceRoot = workspaceRoot;
+        _searchSource = searchSource;
         // S9 接线 — spinner 终端字符集探测注入一次（会话期终端类型不变；Windows Terminal/默认 `*` 集）
         _spinner.Frames = TerminalCapabilities.DetectSpinnerFrames();
         // S8 接线 — 挂起态 BackTab 权限模式循环请求转发引擎回执通道（复用 Shift+Tab 循环实现）
@@ -479,6 +542,12 @@ public sealed class ReplShell
 
         // TASK064 P3 — 外部编辑器结果回填（主循环线程消费并发队列 — FillInput 与渲染循环同线程）
         DrainExternalEditorResults();
+
+        // S12 接线 — 导出文件写结果反馈（主循环线程消费并发队列 — 通知反馈与渲染循环同线程）
+        DrainExportResults();
+
+        // S12 接线 — 全局搜索防抖帧拍结算（查询静默满 300ms 派发 BeginSearchAsync）
+        TickGlobalSearchDebounce();
     }
 
     /// <summary>打断恢复（M8-2）— 该回合用户消息之后无实质响应项（assistant/工具/流式/错误/子代理）
@@ -704,6 +773,27 @@ public sealed class ReplShell
             return;
         }
 
+        // S12 四域接线 — 三对话框模态统一插位（ModelPicker 之后 Search 之前 — 任务契约链序：
+        // Permission > ModelPicker > 三对话框 > Search > Cursor > Suggestion > Transcript > Help > 编辑；
+        // 对话框互斥天然由链序保证 — 模态激活期间其余对话框触发键被本分支吞掉）
+        if (_exportDialog is not null)
+        {
+            HandleExportDialogKey(key);
+            return;
+        }
+
+        if (_quickOpenDialog is not null)
+        {
+            HandleQuickOpenKey(key);
+            return;
+        }
+
+        if (_globalSearchDialog is not null)
+        {
+            HandleGlobalSearchKey(key);
+            return;
+        }
+
         if (_search is not null)
         {
             HandleSearchKey(key);
@@ -789,6 +879,22 @@ public sealed class ReplShell
         if (key.Kind == KeyKind.Escape)
         {
             HandleEscape();
+            return;
+        }
+
+        // S12 四域接线 — ctrl+shift+p 快速打开 / ctrl+shift+f 全局搜索触发键位
+        //（键位语义参考 ctrl+o/ctrl+g 先例；置于 Ctrl 字符分派之前 — HandleCtrlKey 的
+        // "p"/"f" case 是既有编辑/滚动语义，Shift 叠加位是触发判定的区分键；
+        // 忙时/输入中文本均可打开 — 对话框挂滚动区不打断回合、输入草稿保留）
+        if (IsQuickOpenTrigger(key))
+        {
+            BeginQuickOpen();
+            return;
+        }
+
+        if (IsGlobalSearchTrigger(key))
+        {
+            BeginGlobalSearch();
             return;
         }
 
@@ -1198,6 +1304,325 @@ public sealed class ReplShell
         {
             _modelPicker.MoveFocus(1);
         }
+    }
+
+    /// <summary>
+    /// 导出对话框模态按键（S12 四域接线 — /export 拦截挂载态）：ExportDialog.TryHandleKey
+    /// 消费键位（↑↓ 环绕/1-2 直选/enter 确认/esc 取消）；Closed 终态收尾 — Confirmed 分派
+    /// 目标 IO（剪贴板委托即时/文件写委托 fire-and-forget）+ RemoveDialogItem 移除对话框项；
+    /// 其余按键吞掉（模态 — 不进输入缓冲、不提交、不打断）。
+    /// </summary>
+    private void HandleExportDialogKey(KeyPress key)
+    {
+        if (_exportDialog is not { } dialog)
+        {
+            return;
+        }
+
+        dialog.TryHandleKey(key);
+        if (!dialog.Closed)
+        {
+            return;
+        }
+
+        var confirmed = dialog.Confirmed;
+        var target = dialog.SelectedTarget;
+        _exportDialog = null;
+        RemoveDialogItem<ExportDialog>();
+        if (confirmed)
+        {
+            DispatchExport(target);
+        }
+    }
+
+    /// <summary>分派导出目标（S12）— Clipboard：剪贴板委托 + 通知反馈"对话已复制到剪贴板"
+    ///（未注入委托降级错误反馈 — 诱导式提示）；File：文件写委托 fire-and-forget
+    ///（完成结果入并发队列，DrainExportResults 主循环消费反馈文件名）。</summary>
+    private void DispatchExport(ExportTarget target)
+    {
+        if (target == ExportTarget.Clipboard)
+        {
+            if (_copyToClipboard is null)
+            {
+                AddMessage(new ToolResultItem("导出到剪贴板失败 — 剪贴板服务不可用（宿主未注入剪贴板通道）"));
+                return;
+            }
+
+            _copyToClipboard(_pendingExportText);
+            _notifications.Enqueue("对话已复制到剪贴板");
+            return;
+        }
+
+        if (_saveExportAsync is null)
+        {
+            AddMessage(new ToolResultItem("导出到文件失败 — 文件写入服务不可用（宿主未注入导出写盘通道）"));
+            return;
+        }
+
+        _ = RunExportToFileAsync(_pendingExportText);
+    }
+
+    /// <summary>导出文件写异步体 — 宿主委托（返回写入文件名/null 失败）投递并发队列；
+    /// 委托异常按失败入队（写盘错误不打扰渲染循环 — 主循环消费时统一反馈）。</summary>
+    private async Task RunExportToFileAsync(string exportText)
+    {
+        string? fileName;
+        try
+        {
+            fileName = await _saveExportAsync!(exportText).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            fileName = null;
+        }
+
+        _exportFileResults.Enqueue(fileName);
+    }
+
+    /// <summary>导出文件写结果消费（DrainEngine 每拍 — 主循环线程）：
+    /// 文件名 → 通知反馈含文件名；null → 错误消息（写盘失败 + 重试诱导）。</summary>
+    private void DrainExportResults()
+    {
+        while (_exportFileResults.TryDequeue(out var fileName))
+        {
+            if (fileName is null)
+            {
+                AddMessage(new ErrorMessageItem("导出失败 — 写入文件时出错（检查当前目录写权限后重试 /export）"));
+            }
+            else
+            {
+                _notifications.Enqueue($"已导出到 {fileName}");
+            }
+        }
+    }
+
+    /// <summary>ctrl+shift+p 触发判定（S12 — 基准 QuickOpenDialog 键位；ReadKey 路径
+    /// ConsoleKeyAdapter 保留 Shift 位 + kitty 路径 CSI ;6 归一双通道可达）。</summary>
+    private static bool IsQuickOpenTrigger(KeyPress key) =>
+        key is { Kind: KeyKind.Char, Input: "p", Ctrl: true, Shift: true, Meta: false };
+
+    /// <summary>ctrl+shift+f 触发判定（S12 — 基准 GlobalSearchDialog 键位；同上双通道归一）。</summary>
+    private static bool IsGlobalSearchTrigger(KeyPress key) =>
+        key is { Kind: KeyKind.Char, Input: "f", Ctrl: true, Shift: true, Meta: false };
+
+    /// <summary>
+    /// 打开快速打开对话框（S12 四域接线 — ctrl+shift+p 触发 / 宿主直调公共入口）：
+    /// AtFileSuggester 全清单注入（AllFiles — MaxIndexedFiles 截断守卫在索引层）+ 挂载滚动区；
+    /// 无工作区根（建议器未构造）降级诱导提示；空索引清单同（空目录/全忽略形态）；
+    /// 挂载不可重入（模态期触发键被对话框吞掉 — 防御性守卫保留）。
+    /// </summary>
+    public void BeginQuickOpen()
+    {
+        if (_quickOpenDialog is not null)
+        {
+            return;
+        }
+
+        if (_atFileSuggester is null)
+        {
+            AddMessage(new ToolResultItem("快速打开不可用 — 未配置工作区根（宿主启动注入 workspaceRoot 后可用）"));
+            return;
+        }
+
+        var files = _atFileSuggester.AllFiles();
+        if (files.Count == 0)
+        {
+            AddMessage(new ToolResultItem("快速打开不可用 — 工作区无索引文件（空目录或已全部被忽略规则跳过）"));
+            return;
+        }
+
+        DismissSuggestionsForDialog();
+        var dialog = new QuickOpenDialog(files);
+        _quickOpenDialog = dialog;
+        AddMessage(dialog);
+    }
+
+    /// <summary>
+    /// 快速打开对话框模态按键（S12 — QuickOpenDialog.TryHandleKey 消费键位：
+    /// 字符进查询/↑↓Ctrl+P/N 导航/enter 接受/esc 关闭）；IsClosed 终态收尾 —
+    /// AcceptedFile 非空插入 "@{文件} " 到输入框光标处 + 通知反馈；其余按键吞掉（模态）。
+    /// </summary>
+    private void HandleQuickOpenKey(KeyPress key)
+    {
+        if (_quickOpenDialog is not { } dialog)
+        {
+            return;
+        }
+
+        dialog.TryHandleKey(key);
+        if (!dialog.IsClosed)
+        {
+            return;
+        }
+
+        var file = dialog.AcceptedFile;
+        _quickOpenDialog = null;
+        RemoveDialogItem<QuickOpenDialog>();
+        if (file is { Length: > 0 } path)
+        {
+            InsertAtCursor($"@{path} ");
+            _notifications.Enqueue($"已引用 {path}");
+        }
+    }
+
+    /// <summary>
+    /// 打开全局搜索对话框（S12 四域接线 — ctrl+shift+f 触发 / 宿主直调公共入口）：
+    /// 搜索根 = 工作区根（构造注入留存）+ 搜索源（宿主 rg 执行器/测试假源）；
+    /// rg 不可用（无源/探测失败）打开即通知提示（降级空结果不打扰 — 组件契约）；
+    /// 挂载即静默等待首查（空查询 = 组件清场态，无需派发）；挂载不可重入（模态吞键防御）。
+    /// </summary>
+    public void BeginGlobalSearch()
+    {
+        if (_globalSearchDialog is not null)
+        {
+            return;
+        }
+
+        if (_workspaceRoot is not { Length: > 0 } root)
+        {
+            AddMessage(new ToolResultItem("全局搜索不可用 — 未配置工作区根（宿主启动注入 workspaceRoot 后可用）"));
+            return;
+        }
+
+        if (_searchSource is not { IsAvailable: true })
+        {
+            _notifications.Enqueue("rg 不可用 — 全局搜索已禁用（安装 ripgrep 并确保在 PATH 后可用）");
+        }
+
+        DismissSuggestionsForDialog();
+        _globalSearchDispatchedQuery = string.Empty;
+        _globalSearchPendingSinceMs = 0;
+        var dialog = new GlobalSearchDialog(root, _searchSource);
+        _globalSearchDialog = dialog;
+        AddMessage(dialog);
+    }
+
+    /// <summary>对话框打开即清建议态（S12 — @ 补全/斜杠下拉保持旧 token 陈旧：
+    /// 对话框接受插入后输入文本变化，旧建议投影与实际 token 脱节 — 统一Dismiss 归零）。</summary>
+    private void DismissSuggestionsForDialog()
+    {
+        _atSuggestions = null;
+        _atSuggestionIndex = 0;
+        _suggester?.Dismiss();
+    }
+
+    /// <summary>
+    /// 全局搜索对话框模态按键（S12 — GlobalSearchDialog.TryHandleKey 消费键位：
+    /// 字符/退格进查询/↑↓ 导航/enter 置 SelectedMatch/esc 置 Closed）：
+    /// 查询变化记防抖时间戳（帧拍 Tick 到期派发）；SelectedMatch 非空 = enter 确认 —
+    /// 关闭对话框 + 插入 "@{文件}#L{行} " 到输入框光标处 + 通知反馈；Closed = esc — 摘除收尾；
+    /// 其余按键吞掉（模态 — TryHandleKey 未消费键同样不透传编辑链）。
+    /// </summary>
+    private void HandleGlobalSearchKey(KeyPress key)
+    {
+        if (_globalSearchDialog is not { } dialog)
+        {
+            return;
+        }
+
+        if (dialog.Closed)
+        {
+            RemoveGlobalSearchDialog();
+            return;
+        }
+
+        var queryBefore = dialog.Query;
+        dialog.TryHandleKey(key);
+        if (dialog.SelectedMatch is { } match)
+        {
+            // enter 确认 — 组件契约"消费后调 Close 接管"：宿主取走选中项关闭并接管插入
+            RemoveGlobalSearchDialog();
+            InsertAtCursor($"@{match.File}#L{match.Line} ");
+            _notifications.Enqueue($"已引用 {match.File}#L{match.Line}");
+            return;
+        }
+
+        if (dialog.Closed)
+        {
+            RemoveGlobalSearchDialog();
+            return;
+        }
+
+        if (dialog.Query != queryBefore)
+        {
+            _globalSearchPendingSinceMs = EscClock();
+        }
+    }
+
+    /// <summary>移除全局搜索对话框（esc/enter 收尾）：摘除滚动区项 + 终结进行中搜索令牌
+    ///（Cancel 杀孤儿 rg 进程树 — 组件 finally 收尾 + 宿主令牌 Dispose）+ 防抖态清零。</summary>
+    private void RemoveGlobalSearchDialog()
+    {
+        _globalSearchDialog = null;
+        RemoveDialogItem<GlobalSearchDialog>();
+        _globalSearchCts?.Cancel();
+        _globalSearchCts?.Dispose();
+        _globalSearchCts = null;
+        _globalSearchPendingSinceMs = 0;
+        _globalSearchDispatchedQuery = string.Empty;
+    }
+
+    /// <summary>
+    /// 全局搜索防抖帧拍结算（DrainEngine 每拍 — 禁 Task.Delay，对齐 ToolGroupAggregator.OnFrame
+    /// 帧拍时间戳先例）：对话框挂载 && 查询有待派发（时间戳非零）&& 静默满 300ms → 派发
+    /// BeginSearchAsync（查询与已派发一致时幂等跳过）。
+    /// </summary>
+    private void TickGlobalSearchDebounce()
+    {
+        if (_globalSearchDialog is not { } dialog
+            || _globalSearchPendingSinceMs == 0
+            || EscClock() - _globalSearchPendingSinceMs < GlobalSearchDebounceMs)
+        {
+            return;
+        }
+
+        _globalSearchPendingSinceMs = 0;
+        if (dialog.Query == _globalSearchDispatchedQuery)
+        {
+            return;
+        }
+
+        DispatchGlobalSearch(dialog, dialog.Query);
+    }
+
+    /// <summary>全局搜索防抖窗口（ms — 查询静默时长；基准 DEBOUNCE_MS 的任务书取值 300）。</summary>
+    internal const int GlobalSearchDebounceMs = 300;
+
+    /// <summary>派发全局搜索（S12 — 组件不持运行中任务契约）：旧令牌先 Cancel 再 Dispose
+    ///（防抖重触发杀旧 rg 进程树 — 取消为常态语义），新令牌 fire-and-forget 驱动
+    /// BeginSearchAsync（异常容错 — 组件契约不抛，此处防御兜底搜索源实现缺陷）。</summary>
+    private void DispatchGlobalSearch(GlobalSearchDialog dialog, string query)
+    {
+        _globalSearchCts?.Cancel();
+        _globalSearchCts?.Dispose();
+        _globalSearchCts = new CancellationTokenSource();
+        _globalSearchDispatchedQuery = query;
+        _ = RunGlobalSearchAsync(dialog, query, _globalSearchCts.Token);
+    }
+
+    /// <summary>全局搜索异步执行体 — 搜索源异常静默降级（组件状态机不因源实现缺陷卡死，
+    /// 对齐 bash 直通容错先例）。</summary>
+    private static async Task RunGlobalSearchAsync(GlobalSearchDialog dialog, string query, CancellationToken token)
+    {
+        try
+        {
+            await dialog.BeginSearchAsync(query, token).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or OperationCanceledException)
+        {
+            // 搜索源缺陷防御兜底 — Searching 标记可能残留（组件契约不抛的前置下不可达）
+        }
+    }
+
+    /// <summary>光标处插入文本（S12 — QuickOpen/GlobalSearch 接受项引用插入）：
+    /// 中部插入光标落插入段末尾（ReplaceAt 语义）；程序化填充标记防触发建议刷新
+    ///（插入段尾随空格 — @token 扫描遇空白即无补全语义）。</summary>
+    private void InsertAtCursor(string insertion)
+    {
+        var cursor = Math.Clamp(_input.CursorCol, 0, _input.Text.Length);
+        var replaced = $"{_input.Text[..cursor]}{insertion}{_input.Text[cursor..]}";
+        _programmaticFill = true;
+        _input.ReplaceAt(replaced, cursor + insertion.Length);
     }
 
     /// <summary>视口模式滚动（inline 模式历史由终端滚轮原生回看，no-op）。</summary>
@@ -2012,6 +2437,16 @@ public sealed class ReplShell
             return;
         }
 
+        // S12 接线 — /export 拦截：TUI 本地导出（不透传引擎 — 导出为客户端动作无引擎语义）；
+        // 快照先于命令上屏拍摄（命令自身 UserMessageItem 不进导出文本），挂载 ExportDialog 模态确认目标
+        if (text == ExportCommandPrefix || text.StartsWith(ExportCommandPrefix + " ", StringComparison.Ordinal))
+        {
+            var exportText = TranscriptExporter.Export(_view.Messages.Items);
+            AddMessage(new UserMessageItem(text));
+            HandleExportCommand(text, exportText);
+            return;
+        }
+
         // S10 接线 — 斜杠命令使用记账（提交即使用：TUI 无引擎侧执行成败回执通道，
         /// recently-used 分组语义 = 用户常用命令；命令名取首个空格前段）
         if (text.StartsWith('/') && _suggester is not null)
@@ -2053,6 +2488,37 @@ public sealed class ReplShell
     /// <summary>/theme 拦截命令前缀（S9 接线 — GeneratedSlashCommandCatalog 是源码生成静态表，
     /// 动态注册不可行，ReplShell 层拦截本地切换渲染色板 + 通知反馈）。</summary>
     private const string ThemeCommandPrefix = "/theme";
+
+    /// <summary>/export 拦截命令前缀（S12 四域接线 — 同 /theme 拦截形态：
+    /// ReplShell 层本地拦截挂载导出对话框，命令清单静态表不感知）。</summary>
+    private const string ExportCommandPrefix = "/export";
+
+    /// <summary>导出命令处理（S12）— "/export"：消息快照（SubmitCore 拦截分支已拍平 —
+    /// 先于命令上屏，命令自身不进导出文本；string 不可变 = 防御拷贝，挂载后滚动区变化
+    /// 不影响导出内容）+ 挂载 ExportDialog 模态（enter/数字确认导出目标）；
+    /// "/export &lt;参数&gt;"：参数诱导提示（无参唯一合法形态 — 错误提示带正确写法）；
+    /// 空会话（导出全文为空）提示无可导出内容不挂载。</summary>
+    private void HandleExportCommand(string text, string exportText)
+    {
+        var argument = text.Length > ExportCommandPrefix.Length
+            ? text[(ExportCommandPrefix.Length + 1)..].Trim()
+            : string.Empty;
+        if (argument.Length > 0)
+        {
+            AddMessage(new ToolResultItem($"未知参数「{argument}」— /export 不接受参数（直接运行 /export 打开导出目标对话框：剪贴板/文件）"));
+            return;
+        }
+
+        if (exportText.Length == 0)
+        {
+            AddMessage(new ToolResultItem("无可导出的对话内容 — 先进行对话后再运行 /export"));
+            return;
+        }
+
+        _pendingExportText = exportText;
+        _exportDialog = new ExportDialog();
+        AddMessage(_exportDialog);
+    }
 
     /// <summary>主题命令处理（S9 接线）— "/theme"：当前清单提示；"/theme &lt;名称&gt;"：合法名切换
     /// （ThemeSelection.Resolve，下一帧渲染色板生效）+ 通知反馈"已切换主题"；未知名错误提示含合法值清单

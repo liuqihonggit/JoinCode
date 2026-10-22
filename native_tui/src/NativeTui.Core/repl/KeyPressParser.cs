@@ -247,7 +247,9 @@ public static class KeyPressParser
         return true;
     }
 
-    /// <summary>简单序列 → 按键（final + 可选数字）：字母终点 / ~ 终点数字表。</summary>
+    /// <summary>简单序列 → 按键（final + 可选数字）：字母终点 / ~ 终点数字表 /
+    /// u 终点 kitty 键位码（CSI codepoint;mods u — Windows Terminal 等 kitty 协议终端的
+    /// ctrl+shift+字母唯一可区分形态：标准 xterm 下该组合与 ctrl+字母同码不可区分）。</summary>
     private static KeyPress? BuildSimple(char final, int number) =>
         final switch
         {
@@ -263,6 +265,9 @@ public static class KeyPressParser
             '~' when number == 4 => KeyPress.Named(KeyKind.End),
             '~' when number == 5 => KeyPress.Named(KeyKind.PageUp),
             '~' when number == 6 => KeyPress.Named(KeyKind.PageDown),
+            'u' when number is > 0 and not (>= 0xD800 and <= 0xDFFF) =>
+                // kitty 码点为无修饰形态（小写字母），Shift 由修饰位表达 — codepoint 转字符
+                new KeyPress(KeyKind.Char, char.ConvertFromUtf32(number)),
             _ => null,
         };
 

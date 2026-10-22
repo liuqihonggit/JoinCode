@@ -20,11 +20,13 @@ public static class ConsoleKeyAdapter
         var shift = (info.Modifiers & ConsoleModifiers.Shift) != 0;
 
         // KeyChar 为控制字母（Ctrl+字母：KeyChar = 字母序号）→ Ctrl+字母名
+        // S12 — Shift 位保留（ctrl+shift+字母 ReadKey 路径：KeyChar 与 ctrl+字母同码，
+        // Shift 只存在于 Mods — 保留后宿主可区分 ctrl+shift+p/f 对话框触发键位）
         var ch = info.KeyChar;
         if (ch is >= '\u0001' and <= '\u001a' and not '\u0008' and not '\u0009' and not '\u000d')
         {
             var letter = (char)('a' + ch - 1);
-            return new KeyPress(KeyKind.Char, letter.ToString(), Ctrl: true, Meta: meta);
+            return new KeyPress(KeyKind.Char, letter.ToString(), Ctrl: true, Meta: meta, Shift: shift);
         }
 
         // 功能键按 Key 枚举映射（KeyChar 通常为 '\0' 或 ESC）

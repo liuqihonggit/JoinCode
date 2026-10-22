@@ -158,6 +158,28 @@ public static class RuneWidth
         return width;
     }
 
+    /// <summary>grapheme cluster 整块终端显示宽度（基准 stringWidth.ts grapheme 语义 — DSG044 L1）：
+    /// ZWJ emoji 链 / RI 旗帜对恒 2 列（emoji 形态）；其余 = 主字符宽度
+    ///（组合符/变体选择器零宽附加不增 — max 语义非 sum）。</summary>
+    public static int WidthOfGrapheme(ReadOnlySpan<char> grapheme)
+    {
+        var emojiForm = false;
+        var maxWidth = 0;
+        foreach (var rune in grapheme.EnumerateRunes())
+        {
+            if (rune.Value == 0x200D || rune.Value is >= 0x1F1E6 and <= 0x1F1FF)
+            {
+                emojiForm = true;
+            }
+            else
+            {
+                maxWidth = Math.Max(maxWidth, Of(rune));
+            }
+        }
+
+        return emojiForm ? 2 : maxWidth;
+    }
+
     private static bool IsInRanges(int value, (int Lo, int Hi)[] ranges)
     {
         var lo = 0;

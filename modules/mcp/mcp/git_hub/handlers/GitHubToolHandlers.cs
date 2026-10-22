@@ -548,7 +548,7 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 精简 PR 列表 JSON — 表格格式(number, state, title, author)，兼容 pulls API 数组和 search API {items} 格式
+    /// 精简 PR 列表 JSON — 表格格式(number, state, title, author, branch head→base)，兼容 pulls API 数组和 search API {items} 格式
     /// </summary>
     private static string SummarizePrList(string json) {
         try {
@@ -561,12 +561,26 @@ public partial class GitHubToolHandlers {
             }
             if (prs is null) return json;
             var sb = new StringBuilder(512);
-            sb.AppendLine("PR#\t状态\t标题\t作者");
-            foreach (var pr in prs) sb.AppendLine($"{pr.Number}\t{pr.State}\t{pr.Title}\t{pr.User?.Login ?? ""}");
+            sb.AppendLine("PR#\t状态\t标题\t作者\t分支");
+            foreach (var pr in prs) {
+                var branch = FormatPrBranch(pr);
+                sb.AppendLine($"{pr.Number}\t{pr.State}\t{pr.Title}\t{pr.User?.Login ?? ""}\t{branch}");
+            }
             return sb.ToString();
         } catch {
             return json;
         }
+    }
+
+    /// <summary>PR 分支列文案 — head→base（同分支省箭头；引用缺失回退空串——search API 精简响应无 head/base）。</summary>
+    private static string FormatPrBranch(PrListItemResponse pr) {
+        var head = pr.Head?.Ref ?? string.Empty;
+        var @base = pr.Base?.Ref ?? string.Empty;
+        if (head.Length == 0 && @base.Length == 0) {
+            return string.Empty;
+        }
+
+        return head == @base || @base.Length == 0 ? head : $"{head}→{@base}";
     }
 
     /// <summary>

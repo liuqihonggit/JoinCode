@@ -32,7 +32,7 @@ public sealed class TerminalInteractiveService : IInteractiveService {
 
         if (options is null || options.Count == 0) {
             TerminalHelper.WriteLine();
-            TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}{question}{AnsiStyleEnumConstants.Reset}");
+            WriteWrapped(Sanitize(question), bold: true, indent: 0);
             TerminalHelper.WriteRaw("> ");
             var freeInput = TerminalHelper.ReadLine();
             return Task.FromResult(string.IsNullOrWhiteSpace(freeInput)
@@ -80,15 +80,15 @@ public sealed class TerminalInteractiveService : IInteractiveService {
                 return Task.FromResult(AskUserQuestionResult.FailureResult("Non-interactive mode: cannot prompt for user input"));
 
             TerminalHelper.WriteLine();
-            TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}{q.Header}{AnsiStyleEnumConstants.Reset}");
-            TerminalHelper.WriteLine(q.Question);
+            WriteWrapped(Sanitize(q.Header), bold: true, indent: 0);
+            WriteWrapped(Sanitize(q.Question), bold: false, indent: 0);
             TerminalHelper.WriteLine();
 
             for (var i = 0; i < q.Options.Count; i++) {
                 var opt = q.Options[i];
-                TerminalHelper.WriteLine($"  {AnsiStyleEnumConstants.Bold}{i + 1}.{AnsiStyleEnumConstants.Reset} {opt.Label}");
+                WriteOptionLabel(i + 1, opt.Label);
                 if (!string.IsNullOrWhiteSpace(opt.Description))
-                    TerminalHelper.WriteLine($"     {AnsiStyleEnumConstants.Dim}{opt.Description}{AnsiStyleEnumConstants.Reset}");
+                    WriteOptionDescription(opt.Description);
             }
 
             TerminalHelper.WriteLine();
@@ -117,11 +117,11 @@ public sealed class TerminalInteractiveService : IInteractiveService {
     /// </summary>
     private static List<string>? DisplayQuestion(string question, List<string> options, bool multiSelect, CancellationToken ct) {
         TerminalHelper.WriteLine();
-        TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}{question}{AnsiStyleEnumConstants.Reset}");
+        WriteWrapped(Sanitize(question), bold: true, indent: 0);
         TerminalHelper.WriteLine();
 
         for (var i = 0; i < options.Count; i++) {
-            TerminalHelper.WriteLine($"  {AnsiStyleEnumConstants.Bold}{i + 1}.{AnsiStyleEnumConstants.Reset} {options[i]}");
+            WriteOptionLabel(i + 1, options[i]);
         }
 
         TerminalHelper.WriteLine();
@@ -185,4 +185,42 @@ public sealed class TerminalInteractiveService : IInteractiveService {
             TerminalHelper.WriteRaw($"无效输入,请输入 1-{maxOption} (逗号分隔) 或 0 取消: ");
         }
     }
+
+    /// <summary>清洗 — AI 生成文本行尾归一（CR 段折叠）+ 控制字符剥除（见 <see cref="QuestionTextSanitizer.Sanitize"/>）。</summary>
+    private static string Sanitize(string text) => QuestionTextSanitizer.Sanitize(text);
+
+    /// <summary>按终端宽度折行输出 — 首行 bold 全宽、续行 dim 悬挂缩进 2 列（ANSI 样式按行独立包夹，折行后转义序列不被终端在任意列截断）。</summary>
+    private static void WriteWrapped(string text, bool bold, int indent) {
+        var width = Math.Max(20, TerminalHelper.GetWidth());
+        foreach (var line in QuestionTextSanitizer.Wrap(text, width, indent: 2)) {
+            var style = bold ? AnsiStyleEnumConstants.Bold : AnsiStyleEnumConstants.Reset;
+            TerminalHelper.WriteLine($"{style}{line}{AnsiStyleEnumConstants.Reset}");
+        }
+    }
+
+    /// <summary>选项标签输出 — `  N. label` 形态，超宽折行悬挂对齐标签内容列（可用宽 = 终端宽 - 缩进）。</summary>
+    private static void WriteOptionLabel(int number, string label) {
+        var width = Math.Max(20, TerminalHelper.GetWidth());
+        var lines = QuestionTextSanitizer.Wrap(Sanitize(label), width, indent: OptionIndent);
+        for (var i = 0; i < lines.Count; i++) {
+            var prefix = i == 0
+                ? $"  {AnsiStyleEnumConstants.Bold}{number}.{AnsiStyleEnumConstants.Reset} "
+                : new string(' ', OptionIndent);
+            TerminalHelper.WriteLine(prefix + lines[i]);
+        }
+    }
+
+    /// <summary>选项描述输出 — 5 列缩进 dim，超宽折行悬挂对齐。</summary>
+    private static void WriteOptionDescription(string description) {
+        var width = Math.Max(20, TerminalHelper.GetWidth());
+        foreach (var line in QuestionTextSanitizer.Wrap(Sanitize(description), width, indent: DescriptionIndent)) {
+            TerminalHelper.WriteLine($"{new string(' ', DescriptionIndent)}{AnsiStyleEnumConstants.Dim}{line}{AnsiStyleEnumConstants.Reset}");
+        }
+    }
+
+    /// <summary>选项行缩进列（`  N. ` = 5 列 — 续行对齐标签内容列）。</summary>
+    private const int OptionIndent = 5;
+
+    /// <summary>描述行缩进列。</summary>
+    private const int DescriptionIndent = 5;
 }

@@ -289,8 +289,16 @@ public static class Program {
                 // TASK059 退出安全 — Esc 永不退出（忙时双击中断）、Ctrl+C 复制最后 assistant 消息；
                 // 退出路径：Ctrl+D（空输入）或 /exit 命令。剪贴板走引擎 IClipboardService（fire-and-forget 写入）。
                 var clipboardService = session.Services.GetService<IClipboardService>();
+                // S9/S10 接线 — 主题配置名（引擎 settings.json theme 键 → ThemeSelection.Resolve，
+                // auto 按本地小时解析 light/dark，对齐引擎 ThemeCommand.ApplyTheme）+ 命令使用记忆
+                //（~/.jcc/command-history.json 坏文件静默降级空记忆）+ 工作区根（@ 文件补全索引根，banner cwd 同源）
+                var themeName = await LoadThemeNameAsync(session.Services).ConfigureAwait(false);
+                var commandUsage = await CommandUsageMemory.LoadAsync(CommandUsageMemory.DefaultFilePath).ConfigureAwait(false);
                 var shell = new ReplShell(pickerEngine, banner, tuiOutput, commands: commands,
-                    clipboard: text => _ = clipboardService?.SetTextAsync(text));
+                    clipboard: text => _ = clipboardService?.SetTextAsync(text),
+                    themeName: themeName,
+                    commandUsage: commandUsage,
+                    workspaceRoot: Environment.CurrentDirectory);
                 pickerEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);
@@ -317,6 +325,29 @@ public static class Program {
 
         Console.WriteLine("NativeTui.Host 已退出。");
         return 0;
+    }
+
+    /// <summary>加载主题配置名（S9 接线 — 引擎 settings.json 的 theme 键经 IConfigurationService 读取）：
+    /// auto 按本地小时解析 light/dark（6-18 点 light，对齐引擎 ThemeCommand.ApplyTheme 的 auto 分支）；
+    /// 未配置/读取失败返回 null（ReplShell 侧 ThemeSelection.Resolve 回退 dark）。</summary>
+    private static async Task<string?> LoadThemeNameAsync(IServiceProvider services) {
+        try {
+            var config = services.GetService<IConfigurationService>();
+            if (config is null) {
+                return null;
+            }
+
+            var theme = await config.GetAsync("theme").ConfigureAwait(false);
+            if (string.IsNullOrEmpty(theme) || theme == "auto") {
+                return theme == "auto"
+                    ? (DateTime.Now.Hour is >= 6 and < 18 ? ThemeSelection.LightName : ThemeSelection.DarkName)
+                    : null;
+            }
+
+            return theme;
+        } catch (Exception ex) when (ex is InvalidOperationException or IOException) {
+            return null;
+        }
     }
 
     /// <summary>非交互冒烟（ADR 0080 真实组装非 mock）— 真实引擎会话组装 + session_info 握手断言 +

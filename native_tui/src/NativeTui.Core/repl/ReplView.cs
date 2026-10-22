@@ -125,6 +125,10 @@ public sealed class ReplView
     /// <summary>帮助面板高度（0 = 未开启）。</summary>
     private int HelpHeight => HelpOpen ? HelpPanel.Height : 0;
 
+    /// <summary>输入区高度（S7 接线 — 多行化：逻辑行数 + 2 分隔线，PromptInputBox.HeightFor 唯一公式；
+    /// Input 为 string 属性内部拆行计算，单行 = 3 与既有布局逐字节一致）。</summary>
+    private int InputHeight => PromptInputBox.HeightFor(PromptInputBox.SplitLogicalLines(Input).Count);
+
     /// <summary>设置全局 verbose 开关（transcript 模式消费 — 渲染时经 IVerboseAware 投影给 item 的
     /// 展开接口；item 侧 IsExpanded 联动接线在 item 域，见未决问题）。</summary>
     public void SetVerboseMode(bool verbose) => VerboseMode = verbose;
@@ -158,24 +162,29 @@ public sealed class ReplView
     }
 
     /// <summary>
-    /// 内容总高度（inline 模式建屏用）— 消息全量高度 + 间隔 1 + 输入区 3 + 排队面板 + 后台任务面板 + 建议区 + 操作条 + 帮助面板 + footer 高度；
+    /// 内容总高度（inline 模式建屏用）— 消息全量高度 + 间隔 1 + 输入区（多行随行数增长）+ 排队面板 +
+    /// 后台任务面板 + 建议区 + 操作条 + 帮助面板 + footer 高度；
     /// 屏高取此值时消息区恰好全量展示（无滚动窗口），历史自然滚入终端 scrollback。
     /// </summary>
     public int MeasureContentHeight(int cols) =>
-        Messages.MeasureContentHeight(cols) + 4 + QueueHeight + BackgroundTaskHeight + SuggestionHeight + ActionsHeight + HelpHeight + _footer.MeasureHeight(Footer);
+        Messages.MeasureContentHeight(cols) + 1 + InputHeight + QueueHeight + BackgroundTaskHeight + SuggestionHeight + ActionsHeight + HelpHeight + _footer.MeasureHeight(Footer);
 
-    /// <summary>inline 模式尾部动态区行数（间隔 1 + 输入区 3 + 排队面板 + 建议区 + 操作条 + 帮助面板 + footer 高度）— 退出清理用。</summary>
-    public int TailHeight => 4 + QueueHeight + SuggestionHeight + ActionsHeight + HelpHeight + _footer.MeasureHeight(Footer);
+    /// <summary>inline 模式尾部动态区行数（间隔 1 + 输入区（多行随行数增长）+ 排队面板 + 建议区 + 操作条 + 帮助面板 + footer 高度）— 退出清理用。</summary>
+    public int TailHeight => 1 + InputHeight + QueueHeight + SuggestionHeight + ActionsHeight + HelpHeight + _footer.MeasureHeight(Footer);
 
     /// <summary>
-    /// 输入光标内容坐标（inline 模式帧尾光标位）— 行 = 输入文本行（内容底上方 footer+操作条+建议区+2），
-    /// 列 = PromptWidth + 显示宽度（修复：中文宽字符 — char 偏移换算显示列，钳制行宽，右缘即 pending wrap 状态）。
+    /// 输入光标内容坐标（inline 模式帧尾光标位）— 多行化（S7 接线）：行 = 输入区顶线下方第
+    /// 光标逻辑行（输入区贴屏底，行号自底向上回退 inputHeight）；列 = PromptWidth + 显示宽度
+    ///（修复：中文宽字符 — char 偏移换算显示列，钳制行宽，右缘即 pending wrap 状态）；
+    /// 单行（inputHeight=3、cursorLine=0）与既有公式逐字节一致。
     /// </summary>
     public CursorPos InputCursorPos(int contentRows, int cols, int cursorCol)
     {
         var footerHeight = _footer.MeasureHeight(Footer);
         var displayCol = PromptInputBox.MeasureDisplayWidth(Input.AsSpan(0, Math.Min(cursorCol, Input.Length)));
-        return new CursorPos(Math.Min(cols, PromptInputBox.PromptWidth + displayCol), contentRows - footerHeight - ActionsHeight - SuggestionHeight - 2);
+        var cursorLine = PromptInputBox.CursorLineIndex(Input, cursorCol);
+        var row = contentRows - footerHeight - ActionsHeight - SuggestionHeight - InputHeight + 1 + cursorLine;
+        return new CursorPos(Math.Min(cols, PromptInputBox.PromptWidth + displayCol), row);
     }
 
     /// <summary>渲染整屏（消息区 → 后台任务面板 → 排队面板 → 输入框 → 建议区 → 操作条 → footer）。
@@ -214,7 +223,9 @@ public sealed class ReplView
             _suggestionBox.Render(screen, suggestionFrame, theme, Suggestions, SuggestionIndex, SuggestionNameColumnWidth, SuggestionArgumentMode);
         }
 
-        var inputFrame = new Rect(0, screen.Rows - footerHeight - actionsHeight - suggestionHeight - 3, screen.Cols, 3);
+        // S7 接线 — 输入区高度多行化（HeightFor(逻辑行数)：单行 3 与既有布局一致，多行随行数增长）
+        var inputHeight = InputHeight;
+        var inputFrame = new Rect(0, screen.Rows - footerHeight - actionsHeight - suggestionHeight - inputHeight, screen.Cols, inputHeight);
         _inputBox.Render(screen, inputFrame, theme, Input, CursorCol, Footer.Busy, GhostSuffix);
 
         if (queueHeight > 0)
@@ -233,7 +244,7 @@ public sealed class ReplView
             _helpPanel.Render(screen, new Rect(0, inputFrame.Y - queueHeight - backgroundHeight - HelpHeight, screen.Cols, HelpHeight), theme);
         }
 
-        var messagesHeight = Math.Max(0, screen.Rows - footerHeight - actionsHeight - suggestionHeight - queueHeight - backgroundHeight - HelpHeight - 4);
+        var messagesHeight = Math.Max(0, screen.Rows - footerHeight - actionsHeight - suggestionHeight - queueHeight - backgroundHeight - HelpHeight - 1 - inputHeight);
         var messagesFrame = new Rect(0, 0, screen.Cols, messagesHeight);
         Messages.Render(screen, messagesFrame, theme);
     }

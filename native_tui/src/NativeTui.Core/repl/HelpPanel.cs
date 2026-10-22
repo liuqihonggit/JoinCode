@@ -14,6 +14,7 @@ public sealed class HelpPanel
         "快捷键",
         "?  本面板 · esc 关闭",
         "enter  发送 · tab  命令补全",
+        "shift+enter  输入换行（多行编辑 · ctrl+_ 撤销）",
         "↑ ↓  翻阅输入历史 · ctrl+r  搜索历史",
         "shift+↑  消息导航 · enter  展开分组 · c  复制全文",
         "ctrl+o  详细转录 · ctrl+l  刷新界面",

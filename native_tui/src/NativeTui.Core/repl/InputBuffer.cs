@@ -193,6 +193,17 @@ public sealed class InputBuffer
         CursorCol = cursorToStart ? 0 : text.Length;
     }
 
+    /// <summary>全量替换文本并指定光标位置（S10 接线 — @ 文件补全替换写回：token 段替换后光标置
+    /// 替换段末尾而非全文末尾，中部替换不跳尾）；cursorCol 钳制到 [0, text.Length]。</summary>
+    public void ReplaceAt(string text, int cursorCol)
+    {
+        PushUndoSnapshot();
+        BeginEditText();
+        _text.Clear();
+        _text.Append(text);
+        CursorCol = Math.Clamp(cursorCol, 0, text.Length);
+    }
+
     /// <summary>
     /// 粘贴入口（bracketed paste 事件到达）— 清洗（去 ANSI/\r 归一/Tab 展开）后判定折叠：
     /// 超阈值登记为 [Pasted text #N +M lines] 引用插入，否则原文直插；显示折叠形态，提交取 ExpandedText。

@@ -8,6 +8,9 @@ namespace NativeTui.Core.Repl;
 /// 无法识别的序列整体吞掉为 Unknown（Input 空），防止转义序列泄漏成文本（对齐基准 suppress 语义）。
 /// bracketed paste：\x1b[200~ 内容 \x1b[201~ 整块产出 Paste 事件（Input=粘贴原文），
 /// 终止标记未到达视为不完整前缀不消耗（粘贴块可跨 chunk 攒齐）。
+/// kitty keyboard protocol（CSI u：ESC[codepoint[;mod[;text]]u）与 xterm modifyOtherKeys（ESC[27;mod;code~）：
+/// 码点+mod-1 位掩码形式解析（对齐基准 ink/parse-keypress.ts 的 CSI_U_RE / MODIFY_OTHER_KEYS_RE 分支），
+/// 双修饰组合（ctrl+shift 等）完整保留 — 传统 \x01 控制码路径丢失 shift 的补全。
 /// </summary>
 public static class KeyPressParser
 {
@@ -152,11 +155,12 @@ public static class KeyPressParser
         };
     }
 
-    /// <summary>CSI 序列：ESC [ params {;mod} final — 方向键/Home/End/Delete/Page + 修饰符 + SGR 鼠标吞噬。
+    /// <summary>CSI 序列：ESC [ params {;mod} final — 方向键/Home/End/Delete/Page + 修饰符 + SGR 鼠标吞噬
+    /// + kitty CSI u / xterm modifyOtherKeys 分派（B1 融合 — final 'u' 进 kitty 完整版、三段 ~ 进 modifyOtherKeys）。
     /// 序列边界 = 参数区（0x30-0x3F 数字/;/…）+ intermediate（0x20-0x2F）扫描至 final（0x40-0x7E）；
-    /// 非「数字{;数字}」两段形态（私有参数 ESC[?…、intermediate ESC[…$…、三段 modifyOtherKeys、超长数字）
+    /// 非「数字{;数字}」两段形态（私有参数 ESC[?…、intermediate ESC[…$…、超长数字）
     /// 整体吞 Unknown（防泄漏契约）；数字解析全部 TryParse — 空第一段按 xterm 默认 1、
-    /// 超长数字 -1 无匹配（对齐基准 parseInt 永不抛，外部畸形输入不可击穿读线程）。</summary>
+    /// 超长数字 -1 无匹配（对齐基准 parseInt 永不抛，外部畸形输入不可击穿读线程）。</summary>（板块B基建） | 决策: 主代理debug修复AOT反序列化Type重载/F键全链打通/全被拒条目保留默认非解绑,子代理只写码主代理统一编译修复)
     private static bool ParseCsi(ref ReadOnlySpan<char> buffer, out KeyPress key)
     {
         var rest = buffer[2..];
@@ -200,9 +204,36 @@ public static class KeyPressParser
             return false;
         }
 
-        key = ParseTwoSegmentForm(rest, scan, rest[scan]) ?? NamedUnknown();
+        var final = rest[scan];
+
+        // B1 融合 — kitty CSI u（终点 'u' + 首段正数码点；含 97u 单段 / 97;5u 双段 / 97;5;120u 三段形态）：
+        // 完整版含修饰位解码与防御（代理区/越界吞 Unknown），取代 main 侧 BuildSimple 的 'u' 简版分支
+        if (final == 'u' && HasLeadingNumber(rest, scan))
+        {
+            return ParseKittyCsiU(ref buffer, rest[..scan], out key);
+        }
+
+        // B1 融合 — xterm modifyOtherKeys（27;mod;code~ 三段形态，参数顺序与 CSI u 相反）
+        if (final == '~' && IsModifyOtherKeys(rest[..scan]))
+        {
+            return ParseModifyOtherKeys(ref buffer, rest[..scan], out key);
+        }
+
+        key = ParseTwoSegmentForm(rest, scan, final) ?? NamedUnknown();
         buffer = buffer[(2 + scan + 1)..];
         return true;
+    }
+
+    /// <summary>首段为正数数字判定（kitty CSI u 的形态门槛 — '?' 私有参数/空段形态不误入）。</summary>
+    private static bool HasLeadingNumber(ReadOnlySpan<char> rest, int scan)
+    {
+        var numEnd = 0;
+        while (numEnd < scan && char.IsDigit(rest[numEnd]))
+        {
+            numEnd++;
+        }
+
+        return numEnd > 0;
     }
 
     /// <summary>「数字{;数字}」两段形态语义解析：单段=简单键、双段=修饰键；空第一段=xterm 默认 1；畸形/超长=null（整体吞 Unknown）。</summary>
@@ -257,6 +288,136 @@ public static class KeyPressParser
             Ctrl = simple.Ctrl || (bits & 4) != 0,
         };
     }
+
+    /// <summary>
+    /// kitty keyboard protocol CSI u：ESC [ codepoint [; modifiers [; text-codepoints]] u —
+    /// 对齐基准 ink/parse-keypress.ts 的 CSI_U_RE + decodeModifier + keycodeToName 分支。
+    /// codepoint 为 Unicode 码点十进制（97='a'，13=Enter，27=Esc，127=Backspace，9=Tab）；
+    /// modifiers 位掩码值 = 1 + 位（bit0=Shift bit1=Alt bit2=Ctrl bit3=Super…，与 ParseTwoSegmentForm 的 mod-1 语义一致），缺省 1=无修饰；
+    /// 第三段 text-codepoints 仅是终端回显文本（如 shift 产生的字形），忽略不消费语义。
+    /// params 已剔除 ESC [ 前缀与终点 'u'；非法段（空/非正数）整体吞为 Unknown 防泄漏。
+    /// </summary>
+    private static bool ParseKittyCsiU(ref ReadOnlySpan<char> buffer, ReadOnlySpan<char> @params, out KeyPress key)
+    {
+        var firstSemi = @params.IndexOf(';');
+        var codepoint = ParseSegment(firstSemi < 0 ? @params : @params[..firstSemi]);
+        var mod = 1;
+        if (firstSemi >= 0)
+        {
+            var second = @params[(firstSemi + 1)..];
+            var secondSemi = second.IndexOf(';');
+            // 第二分号后的第三段（text-codepoints）忽略 — 基准 CSI_U_RE 同样不消费该段
+            mod = ParseSegment(secondSemi < 0 ? second : second[..secondSemi]);
+        }
+
+        key = codepoint > 0 && mod > 0
+            ? BuildCodepointKey(codepoint, mod - 1)
+            : NamedUnknown();
+        buffer = buffer[(@params.Length + 3)..];
+        return true;
+    }
+
+    /// <summary>
+    /// xterm modifyOtherKeys：ESC [ 27 ; modifiers ; keycode ~ —
+    /// 对齐基准 ink/parse-keypress.ts 的 MODIFY_OTHER_KEYS_RE 分支：
+    /// Ghostty/tmux/xterm 在 modifyOtherKeys=2 激活或 SSH 下 TERM 嗅探失效时的修饰键通道，
+    /// 参数顺序与 CSI u 相反（修饰在前、键码在后）。keycode 码点语义与 kitty 共用 BuildCodepointKey。
+    /// params 已剔除 ESC [ 前缀与终点 '~'（形如 "27;5;97"）。
+    /// </summary>
+    private static bool ParseModifyOtherKeys(ref ReadOnlySpan<char> buffer, ReadOnlySpan<char> @params, out KeyPress key)
+    {
+        var firstSemi = @params.IndexOf(';');
+        var tail = @params[(firstSemi + 1)..];
+        var secondSemi = tail.IndexOf(';');
+        var mod = ParseSegment(tail[..secondSemi]);
+        var codepoint = ParseSegment(tail[(secondSemi + 1)..]);
+
+        key = mod > 0 && codepoint > 0
+            ? BuildCodepointKey(codepoint, mod - 1)
+            : NamedUnknown();
+        buffer = buffer[(@params.Length + 3)..];
+        return true;
+    }
+
+    /// <summary>modifyOtherKeys 形态判定（只读前瞻）：参数区恰为 27;数字;数字 三段（终点 '~' 由调用方保证）；两段（27;5~ 传统形态）不算。</summary>
+    private static bool IsModifyOtherKeys(ReadOnlySpan<char> @params)
+    {
+        if (!@params.StartsWith("27;"))
+        {
+            return false;
+        }
+
+        var tail = @params[3..];
+        var semi = tail.IndexOf(';');
+        return semi >= 0
+            && IsDigits(tail[..semi])
+            && IsDigits(tail[(semi + 1)..]);
+    }
+
+    /// <summary>非空纯数字段判定。</summary>
+    private static bool IsDigits(ReadOnlySpan<char> segment)
+    {
+        if (segment.IsEmpty)
+        {
+            return false;
+        }
+
+        foreach (var c in segment)
+        {
+            if (!char.IsDigit(c))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// 码点 + 修饰位掩码 → KeyPress（kitty CSI u 与 modifyOtherKeys 共用，对齐基准 keycodeToName + decodeModifier）。
+    /// bits = mod-1：bit0=Shift bit1=Alt/Meta bit2=Ctrl；bit3 起的 Super/ShiftLock 等 KeyPress 未建模，丢弃。
+    /// 可打印码点走 Char（大写自动 Shift 复用 KeyPress.Char 构造，mod 的 shift 位再 OR 上）。
+    /// </summary>
+    private static KeyPress BuildCodepointKey(int codepoint, int bits)
+    {
+        var ctrl = (bits & 4) != 0;
+        var meta = (bits & 2) != 0;
+        var shift = (bits & 1) != 0;
+        switch (codepoint)
+        {
+            case 13:
+                return KeyPress.Named(KeyKind.Return, ctrl, meta, shift);
+            case 27:
+                return KeyPress.Named(KeyKind.Escape, ctrl, meta, shift);
+            case 127:
+                return KeyPress.Named(KeyKind.Backspace, ctrl, meta, shift);
+            case 9:
+                return KeyPress.Named(KeyKind.Tab, ctrl, meta, shift);
+            // kitty 功能键区码点 57414-57417（F1-F4）— KeyKind.F1-F12 引入（B2 键位系统）
+            case 57414:
+                return KeyPress.Named(KeyKind.F1, ctrl, meta, shift);
+            case 57415:
+                return KeyPress.Named(KeyKind.F2, ctrl, meta, shift);
+            case 57416:
+                return KeyPress.Named(KeyKind.F3, ctrl, meta, shift);
+            case 57417:
+                return KeyPress.Named(KeyKind.F4, ctrl, meta, shift);
+            default:
+                // 控制码点（9/13/27/127 已在上方捕获）与越界/代理区码点不可打印 — Unknown 吞掉
+                if (codepoint is < 32 or > 0x10FFFF or (>= 0xD800 and <= 0xDFFF))
+                {
+                    return NamedUnknown();
+                }
+
+                var text = char.ConvertFromUtf32(codepoint);
+                var key = KeyPress.Char(text);
+                return key with { Ctrl = ctrl, Meta = meta, Shift = key.Shift || shift };
+        }
+    }
+
+    /// <summary>十进制数字段解析；空段/非数字/溢出返回 -1（调用方按非法吞为 Unknown）。</summary>
+    private static int ParseSegment(ReadOnlySpan<char> segment) =>
+        int.TryParse(segment, out var value) ? value : -1;
 
     /// <summary>SS3 应用模式（ESC O final）：方向键/Home/End/Clear/F1-F4，其余单字符吞掉。</summary>
     private static bool ParseSs3(ref ReadOnlySpan<char> buffer, out KeyPress key)
@@ -356,9 +517,8 @@ public static class KeyPressParser
                 24 => KeyPress.Named(KeyKind.F12),
                 _ => null,
             },
-            'u' when number is > 0 and not (>= 0xD800 and <= 0xDFFF) =>
-                // kitty 码点为无修饰形态（小写字母），Shift 由修饰位表达 — codepoint 转字符
-                new KeyPress(KeyKind.Char, char.ConvertFromUtf32(number)),
+            // kitty 'u' 终点不在此处理 — ParseCsi 已拦截（HasLeadingNumber 门槛）全部进 ParseKittyCsiU
+            // 完整版（含修饰位解码/防御），简版 'u' 分支（裸码点直接 ConvertFromUtf32）被取代
             _ => null,
         };
 

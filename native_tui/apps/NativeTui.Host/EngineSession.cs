@@ -66,6 +66,15 @@ public sealed class EngineSession : IAsyncDisposable {
             // Program 在 shell 构造后 Bind：/clear → 清滚动区、/exit → 主循环结束）
             var commandCallbacks = new TuiCommandCallbacks();
 
+            // S8 confirm 闭环 — 命令确认回调走 TuiPermissionBridge TCS 桥（复用权限对话框模态，
+            // 两档映射 Allow/AlwaysAllow → true；shell 未绑定时 bridge 自动 Deny → false 安全降级）。
+            // prompt/readPassword 数据层（InputRequestCoordinator/PasswordMask）已就绪，
+            // ReplShell 输入模态入口属 S7 域 — 接线未决，期间保持 null（命令侧默认空输入降级）。
+            commandCallbacks.BindInteractions(
+                confirm: message => MapConfirmResult(permissionBridge.Confirm(CommandConfirmToolName, message)),
+                prompt: null,
+                readPassword: null);
+
             // M8-8 后台任务事件泵 — 订阅 ForkCompleted/TeammateCompleted 直推 consumer
             // （绕开回合作用域 SubAgentEventChannel 的 idle 丢弃 gap）；两面任一可解析即建泵
             var forkManager = engine.Services.GetService<IForkSubAgentManager>();
@@ -165,16 +174,18 @@ public sealed class EngineSession : IAsyncDisposable {
     ///（对齐"命令不触发 AI"：注册命令走命令执行，未知命令报错，两者都不消耗模型调用）。
     /// M8-5 交互回调接线：clearScreen/onExitRequested 经 TuiCommandCallbacks 透传（/clear 清 TUI 滚动区、
     /// /exit 结束主循环；Bind 前为 null — 命令侧 ?.Invoke 安全降级对齐 Runner 可空语义）；
-    /// confirm/prompt/readPassword 首版不接（TUI raw mode 无同步 Console 通道 — 模态对话框增强项遗留，
-    /// 命令侧降级：确认默认拒绝/输入 null）。internal static — 回调透传链测试面（fake DI 驱动真实命令注册链）。</summary>
+    /// S8 confirm/prompt/readPassword 经 TuiCommandCallbacks 交互面透传（confirm 组装期闭环走权限对话框
+    /// TCS 桥；prompt/readPassword 接线未决 — BindInteractions 前 null，命令侧降级：输入 null）。
+    /// internal static — 回调透传链测试面（fake DI 驱动真实命令注册链）。
+    /// TASK065 F1 融合 — onExitRequested 包装带命令名（Runner 回调无参 → 解析 input 补 reason 上提示行）。</summary>
     internal static async Task DispatchSlashCommandAsync(
         IServiceProvider services, string input, IEventConsumer consumer, TuiCommandCallbacks commandCallbacks, CancellationToken ct) {
         var result = await SlashCommandRunner.RunAsync(
             input, services,
             clearScreen: commandCallbacks.ClearScreen,
-            confirm: null,
-            prompt: null,
-            readPassword: null,
+            confirm: commandCallbacks.Confirm,
+            prompt: commandCallbacks.Prompt,
+            readPassword: commandCallbacks.ReadPassword,
             onExitRequested: commandCallbacks.OnExitRequested,
             cancellationToken: ct).ConfigureAwait(false);
 
@@ -185,6 +196,13 @@ public sealed class EngineSession : IAsyncDisposable {
 
         consumer.OnDone(usage: null, modelId: null);
     }
+
+    /// <summary>命令确认对话框工具名（S8 — TuiPermissionBridge 挂起权限对话框的工具行显示名，中文文案规范）。</summary>
+    private const string CommandConfirmToolName = "确认";
+
+    /// <summary>确认结果映射 — Allow/AlwaysAllow → true（确认），Deny → false（拒绝）。
+    /// internal static — confirm 闭环映射的纯函数测试面（S8）。</summary>
+    internal static bool MapConfirmResult(PermissionConfirmAction action) => action != PermissionConfirmAction.Deny;
 
     /// <summary>翻译轮次结果 — 成功=null（client 发 turn_completed）；取消=OperationCanceledException（turn_interrupted）；
     /// 超时/错误=InvalidOperationException（client 发 Error 事件，消息含 Host 交互诱导 — Esc 打断 + 网络检查）。</summary>
@@ -211,20 +229,34 @@ public sealed class EngineSession : IAsyncDisposable {
 }
 
 /// <summary>
-/// TUI 命令交互回调桥（M8-5）— SlashCommandRunner 交互回调的延迟绑定容器：
+/// TUI 命令交互回调桥（M8-5 + S8 交互面）— SlashCommandRunner 交互回调的延迟绑定容器：
 /// EngineSession.CreateAsync 组装期创建并随回合执行器闭包传递（Bind 前回调为 null —
-/// 命令侧 ?.Invoke 安全降级，对齐 Runner 可空语义：清屏跳过/退出信号丢弃/确认默认拒绝）；
+/// 命令侧 ?.Invoke 安全降级，对齐 Runner 可空语义：清屏跳过/退出信号丢弃/确认默认拒绝/输入 null）；
 /// Program 在 shell 构造后 Bind：/clear → ReplShell 清滚动区、/exit → ReplShell 主循环结束。
+/// S8 交互面（BindInteractions）：confirm 组装期闭环（TuiPermissionBridge TCS 桥两档映射）、
+/// prompt/readPassword 待 S7 输入模态接线（null 降级）— 独立于 Bind 的 shell 能力面，互不覆盖。
 /// 对齐 TuiPermissionBridge.Bind 延迟绑定形态（shell 构造晚于引擎会话，引擎回合线程并发读 — volatile）。
 /// </summary>
 public sealed class TuiCommandCallbacks {
     private volatile Action? _clearScreen;
     private volatile Action? _onExitRequested;
+    private volatile Func<string, bool>? _confirm;
+    private volatile Func<string, string?>? _prompt;
+    private volatile Func<string, string?>? _readPassword;
 
-    /// <summary>绑定 TUI 能力（Program 交互模式组装点 — shell 构造后、Run 前调用；重绑幂等覆盖）。</summary>
+    /// <summary>绑定 TUI 能力（Program 交互模式组装点 — shell 构造后、Run 前调用；重绑幂等覆盖。
+    /// 只覆盖 shell 能力面（clearScreen/onExitRequested），不触碰 BindInteractions 交互面）。</summary>
     public void Bind(Action? clearScreen, Action? onExitRequested) {
         _clearScreen = clearScreen;
         _onExitRequested = onExitRequested;
+    }
+
+    /// <summary>绑定命令交互回调（S8 — confirm/prompt/readPassword；独立于 Bind 的 shell 能力面，
+    /// 重绑幂等覆盖。null = 该回调降级 — 命令侧默认拒绝/空输入）。</summary>
+    public void BindInteractions(Func<string, bool>? confirm, Func<string, string?>? prompt, Func<string, string?>? readPassword) {
+        _confirm = confirm;
+        _prompt = prompt;
+        _readPassword = readPassword;
     }
 
     /// <summary>清屏回调（/clear → 清 TUI 滚动区，保留 banner+spinner 常驻项；Bind 前为 null — 命令侧跳过）。</summary>
@@ -233,6 +265,16 @@ public sealed class TuiCommandCallbacks {
     /// <summary>退出请求回调（/exit ShouldContinue=false → 结束 TUI 主循环；Bind 前为 null — 信号降级丢弃）。</summary>
     public Action? OnExitRequested => _onExitRequested;
 
+    /// <summary>确认回调（命令确认 → TUI 权限对话框两档映射 true/false；null — 命令侧默认拒绝）。</summary>
+    public Func<string, bool>? Confirm => _confirm;
+
+    /// <summary>自由输入回调（命令 prompt → TUI 输入模态；null — 命令侧默认空输入。S7 接线未决）。</summary>
+    public Func<string, string?>? Prompt => _prompt;
+
+    /// <summary>密码输入回调（命令 readPassword → TUI 遮蔽输入模态；null — 命令侧默认空串。S7 接线未决）。</summary>
+    public Func<string, string?>? ReadPassword => _readPassword;
+
     /// <summary>已绑定任一回调（internal — Program 接线测试断言面）。</summary>
-    internal bool IsBound => _clearScreen is not null || _onExitRequested is not null;
+    internal bool IsBound => _clearScreen is not null || _onExitRequested is not null
+        || _confirm is not null || _prompt is not null || _readPassword is not null;
 }

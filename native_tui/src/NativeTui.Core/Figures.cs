@@ -30,6 +30,9 @@ public static class Figures
     /// <summary>工具结果缩进前缀（基准 MessageResponse.tsx：2 空格 + ⎿ + 2 空格，dim 色）。</summary>
     public const string ToolResultIndent = "  ⎿  ";
 
+    /// <summary>思考行前缀 ∴（因此符号 — 思考摘要行形态，时长归 spinner 行 "thought for Ns"）。</summary>
+    public const string ThereforeSign = "∴";
+
     /// <summary>上箭头 ↑（opus 1m 合并通知）。</summary>
     public const string UpArrow = "↑";
 

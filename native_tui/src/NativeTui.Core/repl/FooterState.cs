@@ -21,13 +21,15 @@ public sealed record FooterState
     /// <summary>右侧登录错误（右对齐 error 色，如 "Not logged in · Run /login"）。</summary>
     public string? LoginError { get; init; }
 
-    /// <summary>右侧通知（行 2 右对齐 dim，如 "◐ medium · /effort"；非空时 footer 占 2 行）。</summary>
+    /// <summary>右侧通知（行 2 右对齐 dim，如 "◐ medium · /effort"；非空时 footer 占 2 行）。
+    /// 静态回退层 — 动态队列 <see cref="Notifications"/> 未接线或无当前显示时生效。</summary>
     public string? Notification { get; init; }
 
     /// <summary>
     /// 上下文余量告警文本（M8-7 TASK064 P1 — 行 2 右对齐，色由 ContextWarningLevel 决定；null = 无告警）。
     /// 独立槽位于 Notification：通知是临时态（effort 12s 超时/transcript 提示，ReplShell 覆盖管理），
     /// 告警是持续态（直到余量回升 &gt;25% 或 /compact）— 互不覆盖；共存时告警优先渲染。
+    /// 数据源 context_usage 事件（引擎权威 percentLeft）— 与 Tokens tracker 的累计口径互补。
     /// </summary>
     public string? ContextWarning { get; init; }
 
@@ -44,6 +46,17 @@ public sealed record FooterState
         <= 25 => ($"上下文不足 ({percentLeft}%) · 运行 /compact", ContextAlertLevel.Warning),
         _ => (null, ContextAlertLevel.None),
     };
+
+    /// <summary>动态通知队列（行 2 右侧优先消费 <see cref="ReplNotifications.Current"/> —
+    /// 队列状态机由渲染帧 Tick 推进；null = 未接线回退静态 <see cref="Notification"/>）。
+    /// 聚合决策：record 增持有状态组件引用而非 FooterBar 持字段 — FooterState 保持
+    /// 渲染状态投影单一通道（FooterBar 无状态可多实例），Driver/Shell 以 with 表达式挂载；
+    /// FooterState 无相等性消费方（全部替换式更新），引用字段不影响既有语义。</summary>
+    public ReplNotifications? Notifications { get; init; }
+
+    /// <summary>Token 用量跟踪（footer 右侧 TokenWarning 渲染源 — Driver 契约
+    /// <see cref="TokenUsageTracker.RecordUsage"/> 接线；null = 未接线不渲染）。</summary>
+    public TokenUsageTracker? Tokens { get; init; }
 }
 
 /// <summary>上下文余量告警级别（M8-7 — 三色形态选色键：告急 error / 警告 warning / 无 None）。</summary>

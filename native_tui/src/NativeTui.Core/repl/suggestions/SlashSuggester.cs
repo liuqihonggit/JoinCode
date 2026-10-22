@@ -2,14 +2,17 @@ namespace NativeTui.Core.Repl;
 
 /// <summary>
 /// 斜杠命令补全状态机 — 对齐基准 commandSuggestions.ts + useTypeahead.tsx 的命令建议分支：
-/// 触发（/ 开头、无空格、非 Esc 抑制态）；空查询全量可见命令字母序；
+/// 触发（/ 开头、无空格、非 Esc 抑制态）；空查询全量可见命令（默认字母序，可选注入
+/// CommandGrouping 走分组视图：recently-used top5 → builtin → user → project → policy）；
 /// 二级排序（精确名 &gt; 精确切名 &gt; 前缀名短优先 &gt; 前缀切名 &gt; 子序列名 &gt; 子序列切名）；
 /// 隐藏命令输入全名时前插；Dismiss 抑制同一输入，输入变化解除；
 /// 选中索引循环导航（对齐基准 autocomplete previous/next 回绕）。
+/// 两套排序并存：有查询走既有匹配排序，空查询在注入分组投影时走分组（未注入维持字母序零破坏）。
 /// </summary>
 public sealed class SlashSuggester
 {
     private readonly IReadOnlyList<CommandSuggestion> _commands;
+    private readonly CommandGrouping? _grouping;
     private string _currentInput = string.Empty;
     private string _suppressedInput = string.Empty;
 
@@ -52,10 +55,12 @@ public sealed class SlashSuggester
     /// <summary>命令列宽 — 全量命令最长名 + 6（含 / 与列间距，基准预计算防过滤时布局跳动）。</summary>
     public int NameColumnWidth { get; }
 
-    /// <summary>创建补全状态机 — commands 为宿主注入的全量命令清单。</summary>
-    public SlashSuggester(IReadOnlyList<CommandSuggestion> commands)
+    /// <summary>创建补全状态机 — commands 为宿主注入的全量命令清单；grouping 为空查询分组投影
+    ///（可选注入 — null 维持既有字母序零破坏；注入后 "/" 空查询走分组视图，有查询仍走匹配排序）。</summary>
+    public SlashSuggester(IReadOnlyList<CommandSuggestion> commands, CommandGrouping? grouping = null)
     {
         _commands = commands;
+        _grouping = grouping;
         NameColumnWidth = commands.Count > 0 ? commands.Max(c => c.Name.Length) + 6 : 0;
     }
 
@@ -157,14 +162,15 @@ public sealed class SlashSuggester
         return firstSpace >= 0 && MatchArgument(input, firstSpace).Count > 0;
     }
 
-    /// <summary>命令名模式匹配（无空格 — 二级排序链）。</summary>
+    /// <summary>命令名模式匹配（无空格 — 二级排序链；空查询注入分组投影时走分组视图）。</summary>
     private List<CommandSuggestion> MatchCommand(string query)
     {
         if (query.Length == 0)
         {
-            return _commands.Where(c => !c.IsHidden)
-                .OrderBy(c => c.Name, StringComparer.Ordinal)
-                .ToList();
+            var visible = _commands.Where(c => !c.IsHidden).ToList();
+            return _grouping is not null
+                ? _grouping.Project(visible).ToList()
+                : visible.OrderBy(c => c.Name, StringComparer.Ordinal).ToList();
         }
 
         var ranked = _commands.Where(c => !c.IsHidden)

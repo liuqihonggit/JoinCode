@@ -53,7 +53,6 @@ public sealed class McpCommand : ChatCommandBase {
 
     private static async Task ListServersAsync(ChatCommandContext context) {
         var allServers = await ResolveConfigStore(context).GetAllServersAsync(context.CancellationToken).ConfigureAwait(false);
-        await using var mcpRegistry = ResolveMcpRegistry(context);
 
         // 预收集已配置服务器内容
         var configuredContent = new StringBuilder();
@@ -74,23 +73,11 @@ public sealed class McpCommand : ChatCommandBase {
         configuredContent.AppendLine();
         configuredContent.Append($"  {TerminalColors.Muted}使用 /mcp add <name> <command|url> 添加服务器{AnsiStyleEnumConstants.Reset}");
 
-        // 预收集已连接服务器内容
+        // 预收集已连接服务器内容（TASK065 断层9 — DI 单例借用不拥有生命周期，is-pattern 变量只读传递；
+        // 禁 await using 释放共享注册表）
         var connectedContent = new StringBuilder();
-        if (mcpRegistry is not null) {
-            var remoteClients = await mcpRegistry.GetAllRemoteClientsAsync(context.CancellationToken).ConfigureAwait(false);
-
-            if (remoteClients.Count > 0) {
-                connectedContent.AppendLine("已连接的服务器:");
-                foreach (var (clientId, client) in remoteClients) {
-                    await AppendConnectedClientAsync(connectedContent, clientId, client, context.CancellationToken).ConfigureAwait(false);
-                }
-            } else if (allServers.Count == 0) {
-                connectedContent.AppendLine("  当前无已配置或已连接的 MCP 服务器");
-            }
-
-            var localCount = await mcpRegistry.GetLocalToolCountAsync(context.CancellationToken).ConfigureAwait(false);
-            var remoteCount = await mcpRegistry.GetRemoteClientCountAsync(context.CancellationToken).ConfigureAwait(false);
-            connectedContent.AppendLine($"本地工具: {localCount} | 远程服务器: {remoteCount}");
+        if (ResolveMcpRegistry(context) is { } mcpRegistry) {
+            await AppendConnectedServersAsync(connectedContent, mcpRegistry, allServers.Count > 0, context.CancellationToken).ConfigureAwait(false);
         } else {
             connectedContent.AppendLine($"{TerminalColors.Warning}MCP 工具注册表不可用{AnsiStyleEnumConstants.Reset}");
         }
@@ -148,14 +135,18 @@ public sealed class McpCommand : ChatCommandBase {
             TerminalHelper.WriteLine("工具注册表不可用。");
         }
 
-        await using var mcpRegistry = ResolveMcpRegistry(context);
-        if (mcpRegistry is not null) {
-            var localCount = await mcpRegistry.GetLocalToolCountAsync(context.CancellationToken).ConfigureAwait(false);
-            var remoteCount = await mcpRegistry.GetRemoteClientCountAsync(context.CancellationToken).ConfigureAwait(false);
-            TerminalHelper.WriteLine($"\n服务器统计:");
-            TerminalHelper.WriteLine($"  本地工具数: {localCount}");
-            TerminalHelper.WriteLine($"  远程服务器数: {remoteCount}");
+        if (ResolveMcpRegistry(context) is { } mcpRegistry) {
+            await WriteServerStatsAsync(mcpRegistry, context.CancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>服务器统计输出（TASK065 断层9 — registry 借用段提取，传参所有权转移）。</summary>
+    private static async Task WriteServerStatsAsync(IMcpToolRegistry mcpRegistry, CancellationToken ct) {
+        var localCount = await mcpRegistry.GetLocalToolCountAsync(ct).ConfigureAwait(false);
+        var remoteCount = await mcpRegistry.GetRemoteClientCountAsync(ct).ConfigureAwait(false);
+        TerminalHelper.WriteLine($"\n服务器统计:");
+        TerminalHelper.WriteLine($"  本地工具数: {localCount}");
+        TerminalHelper.WriteLine($"  远程服务器数: {remoteCount}");
     }
 
     private static async Task AddServerAsync(ChatCommandContext context, string[] args) {
@@ -260,13 +251,17 @@ public sealed class McpCommand : ChatCommandBase {
         }
 
         var serverName = args[1];
-        await using var mcpRegistry = ResolveMcpRegistry(context);
-        if (mcpRegistry is null) {
+        if (ResolveMcpRegistry(context) is not { } mcpRegistry) {
             TerminalHelper.WriteLine("MCP 工具注册表不可用");
             return;
         }
 
-        var client = await mcpRegistry.GetRemoteClientAsync(serverName, context.CancellationToken).ConfigureAwait(false);
+        await ReconnectServerAsync(mcpRegistry, serverName, context.CancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>重连单个 MCP 服务器（TASK065 断层9 — registry 借用段提取，传参所有权转移）。</summary>
+    private static async Task ReconnectServerAsync(IMcpToolRegistry mcpRegistry, string serverName, CancellationToken ct) {
+        var client = await mcpRegistry.GetRemoteClientAsync(serverName, ct).ConfigureAwait(false);
         if (client is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}未找到 MCP 服务器: {serverName}{AnsiStyleEnumConstants.Reset}");
             return;
@@ -274,10 +269,10 @@ public sealed class McpCommand : ChatCommandBase {
 
         try {
             if (client.IsConnected) {
-                await client.DisconnectAsync(context.CancellationToken).ConfigureAwait(false);
+                await client.DisconnectAsync(ct).ConfigureAwait(false);
             }
 
-            await client.ConnectAsync(context.CancellationToken).ConfigureAwait(false);
+            await client.ConnectAsync(ct).ConfigureAwait(false);
             TerminalHelper.WriteLine($"{TerminalColors.Success}已重连 MCP 服务器: {serverName}{AnsiStyleEnumConstants.Reset}");
         } catch (Exception ex) {
             ChatCommandBase.HandleError("重连MCP服务器", ex);
@@ -292,8 +287,7 @@ public sealed class McpCommand : ChatCommandBase {
         }
 
         var target = args[1];
-        await using var mcpRegistry = ResolveMcpRegistry(context);
-        if (mcpRegistry is null) {
+        if (ResolveMcpRegistry(context) is not { } mcpRegistry) {
             TerminalHelper.WriteLine("MCP 工具注册表不可用");
             return;
         }
@@ -301,20 +295,7 @@ public sealed class McpCommand : ChatCommandBase {
         var enable = action == ToggleAction.On;
 
         if (target.Equals("all", StringComparison.OrdinalIgnoreCase)) {
-            var remoteClients = await mcpRegistry.GetAllRemoteClientsAsync(context.CancellationToken).ConfigureAwait(false);
-            foreach (var (clientId, client) in remoteClients) {
-                try {
-                    if (enable && !client.IsConnected) {
-                        await client.ConnectAsync(context.CancellationToken).ConfigureAwait(false);
-                    } else if (!enable && client.IsConnected) {
-                        await client.DisconnectAsync(context.CancellationToken).ConfigureAwait(false);
-                    }
-                } catch (Exception ex) {
-                    ChatCommandBase.HandleError($"{clientId}操作", ex);
-                }
-            }
-
-            TerminalHelper.WriteLine($"{TerminalColors.Success}已{(enable ? "启用" : "禁用")}所有 MCP 服务器{AnsiStyleEnumConstants.Reset}");
+            await ToggleAllServersAsync(mcpRegistry, enable, context.CancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -342,6 +323,43 @@ public sealed class McpCommand : ChatCommandBase {
     private static IMcpServerConfigStore ResolveConfigStore(ChatCommandContext context) {
         return ChatCommandBase.GetService<IMcpServerConfigStore>(context, typeof(IMcpServerConfigStore))
             ?? throw new InvalidOperationException("[MCP008] MCP 配置存储服务未初始化");
+    }
+
+    /// <summary>启用/禁用全部 MCP 服务器（TASK065 断层9 — registry 借用段提取，传参所有权转移）。</summary>
+    private static async Task ToggleAllServersAsync(IMcpToolRegistry mcpRegistry, bool enable, CancellationToken ct) {
+        var remoteClients = await mcpRegistry.GetAllRemoteClientsAsync(ct).ConfigureAwait(false);
+        foreach (var (clientId, client) in remoteClients) {
+            try {
+                if (enable && !client.IsConnected) {
+                    await client.ConnectAsync(ct).ConfigureAwait(false);
+                } else if (!enable && client.IsConnected) {
+                    await client.DisconnectAsync(ct).ConfigureAwait(false);
+                }
+            } catch (Exception ex) {
+                ChatCommandBase.HandleError($"{clientId}操作", ex);
+            }
+        }
+
+        TerminalHelper.WriteLine($"{TerminalColors.Success}已{(enable ? "启用" : "禁用")}所有 MCP 服务器{AnsiStyleEnumConstants.Reset}");
+    }
+
+    /// <summary>已连接服务器内容收集（TASK065 断层9 — registry 借用段提取，传参所有权转移）。</summary>
+    private static async Task AppendConnectedServersAsync(
+        StringBuilder connectedContent, IMcpToolRegistry mcpRegistry, bool hasConfiguredServers, CancellationToken ct) {
+        var remoteClients = await mcpRegistry.GetAllRemoteClientsAsync(ct).ConfigureAwait(false);
+
+        if (remoteClients.Count > 0) {
+            connectedContent.AppendLine("已连接的服务器:");
+            foreach (var (clientId, client) in remoteClients) {
+                await AppendConnectedClientAsync(connectedContent, clientId, client, ct).ConfigureAwait(false);
+            }
+        } else if (!hasConfiguredServers) {
+            connectedContent.AppendLine("  当前无已配置或已连接的 MCP 服务器");
+        }
+
+        var localCount = await mcpRegistry.GetLocalToolCountAsync(ct).ConfigureAwait(false);
+        var remoteCount = await mcpRegistry.GetRemoteClientCountAsync(ct).ConfigureAwait(false);
+        connectedContent.AppendLine($"本地工具: {localCount} | 远程服务器: {remoteCount}");
     }
 
     private static IMcpToolRegistry? ResolveMcpRegistry(ChatCommandContext context) {

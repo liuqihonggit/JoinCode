@@ -76,6 +76,31 @@ public sealed class ReplShell
     /// <summary>Esc 双击窗口时长（ms — 窗口内两击构成双击中断）。</summary>
     internal const int EscapeDoubleClickWindowMs = 500;
 
+    /// <summary>ctrl+d 退出双击确认窗口时长（ms — S6 任务 6 对齐基准 useExitOnCtrlCD 双击确认；
+    /// 窗口内二次空输入 ctrl+d 才退出，通知提示与窗口同长自然到期清除）。</summary>
+    internal const int ExitConfirmWindowMs = 3000;
+
+    /// <summary>上次 ctrl+d 退出确认按下时间戳（ms — 0 = 无先前击；空输入门槛由调用路径保证）。</summary>
+    private long _lastCtrlDExitMs;
+
+    /// <summary>ctrl+d 退出确认链（S6 任务 6 — 基准 useExitOnCtrlCD/useDoublePress 语义）：
+    /// 窗口内二次按下 → 退出；首次按下 → 通知提示"再按一次 ctrl+d 退出"（3s 到期自动清除 = 窗口过期）；
+    /// 空输入门槛由 HandleCtrlKey "d" 分支保证（有文本时 ctrl+d 是删除字符）。
+    /// 时钟复用 EscClock 注入面（测试可控时间戳）。</summary>
+    private void HandleExitCtrlD()
+    {
+        var now = EscClock();
+        if (_lastCtrlDExitMs != 0 && now - _lastCtrlDExitMs <= ExitConfirmWindowMs)
+        {
+            _lastCtrlDExitMs = 0;
+            _running = false;
+            return;
+        }
+
+        _lastCtrlDExitMs = now;
+        _notifications.Enqueue("再按一次 ctrl+d 退出", timeout: TimeSpan.FromMilliseconds(ExitConfirmWindowMs));
+    }
+
     /// <summary>Esc 时钟源（internal — 测试注入可控时间戳；默认墙钟）。</summary>
     internal Func<long> EscClock { get; set; } = static () => Environment.TickCount64;
 
@@ -85,17 +110,30 @@ public sealed class ReplShell
     /// <summary>最近一次直发提交的用户消息项位置（M8-2 打断恢复 — 无有效响应时移除该条上屏）。</summary>
     private int _lastSubmittedIndex = -1;
 
-    /// <summary>ctrl+o 全局 transcript 模式（M8-3 — 基准 app:toggleTranscript）：全屏 verbose 模态。</summary>
-    private bool _transcriptMode;
+    /// <summary>帮助面板开关（S6 任务 5 — 空闲态 '?' 弹出；分派链插在 suggestion/transcript 之后）。</summary>
+    private bool _helpOpen;
 
-    /// <summary>transcript 内 `/` 搜索查询（null = 非搜索态；非空 = 搜索输入态，字符累积）。</summary>
-    private string? _transcriptQuery;
+    /// <summary>帮助面板态（internal — 测试断言面）。</summary>
+    internal bool IsHelpOpen => _helpOpen;
 
-    /// <summary>进入 transcript 前的 footer Notification 槽原值（退出还原）。</summary>
-    private string? _savedNotification;
+    /// <summary>ctrl+o 全局 transcript 模式引擎（M8-3/S6 收敛 — S5 TranscriptController 唯一实现）：
+    /// 快照提供器拍摄消息全文行投影 + verbose 回调接 ReplView.SetVerboseMode；
+    /// 分派/视口/footer 投影/Tick 由本外壳接线（详见 HandleTranscriptKey/SyncTranscriptView）。</summary>
+    private readonly TranscriptController _transcript;
 
     /// <summary>transcript 模式态（internal — 测试断言面）。</summary>
-    internal bool IsTranscriptMode => _transcriptMode;
+    internal bool IsTranscriptMode => _transcript.IsActive;
+
+    /// <summary>transcript 控制器（internal — 测试断言面：快照/滚动/搜索状态机）。</summary>
+    internal TranscriptController Transcript => _transcript;
+
+    /// <summary>令牌用量记账器（S4 产出 — Driver 构造注入：引擎 token_usage 事件经 Driver 路由 RecordUsage；
+    /// footer 右侧 TokenWarning 渲染源，FooterState.Tokens 接线）。</summary>
+    private readonly TokenUsageTracker _tokenUsage = new();
+
+    /// <summary>动态通知队列（S4 产出 — footer 行 2 右侧渲染源；帧拍 Tick 推进到期/出队，
+    /// 种子 effort 提示经 Enqueue 一次性入队保留首屏语义）。</summary>
+    private readonly ReplNotifications _notifications = new();
 
     /// <summary>剪贴板写入委托（TASK059 — Ctrl+C 复制最后 assistant 消息；宿主注入引擎
     /// IClipboardService 适配，Core 零依赖不持接口；null = 复制能力降级无操作）。</summary>
@@ -119,6 +157,13 @@ public sealed class ReplShell
     private Screen _front = null!;
     private Screen _back = null!;
     private bool _frontValid;
+
+    /// <summary>强制全量重绘标记（S6 任务 8 — ctrl+l 清 Screen 下一帧全量重绘；消费后复位）。</summary>
+    private bool _forceFullReset;
+
+    /// <summary>强制重绘空白前置帧（零尺寸屏 — InlineComposer 判 prev.Cols ≠ next.Cols 走
+    /// FullReset 路径：光标移视口顶 + EraseScreen + 重绘可见区；缓存复用零分配）。</summary>
+    private Screen? _blankPrev;
     private long _animTimeMs;
     private volatile bool _running = true;
 
@@ -156,7 +201,8 @@ public sealed class ReplShell
         _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands) : null;
         _sizeSource = sizeSource ?? new ConsoleTerminalSizeSource();
         _copyToClipboard = clipboard;
-        _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter);
+        _transcript = new TranscriptController(BuildTranscriptSnapshot, verbose => _view.SetVerboseMode(verbose));
+        _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter, _tokenUsage, _sizeSource);
     }
 
     /// <summary>视图（测试断言面）。</summary>
@@ -207,7 +253,9 @@ public sealed class ReplShell
     }
 
     /// <summary>初始内容 — footer 种子 + banner 首项 + 种子消息 + 常驻 spinner（滚动区末项）；
-    /// footer 权限模式为占位值，真实引擎由首拍 session_info 事件覆盖。</summary>
+    /// footer 权限模式为占位值，真实引擎由首拍 session_info 事件覆盖；
+    /// 动态通知/令牌记账接线（S4 产出消费）：Notifications 队列 + Tokens 记账器挂 footer，
+    /// 种子 effort 提示迁移为 Enqueue 一次性入队（保留首屏语义 — 8s 默认时长到期自动清除）。</summary>
     internal void SeedContent()
     {
         _view.Footer = new FooterState
@@ -215,8 +263,10 @@ public sealed class ReplShell
             Mode = PermissionMode.Auto,
             AgentsHint = "← agents",
             LoginError = "未登录 · 运行 /login",
-            Notification = $"{Figures.EffortMedium} 中等 · /effort",
+            Notifications = _notifications,
+            Tokens = _tokenUsage,
         };
+        _notifications.Enqueue($"{Figures.EffortMedium} 中等 · /effort");
         _view.Messages.Add(_banner);
         foreach (var message in _seedMessages)
         {
@@ -254,6 +304,12 @@ public sealed class ReplShell
 
         if (!_engine.IsAlive && !_driver.IsBusy)
         {
+            // 引擎死亡防御 — transcript 模态先退出（全屏模态下退出消息不可见，恢复主屏再上屏）
+            if (_transcript.IsActive)
+            {
+                _transcript.Toggle();
+            }
+
             AddMessage(new ErrorMessageItem("引擎进程已退出，会话结束。"));
             _running = false;
         }
@@ -387,8 +443,11 @@ public sealed class ReplShell
     /// <summary>按键分派 — 权限对话框模态优先（数字/Esc/上下/Enter 路由对话框）→ 模型选择器模态
     /// （M7-6：Esc/上下/Enter 路由选择器）→ 搜索模态（Ctrl+R 反向搜索）→ 消息光标导航模态
     /// （交互层 Step1：光标激活时 ↑↓/kj/Shift 跳转/Enter 展开/Esc 两级退出）→ 补全激活专属键
-    /// （Up/Down 导航/Tab 接受/Enter 执行/Esc 关闭，基准 Autocomplete 上下文优先于 Chat），
-    /// 其余 Emacs 编辑（Ctrl/Meta 词操作 + kill ring），控制键走编辑/提交/权限，字符插入。</summary>
+    /// （Up/Down 导航/Tab 接受/Enter 执行/Esc 关闭，基准 Autocomplete 上下文优先于 Chat）
+    /// → transcript 全屏模态（S6 收敛：Controller.IsActive 时整屏独占 — 激活时光标态不可达
+    /// （进入被建议后分派拦截），j/k 归 transcript less 键位）
+    /// → 帮助面板模态（S6：空闲态 '?' 弹出/Esc 关闭）
+    /// ，其余 Emacs 编辑（Ctrl/Meta 词操作 + kill ring），控制键走编辑/提交/权限，字符插入。</summary>
     private void HandleKeyPress(KeyPress key)
     {
         if (_permission.IsPending)
@@ -409,12 +468,6 @@ public sealed class ReplShell
             return;
         }
 
-        if (_transcriptMode)
-        {
-            HandleTranscriptKey(key);
-            return;
-        }
-
         if (_cursorNav.IsCursorActive)
         {
             HandleCursorNavKey(key);
@@ -423,6 +476,24 @@ public sealed class ReplShell
 
         if (HandleSuggestionKey(key))
         {
+            return;
+        }
+
+        if (_transcript.IsActive)
+        {
+            HandleTranscriptKey(key);
+            return;
+        }
+
+        if (_helpOpen)
+        {
+            HandleHelpKey(key);
+            return;
+        }
+
+        if (IsHelpTrigger(key))
+        {
+            OpenHelpPanel();
             return;
         }
 
@@ -540,7 +611,7 @@ public sealed class ReplShell
             case "d":
                 if (_input.Text.Length == 0)
                 {
-                    _running = false;
+                    HandleExitCtrlD();
                 }
                 else
                 {
@@ -560,11 +631,15 @@ public sealed class ReplShell
             case "k":
                 _input.KillToLineEnd();
                 break;
+            case "l":
+                ForceFullRepaint();
+                break;
             case "r":
                 BeginOrCycleSearch();
                 break;
             case "o":
-                ToggleTranscriptMode();
+                _transcript.Toggle();
+                SyncTranscriptView();
                 break;
             case "n":
                 ScrollIfViewport(3);
@@ -698,223 +773,91 @@ public sealed class ReplShell
         }
     }
 
-    /// <summary>ctrl+o 切换 transcript 模式（M8-3 — 基准 app:toggleTranscript 双向）。</summary>
-    private void ToggleTranscriptMode()
-    {
-        if (_transcriptMode)
-        {
-            ExitTranscriptMode();
-        }
-        else
-        {
-            EnterTranscriptMode();
-        }
-    }
-
-    /// <summary>进入 transcript：全部 CoT 展开 + Diff 全量展开（verbose — 基准 verbose=true 渲染）+ footer 专用提示 + 清查询态。</summary>
-    private void EnterTranscriptMode()
-    {
-        _transcriptMode = true;
-        _transcriptQuery = null;
-        foreach (var item in _view.Messages.Items)
-        {
-            if (item is AssistantMessageItem { ThinkingContent: { Length: > 0 } } plain && !plain.IsThinkingExpanded)
-            {
-                plain.ToggleThinking();
-            }
-            else if (item is MarkdownMessageItem { ThinkingContent: { Length: > 0 } } md && !md.IsThinkingExpanded)
-            {
-                md.ToggleThinking();
-            }
-            else if (item is DiffResultItem { IsExpanded: false } diff)
-            {
-                diff.ToggleExpand();
-            }
-        }
-
-        _savedNotification = _view.Footer.Notification;
-        _view.Footer = _view.Footer with { Notification = TranscriptFooterHint };
-    }
-
-    /// <summary>退出 transcript：全部 CoT 收起 + Diff 收起（基准 hidePastThinking + 折叠还原）+ footer 还原。</summary>
-    private void ExitTranscriptMode()
-    {
-        _transcriptMode = false;
-        _transcriptQuery = null;
-        foreach (var item in _view.Messages.Items)
-        {
-            if (item is AssistantMessageItem { IsThinkingExpanded: true } plain)
-            {
-                plain.ToggleThinking();
-            }
-            else if (item is MarkdownMessageItem { IsThinkingExpanded: true } md)
-            {
-                md.ToggleThinking();
-            }
-            else if (item is DiffResultItem { IsExpanded: true } diff)
-            {
-                diff.ToggleExpand();
-            }
-        }
-
-        _view.Footer = _view.Footer with { Notification = _savedNotification };
-    }
-
-    /// <summary>transcript footer 提示文案（基准 TranscriptModeFooter 汉化）。</summary>
-    private const string TranscriptFooterHint = "详细转录 · ctrl+o 切换 · ↑↓ 滚动 · / 搜索";
-
-    /// <summary>transcript 模态按键（M8-3 — 基准 transcript 屏 less 键位）：
-    /// 搜索态：字符累积查询/Enter 跳匹配/Backspace 删/Esc 清查询；
-    /// 普通态：ctrl+o 或 Esc 退出、j/k/↑/↓ 滚动、g/G 首末、ctrl+u/d 半页、/ 进入搜索；
-    /// 其余键吞掉（模态 — 字符不进输入框）。</summary>
+    /// <summary>transcript 模态按键（S6 收敛 — S5 TranscriptController 唯一引擎）：
+    /// ctrl+o 分派契约 `IsActive ? (TryHandleKey || toggle) : toggle` — Controller 未消费
+    /// （less 键位/搜索/退出之外）且是 ctrl+o 时切换退出（搜索栏打开时 ctrl+o 故意穿透
+    /// 供此路径退出）；其余未消费键吞掉（模态 — 字符不进输入框）。
+    /// 每键后同步视图投影（滚动/搜索/进出态立即反映 — 渲染帧兜底刷新）。</summary>
     private void HandleTranscriptKey(KeyPress key)
     {
-        if (_transcriptQuery is not null)
+        if (_transcript.TryHandleKey(key))
         {
-            HandleTranscriptSearchKey(key);
+            SyncTranscriptView();
             return;
         }
 
         if (key.Ctrl && key is { Kind: KeyKind.Char, Input: "o" })
         {
-            ExitTranscriptMode();
+            _transcript.Toggle();
+            SyncTranscriptView();
+        }
+
+        // 其余未消费键吞掉（模态 — 修饰组合穿透回宿主仅 ctrl+o 语义）
+    }
+
+    /// <summary>'?' 触发判定 — 空闲态（非忙 + 空输入 + 无修饰）的裸 '?'（有输入时 '?' 走正常字符插入；
+    /// 光标态/建议态/搜索态在分派链更早拦截不可达此处）。</summary>
+    private bool IsHelpTrigger(KeyPress key) =>
+        key is { Kind: KeyKind.Char, Input: "?", Ctrl: false, Meta: false, Shift: false }
+        && _input.Text.Length == 0
+        && !IsBusy;
+
+    /// <summary>打开帮助面板（View 投影同步 — 渲染帧兜底刷新）。</summary>
+    private void OpenHelpPanel()
+    {
+        _helpOpen = true;
+        _view.HelpOpen = true;
+    }
+
+    /// <summary>帮助面板模态按键 — Esc 或 '?' 关闭（对齐基准 help menu 双关闭键）；
+    /// 其余键吞掉（模态 — 不进输入缓冲，面板期间输入暂停）。</summary>
+    private void HandleHelpKey(KeyPress key)
+    {
+        if (key.Kind == KeyKind.Escape || key is { Kind: KeyKind.Char, Input: "?", Ctrl: false, Meta: false })
+        {
+            _helpOpen = false;
+            _view.HelpOpen = false;
+        }
+    }
+
+    /// <summary>transcript 快照拍摄（Controller 提供器注入面）— 消息全文行投影
+    /// （TranscriptLines verbose 形态：CoT 全文/工具输出全量）+ 流式正文长度；
+    /// 装饰项（banner/spinner/对话框）投影为空跳过。</summary>
+    internal TranscriptSnapshot BuildTranscriptSnapshot()
+    {
+        var lines = new List<string>();
+        var streamingLength = 0;
+        foreach (var item in _view.Messages.Items)
+        {
+            if (item is StreamingTextItem streaming)
+            {
+                streamingLength = streaming.Text.Length;
+            }
+
+            lines.AddRange(TranscriptLines.Project(item));
+        }
+
+        return new TranscriptSnapshot(lines, streamingLength);
+    }
+
+    /// <summary>transcript 视图投影（渲染前 — RenderAndFlush 每帧调用）：
+    /// 视口行数接终端高度（扣除 footer 1 行）+ 行窗口/footer 数据从 Controller 投影到
+    /// ReplView.Transcript（非 null 即整屏模态渲染）；未激活置 null 恢复主屏布局。</summary>
+    private void SyncTranscriptView()
+    {
+        if (!_transcript.IsActive)
+        {
+            _view.Transcript = null;
             return;
         }
 
-        switch (key.Kind)
-        {
-            case KeyKind.Escape:
-                ExitTranscriptMode();
-                return;
-            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "j":
-                ScrollIfViewport(3);
-                return;
-            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "k":
-                ScrollIfViewport(-3);
-                return;
-            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "g":
-                ScrollIfViewport(int.MinValue);
-                return;
-            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "G":
-                _view.Messages.ScrollToBottom();
-                return;
-            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "/":
-                _transcriptQuery = string.Empty;
-                return;
-            case KeyKind.UpArrow:
-                ScrollIfViewport(-3);
-                return;
-            case KeyKind.DownArrow:
-                ScrollIfViewport(3);
-                return;
-            case KeyKind.PageUp:
-                ScrollIfViewport(-10);
-                return;
-            case KeyKind.PageDown:
-                ScrollIfViewport(10);
-                return;
-            case KeyKind.Home:
-                ScrollIfViewport(int.MinValue);
-                return;
-            case KeyKind.End:
-                _view.Messages.ScrollToBottom();
-                return;
-            default:
-                // 模态：其余键吞掉（含 ctrl+u/ctrl+d 编辑键 — transcript 态非编辑上下文）
-                if (key.Ctrl && key is { Kind: KeyKind.Char, Input: "u" })
-                {
-                    ScrollIfViewport(-10);
-                }
-                else if (key.Ctrl && key is { Kind: KeyKind.Char, Input: "d" })
-                {
-                    ScrollIfViewport(10);
-                }
-
-                return;
-        }
-    }
-
-    /// <summary>transcript 搜索态按键：字符累积/Backspace 删/Enter 跳下一个匹配项/非搜索态 Esc 退出。</summary>
-    private void HandleTranscriptSearchKey(KeyPress key)
-    {
-        switch (key.Kind)
-        {
-            case KeyKind.Escape:
-                _transcriptQuery = null;
-                _view.Footer = _view.Footer with { Notification = TranscriptFooterHint };
-                return;
-            case KeyKind.Return:
-                JumpToNextTranscriptMatch();
-                return;
-            case KeyKind.Backspace:
-                if (_transcriptQuery is { Length: > 0 })
-                {
-                    _transcriptQuery = _transcriptQuery[..^1];
-                    UpdateTranscriptSearchFooter();
-                }
-
-                return;
-            case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input.Length == 1:
-                _transcriptQuery += key.Input[0];
-                UpdateTranscriptSearchFooter();
-                return;
-            default:
-                return;
-        }
-    }
-
-    /// <summary>搜索态 footer 显示查询（`/查询` 形态）。</summary>
-    private void UpdateTranscriptSearchFooter() =>
-        _view.Footer = _view.Footer with { Notification = $"/{_transcriptQuery}" };
-
-    /// <summary>Enter 跳转到下一个含查询的滚动项（从当前滚动位置向下环形找 — 视口模式滚动定位）。</summary>
-    private void JumpToNextTranscriptMatch()
-    {
-        if (string.IsNullOrEmpty(_transcriptQuery))
-        {
-            return;
-        }
-
-        var items = _view.Messages.Items;
-        var query = _transcriptQuery;
-        for (var i = 0; i < items.Count; i++)
-        {
-            if (items[i] is not ITextMatchable matchable || !matchable.ContainsText(query))
-            {
-                continue;
-            }
-
-            var targetTop = ItemContentTop(i);
-            if (targetTop > _view.Messages.ScrollTop)
-            {
-                _view.Messages.ScrollBy(targetTop - _view.Messages.ScrollTop);
-                return;
-            }
-        }
-
-        // 无更靠下的匹配 — 环形回卷首个匹配（基准 n/N 循环语义）
-        for (var i = 0; i < items.Count; i++)
-        {
-            if (items[i] is ITextMatchable matchable && matchable.ContainsText(query))
-            {
-                var targetTop = ItemContentTop(i);
-                _view.Messages.ScrollBy(targetTop - _view.Messages.ScrollTop);
-                return;
-            }
-        }
-    }
-
-    /// <summary>第 index 项的内容起始 Y（前缀高度和 — 跳转定位用）。</summary>
-    private int ItemContentTop(int index)
-    {
-        var width = _sizeSource.Current.Cols;
-        var top = 0;
-        for (var i = 0; i < index; i++)
-        {
-            top += _view.Messages.Items[i].MeasureHeight(width);
-        }
-
-        return top;
+        var rows = _sizeSource.Current.Rows;
+        _transcript.ViewportHeight = Math.Max(1, rows - TranscriptRenderer.FooterRows);
+        _view.Transcript = new TranscriptScreenData(
+            _transcript.Snapshot?.Lines ?? [],
+            _transcript.ScrollOffset,
+            _transcript.ViewportHeight,
+            _transcript.BuildFooter());
     }
 
     /// <summary>进入或循环搜索（Ctrl+R）— 未激活：以当前输入为查询进入（暂存草稿）；
@@ -989,7 +932,6 @@ public sealed class ReplShell
     }
 
     /// <summary>底部操作条渲染项（M8-6 消息操作复制 — 导航态激活挂载于 spinner 之前 / 退出卸载）。</summary>
-    private readonly MessageActionsBar _actionsBar = new();
 
     /// <summary>
     /// 消息光标导航模态按键（交互层 Step1，对齐基准 MESSAGE_ACTIONS 上下文键绑定）：
@@ -1053,10 +995,10 @@ public sealed class ReplShell
                 _cursorNav.Move(items, 1);
                 return;
             case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "c":
-                CopySelectedMessage(primaryOnly: false);
+                CopySelectedFullText();
                 return;
             case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "p":
-                CopySelectedMessage(primaryOnly: true);
+                CopySelectedPrimaryInput();
                 return;
             default:
                 // 模态：其余键吞掉（不进输入缓冲 — 基准光标态 PromptInput 卸载）
@@ -1064,13 +1006,30 @@ public sealed class ReplShell
         }
     }
 
-    /// <summary>进入消息光标导航（Shift+↑ — 定位最后一条用户消息；无可导航消息 no-op）
-    /// + 挂载底部操作条（激活成功才挂 — 无可导航消息空会话不出操作条）。</summary>
-    private void BeginCursorNavigation()
+    /// <summary>光标态 c — 选中项全文复制（MessageCursor.ExtractFullText → 剪贴板委托 +
+    /// 通知队列反馈"已复制全文"）；不可复制类型/未注入剪贴板静默无操作。</summary>
+    private void CopySelectedFullText() =>
+        CopyToClipboard(_cursorNav.ExtractFullText(_view.Messages.Items), "已复制全文");
+
+    /// <summary>光标态 p — 选中工具调用主参数复制（MessageCursor.ExtractPrimaryInput → 剪贴板委托 +
+    /// 通知队列反馈"已复制主参数"）；非工具调用项/映射外工具/未注入剪贴板静默无操作。</summary>
+    private void CopySelectedPrimaryInput() =>
+        CopyToClipboard(_cursorNav.ExtractPrimaryInput(_view.Messages.Items), "已复制主参数");
+
+    /// <summary>剪贴板写入 + 通知反馈（文本 null = 无可复制面静默；未注入剪贴板委托静默 — 降级无操作）。</summary>
+    private void CopyToClipboard(string? text, string feedback)
     {
-        _cursorNav.Begin(_view.Messages.Items);
-        ShowActionsBar();
+        if (text is null || _copyToClipboard is null)
+        {
+            return;
+        }
+
+        _copyToClipboard(text);
+        _notifications.Enqueue(feedback);
     }
+
+    /// <summary>进入消息光标导航（Shift+↑ — 定位最后一条用户消息；无可导航消息 no-op）。</summary>
+    private void BeginCursorNavigation() => _cursorNav.Begin(_view.Messages.Items);
 
     /// <summary>Enter 切换选中分组展开态（选中非分组消息 no-op — 基准仅 grouped_tool_use 可展开）。</summary>
     private void ToggleSelectedGroupExpansion()
@@ -1102,7 +1061,6 @@ public sealed class ReplShell
         }
 
         _cursorNav.Exit();
-        HideActionsBar();
     }
 
     /// <summary>补全激活时的专属键拦截（基准 Autocomplete 上下文）：
@@ -1398,7 +1356,7 @@ public sealed class ReplShell
     }
 
     /// <summary>渲染一帧并差分上屏：inline 走相对光标 + append（历史滚入 scrollback）+ DEC 2026 原子上屏；视口走绝对定位 diff。
-    /// internal = resize/渲染测试的单帧驱动面。</summary>
+    /// internal = resize/渲染测试的单帧驱动面。transcript 模态：视口投影 + 帧拍 Tick（S6 接线）+ 帧尾光标走搜索栏位。</summary>
     internal void RenderAndFlush()
     {
         if (_screenClearPending)
@@ -1414,17 +1372,30 @@ public sealed class ReplShell
 
         SyncSuggestionState();
         SyncCursorHighlight();
+        SyncTranscriptView();
+        _view.HelpOpen = _helpOpen;
         EnsureScreens();
         _back.Clear();
         AdvanceAnimClock();
+        _transcript.Tick(TickMs);
+        _view.Footer.Notifications?.Tick(_animTimeMs);
         _view.Input = _input.Text;
         _view.CursorCol = _input.CursorCol;
         _view.Render(_back, _theme);
         if (_inline)
         {
             var viewportRows = _sizeSource.Current.Rows;
-            var frameEnd = _view.InputCursorPos(_back.Rows, _back.Cols, _input.CursorCol);
+            var frameEnd = _view.Transcript is { } transcript
+                ? TranscriptRenderer.CursorPos(transcript, _back.Rows)
+                : _view.InputCursorPos(_back.Rows, _back.Cols, _input.CursorCol);
             var prev = _frontValid ? _front : _prevOverride;
+            if (_forceFullReset)
+            {
+                _forceFullReset = false;
+                _blankPrev ??= new Screen(0, 0, sharedStyles: _pool);
+                prev = _blankPrev;
+            }
+
             var output = _inlineComposer.Compose(prev, _back, viewportRows, _cursor, frameEnd, out _cursor);
             _prevOverride = null;
             if (output.Length > 0)
@@ -1467,6 +1438,9 @@ public sealed class ReplShell
     /// <summary>后缓冲（resize 测试断言面 — 屏尺寸/重建复用判定）。</summary>
     internal Screen? BackBuffer => _back;
 
+    /// <summary>前缓冲（渲染完成帧 — 测试断言面：RenderAndFlush 写入 _back 后交换至此）。</summary>
+    internal Screen? FrontBuffer => _front;
+
     /// <summary>resize 跨尺寸 diff 旧帧（测试断言面 — 重建时保留旧屏供 InlineComposer append/fullReset）。</summary>
     internal Screen? PrevOverride => _prevOverride;
 
@@ -1481,26 +1455,31 @@ public sealed class ReplShell
         _view.QueuedInputs = _queuedInputs;
     }
 
-    /// <summary>同步消息光标选中高亮到滚动区（渲染前状态投影 — ScrollBox 渲染后整块背景覆写）。</summary>
+    /// <summary>同步消息光标选中态到视图（渲染前状态投影）：
+    /// 高亮项（ScrollBox 渲染后整块背景覆写）+ 消息操作条（MessageActionsState.Of(选中项) —
+    /// null = 光标态未激活不渲染；键位提示条随选中项动态派生 c 复制/p 主参数段）。</summary>
     private void SyncCursorHighlight()
     {
-        _view.Messages.HighlightItem = _cursorNav.IsCursorActive
+        var selected = _cursorNav.IsCursorActive
             && _cursorNav.SelectedIndex is >= 0 and var index
             && index < _view.Messages.Count
                 ? _view.Messages.Items[index]
                 : null;
+        _view.Messages.HighlightItem = selected;
+        _view.MessageActions = selected is not null ? MessageActionsState.Of(selected) : null;
     }
 
     /// <summary>
     /// 尺寸计算（含首帧）成对重建双缓冲 — 尺寸取自注入源（resize 事件化，不读 Console 静态环境）；
     /// inline 屏高 = 内容总高（消息全量展示，可超视口 — 终端 rows 非 resize 敏感维度），
-    /// 重建时保留旧帧跨尺寸 diff（增长 append / 宽度变 fullReset）；视口模式屏高 = 尺寸源行数。
+    /// 重建时保留旧帧跨尺寸 diff（增长 append / 宽度变 fullReset）；视口模式屏高 = 尺寸源行数；
+    /// transcript 模态屏高 = 终端行数（整屏模态 — 进出 transcript 行数变化触发重建跨尺寸 diff）。
     /// </summary>
     internal void EnsureScreens()
     {
         var (cols, rows) = _sizeSource.Current;
         var backRows = _inline
-            ? Math.Max(8, _view.MeasureContentHeight(cols))
+            ? (_transcript.IsActive ? rows : Math.Max(8, _view.MeasureContentHeight(cols)))
             : rows;
         if (_back is not null && cols == _back.Cols && backRows == _back.Rows)
         {
@@ -1513,10 +1492,11 @@ public sealed class ReplShell
         _frontValid = false;
     }
 
-    /// <summary>退出输出 — inline：清尾部动态区（间隔+输入区+footer），历史留终端 scrollback 可复制；视口：清屏复位。</summary>
+    /// <summary>退出输出 — inline：清尾部动态区（间隔+输入区+footer），历史留终端 scrollback 可复制；视口：清屏复位；
+    /// transcript 残留防御（引擎死亡路径已先退出，此处兜底）：清屏复位（transcript 态无 scrollback 语义可保留）。</summary>
     public void WriteExit()
     {
-        if (!_inline)
+        if (!_inline || _view.Transcript is not null)
         {
             _output.Write(Sgr.Reset + Csi.EraseScreen() + Csi.CursorPosition(1, 1));
             _output.Flush();
@@ -1543,10 +1523,23 @@ public sealed class ReplShell
         _screenClearPending = true;
     }
 
-    /// <summary>请求退出主循环（M8-5 — /exit 接线，引擎回合线程回调）：
-    /// 置 _running=false 对齐 Ctrl+D 语义，Run() 当前拍收尾返回后由宿主 WriteExit 收尾。</summary>
-    public void RequestExit() => _running = false;
+    /// <summary>请求退出主循环（M8-5 + TASK065 F1 — /exit /quit /logout 命令退出链）：
+    /// 上屏命令退出提示（dim ⎿ 行，reason 为命令名）+ 置 _running=false 终止主循环
+    ///（对齐 CLI ShouldContinue=false→Stop；Run() 当前拍收尾返回后由宿主 WriteExit 收尾）。
+    /// 无参重载兼容 Action 接线形态。</summary>
+    public void RequestExit() => RequestExit("exit");
 
+    /// <summary>请求退出主循环（带命令名 — 退出提示行显示 /{reason}）。</summary>
+    public void RequestExit(string reason)
+    {
+        if (!_running)
+        {
+            return;
+        }
+
+        AddMessage(new ToolResultItem($"/{reason} — 退出 jcc"));
+        _running = false;
+    }
     /// <summary>终端光标落到输入文本行（视口模式 — 0 基 Rows-2 → 1 基 Rows-1），列随编辑偏移。</summary>
     private void PositionCursor()
     {
@@ -1566,66 +1559,13 @@ public sealed class ReplShell
         }
     }
 
-    /// <summary>复制选中消息（M8-6 消息操作复制 — 光标导航态 c 全文 / p 工具主参数）：
-    /// 剪贴板委托 null（未注入）或选中项无可复制文本时静默无操作（对齐 CopyLastAssistantMessage
-    /// 降级先例）；复制后不退出导航（基准 copy 键位后光标保持 — 继续导航）。</summary>
-    private void CopySelectedMessage(bool primaryOnly)
+    /// <summary>ctrl+l 强制全量重绘（S6 任务 8）：inline — 下一帧走 FullReset（零尺寸空白前置帧
+    /// 触发 InlineComposer 跨尺寸分支：光标移视口顶 + EraseScreen + 重绘可见区，scrollback 历史保留）；
+    /// viewport — 前缓冲失效下帧全量输出。prevOverride 一并丢弃（旧帧不复用作 diff 基准）。</summary>
+    internal void ForceFullRepaint()
     {
-        if (_copyToClipboard is null)
-        {
-            return;
-        }
-
-        if (_cursorNav.SelectedIndex is not (>= 0 and var index) || index >= _view.Messages.Count)
-        {
-            return;
-        }
-
-        var text = MessageActionsCopy.TryGetText(_view.Messages.Items[index], primaryOnly);
-        if (text is null)
-        {
-            return;
-        }
-
-        _copyToClipboard(text);
-        PostCopyFeedback();
-    }
-
-    /// <summary>复制反馈 — "已复制到剪贴板" 消息插到操作条之前（消息流末尾语义，操作条/spinner
-    /// 尾部常驻位保持；反馈插入选中项之后不影响光标索引）；无操作条（非导航态防御）退回
-    /// AddMessage 语义。</summary>
-    private void PostCopyFeedback()
-    {
-        var feedback = new AssistantMessageItem("已复制到剪贴板");
-        var barIndex = _view.Messages.IndexOf(_actionsBar);
-        if (barIndex < 0)
-        {
-            AddMessage(feedback);
-            return;
-        }
-
-        _view.Messages.Insert(barIndex, feedback);
-    }
-
-    /// <summary>挂载底部操作条 — 导航态激活时插到常驻 spinner 之前（SpinnerItem 同款尾部常驻模式；
-    /// 闲时 spinner 高度 0 = 操作条即滚动区末行，视觉输入框上方）；未激活/已挂载幂等 no-op。</summary>
-    private void ShowActionsBar()
-    {
-        if (!_cursorNav.IsCursorActive || _view.Messages.IndexOf(_actionsBar) >= 0)
-        {
-            return;
-        }
-
-        _view.Messages.Insert(_view.Messages.Count - 1, _actionsBar);
-    }
-
-    /// <summary>卸载底部操作条 — 导航态退出时移除（未挂载幂等 no-op）。</summary>
-    private void HideActionsBar()
-    {
-        var index = _view.Messages.IndexOf(_actionsBar);
-        if (index >= 0)
-        {
-            _view.Messages.RemoveAt(index);
-        }
+        _frontValid = false;
+        _prevOverride = null;
+        _forceFullReset = true;
     }
 }

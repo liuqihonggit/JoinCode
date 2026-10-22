@@ -7,6 +7,9 @@ namespace NativeTui.Core.Repl;
 /// 状态 parts：suffix → timer → tokens(↓/↑) → thinking，` · ` dim 分隔，
 /// 整体 dim 括号包裹（thinkingOnly 例外：单 part shimmer 色无括号）；
 /// 渐进宽度门控 availableSpace = columns - messageWidth - 5（对齐基准 Progressive width gating）。
+/// 扩展态（通知与 footer 域 S4）：三态显示 — Hidden（零输出）&gt; IsIdle（dim 静态空闲行）&gt;
+/// 正常动画 + 时间驱动提示行（elapsed &gt; 30s /btw、&gt; 1800s /clear — 帧拍 elapsed 通道复用，
+/// 基准 Spinner.tsx:255-259）+ 终端字符集分支（<see cref="SpinnerCharsets"/> — darwin/ghostty）。
 /// </summary>
 public sealed class SpinnerItem : IScrollItem, IAnimatable
 {
@@ -27,6 +30,21 @@ public sealed class SpinnerItem : IScrollItem, IAnimatable
 
     /// <summary>30s 后无需 verbose 也显示 timer/tokens（基准 SHOW_TOKENS_AFTER_MS）。</summary>
     private const long ShowTokensAfterMs = 30_000;
+
+    /// <summary>/btw 提示阈值（基准 Spinner.tsx:258 — elapsed &gt; 30_000ms 且未用过 /btw）。</summary>
+    private const long BtwTipThresholdMs = 30_000;
+
+    /// <summary>/clear 提示阈值（基准 Spinner.tsx:257 — elapsed &gt; 1_800_000ms）。</summary>
+    private const long ClearTipThresholdMs = 1_800_000;
+
+    /// <summary>/btw 提示文案（汉化 — 基准 "Use /btw to ask a quick side question..."）。</summary>
+    private const string BtwTipText = "/btw 记录随想";
+
+    /// <summary>/clear 提示文案（汉化 — 基准 "Use /clear to start fresh when switching topics..."）。</summary>
+    private const string ClearTipText = "/clear 清理上下文";
+
+    /// <summary>提示行前缀（汉化 — 基准 `Tip: ${effectiveTip}`）。</summary>
+    private const string TipPrefix = "提示: ";
 
     private readonly SpinnerAnimator _animator = new();
 
@@ -102,15 +120,46 @@ public sealed class SpinnerItem : IScrollItem, IAnimatable
     /// driver BeginTurn/EndTurn 驱动（busy=显示：等待/思考/工具运行反馈；idle=隐藏：基准空闲无 spinner 行）。</summary>
     public bool Hidden { get; set; }
 
-    /// <summary>内容高度 = Hidden ? 0 : marginTop 1 + 行 1。</summary>
-    public int MeasureHeight(int width) => Hidden ? 0 : 2;
+    /// <summary>空闲态（子代理运行中 leader 空闲 — 显示 dim 静态空闲行替代动画 spinner，
+    /// 基准 Spinner.tsx:229 leaderIsIdle 分支：规避 useStalledAnimation 3s 无新 token 误报停滞红；
+    /// 接线方（SubagentGroup/Driver 域）判定 leader 空闲 + 有运行中子代理时置 true）。
+    /// 优先级低于 <see cref="Hidden"/>、高于正常动画。</summary>
+    public bool IsIdle { get; set; }
+
+    /// <summary>空闲态显示文本（默认 "空闲"；接线方可传变体如 "已工作 Ns" — 基准 Worked for 分支汉化通道）。</summary>
+    public string IdleText { get; set; } = "空闲";
+
+    /// <summary>外部基础提示文本（时间提示未激活时的兜底层 — 基准 spinnerTip prop；null = 无）。</summary>
+    public string? SpinnerTip { get; set; }
+
+    /// <summary>提示开关（基准 settings.spinnerTipsEnabled !== false；默认开）。</summary>
+    public bool TipsEnabled { get; set; } = true;
+
+    /// <summary>spinner 12 帧往返序列（终端字符集分支 — Windows Terminal/默认 `*` 集、
+    /// ghostty `✽→*`、darwin `✳`，见 <see cref="SpinnerCharsets"/>；null = 默认集
+    /// <see cref="SpinnerMath.SpinnerFrames"/> — 既有消费方零改动兼容）。</summary>
+    public string[]? Frames { get; set; }
+
+    /// <summary>内容高度 = Hidden ? 0 : IsIdle ? margin 1 + 空闲行 1 : margin 1 + 行 1 + 提示行 0/1。
+    /// 空闲态无提示行（基准 leaderIsIdle 分支独立 return，不渲染 tip）。</summary>
+    public int MeasureHeight(int width) => Hidden ? 0 : IsIdle ? 2 : 2 + TipHeight();
+
+    /// <summary>提示行高（0 = 无生效提示）。</summary>
+    private int TipHeight() => EffectiveTip(ElapsedMs()) is null ? 0 : 1;
 
     /// <summary>渲染：margin 行留空，行内容 = glyph + 消息 + 状态 parts（消息空时随机动词 + '…'）；
-    /// Hidden 时零输出（不动画不占行）。</summary>
+    /// Hidden 时零输出（不动画不占行）；IsIdle 时静态空闲行（dim ✻ + 文本，无动画）；
+    /// 提示行（时间驱动 — elapsed &gt; 30s / &gt; 1800s）追加在 spinner 行下方。</summary>
     public void Render(Screen screen, Rect frame, Theme theme)
     {
         if (Hidden)
         {
+            return;
+        }
+
+        if (IsIdle)
+        {
+            RenderIdle(screen, frame);
             return;
         }
 
@@ -120,10 +169,45 @@ public sealed class SpinnerItem : IScrollItem, IAnimatable
         var glimmerWidth = StringWidth.Of(message);
         var state = _animator.Tick(AnimTimeMs, ResponseLength, HasActiveTools, ReducedMotion, Mode, glimmerWidth);
         var row = frame with { Y = frame.Y + 1, Height = 1 };
-        SpinnerRow.Render(screen, row, theme, message, messageColor, shimmerColor, Mode, RenderState(state), ReducedMotion, AnimTimeMs);
+        SpinnerRow.Render(screen, row, theme, message, messageColor, shimmerColor, Mode, RenderState(state), ReducedMotion, AnimTimeMs, Frames);
         var thinking = _thinkingLifecycle.Tick(Mode == SpinnerMode.Thinking, WallNowMs, EffortSuffix);
         RenderStatus(screen, row, theme, state, glimmerWidth, thinking);
+        RenderTip(screen, frame);
     }
+
+    /// <summary>空闲态渲染（基准 Spinner.tsx:229-238 leaderIsIdle 分支）：
+    /// margin 行留空 + dim `✻ {IdleText}`（静态无动画）。</summary>
+    private void RenderIdle(Screen screen, Rect frame)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var row = frame.Y + 1;
+        var col = screen.WriteText(row, frame.X, Figures.TeardropAsterisk, dim, frame.Right);
+        screen.WriteText(row, col, $" {IdleText}", dim, frame.Right);
+    }
+
+    /// <summary>提示行渲染（spinner 行下方 — 基准 Spinner.tsx:294-298 MessageResponse 形态）：
+    /// dim 缩进前缀 `  ⎿  ` + dim 提示文本。</summary>
+    private void RenderTip(Screen screen, Rect frame)
+    {
+        if (EffectiveTip(ElapsedMs()) is not { } tip)
+        {
+            return;
+        }
+
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var row = frame.Y + 2;
+        var col = screen.WriteText(row, frame.X, Figures.ToolResultIndent, dim, frame.Right);
+        screen.WriteText(row, col, tip, dim, frame.Right);
+    }
+
+    /// <summary>生效提示（基准 Spinner.tsx:255-259 链，nextTask 通道无消费方暂缺）：
+    /// 关 → null；elapsed &gt; 1800s /clear &gt; elapsed &gt; 30s /btw &gt; 外部 <see cref="SpinnerTip"/> 兜底。</summary>
+    /// <param name="elapsedMs">本轮已进行毫秒（暂停感知 — <see cref="ElapsedMs"/>）。</param>
+    private string? EffectiveTip(long elapsedMs) => !TipsEnabled ? null
+        : elapsedMs > ClearTipThresholdMs ? TipPrefix + ClearTipText
+        : elapsedMs > BtwTipThresholdMs ? TipPrefix + BtwTipText
+        : SpinnerTip is { Length: > 0 } tip ? TipPrefix + tip
+        : null;
 
     /// <summary>生效消息：显式 Message 优先，空时随机动词 + '…'（基准 verb = overrideMessage ?? randomVerb; message = verb + '…'）。</summary>
     private string EffectiveMessage() =>

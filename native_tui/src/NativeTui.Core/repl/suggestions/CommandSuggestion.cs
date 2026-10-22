@@ -7,13 +7,15 @@ namespace NativeTui.Core.Repl;
 /// <param name="IsHidden">隐藏命令（默认不参与建议，输入全名时前插）。</param>
 /// <param name="ArgumentHint">参数提示（命令后空格时显示的单条提示，如 "model-id"；无静态参数清单的命令用）。</param>
 /// <param name="Arguments">静态参数值清单（如 theme 的 dark/light/auto — 参数模式前缀过滤用；null 视为空）。</param>
+/// <param name="Source">命令来源（空查询分组视图分组用 — builtin/user/project/policy；默认内置，宿主接线时注入）。</param>
 public sealed record CommandSuggestion(
     string Name,
     string Description,
     string[] Aliases,
     bool IsHidden,
     string ArgumentHint = "",
-    string[]? Arguments = null)
+    string[]? Arguments = null,
+    CommandSource Source = CommandSource.Builtin)
 {
     /// <summary>静态参数值清单（null 安全化 — 空数组）。</summary>
     public string[] ArgumentValues => Arguments ?? [];

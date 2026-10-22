@@ -22,7 +22,7 @@ public static class BridgeProtocol
 {
     /// <summary>支持的事件 type 清单（诊断用，与 BridgeEvent 的 [JsonDerivedType] 一一对应）。</summary>
     private const string SupportedEventTypes =
-        "session_info, permission_mode_changed, turn_started, thinking_started, thinking_ended, tool_call, tool_result, token_delta, assistant_message, turn_completed, turn_interrupted, error";
+        "session_info, permission_mode_changed, turn_started, thinking_started, thinking_ended, tool_call, tool_result, token_delta, assistant_message, token_usage, turn_completed, turn_interrupted, error";
 
     /// <summary>支持的请求 type 清单（诊断用，与 BridgeRequest 的 [JsonDerivedType] 一一对应）。</summary>
     private const string SupportedRequestTypes = "submit, interrupt, set_permission_mode, quit";

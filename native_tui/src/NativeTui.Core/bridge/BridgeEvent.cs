@@ -4,9 +4,10 @@ namespace NativeTui.Core.Bridge;
 /// bridge 事件（Engine → TUI，读子进程 stdout）— ADR 0141 事件契约：
 /// 会话握手（session_info）、权限模式（permission_mode_changed）、
 /// 回合生命周期（turn_started/completed/interrupted）、思考（thinking_started/ended）、
-/// 工具（tool_call/tool_result/permission_request）、流式（token_delta）、消息（assistant_message/error）、
-/// 后台任务（background_task — M8-8 常驻面板 upsert）。
-/// </summary>
+/// 工具（tool_call/tool_result/permission_request）、流式（token_delta）、
+
+/// 用量汇总（token_usage）、消息（assistant_message/error）、
+/// 后台任务（background_task — M8-8 常驻面板 upsert）。/// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(SessionInfo), "session_info")]
 [JsonDerivedType(typeof(PermissionModeChanged), "permission_mode_changed")]
@@ -18,6 +19,7 @@ namespace NativeTui.Core.Bridge;
 [JsonDerivedType(typeof(PermissionRequest), "permission_request")]
 [JsonDerivedType(typeof(TokenDelta), "token_delta")]
 [JsonDerivedType(typeof(AssistantMessage), "assistant_message")]
+[JsonDerivedType(typeof(TokenUsage), "token_usage")]
 [JsonDerivedType(typeof(TurnCompleted), "turn_completed")]
 [JsonDerivedType(typeof(TurnInterrupted), "turn_interrupted")]
 [JsonDerivedType(typeof(SubagentStarted), "subagent_started")]
@@ -54,9 +56,15 @@ public abstract record BridgeEvent
     /// <summary>
     /// 工具结果摘要（⎿ 缩进项）；Patch 非空时渲染为结构化 diff 块（M7-2 StructuredDiff）。
     /// Patch null 不输出字段（WhenWritingNull — 与引擎侧 ToolResult 契约逐字节一致，旧 JSON 兼容）。
+    /// RawOutput 为工具原始输出多行文本（引擎侧预截断防超长原始输出撑爆 JSON 行 — 渲染层折叠 +
+    /// Ctrl+O 展开消费；null 不输出字段 WhenWritingNull — 单行结果 summary 已完整表达不带此字段，
+    /// 旧 JSON golden 零破坏）；HiddenLines 为折叠隐藏行数（0 不输出字段 WhenWritingDefault —
+    /// 引擎侧权威计算：原始总行数 − 预览上限，含预截断丢弃估算）。
     /// </summary>
     public sealed record ToolResult(string Summary,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DiffHunk[]? Patch = null) : BridgeEvent;
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DiffHunk[]? Patch = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RawOutput = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] int HiddenLines = 0) : BridgeEvent;
 
     /// <summary>
     /// 权限请求（工具执行前需用户确认 — TUI 模态对话框）。Demo 进程内路径由 SimulatedEngine 事件驱动；
@@ -87,6 +95,17 @@ public abstract record BridgeEvent
 
     /// <summary>回合完成（idle）。</summary>
     public sealed record TurnCompleted() : BridgeEvent;
+
+    /// <summary>
+    /// 回合令牌用量汇总（引擎 OnDone 收尾发射 — 紧随 assistant_message 之后、turn_completed 之前；
+    /// TUI 侧 TokenUsageTracker 记账驱动 footer 展示）。
+    /// InputTokens/OutputTokens 恒输出（引擎 OnDone usage 的 PromptTokens/CompletionTokens 投影）；
+    /// ContextTokens/ContextLimitTokens 为上下文窗口占用/上限（null 不输出字段 WhenWritingNull —
+    /// 引擎暂无 context window 数据源时省略，通道预留待接线）。
+    /// </summary>
+    public sealed record TokenUsage(long InputTokens, long OutputTokens,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ContextTokens = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? ContextLimitTokens = null) : BridgeEvent;
 
     /// <summary>回合被打断（idle）。</summary>
     public sealed record TurnInterrupted() : BridgeEvent;

@@ -3,7 +3,8 @@ namespace NativeTui.Core.Bridge;
 /// <summary>
 /// 模拟引擎 — Demo 演示命令路由（md/diff/perm/all — 未知命令 Error 诱导）：
 /// Submit 按命令选定回合脚本（TurnScript），时间驱动阶段状态机按脚本产出 BridgeEvent
-/// （ToolCall/ToolResult/TokenDelta/PermissionRequest/TurnCompleted），
+/// （ToolCall/ToolResult（带原始输出多行折叠演示）/TokenDelta/PermissionRequest/
+/// TokenUsage（回合完成用量汇总假数据）/TurnCompleted），
 /// 与真实 bridge 路径共用同一事件协议（ReplBridgeDriver 唯一翻译层）。
 /// 时钟注入（默认墙钟）— 单元测试可注入虚拟时钟做确定性验证。
 /// spinner Message 不经事件协议（真实路径空消息+随机动词采样，模拟直改属可弃糖）。
@@ -57,6 +58,13 @@ public sealed class SimulatedEngine : IReplEngine
 
     /// <summary>权限演示描述（对话框正文 — 说明将执行什么）。</summary>
     private const string PermissionDescription = "运行演示命令 demo/simulated.sh（模拟需确认的工具调用）";
+
+    /// <summary>工具结果原始输出演示文本（6 行 — 多行输出折叠渲染演示：3 行预览 + 3 行隐藏）。</summary>
+    private const string DemoToolRawOutput =
+        "编译 demo/simulated.cs…完成\n运行测试 3/3 通过\n覆盖率 87.5%（+2.1%）\n生成性能基线快照\n格式化输出产物\n清理临时目录";
+
+    /// <summary>工具结果折叠隐藏行数演示值（6 行 − 3 行预览 = 3 — 对齐渲染层折叠提示形态）。</summary>
+    private const int DemoToolHiddenLines = 3;
 
     /// <summary>回合计时起点（clock 值）。</summary>
     private long _turnStart;
@@ -372,6 +380,7 @@ public sealed class SimulatedEngine : IReplEngine
             _inTurn = false;
             var failures = _subagents.Count(static subagent => subagent.Index % 7 == 6);
             _pending.Enqueue(new BridgeEvent.AssistantMessage($"演示回复 — {_subagents.Count} 个子代理并行完成（{failures} 个失败）分组渲染链路运行正常。"));
+            EnqueueDemoTokenUsage();
             _pending.Enqueue(new BridgeEvent.TurnCompleted());
         }
     }
@@ -411,7 +420,12 @@ public sealed class SimulatedEngine : IReplEngine
         }
         if (_script is TurnScript.Full or TurnScript.Diff)
         {
-            _pending.Enqueue(new BridgeEvent.ToolResult("Updated demo/simulated.cs (simulated)", SimulatedPatch));
+            // 工具结果带原始输出（多行折叠演示 — 渲染层 3 行预览 + HiddenLines 折叠提示）
+            _pending.Enqueue(new BridgeEvent.ToolResult(
+                "Updated demo/simulated.cs (simulated)",
+                SimulatedPatch,
+                DemoToolRawOutput,
+                DemoToolHiddenLines));
         }
     }
 
@@ -424,6 +438,7 @@ public sealed class SimulatedEngine : IReplEngine
             _stage = 3;
             _inTurn = false;
             _pending.Enqueue(new BridgeEvent.AssistantMessage(CompletionText(_script), CompletionMarkdown(_script)));
+            EnqueueDemoTokenUsage();
             _pending.Enqueue(new BridgeEvent.TurnCompleted());
             return;
         }
@@ -462,6 +477,13 @@ public sealed class SimulatedEngine : IReplEngine
 
     /// <summary>完成时刻（ms）— 权限脚本 8s（交互窗口），其余 5.4s。</summary>
     private static long CompletionAtMs(TurnScript script) => script is TurnScript.Permission ? PermissionCompletedAtMs : CompletedAtMs;
+
+    /// <summary>回合完成演示用量汇总 — 假数据（确定性常量）：input/output/context/contextLimit 四通道全形态
+    /// （对齐真实引擎 OnDone usage 投影事件形态，S4 TokenUsageTracker 消费链路演示；
+    /// context = input + output 语义自洽）。</summary>
+    private void EnqueueDemoTokenUsage() =>
+        _pending.Enqueue(new BridgeEvent.TokenUsage(
+            InputTokens: 1284, OutputTokens: 356, ContextTokens: 1640, ContextLimitTokens: 131072));
 
     /// <summary>完成消息文本（按脚本语义区分）。</summary>
     private static string CompletionText(TurnScript script) => script switch

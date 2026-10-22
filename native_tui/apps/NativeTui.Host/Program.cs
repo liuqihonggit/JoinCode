@@ -17,8 +17,10 @@ public static class Program {
                 return await RunSelftestAsync().ConfigureAwait(false);
             if (args is ["--selftest-turn"])
                 return await RunSelftestTurnAsync().ConfigureAwait(false);
+            if (args is ["--selftest-commands"])
+                return await RunSelftestCommandsAsync().ConfigureAwait(false);
             if (args.Length > 0) {
-                Console.Error.WriteLine($"未知参数: {string.Join(' ', args)}。用法: NativeTui.Host [--selftest | --selftest-turn]（无参数进入交互模式，需真实终端）");
+                Console.Error.WriteLine($"未知参数: {string.Join(' ', args)}。用法: NativeTui.Host [--selftest | --selftest-turn | --selftest-commands]（无参数进入交互模式，需真实终端）");
                 return 1;
             }
 
@@ -29,6 +31,126 @@ public static class Program {
             return 2;
         }
     }
+
+    /// <summary>斜杠命令批量探针（TASK065 — 33 条安全命令集走 TUI 真实链路逐条实测）：
+    /// EngineTurnClient.Submit → DispatchSlashCommandAsync → SlashCommandRunner 真实执行，
+    /// 逐命令分类 OK（有输出）/EMPTY（空回合）/ERROR（异常）/TIMEOUT，输出汇总表供人工核对。
+    /// 排除副作用命令（reset-config/logout/clear/状态改写类）与调 LLM 命令（--selftest-turn 已覆盖）。</summary>
+    private static async Task<int> RunSelftestCommandsAsync() {
+        using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
+        TestEnvironmentDetector.ForceNonInteractive = true;
+        await using var session = await EngineSession.CreateAsync().ConfigureAwait(false);
+        _ = session.Client.DrainEvents();
+        var exitRequests = new List<string>();
+        session.CommandCallbacks.Bind(
+            clearScreen: null,
+            onExitRequested: () => exitRequests.Add("exit"));
+
+        var probes = new (string Cmd, string Note)[] {
+            ("/tools", "工具-首条时间锚点"),
+            ("/mcp list", "MCP-首条时间锚点"),
+            ("/status", "综合状态"),
+            ("/version", "版本"),
+            ("/help", "帮助"),
+            ("/context", "上下文"),
+            ("/doctor", "环境诊断"),
+            ("/env", "环境变量"),
+            ("/usage", "用量"),
+            ("/stats", "统计"),
+            ("/cost today", "今日成本"),
+            ("/config list", "配置清单"),
+            ("/tasks", "任务"),
+            ("/history", "历史"),
+            ("/files", "文件"),
+            ("/tag list", "标签"),
+            ("/trust list", "信任"),
+            ("/privacy-settings show", "隐私"),
+            ("/theme", "主题当前值"),
+            ("/effort", "推理力度当前值"),
+            ("/vendor", "供应商引擎路径"),
+            ("/model info", "模型信息"),
+            ("/agents", "代理列表"),
+            ("/summary", "摘要"),
+            ("/worktree list", "工作树"),
+            ("/branch list", "分支列表"),
+            ("/session list", "会话列表"),
+            ("/debuglog", "调试日志状态"),
+            ("/quit", "退出类-直接"),
+            ("/exit", "退出类-确认"),
+            ("/nosuchcmd", "未知命令"),
+            ("/?", "别名-help"),
+            ("/q", "别名-quit"),
+        };
+
+        var results = new List<(string Cmd, string Note, string Verdict, string Detail)>();
+        foreach (var (cmd, note) in probes) {
+            var (verdict, detail) = await ProbeOneCommandAsync(session, cmd).ConfigureAwait(false);
+            // 退出类命令（/exit /quit /q 及别名）— 期望触发 ExitRequested 钩子而非有输出
+            if (cmd is "/quit" or "/exit" or "/q") {
+                verdict = exitRequests.Count > 0 ? "EXIT-OK" : verdict;
+                detail = exitRequests.Count > 0 ? $"ExitRequested={string.Join(",", exitRequests)}" : detail;
+                exitRequests.Clear();
+            }
+            results.Add((cmd, note, verdict, detail));
+            Console.WriteLine($"[cmd] {verdict,-7} {cmd,-24} {note,-14} {detail}");
+        }
+
+        Console.WriteLine();
+        Console.WriteLine($"[cmd] 汇总: 总数={results.Count} OK={results.Count(r => r.Verdict == "OK")} EMPTY={results.Count(r => r.Verdict == "EMPTY")} ERROR={results.Count(r => r.Verdict == "ERROR")} TIMEOUT={results.Count(r => r.Verdict == "TIMEOUT")}");
+        var failures = results.Where(r => r.Verdict is "EMPTY" or "ERROR" or "TIMEOUT").ToList();
+        if (failures.Count > 0) {
+            Console.WriteLine("[cmd] 非全 OK 清单（供修复登记）:");
+            foreach (var f in failures)
+                Console.WriteLine($"[cmd]   {f.Verdict,-7} {f.Cmd,-24} {f.Detail}");
+            return 1;
+        }
+
+        Console.WriteLine("[cmd] COMMANDS SELFTEST OK — 全部命令有输出且无异常");
+        return 0;
+    }
+
+    /// <summary>探单命令 — 提交 → 等终态 → 分类（OK=有 assistant 输出 / EMPTY=空回合 /
+    /// ERROR=Error 事件 / TIMEOUT=超时未终态）；detail 附输出长度与首部预览。</summary>
+    private static async Task<(string Verdict, string Detail)> ProbeOneCommandAsync(EngineSession session, string cmd) {
+        session.Client.Submit(cmd);
+        var texts = new List<string>();
+        string? error = null;
+        var finished = false;
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(25));
+        try {
+            while (!cts.Token.IsCancellationRequested && !finished) {
+                await Task.Delay(100, cts.Token).ConfigureAwait(false);
+                foreach (var evt in session.Client.DrainEvents()) {
+                    switch (evt) {
+                        case BridgeEvent.AssistantMessage(var text, _, _, _, _):
+                            texts.Add(text);
+                            break;
+                        case BridgeEvent.Error(var message):
+                            error = message;
+                            finished = true;
+                            break;
+                        case BridgeEvent.TurnCompleted or BridgeEvent.TurnInterrupted:
+                            finished = true;
+                            break;
+                    }
+                }
+            }
+        } catch (OperationCanceledException) {
+        }
+
+        if (error is not null)
+            return ("ERROR", Truncate(error, 70));
+        if (!finished)
+            return ("TIMEOUT", "25s 无终态");
+        var joined = string.Join("\n", texts).Trim();
+        if (joined.Length == 0)
+            return ("EMPTY", "回合完成但零输出（断层疑似：退出类/交互类降级）");
+        return ("OK", $"len={joined.Length} | {Truncate(joined.Replace("\n", "⏎"), 50)}");
+    }
+
+    /// <summary>截断预览（单行化）。</summary>
+    private static string Truncate(string text, int max) =>
+        text.Length <= max ? text : text[..max] + "…";
 
     /// <summary>真实回合计时探针（ADR 0080 — 诊断 TUI 链路回复延迟）— 提交一个真实回合
     /// （走用户交互同链：EngineTurnClient → SessionController(mainAgent) → QueryEngine），
@@ -164,11 +286,12 @@ public static class Program {
                 pickerEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);
-                // M8-5 命令交互回调接线（/clear 清 TUI 滚动区+scrollback、/exit 结束主循环）—
-                // ReplShell 公开入口已由主智能体收编落地（ClearMessagesExceptBannerAndSpinner/RequestExit）
+                // M8-5 命令交互回调接线（/clear 清 TUI 滚动区+scrollback、/exit /quit /logout 结束主循环）—
+                // ReplShell 公开入口已由主智能体收编落地（ClearMessagesExceptBannerAndSpinner/RequestExit）；
+                /// TASK065 F1 融合 — 退出回调带命令名（RequestExit(reason) 上 "⎿ /{reason} — 退出 jcc" 提示行）
                 session.CommandCallbacks.Bind(
                     clearScreen: shell.ClearMessagesExceptBannerAndSpinner,
-                    onExitRequested: shell.RequestExit);
+                    onExitRequested: () => shell.RequestExit("exit"));
                 shell.Run();
                 shell.WriteExit();
             }

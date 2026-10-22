@@ -42,7 +42,9 @@ public sealed class ReplShellTests
         Assert.Equal(PermissionMode.Auto, shell.View.Footer.Mode);
         Assert.Equal("未登录 · 运行 /login", shell.View.Footer.LoginError);
         Assert.NotNull(shell.View.Footer.AgentsHint);
-        Assert.NotNull(shell.View.Footer.Notification);
+        // S4 接线（S6 收敛）— 种子 effort 提示迁移为通知队列 Enqueue + 令牌记账器挂 footer
+        Assert.NotNull(shell.View.Footer.Notifications);
+        Assert.NotNull(shell.View.Footer.Tokens);
     }
 
     /// <summary>DrainEngine：TurnStarted 事件驱动 busy（footer.Busy + 内部忙标记）。</summary>

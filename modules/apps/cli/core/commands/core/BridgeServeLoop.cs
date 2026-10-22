@@ -2,11 +2,12 @@ namespace JoinCode.CliCommands;
 
 /// <summary>
 /// bridge 服务循环 — jcc bridge_serve 子命令核心（ADR 0141）：
-/// stdin 逐行读 BridgeRequest，stdout 逐行写 BridgeEvent；回合任务与读循环并发
-/// （interrupt 可随时到达）。submit → turn_started + 回合执行 + turn_completed；
-/// interrupt → 取消回合 → turn_interrupted；忙时 submit → error 诱导提示；
-/// set_permission_mode → 权限应用器（解析+闸门）→ permission_mode_changed 回执（实际生效值）；
-/// 未知 type → stderr 诊断不中断；quit/Eof → 取消在途回合收尾后退出。
+    /// stdin 逐行读 BridgeRequest，stdout 逐行写 BridgeEvent；回合任务与读循环并发
+    /// （interrupt 可随时到达）。submit → turn_started + 回合执行 + turn_completed；
+    /// interrupt → 取消回合 → turn_interrupted；忙时 submit → error 诱导提示；
+    /// set_permission_mode → 权限应用器（解析+闸门）→ permission_mode_changed 回执（实际生效值）；
+    /// stop_task → 后台任务泵停止分派（M8-8 后续 — cancelled 终态 upsert 回推）；
+    /// 未知 type → stderr 诊断不中断；quit/Eof → 取消在途回合收尾后退出。
 /// 回合内部事件（thinking/tool/token/assistant_message）由 BridgeEventConsumer 实时推送，
 /// 回合生命周期事件（started/completed/interrupted/error）由本循环统一发出。
 /// stdout 写出经 TextWriter.Synchronized + 单次 Write(json+"\n") 保证行原子性（协议统一 LF）。
@@ -104,6 +105,15 @@ internal static class BridgeServeLoop {
                 return (false, turnCts, turnTask);
             case Cli.Bridge.BridgeRequest.SetPermissionMode(var mode):
                 ApplyPermissionMode(stdout, applyPermissionMode, mode);
+                return (false, turnCts, turnTask);
+            case Cli.Bridge.BridgeRequest.StopTask(var kind, var taskId):
+                // M8-8 后续 — 停止后台任务分派（fire-and-forget：泵内部吞异常降级 + cancelled 终态
+                // upsert 经 consumer 回推 background_task 行，请求读循环不等待 — 对齐 interrupt 即返形态）；
+                // ct=None 有意 — 停止分派与宿主回合生命周期解耦（ServeLoop 退出时泵经 StopAsync 统一收尾，
+                // 取消引擎调用反可能漏发 cancelled 终态 upsert 致 TUI 面板条目滞留）；
+                // 泵未注入（引擎无后台能力 — 面板无条目，请求实际不可达）静默跳过
+                if (backgroundPump is not null)
+                    _ = backgroundPump.StopTaskAsync(kind, taskId, CancellationToken.None);
                 return (false, turnCts, turnTask);
             case Cli.Bridge.BridgeRequest.Quit:
                 return (true, turnCts, turnTask);

@@ -87,6 +87,14 @@ public sealed class EngineTurnClient : IReplEngine, IDisposable {
     /// <summary>种子事件入队 — 组装层专用（EngineSession 启动握手 session_info）；回合生命周期事件仍由本类统一管理。</summary>
     internal void Enqueue(BridgeEvent bridgeEvent) => _events.Enqueue(bridgeEvent);
 
+    /// <summary>停止后台任务（M8-8 后续 — x 停止委托的引擎侧落点，kind: fork|teammate 分派泵
+    /// CancelFork/StopTeammate）。fire-and-forget：泵内部吞异常降级 + cancelled 终态 upsert 推回
+    /// 面板（事件队列），调用方（主循环键位）无需等待结果 — 同步面禁止 GetAwaiter().GetResult。</summary>
+    /// <param name="kind">任务类别（fork|teammate）</param>
+    /// <param name="taskId">任务标识</param>
+    public void StopBackgroundTask(string kind, string taskId) =>
+        _ = _backgroundPump?.StopTaskAsync(kind, taskId);
+
     /// <summary>排空事件队列 — 主循环每 tick 调用（生命周期 + 回合内部事件同队 FIFO）。</summary>
     public IReadOnlyList<BridgeEvent> DrainEvents() {
         List<BridgeEvent>? drained = null;

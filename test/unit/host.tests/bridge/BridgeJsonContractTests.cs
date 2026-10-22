@@ -31,6 +31,22 @@ public sealed class BridgeJsonContractTests {
         Assert.Equal("{\"type\":\"set_permission_mode\",\"mode\":\"unattended\"}", json);
     }
 
+    /// <summary>停止后台任务请求 JSON 形状（M8-8 后续 — 与 native_tui 侧 BridgeRequest.StopTask 逐字段镜像：
+    /// stop_task + kind/taskId camelCase 字段，协议契约快照）。</summary>
+    [Fact]
+    public void Serialize_StopTask_CarriesCamelCaseFields() {
+        var json = JsonSerializer.Serialize(
+            new CliBridge.BridgeRequest.StopTask("teammate", "teammate-9"), CliBridge.BridgeJsonContext.Safe.BridgeRequest);
+        Assert.Equal(
+            "{\"type\":\"stop_task\",\"kind\":\"teammate\",\"taskId\":\"teammate-9\"}", json);
+
+        // native_tui BridgeProtocol.WriteRequest 产出的行反解析回读（双镜像 roundtrip）
+        var request = JsonSerializer.Deserialize(
+            "{\"type\":\"stop_task\",\"kind\":\"fork\",\"taskId\":\"fork-123\"}", CliBridge.BridgeJsonContext.Safe.BridgeRequest);
+        var stopTask = Assert.IsType<CliBridge.BridgeRequest.StopTask>(request);
+        Assert.Equal(("fork", "fork-123"), (stopTask.Kind, stopTask.TaskId));
+    }
+
     [Fact]
     public void Serialize_SessionInfo_CarriesCamelCaseFields() {
         var json = JsonSerializer.Serialize(

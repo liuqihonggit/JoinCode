@@ -2,13 +2,15 @@ namespace NativeTui.Core.Bridge;
 
 /// <summary>
 /// bridge 请求（TUI → Engine，写子进程 stdin）— ADR 0141 请求契约：
-/// submit（提交输入）/ interrupt（打断回合）/ set_permission_mode（切换权限模式）/ quit（退出会话），
+/// submit（提交输入）/ interrupt（打断回合）/ set_permission_mode（切换权限模式）/
+/// stop_task（停止后台任务 — M8-8 后续）/ quit（退出会话），
 /// newline-delimited JSON，type 判别（[JsonPolymorphic] AOT 兼容多态）。
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(Submit), "submit")]
 [JsonDerivedType(typeof(Interrupt), "interrupt")]
 [JsonDerivedType(typeof(SetPermissionMode), "set_permission_mode")]
+[JsonDerivedType(typeof(StopTask), "stop_task")]
 [JsonDerivedType(typeof(Quit), "quit")]
 public abstract record BridgeRequest
 {
@@ -20,6 +22,10 @@ public abstract record BridgeRequest
 
     /// <summary>切换权限模式（mode 取值 plan/auto/ask/bypass/unattended，与引擎 [EnumValue] 一致）。</summary>
     public sealed record SetPermissionMode(string Mode) : BridgeRequest;
+
+    /// <summary>停止后台任务（M8-8 后续 — kind: fork|teammate 分派引擎 CancelFork/StopTeammate；
+    /// 与 jcc 侧 BridgeRequest.StopTask 逐字段镜像，JSON 形状由 BridgeJsonContractTests 锁定防漂移）。</summary>
+    public sealed record StopTask(string Kind, string TaskId) : BridgeRequest;
 
     /// <summary>退出会话。</summary>
     public sealed record Quit() : BridgeRequest;

@@ -70,6 +70,8 @@ public sealed class ForkSubAgent {
     public required ForkState State { get; init; }
     /// <summary>获取创建时间。</summary>
     public required DateTime CreatedAt { get; init; }
+    /// <summary>获取任务描述（可选，默认 null — 兼容既有构造）— 快照路径（M8-8 BackgroundTaskEventPump）据此透传面板描述，与 ForkCompletedEventArgs.TaskDescription 同源（ForkOptions.TaskDescription）。</summary>
+    public string? TaskDescription { get; init; }
     /// <summary>获取结果。</summary>
     public string? Result { get; init; }
 }

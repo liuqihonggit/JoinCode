@@ -333,7 +333,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
         }
 
         _entries[forkId] = new ForkEntry {
-            Identity = new ForkIdentity(options.ParentSessionId, createdAt)
+            Identity = new ForkIdentity(options.ParentSessionId, createdAt, options.TaskDescription)
         };
     }
 
@@ -370,6 +370,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
                 ParentSessionId = kvp.Value.Identity.ParentSessionId,
                 State = kvp.Value.Runtime.State,
                 CreatedAt = kvp.Value.Identity.CreatedAt,
+                TaskDescription = kvp.Value.Identity.TaskDescription,
                 Result = kvp.Value.Runtime.Result
             })
             .ToList();

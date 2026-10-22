@@ -26,6 +26,9 @@ public sealed class ReplBridgeDriver
     /// <summary>代码高亮器（宿主注入的卫星插件 — null = 高亮禁用降级纯文本，MarkdownMessageItem 消费）。</summary>
     private readonly ICodeHighlighter? _codeHighlighter;
 
+    /// <summary>流式 Markdown 投影器（方案 B 卫星注入 — null = 流式项降级纯文本逐字 M8-1 行为）。</summary>
+    private readonly IStreamingMarkdownProjector? _streamingProjector;
+
     /// <summary>令牌用量记账器（S4 契约 — 引擎 token_usage 事件转交 RecordUsage；null = 未注入不记账，
     /// 事件静默容忍（纯视图断言测试场景），footer 用量展示归 tracker 内部驱动）。</summary>
     private readonly TokenUsageTracker? _tokenUsageTracker;
@@ -57,7 +60,8 @@ public sealed class ReplBridgeDriver
     /// onPermissionRequest = 权限请求挂起钩子，null = 忽略权限请求事件（纯视图断言测试场景）；
     /// codeHighlighter = 代码高亮插件（M7-5），null = 高亮禁用；
     /// tokenUsageTracker = 令牌用量记账器（S4 契约，token_usage 事件转交），null = 不记账；
-    /// sizeSource = 终端尺寸源（S6 任务 7 塌缩路由），null = 不塌缩）。</summary>
+    /// sizeSource = 终端尺寸源（S6 任务 7 塌缩路由），null = 不塌缩；
+    /// streamingProjector = 流式 Markdown 块级增量投影器（方案 B 卫星注入），null = 纯文本降级。</summary>
     public ReplBridgeDriver(
         ReplView view,
         SpinnerItem spinner,
@@ -65,7 +69,8 @@ public sealed class ReplBridgeDriver
         Action<string, string>? onPermissionRequest = null,
         ICodeHighlighter? codeHighlighter = null,
         TokenUsageTracker? tokenUsageTracker = null,
-        ITerminalSizeSource? sizeSource = null)
+        ITerminalSizeSource? sizeSource = null,
+        IStreamingMarkdownProjector? streamingProjector = null)
     {
         _view = view;
         _spinner = spinner;
@@ -74,6 +79,7 @@ public sealed class ReplBridgeDriver
         _codeHighlighter = codeHighlighter;
         _tokenUsageTracker = tokenUsageTracker;
         _sizeSource = sizeSource;
+        _streamingProjector = streamingProjector;
     }
 
     /// <summary>回合进行中（turn_started 后未 completed/interrupted）。</summary>
@@ -134,10 +140,11 @@ public sealed class ReplBridgeDriver
                 _spinner.HasActiveTools = false;
                 _spinner.ResponseLength += length;
                 if (text is { Length: > 0 }) {
-                    // M8-1 逐字流式 — 惰性建流式项（spinner 前）+ 原地追加（每帧全量重渲自然增长）
+                    // M8-1 逐字流式 — 惰性建流式项（spinner 前）+ 原地追加（每帧全量重渲自然增长）；
+                    // 方案 B — 注入投影器则流式期 Markdown 实时渲染（块级增量），null 降级纯文本
                     if (_streamingItem is null) {
                         CloseActiveToolGroup();
-                        _streamingItem = new StreamingTextItem();
+                        _streamingItem = new StreamingTextItem(_streamingProjector);
                         AddMessage(_streamingItem);
                     }
                     _streamingItem.Append(text);

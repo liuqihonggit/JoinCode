@@ -44,6 +44,12 @@ public sealed class EngineSession : IAsyncDisposable {
     /// <summary>重发 session_info 事件 — 模型/供应商切换等运行时状态变化后刷新 banner（ReplBridgeDriver.ApplySessionInfo 差分上屏）。</summary>
     public void RefreshSessionInfo() => _client.Enqueue(BuildSessionInfoEvent(_checker, _fastMode, _engine.Config));
 
+    /// <summary>停止后台任务（M8-8 后续 — Program 在 shell 构造处 onStopTask 委托接线，
+    /// 转发回合客户端 → 后台任务泵 CancelFork/StopTeammate 分派）。</summary>
+    /// <param name="kind">任务类别（fork|teammate）</param>
+    /// <param name="taskId">任务标识</param>
+    public void StopBackgroundTask(string kind, string taskId) => _client.StopBackgroundTask(kind, taskId);
+
     /// <summary>TUI 静默日志 provider（internal — 测试断言非 Console：Console 直写 stderr 与 inline 渲染交错致光标错乱/横向线残影）。
     /// 错误反馈走 EngineTurnClient Error 事件链（● 回合执行失败），不依赖引擎日志。</summary>
     internal static ILoggerProvider LoggerProvider => SilentLoggerProvider.Instance;

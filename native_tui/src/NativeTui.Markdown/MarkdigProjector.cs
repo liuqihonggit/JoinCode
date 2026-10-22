@@ -22,10 +22,20 @@ public static class MarkdigProjector
 
     /// <summary>Markdown 源文本 → Core 块模型文档。</summary>
     public static MarkdownDocument Project(string markdown) =>
-        new(Markdig.Markdown.Parse(markdown, Pipeline).Select(ProjectBlock).OfType<MarkdownBlock>().ToList());
+        new(ProjectBlocks(Markdig.Markdown.Parse(markdown, Pipeline)));
 
-    /// <summary>Markdown 语法标记检测（基准 MD_SYNTAX_RE 移植：任意位置语法字符 / 空行 / 行首有序列表，采样前 500 字符）。</summary>
-    private static bool HasMarkdownSyntax(string text)
+    /// <summary>已解析 Markdig 文档 → Core 块模型投影（internal — 流式投影器共享同一分派，零重复）。</summary>
+    internal static IReadOnlyList<MarkdownBlock> ProjectBlocks(Markdig.Syntax.MarkdownDocument document) =>
+        document.Select(ProjectBlock).OfType<MarkdownBlock>().ToList();
+
+    /// <summary>共享解析管线（internal — 流式投影器块边界探测复用，UseAdvancedExtensions 一致解析语义）。</summary>
+    internal static MarkdownPipeline SharedPipeline => Pipeline;
+
+    /// <summary>
+    /// Markdown 语法标记检测（internal — 流式投影器无语法快路径共享；基准 MD_SYNTAX_RE 移植：
+    /// 任意位置语法字符 / 空行 / 行首有序列表，采样前 500 字符）。
+    /// </summary>
+    internal static bool HasMarkdownSyntax(string text)
     {
         var sample = text.Length > 500 ? text.AsSpan(0, 500) : text.AsSpan();
         foreach (var current in sample)

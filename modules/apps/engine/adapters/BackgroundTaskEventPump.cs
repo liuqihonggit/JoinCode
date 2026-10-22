@@ -52,7 +52,8 @@ public sealed class BackgroundTaskEventPump : IAsyncDisposable {
     }
 
     /// <summary>全量快照 upsert（回合结束边界调用）— fork 按快照实际 State 推（running 补发 + 终态幂等重发，
-    /// 避免把 TUI 已定格的终态条目拉回 running 的倒退）；teammate 快照为活跃集合，全发 running。
+    /// 避免把 TUI 已定格的终态条目拉回 running 的倒退）并透传 ForkSubAgent.TaskDescription（Identity 同源，
+    /// 空/空白仍传空串 — TUI 侧空 description 回退显示 taskId）；teammate 快照为活跃集合，全发 running。
     /// 单查询面异常降级日志不中断（Actor 可能已释放，监控路径不得杀回合收尾）。</summary>
     /// <param name="ct">取消令牌</param>
     public async Task PublishSnapshotAsync(CancellationToken ct = default) {
@@ -64,7 +65,8 @@ public sealed class BackgroundTaskEventPump : IAsyncDisposable {
             try {
                 var forks = await _forkManager.GetActiveForksAsync(ct).ConfigureAwait(false);
                 foreach (var fork in forks)
-                    consumer.OnBackgroundTask(BackgroundTaskKinds.Fork, fork.ForkId, string.Empty, MapForkState(fork.State));
+                    consumer.OnBackgroundTask(BackgroundTaskKinds.Fork, fork.ForkId,
+                        NormalizeForkDescription(fork.TaskDescription), MapForkState(fork.State));
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, "后台任务泵 fork 快照查询失败，跳过本批");
             }
@@ -79,6 +81,37 @@ public sealed class BackgroundTaskEventPump : IAsyncDisposable {
                 _logger?.LogWarning(ex, "后台任务泵 teammate 快照查询失败，跳过本批");
             }
         }
+    }
+
+    /// <summary>停止后台任务（M8-8 后续 — 基准 BackgroundTasksDialog.tsx:268-289 x 停止）：
+    /// kind 分派 — fork → <see cref="IForkSubAgentManager.CancelForkAsync"/>、teammate →
+    /// <see cref="IInProcessTeammateTaskExecutor.StopTeammateAsync"/>（Stop 档：取消生命周期并清理资源；
+    /// Interrupt 只断当前 work 不杀生命周期、Terminate 走消息收尾 — 两档语义不同不适用）。
+    /// 分派后无条件发终态 upsert（state=cancelled，description 空串 — 面板 Upsert 空描述保留旧值）：
+    /// 引擎调用失败也发（TUI 面板立即反馈；引擎后续真实终态事件到达再覆盖 — upsert 幂等）。
+    /// kind 对应查询面未注册（引擎无该能力）或未知 kind → 零分派零推送（面板不可能存在对应条目）。
+    /// 引擎调用异常降级日志不中断（对齐 PublishSnapshotAsync 防御形态）。</summary>
+    /// <param name="kind">任务类别（BackgroundTaskKinds.Fork / Teammate）</param>
+    /// <param name="taskId">任务标识（forkId / teammateId）</param>
+    /// <param name="ct">取消令牌</param>
+    public async Task StopTaskAsync(string kind, string taskId, CancellationToken ct = default) {
+        var dispatched = false;
+        try {
+            if (kind == BackgroundTaskKinds.Fork && _forkManager is { } forkManager) {
+                await forkManager.CancelForkAsync(taskId, ct).ConfigureAwait(false);
+                dispatched = true;
+            } else if (kind == BackgroundTaskKinds.Teammate && _teammateExecutor is { } teammateExecutor) {
+                await teammateExecutor.StopTeammateAsync(taskId, ct).ConfigureAwait(false);
+                dispatched = true;
+            }
+        } catch (Exception ex) {
+            // 引擎停止调用失败仍发终态 — TUI 反馈优先，真实终态事件随后覆盖
+            dispatched = true;
+            _logger?.LogWarning(ex, "后台任务泵停止 {Kind} {TaskId} 引擎调用失败，仍下发 cancelled 终态", kind, taskId);
+        }
+
+        if (dispatched)
+            _consumer?.OnBackgroundTask(kind, taskId, string.Empty, BackgroundTaskStates.Cancelled);
     }
 
     /// <summary>退订两完成事件面（幂等 — 未订阅/重复退订零副作用；无超时无等待，退订即完成）。</summary>
@@ -111,6 +144,11 @@ public sealed class BackgroundTaskEventPump : IAsyncDisposable {
     /// （合并即成功终态 — MergeFork 不发完成事件，快照路径亦过滤 merged，此处仅防御性折叠）。</summary>
     private static string MapForkState(ForkState state) =>
         state.ToValue() == "merged" ? BackgroundTaskStates.Completed : state.ToValue();
+
+    /// <summary>快照描述归一化 — 非空白透传（与终态事件路径 TaskDescription 同源），空/空白回退空串
+    /// （对齐既有 fallback 形态，TUI 侧空 description 显示 taskId）。</summary>
+    private static string NormalizeForkDescription(string? taskDescription) =>
+        string.IsNullOrWhiteSpace(taskDescription) ? string.Empty : taskDescription;
 }
 
 /// <summary>后台任务种类（M8-8 — 协议 kind 字段值；有限集合字符串常量，后续枚举化随面板扩展收编）。</summary>

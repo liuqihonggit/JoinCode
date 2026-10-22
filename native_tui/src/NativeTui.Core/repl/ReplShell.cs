@@ -182,6 +182,10 @@ public sealed class ReplShell
     /// IClipboardService 适配，Core 零依赖不持接口；null = 复制能力降级无操作）。</summary>
     private readonly Action<string>? _copyToClipboard;
 
+    /// <summary>主题持久化委托（S11 遗留#1 — /theme 合法切换后宿主写回引擎 settings.json；
+    /// 宿主注入 IConfigurationService.SetAsync 适配，Core 零依赖；null = 持久化降级会话级生效）。</summary>
+    private readonly Func<string, Task>? _saveThemeAsync;
+
     /// <summary>后台任务停止委托（M8-8 后续 — 空闲态 x 停止面板运行中任务，参数 = (kind, taskId)；
     /// 宿主注入引擎停止转发（进程内 EngineTurnClient / bridge BridgeEngine — IReplEngine 多态统一面），
     /// Core 零依赖不持接口（对齐 clipboard 注入先例）；null = 停止能力降级，x 走正常字符插入）。</summary>
@@ -250,7 +254,8 @@ public sealed class ReplShell
         CommandUsageMemory? commandUsage = null,
         string? workspaceRoot = null,
         Action<string, string>? onStopTask = null,
-        IStreamingMarkdownProjector? streamingProjector = null)
+        IStreamingMarkdownProjector? streamingProjector = null,
+        Func<string, Task>? saveThemeAsync = null)
     {
         _engine = engine;
         _banner = banner;
@@ -262,6 +267,7 @@ public sealed class ReplShell
         _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands, new CommandGrouping(_commandUsage)) : null;
         _sizeSource = sizeSource ?? new ConsoleTerminalSizeSource();
         _copyToClipboard = clipboard;
+        _saveThemeAsync = saveThemeAsync;
         _onStopTask = onStopTask;
         _theme = ThemeSelection.Resolve(themeName);
         _atFileSuggester = workspaceRoot is null ? null : new AtFileSuggester(workspaceRoot);
@@ -2052,6 +2058,25 @@ public sealed class ReplShell
 
         _theme = ThemeSelection.Resolve(argument);
         _notifications.Enqueue($"已切换主题: {argument}");
+        // S11 遗留#1 — 持久化委托 fire-and-forget（切换即时生效不被 IO 阻断；委托内部容错静默）
+        _ = PersistThemeAsync(argument);
+    }
+
+    /// <summary>主题持久化（宿主委托写回 settings.json）— null/异常静默降级（会话级生效兜底，
+    /// 持久化失败不打扰用户 — 通知反馈已发，写盘失败下次启动回退原主题）。</summary>
+    private async Task PersistThemeAsync(string themeName)
+    {
+        try
+        {
+            if (_saveThemeAsync is { } save)
+            {
+                await save(themeName).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            // 持久化通道容错 — 配置服务写盘失败静默（降级会话级）
+        }
     }
 
     /// <summary>bash 直通执行（S10 接线 — fire-and-forget 异步执行：完成结果入并发队列，

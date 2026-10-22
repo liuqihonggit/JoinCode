@@ -49,6 +49,14 @@ public sealed class ReplShell
     /// <summary>模型选择器协调器（M7-6 — 挂起时键盘模态改道，优先级低于权限对话框）。</summary>
     private readonly ModelPickerCoordinator _modelPicker = new();
 
+    /// <summary>终端状态协调器（A5-A8 接线 — 标题/21337 tab/9;4 进度三路输出；
+    /// null = 能力降级全静默：无标题动画、无 tab/进度序列、DEC 1004 不启用 — 既有测试零破坏）。</summary>
+    private readonly TerminalStatusCoordinator? _terminalStatus;
+
+    /// <summary>终端失焦态（A7 — DEC 1004 CSI O 置 true / CSI I 置 false；默认 false = 聚焦/未知
+    ///（ReadKey 通道收不到焦点事件恒未知 — 基准 unknown 视同 focused 语义））。失焦冻结动画相位时钟。</summary>
+    private bool _focusBlurred;
+
     /// <summary>模型选择完成回调（BeginModelPicker 注入；参数 = 选中模型 id，Esc 取消为 null）。</summary>
     private Action<string?>? _modelPickerCallback;
 
@@ -380,7 +388,8 @@ public sealed class ReplShell
         Func<string, Task<string?>>? launchExternalEditor = null,
         IInputPump? inputPump = null,
         Func<string, Task<string?>>? saveExportAsync = null,
-        ISearchSource? searchSource = null)
+        ISearchSource? searchSource = null,
+        TerminalStatusCoordinator? terminalStatus = null)
     {
         _engine = engine;
         _banner = banner;
@@ -394,6 +403,7 @@ public sealed class ReplShell
         _copyToClipboard = clipboard;
         _saveThemeAsync = saveThemeAsync;
         _inputPump = inputPump ?? new ReadKeyPump();
+        _terminalStatus = terminalStatus;
         _onStopTask = onStopTask;
         _launchExternalEditor = launchExternalEditor;
         _saveExportAsync = saveExportAsync;
@@ -462,6 +472,12 @@ public sealed class ReplShell
     {
         CursorLifecycle.HideCursor(_output);
         _output.Write(DecPrivateMode.Enable(DecPrivateModeKind.BracketedPaste));
+        // A5 接线 — 焦点上报（DEC 1004）：仅协调器存在时启用（有消费者才开 — 退出 WriteExit 尾对称 Disable）
+        if (_terminalStatus is not null)
+        {
+            _output.Write(DecPrivateMode.Enable(DecPrivateModeKind.FocusReporting));
+        }
+
         SeedContent();
         while (_running)
         {
@@ -770,6 +786,15 @@ public sealed class ReplShell
     /// ，其余 Emacs 编辑（Ctrl/Meta 词操作 + kill ring），控制键走编辑/提交/权限，字符插入。</summary>
     private void HandleKeyPress(KeyPress key)
     {
+        // A7 接线 — 焦点事件拦截（DEC 1004 CSI I/O）：吞掉不分派（不插入字符），
+        // 更新失焦态 + 转发协调器（标题动画暂停/恢复）
+        if (key.Kind is KeyKind.FocusIn or KeyKind.FocusOut)
+        {
+            _focusBlurred = key.Kind == KeyKind.FocusOut;
+            _terminalStatus?.SetFocused(!_focusBlurred);
+            return;
+        }
+
         // M2 序列前缀清除 — 非 ctrl 键（打字/箭头/Esc 等）插断 ctrl+x 序列：
         // 防陈旧前缀被后续 ctrl+e 误触外部编辑器（HandleCtrlKey 入口只清 ctrl 键路径）
         if (!key.Ctrl && _ctrlXPrefix)
@@ -2724,6 +2749,10 @@ public sealed class ReplShell
         ReassertTerminalModesIfIdle();
         EnsureScreens();
         _back.Clear();
+        // A5 接线 — 会话三态归并驱动（waiting(权限/命令对话框挂起) > busy(回合中) > idle）+
+        // 标题动画时钟每拍推进（失焦冻结在 AdvanceAnimClock 内截停）
+        _terminalStatus?.SetStatus(ComputeSessionStatus());
+        _terminalStatus?.Tick(TickMs);
         AdvanceAnimClock();
         _transcript.Tick(TickMs);
         _view.Footer.Notifications?.Tick(_animTimeMs);
@@ -2771,10 +2800,16 @@ public sealed class ReplShell
     }
 
     /// <summary>动画时钟推进 + 广播：每拍 +50ms，喂给滚动区全部 IAnimatable（基准 useBlink 共享时钟 — 全实例同步闪烁）；
-    /// spinner 专属墙钟一并注入（elapsed 暂停感知，语义区别于动画相位时钟）。</summary>
+    /// spinner 专属墙钟一并注入（elapsed 暂停感知，语义区别于动画相位时钟）。
+    /// A7 接线 — 失焦冻结相位时钟（_focusBlurred 时不推进 — 失焦用户不可见动画全停省 CPU，
+    /// 恢复继续；spinner 墙钟照常注入 — 停滞检测用真实时间，失焦期流逝真实存在）。</summary>
     internal void AdvanceAnimClock()
     {
-        _animTimeMs += TickMs;
+        if (!_focusBlurred)
+        {
+            _animTimeMs += TickMs;
+        }
+
         foreach (var item in _view.Messages.Items)
         {
             if (item is IAnimatable animatable)
@@ -2785,6 +2820,16 @@ public sealed class ReplShell
 
         _spinner.WallNowMs = Environment.TickCount64;
     }
+
+    /// <summary>动画相位时钟（A7 测试断言面 — 失焦冻结/恢复推进验证）。</summary>
+    internal long AnimTimeMsInternal => _animTimeMs;
+
+    /// <summary>会话三态归并（A5 — 对齐基准 REPL.tsx:1187 sessionStatus 优先级）：
+    /// 权限/命令对话框挂起 = waiting（回合挂起等用户）；回合进行 = busy；其余 idle。</summary>
+    private TerminalSessionStatus ComputeSessionStatus() =>
+        _permission.IsPending || _commandDialog.IsPending
+            ? TerminalSessionStatus.Waiting
+            : _driver.IsBusy ? TerminalSessionStatus.Busy : TerminalSessionStatus.Idle;
 
     /// <summary>后缓冲（resize 测试断言面 — 屏尺寸/重建复用判定）。</summary>
     internal Screen? BackBuffer => _back;
@@ -2911,10 +2956,15 @@ public sealed class ReplShell
 
     /// <summary>退出序列发射公共收尾（S7 接线 — 统一追加 bracketed paste Disable + Flush +
     /// stdin 排空：基准 ink.tsx:1664-1718 drainStdin — 退出前清空在途键事件防泄漏到
-    /// 恢复 cooked 后的 shell 命令行）。</summary>
+    /// 恢复 cooked 后的 shell 命令行；
+    /// A6 接线 — 焦点上报对称 Disable（仅启用过）+ 终端状态三路清理（标题空/CLEAR_TAB_STATUS/进度 clear））。</summary>
     private void WriteExitSequences(string sequences)
     {
-        _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste));
+        var focusDisable = _terminalStatus is not null
+            ? DecPrivateMode.Disable(DecPrivateModeKind.FocusReporting)
+            : string.Empty;
+        _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste) + focusDisable);
+        _terminalStatus?.Shutdown();
         _output.Flush();
         DrainPendingConsoleInput();
     }

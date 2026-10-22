@@ -19,8 +19,12 @@ public static class Program {
                 return await RunSelftestTurnAsync().ConfigureAwait(false);
             if (args is ["--selftest-commands"])
                 return await RunSelftestCommandsAsync().ConfigureAwait(false);
+            if (args is ["--raw-input"])
+                return await RunInteractiveAsync(useRawStdinPump: true).ConfigureAwait(false);
+            if (args is ["--selftest-input"])
+                return await RunSelftestInputAsync().ConfigureAwait(false);
             if (args.Length > 0) {
-                Console.Error.WriteLine($"未知参数: {string.Join(' ', args)}。用法: NativeTui.Host [--selftest | --selftest-turn | --selftest-commands]（无参数进入交互模式，需真实终端）");
+                Console.Error.WriteLine($"未知参数: {string.Join(' ', args)}。用法: NativeTui.Host [--selftest | --selftest-turn | --selftest-commands | --raw-input]（无参数进入交互模式，需真实终端；--raw-input 启用 stdin 原始流输入泵灰度通道）");
                 return 1;
             }
 
@@ -255,7 +259,7 @@ public static class Program {
     }
 
     /// <summary>交互模式 — TTY 检查 → UTF-8 → raw mode → 引擎组装（Console.Out 重定向 stderr 防引擎污染渲染）→ REPL 主循环。</summary>
-    private static async Task<int> RunInteractiveAsync() {
+    private static async Task<int> RunInteractiveAsync(bool useRawStdinPump = false) {
         if (Console.IsInputRedirected || Console.IsOutputRedirected) {
             Console.Error.WriteLine("交互模式需要真实终端（stdin/stdout 被重定向）。请直接在终端运行 NativeTui.Host，或用 --selftest 跑非交互冒烟。");
             return 1;
@@ -315,6 +319,7 @@ public static class Program {
                 //（~/.jcc/command-history.json 坏文件静默降级空记忆）+ 工作区根（@ 文件补全索引根，banner cwd 同源）
                 var themeName = await LoadThemeNameAsync(session.Services).ConfigureAwait(false);
                 var commandUsage = await CommandUsageMemory.LoadAsync(CommandUsageMemory.DefaultFilePath).ConfigureAwait(false);
+                var rawInputPump = useRawStdinPump ? new RawStdinPump() : null;
                 var shell = new ReplShell(pickerEngine, banner, tuiOutput, commands: commands,
                     clipboard: text => _ = clipboardService?.SetTextAsync(text),
                     themeName: themeName,
@@ -332,7 +337,11 @@ public static class Program {
                     saveThemeAsync: name => SaveThemeAsync(session.Services, name),
                     // TASK064 P3 — ctrl+g 外部编辑器委托：输入文本 → temp 文件 → $EDITOR
                     //（未设置时 Windows notepad.exe / 其余 vi 兜底）→ 读回编辑后文本；失败 null 降级丢弃
-                    launchExternalEditor: text => ExternalEditorLauncher.EditAsync(text));
+                    launchExternalEditor: text => ExternalEditorLauncher.EditAsync(text),
+                    // DSG042 P2 — 输入泵通道：默认 ReadKeyPump（现役稳定）；
+                    // --raw-input 灰度启用 RawStdinPump（stdin 原始流 VT 全链 — 修饰组合键保留/
+                    // paste 整块直出；双终端实测矩阵跑齐后 P3 切默认）；引用留 Host 收尾 Dispose
+                    inputPump: rawInputPump);
                 pickerEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);
@@ -353,6 +362,9 @@ public static class Program {
                     readPassword: shell.ReadPasswordCommand);
                 shell.Run();
                 shell.WriteExit();
+                // DSG042 P2 — 原始流泵收尾（通道完成 + 读循环取消；阻塞中的 stdin Read 由
+                // IsBackground 线程随进程退出回收 — Dispose 不等待线程终结防挂）
+                rawInputPump?.Dispose();
             }
         } finally {
             Console.SetOut(originalOut);
@@ -398,6 +410,67 @@ public static class Program {
             await config.SetAsync("theme", themeName).ConfigureAwait(false);
         } catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException) {
             // 写盘失败静默降级 — 会话级主题仍生效，下次启动回退原配置
+        }
+    }
+
+    /// <summary>输入泵探针（DSG042 P2 — 真实 stdin 路径实测）：管道喂 VT 字节流
+    ///（printf '|' 形态 — 终端即往 stdin 写这些字节，管道字节流与终端形态一致）→
+    /// RawStdinPump 读线程全链（UTF-8 增量解码/前缀攒齐/paste 整块/修饰组合）→ 键位全表逐位断言。
+    /// stdin 经管道输入（探针通道 — 不经交互模式重定向守卫）；EOF 后读线程退出收敛。</summary>
+    private static async Task<int> RunSelftestInputAsync() {
+        using var pump = new RawStdinPump();
+        var keys = new List<KeyPress>();
+        var timeoutAt = Environment.TickCount64 + 5000;
+        // 收敛 = 读线程退出（stdin EOF — 半截序列残留 pending 属解析器正确语义不产出，不阻塞收敛）
+        while (pump.IsReaderAlive) {
+            if (Environment.TickCount64 > timeoutAt) {
+                Console.Error.WriteLine($"INPUT SELFTEST FAIL — 收敛超时：已收 {keys.Count} 键，pending {pump.PendingCount} 字符");
+                return 1;
+            }
+
+            pump.Drain(keys.Add);
+            await Task.Delay(10).ConfigureAwait(false);
+        }
+
+        pump.Drain(keys.Add);
+
+        var failures = new List<string>();
+        AssertInputKey(keys, 0, k => k.Kind == KeyKind.Char && k.Input == "a", "字符键 a", failures);
+        AssertInputKey(keys, 1, k => k.Kind == KeyKind.Char && k.Input == "b", "字符键 b", failures);
+        AssertInputKey(keys, 2, k => k.Ctrl && k.Input == "u", "Ctrl+U（0x15）", failures);
+        AssertInputKey(keys, 3, k => k.Kind == KeyKind.LeftArrow, "方向键 ESC[D → LeftArrow", failures);
+        AssertInputKey(keys, 4, k => k is { Kind: KeyKind.LeftArrow, Ctrl: true }, "修饰组合 ESC[1;5D → Ctrl+LeftArrow（ReadKey 通道不可得形态）", failures);
+        AssertInputKey(keys, 5, k => k.Kind == KeyKind.Paste && k.Input == "中文粘贴内容", "bracketed paste 整块（UTF-8 多字节）", failures);
+        AssertInputKey(keys, 6, k => k.Ctrl && k.Input == "_", "undo 键 0x1F → Ctrl+_", failures);
+        AssertInputKey(keys, 7, k => k.Kind == KeyKind.Char && k.Input == "你", "中文字符键（多字节解码）", failures);
+        AssertInputKey(keys, 8, k => k.Kind == KeyKind.Return, "回车 CR", failures);
+        if (keys.Count != 9) {
+            failures.Add($"键总数：期望 9 实际 {keys.Count}（多余键：{string.Join("、", keys.Skip(9).Select(k => $"{k.Kind}:{k.Input}"))}）");
+        }
+
+        if (failures.Count > 0) {
+            Console.Error.WriteLine("INPUT SELFTEST FAIL：");
+            foreach (var failure in failures) {
+                Console.Error.WriteLine($"  ✖ {failure}");
+            }
+
+            return 1;
+        }
+
+        Console.WriteLine("INPUT SELFTEST OK — stdin 原始流 VT 全链（解码/前缀攒齐/paste 整块/修饰组合）全部通过");
+        return 0;
+    }
+
+    /// <summary>单键断言辅助（越界/不匹配记失败带索引诊断）。</summary>
+    private static void AssertInputKey(List<KeyPress> keys, int index, Func<KeyPress, bool> predicate, string label, List<string> failures) {
+        if (index >= keys.Count) {
+            failures.Add($"{label}：越界（仅收 {keys.Count} 键）");
+            return;
+        }
+
+        if (!predicate(keys[index])) {
+            var k = keys[index];
+            failures.Add($"{label}：实际 {k.Kind}:{(k.Input ?? string.Empty)}{(k.Ctrl ? " Ctrl" : string.Empty)}{(k.Meta ? " Meta" : string.Empty)}");
         }
     }
 

@@ -192,6 +192,9 @@ public sealed class ReplShell
     /// 种子 effort 提示经 Enqueue 一次性入队保留首屏语义）。</summary>
     private readonly ReplNotifications _notifications = new();
 
+    /// <summary>键盘输入泵（DSG042 — 通道抽象：ReadKeyPump 现役 / RawStdinPump 原始流灰度）。</summary>
+    private readonly IInputPump _inputPump;
+
     /// <summary>剪贴板写入委托（TASK059 — Ctrl+C 复制最后 assistant 消息；宿主注入引擎
     /// IClipboardService 适配，Core 零依赖不持接口；null = 复制能力降级无操作）。</summary>
     private readonly Action<string>? _copyToClipboard;
@@ -296,7 +299,8 @@ public sealed class ReplShell
         Action<string, string>? onStopTask = null,
         IStreamingMarkdownProjector? streamingProjector = null,
         Func<string, Task>? saveThemeAsync = null,
-        Func<string, Task<string?>>? launchExternalEditor = null)
+        Func<string, Task<string?>>? launchExternalEditor = null,
+        IInputPump? inputPump = null)
     {
         _engine = engine;
         _banner = banner;
@@ -309,6 +313,7 @@ public sealed class ReplShell
         _sizeSource = sizeSource ?? new ConsoleTerminalSizeSource();
         _copyToClipboard = clipboard;
         _saveThemeAsync = saveThemeAsync;
+        _inputPump = inputPump ?? new ReadKeyPump();
         _onStopTask = onStopTask;
         _launchExternalEditor = launchExternalEditor;
         _theme = ThemeSelection.Resolve(themeName);
@@ -614,132 +619,15 @@ public sealed class ReplShell
     private void AddMessage(IScrollItem item) =>
         _view.Messages.Insert(_view.Messages.Count - 1, item);
 
-    /// <summary>待分派键缓冲（S7 接线 — bracketed paste 重组回退路径：误判序列时已读键塞回防丢）。</summary>
-    private readonly Queue<ConsoleKeyInfo> _pendingKeys = new();
+    /// <summary>排空键盘事件（非阻塞）— 输入泵通道（DSG042：ReadKeyPump 现役 / RawStdinPump
+    /// 原始流灰度）排空已解析键统一分派；泵内归一/paste 重组语义见各实现。</summary>
+    private void DrainInput() =>
+        _inputPump.Drain(HandleRawKeyPress);
 
-    /// <summary>排空键盘事件（非阻塞）— ReadKey 归一 KeyPress 后统一分派；
-    /// S7 接线 — bracketed paste 重组：ReadKey 把 ESC[200~/201~ 拆散为逐键 KeyInfo，
-    /// ESC 后紧跟连续输入时判定 paste 标记序列并重装为整块 Paste 事件
-    ///（孤立 Esc 即时分派不受影响 — paste 序列一次性到达，KeyAvailable 恒连续）。</summary>
-    private void DrainInput()
-    {
-        while (_running && (_pendingKeys.Count > 0 || Console.KeyAvailable))
-        {
-            var info = _pendingKeys.Count > 0 ? _pendingKeys.Dequeue() : Console.ReadKey(intercept: true);
-            if (info.Key == ConsoleKey.Escape && info.KeyChar == '\u001b' && TryCollectPaste(out var content))
-            {
-                HandleRawKeyPress(ConsoleKeyAdapter.Paste(content));
-                continue;
-            }
 
-            HandleKey(info);
-        }
-    }
 
-    /// <summary>尝试收集 bracketed paste 块（S7 接线）— 前提：ESC 键已消费。
-    /// ESC 后无后续键 = 孤立 Esc（false，调用方正常分派）；后续键非 '[' 或非 "200~" 起始标记 =
-    /// 误撞组合（false，已读键塞回 pending 两键都走正常分派）；起始标记完整后收集内容直到
-    /// ESC[201~ 终止标记（true，out 携带粘贴原文）；收集期流中断整体放弃吞掉（防泄漏为文本）。</summary>
-    private bool TryCollectPaste(out string content)
-    {
-        content = string.Empty;
-        if (!Console.KeyAvailable)
-        {
-            return false;
-        }
 
-        var bracket = Console.ReadKey(intercept: true);
-        if (bracket.KeyChar != '[')
-        {
-            _pendingKeys.Enqueue(bracket);
-            return false;
-        }
 
-        var consumed = new List<ConsoleKeyInfo> { bracket };
-        if (!TryMatchPasteStart(consumed))
-        {
-            Requeue(consumed);
-            return false;
-        }
-
-        // 内容收集（终止标记未完整到达 = 流中断/误撞，整体放弃吞掉防泄漏为文本；空粘贴同判 false = 无操作）
-        var body = CollectPasteBody();
-        if (body.Length == 0)
-        {
-            return false;
-        }
-
-        content = body;
-        return true;
-    }
-
-    /// <summary>匹配 paste 起始标记剩余字符 "200~"（逐字符读，不匹配/流中断返回 false — 已读键入 consumed）。</summary>
-    private static bool TryMatchPasteStart(List<ConsoleKeyInfo> consumed)
-    {
-        foreach (var expected in "200~")
-        {
-            if (!Console.KeyAvailable)
-            {
-                return false;
-            }
-
-            var info = Console.ReadKey(intercept: true);
-            consumed.Add(info);
-            if (info.KeyChar != expected)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /// <summary>收集 paste 内容直到终止标记 ESC[201~ — 内容字符直积（\r\n 原样保留由
-    /// PastedContentTracker 清洗归一）；遇 ESC 尝试匹配终止标记，失败/流中断整体放弃（吞掉返回空）。</summary>
-    private static string CollectPasteBody()
-    {
-        var buffer = new StringBuilder();
-        while (Console.KeyAvailable)
-        {
-            var info = Console.ReadKey(intercept: true);
-            if (info.KeyChar == '\u001b')
-            {
-                return TryMatchPasteEnd() ? buffer.ToString() : string.Empty;
-            }
-
-            buffer.Append(info.KeyChar);
-        }
-
-        return string.Empty;
-    }
-
-    /// <summary>匹配 paste 终止标记剩余 "[201~"（ESC 已消费）。</summary>
-    private static bool TryMatchPasteEnd()
-    {
-        foreach (var expected in "[201~")
-        {
-            if (!Console.KeyAvailable)
-            {
-                return false;
-            }
-
-            if (Console.ReadKey(intercept: true).KeyChar != expected)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /// <summary>已读键按序塞回待分派缓冲（误判回退 — 键不丢）。</summary>
-    private void Requeue(List<ConsoleKeyInfo> consumed)
-    {
-        foreach (var info in consumed)
-        {
-            _pendingKeys.Enqueue(info);
-        }
-    }
 
     /// <summary>按键归一 + 分派（对齐基准 useTextInput.mapKey 优先级顺序 — 测试经 ConsoleKeyInfo 全链注入）；
     /// 文本变化才刷新建议（导航/移动键不重置选中索引；程序化填充跳过 — 历史导航不触发补全）。</summary>

@@ -132,6 +132,12 @@ public sealed class ReplShell
     /// <summary>暂存单槽内容（internal — 测试断言面；空串 = 无暂存）。</summary>
     internal string StashedInput => _stashedInput;
 
+    /// <summary>外部编辑器会话进行中（internal — 测试断言面）。</summary>
+    internal bool ExternalEditorActive => _externalEditorActive;
+
+    /// <summary>外部编辑器进行中任务句柄（internal — 测试 await 完成面；null = 无进行中会话）。</summary>
+    internal Task? ExternalEditorTask => _externalEditorTask;
+
     /// <summary>帮助面板开关（S6 任务 5 — 空闲态 '?' 弹出；分派链插在 suggestion/transcript 之后）。</summary>
     private bool _helpOpen;
 
@@ -199,6 +205,30 @@ public sealed class ReplShell
     /// Core 零依赖不持接口（对齐 clipboard 注入先例）；null = 停止能力降级，x 走正常字符插入）。</summary>
     private readonly Action<string, string>? _onStopTask;
 
+    /// <summary>后台任务详情对话框开（M8-8 登记遗留收口 — 选中态 Enter 挂载，Esc/left 关闭；
+    /// 对齐 _helpOpen 轻量模态先例 — 对话框快照构造无协调器，挂载态由本标记承载分派路由；
+    /// 激活期间分派链插入选中态之前吞全部按键，关闭后回选中态继续导航）。</summary>
+    private bool _backgroundTaskDetailOpen;
+
+    /// <summary>后台任务详情对话框态（internal — 测试断言面）。</summary>
+    internal bool IsBackgroundTaskDetailOpen => _backgroundTaskDetailOpen;
+
+    /// <summary>外部编辑器启动委托（TASK064 P3 — 基准 defaultBindings.ts:83-84 ctrl+g/ctrl+x ctrl+e →
+    /// chat:externalEditor → $EDITOR）：输入文本 → 编辑后文本；null = 编辑器失败/取消降级丢弃。
+    /// Core 零依赖不启动进程 — 宿主注入（对齐 clipboard/onStopTask 注入先例）。</summary>
+    private readonly Func<string, Task<string?>>? _launchExternalEditor;
+
+    /// <summary>外部编辑器会话进行中（防重入 — 编辑器未收尾前再按 ctrl+g 无操作，不并发开两个编辑器）。</summary>
+    private bool _externalEditorActive;
+
+    /// <summary>外部编辑器进行中任务句柄（fire-and-forget 保留引用 — internal 测试 await 面）。</summary>
+    private Task? _externalEditorTask;
+
+    /// <summary>外部编辑器完成结果缓冲（TASK064 P3 — 完成于线程池线程，FillInput 必须回主循环线程
+    ///（与渲染循环竞争 _input），复用 bash 直通跨线程缓冲 + DrainEngine 主循环消费先例）：
+    /// 元组 = (发起时原文, 编辑后文本 — null = 编辑器失败/取消丢弃信号)。</summary>
+    private readonly ConcurrentQueue<(string Original, string? Edited)> _externalEditorResults = new();
+
     /// <summary>主循环存活标记（internal — 退出安全测试断言面：Esc/Ctrl+C 永不置 false）。</summary>
     internal bool IsRunning => _running;
 
@@ -247,7 +277,9 @@ public sealed class ReplShell
     /// workspaceRoot=工作区根目录（S10 接线 — @ 文件补全索引根；null = @ 补全禁用降级）；
     /// onStopTask=后台任务停止委托（M8-8 后续 — 空闲态 x 停止面板运行中任务，参数 = (kind, taskId)；
     /// null = 停止能力降级，x 走正常字符插入）；
-    /// streamingProjector=流式 Markdown 块级增量投影器（方案 B 卫星注入；null = 纯文本降级 M8-1 行为）。</summary>
+    /// streamingProjector=流式 Markdown 块级增量投影器（方案 B 卫星注入；null = 纯文本降级 M8-1 行为）；
+    /// launchExternalEditor=外部编辑器启动委托（TASK064 P3 — ctrl+g 编辑当前输入；
+    /// 输入文本 → 编辑后文本，null = 失败/取消降级丢弃；null 委托 = 能力降级 ctrl+g 无操作）。</summary>
     public ReplShell(
         IReplEngine engine,
         BannerItem banner,
@@ -263,7 +295,8 @@ public sealed class ReplShell
         string? workspaceRoot = null,
         Action<string, string>? onStopTask = null,
         IStreamingMarkdownProjector? streamingProjector = null,
-        Func<string, Task>? saveThemeAsync = null)
+        Func<string, Task>? saveThemeAsync = null,
+        Func<string, Task<string?>>? launchExternalEditor = null)
     {
         _engine = engine;
         _banner = banner;
@@ -277,6 +310,7 @@ public sealed class ReplShell
         _copyToClipboard = clipboard;
         _saveThemeAsync = saveThemeAsync;
         _onStopTask = onStopTask;
+        _launchExternalEditor = launchExternalEditor;
         _theme = ThemeSelection.Resolve(themeName);
         _atFileSuggester = workspaceRoot is null ? null : new AtFileSuggester(workspaceRoot);
         // S9 接线 — spinner 终端字符集探测注入一次（会话期终端类型不变；Windows Terminal/默认 `*` 集）
@@ -430,6 +464,9 @@ public sealed class ReplShell
 
         // S10 接线 — bash 直通结果上屏（主循环线程消费并发队列）
         DrainBashResults();
+
+        // TASK064 P3 — 外部编辑器结果回填（主循环线程消费并发队列 — FillInput 与渲染循环同线程）
+        DrainExternalEditorResults();
     }
 
     /// <summary>打断恢复（M8-2）— 该回合用户消息之后无实质响应项（assistant/工具/流式/错误/子代理）
@@ -777,6 +814,16 @@ public sealed class ReplShell
             return;
         }
 
+        // M8-8 登记遗留收口 — 后台任务详情对话框模态（选中态 Enter 挂载，Esc/left 关闭 —
+        // 对齐 permission/modelPicker 模态优先先例）：插入选中态之前（对话框激活期间全部按键
+        // 路由到对话框分支吞掉；选中态保持激活，关闭后无缝回选中导航继续操作 — Enter 挂载
+        // 不可重入：本分支拦截 Enter 不再触发 ShowSelectedBackgroundTask）
+        if (_backgroundTaskDetailOpen)
+        {
+            HandleBackgroundTaskDetailKey(key);
+            return;
+        }
+
         // M8-8 登记遗留 — 后台任务面板选中导航模态（对齐 _cursorNav 轻量模态形态 — 纯状态机
         // 不新增对话框项）：置于光标导航之后（两模态互斥，光标导航优先 — 任务选中态激活时
         // Shift+Up 等键在本分支被吞，不会误入光标导航）、补全之前（选中态吞全部字符键 —
@@ -976,6 +1023,10 @@ public sealed class ReplShell
                 break;
             case "f":
                 _input.Right();
+                break;
+            case "g":
+                // TASK064 P3 — 基准 defaultBindings.ts:83-84 ctrl+g/ctrl+x ctrl+e → chat:externalEditor → $EDITOR
+                LaunchExternalEditor();
                 break;
             case "h":
                 _input.Backspace();
@@ -1315,10 +1366,12 @@ public sealed class ReplShell
     /// 后台任务面板选中导航模态按键（M8-8 登记遗留 — 基准 BackgroundTasksDialog.tsx 导航态 +
     /// useBackgroundTaskNavigation.ts:181-189，对齐 HandleCursorNavKey 轻量模态形态）：
     /// ↑/↓/k/j 相邻 running 条目移动（MoveSelection 跳终态 + 窗口跟随）、Enter 查看选中任务
-    /// （首版 = ToolResultItem 消息四元组 — 全屏详情对话框留后续）、x 停止选中（复用
+    /// （详情对话框挂载 — ShowSelectedBackgroundTask，M8-8 登记遗留收口升级）、x 停止选中（复用
     /// StopRunningBackgroundTask — SelectedEntry 终态守卫回退首个 running；选中态为用户
     /// 主动保持的模态，忙时不强制退出，后台任务与前台回合独立可停）、Esc 退出选中态
-    /// （ClearSelection 归 -1 + 窗口归 0）；其余按键全部吞掉（模态 — 字符不进输入缓冲）。
+    /// （ClearSelection 归 -1 + 窗口归 0）、left 退出选中态（D 批次遗留 left 退出键 — 基准
+    /// BackgroundTasksDialog left 关闭语义；对话框态的 left 由 HandleBackgroundTaskDetailKey
+    /// 消费关闭对话框，两态互斥不冲突）；其余按键全部吞掉（模态 — 字符不进输入缓冲）。
     /// </summary>
     private void HandleBackgroundTaskSelectionKey(KeyPress key)
     {
@@ -1342,6 +1395,10 @@ public sealed class ReplShell
             case KeyKind.DownArrow:
                 _view.BackgroundTasks.MoveSelection(1);
                 return;
+            case KeyKind.LeftArrow:
+                // D 批次遗留 left 退出键（基准 BackgroundTasksDialog left 关闭）— 退出选中态回常态
+                _view.BackgroundTasks.ClearSelection();
+                return;
             case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input is "k":
                 _view.BackgroundTasks.MoveSelection(-1);
                 return;
@@ -1361,17 +1418,30 @@ public sealed class ReplShell
     /// 键位门槛已由分派链进入点保证 HasRunning，此处必命中）。</summary>
     private void BeginBackgroundTaskSelection() => _view.BackgroundTasks.MoveSelection(1);
 
-    /// <summary>Enter 查看选中任务详情（首版 = ToolResultItem 消息显示 kind/taskId/description/state
-    /// 四元组，协议 state 原串直显 — 与面板汉化文案对照无歧义；查看后保持选中态支持连续操作；
-    /// 全屏详情对话框留后续登记）。无选中/索引越界防御 no-op。</summary>
+    /// <summary>Enter 查看选中任务详情（M8-8 登记遗留收口 — 升级为详情对话框挂载滚动区：
+    /// BackgroundTaskDetailDialog 快照构造（Entry + 墙钟），对齐 ModelPicker 挂载模式
+    /// AddMessage + 关闭时 RemoveDialogItem 移除；查看后保持选中态（对话框关闭回选中态
+    /// 可继续导航 — 对话框激活期间按键路由见 HandleBackgroundTaskDetailKey；挂载不可重入 —
+    /// 分派链对话框分支拦截 Enter）。无选中/索引越界防御 no-op。</summary>
     private void ShowSelectedBackgroundTask()
     {
         var tasks = _view.BackgroundTasks.Tasks;
         if (_view.BackgroundTasks.SelectedIndex is >= 0 and var index && index < tasks.Count)
         {
-            var task = tasks[index];
-            AddMessage(new ToolResultItem(
-                $"后台任务详情 — kind: {task.Kind} · id: {task.TaskId} · 描述: {task.Description} · 状态: {task.State}"));
+            _backgroundTaskDetailOpen = true;
+            AddMessage(new BackgroundTaskDetailDialog(tasks[index], Environment.TickCount64));
+        }
+    }
+
+    /// <summary>后台任务详情对话框模态按键（对齐 HandleHelpKey 轻量模态形态 — 详情只读无交互，
+    /// 数据快照构造无协调器）：Esc / left 关闭对话框（置 false + RemoveDialogItem 移除滚动区项 —
+    /// 回选中态继续导航，选中态全程保持激活）；其余按键全部吞掉（模态 — 字符不进输入缓冲）。</summary>
+    private void HandleBackgroundTaskDetailKey(KeyPress key)
+    {
+        if (key.Kind is KeyKind.Escape or KeyKind.LeftArrow)
+        {
+            _backgroundTaskDetailOpen = false;
+            RemoveDialogItem<BackgroundTaskDetailDialog>();
         }
     }
 
@@ -2463,6 +2533,53 @@ public sealed class ReplShell
         if (stashed.Length > 0)
         {
             FillInput(stashed, cursorToStart: false);
+        }
+    }
+
+    /// <summary>ctrl+g 打开外部编辑器编辑当前输入（TASK064 P3 — 基准 defaultBindings.ts:83-84
+    /// ctrl+g/ctrl+x ctrl+e → $EDITOR）：空输入/委托未注入/编辑会话进行中均无操作；
+    /// fire-and-forget 异步等待（编辑器期间主循环继续渲染不冻屏 — 输入框可继续输入，
+    /// 首版简化：发起时记录原文，编辑器完成后输入框未变才回填编辑结果，已变丢弃防覆盖用户编辑）。</summary>
+    private void LaunchExternalEditor()
+    {
+        var text = _input.Text;
+        if (text.Length == 0 || _launchExternalEditor is null || _externalEditorActive)
+        {
+            return;
+        }
+
+        _externalEditorActive = true;
+        _externalEditorTask = EditInExternalEditorAsync(text);
+    }
+
+    /// <summary>外部编辑器异步等待体 — 线程池完成不触 UI 状态（结果入并发队列，
+    /// DrainExternalEditorResults 主循环消费）；委托异常/失败结果静默降级丢弃（对齐 bash 直通容错先例）。</summary>
+    private async Task EditInExternalEditorAsync(string originalText)
+    {
+        try
+        {
+            var edited = await _launchExternalEditor!(originalText).ConfigureAwait(false);
+            _externalEditorResults.Enqueue((originalText, edited));
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            // 编辑器通道容错 — 失败入队 null 信号（仅复位会话标记，输入框不受打扰）
+            _externalEditorResults.Enqueue((originalText, null));
+        }
+    }
+
+    /// <summary>外部编辑器结果消费（DrainEngine 每拍 — 主循环线程）：
+    /// null = 失败/取消丢弃；输入框与发起时原文一致才回填编辑结果（已变丢弃 — 用户编辑优先，
+    /// 编辑结果含空串 = 用户清空文本的合法编辑形态）。</summary>
+    private void DrainExternalEditorResults()
+    {
+        while (_externalEditorResults.TryDequeue(out var result))
+        {
+            _externalEditorActive = false;
+            if (result.Edited is { } edited && _input.Text == result.Original)
+            {
+                FillInput(edited, cursorToStart: false);
+            }
         }
     }
 }

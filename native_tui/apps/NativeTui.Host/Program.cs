@@ -329,7 +329,10 @@ public static class Program {
                     streamingProjector: new StreamingMarkdownProjector(),
                     // S11 遗留#1 — /theme 持久化：合法切换写回引擎 settings.json theme 键
                     //（IConfigurationService.SetAsync；写盘失败静默降级会话级 — ReplShell 侧容错）
-                    saveThemeAsync: name => SaveThemeAsync(session.Services, name));
+                    saveThemeAsync: name => SaveThemeAsync(session.Services, name),
+                    // TASK064 P3 — ctrl+g 外部编辑器委托：输入文本 → temp 文件 → $EDITOR
+                    //（未设置时 Windows notepad.exe / 其余 vi 兜底）→ 读回编辑后文本；失败 null 降级丢弃
+                    launchExternalEditor: text => ExternalEditorLauncher.EditAsync(text));
                 pickerEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);

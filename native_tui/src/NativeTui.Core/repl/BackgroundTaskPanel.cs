@@ -230,8 +230,9 @@ public sealed class BackgroundTaskPanel
     internal static bool IsFinal(string state) =>
         state is CompletedState or FailedState or CancelledState;
 
-    /// <summary>状态文案汉化（running 运行中 / completed 已完成 / failed 失败 / cancelled 已取消；未知值原样显示 — 协议演进宽容）。</summary>
-    private static string StatusText(string state) => state switch
+    /// <summary>状态文案汉化（running 运行中 / completed 已完成 / failed 失败 / cancelled 已取消；未知值原样显示 — 协议演进宽容）。
+    /// 消费方：本面板 Render 状态段 + BackgroundTaskDetailDialog 详情状态行（internal — 单一映射源不双维护）。</summary>
+    internal static string StatusText(string state) => state switch
     {
         RunningState => "运行中",
         CompletedState => "已完成",

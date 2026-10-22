@@ -32,7 +32,7 @@ public sealed class ReplShellHistoryTests
 
     /// <summary>Ctrl+R 按键注入。</summary>
     private static void PressCtrlR(ReplShell shell) =>
-        shell.HandleKey(new ConsoleKeyInfo('', ConsoleKey.R, true, false, false));
+        shell.HandleKey(new ConsoleKeyInfo('\u0012', ConsoleKey.R, false, false, true));
 
     /// <summary>提交两条并回到空输入态。</summary>
     private static void SubmitTwo(ReplShell shell)

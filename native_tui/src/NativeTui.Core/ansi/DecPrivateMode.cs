@@ -24,6 +24,9 @@ public enum DecPrivateModeKind
     /// <summary>SGR 鼠标编码（十进制坐标，\x1b[&lt;btn;col;rowM）。</summary>
     MouseSgrEncoding = 1006,
 
+    /// <summary>焦点上报（CSI I 获得 / CSI O 失去 — 基准 terminal-focus-state.ts 三态 focused/blurred/unknown）。</summary>
+    FocusReporting = 1004,
+
     /// <summary>括号粘贴模式（\x1b[200~/201~ 包裹粘贴内容）。</summary>
     BracketedPaste = 2004,
 

@@ -335,6 +335,29 @@ public static class Program {
                 var themeName = await LoadThemeNameAsync(session.Services).ConfigureAwait(false);
                 var commandUsage = await CommandUsageMemory.LoadAsync(CommandUsageMemory.DefaultFilePath).ConfigureAwait(false);
                 var rawInputPump = useRawStdinPump ? new RawStdinPump(terminalQuerier) : null;
+                // TASK066 板块A — 终端状态三路装配（标题/21337 tab/9;4 进度）：
+                // 标题写通道平台分流（基准 use-terminal-title.ts：Windows=process.title → Console.Title，
+                // 其余 OSC 0 经 TUI 输出流）；CLAUDE_CODE_DISABLE_TERMINAL_TITLE 对齐禁用；
+                // tab 状态默认开 + JCC_TUI_TAB_STATUS=0 关闭；进度走能力判定（WT 排除/ConEmu 白名单）
+                var titleTracker = new TerminalTitleTracker(
+                    "JoinCode",
+                    OperatingSystem.IsWindows()
+                        ? title => Console.Title = title
+                        : title => tuiOutput.Write(Osc.SetTitle(title)),
+                    disabled: Environment.GetEnvironmentVariable("CLAUDE_CODE_DISABLE_TERMINAL_TITLE") is not null
+                        and not ("0" or "false"));
+                var tabStatusEnabled = Environment.GetEnvironmentVariable("JCC_TUI_TAB_STATUS") != "0";
+                var terminalStatus = new TerminalStatusCoordinator(
+                    tuiOutput, titleTracker, tabStatusEnabled,
+                    progressEnabled: TerminalCapabilities.IsProgressReportingAvailable());
+                // TASK066 板块B 连线B4 — 用户键位装配（~/.jcc/keybindings.json 覆盖默认表）：
+                // 缺文件静默回退默认（ENOENT 语义）；坏条目尽力合并（合法条目生效、错误条目跳过）
+                // + 校验错误 stderr 诊断不中断启动（对齐 command-history 坏文件降级 + 诊断先例）
+                var keybindingLoad = KeybindingLoader.Load();
+                foreach (var keybindingError in keybindingLoad.Errors)
+                {
+                    Console.Error.WriteLine(keybindingError.ToString());
+                }
                 var shell = new ReplShell(pickerEngine, banner, tuiOutput, commands: commands,
                     clipboard: text => _ = clipboardService?.SetTextAsync(text),
                     themeName: themeName,
@@ -362,7 +385,12 @@ public static class Program {
                     // DSG042 P2 — 输入泵通道：默认 ReadKeyPump（现役稳定）；
                     // --raw-input 灰度启用 RawStdinPump（stdin 原始流 VT 全链 — 修饰组合键保留/
                     // paste 整块直出；双终端实测矩阵跑齐后 P3 切默认）；引用留 Host 收尾 Dispose
-                    inputPump: rawInputPump);
+                    inputPump: rawInputPump,
+                    // TASK066 板块A — 终端状态协调器（null 降级路径仅测试用 — 宿主恒装配）
+                    terminalStatus: terminalStatus,
+                    // TASK066 板块B — 键位绑定表（用户 json 合并结果 — 全局键层表驱动数据源，
+                    // esc/ctrl+g/ctrl+o/ctrl+l/ctrl+r/ctrl+s/ctrl+d 等非模态全局键走表查询）
+                    keybindings: keybindingLoad.Profile);
                 pickerEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);

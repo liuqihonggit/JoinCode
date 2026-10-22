@@ -157,4 +157,55 @@ public sealed class TerminalCapabilitiesTests
         Assert.Equal(12, frames.Length);
         Assert.Equal(frames[..6], frames[6..].Reverse().ToArray());
     }
+
+    // ---- OSC 9;4 进度上报能力（A4 — 对齐基准 ink/terminal.ts isProgressReportingAvailable）----
+
+    [Fact]
+    public void Progress_EmptyEnvironment_ConservativeFalse()
+    {
+        // 未知终端保守 false — 不发 9;4（Windows Terminal 会把 9;4 当通知弹窗）
+        Assert.False(TerminalCapabilities.IsProgressReportingAvailable(Env()));
+    }
+
+    [Fact]
+    public void Progress_WindowsTerminal_ExcludedExplicitly()
+    {
+        // 基准注释：Windows Terminal interprets OSC 9;4 as notifications, not progress
+        // WT_SESSION 非空 → 显式排除 false（判定序最前 — 即便同时有 ConEmu 信号）
+        Assert.False(TerminalCapabilities.IsProgressReportingAvailable(
+            Env(("WT_SESSION", "uuid"), ("ConEmuANSI", "ON"))));
+    }
+
+    [Theory]
+    [InlineData("ConEmuANSI")]
+    [InlineData("ConEmuPID")]
+    public void Progress_ConEmu_True(string key)
+    {
+        // ConEmu supports OSC 9;4 for progress (all versions)
+        Assert.True(TerminalCapabilities.IsProgressReportingAvailable(Env((key, "1"))));
+    }
+
+    [Fact]
+    public void Progress_Ghostty_True()
+    {
+        // Ghostty 1.2.0+（TERM_PROGRAM=ghostty）
+        Assert.True(TerminalCapabilities.IsProgressReportingAvailable(
+            Env(("TERM_PROGRAM", "ghostty"))));
+    }
+
+    [Fact]
+    public void Progress_Iterm2_True()
+    {
+        // iTerm2 3.6.6+（TERM_PROGRAM=iTerm.app）
+        Assert.True(TerminalCapabilities.IsProgressReportingAvailable(
+            Env(("TERM_PROGRAM", "iTerm.app"))));
+    }
+
+    [Fact]
+    public void Progress_AppleTerminal_False()
+    {
+        // 白名单外终端保守 false
+        Assert.False(TerminalCapabilities.IsProgressReportingAvailable(
+            Env(("TERM_PROGRAM", "Apple_Terminal"))));
+    }
 }

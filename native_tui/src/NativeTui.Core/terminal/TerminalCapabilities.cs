@@ -36,6 +36,8 @@ public static class TerminalCapabilities
         "ZED_TERM",
         "WT_SESSION",
         "VTE_VERSION",
+        "ConEmuANSI",
+        "ConEmuPID",
     ];
 
     /// <summary>当前进程环境的 DEC 2026 支持探测（每会话一次 — 构造 FrameComposer 时消费）。</summary>
@@ -118,6 +120,44 @@ public static class TerminalCapabilities
     /// </summary>
     /// <returns>12 帧往返弹跳字符序列。</returns>
     public static string[] DetectSpinnerFrames() => SpinnerCharsets.Detect();
+
+    /// <summary>
+    /// 当前进程环境的 OSC 9;4 任务栏进度上报能力（每会话一次 — busy/回合结束上报消费）。
+    /// 输出重定向（非 TTY，如 selftest 管道）直接 false。
+    /// </summary>
+    /// <returns>支持 true；不支持 false（进度上报静默跳过）。</returns>
+    public static bool IsProgressReportingAvailable() =>
+        !Console.IsOutputRedirected && IsProgressReportingAvailable(EnvironmentSnapshot());
+
+    /// <summary>
+    /// OSC 9;4 进度上报能力纯函数（env 注入可测，键大小写不敏感）。
+    /// 判定序对齐基准 ink/terminal.ts isProgressReportingAvailable：
+    /// ① WT_SESSION 非空 → false（**显式排除** — Windows Terminal 把 9;4 当通知弹窗而非进度条）；
+    /// ② ConEmuANSI / ConEmuPID 非空 → true（ConEmu 全版本支持）；
+    /// ③ TERM_PROGRAM = ghostty → true（Ghostty 1.2.0+）；
+    /// ④ TERM_PROGRAM = iTerm.app → true（iTerm2 3.6.6+）；
+    /// ⑤ 其余未知终端 → false（保守 — 9;4 误发会成通知弹窗，比漏发更扰民）。
+    /// </summary>
+    /// <param name="env">环境变量快照（键→值，值 null 视为未设置）。</param>
+    /// <returns>是否支持 OSC 9;4 进度上报。</returns>
+    public static bool IsProgressReportingAvailable(IReadOnlyDictionary<string, string?> env)
+    {
+        var vars = Normalize(env);
+
+        // Windows Terminal 将 OSC 9;4 解释为通知 — 判定序最前，显式排除（基准注释同译）
+        if (IsSet(vars, "WT_SESSION"))
+        {
+            return false;
+        }
+
+        if (IsSet(vars, "ConEmuANSI") || IsSet(vars, "ConEmuPID"))
+        {
+            return true;
+        }
+
+        var termProgram = vars.GetValueOrDefault("TERM_PROGRAM");
+        return termProgram is "ghostty" or "iTerm.app";
+    }
 
     /// <summary>环境快照归一化（键忽略大小写 — Windows 环境块不区分大小写，Unix 区分，统一语义）。</summary>
     private static Dictionary<string, string?> Normalize(IReadOnlyDictionary<string, string?> env)

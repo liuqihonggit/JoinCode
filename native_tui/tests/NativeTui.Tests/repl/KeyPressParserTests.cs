@@ -208,6 +208,31 @@ public sealed class KeyPressParserTests
     }
 
     [Fact]
+    public void FocusInSequence_ParsesAsFocusIn()
+    {
+        // 基准 DECSET 1004 焦点上报：CSI I = 获得焦点（terminal-focus-state.ts setTerminalFocused(true)）
+        var key = ParseOne("\u001b[I");
+        Assert.Equal(KeyKind.FocusIn, key.Kind);
+    }
+
+    [Fact]
+    public void FocusOutSequence_ParsesAsFocusOut()
+    {
+        // CSI O = 失去焦点 — 注意与 SS3 应用模式（ESC O final，如 ESC OA=上方向键）前缀区分：
+        // 焦点序列是 ESC [ O（CSI 带方括号），方向键是 ESC O A（SS3 无方括号）
+        var key = ParseOne("\u001b[O");
+        Assert.Equal(KeyKind.FocusOut, key.Kind);
+    }
+
+    [Fact]
+    public void FocusSequence_DoesNotConflateWithSs3()
+    {
+        // SS3 上方向键（ESC O A）不受焦点序列影响
+        var key = ParseOne("\u001bOA");
+        Assert.Equal(KeyKind.UpArrow, key.Kind);
+    }
+
+    [Fact]
     public void IncompletePrefix_ReturnsFalseWithoutConsuming()
     {
         var span = "\u001b[".AsSpan();
@@ -291,14 +316,16 @@ public sealed class KeyPressParserTests
     }
 
     [Fact]
-    public void ModifyOtherKeysThreePartSequence_SwallowsWithoutLeaking()
+    public void ModifyOtherKeysThreePartSequence_DecodesShiftEnter()
     {
         // ESC[27;2;13~ = modifyOtherKeys Shift+Enter（SSH/终端预配置场景真实到达）
-        // 契约：无法识别的序列整体吞掉，禁止碎片泄漏为文本
+        // B1 融合后正确解码（对齐基准 ink MODIFY_OTHER_KEYS_RE 分支 — 原保守吞 Unknown 契约被取代）；
+        // 尾随 'x' 不受影响（整体消耗无碎片泄漏）
         var keys = ParseAll("\u001b[27;2;13~x");
         Assert.Equal(2, keys.Count);
-        Assert.Equal(KeyKind.Unknown, keys[0].Kind);
-        Assert.Equal(string.Empty, keys[0].Input);
+        Assert.Equal(KeyKind.Return, keys[0].Kind);
+        Assert.True(keys[0].Shift);
+        Assert.False(keys[0].Ctrl);
         Assert.Equal(KeyKind.Char, keys[1].Kind);
         Assert.Equal("x", keys[1].Input);
     }

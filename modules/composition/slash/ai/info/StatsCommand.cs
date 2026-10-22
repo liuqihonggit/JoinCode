@@ -43,16 +43,12 @@ public sealed class StatsCommand : ChatCommandBase {
             _ => usageTracker.GetTodayStatistics()
         };
 
-        if (stats is null) {
-            TerminalHelper.WriteLine($"{TerminalColors.Muted}  暂无统计数据{AnsiStyleEnumConstants.Reset}");
-            return ChatCommandResult.Continue();
-        }
-
+        // IUsageTracker 契约非空 — 实现方无记录时返回全零统计而非 null,无需 null 防御
         var data = MapToStatsData(stats, context);
 
         TerminalHelper.WriteLine(new StatsRenderer().Render(data));
 
-        if (stats is not null && (stats.TotalCacheCreationTokens > 0 || stats.TotalCacheReadTokens > 0)) {
+        if (stats.TotalCacheCreationTokens > 0 || stats.TotalCacheReadTokens > 0) {
             TerminalHelper.WriteLine($"{TerminalColors.Muted}  缓存创建: {stats.TotalCacheCreationTokens:N0}, 缓存读取: {stats.TotalCacheReadTokens:N0}{AnsiStyleEnumConstants.Reset}");
         }
 
@@ -298,8 +294,6 @@ public sealed class StatsCommand : ChatCommandBase {
     }
 
     private StatsData MapToStatsData(TokenUsageStatistics stats, ChatCommandContext context) {
-        if (stats is null) return new StatsData { TotalSessions = 0, ActiveDays = 0 };
-
         var data = new StatsData {
             TotalSessions = stats.TotalRequests > 0 ? 1 : 0,
             TotalInputTokens = (int)Math.Min(stats.TotalInputTokens, int.MaxValue),

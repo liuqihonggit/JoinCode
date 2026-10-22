@@ -1,10 +1,11 @@
 namespace Composition.Tests.Commands;
 
 /// <summary>
-/// /logout 命令单元测试 — 覆盖 all 登出(非交互环境确认拒绝降级)/OAuth Token 登出/
+/// /logout 命令单元测试 — 覆盖 all 登出(Confirm 回调 true 执行/回调 false 拒绝/
+/// 未注入回调时静态 Dialog 非交互确认拒绝降级)/OAuth Token 登出/
 /// API Key 从 auth.json 移除(保留其余 provider)/未登录提示/provider 参数小写归一
-/// <para>确认对话框经静态 Dialog.ConfirmAsync,测试环境(testhost)IsNonInteractive=true
-/// 恒返回 false — "确认后登出全部并 Exit"分支无法单测触达,属静态依赖注入缺口</para>
+/// <para>确认经 ChatCommandContext.Confirm 回调注入(对齐 CommitCommand 先例),
+/// 未注入时降级静态 Dialog.ConfirmAsync — 测试环境(testhost)IsNonInteractive=true 恒拒绝</para>
 /// </summary>
 [Collection("command-output")]
 public sealed class LogoutCommandTest {
@@ -30,6 +31,47 @@ public sealed class LogoutCommandTest {
         result.IsHandled.Should().BeTrue();
         output.Should().Contain("确定要登出所有服务吗？", "应弹出登出确认提示");
         fs.FileExists(AuthPath).Should().BeTrue("确认拒绝后不应删除 auth.json");
+    }
+
+    [Fact]
+    public async Task Execute_AllWithConfirmCallbackTrue_PerformsLogoutAllAndExits() {
+        var fs = TestFileSystem.Current;
+        await fs.WriteAllTextAsync(AuthPath, "{\"openai\":\"sk-key\"}");
+        var tokenStorage = new Mock<ITokenStorage>();
+        tokenStorage.Setup(t => t.GetStoredProvidersAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["openai"]);
+        var services = CreateServices(fs, tokenStorage.Object);
+        var confirmedMessages = new List<string>();
+        var context = CommandTestHarness.CreateContext(
+            services, arguments: "all", confirm: msg => { confirmedMessages.Add(msg); return true; });
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(
+            () => new LogoutCommand().ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeFalse("确认通过后登出全部应退出应用");
+        confirmedMessages.Should().ContainSingle("确认回调应被调用一次")
+            .Which.Should().Contain("登出所有服务", "确认提示应说明登出范围");
+        fs.FileExists(AuthPath).Should().BeFalse("确认通过后应删除 auth.json");
+        tokenStorage.Verify(t => t.DeleteTokenAsync("openai", It.IsAny<CancellationToken>()), Times.Once,
+            "确认通过后应删除全部已存储的 OAuth Token");
+        output.Should().Contain("已登出所有服务", "确认通过后应输出登出成功提示");
+    }
+
+    [Fact]
+    public async Task Execute_AllWithConfirmCallbackFalse_SkipsLogout() {
+        var fs = TestFileSystem.Current;
+        await fs.WriteAllTextAsync(AuthPath, "{\"openai\":\"sk-key\"}");
+        var services = CreateServices(fs);
+        var confirmedMessages = new List<string>();
+        var context = CommandTestHarness.CreateContext(
+            services, arguments: "all", confirm: msg => { confirmedMessages.Add(msg); return false; });
+
+        var (result, _) = await CommandTestHarness.CaptureOutputAsync(
+            () => new LogoutCommand().ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue("确认回调拒绝后应继续会话");
+        confirmedMessages.Should().ContainSingle("确认回调应被调用一次");
+        fs.FileExists(AuthPath).Should().BeTrue("确认回调拒绝后不应删除 auth.json");
     }
 
     [Fact]

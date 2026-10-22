@@ -35,6 +35,12 @@ public sealed class ModelCommand : ChatCommandBase {
         var currentModelId = fastModeService?.PrimaryModelId ?? "unknown";
         var provider = GetCurrentProvider(context);
         var catalog = ResolveModelCatalog(context);
+        if (catalog is null) {
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}模型目录不可用 — 无法列出模型。请检查引擎装配（IModelCatalog 未注册）。{AnsiStyleEnumConstants.Reset}");
+            TerminalHelper.WriteLine($"当前模型: {currentModelId}");
+            return ChatCommandResult.Continue();
+        }
+
         var models = catalog.GetModelsForProvider(provider);
         models = catalog.EnsureCurrentModelInList(models, currentModelId);
         var providerName = catalog.GetProviderDisplayName(provider);
@@ -140,7 +146,7 @@ public sealed class ModelCommand : ChatCommandBase {
         var executionSettings = context.GetCommandServices().ExecutionSettingsProvider;
         var provider = GetCurrentProvider(context);
         var catalog = ResolveModelCatalog(context);
-        var providerName = catalog.GetProviderDisplayName(provider);
+        var providerName = catalog?.GetProviderDisplayName(provider) ?? provider;
 
         TerminalHelper.WriteLine("=== 当前模型信息 ===");
         TerminalHelper.WriteLine($"  Provider: {providerName}");
@@ -149,15 +155,19 @@ public sealed class ModelCommand : ChatCommandBase {
         TerminalHelper.WriteLine($"  快速模式: {(fastModeService?.IsFastModeActive == true ? "开启" : "关闭")}");
         TerminalHelper.WriteLine($"  Effort 等级: {(executionSettings?.EffortLevel ?? EffortLevel.Auto).ToValue()}");
 
-        var models = catalog.GetModelsForProvider(provider);
-        TerminalHelper.WriteLine($"  可用模型数: {models.Length}");
+        TerminalHelper.WriteLine($"  可用模型数: {(catalog is null ? "未知（目录不可用）" : catalog.GetModelsForProvider(provider).Length.ToString())}");
 
         return Task.FromResult(ChatCommandResult.Continue());
     }
 
     private async Task<ChatCommandResult> SwitchToDefaultModelAsync(ChatCommandContext context) {
         var provider = GetCurrentProvider(context);
-        var defaultModel = ResolveModelCatalog(context).GetDefaultModelForProvider(provider);
+        var defaultModel = ResolveModelCatalog(context)?.GetDefaultModelForProvider(provider);
+        if (defaultModel is null) {
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}模型目录不可用 — 无法解析默认模型，请显式指定模型 id{AnsiStyleEnumConstants.Reset}");
+            return ChatCommandResult.Continue();
+        }
+
         await ApplyModelSwitchAsync(context, defaultModel).ConfigureAwait(false);
         TerminalHelper.WriteLine($"{TerminalColors.Primary}已恢复默认模型: {defaultModel}{AnsiStyleEnumConstants.Reset}");
 
@@ -175,16 +185,17 @@ public sealed class ModelCommand : ChatCommandBase {
     }
 
     private static string ResolveModelId(ChatCommandContext context, string input, string provider) {
-        var alias = ResolveModelCatalog(context).ResolveAlias(input, provider);
+        var alias = ResolveModelCatalog(context)?.ResolveAlias(input, provider);
         if (alias is not null)
             return alias;
 
         return input;
     }
 
-    private static IModelCatalog ResolveModelCatalog(ChatCommandContext context) {
-        return ChatCommandBase.GetService<IModelCatalog>(context, typeof(IModelCatalog))
-            ?? throw new InvalidOperationException("[APP003] 模型目录服务未初始化");
+    /// <summary>模型目录可空解析（TASK065 补测代理登记 bug 修复 — catalog 缺失精简启动形态
+    /// 不再抛 [APP003] 传播 REPL，各消费点降级：列表/info 引导输出、切换原样透传、能力判定保守跳过）。</summary>
+    private static IModelCatalog? ResolveModelCatalog(ChatCommandContext context) {
+        return ChatCommandBase.GetService<IModelCatalog>(context, typeof(IModelCatalog));
     }
 
     private static string GetCurrentProvider(ChatCommandContext context) {
@@ -213,7 +224,7 @@ public sealed class ModelCommand : ChatCommandBase {
         // 3. Fast Mode 自动关闭检查 — 对齐 TS handleFastModeAutoOff
         if (fastModeService is not null && fastModeService.IsFastModeActive) {
             var provider = GetCurrentProvider(context);
-            if (!ResolveModelCatalog(context).SupportsFastMode(modelId, provider)) {
+            if (ResolveModelCatalog(context) is { } catalogFast && !catalogFast.SupportsFastMode(modelId, provider)) {
                 fastModeService.Deactivate();
                 TerminalHelper.WriteLine($"{TerminalColors.Warning}模型 {modelId} 不支持快速模式，已自动关闭{AnsiStyleEnumConstants.Reset}");
             }
@@ -223,7 +234,7 @@ public sealed class ModelCommand : ChatCommandBase {
         var settingsProvider = context.GetCommandServices().ExecutionSettingsProvider;
         if (settingsProvider is not null && settingsProvider.EffortLevel == EffortLevel.Max) {
             var provider = GetCurrentProvider(context);
-            if (!ResolveModelCatalog(context).SupportsMaxEffort(modelId, provider)) {
+            if (ResolveModelCatalog(context) is { } catalogEffort && !catalogEffort.SupportsMaxEffort(modelId, provider)) {
                 settingsProvider.EffortLevel = EffortLevel.High;
                 TerminalHelper.WriteLine($"{TerminalColors.Warning}模型 {modelId} 不支持 max effort，已降级为 high{AnsiStyleEnumConstants.Reset}");
             }

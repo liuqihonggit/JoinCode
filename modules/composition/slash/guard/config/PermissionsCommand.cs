@@ -238,6 +238,12 @@ public sealed class PermissionsCommand : ChatCommandBase {
         }
     }
 
+    /// <summary>
+    /// 清空全部权限规则 — 破坏性操作,先经用户确认再执行
+    /// <para>确认经 ConfirmRulesOperationAsync:context.Confirm 回调优先（GUI 弹窗/TUI 对话框注入），
+    /// null 降级 CLI 终端 y/N（对齐 CommitCommand/LogoutCommand 先例，非交互环境恒拒绝零回退）</para>
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
     private static async Task ClearRulesAsync(ChatCommandContext context) {
         var manager = context.GetCommandServices().PermissionManager;
         if (manager is null) {
@@ -245,14 +251,28 @@ public sealed class PermissionsCommand : ChatCommandBase {
             return;
         }
 
-        var confirmed = await Confirmation.ConfirmAsync(L.T(StringKey.PermissionsConfirmClearAll), context.CancellationToken).ConfigureAwait(false);
-        if (!confirmed) {
+        if (!await ConfirmRulesOperationAsync(context, StringKey.PermissionsConfirmClearAll).ConfigureAwait(false)) {
             TerminalHelper.WriteLine(L.T(StringKey.PermissionsCancelled));
             return;
         }
 
         await manager.ClearRulesAsync(context.CancellationToken).ConfigureAwait(false);
         TerminalHelper.WriteLine($"{TerminalColors.Success}{L.T(StringKey.PermissionsCleared)}{AnsiStyleEnumConstants.Reset}");
+    }
+
+    /// <summary>
+    /// 确认权限破坏性操作 — context.Confirm 回调优先，null 降级静态 Dialog.ConfirmAsync
+    /// <para>与 LogoutCommand.ConfirmLogoutAllAsync 同形态（替换便利）：回调可注入使确认分支可单测触达，
+    /// 未注入时保持静态确认行为（非交互环境恒拒绝）零回退</para>
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <param name="messageKey">确认提示的本地化键</param>
+    /// <returns>用户确认返回 true，否则返回 false</returns>
+    private static async Task<bool> ConfirmRulesOperationAsync(ChatCommandContext context, string messageKey) {
+        var message = L.T(messageKey);
+        if (context.Confirm is { } confirm)
+            return confirm(message);
+        return await Confirmation.ConfirmAsync(message, context.CancellationToken).ConfigureAwait(false);
     }
 
     private static async Task ManageWorkspaceAsync(ChatCommandContext context, string[] args) {

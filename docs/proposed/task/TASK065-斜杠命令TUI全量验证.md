@@ -92,3 +92,19 @@ status/version/help/context/doctor/env/usage/stats/cost/config list/tasks/histor
 <!-- 原因: 用户指令"后续任务能并行多个子代理去实现吗"；撞车风险已先行排查（上游 M8 八批收口无新批次在飞） -->
 <!-- 替代方案: 串行（慢三倍且三域独立无依赖） -->
 <!-- 验证: 四域 408+1265+99+1419 全绿 + 双探针 33/33 + effort 崩溃红转绿 17/17 ✅ -->
+
+### 第三波三代理并行批次（2026-10-22 晚）
+
+| 代理 | 交付 |
+|------|------|
+| A | ai 域核实（10 命令中 5 不存在：model-list/output-style/thinking/mood/temperature 均非独立命令——能力分别在 /model 无参、/config 键、/sampling 参数）+ 5 实存命令 62 测试（compact/context/model/vendor/memory） |
+| B | system 域 10 命令 134 测试（config/status/mcp/theme/doctor/upgrade/export/agents/plugin/hooks；claude 不存在）+ MCP add bug 锁定 |
+| C | Dialog 注入化（/logout all、/permissions clear 确认走 ChatCommandContext.Confirm 双形态——对齐 ExitCommand 先例，null 降级保生产交互）+ UsageTracker 契约去误防御（实现从不返回 null）41 测试 |
+
+**主代理修复（登记 bug 闭环）**：
+- catalog 崩溃 ×3（Context 降级 128k 窗口/Model 别名透传直切/Vendor 降级切换不跟随默认模型——快照测试全部翻转为降级断言）
+- MCP add 不识别（CrudAction 枚举补 Add 值 Unix 习惯 + switch 补 case——测试翻转 Times.Once）
+
+**遗留登记（下轮候选）**：CompactCommand PTL attempt=2 边界异常冒泡、MemoryCommand --type 小写剥离残留、ExportCommand sanitize CJK 与 TS 偏差、交互式 Picker/Selector 分支（测试环境天然不可达）。
+
+基线：composition 408 → **608**（+200）；host.tests 1419；探针 33/33；cli/Host 全量重建 0 错误。

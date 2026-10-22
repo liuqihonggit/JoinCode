@@ -2,10 +2,12 @@ namespace Composition.Tests.Commands;
 
 /// <summary>
 /// /permissions 命令单元测试 — 覆盖 list(规则按模式分组渲染)/add(allow 别名→Auto/ask→Ask/
-/// 参数不足/无效模式)/remove(存在/不存在/参数不足)/clear(非交互确认拒绝降级)/
+/// 参数不足/无效模式)/remove(存在/不存在/参数不足)/clear(Confirm 回调 true 清除/回调 false 拒绝/
+/// 未注入回调时静态 Dialog 非交互确认拒绝降级)/
 /// workspace(列表/添加含信任联动/目录缺失/参数不足/移除/清除)/未知操作
 /// <para>断言以 mock 交互为主;L.T 本地化文本仅断言含输入参数的不变量部分</para>
-/// <para>clear 确认经静态 Dialog.ConfirmAsync,测试环境非交互恒拒绝 — 确认后清除分支不可单测触达</para>
+/// <para>clear 确认经 ChatCommandContext.Confirm 回调注入(对齐 CommitCommand 先例),
+/// 未注入时降级静态 Dialog.ConfirmAsync — 测试环境非交互恒拒绝</para>
 /// </summary>
 [Collection("command-output")]
 public sealed class PermissionsCommandTest {
@@ -16,7 +18,8 @@ public sealed class PermissionsCommandTest {
         string arguments,
         Mock<IAgentPermissionManager>? manager = null,
         Mock<IWorkspaceService>? workspace = null,
-        Mock<ITrustFolderManager>? trustManager = null) {
+        Mock<ITrustFolderManager>? trustManager = null,
+        Func<string, bool>? confirm = null) {
         var fs = TestFileSystem.Current;
         var services = CommandTestHarness.CreateServices(
             fileSystem: fs,
@@ -25,7 +28,7 @@ public sealed class PermissionsCommandTest {
             configureDi: di => {
                 if (trustManager is not null) di.AddSingleton(trustManager.Object);
             });
-        var context = CommandTestHarness.CreateContext(services, arguments: arguments);
+        var context = CommandTestHarness.CreateContext(services, arguments: arguments, confirm: confirm);
         return (new PermissionsCommand(), context, fs);
     }
 
@@ -174,6 +177,38 @@ public sealed class PermissionsCommandTest {
         manager.Verify(m => m.ClearRulesAsync(It.IsAny<CancellationToken>()), Times.Never,
             "非交互环境确认拒绝,不应清空规则");
         output.Should().NotBeEmpty("取消应有提示输出");
+    }
+
+    [Fact]
+    public async Task Execute_Clear_WithConfirmCallbackTrue_ClearsRules() {
+        var manager = new Mock<IAgentPermissionManager>();
+        manager.Setup(m => m.ClearRulesAsync(It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var confirmedMessages = new List<string>();
+        var (cmd, context, _) = Arrange(
+            "clear", manager: manager, confirm: msg => { confirmedMessages.Add(msg); return true; });
+
+        var (result, _) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        confirmedMessages.Should().ContainSingle("确认回调应被调用一次");
+        manager.Verify(m => m.ClearRulesAsync(It.IsAny<CancellationToken>()), Times.Once,
+            "确认回调通过后应清空全部权限规则");
+    }
+
+    [Fact]
+    public async Task Execute_Clear_WithConfirmCallbackFalse_SkipsClearing() {
+        var manager = new Mock<IAgentPermissionManager>();
+        var confirmedMessages = new List<string>();
+        var (cmd, context, _) = Arrange(
+            "clear", manager: manager, confirm: msg => { confirmedMessages.Add(msg); return false; });
+
+        var (result, _) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        confirmedMessages.Should().ContainSingle("确认回调应被调用一次");
+        manager.Verify(m => m.ClearRulesAsync(It.IsAny<CancellationToken>()), Times.Never,
+            "确认回调拒绝后不应清空规则");
     }
 
     [Fact]

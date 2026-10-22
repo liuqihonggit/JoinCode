@@ -24,6 +24,10 @@ public enum CrudAction {
     /// <summary>创建别名 — 等价于 create</summary>
     [EnumValue("new")] New,
 
+    /// <summary>创建别名 — 等价于 create（Unix add 习惯；/mcp add 用户口径，
+    /// TASK065 补测代理 B 锁定 bug 修复：原 switch 只匹配 create/new 致 "未知操作: add"）</summary>
+    [EnumValue("add")] Add,
+
     /// <summary>读取 — 查看单个项详情</summary>
     [EnumValue("read")] Read,
 

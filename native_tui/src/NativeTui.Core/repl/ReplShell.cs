@@ -324,6 +324,10 @@ public sealed class ReplShell
     /// <summary>stdin 静默 gap 阈值（ms）— 超过即重断言终端模式（bracketed paste 等可能被外部重置）。</summary>
     private const long TerminalResumeGapMs = 5000;
 
+    /// <summary>事件驱动唤醒信号 — 有键/引擎事件时置位，<see cref="PaceTick"/> 节拍等待
+    /// 提前结束（输入回显/流式输出低延迟 — 基准事件驱动渲染 16ms 节流的轮询近似）。</summary>
+    private readonly ManualResetEventSlim _inputWake = new(false);
+
     /// <summary>强制重绘空白前置帧（零尺寸屏 — InlineComposer 判 prev.Cols ≠ next.Cols 走
     /// FullReset 路径：光标移视口顶 + EraseScreen + 重绘可见区；缓存复用零分配）。</summary>
     private Screen? _blankPrev;
@@ -462,7 +466,13 @@ public sealed class ReplShell
         while (_running)
         {
             var tickStart = _clock.ElapsedMilliseconds;
-            DrainInput();
+            if (DrainInput())
+            {
+                // 事件驱动唤醒 — 本拍有键：节拍等待提前结束，下一拍立即再查输入
+                //（按键回显/快速连打低延迟 — 基准事件驱动渲染的轮询近似）
+                _inputWake.Set();
+            }
+
             DrainEngine();
             RenderAndFlush();
             PaceTick(tickStart);
@@ -503,7 +513,10 @@ public sealed class ReplShell
             {
                 interrupted = true;
             }
+
             _driver.Apply(bridgeEvent);
+            // 事件驱动唤醒 — 流式 token/工具事件到达即置位，节拍等待提前结束（渲染低延迟）
+            _inputWake.Set();
         }
 
         foreach (var diagnostic in _engine.DrainDiagnostics())
@@ -706,8 +719,7 @@ public sealed class ReplShell
 
     /// <summary>排空键盘事件（非阻塞）— 输入泵通道（DSG042：ReadKeyPump 现役 / RawStdinPump
     /// 原始流灰度）排空已解析键统一分派；泵内归一/paste 重组语义见各实现。</summary>
-    private void DrainInput() =>
-        _inputPump.Drain(HandleRawKeyPress);
+    private bool DrainInput() => _inputPump.Drain(HandleRawKeyPress);
 
 
 
@@ -2977,14 +2989,16 @@ public sealed class ReplShell
         _output.Write(Csi.CursorPosition(row, col));
     }
 
-    /// <summary>对齐 50ms 拍长（忙完剩余时间睡眠）。</summary>
+    /// <summary>对齐 50ms 拍长（忙完剩余时间等待）— 事件驱动可中断：有键/引擎事件时
+    /// <see cref="_inputWake"/> 提前唤醒（输入低延迟），无事件满拍等待（动画节拍保持）。</summary>
     private void PaceTick(long tickStart)
     {
         var elapsedMs = _clock.ElapsedMilliseconds - tickStart;
         var sleepMs = TickMs - (int)elapsedMs;
         if (sleepMs > 0)
         {
-            Thread.Sleep(sleepMs);
+            _inputWake.Wait(sleepMs);
+            _inputWake.Reset();
         }
     }
 

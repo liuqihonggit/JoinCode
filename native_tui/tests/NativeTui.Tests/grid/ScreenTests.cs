@@ -42,6 +42,49 @@ public sealed class RuneWidthTests
     {
         Assert.Equal(0, RuneWidth.Of(new Rune(0x200D)));
     }
+
+    /// <summary>EAW Wide BMP 区段补全（基准经 eastAsianWidth 库覆盖全表 —
+    /// 此前缺 0x231A⌚/0x23E9⏩/0x26AA⚪/0x2B50⭐ 等区段，错列 1 vs 实际 2）。</summary>
+    [Theory]
+    [InlineData(0x231A)]  // ⌚ 手表
+    [InlineData(0x231B)]  // ⌛ 沙漏
+    [InlineData(0x23E9)]  // ⏩ 快进
+    [InlineData(0x23EC)]  // ⏪ 快退
+    [InlineData(0x23F0)]  // ⏰ 闹钟
+    [InlineData(0x23F3)]  // ⏳ 沙漏流
+    [InlineData(0x25FD)]  // ◽ 中白小方
+    [InlineData(0x2614)]  // ☔ 雨伞
+    [InlineData(0x2648)]  // ♈ 白羊座
+    [InlineData(0x2653)]  // ♓ 双鱼座
+    [InlineData(0x267F)]  // ♿ 轮椅
+    [InlineData(0x2693)]  // ⚓ 锚
+    [InlineData(0x26A1)]  // ⚡ 高压电
+    [InlineData(0x26AA)]  // ⚪ 白圆
+    [InlineData(0x26AB)]  // ⚫ 黑圆
+    [InlineData(0x26BD)]  // ⚽ 足球
+    [InlineData(0x26C4)]  // ⛄ 雪人
+    [InlineData(0x26CE)]  // ⛎ 蛇夫座
+    [InlineData(0x26D4)]  // ⛔ 禁止
+    [InlineData(0x26EA)]  // ⛪ 教堂
+    [InlineData(0x26F2)]  // ⛲ 喷泉
+    [InlineData(0x26F5)]  // ⛵ 帆船
+    [InlineData(0x26FA)]  // ⛺ 帐篷
+    [InlineData(0x26FD)]  // ⛽ 加油站
+    [InlineData(0x2705)]  // ✅ 白勾
+    [InlineData(0x270A)]  // ✊ 举拳
+    [InlineData(0x2728)]  // ✨ 闪光
+    [InlineData(0x274C)]  // ❌ 叉
+    [InlineData(0x2757)]  // ❗ 感叹
+    [InlineData(0x2795)]  // ➕ 加
+    [InlineData(0x27B0)]  // ➰ 弯曲
+    [InlineData(0x27BF)]  // ➿ 双弯曲
+    [InlineData(0x2B1B)]  // ⬛ 黑大方
+    [InlineData(0x2B50)]  // ⭐ 星
+    [InlineData(0x2B55)]  // ⭕ 红圆
+    public void EastAsianWideBmpSegments_Width2(int codepoint)
+    {
+        Assert.Equal(2, RuneWidth.Of(new Rune(codepoint)));
+    }
 }
 
 /// <summary>

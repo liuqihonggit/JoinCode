@@ -23,6 +23,13 @@
 | 批3 | earlyInput 启动期输入捕获（引擎组装窗口期按键回填输入框） | EarlyInputBuffer.cs + Program.cs（raw mode 后捕获/Run 前回灌） | EarlyInputBufferTests 2 用例 + selftest |
 | 批4 | 终端查询响应解析路由（8 类回复 + 查询 promise 路由器 + RawStdinPump 前置分流） | TerminalResponse.cs/Parser.cs/Querier.cs + RawStdinPump（querier 注入） | 18 用例；**主动发探测查询接入 TerminalCapabilities 为后续增量**（ReadKey 通道无原始流，response 分流仅 RawStdin 灰度通道可达 — 与 TASK066-B3 切默认衔接） |
 
+**2026-10-23 第 2 问：下一批次 → 两批都做，先防御后体验**，已全部落地：
+
+| 批次 | 功能 | 落点 | 验收 |
+|------|------|------|------|
+| 批5 | 异常路径防御：ESC 前缀 50ms 超时 flush（差异1.6）+ 粘贴流中断 500ms 兜底产出部分内容（1.7）+ 退出 stdin 排空防泄漏（1.12） | KeyPressParser force 重载 + EscapeFlushPolicy + RawStdinPump 滞留计时接线 + ReadKeyPump 中断产出改造 + WriteExit 排空（无控制台防御） | EscapeFlushPolicyTests 6 + 泵超时 3 + force 4 用例 |
+| 批6 | 渲染体验：事件驱动唤醒（差异6.1 — 有键/引擎事件时节拍等待提前结束，输入回显低延迟）+ EAW Wide BMP 区段全补（6.3a — ⌚⏩⚪⭐ 等 34 区段错列修复） | ReplShell._inputWake（DrainInput 返回值/DrainEngine 事件 Set/PaceTick 可中断等待）+ RuneWidth 表扩展 | RuneWidthTests 35 新用例；**6.3b grapheme 重构 + 6.4 输入行软折行为跨模块大改造（渲染链+编辑器+键语义三域联动视觉行体系），登记待 spec 后实施** |
+
 ---
 
 ## 一、已直接修复的 bug（13 项，无需决策）

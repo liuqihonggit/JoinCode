@@ -74,8 +74,12 @@ public sealed class RawStdinPump : IInputPump, IDisposable
         _keys.Writer.TryComplete();
     }
 
-    /// <summary>pending 残留字符量（测试断言面 — 键风暴续投验证）。</summary>
-    internal int PendingCount
+    /// <summary>读线程是否仍在运行（探针完成判定 — stdin EOF 后读循环退出线程终止；
+    /// 等待完成 = 读线程不存活 + pending 无残留 + 通道空三条件齐）。</summary>
+    public bool IsReaderAlive => _reader.IsAlive;
+
+    /// <summary>pending 残留字符量（测试/探针断言面 — 键风暴续投与收敛判定）。</summary>
+    public int PendingCount
     {
         get
         {

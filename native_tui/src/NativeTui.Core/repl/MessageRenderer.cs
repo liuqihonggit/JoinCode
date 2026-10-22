@@ -78,7 +78,10 @@ public static class MessageRenderer
         screen.WriteText(frame.Y, frame.X, $"{Figures.ThereforeSign} 思考{suffix}", dim, frame.Right);
     }
 
-    /// <summary>渲染思考内容行（展开态 CoT 全文）：⎿ 前缀 + 2 空格缩进 dim 正文（逐行 — 换行拆分多行渲染）。</summary>
+    /// <summary>渲染思考内容行（展开态 CoT 全文）：⎿ + 2 空格缩进，dim 基调 Markdown 行内渲染
+    ///（TASK064/TASK065 P3）— 行内语法经 InlineMarkdownParser 轻量解析（**bold**/*italic*/`code` 三件套），
+    /// 段样式叠 Dim 基调（基准思考块 = dim Markdown）；无行内语法行/列表/引用/标题等块级行 = 纯文本 dim
+    ///（现行为完整保留）；截断守卫在消息项 TruncateThinking — 行数按 \n 计与段渲染无关。</summary>
     public static void RenderThinkingContent(Screen screen, Rect frame, Theme theme, string content)
     {
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
@@ -87,9 +90,28 @@ public static class MessageRenderer
         foreach (var line in content.Split('\n')) {
             var text = line.TrimEnd('\r');
             if (text.Length > 0) {
-                screen.WriteText(row, frame.X, $"{indent}{text}", dim, frame.Right);
+                screen.WriteText(row, frame.X, indent, dim, frame.Right);
+                RenderThinkingInline(screen, row, frame.X + indent.Length, frame.Right, theme, text, dim);
             }
             row++;
+        }
+    }
+
+    /// <summary>CoT 行内段渲染 — 有行内语法走段写（样式经 MapMarkdownStyle 映射后叠 Dim 基调：
+    /// bold/italic 保持 dim、code permission 前景 + dim）；无语法纯文本 dim 单写（降级现行为）。</summary>
+    private static void RenderThinkingInline(Screen screen, int row, int col, int right, Theme theme, string text, int dimStyleId)
+    {
+        var segments = InlineMarkdownParser.ParseLine(text);
+        if (segments.Count == 0)
+        {
+            screen.WriteText(row, col, text, dimStyleId, right);
+            return;
+        }
+
+        foreach (var segment in segments)
+        {
+            var style = screen.Styles.GetOrAdd(MapMarkdownStyle(segment.Style, theme) with { Dim = true });
+            col = screen.WriteText(row, col, segment.Text, style, right);
         }
     }
 

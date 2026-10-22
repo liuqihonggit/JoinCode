@@ -8,8 +8,9 @@ namespace NativeTui.Host;
 /// OnText → token_delta；OnThinking 回合内单次信号 + 墙钟差结算 thinking_ended；
 /// OnToolStart/OnToolEnd → tool_call/tool_result（摘要截断 200 + error 前缀 + StructuredPatch → DiffHunk 投影 +
 
-/// 原始输出预截断投影 raw_output/hidden_lines）；OnDone → assistant_message(完整文本) + token_usage(用量汇总)；
-/// OnBackgroundTask → background_task(M8-8 常驻面板 upsert)。/// OnToolProgress/OnLoopDetected/OnTimingSummary 不消费。
+/// 原始输出预截断投影 raw_output/hidden_lines）；OnToolProgress → tool_progress(TASK065 P3 —
+/// Bash 执行中输出快照流式上屏)；OnDone → assistant_message(完整文本) + token_usage(用量汇总)；
+/// OnBackgroundTask → background_task(M8-8 常驻面板 upsert)。/// OnLoopDetected/OnTimingSummary 不消费。
 /// </summary>
 public sealed class InProcessEventConsumer : IResettableEventConsumer {
     /// <summary>工具结果摘要截断上限（对齐 engine BridgeEventConsumer 的 200 字符显示截断）。</summary>
@@ -103,8 +104,10 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         _events.Enqueue(new BridgeEvent.ToolResult(BuildSummary(resultText, isError), ProjectPatch(patch), rawOutput, hiddenLines));
     }
 
-    /// <summary>工具调用进度 — TUI 不消费，忽略（对齐 bridge 形态）。</summary>
+    /// <summary>工具调用进度 → ToolProgress（TASK065 P3 — Bash/PowerShell 执行中输出快照流式上屏；
+    /// progressType 透传引擎侧既有类型，null message 空串投影 — 对齐 bridge 形态逐行为镜像）。</summary>
     public void OnToolProgress(string toolName, string progressType, string? progressMessage) {
+        _events.Enqueue(new BridgeEvent.ToolProgress(toolName, progressType, progressMessage ?? string.Empty));
     }
 
     /// <summary>检测到循环输出 — TUI 不消费，忽略（对齐 bridge 形态）。</summary>

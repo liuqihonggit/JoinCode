@@ -11,7 +11,9 @@ namespace NativeTui.Core.Bridge;
 /// 单行摘要（组状态归 ToolGroupAggregator），非 Accepts 工具/其他消息事件/回合边界收组定格；
 /// 小终端塌缩（ShouldCondense）时 CondensedToolProgressItem 单行替代逐条。
 /// 权限请求（permission_request）经注入钩子转交 shell 挂起对话框（权限模态是 shell 层状态）；
-/// 后台任务（background_task）路由常驻面板 upsert（M8-8 — (kind,taskId) 更新/插入，终态驻留）。
+/// 后台任务（background_task）路由常驻面板 upsert（M8-8 — (kind,taskId) 更新/插入，终态驻留）；
+/// 工具进度（tool_progress）路由流式输出项原地更新（TASK065 P3 — Bash 执行中输出实时显示，
+/// tool_result 到达原位替换为 ToolResultItem）。
 /// 模拟路径与真实 bridge 路径共用同一套回合视图状态。
 /// </summary>
 public sealed class ReplBridgeDriver
@@ -55,6 +57,12 @@ public sealed class ReplBridgeDriver
     /// <summary>活动流式正文项（M8-1 逐字流式）— 首个带 Text 的 token_delta 惰性创建落位 spinner 前，
     /// 后续增量原地追加；AssistantMessage 原位替换为完整消息项；EndTurn 兜底定格/清理。</summary>
     private StreamingTextItem? _streamingItem;
+
+    /// <summary>活动工具流式输出项（TASK065 P3 — Bash 执行中输出实时显示）— 首个 tool_progress
+    /// 惰性创建落位 ToolCallItem 之后（spinner 前），后续快照原地 Update；tool_result 到达原位替换为
+    /// ToolResultItem（对齐 StreamingTextItem 替换先例）；新 tool_call 到达旧项定格；EndTurn 清引用
+    /// 项留存（打断场景已见输出不丢）。</summary>
+    private ToolStreamingItem? _toolStreamingItem;
 
     /// <summary>创建应用器（view/spinner/banner 由调用方构造并挂载，spinner 须为 Messages 末项、banner 为首项；
     /// onPermissionRequest = 权限请求挂起钩子，null = 忽略权限请求事件（纯视图断言测试场景）；
@@ -121,6 +129,11 @@ public sealed class ReplBridgeDriver
                 ApplyToolCall(name, args);
                 _spinner.Mode = SpinnerMode.ToolUse;
                 _spinner.HasActiveTools = true;
+                break;
+            case BridgeEvent.ToolProgress(_, _, var progressMessage):
+                // TASK065 P3 — Bash/PowerShell 执行中输出快照流式上屏（progressType/工具名不路由 —
+                // 流式项即输出尾巴，类型差异由终态 ToolResultItem 表达）
+                ApplyToolProgress(progressMessage);
                 break;
             case BridgeEvent.ToolResult(var summary, var patch, var rawOutput, var hiddenLines):
                 // S2 契约统一结果项：ToolResultItem(Summary, Patch, RawOutput, HiddenLines) —
@@ -202,6 +215,8 @@ public sealed class ReplBridgeDriver
     /// ④ 非 Accepts 工具 → 收组（连续同类中断 — 聚合项定格为普通项）+ 逐条落位。</summary>
     private void ApplyToolCall(string name, string args)
     {
+        // 上一个工具的流式尾巴定格（引用清空不删项 — 引擎漏发 tool_result 时不串新工具输出）
+        _toolStreamingItem = null;
         _inProgressToolCallCount++;
         if (_condensedProgressItem is not null)
         {
@@ -235,7 +250,8 @@ public sealed class ReplBridgeDriver
 
     /// <summary>工具结果路由（S6 任务 7）— 计数递减；塌缩态计数归零移除塌缩项；
     /// 活动聚合组吸收（不落逐条 ToolResultItem — 折叠形态结果数据不逐条上屏）；
-    /// 其余逐条落位（统一四段契约构造）。</summary>
+    /// 其余逐条落位（统一四段契约构造）；流式项在场时原位替换（TASK065 P3 —
+    /// 输出尾巴位置落终态结果项，视觉无跳变；塌缩/聚合吸收路径移除流式项）。</summary>
     private void ApplyToolResult(string summary, DiffHunk[]? patch, string? rawOutput, int hiddenLines)
     {
         _inProgressToolCallCount = Math.Max(0, _inProgressToolCallCount - 1);
@@ -248,17 +264,39 @@ public sealed class ReplBridgeDriver
                 _condensedProgressItem = null;
             }
 
+            RemoveToolStreamingItem();
             _activeToolGroup?.OnToolResult();
             return;
         }
 
         if (_activeToolGroup is { } group)
         {
+            RemoveToolStreamingItem();
             group.OnToolResult();
             return;
         }
 
-        AddMessage(new ToolResultItem(summary, patch, rawOutput, hiddenLines));
+        ReplaceToolStreamingWithResult(new ToolResultItem(summary, patch, rawOutput, hiddenLines));
+    }
+
+    /// <summary>工具进度路由（TASK065 P3）— 回合内惰性建流式项（spinner 前落位 — 紧随 ToolCallItem）
+    /// + 快照原地 Update；塌缩态忽略（CondensedToolProgressItem 是唯一进度展示形态 — 既有语义）；
+    /// 回合外迟到事件丢弃（IsBusy 防御 — 引擎漏发收尾时不跨回合泄漏）。progressType 不路由 —
+    /// 全类型统一输出尾巴形态（bash_progress/ps_progress/query_update 等都受益）。</summary>
+    private void ApplyToolProgress(string message)
+    {
+        if (!IsBusy || _condensedProgressItem is not null)
+        {
+            return;
+        }
+
+        if (_toolStreamingItem is null)
+        {
+            _toolStreamingItem = new ToolStreamingItem();
+            AddMessage(_toolStreamingItem);
+        }
+
+        _toolStreamingItem.Update(message);
     }
 
     /// <summary>聚合组路由 — 非 Accepts 工具到达时收组（连续同类中断）；Accepts 且无活动组时
@@ -362,6 +400,7 @@ public sealed class ReplBridgeDriver
         _activeSubagentGroup = null;
         CloseActiveToolGroup();
         DiscardStreamingItem();
+        _toolStreamingItem = null;
         _view.Footer = _view.Footer with { Busy = true };
         _spinner.Message = string.Empty;
         _spinner.ResetVerb();
@@ -385,6 +424,7 @@ public sealed class ReplBridgeDriver
         _activeSubagentGroup = null;
         CloseActiveToolGroup();
         FinalizeStreamingItem();
+        _toolStreamingItem = null;
         _view.Footer = _view.Footer with { Busy = false };
         _spinner.Message = string.Empty;
         _spinner.ResponseLength = 0;
@@ -447,5 +487,37 @@ public sealed class ReplBridgeDriver
         if (index >= 0) {
             _view.Messages.RemoveAt(index);
         }
+    }
+
+    /// <summary>流式项原位替换为终态结果项（tool_result 路径 — TASK065 P3）— 流式项位置不变
+    ///（输出尾巴位置直接落 ToolResultItem，视觉无跳变），无流式项时退化为普通 AddMessage
+    ///（对齐 ReplaceStreamingWithFinal 先例）。</summary>
+    private void ReplaceToolStreamingWithResult(IScrollItem final)
+    {
+        if (_toolStreamingItem is null) {
+            AddMessage(final);
+            return;
+        }
+
+        var index = _view.Messages.IndexOf(_toolStreamingItem);
+        _toolStreamingItem = null;
+        if (index < 0) {
+            AddMessage(final);
+            return;
+        }
+
+        _view.Messages.RemoveAt(index);
+        _view.Messages.Insert(index, final);
+    }
+
+    /// <summary>移除活动工具流式项（塌缩/聚合吸收路径 — 工具完成时尾巴退场；不在场 no-op）。</summary>
+    private void RemoveToolStreamingItem()
+    {
+        if (_toolStreamingItem is null) {
+            return;
+        }
+
+        RemoveMessageItem(_toolStreamingItem);
+        _toolStreamingItem = null;
     }
 }

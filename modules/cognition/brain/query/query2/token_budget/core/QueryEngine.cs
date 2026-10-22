@@ -465,8 +465,13 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         }
 
         try {
+            // 工具进度中继（TASK065 P3 — 主代理路径 Bash 执行中输出流式上屏）：SessionController
+            // 回合级 SubAgentEventChannel 作用域在场时 Emit 进度事件 → chunk 循环逐拍排空直投消费方；
+            // 无作用域（CLI 纯文本/独立调用）null 零影响。registry 兜底路径无 onProgress 形参 — 遗留不发射
             var result = _toolExecutionGateway is not null
-                ? await _toolExecutionGateway.ExecuteAsync(request.ToolName, request.Arguments, cancellationToken).ConfigureAwait(false)
+                ? await _toolExecutionGateway.ExecuteAsync(
+                    request.ToolName, request.Arguments, cancellationToken,
+                    JoinCode.Abstractions.LLM.Chat.ToolProgressRelay.Build(request.ToolName)).ConfigureAwait(false)
                 : await _toolRegistry.ExecuteToolAsync(request.ToolName, request.Arguments, cancellationToken).ConfigureAwait(false);
             options?.ProgressTracker?.RecordToolUse(request.ToolName);
             return result;

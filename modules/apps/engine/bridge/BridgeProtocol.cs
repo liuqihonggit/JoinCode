@@ -43,6 +43,7 @@ public abstract record BridgeRequest
 [JsonDerivedType(typeof(BridgeEvent.ThinkingStarted), "thinking_started")]
 [JsonDerivedType(typeof(BridgeEvent.ThinkingEnded), "thinking_ended")]
 [JsonDerivedType(typeof(BridgeEvent.ToolCall), "tool_call")]
+[JsonDerivedType(typeof(BridgeEvent.ToolProgress), "tool_progress")]
 [JsonDerivedType(typeof(BridgeEvent.ToolResult), "tool_result")]
 [JsonDerivedType(typeof(BridgeEvent.TokenDelta), "token_delta")]
 [JsonDerivedType(typeof(BridgeEvent.AssistantMessage), "assistant_message")]
@@ -77,6 +78,15 @@ public abstract record BridgeEvent
 
     /// <summary>工具调用消息（bullet + bold 工具名 + args）。</summary>
     public sealed record ToolCall(string Name, string Args) : BridgeEvent;
+
+    /// <summary>
+    /// 工具执行中进度流式增量（TASK065 P3 — Bash/PowerShell 执行中实时输出，取代"卡住到结束才见结果"）：
+    /// ProgressType 透传引擎侧既有类型（bash_progress/ps_progress — ShellExecutionMiddleware 每秒快照；
+    /// query_update/search_results_received — WebSearch 等既有发射方零改动直达）；
+    /// Message 为进度文本（bash_progress 为当前 stdout 最近行快照 — 多行文本）；
+    /// TUI 侧流式项原地更新，tool_result 到达时原位替换为终态结果项 — 与 native_tui 侧逐字段镜像。
+    /// </summary>
+    public sealed record ToolProgress(string ToolName, string ProgressType, string Message) : BridgeEvent;
 
     /// <summary>
     /// diff 行种类 — 数值对齐 native_tui DiffLineKind（Context=0/Added=1/Removed=2），

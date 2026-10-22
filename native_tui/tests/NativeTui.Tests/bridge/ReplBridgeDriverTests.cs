@@ -513,4 +513,87 @@ public sealed class ReplBridgeDriverTests
         Assert.Equal("检查README", task.Description);
         Assert.Equal("running", task.State);
     }
+
+    /// <summary>TASK065 P3 工具流式进度 — 首个 tool_progress 惰性建流式项落位 ToolCallItem 之后
+    ///（spinner 前），后续快照原地 Update（同一项不重复落位）。</summary>
+    [Fact]
+    public void Apply_ToolProgress_CreatesStreamingItemAfterToolCallAndUpdatesInPlace()
+    {
+        _driver.Apply(new BridgeEvent.TurnStarted());
+        _driver.Apply(new BridgeEvent.ToolCall("Bash", "ls -la"));
+        _driver.Apply(new BridgeEvent.ToolProgress("Bash", "bash_progress", "line1"));
+        var streamingItem = Assert.IsType<ToolStreamingItem>(_view.Messages.Items[^2]);
+
+        _driver.Apply(new BridgeEvent.ToolProgress("Bash", "bash_progress", "line1\nline2"));
+
+        Assert.Same(streamingItem, _view.Messages.Items[^2]);
+        Assert.Equal(["line1", "line2"], streamingItem.DisplayLines);
+        // spinner 恒为滚动区末项 — 流式项落位其前
+        Assert.Same(_spinner, _view.Messages.Items[^1]);
+    }
+
+    /// <summary>TASK065 P3 — tool_result 到达时流式项原位替换为 ToolResultItem
+    ///（对齐 StreamingTextItem 替换先例 — 输出尾巴位置落终态项，视觉无跳变）。</summary>
+    [Fact]
+    public void Apply_ToolResult_ReplacesStreamingItemInPlaceWithToolResultItem()
+    {
+        _driver.Apply(new BridgeEvent.TurnStarted());
+        _driver.Apply(new BridgeEvent.ToolCall("Bash", "ls -la"));
+        _driver.Apply(new BridgeEvent.ToolProgress("Bash", "bash_progress", "line1"));
+        var streamingIndex = _view.Messages.IndexOf(_view.Messages.Items.OfType<ToolStreamingItem>().Single());
+
+        _driver.Apply(new BridgeEvent.ToolResult("3 files"));
+
+        var resultItem = Assert.IsType<ToolResultItem>(_view.Messages.Items[streamingIndex]);
+        Assert.Equal("3 files", resultItem.Summary);
+        Assert.DoesNotContain(_view.Messages.Items, static item => item is ToolStreamingItem);
+    }
+
+    /// <summary>TASK065 P3 — 回合外（EndTurn 后）迟到 progress 丢弃（IsBusy 防御 —
+    /// 引擎漏发收尾事件时不跨回合泄漏新流式项）。</summary>
+    [Fact]
+    public void Apply_ToolProgress_AfterTurnCompleted_IsDropped()
+    {
+        _driver.Apply(new BridgeEvent.TurnStarted());
+        _driver.Apply(new BridgeEvent.ToolCall("Bash", "ls"));
+        _driver.Apply(new BridgeEvent.ToolProgress("Bash", "bash_progress", "line1"));
+        _driver.Apply(new BridgeEvent.TurnCompleted());
+
+        _driver.Apply(new BridgeEvent.ToolProgress("Bash", "bash_progress", "late"));
+
+        Assert.DoesNotContain(_view.Messages.Items, static i => i is ToolStreamingItem item && item.DisplayLines.Contains("late"));
+    }
+
+    /// <summary>TASK065 P3 — 打断场景（无 tool_result）流式项残留定格：EndTurn 清引用不删项
+    ///（已见输出不丢 — 用户看到中断前输出）。</summary>
+    [Fact]
+    public void Apply_TurnInterrupted_StreamingItemStaysAsSeenOutput()
+    {
+        _driver.Apply(new BridgeEvent.TurnStarted());
+        _driver.Apply(new BridgeEvent.ToolCall("Bash", "ls"));
+        _driver.Apply(new BridgeEvent.ToolProgress("Bash", "bash_progress", "partial output"));
+
+        _driver.Apply(new BridgeEvent.TurnInterrupted());
+
+        var streamingItem = Assert.Single(_view.Messages.Items.OfType<ToolStreamingItem>());
+        Assert.Equal(["partial output"], streamingItem.DisplayLines);
+    }
+
+    /// <summary>TASK065 P3 — 新 tool_call 到达旧流式项定格（引用清空不删项 —
+    /// 引擎漏发上一工具 tool_result 时不串新工具输出到旧尾巴）。</summary>
+    [Fact]
+    public void Apply_NewToolCall_FinalizesPreviousStreamingItem()
+    {
+        _driver.Apply(new BridgeEvent.TurnStarted());
+        _driver.Apply(new BridgeEvent.ToolCall("Bash", "first"));
+        _driver.Apply(new BridgeEvent.ToolProgress("Bash", "bash_progress", "old output"));
+
+        _driver.Apply(new BridgeEvent.ToolCall("Read", "a.cs"));
+        _driver.Apply(new BridgeEvent.ToolProgress("Read", "query_update", "searching"));
+
+        var streamingItems = _view.Messages.Items.OfType<ToolStreamingItem>().ToList();
+        Assert.Equal(2, streamingItems.Count);
+        Assert.Equal(["old output"], streamingItems[0].DisplayLines);
+        Assert.Equal(["searching"], streamingItems[1].DisplayLines);
+    }
 }

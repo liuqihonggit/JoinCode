@@ -160,4 +160,24 @@ public sealed class BridgeJsonContractTests {
             Assert.Equal(expected[i], JsonSerializer.Serialize(events[i], CliBridge.BridgeJsonContext.Safe.BridgeEvent));
         }
     }
+
+    /// <summary>工具进度事件 JSON 形状（TASK065 P3 — 与 native_tui 侧 BridgeEvent.ToolProgress
+    /// 逐字段镜像：tool_progress + toolName/progressType/message camelCase 字段；
+    /// message 多行文本经 JSON 转义 \n 保真 — Bash 执行中输出快照流式上屏数据源）。</summary>
+    [Fact]
+    public void Serialize_ToolProgress_CarriesCamelCaseFields() {
+        var json = JsonSerializer.Serialize(
+            new CliBridge.BridgeEvent.ToolProgress("Bash", "bash_progress", "line1\nline2"),
+            CliBridge.BridgeJsonContext.Safe.BridgeEvent);
+        Assert.Equal(
+            "{\"type\":\"tool_progress\",\"toolName\":\"Bash\",\"progressType\":\"bash_progress\",\"message\":\"line1\\nline2\"}",
+            json);
+
+        // native_tui 侧引擎产出的行反解析回读（双镜像 roundtrip）
+        var request = JsonSerializer.Deserialize(
+            "{\"type\":\"tool_progress\",\"toolName\":\"PowerShell\",\"progressType\":\"ps_progress\",\"message\":\"ok\"}",
+            CliBridge.BridgeJsonContext.Safe.BridgeEvent);
+        var progress = Assert.IsType<CliBridge.BridgeEvent.ToolProgress>(request);
+        Assert.Equal(("PowerShell", "ps_progress", "ok"), (progress.ToolName, progress.ProgressType, progress.Message));
+    }
 }

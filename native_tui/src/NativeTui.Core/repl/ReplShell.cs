@@ -124,6 +124,14 @@ public sealed class ReplShell
     /// <summary>最近一次直发提交的用户消息项位置（M8-2 打断恢复 — 无有效响应时移除该条上屏）。</summary>
     private int _lastSubmittedIndex = -1;
 
+    /// <summary>ctrl+s 输入暂存单槽（TASK064 P3 — 基准 defaultBindings.ts:85 chat:stash +
+    /// PromptInputStashNotice.tsx:18 单槽语义）：覆盖式收起当前输入腾出输入框（忙/闲均可用），
+    /// 下次 Submit 提交动作完成后自动回填输入框；空输入无操作。</summary>
+    private string _stashedInput = string.Empty;
+
+    /// <summary>暂存单槽内容（internal — 测试断言面；空串 = 无暂存）。</summary>
+    internal string StashedInput => _stashedInput;
+
     /// <summary>帮助面板开关（S6 任务 5 — 空闲态 '?' 弹出；分派链插在 suggestion/transcript 之后）。</summary>
     private bool _helpOpen;
 
@@ -980,6 +988,10 @@ public sealed class ReplShell
                 break;
             case "r":
                 BeginOrCycleSearch();
+                break;
+            case "s":
+                // TASK064 P3 — 基准 chat:stash：收起当前输入（忙/闲均可用），提交后自动恢复
+                StashInput();
                 break;
             case "o":
                 _transcript.Toggle();
@@ -1961,7 +1973,9 @@ public sealed class ReplShell
     /// **不上滚动区**（输入栏上方 queued 面板渲染 — TASK062 用户验收反馈：滚动区排队提示破坏消息流），
     /// 入历史环，回合结束自动按序发送（DrainEngine 队列泵 — 发送时才上屏用户消息）；闲时正常直发。
     /// S7 提交全文：显示层用折叠形态（[Pasted text #N]），发引擎取 ExpandedText（粘贴引用展开回原文）—
-    /// 上屏/历史/打断恢复保留显示形态（折叠可见语义）。</summary>
+    /// 上屏/历史/打断恢复保留显示形态（折叠可见语义）。
+    /// TASK064 P3 — ctrl+s 暂存恢复：提交动作发生后（输入框已清空，含排队/本地拦截/登录拒绝全部路径）
+    /// 暂存单槽文本自动回填输入框（外壳捕获 + 主流程统一收尾 — 见 SubmitCore/RestoreStashedInput）。</summary>
     internal void Submit()
     {
         var text = _input.Text;
@@ -1972,6 +1986,17 @@ public sealed class ReplShell
 
         var expanded = _input.ExpandedText;
         _input.Clear();
+        // TASK064 P3 — 捕获并清空暂存单槽（提交即消费：主流程结束后统一回填，空文本早退不消费）
+        var stashed = _stashedInput;
+        _stashedInput = string.Empty;
+        SubmitCore(text, expanded);
+        RestoreStashedInput(stashed);
+    }
+
+    /// <summary>提交主流程（Submit 外壳剥离暂存收尾后的全部路径 — bash 直通/主题拦截/使用记账/
+    /// 登录门/忙时排队/闲时直发；各 return 路径均为"提交动作已发生"，外壳统一恢复暂存）。</summary>
+    private void SubmitCore(string text, string expanded)
+    {
         _history.Add(text);
         _history.Reset();
         // S10 接线 — `!` 前缀 bash 直通（基准 inputModes bash 模式：剥前缀本地执行不进引擎；
@@ -2411,5 +2436,33 @@ public sealed class ReplShell
         _frontValid = false;
         _prevOverride = null;
         _forceFullReset = true;
+    }
+
+    /// <summary>ctrl+s 输入暂存（TASK064 P3 — 基准 defaultBindings.ts:85 chat:stash +
+    /// PromptInputStashNotice.tsx:18）：收起当前输入腾出输入框（忙/闲均可用 — 暂存非忙时专属），
+    /// 单槽覆盖式（重复暂存覆盖旧槽，非栈）；反馈消息上屏（PostInfo 先例 — 滚动区 dim 消息，
+    /// 首版不做 footer 通知队列）；空输入无操作（不覆盖已有暂存）。
+    /// 恢复条件 = 下次 Submit 提交动作完成后自动回填（见 Submit/RestoreStashedInput）。</summary>
+    private void StashInput()
+    {
+        var text = _input.Text;
+        if (text.Length == 0)
+        {
+            return;
+        }
+
+        _stashedInput = text;
+        _input.Clear();
+        PostInfo("已暂存（提交后自动恢复）");
+    }
+
+    /// <summary>提交后暂存回填（TASK064 P3 — Submit 外壳统一收尾：提交动作发生
+    ///（含忙时排队/本地拦截/登录拒绝全部路径）后暂存文本填回输入框，光标落文本尾；空槽无操作）。</summary>
+    private void RestoreStashedInput(string stashed)
+    {
+        if (stashed.Length > 0)
+        {
+            FillInput(stashed, cursorToStart: false);
+        }
     }
 }

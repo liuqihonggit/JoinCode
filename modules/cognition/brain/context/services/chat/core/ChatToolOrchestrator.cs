@@ -141,7 +141,11 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
                 };
             }
 
-            var toolResult = await _toolExecutionGateway.ExecuteAsync(toolCallName, arguments ?? new Dictionary<string, JsonElement>(), ct).ConfigureAwait(false);
+            // 工具进度中继（TASK065 P3 — Bash 执行中输出流式上屏）：通道在场时 gateway onProgress
+            // → ChatStreamEvent.ToolProgress Emit → QueryLoop 排空合流点实时 yield；无通道 null 零影响
+            var toolResult = await _toolExecutionGateway.ExecuteAsync(
+                toolCallName, arguments ?? new Dictionary<string, JsonElement>(), ct,
+                JoinCode.Abstractions.LLM.Chat.ToolProgressRelay.Build(toolCallName, toolCallId)).ConfigureAwait(false);
 
             // 构建结果文本
             string resultText;

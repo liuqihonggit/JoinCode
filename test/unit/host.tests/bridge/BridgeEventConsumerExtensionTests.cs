@@ -124,4 +124,50 @@ public sealed class BridgeEventConsumerExtensionTests
 
         Assert.Equal(2, @out.ToString().Split('\n').Count(static line => line.Contains("\"token_usage\"")));
     }
+
+    /// <summary>工具进度映射（TASK065 P3）— OnToolProgress → tool_progress 事件行
+    ///（progressType 透传引擎侧既有类型；多行 message 经 JSON 转义保真 — Bash 执行中输出快照）。</summary>
+    [Fact]
+    public void OnToolProgress_EmitsToolProgressEventLine()
+    {
+        var (consumer, @out) = Create();
+
+        consumer.OnToolProgress("Bash", "bash_progress", "line1\nline2");
+
+        Assert.Equal(
+            "{\"type\":\"tool_progress\",\"toolName\":\"Bash\",\"progressType\":\"bash_progress\",\"message\":\"line1\\nline2\"}\n",
+            @out.ToString());
+    }
+
+    /// <summary>工具进度 null message — 空串投影（TUI 侧更新为空尾巴自然收敛，事件形状恒定不带 null 字段）。</summary>
+    [Fact]
+    public void OnToolProgress_NullMessage_ProjectsEmptyString()
+    {
+        var (consumer, @out) = Create();
+
+        consumer.OnToolProgress("Bash", "bash_progress", null);
+
+        Assert.Equal(
+            "{\"type\":\"tool_progress\",\"toolName\":\"Bash\",\"progressType\":\"bash_progress\",\"message\":\"\"}\n",
+            @out.ToString());
+    }
+
+    /// <summary>工具执行序列行序（TASK065 P3）— OnToolStart → OnToolProgress → OnToolEnd
+    /// 产出 tool_call → tool_progress → tool_result 行序（流式进度夹在调用与结果之间 — TUI 侧
+    /// 流式项建项/替换时序的数据源契约）。</summary>
+    [Fact]
+    public void OnToolSequence_ProgressFlowsBetweenCallAndResult()
+    {
+        var (consumer, @out) = Create();
+
+        consumer.OnToolStart("Bash", "call-1", "{\"command\":\"ls\"}");
+        consumer.OnToolProgress("Bash", "bash_progress", "file.txt");
+        consumer.OnToolEnd("Bash", "1 file", "call-1", isError: false, patch: null);
+
+        Assert.Equal(
+            "{\"type\":\"tool_call\",\"name\":\"Bash\",\"args\":\"{\\\"command\\\":\\\"ls\\\"}\"}\n" +
+            "{\"type\":\"tool_progress\",\"toolName\":\"Bash\",\"progressType\":\"bash_progress\",\"message\":\"file.txt\"}\n" +
+            "{\"type\":\"tool_result\",\"summary\":\"1 file\"}\n",
+            @out.ToString());
+    }
 }

@@ -3,8 +3,10 @@ namespace NativeTui.Tests.Repl;
 /// <summary>
 /// ReplShell 后台任务面板选中导航集成测试（M8-8 登记遗留 — 基准 useBackgroundTaskNavigation.ts:181-189 +
 /// BackgroundTasksDialog.tsx 导航态）：Shift+Down 进入选中态（空闲空输入 + 有 running 门槛 — 无 running /
-/// 忙时不进入）、选中态 ↑↓ 移动（跳终态 + 窗口跟随）、Enter 查看选中任务详情（ToolResultItem 四元组消息）、
-/// x 停止选中任务（注入停止委托捕获）、Esc 退出选中态、模态吞键（字符不进输入框）。
+/// 忙时不进入）、选中态 ↑↓ 移动（跳终态 + 窗口跟随）、Enter 查看选中任务详情（M8-8 登记遗留收口 —
+/// 详情对话框挂载 BackgroundTaskDetailDialog 快照构造）、x 停止选中任务（注入停止委托捕获）、
+/// Esc 退出选中态、left 退出选中态（D 批次遗留 left 退出键）、对话框态 Esc/left 关闭回选中态、
+/// 模态吞键（选中态与对话框期字符均不进输入框）。
 /// 构造形态对齐 ReplShellIntegrationStopTaskTests（面板条目由测试直接 Upsert 种入）。
 /// </summary>
 public sealed class ReplShellPanelNavigationTests
@@ -98,9 +100,11 @@ public sealed class ReplShellPanelNavigationTests
         Assert.Equal(0, shell.View.BackgroundTasks.SelectedIndex);
     }
 
-    /// <summary>选中态 Enter — 查看选中任务详情（ToolResultItem 四元组消息上屏 + 保持选中态）。</summary>
+    /// <summary>选中态 Enter — 挂载后台任务详情对话框（M8-8 登记遗留收口：BackgroundTaskDetailDialog
+    /// 快照构造入滚动区 + IsBackgroundTaskDetailOpen 激活 + 保持选中态；首版 ToolResultItem 四元组消息
+    /// 形态已被对话框取代 — 不再产生消息项）。</summary>
     [Fact]
-    public void Selection_EnterKey_ShowsTaskDetailMessage()
+    public void Selection_EnterKey_MountsDetailDialog()
     {
         var (shell, _, _) = CreateShell();
         shell.View.BackgroundTasks.Upsert("teammate", "tm-1", "审阅PR", "running");
@@ -108,12 +112,90 @@ public sealed class ReplShellPanelNavigationTests
 
         Press(shell, ConsoleKey.Enter);
 
-        var detail = shell.View.Messages.Items.OfType<ToolResultItem>().Single();
-        Assert.Contains("kind: teammate", detail.Text);
-        Assert.Contains("id: tm-1", detail.Text);
-        Assert.Contains("描述: 审阅PR", detail.Text);
-        Assert.Contains("状态: running", detail.Text);
-        // 查看后保持选中态（连续查看/停止支持）
+        var dialog = shell.View.Messages.Items.OfType<BackgroundTaskDetailDialog>().Single();
+        Assert.True(shell.IsBackgroundTaskDetailOpen);
+        // 快照构造 — 对话框内嵌选中条目全文（kind/taskId/description 直通）
+        Assert.Equal("teammate", dialog.Entry.Kind);
+        Assert.Equal("tm-1", dialog.Entry.TaskId);
+        Assert.Equal("审阅PR", dialog.Entry.Description);
+        // 首版四元组消息形态已被对话框取代 — 不再发 ToolResultItem
+        Assert.DoesNotContain(shell.View.Messages.Items, static item => item is ToolResultItem);
+        // 查看后保持选中态（对话框关闭后回选中态可继续导航）
+        Assert.True(shell.View.BackgroundTasks.IsSelectionActive);
+    }
+
+    /// <summary>对话框态 Esc — 关闭对话框（对话框项移除 + 态复位）回选中态继续导航。</summary>
+    [Fact]
+    public void DetailDialog_EscapeKey_ClosesDialog_ReturnsToSelection()
+    {
+        var (shell, _, _) = CreateShell();
+        shell.View.BackgroundTasks.Upsert("teammate", "tm-1", "审阅PR", "running");
+        Press(shell, ConsoleKey.DownArrow, shift: true);
+        Press(shell, ConsoleKey.Enter);
+        Assert.True(shell.IsBackgroundTaskDetailOpen);
+
+        Press(shell, ConsoleKey.Escape);
+
+        Assert.False(shell.IsBackgroundTaskDetailOpen);
+        Assert.Empty(shell.View.Messages.Items.OfType<BackgroundTaskDetailDialog>());
+        // 回选中态 — 可继续导航/再次 Enter 查看
+        Assert.True(shell.View.BackgroundTasks.IsSelectionActive);
+        Assert.Equal(0, shell.View.BackgroundTasks.SelectedIndex);
+    }
+
+    /// <summary>对话框态 left — 关闭对话框回选中态（提示行 "left 关闭" 承诺；与选中态 left 退出互斥 —
+    /// 对话框激活期间分派链对话框分支在前拦截）。</summary>
+    [Fact]
+    public void DetailDialog_LeftArrow_ClosesDialog_ReturnsToSelection()
+    {
+        var (shell, _, _) = CreateShell();
+        shell.View.BackgroundTasks.Upsert("teammate", "tm-1", "审阅PR", "running");
+        Press(shell, ConsoleKey.DownArrow, shift: true);
+        Press(shell, ConsoleKey.Enter);
+
+        Press(shell, ConsoleKey.LeftArrow);
+
+        Assert.False(shell.IsBackgroundTaskDetailOpen);
+        Assert.Empty(shell.View.Messages.Items.OfType<BackgroundTaskDetailDialog>());
+        // left 只关对话框 — 选中态保持（区别于选中态 left 退出选中态）
+        Assert.True(shell.View.BackgroundTasks.IsSelectionActive);
+    }
+
+    /// <summary>选中态 left（非对话框期）— 退出选中态（D 批次遗留 left 退出键，基准
+    /// BackgroundTasksDialog left 关闭语义；对齐 Esc 退出行为）。</summary>
+    [Fact]
+    public void Selection_LeftArrow_ExitsSelection()
+    {
+        var (shell, _, _) = CreateShell();
+        shell.View.BackgroundTasks.Upsert("teammate", "tm-1", "审阅PR", "running");
+        Press(shell, ConsoleKey.DownArrow, shift: true);
+        Assert.True(shell.View.BackgroundTasks.IsSelectionActive);
+
+        Press(shell, ConsoleKey.LeftArrow);
+
+        Assert.False(shell.View.BackgroundTasks.IsSelectionActive);
+        Assert.Equal(-1, shell.View.BackgroundTasks.SelectedIndex);
+    }
+
+    /// <summary>对话框态模态吞键 — 字符不进输入框、对话框保持挂载（对齐选中态吞键语义；
+    /// 对话框激活期间 Enter 亦被吞 — 挂载不可重入）。</summary>
+    [Fact]
+    public void DetailDialog_SwallowsCharacterKeys()
+    {
+        var (shell, _, _) = CreateShell();
+        shell.View.BackgroundTasks.Upsert("teammate", "tm-1", "审阅PR", "running");
+        Press(shell, ConsoleKey.DownArrow, shift: true);
+        Press(shell, ConsoleKey.Enter);
+        Assert.True(shell.IsBackgroundTaskDetailOpen);
+
+        Char(shell, 'a');
+        Char(shell, 'b');
+        // Enter 被吞 — 不重复挂载第二个对话框
+        Press(shell, ConsoleKey.Enter);
+
+        Assert.Equal(string.Empty, shell.Input.Text);
+        Assert.True(shell.IsBackgroundTaskDetailOpen);
+        Assert.Single(shell.View.Messages.Items.OfType<BackgroundTaskDetailDialog>());
         Assert.True(shell.View.BackgroundTasks.IsSelectionActive);
     }
 

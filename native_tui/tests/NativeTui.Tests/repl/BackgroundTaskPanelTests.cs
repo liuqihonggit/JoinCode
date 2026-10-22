@@ -476,4 +476,36 @@ public sealed class BackgroundTaskPanelTests
         Assert.Equal(-1, panel.SelectedIndex);
         Assert.Equal(0, panel.WindowStart);
     }
+
+    /// <summary>Entry 快照字段形态（详情对话框构造数据源 — M8-8 登记遗留收口）：
+    /// Upsert 投影五字段直通保真 + record with 替换式更新（非原地突变 — 面板/对话框快照隔离依据）。</summary>
+    [Fact]
+    public void BackgroundTaskEntry_SnapshotFields_PreserveUpsertedValues()
+    {
+        var panel = new BackgroundTaskPanel();
+        panel.Upsert("teammate", "tm-7", "审阅架构文档", "running");
+
+        var snapshot = panel.Tasks[0];
+        Assert.Equal(new BackgroundTaskEntry("teammate", "tm-7", "审阅架构文档", "running"), snapshot);
+
+        // record with 替换式更新（Upsert 终态翻转实现形态）— 原快照不可变
+        var finalized = snapshot with { State = "completed", FinalizedAtMs = 1000 };
+        Assert.Equal("completed", finalized.State);
+        Assert.Equal(1000, finalized.FinalizedAtMs);
+        Assert.Equal("running", snapshot.State);
+        Assert.Equal(0, snapshot.FinalizedAtMs);
+    }
+
+    /// <summary>StatusText 汉化映射（internal 化 — BackgroundTaskDetailDialog 详情状态行复用同一映射源，
+    /// 面板状态段与详情状态行不双维护）：已知四态汉化 + 未知值宽容原样。</summary>
+    [Fact]
+    public void StatusText_MapsKnownAndUnknownStates_DetailDialogReusesPanelMapping()
+    {
+        Assert.Equal("运行中", BackgroundTaskPanel.StatusText("running"));
+        Assert.Equal("已完成", BackgroundTaskPanel.StatusText("completed"));
+        Assert.Equal("失败", BackgroundTaskPanel.StatusText("failed"));
+        Assert.Equal("已取消", BackgroundTaskPanel.StatusText("cancelled"));
+        // 协议演进宽容 — 未知值原样显示
+        Assert.Equal("paused", BackgroundTaskPanel.StatusText("paused"));
+    }
 }

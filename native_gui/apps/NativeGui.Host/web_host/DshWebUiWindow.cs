@@ -45,9 +45,21 @@ internal sealed class DshWebUiWindow : Window {
             App.LogDiag($"[DSH-WEB] permission preset deferred until engine ready: {preset}");
             return;
         }
-        _ = engine.SetPermissionModeAsync(mode).ContinueWith(
-            task => App.LogDiag($"[DSH-WEB] permission preset applied={preset} failed={task.Exception?.Message}"),
-            TaskScheduler.Default);
+        _ = ApplyPermissionPresetAsync(engine, preset, mode);
+    }
+
+    /// <summary>
+    /// 应用权限预设并向已打开的会话广播 plan/mode（TASK066 C6）：前端计划模式指示器
+    /// 按会话折叠事件，所以逐会话写入；应用失败只记日志，不回滚设置（下次 attach 会重读存档）。
+    /// </summary>
+    private async Task ApplyPermissionPresetAsync(Hosting.IJccChatSession engine, string preset, PermissionMode mode) {
+        try {
+            await engine.SetPermissionModeAsync(mode);
+            await _services.Streams.PublishToOpenSessionsAsync("plan/mode", new DshPlanModeData { Active = mode is PermissionMode.Plan });
+            App.LogDiag($"[DSH-WEB] permission preset applied={preset}");
+        } catch (Exception ex) {
+            App.LogDiag($"[DSH-WEB] permission preset apply failed={preset}: {ex.Message}");
+        }
     }
 
     /// <summary>

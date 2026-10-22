@@ -615,6 +615,20 @@ internal sealed class JccChatSession : IJccChatSession {
         return list;
     }
 
+    /// <summary>
+    /// 获取可用技能清单 — 从 DI 解析 ISkillService，映射名称/描述/模型可调用标记/源路径。
+    /// 引擎未注册技能服务时返回空列表（DSH skills/list 仍可正常渲染空集）。
+    /// </summary>
+    public async Task<IReadOnlyList<SkillSummary>> GetAvailableSkillsAsync(CancellationToken cancellationToken = default) {
+        if (_services.GetService<ISkillService>() is not { } skillService)
+            return [];
+        var skills = await skillService.GetAvailableSkillsAsync(cancellationToken);
+        var list = new List<SkillSummary>(skills.Count);
+        foreach (var skill in skills)
+            list.Add(new SkillSummary(skill.Name, skill.Description, !skill.DisableModelInvocation, skill.SourcePath));
+        return list;
+    }
+
     /// <summary>异步释放会话资源 — 释放底层引擎 Host</summary>
     public async ValueTask DisposeAsync() {
         if (_disposeAsync is not null) {

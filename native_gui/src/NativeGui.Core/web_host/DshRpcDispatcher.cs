@@ -57,7 +57,9 @@ internal sealed class DshRpcDispatcher {
             ["messageFeedback/list"] = MessageFeedbackList,
             ["messageFeedback/put"] = MessageFeedbackPut,
             ["messageFeedback/delete"] = MessageFeedbackDelete,
-            ["skills/list"] = Sync(_ => Ok(new DshSkillList())),
+            ["skills/list"] = SkillsList,
+            ["subagents/prompt"] = SubagentPrompt,
+            ["subagents/interruptByParent"] = SubagentInterruptByParent,
             ["dynamicCordisRunner/inventory"] = Sync(_ => OkEmptyArray()),
             ["dynamicCordisRunner/syncInspectManifest"] = Sync(_ => OkNull()),
             ["directoryPicker/pick"] = Pick,
@@ -469,6 +471,98 @@ internal sealed class DshRpcDispatcher {
         }
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(Ok(DshWorkspacePathService.ListApplications(_services.FileSystem, request.Path)));
+    }
+
+    /// <summary>
+    /// skills/list：技能清单来自引擎 ISkillService（名称/描述/模型可调用/源路径）。
+    /// sessionId 仅用于协议对齐（技能集合全局共享），引擎未就绪时给出可操作引导。
+    /// </summary>
+    private async Task<DshRpcResult> SkillsList(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSkillListArgs)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)) {
+            return Fail("gateway/bad-request",
+                $"skills/list 需要 request.sessionId（当前打开的会话 ID）；收到 args={Describe(args)}。示例：{{request:{{sessionId:\"<会话ID>\"}}}}");
+        }
+        if (_services.Engine is not { } engine) {
+            return Fail("session/not-ready", "技能列表依赖引擎技能服务；引擎仍在组装中，稍后重试（进度见 dumps/startup_timing.log）。");
+        }
+        var skills = await engine.GetAvailableSkillsAsync(cancellationToken);
+        return Ok(new DshSkillList {
+            Skills = [.. skills.Select(skill => new DshSkillItem {
+                Name = skill.Name,
+                Description = skill.Description,
+                ModelInvocable = skill.ModelInvocable,
+                Path = skill.Path,
+            })],
+        });
+    }
+
+    /// <summary>
+    /// subagents/prompt：向运行中的子代理投递一条用户消息（TASK066 C6）。
+    /// 引擎侧对应 ForwardInputToSubAgentAsync（teammate 队列投递）；messageId 回显 requestId，
+    /// 让前端把乐观条目与后续事件对齐。image 内容块与引擎纯文本通道不符，显式拒绝并给出替代做法。
+    /// </summary>
+    private async Task<DshRpcResult> SubagentPrompt(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSubagentPromptRequest)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.RequestId)) {
+            return Fail("gateway/bad-request",
+                $"subagents/prompt 需要 request.requestId（客户端消息 ID，宿主原样回显为 messageId）；收到 args={Describe(args)}");
+        }
+        if (string.IsNullOrWhiteSpace(request.ChildSessionId)) {
+            return Fail("gateway/bad-request",
+                $"subagents/prompt 需要 request.childSessionId（目标子代理会话 ID，可从 session/projections 的子代理列表获取）；收到 args={Describe(args)}");
+        }
+        if (request.Mode.Length > 0 && !string.Equals(request.Mode, "continuable", StringComparison.Ordinal)) {
+            return Fail("gateway/bad-request",
+                $"subagents/prompt 只支持 mode=continuable（可续对话子代理）；收到 mode={request.Mode}。one-shot 子代理无法接收轮外输入。");
+        }
+        if (request.Delivery.Length > 0
+            && !string.Equals(request.Delivery, "queue", StringComparison.Ordinal)
+            && !string.Equals(request.Delivery, "steer", StringComparison.Ordinal)) {
+            return Fail("gateway/bad-request",
+                $"subagents/prompt 的 delivery 只能是 queue 或 steer；收到 delivery={request.Delivery}");
+        }
+        if (request.Content.Any(part => string.Equals(part.Type, "image", StringComparison.OrdinalIgnoreCase))) {
+            return Fail("session/rejected",
+                "subagents/prompt 暂不支持 image 内容块：引擎子代理投递通道（ForwardUserInputToAgentAsync）只接受纯文本。"
+                + "请先把图片保存到会话工作区，再用 text 块给出文件路径让子代理自行读取。");
+        }
+        var text = string.Join("\n", request.Content
+            .Where(part => string.Equals(part.Type, "text", StringComparison.OrdinalIgnoreCase))
+            .Select(part => part.Text)
+            .Where(part => !string.IsNullOrWhiteSpace(part)));
+        if (text.Length == 0) {
+            return Fail("gateway/bad-request",
+                "subagents/prompt 的 content 至少要有一个非空 text 块；收到空内容，子代理不会收到任何输入。");
+        }
+        if (_services.Engine is not { } engine) {
+            return Fail("session/not-ready", "子代理投递依赖引擎；引擎仍在组装中，稍后重试（进度见 dumps/startup_timing.log）。");
+        }
+        var forwarded = await engine.ForwardInputToSubAgentAsync(request.ChildSessionId, text, cancellationToken);
+        return forwarded
+            ? Ok(new DshSubagentPromptReceipt { MessageId = request.RequestId })
+            : Fail("subagent/not-found",
+                $"子代理 {request.ChildSessionId} 不在运行中或已结束，消息未投递。请先在界面上刷新子代理列表，选择仍在运行的子代理（continuable）再发送。");
+    }
+
+    /// <summary>
+    /// subagents/interruptByParent：父会话中断子代理当前工作（非终止）。引擎侧对应
+    /// InterruptSubAgentAsync（teammate 进 idle，可再投递 prompt 恢复）。
+    /// </summary>
+    private async Task<DshRpcResult> SubagentInterruptByParent(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshSubagentInterruptArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.ChildSessionId)) {
+            return Fail("gateway/bad-request",
+                $"subagents/interruptByParent 需要 childSessionId（目标子代理会话 ID）；收到 args={Describe(args)}");
+        }
+        if (_services.Engine is not { } engine) {
+            return Fail("session/not-ready", "子代理中断依赖引擎；引擎仍在组装中，稍后重试（进度见 dumps/startup_timing.log）。");
+        }
+        var accepted = await engine.InterruptSubAgentAsync(request.ChildSessionId, cancellationToken);
+        return accepted
+            ? Ok(new DshSubagentInterruptReceipt())
+            : Fail("subagent/not-found",
+                $"子代理 {request.ChildSessionId} 不在运行中或已结束，未发生中断。请刷新子代理列表后重试。");
     }
 
     /// <summary>agentPresets/list：宿主内置标准代理（默认项来自 agent-preset-registry 设置）</summary>
@@ -1120,6 +1214,10 @@ internal sealed class DshRpcDispatcher {
     private static DshRpcResult Ok(DshSettingsDescribe value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSettingsDescribe));
 
     private static DshRpcResult Ok(DshSkillList value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSkillList));
+
+    private static DshRpcResult Ok(DshSubagentPromptReceipt value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSubagentPromptReceipt));
+
+    private static DshRpcResult Ok(DshSubagentInterruptReceipt value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSubagentInterruptReceipt));
 
     private static DshRpcResult Ok(DshMessageFeedbackListResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshMessageFeedbackListResult));
 

@@ -28,6 +28,7 @@ global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Models.Agent;
 global using JoinCode.Abstractions.Models.Diff;
 global using JoinCode.Abstractions.Models.Interactive;
+global using JoinCode.Abstractions.Models.Skill;
 global using JoinCode.Abstractions.Prompts.ToolPrompts;
 global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Permission;

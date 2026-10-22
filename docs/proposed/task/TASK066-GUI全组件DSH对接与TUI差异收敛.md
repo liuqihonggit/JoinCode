@@ -22,12 +22,12 @@
 | `dsh-client-ui-sidebar-documentpreview` | PDF/Excel/图片预览 | `workspaceFiles/readBytes`（multipart 字节附件） | ✅ 资产打包 + 缓存完整性校验 + 二进制契约 | `dsh-webui-c5-preview.mjs` 12 项 ALL_PASS（PDF 3 页、Excel 画布渲染） |
 | `dsh-client-ui-approval` | 审批面板 | `$events` waterfall + `$events/result` + 审计事件 | ✅ TASK060 B10/B12 | `dsh-webui-approval.mjs` 48/48 |
 | `dsh-client-ui-goal` | 目标条 | `goals/*` 七方法 | ✅ | 既有单测（真机 E2E 待补） |
-| `dsh-client-ui-plan` | 计划面板 | 无宿主方法（纯前端 + 会话事件） | ⚠️ 事件未投影 | 以 `session/updateQueue` 同层事件补齐 |
-| `dsh-client-ui-subagent` | 子代理卡片 | `subagents/*`（catalog 已由 `DshSubagentCatalogProjector` 投影） | ⚠️ 部分 | 子代理 E2E |
+| `dsh-client-ui-plan` | 计划面板 | `plan/mode` 事件 + `exit_plan_mode` 工具调用 | ✅ 轮次起点投影 plan/mode（状态未变去重）+ 权限预设切换广播；工具调用已走 `tool/call` | 单测 4 例 + 真机 E2E |
+| `dsh-client-ui-subagent` | 子代理卡片 | `subagents/{prompt,interruptByParent}`（catalog 已由 `DshSubagentCatalogProjector` 投影） | ✅ 文本投递 + 中断（image 显式拒绝并引导） | 单测 8 例 + 真机 E2E |
 | `dsh-client-ui-commands` / `input-trigger` | 斜杠命令/引用补全 | `commands/list|execute`、`fileReferences/list` | ✅ 斜杠命令 + @ 文件引用补全（索引缓存 5s、排除目录、20 条） | `dsh-webui-prompt` 回归 + 单测 6 例 |
 | `dsh-client-ui-settings*`（general/models/shell/agent-loop/subagent/web-search/account/plugins） | 设置中心 | `settings/{describe,mutate,replace,update}` | ✅ 四条写/读路径齐全 | 单测（整段替换/顶层补丁/revision 冲突）+ 真机 E2E |
 | `dsh-client-ui-model-selection` | 模型选择 | `session/modelCatalog|selectModel` | ✅ | 既有 E2E |
-| `dsh-client-ui-skill` | 技能面板 | `skills/list`（当前空） | ❌ 数据源未接 | 引擎技能清单投影 + 单测 |
+| `dsh-client-ui-skill` | 技能面板 | `skills/list` | ✅ 引擎 `ISkillService` 映射（名称/描述/模型可调用/源路径） | 单测（RPC 4 例 + 映射 2 例）+ 真机 E2E |
 | `dsh-client-ui-message-feedback` | 消息反馈 | `messageFeedback/{list,put,delete}` | ✅ 落盘 + 乐观并发 + 契约错误联合体 | 单测（版本冲突/备注规则）+ 真机 E2E |
 | `dsh-client-ui-directory-picker-native` | 原生目录选择 | `directoryPicker/{pick,list,createDirectory}` | ✅ 原生选择 + 目录浏览（面包屑/隐藏项/1000 条截断）+ 新建目录 | 单测 13 例 + 真机 E2E |
 | `dsh-client-ui-session` | 会话搜索/标题 | `session/rename`、`session/search` | ✅ 字面量搜索 + 20 条上限 + 240 字片段 | 单测（片段/hasMore）+ 真机 E2E |
@@ -43,8 +43,8 @@
 | 能力 | TUI 实现 | GUI/DSH 现状 | 差异 | 解决方案（冲突优先 Claude Code） |
 |---|---|---|---|---|
 | 后台任务 | `BackgroundTaskPanel` + `GetBackgroundAgentsAsync` | jobs 面板无宿主数据 | GUI 缺整块 | 引擎后台代理投影为 `JobView`；`job/list` 流推 `rows`、`job/follow` 推 `output/status`、`job/kill` 映射停止代理 |
-| 子代理 | `SubagentGroup` | 卡片部分可用 | 状态/输出未对齐 | 复用 `DshSubagentCatalogProjector`，补 `subagents/prompt|interruptByParent` |
-| 权限模式 | `PermissionMode` 循环（default/auto/plan） | `permissionPresets/*` | GUI 只读 | `settings` 写路径接引擎权限模式 |
+| 子代理 | `SubagentGroup` | 卡片 + `subagents/{prompt,interruptByParent}` | 无（文本投递；图片暂不支持） | 投递映射 `ForwardInputToSubAgentAsync`（queue/steer 同路径），中断映射 `InterruptSubAgentAsync`；image 块显式拒绝并引导先落盘再用路径 |
+| 权限模式 | `PermissionMode` 循环（default/auto/plan） | `permissionPresets/*` + `settings/mutate` 写路径 | 无（写路径已生效） | 写路径 → `engine.SetPermissionModeAsync`；同时向打开会话广播 `plan/mode`，前端计划指示器与引擎模式一致 |
 | 模型选择 | `ModelPickerDialog` | 已接 | 无 | 维持，补变更事件广播 |
 | 斜杠命令 | `CommandPickerEngine` + `SlashCommandCatalog` | `commands/list|execute` | 无 | 维持，补 GUI 分类/隐藏字段 |
 | 终端 | TUI 本体即终端 | 侧栏终端 ❌ | GUI 缺 | ConPTY 会话管理器 + 原始输出快照回放 |
@@ -60,7 +60,7 @@
 | C3 | terminal：ConPTY 会话管理器 + 10 方法 + `terminal/follow`/`retain` 流 | ✅ 已验收（单测 9 + RPC/界面 E2E ALL_PASS） |
 | C4 | 小型缺失方法：`session/search`、`settings/{replace,update}`、`agentPresets/{list,read,select}`、`session/{openWorkspacePath,workspacePathApplications}`、`messageFeedback/{list,put,delete}` | ✅ 已验收（单测 13 + `c4-e2e.mjs` 真机 19 项 ALL_PASS） |
 | C5 | `workspaceFiles/changes` 流 + 文档预览真机验收 | ✅ 已验收（流 8 项 + 预览 12 项 ALL_PASS） |
-| C6 | TUI 差异收敛（后台任务/子代理/权限模式）与文档四列表 | 🔄 进行中（目录浏览/@ 引用/能力探测已完成，子代理/计划/技能/权限模式待接） |
+| C6 | TUI 差异收敛（后台任务/子代理/权限模式）与文档四列表 | 🔄 进行中（目录浏览/@ 引用/能力探测/技能/子代理/计划模式已完成并单测；C6 真机 E2E 待跑） |
 | C7 | 全量 E2E 回归 + 完成审计 | ⬜ |
 
 ## 四、验收四列表（滚动更新）
@@ -84,6 +84,10 @@
 | `DshFileReferenceService`（会话 cwd 索引、5s 缓存、排除目录、模糊排序、20 条上限） | 输入框 @ 文件引用 `fileReferences/list` | ✅ | ✅ 单测 6 例（根目录/子目录/模糊/隐藏/排除/越界/未知会话）+ RPC 2 例 |
 | `DshPathText`（平台无关 /、C:/、UNC 路径解析与根内校验） | 目录浏览与文件引用索引的路径归一 | ✅ | ✅ 间接覆盖：InMemoryFileSystem 全路径用例 23 例 |
 | `DshWorkspacePathService.IsSupported` | `session/canOpenWorkspacePath` 能力探测 | ✅ | ✅ RPC 单测（Windows=true 与平台断言一致） |
+| `JccChatSession.GetAvailableSkillsAsync` + `SkillSummary`（引擎 `ISkillService` → DTO） | 技能面板 `skills/list` | ✅ | ✅ 单测 6 例（RPC 4 + 映射 2） |
+| `DshRpcDispatcher.SubagentPrompt`（DshRequestEnvelope → `ForwardInputToSubAgentAsync`，requestId 回显 messageId） | 子代理卡片发送框 `subagents/prompt` | ✅ | ✅ 单测 5 例（文本拼接/图片拒绝/未知子代理/非法 mode/回显） |
+| `DshRpcDispatcher.SubagentInterruptByParent`（扁平 childSessionId → `InterruptSubAgentAsync`） | 子代理卡片停止按钮 `subagents/interruptByParent` | ✅ | ✅ 单测 3 例（受理/未知/缺参） |
+| `DshSessionStreamHub.PublishToOpenSessionsAsync` + `LastPlanMode` 去重 | 计划模式指示器 `plan/mode` 事件（轮次起点 + 权限预设切换） | ✅ | ✅ 单测 4 例（轮次前投影/两次只发一次/离开发 false/多会话广播） |
 
 <!-- 🤖 Auto Decision: 2026-10-22 -->
 <!-- 决策: 新建 TASK066 而非复用 TASK065（同名文档已被 TUI 任务占用） -->
@@ -121,3 +125,9 @@
 <!-- 原因: dsh-host-directory-picker-browse 只列目录、隐藏项按点前缀、1000 条截断、新建名必须单段；dsh-file-reference-local 裸词模糊排序、空/斜杠查询列当前目录、排除构建目录、20 条上限；本地宿主无 deepseek 账号默认模型概念 --> 
 <!-- 替代方案: 复用 System.IO.Path（Windows 测试难覆盖 / 路径）/ 每次请求全量扫描索引（大仓库卡顿）/ 伪造默认模型初始化 —— 均不采用 -->
 <!-- 验证: 单测 23 例全绿（目录浏览 10 + 文件引用 6 + RPC 7），NativeGui.Core 全量 319/319 -->
+
+<!-- 🤖 Auto Decision: 2026-10-23 (C6 续) -->
+<!-- 决策: skills/list 直读引擎 ISkillService；subagents/prompt 文本块按换行拼接、messageId 回显 requestId；image 块显式拒绝；plan/mode 在轮次起点按引擎权限模式投影并去重，权限预设切换时向打开会话广播 -->
+<!-- 原因: 引擎 SkillDefinition 只有名称/描述/DisableModelInvocation/SourcePath，无 WhenToUse（DTO 可空省略）；ForwardUserInputToAgentAsync 是纯文本通道，直接静默丢弃图片会让前端以为已送达；DSH 计划面板按会话折叠 plan/mode 持久事件，而引擎权限模式是应用级状态，需要投影 + 取最近一次事件去重（无记录视为 false） -->
+<!-- 替代方案: 伪造技能数据 / 图片转 base64 塞进文本 / 每轮无条件写 plan/mode —— 前者欺骗 UI，中者子代理无法解析，后者污染日志且破坏既有事件序列断言，均不采用 -->
+<!-- 验证: 单测 15 例全绿（RPC 11 + 计划模式 4）+ 计划模式广播 1 例 + Host 技能映射 2 例；NativeGui.Core 全量 334/334、Host.Tests 技能 2/2 -->

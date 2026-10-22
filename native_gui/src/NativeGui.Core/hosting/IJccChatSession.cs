@@ -6,6 +6,9 @@ public sealed record ToolSummary(string Name, string Description);
 /// <summary>子代理摘要 — 名称、描述与显示标识，供 GUI @子代理补全展示</summary>
 public sealed record SubAgentSummary(string Name, string Description, string DisplayId);
 
+/// <summary>技能摘要 — 名称、描述与可调用标记，供 GUI 技能面板/斜杠补全展示</summary>
+public sealed record SkillSummary(string Name, string Description, bool ModelInvocable, string? Path);
+
 /// <summary>
 /// JCC 引擎宿主门面 — UI 与引擎解耦的唯一边界。
 /// ViewModel 只允许依赖此接口与 Abstractions 门面类型，禁止直接触碰引擎内部实现。
@@ -215,6 +218,13 @@ public interface IJccChatSession : IAsyncDisposable {
     /// </summary>
     Task<IReadOnlyList<SubAgentSummary>> GetAvailableSubAgentsAsync(CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<SubAgentSummary>>([]);
+
+    /// <summary>
+    /// 获取可用技能清单 — 从引擎 ISkillService 提取，供 GUI 技能面板与 / 补全消费。
+    /// 引擎未注册技能服务时返回空列表（占位会话默认空实现）。
+    /// </summary>
+    Task<IReadOnlyList<SkillSummary>> GetAvailableSkillsAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<SkillSummary>>([]);
 
     /// <summary>
     /// 当前主题 — 从 settings.json 读取（键 ConfigKeyEnumConstants.Theme），对齐 CLI /theme。

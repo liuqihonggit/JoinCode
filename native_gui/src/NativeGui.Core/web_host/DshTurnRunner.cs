@@ -73,6 +73,7 @@ internal sealed class DshTurnRunner {
     /// <param name="turn">轮次占用</param>
     private async Task BeginTurnAsync(Hosting.IJccChatSession engine, string sessionId, PendingPrompt prompt, (int Turn, CancellationToken Token) turn) {
         _services.Goals.IncrementRounds(sessionId);
+        await PublishPlanModeAsync(engine, sessionId);
         await _services.Streams.PublishAsync(sessionId, "turn/start", new DshTurnStartData { Turn = turn.Turn });
         await _services.Streams.PublishAsync(sessionId, "step/start", new DshStepData { Turn = turn.Turn, Step = Step });
         await _services.Streams.PublishAsync(sessionId, "user/message", new DshWireMessage {
@@ -82,6 +83,23 @@ internal sealed class DshTurnRunner {
             Source = new DshWireMessageSource { Kind = "user", RpcId = prompt.RequestId },
         }, surfaceOp: "append");
         _ = RunTurnAsync(engine, sessionId, prompt.Text, turn.Turn, turn.Token);
+    }
+
+    /// <summary>
+    /// 把引擎当前权限模式投影为 <c>plan/mode</c> 事件（前端计划模式指示器，TASK066 C6）。
+    /// 引擎权限模式是应用级状态，Plan 即计划模式；投影失败只记日志，不阻断本轮对话。
+    /// </summary>
+    private async Task PublishPlanModeAsync(Hosting.IJccChatSession engine, string sessionId) {
+        try {
+            var mode = await engine.GetCurrentPermissionModeAsync(CancellationToken.None);
+            var active = mode is PermissionMode.Plan;
+            await _services.Streams.EnsureLoadedAsync(sessionId, CancellationToken.None);
+            if (_services.Streams.LastPlanMode(sessionId) != active) {
+                await _services.Streams.PublishAsync(sessionId, "plan/mode", new DshPlanModeData { Active = active });
+            }
+        } catch (Exception ex) {
+            GuiDiag.Log($"[DSH-WEB] plan mode publish failed session={sessionId}: {ex.Message}");
+        }
     }
 
     /// <summary>把输入放进会话队列（ItemId = GUID，前端 updateQueue 的行操作句柄）</summary>

@@ -457,6 +457,42 @@ internal sealed class DshSessionStreamHub {
         }
     }
 
+    /// <summary>
+    /// 向所有当前有打开订阅的会话广播一条持久事件（计划模式切换是应用级状态，
+    /// 但前端按会话作用域折叠事件，所以逐会话写入）。无订阅时不产生历史。
+    /// </summary>
+    /// <param name="type">事件类型</param>
+    /// <param name="data">事件载荷</param>
+    internal async Task PublishToOpenSessionsAsync<T>(string type, T data) {
+        foreach (var sessionId in OpenSessionIds()) {
+            await PublishAsync(sessionId, type, data);
+        }
+    }
+
+    /// <summary>
+    /// 会话日志里最近一次 <c>plan/mode</c> 的 active 值（无记录视为 false）。
+    /// 供轮次起点去重：状态未变不重复写事件，重启后由首轮校正落盘状态。
+    /// </summary>
+    /// <param name="sessionId">会话 ID</param>
+    internal bool LastPlanMode(string sessionId) {
+        lock (_gate) {
+            if (!_sessions.TryGetValue(sessionId, out var state)) {
+                return false;
+            }
+            var last = state.History.LastOrDefault(sessionEvent => sessionEvent.Type == "plan/mode");
+            return last is not null
+                && last.Data.TryGetProperty("active", out var active)
+                && active.ValueKind == JsonValueKind.True;
+        }
+    }
+
+    /// <summary>当前有打开订阅的会话 ID 快照（同步持锁，供 async 广播在锁外逐个 await）</summary>
+    private string[] OpenSessionIds() {
+        lock (_gate) {
+            return [.. _subscriptions.Values.Select(subscription => subscription.SessionId).Distinct(StringComparer.Ordinal)];
+        }
+    }
+
     /// <summary>取某订阅者针对该会话的待发事件（同步持锁）</summary>
     private DshSessionEvent[] PendingFor(Subscription subscription, string sessionId) {
         lock (_gate) {

@@ -1521,8 +1521,14 @@ internal sealed class DshSkillItem {
     public string Name { get; set; } = "";
     /// <summary>描述</summary>
     public string Description { get; set; } = "";
+    /// <summary>何时使用（可省略）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? WhenToUse { get; set; }
     /// <summary>模型可调用</summary>
     public bool ModelInvocable { get; set; }
+    /// <summary>源文件路径（可省略）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Path { get; set; }
 }
 
 
@@ -1727,6 +1733,12 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshSettingsNamespaceDocument))]
 [JsonSerializable(typeof(DshSchemaEnvelope))]
 [JsonSerializable(typeof(DshSkillList))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshSkillListArgs>))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshSubagentPromptRequest>))]
+[JsonSerializable(typeof(DshSubagentInterruptArgs))]
+[JsonSerializable(typeof(DshSubagentPromptReceipt))]
+[JsonSerializable(typeof(DshSubagentInterruptReceipt))]
+[JsonSerializable(typeof(DshPlanModeData))]
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(DshDirectoryListArgs))]
 [JsonSerializable(typeof(DshDirectoryCreateArgs))]

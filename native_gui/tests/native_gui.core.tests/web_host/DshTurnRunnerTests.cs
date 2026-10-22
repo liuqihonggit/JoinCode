@@ -93,6 +93,50 @@ public sealed class DshTurnRunnerTests {
     }
 
     [Fact]
+    public async Task Start_PlanMode_PublishesPlanModeBeforeTurnStart() {
+        var harness = await Harness.CreateAsync("计划", permissionMode: PermissionMode.Plan);
+        await using var transcripts = harness.Transcripts;
+
+        (await harness.Runner.StartAsync(TextRequest("rpc-1", "规划一下"), CancellationToken.None)).Should().BeNull();
+        await harness.WaitForAsync("turn/end");
+
+        harness.Types().First().Should().Be("plan/mode", "计划模式状态必须先于 turn/start 到达前端");
+        var planMode = harness.Events[0].Event.Data;
+        planMode.GetProperty("active").GetBoolean().Should().BeTrue();
+        harness.Events[0].Event.Seq.Should().BeLessThan(harness.Events[1].Event.Seq);
+    }
+
+    [Fact]
+    public async Task Start_PlanModeTwice_PublishesPlanModeOnce() {
+        var harness = await Harness.CreateAsync("计划", permissionMode: PermissionMode.Plan);
+        await using var transcripts = harness.Transcripts;
+
+        (await harness.Runner.StartAsync(TextRequest("rpc-1", "第一轮"), CancellationToken.None)).Should().BeNull();
+        await harness.WaitForAsync("turn/end");
+        (await harness.Runner.StartAsync(TextRequest("rpc-2", "第二轮"), CancellationToken.None)).Should().BeNull();
+        await harness.WaitForCountAsync("turn/end", 2);
+
+        harness.Types().Count(type => type == "plan/mode").Should().Be(1, "计划模式未变化时不得重复写事件");
+    }
+
+    [Fact]
+    public async Task Start_AutoAfterPlan_PublishesInactivePlanMode() {
+        var harness = await Harness.CreateAsync("先计划", permissionMode: PermissionMode.Plan);
+        await using var transcripts = harness.Transcripts;
+
+        (await harness.Runner.StartAsync(TextRequest("rpc-1", "第一轮"), CancellationToken.None)).Should().BeNull();
+        await harness.WaitForAsync("turn/end");
+
+        harness.Engine.Mode = PermissionMode.Auto;
+        (await harness.Runner.StartAsync(TextRequest("rpc-2", "第二轮"), CancellationToken.None)).Should().BeNull();
+        await harness.WaitForCountAsync("plan/mode", 2);
+
+        var modes = harness.Events.Where(entry => entry.Event.Type == "plan/mode").ToList();
+        modes[0].Event.Data.GetProperty("active").GetBoolean().Should().BeTrue();
+        modes[1].Event.Data.GetProperty("active").GetBoolean().Should().BeFalse("离开计划模式必须显式下发 false");
+    }
+
+    [Fact]
     public async Task Start_EngineThrows_EndsTurnWithError() {
         var harness = await Harness.CreateAsync("x", throwOnStream: true);
         await using var transcripts = harness.Transcripts;
@@ -123,6 +167,28 @@ public sealed class DshTurnRunnerTests {
         harness.Types().Should().NotContain("assistant/message");
         harness.Hub.RunningTurn(SessionId).Should().Be(0, "取消后必须释放占用");
         harness.Engine.Cancelled.Should().BeTrue("引擎的流必须收到取消令牌");
+    }
+
+    [Fact]
+    public async Task PublishToOpenSessions_WritesPlanModeToEverySubscribedSession() {
+        var hub = new DshSessionStreamHub();
+        var first = new ConcurrentQueue<string>();
+        var second = new ConcurrentQueue<string>();
+        using var leaseA = hub.Subscribe("s1", "stream-a", sessionEvent => {
+            first.Enqueue(sessionEvent.Type);
+            return Task.CompletedTask;
+        });
+        using var leaseB = hub.Subscribe("s2", "stream-b", sessionEvent => {
+            second.Enqueue(sessionEvent.Type);
+            return Task.CompletedTask;
+        });
+
+        await hub.PublishToOpenSessionsAsync("plan/mode", new DshPlanModeData { Active = true });
+
+        first.Should().ContainSingle().Which.Should().Be("plan/mode");
+        second.Should().ContainSingle().Which.Should().Be("plan/mode");
+        hub.LastPlanMode("s1").Should().BeTrue();
+        hub.LastPlanMode("never-opened").Should().BeFalse("无记录视为非计划模式");
     }
 
     [Fact]
@@ -235,7 +301,7 @@ public sealed class DshTurnRunnerTests {
         public State.TranscriptService Transcripts { get; }
         public List<DshSessionRecord> Events { get; } = [];
 
-        public static async Task<Harness> CreateAsync(string reply, bool gate = false, bool createSession = true, bool throwOnStream = false, bool emitToolCalls = false, bool toolFails = false, bool emitSystemNotice = false) {
+        public static async Task<Harness> CreateAsync(string reply, bool gate = false, bool createSession = true, bool throwOnStream = false, bool emitToolCalls = false, bool toolFails = false, bool emitSystemNotice = false, PermissionMode permissionMode = PermissionMode.Auto) {
             var fs = new InMemoryFileSystem();
             var services = new DshHostServices(fs);
             var transcripts = new State.TranscriptService(fs, SessionsDir);
@@ -243,7 +309,7 @@ public sealed class DshTurnRunnerTests {
             if (createSession) {
                 await transcripts.EnsureSessionAsync(SessionId, new SessionInfo { Id = SessionId, ProjectPath = "/ws" });
             }
-            var engine = new StubChatSession { Reply = reply, Gate = gate, ThrowOnStream = throwOnStream, EmitToolCalls = emitToolCalls, ToolFails = toolFails, EmitSystemNotice = emitSystemNotice };
+            var engine = new StubChatSession { Reply = reply, Gate = gate, ThrowOnStream = throwOnStream, EmitToolCalls = emitToolCalls, ToolFails = toolFails, EmitSystemNotice = emitSystemNotice, Mode = permissionMode };
             services.AttachEngine(engine);
             var harness = new Harness(new DshTurnRunner(services), services.Streams, engine, transcripts);
             services.Streams.Subscribe(SessionId, "stream-1", sessionEvent => {
@@ -285,6 +351,9 @@ public sealed class DshTurnRunnerTests {
         public bool ToolFails { get; init; }
         public bool EmitSystemNotice { get; init; }
         public string? LastPrompt { get; private set; }
+
+        /// <summary>当前权限模式（计划模式事件投影来源）</summary>
+        public PermissionMode Mode { get; set; } = PermissionMode.Auto;
 
         /// <summary>引擎流是否收到了取消（验证停止生成确实传到引擎）</summary>
         public bool Cancelled { get; private set; }
@@ -353,7 +422,11 @@ public sealed class DshTurnRunnerTests {
         public void UpdateProtectedDrives(HashSet<string> protectedDrives) { }
         public Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default) => Task.FromResult(new ToolResult { IsError = true, Content = [new() { Text = "mock" }] });
         public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default) => Task.FromResult<ToolInfo?>(null);
-        public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) {
+            Mode = mode;
+            return Task.CompletedTask;
+        }
+        public Task<PermissionMode> GetCurrentPermissionModeAsync(CancellationToken cancellationToken = default) => Task.FromResult(Mode);
         public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default) => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
         public Task SetThemeAsync(JoinCode.Abstractions.UI.ThemeKind theme, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public event EventHandler<JoinCode.Abstractions.UI.ThemeKind>? ThemeChanged { add { } remove { } }

@@ -329,6 +329,8 @@ public static class KeyPressParser
             'E' => KeyPress.Named(KeyKind.Clear),
             'H' => KeyPress.Named(KeyKind.Home),
             'F' => KeyPress.Named(KeyKind.End),
+            'I' => KeyPress.Named(KeyKind.FocusIn),
+            'O' => KeyPress.Named(KeyKind.FocusOut),
             'Z' => KeyPress.Named(KeyKind.BackTab, shift: true),
             '~' => number switch
             {

@@ -226,6 +226,7 @@ public sealed class DecPrivateModeTests
     [InlineData(DecPrivateModeKind.MouseSgrEncoding, "\x1b[?1006h")]
     [InlineData(DecPrivateModeKind.BracketedPaste, "\x1b[?2004h")]
     [InlineData(DecPrivateModeKind.CursorVisibility, "\x1b[?25h")]
+    [InlineData(DecPrivateModeKind.FocusReporting, "\x1b[?1004h")]
     public void Enable_EmitsQuestionMarkCodeH(DecPrivateModeKind kind, string expected)
     {
         Assert.Equal(expected, DecPrivateMode.Enable(kind));
@@ -235,6 +236,13 @@ public sealed class DecPrivateModeTests
     public void Disable_EmitsQuestionMarkCodeL()
     {
         Assert.Equal("\x1b[?1006l", DecPrivateMode.Disable(DecPrivateModeKind.MouseSgrEncoding));
+    }
+
+    [Fact]
+    public void FocusReporting_Disable_Emits1004l()
+    {
+        // 退出对称禁用 — 基准 ink 焦点追踪生命周期
+        Assert.Equal("\x1b[?1004l", DecPrivateMode.Disable(DecPrivateModeKind.FocusReporting));
     }
 }
 

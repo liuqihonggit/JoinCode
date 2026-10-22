@@ -96,6 +96,12 @@ public enum KeyKind
     /// <summary>bracketed paste 粘贴块（\x1b[200~ 内容 \x1b[201~ — Input 携带粘贴原文，修饰符全 false）。</summary>
     Paste,
 
+    /// <summary>终端获得焦点（DECSET 1004 的 CSI I — 基准 terminal-focus-state.ts setTerminalFocused(true)）。</summary>
+    FocusIn,
+
+    /// <summary>终端失去焦点（DECSET 1004 的 CSI O — 失焦暂停动画省 CPU 的驱动信号）。</summary>
+    FocusOut,
+
     /// <summary>无法识别的序列（整体吞掉，Input 空 — 防止转义序列泄漏为文本）。</summary>
     Unknown,
 }

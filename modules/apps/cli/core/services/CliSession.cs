@@ -277,7 +277,14 @@ public sealed class CliSession {
                 try { System.Console.Clear(); } catch (IOException ex) { _logger?.LogWarning(ex, "清屏失败"); }
             },
             Confirm = msg => {
-                if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) return false;
+                // 非交互也打印提示（对齐 Dialog.ConfirmAsync 非交互行为 — TASK065 CI 913 修复：
+                // LogoutCommand 迁移消费 context.Confirm 后，E2E 断言"/logout 应输出登出确认"
+                // 依赖提示文案；静默拒绝使命令零输出。单一语义：确认前提示总是打印，非交互自动拒绝）
+                if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
+                    TerminalHelper.WriteLine($"{msg} (y/N): ");
+                    return false;
+                }
+
                 TerminalHelper.WriteRaw(msg + " (y/N) ");
                 var response = TerminalHelper.ReadLine();
                 return response?.ToLowerInvariant() == "y";

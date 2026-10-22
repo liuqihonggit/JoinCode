@@ -34,8 +34,11 @@ public enum MarkdownStyle : ushort
     Link = 1 << 6,
 }
 
-/// <summary>一行内一段同样式文本 — Markdown 行模型的最小单元。</summary>
-public readonly record struct MarkdownSegment(string Text, MarkdownStyle Style);
+/// <summary>一行内一段同样式文本 — Markdown 行模型的最小单元。
+/// Url：链接段目标地址（DSG043 P1 — null=非链接段/旧引擎 JSON 无字段降级纯文本；
+/// Link 样式段的渲染深链路注入依据，WhenWritingNull 旧 JSON 快照零破坏）。</summary>
+public readonly record struct MarkdownSegment(string Text, MarkdownStyle Style,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Url = null);
 
 /// <summary>
 /// Markdown 块模型（抽象基类）— 投影器产出，布局器消费；

@@ -30,6 +30,7 @@ global using NativeTui.Core.Components;
 global using NativeTui.Core.Grid;
 global using NativeTui.Core.Markdown;
 global using NativeTui.Core.Repl;
+global using NativeTui.Core.Repl.Dialogs;
 global using NativeTui.Core.Terminal;
 global using NativeTui.Markdown;
 // 引擎侧权限类型别名 — 引擎 JoinCode.Abstractions.Security.PermissionMode 与 Core NativeTui.Core.Repl.PermissionMode

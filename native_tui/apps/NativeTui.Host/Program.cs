@@ -268,6 +268,11 @@ public static class Program {
         Console.OutputEncoding = Encoding.UTF8;
         using var raw = new RawConsoleMode();
         Console.Error.WriteLine("引擎启动中…");
+        // S12 OSC8 最小集成 — 会话级探测一次（stderr 诊断旁路 — 对齐 DrainDiagnostics 写 stderr 先例）：
+        // 探测结果缓存于日志供链接渲染深链路批次消费（本批仅探测 + 说明，见未决问题）
+        Console.Error.WriteLine(HyperlinkEmitter.IsHyperlinkSupported()
+            ? "[diag] OSC 8 超链接: 支持（Markdown 链接渲染深链路后续批次接入）"
+            : "[diag] OSC 8 超链接: 不支持（终端未声明 — 链接降级纯文本，无需动作）");
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
         TestEnvironmentDetector.ForceNonInteractive = true;
 
@@ -338,6 +343,12 @@ public static class Program {
                     // TASK064 P3 — ctrl+g 外部编辑器委托：输入文本 → temp 文件 → $EDITOR
                     //（未设置时 Windows notepad.exe / 其余 vi 兜底）→ 读回编辑后文本；失败 null 降级丢弃
                     launchExternalEditor: text => ExternalEditorLauncher.EditAsync(text),
+                    // S12 四域接线 — /export 文件目标写盘委托：conversation-{时间戳}.md 写当前目录
+                    //（同刻冲突递增后缀防覆盖；返回文件名供通知反馈，异常由 ReplShell 侧容错降级）
+                    saveExportAsync: text => SaveConversationExportAsync(text),
+                    // S12 四域接线 — ctrl+shift+f 全局搜索源：rg 执行器（PATH 解析，缺失时
+                    // 对话框打开即降级提示；搜索根 = workspaceRoot 同一工作区根）
+                    searchSource: new RipgrepSearcher(),
                     // DSG042 P2 — 输入泵通道：默认 ReadKeyPump（现役稳定）；
                     // --raw-input 灰度启用 RawStdinPump（stdin 原始流 VT 全链 — 修饰组合键保留/
                     // paste 整块直出；双终端实测矩阵跑齐后 P3 切默认）；引用留 Host 收尾 Dispose
@@ -411,6 +422,23 @@ public static class Program {
         } catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException) {
             // 写盘失败静默降级 — 会话级主题仍生效，下次启动回退原配置
         }
+    }
+
+    /// <summary>导出对话写盘（S12 四域接线 — ExportDialog File 目标宿主实现）：
+    /// conversation-{yyyyMMdd-HHmmss}.md 写入当前目录（同刻冲突递增 -2/-3 后缀防覆盖 —
+    /// 对话框模态串行无并发导出，存在性检查即足够）；返回写入文件名（ReplShell 通知反馈
+    /// 含文件名），写盘异常向上传播（ReplShell 侧容错降级错误反馈）。</summary>
+    private static async Task<string?> SaveConversationExportAsync(string exportText) {
+        var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+        var fileName = $"conversation-{stamp}.md";
+        var suffix = 1;
+        while (File.Exists(fileName)) {
+            suffix++;
+            fileName = $"conversation-{stamp}-{suffix}.md";
+        }
+
+        await File.WriteAllTextAsync(fileName, exportText).ConfigureAwait(false);
+        return fileName;
     }
 
     /// <summary>输入泵探针（DSG042 P2 — 真实 stdin 路径实测）：管道喂 VT 字节流

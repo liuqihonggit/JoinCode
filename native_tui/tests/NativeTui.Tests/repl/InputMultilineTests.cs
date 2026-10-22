@@ -5,6 +5,9 @@ namespace NativeTui.Tests.Repl;
 /// InsertNewline 拆逻辑行、LineOf/ColumnOf 行内定位、MoveCursorVertically 跨行保列、
 /// Home/End/Kill 行内语义；单行降级（无换行）与既有单行行为逐字节一致。
 /// </summary>
+/// <summary>KillRing 静态单例串行编排（写方入组 — KillToLine* 写静态 KillRing 污染读方断言；
+/// S12 未决#2 根治：与 WordTests/UndoTests 同 Collection 串行）。</summary>
+[Collection("kill-ring")]
 public sealed class InputMultilineTests
 {
     [Fact]

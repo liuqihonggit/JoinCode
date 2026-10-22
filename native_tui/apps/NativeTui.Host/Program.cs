@@ -281,6 +281,16 @@ public static class Program {
         var tuiOutput = Console.Out;
         var originalOut = Console.Out;
         Console.SetOut(Console.Error);
+        // E1 崩溃兜底 — CursorLifecycle 注释契约兑现：raw mode 运行期内任何未处理异常/信号退出路径，
+        // 钩子统一补发硬件光标 Show + bracketed paste Disable（using RawConsoleMode 只恢复 console mode，
+        // 覆盖不了 DEC 25/2004 两个终端层状态 — 对齐基准 ink.tsx signal-exit 恢复链）
+        using var restoreGuard = new TerminalRestoreGuard(tuiOutput);
+        // earlyInput — 引擎组装窗口期按键捕获（基准 earlyInput.ts:29-67 — 启动期输入不丢失，
+        // 就绪后回填输入框；非阻塞 KeyAvailable 轮询，无按键零耗时）
+        var earlyKeys = EarlyInputBuffer.CaptureAvailable(() => Console.KeyAvailable, Console.ReadKey);
+        // 终端查询路由器（TASK067 批4 — 探测链路地基：DA1/DECRPM/kitty flags/DSR/XTVERSION
+        // 查询-应答 promise；RawStdinPump 前置分流路由；主动探测接入 TerminalCapabilities 为后续增量）
+        using var terminalQuerier = new TerminalQuerier(tuiOutput);
         try {
             EngineSession session;
             try {
@@ -324,7 +334,7 @@ public static class Program {
                 //（~/.jcc/command-history.json 坏文件静默降级空记忆）+ 工作区根（@ 文件补全索引根，banner cwd 同源）
                 var themeName = await LoadThemeNameAsync(session.Services).ConfigureAwait(false);
                 var commandUsage = await CommandUsageMemory.LoadAsync(CommandUsageMemory.DefaultFilePath).ConfigureAwait(false);
-                var rawInputPump = useRawStdinPump ? new RawStdinPump() : null;
+                var rawInputPump = useRawStdinPump ? new RawStdinPump(terminalQuerier) : null;
                 var shell = new ReplShell(pickerEngine, banner, tuiOutput, commands: commands,
                     clipboard: text => _ = clipboardService?.SetTextAsync(text),
                     themeName: themeName,
@@ -371,6 +381,12 @@ public static class Program {
                     confirm: shell.ConfirmCommand,
                     prompt: shell.PromptCommand,
                     readPassword: shell.ReadPasswordCommand);
+                // earlyInput 回灌 — 引擎组装窗口期捕获的按键回填输入框（基准 earlyInput.ts:164-169
+                // consume — 启动期输入不丢失：分派链全量复用，shell 状态此时已就绪）
+                foreach (var earlyKey in earlyKeys) {
+                    shell.HandleKey(earlyKey);
+                }
+
                 shell.Run();
                 shell.WriteExit();
                 // DSG042 P2 — 原始流泵收尾（通道完成 + 读循环取消；阻塞中的 stdin Read 由

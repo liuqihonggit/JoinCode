@@ -97,7 +97,9 @@ public sealed class ReadKeyPump : IInputPump
     }
 
     /// <summary>收集 paste 内容直到终止标记 ESC[201~ — 内容字符直积（\r\n 原样保留由
-    /// PastedContentTracker 清洗归一）；遇 ESC 尝试匹配终止标记，失败/流中断整体放弃（吞掉返回空）。</summary>
+    /// PastedContentTracker 清洗归一）；终止标记匹配失败/流中断（慢链路跨包间隙）时
+    /// 已有内容仍产出（基准 PASTE_TIMEOUT 语义 — 终止标记丢失产出部分内容释放通道，
+    /// 已读的 201~ 部分字符吞掉防泄漏为文本）；空粘贴返回空。</summary>
     private static string CollectPasteBody()
     {
         var buffer = new StringBuilder();
@@ -106,13 +108,15 @@ public sealed class ReadKeyPump : IInputPump
             var info = Console.ReadKey(intercept: true);
             if (info.KeyChar == '\u001b')
             {
-                return TryMatchPasteEnd() ? buffer.ToString() : string.Empty;
+                // 终止标记匹配 — 失败时已读部分吞掉（防泄漏），已有 body 产出
+                TryMatchPasteEnd();
+                return buffer.ToString();
             }
 
             buffer.Append(info.KeyChar);
         }
 
-        return string.Empty;
+        return buffer.ToString();
     }
 
     /// <summary>匹配 paste 终止标记剩余 "[201~"（ESC 已消费）。</summary>

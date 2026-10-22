@@ -30,7 +30,9 @@ public sealed class InlineComposer
             cursor = new CursorPos(0, cursor.Row);
             RenderSlice(builder, next, 0, next.Rows, ref cursor);
         }
-        else if (prev.Cols != next.Cols || HasScrollbackChange(prev, next, Math.Max(0, prev.Rows - viewportRows)))
+        else if (prev.Cols != next.Cols
+            || HasScrollbackChange(prev, next, Math.Max(0, prev.Rows - viewportRows))
+            || IsShrinkBeyondViewport(prev, next, viewportRows))
         {
             FullReset(builder, next, viewportRows, ref cursor);
         }
@@ -68,6 +70,12 @@ public sealed class InlineComposer
 
         return CellDiffer.ScanSegments(prev, next).Any(segment => segment.Row < scrollbackRows);
     }
+
+    /// <summary>收缩清除是否超出视口可达范围（被清首行落入 scrollback 区 — CUU 被终端钳制在视口顶，
+    /// 从视口顶清行会错擦可见区并引发多余滚屏，后续帧物理失同步）→ 必须 fullReset
+    /// （对齐基准 log-update.ts:259-271 shrink 守卫：linesToClear &gt; viewport.height → fullReset）。</summary>
+    private static bool IsShrinkBeyondViewport(Screen prev, Screen next, int viewportRows) =>
+        next.Rows < prev.Rows && prev.Rows - next.Rows > viewportRows;
 
     /// <summary>fullReset：光标相对移到视口顶 → EraseScreen → 重绘可见区（scrollback 历史保留不动）。</summary>
     private static void FullReset(StringBuilder builder, Screen next, int viewportRows, ref CursorPos cursor)

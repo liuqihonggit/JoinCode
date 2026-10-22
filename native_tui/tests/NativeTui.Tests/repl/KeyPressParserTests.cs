@@ -268,4 +268,124 @@ public sealed class KeyPressParserTests
         Assert.Equal(KeyKind.Char, key.Kind);
         Assert.Equal("你", key.Input);
     }
+
+    [Fact]
+    public void EmptyNumberParam_DoesNotThrow()
+    {
+        // ESC[;5A — xterm 空参数（默认值 1）+ 修饰 5 = Ctrl+Up；基准 parseInt("")→NaN 永不抛
+        var key = ParseOne("\u001b[;5A");
+        Assert.Equal(KeyKind.UpArrow, key.Kind);
+        Assert.True(key.Ctrl);
+    }
+
+    [Fact]
+    public void OverflowingNumberParam_DoesNotThrowOrLeak()
+    {
+        // 超长数字参数 — 基准 parseInt 返回数值不抛；C# int.Parse 曾抛 OverflowException 击穿读线程
+        var keys = ParseAll("\u001b[9999999999999999~x");
+        Assert.Equal(2, keys.Count);
+        Assert.Equal(KeyKind.Unknown, keys[0].Kind);
+        Assert.Equal(string.Empty, keys[0].Input);
+        Assert.Equal(KeyKind.Char, keys[1].Kind);
+        Assert.Equal("x", keys[1].Input);
+    }
+
+    [Fact]
+    public void ModifyOtherKeysThreePartSequence_SwallowsWithoutLeaking()
+    {
+        // ESC[27;2;13~ = modifyOtherKeys Shift+Enter（SSH/终端预配置场景真实到达）
+        // 契约：无法识别的序列整体吞掉，禁止碎片泄漏为文本
+        var keys = ParseAll("\u001b[27;2;13~x");
+        Assert.Equal(2, keys.Count);
+        Assert.Equal(KeyKind.Unknown, keys[0].Kind);
+        Assert.Equal(string.Empty, keys[0].Input);
+        Assert.Equal(KeyKind.Char, keys[1].Kind);
+        Assert.Equal("x", keys[1].Input);
+    }
+
+    [Fact]
+    public void PrivateParamSequence_SwallowsWithoutLeaking()
+    {
+        // ESC[?1$y = DECRPM 终端响应（私有参数 + intermediate 字节）— 整体吞噬禁止 1$y 泄漏
+        var keys = ParseAll("\u001b[?1$y" + "a");
+        Assert.Equal(2, keys.Count);
+        Assert.Equal(KeyKind.Unknown, keys[0].Kind);
+        Assert.Equal(string.Empty, keys[0].Input);
+        Assert.Equal(KeyKind.Char, keys[1].Kind);
+        Assert.Equal("a", keys[1].Input);
+    }
+
+    [Fact]
+    public void OverflowingModifierParam_DoesNotThrow()
+    {
+        var keys = ParseAll("\u001b[1;9999999999999999D" + "b");
+        Assert.Equal(2, keys.Count);
+        Assert.Equal(KeyKind.Unknown, keys[0].Kind);
+        Assert.Equal(string.Empty, keys[0].Input);
+        Assert.Equal(KeyKind.Char, keys[1].Kind);
+        Assert.Equal("b", keys[1].Input);
+    }
+
+    /// <summary>功能键域覆盖（基准 parse-keypress.ts:304-406 keyName 全表）：
+    /// F1-F12 三种变体（SS3 OP-OS / ~数字表 / linux console [[A-E）+ Insert/Clear + rxvt Home/End。</summary>
+    [Theory]
+    [InlineData("\u001bOP", KeyKind.F1)]
+    [InlineData("\u001bOQ", KeyKind.F2)]
+    [InlineData("\u001bOR", KeyKind.F3)]
+    [InlineData("\u001bOS", KeyKind.F4)]
+    [InlineData("\u001b[11~", KeyKind.F1)]
+    [InlineData("\u001b[12~", KeyKind.F2)]
+    [InlineData("\u001b[13~", KeyKind.F3)]
+    [InlineData("\u001b[14~", KeyKind.F4)]
+    [InlineData("\u001b[15~", KeyKind.F5)]
+    [InlineData("\u001b[17~", KeyKind.F6)]
+    [InlineData("\u001b[18~", KeyKind.F7)]
+    [InlineData("\u001b[19~", KeyKind.F8)]
+    [InlineData("\u001b[20~", KeyKind.F9)]
+    [InlineData("\u001b[21~", KeyKind.F10)]
+    [InlineData("\u001b[23~", KeyKind.F11)]
+    [InlineData("\u001b[24~", KeyKind.F12)]
+    [InlineData("\u001b[[A", KeyKind.F1)]
+    [InlineData("\u001b[[B", KeyKind.F2)]
+    [InlineData("\u001b[[C", KeyKind.F3)]
+    [InlineData("\u001b[[D", KeyKind.F4)]
+    [InlineData("\u001b[[E", KeyKind.F5)]
+    [InlineData("\u001b[2~", KeyKind.Insert)]
+    [InlineData("\u001b[7~", KeyKind.Home)]
+    [InlineData("\u001b[8~", KeyKind.End)]
+    [InlineData("\u001b[E", KeyKind.Clear)]
+    [InlineData("\u001bOE", KeyKind.Clear)]
+    public void FunctionKeySequences_ParseAsNamedKeys(string chunk, KeyKind expected)
+    {
+        Assert.Equal(expected, ParseOne(chunk).Kind);
+    }
+
+    /// <summary>超时 flush（基准 App.tsx:309-333 flushIncomplete — 50ms NORMAL_TIMEOUT）：
+    /// 序列后半段永不到达（慢链路丢失）时，孤立 ESC 前缀强制产出 Escape、剩余字节下轮按文本解析
+    ///（非 force 路径永久滞留 pending = 输入静默失联）。</summary>
+    [Theory]
+    [InlineData("\u001b[")]
+    [InlineData("\u001b[1;")]
+    [InlineData("\u001bO")]
+    public void ForcedFlush_IncompleteEscapePrefix_ProducesEscape(string chunk)
+    {
+        var span = chunk.AsSpan();
+        Assert.True(KeyPressParser.TryParseNext(ref span, out var key, force: true));
+        Assert.Equal(KeyKind.Escape, key.Kind);
+        // 消耗 1 字节（仅 ESC）— 剩余前缀下轮按文本逐字符解析
+        Assert.Equal(chunk[1..], span.ToString());
+    }
+
+    /// <summary>超时 flush（基准 App.tsx:121,356 — 500ms PASTE_TIMEOUT）：
+    /// 粘贴终止标记永不到达时，已有部分内容强制产出 Paste 事件（基准 emit pasteBuffer 释放通道
+    ///——非 force 路径整块永久滞留 = 输入静默失联）。</summary>
+    [Fact]
+    public void ForcedFlush_IncompletePaste_ProducesPartialContent()
+    {
+        var span = "\u001b[200~partial content".AsSpan();
+        Assert.True(KeyPressParser.TryParseNext(ref span, out var key, force: true));
+        Assert.Equal(KeyKind.Paste, key.Kind);
+        Assert.Equal("partial content", key.Input);
+        Assert.True(span.IsEmpty);
+    }
 }

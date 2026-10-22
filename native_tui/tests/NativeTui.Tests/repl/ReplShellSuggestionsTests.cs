@@ -272,4 +272,53 @@ public sealed class ReplShellSuggestionsTests
         Press(shell, ConsoleKey.RightArrow);
         Assert.Equal("run /comp", shell.Input.Text);
     }
+
+    /// <summary>基准 useTextInput.ts:257-265 — meta||shift+Enter 均插入换行：
+    /// 解析层已产出 Meta+Return（ESC \r 归一），分派层换行分支漏判 Meta 会误提交半成品输入。</summary>
+    [Fact]
+    public void MetaReturn_InsertsNewline_DoesNotSubmit()
+    {
+        var (shell, engine) = CreateShell();
+        Type(shell, "abc");
+        shell.HandleRawKeyPress(KeyPress.Named(KeyKind.Return, meta: true));
+        Assert.Equal("abc\n", shell.Input.Text);
+        Assert.Empty(engine.Submits);
+    }
+
+    /// <summary>基准 match.ts:60-79 修饰符精确全等 — shift+up 不命中 Autocomplete 的 up，
+    /// fall through 到 Chat shift+up 进光标导航；建议分支漏检修饰符会劫持该键。</summary>
+    [Fact]
+    public void SuggestionsActive_ShiftUp_EntersCursorNav_NotSuggestionNavigation()
+    {
+        var (shell, _) = CreateShellWithUserMessage();
+        Type(shell, "/he");
+        Assert.True(shell.Suggester?.IsActive);
+        shell.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.UpArrow, shift: true, false, false));
+        Assert.True(shell.CursorNav.IsCursorActive);
+        Assert.Equal(0, shell.Suggester?.SelectedIndex);
+    }
+
+    /// <summary>带用户消息的测试 shell（光标导航 Begin 需要可导航项 — SeedContent 仅 banner+spinner）。</summary>
+    private static (ReplShell Shell, FakeReplEngine Engine) CreateShellWithUserMessage(IReadOnlyList<CommandSuggestion>? commands = null)
+    {
+        var engine = new FakeReplEngine();
+        var banner = new BannerItem("1.0.0", "test-model", "API 按量计费", "/tmp");
+        var shell = new ReplShell(engine, banner, new StringWriter(),
+            seedMessages: [new UserMessageItem("hi")], commands: commands ?? Commands);
+        shell.SeedContent();
+        return (shell, engine);
+    }
+
+    /// <summary>ghost 接受后建议状态必须失效（基准：输入变化→updateSuggestions 重算→ghost 清空）；
+    /// FillInput 跳过刷新会残留旧 GhostSuffix，再按 → 追加旧后缀污染文本。</summary>
+    [Fact]
+    public void GhostAccept_SecondRightArrow_DoesNotReappendStaleSuffix()
+    {
+        var (shell, _) = CreateShell();
+        Type(shell, "run /comp");
+        Press(shell, ConsoleKey.RightArrow);
+        Assert.Equal("run /compact", shell.Input.Text);
+        Press(shell, ConsoleKey.RightArrow);
+        Assert.Equal("run /compact", shell.Input.Text);
+    }
 }

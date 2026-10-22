@@ -128,6 +128,16 @@ public sealed class ReplShellWiringInputTests
         Assert.Contains("[Pasted text #1", shell.History.Entries[^1]);
     }
 
+    /// <summary>折叠可见行数上限 = min(rows-10, 2)（基准 PromptInput.tsx:1220 Math.min(rows - 10, 2)）—
+    /// 24 行终端粘贴 5 行（超上限 2、远小于 rows-10=14）必须折叠，防原文直插挤爆输入区。</summary>
+    [Fact]
+    public void Paste_Multiline_FoldsAtMinRowsCap()
+    {
+        var (shell, _, _) = CreateShell();
+        shell.HandleRawKeyPress(new KeyPress(KeyKind.Paste, "a\nb\nc\nd\ne"));
+        Assert.Contains("[Pasted text #1", shell.Input.Text);
+    }
+
     /// <summary>接线点3 — 忙时排队同样保存展开形态：回合结束出队发送原文（登记簿已清不可再展开）。</summary>
     [Fact]
     public void Submit_WhileBusy_QueuesExpandedForm()

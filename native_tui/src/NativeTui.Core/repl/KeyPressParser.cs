@@ -18,7 +18,40 @@ public static class KeyPressParser
     private const string PasteEnd = "\u001b[201~";
 
     /// <summary>从 buffer 头部解析一个按键；成功则消耗并推进 buffer，前缀不完整返回 false。</summary>
-    public static bool TryParseNext(ref ReadOnlySpan<char> buffer, out KeyPress key)
+    public static bool TryParseNext(ref ReadOnlySpan<char> buffer, out KeyPress key) =>
+        TryParseNext(ref buffer, out key, force: false);
+
+    /// <summary>超时 flush 入口（基准 App.tsx:309-333 flushIncomplete — 50ms NORMAL_TIMEOUT /
+    /// :121,356 PASTE_TIMEOUT 500ms）：序列后半段永不到达时强制产出 —
+    /// 不完整 ESC 前缀产出 Escape（消耗 1 字节，剩余下轮按文本解析）；
+    /// 不完整粘贴产出已有部分内容 Paste 事件（终止标记丢失释放通道 — 基准 emit pasteBuffer）。</summary>
+    public static bool TryParseNext(ref ReadOnlySpan<char> buffer, out KeyPress key, bool force)
+    {
+        if (TryParseNormal(ref buffer, out key))
+        {
+            return true;
+        }
+
+        if (force && buffer.Length > 0 && buffer[0] == '\u001b')
+        {
+            if (buffer.StartsWith(PasteStart))
+            {
+                key = new KeyPress(KeyKind.Paste, buffer[PasteStart.Length..].ToString());
+                buffer = buffer[buffer.Length..];
+            }
+            else
+            {
+                key = KeyPress.Named(KeyKind.Escape);
+                buffer = buffer[1..];
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseNormal(ref ReadOnlySpan<char> buffer, out KeyPress key)
     {
         if (buffer.IsEmpty)
         {
@@ -119,7 +152,11 @@ public static class KeyPressParser
         };
     }
 
-    /// <summary>CSI 序列：ESC [ params {;mod} final — 方向键/Home/End/Delete/Page + 修饰符 + SGR 鼠标吞噬。</summary>
+    /// <summary>CSI 序列：ESC [ params {;mod} final — 方向键/Home/End/Delete/Page + 修饰符 + SGR 鼠标吞噬。
+    /// 序列边界 = 参数区（0x30-0x3F 数字/;/…）+ intermediate（0x20-0x2F）扫描至 final（0x40-0x7E）；
+    /// 非「数字{;数字}」两段形态（私有参数 ESC[?…、intermediate ESC[…$…、三段 modifyOtherKeys、超长数字）
+    /// 整体吞 Unknown（防泄漏契约）；数字解析全部 TryParse — 空第一段按 xterm 默认 1、
+    /// 超长数字 -1 无匹配（对齐基准 parseInt 永不抛，外部畸形输入不可击穿读线程）。</summary>
     private static bool ParseCsi(ref ReadOnlySpan<char> buffer, out KeyPress key)
     {
         var rest = buffer[2..];
@@ -135,67 +172,93 @@ public static class KeyPressParser
             return ParseSgrMouse(ref buffer, out key);
         }
 
+        // linux console 功能键变体（ESC[[A-E = F1-F5 — 基准 parse-keypress.ts:310-312）
+        if (rest[0] == '[' && rest.Length >= 2 && rest[1] is >= 'A' and <= 'E')
+        {
+            key = KeyPress.Named(rest[1] switch
+            {
+                'A' => KeyKind.F1,
+                'B' => KeyKind.F2,
+                'C' => KeyKind.F3,
+                'D' => KeyKind.F4,
+                _ => KeyKind.F5,
+            });
+            buffer = buffer[4..];
+            return true;
+        }
+
+        var scan = rest.IndexOfAnyExceptInRange('\u0020', '\u003f');
+        if (scan < 0)
+        {
+            scan = rest.Length;
+        }
+
+        if (scan == rest.Length)
+        {
+            // 参数区未闭合（final 未到）— 不完整前缀，等待更多输入
+            key = NamedUnknown();
+            return false;
+        }
+
+        key = ParseTwoSegmentForm(rest, scan, rest[scan]) ?? NamedUnknown();
+        buffer = buffer[(2 + scan + 1)..];
+        return true;
+    }
+
+    /// <summary>「数字{;数字}」两段形态语义解析：单段=简单键、双段=修饰键；空第一段=xterm 默认 1；畸形/超长=null（整体吞 Unknown）。</summary>
+    private static KeyPress? ParseTwoSegmentForm(ReadOnlySpan<char> rest, int scan, char final)
+    {
         var numEnd = 0;
-        while (numEnd < rest.Length && char.IsDigit(rest[numEnd]))
+        while (numEnd < scan && char.IsDigit(rest[numEnd]))
         {
             numEnd++;
         }
 
-        if (numEnd < rest.Length && rest[numEnd] == ';')
+        if (numEnd == scan)
         {
-            return ParseCsiWithModifier(ref buffer, rest, numEnd, out key);
+            var number = numEnd == 0 ? 1 : int.TryParse(rest[..numEnd], out var plain) ? plain : -1;
+            return BuildSimple(final, number);
         }
 
-        if (numEnd == rest.Length)
+        if (rest[numEnd] != ';')
         {
-            // 数字后无终点符 — 不完整
-            key = NamedUnknown();
-            return false;
+            return null;
         }
 
-        var final = rest[numEnd];
-        var number = numEnd == 0 ? -1 : int.Parse(rest[..numEnd]);
-        key = BuildSimple(final, number) ?? NamedUnknown();
-        buffer = buffer[(2 + numEnd + 1)..];
-        return true;
-    }
-
-    /// <summary>带修饰符的 CSI（ESC [ n ; mod final）：mod-1 位掩码 bit0=Shift bit1=Alt bit2=Ctrl。</summary>
-    private static bool ParseCsiWithModifier(ref ReadOnlySpan<char> buffer, ReadOnlySpan<char> rest, int numEnd, out KeyPress key)
-    {
         var modStart = numEnd + 1;
         var modEnd = modStart;
-        while (modEnd < rest.Length && char.IsDigit(rest[modEnd]))
+        while (modEnd < scan && char.IsDigit(rest[modEnd]))
         {
             modEnd++;
         }
 
-        if (modEnd == modStart || modEnd == rest.Length)
+        if (modEnd != scan || modEnd == modStart)
         {
-            key = NamedUnknown();
-            return false;
+            return null;
         }
 
-        var final = rest[modEnd];
-        var number = int.Parse(rest[..numEnd]);
-        var mod = int.Parse(rest[modStart..modEnd]);
-        key = BuildSimple(final, number) ?? NamedUnknown();
-        if (key.Kind != KeyKind.Unknown)
+        var number2 = int.TryParse(rest[..numEnd], out var head) ? head : -1;
+        if (!int.TryParse(rest[modStart..modEnd], out var mod))
         {
-            var bits = Math.Max(0, mod - 1);
-            key = key with
-            {
-                Shift = key.Shift || (bits & 1) != 0,
-                Meta = key.Meta || (bits & 2) != 0,
-                Ctrl = key.Ctrl || (bits & 4) != 0,
-            };
+            return null;
         }
 
-        buffer = buffer[(2 + modEnd + 1)..];
-        return true;
+        var simple = BuildSimple(final, number2);
+        if (simple is null)
+        {
+            return null;
+        }
+
+        var bits = Math.Max(0, mod - 1);
+        return simple with
+        {
+            Shift = simple.Shift || (bits & 1) != 0,
+            Meta = simple.Meta || (bits & 2) != 0,
+            Ctrl = simple.Ctrl || (bits & 4) != 0,
+        };
     }
 
-    /// <summary>SS3 应用模式（ESC O final）：方向键/Home/End，其余单字符吞掉。</summary>
+    /// <summary>SS3 应用模式（ESC O final）：方向键/Home/End/Clear/F1-F4，其余单字符吞掉。</summary>
     private static bool ParseSs3(ref ReadOnlySpan<char> buffer, out KeyPress key)
     {
         if (buffer.Length == 2)
@@ -211,8 +274,13 @@ public static class KeyPressParser
             'B' => KeyPress.Named(KeyKind.DownArrow),
             'C' => KeyPress.Named(KeyKind.RightArrow),
             'D' => KeyPress.Named(KeyKind.LeftArrow),
+            'E' => KeyPress.Named(KeyKind.Clear),
             'H' => KeyPress.Named(KeyKind.Home),
             'F' => KeyPress.Named(KeyKind.End),
+            'P' => KeyPress.Named(KeyKind.F1),
+            'Q' => KeyPress.Named(KeyKind.F2),
+            'R' => KeyPress.Named(KeyKind.F3),
+            'S' => KeyPress.Named(KeyKind.F4),
             _ => NamedUnknown(),
         };
         buffer = buffer[3..];
@@ -247,7 +315,8 @@ public static class KeyPressParser
         return true;
     }
 
-    /// <summary>简单序列 → 按键（final + 可选数字）：字母终点 / ~ 终点数字表 /
+    /// <summary>简单序列 → 按键（final + 可选数字）：字母终点 / ~ 终点数字表
+    ///（F1-F12/Insert/Clear/rxvt Home/End — 对齐基准 parse-keypress.ts:304-406 keyName 表）/
     /// u 终点 kitty 键位码（CSI codepoint;mods u — Windows Terminal 等 kitty 协议终端的
     /// ctrl+shift+字母唯一可区分形态：标准 xterm 下该组合与 ctrl+字母同码不可区分）。</summary>
     private static KeyPress? BuildSimple(char final, int number) =>
@@ -257,14 +326,34 @@ public static class KeyPressParser
             'B' => KeyPress.Named(KeyKind.DownArrow),
             'C' => KeyPress.Named(KeyKind.RightArrow),
             'D' => KeyPress.Named(KeyKind.LeftArrow),
+            'E' => KeyPress.Named(KeyKind.Clear),
             'H' => KeyPress.Named(KeyKind.Home),
             'F' => KeyPress.Named(KeyKind.End),
             'Z' => KeyPress.Named(KeyKind.BackTab, shift: true),
-            '~' when number == 1 => KeyPress.Named(KeyKind.Home),
-            '~' when number == 3 => KeyPress.Named(KeyKind.Delete),
-            '~' when number == 4 => KeyPress.Named(KeyKind.End),
-            '~' when number == 5 => KeyPress.Named(KeyKind.PageUp),
-            '~' when number == 6 => KeyPress.Named(KeyKind.PageDown),
+            '~' => number switch
+            {
+                1 => KeyPress.Named(KeyKind.Home),
+                2 => KeyPress.Named(KeyKind.Insert),
+                3 => KeyPress.Named(KeyKind.Delete),
+                4 => KeyPress.Named(KeyKind.End),
+                5 => KeyPress.Named(KeyKind.PageUp),
+                6 => KeyPress.Named(KeyKind.PageDown),
+                7 => KeyPress.Named(KeyKind.Home),
+                8 => KeyPress.Named(KeyKind.End),
+                11 => KeyPress.Named(KeyKind.F1),
+                12 => KeyPress.Named(KeyKind.F2),
+                13 => KeyPress.Named(KeyKind.F3),
+                14 => KeyPress.Named(KeyKind.F4),
+                15 => KeyPress.Named(KeyKind.F5),
+                17 => KeyPress.Named(KeyKind.F6),
+                18 => KeyPress.Named(KeyKind.F7),
+                19 => KeyPress.Named(KeyKind.F8),
+                20 => KeyPress.Named(KeyKind.F9),
+                21 => KeyPress.Named(KeyKind.F10),
+                23 => KeyPress.Named(KeyKind.F11),
+                24 => KeyPress.Named(KeyKind.F12),
+                _ => null,
+            },
             'u' when number is > 0 and not (>= 0xD800 and <= 0xDFFF) =>
                 // kitty 码点为无修饰形态（小写字母），Shift 由修饰位表达 — codepoint 转字符
                 new KeyPress(KeyKind.Char, char.ConvertFromUtf32(number)),

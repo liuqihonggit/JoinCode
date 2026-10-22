@@ -77,6 +77,26 @@ public sealed class ReplShellResizeTests
         Assert.Same(before, shell.BackBuffer);
     }
 
+    /// <summary>inline 终端高度变化 — 物理屏已被终端 reflow 重排（相对光标模型失同步），
+    /// 屏对象可复用但必须强制 fullReset 重绘（对齐基准 log-update.ts:142-147 高度变化无条件 fullReset；
+    /// 缺判定则零输出不自愈 — 物理光标与内部帧状态漂移到下一帧有变更才偶然恢复）。</summary>
+    [Fact]
+    public void Inline_TerminalRowsChange_NextFrameForcesFullReset()
+    {
+        var engine = new FakeReplEngine();
+        var output = new StringWriter();
+        var size = new FakeTerminalSizeSource(80, 24);
+        var shell = new ReplShell(engine, new BannerItem("1.0.0", "m", "b", "/tmp"), output, sizeSource: size);
+        shell.SeedContent();
+        shell.RenderAndFlush();
+        output.GetStringBuilder().Clear();
+
+        size.Rows = 12;
+        shell.RenderAndFlush();
+
+        Assert.Contains("\x1b[2J", output.ToString());
+    }
+
     /// <summary>视口模式 — cols/rows 均取自尺寸源，任一变化触发重建。</summary>
     [Fact]
     public void EnsureScreens_Viewport_RowsFromSize_RebuildsOnChange()

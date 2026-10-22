@@ -211,6 +211,55 @@ public sealed class PermissionFormsTests
         Assert.Equal(["echo a", "echo b"], PermissionTextWrap.Wrap("echo a\necho b", 40));
     }
 
+    /// <summary>折行 — 纯汉字词组按显示列宽折行（汉字 2 列："检查 构建" 4+1+4=9 列 ≤ 13，
+    /// 追加 "验证" 9+1+4=14 &gt; 13 换行 — 旧字符数计量 4 词共 9 字符全收 18 显示列，超宽被 Screen 截断）。</summary>
+    [Fact]
+    public void Wrap_WideWords_DisplayColumnBoundary()
+    {
+        Assert.Equal(["检查 构建", "验证 发布"], PermissionTextWrap.Wrap("检查 构建 验证 发布", 13));
+    }
+
+    /// <summary>折行 — 混合中英词组按显示列宽拼接判定（"abc 检查" 3+1+4=8 列 ≤ 9，
+    /// 追加 "def" 8+1+3=12 &gt; 9 换行 — 词内宽窄字符列宽混算）。</summary>
+    [Fact]
+    public void Wrap_MixedWideNarrow_DisplayColumnBoundary()
+    {
+        Assert.Equal(["abc 检查", "def"], PermissionTextWrap.Wrap("abc 检查 def", 9));
+    }
+
+    /// <summary>折行 — 连续汉字超宽单词按显示列宽硬切（"检查构建验证" 12 列 ≤ 13 收同片，
+    /// "发" 前 12+2=14 &gt; 13 截止 — 切点取不超 width 的最大字符数；旧字符数计量按 6 字切片对汉字会切出 12 列侥幸等宽、7 字以上即超宽截断）。</summary>
+    [Fact]
+    public void Wrap_OverlongWideWord_DisplayColumnChunks()
+    {
+        Assert.Equal(["检查构建验证", "发布"], PermissionTextWrap.Wrap("检查构建验证发布", 13));
+    }
+
+    /// <summary>折行 — 宽窄混合超宽单词硬切（切点含窄字符后遇宽字提前截止：
+    /// "测试a" 2+2+1=5 列收片、"bc测" 1+1+2=4 列、"试" 2 列 — 逐 rune 累计列宽不按字符数）。</summary>
+    [Fact]
+    public void Wrap_OverlongMixedWord_DisplayColumnChunks()
+    {
+        Assert.Equal(["测试a", "bc测", "试"], PermissionTextWrap.Wrap("测试abc测试", 5));
+    }
+
+    /// <summary>折行 — emoji 超宽单词硬切按 rune 边界（代理对不拆半："a😀" 1+2=3 列收片、"b" —
+    /// RuneWidth 判定表覆盖 emoji 区段，Utf16SequenceLength 前进 2 char 整体切片）。</summary>
+    [Fact]
+    public void Wrap_OverlongEmojiWord_RuneBoundaryChunks()
+    {
+        Assert.Equal(["a😀", "b"], PermissionTextWrap.Wrap("a😀b", 3));
+    }
+
+    /// <summary>折行 — ASCII 回归锁（显示列宽计量下每字符恒 1 列，判定与旧字符数计量完全等价：
+    /// "aaaa bb ccc" 恰好 11 列填满不换行 + 连续空格归一单空格既有语义保持）。</summary>
+    [Fact]
+    public void Wrap_AsciiRegression_DisplayColumnEquivalence()
+    {
+        Assert.Equal(["aaaa bb ccc"], PermissionTextWrap.Wrap("aaaa  bb   ccc", 11));
+        Assert.Equal(["ab cd", "ef"], PermissionTextWrap.Wrap("ab cd ef", 7));
+    }
+
     // ---- DangerousCommandCatalog 危险检测 ----
 
     /// <summary>危险模式矩阵 — 对齐基准 destructiveCommandWarning.ts 全模式（中文警告文案）。</summary>

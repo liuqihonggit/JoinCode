@@ -118,4 +118,67 @@ public sealed class InputBufferTests
         Assert.Equal("new text", buffer.Text);
         Assert.Equal(0, buffer.CursorCol);
     }
+
+    /// <summary>grapheme 光标模型（DSG044 L2 — 基准 Cursor.ts prevOffset/nextOffset 跳 grapheme 边界）：
+    /// emoji 代理对一次方向键跨整字（不停代理对中间）。</summary>
+    [Fact]
+    public void LeftRight_SurrogatePair_MovesByGrapheme()
+    {
+        var buffer = InputBuffer.Of("a😀b", cursorCol: 4);
+        buffer.Left();
+        Assert.Equal(3, buffer.CursorCol);
+        buffer.Left();
+        Assert.Equal(1, buffer.CursorCol);
+        buffer.Left();
+        Assert.Equal(0, buffer.CursorCol);
+
+        buffer.Right();
+        Assert.Equal(1, buffer.CursorCol);
+        buffer.Right();
+        Assert.Equal(3, buffer.CursorCol);
+        buffer.Right();
+        Assert.Equal(4, buffer.CursorCol);
+    }
+
+    /// <summary>退格删整 grapheme（emoji 代理对一次删完整 — 不留半个代理对）。</summary>
+    [Fact]
+    public void Backspace_SurrogatePair_DeletesWholeGrapheme()
+    {
+        var buffer = InputBuffer.Of("a😀b", cursorCol: 4);
+        buffer.Backspace();
+        Assert.Equal("a😀", buffer.Text);
+        buffer.Backspace();
+        Assert.Equal("a", buffer.Text);
+        Assert.Equal(1, buffer.CursorCol);
+    }
+
+    /// <summary>ZWJ emoji 序列（家庭组合单 cluster）一次退格删完整序列。</summary>
+    [Fact]
+    public void Backspace_ZwjChain_DeletesWholeCluster()
+    {
+        var family = "👨‍👩‍👧";
+        var buffer = InputBuffer.Of(family, cursorCol: family.Length);
+        buffer.Backspace();
+        Assert.Equal(string.Empty, buffer.Text);
+    }
+
+    /// <summary>组合符附加（e+U+0301 单 cluster）一次退格删完整 cluster。</summary>
+    [Fact]
+    public void Backspace_CombiningMark_DeletesWholeCluster()
+    {
+        var buffer = InputBuffer.Of("éx", cursorCol: 3);
+        buffer.Backspace();
+        Assert.Equal("é", buffer.Text);
+        buffer.Backspace();
+        Assert.Equal(string.Empty, buffer.Text);
+    }
+
+    /// <summary>CR LF 单 cluster：退格删整对（不留孤立 CR）。</summary>
+    [Fact]
+    public void Backspace_CrLf_DeletesPair()
+    {
+        var buffer = InputBuffer.Of("a\r\nb", cursorCol: 3);
+        buffer.Backspace();
+        Assert.Equal("ab", buffer.Text);
+    }
 }

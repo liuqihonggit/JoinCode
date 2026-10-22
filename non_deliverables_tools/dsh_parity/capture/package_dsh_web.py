@@ -4,8 +4,9 @@
 
 过滤规则:
   - 保留 dsh-web-frontend/dist 全量（assets/fonts/favicon/manifest）
-  - 保留每个客户端插件的 client.js（boot 必需）
-  - 排除按需加载的大 chunk（client.pdf.js / client.excel.js / client.terminal.js）
+  - 保留客户端插件的全部 JS（client.js + require.async 懒加载 chunk）：
+    终端面板 client.terminal.js、文档预览 client.pdf.js / client.excel.js
+    缺任一分块都会让对应 GUI 组件在打开时静默失败（TASK065）
   - 用宿主注入后的首页（snapshot/index.html）覆盖 dist/index.html
 zip 布局: index.html + assets/** + plugins/** + meta.json
 """
@@ -15,7 +16,7 @@ import sys
 import zipfile
 from pathlib import Path
 
-SKIP_CHUNKS = ("client.pdf.js", "client.excel.js", "client.terminal.js")
+LAZY_CHUNKS = ("client.pdf.js", "client.excel.js", "client.terminal.js")
 SKIP_TOP = {"index-root.html", "open-in-app"}
 
 
@@ -42,11 +43,15 @@ def main() -> int:
         rel = path.relative_to(www).as_posix()
         if rel.split("/")[0] in SKIP_TOP:
             continue
-        if path.name in SKIP_CHUNKS:
-            continue
         if rel == "index.html":
             continue
         files.append((rel, path))
+
+    included = {rel for rel, _ in files}
+    missing = [chunk for chunk in LAZY_CHUNKS if not any(rel.endswith("/" + chunk) for rel in included)]
+    if missing:
+        print(f"missing lazy chunks: {missing}")
+        return 1
 
     boot = json.loads((snapshot / "boot.json").read_text(encoding="utf-8"))
     out_zip.parent.mkdir(parents=True, exist_ok=True)
@@ -59,7 +64,7 @@ def main() -> int:
             "entries": len(boot.get("entries", [])),
             "batches": len(boot.get("batches", [])),
             "files": len(files) + 1,
-            "excludedChunks": list(SKIP_CHUNKS),
+            "includedLazyChunks": list(LAZY_CHUNKS),
         }, indent=2))
     print(f"zip={out_zip} files={len(files) + 1} sizeMB={out_zip.stat().st_size / 1024 / 1024:.2f}")
     return 0

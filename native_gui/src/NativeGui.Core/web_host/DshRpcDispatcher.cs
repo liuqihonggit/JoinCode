@@ -74,9 +74,10 @@ internal sealed class DshRpcDispatcher {
             ["session/attachment"] = SessionAttachment,
             // 队列编辑（TASK058 P2-B3；steer=引擎无注入点诚实拒绝）
             ["session/updateQueue"] = SessionUpdateQueue,
+            // 后台任务（TASK066 C2；list/follow 是 WS 流，路由在 DshWebHost）
+            ["job/kill"] = JobKill,
             // 目标七方法（TASK058 P2-B5；引擎节点图 goal 联动属深化项）
-            ["goals/get"] = Sync(GoalsGet),
-            ["goals/create"] = Sync(GoalsCreate),
+            ["goals/get"] = Sync(GoalsGet),            ["goals/create"] = Sync(GoalsCreate),
             ["goals/edit"] = Sync(GoalsEdit),
             ["goals/pause"] = Sync(GoalsPause),
             ["goals/resume"] = Sync(GoalsResume),
@@ -499,6 +500,24 @@ internal sealed class DshRpcDispatcher {
     internal IReadOnlyList<DshTurnRunner.QueueItem> ListQueue(string sessionId) => _turns.ListQueue(sessionId);
 
     /// <summary>
+    /// job/kill：停止一个后台任务（TASK066 C2）。任务已结束返回 <c>already-finished</c>；
+    /// 运行中则委托引擎 <c>StopBackgroundAgentAsync</c>，受理后返回 <c>requested</c>。
+    /// </summary>
+    private async Task<DshRpcResult> JobKill(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshJobKillArgs)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId) || string.IsNullOrWhiteSpace(request.JobId)) {
+            return Fail("job/rejected", $"job/kill 需要 {{sessionId, jobId}}；收到 args={Describe(args)}");
+        }
+        var (outcome, error) = await _services.Jobs.KillAsync(request.SessionId, request.JobId, cancellationToken);
+        if (error is not null) {
+            return Fail(error.Code, error.Message);
+        }
+        return outcome is { } value
+            ? Ok(new DshJobKillResult { Outcome = value })
+            : Fail("job/unavailable", $"停止任务 {request.JobId} 未返回结果；请刷新任务列表确认任务状态");
+    }
+
+    /// <summary>
     /// session/updateQueue：排队项编辑（TASK058 P2-B3 + B11）。edit=重写文本，remove=移除，
     /// steer=把排队项**升级为轮内注入**（出队 → 投递引擎邮箱，DSH `action.kind==='steer'` 语义）。
     /// 项不存在返回 session/queue-item-not-found；轮次未运行或引擎未装配邮箱返回
@@ -638,6 +657,8 @@ internal sealed class DshRpcDispatcher {
 
     private static DshRpcResult Ok(DshQueueAcceptedResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshQueueAcceptedResult));
     private static DshRpcResult Ok(DshSessionList value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionList));
+
+    private static DshRpcResult Ok(DshJobKillResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshJobKillResult));
 
     private static DshRpcResult Ok(DshSessionRenameResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionRenameResult));
 

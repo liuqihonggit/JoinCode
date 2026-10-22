@@ -303,6 +303,10 @@ internal sealed class DshWebHost : IAsyncDisposable {
                 return await OpenSessionAsync(open, send, cancellationToken);
             case "workspaceFiles/changes":
                 return await OpenWorkspaceFilesChangesAsync(open, send, cancellationToken);
+            case "job/list":
+                return await OpenJobListAsync(open, send, cancellationToken);
+            case "job/follow":
+                return await OpenJobFollowAsync(open, send, cancellationToken);
             default:
                 GuiDiag.Log($"[DSH-WEB] stream endpoint unimplemented: {open.Endpoint}");
                 return ([], null, null);
@@ -347,6 +351,132 @@ internal sealed class DshWebHost : IAsyncDisposable {
             }),
             null);
     }
+
+    /// <summary>
+    /// 打开后台任务花名册流（TASK066 C2）：先推一帧 rows，之后轮询引擎后台代理，
+    /// 花名册变化时补推（DSH 侧只在任务注册/状态变化时收到新帧）。
+    /// </summary>
+    private async Task<(IReadOnlyList<DshStreamItem> Opening, IDisposable? Lease, Func<Task>? Ready)> OpenJobListAsync(
+        DshStreamOpen open, Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
+        var request = open.Payload?.Args.Deserialize(DshJsonContext.Default.DshJobListArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)) {
+            return ([Item(open.StreamId, StreamError("job/rejected",
+                "job/list 需要 {sessionId}；请先选择一个会话再打开任务面板"))], null, null);
+        }
+        var sessionId = request.SessionId;
+        var initial = await _services.Jobs.ListAsync(sessionId, cancellationToken);
+        var pumpCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var pump = Task.Run(() => PumpJobRowsAsync(open.StreamId, sessionId, initial, send, pumpCts.Token), pumpCts.Token);
+        return (
+            [JobRowsItem(open.StreamId, initial)],
+            new DetachLease(() => {
+                pumpCts.Cancel();
+                pumpCts.Dispose();
+            }),
+            null);
+    }
+
+    /// <summary>花名册轮询泵：只在投影变化时推帧（会话切换/引擎未就绪时静默）</summary>
+    private async Task PumpJobRowsAsync(
+        string streamId, string sessionId, IReadOnlyList<DshJobView> initial,
+        Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
+        var previous = JsonSerializer.Serialize(
+            new DshJobRowsFrame { Jobs = [.. initial] }, DshJsonContext.Default.DshJobRowsFrame);
+        while (!cancellationToken.IsCancellationRequested) {
+            try {
+                await Task.Delay(JobPollInterval, cancellationToken).ConfigureAwait(false);
+                var jobs = await _services.Jobs.ListAsync(sessionId, cancellationToken).ConfigureAwait(false);
+                var current = JsonSerializer.Serialize(
+                    new DshJobRowsFrame { Jobs = [.. jobs] }, DshJsonContext.Default.DshJobRowsFrame);
+                if (!string.Equals(previous, current, StringComparison.Ordinal)) {
+                    previous = current;
+                    await send(JobRowsItem(streamId, jobs)).ConfigureAwait(false);
+                }
+            } catch (OperationCanceledException) {
+                return;
+            } catch (Exception ex) {
+                GuiDiag.Log($"[DSH-JOBS] rows pump failed: {ex.Message}");
+                return;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 打开单个任务的输出跟随流（TASK066 C2）：opened 锚点 → output 增量 → 终态 status 后正常关闭。
+    /// 输出由代理活动文本合成，字节游标保证重连从 `from` 续读。
+    /// </summary>
+    private async Task<(IReadOnlyList<DshStreamItem> Opening, IDisposable? Lease, Func<Task>? Ready)> OpenJobFollowAsync(
+        DshStreamOpen open, Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
+        var request = open.Payload?.Args.Deserialize(DshJsonContext.Default.DshJobFollowArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.JobId)) {
+            return ([Item(open.StreamId, StreamError("job/rejected",
+                "job/follow 需要 {jobId, sessionId?, from?}；请先在任务列表里选择一个任务"))], null, null);
+        }
+        var sessionId = request.SessionId ?? "";
+        var snapshot = await _services.Jobs.SnapshotAsync(sessionId, request.JobId, cancellationToken);
+        if (snapshot is null) {
+            return ([Item(open.StreamId, StreamError("job/not-found",
+                $"找不到后台任务 {request.JobId}；任务可能已被清理，请刷新任务列表"))], null, null);
+        }
+        var total = Encoding.UTF8.GetByteCount(snapshot.OutputText);
+        var cursor = Math.Clamp(request.From ?? 0, 0, total);
+        var pumpCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var pump = Task.Run(() => PumpJobOutputAsync(
+            open.StreamId, sessionId, request.JobId, cursor, snapshot, send, pumpCts.Token), pumpCts.Token);
+        return (
+            [Item(open.StreamId, JsonSerializer.SerializeToElement(
+                new DshJobOpenedFrame { Job = snapshot.View, From = cursor },
+                DshJsonContext.Default.DshJobOpenedFrame))],
+            new DetachLease(() => {
+                pumpCts.Cancel();
+                pumpCts.Dispose();
+            }),
+            null);
+    }
+
+    /// <summary>输出跟随泵：按字节游标增量推 output，排空且终态后推 status 并退出</summary>
+    private async Task PumpJobOutputAsync(
+        string streamId, string sessionId, string jobId, long cursor, DshJobSnapshot initial,
+        Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
+        var snapshot = initial;
+        while (!cancellationToken.IsCancellationRequested) {
+            try {
+                var bytes = Encoding.UTF8.GetBytes(snapshot.OutputText);
+                if (cursor < bytes.LongLength) {
+                    var offset = (int)cursor;
+                    var length = bytes.Length - offset;
+                    var text = Encoding.UTF8.GetString(bytes, offset, length);
+                    await send(Item(streamId, JsonSerializer.SerializeToElement(new DshJobOutputFrame {
+                        Chunks = [new DshJobChunk { At = cursor, Text = text, Channel = "log" }],
+                        Next = bytes.LongLength,
+                    }, DshJsonContext.Default.DshJobOutputFrame))).ConfigureAwait(false);
+                    cursor = bytes.LongLength;
+                }
+                if (snapshot.Terminal) {
+                    await send(Item(streamId, JsonSerializer.SerializeToElement(
+                        new DshJobStatusFrame { Job = snapshot.View },
+                        DshJsonContext.Default.DshJobStatusFrame))).ConfigureAwait(false);
+                    return;
+                }
+                await Task.Delay(JobPollInterval, cancellationToken).ConfigureAwait(false);
+                snapshot = await _services.Jobs.SnapshotAsync(sessionId, jobId, cancellationToken).ConfigureAwait(false)
+                    ?? snapshot;
+            } catch (OperationCanceledException) {
+                return;
+            } catch (Exception ex) {
+                GuiDiag.Log($"[DSH-JOBS] follow pump failed: {ex.Message}");
+                return;
+            }
+        }
+    }
+
+    /// <summary>任务花名册帧项</summary>
+    private static DshStreamItem JobRowsItem(string streamId, IReadOnlyList<DshJobView> jobs) =>
+        Item(streamId, JsonSerializer.SerializeToElement(
+            new DshJobRowsFrame { Jobs = [.. jobs] }, DshJsonContext.Default.DshJobRowsFrame));
+
+    /// <summary>后台任务轮询间隔（引擎是拉取式快照；500ms 足够覆盖任务面板刷新）</summary>
+    private static readonly TimeSpan JobPollInterval = TimeSpan.FromMilliseconds(500);
 
     /// <summary>打开会话事件流的首帧：宿主事件日志（或转录投影）→ snapshot + 订阅后续事件；否则给出可执行的引导错误</summary>
     private async Task<(IReadOnlyList<DshStreamItem> Opening, IDisposable? Lease, Func<Task>? Ready)> OpenSessionAsync(

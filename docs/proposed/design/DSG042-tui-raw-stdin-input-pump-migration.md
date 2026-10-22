@@ -83,3 +83,18 @@ RawStdinPump（新：后台读线程 + 字节流 UTF-8 解码 + KeyPressParser �
 1. P2 探针形态：`--selftest-input` 独立入口 vs 复用 `--selftest-commands` 扩展
 2. RawStdinPump 的 Channel 容量与满策略（背压 vs 丢弃——基准 ink 无界，倾向有界 256 满等待防键风暴丢键）
 3. P3 退役 ConsoleKeyAdapter 的时机（kitty protocol 是否先落地再退役——归档后 ReadKey 通道复活成本）
+
+## 执行状态（2026-10-23）
+
+| Phase | 状态 | 提交 |
+|-------|------|------|
+| P1 抽象收编 | ✅ 完成 — IInputPump + ReadKeyPump 搬入 + ReplShell 注入，1667 全绿零语义变化 | ce83f01e9 |
+| P2 RawStdinPump | ✅ 完成 — 全链（读线程/UTF-8 增量解码/解析/有界通道 256/非阻塞续投）+ 13 单测 + --raw-input 开关 + Host Dispose 收尾 | ce83f01e9 + 本批 |
+| P3 切默认退役 | ⬜ 未做 — 双终端实测矩阵（Windows Terminal/conhost）跑齐后切默认归档 ReadKey 状态机 | — |
+
+P2 实施中修的三个真 bug（用户点报自死锁后熔断定位）：
+1. 同线程自死锁 — FeedForTest 同步投递 + WriteAsync 满等待 + Drain 同线程互等（改纯非阻塞 TryWrite + 回退）
+2. DropWrite 静默吞键 — FullMode 语义与"满即停"相反，300 键丢 44（改 Wait）
+3. 解析消耗未投递丢键 — TryParseNext ref 推进后 TryWrite 失败需回退 span（before 快照重赋值）
+
+熔断机制：测试收集循环 2s 超时 fail-fast 带诊断（已收数/pending 残留）— 本批两真 bug 均由它定位，留为常驻设施。

@@ -19,8 +19,10 @@ public static class Program {
                 return await RunSelftestTurnAsync().ConfigureAwait(false);
             if (args is ["--selftest-commands"])
                 return await RunSelftestCommandsAsync().ConfigureAwait(false);
+            if (args is ["--raw-input"])
+                return await RunInteractiveAsync(useRawStdinPump: true).ConfigureAwait(false);
             if (args.Length > 0) {
-                Console.Error.WriteLine($"未知参数: {string.Join(' ', args)}。用法: NativeTui.Host [--selftest | --selftest-turn | --selftest-commands]（无参数进入交互模式，需真实终端）");
+                Console.Error.WriteLine($"未知参数: {string.Join(' ', args)}。用法: NativeTui.Host [--selftest | --selftest-turn | --selftest-commands | --raw-input]（无参数进入交互模式，需真实终端；--raw-input 启用 stdin 原始流输入泵灰度通道）");
                 return 1;
             }
 
@@ -255,7 +257,7 @@ public static class Program {
     }
 
     /// <summary>交互模式 — TTY 检查 → UTF-8 → raw mode → 引擎组装（Console.Out 重定向 stderr 防引擎污染渲染）→ REPL 主循环。</summary>
-    private static async Task<int> RunInteractiveAsync() {
+    private static async Task<int> RunInteractiveAsync(bool useRawStdinPump = false) {
         if (Console.IsInputRedirected || Console.IsOutputRedirected) {
             Console.Error.WriteLine("交互模式需要真实终端（stdin/stdout 被重定向）。请直接在终端运行 NativeTui.Host，或用 --selftest 跑非交互冒烟。");
             return 1;
@@ -315,6 +317,7 @@ public static class Program {
                 //（~/.jcc/command-history.json 坏文件静默降级空记忆）+ 工作区根（@ 文件补全索引根，banner cwd 同源）
                 var themeName = await LoadThemeNameAsync(session.Services).ConfigureAwait(false);
                 var commandUsage = await CommandUsageMemory.LoadAsync(CommandUsageMemory.DefaultFilePath).ConfigureAwait(false);
+                var rawInputPump = useRawStdinPump ? new RawStdinPump() : null;
                 var shell = new ReplShell(pickerEngine, banner, tuiOutput, commands: commands,
                     clipboard: text => _ = clipboardService?.SetTextAsync(text),
                     themeName: themeName,
@@ -332,7 +335,11 @@ public static class Program {
                     saveThemeAsync: name => SaveThemeAsync(session.Services, name),
                     // TASK064 P3 — ctrl+g 外部编辑器委托：输入文本 → temp 文件 → $EDITOR
                     //（未设置时 Windows notepad.exe / 其余 vi 兜底）→ 读回编辑后文本；失败 null 降级丢弃
-                    launchExternalEditor: text => ExternalEditorLauncher.EditAsync(text));
+                    launchExternalEditor: text => ExternalEditorLauncher.EditAsync(text),
+                    // DSG042 P2 — 输入泵通道：默认 ReadKeyPump（现役稳定）；
+                    // --raw-input 灰度启用 RawStdinPump（stdin 原始流 VT 全链 — 修饰组合键保留/
+                    // paste 整块直出；双终端实测矩阵跑齐后 P3 切默认）；引用留 Host 收尾 Dispose
+                    inputPump: rawInputPump); (feat: DSG042 P2 收尾 --raw-input 宿主开关接线 | 决策: Host 持泵引用 Run/WriteExit 后 Dispose(通道完成+取消;阻塞读由 IsBackground 进程退出回收不等待防挂)+重定向守卫沿用交互模式; 默认通道不变(ReadKeyPump 现役,--raw-input 显式灰度) | 验证: Host 编译零警告+selftest 冒烟过+RawStdinPumpTests 13/13)
                 pickerEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);
@@ -353,6 +360,9 @@ public static class Program {
                     readPassword: shell.ReadPasswordCommand);
                 shell.Run();
                 shell.WriteExit();
+                // DSG042 P2 — 原始流泵收尾（通道完成 + 读循环取消；阻塞中的 stdin Read 由
+                // IsBackground 线程随进程退出回收 — Dispose 不等待线程终结防挂）
+                rawInputPump?.Dispose();
             }
         } finally {
             Console.SetOut(originalOut);

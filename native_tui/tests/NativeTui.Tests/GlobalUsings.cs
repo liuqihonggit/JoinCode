@@ -12,5 +12,6 @@ global using NativeTui.Core.Grid;
 global using NativeTui.Core.Layout;
 global using NativeTui.Core.Markdown;
 global using NativeTui.Core.Repl;
+global using NativeTui.Core.Repl.Dialogs;
 global using NativeTui.Core.Terminal;
 global using Xunit;

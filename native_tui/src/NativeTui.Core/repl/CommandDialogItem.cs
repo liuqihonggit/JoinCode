@@ -1,11 +1,12 @@
 namespace NativeTui.Core.Repl;
 
 /// <summary>
-/// 命令交互对话框消息项（TASK065 F2）— 斜杠命令 confirm/prompt 挂起时插入滚动区：
+/// 命令交互对话框消息项（TASK065 F2）— 斜杠命令 confirm/prompt/readPassword 挂起时插入滚动区：
 /// 视觉对齐 PermissionRequestItem（顶边框 permission 色 + bold 标题 + 3 缩进消息行 +
 /// Select 数字前缀选项 + Esc 取消提示），confirm 两档（1.Yes / 2.No 焦点 ❯ suggestion）；
-/// prompt 形态为输入行（❯ suggestion + 输入缓冲 + 行尾反色光标块）。状态源 =
-/// CommandDialogCoordinator（消息/焦点/输入缓冲），Begin 时插入 Messages，Complete 时移除。
+/// prompt 形态为输入行（❯ suggestion + 输入缓冲 + 行尾反色光标块）；password 形态回显
+/// PasswordMask 等宽遮蔽（TASK065 F2b — 明文仅存协调器数据层，渲染层不落明文）。
+/// 状态源 = CommandDialogCoordinator（消息/焦点/输入缓冲/形态），Begin 时插入 Messages，Complete 时移除。
 /// </summary>
 public sealed class CommandDialogItem(CommandDialogCoordinator coordinator) : IScrollItem
 {
@@ -54,12 +55,14 @@ public sealed class CommandDialogItem(CommandDialogCoordinator coordinator) : IS
         MessageRenderer.RenderPermissionEscHint(screen, RowFrame(frame, row), theme);
     }
 
-    /// <summary>prompt 输入行 — 3 缩进 ❯ suggestion + 输入缓冲 + 行尾反色光标块（输入光标语义）。</summary>
+    /// <summary>prompt 输入行 — 3 缩进 ❯ suggestion + 输入缓冲 + 行尾反色光标块（输入光标语义）；
+    /// 密文形态（TASK065 F2b）回显 PasswordMask 等宽遮蔽 — 长度 1:1 保持，光标块/退格语义不变。</summary>
     private void RenderPromptInputRow(Screen screen, Rect frame, Theme theme)
     {
         var suggestion = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Suggestion });
         var col = screen.WriteText(frame.Y, frame.X, "   ❯ ", suggestion, frame.Right);
-        col = screen.WriteText(frame.Y, col, Coordinator.PromptInput, 0, frame.Right);
+        var echo = Coordinator.IsPassword ? PasswordMask.Of(Coordinator.PromptInput) : Coordinator.PromptInput;
+        col = screen.WriteText(frame.Y, col, echo, 0, frame.Right);
         if (col < frame.Right)
         {
             var inverse = screen.Styles.GetOrAdd(new TextStyle { Inverse = true });

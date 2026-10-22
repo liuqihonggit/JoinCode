@@ -401,4 +401,79 @@ public sealed class BackgroundTaskPanelTests
         // 消息 2 + 间隔 1 + 输入区 3 + 后台面板 1 + footer 1 = 8
         Assert.Equal(8, view.MeasureContentHeight(cols: 40));
     }
+
+    /// <summary>选中行 ❯ 前缀（suggestion 色）替换 ● 状态点 + 正文 suggestion 色 + 状态段 dim 保持
+    /// （对齐 ModelPicker.RenderModelListRow 焦点形态）；未选中行保持 ● 状态色点 + 默认正文。</summary>
+    [Fact]
+    public void Render_SelectedEntry_PointerPrefixAndSuggestionColor()
+    {
+        using var screen = new Screen(cols: 40, rows: 2);
+        var panel = new BackgroundTaskPanel();
+        panel.Upsert("fork", "f-1", "任务1", "completed");
+        panel.Upsert("fork", "f-2", "任务2", "running");
+        panel.MoveSelection(1);
+
+        panel.Render(screen, new Rect(0, 0, 40, 2), Theme.Dark);
+
+        // 未选中行（f-1 终态）保持 ● 状态色点前缀
+        Assert.Equal("● fork: 任务1 · 已完成", RowText.Of(screen, 0, 0, 40).TrimEnd());
+        // 选中行（f-2）❯ 前缀替换 ● 状态点 — 状态信息由行尾状态段保留
+        Assert.Equal("❯ fork: 任务2 · 运行中", RowText.Of(screen, 1, 0, 40).TrimEnd());
+        var selection = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.Suggestion });
+        Assert.Equal(selection, screen[1, 0].StyleId);
+        // 选中行状态段（" · 运行中"）dim 保持：❯ 1 列 + 空格 1 + "fork: " 6 + "任务2" 5 → col 13 起
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        Assert.Equal(dim, screen[1, 13].StyleId);
+    }
+
+    /// <summary>选中行超出窗口 — 滚动窗口跟随保证选中行可见（对齐 ModelPicker.MoveFocus 窗口跟随先例）。</summary>
+    [Fact]
+    public void Render_SelectionBeyondWindow_ScrollsWindowToKeepSelectionVisible()
+    {
+        using var screen = new Screen(cols: 40, rows: 11);
+        var panel = new BackgroundTaskPanel();
+        for (var i = 1; i <= 12; i++)
+        {
+            panel.Upsert("fork", $"f-{i}", $"任务{i}", "running");
+        }
+
+        for (var i = 0; i < 12; i++)
+        {
+            panel.MoveSelection(1);
+        }
+
+        Assert.Equal(11, panel.SelectedIndex);
+        panel.Render(screen, new Rect(0, 0, 40, 11), Theme.Dark);
+
+        // 窗口跟随：选中第 12 条（索引 11）→ WindowStart=2，首行任务3、末可见行任务12（选中 ❯）
+        Assert.Equal(2, panel.WindowStart);
+        Assert.Equal("● fork: 任务3 · 运行中", RowText.Of(screen, 0, 0, 40).TrimEnd());
+        Assert.Equal("❯ fork: 任务12 · 运行中", RowText.Of(screen, 9, 0, 40).TrimEnd());
+        Assert.Equal("+2 more", RowText.Of(screen, 10, 0, 40).TrimEnd());
+    }
+
+    /// <summary>ClearSelection — 选中归 -1（IsSelectionActive=false）+ 滚动窗口归 0（回默认视图）。</summary>
+    [Fact]
+    public void ClearSelection_ResetsIndexAndWindow()
+    {
+        var panel = new BackgroundTaskPanel();
+        for (var i = 1; i <= 12; i++)
+        {
+            panel.Upsert("fork", $"f-{i}", $"任务{i}", "running");
+        }
+
+        for (var i = 0; i < 12; i++)
+        {
+            panel.MoveSelection(1);
+        }
+
+        Assert.True(panel.IsSelectionActive);
+        Assert.True(panel.WindowStart > 0);
+
+        panel.ClearSelection();
+
+        Assert.False(panel.IsSelectionActive);
+        Assert.Equal(-1, panel.SelectedIndex);
+        Assert.Equal(0, panel.WindowStart);
+    }
 }

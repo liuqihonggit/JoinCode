@@ -44,12 +44,6 @@ public sealed class EngineSession : IAsyncDisposable {
     /// <summary>重发 session_info 事件 — 模型/供应商切换等运行时状态变化后刷新 banner（ReplBridgeDriver.ApplySessionInfo 差分上屏）。</summary>
     public void RefreshSessionInfo() => _client.Enqueue(BuildSessionInfoEvent(_checker, _fastMode, _engine.Config));
 
-    /// <summary>停止后台任务（M8-8 后续 — Program 在 shell 构造处 onStopTask 委托接线，
-    /// 转发回合客户端 → 后台任务泵 CancelFork/StopTeammate 分派）。</summary>
-    /// <param name="kind">任务类别（fork|teammate）</param>
-    /// <param name="taskId">任务标识</param>
-    public void StopBackgroundTask(string kind, string taskId) => _client.StopBackgroundTask(kind, taskId);
-
     /// <summary>TUI 静默日志 provider（internal — 测试断言非 Console：Console 直写 stderr 与 inline 渲染交错致光标错乱/横向线残影）。
     /// 错误反馈走 EngineTurnClient Error 事件链（● 回合执行失败），不依赖引擎日志。</summary>
     internal static ILoggerProvider LoggerProvider => SilentLoggerProvider.Instance;
@@ -74,8 +68,9 @@ public sealed class EngineSession : IAsyncDisposable {
 
             // S8 confirm 闭环 — 命令确认回调走 TuiPermissionBridge TCS 桥（复用权限对话框模态，
             // 两档映射 Allow/AlwaysAllow → true；shell 未绑定时 bridge 自动 Deny → false 安全降级）。
-            // prompt/readPassword 数据层（InputRequestCoordinator/PasswordMask）已就绪，
-            // ReplShell 输入模态入口属 S7 域 — 接线未决，期间保持 null（命令侧默认空输入降级）。
+            // prompt/readPassword 组装期 null（无 shell 可挂模态）— 交互模式 Program 在 shell 构造后
+            // BindInteractions 重绑为 ReplShell 命令对话框同步桥（prompt 明文 / readPassword 密文遮蔽，
+            // TASK065 F2b 已接；组装期 null = 命令侧默认空输入降级）。
             commandCallbacks.BindInteractions(
                 confirm: message => MapConfirmResult(permissionBridge.Confirm(CommandConfirmToolName, message)),
                 prompt: null,
@@ -183,7 +178,8 @@ public sealed class EngineSession : IAsyncDisposable {
     /// S8/TASK065 F2 交互面透传：confirm 组装期闭环走权限对话框 TCS 桥（selftest 等非交互宿主
     /// 也有 confirm 能力）；交互模式 Program 在 shell 构造后 BindInteractions 重绑 confirm/prompt
     /// 为 ReplShell 命令对话框同步桥（语义更准；解锁 /commit /login /resume 等交互命令）；
-    /// readPassword 双方均未接（密文输入框复杂度高 — 空输入降级，遗留项登记）。
+    /// readPassword 密文模态（TASK065 F2b — 回显 PasswordMask 等宽遮蔽、Enter 提交原文/Esc 取消 null，
+    /// 数据层原文仅存协调器，渲染层不落明文）。
     /// TASK065 F6 — 命令回合标记 consumer 纯文本模式（OnDone 跳过 Markdig 投影，防 /help 类
     /// 缩进对齐文本被解释为代码块/表格错位；对话回合 Markdown 不受影响）。
     /// internal static — 回调透传链测试面（fake DI 驱动真实命令注册链）。
@@ -288,7 +284,8 @@ public sealed class TuiCommandCallbacks {
     /// TASK065 F2，/login /resume 等。null — 命令侧默认空输入）。</summary>
     public Func<string, string?>? Prompt => _prompt;
 
-    /// <summary>密码输入回调（命令 readPassword → TUI 遮蔽输入模态；null — 命令侧默认空串。双方均未接线，遗留项）。</summary>
+    /// <summary>密码输入回调（交互模式经 BindInteractions 重绑为 ReplShell 命令密文输入对话框同步桥 —
+    /// TASK065 F2b，回显 PasswordMask 遮蔽 + Enter 提交原文/Esc null。null — 命令侧默认空串降级）。</summary>
     public Func<string, string?>? ReadPassword => _readPassword;
 
     /// <summary>已绑定任一回调（internal — Program 接线测试断言面）。</summary>

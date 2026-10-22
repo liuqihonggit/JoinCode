@@ -2,6 +2,8 @@ namespace NativeTui.Core.Repl;
 
 /// <summary>
 /// 输入请求种类（S8）— 命令交互回调（prompt/readPassword）的模态输入语义。
+/// kind 唯一数据源（TASK065 F2b — CommandDialogCoordinator.BeginPrompt 消费，
+/// Password 形态渲染走 PasswordMask 遮蔽）。
 /// </summary>
 public enum InputRequestKind
 {

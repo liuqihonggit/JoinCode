@@ -178,6 +178,30 @@ public sealed class GoalCommandTest {
         output.Should().Contain("  预算: 5000 Token");
     }
 
+    /// <summary>生产 bug 修复(TASK065 第五波): usage 文档形态 "/goal [初始提示] [--constraint ...] [--budget N]"
+    /// 目标在前 — 选项解析应为位置无关剥离,objective 纯净不含选项原文,约束与预算正常提取传 StartAsync。</summary>
+    [Fact]
+    public async Task Execute_ObjectiveFirstDocForm_PassesCleanObjectiveToStart() {
+        var engine = CreateEngine();
+        var (cmd, context) = Arrange(
+            arguments: "优化性能 --constraint '不许改配置' --budget 5000",
+            engine: engine);
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        engine.Verify(e => e.StartAsync(
+            It.Is<string>(p => p.Contains("优化性能") && !p.Contains("--constraint") && !p.Contains("--budget")),
+            It.IsAny<List<string>?>(),
+            It.Is<int?>(b => b == 5000),
+            It.IsAny<string?>(),
+            It.IsAny<CancellationToken>()), Times.Once,
+            "目标在前的文档形态应剥离选项后传纯净 objective");
+        output.Should().Contain("  初始提示: 优化性能", "初始提示不应混入选项原文");
+        output.Should().Contain("  预填约束: 不许改配置");
+        output.Should().Contain("  预算: 5000 Token");
+    }
+
     [Fact]
     public async Task Execute_StartFailure_ConvergesToErrorHint() {
         var engine = CreateEngine();
@@ -312,10 +336,10 @@ public sealed class GoalCommandTest {
         output.Should().Contain("◎ /goal 已暂停");
     }
 
-    /// <summary>生产 bug 登记(TASK065 brain 域): usage 提示 "/goal [初始提示] [--constraint '约束'] [--budget N]"
-    /// 的文档形态(目标在前、选项在后)不被 ParseGoalArgs 支持 — 选项剥离仅匹配 remaining 开头,
+    /// <summary>生产 bug 登记(TASK065 brain 域,第五波已修复): usage 提示 "/goal [初始提示] [--constraint '约束'] [--budget N]"
+    /// 的文档形态(目标在前、选项在后)曾不被 ParseGoalArgs 支持 — 选项剥离仅匹配 remaining 开头,
     /// 目标在前时整个字符串(含 --constraint/--budget 原文)作为 objective 传入 GoalSpecPromptBuilder。
-    /// 本测试按当前实现以"选项在前"形态验证解析正路径;修复为任意位置剥离后应补充目标在前的用例。</summary>
+    /// 修复后选项解析为位置无关全串扫描;"选项在前"既有形态与目标在前的文档形态均正确剥离。</summary>
     [Theory]
     [InlineData("--cron */5 * * * * 每五分钟检查", true, "*/5 * * * *", "每五分钟检查")]
     [InlineData("-c 0 9 * * 1 每周一早九点", true, "0 9 * * 1", "每周一早九点")]
@@ -352,6 +376,35 @@ public sealed class GoalCommandTest {
 
         parsed.TokenBudget.Should().BeNull("非数字预算应被忽略而非崩溃");
         parsed.Objective.Should().Be("目标");
+    }
+
+    /// <summary>生产 bug 修复(TASK065 第五波): 目标在前的文档形态 — 选项剥离应位置无关,
+    /// 扫描全串提取 --constraint/--budget,objective 纯净不含选项原文。</summary>
+    [Theory]
+    [InlineData("优化性能 --constraint '不许改配置' --budget 5000", "优化性能", 5000, "不许改配置")]
+    [InlineData("优化性能 --budget 5000", "优化性能", 5000, "")]
+    [InlineData("优化性能 --constraint '不许改配置'", "优化性能", null, "不许改配置")]
+    [InlineData("优化性能 --Constraint '大写选项' --Budget 99", "优化性能", 99, "大写选项")]
+    [InlineData("优化性能 --constraint '步骤A' --constraint 步骤B --budget 100", "优化性能", 100, "步骤A|步骤B")]
+    public void ParseGoalArgs_ObjectiveFirstDocForm_StripsOptionsAnywhere(
+        string args, string expectObjective, int? expectBudget, string expectConstraints) {
+        var parsed = GoalCommand.ParseGoalArgs(args);
+
+        parsed.IsCron.Should().BeFalse($"'{args}' 不应误判为 cron 形态");
+        parsed.Objective.Should().Be(expectObjective, "目标在前时 objective 应纯净不含选项原文");
+        parsed.TokenBudget.Should().Be(expectBudget);
+        List<string> expectList = expectConstraints.Length == 0 ? [] : [.. expectConstraints.Split('|')];
+        parsed.Constraints.Should().Equal(expectList);
+    }
+
+    /// <summary>生产 bug 修复(TASK065 第五波): 选项夹在目标中间 — 剥离选项 token 后拼接剩余文本为 objective。</summary>
+    [Fact]
+    public void ParseGoalArgs_InlineOptions_JoinsRemainingObjectiveText() {
+        var parsed = GoalCommand.ParseGoalArgs("重构模块A --constraint '不改API' 完成后通知 --budget 2000");
+
+        parsed.Objective.Should().Be("重构模块A 完成后通知", "选项夹在目标中间应剥离并拼接剩余文本");
+        parsed.Constraints.Should().Equal("不改API");
+        parsed.TokenBudget.Should().Be(2000);
     }
 
     [Fact]

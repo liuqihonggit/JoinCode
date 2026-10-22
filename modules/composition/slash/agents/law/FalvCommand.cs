@@ -135,7 +135,7 @@ public sealed class FalvCommand : ChatCommandBase {
         };
 
         TerminalHelper.WriteLine($"{TerminalColors.Warning}[预算耗尽]{AnsiStyleEnumConstants.Reset} {causeLabel}");
-        TerminalHelper.WriteLine($"续费方式: {mode}");
+        TerminalHelper.WriteLine($"续费方式: {mode.ToValue()}");
         TerminalHelper.WriteLine("继续推理中...");
 
         await engine.ContinueAsync(mode, ct: ct).ConfigureAwait(false);

@@ -274,8 +274,33 @@ public sealed class FalvCommandTest {
         engine.Verify(e => e.ContinueAsync(BudgetRefillMode.Both, It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()), Times.Once,
             "--continue both 应以 Both 模式续费");
         clean.Should().Contain("[预算耗尽] 轮次和Token预算均耗尽");
-        clean.Should().Contain("续费方式: Both", "续费方式回显解析后的枚举名");
+        clean.Should().Contain("续费方式: both", "续费方式回显 [EnumValue] 真值小写对齐输入形态");
         clean.Should().Contain("继续推理中...");
+    }
+
+    /// <summary>生产 bug 修复(TASK065 law 域): --continue both 回显"续费方式: Both"(枚举 ToString
+    /// PascalCase)与用户小写输入形态不一致。修复后回显用 ToValue()([EnumValue] 真值小写)对齐输入。</summary>
+    [Theory]
+    [InlineData("both", "both")]
+    [InlineData("rounds", "rounds_only")]
+    [InlineData("tokens", "tokens_only")]
+    [InlineData("default", "default")]
+    [InlineData("", "default")]
+    public async Task Execute_Continue_RefillModeEcho_UsesEnumValueForm(string argument, string echoed) {
+        var engine = CreateEngine(budget: new BudgetStatus {
+            RoundsUsed = 5,
+            RoundsBudget = 5,
+            TokensUsed = 200,
+            TokensBudget = 200,
+        });
+        var (cmd, context, _) = Arrange(arguments: $"--continue {argument}".TrimEnd(), engine: engine);
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+        var clean = StripAnsi(output);
+
+        result.ShouldContinue.Should().BeTrue();
+        clean.Should().Contain($"续费方式: {echoed}",
+            $"用户输入 '{argument}' 时回显应使用 [EnumValue] 真值 '{echoed}' 而非枚举 ToString");
     }
 
     [Theory]

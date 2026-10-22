@@ -10,14 +10,15 @@ namespace JoinCode.ChatCommands;
 public sealed class SandboxToggleCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /sandbox-toggle 命令 — 根据子命令分发到对应沙箱操作
-    /// 支持 on/off/status/exclude/switch 五种操作,默认 status
+    /// 支持 on/off/status/exclude/switch 五种操作,默认 status;
+    /// 仅命令词小写化用于分派,路径/类型等参数保留用户输入原大小写传入后续逻辑
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
     /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var sandboxManager = ChatCommandBase.GetService<ISandboxManager>(context);
-        var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
-        var subCommand = args.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? args;
+        var args = ChatCommandBase.GetNormalizedArgs(context);
+        var subCommand = ExtractSubCommand(args);
 
         if (subCommand is "exclude") {
             await HandleExcludeAsync(context, args).ConfigureAwait(false);
@@ -37,6 +38,15 @@ public sealed class SandboxToggleCommand : ChatCommandBase {
 
         return ChatCommandResult.Continue();
     }
+
+    /// <summary>
+    /// 提取参数串首个 token 并小写化为分派命令词 —
+    /// 后续参数(路径/类型)保留原大小写,输出提示与持久化路径与用户输入保持一致
+    /// </summary>
+    /// <param name="args">归一化后的命令参数串</param>
+    /// <returns>小写化的子命令词;空参数返回空字符串</returns>
+    private static string ExtractSubCommand(string args) =>
+        (args.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty).ToLowerInvariant();
 
     private static async Task EnableSandboxAsync(ISandboxManager sandboxManager, ChatCommandContext context) {
         var confirmed = await Confirmation.ConfirmAsync("确定要启用沙箱模式吗？启用后将限制文件系统和网络访问。", context.CancellationToken).ConfigureAwait(false);

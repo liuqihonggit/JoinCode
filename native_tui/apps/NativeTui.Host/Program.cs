@@ -32,10 +32,12 @@ public static class Program {
         }
     }
 
-    /// <summary>斜杠命令批量探针（TASK065 — 33 条安全命令集走 TUI 真实链路逐条实测）：
+    /// <summary>斜杠命令批量探针（TASK065 — 52 条安全命令集走 TUI 真实链路逐条实测）：
     /// EngineTurnClient.Submit → DispatchSlashCommandAsync → SlashCommandRunner 真实执行，
     /// 逐命令分类 OK（有输出）/EMPTY（空回合）/ERROR（异常）/TIMEOUT，输出汇总表供人工核对。
-    /// 排除副作用命令（reset-config/logout/clear/状态改写类）与调 LLM 命令（--selftest-turn 已覆盖）。</summary>
+    /// 排除副作用命令（reset-config/logout/clear/状态改写类）与调 LLM 命令（--selftest-turn 已覆盖）。
+    /// 新增仅只读查询类+当前值显示类：无参查询态（/advisor /assistant /buddy /switch /sampling /statusline）、
+    /// 默认 list 分支（/hooks /plugin /permissions /workflows /memory /skills）、显式查询分支（/mcp status /plan status /diag /falv）。</summary>
     private static async Task<int> RunSelftestCommandsAsync() {
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
         TestEnvironmentDetector.ForceNonInteractive = true;
@@ -49,6 +51,7 @@ public static class Program {
         var probes = new (string Cmd, string Note)[] {
             ("/tools", "工具-首条时间锚点"),
             ("/mcp list", "MCP-首条时间锚点"),
+            ("/mcp status", "MCP-连接状态查询"),
             ("/status", "综合状态"),
             ("/version", "版本"),
             ("/help", "帮助"),
@@ -67,14 +70,32 @@ public static class Program {
             ("/privacy-settings show", "隐私"),
             ("/theme", "主题当前值"),
             ("/effort", "推理力度当前值"),
+            ("/sampling", "采样参数当前值"),
             ("/vendor", "供应商引擎路径"),
             ("/model info", "模型信息"),
             ("/agents", "代理列表"),
+            ("/advisor", "顾问模式当前态"),
+            ("/assistant", "助手模式当前态"),
+            ("/buddy", "伙伴精灵信息"),
+            ("/switch", "输出显示模式当前态"),
+            ("/memory", "记忆文件列表"),
+            ("/plan status", "计划模式状态查询"),
             ("/summary", "摘要"),
             ("/worktree list", "工作树"),
             ("/branch list", "分支列表"),
             ("/session list", "会话列表"),
+            ("/diff", "未提交变更"),
+            ("/skills", "自定义技能列表"),
+            ("/hooks", "Hook配置列表"),
+            ("/plugin", "插件列表"),
+            ("/permissions", "权限规则列表"),
+            ("/workflows", "工作流列表"),
             ("/debuglog", "调试日志状态"),
+            ("/statusline", "状态栏当前配置"),
+            ("/diag", "崩溃快照查询"),
+            ("/heapdump", "运行时诊断查询"),
+            ("/falv", "推理引擎帮助"),
+            ("/peers", "对等节点列表"),
             ("/quit", "退出类-直接"),
             ("/exit", "退出类-确认"),
             ("/nosuchcmd", "未知命令"),

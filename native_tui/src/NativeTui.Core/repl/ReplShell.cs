@@ -2897,11 +2897,32 @@ public sealed class ReplShell
         _ = SaveCommandUsageAsync();
     }
 
-    /// <summary>退出序列发射公共收尾（S7 接线 — 统一追加 bracketed paste Disable + Flush）。</summary>
+    /// <summary>退出序列发射公共收尾（S7 接线 — 统一追加 bracketed paste Disable + Flush +
+    /// stdin 排空：基准 ink.tsx:1664-1718 drainStdin — 退出前清空在途键事件防泄漏到
+    /// 恢复 cooked 后的 shell 命令行）。</summary>
     private void WriteExitSequences(string sequences)
     {
         _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste));
         _output.Flush();
+        DrainPendingConsoleInput();
+    }
+
+    /// <summary>排空控制台输入缓冲的在途键（退出防泄漏 — 粘贴尾包/鼠标序列等残留键
+    /// 不泄漏到 shell；RawStdin 通道的阻塞读由 IsBackground 线程随进程退出回收）。
+    /// 无控制台/输入重定向（测试环境/管道）静默跳过 — 无在途键可排空。</summary>
+    private static void DrainPendingConsoleInput()
+    {
+        try
+        {
+            while (Console.KeyAvailable)
+            {
+                Console.ReadKey(intercept: true);
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // Console.KeyAvailable 在无控制台/输入重定向时抛 — 无键可排空静默跳过
+        }
     }
 
     /// <summary>命令使用记忆持久化（S10 接线 — ~/.jcc/command-history.json 原子写；持久化失败静默

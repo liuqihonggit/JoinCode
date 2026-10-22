@@ -220,4 +220,61 @@ public sealed class RawStdinPumpTests
         Assert.Equal(KeyKind.Unknown, key.Kind);
         Assert.Equal(0, pump.PendingCount);
     }
+
+    /// <summary>不完整 ESC 前缀滞留超 50ms — 强制 flush 产出 Escape（基准 App.tsx:309-333 flushIncomplete
+    ///——非 force 路径永久滞留 = 输入静默失联）；50ms 内不 flush（等待凑齐窗口）。</summary>
+    [Fact]
+    public void IncompleteEscapePrefix_StuckBeyond50Ms_ForcesEscapeFlush()
+    {
+        using var pump = CreatePump();
+        pump.FeedForTest("\u001b[1;");
+        var keys = new List<KeyPress>();
+        pump.Drain(keys.Add);
+        Assert.Empty(keys);
+
+        // 50ms 内（未超阈值）— 不 flush 继续等待凑齐
+        pump.Drain(keys.Add);
+        Assert.Empty(keys);
+        Assert.True(pump.PendingCount > 0);
+
+        Thread.Sleep(80);
+        pump.Drain(keys.Add);
+        Assert.Contains(keys, static k => k.Kind == KeyKind.Escape);
+        Assert.Equal(0, pump.PendingCount);
+    }
+
+    /// <summary>不完整粘贴滞留超 500ms — 强制产出已有部分内容（基准 PASTE_TIMEOUT emit pasteBuffer
+    ///——终止标记丢失释放通道）；500ms 内不 flush。</summary>
+    [Fact]
+    public void IncompletePaste_StuckBeyond500Ms_FlushesPartialContent()
+    {
+        using var pump = CreatePump();
+        pump.FeedForTest("\u001b[200~partial content");
+        var keys = new List<KeyPress>();
+        pump.Drain(keys.Add);
+        Assert.Empty(keys);
+
+        Thread.Sleep(520);
+        pump.Drain(keys.Add);
+        var paste = Assert.Single(keys);
+        Assert.Equal(KeyKind.Paste, paste.Kind);
+        Assert.Equal("partial content", paste.Input);
+        Assert.Equal(0, pump.PendingCount);
+    }
+
+    /// <summary>滞留窗口内新数据到达凑齐序列 — 正常解析不 flush（超时计时随新数据重置）。</summary>
+    [Fact]
+    public void StuckPrefix_NewDataCompletesSequence_ParsesNormally()
+    {
+        using var pump = CreatePump();
+        pump.FeedForTest("\u001b[1;");
+        Thread.Sleep(20);
+
+        var keys = FeedAndDrain(pump, "5D");
+
+        var key = Assert.Single(keys);
+        Assert.Equal(KeyKind.LeftArrow, key.Kind);
+        Assert.True(key.Ctrl);
+        Assert.Equal(0, pump.PendingCount);
+    }
 }

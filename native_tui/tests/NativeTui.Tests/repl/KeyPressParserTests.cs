@@ -359,4 +359,33 @@ public sealed class KeyPressParserTests
     {
         Assert.Equal(expected, ParseOne(chunk).Kind);
     }
+
+    /// <summary>超时 flush（基准 App.tsx:309-333 flushIncomplete — 50ms NORMAL_TIMEOUT）：
+    /// 序列后半段永不到达（慢链路丢失）时，孤立 ESC 前缀强制产出 Escape、剩余字节下轮按文本解析
+    ///（非 force 路径永久滞留 pending = 输入静默失联）。</summary>
+    [Theory]
+    [InlineData("\u001b[")]
+    [InlineData("\u001b[1;")]
+    [InlineData("\u001bO")]
+    public void ForcedFlush_IncompleteEscapePrefix_ProducesEscape(string chunk)
+    {
+        var span = chunk.AsSpan();
+        Assert.True(KeyPressParser.TryParseNext(ref span, out var key, force: true));
+        Assert.Equal(KeyKind.Escape, key.Kind);
+        // 消耗 1 字节（仅 ESC）— 剩余前缀下轮按文本逐字符解析
+        Assert.Equal(chunk[1..], span.ToString());
+    }
+
+    /// <summary>超时 flush（基准 App.tsx:121,356 — 500ms PASTE_TIMEOUT）：
+    /// 粘贴终止标记永不到达时，已有部分内容强制产出 Paste 事件（基准 emit pasteBuffer 释放通道
+    ///——非 force 路径整块永久滞留 = 输入静默失联）。</summary>
+    [Fact]
+    public void ForcedFlush_IncompletePaste_ProducesPartialContent()
+    {
+        var span = "\u001b[200~partial content".AsSpan();
+        Assert.True(KeyPressParser.TryParseNext(ref span, out var key, force: true));
+        Assert.Equal(KeyKind.Paste, key.Kind);
+        Assert.Equal("partial content", key.Input);
+        Assert.True(span.IsEmpty);
+    }
 }

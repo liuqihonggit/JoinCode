@@ -31,6 +31,10 @@ public sealed class RawStdinPump : IInputPump, IDisposable
     private readonly Thread _reader;
     private readonly TerminalQuerier? _querier;
 
+    /// <summary>不完整 ESC 前缀滞留起点（null = 无滞留；新数据到达重置 — 可能凑齐序列；
+    /// 超过 <see cref="EscapeFlushPolicy"/> 阈值时强制 flush 释放通道）。</summary>
+    private long? _prefixStuckSince;
+
     /// <summary>创建并启动读线程（构造即开始消费 stdin — 生命周期由 Dispose/进程退出终结）。
     /// querier 可选注入 — 终端查询响应前置分流（探测回复路由给等待方，非键事件不入键流）。</summary>
     public RawStdinPump(TerminalQuerier? querier = null)
@@ -117,6 +121,7 @@ public sealed class RawStdinPump : IInputPump, IDisposable
                 lock (_gate)
                 {
                     _pending.Append(_charBuffer, 0, charCount);
+                    _prefixStuckSince = null;
                 }
 
                 PumpPendingToChannel();
@@ -161,6 +166,16 @@ public sealed class RawStdinPump : IInputPump, IDisposable
                 var before = rest;
                 if (!KeyPressParser.TryParseNext(ref rest, out var key))
                 {
+                    // 超时强制 flush（基准 App.tsx:309-333 — 不完整前缀滞留超阈值时
+                    // 强制产出释放通道：ESC 前缀 50ms / 粘贴 500ms）
+                    if (_prefixStuckSince is { } since
+                        && EscapeFlushPolicy.ShouldForceFlush(rest, Environment.TickCount64 - since)
+                        && KeyPressParser.TryParseNext(ref rest, out key, force: true)
+                        && _keys.Writer.TryWrite(key))
+                    {
+                        continue;
+                    }
+
                     break;
                 }
 
@@ -178,6 +193,10 @@ public sealed class RawStdinPump : IInputPump, IDisposable
             {
                 _pending.Remove(0, consumed);
             }
+
+            // 滞留计时维护：仍有残留且 ESC 开头 = 不完整前缀滞留（首次打点；新数据到达由
+            // Feed/ReadLoop append 前置重置）；无残留或已消耗 = 解析推进，滞留清零
+            _prefixStuckSince = rest.Length > 0 && rest[0] == '\u001b' ? _prefixStuckSince ?? Environment.TickCount64 : null;
         }
     }
 
@@ -203,6 +222,7 @@ public sealed class RawStdinPump : IInputPump, IDisposable
         lock (_gate)
         {
             _pending.Append(text);
+            _prefixStuckSince = null;
         }
 
         PumpPendingToChannel();

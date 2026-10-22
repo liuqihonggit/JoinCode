@@ -18,7 +18,40 @@ public static class KeyPressParser
     private const string PasteEnd = "\u001b[201~";
 
     /// <summary>从 buffer 头部解析一个按键；成功则消耗并推进 buffer，前缀不完整返回 false。</summary>
-    public static bool TryParseNext(ref ReadOnlySpan<char> buffer, out KeyPress key)
+    public static bool TryParseNext(ref ReadOnlySpan<char> buffer, out KeyPress key) =>
+        TryParseNext(ref buffer, out key, force: false);
+
+    /// <summary>超时 flush 入口（基准 App.tsx:309-333 flushIncomplete — 50ms NORMAL_TIMEOUT /
+    /// :121,356 PASTE_TIMEOUT 500ms）：序列后半段永不到达时强制产出 —
+    /// 不完整 ESC 前缀产出 Escape（消耗 1 字节，剩余下轮按文本解析）；
+    /// 不完整粘贴产出已有部分内容 Paste 事件（终止标记丢失释放通道 — 基准 emit pasteBuffer）。</summary>
+    public static bool TryParseNext(ref ReadOnlySpan<char> buffer, out KeyPress key, bool force)
+    {
+        if (TryParseNormal(ref buffer, out key))
+        {
+            return true;
+        }
+
+        if (force && buffer.Length > 0 && buffer[0] == '\u001b')
+        {
+            if (buffer.StartsWith(PasteStart))
+            {
+                key = new KeyPress(KeyKind.Paste, buffer[PasteStart.Length..].ToString());
+                buffer = buffer[buffer.Length..];
+            }
+            else
+            {
+                key = KeyPress.Named(KeyKind.Escape);
+                buffer = buffer[1..];
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseNormal(ref ReadOnlySpan<char> buffer, out KeyPress key)
     {
         if (buffer.IsEmpty)
         {

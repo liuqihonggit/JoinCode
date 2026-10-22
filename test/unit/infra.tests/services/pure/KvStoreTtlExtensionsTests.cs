@@ -95,17 +95,17 @@ public sealed class KvStoreTtlExtensionsTests {
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
-    public async Task GetWithTtlAndRenewAsync_CacheHit_RenewsTtl() {
+    public async Task GetWithTtlAndRenewAsync_StaleEntry_RenewsTtl() {
         await using var store = new InMemoryKvStore();
         var key = Encoding.UTF8.GetBytes("test:renew");
         var value = Encoding.UTF8.GetBytes("renewable");
 
-        await store.PutWithTtlAsync(key, value, TimeSpan.FromMinutes(1), CancellationToken.None);
+        // 剩余寿命落入抑制窗口内（进入最后 1 分钟）→ 续期拉满
+        await store.PutWithTtlAsync(key, value, TimeSpan.FromSeconds(30), CancellationToken.None);
 
         var rawBefore = await store.GetAsync(key, CancellationToken.None);
         rawBefore.Should().NotBeNull();
 
-        await Task.Delay(50, CancellationToken.None);
         var result = await store.GetWithTtlAndRenewAsync(key, TimeSpan.FromMinutes(10), CancellationToken.None);
         result.Should().NotBeNull();
         result.Should().Equal(value);
@@ -114,7 +114,31 @@ public sealed class KvStoreTtlExtensionsTests {
         rawAfter.Should().NotBeNull();
         var expiryBefore = BitConverter.ToInt64(rawBefore!, 0);
         var expiryAfter = BitConverter.ToInt64(rawAfter!, 0);
-        expiryAfter.Should().BeGreaterThan(expiryBefore, "续期后过期时间应更晚");
+        expiryAfter.Should().BeGreaterThan(expiryBefore, "寿命进入抑制窗口的条目续期后过期时间应更晚");
+    }
+
+    /// <summary>续期抑制窗口 — 写入后 1 分钟内的重复查询零写回（新鲜条目无需续期，
+    /// 抑制 gh CLI 高频轮询的 LSM 写放大；过期时间戳保持不变）。</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: rawBefore/rawAfter 已 NotBeNull 断言后取时间戳")]
+    [Fact]
+    public async Task GetWithTtlAndRenewAsync_FreshEntry_SuppressesRenew() {
+        await using var store = new InMemoryKvStore();
+        var key = Encoding.UTF8.GetBytes("test:renew-suppress");
+        var value = Encoding.UTF8.GetBytes("fresh");
+
+        await store.PutWithTtlAsync(key, value, TimeSpan.FromMinutes(5), CancellationToken.None);
+        var rawBefore = await store.GetAsync(key, CancellationToken.None);
+        rawBefore.Should().NotBeNull();
+
+        var result = await store.GetWithTtlAndRenewAsync(key, TimeSpan.FromMinutes(5), CancellationToken.None);
+        result.Should().NotBeNull();
+        result.Should().Equal(value);
+
+        var rawAfter = await store.GetAsync(key, CancellationToken.None);
+        rawAfter.Should().NotBeNull();
+        var expiryBefore = BitConverter.ToInt64(rawBefore!, 0);
+        var expiryAfter = BitConverter.ToInt64(rawAfter!, 0);
+        expiryAfter.Should().Be(expiryBefore, "写入 1 分钟内的新鲜条目不续期（抑制窗口内零写回）");
     }
 
     [Fact]

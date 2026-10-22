@@ -188,15 +188,19 @@ public sealed class ReplShellSuggestionsTests
         Assert.Equal("/theme light ", shell.Input.Text);
     }
 
-    /// <summary>参数模式 Enter：接受并提交 "/命令 参数"。</summary>
+    /// <summary>参数模式 Enter：接受并提交 — S11 语义等价迁移：/theme 已被 ReplShell 本地拦截
+    ///（S9 接线：Enter 经参数建议接受为 "/theme dark" 后本地切换渲染色板不透传引擎），
+    /// 断言更新为拦截语义（不透传 + 输入清空 + 用户命令上屏）；
+    /// 通用"参数 Enter 接受并提交"语义由 ReplShellWiringCommandUxTests 用非拦截命令载体覆盖。</summary>
     [Fact]
     public void ArgumentCompletion_Enter_AcceptsAndSubmits()
     {
         var (shell, engine) = CreateShell();
         Type(shell, "/theme d");
         Press(shell, ConsoleKey.Enter);
-        Assert.Equal(["/theme dark"], engine.Submits);
+        Assert.Equal([], engine.Submits);
         Assert.Equal(string.Empty, shell.Input.Text);
+        Assert.Contains(shell.View.Messages.Items, m => m is UserMessageItem { Text: "/theme dark" });
     }
 
     /// <summary>命令接受后进入参数态：Tab 接受命令 → 参数建议自动弹出。</summary>

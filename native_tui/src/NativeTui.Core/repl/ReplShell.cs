@@ -13,14 +13,22 @@ public sealed class ReplShell
     /// <summary>动画 tick 周期（基准 spinner setInterval 50ms）。</summary>
     private const int TickMs = 50;
 
-    private readonly Theme _theme = Theme.Dark;
+    /// <summary>当前渲染主题（S9 接线 — ThemeSelection.Resolve(配置名) 解析，默认 dark；
+    /// /theme 拦截切换后下一帧生效，构造 themeName 由宿主配置通道注入）。</summary>
+    private Theme _theme = ThemeSelection.Resolve(null);
     private readonly ReplView _view = new();
     private readonly InputBuffer _input = new();
     private readonly SpinnerItem _spinner = new() { Message = string.Empty, Hidden = true };
     private readonly StylePool _pool = new();
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly InlineComposer _inlineComposer = new();
-    private readonly FrameComposer _composer = new();
+
+    /// <summary>视口模式帧组装器（S9 接线 — DEC 2026 探测结果条件构造：不支持终端跳过 BSU/ESU 包裹）。</summary>
+    private readonly FrameComposer _composer = new(TerminalCapabilities.IsSynchronizedOutputSupported());
+
+    /// <summary>inline 模式 DEC 2026 同步输出支持（S9 接线 — 直拼 SynchronizedOutputBegin/End 的同一条件，
+    /// 构造时探测一次会话级缓存）。</summary>
+    private readonly bool _syncOutputSupported = TerminalCapabilities.IsSynchronizedOutputSupported();
 
     /// <summary>引擎交互面（提交/打断/权限/事件排空/存活）。</summary>
     private readonly IReplEngine _engine;
@@ -62,8 +70,10 @@ public sealed class ReplShell
     /// <summary>历史反向搜索态（Ctrl+R — TASK057-4；null = 未激活）。</summary>
     private HistorySearch? _search;
 
-    /// <summary>忙时排队输入队列（TASK060 — 基准 queued 语义，回合结束逐条自动发送）。</summary>
-    private readonly List<string> _queuedInputs = [];
+    /// <summary>忙时排队输入队列（TASK060 — 基准 queued 语义，回合结束逐条自动发送）。
+    /// S7 提交全文：元组 = 显示形态（折叠 [Pasted text #N]）+ 提交形态（粘贴引用展开全文）—
+    /// 提交时刻完成展开（InputBuffer.Clear 清空登记簿后不可再展开）。</summary>
+    private readonly List<(string Display, string Expanded)> _queuedInputs = [];
 
     /// <summary>排队输入条数上限（守卫 — 狂敲防队列无限膨胀：满后新输入丢弃带反馈）。</summary>
     internal const int MaxQueuedInputs = 10;
@@ -135,6 +145,35 @@ public sealed class ReplShell
     /// footer 右侧 TokenWarning 渲染源，FooterState.Tokens 接线）。</summary>
     private readonly TokenUsageTracker _tokenUsage = new();
 
+    /// <summary>命令使用记忆（S10 接线 — 斜杠命令提交时 RecordUse（提交即使用：TUI 无引擎侧执行成败回执，
+    /// recently-used 分组语义 = 用户常用命令）；SlashSuggester 空查询分组投影数据源；退出 fire-and-forget 持久化）。</summary>
+    private readonly CommandUsageMemory _commandUsage = new();
+
+    /// <summary>bash 直通执行器（S10 接线 — `!` 前缀命令；Windows 宿主 cmd.exe /c，其余 bash -c）。</summary>
+    private readonly BashDirectExecutor _bash = OperatingSystem.IsWindows()
+        ? new BashDirectExecutor("cmd.exe", "/c")
+        : new BashDirectExecutor();
+
+    /// <summary>bash 直通完成结果缓冲（S10 接线 — ExecuteAsync 完成于线程池线程，AddMessage 必须回主循环线程
+    /// （与渲染循环竞争 _view.Messages），复用 /clear 的跨线程缓冲 + 主循环消费先例）。</summary>
+    private readonly ConcurrentQueue<BashDirectResult> _bashResults = new();
+
+    /// <summary>bash 直通超时守卫（S10 接线 — 执行命令允许超时：30s 杀进程树返回部分输出 + Interrupted）。</summary>
+    private static readonly TimeSpan BashDirectTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>@ 文件补全数据层（S10 接线 — 构造注入工作区根；null = 禁用降级无建议）。</summary>
+    private readonly AtFileSuggester? _atFileSuggester;
+
+    /// <summary>@ 文件补全当前建议投影（CommandSuggestion 形态喂 SuggestionBox 渲染 — label=相对路径；
+    /// null = 未激活。选中索引复用 _suggester 通道变量 _atSuggestionIndex）。</summary>
+    private IReadOnlyList<CommandSuggestion>? _atSuggestions;
+
+    /// <summary>@ 文件补全选中索引（SuggestionBox 导航）。</summary>
+    private int _atSuggestionIndex;
+
+    /// <summary>@ 文件补全抑制 token（Esc 关闭后同一 token 不再建议 — 对齐 SlashSuggester.Dismiss 抑制语义）。</summary>
+    private string _atSuppressedToken = string.Empty;
+
     /// <summary>动态通知队列（S4 产出 — footer 行 2 右侧渲染源；帧拍 Tick 推进到期/出队，
     /// 种子 effort 提示经 Enqueue 一次性入队保留首屏语义）。</summary>
     private readonly ReplNotifications _notifications = new();
@@ -185,7 +224,10 @@ public sealed class ReplShell
     /// commands=斜杠命令清单（宿主注入；null = 无补全能力）；
     /// codeHighlighter=代码高亮插件（M7-5 卫星注入；null = 高亮禁用降级纯文本）；
     /// sizeSource=终端尺寸源（resize 事件化注入面；null = Console 轮询默认实现）；
-    /// clipboard=剪贴板写入委托（TASK059 Ctrl+C 复制；null = 复制降级无操作）。</summary>
+    /// clipboard=剪贴板写入委托（TASK059 Ctrl+C 复制；null = 复制降级无操作）；
+    /// themeName=主题配置名（S9 接线 — ThemeSelection.Resolve 解析，null/未知名回退 dark）；
+    /// commandUsage=命令使用记忆（S10 接线 — 宿主启动加载持久化数据注入；null = 空记忆）；
+    /// workspaceRoot=工作区根目录（S10 接线 — @ 文件补全索引根；null = @ 补全禁用降级）。</summary>
     public ReplShell(
         IReplEngine engine,
         BannerItem banner,
@@ -195,16 +237,27 @@ public sealed class ReplShell
         IReadOnlyList<CommandSuggestion>? commands = null,
         ICodeHighlighter? codeHighlighter = null,
         ITerminalSizeSource? sizeSource = null,
-        Action<string>? clipboard = null)
+        Action<string>? clipboard = null,
+        string? themeName = null,
+        CommandUsageMemory? commandUsage = null,
+        string? workspaceRoot = null)
     {
         _engine = engine;
         _banner = banner;
         _output = output;
         _inline = inline;
         _seedMessages = seedMessages ?? [];
-        _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands) : null;
+        _commandUsage = commandUsage ?? new CommandUsageMemory();
+        // S10 接线 — 分组注入：空查询 "/" 走 recently-used + 来源分组视图（有查询仍走既有匹配排序）
+        _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands, new CommandGrouping(_commandUsage)) : null;
         _sizeSource = sizeSource ?? new ConsoleTerminalSizeSource();
         _copyToClipboard = clipboard;
+        _theme = ThemeSelection.Resolve(themeName);
+        _atFileSuggester = workspaceRoot is null ? null : new AtFileSuggester(workspaceRoot);
+        // S9 接线 — spinner 终端字符集探测注入一次（会话期终端类型不变；Windows Terminal/默认 `*` 集）
+        _spinner.Frames = TerminalCapabilities.DetectSpinnerFrames();
+        // S8 接线 — 挂起态 BackTab 权限模式循环请求转发引擎回执通道（复用 Shift+Tab 循环实现）
+        _permission.ModeCycleRequested += CyclePermissionMode;
         _transcript = new TranscriptController(BuildTranscriptSnapshot, verbose => _view.SetVerboseMode(verbose));
         _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter, _tokenUsage, _sizeSource);
     }
@@ -233,6 +286,15 @@ public sealed class ReplShell
     /// <summary>斜杠补全状态机（测试断言面；null = 无命令清单）。</summary>
     internal SlashSuggester? Suggester => _suggester;
 
+    /// <summary>@ 文件补全当前建议（S10 接线 — 测试断言面；null = 未激活）。</summary>
+    internal IReadOnlyList<CommandSuggestion>? AtSuggestions => _atSuggestions;
+
+    /// <summary>@ 文件补全选中索引（测试断言面）。</summary>
+    internal int AtSuggestionIndex => _atSuggestionIndex;
+
+    /// <summary>命令使用记忆（S10 接线 — 测试断言面：RecordUse 记账验证）。</summary>
+    internal CommandUsageMemory CommandUsage => _commandUsage;
+
     /// <summary>历史反向搜索激活态（Ctrl+R — 测试断言面）。</summary>
     internal bool IsSearching => _search is not null;
 
@@ -245,9 +307,14 @@ public sealed class ReplShell
     /// <summary>历史种子注入（宿主启动时从 transcript 加载最近输入）。</summary>
     public void SeedHistory(IEnumerable<string> entries) => _history.Seed(entries);
 
-    /// <summary>主循环 — 每拍：排空键盘 → 排空引擎事件 → 差分上屏 → 对齐 50ms。</summary>
+    /// <summary>主循环 — 每拍：排空键盘 → 排空引擎事件 → 差分上屏 → 对齐 50ms。
+    /// S9 接线 — 进入前隐藏硬件光标（DEC 25：帧内自绘输入光标，双光标错位；退出 WriteExit 尾对称恢复）；
+    /// S7 接线 — 启用 bracketed paste（DEC 2004）：支持终端的粘贴内容被 200~/201~ 标记包裹整块到达
+    ///（ReadKey 通道经 DrainInput 重组为 Paste 事件），退出 WriteExit 尾对称 Disable。</summary>
     public void Run()
     {
+        CursorLifecycle.HideCursor(_output);
+        _output.Write(DecPrivateMode.Enable(DecPrivateModeKind.BracketedPaste));
         SeedContent();
         while (_running)
         {
@@ -335,6 +402,9 @@ public sealed class ReplShell
 
         // 回合结束 — 排队输入自动发送（TASK060 一问一答节奏：逐回合发队首）
         PumpQueuedInputs();
+
+        // S10 接线 — bash 直通结果上屏（主循环线程消费并发队列）
+        DrainBashResults();
     }
 
     /// <summary>打断恢复（M8-2）— 该回合用户消息之后无实质响应项（assistant/工具/流式/错误/子代理）
@@ -469,12 +539,130 @@ public sealed class ReplShell
     private void AddMessage(IScrollItem item) =>
         _view.Messages.Insert(_view.Messages.Count - 1, item);
 
-    /// <summary>排空键盘事件（非阻塞）— ReadKey 归一 KeyPress 后统一分派。</summary>
+    /// <summary>待分派键缓冲（S7 接线 — bracketed paste 重组回退路径：误判序列时已读键塞回防丢）。</summary>
+    private readonly Queue<ConsoleKeyInfo> _pendingKeys = new();
+
+    /// <summary>排空键盘事件（非阻塞）— ReadKey 归一 KeyPress 后统一分派；
+    /// S7 接线 — bracketed paste 重组：ReadKey 把 ESC[200~/201~ 拆散为逐键 KeyInfo，
+    /// ESC 后紧跟连续输入时判定 paste 标记序列并重装为整块 Paste 事件
+    ///（孤立 Esc 即时分派不受影响 — paste 序列一次性到达，KeyAvailable 恒连续）。</summary>
     private void DrainInput()
     {
-        while (_running && Console.KeyAvailable)
+        while (_running && (_pendingKeys.Count > 0 || Console.KeyAvailable))
         {
-            HandleKey(Console.ReadKey(intercept: true));
+            var info = _pendingKeys.Count > 0 ? _pendingKeys.Dequeue() : Console.ReadKey(intercept: true);
+            if (info.Key == ConsoleKey.Escape && info.KeyChar == '\u001b' && TryCollectPaste(out var content))
+            {
+                HandleRawKeyPress(ConsoleKeyAdapter.Paste(content));
+                continue;
+            }
+
+            HandleKey(info);
+        }
+    }
+
+    /// <summary>尝试收集 bracketed paste 块（S7 接线）— 前提：ESC 键已消费。
+    /// ESC 后无后续键 = 孤立 Esc（false，调用方正常分派）；后续键非 '[' 或非 "200~" 起始标记 =
+    /// 误撞组合（false，已读键塞回 pending 两键都走正常分派）；起始标记完整后收集内容直到
+    /// ESC[201~ 终止标记（true，out 携带粘贴原文）；收集期流中断整体放弃吞掉（防泄漏为文本）。</summary>
+    private bool TryCollectPaste(out string content)
+    {
+        content = string.Empty;
+        if (!Console.KeyAvailable)
+        {
+            return false;
+        }
+
+        var bracket = Console.ReadKey(intercept: true);
+        if (bracket.KeyChar != '[')
+        {
+            _pendingKeys.Enqueue(bracket);
+            return false;
+        }
+
+        var consumed = new List<ConsoleKeyInfo> { bracket };
+        if (!TryMatchPasteStart(consumed))
+        {
+            Requeue(consumed);
+            return false;
+        }
+
+        // 内容收集（终止标记未完整到达 = 流中断/误撞，整体放弃吞掉防泄漏为文本；空粘贴同判 false = 无操作）
+        var body = CollectPasteBody();
+        if (body.Length == 0)
+        {
+            return false;
+        }
+
+        content = body;
+        return true;
+    }
+
+    /// <summary>匹配 paste 起始标记剩余字符 "200~"（逐字符读，不匹配/流中断返回 false — 已读键入 consumed）。</summary>
+    private static bool TryMatchPasteStart(List<ConsoleKeyInfo> consumed)
+    {
+        foreach (var expected in "200~")
+        {
+            if (!Console.KeyAvailable)
+            {
+                return false;
+            }
+
+            var info = Console.ReadKey(intercept: true);
+            consumed.Add(info);
+            if (info.KeyChar != expected)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>收集 paste 内容直到终止标记 ESC[201~ — 内容字符直积（\r\n 原样保留由
+    /// PastedContentTracker 清洗归一）；遇 ESC 尝试匹配终止标记，失败/流中断整体放弃（吞掉返回空）。</summary>
+    private static string CollectPasteBody()
+    {
+        var buffer = new StringBuilder();
+        while (Console.KeyAvailable)
+        {
+            var info = Console.ReadKey(intercept: true);
+            if (info.KeyChar == '\u001b')
+            {
+                return TryMatchPasteEnd() ? buffer.ToString() : string.Empty;
+            }
+
+            buffer.Append(info.KeyChar);
+        }
+
+        return string.Empty;
+    }
+
+    /// <summary>匹配 paste 终止标记剩余 "[201~"（ESC 已消费）。</summary>
+    private static bool TryMatchPasteEnd()
+    {
+        foreach (var expected in "[201~")
+        {
+            if (!Console.KeyAvailable)
+            {
+                return false;
+            }
+
+            if (Console.ReadKey(intercept: true).KeyChar != expected)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>已读键按序塞回待分派缓冲（误判回退 — 键不丢）。</summary>
+    private void Requeue(List<ConsoleKeyInfo> consumed)
+    {
+        foreach (var info in consumed)
+        {
+            _pendingKeys.Enqueue(info);
         }
     }
 
@@ -488,6 +676,13 @@ public sealed class ReplShell
             return;
         }
 
+        HandleRawKeyPress(key);
+    }
+
+    /// <summary>按键直入分派（S7 接线 — paste 重组通道 + 测试 KeyPress 注入面）—
+    /// 共用 textBefore/建议刷新链（paste 后文本变化同样刷新 @ 文件补全）。</summary>
+    internal void HandleRawKeyPress(KeyPress key)
+    {
         var textBefore = _input.Text;
         HandleKeyPress(key);
         if (_programmaticFill)
@@ -625,6 +820,10 @@ public sealed class ReplShell
 
         switch (key.Kind)
         {
+            case KeyKind.Return when key.Shift:
+                // S7 接线 — 基准 multiline：shift+enter 插入换行不提交（enter 才发送）
+                _input.InsertNewline();
+                return;
             case KeyKind.Return:
                 Submit();
                 break;
@@ -637,6 +836,14 @@ public sealed class ReplShell
             case KeyKind.RightArrow:
                 _input.Right();
                 break;
+            case KeyKind.UpArrow when _input.IsMultiline && _input.CursorLineIndex > 0:
+                // S7 接线 — 基准 multiline：多行输入内上下键优先行间垂直移动（首行内回退历史）
+                _input.MoveCursorVertically(-1);
+                return;
+            case KeyKind.DownArrow when _input.IsMultiline && _input.CursorLineIndex < _input.LineCount - 1:
+                // S7 接线 — 基准 multiline：末行内回退历史导航
+                _input.MoveCursorVertically(1);
+                return;
             case KeyKind.UpArrow:
                 NavigateHistory(-1);
                 break;
@@ -648,6 +855,12 @@ public sealed class ReplShell
                 break;
             case KeyKind.End:
                 _input.End();
+                break;
+            case KeyKind.Paste:
+                // S7 接线 — bracketed paste 整块到达（KeyPressParser 通道 VT 序列 / ReadKey 通道重组）：
+                // InputBuffer.Paste 清洗 + 超阈值折叠登记 [Pasted text #N]（提交取 ExpandedText 全文）；
+                // 可见行数上限随终端高度自适应（基准 rows-10 语义）
+                _input.Paste(key.Input, Math.Max(0, _sizeSource.Current.Rows - 10));
                 break;
             case KeyKind.Char:
                 if (key.Input.Length == 1)
@@ -724,6 +937,10 @@ public sealed class ReplShell
             case "y":
                 _input.Yank();
                 break;
+            case "_":
+                // S7 接线 — 基准 chat:undo 键位（ctrl+_/ctrl+shift+- 同码 \x1f，KeyPressParser 归一为 Ctrl+"_"）
+                _input.Undo();
+                break;
             default:
                 break;
         }
@@ -765,9 +982,11 @@ public sealed class ReplShell
     }
 
     /// <summary>
-    /// 权限对话框模态按键（M7-3，对齐基准 CustomSelect useSelectInput）：
-    /// 数字 1/2/3 直接选档（yes/dont-ask-again/no）+ Esc 取消（Deny）+ Enter 选焦点档 + 上/下环绕移动焦点；
-    /// 其余按键全部吞掉（模态 — 不进输入缓冲、不打断回合、不退出）。
+    /// 权限对话框模态按键（M7-3，对齐基准 CustomSelect useSelectInput + S8 键位表扩展 defaultBindings.ts
+    /// Confirmation 上下文）：数字 1/2/3 直接选档（yes/dont-ask-again/no）+ Esc 取消（Deny）+ Enter 选焦点档
+    /// + 上/下环绕移动焦点 + Tab 遍历（confirm:nextField）+ Space 切换选中（confirm:toggle）
+    /// + Ctrl+E 解释展开（confirm:toggleExplanation）+ BackTab 权限模式循环请求（confirm:cycleMode —
+    /// ModeCycleRequested 转发引擎回执通道）；其余按键全部吞掉（模态 — 不进输入缓冲、不打断回合、不退出）。
     /// </summary>
     private void HandlePermissionKey(KeyPress key)
     {
@@ -792,6 +1011,34 @@ public sealed class ReplShell
         if (key.Kind == KeyKind.DownArrow)
         {
             _permission.MoveFocus(1);
+            return;
+        }
+
+        // S8 接线 — Tab 遍历选项（焦点 +1 环绕）
+        if (key is { Kind: KeyKind.Tab, Shift: false })
+        {
+            _permission.CycleFocus();
+            return;
+        }
+
+        // S8 接线 — Space 切换选中态
+        if (key is { Kind: KeyKind.Char, Input: " ", Ctrl: false, Meta: false })
+        {
+            _permission.ToggleSelection();
+            return;
+        }
+
+        // S8 接线 — Ctrl+E 解释展开切换
+        if (key is { Kind: KeyKind.Char, Input: "e", Ctrl: true, Meta: false })
+        {
+            _permission.ToggleExplanation();
+            return;
+        }
+
+        // S8 接线 — BackTab 权限模式循环请求（事件转发 CyclePermissionMode 引擎回执通道）
+        if (key.Kind == KeyKind.BackTab)
+        {
+            _permission.RequestModeCycle();
             return;
         }
 
@@ -1202,12 +1449,39 @@ public sealed class ReplShell
         _cursorNav.Exit();
     }
 
-    /// <summary>补全激活时的专属键拦截（基准 Autocomplete 上下文）：
-    /// 下拉激活：Up/Down 循环导航、Tab 接受不执行、Enter 接受并提交、Esc 仅关建议（优先于打断/清输入/退出）；
+    /// <summary>补全激活时的专属键拦截（基准 Autocomplete 上下文 + S10 @ 文件补全）：
+    /// 斜杠下拉激活：Up/Down 循环导航、Tab 接受不执行、Enter 接受并提交、Esc 仅关建议（优先于打断/清输入/退出）；
+    /// @ 文件下拉激活（斜杠未激活时 — 互斥）：Up/Down 导航、Tab/Right 接受替换 @token、Esc 仅关 @ 建议；
     /// ghost 激活（下拉互斥为空）：RightArrow（光标在末尾）接受幽灵补全、Esc 仅关 ghost；
     /// 其余键返回 false 走正常编辑路径（编辑后刷新建议）。</summary>
     private bool HandleSuggestionKey(KeyPress key)
     {
+        // S10 接线 — @ 文件补全激活态（斜杠建议优先 — 其激活时 @ 投影为空不可达）
+        if (_atSuggestions is { Count: > 0 } && _suggester is not { IsActive: true })
+        {
+            switch (key.Kind)
+            {
+                case KeyKind.UpArrow:
+                    _atSuggestionIndex = (_atSuggestionIndex - 1 + _atSuggestions.Count) % _atSuggestions.Count;
+                    return true;
+                case KeyKind.DownArrow:
+                    _atSuggestionIndex = (_atSuggestionIndex + 1) % _atSuggestions.Count;
+                    return true;
+                case KeyKind.Tab:
+                case KeyKind.RightArrow when _input.CursorCol == _input.Text.Length:
+                case KeyKind.Return:
+                    // 基准 typeahead 语义：接受补全 = 插入选择（Enter 不顺带提交 — 用户继续编辑）
+                    AcceptAtSuggestion();
+                    return true;
+                case KeyKind.Escape:
+                    _atSuppressedToken = CurrentAtToken(_input.Text, _input.CursorCol) ?? string.Empty;
+                    _atSuggestions = null;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         if (_suggester is not { } suggester)
         {
             return false;
@@ -1334,8 +1608,87 @@ public sealed class ReplShell
         _input.Replace(text, cursorToStart);
     }
 
-    /// <summary>刷新建议（用户编辑路径；建议状态机内部判定触发条件）。</summary>
-    private void UpdateSuggestions() => _suggester?.Update(_input.Text);
+    /// <summary>刷新建议（用户编辑路径；建议状态机内部判定触发条件）+ S10 @ 文件补全刷新
+    ///（斜杠建议优先互斥 — 其激活时 @ 投影清空）。</summary>
+    private void UpdateSuggestions()
+    {
+        _suggester?.Update(_input.Text);
+        UpdateAtSuggestions();
+    }
+
+    /// <summary>@ 文件补全刷新（S10 接线 — 基准 useTypeahead fileSuggestions 分支）：
+    /// 光标处前最近 @token（token 内无空白）且斜杠建议未激活时投影建议清单
+    ///（CommandSuggestion 形态：Name=相对路径，喂 SuggestionBox 复用渲染）；
+    /// 抑制 token 解除（Esc 关闭后输入变化才重新建议）；token 变化时选中索引重置。</summary>
+    private void UpdateAtSuggestions()
+    {
+        var token = CurrentAtToken(_input.Text, _input.CursorCol);
+        if (token is null || token == _atSuppressedToken || _suggester is { IsActive: true } || _atFileSuggester is null)
+        {
+            _atSuggestions = null;
+            _atSuggestionIndex = 0;
+            if (token is null || token != _atSuppressedToken)
+            {
+                _atSuppressedToken = string.Empty;
+            }
+
+            return;
+        }
+
+        var suggestions = _atFileSuggester.Suggest(token);
+        if (suggestions.Count == 0)
+        {
+            _atSuggestions = null;
+            _atSuggestionIndex = 0;
+            return;
+        }
+
+        _atSuggestions = suggestions
+            .Select(static file => new CommandSuggestion(file.RelativePath, string.Empty, [], IsHidden: false))
+            .ToList();
+        _atSuggestionIndex = 0;
+    }
+
+    /// <summary>提取光标处前最近的 @token（S10 接线）— 从光标向前扫描到文本头或空白（空格/换行），
+    /// 遇 '@' 返回其后到光标的片段；无 '@'/跨空白返回 null（裸 @ 空 token 也触发 — 全部文件列举）。</summary>
+    private static string? CurrentAtToken(string text, int cursorCol)
+    {
+        var clamped = Math.Clamp(cursorCol, 0, text.Length);
+        for (var i = clamped - 1; i >= 0; i--)
+        {
+            var ch = text[i];
+            if (ch is ' ' or '\n' or '\t' or '\r')
+            {
+                return null;
+            }
+
+            if (ch == '@')
+            {
+                return text[(i + 1)..clamped];
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>接受选中的 @ 文件建议（S10 接线）— 光标前 @token 替换为 @+选中相对路径
+    ///（ReplaceAt 光标置替换段末尾，中部替换不跳尾）；程序化填充标记防触发建议刷新
+    ///（替换后 token 已是完整路径，无继续补全语义）；建议态清空。</summary>
+    private void AcceptAtSuggestion()
+    {
+        if (_atSuggestions is not { Count: > 0 } || CurrentAtToken(_input.Text, _input.CursorCol) is not { } token)
+        {
+            return;
+        }
+
+        var selected = _atSuggestions[Math.Clamp(_atSuggestionIndex, 0, _atSuggestions.Count - 1)].Name;
+        var tokenStart = _input.CursorCol - token.Length - 1;
+        var replaced = $"{_input.Text[..(tokenStart + 1)]}{selected}{_input.Text[_input.CursorCol..]}";
+        _programmaticFill = true;
+        _input.ReplaceAt(replaced, tokenStart + 1 + selected.Length);
+        _atSuggestions = null;
+        _atSuggestionIndex = 0;
+    }
 
     /// <summary>Esc 处置（TASK059 退出安全 — Esc 永不退出；M8-2 打断闭环补全基准重载链）：
     /// 忙时：有排队输入 → 单击弹回全部到输入框（基准 popAllCommandsFromQueue — 优先于打断判定）；
@@ -1352,9 +1705,9 @@ public sealed class ReplShell
             if (_queuedInputs.Count > 0)
             {
                 // M8-2 基准重载链⑤ — 可编辑排队命令全部弹回输入框（按行拼接）+ 清空队列 + 重置双击窗口
-                var merged = string.Join("\n", _queuedInputs);
+                var merged = string.Join("\n", _queuedInputs.Select(static entry => entry.Display));
                 _queuedInputs.Clear();
-                _view.QueuedInputs = _queuedInputs;
+                _view.QueuedInputs = [];
                 FillInput(merged, cursorToStart: false);
                 _lastEscapeMs = 0;
                 return;
@@ -1435,10 +1788,12 @@ public sealed class ReplShell
         _engine.SetPermissionMode(PermissionModeInfo.ToValue(next));
     }
 
-    /// <summary>提交输入（TASK060 一问一答节奏 + TASK062 后续排队面板）：空文本忽略；未登录本地反馈
-    /// （基准 ⎿ Not logged in — 不调引擎不傻等）；忙时改排队（基准 queued 语义）— **不上滚动区**
-    ///（输入栏上方 queued 面板渲染 — TASK062 用户验收反馈：滚动区排队提示破坏消息流），入历史环，
-    /// 回合结束自动按序发送（DrainEngine 队列泵 — 发送时才上屏用户消息）；闲时正常直发。</summary>
+    /// <summary>提交输入（TASK060 一问一答节奏 + TASK062 后续排队面板 + S7 提交全文）：空文本忽略；
+    /// 未登录本地反馈（基准 ⎿ Not logged in — 不调引擎不傻等）；忙时改排队（基准 queued 语义）—
+    /// **不上滚动区**（输入栏上方 queued 面板渲染 — TASK062 用户验收反馈：滚动区排队提示破坏消息流），
+    /// 入历史环，回合结束自动按序发送（DrainEngine 队列泵 — 发送时才上屏用户消息）；闲时正常直发。
+    /// S7 提交全文：显示层用折叠形态（[Pasted text #N]），发引擎取 ExpandedText（粘贴引用展开回原文）—
+    /// 上屏/历史/打断恢复保留显示形态（折叠可见语义）。</summary>
     internal void Submit()
     {
         var text = _input.Text;
@@ -1447,9 +1802,40 @@ public sealed class ReplShell
             return;
         }
 
+        var expanded = _input.ExpandedText;
         _input.Clear();
         _history.Add(text);
         _history.Reset();
+        // S10 接线 — `!` 前缀 bash 直通（基准 inputModes bash 模式：剥前缀本地执行不进引擎；
+        // busy 态不挡 — 直通命令独立于回合状态，30s 超时守卫在执行器侧）
+        if (text.StartsWith('!') && text.Length > 1)
+        {
+            AddMessage(new UserMessageItem(text));
+            RunBashDirect(text[1..]);
+            return;
+        }
+
+        // S9 接线 — /theme 拦截：TUI 本地切换渲染主题（不透传引擎 — 引擎侧 /theme 的
+        // TerminalHelper.ClearScreen 会破坏 TUI 渲染流；会话级切换即时生效，配置持久化留宿主通道）；
+        // 用户命令上屏与引擎路径视觉一致
+        if (text == ThemeCommandPrefix || text.StartsWith(ThemeCommandPrefix + " ", StringComparison.Ordinal))
+        {
+            AddMessage(new UserMessageItem(text));
+            HandleThemeCommand(text);
+            return;
+        }
+
+        // S10 接线 — 斜杠命令使用记账（提交即使用：TUI 无引擎侧执行成败回执通道，
+        /// recently-used 分组语义 = 用户常用命令；命令名取首个空格前段）
+        if (text.StartsWith('/') && _suggester is not null)
+        {
+            var commandName = text.Split(' ', 2)[0][1..];
+            if (_suggester.IsKnownCommand(commandName))
+            {
+                _commandUsage.RecordUse(commandName);
+            }
+        }
+
         if (!LoginGateOpen)
         {
             AddMessage(new UserMessageItem(text));
@@ -1462,36 +1848,119 @@ public sealed class ReplShell
             if (_queuedInputs.Count >= MaxQueuedInputs)
             {
                 AddMessage(new ToolResultItem($"排队已满（{MaxQueuedInputs} 条上限）— 本条丢弃，请等当前回合结束"));
-                _view.QueuedInputs = _queuedInputs;
+                _view.QueuedInputs = _queuedInputs.Select(static entry => entry.Display).ToList();
                 return;
             }
 
-            _queuedInputs.Add(text);
-            _view.QueuedInputs = _queuedInputs;
+            _queuedInputs.Add((text, expanded));
+            _view.QueuedInputs = _queuedInputs.Select(static entry => entry.Display).ToList();
             return;
         }
 
         AddMessage(new UserMessageItem(text));
         _lastSubmittedText = text;
         _lastSubmittedIndex = _view.Messages.Count - 2;
-        _engine.Submit(text);
+        _engine.Submit(expanded);
+    }
+
+    /// <summary>/theme 拦截命令前缀（S9 接线 — GeneratedSlashCommandCatalog 是源码生成静态表，
+    /// 动态注册不可行，ReplShell 层拦截本地切换渲染色板 + 通知反馈）。</summary>
+    private const string ThemeCommandPrefix = "/theme";
+
+    /// <summary>主题命令处理（S9 接线）— "/theme"：当前清单提示；"/theme &lt;名称&gt;"：合法名切换
+    /// （ThemeSelection.Resolve，下一帧渲染色板生效）+ 通知反馈"已切换主题"；未知名错误提示含合法值清单
+    ///（错误提示带诱导：为什么拒绝/合法写法，符合错误提示规范）。</summary>
+    private void HandleThemeCommand(string text)
+    {
+        var names = string.Join(" ", ThemeSelection.Names);
+        var argument = text.Length > ThemeCommandPrefix.Length
+            ? text[(ThemeCommandPrefix.Length + 1)..].Trim()
+            : string.Empty;
+        if (argument.Length == 0)
+        {
+            AddMessage(new ToolResultItem($"/theme 可用主题: {names}（用法 /theme &lt;名称&gt;）"));
+            return;
+        }
+
+        if (!ThemeSelection.Names.Contains(argument))
+        {
+            AddMessage(new ToolResultItem($"未知主题「{argument}」— 合法值: {names}（大小写敏感，如 /theme dark）"));
+            return;
+        }
+
+        _theme = ThemeSelection.Resolve(argument);
+        _notifications.Enqueue($"已切换主题: {argument}");
+    }
+
+    /// <summary>bash 直通执行（S10 接线 — fire-and-forget 异步执行：完成结果入并发队列，
+    /// DrainEngine 消费上屏；30s 超时守卫 CancellationTokenSource，超时杀进程树返回部分输出 + 中断标记）。</summary>
+    private void RunBashDirect(string command) =>
+        _ = ExecuteBashDirectAsync(command);
+
+    /// <summary>bash 直通异步执行体 — 结果投递并发队列（线程池线程完成，不触 UI 状态）。</summary>
+    private async Task ExecuteBashDirectAsync(string command)
+    {
+        try
+        {
+            using var timeout = new CancellationTokenSource(BashDirectTimeout);
+            var result = await _bash.ExecuteAsync(command, timeout.Token).ConfigureAwait(false);
+            _bashResults.Enqueue(result);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException)
+        {
+            // 执行器契约不抛（启动失败降级 StdErr 消息）；此处防御兜底 — 异常结果同样入队上屏
+            _bashResults.Enqueue(new BashDirectResult(string.Empty, $"命令执行异常: {ex.Message}", -1, false));
+        }
+    }
+
+    /// <summary>bash 直通结果消费（DrainEngine 每拍 — 主循环线程上屏，对齐基准 processBashCommand 形态）：
+    /// 退出码 0 → assistant 样式（stdout+stderr 拼接）；非 0 → error 样式（基准 ShellError error 分支）；
+    /// 中断 → 超时提示（基准 createUserInterruptionMessage 语义）。</summary>
+    private void DrainBashResults()
+    {
+        while (_bashResults.TryDequeue(out var result))
+        {
+            if (result.Interrupted)
+            {
+                AddMessage(new ErrorMessageItem($"命令超时（{BashDirectTimeout.TotalSeconds:0}s）已中断"));
+                continue;
+            }
+
+            var output = JoinBashOutput(result.StdOut, result.StdErr);
+            if (result.ExitCode == 0)
+            {
+                AddMessage(new AssistantMessageItem(output.Length > 0 ? output : "（无输出）"));
+            }
+            else
+            {
+                AddMessage(new ErrorMessageItem(output.Length > 0
+                    ? $"{output}（退出码 {result.ExitCode}）"
+                    : $"命令失败（退出码 {result.ExitCode}）"));
+            }
+        }
+    }
+
+    /// <summary>拼接 stdout/stderr（基准 bash-stdout + bash-stderr 两段拼接 — 尾部空白裁剪，空段跳过）。</summary>
+    private static string JoinBashOutput(string stdout, string stderr)
+    {
+        var parts = new[] { stdout.TrimEnd(), stderr.TrimEnd() }.Where(static part => part.Length > 0);
+        return string.Join("\n", parts);
     }
 
     /// <summary>排队输入发送泵（DrainEngine 回合结束时调用）— 非忙态且有排队时取队首：
-    /// 上屏用户消息（发送时才进滚动区 — 排队期间只在输入栏上方面板）+ 直发引擎；
+    /// 上屏用户消息（发送时才进滚动区 — 排队期间只在输入栏上方面板）+ 直发引擎（提交形态）；
     /// 逐回合发一条维持一问一答节奏。</summary>
-    private void PumpQueuedInputs()
-    {
+    private void PumpQueuedInputs()    {
         if (IsBusy || _queuedInputs.Count == 0)
         {
             return;
         }
 
-        var text = _queuedInputs[0];
+        var (display, expanded) = _queuedInputs[0];
         _queuedInputs.RemoveAt(0);
-        AddMessage(new UserMessageItem(text));
-        _view.QueuedInputs = _queuedInputs;
-        _engine.Submit(text);
+        AddMessage(new UserMessageItem(display));
+        _view.QueuedInputs = _queuedInputs.Select(static entry => entry.Display).ToList();
+        _engine.Submit(expanded);
     }
 
     /// <summary>渲染一帧并差分上屏：inline 走相对光标 + append（历史滚入 scrollback）+ DEC 2026 原子上屏；视口走绝对定位 diff。
@@ -1539,7 +2008,10 @@ public sealed class ReplShell
             _prevOverride = null;
             if (output.Length > 0)
             {
-                _output.Write(Csi.SynchronizedOutputBegin() + output + Csi.SynchronizedOutputEnd());
+                // S9 接线 — DEC 2026 探测结果条件包裹（不支持终端裸差分直出，对齐 FrameComposer 同一条件）
+                _output.Write(_syncOutputSupported
+                    ? Csi.SynchronizedOutputBegin() + output + Csi.SynchronizedOutputEnd()
+                    : output);
             }
         }
         else
@@ -1583,15 +2055,36 @@ public sealed class ReplShell
     /// <summary>resize 跨尺寸 diff 旧帧（测试断言面 — 重建时保留旧屏供 InlineComposer append/fullReset）。</summary>
     internal Screen? PrevOverride => _prevOverride;
 
-    /// <summary>同步补全建议到视图（渲染前状态投影 — EnsureScreens 屏高计算依赖建议区高度，必须先行）。</summary>
+    /// <summary>同步补全建议到视图（渲染前状态投影 — EnsureScreens 屏高计算依赖建议区高度，必须先行）：
+    /// 斜杠建议优先；未激活时 @ 文件建议占用建议区（S10 接线 — 投影 CommandSuggestion 形态，
+    /// 裸名渲染借参数模式通道，列宽 = 最长路径 + 4）。</summary>
     private void SyncSuggestionState()
     {
-        _view.Suggestions = _suggester is { IsActive: true } ? _suggester.Items : null;
-        _view.SuggestionIndex = _suggester?.SelectedIndex ?? 0;
-        _view.SuggestionNameColumnWidth = _suggester?.NameColumnWidth ?? 0;
-        _view.SuggestionArgumentMode = _suggester?.IsArgumentMode ?? false;
+        if (_suggester is { IsActive: true })
+        {
+            _view.Suggestions = _suggester.Items;
+            _view.SuggestionIndex = _suggester.SelectedIndex;
+            _view.SuggestionNameColumnWidth = _suggester.NameColumnWidth;
+            _view.SuggestionArgumentMode = _suggester.IsArgumentMode;
+        }
+        else if (_atSuggestions is { Count: > 0 })
+        {
+            _view.Suggestions = _atSuggestions;
+            _view.SuggestionIndex = _atSuggestionIndex;
+            _view.SuggestionNameColumnWidth = _atSuggestions.Max(static item => item.Name.Length) + 4;
+            _view.SuggestionArgumentMode = true;
+        }
+        else
+        {
+            _view.Suggestions = null;
+            _view.SuggestionIndex = 0;
+            _view.SuggestionNameColumnWidth = 0;
+            _view.SuggestionArgumentMode = false;
+        }
+
         _view.GhostSuffix = _search is { Current.Length: > 0 } ? _search.Current : _suggester?.GhostSuffix ?? string.Empty;
-        _view.QueuedInputs = _queuedInputs;
+        // S7 队列元组化 — 渲染投影显示形态（每次重投影新列表：队列实例类型与视图契约解耦）
+        _view.QueuedInputs = _queuedInputs.Select(static entry => entry.Display).ToList();
     }
 
     /// <summary>同步消息光标选中态到视图（渲染前状态投影）：
@@ -1632,20 +2125,45 @@ public sealed class ReplShell
     }
 
     /// <summary>退出输出 — inline：清尾部动态区（间隔+输入区+footer），历史留终端 scrollback 可复制；视口：清屏复位；
-    /// transcript 残留防御（引擎死亡路径已先退出，此处兜底）：清屏复位（transcript 态无 scrollback 语义可保留）。</summary>
+    /// transcript 残留防御（引擎死亡路径已先退出，此处兜底）：清屏复位（transcript 态无 scrollback 语义可保留）。
+    /// S9 接线 — 尾部对称恢复硬件光标（DEC 25 show，幂等可重入；崩溃路径由宿主全局异常兜底补发）；
+    /// S7 接线 — 尾部对称 Disable bracketed paste（DEC 2004 — Run 启用的对称恢复）。</summary>
     public void WriteExit()
     {
         if (!_inline || _view.Transcript is not null)
         {
-            _output.Write(Sgr.Reset + Csi.EraseScreen() + Csi.CursorPosition(1, 1));
-            _output.Flush();
+            WriteExitSequences(Sgr.Reset + Csi.EraseScreen() + Csi.CursorPosition(1, 1) + CursorLifecycle.Show);
             return;
         }
 
-        // 光标在输入位（上帧 frameEnd）→ 上移 2 行到顶线 → 清 TailHeight 行 → 内容底行换行
+        // 光标在输入位（上帧 frameEnd = 光标所在逻辑行）→ 上移（光标行距顶线 + 顶线距间隔行）到间隔行 →
+        // 清 TailHeight 行 → 内容底行换行（S7 多行化：上移量随光标逻辑行增长，单行 = 既有 2 行语义）
         var tail = _view.TailHeight;
-        _output.Write(Sgr.Reset + Csi.CursorUp(2) + "\r" + string.Concat(Enumerable.Repeat(Csi.EraseLine() + "\r\n", tail - 1)) + Csi.EraseLine() + "\r\n");
+        var up = _input.CursorLineIndex + 2;
+        WriteExitSequences(Sgr.Reset + Csi.CursorUp(up) + "\r" + string.Concat(Enumerable.Repeat(Csi.EraseLine() + "\r\n", tail - 1)) + Csi.EraseLine() + "\r\n" + CursorLifecycle.Show);
+
+        // S10 接线 — 命令使用记忆持久化（fire-and-forget + try-catch 静默：退出路径不因持久化失败阻塞/报错）
+        _ = SaveCommandUsageAsync();
+    }
+
+    /// <summary>退出序列发射公共收尾（S7 接线 — 统一追加 bracketed paste Disable + Flush）。</summary>
+    private void WriteExitSequences(string sequences)
+    {
+        _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste));
         _output.Flush();
+    }
+
+    /// <summary>命令使用记忆持久化（S10 接线 — ~/.jcc/command-history.json 原子写；持久化失败静默
+    ///（IO 权限等，下次会话降级空记忆不阻塞启动，HistorySeeder 先例语义））。</summary>
+    private async Task SaveCommandUsageAsync()
+    {
+        try
+        {
+            await _commandUsage.SaveAsync(CommandUsageMemory.DefaultFilePath).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+        }
     }
 
     /// <summary>清滚动区（M8-5 — /clear 接线，引擎回合线程回调）：

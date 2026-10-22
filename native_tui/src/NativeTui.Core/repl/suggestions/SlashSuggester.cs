@@ -64,6 +64,10 @@ public sealed class SlashSuggester
         NameColumnWidth = commands.Count > 0 ? commands.Max(c => c.Name.Length) + 6 : 0;
     }
 
+    /// <summary>命令名是否在注入清单中（精确名匹配 — S10 接线：提交斜杠命令时使用记账的已知命令判定，
+    /// 未知命令名不记账防污染 recently-used 分组）。</summary>
+    public bool IsKnownCommand(string name) => _commands.Any(c => c.Name == name);
+
     /// <summary>当前参数模式命令名（非参数模式或无空格时 null）。</summary>
     private string? CurrentArgumentCommandName()
     {

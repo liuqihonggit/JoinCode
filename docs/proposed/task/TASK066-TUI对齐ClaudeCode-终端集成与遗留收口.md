@@ -204,6 +204,25 @@
 - 手动验收（ADR 0080 待用户真机）：Windows Terminal 观察 tab 标题 `✳`/`⠂⠐` 动画、21337 彩点三态（Windows Terminal 实际丢弃 21337 静默安全）、失焦冻结动画
 - 提交链：6d9694c61(A1) → d192a147a(A3) → ff9d2cf57(A4) → 8710e169a(A2) → 5ed934a5d(A5-A8) → 宿主装配
 
+### 板块 B — 输入系统升级（2026-10-23 B1/B2/B4 完成，B5/B6 留待双终端验收后）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| B1 kitty CSI u + modifyOtherKeys 解析（KeyPressParser 终点符前瞻分派） | RawStdinPump VT 全链 | ✅ | ✅ 单元 26 测试 |
+| B1 KeyKind F1-F12（kitty 码点 57414-17 + xterm ~ 15-24） | 键位表/解析器 | ✅ | ✅ 单元含 F 键映射 |
+| B2 键位配置系统 10 文件（20 context/105 action/116 默认绑定/保留键校验/用户 json AOT 加载） | ReplShell _keybindings | ✅ | ✅ 单元 87 测试 |
+| B4 ReplShell 全局键层表驱动（esc/ctrl 组合/序列键 MatchAction/MatchSequence/IsSequenceStart） | HandleCtrlKey→DispatchCtrlAction | ✅ | ✅ 接线 13 测试 |
+| B4 宿主装配（~/.jcc/keybindings.json 用户覆盖 + stderr 错误诊断不阻断） | Program.cs | ✅ | ✅ Host.Tests 全绿 |
+| B5 RawStdin 切默认 | Program.cs | ⏸ | 待 B6 双终端矩阵后 |
+| B6 双终端实测矩阵（WT/conhost + kitty 协议启用） | — | ⏸ | 待用户真机验收 |
+
+- 测试：NativeTui.Tests 1802→**2157 全绿**（+355；含 rebase main 合入的 187 个 S12 新测试）
+- rebase 冲突处理：①ReplShell 构造器参数（main S12 saveExportAsync/searchSource × 我方 terminalStatus/keybindings 并存）②KeyPressParser BuildSimple（main 侧 kitty 简版 'u' 分支被完整版 ParseKittyCsiU 取代成死代码，删除）
+- debug 修复链：①AOT 反序列化改 `Deserialize(json, Type, Context)` 重载 ②F 键全链打通（KeyKind→KeyShortcut→Parser→ToString 四处）③保留键全拒条目保留默认（非解绑语义）④Ctrl+R 测试构造笔误（ConsoleKeyInfo 第三参 true=shift → 实际 ctrl+shift+r，旧 `case "r"` 不看 shift 宽容掩盖；表匹配严格化后暴露——修测试为纯 ctrl 位，throw 探针五层定位法）
+- ⚠️ flaky 登记：GlobalSearchConfirm 偶发失败（全量高并发下 main 侧 S12 异步防抖时序竞态；单独跑/组合跑/连跑 3 次全量均绿，确认非 B4 缺陷；S12 域不展开修）
+- 遗留：模态内部键（权限数字键/选择器方向键/transcript less 键位/搜索模态内循环键）保持硬编码——渐进式决策，用户表只覆盖全局键层
+- 提交链（rebase 后新序）：4dbe50f66(A5-A8) → c92d12b6c(A 收官) → e0b219270(B1+B2) → 06a1fb5bb(B4)
+
 ### 其他板块
 
-B/C/D/E/F 待分派其他人；G 跨板块收口最后做。
+C/D/E/F 待分派；G 跨板块收口最后做。

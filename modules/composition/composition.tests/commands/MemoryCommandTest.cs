@@ -137,8 +137,8 @@ public sealed class MemoryCommandTest {
     /// <summary>生产 bug 登记(TASK065 ai 域): --type 选项小写输入(如 feedback)时
     /// AddMemoryAsync 的 content.Replace($"--type {type}", "") 用解析后的枚举名(Feedback)
     /// 做大小写敏感匹配,无法剥离小写原文,选项文本残留进记忆内容与查重 query。
-    /// 本测试按 usage 提示的规范大写形态(Feedback)验证剥离正路径;修复 Replace 为
-    /// 忽略大小写后应补充小写形态用例。</summary>
+    /// 本测试按 usage 提示的规范大写形态(Feedback)验证剥离正路径;小写形态用例见
+    /// <see cref="Execute_Add_WithLowercaseType_StripsOptionCaseInsensitively"/>。</summary>
     [Fact]
     public async Task Execute_Add_WithTagsAndType_ParsesOptions() {
         var memoryService = CreateMemoryService();
@@ -151,6 +151,26 @@ public sealed class MemoryCommandTest {
             "--type/--tags 选项应从内容中剥离并解析(类型值大小写不敏感)");
         output.Should().Contain("类型：Feedback");
         output.Should().Contain("标签：rust, perf");
+    }
+
+    /// <summary>生产 bug 修复验证(TASK065 ai 域): FromValue 反查表按 OrdinalIgnoreCase 解析,
+    /// 小写 --type feedback 解析为 Feedback 成功,但剥离 Replace 用枚举名(Feedback)做
+    /// 大小写敏感匹配导致选项文本残留进记忆内容与查重 query。修复后剥离改为
+    /// OrdinalIgnoreCase 定位,小写形态应与大写形态行为一致:干净剥离 + 查重 query 无残留。</summary>
+    [Fact]
+    public async Task Execute_Add_WithLowercaseType_StripsOptionCaseInsensitively() {
+        var memoryService = CreateMemoryService();
+        var (cmd, context) = Arrange("add 关键结论 --type feedback --tags rust,perf", memoryService: memoryService);
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        memoryService.Verify(s => s.ScanMemoriesAsync("关键结论", "Feedback", 1, It.IsAny<CancellationToken>()), Times.Once,
+            "查重 query 应使用剥离后的干净内容,不得残留 --type 选项文本");
+        memoryService.Verify(s => s.AddMemoryAsync("关键结论", MemoryType.Feedback, null, new List<string> { "rust", "perf" }, null, It.IsAny<CancellationToken>()), Times.Once,
+            "小写 --type feedback 应解析为 Feedback 且干净剥离,选项文本不得残留进记忆内容");
+        output.Should().Contain("类型：Feedback");
+        output.Should().Contain("内容：关键结论");
     }
 
     [Theory]

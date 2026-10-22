@@ -58,7 +58,11 @@ public sealed class CompactCommand : ChatCommandBase {
 
                 TerminalHelper.WriteLine(new CompactSummaryRenderer().Render(fallbackData));
                 return ChatCommandResult.Continue();
-            } catch (Exception ex) when (IsPromptTooLongError(ex.Message) && attempt < maxPtRetries - 1 && contextManager is not null) {
+            } catch (Exception ex) when (IsPromptTooLongError(ex.Message)) {
+                // 对齐 TS: truncateHeadForPTLRetry — 无管理器可回滚或重试耗尽(attempt=maxPtRetries-1)时,
+                // break 走下方"最终失败"降级路径(兜底再试 + HandleError 收敛),禁止第 3 次 PTL 异常冒泡传播 REPL
+                if (contextManager is null || attempt >= maxPtRetries - 1) break;
+
                 // 对齐 TS: PTL 重试 — 回滚最近一轮消息后重试
                 var rewindResult = await contextManager.RewindLastTurnAsync(context.CancellationToken).ConfigureAwait(false);
                 if (rewindResult.RemovedCount == 0) break;

@@ -341,7 +341,7 @@ public static class Program {
                     // DSG042 P2 — 输入泵通道：默认 ReadKeyPump（现役稳定）；
                     // --raw-input 灰度启用 RawStdinPump（stdin 原始流 VT 全链 — 修饰组合键保留/
                     // paste 整块直出；双终端实测矩阵跑齐后 P3 切默认）；引用留 Host 收尾 Dispose
-                    inputPump: rawInputPump); (feat: DSG042 P2 收尾 --raw-input 宿主开关接线 | 决策: Host 持泵引用 Run/WriteExit 后 Dispose(通道完成+取消;阻塞读由 IsBackground 进程退出回收不等待防挂)+重定向守卫沿用交互模式; 默认通道不变(ReadKeyPump 现役,--raw-input 显式灰度) | 验证: Host 编译零警告+selftest 冒烟过+RawStdinPumpTests 13/13)
+                    inputPump: rawInputPump);
                 pickerEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);

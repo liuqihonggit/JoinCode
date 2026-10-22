@@ -6,9 +6,17 @@ namespace NativeTui.Core.Repl;
 /// chunk 末尾的孤立 ESC 解析为 Escape（基准用 ESC_TIMEOUT flush，此处以 chunk 边界近似）；
 /// 不完整前缀（如 "\x1b["）返回 false 且不消耗，由调用方攒够后重试。
 /// 无法识别的序列整体吞掉为 Unknown（Input 空），防止转义序列泄漏成文本（对齐基准 suppress 语义）。
+/// bracketed paste：\x1b[200~ 内容 \x1b[201~ 整块产出 Paste 事件（Input=粘贴原文），
+/// 终止标记未到达视为不完整前缀不消耗（粘贴块可跨 chunk 攒齐）。
 /// </summary>
 public static class KeyPressParser
 {
+    /// <summary>bracketed paste 起始标记（DEC 2004 模式开启后终端包裹粘贴内容）。</summary>
+    private const string PasteStart = "\u001b[200~";
+
+    /// <summary>bracketed paste 终止标记。</summary>
+    private const string PasteEnd = "\u001b[201~";
+
     /// <summary>从 buffer 头部解析一个按键；成功则消耗并推进 buffer，前缀不完整返回 false。</summary>
     public static bool TryParseNext(ref ReadOnlySpan<char> buffer, out KeyPress key)
     {
@@ -16,6 +24,11 @@ public static class KeyPressParser
         {
             key = NamedUnknown();
             return false;
+        }
+
+        if (buffer.StartsWith(PasteStart))
+        {
+            return ParseBracketedPaste(ref buffer, out key);
         }
 
         var first = buffer[0];
@@ -33,6 +46,11 @@ public static class KeyPressParser
             case '\u007f':
             case '\u0008':
                 key = KeyPress.Named(KeyKind.Backspace);
+                buffer = buffer[1..];
+                return true;
+            case '\u001f':
+                // Ctrl+_（= ctrl+shift+- 同码）— 基准 chat:undo 键位，归一为 Ctrl+"_" 名
+                key = new KeyPress(KeyKind.Char, "_", Ctrl: true);
                 buffer = buffer[1..];
                 return true;
             case '\u001b':
@@ -58,6 +76,22 @@ public static class KeyPressParser
 
         key = KeyPress.Char(first.ToString());
         buffer = buffer[1..];
+        return true;
+    }
+
+    /// <summary>bracketed paste 块：\x1b[200~ 内容 \x1b[201~ — 整块消费产出 Paste 事件；终止标记缺失返回 false 不消耗（跨 chunk 攒齐）。</summary>
+    private static bool ParseBracketedPaste(ref ReadOnlySpan<char> buffer, out KeyPress key)
+    {
+        var content = buffer[PasteStart.Length..];
+        var endOffset = content.IndexOf(PasteEnd);
+        if (endOffset < 0)
+        {
+            key = NamedUnknown();
+            return false;
+        }
+
+        key = new KeyPress(KeyKind.Paste, content[..endOffset].ToString());
+        buffer = content[(endOffset + PasteEnd.Length)..];
         return true;
     }
 

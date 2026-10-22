@@ -51,6 +51,9 @@ public enum KeyKind
     /// <summary>PageDown 键。</summary>
     PageDown,
 
+    /// <summary>bracketed paste 粘贴块（\x1b[200~ 内容 \x1b[201~ — Input 携带粘贴原文，修饰符全 false）。</summary>
+    Paste,
+
     /// <summary>无法识别的序列（整体吞掉，Input 空 — 防止转义序列泄漏为文本）。</summary>
     Unknown,
 }

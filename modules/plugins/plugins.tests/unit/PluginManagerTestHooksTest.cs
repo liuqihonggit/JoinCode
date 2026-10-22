@@ -85,10 +85,11 @@ public sealed class PluginManagerTestHooksTest {
     [Fact]
     public async Task RecordPluginResourceIds_ContinuousIds_CompressesIntoSingleRange() {
         await using var manager = CreateManager();
-        // 连续的 SequenceId 应压缩为单区间
+        // 连续的 SequenceId 应压缩为单区间 — internal 查找键构造（确定性 seq，与进程级全局
+        // 原子计数器解耦：xUnit 并行时其他测试同类 new 交错会断链 — CI 实测 RangeCount=2 假红）
         var ids = new List<ObjectId>();
-        for (var i = 0; i < 10; i++)
-            ids.Add(new ObjectId(ObjectType.Resource));
+        for (var seq = 1000L; seq < 1010; seq++)
+            ids.Add(new ObjectId(ObjectType.Resource, seq));
 
         manager.RecordPluginResourceIds("p", ids);
 

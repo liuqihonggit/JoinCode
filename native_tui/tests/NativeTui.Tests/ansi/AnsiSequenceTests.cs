@@ -268,4 +268,57 @@ public sealed class OscTests
         // 基准 isProgressReportingAvailable: OSC 9;4;state;progress（Windows Terminal 排除）
         Assert.Equal("\x1b]9;4;1;50\x07", Osc.Progress(state: 1, progress: 50));
     }
+
+    [Fact]
+    public void TabStatus_BusyPreset_EmitsOsc21337ThreeFields()
+    {
+        // 基准 use-tab-status.ts busy preset: indicator #FF9500 / "Working…" / status-color #FF9500
+        // rgb 输出小写十六进制零填充（termio/osc.ts rgb() padStart(2,'0')）
+        Assert.Equal(
+            "\x1b]21337;indicator=#ff9500;status=Working…;status-color=#ff9500\x07",
+            Osc.TabStatus(indicatorRgb: 0xFF9500, status: "Working…", statusRgb: 0xFF9500));
+    }
+
+    [Fact]
+    public void TabStatus_IdlePreset_EmitsGrayStatusColor()
+    {
+        // 基准 idle preset: #00D75F / "Idle" / #888888
+        Assert.Equal(
+            "\x1b]21337;indicator=#00d75f;status=Idle;status-color=#888888\x07",
+            Osc.TabStatus(indicatorRgb: 0x00D75F, status: "Idle", statusRgb: 0x888888));
+    }
+
+    [Fact]
+    public void TabStatus_WaitingPreset_EmitsBlueIndicator()
+    {
+        // 基准 waiting preset: #5F87FF / "Waiting" / #5F87FF
+        Assert.Equal(
+            "\x1b]21337;indicator=#5f87ff;status=Waiting;status-color=#5f87ff\x07",
+            Osc.TabStatus(indicatorRgb: 0x5F87FF, status: "Waiting", statusRgb: 0x5F87FF));
+    }
+
+    [Fact]
+    public void TabStatus_OmittedFields_AreSkipped()
+    {
+        // 基准 tabStatus(): 'indicator' in fields 才输出该字段 — null = 不发送（终端保持原值）
+        Assert.Equal(
+            "\x1b]21337;status=Idle\x07",
+            Osc.TabStatus(status: "Idle"));
+    }
+
+    [Fact]
+    public void TabStatus_StatusText_EscapesSemicolonThenBackslash()
+    {
+        // 基准转义序：先 `\`→`\\` 再 `;`→`\;`（osc.ts replaceAll 顺序）— "a;b\c" → "a\;b\\c"
+        Assert.Equal(
+            "\x1b]21337;status=a\\;b\\\\c\x07",
+            Osc.TabStatus(status: "a;b\\c"));
+    }
+
+    [Fact]
+    public void ClearTabStatus_EmitsEmptyThreeFields()
+    {
+        // 基准 CLEAR_TAB_STATUS = osc(21337, 'indicator=;status=;status-color=') — 退出清残留点
+        Assert.Equal("\x1b]21337;indicator=;status=;status-color=\x07", Osc.ClearTabStatus());
+    }
 }

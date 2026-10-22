@@ -2,7 +2,7 @@ namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /vim 命令 — 切换 Vim 输入模式
-/// 支持显式 on/off 以及无参数时的 toggle 切换
+/// 支持显式 on/off、无参数时的 toggle 切换以及 status 查询当前编辑模式
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Vim, Description = "切换 Vim 输入模式 (无参数时 toggle)", Usage = "/vim [on|off]", Category = ChatCommandCategory.Config)]
 [ChatCommandArg("action", Type = "string", Description = "Vim 模式动作,省略时 toggle", Enum = new[] { "on", "off" })]
@@ -34,6 +34,42 @@ public sealed class VimCommand : ToggleCommandBase {
             "disable" => ToggleAction.Off,
             _ => ToggleActionExtensions.FromValue(args),
         };
+    }
+
+    /// <summary>
+    /// 默认分支 — "status" 参数仅显示当前编辑模式不切换(基类 default 分支按 NullAction=Toggle
+    /// 会误触发切换,因空参数语义为 toggle 故经此处按 args 区分而非覆写 NullAction)
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
+    /// <param name="args">原始参数字符串</param>
+    /// <returns>表示异步操作完成的任务</returns>
+    protected override Task OnDefaultAsync(ChatCommandContext context, string args)
+        => ResolveToggleAction(args) == ToggleAction.Status
+            ? ShowCurrentModeAsync(context)
+            : base.OnDefaultAsync(context, args);
+
+    /// <summary>
+    /// 显示当前编辑模式 — 读取 IEditorModeService 当前模式并输出,不触发引擎启停与模式切换
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
+    /// <returns>表示异步操作完成的任务</returns>
+    private async Task ShowCurrentModeAsync(ChatCommandContext context) {
+        var currentMode = await GetCurrentModeAsync(context).ConfigureAwait(false);
+        var modeLabel = currentMode == EditorMode.Vim ? "Vim" : "Normal (标准 readline 键绑定)";
+
+        TerminalHelper.WriteLine($"编辑模式: {modeLabel}");
+    }
+
+    /// <summary>
+    /// 读取当前编辑模式 — 服务缺失时按 Normal 默认
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
+    /// <returns>当前编辑模式</returns>
+    private async Task<EditorMode> GetCurrentModeAsync(ChatCommandContext context) {
+        var editorModeService = GetService<IEditorModeService>(context);
+        return editorModeService is not null
+            ? await editorModeService.GetCurrentModeAsync().ConfigureAwait(false)
+            : EditorMode.Normal;
     }
 
     /// <summary>
@@ -78,7 +114,7 @@ public sealed class VimCommand : ToggleCommandBase {
         var vimEngine = GetService<IVimEngine>(context);
         var editorModeService = GetService<IEditorModeService>(context);
 
-        var currentMode = editorModeService is not null ? await editorModeService.GetCurrentModeAsync().ConfigureAwait(false) : EditorMode.Normal;
+        var currentMode = await GetCurrentModeAsync(context).ConfigureAwait(false);
         var newMode = currentMode == EditorMode.Vim ? EditorMode.Normal : EditorMode.Vim;
 
         if (newMode == EditorMode.Vim) {

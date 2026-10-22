@@ -2,7 +2,7 @@ namespace Composition.Tests.Commands;
 
 /// <summary>
 /// /proactive 命令单元测试 — 覆盖 on(含别名)激活/off(含别名)停用/pause/resume(含短别名)/
-/// status 状态查询/未识别参数引导/服务缺失静默/元数据一致性
+/// status 状态查询/未识别参数引导/服务缺失降级提示不误导(TASK065 生产 bug 修复)/元数据一致性
 /// <para>ProactiveStateService 用 Moq 桩经 DI 注入</para>
 /// </summary>
 [Collection("command-output")]
@@ -122,21 +122,36 @@ public sealed class ProactiveCommandTest {
         service.Verify(s => s.Activate(It.IsAny<string?>()), Times.Never, "未识别参数不应触发任何状态变更");
     }
 
-    /// <summary>生产 bug 登记(TASK065 brain 域): IProactiveStateService 缺失时 OnEnabledAsync 的
-    /// "主动模式已激活" 提示在 proactiveService?.Activate() 安全调用之后仍无条件打印 —
-    /// 服务未注册却向用户宣称激活成功,输出与实际状态不符。本测试按当前实现固化行为
-    /// (提示输出 + Activate 未调用);修复后应改为断言提示不输出或改为服务不可用提示。</summary>
+    /// <summary>生产 bug 修复(TASK065 brain 域): IProactiveStateService 缺失时 OnEnabledAsync 的
+    /// "主动模式已激活"提示在 proactiveService?.Activate() 安全调用之后仍无条件打印 —
+    /// 服务未注册却向用户宣称激活成功,输出与实际状态不符。修复后:服务缺失输出降级提示,
+    /// 激活提示仅在服务成功路径输出。</summary>
     [Fact]
-    public async Task Execute_WithoutService_ContinuesWithMisleadingActivationNotice() {
+    public async Task Execute_WithoutService_ShowsDegradedNoticeInsteadOfActivation() {
         var services = CommandTestHarness.CreateServices();
         var context = CommandTestHarness.CreateContext(services, arguments: "on");
 
         var (result, output) = await CommandTestHarness.CaptureOutputAsync(
             () => new ProactiveCommand().ExecuteAsync(context));
 
-        result.ShouldContinue.Should().BeTrue("服务缺失时应静默降级(proactiveService?. 安全访问)而非崩溃");
-        output.Should().Contain("主动模式已激活",
-            "当前实现: 服务缺失时激活提示仍输出(bug 已登记,未擅自修复)");
+        result.ShouldContinue.Should().BeTrue("服务缺失时应静默降级而非崩溃");
+        output.Should().NotContain("主动模式已激活", "服务缺失时不应宣称激活成功");
+        output.Should().Contain("主动模式状态服务不可用", "服务缺失应输出降级提示");
+    }
+
+    /// <summary>对称缺陷(TASK065 brain 域): OnDisabledAsync 的"主动模式已停用"提示与激活提示
+    /// 同样在服务缺失时无条件打印。修复后停用提示同样仅在服务成功路径输出。</summary>
+    [Fact]
+    public async Task Execute_WithoutService_Off_ShowsDegradedNoticeInsteadOfDeactivation() {
+        var services = CommandTestHarness.CreateServices();
+        var context = CommandTestHarness.CreateContext(services, arguments: "off");
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(
+            () => new ProactiveCommand().ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue("服务缺失时应静默降级而非崩溃");
+        output.Should().NotContain("主动模式已停用", "服务缺失时不应宣称停用成功");
+        output.Should().Contain("主动模式状态服务不可用", "服务缺失应输出降级提示");
     }
 
     [Fact]

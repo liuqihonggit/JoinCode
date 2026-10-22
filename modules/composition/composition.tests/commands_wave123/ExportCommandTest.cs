@@ -105,6 +105,66 @@ public sealed class ExportCommandTest {
     }
 
     [Fact]
+    public async Task Execute_NoArgsNonInteractive_PureCjkFirstLine_FallsBackToConversationName() {
+        // 对齐 TS sanitizeFilename: replace(/[^a-z0-9\s-]/g,'') — 纯 CJK 首行全剥离 → 回退 conversation-{timestamp}.txt
+        var chat = new Mock<IChatService>();
+        chat.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<ApiMessageRecord> {
+            new() { Role = "user", Content = "帮我写一个单元测试" },
+        });
+        var (cmd, _, _, context) = Arrange(arguments: "", chatService: chat);
+
+        var (_, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        output.Should().Contain("conversation-", "纯 CJK 首行被 TS 语义全剥离时应回退时间戳文件名");
+        output.Should().NotContain("帮我", "CJK 字符不得出现在导出路径中（TS 基准仅保留 [a-z0-9\\s-]）");
+    }
+
+    [Fact]
+    public async Task Execute_NoArgsNonInteractive_MixedCjkAscii_StripsCjkKeepsAscii() {
+        // 对齐 TS: 混合首行仅保留 ASCII 段 — "帮我 Fix Bug 123" → "fix-bug-123"
+        var chat = new Mock<IChatService>();
+        chat.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<ApiMessageRecord> {
+            new() { Role = "user", Content = "帮我 Fix Bug 123" },
+        });
+        var (cmd, _, _, context) = Arrange(arguments: "", chatService: chat);
+
+        var (_, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        output.Should().Contain("fix-bug-123", "CJK 剥离后 ASCII 段应保留并按空白转连字符");
+        output.Should().NotContain("帮我", "混合首行中的 CJK 部分应被剥离");
+    }
+
+    [Fact]
+    public async Task Execute_NoArgsNonInteractive_MultipleHyphenRuns_CollapseToSingle() {
+        // 对齐 TS: replace(/-+/g,'-') — 5 连字符与连续空白均收敛为单个 '-'
+        var chat = new Mock<IChatService>();
+        chat.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<ApiMessageRecord> {
+            new() { Role = "user", Content = "Fix-----Bug" },
+        });
+        var (cmd, _, _, context) = Arrange(arguments: "", chatService: chat);
+
+        var (_, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        output.Should().Contain("fix-bug", "5 连字符应完全收敛为单个（TS -+ 语义，非两次逐级 Replace）");
+        output.Should().NotContain("fix--", "不得残留连续连字符");
+    }
+
+    [Fact]
+    public async Task Execute_NoArgsNonInteractive_LongFirstLine_NoEllipsisInFilename() {
+        // 对齐 TS: 截断发生在 sanitize 前（extractFirstPrompt 49+'…'，'…' 随后被剥离）— 文件名不含省略号
+        var chat = new Mock<IChatService>();
+        chat.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<ApiMessageRecord> {
+            new() { Role = "user", Content = new string('a', 60) },
+        });
+        var (cmd, _, _, context) = Arrange(arguments: "", chatService: chat);
+
+        var (_, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        output.Should().Contain(new string('a', 49), "截断应保留前 49 个原始字符");
+        output.Should().NotContain("…", "省略号应被 sanitize 剥离，不得出现在导出路径中");
+    }
+
+    [Fact]
     public async Task Execute_EmptyHistory_WritesPlaceholderContent() {
         var (cmd, _, fs, context) = Arrange(arguments: "export-empty.txt", chatService: new Mock<IChatService>());
 

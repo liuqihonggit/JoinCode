@@ -37,27 +37,44 @@ public sealed class ProactiveCommand : ToggleCommandBase {
     protected override ToggleNullAction NullAction => ToggleNullAction.Status;
 
     /// <summary>
-    /// 启用主动模式时的处理逻辑。
+    /// 启用主动模式时的处理逻辑 — 服务缺失时输出降级提示,激活提示仅在服务成功路径输出。
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>表示异步操作的任务。</returns>
     protected override Task OnEnabledAsync(ChatCommandContext context) {
-        var proactiveService = GetService<IProactiveStateService>(context);
-        proactiveService?.Activate("user-command");
+        var proactiveService = GetProactiveServiceOrNoticeUnavailable(context);
+        if (proactiveService is null) return Task.CompletedTask;
+
+        proactiveService.Activate("user-command");
         TerminalHelper.WriteLine("主动模式已激活");
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// 停用主动模式时的处理逻辑。
+    /// 停用主动模式时的处理逻辑 — 服务缺失时输出降级提示,停用提示仅在服务成功路径输出。
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>表示异步操作的任务。</returns>
     protected override Task OnDisabledAsync(ChatCommandContext context) {
-        var proactiveService = GetService<IProactiveStateService>(context);
-        proactiveService?.Deactivate();
+        var proactiveService = GetProactiveServiceOrNoticeUnavailable(context);
+        if (proactiveService is null) return Task.CompletedTask;
+
+        proactiveService.Deactivate();
         TerminalHelper.WriteLine("主动模式已停用");
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// 获取主动模式状态服务 — 服务缺失时输出降级提示并返回 null。
+    /// </summary>
+    /// <param name="context">命令执行上下文。</param>
+    /// <returns>主动模式状态服务实例,未注册时为 null。</returns>
+    private IProactiveStateService? GetProactiveServiceOrNoticeUnavailable(ChatCommandContext context) {
+        var proactiveService = GetService<IProactiveStateService>(context);
+        if (proactiveService is null) {
+            TerminalHelper.WriteLine("主动模式状态服务不可用");
+        }
+        return proactiveService;
     }
 
     /// <summary>

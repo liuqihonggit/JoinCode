@@ -2,7 +2,8 @@ namespace Composition.Tests.Commands;
 
 /// <summary>
 /// /vim 命令单元测试 — 覆盖 on/enable 启用(VimEngine.Enable+SetMode(Vim)+按键提示)/
-/// off/disable 禁用/无参 toggle(Normal→Vim / Vim→Normal 互斥切换)/服务缺失降级不抛/
+/// off/disable 禁用/无参 toggle(Normal→Vim / Vim→Normal 互斥切换)/
+/// status 查询当前模式不切换(TASK065 生产 bug 修复)/服务缺失降级不抛/
 /// 大小写别名归一/命令元数据
 /// <para>IVimEngine 与 IEditorModeService 经 DI 注入;继承 ToggleCommandBase 三分支骨架</para>
 /// </summary>
@@ -127,6 +128,35 @@ public sealed class VimCommandTest {
         engine.Verify(e => e.Enable(), Times.Once,
             "编辑模式服务缺失时当前模式按 Normal 默认,toggle 应切到 Vim");
         output.Should().Contain("编辑模式: Vim");
+    }
+
+    /// <summary>生产 bug 修复(TASK065 guard 域): /vim status 经 FromValue 解析为 ToggleAction.Status
+    /// 落入基类 default 分支,因 NullAction 未覆写(默认 Toggle)误触发 OnToggleAsync 切换模式。
+    /// 修复后 status 仅显示当前编辑模式,不触发引擎启停与模式切换。</summary>
+    [Fact]
+    public async Task Execute_Status_ShowsCurrentModeWithoutToggling() {
+        var (cmd, engine, modeService, context) = Arrange(arguments: "status", currentMode: EditorMode.Vim);
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        engine.Verify(e => e.Enable(), Times.Never, "status 不应启用 Vim 引擎");
+        engine.Verify(e => e.Disable(), Times.Never, "status 不应停用 Vim 引擎");
+        modeService.Verify(m => m.SetMode(It.IsAny<EditorMode>()), Times.Never, "status 不应切换编辑模式");
+        output.Should().Contain("编辑模式: Vim", "status 应显示当前编辑模式");
+    }
+
+    /// <summary>status 参数大小写归一 — 与 on/off 一致按 ToLowerInvariant/OrdinalIgnoreCase 匹配。</summary>
+    [Fact]
+    public async Task Execute_StatusUppercase_AlsoShowsModeWithoutToggling() {
+        var (cmd, engine, modeService, context) = Arrange(arguments: "STATUS", currentMode: EditorMode.Normal);
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        engine.Verify(e => e.Enable(), Times.Never, "STATUS 不应启用 Vim 引擎");
+        modeService.Verify(m => m.SetMode(It.IsAny<EditorMode>()), Times.Never, "STATUS 不应切换编辑模式");
+        output.Should().Contain("编辑模式: Normal (标准 readline 键绑定)", "STATUS 应显示当前编辑模式");
     }
 
     [Fact]

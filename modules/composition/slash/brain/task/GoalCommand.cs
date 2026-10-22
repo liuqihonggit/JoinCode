@@ -252,48 +252,111 @@ public sealed partial class GoalCommand : ChatCommandBase {
         TerminalHelper.WriteLine($"  任务ID: {cronTask.Id}");
     }
 
-    internal static GoalParseResult ParseGoalArgs(string args) {
-        if (args.StartsWith("--cron ", StringComparison.OrdinalIgnoreCase) ||
-            args.StartsWith("-c ", StringComparison.OrdinalIgnoreCase)) {
-            var rest = args.StartsWith("--cron ", StringComparison.OrdinalIgnoreCase)
-                ? args["--cron ".Length..]
-                : args["-c ".Length..];
+    /// <summary>
+    /// 解析 /goal 参数 — cron 前缀形态优先判定;其余按位置无关扫描全串提取 --constraint/--budget 选项 token,
+    /// 剩余文本拼接为 objective(对齐 usage 文档形态 "/goal [初始提示] [--constraint ...] [--budget N]",目标在前选项在后同样生效)。
+    /// </summary>
+    /// <param name="args">归一化后的命令参数串。</param>
+    /// <returns>解析结果(objective/约束/预算或 cron 表达式)。</returns>
+    internal static GoalParseResult ParseGoalArgs(string args) =>
+        TryParseCronArgs(args) ?? ParsePositionIndependentOptions(args);
 
-            var tokens = rest.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (tokens.Length < 5) {
-                return new GoalParseResult(string.Empty, [], null, null, true);
-            }
-
-            var cronExpr = string.Join(' ', tokens[..5]);
-            var desc = tokens.Length > 5 ? string.Join(' ', tokens[5..]) : string.Empty;
-            return new GoalParseResult(desc.Trim(), [], null, cronExpr, true);
+    /// <summary>
+    /// 尝试按 --cron/-c 前缀形态解析定时目标参数;cron 用法固定为选项在前,不参与位置无关剥离。
+    /// </summary>
+    /// <param name="args">命令参数串。</param>
+    /// <returns>cron 解析结果;非 cron 前缀形态返回 null。</returns>
+    private static GoalParseResult? TryParseCronArgs(string args) {
+        if (!args.StartsWith("--cron ", StringComparison.OrdinalIgnoreCase) &&
+            !args.StartsWith("-c ", StringComparison.OrdinalIgnoreCase)) {
+            return null;
         }
 
+        var rest = args.StartsWith("--cron ", StringComparison.OrdinalIgnoreCase)
+            ? args["--cron ".Length..]
+            : args["-c ".Length..];
+
+        var tokens = rest.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (tokens.Length < 5) {
+            return new GoalParseResult(string.Empty, [], null, null, true);
+        }
+
+        var cronExpr = string.Join(' ', tokens[..5]);
+        var desc = tokens.Length > 5 ? string.Join(' ', tokens[5..]) : string.Empty;
+        return new GoalParseResult(desc.Trim(), [], null, cronExpr, true);
+    }
+
+    /// <summary>
+    /// 位置无关解析 --constraint/--budget 选项 — 逐 token 扫描全串,选项 token(含其值)被剥离,普通 token 累积为 objective。
+    /// </summary>
+    /// <param name="args">命令参数串。</param>
+    /// <returns>解析结果(objective 为剥离选项后的剩余文本拼接)。</returns>
+    private static GoalParseResult ParsePositionIndependentOptions(string args) {
         var constraints = new List<string>();
         int? tokenBudget = null;
+        var objectiveParts = new List<string>();
         var remaining = args;
 
-        while (true) {
-            if (remaining.StartsWith("--constraint ", StringComparison.OrdinalIgnoreCase)) {
-                var rest = remaining["--constraint ".Length..];
-                var constraint = ExtractQuotedOrWord(rest, out var afterConstraint);
+        while (remaining.Length > 0) {
+            remaining = remaining.TrimStart();
+            if (remaining.Length == 0) {
+                break;
+            }
+
+            if (TryExtractOptionValue(remaining, "--constraint", out var constraint, out var afterOption)) {
                 if (!string.IsNullOrWhiteSpace(constraint)) {
                     constraints.Add(constraint);
                 }
-                remaining = afterConstraint.TrimStart();
-            } else if (remaining.StartsWith("--budget ", StringComparison.OrdinalIgnoreCase)) {
-                var rest = remaining["--budget ".Length..];
-                var budgetStr = ExtractQuotedOrWord(rest, out var afterBudget);
-                if (int.TryParse(budgetStr, out var budget)) {
-                    tokenBudget = budget;
+                remaining = afterOption;
+            } else if (TryExtractOptionValue(remaining, "--budget", out var budget, out afterOption)) {
+                if (int.TryParse(budget, out var parsed)) {
+                    tokenBudget = parsed;
                 }
-                remaining = afterBudget.TrimStart();
+                remaining = afterOption;
             } else {
-                break;
+                remaining = ExtractWord(remaining, out var word);
+                objectiveParts.Add(word);
             }
         }
 
-        return new GoalParseResult(remaining.Trim(), constraints, tokenBudget, null, false);
+        return new GoalParseResult(string.Join(' ', objectiveParts).Trim(), constraints, tokenBudget, null, false);
+    }
+
+    /// <summary>
+    /// 尝试从 remaining 开头提取指定选项名的值(引号或单词形态);
+    /// 要求选项名后为空格或结尾(词边界),避免 "--constraintX" 之类前缀误匹配。
+    /// </summary>
+    /// <param name="remaining">待扫描的剩余参数串。</param>
+    /// <param name="optionName">选项名(如 --constraint)。</param>
+    /// <param name="value">提取到的选项值。</param>
+    /// <param name="after">提取后剩余的参数串。</param>
+    /// <returns>remaining 开头匹配指定选项时返回 true。</returns>
+    private static bool TryExtractOptionValue(string remaining, string optionName, out string value, out string after) {
+        if (!remaining.StartsWith(optionName, StringComparison.OrdinalIgnoreCase) ||
+            (remaining.Length > optionName.Length && remaining[optionName.Length] != ' ')) {
+            (value, after) = (string.Empty, remaining);
+            return false;
+        }
+
+        value = ExtractQuotedOrWord(remaining[optionName.Length..].TrimStart(), out after);
+        return true;
+    }
+
+    /// <summary>
+    /// 提取 remaining 的首个普通 token(至空格为止)入 objective,返回其后的剩余部分。
+    /// </summary>
+    /// <param name="remaining">待扫描的剩余参数串。</param>
+    /// <param name="word">提取到的普通 token。</param>
+    /// <returns>token 之后的剩余参数串。</returns>
+    private static string ExtractWord(string remaining, out string word) {
+        var spaceIdx = remaining.IndexOf(' ');
+        if (spaceIdx < 0) {
+            word = remaining;
+            return string.Empty;
+        }
+
+        word = remaining[..spaceIdx];
+        return remaining[(spaceIdx + 1)..];
     }
 
     private static string ExtractQuotedOrWord(string input, out string remaining) {

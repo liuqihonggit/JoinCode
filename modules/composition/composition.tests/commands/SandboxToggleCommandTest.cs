@@ -3,7 +3,7 @@ namespace Composition.Tests.Commands;
 /// <summary>
 /// /sandbox-toggle 命令单元测试 — 覆盖 status 默认分支(禁用态/活动沙箱详情)/on+off 非交互确认拒绝降级/
 /// switch(缺类型用法/无效类型/有效类型切换/管理器缺失)/exclude(缺参列表/路径不存在/新增持久化/
-/// 重复路径幂等/配置服务缺失)/管理器缺失静默降级
+/// 重复路径幂等/配置服务缺失)/管理器缺失静默降级/混合大小写路径保留与大写子命令分派(TASK065 第五波修复)
 /// <para>ISandboxManager 与 IConfigurationService 经 DI 注入;确认走静态 Confirmation,
 /// 测试环境非交互恒拒绝 — 断言以硬编码中文文案+参数不变量为主</para>
 /// </summary>
@@ -195,7 +195,6 @@ public sealed class SandboxToggleCommandTest {
     [Fact]
     public async Task Execute_Exclude_MissingPath_ShowsPathNotFound() {
         var config = new Mock<IConfigurationService>();
-        // 命令侧 GetNormalizedArgs().ToLowerInvariant() 会把路径参数一并小写化 — 用小写路径构造避免大小写歧义
         var (cmd, _, configMock, context, _) = Arrange(
             arguments: @"exclude c:\no-such-dir", configOverride: config);
 
@@ -253,6 +252,56 @@ public sealed class SandboxToggleCommandTest {
 
         result.ShouldContinue.Should().BeTrue("配置服务缺失应优雅降级而非抛异常");
         config.Verify(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>生产 bug 修复(TASK065 第五波): 整串 ToLowerInvariant 导致路径被小写化 —
+    /// 修复后仅命令词小写化分派,路径不存在提示应保留用户输入的原始大小写。</summary>
+    [Fact]
+    public async Task Execute_Exclude_MixedCasePath_PreservesOriginalCaseInPrompt() {
+        var config = new Mock<IConfigurationService>();
+        var (cmd, _, _, context, _) = Arrange(
+            arguments: @"exclude C:\No-Such-Dir", configOverride: config);
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        output.Should().Contain(@"C:\No-Such-Dir", "路径不存在提示应保留用户输入的原始大小写");
+        output.Should().NotContain(@"c:\no-such-dir", "不应出现整串小写化后的路径");
+    }
+
+    /// <summary>生产 bug 修复(TASK065 第五波): 混合大小写目录的排除持久化 —
+    /// 写入配置的完整路径应保留用户输入的原始大小写,而非小写化形态。</summary>
+    [Fact]
+    public async Task Execute_Exclude_MixedCaseDir_PersistsFullPathWithOriginalCase() {
+        var dir = Path.Combine(Path.GetTempPath(), "SB-Case-Keep");
+        var config = new Mock<IConfigurationService>();
+        config.Setup(c => c.GetAsync("sandbox.excludedPaths", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+        var (cmd, _, _, context, fs) = Arrange(arguments: $"exclude {dir}", configOverride: config);
+        fs.CreateDirectory(dir);
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        var fullPath = Path.GetFullPath(dir);
+        config.Verify(c => c.SetAsync("sandbox.excludedPaths", fullPath, It.IsAny<CancellationToken>()), Times.Once,
+            "持久化路径应保留用户输入的原始大小写");
+        output.Should().Contain(fullPath, "排除成功提示应含原始大小写完整路径");
+    }
+
+    /// <summary>回归保障: 修复仅小写化命令词用于分派 — 大写子命令应照常分派到 exclude 列表分支。</summary>
+    [Fact]
+    public async Task Execute_UpperCaseSubCommand_StillDispatches() {
+        var config = new Mock<IConfigurationService>();
+        config.Setup(c => c.GetAsync("sandbox.excludedPaths", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(@"C:\path-a");
+        var (cmd, _, _, context, _) = Arrange(arguments: "EXCLUDE", configOverride: config);
+
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+
+        result.ShouldContinue.Should().BeTrue();
+        output.Should().Contain(@"C:\path-a", "大写子命令应照常小写化分派到 exclude");
+        output.Should().Contain("/sandbox-toggle exclude <path>");
     }
 
     [Fact]

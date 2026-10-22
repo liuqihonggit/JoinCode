@@ -83,21 +83,35 @@ internal static class CommandTestHarness {
     }
 
     /// <summary>
-    /// 执行命令并捕获控制台输出 — SetOut 重定向 StringWriter,finally 恢复原始输出流
+    /// 输出捕获互斥锁 — Console.SetOut 是进程全局重定向：嵌套/并发 Capture 段会互相踩
+    /// 恢复链（A 存 originalOut→B SetOut→A finally 恢复真 stdout→B finally 恢复到 writerA，
+    /// 后续类输出漏进旧 writer）。全局串行化整段 Capture（进出配对、恢复链单调），
+    /// 与 command-output Collection 双保险（Collection 只串行同标记类，锁覆盖全部消费方含缺标记类）。
+    /// </summary>
+    private static readonly SemaphoreSlim CaptureLock = new(1, 1);
+
+    /// <summary>
+    /// 执行命令并捕获控制台输出 — SetOut 重定向 StringWriter,finally 恢复原始输出流；
+    /// 全局互斥（见 CaptureLock 注释 — CI 实证类间并行输出互串）
     /// </summary>
     /// <typeparam name="T">命令执行结果类型</typeparam>
     /// <param name="action">待执行的命令调用</param>
     /// <returns>(命令结果, 捕获的输出文本)</returns>
     internal static async Task<(T Result, string Output)> CaptureOutputAsync<T>(Func<Task<T>> action) {
-        var output = new StringBuilder();
-        var originalOut = Console.Out;
-        await using var writer = new StringWriter(output);
-        Console.SetOut(writer);
+        await CaptureLock.WaitAsync();
         try {
-            var result = await action();
-            return (result, output.ToString());
+            var output = new StringBuilder();
+            var originalOut = Console.Out;
+            await using var writer = new StringWriter(output);
+            Console.SetOut(writer);
+            try {
+                var result = await action();
+                return (result, output.ToString());
+            } finally {
+                Console.SetOut(originalOut);
+            }
         } finally {
-            Console.SetOut(originalOut);
+            CaptureLock.Release();
         }
     }
 }

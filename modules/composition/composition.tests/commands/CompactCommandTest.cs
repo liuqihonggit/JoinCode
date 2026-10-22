@@ -132,12 +132,13 @@ public sealed class CompactCommandTest {
         output.Should().Contain("上下文已压缩");
     }
 
-    /// <summary>生产 bug 登记(TASK065 ai 域): PTL 重试耗尽(attempt=2)时 catch 条件
-    /// <c>attempt &lt; maxPtRetries - 1</c> 不再满足,第 3 次 PTL 异常从 ExecuteAsync 直接冒泡
-    /// 传播 REPL — "最终失败"兜底块只覆盖 Rewind 零移除 break 路径,不覆盖第三次异常路径。
-    /// 本测试为现状快照,修复后应翻转为"走最终兜底 + HandleError 渲染"断言。</summary>
+    /// <summary>生产 bug 修复验证(TASK065 ai 域): PTL 重试耗尽(attempt=2)时第 3 次异常
+    /// 曾因 catch 过滤器 <c>attempt &lt; maxPtRetries - 1</c> 不满足而直接冒泡传播 REPL
+    /// ("最终失败"兜底当时只覆盖 Rewind 零移除 break 路径)。修复后第 3 次 PTL 同样被捕获,
+    /// 重试耗尽 break 走最终兜底降级路径:兜底再试一次,仍失败则 HandleError 收敛渲染,
+    /// 命令 Continue 而非异常传播。</summary>
     [Fact]
-    public async Task Execute_PtlRetriesExhausted_ThirdAttemptExceptionEscapes() {
+    public async Task Execute_PtlRetriesExhausted_ThirdAttemptFallsToFinalAttempt() {
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(m => m.RewindLastTurnAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(RewindResult.Ok(RewindKind.TrimLastTurn, 2, 1));
@@ -145,13 +146,19 @@ public sealed class CompactCommandTest {
         chat.SetupSequence(c => c.CompactHistoryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("prompt too long"))
             .ThrowsAsync(new InvalidOperationException("prompt too long"))
+            .ThrowsAsync(new InvalidOperationException("prompt too long"))
             .ThrowsAsync(new InvalidOperationException("prompt too long"));
 
-        var act = () => CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
+        var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
 
-        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("prompt too long");
+        result.ShouldContinue.Should().BeTrue("重试耗尽应走最终失败降级路径,命令继续而非异常传播 REPL");
         contextManager.Verify(m => m.RewindLastTurnAsync(It.IsAny<CancellationToken>()), Times.Exactly(2),
-            "前两次 PTL 各回滚一次,第三次异常不再捕获");
+            "前两次 PTL 各回滚一次,第 3 次重试耗尽不再回滚直接走最终兜底");
+        chat.Verify(c => c.CompactHistoryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(4),
+            "3 次循环尝试 + 最终兜底 1 次");
+        output.Should().NotContain("(3/3)", "重试耗尽不输出第 3 次重试提示");
+        output.Should().Contain("生成摘要失败: prompt too long",
+            "最终兜底仍失败应 HandleError 收敛渲染失败提示");
     }
 
     [Fact]

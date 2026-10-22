@@ -232,6 +232,21 @@ public sealed class MemoryCommand : ChatCommandBase {
             await fs.WriteAllText(path, "").ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 从内容中大小写不敏感地剥离选项片段 — 解析侧 FromValue 反查表为 OrdinalIgnoreCase,
+    /// 剥离侧必须同样不敏感(如 --type feedback 小写输入),否则选项文本残留进记忆内容与查重 query
+    /// </summary>
+    /// <param name="content">原始内容文本</param>
+    /// <param name="optionToken">待剥离的选项片段(如 "--type Feedback")</param>
+    /// <returns>剥离后的内容文本;未命中时原样返回</returns>
+    private static string StripOptionToken(string content, string optionToken) {
+        var index = content.IndexOf(optionToken, StringComparison.OrdinalIgnoreCase);
+        return index < 0 ? content : content.Remove(index, optionToken.Length);
+    }
+
+    /// <summary>
+    /// 添加记忆 — 解析 --type/--tags 选项后剥离选项文本,查重拦截相似记忆后落库
+    /// </summary>
     private static async Task AddMemoryAsync(ChatCommandContext context, string[] args) {
         if (args.Length < 2) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostMemoryAddUsage)}{AnsiStyleEnumConstants.Reset}");
@@ -260,7 +275,10 @@ public sealed class MemoryCommand : ChatCommandBase {
             }
         }
 
-        content = content.Replace($"--type {type}", "").Replace($"--tags {string.Join(",", tags)}", "").Trim();
+        // 剥离 --type/--tags 选项片段 — OrdinalIgnoreCase 与 FromValue 解析语义对齐,小写输入同样干净剥离
+        content = new[] { $"--type {type}", $"--tags {string.Join(",", tags)}" }
+            .Aggregate(content, StripOptionToken)
+            .Trim();
 
         if (string.IsNullOrWhiteSpace(content)) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostMemoryContentEmpty)}{AnsiStyleEnumConstants.Reset}");

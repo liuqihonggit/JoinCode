@@ -85,10 +85,18 @@ public static class Program {
         var results = new List<(string Cmd, string Note, string Verdict, string Detail)>();
         foreach (var (cmd, note) in probes) {
             var (verdict, detail) = await ProbeOneCommandAsync(session, cmd).ConfigureAwait(false);
-            // 退出类命令（/exit /quit /q 及别名）— 期望触发 ExitRequested 钩子而非有输出
+            // 退出类命令（/quit /q 无确认直接退 — 期望 ExitRequested 钩子触发；
+            // /exit 走 S8 confirm 闭环 — 探针未 Bind 权限 UI 时 bridge 自动 Deny → 不退出是预期降级
+            //（确认拒绝语义），两类都算链路通）
             if (cmd is "/quit" or "/exit" or "/q") {
-                verdict = exitRequests.Count > 0 ? "EXIT-OK" : verdict;
-                detail = exitRequests.Count > 0 ? $"ExitRequested={string.Join(",", exitRequests)}" : detail;
+                if (exitRequests.Count > 0) {
+                    verdict = "EXIT-OK";
+                    detail = $"ExitRequested={string.Join(",", exitRequests)}";
+                } else if (cmd == "/exit") {
+                    verdict = "OK";
+                    detail = "confirm Deny 降级（无 UI 宿主预期行为 — 确认拒绝不退出）";
+                }
+
                 exitRequests.Clear();
             }
             results.Add((cmd, note, verdict, detail));

@@ -154,7 +154,7 @@ public static class MarkdigProjector
                 ProjectLink(link, inherited, segments);
                 break;
             case AutolinkInline autolink:
-                segments.Add(new MarkdownSegment(autolink.Url, MarkdownStyle.Link));
+                segments.Add(new MarkdownSegment(autolink.Url, MarkdownStyle.Link, autolink.Url));
                 break;
             case LineBreakInline:
                 // 硬换行首版丢弃（对齐青蛙TUI GUI 先例；Core 段落模型无段内断行概念，后续按需扩展）
@@ -185,7 +185,9 @@ public static class MarkdigProjector
         ProjectInlinesInto(emphasis, style, segments);
     }
 
-    /// <summary>链接投影 — 图片显示 URL / mailto 降级纯文本 / 其余显示文本携带 Link 标签（OSC 8 后续项）。</summary>
+    /// <summary>链接投影 — 图片显示 URL / mailto 降级纯文本 / 其余显示文本携带 Link 标签
+    /// + Url 载体（DSG043 P1：递归完成后子段区间回填 Url — 链接内嵌套强调时每子段独立携带
+    /// 同一 Url，布局层折行拆分后区间仍可溯源；OSC 8 渲染注入后续批次消费）。</summary>
     private static void ProjectLink(LinkInline link, MarkdownStyle inherited, List<MarkdownSegment> segments)
     {
         if (link.IsImage)
@@ -200,7 +202,19 @@ public static class MarkdigProjector
             return;
         }
 
+        var start = segments.Count;
         ProjectInlinesInto(link, inherited | MarkdownStyle.Link, segments);
+        var url = link.Url;
+        if (url is { Length: > 0 })
+        {
+            for (var i = start; i < segments.Count; i++)
+            {
+                if (segments[i].Style.HasFlag(MarkdownStyle.Link))
+                {
+                    segments[i] = segments[i] with { Url = url };
+                }
+            }
+        }
     }
 
     /// <summary>容器行内递归投影（共享目标段列表）。</summary>

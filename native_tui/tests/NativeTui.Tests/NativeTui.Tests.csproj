@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\NativeTui.Core\NativeTui.Core.csproj" />
+    <!-- DSG043 P1 — MarkdigProjector 投影集成测试（链接 Url 载体）消费卫星项目 -->
+    <ProjectReference Include="..\..\src\NativeTui.Markdown\NativeTui.Markdown.csproj" />
   </ItemGroup>
 
 </Project>

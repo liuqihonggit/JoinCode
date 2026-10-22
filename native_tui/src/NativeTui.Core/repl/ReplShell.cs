@@ -1193,8 +1193,8 @@ public sealed class ReplShell
                 LaunchExternalEditor();
                 return true;
             case KeybindingAction.AppToggleTranscript: // app:toggleTranscript（默认 ctrl+o）
-                _transcript.Toggle();
-                SyncTranscriptView();
+                // main 新语义 — ToggleTranscript 进入时清建议态（防激活期建议劫持 Up/Tab/Enter/Esc）
+                ToggleTranscript();
                 return true;
             case KeybindingAction.AppRedraw: // app:redraw（默认 ctrl+l）
                 ForceFullRepaint();

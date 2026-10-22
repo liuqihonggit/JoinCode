@@ -226,7 +226,7 @@ public sealed class InProcessEventConsumerTests
     {
         var consumer = new InProcessEventConsumer();
 
-        consumer.OnToolProgress("WebSearch", "query_update", "搜索中");
+        // OnToolProgress 已消费（TASK065 P3 bash 流式进度 — tool_progress 事件映射，见扩展映射测试）
         consumer.OnLoopDetected(3, 0, "重复模式");
         consumer.OnTimingSummary("耗时 1s");
 

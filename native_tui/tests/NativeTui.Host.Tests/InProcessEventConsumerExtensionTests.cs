@@ -111,4 +111,50 @@ public sealed class InProcessEventConsumerExtensionTests
         Assert.Equal(7L, usage.InputTokens);
         Assert.Equal(3L, usage.OutputTokens);
     }
+
+    /// <summary>工具进度映射（TASK065 P3 — 与 engine BridgeEventConsumerExtensionTests 逐行为镜像）
+    /// — OnToolProgress → ToolProgress 内存事件（progressType 透传；多行 message 保真 —
+    /// Bash 执行中输出快照，队列 FIFO 保序）。</summary>
+    [Fact]
+    public void OnToolProgress_EnqueuesToolProgressEvent()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnToolProgress("Bash", "bash_progress", "line1\nline2");
+
+        var progress = Assert.IsType<BridgeEvent.ToolProgress>(Assert.Single(consumer.DrainEvents()));
+        Assert.Equal("Bash", progress.ToolName);
+        Assert.Equal("bash_progress", progress.ProgressType);
+        Assert.Equal("line1\nline2", progress.Message);
+    }
+
+    /// <summary>工具进度 null message — 空串投影（与 bridge 形态逐行为镜像 — 事件形状恒定）。</summary>
+    [Fact]
+    public void OnToolProgress_NullMessage_ProjectsEmptyString()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnToolProgress("Bash", "bash_progress", null);
+
+        var progress = Assert.IsType<BridgeEvent.ToolProgress>(Assert.Single(consumer.DrainEvents()));
+        Assert.Equal(string.Empty, progress.Message);
+    }
+
+    /// <summary>工具执行序列事件序（TASK065 P3）— OnToolStart → OnToolProgress → OnToolEnd
+    /// 产出 ToolCall → ToolProgress → ToolResult 队列序（流式项建项/替换时序的数据源契约）。</summary>
+    [Fact]
+    public void OnToolSequence_ProgressFlowsBetweenCallAndResult()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnToolStart("Bash", "call-1", "{\"command\":\"ls\"}");
+        consumer.OnToolProgress("Bash", "bash_progress", "file.txt");
+        consumer.OnToolEnd("Bash", "1 file", "call-1", isError: false, patch: null);
+
+        var events = consumer.DrainEvents();
+        Assert.Equal(3, events.Count);
+        Assert.IsType<BridgeEvent.ToolCall>(events[0]);
+        Assert.IsType<BridgeEvent.ToolProgress>(events[1]);
+        Assert.IsType<BridgeEvent.ToolResult>(events[2]);
+    }
 }

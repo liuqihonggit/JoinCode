@@ -15,6 +15,7 @@ namespace NativeTui.Core.Bridge;
 [JsonDerivedType(typeof(ThinkingStarted), "thinking_started")]
 [JsonDerivedType(typeof(ThinkingEnded), "thinking_ended")]
 [JsonDerivedType(typeof(ToolCall), "tool_call")]
+[JsonDerivedType(typeof(ToolProgress), "tool_progress")]
 [JsonDerivedType(typeof(ToolResult), "tool_result")]
 [JsonDerivedType(typeof(PermissionRequest), "permission_request")]
 [JsonDerivedType(typeof(TokenDelta), "token_delta")]
@@ -52,6 +53,15 @@ public abstract record BridgeEvent
 
     /// <summary>工具调用消息（bullet + bold 工具名 + args）。</summary>
     public sealed record ToolCall(string Name, string Args) : BridgeEvent;
+
+    /// <summary>
+    /// 工具执行中进度流式增量（TASK065 P3 — Bash/PowerShell 执行中实时输出取代"卡住到结束才见结果"）：
+    /// ProgressType 透传引擎侧既有类型（bash_progress/ps_progress/query_update/...）；
+    /// Message 为进度文本（bash_progress 为当前 stdout 最近行快照 — 多行文本）。
+    /// Driver 路由流式项原地更新（ToolCallItem 之后的输出尾巴），tool_result 到达时原位替换为
+    /// ToolResultItem（对齐 StreamingTextItem 替换先例）— 与引擎侧 ToolProgress 逐字段镜像。
+    /// </summary>
+    public sealed record ToolProgress(string ToolName, string ProgressType, string Message) : BridgeEvent;
 
     /// <summary>
     /// 工具结果摘要（⎿ 缩进项）；Patch 非空时渲染为结构化 diff 块（M7-2 StructuredDiff）。

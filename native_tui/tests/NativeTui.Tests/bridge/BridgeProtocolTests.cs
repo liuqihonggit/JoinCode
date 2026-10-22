@@ -334,6 +334,7 @@ public sealed class BridgeProtocolTests
             new BridgeEvent.ThinkingStarted(),
             new BridgeEvent.ThinkingEnded(4321),
             new BridgeEvent.ToolCall("Bash", "ls -la"),
+            new BridgeEvent.ToolProgress("Bash", "bash_progress", "line1\nline2"),
             new BridgeEvent.ToolResult("3 files"),
             new BridgeEvent.TokenDelta(12),
             new BridgeEvent.AssistantMessage("完整回复 — 包含中文与 \"引号\""),
@@ -357,5 +358,32 @@ public sealed class BridgeProtocolTests
             Assert.Equal(expected, actual);
             Assert.Null(diagnostic);
         }
+    }
+
+    /// <summary>工具进度事件 JSON 形状（TASK065 P3 — 与引擎侧 BridgeEvent.ToolProgress 逐字段镜像：
+    /// tool_progress + toolName/progressType/message camelCase 字段；message 多行经 \n 转义保真）。</summary>
+    [Fact]
+    public void SerializeEvent_ToolProgress_CarriesCamelCaseFields()
+    {
+        var line = BridgeProtocol.SerializeEvent(new BridgeEvent.ToolProgress("Bash", "bash_progress", "line1\nline2"));
+
+        Assert.Equal(
+            "{\"type\":\"tool_progress\",\"toolName\":\"Bash\",\"progressType\":\"bash_progress\",\"message\":\"line1\\nline2\"}",
+            line);
+    }
+
+    /// <summary>旧引擎（tool_progress 前）不发射该类型 — 新 TUI 反序列化兼容面不受影响；
+    /// 引擎产出的进度行反解析回读（record 位置字段全量校验）。</summary>
+    [Fact]
+    public void ReadEvent_ToolProgressLine_ParsesAllFields()
+    {
+        var reader = new StringReader("{\"type\":\"tool_progress\",\"toolName\":\"PowerShell\",\"progressType\":\"ps_progress\",\"message\":\"ok\"}\n");
+
+        var result = BridgeProtocol.TryReadEvent(reader, out var actual, out var diagnostic);
+
+        Assert.Equal(BridgeReadResult.Event, result);
+        var progress = Assert.IsType<BridgeEvent.ToolProgress>(actual);
+        Assert.Equal(("PowerShell", "ps_progress", "ok"), (progress.ToolName, progress.ProgressType, progress.Message));
+        Assert.Null(diagnostic);
     }
 }

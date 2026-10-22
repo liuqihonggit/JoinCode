@@ -111,6 +111,121 @@ public sealed class StructuredMessageTests
         Assert.False(item.IsThinkingExpanded);
     }
 
+    // ---- CoT Markdown 渲染（TASK064/TASK065 P3 — dim 基调行内三件套） ----
+
+    /// <summary>展开态 CoT 粗体段 — Bold+Dim 叠加（基准思考块 = dim Markdown），标记字符 ** 吃掉不显示。</summary>
+    [Fact]
+    public void Render_ExpandedCoT_BoldSegment_DimBoldStyle()
+    {
+        using var screen = new Screen(cols: 60, rows: 16);
+        var item = new AssistantMessageItem("正文", thinkingDurationMs: 500, thinkingContent: "see **bold** here", messageId: 1);
+
+        item.ToggleThinking();
+        item.Render(screen, new Rect(FrameX, 2, 60, 5), Theme.Dark);
+
+        // CoT 行 row4（margin 1 + 摘要 1）；indent 7 列（⎿ 前缀 5 + 2 空格）+ "see " 4 列 → bold 段起 col11
+        var dimBold = screen.Styles.GetOrAdd(new TextStyle { Bold = true, Dim = true });
+        Assert.Equal(new Rune('b'), screen[4, 11].Value);
+        Assert.Equal(dimBold, screen[4, 11].StyleId);
+        Assert.Equal(dimBold, screen[4, 14].StyleId);
+        Assert.DoesNotContain("**", screen.RowText(4));
+    }
+
+    /// <summary>展开态 CoT 行内代码段 — permission 前景 + Dim 叠加（基准 codespan 色在 dim 块内）。</summary>
+    [Fact]
+    public void Render_ExpandedCoT_InlineCode_DimPermissionStyle()
+    {
+        using var screen = new Screen(cols: 60, rows: 16);
+        var item = new AssistantMessageItem("正文", thinkingDurationMs: 500, thinkingContent: "run `dotnet` now", messageId: 1);
+
+        item.ToggleThinking();
+        item.Render(screen, new Rect(FrameX, 2, 60, 5), Theme.Dark);
+
+        // indent 7 列 + "run " 4 列 → code 段起 col11
+        var dimCode = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.Permission, Dim = true });
+        Assert.Equal(new Rune('d'), screen[4, 11].Value);
+        Assert.Equal(dimCode, screen[4, 11].StyleId);
+        Assert.DoesNotContain("`", screen.RowText(4));
+    }
+
+    /// <summary>无行内语法（含未闭合 * 字面）— 整行纯文本 dim 现行为完整保留。</summary>
+    [Fact]
+    public void Render_ExpandedCoT_NoSyntax_PlainDimPreserved()
+    {
+        using var screen = new Screen(cols: 60, rows: 16);
+        var item = new AssistantMessageItem("正文", thinkingDurationMs: 500, thinkingContent: "2 * 3 = 6", messageId: 1);
+
+        item.ToggleThinking();
+        item.Render(screen, new Rect(FrameX, 2, 60, 5), Theme.Dark);
+
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        Assert.Contains("2 * 3 = 6", screen.RowText(4));
+        for (var col = 7; col < 7 + "2 * 3 = 6".Length; col++)
+        {
+            Assert.Equal(dim, screen[4, col].StyleId);
+        }
+    }
+
+    /// <summary>块级特征行（标题/列表/引用）— 不做块级解析，整行纯文本 dim。</summary>
+    [Fact]
+    public void Render_ExpandedCoT_BlockFeatureLines_StayPlainDim()
+    {
+        using var screen = new Screen(cols: 60, rows: 16);
+        var item = new AssistantMessageItem("正文", thinkingDurationMs: 500, thinkingContent: "# 标题\n- 列表项\n> 引用", messageId: 1);
+
+        item.ToggleThinking();
+        item.Render(screen, new Rect(FrameX, 2, 60, 6), Theme.Dark);
+
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        Assert.Equal(dim, screen[4, 7].StyleId);
+        Assert.Equal(dim, screen[5, 7].StyleId);
+        Assert.Equal(dim, screen[6, 7].StyleId);
+    }
+
+    /// <summary>截断守卫语义不变 — 超限 200 行截断 + 提示行（行数按 \n 计与段渲染无关）。</summary>
+    [Fact]
+    public void Render_ExpandedCoT_TruncationGuard_Unchanged()
+    {
+        using var screen = new Screen(cols: 60, rows: 210);
+        var cot = string.Join("\n", Enumerable.Range(1, 201).Select(static i => $"行{i}"));
+        var item = new AssistantMessageItem("正文", thinkingDurationMs: 500, thinkingContent: cot, messageId: 1);
+
+        item.ToggleThinking();
+        var expected = 2 + 1 + 200 + 1;
+        Assert.Equal(expected, item.MeasureHeight(60));
+        item.Render(screen, new Rect(FrameX, 2, 60, expected), Theme.Dark);
+
+        Assert.Contains("行200", screen.RowText(2 + 1 + 200));
+        Assert.Contains("已截断", screen.RowText(2 + 1 + 200 + 1));
+    }
+
+    /// <summary>段渲染不改行高 — 多行含语法 CoT 高度 = Split('\n') 行数语义。</summary>
+    [Fact]
+    public void Render_ExpandedCoT_MarkdownHeight_MatchesLineCount()
+    {
+        var item = new AssistantMessageItem("正文", thinkingDurationMs: 500, thinkingContent: "先看 **上下文**\n再算 `1+1`\n最后归纳", messageId: 1);
+
+        item.ToggleThinking();
+
+        Assert.Equal(2 + 1 + 3, item.MeasureHeight(60));
+    }
+
+    /// <summary>MarkdownMessageItem 展开态 CoT — 同 AssistantMessageItem 的 dim Markdown 行内渲染路径。</summary>
+    [Fact]
+    public void Render_MarkdownItem_ExpandedCoT_BoldSegment_DimBoldStyle()
+    {
+        using var screen = new Screen(cols: 60, rows: 16);
+        var item = new MarkdownMessageItem(new MarkdownDocument([new MarkdownParagraph([new MarkdownSegment("正文", MarkdownStyle.None)])]),
+            thinkingDurationMs: 500, thinkingContent: "see **bold** here", messageId: 1);
+
+        item.ToggleThinking();
+        item.Render(screen, new Rect(FrameX, 2, 60, 5), Theme.Dark);
+
+        var dimBold = screen.Styles.GetOrAdd(new TextStyle { Bold = true, Dim = true });
+        Assert.Equal(new Rune('b'), screen[4, 11].Value);
+        Assert.Equal(dimBold, screen[4, 11].StyleId);
+    }
+
     // ---- 交互（ReplShell Ctrl+O） ----
 
     /// <summary>Ctrl+O — 进入 transcript 全局模式（M8-3/S6 收敛语义演进：单条切换 → Controller

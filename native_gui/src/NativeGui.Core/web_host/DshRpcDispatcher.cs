@@ -35,19 +35,26 @@ internal sealed class DshRpcDispatcher {
             ["session/fork"] = SessionFork,
             ["session/projections"] = SessionProjections,
             ["session/page"] = SessionPage,
-            ["agentPresets/list"] = Sync(_ => Ok(new DshAgentPresetList {
-                Presets = [new DshAgentPreset { Id = "standard", Order = 1, IsDefault = true }],
-            })),
+            ["session/search"] = SessionSearch,
+            ["session/openWorkspacePath"] = SessionOpenWorkspacePath,
+            ["session/workspacePathApplications"] = SessionWorkspacePathApplications,
+            ["agentPresets/list"] = AgentPresetsList,
+            ["agentPresets/read"] = Sync(AgentPresetsRead),
+            ["agentPresets/select"] = Sync(AgentPresetsSelect),
             ["permissionPresets/catalog"] = PermissionPresetsCatalog,
             ["$events/result"] = EventsResult,
             ["settings/describe"] = Sync(_ => Ok(services.Settings.Describe())),
             ["settings/mutate"] = Sync(args => services.Settings.Mutate(args)),
+            ["settings/replace"] = SettingsReplace,
+            ["settings/update"] = SettingsUpdate,
             ["credentials/describe"] = Sync(Credentials),
             ["llm/listProviders"] = Sync(LlmListProviders),
             ["llm/listConfigurableProviders"] = Sync(_ => OkEmptyArray()),
             ["commands/list"] = Sync(CommandsList),
             ["commands/execute"] = CommandsExecute,
-            ["messageFeedback/list"] = Sync(_ => Ok(new DshMessageFeedbackListResult { Value = new DshMessageFeedbackListValue() })),
+            ["messageFeedback/list"] = MessageFeedbackList,
+            ["messageFeedback/put"] = MessageFeedbackPut,
+            ["messageFeedback/delete"] = MessageFeedbackDelete,
             ["skills/list"] = Sync(_ => Ok(new DshSkillList())),
             ["dynamicCordisRunner/inventory"] = Sync(_ => OkEmptyArray()),
             ["dynamicCordisRunner/syncInspectManifest"] = Sync(_ => OkNull()),
@@ -367,6 +374,231 @@ internal sealed class DshRpcDispatcher {
             ? Fail("session/unknown", $"会话 {request.SessionId} 不在磁盘上（~/.jcc/sessions/{request.SessionId}/transcript.json 不存在）；从侧栏选择一个已有会话再分叉")
             : Ok(new DshSessionForkResult { SessionId = newId });
     }
+
+    /// <summary>session/search：按字面量搜索会话消息内容（最多 20 条，第 21 条置 hasMore）</summary>
+    private async Task<DshRpcResult> SessionSearch(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSessionSearchArgs)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.Query)) {
+            return Fail("gateway/bad-request",
+                $"session/search 需要 request.query 且不能为空白；收到 args={Describe(args)}。请传用户输入的明文搜索词（例如 {{request:{{query:\"排序\"}}}}）。");
+        }
+        var (items, hasMore) = await _services.Sessions.SearchAsync(request.Query, cancellationToken);
+        return Ok(new DshSessionSearchResult { Items = [.. items], HasMore = hasMore });
+    }
+
+    /// <summary>session/openWorkspacePath：资源管理器打开/选中路径（仅桌面可用处理器）</summary>
+    private Task<DshRpcResult> SessionOpenWorkspacePath(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshOpenWorkspacePathArgs)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.Path)) {
+            return Task.FromResult(Fail("gateway/bad-request",
+                $"session/openWorkspacePath 需要 request.path（绝对路径）；收到 args={Describe(args)}。可先调 session/workspacePathApplications 查询可用打开方式。"));
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        var (opened, error) = DshWorkspacePathService.Open(_services.FileSystem, request.Path, request.Action, request.Application);
+        return Task.FromResult(opened
+            ? Ok(new DshOpenWorkspacePathResult())
+            : Fail("gateway/bad-request", error ?? "session/openWorkspacePath 打开路径失败；请改用 workspaceFiles/read 预览。"));
+    }
+
+    /// <summary>session/workspacePathApplications：列出路径可用的打开方式（资源管理器）</summary>
+    private Task<DshRpcResult> SessionWorkspacePathApplications(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshWorkspacePathAppsArgs)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.Path)) {
+            return Task.FromResult(Fail("gateway/bad-request",
+                $"session/workspacePathApplications 需要 request.path（绝对路径）；收到 args={Describe(args)}。"));
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(Ok(DshWorkspacePathService.ListApplications(_services.FileSystem, request.Path)));
+    }
+
+    /// <summary>agentPresets/list：宿主内置标准代理（默认项来自 agent-preset-registry 设置）</summary>
+    private async Task<DshRpcResult> AgentPresetsList(JsonElement args, CancellationToken cancellationToken) {
+        await _services.Settings.InitializeAsync(cancellationToken);
+        var selected = _services.Settings.ReadString("agent-preset-registry", "selectedDefault");
+        var isDefault = string.IsNullOrEmpty(selected)
+            || string.Equals(selected, DshSessionStore.DefaultAgentPreset, StringComparison.Ordinal);
+        return Ok(new DshAgentPresetList {
+            Presets = [
+                new DshAgentPreset {
+                    Id = DshSessionStore.DefaultAgentPreset,
+                    IsDefault = isDefault,
+                    Name = "标准代理",
+                    Description = "宿主内置标准代理，与引擎 TUI 默认行为一致（无额外系统提示词注入）",
+                },
+            ],
+        });
+    }
+
+    /// <summary>agentPresets/read：读取预设正文（参数是裸 JSON 字符串 agentPreset）</summary>
+    private static DshRpcResult AgentPresetsRead(JsonElement args) {
+        var presetId = args.ValueKind == JsonValueKind.String ? args.GetString() : null;
+        if (string.IsNullOrWhiteSpace(presetId)) {
+            return Fail("gateway/bad-request",
+                $"agentPresets/read 的参数是预设 ID 字符串（例如 \"standard\"）；收到 args={Describe(args)}。");
+        }
+        if (!string.Equals(presetId, DshSessionStore.DefaultAgentPreset, StringComparison.Ordinal)) {
+            return Fail("agentPreset/not-found",
+                $"agentPresets/read 找不到预设 \"{presetId}\"；当前只公布 \"{DshSessionStore.DefaultAgentPreset}\"，请先调 agentPresets/list 取 ID。");
+        }
+        return Ok(new DshAgentPresetReadResult {
+            AgentPreset = presetId,
+            Content = "Standard preset: no additional instructions are injected. Tool policy, permission mode, and model selection follow the session settings.",
+            Name = "标准代理",
+            Description = "宿主内置标准代理，与引擎 TUI 默认行为一致",
+        });
+    }
+
+    /// <summary>agentPresets/select：切换代理预设（当前仅 standard；返回实际生效值）</summary>
+    private static DshRpcResult AgentPresetsSelect(JsonElement args) {
+        var request = args.Deserialize(DshJsonContext.Default.DshAgentPresetSelectArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.AgentId) || string.IsNullOrWhiteSpace(request.AgentPreset)) {
+            return Fail("gateway/bad-request",
+                $"agentPresets/select 需要 {{agentId, agentPreset}}；收到 args={Describe(args)}。");
+        }
+        if (!string.Equals(request.AgentPreset, DshSessionStore.DefaultAgentPreset, StringComparison.Ordinal)) {
+            return Fail("agentPreset/not-found",
+                $"agentPresets/select 找不到预设 \"{request.AgentPreset}\"；当前只公布 \"{DshSessionStore.DefaultAgentPreset}\"，请先调 agentPresets/list 取 ID。");
+        }
+        return Success(JsonSerializer.SerializeToElement(request.AgentPreset, DshJsonContext.Default.String));
+    }
+
+    /// <summary>settings/replace：整段替换命名空间（先确保存档已加载）</summary>
+    private async Task<DshRpcResult> SettingsReplace(JsonElement args, CancellationToken cancellationToken) {
+        await _services.Settings.InitializeAsync(cancellationToken);
+        return _services.Settings.Replace(args);
+    }
+
+    /// <summary>settings/update：按顶层字段补丁合并命名空间（先确保存档已加载）</summary>
+    private async Task<DshRpcResult> SettingsUpdate(JsonElement args, CancellationToken cancellationToken) {
+        await _services.Settings.InitializeAsync(cancellationToken);
+        return _services.Settings.Update(args);
+    }
+
+    /// <summary>messageFeedback/list：会话反馈列表（会话不存在返回契约错误联合体）</summary>
+    private async Task<DshRpcResult> MessageFeedbackList(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshMessageFeedbackListRequest)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)) {
+            return Fail("gateway/bad-request",
+                $"messageFeedback/list 需要 request.sessionId；收到 args={Describe(args)}。");
+        }
+        if (!await _services.Sessions.ExistsAsync(request.SessionId, cancellationToken)) {
+            return Ok(new DshMessageFeedbackListResult {
+                Ok = false,
+                Error = SerializeFeedbackError(new DshMessageFeedbackSessionNotFoundError { SessionId = request.SessionId }),
+            });
+        }
+        await _services.Feedback.InitializeAsync(cancellationToken);
+        return Ok(new DshMessageFeedbackListResult {
+            Value = new DshMessageFeedbackListValue { Items = [.. _services.Feedback.List(request.SessionId)] },
+        });
+    }
+
+    /// <summary>messageFeedback/put：写入/替换反馈（ifVersion 为乐观并发版本，null 期望新建）</summary>
+    private async Task<DshRpcResult> MessageFeedbackPut(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshMessageFeedbackPutArgs)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId) || string.IsNullOrWhiteSpace(request.MessageId)) {
+            return Fail("gateway/bad-request",
+                $"messageFeedback/put 需要 request.sessionId 与 request.messageId；收到 args={Describe(args)}。");
+        }
+        if (DshFeedbackRatingExtensions.FromValue(request.Rating) is null) {
+            return Fail("gateway/bad-request",
+                $"messageFeedback/put 的 rating 只接受 positive/negative；收到 \"{request.Rating}\"。");
+        }
+        if (request.Category is { } category && DshFeedbackCategoryExtensions.FromValue(category) is null) {
+            return Fail("gateway/bad-request",
+                $"messageFeedback/put 的 category 不是 DSH 分类词汇（other/task-result/instruction-following/product-interaction/service-stability/resource-cost/security-privacy-permission）；收到 \"{category}\"。");
+        }
+        if (request.Note is { } note) {
+            if (string.IsNullOrWhiteSpace(note)) {
+                return Ok(new DshMessageFeedbackPutResult {
+                    Ok = false,
+                    Error = SerializeFeedbackError(new DshMessageFeedbackNoteBlankError()),
+                });
+            }
+            var bytes = Encoding.UTF8.GetByteCount(note);
+            if (bytes > DshMessageFeedbackStore.MaxNoteBytes) {
+                return Ok(new DshMessageFeedbackPutResult {
+                    Ok = false,
+                    Error = SerializeFeedbackError(new DshMessageFeedbackNoteTooLargeError {
+                        MaxBytes = DshMessageFeedbackStore.MaxNoteBytes,
+                        ActualBytes = bytes,
+                    }),
+                });
+            }
+        }
+        if (!await _services.Sessions.ExistsAsync(request.SessionId, cancellationToken)) {
+            return Ok(new DshMessageFeedbackPutResult {
+                Ok = false,
+                Error = SerializeFeedbackError(new DshMessageFeedbackSessionNotFoundError { SessionId = request.SessionId }),
+            });
+        }
+        if (!await _services.Sessions.IsAssistantMessageAsync(request.SessionId, request.MessageId, cancellationToken)) {
+            return Ok(new DshMessageFeedbackPutResult {
+                Ok = false,
+                Error = SerializeFeedbackError(new DshMessageFeedbackTargetNotFoundError {
+                    SessionId = request.SessionId,
+                    MessageId = request.MessageId,
+                }),
+            });
+        }
+        await _services.Feedback.InitializeAsync(cancellationToken);
+        var outcome = _services.Feedback.Put(
+            request.SessionId,
+            request.MessageId,
+            request.Rating,
+            request.Note,
+            request.Category,
+            request.IfVersion);
+        return outcome.Saved is null
+            ? Ok(new DshMessageFeedbackPutResult {
+                Ok = false,
+                Error = SerializeFeedbackError(new DshMessageFeedbackVersionConflictError { Current = outcome.Current }),
+            })
+            : Ok(new DshMessageFeedbackPutResult { Value = outcome.Saved });
+    }
+
+    /// <summary>messageFeedback/delete：按版本删除反馈（目标已不存在返回 absent=true）</summary>
+    private async Task<DshRpcResult> MessageFeedbackDelete(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshMessageFeedbackDeleteArgs)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId) || string.IsNullOrWhiteSpace(request.MessageId)) {
+            return Fail("gateway/bad-request",
+                $"messageFeedback/delete 需要 request.sessionId、request.messageId 与 request.ifVersion；收到 args={Describe(args)}。");
+        }
+        if (!await _services.Sessions.ExistsAsync(request.SessionId, cancellationToken)) {
+            return Ok(new DshMessageFeedbackDeleteResult {
+                Ok = false,
+                Error = SerializeFeedbackError(new DshMessageFeedbackSessionNotFoundError { SessionId = request.SessionId }),
+            });
+        }
+        await _services.Feedback.InitializeAsync(cancellationToken);
+        var outcome = _services.Feedback.Delete(request.SessionId, request.MessageId, request.IfVersion);
+        return outcome.Removed
+            ? Ok(new DshMessageFeedbackDeleteResult { Value = new DshMessageFeedbackDeleteValue() })
+            : Ok(new DshMessageFeedbackDeleteResult {
+                Ok = false,
+                Error = SerializeFeedbackError(new DshMessageFeedbackVersionConflictError { Current = outcome.Current }),
+            });
+    }
+
+    /// <summary>反馈错误体序列化（每类错误字段集严格对齐契约联合体）</summary>
+    private static JsonElement SerializeFeedbackError(DshMessageFeedbackSessionNotFoundError error) =>
+        JsonSerializer.SerializeToElement(error, DshJsonContext.Default.DshMessageFeedbackSessionNotFoundError);
+
+    /// <summary>目标消息不存在错误体</summary>
+    private static JsonElement SerializeFeedbackError(DshMessageFeedbackTargetNotFoundError error) =>
+        JsonSerializer.SerializeToElement(error, DshJsonContext.Default.DshMessageFeedbackTargetNotFoundError);
+
+    /// <summary>版本冲突错误体</summary>
+    private static JsonElement SerializeFeedbackError(DshMessageFeedbackVersionConflictError error) =>
+        JsonSerializer.SerializeToElement(error, DshJsonContext.Default.DshMessageFeedbackVersionConflictError);
+
+    /// <summary>备注空白错误体</summary>
+    private static JsonElement SerializeFeedbackError(DshMessageFeedbackNoteBlankError error) =>
+        JsonSerializer.SerializeToElement(error, DshJsonContext.Default.DshMessageFeedbackNoteBlankError);
+
+    /// <summary>备注超长错误体</summary>
+    private static JsonElement SerializeFeedbackError(DshMessageFeedbackNoteTooLargeError error) =>
+        JsonSerializer.SerializeToElement(error, DshJsonContext.Default.DshMessageFeedbackNoteTooLargeError);
 
     /// <summary>llm/listProviders：模型目录分组投影（与 session/modelCatalog 同源，TASK058 B2）</summary>
     private DshRpcResult LlmListProviders(JsonElement args) => Ok(_services.Models.Current.Groups
@@ -808,6 +1040,14 @@ internal sealed class DshRpcDispatcher {
 
     private static DshRpcResult Ok(DshAgentPresetList value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshAgentPresetList));
 
+    private static DshRpcResult Ok(DshAgentPresetReadResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshAgentPresetReadResult));
+
+    private static DshRpcResult Ok(DshSessionSearchResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionSearchResult));
+
+    private static DshRpcResult Ok(DshOpenWorkspacePathResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshOpenWorkspacePathResult));
+
+    private static DshRpcResult Ok(IReadOnlyList<DshWorkspacePathApp> value) => Success(JsonSerializer.SerializeToElement(value.ToList(), DshJsonContext.Default.ListDshWorkspacePathApp));
+
     private static DshRpcResult Ok(DshPermissionPresetCatalog value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshPermissionPresetCatalog));
 
     private static DshRpcResult Ok(DshEventsResultValue value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshEventsResultValue));
@@ -817,6 +1057,10 @@ internal sealed class DshRpcDispatcher {
     private static DshRpcResult Ok(DshSkillList value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSkillList));
 
     private static DshRpcResult Ok(DshMessageFeedbackListResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshMessageFeedbackListResult));
+
+    private static DshRpcResult Ok(DshMessageFeedbackPutResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshMessageFeedbackPutResult));
+
+    private static DshRpcResult Ok(DshMessageFeedbackDeleteResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshMessageFeedbackDeleteResult));
 
     private static DshRpcResult Ok(DshWorkspaceCreateResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshWorkspaceCreateResult));
 

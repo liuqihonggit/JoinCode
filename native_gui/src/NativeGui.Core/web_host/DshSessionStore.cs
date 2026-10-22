@@ -40,6 +40,77 @@ internal sealed class DshSessionStore {
         return items;
     }
 
+    /// <summary>会话是否存在（引擎存储未就绪时恒 false）</summary>
+    internal async Task<bool> ExistsAsync(string sessionId, CancellationToken cancellationToken) =>
+        _transcripts is { } transcripts && await transcripts.TranscriptExistsAsync(sessionId, cancellationToken);
+
+    /// <summary>
+    /// 按字面量搜索会话消息内容（user/assistant 普通消息），每会话取最佳命中片段；
+    /// 与 DSH 契约一致：最多 20 条、snippet 截断到 240 字符、第 21 条命中置 hasMore。
+    /// </summary>
+    internal async Task<(IReadOnlyList<DshSessionSearchItem> Items, bool HasMore)> SearchAsync(
+        string query,
+        CancellationToken cancellationToken) {
+        var normalized = query.Trim();
+        if (normalized.Length == 0 || _transcripts is not { } transcripts) {
+            return ([], false);
+        }
+        var summaries = await transcripts.ListTranscriptsAsync(MaxSessions, cancellationToken);
+        var items = new List<DshSessionSearchItem>();
+        foreach (var summary in summaries.OrderByDescending(summary => summary.LastModifiedAt)) {
+            cancellationToken.ThrowIfCancellationRequested();
+            var entries = await transcripts.LoadTranscriptAsync(summary.SessionId, cancellationToken);
+            if (BestSnippet(entries, normalized) is not { } snippet) {
+                continue;
+            }
+            items.Add(new DshSessionSearchItem { SessionId = summary.SessionId, Snippet = snippet });
+            if (items.Count > SearchResultLimit) {
+                break;
+            }
+        }
+        return (items.Take(SearchResultLimit).ToArray(), items.Count > SearchResultLimit);
+    }
+
+    /// <summary>助手消息 ID 是否存在（ID 由转录投影按「会话:事件序号」生成，与前端消息一致）</summary>
+    internal async Task<bool> IsAssistantMessageAsync(string sessionId, string messageId, CancellationToken cancellationToken) {
+        if (_transcripts is not { } transcripts) {
+            return false;
+        }
+        var entries = await transcripts.LoadTranscriptAsync(sessionId, cancellationToken);
+        return DshTranscriptProjector.Project(sessionId, entries)
+            .Where(record => string.Equals(record.Event.Type, "assistant/message", StringComparison.Ordinal))
+            .Any(record => record.Event.Data.TryGetProperty("message", out var message)
+                && message.TryGetProperty("id", out var id)
+                && string.Equals(id.GetString(), messageId, StringComparison.Ordinal));
+    }
+
+    /// <summary>最佳命中片段（窗口居中 ±80 字符、截断 240 字符、换行折成空格）</summary>
+    private static string? BestSnippet(IReadOnlyList<TranscriptEntry> entries, string query) {
+        foreach (var entry in entries.Where(DshTranscriptProjector.IsConversationMessage)) {
+            var index = entry.Content.IndexOf(query, StringComparison.OrdinalIgnoreCase);
+            if (index < 0) {
+                continue;
+            }
+            var start = Math.Max(0, index - SnippetPadding);
+            var length = Math.Min(SnippetLimit, entry.Content.Length - start);
+            var text = entry.Content.Substring(start, length)
+                .Replace('\r', ' ')
+                .Replace('\n', ' ')
+                .Replace('\t', ' ');
+            return (start > 0 ? "…" : "") + text + (start + length < entry.Content.Length ? "…" : "");
+        }
+        return null;
+    }
+
+    /// <summary>搜索命中上限（DSH session/search 固定 20）</summary>
+    private const int SearchResultLimit = 20;
+
+    /// <summary>片段截断长度</summary>
+    private const int SnippetLimit = 240;
+
+    /// <summary>命中点前保留的上下文字符数</summary>
+    private const int SnippetPadding = 80;
+
     /// <summary>列出会话 ID → 标题（供会话投影与工作区归属填充）</summary>
     /// <param name="limit">最多返回条数</param>
     /// <param name="cancellationToken">取消令牌</param>

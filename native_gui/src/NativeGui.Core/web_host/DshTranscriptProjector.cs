@@ -26,7 +26,7 @@ internal static class DshTranscriptProjector {
     }
 
     /// <summary>普通对话消息（剔除重命名/代理名等元数据条目与侧链消息）</summary>
-    private static bool IsConversationMessage(TranscriptEntry entry) =>
+    internal static bool IsConversationMessage(TranscriptEntry entry) =>
         entry.Type is null
         && !entry.IsSidechain
         && !string.IsNullOrWhiteSpace(entry.Content)

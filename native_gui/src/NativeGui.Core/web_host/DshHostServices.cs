@@ -11,6 +11,7 @@ internal sealed class DshHostServices {
     /// <param name="workspaceFilePath">工作区注册表路径（默认 <c>~/.jcc/dsh-workspaces.json</c>）</param>
     /// <param name="journalDirectory">宿主事件日志目录（默认 <c>~/.jcc/dsh_journal</c>）</param>
     internal DshHostServices(IFileSystem fileSystem, string? workspaceFilePath = null, string? journalDirectory = null) {
+        FileSystem = fileSystem;
         Workspaces = new DshWorkspaceStore(fileSystem, workspaceFilePath);
         Settings = new DshSettingsStore(fileSystem);
         Journal = new DshSessionJournal(fileSystem, journalDirectory ?? Path.Combine(AppDataPaths.Default.JccDirectory, "dsh_journal"));
@@ -23,9 +24,13 @@ internal sealed class DshHostServices {
         WorkspaceFiles = new DshWorkspaceFilesService(Sessions, fileSystem);
         Attachments = new DshAttachmentStore(fileSystem);
         Goals = new DshGoalStore(fileSystem);
+        Feedback = new DshMessageFeedbackStore(fileSystem);
         Jobs = new DshJobService(this);
         Terminals = new DshTerminalService(this);
     }
+
+    /// <summary>宿主共享文件系统抽象（工作区路径存在性校验等）</summary>
+    internal IFileSystem FileSystem { get; }
 
     /// <summary>自有引擎会话门面（组装完成后注入；未就绪时发送消息返回引导错误）</summary>
     internal Hosting.IJccChatSession? Engine { get; private set; }
@@ -63,6 +68,9 @@ internal sealed class DshHostServices {
 
     /// <summary>目标存储（goals 七方法 + activation-changed 事件，TASK058 P2-B5）</summary>
     internal DshGoalStore Goals { get; }
+
+    /// <summary>消息反馈存储（messageFeedback/list|put|delete，TASK066 C4）</summary>
+    internal DshMessageFeedbackStore Feedback { get; }
 
     /// <summary>后台任务投影（job/list|follow|kill → 引擎后台代理，TASK066 C2）</summary>
     internal DshJobService Jobs { get; }

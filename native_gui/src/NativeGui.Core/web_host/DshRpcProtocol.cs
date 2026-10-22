@@ -1322,21 +1322,6 @@ internal sealed class DshModelItem {
     public string Name { get; set; } = "";
 }
 
-/// <summary>代理预设列表</summary>
-internal sealed class DshAgentPresetList {
-    /// <summary>预设</summary>
-    public List<DshAgentPreset> Presets { get; set; } = [];
-}
-
-/// <summary>代理预设</summary>
-internal sealed class DshAgentPreset {
-    /// <summary>ID</summary>
-    public string Id { get; set; } = "";
-    /// <summary>顺序</summary>
-    public int Order { get; set; }
-    /// <summary>是否默认</summary>
-    public bool IsDefault { get; set; }
-}
 
 /// <summary>权限预设目录</summary>
 internal sealed class DshPermissionPresetCatalog {
@@ -1375,6 +1360,7 @@ internal sealed class DshSettingsMutateArgs {
     /// <summary>调用方读到的 revision；提供则做乐观并发校验</summary>
     public int? ExpectedRevision { get; set; }
 }
+
 
 /// <summary>单条设置编辑操作</summary>
 internal sealed class DshSettingsOp {
@@ -1499,39 +1485,6 @@ internal sealed class DshSkillItem {
     public bool ModelInvocable { get; set; }
 }
 
-/// <summary>消息反馈列表请求</summary>
-internal sealed class DshMessageFeedbackListRequest {
-    /// <summary>会话 ID</summary>
-    public string SessionId { get; set; } = "";
-}
-
-/// <summary>消息反馈列表结果（Remote 契约自带成功包装：{ok:true,value:{items}}）</summary>
-internal sealed class DshMessageFeedbackListResult {
-    /// <summary>是否成功</summary>
-    public bool Ok { get; set; } = true;
-    /// <summary>成功值</summary>
-    public DshMessageFeedbackListValue? Value { get; set; }
-}
-
-/// <summary>消息反馈列表值（自有引擎暂不落反馈，恒为空）</summary>
-internal sealed class DshMessageFeedbackListValue {
-    /// <summary>反馈条目</summary>
-    public List<DshMessageFeedbackItem> Items { get; set; } = [];
-}
-
-/// <summary>单条消息反馈</summary>
-internal sealed class DshMessageFeedbackItem {
-    /// <summary>消息 ID</summary>
-    public string MessageId { get; set; } = "";
-    /// <summary>评价（positive / negative）</summary>
-    public string Rating { get; set; } = "positive";
-    /// <summary>版本号</summary>
-    public long Version { get; set; }
-    /// <summary>创建时间（Unix 毫秒）</summary>
-    public long CreatedAt { get; set; }
-    /// <summary>更新时间（Unix 毫秒）</summary>
-    public long UpdatedAt { get; set; }
-}
 
 /// <summary>DSH 生成的远程契约：具名参数统一收在 request 下（生成器里 wire="request"）</summary>
 internal sealed class DshRequestEnvelope<TRequest> where TRequest : new() {
@@ -1694,6 +1647,21 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshRequestEnvelope<DshSessionSelectModelArgs>))]
 [JsonSerializable(typeof(DshRequestEnvelope<DshSessionForkArgs>))]
 [JsonSerializable(typeof(DshAgentPresetList))]
+[JsonSerializable(typeof(DshAgentPreset))]
+[JsonSerializable(typeof(DshAgentPresetReadResult))]
+[JsonSerializable(typeof(DshAgentPresetSelectArgs))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshSessionSearchArgs>))]
+[JsonSerializable(typeof(DshSessionSearchArgs))]
+[JsonSerializable(typeof(DshSessionSearchResult))]
+[JsonSerializable(typeof(DshSessionSearchItem))]
+[JsonSerializable(typeof(List<DshSessionSearchItem>))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshOpenWorkspacePathArgs>))]
+[JsonSerializable(typeof(DshOpenWorkspacePathArgs))]
+[JsonSerializable(typeof(DshOpenWorkspacePathResult))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshWorkspacePathAppsArgs>))]
+[JsonSerializable(typeof(DshWorkspacePathAppsArgs))]
+[JsonSerializable(typeof(DshWorkspacePathApp))]
+[JsonSerializable(typeof(List<DshWorkspacePathApp>))]
 [JsonSerializable(typeof(DshPermissionPresetCatalog))]
 [JsonSerializable(typeof(DshWaterfallFrame))]
 [JsonSerializable(typeof(DshApprovalRequestBody))]
@@ -1712,11 +1680,28 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshSettingsDescribe))]
 [JsonSerializable(typeof(DshSettingsNamespaceView))]
 [JsonSerializable(typeof(DshSettingsMutateArgs))]
+[JsonSerializable(typeof(DshSettingsReplaceArgs))]
+[JsonSerializable(typeof(DshSettingsUpdateArgs))]
 [JsonSerializable(typeof(DshSettingsDocument))]
 [JsonSerializable(typeof(DshSettingsNamespaceDocument))]
 [JsonSerializable(typeof(DshSchemaEnvelope))]
 [JsonSerializable(typeof(DshSkillList))]
 [JsonSerializable(typeof(DshMessageFeedbackListResult))]
+[JsonSerializable(typeof(DshMessageFeedbackListValue))]
+[JsonSerializable(typeof(DshMessageFeedbackItem))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshMessageFeedbackPutArgs>))]
+[JsonSerializable(typeof(DshMessageFeedbackPutArgs))]
+[JsonSerializable(typeof(DshMessageFeedbackPutResult))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshMessageFeedbackDeleteArgs>))]
+[JsonSerializable(typeof(DshMessageFeedbackDeleteArgs))]
+[JsonSerializable(typeof(DshMessageFeedbackDeleteResult))]
+[JsonSerializable(typeof(DshMessageFeedbackDeleteValue))]
+[JsonSerializable(typeof(DshMessageFeedbackSessionNotFoundError))]
+[JsonSerializable(typeof(DshMessageFeedbackTargetNotFoundError))]
+[JsonSerializable(typeof(DshMessageFeedbackVersionConflictError))]
+[JsonSerializable(typeof(DshMessageFeedbackNoteBlankError))]
+[JsonSerializable(typeof(DshMessageFeedbackNoteTooLargeError))]
+[JsonSerializable(typeof(DshMessageFeedbackDocument))]
 [JsonSerializable(typeof(DshProviderInfo))]
 [JsonSerializable(typeof(List<DshProviderInfo>))]
 [JsonSerializable(typeof(JsonElement[]))]

@@ -152,6 +152,141 @@ internal sealed class DshSettingsStore {
         }
     }
 
+    /// <summary>settings/replace：整段替换命名空间（section 即新值），返回新视图</summary>
+    internal DshRpcResult Replace(JsonElement args) {
+        DshSettingsReplaceArgs? request;
+        try {
+            request = args.Deserialize(DshJsonContext.Default.DshSettingsReplaceArgs);
+        } catch (JsonException ex) {
+            return DshRpcResults.Fail("settings/rejected", $"settings/replace 参数无法解析：{ex.Message}");
+        }
+        if (request is null || string.IsNullOrEmpty(request.Ns)) {
+            return DshRpcResults.Fail("settings/rejected", "settings/replace 缺少命名空间 ns");
+        }
+        if (request.Section.ValueKind != JsonValueKind.Object) {
+            return DshRpcResults.Fail("settings/rejected", $"settings/replace 的 section 必须是对象（ns={request.Ns}）");
+        }
+        return Commit(request.Ns, request.ExpectedRevision, "settings/replace", state => {
+            if (ValidatePermissionValue(request.Ns, request.Section) is { } invalid) {
+                return invalid;
+            }
+            state.Entries.Clear();
+            Flatten(request.Section, "", state.Entries);
+            return null;
+        });
+    }
+
+    /// <summary>settings/update：按顶层字段补丁合并命名空间（null 删除字段），返回新视图</summary>
+    internal DshRpcResult Update(JsonElement args) {
+        DshSettingsUpdateArgs? request;
+        try {
+            request = args.Deserialize(DshJsonContext.Default.DshSettingsUpdateArgs);
+        } catch (JsonException ex) {
+            return DshRpcResults.Fail("settings/rejected", $"settings/update 参数无法解析：{ex.Message}");
+        }
+        if (request is null || string.IsNullOrEmpty(request.Ns)) {
+            return DshRpcResults.Fail("settings/rejected", "settings/update 缺少命名空间 ns");
+        }
+        if (request.Patch.ValueKind != JsonValueKind.Object) {
+            return DshRpcResults.Fail("settings/rejected", $"settings/update 的 patch 必须是对象（ns={request.Ns}）");
+        }
+        return Commit(request.Ns, request.ExpectedRevision, "settings/update", state => {
+            if (ValidatePermissionValue(request.Ns, request.Patch) is { } invalid) {
+                return invalid;
+            }
+            foreach (var field in request.Patch.EnumerateObject()) {
+                RemoveSubtree(state.Entries, field.Name);
+                if (field.Value.ValueKind != JsonValueKind.Null) {
+                    Flatten(field.Value, field.Name, state.Entries);
+                }
+            }
+            return null;
+        });
+    }
+
+    /// <summary>读取命名空间某个扁平路径的字符串值（agentPresets/list 默认预设等）</summary>
+    internal string? ReadString(string ns, params string[] path) {
+        lock (Gate) {
+            EnsurePermissionDefaults();
+            return States.TryGetValue(ns, out var state)
+                && state.Entries.TryGetValue(string.Join('/', path), out var value)
+                && value.ValueKind == JsonValueKind.String
+                ? value.GetString()
+                : null;
+        }
+    }
+
+    /// <summary>设置编辑的统一提交：版本校验 → 应用 → 递增版本 → 落盘 → 权限事件</summary>
+    private DshRpcResult Commit(string ns, int? expectedRevision, string method, Func<NamespaceState, string?> apply) {
+        lock (Gate) {
+            EnsurePermissionDefaults();
+            if (!States.TryGetValue(ns, out var state)) {
+                state = new NamespaceState();
+                States[ns] = state;
+            }
+            if (expectedRevision is { } expected && expected != state.Revision) {
+                return DshRpcResults.Fail(
+                    "settings/conflict",
+                    $"{method} 期望版本 {expected}，实际版本 {state.Revision}（ns={ns}）");
+            }
+            if (apply(state) is { } error) {
+                return DshRpcResults.Fail("settings/rejected", error);
+            }
+            if (string.Equals(ns, PermissionNamespace, StringComparison.Ordinal)) {
+                EnsurePermissionDefaults();
+            }
+            state.Revision++;
+            var routedPreset = ReadPermissionPreset(ns, state);
+            Persist();
+            var view = View(ns, state);
+            if (routedPreset is not null) {
+                PermissionPresetChanged?.Invoke(routedPreset);
+            }
+            return DshRpcResults.Ok(JsonSerializer.SerializeToElement(view, DshJsonContext.Default.DshSettingsNamespaceView));
+        }
+    }
+
+    /// <summary>把对象树摊平成段路径 → 值（叶子含数组/标量；空对象不产生条目）</summary>
+    private static void Flatten(JsonElement value, string prefix, Dictionary<string, JsonElement> entries) {
+        if (value.ValueKind == JsonValueKind.Object) {
+            foreach (var field in value.EnumerateObject()) {
+                Flatten(field.Value, prefix.Length == 0 ? field.Name : prefix + "/" + field.Name, entries);
+            }
+            return;
+        }
+        entries[prefix] = value.Clone();
+    }
+
+    /// <summary>删除某字段及其全部子路径</summary>
+    private static void RemoveSubtree(Dictionary<string, JsonElement> entries, string key) {
+        var prefix = key + "/";
+        foreach (var existing in entries.Keys
+            .Where(candidate => candidate == key || candidate.StartsWith(prefix, StringComparison.Ordinal))
+            .ToArray()) {
+            entries.Remove(existing);
+        }
+    }
+
+    /// <summary>permission 命名空间 defaultPreset 的值域校验（replace/update 用；返回错误说明或 null）</summary>
+    private static string? ValidatePermissionValue(string ns, JsonElement tree) {
+        if (!string.Equals(ns, PermissionNamespace, StringComparison.Ordinal)
+            || tree.ValueKind != JsonValueKind.Object
+            || !tree.TryGetProperty("defaultPreset", out var preset)
+            || preset.ValueKind != JsonValueKind.String
+            || PermissionModeExtensions.FromValue(preset.GetString()) is not null) {
+            return null;
+        }
+        return $"permission/defaultPreset 的值必须是引擎枚举词汇（plan/auto/ask/bypass/unattended）之一；收到 {preset.GetString()}";
+    }
+
+    /// <summary>权限命名空间当前 defaultPreset（非字符串/缺失时为 null）</summary>
+    private static string? ReadPermissionPreset(string ns, NamespaceState state) =>
+        string.Equals(ns, PermissionNamespace, StringComparison.Ordinal)
+        && state.Entries.TryGetValue("defaultPreset", out var preset)
+        && preset.ValueKind == JsonValueKind.String
+            ? preset.GetString()
+            : null;
+
     /// <summary>全量落盘（同步文件 IO — 设置文件 KB 级，前端 mutate 是低频交互；失败只记日志不回滚，下次写入覆盖）</summary>
     private void Persist() {
         try {

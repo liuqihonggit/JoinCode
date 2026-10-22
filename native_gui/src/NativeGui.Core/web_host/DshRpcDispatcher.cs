@@ -36,6 +36,8 @@ internal sealed class DshRpcDispatcher {
             ["session/projections"] = SessionProjections,
             ["session/page"] = SessionPage,
             ["session/search"] = SessionSearch,
+            ["session/canOpenWorkspacePath"] = Sync(CanOpenWorkspacePath),
+            ["session/initializeDefaultModel"] = Sync(InitializeDefaultModel),
             ["session/openWorkspacePath"] = SessionOpenWorkspacePath,
             ["session/workspacePathApplications"] = SessionWorkspacePathApplications,
             ["agentPresets/list"] = AgentPresetsList,
@@ -59,6 +61,9 @@ internal sealed class DshRpcDispatcher {
             ["dynamicCordisRunner/inventory"] = Sync(_ => OkEmptyArray()),
             ["dynamicCordisRunner/syncInspectManifest"] = Sync(_ => OkNull()),
             ["directoryPicker/pick"] = Pick,
+            ["directoryPicker/list"] = Sync(DirectoryPickerList),
+            ["directoryPicker/createDirectory"] = Sync(DirectoryPickerCreateDirectory),
+            ["fileReferences/list"] = FileReferencesList,
             ["workspace/list"] = Sync(_ => OkEmptyArray()),
             ["workspace/create"] = WorkspaceCreate,
             ["workspace/rename"] = WorkspaceRename,
@@ -116,6 +121,61 @@ internal sealed class DshRpcDispatcher {
         Success(JsonSerializer.SerializeToElement(
             await DshDirectoryPicker.PickAsync(cancellationToken),
             DshJsonContext.Default.String));
+
+    /// <summary>directoryPicker/list：浏览宿主目录（path 省略时从主目录开始）</summary>
+    private DshRpcResult DirectoryPickerList(JsonElement args) {
+        var request = args.ValueKind == JsonValueKind.Object
+            ? args.Deserialize(DshJsonContext.Default.DshDirectoryListArgs)
+            : null;
+        try {
+            return Ok(_services.DirectoryBrowser.List(request?.Path));
+        } catch (DshDirectoryBrowserException ex) {
+            return Fail(ex.Code, ex.Message);
+        }
+    }
+
+    /// <summary>directoryPicker/createDirectory：在父目录下创建单段子目录</summary>
+    private DshRpcResult DirectoryPickerCreateDirectory(JsonElement args) {
+        var request = args.ValueKind == JsonValueKind.Object
+            ? args.Deserialize(DshJsonContext.Default.DshDirectoryCreateArgs)
+            : null;
+        if (request is null) {
+            return Fail("directory-create-failed",
+                $"directoryPicker/createDirectory 需要 {{path, name}} 参数（平铺字段）；收到 args={Describe(args)}。");
+        }
+        try {
+            return Success(JsonSerializer.SerializeToElement(
+                _services.DirectoryBrowser.CreateDirectory(request.Path, request.Name),
+                DshJsonContext.Default.String));
+        } catch (DshDirectoryBrowserException ex) {
+            return Fail(ex.Code, ex.Message);
+        }
+    }
+
+    /// <summary>fileReferences/list：会话工作目录内的 @ 引用候选（裸词模糊排序，最多 20 条）</summary>
+    private async Task<DshRpcResult> FileReferencesList(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.ValueKind == JsonValueKind.Object
+            ? args.Deserialize(DshJsonContext.Default.DshFileReferencesListArgs)
+            : null;
+        if (request is null || string.IsNullOrWhiteSpace(request.AgentId)) {
+            return Fail("gateway/bad-request",
+                $"fileReferences/list 需要 agentId（会话 ID）与 query 字符串；收到 args={Describe(args)}。query 为空表示列出工作目录根。");
+        }
+        try {
+            return Ok(await _services.FileReferences.ListAsync(request.AgentId, request.Query ?? "", cancellationToken));
+        } catch (DshFileReferenceException ex) {
+            return Fail(ex.Code, ex.Message);
+        }
+    }
+
+    /// <summary>session/canOpenWorkspacePath：宿主是否具备桌面文件管理器打开能力</summary>
+    private static DshRpcResult CanOpenWorkspacePath(JsonElement args) => OkBool(DshWorkspacePathService.IsSupported);
+
+    /// <summary>session/initializeDefaultModel：宿主使用本地供应商，没有账号默认模型可写，幂等无操作</summary>
+    private static DshRpcResult InitializeDefaultModel(JsonElement args) {
+        GuiDiag.Log("[DSH-WEB] initializeDefaultModel: 本地供应商由 settings 决定，无需初始化账号默认模型");
+        return OkNull();
+    }
 
     /// <summary>workspace/create：收养一个已存在目录（重复调用返回同一工作区）</summary>
     private async Task<DshRpcResult> WorkspaceCreate(JsonElement args, CancellationToken cancellationToken) {
@@ -882,7 +942,6 @@ internal sealed class DshRpcDispatcher {
         return attachmentId;
     }
 
-    /// <summary>
     /// session/updateQueue：排队项编辑（TASK058 P2-B3 + B11）。edit=重写文本，remove=移除，
     /// steer=把排队项**升级为轮内注入**（出队 → 投递引擎邮箱，DSH `action.kind==='steer'` 语义）。
     /// 项不存在返回 session/queue-item-not-found；轮次未运行或引擎未装配邮箱返回
@@ -1043,6 +1102,12 @@ internal sealed class DshRpcDispatcher {
     private static DshRpcResult Ok(DshAgentPresetReadResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshAgentPresetReadResult));
 
     private static DshRpcResult Ok(DshSessionSearchResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionSearchResult));
+
+    private static DshRpcResult Ok(DshDirectoryListing value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshDirectoryListing));
+
+    private static DshRpcResult Ok(IReadOnlyList<DshFileReferenceItem> value) => Success(JsonSerializer.SerializeToElement(value.ToList(), DshJsonContext.Default.ListDshFileReferenceItem));
+
+    private static DshRpcResult OkBool(bool value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.Boolean));
 
     private static DshRpcResult Ok(DshOpenWorkspacePathResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshOpenWorkspacePathResult));
 

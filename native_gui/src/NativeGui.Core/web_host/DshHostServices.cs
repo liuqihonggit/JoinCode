@@ -10,7 +10,8 @@ internal sealed class DshHostServices {
     /// <param name="fileSystem">文件系统抽象（工作区注册表等持久化）</param>
     /// <param name="workspaceFilePath">工作区注册表路径（默认 <c>~/.jcc/dsh-workspaces.json</c>）</param>
     /// <param name="journalDirectory">宿主事件日志目录（默认 <c>~/.jcc/dsh_journal</c>）</param>
-    internal DshHostServices(IFileSystem fileSystem, string? workspaceFilePath = null, string? journalDirectory = null) {
+    /// <param name="homeDirectory">目录选择器的起始主目录（默认取用户目录；测试可注入）</param>
+    internal DshHostServices(IFileSystem fileSystem, string? workspaceFilePath = null, string? journalDirectory = null, string? homeDirectory = null) {
         FileSystem = fileSystem;
         Workspaces = new DshWorkspaceStore(fileSystem, workspaceFilePath);
         Settings = new DshSettingsStore(fileSystem);
@@ -27,6 +28,10 @@ internal sealed class DshHostServices {
         Feedback = new DshMessageFeedbackStore(fileSystem);
         Jobs = new DshJobService(this);
         Terminals = new DshTerminalService(this);
+        DirectoryBrowser = new DshDirectoryBrowser(
+            fileSystem,
+            string.IsNullOrWhiteSpace(homeDirectory) ? null : () => homeDirectory);
+        FileReferences = new DshFileReferenceService(Sessions, fileSystem);
     }
 
     /// <summary>宿主共享文件系统抽象（工作区路径存在性校验等）</summary>
@@ -77,4 +82,10 @@ internal sealed class DshHostServices {
 
     /// <summary>侧栏终端（terminal/* 十方法 + follow/retain 流，TASK066 C3）</summary>
     internal DshTerminalService Terminals { get; }
+
+    /// <summary>目录浏览（directoryPicker/list|createDirectory，TASK066 C6）</summary>
+    internal DshDirectoryBrowser DirectoryBrowser { get; }
+
+    /// <summary>@ 文件引用补全（fileReferences/list，TASK066 C6）</summary>
+    internal DshFileReferenceService FileReferences { get; }
 }

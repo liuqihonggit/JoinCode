@@ -24,16 +24,16 @@
 | `dsh-client-ui-goal` | 目标条 | `goals/*` 七方法 | ✅ | 既有单测（真机 E2E 待补） |
 | `dsh-client-ui-plan` | 计划面板 | 无宿主方法（纯前端 + 会话事件） | ⚠️ 事件未投影 | 以 `session/updateQueue` 同层事件补齐 |
 | `dsh-client-ui-subagent` | 子代理卡片 | `subagents/*`（catalog 已由 `DshSubagentCatalogProjector` 投影） | ⚠️ 部分 | 子代理 E2E |
-| `dsh-client-ui-commands` / `input-trigger` | 斜杠命令/引用补全 | `commands/list|execute` | ✅ | `dsh-webui-prompt` 回归 |
+| `dsh-client-ui-commands` / `input-trigger` | 斜杠命令/引用补全 | `commands/list|execute`、`fileReferences/list` | ✅ 斜杠命令 + @ 文件引用补全（索引缓存 5s、排除目录、20 条） | `dsh-webui-prompt` 回归 + 单测 6 例 |
 | `dsh-client-ui-settings*`（general/models/shell/agent-loop/subagent/web-search/account/plugins） | 设置中心 | `settings/{describe,mutate,replace,update}` | ✅ 四条写/读路径齐全 | 单测（整段替换/顶层补丁/revision 冲突）+ 真机 E2E |
 | `dsh-client-ui-model-selection` | 模型选择 | `session/modelCatalog|selectModel` | ✅ | 既有 E2E |
 | `dsh-client-ui-skill` | 技能面板 | `skills/list`（当前空） | ❌ 数据源未接 | 引擎技能清单投影 + 单测 |
 | `dsh-client-ui-message-feedback` | 消息反馈 | `messageFeedback/{list,put,delete}` | ✅ 落盘 + 乐观并发 + 契约错误联合体 | 单测（版本冲突/备注规则）+ 真机 E2E |
-| `dsh-client-ui-directory-picker-native` | 原生目录选择 | `directoryPicker/pick` | ✅ | 工作区 E2E |
+| `dsh-client-ui-directory-picker-native` | 原生目录选择 | `directoryPicker/{pick,list,createDirectory}` | ✅ 原生选择 + 目录浏览（面包屑/隐藏项/1000 条截断）+ 新建目录 | 单测 13 例 + 真机 E2E |
 | `dsh-client-ui-session` | 会话搜索/标题 | `session/rename`、`session/search` | ✅ 字面量搜索 + 20 条上限 + 240 字片段 | 单测（片段/hasMore）+ 真机 E2E |
 | `dsh-client-ui-user-questions` | AskUserQuestion 卡片 | `$events` 桥 | ✅ | `dsh-webui-approval` 同层 |
 | `dsh-client-ui-trajectory` / `deliverables` / `workflow-run` | 轨迹/产物/工作流 | 会话事件 + 文件服务 | ⚠️ 事件投影不全 | 事件矩阵单测 |
-| `dsh-api-workspace-controller` | 工作区路径应用 | `session/{openWorkspacePath,workspacePathApplications}` | ✅ 仅公布资源管理器处理器，路径绝对/存在校验 | 单测（引导文案）+ 真机 E2E |
+| `dsh-api-workspace-controller` | 工作区路径应用 | `session/{openWorkspacePath,workspacePathApplications,canOpenWorkspacePath,initializeDefaultModel}` | ✅ 仅公布资源管理器处理器；能力探测返回桌面宿主；默认模型初始化按本地设置直通 | 单测（引导文案/能力探测）+ 真机 E2E |
 | `dsh-client-ui-agent-preset` | 代理预设 | `agentPresets/{list,read,select}` | ✅ 公布 standard（默认项读 `agent-preset-registry.selectedDefault`） | 单测 + 真机 E2E |
 | `dsh-client-ui-open-in-app` / `shortcuts` / `theme` / `brand` | 外壳能力 | 前端独立 + 主题桥 | ✅ | 截图 |
 | `dsh-client-ui-plugin-manager` / `cordis` | 插件管理 | `dynamicCordisRunner/*` | ⚠️ 诚实拒绝 | 保持 fail-closed + 引导文案 |
@@ -60,7 +60,7 @@
 | C3 | terminal：ConPTY 会话管理器 + 10 方法 + `terminal/follow`/`retain` 流 | ✅ 已验收（单测 9 + RPC/界面 E2E ALL_PASS） |
 | C4 | 小型缺失方法：`session/search`、`settings/{replace,update}`、`agentPresets/{list,read,select}`、`session/{openWorkspacePath,workspacePathApplications}`、`messageFeedback/{list,put,delete}` | ✅ 已验收（单测 13 + `c4-e2e.mjs` 真机 19 项 ALL_PASS） |
 | C5 | `workspaceFiles/changes` 流 + 文档预览真机验收 | ✅ 已验收（流 8 项 + 预览 12 项 ALL_PASS） |
-| C6 | TUI 差异收敛（后台任务/子代理/权限模式）与文档四列表 | ⬜ |
+| C6 | TUI 差异收敛（后台任务/子代理/权限模式）与文档四列表 | 🔄 进行中（目录浏览/@ 引用/能力探测已完成，子代理/计划/技能/权限模式待接） |
 | C7 | 全量 E2E 回归 + 完成审计 | ⬜ |
 
 ## 四、验收四列表（滚动更新）
@@ -80,6 +80,10 @@
 | `DshWorkspacePathService`（Explorer 打开/选中，绝对路径 + 存在性校验） | `session/{openWorkspacePath,workspacePathApplications}` | ✅ | ✅ 单测（仅 Explorer/空表/引导错误）+ `c4-e2e.mjs` 真实 cwd 返回 explorer、相对路径被拒 |
 | `DshMessageFeedbackStore` + dispatcher 写路径（opaque string version、4096 字节备注、target 校验） | 消息反馈 `messageFeedback/{list,put,delete}` | ✅ | ✅ 单测 4 例 + `c4-e2e.mjs` 新建/冲突/备注规则/删除共 7 项 |
 | `DshAgentPreset*` DTO + 路由（standard 预设、默认项读设置） | 代理预设面板 `agentPresets/{list,read,select}` | ✅ | ✅ 单测 + `c4-e2e.mjs` list/read/select 三方法 |
+| `DshDirectoryBrowser`（只列子目录、隐藏项、面包屑、1000 条截断、单段名新建） | 目录选择器 `directoryPicker/{list,createDirectory}` | ✅ | ✅ 单测 10 例（home/截断/相对路径/重复名/多段名） |
+| `DshFileReferenceService`（会话 cwd 索引、5s 缓存、排除目录、模糊排序、20 条上限） | 输入框 @ 文件引用 `fileReferences/list` | ✅ | ✅ 单测 6 例（根目录/子目录/模糊/隐藏/排除/越界/未知会话）+ RPC 2 例 |
+| `DshPathText`（平台无关 /、C:/、UNC 路径解析与根内校验） | 目录浏览与文件引用索引的路径归一 | ✅ | ✅ 间接覆盖：InMemoryFileSystem 全路径用例 23 例 |
+| `DshWorkspacePathService.IsSupported` | `session/canOpenWorkspacePath` 能力探测 | ✅ | ✅ RPC 单测（Windows=true 与平台断言一致） |
 
 <!-- 🤖 Auto Decision: 2026-10-22 -->
 <!-- 决策: 新建 TASK066 而非复用 TASK065（同名文档已被 TUI 任务占用） -->
@@ -111,3 +115,9 @@
 <!-- 替代方案: 前端改解析 base64 / 仅接受相对路径 —— 前端是黑盒资产不可改，且协议事实源在 dsh-client-connection 的 parseBinaryResponse，不采用 -->
 <!-- 验证: 单测 12 例（含 multipart 布局与 Content-Length）；c5-stream-e2e 8 项 + dsh-webui-c5-preview 12 项真机 ALL_PASS（PDF 3 页、Excel 画布 23,462 像素） -->
 <!-- 坑: MemoryStream 写完后指针在末尾，CopyToAsync 复制 0 字节导致 Content-Length 不符、客户端无限等待；改为 BuildMultipartPayload 一次成型返回 byte[] -->
+
+<!-- 🤖 Auto Decision: 2026-10-22 (C6) -->
+<!-- 决策: 目录浏览只回子目录并用平台无关 DshPathText 归一（/、C:/、UNC）；@ 引用按会话 cwd 建 5s 缓存索引；initializeDefaultModel 诚实 no-op；canOpenWorkspacePath 返回桌面宿主能力 -->
+<!-- 原因: dsh-host-directory-picker-browse 只列目录、隐藏项按点前缀、1000 条截断、新建名必须单段；dsh-file-reference-local 裸词模糊排序、空/斜杠查询列当前目录、排除构建目录、20 条上限；本地宿主无 deepseek 账号默认模型概念 --> 
+<!-- 替代方案: 复用 System.IO.Path（Windows 测试难覆盖 / 路径）/ 每次请求全量扫描索引（大仓库卡顿）/ 伪造默认模型初始化 —— 均不采用 -->
+<!-- 验证: 单测 23 例全绿（目录浏览 10 + 文件引用 6 + RPC 7），NativeGui.Core 全量 319/319 -->

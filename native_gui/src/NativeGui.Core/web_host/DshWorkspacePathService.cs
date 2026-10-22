@@ -8,6 +8,9 @@ internal static class DshWorkspacePathService {
     /// <summary>唯一处理器 ID（与 workspacePathApplications 返回值一致）</summary>
     internal const string ExplorerId = "explorer";
 
+    /// <summary>当前宿主是否能把路径交给桌面文件管理器（Windows 资源管理器）</summary>
+    internal static bool IsSupported => OperatingSystem.IsWindows();
+
     /// <summary>列出路径可用的打开方式；路径不存在时返回空表（前端隐藏打开入口）</summary>
     internal static IReadOnlyList<DshWorkspacePathApp> ListApplications(IFileSystem fileSystem, string path) {
         var resolved = Resolve(fileSystem, path);

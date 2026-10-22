@@ -41,6 +41,42 @@ internal sealed class DshRpcResult {
     public JsonElement? Value { get; set; }
     /// <summary>失败详情</summary>
     public DshRpcError? Error { get; set; }
+    /// <summary>
+    /// 二进制附件（不参与 JSON 序列化）：宿主转 multipart/form-data 时作为 Blob 部件，
+    /// value 对应路径写 null 占位，前端 parseBinaryResponse 回填 Uint8Array。
+    /// </summary>
+    [JsonIgnore]
+    public DshRpcBinaryAttachment? Binary { get; set; }
+}
+
+/// <summary>一元响应中的二进制附件（path 指向 value 内 null 占位字段）</summary>
+internal sealed class DshRpcBinaryAttachment(string[] path, byte[] bytes) {
+    /// <summary>在 value 中的字段路径（如 ["data"]）</summary>
+    public string[] Path { get; } = path;
+    /// <summary>原始字节</summary>
+    public byte[] Bytes { get; } = bytes;
+}
+
+/// <summary>multipart 响应元数据（JSON 信封 + 附件清单；字段名与 DSH gateway 一致）</summary>
+internal sealed class DshRpcMultipartMetadata {
+    /// <summary>固定为 server-response</summary>
+    public string Type { get; set; } = "server-response";
+    /// <summary>与请求一致的 rpcId</summary>
+    public string RpcId { get; set; } = "";
+    /// <summary>结果分支（Value 内保留 null 占位）</summary>
+    public DshRpcResult Result { get; set; } = new();
+    /// <summary>附件清单</summary>
+    public List<DshRpcAttachmentRef> Attachments { get; set; } = [];
+}
+
+/// <summary>multipart 附件引用（part 为 Blob 字段名）</summary>
+internal sealed class DshRpcAttachmentRef {
+    /// <summary>value 内字段路径</summary>
+    public string[] Path { get; set; } = [];
+    /// <summary>编码方式，恒为 bytes</summary>
+    public string Codec { get; set; } = "bytes";
+    /// <summary>Blob 部件名（如 bytes-0）</summary>
+    public string Part { get; set; } = "";
 }
 
 /// <summary>失败详情（code 为稳定错误码，details 必须为对象）</summary>
@@ -315,12 +351,12 @@ internal sealed class DshWorkspaceFilesReadResult {
     public string Version { get; set; } = "";
 }
 
-/// <summary>workspaceFiles/readBytes 响应（data 为 base64）</summary>
+/// <summary>workspaceFiles/readBytes 响应（data 走 multipart 二进制附件，JSON 中恒为 null 占位）</summary>
 internal sealed class DshWorkspaceFilesReadBytesResult {
     /// <summary>字节起始偏移（v1 恒 0）</summary>
     public int Offset { get; set; }
-    /// <summary>base64 编码字节</summary>
-    public string Data { get; set; } = "";
+    /// <summary>null 占位：真实字节由 result.attachments[path=["data"]] 的 Blob 部件回填</summary>
+    public JsonElement? Data { get; set; }
     /// <summary>是否读到末尾</summary>
     public bool Eof { get; set; }
     /// <summary>绝对路径</summary>
@@ -1440,6 +1476,10 @@ internal static class DshRpcResults {
     /// <summary>构造成功信封</summary>
     internal static DshRpcResult Ok(JsonElement value) => new() { Ok = true, Value = value };
 
+    /// <summary>构造带二进制附件的成功信封（宿主以 multipart 返回）</summary>
+    internal static DshRpcResult Ok(JsonElement value, DshRpcBinaryAttachment binary) =>
+        new() { Ok = true, Value = value, Binary = binary };
+
     /// <summary>构造失败信封（details 恒为对象，前端按对象解析）</summary>
     internal static DshRpcResult Fail(string code, string message) => new() {
         Ok = false,
@@ -1550,6 +1590,7 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshJobOutputFrame))]
 [JsonSerializable(typeof(DshJobStatusFrame))]
 [JsonSerializable(typeof(DshRpcResponse))]
+[JsonSerializable(typeof(DshRpcMultipartMetadata))]
 [JsonSerializable(typeof(DshStreamOpen))]
 [JsonSerializable(typeof(DshStreamItem))]
 [JsonSerializable(typeof(DshStreamError))]

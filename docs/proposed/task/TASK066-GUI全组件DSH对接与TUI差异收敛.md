@@ -18,8 +18,8 @@
 | `dsh-client-ui-sidebar` / `workspace` | 工作区与会话侧栏 | `workspace/*`、`session/list|page|fork` | ✅ | E2E `reload/history` |
 | `dsh-client-ui-sidebar-terminal` + `dsh-api-terminal-controller` | 侧栏终端面板 | `terminal/{environment,list,shells,create,write,resize,rename,close,retain}` + `terminal/follow` 流 | ✅ ConPTY + 10 方法 + follow/retain | 单测 9 例 + `dsh-webui-terminal.mjs` RPC ALL_PASS + `dsh-webui-terminal-panel.mjs` 界面 ALL_PASS |
 | `dsh-client-ui-jobs` + `dsh-api-job-controller` | 后台任务面板 | `job/list`、`job/follow` 流、`job/kill` | ✅ 后台代理投影 + rows/output/status | 单测 5 例 + `dsh-webui-jobs.mjs` ALL_PASS（opened 需存在后台代理时覆盖） |
-| `dsh-client-ui-sidebar-files` + `dsh-api-workspace-files` | 文件树 | `workspaceFiles/{list,read,readBytes,stat}` | ✅ 一元；`workspaceFiles/changes` 流 ❌ | 补 changes 流 + 文件树 E2E |
-| `dsh-client-ui-sidebar-documentpreview` | PDF/Excel/图片预览 | 仅静态资产 + `workspaceFiles/readBytes` | ✅ 资产打包 + 运行时缓存完整性校验（缺分片自动重解包） | 终端面板真机验证懒加载链路；pdf/xlsx 待 C5 |
+| `dsh-client-ui-sidebar-files` + `dsh-api-workspace-files` | 文件树 | `workspaceFiles/{list,read,readBytes,stat}` + `workspaceFiles/changes` 流 | ✅ 一元 + ready/change/absent/error 帧；路径支持前端绝对路径（根内校验）；readBytes 走 multipart 二进制 | 单测 11 例 + `c5-stream-e2e.mjs` 8 项 ALL_PASS |
+| `dsh-client-ui-sidebar-documentpreview` | PDF/Excel/图片预览 | `workspaceFiles/readBytes`（multipart 字节附件） | ✅ 资产打包 + 缓存完整性校验 + 二进制契约 | `dsh-webui-c5-preview.mjs` 12 项 ALL_PASS（PDF 3 页、Excel 画布渲染） |
 | `dsh-client-ui-approval` | 审批面板 | `$events` waterfall + `$events/result` + 审计事件 | ✅ TASK060 B10/B12 | `dsh-webui-approval.mjs` 48/48 |
 | `dsh-client-ui-goal` | 目标条 | `goals/*` 七方法 | ✅ | 既有单测（真机 E2E 待补） |
 | `dsh-client-ui-plan` | 计划面板 | 无宿主方法（纯前端 + 会话事件） | ⚠️ 事件未投影 | 以 `session/updateQueue` 同层事件补齐 |
@@ -59,7 +59,7 @@
 | C2 | jobs：`job/list`、`job/follow` 流 + `job/kill`，映射后台代理 | ✅ 已验收（单测 5 + E2E ALL_PASS） |
 | C3 | terminal：ConPTY 会话管理器 + 10 方法 + `terminal/follow`/`retain` 流 | ✅ 已验收（单测 9 + RPC/界面 E2E ALL_PASS） |
 | C4 | 小型缺失方法：`session/search`、`settings/{replace,update}`、`agentPresets/{list,read,select}`、`session/{openWorkspacePath,workspacePathApplications}`、`messageFeedback/{list,put,delete}` | ✅ 已验收（单测 13 + `c4-e2e.mjs` 真机 19 项 ALL_PASS） |
-| C5 | `workspaceFiles/changes` 流 + 文档预览真机验收 | ⬜ |
+| C5 | `workspaceFiles/changes` 流 + 文档预览真机验收 | ✅ 已验收（流 8 项 + 预览 12 项 ALL_PASS） |
 | C6 | TUI 差异收敛（后台任务/子代理/权限模式）与文档四列表 | ⬜ |
 | C7 | 全量 E2E 回归 + 完成审计 | ⬜ |
 
@@ -70,7 +70,10 @@
 | `DshConPty`（Windows ConPTY，CreatePseudoConsole + 原始管道 I/O） | `DshTerminalService` 创建/写入/缩放/关闭真实 shell | ✅ | ✅ 单测 9 例 + `dsh-webui-terminal.mjs` ALL_PASS（真实 pwsh echo） |
 | `DshTerminalService.Follow/Retain` + `DshWebHost` terminal 流 | 侧栏终端面板快照/输出/state/retained 帧 | ✅ | ✅ `dsh-webui-terminal-panel.mjs` ALL_PASS（xterm 挂载、controller、界面 echo） |
 | `DshJobService` 投影 + `DshWebHost` job 路由 | 后台任务面板 `rows/output/status/kill` | ✅ | ✅ 单测 5 例 + `dsh-webui-jobs.mjs` ALL_PASS（rows、job/not-found） |
-| `DshWebAssets` 缓存完整性校验 + `package_dsh_web.py` 分片校验 | 侧栏 terminal/pdf/excel 懒加载分片 | ✅ | ✅ 终端面板真机 ALL_PASS；pdf/excel 待 C5 |
+| `DshWebAssets` 缓存完整性校验 + `package_dsh_web.py` 分片校验 | 侧栏 terminal/pdf/excel 懒加载分片 | ✅ | ✅ 终端面板真机 ALL_PASS + `dsh-webui-c5-preview.mjs` 12 项 ALL_PASS（PDF 3 页文本层、Excel 画布 23,462 像素） |
+| `DshWorkspaceFilesService.ResolveRootedAsync`（根内绝对/相对路径，弹栈防穿越） | 文件树 `workspaceFiles/*`（前端发 state.root 绝对路径） | ✅ | ✅ 单测 5 例（绝对根/子目录/越界/穿越）+ `c5-stream-e2e.mjs` 文件树 3 文件 |
+| `DshWorkspaceFilesService.ReadBytesAsync` + `DshWebHost.BuildMultipartPayload`（metadata 信封 + bytes-0 Blob） | 文档预览 / 图片预览读取 `Uint8Array` | ✅ | ✅ 单测 2 例（空占位 + multipart 布局）+ 真机 PDF/Excel 渲染 ALL_PASS |
+| `DshWebHost` `workspaceFiles/changes` 流（ready/change/absent/error，500ms 轮询快照对比） | 文件树变更刷新、重命名/删除感知 | ✅ | ✅ `c5-stream-e2e.mjs` 8 项 ALL_PASS（写入/追加版本变化、移出→absent、非法会话引导） |
 | `DshWebHost.StreamError` 补齐 details 对象 | 所有流式端点错误帧（job/terminal/workspaceFiles） | ✅ | ✅ `dsh-webui-jobs.mjs` 收到 `job/not-found`（修复前 WS 1006） |
 | `DshSessionStore.SearchAsync`（字面量、仅 user/assistant、20 条上限、240 字片段、第 21 条置 hasMore） | 会话搜索面板 `session/search` | ✅ | ✅ 单测（命中/上限/片段窗口）+ `c4-e2e.mjs` 真实会话命中 2 条 |
 | `DshSettingsStore.Replace/Update`（整段替换 / 顶层补丁、null 删除、revision 乐观并发） | 设置中心各命名空间写路径 | ✅ | ✅ 单测（替换/补丁/冲突）+ `c4-e2e.mjs` revision=1→2、旧 revision 冲突 |
@@ -101,3 +104,10 @@
 <!-- 原因: JsonElement 默认 Undefined 序列化抛 InvalidOperationException 导致 WS 1006；旧缓存只有 meta 会让新分片永远不落盘 -->
 <!-- 替代方案: 前端忽略 details / 每次启动重解包全量资产 —— 前者破坏协议形状，后者浪费 IO，不采用 -->
 <!-- 验证: jobs E2E 错误帧恢复；终端面板真机 xterm 挂载并回显 echo UI_TERMINAL_OK（ALL_PASS） -->
+
+<!-- 🤖 Auto Decision: 2026-10-22 (C5) -->
+<!-- 决策: readBytes 改为 multipart/form-data（metadata JSON + bytes-0 Blob），value.data 置 null 占位；workspaceFiles/* 同时接受根内绝对路径 -->
+<!-- 原因: DSH 前端 schema 断言 data 为 Uint8Array（base64 字符串报 invalid_type path ["data"]）；文件树发送 state.root 绝对路径，旧实现按相对解析报「目录不存在」 -->
+<!-- 替代方案: 前端改解析 base64 / 仅接受相对路径 —— 前端是黑盒资产不可改，且协议事实源在 dsh-client-connection 的 parseBinaryResponse，不采用 -->
+<!-- 验证: 单测 12 例（含 multipart 布局与 Content-Length）；c5-stream-e2e 8 项 + dsh-webui-c5-preview 12 项真机 ALL_PASS（PDF 3 页、Excel 画布 23,462 像素） -->
+<!-- 坑: MemoryStream 写完后指针在末尾，CopyToAsync 复制 0 字节导致 Content-Length 不符、客户端无限等待；改为 BuildMultipartPayload 一次成型返回 byte[] -->

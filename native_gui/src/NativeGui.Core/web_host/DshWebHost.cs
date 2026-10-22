@@ -186,8 +186,12 @@ internal sealed class DshWebHost : IAsyncDisposable {
         if (!result.Ok) {
             GuiDiag.Log($"[DSH-WEB] rpc {envelope.Method} -> {result.Error?.Code}: {result.Error?.Message}");
         }
-        var reply = new DshRpcResponse { RpcId = envelope.RpcId, Result = result };
         try {
+            if (result.Ok && result.Binary is { } binary) {
+                await WriteMultipartReplyAsync(response, envelope.RpcId, result, binary);
+                return;
+            }
+            var reply = new DshRpcResponse { RpcId = envelope.RpcId, Result = result };
             var payload = JsonSerializer.SerializeToUtf8Bytes(reply, DshJsonContext.Default.DshRpcResponse);
             response.StatusCode = 200;
             response.ContentType = "application/json; charset=utf-8";
@@ -197,6 +201,48 @@ internal sealed class DshWebHost : IAsyncDisposable {
         } finally {
             TryClose(response, 200);
         }
+    }
+
+    /// <summary>
+    /// 二进制一元响应：按 DSH gateway 的 multipart 契约回写 —— metadata 字段为 JSON 信封
+    /// （value 内保留 null 占位 + attachments 清单），bytes-0 字段为原始字节 Blob。
+    /// 前端 parseBinaryResponse 仅在 Content-Type 基类型为 multipart/form-data 时启用。
+    /// </summary>
+    private static async Task WriteMultipartReplyAsync(HttpListenerResponse response, string rpcId, DshRpcResult result, DshRpcBinaryAttachment binary) {
+        const string partName = "bytes-0";
+        var boundary = $"dsh-{Guid.NewGuid():N}";
+        var metadata = new DshRpcMultipartMetadata {
+            RpcId = rpcId,
+            Result = result,
+            Attachments = [new DshRpcAttachmentRef { Path = binary.Path, Part = partName }],
+        };
+        var payload = BuildMultipartPayload(boundary, partName, metadata, binary.Bytes);
+        response.StatusCode = 200;
+        response.ContentType = $"multipart/form-data; boundary={boundary}";
+        response.Headers["Cache-Control"] = "no-store";
+        response.ContentLength64 = payload.Length;
+        await response.OutputStream.WriteAsync(payload);
+    }
+
+    /// <summary>
+    /// 组装 multipart 响应体（metadata JSON + 原始字节 Blob）。
+    /// 一次成型返回完整数组，避免「流写完后指针在末尾再 CopyTo 复制 0 字节」导致 Content-Length 不符、
+    /// 客户端无限等待（真机已踩）。
+    /// </summary>
+    internal static byte[] BuildMultipartPayload(string boundary, string partName, DshRpcMultipartMetadata metadata, byte[] bytes) {
+        using var payload = new MemoryStream();
+        WriteAscii(payload, $"--{boundary}\r\nContent-Disposition: form-data; name=\"metadata\"\r\n\r\n");
+        payload.Write(JsonSerializer.SerializeToUtf8Bytes(metadata, DshJsonContext.Default.DshRpcMultipartMetadata));
+        WriteAscii(payload, $"\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"{partName}\"; filename=\"bytes.bin\"\r\nContent-Type: application/octet-stream\r\n\r\n");
+        payload.Write(bytes);
+        WriteAscii(payload, $"\r\n--{boundary}--\r\n");
+        return payload.ToArray();
+    }
+
+    /// <summary>写入 multipart 分隔符（ASCII，无 BOM）</summary>
+    private static void WriteAscii(Stream stream, string text) {
+        var bytes = Encoding.ASCII.GetBytes(text);
+        stream.Write(bytes, 0, bytes.Length);
     }
 
     /// <summary>WebSocket 流：回发打开帧产生的项，并登记需要持续推送的端点（session/follow）</summary>

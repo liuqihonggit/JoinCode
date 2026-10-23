@@ -102,7 +102,7 @@ public sealed class QueuedSubmitTests
 
         TypeAndSubmit(shell, "排队也入历史");
 
-        Assert.Contains("排队也入历史", shell.History.Entries);
+        Assert.Contains("排队也入历史", shell.History.EntryTexts);
     }
 
     /// <summary>排队上限守卫 — 满 10 条后新输入丢弃（⎿ 反馈），不调引擎不无限膨胀。</summary>

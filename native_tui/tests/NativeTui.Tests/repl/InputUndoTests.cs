@@ -226,4 +226,24 @@ public sealed class InputUndoTests
         Assert.Equal("old", buffer.Text);
         Assert.Equal(3, buffer.CursorCol);
     }
+
+    /// <summary>undo 快照携带粘贴登记（DSG045 批2 — 基准 useInputBuffer 快照含 pastedContents）：
+    /// 粘贴后 undo 回退到粘贴前 — 登记同步回退（不残留已删引用的登记）。</summary>
+    [Fact]
+    public void Undo_PasteSnapshot_RestoresPastedContents()
+    {
+        var clock = 10_000L;
+        var buffer = new InputBuffer();
+        buffer.UndoClock = () => clock;
+        var pasted = new string('p', 900);
+        buffer.Paste(pasted);
+        Assert.Contains("#1", buffer.Text);
+
+        clock += 2000;
+        Assert.True(buffer.Undo());
+
+        Assert.Equal(string.Empty, buffer.Text);
+        Assert.Empty(buffer.PastedSnapshot);
+    }
+
 }

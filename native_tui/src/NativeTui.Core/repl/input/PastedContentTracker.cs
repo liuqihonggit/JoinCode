@@ -91,6 +91,28 @@ public sealed partial class PastedContentTracker
         _contents.Clear();
     }
 
+    /// <summary>当前登记快照（DSG045 — 提交入史携带：Clear 前由调用方取）。
+    /// 返回副本 — 提交后 Clear 清空原字典不穿透已入史快照（引用共享会连历史条目一起清空）。</summary>
+    public IReadOnlyDictionary<int, string> Snapshot => _contents.ToDictionary();
+
+    /// <summary>整体替换注入历史粘贴登记（DSG045 — 导航恢复回放：对齐基准恢复态直接替换语义，
+    /// 不叠加旧登记防撞号）；编号衔接取 max（7.8 会话级只增不回退 — 恢复注入后新粘贴续增不撞号）。</summary>
+    public void LoadPasted(IReadOnlyDictionary<int, string>? contents)
+    {
+        _contents.Clear();
+        var maxId = 0;
+        if (contents is not null)
+        {
+            foreach (var (id, text) in contents)
+            {
+                _contents[id] = text;
+                maxId = Math.Max(maxId, id);
+            }
+        }
+
+        _nextId = Math.Max(_nextId, maxId + 1);
+    }
+
     /// <summary>折叠引用格式（基准 formatPastedTextRef）— 无换行 [Pasted text #N]，有换行 [Pasted text #N +M lines]。</summary>
     internal static string FormatPastedTextRef(int id, int numLines) =>
         numLines == 0 ? $"[Pasted text #{id}]" : $"[Pasted text #{id} +{numLines} lines]";

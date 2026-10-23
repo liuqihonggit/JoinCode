@@ -60,7 +60,7 @@ public sealed class EscInterruptClosureTests
 
         Assert.Equal("帮我查一下", shell.Input.Text);
         Assert.DoesNotContain(shell.View.Messages.Items, m => m is UserMessageItem);
-        Assert.False(shell.History.Entries.Contains("帮我查一下"), "历史条目应被撤销");
+        Assert.False(shell.History.EntryTexts.Contains("帮我查一下"), "历史条目应被撤销");
     }
 
     /// <summary>打断后有 partial 响应（流式增量已到达）→ 消息定格保留 + 输入不恢复 + 历史保留（基准 partial 语义）。</summary>
@@ -75,7 +75,7 @@ public sealed class EscInterruptClosureTests
         var partial = Assert.Single(shell.View.Messages.Items.OfType<AssistantMessageItem>());
         Assert.Equal("部分", partial.Text);
         Assert.Empty(shell.Input.Text);
-        Assert.Contains("帮我查一下", shell.History.Entries);
+        Assert.Contains("帮我查一下", shell.History.EntryTexts);
     }
 
     /// <summary>打断前有完整响应到达 → 不恢复（正常完成形态的打断近似）。</summary>
@@ -91,7 +91,7 @@ public sealed class EscInterruptClosureTests
 
         Assert.Single(shell.View.Messages.Items.OfType<AssistantMessageItem>());
         Assert.Empty(shell.Input.Text);
-        Assert.Contains("帮我查一下", shell.History.Entries);
+        Assert.Contains("帮我查一下", shell.History.EntryTexts);
     }
 
     /// <summary>忙时有排队输入 → 单击 Esc 全部弹回输入框（按行拼接）+ 清空队列 + 不打断（基准重载链⑤优先）。</summary>

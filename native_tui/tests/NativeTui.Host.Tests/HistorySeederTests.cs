@@ -168,5 +168,5 @@ public sealed class HistorySeederTests
     }
 
     /// <summary>读取 shell 历史条目（旧→新）。</summary>
-    private static List<string> ReadHistory(ReplShell shell) => shell.History.Entries.ToList();
+    private static List<string> ReadHistory(ReplShell shell) => shell.History.EntryTexts.ToList();
 }

@@ -2384,7 +2384,7 @@ public sealed class ReplShell
         }
 
         _preSearchDraft = _input.Text;
-        _search = HistorySearch.Begin(_input.Text, _history.Entries);
+        _search = HistorySearch.Begin(_input.Text, _history.EntryTexts);
     }
 
     /// <summary>搜索态按键模态（基准 ctrl+r 反向搜索交互）：
@@ -2719,20 +2719,22 @@ public sealed class ReplShell
             return;
         }
 
-        string text;
+        HistoryEntry entry;
         if (direction < 0)
         {
-            if (!_history.TryUp(out text, _input.Text))
+            if (!_history.TryUp(out entry, _input.Text))
             {
                 return;
             }
         }
-        else if (!_history.TryDown(out text))
+        else if (!_history.TryDown(out entry))
         {
             return;
         }
 
-        FillInput(text, cursorToStart: direction < 0);
+        // DSG045 — 登记随条目回放：恢复文本 + 历史粘贴登记注入 tracker（提交展开闭环）
+        _programmaticFill = true;
+        _input.ReplaceWithPasted(entry.Text, entry.PastedContents, cursorToStart: direction < 0);
     }
 
     /// <summary>程序化填充输入（历史导航/补全接受）— 设置跳过标记，HandleKey 尾部不刷新建议。</summary>
@@ -3024,11 +3026,13 @@ public sealed class ReplShell
         }
 
         var expanded = _input.ExpandedText;
+        // DSG045 — 粘贴登记快照随折叠文本入史（历史翻回恢复登记 → 再提交展开回原文）
+        var pastedSnapshot = _input.PastedSnapshot;
         _input.Clear();
         // TASK064 P3 — 捕获并清空暂存单槽（提交即消费：主流程结束后统一回填，空文本早退不消费）
         var stashed = _stashedInput;
         _stashedInput = string.Empty;
-        SubmitCore(text, expanded);
+        SubmitCore(text, expanded, pastedSnapshot);
         RestoreStashedInput(stashed);
     }
 
@@ -3036,7 +3040,7 @@ public sealed class ReplShell
     /// 使用记账/登录门/忙时排队/闲时直发；各 return 路径均为"提交动作已发生"，外壳统一恢复暂存）。
     /// TASK066 板块 D D7 — skipIdleCheck：空闲返回对话框确认后的重发专用（跳过 idle 判定防循环
     /// — 基准 skipIdleCheckRef 消费式标志的显式参数化等价；正常 Submit 入口恒 false）。</summary>
-    private void SubmitCore(string text, string expanded, bool skipIdleCheck = false)
+    private void SubmitCore(string text, string expanded, IReadOnlyDictionary<int, string>? pastedContents = null, bool skipIdleCheck = false)
     {
         // TASK066 板块 D D7 — 空闲返回拦截（基准 REPL.tsx:3321-3342 idle-return 块：空闲超阈值
         /// 的首次提交拦下挂对话框，暂存待发文本 — 拦截即返回：不上历史不调引擎不进命令拦截链）
@@ -3046,7 +3050,7 @@ public sealed class ReplShell
             return;
         }
 
-        _history.Add(text);
+        _history.Add(text, pastedContents);
         _history.Reset();
         // S10 接线 — `!` 前缀 bash 直通（基准 inputModes bash 模式：剥前缀本地执行不进引擎；
         // busy 态不挡 — 直通命令独立于回合状态，30s 超时守卫在执行器侧）

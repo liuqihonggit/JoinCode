@@ -266,7 +266,7 @@ earlyInput（批3）/ stdin gap 自愈（批2）/ F1-F12 功能键（批1）/ �
 | 功能 | 价值 | 说明 |
 |------|------|------|
 | 焦点事件 DEC 1004 | 低 | 降速/通知抑制（鼠标/alt-screen 前置已就绪） |
-| transcript ctrl+e 全展开 / \`[\` dump / \`v\` 编辑器 | 低 | 阅读增强小项 |
+| transcript ctrl+e 全展开 / `[` dump / `v` 编辑器 | 低 | 阅读增强小项 |
 | rxvt/putty 修饰变体 + numpad 应用模式 | 低 | 老终端键域 |
 | promptSuggestion 空输入 AI 建议 / bash 历史 ghost | 低 | ghost 扩展 |
 | 输入模式体系（! bash 模式态） | 低 | 直通已有、模式态无 |

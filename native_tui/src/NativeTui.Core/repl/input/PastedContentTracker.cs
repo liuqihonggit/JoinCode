@@ -84,11 +84,11 @@ public sealed partial class PastedContentTracker
             .Aggregate(input, ReplaceReference);
     }
 
-    /// <summary>清空登记簿（提交后随缓冲清空联动）。</summary>
+    /// <summary>清空登记簿（提交后随缓冲清空联动）。编号会话级只增不复用（7.8 — 基准
+    /// nextPasteIdRef 只增：防历史残留 [Pasted text #N] 与新登记撞号误替换）。</summary>
     public void Clear()
     {
         _contents.Clear();
-        _nextId = 1;
     }
 
     /// <summary>折叠引用格式（基准 formatPastedTextRef）— 无换行 [Pasted text #N]，有换行 [Pasted text #N +M lines]。</summary>

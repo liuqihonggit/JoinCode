@@ -902,8 +902,11 @@ public sealed class ReplShell
 
 
 
-
-
+    /// <summary>bash 续行判定（7.11 — 基准 multiline 光标前为 \）：Enter 删 \ 插换行不提交。</summary>
+    private bool IsBackslashContinue() =>
+        _input.CursorCol > 0
+        && _input.Text.Length > 0
+        && _input.Text[_input.CursorCol - 1] == '\\';
 
     /// <summary>按键归一 + 分派（对齐基准 useTextInput.mapKey 优先级顺序 — 测试经 ConsoleKeyInfo 全链注入）；
     /// 文本变化才刷新建议（导航/移动键不重置选中索引；程序化填充跳过 — 历史导航不触发补全）。</summary>
@@ -1181,6 +1184,11 @@ public sealed class ReplShell
             case KeyKind.Return when key.Shift || key.Meta:
                 // S7 接线 — 基准 multiline：shift+enter 插入换行不提交（enter 才发送）；
                 // meta+enter 同为换行（基准 useTextInput.ts:257-265 meta||shift → insert '\n'）
+                _input.InsertNewline();
+                return;
+            case KeyKind.Return when IsBackslashContinue():
+                // 7.11 — 基准 useTextInput.ts:249-256 bash 风格续行：光标前为 \ 时 Enter 删 \ 插换行
+                _input.Backspace();
                 _input.InsertNewline();
                 return;
             case KeyKind.Return:

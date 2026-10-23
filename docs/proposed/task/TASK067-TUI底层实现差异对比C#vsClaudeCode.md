@@ -248,6 +248,15 @@
 | 4.8 搜索 Esc | 接受当前匹配填入输入框（取消改走 ctrl+c） | CtrlR_Escape_AcceptsMatch |
 | 4.9 权限直选 | y/n 单键直选（y=Allow/n=Deny，数字 1/2/3 保留并存） | Permission_Y/N |
 
+批次 9（粘贴/历史交互）已落地（2026-10-23）：
+
+| 差异项 | 内容 | 判定 |
+|--------|------|------|
+| 7.11 backslash+Enter 续行 | 光标前为 \ 时 Enter 删 \ 插换行（bash 风格） | 已落地 |
+| 7.8 粘贴编号只增不复用 | PastedContentTracker.Clear 不再重置 _nextId（防历史残留撞号误替换） | 已落地（两处旧"重置 #1"断言同步更新） |
+| 8.19 历史草稿携带 pastedContents | 涉及推翻 C2 锁定设计 + HistoryRing 结构升级（条目 text+pasted 二元组 + 导航恢复 + tracker 重放） | **登记待专项 spec**（结构改造独立立项更稳） |
+| 7.10 无 bracketed paste 多行粘贴 | ReadKey 逐键通道结构性不可行（无块边界感知）；RawStdin 灰度通道整块到达天然支持 | **关闭**（通道差异 — P3 切默认后自然解决，DSG042 衔接） |
+
 注：此批次推翻 TASK059/M8-2 既有有意设计（用户决策"全部对齐基准"）——ChatCancel 表驱动分派 HandleEscape 新语义自动生效；五处旧语义锁定测试同步更新。
 
 ## 四、工具使用不适报告（收尾汇总给用户）

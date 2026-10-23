@@ -145,8 +145,8 @@ public sealed class InputPastedContentTrackerTests
         tracker.Clear();
         Assert.Equal(0, tracker.Count);
         Assert.Null(tracker.TryGetContent(1));
-        // 清空后编号重新从 1 开始
-        Assert.Equal("[Pasted text #1 +3 lines]", tracker.RegisterPaste("w\nx\ny\nz"));
+        // 7.8 — 编号会话级只增不复用（防历史残留撞号误替换）
+        Assert.Equal("[Pasted text #2 +3 lines]", tracker.RegisterPaste("w\nx\ny\nz"));
     }
 
     [Fact]
@@ -170,8 +170,24 @@ public sealed class InputPastedContentTrackerTests
         Assert.Equal(0, buffer.Text.Length);
         Assert.Equal(string.Empty, buffer.ExpandedText);
 
-        // 清空后新粘贴重新从 #1 编号
+        // 7.8 — 清空后新粘贴编号续增（会话级只增不复用）
         buffer.Paste("a\nb\nc\nd");
-        Assert.Equal("[Pasted text #1 +3 lines]", buffer.Text);
+        Assert.Equal("[Pasted text #2 +3 lines]", buffer.Text);
     }
+
+    /// <summary>编号会话级只增不复用（7.8 — 基准 nextPasteIdRef 只增：提交 Clear 后新粘贴编号续增，
+    /// 防历史残留 [Pasted text #1] 与新登记撞号误替换）。</summary>
+    [Fact]
+    public void Clear_KeepsIdMonotonic_AcrossSubmits()
+    {
+        var tracker = new PastedContentTracker();
+        var first = tracker.RegisterPaste(string.Join("\n", ["a", "b", "c", "d"]));
+        Assert.Contains("#1", first);
+        tracker.Clear();
+
+        var second = tracker.RegisterPaste(string.Join("\n", ["x", "y", "z", "w"]));
+
+        Assert.Contains("#2", second);
+    }
+
 }

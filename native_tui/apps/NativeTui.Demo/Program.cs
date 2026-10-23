@@ -309,7 +309,9 @@ public static class Program
     {
         switch (request)
         {
-            case BridgeRequest.Submit(var text):
+            // G4 编译适配 — Submit 加 Images 可选位置参数后 Deconstruct 变双参（echo 自测不消费图，
+            // _ 丢弃；带图提交链路经 BridgeEngine 自动获得，Demo 无需功能改动）
+            case BridgeRequest.Submit(var text, _):
                 WriteLine(writer, BridgeProtocol.SerializeEvent(new BridgeEvent.TurnStarted()));
                 WriteLine(writer, BridgeProtocol.SerializeEvent(new BridgeEvent.ThinkingStarted()));
                 WriteLine(writer, BridgeProtocol.SerializeEvent(new BridgeEvent.ThinkingEnded(5000)));

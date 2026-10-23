@@ -78,7 +78,8 @@ internal static class BridgeServeLoop {
         return ExitOk;
     }
 
-    /// <summary>分派单条请求：submit 起新回合（忙时拒绝）/ interrupt 取消 / set_permission_mode 权限应用 / quit 退出。</summary>
+    /// <summary>分派单条请求：submit 起新回合（忙时拒绝；带图片附件经
+    /// <see cref="ProjectImageAttachments"/> 降级投影）/ interrupt 取消 / set_permission_mode 权限应用 / quit 退出。</summary>
     private static (bool Exit, CancellationTokenSource? TurnCts, Task? TurnTask) DispatchRequest(
         Cli.Bridge.BridgeRequest request,
         TextWriter stdout,
@@ -89,7 +90,7 @@ internal static class BridgeServeLoop {
         CancellationTokenSource? turnCts,
         Task? turnTask) {
         switch (request) {
-            case Cli.Bridge.BridgeRequest.Submit(var text):
+            case Cli.Bridge.BridgeRequest.Submit(var text, var images):
                 if (turnTask is { IsCompleted: false }) {
                     WriteEvent(stdout, new Cli.Bridge.BridgeEvent.Error(
                         "回合进行中，本次提交已忽略。如需提交新输入，请先发送 interrupt 打断当前回合。"));
@@ -98,7 +99,8 @@ internal static class BridgeServeLoop {
 
                 turnCts?.Dispose();
                 var newCts = new CancellationTokenSource();
-                var newTask = RunTurnAsync(stdout, consumer, executeTurn, backgroundPump, text, newCts.Token);
+                var newTask = RunTurnAsync(stdout, consumer, executeTurn, backgroundPump,
+                    ProjectImageAttachments(text, images), newCts.Token);
                 return (false, newCts, newTask);
             case Cli.Bridge.BridgeRequest.Interrupt:
                 turnCts?.Cancel();
@@ -135,6 +137,27 @@ internal static class BridgeServeLoop {
 
         WriteEvent(stdout, new Cli.Bridge.BridgeEvent.Error(
             $"权限模式 '{mode}' 无法应用（未知值或引擎未提供权限系统）。合法值：{ValidPermissionModes}。bypass 受 settings.json 的 disableBypassPermissionsMode 安全闸管控，被拦截时保持原模式。"));
+    }
+
+    /// <summary>
+    /// 附件投影为回合输入（G4 — 与进程内直连版 EngineTurnClient.ProjectImageAttachments 同一降级语义）：
+    /// 引擎回合链 string-only（SessionController.StreamResponseAsync(string) → AddUserMessageAsync(string)
+    /// 用户消息无 image content block 通道），图片降级为文本引用段附加到回合输入（模型感知图片存在 +
+    /// 元数据；base64 全量内嵌会以数十万 token 计击穿上下文上限，不可用）。
+    /// 形态：每附件一行 [Image #N: filename (mediaType)]，空文本兜底纯投影段（附件即提交内容）。
+    /// TODO（引擎用户消息 ContentBlocks 通道）：AddUserMessageAsync 支持图片块后升级真实多模态提交
+    /// （基准 Image refs become content blocks 完整语义）。
+    /// </summary>
+    /// <param name="input">用户提交文本（占位已由 TUI 侧 shell 剥离 — 剥离后空文本由投影段兜底非空）。</param>
+    /// <param name="images">图片附件（null/空 = 原文透传零改动）。</param>
+    /// <returns>投影后回合输入。</returns>
+    private static string ProjectImageAttachments(string input, IReadOnlyList<Cli.Bridge.BridgeImageAttachment>? images) {
+        if (images is not { Count: > 0 })
+            return input;
+
+        var summary = string.Join("\n", images.Select(static (image, i) =>
+            $"[Image #{i + 1}: {image.Filename} ({image.MediaType})]"));
+        return input.Length == 0 ? summary : $"{input}\n\n{summary}";
     }
 
     /// <summary>执行一个回合：turn_started → executor（事件实时推送）→ completed/interrupted/error

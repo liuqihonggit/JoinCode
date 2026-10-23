@@ -15,7 +15,12 @@ namespace NativeTui.Core.Bridge;
 public abstract record BridgeRequest
 {
     /// <summary>提交用户输入，开始回合。</summary>
-    public sealed record Submit(string Text) : BridgeRequest;
+    /// <param name="Text">提交文本（图片占位 [Image #N] 已由 shell 剥离）。</param>
+    /// <param name="Images">图片附件数组（TASK066 板块 G G4 bridge 协议图片通道 — null 不序列化字段
+    ///（WhenWritingNull，对齐 DiffLine 行号字段扩展先例），旧对端 JSON 零破坏；与 jcc 侧
+    /// BridgeRequest.Submit 逐字段镜像，JSON 形状由 BridgeJsonContractTests 锁定防漂移）。</param>
+    public sealed record Submit(string Text,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] BridgeImageAttachment[]? Images = null) : BridgeRequest;
 
     /// <summary>打断当前回合。</summary>
     public sealed record Interrupt() : BridgeRequest;

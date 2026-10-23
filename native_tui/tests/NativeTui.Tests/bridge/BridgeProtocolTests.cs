@@ -231,6 +231,86 @@ public sealed class BridgeProtocolTests
         Assert.Null(diagnostic);
     }
 
+    /// <summary>submit 带图片附件 JSON 形态（TASK066 板块 G G4 — images 数组 camelCase
+    /// base64/mediaType/filename，与 jcc 侧 BridgeRequest.Submit 逐字段镜像，
+    /// 引擎侧 BridgeJsonContractTests 锁定防漂移；Default 上下文转义非 ASCII — 形态断言用 ASCII）。</summary>
+    [Fact]
+    public void WriteRequest_SubmitWithImages_CarriesImagesArray()
+    {
+        var writer = new StringWriter();
+        BridgeProtocol.WriteRequest(writer, new BridgeRequest.Submit("look at this",
+            [new BridgeImageAttachment("aGk=", "image/png", "shot.png")]));
+        Assert.Equal(
+            "{\"type\":\"submit\",\"text\":\"look at this\",\"images\":[{\"base64\":\"aGk=\",\"mediaType\":\"image/png\",\"filename\":\"shot.png\"}]}\n",
+            writer.ToString());
+    }
+
+    /// <summary>submit 显式 null 附件 — 与旧 JSON 字节等价（Images=null 默认 + WhenWritingNull
+    /// 不序列化，旧对端零破坏 — 对齐 DiffLine 行号字段扩展先例）。</summary>
+    [Fact]
+    public void WriteRequest_SubmitWithNullImages_MatchesLegacyJsonByteForByte()
+    {
+        var writer = new StringWriter();
+        BridgeProtocol.WriteRequest(writer, new BridgeRequest.Submit("hello world", Images: null));
+        Assert.Equal("{\"type\":\"submit\",\"text\":\"hello world\"}\n", writer.ToString());
+    }
+
+    /// <summary>带图 submit roundtrip — 序列化行反解析全字段回读（record 数组字段引用相等，逐项断言；
+    /// 中文经 Default 上下文转义后值等价回读）。</summary>
+    [Fact]
+    public void Roundtrip_SubmitWithImages_SurvivesSerializeDeserialize()
+    {
+        var line = BridgeProtocol.SerializeRequest(new BridgeRequest.Submit("两张图",
+            [
+                new BridgeImageAttachment("aGk=", "image/png", "a.png"),
+                new BridgeImageAttachment("eQ==", "image/jpeg", "b.jpg"),
+            ]));
+        var reader = new StringReader(line + "\n");
+
+        var result = BridgeProtocol.TryReadRequest(reader, out var request, out var diagnostic);
+
+        Assert.Equal(BridgeReadResult.Event, result);
+        Assert.Null(diagnostic);
+        var submit = Assert.IsType<BridgeRequest.Submit>(request);
+        Assert.Equal("两张图", submit.Text);
+        Assert.NotNull(submit.Images);
+        Assert.Equal(2, submit.Images.Length);
+        Assert.Equal(new BridgeImageAttachment("aGk=", "image/png", "a.png"), submit.Images[0]);
+        Assert.Equal(new BridgeImageAttachment("eQ==", "image/jpeg", "b.jpg"), submit.Images[1]);
+    }
+
+    /// <summary>jcc 侧产出的带图行反解析回读（双镜像 roundtrip — 对齐 StopTask 测试形态）。</summary>
+    [Fact]
+    public void ReadRequest_SubmitWithImagesLine_ParsesAllFields()
+    {
+        var reader = new StringReader(
+            "{\"type\":\"submit\",\"text\":\"hi\",\"images\":[{\"base64\":\"aGk=\",\"mediaType\":\"image/png\",\"filename\":\"shot.png\"}]}\n");
+
+        var result = BridgeProtocol.TryReadRequest(reader, out var request, out var diagnostic);
+
+        Assert.Equal(BridgeReadResult.Event, result);
+        var submit = Assert.IsType<BridgeRequest.Submit>(request);
+        Assert.Equal("hi", submit.Text);
+        var image = Assert.Single(submit.Images!);
+        Assert.Equal(new BridgeImageAttachment("aGk=", "image/png", "shot.png"), image);
+        Assert.Null(diagnostic);
+    }
+
+    /// <summary>旧引擎（G4 前）不输出 images 字段 → 反序列化 Images=null 不报坏行（旧协议兼容面）。</summary>
+    [Fact]
+    public void ReadRequest_SubmitLegacyWithoutImages_ImagesStaysNull()
+    {
+        var reader = new StringReader("{\"type\":\"submit\",\"text\":\"legacy\"}\n");
+
+        var result = BridgeProtocol.TryReadRequest(reader, out var request, out var diagnostic);
+
+        Assert.Equal(BridgeReadResult.Event, result);
+        var submit = Assert.IsType<BridgeRequest.Submit>(request);
+        Assert.Equal("legacy", submit.Text);
+        Assert.Null(submit.Images);
+        Assert.Null(diagnostic);
+    }
+
     [Fact]
     public void ReadRequest_InterruptAndQuit_ParseByType()
     {

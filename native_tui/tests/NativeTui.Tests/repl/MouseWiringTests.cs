@@ -91,8 +91,9 @@ public sealed class MouseWiringTests
         Assert.Equal(before - 1, harness.Shell.View.Messages.ScrollTop);
     }
 
-    /// <summary>滚轮下 — 上滚两行后下滚一行回补（C5 P3 ramp：事件 1/2/3 乘数 1→1.3→1.6，
-    /// floor 后均 1 行 — 两向上滚 -2 +1 = 净 -1，既有断言对 ramp 免疫）。</summary>
+    /// <summary>滚轮下 — 上滚两行后下滚两行回补（P3 弹跳新语义：上滚×2 净 -2；下滚第一发
+    /// 方向翻转 defer 返回 0 行（基准 :208-217 翻转判定窗），第二发提交真翻转回 base 1 行 —
+    /// 净 -2 +1 = -1 对称回补；ramp 乘数 floor 后均 1 免疫）。</summary>
     [Fact]
     public void WheelDown_AfterWheelUp_ScrollsBackDown()
     {
@@ -102,8 +103,11 @@ public sealed class MouseWiringTests
 
         harness.Shell.HandleRawKeyPress(MouseKey(MouseKind.WheelUp, MouseButton.Left, 0, 0));
         harness.Shell.HandleRawKeyPress(MouseKey(MouseKind.WheelUp, MouseButton.Left, 0, 0));
+        // 第一发下滚：翻转 defer（0 行 — 弹跳防误判）
         harness.Shell.HandleRawKeyPress(MouseKey(MouseKind.WheelDown, MouseButton.Left, 0, 0));
-
+        Assert.Equal(before - 2, harness.Shell.View.Messages.ScrollTop);
+        // 第二发下滚：真翻转提交 base 1 行
+        harness.Shell.HandleRawKeyPress(MouseKey(MouseKind.WheelDown, MouseButton.Left, 0, 0));
         Assert.Equal(before - 1, harness.Shell.View.Messages.ScrollTop);
     }
 

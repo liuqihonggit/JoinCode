@@ -13,8 +13,11 @@ namespace JoinCode.Cli.Bridge;
 [JsonDerivedType(typeof(BridgeRequest.Quit), "quit")]
 public abstract record BridgeRequest
 {
-    /// <summary>提交用户输入，开始回合。</summary>
-    public sealed record Submit(string Text) : BridgeRequest;
+    /// <summary>提交用户输入，开始回合（G4 — images 可选图片附件数组：null 不序列化字段
+    /// WhenWritingNull，旧 TUI JSON 零破坏 — 对齐 BridgeDiffLine 行号字段扩展先例；
+    /// 与 native_tui 侧 BridgeRequest.Submit 逐字段镜像，JSON 形状由 BridgeJsonContractTests 锁定防漂移）。</summary>
+    public sealed record Submit(string Text,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] BridgeImageAttachment[]? Images = null) : BridgeRequest;
 
     /// <summary>打断当前回合。</summary>
     public sealed record Interrupt() : BridgeRequest;

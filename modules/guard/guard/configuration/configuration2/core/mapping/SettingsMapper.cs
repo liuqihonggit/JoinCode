@@ -117,12 +117,19 @@ public sealed partial class SettingsMapper : ServiceEntity {
     }
 
     /// <summary>
-    /// 从 SettingsJson 的 env 字段注入环境变量到当前进程
+    /// 从 SettingsJson 的 env 字段注入环境变量到当前进程 — 危险键经 <see cref="SettingsEnvGuard"/> 黑名单拒绝
     /// </summary>
-    public static void InjectEnvFromSettings(SettingsJson? settings) {
+    public static void InjectEnvFromSettings(SettingsJson? settings, ILogger? logger = null) {
         if (settings?.Current?.Env is null) return;
 
         foreach (var (key, value) in settings.Current.Env) {
+            if (SettingsEnvGuard.IsDangerous(key)) {
+                logger?.LogWarning(
+                    "[SettingsEnvGuard] 拒绝注入危险环境变量 {Key}（来自 settings.json current.env）：该键属于进程基础设施/代码注入/TLS信任/流量劫持类别，被安全黑名单拦截。正确做法：供应商连接配置用 vendor profile 的 endpoint/apiKeyEnvVar，代理设置请配置系统级环境变量后重启进程",
+                    key);
+                continue;
+            }
+
             if (Environment.GetEnvironmentVariable(key) is null) {
                 Environment.SetEnvironmentVariable(key, value);
             }

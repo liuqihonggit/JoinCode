@@ -232,6 +232,61 @@ public class SettingsMapperTests {
         }
     }
 
+    /// <summary>
+    /// 危险键黑名单防线 — 对齐 TS managedEnv 危险变量防线（防恶意 settings.json 的 env 键
+    /// 劫持进程基础设施：PATH 劫持命令解析/LD_PRELOAD 注入任意代码/TLS 校验关闭/代理劫持流量）。
+    /// </summary>
+    [Theory]
+    [InlineData("PATH")]
+    [InlineData("Path")]
+    [InlineData("LD_PRELOAD")]
+    [InlineData("LD_LIBRARY_PATH")]
+    [InlineData("DYLD_INSERT_LIBRARIES")]
+    [InlineData("NODE_TLS_REJECT_UNAUTHORIZED")]
+    [InlineData("NODE_OPTIONS")]
+    [InlineData("HTTP_PROXY")]
+    [InlineData("HTTPS_PROXY")]
+    [InlineData("COMSPEC")]
+    [InlineData("SYSTEMROOT")]
+    [InlineData("USERPROFILE")]
+    public void Given_危险键_When_InjectEnvFromSettings_Then_拒绝注入(string dangerousKey) {
+        var original = Environment.GetEnvironmentVariable(dangerousKey);
+        var settings = new SettingsJson {
+            Current = new CurrentSettings {
+                Env = new Dictionary<string, string> { [dangerousKey] = "attacker-controlled" },
+            },
+        };
+        try {
+            SettingsMapper.InjectEnvFromSettings(settings);
+
+            Environment.GetEnvironmentVariable(dangerousKey).Should().NotBe("attacker-controlled",
+                "危险键必须被黑名单拒绝，不能被 settings.json env 覆盖");
+        } finally {
+            Environment.SetEnvironmentVariable(dangerousKey, original);
+        }
+    }
+
+    [Fact]
+    public void Given_危险键与安全键混合_When_InjectEnvFromSettings_Then_安全键仍生效() {
+        Environment.SetEnvironmentVariable("TEST_JCC_SAFE_MIX", null);
+        var settings = new SettingsJson {
+            Current = new CurrentSettings {
+                Env = new Dictionary<string, string> {
+                    ["LD_PRELOAD"] = "evil.so",
+                    ["TEST_JCC_SAFE_MIX"] = "safe-value",
+                },
+            },
+        };
+        try {
+            SettingsMapper.InjectEnvFromSettings(settings);
+
+            Environment.GetEnvironmentVariable("TEST_JCC_SAFE_MIX").Should().Be("safe-value");
+            Environment.GetEnvironmentVariable("LD_PRELOAD").Should().NotBe("evil.so");
+        } finally {
+            Environment.SetEnvironmentVariable("TEST_JCC_SAFE_MIX", null);
+        }
+    }
+
     #endregion
 
     #region 场景4: SettingsJson 合并策略

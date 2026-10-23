@@ -98,8 +98,8 @@ public class ConfigLoader {
                 _modelConfigLoader.ApplyProviders(providers);
             }
 
-            // Step 2: 注入 settings.env 到环境变量（低优先级，不覆盖已有环境变量）
-            SettingsMapper.InjectEnvFromSettings(settings);
+            // Step 2: 注入 settings.env 到环境变量（低优先级，不覆盖已有环境变量；危险键黑名单拒绝）
+            SettingsMapper.InjectEnvFromSettings(settings, _logger);
 
             // Step 2.5: 环境变量覆盖 SettingsJson — 集中启动参数解析（JCC_VENDOR/MODEL_ID/ENDPOINT/PROFILE）
             settings = EnvOverrideApplier.Apply(settings);

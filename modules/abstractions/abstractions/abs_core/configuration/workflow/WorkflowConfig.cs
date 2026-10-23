@@ -95,6 +95,18 @@ public sealed record WorkflowConfig {
     public string? OutputStyle { get; init; }
 
     /// <summary>
+    /// 自动记忆开关 — 对齐 TS settings.json autoMemoryEnabled 键（默认 true）；
+    /// 流向 Dream AutoDreamConfig.AutoMemoryEnabled（插件桥）
+    /// </summary>
+    public bool AutoMemoryEnabled { get; init; } = true;
+
+    /// <summary>
+    /// 自动做梦（后台记忆整理）开关 — 对齐 TS settings.json autoDreamEnabled 键（默认 true）；
+    /// 流向 Dream AutoDreamConfig.Enabled（插件桥）
+    /// </summary>
+    public bool AutoDreamEnabled { get; init; } = true;
+
+    /// <summary>
     /// 显示回合耗时 — 对齐 TS showTurnDuration（默认 true）；
     /// SessionController 门控 timing 摘要显示（debuglog 开启时强制显示）
     /// </summary>

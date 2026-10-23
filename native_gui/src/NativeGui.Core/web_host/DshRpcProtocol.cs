@@ -179,6 +179,86 @@ internal sealed class DshEventErrorBody {
 internal sealed class DshEventsResultValue;
 
 /// <summary>
+/// <c>user-questions/request</c> 的前端载荷（dsh-client-ui-user-questions 问题卡片消费
+/// <c>questions[{id,question,detail?,header?,options?,multiSelect?}]</c>）。Gateway 转发前会剥掉
+/// agent/signal，宿主只发纯 JSON 字段。
+/// </summary>
+internal sealed class DshUserQuestionRequest {
+    /// <summary>问题列表（1-4 个，id 在本次请求内唯一）</summary>
+    public List<DshUserQuestion> Questions { get; set; } = [];
+}
+
+/// <summary>单个问题（id 用于答案批次回填）</summary>
+internal sealed class DshUserQuestion {
+    /// <summary>问题 ID（宿主按 q0..qN 分配）</summary>
+    public string Id { get; set; } = "";
+    /// <summary>问题文本</summary>
+    public string Question { get; set; } = "";
+    /// <summary>卡片标题</summary>
+    public string Header { get; set; } = "";
+    /// <summary>可选项</summary>
+    public List<DshUserQuestionOption> Options { get; set; } = [];
+    /// <summary>是否多选</summary>
+    public bool MultiSelect { get; set; }
+}
+
+/// <summary>问题选项（label 即回帖 selected 里的值）</summary>
+internal sealed class DshUserQuestionOption {
+    /// <summary>选项标签</summary>
+    public string Label { get; set; } = "";
+    /// <summary>选项说明</summary>
+    public string Description { get; set; } = "";
+}
+
+/// <summary>
+/// 答案批次（<c>$events/result</c> 的 <c>outcome.value</c>，也是 <c>userQuestions/answer</c> 的 answer 参数）：
+/// 每个问题一项，selected 为标签数组，custom 为用户自填文本（可省）。
+/// </summary>
+internal sealed class DshUserQuestionAnswerBatch {
+    /// <summary>答案项</summary>
+    public List<DshUserQuestionAnswerItem> Answers { get; set; } = [];
+}
+
+/// <summary>单个问题的答案（跳过 = selected 空且无 custom）</summary>
+internal sealed class DshUserQuestionAnswerItem {
+    /// <summary>问题 ID</summary>
+    public string Id { get; set; } = "";
+    /// <summary>选中的选项标签</summary>
+    public List<string> Selected { get; set; } = [];
+    /// <summary>自填答案（可选）</summary>
+    public string? Custom { get; set; }
+}
+
+/// <summary><c>userQuestions/answer</c> 参数（agent 作用域：{agentId, callId, answer}）</summary>
+internal sealed class DshUserQuestionsAnswerArgs {
+    /// <summary>会话 ID</summary>
+    public string AgentId { get; set; } = "";
+    /// <summary>工具调用 ID</summary>
+    public string CallId { get; set; } = "";
+    /// <summary>完整答案批次</summary>
+    public DshUserQuestionAnswerBatch? Answer { get; set; }
+}
+
+/// <summary><c>userQuestions/attachWait</c> 流参数（agent 作用域：{agentId, callId}）</summary>
+internal sealed class DshUserQuestionsAttachWaitArgs {
+    /// <summary>会话 ID</summary>
+    public string AgentId { get; set; } = "";
+    /// <summary>工具调用 ID</summary>
+    public string CallId { get; set; } = "";
+}
+
+/// <summary>
+/// $events 流上的取消帧（宿主→前端）：告知该 waterfall 已结算/取消，前端停止等待并关闭卡片。
+/// 对齐 DSH gateway finishRemoteEvent 在每次结算后下发 <c>{type:"cancel", eventId}</c>。
+/// </summary>
+internal sealed class DshWaterfallCancelFrame {
+    /// <summary>固定为 cancel</summary>
+    public string Type { get; set; } = "cancel";
+    /// <summary>已结算的 waterfall 关联 ID</summary>
+    public string EventId { get; set; } = "";
+}
+
+/// <summary>
 /// 会话日志的审批审计事件 <c>approval/asked</c>（对齐 DSH dsh-user-approval：审批请求必须先落审计，
 /// 且与 <see cref="DshApprovalDecidedData"/> 成对、被 turn/start…turn/end 包住，否则回放时是崩溃残尾）。
 /// </summary>
@@ -1815,6 +1895,14 @@ internal sealed class DshPluginInventoryEntry {
 [JsonSerializable(typeof(DshEventsResultArgs))]
 [JsonSerializable(typeof(DshEventOutcome))]
 [JsonSerializable(typeof(DshEventsResultValue))]
+[JsonSerializable(typeof(DshUserQuestionRequest))]
+[JsonSerializable(typeof(DshUserQuestion))]
+[JsonSerializable(typeof(DshUserQuestionOption))]
+[JsonSerializable(typeof(DshUserQuestionAnswerBatch))]
+[JsonSerializable(typeof(DshUserQuestionAnswerItem))]
+[JsonSerializable(typeof(DshUserQuestionsAnswerArgs))]
+[JsonSerializable(typeof(DshUserQuestionsAttachWaitArgs))]
+[JsonSerializable(typeof(DshWaterfallCancelFrame))]
 [JsonSerializable(typeof(DshApprovalAskedData))]
 [JsonSerializable(typeof(DshApprovalDecidedData))]
 [JsonSerializable(typeof(DshEventErrorBody))]

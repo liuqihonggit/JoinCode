@@ -31,7 +31,7 @@
 | `dsh-client-ui-message-feedback` | 消息反馈 | `messageFeedback/{list,put,delete}` | ✅ 落盘 + 乐观并发 + 契约错误联合体 | 单测（版本冲突/备注规则）+ 真机 E2E |
 | `dsh-client-ui-directory-picker-native` | 原生目录选择 | `directoryPicker/{pick,list,createDirectory}` | ✅ 原生选择 + 目录浏览（面包屑/隐藏项/1000 条截断）+ 新建目录 | 单测 13 例 + 真机 E2E |
 | `dsh-client-ui-session` | 会话搜索/标题 | `session/rename`、`session/search` | ✅ 字面量搜索 + 20 条上限 + 240 字片段 | 单测（片段/hasMore）+ 真机 E2E |
-| `dsh-client-ui-user-questions` | AskUserQuestion 卡片 | `$events` 桥 | ✅ | `dsh-webui-approval` 同层 |
+| `dsh-client-ui-user-questions` | AskUserQuestion 卡片 | `$events` waterfall `user-questions/request` + `$events/result` + 结算后 `{type:"cancel",eventId}` | ✅ 引擎 `ask_user_question` → 单卡多问（单选自动翻页、多选、自填、跳过）；`userQuestions/answer` 诚实返回 false（宿主无 continued 队列），`userQuestions/attachWait` 空流（无 timed wait） | 单测 10 例 + `dsh-webui-questions.mjs` 真机 23 项 ALL_PASS（五键帧、q0/q1、单选翻页、多选 A/B、提交后工具结果 `"问题"="答案"`、cancel 帧、turn/end completed） |
 | `dsh-client-ui-trajectory` / `deliverables` / `workflow-run` | 轨迹/产物/工作流 | 会话事件 + `api/changes.{summary,diff,open}` + `api/present.{host,open}` | ✅ 轨迹消费轮次事件；deliverables 每轮收口推 `workspace/changes` + 摘要/对比/原生打开；workflow-run 读轮次事件（引擎无独立工作流运行时） | 单测（改动收集 5 例）+ `c7-changes-e2e.mjs` 27 项 + `c7-trajectory-e2e.mjs` 16 项真机 ALL_PASS |
 | `dsh-client-ui-plugin-manager` / `cordis` | 插件管理 | `pluginInventory/list` | ✅ 返回 `managementAvailable=false` + 空清单（本部署无插件 profile，前端显示空态而非网络错误） | 单测 1 例 |
 | `dsh-api-workspace-controller` | 工作区路径应用 | `session/{openWorkspacePath,workspacePathApplications,canOpenWorkspacePath,initializeDefaultModel}` | ✅ 仅公布资源管理器处理器；能力探测返回桌面宿主；默认模型初始化按本地设置直通 | 单测（引导文案/能力探测）+ 真机 E2E |
@@ -62,6 +62,7 @@
 | C5 | `workspaceFiles/changes` 流 + 文档预览真机验收 | ✅ 已验收（流 8 项 + 预览 12 项 ALL_PASS） |
 | C6 | TUI 差异收敛（后台任务/子代理/权限模式）与文档四列表 | ✅ 已验收（目录浏览/@ 引用/能力探测/技能/子代理/计划模式与权限投影；`c6-e2e.mjs` 真机 30 项 ALL_PASS） |
 | C7 | 全量 E2E 回归 + 完成审计 | ✅ 已验收（deliverables 27 项、轨迹 16 项、目标条 28 项、C4 19 项、C5 8 项、C6 30 项、终端面板 11 项、Core 单测 364+/364+） |
+| C8 | 提问卡片：`user-questions/request` waterfall + 批量回帖 + 结算 cancel 帧 | ✅ 已验收（单测 10 + `dsh-webui-questions.mjs` 真机 23 项 ALL_PASS） |
 
 ## 四、验收四列表（滚动更新）
 
@@ -101,6 +102,9 @@
 | `pluginInventory/list` 空清单快照（`managementAvailable=false`） | 插件管理页空态 | ✅ | ✅ 单测 1 例 |
 | `DshSessionStore.ToGoalFace` + `DshHostServices.PublishGoalProjectionAsync`（无目标 JSON `null`；有目标 `{goal,roundsStarted,createdAt,updatedAt}`；写路径后推 `session/control` goal 整值帧） | 前端 GoalDock `useProjection("goal")`、控制帧实时刷新目标条 | ✅ | ✅ 单测 5 例 + `c7-goal-e2e.mjs` 真机 28 项（初始 undefined → 建目标渲染 → 暂停/恢复 → 编辑 → 清除隐藏、基线/帧 seq 水位、两张截图） |
 | `DshRpcDispatcher` goals 七方法（agent 作用域：get/create/edit/pause/resume/complete/clear，create/edit 走 `request` 信封，clear 返回裸 `{id,revision}`，get 无目标省略 `value`） | 目标条按钮 `remote.goals.*`、`useGoalActivation` 读 `goals/get.activation` | ✅ | ✅ 单测 5 例（agent wire/undefined/裸 ref）+ 真机 UI 暂停/恢复/编辑/清除全部生效 |
+| `DshUserQuestionBroker`（`$events` 挂接/断连 fail-closed、`user-questions/request` 五键帧、q0..qN 答案映射、结算后 cancel 帧、轮次收尾按会话取消） | 引擎 `ask_user_question` → 前端问题卡片 → `$events/result` → 工具结果 | ✅ | ✅ 单测 10 例 + `dsh-webui-questions.mjs` 真机 23 项 ALL_PASS（真实桩模型 → 卡片 → 提交 → `"是否继续执行？"="继续"`、`"选择要包含的选项？"="A, B"` → `turn/end completed`） |
+| `AvaloniaInteractiveService.ShowQuestionsCallback` + `IJccChatSession.AskUserQuestionsCallback` 转发（GUI DI Order=80 单例） | 引擎工具处理器取整批问题一次性投递给前端卡片（而非逐题原生对话框） | ✅ | ✅ 同上真机 E2E：一张卡片渲染 2 问、单选自动翻页、多选 A/B 同时提交 |
+| `userQuestions/answer` 诚实 false（宿主无 continued 队列）+ `userQuestions/attachWait` 空流（无 timed wait） | 前端在 continued 状态下才走 RPC 回帖；本轮宿主不产生该状态 | ✅ | ✅ 单测 2 例（route 回 false + 引导文案含 callId/answer、attachWait 空流） |
 
 <!-- 🤖 Auto Decision: 2026-10-22 -->
 <!-- 决策: 新建 TASK066 而非复用 TASK065（同名文档已被 TUI 任务占用） -->
@@ -180,3 +184,9 @@
 <!-- 原因: 从 Agent Bash 作业内启动的进程创建 ConPTY 时子进程立即退出；无 stub key 时引擎不进 attached，skills/list 等依赖引擎的断言超时 -->
 <!-- 替代方案: 在作业内直接启动 / 用 mock 引擎 —— 前者无法复现真实终端，后者违反 ADR 0080 非 mock 验收，均不采用 -->
 <!-- 验证: 终端面板 11 项、c6 30 项、c7 27+16 项连续 ALL_PASS -->
+
+<!-- 🤖 Auto Decision: 2026-10-24 (提问卡片 user-questions) -->
+<!-- 决策: 引擎 ask_user_question 整批问题 → 一张前端卡片；宿主阻塞式问答（不回 wait 字段）；userQuestions/answer 诚实 false；attachWait 返回空流；每次结算/取消都补发 {type:"cancel",eventId} -->
+<!-- 原因: 前端 QuestionComposer 在 waterfall 通道下一次性渲染全部问题并批量回帖，逐题原生对话框会拆成多张卡；timed wait/continued 队列是 DSH 宿主侧能力，本地宿主没有对应状态，伪造会让前端等待永不到来的倒计时或继续队列；不补 cancel 帧前端会一直等待该 waterfall -->
+<!-- 替代方案: 逐题 ShowQuestionsAsync（多次弹卡，打断回答节奏）/ 回 wait:60000 制造假倒计时 / answer 假装受理（前端会进入 continued 但宿主无队列）—— 均不采用 -->
+<!-- 验证: 单测 10 例全绿（五键帧/答案映射/cancel/断连/换会话/旧客户端幂等/answer 诚实 false）；dsh-webui-questions.mjs 真机 23 项 ALL_PASS（桩模型工具调用 → 单选+多选卡片 → 提交 → 工具结果 → turn/end completed → 无 unimplemented/error 帧） -->

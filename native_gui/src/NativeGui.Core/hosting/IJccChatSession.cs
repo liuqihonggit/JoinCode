@@ -69,6 +69,15 @@ public interface IJccChatSession : IAsyncDisposable {
     /// </summary>
     Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
 
+    /// <summary>
+    /// 批量提问回调 — 一次交回全部问题（DSH 问题卡片单卡多问）。
+    /// UI 注入后优先于 <see cref="AskUserQuestionDialogCallback"/>；为 null 时回退逐题弹窗。
+    /// </summary>
+    Func<List<QuestionItem>, CancellationToken, Task<AskUserQuestionResult>>? AskUserQuestionsCallback {
+        get => null;
+        set { }
+    }
+
     /// <summary>获取当前会话消息列表</summary>
     Task<IReadOnlyList<ApiMessageRecord>> GetMessagesAsync(CancellationToken cancellationToken = default);
 

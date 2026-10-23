@@ -37,6 +37,15 @@ internal sealed class JccChatSession : IJccChatSession {
         set { if (_interactiveService is not null) _interactiveService.ShowDialogCallback = value; }
     }
 
+    /// <summary>
+    /// 批量提问回调 — DSH Web UI 一次卡片承载全部问题；设置后 AvaloniaInteractiveService
+    /// 优先走批量回调，不再逐题弹原生对话框。
+    /// </summary>
+    public Func<List<QuestionItem>, CancellationToken, Task<AskUserQuestionResult>>? AskUserQuestionsCallback {
+        get => _interactiveService?.ShowQuestionsCallback;
+        set { if (_interactiveService is not null) _interactiveService.ShowQuestionsCallback = value; }
+    }
+
     private readonly AvaloniaInteractiveService? _interactiveService;
 
     internal JccChatSession(

@@ -45,6 +45,7 @@ internal sealed class DshRpcDispatcher {
             ["agentPresets/select"] = Sync(AgentPresetsSelect),
             ["permissionPresets/catalog"] = PermissionPresetsCatalog,
             ["$events/result"] = EventsResult,
+            ["userQuestions/answer"] = Sync(UserQuestionsAnswer),
             ["settings/describe"] = Sync(_ => Ok(services.Settings.Describe())),
             ["settings/mutate"] = Sync(args => services.Settings.Mutate(args)),
             ["settings/replace"] = SettingsReplace,
@@ -1226,7 +1227,24 @@ internal sealed class DshRpcDispatcher {
             return Fail("events/result-rejected", $"$events/result 需要 {{clientId, eventId, outcome}} 三字段；收到 args={Describe(args)}");
         }
         await _services.Approvals.SettleAsync(body.ClientId, body.EventId, body.Outcome);
+        await _services.Questions.SettleAsync(body.ClientId, body.EventId, body.Outcome);
         return Ok(new DshEventsResultValue());
+    }
+
+    /// <summary>
+    /// userQuestions/answer：DSH 的「continued（计时等待）问题」续答入口。
+    /// 宿主 ask_user_question 是阻塞式调用，答案随 <c>$events/result</c> 直接回给引擎，
+    /// 不存在可续答的 continued 队列，因此诚实返回 false（该问题已不可续答）。
+    /// 参数缺失时给出三字段引导，避免前端拿着空载荷反复重试。
+    /// </summary>
+    private static DshRpcResult UserQuestionsAnswer(JsonElement args) {
+        var body = args.Deserialize(DshJsonContext.Default.DshUserQuestionsAnswerArgs);
+        if (body is null || string.IsNullOrEmpty(body.CallId) || body.Answer is null) {
+            return Fail("userQuestions/answer-rejected",
+                $"userQuestions/answer 需要 {{agentId, callId, answer}} 三字段（answer={{answers:[{{id,selected,custom?}}]}}）；收到 args={Describe(args)}");
+        }
+        GuiDiag.Log($"[DSH-QUESTION] answer rpc ignored agent={body.AgentId} callId={body.CallId}: host questions settle via $events/result");
+        return OkBool(false);
     }
 
     /// <summary>

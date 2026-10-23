@@ -133,6 +133,8 @@ internal sealed class DshTurnRunner {
     private async Task RunTurnAsync(Hosting.IJccChatSession engine, string sessionId, string text, int turn, CancellationToken cancellationToken) {
         // 权限确认 waterfall 的目标会话（前端按 agentId 路由到对应会话 scope 的审批面板，TASK058 B1）
         _services.Approvals.SetAgent(sessionId);
+        // 提问卡片的 waterfall 同样按会话路由（前端按 agentId 找到对应会话的卡片槽位）
+        _services.Questions.SetAgent(sessionId);
         // 子代理轮内运行追踪（tool-workflow 事件族，TASK058 B6）— try 外声明，取消/异常分支也要收尾
         var agents = new DshAgentRunTracker($"{sessionId}:{turn}:agents");
         // 助手流尝试是否已开启（取消/失败分支也要据此补 abandoned 结算）
@@ -242,6 +244,7 @@ internal sealed class DshTurnRunner {
     /// <param name="reason">轮次结束原因</param>
     private async Task FinishTurnAsync(string sessionId, int turn, DshTurnEndReason reason) {
         await _services.Approvals.CloseTurnAsync(sessionId);
+        await _services.Questions.CloseTurnAsync(sessionId);
         await EndTurnAsync(sessionId, turn, reason);
     }
 

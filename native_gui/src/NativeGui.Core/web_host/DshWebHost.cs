@@ -505,6 +505,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
                 var clientId = Guid.NewGuid().ToString();
                 Func<JsonElement, Task> sendFrame = frame => send(Item(open.StreamId, frame));
                 _services.Approvals.Attach(sendFrame, clientId);
+                _services.Questions.Attach(sendFrame, clientId);
                 // goal/activation-changed 事件桥（TASK058 P2-B5）：activation 翻转即推 waterfall 帧
                 void OnGoalChanged(string sessionId, DshGoalDocument goal) {
                     _ = sendFrame(JsonSerializer.SerializeToElement(new DshWaterfallFrame {
@@ -526,6 +527,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
                 }, DshJsonContext.Default.DshEventsReady))], new DetachLease(() => {
                     _services.Goals.GoalChanged -= OnGoalChanged;
                     _services.Approvals.Detach();
+                    _services.Questions.Detach();
                 }), null);
             }
             case "workspace/follow": {
@@ -555,6 +557,11 @@ internal sealed class DshWebHost : IAsyncDisposable {
             }
             case "session/follow":
                 return await OpenSessionAsync(open, send, cancellationToken);
+            case "userQuestions/attachWait":
+                // 宿主 ask_user_question 是阻塞式调用（无 timed wait），前端仅对 wait.timed 问题才会打开本流。
+                // 诚实返回空流：不伪造 remainingMs，避免 UI 误以为还有可续答窗口。
+                GuiDiag.Log("[DSH-WEB] userQuestions/attachWait: host has no timed question wait; empty stream");
+                return ([], null, null);
             case "workspaceFiles/changes":
                 return await OpenWorkspaceFilesChangesAsync(open, send, cancellationToken);
             case "job/list":

@@ -88,6 +88,9 @@ internal sealed class DshWebUiWindow : Window {
             _engine = engine;
             _services.AttachEngine(engine);
             engine.PermissionConfirmationHandler = request => _services.Approvals.RequestAsync(request);
+            // 提问卡片（TASK066 C7）：引擎 ask_user_question → $events user-questions/request → 前端单卡多问
+            engine.AskUserQuestionsCallback = (questions, cancellationToken) =>
+                _services.Questions.RequestAsync(questions, cancellationToken);
             if (engine.TranscriptService is { } transcripts) {
                 _services.Sessions.AttachTranscripts(transcripts);
                 App.LogDiag("[DSH-WEB] engine attached: transcripts ready");

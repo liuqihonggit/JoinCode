@@ -15,6 +15,12 @@ public sealed class AvaloniaInteractiveService : IInteractiveService {
     /// </summary>
     public Func<QuestionItem, Task<AskUserQuestionResult>>? ShowDialogCallback { get; set; }
 
+    /// <summary>
+    /// 批量提问回调 — DSH Web UI 模式注入：一次把全部问题交给前端卡片渲染，
+    /// 避免逐题弹原生对话框（最多 4 次）打断会话。设置后优先于 <see cref="ShowDialogCallback"/>。
+    /// </summary>
+    public Func<List<QuestionItem>, CancellationToken, Task<AskUserQuestionResult>>? ShowQuestionsCallback { get; set; }
+
     /// <summary>初始化 AvaloniaInteractiveService 实例</summary>
     public AvaloniaInteractiveService(ILogger<AvaloniaInteractiveService>? logger = null) {
         _logger = logger;
@@ -46,6 +52,11 @@ public sealed class AvaloniaInteractiveService : IInteractiveService {
 
         if (questions.Count > 4)
             return AskUserQuestionResult.FailureResult("Maximum 4 questions allowed");
+
+        // DSH Web UI：一张卡片承载全部问题（前端答案批次经 $events 回帖）
+        if (ShowQuestionsCallback is { } askBatch) {
+            return await askBatch(questions, cancellationToken);
+        }
 
         var answers = new Dictionary<string, string>();
 

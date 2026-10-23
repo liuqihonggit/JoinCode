@@ -23,6 +23,7 @@ internal sealed class DshHostServices {
         Approvals = new DshApprovalBroker {
             Audit = (sessionId, type, payload) => Streams.PublishElementAsync(sessionId, type, payload),
         };
+        Questions = new DshUserQuestionBroker();
         WorkspaceFiles = new DshWorkspaceFilesService(Sessions, fileSystem);
         Attachments = new DshAttachmentStore(fileSystem);
         Goals = new DshGoalStore(fileSystem);
@@ -163,6 +164,9 @@ internal sealed class DshHostServices {
 
     /// <summary>权限确认桥（引擎确认点 → $events waterfall → 前端回帖，TASK058 B1）</summary>
     internal DshApprovalBroker Approvals { get; }
+
+    /// <summary>提问卡片桥（引擎 ask_user_question → $events waterfall → 前端问题卡片，TASK066 C7）</summary>
+    internal DshUserQuestionBroker Questions { get; }
 
     /// <summary>工作区文件树（workspaceFiles/list|read|readBytes|stat，TASK058 P2-B1）</summary>
     internal DshWorkspaceFilesService WorkspaceFiles { get; }

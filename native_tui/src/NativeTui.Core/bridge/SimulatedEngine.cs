@@ -138,21 +138,23 @@ public sealed class SimulatedEngine : IReplEngine
     }
 
     /// <summary>
-    /// 模拟补丁 — Demo 演示 StructuredDiff 渲染链路（M7-2）：Removed/Added 行在前（红绿可见），
-    /// Context 行殿后；4 行 hunk 全量渲染（≤ DiffResultItem 预览上限 10 行）。
+    /// 模拟补丁 — Demo 演示 StructuredDiff 渲染链路（M7-2 + TASK066 F1 行号 gutter）：
+    /// Removed/Added 行在前（红绿可见），Context 行殿后；行号真值演示（引擎 PatchLine 投影同语义 —
+    /// Removed 带 old、Added 带 new、Context 双侧）+ 自洽 hunk 头（old 2 行 / new 3 行）。
+    /// 4 行 hunk 全量渲染（≤ DiffResultItem 预览上限 10 行）。
     /// 公开静态供渲染可见性回归测试与 Demo 构造复用（对齐 DemoMarkdown 先例）。
     /// </summary>
     public static readonly DiffHunk[] SimulatedPatch =
     [
         new()
         {
-            Header = "@@ -1,4 +1,5 @@",
+            Header = "@@ -1,2 +1,3 @@",
             Lines =
             [
-                new DiffLine { Kind = DiffLineKind.Removed, Content = "old behavior" },
-                new DiffLine { Kind = DiffLineKind.Added, Content = "new behavior + diff render" },
-                new DiffLine { Kind = DiffLineKind.Added, Content = "extra line to show collapse" },
-                new DiffLine { Kind = DiffLineKind.Context, Content = "existing line" },
+                new DiffLine { Kind = DiffLineKind.Removed, Content = "old behavior", OldLineNumber = 1 },
+                new DiffLine { Kind = DiffLineKind.Added, Content = "new behavior + diff render", NewLineNumber = 1 },
+                new DiffLine { Kind = DiffLineKind.Added, Content = "extra line to show collapse", NewLineNumber = 2 },
+                new DiffLine { Kind = DiffLineKind.Context, Content = "existing line", OldLineNumber = 2, NewLineNumber = 3 },
             ],
         },
     ];

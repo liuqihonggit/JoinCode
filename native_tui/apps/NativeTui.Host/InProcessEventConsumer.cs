@@ -234,7 +234,8 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
             : (content, hiddenLines);
     }
 
-    /// <summary>引擎 StructuredPatchHunk[] → Core 零依赖 DiffHunk[] 渲染投影（空/ null → null 维持纯文本摘要形态）。</summary>
+    /// <summary>引擎 StructuredPatchHunk[] → Core 零依赖 DiffHunk[] 渲染投影（空/ null → null 维持纯文本摘要形态；
+    /// TASK066 F1 行号贯通 — PatchLine.OldLineNumber/NewLineNumber 引擎真值直投影，gutter 渲染数据源）。</summary>
     private static DiffHunk[]? ProjectPatch(StructuredPatchHunk[]? patch) =>
         patch is null || patch.Length == 0 ? null
             : patch.Select(static hunk => new DiffHunk {
@@ -242,6 +243,8 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
                 Lines = hunk.Lines.Select(static line => new CoreDiffLine {
                     Kind = (DiffLineKind)(byte)line.Type,
                     Content = line.Content,
+                    OldLineNumber = line.OldLineNumber,
+                    NewLineNumber = line.NewLineNumber,
                 }).ToArray(),
             }).ToArray();
 }

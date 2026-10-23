@@ -20,6 +20,13 @@ public sealed class Screen : IDisposable
     /// 无需 cell 级失效通知；Clear 原子清空防帧重画残留。</summary>
     private List<IReadOnlyList<LinkSpan>> _links;
 
+    /// <summary>写入裁剪区栈（TASK066 F6 — 滚动区 overscan 窗口写入防写穿，对齐基准 ink 输出层
+    /// 视口裁剪 render-node-to-output.ts:617 跳过可视窗外 children）：栈空 = 全屏可写（既有语义
+    /// 零破坏）；ScrollBox 渲染期经 <see cref="ClipScope(Layout.Rect)"/> 压入自身 frame — 项写入越界丢弃
+    ///（Render 调用副作用保留 — 动画推进/状态更新照常，终端输出按帧裁剪）。读路径不裁剪
+    ///（选区/hit-test 全屏读取不受限）。</summary>
+    private readonly Stack<Rect> _clips = new();
+
     /// <summary>创建指定尺寸的网格（全空白）。样式池为本帧私有（单缓冲场景）。</summary>
     public Screen(int cols, int rows)
         : this(cols, rows, new StylePool())
@@ -55,7 +62,8 @@ public sealed class Screen : IDisposable
     /// <summary>样式 intern 池（本帧缓冲关联）。</summary>
     public StylePool Styles { get; }
 
-    /// <summary>读写指定 cell（越界返回 Blank，写入被忽略）。</summary>
+    /// <summary>读写指定 cell（越界返回 Blank，写入被忽略；写入另受 <see cref="_clips"/> 裁剪区栈顶限制 —
+    /// 栈非空且 cell 在栈顶区域外时丢弃，TASK066 F6）。</summary>
     public Cell this[int row, int col]
     {
         get
@@ -69,13 +77,67 @@ public sealed class Screen : IDisposable
         }
         set
         {
-            if (row < 0 || row >= Rows || col < 0 || col >= Cols)
+            if (row < 0 || row >= Rows || col < 0 || col >= Cols || IsClipped(row, col))
             {
                 return;
             }
 
             _cells[row * Cols + col] = value;
             _damageRows[row] = true;
+        }
+    }
+
+    /// <summary>写入是否被裁剪区栈顶拦截（栈空 = 不裁剪 — 既有全屏写入语义零开销快速路径）。</summary>
+    private bool IsClipped(int row, int col)
+    {
+        if (_clips.Count == 0)
+        {
+            return false;
+        }
+
+        var clip = _clips.Peek();
+        return row < clip.Y || row >= clip.Y + clip.Height || col < clip.X || col >= clip.X + clip.Width;
+    }
+
+    /// <summary>行是否被裁剪区栈顶整体排除（行级写入入口 SetLinks 用 — 行在区域外丢弃）。</summary>
+    private bool IsClippedRow(int row)
+    {
+        if (_clips.Count == 0)
+        {
+            return false;
+        }
+
+        var clip = _clips.Peek();
+        return row < clip.Y || row >= clip.Y + clip.Height;
+    }
+
+    /// <summary>压入写入裁剪区并返回 using 作用域（TASK066 F6 — 推荐形态
+    /// <c>using var _ = screen.ClipScope(frame);</c>，Dispose 弹出 — 结构性成对保障，
+    /// 不暴露裸 Push/Pop 防泄漏失衡；嵌套 push 取栈顶最近区域）。</summary>
+    public ClipScopeHandle ClipScope(Rect clip)
+    {
+        _clips.Push(clip);
+        return new ClipScopeHandle(this);
+    }
+
+    /// <summary>裁剪区作用域 — <see cref="Screen.ClipScope(Layout.Rect)"/> 的 using 配对体（弹出幂等防御 — 空栈不抛）。</summary>
+    public readonly struct ClipScopeHandle : IDisposable
+    {
+        private readonly Screen _screen;
+
+        /// <summary>创建作用域（仅经 <see cref="Screen.ClipScope(Layout.Rect)"/> — 保证 push 配对）。</summary>
+        internal ClipScopeHandle(Screen screen)
+        {
+            _screen = screen;
+        }
+
+        /// <summary>退出作用域弹出裁剪区（空栈 no-op — 防御性双 Dispose 容忍）。</summary>
+        public void Dispose()
+        {
+            if (_screen._clips.Count > 0)
+            {
+                _screen._clips.Pop();
+            }
         }
     }
 
@@ -92,11 +154,12 @@ public sealed class Screen : IDisposable
         Array.Clear(_damageRows);
     }
 
-    /// <summary>写入行级链接区间表（替换式 — 渲染器每帧重写本行区间；越界忽略）；
+    /// <summary>写入行级链接区间表（替换式 — 渲染器每帧重写本行区间；越界忽略；
+    /// 裁剪区栈顶区域外的行丢弃 — TASK066 F6，与 cell 写入同语义）；
     /// 标记行 damage（链接变化必伴 cell 变化，防御性标记 — 漏标 = 漏渲染）。</summary>
     public void SetLinks(int row, IReadOnlyList<LinkSpan> spans)
     {
-        if (row < 0 || row >= Rows)
+        if (row < 0 || row >= Rows || IsClippedRow(row))
         {
             return;
         }

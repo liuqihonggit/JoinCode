@@ -104,7 +104,7 @@ public abstract record BridgeEvent
         Removed = 2,
     }
 
-    /// <summary>diff 行投影（渲染子集：kind + content，不含行号）— 与 native_tui DiffLine 逐字节镜像。</summary>
+    /// <summary>diff 行投影（渲染子集：kind + content + 行号 TASK066 F1）— 与 native_tui DiffLine 逐字段镜像。</summary>
     public sealed record BridgeDiffLine
     {
         /// <summary>行种类（渲染前缀与着色依据）。</summary>
@@ -112,6 +112,15 @@ public abstract record BridgeEvent
 
         /// <summary>行内容（不含 +/-/空格前缀）。</summary>
         public required string Content { get; init; }
+
+        /// <summary>旧文件行号（1 基 — 引擎 PatchLine.OldLineNumber 直投影：Removed/Context 行有值；
+        /// null 不序列化（WhenWritingNull — 旧 JSON golden 零破坏），TUI 侧降级 hunk 头解析流推进）。</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int? OldLineNumber { get; init; }
+
+        /// <summary>新文件行号（1 基 — 引擎 PatchLine.NewLineNumber 直投影：Added/Context 行有值；null 不序列化）。</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int? NewLineNumber { get; init; }
     }
 
     /// <summary>diff hunk 投影（渲染子集：header + lines）— 与 native_tui DiffHunk 逐字节镜像。</summary>

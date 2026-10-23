@@ -54,6 +54,28 @@ public static class ToolTitleFormatter
         TryGetStringField(args, "old_string") is { Length: 0 } ? "Create" : "Update";
 
     /// <summary>
+    /// 派生工具显示名 — Edit 走 Create/Update（<see cref="DeriveEditLabel"/>），其余原名
+    /// （FileEditTool/UI.tsx userFacingName — 基准 AgentTool/UI.tsx:852 userFacingToolName 同源）。
+    /// 唯一数据源：ToolCallItem 标题行与 spinner lastToolInfo（TASK066 F4）共用，消双源漂移。
+    /// </summary>
+    public static string DisplayToolName(string toolName, string args) =>
+        toolName is EditTool ? DeriveEditLabel(args) : toolName;
+
+    /// <summary>
+    /// spinner lastToolInfo 行文本 — 基准 AgentTool/UI.tsx:858 `${userFacingToolName}: ${summary}`
+    /// 形态：显示名 + 主参数摘要首行（多行命令单行化 — Bash 两行命令取首行）；
+    /// 未知工具 Args 原文超长按 <see cref="MaxCommandDisplayChars"/> 截断加 …（防御引擎新工具超长参数）。
+    /// </summary>
+    public static string FormatToolInfo(string toolName, string args)
+    {
+        var display = DisplayToolName(toolName, args);
+        var firstLine = Format(toolName, args).Split('\n')[0];
+        return firstLine.Length > MaxCommandDisplayChars
+            ? $"{display}: {firstLine[..MaxCommandDisplayChars]}…"
+            : $"{display}: {firstLine}";
+    }
+
+    /// <summary>
     /// 派生 Write 结果摘要句式 — "写入 N 行到 {path}"（FileWriteTool/UI.tsx "Wrote N lines to path" 汉化）。
     /// 供 Driver 组装 ToolResult Summary 消费（行数口径 = countLines 尾换行终结语义）。
     /// </summary>

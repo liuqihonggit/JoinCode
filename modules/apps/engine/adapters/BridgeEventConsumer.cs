@@ -171,7 +171,8 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
             : (content, hiddenLines);
     }
 
-    /// <summary>引擎 StructuredPatchHunk[] → BridgeDiffHunk[] 协议投影（渲染子集 header+lines[kind,content]；
+    /// <summary>引擎 StructuredPatchHunk[] → BridgeDiffHunk[] 协议投影（渲染子集 header+lines[kind,content,lineNumber]；
+    /// TASK066 F1 行号贯通 — PatchLine.OldLineNumber/NewLineNumber 引擎真值直投影（gutter 渲染数据源）；
     /// 空/null → null，WhenWritingNull 不输出字段 — 与 native_tui InProcessEventConsumer.ProjectPatch 语义一致）。</summary>
     private static Cli.Bridge.BridgeEvent.BridgeDiffHunk[]? ProjectPatch(StructuredPatchHunk[]? patch) =>
         patch is null || patch.Length == 0 ? null
@@ -180,6 +181,8 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
                 Lines = hunk.Lines.Select(static line => new Cli.Bridge.BridgeEvent.BridgeDiffLine {
                     Kind = (Cli.Bridge.BridgeEvent.BridgeDiffLineKind)(byte)line.Type,
                     Content = line.Content,
+                    OldLineNumber = line.OldLineNumber,
+                    NewLineNumber = line.NewLineNumber,
                 }).ToArray(),
             }).ToArray();
 

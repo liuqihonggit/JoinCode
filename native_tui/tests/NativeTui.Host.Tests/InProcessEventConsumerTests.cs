@@ -190,6 +190,40 @@ public sealed class InProcessEventConsumerTests
     }
 
     [Fact]
+    public void OnToolEnd_WithPatch_ProjectsLineNumbers()
+    {
+        // TASK066 F1 行号贯通：引擎 PatchLine.OldLineNumber/NewLineNumber 真值 → Core DiffLine 投影
+        //（gutter 渲染数据源 — Removed 带 old / Added 带 new / Context 双侧；对侧 null）
+        var consumer = new InProcessEventConsumer();
+        var patch = new[]
+        {
+            new StructuredPatchHunk
+            {
+                OldStart = 1, OldLines = 2, NewStart = 1, NewLines = 3,
+                Header = "@@ -1,2 +1,3 @@",
+                Lines = new PatchLine[]
+                {
+                    new() { Type = PatchLineType.Removed, Content = "old", OldLineNumber = 1 },
+                    new() { Type = PatchLineType.Added, Content = "new", NewLineNumber = 1 },
+                    new() { Type = PatchLineType.Context, Content = "keep", OldLineNumber = 2, NewLineNumber = 2 },
+                },
+            },
+        };
+
+        consumer.OnToolEnd("Edit", "Edited a.cs", "call-1", isError: false, patch);
+
+        var events = consumer.DrainEvents();
+        var result = Assert.IsType<BridgeEvent.ToolResult>(Assert.Single(events));
+        var hunk = Assert.Single(result.Patch!);
+        Assert.Equal(1, hunk.Lines[0].OldLineNumber);
+        Assert.Null(hunk.Lines[0].NewLineNumber);
+        Assert.Equal(1, hunk.Lines[1].NewLineNumber);
+        Assert.Null(hunk.Lines[1].OldLineNumber);
+        Assert.Equal(2, hunk.Lines[2].OldLineNumber);
+        Assert.Equal(2, hunk.Lines[2].NewLineNumber);
+    }
+
+    [Fact]
     public void OnDone_EmitsAssistantMessageWithFullText()
     {
         var consumer = new InProcessEventConsumer();

@@ -16,7 +16,14 @@ public enum DiffLineKind : byte
     Removed = 2,
 }
 
-/// <summary>diff 单行 — Kind 决定渲染前缀与着色，Content 不含前缀。</summary>
+/// <summary>
+/// diff 单行 — Kind 决定渲染前缀与着色，Content 不含前缀。
+/// 行号（TASK066 板块 F 基建 F1）：OldLineNumber/NewLineNumber 为引擎 PatchLine 投影真值
+/// （1 基：Removed/Context 带 old、Added/Context 带 new — 渲染单列 gutter 按行种取侧，
+/// 对齐基准 color-diff/index.ts ColorDiff.render entries L877-895 行号流语义）；
+/// null = 旧引擎 JSON 无字段（WhenWritingNull 不序列化，旧 golden 零破坏），
+/// 渲染侧降级从 hunk 头 "@@ -a,b +c,d @@" 解析流推进推导（DiffGutter.AssignLineNumbers）。
+/// </summary>
 public sealed record DiffLine
 {
     /// <summary>行种类（前缀与着色依据）。</summary>
@@ -24,11 +31,20 @@ public sealed record DiffLine
 
     /// <summary>行内容（不含 +/-/空格前缀）。</summary>
     public required string Content { get; init; }
+
+    /// <summary>旧文件行号（1 基 — Removed/Context 行有值；null 不序列化）。</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? OldLineNumber { get; init; }
+
+    /// <summary>新文件行号（1 基 — Added/Context 行有值；null 不序列化）。</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? NewLineNumber { get; init; }
 }
 
 /// <summary>
 /// 结构化 diff hunk — 引擎 StructuredPatchHunk 的 Core 零依赖渲染投影（ADR 0140：Core 不引引擎库）。
-/// 渲染所需字段子集（Header + Lines）；行号/行数计数由引擎侧 summary 文本承载。
+/// 渲染所需字段子集（Header + Lines）；Header 兼作行号降级数据源（行字段缺失时
+/// DiffGutter 从 "@@ -a,b +c,d @@" 解析起始行号流推进）。
 /// </summary>
 public sealed record DiffHunk
 {

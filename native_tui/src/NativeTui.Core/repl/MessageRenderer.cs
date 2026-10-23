@@ -131,24 +131,100 @@ public static class MessageRenderer
     }
 
     /// <summary>
-    /// 渲染单个 diff 行："    " + 前缀字符 + 正文（4 空格缩进对齐青蛙TUI 先例）：
-    /// added 整行 DiffAddedWord 前景 / removed 整行 DiffRemovedWord 前景 / context 整行 dim。
+    /// 渲染单个 diff 行（TASK066 板块 F 基建 F1 — 行号 gutter + 语法高亮增强）：
+    /// 布局 = 4 空格缩进 + 行号 gutter（' ' + 右对齐 digits 位 + ' '，基准 color-diff addLineNumber
+    /// L726-745 同形态）+ marker（+/-/空格）+ 正文；行号 null 但 digits&gt;0 时空占位（wrap 续行对齐语义）；
+    /// digits=0（畸形 hunk 头全 patch 无行号）降级旧无 gutter 形态。
+    /// 着色：added/removed 行整行背景 DiffAdded/DiffRemoved 满宽填充（基准 wrapText L713-723 pad 到行尾 —
+    /// solid 红绿条）+ gutter/marker 前景 DiffAddedWord/DiffRemovedWord（decoration 语义，基准
+    /// decorationColor）；context 行整行 dim 无背景（现形态保留）。
+    /// 语法叠加：spans 非 null 时正文按段切写 — 段前景 = token RGB、背景保持行底色（基准 applyBackground
+    /// L768-817 只换背景保前景的 w2 镜像：前景域语法色 + 背景域 diff 色正交叠加）；Removed 行恒无 spans
+    ///（调用侧不提供 — 基准 marker==='-' 不高亮）；spans 坐标 = Content 的 UTF-16 字符区间，分段写由
+    /// WriteText 返回列推进对齐宽字符。
     /// </summary>
-    public static void RenderDiffLine(Screen screen, Rect frame, Theme theme, DiffLine line)
+    /// <param name="line">diff 行（Kind 决定 marker 与配色）。</param>
+    /// <param name="lineNumber">单列行号（null = 该行无行号 — gutter 空占位）。</param>
+    /// <param name="gutterDigits">gutter 行号位数（0 = 整块降级无 gutter 列）。</param>
+    /// <param name="syntaxSpans">该行 token 色段（null/空 = 无语法高亮纯 diff 色正文）。</param>
+    public static void RenderDiffLine(Screen screen, Rect frame, Theme theme, DiffLine line, int? lineNumber, int gutterDigits, IReadOnlyList<HighlightSpan>? syntaxSpans)
     {
-        var style = line.Kind switch
-        {
-            DiffLineKind.Added => screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.DiffAddedWord }),
-            DiffLineKind.Removed => screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.DiffRemovedWord }),
-            _ => screen.Styles.GetOrAdd(new TextStyle { Dim = true }),
-        };
-        var prefix = line.Kind switch
+        var marker = line.Kind switch
         {
             DiffLineKind.Added => "+",
             DiffLineKind.Removed => "-",
             _ => " ",
         };
-        screen.WriteText(frame.Y, frame.X, $"    {prefix}{line.Content}", style, frame.Right);
+        var gutter = GutterText(lineNumber, gutterDigits);
+
+        if (line.Kind is DiffLineKind.Added or DiffLineKind.Removed)
+        {
+            RenderChangedDiffLine(screen, frame, theme, line, marker, gutter, syntaxSpans);
+            return;
+        }
+
+        // context 行：4 缩进 + gutter + 空格 marker + dim 正文（现形态 + gutter 列；基准 context 无背景 dimColor）
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        screen.WriteText(frame.Y, frame.X, $"    {gutter}{marker}{line.Content}", dim, frame.Right);
+    }
+
+    /// <summary>gutter 列文本 — 有行号 ' ' + 右对齐 digits 位 + ' '；无行号但 digits&gt;0 空占位
+    ///（基准 wrap 续行 ' '.repeat(maxDigits+2) 对齐语义）；digits=0 空串（降级无 gutter）。</summary>
+    private static string GutterText(int? lineNumber, int gutterDigits) =>
+        gutterDigits <= 0
+            ? string.Empty
+            : lineNumber is { } number
+                ? $" {number.ToString().PadLeft(gutterDigits)} "
+                : new string(' ', gutterDigits + 2);
+
+    /// <summary>added/removed 行渲染 — 满行背景 + gutter/marker decoration 前景 + 正文语法段切写。</summary>
+    private static void RenderChangedDiffLine(Screen screen, Rect frame, Theme theme, DiffLine line, string marker, string gutter, IReadOnlyList<HighlightSpan>? syntaxSpans)
+    {
+        var background = line.Kind == DiffLineKind.Added ? theme.DiffAdded : theme.DiffRemoved;
+        var decoration = line.Kind == DiffLineKind.Added ? theme.DiffAddedWord : theme.DiffRemovedWord;
+
+        // 满行背景填充（基准 solid 红绿条 — 语法前景与 diff 背景正交叠加的底板）
+        var fill = screen.Styles.GetOrAdd(new TextStyle { Background = background });
+        screen.WriteText(frame.Y, frame.X, new string(' ', frame.Width), fill, frame.Right);
+
+        // gutter + marker（decoration 前景 + 行背景 — 基准 addLineNumber/addMarker 样式合成）
+        var gutterStyle = screen.Styles.GetOrAdd(new TextStyle { Foreground = decoration, Background = background });
+        var col = screen.WriteText(frame.Y, frame.X, $"    {gutter}{marker}", gutterStyle, frame.Right);
+
+        // 正文：无语法段 = 默认前景 + 行背景（基准 defaultStyle fg=theme.foreground）；
+        // 有语法段 = 段内 token RGB 前景 + 行背景，段间隙默认前景（背景恒保持 — applyBackground 语义）
+        var bodyStyle = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Text, Background = background });
+        if (syntaxSpans is null || syntaxSpans.Count == 0)
+        {
+            screen.WriteText(frame.Y, col, line.Content, bodyStyle, frame.Right);
+            return;
+        }
+
+        var content = line.Content.AsSpan();
+        var prevEnd = 0;
+        foreach (var span in syntaxSpans)
+        {
+            var start = Math.Clamp(span.Start, 0, content.Length);
+            var end = Math.Clamp(span.Start + span.Length, start, content.Length);
+            if (end <= start)
+            {
+                continue;
+            }
+
+            if (start > prevEnd)
+            {
+                col = screen.WriteText(frame.Y, col, content[prevEnd..start], bodyStyle, frame.Right);
+            }
+
+            var syntaxStyle = screen.Styles.GetOrAdd(new TextStyle { Foreground = Color.FromRgb(span.R, span.G, span.B), Background = background });
+            col = screen.WriteText(frame.Y, col, content[start..end], syntaxStyle, frame.Right);
+            prevEnd = end;
+        }
+
+        if (prevEnd < content.Length)
+        {
+            screen.WriteText(frame.Y, col, content[prevEnd..], bodyStyle, frame.Right);
+        }
     }
 
     /// <summary>渲染折叠提示："    … +N lines (Ctrl+O)"（dim；Ctrl+O 切换 DiffResultItem.IsExpanded — M8-4 展开后此行消失）。</summary>

@@ -125,7 +125,7 @@ public sealed class ToolCallItem : IScrollItem, ICursorNavigable, IToolCallInfo,
     {
         ToolName = toolName;
         Args = args;
-        _displayToolName = DeriveDisplayToolName(toolName, args);
+        _displayToolName = ToolTitleFormatter.DisplayToolName(toolName, args);
         _displayArgs = ToolTitleFormatter.Format(toolName, args);
         _displayLines = _displayArgs.Split('\n');
     }
@@ -158,10 +158,6 @@ public sealed class ToolCallItem : IScrollItem, ICursorNavigable, IToolCallInfo,
     public bool ContainsText(string query) =>
         ToolName.Contains(query, StringComparison.OrdinalIgnoreCase)
         || Args.Contains(query, StringComparison.OrdinalIgnoreCase);
-
-    /// <summary>显示工具名派生 — Edit 走 Create/Update（old_string 空 = Create），其余原名。</summary>
-    private static string DeriveDisplayToolName(string toolName, string args) =>
-        toolName is ToolTitleFormatter.EditTool ? ToolTitleFormatter.DeriveEditLabel(args) : toolName;
 }
 
 /// <summary>
@@ -181,6 +177,15 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
     /// <summary>构造期拆分的输出行缓存（渲染/测量共享 — 50ms 帧拍零重复 Split；null/空输出为空数组）。</summary>
     private readonly string[] _outputLines;
 
+    /// <summary>gutter 行号位数（TASK066 F1 — 全 patch 统一宽；0 = 畸形 hunk 头无行号降级无 gutter 列）。</summary>
+    private readonly int _gutterDigits;
+
+    /// <summary>构造期推导的各 hunk 各行单列行号（TASK066 F1 — 渲染帧拍零解析；外层索引与 Patch 对齐）。</summary>
+    private readonly int?[][] _lineNumbers;
+
+    /// <summary>构造期预高亮的各 hunk 各行 token 色段（TASK066 F1 — null = 无高亮能力/语言不支持全降级）。</summary>
+    private readonly IReadOnlyList<HighlightSpan>?[][]? _syntaxSpans;
+
     /// <summary>纯摘要形态（旧调用兼容 — 排队反馈/未登录提示等无输出场景）。</summary>
     public ToolResultItem(string text) : this(text, null, null, 0)
     {
@@ -189,10 +194,14 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
     /// <summary>
     /// 统一契约构造（S1 Driver 消费）：summary 结果摘要 / patch 结构化补丁（非空走 diff 渲染）/
     /// rawOutput 原始终端输出（折叠数据源，item 持有全量供展开）/ hiddenLines 引擎侧算好的隐藏行数 /
-    /// previewLimit 预览上限（Bash=3 默认、Write=10 由 Driver 传 ToolFoldingPolicy.MaxWritePreviewLines）。
+    /// previewLimit 预览上限（Bash=3 默认、Write=10 由 Driver 传 ToolFoldingPolicy.MaxWritePreviewLines）/
+    /// codeHighlighter 代码高亮插件（TASK066 F1 — null = 高亮禁用降级纯 diff 色，对齐
+    /// MarkdownMessageItem(document, highlighter) 注入先例）。
+    /// 构造期预计算 gutter 行号 + 语法色段（ToolCallItem._displayLines 先例 — 渲染帧拍零推导成本）。
     /// </summary>
     public ToolResultItem(string summary, DiffHunk[]? patch, string? rawOutput, int hiddenLines,
-        int previewLimit = ToolFoldingPolicy.MaxToolOutputLines)
+        int previewLimit = ToolFoldingPolicy.MaxToolOutputLines,
+        ICodeHighlighter? codeHighlighter = null)
     {
         Summary = summary;
         Patch = patch;
@@ -200,6 +209,9 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
         HiddenLines = hiddenLines;
         PreviewLimit = previewLimit;
         _outputLines = SplitRawOutput(rawOutput);
+        _gutterDigits = patch is { Length: > 0 } ? DiffGutter.GutterDigits(patch) : 0;
+        _lineNumbers = patch is { Length: > 0 } ? patch.Select(DiffGutter.AssignLineNumbers).ToArray() : [];
+        _syntaxSpans = HighlightPatchLines(patch, codeHighlighter, summary);
     }
 
     /// <summary>结果摘要（首行 ⎿ 正文；空串不占行）。</summary>
@@ -278,12 +290,13 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
         return row + 1;
     }
 
-    /// <summary>patch 块渲染 — hunk 预览（header dim / 行按 Kind 着色）+ 超限折叠提示。</summary>
+    /// <summary>patch 块渲染 — hunk 预览（header dim / 行按 Kind 着色 + gutter 行号 + 语法色段）+ 超限折叠提示。</summary>
     private int RenderPatchRows(Screen screen, Rect frame, Theme theme, int row)
     {
         var renderedRows = RenderedPatchRows;
-        foreach (var hunk in Patch ?? [])
+        for (var hunkIndex = 0; hunkIndex < (Patch?.Length ?? 0); hunkIndex++)
         {
+            var hunk = Patch![hunkIndex];
             if (renderedRows == 0)
             {
                 break;
@@ -292,14 +305,21 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
             MessageRenderer.RenderDiffHeader(screen, RowFrame(frame, row), theme, hunk.Header);
             row++;
             renderedRows--;
-            foreach (var line in hunk.Lines)
+            for (var lineIndex = 0; lineIndex < hunk.Lines.Length; lineIndex++)
             {
                 if (renderedRows == 0)
                 {
                     break;
                 }
 
-                MessageRenderer.RenderDiffLine(screen, RowFrame(frame, row), theme, line);
+                MessageRenderer.RenderDiffLine(
+                    screen,
+                    RowFrame(frame, row),
+                    theme,
+                    hunk.Lines[lineIndex],
+                    _lineNumbers[hunkIndex][lineIndex],
+                    _gutterDigits,
+                    _syntaxSpans?[hunkIndex]?[lineIndex]);
                 row++;
                 renderedRows--;
             }
@@ -312,6 +332,19 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
         }
 
         return row;
+    }
+
+    /// <summary>构造期预高亮（渲染帧拍零高亮成本 — ToolCallItem._displayLines 构造期缓存先例）：
+    /// 语言检测（summary 路径扩展名 → DiffGutter.DetectLanguage）+ 逐 hunk new 侧行会话高亮；
+    /// 无高亮器 / 无语言 / 空 patch → null 全降级纯 diff 色（高亮失败不阻塞渲染）。</summary>
+    private static IReadOnlyList<HighlightSpan>?[][]? HighlightPatchLines(DiffHunk[]? patch, ICodeHighlighter? highlighter, string summary)
+    {
+        if (patch is not { Length: > 0 } || highlighter is null || DiffGutter.DetectLanguage(summary) is not { } language)
+        {
+            return null;
+        }
+
+        return patch.Select(hunk => DiffGutter.HighlightHunkLines(hunk, highlighter, language)).ToArray();
     }
 
     /// <summary>输出块渲染 — 空白输出 "(No output)" dim；折叠首行（空 summary 时与 ⎿ 同行）/ 续行 5 列缩进 + 折叠提示。</summary>
@@ -380,11 +413,13 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
 /// 渲染/测量逻辑唯一来源 = core；既有 Driver 构造签名兼容）。patch 全量渲染
 /// （基准 update 渲染完整 diff 不截断 — FileWriteTool/UI.tsx "update renders the full diff"），
 /// 仅超 10 行预览上限折叠为 "… +N lines (Ctrl+O)" dim（上限对齐基准 Write MAX_LINES_TO_RENDER=10 防刷屏先例）。
+/// codeHighlighter（TASK066 F1 — 可选尾参默认 null 零破坏）：透传 core 驱动 gutter 行号 +
+/// 行级语法高亮增强；null = 纯 diff 色降级现形态。
 /// </summary>
-public sealed class DiffResultItem(string summary, DiffHunk[] patch) : IScrollItem, ICursorNavigable, ITextMatchable
+public sealed class DiffResultItem(string summary, DiffHunk[] patch, ICodeHighlighter? codeHighlighter = null) : IScrollItem, ICursorNavigable, ITextMatchable
 {
-    /// <summary>渲染/测量核心（统一契约构造 — 无 RawOutput 的纯 patch 形态）。</summary>
-    private readonly ToolResultItem _core = new(summary, patch, null, 0);
+    /// <summary>渲染/测量核心（统一契约构造 — 无 RawOutput 的纯 patch 形态 + 高亮器透传）。</summary>
+    private readonly ToolResultItem _core = new(summary, patch, null, 0, codeHighlighter: codeHighlighter);
 
     /// <summary>工具结果摘要（首行 ⎿ 正文）。</summary>
     public string Summary => summary;

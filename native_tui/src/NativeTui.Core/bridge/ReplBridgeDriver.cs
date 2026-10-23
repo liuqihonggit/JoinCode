@@ -67,6 +67,13 @@ public sealed class ReplBridgeDriver
     /// 项留存（打断场景已见输出不丢）。</summary>
     private ToolStreamingItem? _toolStreamingItem;
 
+    /// <summary>进行中工具信息文本（TASK066 F4 — spinner lastToolInfo 数据源）：
+    /// ToolCall 时记录（所有路径统一 — 逐条/聚合/塌缩均覆盖），ToolResult 到达消费转
+    /// <c>_spinner.LastToolInfo</c>（基准 AgentTool/UI.tsx:788 extractLastToolInfo 的
+    /// "最近 tool_result 对应 tool_use" 语义 — 工具串行一进一出配对）；
+    /// TurnInterrupted 时未消费 → 追加中断标记；EndTurn 清引用不跨回合泄漏。</summary>
+    private string? _pendingToolInfo;
+
     /// <summary>创建应用器（view/spinner/banner 由调用方构造并挂载，spinner 须为 Messages 末项、banner 为首项；
     /// onPermissionRequest = 权限请求挂起钩子，null = 忽略权限请求事件（纯视图断言测试场景）；
     /// codeHighlighter = 代码高亮插件（M7-5），null = 高亮禁用；
@@ -182,7 +189,8 @@ public sealed class ReplBridgeDriver
                 EndTurn();
                 break;
             case BridgeEvent.TurnInterrupted:
-                EndTurn();
+                // TASK066 F4 — 中断路径带标记：进行中工具（pending 未消费）追加"（已中断）"状态标记
+                EndTurn(interrupted: true);
                 break;
             case BridgeEvent.SubagentStarted(var subagentId, var agentType, var description):
                 ApplySubagentStarted(subagentId, agentType, description);
@@ -217,11 +225,14 @@ public sealed class ReplBridgeDriver
     /// ② 进行中计数 +1 后满足 ShouldCondense（小终端）→ 塌缩单行项替代逐条落位；
     /// ③ 连续同类（Accepts：Read/Grep/Glob）→ 活动聚合组吸收（不落逐条 ToolCallItem，
     /// 首条惰性建组 — 组项落位 spinner 前）；
-    /// ④ 非 Accepts 工具 → 收组（连续同类中断 — 聚合项定格为普通项）+ 逐条落位。</summary>
+    /// ④ 非 Accepts 工具 → 收组（连续同类中断 — 聚合项定格为普通项）+ 逐条落位。
+    /// 入口统一记录 pending 工具信息（TASK066 F4 — 逐条/聚合/塌缩全路径覆盖，
+    /// ToolCallItem 生成点的等价超集）。</summary>
     private void ApplyToolCall(string name, string args)
     {
         // 上一个工具的流式尾巴定格（引用清空不删项 — 引擎漏发 tool_result 时不串新工具输出）
         _toolStreamingItem = null;
+        _pendingToolInfo = ToolTitleFormatter.FormatToolInfo(name, args);
         _inProgressToolCallCount++;
         if (_condensedProgressItem is not null)
         {
@@ -256,10 +267,18 @@ public sealed class ReplBridgeDriver
     /// <summary>工具结果路由（S6 任务 7）— 计数递减；塌缩态计数归零移除塌缩项；
     /// 活动聚合组吸收（不落逐条 ToolResultItem — 折叠形态结果数据不逐条上屏）；
     /// 其余逐条落位（统一四段契约构造）；流式项在场时原位替换（TASK065 P3 —
-    /// 输出尾巴位置落终态结果项，视觉无跳变；塌缩/聚合吸收路径移除流式项）。</summary>
+    /// 输出尾巴位置落终态结果项，视觉无跳变；塌缩/聚合吸收路径移除流式项）。
+    /// pending 工具信息消费（TASK066 F4 — 塌缩/聚合/逐条全路径前置：最近完成的工具
+    /// 转 <c>_spinner.LastToolInfo</c>，异常序（无 pending）保持原值不动）。</summary>
     private void ApplyToolResult(string summary, DiffHunk[]? patch, string? rawOutput, int hiddenLines)
     {
         _inProgressToolCallCount = Math.Max(0, _inProgressToolCallCount - 1);
+        if (_pendingToolInfo is { } completed)
+        {
+            _spinner.LastToolInfo = completed;
+            _pendingToolInfo = null;
+        }
+
         if (_condensedProgressItem is { } condensed)
         {
             condensed.ToolUses = _inProgressToolCallCount;
@@ -281,7 +300,7 @@ public sealed class ReplBridgeDriver
             return;
         }
 
-        ReplaceToolStreamingWithResult(new ToolResultItem(summary, patch, rawOutput, hiddenLines));
+        ReplaceToolStreamingWithResult(new ToolResultItem(summary, patch, rawOutput, hiddenLines, codeHighlighter: _codeHighlighter));
     }
 
     /// <summary>工具进度路由（TASK065 P3）— 回合内惰性建流式项（spinner 前落位 — 紧随 ToolCallItem）
@@ -398,7 +417,8 @@ public sealed class ReplBridgeDriver
     }
 
     /// <summary>开始回合：busy + spinner 挂载（Thinking 乐观模式，动词重采样，停滞计时重置）；防御性脱离子代理组与流式项（引擎漏发回合收尾时不串组/不残留）。
-    /// spinner 显示（对齐基准 REPL.tsx showSpinner：isLoading 期等待/思考/工具运行的反馈 — 流式正文到达前 M8-1 前为唯一反馈）。</summary>
+    /// spinner 显示（对齐基准 REPL.tsx showSpinner：isLoading 期等待/思考/工具运行的反馈 — 流式正文到达前 M8-1 前为唯一反馈）。
+    /// lastToolInfo/pending 清零（TASK066 F4 — 新回合重新记录，上回合工具信息不跨回合残留）。</summary>
     public void BeginTurn()
     {
         IsBusy = true;
@@ -406,6 +426,7 @@ public sealed class ReplBridgeDriver
         CloseActiveToolGroup();
         DiscardStreamingItem();
         _toolStreamingItem = null;
+        _pendingToolInfo = null;
         _view.Footer = _view.Footer with { Busy = true };
         _spinner.Message = string.Empty;
         _spinner.ResetVerb();
@@ -414,6 +435,7 @@ public sealed class ReplBridgeDriver
         _spinner.ResponseLength = 0;
         _spinner.HasActiveTools = false;
         _spinner.Hidden = false;
+        _spinner.LastToolInfo = null;
     }
 
     /// <summary>结束回合：idle + spinner 复位（消息由事件驱动，interrupted 不额外追加）；子代理组定格脱离（未完成条目定格为非错误完成）；
@@ -421,8 +443,11 @@ public sealed class ReplBridgeDriver
     /// 流式项兜底（M8-1）：引擎被打断/异常未发 assistant_message 时 — 非空定格为 partial AssistantMessage
     /// （基准 [user, partial, interrupted] 顺序 — 已流文本不丢），空则移除（无正文零残留）。
     /// spinner Mode 复位 Thinking→Responding（修复：回合结束后思考动画续转 — Thinking 态渲染器持续 shimmer）；
-    /// Hidden 置位（对齐基准：空闲非 busy 完全不渲染 spinner 行 — 不再常驻闪烁）。</summary>
-    public void EndTurn()
+    /// Hidden 置位（对齐基准：空闲非 busy 完全不渲染 spinner 行 — 不再常驻闪烁）。
+    /// 中断标记（TASK066 F4）：interrupted 且 pending 未消费（工具进行中被打断）→
+    /// <c>_spinner.LastToolInfo</c> 追加"（已中断）"标记后定格；正常完成漏发 result 不标记
+    /// （保持最近完成态 — 引擎侧收尾事件的宽容语义）。</summary>
+    public void EndTurn(bool interrupted = false)
     {
         IsBusy = false;
         _activeSubagentGroup?.FinalizePending();
@@ -430,6 +455,12 @@ public sealed class ReplBridgeDriver
         CloseActiveToolGroup();
         FinalizeStreamingItem();
         _toolStreamingItem = null;
+        if (interrupted && _pendingToolInfo is { } pending)
+        {
+            _spinner.LastToolInfo = $"{pending}（已中断）";
+        }
+
+        _pendingToolInfo = null;
         _view.Footer = _view.Footer with { Busy = false };
         _spinner.Message = string.Empty;
         _spinner.ResponseLength = 0;

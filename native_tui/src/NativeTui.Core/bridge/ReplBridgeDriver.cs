@@ -30,6 +30,9 @@ public sealed class ReplBridgeDriver
 
     /// <summary>流式 Markdown 投影器（方案 B 卫星注入 — null = 流式项降级纯文本逐字 M8-1 行为）。</summary>
     private readonly IStreamingMarkdownProjector? _streamingProjector;
+        /// <summary>issue 引用短形态上下文（DSG043 尾批 — "owner/repo"，git remote 解析注入；
+    /// null = 短形态 #NNN 不展开，完整形态 owner/repo#NNN 恒展开）。</summary>
+    private readonly string? _issueOwnerRepo;
 
     /// <summary>令牌用量记账器（S4 契约 — 引擎 token_usage 事件转交 RecordUsage；null = 未注入不记账，
     /// 事件静默容忍（纯视图断言测试场景），footer 用量展示归 tracker 内部驱动）。</summary>
@@ -78,7 +81,8 @@ public sealed class ReplBridgeDriver
         ICodeHighlighter? codeHighlighter = null,
         TokenUsageTracker? tokenUsageTracker = null,
         ITerminalSizeSource? sizeSource = null,
-        IStreamingMarkdownProjector? streamingProjector = null)
+        IStreamingMarkdownProjector? streamingProjector = null,
+        string? issueOwnerRepo = null)
     {
         _view = view;
         _spinner = spinner;
@@ -88,6 +92,7 @@ public sealed class ReplBridgeDriver
         _tokenUsageTracker = tokenUsageTracker;
         _sizeSource = sizeSource;
         _streamingProjector = streamingProjector;
+        _issueOwnerRepo = issueOwnerRepo;
     }
 
     /// <summary>回合进行中（turn_started 后未 completed/interrupted）。</summary>
@@ -166,7 +171,7 @@ public sealed class ReplBridgeDriver
             case BridgeEvent.AssistantMessage(var text, var markdown, var messageId, var thinkingDurationMs, var thinkingContent):
                 CloseActiveToolGroup();
                 ReplaceStreamingWithFinal(markdown is not null
-                    ? new MarkdownMessageItem(markdown, _codeHighlighter, thinkingDurationMs, thinkingContent, messageId)
+                    ? new MarkdownMessageItem(IssueLinkExpander.ExpandDocument(markdown, _issueOwnerRepo), _codeHighlighter, thinkingDurationMs, thinkingContent, messageId)
                     : new AssistantMessageItem(text, thinkingDurationMs, thinkingContent, messageId));
                 break;
             case BridgeEvent.TokenUsage(var inputTokens, var outputTokens, var contextTokens, var contextLimitTokens):

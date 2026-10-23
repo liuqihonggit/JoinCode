@@ -382,6 +382,9 @@ public static class Program {
                     // S12 四域接线 — ctrl+shift+f 全局搜索源：rg 执行器（PATH 解析，缺失时
                     // 对话框打开即降级提示；搜索根 = workspaceRoot 同一工作区根）
                     searchSource: new RipgrepSearcher(),
+                    // DSG043 尾批 — issue 引用短形态上下文（git remote origin → owner/repo；
+                    // 无 git/无 remote/非 GitHub = null 短形态不展开，完整形态恒展开）
+                    issueOwnerRepo: await ResolveIssueOwnerRepoAsync().ConfigureAwait(false),
                     // DSG042 P2 — 输入泵通道：默认 ReadKeyPump（现役稳定）；
                     // --raw-input 灰度启用 RawStdinPump（stdin 原始流 VT 全链 — 修饰组合键保留/
                     // paste 整块直出；双终端实测矩阵跑齐后 P3 切默认）；引用留 Host 收尾 Dispose
@@ -448,6 +451,36 @@ public static class Program {
 
             return theme;
         } catch (Exception ex) when (ex is InvalidOperationException or IOException) {
+            return null;
+        }
+    }
+
+    /// <summary>解析 issue 引用短形态上下文（DSG043 尾批）— cwd 下 `git remote get-url origin`
+    /// → GitHub owner/repo（ParseGitHub 纯函数）；git 缺失/无 origin/非 GitHub/进程失败 = null
+    ///（短形态 #NNN 不展开，完整形态 owner/repo#NNN 不受影响）。5s 超时守卫防启动挂起。</summary>
+    private static async Task<string?> ResolveIssueOwnerRepoAsync() {
+        try {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var process = new System.Diagnostics.Process();
+            process.StartInfo = new System.Diagnostics.ProcessStartInfo {
+                FileName = "git",
+                Arguments = "remote get-url origin",
+                WorkingDirectory = Environment.CurrentDirectory,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            if (!process.Start()) {
+                return null;
+            }
+
+            var url = await process.StandardOutput.ReadToEndAsync(timeout.Token).ConfigureAwait(false);
+            await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+            return GitRemoteResolver.ParseGitHub(url.Trim());
+        } catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception
+            or IOException or OperationCanceledException) {
+            // git 不存在/无 remote/超时 — null 降级（短形态不展开）
             return null;
         }
     }

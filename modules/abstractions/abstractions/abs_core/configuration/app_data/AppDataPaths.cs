@@ -187,6 +187,9 @@ public sealed record AppDataPaths(
     /// <summary>用户级 LSP 服务器配置文件: ~/.jcc/lsp-servers.json</summary>
     public string LspServersFilePath => Path.Combine(JccDirectory, "lsp-servers.json");
 
+    /// <summary>用户级输出风格目录: ~/.jcc/output-styles/（B类 outputStyle 键 — 自定义风格 *.md，对齐 TS）</summary>
+    public string OutputStylesDirectory => Path.Combine(JccDirectory, "output-styles");
+
     /// <summary>用户级 GUI 偏好文件: ~/.jcc/gui-preferences.json</summary>
     public string GuiPreferencesFilePath => Path.Combine(JccDirectory, "gui-preferences.json");
 

@@ -30,6 +30,7 @@ public sealed partial class SettingsMapper : ServiceEntity {
         config = ApplyWorktreeSettings(config, settings);
         config = config with { FastMode = settings?.Current?.FastMode ?? false };
         config = config with { Language = settings?.Current?.Language };
+        config = config with { OutputStyle = settings?.Current?.OutputStyle };
         config = config with { ShowTurnDuration = settings?.Current?.ShowTurnDuration ?? true };
         config = config with { AutoCompactEnabled = settings?.Current?.AutoCompactEnabled ?? true };
         config = config with { FileCheckpointingEnabled = settings?.Current?.FileCheckpointingEnabled ?? true };

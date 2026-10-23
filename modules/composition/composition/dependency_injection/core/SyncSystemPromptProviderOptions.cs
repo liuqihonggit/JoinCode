@@ -22,6 +22,12 @@ public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.Syste
         ExternalRules = ConvertExternalRules(config.ExternalRules);
         FileContext = fileContext;
         LanguagePreference = config.Language;
+        // B类 outputStyle 键 — 双层目录注入（用户级 ~/.jcc/output-styles/ + 项目级 {cwd}/.jcc/output-styles/，项目覆盖用户）
+        OutputStyle = config.OutputStyle;
+        OutputStyleUserDir = AppDataConstants.Paths.OutputStylesDirectory;
+        OutputStyleProjectDir = fs.GetCurrentDirectory() is { Length: > 0 } cwd
+            ? Path.Combine(cwd, AppDataConstants.AppDataFolder, "output-styles")
+            : null;
         IsCoordinatorMode = IsCoordinatorModeEnabledFromEnv();
         AgentDefinitions = [];
         HasTeamTools = true;

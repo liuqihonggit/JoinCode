@@ -88,6 +88,13 @@ public sealed record WorkflowConfig {
     public string? Language { get; init; }
 
     /// <summary>
+    /// 输出风格名 — 对齐 TS settings.json outputStyle 键：内建 explanatory/learning + 自定义
+    /// （~/.jcc/output-styles/ + {cwd}/.jcc/output-styles/ 双层目录，项目覆盖用户）；
+    /// 流向 SystemPromptProviderOptions.OutputStyle（OutputStyleSection 注入风格 prompt）
+    /// </summary>
+    public string? OutputStyle { get; init; }
+
+    /// <summary>
     /// 显示回合耗时 — 对齐 TS showTurnDuration（默认 true）；
     /// SessionController 门控 timing 摘要显示（debuglog 开启时强制显示）
     /// </summary>

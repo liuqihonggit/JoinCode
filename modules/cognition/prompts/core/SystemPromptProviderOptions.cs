@@ -85,6 +85,19 @@ public partial class SystemPromptProviderOptions {
     /// </summary>
     public string? LanguagePreference { get; init; }
     /// <summary>
+    /// 输出风格名（对齐 TS settings.outputStyle）：内建 explanatory/learning 映射既有两 section，
+    /// 其余名经 OutputStyleLoader 从用户级+项目级 output-styles 目录加载（项目覆盖用户）。
+    /// </summary>
+    public string? OutputStyle { get; init; }
+    /// <summary>
+    /// 输出风格用户级目录（~/.jcc/output-styles/ — 自定义风格查找用；null 时仅查项目级）。
+    /// </summary>
+    public string? OutputStyleUserDir { get; init; }
+    /// <summary>
+    /// 输出风格项目级目录（{cwd}/.jcc/output-styles/ — 覆盖用户级同名额；null 时仅查用户级）。
+    /// </summary>
+    public string? OutputStyleProjectDir { get; init; }
+    /// <summary>
     /// 当前模型 ID。
     /// </summary>
     public string? ModelId { get; init; }

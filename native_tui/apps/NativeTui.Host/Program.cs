@@ -340,6 +340,10 @@ public static class Program {
                 //（~/.jcc/command-history.json 坏文件静默降级空记忆）+ 工作区根（@ 文件补全索引根，banner cwd 同源）
                 var themeName = await LoadThemeNameAsync(session.Services).ConfigureAwait(false);
                 var commandUsage = await CommandUsageMemory.LoadAsync(CommandUsageMemory.DefaultFilePath).ConfigureAwait(false);
+                // B类 editorMode 键接线 — settings.current.editorMode="vim" 持久启用 vim 编辑模式
+                //（对齐 TS GlobalConfig.editorMode，经 IConfigurationService 读取 — theme 先例）；
+                // JCC_TUI_VIM 灰度 OR 语义保留（EditorModeResolver 唯一判定源）
+                var vimMode = await LoadVimModeAsync(session.Services).ConfigureAwait(false);
                 var rawInputPump = useRawStdinPump ? new RawStdinPump(terminalQuerier) : null;
                 // TASK066 板块A — 终端状态三路装配（标题/21337 tab/9;4 进度）：
                 // 标题写通道平台分流（基准 use-terminal-title.ts：Windows=process.title → Console.Title，
@@ -412,9 +416,10 @@ public static class Program {
                          Environment.GetEnvironmentVariable("CLAUDE_CODE_IDLE_THRESHOLD_MINUTES"), out var idleMin) && idleMin > 0
                          ? idleMin
                          : null,
-                     // TASK066 板块E — vim 编辑模式开关（JCC_TUI_VIM=1 灰度启用 — 引擎 settings
-                     // 无现成 vimMode 键，环境开关先行对齐 JCC_TUI_TAB_STATUS 先例；默认关零行为变化）
-                     vimMode: Environment.GetEnvironmentVariable("JCC_TUI_VIM") is "1" or "true",
+                     // B类 editorMode 键接线 — vim 编辑模式开关（settings.current.editorMode="vim"
+                     // 持久启用 + JCC_TUI_VIM 灰度 OR 语义 — EditorModeResolver 唯一判定源，
+                     // 对齐 TS GlobalConfig.editorMode；默认关零行为变化）
+                     vimMode: vimMode,
                      // TASK066 板块E — 图片文件读取委托（粘贴图片路径 → base64 附件；magic 嗅探
                      // mime，读失败 null 降级该行回退纯文本粘贴）
                      loadImageFromFile: LoadImageFromFile);
@@ -511,6 +516,23 @@ public static class Program {
             return theme;
         } catch (Exception ex) when (ex is InvalidOperationException or IOException) {
             return null;
+        }
+    }
+
+    /// <summary>加载 vim 编辑模式开关（B类 editorMode 键接线 — theme 先例同模式）：
+    /// settings.current.editorMode 经 IConfigurationService 读取 → EditorModeResolver 判定
+    ///（settings="vim" 或 JCC_TUI_VIM 灰度 OR 语义）；读取失败 false（默认关，对齐 TS 'normal'）。</summary>
+    private static async Task<bool> LoadVimModeAsync(IServiceProvider services) {
+        try {
+            var config = services.GetService<IConfigurationService>();
+            if (config is null) {
+                return EditorModeResolver.ResolveVimMode(null, Environment.GetEnvironmentVariable(EditorModeResolver.VimEnvVar));
+            }
+
+            var editorMode = await config.GetAsync("editorMode").ConfigureAwait(false);
+            return EditorModeResolver.ResolveVimMode(editorMode, Environment.GetEnvironmentVariable(EditorModeResolver.VimEnvVar));
+        } catch (Exception ex) when (ex is InvalidOperationException or IOException) {
+            return false;
         }
     }
 

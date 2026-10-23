@@ -51,12 +51,23 @@ public static partial class ServiceRegistration {
 
     /// <summary>
     /// 添加 Dream 插件服务
+    /// <para>B类配置桥 — WorkflowConfig（settings.current.autoMemoryEnabled/autoDreamEnabled 已映射，
+    /// 默认 true 对齐 TS）流入 AutoDreamConfig；未注册 WorkflowConfig 时保持插件档默认。</para>
     /// </summary>
     public static IServiceCollection AddDreamPluginServices(this IServiceCollection services) {
         services.AddSingleton<AutoDreamConfig>(sp => {
             var config = AutoDreamConfigBuilder.Create()
                 .WithMinSessions(2)
                 .Build();
+
+            var workflow = sp.GetService<WorkflowConfig>();
+            if (workflow is not null) {
+                config = config with {
+                    AutoMemoryEnabled = workflow.AutoMemoryEnabled,
+                    Enabled = workflow.AutoDreamEnabled,
+                };
+            }
+
             return config;
         });
 

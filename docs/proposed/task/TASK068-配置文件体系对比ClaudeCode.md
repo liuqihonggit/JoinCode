@@ -145,7 +145,11 @@ CurrentSettings 49 键审计结论：**A 类活跃 16 / B 类仅 /config 读写 
 - B类 fileCheckpointingEnabled：默认 true，FileHistoryService.BackupBeforeWriteAsync 首行门控（6e47c5fbf）
 - 结构归位（第一惯性理解）：infra.tests 18 个跨目录 Compile Include 全部物理归位 io/services/utils + 根 GlobalUsings 合并三份 + 目录命名归一小写（168538987，三项目 377+416+589 全绿）
 
-**B 类剩余 5 键列差异待决策**（需新建子系统/跨模块改造，不自行实现）：outputStyle（TS 为 ~/.claude/output-styles/ 目录 + settings 指针完整子系统，C# 仅有 Keyword 触发的两个 style section 为自创替代）、editorMode（TS vim/emacs 键位模式，C# TUI 键位系统无此概念）、autoMemoryEnabled/autoDreamEnabled（dream 模块独立 AutoDreamConfig，接通需跨模块配置桥）、modelHistory（TS 模态不匹配自动回退首选模型，C# ModalityValidationMiddleware 语义不同）。
+**B 类剩余 5 键全部实现（用户决策"全部实现"，2026-10-24 第二批）**：
+- editorMode（680e2fc52）：Vim 引擎 TASK066 已交付，EditorModeResolver 纯函数（settings="vim" 持久 + JCC_TUI_VIM 灰度 OR 语义）→ Host LoadVimModeAsync（theme 先例同模式）→ ReplShell vimMode 装配
+- modelHistory（0546afa47）：TS 基准确凿无此键（双 grep 零命中，C# 自创）— ModelPickerAssembly.LoadItems 读 LRU 逗号串 SortByHistory 置顶排序 + ApplyModel 记录历史（头插去重 20 条对齐 ModelCommand）；DTO 误导注释修正（实际语义 picker 排序非模态回退）
+- outputStyle（18712bc7a）：完整子系统 — OutputStyleLoader 双层目录（用户 ~/.jcc/output-styles/ + 项目 {cwd}/.jcc/output-styles/ 项目覆盖同名额，文件名即样式名）+ OutputStyleSection 动态注入（内建 explanatory/learning 映射既有两 section，自定义经 loader）+ 全链 settings→WorkflowConfig→SyncSystemPromptProviderOptions（双目录注入）；裁剪项登记：TS frontmatter name 解析/插件风格源/managed 源
+- autoMemory+autoDream（54b2f653f）：dream 配置桥 — WorkflowConfig 两键（默认 true）→ DreamPlugin 注册工厂延迟解析 WorkflowConfig 流入 AutoDreamConfig（万物皆插件，时序无关）
 
 ## 验收表（四列）
 
@@ -157,5 +161,6 @@ CurrentSettings 49 键审计结论：**A 类活跃 16 / B 类仅 /config 读写 
 | SendReminderInjector | SessionController（TUI/CLI）+ ChatService（GUI）双接线 | ✅（1622020d0） | ✅（组件 9 测试 + brain.context 949 + host 1453 + NativeTui.Host 125 全绿） |
 | hooks 断链修复 | ServiceRegistration policy 源注册 + 死 DTO 删除 | ✅（e42f99e40） | ✅（HookPolicySourceRegistrationTests 2 红→绿 + guard.config 1285 + hooks 574 + agents 641 + host 1453 全绿） |
 | Q1/Q3/Q5 差异项 | .env 死分支/managed-settings 三平台/SettingsEnvGuard 黑名单 | ✅（bb8a8f5fa/801a73c2d） | ✅（ManagedSettingsPathTests + 危险键 12 Theory + guard.config 1300 全绿） |
-| B类 5 键接线 | language/showTurnDuration/debuglog/autoCompactEnabled/fileCheckpointingEnabled | ✅（70df5a36e/22c67752e/4c0a59543/6e47c5fbf） | ✅（各键红→绿测试 + brain.context 951 + guard.config 1304 + host 1455 + Infra.IO 377 全绿） |
+| B类 5 键接线（第一批） | language/showTurnDuration/debuglog/autoCompactEnabled/fileCheckpointingEnabled | ✅（70df5a36e/22c67752e/4c0a59543/6e47c5fbf） | ✅（各键红→绿测试 + brain.context 951 + guard.config 1304 + host 1455 + Infra.IO 377 全绿） |
 | 结构归位（第一惯性） | infra.tests 18 跨目录 Include → io/services/utils | ✅（168538987） | ✅（io 377 + services 416 + utils 589 全绿） |
+| B类 5 键实现（第二批） | editorMode/modelHistory/outputStyle/autoMemory/autoDream | ✅（680e2fc52/0546afa47/18712bc7a/54b2f653f） | ✅（EditorModeResolver 12 Theory + ModelPickerHistory 3 + OutputStyle Loader/Section 10 + Dream 桥 2 红→绿；大回归 brain.prompts 204 + brain.context 951 + host 1456 + NativeTui 2844 + NativeTui.Host 136 + dream 188 + guard.config 1304 全绿） |

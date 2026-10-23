@@ -95,4 +95,37 @@ public sealed class ServiceRegistrationTests {
         var config = provider.GetRequiredService<AutoDreamConfig>();
         Assert.Equal(2, config.MinSessions);
     }
+
+    /// <summary>
+    /// B类配置桥 — settings.current.autoMemoryEnabled/autoDreamEnabled 经 WorkflowConfig
+    /// 流入 AutoDreamConfig（false 关闭对应功能，对齐 TS 两键语义；未注册 WorkflowConfig 保持默认）。
+    /// </summary>
+    [Fact]
+    public async Task AddDreamPluginServices_ResolvesWorkflowConfigBridge() {
+        var services = new ServiceCollection();
+        services.AddSingleton(new WorkflowConfig {
+            AutoMemoryEnabled = false,
+            AutoDreamEnabled = false,
+        });
+
+        services.AddDreamPluginServices();
+
+        await using var provider = services.BuildServiceProvider();
+        var config = provider.GetRequiredService<AutoDreamConfig>();
+        Assert.False(config.AutoMemoryEnabled, "settings autoMemoryEnabled=false 应关闭自动记忆");
+        Assert.False(config.Enabled, "settings autoDreamEnabled=false 应关闭自动做梦");
+        Assert.Equal(2, config.MinSessions);
+    }
+
+    [Fact]
+    public async Task AddDreamPluginServices_NoWorkflowConfig_KeepsDefaults() {
+        var services = new ServiceCollection();
+
+        services.AddDreamPluginServices();
+
+        await using var provider = services.BuildServiceProvider();
+        var config = provider.GetRequiredService<AutoDreamConfig>();
+        Assert.True(config.AutoMemoryEnabled, "未注册 WorkflowConfig 时保持默认 true");
+        Assert.True(config.Enabled);
+    }
 }

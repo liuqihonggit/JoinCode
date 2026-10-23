@@ -13,7 +13,9 @@ namespace NativeTui.Host;
 /// </summary>
 internal static class ModelPickerAssembly
 {
-    /// <summary>从引擎服务投影选择器清单 — catalog 缺失时单条降级项（不阻断 UI）。</summary>
+    /// <summary>从引擎服务投影选择器清单 — catalog 缺失时单条降级项（不阻断 UI）。
+    /// modelHistory 闭环（B类键）：settings.current.modelHistory（LRU 逗号串，最新在前）中的模型
+    /// 按历史序置顶（最近使用优先），历史外模型保持目录序；无历史零行为变化。</summary>
     internal static IReadOnlyList<ModelPickerItem> LoadItems(IServiceProvider services)
     {
         var fastMode = services.GetService<IFastModeService>();
@@ -27,7 +29,8 @@ internal static class ModelPickerAssembly
 
         var provider = CurrentProvider(services);
         var models = catalog.EnsureCurrentModelInList(catalog.GetModelsForProvider(provider), current);
-        return models
+        var history = LoadModelHistory(services);
+        return SortByHistory(models, history)
             .Select(m => new ModelPickerItem(
                 m.Id,
                 m.DisplayName,
@@ -38,7 +41,8 @@ internal static class ModelPickerAssembly
             .ToArray();
     }
 
-    /// <summary>自研切换链 — 内存主模型 + settings.json 持久化 + fast mode 自关（不支持新模型时）。</summary>
+    /// <summary>自研切换链 — 内存主模型 + settings.json 持久化 + fast mode 自关（不支持新模型时）
+    /// + modelHistory 记录（头插去重 20 条上限，对齐 ModelCommand.RecordModelHistoryAsync LRU 语义）。</summary>
     internal static void ApplyModel(IServiceProvider services, string modelId)
     {
         var fastMode = services.GetService<IFastModeService>();
@@ -52,6 +56,65 @@ internal static class ModelPickerAssembly
             {
                 fastMode.Deactivate();
             }
+        }
+
+        RecordModelHistory(services, modelId);
+    }
+
+    /// <summary>读取 modelHistory（逗号串 LRU，最新在前；读取失败/未配置 → 空序 — 零行为变化）。</summary>
+    private static List<string> LoadModelHistory(IServiceProvider services)
+    {
+        try
+        {
+            var raw = services.GetService<IConfigurationService>()?.GetAsync("modelHistory").GetAwaiter().GetResult();
+            return string.IsNullOrEmpty(raw)
+                ? []
+                : raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException)
+        {
+            return [];
+        }
+    }
+
+    /// <summary>历史序置顶排序 — 历史中的模型按历史序在前（稳定保序），其余保持目录序。
+    /// 模型清单排序纯函数（测试友好），忽略大小写匹配（模型 ID 大小写不敏感惯例）。</summary>
+    internal static IEnumerable<ModelEntry> SortByHistory(ModelEntry[] models, List<string> history)
+    {
+        var historySet = history.ToDictionary(m => m, StringComparer.OrdinalIgnoreCase);
+        var inHistory = history
+            .Select(h => models.FirstOrDefault(m => string.Equals(m.Id, h, StringComparison.OrdinalIgnoreCase)))
+            .Where(m => m is not null)
+            .Select(m => m!);
+        var notInHistory = models.Where(m => !historySet.ContainsKey(m.Id));
+        return inHistory.Concat(notInHistory);
+    }
+
+    /// <summary>记录 modelHistory — 头插新模型 + 去重 + 20 条上限（对齐 ModelCommand.RecordModelHistoryAsync；
+    /// 写失败静默降级 — 历史记录不阻断模型切换）。</summary>
+    private static void RecordModelHistory(IServiceProvider services, string modelId)
+    {
+        try
+        {
+            var configService = services.GetService<IConfigurationService>();
+            if (configService is null)
+            {
+                return;
+            }
+
+            var history = LoadModelHistory(services);
+            history.RemoveAll(m => string.Equals(m, modelId, StringComparison.OrdinalIgnoreCase));
+            history.Insert(0, modelId);
+            if (history.Count > 20)
+            {
+                history = history.Take(20).ToList();
+            }
+
+            configService.SetAsync("modelHistory", string.Join(",", history)).GetAwaiter().GetResult();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException)
+        {
+            // 历史写入失败不阻断切换（模型切换已生效）
         }
     }
 

@@ -3,9 +3,11 @@ namespace NativeTui.Tests.Repl;
 /// <summary>
 /// ReplShell 鼠标事件接线测试（TASK066 板块 C 连线 C5+C6 — 滚轮滚动 + 选区交互 + 选中即复制）：
 /// HandleKeyPress 顶部鼠标拦截吞掉不进按键链（对齐 FocusIn/Out 焦点拦截先例）；
-/// 滚轮 WheelUp/WheelDown → 滚动区行滚动（基础 1 行/事件 — 基准 readScrollSpeedBase 默认 1，
-/// ScrollKeybindingHandler.tsx:305-310；wheelup/wheeldown 经键位系统绑 scroll:lineUp/lineDown，
-/// defaultBindings.ts:200-201）；模态挂起期间鼠标全吞（权限挂起滚轮无效果）；
+/// 滚轮 WheelUp/WheelDown → 滚动区行滚动（C5 P3 加速度 ramp — 40ms 窗内连发乘数 +0.3 递增
+/// cap max(6, base×2)、首事件/超窗回 base 1 — 基准 computeWheelStep :255-265；base =
+/// readScrollSpeedBase 默认 1，ScrollKeybindingHandler.tsx:305-310；wheelup/wheeldown 经键位
+/// 系统绑 scroll:lineUp/lineDown，defaultBindings.ts:200-201；离散测试事件序列乘数 floor 后
+/// 前 4 事件仍 1 行 — 既有断言不破坏）；模态挂起期间鼠标全吞（权限挂起滚轮无效果）；
 /// 左键拖拽选中 + Release 后选中即复制（基准 useCopyOnSelect.ts:44-80 — 选区 settled
 ///（isDragging=false &amp;&amp; hasSelection）才复制，拖拽中/无选区不复制，空白选区跳过 ：74-77）；
 /// 双击词选中复制（多击判定 500ms/1cell — App.tsx:92-93，恒定时钟注入确定性）；
@@ -74,7 +76,8 @@ public sealed class MouseWiringTests
     }
 
     /// <summary>滚轮上 — 视口模式滚动区上滚 1 行（sticky 钉底态 ScrollTop 减 1；
-    /// 滚动量基准：readScrollSpeedBase 默认 1 行/事件，ScrollKeybindingHandler.tsx:305-310）。</summary>
+    /// 首事件步长 base 1 — C5 P3 ramp 首事件重置回 base，基准 readScrollSpeedBase 默认 1
+    /// 行/事件，ScrollKeybindingHandler.tsx:305-310 + computeWheelStep :255-265）。</summary>
     [Fact]
     public void WheelUp_ViewportMode_ScrollsUpOneRow()
     {
@@ -88,7 +91,8 @@ public sealed class MouseWiringTests
         Assert.Equal(before - 1, harness.Shell.View.Messages.ScrollTop);
     }
 
-    /// <summary>滚轮下 — 上滚两行后下滚一行回补（WheelDown = +1 行；两向上滚 -2 +1 = 净 -1）。</summary>
+    /// <summary>滚轮下 — 上滚两行后下滚一行回补（C5 P3 ramp：事件 1/2/3 乘数 1→1.3→1.6，
+    /// floor 后均 1 行 — 两向上滚 -2 +1 = 净 -1，既有断言对 ramp 免疫）。</summary>
     [Fact]
     public void WheelDown_AfterWheelUp_ScrollsBackDown()
     {

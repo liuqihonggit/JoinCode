@@ -83,6 +83,14 @@ public sealed class ReplView
     /// <see cref="ScrollBox.DefaultOverscanRows"/>=80 行，对齐基准 useVirtualScroll.ts:24）。</summary>
     public ScrollBox Messages { get; } = new(stickyScroll: true) { OverscanRows = ScrollBox.DefaultOverscanRows };
 
+    /// <summary>命中测试注册表（TASK066 板块 C 基建 C2 接线消费 — HitTestRegistry 挂载点设计：
+    /// ReplView 为渲染编排者/帧生命周期掌控者持有，不挂 Screen — Grid 层纯帧缓冲无命中语义，
+    /// 避免反向依赖）。帧序：Render 帧首 <see cref="HitTestRegistry.Clear"/> → 渲染流程中标注
+    ///（后台任务面板 RegisterHitTargets + 消息项 HitTestId 经 <see cref="RegisterMessageHitRects"/>）；
+    /// 消费方 ReplShell.HandleMouseEvent 单击分派 HitTest 查询（对齐基准 nodeCache 每帧重填
+    /// hit-test.ts:8-10 — 未渲染区域命中 null）。</summary>
+    public HitTestRegistry HitTests { get; } = new();
+
     /// <summary>输入框文本。</summary>
     public string Input { get; set; } = string.Empty;
 
@@ -220,6 +228,11 @@ public sealed class ReplView
 
     public void Render(Screen screen, Theme theme)
     {
+        // TASK066 C2 接线 — 帧首清空命中表（每帧重建语义，对齐基准 nodeCache 每帧重填
+        // hit-test.ts:8-10）：置于一切分支之前 — transcript 模态整屏替换帧也清空，
+        // 陈旧命中不跨模态存活；本帧未标注区域命中 null（回落既有交互链）
+        HitTests.Clear();
+
         // M8-8 后续 evictAfter 终态驱逐 — 每帧拍驱动（墙钟直取，对齐 spinner WallNowMs 先例）；
         // 置于 transcript 分支之前：全屏模态期间驱逐持续，回到主屏不积压过期终态条目
         BackgroundTasks.TickEvict(Environment.TickCount64);
@@ -271,7 +284,11 @@ public sealed class ReplView
         // 后台任务面板在排队面板之上（排队输入紧贴输入框 — 现有语义零变化；常驻任务是环境状态居一层之上）
         if (backgroundHeight > 0)
         {
-            BackgroundTasks.Render(screen, new Rect(0, inputFrame.Y - queueHeight - backgroundHeight, screen.Cols, backgroundHeight), theme);
+            var panelFrame = new Rect(0, inputFrame.Y - queueHeight - backgroundHeight, screen.Cols, backgroundHeight);
+            BackgroundTasks.Render(screen, panelFrame, theme);
+            // TASK066 C2 接线 — 面板命中标注（面板级整块 + 行级逐行；Render 后调用 —
+            // 行偏移公式与面板渲染一致（frame.Y + i，行高恒 1）；空面板零渲染不标注）
+            BackgroundTasks.RegisterHitTargets(HitTests, panelFrame);
         }
 
         if (HelpOpen)
@@ -282,6 +299,25 @@ public sealed class ReplView
         var messagesHeight = Math.Max(0, screen.Rows - footerHeight - actionsHeight - suggestionHeight - queueHeight - backgroundHeight - HelpHeight - 1 - inputHeight);
         var messagesFrame = new Rect(0, 0, screen.Cols, messagesHeight);
         Messages.Render(screen, messagesFrame, theme);
+        // TASK066 C2 接线 — 消息区命中标注（渲染结算后 — HitTestId 非 null 项注册平移后 rect）
+        RegisterMessageHitRects();
+    }
+
+    /// <summary>消息区命中标注（TASK066 C2 接线 — 渲染循环消费 IScrollItem.HitTestId）：
+    /// 遍历 ScrollBox 本帧渲染结算快照（渲染窗口内项的平移后 rect — 视口外/overscan 窗口外项
+    /// 无帧坐标不注册，对齐基准 nodeCache 未渲染项跳过 hit-test.ts:12-13），HitTestId 非空项向
+    /// <see cref="HitTests"/> 声明自身屏幕 rect（注册序 = 绘制序，HitTest 反向遍历后绘制优先 —
+    /// 对齐基准后绘制兄弟顶层优先 hit-test.ts:33-39）。0 高项跳过（无 rect 可声明 —
+    /// Register 契约 height &gt;= 1 的合法跳过场景）。</summary>
+    private void RegisterMessageHitRects()
+    {
+        foreach (var (item, frame) in Messages.LastRenderedFrames)
+        {
+            if (item.HitTestId is { } id && frame.Height >= 1)
+            {
+                HitTests.Register(id, frame.Y, frame.X, frame.Width, frame.Height);
+            }
+        }
     }
 
     /// <summary>渲染排队面板（基准 queued 形态 — 输入栏上方）：每条一行 ❯ 前缀 + 文本 + dim " (queued)"，

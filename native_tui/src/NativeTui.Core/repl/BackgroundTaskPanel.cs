@@ -48,6 +48,11 @@ public sealed class BackgroundTaskPanel
     /// <summary>取消终态（协议值）。</summary>
     public const string CancelledState = "cancelled";
 
+    /// <summary>面板级命中 id（TASK066 板块 C 基建 C2 接线 — 命中语义：面板空白区域/溢出行
+    /// "+N more" 点击吞掉不启动文本选区，面板为 UI 交互区对齐基准 ink Box 包裹行区域的组件形态
+    /// CoordinatorAgentStatus.tsx:72-75；行级 id 见 <see cref="HitIdOf"/> — 前缀相异无歧义）。</summary>
+    public const string PanelHitId = "background-task-panel";
+
     private readonly List<BackgroundTaskEntry> _tasks = [];
 
     /// <summary>任务条目清单（插入序 — 渲染窗口取前 N 条，断言投影）。</summary>
@@ -142,6 +147,57 @@ public sealed class BackgroundTaskPanel
     {
         SelectedIndex = -1;
         WindowStart = 0;
+    }
+
+    /// <summary>行级命中 id 构造（TASK066 C2 — 单一构造源防 id 双维护）：注册侧
+    /// <see cref="RegisterHitTargets"/> 与消费侧 <see cref="TrySelectByHitId"/> 共用完整字符串
+    /// 比对（免解析歧义 — taskId 含冒号也安全），格式「域:类别:键」对齐 IScrollItem.HitTestId
+    /// 命名建议（ScrollBox.cs:15 — background-task:fork:42 形态）。</summary>
+    /// <param name="kind">任务类别（协议值 fork|teammate）。</param>
+    /// <param name="taskId">任务标识。</param>
+    internal static string HitIdOf(string kind, string taskId) => $"background-task:{kind}:{taskId}";
+
+    /// <summary>命中标注（TASK066 C2 接线 — ReplView.Render 在面板 Render 后调用，空面板零渲染
+    /// 时不调用即零标注）：面板级整块 rect 先注册（覆盖含溢出行 — 行级后注册覆盖之，HitTest
+    /// 反向遍历行级优先 = 后绘制兄弟顶层优先，对齐基准 hit-test.ts:33-39）+ 每可见行 1 行高 rect
+    ///（行 y = frame.Y + i 与 <see cref="Render"/> 行偏移同公式 — 行高恒 1 无 wrap 公式稳定；
+    /// 溢出行/空白无行级标注，命中回落面板级 id）。坐标为屏幕坐标（rect 已是平移后位置 —
+    /// 对齐基准 nodeCache 屏幕坐标语义 hit-test.ts:9-10）。</summary>
+    /// <param name="registry">命中注册表（ReplView 帧生命周期持有）。</param>
+    /// <param name="frame">面板屏幕 rect（ReplView 渲染时传入）。</param>
+    public void RegisterHitTargets(HitTestRegistry registry, Rect frame)
+    {
+        registry.Register(PanelHitId, frame.Y, frame.X, frame.Width, frame.Height);
+        for (var i = 0; i < VisibleCount; i++)
+        {
+            var task = _tasks[WindowStart + i];
+            registry.Register(HitIdOf(task.Kind, task.TaskId), frame.Y + i, frame.X, frame.Width, 1);
+        }
+    }
+
+    /// <summary>命中行选中（TASK066 C2 消费 — ReplShell 单击分派）：按完整行 id 匹配可见行
+    ///（窗口外行无 rect 天然不命中，防御仍限定可见范围）→ 直设 SelectedIndex + 窗口跟随；
+    /// 终态行可选中（对齐基准 AgentLine 任意状态 onClick 均可查看 CoordinatorAgentStatus.tsx:74；
+    /// 终态选中后的 x 停止由 <see cref="SelectedEntry"/> 终态守卫回退首个 running 兜底）；
+    /// 不走 <see cref="MoveSelection"/> 跳终态 — 点击是直接定位非相邻导航。未匹配返回 false
+    ///（非本面板 id — 调用方回落既有链）。</summary>
+    /// <param name="hitId">命中表返回的 id（HandleMouseEvent 单击查询）。</param>
+    /// <returns>true = 本面板行命中并已选中；false = 非本面板 id。</returns>
+    internal bool TrySelectByHitId(string hitId)
+    {
+        for (var i = 0; i < VisibleCount; i++)
+        {
+            var itemIndex = WindowStart + i;
+            var task = _tasks[itemIndex];
+            if (hitId == HitIdOf(task.Kind, task.TaskId))
+            {
+                SelectedIndex = itemIndex;
+                FollowWindowToSelection();
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>窗口跟随（对齐 ModelPicker.MoveFocus 先例）— 保证选中索引可见的最小窗口位移。</summary>

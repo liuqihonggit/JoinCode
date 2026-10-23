@@ -63,6 +63,17 @@ public sealed class ScrollBox
     /// 精确视口 = 相交项数；overscan 窗口 = 视口±N 行内项数（更远项冻结不渲染））。</summary>
     internal int LastRenderedCount { get; private set; }
 
+    /// <summary>本帧渲染项 frame 投影快照（TASK066 C2 接线 — 命中注册数据源）：
+    /// 渲染窗口内项（含 overscan 预渲染）的平移后 rect（Y 已含 -scrollTop，可能为负/越屏 —
+    /// 查询点恒在屏内天然不命中）；窗口外项缺席 = 无帧坐标不注册（对齐基准 nodeCache 未渲染项
+    /// 不在表内即跳过 hit-test.ts:12-13）。每帧 Render 重建（帧级快照 — 对齐
+    /// <see cref="LastRenderedCount"/> 先例）。消费方：ReplView 渲染后遍历此快照对
+    /// IScrollItem.HitTestId 非空项向 HitTestRegistry 注册（组件层不持注册表 — 纯数据暴露
+    /// 防反向依赖，注册决策归渲染编排者 ReplView）。</summary>
+    internal IReadOnlyList<(IScrollItem Item, Rect Frame)> LastRenderedFrames => _renderedFrames;
+
+    private readonly List<(IScrollItem Item, Rect Frame)> _renderedFrames = [];
+
     /// <summary>选中高亮项（消息光标导航 — 交互层 Step1）— 渲染后整块背景覆写
     /// MessageActionsBackground（前景字符保留）；null = 无高亮。基准消息选中背景语义。</summary>
     public IScrollItem? HighlightItem { get; set; }
@@ -129,6 +140,8 @@ public sealed class ScrollBox
         var windowBottom = ScrollTop + frame.Height + overscan;
         var rendered = 0;
         var itemTop = 0;
+        // TASK066 C2 接线 — 帧首重建渲染结算快照（上一帧 rect 不跨帧存活，对齐基准 nodeCache 每帧重填）
+        _renderedFrames.Clear();
         using (screen.ClipScope(frame))
         {
             for (var i = 0; i < _items.Count; i++)
@@ -138,6 +151,7 @@ public sealed class ScrollBox
                 {
                     var itemFrame = new Rect(frame.X, frame.Y + itemTop - ScrollTop, frame.Width, heights[i]);
                     _items[i].Render(screen, itemFrame, theme);
+                    _renderedFrames.Add((_items[i], itemFrame));
                     rendered++;
                     if (ReferenceEquals(_items[i], HighlightItem))
                     {

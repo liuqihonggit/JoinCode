@@ -31,6 +31,9 @@ public static class Diag {
     /// <summary>启用运行时调试日志。</summary>
     public static void EnableDebugLog() => _runtimeEnabled = true;
 
+    /// <summary>重置运行时调试日志标志 — 仅供测试隔离（对齐 CooldownService.Reset 先例）。</summary>
+    public static void ResetRuntimeDebugLogForTest() => _runtimeEnabled = false;
+
     /// <summary>输出生命周期诊断消息。</summary>
     /// <param name="message">消息内容。</param>
     public static void WriteLifecycle(string message) {

@@ -10,7 +10,6 @@ public sealed class AppDataPathsTests {
     // 构造完全确定的实例(不依赖 Default/Env)
     private static AppDataPaths Make(string folder = ".jcc") => new(
         AppDataFolder: folder,
-        CredentialsFileName: "credentials.json",
         AuthFileName: "auth.json",
         SettingsFileName: "settings.json",
         GlobalConfigFileName: "global.json",
@@ -21,7 +20,6 @@ public sealed class AppDataPathsTests {
         TasksFolderName: "tasks",
         WorktreesFolderName: "worktrees",
         AgentsFolderName: "agents",
-        ThemeFileName: "theme.json",
         TrustedFoldersFileName: "trusted_folders.json",
         SessionsFolderName: "sessions",
         SessionMetaFileName: "session.meta.json",
@@ -54,6 +52,19 @@ public sealed class AppDataPathsTests {
     }
 
     [Fact]
+    public void LocalSettingsFileName_DerivesFromSettingsFileName() {
+        var p = Make();
+        p.LocalSettingsFileName.Should().Be("settings.local.json");
+    }
+
+    [Fact]
+    public void LocalSettingsFileName_DerivesFromOverriddenSettingsFileName() {
+        var p = Make() with { SettingsFileName = "my-settings.json" };
+        p.LocalSettingsFileName.Should().Be("my-settings.local.json");
+        p.LocalSettingsRelativePath.Should().Be(".jcc/my-settings.local.json");
+    }
+
+    [Fact]
     public void WorktreeFolderName_EqualsWorktreesFolderName() {
         var p = Make();
         p.WorktreeFolderName.Should().Be(p.WorktreesFolderName);
@@ -69,6 +80,12 @@ public sealed class AppDataPathsTests {
     public void AuthFilePath_CombinesJccDirectoryAndAuthFileName() {
         var p = Make();
         p.AuthFilePath.Should().Be(Path.Combine(p.JccDirectory, p.AuthFileName));
+    }
+
+    [Fact]
+    public void TrustedFoldersFilePath_CombinesJccDirectoryAndTrustedFoldersFileName() {
+        var p = Make();
+        p.TrustedFoldersFilePath.Should().Be(Path.Combine(p.JccDirectory, p.TrustedFoldersFileName));
     }
 
     [Fact]
@@ -181,7 +198,7 @@ public sealed class AppDataPathsTests {
     public void CreateForTest_DefaultsPreservedForUnspecified() {
         var p = AppDataPaths.CreateForTest();
         // 未指定的字段使用 Default 值(非空)
-        p.CredentialsFileName.Should().NotBeEmpty();
+        p.AuthFileName.Should().NotBeEmpty();
         p.RulesFolderName.Should().NotBeEmpty();
         p.McpFolderName.Should().NotBeEmpty();
     }

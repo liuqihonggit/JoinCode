@@ -93,9 +93,10 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
         // 按存储源分流持久化 — 对齐 TS: global → saveGlobalConfig, settings → updateSettingsForSource
         try {
             // 对齐 TS markInternalWrite — 写入前标记内部写，防止 FileSystemWatcher 回声
+            // 路径委托 AppDataPaths 唯一数据源（JCC_APP_DATA_FOLDER 覆盖行为与主链路一致）
             var targetPath = source == SettingSource.GlobalConfig
-                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder, AppDataConstants.GlobalConfigFileName)
-                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder, AppDataConstants.SettingsFileName);
+                ? AppDataConstants.Paths.GlobalConfigFilePath
+                : AppDataConstants.Paths.SettingsFilePath;
             _configChangeNotifier?.MarkInternalWrite(targetPath);
 
             if (source == SettingSource.GlobalConfig) {
@@ -125,9 +126,8 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
         }
 
         try {
-            // 对齐 TS markInternalWrite — 写入前标记内部写
-            var targetPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder, AppDataConstants.SettingsFileName);
-            _configChangeNotifier?.MarkInternalWrite(targetPath);
+            // 对齐 TS markInternalWrite — 写入前标记内部写（路径委托 AppDataPaths 唯一数据源）
+            _configChangeNotifier?.MarkInternalWrite(AppDataConstants.Paths.SettingsFilePath);
 
             await ConfigLoader.SaveSettingToSettingsJsonAsync(key, null, _fs, cancellationToken, _logger).ConfigureAwait(false);
         } catch (Exception ex) {

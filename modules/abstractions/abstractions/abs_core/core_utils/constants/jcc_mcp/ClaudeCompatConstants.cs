@@ -102,11 +102,4 @@ public static class ClaudeCompatConstants {
     public const string McpToolPrefixClaudeInChrome = "mcp__claude-in-chrome__";
 
     #endregion
-
-    #region 外部文件路径
-
-    /// <summary>Windows 下 managed-settings.json 路径（外部程序路径）</summary>
-    public const string ManagedSettingsPath = @"C:\Program Files\ClaudeCode\managed-settings.json";
-
-    #endregion
 }

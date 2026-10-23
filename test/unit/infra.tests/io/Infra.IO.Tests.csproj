@@ -19,17 +19,4 @@
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="$(MicrosoftExtensionsTimeProviderTestingVersion)" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="..\Process\**\*.cs" />
-    <Compile Include="..\Http\**\*.cs" />
-    <Compile Include="..\Subprocess\**\*.cs" />
-    <Compile Include="..\file_ops\**\*.cs" />
-    <Compile Include="..\persistence\**\*.cs" />
-    <Compile Include="..\GlobalUsings.cs" Link="GlobalUsings.cs" />
-    <None Include="..\test_data\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>test_data\%(RecursiveDir)%(Filename)%(Extension)</Link>
-    </None>
-  </ItemGroup>
-
 </Project>

@@ -98,8 +98,14 @@ public class ConfigLoader {
                 _modelConfigLoader.ApplyProviders(providers);
             }
 
-            // Step 2: 注入 settings.env 到环境变量（低优先级，不覆盖已有环境变量）
-            SettingsMapper.InjectEnvFromSettings(settings);
+            // Step 2: 注入 settings.env 到环境变量（低优先级，不覆盖已有环境变量；危险键黑名单拒绝）
+            SettingsMapper.InjectEnvFromSettings(settings, _logger);
+
+            // Step 2.1: settings.json current.debuglog=true 启用诊断日志（对齐 TS debuglog 键；
+            // --debuglog/JCC_DEBUGLOG 更早生效，此处补 settings 来源，三入口同效）
+            if (settings?.Current?.DebugLog == true) {
+                Diag.EnableDebugLog();
+            }
 
             // Step 2.5: 环境变量覆盖 SettingsJson — 集中启动参数解析（JCC_VENDOR/MODEL_ID/ENDPOINT/PROFILE）
             settings = EnvOverrideApplier.Apply(settings);

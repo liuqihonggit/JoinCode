@@ -82,6 +82,30 @@ public sealed record WorkflowConfig {
     public bool FastMode { get; init; } = false;
 
     /// <summary>
+    /// 语言偏好 — 对齐 TS settings.json language 键（如 "chinese"/"japanese"），
+    /// 流向 SystemPromptProviderOptions.LanguagePreference（LanguageSection 生成语言偏好提示词）
+    /// </summary>
+    public string? Language { get; init; }
+
+    /// <summary>
+    /// 显示回合耗时 — 对齐 TS showTurnDuration（默认 true）；
+    /// SessionController 门控 timing 摘要显示（debuglog 开启时强制显示）
+    /// </summary>
+    public bool ShowTurnDuration { get; init; } = true;
+
+    /// <summary>
+    /// 自动压缩开关 — 对齐 TS autoCompactEnabled（默认 true）；
+    /// AutoCompactService.ShouldAutoCompact 门控（false 时即使超硬阈值也不触发）
+    /// </summary>
+    public bool AutoCompactEnabled { get; init; } = true;
+
+    /// <summary>
+    /// 文件检查点开关 — 对齐 TS fileCheckpointingEnabled（默认 true）；
+    /// FileHistoryService.BackupBeforeWriteAsync 门控（false 时跳过写前备份）
+    /// </summary>
+    public bool FileCheckpointingEnabled { get; init; } = true;
+
+    /// <summary>
     /// LLM 执行参数配置（Temperature, MaxTokens, TopP 等）
     /// </summary>
     public LlmExecutionSettings LlmExecution { get; init; } = new();

@@ -22,9 +22,8 @@ public sealed record KeybindingLoadResult(KeybindingProfile Profile, IReadOnlyLi
 /// </summary>
 public static class KeybindingLoader
 {
-    /// <summary>默认配置路径（~/.jcc/keybindings.json — 对齐 command-history.json 配置目录先例）。</summary>
-    public static string DefaultPath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".jcc", "keybindings.json");
+    /// <summary>默认配置路径（~/.jcc/keybindings.json — 经 JccHome 跟随 JCC_APP_DATA_FOLDER 覆盖，测试隔离不污染真实用户目录）。</summary>
+    public static string DefaultPath => JccHome.Combine("keybindings.json");
 
     /// <summary>加载默认路径用户键位（文件不存在 → 默认表 + 无错误）。</summary>
     /// <returns>加载结果。</returns>

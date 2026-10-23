@@ -385,6 +385,59 @@ public sealed class SessionControllerTests {
             "主代理路径应在执行前调用 UpdateFileContext 更新文件上下文");
     }
 
+    /// <summary>
+    /// showTurnDuration 接线（对齐 TS 默认 true 显示回合耗时）：无 WorkflowConfig 时默认显示。
+    /// </summary>
+    [Fact]
+    public async Task StreamResponseAsync_MainAgentPath_Default_ShowsTimingSummary() {
+        var queryEngine = CreateMockQueryEngine();
+        await using var agent = new AgentBase(
+            task: string.Empty,
+            options: null,
+            queryEngine: queryEngine,
+            logger: null,
+            name: "main",
+            role: AgentRole.Coordinator);
+
+        var services = new ServiceCollection();
+        var sp = services.BuildServiceProvider();
+
+        var chatService = CreateMockChatService(Array.Empty<ChatStreamEvent>());
+        var consumer = new RecordingEventConsumer();
+        var controller = new SessionController(chatService, consumer, new TurnDiffService(), "test-session", sp, mainAgent: agent);
+
+        await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        consumer.TimingSummaryEvents.Should().Contain(s => s.Contains("Total:"),
+            "showTurnDuration 默认 true（对齐 TS）应显示回合耗时");
+    }
+
+    /// <summary>showTurnDuration=false 时抑制回合耗时显示（debuglog 开启时仍显示）。</summary>
+    [Fact]
+    public async Task StreamResponseAsync_MainAgentPath_ShowTurnDurationFalse_SuppressesTimingSummary() {
+        var queryEngine = CreateMockQueryEngine();
+        await using var agent = new AgentBase(
+            task: string.Empty,
+            options: null,
+            queryEngine: queryEngine,
+            logger: null,
+            name: "main",
+            role: AgentRole.Coordinator);
+
+        var services = new ServiceCollection();
+        services.AddSingleton(new WorkflowConfig { ShowTurnDuration = false });
+        var sp = services.BuildServiceProvider();
+
+        var chatService = CreateMockChatService(Array.Empty<ChatStreamEvent>());
+        var consumer = new RecordingEventConsumer();
+        var controller = new SessionController(chatService, consumer, new TurnDiffService(), "test-session", sp, mainAgent: agent);
+
+        await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        consumer.TimingSummaryEvents.Should().NotContain(s => s.Contains("Total:"),
+            "showTurnDuration=false 应抑制回合耗时显示");
+    }
+
     private static IQueryEngine CreateMockQueryEngine() {
         var mock = new Mock<IQueryEngine>();
         var chunks = new QueryStreamChunk[]

@@ -35,7 +35,6 @@ public class SettingsJsonDeserializationTests {
                 "language": "zh-CN",
                 "autoMemoryEnabled": true,
                 "autoDreamEnabled": false,
-                "showThinkingSummaries": true,
                 "env": {
                   "AGNES_API_KEY": "sk-agnes-api-key-value"
                 },
@@ -88,7 +87,6 @@ public class SettingsJsonDeserializationTests {
         settings.Current.Language.Should().Be("zh-CN");
         settings.Current.AutoMemoryEnabled.Should().BeTrue();
         settings.Current.AutoDreamEnabled.Should().BeFalse();
-        settings.Current.ShowThinkingSummaries.Should().BeTrue();
 
         settings.Current.Env.Should().NotBeNull();
         settings.Current.Env!["AGNES_API_KEY"].Should().Be("sk-agnes-api-key-value");
@@ -98,9 +96,8 @@ public class SettingsJsonDeserializationTests {
         settings.Current.Permissions.Deny.Should().Contain("Bash(rm -rf)");
         settings.Current.Permissions.DefaultMode.Should().Be("autoAccept");
 
-        settings.Current.Hooks.Should().NotBeNull();
-        settings.Current.Hooks!.Should().ContainKey("PreToolUse");
-        settings.Current.Hooks!["PreToolUse"][0].Command.Should().Be("echo before");
+        // current.hooks 为已删除的死形状 — Hook 系统读顶层 hooks（HookConfigurationManager），
+        // Relaxed 宽容反序列化忽略 current 内未知键不报错（上方 JSON 片段即验证点）
 
         settings.Current.McpServers.Should().NotBeNull();
         settings.Current.McpServers!["my-server"].Command.Should().Be("node");
@@ -142,7 +139,6 @@ public class SettingsJsonDeserializationTests {
         settings.Current.FastMode.Should().BeNull();
         settings.Current.Env.Should().BeNull();
         settings.Current.Permissions.Should().BeNull();
-        settings.Current.Hooks.Should().BeNull();
         settings.Current.McpServers.Should().BeNull();
         settings.Current.Sandbox.Should().BeNull();
     }

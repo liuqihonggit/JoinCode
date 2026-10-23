@@ -55,12 +55,10 @@ public enum JccEnvVar {
     [EnumValue("JCCSHARPTUI_AZURE_CLIENT_ID")] AzureClientId,
 
     // 新增: AppData 路径覆盖
-    [EnumValue("JCC_CREDENTIALS_FILE_NAME")] CredentialsFileName,
     [EnumValue("JCC_TEAMS_FOLDER_NAME")] TeamsFolderName,
     [EnumValue("JCC_TASKS_FOLDER_NAME")] TasksFolderName,
     [EnumValue("JCC_WORKTREES_FOLDER_NAME")] WorktreesFolderName,
     [EnumValue("JCC_AGENTS_FOLDER_NAME")] AgentsFolderName,
-    [EnumValue("JCC_THEME_FILE_NAME")] ThemeFileName,
     [EnumValue("JCC_TRUSTED_FOLDERS_FILE_NAME")] TrustedFoldersFileName,
     [EnumValue("JCC_SESSIONS_FOLDER_NAME")] SessionsFolderName,
     [EnumValue("JCC_SESSION_META_FILE_NAME")] SessionMetaFileName,

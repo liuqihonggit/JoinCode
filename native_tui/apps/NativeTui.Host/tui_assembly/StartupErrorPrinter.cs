@@ -27,17 +27,14 @@ internal static class StartupErrorPrinter
     /// <summary>错误标题（框线首行）。</summary>
     private const string Title = "jcc 启动失败 — 配置错误";
 
-    /// <summary>auth.json 绝对路径（修复指引展示）。</summary>
-    private static string AuthPath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".jcc", "auth.json");
+    /// <summary>auth.json 绝对路径（修复指引展示 — 委托 AppDataPaths 唯一数据源，跟随环境变量覆盖）。</summary>
+    private static string AuthPath => AppDataConstants.Paths.AuthFilePath;
 
-    /// <summary>用户级 settings.json 绝对路径。</summary>
-    private static string UserSettingsPath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".jcc", "settings.json");
+    /// <summary>用户级 settings.json 绝对路径（委托 AppDataPaths，与 SettingsLoader 主链路同源）。</summary>
+    private static string UserSettingsPath => AppDataConstants.Paths.SettingsFilePath;
 
-    /// <summary>项目级 settings.json 路径（cwd 下）。</summary>
-    private static string ProjectSettingsPath => Path.Combine(
-        Environment.CurrentDirectory, ".jcc", "settings.json");
+    /// <summary>项目级 settings.json 路径（cwd 下 — 委托 SettingsLoader 主链路解析，含 rooted 回退语义）。</summary>
+    private static string ProjectSettingsPath => SettingsLoader.GetProjectSettingsPath(Environment.CurrentDirectory);
 
     /// <summary>组装友好文本 — 框线面板：标题 / 原因 / 检查点（覆盖链 + key 状态）/ 修复建议。</summary>
     internal static string Format(ConfigurationException exception, ProbeResult probe)

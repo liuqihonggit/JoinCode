@@ -128,6 +128,37 @@ public class SettingsLoaderTests : IDisposable {
 
     #endregion
 
+    #region 场景1b: 路径解析一致性（JCC_SETTINGS_FILE_NAME 三层统一生效）
+
+    /// <summary>
+    /// Bug1 回归：项目级/本地级路径硬编码 "settings.json"/"settings.local.json" 字面量，
+    /// 用户级却走 AppDataConstants.SettingsFileName（支持 JCC_SETTINGS_FILE_NAME 覆盖）
+    /// → 同一覆盖机制三层行为分裂。期望三层一致应用覆盖文件名（local 为派生名）。
+    /// </summary>
+    [Fact]
+    public void Given_覆盖settings文件名_When_解析三层路径_Then_三层一致应用覆盖文件名() {
+        // Given: JCC_SETTINGS_FILE_NAME 覆盖为 my-settings.json
+        _envScope.Add(JccEnvVarEnumConstants.SettingsFileName, "my-settings.json");
+        AppDataConstants.Paths = AppDataPaths.FromEnvironment();
+
+        try {
+            // When: 解析三层路径
+            var userPath = SettingsLoader.GetUserSettingsPath();
+            var projectPath = SettingsLoader.GetProjectSettingsPath(_tempDir);
+            var localPath = SettingsLoader.GetLocalSettingsPath(_tempDir);
+
+            // Then: 三层文件名一致应用覆盖（local 派生自 settings 文件名，对齐 settings.local.json 命名规则）
+            userPath.Should().Be(Path.Combine(_userAppDataDir, "my-settings.json"));
+            projectPath.Should().Be(Path.Combine(_tempDir, ".jcc", "my-settings.json"));
+            localPath.Should().Be(Path.Combine(_tempDir, ".jcc", "my-settings.local.json"));
+        } finally {
+            // 还原文件名（Dispose 会重建 Paths，此处防御性还原避免同类后续测试读到残留）
+            AppDataConstants.SettingsFileName = "settings.json";
+        }
+    }
+
+    #endregion
+
     #region 场景2: 无配置文件时返回默认值
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]

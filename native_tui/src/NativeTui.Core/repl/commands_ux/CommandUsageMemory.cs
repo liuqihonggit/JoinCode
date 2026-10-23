@@ -16,9 +16,8 @@ public sealed class CommandUsageMemory
     /// <summary>默认容量（LRU 上限）。</summary>
     public const int DefaultCapacity = 32;
 
-    /// <summary>默认持久化路径（~/.jcc/command-history.json — 对齐 settings.json/auth.json 配置目录先例）。</summary>
-    public static string DefaultFilePath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".jcc", "command-history.json");
+    /// <summary>默认持久化路径（~/.jcc/command-history.json — 经 JccHome 跟随 JCC_APP_DATA_FOLDER 覆盖，测试隔离不污染真实用户目录）。</summary>
+    public static string DefaultFilePath => JccHome.Combine("command-history.json");
 
     private readonly int _capacity;
     private readonly TimeProvider _timeProvider;

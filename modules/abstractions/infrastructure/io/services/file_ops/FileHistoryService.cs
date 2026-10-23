@@ -12,6 +12,7 @@ public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryServ
     private readonly IFileSystem _fs;
     private readonly string _baseDir;
     private readonly string _sessionId;
+    private readonly bool _checkpointingEnabled;
     private readonly AsyncLockedDictionary<string, int> _versionTracker = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
@@ -19,16 +20,22 @@ public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryServ
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">可选日志记录器</param>
-    public FileHistoryService(IFileSystem fs, ILogger<FileHistoryService>? logger = null) {
+    /// <param name="workflowConfig">可选工作流配置，FileCheckpointingEnabled=false 时跳过写前备份（对齐 TS fileHistoryEnabled，默认 true）</param>
+    public FileHistoryService(IFileSystem fs, ILogger<FileHistoryService>? logger = null, WorkflowConfig? workflowConfig = null) {
         _fs = fs;
         _logger = logger;
         _sessionId = Environment.ProcessId.ToString();
+        _checkpointingEnabled = workflowConfig?.FileCheckpointingEnabled ?? true;
 
         _baseDir = AppDataConstants.Paths.FileHistoryDirectory;
     }
 
     /// <inheritdoc />
     public async Task<string?> BackupBeforeWriteAsync(string filePath, CancellationToken cancellationToken = default) {
+        if (!_checkpointingEnabled) {
+            return null;
+        }
+
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         var normalizedPath = Path.GetFullPath(filePath);

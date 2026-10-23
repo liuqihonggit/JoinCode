@@ -211,26 +211,12 @@ public sealed partial class CurrentSettings {
     public bool? AutoDreamEnabled { get; init; }
 
     /// <summary>
-    /// 显示思考摘要
-    /// </summary>
-    [JsonPropertyName("showThinkingSummaries")]
-    [SettingsProperty(SettingsMergeStrategy.Override)]
-    public bool? ShowThinkingSummaries { get; init; }
-
-    /// <summary>
     /// 环境变量注入（替代 .env 文件）— 对齐 TS 版 env 字段
     /// 键: 环境变量名, 值: 环境变量值
     /// </summary>
     [JsonPropertyName("env")]
     [SettingsProperty(SettingsMergeStrategy.DictionaryMerge, DictionaryValueType = "string", SkipKeyAccess = true)]
     public Dictionary<string, string> Env { get; init; } = [];
-
-    /// <summary>
-    /// 无人值守模式 — AI 持续推进长任务，红灯自动执行+审计日志，黑灯仍拒绝 — ADR 0012
-    /// </summary>
-    [JsonPropertyName("isUnattendedMode")]
-    [SettingsProperty(SettingsMergeStrategy.Override)]
-    public bool? IsUnattendedMode { get; init; }
 
     /// <summary>
     /// 防丢字符二次确认 — 防止 MTP 加速推理时丢字符/乱入字符导致命令变形 — ADR 0012
@@ -247,26 +233,11 @@ public sealed partial class CurrentSettings {
     public bool? WindowShakeEnabled { get; init; }
 
     /// <summary>
-    /// 聊天室模式开关 — 是否启用跨进程子代理聊天室广播 — ADR 0109
-    /// </summary>
-    [JsonPropertyName("chatRoomEnabled")]
-    [SettingsProperty(SettingsMergeStrategy.Override)]
-    public bool? ChatRoomEnabled { get; init; }
-
-    /// <summary>
     /// 权限配置 — 对齐 TS 版 PermissionsSchema
     /// </summary>
     [JsonPropertyName("permissions")]
     [SettingsProperty(SettingsMergeStrategy.RecursiveMerge, CustomMergeMethod = "MergePermissions", SkipKeyAccess = true)]
     public PermissionsSettings? Permissions { get; init; }
-
-    /// <summary>
-    /// Hook 配置 — 对齐 TS 版 HooksSchema
-    /// 键: Hook 事件名 (PreToolUse, PostToolUse 等), 值: Hook 列表
-    /// </summary>
-    [JsonPropertyName("hooks")]
-    [SettingsProperty(SettingsMergeStrategy.Custom, CustomMergeMethod = "MergeHookDictionaries", SkipKeyAccess = true)]
-    public Dictionary<string, List<HookSettings>> Hooks { get; init; } = [];
 
     /// <summary>
     /// MCP 服务器配置 — 对齐 TS 版 mcpServers
@@ -299,32 +270,11 @@ public sealed partial class CurrentSettings {
     public string? ApiKeyHelper { get; init; }
 
     /// <summary>
-    /// 是否尊重 .gitignore — 对齐 TS 版 respectGitignore
-    /// </summary>
-    [JsonPropertyName("respectGitignore")]
-    [SettingsProperty(SettingsMergeStrategy.Override)]
-    public bool? RespectGitignore { get; init; }
-
-    /// <summary>
     /// 清理周期（天）— 对齐 TS 版 cleanupPeriodDays
     /// </summary>
     [JsonPropertyName("cleanupPeriodDays")]
     [SettingsProperty(SettingsMergeStrategy.Override)]
     public int? CleanupPeriodDays { get; init; }
-
-    /// <summary>
-    /// 是否包含 Git 共同作者 — 对齐 TS 版 includeCoAuthoredBy
-    /// </summary>
-    [JsonPropertyName("includeCoAuthoredBy")]
-    [SettingsProperty(SettingsMergeStrategy.Override)]
-    public bool? IncludeCoAuthoredBy { get; init; }
-
-    /// <summary>
-    /// 是否包含 Git 指令 — 对齐 TS 版 includeGitInstructions
-    /// </summary>
-    [JsonPropertyName("includeGitInstructions")]
-    [SettingsProperty(SettingsMergeStrategy.Override)]
-    public bool? IncludeGitInstructions { get; init; }
 
     /// <summary>
     /// 可用模型列表 — 对齐 TS 版 availableModels
@@ -334,54 +284,11 @@ public sealed partial class CurrentSettings {
     public List<string> AvailableModels { get; init; } = [];
 
     /// <summary>
-    /// 模型覆盖映射 — 对齐 TS 版 modelOverrides
-    /// 键: 原始模型名, 值: 覆盖模型名
-    /// </summary>
-    [JsonPropertyName("modelOverrides")]
-    [SettingsProperty(SettingsMergeStrategy.DictionaryMerge, DictionaryValueType = "string", SkipKeyAccess = true)]
-    public Dictionary<string, string> ModelOverrides { get; init; } = [];
-
-    /// <summary>
-    /// 是否启用所有项目 MCP 服务器 — 对齐 TS 版 enableAllProjectMcpServers
-    /// </summary>
-    [JsonPropertyName("enableAllProjectMcpServers")]
-    [SettingsProperty(SettingsMergeStrategy.Override)]
-    public bool? EnableAllProjectMcpServers { get; init; }
-
-    /// <summary>
-    /// 已启用的 MCP JSON 服务器 — 对齐 TS 版 enabledMcpjsonServers
-    /// </summary>
-    [JsonPropertyName("enabledMcpjsonServers")]
-    [SettingsProperty(SettingsMergeStrategy.ListConcatDistinct, SkipKeyAccess = true)]
-    public List<string> EnabledMcpjsonServers { get; init; } = [];
-
-    /// <summary>
-    /// 已禁用的 MCP JSON 服务器 — 对齐 TS 版 disabledMcpjsonServers
-    /// </summary>
-    [JsonPropertyName("disabledMcpjsonServers")]
-    [SettingsProperty(SettingsMergeStrategy.ListConcatDistinct, SkipKeyAccess = true)]
-    public List<string> DisabledMcpjsonServers { get; init; } = [];
-
-    /// <summary>
-    /// 是否禁用所有 Hook — 对齐 TS 版 disableAllHooks
-    /// </summary>
-    [JsonPropertyName("disableAllHooks")]
-    [SettingsProperty(SettingsMergeStrategy.Override)]
-    public bool? DisableAllHooks { get; init; }
-
-    /// <summary>
     /// Worktree 配置 — 对齐 TS 版 worktree
     /// </summary>
     [JsonPropertyName("worktree")]
     [SettingsProperty(SettingsMergeStrategy.Override, SkipKeyAccess = true)]
     public WorktreeSettings? Worktree { get; init; }
-
-    /// <summary>
-    /// 活跃 Worktree 会话 — 对齐 TS 版 activeWorktreeSession，持久化到 settings.local.json
-    /// </summary>
-    [JsonPropertyName("activeWorktreeSession")]
-    [SettingsProperty(SettingsMergeStrategy.Override, SkipKeyAccess = true)]
-    public ActiveWorktreeSessionJson? ActiveWorktreeSession { get; init; }
 
     /// <summary>
     /// 状态栏配置 — 对齐 TS 版 statusLine
@@ -483,25 +390,6 @@ public sealed partial class CurrentSettings {
         };
     }
 
-    private static Dictionary<string, List<HookSettings>>? MergeHookDictionaries(
-        Dictionary<string, List<HookSettings>>? baseHooks,
-        Dictionary<string, List<HookSettings>>? overrideHooks) {
-        if (baseHooks is null && overrideHooks is null) return null;
-        if (baseHooks is null) return overrideHooks;
-        if (overrideHooks is null) return baseHooks;
-
-        var result = new Dictionary<string, List<HookSettings>>(baseHooks, StringComparer.OrdinalIgnoreCase);
-        foreach (var (key, value) in overrideHooks) {
-            if (result.TryGetValue(key, out var existing)) {
-                result[key] = existing.Concat(value).ToList();
-            } else {
-                result[key] = value;
-            }
-        }
-
-        return result;
-    }
-
     private static Dictionary<string, ToolOverrideEntry>? MergeToolOverrides(
         Dictionary<string, ToolOverrideEntry>? baseOverrides,
         Dictionary<string, ToolOverrideEntry>? overrideOverrides) {
@@ -580,35 +468,6 @@ public sealed class ToolOverrideEntry {
     /// <summary>该模式下额外拒绝的工具列表</summary>
     [JsonPropertyName("deny")]
     public List<string> Deny { get; init; } = [];
-}
-
-/// <summary>
-/// Hook 配置项 — 对齐 TS 版 HookSchema
-/// </summary>
-public sealed class HookSettings {
-    /// <summary>Hook 类型（如 command）</summary>
-    [JsonPropertyName("type")]
-    public string? Type { get; init; }
-
-    /// <summary>Hook 执行命令</summary>
-    [JsonPropertyName("command")]
-    public string? Command { get; init; }
-
-    /// <summary>工具名匹配器（正则或通配符）</summary>
-    [JsonPropertyName("matcher")]
-    public string? Matcher { get; init; }
-
-    /// <summary>超时时间（毫秒）</summary>
-    [JsonPropertyName("timeout")]
-    public int? Timeout { get; init; }
-
-    /// <summary>执行期间显示的状态消息</summary>
-    [JsonPropertyName("statusMessage")]
-    public string? StatusMessage { get; init; }
-
-    /// <summary>是否仅执行一次</summary>
-    [JsonPropertyName("once")]
-    public bool? Once { get; init; }
 }
 
 /// <summary>
@@ -693,51 +552,6 @@ public sealed class WorktreeSettings {
     /// <summary>稀疏检出的路径列表</summary>
     [JsonPropertyName("sparsePaths")]
     public List<string> SparsePaths { get; init; } = [];
-}
-
-/// <summary>
-/// 活跃 Worktree 会话 — 对齐 TS 版 activeWorktreeSession，持久化到 settings.local.json
-/// </summary>
-public sealed class ActiveWorktreeSessionJson {
-    /// <summary>原始工作目录</summary>
-    [JsonPropertyName("originalCwd")]
-    public string? OriginalCwd { get; init; }
-
-    /// <summary>worktree 路径</summary>
-    [JsonPropertyName("worktreePath")]
-    public string? WorktreePath { get; init; }
-
-    /// <summary>worktree 名称</summary>
-    [JsonPropertyName("worktreeName")]
-    public string? WorktreeName { get; init; }
-
-    /// <summary>worktree 分支名</summary>
-    [JsonPropertyName("worktreeBranch")]
-    public string? WorktreeBranch { get; init; }
-
-    /// <summary>原始分支名</summary>
-    [JsonPropertyName("originalBranch")]
-    public string? OriginalBranch { get; init; }
-
-    /// <summary>原始 HEAD 提交哈希</summary>
-    [JsonPropertyName("originalHeadCommit")]
-    public string? OriginalHeadCommit { get; init; }
-
-    /// <summary>会话 ID</summary>
-    [JsonPropertyName("sessionId")]
-    public string? SessionId { get; init; }
-
-    /// <summary>是否基于 Hook 创建</summary>
-    [JsonPropertyName("hookBased")]
-    public bool? HookBased { get; init; }
-
-    /// <summary>创建耗时（毫秒）</summary>
-    [JsonPropertyName("creationDurationMs")]
-    public long? CreationDurationMs { get; init; }
-
-    /// <summary>是否使用了稀疏检出路径</summary>
-    [JsonPropertyName("usedSparsePaths")]
-    public bool? UsedSparsePaths { get; init; }
 }
 
 /// <summary>

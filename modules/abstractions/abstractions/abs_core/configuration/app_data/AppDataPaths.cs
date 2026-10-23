@@ -7,7 +7,6 @@ namespace JoinCode.Abstractions.Configuration.AppData;
 /// </summary>
 public sealed record AppDataPaths(
     string AppDataFolder,
-    string CredentialsFileName,
     string AuthFileName,
     string SettingsFileName,
     string GlobalConfigFileName,
@@ -18,7 +17,6 @@ public sealed record AppDataPaths(
     string TasksFolderName,
     string WorktreesFolderName,
     string AgentsFolderName,
-    string ThemeFileName,
     string TrustedFoldersFileName,
     string SessionsFolderName,
     string SessionMetaFileName,
@@ -41,7 +39,6 @@ public sealed record AppDataPaths(
     public static AppDataPaths FromEnvironment() {
         return new AppDataPaths(
             AppDataFolder: ResolveEnv(JccEnvVar.AppDataFolder, ".jcc"),
-            CredentialsFileName: ResolveEnv(JccEnvVar.CredentialsFileName, "credentials.json"),
             AuthFileName: ResolveEnv(JccEnvVar.AuthFileName, "auth.json"),
             SettingsFileName: ResolveEnv(JccEnvVar.SettingsFileName, "settings.json"),
             GlobalConfigFileName: ResolveEnv(JccEnvVar.GlobalConfigFileName, "global.json"),
@@ -52,7 +49,6 @@ public sealed record AppDataPaths(
             TasksFolderName: ResolveEnv(JccEnvVar.TasksFolderName, "tasks"),
             WorktreesFolderName: ResolveEnv(JccEnvVar.WorktreesFolderName, "worktrees"),
             AgentsFolderName: ResolveEnv(JccEnvVar.AgentsFolderName, "agents"),
-            ThemeFileName: ResolveEnv(JccEnvVar.ThemeFileName, "theme.json"),
             TrustedFoldersFileName: ResolveEnv(JccEnvVar.TrustedFoldersFileName, "trusted_folders.json"),
             SessionsFolderName: ResolveEnv(JccEnvVar.SessionsFolderName, "sessions"),
             SessionMetaFileName: ResolveEnv(JccEnvVar.SessionMetaFileName, "session.meta.json"),
@@ -109,6 +105,9 @@ public sealed record AppDataPaths(
     /// <summary>获取全局配置文件的完整路径。</summary>
     public string GlobalConfigFilePath => Path.Combine(JccDirectory, GlobalConfigFileName);
 
+    /// <summary>获取信任目录记录文件的完整路径。</summary>
+    public string TrustedFoldersFilePath => Path.Combine(JccDirectory, TrustedFoldersFileName);
+
     /// <summary>
     /// 获取 tokens 目录的完整路径
     /// </summary>
@@ -120,9 +119,15 @@ public sealed record AppDataPaths(
     public string ProjectConfigFolderName => AppDataFolder;
 
     /// <summary>
+    /// 项目级本地设置文件名 — 由 SettingsFileName 派生（settings.json → settings.local.json），
+    /// JCC_SETTINGS_FILE_NAME 覆盖时三层路径（用户/项目/本地）文件名保持一致派生
+    /// </summary>
+    public string LocalSettingsFileName => $"{Path.GetFileNameWithoutExtension(SettingsFileName)}.local.json";
+
+    /// <summary>
     /// 项目级本地设置文件相对路径
     /// </summary>
-    public string LocalSettingsRelativePath => $"{AppDataFolder}/settings.local.json";
+    public string LocalSettingsRelativePath => $"{AppDataFolder}/{LocalSettingsFileName}";
 
     /// <summary>
     /// 项目级 worktree 目录名 — WorktreeFolderName 别名，对齐 WorkflowConstants.Paths.WorktreeFolderName

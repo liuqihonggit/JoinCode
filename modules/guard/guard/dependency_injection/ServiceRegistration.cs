@@ -110,18 +110,23 @@ public static partial class ServiceRegistration {
             var manager = new HookConfigurationManager(fs, sp.GetService<ILogger<HookConfigurationManager>>());
             var logger = sp.GetService<ILogger<JsonFileHookConfigurationProvider>>();
 
-            var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            var userSettingsPath = Path.Combine(appDataRoot, AppDataConstants.AppDataFolder, AppDataConstants.SettingsFileName);
+            // 路径委托 SettingsLoader 主链路三层解析（JCC_SETTINGS_FILE_NAME/JCC_APP_DATA_FOLDER 覆盖行为与主链路一致）
+            var userSettingsPath = SettingsLoader.GetUserSettingsPath();
             manager.RegisterProvider(HookSource.UserSettings,
                 new JsonFileHookConfigurationProvider(userSettingsPath, HookSource.UserSettings, fs, logger));
 
-            var projectSettingsPath = Path.Combine(fs.GetCurrentDirectory(), AppDataConstants.AppDataFolder, AppDataConstants.SettingsFileName);
+            var projectSettingsPath = SettingsLoader.GetProjectSettingsPath(fs.GetCurrentDirectory());
             manager.RegisterProvider(HookSource.ProjectSettings,
                 new JsonFileHookConfigurationProvider(projectSettingsPath, HookSource.ProjectSettings, fs, logger));
 
-            var localSettingsPath = Path.Combine(fs.GetCurrentDirectory(), AppDataConstants.AppDataFolder, "settings.local.json");
+            var localSettingsPath = SettingsLoader.GetLocalSettingsPath(fs.GetCurrentDirectory());
             manager.RegisterProvider(HookSource.LocalSettings,
                 new JsonFileHookConfigurationProvider(localSettingsPath, HookSource.LocalSettings, fs, logger));
+
+            // 策略源 — managed-settings.json 顶层 hooks（对齐 TS policySettings 参与钩子合并；
+            // PolicySettings 不可编辑(IsEditable=false)，JsonFileHookConfigurationProvider 写回被守卫拒绝）
+            manager.RegisterProvider(HookSource.PolicySettings,
+                new JsonFileHookConfigurationProvider(SettingsLoader.GetManagedSettingsPath(), HookSource.PolicySettings, fs, logger));
 
             return manager;
         });

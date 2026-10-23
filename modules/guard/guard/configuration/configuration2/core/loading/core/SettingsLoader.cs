@@ -642,32 +642,40 @@ public static class SettingsLoader {
     }
 
     /// <summary>
-    /// 获取项目共享设置路径: {projectDir}/.jcc/settings.json
+    /// 获取项目共享设置路径: {projectDir}/.jcc/{SettingsFileName}
     /// 项目级目录始终使用相对目录名，当 AppDataFolder 为绝对路径（测试隔离）时回退到 .jcc
+    /// 文件名与用户级同源（JCC_SETTINGS_FILE_NAME 三层统一生效）
     /// </summary>
     public static string GetProjectSettingsPath(string projectDir) {
         var folderName = Path.IsPathRooted(AppDataConstants.AppDataFolder) ? ".jcc" : AppDataConstants.AppDataFolder;
-        return Path.Combine(projectDir, folderName, "settings.json");
+        return Path.Combine(projectDir, folderName, AppDataConstants.SettingsFileName);
     }
 
     /// <summary>
-    /// 获取项目本地设置路径: {projectDir}/.jcc/settings.local.json
+    /// 获取项目本地设置路径: {projectDir}/.jcc/{LocalSettingsFileName}
+    /// 本地文件名由 SettingsFileName 派生（settings.json → settings.local.json）
     /// </summary>
     public static string GetLocalSettingsPath(string projectDir) {
         var folderName = Path.IsPathRooted(AppDataConstants.AppDataFolder) ? ".jcc" : AppDataConstants.AppDataFolder;
-        return Path.Combine(projectDir, folderName, "settings.local.json");
+        return Path.Combine(projectDir, folderName, AppDataConstants.Paths.LocalSettingsFileName);
     }
 
     /// <summary>
-    /// 获取策略设置路径（管理员强制）
-    /// Windows: C:\ProgramData\jcc\managed-settings.json
-    /// 对齐 TS 版: Windows 下 C:\Program Files\ClaudeCode\managed-settings.json
+    /// 获取策略设置路径（管理员强制）— 对齐 TS managedPath.ts 分平台安全目录：
+    /// Windows C:\Program Files\jcc\（写需管理员，防普通用户进程伪造策略）、
+    /// macOS /Library/Application Support/jcc/、Linux /etc/jcc/。
+    /// AppDataFolder 为绝对路径时透传（测试隔离约定，与三层 settings 解析一致）。
     /// </summary>
     public static string GetManagedSettingsPath() {
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-            AppDataConstants.AppDataFolder,
-            "managed-settings.json");
+        if (Path.IsPathRooted(AppDataConstants.AppDataFolder))
+            return Path.Combine(AppDataConstants.AppDataFolder, "managed-settings.json");
+
+        var managedDir = OperatingSystem.IsWindows()
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), BrandConstants.CliCommandName)
+            : OperatingSystem.IsMacOS()
+                ? $"/Library/Application Support/{BrandConstants.CliCommandName}"
+                : $"/etc/{BrandConstants.CliCommandName}";
+        return Path.Combine(managedDir, "managed-settings.json");
     }
 
     #endregion

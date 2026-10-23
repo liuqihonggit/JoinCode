@@ -650,9 +650,11 @@ public class ActorBaseTest {
         var count = 0;
         using var sub = scheduler.ScheduleRepeatedly(TimeSpan.FromMilliseconds(50), TimeSpan.FromMilliseconds(50), () => Interlocked.Increment(ref count));
 
-        await Task.Delay(300);
+        // 轮询等待（对齐 ScheduleTellOnce 先例）— CI 慢机器上调度线程首轮启动可能远慢于本地，
+        // 固定 Delay(300)+断言 在首轮延迟 >300ms 时误报 0 次；轮询窗口放大到 5s 只验证"最终会发生"
+        await TestWaitHelper.WaitUntilAsync(() => Volatile.Read(ref count) >= 3, TimeSpan.FromSeconds(5));
 
-        count.Should().BeGreaterThanOrEqualTo(3, "300ms 内应执行至少 3 次");
+        count.Should().BeGreaterThanOrEqualTo(3, "轮询窗口内应执行至少 3 次");
     }
 
     /// <summary>Scheduler: ScheduleTellOnce 延迟后发消息给 Actor(DSG033 API对齐Akka)</summary>

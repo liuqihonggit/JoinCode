@@ -22,23 +22,26 @@ public sealed class FileHistoryCheckpointingTests : IDisposable {
         AppDataConstants.Paths = AppDataPaths.FromEnvironment();
     }
 
+    /// <summary>跨平台预规范化 — Write 与 Backup 走同一规范化路径（服务内部 Path.GetFullPath 双平台一致命中）。</summary>
+    private static string PlatformFile() => Path.GetFullPath("/proj/a.txt");
+
     [Fact]
     public async Task BackupBeforeWrite_CheckpointingDisabled_ReturnsNullAndSkipsBackup() {
         await using var fs = new InMemoryFileSystem();
-        const string file = @"C:\proj\a.txt";
+        var file = PlatformFile();
         await fs.WriteAllTextAsync(file, "original");
         await using var sut = new global::IO.FileHistoryService(fs, workflowConfig: new WorkflowConfig { FileCheckpointingEnabled = false });
 
         var result = await sut.BackupBeforeWriteAsync(file);
 
         result.Should().BeNull("fileCheckpointingEnabled=false 应跳过备份");
-        (await FileHasNoBackupsAsync(fs)).Should().BeTrue("不应产生任何备份文件");
+        HasNoBackups(fs).Should().BeTrue("不应产生任何备份文件");
     }
 
     [Fact]
     public async Task BackupBeforeWrite_NoWorkflowConfig_DefaultsEnabled() {
         await using var fs = new InMemoryFileSystem();
-        const string file = @"C:\proj\a.txt";
+        var file = PlatformFile();
         await fs.WriteAllTextAsync(file, "original");
         await using var sut = new global::IO.FileHistoryService(fs);
 
@@ -48,9 +51,8 @@ public sealed class FileHistoryCheckpointingTests : IDisposable {
         result.Should().Contain(AppDataConstants.Paths.FileHistoryDirectory, "备份应落在 file-history 目录");
     }
 
-    private static async Task<bool> FileHasNoBackupsAsync(InMemoryFileSystem fs) {
+    private static bool HasNoBackups(InMemoryFileSystem fs) {
         var dir = AppDataConstants.Paths.FileHistoryDirectory;
-        if (!fs.DirectoryExists(dir)) return true;
-        return await Task.FromResult(fs.EnumerateFiles(dir, "*", SearchOption.AllDirectories).Any().Equals(false));
+        return !fs.DirectoryExists(dir) || !fs.EnumerateFiles(dir, "*", SearchOption.AllDirectories).Any();
     }
 }

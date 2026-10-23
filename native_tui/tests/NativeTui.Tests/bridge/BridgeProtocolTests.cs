@@ -301,6 +301,43 @@ public sealed class BridgeProtocolTests
     }
 
     [Fact]
+    public void Roundtrip_ToolResultWithPatchLineNumbers_SurvivesSerializeDeserialize()
+    {
+        // TASK066 F1 行号贯通：oldLineNumber/newLineNumber camelCase 序列化 + 反序列化回读
+        //（对侧 null 不输出 — 与引擎侧 BridgeEventConsumer 投影逐字节镜像）
+        var withPatch = new BridgeEvent.ToolResult("Edited a.cs", [
+            new DiffHunk
+            {
+                Header = "@@ -1,2 +1,3 @@",
+                Lines =
+                [
+                    new DiffLine { Kind = DiffLineKind.Removed, Content = "old", OldLineNumber = 1 },
+                    new DiffLine { Kind = DiffLineKind.Added, Content = "new", NewLineNumber = 1 },
+                    new DiffLine { Kind = DiffLineKind.Context, Content = "keep", OldLineNumber = 2, NewLineNumber = 2 },
+                ],
+            },
+        ]);
+
+        var line = BridgeProtocol.SerializeEvent(withPatch);
+        Assert.Contains("\"oldLineNumber\":1", line);
+        Assert.Contains("\"newLineNumber\":1", line);
+        Assert.DoesNotContain("oldLineNumber\":null", line);
+
+        var reader = new StringReader(line + "\n");
+        var result = BridgeProtocol.TryReadEvent(reader, out var actual, out var diagnostic);
+        Assert.Equal(BridgeReadResult.Event, result);
+        Assert.Null(diagnostic);
+        var roundTripped = Assert.IsType<BridgeEvent.ToolResult>(actual);
+        var hunk = Assert.Single(roundTripped.Patch!);
+        Assert.Equal(1, hunk.Lines[0].OldLineNumber);
+        Assert.Null(hunk.Lines[0].NewLineNumber);
+        Assert.Equal(1, hunk.Lines[1].NewLineNumber);
+        Assert.Null(hunk.Lines[1].OldLineNumber);
+        Assert.Equal(2, hunk.Lines[2].OldLineNumber);
+        Assert.Equal(2, hunk.Lines[2].NewLineNumber);
+    }
+
+    [Fact]
     public void SerializeEvent_ToolResultWithoutPatch_OmitsPatchField()
     {
         // null 补丁不输出 patch 字段（WhenWritingNull — 与引擎侧契约逐字节一致）

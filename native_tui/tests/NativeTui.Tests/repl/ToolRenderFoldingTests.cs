@@ -171,7 +171,7 @@ public sealed class ToolRenderFoldingTests
 
         Assert.Equal("  ⎿  Updated a.cs", RowText.Of(screen, 1, 0, 17));
         Assert.Equal("    @@ -1 +1 @@", RowText.Of(screen, 2, 0, 15));
-        Assert.Equal("    +new", RowText.Of(screen, 3, 0, 8));
+        Assert.Equal("     1 +new", RowText.Of(screen, 3, 0, 11));
         Assert.Equal("     out1", RowText.Of(screen, 4, 0, 9));
         Assert.Equal("     out4", RowText.Of(screen, 7, 0, 9));
     }
@@ -198,7 +198,7 @@ public sealed class ToolRenderFoldingTests
 
         Assert.Equal("  ⎿  Edited a.cs", RowText.Of(screen, 1, 0, 16));
         Assert.Equal("    @@ -1,3 +1,4 @@", RowText.Of(screen, 2, 0, 19));
-        Assert.Equal("    +new line", RowText.Of(screen, 3, 0, 13));
+        Assert.Equal("     1 +new line", RowText.Of(screen, 3, 0, 16));
     }
 
     [Fact]

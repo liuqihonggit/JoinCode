@@ -3648,6 +3648,9 @@ public sealed class ReplShell
         _view.Footer.Notifications?.Tick(_animTimeMs);
         _view.Input = _input.Text;
         _view.CursorCol = _input.CursorCol;
+        // TASK066 F3 — 塌缩门控投影（视口模式屏高=终端 rows 才判 rows < 24；inline 不塌 —
+        // 基准 isFullscreen 条件，见 ReplView.ViewportRender）
+        _view.ViewportRender = !_inline;
         _view.Render(_back, _theme);
         if (_inline)
         {

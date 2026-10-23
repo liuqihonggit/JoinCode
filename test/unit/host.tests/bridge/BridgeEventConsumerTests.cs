@@ -172,6 +172,33 @@ public sealed class BridgeEventConsumerTests {
     }
 
     [Fact]
+    public void OnToolEnd_WithPatchLineNumbers_EmitsCamelCaseLineNumbers() {
+        var (consumer, @out) = Create();
+        var patch = new[] {
+            new StructuredPatchHunk {
+                OldStart = 1, OldLines = 2, NewStart = 1, NewLines = 3,
+                Header = "@@ -1,2 +1,3 @@",
+                Lines = new PatchLine[] {
+                    new() { Type = PatchLineType.Removed, Content = "old", OldLineNumber = 1 },
+                    new() { Type = PatchLineType.Added, Content = "new", NewLineNumber = 1 },
+                    new() { Type = PatchLineType.Context, Content = "keep", OldLineNumber = 2, NewLineNumber = 2 },
+                },
+            },
+        };
+
+        consumer.OnToolEnd("Edit", "Edited a.cs", "call-1", isError: false, patch);
+
+        // TASK066 F1 行号贯通：oldLineNumber/newLineNumber camelCase 序列化；对侧 null 不输出（WhenWritingNull）
+        Assert.Equal(
+            "{\"type\":\"tool_result\",\"summary\":\"Edited a.cs\",\"patch\":[" +
+            "{\"header\":\"@@ -1,2 +1,3 @@\",\"lines\":[" +
+            "{\"kind\":2,\"content\":\"old\",\"oldLineNumber\":1}," +
+            "{\"kind\":1,\"content\":\"new\",\"newLineNumber\":1}," +
+            "{\"kind\":0,\"content\":\"keep\",\"oldLineNumber\":2,\"newLineNumber\":2}]}]}\n",
+            @out.ToString());
+    }
+
+    [Fact]
     public void OnDone_WithoutText_EmitsNoAssistantMessage() {
         var (consumer, @out) = Create();
 

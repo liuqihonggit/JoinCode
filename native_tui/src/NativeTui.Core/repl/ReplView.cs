@@ -18,6 +18,16 @@ public interface IUserContinuationAware
     bool IsContinuation { get; set; }
 }
 
+/// <summary>小终端塌缩感知项（消息操作域契约 — TASK066 F3）— ReplView 渲染前投影终端行数不足判定；
+/// item 侧消费（可选行抑制渲染）在 item 域实现（SpinnerItem lastToolInfo 行 — 基准
+/// AgentTool/UI.tsx:490-503 condensed mode 塌缩单行替代逐条进度时细节行不渲染；
+/// 对齐 IVerboseAware 投影先例 — 渲染前统一投影通道）。</summary>
+public interface ICompactAware
+{
+    /// <summary>塌缩投影（true = 终端 rows &lt; <see cref="ReplView.CompactRowsThreshold"/> → 可选行抑制）。</summary>
+    bool Compact { get; set; }
+}
+
 /// <summary>
 /// REPL 整屏视图 — 对齐基准 REPL.tsx bottom slot 布局（自底向上）：
 /// footer 1-2 行（paddingX=2，通知非空时 2 行）+ 消息操作条 0-2 行（光标态激活时 — 基准
@@ -40,6 +50,20 @@ public sealed class ReplView
     /// <summary>折叠推进步长（基准 MESSAGE_CAP_STEP=50 — 量化推进，减少每帧头部裁剪位移抖动）。</summary>
     private const int FoldStep = 50;
 
+    /// <summary>小终端塌缩阈值（TASK066 F3 — 基准 PromptInputFooter.tsx:110 isShort = rows &lt; 24：
+    /// 全屏 bottom slot flexShrink=0 每行挤占消息区，行数不足先丢可选行 — footer 附加行
+    /// （C# Row2 通知/告警/Token 警告 — 基准塌 StatusLine）+ spinner lastToolInfo 行
+    ///（ICompactAware 投影抑制）；工具进度域 rows &lt; N*9+7 塌缩在 Driver 侧既有实现
+    ///（ToolFoldingPolicy.ShouldCondense — AgentTool/UI.tsx:469-470 公式）。
+    /// rows ≥ 阈值零破坏走原路径。</summary>
+    public const int CompactRowsThreshold = 24;
+
+    /// <summary>视口渲染模式（TASK066 F3 — ReplShell 每帧投影：true = 屏高即终端行数
+    /// [视口/全屏模式]，塌缩判定生效；false = inline 模式[屏高=内容高]不塌 — 基准
+    /// isFullscreen 条件：PromptInputFooter.tsx:106-110 注释"非全屏有终端 scrollback
+    /// 吸收溢出，永不隐藏 StatusLine"。默认 false — inline 与测试直渲染既有行为零破坏）。</summary>
+    public bool ViewportRender { get; set; }
+
     private readonly FooterBar _footer = new();
     private readonly PromptInputBox _inputBox = new();
     private readonly SuggestionBox _suggestionBox = new();
@@ -55,8 +79,9 @@ public sealed class ReplView
     /// <summary>未读分界快照（分界时刻的滚动区项总数；-1 = 钉底态无分界）。</summary>
     private int _unreadBoundaryIndex = -1;
 
-    /// <summary>消息滚动区（sticky 钉底）。</summary>
-    public ScrollBox Messages { get; } = new(stickyScroll: true);
+    /// <summary>消息滚动区（sticky 钉底；TASK066 F6 — overscan 窗口渲染
+    /// <see cref="ScrollBox.DefaultOverscanRows"/>=80 行，对齐基准 useVirtualScroll.ts:24）。</summary>
+    public ScrollBox Messages { get; } = new(stickyScroll: true) { OverscanRows = ScrollBox.DefaultOverscanRows };
 
     /// <summary>输入框文本。</summary>
     public string Input { get; set; } = string.Empty;
@@ -188,7 +213,10 @@ public sealed class ReplView
     }
 
     /// <summary>渲染整屏（消息区 → 后台任务面板 → 排队面板 → 输入框 → 建议区 → 操作条 → footer）。
-    /// 渲染前列表域同步：未读分界（sticky 通道）→ 项投影（verbose/连续用户消息）→ 渲染上限裁剪 → divider 挂载计数。</summary>
+    /// 渲染前列表域同步：未读分界（sticky 通道）→ 项投影（verbose/连续用户消息/塌缩）→ 渲染上限裁剪 → divider 挂载计数。
+    /// 小终端塌缩（TASK066 F3 — rows &lt; <see cref="CompactRowsThreshold"/>）：footer 钳单行
+    ///（Row2 通知/告警越界自动裁剪 — footer 恒贴屏底，Y+1=Rows 被 Screen 忽略，FooterBar 零改动）
+    /// + spinner lastToolInfo 行抑制（ICompactAware 投影）；rows ≥ 阈值零破坏原路径。</summary>
 
     public void Render(Screen screen, Theme theme)
     {
@@ -201,13 +229,17 @@ public sealed class ReplView
             return;
         }
 
+        // TASK066 F3 — 小终端塌缩判定（基准 PromptInputFooter.tsx:110 isShort = isFullscreen && rows < 24：
+        // 仅视口渲染模式生效 — inline 屏高=内容高且终端 scrollback 吸收溢出不塌；
+        // 本 TUI 视口模式恒全屏 — isFullscreen 条件由 ViewportRender 投影承载）
+        var compact = ViewportRender && screen.Rows < CompactRowsThreshold;
         SyncUnreadBoundary();
-        SyncItemProjections();
+        SyncItemProjections(compact);
         EnforceVisibleLimit();
         SyncUnreadDivider();
 
         var actionsHeight = ActionsHeight;
-        var footerHeight = _footer.MeasureHeight(Footer);
+        var footerHeight = compact ? 1 : _footer.MeasureHeight(Footer);
         var suggestionHeight = SuggestionHeight;
         var queueHeight = QueueHeight;
         var backgroundHeight = BackgroundTaskHeight;
@@ -300,8 +332,8 @@ public sealed class ReplView
     }
 
     /// <summary>渲染前项投影通道 — IVerboseAware（全局 verbose）/ IUserContinuationAware（连续用户消息紧凑）
-    /// 逐项投影（item 域实现消费 — S2 接线，见未决问题）。</summary>
-    private void SyncItemProjections()
+    /// / ICompactAware（小终端塌缩 — TASK066 F3）逐项投影（item 域实现消费 — S2 接线，见未决问题）。</summary>
+    private void SyncItemProjections(bool compact)
     {
         var items = Messages.Items;
         for (var index = 0; index < items.Count; index++)
@@ -314,6 +346,11 @@ public sealed class ReplView
             if (items[index] is IUserContinuationAware continuationAware)
             {
                 continuationAware.IsContinuation = UserMessageSpacing.IsUserContinuation(items, index);
+            }
+
+            if (items[index] is ICompactAware compactAware)
+            {
+                compactAware.Compact = compact;
             }
         }
     }

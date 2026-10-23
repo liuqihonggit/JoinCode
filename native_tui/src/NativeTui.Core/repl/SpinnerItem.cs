@@ -11,7 +11,7 @@ namespace NativeTui.Core.Repl;
 /// 正常动画 + 时间驱动提示行（elapsed &gt; 30s /btw、&gt; 1800s /clear — 帧拍 elapsed 通道复用，
 /// 基准 Spinner.tsx:255-259）+ 终端字符集分支（<see cref="SpinnerCharsets"/> — darwin/ghostty）。
 /// </summary>
-public sealed class SpinnerItem : IScrollItem, IAnimatable
+public sealed class SpinnerItem : IScrollItem, IAnimatable, ICompactAware
 {
     /// <summary>思考 shimmer 常量（基准 THINKING_INACTIVE，非 theme 键）。</summary>
     private static readonly Color ThinkingInactive = Color.FromRgb(153, 153, 153);
@@ -140,16 +140,32 @@ public sealed class SpinnerItem : IScrollItem, IAnimatable
     /// <see cref="SpinnerMath.SpinnerFrames"/> — 既有消费方零改动兼容）。</summary>
     public string[]? Frames { get; set; }
 
-    /// <summary>内容高度 = Hidden ? 0 : IsIdle ? margin 1 + 空闲行 1 : margin 1 + 行 1 + 提示行 0/1。
-    /// 空闲态无提示行（基准 leaderIsIdle 分支独立 return，不渲染 tip）。</summary>
-    public int MeasureHeight(int width) => Hidden ? 0 : IsIdle ? 2 : 2 + TipHeight();
+    /// <summary>最近完成工具信息行文本（TASK066 F4 — 基准 AgentTool/UI.tsx:788-868 extractLastToolInfo +
+    /// AgentProgressLine.tsx:117 显示形态：spinner 行下方 dim `⎿  工具名: 主参数摘要`；
+    /// null/空 = 无不渲染。Driver 在 ToolCall 记录 pending、ToolResult 消费更新、
+    /// 中断（TurnInterrupted）追加"（已中断）"标记 — 数据源唯一通道）。</summary>
+    public string? LastToolInfo { get; set; }
+
+    /// <summary>小终端塌缩抑制（TASK066 F3 — 基准 AgentTool/UI.tsx:490-503 condensed mode：
+    /// 塌缩单行替代逐条进度时 lastToolInfo 行不渲染；ReplView 渲染前经 ICompactAware 投影，
+    /// 对齐 IVerboseAware 投影先例）。</summary>
+    public bool Compact { get; set; }
+
+    /// <summary>内容高度 = Hidden ? 0 : IsIdle ? margin 1 + 空闲行 1 : margin 1 + 行 1 + lastToolInfo 0/1 + 提示行 0/1。
+    /// 空闲态无提示行（基准 leaderIsIdle 分支独立 return，不渲染 tip）；lastToolInfo 行塌缩抑制
+    ///（<see cref="Compact"/> — TASK066 F3 基准 condensed mode 进度细节不渲染）。</summary>
+    public int MeasureHeight(int width) => Hidden ? 0 : IsIdle ? 2 : 2 + LastToolHeight() + TipHeight();
+
+    /// <summary>lastToolInfo 行高（0 = 无信息或塌缩抑制 — TASK066 F4）。</summary>
+    private int LastToolHeight() => LastToolInfo is { Length: > 0 } && !Compact ? 1 : 0;
 
     /// <summary>提示行高（0 = 无生效提示）。</summary>
     private int TipHeight() => EffectiveTip(ElapsedMs()) is null ? 0 : 1;
 
     /// <summary>渲染：margin 行留空，行内容 = glyph + 消息 + 状态 parts（消息空时随机动词 + '…'）；
     /// Hidden 时零输出（不动画不占行）；IsIdle 时静态空闲行（dim ✻ + 文本，无动画）；
-    /// 提示行（时间驱动 — elapsed &gt; 30s / &gt; 1800s）追加在 spinner 行下方。</summary>
+    /// lastToolInfo 行（最近完成工具 — TASK066 F4）与提示行（时间驱动 — elapsed &gt; 30s / &gt; 1800s）
+    /// 依次追加在 spinner 行下方。</summary>
     public void Render(Screen screen, Rect frame, Theme theme)
     {
         if (Hidden)
@@ -172,7 +188,13 @@ public sealed class SpinnerItem : IScrollItem, IAnimatable
         SpinnerRow.Render(screen, row, theme, message, messageColor, shimmerColor, Mode, RenderState(state), ReducedMotion, AnimTimeMs, Frames);
         var thinking = _thinkingLifecycle.Tick(Mode == SpinnerMode.Thinking, WallNowMs, EffortSuffix);
         RenderStatus(screen, row, theme, state, glimmerWidth, thinking);
-        RenderTip(screen, frame);
+        var lastToolRows = LastToolHeight();
+        if (lastToolRows > 0)
+        {
+            RenderLastToolInfo(screen, frame);
+        }
+
+        RenderTip(screen, frame with { Y = frame.Y + lastToolRows, Height = frame.Height - lastToolRows });
     }
 
     /// <summary>空闲态渲染（基准 Spinner.tsx:229-238 leaderIsIdle 分支）：
@@ -198,6 +220,17 @@ public sealed class SpinnerItem : IScrollItem, IAnimatable
         var row = frame.Y + 2;
         var col = screen.WriteText(row, frame.X, Figures.ToolResultIndent, dim, frame.Right);
         screen.WriteText(row, col, tip, dim, frame.Right);
+    }
+
+    /// <summary>lastToolInfo 行渲染（TASK066 F4 — 基准 AgentProgressLine.tsx:117 形态：
+    /// spinner 行下方 paddingLeft 3 + dim `⎿  ` 前缀 + dim 工具信息文本，
+    /// 与提示行同缩进形态（<see cref="Figures.ToolResultIndent"/>）；行位置 frame.Y+2）。</summary>
+    private void RenderLastToolInfo(Screen screen, Rect frame)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var row = frame.Y + 2;
+        var col = screen.WriteText(row, frame.X, Figures.ToolResultIndent, dim, frame.Right);
+        screen.WriteText(row, col, LastToolInfo!, dim, frame.Right);
     }
 
     /// <summary>生效提示（基准 Spinner.tsx:255-259 链，nextTask 通道无消费方暂缺）：

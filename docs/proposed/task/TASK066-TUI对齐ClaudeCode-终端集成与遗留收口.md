@@ -274,6 +274,22 @@
 - 遗留：附件→引擎消息 DTO（image content block）留板块 G；alt+v 主动读剪贴板（win32 clipboard）留 G/宿主域；E2 与基准差异 2 处登记（读失败行回退 vs 静默丢弃、排队弹回附件不复活）
 - 提交链：84c4faff1(E1+E2) → E3+E4 接线 + 宿主装配
 
+### 板块 F — 渲染细节增强（2026-10-23 F1/F3/F4/F6 完成，F2 main 已做，F5 维持不排期）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| F1 （hunk 头解析/双源行号/语言检测/TextMate 预高亮）+ DiffModels 行号贯通（引擎投影真值优先+流推兜底） | MessageRenderer.RenderDiffLine | ✅ | ✅ 17 + golden 7 更新 + 协议 roundtrip |
+| F3 ReplView 塌缩（ViewportRender 门控 rows<24 → footer 单行/lastToolInfo 抑制） | Render 头部判定 | ✅ | ✅ 7 测试 |
+| F4 spinner lastToolInfo（最近完成工具 dim ⎿ 行+中断标记） | ReplBridgeDriver 记录/消费 | ✅ | ✅ 12 测试 |
+| F6 虚拟滚动增强（ScrollBox OverscanRows=80+Screen 裁剪区栈防写穿） | ReplView 构造注入 | ✅ | ✅ 6 测试 |
+| F2 OSC 8 超链接 | **main #471 DSG043 已完成 — 不重做** | ✅(main) | ✅ |
+| F5 SIGWINCH | Windows 主场景维持不排期（P3 池） | ⏸ | — |
+
+- 测试：2758→**2806 全绿**（+48）；Host 126；引擎侧 JoinCode.Engine 编译 + BridgeEventConsumer 25 绿
+- debug 修复：①Screen.ClipScope 方法名与嵌套 struct 同名 CS0102 → struct 改名 ClipScopeHandle + 补 IDisposable ②lastTool golden 取宽 14→16 笔误 ③gutter golden TrimEnd（满行背景 pad）④行号混合态测试重塑（单行有值=全有直读，两行混合才回退流推）⑤golden 行号参数笔误
+- 基准核实：gutter 单列非双列（color-diff L877-895）；删除行不高亮；语法前景+diff 背景正交叠加；塌缩= isFullscreen&&rows<24 塌 StatusLine（inline 门控防误塌）；lastToolInfo 在 AgentTool/UI 非 Spinner.tsx；overscan=80（useVirtualScroll.ts:24）
+- 提交链：F1+F3+F4+F6 单批提交
+
 ### 其他板块
 
-F 待做；G 跨板块收口最后做。
+G 跨板块收口最后做（键位×鼠标×对话框联动/引擎事件源扩展/总验收清账）。

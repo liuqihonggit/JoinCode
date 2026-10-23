@@ -64,6 +64,11 @@ public sealed class ReplShell
     /// <summary>模型选择完成回调（BeginModelPicker 注入；参数 = 选中模型 id，Esc 取消为 null）。</summary>
     private Action<string?>? _modelPickerCallback;
 
+    /// <summary>模型选择 effort 应用回调（TASK066 D5 — BeginModelPicker 注入；参数 = 确认时
+    /// 切换后的 effort 档位，未切换或焦点模型不支持为 null；Esc 取消不触发 — 基准 ModelPicker.tsx:244-249
+    /// onSelect 第二参数 selectedEffort 语义，onCancel 无 effort）。</summary>
+    private Action<PickerEffortLevel?>? _modelPickerEffortCallback;
+
     /// <summary>斜杠命令补全状态机（TASK056 — 宿主注入命令清单后启用；null = 无补全能力）。</summary>
     private readonly SlashSuggester? _suggester;
 
@@ -149,6 +154,10 @@ public sealed class ReplShell
     /// <summary>Esc 时钟源（internal — 测试注入可控时间戳；默认墙钟）。</summary>
     internal Func<long> EscClock { get; set; } = static () => Environment.TickCount64;
 
+    /// <summary>空闲判定时钟源（TASK066 板块 D — internal 测试注入可控时间戳，对齐 EscClock 先例；
+    /// 默认墙钟；回合完成时间戳记录与提交时差值判定共用同一源）。</summary>
+    internal Func<long> IdleClock { get; set; } = static () => Environment.TickCount64;
+
     /// <summary>最近一次直发提交的文本（M8-2 打断恢复 — 无有效响应时弹回输入框）。</summary>
     private string _lastSubmittedText = string.Empty;
 
@@ -177,6 +186,15 @@ public sealed class ReplShell
 
     /// <summary>全局搜索对话框实例（S12 — internal 测试断言面：查询/结果/选中状态机）。</summary>
     internal GlobalSearchDialog? GlobalSearchDialog => _globalSearchDialog;
+
+    /// <summary>空闲返回对话框挂载态（TASK066 板块 D — internal 测试断言面）。</summary>
+    internal bool IsIdleReturnOpen => _idleReturnDialog is not null;
+
+    /// <summary>空闲返回对话框实例（TASK066 板块 D — internal 测试断言面：选中/确认状态机）。</summary>
+    internal IdleReturnDialog? IdleReturnDialog => _idleReturnDialog;
+
+    /// <summary>空闲返回不再询问标志（TASK066 板块 D — internal 测试断言面）。</summary>
+    internal bool IdleReturnNever => _idleReturnNever;
 
     /// <summary>外部编辑器进行中任务句柄（internal — 测试 await 完成面；null = 无进行中会话）。</summary>
     internal Task? ExternalEditorTask => _externalEditorTask;
@@ -339,6 +357,31 @@ public sealed class ReplShell
     /// null = 未挂载；互斥由分派链序保证）。</summary>
     private GlobalSearchDialog? _globalSearchDialog;
 
+    /// <summary>空闲返回对话框挂载态（TASK066 板块 D D1+D7/D8 — 空闲超阈值提交时拦截挂载；
+    /// null = 未挂载；互斥由分派链序保证 — 模态激活期间其余对话框触发键被吞）。</summary>
+    private IdleReturnDialog? _idleReturnDialog;
+
+    /// <summary>空闲返回暂存待发输入（挂载期间拦截的本次提交 — 元组 = 显示形态 + 提交形态，
+    /// 对齐 _queuedInputs 元组语义；null = 无挂起。消费后按动作分发：Continue/Clear/Never 重发、
+    /// Dismiss 恢复输入框（基准 REPL.tsx:3332 setIdleReturnPending({input, idleMinutes})）。</summary>
+    private (string Display, string Expanded)? _idleReturnPendingInput;
+
+    /// <summary>上次回合完成时间戳（ms — DrainEngine 里 TurnCompleted/TurnInterrupted 事件到达时刷新；
+    /// 0 = 无完成回合，空闲判定跳过 = 首回合前不触发 — 基准 lastQueryCompletionTimeRef.current &gt; 0 门槛）。</summary>
+    private long _lastTurnCompletionMs = -1;
+
+    /// <summary>空闲返回不再询问标志（Never 选项 — 会话级持久；基准写全局配置 idleReturnDismissed
+    /// 的会话内等价，跨会话持久化留宿主通道后续接线）。</summary>
+    private bool _idleReturnNever;
+
+    /// <summary>空闲返回触发阈值（分钟 — 构造 idleReturnThresholdMinutes 注入，默认 75；
+    /// 基准 REPL.tsx:3326 CLAUDE_CODE_IDLE_THRESHOLD_MINUTES 默认 75，宿主读 env 后传参 — Core 不读 env 惯例）。</summary>
+    private readonly int _idleReturnThresholdMinutes;
+
+    /// <summary>空闲返回 token 门槛（构造 idleReturnTokenThreshold 注入，默认 100_000；
+    /// 基准 REPL.tsx:3327 CLAUDE_CODE_IDLE_TOKEN_THRESHOLD 默认 100_000 — 小对话不弹）。</summary>
+    private readonly long _idleReturnTokenThreshold;
+
     /// <summary>全局搜索根目录（S12 — 构造 workspaceRoot 注入留存；对话框构造透传搜索源）。</summary>
     private readonly string? _workspaceRoot;
 
@@ -434,7 +477,11 @@ public sealed class ReplShell
     /// selection=终端文本选区状态机（TASK066 C6 — 鼠标 Press/Drag/Release 路由与选中即复制的
     /// 状态载体；null = 构造默认实例能力恒在；测试注入可控时钟实例驱动双击多击判定）；
     /// copySelection=选中即复制委托（TASK066 C6 — 鼠标 Release 选区固化后提取文本回调；
-    /// null = 复制能力降级无操作 — 选区交互仍可用仅不复制）。</summary>
+    /// null = 复制能力降级无操作 — 选区交互仍可用仅不复制）；
+    /// idleReturnThresholdMinutes=空闲返回触发阈值分钟（TASK066 板块 D — null = 默认 75；
+    /// 宿主读 CLAUDE_CODE_IDLE_THRESHOLD_MINUTES env 后传参，Core 不读 env 惯例）；
+    /// idleReturnTokenThreshold=空闲返回 token 门槛（TASK066 板块 D — null = 默认 100_000；
+    /// 宿主读 CLAUDE_CODE_IDLE_TOKEN_THRESHOLD env 后传参，小对话不弹）。</summary>
     public ReplShell(
         IReplEngine engine,
         BannerItem banner,
@@ -460,7 +507,9 @@ public sealed class ReplShell
         string? issueOwnerRepo = null,
         AlternateScreenController? alternateScreen = null,
         SelectionState? selection = null,
-        Action<string>? copySelection = null)
+        Action<string>? copySelection = null,
+        int? idleReturnThresholdMinutes = null,
+        long? idleReturnTokenThreshold = null)
     {
         _engine = engine;
         _banner = banner;
@@ -495,6 +544,9 @@ public sealed class ReplShell
         // null copySelection = 复制降级无操作 — 对齐 clipboard 注入先例）
         _selection = selection ?? new SelectionState();
         _copySelection = copySelection;
+        // TASK066 板块 D — 空闲返回阈值注入（null = 基准默认：75 分钟 / 100k token）
+        _idleReturnThresholdMinutes = idleReturnThresholdMinutes ?? 75;
+        _idleReturnTokenThreshold = idleReturnTokenThreshold ?? 100_000;
         _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter, _tokenUsage, _sizeSource, streamingProjector, issueOwnerRepo);
     }
 
@@ -588,7 +640,7 @@ public sealed class ReplShell
             Notifications = _notifications,
             Tokens = _tokenUsage,
         };
-        _notifications.Enqueue($"{Figures.EffortMedium} 中等 · /effort");
+        _notifications.Enqueue(PickerEffortLevel.Medium.ToFooterNotificationText());
         _view.Messages.Add(_banner);
         foreach (var message in _seedMessages)
         {
@@ -607,6 +659,13 @@ public sealed class ReplShell
             if (bridgeEvent is BridgeEvent.TurnInterrupted)
             {
                 interrupted = true;
+            }
+
+            // TASK066 板块 D — 回合完成/打断时刷新空闲计时锚点（基准 lastQueryCompletionTime：
+            // 完成时间戳 = 空闲返回判定的差值起点；TurnInterrupted 同为回合结束态一并刷新）
+            if (bridgeEvent is BridgeEvent.TurnCompleted or BridgeEvent.TurnInterrupted)
+            {
+                _lastTurnCompletionMs = IdleClock();
             }
 
             _driver.Apply(bridgeEvent);
@@ -775,22 +834,42 @@ public sealed class ReplShell
     /// 挂起模型选择器（M7-6 — 宿主装饰器拦截 /model 后调此打开，全链自研不依赖 slash 命令系统）：
     /// 清单由宿主从引擎 IModelCatalog 投影（后端获取）；完成回调参数 = 选中模型 id（Esc 取消为 null）。
     /// title/subtitle 可选参数化（默认模型文案）— vendor 选择器复用同条模态链。
+    /// TASK066 D5 — effortConfig（null = 不启用 effort 区，vendor 形态）：会话档位种子（引擎 Auto → null）
+    /// + 焦点项能力投影（SupportsEffort/SupportsMaxEffort/DefaultEffort）；onEffortApplied = 确认时
+    /// 切换档位回调（未切换/不支持为 null，Esc 不触发）。
     /// </summary>
-    public void BeginModelPicker(IReadOnlyList<ModelPickerItem> items, Action<string?>? onCompleted = null, string title = "Select model", string subtitle = "Switch between models. Applies to this session and future sessions.")
+    public void BeginModelPicker(IReadOnlyList<ModelPickerItem> items, Action<string?>? onCompleted = null, string title = "Select model", string subtitle = "Switch between models. Applies to this session and future sessions.", PickerEffortConfig? effortConfig = null, Action<PickerEffortLevel?>? onEffortApplied = null)
     {
-        _modelPicker.Begin(items);
+        _modelPicker.Begin(items, effortConfig);
         _modelPickerCallback = onCompleted;
+        _modelPickerEffortCallback = onEffortApplied;
         AddMessage(new ModelPickerDialog(_modelPicker, title, subtitle));
     }
 
-    /// <summary>完成模型选择并移除对话框项（id = null 表示 Esc 取消）。</summary>
+    /// <summary>完成模型选择并移除对话框项（id = null 表示 Esc 取消）。
+    /// TASK066 D5 — Enter 确认（id 非 null）时传出 effort：onEffortApplied(切换档位或 null) +
+    /// 档位 footer 通知（"◉ 最高 · /effort" 形态，对齐种子/effort 命令通道唯一数据源）；
+    /// Esc 取消不触发 effort 回调（基准 onCancel 语义）。</summary>
     private void CompleteModelPicker(string? id)
     {
+        var effort = _modelPicker.SelectedEffort;
         _modelPicker.Complete();
         RemoveDialogItem<ModelPickerDialog>();
         var callback = _modelPickerCallback;
         _modelPickerCallback = null;
+        var effortCallback = _modelPickerEffortCallback;
+        _modelPickerEffortCallback = null;
         callback?.Invoke(id);
+        if (id is null)
+        {
+            return;
+        }
+
+        effortCallback?.Invoke(effort);
+        if (effort is { } applied)
+        {
+            _notifications.Enqueue(applied.ToFooterNotificationText());
+        }
     }
 
     /// <summary>追加信息反馈消息到滚动区（宿主确认切换后的反馈面 — M7-6 起）。</summary>
@@ -933,6 +1012,14 @@ public sealed class ReplShell
         if (_globalSearchDialog is not null)
         {
             HandleGlobalSearchKey(key);
+            return;
+        }
+
+        // TASK066 板块 D D8 — 空闲返回对话框模态（对齐 _exportDialog 插位模式 —
+        // 三对话框之后 Search 之前：拦截提交挂载后吞全部按键，确认/取消后恢复编辑链）
+        if (_idleReturnDialog is not null)
+        {
+            HandleIdleReturnKey(key);
             return;
         }
 
@@ -1486,8 +1573,10 @@ public sealed class ReplShell
 
     /// <summary>
     /// 模型选择器模态按键（M7-6，对齐基准 ModelPicker Select 交互）：
-    /// Esc 取消（回调 null）+ Enter 选焦点项（回调携带 id）+ 上/下 clamp 移动焦点；
-    /// 其余按键全部吞掉（模态 — 不进输入缓冲、不提交、不打断）。
+    /// Esc 取消（回调 null）+ Enter 选焦点项（回调携带 id + effort 档位）+ 上/下 clamp 移动焦点 +
+    /// 左/右 effort 环绕循环（TASK066 D5 — 基准 modelPicker:decreaseEffort/increaseEffort 默认键
+    /// left/right，ModelPicker.tsx:206-207；KeybindingProfile 已注册同款键位名 — 模态链 KeyPress
+    /// 直判对齐 ↑↓ 先例）；其余按键全部吞掉（模态 — 不进输入缓冲、不提交、不打断）。
     /// </summary>
     private void HandleModelPickerKey(KeyPress key)
     {
@@ -1512,6 +1601,18 @@ public sealed class ReplShell
         if (key.Kind == KeyKind.DownArrow)
         {
             _modelPicker.MoveFocus(1);
+            return;
+        }
+
+        if (key.Kind == KeyKind.LeftArrow)
+        {
+            _modelPicker.CycleEffort(forward: false);
+            return;
+        }
+
+        if (key.Kind == KeyKind.RightArrow)
+        {
+            _modelPicker.CycleEffort(forward: true);
         }
     }
 
@@ -2826,6 +2927,78 @@ public sealed class ReplShell
         _engine.SetPermissionMode(PermissionModeInfo.ToValue(next));
     }
 
+    /// <summary>空闲返回触发判定（TASK066 板块 D D7 — 基准 REPL.tsx:3324-3342 willow dialog 分支语义）：
+    /// 非 never + 有完成回合（首回合前不触发 — lastQueryCompletionTime &gt; 0 门槛）+ 非斜杠命令 +
+    /// 累计输入 token 达门槛（小对话不弹）+ 空闲时长超阈值（五条件与基准逐项对齐）。</summary>
+    /// <param name="text">待提交文本（显示形态）。</param>
+    /// <returns>true = 本次提交应拦下挂空闲返回对话框。</returns>
+    private bool ShouldPromptIdleReturn(string text) =>
+        !_idleReturnNever
+        && _lastTurnCompletionMs >= 0
+        && !text.StartsWith('/')
+        && _tokenUsage.InputTokens >= _idleReturnTokenThreshold
+        && IdleClock() - _lastTurnCompletionMs >= _idleReturnThresholdMinutes * 60_000L;
+
+    /// <summary>挂载空闲返回对话框并拦截本次提交（TASK066 板块 D D7 — 基准 REPL.tsx:3331-3339：
+    /// setIdleReturnPending({input, idleMinutes}) + setInputValue('') + return）：
+    /// 暂存待发文本（显示/提交双形态 — 对齐 _queuedInputs 元组语义）+ 快照 idleMinutes 与累计
+    /// 输入 token 构造组件 + 挂载滚动区（对齐 BeginQuickOpen 挂载形态 — 清建议态 + AddMessage）。</summary>
+    /// <param name="text">待提交文本（显示形态）。</param>
+    /// <param name="expanded">待提交文本（提交形态 — 粘贴引用展开全文）。</param>
+    private void BeginIdleReturn(string text, string expanded)
+    {
+        DismissSuggestionsForDialog();
+        _idleReturnPendingInput = (text, expanded);
+        var idleMinutes = (IdleClock() - _lastTurnCompletionMs) / 60_000.0;
+        _idleReturnDialog = new IdleReturnDialog(idleMinutes, _tokenUsage.InputTokens);
+        AddMessage(_idleReturnDialog);
+    }
+
+    /// <summary>空闲返回对话框模态按键（TASK066 板块 D D8 — 基准 REPL.tsx:4813-4859 onDone 分发）：
+    /// IdleReturnDialog.TryHandleKey 消费键位（↑↓ 导航/enter 确认/esc 取消）；
+    /// IsClosed 终态收尾 — Dismiss = 恢复输入框文本不提交（setInputValue 语义）/ Never = 置会话级
+    /// 持久标志后重发 / Clear = 新会话重发（IReplEngine 暂无新会话接口 — 降级按原提交 + TODO）/
+    /// Continue = 原样重发；重发走 SubmitCore(skipIdleCheck: true) 防拦截循环
+    ///（基准 skipIdleCheckRef 消费式标志的参数化等价）。</summary>
+    /// <param name="key">按键事件。</param>
+    private void HandleIdleReturnKey(KeyPress key)
+    {
+        if (_idleReturnDialog is not { } dialog)
+        {
+            return;
+        }
+
+        dialog.TryHandleKey(key);
+        if (!dialog.IsClosed)
+        {
+            return;
+        }
+
+        var action = dialog.SelectedAction ?? IdleReturnAction.Dismiss;
+        var pending = _idleReturnPendingInput ?? (string.Empty, string.Empty);
+        _idleReturnPendingInput = null;
+        _idleReturnDialog = null;
+        RemoveDialogItem<IdleReturnDialog>();
+        if (action == IdleReturnAction.Dismiss)
+        {
+            // 基准 REPL.tsx:4822-4825 — dismiss = setInputValue(pending.input)：恢复输入框文本，
+            // 提交动作丢弃（用户可编辑后重新提交）
+            FillInput(pending.Display, cursorToStart: false);
+            return;
+        }
+
+        if (action == IdleReturnAction.Never)
+        {
+            _idleReturnNever = true;
+        }
+
+        // TODO（TASK066 板块 D D7 降级）：Clear 语义 = 引擎新会话（清上下文）+ 重发 —
+        // IReplEngine 暂无新会话接口（仅 Submit/Interrupt/SetPermissionMode/DrainEvents/
+        // StopBackgroundTask/IsAlive），临时降级按原提交处理；主代理补 StartNewConversation()
+        /// 接口后在此清空滚动区 + 重置 token 记账再重发
+        SubmitCore(pending.Display, pending.Expanded, skipIdleCheck: true);
+    }
+
     /// <summary>提交输入（TASK060 一问一答节奏 + TASK062 后续排队面板 + S7 提交全文）：空文本忽略；
     /// 未登录本地反馈（基准 ⎿ Not logged in — 不调引擎不傻等）；忙时改排队（基准 queued 语义）—
     /// **不上滚动区**（输入栏上方 queued 面板渲染 — TASK062 用户验收反馈：滚动区排队提示破坏消息流），
@@ -2851,10 +3024,20 @@ public sealed class ReplShell
         RestoreStashedInput(stashed);
     }
 
-    /// <summary>提交主流程（Submit 外壳剥离暂存收尾后的全部路径 — bash 直通/主题拦截/使用记账/
-    /// 登录门/忙时排队/闲时直发；各 return 路径均为"提交动作已发生"，外壳统一恢复暂存）。</summary>
-    private void SubmitCore(string text, string expanded)
+    /// <summary>提交主流程（Submit 外壳剥离暂存收尾后的全部路径 — 空闲返回拦截/bash 直通/主题拦截/
+    /// 使用记账/登录门/忙时排队/闲时直发；各 return 路径均为"提交动作已发生"，外壳统一恢复暂存）。
+    /// TASK066 板块 D D7 — skipIdleCheck：空闲返回对话框确认后的重发专用（跳过 idle 判定防循环
+    /// — 基准 skipIdleCheckRef 消费式标志的显式参数化等价；正常 Submit 入口恒 false）。</summary>
+    private void SubmitCore(string text, string expanded, bool skipIdleCheck = false)
     {
+        // TASK066 板块 D D7 — 空闲返回拦截（基准 REPL.tsx:3321-3342 idle-return 块：空闲超阈值
+        /// 的首次提交拦下挂对话框，暂存待发文本 — 拦截即返回：不上历史不调引擎不进命令拦截链）
+        if (!skipIdleCheck && ShouldPromptIdleReturn(text))
+        {
+            BeginIdleReturn(text, expanded);
+            return;
+        }
+
         _history.Add(text);
         _history.Reset();
         // S10 接线 — `!` 前缀 bash 直通（基准 inputModes bash 模式：剥前缀本地执行不进引擎；

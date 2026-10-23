@@ -408,7 +408,8 @@ public sealed class ReplShell
         Func<string, Task<string?>>? saveExportAsync = null,
         ISearchSource? searchSource = null,
         TerminalStatusCoordinator? terminalStatus = null,
-        KeybindingProfile? keybindings = null)
+        KeybindingProfile? keybindings = null,
+        string? issueOwnerRepo = null)
     {
         _engine = engine;
         _banner = banner;
@@ -437,7 +438,7 @@ public sealed class ReplShell
         // S8 接线 — 挂起态 BackTab 权限模式循环请求转发引擎回执通道（复用 Shift+Tab 循环实现）
         _permission.ModeCycleRequested += CyclePermissionMode;
         _transcript = new TranscriptController(BuildTranscriptSnapshot, verbose => _view.SetVerboseMode(verbose));
-        _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter, _tokenUsage, _sizeSource, streamingProjector);
+        _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter, _tokenUsage, _sizeSource, streamingProjector, issueOwnerRepo);
     }
 
     /// <summary>视图（测试断言面）。</summary>

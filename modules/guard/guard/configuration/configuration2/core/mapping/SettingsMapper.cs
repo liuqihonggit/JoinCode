@@ -29,6 +29,7 @@ public sealed partial class SettingsMapper : ServiceEntity {
         config = ApplyCodeExecutionSettings(config, settings);
         config = ApplyWorktreeSettings(config, settings);
         config = config with { FastMode = settings?.Current?.FastMode ?? false };
+        config = config with { Language = settings?.Current?.Language };
         config = config with { ShellExecution = config.ShellExecution with { IsAntiCharLossConfirm = settings?.Current?.IsAntiCharLossConfirm ?? false } };
         config = ApplyToolScoreSettings(config, settings);
         config = ApplySubAgentConcurrencySettings(config, settings);

@@ -61,6 +61,28 @@ public class SettingsMapperTests {
         config.Worktree.SparsePaths.Should().Equal("src/");
     }
 
+    /// <summary>
+    /// language 键接线 — 断链修复：settings.json current.language 经 WorkflowConfig.Language
+    /// 流向 SystemPromptProviderOptions.LanguagePreference（LanguageSection 消费生成语言偏好提示词）。
+    /// </summary>
+    [Fact]
+    public void Given_Language设置_When_ToWorkflowConfig_Then_Language映射() {
+        var settings = new SettingsJson {
+            Current = new CurrentSettings { Language = "japanese" },
+        };
+
+        var config = _mapper.ToWorkflowConfig(settings);
+        config.Language.Should().Be("japanese");
+    }
+
+    [Fact]
+    public void Given_Language为null_When_ToWorkflowConfig_Then_Language为null() {
+        var settings = new SettingsJson { Current = new CurrentSettings { Language = null } };
+
+        var config = _mapper.ToWorkflowConfig(settings);
+        config.Language.Should().BeNull();
+    }
+
     #endregion
 
     #region 场景2: 环境变量覆盖

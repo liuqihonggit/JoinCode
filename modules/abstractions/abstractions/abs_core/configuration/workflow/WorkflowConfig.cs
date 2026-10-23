@@ -82,6 +82,12 @@ public sealed record WorkflowConfig {
     public bool FastMode { get; init; } = false;
 
     /// <summary>
+    /// 语言偏好 — 对齐 TS settings.json language 键（如 "chinese"/"japanese"），
+    /// 流向 SystemPromptProviderOptions.LanguagePreference（LanguageSection 生成语言偏好提示词）
+    /// </summary>
+    public string? Language { get; init; }
+
+    /// <summary>
     /// LLM 执行参数配置（Temperature, MaxTokens, TopP 等）
     /// </summary>
     public LlmExecutionSettings LlmExecution { get; init; } = new();

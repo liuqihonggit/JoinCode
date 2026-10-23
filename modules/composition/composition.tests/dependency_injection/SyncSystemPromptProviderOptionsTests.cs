@@ -92,6 +92,28 @@ public sealed class SyncSystemPromptProviderOptionsTests {
         sut.ProjectRules.Should().Be("custom project rules");
     }
 
+    // ===== language 键接线（断链修复）=====
+
+    /// <summary>
+    /// WorkflowConfig.Language 必须桥接到 LanguagePreference — 否则 LanguageSection
+    /// （读 PromptConfigSnapshot.Current.LanguagePreference）永远读到空，语言偏好永不生效。
+    /// </summary>
+    [Fact]
+    public void Ctor_Language_MapsToLanguagePreference() {
+        var config = new WorkflowConfig { Language = "chinese" };
+        var fileContext = new FileContextTracker();
+        var sut = new SyncSystemPromptProviderOptions(config, fileContext, _fs.Object);
+        sut.LanguagePreference.Should().Be("chinese");
+    }
+
+    [Fact]
+    public void Ctor_NullLanguage_LanguagePreferenceIsNull() {
+        var config = new WorkflowConfig { Language = null };
+        var fileContext = new FileContextTracker();
+        var sut = new SyncSystemPromptProviderOptions(config, fileContext, _fs.Object);
+        sut.LanguagePreference.Should().BeNull();
+    }
+
     [Fact]
     public void Ctor_NullDailyLogService_DailyLogPromptBuilderIsNull() {
         var config = new WorkflowConfig();

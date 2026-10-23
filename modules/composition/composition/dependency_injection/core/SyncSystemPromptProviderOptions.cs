@@ -21,6 +21,7 @@ public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.Syste
         ProjectRules = config.ProjectRules;
         ExternalRules = ConvertExternalRules(config.ExternalRules);
         FileContext = fileContext;
+        LanguagePreference = config.Language;
         IsCoordinatorMode = IsCoordinatorModeEnabledFromEnv();
         AgentDefinitions = [];
         HasTeamTools = true;

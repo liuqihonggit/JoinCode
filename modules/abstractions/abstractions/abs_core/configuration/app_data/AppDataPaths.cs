@@ -120,9 +120,15 @@ public sealed record AppDataPaths(
     public string ProjectConfigFolderName => AppDataFolder;
 
     /// <summary>
+    /// 项目级本地设置文件名 — 由 SettingsFileName 派生（settings.json → settings.local.json），
+    /// JCC_SETTINGS_FILE_NAME 覆盖时三层路径（用户/项目/本地）文件名保持一致派生
+    /// </summary>
+    public string LocalSettingsFileName => $"{Path.GetFileNameWithoutExtension(SettingsFileName)}.local.json";
+
+    /// <summary>
     /// 项目级本地设置文件相对路径
     /// </summary>
-    public string LocalSettingsRelativePath => $"{AppDataFolder}/settings.local.json";
+    public string LocalSettingsRelativePath => $"{AppDataFolder}/{LocalSettingsFileName}";
 
     /// <summary>
     /// 项目级 worktree 目录名 — WorktreeFolderName 别名，对齐 WorkflowConstants.Paths.WorktreeFolderName

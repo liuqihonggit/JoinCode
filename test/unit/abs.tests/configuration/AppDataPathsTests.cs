@@ -54,6 +54,19 @@ public sealed class AppDataPathsTests {
     }
 
     [Fact]
+    public void LocalSettingsFileName_DerivesFromSettingsFileName() {
+        var p = Make();
+        p.LocalSettingsFileName.Should().Be("settings.local.json");
+    }
+
+    [Fact]
+    public void LocalSettingsFileName_DerivesFromOverriddenSettingsFileName() {
+        var p = Make() with { SettingsFileName = "my-settings.json" };
+        p.LocalSettingsFileName.Should().Be("my-settings.local.json");
+        p.LocalSettingsRelativePath.Should().Be(".jcc/my-settings.local.json");
+    }
+
+    [Fact]
     public void WorktreeFolderName_EqualsWorktreesFolderName() {
         var p = Make();
         p.WorktreeFolderName.Should().Be(p.WorktreesFolderName);

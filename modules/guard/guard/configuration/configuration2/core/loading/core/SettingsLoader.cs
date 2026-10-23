@@ -642,20 +642,22 @@ public static class SettingsLoader {
     }
 
     /// <summary>
-    /// 获取项目共享设置路径: {projectDir}/.jcc/settings.json
+    /// 获取项目共享设置路径: {projectDir}/.jcc/{SettingsFileName}
     /// 项目级目录始终使用相对目录名，当 AppDataFolder 为绝对路径（测试隔离）时回退到 .jcc
+    /// 文件名与用户级同源（JCC_SETTINGS_FILE_NAME 三层统一生效）
     /// </summary>
     public static string GetProjectSettingsPath(string projectDir) {
         var folderName = Path.IsPathRooted(AppDataConstants.AppDataFolder) ? ".jcc" : AppDataConstants.AppDataFolder;
-        return Path.Combine(projectDir, folderName, "settings.json");
+        return Path.Combine(projectDir, folderName, AppDataConstants.SettingsFileName);
     }
 
     /// <summary>
-    /// 获取项目本地设置路径: {projectDir}/.jcc/settings.local.json
+    /// 获取项目本地设置路径: {projectDir}/.jcc/{LocalSettingsFileName}
+    /// 本地文件名由 SettingsFileName 派生（settings.json → settings.local.json）
     /// </summary>
     public static string GetLocalSettingsPath(string projectDir) {
         var folderName = Path.IsPathRooted(AppDataConstants.AppDataFolder) ? ".jcc" : AppDataConstants.AppDataFolder;
-        return Path.Combine(projectDir, folderName, "settings.local.json");
+        return Path.Combine(projectDir, folderName, AppDataConstants.Paths.LocalSettingsFileName);
     }
 
     /// <summary>

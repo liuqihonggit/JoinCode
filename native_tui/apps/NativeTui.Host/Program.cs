@@ -418,8 +418,14 @@ public static class Program {
                          : null,
                      // B类 editorMode 键接线 — vim 编辑模式开关（settings.current.editorMode="vim"
                      // 持久启用 + JCC_TUI_VIM 灰度 OR 语义 — EditorModeResolver 唯一判定源，
-                     // 对齐 TS GlobalConfig.editorMode；默认关零行为变化）
+                     // 对齐 TS GlobalConfig.editorMode；默认关零行为变化 — main #480 落地，
+                     // 取代板块E的纯 env 开关形态）
                      vimMode: vimMode,
+                     // TASK066 板块C P3 — 滚轮加速度基础步长（基准 CLAUDE_CODE_SCROLL_SPEED 旋钮 —
+                     // readScrollSpeedBase :305-310 clamp (0,20] 默认 1；Core 不读 env 由宿主读传入，
+                     // 对齐 idleReturnThresholdMinutes 先例）
+                     wheelBaseLines: WheelSpeedTracker.ParseScrollSpeedBase(
+                         Environment.GetEnvironmentVariable("CLAUDE_CODE_SCROLL_SPEED")),
                      // TASK066 板块E — 图片文件读取委托（粘贴图片路径 → base64 附件；magic 嗅探
                      // mime，读失败 null 降级该行回退纯文本粘贴）
                      loadImageFromFile: LoadImageFromFile);

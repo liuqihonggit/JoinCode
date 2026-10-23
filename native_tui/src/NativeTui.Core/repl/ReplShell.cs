@@ -160,6 +160,17 @@ public sealed class ReplShell
     /// 默认墙钟；回合完成时间戳记录与提交时差值判定共用同一源）。</summary>
     internal Func<long> IdleClock { get; set; } = static () => Environment.TickCount64;
 
+    /// <summary>滚轮加速度时钟源（TASK066 C5 P3 — internal 测试注入可控时间戳，对齐 EscClock/IdleClock
+    /// 先例；默认墙钟；40ms 加速度窗判定与连续滚轮事件间隔计时共用同一源）。</summary>
+    internal Func<long> WheelClock { get; set; } = static () => Environment.TickCount64;
+
+    /// <summary>滚轮加速度跟踪器（TASK066 C5 P3 收口 — 基准 computeWheelStep native 路径
+    /// :255-265：40ms 窗内连续事件乘数 +0.3、cap = max(6, base×2)、首事件/超窗重置回 base、
+    /// 返回 floor(乘数)；base 经构造参数注入（宿主读 CLAUDE_CODE_SCROLL_SPEED — 基准
+    /// readScrollSpeedBase :305-310 clamp (0,20] 默认 1）；时钟经 WheelClock 注入面桥接。
+    /// C5 原固定 WheelScrollLines=1（离散单事件等价）由本跟踪器取代 — 连发 ramp 补齐）。</summary>
+    private readonly WheelSpeedTracker _wheelSpeed;
+
     /// <summary>最近一次直发提交的文本（M8-2 打断恢复 — 无有效响应时弹回输入框）。</summary>
     private string _lastSubmittedText = string.Empty;
 
@@ -514,7 +525,10 @@ public sealed class ReplShell
     /// 读取能力，图片路径粘贴整体降级纯文本零行为变化）；
     /// vimMode=vim 编辑模式开关（TASK066 板块 E 连线 E3 — 基准 PromptInput.tsx:2243
     /// isVimModeEnabled() ? VimTextInput : TextInput 装配分支；默认 false = 零行为变化，
-    /// 宿主读引擎 settings vimMode 传 true 开启）。</summary>
+    /// 宿主读引擎 settings vimMode 传 true 开启）；
+    /// wheelBaseLines=滚轮加速度基础步长（TASK066 C5 P3 — null = 默认 1；宿主读
+    /// CLAUDE_CODE_SCROLL_SPEED env 经 WheelSpeedTracker.ParseScrollSpeedBase 解析传参 —
+    /// 基准 readScrollSpeedBase :305-310 clamp (0,20]；Core 不读 env 惯例同 idleReturn 阈值）。</summary>
     public ReplShell(
         IReplEngine engine,
         BannerItem banner,
@@ -544,7 +558,8 @@ public sealed class ReplShell
         int? idleReturnThresholdMinutes = null,
         long? idleReturnTokenThreshold = null,
         Func<string, ImageAttachment?>? loadImageFromFile = null,
-        bool vimMode = false)
+        bool vimMode = false,
+        double? wheelBaseLines = null)
     {
         _engine = engine;
         _banner = banner;
@@ -587,6 +602,10 @@ public sealed class ReplShell
         // TASK066 板块 E 连线 E3 — vim 引擎装配（null = 关闭：全部按键走原编辑链零行为变化；
         // 开启 = INSERT 初始态 — 基准 createInitialVimState 返回 INSERT，types.ts:188-190）
         _vimEngine = vimMode ? new VimEngine() : null;
+        // TASK066 C5 P3 — 滚轮加速度跟踪器装配（40ms 窗 +0.3 步进 cap max(6, base×2) — 基准
+        // computeWheelStep native 路径 :255-265；base 注入对齐 idleReturn 先例：宿主读 env 传参
+        // Core 不读 env，null = 默认 1；时钟桥接 WheelClock 注入面 — 测试可控时间戳）
+        _wheelSpeed = new WheelSpeedTracker(() => WheelClock(), wheelBaseLines ?? 1);
         _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter, _tokenUsage, _sizeSource, streamingProjector, issueOwnerRepo);
     }
 
@@ -2124,13 +2143,6 @@ public sealed class ReplShell
         }
     }
 
-    /// <summary>滚轮滚动量（行/事件 — TASK066 C5 基准确认：滚轮不经 App.tsx handleMouseEvent
-    ///（:543-545 注释 — 走键位系统），wheelup/wheeldown 绑 scroll:lineUp/scroll:lineDown
-    ///（defaultBindings.ts:200-201），消费方基础步长 1 行/事件（readScrollSpeedBase 默认 1、
-    /// clamp (0,20] — ScrollKeybindingHandler.tsx:305-310）；连续滚动加速度 ramp 至 cap 6
-    ///（computeWheelStep :176-297）不在本次最小接线范围 — 离散单事件等价 1 行）。</summary>
-    internal const int WheelScrollLines = 1;
-
     /// <summary>鼠标事件路由（TASK066 C5+C6 连线 — HandleKeyPress 顶部拦截后的唯一分派面）：
     /// <list type="bullet">
     /// <item><b>模态互斥</b>：权限/命令对话框/模型选择器/三对话框（导出/快速打开/全局搜索）/
@@ -2139,12 +2151,18 @@ public sealed class ReplShell
     /// <item><b>transcript 特例</b>：激活时滚轮走 transcript 内滚动（对齐基准滚轮经键位系统
     /// 路由 ScrollBox 行滚动），其余鼠标吞掉（全屏模态选区交互不在 C6 范围 — 基准 transcript
     /// 为 ink 屏级选区，w2 选区高亮渲染未接线，先吞后扩展）。</item>
-    /// <item><b>滚轮（C5）</b>：WheelUp/WheelDown → 滚动区行滚动（ScrollIfViewport — inline 模式
-    /// 终端原生回看 no-op 先例）+ 清选区（基准 scroll:lineUp/lineDown 先 clearSelection —
+    /// <item><b>滚轮（C5 + P3 ramp）</b>：WheelUp/WheelDown → 滚动区行滚动（ScrollIfViewport —
+    /// 步长经 _wheelSpeed 加速度 ramp：40ms 窗内连发乘数 +0.3 递增 cap max(6, base×2)、
+    /// 首事件/超窗回 base（基准 computeWheelStep :255-265）；inline 模式终端原生回看 no-op
+    /// 先例）+ 清选区（基准 scroll:lineUp/lineDown 先 clearSelection —
     /// ScrollKeybindingHandler.tsx:468/480，内容滚动后屏幕坐标选区错位）；WheelLeft/Right no-op
     ///（无横向滚动面）。</item>
     /// <item><b>选区交互（C6 前半）</b>：Press/Drag/Release → _selection.HandleMouse
     ///（SelectionScreen 投影自 _front 前缓冲）+ Release 后选中即复制（CopySelectionIfSettled）。</item>
+    /// <item><b>命中分派（C2 消费）</b>：无修饰左键 Press → _view.HitTests.HitTest 查询本帧标注 —
+    /// 后台任务面板行命中 → 选中该行 + 单击直查（基准 CoordinatorAgentStatus.tsx:73-75 行 onClick
+    /// 直接 enter/exitTeammateView 单击即查看；w2 等价 = TrySelectByHitId 定位 + 详情挂载）；
+    /// 面板空白命中吞（UI 区域不锚选区）；未命中/非面板域 id 回落选区链（零破坏）。</item>
     /// </list>
     /// 光标态互斥：基准 handleMouseEvent（App.tsx:542-679）只有 selection/hyperlink/hover 处理，
     /// 无"鼠标 Press 退出光标导航"逻辑（w2 MessageCursor 为自创特性无基准对应物）— 不做退出，
@@ -2172,9 +2190,27 @@ public sealed class ReplShell
             if (evt.Kind is MouseKind.WheelUp or MouseKind.WheelDown)
             {
                 _selection.Clear();
-                _transcript.ScrollBy(evt.Kind == MouseKind.WheelDown ? WheelScrollLines : -WheelScrollLines);
+                // C5 P3 — 加速度步长（基准 computeWheelStep :255-265 — 窗内连发 ramp/超窗回 base）
+                var step = _wheelSpeed.OnWheelEvent();
+                _transcript.ScrollBy(evt.Kind == MouseKind.WheelDown ? step : -step);
             }
 
+            return;
+        }
+
+        // TASK066 C2 消费 — 单击命中分派（先于选区锚定；模态互斥/transcript 特例之后 —
+        // 挂起期间点击已吞不变）：无修饰左键 Press 经命中表查询，面板行命中 → 选中该行 +
+        // 单击直查（对齐基准 CoordinatorAgentStatus.tsx:73-75 onClick 单击即查看；一次点击等价
+        // 键位 Shift+Down 定位 + Enter 查看两步）；命中 null / 非面板域 id 回落既有 Press 链零破坏。
+        // 差异注明：基准组件 click 于 Release 无拖拽单击时经 dispatchClick 触发（App.tsx:650-654 —
+        // Press 无差别锚定选区、Release 固化无选区才分发组件），w2 于 Press 即触发（单击语义等价、
+        // 面板区域点击不残留选区 anchor）；基准 hover 高亮（AgentLine onMouseEnter/onMouseLeave
+        // CoordinatorAgentStatus.tsx:99-127）不在本接线范围（w2 无 hover 追踪通道）
+        if (evt.Kind == MouseKind.Press
+            && evt.Button == MouseButton.Left
+            && !evt.Shift && !evt.Meta && !evt.Ctrl
+            && TryDispatchHitTestClick(evt))
+        {
             return;
         }
 
@@ -2182,13 +2218,14 @@ public sealed class ReplShell
         {
             case MouseKind.WheelUp:
                 // 基准 scroll:lineUp 先清选区（ScrollKeybindingHandler.tsx:468 — 滚动使屏幕
-                // 坐标选区错位）；inline 模式终端原生回看 no-op（ScrollIfViewport 先例）
+                // 坐标选区错位）；inline 模式终端原生回看 no-op（ScrollIfViewport 先例）；
+                // 步长 = 加速度 ramp（C5 P3 — 基准 computeWheelStep :255-265）
                 _selection.Clear();
-                ScrollIfViewport(-WheelScrollLines);
+                ScrollIfViewport(-_wheelSpeed.OnWheelEvent());
                 return;
             case MouseKind.WheelDown:
                 _selection.Clear();
-                ScrollIfViewport(WheelScrollLines);
+                ScrollIfViewport(_wheelSpeed.OnWheelEvent());
                 return;
             case MouseKind.WheelLeft or MouseKind.WheelRight:
                 // 无横向滚动面 — no-op（w2 滚动区仅纵向；基准同样未消费横向滚轮）
@@ -2203,6 +2240,41 @@ public sealed class ReplShell
 
                 return;
         }
+    }
+
+    /// <summary>命中表单击分派（TASK066 C2 消费 — HandleMouseEvent Press 分支）：
+    /// HitTest 查询本帧标注（ReplView 渲染接线填充）→ 面板级命中吞（UI 区域不锚选区）/
+    /// 行级命中选中 + 单击直查（ShowSelectedBackgroundTask 复用键位 Enter 查看路径 —
+    /// 查看后保持选中态可继续键位导航）/ 其他域 id 或未命中返回 false 回落既有选区 Press 链。
+    /// 分派原语对齐基准 dispatchClick（hit-test.ts:49-89 — 查找 + 分派）：w2 无 DOM 冒泡树 —
+    /// 单层 id 精确匹配等价（当前唯一标注源为后台任务面板，消息项 HitTestId 全 DIM null；
+    /// 未来其他域 id 不匹配即回落，前向兼容）。</summary>
+    /// <param name="evt">左键无修饰 Press 事件（Row/Col 为 0-based 屏幕坐标 — HitTest 同系）。</param>
+    /// <returns>true = 命中已消费（吞事件）；false = 未命中回落选区链。</returns>
+    private bool TryDispatchHitTestClick(MouseEvent evt)
+    {
+        var hitId = _view.HitTests.HitTest(evt.Row, evt.Col);
+        if (hitId is null)
+        {
+            return false;
+        }
+
+        // 面板空白命中（溢出行 "+N more" 等）— 吞：面板是 UI 交互区不启动文本选区
+        //（对齐基准面板 Box onClick 包裹区域形态 CoordinatorAgentStatus.tsx:72-75）
+        if (hitId == BackgroundTaskPanel.PanelHitId)
+        {
+            return true;
+        }
+
+        // 行级命中 — 选中该行（终态行可选：基准 AgentLine 任意状态 onClick 均可查看，
+        // CoordinatorAgentStatus.tsx:74）+ 单击直查（等价键位 Enter 查看路径）
+        if (_view.BackgroundTasks.TrySelectByHitId(hitId))
+        {
+            ShowSelectedBackgroundTask();
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>选区屏幕投影（TASK066 C6 — SelectionScreen.LineAt 从 _front 前缓冲逐 cell

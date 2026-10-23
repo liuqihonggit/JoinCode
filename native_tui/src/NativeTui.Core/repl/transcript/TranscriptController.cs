@@ -357,7 +357,8 @@ public sealed class TranscriptController
     }
 
     /// <summary>相对滚动（delta 行，正向下；clamp 到 [0, MaxScrollOffset]）。
-    /// TASK066 C5 接线 — 滚轮入口（WheelUp/WheelDown → ∓WheelScrollLines）：升 public 供
+    /// TASK066 C5 接线 — 滚轮入口（WheelUp/WheelDown → ∓加速度步长 — C5 P3 ramp 经
+    /// WheelSpeedTracker.OnWheelEvent，基准 computeWheelStep :255-265）：升 public 供
     /// ReplShell 鼠标路由直调；键位路径（j/k/↑↓/ctrl+n/p）仍走 TryHandleKey 内部同方法。</summary>
     public void ScrollBy(int delta) => ScrollTo(ScrollOffset + delta);
 

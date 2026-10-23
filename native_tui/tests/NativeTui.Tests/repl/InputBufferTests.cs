@@ -173,6 +173,73 @@ public sealed class InputBufferTests
         Assert.Equal(string.Empty, buffer.Text);
     }
 
+    /// <summary>undo 防抖分组（8.20 — 基准 useInputBuffer debounceMs=1000：1s 内连续编辑归一组，
+    /// 一次 Undo 回退整组；跨组分别回退）。</summary>
+    [Fact]
+    public void Undo_DebounceGroup_ConsecutiveEditsOneStep()
+    {
+        var clock = 10_000L;
+        var buffer = new InputBuffer();
+        buffer.UndoClock = () => clock;
+
+        buffer.Insert('a');
+        buffer.Insert('b');
+        buffer.Insert('c');
+        Assert.Equal("abc", buffer.Text);
+
+        // 同 1s 桶内三键一组 — 一次 undo 回退整组到空
+        Assert.True(buffer.Undo());
+        Assert.Equal(string.Empty, buffer.Text);
+
+        buffer.Insert('x');
+        clock += 2000;
+        buffer.Insert('y');
+        Assert.Equal("xy", buffer.Text);
+
+        // 跨桶两组 — 两次 undo 分别回退
+        Assert.True(buffer.Undo());
+        Assert.Equal("x", buffer.Text);
+        Assert.True(buffer.Undo());
+        Assert.Equal(string.Empty, buffer.Text);
+    }
+
+    /// <summary>Backspace chip 整块删除（8.16 — 基准 deleteTokenBefore：[Pasted text #N]/
+    /// [Image #N] 折叠引用一次退格删整块）。</summary>
+    [Fact]
+    public void Backspace_PastedRefChip_DeletesWholeChip()
+    {
+        var buffer = InputBuffer.Of("see [Pasted text #1 +3 lines] now", cursorCol: 29);
+
+        buffer.Backspace();
+
+        Assert.Equal("see  now", buffer.Text);
+    }
+
+    /// <summary>chip 整删：光标在 chip 中部（非紧邻 ] 后）退格仍为普通字符删除（边界精确匹配）。</summary>
+    [Fact]
+    public void Backspace_MidChipText_NormalCharDelete()
+    {
+        var buffer = InputBuffer.Of("see [Pasted text #1] now", cursorCol: 13);
+
+        buffer.Backspace();
+
+        Assert.Equal("see [Pasted ext #1] now", buffer.Text);
+    }
+
+    /// <summary>词移动增强（8.14 — 基准 Intl.Segmenter word 粒度近似）：下划线/连字符并入词
+    ///（snake_case/kebab-case 整词跳转，标点点缀跳过）。</summary>
+    [Fact]
+    public void WordMove_SnakeCase_JumpsWholeToken()
+    {
+        var buffer = InputBuffer.Of("my_var name", cursorCol: 11);
+
+        buffer.WordLeft();
+
+        Assert.Equal(7, buffer.CursorCol);
+        buffer.WordLeft();
+        Assert.Equal(0, buffer.CursorCol);
+    }
+
     /// <summary>视觉行垂直移动（DSG044 L4 — 基准 useTextInput.ts:269-316 三级回退第一级）：
     /// 折行内上下键细移（同显示列，短行钳制行尾）— 40a 按 cols 20 折 3 视觉行 [0,18)/[18,36)/[36,40)。</summary>
     [Fact]

@@ -60,8 +60,9 @@ public sealed class InputBufferWordTests
     public void WordMovement_SkipsPunctuation()
     {
         var buffer = InputBuffer.Of("foo-bar baz", cursorCol: 7);
+        // 8.14 增强 — kebab-case 整词（连字符并入词字符）：WordLeft 跳整词到 0
         buffer.WordLeft();
-        Assert.Equal(4, buffer.CursorCol);
+        Assert.Equal(0, buffer.CursorCol);
 
         buffer.WordRight();
         Assert.Equal(8, buffer.CursorCol);

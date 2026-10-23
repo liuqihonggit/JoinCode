@@ -211,26 +211,12 @@ public sealed partial class CurrentSettings {
     public bool? AutoDreamEnabled { get; init; }
 
     /// <summary>
-    /// 显示思考摘要
-    /// </summary>
-    [JsonPropertyName("showThinkingSummaries")]
-    [SettingsProperty(SettingsMergeStrategy.Override)]
-    public bool? ShowThinkingSummaries { get; init; }
-
-    /// <summary>
     /// 环境变量注入（替代 .env 文件）— 对齐 TS 版 env 字段
     /// 键: 环境变量名, 值: 环境变量值
     /// </summary>
     [JsonPropertyName("env")]
     [SettingsProperty(SettingsMergeStrategy.DictionaryMerge, DictionaryValueType = "string", SkipKeyAccess = true)]
     public Dictionary<string, string> Env { get; init; } = [];
-
-    /// <summary>
-    /// 无人值守模式 — AI 持续推进长任务，红灯自动执行+审计日志，黑灯仍拒绝 — ADR 0012
-    /// </summary>
-    [JsonPropertyName("isUnattendedMode")]
-    [SettingsProperty(SettingsMergeStrategy.Override)]
-    public bool? IsUnattendedMode { get; init; }
 
     /// <summary>
     /// 防丢字符二次确认 — 防止 MTP 加速推理时丢字符/乱入字符导致命令变形 — ADR 0012
@@ -245,13 +231,6 @@ public sealed partial class CurrentSettings {
     [JsonPropertyName("windowShakeEnabled")]
     [SettingsProperty(SettingsMergeStrategy.Override)]
     public bool? WindowShakeEnabled { get; init; }
-
-    /// <summary>
-    /// 聊天室模式开关 — 是否启用跨进程子代理聊天室广播 — ADR 0109
-    /// </summary>
-    [JsonPropertyName("chatRoomEnabled")]
-    [SettingsProperty(SettingsMergeStrategy.Override)]
-    public bool? ChatRoomEnabled { get; init; }
 
     /// <summary>
     /// 权限配置 — 对齐 TS 版 PermissionsSchema
@@ -299,13 +278,6 @@ public sealed partial class CurrentSettings {
     public string? ApiKeyHelper { get; init; }
 
     /// <summary>
-    /// 是否尊重 .gitignore — 对齐 TS 版 respectGitignore
-    /// </summary>
-    [JsonPropertyName("respectGitignore")]
-    [SettingsProperty(SettingsMergeStrategy.Override)]
-    public bool? RespectGitignore { get; init; }
-
-    /// <summary>
     /// 清理周期（天）— 对齐 TS 版 cleanupPeriodDays
     /// </summary>
     [JsonPropertyName("cleanupPeriodDays")]
@@ -313,61 +285,11 @@ public sealed partial class CurrentSettings {
     public int? CleanupPeriodDays { get; init; }
 
     /// <summary>
-    /// 是否包含 Git 共同作者 — 对齐 TS 版 includeCoAuthoredBy
-    /// </summary>
-    [JsonPropertyName("includeCoAuthoredBy")]
-    [SettingsProperty(SettingsMergeStrategy.Override)]
-    public bool? IncludeCoAuthoredBy { get; init; }
-
-    /// <summary>
-    /// 是否包含 Git 指令 — 对齐 TS 版 includeGitInstructions
-    /// </summary>
-    [JsonPropertyName("includeGitInstructions")]
-    [SettingsProperty(SettingsMergeStrategy.Override)]
-    public bool? IncludeGitInstructions { get; init; }
-
-    /// <summary>
     /// 可用模型列表 — 对齐 TS 版 availableModels
     /// </summary>
     [JsonPropertyName("availableModels")]
     [SettingsProperty(SettingsMergeStrategy.ListConcatDistinct, SkipKeyAccess = true)]
     public List<string> AvailableModels { get; init; } = [];
-
-    /// <summary>
-    /// 模型覆盖映射 — 对齐 TS 版 modelOverrides
-    /// 键: 原始模型名, 值: 覆盖模型名
-    /// </summary>
-    [JsonPropertyName("modelOverrides")]
-    [SettingsProperty(SettingsMergeStrategy.DictionaryMerge, DictionaryValueType = "string", SkipKeyAccess = true)]
-    public Dictionary<string, string> ModelOverrides { get; init; } = [];
-
-    /// <summary>
-    /// 是否启用所有项目 MCP 服务器 — 对齐 TS 版 enableAllProjectMcpServers
-    /// </summary>
-    [JsonPropertyName("enableAllProjectMcpServers")]
-    [SettingsProperty(SettingsMergeStrategy.Override)]
-    public bool? EnableAllProjectMcpServers { get; init; }
-
-    /// <summary>
-    /// 已启用的 MCP JSON 服务器 — 对齐 TS 版 enabledMcpjsonServers
-    /// </summary>
-    [JsonPropertyName("enabledMcpjsonServers")]
-    [SettingsProperty(SettingsMergeStrategy.ListConcatDistinct, SkipKeyAccess = true)]
-    public List<string> EnabledMcpjsonServers { get; init; } = [];
-
-    /// <summary>
-    /// 已禁用的 MCP JSON 服务器 — 对齐 TS 版 disabledMcpjsonServers
-    /// </summary>
-    [JsonPropertyName("disabledMcpjsonServers")]
-    [SettingsProperty(SettingsMergeStrategy.ListConcatDistinct, SkipKeyAccess = true)]
-    public List<string> DisabledMcpjsonServers { get; init; } = [];
-
-    /// <summary>
-    /// 是否禁用所有 Hook — 对齐 TS 版 disableAllHooks
-    /// </summary>
-    [JsonPropertyName("disableAllHooks")]
-    [SettingsProperty(SettingsMergeStrategy.Override)]
-    public bool? DisableAllHooks { get; init; }
 
     /// <summary>
     /// Worktree 配置 — 对齐 TS 版 worktree

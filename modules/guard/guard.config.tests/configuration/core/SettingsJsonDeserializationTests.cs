@@ -35,7 +35,6 @@ public class SettingsJsonDeserializationTests {
                 "language": "zh-CN",
                 "autoMemoryEnabled": true,
                 "autoDreamEnabled": false,
-                "showThinkingSummaries": true,
                 "env": {
                   "AGNES_API_KEY": "sk-agnes-api-key-value"
                 },
@@ -88,7 +87,6 @@ public class SettingsJsonDeserializationTests {
         settings.Current.Language.Should().Be("zh-CN");
         settings.Current.AutoMemoryEnabled.Should().BeTrue();
         settings.Current.AutoDreamEnabled.Should().BeFalse();
-        settings.Current.ShowThinkingSummaries.Should().BeTrue();
 
         settings.Current.Env.Should().NotBeNull();
         settings.Current.Env!["AGNES_API_KEY"].Should().Be("sk-agnes-api-key-value");

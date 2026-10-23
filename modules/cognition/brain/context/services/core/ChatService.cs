@@ -108,6 +108,9 @@ public partial class ChatService : IChatService {
     /// </summary>
     public async IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(string message, [EnumeratorCancellation] CancellationToken cancellationToken = default) {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        // 发送提醒注入 — system-reminder 形态追加到消息末尾（10 分钟冷却；与 SessionController 共享静态 Instance，
+        // GUI 主链路与 TUI 回退路径互斥覆盖，冷却防双注入）
+        message = SendReminderInjector.Instance.Append(message);
         var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.events", ConversationTurn = _conversationTurn, ToolUseContext = _toolUseContext, SessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId };
 
         try {

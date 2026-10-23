@@ -61,6 +61,10 @@ public sealed class SessionController {
     /// 流式处理用户输入 — 统一的事件消费逻辑
     /// </summary>
     public async Task<SessionTurnResult> StreamResponseAsync(string input, CancellationToken cancellationToken) {
+        // 发送提醒注入 — system-reminder 形态追加到消息末尾（10 分钟冷却；斜杠命令在 EngineSession 层已分流，
+        // 此处兜底判定）。CurrentInput（LLM prompt）与 AddUserMessageAsync（历史落库）同源生效。
+        input = SendReminderInjector.Instance.Append(input);
+
         if (_consumer is IResettableEventConsumer resettable)
             resettable.Reset();
 

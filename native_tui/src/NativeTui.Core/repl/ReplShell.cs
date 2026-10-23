@@ -179,6 +179,15 @@ public sealed class ReplShell
     /// <summary>transcript 控制器（internal — 测试断言面：快照/滚动/搜索状态机）。</summary>
     internal TranscriptController Transcript => _transcript;
 
+    /// <summary>备用屏控制器（TASK066 C3 — 对齐基准 AlternateScreen.tsx：transcript 全屏模态
+    /// 从"视口独占"升级为 DEC 1049 真备用屏独占 + 鼠标跟踪组合；null = 不启用，
+    /// 现役 inline 视口模式零破坏）。进出对称接线四处收口：ToggleTranscript /
+    /// HandleTranscriptKey（q/Esc 内部退出路径）/ 引擎死亡防御 / WriteExit 兜底。</summary>
+    private readonly AlternateScreenController? _alternateScreen;
+
+    /// <summary>备用屏控制器（internal — 测试断言面：激活态）。</summary>
+    internal AlternateScreenController? AlternateScreen => _alternateScreen;
+
     /// <summary>令牌用量记账器（S4 产出 — Driver 构造注入：引擎 token_usage 事件经 Driver 路由 RecordUsage；
     /// footer 右侧 TokenWarning 渲染源，FooterState.Tokens 接线）。</summary>
     private readonly TokenUsageTracker _tokenUsage = new();
@@ -386,7 +395,10 @@ public sealed class ReplShell
     /// terminalStatus=终端状态协调器（TASK066 A5-A8 — 标题/21337 tab/9;4 进度三路输出；
     /// null = 能力降级全静默）；
     /// keybindings=键位绑定表（TASK066 B4 — 全局键层数据源；null = KeybindingProfile.Default
-    /// 零行为变化；宿主注入 KeybindingLoader 用户合并表 — ~/.jcc/keybindings.json 覆盖默认键）。</summary>
+    /// 零行为变化；宿主注入 KeybindingLoader 用户合并表 — ~/.jcc/keybindings.json 覆盖默认键）；
+    /// alternateScreen=备用屏控制器（TASK066 C3 — transcript 全屏模态升级 DEC 1049 真备用屏 +
+    /// 鼠标跟踪组合；null = 不启用，现役 inline 视口模式零行为变化 — 既有测试契约兜底；
+    /// 宿主装配：new AlternateScreenController(output.Write) 注入）。</summary>
     public ReplShell(
         IReplEngine engine,
         BannerItem banner,
@@ -409,7 +421,8 @@ public sealed class ReplShell
         ISearchSource? searchSource = null,
         TerminalStatusCoordinator? terminalStatus = null,
         KeybindingProfile? keybindings = null,
-        string? issueOwnerRepo = null)
+        string? issueOwnerRepo = null,
+        AlternateScreenController? alternateScreen = null)
     {
         _engine = engine;
         _banner = banner;
@@ -438,6 +451,8 @@ public sealed class ReplShell
         // S8 接线 — 挂起态 BackTab 权限模式循环请求转发引擎回执通道（复用 Shift+Tab 循环实现）
         _permission.ModeCycleRequested += CyclePermissionMode;
         _transcript = new TranscriptController(BuildTranscriptSnapshot, verbose => _view.SetVerboseMode(verbose));
+        // TASK066 C3 — 备用屏控制器注入（null = 不启用零行为变化）
+        _alternateScreen = alternateScreen;
         _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter, _tokenUsage, _sizeSource, streamingProjector, issueOwnerRepo);
     }
 
@@ -576,6 +591,8 @@ public sealed class ReplShell
             if (_transcript.IsActive)
             {
                 _transcript.Toggle();
+                // TASK066 C3 — 此路径绕过 ToggleTranscript，直退备用屏恢复主屏（IsActive 为 true 必为进出翻转）
+                _alternateScreen?.Exit();
             }
 
             AddMessage(new ErrorMessageItem("引擎进程已退出，会话结束。"));
@@ -1783,8 +1800,12 @@ public sealed class ReplShell
     /// 每键后同步视图投影（滚动/搜索/进出态立即反映 — 渲染帧兜底刷新）。</summary>
     private void HandleTranscriptKey(KeyPress key)
     {
+        // TASK066 C3 — 捕获翻转前激活态：q/Esc 在 Controller 内部退出（ExitTranscript）不经过
+        // ToggleTranscript，消费后统一经 SyncAlternateScreen 对称收口备用屏
+        var wasActive = _transcript.IsActive;
         if (_transcript.TryHandleKey(key))
         {
+            SyncAlternateScreen(wasActive);
             SyncTranscriptView();
             return;
         }
@@ -1807,9 +1828,11 @@ public sealed class ReplShell
     }
 
     /// <summary>切换 transcript 模态 + 视图投影同步 — 进入整屏独占模态时清除建议态
-    /// （防激活期建议劫持 Up/Tab/Enter/Esc — 独占不变量：transcript 激活时建议不可达）。</summary>
+    /// （防激活期建议劫持 Up/Tab/Enter/Esc — 独占不变量：transcript 激活时建议不可达）；
+    /// TASK066 C3 — 翻转后备用屏对称收口（进入 Enter 升级真备用屏独占 / 退出 Exit 恢复主屏）。</summary>
     private void ToggleTranscript()
     {
+        var wasActive = _transcript.IsActive;
         _transcript.Toggle();
         if (_transcript.IsActive)
         {
@@ -1817,8 +1840,31 @@ public sealed class ReplShell
             _atSuggestions = null;
         }
 
+        SyncAlternateScreen(wasActive);
         SyncTranscriptView();
 
+    }
+
+    /// <summary>备用屏与 transcript 激活态同步（TASK066 C3 统一收口点）— 翻转时对称
+    /// Enter（进入真备用屏）/ Exit（恢复主屏）；无翻转或 controller 为 null 时零输出。
+    /// 调用方：ToggleTranscript（ctrl+o 路径）+ HandleTranscriptKey（q/Esc Controller
+    /// 内部退出路径 — 翻转前激活态由调用方捕获传入）。</summary>
+    /// <param name="wasActive">翻转前 transcript 激活态（与当前态比对判定进出方向）。</param>
+    private void SyncAlternateScreen(bool wasActive)
+    {
+        if (_alternateScreen is null || wasActive == _transcript.IsActive)
+        {
+            return;
+        }
+
+        if (_transcript.IsActive)
+        {
+            _alternateScreen.Enter();
+        }
+        else
+        {
+            _alternateScreen.Exit();
+        }
     }
 
     /// <summary>'?' 触发判定 — 空闲态（非忙 + 空输入 + 无修饰）的裸 '?'（有输入时 '?' 走正常字符插入；
@@ -2840,6 +2886,10 @@ public sealed class ReplShell
         if (_inline)
         {
             var viewportRows = _sizeSource.Current.Rows;
+            // TASK066 C3 — 备用屏激活时 transcript 走视口渲染分支天然兼容（无冲突已核实）：
+            // 屏高 = 终端行数（EnsureScreens transcript 分支 = 基准 AlternateScreen Box height=rows
+            // 高度约束）+ frameEnd 走 TranscriptRenderer 视口光标；备用屏无 scrollback，
+            // 整屏差分重绘语义与视口独占渲染一致（inline 历史留 scrollback 语义不适用于模态帧）
             var frameEnd = _view.Transcript is { } transcript
                 ? TranscriptRenderer.CursorPos(transcript, _back.Rows)
                 : _view.InputCursorPos(_back.Rows, _back.Cols, _input.CursorCol);
@@ -3038,6 +3088,9 @@ public sealed class ReplShell
     /// A6 接线 — 焦点上报对称 Disable（仅启用过）+ 终端状态三路清理（标题空/CLEAR_TAB_STATUS/进度 clear））。</summary>
     private void WriteExitSequences(string sequences)
     {
+        // TASK066 C3 — 备用屏兜底对称退出（transcript 残留防御 — 引擎死亡路径已退，此处幂等重入
+        // no-op）：先回主屏再发退出序列，清屏复位作用于主屏（后发则清在备用屏上、主屏残留旧内容）
+        _alternateScreen?.Exit();
         var focusDisable = _terminalStatus is not null
             ? DecPrivateMode.Disable(DecPrivateModeKind.FocusReporting)
             : string.Empty;

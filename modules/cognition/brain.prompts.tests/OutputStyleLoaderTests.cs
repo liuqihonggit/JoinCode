@@ -62,4 +62,35 @@ public sealed class OutputStyleLoaderTests
 
         styles.Should().ContainSingle().Which.Name.Should().Be("real");
     }
+
+    /// <summary>frontmatter name 覆盖文件名 + description 提取（对齐 TS frontmatter['name'] || styleName）。</summary>
+    [Fact]
+    public async Task LoadAsync_FrontmatterName_OverridesFileName()
+    {
+        var fs = new global::Testing.Common.Services.InMemoryFileSystem();
+        await fs.WriteAllTextAsync("/user/my-file.md", "---\nname: 极简风\ndescription: 极简输出\n---\n回答保持极简。");
+        var sut = new OutputStyleLoader(fs, "/user", "/nope");
+
+        var styles = await sut.LoadAsync();
+
+        var style = styles.Should().ContainSingle().Which;
+        style.Name.Should().Be("极简风");
+        style.Description.Should().Be("极简输出");
+    }
+
+    /// <summary>frontmatter 剥离 — prompt 为正文（不含 YAML 头，对齐 TS content.trim()）。</summary>
+    [Fact]
+    public async Task LoadAsync_Frontmatter_StrippedFromPrompt()
+    {
+        var fs = new global::Testing.Common.Services.InMemoryFileSystem();
+        await fs.WriteAllTextAsync("/user/my-file.md", "---\nname: 极简风\n---\n回答保持极简。");
+        var sut = new OutputStyleLoader(fs, "/user", "/nope");
+
+        var styles = await sut.LoadAsync();
+
+        var prompt = styles.Should().ContainSingle().Which.Prompt;
+        prompt.Should().Contain("回答保持极简");
+        prompt.Should().NotContain("---");
+        prompt.Should().NotContain("name:");
+    }
 }

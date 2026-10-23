@@ -33,6 +33,7 @@ public sealed partial class SettingsMapper : ServiceEntity {
         config = config with { OutputStyle = settings?.Current?.OutputStyle };
         config = config with { AutoMemoryEnabled = settings?.Current?.AutoMemoryEnabled ?? true };
         config = config with { AutoDreamEnabled = settings?.Current?.AutoDreamEnabled ?? true };
+        config = config with { CleanupPeriodDays = settings?.Current?.CleanupPeriodDays ?? 30 };
         config = config with { ShowTurnDuration = settings?.Current?.ShowTurnDuration ?? true };
         config = config with { AutoCompactEnabled = settings?.Current?.AutoCompactEnabled ?? true };
         config = config with { FileCheckpointingEnabled = settings?.Current?.FileCheckpointingEnabled ?? true };

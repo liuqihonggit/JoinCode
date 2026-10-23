@@ -18,6 +18,54 @@ public sealed class HousekeepingServiceTests {
     private HousekeepingService CreateSut()
         => new(_fs, _clock, _planModeManager.Object, _worktreeService.Object, null, NullLogger<HousekeepingService>.Instance);
 
+    /// <summary>
+    /// C类 cleanupPeriodDays 接线 — WorkflowConfig.CleanupPeriodDays（settings 键，默认 30 对齐 TS）
+    /// 流入 RunAllCleanup 的会话清理周期；0 = 禁用会话清理（对齐 TS 0=禁用持久化语义的清理侧）。
+    /// </summary>
+    [Fact]
+    public async Task RunAllCleanup_CleanupPeriodDaysFromWorkflowConfig_AppliesToSessionFiles() {
+        _fs.CreateDirectory(SessionsDir);
+        var oldFile = Path.Combine(SessionsDir, "old-session.json");
+        _fs.WriteAllText(oldFile, "{}");
+        _fs.SetLastWriteTimeUtc(oldFile, _clock.GetUtcNow().AddDays(-40));
+
+        var config = new WorkflowConfig { CleanupPeriodDays = 15 };
+        await using var sut = new HousekeepingService(_fs, _clock, _planModeManager.Object, _worktreeService.Object, null, NullLogger<HousekeepingService>.Instance, workflowConfig: config);
+
+        var total = await sut.RunAllCleanupAsync();
+
+        total.Should().BeGreaterThan(0, "15 天周期下 40 天前的会话文件应被清理");
+        _fs.FileExists(oldFile).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RunAllCleanup_CleanupPeriodDaysZero_DisablesSessionCleanup() {
+        _fs.CreateDirectory(SessionsDir);
+        var oldFile = Path.Combine(SessionsDir, "old-session.json");
+        _fs.WriteAllText(oldFile, "{}");
+        _fs.SetLastWriteTimeUtc(oldFile, _clock.GetUtcNow().AddDays(-400));
+
+        var config = new WorkflowConfig { CleanupPeriodDays = 0 };
+        await using var sut = new HousekeepingService(_fs, _clock, _planModeManager.Object, _worktreeService.Object, null, NullLogger<HousekeepingService>.Instance, workflowConfig: config);
+
+        await sut.RunAllCleanupAsync();
+
+        _fs.FileExists(oldFile).Should().BeTrue("cleanupPeriodDays=0 应禁用会话清理");
+    }
+
+    [Fact]
+    public async Task RunAllCleanup_NoWorkflowConfig_DefaultsTo30Days() {
+        _fs.CreateDirectory(SessionsDir);
+        var oldFile = Path.Combine(SessionsDir, "old-session.json");
+        _fs.WriteAllText(oldFile, "{}");
+        _fs.SetLastWriteTimeUtc(oldFile, _clock.GetUtcNow().AddDays(-31));
+
+        await using var sut = CreateSut();
+        await sut.RunAllCleanupAsync();
+
+        _fs.FileExists(oldFile).Should().BeFalse("默认 30 天（对齐 TS）下 31 天前的文件应清理");
+    }
+
     [Fact]
     public async Task CleanupOldSessionFiles_WithNoSessionsDir_ShouldReturnZero() {
         await using var sut = CreateSut();

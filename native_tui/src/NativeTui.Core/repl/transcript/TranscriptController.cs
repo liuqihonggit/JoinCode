@@ -356,8 +356,10 @@ public sealed class TranscriptController
         ScrollTo(_searchAnchorOffset);
     }
 
-    /// <summary>相对滚动（delta 行，正向下；clamp 到 [0, MaxScrollOffset]）。</summary>
-    private void ScrollBy(int delta) => ScrollTo(ScrollOffset + delta);
+    /// <summary>相对滚动（delta 行，正向下；clamp 到 [0, MaxScrollOffset]）。
+    /// TASK066 C5 接线 — 滚轮入口（WheelUp/WheelDown → ∓WheelScrollLines）：升 public 供
+    /// ReplShell 鼠标路由直调；键位路径（j/k/↑↓/ctrl+n/p）仍走 TryHandleKey 内部同方法。</summary>
+    public void ScrollBy(int delta) => ScrollTo(ScrollOffset + delta);
 
     /// <summary>绝对滚动（clamp 到 [0, MaxScrollOffset] — 不足一屏不可滚）。</summary>
     private void ScrollTo(int offset) => ScrollOffset = Math.Clamp(offset, 0, MaxScrollOffset);

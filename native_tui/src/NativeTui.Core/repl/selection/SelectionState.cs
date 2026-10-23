@@ -31,6 +31,17 @@ public readonly record struct SelectionPoint(int Col, int Row);
 public readonly record struct SelectionBounds(SelectionPoint Start, SelectionPoint End);
 
 /// <summary>
+/// 行文本提供器委托（row → 该行全宽文本；越界行返回空 span）。
+/// 类型修复 — 原形态 Func&lt;int, ReadOnlySpan&lt;char&gt;&gt; 编译非法：ref struct 作泛型类型
+/// 实参要求泛型参数带 allows ref struct 反约束（C# 13 起规则，错误 CS9244 —
+/// Func&lt;T,TResult&gt; 无该约束），改自定义 delegate 直持 ref struct 返回类型
+///（方法签名成分合法 — API 语义不变，全部构造点 lambda/方法组隐式转换兼容）。
+/// </summary>
+/// <param name="row">0-based 屏幕行号。</param>
+/// <returns>该行全宽文本（越界行返回空）。</returns>
+public delegate ReadOnlySpan<char> SelectionLineAt(int row);
+
+/// <summary>
 /// 选区用屏幕投影 — 行文本提供器 + 网格尺寸（纯逻辑零 IO：终端事件与渲染由宿主接线）。
 /// 行文本约定：定长 Cols 的行文本（Blank cell 投影为空格）、越界行返回空 span；
 /// 列号 = 行文本索引（1 char = 1 列）。宽字符 SpacerTail 占位不反映在文本中为已知局限
@@ -39,7 +50,7 @@ public readonly record struct SelectionBounds(SelectionPoint Start, SelectionPoi
 /// <param name="LineAt">行文本提供器（row → 该行全宽文本；越界行返回空）。</param>
 /// <param name="Cols">屏幕列数。</param>
 /// <param name="Rows">屏幕行数。</param>
-public readonly record struct SelectionScreen(Func<int, ReadOnlySpan<char>> LineAt, int Cols, int Rows);
+public readonly record struct SelectionScreen(SelectionLineAt LineAt, int Cols, int Rows);
 
 /// <summary>
 /// 终端文本选区状态机 — 对齐基准 ink/selection.ts（流式线性选区：锚点 anchor + 活动点 focus

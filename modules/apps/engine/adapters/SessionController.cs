@@ -115,7 +115,7 @@ public sealed class SessionController {
                 subAgentChannel.Complete();
                 sw.Stop();
 
-                if (Diag.IsDebugLog) {
+                if (ShouldShowTurnDuration() || Diag.IsDebugLog) {
                     _consumer.OnTimingSummary($"Total: {sw.ElapsedMilliseconds}ms");
                 }
 
@@ -234,6 +234,13 @@ public sealed class SessionController {
 
     /// <summary>缺省上下文窗口兜底（对齐 ChatContextManager.DefaultContextWindowResolver 的 200K）。</summary>
     private const int DefaultContextWindowTokens = 200_000;
+
+    /// <summary>
+    /// 回合耗时显示判定 — WorkflowConfig.ShowTurnDuration（对齐 TS 默认 true）；
+    /// sp 不可用或未注册 WorkflowConfig 时默认 true，debuglog 开启时强制显示。
+    /// </summary>
+    private bool ShouldShowTurnDuration() =>
+        _serviceProvider?.GetService<WorkflowConfig>()?.ShowTurnDuration ?? true;
 
     /// <summary>
     /// 发射上下文余量事件（M8-7 — Done 权威 usage 快照口径）：PromptTokens 即当前上下文窗口占用；

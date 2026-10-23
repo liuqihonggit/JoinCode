@@ -81,6 +81,44 @@ public class ConfigLoaderTests : IDisposable {
             $"API Key 应从环境变量加载，但为空。Provider={config.Provider.Vendor}");
     }
 
+    /// <summary>
+    /// debuglog 键接线 — settings.json current.debuglog=true 时启用诊断日志
+    /// （对齐 TS debuglog 键；--debuglog/JCC_DEBUGLOG 更早生效，三入口同效）。
+    /// </summary>
+    [Fact]
+    public async Task LoadConfig_DebugLogTrue_EnablesDiag() {
+        Diag.ResetRuntimeDebugLogForTest();
+        Environment.SetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey, "sk-test-debuglog-key");
+        try {
+            var settingsJson = """{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","model":"gpt-4o","models":[{"id":"gpt-4o","displayName":"GPT-4o","contextWindow":128000,"aliases":["default"],"capabilities":{"modalities":["text","toolUse"]}}]}},"current":{"profile":"openai","debuglog":true}}""";
+            _ = _fs.WriteAllText(AppDataConstants.Paths.SettingsFilePath, settingsJson);
+
+            await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
+
+            Diag.IsDebugLog.Should().BeTrue("settings.json current.debuglog=true 应启用诊断日志");
+        } finally {
+            Diag.ResetRuntimeDebugLogForTest();
+            Environment.SetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey, _originalOpenAiApiKey);
+        }
+    }
+
+    [Fact]
+    public async Task LoadConfig_DebugLogAbsentOrFalse_DiagUnchanged() {
+        Diag.ResetRuntimeDebugLogForTest();
+        Environment.SetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey, "sk-test-debuglog-key");
+        try {
+            var settingsJson = """{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","model":"gpt-4o","models":[{"id":"gpt-4o","displayName":"GPT-4o","contextWindow":128000,"aliases":["default"],"capabilities":{"modalities":["text","toolUse"]}}]}},"current":{"profile":"openai","debuglog":false}}""";
+            _ = _fs.WriteAllText(AppDataConstants.Paths.SettingsFilePath, settingsJson);
+
+            await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
+
+            Diag.IsDebugLog.Should().BeFalse("debuglog=false 不应启用诊断日志");
+        } finally {
+            Diag.ResetRuntimeDebugLogForTest();
+            Environment.SetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey, _originalOpenAiApiKey);
+        }
+    }
+
     [Fact]
     public async Task LoadConfig_ShouldHaveValidProvider() {
         var realKey = TestConfiguration.GetRealApiKey();

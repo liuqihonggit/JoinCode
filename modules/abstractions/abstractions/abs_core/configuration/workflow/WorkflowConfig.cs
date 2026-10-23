@@ -88,6 +88,12 @@ public sealed record WorkflowConfig {
     public string? Language { get; init; }
 
     /// <summary>
+    /// 显示回合耗时 — 对齐 TS showTurnDuration（默认 true）；
+    /// SessionController 门控 timing 摘要显示（debuglog 开启时强制显示）
+    /// </summary>
+    public bool ShowTurnDuration { get; init; } = true;
+
+    /// <summary>
     /// LLM 执行参数配置（Temperature, MaxTokens, TopP 等）
     /// </summary>
     public LlmExecutionSettings LlmExecution { get; init; } = new();

@@ -220,6 +220,83 @@ public sealed class BridgeServeLoopTests {
         Assert.Contains("plan, auto, ask, bypass, unattended", errorLine);
     }
 
+    /// <summary>submit 带图片附件（TASK066 板块 G G4）— 执行器收到降级投影输入：文本 + 空行 +
+    /// 逐附件 [Image #N: filename (mediaType)] 引用段（与进程内直连版 EngineTurnClient.
+    /// ProjectImageAttachments 同一降级语义 — 引擎回合链 string-only，base64 不内嵌）。</summary>
+    [Fact]
+    public async Task Submit_WithImages_ExecutorReceivesProjectedInput() {
+        using var stdin = new StringReader(string.Join('\n',
+            WriteRequest(new CliBridge.BridgeRequest.Submit("看这张图",
+                [
+                    new CliBridge.BridgeImageAttachment("aGk=", "image/png", "a.png"),
+                    new CliBridge.BridgeImageAttachment("eQ==", "image/jpeg", "b.jpg"),
+                ])),
+            WriteRequest(new CliBridge.BridgeRequest.Quit())));
+        await using var stdout = new StringWriter();
+
+        var exitCode = await BridgeServeLoop.RunAsync(stdin, stdout, new StringWriter(),
+            (input, consumer, ct) => {
+                Assert.Equal("看这张图\n\n[Image #1: a.png (image/png)]\n[Image #2: b.jpg (image/jpeg)]", input);
+                return Task.CompletedTask;
+            }, CancellationToken.None);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("turn_completed", stdout.ToString());
+    }
+
+    /// <summary>submit 空文本 + 图片 — 投影段兜底非空（TUI 剥离 [Image #N] 占位后空文本场景，
+    /// 附件即提交内容 — 对齐 EngineTurnClient 投影同一兜底分支）。</summary>
+    [Fact]
+    public async Task Submit_EmptyTextWithImages_ProjectsSummaryOnly() {
+        using var stdin = new StringReader(string.Join('\n',
+            WriteRequest(new CliBridge.BridgeRequest.Submit("",
+                [new CliBridge.BridgeImageAttachment("aGk=", "image/png", "shot.png")])),
+            WriteRequest(new CliBridge.BridgeRequest.Quit())));
+        await using var stdout = new StringWriter();
+
+        var exitCode = await BridgeServeLoop.RunAsync(stdin, stdout, new StringWriter(),
+            (input, consumer, ct) => {
+                Assert.Equal("[Image #1: shot.png (image/png)]", input);
+                return Task.CompletedTask;
+            }, CancellationToken.None);
+
+        Assert.Equal(0, exitCode);
+    }
+
+    /// <summary>submit 空图片数组 — 投影零改动（执行器收原文；null/空附件等价无附件提交）。</summary>
+    [Fact]
+    public async Task Submit_EmptyImages_ExecutorReceivesTextAsIs() {
+        using var stdin = new StringReader(string.Join('\n',
+            "{\"type\":\"submit\",\"text\":\"纯文本\",\"images\":[]}",
+            WriteRequest(new CliBridge.BridgeRequest.Quit())));
+        await using var stdout = new StringWriter();
+
+        var exitCode = await BridgeServeLoop.RunAsync(stdin, stdout, new StringWriter(),
+            (input, consumer, ct) => {
+                Assert.Equal("纯文本", input);
+                return Task.CompletedTask;
+            }, CancellationToken.None);
+
+        Assert.Equal(0, exitCode);
+    }
+
+    /// <summary>旧 TUI（G4 前）不输出 images 字段 — 执行器收原文（Images=null 投影零改动，旧客户端零破坏）。</summary>
+    [Fact]
+    public async Task Submit_LegacyWithoutImages_ExecutorReceivesTextAsIs() {
+        using var stdin = new StringReader(string.Join('\n',
+            "{\"type\":\"submit\",\"text\":\"legacy\"}",
+            WriteRequest(new CliBridge.BridgeRequest.Quit())));
+        await using var stdout = new StringWriter();
+
+        var exitCode = await BridgeServeLoop.RunAsync(stdin, stdout, new StringWriter(),
+            (input, consumer, ct) => {
+                Assert.Equal("legacy", input);
+                return Task.CompletedTask;
+            }, CancellationToken.None);
+
+        Assert.Equal(0, exitCode);
+    }
+
     /// <summary>stop_task 分派（M8-8 后续）— 泵停止 fork 任务：CancelForkAsync 被调 +
     /// cancelled 终态 background_task 事件行回推（请求循环不等待 — fire-and-forget 后立即处理 quit）。</summary>
     [Fact]

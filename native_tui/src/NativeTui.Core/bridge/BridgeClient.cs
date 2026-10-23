@@ -53,6 +53,20 @@ public sealed class BridgeClient : IDisposable
     public void Submit(string text) =>
         BridgeProtocol.WriteRequest(_stdin, new BridgeRequest.Submit(text));
 
+    /// <summary>提交用户输入（带图片附件 — TASK066 板块 G G4 bridge 协议图片通道）：
+    /// images 非空时数组随行写出（camelCase base64/mediaType/filename）；null/空归一为不带字段
+    /// — 与单参形态字节等价（IReplEngine.Submit 契约"null/空附件等价单参提交"的协议层落点，
+    /// 空数组 WhenWritingNull 不忽略 — 本类为唯一写协议出口，归一收口在此）。</summary>
+    /// <param name="text">提交文本（图片占位 [Image #N] 已由 shell 剥离）。</param>
+    /// <param name="images">图片附件快照（null/空 = 无附件 — 不带 images 字段）。</param>
+    public void Submit(string text, IReadOnlyList<BridgeImageAttachment>? images) =>
+        BridgeProtocol.WriteRequest(_stdin, new BridgeRequest.Submit(text, NormalizeImages(images)));
+
+    /// <summary>附件快照归一（G4）：null/空 → null（协议不带字段，旧行为字节等价）；
+    /// 非空 → 拷贝为数组（快照隔离 — 外部可变列表不逃逸进协议行）。</summary>
+    private static BridgeImageAttachment[]? NormalizeImages(IReadOnlyList<BridgeImageAttachment>? images) =>
+        images is { Count: > 0 } ? [.. images] : null;
+
     /// <summary>打断当前回合。</summary>
     public void Interrupt() =>
         BridgeProtocol.WriteRequest(_stdin, new BridgeRequest.Interrupt());

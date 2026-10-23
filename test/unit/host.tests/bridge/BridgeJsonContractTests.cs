@@ -119,6 +119,53 @@ public sealed class BridgeJsonContractTests {
         Assert.Equal("你好 world", submit.Text);
     }
 
+    /// <summary>submit 带图片附件 JSON 形状（TASK066 板块 G G4 — 与 native_tui 侧
+    /// BridgeRequest.Submit 逐字段镜像：images 数组 camelCase base64/mediaType/filename，
+    /// 协议契约快照；Safe 上下文不转义中文 — 断言原文）。</summary>
+    [Fact]
+    public void Serialize_SubmitWithImages_MatchesTuiContract() {
+        var json = JsonSerializer.Serialize(
+            new CliBridge.BridgeRequest.Submit("看这张图",
+                [new CliBridge.BridgeImageAttachment("aGk=", "image/png", "shot.png")]),
+            CliBridge.BridgeJsonContext.Safe.BridgeRequest);
+        Assert.Equal(
+            "{\"type\":\"submit\",\"text\":\"看这张图\",\"images\":[{\"base64\":\"aGk=\",\"mediaType\":\"image/png\",\"filename\":\"shot.png\"}]}",
+            json);
+    }
+
+    /// <summary>submit 显式 null 附件 — Images 不序列化字段，与旧契约逐字节一致
+    /// （WhenWritingNull — 旧 TUI 零破坏，对齐 BridgeDiffLine 行号字段扩展先例）。</summary>
+    [Fact]
+    public void Serialize_SubmitWithoutImages_OmitsImagesField() {
+        var json = JsonSerializer.Serialize(
+            new CliBridge.BridgeRequest.Submit("hello world", Images: null),
+            CliBridge.BridgeJsonContext.Safe.BridgeRequest);
+        Assert.Equal("{\"type\":\"submit\",\"text\":\"hello world\"}", json);
+    }
+
+    /// <summary>native_tui 产出的带图 submit 行反解析回读（双镜像 roundtrip — 全字段回读）。</summary>
+    [Fact]
+    public void Deserialize_TuiEmittedSubmitWithImages_ParsesBack() {
+        var request = JsonSerializer.Deserialize(
+            "{\"type\":\"submit\",\"text\":\"hi\",\"images\":[{\"base64\":\"aGk=\",\"mediaType\":\"image/png\",\"filename\":\"shot.png\"}]}",
+            CliBridge.BridgeJsonContext.Safe.BridgeRequest);
+        var submit = Assert.IsType<CliBridge.BridgeRequest.Submit>(request);
+        Assert.Equal("hi", submit.Text);
+        Assert.NotNull(submit.Images);
+        var image = Assert.Single(submit.Images);
+        Assert.Equal(new CliBridge.BridgeImageAttachment("aGk=", "image/png", "shot.png"), image);
+    }
+
+    /// <summary>旧 TUI（G4 前）不输出 images 字段 → 反序列化 Images=null 不报错（旧客户端兼容面）。</summary>
+    [Fact]
+    public void Deserialize_LegacySubmitWithoutImages_ImagesStaysNull() {
+        var request = JsonSerializer.Deserialize(
+            "{\"type\":\"submit\",\"text\":\"legacy\"}", CliBridge.BridgeJsonContext.Safe.BridgeRequest);
+        var submit = Assert.IsType<CliBridge.BridgeRequest.Submit>(request);
+        Assert.Equal("legacy", submit.Text);
+        Assert.Null(submit.Images);
+    }
+
     /// <summary>上下文余量事件 JSON 形状（M8-7 — 与 native_tui 侧 BridgeEvent.ContextUsage 逐字段镜像：
     /// context_usage + promptTokens/contextWindowTokens/percentLeft camelCase 字段）。</summary>
     [Fact]

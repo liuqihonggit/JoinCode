@@ -19,6 +19,14 @@ public sealed class BridgeEngine : IReplEngine, IDisposable
     /// <summary>提交回合 — 写子进程 stdin（submit 请求）。</summary>
     public void Submit(string text) => _client.Submit(text);
 
+    /// <summary>提交回合（带图片附件 — TASK066 板块 G G4）：转 BridgeClient 双参写出
+    /// （images 非空带 images 字段；null/空不带 — 与旧单参形态字节等价）。显式实现取代
+    /// IReplEngine.Submit 默认成员的图片丢弃路径 — bridge 模式 ReplShell 提交附件直达引擎侧
+    /// 降级投影（此前默认转调单参图片静默丢失 — TASK066 板块 G 登记的 P3 遗留修复）。</summary>
+    /// <param name="text">提交文本（图片占位 [Image #N] 已由 shell 剥离 — 基准 Image refs become content blocks）。</param>
+    /// <param name="images">图片附件快照（bridge 协议 DTO — null/空 = 无附件）。</param>
+    public void Submit(string text, IReadOnlyList<BridgeImageAttachment>? images) => _client.Submit(text, images);
+
     /// <summary>打断当前回合 — 写子进程 stdin（interrupt 请求）。</summary>
     public void Interrupt() => _client.Interrupt();
 

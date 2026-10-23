@@ -426,9 +426,13 @@ public static class Program {
                      // 对齐 idleReturnThresholdMinutes 先例）
                      wheelBaseLines: WheelSpeedTracker.ParseScrollSpeedBase(
                          Environment.GetEnvironmentVariable("CLAUDE_CODE_SCROLL_SPEED")),
-                     // TASK066 板块E — 图片文件读取委托（粘贴图片路径 → base64 附件；magic 嗅探
-                     // mime，读失败 null 降级该行回退纯文本粘贴）
-                     loadImageFromFile: LoadImageFromFile);
+                      // TASK066 板块E — 图片文件读取委托（粘贴图片路径 → base64 附件；magic 嗅探
+                      // mime，读失败 null 降级该行回退纯文本粘贴）
+                      loadImageFromFile: LoadImageFromFile,
+                      // TASK066 板块E 收尾 — 剪贴板图片读取委托（chat:imagePaste 键主动读取：
+                      // win32 PowerShell Get-Clipboard -Format Image → 临时 PNG → base64 附件；
+                      // 非 Windows null 降级 → Core 侧 footer 通知"剪贴板未找到图片"）
+                      readClipboardImage: ReadClipboardImage);
                 pickerEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);
@@ -502,6 +506,62 @@ public static class Program {
             return ImageAttachment.Of(Convert.ToBase64String(bytes), mediaType, Path.GetFileName(path), path);
         } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) {
             return null;
+        }
+    }
+
+    /// <summary>读取剪贴板图片（TASK066 板块 E 收尾 — chat:imagePaste 委托宿主实现，
+    /// 基准 imagePaste.ts:72-78 win32 命令形态）：PowerShell Get-Clipboard -Format Image →
+    /// 临时 PNG 落盘 → 字节读入 base64 附件（mediaType 恒 image/png — Save 指定
+    /// ImageFormat::Png 已归一，基准 WSL2 BMP 转换分支 :211-218 不触发；resize 降采样
+    /// :221-225 与尺寸解析不做 — DTO dimensions 可空，LoadImageFromFile 同简化先例）；
+    /// 非 Windows 返回 null（基准 darwin native NSPasteboard 路径 w2 无对应、linux
+    /// xclip/wl-paste 形态首版不实现 — w2 主场景 win32，Unix 降级通知反馈）；
+    /// 基准 check+save 两进程（:189-204）合并为单进程等价（save 命令内 if ($img)
+    /// 守卫即 check — 无图时不落盘，进程启动一次省 ~1s；15s 超时守卫防大位图挂起）。</summary>
+    /// <returns>附件实例（filename 基准默认 'Pasted image' — PromptInput.tsx:1161）；
+    /// 剪贴板无图/非 Windows/启动失败/超时 null。</returns>
+    private static async Task<ImageAttachment?> ReadClipboardImage() {
+        if (!OperatingSystem.IsWindows()) {
+            return null;
+        }
+
+        var path = Path.Combine(Path.GetTempPath(), "claude_cli_latest_screenshot.png");
+        try {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            using var process = new System.Diagnostics.Process();
+            process.StartInfo = new System.Diagnostics.ProcessStartInfo {
+                FileName = "powershell",
+                Arguments = $"-NoProfile -Command \"$img = Get-Clipboard -Format Image; if ($img) {{ $img.Save('{path.Replace("'", "''")}', [System.Drawing.Imaging.ImageFormat]::Png) }}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            if (!process.Start()) {
+                return null;
+            }
+
+            await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+            // 无图时 if ($img) 守卫不落盘 — 文件不存在即 check 失败（基准 :189-195 checkImage null 语义）
+            if (!File.Exists(path)) {
+                return null;
+            }
+
+            var bytes = await File.ReadAllBytesAsync(path).ConfigureAwait(false);
+            return bytes.Length == 0
+                ? null
+                : ImageAttachment.Of(Convert.ToBase64String(bytes), ImageAttachment.DefaultMediaType, ImageAttachment.DefaultFilename);
+        } catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception
+            or IOException or OperationCanceledException) {
+            // PowerShell 不存在/超时/读盘失败 — null 降级（ReplShell 侧通知反馈）
+            return null;
+        } finally {
+            // 临时文件清理（基准 :231-232 fire-and-forget deleteFile — 同步 finally 收口，
+            // temp 归位清理是进程资源卫生 — ExternalEditorLauncher 同先例；失败静默 OS 兜底）
+            try {
+                File.Delete(path);
+            } catch (IOException) {
+            }
         }
     }
 

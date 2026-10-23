@@ -1,11 +1,15 @@
 namespace NativeTui.Tests.Repl;
 
 /// <summary>
-/// WheelSpeedTracker 滚轮加速度 ramp 测试（TASK066 C5 P3 — 基准 ScrollKeybindingHandler.tsx
-/// computeWheelStep native 路径 :255-265）：40ms 判定窗内连续事件乘数 +0.3 递增（floor 序列
-/// 1,1,1,1,2,2,2,3,... 第 5 事件起 2 行 — 乘数为浮点累积非整数计数）、首事件/超窗重置回 base、
-/// cap = max(6, base×2) 钳制（:262）、gap=40 恰在窗内（:259 gap &gt; 窗才重置）、base 旋钮解析
-/// clamp (0,20] 默认 1（readScrollSpeedBase :305-310 — parseFloat 前缀语义）。
+/// WheelSpeedTracker 滚轮加速度 ramp + 方向翻转弹跳测试（TASK066 C5 P3 + 板块 E 收尾 —
+/// 基准 ScrollKeybindingHandler.tsx computeWheelStep native 路径）：
+/// ramp 段（:255-265）：40ms 判定窗内连续事件乘数 +0.3 递增（floor 序列 1,1,1,1,2,2,2,3,...
+/// 第 5 事件起 2 行 — 乘数为浮点累积非整数计数）、首事件/超窗重置回 base、
+/// cap = max(6, base×2) 钳制（:262）、gap=40 恰在窗内（:259 gap &gt; 窗才重置）。
+/// 弹跳段（:177-217）：方向翻转事件挂起返回 0（不滚动 — :208-217 defer）；下一事件
+/// 200ms 窗内翻回原方向 = 编码器弹跳吞掉继续原方向 ramp（:201-205 — dir/mult 保持）；
+/// 持续新方向 = 真翻转提交 mult 重置回 base（:196-199）；超窗翻回同样按真翻转重置（:193）。
+/// base 旋钮解析 clamp (0,20] 默认 1（readScrollSpeedBase :305-310 — parseFloat 前缀语义）。
 /// 时钟经构造注入（可控时间戳推进 — 对齐 SelectionState/EscClock 注入先例）。
 /// 浮点断言避开整数边界单点（如乘数 4.0±ε 的 floor 翻转）— 只断言安全子序列。
 /// </summary>
@@ -27,7 +31,7 @@ public sealed class WheelSpeedTrackerTests
         var (tracker, advance) = ManualClock();
 
         advance(500);
-        Assert.Equal(1, tracker.OnWheelEvent());
+        Assert.Equal(1, tracker.OnWheelEvent(true));
     }
 
     /// <summary>40ms 窗内连发递增 — 乘数 1→1.3→1.6→1.9→2.2→2.5→2.8→3.1→3.4→3.7，
@@ -41,7 +45,7 @@ public sealed class WheelSpeedTrackerTests
         for (var i = 0; i < steps.Length; i++)
         {
             advance(10);
-            steps[i] = tracker.OnWheelEvent();
+            steps[i] = tracker.OnWheelEvent(true);
         }
 
         Assert.Equal(new[] { 1, 1, 1, 1, 2, 2, 2, 3, 3, 3 }, steps);
@@ -53,18 +57,18 @@ public sealed class WheelSpeedTrackerTests
     public void GapBeyondWindow_ResetsToBase()
     {
         var (tracker, advance) = ManualClock();
-        tracker.OnWheelEvent();
+        tracker.OnWheelEvent(true);
         for (var i = 0; i < 4; i++)
         {
             advance(10);
-            tracker.OnWheelEvent();
+            tracker.OnWheelEvent(true);
         }
 
         advance(10);
-        Assert.Equal(2, tracker.OnWheelEvent());
+        Assert.Equal(2, tracker.OnWheelEvent(true));
 
         advance(60);
-        Assert.Equal(1, tracker.OnWheelEvent());
+        Assert.Equal(1, tracker.OnWheelEvent(true));
     }
 
     /// <summary>cap 6 钳制 — 持续窗内连发：乘数 1+0.3n 第 18 事件达 6.1 钳 6
@@ -77,7 +81,7 @@ public sealed class WheelSpeedTrackerTests
         for (var i = 0; i < 40; i++)
         {
             advance(10);
-            steps.Add(tracker.OnWheelEvent());
+            steps.Add(tracker.OnWheelEvent(true));
         }
 
         Assert.Equal(1, steps[0]);
@@ -92,19 +96,19 @@ public sealed class WheelSpeedTrackerTests
     public void GapExactlyAtWindow_StillRamps()
     {
         var (tracker, advance) = ManualClock();
-        tracker.OnWheelEvent();
+        tracker.OnWheelEvent(true);
 
         advance(40);
-        Assert.Equal(1, tracker.OnWheelEvent());
+        Assert.Equal(1, tracker.OnWheelEvent(true));
         advance(40);
-        Assert.Equal(1, tracker.OnWheelEvent());
+        Assert.Equal(1, tracker.OnWheelEvent(true));
         advance(40);
-        Assert.Equal(1, tracker.OnWheelEvent());
+        Assert.Equal(1, tracker.OnWheelEvent(true));
         advance(40);
-        Assert.Equal(2, tracker.OnWheelEvent());
+        Assert.Equal(2, tracker.OnWheelEvent(true));
 
         advance(41);
-        Assert.Equal(1, tracker.OnWheelEvent());
+        Assert.Equal(1, tracker.OnWheelEvent(true));
     }
 
     /// <summary>base &gt; 默认时 cap = max(6, base×2) — base=4 → cap 8（基准 :262 高 base
@@ -113,13 +117,13 @@ public sealed class WheelSpeedTrackerTests
     public void HighBase_CapDoublesAboveSix()
     {
         var (tracker, advance) = ManualClock(baseLines: 4);
-        Assert.Equal(4, tracker.OnWheelEvent());
+        Assert.Equal(4, tracker.OnWheelEvent(true));
 
         var steps = new List<int>();
         for (var i = 0; i < 30; i++)
         {
             advance(10);
-            steps.Add(tracker.OnWheelEvent());
+            steps.Add(tracker.OnWheelEvent(true));
         }
 
         Assert.Equal(8, steps[^1]);
@@ -136,12 +140,152 @@ public sealed class WheelSpeedTrackerTests
         var ramped = new List<int>();
         for (var i = 0; i < 10; i++)
         {
-            ramped.Add(tracker.OnWheelEvent());
+            ramped.Add(tracker.OnWheelEvent(true));
         }
 
         now += 100;
-        Assert.Equal(1, tracker.OnWheelEvent());
+        Assert.Equal(1, tracker.OnWheelEvent(true));
         Assert.Equal(new[] { 1, 1, 1, 1, 2, 2, 2, 3, 3, 3 }, ramped);
+    }
+
+    // ==== 方向翻转弹跳（基准 computeWheelStep :177-217 — 板块 E 收尾）====
+
+    /// <summary>方向翻转事件挂起返回 0 — 翻转不立即滚动（基准 :208-217 defer：本事件
+    /// 0 行，调用方 ScrollBy(0) no-op），下一同新方向事件才提交翻转。</summary>
+    [Fact]
+    public void DirectionFlip_DefersZeroStep()
+    {
+        var (tracker, advance) = ManualClock();
+        tracker.OnWheelEvent(true);
+
+        advance(10);
+        Assert.Equal(0, tracker.OnWheelEvent(false));
+    }
+
+    /// <summary>真翻转提交重置回 base — 下滚连发 ramp 至 2 行后翻转上滚：挂起事件 0，
+    /// 第二个同新方向事件提交翻转（mult 重置回 base — 基准 :196-199）返回 base 行 1
+    ///（非翻转前 2.2+0.3=2 行 — UpDown 共用乘数状态泄漏即此反例）。</summary>
+    [Fact]
+    public void DirectionFlipCommits_MultResetsToBase()
+    {
+        var (tracker, advance) = ManualClock();
+        for (var i = 0; i < 5; i++)
+        {
+            advance(10);
+            tracker.OnWheelEvent(true);
+        }
+
+        advance(10);
+        Assert.Equal(0, tracker.OnWheelEvent(false));
+
+        advance(10);
+        Assert.Equal(1, tracker.OnWheelEvent(false));
+    }
+
+    /// <summary>翻转提交后同向再连发重新累积 — 上滚翻转提交后窗内连发从 base 重新 ramp
+    ///（floor 序列 1,1,1,1,2 — 与全新跟踪器同向连发序列一致）。</summary>
+    [Fact]
+    public void AfterFlipCommit_SameNewDirectionBurstRampsFromBaseAgain()
+    {
+        var (tracker, advance) = ManualClock();
+        for (var i = 0; i < 5; i++)
+        {
+            advance(10);
+            tracker.OnWheelEvent(true);
+        }
+
+        advance(10);
+        tracker.OnWheelEvent(false);
+        advance(10);
+        tracker.OnWheelEvent(false);
+
+        var steps = new List<int>();
+        for (var i = 0; i < 5; i++)
+        {
+            advance(10);
+            steps.Add(tracker.OnWheelEvent(false));
+        }
+
+        Assert.Equal(new[] { 1, 1, 1, 2, 2 }, steps);
+    }
+
+    /// <summary>编码器弹跳吞掉 — 翻转事件挂起后窗内（≤200ms）翻回原方向 = 弹跳确认
+    ///（基准 :201-205：dir/mult 保持翻转前状态），本事件继续原方向 ramp 累积
+    ///（下滚 ramp 至 2.2 → 挂起 0 → 弹跳 2.5 → 2 行；误判重置则回 1 行）。</summary>
+    [Fact]
+    public void EncoderBounce_FlipBackWithinWindow_SwallowsAndKeepsOriginalRamp()
+    {
+        var (tracker, advance) = ManualClock();
+        for (var i = 0; i < 5; i++)
+        {
+            advance(10);
+            tracker.OnWheelEvent(true);
+        }
+
+        advance(10);
+        Assert.Equal(0, tracker.OnWheelEvent(false));
+
+        advance(10);
+        Assert.Equal(2, tracker.OnWheelEvent(true));
+    }
+
+    /// <summary>弹跳判定窗边界 — 翻转挂起后超窗（&gt; 200ms）翻回原方向不按弹跳处理：
+    /// 基准 :193 `now - state.time &gt; WHEEL_BOUNCE_GAP_MAX_MS` → 真翻转提交重置回 base
+    ///（长时间隔说明非编码器噪声，两连真实改向）。</summary>
+    [Fact]
+    public void BounceGapExceeded_FlipBackTreatedAsRealReversal()
+    {
+        var (tracker, advance) = ManualClock();
+        for (var i = 0; i < 5; i++)
+        {
+            advance(10);
+            tracker.OnWheelEvent(true);
+        }
+
+        advance(10);
+        Assert.Equal(0, tracker.OnWheelEvent(false));
+
+        advance(201);
+        Assert.Equal(1, tracker.OnWheelEvent(true));
+    }
+
+    /// <summary>弹跳确认后继续同向连发 — 弹跳事件已计入 cadence（基准 :201-205 注释
+    /// bounce IS a physical click），乘数延续原方向累积（2.2 → 弹跳 2.5 → 2.8→3.1→3.4
+    /// → 2,3,3 行）。</summary>
+    [Fact]
+    public void AfterBounceConfirm_OriginalDirectionBurstContinuesRamp()
+    {
+        var (tracker, advance) = ManualClock();
+        for (var i = 0; i < 5; i++)
+        {
+            advance(10);
+            tracker.OnWheelEvent(true);
+        }
+
+        advance(10);
+        tracker.OnWheelEvent(false);
+        advance(10);
+        tracker.OnWheelEvent(true);
+
+        var steps = new List<int>();
+        for (var i = 0; i < 3; i++)
+        {
+            advance(10);
+            steps.Add(tracker.OnWheelEvent(true));
+        }
+
+        Assert.Equal(new[] { 2, 3, 3 }, steps);
+    }
+
+    /// <summary>首事件不算翻转 — 无先前方向时首事件（任一方向）直接走 ramp 重置回 base
+    ///（基准 :208 state.dir !== 0 首事件守卫），返回 base 行非 0。</summary>
+    [Fact]
+    public void FirstEvent_AnyDirection_NoDefer()
+    {
+        var (tracker, advance) = ManualClock();
+
+        advance(500);
+        Assert.Equal(1, tracker.OnWheelEvent(false));
     }
 
     /// <summary>CLAUDE_CODE_SCROLL_SPEED 旋钮解析 — clamp (0,20] 默认 1（基准 readScrollSpeedBase

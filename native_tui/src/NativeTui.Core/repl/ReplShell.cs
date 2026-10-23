@@ -212,6 +212,10 @@ public sealed class ReplShell
     /// <summary>外部编辑器进行中任务句柄（internal — 测试 await 完成面；null = 无进行中会话）。</summary>
     internal Task? ExternalEditorTask => _externalEditorTask;
 
+    /// <summary>剪贴板贴图进行中任务句柄（TASK066 板块 E 收尾 — internal 测试 await 完成面；
+    /// null = 无进行中读取会话）。</summary>
+    internal Task? ClipboardImageTask => _clipboardImageTask;
+
     /// <summary>帮助面板开关（S6 任务 5 — 空闲态 '?' 弹出；分派链插在 suggestion/transcript 之后）。</summary>
     private bool _helpOpen;
 
@@ -306,6 +310,24 @@ public sealed class ReplShell
     /// 返回 null = 读失败/无能力，该行回退非图片处理纯文本粘贴；Core 零 IO，对齐 clipboard
     /// 注入先例；null = 无文件读取能力，图片路径粘贴降级纯文本零行为变化）。</summary>
     private readonly Func<string, ImageAttachment?>? _loadImageFromFile;
+
+    /// <summary>剪贴板图片读取委托（TASK066 板块 E 收尾 — chat:imagePaste 键主动读取通道：
+    /// alt+v/ctrl+v 触发，返回附件（null = 剪贴板无图片/读取失败 → footer 通知降级）；
+    /// Core 零依赖不启动进程 — 宿主注入（win32 PowerShell Get-Clipboard 形态），对齐
+    /// loadImageFromFile 注入先例；null = 能力降级按键无操作零行为变化）。</summary>
+    private readonly Func<Task<ImageAttachment?>>? _readClipboardImage;
+
+    /// <summary>剪贴板读取会话进行中（防重入 — PowerShell 读取耗时 ~1s 期间连按
+    /// alt+v/ctrl+v 不重复触发，对齐 _externalEditorActive 先例）。</summary>
+    private bool _clipboardImageActive;
+
+    /// <summary>剪贴板贴图进行中任务句柄（fire-and-forget 保留引用 — internal 测试 await 面）。</summary>
+    private Task? _clipboardImageTask;
+
+    /// <summary>剪贴板图片结果缓冲（TASK066 板块 E 收尾 — 完成于线程池线程，附件登记/
+    /// 通知反馈必须回主循环线程（与渲染循环竞争 _input/_notifications），复用外部编辑器
+    /// 跨线程缓冲 + DrainEngine 主循环消费先例：null = 剪贴板无图片/失败信号）。</summary>
+    private readonly ConcurrentQueue<ImageAttachment?> _clipboardImageResults = new();
 
     /// <summary>主题持久化委托（S11 遗留#1 — /theme 合法切换后宿主写回引擎 settings.json；
     /// 宿主注入 IConfigurationService.SetAsync 适配，Core 零依赖；null = 持久化降级会话级生效）。</summary>
@@ -528,7 +550,13 @@ public sealed class ReplShell
     /// 宿主读引擎 settings vimMode 传 true 开启）；
     /// wheelBaseLines=滚轮加速度基础步长（TASK066 C5 P3 — null = 默认 1；宿主读
     /// CLAUDE_CODE_SCROLL_SPEED env 经 WheelSpeedTracker.ParseScrollSpeedBase 解析传参 —
-    /// 基准 readScrollSpeedBase :305-310 clamp (0,20]；Core 不读 env 惯例同 idleReturn 阈值）。</summary>
+    /// 基准 readScrollSpeedBase :305-310 clamp (0,20]；Core 不读 env 惯例同 idleReturn 阈值）；
+    /// readClipboardImage=剪贴板图片读取委托（TASK066 板块 E 收尾 — chat:imagePaste 键
+    ///（win 默认 alt+v / 其余 ctrl+v — 基准 defaultBindings.ts:15 平台分支）主动读取：
+    /// 无参 → 附件（null = 剪贴板无图片/读取失败 → footer 通知"剪贴板未找到图片"降级 —
+    /// 基准 PromptInput.tsx:1624-1632）；Core 零依赖不启动进程 — 宿主注入（win32
+    /// PowerShell Get-Clipboard 形态），null 委托 = 能力降级按键无操作零行为变化，
+    /// 对齐 loadImageFromFile 注入先例）。</summary>
     public ReplShell(
         IReplEngine engine,
         BannerItem banner,
@@ -559,7 +587,8 @@ public sealed class ReplShell
         long? idleReturnTokenThreshold = null,
         Func<string, ImageAttachment?>? loadImageFromFile = null,
         bool vimMode = false,
-        double? wheelBaseLines = null)
+        double? wheelBaseLines = null,
+        Func<Task<ImageAttachment?>>? readClipboardImage = null)
     {
         _engine = engine;
         _banner = banner;
@@ -606,6 +635,8 @@ public sealed class ReplShell
         // computeWheelStep native 路径 :255-265；base 注入对齐 idleReturn 先例：宿主读 env 传参
         // Core 不读 env，null = 默认 1；时钟桥接 WheelClock 注入面 — 测试可控时间戳）
         _wheelSpeed = new WheelSpeedTracker(() => WheelClock(), wheelBaseLines ?? 1);
+        // TASK066 板块 E 收尾 — 剪贴板图片读取委托注入（null = 能力降级 alt+v/ctrl+v 无操作零行为变化）
+        _readClipboardImage = readClipboardImage;
         _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter, _tokenUsage, _sizeSource, streamingProjector, issueOwnerRepo);
     }
 
@@ -800,6 +831,10 @@ public sealed class ReplShell
 
         // TASK064 P3 — 外部编辑器结果回填（主循环线程消费并发队列 — FillInput 与渲染循环同线程）
         DrainExternalEditorResults();
+
+        // TASK066 板块 E 收尾 — 剪贴板贴图结果消费（主循环线程消费并发队列 —
+        // 附件登记/占位插入/通知反馈与渲染循环同线程）
+        DrainClipboardImageResults();
 
         // S12 接线 — 导出文件写结果反馈（主循环线程消费并发队列 — 通知反馈与渲染循环同线程）
         DrainExportResults();
@@ -1287,7 +1322,7 @@ public sealed class ReplShell
 
         if (key.Meta && key.Kind == KeyKind.Char)
         {
-            HandleMetaKey(key.Input);
+            HandleMetaKey(key);
             return;
         }
 
@@ -1521,12 +1556,14 @@ public sealed class ReplShell
         }
     }
 
-    /// <summary>TASK066 B4 — 全局键层表驱动分派（ctrl 组合键路径，MatchAction/MatchSequence 命中后路由）：
+    /// <summary>TASK066 B4 — 全局键层表驱动分派（ctrl/meta 组合键路径，MatchAction/MatchSequence 命中后路由）：
     /// chat:cancel→取消/打断（esc 识别在 HandleKeyPress 表查询，ctrl 改绑路径在此分派 —
     /// 语义分支忙时排队弹回/双击打断/闲时清输入在 HandleEscape 统一承载）；
     /// chat:externalEditor→外部编辑器 / app:toggleTranscript→转录切换 / app:redraw→强制重绘 /
     /// history:search→反向搜索 / chat:stash→输入暂存 / app:exit→双击退出（空输入门槛 — 有文本时
     /// 返回 false 落 ctrl+d 删除字符编辑语义）；
+    /// chat:imagePaste→剪贴板贴图（TASK066 板块 E 收尾 — win 默认 alt+v 经 HandleMetaKey 表查询
+    /// 路由至此 / 其余平台 ctrl+v 经 HandleCtrlKey 路由至此）；
     /// app:interrupt 恒 false — 保留键 ctrl+c 固定复制（TASK059 退出安全决策；打断由 Esc 双击承载，
     /// 表绑定 app:interrupt 不新增打断通道）；
     /// 其余 action 返回 false 落 HandleCtrlKey 字面编辑 switch（编辑域/未接线 action 不管辖）。
@@ -1556,6 +1593,11 @@ public sealed class ReplShell
             case KeybindingAction.ChatStash: // chat:stash（默认 ctrl+s）
                 StashInput();
                 return true;
+            case KeybindingAction.ChatImagePaste: // chat:imagePaste（win 默认 alt+v / 其余 ctrl+v —
+                // 基准 defaultBindings.ts:15 IMAGE_PASTE_KEY 平台分支；Meta 路径 HandleMetaKey
+                // 表查询与 Ctrl 路径本方法共用此分派 — 两侧入口对齐基准 useKeybindings 单消费面）
+                PasteImageFromClipboard();
+                return true;
             case KeybindingAction.AppExit: // app:exit（默认 ctrl+d — 双击确认窗口逻辑在 HandleExitCtrlD 保留）
                 if (_input.Text.Length == 0)
                 {
@@ -1571,10 +1613,21 @@ public sealed class ReplShell
         }
     }
 
-    /// <summary>Meta/Alt 组合分派（对齐基准 handleMeta 表）。</summary>
-    private void HandleMetaKey(string name)
+    /// <summary>Meta/Alt 组合分派（对齐基准 handleMeta 表 + TASK066 板块 E 收尾表驱动升级 —
+    /// HandleCtrlKey B4 同形态）：非模态全局键匹配走 <see cref="_keybindings"/> 查询
+    ///（MatchAction，Chat 桶键级回退 Global）命中后经 <see cref="DispatchCtrlAction"/> 分派
+    ///（chat:imagePaste win 默认 alt+v — 用户表覆盖/解绑即生效）；未接管键落字面编辑
+    /// switch（b/f/d/y — 编辑域键位表不管辖；meta+p/o/t 表命中但 DispatchCtrlAction 无
+    /// 对应 case 返回 false 落此处 default no-op 零行为变化）。</summary>
+    private void HandleMetaKey(KeyPress key)
     {
-        switch (name)
+        // TASK066 板块 E 收尾 — Meta 组合键表驱动分派（对齐 HandleCtrlKey B4 形态）
+        if (_keybindings.MatchAction(KeybindingContext.Chat, key) is { } action && DispatchCtrlAction(action))
+        {
+            return;
+        }
+
+        switch (key.Input)
         {
             case "b":
                 MoveWord(-1);
@@ -2190,9 +2243,11 @@ public sealed class ReplShell
             if (evt.Kind is MouseKind.WheelUp or MouseKind.WheelDown)
             {
                 _selection.Clear();
-                // C5 P3 — 加速度步长（基准 computeWheelStep :255-265 — 窗内连发 ramp/超窗回 base）
-                var step = _wheelSpeed.OnWheelEvent();
-                _transcript.ScrollBy(evt.Kind == MouseKind.WheelDown ? step : -step);
+                // C5 P3 — 加速度步长（基准 computeWheelStep :255-265 — 窗内连发 ramp/超窗回 base）；
+                // E 收尾 — 方向参数（翻转挂起/弹跳判定/真翻转重置 — 基准 computeWheelStep :177-217）
+                var down = evt.Kind == MouseKind.WheelDown;
+                var step = _wheelSpeed.OnWheelEvent(down);
+                _transcript.ScrollBy(down ? step : -step);
             }
 
             return;
@@ -2219,13 +2274,14 @@ public sealed class ReplShell
             case MouseKind.WheelUp:
                 // 基准 scroll:lineUp 先清选区（ScrollKeybindingHandler.tsx:468 — 滚动使屏幕
                 // 坐标选区错位）；inline 模式终端原生回看 no-op（ScrollIfViewport 先例）；
-                // 步长 = 加速度 ramp（C5 P3 — 基准 computeWheelStep :255-265）
+                // 步长 = 加速度 ramp（C5 P3 — 基准 computeWheelStep :255-265）；
+                // E 收尾 — 方向参数 false（翻转挂起/弹跳判定 — 基准 computeWheelStep :177-217）
                 _selection.Clear();
-                ScrollIfViewport(-_wheelSpeed.OnWheelEvent());
+                ScrollIfViewport(-_wheelSpeed.OnWheelEvent(down: false));
                 return;
             case MouseKind.WheelDown:
                 _selection.Clear();
-                ScrollIfViewport(_wheelSpeed.OnWheelEvent());
+                ScrollIfViewport(_wheelSpeed.OnWheelEvent(down: true));
                 return;
             case MouseKind.WheelLeft or MouseKind.WheelRight:
                 // 无横向滚动面 — no-op（w2 滚动区仅纵向；基准同样未消费横向滚轮）
@@ -4180,6 +4236,62 @@ public sealed class ReplShell
             {
                 FillInput(edited, cursorToStart: false);
             }
+        }
+    }
+
+    /// <summary>alt+v/ctrl+v 剪贴板贴图触发（TASK066 板块 E 收尾 — 基准 chat:imagePaste 消费
+    /// PromptInput.tsx:1619-1635 handleImagePaste → getImageFromClipboard）：委托未注入/
+    /// 读取会话进行中无操作（防重入 — PowerShell 读取耗时 ~1s 期间连按不重复触发，
+    /// 对齐 LaunchExternalEditor 先例）；fire-and-forget 异步等待（读取期间主循环继续
+    /// 渲染不冻屏 — 结果入并发队列 DrainClipboardImageResults 主循环消费 —
+    /// EditInExternalEditorAsync 同先例）。</summary>
+    private void PasteImageFromClipboard()
+    {
+        if (_readClipboardImage is null || _clipboardImageActive)
+        {
+            return;
+        }
+
+        _clipboardImageActive = true;
+        _clipboardImageTask = ReadClipboardImageAsync();
+    }
+
+    /// <summary>剪贴板图片读取异步等待体 — 线程池完成不触 UI 状态（结果入并发队列，
+    /// DrainClipboardImageResults 主循环消费）；委托异常入队 null 信号（失败通知降级）。</summary>
+    private async Task ReadClipboardImageAsync()
+    {
+        try
+        {
+            var attachment = await _readClipboardImage!().ConfigureAwait(false);
+            _clipboardImageResults.Enqueue(attachment);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            // 剪贴板通道容错 — 失败入队 null 信号（通知降级不打扰输入框 — bash 直通容错先例）
+            _clipboardImageResults.Enqueue(null);
+        }
+    }
+
+    /// <summary>剪贴板图片结果消费（DrainEngine 每拍 — 主循环线程）：null = 剪贴板无图片/
+    /// 读取失败 → footer 通知（基准 PromptInput.tsx:1624-1632 addNotification
+    /// "No image found in clipboard" priority immediate + timeoutMs 1000）；非 null =
+    /// 附件登记 + 输入区插 [Image #N] 占位（基准 onImagePaste PromptInput.tsx:1180-1182
+    /// insertTextAtCursor(formatImageRef) — 与粘贴分桶 HandlePaste 同终点
+    /// AttachmentList.Add + Insert；单图 prefix 空 — 跨事件 lazy space 完整形态同粘贴
+    /// 通道留宿主域后续接线）。</summary>
+    private void DrainClipboardImageResults()
+    {
+        while (_clipboardImageResults.TryDequeue(out var attachment))
+        {
+            _clipboardImageActive = false;
+            if (attachment is null)
+            {
+                _notifications.Enqueue("剪贴板未找到图片", NotificationPriority.Immediate, TimeSpan.FromMilliseconds(1000));
+                continue;
+            }
+
+            var (_, placeholder) = _attachments.Add(attachment);
+            _input.Insert(placeholder);
         }
     }
 }

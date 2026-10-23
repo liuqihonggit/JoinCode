@@ -302,7 +302,19 @@
 
 - 测试：2821→**2832 全绿**（+11）；全链 3011 测试
 - G3 决策：①新会话串行化（置标记下回合 lock 内清历史防竞态）②图片投影轻量引用降级（base64 内嵌击穿上下文——引擎 AddUserMessageAsync 支持 ContentBlocks 后升级 TODO）③bridge 协议 JSON 层图片字段后续扩展点登记
-- ⚠️ 遗留（P3 池）：CostThresholdDialog（引擎成本事件源不存在——需先建引擎侧 token 成本计费链）、teammate/swarm 域（引擎域大块）、TrustDialog（宿主 jcc 域）、BridgeEngine 子进程协议图片字段、滚轮加速度 ramp、HitTestId item 标注、alt+v 主动读剪贴板（win32 clipboard API）
+- ⚠️ 遗留（P3 池）：CostThresholdDialog（引擎成本事件源不存在——需先建引擎侧 token 成本计费链）、teammate/swarm 域（引擎域大块）、TrustDialog（宿主 jcc 域）
+
+### P3 池清尾（2026-10-24 三项完成）
+
+| 项 | 实现 | 已验收 |
+|----|------|--------|
+| 滚轮加速度 ramp + 方向翻转弹跳 | WheelSpeedTracker（40ms 窗 0.3 浮点累积 cap=max(6,base×2) + 翻转 defer 200ms 窗弹跳判定 — 基准 :176-265）+ CLAUDE_CODE_SCROLL_SPEED 旋钮 | ✅ 25+7 测试 |
+| HitTestId 标注与点击分派 | ReplView 挂载 registry + 面板行级注册 + 单击即查看（基准 CoordinatorAgentStatus onClick）+ overscan 窗口内注册 | ✅ 10 测试 |
+| alt+v 剪贴板贴图 + BridgeEngine 图片字段 | win32 PowerShell Get-Clipboard（基准 :186-242 全平台真实现）+ bridge submit images 字段（null 不序列化旧协议字节等价）+ 引擎侧镜像 DTO 轻量引用投影 | ✅ 8+18 测试 + BRIDGE SELFTEST OK |
+
+- 测试：2832→**2917 全绿**（+85）；引擎侧 bridge 36 绿；四工程编译绿
+- debug：①参数名 images→Images（record 参数大写惯例）②JCC11003 null-forgiving 禁令改 Assert.NotNull 先行 ③翻转 defer 新语义修 WheelDown 测试（下滚第一发 0 行）④通知断言排除种子
+- 基准核实：alt+v=chat:imagePaste（win32 alt+v 其余 ctrl+v）主动读取全平台真实现（E2"仅 darwin"结论只指被动检测）
 
 ## 全量手动验收清单（ADR 0080 — 待用户真机执行汇总）
 

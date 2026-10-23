@@ -35,37 +35,23 @@ public sealed class ExitSafetyTests
         shell.DrainEngine();
     }
 
-    // ---- Esc 双击中断 ----
+    // ---- Esc 忙时打断（基准 useCancelRequest.ts:97-102 — abortSignal 未 aborted 时单击直接 onCancel） ----
 
-    /// <summary>忙时双击（500ms 内）→ Interrupt。</summary>
+    /// <summary>忙时单击 → 立即 Interrupt（基准单击即断 — 无双击确认层）。</summary>
     [Fact]
-    public void Busy_DoubleEscape_Interrupts()
+    public void Busy_SingleEscape_Interrupts()
     {
         var (shell, engine, _) = CreateShell();
         MakeBusy(shell, engine);
 
-        shell.HandleKey(Esc());
         shell.HandleKey(Esc());
 
         Assert.Equal(1, engine.Interrupts);
     }
 
-    /// <summary>忙时单击 → 无操作（等双击窗口，不打断不退出）。</summary>
+    /// <summary>忙时孤立两击 → 各打断一次（无窗口语义，累加 2 次）。</summary>
     [Fact]
-    public void Busy_SingleEscape_WaitsForSecondTap()
-    {
-        var (shell, engine, _) = CreateShell();
-        MakeBusy(shell, engine);
-
-        shell.HandleKey(Esc());
-
-        Assert.Equal(0, engine.Interrupts);
-        Assert.True(shell.IsRunning);
-    }
-
-    /// <summary>忙时两击超窗（>500ms）→ 不构成双击不 Interrupt（各自孤立单击）。</summary>
-    [Fact]
-    public void Busy_EscapeOutsideDoubleClickWindow_NoInterrupt()
+    public void Busy_TwoIsolatedEscapes_InterruptTwice()
     {
         var (shell, engine, clock) = CreateShell();
         MakeBusy(shell, engine);
@@ -74,8 +60,7 @@ public sealed class ExitSafetyTests
         clock.Advance(6000);
         shell.HandleKey(Esc());
 
-        Assert.Equal(0, engine.Interrupts);
-        Assert.True(shell.IsRunning);
+        Assert.Equal(2, engine.Interrupts);
     }
 
     /// <summary>闲时空输入连击 Esc → 永不退出（原行为 _running=false 移除）。</summary>
@@ -92,64 +77,67 @@ public sealed class ExitSafetyTests
         Assert.Equal(0, engine.Interrupts);
     }
 
-    /// <summary>闲时有文本 Esc → 清空输入（既有行为保留，不退出）。</summary>
+    /// <summary>闲时有文本 Esc 单击 → 不清空（防误触 — 首击仅提示通知）。</summary>
     [Fact]
-    public void Idle_EscapeWithText_ClearsInputNotExit()
+    public void Idle_EscapeWithText_SingleTap_KeepsInput()
     {
         var (shell, _, _) = CreateShell();
         shell.HandleKey(new ConsoleKeyInfo('a', ConsoleKey.A, false, false, false));
 
         shell.HandleKey(Esc());
 
+        Assert.Equal("a", shell.Input.Text);
+        Assert.True(shell.IsRunning);
+    }
+
+    /// <summary>闲时有文本 Esc 双击（800ms 窗口内）→ 清空 + 草稿入史可翻回
+    ///（基准 useTextInput.ts:126-153 双击清空 + addToHistory 存档 — 误触不丢文本）。</summary>
+    [Fact]
+    public void Idle_EscapeWithText_DoubleTap_ClearsAndSavesHistory()
+    {
+        var (shell, engine, _) = CreateShell();
+        shell.HandleKey(new ConsoleKeyInfo('a', ConsoleKey.A, false, false, false));
+        shell.HandleKey(new ConsoleKeyInfo('b', ConsoleKey.B, false, false, false));
+
+        shell.HandleKey(Esc());
+        shell.HandleKey(Esc());
+
         Assert.Equal(string.Empty, shell.View.Input);
         Assert.True(shell.IsRunning);
+        Assert.Contains("ab", shell.History.Entries);
     }
 
-    // ---- Ctrl+C 复制 ----
+    // ---- Ctrl+C 打断/退出（基准 defaultBindings.ts:40 'ctrl+c': app:interrupt + useTextInput 双击退出） ----
 
-    /// <summary>Ctrl+C → 剪贴板委托收到最后一条 assistant 消息文本。</summary>
+    /// <summary>Ctrl+C 忙时 → 立即打断（基准 app:interrupt — abortSignal 打断当前回合）。</summary>
     [Fact]
-    public void CtrlC_CopiesLastAssistantMessage()
+    public void CtrlC_WhileBusy_Interrupts()
     {
-        var copied = new List<string>();
-        var (shell, engine, _) = CreateShell(copied.Add);
-        engine.Events.Enqueue(new BridgeEvent.AssistantMessage("第一条回答"));
-        engine.Events.Enqueue(new BridgeEvent.AssistantMessage("最后一条回答"));
-        shell.DrainEngine();
+        var (shell, engine, _) = CreateShell();
+        MakeBusy(shell, engine);
 
         shell.HandleKey(CtrlC());
 
-        Assert.Equal(["最后一条回答"], copied);
+        Assert.Equal(1, engine.Interrupts);
         Assert.True(shell.IsRunning);
     }
 
-    /// <summary>Ctrl+C 无 assistant 消息 → 无复制无异常。</summary>
+    /// <summary>Ctrl+C 闲时双击（800ms 窗口内）→ 退出（复制语义移除 — 复制走消息光标态 c 键既有通道）。</summary>
     [Fact]
-    public void CtrlC_NoAssistantMessage_NoCopyNoThrow()
+    public void CtrlC_IdleDoubleTap_Exits()
     {
-        var copied = new List<string>();
-        var (shell, _, _) = CreateShell(copied.Add);
+        var (shell, _, _) = CreateShell();
 
         shell.HandleKey(CtrlC());
-
-        Assert.Empty(copied);
         Assert.True(shell.IsRunning);
-    }
-
-    /// <summary>Ctrl+C 未注入剪贴板委托（Demo/测试）→ 无操作不抛。</summary>
-    [Fact]
-    public void CtrlC_NullClipboard_NoThrow()
-    {
-        var (shell, _, _) = CreateShell(clipboard: null);
-
         shell.HandleKey(CtrlC());
 
-        Assert.True(shell.IsRunning);
+        Assert.False(shell.IsRunning);
     }
 
     // ---- 退出路径保留 ----
 
-    /// <summary>Ctrl+D 空输入首按 — 不退出（双击确认链 S6：通知提示"再按一次"，窗口 3s）。</summary>
+    /// <summary>Ctrl+D 空输入首按 — 不退出（双击确认链 S6：通知提示"再按一次"，窗口 800ms）。</summary>
     [Fact]
     public void CtrlD_EmptyInput_FirstPress_DoesNotExit()
     {
@@ -173,7 +161,7 @@ public sealed class ExitSafetyTests
         Assert.False(shell.IsRunning);
     }
 
-    /// <summary>Ctrl+D 确认窗口过期（>3s）— 二按视为新首按不退出（重新计提示）。</summary>
+    /// <summary>Ctrl+D 确认窗口过期（>800ms）— 二按视为新首按不退出（重新计提示）。</summary>
     [Fact]
     public void CtrlD_WindowExpired_SecondPress_RestartsConfirmation()
     {

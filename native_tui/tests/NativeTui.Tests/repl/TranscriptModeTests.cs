@@ -177,26 +177,25 @@ public sealed class TranscriptModeTests
     }
 
     /// <summary>transcript 态 ctrl+c — TranscriptController 注释契约（宿主继续分派 ctrl+c）：
-    /// 穿透到宿主全局路径（TASK059 复制最后 assistant 消息），不退出 transcript。</summary>
+    /// 穿透到宿主全局路径（对齐基准后 = 打断语义 — 忙时打断不退出 transcript）。</summary>
     [Fact]
-    public void TranscriptMode_CtrlC_DispatchesToHostCopyPath()
+    public void TranscriptMode_CtrlC_DispatchesToHostInterruptPath()
     {
-        var copied = new List<string>();
         var engine = new FakeReplEngine();
         var shell = new ReplShell(
             engine,
             new BannerItem("0.0.0", "m", "b", "C:\\"),
             new StringWriter(),
-            sizeSource: new FakeTerminalSizeSource(80, 24),
-            clipboard: text => copied.Add(text));
+            sizeSource: new FakeTerminalSizeSource(80, 24));
         shell.SeedContent();
-        shell.PostInfo("assistant text");
+        engine.Events.Enqueue(new BridgeEvent.TurnStarted());
+        shell.DrainEngine();
         CtrlO(shell);
         Assert.True(shell.IsTranscriptMode);
 
         shell.HandleKey(new ConsoleKeyInfo('\x03', ConsoleKey.C, false, false, false));
 
-        Assert.Equal(["assistant text"], copied);
+        Assert.Equal(1, engine.Interrupts);
         Assert.True(shell.IsTranscriptMode);
     }
 }

@@ -147,6 +147,7 @@ public sealed class KeybindingWiringTests
         Type(shell, "draft");
 
         Esc(shell);
+        Esc(shell);
 
         Assert.Equal(string.Empty, shell.Input.Text);
     }
@@ -188,7 +189,8 @@ public sealed class KeybindingWiringTests
         Assert.Equal("draft", shell.Input.Text); // esc 不再触发清输入
 
         Ctrl(shell, 'j', ConsoleKey.J);
-        Assert.Equal(string.Empty, shell.Input.Text); // ctrl+j 承接清输入
+        Ctrl(shell, 'j', ConsoleKey.J);
+        Assert.Equal(string.Empty, shell.Input.Text); // ctrl+j 承接取消语义（双击清输入）
     }
 
     // ---- 解绑生效 ----
@@ -248,19 +250,18 @@ public sealed class KeybindingWiringTests
 
     // ---- 保留键不受影响 ----
 
-    /// <summary>保留键 ctrl+c — 表驱动下仍是复制最后 assistant 消息
-    ///（app:interrupt 不接管，TASK059 退出安全语义保留）。</summary>
+    /// <summary>保留键 ctrl+c — 对齐基准后忙时打断（defaultBindings app:interrupt；
+    /// 复制语义移除 — 复制走消息光标态 c 键既有通道）。</summary>
     [Fact]
-    public void ReservedKey_CtrlC_StillCopies()
+    public void ReservedKey_CtrlC_WhileBusy_Interrupts()
     {
-        var copied = new List<string>();
-        var (shell, engine, _) = CreateShell(clipboard: copied.Add);
-        engine.Events.Enqueue(new BridgeEvent.AssistantMessage("最后一条回答"));
+        var (shell, engine, _) = CreateShell();
+        engine.Events.Enqueue(new BridgeEvent.TurnStarted());
         shell.DrainEngine();
 
         shell.HandleKey(new ConsoleKeyInfo('\x03', ConsoleKey.C, false, false, false));
 
-        Assert.Equal(["最后一条回答"], copied);
+        Assert.Equal(1, engine.Interrupts);
         Assert.True(shell.IsRunning);
     }
 

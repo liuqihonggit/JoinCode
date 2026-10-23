@@ -30,6 +30,34 @@ public sealed class ReplShellWiringPermissionThemeTests
         }
     }
 
+    /// <summary>y/n 单键直选（对齐基准 Confirmation y/n — defaultBindings.ts:133-134）：
+    /// y → Allow（第一档）、n → Deny（第三档）。</summary>
+    [Fact]
+    public async Task Permission_YKey_SelectsAllow()
+    {
+        var (shell, _) = CreateShellWithPendingPermission();
+        Assert.True(shell.Permission.IsPending);
+        var choiceTask = shell.Permission.Wait();
+
+        Type(shell, "y");
+
+        Assert.False(shell.Permission.IsPending);
+        Assert.Equal(PermissionChoice.Allow, await choiceTask);
+    }
+
+    /// <summary>n 键直选 → Deny。</summary>
+    [Fact]
+    public async Task Permission_NKey_SelectsDeny()
+    {
+        var (shell, _) = CreateShellWithPendingPermission();
+        var choiceTask = shell.Permission.Wait();
+
+        Type(shell, "n");
+
+        Assert.False(shell.Permission.IsPending);
+        Assert.Equal(PermissionChoice.Deny, await choiceTask);
+    }
+
     /// <summary>接线点7 — Tab 遍历选项：焦点 +1 环绕（0→1→2→0）。</summary>
     [Fact]
     public void PermissionTab_CyclesFocus()

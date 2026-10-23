@@ -99,15 +99,18 @@ public sealed class ReplShell
     /// <summary>上次 Esc 按下时间戳（ms — 双击窗口判定；0 = 无先前击）。</summary>
     private long _lastEscapeMs;
 
-    /// <summary>Esc 双击窗口时长（ms — 窗口内两击构成双击中断）。</summary>
-    internal const int EscapeDoubleClickWindowMs = 500;
+    /// <summary>Esc 双击窗口时长（ms — 闲时双击清空输入的判定窗口；基准 useDoublePress DOUBLE_PRESS_TIMEOUT_MS=800）。</summary>
+    internal const int EscapeDoubleClickWindowMs = 800;
 
-    /// <summary>ctrl+d 退出双击确认窗口时长（ms — S6 任务 6 对齐基准 useExitOnCtrlCD 双击确认；
-    /// 窗口内二次空输入 ctrl+d 才退出，通知提示与窗口同长自然到期清除）。</summary>
-    internal const int ExitConfirmWindowMs = 3000;
+    /// <summary>ctrl+d/ctrl+c 退出双击确认窗口时长（ms — 基准 useDoublePress DOUBLE_PRESS_TIMEOUT_MS=800 统一；
+    /// 窗口内二次空输入按下才退出，通知提示与窗口同长自然到期清除）。</summary>
+    internal const int ExitConfirmWindowMs = 800;
 
     /// <summary>上次 ctrl+d 退出确认按下时间戳（ms — 0 = 无先前击；空输入门槛由调用路径保证）。</summary>
     private long _lastCtrlDExitMs;
+
+    /// <summary>上次 ctrl+c 退出确认按下时间戳（ms — 0 = 无先前击；ctrl+c 忙时打断优先）。</summary>
+    private long _lastCtrlCExitMs;
 
     /// <summary>ctrl+d 退出确认链（S6 任务 6 — 基准 useExitOnCtrlCD/useDoublePress 语义）：
     /// 窗口内二次按下 → 退出；首次按下 → 通知提示"再按一次 ctrl+d 退出"（3s 到期自动清除 = 窗口过期）；
@@ -125,6 +128,22 @@ public sealed class ReplShell
 
         _lastCtrlDExitMs = now;
         _notifications.Enqueue("再按一次 ctrl+d 退出", timeout: TimeSpan.FromMilliseconds(ExitConfirmWindowMs));
+    }
+
+    /// <summary>ctrl+c 退出确认链（闲时双击 — 窗口与 ctrl+d 共用 800ms）：
+    /// 窗口内二次按下 → 退出；首次按下 → 通知提示（忙时打断优先不经此路径）。</summary>
+    private void HandleExitCtrlC()
+    {
+        var now = EscClock();
+        if (_lastCtrlCExitMs != 0 && now - _lastCtrlCExitMs <= ExitConfirmWindowMs)
+        {
+            _lastCtrlCExitMs = 0;
+            _running = false;
+            return;
+        }
+
+        _lastCtrlCExitMs = now;
+        _notifications.Enqueue("再按一次 ctrl+c 退出", timeout: TimeSpan.FromMilliseconds(ExitConfirmWindowMs));
     }
 
     /// <summary>Esc 时钟源（internal — 测试注入可控时间戳；默认墙钟）。</summary>
@@ -1127,7 +1146,18 @@ public sealed class ReplShell
                 _input.Left();
                 break;
             case "c":
-                CopyLastAssistantMessage();
+                // 对齐基准（用户决策"全部对齐基准"2026-10-23 — 原 TASK059 复制语义移除，
+                // 复制走消息光标态 c 键既有通道）：忙时打断（defaultBindings.ts:40 app:interrupt）；
+                // 闲时双击退出（800ms 窗口 — useTextInput.ts:108-120 双击退出形态，首击提示）
+                if (IsBusy)
+                {
+                    _engine.Interrupt();
+                }
+                else
+                {
+                    HandleExitCtrlC();
+                }
+
                 break;
             case "d":
                 // B4 — 空输入双击退出路径已上移 DispatchCtrlAction(AppExit)；
@@ -1325,6 +1355,13 @@ public sealed class ReplShell
         if (key is { Kind: KeyKind.Char, Ctrl: false, Meta: false, Shift: false } && key.Input is "1" or "2" or "3")
         {
             CompletePermission((PermissionChoice)(key.Input[0] - '1'));
+            return;
+        }
+
+        // y/n 单键直选（对齐基准 Confirmation defaultBindings.ts:133-134）— y=Allow（第一档）、n=Deny（第三档）
+        if (key is { Kind: KeyKind.Char, Ctrl: false, Meta: false, Shift: false } && key.Input is "y" or "n")
+        {
+            CompletePermission(key.Input == "y" ? PermissionChoice.Allow : PermissionChoice.Deny);
         }
     }
 
@@ -2058,9 +2095,11 @@ public sealed class ReplShell
 
                 return;
             case KeyKind.Escape:
-                var draft = _preSearchDraft;
+                // 对齐基准 historySearch:accept（defaultBindings.ts:175）— Esc 接受当前匹配填入
+                // 输入框不提交（取消语义改走 ctrl+c）；无匹配回草稿
+                var restored = search.Current.Length > 0 ? search.Current : _preSearchDraft;
                 _search = null;
-                FillInput(draft, cursorToStart: false);
+                FillInput(restored, cursorToStart: false);
                 return;
             case KeyKind.UpArrow:
                 search.Previous();
@@ -2462,10 +2501,11 @@ public sealed class ReplShell
         _atSuggestionIndex = 0;
     }
 
-    /// <summary>Esc 处置（TASK059 退出安全 — Esc 永不退出；M8-2 打断闭环补全基准重载链）：
-    /// 忙时：有排队输入 → 单击弹回全部到输入框（基准 popAllCommandsFromQueue — 优先于打断判定）；
-    /// 无排队 → 500ms 双击打断（单击等窗口无操作）。
-    /// 闲时：有文本 → 清空输入；空输入 → 无操作。退出路径只剩 Ctrl+D 与 /exit 命令。</summary>
+    /// <summary>Esc 处置（对齐基准重载链 — 用户决策"全部对齐基准"2026-10-23）：
+    /// 忙时：有排队输入 → 弹回全部到输入框（基准 popAllCommandsFromQueue — 优先于打断判定）；
+    /// 无排队 → 单击立即打断（基准 useCancelRequest.ts:97-102 abortSignal 未 aborted 单击 onCancel — 双击确认层移除）。
+    /// 闲时：有文本 → 双击（800ms 窗口）清空 + 草稿入史可翻回（基准 useTextInput.ts:126-153
+    /// 双击清空 + addToHistory — 防误触丢文本；首击仅提示通知）；空输入 → 无操作。Esc 永不退出。</summary>
     internal void HandleEscape()
     {
         var now = EscClock();
@@ -2476,7 +2516,7 @@ public sealed class ReplShell
         {
             if (_queuedInputs.Count > 0)
             {
-                // M8-2 基准重载链⑤ — 可编辑排队命令全部弹回输入框（按行拼接）+ 清空队列 + 重置双击窗口
+                // 基准重载链⑤ — 可编辑排队命令全部弹回输入框（按行拼接）+ 清空队列 + 重置双击窗口
                 var merged = string.Join("\n", _queuedInputs.Select(static entry => entry.Display));
                 _queuedInputs.Clear();
                 _view.QueuedInputs = [];
@@ -2485,18 +2525,25 @@ public sealed class ReplShell
                 return;
             }
 
-            if (isDoubleTap)
-            {
-                _lastEscapeMs = 0;
-                _engine.Interrupt();
-            }
-
+            _lastEscapeMs = 0;
+            _engine.Interrupt();
             return;
         }
 
         if (_input.Text.Length > 0)
         {
-            _input.Clear();
+            if (isDoubleTap)
+            {
+                // 双击清空 + 草稿入史可翻回（基准 addToHistory — 误触不丢文本）
+                _history.Add(_input.Text);
+                _history.Reset();
+                _input.Clear();
+                _lastEscapeMs = 0;
+            }
+            else
+            {
+                _notifications.Enqueue("再按一次 esc 清空输入", timeout: TimeSpan.FromMilliseconds(EscapeDoubleClickWindowMs));
+            }
         }
     }
 

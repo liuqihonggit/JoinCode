@@ -214,17 +214,18 @@ public sealed class ReplShellHistoryTests
         Assert.Equal(["git commit"], engine.Submits);
     }
 
-    /// <summary>Esc 退出搜索：恢复进入前草稿，不提交。</summary>
+    /// <summary>Esc 退出搜索：接受当前匹配填入输入框不提交（对齐基准 historySearch:accept —
+    /// defaultBindings.ts:175 escape → accept；取消改走 ctrl+c）。</summary>
     [Fact]
-    public void CtrlR_Escape_RestoresDraftWithoutSubmit()
+    public void CtrlR_Escape_AcceptsMatchWithoutSubmit()
     {
         var (shell, engine) = CreateShell();
         SubmitTwo(shell);
-        Type(shell, "draft");
+        Type(shell, "se");
         PressCtrlR(shell);
         Press(shell, ConsoleKey.Escape);
         Assert.False(shell.IsSearching);
-        Assert.Equal("draft", shell.Input.Text);
+        Assert.Equal("second", shell.Input.Text);
         Assert.Equal(2, engine.Submits.Count);
     }
 

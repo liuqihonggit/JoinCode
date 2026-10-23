@@ -218,6 +218,97 @@ public sealed class InputBuffer
         CursorCol = LineStartOffset(targetLine) + Math.Min(column, LineLength(targetLine));
     }
 
+    /// <summary>视觉行垂直移动（DSG044 L4 — 基准 useTextInput.ts:269-316 三级回退第一级）：
+    /// 软折行内上下键细移 — 同显示列移到相邻视觉行（grapheme 边界对齐，短行钳制行尾）；
+    /// 首/末视觉行外返回 false（调用方走第二级逻辑行/第三级历史导航回退）。
+    /// cols = 终端总宽（折行内容宽 = cols - PromptWidth，与渲染投影同公式）。</summary>
+    public bool TryMoveVisualVertically(int dy, int cols)
+    {
+        BeginEditText();
+        var (visualLines, logicalLines, index, displayCol) = VisualContext(cols);
+        var target = index + dy;
+        if (target < 0 || target >= visualLines.Count)
+        {
+            return false;
+        }
+
+        CursorCol = LogicalStart(logicalLines, visualLines[target].LogicalLine)
+            + visualLines[target].StartOffset
+            + OffsetForDisplayCol(logicalLines[visualLines[target].LogicalLine], visualLines[target], displayCol);
+        return true;
+    }
+
+    /// <summary>视觉行 Home（DSG044 L4 — 基准 Cursor.ts:426-442）：中部 → 视觉行首；
+    /// 已在视觉行首 → 上一视觉行尾（连按上跳）；视觉行 0 首 → 保持 0（全局首）。</summary>
+    public void HomeVisual(int cols)
+    {
+        BeginEditText();
+        var (visualLines, logicalLines, index, displayCol) = VisualContext(cols);
+        if (displayCol > 0)
+        {
+            CursorCol = LogicalStart(logicalLines, visualLines[index].LogicalLine) + visualLines[index].StartOffset;
+            return;
+        }
+
+        if (index == 0)
+        {
+            return;
+        }
+
+        var previous = visualLines[index - 1];
+        CursorCol = LogicalStart(logicalLines, previous.LogicalLine) + previous.StartOffset + previous.Length;
+    }
+
+    /// <summary>视觉行 End（DSG044 L4 — 基准 Cursor.ts:455-460 视觉行尾语义）。</summary>
+    public void EndVisual(int cols)
+    {
+        BeginEditText();
+        var (visualLines, logicalLines, index, _) = VisualContext(cols);
+        var current = visualLines[index];
+        CursorCol = LogicalStart(logicalLines, current.LogicalLine) + current.StartOffset + current.Length;
+    }
+
+    /// <summary>视觉行上下文（折行投影 + 光标视觉行定位）— cols 语义同 <see cref="TryMoveVisualVertically"/>。</summary>
+    private (List<VisualLine> VisualLines, List<string> LogicalLines, int Index, int DisplayCol) VisualContext(int cols)
+    {
+        var text = _text.ToString();
+        var visualLines = InputLineLayout.Wrap(text, Math.Max(1, cols - PromptInputBox.PromptWidth));
+        var logicalLines = PromptInputBox.SplitLogicalLines(text);
+        var (index, displayCol) = PromptInputBox.LocateVisualCursor(text, visualLines, CursorCol);
+        return (visualLines, logicalLines, index, displayCol);
+    }
+
+    /// <summary>逻辑行全局 char 起点（逻辑行长度 + 换行符累计）。</summary>
+    private static int LogicalStart(List<string> logicalLines, int logicalLine)
+    {
+        var start = 0;
+        for (var i = 0; i < logicalLine; i++)
+        {
+            start += logicalLines[i].Length + 1;
+        }
+
+        return start;
+    }
+
+    /// <summary>视觉行内显示列 → char 偏移（逐 grapheme 累计宽度，超行尾钳制）。</summary>
+    private static int OffsetForDisplayCol(string lineText, VisualLine visual, int displayCol)
+    {
+        var pos = visual.StartOffset;
+        var width = 0;
+        while (pos < visual.StartOffset + visual.Length && width < displayCol)
+        {
+            if (!GraphemeSegmenter.TryNext(lineText, pos, out var next))
+            {
+                break;
+            }
+
+            width += RuneWidth.WidthOfGrapheme(lineText.AsSpan(pos, next - pos));
+            pos = next;
+        }
+
+        return pos - visual.StartOffset;
+    }
+
     /// <summary>清空文本并重置光标（提交语义 — 同步清空 undo 栈与粘贴登记簿，对齐基准提交后 clearBuffer）。</summary>
     public void Clear()
     {

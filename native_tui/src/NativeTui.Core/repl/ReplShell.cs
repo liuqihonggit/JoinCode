@@ -757,6 +757,9 @@ public sealed class ReplShell
 
     /// <summary>排空键盘事件（非阻塞）— 输入泵通道（DSG042：ReadKeyPump 现役 / RawStdinPump
     /// 原始流灰度）排空已解析键统一分派；泵内归一/paste 重组语义见各实现。</summary>
+    /// <summary>输入区视觉行垂直移动薄封装（L4 接线 — cols 取当前终端宽，成功 true = 键已消化）。</summary>
+    private bool TryMoveInputVisual(int dy) => _input.TryMoveVisualVertically(dy, _sizeSource.Current.Cols);
+
     private bool DrainInput() => _inputPump.Drain(HandleRawKeyPress);
 
 
@@ -1038,13 +1041,12 @@ public sealed class ReplShell
             case KeyKind.RightArrow:
                 _input.Right();
                 break;
-            case KeyKind.UpArrow when _input.IsMultiline && _input.CursorLineIndex > 0:
-                // S7 接线 — 基准 multiline：多行输入内上下键优先行间垂直移动（首行内回退历史）
-                _input.MoveCursorVertically(-1);
+            case KeyKind.UpArrow when TryMoveInputVisual(-1):
+                // DSG044 L4 — 基准 useTextInput.ts:269-316 三级回退第一级：视觉行间细移
+                //（软折行内/跨逻辑行统一 — 视觉行序列全局有序），成功即消化；
+                // 首视觉行返回 false 落到下方历史导航（第三级回退）
                 return;
-            case KeyKind.DownArrow when _input.IsMultiline && _input.CursorLineIndex < _input.LineCount - 1:
-                // S7 接线 — 基准 multiline：末行内回退历史导航
-                _input.MoveCursorVertically(1);
+            case KeyKind.DownArrow when TryMoveInputVisual(1):
                 return;
             case KeyKind.UpArrow:
                 NavigateHistory(-1);
@@ -1053,10 +1055,11 @@ public sealed class ReplShell
                 NavigateHistory(1);
                 break;
             case KeyKind.Home:
-                _input.Home();
+                // DSG044 L4 — 视觉行 Home（基准 Cursor.ts:426-442：视觉行首/连按上跳）
+                _input.HomeVisual(_sizeSource.Current.Cols);
                 break;
             case KeyKind.End:
-                _input.End();
+                _input.EndVisual(_sizeSource.Current.Cols);
                 break;
             case KeyKind.Paste:
                 // S7 接线 — bracketed paste 整块到达（KeyPressParser 通道 VT 序列 / ReadKey 通道重组）：

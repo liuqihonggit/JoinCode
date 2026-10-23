@@ -156,7 +156,8 @@ public sealed class PromptInputBox
 
     /// <summary>光标视觉行投影（DSG044 L3 — ReplView.InputCursorPos 地基）：cursorCol（char 偏移）
     /// → (视觉行索引, 视觉行内显示列)。视觉行全局 char 区间 = 逻辑行起点 + 视觉行 StartOffset；
-    /// 光标落在区间内（含行尾）即归属该视觉行；行内列 = 行首至光标的 grapheme 显示宽度。</summary>
+    /// 行尾边界归属下一视觉行（软折行断点处行尾 = 下行首同 char 位 — 光标物理在下侧行首，
+    /// 末视觉行行尾归属自身）；行内列 = 行首至光标的 grapheme 显示宽度。</summary>
     internal static (int VisualIndex, int DisplayCol) LocateVisualCursor(string text, List<VisualLine> visualLines, int cursorCol)
     {
         var clamped = Math.Clamp(cursorCol, 0, text.Length);
@@ -167,13 +168,14 @@ public sealed class PromptInputBox
             logicalStarts[i + 1] = logicalStarts[i] + logicalLines[i].Length + 1;
         }
 
-        var visualIndex = 0;
-        var globalStart = 0;
+        var visualIndex = visualLines.Count - 1;
+        var globalStart = logicalStarts[visualLines[visualIndex].LogicalLine] + visualLines[visualIndex].StartOffset;
         for (var i = 0; i < visualLines.Count; i++)
         {
             var start = logicalStarts[visualLines[i].LogicalLine] + visualLines[i].StartOffset;
             var end = start + visualLines[i].Length;
-            if (clamped >= start && clamped <= end)
+            var ownsCursor = clamped < end || (clamped == end && i == visualLines.Count - 1);
+            if (clamped >= start && ownsCursor)
             {
                 visualIndex = i;
                 globalStart = start;

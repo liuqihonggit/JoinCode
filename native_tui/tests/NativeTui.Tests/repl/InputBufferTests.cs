@@ -173,6 +173,84 @@ public sealed class InputBufferTests
         Assert.Equal(string.Empty, buffer.Text);
     }
 
+    /// <summary>视觉行垂直移动（DSG044 L4 — 基准 useTextInput.ts:269-316 三级回退第一级）：
+    /// 折行内上下键细移（同显示列，短行钳制行尾）— 40a 按 cols 20 折 3 视觉行 [0,18)/[18,36)/[36,40)。</summary>
+    [Fact]
+    public void TryMoveVisualVertically_WrappedLine_MovesWithinVisualLines()
+    {
+        var text = new string('a', 40);
+        var buffer = InputBuffer.Of(text, cursorCol: 25);
+
+        Assert.True(buffer.TryMoveVisualVertically(-1, cols: 20));
+        Assert.Equal(7, buffer.CursorCol);
+        Assert.True(buffer.TryMoveVisualVertically(1, cols: 20));
+        Assert.Equal(25, buffer.CursorCol);
+    }
+
+    /// <summary>视觉行移动短行钳制：目标视觉行短于当前列 → 钳制行尾。</summary>
+    [Fact]
+    public void TryMoveVisualVertically_ShortTargetLine_ClampsToLineEnd()
+    {
+        var text = new string('a', 40);
+        var buffer = InputBuffer.Of(text, cursorCol: 25);
+
+        Assert.True(buffer.TryMoveVisualVertically(1, cols: 20));
+        Assert.Equal(40, buffer.CursorCol);
+    }
+
+    /// <summary>首视觉行上移 / 末视觉行下移 → false（ReplShell 层走历史导航三级回退第二级）。</summary>
+    [Fact]
+    public void TryMoveVisualVertically_BoundaryVisualLines_ReturnsFalse()
+    {
+        var text = new string('a', 40);
+        var top = InputBuffer.Of(text, cursorCol: 5);
+        Assert.False(top.TryMoveVisualVertically(-1, cols: 20));
+
+        var bottom = InputBuffer.Of(text, cursorCol: 38);
+        Assert.False(bottom.TryMoveVisualVertically(1, cols: 20));
+    }
+
+    /// <summary>视觉行 Home/End（DSG044 L4 — 基准 Cursor.ts:426-442 视觉行语义）：
+    /// 中部 → 视觉行首/尾；已在视觉行首再按 Home → 上一视觉行尾（连按上跳）。</summary>
+    [Fact]
+    public void HomeVisual_EndVisual_MoveWithinVisualLine()
+    {
+        var text = new string('a', 40);
+        var buffer = InputBuffer.Of(text, cursorCol: 25);
+
+        buffer.HomeVisual(cols: 20);
+        Assert.Equal(18, buffer.CursorCol);
+        buffer.EndVisual(cols: 20);
+        Assert.Equal(36, buffer.CursorCol);
+    }
+
+    /// <summary>Home 连按上跳：软折行断点处（满宽折行行尾=下行首同位）位置不变 —
+    /// 真实跳转发生在跨逻辑行边界（上一视觉行是上一逻辑行末行，行尾有 \n 分隔）。</summary>
+    [Fact]
+    public void HomeVisual_AtVisualLineStart_MovesToPreviousVisualLineEnd()
+    {
+        // 满宽硬切：40a cols 20 → 视觉行 1 首 = 18 = 视觉行 0 尾（同 char 位，位置不变）
+        var wrapped = InputBuffer.Of(new string('a', 40), cursorCol: 18);
+        wrapped.HomeVisual(cols: 20);
+        Assert.Equal(18, wrapped.CursorCol);
+
+        // 跨逻辑行：ab\ncdef 零折行 → 视觉行 1（cdef）首 = 3 → Home 跳视觉行 0 尾 = 2
+        var logical = InputBuffer.Of("ab\ncdef", cursorCol: 5);
+        logical.HomeVisual(cols: 20);
+        Assert.Equal(3, logical.CursorCol);
+        logical.HomeVisual(cols: 20);
+        Assert.Equal(2, logical.CursorCol);
+    }
+
+    /// <summary>视觉行首视觉行 0 按 Home → 保持 0（全局首）。</summary>
+    [Fact]
+    public void HomeVisual_AtFirstVisualLineStart_StaysAtZero()
+    {
+        var buffer = InputBuffer.Of(new string('a', 40), cursorCol: 0);
+        buffer.HomeVisual(cols: 20);
+        Assert.Equal(0, buffer.CursorCol);
+    }
+
     /// <summary>CR LF 单 cluster：退格删整对（不留孤立 CR）。</summary>
     [Fact]
     public void Backspace_CrLf_DeletesPair()

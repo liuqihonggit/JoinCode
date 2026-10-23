@@ -12,9 +12,28 @@ public interface ITerminalSizeSource
     (int Cols, int Rows) Current { get; }
 }
 
-/// <summary>Console 轮询实现（生产默认 — Console.WindowWidth/Height 每拍读取）。</summary>
+/// <summary>Console 轮询实现（生产默认 — Console.WindowWidth/Height 每拍读取；
+/// 无控制台/输出重定向（测试环境、管道）抛异常时回退 80×24 默认 — 按键路径读 cols 防御，
+/// 对齐 KeyAvailable 无控制台防御先例）。</summary>
 public sealed class ConsoleTerminalSizeSource : ITerminalSizeSource
 {
-    /// <summary>当前终端尺寸（夹紧 20×8）。</summary>
-    public (int Cols, int Rows) Current => (Math.Max(20, Console.WindowWidth), Math.Max(8, Console.WindowHeight));
+    /// <summary>当前终端尺寸（夹紧 20×8；无控制台回退 80×24）。</summary>
+    public (int Cols, int Rows) Current
+    {
+        get
+        {
+            try
+            {
+                return (Math.Max(20, Console.WindowWidth), Math.Max(8, Console.WindowHeight));
+            }
+            catch (InvalidOperationException)
+            {
+                return (80, 24);
+            }
+            catch (IOException)
+            {
+                return (80, 24);
+            }
+        }
+    }
 }

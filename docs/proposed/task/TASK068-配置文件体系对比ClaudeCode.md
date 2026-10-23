@@ -124,9 +124,15 @@ CurrentSettings 49 键审计结论：**A 类活跃 16 / B 类仅 /config 读写 
 | Bug2 | ConfigurationService（L97-98,129）与 TrustFolderManager（L17-20）手拼 `Path.Combine(UserProfile, AppDataFolder, ...)` 绕过 `AppDataConstants.Paths` 唯一数据源 | 两文件 | 改委托 `Paths` 派生属性（新增 TrustedFoldersFilePath） |
 | Bug3 | native_tui 三处硬编码 `~/.jcc/`（KeybindingLoader.DefaultPath / CommandUsageMemory.DefaultFilePath / StartupErrorPrinter 三属性）绕过 `JCC_APP_DATA_FOLDER` → 测试隔离场景 TUI 读写真实用户目录 | native_tui 三文件 | Core 内建 JccHome 工具（读 JCC_APP_DATA_FOLDER，逻辑对齐 AppDataPaths.JccDirectory，保持 native_tui 零依赖）；Host 诊断直接委托主链路 |
 
-**死代码处置**：用户已决策删除（2026-10-23）— XdgPathResolver 六死方法、ClaudeCompatConstants.ManagedSettingsPath 死常量、ThemeFileName/CredentialsFileName 死路径链、CurrentSettings D 类 11 死键均已执行（commit e6b00e89b、fe08a3fa7）。C 类 12 死链键仍待 Q4 逐项决策。
+**死代码处置**：用户已决策删除（2026-10-23）— XdgPathResolver 六死方法、ClaudeCompatConstants.ManagedSettingsPath 死常量、ThemeFileName/CredentialsFileName 死路径链、CurrentSettings D 类 11 死键均已执行（commit e6b00e89b、fe08a3fa7）。
+
+**断链修复（用户决策"先修断链 bug"，commit e42f99e40）**：
+- hooks 层级错位：Hook 系统补注册 policySettings 源（managed-settings.json 顶层 hooks，对齐 TS policySettings 参与钩子合并）+ 删 current.hooks 死 DTO/HookSettings 类/MergeHookDictionaries（收敛顶层唯一，消除"用户按 current.hooks 配置永不生效"误导面）
+- activeWorktreeSession：删 ActiveWorktreeSessionJson 死 DTO（TS 侧同为写入无常规读取 — bridge KAIROS 场景外部构建剔除；写入方 AgentWorktreeService 保留对齐 TS saveCurrentProjectConfig 写入行为）
 
 **衍生需求（用户决策）**：发送消息时以 `<system-reminder>` 形态把"洞悉用户诉求"系统提示词追加到消息末尾，10 分钟冷却 — SendReminderInjector 组件 + SessionController.StreamResponseAsync / ChatService.StreamWithEventsAsync 双接线（commit 1622020d0）。
+
+**C 类剩余 10 个死链键**（mcpServers、sandbox、enabledPlugins、apiKeyHelper、cleanupPeriodDays、availableModels、worktree、statusLine、actor、defaultShell）：用户决策暂不处理，保持现状。
 
 ## 验收表（四列）
 
@@ -136,3 +142,4 @@ CurrentSettings 49 键审计结论：**A 类活跃 16 / B 类仅 /config 读写 
 | Bug1-3 修复 | SettingsLoader/ConfigurationService/TrustFolderManager/native_tui | ✅（见 commit） | ✅（单元测试 + 编译） |
 | 死代码批次1-4 | XdgPathResolver/ClaudeCompatConstants/AppDataPaths/SettingsJson | ✅（e6b00e89b/fe08a3fa7） | ✅（abs 697 + guard.config 1285 + host 1453 + composition 1003 全绿） |
 | SendReminderInjector | SessionController（TUI/CLI）+ ChatService（GUI）双接线 | ✅（1622020d0） | ✅（组件 9 测试 + brain.context 949 + host 1453 + NativeTui.Host 125 全绿） |
+| hooks 断链修复 | ServiceRegistration policy 源注册 + 死 DTO 删除 | ✅（e42f99e40） | ✅（HookPolicySourceRegistrationTests 2 红→绿 + guard.config 1285 + hooks 574 + agents 641 + host 1453 全绿） |

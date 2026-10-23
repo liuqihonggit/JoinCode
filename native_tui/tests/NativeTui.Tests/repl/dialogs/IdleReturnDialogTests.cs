@@ -407,13 +407,22 @@ public sealed class IdleReturnDialogTests
         Assert.Contains(shell.View.Messages.Items, m => m is UserMessageItem u && u.Text == "新任务");
     }
 
-    /// <summary>enter 确认 Clear — IReplEngine 暂无新会话接口，降级按原提交重发
-    ///（TODO 标注 — 主代理补 StartNewConversation 后升级为清上下文重发）。</summary>
+    /// <summary>enter 确认 Clear — G3 新会话链路：engine.StartNewConversation（引擎上下文清理）+
+    /// 滚动区清空（banner/spinner 之外的旧消息全清）+ token 记账归零（footer 引用共享原地重置）+
+    /// 暂存提交重发（D8 基准 "Send message as a new conversation" 完整语义）。</summary>
     [Fact]
-    public void Submit_BeyondThreshold_Enter_Clear_DegradedResumesSubmission()
+    public void Submit_BeyondThreshold_Enter_Clear_StartsNewConversationAndResends()
     {
         var (shell, engine, clock) = CreateShell();
         CompleteTurnWithTokens(shell, engine, 100_000);
+        clock.Now += 76 * 60_000;
+        Type(shell, "旧任务");
+        shell.Submit();
+        Press(shell, KeyKind.Return);
+        Assert.Equal(["旧任务"], engine.Submits);
+        // 上屏一条历史消息（Clear 后滚动区清空断言的对照基数）
+        Assert.Contains(shell.View.Messages.Items, m => m is UserMessageItem u && u.Text == "旧任务");
+
         clock.Now += 76 * 60_000;
         Type(shell, "新任务");
         shell.Submit();
@@ -422,6 +431,29 @@ public sealed class IdleReturnDialogTests
         Press(shell, KeyKind.Return);
 
         Assert.False(shell.IsIdleReturnOpen);
+        // G3 — 引擎新会话调用恰一次 + 暂存提交重发
+        Assert.Equal(1, engine.NewConversations);
+        Assert.Equal(["旧任务", "新任务"], engine.Submits);
+        // D8 — 滚动区清空：旧消息清除（banner/spinner 不变式由 ClearMessagesExceptBannerAndSpinner 保）
+        Assert.DoesNotContain(shell.View.Messages.Items, m => m is UserMessageItem u && u.Text == "旧任务");
+        Assert.Contains(shell.View.Messages.Items, m => m is UserMessageItem u && u.Text == "新任务");
+        // D8 — token 记账归零（100k 累计被 Reset，footer 引用共享原地重置）
+        Assert.Equal(0, shell.View.Footer.Tokens!.InputTokens);
+    }
+
+    /// <summary>enter 确认 Continue — 不触发新会话（G3 零破坏对照：仅 Clear 动作走引擎新会话）。</summary>
+    [Fact]
+    public void Submit_BeyondThreshold_Enter_Continue_DoesNotStartNewConversation()
+    {
+        var (shell, engine, clock) = CreateShell();
+        CompleteTurnWithTokens(shell, engine, 100_000);
+        clock.Now += 76 * 60_000;
+        Type(shell, "新任务");
+        shell.Submit();
+
+        Press(shell, KeyKind.Return);
+
+        Assert.Equal(0, engine.NewConversations);
         Assert.Equal(["新任务"], engine.Submits);
     }
 

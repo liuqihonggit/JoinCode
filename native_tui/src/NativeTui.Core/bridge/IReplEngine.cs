@@ -11,6 +11,13 @@ public interface IReplEngine
     /// <summary>提交回合（空文本由 shell 过滤；忙时由实现拒绝并回 Error 事件诱导）。</summary>
     void Submit(string text);
 
+    /// <summary>提交回合（带图片附件 — TASK066 板块 G G3 / E4 引擎协议：附件转引擎图片消息）。
+    /// 默认成员转调单参 <see cref="Submit(string)"/> — 旧实现（子进程 BridgeClient 等）零破坏，
+    /// 对齐 StopBackgroundTask 默认成员先例；null/空附件等价单参提交。</summary>
+    /// <param name="text">提交文本（图片占位 [Image #N] 已由 shell 剥离 — 基准 Image refs become content blocks）。</param>
+    /// <param name="images">图片附件快照（bridge 协议 DTO — null/空 = 无附件）。</param>
+    void Submit(string text, IReadOnlyList<BridgeImageAttachment>? images) => Submit(text);
+
     /// <summary>打断当前回合（实现负责回 turn_interrupted；闲时 no-op）。</summary>
     void Interrupt();
 
@@ -29,6 +36,13 @@ public interface IReplEngine
     /// <param name="kind">任务类别（fork|teammate）</param>
     /// <param name="taskId">任务标识</param>
     void StopBackgroundTask(string kind, string taskId) { }
+
+    /// <summary>开始新会话（TASK066 板块 G G3 — D8 Clear 语义：清引擎对话上下文后重发，
+    /// 基准 IdleReturnDialog "Send message as a new conversation" → clearConversation）。
+    /// 默认空实现 — 无会话概念的实现（测试桩）零成本，对齐 StopBackgroundTask 默认成员先例；
+    /// 进程内 EngineTurnClient 委托分派 IChatService.ClearHistoryAsync /
+    /// SimulatedEngine 重置演示回合状态为显式实现。</summary>
+    void StartNewConversation() { }
 
     /// <summary>引擎存活（进程内恒 true；子进程退出后 false — shell 空闲时追加退出消息并结束）。</summary>
     bool IsAlive { get; }

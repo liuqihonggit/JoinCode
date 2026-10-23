@@ -131,4 +131,146 @@ public sealed class EngineTurnClientTests {
         var error = Assert.IsType<BridgeEvent.Error>(Assert.Single(events));
         Assert.Contains("plan, auto, ask, bypass, unattended", error.Message);
     }
+
+    // ==== G3 图片附件投影（E4 引擎协议 — string-only 链路降级引用段）====
+
+    [Fact]
+    public async Task Submit_WithImages_AppendsAttachmentReferenceSummary() {
+        var received = default(string);
+        var client = new EngineTurnClient((input, c, ct) => {
+            received = input;
+            return Task.CompletedTask;
+        });
+
+        client.Submit("看这张图", [
+            new BridgeImageAttachment("QUJD", "image/png", "a.png"),
+            new BridgeImageAttachment("QkM=", "image/jpeg", "b.jpg"),
+        ]);
+        await WaitTurnAndDrainAsync(client);
+
+        // G3 投影 — 附件引用段追加到回合输入（引擎 string-only 结论的降级形态：模型感知图片存在 + 元数据）
+        Assert.Equal("看这张图\n\n[Image #1: a.png (image/png)]\n[Image #2: b.jpg (image/jpeg)]", received);
+    }
+
+    [Fact]
+    public async Task Submit_WithImages_EmptyText_SummaryAlone() {
+        var received = default(string);
+        var client = new EngineTurnClient((input, c, ct) => {
+            received = input;
+            return Task.CompletedTask;
+        });
+
+        client.Submit(string.Empty, [new BridgeImageAttachment("QUJD", "image/png", "a.png")]);
+        await WaitTurnAndDrainAsync(client);
+
+        // 剥离后空文本 — 投影段兜底非空（纯图片提交形态，引擎不收空回合输入）
+        Assert.Equal("[Image #1: a.png (image/png)]", received);
+    }
+
+    [Fact]
+    public async Task Submit_WithoutImages_InputUnchanged() {
+        var received = default(string);
+        var client = new EngineTurnClient((input, c, ct) => {
+            received = input;
+            return Task.CompletedTask;
+        });
+
+        client.Submit("纯文本", images: null);
+        await WaitTurnAndDrainAsync(client);
+
+        // 零破坏 — 无附件原文透传（不追加任何投影段）
+        Assert.Equal("纯文本", received);
+    }
+
+    // ==== G3 新会话（D8 Clear — 清上下文先于回合执行器串行化）====
+
+    [Fact]
+    public async Task StartNewConversation_BeforeSubmit_ClearsBeforeTurnExecutor() {
+        var clearStarted = false;
+        var clearRelease = new TaskCompletionSource();
+        var executorRanAfterClear = false;
+        var client = new EngineTurnClient(
+            (input, c, ct) => {
+                executorRanAfterClear = clearStarted && clearRelease.Task.IsCompleted;
+                return Task.CompletedTask;
+            },
+            startNewConversation: () => {
+                clearStarted = true;
+                return clearRelease.Task;
+            });
+
+        client.StartNewConversation();
+        client.Submit("新会话首回合");
+        await Task.Delay(50);
+        // 清上下文未完成 — 回合执行器不跑（串行化：防清历史与回合读上下文竞态）
+        Assert.False(executorRanAfterClear);
+        clearRelease.SetResult();
+        var events = await WaitTurnAndDrainAsync(client);
+
+        // 清完成 → 回合执行器跑 → 正常终态
+        Assert.True(executorRanAfterClear);
+        Assert.Contains(events, e => e is BridgeEvent.TurnCompleted);
+    }
+
+    [Fact]
+    public async Task StartNewConversation_WithoutStarter_TurnProceedsNormally() {
+        var client = new EngineTurnClient((input, c, ct) => Task.CompletedTask);
+
+        // 无启动器（null）纯标记 — 回合照常（测试桩/无会话概念宿主零成本）
+        client.StartNewConversation();
+        client.Submit("普通回合");
+        var events = await WaitTurnAndDrainAsync(client);
+
+        Assert.Contains(events, e => e is BridgeEvent.TurnCompleted);
+    }
+
+    [Fact]
+    public async Task StartNewConversation_ClearFails_EmitsInductiveErrorAndContinuesTurn() {
+        var client = new EngineTurnClient(
+            (input, c, ct) => Task.CompletedTask,
+            startNewConversation: () => Task.FromException(new InvalidOperationException("存储不可达")));
+
+        client.StartNewConversation();
+        client.Submit("清理失败后的回合");
+        var events = await WaitTurnAndDrainAsync(client);
+
+        // 清失败降级 — Error 诱导（继续原会话 + 重试提示）+ 回合照常完成（清历史失败不吞用户提交）
+        var error = Assert.IsType<BridgeEvent.Error>(events.Single(e => e is BridgeEvent.Error));
+        Assert.Contains("新会话清理失败", error.Message);
+        Assert.Contains("存储不可达", error.Message);
+        Assert.Contains(events, e => e is BridgeEvent.TurnCompleted);
+    }
+
+    [Fact]
+    public async Task StartNewConversation_WhileTurnRunning_TakesEffectNextTurn() {
+        var release = new TaskCompletionSource();
+        var clears = 0;
+        var secondTurnInput = default(string);
+        var client = new EngineTurnClient((input, c, ct) => {
+            if (input == "第二回合") {
+                secondTurnInput = input;
+            }
+
+            return release.Task;
+        }, startNewConversation: () => {
+            clears++;
+            return Task.CompletedTask;
+        });
+
+        client.Submit("第一回合");
+        await Task.Delay(50);
+        // 忙时调用 — 只置标记不打断在途回合（清上下文挂起到回合结束后的下回合生效）
+        client.StartNewConversation();
+        Assert.Equal(0, clears);
+        release.SetResult();
+        await WaitTurnAndDrainAsync(client);
+
+        client.Submit("第二回合");
+        var events = await WaitTurnAndDrainAsync(client);
+
+        // 下回合开始前消费标记 — 清恰一次 + 回合正常
+        Assert.Equal(1, clears);
+        Assert.Equal("第二回合", secondTurnInput);
+        Assert.Contains(events, e => e is BridgeEvent.TurnCompleted);
+    }
 }

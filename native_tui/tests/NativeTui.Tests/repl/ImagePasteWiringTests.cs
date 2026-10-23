@@ -193,8 +193,10 @@ public sealed class ImagePasteWiringTests
 
         shell.Submit();
 
-        // 占位 [Image #1] 原样保留在提交文本（不展开 — 基准 Image refs are left alone）
-        Assert.Equal(["[Image #1]"], engine.Submits);
+        // G3 — 占位 [Image #1] 从引擎提交文本剥离（基准 Image refs become content blocks：占位是
+        // TUI 显示形态引擎不收，图片数据走附件通道）；纯占位提交剥离后为空文本 + 1 附件走图片重载
+        Assert.Equal([("", 1)], engine.SubmitsWithImages);
+        Assert.Equal([""], engine.Submits);
         // 登记簿清空归下回合
         Assert.Equal(0, shell.Attachments.Count);
         // 附件占位项上屏（用户消息后挂）
@@ -209,11 +211,15 @@ public sealed class ImagePasteWiringTests
 
         shell.Submit();
 
-        Assert.Equal(["[Image #1]look at this"], engine.Submits);
+        // G3 — 引擎收剥离后纯文本 + 附件；上屏显示形态保留占位（显示/提交双形态分离）
+        Assert.Equal([("look at this", 1)], engine.SubmitsWithImages);
+        Assert.Equal(["look at this"], engine.Submits);
         Assert.Equal(0, shell.Attachments.Count);
         var item = Assert.Single(shell.View.Messages.Items.OfType<ImageAttachmentItem>());
         Assert.Equal(1, item.ImageId);
         Assert.Equal("a.png", item.Filename);
+        Assert.Contains(shell.View.Messages.Items,
+            m => m is UserMessageItem u && u.Text == "[Image #1]look at this");
     }
 
     [Fact]
@@ -259,9 +265,51 @@ public sealed class ImagePasteWiringTests
 
         EndTurn(shell, engine);
 
-        // 发送时附件项随用户消息上屏（基准 enqueue 携带 pastedContents 执行时带图语义）
-        Assert.Equal(["[Image #1]"], engine.Submits);
+        // 发送时附件项随用户消息上屏（基准 enqueue 携带 pastedContents 执行时带图语义）；
+        // G3 — 引擎收剥离后文本 + 附件（排队泵走 SubmitToEngine 统一分派）
+        Assert.Equal([("", 1)], engine.SubmitsWithImages);
+        Assert.Equal([""], engine.Submits);
         Assert.Single(shell.View.Messages.Items.OfType<ImageAttachmentItem>());
+    }
+
+    // ==== G3 附件提交通道（无附件零破坏 + bridge DTO 投影字段）====
+
+    [Fact]
+    public void Submit_WithoutAttachments_UsesSingleParameterSubmit_NoBreakage()
+    {
+        var (shell, engine) = CreateShell(StubLoader);
+        Type(shell, "纯文本提交");
+
+        shell.Submit();
+
+        // 零破坏 — 无附件走原单参 Submit（不进图片重载记录面）
+        Assert.Empty(engine.SubmitsWithImages);
+        Assert.Equal(["纯文本提交"], engine.Submits);
+    }
+
+    [Fact]
+    public void Submit_WithAttachments_ProjectsBridgeDtoFields()
+    {
+        var (shell, engine) = CreateShell(StubLoader);
+        Paste(shell, "C:\\pics\\a.png");
+
+        shell.Submit();
+
+        // bridge DTO 投影字段透传（Base64/MediaType/Filename 三字段 — 与 Core 域解耦的协议形态）
+        var projected = Assert.Single(engine.SubmittedImages);
+        var image = Assert.Single(projected);
+        Assert.Equal("QUJD", image.Base64);
+        Assert.Equal("image/png", image.MediaType);
+        Assert.Equal("a.png", image.Filename);
+    }
+
+    /// <summary>逐字符输入文本（无粘贴 — 纯文本提交零破坏对照用）。</summary>
+    private static void Type(ReplShell shell, string text)
+    {
+        foreach (var ch in text)
+        {
+            shell.HandleRawKeyPress(new KeyPress(KeyKind.Char, ch.ToString()));
+        }
     }
 
     // ==== 多行可见行数上限（纯文本链零破坏 — 折叠语义不因分桶接线变化）====

@@ -217,6 +217,32 @@ public sealed class SimulatedEngine : IReplEngine
     /// <summary>进程内模拟 — 恒存活。</summary>
     public bool IsAlive => true;
 
+    /// <summary>提交回合（带图片附件 — E4+G3 图片通道演示验证）：附件计数（SubmittedImageCount 供演示/测试
+    /// 断言）+ 原文本路由单参 Submit（演示引擎无多模态语义 — 引擎消息模型 string-only，附件不进演示脚本）。</summary>
+    /// <param name="text">提交文本（占位已由 shell 剥离）。</param>
+    /// <param name="images">图片附件（null/空 = 等价单参提交，不计数）。</param>
+    public void Submit(string text, IReadOnlyList<BridgeImageAttachment>? images)
+    {
+        SubmittedImageCount += images?.Count ?? 0;
+        Submit(text);
+    }
+
+    /// <summary>开始新会话（G3 — D8 Clear 演示语义）：重置内部回合状态（在途回合中止 + 阶段/子代理列表/
+    /// 流式分片清空 — 模拟引擎无跨回合消息序列，回合状态复位即新会话语义）；事件队列保序不清
+    ///（在途事件如 Error 诱导仍可达下拍排空 — 新会话不吞已产出事件）。</summary>
+    public void StartNewConversation()
+    {
+        _inTurn = false;
+        _stage = 0;
+        _subagents = [];
+        _subagentStartedSent = false;
+        _subagentTurnCompleted = false;
+        _streamSlices.Clear();
+    }
+
+    /// <summary>收到图片附件总计数（G3 演示验证 — 图片重载提交累计，单参提交不增）。</summary>
+    public int SubmittedImageCount { get; private set; }
+
     /// <summary>提交回合：忙时拒绝回 Error 诱导（对齐 EngineTurnClient 语义）；未知命令拒绝回 Error 诱导
     /// （列出全部演示命令与用途 — 含为什么拒绝/怎么做）；有效命令选定脚本、入队 TurnStarted 并开始计时。</summary>
     public void Submit(string text)

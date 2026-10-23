@@ -288,4 +288,73 @@ public sealed class SimulatedEngineTests
         engine.Interrupt();
         Assert.Empty(engine.DrainEvents());
     }
+
+    // ==== G3 图片附件通道（E4 引擎协议 — 计数 + 原文本路由）====
+
+    /// <summary>图片重载提交 — 附件计数累加 + 原文本路由单参（演示验证：md 命令照常 TurnStarted；
+    /// 回合间用 Interrupt 复位保持闲态 — 忙时二次提交会被拒绝）。</summary>
+    [Fact]
+    public void Submit_WithImages_CountsAttachmentsAndRoutesText()
+    {
+        var engine = new SimulatedEngine(static () => 0L);
+        engine.Submit("md", [
+            new BridgeImageAttachment("QUJD", "image/png", "a.png"),
+            new BridgeImageAttachment("QkM=", "image/jpeg", "b.jpg"),
+        ]);
+        Assert.Equal([new BridgeEvent.TurnStarted()], engine.DrainEvents());
+
+        engine.Interrupt();
+        engine.DrainEvents();
+        engine.Submit("md", [new BridgeImageAttachment("QUJD", "image/png", "a.png")]);
+
+        // 计数跨提交累加（2 + 1 = 3）+ 文本路由不受附件影响
+        Assert.Equal(3, engine.SubmittedImageCount);
+        Assert.Equal([new BridgeEvent.TurnStarted()], engine.DrainEvents());
+    }
+
+    /// <summary>图片重载 null/空附件 — 等价单参提交不计数（接口默认成员语义对齐）。</summary>
+    [Fact]
+    public void Submit_WithNullImages_EquivalentToSingleParameter()
+    {
+        var engine = new SimulatedEngine(static () => 0L);
+        engine.Submit("md", images: null);
+
+        Assert.Equal(0, engine.SubmittedImageCount);
+        Assert.Equal([new BridgeEvent.TurnStarted()], engine.DrainEvents());
+    }
+
+    // ==== G3 新会话（D8 Clear — 回合状态复位演示语义）====
+
+    /// <summary>StartNewConversation：在途回合中止（不再产阶段事件）+ 状态复位（后续提交开新回合）。</summary>
+    [Fact]
+    public void StartNewConversation_AbortsInFlightTurnAndResetsState()
+    {
+        var clock = new VirtualClock();
+        var engine = new SimulatedEngine(() => clock.Now);
+        engine.Submit("all");
+        engine.DrainEvents();
+
+        engine.StartNewConversation();
+        clock.Advance(5500);
+
+        // 回合已复位 — 时间推进不产完成事件（旧回合终止）
+        Assert.DoesNotContain(engine.DrainEvents(), e => e is BridgeEvent.TurnCompleted);
+
+        // 状态复位 — 可开新回合（TurnStarted 即新脚本起点）
+        engine.Submit("md");
+        Assert.Equal([new BridgeEvent.TurnStarted()], engine.DrainEvents());
+    }
+
+    /// <summary>StartNewConversation：事件队列保序不清（在途 Error 诱导等已产出事件仍可达下拍排空）。</summary>
+    [Fact]
+    public void StartNewConversation_KeepsPendingEventsDrainable()
+    {
+        var engine = new SimulatedEngine(static () => 0L);
+        engine.Submit("未知命令");
+
+        engine.StartNewConversation();
+
+        // 未知命令 Error 诱导不被新会话吞 — 下拍照常排空
+        Assert.Contains(engine.DrainEvents(), e => e is BridgeEvent.Error);
+    }
 }

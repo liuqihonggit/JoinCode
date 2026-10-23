@@ -3266,8 +3266,8 @@ public sealed class ReplShell
     /// <summary>空闲返回对话框模态按键（TASK066 板块 D D8 — 基准 REPL.tsx:4813-4859 onDone 分发）：
     /// IdleReturnDialog.TryHandleKey 消费键位（↑↓ 导航/enter 确认/esc 取消）；
     /// IsClosed 终态收尾 — Dismiss = 恢复输入框文本不提交（setInputValue 语义）/ Never = 置会话级
-    /// 持久标志后重发 / Clear = 新会话重发（IReplEngine 暂无新会话接口 — 降级按原提交 + TODO）/
-    /// Continue = 原样重发；重发走 SubmitCore(skipIdleCheck: true) 防拦截循环
+    /// 持久标志后重发 / Clear = 新会话重发（G3 接线：engine.StartNewConversation 清引擎上下文 +
+    /// 清滚动区 + token 记账归零）/ Continue = 原样重发；重发走 SubmitCore(skipIdleCheck: true) 防拦截循环
     ///（基准 skipIdleCheckRef 消费式标志的参数化等价）。</summary>
     /// <param name="key">按键事件。</param>
     private void HandleIdleReturnKey(KeyPress key)
@@ -3301,10 +3301,16 @@ public sealed class ReplShell
             _idleReturnNever = true;
         }
 
-        // TODO（TASK066 板块 D D7 降级）：Clear 语义 = 引擎新会话（清上下文）+ 重发 —
-        // IReplEngine 暂无新会话接口（仅 Submit/Interrupt/SetPermissionMode/DrainEvents/
-        // StopBackgroundTask/IsAlive），临时降级按原提交处理；主代理补 StartNewConversation()
-        /// 接口后在此清空滚动区 + 重置 token 记账再重发
+        // D8 接线（G3 引擎新会话）— Clear 动作：引擎清对话上下文（EngineTurnClient →
+        /// IChatService.ClearHistoryAsync，下回合前串行生效）+ 滚动区清空（保留 banner/spinner
+        /// 不变式）+ token 记账归零（footer 引用共享原地重置），再重发暂存提交
+        if (action == IdleReturnAction.Clear)
+        {
+            _engine.StartNewConversation();
+            ClearMessagesExceptBannerAndSpinner();
+            _tokenUsage.Reset();
+        }
+
         SubmitCore(pending.Display, pending.Expanded, skipIdleCheck: true);
     }
 
@@ -3434,7 +3440,45 @@ public sealed class ReplShell
         _lastSubmittedText = text;
         _lastSubmittedIndex = _view.Messages.Count - 2;
         AddAttachmentItems(attachments);
-        _engine.Submit(expanded);
+        // E4+G3 — 附件提交通道：非空快照走图片重载（投影 bridge DTO + 占位剥离），
+        /// 空快照走原单参（零破坏 — 无附件提交路径不变）
+        SubmitToEngine(expanded, attachments);
+    }
+
+    /// <summary>引擎提交分派（E4+G3 图片附件提交通道）— 非空附件快照走图片重载（Core 附件投影
+    /// bridge DTO + 提交文本剥离 [Image #N] 占位）；空快照走原单参 Submit（零破坏）。
+    /// 排队泵（PumpQueuedInputs）与首提交共用本分派 — 快照携带路径行为一致。</summary>
+    /// <param name="expanded">提交文本（粘贴引用展开形态 — 剥离占位前的全文）。</param>
+    /// <param name="attachments">提交冻结附件快照（空 = 无附件）。</param>
+    private void SubmitToEngine(string expanded, IReadOnlyList<ImageAttachment> attachments)
+    {
+        if (attachments.Count == 0)
+        {
+            _engine.Submit(expanded);
+            return;
+        }
+
+        var images = attachments.Select(static attachment => new BridgeImageAttachment(
+            attachment.Base64, attachment.MediaType, attachment.Filename)).ToList();
+        _engine.Submit(StripImagePlaceholders(expanded, attachments), images);
+    }
+
+    /// <summary>剥离提交文本中的图片占位（E4+G3 — 基准 Image refs become content blocks：
+    /// [Image #N] 是 TUI 显示形态，引擎提交文本不携带，图片数据走附件通道）；按冻结快照附件
+    /// 占位精确匹配替换删除（不搞通用正则 — 占位与登记附件 Id 一一对应）。剥离后空文本保持
+    /// 空串 — 引擎侧附件投影段兜底非空（EngineTurnClient.ProjectImageAttachments）。</summary>
+    /// <param name="expanded">提交文本（粘贴引用展开形态）。</param>
+    /// <param name="attachments">冻结附件快照（占位源 — 按占位引用过滤后的存活附件）。</param>
+    /// <returns>剥离后文本。</returns>
+    private static string StripImagePlaceholders(string expanded, IReadOnlyList<ImageAttachment> attachments)
+    {
+        var text = expanded;
+        foreach (var attachment in attachments)
+        {
+            text = text.Replace(attachment.Placeholder, string.Empty);
+        }
+
+        return text;
     }
 
     /// <summary>
@@ -3614,7 +3658,8 @@ public sealed class ReplShell
         // enqueue 携带 pastedContents 执行时带图上屏语义）
         AddAttachmentItems(attachments);
         _view.QueuedInputs = _queuedInputs.Select(static entry => entry.Display).ToList();
-        _engine.Submit(expanded);
+        // E4+G3 — 附件快照随发送走图片重载（占位剥离同首提交路径 — SubmitToEngine 统一分派）
+        SubmitToEngine(expanded, attachments);
     }
 
     /// <summary>渲染一帧并差分上屏：inline 走相对光标 + append（历史滚入 scrollback）+ DEC 2026 原子上屏；视口走绝对定位 diff。

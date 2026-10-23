@@ -28,7 +28,7 @@
 | `dsh-client-ui-settings*`（general/models/shell/agent-loop/subagent/web-search/account/plugins） | 设置中心 | `settings/{describe,mutate,replace,update}` | ✅ 四条写/读路径齐全 | 单测（整段替换/顶层补丁/revision 冲突）+ 真机 E2E |
 | `dsh-client-ui-model-selection` | 模型选择 | `session/modelCatalog|selectModel` | ✅ | 既有 E2E |
 | `dsh-client-ui-skill` | 技能面板 | `skills/list` | ✅ 引擎 `ISkillService` 映射（名称/描述/模型可调用/源路径） | 单测（RPC 4 例 + 映射 2 例）+ `c6-e2e.mjs` 真机 19 条技能 |
-| `dsh-client-ui-message-feedback` | 消息反馈 | `messageFeedback/{list,put,delete}` | ✅ 落盘 + 乐观并发 + 契约错误联合体 | 单测（版本冲突/备注规则）+ 真机 E2E |
+| `dsh-client-ui-message-feedback` | 消息反馈 | `messageFeedback/{list,put,delete}` + `sessionFeedback/record` | ✅ 逐条落盘 + 乐观并发 + 契约错误联合体；会话级反馈写 `feedback/record` 日志事件（trim 文本、可选分类、不触发模型工作） | 单测（版本冲突/备注规则/会话反馈 4 例）+ `dsh-webui-session-feedback.mjs` 真机 18 项 ALL_PASS |
 | `dsh-client-ui-directory-picker-native` | 原生目录选择 | `directoryPicker/{pick,list,createDirectory}` | ✅ 原生选择 + 目录浏览（面包屑/隐藏项/1000 条截断）+ 新建目录 | 单测 13 例 + 真机 E2E |
 | `dsh-client-ui-session` | 会话搜索/标题 | `session/rename`、`session/search` | ✅ 字面量搜索 + 20 条上限 + 240 字片段 | 单测（片段/hasMore）+ 真机 E2E |
 | `dsh-client-ui-user-questions` | AskUserQuestion 卡片 | `$events` waterfall `user-questions/request` + `$events/result` + 结算后 `{type:"cancel",eventId}` | ✅ 引擎 `ask_user_question` → 单卡多问（单选自动翻页、多选、自填、跳过）；`userQuestions/answer` 诚实返回 false（宿主无 continued 队列），`userQuestions/attachWait` 空流（无 timed wait） | 单测 10 例 + `dsh-webui-questions.mjs` 真机 23 项 ALL_PASS（五键帧、q0/q1、单选翻页、多选 A/B、提交后工具结果 `"问题"="答案"`、cancel 帧、turn/end completed） |
@@ -49,7 +49,7 @@
 | 斜杠命令 | `CommandPickerEngine` + `SlashCommandCatalog` | `commands/list|execute` | 无 | 维持，补 GUI 分类/隐藏字段 |
 | 终端 | TUI 本体即终端 | 侧栏终端 ✅ | 无（真机 pwsh 执行命令） | ConPTY 会话管理器 + 原始输出快照回放；子进程标准句柄显式置空，宿主 stdout 重定向不再劫持提示符 |
 | 会话搜索 | TUI 历史检索 | `session/search` ✅ | 无 | 扫描引擎转录的 user/assistant 消息，字面量命中取 240 字窗口，最多 20 条（第 21 条置 hasMore），与 DSH 参考实现一致 |
-| 消息反馈 | 无 | DSH 有反馈 UI | TUI 缺 | **以 DSH/Claude Code 为准**，GUI 保留；TUI 不改 |
+| 消息反馈 | 无 | DSH 有逐条反馈 + 会话级反馈（`sessionFeedback/record` → `feedback/record` 日志事件） | TUI 缺 | **以 DSH/Claude Code 为准**，GUI 保留（逐条 + 会话级均已接）；TUI 不改 |
 
 ## 三、批次计划（红 → 实现 → 编译 → 绿 → 文档 → commit）
 
@@ -63,6 +63,7 @@
 | C6 | TUI 差异收敛（后台任务/子代理/权限模式）与文档四列表 | ✅ 已验收（目录浏览/@ 引用/能力探测/技能/子代理/计划模式与权限投影；`c6-e2e.mjs` 真机 30 项 ALL_PASS） |
 | C7 | 全量 E2E 回归 + 完成审计 | ✅ 已验收（deliverables 27 项、轨迹 16 项、目标条 28 项、C4 19 项、C5 8 项、C6 30 项、终端面板 11 项、Core 单测 364+/364+） |
 | C8 | 提问卡片：`user-questions/request` waterfall + 批量回帖 + 结算 cancel 帧 | ✅ 已验收（单测 10 + `dsh-webui-questions.mjs` 真机 23 项 ALL_PASS） |
+| C9 | 会话反馈：`sessionFeedback/record` request 信封 + `feedback/record` 日志事件 + 契约错误联合体 | ✅ 已验收（单测 4 + `dsh-webui-session-feedback.mjs` 真机 18 项 ALL_PASS） |
 
 ## 四、验收四列表（滚动更新）
 
@@ -73,6 +74,7 @@
 | `DshJobService` 投影 + `DshWebHost` job 路由 | 后台任务面板 `rows/output/status/kill` | ✅ | ✅ 单测 5 例 + `dsh-webui-jobs.mjs` ALL_PASS（rows、job/not-found） |
 | `DshWebAssets` 缓存完整性校验 + `package_dsh_web.py` 分片校验 | 侧栏 terminal/pdf/excel 懒加载分片 | ✅ | ✅ 终端面板真机 ALL_PASS + `dsh-webui-c5-preview.mjs` 12 项 ALL_PASS（PDF 3 页文本层、Excel 画布 23,462 像素） |
 | `DshWorkspaceFilesService.ResolveRootedAsync`（根内绝对/相对路径，弹栈防穿越） | 文件树 `workspaceFiles/*`（前端发 state.root 绝对路径） | ✅ | ✅ 单测 5 例（绝对根/子目录/越界/穿越）+ `c5-stream-e2e.mjs` 文件树 3 文件 |
+| `DshSessionFeedbackRecordArgs/Result/Value` + `DshFeedbackRecordData`（`DshJsonContext` 注册）+ `DshRpcDispatcher.SessionFeedbackRecord` | 会话头「更多操作」→「反馈」弹窗提交 → `POST /api/sessionFeedback/record` → 会话日志 `feedback/record` | ✅ | ✅ 单测 4 例（trim/空白省略/未知会话/分类白名单）+ `dsh-webui-session-feedback.mjs` 真机 18 项 ALL_PASS（真实弹窗提交、`{recorded:true}` 回执、日志 trim、无助手事件） |
 | `DshWorkspaceFilesService.ReadBytesAsync` + `DshWebHost.BuildMultipartPayload`（metadata 信封 + bytes-0 Blob） | 文档预览 / 图片预览读取 `Uint8Array` | ✅ | ✅ 单测 2 例（空占位 + multipart 布局）+ 真机 PDF/Excel 渲染 ALL_PASS |
 | `DshWebHost` `workspaceFiles/changes` 流（ready/change/absent/error，500ms 轮询快照对比） | 文件树变更刷新、重命名/删除感知 | ✅ | ✅ `c5-stream-e2e.mjs` 8 项 ALL_PASS（写入/追加版本变化、移出→absent、非法会话引导） |
 | `DshWebHost.StreamError` 补齐 details 对象 | 所有流式端点错误帧（job/terminal/workspaceFiles） | ✅ | ✅ `dsh-webui-jobs.mjs` 收到 `job/not-found`（修复前 WS 1006） |
@@ -190,3 +192,9 @@
 <!-- 原因: 前端 QuestionComposer 在 waterfall 通道下一次性渲染全部问题并批量回帖，逐题原生对话框会拆成多张卡；timed wait/continued 队列是 DSH 宿主侧能力，本地宿主没有对应状态，伪造会让前端等待永不到来的倒计时或继续队列；不补 cancel 帧前端会一直等待该 waterfall -->
 <!-- 替代方案: 逐题 ShowQuestionsAsync（多次弹卡，打断回答节奏）/ 回 wait:60000 制造假倒计时 / answer 假装受理（前端会进入 continued 但宿主无队列）—— 均不采用 -->
 <!-- 验证: 单测 10 例全绿（五键帧/答案映射/cancel/断连/换会话/旧客户端幂等/answer 诚实 false）；dsh-webui-questions.mjs 真机 23 项 ALL_PASS（桩模型工具调用 → 单选+多选卡片 → 提交 → 工具结果 → turn/end completed → 无 unimplemented/error 帧） -->
+
+<!-- 🤖 Auto Decision: 2026-10-24 (会话反馈 sessionFeedback/record) -->
+<!-- 决策: sessionFeedback/record 只把反馈写进会话日志事件 feedback/record（trim 文本，空白省略，可选分类），成功返回 {ok:true,value:{recorded:true}}，未知会话返回契约错误联合体 {ok:false,error:{code:"session-not-found",sessionId}}；分类按七词汇白名单校验，非法值走 gateway/bad-request 并列出全部合法值 -->
+<!-- 原因: dsh-command-feedback 的语义是「记录本次会话级反馈」而非发起模型轮次——若复用消息反馈落盘或触发 prompt，前端会对用户的一次吐槽发起请求；未知会话必须走 result 联合体（strict 解码只接受 value 或 error 二选一），网关失败会让前端弹通用错误而不是提示会话不存在；分类是前端 chip 的固定词汇，白名单能把协议漂移暴露成可读引导 -->
+<!-- 替代方案: 复用 messageFeedback/put（需要消息 ID，会话级反馈没有目标消息）/ 静默忽略未知会话（前端 strict 解码失败，toast 只能显示通用错误）—— 均不采用 -->
+<!-- 验证: 单测 4 例全绿；dsh-webui-session-feedback.mjs 真机 18 项 ALL_PASS（真实宿主弹窗：选「稳定性和速度」+填写详情→提交→前端「感谢你的反馈」→/api 返回 {recorded:true}→日志 text 已 trim、category=service-stability、surfaceOp 缺省、之后无新增 assistant/message）；Host Debug 0 警告 0 错误 -->

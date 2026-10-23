@@ -26,7 +26,10 @@ public static class MessageRenderer
         var body = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Text, Background = background });
         var textRight = frame.Right - 1;
         screen.WriteText(frame.Y, frame.X, $"{Figures.Pointer} ", pointer, textRight);
-        screen.WriteText(frame.Y, frame.X + 2, text, body, textRight);
+        // TASK069 B-3 — 换行符渲染为空格分隔（'\n' 宽度 0 被 WriteText 跳过会吞并成 "ab"）；
+        // CRLF 折叠单空格。1 行高度语义保持（多行完整支持属 TASK069 差异项 M1 待决策）
+        var flattened = text.Replace("\r\n", "\n").Replace('\n', ' ').Replace('\r', ' ');
+        screen.WriteText(frame.Y, frame.X + 2, flattened, body, textRight);
     }
 
     /// <summary>渲染助手文本消息：● + 空格（minWidth 2）+ 正文，全部 text 色。</summary>

@@ -138,6 +138,10 @@ public sealed class ReplBridgeDriver
                 // durationMs 供引擎侧比对，视图侧模式切换由后续事件（tool_call/token_delta）驱动。
                 break;
             case BridgeEvent.ToolCall(var name, var args):
+                // TASK069 B-4 — 工具调用开启即定格前段正文为 partial（对齐基准 messages.ts:3003
+                // 新 content_block_start 清空流式文本）：agent loop text→tool→text 序列中，
+                // 第二段文本须进新流式项（旧项跨工具存活会追加错位 + 落定重复）
+                FinalizeStreamingItem();
                 ApplyToolCall(name, args);
                 _spinner.Mode = SpinnerMode.ToolUse;
                 _spinner.HasActiveTools = true;
@@ -214,7 +218,12 @@ public sealed class ReplBridgeDriver
                 _view.BackgroundTasks.Upsert(kind, taskId, description, state);
                 break;
             case BridgeEvent.Error(var message):
-                CloseActiveToolGroup();
+                // TASK069 B-1 — Error 自身承担回合终态（对齐基准 REPL.tsx:2951-2961 finally 兜底
+                // "Always reset loading state"）：回合异常只发 Error 无后续终态事件，不收尾则
+                // IsBusy 卡 true → 提交永久排队/Esc 无效/死亡检测被 !IsBusy 挡住（功能性死锁）。
+                // 顺序：EndTurn 先行（残留流式文本定格 partial — 已流文本不丢，基准 [user, partial, error] 顺序），
+                // 错误消息随后追加。
+                EndTurn();
                 AddMessage(new ErrorMessageItem(message));
                 break;
         }

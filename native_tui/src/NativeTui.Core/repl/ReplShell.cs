@@ -445,6 +445,9 @@ public sealed class ReplShell
     /// <summary>上次渲染拍观察到的终端视口行数（inline 高度变化检测 — reflow 后强制 fullReset）。</summary>
     private int _lastViewportRows;
 
+    /// <summary>busy 中引擎死亡的缓冲拍计数（B-2 — 一拍等待残余终态事件，防挂死上限）。</summary>
+    private int _engineDeadBusyTicks;
+
     /// <summary>视口模式上帧光标物理位（6.13 空帧零输出 — 位不变跳过定位序列）。</summary>
     private (int Row, int Col)? _lastViewportCursor;
 
@@ -699,6 +702,11 @@ public sealed class ReplShell
         var interrupted = false;
         foreach (var bridgeEvent in _engine.DrainEvents())
         {
+            if (bridgeEvent is BridgeEvent.TurnStarted)
+            {
+                _engineDeadBusyTicks = 0;
+            }
+
             if (bridgeEvent is BridgeEvent.TurnInterrupted)
             {
                 interrupted = true;
@@ -729,8 +737,18 @@ public sealed class ReplShell
             RestoreInterruptedInput();
         }
 
-        if (!_engine.IsAlive && !_driver.IsBusy)
+        if (!_engine.IsAlive)
         {
+            // TASK069 B-2 — busy 中死亡一拍缓冲（收尾事件优先语义保留：死亡瞬间的残余终态事件
+            // 下一拍到达则干净收尾）；缓冲拍后仍 busy（崩溃无终态 — Error 亦未发）→ 强制收尾退出
+            // （旧双条件把 busy 死亡永久挡住 = spinner 永转挂死）。
+            if (_driver.IsBusy && _engineDeadBusyTicks < 1)
+            {
+                _engineDeadBusyTicks++;
+                return;
+            }
+
+            _engineDeadBusyTicks = 0;
             // 引擎死亡防御 — transcript 模态先退出（全屏模态下退出消息不可见，恢复主屏再上屏）
             if (_transcript.IsActive)
             {

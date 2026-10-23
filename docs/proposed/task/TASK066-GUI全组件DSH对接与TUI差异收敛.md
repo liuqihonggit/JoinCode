@@ -21,7 +21,7 @@
 | `dsh-client-ui-sidebar-files` + `dsh-api-workspace-files` | 文件树 | `workspaceFiles/{list,read,readBytes,stat}` + `workspaceFiles/changes` 流 | ✅ 一元 + ready/change/absent/error 帧；路径支持前端绝对路径（根内校验）；readBytes 走 multipart 二进制 | 单测 11 例 + `c5-stream-e2e.mjs` 8 项 ALL_PASS |
 | `dsh-client-ui-sidebar-documentpreview` | PDF/Excel/图片预览 | `workspaceFiles/readBytes`（multipart 字节附件） | ✅ 资产打包 + 缓存完整性校验 + 二进制契约 | `dsh-webui-c5-preview.mjs` 12 项 ALL_PASS（PDF 3 页、Excel 画布渲染） |
 | `dsh-client-ui-approval` | 审批面板 | `$events` waterfall + `$events/result` + 审计事件 | ✅ TASK060 B10/B12 | `dsh-webui-approval.mjs` 48/48 |
-| `dsh-client-ui-goal` | 目标条 | `goals/*` 七方法 | ✅ | 既有单测（真机 E2E 待补） |
+| `dsh-client-ui-goal` | 目标条 | `goals/*` 七方法 + `goal` 会话投影 + `session/control` 实时帧 | ✅ agent 作用域七方法（create 用 `request` 信封、edit 用 `request`、clear 返回裸 `{id,revision}`、get 无目标为 undefined）；投影面无目标 JSON `null`，有目标 `{goal,roundsStarted,createdAt,updatedAt}`（不含 activation） | 单测 5 例 + `c7-goal-e2e.mjs` 真机 28 项 ALL_PASS（目标条渲染、暂停/恢复/编辑/清除、控制帧 seq 水位） |
 | `dsh-client-ui-plan` | 计划面板 | `plan/mode` 事件 + `session/control` 投影 + `/plan on|off|status` | ✅ 权限预设 → 引擎 `PermissionMode` → `plan{active,pending=false}` / `permissions{currentValue}` 投影；前端 chip 点击走 `commands/execute /plan off` 宿主拦截 | 单测 8 例 + `c6-e2e.mjs` 真机 30 项（chip 出现/点击/选择器同步） |
 | `dsh-client-ui-subagent` | 子代理卡片 | `subagents/{prompt,interruptByParent}`（catalog 已由 `DshSubagentCatalogProjector` 投影） | ✅ 文本投递 + 中断（image 显式拒绝并引导） | 单测 8 例 + `c6-e2e.mjs` 真机 3 项引导断言 |
 | `dsh-client-ui-commands` / `input-trigger` | 斜杠命令/引用补全 | `commands/list|execute`、`fileReferences/list` | ✅ 斜杠命令 + @ 文件引用补全（索引缓存 5s、排除目录、20 条）+ `/plan` 语义接管 | `dsh-webui-prompt` 回归 + 单测 6 例 + c6 真机 |
@@ -61,7 +61,7 @@
 | C4 | 小型缺失方法：`session/search`、`settings/{replace,update}`、`agentPresets/{list,read,select}`、`session/{openWorkspacePath,workspacePathApplications}`、`messageFeedback/{list,put,delete}` | ✅ 已验收（单测 13 + `c4-e2e.mjs` 真机 19 项 ALL_PASS） |
 | C5 | `workspaceFiles/changes` 流 + 文档预览真机验收 | ✅ 已验收（流 8 项 + 预览 12 项 ALL_PASS） |
 | C6 | TUI 差异收敛（后台任务/子代理/权限模式）与文档四列表 | ✅ 已验收（目录浏览/@ 引用/能力探测/技能/子代理/计划模式与权限投影；`c6-e2e.mjs` 真机 30 项 ALL_PASS） |
-| C7 | 全量 E2E 回归 + 完成审计 | ✅ 已验收（deliverables 27 项、轨迹 16 项、C4 19 项、C5 8 项、C6 30 项、终端面板 11 项、Core 单测 364/364） |
+| C7 | 全量 E2E 回归 + 完成审计 | ✅ 已验收（deliverables 27 项、轨迹 16 项、目标条 28 项、C4 19 项、C5 8 项、C6 30 项、终端面板 11 项、Core 单测 364+/364+） |
 
 ## 四、验收四列表（滚动更新）
 
@@ -99,6 +99,8 @@
 | `DshTerminalInfo.Error` 空值省略（`JsonIgnore(WhenWritingNull)`） | 侧栏终端错误条（前端以 undefined 判无错） | ✅ | ✅ 单测 1 例 + 真机断言页面无“终端错误：null” |
 | `DshTerminalService.ResolveCwdAsync` 正斜杠归一 | `terminal/create` 会话 cwd 交给 CreateProcess | ✅ | ✅ 单测 1 例 + 真机 `PS D:\...\c7-ws>` |
 | `pluginInventory/list` 空清单快照（`managementAvailable=false`） | 插件管理页空态 | ✅ | ✅ 单测 1 例 |
+| `DshSessionStore.ToGoalFace` + `DshHostServices.PublishGoalProjectionAsync`（无目标 JSON `null`；有目标 `{goal,roundsStarted,createdAt,updatedAt}`；写路径后推 `session/control` goal 整值帧） | 前端 GoalDock `useProjection("goal")`、控制帧实时刷新目标条 | ✅ | ✅ 单测 5 例 + `c7-goal-e2e.mjs` 真机 28 项（初始 undefined → 建目标渲染 → 暂停/恢复 → 编辑 → 清除隐藏、基线/帧 seq 水位、两张截图） |
+| `DshRpcDispatcher` goals 七方法（agent 作用域：get/create/edit/pause/resume/complete/clear，create/edit 走 `request` 信封，clear 返回裸 `{id,revision}`，get 无目标省略 `value`） | 目标条按钮 `remote.goals.*`、`useGoalActivation` 读 `goals/get.activation` | ✅ | ✅ 单测 5 例（agent wire/undefined/裸 ref）+ 真机 UI 暂停/恢复/编辑/清除全部生效 |
 
 <!-- 🤖 Auto Decision: 2026-10-22 -->
 <!-- 决策: 新建 TASK066 而非复用 TASK065（同名文档已被 TUI 任务占用） -->
@@ -166,6 +168,12 @@
 <!-- 原因: 前端 client.terminal.js 以 error !== undefined 判断是否渲染错误条，JSON null 会被渲染成「终端错误：null」 -->
 <!-- 替代方案: 改前端片段（打包资产黑盒，升级会被覆盖）/ 全局改 DshJsonContext 的 WhenWritingNull（影响所有协议 DTO 形状），均不采用 -->
 <!-- 验证: 单测 1 例 + 真机断言无「终端错误」文本 -->
+
+<!-- 🤖 Auto Decision: 2026-10-24 (目标条投影与 goals wire) -->
+<!-- 决策: 目标投影面「无目标」输出 JSON null（不是 {goal:null}），有目标输出 {goal,roundsStarted,createdAt,updatedAt} 且内层不含 activation；goals 七方法按 agent 作用域（agentId），create/edit 用 request 信封，clear 返回裸 {id,revision}，get 无目标省略 value（undefined） -->
+<!-- 原因: 前端 GoalDock 的 activeRef 直接读 projection.goal.phase，{goal:null} 会让整个 conversation.input.dock 槽位抛 TypeError 崩溃，目标条永不渲染；dsh-api-remotes 描述符是 Web 调用事实源——goals 全部 context:"agent" 走 agentId，edit 第三参数名为 request（不是 typert.remote-client 的 changes），clear 结果是裸 GoalRef，get 结果是 GoalView|undefined（value:null 会被 strict 解码拒绝，activation 读不到就不显示暂停/恢复按钮） -->
+<!-- 替代方案: 前端改判空（打包资产黑盒，升级覆盖）/ host 同时兼容 sessionId 与 agentId（前端只有一个真实调用形态，徒增分支），均不采用 -->
+<!-- 验证: 单测 5 例全绿（投影 null 序列化、控制帧、agent wire、undefined 信封、裸 ref）；c7-goal-e2e.mjs 真机 28 项 ALL_PASS（条渲染→暂停/恢复/编辑/清除、UI 截图、清除后投影 null）；Host Debug 0 警告 0 错误 -->
 
 <!-- 🤖 Auto Decision: 2026-10-24 (真机 E2E 启动方式) -->
 <!-- 决策: 真机 E2E 必须用 WMI 脱离 Agent 作业启动 NativeGui.Host，且启动脚本注入 STUB_API_KEY -->

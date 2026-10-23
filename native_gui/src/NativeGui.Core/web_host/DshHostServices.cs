@@ -26,6 +26,7 @@ internal sealed class DshHostServices {
         WorkspaceFiles = new DshWorkspaceFilesService(Sessions, fileSystem);
         Attachments = new DshAttachmentStore(fileSystem);
         Goals = new DshGoalStore(fileSystem);
+        Sessions.AttachGoalSource(Goals.Get);
         Feedback = new DshMessageFeedbackStore(fileSystem);
         Jobs = new DshJobService(this);
         Terminals = new DshTerminalService(this);
@@ -50,7 +51,7 @@ internal sealed class DshHostServices {
     /// <summary>宿主事件日志（事件序号与内容的唯一持久化来源）</summary>
     internal DshSessionJournal Journal { get; }
 
-    /// <summary>会话控制流中枢（session/control 的 plan / permissions 投影帧，TASK066 C7）</summary>
+    /// <summary>会话控制流中枢（session/control 的 plan / permissions / goal 投影帧，TASK066 C7）</summary>
     internal DshSessionControlHub Control { get; } = new();
 
     /// <summary>注入已组装的引擎（DshWebUiWindow 完成后台初始化时调用）</summary>
@@ -114,6 +115,28 @@ internal sealed class DshHostServices {
                 new DshSessionPermissionProjection { CurrentValue = preset },
                 DshJsonContext.Default.DshSessionPermissionProjection),
             Seq = NextControlSeq(sessionId, floor),
+        });
+    }
+
+    /// <summary>
+    /// 向一个会话推送 <c>goal</c> 投影整值帧（TASK066 C7）：前端 GoalDock 读
+    /// <c>useProjection("goal").goal</c>，goals 七方法成功后必须实时刷新，否则目标条停留在
+    /// 打开会话时的快照。会话未注册（无投影）时静默跳过。
+    /// </summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    internal async Task PublishGoalProjectionAsync(string sessionId, CancellationToken cancellationToken) {
+        var snapshot = await Sessions.ProjectionsAsync(sessionId, cancellationToken);
+        if (snapshot is null) {
+            return;
+        }
+        await Control.PublishAsync(new DshSessionControlProjection {
+            SessionId = sessionId,
+            Key = "goal",
+            Value = JsonSerializer.SerializeToElement(
+                snapshot.Values.Goal,
+                DshJsonContext.Default.DshSessionGoalProjection),
+            Seq = NextControlSeq(sessionId, snapshot.AsOfSeq),
         });
     }
 

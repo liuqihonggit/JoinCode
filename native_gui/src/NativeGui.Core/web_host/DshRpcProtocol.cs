@@ -37,7 +37,8 @@ internal sealed class DshRpcResponse {
 internal sealed class DshRpcResult {
     /// <summary>是否成功</summary>
     public bool Ok { get; set; }
-    /// <summary>成功值</summary>
+    /// <summary>成功值（null 表示 DSH wire 的 undefined：省略 value 键，前端按 undefined 解码）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public JsonElement? Value { get; set; }
     /// <summary>失败详情</summary>
     public DshRpcError? Error { get; set; }
@@ -395,18 +396,30 @@ internal sealed class DshGoalRef {
     public int Revision { get; set; }
 }
 
-/// <summary>goals/get|pause|resume|complete 共用参数（ref 由各方法携带）</summary>
+/// <summary>goals/get 参数（DSH 的 goals 命名空间是 agent 作用域，wire 字段为 agentId）</summary>
+internal sealed class DshGoalsAgentArgs {
+    /// <summary>会话（agent）ID</summary>
+    public string AgentId { get; set; } = "";
+}
+
+/// <summary>goals/pause|resume|complete|clear 共用参数（ref 由各方法携带）</summary>
 internal sealed class DshGoalsRefArgs {
-    /// <summary>会话 ID</summary>
-    public string SessionId { get; set; } = "";
+    /// <summary>会话（agent）ID</summary>
+    public string AgentId { get; set; } = "";
     /// <summary>目标引用</summary>
     public DshGoalRef? Ref { get; set; }
 }
 
-/// <summary>goals/create 参数</summary>
+/// <summary>goals/create 参数（DSH wire：{agentId, request}）</summary>
 internal sealed class DshGoalsCreateArgs {
-    /// <summary>会话 ID</summary>
-    public string SessionId { get; set; } = "";
+    /// <summary>会话（agent）ID</summary>
+    public string AgentId { get; set; } = "";
+    /// <summary>创建请求</summary>
+    public DshGoalsCreateRequest? Request { get; set; }
+}
+
+/// <summary>目标创建请求（objective 必填，maxGoalRounds 可选）</summary>
+internal sealed class DshGoalsCreateRequest {
     /// <summary>目标描述</summary>
     public string Objective { get; set; } = "";
     /// <summary>轮次上限（可选，默认 10）</summary>
@@ -419,14 +432,14 @@ internal sealed class DshGoalsCreateResult {
     public DshGoalRef Ref { get; set; } = new();
 }
 
-/// <summary>goals/edit 参数</summary>
+/// <summary>goals/edit 参数（DSH web wire：{agentId, ref, request}，request 为 EditGoalRequest）</summary>
 internal sealed class DshGoalsEditArgs {
-    /// <summary>会话 ID</summary>
-    public string SessionId { get; set; } = "";
+    /// <summary>会话（agent）ID</summary>
+    public string AgentId { get; set; } = "";
     /// <summary>目标引用（CAS）</summary>
     public DshGoalRef? Ref { get; set; }
-    /// <summary>变更内容</summary>
-    public DshGoalChanges? Changes { get; set; }
+    /// <summary>编辑请求</summary>
+    public DshGoalChanges? Request { get; set; }
 }
 
 /// <summary>目标变更内容（均可选）</summary>
@@ -435,12 +448,6 @@ internal sealed class DshGoalChanges {
     public string? Objective { get; set; }
     /// <summary>新轮次上限</summary>
     public int? MaxGoalRounds { get; set; }
-}
-
-/// <summary>goals/clear 响应</summary>
-internal sealed class DshGoalsClearResult {
-    /// <summary>被清目标引用（revision 为清算后值）</summary>
-    public DshGoalRef Ref { get; set; } = new();
 }
 
 /// <summary>目标落盘文档（~/.jcc/dsh_goals.json 条目）</summary>
@@ -747,6 +754,38 @@ internal sealed class DshSessionProjectionValues {
     public DshSessionPlanProjection Plan { get; set; } = new();
     /// <summary>权限选择投影（前端 composer 权限选择器读此值；TASK066 C6）</summary>
     public DshSessionPermissionProjection Permissions { get; set; } = new();
+    /// <summary>目标投影（前端 GoalDock 读 <c>projection.goal</c>；无目标时面值必须是 JSON null；TASK066 C7）</summary>
+    public DshSessionGoalProjection? Goal { get; set; }
+}
+
+/// <summary>
+/// 目标投影面（对齐 DSH <c>goal</c> 投影 wire）：有目标是 <c>{goal, roundsStarted, createdAt, updatedAt}</c>，
+/// 无目标是 JSON <c>null</c>。前端 GoalDock 直接读 <c>projection.goal.phase</c>，
+/// 写成 <c>{goal:null}</c> 会抛错并带崩整个 <c>conversation.input.dock</c> 槽位。
+/// </summary>
+internal sealed class DshSessionGoalProjection {
+    /// <summary>当前目标（客户端可见字段）</summary>
+    public DshGoalView Goal { get; set; } = new();
+    /// <summary>已启动轮次</summary>
+    public int RoundsStarted { get; set; }
+    /// <summary>创建时间（Unix 毫秒）</summary>
+    public long CreatedAt { get; set; }
+    /// <summary>更新时间（Unix 毫秒）</summary>
+    public long UpdatedAt { get; set; }
+}
+
+/// <summary>目标视图（DSH wire 只带客户端需要的字段；activation 是进程内激活态，走 goal/activation-changed）</summary>
+internal sealed class DshGoalView {
+    /// <summary>目标 ID</summary>
+    public string Id { get; set; } = "";
+    /// <summary>版本（CAS 用）</summary>
+    public int Revision { get; set; }
+    /// <summary>目标描述</summary>
+    public string Objective { get; set; } = "";
+    /// <summary>阶段（active/paused/complete）</summary>
+    public string Phase { get; set; } = "active";
+    /// <summary>轮次上限</summary>
+    public int MaxGoalRounds { get; set; }
 }
 
 /// <summary>计划模式投影（<c>pending</c> 对齐 DSH：选中值尚未在步骤边界生效时为 true；本宿主立即生效恒 false）</summary>
@@ -1683,6 +1722,8 @@ internal sealed class DshPluginInventoryEntry {
 [JsonSerializable(typeof(DshSessionProjections))]
 [JsonSerializable(typeof(DshSessionProjectionValues))]
 [JsonSerializable(typeof(DshSessionPlanProjection))]
+[JsonSerializable(typeof(DshSessionGoalProjection))]
+[JsonSerializable(typeof(DshGoalView))]
 [JsonSerializable(typeof(DshSessionPermissionProjection))]
 [JsonSerializable(typeof(DshSessionControlProjection))]
 [JsonSerializable(typeof(DshSessionModelSelectionProjection))]
@@ -1847,12 +1888,13 @@ internal sealed class DshPluginInventoryEntry {
 [JsonSerializable(typeof(DshChangeReady))]
 [JsonSerializable(typeof(DshGoal))]
 [JsonSerializable(typeof(DshGoalRef))]
+[JsonSerializable(typeof(DshGoalsAgentArgs))]
 [JsonSerializable(typeof(DshGoalsRefArgs))]
 [JsonSerializable(typeof(DshGoalsCreateArgs))]
+[JsonSerializable(typeof(DshGoalsCreateRequest))]
 [JsonSerializable(typeof(DshGoalsCreateResult))]
 [JsonSerializable(typeof(DshGoalsEditArgs))]
 [JsonSerializable(typeof(DshGoalChanges))]
-[JsonSerializable(typeof(DshGoalsClearResult))]
 [JsonSerializable(typeof(DshGoalsDocument))]
 [JsonSerializable(typeof(DshGoalActivationChanged))]
 [JsonSerializable(typeof(DshFileUploadsUploadArgs))]

@@ -16,6 +16,9 @@ internal sealed class DshSessionStore {
     /// <summary>引擎当前权限预设（应用级状态；供 plan/permissions 投影在无历史事件时兜底）</summary>
     private volatile string _permissionPreset = PermissionMode.Auto.ToValue();
 
+    /// <summary>会话目标来源（TASK066 C7：goal 投影面；未注入时恒 null）</summary>
+    private Func<string, DshGoal?>? _goalSource;
+
     /// <summary>构造会话注册表</summary>
     /// <param name="journal">宿主事件日志（可选 — subagentCatalog 回放）</param>
     internal DshSessionStore(DshSessionJournal? journal = null) => _journal = journal;
@@ -26,6 +29,10 @@ internal sealed class DshSessionStore {
     /// <summary>注入会话存储 — 支持热切换（唯一数据源：同一份 <c>~/.jcc/sessions</c> 落盘数据）</summary>
     /// <param name="transcripts">会话存储（轻量落盘实例或引擎实例）</param>
     internal void AttachTranscripts(ITranscriptService transcripts) => _transcripts = transcripts;
+
+    /// <summary>注入会话目标来源（goal 投影面；宿主容器在目标存储构造完成后调用）</summary>
+    /// <param name="source">按会话 ID 读当前目标（无目标返回 null）</param>
+    internal void AttachGoalSource(Func<string, DshGoal?> source) => _goalSource = source;
 
     /// <summary>会话存储是否已就绪</summary>
     internal bool IsReady => _transcripts is not null;
@@ -163,7 +170,7 @@ internal sealed class DshSessionStore {
             Running = false,
             Blank = entries.Count == 0,
             Cwd = info?.ProjectPath ?? "",
-            Projections = ProjectValues(customTitle, info, entries, journalEvents),
+            Projections = ProjectValues(summary.SessionId, customTitle, info, entries, journalEvents),
         };
     }
 
@@ -287,7 +294,7 @@ internal sealed class DshSessionStore {
         var info = await transcripts.GetSessionInfoAsync(sessionId, cancellationToken);
         var entries = await transcripts.LoadTranscriptAsync(sessionId, cancellationToken);
         var journalEvents = _journal is null ? [] : await _journal.LoadAsync(sessionId, cancellationToken);
-        return (ProjectValues(customTitle, info, entries, journalEvents), info, entries);
+        return (ProjectValues(sessionId, customTitle, info, entries, journalEvents), info, entries);
     }
 
     /// <summary>读会话工作目录（workspaceFiles 文件树根）；meta 缺失/无 ProjectPath 返回 null</summary>
@@ -380,8 +387,8 @@ internal sealed class DshSessionStore {
         return newId;
     }
 
-    /// <summary>投影键值（标题 / 代理预设 / 模型选择 / 列表元数据 / 子代理实例目录 — TASK058 B8）</summary>
-    private DshSessionProjections ProjectValues(string? customTitle, SessionInfo? info, IReadOnlyList<TranscriptEntry> entries, IReadOnlyList<DshSessionEvent>? journalEvents = null) {
+    /// <summary>投影键值（标题 / 代理预设 / 模型选择 / 列表元数据 / 子代理实例目录 / 目标 — TASK066 C7）</summary>
+    private DshSessionProjections ProjectValues(string sessionId, string? customTitle, SessionInfo? info, IReadOnlyList<TranscriptEntry> entries, IReadOnlyList<DshSessionEvent>? journalEvents = null) {
         var lastPrompt = entries.LastOrDefault(entry => entry.Type is null && !entry.IsSidechain && entry.Role == "user");
         var preset = _permissionPreset;
         return new DshSessionProjections {
@@ -404,9 +411,27 @@ internal sealed class DshSessionStore {
                     Pending = false,
                 },
                 Permissions = new DshSessionPermissionProjection { CurrentValue = preset },
+                Goal = ToGoalFace(_goalSource?.Invoke(sessionId)),
             },
         };
     }
+
+    /// <summary>把持久目标转成 DSH 投影面（无目标 = null，有目标带客户端可见字段与轮次时间）</summary>
+    private static DshSessionGoalProjection? ToGoalFace(DshGoal? goal) =>
+        goal is null
+            ? null
+            : new DshSessionGoalProjection {
+                Goal = new DshGoalView {
+                    Id = goal.Id,
+                    Revision = goal.Revision,
+                    Objective = goal.Objective,
+                    Phase = goal.Phase,
+                    MaxGoalRounds = goal.MaxGoalRounds,
+                },
+                RoundsStarted = goal.RoundsStarted,
+                CreatedAt = goal.CreatedAt,
+                UpdatedAt = goal.UpdatedAt,
+            };
 
     /// <summary>会话最近使用的模型（供应商与模型都缺失时返回 null，表示尚未确定）</summary>
     private static DshModelSelectionRef? ToModelRef(SessionInfo? info) =>

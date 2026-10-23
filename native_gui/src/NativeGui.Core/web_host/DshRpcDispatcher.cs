@@ -101,13 +101,14 @@ internal sealed class DshRpcDispatcher {
             ["terminal/resize"] = Sync(TerminalResize),
             ["terminal/rename"] = Sync(TerminalRename),
             ["terminal/close"] = TerminalClose,
-            // 目标七方法（TASK058 P2-B5；引擎节点图 goal 联动属深化项）
-            ["goals/get"] = Sync(GoalsGet),            ["goals/create"] = Sync(GoalsCreate),
-            ["goals/edit"] = Sync(GoalsEdit),
-            ["goals/pause"] = Sync(GoalsPause),
-            ["goals/resume"] = Sync(GoalsResume),
-            ["goals/clear"] = Sync(GoalsClear),
-            ["goals/complete"] = Sync(GoalsComplete),
+            // 目标七方法（TASK058 P2-B5；写路径成功后推 goal 投影帧，前端 GoalDock 实时刷新）
+            ["goals/get"] = Sync(GoalsGet),
+            ["goals/create"] = GoalsCreate,
+            ["goals/edit"] = GoalsEdit,
+            ["goals/pause"] = GoalsPause,
+            ["goals/resume"] = GoalsResume,
+            ["goals/clear"] = GoalsClear,
+            ["goals/complete"] = GoalsComplete,
         }.ToFrozenDictionary(StringComparer.Ordinal);
     }
 
@@ -820,77 +821,86 @@ internal sealed class DshRpcDispatcher {
         return await _services.Attachments.UploadAsync(request.AgentId, request.Request.Data, request.Request.Name, cancellationToken);
     }
 
-    /// <summary>goals/get：会话目标（无目标 null）</summary>
+    /// <summary>goals/get：会话目标（DSH agent 作用域；无目标返回 undefined，wire 上省略 value 键）</summary>
     private DshRpcResult GoalsGet(JsonElement args) {
-        var request = args.Deserialize(DshJsonContext.Default.DshGoalsRefArgs);
-        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)) {
-            return Fail("goals/rejected", $"goals/get 需要 {{sessionId}}；收到 args={Describe(args)}");
+        var request = args.Deserialize(DshJsonContext.Default.DshGoalsAgentArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.AgentId)) {
+            return Fail("goals/rejected", $"goals/get 需要 {{agentId}}；收到 args={Describe(args)}");
         }
-        var goal = _services.Goals.Get(request.SessionId);
+        var goal = _services.Goals.Get(request.AgentId);
         return goal is null
-            ? OkNull()
+            ? OkUndefined()
             : Success(JsonSerializer.SerializeToElement(goal, DshJsonContext.Default.DshGoal));
     }
 
-    /// <summary>goals/create：创建目标（已存在 conflict 引导）</summary>
-    private DshRpcResult GoalsCreate(JsonElement args) {
+    /// <summary>goals/create：创建目标（DSH wire {agentId, request:{objective, maxGoalRounds?}}；已存在 conflict 引导）</summary>
+    private async Task<DshRpcResult> GoalsCreate(JsonElement args, CancellationToken cancellationToken) {
         var request = args.Deserialize(DshJsonContext.Default.DshGoalsCreateArgs);
-        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)) {
-            return Fail("goals/rejected", $"goals/create 需要 {{sessionId, objective, maxGoalRounds?}}；收到 args={Describe(args)}");
+        if (request is null || string.IsNullOrWhiteSpace(request.AgentId) || request.Request is null) {
+            return Fail("goals/rejected",
+                $"goals/create 需要 {{agentId, request:{{objective, maxGoalRounds?}}}}；收到 args={Describe(args)}");
         }
-        var (reference, error) = _services.Goals.Create(request.SessionId, request.Objective, request.MaxGoalRounds);
+        var (reference, error) = _services.Goals.Create(request.AgentId, request.Request.Objective, request.Request.MaxGoalRounds);
         if (error is not null || reference is null) {
             return error ?? Fail("goals/rejected", "创建失败");
         }
+        await _services.PublishGoalProjectionAsync(request.AgentId, cancellationToken);
         return Success(JsonSerializer.SerializeToElement(new DshGoalsCreateResult { Ref = reference },
             DshJsonContext.Default.DshGoalsCreateResult));
     }
 
     /// <summary>goals/edit：CAS 编辑（objective/maxGoalRounds）</summary>
-    private DshRpcResult GoalsEdit(JsonElement args) {
+    private async Task<DshRpcResult> GoalsEdit(JsonElement args, CancellationToken cancellationToken) {
         var request = args.Deserialize(DshJsonContext.Default.DshGoalsEditArgs);
-        if (request is null || request.SessionId is not { Length: > 0 } || request.Ref is null || request.Changes is null) {
-            return Fail("goals/rejected", $"goals/edit 需要 {{sessionId, ref, changes}}；收到 args={Describe(args)}");
+        if (request is null || request.AgentId is not { Length: > 0 } || request.Ref is null || request.Request is null) {
+            return Fail("goals/rejected", $"goals/edit 需要 {{agentId, ref, request:{{objective?, maxGoalRounds?}}}}；收到 args={Describe(args)}");
         }
-        var (goal, error) = _services.Goals.Edit(request.SessionId, request.Ref, request.Changes.Objective, request.Changes.MaxGoalRounds);
-        return error is not null
-            ? error
-            : Success(JsonSerializer.SerializeToElement(goal, DshJsonContext.Default.DshGoal));
+        var (goal, error) = _services.Goals.Edit(request.AgentId, request.Ref, request.Request.Objective, request.Request.MaxGoalRounds);
+        if (error is not null) {
+            return error;
+        }
+        await _services.PublishGoalProjectionAsync(request.AgentId, cancellationToken);
+        return Success(JsonSerializer.SerializeToElement(goal, DshJsonContext.Default.DshGoal));
     }
 
-    /// <summary>状态迁移路由共用（ref 校验 + 委托）</summary>
-    private DshRpcResult GoalsTransition(JsonElement args, Func<string, DshGoalRef, (DshGoal? Goal, DshRpcResult? Error)> action) {
+    /// <summary>状态迁移路由共用（ref 校验 + 委托 + 成功后推 goal 投影帧）</summary>
+    private async Task<DshRpcResult> GoalsTransition(JsonElement args, Func<string, DshGoalRef, (DshGoal? Goal, DshRpcResult? Error)> action, CancellationToken cancellationToken) {
         var request = args.Deserialize(DshJsonContext.Default.DshGoalsRefArgs);
-        if (request is null || request.SessionId is not { Length: > 0 } || request.Ref is null) {
-            return Fail("goals/rejected", $"goals 方法需要 {{sessionId, ref:{{id, revision}}}}；收到 args={Describe(args)}");
+        if (request is null || request.AgentId is not { Length: > 0 } || request.Ref is null) {
+            return Fail("goals/rejected", $"goals 方法需要 {{agentId, ref:{{id, revision}}}}；收到 args={Describe(args)}");
         }
-        var (goal, error) = action(request.SessionId, request.Ref);
-        return error is not null
-            ? error
-            : Success(JsonSerializer.SerializeToElement(goal, DshJsonContext.Default.DshGoal));
+        var (goal, error) = action(request.AgentId, request.Ref);
+        if (error is not null) {
+            return error;
+        }
+        await _services.PublishGoalProjectionAsync(request.AgentId, cancellationToken);
+        return Success(JsonSerializer.SerializeToElement(goal, DshJsonContext.Default.DshGoal));
     }
 
     /// <summary>goals/pause</summary>
-    private DshRpcResult GoalsPause(JsonElement args) => GoalsTransition(args, _services.Goals.Pause);
+    private Task<DshRpcResult> GoalsPause(JsonElement args, CancellationToken cancellationToken) =>
+        GoalsTransition(args, _services.Goals.Pause, cancellationToken);
 
     /// <summary>goals/resume</summary>
-    private DshRpcResult GoalsResume(JsonElement args) => GoalsTransition(args, _services.Goals.Resume);
+    private Task<DshRpcResult> GoalsResume(JsonElement args, CancellationToken cancellationToken) =>
+        GoalsTransition(args, _services.Goals.Resume, cancellationToken);
 
     /// <summary>goals/complete</summary>
-    private DshRpcResult GoalsComplete(JsonElement args) => GoalsTransition(args, _services.Goals.Complete);
+    private Task<DshRpcResult> GoalsComplete(JsonElement args, CancellationToken cancellationToken) =>
+        GoalsTransition(args, _services.Goals.Complete, cancellationToken);
 
-    /// <summary>goals/clear：清除（返回被清引用）</summary>
-    private DshRpcResult GoalsClear(JsonElement args) {
+    /// <summary>goals/clear：清除（返回裸 GoalRef；推送 goal:null 投影帧隐藏目标条）</summary>
+    private async Task<DshRpcResult> GoalsClear(JsonElement args, CancellationToken cancellationToken) {
         var request = args.Deserialize(DshJsonContext.Default.DshGoalsRefArgs);
-        if (request is null || request.SessionId is not { Length: > 0 } || request.Ref is null) {
-            return Fail("goals/rejected", $"goals/clear 需要 {{sessionId, ref:{{id, revision}}}}；收到 args={Describe(args)}");
+        if (request is null || request.AgentId is not { Length: > 0 } || request.Ref is null) {
+            return Fail("goals/rejected", $"goals/clear 需要 {{agentId, ref:{{id, revision}}}}；收到 args={Describe(args)}");
         }
-        var (reference, error) = _services.Goals.Clear(request.SessionId, request.Ref);
+        var (reference, error) = _services.Goals.Clear(request.AgentId, request.Ref);
         if (error is not null || reference is null) {
             return error ?? Fail("goals/rejected", "清除失败");
         }
-        return Success(JsonSerializer.SerializeToElement(new DshGoalsClearResult { Ref = reference },
-            DshJsonContext.Default.DshGoalsClearResult));
+        await _services.PublishGoalProjectionAsync(request.AgentId, cancellationToken);
+        return Success(JsonSerializer.SerializeToElement(reference, DshJsonContext.Default.DshGoalRef));
     }
 
     /// <summary>会话队列快照透传（updateQueue 响应与测试消费；internal 接缝）</summary>
@@ -1319,6 +1329,9 @@ internal sealed class DshRpcDispatcher {
     private static DshRpcResult OkEmptyArray() => Success(JsonSerializer.SerializeToElement(Array.Empty<JsonElement>(), DshJsonContext.Default.JsonElementArray));
 
     private static DshRpcResult OkNull() => Success(JsonSerializer.SerializeToElement<object?>(null, DshJsonContext.Default.Object));
+
+    /// <summary>成功但无返回值（DSH 的 undefined：wire 上省略 value 键，区别于显式 null 值）</summary>
+    private static DshRpcResult OkUndefined() => new() { Ok = true };
 
     private static DshRpcResult Success(JsonElement value) => DshRpcResults.Ok(value);
 

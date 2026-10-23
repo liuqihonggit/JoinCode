@@ -85,6 +85,24 @@ public sealed class RuneWidthTests
     {
         Assert.Equal(2, RuneWidth.Of(new Rune(codepoint)));
     }
+
+    /// <summary>grapheme 整块宽度（DSG044 L1 — 基准 stringWidth.ts 语义）：ZWJ 链/RI 对恒 2 列、
+    /// 组合符附加不增宽（max 非 sum）、普通 cluster = 主字符宽度。</summary>
+    [Fact]
+    public void WidthOfGrapheme_EmojiFormsAndPlainClusters()
+    {
+        // ZWJ 家庭组合（3 emoji + 2 ZWJ）— rune 逐个计宽会得 6 列，grapheme 整块 2 列
+        Assert.Equal(2, RuneWidth.WidthOfGrapheme("\U0001F468\u200D\U0001F469\u200D\U0001F467"));
+        // RI 旗帜对 — 2 列
+        Assert.Equal(2, RuneWidth.WidthOfGrapheme("\U0001F1E8\U0001F1F3"));
+        // 组合符附加 — 主字符宽 1
+        Assert.Equal(1, RuneWidth.WidthOfGrapheme("e\u0301"));
+        // 变体选择器附加 — 主字符宽（Ambiguous ✌ = 1）
+        Assert.Equal(1, RuneWidth.WidthOfGrapheme("\u270C\uFE0F"));
+        // 普通 cluster
+        Assert.Equal(2, RuneWidth.WidthOfGrapheme("中"));
+        Assert.Equal(1, RuneWidth.WidthOfGrapheme("a"));
+    }
 }
 
 /// <summary>

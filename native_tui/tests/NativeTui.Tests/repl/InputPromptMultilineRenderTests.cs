@@ -170,4 +170,66 @@ public sealed class InputPromptMultilineRenderTests
     {
         Assert.Equal(expected, PromptInputBox.FirstVisibleLine(lineCount, maxVisible, cursorLine));
     }
+
+    /// <summary>软折行渲染（DSG044 L3 — 基准 Cursor.fromText 软折行模型）：单逻辑行超宽折为多视觉行，
+    /// 首视觉行带 ❯ 前缀、视觉行续行顶格（旧行为右界截断尾部不可见 — 全部可见）。</summary>
+    [Fact]
+    public void SoftWrap_LongLine_RendersAllVisualLines()
+    {
+        using var screen = new Screen(cols: 20, rows: 10);
+        var box = new PromptInputBox();
+        var text = new string('a', 30) + new string('b', 10);
+
+        // 折行宽度 = frame.Width - PromptWidth = 18 → 40 字符折 3 视觉行 → 高度 5
+        box.Render(screen, new Rect(0, 0, 20, 5), Theme.Dark, text, cursorCol: 0);
+
+        Assert.Equal(new Rune('❯'), screen[1, 0].Value);
+        Assert.Equal(new Rune('a'), screen[1, PromptInputBox.PromptWidth].Value);
+        // 第 2 视觉行顶格（第 18 个 a 起）
+        Assert.Equal(new Rune('a'), screen[2, 0].Value);
+        // 第 3 视觉行含 b 段尾 4 字符（尾部可见 — 旧右界截断不可见）
+        Assert.Equal(new Rune('b'), screen[3, 0].Value);
+        Assert.Equal(new Rune('b'), screen[3, 3].Value);
+        Assert.Equal(new Rune('─'), screen[4, 0].Value);
+    }
+
+    /// <summary>光标在折行后段仍可见（旧行为光标超右界不画）— 反色块落在第 2 视觉行正确列。</summary>
+    [Fact]
+    public void SoftWrap_CursorOnSecondVisualLine_StillVisible()
+    {
+        using var screen = new Screen(cols: 20, rows: 10);
+        var box = new PromptInputBox();
+        var text = new string('a', 20) + "bc";
+
+        box.Render(screen, new Rect(0, 0, 20, 5), Theme.Dark, text, cursorCol: 22);
+
+        // 光标在 offset 22 → 第 2 视觉行（顶格）列 22-18=4 处
+        var inverse = screen.Styles.GetOrAdd(new TextStyle { Inverse = true });
+        Assert.Equal(inverse, screen[2, 4].StyleId);
+    }
+
+    /// <summary>折行高度公式（视觉行数 + 2 分隔线）— ReplView 布局消费。</summary>
+    [Fact]
+    public void HeightForText_SoftWrappedLines()
+    {
+        var text = new string('a', 40);
+        // 折行宽度 18 → 3 视觉行 → 高度 5
+        Assert.Equal(5, PromptInputBox.HeightForText(text, cols: 20));
+        // 短文本零折行 → 单行高度 3（与 HeightFor(1) 一致）
+        Assert.Equal(3, PromptInputBox.HeightForText("abc", cols: 20));
+        // 逻辑行 + 折行混合：20a 折 2 视觉行 + "xx" 1 视觉行 = 3 视觉行 → 高 5
+        Assert.Equal(5, PromptInputBox.HeightForText(new string('a', 20) + "\nxx", cols: 20));
+    }
+
+    /// <summary>折行内光标视觉行定位（ReplView.InputCursorPos 投影地基）。</summary>
+    [Fact]
+    public void LocateVisualCursor_WrappedText()
+    {
+        var text = new string('a', 20) + "bc";
+        var lines = InputLineLayout.Wrap(text, 18);
+
+        var (visualIndex, displayCol) = PromptInputBox.LocateVisualCursor(text, lines, cursorCol: 22);
+        Assert.Equal(1, visualIndex);
+        Assert.Equal(4, displayCol);
+    }
 }

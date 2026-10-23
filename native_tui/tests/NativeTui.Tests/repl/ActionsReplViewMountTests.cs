@@ -81,10 +81,10 @@ public sealed class ActionsReplViewMountTests
     public void TailHeight_CursorActive_AddsTwoRows()
     {
         var view = new ReplView { Footer = new FooterState { Mode = PermissionMode.Auto } };
-        var withoutBar = view.TailHeight;
+        var withoutBar = view.TailHeightOf(80);
 
         view.MessageActions = new MessageActionsState(CanExpand: false, IsExpanded: false, PrimaryInputLabel: null);
-        Assert.Equal(withoutBar + 2, view.TailHeight);
+        Assert.Equal(withoutBar + 2, view.TailHeightOf(80));
     }
 
     /// <summary>verbose 投影通道 — SetVerboseMode 渲染前投影给全部 IVerboseAware 项。</summary>

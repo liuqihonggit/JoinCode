@@ -112,7 +112,7 @@ public sealed class EscInterruptClosureTests
         Assert.Equal(0, engine.Interrupts);
     }
 
-    /// <summary>忙时无排队 → 双击 Esc 打断（既有行为回归守卫 — 队列弹回不得破坏打断主路径）。</summary>
+    /// <summary>忙时无排队 → 单击 Esc 打断（对齐基准 useCancelRequest 单击 onCancel — 队列弹回不得破坏打断主路径）。</summary>
     [Fact]
     public void Busy_DoubleEscape_NoQueue_StillInterrupts()
     {
@@ -120,7 +120,6 @@ public sealed class EscInterruptClosureTests
         TypeAndSubmit(shell, "唯一一条");
         MakeBusy(shell, engine);
 
-        shell.HandleKey(Esc());
         shell.HandleKey(Esc());
 
         Assert.Equal(1, engine.Interrupts);

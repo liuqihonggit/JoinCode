@@ -131,7 +131,7 @@ public sealed class ReplShellTests
         Assert.True(shell.Running);
     }
 
-    /// <summary>Esc 忙时：双击才请求引擎打断（TASK059 退出安全 — 单击等双击窗口无操作）。</summary>
+    /// <summary>Esc 忙时：单击即请求引擎打断（对齐基准 useCancelRequest 单击 onCancel — 双击确认层移除）。</summary>
     [Fact]
     public void Escape_WhileBusy_InterruptsEngine()
     {
@@ -141,23 +141,24 @@ public sealed class ReplShellTests
         shell.DrainEngine();
 
         shell.HandleEscape();
-        Assert.Equal(0, engine.Interrupts);
-        shell.HandleEscape();
         Assert.Equal(1, engine.Interrupts);
         Assert.True(shell.Running);
     }
 
-    /// <summary>Esc 闲时有输入：清空输入不退出。</summary>
+    /// <summary>Esc 闲时有输入：双击清空 + 草稿入史可翻回（对齐基准 useTextInput 双击清空 + addToHistory）。</summary>
     [Fact]
-    public void Escape_IdleWithText_ClearsInput()
+    public void Escape_IdleWithText_DoubleTapClearsAndSavesHistory()
     {
         var (shell, _) = CreateShell();
         shell.SeedContent();
         TypeText(shell, "draft");
 
         shell.HandleEscape();
+        Assert.Equal("draft", shell.Input.Text);
+        shell.HandleEscape();
         Assert.True(shell.Running);
         Assert.Equal(string.Empty, shell.Input.Text);
+        Assert.Contains("draft", shell.History.Entries);
     }
 
     /// <summary>Esc 闲时无输入：永不退出（TASK059 退出安全 — 退出路径只剩 Ctrl+D 与 /exit 命令）。</summary>

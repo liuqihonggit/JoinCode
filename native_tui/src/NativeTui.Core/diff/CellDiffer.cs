@@ -12,35 +12,40 @@ namespace NativeTui.Core.Diff;
 /// </summary>
 public sealed class CellDiffer
 {
-    /// <summary>渲染从 prev 到 next 的帧更新序列。prev 为 null 表示首帧。</summary>
-    public string RenderFrame(Screen? prev, Screen next)
+    /// <summary>渲染从 prev 到 next 的帧更新序列。prev 为 null 表示首帧（既有入口 — OSC 8 零注入兼容）。</summary>
+    public string RenderFrame(Screen? prev, Screen next) =>
+        RenderFrame(prev, next, hyperlinksSupported: false);
+
+    /// <summary>渲染从 prev 到 next 的帧更新序列（带 OSC 8 超链接支持 — DSG043 P3；
+    /// false = 零注入纯文本降级）。</summary>
+    public string RenderFrame(Screen? prev, Screen next, bool hyperlinksSupported)
     {
         if (prev is null || prev.Cols != next.Cols || prev.Rows != next.Rows)
         {
-            return RenderFullFrame(next);
+            return RenderFullFrame(next, hyperlinksSupported);
         }
 
-        return RenderDiffFrame(prev, next);
+        return RenderDiffFrame(prev, next, hyperlinksSupported);
     }
 
-    private static string RenderFullFrame(Screen next)
+    private static string RenderFullFrame(Screen next, bool hyperlinksSupported)
     {
         var builder = new System.Text.StringBuilder();
         builder.Append(Csi.EraseScreen());
         for (var row = 0; row < next.Rows; row++)
         {
-            AppendRowContent(builder, next, row, positionPrefix: true);
+            AppendRowContent(builder, next, row, positionPrefix: true, hyperlinksSupported);
         }
 
         return builder.ToString();
     }
 
-    private static string RenderDiffFrame(Screen prev, Screen next)
+    private static string RenderDiffFrame(Screen prev, Screen next, bool hyperlinksSupported)
     {
         var builder = new System.Text.StringBuilder();
         foreach (var (row, startCol, endCol) in ScanSegments(prev, next))
         {
-            AppendSegment(builder, next, row, startCol, endCol);
+            AppendSegment(builder, next, row, startCol, endCol, hyperlinksSupported);
         }
 
         return builder.ToString();
@@ -75,13 +80,13 @@ public sealed class CellDiffer
         }
     }
 
-    private static void AppendSegment(StringBuilder builder, Screen next, int row, int startCol, int endCol)
+    private static void AppendSegment(StringBuilder builder, Screen next, int row, int startCol, int endCol, bool hyperlinksSupported)
     {
         builder.Append(Csi.CursorPosition(row + 1, startCol + 1));
-        AppendStyledCells(builder, next, row, startCol, endCol);
+        AppendStyledCells(builder, next, row, startCol, endCol, hyperlinksSupported);
     }
 
-    private static void AppendRowContent(StringBuilder builder, Screen next, int row, bool positionPrefix)
+    private static void AppendRowContent(StringBuilder builder, Screen next, int row, bool positionPrefix, bool hyperlinksSupported)
     {
         var lastContent = FindLastContentColumn(next, row);
         if (lastContent < 0)
@@ -94,33 +99,16 @@ public sealed class CellDiffer
             builder.Append(Csi.CursorPosition(row + 1, 1));
         }
 
-        AppendStyledCells(builder, next, row, 0, lastContent);
+        AppendStyledCells(builder, next, row, 0, lastContent, hyperlinksSupported);
     }
 
-    private static void AppendStyledCells(StringBuilder builder, Screen next, int row, int startCol, int endCol)
+    /// <summary>写样式化 cell 段 — 委托 <see cref="AnsiCellWriter"/>（样式 + OSC 8 链接区间注入公共件；
+    /// 超链接支持由 <see cref="RenderFrame(Screen, Screen, bool)"/> 重载传入，无参重载保持既有零注入行为）。
+    /// 绝对定位差分无需光标跟踪 — cursorCol 传弃值。</summary>
+    private static void AppendStyledCells(StringBuilder builder, Screen next, int row, int startCol, int endCol, bool hyperlinksSupported)
     {
-        var currentStyle = 0;
-        for (var col = startCol; col <= endCol; col++)
-        {
-            var cell = next[row, col];
-            if (cell.Width == CellWidth.SpacerTail)
-            {
-                continue;
-            }
-
-            if (cell.StyleId != currentStyle)
-            {
-                builder.Append(next.Styles.Transition(currentStyle, cell.StyleId));
-                currentStyle = cell.StyleId;
-            }
-
-            builder.Append(cell.Value.ToString());
-        }
-
-        if (currentStyle != 0)
-        {
-            builder.Append(next.Styles.Transition(currentStyle, 0));
-        }
+        var discardCol = 0;
+        AnsiCellWriter.AppendStyledCells(builder, next, row, startCol, endCol, hyperlinksSupported, ref discardCol);
     }
 
     private static int FindLastContentColumn(Screen screen, int row)

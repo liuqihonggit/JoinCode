@@ -23,10 +23,12 @@ public sealed class ReplShell
     private readonly SpinnerItem _spinner = new() { Message = string.Empty, Hidden = true };
     private readonly StylePool _pool = new();
     private readonly Stopwatch _clock = Stopwatch.StartNew();
-    private readonly InlineComposer _inlineComposer = new();
+    // DSG043 P3 — 超链接支持经 HyperlinkEmitter 终端白名单探测（无参构造默认；不支持终端零注入降级）
+    private readonly InlineComposer _inlineComposer = new(NativeTui.Core.Repl.HyperlinkEmitter.IsHyperlinkSupported());
 
     /// <summary>视口模式帧组装器（S9 接线 — DEC 2026 探测结果条件构造：不支持终端跳过 BSU/ESU 包裹）。</summary>
-    private readonly FrameComposer _composer = new(TerminalCapabilities.IsSynchronizedOutputSupported());
+    private readonly FrameComposer _composer = new(TerminalCapabilities.IsSynchronizedOutputSupported(),
+        NativeTui.Core.Repl.HyperlinkEmitter.IsHyperlinkSupported());
 
     /// <summary>inline 模式 DEC 2026 同步输出支持（S9 接线 — 直拼 SynchronizedOutputBegin/End 的同一条件，
     /// 构造时探测一次会话级缓存）。</summary>

@@ -241,6 +241,23 @@
 - 遗留：滚轮加速度 ramp（computeWheelStep 40ms 窗 +1 cap 6）、C7 全屏×鼠标组合验证（G 域）、HitTestId item 标注（G 域）、OSC 52 剪贴板序列（当前走引擎 IClipboardService，OSC 52 留 P3）
 - 提交链：5b33c2879(C1+C4) → 83991bcd7(C2+C3) → c1ae416ac(C5+C6) → 宿主装配
 
+### 板块 D — 对话框与交互补全（2026-10-23 D1/D5/D7/D8 完成，D6 留板块 G）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| D1 （三选项+Esc dismiss+格式化时长） | ReplShell 触发状态机 | ✅ | ✅ 组件 16 + 集成 9 测试 |
+| D7 触发时机（Submit 拦截 — 五条件：非never/有回合/非斜杠/token门槛/超阈值） | SubmitCore | ✅ | ✅ 集成测试 |
+| D8 Clear 语义 | IReplEngine 无新会话接口 — 降级重发+TODO | ✅ 降级 | ✅ 降级路径测试 |
+| D5 effort 行（ 独立区块+left/right 循环） | BeginModelPicker 回调+宿主 ApplyEffort | ✅ | ✅ 22 测试 |
+| D2/D3/D4 Export/GlobalSearch/QuickOpen | **main S12 已完成 — 不重做** | ✅(main) | ✅ |
+| D6 CostThresholdDialog | 留板块 G（引擎成本事件源） | ⏸ | — |
+| 宿主装配（CLAUDE_CODE_IDLE_THRESHOLD_MINUTES env 读入） | Program.cs | ✅ | ✅ Host.Tests 125 |
+
+- 测试：2396→**2485 全绿**（+89）
+- debug 修复：①Action<PickerEffortLevel> 可空 lambda 过滤 ②**哨兵 -1 修 0 时刻歧义**（_lastTurnCompletionMs>0 防御判定与测试时钟 0 起点撞车——throw 探针隔离五条件定位）
+- 基准修正：dismiss = setInputValue 恢复文本（非丢弃）；token 门槛 100_000 + 斜杠豁免（任务书未列、基准五条件补全）；effort 渲染独立区块非列表行、键位全局 left/right（任务书猜测被基准否定）
+- 提交链：2077885bf
+
 ### 其他板块
 
-D/E/F 待分派；G 跨板块收口最后做。
+E/F 待分派；G 跨板块收口最后做。

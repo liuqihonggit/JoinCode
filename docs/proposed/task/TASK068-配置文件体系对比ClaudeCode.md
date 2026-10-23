@@ -124,7 +124,9 @@ CurrentSettings 49 键审计结论：**A 类活跃 16 / B 类仅 /config 读写 
 | Bug2 | ConfigurationService（L97-98,129）与 TrustFolderManager（L17-20）手拼 `Path.Combine(UserProfile, AppDataFolder, ...)` 绕过 `AppDataConstants.Paths` 唯一数据源 | 两文件 | 改委托 `Paths` 派生属性（新增 TrustedFoldersFilePath） |
 | Bug3 | native_tui 三处硬编码 `~/.jcc/`（KeybindingLoader.DefaultPath / CommandUsageMemory.DefaultFilePath / StartupErrorPrinter 三属性）绕过 `JCC_APP_DATA_FOLDER` → 测试隔离场景 TUI 读写真实用户目录 | native_tui 三文件 | Core 内建 JccHome 工具（读 JCC_APP_DATA_FOLDER，逻辑对齐 AppDataPaths.JccDirectory，保持 native_tui 零依赖）；Host 诊断直接委托主链路 |
 
-**死代码不直接删除**（XdgPathResolver 六死方法、ClaudeCompatConstants.ManagedSettingsPath 死常量、23 个死键、ThemeFileName/CredentialsFileName 死路径）— 处置归 Q1/Q3/Q4 用户决策，避免 AI 自行重构对齐。
+**死代码处置**：用户已决策删除（2026-10-23）— XdgPathResolver 六死方法、ClaudeCompatConstants.ManagedSettingsPath 死常量、ThemeFileName/CredentialsFileName 死路径链、CurrentSettings D 类 11 死键均已执行（commit e6b00e89b、fe08a3fa7）。C 类 12 死链键仍待 Q4 逐项决策。
+
+**衍生需求（用户决策）**：发送消息时以 `<system-reminder>` 形态把"洞悉用户诉求"系统提示词追加到消息末尾，10 分钟冷却 — SendReminderInjector 组件 + SessionController.StreamResponseAsync / ChatService.StreamWithEventsAsync 双接线（commit 1622020d0）。
 
 ## 验收表（四列）
 
@@ -132,3 +134,5 @@ CurrentSettings 49 键审计结论：**A 类活跃 16 / B 类仅 /config 读写 
 |---------|--------|--------|--------|
 | 差异文档本体（本文档） | 用户一问一答决策 | ✅ | ✅（本文档即交付物） |
 | Bug1-3 修复 | SettingsLoader/ConfigurationService/TrustFolderManager/native_tui | ✅（见 commit） | ✅（单元测试 + 编译） |
+| 死代码批次1-4 | XdgPathResolver/ClaudeCompatConstants/AppDataPaths/SettingsJson | ✅（e6b00e89b/fe08a3fa7） | ✅（abs 697 + guard.config 1285 + host 1453 + composition 1003 全绿） |
+| SendReminderInjector | SessionController（TUI/CLI）+ ChatService（GUI）双接线 | ✅（1622020d0） | ✅（组件 9 测试 + brain.context 949 + host 1453 + NativeTui.Host 125 全绿） |

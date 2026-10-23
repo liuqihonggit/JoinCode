@@ -1236,8 +1236,15 @@ public sealed class ReplShell
                 }
 
                 break;
+            case KeyKind.PageUp:
+                // 8.11 — PageUp=行首（基准 useTextInput.ts:348-359 非全屏映射）
+                _input.Home();
+                break;
+            case KeyKind.PageDown:
+                _input.End();
+                break;
             default:
-                // Tab/PageUp/PageDown/Unknown — 输入域 no-op（对齐基准）
+                // Tab/Unknown — 输入域 no-op（对齐基准）
                 break;
         }
     }
@@ -2431,9 +2438,22 @@ public sealed class ReplShell
                 search.Next();
                 return;
             case KeyKind.Backspace:
+                // 8.10 — 空查询退格=取消搜索（基准 useHistorySearch.ts:262-268）
+                if (_input.Text.Length == 0)
+                {
+                    _search = null;
+                    return;
+                }
+
                 _input.Backspace();
                 search.UpdateQuery(_input.Text);
                 _programmaticFill = true;
+                return;
+            case KeyKind.Tab:
+                // 8.6 — Tab=接受当前匹配填入不提交（基准 defaultBindings.ts:176 tab → historySearch:accept）
+                var tabAccepted = search.Current.Length > 0 ? search.Current : _preSearchDraft;
+                _search = null;
+                FillInput(tabAccepted, cursorToStart: false);
                 return;
             case KeyKind.Char when !key.Ctrl && !key.Meta && key.Input.Length == 1:
                 _input.Insert(key.Input[0]);

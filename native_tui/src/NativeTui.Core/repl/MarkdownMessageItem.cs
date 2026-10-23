@@ -97,6 +97,14 @@ public sealed class MarkdownMessageItem(MarkdownDocument document, ICodeHighligh
             {
                 MessageRenderer.ApplyCodeHighlight(screen, lineFrame.Y, frame.X + BodyIndentCols, highlight.Spans);
             }
+
+            // DSG043 P3 — 链接区间平移写入（布局行内容列 → Screen 物理列 + BodyIndent 偏移；
+            // SetLinks 替换式幂等，帧重画安全）
+            if (layout.Links[index] is { Count: > 0 } spans)
+            {
+                screen.SetLinks(lineFrame.Y,
+                    [.. spans.Select(span => span with { StartCol = span.StartCol + frame.X + BodyIndentCols, EndCol = span.EndCol + frame.X + BodyIndentCols })]);
+            }
         }
     }
 

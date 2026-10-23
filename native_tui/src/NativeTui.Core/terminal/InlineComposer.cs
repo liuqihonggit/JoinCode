@@ -10,9 +10,26 @@ public readonly record struct CursorPos(int Col, int Row);
 /// ③ 收缩清底部行（EraseLine）；④ 变更落在 scrollback 区（不可达）→ fullReset
 /// （EraseScreen 重绘可见区）；⑤ 首帧不清屏（保留终端既有历史）；⑥ 零变化零光标移动 → 零输出。
 /// 帧尾光标由调用方指定（frameEndCursor，通常为输入框光标位），返回 nextCursor 供下帧传入。
+/// OSC 8 超链接（DSG043 P3）：行级链接区间（Screen.SetLinks）在 cell 流输出时按区间边界
+/// 注入开/闭序列对（与 SGR 正交 — 终端流上独立标记，对齐基准 ink Link 同构）；
+/// 终端不支持（hyperlinksSupported=false）零注入纯文本降级。
 /// </summary>
 public sealed class InlineComposer
 {
+    /// <summary>超链接支持（false = 零注入降级 — Host 启动探测注入或测试显式关闭）。</summary>
+    private readonly bool _hyperlinksSupported;
+
+    /// <summary>创建组装器 — 超链接支持经 HyperlinkEmitter 终端白名单探测（默认）。</summary>
+    public InlineComposer()
+        : this(NativeTui.Core.Repl.HyperlinkEmitter.IsHyperlinkSupported())
+    {
+    }
+
+    /// <summary>创建组装器（显式指定超链接支持 — 测试/降级通道）。</summary>
+    public InlineComposer(bool hyperlinksSupported)
+    {
+        _hyperlinksSupported = hyperlinksSupported;
+    }
     /// <summary>
     /// 组装 inline 帧输出。prev 为 null 表示首帧（从当前终端行起画，不清屏）；
     /// viewportRows 为终端视口行数（推算 scrollback 深度）；prevCursor 为上一帧尾光标
@@ -78,7 +95,7 @@ public sealed class InlineComposer
         next.Rows < prev.Rows && prev.Rows - next.Rows > viewportRows;
 
     /// <summary>fullReset：光标相对移到视口顶 → EraseScreen → 重绘可见区（scrollback 历史保留不动）。</summary>
-    private static void FullReset(StringBuilder builder, Screen next, int viewportRows, ref CursorPos cursor)
+    private void FullReset(StringBuilder builder, Screen next, int viewportRows, ref CursorPos cursor)
     {
         var top = Math.Max(0, next.Rows - viewportRows);
         MoveTo(builder, ref cursor, new CursorPos(0, top));
@@ -110,7 +127,7 @@ public sealed class InlineComposer
     /// 渲染行切片 [startRow, endRow)：每行 CR+LF 前进到目标行（LF 在视口底滚屏创建新行 —
     /// CUD 无法创建行）、行内写到内容末列、行尾 CR+LF（对齐基准 renderFrameSlice 每行收尾）。
     /// </summary>
-    private static void RenderSlice(StringBuilder builder, Screen next, int startRow, int endRow, ref CursorPos cursor)
+    private void RenderSlice(StringBuilder builder, Screen next, int startRow, int endRow, ref CursorPos cursor)
     {
         for (var row = startRow; row < endRow; row++)
         {
@@ -172,32 +189,13 @@ public sealed class InlineComposer
         cursor = target;
     }
 
-    /// <summary>写样式化 cell 段（SpacerTail 跳过 — 宽字符本体打印自动推进两列；段尾非默认样式重置）。</summary>
-    private static void AppendStyledCells(StringBuilder builder, Screen next, int row, int startCol, int endCol, ref CursorPos cursor)
+    /// <summary>写样式化 cell 段 — 委托 <see cref="AnsiCellWriter"/>（样式 + OSC 8 区间注入公共件；
+    /// 相对光标列由本地 cursor 跟踪换算）。</summary>
+    private void AppendStyledCells(StringBuilder builder, Screen next, int row, int startCol, int endCol, ref CursorPos cursor)
     {
-        var currentStyle = 0;
-        for (var col = startCol; col <= endCol; col++)
-        {
-            var cell = next[row, col];
-            if (cell.Width == CellWidth.SpacerTail)
-            {
-                continue;
-            }
-
-            if (cell.StyleId != currentStyle)
-            {
-                builder.Append(next.Styles.Transition(currentStyle, cell.StyleId));
-                currentStyle = cell.StyleId;
-            }
-
-            builder.Append(cell.Value.ToString());
-            cursor = new CursorPos(cursor.Col + (cell.Width == CellWidth.Wide ? 2 : 1), cursor.Row);
-        }
-
-        if (currentStyle != 0)
-        {
-            builder.Append(next.Styles.Transition(currentStyle, 0));
-        }
+        var cursorCol = cursor.Col;
+        AnsiCellWriter.AppendStyledCells(builder, next, row, startCol, endCol, _hyperlinksSupported, ref cursorCol);
+        cursor = new CursorPos(cursorCol, cursor.Row);
     }
 
     /// <summary>行内最后非空列（无内容返回 -1）。</summary>

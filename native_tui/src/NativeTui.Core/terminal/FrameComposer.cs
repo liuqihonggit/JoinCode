@@ -15,22 +15,32 @@ public sealed class FrameComposer
 
     private readonly bool _synchronizedOutputSupported;
 
+    private readonly bool _hyperlinksSupported;
+
     /// <summary>默认构造 — DEC 2026 包裹启用（视口模式现行为，既有测试与 ReplShell 零破坏）。</summary>
     public FrameComposer() : this(synchronizedOutputSupported: true)
     {
     }
 
-    /// <summary>条件构造 — 不支持 DEC 2026 的终端跳过 BSU/ESU 包裹。</summary>
+    /// <summary>条件构造 — 不支持 DEC 2026 的终端跳过 BSU/ESU 包裹（超链接零注入 — 既有调用方兼容）。</summary>
     /// <param name="synchronizedOutputSupported">终端能力探测结果（见 <see cref="TerminalCapabilities.IsSynchronizedOutputSupported()"/>）。</param>
     public FrameComposer(bool synchronizedOutputSupported)
+        : this(synchronizedOutputSupported, hyperlinksSupported: false)
+    {
+    }
+
+    /// <summary>全参构造（DSG043 P3）— DEC 2026 包裹 + OSC 8 超链接注入支持
+    ///（false = 零注入纯文本降级，HyperlinkEmitter 终端白名单探测结果）。</summary>
+    public FrameComposer(bool synchronizedOutputSupported, bool hyperlinksSupported)
     {
         _synchronizedOutputSupported = synchronizedOutputSupported;
+        _hyperlinksSupported = hyperlinksSupported;
     }
 
     /// <summary>组装从 prev 到 next 的帧输出。prev 为 null 表示首帧；无变化返回空串。</summary>
     public string Compose(Screen? prev, Screen next)
     {
-        var diff = _differ.RenderFrame(prev, next);
+        var diff = _differ.RenderFrame(prev, next, _hyperlinksSupported);
         if (diff.Length == 0)
         {
             return string.Empty;

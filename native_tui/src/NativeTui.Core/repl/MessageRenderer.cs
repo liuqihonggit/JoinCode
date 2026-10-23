@@ -433,15 +433,18 @@ public static class MessageRenderer
         }
     }
 
-    /// <summary>Markdown 语义样式 → TextStyle（Code 取 permission 色；Link 首版无 OSC 8 纯文本降级）。</summary>
+    /// <summary>Markdown 语义样式 → TextStyle（Code 取 permission 色；Link 取 Suggestion 色 +
+    /// 下划线 — DSG043 P3 视觉决策：基准 chalk.blue 超链接惯例的 theme 键映射，复用现有键零主题改动）。</summary>
     internal static TextStyle MapMarkdownStyle(MarkdownStyle style, Theme theme) => new()
     {
         Bold = style.HasFlag(MarkdownStyle.Bold),
         Italic = style.HasFlag(MarkdownStyle.Italic),
-        Underline = style.HasFlag(MarkdownStyle.Underline),
+        Underline = style.HasFlag(MarkdownStyle.Underline) || style.HasFlag(MarkdownStyle.Link),
         Dim = style.HasFlag(MarkdownStyle.Dim),
         Strikethrough = style.HasFlag(MarkdownStyle.Strikethrough),
-        Foreground = style.HasFlag(MarkdownStyle.Code) ? theme.Permission : default,
+        Foreground = style.HasFlag(MarkdownStyle.Code)
+            ? theme.Permission
+            : style.HasFlag(MarkdownStyle.Link) ? theme.Suggestion : default,
     };
 
     /// <summary>

@@ -10,6 +10,11 @@ public sealed class Screen : IDisposable
 {
     private Cell[] _cells;
 
+    /// <summary>行级链接区间表（DSG043 P3 — 与 Rows 等长；空表 = 该行无链接）。
+    /// 链接是行级原子数据非 cell 属性：链接变化必然伴随该行 cell 文本变化（diff 层天然重写整行），
+    /// 无需 cell 级失效通知；Clear 原子清空防帧重画残留。</summary>
+    private List<IReadOnlyList<LinkSpan>> _links;
+
     /// <summary>创建指定尺寸的网格（全空白）。样式池为本帧私有（单缓冲场景）。</summary>
     public Screen(int cols, int rows)
         : this(cols, rows, new StylePool())
@@ -25,6 +30,7 @@ public sealed class Screen : IDisposable
         Cols = cols;
         Rows = rows;
         _cells = CreateBlankCells(cols, rows);
+        _links = NewLinkTable(rows);
         Styles = sharedStyles;
     }
 
@@ -60,8 +66,30 @@ public sealed class Screen : IDisposable
         }
     }
 
-    /// <summary>清空全部 cell 为空白。</summary>
-    public void Clear() => Array.Fill(_cells, Cell.Blank);
+    /// <summary>清空全部 cell 为空白（链接表原子清空 — 帧重画防旧链接残留）。</summary>
+    public void Clear()
+    {
+        Array.Fill(_cells, Cell.Blank);
+        for (var row = 0; row < _links.Count; row++)
+        {
+            _links[row] = [];
+        }
+    }
+
+    /// <summary>写入行级链接区间表（替换式 — 渲染器每帧重写本行区间；越界忽略）。</summary>
+    public void SetLinks(int row, IReadOnlyList<LinkSpan> spans)
+    {
+        if (row < 0 || row >= Rows)
+        {
+            return;
+        }
+
+        _links[row] = spans;
+    }
+
+    /// <summary>读取行级链接区间表（越界返回空表 — 消费方零防御成本）。</summary>
+    public IReadOnlyList<LinkSpan> Links(int row) =>
+        row >= 0 && row < Rows ? _links[row] : [];
 
     /// <summary>调整尺寸，保留左上角既有内容（基准 resize 语义：先擦后画防闪烁由 diff 层处理）。</summary>
     public void Resize(int cols, int rows)
@@ -79,9 +107,28 @@ public sealed class Screen : IDisposable
             Array.Copy(_cells, row * Cols, resized, row * cols, copyCols);
         }
 
+        var resizedLinks = NewLinkTable(rows);
+        for (var row = 0; row < copyRows; row++)
+        {
+            resizedLinks[row] = _links[row];
+        }
+
         _cells = resized;
+        _links = resizedLinks;
         Cols = cols;
         Rows = rows;
+    }
+
+    /// <summary>新建行级链接表（全部空表 — 与行数等长）。</summary>
+    private static List<IReadOnlyList<LinkSpan>> NewLinkTable(int rows)
+    {
+        var table = new List<IReadOnlyList<LinkSpan>>(rows);
+        for (var row = 0; row < rows; row++)
+        {
+            table.Add(Array.Empty<LinkSpan>());
+        }
+
+        return table;
     }
 
     /// <summary>

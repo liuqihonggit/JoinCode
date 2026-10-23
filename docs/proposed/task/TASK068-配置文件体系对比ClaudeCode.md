@@ -120,10 +120,11 @@ CurrentSettings 49 键审计结论：**A 类活跃 16 / B 类仅 /config 读写 
 
 | # | Bug | 位置 | 修复 |
 |---|-----|------|------|
-| Bug1 | 项目级/用户级 settings 文件名解析不一致：用户级走 `AppDataConstants.SettingsFileName`（支持 JCC_SETTINGS_FILE_NAME 覆盖），项目级/本地级硬编码 `"settings.json"`/`"settings.local.json"` 字面量 | SettingsLoader.cs:648-658 | 统一委托常量 |
-| Bug2 | ConfigurationService（L97-98,129）与 TrustFolderManager（L17-20）手拼 `Path.Combine(UserProfile, AppDataFolder, ...)` 绕过 `AppDataConstants.Paths` 唯一数据源 | 两文件 | 改委托 `Paths.JccDirectory` 派生属性 |
-| Bug3 | native_tui 三处硬编码 `~/.jcc/`（KeybindingLoader.DefaultPath / CommandUsageMemory.DefaultFilePath / StartupErrorPrinter 三属性）绕过 `JCC_APP_DATA_FOLDER` → 测试隔离场景 TUI 读写真实用户目录 | native_tui 三文件 | Core 内建 JccHome 工具（读 JCC_APP_DATA_FOLDER，逻辑对齐 AppDataPaths.JccDirectory，保持 native_tui 零依赖） |
-| 清理 | XdgPathResolver 六死方法 + ClaudeCompatConstants.ManagedSettingsPath 死常量 | Q1/Q3 的死代码部分 | 随 Bug 批次清理（若用户在 Q1/Q3 选择接线方案则改为接线） |
+| Bug1 | 项目级/用户级 settings 文件名解析不一致：用户级走 `AppDataConstants.SettingsFileName`（支持 JCC_SETTINGS_FILE_NAME 覆盖），项目级/本地级硬编码 `"settings.json"`/`"settings.local.json"` 字面量；hook 注册路径另有第三套拼法（rooted 回退语义与主链路不一致） | SettingsLoader.cs:648-658、ServiceRegistration.cs:113-124 | 统一委托常量与主链路方法（含 AppDataPaths.LocalSettingsFileName 派生属性） |
+| Bug2 | ConfigurationService（L97-98,129）与 TrustFolderManager（L17-20）手拼 `Path.Combine(UserProfile, AppDataFolder, ...)` 绕过 `AppDataConstants.Paths` 唯一数据源 | 两文件 | 改委托 `Paths` 派生属性（新增 TrustedFoldersFilePath） |
+| Bug3 | native_tui 三处硬编码 `~/.jcc/`（KeybindingLoader.DefaultPath / CommandUsageMemory.DefaultFilePath / StartupErrorPrinter 三属性）绕过 `JCC_APP_DATA_FOLDER` → 测试隔离场景 TUI 读写真实用户目录 | native_tui 三文件 | Core 内建 JccHome 工具（读 JCC_APP_DATA_FOLDER，逻辑对齐 AppDataPaths.JccDirectory，保持 native_tui 零依赖）；Host 诊断直接委托主链路 |
+
+**死代码不直接删除**（XdgPathResolver 六死方法、ClaudeCompatConstants.ManagedSettingsPath 死常量、23 个死键、ThemeFileName/CredentialsFileName 死路径）— 处置归 Q1/Q3/Q4 用户决策，避免 AI 自行重构对齐。
 
 ## 验收表（四列）
 

@@ -30,14 +30,6 @@ public static class AppDataConstants {
     }
 
     /// <summary>
-    /// OAuth 凭证文件名
-    /// </summary>
-    public static string CredentialsFileName {
-        get => _paths.CredentialsFileName;
-        set => _paths = _paths with { CredentialsFileName = value };
-    }
-
-    /// <summary>
     /// 认证文件名
     /// </summary>
     public static string AuthFileName {
@@ -115,14 +107,6 @@ public static class AppDataConstants {
     public static string AgentsFolderName {
         get => _paths.AgentsFolderName;
         set => _paths = _paths with { AgentsFolderName = value };
-    }
-
-    /// <summary>
-    /// 主题配置文件名
-    /// </summary>
-    public static string ThemeFileName {
-        get => _paths.ThemeFileName;
-        set => _paths = _paths with { ThemeFileName = value };
     }
 
     /// <summary>

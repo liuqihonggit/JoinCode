@@ -7,7 +7,6 @@ namespace JoinCode.Abstractions.Configuration.AppData;
 /// </summary>
 public sealed record AppDataPaths(
     string AppDataFolder,
-    string CredentialsFileName,
     string AuthFileName,
     string SettingsFileName,
     string GlobalConfigFileName,
@@ -18,7 +17,6 @@ public sealed record AppDataPaths(
     string TasksFolderName,
     string WorktreesFolderName,
     string AgentsFolderName,
-    string ThemeFileName,
     string TrustedFoldersFileName,
     string SessionsFolderName,
     string SessionMetaFileName,
@@ -41,7 +39,6 @@ public sealed record AppDataPaths(
     public static AppDataPaths FromEnvironment() {
         return new AppDataPaths(
             AppDataFolder: ResolveEnv(JccEnvVar.AppDataFolder, ".jcc"),
-            CredentialsFileName: ResolveEnv(JccEnvVar.CredentialsFileName, "credentials.json"),
             AuthFileName: ResolveEnv(JccEnvVar.AuthFileName, "auth.json"),
             SettingsFileName: ResolveEnv(JccEnvVar.SettingsFileName, "settings.json"),
             GlobalConfigFileName: ResolveEnv(JccEnvVar.GlobalConfigFileName, "global.json"),
@@ -52,7 +49,6 @@ public sealed record AppDataPaths(
             TasksFolderName: ResolveEnv(JccEnvVar.TasksFolderName, "tasks"),
             WorktreesFolderName: ResolveEnv(JccEnvVar.WorktreesFolderName, "worktrees"),
             AgentsFolderName: ResolveEnv(JccEnvVar.AgentsFolderName, "agents"),
-            ThemeFileName: ResolveEnv(JccEnvVar.ThemeFileName, "theme.json"),
             TrustedFoldersFileName: ResolveEnv(JccEnvVar.TrustedFoldersFileName, "trusted_folders.json"),
             SessionsFolderName: ResolveEnv(JccEnvVar.SessionsFolderName, "sessions"),
             SessionMetaFileName: ResolveEnv(JccEnvVar.SessionMetaFileName, "session.meta.json"),

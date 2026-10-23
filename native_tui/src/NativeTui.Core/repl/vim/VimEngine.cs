@@ -384,7 +384,7 @@ public sealed class VimEngine
         if (input == "j" || input == "k")
         {
             var motion = input == "j" ? VimMotion.VisualLineDown : VimMotion.VisualLineUp;
-            MoveCursorTo(VimMotions.Resolve(_text, _offset, motion, state.Count, _wrapWidth), effects);
+            MoveCursorTo(VimMotions.Resolve(_text, _offset, motion, state.Count, WrapWidth), effects);
             return (null, true);
         }
 
@@ -464,7 +464,7 @@ public sealed class VimEngine
 
         if (input.Length == 1 && VimMotions.TryResolveSimpleKey(input[0], out var motion))
         {
-            MoveCursorTo(VimMotions.Resolve(_text, _offset, motion, count, _wrapWidth), effects);
+            MoveCursorTo(VimMotions.Resolve(_text, _offset, motion, count, WrapWidth), effects);
             return (null, true);
         }
 
@@ -750,7 +750,7 @@ public sealed class VimEngine
     }
 
     /// <summary>新建算子执行会话（record=false 为 dot-repeat 重放会话）。</summary>
-    private VimEditSession NewSession(bool record) => new(_text, _offset, _wrapWidth, record);
+    private VimEditSession NewSession(bool record) => new(_text, _offset, WrapWidth, record);
 
     /// <summary>
     /// 提交会话 — 寄存器/lastFind/lastChange 落账，镜像更新并产出接线效果：

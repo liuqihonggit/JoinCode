@@ -93,6 +93,10 @@ public sealed partial class InputBuffer
         CursorCol++;
     }
 
+    /// <summary>在光标处插入文本（E4 接线 — 图片附件占位 [Image #N] 插入入口，基准 insertTextAtCursor
+    /// PromptInput.tsx:1181；与 Paste 共用 InsertText 实现）— 空文本无操作，光标移到插入段末尾。</summary>
+    public void Insert(string text) => InsertText(text);
+
     /// <summary>在光标处插入换行符（基准 shift+enter 换行）— 光标落到新行行首。</summary>
     public void InsertNewline()
     {
@@ -390,6 +394,15 @@ public sealed partial class InputBuffer
         CursorCol = Math.Clamp(cursorCol, 0, text.Length);
     }
 
+    /// <summary>光标程序化定位（TASK066 板块 E 连线 E3 — 基准 textInput.setOffset，
+    /// useVimInput.ts:74/90 switchToNormalMode/switchToInsertMode 的光标落位通道）：
+    /// 钳制到 [0, Text.Length]；不压 undo 快照（纯移动无文本变更 — 对齐 Left/Right 先例）。</summary>
+    public void SetCursor(int offset)
+    {
+        BeginEditText();
+        CursorCol = Math.Clamp(offset, 0, _text.Length);
+    }
+
     /// <summary>
     /// 粘贴入口（bracketed paste 事件到达）— 清洗（去 ANSI/\r 归一/Tab 展开）后判定折叠：
     /// 超阈值登记为 [Pasted text #N +M lines] 引用插入，否则原文直插；显示折叠形态，提交取 ExpandedText。
@@ -646,6 +659,13 @@ public sealed partial class InputBuffer
     /// <summary>undo 时钟源（internal — 测试注入可控时间戳；默认墙钟）。</summary>
     internal Func<long> UndoClock { get; set; } = static () => Environment.TickCount64;
 
+    /// <summary>vim 编辑强制开新 undo 组（E3 — vim u 撤单步编辑语义：vim 引擎的文本替换
+    /// 与此前打字组强制断开，undo 一次只撤 vim 步骤；时间窗合并不再吞并）。</summary>
+    internal void ForceNewUndoGroup() => _forceNewUndoGroup = true;
+
+    /// <summary>强制断组标志（ForceNewUndoGroup 置位 — 下一个快照开新桶后复位）。</summary>
+    private bool _forceNewUndoGroup;
+
     private void PushUndoSnapshot()
     {
         var text = Text;
@@ -655,11 +675,14 @@ public sealed partial class InputBuffer
         }
 
         var bucket = UndoClock() / UndoDebounceMs;
-        // 组断点：新桶或距上一快照 > 1 个桶（中途暂停后恢复编辑开新组）
-        if (_undoStack.Count > 0 && bucket - _undoStack[^1].GroupBucket > 1)
+        // 组断点：新桶或距上一快照 > 1 个桶（中途暂停后恢复编辑开新组）；
+        // E3 — vim 强制断组（ForceNewUndoGroup：无条件开新桶，覆盖时间窗合并）
+        if (_undoStack.Count > 0 && (_forceNewUndoGroup || bucket - _undoStack[^1].GroupBucket > 1))
         {
             bucket = _undoStack[^1].GroupBucket + 1;
         }
+
+        _forceNewUndoGroup = false;
 
         _undoStack.Add(new UndoSnapshot(text, CursorCol, bucket, _pasteTracker.Snapshot));
         if (_undoStack.Count > UndoCapacity)

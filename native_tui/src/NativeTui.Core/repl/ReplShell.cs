@@ -89,8 +89,10 @@ public sealed class ReplShell
 
     /// <summary>忙时排队输入队列（TASK060 — 基准 queued 语义，回合结束逐条自动发送）。
     /// S7 提交全文：元组 = 显示形态（折叠 [Pasted text #N]）+ 提交形态（粘贴引用展开全文）—
-    /// 提交时刻完成展开（InputBuffer.Clear 清空登记簿后不可再展开）。</summary>
-    private readonly List<(string Display, string Expanded)> _queuedInputs = [];
+    /// 提交时刻完成展开（InputBuffer.Clear 清空登记簿后不可再展开）。
+    /// E4 接线 — 第三元 = 提交时冻结的附件快照（基准 enqueue 携带 pastedContents
+    /// handlePromptSubmit.ts:334-343：排队期间登记簿已清，发送时附件随快照上屏不丢）。</summary>
+    private readonly List<(string Display, string Expanded, IReadOnlyList<ImageAttachment> Attachments)> _queuedInputs = [];
 
     /// <summary>排队输入条数上限（守卫 — 狂敲防队列无限膨胀：满后新输入丢弃带反馈）。</summary>
     internal const int MaxQueuedInputs = 10;
@@ -277,10 +279,22 @@ public sealed class ReplShell
     /// <summary>选区状态机（internal — 测试断言面：锚点/活动点/选区固化态）。</summary>
     internal SelectionState Selection => _selection;
 
+    /// <summary>附件集合（E4 接线 — internal 测试断言面：登记数/占位编号/孤儿修剪验证）。</summary>
+    internal AttachmentList Attachments => _attachments;
+
     /// <summary>选中即复制委托（TASK066 C6 — 鼠标 Release 选区固化后经 GetSelectedText
     /// 提取文本回调宿主剪贴板；对齐 clipboard 注入先例，宿主装配可复用同一注入值；
     /// null = 复制能力降级无操作 — 选区交互仍可用仅不复制）。</summary>
     private readonly Action<string>? _copySelection;
+
+    /// <summary>待发送图片附件集合（E4 接线 — 粘贴通道图片行登记 + [Image #N] 占位引用维护；
+    /// 提交时冻结快照后清空归下回合；对齐基准 pastedContents 状态 — PromptInput.tsx:1173-1176）。</summary>
+    private readonly AttachmentList _attachments = new();
+
+    /// <summary>图片文件读取委托（E4 接线 — 宿主读文件→base64 构造附件，参数 = 清理后图片路径，
+    /// 返回 null = 读失败/无能力，该行回退非图片处理纯文本粘贴；Core 零 IO，对齐 clipboard
+    /// 注入先例；null = 无文件读取能力，图片路径粘贴降级纯文本零行为变化）。</summary>
+    private readonly Func<string, ImageAttachment?>? _loadImageFromFile;
 
     /// <summary>主题持久化委托（S11 遗留#1 — /theme 合法切换后宿主写回引擎 settings.json；
     /// 宿主注入 IConfigurationService.SetAsync 适配，Core 零依赖；null = 持久化降级会话级生效）。</summary>
@@ -322,6 +336,13 @@ public sealed class ReplShell
     /// 默认 KeybindingProfile.Default（构造不注入 = 零行为变化 — 既有测试契约兜底）；
     /// 模态内部键（权限对话框数字键/模型选择器方向键/transcript less 键位）保持硬编码，渐进式后续迁移。</summary>
     private readonly KeybindingProfile _keybindings;
+
+    /// <summary>vim 编辑引擎（TASK066 板块 E 连线 E3 — 构造 vimMode 注入，基准 PromptInput.tsx:2243
+    /// isVimModeEnabled() ? VimTextInput : TextInput 装配分支的 C# 等价；null = vim 关闭零行为变化）：
+    /// INSERT 透传原编辑链引擎仅记账（基准 useVimInput.ts:209-229）、NORMAL 拦截按键驱动命令状态机
+    ///（基准 transitions.ts）；镜像经 <see cref="SyncVimMirror"/> 回写（宿主真身 → 引擎镜像通道 —
+    /// 基准每次按键实时读 props.value/textInput.offset 的等价物，useVimInput.ts:72/82/182）。</summary>
+    private readonly VimEngine? _vimEngine;
 
     /// <summary>序列前缀首键（M2 → B4 数据源化 — 原布尔 _ctrlXPrefix 升级承载首键数据）：
     /// IsSequenceStart 命中的序列首键（默认 ctrl+x ctrl+e / ctrl+x ctrl+k 的 ctrl+x）置位等待后续，
@@ -481,7 +502,13 @@ public sealed class ReplShell
     /// idleReturnThresholdMinutes=空闲返回触发阈值分钟（TASK066 板块 D — null = 默认 75；
     /// 宿主读 CLAUDE_CODE_IDLE_THRESHOLD_MINUTES env 后传参，Core 不读 env 惯例）；
     /// idleReturnTokenThreshold=空闲返回 token 门槛（TASK066 板块 D — null = 默认 100_000；
-    /// 宿主读 CLAUDE_CODE_IDLE_TOKEN_THRESHOLD env 后传参，小对话不弹）。</summary>
+    /// 宿主读 CLAUDE_CODE_IDLE_TOKEN_THRESHOLD env 后传参，小对话不弹）；
+    /// loadImageFromFile=图片文件读取委托（E4 接线 — 粘贴通道图片行识别后宿主读文件→base64
+    /// 构造附件；参数 = 清理后路径，返回 null = 读失败该行回退纯文本粘贴；null 委托 = 无文件
+    /// 读取能力，图片路径粘贴整体降级纯文本零行为变化）；
+    /// vimMode=vim 编辑模式开关（TASK066 板块 E 连线 E3 — 基准 PromptInput.tsx:2243
+    /// isVimModeEnabled() ? VimTextInput : TextInput 装配分支；默认 false = 零行为变化，
+    /// 宿主读引擎 settings vimMode 传 true 开启）。</summary>
     public ReplShell(
         IReplEngine engine,
         BannerItem banner,
@@ -509,7 +536,9 @@ public sealed class ReplShell
         SelectionState? selection = null,
         Action<string>? copySelection = null,
         int? idleReturnThresholdMinutes = null,
-        long? idleReturnTokenThreshold = null)
+        long? idleReturnTokenThreshold = null,
+        Func<string, ImageAttachment?>? loadImageFromFile = null,
+        bool vimMode = false)
     {
         _engine = engine;
         _banner = banner;
@@ -547,6 +576,11 @@ public sealed class ReplShell
         // TASK066 板块 D — 空闲返回阈值注入（null = 基准默认：75 分钟 / 100k token）
         _idleReturnThresholdMinutes = idleReturnThresholdMinutes ?? 75;
         _idleReturnTokenThreshold = idleReturnTokenThreshold ?? 100_000;
+        // E4 接线 — 图片文件读取委托注入（null = 无文件读取能力，图片路径粘贴降级纯文本零行为变化）
+        _loadImageFromFile = loadImageFromFile;
+        // TASK066 板块 E 连线 E3 — vim 引擎装配（null = 关闭：全部按键走原编辑链零行为变化；
+        // 开启 = INSERT 初始态 — 基准 createInitialVimState 返回 INSERT，types.ts:188-190）
+        _vimEngine = vimMode ? new VimEngine() : null;
         _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter, _tokenUsage, _sizeSource, streamingProjector, issueOwnerRepo);
     }
 
@@ -555,6 +589,9 @@ public sealed class ReplShell
 
     /// <summary>输入缓冲（测试注入面）。</summary>
     internal InputBuffer Input => _input;
+
+    /// <summary>vim 引擎（TASK066 E3 — internal 测试断言面：模式/镜像/命令状态机；null = vim 关闭）。</summary>
+    internal VimEngine? Vim => _vimEngine;
 
     /// <summary>回合进行中（turn_started 后未 completed/interrupted — 事件驱动）。</summary>
     internal bool IsBusy => _driver.IsBusy;
@@ -639,6 +676,9 @@ public sealed class ReplShell
             LoginError = "未登录 · 运行 /login",
             Notifications = _notifications,
             Tokens = _tokenUsage,
+            // TASK066 E3 — vim 开启时 INSERT 初始态投影（基准初始 INSERT — createInitialVimState
+            // types.ts:188-190；vim 关闭 null 不渲染零变化）
+            VimMode = _vimEngine is { Mode: VimMode.Insert } vimEngine ? vimEngine.StatusLine : null,
         };
         _notifications.Enqueue(PickerEffortLevel.Medium.ToFooterNotificationText());
         _view.Messages.Add(_banner);
@@ -747,7 +787,19 @@ public sealed class ReplShell
             }
         }
 
-        _view.Messages.RemoveAt(_lastSubmittedIndex);
+        // E4 接线 — 附件占位项随用户消息一并移除（恢复到提交前面貌；附件数据已冻结不复活 —
+        // 占位文本随 _lastSubmittedText 回输入框成死引用，用户可编辑删除或直接再提交）
+        var removeEnd = _lastSubmittedIndex + 1;
+        while (removeEnd < _view.Messages.Count - 1 && _view.Messages.Items[removeEnd] is ImageAttachmentItem)
+        {
+            removeEnd++;
+        }
+
+        for (var i = removeEnd - 1; i >= _lastSubmittedIndex; i--)
+        {
+            _view.Messages.RemoveAt(i);
+        }
+
         FillInput(_lastSubmittedText, cursorToStart: false);
         _history.RemoveLast(_lastSubmittedText);
         _lastSubmittedIndex = -1;
@@ -928,6 +980,11 @@ public sealed class ReplShell
         _modeReasserter.MarkInputReceived(Environment.TickCount64);
         var textBefore = _input.Text;
         HandleKeyPress(key);
+        // TASK066 E3 — vim 镜像统一同步点（基准 useVimInput 每次按键实时读宿主真身
+        // props.value/textInput.offset，useVimInput.ts:72/82/182 — C# 引擎持镜像经 Sync 通道等价）：
+        // 覆盖用户编辑链（INSERT 透传/NORMAL PassThrough/Enter 提交清空）与 HandleKeyPress 内
+        // 程序化填充（历史导航/补全接受）；跨线程回填路径在 FillInput 内各自同步
+        SyncVimMirror();
         if (_programmaticFill)
         {
             _programmaticFill = false;
@@ -936,6 +993,9 @@ public sealed class ReplShell
 
         if (_input.Text != textBefore)
         {
+            // E4 接线 — 文本变化即修剪孤儿附件（占位被删的附件清除 — 对齐基准
+            // PromptInput.tsx:1185-1200 useEffect on input；导航/移动键不变文本不修剪）
+            PruneOrphanedAttachments();
             UpdateSuggestions();
         }
     }
@@ -1078,6 +1138,18 @@ public sealed class ReplShell
         if (IsHelpTrigger(key))
         {
             OpenHelpPanel();
+            return;
+        }
+
+        // TASK066 板块 E 连线 E3 — vim 键路由（插位：帮助触发之后、x 停止任务/全局 esc 键之前 —
+        // 基准 vim 层是输入组件最外包装 useVimInput.ts:175-295，模态/overlay 优先于输入组件，
+        // 上述全部模态分支先行 return 保证挂起时 vim 不劫持；'?' 帮助触发在前保持可达（基准
+        // NORMAL 态 '?' 经 useVimInput.ts:288-294 onChange('?') 间接路径仍触发帮助）；'x' 停止
+        // 任务被 vim 吞（基准 NORMAL 态 x 进命令状态机 executeX 空文本 no-op — 空闲空输入
+        // 停止入口 vim 开启时不可达，对齐基准）；INSERT 透传原编辑链（引擎仅记账）、NORMAL
+        // 拦截驱动命令状态机、Esc 分流见 TryHandleVimKey；vim 关闭（null）零行为变化
+        if (_vimEngine is not null && TryHandleVimKey(key))
+        {
             return;
         }
 
@@ -1224,10 +1296,10 @@ public sealed class ReplShell
                 _input.EndVisual(_sizeSource.Current.Cols);
                 break;
             case KeyKind.Paste:
-                // S7 接线 — bracketed paste 整块到达（KeyPressParser 通道 VT 序列 / ReadKey 通道重组）：
-                // InputBuffer.Paste 清洗 + 超阈值折叠登记 [Pasted text #N]（提交取 ExpandedText 全文）；
-                // 可见行数上限 = min(rows-10, 2)（基准 PromptInput.tsx:1220 — 防多行原文直插挤爆输入区）
-                _input.Paste(key.Input, Math.Min(Math.Max(0, _sizeSource.Current.Rows - 10), PastedContentTracker.DefaultMaxVisibleLines));
+                // E4 接线 — 粘贴分桶分派（对齐基准 usePasteHandler 分桶决策序）：
+                // 图片路径行走附件登记 + [Image #N] 占位，非图片行/降级行拼接走 InputBuffer.Paste
+                // 纯文本链（清洗 + 超阈值折叠登记 [Pasted text #N]，提交取 ExpandedText 全文）
+                HandlePaste(key.Input);
                 break;
             case KeyKind.Char:
                 if (key.Input.Length == 1)
@@ -1248,6 +1320,59 @@ public sealed class ReplShell
                 break;
         }
     }
+
+    /// <summary>
+    /// 粘贴分桶分派（E4 接线 — 对齐基准 usePasteHandler.ts:126-175 粘贴分桶决策序）：
+    /// ImagePasteDetector.Detect 把粘贴块分桶为图片路径行 + 非图片行 →
+    /// 图片行经 <see cref="_loadImageFromFile"/> 读取（非 null：附件登记 <see cref="AttachmentList.Add"/>
+    /// + 输入区插 [Image #N] 占位 — 基准 onImagePaste PromptInput.tsx:1151-1183；
+    /// null（委托未注入/读失败）：该行回退非图片处理）；非图片行 + 回退行拼接走
+    /// InputBuffer.Paste 纯文本链（清洗/超阈值折叠登记 [Pasted text #N] — 零破坏）；
+    /// 全图片行处理完无文本不进 Paste（基准 imagePaths 全命中且非图片行为空时无 onPaste）。
+    /// 多占位间空格分隔（基准 pendingSpaceAfterPillRef 同一粘贴事件内 prefix 语义 —
+    /// PromptInput.tsx:1180-1182，跨事件的 lazy space 完整形态留宿主域后续接线）。
+    /// 可见行数上限 = min(rows-10, 2)（基准 PromptInput.tsx:1220 — 防多行原文直插挤爆输入区）。
+    /// </summary>
+    /// <param name="pastedText">bracketed paste 整块原文（可为空 — 剪贴板位图粘贴终端发空块）。</param>
+    private void HandlePaste(string? pastedText)
+    {
+        var maxVisibleLines = Math.Min(Math.Max(0, _sizeSource.Current.Rows - 10), PastedContentTracker.DefaultMaxVisibleLines);
+        var detected = ImagePasteDetector.Detect(pastedText);
+        if (!detected.HasImage)
+        {
+            // 纯文本路径零破坏 — 无图片路径时原样走既有 Paste 链（空块 Paste("") 无操作）
+            _input.Paste(pastedText ?? string.Empty, maxVisibleLines);
+            return;
+        }
+
+        var textLines = new List<string>(detected.NonImageLines);
+        var pendingSpaceAfterPill = false;
+        foreach (var match in detected.ImagePaths)
+        {
+            var attachment = _loadImageFromFile?.Invoke(match.Path);
+            if (attachment is null)
+            {
+                // 读失败/无文件读取能力 — 该行回退非图片处理（基准全失败回退原文粘贴的逐行形态：
+                // 委托未注入时所有图片行进回退桶 = 整块降级纯文本粘贴）
+                textLines.Add(match.Path);
+                continue;
+            }
+
+            var (_, placeholder) = _attachments.Add(attachment);
+            _input.Insert(pendingSpaceAfterPill ? " " + placeholder : placeholder);
+            pendingSpaceAfterPill = true;
+        }
+
+        if (textLines.Count > 0)
+        {
+            _input.Paste(string.Join("\n", textLines), maxVisibleLines);
+        }
+    }
+
+    /// <summary>孤儿附件修剪（E4 接线 — 对齐基准 PromptInput.tsx:1185-1200 useEffect on input：
+    /// [Image #N] 占位被删的附件清除，覆盖退格整删/Ctrl+U/逐字符删除等一切移除引用的编辑）—
+    /// 挂在 HandleRawKeyPress 文本变化刷新处（编辑键路径统一钩位，纯文本无附件时空转零开销）。</summary>
+    private void PruneOrphanedAttachments() => _attachments.PruneOrphans(_input.Text);
 
     /// <summary>Ctrl 组合分派（对齐基准 handleCtrl 表 + TASK066 B4 全局键层表驱动）：
     /// 非模态全局键匹配走 <see cref="_keybindings"/> 查询 — 完整序列（MatchSequence）与单键
@@ -2763,6 +2888,9 @@ public sealed class ReplShell
     {
         _programmaticFill = true;
         _input.Replace(text, cursorToStart);
+        // TASK066 E3 — 程序化填充刷新 vim 镜像（历史导航/补全接受/排队弹回/编辑器回填 —
+        // DrainEngine 跨线程路径不经 HandleRawKeyPress 统一同步点，各自在此刷新）
+        SyncVimMirror();
     }
 
     /// <summary>刷新建议（用户编辑路径；建议状态机内部判定触发条件）+ S10 @ 文件补全刷新
@@ -2845,6 +2973,153 @@ public sealed class ReplShell
         _input.ReplaceAt(replaced, tokenStart + 1 + selected.Length);
         _atSuggestions = null;
         _atSuggestionIndex = 0;
+    }
+
+    /// <summary>
+    /// vim 键路由编排（TASK066 板块 E 连线 E3 — 基准 useVimInput.ts:175-295 handleVimInput 决策序）：
+    /// Esc 走 <see cref="HandleVimEscape"/> 分流、其余键走 <see cref="HandleVimPlainKey"/>；
+    /// 模式切换（INSERT ↔ NORMAL — Esc 切换/i/a/A/I/o/O/c 等进 INSERT 命令/dot-repeat 重放）
+    /// 统一触发 footer 投影刷新。调用方保证 <see cref="_vimEngine"/> 非 null（HandleKeyPress 插位判定）。
+    /// </summary>
+    /// <param name="key">按键事件。</param>
+    /// <returns>true = vim 已消化（分派链终止）；false = 透传落原编辑链。</returns>
+    private bool TryHandleVimKey(KeyPress key)
+    {
+        var modeBefore = _vimEngine!.Mode;
+        var consumed = key.Kind == KeyKind.Escape ? HandleVimEscape(key) : HandleVimPlainKey(key);
+        if (_vimEngine.Mode != modeBefore)
+        {
+            RefreshVimFooter();
+        }
+
+        return consumed;
+    }
+
+    /// <summary>
+    /// vim Esc 分流（基准 useVimInput.ts:189-201 + useCancelRequest.ts:139-154 双层证据）：
+    /// INSERT 态 — vim 消费切 NORMAL（useVimInput.ts:192-195 switchToNormalMode：dot-repeat 落账 +
+    /// 光标左移一格；打断链不激活 — useCancelRequest.ts:146 isContextActive 以
+    /// !(isVimModeEnabled() &amp;&amp; vimMode === 'INSERT') 排除，忙时 Esc 亦是切模式不打断）；
+    /// NORMAL 态 — 引擎取消 pending 命令（useVimInput.ts:198-201 回 idle）；忙时另落
+    /// <see cref="HandleEscape"/> 打断链（useCancelRequest.ts:150-154 isEscapeActive — NORMAL 态
+    /// 忙时 chat:cancel 激活，排队弹回/单击打断语义保留）；闲时不落清输入链（基准 Esc 清输入
+    /// 双击链在 useTextInput.ts:320-331 base handler — vim 层 Esc 永不透传 → 死路，
+    /// vim 用户闲时 Esc 只取消 pending 不清输入）。
+    /// </summary>
+    /// <param name="key">Esc 按键事件。</param>
+    /// <returns>恒 true — Esc 任意模式被 vim 消费，不落原 Esc 链。</returns>
+    private bool HandleVimEscape(KeyPress key)
+    {
+        if (_vimEngine!.Mode == VimMode.Insert)
+        {
+            DispatchVimEffects(_vimEngine.HandleKey(key));
+            return true;
+        }
+
+        _vimEngine.HandleKey(key);
+        if (IsBusy)
+        {
+            HandleEscape();
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// vim 普通键路由（基准 useVimInput.ts:184-243 透传边界 + 245-295 NORMAL 命令状态机）：
+    /// 引擎产出唯一效果 PassThrough（Ctrl 快捷 184-187 / Enter 任意模式透传 203-207 — NORMAL 态
+    /// Enter 允许直接提交 / INSERT 编辑键 209-229 / NORMAL idle 方向键历史导航 235-243）→
+    /// false 落原编辑链（镜像经 HandleRawKeyPress 尾部统一 Sync 回写）；其余（NORMAL 命令
+    /// 编辑/移动/进 INSERT/undo 委托、无效键吞掉）→ <see cref="DispatchVimEffects"/> 消化返回
+    /// true（HandleKey 效果序列不含 Pass 与其他种类混合形态 — 单键全透传路径提前返回）。
+    /// </summary>
+    /// <param name="key">按键事件。</param>
+    /// <returns>true = vim 已消化；false = 透传落原编辑链。</returns>
+    private bool HandleVimPlainKey(KeyPress key)
+    {
+        var effects = _vimEngine!.HandleKey(key);
+        if (effects.Count == 1 && effects[0].Kind == VimEffectKind.PassThrough)
+        {
+            return false;
+        }
+
+        DispatchVimEffects(effects);
+        return true;
+    }
+
+    /// <summary>
+    /// vim 效果落地（TASK066 E3 — <see cref="VimEffect"/> 接线，基准副作用出口宿主侧消费）：
+    /// ApplyText → <see cref="InputBuffer.ReplaceAt"/> 全量写回（镜像→真实缓冲 — 基准 setText
+    /// operators.ts:26-37 OperatorContext；压 undo 快照 = vim 编辑可经 u/ctrl+_ 撤销）；
+    /// MoveCursor → <see cref="InputBuffer.SetCursor"/> 光标同步（基准 setOffset）；
+    /// EnterInsert → 光标定位（基准 switchToInsertMode useVimInput.ts:49-59；footer 投影由
+    /// <see cref="TryHandleVimKey"/> 模式切换统一刷新）；UndoRequested → 现有 undo 链
+    ///（基准 onUndo 委托 props.onUndo，transitions.ts:165-167）。PassThrough 不达
+    ///（<see cref="HandleVimPlainKey"/> 已分流单键透传路径）；每效果后 <see cref="SyncVimMirror"/>
+    /// 幂等回写（引擎镜像已真身 — 防御宿主侧编辑偏离）。
+    /// </summary>
+    private void DispatchVimEffects(IReadOnlyList<VimEffect> effects)
+    {
+        foreach (var effect in effects)
+        {
+            switch (effect.Kind)
+            {
+                case VimEffectKind.ApplyText:
+                    // vim 文本编辑强制开新 undo 组（u 撤单步 — 打字时间窗合并不吞并 vim 步骤）
+                    _input.ForceNewUndoGroup();
+                    _input.ReplaceAt(effect.Text ?? string.Empty, effect.Offset);
+                    SyncVimMirror();
+                    break;
+                case VimEffectKind.MoveCursor:
+                    _input.SetCursor(effect.Offset);
+                    SyncVimMirror();
+                    break;
+                case VimEffectKind.EnterInsert:
+                    _input.SetCursor(effect.Offset);
+                    SyncVimMirror();
+                    break;
+                case VimEffectKind.UndoRequested:
+                    _input.Undo();
+                    SyncVimMirror();
+                    break;
+                case VimEffectKind.PassThrough:
+                case VimEffectKind.None:
+                    // PassThrough 已在 HandleVimPlainKey 分流透传不达此处（防御无动作）；
+                    // None = 纯内部状态变化无接线动作（VimTypes.cs:269-270）
+                    break;
+            }
+        }
+    }
+
+    /// <summary>vim 镜像同步（TASK066 E3 — 宿主真身 → 引擎镜像通道 <see cref="VimEngine.Sync"/>：
+    /// 基准 useVimInput 每次按键实时读宿主 props.value/textInput.offset（useVimInput.ts:72/82/182），
+    /// C# 引擎持镜像经本通道等价回写；顺带刷新视觉行折行宽（gj/gk 用 — 基准 props.columns，
+    /// 对齐 InputBuffer.VisualContext 的 cols-PromptWidth 口径）。vim 关闭 no-op。</summary>
+    private void SyncVimMirror()
+    {
+        if (_vimEngine is null)
+        {
+            return;
+        }
+
+        _vimEngine.WrapWidth = Math.Max(1, _sizeSource.Current.Cols - PromptInputBox.PromptWidth);
+        _vimEngine.Sync(_input.Text, _input.CursorCol);
+    }
+
+    /// <summary>vim footer 投影刷新（TASK066 E3 — 基准 PromptInputFooterLeftSide.tsx:170/191：
+    /// INSERT 显示 dim "-- INSERT --"、NORMAL 不显示（VimMode null）；模式切换时由
+    /// <see cref="TryHandleVimKey"/> 统一触发。vim 关闭 no-op。</summary>
+    private void RefreshVimFooter()
+    {
+        if (_vimEngine is null)
+        {
+            return;
+        }
+
+        _view.Footer = _view.Footer with
+        {
+            VimMode = _vimEngine.Mode == VimMode.Insert ? _vimEngine.StatusLine : null,
+        };
     }
 
     /// <summary>Esc 处置（对齐基准重载链 — 用户决策"全部对齐基准"2026-10-23）：
@@ -3060,16 +3335,26 @@ public sealed class ReplShell
     /// <summary>提交主流程（Submit 外壳剥离暂存收尾后的全部路径 — 空闲返回拦截/bash 直通/主题拦截/
     /// 使用记账/登录门/忙时排队/闲时直发；各 return 路径均为"提交动作已发生"，外壳统一恢复暂存）。
     /// TASK066 板块 D D7 — skipIdleCheck：空闲返回对话框确认后的重发专用（跳过 idle 判定防循环
-    /// — 基准 skipIdleCheckRef 消费式标志的显式参数化等价；正常 Submit 入口恒 false）。</summary>
-    private void SubmitCore(string text, string expanded, IReadOnlyDictionary<int, string>? pastedContents = null, bool skipIdleCheck = false)
+    /// — 基准 skipIdleCheckRef 消费式标志的显式参数化等价；正常 Submit 入口恒 false）。
+    /// E4 接线 — frozenAttachments：已冻结附件快照（排队泵/重发路径传入 — 附件登记簿首冻后已清，
+    /// 重发不重复冻结）；null = 首个提交入口，从登记簿拍快照并清空（提交时附件冻结 — 后续编辑
+    /// 新附件归下回合，对齐基准 handlePromptSubmit.ts:174-185 + 347 setPastedContents({})）。
+    /// 提交文本 [Image #N] 占位原样保留不展开（基准 expandPastedTextRefs 只展开 text 引用 —
+    /// history.ts:79-93 Image refs are left alone, they become content blocks）。</summary>
+    private void SubmitCore(string text, string expanded, IReadOnlyDictionary<int, string>? pastedContents = null, bool skipIdleCheck = false, IReadOnlyList<ImageAttachment>? frozenAttachments = null)
     {
         // TASK066 板块 D D7 — 空闲返回拦截（基准 REPL.tsx:3321-3342 idle-return 块：空闲超阈值
-        /// 的首次提交拦下挂对话框，暂存待发文本 — 拦截即返回：不上历史不调引擎不进命令拦截链）
+        /// 的首次提交拦下挂对话框，暂存待发文本 — 拦截即返回：不上历史不调引擎不进命令拦截链；
+        /// 附件不冻结 — 拦截期间登记簿保留，确认重发时统一冻结（见下方 TakeSubmittedAttachments））
         if (!skipIdleCheck && ShouldPromptIdleReturn(text))
         {
             BeginIdleReturn(text, expanded);
             return;
         }
+
+        // E4 接线 — 提交时附件冻结：占位仍被提交文本引用的快照（孤儿过滤）+ 登记簿清空归下回合；
+        // 重发/排队泵路径传已冻结快照（TakeSubmittedAttachments 幂等空转 — 登记簿已清）
+        var attachments = frozenAttachments ?? TakeSubmittedAttachments(text);
 
         _history.Add(text, pastedContents);
         _history.Reset();
@@ -3078,6 +3363,7 @@ public sealed class ReplShell
         if (text.StartsWith('!') && text.Length > 1)
         {
             AddMessage(new UserMessageItem(text));
+            AddAttachmentItems(attachments);
             RunBashDirect(text[1..]);
             return;
         }
@@ -3088,6 +3374,7 @@ public sealed class ReplShell
         if (text == ThemeCommandPrefix || text.StartsWith(ThemeCommandPrefix + " ", StringComparison.Ordinal))
         {
             AddMessage(new UserMessageItem(text));
+            AddAttachmentItems(attachments);
             HandleThemeCommand(text);
             return;
         }
@@ -3098,6 +3385,7 @@ public sealed class ReplShell
         {
             var exportText = TranscriptExporter.Export(_view.Messages.Items);
             AddMessage(new UserMessageItem(text));
+            AddAttachmentItems(attachments);
             HandleExportCommand(text, exportText);
             return;
         }
@@ -3116,6 +3404,7 @@ public sealed class ReplShell
         if (!LoginGateOpen)
         {
             AddMessage(new UserMessageItem(text));
+            AddAttachmentItems(attachments);
             AddMessage(new ToolResultItem("未登录 · 请在 auth.json 配置有效 API key 或运行 /login 后重试"));
             return;
         }
@@ -3129,15 +3418,47 @@ public sealed class ReplShell
                 return;
             }
 
-            _queuedInputs.Add((text, expanded));
+            // E4 接线 — 附件快照随队列（基准 enqueue 携带 pastedContents handlePromptSubmit.ts:334-343：
+            // 排队期间登记簿已清，发送时附件随快照上屏不丢）
+            _queuedInputs.Add((text, expanded, attachments));
             _view.QueuedInputs = _queuedInputs.Select(static entry => entry.Display).ToList();
             return;
         }
 
         AddMessage(new UserMessageItem(text));
+        // E4 接线 — 打断恢复锚点在挂附件项之前记录（_lastSubmittedIndex 恒指用户消息本体，
+        /// 附件项插在其后不偏移锚点 — RestoreInterruptedInput 移除段含后续连续附件项）
         _lastSubmittedText = text;
         _lastSubmittedIndex = _view.Messages.Count - 2;
+        AddAttachmentItems(attachments);
         _engine.Submit(expanded);
+    }
+
+    /// <summary>
+    /// 附件提交冻结（E4 接线 — 基准 handlePromptSubmit.ts:174-185 + 347）：占位仍被提交文本
+    /// 引用的附件快照（孤儿过滤 — 占位被删的不发，对齐 referencedIds 过滤）+ 登记簿清空重置
+    ///（setPastedContents({}) — 后续编辑新附件归下回合编号从头分配）。
+    /// 幂等空转：登记簿已清（重发/排队泵路径）时快照为空列表。
+    /// </summary>
+    /// <param name="text">提交文本（含 [Image #N] 占位形态）。</param>
+    /// <returns>冻结快照（按 Id 升序；无附件 = 空列表）。</returns>
+    private IReadOnlyList<ImageAttachment> TakeSubmittedAttachments(string text)
+    {
+        _attachments.PruneOrphans(text);
+        var snapshot = _attachments.Items;
+        _attachments.Clear();
+        return snapshot;
+    }
+
+    /// <summary>附件占位项上屏（E4 接线 — 用户消息后逐个挂 ImageAttachmentItem，渲染形态对齐
+    /// 基准 UserImageMessage.tsx:20-58 独立项 [Image #N] 标签 + ⎿ 前缀包裹；空快照无操作）。</summary>
+    /// <param name="attachments">提交冻结快照。</param>
+    private void AddAttachmentItems(IReadOnlyList<ImageAttachment> attachments)
+    {
+        foreach (var attachment in attachments)
+        {
+            AddMessage(new ImageAttachmentItem(attachment.Id, attachment.Filename));
+        }
     }
 
     /// <summary>/theme 拦截命令前缀（S9 接线 — GeneratedSlashCommandCatalog 是源码生成静态表，
@@ -3283,9 +3604,12 @@ public sealed class ReplShell
             return;
         }
 
-        var (display, expanded) = _queuedInputs[0];
+        var (display, expanded, attachments) = _queuedInputs[0];
         _queuedInputs.RemoveAt(0);
         AddMessage(new UserMessageItem(display));
+        // E4 接线 — 附件快照随发送上屏（排队期间登记簿已清，快照是附件唯一载体 — 基准
+        // enqueue 携带 pastedContents 执行时带图上屏语义）
+        AddAttachmentItems(attachments);
         _view.QueuedInputs = _queuedInputs.Select(static entry => entry.Display).ToList();
         _engine.Submit(expanded);
     }

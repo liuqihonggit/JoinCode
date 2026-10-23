@@ -192,7 +192,7 @@ public static partial class ImagePasteDetector
         isWindows
             ? path.StartsWith("\\\\", StringComparison.Ordinal)
                 || (path.Length >= 3 && char.IsAsciiLetter(path[0]) && path[1] == ':' && (path[2] == '/' || path[2] == '\\'))
-            : path.StartsWith('/', StringComparison.Ordinal);
+            : path.Length > 0 && path[0] == '/';
 
     /// <summary>
     /// 路径 basename 提取（node basename — 基准 imagePaste.ts:372 剪贴板路径文件名匹配用）：

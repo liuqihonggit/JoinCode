@@ -405,13 +405,19 @@ public static class Program {
                     alternateScreen: new AlternateScreenController(tuiOutput.Write),
                     // TASK066 板块C — 选中即复制（Release 后 settled 选区 → 引擎剪贴板服务，
                     // 复用 clipboard 同源注入；选区纯空白跳过在 Core 层守卫）
-                    copySelection: text => _ = clipboardService?.SetTextAsync(text),
-                    // TASK066 板块D — 空闲返回阈值（基准 CLAUDE_CODE_IDLE_THRESHOLD_MINUTES
-                    // 环境变量覆盖，默认 75min — Core 不读 env 由宿主读传入）
-                    idleReturnThresholdMinutes: int.TryParse(
-                        Environment.GetEnvironmentVariable("CLAUDE_CODE_IDLE_THRESHOLD_MINUTES"), out var idleMin) && idleMin > 0
-                        ? idleMin
-                        : null);
+                     copySelection: text => _ = clipboardService?.SetTextAsync(text),
+                     // TASK066 板块D — 空闲返回阈值（基准 CLAUDE_CODE_IDLE_THRESHOLD_MINUTES
+                     // 环境变量覆盖，默认 75min — Core 不读 env 由宿主读传入）
+                     idleReturnThresholdMinutes: int.TryParse(
+                         Environment.GetEnvironmentVariable("CLAUDE_CODE_IDLE_THRESHOLD_MINUTES"), out var idleMin) && idleMin > 0
+                         ? idleMin
+                         : null,
+                     // TASK066 板块E — vim 编辑模式开关（JCC_TUI_VIM=1 灰度启用 — 引擎 settings
+                     // 无现成 vimMode 键，环境开关先行对齐 JCC_TUI_TAB_STATUS 先例；默认关零行为变化）
+                     vimMode: Environment.GetEnvironmentVariable("JCC_TUI_VIM") is "1" or "true",
+                     // TASK066 板块E — 图片文件读取委托（粘贴图片路径 → base64 附件；magic 嗅探
+                     // mime，读失败 null 降级该行回退纯文本粘贴）
+                     loadImageFromFile: LoadImageFromFile);
                 pickerEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);
@@ -453,6 +459,41 @@ public static class Program {
     /// <summary>加载主题配置名（S9 接线 — 引擎 settings.json 的 theme 键经 IConfigurationService 读取）：
     /// auto 经 ThemeSelection.ResolveAutoName 唯一数据源解析（S11 遗留#3 收编 — 小时判定不再本地重写）；
     /// 未配置/读取失败返回 null（ReplShell 侧 ThemeSelection.Resolve 回退 dark）。</summary>
+    /// <summary>图片文件读取（TASK066 板块E — 粘贴图片路径→附件委托宿主实现）：
+    /// 字节读入 + magic 嗅探 mime（PNG/JPEG/GIF/WebP 四类，基准 imagePaste.ts:270 扩展名集）；
+    /// 尺寸解析不做（DTO 可空 — 引擎侧按需降级）；任何失败 null（Core 层降级回退纯文本粘贴）。</summary>
+    /// <param name="path">清理后的图片文件路径。</param>
+    /// <returns>附件实例；不可读/非图片 null。</returns>
+    private static ImageAttachment? LoadImageFromFile(string path) {
+        try {
+            if (!File.Exists(path)) {
+                return null;
+            }
+
+            var bytes = File.ReadAllBytes(path);
+            if (bytes.Length == 0) {
+                return null;
+            }
+
+            var mediaType = bytes.Length >= 12 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47
+                ? "image/png"
+                : bytes.Length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF
+                    ? "image/jpeg"
+                    : bytes.Length >= 6 && bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46
+                        ? "image/gif"
+                        : bytes.Length >= 12 && bytes[8] == 0x57 && bytes[9] == 0x45 && bytes[10] == 0x42 && bytes[11] == 0x50
+                            ? "image/webp"
+                            : null;
+            if (mediaType is null) {
+                return null;
+            }
+
+            return ImageAttachment.Of(Convert.ToBase64String(bytes), mediaType, Path.GetFileName(path), path);
+        } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) {
+            return null;
+        }
+    }
+
     private static async Task<string?> LoadThemeNameAsync(IServiceProvider services) {
         try {
             var config = services.GetService<IConfigurationService>();

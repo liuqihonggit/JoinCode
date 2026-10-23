@@ -286,7 +286,7 @@ internal static class VimOperators
         var newText = session.Text;
         for (var i = 0; i < count && offset < newText.Length; i++)
         {
-            var graphemeLength = GraphemeSegmenter.TryNext(newText.AsSpan(offset), out var end)
+            var graphemeLength = GraphemeSegmenter.TryNext(newText.AsSpan(), offset, out var end)
                 ? end - offset
                 : 1;
             newText = newText[..offset] + ch + newText[(offset + graphemeLength)..];

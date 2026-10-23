@@ -258,6 +258,22 @@
 - 基准修正：dismiss = setInputValue 恢复文本（非丢弃）；token 门槛 100_000 + 斜杠豁免（任务书未列、基准五条件补全）；effort 渲染独立区块非列表行、键位全局 left/right（任务书猜测被基准否定）
 - 提交链：2077885bf
 
+### 板块 E — 编辑增强（2026-10-23 E1-E4 完成）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| E1 vim 引擎 7 文件（两模式 11 态/16 motion/3 operator/18 textObject/count 乘积/单寄存器） | E3 接线 | ✅ | ✅ 160 用例（15 失败经基准裁决：14 测试笔误+1 实现正确） |
+| E2 附件 4 文件（路径识别协议/AttachmentList/占位项） | E4 接线 | ✅ | ✅ 55 测试 |
+| E3 vim 接线（Esc 分流/Enter 透传提交/Insert 态透传/footer -- INSERT --/镜像同步） | ReplShell TryHandleVimKey | ✅ | ✅ 13 接线测试 |
+| E4 图片粘贴接线（Paste 分桶/占位插入/孤儿修剪/提交冻结/排队三元组） | HandlePaste+SubmitCore | ✅ | ✅ 16 接线测试 |
+| 宿主装配（JCC_TUI_VIM 开关 + LoadImageFromFile magic 嗅探） | Program.cs | ✅ | ✅ Host 125 + selftest OK |
+
+- 测试：2485→**2749 全绿**（+264）
+- debug 修复：①WrapWidth 命名统一 ②GraphemeSegmenter.TryNext 三参签名 ③System.Globalization GlobalUsings ④df inclusive 期望笔误 ⑤dw 删后光标钳制笔误 ⑥**vim 编辑强制断 undo 组**（ForceNewUndoGroup — u 撤单步语义与时间窗合并冲突的架构修正）
+- 基准核实修正：仅 INSERT/NORMAL 两模式（无 Visual）；Esc 闲时 NORMAL 不清输入（vim 层永不透传——与既有清输入链差异已按基准实现）；粘贴协议 = bracketed paste 路径文本（无转义序列协议）；Enter 任意模式透传可提交
+- 遗留：附件→引擎消息 DTO（image content block）留板块 G；alt+v 主动读剪贴板（win32 clipboard）留 G/宿主域；E2 与基准差异 2 处登记（读失败行回退 vs 静默丢弃、排队弹回附件不复活）
+- 提交链：84c4faff1(E1+E2) → E3+E4 接线 + 宿主装配
+
 ### 其他板块
 
-E/F 待分派；G 跨板块收口最后做。
+F 待做；G 跨板块收口最后做。

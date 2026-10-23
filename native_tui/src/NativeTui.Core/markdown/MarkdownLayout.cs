@@ -332,7 +332,7 @@ public static class MarkdownLayout
     private static IEnumerable<List<MarkdownSegment>> WrapSegments(IReadOnlyList<MarkdownSegment> segments, int width)
     {
         var lines = new List<List<MarkdownSegment>>();
-        var current = new List<(string Text, MarkdownStyle Style)>();
+        var current = new List<(string Text, MarkdownStyle Style, string? Url)>();
         var currentWidth = 0;
         var pendingSpace = 0;
 
@@ -357,13 +357,13 @@ public static class MarkdownLayout
 
             if (pendingSpace > 0 && current.Count > 0)
             {
-                current.Add((new string(' ', pendingSpace), current[^1].Style));
+                current.Add((new string(' ', pendingSpace), current[^1].Style, current[^1].Url));
             }
 
             pendingSpace = 0;
             if (tokenWidth <= width)
             {
-                current.Add((token.Text, token.Style));
+                current.Add((token.Text, token.Style, token.Url));
                 currentWidth += tokenWidth;
                 continue;
             }
@@ -377,7 +377,7 @@ public static class MarkdownLayout
                     FlushLine();
                 }
 
-                current.Add((hard.Text, token.Style));
+                current.Add((hard.Text, hard.Style, hard.Url));
                 currentWidth += hardWidth;
             }
         }
@@ -398,8 +398,9 @@ public static class MarkdownLayout
         }
     }
 
-    /// <summary>段序列 → token 流（空格串 / ASCII 词 / 宽 rune 单字，样式随段携带）。</summary>
-    private static IEnumerable<(string Text, MarkdownStyle Style)> Tokenize(IReadOnlyList<MarkdownSegment> segments)
+    /// <summary>段序列 → token 流（空格串 / ASCII 词 / 宽 rune 单字，样式与 Url 随段携带
+    /// — DSG043 P2：链接 Url 穿透折行层，行段区间提取的数据前提）。</summary>
+    private static IEnumerable<(string Text, MarkdownStyle Style, string? Url)> Tokenize(IReadOnlyList<MarkdownSegment> segments)
     {
         foreach (var segment in segments)
         {
@@ -410,7 +411,7 @@ public static class MarkdownLayout
                 {
                     if (run.Length > 0)
                     {
-                        yield return (run.ToString(), segment.Style);
+                        yield return (run.ToString(), segment.Style, segment.Url);
                         run.Clear();
                     }
 
@@ -420,7 +421,7 @@ public static class MarkdownLayout
 
                 if (run.Length > 0 && run[0] == ' ')
                 {
-                    yield return (run.ToString(), segment.Style);
+                    yield return (run.ToString(), segment.Style, segment.Url);
                     run.Clear();
                 }
 
@@ -428,11 +429,11 @@ public static class MarkdownLayout
                 {
                     if (run.Length > 0)
                     {
-                        yield return (run.ToString(), segment.Style);
+                        yield return (run.ToString(), segment.Style, segment.Url);
                         run.Clear();
                     }
 
-                    yield return (rune.ToString(), segment.Style);
+                    yield return (rune.ToString(), segment.Style, segment.Url);
                     continue;
                 }
 
@@ -441,13 +442,13 @@ public static class MarkdownLayout
 
             if (run.Length > 0)
             {
-                yield return (run.ToString(), segment.Style);
+                yield return (run.ToString(), segment.Style, segment.Url);
             }
         }
     }
 
-    /// <summary>超宽 token 逐 rune 硬断（每片 ≤ width）。</summary>
-    private static IEnumerable<(string Text, MarkdownStyle Style)> HardSplit((string Text, MarkdownStyle Style) token, int width)
+    /// <summary>超宽 token 逐 rune 硬断（每片 ≤ width — Url 随片携带：折行拆分后每片独立链接段）。</summary>
+    private static IEnumerable<(string Text, MarkdownStyle Style, string? Url)> HardSplit((string Text, MarkdownStyle Style, string? Url) token, int width)
     {
         var sliceWidth = 0;
         var slice = new System.Text.StringBuilder();
@@ -456,7 +457,7 @@ public static class MarkdownLayout
             var runeWidth = RuneWidth.Of(rune);
             if (sliceWidth + runeWidth > width && slice.Length > 0)
             {
-                yield return (slice.ToString(), token.Style);
+                yield return (slice.ToString(), token.Style, token.Url);
                 slice.Clear();
                 sliceWidth = 0;
             }
@@ -467,23 +468,24 @@ public static class MarkdownLayout
 
         if (slice.Length > 0)
         {
-            yield return (slice.ToString(), token.Style);
+            yield return (slice.ToString(), token.Style, token.Url);
         }
     }
 
-    /// <summary>相邻同样式 token 合并回段（消除碎片段）。</summary>
-    private static List<MarkdownSegment> MergeSegments(List<(string Text, MarkdownStyle Style)> tokens)
+    /// <summary>相邻同样式 token 合并回段（消除碎片段）— 合并键 Style + Url
+    ///（DSG043 P2：不同 Url 的链接段不合并防链接归属丢失；同 Url 拆片段合并后区间提取仍正确）。</summary>
+    private static List<MarkdownSegment> MergeSegments(List<(string Text, MarkdownStyle Style, string? Url)> tokens)
     {
         var segments = new List<MarkdownSegment>();
-        foreach (var (text, style) in tokens)
+        foreach (var (text, style, url) in tokens)
         {
-            if (segments.Count > 0 && segments[^1].Style == style)
+            if (segments.Count > 0 && segments[^1].Style == style && segments[^1].Url == url)
             {
                 segments[^1] = segments[^1] with { Text = segments[^1].Text + text };
                 continue;
             }
 
-            segments.Add(new MarkdownSegment(text, style));
+            segments.Add(new MarkdownSegment(text, style, url));
         }
 
         return segments;

@@ -109,6 +109,9 @@ public sealed record AppDataPaths(
     /// <summary>获取全局配置文件的完整路径。</summary>
     public string GlobalConfigFilePath => Path.Combine(JccDirectory, GlobalConfigFileName);
 
+    /// <summary>获取信任目录记录文件的完整路径。</summary>
+    public string TrustedFoldersFilePath => Path.Combine(JccDirectory, TrustedFoldersFileName);
+
     /// <summary>
     /// 获取 tokens 目录的完整路径
     /// </summary>

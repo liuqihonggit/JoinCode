@@ -14,10 +14,7 @@ public sealed partial class TrustFolderManager : ServiceEntity, ITrustFolderMana
     /// <param name="fs">文件系统抽象</param>
     public TrustFolderManager(IFileSystem fs) {
         _fs = fs;
-        var appDataPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            AppDataConstants.AppDataFolder);
-        _trustedFoldersPath = Path.Combine(appDataPath, AppDataConstants.TrustedFoldersFileName);
+        _trustedFoldersPath = AppDataConstants.Paths.TrustedFoldersFilePath;
     }
 
     internal TrustFolderManager(IFileSystem fs, string trustedFoldersPath) {

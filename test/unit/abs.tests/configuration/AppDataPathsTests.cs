@@ -85,6 +85,12 @@ public sealed class AppDataPathsTests {
     }
 
     [Fact]
+    public void TrustedFoldersFilePath_CombinesJccDirectoryAndTrustedFoldersFileName() {
+        var p = Make();
+        p.TrustedFoldersFilePath.Should().Be(Path.Combine(p.JccDirectory, p.TrustedFoldersFileName));
+    }
+
+    [Fact]
     public void GlobalConfigFilePath_CombinesJccDirectoryAndGlobalConfigFileName() {
         var p = Make();
         p.GlobalConfigFilePath.Should().Be(Path.Combine(p.JccDirectory, p.GlobalConfigFileName));

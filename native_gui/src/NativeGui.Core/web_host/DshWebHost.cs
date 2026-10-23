@@ -17,6 +17,11 @@ internal sealed class DshWebHost : IAsyncDisposable {
     private const string ApiPrefix = "/api/";
     private const string ComboPrefix = "/plugins/??";
     private const string BinaryUploadPath = "/api/session/uploadFileBinary";
+    private const string ChangesSummaryPath = "/api/changes.summary";
+    private const string ChangesDiffPath = "/api/changes.diff";
+    private const string ChangesOpenPath = "/api/changes.open";
+    private const string PresentHostPath = "/api/present.host";
+    private const string PresentOpenPath = "/api/present.open";
 
     private static readonly FrozenDictionary<string, string> ContentTypes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
@@ -57,8 +62,9 @@ internal sealed class DshWebHost : IAsyncDisposable {
 
     /// <summary>解包资产 + 选空闲端口 + 启动监听</summary>
     internal static DshWebHost Start(DshHostServices? services = null) {
-        var root = DshWebAssets.EnsureExtracted();
-        var host = new DshWebHost(root, FindFreePort(), services ?? new DshHostServices(new PhysicalFileSystem()));
+        var fileSystem = new PhysicalFileSystem();
+        var root = DshWebAssets.EnsureExtracted(fileSystem);
+        var host = new DshWebHost(root, FindFreePort(), services ?? new DshHostServices(fileSystem));
         host._listener.Prefixes.Add(host.BaseUrl);
         host._listener.Start();
         host._acceptLoop = host.AcceptLoopAsync();
@@ -84,7 +90,8 @@ internal sealed class DshWebHost : IAsyncDisposable {
         try {
             await RouteAsync(context);
         } catch (Exception ex) {
-            GuiDiag.Log($"[DSH-WEB] request failed {context.Request.RawUrl}: {ex.Message}");
+            Console.Error.WriteLine($"[DSH-WEB] request failed {context.Request.RawUrl}: {ex}");
+            GuiDiag.Log($"[DSH-WEB] request failed {context.Request.RawUrl}: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
             TryClose(context.Response, 500);
         }
     }
@@ -103,6 +110,10 @@ internal sealed class DshWebHost : IAsyncDisposable {
         }
         var path = request.Url?.AbsolutePath ?? "/";
         if (path.StartsWith(ApiPrefix, StringComparison.Ordinal) || path == "/api") {
+            // deliverables 文档路由（TASK066 C7）：改动摘要/对比/原生打开 + 桌面能力
+            if (await TryHandleDeliverablesAsync(context, path)) {
+                return;
+            }
             // 附件直传（TASK058 P2-B2）：POST /api/session/uploadFileBinary?sessionId=&name=，body 为 octet-stream
             if (string.Equals(path, BinaryUploadPath, StringComparison.Ordinal)) {
                 await HandleBinaryUploadAsync(context);
@@ -151,6 +162,185 @@ internal sealed class DshWebHost : IAsyncDisposable {
         }
     }
 
+    /// <summary>deliverables 文档路由分发（未命中返回 false，交回一元 RPC）</summary>
+    /// <param name="context">请求上下文</param>
+    /// <param name="path">绝对路径</param>
+    /// <returns>是否已处理</returns>
+    private async Task<bool> TryHandleDeliverablesAsync(HttpListenerContext context, string path) {
+        switch (path) {
+            case ChangesSummaryPath:
+                await HandleChangesSummaryAsync(context);
+                return true;
+            case ChangesDiffPath:
+                await HandleChangesDiffAsync(context);
+                return true;
+            case ChangesOpenPath:
+                await HandleChangesOpenAsync(context);
+                return true;
+            case PresentHostPath:
+                await HandlePresentHostAsync(context);
+                return true;
+            case PresentOpenPath:
+                await HandlePresentOpenAsync(context);
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// 一轮改动摘要（<c>GET /api/changes.summary?sessionId&amp;seq</c>）：坐标未知或宿主重启后丢失 → 404
+    /// （前端按 missing 处理，卡片不渲染）。
+    /// </summary>
+    private async Task HandleChangesSummaryAsync(HttpListenerContext context) {
+        var summary = LookupChanges(context, out _, out _);
+        if (summary is null) {
+            TryClose(context.Response, 404);
+            return;
+        }
+        await WriteJsonAsync(
+            context.Response,
+            200,
+            JsonSerializer.SerializeToUtf8Bytes(summary, DshJsonContext.Default.DshChangesSummary));
+    }
+
+    /// <summary>
+    /// 单文件对比（<c>GET /api/changes.diff?sessionId&amp;seq&amp;index</c>）：坐标/下标越界 → 404，
+    /// 其余异常由请求级兜底回 500（前端按 error 允许重试）。
+    /// </summary>
+    private async Task HandleChangesDiffAsync(HttpListenerContext context) {
+        var query = context.Request.Url?.Query ?? "";
+        var sessionId = QueryValue(query, "sessionId");
+        var diff = sessionId is not null
+            && long.TryParse(QueryValue(query, "seq"), out var seq)
+            && int.TryParse(QueryValue(query, "index"), out var index)
+                ? _services.Changes.Diff(sessionId, seq, index)
+                : null;
+        if (diff is null) {
+            TryClose(context.Response, 404);
+            return;
+        }
+        await WriteJsonAsync(
+            context.Response,
+            200,
+            JsonSerializer.SerializeToUtf8Bytes(diff, DshJsonContext.Default.DshChangesDiff));
+    }
+
+    /// <summary>
+    /// 在宿主桌面打开/选中改动文件（<c>POST /api/changes.open?sessionId&amp;seq&amp;index[&amp;action=reveal]</c>）：
+    /// 坐标未知 404；宿主无法交给桌面应用（非 Windows / 文件已删除）→ 422（前端显示 nativeUnavailable）。
+    /// </summary>
+    private async Task HandleChangesOpenAsync(HttpListenerContext context) {
+        var response = context.Response;
+        if (!string.Equals(context.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase)) {
+            TryClose(response, 405);
+            return;
+        }
+        var summary = LookupChanges(context, out _, out var index);
+        var file = summary is not null && index >= 0 && index < summary.Files.Count ? summary.Files[index] : null;
+        if (file is null) {
+            TryClose(response, 404);
+            return;
+        }
+        var query = context.Request.Url?.Query ?? "";
+        var (opened, error) = DshWorkspacePathService.Open(
+            _services.FileSystem, file.Path, QueryValue(query, "action"), QueryValue(query, "application"));
+        if (!opened) {
+            GuiDiag.Log($"[DSH-WEB] changes.open rejected path={file.Path}: {error}");
+            TryClose(response, 422);
+            return;
+        }
+        TryClose(response, 204);
+    }
+
+    /// <summary>宿主桌面能力（<c>GET /api/present.host</c>）：前端据此决定交付卡片是否显示打开动作。</summary>
+    private async Task HandlePresentHostAsync(HttpListenerContext context) {
+        var host = new DshPresentHost {
+            Name = "JCC Desktop",
+            Available = DshWorkspacePathService.IsSupported,
+            FileManager = OperatingSystem.IsWindows() ? "explorer" : OperatingSystem.IsMacOS() ? "finder" : "directory",
+        };
+        await WriteJsonAsync(
+            context.Response,
+            200,
+            JsonSerializer.SerializeToUtf8Bytes(host, DshJsonContext.Default.DshPresentHost));
+    }
+
+    /// <summary>
+    /// 打开 <c>deliverables/presented</c> 声明的文件（<c>POST /api/present.open?sessionId&amp;seq&amp;index</c>）：
+    /// 事件不存在/下标越界 404；宿主无法交给桌面应用 → 422。引擎没有 present 工具时不会产生该事件（与 Claude Code 对齐）。
+    /// </summary>
+    private async Task HandlePresentOpenAsync(HttpListenerContext context) {
+        var response = context.Response;
+        if (!string.Equals(context.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase)) {
+            TryClose(response, 405);
+            return;
+        }
+        var query = context.Request.Url?.Query ?? "";
+        var sessionId = QueryValue(query, "sessionId");
+        if (string.IsNullOrWhiteSpace(sessionId)
+            || !long.TryParse(QueryValue(query, "seq"), out var seq)
+            || !int.TryParse(QueryValue(query, "index"), out var index)
+            || index < 0) {
+            TryClose(response, 404);
+            return;
+        }
+        var path = await FindPresentedPathAsync(sessionId, seq, index);
+        if (path is null) {
+            TryClose(response, 404);
+            return;
+        }
+        var resolved = path;
+        if (!Path.IsPathRooted(resolved)
+            && await _services.Sessions.GetSessionCwdAsync(sessionId, CancellationToken.None) is { Length: > 0 } cwd) {
+            resolved = Path.Combine(cwd, resolved);
+        }
+        var (opened, error) = DshWorkspacePathService.Open(
+            _services.FileSystem, resolved, QueryValue(query, "action"), QueryValue(query, "application"));
+        if (!opened) {
+            GuiDiag.Log($"[DSH-WEB] present.open rejected path={resolved}: {error}");
+            TryClose(response, 422);
+            return;
+        }
+        TryClose(response, 204);
+    }
+
+    /// <summary>按坐标读改动摘要并解出下标（sessionId/seq/index 任一非法时 summary 为 null）</summary>
+    private DshChangesSummary? LookupChanges(HttpListenerContext context, out string? sessionId, out int index) {
+        var query = context.Request.Url?.Query ?? "";
+        sessionId = QueryValue(query, "sessionId");
+        index = int.TryParse(QueryValue(query, "index"), out var parsedIndex) ? parsedIndex : -1;
+        return sessionId is not null && long.TryParse(QueryValue(query, "seq"), out var seq)
+            ? _services.Changes.Summary(sessionId, seq)
+            : null;
+    }
+
+    /// <summary>从会话日志里取 <c>deliverables/presented</c> 事件第 index 个文件的声明路径</summary>
+    private async Task<string?> FindPresentedPathAsync(string sessionId, long seq, int index) {
+        var events = await _services.Journal.LoadAsync(sessionId, CancellationToken.None);
+        var presented = events.LastOrDefault(sessionEvent =>
+            sessionEvent.Seq == seq && sessionEvent.Type == "deliverables/presented");
+        if (presented is null
+            || !presented.Data.TryGetProperty("files", out var files)
+            || files.ValueKind != JsonValueKind.Array
+            || index >= files.GetArrayLength()) {
+            return null;
+        }
+        var file = files[index];
+        return file.TryGetProperty("path", out var path) && path.ValueKind == JsonValueKind.String
+            ? path.GetString()
+            : null;
+    }
+
+    /// <summary>回写 JSON 文档（deliverables 路由不使用一元 RPC 信封）</summary>
+    private static async Task WriteJsonAsync(HttpListenerResponse response, int statusCode, byte[] payload) {
+        response.StatusCode = statusCode;
+        response.ContentType = "application/json; charset=utf-8";
+        response.Headers["Cache-Control"] = "no-store";
+        response.ContentLength64 = payload.Length;
+        await response.OutputStream.WriteAsync(payload);
+    }
+
     /// <summary>解析查询串单值（无解码需求：sessionId/name 均为简单 ASCII）</summary>
     private static string? QueryValue(string query, string key) {
         foreach (var pair in query.TrimStart('?').Split('&')) {
@@ -184,8 +374,12 @@ internal sealed class DshWebHost : IAsyncDisposable {
         if (!result.Ok) {
             GuiDiag.Log($"[DSH-WEB] rpc {envelope.Method} -> {result.Error?.Code}: {result.Error?.Message}");
         }
-        var reply = new DshRpcResponse { RpcId = envelope.RpcId, Result = result };
         try {
+            if (result.Ok && result.Binary is { } binary) {
+                await WriteMultipartReplyAsync(response, envelope.RpcId, result, binary);
+                return;
+            }
+            var reply = new DshRpcResponse { RpcId = envelope.RpcId, Result = result };
             var payload = JsonSerializer.SerializeToUtf8Bytes(reply, DshJsonContext.Default.DshRpcResponse);
             response.StatusCode = 200;
             response.ContentType = "application/json; charset=utf-8";
@@ -195,6 +389,48 @@ internal sealed class DshWebHost : IAsyncDisposable {
         } finally {
             TryClose(response, 200);
         }
+    }
+
+    /// <summary>
+    /// 二进制一元响应：按 DSH gateway 的 multipart 契约回写 —— metadata 字段为 JSON 信封
+    /// （value 内保留 null 占位 + attachments 清单），bytes-0 字段为原始字节 Blob。
+    /// 前端 parseBinaryResponse 仅在 Content-Type 基类型为 multipart/form-data 时启用。
+    /// </summary>
+    private static async Task WriteMultipartReplyAsync(HttpListenerResponse response, string rpcId, DshRpcResult result, DshRpcBinaryAttachment binary) {
+        const string partName = "bytes-0";
+        var boundary = $"dsh-{Guid.NewGuid():N}";
+        var metadata = new DshRpcMultipartMetadata {
+            RpcId = rpcId,
+            Result = result,
+            Attachments = [new DshRpcAttachmentRef { Path = binary.Path, Part = partName }],
+        };
+        var payload = BuildMultipartPayload(boundary, partName, metadata, binary.Bytes);
+        response.StatusCode = 200;
+        response.ContentType = $"multipart/form-data; boundary={boundary}";
+        response.Headers["Cache-Control"] = "no-store";
+        response.ContentLength64 = payload.Length;
+        await response.OutputStream.WriteAsync(payload);
+    }
+
+    /// <summary>
+    /// 组装 multipart 响应体（metadata JSON + 原始字节 Blob）。
+    /// 一次成型返回完整数组，避免「流写完后指针在末尾再 CopyTo 复制 0 字节」导致 Content-Length 不符、
+    /// 客户端无限等待（真机已踩）。
+    /// </summary>
+    internal static byte[] BuildMultipartPayload(string boundary, string partName, DshRpcMultipartMetadata metadata, byte[] bytes) {
+        using var payload = new MemoryStream();
+        WriteAscii(payload, $"--{boundary}\r\nContent-Disposition: form-data; name=\"metadata\"\r\n\r\n");
+        payload.Write(JsonSerializer.SerializeToUtf8Bytes(metadata, DshJsonContext.Default.DshRpcMultipartMetadata));
+        WriteAscii(payload, $"\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"{partName}\"; filename=\"bytes.bin\"\r\nContent-Type: application/octet-stream\r\n\r\n");
+        payload.Write(bytes);
+        WriteAscii(payload, $"\r\n--{boundary}--\r\n");
+        return payload.ToArray();
+    }
+
+    /// <summary>写入 multipart 分隔符（ASCII，无 BOM）</summary>
+    private static void WriteAscii(Stream stream, string text) {
+        var bytes = Encoding.ASCII.GetBytes(text);
+        stream.Write(bytes, 0, bytes.Length);
     }
 
     /// <summary>WebSocket 流：回发打开帧产生的项，并登记需要持续推送的端点（session/follow）</summary>
@@ -252,6 +488,10 @@ internal sealed class DshWebHost : IAsyncDisposable {
         }
     }
 
+    /// <summary>把一条会话控制投影帧作为流项发送（session/control）</summary>
+    private static Task SendControlAsync(Func<DshStreamItem, Task> send, string streamId, DshSessionControlProjection frame) =>
+        send(Item(streamId, JsonSerializer.SerializeToElement(frame, DshJsonContext.Default.DshSessionControlProjection)));
+
     /// <summary>
     /// 按端点产生初始数据项（$events 就绪、workspace/follow 读真实注册表、session/control 读会话投影）；
     /// <c>session/follow</c> 额外返回一个订阅句柄，宿主把后续事件持续推到该连接。
@@ -265,6 +505,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
                 var clientId = Guid.NewGuid().ToString();
                 Func<JsonElement, Task> sendFrame = frame => send(Item(open.StreamId, frame));
                 _services.Approvals.Attach(sendFrame, clientId);
+                _services.Questions.Attach(sendFrame, clientId);
                 // goal/activation-changed 事件桥（TASK058 P2-B5）：activation 翻转即推 waterfall 帧
                 void OnGoalChanged(string sessionId, DshGoalDocument goal) {
                     _ = sendFrame(JsonSerializer.SerializeToElement(new DshWaterfallFrame {
@@ -286,6 +527,7 @@ internal sealed class DshWebHost : IAsyncDisposable {
                 }, DshJsonContext.Default.DshEventsReady))], new DetachLease(() => {
                     _services.Goals.GoalChanged -= OnGoalChanged;
                     _services.Approvals.Detach();
+                    _services.Questions.Detach();
                 }), null);
             }
             case "workspace/follow": {
@@ -294,15 +536,42 @@ internal sealed class DshWebHost : IAsyncDisposable {
                     new DshWorkspaceBaseline { Value = baseline }, DshJsonContext.Default.DshWorkspaceBaseline))], null, null);
             }
             case "session/control": {
-                var projections = await _services.Sessions.ProjectionsMapAsync(DshSessionStore.MaxSessions, cancellationToken);
-                return ([Item(open.StreamId, JsonSerializer.SerializeToElement(
-                    new DshSessionControlBaseline { Value = new DshSessionControlValue { Projections = projections } },
-                    DshJsonContext.Default.DshSessionControlBaseline))], null, null);
+                // 先挂控制帧订阅再读基线：期间产生的帧先缓冲，基线发出后按序补发（不漏帧）
+                var buffer = new ControlFrameBuffer();
+                var lease = _services.Control.Attach(frame =>
+                    buffer.AcceptAsync(frame, pending => SendControlAsync(send, open.StreamId, pending)));
+                try {
+                    var projections = await _services.Sessions.ProjectionsMapAsync(DshSessionStore.MaxSessions, cancellationToken);
+                    Func<Task> ready = async () => {
+                        foreach (var frame in buffer.StartDelivering()) {
+                            await SendControlAsync(send, open.StreamId, frame);
+                        }
+                    };
+                    return ([Item(open.StreamId, JsonSerializer.SerializeToElement(
+                        new DshSessionControlBaseline { Value = new DshSessionControlValue { Projections = projections } },
+                        DshJsonContext.Default.DshSessionControlBaseline))], lease, ready);
+                } catch {
+                    lease.Dispose();
+                    throw;
+                }
             }
             case "session/follow":
                 return await OpenSessionAsync(open, send, cancellationToken);
+            case "userQuestions/attachWait":
+                // 宿主 ask_user_question 是阻塞式调用（无 timed wait），前端仅对 wait.timed 问题才会打开本流。
+                // 诚实返回空流：不伪造 remainingMs，避免 UI 误以为还有可续答窗口。
+                GuiDiag.Log("[DSH-WEB] userQuestions/attachWait: host has no timed question wait; empty stream");
+                return ([], null, null);
             case "workspaceFiles/changes":
                 return await OpenWorkspaceFilesChangesAsync(open, send, cancellationToken);
+            case "job/list":
+                return await OpenJobListAsync(open, send, cancellationToken);
+            case "job/follow":
+                return await OpenJobFollowAsync(open, send, cancellationToken);
+            case "terminal/follow":
+                return OpenTerminalFollow(open, send, cancellationToken);
+            case "terminal/retain":
+                return OpenTerminalRetain(open);
             default:
                 GuiDiag.Log($"[DSH-WEB] stream endpoint unimplemented: {open.Endpoint}");
                 return ([], null, null);
@@ -346,6 +615,200 @@ internal sealed class DshWebHost : IAsyncDisposable {
                 pumpCts.Dispose();
             }),
             null);
+    }
+
+    /// <summary>
+    /// 打开后台任务花名册流（TASK066 C2）：先推一帧 rows，之后轮询引擎后台代理，
+    /// 花名册变化时补推（DSH 侧只在任务注册/状态变化时收到新帧）。
+    /// </summary>
+    private async Task<(IReadOnlyList<DshStreamItem> Opening, IDisposable? Lease, Func<Task>? Ready)> OpenJobListAsync(
+        DshStreamOpen open, Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
+        var request = open.Payload?.Args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshJobListArgs)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)) {
+            return ([Item(open.StreamId, StreamError("job/rejected",
+                "job/list 需要 {request:{sessionId}}；请先选择一个会话再打开任务面板"))], null, null);
+        }
+        var sessionId = request.SessionId;
+        var initial = await _services.Jobs.ListAsync(sessionId, cancellationToken);
+        var pumpCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var pump = Task.Run(() => PumpJobRowsAsync(open.StreamId, sessionId, initial, send, pumpCts.Token), pumpCts.Token);
+        return (
+            [JobRowsItem(open.StreamId, initial)],
+            new DetachLease(() => {
+                pumpCts.Cancel();
+                pumpCts.Dispose();
+            }),
+            null);
+    }
+
+    /// <summary>花名册轮询泵：只在投影变化时推帧（会话切换/引擎未就绪时静默）</summary>
+    private async Task PumpJobRowsAsync(
+        string streamId, string sessionId, IReadOnlyList<DshJobView> initial,
+        Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
+        var previous = JsonSerializer.Serialize(
+            new DshJobRowsFrame { Jobs = [.. initial] }, DshJsonContext.Default.DshJobRowsFrame);
+        while (!cancellationToken.IsCancellationRequested) {
+            try {
+                await Task.Delay(JobPollInterval, cancellationToken).ConfigureAwait(false);
+                var jobs = await _services.Jobs.ListAsync(sessionId, cancellationToken).ConfigureAwait(false);
+                var current = JsonSerializer.Serialize(
+                    new DshJobRowsFrame { Jobs = [.. jobs] }, DshJsonContext.Default.DshJobRowsFrame);
+                if (!string.Equals(previous, current, StringComparison.Ordinal)) {
+                    previous = current;
+                    await send(JobRowsItem(streamId, jobs)).ConfigureAwait(false);
+                }
+            } catch (OperationCanceledException) {
+                return;
+            } catch (Exception ex) {
+                GuiDiag.Log($"[DSH-JOBS] rows pump failed: {ex.Message}");
+                return;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 打开单个任务的输出跟随流（TASK066 C2）：opened 锚点 → output 增量 → 终态 status 后正常关闭。
+    /// 输出由代理活动文本合成，字节游标保证重连从 `from` 续读。
+    /// </summary>
+    private async Task<(IReadOnlyList<DshStreamItem> Opening, IDisposable? Lease, Func<Task>? Ready)> OpenJobFollowAsync(
+        DshStreamOpen open, Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
+        var request = open.Payload?.Args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshJobFollowArgs)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.JobId)) {
+            return ([Item(open.StreamId, StreamError("job/rejected",
+                "job/follow 需要 {request:{jobId, sessionId?, from?}}；请先在任务列表里选择一个任务"))], null, null);
+        }
+        var sessionId = request.SessionId ?? "";
+        var snapshot = await _services.Jobs.SnapshotAsync(sessionId, request.JobId, cancellationToken);
+        if (snapshot is null) {
+            return ([Item(open.StreamId, StreamError("job/not-found",
+                $"找不到后台任务 {request.JobId}；任务可能已被清理，请刷新任务列表"))], null, null);
+        }
+        var total = Encoding.UTF8.GetByteCount(snapshot.OutputText);
+        var cursor = Math.Clamp(request.From ?? 0, 0, total);
+        var pumpCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var pump = Task.Run(() => PumpJobOutputAsync(
+            open.StreamId, sessionId, request.JobId, cursor, snapshot, send, pumpCts.Token), pumpCts.Token);
+        return (
+            [Item(open.StreamId, JsonSerializer.SerializeToElement(
+                new DshJobOpenedFrame { Job = snapshot.View, From = cursor },
+                DshJsonContext.Default.DshJobOpenedFrame))],
+            new DetachLease(() => {
+                pumpCts.Cancel();
+                pumpCts.Dispose();
+            }),
+            null);
+    }
+
+    /// <summary>输出跟随泵：按字节游标增量推 output，排空且终态后推 status 并退出</summary>
+    private async Task PumpJobOutputAsync(
+        string streamId, string sessionId, string jobId, long cursor, DshJobSnapshot initial,
+        Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
+        var snapshot = initial;
+        while (!cancellationToken.IsCancellationRequested) {
+            try {
+                var bytes = Encoding.UTF8.GetBytes(snapshot.OutputText);
+                if (cursor < bytes.LongLength) {
+                    var offset = (int)cursor;
+                    var length = bytes.Length - offset;
+                    var text = Encoding.UTF8.GetString(bytes, offset, length);
+                    await send(Item(streamId, JsonSerializer.SerializeToElement(new DshJobOutputFrame {
+                        Chunks = [new DshJobChunk { At = cursor, Text = text, Channel = "log" }],
+                        Next = bytes.LongLength,
+                    }, DshJsonContext.Default.DshJobOutputFrame))).ConfigureAwait(false);
+                    cursor = bytes.LongLength;
+                }
+                if (snapshot.Terminal) {
+                    await send(Item(streamId, JsonSerializer.SerializeToElement(
+                        new DshJobStatusFrame { Job = snapshot.View },
+                        DshJsonContext.Default.DshJobStatusFrame))).ConfigureAwait(false);
+                    return;
+                }
+                await Task.Delay(JobPollInterval, cancellationToken).ConfigureAwait(false);
+                snapshot = await _services.Jobs.SnapshotAsync(sessionId, jobId, cancellationToken).ConfigureAwait(false)
+                    ?? snapshot;
+            } catch (OperationCanceledException) {
+                return;
+            } catch (Exception ex) {
+                GuiDiag.Log($"[DSH-JOBS] follow pump failed: {ex.Message}");
+                return;
+            }
+        }
+    }
+
+    /// <summary>任务花名册帧项</summary>
+    private static DshStreamItem JobRowsItem(string streamId, IReadOnlyList<DshJobView> jobs) =>
+        Item(streamId, JsonSerializer.SerializeToElement(
+            new DshJobRowsFrame { Jobs = [.. jobs] }, DshJsonContext.Default.DshJobRowsFrame));
+
+    /// <summary>后台任务轮询间隔（引擎是拉取式快照；500ms 足够覆盖任务面板刷新）</summary>
+    private static readonly TimeSpan JobPollInterval = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>
+    /// 打开终端跟随流（TASK066 C3）：snapshot（屏幕基线 + 元数据）→ output/state 增量。
+    /// 断开只释放跟随者，PTY 进程继续运行；重新 follow 从最新基线恢复。
+    /// </summary>
+    private (IReadOnlyList<DshStreamItem> Opening, IDisposable? Lease, Func<Task>? Ready) OpenTerminalFollow(
+        DshStreamOpen open, Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
+        var request = open.Payload?.Args.Deserialize(DshJsonContext.Default.DshTerminalFollowArgs);
+        if (request is null
+            || string.IsNullOrWhiteSpace(request.AgentId)
+            || string.IsNullOrWhiteSpace(request.Id)
+            || string.IsNullOrWhiteSpace(request.AttachmentId)) {
+            return ([Item(open.StreamId, StreamError("terminal/rejected",
+                "terminal/follow 需要 {agentId, id, attachmentId}；先用 terminal/create 建立终端并保存 attachmentId"))], null, null);
+        }
+        DshTerminalSnapshotFrame snapshot;
+        DshTerminalFollower follower;
+        try {
+            (snapshot, follower) = _services.Terminals.Follow(request.AgentId, request.Id, request.AttachmentId);
+        } catch (DshTerminalException ex) {
+            return ([Item(open.StreamId, StreamError(ex.Code, ex.Message))], null, null);
+        }
+        var pumpCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var pump = Task.Run(() => PumpTerminalFramesAsync(open.StreamId, follower, send, pumpCts.Token), pumpCts.Token);
+        return (
+            [Item(open.StreamId, JsonSerializer.SerializeToElement(snapshot, DshJsonContext.Default.DshTerminalSnapshotFrame))],
+            new DetachLease(() => {
+                pumpCts.Cancel();
+                follower.Dispose();
+                pumpCts.Dispose();
+            }),
+            null);
+    }
+
+    /// <summary>终端跟随泵：把输出/状态帧转成 DSH 流项；跟随者结束（进程退出）后自然收尾</summary>
+    private static async Task PumpTerminalFramesAsync(
+        string streamId, DshTerminalFollower follower, Func<DshStreamItem, Task> send, CancellationToken cancellationToken) {
+        try {
+            await foreach (var frame in follower.Frames.ReadAllAsync(cancellationToken).ConfigureAwait(false)) {
+                var value = frame switch {
+                    DshTerminalOutputFrame output => JsonSerializer.SerializeToElement(output, DshJsonContext.Default.DshTerminalOutputFrame),
+                    DshTerminalStateFrame state => JsonSerializer.SerializeToElement(state, DshJsonContext.Default.DshTerminalStateFrame),
+                    _ => throw new InvalidOperationException($"未知终端帧类型 {frame.GetType().Name}"),
+                };
+                await send(Item(streamId, value)).ConfigureAwait(false);
+            }
+        } catch (OperationCanceledException) {
+            // 连接关闭/宿主停机 — 泵静默收尾
+        } catch (Exception ex) {
+            GuiDiag.Log($"[DSH-TERMINAL] follow pump failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>终端保留声明（TASK066 C3）：终端存在即回 retained；进程生命周期与流无关</summary>
+    private (IReadOnlyList<DshStreamItem> Opening, IDisposable? Lease, Func<Task>? Ready) OpenTerminalRetain(DshStreamOpen open) {
+        var request = open.Payload?.Args.Deserialize(DshJsonContext.Default.DshTerminalRetainArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId) || string.IsNullOrWhiteSpace(request.Id)) {
+            return ([Item(open.StreamId, StreamError("terminal/rejected",
+                "terminal/retain 需要 {sessionId, id}；请从 terminal/list 取得实际终端 ID"))], null, null);
+        }
+        try {
+            _services.Terminals.Retain(request.SessionId, request.Id);
+        } catch (DshTerminalException ex) {
+            return ([Item(open.StreamId, StreamError(ex.Code, ex.Message))], null, null);
+        }
+        return ([Item(open.StreamId, JsonSerializer.SerializeToElement(
+            new DshTerminalRetainedFrame(), DshJsonContext.Default.DshTerminalRetainedFrame))], null, null);
     }
 
     /// <summary>打开会话事件流的首帧：宿主事件日志（或转录投影）→ snapshot + 订阅后续事件；否则给出可执行的引导错误</summary>
@@ -423,10 +886,47 @@ internal sealed class DshWebHost : IAsyncDisposable {
     /// <summary>构造流式端点失败帧（引导式错误：说明期望参数与下一步可执行动作）</summary>
     private static JsonElement StreamError(string code, string message) =>
         JsonSerializer.SerializeToElement(
-            new DshStreamError { Error = new DshStreamErrorBody { Code = code, Message = message } },
+            new DshStreamError {
+                Error = new DshStreamErrorBody {
+                    Code = code,
+                    Message = message,
+                    Details = JsonSerializer.SerializeToElement(new DshRpcErrorDetails(), DshJsonContext.Default.DshRpcErrorDetails),
+                },
+            },
             DshJsonContext.Default.DshStreamError);
 
     private static DshStreamItem Item(string streamId, JsonElement value) => new() { StreamId = streamId, Value = value };
+
+    /// <summary>
+    /// session/control 的开场缓冲：基线读取期间收到的投影帧先缓存，基线发出后由
+    /// <see cref="StartDelivering"/> 一次性取出补发，之后到达的帧直接下发（不漏帧、不乱序）。
+    /// </summary>
+    private sealed class ControlFrameBuffer {
+        private readonly Lock _gate = new();
+        private readonly List<DshSessionControlProjection> _pending = [];
+        private bool _delivering;
+
+        /// <summary>接收一帧：开场阶段缓存，开场完成后直接投递</summary>
+        internal Task AcceptAsync(DshSessionControlProjection frame, Func<DshSessionControlProjection, Task> deliver) {
+            lock (_gate) {
+                if (!_delivering) {
+                    _pending.Add(frame);
+                    return Task.CompletedTask;
+                }
+            }
+            return deliver(frame);
+        }
+
+        /// <summary>结束缓冲并取走待补发帧（同步方法，避免在 async 上下文持锁）</summary>
+        internal DshSessionControlProjection[] StartDelivering() {
+            lock (_gate) {
+                _delivering = true;
+                var frames = _pending.ToArray();
+                _pending.Clear();
+                return frames;
+            }
+        }
+    }
 
     /// <summary>流连接关闭时的清理动作句柄（$events 摘除权限桥通道等）</summary>
     private sealed record DetachLease(Action Detach) : IDisposable {

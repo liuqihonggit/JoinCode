@@ -165,7 +165,11 @@ public sealed class DshSessionStoreTests {
 
     [Fact]
     public async Task Dispatcher_MessageFeedbackList_ReturnsEmptySuccess() {
-        var services = new DshHostServices(new InMemoryFileSystem(), "/test/dsh-workspaces.json");
+        var fs = new InMemoryFileSystem();
+        await using var transcripts = new State.TranscriptService(fs, SessionsDir);
+        await transcripts.EnsureSessionAsync("s1", new SessionInfo { Id = "s1", ProjectPath = "/ws" });
+        var services = new DshHostServices(fs, "/test/dsh-workspaces.json");
+        services.Sessions.AttachTranscripts(transcripts);
         var dispatcher = new DshRpcDispatcher(services);
 
         var result = await dispatcher.HandleAsync("messageFeedback/list", Args(new DshMessageFeedbackListRequest { SessionId = "s1" }));

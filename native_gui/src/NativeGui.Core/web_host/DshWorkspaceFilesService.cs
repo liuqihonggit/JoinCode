@@ -2,8 +2,8 @@ namespace JoinCode.Gui.WebHost;
 
 /// <summary>
 /// 工作区文件树服务（TASK058 P2-B1）：DSH 前端 sidebar-files 的 list/read/readBytes/stat 四一元方法后端。
-/// 根目录 = 会话 cwd（SessionInfo.ProjectPath）；路径解析后必须落在根内（防 ../ 穿越）；
-/// version 用「size-mtimeTicks」合成（前端仅透传比较失效，无需内容哈希）；changes 流属深化项。
+/// 根目录 = 会话 cwd（SessionInfo.ProjectPath）；path 接受相对路径或根内绝对路径（前端文件树发绝对路径），
+/// 解析后必须落在根内（防 ../ 穿越）；version 用「size-mtimeTicks」合成（前端仅透传比较失效，无需内容哈希）。
 /// </summary>
 internal sealed class DshWorkspaceFilesService(DshSessionStore sessions, IFileSystem fs) {
     /// <summary>列出目录条目（目录在前、名称不区分大小写排序），截断阈值 500</summary>
@@ -51,7 +51,11 @@ internal sealed class DshWorkspaceFilesService(DshSessionStore sessions, IFileSy
             DshJsonContext.Default.DshWorkspaceFilesReadResult));
     }
 
-    /// <summary>读字节（base64 编码返回；v1 全量读，大文件分页属深化项）</summary>
+    /// <summary>
+    /// 读字节：原始字节走 multipart 二进制附件（前端 readBytes 契约 data 为 Uint8Array，
+    /// JSON 里只能给 null 占位，base64 字符串会被 zod 判 invalid_type）；
+    /// v1 全量读，大文件分页属深化项。
+    /// </summary>
     internal async Task<DshRpcResult> ReadBytesAsync(string sessionId, string path, CancellationToken cancellationToken) {
         var (error, absolutePath) = await ResolveRootedAsync(sessionId, path, cancellationToken);
         if (error is not null || absolutePath is null) {
@@ -61,12 +65,13 @@ internal sealed class DshWorkspaceFilesService(DshSessionStore sessions, IFileSy
             return DshRpcResults.Fail("workspaceFiles/not-found", $"文件不存在：{path}；在文件树里刷新后重试");
         }
         var bytes = await fs.ReadAllBytesAsync(absolutePath, cancellationToken);
-        return DshRpcResults.Ok(JsonSerializer.SerializeToElement(
+        var value = JsonSerializer.SerializeToElement(
             new DshWorkspaceFilesReadBytesResult {
-                Offset = 0, Data = Convert.ToBase64String(bytes), Eof = true,
+                Offset = 0, Data = null, Eof = true,
                 AbsolutePath = absolutePath, Version = VersionFor(absolutePath),
             },
-            DshJsonContext.Default.DshWorkspaceFilesReadBytesResult));
+            DshJsonContext.Default.DshWorkspaceFilesReadBytesResult);
+        return DshRpcResults.Ok(value, new DshRpcBinaryAttachment(["data"], bytes));
     }
 
     /// <summary>文件元数据（绝对路径 + version）</summary>
@@ -83,7 +88,11 @@ internal sealed class DshWorkspaceFilesService(DshSessionStore sessions, IFileSy
             DshJsonContext.Default.DshWorkspaceFilesStatResult));
     }
 
-    /// <summary>解析「会话 cwd + 相对路径」为根内绝对路径；穿越/无 cwd 返回引导错误（非异常）</summary>
+    /// <summary>
+    /// 把「会话 cwd + 相对路径」或「工作区内绝对路径」解析为根内绝对路径。
+    /// DSH 前端文件树会把 state.root（绝对路径）原样作为 path 发送，因此绝对形态必须支持；
+    /// 两种形态都做弹栈式 .. 解析，越界返回引导错误（非异常）。
+    /// </summary>
     private async Task<(DshRpcResult? Error, string? AbsolutePath)> ResolveRootedAsync(string sessionId, string path, CancellationToken cancellationToken) {
         var cwd = await sessions.GetSessionCwdAsync(sessionId, cancellationToken);
         if (string.IsNullOrWhiteSpace(cwd)) {
@@ -93,25 +102,53 @@ internal sealed class DshWorkspaceFilesService(DshSessionStore sessions, IFileSy
         // 手工段解析（弹栈式防穿越）：不用 Path.GetFullPath —— 它会给「/x/y」补盘符，
         // 与 InMemoryFileSystem 的字面量路径键不匹配；弹栈法同时杜绝「根前缀碰撞」误判
         var root = cwd.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var segments = new List<string>();
-        foreach (var part in path.Split('/', '\\')) {
-            if (part is "" or ".") {
-                continue;
+        var rootSegments = SplitSegments(root);
+        if (Path.IsPathRooted(path)) {
+            var absoluteSegments = NormalizeAbsolutePath(path);
+            if (absoluteSegments is null
+                || absoluteSegments.Count < rootSegments.Count
+                || !rootSegments.SequenceEqual(absoluteSegments.Take(rootSegments.Count), StringComparer.OrdinalIgnoreCase)) {
+                return (DshRpcResults.Fail("workspaceFiles/rejected",
+                    $"路径 {path} 解析到工作区外（根={root}）；请使用工作区内路径或 workspaceFiles/* 返回的绝对路径"), null);
             }
+            var tail = absoluteSegments.Skip(rootSegments.Count).ToArray();
+            return (null, tail.Length == 0 ? root : root + Path.DirectorySeparatorChar + string.Join(Path.DirectorySeparatorChar, tail));
+        }
+        var segments = new List<string>(rootSegments);
+        foreach (var part in SplitSegments(path)) {
             if (part == "..") {
-                if (segments.Count == 0) {
+                if (segments.Count <= rootSegments.Count) {
                     return (DshRpcResults.Fail("workspaceFiles/rejected",
                         $"路径 {path} 解析到工作区外（根={root}）；请使用工作区内的相对路径"), null);
                 }
                 segments.RemoveAt(segments.Count - 1);
-            } else {
-                segments.Add(part);
+                continue;
             }
+            segments.Add(part);
         }
-        var candidate = segments.Count == 0
+        return (null, segments.Count == rootSegments.Count
             ? root
-            : root + Path.DirectorySeparatorChar + string.Join(Path.DirectorySeparatorChar, segments);
-        return (null, candidate);
+            : root + Path.DirectorySeparatorChar + string.Join(Path.DirectorySeparatorChar, segments.Skip(rootSegments.Count)));
+    }
+
+    /// <summary>按两种分隔符切段，丢弃空段与「.」</summary>
+    private static List<string> SplitSegments(string path) =>
+        [.. path.Split('/', '\\').Where(part => part is not ("" or "."))];
+
+    /// <summary>绝对路径弹栈归一（处理 . 与 ..）；越过根（如 /..）返回 null</summary>
+    private static List<string>? NormalizeAbsolutePath(string path) {
+        var stack = new List<string>();
+        foreach (var part in SplitSegments(path)) {
+            if (part == "..") {
+                if (stack.Count == 0) {
+                    return null;
+                }
+                stack.RemoveAt(stack.Count - 1);
+                continue;
+            }
+            stack.Add(part);
+        }
+        return stack.Count == 0 ? null : stack;
     }
 
     /// <summary>version 合成：size-mtimeTicks（前端透传比较失效即可，无需内容哈希）</summary>

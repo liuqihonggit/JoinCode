@@ -44,6 +44,25 @@ public sealed class DshSettingsStoreTests {
     }
 
     [Fact]
+    public void Describe_ServesUiSettingsWithDeveloperToolsEnabled() {
+        var view = _store.Describe().Namespaces.Single(ns => ns.Ns == "ui-settings");
+
+        view.Value.GetProperty("enabled").GetBoolean().Should().BeTrue("新安装默认开启开发者工具（deliverables 改动卡片依赖它）");
+        view.Schema.ValueKind.Should().Be(JsonValueKind.Object, "前端 ConfigForm 需要 schema 信封才能离开 loading");
+        var root = view.Schema.GetProperty("refs").GetProperty(view.Schema.GetProperty("uid").GetInt32().ToString());
+        root.GetProperty("dict").GetProperty("enabled").GetInt32().Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public void Mutate_SetDeveloperTools_UiSettingsRoundTrips() {
+        var result = _store.Mutate(MutateArgs("ui-settings", [Set("enabled", "false")]));
+
+        ValueOf(result).GetProperty("enabled").GetBoolean().Should().BeFalse();
+        _store.Describe().Namespaces.Single(ns => ns.Ns == "ui-settings")
+            .Value.GetProperty("enabled").GetBoolean().Should().BeFalse();
+    }
+
+    [Fact]
     public void Mutate_SetWelcomeVersion_PersistsAndDescribeReadsBack() {
         var result = _store.Mutate(MutateArgs(
             "ui-settings-general",

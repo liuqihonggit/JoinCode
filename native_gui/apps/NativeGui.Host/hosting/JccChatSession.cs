@@ -37,6 +37,15 @@ internal sealed class JccChatSession : IJccChatSession {
         set { if (_interactiveService is not null) _interactiveService.ShowDialogCallback = value; }
     }
 
+    /// <summary>
+    /// 批量提问回调 — DSH Web UI 一次卡片承载全部问题；设置后 AvaloniaInteractiveService
+    /// 优先走批量回调，不再逐题弹原生对话框。
+    /// </summary>
+    public Func<List<QuestionItem>, CancellationToken, Task<AskUserQuestionResult>>? AskUserQuestionsCallback {
+        get => _interactiveService?.ShowQuestionsCallback;
+        set { if (_interactiveService is not null) _interactiveService.ShowQuestionsCallback = value; }
+    }
+
     private readonly AvaloniaInteractiveService? _interactiveService;
 
     internal JccChatSession(
@@ -612,6 +621,20 @@ internal sealed class JccChatSession : IJccChatSession {
             var description = def.Description is { } d && !string.IsNullOrWhiteSpace(d) ? d : def.WhenToUse;
             list.Add(new SubAgentSummary(displayId, description, displayId));
         }
+        return list;
+    }
+
+    /// <summary>
+    /// 获取可用技能清单 — 从 DI 解析 ISkillService，映射名称/描述/模型可调用标记/源路径。
+    /// 引擎未注册技能服务时返回空列表（DSH skills/list 仍可正常渲染空集）。
+    /// </summary>
+    public async Task<IReadOnlyList<SkillSummary>> GetAvailableSkillsAsync(CancellationToken cancellationToken = default) {
+        if (_services.GetService<ISkillService>() is not { } skillService)
+            return [];
+        var skills = await skillService.GetAvailableSkillsAsync(cancellationToken);
+        var list = new List<SkillSummary>(skills.Count);
+        foreach (var skill in skills)
+            list.Add(new SkillSummary(skill.Name, skill.Description, !skill.DisableModelInvocation, skill.SourcePath));
         return list;
     }
 

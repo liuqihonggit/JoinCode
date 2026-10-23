@@ -281,15 +281,54 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
     /// <summary>最后一次设置的权限模式（供测试验证 GUI 开关传导）</summary>
     public PermissionMode? LastSetPermissionMode { get; private set; }
 
+    /// <summary>当前权限模式（测试接缝）：GetCurrentPermissionModeAsync 返回此值，默认 Auto</summary>
+    internal PermissionMode CurrentPermissionMode { get; set; } = PermissionMode.Auto;
+
     /// <summary>占位会话权限模式设置 — 记录调用供测试验证，无真实引擎</summary>
     public Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) {
         LastSetPermissionMode = mode;
+        CurrentPermissionMode = mode;
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
+    public Task<PermissionMode> GetCurrentPermissionModeAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(CurrentPermissionMode);
+
+    /// <inheritdoc />
     public Task<IReadOnlyList<SubAgentSummary>> GetAvailableSubAgentsAsync(CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<SubAgentSummary>>([]);
+
+    /// <summary>技能清单（测试接缝）：GetAvailableSkillsAsync 原样返回此列表</summary>
+    internal IReadOnlyList<SkillSummary> Skills { get; set; } = [];
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<SkillSummary>> GetAvailableSkillsAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(Skills);
+
+    /// <summary>子代理投递接收器（测试接缝）：null=拒绝投递</summary>
+    internal Func<string, string, bool>? SubAgentForwardSink { get; set; }
+
+    /// <summary>最近一次子代理投递（测试追踪字段）</summary>
+    internal (string AgentId, string Message)? LastSubAgentForward { get; private set; }
+
+    /// <inheritdoc />
+    public Task<bool> ForwardInputToSubAgentAsync(string agentId, string message, CancellationToken cancellationToken = default) {
+        LastSubAgentForward = (agentId, message);
+        return Task.FromResult(SubAgentForwardSink?.Invoke(agentId, message) ?? false);
+    }
+
+    /// <summary>子代理中断接收器（测试接缝）：null=拒绝中断</summary>
+    internal Func<string, bool>? SubAgentInterruptSink { get; set; }
+
+    /// <summary>最近一次中断的子代理 ID（测试追踪字段）</summary>
+    internal string? LastInterruptedSubAgent { get; private set; }
+
+    /// <inheritdoc />
+    public Task<bool> InterruptSubAgentAsync(string agentId, CancellationToken cancellationToken = default) {
+        LastInterruptedSubAgent = agentId;
+        return Task.FromResult(SubAgentInterruptSink?.Invoke(agentId) ?? false);
+    }
 
     /// <summary>占位会话释放 — 空实现（无真实引擎资源）</summary>
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;

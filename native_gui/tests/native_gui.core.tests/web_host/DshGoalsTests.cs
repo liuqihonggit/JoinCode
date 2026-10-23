@@ -12,14 +12,18 @@ public sealed class DshGoalsTests {
 
     private static JsonElement GoalRefArgs(string sessionId, DshGoalRef reference) =>
         JsonSerializer.SerializeToElement(new {
-            sessionId,
+            agentId = sessionId,
             @ref = new { id = reference.Id, revision = reference.Revision },
         });
 
     private static JsonElement GoalCreateArgs(string sessionId, string objective, int? maxRounds = null) =>
         JsonSerializer.SerializeToElement(new {
-            sessionId, objective, maxGoalRounds = maxRounds,
+            agentId = sessionId,
+            request = new { objective, maxGoalRounds = maxRounds },
         });
+
+    private static JsonElement GoalAgentArgs(string sessionId) =>
+        JsonSerializer.SerializeToElement(new { agentId = sessionId });
 
     [Fact]
     public async Task Goals_Lifecycle_CreatePauseResumeCompleteClear() {
@@ -30,7 +34,7 @@ public sealed class DshGoalsTests {
         var reference = created.Value.GetValueOrDefault().GetProperty("ref");
 
         // create 后 get 可见（armed/active/revision=1）
-        var got = await dispatcher.HandleAsync("goals/get", JsonSerializer.SerializeToElement(new { sessionId = "s1" }));
+        var got = await dispatcher.HandleAsync("goals/get", GoalAgentArgs("s1"));
         var goal = got.Value.GetValueOrDefault();
         goal.GetProperty("phase").GetString().Should().Be("active");
         goal.GetProperty("activation").GetString().Should().Be("armed");
@@ -56,15 +60,14 @@ public sealed class DshGoalsTests {
         }));
         completed.Value.GetValueOrDefault().GetProperty("phase").GetString().Should().Be("complete");
 
-        // clear → get 返回 null
+        // clear → get 返回 undefined（wire 上省略 value）
         var cleared = await dispatcher.HandleAsync("goals/clear", GoalRefArgs("s1", new DshGoalRef {
             Id = reference.GetProperty("id").GetString() ?? "",
             Revision = 4,
         }));
         cleared.Ok.Should().BeTrue(cleared.Error?.Message);
-        var after = await dispatcher.HandleAsync("goals/get", JsonSerializer.SerializeToElement(new { sessionId = "s1" }));
-        after.Value.Should().NotBeNull();
-        after.Value.GetValueOrDefault().ValueKind.Should().Be(JsonValueKind.Null, "清除后 goals/get 返回 null 值");
+        var after = await dispatcher.HandleAsync("goals/get", GoalAgentArgs("s1"));
+        after.Value.HasValue.Should().BeFalse("清除后 goals/get 返回 undefined");
     }
 
     [Fact]
@@ -75,18 +78,18 @@ public sealed class DshGoalsTests {
 
         // 正确 revision 编辑成功（revision+1）
         var edited = await dispatcher.HandleAsync("goals/edit", JsonSerializer.SerializeToElement(new {
-            sessionId = "s2",
+            agentId = "s2",
             @ref = new { id = reference.Id, revision = reference.Revision },
-            changes = new { objective = "新目标" },
+            request = new { objective = "新目标" },
         }));
         edited.Ok.Should().BeTrue(edited.Error?.Message);
         edited.Value.GetValueOrDefault().GetProperty("objective").GetString().Should().Be("新目标");
 
         // 旧 revision 再编辑 → goals/conflict
         var stale = await dispatcher.HandleAsync("goals/edit", JsonSerializer.SerializeToElement(new {
-            sessionId = "s2",
+            agentId = "s2",
             @ref = new { id = reference.Id, revision = reference.Revision },
-            changes = new { objective = "又一次" },
+            request = new { objective = "又一次" },
         }));
         stale.Ok.Should().BeFalse();
         stale.Error.Should().NotBeNull();
@@ -129,7 +132,7 @@ public sealed class DshGoalsTests {
             hold.TrySetCanceled();
         }
 
-        var got = await dispatcher.HandleAsync("goals/get", JsonSerializer.SerializeToElement(new { sessionId }));
+        var got = await dispatcher.HandleAsync("goals/get", GoalAgentArgs(sessionId));
         got.Value.GetValueOrDefault().GetProperty("roundsStarted").GetInt32().Should().Be(2, "每轮受理递增");
     }
 

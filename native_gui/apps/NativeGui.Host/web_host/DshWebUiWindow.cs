@@ -37,17 +37,30 @@ internal sealed class DshWebUiWindow : Window {
 
     /// <summary>权限预设变更路由：settings/mutate 写 defaultPreset 成功后应用到引擎（未就绪只记日志，引擎 attach 时读存档补应用）</summary>
     private void OnPermissionPresetChanged(string preset) {
-        if (PermissionModeExtensions.FromValue(preset) is not { } mode) {
+        if (PermissionModeExtensions.FromValue(preset) is null) {
             App.LogDiag($"[DSH-WEB] permission preset ignored unknown value: {preset}");
             return;
         }
-        if (_engine is not { } engine) {
+        if (_engine is null) {
             App.LogDiag($"[DSH-WEB] permission preset deferred until engine ready: {preset}");
             return;
         }
-        _ = engine.SetPermissionModeAsync(mode).ContinueWith(
-            task => App.LogDiag($"[DSH-WEB] permission preset applied={preset} failed={task.Exception?.Message}"),
-            TaskScheduler.Default);
+        _ = ApplyPresetAsync(preset);
+    }
+
+    /// <summary>
+    /// 应用权限预设（TASK066 C7）：统一走宿主服务——写引擎、更新会话投影、广播 plan/mode 事件
+    /// 与 session/control 投影帧；应用失败只记日志，不回滚设置（下次 attach 会重读存档）。
+    /// </summary>
+    private async Task ApplyPresetAsync(string preset) {
+        try {
+            var (ok, message) = await _services.ApplyPermissionPresetAsync(preset, CancellationToken.None);
+            App.LogDiag(ok
+                ? $"[DSH-WEB] permission preset applied={preset}"
+                : $"[DSH-WEB] permission preset apply rejected={preset}: {message}");
+        } catch (Exception ex) {
+            App.LogDiag($"[DSH-WEB] permission preset apply failed={preset}: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -75,6 +88,9 @@ internal sealed class DshWebUiWindow : Window {
             _engine = engine;
             _services.AttachEngine(engine);
             engine.PermissionConfirmationHandler = request => _services.Approvals.RequestAsync(request);
+            // 提问卡片（TASK066 C7）：引擎 ask_user_question → $events user-questions/request → 前端单卡多问
+            engine.AskUserQuestionsCallback = (questions, cancellationToken) =>
+                _services.Questions.RequestAsync(questions, cancellationToken);
             if (engine.TranscriptService is { } transcripts) {
                 _services.Sessions.AttachTranscripts(transcripts);
                 App.LogDiag("[DSH-WEB] engine attached: transcripts ready");
@@ -96,9 +112,10 @@ internal sealed class DshWebUiWindow : Window {
             var view = describe.Namespaces.FirstOrDefault(ns => string.Equals(ns.Ns, "permission", StringComparison.Ordinal));
             if (view?.Value.TryGetProperty("defaultPreset", out var preset) is true
                 && preset.ValueKind == JsonValueKind.String
-                && PermissionModeExtensions.FromValue(preset.GetString()) is { } mode) {
-                await engine.SetPermissionModeAsync(mode);
-                App.LogDiag($"[DSH-WEB] stored permission preset applied: {preset.GetString()}");
+                && preset.GetString() is { } presetValue
+                && PermissionModeExtensions.FromValue(presetValue) is { }) {
+                await ApplyPresetAsync(presetValue);
+                App.LogDiag($"[DSH-WEB] stored permission preset applied: {presetValue}");
             }
         } catch (Exception ex) {
             App.LogDiag($"[DSH-WEB] stored permission preset apply failed: {ex.Message}");

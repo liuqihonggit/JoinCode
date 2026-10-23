@@ -1,6 +1,6 @@
 # ADR 0147: assistant-stream 逐字流式 — 宿主合成 DSH 瞬态帧
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-10-22
 - 决策者：liuqihong（TASK060 B13：`session/follow` 的 `assistantStream` 恒 `revision=0`，界面上助手回复只在整段完成后才出现，与 DSH 的逐字流式不一致）
 
@@ -31,7 +31,7 @@
 
 1. **帧合成**（`DshTurnRunner`）：
    - 本轮首个 `Content`/`Thinking` delta → `start`（`startedAfterSeq` = 当时最后一个持久 seq）；
-   - `Thinking` delta → `chunk{index:0, chunk:{type:'reasoning-delta',index:0,text}}`；`Content` delta → `chunk{index:1, chunk:{type:'text-delta',index:1,text}}`（与最终 `assistant/message` 的「reasoning 在前、text 在后」块序一致）；
+   - **内容块下标按块首次出现顺序从 0 分配**（`BlockIndex(family)`：`{type:'reasoning-delta',index:i,text}` / `{type:'text-delta',index:i,text}`，同一块后续 delta 复用同一 `index`）。**禁止固定槽位**（如「reasoning 恒 0、text 恒 1」）：前端 `updateChunk` 写的是稀疏块数组，无思考块时 0 号空洞会让 `visibleBlocks=0`，流式正文一条都不渲染；
    - `assistant/message` 落盘后 → `end{outcome:{kind:'committed',eventType:'assistant/message',seq:<该事件 seq>}}`；
    - 取消 → `end{abandoned}`；异常 → `end{abandoned}`（不伪造 committed）。
 2. **状态机**（hub）：每会话 `revision` 单调递增（**永不重置**，跨尝试、跨重连），`activeAttempt{attemptId,startedAfterSeq,turn,step,nextIndex,stream[]}` 只存原始 `{type:'chunk',time,chunk}` 记录（不打包，正确优先于体积）。
@@ -54,3 +54,4 @@
 - 正向：界面逐字出字；中途刷新/重连能看到已生成的部分文本且不重复；`end.seq` 让前端把瞬态行替换成持久消息（不残影）。
 - 负向：`tool-call` 的流式参数仍未合成（工具卡片继续由持久 `tool/call` 驱动），已记录为遗留项。
 - 约束：帧 `revision` 必须严格 +1（客户端强校验，跳号直接断流）；`assistant/message` 必须先落盘再发 `end`（`seq` 是替换锚点）。
+- 验证：`DshAssistantStreamTests` 5/5（含 `TurnRunner_TextOnlyAttemptStartsAtBlockZero`）+ 真机 exe `dsh-webui-assistant-stream.mjs` ALL_PASS（`partial=true`、`chunk.index` 全 0、`end{committed,seq}`）。

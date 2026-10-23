@@ -37,10 +37,47 @@ internal sealed class DshRpcResponse {
 internal sealed class DshRpcResult {
     /// <summary>是否成功</summary>
     public bool Ok { get; set; }
-    /// <summary>成功值</summary>
+    /// <summary>成功值（null 表示 DSH wire 的 undefined：省略 value 键，前端按 undefined 解码）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public JsonElement? Value { get; set; }
     /// <summary>失败详情</summary>
     public DshRpcError? Error { get; set; }
+    /// <summary>
+    /// 二进制附件（不参与 JSON 序列化）：宿主转 multipart/form-data 时作为 Blob 部件，
+    /// value 对应路径写 null 占位，前端 parseBinaryResponse 回填 Uint8Array。
+    /// </summary>
+    [JsonIgnore]
+    public DshRpcBinaryAttachment? Binary { get; set; }
+}
+
+/// <summary>一元响应中的二进制附件（path 指向 value 内 null 占位字段）</summary>
+internal sealed class DshRpcBinaryAttachment(string[] path, byte[] bytes) {
+    /// <summary>在 value 中的字段路径（如 ["data"]）</summary>
+    public string[] Path { get; } = path;
+    /// <summary>原始字节</summary>
+    public byte[] Bytes { get; } = bytes;
+}
+
+/// <summary>multipart 响应元数据（JSON 信封 + 附件清单；字段名与 DSH gateway 一致）</summary>
+internal sealed class DshRpcMultipartMetadata {
+    /// <summary>固定为 server-response</summary>
+    public string Type { get; set; } = "server-response";
+    /// <summary>与请求一致的 rpcId</summary>
+    public string RpcId { get; set; } = "";
+    /// <summary>结果分支（Value 内保留 null 占位）</summary>
+    public DshRpcResult Result { get; set; } = new();
+    /// <summary>附件清单</summary>
+    public List<DshRpcAttachmentRef> Attachments { get; set; } = [];
+}
+
+/// <summary>multipart 附件引用（part 为 Blob 字段名）</summary>
+internal sealed class DshRpcAttachmentRef {
+    /// <summary>value 内字段路径</summary>
+    public string[] Path { get; set; } = [];
+    /// <summary>编码方式，恒为 bytes</summary>
+    public string Codec { get; set; } = "bytes";
+    /// <summary>Blob 部件名（如 bytes-0）</summary>
+    public string Part { get; set; } = "";
 }
 
 /// <summary>失败详情（code 为稳定错误码，details 必须为对象）</summary>
@@ -140,6 +177,86 @@ internal sealed class DshEventErrorBody {
 
 /// <summary>$events/result 回帖响应（前端只看 ok，无业务载荷）</summary>
 internal sealed class DshEventsResultValue;
+
+/// <summary>
+/// <c>user-questions/request</c> 的前端载荷（dsh-client-ui-user-questions 问题卡片消费
+/// <c>questions[{id,question,detail?,header?,options?,multiSelect?}]</c>）。Gateway 转发前会剥掉
+/// agent/signal，宿主只发纯 JSON 字段。
+/// </summary>
+internal sealed class DshUserQuestionRequest {
+    /// <summary>问题列表（1-4 个，id 在本次请求内唯一）</summary>
+    public List<DshUserQuestion> Questions { get; set; } = [];
+}
+
+/// <summary>单个问题（id 用于答案批次回填）</summary>
+internal sealed class DshUserQuestion {
+    /// <summary>问题 ID（宿主按 q0..qN 分配）</summary>
+    public string Id { get; set; } = "";
+    /// <summary>问题文本</summary>
+    public string Question { get; set; } = "";
+    /// <summary>卡片标题</summary>
+    public string Header { get; set; } = "";
+    /// <summary>可选项</summary>
+    public List<DshUserQuestionOption> Options { get; set; } = [];
+    /// <summary>是否多选</summary>
+    public bool MultiSelect { get; set; }
+}
+
+/// <summary>问题选项（label 即回帖 selected 里的值）</summary>
+internal sealed class DshUserQuestionOption {
+    /// <summary>选项标签</summary>
+    public string Label { get; set; } = "";
+    /// <summary>选项说明</summary>
+    public string Description { get; set; } = "";
+}
+
+/// <summary>
+/// 答案批次（<c>$events/result</c> 的 <c>outcome.value</c>，也是 <c>userQuestions/answer</c> 的 answer 参数）：
+/// 每个问题一项，selected 为标签数组，custom 为用户自填文本（可省）。
+/// </summary>
+internal sealed class DshUserQuestionAnswerBatch {
+    /// <summary>答案项</summary>
+    public List<DshUserQuestionAnswerItem> Answers { get; set; } = [];
+}
+
+/// <summary>单个问题的答案（跳过 = selected 空且无 custom）</summary>
+internal sealed class DshUserQuestionAnswerItem {
+    /// <summary>问题 ID</summary>
+    public string Id { get; set; } = "";
+    /// <summary>选中的选项标签</summary>
+    public List<string> Selected { get; set; } = [];
+    /// <summary>自填答案（可选）</summary>
+    public string? Custom { get; set; }
+}
+
+/// <summary><c>userQuestions/answer</c> 参数（agent 作用域：{agentId, callId, answer}）</summary>
+internal sealed class DshUserQuestionsAnswerArgs {
+    /// <summary>会话 ID</summary>
+    public string AgentId { get; set; } = "";
+    /// <summary>工具调用 ID</summary>
+    public string CallId { get; set; } = "";
+    /// <summary>完整答案批次</summary>
+    public DshUserQuestionAnswerBatch? Answer { get; set; }
+}
+
+/// <summary><c>userQuestions/attachWait</c> 流参数（agent 作用域：{agentId, callId}）</summary>
+internal sealed class DshUserQuestionsAttachWaitArgs {
+    /// <summary>会话 ID</summary>
+    public string AgentId { get; set; } = "";
+    /// <summary>工具调用 ID</summary>
+    public string CallId { get; set; } = "";
+}
+
+/// <summary>
+/// $events 流上的取消帧（宿主→前端）：告知该 waterfall 已结算/取消，前端停止等待并关闭卡片。
+/// 对齐 DSH gateway finishRemoteEvent 在每次结算后下发 <c>{type:"cancel", eventId}</c>。
+/// </summary>
+internal sealed class DshWaterfallCancelFrame {
+    /// <summary>固定为 cancel</summary>
+    public string Type { get; set; } = "cancel";
+    /// <summary>已结算的 waterfall 关联 ID</summary>
+    public string EventId { get; set; } = "";
+}
 
 /// <summary>
 /// 会话日志的审批审计事件 <c>approval/asked</c>（对齐 DSH dsh-user-approval：审批请求必须先落审计，
@@ -315,12 +432,12 @@ internal sealed class DshWorkspaceFilesReadResult {
     public string Version { get; set; } = "";
 }
 
-/// <summary>workspaceFiles/readBytes 响应（data 为 base64）</summary>
+/// <summary>workspaceFiles/readBytes 响应（data 走 multipart 二进制附件，JSON 中恒为 null 占位）</summary>
 internal sealed class DshWorkspaceFilesReadBytesResult {
     /// <summary>字节起始偏移（v1 恒 0）</summary>
     public int Offset { get; set; }
-    /// <summary>base64 编码字节</summary>
-    public string Data { get; set; } = "";
+    /// <summary>null 占位：真实字节由 result.attachments[path=["data"]] 的 Blob 部件回填</summary>
+    public JsonElement? Data { get; set; }
     /// <summary>是否读到末尾</summary>
     public bool Eof { get; set; }
     /// <summary>绝对路径</summary>
@@ -359,18 +476,30 @@ internal sealed class DshGoalRef {
     public int Revision { get; set; }
 }
 
-/// <summary>goals/get|pause|resume|complete 共用参数（ref 由各方法携带）</summary>
+/// <summary>goals/get 参数（DSH 的 goals 命名空间是 agent 作用域，wire 字段为 agentId）</summary>
+internal sealed class DshGoalsAgentArgs {
+    /// <summary>会话（agent）ID</summary>
+    public string AgentId { get; set; } = "";
+}
+
+/// <summary>goals/pause|resume|complete|clear 共用参数（ref 由各方法携带）</summary>
 internal sealed class DshGoalsRefArgs {
-    /// <summary>会话 ID</summary>
-    public string SessionId { get; set; } = "";
+    /// <summary>会话（agent）ID</summary>
+    public string AgentId { get; set; } = "";
     /// <summary>目标引用</summary>
     public DshGoalRef? Ref { get; set; }
 }
 
-/// <summary>goals/create 参数</summary>
+/// <summary>goals/create 参数（DSH wire：{agentId, request}）</summary>
 internal sealed class DshGoalsCreateArgs {
-    /// <summary>会话 ID</summary>
-    public string SessionId { get; set; } = "";
+    /// <summary>会话（agent）ID</summary>
+    public string AgentId { get; set; } = "";
+    /// <summary>创建请求</summary>
+    public DshGoalsCreateRequest? Request { get; set; }
+}
+
+/// <summary>目标创建请求（objective 必填，maxGoalRounds 可选）</summary>
+internal sealed class DshGoalsCreateRequest {
     /// <summary>目标描述</summary>
     public string Objective { get; set; } = "";
     /// <summary>轮次上限（可选，默认 10）</summary>
@@ -383,14 +512,14 @@ internal sealed class DshGoalsCreateResult {
     public DshGoalRef Ref { get; set; } = new();
 }
 
-/// <summary>goals/edit 参数</summary>
+/// <summary>goals/edit 参数（DSH web wire：{agentId, ref, request}，request 为 EditGoalRequest）</summary>
 internal sealed class DshGoalsEditArgs {
-    /// <summary>会话 ID</summary>
-    public string SessionId { get; set; } = "";
+    /// <summary>会话（agent）ID</summary>
+    public string AgentId { get; set; } = "";
     /// <summary>目标引用（CAS）</summary>
     public DshGoalRef? Ref { get; set; }
-    /// <summary>变更内容</summary>
-    public DshGoalChanges? Changes { get; set; }
+    /// <summary>编辑请求</summary>
+    public DshGoalChanges? Request { get; set; }
 }
 
 /// <summary>目标变更内容（均可选）</summary>
@@ -399,12 +528,6 @@ internal sealed class DshGoalChanges {
     public string? Objective { get; set; }
     /// <summary>新轮次上限</summary>
     public int? MaxGoalRounds { get; set; }
-}
-
-/// <summary>goals/clear 响应</summary>
-internal sealed class DshGoalsClearResult {
-    /// <summary>被清目标引用（revision 为清算后值）</summary>
-    public DshGoalRef Ref { get; set; } = new();
 }
 
 /// <summary>目标落盘文档（~/.jcc/dsh_goals.json 条目）</summary>
@@ -707,6 +830,70 @@ internal sealed class DshSessionProjectionValues {
     public DshSessionListMetadata? SessionListMetadata { get; set; }
     /// <summary>子代理实例目录（undefined 会让前端子代理面板永久 loading，必须输出数组；TASK058 B8）</summary>
     public List<DshSubagentCatalogEntry> SubagentCatalog { get; set; } = [];
+    /// <summary>计划模式投影（前端 composer 计划 chip 读此值；TASK066 C6）</summary>
+    public DshSessionPlanProjection Plan { get; set; } = new();
+    /// <summary>权限选择投影（前端 composer 权限选择器读此值；TASK066 C6）</summary>
+    public DshSessionPermissionProjection Permissions { get; set; } = new();
+    /// <summary>目标投影（前端 GoalDock 读 <c>projection.goal</c>；无目标时面值必须是 JSON null；TASK066 C7）</summary>
+    public DshSessionGoalProjection? Goal { get; set; }
+}
+
+/// <summary>
+/// 目标投影面（对齐 DSH <c>goal</c> 投影 wire）：有目标是 <c>{goal, roundsStarted, createdAt, updatedAt}</c>，
+/// 无目标是 JSON <c>null</c>。前端 GoalDock 直接读 <c>projection.goal.phase</c>，
+/// 写成 <c>{goal:null}</c> 会抛错并带崩整个 <c>conversation.input.dock</c> 槽位。
+/// </summary>
+internal sealed class DshSessionGoalProjection {
+    /// <summary>当前目标（客户端可见字段）</summary>
+    public DshGoalView Goal { get; set; } = new();
+    /// <summary>已启动轮次</summary>
+    public int RoundsStarted { get; set; }
+    /// <summary>创建时间（Unix 毫秒）</summary>
+    public long CreatedAt { get; set; }
+    /// <summary>更新时间（Unix 毫秒）</summary>
+    public long UpdatedAt { get; set; }
+}
+
+/// <summary>目标视图（DSH wire 只带客户端需要的字段；activation 是进程内激活态，走 goal/activation-changed）</summary>
+internal sealed class DshGoalView {
+    /// <summary>目标 ID</summary>
+    public string Id { get; set; } = "";
+    /// <summary>版本（CAS 用）</summary>
+    public int Revision { get; set; }
+    /// <summary>目标描述</summary>
+    public string Objective { get; set; } = "";
+    /// <summary>阶段（active/paused/complete）</summary>
+    public string Phase { get; set; } = "active";
+    /// <summary>轮次上限</summary>
+    public int MaxGoalRounds { get; set; }
+}
+
+/// <summary>计划模式投影（<c>pending</c> 对齐 DSH：选中值尚未在步骤边界生效时为 true；本宿主立即生效恒 false）</summary>
+internal sealed class DshSessionPlanProjection {
+    /// <summary>当前是否处于计划模式</summary>
+    public bool Active { get; set; }
+    /// <summary>是否存在待生效切换</summary>
+    public bool Pending { get; set; }
+}
+
+/// <summary>权限选择投影（值是引擎 <see cref="PermissionMode"/> 枚举词汇）</summary>
+internal sealed class DshSessionPermissionProjection {
+    /// <summary>当前生效的权限预设</summary>
+    public string CurrentValue { get; set; } = "auto";
+}
+
+/// <summary>session/control 实时投影帧（帧类型固定 projection，单键整值替换）</summary>
+internal sealed class DshSessionControlProjection {
+    /// <summary>帧类型（baseline 之外的实时替换帧）</summary>
+    public string Type { get; set; } = "projection";
+    /// <summary>目标会话</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>投影键（plan / permissions / ...）</summary>
+    public string Key { get; set; } = "";
+    /// <summary>整值</summary>
+    public JsonElement Value { get; set; }
+    /// <summary>投影水位（客户端按 key 取大值）</summary>
+    public long Seq { get; set; }
 }
 
 /// <summary>子代理实例目录条目（实例目录含已完成条目；运行态由前端另查会话状态）</summary>
@@ -1322,21 +1509,6 @@ internal sealed class DshModelItem {
     public string Name { get; set; } = "";
 }
 
-/// <summary>代理预设列表</summary>
-internal sealed class DshAgentPresetList {
-    /// <summary>预设</summary>
-    public List<DshAgentPreset> Presets { get; set; } = [];
-}
-
-/// <summary>代理预设</summary>
-internal sealed class DshAgentPreset {
-    /// <summary>ID</summary>
-    public string Id { get; set; } = "";
-    /// <summary>顺序</summary>
-    public int Order { get; set; }
-    /// <summary>是否默认</summary>
-    public bool IsDefault { get; set; }
-}
 
 /// <summary>权限预设目录</summary>
 internal sealed class DshPermissionPresetCatalog {
@@ -1375,6 +1547,7 @@ internal sealed class DshSettingsMutateArgs {
     /// <summary>调用方读到的 revision；提供则做乐观并发校验</summary>
     public int? ExpectedRevision { get; set; }
 }
+
 
 /// <summary>单条设置编辑操作</summary>
 internal sealed class DshSettingsOp {
@@ -1454,6 +1627,10 @@ internal static class DshRpcResults {
     /// <summary>构造成功信封</summary>
     internal static DshRpcResult Ok(JsonElement value) => new() { Ok = true, Value = value };
 
+    /// <summary>构造带二进制附件的成功信封（宿主以 multipart 返回）</summary>
+    internal static DshRpcResult Ok(JsonElement value, DshRpcBinaryAttachment binary) =>
+        new() { Ok = true, Value = value, Binary = binary };
+
     /// <summary>构造失败信封（details 恒为对象，前端按对象解析）</summary>
     internal static DshRpcResult Fail(string code, string message) => new() {
         Ok = false,
@@ -1495,43 +1672,16 @@ internal sealed class DshSkillItem {
     public string Name { get; set; } = "";
     /// <summary>描述</summary>
     public string Description { get; set; } = "";
+    /// <summary>何时使用（可省略）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? WhenToUse { get; set; }
     /// <summary>模型可调用</summary>
     public bool ModelInvocable { get; set; }
+    /// <summary>源文件路径（可省略）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Path { get; set; }
 }
 
-/// <summary>消息反馈列表请求</summary>
-internal sealed class DshMessageFeedbackListRequest {
-    /// <summary>会话 ID</summary>
-    public string SessionId { get; set; } = "";
-}
-
-/// <summary>消息反馈列表结果（Remote 契约自带成功包装：{ok:true,value:{items}}）</summary>
-internal sealed class DshMessageFeedbackListResult {
-    /// <summary>是否成功</summary>
-    public bool Ok { get; set; } = true;
-    /// <summary>成功值</summary>
-    public DshMessageFeedbackListValue? Value { get; set; }
-}
-
-/// <summary>消息反馈列表值（自有引擎暂不落反馈，恒为空）</summary>
-internal sealed class DshMessageFeedbackListValue {
-    /// <summary>反馈条目</summary>
-    public List<DshMessageFeedbackItem> Items { get; set; } = [];
-}
-
-/// <summary>单条消息反馈</summary>
-internal sealed class DshMessageFeedbackItem {
-    /// <summary>消息 ID</summary>
-    public string MessageId { get; set; } = "";
-    /// <summary>评价（positive / negative）</summary>
-    public string Rating { get; set; } = "positive";
-    /// <summary>版本号</summary>
-    public long Version { get; set; }
-    /// <summary>创建时间（Unix 毫秒）</summary>
-    public long CreatedAt { get; set; }
-    /// <summary>更新时间（Unix 毫秒）</summary>
-    public long UpdatedAt { get; set; }
-}
 
 /// <summary>DSH 生成的远程契约：具名参数统一收在 request 下（生成器里 wire="request"）</summary>
 internal sealed class DshRequestEnvelope<TRequest> where TRequest : new() {
@@ -1560,10 +1710,68 @@ internal sealed class DshStreamErrorBody {
     public JsonElement Details { get; set; }
 }
 
+
+/// <summary>
+/// 插件清单（TASK066 C7）：宿主以静态内置插件启动，没有可写的 profile，
+/// <see cref="ManagementAvailable"/> 恒为 false。前端据此显示「本部署没有可管理的 profile」，
+/// 而不是把未实现方法当成网络故障。
+/// </summary>
+internal sealed class DshPluginInventorySnapshot {
+    /// <summary>是否支持安装/启停插件（本宿主恒为 false）</summary>
+    public bool ManagementAvailable { get; set; }
+    /// <summary>已安装插件条目（无 profile 时为空表）</summary>
+    public List<DshPluginInventoryEntry> Entries { get; set; } = [];
+}
+
+/// <summary>插件清单条目（严格 schema 要求 entryId/moduleName/enabled/fiberPhase）</summary>
+internal sealed class DshPluginInventoryEntry {
+    /// <summary>条目身份</summary>
+    public string EntryId { get; set; } = "";
+    /// <summary>模块名</summary>
+    public string ModuleName { get; set; } = "";
+    /// <summary>是否启用</summary>
+    public bool Enabled { get; set; }
+    /// <summary>fiber 阶段（无 profile 时 null）</summary>
+    public string? FiberPhase { get; set; }
+}
+
 /// <summary>DSH 宿主协议 JSON 上下文（AOT 源生成）</summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(DshRpcRequest))]
+[JsonSerializable(typeof(DshTerminalAgentArgs))]
+[JsonSerializable(typeof(DshTerminalEnvironmentResult))]
+[JsonSerializable(typeof(DshTerminalShellProfile))]
+[JsonSerializable(typeof(DshTerminalShellProfile[]))]
+[JsonSerializable(typeof(DshTerminalInfo))]
+[JsonSerializable(typeof(DshTerminalInfo[]))]
+[JsonSerializable(typeof(DshTerminalCreateRequest))]
+[JsonSerializable(typeof(DshTerminalCreateArgs))]
+[JsonSerializable(typeof(DshTerminalIdArgs))]
+[JsonSerializable(typeof(DshTerminalWriteArgs))]
+[JsonSerializable(typeof(DshTerminalResizeArgs))]
+[JsonSerializable(typeof(DshTerminalListArgs))]
+[JsonSerializable(typeof(DshTerminalFollowArgs))]
+[JsonSerializable(typeof(DshTerminalRetainArgs))]
+[JsonSerializable(typeof(DshTerminalSnapshotFrame))]
+[JsonSerializable(typeof(DshTerminalOutputFrame))]
+[JsonSerializable(typeof(DshTerminalStateFrame))]
+[JsonSerializable(typeof(DshTerminalRetainedFrame))]
+[JsonSerializable(typeof(DshJobListArgs))]
+[JsonSerializable(typeof(DshJobFollowArgs))]
+[JsonSerializable(typeof(DshJobKillArgs))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshJobListArgs>))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshJobFollowArgs>))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshJobKillArgs>))]
+[JsonSerializable(typeof(DshJobKillResult))]
+[JsonSerializable(typeof(DshJobOutputInfo))]
+[JsonSerializable(typeof(DshJobView))]
+[JsonSerializable(typeof(DshJobRowsFrame))]
+[JsonSerializable(typeof(DshJobOpenedFrame))]
+[JsonSerializable(typeof(DshJobChunk))]
+[JsonSerializable(typeof(DshJobOutputFrame))]
+[JsonSerializable(typeof(DshJobStatusFrame))]
 [JsonSerializable(typeof(DshRpcResponse))]
+[JsonSerializable(typeof(DshRpcMultipartMetadata))]
 [JsonSerializable(typeof(DshStreamOpen))]
 [JsonSerializable(typeof(DshStreamItem))]
 [JsonSerializable(typeof(DshStreamError))]
@@ -1593,6 +1801,11 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshSessionList))]
 [JsonSerializable(typeof(DshSessionProjections))]
 [JsonSerializable(typeof(DshSessionProjectionValues))]
+[JsonSerializable(typeof(DshSessionPlanProjection))]
+[JsonSerializable(typeof(DshSessionGoalProjection))]
+[JsonSerializable(typeof(DshGoalView))]
+[JsonSerializable(typeof(DshSessionPermissionProjection))]
+[JsonSerializable(typeof(DshSessionControlProjection))]
 [JsonSerializable(typeof(DshSessionModelSelectionProjection))]
 [JsonSerializable(typeof(DshModelSelectionRef))]
 [JsonSerializable(typeof(DshSessionListMetadata))]
@@ -1661,12 +1874,35 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshRequestEnvelope<DshSessionSelectModelArgs>))]
 [JsonSerializable(typeof(DshRequestEnvelope<DshSessionForkArgs>))]
 [JsonSerializable(typeof(DshAgentPresetList))]
+[JsonSerializable(typeof(DshAgentPreset))]
+[JsonSerializable(typeof(DshAgentPresetReadResult))]
+[JsonSerializable(typeof(DshAgentPresetSelectArgs))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshSessionSearchArgs>))]
+[JsonSerializable(typeof(DshSessionSearchArgs))]
+[JsonSerializable(typeof(DshSessionSearchResult))]
+[JsonSerializable(typeof(DshSessionSearchItem))]
+[JsonSerializable(typeof(List<DshSessionSearchItem>))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshOpenWorkspacePathArgs>))]
+[JsonSerializable(typeof(DshOpenWorkspacePathArgs))]
+[JsonSerializable(typeof(DshOpenWorkspacePathResult))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshWorkspacePathAppsArgs>))]
+[JsonSerializable(typeof(DshWorkspacePathAppsArgs))]
+[JsonSerializable(typeof(DshWorkspacePathApp))]
+[JsonSerializable(typeof(List<DshWorkspacePathApp>))]
 [JsonSerializable(typeof(DshPermissionPresetCatalog))]
 [JsonSerializable(typeof(DshWaterfallFrame))]
 [JsonSerializable(typeof(DshApprovalRequestBody))]
 [JsonSerializable(typeof(DshEventsResultArgs))]
 [JsonSerializable(typeof(DshEventOutcome))]
 [JsonSerializable(typeof(DshEventsResultValue))]
+[JsonSerializable(typeof(DshUserQuestionRequest))]
+[JsonSerializable(typeof(DshUserQuestion))]
+[JsonSerializable(typeof(DshUserQuestionOption))]
+[JsonSerializable(typeof(DshUserQuestionAnswerBatch))]
+[JsonSerializable(typeof(DshUserQuestionAnswerItem))]
+[JsonSerializable(typeof(DshUserQuestionsAnswerArgs))]
+[JsonSerializable(typeof(DshUserQuestionsAttachWaitArgs))]
+[JsonSerializable(typeof(DshWaterfallCancelFrame))]
 [JsonSerializable(typeof(DshApprovalAskedData))]
 [JsonSerializable(typeof(DshApprovalDecidedData))]
 [JsonSerializable(typeof(DshEventErrorBody))]
@@ -1679,16 +1915,58 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshSettingsDescribe))]
 [JsonSerializable(typeof(DshSettingsNamespaceView))]
 [JsonSerializable(typeof(DshSettingsMutateArgs))]
+[JsonSerializable(typeof(DshSettingsReplaceArgs))]
+[JsonSerializable(typeof(DshSettingsUpdateArgs))]
 [JsonSerializable(typeof(DshSettingsDocument))]
 [JsonSerializable(typeof(DshSettingsNamespaceDocument))]
 [JsonSerializable(typeof(DshSchemaEnvelope))]
 [JsonSerializable(typeof(DshSkillList))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshSkillListArgs>))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshSubagentPromptRequest>))]
+[JsonSerializable(typeof(DshSubagentInterruptArgs))]
+[JsonSerializable(typeof(DshSubagentPromptReceipt))]
+[JsonSerializable(typeof(DshSubagentInterruptReceipt))]
+[JsonSerializable(typeof(DshPlanModeData))]
+[JsonSerializable(typeof(bool))]
+[JsonSerializable(typeof(DshDirectoryListArgs))]
+[JsonSerializable(typeof(DshDirectoryCreateArgs))]
+[JsonSerializable(typeof(DshDirectoryListing))]
+[JsonSerializable(typeof(DshDirectoryCrumb))]
+[JsonSerializable(typeof(List<DshDirectoryCrumb>))]
+[JsonSerializable(typeof(DshDirectoryEntry))]
+[JsonSerializable(typeof(List<DshDirectoryEntry>))]
+[JsonSerializable(typeof(DshFileReferencesListArgs))]
+[JsonSerializable(typeof(DshFileReferenceItem))]
+[JsonSerializable(typeof(List<DshFileReferenceItem>))]
 [JsonSerializable(typeof(DshMessageFeedbackListResult))]
+[JsonSerializable(typeof(DshMessageFeedbackListValue))]
+[JsonSerializable(typeof(DshMessageFeedbackItem))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshMessageFeedbackPutArgs>))]
+[JsonSerializable(typeof(DshMessageFeedbackPutArgs))]
+[JsonSerializable(typeof(DshMessageFeedbackPutResult))]
+[JsonSerializable(typeof(DshRequestEnvelope<DshMessageFeedbackDeleteArgs>))]
+[JsonSerializable(typeof(DshMessageFeedbackDeleteArgs))]
+[JsonSerializable(typeof(DshMessageFeedbackDeleteResult))]
+[JsonSerializable(typeof(DshMessageFeedbackDeleteValue))]
+[JsonSerializable(typeof(DshMessageFeedbackSessionNotFoundError))]
+[JsonSerializable(typeof(DshMessageFeedbackTargetNotFoundError))]
+[JsonSerializable(typeof(DshMessageFeedbackVersionConflictError))]
+[JsonSerializable(typeof(DshMessageFeedbackNoteBlankError))]
+[JsonSerializable(typeof(DshMessageFeedbackNoteTooLargeError))]
+[JsonSerializable(typeof(DshMessageFeedbackDocument))]
 [JsonSerializable(typeof(DshProviderInfo))]
 [JsonSerializable(typeof(List<DshProviderInfo>))]
 [JsonSerializable(typeof(JsonElement[]))]
 [JsonSerializable(typeof(Dictionary<string, DshCredentialState>))]
 [JsonSerializable(typeof(DshRpcErrorDetails))]
+[JsonSerializable(typeof(DshWorkspaceChangesData))]
+[JsonSerializable(typeof(DshChangesSummary))]
+[JsonSerializable(typeof(DshChangedFile))]
+[JsonSerializable(typeof(List<DshChangedFile>))]
+[JsonSerializable(typeof(DshChangesDiff))]
+[JsonSerializable(typeof(DshChangesHunk))]
+[JsonSerializable(typeof(List<DshChangesHunk>))]
+[JsonSerializable(typeof(DshPresentHost))]
 [JsonSerializable(typeof(DshWorkspaceFilesArgs))]
 [JsonSerializable(typeof(DshWorkspaceFilesListResult))]
 [JsonSerializable(typeof(DshWorkspaceFilesReadResult))]
@@ -1698,12 +1976,13 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshChangeReady))]
 [JsonSerializable(typeof(DshGoal))]
 [JsonSerializable(typeof(DshGoalRef))]
+[JsonSerializable(typeof(DshGoalsAgentArgs))]
 [JsonSerializable(typeof(DshGoalsRefArgs))]
 [JsonSerializable(typeof(DshGoalsCreateArgs))]
+[JsonSerializable(typeof(DshGoalsCreateRequest))]
 [JsonSerializable(typeof(DshGoalsCreateResult))]
 [JsonSerializable(typeof(DshGoalsEditArgs))]
 [JsonSerializable(typeof(DshGoalChanges))]
-[JsonSerializable(typeof(DshGoalsClearResult))]
 [JsonSerializable(typeof(DshGoalsDocument))]
 [JsonSerializable(typeof(DshGoalActivationChanged))]
 [JsonSerializable(typeof(DshFileUploadsUploadArgs))]
@@ -1713,5 +1992,6 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshSessionAttachmentResult))]
 [JsonSerializable(typeof(DshUpdateQueueArgs))]
 [JsonSerializable(typeof(DshQueueAcceptedResult))]
+[JsonSerializable(typeof(DshPluginInventorySnapshot))]
 [JsonSerializable(typeof(object))]
 internal sealed partial class DshJsonContext : JsonSerializerContext;

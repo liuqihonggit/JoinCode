@@ -13,16 +13,33 @@ internal sealed class DshSessionStore {
     /// <summary>宿主事件日志（subagentCatalog 投影回放源，TASK058 B8；null 时目录恒空）</summary>
     private readonly DshSessionJournal? _journal;
 
+    /// <summary>引擎当前权限预设（应用级状态；供 plan/permissions 投影在无历史事件时兜底）</summary>
+    private volatile string _permissionPreset = PermissionMode.Auto.ToValue();
+
+    /// <summary>会话目标来源（TASK066 C7：goal 投影面；未注入时恒 null）</summary>
+    private Func<string, DshGoal?>? _goalSource;
+
     /// <summary>构造会话注册表</summary>
     /// <param name="journal">宿主事件日志（可选 — subagentCatalog 回放）</param>
     internal DshSessionStore(DshSessionJournal? journal = null) => _journal = journal;
+
+    /// <summary>设置投影使用的当前权限预设（引擎权限模式变化时由宿主同步）</summary>
+    internal string CurrentPermissionPreset => _permissionPreset;
 
     /// <summary>注入会话存储 — 支持热切换（唯一数据源：同一份 <c>~/.jcc/sessions</c> 落盘数据）</summary>
     /// <param name="transcripts">会话存储（轻量落盘实例或引擎实例）</param>
     internal void AttachTranscripts(ITranscriptService transcripts) => _transcripts = transcripts;
 
+    /// <summary>注入会话目标来源（goal 投影面；宿主容器在目标存储构造完成后调用）</summary>
+    /// <param name="source">按会话 ID 读当前目标（无目标返回 null）</param>
+    internal void AttachGoalSource(Func<string, DshGoal?> source) => _goalSource = source;
+
     /// <summary>会话存储是否已就绪</summary>
     internal bool IsReady => _transcripts is not null;
+
+    /// <summary>记录引擎当前权限预设（权限路由 / 引擎 attach / 轮次起点校正时调用）</summary>
+    /// <param name="preset">引擎枚举词汇（plan/auto/ask/bypass/unattended）</param>
+    internal void SetCurrentPermissionPreset(string preset) => _permissionPreset = preset;
 
     /// <summary>列出会话（投影 id / 更新时间 / 空白标记 / 工作目录 / 标题投影）</summary>
     /// <param name="limit">最多返回条数</param>
@@ -39,6 +56,77 @@ internal sealed class DshSessionStore {
         }
         return items;
     }
+
+    /// <summary>会话是否存在（引擎存储未就绪时恒 false）</summary>
+    internal async Task<bool> ExistsAsync(string sessionId, CancellationToken cancellationToken) =>
+        _transcripts is { } transcripts && await transcripts.TranscriptExistsAsync(sessionId, cancellationToken);
+
+    /// <summary>
+    /// 按字面量搜索会话消息内容（user/assistant 普通消息），每会话取最佳命中片段；
+    /// 与 DSH 契约一致：最多 20 条、snippet 截断到 240 字符、第 21 条命中置 hasMore。
+    /// </summary>
+    internal async Task<(IReadOnlyList<DshSessionSearchItem> Items, bool HasMore)> SearchAsync(
+        string query,
+        CancellationToken cancellationToken) {
+        var normalized = query.Trim();
+        if (normalized.Length == 0 || _transcripts is not { } transcripts) {
+            return ([], false);
+        }
+        var summaries = await transcripts.ListTranscriptsAsync(MaxSessions, cancellationToken);
+        var items = new List<DshSessionSearchItem>();
+        foreach (var summary in summaries.OrderByDescending(summary => summary.LastModifiedAt)) {
+            cancellationToken.ThrowIfCancellationRequested();
+            var entries = await transcripts.LoadTranscriptAsync(summary.SessionId, cancellationToken);
+            if (BestSnippet(entries, normalized) is not { } snippet) {
+                continue;
+            }
+            items.Add(new DshSessionSearchItem { SessionId = summary.SessionId, Snippet = snippet });
+            if (items.Count > SearchResultLimit) {
+                break;
+            }
+        }
+        return (items.Take(SearchResultLimit).ToArray(), items.Count > SearchResultLimit);
+    }
+
+    /// <summary>助手消息 ID 是否存在（ID 由转录投影按「会话:事件序号」生成，与前端消息一致）</summary>
+    internal async Task<bool> IsAssistantMessageAsync(string sessionId, string messageId, CancellationToken cancellationToken) {
+        if (_transcripts is not { } transcripts) {
+            return false;
+        }
+        var entries = await transcripts.LoadTranscriptAsync(sessionId, cancellationToken);
+        return DshTranscriptProjector.Project(sessionId, entries)
+            .Where(record => string.Equals(record.Event.Type, "assistant/message", StringComparison.Ordinal))
+            .Any(record => record.Event.Data.TryGetProperty("message", out var message)
+                && message.TryGetProperty("id", out var id)
+                && string.Equals(id.GetString(), messageId, StringComparison.Ordinal));
+    }
+
+    /// <summary>最佳命中片段（窗口居中 ±80 字符、截断 240 字符、换行折成空格）</summary>
+    private static string? BestSnippet(IReadOnlyList<TranscriptEntry> entries, string query) {
+        foreach (var entry in entries.Where(DshTranscriptProjector.IsConversationMessage)) {
+            var index = entry.Content.IndexOf(query, StringComparison.OrdinalIgnoreCase);
+            if (index < 0) {
+                continue;
+            }
+            var start = Math.Max(0, index - SnippetPadding);
+            var length = Math.Min(SnippetLimit, entry.Content.Length - start);
+            var text = entry.Content.Substring(start, length)
+                .Replace('\r', ' ')
+                .Replace('\n', ' ')
+                .Replace('\t', ' ');
+            return (start > 0 ? "…" : "") + text + (start + length < entry.Content.Length ? "…" : "");
+        }
+        return null;
+    }
+
+    /// <summary>搜索命中上限（DSH session/search 固定 20）</summary>
+    private const int SearchResultLimit = 20;
+
+    /// <summary>片段截断长度</summary>
+    private const int SnippetLimit = 240;
+
+    /// <summary>命中点前保留的上下文字符数</summary>
+    private const int SnippetPadding = 80;
 
     /// <summary>列出会话 ID → 标题（供会话投影与工作区归属填充）</summary>
     /// <param name="limit">最多返回条数</param>
@@ -82,7 +170,7 @@ internal sealed class DshSessionStore {
             Running = false,
             Blank = entries.Count == 0,
             Cwd = info?.ProjectPath ?? "",
-            Projections = ProjectValues(customTitle, info, entries, journalEvents),
+            Projections = ProjectValues(summary.SessionId, customTitle, info, entries, journalEvents),
         };
     }
 
@@ -206,7 +294,7 @@ internal sealed class DshSessionStore {
         var info = await transcripts.GetSessionInfoAsync(sessionId, cancellationToken);
         var entries = await transcripts.LoadTranscriptAsync(sessionId, cancellationToken);
         var journalEvents = _journal is null ? [] : await _journal.LoadAsync(sessionId, cancellationToken);
-        return (ProjectValues(customTitle, info, entries, journalEvents), info, entries);
+        return (ProjectValues(sessionId, customTitle, info, entries, journalEvents), info, entries);
     }
 
     /// <summary>读会话工作目录（workspaceFiles 文件树根）；meta 缺失/无 ProjectPath 返回 null</summary>
@@ -299,9 +387,10 @@ internal sealed class DshSessionStore {
         return newId;
     }
 
-    /// <summary>投影键值（标题 / 代理预设 / 模型选择 / 列表元数据 / 子代理实例目录 — TASK058 B8）</summary>
-    private static DshSessionProjections ProjectValues(string? customTitle, SessionInfo? info, IReadOnlyList<TranscriptEntry> entries, IReadOnlyList<DshSessionEvent>? journalEvents = null) {
+    /// <summary>投影键值（标题 / 代理预设 / 模型选择 / 列表元数据 / 子代理实例目录 / 目标 — TASK066 C7）</summary>
+    private DshSessionProjections ProjectValues(string sessionId, string? customTitle, SessionInfo? info, IReadOnlyList<TranscriptEntry> entries, IReadOnlyList<DshSessionEvent>? journalEvents = null) {
         var lastPrompt = entries.LastOrDefault(entry => entry.Type is null && !entry.IsSidechain && entry.Role == "user");
+        var preset = _permissionPreset;
         return new DshSessionProjections {
             AsOfSeq = entries.Count,
             Values = new DshSessionProjectionValues {
@@ -316,9 +405,33 @@ internal sealed class DshSessionStore {
                     LastPromptAt = lastPrompt is null ? null : ToUnixMilliseconds(lastPrompt.Timestamp),
                 },
                 SubagentCatalog = DshSubagentCatalogProjector.Project(journalEvents ?? []),
+                // 引擎权限模式是应用级状态：Plan 即计划模式，其余预设原样投影给权限选择器
+                Plan = new DshSessionPlanProjection {
+                    Active = string.Equals(preset, PermissionMode.Plan.ToValue(), StringComparison.Ordinal),
+                    Pending = false,
+                },
+                Permissions = new DshSessionPermissionProjection { CurrentValue = preset },
+                Goal = ToGoalFace(_goalSource?.Invoke(sessionId)),
             },
         };
     }
+
+    /// <summary>把持久目标转成 DSH 投影面（无目标 = null，有目标带客户端可见字段与轮次时间）</summary>
+    private static DshSessionGoalProjection? ToGoalFace(DshGoal? goal) =>
+        goal is null
+            ? null
+            : new DshSessionGoalProjection {
+                Goal = new DshGoalView {
+                    Id = goal.Id,
+                    Revision = goal.Revision,
+                    Objective = goal.Objective,
+                    Phase = goal.Phase,
+                    MaxGoalRounds = goal.MaxGoalRounds,
+                },
+                RoundsStarted = goal.RoundsStarted,
+                CreatedAt = goal.CreatedAt,
+                UpdatedAt = goal.UpdatedAt,
+            };
 
     /// <summary>会话最近使用的模型（供应商与模型都缺失时返回 null，表示尚未确定）</summary>
     private static DshModelSelectionRef? ToModelRef(SessionInfo? info) =>

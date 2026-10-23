@@ -1,8 +1,28 @@
 # DSG044 — TUI 视觉行体系（grapheme 宽度 + 输入软折行 + 视觉行光标）
 
-> 状态：proposed（已获用户决策立项 — TASK067 差异决策第 3 问）
+> 状态：accepted（四批 L1-L4 全部落地，2026-10-23）
 > 来源：TASK067 差异文档 6.3b / 6.4 / 7.5 / 7.6 / 8.13 / 8.14 六项联动（渲染链 + 编辑器 + 键语义三域）
 > 基准：ink/stringWidth.ts（grapheme 分段 + eastAsianWidth）、utils/Cursor.ts（grapheme 偏移 + 视觉行三级移动）、hooks/useTextInput.ts:269-316（wrapped→logical→history）
+
+## 验收记录（2026-10-23）
+
+| 批次 | 内容 | 落点 | 提交 | 验证 |
+|------|------|------|------|------|
+| L1 | GraphemeSegmenter（UAX29 核心子集）+ RuneWidth.WidthOfGrapheme | grid/GraphemeSegmenter.cs + RuneWidth.cs | 810ac17c2 | 分段 9 用例 + 宽度 1 用例全绿 |
+| L2 | InputBuffer.Left/Right/Backspace grapheme 边界化 | InputBuffer.cs（Previous/NextGraphemeStart） | 576da6780 | 编辑器域 75/75 绿 |
+| L3 | InputLineLayout 软折行投影 + PromptInputBox 视觉行渲染 + ReplView 高度/光标投影（HeightForText/TailHeightOf/InputCursorPos） | InputLineLayout.cs + PromptInputBox.cs + ReplView.cs | 9abc0b0cd | 折行 8 + 渲染 26 + ReplView 级 2 全绿 |
+| L4 | TryMoveVisualVertically 三级回退 + HomeVisual/EndVisual + ReplShell 键分派接线 | InputBuffer.cs + ReplShell.cs | 7c5faaf32 | InputBuffer 7 + 分派 4 全绿 |
+
+终态回归：Core **2327** + Host.Tests **125** + Host --selftest EXIT=0 全绿。
+手动验收（ADR 0080 真机项）：粘贴 ZWJ emoji 列不错位 / 200 字符长输入全可见可编辑 / 折行内方向键细移 — 待用户真机执行。
+
+## 实施决策补充（落地时定案）
+
+- 折行宽统一 `cols - PromptWidth`（保守 — 视觉行续行略窄于可用宽不溢出；基准 wrap-ansi columns-1 同思路）
+- 软折行断点固有同位语义：满宽硬切/词折行断点处"上一视觉行尾 = 下一视觉行首"同 char 位 — Home 连按在该处位置不变（真实跳转发生在跨逻辑行边界）；LocateVisualCursor 行尾边界归属下一视觉行（末视觉行除外）
+- LocateVisualCursor 归属规则：`clamped < end || (clamped == end && 末视觉行)` — 行尾光标物理在下侧行首
+- ConsoleTerminalSizeSource 无控制台防御回退 80×24（L4 按键路径读 cols 暴露 — 对齐 KeyAvailable 无控制台防御先例）
+- TailHeight 属性改 TailHeightOf(cols) 方法（视觉行高度依赖终端宽 — WriteExit 消费传 sizeSource 当前 cols）
 
 ## 一、问题（用户可感知缺陷）
 

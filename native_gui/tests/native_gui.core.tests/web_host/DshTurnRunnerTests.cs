@@ -37,6 +37,40 @@ public sealed class DshTurnRunnerTests {
     }
 
     [Fact]
+    public async Task Start_FileWrite_PublishesWorkspaceChangesAndRecordsSummary() {
+        var harness = await Harness.CreateAsync(
+            "完成",
+            emitToolCalls: true,
+            mutation: ("one\ntwo\n", "one\nTWO\nthree\n"));
+        await using var transcripts = harness.Transcripts;
+
+        (await harness.Runner.StartAsync(TextRequest("rpc-1", "改文件"), CancellationToken.None)).Should().BeNull();
+        await harness.WaitForAsync("turn/end");
+
+        harness.Types().Should().ContainInOrder("tool/call", "tool/result", "assistant/message", "workspace/changes", "step/end", "turn/end");
+        var change = harness.Events.Single(entry => entry.Event.Type == "workspace/changes");
+        change.Event.Data.GetProperty("turn").GetInt32().Should().Be(1);
+
+        var summary = harness.Services.Changes.Summary(SessionId, change.Event.Seq)
+            ?? throw new Xunit.Sdk.XunitException("前端收到事件后会立刻按 seq 读 summary，记录必须先于推送完成");
+        summary.Files.Should().ContainSingle().Which.Display.Should().Be("a.txt");
+        summary.Added.Should().Be(2);
+        summary.Deleted.Should().Be(1);
+        summary.Diffs.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Start_ReadToolWithoutMutation_PublishesNoWorkspaceChanges() {
+        var harness = await Harness.CreateAsync("完成", emitToolCalls: true);
+        await using var transcripts = harness.Transcripts;
+
+        (await harness.Runner.StartAsync(TextRequest("rpc-1", "读文件"), CancellationToken.None)).Should().BeNull();
+        await harness.WaitForAsync("turn/end");
+
+        harness.Types().Should().NotContain("workspace/changes", "没有文件改动时不发 workspace/changes");
+    }
+
+    [Fact]
     public async Task Start_WhileRunning_ReturnsBusy() {
         var harness = await Harness.CreateAsync("慢回答", gate: true);
         await using var transcripts = harness.Transcripts;
@@ -288,20 +322,22 @@ public sealed class DshTurnRunnerTests {
     private sealed class Harness {
         private readonly SemaphoreSlim _signal = new(0);
 
-        private Harness(DshTurnRunner runner, DshSessionStreamHub hub, StubChatSession engine, State.TranscriptService transcripts) {
+        private Harness(DshTurnRunner runner, DshHostServices services, StubChatSession engine, State.TranscriptService transcripts) {
             Runner = runner;
-            Hub = hub;
+            Services = services;
+            Hub = services.Streams;
             Engine = engine;
             Transcripts = transcripts;
         }
 
         public DshTurnRunner Runner { get; }
+        public DshHostServices Services { get; }
         public DshSessionStreamHub Hub { get; }
         public StubChatSession Engine { get; }
         public State.TranscriptService Transcripts { get; }
         public List<DshSessionRecord> Events { get; } = [];
 
-        public static async Task<Harness> CreateAsync(string reply, bool gate = false, bool createSession = true, bool throwOnStream = false, bool emitToolCalls = false, bool toolFails = false, bool emitSystemNotice = false, PermissionMode permissionMode = PermissionMode.Auto) {
+        public static async Task<Harness> CreateAsync(string reply, bool gate = false, bool createSession = true, bool throwOnStream = false, bool emitToolCalls = false, bool toolFails = false, bool emitSystemNotice = false, PermissionMode permissionMode = PermissionMode.Auto, (string Before, string After)? mutation = null) {
             var fs = new InMemoryFileSystem();
             var services = new DshHostServices(fs);
             var transcripts = new State.TranscriptService(fs, SessionsDir);
@@ -309,9 +345,12 @@ public sealed class DshTurnRunnerTests {
             if (createSession) {
                 await transcripts.EnsureSessionAsync(SessionId, new SessionInfo { Id = SessionId, ProjectPath = "/ws" });
             }
-            var engine = new StubChatSession { Reply = reply, Gate = gate, ThrowOnStream = throwOnStream, EmitToolCalls = emitToolCalls, ToolFails = toolFails, EmitSystemNotice = emitSystemNotice, Mode = permissionMode };
+            if (mutation is { } initial) {
+                await fs.WriteAllTextAsync("/ws/a.txt", initial.Before);
+            }
+            var engine = new StubChatSession { Reply = reply, Gate = gate, ThrowOnStream = throwOnStream, EmitToolCalls = emitToolCalls, ToolFails = toolFails, EmitSystemNotice = emitSystemNotice, Mode = permissionMode, Fs = fs, Mutation = mutation };
             services.AttachEngine(engine);
-            var harness = new Harness(new DshTurnRunner(services), services.Streams, engine, transcripts);
+            var harness = new Harness(new DshTurnRunner(services), services, engine, transcripts);
             services.Streams.Subscribe(SessionId, "stream-1", sessionEvent => {
                 harness.Events.Add(new DshSessionRecord { Event = sessionEvent });
                 harness._signal.Release();
@@ -350,6 +389,13 @@ public sealed class DshTurnRunnerTests {
         public bool EmitToolCalls { get; init; }
         public bool ToolFails { get; init; }
         public bool EmitSystemNotice { get; init; }
+
+        /// <summary>可选的文件改动脚本（write 工具夹在 ToolStart/ToolEnd 之间写入 After）</summary>
+        public (string Before, string After)? Mutation { get; init; }
+
+        /// <summary>改动脚本使用的文件系统（与宿主同一个 InMemoryFileSystem）</summary>
+        public IFileSystem? Fs { get; init; }
+
         public string? LastPrompt { get; private set; }
 
         /// <summary>当前权限模式（计划模式事件投影来源）</summary>
@@ -390,8 +436,16 @@ public sealed class DshTurnRunnerTests {
                 throw new InvalidOperationException("引擎崩溃");
             }
             if (EmitToolCalls) {
-                yield return ChatStreamEvent.ToolStart("Read", "call-1", "{\"path\":\"a.txt\"}");
-                yield return ChatStreamEvent.ToolEnd("Read", ToolFails ? "文件不存在" : "ok", "call-1", ToolFails);
+                if (Mutation is { } mutation) {
+                    var fs = Fs ?? throw new InvalidOperationException("带 mutation 的引擎桩必须注入文件系统");
+                    var arguments = JsonSerializer.Serialize(new { file_path = "a.txt", content = mutation.After });
+                    yield return ChatStreamEvent.ToolStart("write", "call-1", arguments);
+                    await fs.WriteAllTextAsync("/ws/a.txt", mutation.After);
+                    yield return ChatStreamEvent.ToolEnd("write", "ok", "call-1", false);
+                } else {
+                    yield return ChatStreamEvent.ToolStart("Read", "call-1", "{\"path\":\"a.txt\"}");
+                    yield return ChatStreamEvent.ToolEnd("Read", ToolFails ? "文件不存在" : "ok", "call-1", ToolFails);
+                }
             }
             if (EmitSystemNotice) {
                 yield return ChatStreamEvent.SystemNotice("系统旁白不得出现");

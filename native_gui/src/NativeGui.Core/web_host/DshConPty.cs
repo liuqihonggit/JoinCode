@@ -203,14 +203,12 @@ internal sealed partial class DshConPty : IDshPty {
             if (!UpdateProcThreadAttribute(list, 0, ProcThreadAttributePseudoConsole, pseudoConsole, IntPtr.Size, IntPtr.Zero, IntPtr.Zero)) {
                 throw new IOException($"挂接伪控制台失败（Win32 错误 {Marshal.GetLastWin32Error()}）");
             }
-            var startup = new STARTUPINFOEX();
-            startup.StartupInfo.cb = Marshal.SizeOf<STARTUPINFOEX>();
-            startup.lpAttributeList = list;
+            var startup = BuildStartupInfo(list);
             var commandLine = new StringBuilder(Quote(shellPath));
             foreach (var argument in arguments) {
                 commandLine.Append(' ').Append(Quote(argument));
             }
-            if (!CreateProcess(null, commandLine, IntPtr.Zero, IntPtr.Zero, true,
+            if (!CreateProcess(null, commandLine, IntPtr.Zero, IntPtr.Zero, false,
                 ExtendedStartupInfoPresent, IntPtr.Zero, cwd, ref startup, out var information)) {
                 throw new IOException($"启动终端 shell 失败（Win32 错误 {Marshal.GetLastWin32Error()}）：{shellPath}");
             }
@@ -227,9 +225,28 @@ internal sealed partial class DshConPty : IDshPty {
     private static string Quote(string value) =>
         value.Length == 0 ? "\"\"" : value.Contains(' ') || value.Contains('"') ? $"\"{value.Replace("\"", "\\\"")}\"" : value;
 
+    /// <summary>
+    /// 构造挂接伪控制台的启动信息。标准句柄必须显式置为 INVALID_HANDLE_VALUE：
+    /// Windows 在未指定 STARTF_USESTDHANDLES 时会把宿主的（可能被重定向到日志文件的）
+    /// 标准句柄复制给子进程，盖过伪控制台，导致提示符写进宿主日志而 xterm 一片空白。
+    /// </summary>
+    /// <param name="attributeList">已挂接伪控制台的属性列表</param>
+    internal static STARTUPINFOEX BuildStartupInfo(IntPtr attributeList) {
+        var startup = new STARTUPINFOEX();
+        startup.StartupInfo.cb = Marshal.SizeOf<STARTUPINFOEX>();
+        startup.StartupInfo.dwFlags = StartfUseStdHandles;
+        startup.StartupInfo.hStdInput = InvalidStdHandle;
+        startup.StartupInfo.hStdOutput = InvalidStdHandle;
+        startup.StartupInfo.hStdError = InvalidStdHandle;
+        startup.lpAttributeList = attributeList;
+        return startup;
+    }
+
     private const int ExtendedStartupInfoPresent = 0x00080000;
     private const uint HandleFlagInherit = 0x1;
+    internal const int StartfUseStdHandles = 0x00000100;
     private static readonly IntPtr ProcThreadAttributePseudoConsole = new(0x00020016);
+    internal static readonly IntPtr InvalidStdHandle = new(-1);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct COORD {
@@ -245,7 +262,7 @@ internal sealed partial class DshConPty : IDshPty {
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct STARTUPINFO {
+    internal struct STARTUPINFO {
         public int cb;
         public IntPtr lpReserved;
         public IntPtr lpDesktop;
@@ -267,7 +284,7 @@ internal sealed partial class DshConPty : IDshPty {
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct STARTUPINFOEX {
+    internal struct STARTUPINFOEX {
         public STARTUPINFO StartupInfo;
         public IntPtr lpAttributeList;
     }

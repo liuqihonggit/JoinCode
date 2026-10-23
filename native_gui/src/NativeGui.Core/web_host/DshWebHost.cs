@@ -17,6 +17,11 @@ internal sealed class DshWebHost : IAsyncDisposable {
     private const string ApiPrefix = "/api/";
     private const string ComboPrefix = "/plugins/??";
     private const string BinaryUploadPath = "/api/session/uploadFileBinary";
+    private const string ChangesSummaryPath = "/api/changes.summary";
+    private const string ChangesDiffPath = "/api/changes.diff";
+    private const string ChangesOpenPath = "/api/changes.open";
+    private const string PresentHostPath = "/api/present.host";
+    private const string PresentOpenPath = "/api/present.open";
 
     private static readonly FrozenDictionary<string, string> ContentTypes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
@@ -105,6 +110,10 @@ internal sealed class DshWebHost : IAsyncDisposable {
         }
         var path = request.Url?.AbsolutePath ?? "/";
         if (path.StartsWith(ApiPrefix, StringComparison.Ordinal) || path == "/api") {
+            // deliverables 文档路由（TASK066 C7）：改动摘要/对比/原生打开 + 桌面能力
+            if (await TryHandleDeliverablesAsync(context, path)) {
+                return;
+            }
             // 附件直传（TASK058 P2-B2）：POST /api/session/uploadFileBinary?sessionId=&name=，body 为 octet-stream
             if (string.Equals(path, BinaryUploadPath, StringComparison.Ordinal)) {
                 await HandleBinaryUploadAsync(context);
@@ -151,6 +160,185 @@ internal sealed class DshWebHost : IAsyncDisposable {
         } finally {
             TryClose(response, 200);
         }
+    }
+
+    /// <summary>deliverables 文档路由分发（未命中返回 false，交回一元 RPC）</summary>
+    /// <param name="context">请求上下文</param>
+    /// <param name="path">绝对路径</param>
+    /// <returns>是否已处理</returns>
+    private async Task<bool> TryHandleDeliverablesAsync(HttpListenerContext context, string path) {
+        switch (path) {
+            case ChangesSummaryPath:
+                await HandleChangesSummaryAsync(context);
+                return true;
+            case ChangesDiffPath:
+                await HandleChangesDiffAsync(context);
+                return true;
+            case ChangesOpenPath:
+                await HandleChangesOpenAsync(context);
+                return true;
+            case PresentHostPath:
+                await HandlePresentHostAsync(context);
+                return true;
+            case PresentOpenPath:
+                await HandlePresentOpenAsync(context);
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// 一轮改动摘要（<c>GET /api/changes.summary?sessionId&amp;seq</c>）：坐标未知或宿主重启后丢失 → 404
+    /// （前端按 missing 处理，卡片不渲染）。
+    /// </summary>
+    private async Task HandleChangesSummaryAsync(HttpListenerContext context) {
+        var summary = LookupChanges(context, out _, out _);
+        if (summary is null) {
+            TryClose(context.Response, 404);
+            return;
+        }
+        await WriteJsonAsync(
+            context.Response,
+            200,
+            JsonSerializer.SerializeToUtf8Bytes(summary, DshJsonContext.Default.DshChangesSummary));
+    }
+
+    /// <summary>
+    /// 单文件对比（<c>GET /api/changes.diff?sessionId&amp;seq&amp;index</c>）：坐标/下标越界 → 404，
+    /// 其余异常由请求级兜底回 500（前端按 error 允许重试）。
+    /// </summary>
+    private async Task HandleChangesDiffAsync(HttpListenerContext context) {
+        var query = context.Request.Url?.Query ?? "";
+        var sessionId = QueryValue(query, "sessionId");
+        var diff = sessionId is not null
+            && long.TryParse(QueryValue(query, "seq"), out var seq)
+            && int.TryParse(QueryValue(query, "index"), out var index)
+                ? _services.Changes.Diff(sessionId, seq, index)
+                : null;
+        if (diff is null) {
+            TryClose(context.Response, 404);
+            return;
+        }
+        await WriteJsonAsync(
+            context.Response,
+            200,
+            JsonSerializer.SerializeToUtf8Bytes(diff, DshJsonContext.Default.DshChangesDiff));
+    }
+
+    /// <summary>
+    /// 在宿主桌面打开/选中改动文件（<c>POST /api/changes.open?sessionId&amp;seq&amp;index[&amp;action=reveal]</c>）：
+    /// 坐标未知 404；宿主无法交给桌面应用（非 Windows / 文件已删除）→ 422（前端显示 nativeUnavailable）。
+    /// </summary>
+    private async Task HandleChangesOpenAsync(HttpListenerContext context) {
+        var response = context.Response;
+        if (!string.Equals(context.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase)) {
+            TryClose(response, 405);
+            return;
+        }
+        var summary = LookupChanges(context, out _, out var index);
+        var file = summary is not null && index >= 0 && index < summary.Files.Count ? summary.Files[index] : null;
+        if (file is null) {
+            TryClose(response, 404);
+            return;
+        }
+        var query = context.Request.Url?.Query ?? "";
+        var (opened, error) = DshWorkspacePathService.Open(
+            _services.FileSystem, file.Path, QueryValue(query, "action"), QueryValue(query, "application"));
+        if (!opened) {
+            GuiDiag.Log($"[DSH-WEB] changes.open rejected path={file.Path}: {error}");
+            TryClose(response, 422);
+            return;
+        }
+        TryClose(response, 204);
+    }
+
+    /// <summary>宿主桌面能力（<c>GET /api/present.host</c>）：前端据此决定交付卡片是否显示打开动作。</summary>
+    private async Task HandlePresentHostAsync(HttpListenerContext context) {
+        var host = new DshPresentHost {
+            Name = "JCC Desktop",
+            Available = DshWorkspacePathService.IsSupported,
+            FileManager = OperatingSystem.IsWindows() ? "explorer" : OperatingSystem.IsMacOS() ? "finder" : "directory",
+        };
+        await WriteJsonAsync(
+            context.Response,
+            200,
+            JsonSerializer.SerializeToUtf8Bytes(host, DshJsonContext.Default.DshPresentHost));
+    }
+
+    /// <summary>
+    /// 打开 <c>deliverables/presented</c> 声明的文件（<c>POST /api/present.open?sessionId&amp;seq&amp;index</c>）：
+    /// 事件不存在/下标越界 404；宿主无法交给桌面应用 → 422。引擎没有 present 工具时不会产生该事件（与 Claude Code 对齐）。
+    /// </summary>
+    private async Task HandlePresentOpenAsync(HttpListenerContext context) {
+        var response = context.Response;
+        if (!string.Equals(context.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase)) {
+            TryClose(response, 405);
+            return;
+        }
+        var query = context.Request.Url?.Query ?? "";
+        var sessionId = QueryValue(query, "sessionId");
+        if (string.IsNullOrWhiteSpace(sessionId)
+            || !long.TryParse(QueryValue(query, "seq"), out var seq)
+            || !int.TryParse(QueryValue(query, "index"), out var index)
+            || index < 0) {
+            TryClose(response, 404);
+            return;
+        }
+        var path = await FindPresentedPathAsync(sessionId, seq, index);
+        if (path is null) {
+            TryClose(response, 404);
+            return;
+        }
+        var resolved = path;
+        if (!Path.IsPathRooted(resolved)
+            && await _services.Sessions.GetSessionCwdAsync(sessionId, CancellationToken.None) is { Length: > 0 } cwd) {
+            resolved = Path.Combine(cwd, resolved);
+        }
+        var (opened, error) = DshWorkspacePathService.Open(
+            _services.FileSystem, resolved, QueryValue(query, "action"), QueryValue(query, "application"));
+        if (!opened) {
+            GuiDiag.Log($"[DSH-WEB] present.open rejected path={resolved}: {error}");
+            TryClose(response, 422);
+            return;
+        }
+        TryClose(response, 204);
+    }
+
+    /// <summary>按坐标读改动摘要并解出下标（sessionId/seq/index 任一非法时 summary 为 null）</summary>
+    private DshChangesSummary? LookupChanges(HttpListenerContext context, out string? sessionId, out int index) {
+        var query = context.Request.Url?.Query ?? "";
+        sessionId = QueryValue(query, "sessionId");
+        index = int.TryParse(QueryValue(query, "index"), out var parsedIndex) ? parsedIndex : -1;
+        return sessionId is not null && long.TryParse(QueryValue(query, "seq"), out var seq)
+            ? _services.Changes.Summary(sessionId, seq)
+            : null;
+    }
+
+    /// <summary>从会话日志里取 <c>deliverables/presented</c> 事件第 index 个文件的声明路径</summary>
+    private async Task<string?> FindPresentedPathAsync(string sessionId, long seq, int index) {
+        var events = await _services.Journal.LoadAsync(sessionId, CancellationToken.None);
+        var presented = events.LastOrDefault(sessionEvent =>
+            sessionEvent.Seq == seq && sessionEvent.Type == "deliverables/presented");
+        if (presented is null
+            || !presented.Data.TryGetProperty("files", out var files)
+            || files.ValueKind != JsonValueKind.Array
+            || index >= files.GetArrayLength()) {
+            return null;
+        }
+        var file = files[index];
+        return file.TryGetProperty("path", out var path) && path.ValueKind == JsonValueKind.String
+            ? path.GetString()
+            : null;
+    }
+
+    /// <summary>回写 JSON 文档（deliverables 路由不使用一元 RPC 信封）</summary>
+    private static async Task WriteJsonAsync(HttpListenerResponse response, int statusCode, byte[] payload) {
+        response.StatusCode = statusCode;
+        response.ContentType = "application/json; charset=utf-8";
+        response.Headers["Cache-Control"] = "no-store";
+        response.ContentLength64 = payload.Length;
+        await response.OutputStream.WriteAsync(payload);
     }
 
     /// <summary>解析查询串单值（无解码需求：sessionId/name 均为简单 ASCII）</summary>

@@ -137,8 +137,11 @@ internal sealed class DshTurnRunner {
         var agents = new DshAgentRunTracker($"{sessionId}:{turn}:agents");
         // 助手流尝试是否已开启（取消/失败分支也要据此补 abandoned 结算）
         var streaming = false;
+        // 本轮文件改动收集（TASK066 C7）；取消/失败路径同样收尾，已落盘的改动不丢
+        DshTurnChangeCollector? changes = null;
         try {
             engine.SwitchSession(sessionId);
+            changes = await CreateChangeCollectorAsync(sessionId, cancellationToken);
             if (await _services.Sessions.HistoryAsync(sessionId, cancellationToken) is { Count: > 0 } history) {
                 await engine.LoadHistoryAsync(history, cancellationToken);
             }
@@ -182,6 +185,9 @@ internal sealed class DshTurnRunner {
                 } else if (evt.Type == ChatStreamEventType.SystemNotice) {
                     GuiDiag.Log($"[DSH-WEB] turn system notice session={sessionId}: {evt.Content}");
                 } else if (evt.Type == ChatStreamEventType.ToolCallEnd || evt.Type == ChatStreamEventType.ToolCallStart) {
+                    if (evt.Type == ChatStreamEventType.ToolCallStart) {
+                        await ObserveChangeAsync(changes, evt, cancellationToken);
+                    }
                     await PublishToolCallAsync(sessionId, turn, evt, calls);
                 } else if (evt.Type == ChatStreamEventType.SteerInput && !string.IsNullOrEmpty(evt.Content)) {
                     // 轮内注入在步首已进入上下文 → 这里补投影为轮内 user/message（DSH :1061 语义）
@@ -197,11 +203,13 @@ internal sealed class DshTurnRunner {
                     ? new DshAssistantStreamOutcome { Kind = "committed", EventType = "assistant/message", Seq = committedSeq }
                     : new DshAssistantStreamOutcome { Kind = "abandoned" });
             }
+            await PublishChangesAsync(sessionId, turn, changes);
             await PublishWorkflowRunEndAsync(sessionId, agents, "completed");
             await FinishTurnAsync(sessionId, turn, new DshTurnEndReason { Kind = "completed" });
         } catch (OperationCanceledException) {
             GuiDiag.Log($"[DSH-WEB] turn cancelled session={sessionId} turn={turn}");
             await AbandonAssistantStreamAsync(sessionId, streaming);
+            await PublishChangesAsync(sessionId, turn, changes);
             await PublishWorkflowRunEndAsync(sessionId, agents, "cancelled");
             await FinishTurnAsync(sessionId, turn, new DshTurnEndReason {
                 Kind = "aborted",
@@ -210,6 +218,7 @@ internal sealed class DshTurnRunner {
         } catch (Exception ex) {
             GuiDiag.Log($"[DSH-WEB] turn failed session={sessionId} turn={turn}: {ex.Message}");
             await AbandonAssistantStreamAsync(sessionId, streaming);
+            await PublishChangesAsync(sessionId, turn, changes);
             await PublishWorkflowRunEndAsync(sessionId, agents, "error");
             await FinishTurnAsync(sessionId, turn, new DshTurnEndReason {
                 Kind = "error",
@@ -287,6 +296,61 @@ internal sealed class DshTurnRunner {
                 Source = new DshWireMessageSource { Kind = "tool", CallId = callId },
             },
         }, surfaceOp: "append");
+    }
+
+    /// <summary>建本轮改动收集器（会话无 cwd 时退化为宿主当前目录；读 meta 失败不阻断对话）</summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    private async Task<DshTurnChangeCollector> CreateChangeCollectorAsync(string sessionId, CancellationToken cancellationToken) {
+        string? cwd = null;
+        try {
+            cwd = await _services.Sessions.GetSessionCwdAsync(sessionId, cancellationToken);
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
+            GuiDiag.Log($"[DSH-WEB] changes cwd lookup failed session={sessionId}: {ex.Message}");
+        }
+        return new DshTurnChangeCollector(_services.FileSystem, cwd);
+    }
+
+    /// <summary>工具调用开始时快照目标文件（失败只记日志，不影响工具事件与对话）</summary>
+    /// <param name="collector">本轮收集器（未建立时跳过）</param>
+    /// <param name="evt">工具调用开始事件</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    private static async Task ObserveChangeAsync(DshTurnChangeCollector? collector, ChatStreamEvent evt, CancellationToken cancellationToken) {
+        if (collector is null) {
+            return;
+        }
+        try {
+            await collector.ObserveAsync(evt.ToolName ?? "", evt.ToolArguments ?? evt.Content ?? "", cancellationToken);
+        } catch (OperationCanceledException) {
+            throw;
+        } catch (Exception ex) {
+            GuiDiag.Log($"[DSH-WEB] changes observe failed tool={evt.ToolName}: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 收尾前发布 <c>workspace/changes</c>：摘要先落 <see cref="DshWorkspaceChangesStore"/> 再推送
+    /// （前端收到事件立即按 seq 读 summary）。无净改动或收集失败时不发事件。
+    /// </summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="turn">轮次号</param>
+    /// <param name="collector">本轮收集器（未建立时跳过）</param>
+    private async Task PublishChangesAsync(string sessionId, int turn, DshTurnChangeCollector? collector) {
+        if (collector is null) {
+            return;
+        }
+        try {
+            if (await collector.CollectAsync(turn, CancellationToken.None) is not { } summary) {
+                return;
+            }
+            await _services.Streams.PublishAsync(
+                sessionId,
+                "workspace/changes",
+                new DshWorkspaceChangesData { Turn = turn },
+                onAllocated: seq => _services.Changes.Record(sessionId, seq, summary));
+        } catch (Exception ex) {
+            GuiDiag.Log($"[DSH-WEB] changes publish failed session={sessionId} turn={turn}: {ex.Message}");
+        }
     }
 
     /// <summary>首条 delta 时开启助手流尝试（已开启则原样返回）</summary>

@@ -339,7 +339,10 @@ internal sealed class DshTerminalService {
     /// <summary>解析会话工作目录（缺省/失效回退宿主当前目录）</summary>
     private async Task<string> ResolveCwdAsync(string sessionId, CancellationToken cancellationToken) {
         var cwd = await _cwdProvider(sessionId, cancellationToken);
-        return !string.IsNullOrWhiteSpace(cwd) && Directory.Exists(cwd) ? cwd : Environment.CurrentDirectory;
+        // meta.json 可能来自 Unix 风格写入（正斜杠），CreateProcess 的 lpCurrentDirectory 要求平台分隔符
+        return !string.IsNullOrWhiteSpace(cwd) && Directory.Exists(cwd)
+            ? Path.GetFullPath(cwd)
+            : Environment.CurrentDirectory;
     }
 
     /// <summary>取终端（不存在 → terminal/unavailable 引导）</summary>

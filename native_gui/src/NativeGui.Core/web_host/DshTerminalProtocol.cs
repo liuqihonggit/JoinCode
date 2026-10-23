@@ -48,7 +48,8 @@ internal sealed class DshTerminalInfo {
     public string State { get; set; } = "running";
     /// <summary>退出码（运行中为 null）</summary>
     public int? ExitCode { get; set; }
-    /// <summary>失败原因</summary>
+    /// <summary>失败原因（无错误时省略字段：DSH 前端以 undefined 判定无错，null 会渲染成“终端错误：null”）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Error { get; set; }
     /// <summary>当前持有写权限的 attachments</summary>
     public string? ControllerId { get; set; }

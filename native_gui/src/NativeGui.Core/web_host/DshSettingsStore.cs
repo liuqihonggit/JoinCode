@@ -16,11 +16,15 @@ internal sealed class DshSettingsStore {
     /// <summary>权限预设命名空间（前端 ui-permission-presets 写 defaultPreset）</summary>
     private const string PermissionNamespace = "permission";
 
+    /// <summary>开发者工具偏好命名空间（前端 ConfigForms.developerTools 读 enabled，TASK066 C7）</summary>
+    private const string UiSettingsNamespace = "ui-settings";
+
     private readonly IFileSystem _fs;
     private readonly string _filePath;
     private readonly Lock Gate = new();
     private readonly Dictionary<string, NamespaceState> States = new(StringComparer.Ordinal) {
         [WelcomeNamespace] = new(),
+        [UiSettingsNamespace] = new(),
     };
     private readonly JsonElement JsonNull = JsonSerializer.SerializeToElement<object?>(null, DshJsonContext.Default.Object);
     private bool _loaded;
@@ -81,14 +85,14 @@ internal sealed class DshSettingsStore {
                     }
                 }
             }
-            EnsurePermissionDefaults();
+            EnsureDefaults();
         }
     }
 
     /// <summary>settings/describe：列出全部命名空间视图</summary>
     internal DshSettingsDescribe Describe() {
         lock (Gate) {
-            EnsurePermissionDefaults();
+            EnsureDefaults();
             return new DshSettingsDescribe {
                 Writable = true,
                 HasDocument = false,
@@ -115,7 +119,7 @@ internal sealed class DshSettingsStore {
         }
         string? routedPreset = null;
         lock (Gate) {
-            EnsurePermissionDefaults();
+            EnsureDefaults();
             if (!States.TryGetValue(request.Ns, out var state)) {
                 state = new NamespaceState();
                 States[request.Ns] = state;
@@ -211,7 +215,7 @@ internal sealed class DshSettingsStore {
     /// <param name="preset">引擎枚举词汇（调用方已校验）</param>
     internal void SetPermissionPreset(string preset) {
         lock (Gate) {
-            EnsurePermissionDefaults();
+            EnsureDefaults();
             var state = States[PermissionNamespace];
             if (state.Entries.TryGetValue("defaultPreset", out var current)
                 && current.ValueKind == JsonValueKind.String
@@ -227,7 +231,7 @@ internal sealed class DshSettingsStore {
     /// <summary>读取命名空间某个扁平路径的字符串值（agentPresets/list 默认预设等）</summary>
     internal string? ReadString(string ns, params string[] path) {
         lock (Gate) {
-            EnsurePermissionDefaults();
+            EnsureDefaults();
             return States.TryGetValue(ns, out var state)
                 && state.Entries.TryGetValue(string.Join('/', path), out var value)
                 && value.ValueKind == JsonValueKind.String
@@ -239,7 +243,7 @@ internal sealed class DshSettingsStore {
     /// <summary>设置编辑的统一提交：版本校验 → 应用 → 递增版本 → 落盘 → 权限事件</summary>
     private DshRpcResult Commit(string ns, int? expectedRevision, string method, Func<NamespaceState, string?> apply) {
         lock (Gate) {
-            EnsurePermissionDefaults();
+            EnsureDefaults();
             if (!States.TryGetValue(ns, out var state)) {
                 state = new NamespaceState();
                 States[ns] = state;
@@ -253,7 +257,7 @@ internal sealed class DshSettingsStore {
                 return DshRpcResults.Fail("settings/rejected", error);
             }
             if (string.Equals(ns, PermissionNamespace, StringComparison.Ordinal)) {
-                EnsurePermissionDefaults();
+                EnsureDefaults();
             }
             state.Revision++;
             var routedPreset = ReadPermissionPreset(ns, state);
@@ -330,12 +334,23 @@ internal sealed class DshSettingsStore {
         }
     }
 
-    /// <summary>permission 命名空间播种：无 defaultPreset 值时写入引擎 Auto 默认（与 permissionPresets/catalog 同源）</summary>
-    private void EnsurePermissionDefaults() {
-        var state = States.TryGetValue(PermissionNamespace, out var existing) ? existing : States[PermissionNamespace] = new NamespaceState();
-        if (!state.Entries.ContainsKey("defaultPreset")) {
-            state.Entries["defaultPreset"] = JsonSerializer.SerializeToElement(
+    /// <summary>
+    /// 已知命名空间播种：permission 无 defaultPreset 时写引擎 Auto 默认（与 permissionPresets/catalog 同源）；
+    /// ui-settings 无 enabled 时按新安装默认开启（deliverables 改动卡片的前置开关）。
+    /// </summary>
+    private void EnsureDefaults() {
+        var permission = States.TryGetValue(PermissionNamespace, out var existingPermission)
+            ? existingPermission
+            : States[PermissionNamespace] = new NamespaceState();
+        if (!permission.Entries.ContainsKey("defaultPreset")) {
+            permission.Entries["defaultPreset"] = JsonSerializer.SerializeToElement(
                 PermissionMode.Auto.ToValue(), DshJsonContext.Default.String);
+        }
+        var uiSettings = States.TryGetValue(UiSettingsNamespace, out var existingUi)
+            ? existingUi
+            : States[UiSettingsNamespace] = new NamespaceState();
+        if (!uiSettings.Entries.ContainsKey("enabled")) {
+            uiSettings.Entries["enabled"] = JsonSerializer.SerializeToElement(true, DshJsonContext.Default.Boolean);
         }
     }
 
@@ -398,10 +413,11 @@ internal sealed class DshSettingsStore {
         };
     }
 
-    /// <summary>已知命名空间的 schema 信封（ui-settings-general / permission — 前端 configForms 硬契约，缺省停在 loading）</summary>
+    /// <summary>已知命名空间的 schema 信封（ui-settings-general / permission / ui-settings — 前端 configForms 硬契约，缺省停在 loading）</summary>
     private JsonElement? KnownSchemaFor(string ns) => ns switch {
         WelcomeNamespace => WelcomeSchema,
         PermissionNamespace => PermissionSchema,
+        UiSettingsNamespace => UiSettingsSchema,
         _ => null,
     };
 
@@ -436,6 +452,24 @@ internal sealed class DshSettingsStore {
                     Type = "object",
                     Meta = new DshSchemaMeta { Default = new DshSchemaEmptyObject() },
                     Dict = new Dictionary<string, int>(StringComparer.Ordinal) { ["defaultPreset"] = 3 },
+                },
+            },
+        },
+        DshJsonContext.Default.DshSchemaEnvelope);
+
+    /// <summary>
+    /// <c>ui-settings</c> 命名空间的 schema 信封，等价于
+    /// <c>Schema.object({ enabled: Schema.boolean().default(true) }).toJSON()</c>（开发者工具开关）。
+    /// </summary>
+    private readonly JsonElement UiSettingsSchema = JsonSerializer.SerializeToElement(
+        new DshSchemaEnvelope {
+            Uid = 4,
+            Refs = new Dictionary<string, DshSchemaNode>(StringComparer.Ordinal) {
+                ["3"] = new() { Type = "boolean" },
+                ["4"] = new() {
+                    Type = "object",
+                    Meta = new DshSchemaMeta { Default = new DshSchemaEmptyObject() },
+                    Dict = new Dictionary<string, int>(StringComparer.Ordinal) { ["enabled"] = 3 },
                 },
             },
         },

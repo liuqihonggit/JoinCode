@@ -151,6 +151,27 @@ public sealed class DshTerminalServiceTests {
         follow.Should().Throw<DshTerminalException>().Which.Code.Should().Be("terminal/unavailable");
     }
 
+    /// <summary>会话工作目录含正斜杠时必须归一为平台全路径再交给 PTY（Windows 下 CreateProcess 不认 /）</summary>
+    [Fact]
+    public async Task CreateAsync_NormalizesForwardSlashCwdForSpawn() {
+        var spawnCwds = new List<string>();
+        var shells = new[] {
+            new DshTerminalShellProfile { Path = "fake-shell.exe", Args = ["-NoLogo"], Name = "Fake Shell" },
+        };
+        var service = new DshTerminalService(
+            (_, _) => Task.FromResult<string?>(Environment.CurrentDirectory.Replace('\\', '/')),
+            (_, _, cwd, _, _) => {
+                spawnCwds.Add(cwd);
+                return new FakePty();
+            },
+            shells);
+
+        var info = await service.CreateAsync("s1", Request("t1"), CancellationToken.None);
+
+        spawnCwds.Should().Equal(Path.GetFullPath(Environment.CurrentDirectory));
+        info.Cwd.Should().Be(Path.GetFullPath(Environment.CurrentDirectory));
+    }
+
     /// <summary>构造注入了假 PTY 的服务（工作目录取当前目录，避免回退分支掩盖断言）</summary>
     private static (DshTerminalService Service, List<FakePty> Ptys) Create() {
         var ptys = new List<FakePty>();

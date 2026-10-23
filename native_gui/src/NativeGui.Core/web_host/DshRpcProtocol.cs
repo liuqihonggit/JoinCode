@@ -1592,6 +1592,30 @@ internal sealed class DshStreamErrorBody {
 }
 
 
+/// <summary>
+/// 插件清单（TASK066 C7）：宿主以静态内置插件启动，没有可写的 profile，
+/// <see cref="ManagementAvailable"/> 恒为 false。前端据此显示「本部署没有可管理的 profile」，
+/// 而不是把未实现方法当成网络故障。
+/// </summary>
+internal sealed class DshPluginInventorySnapshot {
+    /// <summary>是否支持安装/启停插件（本宿主恒为 false）</summary>
+    public bool ManagementAvailable { get; set; }
+    /// <summary>已安装插件条目（无 profile 时为空表）</summary>
+    public List<DshPluginInventoryEntry> Entries { get; set; } = [];
+}
+
+/// <summary>插件清单条目（严格 schema 要求 entryId/moduleName/enabled/fiberPhase）</summary>
+internal sealed class DshPluginInventoryEntry {
+    /// <summary>条目身份</summary>
+    public string EntryId { get; set; } = "";
+    /// <summary>模块名</summary>
+    public string ModuleName { get; set; } = "";
+    /// <summary>是否启用</summary>
+    public bool Enabled { get; set; }
+    /// <summary>fiber 阶段（无 profile 时 null）</summary>
+    public string? FiberPhase { get; set; }
+}
+
 /// <summary>DSH 宿主协议 JSON 上下文（AOT 源生成）</summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(DshRpcRequest))]
@@ -1806,6 +1830,14 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(JsonElement[]))]
 [JsonSerializable(typeof(Dictionary<string, DshCredentialState>))]
 [JsonSerializable(typeof(DshRpcErrorDetails))]
+[JsonSerializable(typeof(DshWorkspaceChangesData))]
+[JsonSerializable(typeof(DshChangesSummary))]
+[JsonSerializable(typeof(DshChangedFile))]
+[JsonSerializable(typeof(List<DshChangedFile>))]
+[JsonSerializable(typeof(DshChangesDiff))]
+[JsonSerializable(typeof(DshChangesHunk))]
+[JsonSerializable(typeof(List<DshChangesHunk>))]
+[JsonSerializable(typeof(DshPresentHost))]
 [JsonSerializable(typeof(DshWorkspaceFilesArgs))]
 [JsonSerializable(typeof(DshWorkspaceFilesListResult))]
 [JsonSerializable(typeof(DshWorkspaceFilesReadResult))]
@@ -1830,5 +1862,6 @@ internal sealed class DshStreamErrorBody {
 [JsonSerializable(typeof(DshSessionAttachmentResult))]
 [JsonSerializable(typeof(DshUpdateQueueArgs))]
 [JsonSerializable(typeof(DshQueueAcceptedResult))]
+[JsonSerializable(typeof(DshPluginInventorySnapshot))]
 [JsonSerializable(typeof(object))]
 internal sealed partial class DshJsonContext : JsonSerializerContext;

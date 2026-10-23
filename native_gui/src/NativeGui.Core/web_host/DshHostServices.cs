@@ -19,6 +19,7 @@ internal sealed class DshHostServices {
         Sessions = new DshSessionStore(Journal);
         Models = new DshModelCatalogSource();
         Streams = new DshSessionStreamHub(Journal);
+        Changes = new DshWorkspaceChangesStore();
         Approvals = new DshApprovalBroker {
             Audit = (sessionId, type, payload) => Streams.PublishElementAsync(sessionId, type, payload),
         };
@@ -42,6 +43,9 @@ internal sealed class DshHostServices {
 
     /// <summary>会话事件流中枢（session/follow 实时推送）</summary>
     internal DshSessionStreamHub Streams { get; }
+
+    /// <summary>一轮文件改动摘要（workspace/changes 事件 → changes.summary/diff 路由，TASK066 C7）</summary>
+    internal DshWorkspaceChangesStore Changes { get; }
 
     /// <summary>宿主事件日志（事件序号与内容的唯一持久化来源）</summary>
     internal DshSessionJournal Journal { get; }

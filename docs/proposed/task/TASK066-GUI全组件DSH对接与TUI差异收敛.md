@@ -16,7 +16,7 @@
 |---|---|---|---|---|
 | `dsh-client-ui-chat` / `conversation` / `renderer` | 对话流、助手逐字 | `session/prompt`、`session/follow`、`$events`、`assistantStream` 基线 | ✅ TASK058/060 | 已有 10 个 E2E 脚本 |
 | `dsh-client-ui-sidebar` / `workspace` | 工作区与会话侧栏 | `workspace/*`、`session/list|page|fork` | ✅ | E2E `reload/history` |
-| `dsh-client-ui-sidebar-terminal` + `dsh-api-terminal-controller` | 侧栏终端面板 | `terminal/{environment,list,shells,create,write,resize,rename,close,retain}` + `terminal/follow` 流 | ✅ ConPTY + 10 方法 + follow/retain | 单测 9 例 + `dsh-webui-terminal.mjs` RPC ALL_PASS + `dsh-webui-terminal-panel.mjs` 界面 ALL_PASS |
+| `dsh-client-ui-sidebar-terminal` + `dsh-api-terminal-controller` | 侧栏终端面板 | `terminal/{environment,list,shells,create,write,resize,rename,close,retain}` + `terminal/follow` 流 | ✅ ConPTY + 10 方法 + follow/retain；子进程标准句柄显式置空（不继承宿主重定向） | 单测 11 例 + `dsh-webui-terminal.mjs` RPC ALL_PASS + `dsh-webui-terminal-panel.mjs` 界面 11 项 ALL_PASS（真实 pwsh 执行 echo、cwd、无错误条） |
 | `dsh-client-ui-jobs` + `dsh-api-job-controller` | 后台任务面板 | `job/list`、`job/follow` 流、`job/kill` | ✅ 后台代理投影 + rows/output/status | 单测 5 例 + `dsh-webui-jobs.mjs` ALL_PASS（opened 需存在后台代理时覆盖） |
 | `dsh-client-ui-sidebar-files` + `dsh-api-workspace-files` | 文件树 | `workspaceFiles/{list,read,readBytes,stat}` + `workspaceFiles/changes` 流 | ✅ 一元 + ready/change/absent/error 帧；路径支持前端绝对路径（根内校验）；readBytes 走 multipart 二进制 | 单测 11 例 + `c5-stream-e2e.mjs` 8 项 ALL_PASS |
 | `dsh-client-ui-sidebar-documentpreview` | PDF/Excel/图片预览 | `workspaceFiles/readBytes`（multipart 字节附件） | ✅ 资产打包 + 缓存完整性校验 + 二进制契约 | `dsh-webui-c5-preview.mjs` 12 项 ALL_PASS（PDF 3 页、Excel 画布渲染） |
@@ -32,11 +32,11 @@
 | `dsh-client-ui-directory-picker-native` | 原生目录选择 | `directoryPicker/{pick,list,createDirectory}` | ✅ 原生选择 + 目录浏览（面包屑/隐藏项/1000 条截断）+ 新建目录 | 单测 13 例 + 真机 E2E |
 | `dsh-client-ui-session` | 会话搜索/标题 | `session/rename`、`session/search` | ✅ 字面量搜索 + 20 条上限 + 240 字片段 | 单测（片段/hasMore）+ 真机 E2E |
 | `dsh-client-ui-user-questions` | AskUserQuestion 卡片 | `$events` 桥 | ✅ | `dsh-webui-approval` 同层 |
-| `dsh-client-ui-trajectory` / `deliverables` / `workflow-run` | 轨迹/产物/工作流 | 会话事件 + 文件服务 | ⚠️ 事件投影不全 | 事件矩阵单测 |
+| `dsh-client-ui-trajectory` / `deliverables` / `workflow-run` | 轨迹/产物/工作流 | 会话事件 + `api/changes.{summary,diff,open}` + `api/present.{host,open}` | ✅ 轨迹消费轮次事件；deliverables 每轮收口推 `workspace/changes` + 摘要/对比/原生打开；workflow-run 读轮次事件（引擎无独立工作流运行时） | 单测（改动收集 5 例）+ `c7-changes-e2e.mjs` 27 项 + `c7-trajectory-e2e.mjs` 16 项真机 ALL_PASS |
+| `dsh-client-ui-plugin-manager` / `cordis` | 插件管理 | `pluginInventory/list` | ✅ 返回 `managementAvailable=false` + 空清单（本部署无插件 profile，前端显示空态而非网络错误） | 单测 1 例 |
 | `dsh-api-workspace-controller` | 工作区路径应用 | `session/{openWorkspacePath,workspacePathApplications,canOpenWorkspacePath,initializeDefaultModel}` | ✅ 仅公布资源管理器处理器；能力探测返回桌面宿主；默认模型初始化按本地设置直通 | 单测（引导文案/能力探测）+ 真机 E2E |
 | `dsh-client-ui-agent-preset` | 代理预设 | `agentPresets/{list,read,select}` | ✅ 公布 standard（默认项读 `agent-preset-registry.selectedDefault`） | 单测 + 真机 E2E |
 | `dsh-client-ui-open-in-app` / `shortcuts` / `theme` / `brand` | 外壳能力 | 前端独立 + 主题桥 | ✅ | 截图 |
-| `dsh-client-ui-plugin-manager` / `cordis` | 插件管理 | `dynamicCordisRunner/*` | ⚠️ 诚实拒绝 | 保持 fail-closed + 引导文案 |
 
 ## 二、TUI ↔ GUI 差异与解决方案
 
@@ -47,7 +47,7 @@
 | 权限模式 | `PermissionMode` 循环（default/auto/plan） | `permissionPresets/*` + `settings/mutate` + `session/control` 投影 + `/plan` 命令 | 无 | 写路径 → `engine.SetPermissionModeAsync`；宿主计算 `plan{active,pending=false}` / `permissions{currentValue}` 并推控制帧；`/plan on|off|status` 由宿主拦截（对齐 Claude Code 语义），完成后静默落 `permission/defaultPreset` |
 | 模型选择 | `ModelPickerDialog` | 已接 | 无 | 维持，补变更事件广播 |
 | 斜杠命令 | `CommandPickerEngine` + `SlashCommandCatalog` | `commands/list|execute` | 无 | 维持，补 GUI 分类/隐藏字段 |
-| 终端 | TUI 本体即终端 | 侧栏终端 ❌ | GUI 缺 | ConPTY 会话管理器 + 原始输出快照回放 |
+| 终端 | TUI 本体即终端 | 侧栏终端 ✅ | 无（真机 pwsh 执行命令） | ConPTY 会话管理器 + 原始输出快照回放；子进程标准句柄显式置空，宿主 stdout 重定向不再劫持提示符 |
 | 会话搜索 | TUI 历史检索 | `session/search` ✅ | 无 | 扫描引擎转录的 user/assistant 消息，字面量命中取 240 字窗口，最多 20 条（第 21 条置 hasMore），与 DSH 参考实现一致 |
 | 消息反馈 | 无 | DSH 有反馈 UI | TUI 缺 | **以 DSH/Claude Code 为准**，GUI 保留；TUI 不改 |
 
@@ -61,7 +61,7 @@
 | C4 | 小型缺失方法：`session/search`、`settings/{replace,update}`、`agentPresets/{list,read,select}`、`session/{openWorkspacePath,workspacePathApplications}`、`messageFeedback/{list,put,delete}` | ✅ 已验收（单测 13 + `c4-e2e.mjs` 真机 19 项 ALL_PASS） |
 | C5 | `workspaceFiles/changes` 流 + 文档预览真机验收 | ✅ 已验收（流 8 项 + 预览 12 项 ALL_PASS） |
 | C6 | TUI 差异收敛（后台任务/子代理/权限模式）与文档四列表 | ✅ 已验收（目录浏览/@ 引用/能力探测/技能/子代理/计划模式与权限投影；`c6-e2e.mjs` 真机 30 项 ALL_PASS） |
-| C7 | 全量 E2E 回归 + 完成审计 | ⬜ |
+| C7 | 全量 E2E 回归 + 完成审计 | ✅ 已验收（deliverables 27 项、轨迹 16 项、C4 19 项、C5 8 项、C6 30 项、终端面板 11 项、Core 单测 364/364） |
 
 ## 四、验收四列表（滚动更新）
 
@@ -91,6 +91,14 @@
 | `DshSessionControlHub`（订阅者快照广播、单订阅异常隔离、开场缓冲补发） | `session/control` 实时投影帧 | ✅ | ✅ 单测 2 例（投递/解绑、异常订阅者不阻塞）+ `c6-e2e.mjs` 控制帧 plan/permissions |
 | `DshHostServices.ApplyPermissionPresetAsync`（校验 → 引擎 → 会话投影 → 静默落设置 → plan/mode + 控制帧） | 权限选择器 `settings/mutate`、计划 chip `/plan off`、引擎 attach 补应用 | ✅ | ✅ 单测 5 例（plan 生效/非法拒绝/未就绪/off/on）+ `c6-e2e.mjs` seq 水位与 UI chip 同步 |
 | `DshSessionStore` plan/permissions 投影 + `DshRpcDispatcher` `/plan` 拦截 | `plan` chip、`permissions` 选择器、`/plan on|off|status` | ✅ | ✅ 单测 3 例 + `c6-e2e.mjs` 30 项（技能/子代理引导/控制帧/UI 截图） |
+| `DshTurnChangeCollector`（ToolCallStart 抓文件坐标 → 轮末读盘算增删行）+ `DshTurnRunner` 取消/失败路径同样收尾 | deliverables 改动卡片数据源 `workspace/changes` 事件 | ✅ | ✅ 单测 5 例 + `c7-changes-e2e.mjs` 真实 write：`changes=59 < turnEnd=61`、摘要 `+2 -0` |
+| `DshWebHost` deliverables 端点（`api/changes.{summary,diff,open}`、`api/present.{host,open}`） | 前端改动卡片/右侧审阅/原生打开 | ✅ | ✅ `c7-changes-e2e.mjs` 27 项（200/404/405/422、真实 diff 行、explorer 打开） |
+| `DshSessionStreamHub.PublishAsync(onAllocated)`（摘要先于事件可见） | 前端收到 `workspace/changes` 后按 seq 立即拉摘要 | ✅ | ✅ 真机断言摘要可读（修复前会永久缓存 missing） |
+| `DshSettingsStore` `ui-settings` 命名空间（enabled 默认 true + schema 信封） | deliverables 卡片渲染门槛 `developerTools` | ✅ | ✅ 单测 1 例 + `c7-changes-e2e.mjs` 卡片标题/审阅渲染 |
+| `DshConPty.BuildStartupInfo`（`STARTF_USESTDHANDLES` + 三个 INVALID_HANDLE_VALUE） | ConPTY 子进程标准句柄不继承宿主重定向 | ✅ | ✅ 单测 1 例 + 真机终端面板 11 项（命令真实执行、cwd 正确） |
+| `DshTerminalInfo.Error` 空值省略（`JsonIgnore(WhenWritingNull)`） | 侧栏终端错误条（前端以 undefined 判无错） | ✅ | ✅ 单测 1 例 + 真机断言页面无“终端错误：null” |
+| `DshTerminalService.ResolveCwdAsync` 正斜杠归一 | `terminal/create` 会话 cwd 交给 CreateProcess | ✅ | ✅ 单测 1 例 + 真机 `PS D:\...\c7-ws>` |
+| `pluginInventory/list` 空清单快照（`managementAvailable=false`） | 插件管理页空态 | ✅ | ✅ 单测 1 例 |
 
 <!-- 🤖 Auto Decision: 2026-10-22 -->
 <!-- 决策: 新建 TASK066 而非复用 TASK065（同名文档已被 TUI 任务占用） -->
@@ -140,3 +148,27 @@
 <!-- 原因: 前端 ui-plan 读 useProjection("plan")（pending 时 chip 显示规则相反）、ui-permission-presets 读 permissions.currentValue；引擎 PlanCommand 的 PlanModeManager 与 PermissionMode 是两套状态，直接委托会让 chip 与引擎权限不一致；settings/mutate 回环再写 setting 会递增 revision 造成前端 expectedRevision 冲突 -->
 <!-- 替代方案: 前端改读 plan/mode 持久事件（chip 只在轮次后刷新，交互延迟）/ 委托引擎 PlanCommand（chip 不反映引擎权限模式）/ 每次应用都重写设置（revision 双跳），均不采用 -->
 <!-- 验证: 单测 8 例全绿 + NativeGui.Core 全量 342/342 + NativeGui.Host 0 警告；c6-e2e.mjs 真机 30 项 ALL_PASS（19 条技能、子代理引导 3 项、控制帧 seq>基线水位、计划 chip 出现/点击/权限选择器 Plan→Auto、截图 dsh-webui-c6-plan-on/off.png） -->
+
+<!-- 🤖 Auto Decision: 2026-10-24 (C7 deliverables/轨迹) -->
+<!-- 决策: 改动摘要在轮末从盘上重算（ToolCallStart 记录坐标），事件序号分配后先落摘要再推送；摘要/对比/原生打开走独立 HTTP api/changes.*，presented 文件走 api/present.* -->
+<!-- 原因: 前端收到 workspace/changes 后立即按 seq 拉摘要，若摘要晚于事件可见会命中 404 并缓存 missing；引擎不提供产物 diff 能力，只能在宿主侧按前后快照计算 -->
+<!-- 替代方案: 事件里内联 diff 文本 / 前端等待轮末再拉 —— 前者让事件体膨胀且不利于重放，后者增加时序窗口，均不采用 -->
+<!-- 验证: c7-changes-e2e.mjs 27 项 + c7-trajectory-e2e.mjs 16 项真机 ALL_PASS（真实 write 落盘、+2/-0 行、审阅渲染、轨迹 5 轮无加载态） -->
+
+<!-- 🤖 Auto Decision: 2026-10-24 (ConPTY 标准句柄) -->
+<!-- 决策: ConPTY 子进程启动信息显式设置 STARTF_USESTDHANDLES + hStdInput/hStdOutput/hStdError = INVALID_HANDLE_VALUE，bInheritHandles 保持 false -->
+<!-- 原因: 宿主 stdout 被重定向到日志时（GUI 宿主常见启动方式），Windows 会把宿主的标准句柄复制给子进程，盖过伪控制台：提示符写进宿主日志、xterm 空白、输入只回显不执行。实验矩阵（cmd / PowerShell 5.1 / pwsh 7）证明仅改 bInheritHandles 无效，显式置空三个句柄后三条 shell 全部把输出送进 PTY -->
+<!-- 替代方案: 启动宿主时不重定向 stdout（调用方脆弱）/ 直接把 PTY 管道句柄塞进 STARTF_USESTDHANDLES（绕过 conhost 行编辑，破坏 ANSI 渲染），均不采用 -->
+<!-- 验证: 单测 1 例 + 真机终端面板 11 项 ALL_PASS（echo 命令与结果、cwd、无错误条） -->
+
+<!-- 🤖 Auto Decision: 2026-10-24 (终端错误条) -->
+<!-- 决策: DshTerminalInfo.Error 为 null 时不序列化字段 -->
+<!-- 原因: 前端 client.terminal.js 以 error !== undefined 判断是否渲染错误条，JSON null 会被渲染成「终端错误：null」 -->
+<!-- 替代方案: 改前端片段（打包资产黑盒，升级会被覆盖）/ 全局改 DshJsonContext 的 WhenWritingNull（影响所有协议 DTO 形状），均不采用 -->
+<!-- 验证: 单测 1 例 + 真机断言无「终端错误」文本 -->
+
+<!-- 🤖 Auto Decision: 2026-10-24 (真机 E2E 启动方式) -->
+<!-- 决策: 真机 E2E 必须用 WMI 脱离 Agent 作业启动 NativeGui.Host，且启动脚本注入 STUB_API_KEY -->
+<!-- 原因: 从 Agent Bash 作业内启动的进程创建 ConPTY 时子进程立即退出；无 stub key 时引擎不进 attached，skills/list 等依赖引擎的断言超时 -->
+<!-- 替代方案: 在作业内直接启动 / 用 mock 引擎 —— 前者无法复现真实终端，后者违反 ADR 0080 非 mock 验收，均不采用 -->
+<!-- 验证: 终端面板 11 项、c6 30 项、c7 27+16 项连续 ALL_PASS -->

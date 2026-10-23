@@ -427,9 +427,14 @@ internal sealed class DshSessionStreamHub {
     /// <param name="type">事件类型</param>
     /// <param name="data">事件载荷（已注册到 <see cref="DshJsonContext"/>）</param>
     /// <param name="surfaceOp">会话表面操作（消息类事件用 append）</param>
+    /// <param name="onAllocated">
+    /// 序号分配后的回调（在落日志与推送之前执行）：workspace/changes 的摘要必须在前端收到事件前可读，
+    /// 否则前端立即按 seq 拉取会命中 404 并永久缓存 missing。
+    /// </param>
     /// <returns>该事件分配的序号（结算帧的 outcome.seq 指向它）</returns>
-    internal async Task<long> PublishAsync<T>(string sessionId, string type, T data, string? surfaceOp = null) {
+    internal async Task<long> PublishAsync<T>(string sessionId, string type, T data, string? surfaceOp = null, Action<long>? onAllocated = null) {
         var (sessionEvent, targets) = Allocate(sessionId, type, data, surfaceOp);
+        onAllocated?.Invoke(sessionEvent.Seq);
         if (_journal is not null) {
             await _journal.AppendAsync(sessionId, sessionEvent);
         }

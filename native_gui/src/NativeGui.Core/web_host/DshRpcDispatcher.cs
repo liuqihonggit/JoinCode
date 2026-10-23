@@ -62,6 +62,8 @@ internal sealed class DshRpcDispatcher {
             ["subagents/interruptByParent"] = SubagentInterruptByParent,
             ["dynamicCordisRunner/inventory"] = Sync(_ => OkEmptyArray()),
             ["dynamicCordisRunner/syncInspectManifest"] = Sync(_ => OkNull()),
+            // 插件页（TASK066 C7）：宿主没有可管理的 profile，诚实回 managementAvailable=false
+            ["pluginInventory/list"] = Sync(_ => Ok(new DshPluginInventorySnapshot())),
             ["directoryPicker/pick"] = Pick,
             ["directoryPicker/list"] = Sync(DirectoryPickerList),
             ["directoryPicker/createDirectory"] = Sync(DirectoryPickerCreateDirectory),
@@ -1257,6 +1259,8 @@ internal sealed class DshRpcDispatcher {
     private static DshRpcResult Ok(DshAgentPresetList value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshAgentPresetList));
 
     private static DshRpcResult Ok(DshAgentPresetReadResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshAgentPresetReadResult));
+
+    private static DshRpcResult Ok(DshPluginInventorySnapshot value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshPluginInventorySnapshot));
 
     private static DshRpcResult Ok(DshSessionSearchResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionSearchResult));
 

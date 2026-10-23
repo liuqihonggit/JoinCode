@@ -176,13 +176,15 @@ public static class SpinnerCharsets
     public static string[] Detect() =>
         _detected ??= Of(Environment.GetEnvironmentVariable("TERM"), OperatingSystem.IsMacOS());
 
-    /// <summary>12 帧序列选择纯函数（term/isDarwin 注入可测 — darwin &gt; ghostty &gt; 默认分支序对齐基准）。</summary>
+    /// <summary>12 帧序列选择纯函数（term/isDarwin 注入可测 — ghostty &gt; darwin &gt; 默认分支序对齐基准
+    /// Spinner/utils.ts:4-11：ghostty 优先判定（✽ 在 ghostty 有渲染偏移，基准注释明言规避 —
+    /// TASK069 B-5 修复 mac+ghostty 组合误入 Darwin 集））。</summary>
     /// <param name="term">TERM 环境变量值（null = 未设置）。</param>
     /// <param name="isDarwin">是否 macOS 平台。</param>
     /// <returns>12 帧往返弹跳序列。</returns>
     public static string[] Of(string? term, bool isDarwin) =>
-        isDarwin ? Bounce(DarwinCharacters)
-        : term == "xterm-ghostty" ? Bounce(GhosttyCharacters)
+        term == "xterm-ghostty" ? Bounce(GhosttyCharacters)
+        : isDarwin ? Bounce(DarwinCharacters)
         : DefaultFrames;
 
     /// <summary>6 字符集 → 12 帧往返弹跳（前向 + 反转拼接 — 基准 SPINNER_FRAMES 构造式）。</summary>

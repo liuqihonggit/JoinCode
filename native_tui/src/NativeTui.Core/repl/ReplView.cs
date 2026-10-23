@@ -200,10 +200,10 @@ public sealed class ReplView
     /// 屏高取此值时消息区恰好全量展示（无滚动窗口），历史自然滚入终端 scrollback。
     /// </summary>
     public int MeasureContentHeight(int cols) =>
-        Messages.MeasureContentHeight(cols) + 1 + InputHeightOf(cols) + QueueHeight + BackgroundTaskHeight + SuggestionHeight + ActionsHeight + HelpHeight + _footer.MeasureHeight(Footer);
+        Messages.MeasureContentHeight(cols) + 1 + InputHeightOf(cols) + QueueHeight + BackgroundTaskHeight + SuggestionHeight + ActionsHeight + HelpHeight + _footer.MeasureHeight(Footer, cols);
 
     /// <summary>inline 模式尾部动态区行数（间隔 1 + 输入区（软折行视觉行随宽度增长）+ 排队面板 + 建议区 + 操作条 + 帮助面板 + footer 高度）— 退出清理用。</summary>
-    public int TailHeightOf(int cols) => 1 + InputHeightOf(cols) + QueueHeight + SuggestionHeight + ActionsHeight + HelpHeight + _footer.MeasureHeight(Footer);
+    public int TailHeightOf(int cols) => 1 + InputHeightOf(cols) + QueueHeight + SuggestionHeight + ActionsHeight + HelpHeight + _footer.MeasureHeight(Footer, cols);
 
     /// <summary>
     /// 输入光标内容坐标（inline 模式帧尾光标位）— 视觉行投影（DSG044 L3）：行 = 输入区顶线下方第
@@ -212,7 +212,7 @@ public sealed class ReplView
     /// </summary>
     public CursorPos InputCursorPos(int contentRows, int cols, int cursorCol)
     {
-        var footerHeight = _footer.MeasureHeight(Footer);
+        var footerHeight = _footer.MeasureHeight(Footer, cols);
         var visualLines = InputLineLayout.Wrap(Input, Math.Max(1, cols - PromptInputBox.PromptWidth));
         var (cursorVisual, displayCol) = PromptInputBox.LocateVisualCursor(Input, visualLines, cursorCol);
         var row = contentRows - footerHeight - ActionsHeight - SuggestionHeight - InputHeightOf(cols) + 1 + cursorVisual;
@@ -252,7 +252,7 @@ public sealed class ReplView
         SyncUnreadDivider();
 
         var actionsHeight = ActionsHeight;
-        var footerHeight = compact ? 1 : _footer.MeasureHeight(Footer);
+        var footerHeight = compact ? 1 : _footer.MeasureHeight(Footer, screen.Cols);
         var suggestionHeight = SuggestionHeight;
         var queueHeight = QueueHeight;
         var backgroundHeight = BackgroundTaskHeight;

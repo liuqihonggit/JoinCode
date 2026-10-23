@@ -96,6 +96,26 @@
 | 用户中断专用消息 | UserTextMessage.tsx:83 | C# 仅红色通用错误 |
 | redacted_thinking 消息 | 独立组件 | 无对应消息项 |
 
+## 三·补：批次落地与跨域登记（2026-10-24）
+
+**批次 1（TUI 域）已落地（提交 457e22528）**：
+
+| 项 | 内容 | 判定 |
+|----|------|------|
+| N3 窄屏 footer 降级 | columns<80 LoginError 独立行堆叠（消除与模式串互挤覆盖）+ ReplView 三处高度链接 cols | 已落地 |
+| N4/N5 上下文口径 | percentLeft 分母（limit vs threshold=limit-13k ~6.5% 偏差）与绝对 token 告警缓冲 | **跨域登记**（percentLeft 由引擎计算经 ContextUsage 事件发来——引擎域改公式或协议带 token 数） |
+| N1 通知独立 key | key=文本锁定注释（有意简化设计） | 归差异待决策（是否值得推翻） |
+
+**批次 2/3 跨域登记（引擎域 modules/ 改动 — 超出 native_tui 职责边界）**：
+
+| 项 | 内容 | 跨域改造面 |
+|----|------|-----------|
+| E2 自动重试退避 | 10 次指数退避 + Retry-After + 529 熔断 + 重试中 UI 提示 | 引擎 SessionController/ChatService 层 + BridgeEvent 扩 retry 事件 + TUI 重试提示渲染 |
+| P1-P2 权限持久化 | settings.json 规则体系 + 三档作用域 + 可编辑前缀 | 引擎/宿主 settings 层 + 规则字符串解析器 + TUI 对话框三档 |
+| C4 自动压缩接线 | AutoCompactService 无生产调用方（阈值常量齐备不触发） | 引擎回合循环接线 |
+| C6 压缩警告抑制 | TokenUsageTracker.Reset 无调用点 | 需 BridgeEvent 扩 compact 完成事件（协议扩展） |
+| B-6 --continue 跨项目 | SessionResumeStep 无 ProjectPath 过滤 | 引擎域 startup |
+
 ## 四、判定修正/关闭
 
 | 项 | 判定 |

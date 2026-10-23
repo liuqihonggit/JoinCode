@@ -13,17 +13,36 @@ namespace NativeTui.Core.Repl;
 /// </summary>
 public sealed class FooterBar
 {
+    /// <summary>窄屏阈值（TASK069 N3 — 基准 Notifications.tsx:175 columns&lt;80 布局切换）。</summary>
+    public const int NarrowScreenColumns = 80;
+
     /// <summary>footer 高度：行 2 右侧内容（上下文告警/动态通知/静态通知/Token 警告）非空时 2 行，否则 1 行。</summary>
     public int MeasureHeight(FooterState state) => Row2Text(state) is null ? 1 : 2;
+
+    /// <summary>footer 高度（窄屏感知 — TASK069 N3）：窄屏（&lt;80 列）时 LoginError 独立行堆叠
+    ///（对齐基准右列上下堆叠 — 左右同行互挤覆盖消除），高度 +1。</summary>
+    public int MeasureHeight(FooterState state, int cols) =>
+        MeasureHeight(state) + (cols < NarrowScreenColumns && state.LoginError is not null ? 1 : 0);
 
     /// <summary>渲染状态栏（frame 高度须 ≥ MeasureHeight）。</summary>
     public void Render(Screen screen, Rect frame, Theme theme, FooterState state)
     {
         RenderLeftSide(screen, frame with { Height = 1 }, theme, state);
-        RenderRightAligned(screen, frame.Y, frame, state.LoginError, theme.Error);
+        var rowOffset = 0;
+        if (frame.Width < NarrowScreenColumns && state.LoginError is not null)
+        {
+            // TASK069 N3 — 窄屏 LoginError 独立行（不再行 1 右对齐与模式串互挤覆盖）
+            rowOffset = 1;
+            RenderRightAligned(screen, frame.Y + rowOffset, frame, state.LoginError, theme.Error);
+        }
+        else
+        {
+            RenderRightAligned(screen, frame.Y, frame, state.LoginError, theme.Error);
+        }
+
         if (Row2Text(state) is { } row2)
         {
-            RenderRightAligned(screen, frame.Y + 1, frame, row2, Row2Color(state, theme));
+            RenderRightAligned(screen, frame.Y + rowOffset + 1, frame, row2, Row2Color(state, theme));
         }
     }
 

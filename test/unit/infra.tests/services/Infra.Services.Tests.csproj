@@ -19,19 +19,10 @@
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="$(MicrosoftExtensionsTimeProviderTestingVersion)" />
   </ItemGroup>
 
+  <!-- 第一惯性：目录归属=编译归属 — services/ 下所有 .cs 由 SDK 隐式编译，test_data 随项目 -->
   <ItemGroup>
-    <Compile Include="..\Pipeline\**\*.cs" />
-    <Compile Include="..\Telemetry\**\*.cs" />
-    <Compile Include="..\LLM\**\*.cs" />
-    <Compile Include="..\Housekeeping\**\*.cs" />
-    <Compile Include="..\Network\**\*.cs" />
-    <Compile Include="..\GlobalUsings.cs" Link="GlobalUsings.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="..\test_data\**\*">
+    <None Include="test_data\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>test_data\%(RecursiveDir)%(Filename)%(Extension)</Link>
     </None>
   </ItemGroup>
 

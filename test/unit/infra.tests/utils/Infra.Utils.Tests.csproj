@@ -19,15 +19,6 @@
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="$(MicrosoftExtensionsTimeProviderTestingVersion)" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="..\Async\**\*.cs" />
-    <Compile Include="..\async_file_lock\**\*.cs" />
-    <Compile Include="..\Cache\**\*.cs" />
-    <Compile Include="..\Text\**\*.cs" />
-    <Compile Include="..\Resilience\**\*.cs" />
-    <Compile Include="..\Entity\**\*.cs" />
-    <Compile Include="..\hot_spot\**\*.cs" />
-    <Compile Include="..\GlobalUsings.cs" Link="GlobalUsings.cs" />
-  </ItemGroup>
+  <!-- 第一惯性：目录归属=编译归属 — utils/ 下所有 .cs 由 SDK 隐式编译 -->
 
 </Project>

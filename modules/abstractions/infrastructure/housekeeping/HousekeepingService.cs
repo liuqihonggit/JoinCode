@@ -16,13 +16,15 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// <param name="worktreeService">Agent Worktree 服务</param>
     /// <param name="entityReaper">实体回收器</param>
     /// <param name="logger">日志记录器</param>
-    public HousekeepingService(IFileSystem fs, IClockService clock, IPlanModeManager planModeManager, IAgentWorktreeService worktreeService, IEntityReaper? entityReaper = null, ILogger<HousekeepingService>? logger = null) {
+    /// <param name="workflowConfig">可选工作流配置 — CleanupPeriodDays（settings 键，默认 30 对齐 TS）流入会话清理周期；0 = 禁用</param>
+    public HousekeepingService(IFileSystem fs, IClockService clock, IPlanModeManager planModeManager, IAgentWorktreeService worktreeService, IEntityReaper? entityReaper = null, ILogger<HousekeepingService>? logger = null, WorkflowConfig? workflowConfig = null) {
         _fs = fs;
         _clock = clock;
         _planModeManager = planModeManager;
         _worktreeService = worktreeService;
         _entityReaper = entityReaper;
         _logger = logger;
+        _cleanupPeriodDays = workflowConfig?.CleanupPeriodDays ?? 30;
     }
     private readonly IFileSystem _fs;
     private readonly IClockService _clock;
@@ -30,6 +32,7 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     private readonly IAgentWorktreeService _worktreeService;
     private readonly IEntityReaper? _entityReaper;
     private readonly ILogger<HousekeepingService>? _logger;
+    private readonly int _cleanupPeriodDays;
 
     private static readonly string JccDir = AppDataConstants.Paths.JccDirectory;
 
@@ -42,7 +45,11 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     public async Task<int> RunAllCleanupAsync(string currentSessionId = "", CancellationToken cancellationToken = default) {
         var total = 0;
 
-        total += CleanupOldSessionFiles();
+        // cleanupPeriodDays 接线 — WorkflowConfig.CleanupPeriodDays（settings 键，默认 30 对齐 TS）；
+        // 0 = 禁用会话清理（对齐 TS 0=禁用持久化的清理侧；其余清理项保留固定周期）
+        if (_cleanupPeriodDays > 0) {
+            total += CleanupOldSessionFiles(_cleanupPeriodDays);
+        }
         total += CleanupOldFileHistoryBackups();
         total += CleanupOldSessionEnvDirs();
         total += CleanupOldDebugLogs();
@@ -70,6 +77,10 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// 删除 sessions/*.json + *.cast + tool-results/ 中 mtime 超过指定天数的
     /// </summary>
     public int CleanupOldSessionFiles(int maxAgeDays = 30) {
+        // cleanupPeriodDays 语义守卫 — maxAgeDays <= 0 = 禁用会话清理（对齐 TS 0=禁用持久化；防 0 被当有效周期全删）
+        if (maxAgeDays <= 0)
+            return 0;
+
         var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
 
         var total = CleanupFilesInDirectory(

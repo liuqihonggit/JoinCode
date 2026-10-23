@@ -532,6 +532,15 @@ public sealed class InMemoryFileSystem : IFileSystem {
             return parent.StartsWith(targetDir + "/", StringComparison.Ordinal) || parent == targetDir;
         });
 
+        // searchPattern 契约修复 — 此前参数被完全忽略（违反 IFileSystem 语义；
+        // 事故：HousekeepingService "mcp-logs-*" 枚举误扫 sessions 目录删除会话文件）。
+        // 与 EnumerateFiles 同款 Win32 通配语义（* 与 ?）。
+        if (searchPattern != "*") {
+            var dirPattern = searchPattern.Replace("*", ".*").Replace("?", ".");
+            var dirRegex = new System.Text.RegularExpressions.Regex("^" + dirPattern + "$");
+            dirs = dirs.Where(d => dirRegex.IsMatch(Path.GetFileName(d)));
+        }
+
         return dirs.Select(d => d.Replace('/', Path.DirectorySeparatorChar));
     }
 

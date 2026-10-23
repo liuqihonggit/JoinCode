@@ -11,9 +11,9 @@ public enum OutputStyleSource {
 }
 
 /// <summary>
-/// 输出风格配置 — 对齐 TS OutputStyleConfig：文件名即样式名、markdown 内容即 prompt。
+/// 输出风格配置 — 对齐 TS OutputStyleConfig：frontmatter name（缺省文件名）、description、正文 prompt（剥离 YAML 头）。
 /// </summary>
-public sealed record OutputStyleConfig(string Name, string Prompt, OutputStyleSource Source);
+public sealed record OutputStyleConfig(string Name, string Prompt, OutputStyleSource Source, string? Description = null);
 
 /// <summary>
 /// 输出风格加载器 — 对齐 TS loadOutputStylesDir.ts：双层目录扫描 *.md
@@ -56,22 +56,37 @@ public sealed class OutputStyleLoader {
         return [.. styles.Values];
     }
 
-    /// <summary>按层扫描合并 — 非目录跳过；仅 *.md；坏文件记警告跳过（风格加载不阻断启动）。</summary>
+    /// <summary>按层扫描合并 — 非目录跳过；仅 *.md；frontmatter 解析（name 覆盖文件名/description 提取/正文剥离 YAML 头，对齐 TS）；坏文件记警告跳过。</summary>
     private async Task MergeDirAsync(Dictionary<string, OutputStyleConfig> styles, string dir, OutputStyleSource source, CancellationToken ct) {
         if (!_fs.DirectoryExists(dir))
             return;
 
         foreach (var filePath in _fs.EnumerateFiles(dir, "*.md", SearchOption.TopDirectoryOnly)) {
-            var name = Path.GetFileNameWithoutExtension(filePath);
-            if (string.IsNullOrEmpty(name))
+            var fileName = Path.GetFileNameWithoutExtension(filePath);
+            if (string.IsNullOrEmpty(fileName))
                 continue;
 
             try {
-                var prompt = (await _fs.ReadAllTextAsync(filePath, ct).ConfigureAwait(false)).Trim();
+                var raw = await _fs.ReadAllTextAsync(filePath, ct).ConfigureAwait(false);
+                var parsed = FrontmatterParser.Parse(raw, _logger);
+                var prompt = parsed.Content.Trim();
                 if (prompt.Length == 0)
                     continue;
 
-                styles[name] = new OutputStyleConfig(name, prompt, source);
+                // TS 语义：name = frontmatter.name || 文件名（键即查找名）；description = frontmatter.description
+                var name = fileName;
+                if (parsed.HasFrontmatter && parsed.Data.TryGetValue("name", out var nameEl) && nameEl.ValueKind == JsonValueKind.String) {
+                    var frontmatterName = nameEl.GetString();
+                    if (!string.IsNullOrEmpty(frontmatterName))
+                        name = frontmatterName;
+                }
+
+                string? description = null;
+                if (parsed.HasFrontmatter && parsed.Data.TryGetValue("description", out var descEl) && descEl.ValueKind == JsonValueKind.String) {
+                    description = descEl.GetString();
+                }
+
+                styles[name] = new OutputStyleConfig(name, prompt, source, description);
             } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) {
                 _logger?.LogWarning(ex, "跳过损坏的输出风格文件: {FilePath}", filePath);
             }

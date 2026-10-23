@@ -273,10 +273,14 @@ public sealed class KeyPressParserTests
     [Fact]
     public void UnknownEscapeSequence_SwallowsWithoutLeaking()
     {
+        // C1 后 SGR 鼠标不再吞噬 — 滚轮序列正确解码为 Mouse 事件（吞噬契约被结构化事件取代；
+        // 原用例序列 \x1b[<64;74;16M = wheel up @ col 73 row 15）
         var keys = ParseAll("\u001b[<64;74;16M");
         var key = Assert.Single(keys);
-        Assert.Equal(KeyKind.Unknown, key.Kind);
-        Assert.Equal(string.Empty, key.Input);
+        Assert.Equal(KeyKind.Mouse, key.Kind);
+        Assert.Equal(MouseKind.WheelUp, key.Mouse!.Value.Kind);
+        Assert.Equal(73, key.Mouse!.Value.Col);
+        Assert.Equal(15, key.Mouse!.Value.Row);
     }
 
     [Fact]

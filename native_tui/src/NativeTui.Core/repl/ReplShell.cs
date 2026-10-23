@@ -179,6 +179,15 @@ public sealed class ReplShell
     /// <summary>transcript 控制器（internal — 测试断言面：快照/滚动/搜索状态机）。</summary>
     internal TranscriptController Transcript => _transcript;
 
+    /// <summary>备用屏控制器（TASK066 C3 — 对齐基准 AlternateScreen.tsx：transcript 全屏模态
+    /// 从"视口独占"升级为 DEC 1049 真备用屏独占 + 鼠标跟踪组合；null = 不启用，
+    /// 现役 inline 视口模式零破坏）。进出对称接线四处收口：ToggleTranscript /
+    /// HandleTranscriptKey（q/Esc 内部退出路径）/ 引擎死亡防御 / WriteExit 兜底。</summary>
+    private readonly AlternateScreenController? _alternateScreen;
+
+    /// <summary>备用屏控制器（internal — 测试断言面：激活态）。</summary>
+    internal AlternateScreenController? AlternateScreen => _alternateScreen;
+
     /// <summary>令牌用量记账器（S4 产出 — Driver 构造注入：引擎 token_usage 事件经 Driver 路由 RecordUsage；
     /// footer 右侧 TokenWarning 渲染源，FooterState.Tokens 接线）。</summary>
     private readonly TokenUsageTracker _tokenUsage = new();
@@ -222,6 +231,19 @@ public sealed class ReplShell
     /// <summary>剪贴板写入委托（TASK059 — Ctrl+C 复制最后 assistant 消息；宿主注入引擎
     /// IClipboardService 适配，Core 零依赖不持接口；null = 复制能力降级无操作）。</summary>
     private readonly Action<string>? _copyToClipboard;
+
+    /// <summary>终端文本选区状态机（TASK066 C6 连线 — 鼠标 Press/Drag/Release 路由 +
+    /// 选中即复制源；构造注入测试可控实例（含可控时钟 — 双击多击判定），null = 构造默认实例
+    /// 能力恒在，对齐 EscClock 注入先例）。</summary>
+    private readonly SelectionState _selection;
+
+    /// <summary>选区状态机（internal — 测试断言面：锚点/活动点/选区固化态）。</summary>
+    internal SelectionState Selection => _selection;
+
+    /// <summary>选中即复制委托（TASK066 C6 — 鼠标 Release 选区固化后经 GetSelectedText
+    /// 提取文本回调宿主剪贴板；对齐 clipboard 注入先例，宿主装配可复用同一注入值；
+    /// null = 复制能力降级无操作 — 选区交互仍可用仅不复制）。</summary>
+    private readonly Action<string>? _copySelection;
 
     /// <summary>主题持久化委托（S11 遗留#1 — /theme 合法切换后宿主写回引擎 settings.json；
     /// 宿主注入 IConfigurationService.SetAsync 适配，Core 零依赖；null = 持久化降级会话级生效）。</summary>
@@ -386,7 +408,14 @@ public sealed class ReplShell
     /// terminalStatus=终端状态协调器（TASK066 A5-A8 — 标题/21337 tab/9;4 进度三路输出；
     /// null = 能力降级全静默）；
     /// keybindings=键位绑定表（TASK066 B4 — 全局键层数据源；null = KeybindingProfile.Default
-    /// 零行为变化；宿主注入 KeybindingLoader 用户合并表 — ~/.jcc/keybindings.json 覆盖默认键）。</summary>
+    /// 零行为变化；宿主注入 KeybindingLoader 用户合并表 — ~/.jcc/keybindings.json 覆盖默认键）；
+    /// alternateScreen=备用屏控制器（TASK066 C3 — transcript 全屏模态升级 DEC 1049 真备用屏 +
+    /// 鼠标跟踪组合；null = 不启用，现役 inline 视口模式零行为变化 — 既有测试契约兜底；
+    /// 宿主装配：new AlternateScreenController(output.Write) 注入）；
+    /// selection=终端文本选区状态机（TASK066 C6 — 鼠标 Press/Drag/Release 路由与选中即复制的
+    /// 状态载体；null = 构造默认实例能力恒在；测试注入可控时钟实例驱动双击多击判定）；
+    /// copySelection=选中即复制委托（TASK066 C6 — 鼠标 Release 选区固化后提取文本回调；
+    /// null = 复制能力降级无操作 — 选区交互仍可用仅不复制）。</summary>
     public ReplShell(
         IReplEngine engine,
         BannerItem banner,
@@ -409,7 +438,10 @@ public sealed class ReplShell
         ISearchSource? searchSource = null,
         TerminalStatusCoordinator? terminalStatus = null,
         KeybindingProfile? keybindings = null,
-        string? issueOwnerRepo = null)
+        string? issueOwnerRepo = null,
+        AlternateScreenController? alternateScreen = null,
+        SelectionState? selection = null,
+        Action<string>? copySelection = null)
     {
         _engine = engine;
         _banner = banner;
@@ -438,6 +470,12 @@ public sealed class ReplShell
         // S8 接线 — 挂起态 BackTab 权限模式循环请求转发引擎回执通道（复用 Shift+Tab 循环实现）
         _permission.ModeCycleRequested += CyclePermissionMode;
         _transcript = new TranscriptController(BuildTranscriptSnapshot, verbose => _view.SetVerboseMode(verbose));
+        // TASK066 C3 — 备用屏控制器注入（null = 不启用零行为变化）
+        _alternateScreen = alternateScreen;
+        // TASK066 C6 — 选区状态机 + 选中即复制委托注入（null selection = 默认实例能力恒在；
+        // null copySelection = 复制降级无操作 — 对齐 clipboard 注入先例）
+        _selection = selection ?? new SelectionState();
+        _copySelection = copySelection;
         _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter, _tokenUsage, _sizeSource, streamingProjector, issueOwnerRepo);
     }
 
@@ -576,6 +614,8 @@ public sealed class ReplShell
             if (_transcript.IsActive)
             {
                 _transcript.Toggle();
+                // TASK066 C3 — 此路径绕过 ToggleTranscript，直退备用屏恢复主屏（IsActive 为 true 必为进出翻转）
+                _alternateScreen?.Exit();
             }
 
             AddMessage(new ErrorMessageItem("引擎进程已退出，会话结束。"));
@@ -817,6 +857,14 @@ public sealed class ReplShell
         {
             _focusBlurred = key.Kind == KeyKind.FocusOut;
             _terminalStatus?.SetFocused(!_focusBlurred);
+            return;
+        }
+
+        // TASK066 C5+C6 接线 — 鼠标事件拦截（对齐焦点拦截先例）：吞掉不进按键链
+        //（不插字符/不清序列前缀 — 鼠标不是按键），路由模态互斥 + 滚轮滚动 + 选区交互
+        if (key.Kind == KeyKind.Mouse && key.Mouse is { } mouseEvent)
+        {
+            HandleMouseEvent(mouseEvent);
             return;
         }
 
@@ -1774,6 +1822,143 @@ public sealed class ReplShell
         }
     }
 
+    /// <summary>滚轮滚动量（行/事件 — TASK066 C5 基准确认：滚轮不经 App.tsx handleMouseEvent
+    ///（:543-545 注释 — 走键位系统），wheelup/wheeldown 绑 scroll:lineUp/scroll:lineDown
+    ///（defaultBindings.ts:200-201），消费方基础步长 1 行/事件（readScrollSpeedBase 默认 1、
+    /// clamp (0,20] — ScrollKeybindingHandler.tsx:305-310）；连续滚动加速度 ramp 至 cap 6
+    ///（computeWheelStep :176-297）不在本次最小接线范围 — 离散单事件等价 1 行）。</summary>
+    internal const int WheelScrollLines = 1;
+
+    /// <summary>鼠标事件路由（TASK066 C5+C6 连线 — HandleKeyPress 顶部拦截后的唯一分派面）：
+    /// <list type="bullet">
+    /// <item><b>模态互斥</b>：权限/命令对话框/模型选择器/三对话框（导出/快速打开/全局搜索）/
+    /// 搜索/后台任务选中态/详情/帮助面板挂起期间鼠标事件直接吞掉（模态期间不可交互 — 含滚轮；
+    /// 对齐 HandleKeyPress 模态链序的镜像判定）。</item>
+    /// <item><b>transcript 特例</b>：激活时滚轮走 transcript 内滚动（对齐基准滚轮经键位系统
+    /// 路由 ScrollBox 行滚动），其余鼠标吞掉（全屏模态选区交互不在 C6 范围 — 基准 transcript
+    /// 为 ink 屏级选区，w2 选区高亮渲染未接线，先吞后扩展）。</item>
+    /// <item><b>滚轮（C5）</b>：WheelUp/WheelDown → 滚动区行滚动（ScrollIfViewport — inline 模式
+    /// 终端原生回看 no-op 先例）+ 清选区（基准 scroll:lineUp/lineDown 先 clearSelection —
+    /// ScrollKeybindingHandler.tsx:468/480，内容滚动后屏幕坐标选区错位）；WheelLeft/Right no-op
+    ///（无横向滚动面）。</item>
+    /// <item><b>选区交互（C6 前半）</b>：Press/Drag/Release → _selection.HandleMouse
+    ///（SelectionScreen 投影自 _front 前缓冲）+ Release 后选中即复制（CopySelectionIfSettled）。</item>
+    /// </list>
+    /// 光标态互斥：基准 handleMouseEvent（App.tsx:542-679）只有 selection/hyperlink/hover 处理，
+    /// 无"鼠标 Press 退出光标导航"逻辑（w2 MessageCursor 为自创特性无基准对应物）— 不做退出，
+    /// 鼠标照常路由选区交互。</summary>
+    private void HandleMouseEvent(MouseEvent evt)
+    {
+        // 模态互斥 — 挂起期间鼠标全吞（含滚轮；链序对齐 HandleKeyPress 的模态分派序）
+        if (_permission.IsPending
+            || _commandDialog.IsPending
+            || _modelPicker.IsPending
+            || _exportDialog is not null
+            || _quickOpenDialog is not null
+            || _globalSearchDialog is not null
+            || _search is not null
+            || _view.BackgroundTasks.IsSelectionActive
+            || _backgroundTaskDetailOpen
+            || _helpOpen)
+        {
+            return;
+        }
+
+        // transcript 特例 — 滚轮可用（transcript 内滚动），其余鼠标吞掉
+        if (_transcript.IsActive)
+        {
+            if (evt.Kind is MouseKind.WheelUp or MouseKind.WheelDown)
+            {
+                _selection.Clear();
+                _transcript.ScrollBy(evt.Kind == MouseKind.WheelDown ? WheelScrollLines : -WheelScrollLines);
+            }
+
+            return;
+        }
+
+        switch (evt.Kind)
+        {
+            case MouseKind.WheelUp:
+                // 基准 scroll:lineUp 先清选区（ScrollKeybindingHandler.tsx:468 — 滚动使屏幕
+                // 坐标选区错位）；inline 模式终端原生回看 no-op（ScrollIfViewport 先例）
+                _selection.Clear();
+                ScrollIfViewport(-WheelScrollLines);
+                return;
+            case MouseKind.WheelDown:
+                _selection.Clear();
+                ScrollIfViewport(WheelScrollLines);
+                return;
+            case MouseKind.WheelLeft or MouseKind.WheelRight:
+                // 无横向滚动面 — no-op（w2 滚动区仅纵向；基准同样未消费横向滚轮）
+                return;
+            default:
+                // 选区交互 — Press/Drag/Release 路由状态机（滚轮/Move 已在上方 return）
+                _selection.HandleMouse(evt, BuildSelectionScreen());
+                if (evt.Kind == MouseKind.Release)
+                {
+                    CopySelectionIfSettled();
+                }
+
+                return;
+        }
+    }
+
+    /// <summary>选区屏幕投影（TASK066 C6 — SelectionScreen.LineAt 从 _front 前缓冲逐 cell
+    /// 拼行文本，快照语义：每次交互传入当时的屏幕状态）：Blank cell 投影空格、SpacerTail
+    /// 占位空格（列号=索引约定 — 宽字符行内列号偏移为 SelectionScreen 已声明已知局限）、
+    /// 补充平面 scalar 投影空格（无法以单 char 表达）；_front 未就绪（null / _frontValid=false
+    /// 渲染前）返回空投影（尺寸 0 — 交互 no-op 化，防 NRE 防选中陈旧帧内容）。</summary>
+    private SelectionScreen BuildSelectionScreen()
+    {
+        if (_front is null || !_frontValid)
+        {
+            return new SelectionScreen(static _ => ReadOnlySpan<char>.Empty, 0, 0);
+        }
+
+        return new SelectionScreen(FrontLineAt, _front.Cols, _front.Rows);
+    }
+
+    /// <summary>前缓冲行文本（0-based 行 → 定长 Cols 文本；越界行返回空 span —
+    /// SelectionScreen.LineAt 约定；鼠标事件低频，逐行分配可接受）。</summary>
+    private ReadOnlySpan<char> FrontLineAt(int row)
+    {
+        if (row < 0 || row >= _front.Rows)
+        {
+            return ReadOnlySpan<char>.Empty;
+        }
+
+        var chars = new char[_front.Cols];
+        for (var col = 0; col < _front.Cols; col++)
+        {
+            var cell = _front[row, col];
+            var scalar = cell.Value.Value;
+            chars[col] = cell.Width == CellWidth.SpacerTail || scalar > 0xFFFF ? ' ' : (char)scalar;
+        }
+
+        return new string(chars);
+    }
+
+    /// <summary>选中即复制（TASK066 C6 — Release 后选区固化即复制，基准 useCopyOnSelect.ts:44-80：
+    /// isDragging=true 拖拽中等待 / 无选区重置 / settled（hasSelection &amp; !isDragging）且未
+    /// 复制过才触发 — 事件驱动的 Release 路由天然等价（每次 Release 一次，基准 copiedRef 的
+    /// "新拖拽重置"由新 Press 重锚定保证）；纯空白选区跳过（:74-77 trim 检查）；复制后选区
+    /// 保留不清（copySelectionNoClear — 高亮留观）；委托 null = 复制能力降级无操作）。</summary>
+    private void CopySelectionIfSettled()
+    {
+        if (_copySelection is null || !_selection.HasSelection)
+        {
+            return;
+        }
+
+        var text = _selection.GetSelectedText(BuildSelectionScreen());
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        _copySelection(text);
+    }
+
     /// <summary>transcript 模态按键（S6 收敛 — S5 TranscriptController 唯一引擎）：
     /// 分派契约 `IsActive ? (TryHandleKey || toggle) : toggle` — Controller 未消费
     ///（less 键位/搜索/退出之外）且命中 app:toggleTranscript 绑定时切换退出（默认 ctrl+o —
@@ -1783,8 +1968,12 @@ public sealed class ReplShell
     /// 每键后同步视图投影（滚动/搜索/进出态立即反映 — 渲染帧兜底刷新）。</summary>
     private void HandleTranscriptKey(KeyPress key)
     {
+        // TASK066 C3 — 捕获翻转前激活态：q/Esc 在 Controller 内部退出（ExitTranscript）不经过
+        // ToggleTranscript，消费后统一经 SyncAlternateScreen 对称收口备用屏
+        var wasActive = _transcript.IsActive;
         if (_transcript.TryHandleKey(key))
         {
+            SyncAlternateScreen(wasActive);
             SyncTranscriptView();
             return;
         }
@@ -1807,9 +1996,11 @@ public sealed class ReplShell
     }
 
     /// <summary>切换 transcript 模态 + 视图投影同步 — 进入整屏独占模态时清除建议态
-    /// （防激活期建议劫持 Up/Tab/Enter/Esc — 独占不变量：transcript 激活时建议不可达）。</summary>
+    /// （防激活期建议劫持 Up/Tab/Enter/Esc — 独占不变量：transcript 激活时建议不可达）；
+    /// TASK066 C3 — 翻转后备用屏对称收口（进入 Enter 升级真备用屏独占 / 退出 Exit 恢复主屏）。</summary>
     private void ToggleTranscript()
     {
+        var wasActive = _transcript.IsActive;
         _transcript.Toggle();
         if (_transcript.IsActive)
         {
@@ -1817,8 +2008,31 @@ public sealed class ReplShell
             _atSuggestions = null;
         }
 
+        SyncAlternateScreen(wasActive);
         SyncTranscriptView();
 
+    }
+
+    /// <summary>备用屏与 transcript 激活态同步（TASK066 C3 统一收口点）— 翻转时对称
+    /// Enter（进入真备用屏）/ Exit（恢复主屏）；无翻转或 controller 为 null 时零输出。
+    /// 调用方：ToggleTranscript（ctrl+o 路径）+ HandleTranscriptKey（q/Esc Controller
+    /// 内部退出路径 — 翻转前激活态由调用方捕获传入）。</summary>
+    /// <param name="wasActive">翻转前 transcript 激活态（与当前态比对判定进出方向）。</param>
+    private void SyncAlternateScreen(bool wasActive)
+    {
+        if (_alternateScreen is null || wasActive == _transcript.IsActive)
+        {
+            return;
+        }
+
+        if (_transcript.IsActive)
+        {
+            _alternateScreen.Enter();
+        }
+        else
+        {
+            _alternateScreen.Exit();
+        }
     }
 
     /// <summary>'?' 触发判定 — 空闲态（非忙 + 空输入 + 无修饰）的裸 '?'（有输入时 '?' 走正常字符插入；
@@ -2465,6 +2679,11 @@ public sealed class ReplShell
     /// 闲时：有文本 → 清空输入；空输入 → 无操作。退出路径只剩 Ctrl+D 与 /exit 命令。</summary>
     internal void HandleEscape()
     {
+        // TASK066 C6 — Esc 清选区（基准 ScrollKeybindingHandler.tsx:595-598 escape →
+        // clearSelection；无选区时 Clear 幂等 no-op；最小侵入不吞 Esc — 既有打断/清输入
+        // 语义链保持）
+        _selection.Clear();
+
         var now = EscClock();
         var isDoubleTap = _lastEscapeMs != 0 && now - _lastEscapeMs <= EscapeDoubleClickWindowMs;
         _lastEscapeMs = now;
@@ -2840,6 +3059,10 @@ public sealed class ReplShell
         if (_inline)
         {
             var viewportRows = _sizeSource.Current.Rows;
+            // TASK066 C3 — 备用屏激活时 transcript 走视口渲染分支天然兼容（无冲突已核实）：
+            // 屏高 = 终端行数（EnsureScreens transcript 分支 = 基准 AlternateScreen Box height=rows
+            // 高度约束）+ frameEnd 走 TranscriptRenderer 视口光标；备用屏无 scrollback，
+            // 整屏差分重绘语义与视口独占渲染一致（inline 历史留 scrollback 语义不适用于模态帧）
             var frameEnd = _view.Transcript is { } transcript
                 ? TranscriptRenderer.CursorPos(transcript, _back.Rows)
                 : _view.InputCursorPos(_back.Rows, _back.Cols, _input.CursorCol);
@@ -3038,6 +3261,9 @@ public sealed class ReplShell
     /// A6 接线 — 焦点上报对称 Disable（仅启用过）+ 终端状态三路清理（标题空/CLEAR_TAB_STATUS/进度 clear））。</summary>
     private void WriteExitSequences(string sequences)
     {
+        // TASK066 C3 — 备用屏兜底对称退出（transcript 残留防御 — 引擎死亡路径已退，此处幂等重入
+        // no-op）：先回主屏再发退出序列，清屏复位作用于主屏（后发则清在备用屏上、主屏残留旧内容）
+        _alternateScreen?.Exit();
         var focusDisable = _terminalStatus is not null
             ? DecPrivateMode.Disable(DecPrivateModeKind.FocusReporting)
             : string.Empty;

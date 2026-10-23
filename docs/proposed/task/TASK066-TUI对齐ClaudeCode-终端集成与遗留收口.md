@@ -223,6 +223,24 @@
 - 遗留：模态内部键（权限数字键/选择器方向键/transcript less 键位/搜索模态内循环键）保持硬编码——渐进式决策，用户表只覆盖全局键层
 - 提交链（rebase 后新序）：4dbe50f66(A5-A8) → c92d12b6c(A 收官) → e0b219270(B1+B2) → 06a1fb5bb(B4)
 
+### 板块 C — 鼠标与全屏模式（2026-10-23 C1-C6 完成，C7 留板块 G）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| C1 `repl/Mouse.cs` + KeyKind.Mouse + KeyPress.Mouse 通道 + ParseSgrMouse 解码 | HandleMouseEvent 路由 | ✅ | ✅ 单元 15 测试 |
+| C4 `repl/selection/SelectionState.cs` 流式选区状态机（三分类词边界/500ms 双击窗/shift 扩展） | C6 连线 HandleMouse | ✅ | ✅ 单元 24 测试 |
+| C2 `repl/hit_test/HitTestRegistry.cs` 半开区间后注册优先 + IScrollItem.HitTestId DIM | 待 item 标注接线（G 域） | ✅ | ✅ 单元 7 测试 |
+| C3 `repl/fullscreen/AlternateScreenController.cs`（DEC 1049 + 四鼠标模式 1000/1002/1003/1006 严格反序） | transcript 升级真备用屏独占 | ✅ | ✅ 单元 7 + 集成 6 测试 |
+| C5 滚轮行滚动（1 行/事件 — 基准 readScrollSpeedBase；加速度 ramp 登记未做） | HandleMouseEvent | ✅ | ✅ 接线测试 |
+| C6 选中即复制（Release 后 settled 语义 + 纯空白跳过） | copySelection 委托 → 引擎剪贴板 | ✅ | ✅ 接线 9 测试 |
+| 宿主装配（备用屏 + copySelection） | Program.cs | ✅ | ✅ Host.Tests 125 + selftest OK |
+
+- 测试：NativeTui.Tests 2283→**2377 全绿**（+94）；Host.Tests 125 全绿
+- debug 修复链：①主构造函数字段初始化语法错（改传统构造）②`?? static lambda` 需括号 ③`Func<int, ReadOnlySpan<char>>` ref struct 泛型 CS9244 → 自定义 `SelectionLineAt` delegate ④滚轮吞噬旧测试期望改结构化 Mouse 解码
+- 基准核实修正：SGR 位序（bit2=Shift bit5=motion bit6=wheel，parse-keypress.ts:573-679）；词边界三分类（空白/词字符/其它——"连续非空白"假设错误）；滚动量 1 行（非 3）；复制时机 Release 后（非拖拽中）
+- 遗留：滚轮加速度 ramp（computeWheelStep 40ms 窗 +1 cap 6）、C7 全屏×鼠标组合验证（G 域）、HitTestId item 标注（G 域）、OSC 52 剪贴板序列（当前走引擎 IClipboardService，OSC 52 留 P3）
+- 提交链：5b33c2879(C1+C4) → 83991bcd7(C2+C3) → c1ae416ac(C5+C6) → 宿主装配
+
 ### 其他板块
 
-C/D/E/F 待分派；G 跨板块收口最后做。
+D/E/F 待分派；G 跨板块收口最后做。

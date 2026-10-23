@@ -11,6 +11,8 @@ namespace NativeTui.Core.Repl;
 /// kitty keyboard protocol（CSI u：ESC[codepoint[;mod[;text]]u）与 xterm modifyOtherKeys（ESC[27;mod;code~）：
 /// 码点+mod-1 位掩码形式解析（对齐基准 ink/parse-keypress.ts 的 CSI_U_RE / MODIFY_OTHER_KEYS_RE 分支），
 /// 双修饰组合（ctrl+shift 等）完整保留 — 传统 \x01 控制码路径丢失 shift 的补全。
+/// SGR 鼠标（DECSET 1006）：\x1b[&lt;b;x;y M/m 解码为 KeyKind.Mouse + 结构化 MouseEvent
+/// （位序/滚轮掩码对齐基准 SGR_MOUSE_RE + parseMouseEvent + wheel 分支，详见 ParseSgrMouse；板块C基建C1）。
 /// </summary>
 public static class KeyPressParser
 {
@@ -155,7 +157,7 @@ public static class KeyPressParser
         };
     }
 
-    /// <summary>CSI 序列：ESC [ params {;mod} final — 方向键/Home/End/Delete/Page + 修饰符 + SGR 鼠标吞噬
+    /// <summary>CSI 序列：ESC [ params {;mod} final — 方向键/Home/End/Delete/Page + 修饰符 + SGR 鼠标解码
     /// + kitty CSI u / xterm modifyOtherKeys 分派（B1 融合 — final 'u' 进 kitty 完整版、三段 ~ 进 modifyOtherKeys）。
     /// 序列边界 = 参数区（0x30-0x3F 数字/;/…）+ intermediate（0x20-0x2F）扫描至 final（0x40-0x7E）；
     /// 非「数字{;数字}」两段形态（私有参数 ESC[?…、intermediate ESC[…$…、超长数字）
@@ -170,7 +172,7 @@ public static class KeyPressParser
             return false;
         }
 
-        // SGR 鼠标（ESC[&lt;b;x;yM/m）整体吞掉 — 对齐基准防泄漏守卫
+        // SGR 鼠标（ESC[<b;x;y M/m）解码为结构化鼠标事件（板块C基建C1）
         if (rest[0] == '<')
         {
             return ParseSgrMouse(ref buffer, out key);
@@ -448,7 +450,16 @@ public static class KeyPressParser
         return true;
     }
 
-    /// <summary>SGR 鼠标序列吞噬：&lt;b;x;y[Mm]，不完整等待更多，非法则吞到扫描位。</summary>
+    /// <summary>
+    /// SGR 鼠标解码（DECSET 1006）：ESC[&lt;b;x;y M/m — 终点 M=按下 m=释放。
+    /// b 位掩码（基准 parse-keypress.ts:573-575 ParsedMouse.button 注释 + :678-684 滚轮分支）：
+    /// bit0-1 按钮（0=左 1=中 2=右 3=无按钮）、bit2(0x04)=Shift、bit3(0x08)=Meta、bit4(0x10)=Ctrl、
+    /// bit5(0x20)=移动/拖拽、bit6(0x40)=滚轮（低 2 位定方向 — 0x43 掩码判定忽略修饰位：
+    /// 64=上 65=下基准 :683-684，66/67 横滚为 SGR 规范扩展显式建模）。
+    /// 坐标 1-based → 0-based（基准 events/click-event.ts:11-12 0-indexed 消费语义）。
+    /// 不完整前缀（final 未到）false 不消耗（跨 chunk 攒齐，现有契约）；
+    /// 非法形态（分号数≠2/空段/非数字/溢出/坐标&lt;1）整体含 final 吞 Unknown 防泄漏。
+    /// </summary>
     private static bool ParseSgrMouse(ref ReadOnlySpan<char> buffer, out KeyPress key)
     {
         var rest = buffer[3..];
@@ -466,15 +477,71 @@ public static class KeyPressParser
 
         if (i == rest.Length)
         {
+            // 参数区未闭合（final 未到）— 不完整前缀，等待更多输入
             key = NamedUnknown();
             return false;
         }
 
-        var consumed = 3 + i + (rest[i] is 'M' or 'm' && semicolons == 2 ? 1 : 0);
-        key = NamedUnknown();
+        var final = rest[i];
+        // M/m 终点整体含 final 吞（非法形态也不留 final 泄漏成文本）；其余终点吞到扫描位（现状契约）
+        var consumed = 3 + i + (final is 'M' or 'm' ? 1 : 0);
+        key = final is 'M' or 'm' && semicolons == 2
+            ? DecodeSgrParams(rest[..i], final)
+            : NamedUnknown();
         buffer = buffer[consumed..];
         return true;
     }
+
+    /// <summary>SGR 参数区（"b;x;y"）+ 终点 → 鼠标 KeyPress；段非法（空/非数字/溢出→-1）或坐标&lt;1（SGR 1-based 最小 1，0 为畸形）吞 Unknown — 外部畸形输入不可击穿读线程。</summary>
+    private static KeyPress DecodeSgrParams(ReadOnlySpan<char> @params, char final)
+    {
+        var firstSemi = @params.IndexOf(';');
+        var secondSemi = @params.LastIndexOf(';');
+        var b = ParseSegment(@params[..firstSemi]);
+        var x = ParseSegment(@params[(firstSemi + 1)..secondSemi]);
+        var y = ParseSegment(@params[(secondSemi + 1)..]);
+
+        if (b < 0 || x < 1 || y < 1)
+        {
+            return NamedUnknown();
+        }
+
+        var mouse = new MouseEvent(
+            SgrMouseKind(b, final),
+            SgrButton(b),
+            x - 1,
+            y - 1,
+            (b & 0x04) != 0,
+            (b & 0x08) != 0,
+            (b & 0x10) != 0);
+        return new KeyPress(KeyKind.Mouse, string.Empty, Mouse: mouse);
+    }
+
+    /// <summary>SGR b 码 → 事件种类：滚轮优先（0x43 掩码判方向忽略修饰位，基准 :683-684 — 修饰滚轮 button=80 仍识别）；
+    /// 次终点 Release；motion 位 0x20 区分 Drag（按钮位 0-2）/Move（按钮位 3）；其余 Press。</summary>
+    private static MouseKind SgrMouseKind(int b, char final) =>
+        (b & 0x40) != 0
+            ? (b & 0x43) switch
+            {
+                0x40 => MouseKind.WheelUp,
+                0x41 => MouseKind.WheelDown,
+                0x42 => MouseKind.WheelLeft,
+                _ => MouseKind.WheelRight,
+            }
+            : final == 'm'
+                ? MouseKind.Release
+                : (b & 0x20) != 0
+                    ? (b & 3) == 3 ? MouseKind.Move : MouseKind.Drag
+                    : MouseKind.Press;
+
+    /// <summary>SGR b 码 → 按钮（低 2 位映射；3=无按钮占位 Left — 滚轮/Move 事件无按钮语义）。</summary>
+    private static MouseButton SgrButton(int b) =>
+        (b & 3) switch
+        {
+            1 => MouseButton.Middle,
+            2 => MouseButton.Right,
+            _ => MouseButton.Left,
+        };
 
     /// <summary>简单序列 → 按键（final + 可选数字）：字母终点 / ~ 终点数字表
     ///（F1-F12/Insert/Clear/rxvt Home/End — 对齐基准 parse-keypress.ts:304-406 keyName 表）/

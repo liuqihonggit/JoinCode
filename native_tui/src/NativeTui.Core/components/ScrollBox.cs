@@ -8,6 +8,15 @@ public interface IScrollItem
 
     /// <summary>渲染到自身完整帧区域（Y 已含滚动平移，可能为负/越界；越界写入由 Screen 忽略实现裁剪）。</summary>
     void Render(Screen screen, Rect frame, Theme theme);
+
+    /// <summary>
+    /// 命中测试标识（TASK066 板块 C）— null = 不参与命中（默认）。声明非空 id 的 item
+    /// 由渲染接线（ReplView 帧序）向 HitTestRegistry 注册自身 rect（HitTest 同 id 反向遍历）。
+    /// id 建议格式「域:键」（如 tool-call:3 / background-task:fork:42 — 命名建议见 TASK066 交付清单）。
+    /// 默认接口实现（DIM）零破坏 — 现有实现类无需改动即编译通过；注意：默认实现仅经
+    /// IScrollItem 接口引用可见（ScrollBox.Items 遍历语境天然满足 — 具体类型引用需显式实现）。
+    /// </summary>
+    string? HitTestId => null;
 }
 
 /// <summary>

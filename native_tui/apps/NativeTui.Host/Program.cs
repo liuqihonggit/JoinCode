@@ -393,7 +393,13 @@ public static class Program {
                     terminalStatus: terminalStatus,
                     // TASK066 板块B — 键位绑定表（用户 json 合并结果 — 全局键层表驱动数据源，
                     // esc/ctrl+g/ctrl+o/ctrl+l/ctrl+r/ctrl+s/ctrl+d 等非模态全局键走表查询）
-                    keybindings: keybindingLoad.Profile);
+                    keybindings: keybindingLoad.Profile,
+                    // TASK066 板块C — 备用屏控制器（transcript 模态升级 DEC 1049 真备用屏 +
+                    // 四鼠标模式组合 1000/1002/1003/1006；与 tuiOutput 同通道主循环串行）
+                    alternateScreen: new AlternateScreenController(tuiOutput.Write),
+                    // TASK066 板块C — 选中即复制（Release 后 settled 选区 → 引擎剪贴板服务，
+                    // 复用 clipboard 同源注入；选区纯空白跳过在 Core 层守卫）
+                    copySelection: text => _ = clipboardService?.SetTextAsync(text));
                 pickerEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);

@@ -100,6 +100,12 @@ public sealed record WorkflowConfig {
     public bool AutoCompactEnabled { get; init; } = true;
 
     /// <summary>
+    /// 文件检查点开关 — 对齐 TS fileCheckpointingEnabled（默认 true）；
+    /// FileHistoryService.BackupBeforeWriteAsync 门控（false 时跳过写前备份）
+    /// </summary>
+    public bool FileCheckpointingEnabled { get; init; } = true;
+
+    /// <summary>
     /// LLM 执行参数配置（Temperature, MaxTokens, TopP 等）
     /// </summary>
     public LlmExecutionSettings LlmExecution { get; init; } = new();

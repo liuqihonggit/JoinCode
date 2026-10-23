@@ -32,6 +32,7 @@ public sealed partial class SettingsMapper : ServiceEntity {
         config = config with { Language = settings?.Current?.Language };
         config = config with { ShowTurnDuration = settings?.Current?.ShowTurnDuration ?? true };
         config = config with { AutoCompactEnabled = settings?.Current?.AutoCompactEnabled ?? true };
+        config = config with { FileCheckpointingEnabled = settings?.Current?.FileCheckpointingEnabled ?? true };
         config = config with { ShellExecution = config.ShellExecution with { IsAntiCharLossConfirm = settings?.Current?.IsAntiCharLossConfirm ?? false } };
         config = ApplyToolScoreSettings(config, settings);
         config = ApplySubAgentConcurrencySettings(config, settings);

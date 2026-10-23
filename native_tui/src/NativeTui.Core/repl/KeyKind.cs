@@ -102,6 +102,10 @@ public enum KeyKind
     /// <summary>终端失去焦点（DECSET 1004 的 CSI O — 失焦暂停动画省 CPU 的驱动信号）。</summary>
     FocusOut,
 
+    /// <summary>SGR 鼠标事件（DECSET 1006 的 ESC[&lt;b;x;y M/m — KeyPress.Mouse 携带结构化 MouseEvent，
+    /// 坐标 0-based；RawStdin VT 流专属通道，ReadKey 通道天然无鼠标）。</summary>
+    Mouse,
+
     /// <summary>无法识别的序列（整体吞掉，Input 空 — 防止转义序列泄漏为文本）。</summary>
     Unknown,
 }

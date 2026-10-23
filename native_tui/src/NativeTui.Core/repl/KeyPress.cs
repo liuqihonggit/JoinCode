@@ -3,14 +3,16 @@ namespace NativeTui.Core.Repl;
 /// <summary>
 /// 解析后的按键事件 — 对齐基准 ink 的 (input, key) 二元组：
 /// Kind 区分按键种类，Input 携带文本（可打印字符原样 / Ctrl 时小写字母名 / 功能键为空），
-/// 大写字母自动置 Shift（基准 parseKey 末段语义）。
+/// 大写字母自动置 Shift（基准 parseKey 末段语义）；
+/// Kind=Mouse 时 Mouse 携带结构化 SGR 鼠标事件（基准 ParsedMouse 对应物，坐标 0-based）。
 /// </summary>
 /// <param name="Kind">按键种类。</param>
-/// <param name="Input">文本载荷：Char 为字符本身；Ctrl+字母为小写字母名；功能键为空串。</param>
+/// <param name="Input">文本载荷：Char 为字符本身；Ctrl+字母为小写字母名；功能键/鼠标为空串。</param>
 /// <param name="Ctrl">Ctrl 修饰（含 CSI ;5/;6/;7/;8 修饰符）。</param>
 /// <param name="Meta">Meta/Alt 修饰（ESC 前缀或 CSI ;3 修饰符）。</param>
 /// <param name="Shift">Shift 修饰（大写字母或 CSI ;2 修饰符）。</param>
-public sealed record KeyPress(KeyKind Kind, string Input, bool Ctrl = false, bool Meta = false, bool Shift = false)
+/// <param name="Mouse">SGR 鼠标事件载荷（仅 Kind=Mouse 时非空；尾参默认 null，不破坏既有构造调用）。</param>
+public sealed record KeyPress(KeyKind Kind, string Input, bool Ctrl = false, bool Meta = false, bool Shift = false, MouseEvent? Mouse = null)
 {
     /// <summary>构造可打印字符按键（大写自动置 Shift）。</summary>
     public static KeyPress Char(string input) =>

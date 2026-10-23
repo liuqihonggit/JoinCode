@@ -442,6 +442,8 @@ public sealed class ReplShell
         AlternateScreenController? alternateScreen = null,
         SelectionState? selection = null,
         Action<string>? copySelection = null)
+    {
+        _engine = engine;
         _banner = banner;
         _output = output;
         _inline = inline;

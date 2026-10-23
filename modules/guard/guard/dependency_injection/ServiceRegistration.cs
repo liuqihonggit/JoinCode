@@ -123,6 +123,11 @@ public static partial class ServiceRegistration {
             manager.RegisterProvider(HookSource.LocalSettings,
                 new JsonFileHookConfigurationProvider(localSettingsPath, HookSource.LocalSettings, fs, logger));
 
+            // 策略源 — managed-settings.json 顶层 hooks（对齐 TS policySettings 参与钩子合并；
+            // PolicySettings 不可编辑(IsEditable=false)，JsonFileHookConfigurationProvider 写回被守卫拒绝）
+            manager.RegisterProvider(HookSource.PolicySettings,
+                new JsonFileHookConfigurationProvider(SettingsLoader.GetManagedSettingsPath(), HookSource.PolicySettings, fs, logger));
+
             return manager;
         });
 

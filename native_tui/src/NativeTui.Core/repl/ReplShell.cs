@@ -2195,8 +2195,7 @@ public sealed class ReplShell
     /// 光标态/建议态/搜索态在分派链更早拦截不可达此处）。</summary>
     private bool IsHelpTrigger(KeyPress key) =>
         key is { Kind: KeyKind.Char, Input: "?", Ctrl: false, Meta: false, Shift: false }
-        && _input.Text.Length == 0
-        && !IsBusy;
+        && _input.Text.Length == 0;
 
     /// <summary>打开帮助面板（View 投影同步 — 渲染帧兜底刷新）。</summary>
     private void OpenHelpPanel()
@@ -2329,11 +2328,13 @@ public sealed class ReplShell
         }
     }
 
-    /// <summary>帮助面板模态按键 — Esc 或 '?' 关闭（对齐基准 help menu 双关闭键）；
-    /// 其余键吞掉（模态 — 不进输入缓冲，面板期间输入暂停）。</summary>
+    /// <summary>帮助面板模态按键 — Esc/'?'/Backspace/Enter 关闭（对齐基准 help menu 双关闭键 +
+    /// 4.18 空输入关闭键 — PromptInput.tsx:1911 backspace/:1958 enter）；其余键吞掉
+    ///（模态 — 不进输入缓冲，面板期间输入暂停）。</summary>
     private void HandleHelpKey(KeyPress key)
     {
-        if (key.Kind == KeyKind.Escape || key is { Kind: KeyKind.Char, Input: "?", Ctrl: false, Meta: false })
+        if (key.Kind is KeyKind.Escape or KeyKind.Backspace or KeyKind.Return
+            || key is { Kind: KeyKind.Char, Input: "?", Ctrl: false, Meta: false })
         {
             _helpOpen = false;
             _view.HelpOpen = false;

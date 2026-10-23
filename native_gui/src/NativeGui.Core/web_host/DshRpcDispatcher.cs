@@ -58,6 +58,7 @@ internal sealed class DshRpcDispatcher {
             ["messageFeedback/list"] = MessageFeedbackList,
             ["messageFeedback/put"] = MessageFeedbackPut,
             ["messageFeedback/delete"] = MessageFeedbackDelete,
+            ["sessionFeedback/record"] = SessionFeedbackRecord,
             ["skills/list"] = SkillsList,
             ["subagents/prompt"] = SubagentPrompt,
             ["subagents/interruptByParent"] = SubagentInterruptByParent,
@@ -738,6 +739,34 @@ internal sealed class DshRpcDispatcher {
             });
     }
 
+    /// <summary>sessionFeedback/record：把用户反馈写进会话日志事件（log-only，不启动模型工作）</summary>
+    private async Task<DshRpcResult> SessionFeedbackRecord(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSessionFeedbackRecordArgs)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)) {
+            return Fail("gateway/bad-request",
+                $"sessionFeedback/record 需要 request.sessionId；收到 args={Describe(args)}。");
+        }
+        if (request.Category is { } category && DshFeedbackCategoryExtensions.FromValue(category) is null) {
+            return Fail("gateway/bad-request",
+                $"sessionFeedback/record 的 category 不是 DSH 分类词汇（other/task-result/instruction-following/product-interaction/service-stability/resource-cost/security-privacy-permission）；收到 \"{category}\"。");
+        }
+        if (!await _services.Sessions.ExistsAsync(request.SessionId, cancellationToken)) {
+            return Ok(new DshSessionFeedbackRecordResult {
+                Ok = false,
+                Error = SerializeFeedbackError(new DshMessageFeedbackSessionNotFoundError { SessionId = request.SessionId }),
+            });
+        }
+        var text = request.Text?.Trim();
+        await _services.Streams.PublishAsync(
+            request.SessionId,
+            "feedback/record",
+            new DshFeedbackRecordData {
+                Text = string.IsNullOrEmpty(text) ? null : text,
+                Category = request.Category,
+            });
+        return Ok(new DshSessionFeedbackRecordResult { Value = new DshSessionFeedbackRecordValue() });
+    }
+
     /// <summary>反馈错误体序列化（每类错误字段集严格对齐契约联合体）</summary>
     private static JsonElement SerializeFeedbackError(DshMessageFeedbackSessionNotFoundError error) =>
         JsonSerializer.SerializeToElement(error, DshJsonContext.Default.DshMessageFeedbackSessionNotFoundError);
@@ -1319,6 +1348,8 @@ internal sealed class DshRpcDispatcher {
     private static DshRpcResult Ok(DshMessageFeedbackPutResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshMessageFeedbackPutResult));
 
     private static DshRpcResult Ok(DshMessageFeedbackDeleteResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshMessageFeedbackDeleteResult));
+
+    private static DshRpcResult Ok(DshSessionFeedbackRecordResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionFeedbackRecordResult));
 
     private static DshRpcResult Ok(DshWorkspaceCreateResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshWorkspaceCreateResult));
 

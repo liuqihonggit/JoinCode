@@ -308,3 +308,44 @@ internal sealed class DshMessageFeedbackDocument {
     /// <summary>会话 ID → 消息 ID → 反馈</summary>
     public Dictionary<string, Dictionary<string, DshMessageFeedbackItem>> Sessions { get; set; } = new(StringComparer.Ordinal);
 }
+
+/// <summary>sessionFeedback/record 参数（request 信封内）</summary>
+internal sealed class DshSessionFeedbackRecordArgs {
+    /// <summary>目标会话</summary>
+    public string SessionId { get; set; } = "";
+    /// <summary>用户备注（前后空白丢弃，空串视同未提供）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Text { get; set; }
+    /// <summary>反馈分类（DSH 分类词汇，可省略）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Category { get; set; }
+}
+
+/// <summary>sessionFeedback/record 结果（DSH 契约：{ok:true,value}|{ok:false,error}）</summary>
+internal sealed class DshSessionFeedbackRecordResult {
+    /// <summary>是否成功</summary>
+    public bool Ok { get; set; } = true;
+    /// <summary>成功值</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DshSessionFeedbackRecordValue? Value { get; set; }
+    /// <summary>失败体（成功时省略）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public JsonElement Error { get; set; }
+}
+
+/// <summary>记录成功值</summary>
+internal sealed class DshSessionFeedbackRecordValue {
+    /// <summary>已写入会话日志（未落盘）</summary>
+    public bool Recorded { get; set; } = true;
+}
+
+/// <summary>feedback/record 会话事件载荷（log-only，不启动模型工作）</summary>
+internal sealed class DshFeedbackRecordData {
+    /// <summary>用户备注（空白时省略字段）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Text { get; set; }
+    /// <summary>反馈分类（未提供时省略字段）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Category { get; set; }
+}
+

@@ -267,14 +267,15 @@ public sealed class FooterBarTests
     [Fact]
     public void LoginError_RightAlignedInErrorColor()
     {
-        using var screen = new Screen(cols: 60, rows: 1);
+        // TASK069 N3 — 宽屏（≥80）LoginError 行 1 右对齐语义守卫（窄屏独立行见 FooterBarNarrowScreenTests）
+        using var screen = new Screen(cols: 100, rows: 1);
         var footer = new FooterBar();
-        footer.Render(screen, new Rect(0, 0, 60, 1), Theme.Dark, new FooterState { Mode = PermissionMode.Auto, LoginError = "未登录 · 运行 /login" });
+        footer.Render(screen, new Rect(0, 0, 100, 1), Theme.Dark, new FooterState { Mode = PermissionMode.Auto, LoginError = "未登录 · 运行 /login" });
         var error = screen.Styles.GetOrAdd(new TextStyle { Foreground = Theme.Dark.Error });
-        // 右对齐：文本 20 屏幕列（中文每字 2 列）→ 起始 col 40（Right=60）
-        Assert.Equal("未登录 · 运行 /login", RowText.Of(screen, 0, 40, 20));
-        Assert.Equal(error, screen[0, 40].StyleId);
-        Assert.Equal(error, screen[0, 59].StyleId);
+        // 右对齐：文本 20 屏幕列（中文每字 2 列）→ 起始 col 80（Right=100）
+        Assert.Equal("未登录 · 运行 /login", RowText.Of(screen, 0, 80, 20));
+        Assert.Equal(error, screen[0, 80].StyleId);
+        Assert.Equal(error, screen[0, 99].StyleId);
     }
 
     [Fact]

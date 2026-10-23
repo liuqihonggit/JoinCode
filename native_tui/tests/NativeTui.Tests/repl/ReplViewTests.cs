@@ -66,19 +66,19 @@ public sealed class ReplViewTests
     [Fact]
     public void FooterNotification_TwoRowFooterShiftsInputUp()
     {
-        using var screen = new Screen(cols: 60, rows: 10);
+        using var screen = new Screen(cols: 60, rows: 11);
         var view = new ReplView
         {
             Footer = new FooterState { Mode = PermissionMode.Plan, AgentsHint = "← agents", LoginError = "未登录 · 运行 /login", Notification = "◐ 中等 · /effort" },
         };
         view.Render(screen, Theme.Dark);
-        // footer 两行（行 8-9）：行 8 左模式串 + 右登录错误，行 9 右通知
-        // 右对齐基准 = footer frame.Right = 58（paddingX=2：X=2 宽 Cols-4）
+        // TASK069 N3 — 窄屏（60&lt;80）footer 三行（行 8-10）：行 8 左模式串（LoginError 独立行 9 不覆盖）、
+        // 行 9 右登录错误（右对齐基准 = footer frame.Right = 58）、行 10 右通知
         Assert.StartsWith("⏸ 计划模式 已开启", RowText.Of(screen, 8, 2, 40).TrimEnd());
         // 登录错误 20 屏幕列（中文每字 2 列）→ 起始 col 38（Right=58）
-        Assert.Equal("未登录 · 运行 /login", RowText.Of(screen, 8, 38, 20));
+        Assert.Equal("未登录 · 运行 /login", RowText.Of(screen, 9, 38, 20));
         // 通知 16 屏幕列（◐ 1 + 空格 1 + 中等 4 + " · " 3 + /effort 7）→ 起始 col 42
-        Assert.Equal("◐ 中等 · /effort", RowText.Of(screen, 9, 42, 16));
+        Assert.Equal("◐ 中等 · /effort", RowText.Of(screen, 10, 42, 16));
         // 输入区整体上移 1 行：底边线 7 / 文本 6 / 顶边线 5
         Assert.Equal(new string('─', 60), RowText.Of(screen, 5, 0, 60));
         Assert.Equal(new string('─', 60), RowText.Of(screen, 7, 0, 60));

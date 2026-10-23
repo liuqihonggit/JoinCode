@@ -235,6 +235,51 @@
 
 ---
 
+## 四·终局：缺失清单覆盖核对（2026-10-24 交叉收尾）
+
+与 w2 板块 A-E 并行交付 + TASK067 批次 1-11 交叉核对后，上方 74 项缺失清单的终局状态：
+
+### 已并行交付（w2 板块，勿重复立项）
+
+| 功能 | 交付方 | 落点证据 |
+|------|--------|---------|
+| 用户自定义键位全链路（keybindings.json） | 板块B（PR #468） | KeybindingProfile 表驱动 + KeybindingAction 104 枚举 + meta+p/o/t 全绑定 |
+| 鼠标事件（点击/拖拽/滚轮/悬停） | 板块C（PR #474） | KeyPressParser SGR 解码含滚轮 0x40 掩码（基建C1）+ fullscreen 控制器 |
+| alt-screen 模式（DEC 1049） | 板块C（PR #474） | repl/fullscreen/AlternateScreenController + ReplShell 接线 |
+| vim 编辑模式 | 板块E（PR #479） | repl/vim/VimEngine+VimMode + ReplShell vimMode 注入 |
+| 图片粘贴全套 | 板块E（PR #479） | repl/attachments/（Detector/AttachmentList/ImageAttachment 四类） |
+| 消息选择器 rewind | 板块B/E | ReplShell rewind 语义（恢复输入+移除上屏+撤史）+ MessageSelector 键位上下文 |
+| OSC 8 超链接 | DSG043（PR #473） | LinkSpan 行级区间表 + CellDiffer hyperlinks 通道 |
+| ctrl+t todos / meta+p/o/t / ctrl+x ctrl+k 等入口键位 | 板块B | AppToggleTodos/ChatKillAgents/ChatModelPicker 等全枚举 |
+| kitty 解析侧（CSI u） | TASK066-B1 | KeyPressParser 'u' 终点分支（启用序列发码未见 — 灰度终端解析不可达时 Unknown 吞噬无害） |
+
+### TASK067 批次落地（本文档已登记）
+
+earlyInput（批3）/ stdin gap 自愈（批2）/ F1-F12 功能键（批1）/ 终端查询响应路由（批4）/ 历史携带 pastedContents（DSG045）
+
+### 登记关闭（结构性判定）
+
+无 bracketed paste 多行粘贴（7.10 — ReadKey 通道不可行待 P3）/ DECSTBM 硬件滚动（viewport 非默认路径低收益）/ 历史磁盘持久化（8.17 — transcript 派生等价）
+
+### 真实剩余（约 10 项，全低价值 — 有需要再立项）
+
+| 功能 | 价值 | 说明 |
+|------|------|------|
+| 焦点事件 DEC 1004 | 低 | 降速/通知抑制（鼠标/alt-screen 前置已就绪） |
+| transcript ctrl+e 全展开 / \`[\` dump / \`v\` 编辑器 | 低 | 阅读增强小项 |
+| rxvt/putty 修饰变体 + numpad 应用模式 | 低 | 老终端键域 |
+| promptSuggestion 空输入 AI 建议 / bash 历史 ghost | 低 | ghost 扩展 |
+| 输入模式体系（! bash 模式态） | 低 | 直通已有、模式态无 |
+| 输入超 10000 截断接线 | **中** | TruncateIfTooLong 已实现无调用点（唯一值得做的小项） |
+| softWrap 位图 / 文本选择 overlay / 搜索高亮 overlay | 低 | 纯增强 |
+| 声明式光标停靠（IME/a11y） | 低 | IME 预编辑内联 |
+| kitty 启用序列发码 | 低 | 解析已备，发码后灰度终端可达 |
+| 老终端 wcwidth 补偿 / 视口边界写保护 / 池重置 | 低 | 边缘防御 |
+
+**TASK067 正式收口（2026-10-24）**：11 批次 + 2 DSG spec + 并行覆盖矩阵，98 项差异中关闭约 88 项（12 bug + 45 批次项 + 8 并行交付项 + 3 结构性关闭 + 20 判定修正/低价值关闭），真实剩余约 10 项低价值小项。真机手动验收（ADR 0080）仍为遗留项。
+
+---
+
 ## 五、差异决策后续批次（第 4 问之后）
 
 **2026-10-23 第 4 问：产品语义类 6 项 → 全部对齐基准**，已落地（提交 b5746754f）：

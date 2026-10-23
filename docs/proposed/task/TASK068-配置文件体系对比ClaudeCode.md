@@ -134,6 +134,19 @@ CurrentSettings 49 键审计结论：**A 类活跃 16 / B 类仅 /config 读写 
 
 **C 类剩余 10 个死链键**（mcpServers、sandbox、enabledPlugins、apiKeyHelper、cleanupPeriodDays、availableModels、worktree、statusLine、actor、defaultShell）：用户决策暂不处理，保持现状。
 
+**Q1/Q3/Q5 + B 类键接线（用户决策"全部做"，2026-10-24）**：
+- Q1 收尾：删 .env 回退链 JCC_CONFIG_PATH 死分支 — 目录重定向收敛为 JCC_APP_DATA_FOLDER 单一机制（bb8a8f5fa）
+- Q3：GetManagedSettingsPath 对齐 TS managedPath.ts 三平台安全目录（Windows Program Files/jcc 写需管理员防伪造策略；rooted 透传测试隔离）+ ManagedSettingsPathTests（bb8a8f5fa）
+- Q5：SettingsEnvGuard 危险键黑名单（33 键四类攻击面：进程基础设施/动态库注入/TLS 信任/流量劫持；拒绝时四要素日志）— InjectEnvFromSettings 门控（801a73c2d）
+- B类 language：settings.current.language → WorkflowConfig.Language → SyncSystemPromptProviderOptions.LanguagePreference → LanguageSection（70df5a36e）
+- B类 showTurnDuration：默认 true 对齐 TS，SessionController 门控 timing 显示（22c67752e）
+- B类 debuglog：ConfigLoader Step2.1 三入口同效（--debuglog/JCC_DEBUGLOG/settings.debuglog）（22c67752e）
+- B类 autoCompactEnabled：默认 true，AutoCompactService.ShouldAutoCompact 首行门控（4c0a59543）
+- B类 fileCheckpointingEnabled：默认 true，FileHistoryService.BackupBeforeWriteAsync 首行门控（6e47c5fbf）
+- 结构归位（第一惯性理解）：infra.tests 18 个跨目录 Compile Include 全部物理归位 io/services/utils + 根 GlobalUsings 合并三份 + 目录命名归一小写（168538987，三项目 377+416+589 全绿）
+
+**B 类剩余 5 键列差异待决策**（需新建子系统/跨模块改造，不自行实现）：outputStyle（TS 为 ~/.claude/output-styles/ 目录 + settings 指针完整子系统，C# 仅有 Keyword 触发的两个 style section 为自创替代）、editorMode（TS vim/emacs 键位模式，C# TUI 键位系统无此概念）、autoMemoryEnabled/autoDreamEnabled（dream 模块独立 AutoDreamConfig，接通需跨模块配置桥）、modelHistory（TS 模态不匹配自动回退首选模型，C# ModalityValidationMiddleware 语义不同）。
+
 ## 验收表（四列）
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
@@ -143,3 +156,6 @@ CurrentSettings 49 键审计结论：**A 类活跃 16 / B 类仅 /config 读写 
 | 死代码批次1-4 | XdgPathResolver/ClaudeCompatConstants/AppDataPaths/SettingsJson | ✅（e6b00e89b/fe08a3fa7） | ✅（abs 697 + guard.config 1285 + host 1453 + composition 1003 全绿） |
 | SendReminderInjector | SessionController（TUI/CLI）+ ChatService（GUI）双接线 | ✅（1622020d0） | ✅（组件 9 测试 + brain.context 949 + host 1453 + NativeTui.Host 125 全绿） |
 | hooks 断链修复 | ServiceRegistration policy 源注册 + 死 DTO 删除 | ✅（e42f99e40） | ✅（HookPolicySourceRegistrationTests 2 红→绿 + guard.config 1285 + hooks 574 + agents 641 + host 1453 全绿） |
+| Q1/Q3/Q5 差异项 | .env 死分支/managed-settings 三平台/SettingsEnvGuard 黑名单 | ✅（bb8a8f5fa/801a73c2d） | ✅（ManagedSettingsPathTests + 危险键 12 Theory + guard.config 1300 全绿） |
+| B类 5 键接线 | language/showTurnDuration/debuglog/autoCompactEnabled/fileCheckpointingEnabled | ✅（70df5a36e/22c67752e/4c0a59543/6e47c5fbf） | ✅（各键红→绿测试 + brain.context 951 + guard.config 1304 + host 1455 + Infra.IO 377 全绿） |
+| 结构归位（第一惯性） | infra.tests 18 跨目录 Include → io/services/utils | ✅（168538987） | ✅（io 377 + services 416 + utils 589 全绿） |

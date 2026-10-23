@@ -48,18 +48,34 @@ public sealed class FooterBar
         _ => theme.Warning,
     };
 
-    /// <summary>行 1 左侧：模式指示（标准模式快捷键提示 / 激活模式串 + 尾缀提示）。</summary>
+    /// <summary>行 1 左侧：vim INSERT 指示（优先前置）+ 模式指示（标准模式快捷键提示 / 激活模式串 + 尾缀提示）。</summary>
     private static void RenderLeftSide(Screen screen, Rect frame, Theme theme, FooterState state)
     {
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        // TASK066 板块 E 连线 E3 — vim INSERT 指示（基准 PromptInputFooterLeftSide.tsx:170/191/216）：
+        // isVimModeEnabled() && vimMode === "INSERT" 时 dim "-- INSERT --" 置于左侧最前
+        //（gap=1 空格与模式指示并列 — ModeIndicator 本体照常渲染）；NORMAL 态 VimMode null
+        // 不渲染（零变化）；showVim 抑制标准模式 hint（:197 !suppressHint && !showVim —
+        // "? 查看快捷键"/"esc 打断" 不显示 — INSERT 态 Esc 语义已是切模式，打断提示反而误导）
+        var col = frame.X;
+        if (state.VimMode is { } vimIndicator)
+        {
+            col = screen.WriteText(frame.Y, col, vimIndicator, dim, frame.Right);
+            col = screen.WriteText(frame.Y, col, " ", dim, frame.Right);
+        }
+
         if (state.Mode == PermissionMode.Auto)
         {
-            screen.WriteText(frame.Y, frame.X, state.Busy ? "esc 打断" : "? 查看快捷键", dim, frame.Right);
+            if (state.VimMode is null)
+            {
+                screen.WriteText(frame.Y, frame.X, state.Busy ? "esc 打断" : "? 查看快捷键", dim, frame.Right);
+            }
+
             return;
         }
 
         var modeStyle = screen.Styles.GetOrAdd(new TextStyle { Foreground = PermissionModeInfo.ColorOf(state.Mode, theme) });
-        var col = screen.WriteText(frame.Y, frame.X, $"{PermissionModeInfo.Symbol(state.Mode)} {PermissionModeInfo.Title(state.Mode)} 已开启", modeStyle, frame.Right);
+        col = screen.WriteText(frame.Y, col, $"{PermissionModeInfo.Symbol(state.Mode)} {PermissionModeInfo.Title(state.Mode)} 已开启", modeStyle, frame.Right);
         col = screen.WriteText(frame.Y, col, "（shift+tab 切换）", dim, frame.Right);
         var suffix = state.Busy ? "esc 打断" : state.AgentsHint;
         if (suffix is not null)

@@ -32,6 +32,7 @@ global using NativeTui.Core.Markdown;
 global using NativeTui.Core.Repl;
 global using NativeTui.Core.Repl.Dialogs;
 global using NativeTui.Core.Repl.Input;
+global using NativeTui.Core.Repl.Attachments;
 global using NativeTui.Core.Repl.Keybindings;
 global using NativeTui.Core.Terminal;
 global using NativeTui.Markdown;

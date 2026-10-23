@@ -57,6 +57,14 @@ public sealed record FooterState
     /// <summary>Token 用量跟踪（footer 右侧 TokenWarning 渲染源 — Driver 契约
     /// <see cref="TokenUsageTracker.RecordUsage"/> 接线；null = 未接线不渲染）。</summary>
     public TokenUsageTracker? Tokens { get; init; }
+
+    /// <summary>
+    /// vim 模式指示（TASK066 板块 E 连线 E3 — 左侧 INSERT 指示渲染源）：INSERT 态 "-- INSERT --"
+    ///（dim）、NORMAL 态 null 不渲染（基准 PromptInputFooterLeftSide.tsx:170/191 —
+    /// isVimModeEnabled() &amp;&amp; vimMode === "INSERT" 才显示，NORMAL 无指示）；
+    /// null 亦涵盖 vim 关闭（构造默认 — 零渲染变化）。
+    /// </summary>
+    public string? VimMode { get; init; }
 }
 
 /// <summary>上下文余量告警级别（M8-7 — 三色形态选色键：告急 error / 警告 warning / 无 None）。</summary>

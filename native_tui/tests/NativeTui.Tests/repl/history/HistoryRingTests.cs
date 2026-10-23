@@ -59,7 +59,7 @@ public sealed class HistoryRingTests
 
         Assert.Equal(HistoryRing.Capacity, ring.Count);
         Assert.True(ring.TryUp(out var newest));
-        Assert.Equal($"cmd-{HistoryRing.Capacity + 4}", newest);
+        Assert.Equal($"cmd-{HistoryRing.Capacity + 4}", newest.Text);
         for (var i = 0; i < HistoryRing.Capacity - 1; i++)
         {
             Assert.True(ring.TryUp(out _));
@@ -76,7 +76,7 @@ public sealed class HistoryRingTests
         ring.Add("old");
         ring.Add("new");
         Assert.True(ring.TryUp(out var text));
-        Assert.Equal("new", text);
+        Assert.Equal("new", text.Text);
         Assert.Equal(1, ring.Index);
     }
 
@@ -91,9 +91,9 @@ public sealed class HistoryRingTests
         Assert.True(ring.TryUp(out var first));
         Assert.True(ring.TryUp(out var second));
         Assert.True(ring.TryUp(out var third));
-        Assert.Equal("c", first);
-        Assert.Equal("b", second);
-        Assert.Equal("a", third);
+        Assert.Equal("c", first.Text);
+        Assert.Equal("b", second.Text);
+        Assert.Equal("a", third.Text);
     }
 
     /// <summary>Up 首次离开输入框：以传入 draft 暂存。</summary>
@@ -128,8 +128,8 @@ public sealed class HistoryRingTests
         ring.TryUp(out _);
         Assert.True(ring.TryDown(out var first));
         Assert.True(ring.TryDown(out var second));
-        Assert.Equal("b", first);
-        Assert.Equal("draft", second);
+        Assert.Equal("b", first.Text);
+        Assert.Equal("draft", second.Text);
         Assert.Equal(0, ring.Index);
     }
 
@@ -141,7 +141,7 @@ public sealed class HistoryRingTests
         ring.Add("hist");
         ring.TryUp(out _, "draft");
         Assert.True(ring.TryDown(out var draft));
-        Assert.Equal("draft", draft);
+        Assert.Equal("draft", draft.Text);
         Assert.Equal(0, ring.Index);
     }
 
@@ -153,7 +153,7 @@ public sealed class HistoryRingTests
         ring.Add("hist");
         ring.TryUp(out _);
         Assert.True(ring.TryDown(out var draft));
-        Assert.Equal(string.Empty, draft);
+        Assert.Equal(string.Empty, draft.Text);
     }
 
     /// <summary>Down 已在输入框（index 0）：返回 false。</summary>
@@ -187,11 +187,11 @@ public sealed class HistoryRingTests
         ring.Add("live");
         Assert.Equal(3, ring.Count);
         Assert.True(ring.TryUp(out var newest));
-        Assert.Equal("live", newest);
+        Assert.Equal("live", newest.Text);
         Assert.True(ring.TryUp(out var second));
-        Assert.Equal("new-seed", second);
+        Assert.Equal("new-seed", second.Text);
         Assert.True(ring.TryUp(out var third));
-        Assert.Equal("old-seed", third);
+        Assert.Equal("old-seed", third.Text);
     }
 
     /// <summary>Seed 超容量：同 Add 淘汰语义。</summary>
@@ -203,7 +203,33 @@ public sealed class HistoryRingTests
         ring.Seed(entries);
         Assert.Equal(HistoryRing.Capacity, ring.Count);
         Assert.True(ring.TryUp(out var newest));
-        Assert.Equal($"s-{HistoryRing.Capacity + 9}", newest);
+        Assert.Equal($"s-{HistoryRing.Capacity + 9}", newest.Text);
+    }
+
+    /// <summary>历史条目携带 pastedContents（DSG045 批1 — 基准 HistoryEntry.pastedContents）：
+    /// Add(text, pasted) 入史 → TryUp 恢复时登记随条目返回。</summary>
+    [Fact]
+    public void AddWithPasted_TryUpReturnsEntryWithContents()
+    {
+        var ring = new HistoryRing();
+        ring.Add("plain");
+        ring.Add("see [Pasted text #1]", new Dictionary<int, string> { [1] = "pasted-body" });
+
+        Assert.True(ring.TryUp(out var entry));
+        Assert.Equal("see [Pasted text #1]", entry.Text);
+        Assert.NotNull(entry.PastedContents);
+        Assert.Equal("pasted-body", entry.PastedContents![1]);
+    }
+
+    /// <summary>旧签名 Add(text) 兼容 — PastedContents 为 null（无粘贴条目）。</summary>
+    [Fact]
+    public void AddPlainText_PastedContentsNull()
+    {
+        var ring = new HistoryRing();
+        ring.Add("plain");
+
+        Assert.True(ring.TryUp(out var entry));
+        Assert.Null(entry.PastedContents);
     }
 
     /// <summary>草稿仅在首次离开输入框捕获：翻历史中途草稿不变（后续 draft 参数忽略）。</summary>

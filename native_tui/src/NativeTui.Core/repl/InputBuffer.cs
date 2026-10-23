@@ -354,6 +354,21 @@ public sealed partial class InputBuffer
         _pasteTracker.Clear();
     }
 
+    /// <summary>当前粘贴登记快照（DSG045 — 提交入史携带：Clear 前由调用方取）。</summary>
+    public IReadOnlyDictionary<int, string> PastedSnapshot => _pasteTracker.Snapshot;
+
+    /// <summary>全量替换文本 + 注入历史粘贴登记（DSG045 — 历史导航恢复回放：
+    /// 文本与登记同步恢复，提交时 ExpandedText 用恢复后登记展开回原文；pasted=null 等价普通 Replace）。</summary>
+    public void ReplaceWithPasted(string text, IReadOnlyDictionary<int, string>? pasted, bool cursorToStart = false)
+    {
+        PushUndoSnapshot();
+        BeginEditText();
+        _text.Clear();
+        _text.Append(text);
+        CursorCol = cursorToStart ? 0 : text.Length;
+        _pasteTracker.LoadPasted(pasted);
+    }
+
     /// <summary>全量替换文本（历史导航/补全接受用）— cursorToStart=true 光标置行首（基准历史导航语义），否则置末尾。</summary>
     public void Replace(string text, bool cursorToStart = false)
     {
@@ -381,6 +396,9 @@ public sealed partial class InputBuffer
     /// </summary>
     public void Paste(string rawText, int maxVisibleLines = PastedContentTracker.DefaultMaxVisibleLines)
     {
+        // DSG045 批2 — 快照须捕获粘贴前登记（登记动作先于 InsertText 的 Push 会污染快照）；
+        // 先显式压栈（同 Text 去重使 InsertText 内的 Push 合并，栈内快照登记=粘贴前状态）
+        PushUndoSnapshot();
         InsertText(_pasteTracker.RegisterPaste(rawText, maxVisibleLines));
     }
 
@@ -514,6 +532,7 @@ public sealed partial class InputBuffer
         _text.Clear();
         _text.Append(restore!.Value.Text);
         CursorCol = Math.Min(restore.Value.CursorCol, restore.Value.Text.Length);
+        _pasteTracker.LoadPasted(restore.Value.PastedContents);
         return true;
     }
 
@@ -617,8 +636,9 @@ public sealed partial class InputBuffer
     }
 
     /// <summary>undo 快照 — 编辑前文本与光标 + 防抖分组桶（8.20 — 基准 useInputBuffer
-    /// debounceMs=1000：1s 内连续编辑归同组，Undo 一次回退整组）。</summary>
-    private readonly record struct UndoSnapshot(string Text, int CursorCol, long GroupBucket);
+    /// debounceMs=1000：1s 内连续编辑归同组，Undo 一次回退整组）+ 粘贴登记快照
+    ///（DSG045 批2 — 基准 useInputBuffer 快照含 pastedContents：undo 回退登记同步回退）。</summary>
+    private readonly record struct UndoSnapshot(string Text, int CursorCol, long GroupBucket, IReadOnlyDictionary<int, string> PastedContents);
 
     /// <summary>undo 防抖分组窗口（ms — 基准 useInputBuffer debounceMs）。</summary>
     private const long UndoDebounceMs = 1000;
@@ -641,7 +661,7 @@ public sealed partial class InputBuffer
             bucket = _undoStack[^1].GroupBucket + 1;
         }
 
-        _undoStack.Add(new UndoSnapshot(text, CursorCol, bucket));
+        _undoStack.Add(new UndoSnapshot(text, CursorCol, bucket, _pasteTracker.Snapshot));
         if (_undoStack.Count > UndoCapacity)
         {
             _undoStack.RemoveAt(0);

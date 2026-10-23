@@ -104,7 +104,7 @@ public sealed class ExitSafetyTests
 
         Assert.Equal(string.Empty, shell.View.Input);
         Assert.True(shell.IsRunning);
-        Assert.Contains("ab", shell.History.Entries);
+        Assert.Contains("ab", shell.History.EntryTexts);
     }
 
     // ---- Ctrl+C 打断/退出（基准 defaultBindings.ts:40 'ctrl+c': app:interrupt + useTextInput 双击退出） ----

@@ -64,14 +64,9 @@ public sealed class ReadKeyPump : IInputPump
             return false;
         }
 
-        // 内容收集（终止标记未完整到达 = 流中断/误撞，整体放弃吞掉防泄漏为文本；空粘贴同判 false = 无操作）
-        var body = CollectPasteBody();
-        if (body.Length == 0)
-        {
-            return false;
-        }
-
-        content = body;
+        // 内容收集（2.7 — 空粘贴也恒产出空 Paste 事件，对齐基准
+        /// "Always emit a paste key, even for empty pastes"；流中断/终止标记丢失已有内容仍产出 — 批5 语义）
+        content = CollectPasteBody();
         return true;
     }
 

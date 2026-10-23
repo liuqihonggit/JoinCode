@@ -158,7 +158,7 @@ public sealed class ReplShellTests
         shell.HandleEscape();
         Assert.True(shell.Running);
         Assert.Equal(string.Empty, shell.Input.Text);
-        Assert.Contains("draft", shell.History.Entries);
+        Assert.Contains("draft", shell.History.EntryTexts);
     }
 
     /// <summary>Esc 闲时无输入：永不退出（TASK059 退出安全 — 退出路径只剩 Ctrl+D 与 /exit 命令）。</summary>

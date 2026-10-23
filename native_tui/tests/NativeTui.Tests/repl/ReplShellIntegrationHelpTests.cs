@@ -93,9 +93,10 @@ public sealed class ReplShellIntegrationHelpTests
         Assert.Equal("a?", shell.Input.Text);
     }
 
-    /// <summary>忙时 '?' — 空闲态门槛拦截（不打开面板，字符进输入框）。</summary>
+    /// <summary>忙时 '?' 也可打开帮助（4.18 对齐基准 — PromptInput.tsx:855 任何时刻 toggle；
+    /// 旧"忙时不可开"锁定推翻）。</summary>
     [Fact]
-    public void Help_WhileBusy_DoesNotOpen()
+    public void Help_WhileBusy_OpensPanel()
     {
         var (shell, engine) = CreateShell();
         engine.Events.Enqueue(new BridgeEvent.TurnStarted());
@@ -103,8 +104,8 @@ public sealed class ReplShellIntegrationHelpTests
 
         Question(shell);
 
-        Assert.False(shell.IsHelpOpen);
-        Assert.Equal("?", shell.Input.Text);
+        Assert.True(shell.IsHelpOpen);
+        Assert.Equal(string.Empty, shell.Input.Text);
     }
 
     /// <summary>渲染高度链 — 面板打开时 TailHeight 增加面板行数（退出清理面覆盖帮助区）。</summary>

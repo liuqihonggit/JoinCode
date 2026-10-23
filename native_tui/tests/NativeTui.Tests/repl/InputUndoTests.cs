@@ -53,12 +53,17 @@ public sealed class InputUndoTests
     [Fact]
     public void MultipleEdits_UndoStepByStepInReverseOrder()
     {
+        var clock = 10_000L;
         var buffer = new InputBuffer();
+        buffer.UndoClock = () => clock;
         buffer.Insert('a');
+        clock += 2000;
         buffer.Insert('b');
+        clock += 2000;
         buffer.Insert('c');
         Assert.Equal("abc", buffer.Text);
 
+        // 跨桶三组 — 逐组回退（8.20 防抖分组语义：同桶编辑一键回退整组）
         buffer.Undo();
         Assert.Equal("ab", buffer.Text);
         buffer.Undo();
@@ -112,10 +117,13 @@ public sealed class InputUndoTests
     [Fact]
     public void UndoStack_CappedAt100_EvictsOldest()
     {
+        var clock = 10_000L;
         var buffer = new InputBuffer();
+        buffer.UndoClock = () => clock;
         for (var i = 0; i < 150; i++)
         {
             buffer.Insert('x');
+            clock += 2000;
         }
 
         Assert.Equal(150, buffer.Text.Length);
@@ -125,6 +133,7 @@ public sealed class InputUndoTests
             undone++;
         }
 
+        // 跨桶 150 组 → 容量 100 淘汰最旧 50 组 → 可回退 100 组（8.20 分组语义下栈上限仍 100 快照）
         Assert.Equal(100, undone);
         Assert.Equal(50, buffer.Text.Length);
     }
@@ -192,9 +201,13 @@ public sealed class InputUndoTests
     [Fact]
     public void Undo_CursorClampedToRestoredTextLength()
     {
+        var clock = 10_000L;
         var buffer = new InputBuffer();
+        buffer.UndoClock = () => clock;
         buffer.Insert('a');
+        clock += 2000;
         buffer.Insert('b');
+        clock += 2000;
         buffer.Insert('c');
 
         buffer.Undo();

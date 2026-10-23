@@ -8,7 +8,7 @@ namespace NativeTui.Core.Repl;
 /// 粘贴：Paste 入口经 PastedContentTracker 清洗+折叠登记（显示 [Pasted text #N]，提交取 ExpandedText 全文）。
 /// undo：结构性编辑前压快照栈（容量 100，相同文本去重），Undo 弹栈恢复文本与光标（基准 ctrl+_/ctrl+shift+-）。
 /// </summary>
-public sealed class InputBuffer
+public sealed partial class InputBuffer
 {
     /// <summary>undo 快照栈容量（超容量淘汰最旧）。</summary>
     private const int UndoCapacity = 100;
@@ -104,7 +104,9 @@ public sealed class InputBuffer
 
     /// <summary>删除光标前字符（光标 0 时无操作）— 行首时删除前一行的换行符（合并两行）；
     /// grapheme 语义（DSG044 L2）：删光标前完整 cluster（emoji 代理对/ZWJ 链/组合符附加一次删整块，
-    /// 不留半代理对 — 对齐基准 deleteTokenBefore 的 grapheme 边界）。</summary>
+    /// 不留半代理对 — 对齐基准 deleteTokenBefore 的 grapheme 边界）；
+    /// chip 整删（8.16 — 基准 deleteTokenBefore）：光标紧邻 [Pasted text #N…]/[Image #N] 折叠引用
+    /// 之后时一次退格删整块引用（逐字符删 15+ 次不可用）。</summary>
     public void Backspace()
     {
         BeginEditText();
@@ -113,11 +115,44 @@ public sealed class InputBuffer
             return;
         }
 
+        var chipStart = FindChipStartBeforeCursor();
+        if (chipStart >= 0)
+        {
+            PushUndoSnapshot();
+            _text.Remove(chipStart, CursorCol - chipStart);
+            CursorCol = chipStart;
+            return;
+        }
+
         PushUndoSnapshot();
         var start = PreviousGraphemeStart(CursorCol);
         _text.Remove(start, CursorCol - start);
         CursorCol = start;
     }
+
+    /// <summary>光标前的完整折叠引用 chip 起点（[Pasted text #N…]/[Image #N] — 右边界必须紧贴
+    /// 光标才算整删目标；未匹配返回 -1）。</summary>
+    private int FindChipStartBeforeCursor()
+    {
+        var text = _text.ToString();
+        if (CursorCol < 2 || text[CursorCol - 1] != ']')
+        {
+            return -1;
+        }
+
+        var open = text.LastIndexOf('[', CursorCol - 2);
+        if (open < 0)
+        {
+            return -1;
+        }
+
+        var chip = text.AsSpan(open, CursorCol - open);
+        return ChipPattern().IsMatch(chip) ? open : -1;
+    }
+
+    /// <summary>折叠引用 chip 模式（基准 deleteTokenBefore token 形态 — 行内可带 +M lines 尾缀）。</summary>
+    [GeneratedRegex(@"^\[(?:Pasted text|Image) #\d+(?: \+\d+ lines)?\]$")]
+    private static partial Regex ChipPattern();
 
     /// <summary>删除光标处字符（光标在末尾时无操作）。</summary>
     public void Delete()
@@ -458,7 +493,8 @@ public sealed class InputBuffer
         return true;
     }
 
-    /// <summary>undo（ctrl+_/ctrl+shift+-）— 弹出最近快照恢复文本与光标；栈空返回 false。</summary>
+    /// <summary>undo（ctrl+_/ctrl+shift+-）— 防抖分组回退（8.20 — 基准 useInputBuffer 防抖
+    /// 快照形态：弹出当前组全部快照恢复组前文本与光标）；栈空返回 false。</summary>
     public bool Undo()
     {
         if (_undoStack.Count == 0)
@@ -466,12 +502,18 @@ public sealed class InputBuffer
             return false;
         }
 
-        var snapshot = _undoStack[^1];
-        _undoStack.RemoveAt(_undoStack.Count - 1);
+        var group = _undoStack[^1].GroupBucket;
+        UndoSnapshot? restore = null;
+        while (_undoStack.Count > 0 && _undoStack[^1].GroupBucket == group)
+        {
+            restore = _undoStack[^1];
+            _undoStack.RemoveAt(_undoStack.Count - 1);
+        }
+
         BeginEditText();
         _text.Clear();
-        _text.Append(snapshot.Text);
-        CursorCol = Math.Min(snapshot.CursorCol, snapshot.Text.Length);
+        _text.Append(restore!.Value.Text);
+        CursorCol = Math.Min(restore.Value.CursorCol, restore.Value.Text.Length);
         return true;
     }
 
@@ -574,7 +616,16 @@ public sealed class InputBuffer
         CursorCol += text.Length;
     }
 
-    /// <summary>结构性编辑前压快照（基准 pushToBuffer）— 相同文本去重，超容量淘汰最旧。</summary>
+    /// <summary>undo 快照 — 编辑前文本与光标 + 防抖分组桶（8.20 — 基准 useInputBuffer
+    /// debounceMs=1000：1s 内连续编辑归同组，Undo 一次回退整组）。</summary>
+    private readonly record struct UndoSnapshot(string Text, int CursorCol, long GroupBucket);
+
+    /// <summary>undo 防抖分组窗口（ms — 基准 useInputBuffer debounceMs）。</summary>
+    private const long UndoDebounceMs = 1000;
+
+    /// <summary>undo 时钟源（internal — 测试注入可控时间戳；默认墙钟）。</summary>
+    internal Func<long> UndoClock { get; set; } = static () => Environment.TickCount64;
+
     private void PushUndoSnapshot()
     {
         var text = Text;
@@ -583,7 +634,14 @@ public sealed class InputBuffer
             return;
         }
 
-        _undoStack.Add(new UndoSnapshot(text, CursorCol));
+        var bucket = UndoClock() / UndoDebounceMs;
+        // 组断点：新桶或距上一快照 > 1 个桶（中途暂停后恢复编辑开新组）
+        if (_undoStack.Count > 0 && bucket - _undoStack[^1].GroupBucket > 1)
+        {
+            bucket = _undoStack[^1].GroupBucket + 1;
+        }
+
+        _undoStack.Add(new UndoSnapshot(text, CursorCol, bucket));
         if (_undoStack.Count > UndoCapacity)
         {
             _undoStack.RemoveAt(0);
@@ -598,7 +656,9 @@ public sealed class InputBuffer
     }
 
     /// <summary>词字符判定 — 字母/数字（对齐 Intl.Segmenter word-like 近似）。</summary>
-    private static bool IsWordChar(char c) => char.IsLetterOrDigit(c);
+    /// <summary>词字符判定（8.14 — 基准 Intl.Segmenter word 粒度近似）：字母数字 +
+    /// 下划线/连字符/撇号（snake_case/kebab-case/don't 整词 — IDE 惯例并词）。</summary>
+    private static bool IsWordChar(char c) => char.IsLetterOrDigit(c) || c is '_' or '-' or '\'';
 
     /// <summary>CJK 宽词字符 — 单字自成一词（对齐 Intl.Segmenter 对 CJK 的逐字切分）。</summary>
     private static bool IsWideWordChar(char c) =>
@@ -650,7 +710,4 @@ public sealed class InputBuffer
 
         return pos;
     }
-
-    /// <summary>undo 快照 — 编辑前文本与光标（record 值相等比较用于去重）。</summary>
-    private readonly record struct UndoSnapshot(string Text, int CursorCol);
 }

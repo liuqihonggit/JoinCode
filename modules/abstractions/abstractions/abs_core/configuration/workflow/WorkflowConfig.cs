@@ -94,6 +94,12 @@ public sealed record WorkflowConfig {
     public bool ShowTurnDuration { get; init; } = true;
 
     /// <summary>
+    /// 自动压缩开关 — 对齐 TS autoCompactEnabled（默认 true）；
+    /// AutoCompactService.ShouldAutoCompact 门控（false 时即使超硬阈值也不触发）
+    /// </summary>
+    public bool AutoCompactEnabled { get; init; } = true;
+
+    /// <summary>
     /// LLM 执行参数配置（Temperature, MaxTokens, TopP 等）
     /// </summary>
     public LlmExecutionSettings LlmExecution { get; init; } = new();

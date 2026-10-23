@@ -20,14 +20,19 @@ public sealed partial class AutoCompactService : ServiceEntity, ICompactService 
     /// <param name="compactPipeline">压缩中间件管道</param>
     /// <param name="microcompactService">微压缩服务，用于 token 估算</param>
     /// <param name="thresholds">可选阈值配置，null 时使用默认配置</param>
+    /// <param name="workflowConfig">可选工作流配置，AutoCompactEnabled=false 时抑制自动压缩（对齐 TS autoCompactEnabled，默认 true）</param>
     public AutoCompactService(
         MiddlewarePipeline<CompactContext> compactPipeline,
         IMicrocompactService microcompactService,
-        IOptions<CompactThresholds>? thresholds = null) {
+        IOptions<CompactThresholds>? thresholds = null,
+        WorkflowConfig? workflowConfig = null) {
         _compactPipeline = compactPipeline ?? throw new ArgumentNullException(nameof(compactPipeline));
         _thresholds = thresholds?.Value ?? CompactThresholds.Default;
         _microcompactService = microcompactService;
+        _autoCompactEnabled = workflowConfig?.AutoCompactEnabled ?? true;
     }
+
+    private readonly bool _autoCompactEnabled;
 
     /// <summary>
     /// 执行自动压缩 — 通过中间件管道调度压缩策略
@@ -153,6 +158,10 @@ public sealed partial class AutoCompactService : ServiceEntity, ICompactService 
     /// <param name="contextWindowTokens">上下文窗口大小</param>
     /// <returns>应触发返回 true；连续失败超限或未达阈值时返回 false</returns>
     public bool ShouldAutoCompact(int currentTokenCount, int contextWindowTokens) {
+        if (!_autoCompactEnabled) {
+            return false;
+        }
+
         if (_consecutiveFailures >= _thresholds.MaxConsecutiveAutoCompactFailures) {
             return false;
         }

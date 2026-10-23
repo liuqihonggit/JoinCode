@@ -122,6 +122,32 @@ public sealed class AutoCompactSoftThresholdTests {
         sut.ShouldSoftCompactNotice(100_000, contextWindow).Should().BeTrue("notice again after reset");
     }
 
+    /// <summary>autoCompactEnabled=false（对齐 TS GlobalConfig.autoCompactEnabled）抑制自动压缩 — 即使超硬阈值。</summary>
+    [Fact]
+    public async Task ShouldAutoCompact_AutoCompactEnabledFalse_AlwaysReturnsFalse() {
+        await using var sut = new AutoCompactService(
+            new MiddlewarePipeline<CompactContext>([]),
+            new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance),
+            Options.Create(new CompactThresholds()),
+            new WorkflowConfig { AutoCompactEnabled = false });
+
+        var contextWindow = 200_000;
+        var hardThreshold = contextWindow - new CompactThresholds().AutoCompactBufferTokens;
+
+        sut.ShouldAutoCompact(hardThreshold, contextWindow).Should().BeFalse("autoCompactEnabled=false 应抑制自动压缩");
+        sut.ShouldAutoCompact(contextWindow, contextWindow).Should().BeFalse("满窗口也不触发");
+    }
+
+    /// <summary>autoCompactEnabled 默认 null → true（对齐 TS 默认）。</summary>
+    [Fact]
+    public async Task ShouldAutoCompact_NoWorkflowConfig_DefaultsToEnabled() {
+        await using var sut = CreateSut();
+        var contextWindow = 200_000;
+        var hardThreshold = contextWindow - new CompactThresholds().AutoCompactBufferTokens;
+
+        sut.ShouldAutoCompact(hardThreshold, contextWindow).Should().BeTrue("默认 autoCompactEnabled=true 保持现有行为");
+    }
+
     private static AutoCompactService CreateSut(double? softCompactRatio = null) {
         var thresholds = new CompactThresholds();
         if (softCompactRatio.HasValue) {

@@ -340,9 +340,10 @@ public sealed partial class CurrentSettings {
     public SearchScopeSettings? SearchScope { get; init; }
 
     /// <summary>
-    /// 模型选择历史 — 按最近使用排序，用于模态不匹配时自动切换的首选依据。
-    /// 每次用户切换模型时，将模型ID追加到列表头部（去重），最多保留20条。
-    /// 格式: ["gpt-5.6-terra", "deepseek-r1", ...]
+    /// 模型选择历史 — LRU 逗号串（最新在前），C# 自有功能（TS 基准无对应键）。
+    /// 消费方：TUI ModelPicker 清单最近使用置顶排序（ModelPickerAssembly.SortByHistory）；
+    /// 写入方：/model 命令（ModelCommand.RecordModelHistoryAsync）+ 模型选择器（同款 LRU 头插去重 20 条上限）。
+    /// 格式: "gpt-5.6-terra,deepseek-r1,..."
     /// </summary>
     [JsonPropertyName("modelHistory")]
     [SettingsProperty(SettingsMergeStrategy.ListConcatDistinct)]

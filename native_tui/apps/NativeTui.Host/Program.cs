@@ -318,7 +318,13 @@ public static class Program {
                         id => {
                             ModelPickerAssembly.ApplyModel(session.Services, id);
                             session.RefreshSessionInfo();
-                        }),
+                        },
+                        // TASK066 D5 — effort 通道接入引擎现有链（唯一数据源）：
+                        // 会话档位种子投影（IExecutionSettingsProvider.EffortLevel，Auto → null）+
+                        // 确认应用（执行设置写入 + settings.json 持久化 + max 降级 — 模型回调先行，
+                        // effort 应用时 PrimaryModelId 已为确认选中的新模型）
+                        () => ModelPickerAssembly.LoadEffortConfig(session.Services),
+                        level => ModelPickerAssembly.ApplyEffort(session.Services, level)),
                     "/vendor",
                     "供应商",
                     () => VendorPickerAssembly.LoadItems(session.Services),
@@ -399,7 +405,13 @@ public static class Program {
                     alternateScreen: new AlternateScreenController(tuiOutput.Write),
                     // TASK066 板块C — 选中即复制（Release 后 settled 选区 → 引擎剪贴板服务，
                     // 复用 clipboard 同源注入；选区纯空白跳过在 Core 层守卫）
-                    copySelection: text => _ = clipboardService?.SetTextAsync(text));
+                    copySelection: text => _ = clipboardService?.SetTextAsync(text),
+                    // TASK066 板块D — 空闲返回阈值（基准 CLAUDE_CODE_IDLE_THRESHOLD_MINUTES
+                    // 环境变量覆盖，默认 75min — Core 不读 env 由宿主读传入）
+                    idleReturnThresholdMinutes: int.TryParse(
+                        Environment.GetEnvironmentVariable("CLAUDE_CODE_IDLE_THRESHOLD_MINUTES"), out var idleMin) && idleMin > 0
+                        ? idleMin
+                        : null);
                 pickerEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);

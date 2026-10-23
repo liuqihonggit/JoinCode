@@ -357,6 +357,26 @@ public static class MessageRenderer
         screen.WriteText(frame.Y, frame.X, $" {shortcuts}", dim, frame.Right);
     }
 
+    /// <summary>渲染模型选择器 effort 行（TASK066 D5 — 基准 ModelPicker.tsx:328 支持分支）：
+    /// 1 缩进整行 dim（基准外层 Text dimColor），"○/◐/●/◉ Low|Medium|High|Max effort" +
+    /// 默认档尾缀 " (default)"（基准 displayEffort === focusedDefaultEffort）+ " ← → to adjust" 调节提示。</summary>
+    public static void RenderModelEffortRow(Screen screen, Rect frame, Theme theme, PickerEffortLevel level, bool isDefault)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var defaultSuffix = isDefault ? " (default)" : string.Empty;
+        screen.WriteText(frame.Y, frame.X, $" {level.ToSymbol()} {level.ToDisplayName()} effort{defaultSuffix} ← → to adjust", dim, frame.Right);
+    }
+
+    /// <summary>渲染模型选择器 effort 不支持行（TASK066 D5 — 基准 ModelPicker.tsx:328 else 分支）：
+    /// 1 缩进整行 dim（基准 subtle 色），"○ Effort not supported for {焦点模型名}"
+    ///（基准 EffortLevelIndicator effort=undefined → low 符号 ○；模型名缺省省略 for 短语）。</summary>
+    public static void RenderModelEffortUnsupportedRow(Screen screen, Rect frame, Theme theme, string? focusedModelName)
+    {
+        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+        var forSuffix = string.IsNullOrEmpty(focusedModelName) ? string.Empty : $" for {focusedModelName}";
+        screen.WriteText(frame.Y, frame.X, $" {PickerEffortLevel.Low.ToSymbol()} Effort not supported{forSuffix}", dim, frame.Right);
+    }
+
     /// <summary>
     /// 渲染子代理组头行（M7-7，基准 ToolUseLoader + useBlink）：
     /// ● + 空格 + 文案（"Running N {type} agents…" / "N {type} agents finished"）。

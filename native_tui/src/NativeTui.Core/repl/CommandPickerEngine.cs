@@ -6,13 +6,18 @@ namespace NativeTui.Core.Repl;
 /// 选中后回调宿主 applyItem 执行切换（宿主直调引擎服务，不经 slash 命令系统）+ PostInfo 反馈。
 /// 组装：宿主先构造装饰器 → new ReplShell(装饰器) → 装饰器.Attach(shell)（延迟绑定，
 /// 对齐 Host controller ??= 先例避免构造循环依赖）。可叠层装饰（vendor 外层包 model 内层）。
+/// TASK066 D5 — effortConfigProvider/applyEffort 可选注入（/model 专属，vendor 默认 null 不启用）：
+/// 打开选择器时投影会话 effort 配置（引擎 IExecutionSettingsProvider.EffortLevel 种子），
+/// 确认时切换档位回调宿主直调引擎执行设置 + 持久化（对齐 ModelCommand.PersistPickerEffortAsync 先例）。
 /// </summary>
 public sealed class CommandPickerEngine(
     IReplEngine inner,
     string command,
     string switchedNoun,
     Func<IReadOnlyList<ModelPickerItem>> listProvider,
-    Action<string> applyItem) : IReplEngine
+    Action<string> applyItem,
+    Func<PickerEffortConfig?>? effortConfigProvider = null,
+    Action<PickerEffortLevel>? applyEffort = null) : IReplEngine
 {
     /// <summary>外壳（延迟绑定 — Attach 注入）。</summary>
     private ReplShell? _shell;
@@ -32,13 +37,24 @@ public sealed class CommandPickerEngine(
         }
     }
 
-    /// <summary>提交 — 目标命令拦截打开选择器（清单经 listProvider 从引擎投影）；其余透传。</summary>
+    /// <summary>提交 — 目标命令拦截打开选择器（清单经 listProvider 从引擎投影）；其余透传。
+    /// TASK066 D5 — effort 配置/应用回调同步注入（provider null 时选择器不启用 effort 区）。</summary>
     public void Submit(string text)
     {
         if (_shell is not null && text.Trim() == command)
         {
             var items = listProvider();
-            _shell.BeginModelPicker(items, id => OnSelected(id, items), Title, Subtitle);
+            Action<PickerEffortLevel?>? onEffortApplied = applyEffort is null
+                ? null
+                : effort =>
+                {
+                    // null = Esc 取消/未切换/模型不支持 — 不回调（对齐基准 onSelect 第二参非 null 才传）
+                    if (effort is { } level)
+                    {
+                        applyEffort(level);
+                    }
+                };
+            _shell.BeginModelPicker(items, id => OnSelected(id, items), Title, Subtitle, effortConfigProvider?.Invoke(), onEffortApplied);
             return;
         }
 

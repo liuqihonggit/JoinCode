@@ -661,15 +661,21 @@ public static class SettingsLoader {
     }
 
     /// <summary>
-    /// 获取策略设置路径（管理员强制）
-    /// Windows: C:\ProgramData\jcc\managed-settings.json
-    /// 对齐 TS 版: Windows 下 C:\Program Files\ClaudeCode\managed-settings.json
+    /// 获取策略设置路径（管理员强制）— 对齐 TS managedPath.ts 分平台安全目录：
+    /// Windows C:\Program Files\jcc\（写需管理员，防普通用户进程伪造策略）、
+    /// macOS /Library/Application Support/jcc/、Linux /etc/jcc/。
+    /// AppDataFolder 为绝对路径时透传（测试隔离约定，与三层 settings 解析一致）。
     /// </summary>
     public static string GetManagedSettingsPath() {
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-            AppDataConstants.AppDataFolder,
-            "managed-settings.json");
+        if (Path.IsPathRooted(AppDataConstants.AppDataFolder))
+            return Path.Combine(AppDataConstants.AppDataFolder, "managed-settings.json");
+
+        var managedDir = OperatingSystem.IsWindows()
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), BrandConstants.CliCommandName)
+            : OperatingSystem.IsMacOS()
+                ? $"/Library/Application Support/{BrandConstants.CliCommandName}"
+                : $"/etc/{BrandConstants.CliCommandName}";
+        return Path.Combine(managedDir, "managed-settings.json");
     }
 
     #endregion

@@ -167,20 +167,15 @@ public sealed class EngineApplicationBuilder {
     }
 
     private static string? FindDotEnvPath() {
-        // 1. JCC_CONFIG_PATH 环境变量 — 用户自定义配置路径
-        var customPath = Environment.GetEnvironmentVariable("JCC_CONFIG_PATH");
-        if (!string.IsNullOrEmpty(customPath) && System.IO.File.Exists(customPath))
-            return customPath;
-
-        // 2. 当前工作目录 — 用户从任意目录运行 jcc 时查找
+        // 1. 当前工作目录 — 用户从任意目录运行 jcc 时查找
         var cwdPath = System.IO.Path.Combine(Environment.CurrentDirectory, ".env", "api.json");
         if (System.IO.File.Exists(cwdPath)) return cwdPath;
 
-        // 3. 项目级 .jcc 目录 — Release 部署场景
+        // 2. 项目级 .jcc 目录 — Release 部署场景
         var envPath = System.IO.Path.Combine(AppDataConstants.Paths.DotEnvDirectory, "api.json");
         if (System.IO.File.Exists(envPath)) return envPath;
 
-        // 4. 开发环境回退 — 从 bin/Release/net10.0 向上 5 级到项目根
+        // 3. 开发环境回退 — 从 bin/Release/net10.0 向上 5 级到项目根
         var projectRoot = System.IO.Path.GetFullPath(
             System.IO.Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".env", "api.json"));
         if (System.IO.File.Exists(projectRoot)) return projectRoot;

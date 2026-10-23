@@ -100,7 +100,11 @@ public sealed class EngineSession : IAsyncDisposable {
                     return RunTurnAsync(controller, input, turnCt);
                 },
                 BuildPermissionModeApplier(checker),
-                backgroundPump);
+                backgroundPump,
+                // G3 D8 — 新会话启动器绑定引擎真实 API：IChatService.ClearHistoryAsync（IChatService.cs:23，
+                // 与引擎 /clear 斜杠命令 ClearCommand.ExecuteAsync 同一落点 — 清对话上下文即 D8 Clear 语义）；
+                // EngineTurnClient 在下回合执行器前串行等待完成（防清历史与回合读上下文竞态）
+                () => engine.ChatService.ClearHistoryAsync(CancellationToken.None));
 
             if (backgroundPump is not null) {
                 backgroundPump.Bind(client.Consumer);

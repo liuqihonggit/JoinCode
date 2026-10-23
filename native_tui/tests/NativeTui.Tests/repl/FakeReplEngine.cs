@@ -12,6 +12,15 @@ internal sealed class FakeReplEngine : IReplEngine
     /// <summary>收到的权限模式。</summary>
     public List<string> PermissionModes { get; } = [];
 
+    /// <summary>收到的新会话次数（G3 — StartNewConversation 调用计数）。</summary>
+    public int NewConversations;
+
+    /// <summary>收到的带附件提交（G3 图片重载 — 每项 = (提交文本, 附件数)；单参提交不进此列表）。</summary>
+    public List<(string Text, int Images)> SubmitsWithImages { get; } = [];
+
+    /// <summary>收到的图片附件快照（G3 图片重载 — 每次 Submit 重载的附件列表原样记录，供 bridge DTO 字段断言）。</summary>
+    public List<IReadOnlyList<BridgeImageAttachment>> SubmittedImages { get; } = [];
+
     /// <summary>待排空事件队列（DrainEvents 一次清空）。</summary>
     public Queue<BridgeEvent> Events { get; } = new();
 
@@ -20,6 +29,18 @@ internal sealed class FakeReplEngine : IReplEngine
 
     /// <summary>记录提交。</summary>
     public void Submit(string text) => Submits.Add(text);
+
+    /// <summary>记录带附件提交（G3 图片重载 — 三面记录：SubmitsWithImages 文本+计数、
+    /// SubmittedImages 附件本体、转调单参共用 Submits）。</summary>
+    public void Submit(string text, IReadOnlyList<BridgeImageAttachment>? images)
+    {
+        SubmitsWithImages.Add((text, images?.Count ?? 0));
+        SubmittedImages.Add(images ?? []);
+        Submit(text);
+    }
+
+    /// <summary>记录新会话请求（G3 — D8 Clear 引擎调用断言面）。</summary>
+    public void StartNewConversation() => NewConversations++;
 
     /// <summary>记录打断。</summary>
     public void Interrupt() => Interrupts++;

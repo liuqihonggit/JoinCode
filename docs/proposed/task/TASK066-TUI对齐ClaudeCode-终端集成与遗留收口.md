@@ -290,6 +290,29 @@
 - 基准核实：gutter 单列非双列（color-diff L877-895）；删除行不高亮；语法前景+diff 背景正交叠加；塌缩= isFullscreen&&rows<24 塌 StatusLine（inline 门控防误塌）；lastToolInfo 在 AgentTool/UI 非 Spinner.tsx；overscan=80（useVirtualScroll.ts:24）
 - 提交链：F1+F3+F4+F6 单批提交
 
-### 其他板块
+### 板块 G — 跨板块收口（2026-10-23 G2/G3/G4 完成，G1 收缩登记）
 
-G 跨板块收口最后做（键位×鼠标×对话框联动/引擎事件源扩展/总验收清账）。
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| G3-D8 IReplEngine.StartNewConversation（DIM 零破坏 + EngineTurnClient 串行化清历史 + IChatService.ClearHistoryAsync 落点） | IdleReturn Clear 分支 | ✅ | ✅ 升级断言 + 7 新测试 |
+| G3-E4 BridgeImageAttachment DTO + Submit(text, images) 重载 + 占位符剥离 + 轻量引用降级 | SubmitToEngine 统一分派 | ✅ | ✅ 5 新测试 |
+| G2 备用屏×鼠标组合（C7 — 滚轮走 transcript/点击吞掉/退出反序断言） | AlternateScreenMouseComboTests | ✅ | ✅ 4 组合测试 |
+| G1 键位全局联动 | **收缩登记不做**——模态内部键保持硬编码（B4 渐进式决策维持；表驱动仅全局键层） | 📋 | — |
+| G4 总收口验收 | 全量回归 + selftest 全集 | ✅ | ✅ 2832+133+30+16 全绿 + selftest OK + 52 命令探针 |
+
+- 测试：2821→**2832 全绿**（+11）；全链 3011 测试
+- G3 决策：①新会话串行化（置标记下回合 lock 内清历史防竞态）②图片投影轻量引用降级（base64 内嵌击穿上下文——引擎 AddUserMessageAsync 支持 ContentBlocks 后升级 TODO）③bridge 协议 JSON 层图片字段后续扩展点登记
+- ⚠️ 遗留（P3 池）：CostThresholdDialog（引擎成本事件源不存在——需先建引擎侧 token 成本计费链）、teammate/swarm 域（引擎域大块）、TrustDialog（宿主 jcc 域）、BridgeEngine 子进程协议图片字段、滚轮加速度 ramp、HitTestId item 标注、alt+v 主动读剪贴板（win32 clipboard API）
+
+## 全量手动验收清单（ADR 0080 — 待用户真机执行汇总）
+
+| 板块 | 验收项 | 验证方式 |
+|------|--------|---------|
+| A | tab 标题 ✳/⠂⠐ 动画 + 失焦冻结 + 退出还原 | Windows Terminal 交互 REPL，忙时观察 tab 标题 |
+| A | 21337 彩点三态（WT 静默丢弃安全）/9;4 进度（WT 排除） | Ghostty/ConEmu 终端验证（WT 无此能力） |
+| B | 键位改绑（~/.jcc/keybindings.json 覆盖生效）+ kitty 协议（--raw-input） | 写用户 json 重启验证 ctrl+t 改绑 transcript |
+| C | 滚轮滚动/拖选复制/双击词选/transcript 备用屏切换 | 交互 REPL 鼠标全套 |
+| D | IdleReturn（改 CLAUDE_CODE_IDLE_THRESHOLD_MINUTES=1 快速触发）/effort 行 left-right 循环 | /model 对话框 + 短阈值等待 |
+| E | vim 模式（JCC_TUI_VIM=1）/图片路径粘贴 | vim 编辑体验 + 拖拽图片文件到终端 |
+| F | diff 行号 gutter/小终端塌缩（<24 行窗口） | Edit 工具触发 diff + 缩小终端窗口 |
+| B6 | 双终端矩阵（WT/conhost 全键位）后 RawStdin 切默认 | 两终端逐项键位表 |

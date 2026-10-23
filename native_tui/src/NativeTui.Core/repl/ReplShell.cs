@@ -3022,10 +3022,13 @@ public sealed class ReplShell
             return;
         }
 
-        // 光标在输入位（上帧 frameEnd = 光标所在逻辑行）→ 上移（光标行距顶线 + 顶线距间隔行）到间隔行 →
-        // 清 TailHeight 行 → 内容底行换行（S7 多行化：上移量随光标逻辑行增长，单行 = 既有 2 行语义）
-        var tail = _view.TailHeight;
-        var up = _input.CursorLineIndex + 2;
+        // 光标在输入位（上帧 frameEnd = 光标所在视觉行）→ 上移（光标视觉行距顶线 + 顶线距间隔行）到间隔行 →
+        // 清尾部动态区行 → 内容底行换行（DSG044 L3 软折行：上移量随光标视觉行增长，单行 = 既有 2 行语义）
+        var cols = _sizeSource.Current.Cols;
+        var tail = _view.TailHeightOf(cols);
+        var visualLines = InputLineLayout.Wrap(_input.Text, Math.Max(1, cols - PromptInputBox.PromptWidth));
+        var (cursorVisual, _) = PromptInputBox.LocateVisualCursor(_input.Text, visualLines, _input.CursorCol);
+        var up = cursorVisual + 2;
         WriteExitSequences(Sgr.Reset + Csi.CursorUp(up) + "\r" + string.Concat(Enumerable.Repeat(Csi.EraseLine() + "\r\n", tail - 1)) + Csi.EraseLine() + "\r\n" + CursorLifecycle.Show);
 
         // S10 接线 — 命令使用记忆持久化（fire-and-forget + try-catch 静默：退出路径不因持久化失败阻塞/报错）

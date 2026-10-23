@@ -16,12 +16,14 @@ public sealed class PromptInputBox
 
     /// <summary>
     /// 渲染到指定帧区域：row 0 顶部分隔线，row 1 起提示符 + 文本 + 光标（+ ghost 幽灵后缀），末行底部分隔线。
-    /// 单行：row 1 文本 + 光标 + ghost，row 2 底线（与既有行为逐字节一致）。
-    /// 多行：首行 "❯ " + 文本，续行顶格无前缀（基准 multiline 续行语义）；行数超 frame.Height-2 时
-    /// 贴底显示最后可见行（光标行恒在窗口内）；ghost 渲染在末可见行之后。
-    /// cursorCol 为文本内偏移（0 = 首字符之前），光标屏幕列 = 行首列 + 显示宽度
-    ///（修复：中文宽字符 — char 偏移须换算显示列，原直接当屏幕列致光标落进字符中间）。
-    /// ghostSuffix 非空时以 dim 色渲染在末行文本之后（显示宽度换算起点，帧右界截断 — 基准 ghost text dim 提示）。
+    /// 软折行（DSG044 L3 — 基准 Cursor.fromText 折行模型）：单逻辑行超宽按 contentCols =
+    /// frame.Width - PromptWidth 折为多视觉行（词边界贪心 + grapheme 宽度），视觉行续行顶格；
+    /// 视觉行数超出 frame 高度时贴底滚动窗口（光标行恒可见）。
+    /// 首视觉行（视觉行 0 = 逻辑行 0 首视觉行）带 ❯ 前缀，其余视觉行顶格无前缀；
+    /// 单行降级逐字节兼容：无折行无换行时渲染输出与单行版完全一致（既有测试零破坏）。
+    /// cursorCol 为文本内偏移（0 = 首字符之前），经 LocateVisualCursor 投影到视觉行/列
+    ///（光标在折行后段仍可见 — 旧右界截断行为废弃）。
+    /// ghostSuffix 非空时以 dim 色渲染在末可见视觉行文本之后。
     /// </summary>
     public void Render(Screen screen, Rect frame, Theme theme, string text, int cursorCol, bool busy = false, string ghostSuffix = "")
     {
@@ -30,12 +32,19 @@ public sealed class PromptInputBox
         BorderPainter.DrawRule(screen, frame.Y + frame.Height - 1, frame.X, frame.Width, border);
 
         var promptStyle = busy ? screen.Styles.GetOrAdd(new TextStyle { Dim = true }) : 0;
-        var lines = SplitLogicalLines(text);
-        var topLine = FirstVisibleLine(lines.Count, Math.Max(1, frame.Height - 2), CursorLineIndex(text, cursorCol));
-        RenderTextLines(screen, frame, lines, topLine, promptStyle);
-        RenderGhostSuffix(screen, frame, lines, topLine, ghostSuffix);
-        DrawCursor(screen, frame, lines, topLine, text, cursorCol);
+        var contentCols = Math.Max(1, frame.Width - PromptWidth);
+        var visualLines = InputLineLayout.Wrap(text, contentCols);
+        var (cursorVisual, cursorDisplayCol) = LocateVisualCursor(text, visualLines, cursorCol);
+        var topLine = FirstVisibleLine(visualLines.Count, Math.Max(1, frame.Height - 2), cursorVisual);
+        RenderTextLines(screen, frame, text, visualLines, topLine, promptStyle);
+        RenderGhostSuffix(screen, frame, text, visualLines, topLine, ghostSuffix);
+        DrawCursor(screen, frame, visualLines, topLine, cursorVisual, cursorDisplayCol);
     }
+
+    /// <summary>输入框总高度（视觉行数 + 2 分隔线）— ReplView 布局按终端宽折行后分配 frame 高度
+    ///（DSG044 L3 软折行高度公式；cols = frame 总宽，折行内容宽 = cols - PromptWidth）。</summary>
+    public static int HeightForText(string text, int cols) =>
+        HeightFor(InputLineLayout.Wrap(text, Math.Max(1, cols - PromptWidth)).Count);
 
     /// <summary>输入框总高度（顶/底分隔线 + 文本行数）— 接线方按逻辑行数分配 frame 高度。</summary>
     public static int HeightFor(int lineCount) => Math.Max(1, lineCount) + 2;
@@ -83,57 +92,60 @@ public sealed class PromptInputBox
         return line;
     }
 
-    /// <summary>逐行渲染文本 — 首行（line 0）带 ❯ 前缀，续行顶格无前缀；可见窗口外的行不画。</summary>
-    private static void RenderTextLines(Screen screen, Rect frame, List<string> lines, int topLine, int promptStyle)
+    /// <summary>逐视觉行渲染 — 首视觉行（index 0）带 ❯ 前缀，其余视觉行顶格无前缀；可见窗口外的行不画。</summary>
+    private static void RenderTextLines(Screen screen, Rect frame, string text, List<VisualLine> visualLines, int topLine, int promptStyle)
     {
+        var logicalLines = SplitLogicalLines(text);
         var maxVisible = Math.Max(1, frame.Height - 2);
-        for (var i = topLine; i < lines.Count && i - topLine < maxVisible; i++)
+        for (var i = topLine; i < visualLines.Count && i - topLine < maxVisible; i++)
         {
             var row = frame.Y + 1 + (i - topLine);
+            var visual = visualLines[i];
+            var segment = logicalLines[visual.LogicalLine].Substring(visual.StartOffset, visual.Length);
             if (i == 0)
             {
                 screen.WriteText(row, frame.X, $"{Figures.Pointer} ", promptStyle, frame.Right);
-                screen.WriteText(row, frame.X + PromptWidth, lines[i], 0, frame.Right);
+                screen.WriteText(row, frame.X + PromptWidth, segment, 0, frame.Right);
             }
             else
             {
-                screen.WriteText(row, frame.X, lines[i], 0, frame.Right);
+                screen.WriteText(row, frame.X, segment, 0, frame.Right);
             }
         }
     }
 
-    /// <summary>ghost 幽灵后缀 — dim 色渲染在末可见行文本之后（单行时与既有行为一致）。</summary>
-    private static void RenderGhostSuffix(Screen screen, Rect frame, List<string> lines, int topLine, string ghostSuffix)
+    /// <summary>ghost 幽灵后缀 — dim 色渲染在末可见视觉行文本之后（单行时与既有行为一致）。</summary>
+    private static void RenderGhostSuffix(Screen screen, Rect frame, string text, List<VisualLine> visualLines, int topLine, string ghostSuffix)
     {
         if (ghostSuffix.Length == 0)
         {
             return;
         }
 
+        var logicalLines = SplitLogicalLines(text);
         var maxVisible = Math.Max(1, frame.Height - 2);
-        var lastVisible = Math.Min(lines.Count - 1, topLine + maxVisible - 1);
+        var lastVisible = Math.Min(visualLines.Count - 1, topLine + maxVisible - 1);
         var row = frame.Y + 1 + (lastVisible - topLine);
+        var visual = visualLines[lastVisible];
+        var segment = logicalLines[visual.LogicalLine].Substring(visual.StartOffset, visual.Length);
         var baseCol = lastVisible == 0 ? frame.X + PromptWidth : frame.X;
         var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
-        screen.WriteText(row, baseCol + MeasureDisplayWidth(lines[lastVisible]), ghostSuffix, dim, frame.Right);
+        screen.WriteText(row, baseCol + MeasureDisplayWidth(segment), ghostSuffix, dim, frame.Right);
     }
 
     /// <summary>在光标屏幕位置写入反色 cell（字符处反色该字符；行尾/空白处为反色空格块）—
-    /// 多行：光标行 = 行索引定位行号，行内列 = 显示宽度换算（首行带前缀偏移，续行顶格）。</summary>
-    private static void DrawCursor(Screen screen, Rect frame, List<string> lines, int topLine, string text, int cursorCol)
+    /// 视觉行投影（DSG044 L3）：光标行 = 视觉行索引定位行号，行内列 = 视觉行内显示列
+    ///（首视觉行带前缀偏移，其余视觉行顶格；折行后段光标仍可见）。</summary>
+    private static void DrawCursor(Screen screen, Rect frame, List<VisualLine> visualLines, int topLine, int cursorVisual, int cursorDisplayCol)
     {
-        var cursorLine = CursorLineIndex(text, cursorCol);
-        if (cursorLine < topLine)
+        if (cursorVisual < topLine)
         {
             return;
         }
 
         var inverse = screen.Styles.GetOrAdd(new TextStyle { Inverse = true });
-        var row = frame.Y + 1 + (cursorLine - topLine);
-        var columnInLine = Math.Clamp(cursorCol, 0, text.Length) - LineStartOffsetOf(text, cursorLine);
-        var lineText = lines[Math.Min(cursorLine, lines.Count - 1)];
-        var col = (cursorLine == 0 ? frame.X + PromptWidth : frame.X)
-            + MeasureDisplayWidth(lineText.AsSpan(0, Math.Min(columnInLine, lineText.Length)));
+        var row = frame.Y + 1 + (cursorVisual - topLine);
+        var col = (cursorVisual == 0 ? frame.X + PromptWidth : frame.X) + cursorDisplayCol;
         if (col < 0 || col >= frame.Right || col >= screen.Cols)
         {
             return;
@@ -142,22 +154,44 @@ public sealed class PromptInputBox
         screen[row, col] = screen[row, col] with { StyleId = inverse };
     }
 
-    /// <summary>指定逻辑行行首偏移（行索引内换行符扫描）。</summary>
-    private static int LineStartOffsetOf(string text, int line)
+    /// <summary>光标视觉行投影（DSG044 L3 — ReplView.InputCursorPos 地基）：cursorCol（char 偏移）
+    /// → (视觉行索引, 视觉行内显示列)。视觉行全局 char 区间 = 逻辑行起点 + 视觉行 StartOffset；
+    /// 光标落在区间内（含行尾）即归属该视觉行；行内列 = 行首至光标的 grapheme 显示宽度。</summary>
+    internal static (int VisualIndex, int DisplayCol) LocateVisualCursor(string text, List<VisualLine> visualLines, int cursorCol)
     {
-        var offset = 0;
-        var current = 0;
-        while (current < line && offset < text.Length)
+        var clamped = Math.Clamp(cursorCol, 0, text.Length);
+        var logicalLines = SplitLogicalLines(text);
+        var logicalStarts = new int[logicalLines.Count + 1];
+        for (var i = 0; i < logicalLines.Count; i++)
         {
-            if (text[offset] == '\n')
-            {
-                current++;
-            }
-
-            offset++;
+            logicalStarts[i + 1] = logicalStarts[i] + logicalLines[i].Length + 1;
         }
 
-        return offset;
+        var visualIndex = 0;
+        var globalStart = 0;
+        for (var i = 0; i < visualLines.Count; i++)
+        {
+            var start = logicalStarts[visualLines[i].LogicalLine] + visualLines[i].StartOffset;
+            var end = start + visualLines[i].Length;
+            if (clamped >= start && clamped <= end)
+            {
+                visualIndex = i;
+                globalStart = start;
+                break;
+            }
+
+            if (start > clamped)
+            {
+                break;
+            }
+        }
+
+        var lineText = logicalLines[visualLines[visualIndex].LogicalLine];
+        var offsetInVisual = clamped - globalStart;
+        var segment = lineText.AsSpan(
+            visualLines[visualIndex].StartOffset,
+            Math.Min(offsetInVisual, visualLines[visualIndex].Length));
+        return (visualIndex, MeasureDisplayWidth(segment));
     }
 
     /// <summary>文本显示宽度（逐 rune 累加 RuneWidth — CJK/emoji 2 列，组合符 0 列）。</summary>

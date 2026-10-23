@@ -103,6 +103,29 @@ public sealed class ReplViewTests
         Assert.Equal($"{Figures.ToolResultIndent}42 lines", RowText.Of(screen, 7, 0, 13).TrimEnd());
     }
 
+    /// <summary>软折行高度链（DSG044 L3）：长输入按终端宽折为多视觉行 → 输入区高度随视觉行增长。</summary>
+    [Fact]
+    public void MeasureContentHeight_SoftWrappedInput_GrowsWithVisualLines()
+    {
+        var view = new ReplView { Input = new string('a', 80), CursorCol = 0, Footer = new FooterState { Mode = PermissionMode.Auto } };
+        // 80 字符按 cols 20 折（折行宽 18）：5 视觉行 → 输入区 7；消息 0 + 间隔 1 + 7 + footer 1 = 9
+        Assert.Equal(9, view.MeasureContentHeight(cols: 20));
+        // 宽终端零折行：单行输入区 3 → 1 + 3 + 1 = 5
+        Assert.Equal(5, view.MeasureContentHeight(cols: 120));
+    }
+
+    /// <summary>软折行光标投影（DSG044 L3）：光标在折行后段 → 行号落在第 2 视觉行（旧行为光标超右界不画）。</summary>
+    [Fact]
+    public void InputCursorPos_SoftWrappedCursor_SecondVisualLineRow()
+    {
+        var view = new ReplView { Input = new string('a', 20) + "bc", CursorCol = 22, Footer = new FooterState { Mode = PermissionMode.Auto } };
+        // cols 20（折行宽 18）→ 光标 offset 22 落第 2 视觉行内偏移 4 → col = 4（续视觉行顶格）
+        var pos = view.InputCursorPos(contentRows: 10, cols: 20, cursorCol: 22);
+        Assert.Equal(4, pos.Col);
+        // 行：10 - footer 1 - 输入区 4（2 视觉行+2）+ 1 + 视觉行 1 = 7
+        Assert.Equal(7, pos.Row);
+    }
+
     [Fact]
     public void MeasureContentHeight_MessagesPlusGapInputFooter()
     {

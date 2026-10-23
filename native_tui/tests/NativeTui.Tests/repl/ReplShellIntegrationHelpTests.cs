@@ -112,11 +112,11 @@ public sealed class ReplShellIntegrationHelpTests
     public void Help_Open_IncreasesTailHeight()
     {
         var (shell, _) = CreateShell();
-        var before = shell.View.TailHeight;
+        var before = shell.View.TailHeightOf(80);
 
         Question(shell);
 
-        Assert.Equal(before + HelpPanel.Height, shell.View.TailHeight);
+        Assert.Equal(before + HelpPanel.Height, shell.View.TailHeightOf(80));
     }
 
     /// <summary>渲染帧 — 面板打开时屏高含面板行数 + 帮助清单标题行写入前缓冲（输入框上方定位验证）。</summary>

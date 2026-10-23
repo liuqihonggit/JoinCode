@@ -248,6 +248,15 @@
 | 4.8 搜索 Esc | 接受当前匹配填入输入框（取消改走 ctrl+c） | CtrlR_Escape_AcceptsMatch |
 | 4.9 权限直选 | y/n 单键直选（y=Allow/n=Deny，数字 1/2/3 保留并存） | Permission_Y/N |
 
+批次 11（渲染性能批 — 第 7 问用户决策）已落地（2026-10-24，提交 2cc94b94d）：
+
+| 差异项 | 内容 | 判定 |
+|--------|------|------|
+| 6.2 damage 区域增量 diff | Screen 行级 damage 标记（写入必标/Clear 重置/Resize 保守全标）+ DamageUnion(prev∪next) 行过滤 — CellDiffer 与 InlineComposer 双链路接入，长会话大屏 O(全屏)→O(变化) | 已落地 |
+| 6.8 patch 优化器 | 同行近距段合并（间隙 ≤8 列 → 单次定位覆盖，中间 cell 重写无害消第二定位序列） | 已落地 |
+| 6.13 视口空帧零输出 | 帧间零变化且光标位未变 → 零字节输出（旧恒发 ~8 字节/帧定位序列） | 已落地 |
+| 5.7/6.15 DECSTBM 硬件滚动 | **登记关闭**：仅优化 viewport 模式滚动（inline 默认模式屏高=内容高 scrollTop 恒 0 无滚动窗口）；FrameComposer/ReplShell/prev 屏 shiftRows 变异三处结构性改造，非默认路径低收益高风险 — 待真机 viewport 模式用户反馈后决策 | 关闭（收益不足） |
+
 批次 10/10b（第 6 问"专项 spec + 小项清尾"）已落地（2026-10-23）：
 
 | 差异项 | 内容 | 判定 |

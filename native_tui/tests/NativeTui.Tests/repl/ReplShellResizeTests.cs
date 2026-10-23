@@ -77,6 +77,24 @@ public sealed class ReplShellResizeTests
         Assert.Same(before, shell.BackBuffer);
     }
 
+    /// <summary>视口模式空帧零输出（6.13 — 基准 ink/terminal.ts diff.length===0 直接 return）：
+    /// 帧间零变化且光标位未变 → 零字节输出（旧行为每帧恒发光标定位序列 ~8 字节背景流量）。</summary>
+    [Fact]
+    public void ViewportMode_NoChangeFrame_ZeroOutput()
+    {
+        var engine = new FakeReplEngine();
+        var output = new StringWriter();
+        var size = new FakeTerminalSizeSource(80, 24);
+        var shell = new ReplShell(engine, new BannerItem("1", "m", "b", "/tmp"), output, inline: false, sizeSource: size);
+        shell.SeedContent();
+        shell.RenderAndFlush();
+        output.GetStringBuilder().Clear();
+
+        shell.RenderAndFlush();
+
+        Assert.Equal(0, output.ToString().Length);
+    }
+
     /// <summary>inline 终端高度变化 — 物理屏已被终端 reflow 重排（相对光标模型失同步），
     /// 屏对象可复用但必须强制 fullReset 重绘（对齐基准 log-update.ts:142-147 高度变化无条件 fullReset；
     /// 缺判定则零输出不自愈 — 物理光标与内部帧状态漂移到下一帧有变更才偶然恢复）。</summary>

@@ -10,6 +10,11 @@ public sealed class Screen : IDisposable
 {
     private Cell[] _cells;
 
+    /// <summary>行级 damage 标记（6.2 — 基准 ink/screen.ts damage 语义：本帧写入过的行；
+    /// diff 层跳过干净行 O(全屏)→O(变化)。写入路径必标（漏标 = 漏渲染）；Clear 重置；
+    /// 双缓冲交换后 front 保留上帧标记（Compose 时 prev damage 可用）。</summary>
+    private bool[] _damageRows;
+
     /// <summary>行级链接区间表（DSG043 P3 — 与 Rows 等长；空表 = 该行无链接）。
     /// 链接是行级原子数据非 cell 属性：链接变化必然伴随该行 cell 文本变化（diff 层天然重写整行），
     /// 无需 cell 级失效通知；Clear 原子清空防帧重画残留。</summary>
@@ -31,8 +36,15 @@ public sealed class Screen : IDisposable
         Rows = rows;
         _cells = CreateBlankCells(cols, rows);
         _links = NewLinkTable(rows);
+        _damageRows = new bool[rows];
         Styles = sharedStyles;
     }
+
+    /// <summary>行是否为本帧写入（damage — diff 层行过滤消费；越界 false）。</summary>
+    public bool IsRowDamaged(int row) => row >= 0 && row < Rows && _damageRows[row];
+
+    /// <summary>damage 标记是否可用（构造/Resize 均重建 — 恒 true；false = diff 层降级全量扫描的防御兜底面）。</summary>
+    internal bool HasDamageTracking => _damageRows.Length == Rows;
 
     /// <summary>列数。</summary>
     public int Cols { get; private set; }
@@ -63,10 +75,12 @@ public sealed class Screen : IDisposable
             }
 
             _cells[row * Cols + col] = value;
+            _damageRows[row] = true;
         }
     }
 
-    /// <summary>清空全部 cell 为空白（链接表原子清空 — 帧重画防旧链接残留）。</summary>
+    /// <summary>清空全部 cell 为空白（链接表原子清空 — 帧重画防旧链接残留）；
+    /// damage 重置（新帧从零标记 — 调用时序保证 Compose 先于下帧 Clear，prev damage 不受影响）。</summary>
     public void Clear()
     {
         Array.Fill(_cells, Cell.Blank);
@@ -74,9 +88,12 @@ public sealed class Screen : IDisposable
         {
             _links[row] = [];
         }
+
+        Array.Clear(_damageRows);
     }
 
-    /// <summary>写入行级链接区间表（替换式 — 渲染器每帧重写本行区间；越界忽略）。</summary>
+    /// <summary>写入行级链接区间表（替换式 — 渲染器每帧重写本行区间；越界忽略）；
+    /// 标记行 damage（链接变化必伴 cell 变化，防御性标记 — 漏标 = 漏渲染）。</summary>
     public void SetLinks(int row, IReadOnlyList<LinkSpan> spans)
     {
         if (row < 0 || row >= Rows)
@@ -85,6 +102,7 @@ public sealed class Screen : IDisposable
         }
 
         _links[row] = spans;
+        _damageRows[row] = true;
     }
 
     /// <summary>读取行级链接区间表（越界返回空表 — 消费方零防御成本）。</summary>
@@ -115,6 +133,9 @@ public sealed class Screen : IDisposable
 
         _cells = resized;
         _links = resizedLinks;
+        // 结构变化全标 damage（保守 — diff 层尺寸不同走全量，标记仅为行过滤安全性兜底）
+        _damageRows = new bool[rows];
+        Array.Fill(_damageRows, true);
         Cols = cols;
         Rows = rows;
     }

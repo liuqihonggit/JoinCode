@@ -445,6 +445,9 @@ public sealed class ReplShell
     /// <summary>上次渲染拍观察到的终端视口行数（inline 高度变化检测 — reflow 后强制 fullReset）。</summary>
     private int _lastViewportRows;
 
+    /// <summary>视口模式上帧光标物理位（6.13 空帧零输出 — 位不变跳过定位序列）。</summary>
+    private (int Row, int Col)? _lastViewportCursor;
+
     /// <summary>stdin 静默 gap 自愈检测器（基准 App.tsx:30-35 STDIN_RESUME_GAP_MS — tmux/ssh 重连后重断言终端模式）。</summary>
     private readonly TerminalModeReasserter _modeReasserter = new(TerminalResumeGapMs);
 
@@ -3682,7 +3685,15 @@ public sealed class ReplShell
                 _output.Write(output);
             }
 
-            PositionCursor();
+            // 6.13 空帧零输出（基准 diff.length===0 直接 return）— 帧间零变化且
+            // 光标位未变时跳过光标定位序列（旧行为恒发 ~8 字节/帧背景流量）
+            var cursorRow = _back.Rows - 1;
+            var cursorCol = Math.Min(_back.Cols, PromptInputBox.PromptWidth + _input.CursorCol + 1);
+            if (output.Length > 0 || _lastViewportCursor != (cursorRow, cursorCol))
+            {
+                _output.Write(Csi.CursorPosition(cursorRow, cursorCol));
+                _lastViewportCursor = (cursorRow, cursorCol);
+            }
         }
 
         _output.Flush();

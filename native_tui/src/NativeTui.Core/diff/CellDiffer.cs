@@ -43,7 +43,7 @@ public sealed class CellDiffer
     private static string RenderDiffFrame(Screen prev, Screen next, bool hyperlinksSupported)
     {
         var builder = new System.Text.StringBuilder();
-        foreach (var (row, startCol, endCol) in ScanSegments(prev, next))
+        foreach (var (row, startCol, endCol) in MergeNearSegments(ScanSegments(prev, next, DamageUnion(prev, next))))
         {
             AppendSegment(builder, next, row, startCol, endCol, hyperlinksSupported);
         }
@@ -51,15 +51,70 @@ public sealed class CellDiffer
         return builder.ToString();
     }
 
+    /// <summary>同行近距段合并（6.8 — 基准 ink/optimizer.ts 合并近距光标移动）：同行两段变化
+    /// 间隙 ≤ <see cref="MergeGapThreshold"/> 列 → 并为一段（中间未变 cell 重写无害，
+    /// 消第二个定位序列 ~6-8 字节）；跨行/远距保持独立（合并不划算）。</summary>
+    private static IEnumerable<(int Row, int StartCol, int EndCol)> MergeNearSegments(IEnumerable<(int Row, int StartCol, int EndCol)> segments)
+    {
+        (int Row, int StartCol, int EndCol)? pending = null;
+        foreach (var segment in segments)
+        {
+            if (pending is { } p && segment.Row == p.Row && segment.StartCol - p.EndCol - 1 <= MergeGapThreshold)
+            {
+                pending = (p.Row, p.StartCol, segment.EndCol);
+                continue;
+            }
+
+            if (pending is { } completed)
+            {
+                yield return completed;
+            }
+
+            pending = segment;
+        }
+
+        if (pending is { } last)
+        {
+            yield return last;
+        }
+    }
+
+    /// <summary>同行段合并间隙阈值（列 — 重写间隙 cell 的成本 ≈ 一条定位序列成本时的平衡点）。</summary>
+    private const int MergeGapThreshold = 8;
+
+    /// <summary>prev ∪ next 的 damage 行并集（6.2 — 基准 diffEach 扫 next.damage ∪ prev.damage：
+    /// 双帧任一写入过的行才可能有 cell 差异；null = 无标记降级全量扫描[写入口全标后不可达，防御兜底]）。</summary>
+    private static bool[]? DamageUnion(Screen prev, Screen next)
+    {
+        if (!prev.HasDamageTracking || !next.HasDamageTracking)
+        {
+            return null;
+        }
+
+        var rows = Math.Min(prev.Rows, next.Rows);
+        var union = new bool[rows];
+        for (var row = 0; row < rows; row++)
+        {
+            union[row] = prev.IsRowDamaged(row) || next.IsRowDamaged(row);
+        }
+
+        return union;
+    }
+
     /// <summary>
     /// 扫描前后帧的连续变更段（行级合并）— CellDiffer（绝对定位）与 InlineComposer（相对光标）
     /// 共享的差分扫描；段 = [startCol, endCol] 闭区间内 prev/next cell 不全等的连续区间；
     /// 行域取共有行（InlineComposer 场景 prev/next 高度可不同，CellDiffer 场景恒等宽等高）。
     /// </summary>
-    internal static IEnumerable<(int Row, int StartCol, int EndCol)> ScanSegments(Screen prev, Screen next)
+    internal static IEnumerable<(int Row, int StartCol, int EndCol)> ScanSegments(Screen prev, Screen next, bool[]? damageRows = null)
     {
         for (var row = 0; row < Math.Min(prev.Rows, next.Rows); row++)
         {
+            if (damageRows is not null && row < damageRows.Length && !damageRows[row])
+            {
+                continue;
+            }
+
             var col = 0;
             while (col < next.Cols)
             {

@@ -60,7 +60,9 @@ public sealed class InlineComposer
                 ClearBottomRows(builder, next.Rows, prev.Rows, ref cursor);
             }
 
-            foreach (var (row, startCol, endCol) in CellDiffer.ScanSegments(prev, next))
+            // 6.2 damage 行过滤 — 跳过双帧均未写入的干净行（长会话大屏 O(全屏)→O(变化)）
+            var damage = DamageUnion(prev, next);
+            foreach (var (row, startCol, endCol) in CellDiffer.ScanSegments(prev, next, damage))
             {
                 MoveTo(builder, ref cursor, new CursorPos(startCol, row));
                 AppendStyledCells(builder, next, row, startCol, endCol, ref cursor);
@@ -85,7 +87,25 @@ public sealed class InlineComposer
             return false;
         }
 
-        return CellDiffer.ScanSegments(prev, next).Any(segment => segment.Row < scrollbackRows);
+        return CellDiffer.ScanSegments(prev, next, DamageUnion(prev, next)).Any(segment => segment.Row < scrollbackRows);
+    }
+
+    /// <summary>prev ∪ next damage 行并集（6.2 — 与 CellDiffer.DamageUnion 同语义；null = 降级全量）。</summary>
+    private static bool[]? DamageUnion(Screen prev, Screen next)
+    {
+        if (!prev.HasDamageTracking || !next.HasDamageTracking)
+        {
+            return null;
+        }
+
+        var rows = Math.Min(prev.Rows, next.Rows);
+        var union = new bool[rows];
+        for (var row = 0; row < rows; row++)
+        {
+            union[row] = prev.IsRowDamaged(row) || next.IsRowDamaged(row);
+        }
+
+        return union;
     }
 
     /// <summary>收缩清除是否超出视口可达范围（被清首行落入 scrollback 区 — CUU 被终端钳制在视口顶，

@@ -8,6 +8,22 @@ public interface IToolPatrolEngine {
     Task<ToolPatrolReport> PatrolAsync(CancellationToken ct = default);
 }
 
+/// <summary>工具巡检定时服务接口 — 后台定时巡检 + 手动触发一次巡检。</summary>
+public interface IToolPatrolService {
+    /// <summary>启动后台定时巡检循环。</summary>
+    /// <param name="ct">取消令牌</param>
+    Task StartAsync(CancellationToken ct = default);
+
+    /// <summary>手动触发一次巡检 — 供测试 + 即时巡检。</summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>巡检报告</returns>
+    Task<ToolPatrolReport> PatrolOnceAsync(CancellationToken ct = default);
+
+    /// <summary>停止后台巡检循环。</summary>
+    /// <param name="ct">取消令牌</param>
+    Task StopAsync(CancellationToken ct = default);
+}
+
 /// <summary>工具巡检状态 — 助记符验收每个工具的调用结果。</summary>
 public enum ToolPatrolStatus {
     /// <summary>[OK] 成功 — 工具返回非错误结果。</summary>

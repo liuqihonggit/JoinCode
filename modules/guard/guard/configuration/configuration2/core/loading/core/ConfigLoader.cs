@@ -8,6 +8,7 @@ public class ConfigLoader {
     private readonly IProviderDefinitionRegistry _registry;
     private readonly SettingsMapper _settingsMapper;
     private readonly IModelConfigLoader? _modelConfigLoader;
+    private readonly IProcessService? _processService;
     private readonly ILogger? _logger;
 
     /// <summary>
@@ -23,11 +24,13 @@ public class ConfigLoader {
     /// <param name="registry">Provider 定义注册表(可选),默认创建内置注册表</param>
     /// <param name="settingsMapper">Settings 映射器(可选),默认创建内置映射器</param>
     /// <param name="modelConfigLoader">模型配置加载器(可选),用于灌入 vendor 模型数据</param>
-    public ConfigLoader(IEnumerable<IConfigLoadMiddleware>? middlewares = null, ILoggerFactory? loggerFactory = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null, IModelConfigLoader? modelConfigLoader = null) {
+    /// <param name="processService">进程服务(可选),apiKeyHelper 脚本执行用</param>
+    public ConfigLoader(IEnumerable<IConfigLoadMiddleware>? middlewares = null, ILoggerFactory? loggerFactory = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null, IModelConfigLoader? modelConfigLoader = null, IProcessService? processService = null) {
         _logger = loggerFactory?.CreateLogger<ConfigLoader>();
         _registry = registry ?? ProviderDefinitionRegistry.Create(modelConfigLoader ?? new ModelConfigLoader(), logger: loggerFactory?.CreateLogger<ProviderDefinitionRegistry>());
         _settingsMapper = settingsMapper ?? new SettingsMapper(_registry);
         _modelConfigLoader = modelConfigLoader;
+        _processService = processService;
         if (middlewares is not null && loggerFactory is not null) {
             _pipeline = new PipelineBuilder<ConfigLoadContext>()
                 .WithLoggingScope(loggerFactory)
@@ -121,9 +124,9 @@ public class ConfigLoader {
             // Step 4: 环境变量覆盖（Provider/Model/Endpoint 等，不含 API Key）
             config = await _settingsMapper.ApplyEnvOverridesAsync(config, settings).ConfigureAwait(false);
 
-            // Step 5: 统一 API Key 解析（auth.json → Provider 专属变量）— auth.json 已在 Step 1 预读
+            // Step 5: 统一 API Key 解析（apiKeyHelper 脚本 → auth.json → Provider 专属变量）— auth.json 已在 Step 1 预读
             var resolvedApiKey = await ResolveApiKeyAsync(
-                config.Provider.Vendor, config.Provider.Definition, fs, cancellationToken, preloadedAuthData).ConfigureAwait(false);
+                config.Provider.Vendor, config.Provider.Definition, fs, cancellationToken, preloadedAuthData, settings?.Current?.ApiKeyHelper).ConfigureAwait(false);
             config = config with { Provider = config.Provider with { ApiKey = resolvedApiKey } };
 
             // Step 6: 规则赋值
@@ -185,9 +188,31 @@ public class ConfigLoader {
 
     /// <summary>
     /// 统一 API Key 解析 — 按优先级从低到高: auth.json → Provider 专属环境变量
+    /// apiKeyHelper（最高优先级）: settings.current.apiKeyHelper 脚本执行取 stdout
     /// </summary>
-    public async Task<string> ResolveApiKeyAsync(string provider, IProviderDefinition? definition, IFileSystem fs, CancellationToken cancellationToken = default, Dictionary<string, string>? preloadedAuthData = null) {
-        var sources = new List<(string Source, string Key)>(2);
+    public async Task<string> ResolveApiKeyAsync(string provider, IProviderDefinition? definition, IFileSystem fs, CancellationToken cancellationToken = default, Dictionary<string, string>? preloadedAuthData = null, string? apiKeyHelper = null) {
+        var sources = new List<(string Source, string Key)>(3);
+
+        // 优先级 0 (最高): apiKeyHelper 脚本执行（对齐 TS apiKeyHelper — 用户显式配置的辅助脚本）
+        if (!string.IsNullOrWhiteSpace(apiKeyHelper) && _processService is not null) {
+            try {
+                var shell = OperatingSystem.IsWindows() ? ("cmd.exe", "/c") : ("bash", "-c");
+                var result = await _processService.ExecuteAsync(new ProcessOptions {
+                    FileName = shell.Item1,
+                    Arguments = $"{shell.Item2} \"{apiKeyHelper}\"",
+                    TimeoutMs = 10_000,
+                    StandardOutputEncoding = System.Text.Encoding.UTF8,
+                }, cancellationToken).ConfigureAwait(false);
+
+                if (result.Success && !string.IsNullOrWhiteSpace(result.StandardOutput)) {
+                    var helperKey = result.StandardOutput.Trim();
+                    sources.Add(("apiKeyHelper 脚本", helperKey));
+                    return helperKey;
+                }
+            } catch (Exception ex) when (ex is not OperationCanceledException) {
+                _logger?.LogWarning(ex, "apiKeyHelper 脚本执行失败: {Script}", apiKeyHelper);
+            }
+        }
 
         // 优先级 1 (最低): auth.json（若调用方已预读则直接用，避免重复 I/O）
         var apiKey = preloadedAuthData is not null

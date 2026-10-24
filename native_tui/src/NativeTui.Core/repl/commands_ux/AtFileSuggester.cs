@@ -30,17 +30,21 @@ public sealed class AtFileSuggester
     private readonly string _rootPath;
     private readonly StringComparison _pathComparison;
     private readonly Func<long> _clock;
+    private readonly Func<string, bool>? _isIgnored;
     private List<string>? _indexedFiles;
     private long _indexedAt;
 
     /// <summary>创建补全器 — rootPath 为工作区根目录；路径匹配大小写策略按平台（Windows 不敏感）；
-    /// clock 为毫秒时钟注入（默认 Environment.TickCount64 — 测试确定性推进 TTL）。</summary>
-    public AtFileSuggester(string rootPath, Func<long>? clock = null)
+    /// clock 为毫秒时钟注入（默认 Environment.TickCount64 — 测试确定性推进 TTL）；
+    /// isIgnored 为 gitignore 过滤委托（respectGitignore=true 时由 Host 注入 — 相对路径判定；
+    /// null = 仅硬编码忽略目录生效，零行为变化）。</summary>
+    public AtFileSuggester(string rootPath, Func<long>? clock = null, Func<string, bool>? isIgnored = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
         _rootPath = rootPath;
         _pathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         _clock = clock ?? DefaultClock;
+        _isIgnored = isIgnored;
     }
 
     /// <summary>默认毫秒时钟（Environment.TickCount64 — 非负单调回绕安全，仅用于 TTL 差值判定）。</summary>
@@ -79,6 +83,7 @@ public sealed class AtFileSuggester
         _indexedFiles = EnumerateFilesSkippingIgnored(ignored)
             .Take(MaxIndexedFiles)
             .Select(ToRelativePath)
+            .Where(rel => _isIgnored is null || !_isIgnored(rel))
             .ToList();
         _indexedFiles.Sort(StringComparer.Ordinal);
         _indexedAt = _clock();

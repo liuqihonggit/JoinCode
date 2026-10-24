@@ -107,6 +107,18 @@ public sealed record WorkflowConfig {
     public bool AutoDreamEnabled { get; init; } = true;
 
     /// <summary>
+    /// 会话清理周期（天）— 对齐 TS cleanupPeriodDays（默认 30；0 = 禁用会话清理）；
+    /// 流向 HousekeepingService.CleanupOldSessionFiles
+    /// </summary>
+    public int CleanupPeriodDays { get; init; } = 30;
+
+    /// <summary>
+    /// 可用模型白名单 — 对齐 TS settings.availableModels（null/空 = 不过滤；
+    /// 非空 = 只返回白名单内模型 ID）；流向 ModelCatalog.GetModelsForProvider 过滤
+    /// </summary>
+    public List<string>? AvailableModels { get; init; }
+
+    /// <summary>
     /// 显示回合耗时 — 对齐 TS showTurnDuration（默认 true）；
     /// SessionController 门控 timing 摘要显示（debuglog 开启时强制显示）
     /// </summary>

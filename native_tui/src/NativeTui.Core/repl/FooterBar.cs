@@ -46,10 +46,10 @@ public sealed class FooterBar
         }
     }
 
-    /// <summary>行 2 右侧文本 — 四源互斥优先级：上下文告警（持续态最优先 — 通知 12s 超时自然消亡，
-    /// 告警持续到余量回升）&gt; 动态通知 &gt; 静态通知 &gt; Token 警告文本。</summary>
+    /// <summary>行 2 右侧文本 — 五源互斥优先级：自定义状态行（statusline 键常驻，用户显式配置最高）
+    /// &gt; 上下文告警（持续态 — 通知 12s 超时自然消亡，告警持续到余量回升）&gt; 动态通知 &gt; 静态通知 &gt; Token 警告文本。</summary>
     private static string? Row2Text(FooterState state) =>
-        state.ContextWarning ?? state.Notifications?.Current ?? state.Notification ?? state.Tokens?.Warning.Text;
+        state.StatusLine ?? state.ContextWarning ?? state.Notifications?.Current ?? state.Notification ?? state.Tokens?.Warning.Text;
 
     /// <summary>行 2 右侧前景色 — 上下文告警按级别（Critical error / Warning warning），
     /// TokenWarning.Low 用 warning 琥珀（基准 Context low warning 色），其余（通知/Ok）dim（null）。</summary>

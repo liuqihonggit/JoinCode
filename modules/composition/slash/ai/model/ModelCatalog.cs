@@ -5,12 +5,14 @@ namespace JoinCode.ChatCommands;
 /// 模型目录 — 提供按供应商查询模型列表、解析别名、获取默认模型及能力判定等功能
 /// </summary>
 [Register(typeof(IModelCatalog), ServiceLifetime.Singleton)]
-public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, IModelConfigLoader? modelConfigLoader = null) : ServiceEntity, IModelCatalog {
+public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, IModelConfigLoader? modelConfigLoader = null, WorkflowConfig? workflowConfig = null) : ServiceEntity, IModelCatalog {
     private readonly IProviderDefinitionRegistry _registry = registry;
     private readonly IModelConfigLoader? _modelConfigLoader = modelConfigLoader;
+    private readonly WorkflowConfig? _workflowConfig = workflowConfig;
 
     /// <summary>
-    /// 获取指定供应商的可用模型列表,支持通过环境变量注入自定义模型
+    /// 获取指定供应商的可用模型列表,支持通过环境变量注入自定义模型。
+    /// availableModels 白名单过滤（settings.current.availableModels 非空时只返回白名单内模型）。
     /// </summary>
     /// <param name="provider">供应商标识</param>
     /// <returns>该供应商的模型数组;若供应商不存在返回空数组</returns>
@@ -18,6 +20,12 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
         var definition = _registry.TryGet(provider);
         if (definition is not null) {
             var baseModels = definition.AvailableModels;
+
+            // availableModels 白名单过滤（对齐 TS settings.availableModels — 企业限制可见模型）
+            var whitelist = _workflowConfig?.AvailableModels;
+            if (whitelist is { Count: > 0 }) {
+                baseModels = baseModels.Where(m => whitelist.Contains(m.Id, StringComparer.OrdinalIgnoreCase)).ToArray();
+            }
 
             var customModelId = Environment.GetEnvironmentVariable(JccEnvVar.CustomModelOption.ToValue());
             if (string.IsNullOrWhiteSpace(customModelId))

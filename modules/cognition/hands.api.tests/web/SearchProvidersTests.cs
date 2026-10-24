@@ -224,8 +224,10 @@ public sealed class SearchProvidersTests {
 
     [Fact]
     public async Task DeepSeek_IsAvailable_WithoutApiKey_ReturnsFalse() {
-        using var env = EnvVarScope.Set("DEEPSEEK_API_KEY", null);
-        await using var provider = new DeepSeekSearchProvider(CreateJsonApiClient("{}").Object, new FakeConfigRoot());
+        // 用不存在的自定义 envVarName 避免并行测试环境变量竞态（CI flaky 根因 —
+        // 另一并行测试 Set DEEPSEEK_API_KEY 与本测试 Set(null) 竞态，自定义变量名隔离）
+        var config = new FakeConfigRoot().Set("searchProviders.deepseek.apiKeyEnvVar", "DEEPSEEK_NONEXISTENT_KEY_FOR_TEST");
+        await using var provider = new DeepSeekSearchProvider(CreateJsonApiClient("{}").Object, config);
         provider.IsAvailable.Should().BeFalse();
     }
 

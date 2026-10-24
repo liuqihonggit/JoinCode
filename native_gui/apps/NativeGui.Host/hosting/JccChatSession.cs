@@ -409,6 +409,16 @@ internal sealed class JccChatSession : IJccChatSession {
     }
 
     /// <summary>
+    /// 更新供应商密钥的运行时副本 — 模型页 set/unset 后调用；只改当前供应商，其他供应商下次切换时读 auth.json。
+    /// </summary>
+    public Task SetCredentialAsync(string provider, string? value, CancellationToken cancellationToken = default) {
+        if (string.Equals(provider, _config.Provider.Vendor, StringComparison.OrdinalIgnoreCase)) {
+            _config.Provider.ApiKey = value ?? "";
+        }
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
     /// 更新 settings.json 的 vendor[profile].model — 直接用 JsonNode 操作嵌套键
     /// </summary>
     private async Task UpdateVendorProfileModelAsync(string profileName, string modelId, CancellationToken ct) {

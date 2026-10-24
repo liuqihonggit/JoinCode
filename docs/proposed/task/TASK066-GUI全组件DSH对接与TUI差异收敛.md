@@ -25,7 +25,7 @@
 | `dsh-client-ui-plan` | 计划面板 | `plan/mode` 事件 + `session/control` 投影 + `/plan on|off|status` | ✅ 权限预设 → 引擎 `PermissionMode` → `plan{active,pending=false}` / `permissions{currentValue}` 投影；前端 chip 点击走 `commands/execute /plan off` 宿主拦截 | 单测 8 例 + `c6-e2e.mjs` 真机 30 项（chip 出现/点击/选择器同步） |
 | `dsh-client-ui-subagent` | 子代理卡片 | `subagents/{prompt,interruptByParent}`（catalog 已由 `DshSubagentCatalogProjector` 投影） | ✅ 文本投递 + 中断（image 显式拒绝并引导） | 单测 8 例 + `c6-e2e.mjs` 真机 3 项引导断言 |
 | `dsh-client-ui-commands` / `input-trigger` | 斜杠命令/引用补全 | `commands/list|execute`、`fileReferences/list` | ✅ 斜杠命令 + @ 文件引用补全（索引缓存 5s、排除目录、20 条）+ `/plan` 语义接管 | `dsh-webui-prompt` 回归 + 单测 6 例 + c6 真机 |
-| `dsh-client-ui-settings*`（general/models/shell/agent-loop/subagent/web-search/account/plugins） | 设置中心 | `settings/{describe,mutate,replace,update}` | ✅ 四条写/读路径齐全 | 单测（整段替换/顶层补丁/revision 冲突）+ 真机 E2E |
+| `dsh-client-ui-settings*`（general/models/shell/agent-loop/subagent/web-search/account/plugins） | 设置中心 + 模型页 | `settings/{describe,mutate,replace,update}` + `llm/{listProviders,listConfigurableProviders,discoverModels}` + `credentials/{describe,set,unset}` | ✅ 通用命名空间四条写/读路径；供应商虚拟命名空间（`llm-deepseek`）`describe/mutate` 直写引擎 `providers_llm/`（含 `config.json` + `models.json`），密钥经共享 `auth.json`（DPAPI）落盘并热更新引擎 | 单测（整段替换/顶层补丁/revision 冲突、供应商配置与模型合并、连续保存稳定版本、环境变量遮蔽拒绝移除）+ `dsh-webui-models-settings.mjs` 与 `dsh-webui-credentials-references.mjs` 真机 ALL_PASS |
 | `dsh-client-ui-model-selection` | 模型选择 | `session/modelCatalog|selectModel` | ✅ | 既有 E2E |
 | `dsh-client-ui-skill` | 技能面板 | `skills/list` | ✅ 引擎 `ISkillService` 映射（名称/描述/模型可调用/源路径） | 单测（RPC 4 例 + 映射 2 例）+ `c6-e2e.mjs` 真机 19 条技能 |
 | `dsh-client-ui-message-feedback` | 消息反馈 | `messageFeedback/{list,put,delete}` + `sessionFeedback/record` | ✅ 逐条落盘 + 乐观并发 + 契约错误联合体；会话级反馈写 `feedback/record` 日志事件（trim 文本、可选分类、不触发模型工作） | 单测（版本冲突/备注规则/会话反馈 4 例）+ `dsh-webui-session-feedback.mjs` 真机 18 项 ALL_PASS |
@@ -64,6 +64,7 @@
 | C7 | 全量 E2E 回归 + 完成审计 | ✅ 已验收（deliverables 27 项、轨迹 16 项、目标条 28 项、C4 19 项、C5 8 项、C6 30 项、终端面板 11 项、Core 单测 364+/364+） |
 | C8 | 提问卡片：`user-questions/request` waterfall + 批量回帖 + 结算 cancel 帧 | ✅ 已验收（单测 10 + `dsh-webui-questions.mjs` 真机 23 项 ALL_PASS） |
 | C9 | 会话反馈：`sessionFeedback/record` request 信封 + `feedback/record` 日志事件 + 契约错误联合体 | ✅ 已验收（单测 4 + `dsh-webui-session-feedback.mjs` 真机 18 项 ALL_PASS） |
+| C10 | 模型页与凭据：供应商虚拟命名空间 `settings/describe|mutate`（`providers_llm/config.json` + `models.json`）、`credentials/{describe,set,unset}` 共用 `auth.json`、`llm/discoverModels`、`@` 会话引用 `sessionReferenceResolver/candidates` | ✅ 已验收（单测 12 + `dsh-webui-models-settings.mjs` 27 项、`dsh-webui-credentials-references.mjs` 23 项真机 ALL_PASS） |
 
 ## 四、验收四列表（滚动更新）
 
@@ -107,6 +108,11 @@
 | `DshUserQuestionBroker`（`$events` 挂接/断连 fail-closed、`user-questions/request` 五键帧、q0..qN 答案映射、结算后 cancel 帧、轮次收尾按会话取消） | 引擎 `ask_user_question` → 前端问题卡片 → `$events/result` → 工具结果 | ✅ | ✅ 单测 10 例 + `dsh-webui-questions.mjs` 真机 23 项 ALL_PASS（真实桩模型 → 卡片 → 提交 → `"是否继续执行？"="继续"`、`"选择要包含的选项？"="A, B"` → `turn/end completed`） |
 | `AvaloniaInteractiveService.ShowQuestionsCallback` + `IJccChatSession.AskUserQuestionsCallback` 转发（GUI DI Order=80 单例） | 引擎工具处理器取整批问题一次性投递给前端卡片（而非逐题原生对话框） | ✅ | ✅ 同上真机 E2E：一张卡片渲染 2 问、单选自动翻页、多选 A/B 同时提交 |
 | `userQuestions/answer` 诚实 false（宿主无 continued 队列）+ `userQuestions/attachWait` 空流（无 timed wait） | 前端在 continued 状态下才走 RPC 回帖；本轮宿主不产生该状态 | ✅ | ✅ 单测 2 例（route 回 false + 引导文案含 callId/answer、attachWait 空流） |
+| `DshProviderSettingsStore`（`llm-deepseek` 虚拟命名空间：`describe` 聚合 `providers_llm/` 投影，`mutate` 按 set/delete 路径写 `config.json`/`models.json`，字段白名单 + 模型按 id 合并保留隐藏字段，revision 对自身写入稳定） | 模型页供应商卡片编辑、自定义设置折叠区、模型清单增删、`settings/mutate` 路由 | ✅ | ✅ 单测 9 例 + `dsh-webui-models-settings.mjs` 真机 27 项 ALL_PASS（卡片/编辑/自定义设置展开/保存/二次保存/发现模型/隐藏字段保留） |
+| `SettingsLoader.SaveVendorConfigAsync` + `SaveVendorModelsAsync`；`ConfigLoader.LoadStoredApiKeyAsync` / `RemoveApiKeyFromJccAsync` | 模型页写盘与凭据读写（与 TUI/CLI 共用 `~/.jcc/auth.json`） | ✅ | ✅ 单测（供应商配置合并、模型文件往返、DPAPI 落盘不含明文、损坏 auth.json 拒绝覆盖） |
+| `DshCredentialStore` + `DshRpcDispatcher.credentials/*`（`DeriveKeyRef` 路由映射、env 优先、可写判定、设置后热更新引擎） | 模型页 API 密钥输入/清除、模型发现复用密钥 | ✅ | ✅ 单测 6 例（含环境变量遮蔽时拒绝移除且不改盘）+ `dsh-webui-credentials-references.mjs` 真机 ALL_PASS（UI 填密钥→auth.json 加密、describe=stored、unset→false、env 拒绝指名变量） |
+| `DshModelDiscoveryService`（`llm/discoverModels`：OpenAI/Anthropic 响应归一、基址版本段自适应、20s 超时、500 条上限、协议鉴权头） | 模型页「发现模型」按钮、供应商模型清单刷新 | ✅ | ✅ 单测（Bearer/x-api-key、`context_length` 映射、错误引导）+ 真机 `discoverModels 复用已存密钥` 命中 `stub-model` |
+| `DshSessionStore.ReferenceCandidatesAsync` + `sessionReferenceResolver/candidates` 路由（排除自身、标题/ID/目录匹配、同工作区优先、最多 20 条） | 输入框 `@` 菜单「会话」分组、mention chip | ✅ | ✅ 单测（命中/排除自身/未知会话 context-not-found）+ `dsh-webui-credentials-references.mjs` 真机（fork→rename→候选命中→`@参考` 菜单出现会话） |
 
 <!-- 🤖 Auto Decision: 2026-10-22 -->
 <!-- 决策: 新建 TASK066 而非复用 TASK065（同名文档已被 TUI 任务占用） -->
@@ -198,3 +204,21 @@
 <!-- 原因: dsh-command-feedback 的语义是「记录本次会话级反馈」而非发起模型轮次——若复用消息反馈落盘或触发 prompt，前端会对用户的一次吐槽发起请求；未知会话必须走 result 联合体（strict 解码只接受 value 或 error 二选一），网关失败会让前端弹通用错误而不是提示会话不存在；分类是前端 chip 的固定词汇，白名单能把协议漂移暴露成可读引导 -->
 <!-- 替代方案: 复用 messageFeedback/put（需要消息 ID，会话级反馈没有目标消息）/ 静默忽略未知会话（前端 strict 解码失败，toast 只能显示通用错误）—— 均不采用 -->
 <!-- 验证: 单测 4 例全绿；dsh-webui-session-feedback.mjs 真机 18 项 ALL_PASS（真实宿主弹窗：选「稳定性和速度」+填写详情→提交→前端「感谢你的反馈」→/api 返回 {recorded:true}→日志 text 已 trim、category=service-stability、surfaceOp 缺省、之后无新增 assistant/message）；Host Debug 0 警告 0 错误 -->
+
+<!-- 🤖 Auto Decision: 2026-10-25 (模型页供应商虚拟命名空间) -->
+<!-- 决策: llm-deepseek 等供应商命名空间由宿主从 providers_llm/ 文件投影，settings/mutate 只接受 baseURL/apiKeyEnv/model/models 字段并直写 config.json + models.json；该虚拟命名空间 revision 恒为 0，自身写入不推进版本 -->
+<!-- 原因: 引擎没有供应商命名空间的独立文档，值完全来自配置文件；前端模型页编辑器在挂载时快照 revision，保存成功后不会把 mutate 应答折回 describe 镜像（只有设置表单的 mirror.acceptView 会），推进版本会让第二次保存直接 settings/conflict；实测前端确实发送打开时的旧 revision -->
+<!-- 替代方案: 写后推进 revision（前端二次保存必冲突）/ 让前端保存后刷新镜像（打包资产黑盒，升级覆盖）/ 省略 revision（strict 解码要求 number，缺失即整页加载失败），均不采用 -->
+<!-- 验证: 单测 9 例（连续两次保存均成功、显式错误 revision 仍冲突、模型隐藏字段保留）；dsh-webui-models-settings.mjs 真机 27 项 ALL_PASS（两次保存后 models.json 均更新、发现模型走真实桩） -->
+
+<!-- 🤖 Auto Decision: 2026-10-25 (凭据移除的环境变量优先级) -->
+<!-- 决策: credentials/unset 先看环境变量：变量非空即诚实拒绝并指名变量，不再尝试删除 auth.json 条目；只有无环境变量时才删除已存密钥 -->
+<!-- 原因: 生效密钥按 env 优先解析；若存在已存密钥时先删盘并返回成功，用户以为密钥没了但请求仍用环境变量密钥，前端 describe 也仍显示 configured=true——删除给出的是错误的安全感；E2E 真实复现该路径（env + stored 并存时 unset 返回 ok 但 source 仍是 env） -->
+<!-- 替代方案: 删盘后仍返回成功但提示 env 仍生效（状态已变而结果失败/成功语义混乱）/ 只删盘不提示（用户无法理解为何仍可用），均不采用 -->
+<!-- 验证: 红测试先失败后转绿（DshCredentialStoreTests 环境变量遮蔽用例）；dsh-webui-credentials-references.mjs 真机 ALL_PASS（unset STUB_API_KEY 返回 credentials/rejected 且文案含变量名） -->
+
+<!-- 🤖 Auto Decision: 2026-10-25 (模型页 E2E 前置：隔离 home + 空 DEEPSEEK_API_KEY) -->
+<!-- 决策: 模型页/凭据真机 E2E 用 JCC_APP_DATA_FOLDER 指向 .xxx/models-home 的独立 home，并以空 DEEPSEEK_API_KEY 启动宿主（仅保留 STUB_API_KEY） -->
+<!-- 原因: 共享真实 home 会污染用户 auth.json，且开发机环境里的 DEEPSEEK_API_KEY 会遮蔽已存密钥，使「set→describe=stored」这类断言无法稳定复现；空值让 describe 按 stored 路径回答，同时保留 STUB_API_KEY 供引擎走本地桩 -->
+<!-- 替代方案: 直接写真实 home（污染用户凭据）/ 在断言里容忍 env（无法验证落盘链路），均不采用 -->
+<!-- 验证: dsh-webui-credentials-references.mjs 23 项 ALL_PASS（UI 保存→auth.json 仅密文、RPC unset→configured=false、env 移除被拒） -->

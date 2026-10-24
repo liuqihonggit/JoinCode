@@ -122,6 +122,17 @@ public interface IJccChatSession : IAsyncDisposable {
     Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 更新供应商密钥的运行时副本 — 模型页保存/移除密钥后调用，下一次请求即用新密钥。
+    /// 只更新与当前供应商匹配的凭据；其他供应商的密钥由下次切换供应商时从 auth.json 读取。
+    /// 默认实现为空（占位会话/测试脚本会话无需处理）。
+    /// </summary>
+    /// <param name="provider">供应商路由（auth.json 键）</param>
+    /// <param name="value">明文密钥；null 表示移除</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    Task SetCredentialAsync(string provider, string? value, CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
+
+    /// <summary>
     /// 当前推理力度（默认 Auto；对齐 CLI /effort current 语义）。
     /// 进程内引擎经 <c>IExecutionSettingsProvider.EffortLevel</c> 实时消费。
     /// </summary>

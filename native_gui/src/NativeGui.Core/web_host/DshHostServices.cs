@@ -11,13 +11,24 @@ internal sealed class DshHostServices {
     /// <param name="workspaceFilePath">工作区注册表路径（默认 <c>~/.jcc/dsh-workspaces.json</c>）</param>
     /// <param name="journalDirectory">宿主事件日志目录（默认 <c>~/.jcc/dsh_journal</c>）</param>
     /// <param name="homeDirectory">目录选择器的起始主目录（默认取用户目录；测试可注入）</param>
-    internal DshHostServices(IFileSystem fileSystem, string? workspaceFilePath = null, string? journalDirectory = null, string? homeDirectory = null) {
+    /// <param name="appDataPaths">应用数据路径（api key 落盘位置；默认取进程配置，测试注入隔离路径）</param>
+    internal DshHostServices(IFileSystem fileSystem, string? workspaceFilePath = null, string? journalDirectory = null, string? homeDirectory = null, AppDataPaths? appDataPaths = null) {
+        var paths = appDataPaths ?? AppDataPaths.Default;
         FileSystem = fileSystem;
         Workspaces = new DshWorkspaceStore(fileSystem, workspaceFilePath);
-        Settings = new DshSettingsStore(fileSystem);
-        Journal = new DshSessionJournal(fileSystem, journalDirectory ?? Path.Combine(AppDataPaths.Default.JccDirectory, "dsh_journal"));
+        Settings = new DshSettingsStore(fileSystem, Path.Combine(paths.JccDirectory, "dsh-settings.json"));
+        Journal = new DshSessionJournal(fileSystem, journalDirectory ?? Path.Combine(paths.JccDirectory, "dsh_journal"));
         Sessions = new DshSessionStore(Journal);
         Models = new DshModelCatalogSource();
+        Providers = new DshProviderSettingsStore(fileSystem, paths, Models);
+        Credentials = new DshCredentialStore(
+            fileSystem,
+            () => Models.Current.Groups.Select(group => group.Id).ToArray(),
+            appDataPaths) {
+            // 模型页保存的密钥立刻写进引擎当前供应商配置，下一次请求即生效（未就绪时只落盘，引擎启动读 auth.json）
+            ApplyToEngine = (provider, value, ct) => Engine is { } engine ? engine.SetCredentialAsync(provider, value, ct) : Task.CompletedTask,
+        };
+        Discovery = new DshModelDiscoveryService(Credentials);
         Streams = new DshSessionStreamHub(Journal);
         Changes = new DshWorkspaceChangesStore();
         Approvals = new DshApprovalBroker {
@@ -161,6 +172,15 @@ internal sealed class DshHostServices {
 
     /// <summary>模型目录（session/modelCatalog — 启动读 settings.json，引擎就绪后热切换）</summary>
     internal DshModelCatalogSource Models { get; }
+
+    /// <summary>模型页供应商设置面（llm/listConfigurableProviders + settings/describe|mutate 的 llm-deepseek 分支，TASK066 C8）</summary>
+    internal DshProviderSettingsStore Providers { get; }
+
+    /// <summary>模型页凭据（credentials/describe|set|unset — 共享 auth.json，TASK066 C8）</summary>
+    internal DshCredentialStore Credentials { get; }
+
+    /// <summary>模型发现（llm/discoverModels — 按协议拉供应商模型清单，TASK066 C8）</summary>
+    internal DshModelDiscoveryService Discovery { get; }
 
     /// <summary>权限确认桥（引擎确认点 → $events waterfall → 前端回帖，TASK058 B1）</summary>
     internal DshApprovalBroker Approvals { get; }

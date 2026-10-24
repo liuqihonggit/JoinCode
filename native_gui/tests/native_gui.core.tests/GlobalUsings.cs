@@ -7,6 +7,7 @@ global using Core.DependencyInjection;
 global using FluentAssertions;
 global using IO.FileSystem;
 global using JoinCode.Abstractions.Configuration;
+global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Configuration.Llm;
 global using JoinCode.Abstractions.Configuration.Providers;
 global using JoinCode.Abstractions.Configuration.Settings;

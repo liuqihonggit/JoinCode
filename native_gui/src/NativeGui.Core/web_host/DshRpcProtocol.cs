@@ -1610,6 +1610,9 @@ internal sealed class DshSchemaNode {
     public DshSchemaMeta Meta { get; set; } = new();
     /// <summary>对象字段名 → 子节点 uid（非对象节点为空表，schemastery 容忍）</summary>
     public Dictionary<string, int> Dict { get; set; } = [];
+    /// <summary>dict/array 的元素节点 uid（schemastery 的 inner；对象节点省略）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Inner { get; set; }
 }
 
 /// <summary>schemastery 元信息（只保留需回传给前端的键，未设置的键省略）</summary>

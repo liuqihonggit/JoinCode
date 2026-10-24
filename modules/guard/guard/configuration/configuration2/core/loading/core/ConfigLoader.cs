@@ -318,6 +318,17 @@ public class ConfigLoader {
     }
 
     /// <summary>
+    /// 从 ~/.jcc/auth.json 读取已存储的 API Key（静态入口，供没有 ConfigLoader 实例的宿主使用）。
+    /// 只做 DPAPI 解密，不解析供应商注册表的复合格式；键不存在或为空返回空串。
+    /// </summary>
+    public static async Task<string> LoadStoredApiKeyAsync(string provider, IFileSystem fs, CancellationToken cancellationToken = default, AppDataPaths? paths = null) {
+        var authData = await LoadAuthFileAsync(fs, cancellationToken, paths).ConfigureAwait(false);
+        if (authData is null || !authData.TryGetValue(provider, out var stored) || string.IsNullOrWhiteSpace(stored))
+            return string.Empty;
+        return ApiKeyProtector.Decrypt(stored);
+    }
+
+    /// <summary>
     /// 保存 API Key 到 ~/.jcc/auth.json — C6: Windows 用 DPAPI 加密,非 Windows 拒绝写明文
     /// </summary>
     public static async Task SaveApiKeyToJccAsync(string provider, string apiKey, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null, AppDataPaths? paths = null) {
@@ -353,6 +364,39 @@ public class ConfigLoader {
             var outputJson = RelaxedJsonSerializer.SerializeCompact(authData, ConfigJsonContext.Default);
             await fs.WriteAllTextAsync(authPath, outputJson, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// 从 ~/.jcc/auth.json 移除指定 provider 的 API Key。
+    /// 文件或键不存在返回 false；文件内容损坏时抛 <see cref="InvalidDataException"/> 而不是覆盖写回，
+    /// 避免误删其他供应商的密钥。
+    /// </summary>
+    /// <param name="provider">供应商键（与 auth.json 的键一致）</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="paths">应用数据路径（默认全局配置）</param>
+    /// <returns>是否真正移除了一个存在的键</returns>
+    public static async Task<bool> RemoveApiKeyFromJccAsync(string provider, IFileSystem fs, CancellationToken cancellationToken = default, AppDataPaths? paths = null) {
+        var authPath = (paths ?? AppDataConstants.Paths).AuthFilePath;
+        if (!fs.FileExists(authPath))
+            return false;
+
+        var removed = false;
+        await fs.EditFileAsync<bool>(authPath, (bytes, _) => {
+            var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+            Dictionary<string, string>? authData;
+            try {
+                authData = RelaxedJsonSerializer.Deserialize(content, ConfigJsonContext.Default.DictionaryStringString);
+            } catch (JsonException ex) {
+                throw new InvalidDataException($"{authPath} 不是合法的 auth.json，已中止移除以免覆盖其他供应商密钥", ex);
+            }
+            authData ??= new Dictionary<string, string>();
+            removed = authData.Remove(provider);
+            var outputJson = RelaxedJsonSerializer.SerializeCompact(authData, ConfigJsonContext.Default);
+            var newBytes = FileEncodingDetector.EncodeString(outputJson, encoding);
+            return Task.FromResult<(byte[]? NewContent, bool Result)>((newBytes, true));
+        }, cancellationToken).ConfigureAwait(false);
+        return removed;
     }
 
     /// <summary>

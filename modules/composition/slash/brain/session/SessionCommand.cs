@@ -32,7 +32,7 @@ public sealed class SessionCommand : ChatCommandBase {
             case CrudActionEnumConstants.Delete:
             case CrudActionEnumConstants.Rm:
             var deleteId = args.Length > 1 ? args[1] : null;
-            DeleteSession(context, deleteId);
+            await DeleteSession(context, deleteId).ConfigureAwait(false);
             break;
             default:
             TerminalHelper.WriteLine($"未知操作: {action}");
@@ -57,13 +57,23 @@ public sealed class SessionCommand : ChatCommandBase {
         await ResumeCommand.ResumeSessionAsync(id, context, ResumeEntrypoint.SlashCommandSessionId).ConfigureAwait(false);
     }
 
-    private static void DeleteSession(ChatCommandContext context, string? id) {
+    private static async Task DeleteSession(ChatCommandContext context, string? id) {
         if (string.IsNullOrEmpty(id)) {
             TerminalHelper.WriteLine("用法: /session delete <id>");
             return;
         }
 
-        // 待办：接入 SessionStore 服务后实现会话删除
-        TerminalHelper.WriteLine($"已删除会话: {id}");
+        var transcriptService = ChatCommandBase.GetService<ITranscriptService>(context, typeof(ITranscriptService));
+        if (transcriptService is null) {
+            TerminalHelper.WriteLine($"{TerminalColors.Error}ITranscriptService 不可用，无法删除会话{AnsiStyleEnumConstants.Reset}");
+            return;
+        }
+
+        var deleted = await transcriptService.DeleteTranscriptAsync(id, context.CancellationToken).ConfigureAwait(false);
+        if (deleted) {
+            TerminalHelper.WriteLine($"{TerminalColors.Success}已删除会话: {id}{AnsiStyleEnumConstants.Reset}");
+        } else {
+            TerminalHelper.WriteLine($"{TerminalColors.Error}会话不存在或删除失败: {id}{AnsiStyleEnumConstants.Reset}");
+        }
     }
 }

@@ -259,6 +259,50 @@ public sealed class SessionCommandTests {
         }
     }
 
+    /// <summary>
+    /// 红测试: /session delete &lt;id&gt; 应调用 ITranscriptService.DeleteTranscriptAsync 删除会话。
+    /// 当前 DeleteSession 是空壳(只打印"已删除会话: id"),此测试应失败 — 驱动接入 ITranscriptService。
+    /// </summary>
+    [Fact]
+    public async Task Execute_Delete_WithId_Should_Call_DeleteTranscriptAsync() {
+        var transcriptMock = new Mock<ITranscriptService>();
+        transcriptMock.Setup(s => s.DeleteTranscriptAsync("sess-del", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var fallbackProvider = new ServiceCollection().AddSingleton(transcriptMock.Object).BuildServiceProvider();
+
+        var context = new ChatCommandContext {
+            Arguments = "delete sess-del",
+            CancellationToken = CancellationToken.None,
+            SessionId = "current-session-id",
+            Services = new CommandServiceProvider(new CommandServices {
+                ChatService = Mock.Of<IChatService>(),
+                CodeService = Mock.Of<ICodeService>(),
+                PlanService = Mock.Of<IPlanService>(),
+                FileSystem = TestFileSystem.Current,
+            }, fallbackProvider),
+        };
+
+        TerminalHelper.Init();
+        var sb = new StringBuilder();
+        var originalOut = Console.Out;
+        await using var stringWriter = new StringWriter(sb);
+        var originalForce = TestEnvironmentDetector.ForceNonInteractive;
+        TestEnvironmentDetector.ForceNonInteractive = true;
+
+        try {
+            TerminalHelper.SetOut(stringWriter);
+            var cmd = new SessionCommand();
+
+            var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
+
+            transcriptMock.Verify(s => s.DeleteTranscriptAsync("sess-del", It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            result.ShouldContinue.Should().BeTrue();
+        } finally {
+            TerminalHelper.SetOut(originalOut);
+            TestEnvironmentDetector.ForceNonInteractive = originalForce;
+        }
+    }
+
     private static ChatCommandContext CreateContext(string arguments) {
         return new ChatCommandContext {
             Arguments = arguments,

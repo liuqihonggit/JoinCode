@@ -215,24 +215,24 @@ function Generate-FullArgs {
 function Generate-DefaultArgs {
     param([object]$Schema)
 
-    if (-not $Schema -or -not $Schema.properties -or -not $Schema.required) { return @() }
+    if (-not $Schema -or -not $Schema.properties) { return @() }
 
     $args = @()
-    foreach ($reqParam in $Schema.required) {
-        if (-not $Schema.properties.$reqParam) { continue }
-        $info = $Schema.properties.$reqParam
+    foreach ($prop in $Schema.properties.PSObject.Properties) {
+        $name = $prop.Name
+        $info = $prop.Value
         $type = if ($info.type) { $info.type } else { "string" }
         $enum = if ($info.enum) { $info.enum } else { $null }
         $default = if ($info.default) { $info.default } else { $null }
 
-        $value = Generate-ArgValue -ParamName $reqParam -Type $type -Enum $enum -Default $default
+        $value = Generate-ArgValue -ParamName $name -Type $type -Enum $enum -Default $default
 
         if ($type -eq "integer" -or $type -eq "boolean") {
-            $args += "$reqParam=$value"
+            $args += "$name=$value"
         } elseif ($type -eq "array" -or $type -eq "object") {
-            $args += "$reqParam=$value"
+            $args += "$name=$value"
         } else {
-            $args += "$reqParam=`"$value`""
+            $args += "$name=`"$value`""
         }
     }
     return $args

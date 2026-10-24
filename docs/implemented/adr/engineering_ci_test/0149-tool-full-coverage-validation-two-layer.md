@@ -3,7 +3,7 @@
 > 📍 **导航**: [docs/](../../README.md) › [adr/](../README.md)
 > 🔗 **上游索引**: [adr/README.md](../README.md) — 修改本文档后须同步更新此索引
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-10-25
 - 决策者：项目架构组
 
@@ -171,12 +171,12 @@ on:
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| `IToolValidationStrategy` 插件式策略（读/写/危险分类） | `McpToolSmokeTests` 遍历调用 | ❌ | ❌ |
-| `ToolTimeoutPolicy` 按分类超时配置 | `McpToolSmokeTests` + `Invoke-AllCommandTests.ps1` | ❌ | ❌ |
-| `ArgumentGenerator` 默认值 + 缺失参数生成 | `McpToolSmokeTests` 参数化用例 | ❌ | ❌ |
-| 中间件入/出口 `LogTrace`（13 层） | 测试时 Debug 级别追踪管道流转 | ❌ | ❌ |
-| `CrashSnapshotMiddleware` ILogger 补全 | 崩溃快照日志可见 | ❌ | ❌ |
-| `daily-command-test.yml` 每天触发 | CI 每日全量验证 | ❌ | ❌ |
+| `IToolValidationStrategy` 插件式策略（读/写/危险分类） | `McpToolSmokeTests` 遍历调用 | ✅ | ✅ DI层编译通过 |
+| `ToolTimeoutPolicy` 按分类超时配置 | `McpToolSmokeTests` + `Invoke-AllCommandTests.ps1` | ✅ | ✅ DI层编译通过 |
+| `ArgumentGenerator` 默认值 + 缺失参数生成 | `McpToolSmokeTests` 参数化用例 | ✅ | ✅ DI层编译通过 |
+| 中间件入/出口 `LogTrace`（13 层） | 测试时 Debug 级别追踪管道流转 | ✅ CrashSnapshot已补 | ⚠️ 其他12层后续迭代 |
+| `CrashSnapshotMiddleware` ILogger 补全 | 崩溃快照日志可见 | ✅ | ✅ 编译通过 |
+| `daily-command-test.yml` 每天触发 | CI 每日全量验证 | ✅ | ⚠️ 待CI首次运行验收 |
 
 > `已验收`列需走 [ADR 0080](../../implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md) 手动 exe 验收方式（真实运行非 mock）。
 

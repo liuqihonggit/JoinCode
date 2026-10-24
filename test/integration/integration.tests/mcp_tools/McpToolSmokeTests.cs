@@ -121,11 +121,27 @@ public sealed class McpToolSmokeTests {
     );
 
     /// <summary>
-    /// 判断工具是否有真实副作用（桌面 Win32 SendInput / git worktree 操作），冒烟测试应跳过
+    /// 有真实网络副作用的工具 — 冒烟测试跳过，避免连接外部服务器导致超时（mcp_connect 连真实 MCP 服务器）
+    /// </summary>
+    private static readonly FrozenSet<string> ToolsWithNetworkSideEffects = FrozenSet.Create(
+        StringComparer.Ordinal,
+        [
+            "mcp_connect",
+        ]
+    );
+
+    /// <summary>
+    /// 判断工具是否有真实副作用（桌面 Win32 SendInput / git worktree / 网络连接 / GitHub 写入 / git 操作），冒烟测试应跳过。
+    /// <para>gh_* 全跳过：GitHub 工具有写入副作用（create issue/PR/comment、cancel/rerun run、fork repo、close/merge PR 等），
+    /// 巡检用最小参数真实调用会向用户仓库写入数据。</para>
+    /// <para>git_* 全跳过：git 工具有本地仓库副作用（add/commit/push/branch/clone/reset/clean 等）。</para>
     /// </summary>
     private static bool HasRealSideEffects(ToolInfo tool) =>
         string.Equals(tool.Category, "desktop", StringComparison.OrdinalIgnoreCase)
-        || ToolsWithGitSideEffects.Contains(tool.Name);
+        || ToolsWithGitSideEffects.Contains(tool.Name)
+        || ToolsWithNetworkSideEffects.Contains(tool.Name)
+        || tool.Name.StartsWith("gh_", StringComparison.Ordinal)
+        || tool.Name.StartsWith("git_", StringComparison.Ordinal);
 
     [Fact]
     public async Task All_Registered_Tools_Can_Be_Called_Without_Crash() {
@@ -183,29 +199,31 @@ public sealed class McpToolSmokeTests {
         report.AppendLine($"跳过(有真实副作用): {skipped.Count}");
         report.AppendLine();
 
-        report.AppendLine("## 详细结果");
+        report.AppendLine("## 详细结果（助记符验收：[OK]成功 [ERR]错误 [CRASH]崩溃 [LOCK]死锁 [TMO]超时 [SKIP]跳过）");
         foreach (var (toolName, status, errorMessage) in results.OrderBy(r => r.ToolName)) {
+            var mnemonic = status switch {
+                "OK" => "[OK]",
+                "ERROR" => "[ERR]",
+                "CRASH" => "[CRASH]",
+                "DEADLOCK" => "[LOCK]",
+                "TIMEOUT" => "[TMO]",
+                "SKIPPED" => "[SKIP]",
+                _ => $"[{status}]"
+            };
             var truncatedError = errorMessage switch {
                 null => "",
                 _ when errorMessage.Length > 100 => errorMessage[..100] + "...",
                 _ => errorMessage
             };
-            report.AppendLine($"| {status} | {toolName} | {truncatedError} |");
+            report.AppendLine($"{mnemonic} {toolName} {truncatedError}");
         }
 
         Console.WriteLine(report.ToString());
 
-        // 崩溃的工具必须为 0（工具可以返回错误，但不能崩溃）
+        // 强制失败：崩溃/死锁/超时必须为 0（工具可以返回错误，但不能崩溃/死锁/超时）
         crashed.Should().BeEmpty($"以下工具崩溃: {string.Join(", ", crashed.Select(c => c.ToolName))}");
-
-        // 死锁/超时：报告模式 — 当前已知 RecordSuccessAsync/RecordTransitionAsync 用 AskAwait 阻塞导致线程池饥饿时超时
-        // （根因：ToolHealthMonitor.cs:211-240 统计记录不该 Ask 等待，应改 fire-and-forget）
-        // bug 修复后此处改回 .Should().BeEmpty() 强制失败
-        if (deadlocked.Count > 0 || timedOut.Count > 0) {
-            Console.WriteLine($"[巡检告警] 死锁 {deadlocked.Count} 个: {string.Join(", ", deadlocked.Select(c => c.ToolName))}");
-            Console.WriteLine($"[巡检告警] 超时 {timedOut.Count} 个: {string.Join(", ", timedOut.Select(c => c.ToolName))}");
-            Console.WriteLine("[巡检告警] 根因：ToolHealthMonitor RecordSuccessAsync/RecordFailureAsync/RecordTransitionAsync 用 AskAwait 阻塞，统计记录应改 fire-and-forget");
-        }
+        deadlocked.Should().BeEmpty($"以下工具死锁(ActorAskDeadlockException): {string.Join(", ", deadlocked.Select(c => c.ToolName))}");
+        timedOut.Should().BeEmpty($"以下工具 30s 超时: {string.Join(", ", timedOut.Select(c => c.ToolName))}");
     }
 
     [Fact]

@@ -60,6 +60,13 @@ public sealed record HeatColdToolsCmd(int ColdThreshold, int BoostScore, DateTim
 public sealed record RecordTransitionCmd(string FromTool, string ToTool, TaskCompletionSource Tcs) : IToolHealthCommand;
 
 /// <summary>
+/// Flush 哨兵命令 — 排到邮箱末尾，处理到此命令时前面所有命令已处理完，TrySetResult 通知 FlushAsync 返回。
+/// 消除 InputCount==0 竞态（Consumer 可能正在 Handle 最后一个命令，_records 还没更新）。
+/// </summary>
+/// <param name="Tcs">用于通知 FlushAsync 返回的任务完成源</param>
+public sealed record FlushSentinelCmd(TaskCompletionSource Tcs) : IToolHealthCommand;
+
+/// <summary>
 /// 工具健康监控服务 — Actor 化：复合操作（RecordSuccess/RecordFailure/Decay）由 Consumer 串行处理，消除 AsyncLock。
 /// <para>_records 保留 ConcurrentDictionary 供 GetEffectiveScore 等读多写少方法直接读取（最终一致性）。</para>
 /// <para>_blacklistSnapshot/_penalties 保留 volatile 双变量切换。</para>
@@ -203,39 +210,55 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     }
 
     /// <summary>
-    /// 异步记录工具成功执行 — 通过 Actor 邮箱投递，串行处理以消除锁竞争
+    /// 异步记录工具成功执行 — fire-and-forget 语义：Tell 投递后立即返回当前快照，不阻塞调用方。
+    /// <para>原 AskAwait 模式在 514 工具巡检时 Actor Consumer 串行处理 + SaveToDiskAsync 排队导致 10s 超时
+    /// （ActorAskDeadlockException / TaskCanceledException）。统计记录不应阻塞主流程，改 fire-and-forget。</para>
+    /// <para>返回当前快照（可能 stale，最终一致性 — Actor 后台处理 + 批量保存）。需同步等待用 <see cref="FlushAsync"/>。</para>
     /// </summary>
     /// <param name="toolName">工具名称</param>
-    /// <param name="ct">取消令牌</param>
-    /// <returns>更新后的工具健康记录</returns>
-    public async Task<ToolHealthRecord> RecordSuccessAsync(string toolName, CancellationToken ct = default) {
-        var tcs = TcsFactory.Create<ToolHealthRecord>();
-        Tell(new RecordSuccessCmd(toolName, tcs));
-        return await AskAwait(tcs, ct).ConfigureAwait(false);
+    /// <param name="ct">取消令牌（fire-and-forget 模式下未使用，保留为签名兼容）</param>
+    /// <returns>当前快照（stale 可能），非最新值</returns>
+    public Task<ToolHealthRecord> RecordSuccessAsync(string toolName, CancellationToken ct = default) {
+        Tell(new RecordSuccessCmd(toolName, TcsFactory.Create<ToolHealthRecord>()));
+        return Task.FromResult(_records.GetValueOrDefault(toolName) ?? new ToolHealthRecord { ToolName = toolName });
     }
 
     /// <summary>
-    /// 异步记录工具执行失败 — 通过 Actor 邮箱投递，连续失败达阈值时记录警告
+    /// 异步记录工具执行失败 — fire-and-forget 语义：Tell 投递后立即返回当前快照，不阻塞调用方。
+    /// <para>对齐 <see cref="RecordSuccessAsync"/> 的 fire-and-forget 改造理由同上。</para>
     /// </summary>
     /// <param name="toolName">工具名称</param>
     /// <param name="errorMessage">错误消息（可为空）</param>
-    /// <param name="ct">取消令牌</param>
-    /// <returns>更新后的工具健康记录</returns>
-    public async Task<ToolHealthRecord> RecordFailureAsync(string toolName, string? errorMessage, CancellationToken ct = default) {
-        var tcs = TcsFactory.Create<ToolHealthRecord>();
-        Tell(new RecordFailureCmd(toolName, errorMessage, tcs));
-        return await AskAwait(tcs, ct).ConfigureAwait(false);
+    /// <param name="ct">取消令牌（fire-and-forget 模式下未使用，保留为签名兼容）</param>
+    /// <returns>当前快照（stale 可能），非最新值</returns>
+    public Task<ToolHealthRecord> RecordFailureAsync(string toolName, string? errorMessage, CancellationToken ct = default) {
+        Tell(new RecordFailureCmd(toolName, errorMessage, TcsFactory.Create<ToolHealthRecord>()));
+        return Task.FromResult(_records.GetValueOrDefault(toolName) ?? new ToolHealthRecord { ToolName = toolName });
     }
 
     /// <summary>
-    /// 记录工具转移 — 从 fromTool 转移到 toTool，更新转移频率映射
+    /// 记录工具转移 — fire-and-forget 语义：Tell 投递后立即返回，不阻塞调用方。
+    /// <para>转移频率是统计行为，无需同步等待结果。原 AskAwait 模式在线程池饥饿时 10s 超时抛
+    /// ActorAskDeadlockException 导致工具执行失败。</para>
     /// </summary>
     /// <param name="fromTool">源工具名称</param>
     /// <param name="toTool">目标工具名称</param>
+    /// <param name="ct">取消令牌（fire-and-forget 模式下未使用，保留为签名兼容）</param>
+    public Task RecordTransitionAsync(string fromTool, string toTool, CancellationToken ct = default) {
+        Tell(new RecordTransitionCmd(fromTool, toTool, TcsFactory.Create()));
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// 等待邮箱所有命令处理完 — 供测试在 fire-and-forget 记录后确保 Actor 处理完再断言。
+    /// <para>投递 <see cref="FlushSentinelCmd"/> 哨兵到邮箱末尾，Actor 串行处理到哨兵时前面所有命令已处理完，
+    /// TrySetResult 通知本方法返回。消除 InputCount==0 竞态（Consumer 可能正在 Handle 最后一个命令，_records 还没更新）。</para>
+    /// </summary>
     /// <param name="ct">取消令牌</param>
-    public async Task RecordTransitionAsync(string fromTool, string toTool, CancellationToken ct = default) {
+    public async Task FlushAsync(CancellationToken ct = default) {
+        await _loadTask.ConfigureAwait(false);
         var tcs = TcsFactory.Create();
-        Tell(new RecordTransitionCmd(fromTool, toTool, tcs));
+        Tell(new FlushSentinelCmd(tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
@@ -414,6 +437,10 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
                 transition.Tcs.TrySetResult();
             }
             break;
+
+            case FlushSentinelCmd sentinel:
+                sentinel.Tcs.TrySetResult();
+                break;
         }
     }
 

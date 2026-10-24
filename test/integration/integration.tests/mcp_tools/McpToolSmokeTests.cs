@@ -359,6 +359,72 @@ public sealed class McpToolSmokeTests {
     }
 
     /// <summary>
+    /// write→edit→read 行为验证 — 写入文件后编辑，读回断言新内容替换旧内容。
+    /// </summary>
+    [Fact]
+    public async Task Write_Edit_Read_Behavior_Verification() {
+        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var fileName = $"patrol-edit-test-{Guid.NewGuid():N}.txt";
+        var fileNameJson = System.Text.Json.JsonSerializer.Serialize(fileName);
+
+        // write 写入 "old content"
+        var writeArgs = new Dictionary<string, JsonElement> {
+            ["file_path"] = JsonDocument.Parse(fileNameJson).RootElement.Clone(),
+            ["content"] = JsonDocument.Parse("\"old content\"").RootElement.Clone(),
+        };
+        var writeResult = await ctx.Gateway.ExecuteAsync("write", writeArgs, CancellationToken.None).ConfigureAwait(true);
+        writeResult.IsError.Should().BeFalse($"write 应成功: {writeResult.Content.FirstOrDefault()?.Text}");
+
+        // edit 替换 "old" → "new"
+        var editArgs = new Dictionary<string, JsonElement> {
+            ["file_path"] = JsonDocument.Parse(fileNameJson).RootElement.Clone(),
+            ["old_string"] = JsonDocument.Parse("\"old\"").RootElement.Clone(),
+            ["new_string"] = JsonDocument.Parse("\"new\"").RootElement.Clone(),
+        };
+        var editResult = await ctx.Gateway.ExecuteAsync("edit", editArgs, CancellationToken.None).ConfigureAwait(true);
+        editResult.IsError.Should().BeFalse($"edit 应成功: {editResult.Content.FirstOrDefault()?.Text}");
+
+        // read 读回
+        var readArgs = new Dictionary<string, JsonElement> {
+            ["file_path"] = JsonDocument.Parse(fileNameJson).RootElement.Clone(),
+        };
+        var readResult = await ctx.Gateway.ExecuteAsync("read", readArgs, CancellationToken.None).ConfigureAwait(true);
+        readResult.IsError.Should().BeFalse($"read 应成功: {readResult.Content.FirstOrDefault()?.Text}");
+
+        // 断言含 "new content" 不含 "old content"
+        var readText = readResult.Content.FirstOrDefault()?.Text ?? "";
+        readText.Should().Contain("new content", "edit 后 read 应含新内容");
+        readText.Should().NotContain("old content", "edit 后 read 不应含旧内容");
+    }
+
+    /// <summary>
+    /// write→delete 行为验证 — file_delete 被 AGENTS.md 安全规则阻止(禁止删除,要移动到 .xxx/)。验证安全规则生效。
+    /// </summary>
+    [Fact]
+    public async Task Write_Delete_Read_Behavior_Verification() {
+        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var fileName = $"patrol-delete-test-{Guid.NewGuid():N}.txt";
+        var fileNameJson = System.Text.Json.JsonSerializer.Serialize(fileName);
+
+        // write 写入文件
+        var writeArgs = new Dictionary<string, JsonElement> {
+            ["file_path"] = JsonDocument.Parse(fileNameJson).RootElement.Clone(),
+            ["content"] = JsonDocument.Parse("\"patrol delete test\"").RootElement.Clone(),
+        };
+        var writeResult = await ctx.Gateway.ExecuteAsync("write", writeArgs, CancellationToken.None).ConfigureAwait(true);
+        writeResult.IsError.Should().BeFalse($"write 应成功: {writeResult.Content.FirstOrDefault()?.Text}");
+
+        // file_delete 应被安全规则阻止(AGENTS.md 禁止删除,要移动到 .xxx/)
+        var deleteArgs = new Dictionary<string, JsonElement> {
+            ["file_path"] = JsonDocument.Parse(fileNameJson).RootElement.Clone(),
+        };
+        var deleteResult = await ctx.Gateway.ExecuteAsync("file_delete", deleteArgs, CancellationToken.None).ConfigureAwait(true);
+        deleteResult.IsError.Should().BeTrue("file_delete 应被安全规则阻止(AGENTS.md 禁止删除)");
+        var deleteText = deleteResult.Content.FirstOrDefault()?.Text ?? "";
+        deleteText.Should().Contain(".xxx", "错误提示应引导移动到 .xxx/ 目录");
+    }
+
+    /// <summary>
     /// 默认值参数全量验证 — 用 ArgumentGenerator 生成默认值参数，按分类超时调用所有工具
     /// </summary>
     [Fact]

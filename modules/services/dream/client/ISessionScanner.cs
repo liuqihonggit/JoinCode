@@ -43,8 +43,8 @@ public sealed partial class DefaultSessionScanner : ServiceEntity, ISessionScann
     public Task<IReadOnlyList<string>> ListSessionsTouchedSinceAsync(
         long sinceMs,
         CancellationToken ct = default) {
-        // 简化实现：扫描项目目录下的会话文件
-        // 实际实现应该扫描特定的会话存储目录
+        // TASK071 服务域-① — 会话布局为 SessionsDirectory/<sessionId>/transcript.jsonl
+        // （TranscriptService.ResolveTranscriptFile 同源）；旧实现扫顶层 *.json 恒 0 会话（autoDream 门控失效）
         var sessions = new List<string>();
 
         try {
@@ -55,14 +55,21 @@ public sealed partial class DefaultSessionScanner : ServiceEntity, ISessionScann
 
             var sinceTime = new DateTime(sinceMs * TimeSpan.TicksPerMillisecond, DateTimeKind.Utc);
 
-            foreach (var file in _fs.EnumerateFiles(sessionsDir, "*.json", SearchOption.TopDirectoryOnly)) {
-                var lastWriteTime = _fs.GetLastWriteTimeUtc(file);
+            foreach (var dir in _fs.EnumerateDirectories(sessionsDir, "*", SearchOption.TopDirectoryOnly)) {
+                ct.ThrowIfCancellationRequested();
+                var sessionId = Path.GetFileName(dir);
+                if (string.IsNullOrEmpty(sessionId)) continue;
+
+                // transcript.jsonl 优先（TASK057 JSONL 化），回退存量 transcript.json
+                var transcriptPath = Path.Combine(dir, "transcript.jsonl");
+                if (!_fs.FileExists(transcriptPath)) {
+                    transcriptPath = Path.Combine(dir, "transcript.json");
+                    if (!_fs.FileExists(transcriptPath)) continue;
+                }
+
+                var lastWriteTime = _fs.GetLastWriteTimeUtc(transcriptPath);
                 if (lastWriteTime > sinceTime) {
-                    // 从文件名提取会话ID
-                    var sessionId = Path.GetFileNameWithoutExtension(file);
-                    if (!string.IsNullOrEmpty(sessionId)) {
-                        sessions.Add(sessionId);
-                    }
+                    sessions.Add(sessionId);
                 }
             }
         } catch (Exception ex) {

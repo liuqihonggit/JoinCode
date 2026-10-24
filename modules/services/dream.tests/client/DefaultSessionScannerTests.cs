@@ -2,7 +2,9 @@
 ﻿namespace Dream.Tests.Client;
 
 /// <summary>
-/// 默认会话扫描器单元测试
+/// 默认会话扫描器单元测试 — TASK071 服务域-① 布局修正锁：
+/// 会话存于 SessionsDirectory/&lt;sessionId&gt;/transcript.jsonl（transcript.json 回退），
+/// 旧实现扫顶层 *.json 恒 0 会话（autoDream 门控失效）。
 /// </summary>
 public sealed class DefaultSessionScannerTests {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
@@ -35,16 +37,14 @@ public sealed class DefaultSessionScannerTests {
     }
 
     [Fact]
-    public async Task ListSessionsTouchedSinceAsync_WithNewFiles_ReturnsSessionIds() {
+    public async Task ListSessionsTouchedSinceAsync_NewTranscriptJsonl_ReturnsSessionIds() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         var config = new AutoDreamConfig { ProjectDir = "/project" };
         await using var scanner = new DefaultSessionScanner(config, fs);
 
         var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
-        fs.WriteAllText($"{sessionsDir}/session1.json", "data");
-        fs.WriteAllText($"{sessionsDir}/session2.json", "data");
-        fs.SetLastWriteTimeUtc($"{sessionsDir}/session1.json", DateTime.UtcNow.AddHours(1));
-        fs.SetLastWriteTimeUtc($"{sessionsDir}/session2.json", DateTime.UtcNow.AddHours(1));
+        WriteTranscript(fs, "session1", "jsonl");
+        WriteTranscript(fs, "session2", "jsonl");
 
         var since = DateTime.UtcNow.AddHours(-1).Ticks / TimeSpan.TicksPerMillisecond;
         var sessions = await scanner.ListSessionsTouchedSinceAsync(since).ConfigureAwait(true);
@@ -55,14 +55,28 @@ public sealed class DefaultSessionScannerTests {
     }
 
     [Fact]
-    public async Task ListSessionsTouchedSinceAsync_WithOnlyOldFiles_ReturnsEmpty() {
+    public async Task ListSessionsTouchedSinceAsync_LegacyTranscriptJson_Fallback() {
+        var fs = new Testing.Common.Services.InMemoryFileSystem();
+        var config = new AutoDreamConfig { ProjectDir = "/project" };
+        await using var scanner = new DefaultSessionScanner(config, fs);
+
+        WriteTranscript(fs, "legacy-session", "json");
+
+        var since = DateTime.UtcNow.AddHours(-1).Ticks / TimeSpan.TicksPerMillisecond;
+        var sessions = await scanner.ListSessionsTouchedSinceAsync(since).ConfigureAwait(true);
+
+        Assert.Contains("legacy-session", sessions);
+    }
+
+    [Fact]
+    public async Task ListSessionsTouchedSinceAsync_OnlyOldTranscripts_ReturnsEmpty() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         var config = new AutoDreamConfig { ProjectDir = "/project" };
         await using var scanner = new DefaultSessionScanner(config, fs);
 
         var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
-        fs.WriteAllText($"{sessionsDir}/session1.json", "data");
-        fs.SetLastWriteTimeUtc($"{sessionsDir}/session1.json", DateTime.UtcNow.AddDays(-2));
+        WriteTranscript(fs, "old-session", "jsonl");
+        fs.SetLastWriteTimeUtc($"{sessionsDir}/old-session/transcript.jsonl", DateTime.UtcNow.AddDays(-2));
 
         var since = DateTime.UtcNow.AddHours(-1).Ticks / TimeSpan.TicksPerMillisecond;
         var sessions = await scanner.ListSessionsTouchedSinceAsync(since).ConfigureAwait(true);
@@ -71,37 +85,23 @@ public sealed class DefaultSessionScannerTests {
     }
 
     [Fact]
-    public async Task ListSessionsTouchedSinceAsync_IgnoresNonJsonlFiles() {
+    public async Task ListSessionsTouchedSinceAsync_EmptyDirWithoutTranscript_Skipped() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         var config = new AutoDreamConfig { ProjectDir = "/project" };
         await using var scanner = new DefaultSessionScanner(config, fs);
 
-        var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
-        fs.WriteAllText($"{sessionsDir}/session1.json", "data");
-        fs.WriteAllText($"{sessionsDir}/notes.txt", "data");
-        fs.SetLastWriteTimeUtc($"{sessionsDir}/session1.json", DateTime.UtcNow.AddHours(1));
-        fs.SetLastWriteTimeUtc($"{sessionsDir}/notes.txt", DateTime.UtcNow.AddHours(1));
-
-        var since = DateTime.UtcNow.AddHours(-1).Ticks / TimeSpan.TicksPerMillisecond;
-        var sessions = await scanner.ListSessionsTouchedSinceAsync(since).ConfigureAwait(true);
-
-        Assert.Single(sessions);
-        Assert.Contains("session1", sessions);
-    }
-
-    [Fact]
-    public async Task ListSessionsTouchedSinceAsync_SkipsEmptySessionIdFile() {
-        var fs = new Testing.Common.Services.InMemoryFileSystem();
-        var config = new AutoDreamConfig { ProjectDir = "/project" };
-        await using var scanner = new DefaultSessionScanner(config, fs);
-
-        var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
-        fs.WriteAllText($"{sessionsDir}/.json", "data");
-        fs.SetLastWriteTimeUtc($"{sessionsDir}/.json", DateTime.UtcNow.AddHours(1));
+        // 无 transcript 的目录（如损坏会话）应跳过
+        fs.CreateDirectory($"{AppDataConstants.Paths.SessionsDirectory}/broken-session");
 
         var since = DateTime.UtcNow.AddHours(-1).Ticks / TimeSpan.TicksPerMillisecond;
         var sessions = await scanner.ListSessionsTouchedSinceAsync(since).ConfigureAwait(true);
 
         Assert.Empty(sessions);
+    }
+
+    /// <summary>按新布局写会话转录（&lt;id&gt;/transcript.&lt;ext&gt;，mtime 取当前）。</summary>
+    private static void WriteTranscript(Testing.Common.Services.InMemoryFileSystem fs, string sessionId, string ext) {
+        var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
+        fs.WriteAllText($"{sessionsDir}/{sessionId}/transcript.{ext}", "{}");
     }
 }

@@ -38,4 +38,28 @@ public class WebViewControllerBoundsTests {
     public void Resolve_NonPositiveSize_ReturnsNull(double width, double height) {
         WebView2Host.ResolveControllerBounds(new Size(width, height), 1.0).Should().BeNull();
     }
+
+    /// <summary>
+    /// 回归（2026-10-25，125% 缩放下控制器按 DIP 尺寸绘制露出空白带）：
+    /// Avalonia 12 的 <c>VisualRoot</c> 是 TopLevelHost，<c>as TopLevel</c> 恒为 null，
+    /// 缩放退回 1.0。必须经 <c>TopLevel.GetTopLevel</c> 找宿主窗口。
+    /// </summary>
+    [AvaloniaFact]
+    public void ResolveRenderScaling_FindsTopLevelThroughVisualRootHost() {
+        var window = new Window { Width = 300, Height = 200 };
+        var probe = new Control();
+        window.Content = probe;
+        window.Show();
+        try {
+            TopLevel.GetTopLevel(probe).Should().BeSameAs(window);
+            WebView2Host.ResolveRenderScaling(probe).Should().Be(window.RenderScaling);
+        } finally {
+            window.Close();
+        }
+    }
+
+    [Fact]
+    public void ResolveRenderScaling_DetachedVisual_FallsBackToOne() {
+        WebView2Host.ResolveRenderScaling(new Control()).Should().Be(1.0);
+    }
 }

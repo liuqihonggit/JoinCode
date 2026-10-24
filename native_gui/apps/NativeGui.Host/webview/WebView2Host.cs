@@ -101,12 +101,19 @@ internal sealed class WebView2Host : NativeControlHost {
         return w <= 0 || h <= 0 ? null : (w, h);
     }
 
+    /// <summary>
+    /// 取排布目标的渲染缩放。Avalonia 12 的 <c>VisualRoot</c> 是 TopLevelHost（非 Window），
+    /// 直接 <c>as TopLevel</c> 会得到 null 并退回 1.0，高 DPI 下控制器就按 DIP 尺寸绘制、右侧底部露空白带。
+    /// </summary>
+    internal static double ResolveRenderScaling(Visual visual) =>
+        TopLevel.GetTopLevel(visual)?.RenderScaling ?? 1.0;
+
     /// <summary>控制器挂在原生子窗口上，Bounds 以物理像素计，随 Avalonia 排布同步尺寸</summary>
     private void UpdateControllerBounds(Size arrangedSize) {
         if (_controller is null) {
             return;
         }
-        var scale = (VisualRoot as TopLevel)?.RenderScaling ?? 1.0;
+        var scale = ResolveRenderScaling(this);
         if (ResolveControllerBounds(arrangedSize, scale) is not { } size) {
             return;
         }

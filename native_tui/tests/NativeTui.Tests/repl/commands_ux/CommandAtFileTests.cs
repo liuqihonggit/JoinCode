@@ -189,6 +189,47 @@ public sealed class CommandAtFileTests
         Assert.Throws<ArgumentException>(() => new AtFileSuggester(rootPath));
     }
 
+    /// <summary>respectGitignore 接线 — isIgnored 委托跳过 gitignore 匹配的文件（对齐 TS file picker 语义）。</summary>
+    [Fact]
+    public void Suggest_IsIgnoredDelegate_SkipsIgnoredFiles()
+    {
+        var root = StandardWorkspace();
+        try
+        {
+            // 模拟 .gitignore 忽略 docs/ 目录
+            var sut = new AtFileSuggester(root, isIgnored: rel => rel.StartsWith("docs/", StringComparison.OrdinalIgnoreCase));
+
+            var suggestions = sut.Suggest("");
+
+            Assert.All(suggestions, s => Assert.DoesNotContain("docs/", s.RelativePath));
+            Assert.DoesNotContain(suggestions, s => s.RelativePath.StartsWith("docs/"));
+            Assert.Contains(suggestions, s => s.RelativePath == "readme.md");
+            Assert.Contains(suggestions, s => s.RelativePath == "a.txt");
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>isIgnored null = 未注入零行为变化（仅硬编码忽略目录生效）。</summary>
+    [Fact]
+    public void Suggest_NullIsIgnored_KeepsDefaultBehavior()
+    {
+        var root = StandardWorkspace();
+        try
+        {
+            var sut = new AtFileSuggester(root, isIgnored: null);
+            var suggestions = sut.Suggest("");
+
+            Assert.Contains(suggestions, s => s.RelativePath == "docs/guide.md");
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     /// <summary>路径分隔符：统一 / 形态（Windows 反斜杠归一化）。</summary>
     [Fact]
     public void Suggest_PathsUseForwardSlashes()

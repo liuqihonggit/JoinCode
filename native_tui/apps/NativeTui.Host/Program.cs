@@ -349,6 +349,8 @@ public static class Program {
                 var statusLineTemplate = await LoadStatusLineTemplateAsync(session.Services).ConfigureAwait(false);
                 // C类 defaultShell 键 — settings.current.defaultShell（bash/powershell）覆盖平台默认
                 var defaultShell = await LoadSettingAsync(session.Services, "defaultShell").ConfigureAwait(false);
+                // C类 respectGitignore 键 — settings.current.respectGitignore（默认 true）控制 @ 文件补全是否尊重 .gitignore
+                var gitignorePredicate = await LoadGitignorePredicateAsync(session.Services, Environment.CurrentDirectory).ConfigureAwait(false);
                 var rawInputPump = useRawStdinPump ? new RawStdinPump(terminalQuerier) : null;
                 // TASK066 板块A — 终端状态三路装配（标题/21337 tab/9;4 进度）：
                 // 标题写通道平台分流（基准 use-terminal-title.ts：Windows=process.title → Console.Title，
@@ -432,6 +434,8 @@ public static class Program {
                       statusLineModelProvider: () => session.Services.GetService<IFastModeService>()?.PrimaryModelId,
                       // C类 defaultShell 键 — `!` 命令 shell 选择（settings.current.defaultShell 覆盖平台默认）
                       defaultShell: defaultShell,
+                      // C类 respectGitignore 键 — @ 文件补全 gitignore 过滤（settings.current.respectGitignore 默认 true）
+                      gitignorePredicate: gitignorePredicate,
                       // TASK066 板块C P3 — 滚轮加速度基础步长（基准 CLAUDE_CODE_SCROLL_SPEED 旋钮 —
                       // readScrollSpeedBase :305-310 clamp (0,20] 默认 1；Core 不读 env 由宿主读传入，
                       // 对齐 idleReturnThresholdMinutes 先例）
@@ -641,6 +645,32 @@ public static class Program {
             return services.GetService<IConfigurationService>() is { } config
                 ? await config.GetAsync(key).ConfigureAwait(false)
                 : null;
+        } catch (Exception ex) when (ex is InvalidOperationException or IOException) {
+            return null;
+        }
+    }
+
+    /// <summary>加载 gitignore 过滤委托（respectGitignore 键激活 — settings.current.respectGitignore 默认 true）：
+    /// 从 workspaceRoot/.gitignore 加载 GitignoreMatcher → 返回 IsIgnored 闭包；
+    /// respectGitignore=false 或无 .gitignore 文件 → null（仅硬编码忽略目录生效零行为变化）。
+    /// 单层 .gitignore（多层父目录链登记差异 — 对齐 SearchService.LoadGitignoreMatchers 的完整链后续批次）。</summary>
+    private static async Task<Func<string, bool>?> LoadGitignorePredicateAsync(IServiceProvider services, string? workspaceRoot) {
+        if (string.IsNullOrEmpty(workspaceRoot))
+            return null;
+
+        try {
+            var respectRaw = await LoadSettingAsync(services, "respectGitignore").ConfigureAwait(false);
+            var respect = respectRaw != "false"; // 默认 true（null/空/true/其他 → true，仅 "false" → false）
+            if (!respect)
+                return null;
+
+            var gitignorePath = Path.Combine(workspaceRoot, ".gitignore");
+            if (!File.Exists(gitignorePath))
+                return null;
+
+            var content = await File.ReadAllTextAsync(gitignorePath).ConfigureAwait(false);
+            var matcher = GitignoreMatcher.Parse(content);
+            return rel => matcher.IsIgnored(rel);
         } catch (Exception ex) when (ex is InvalidOperationException or IOException) {
             return null;
         }

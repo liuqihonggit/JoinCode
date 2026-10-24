@@ -439,6 +439,10 @@ public sealed class ReplShell
     /// null = {model} 渲染为空 — Core 不依赖引擎服务惯例）。</summary>
     private readonly Func<string?>? _statusLineModelProvider;
 
+    /// <summary>gitignore 过滤委托（respectGitignore 键激活 — Host 读 settings + 加载 .gitignore 构造闭包；
+    /// null = 仅硬编码忽略目录生效零行为变化）。</summary>
+    private readonly Func<string, bool>? _gitignorePredicate;
+
     /// <summary>空闲返回 token 门槛（构造 idleReturnTokenThreshold 注入，默认 100_000；
     /// 基准 REPL.tsx:3327 CLAUDE_CODE_IDLE_TOKEN_THRESHOLD 默认 100_000 — 小对话不弹）。</summary>
     private readonly long _idleReturnTokenThreshold;
@@ -598,7 +602,8 @@ public sealed class ReplShell
         Func<Task<ImageAttachment?>>? readClipboardImage = null,
         string? statusLineTemplate = null,
         Func<string?>? statusLineModelProvider = null,
-        string? defaultShell = null)
+        string? defaultShell = null,
+        Func<string, bool>? gitignorePredicate = null)
     {
         _engine = engine;
         _banner = banner;
@@ -619,7 +624,7 @@ public sealed class ReplShell
         _launchExternalEditor = launchExternalEditor;
         _saveExportAsync = saveExportAsync;
         _theme = ThemeSelection.Resolve(themeName);
-        _atFileSuggester = workspaceRoot is null ? null : new AtFileSuggester(workspaceRoot);
+        _atFileSuggester = workspaceRoot is null ? null : new AtFileSuggester(workspaceRoot, isIgnored: _gitignorePredicate);
         _workspaceRoot = workspaceRoot;
         _searchSource = searchSource;
         // S9 接线 — spinner 终端字符集探测注入一次（会话期终端类型不变；Windows Terminal/默认 `*` 集）
@@ -645,6 +650,8 @@ public sealed class ReplShell
         // defaultShell 键激活 — DefaultShellResolver 解析 settings 值（bash/powershell）覆盖平台默认
         var (shellFileName, commandFlag) = DefaultShellResolver.Resolve(defaultShell, OperatingSystem.IsWindows());
         _bash = new BashDirectExecutor(shellFileName, commandFlag);
+        // respectGitignore 键激活 — gitignore 过滤委托注入 AtFileSuggester（Host 读 settings + 加载 .gitignore 构造）
+        _gitignorePredicate = gitignorePredicate;
         // TASK066 板块 E 连线 E3 — vim 引擎装配（null = 关闭：全部按键走原编辑链零行为变化；
         // 开启 = INSERT 初始态 — 基准 createInitialVimState 返回 INSERT，types.ts:188-190）
         _vimEngine = vimMode ? new VimEngine() : null;

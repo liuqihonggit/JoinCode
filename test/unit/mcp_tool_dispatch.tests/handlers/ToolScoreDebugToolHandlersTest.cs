@@ -44,9 +44,9 @@ public sealed class ToolScoreDebugToolHandlersTest : IAsyncLifetime {
 
     [Fact]
     public async Task GetToolScoreAsync_SpecificTool_ShowsScoreDetails() {
-        await _monitor.RecordSuccessAsync("Read");
-        await _monitor.RecordSuccessAsync("Read");
-        await _monitor.RecordFailureAsync("Read", "file not found");
+        await _monitor.RecordSuccessAsync("Read"); await _monitor.FlushAsync();
+        await _monitor.RecordSuccessAsync("Read"); await _monitor.FlushAsync();
+        await _monitor.RecordFailureAsync("Read", "file not found"); await _monitor.FlushAsync();
 
         var result = await _handlers.GetToolScoreAsync("Read");
         result.IsError.Should().BeFalse();
@@ -60,9 +60,9 @@ public sealed class ToolScoreDebugToolHandlersTest : IAsyncLifetime {
 
     [Fact]
     public async Task GetToolScoreAsync_AllTools_ReturnsTable() {
-        await _monitor.RecordSuccessAsync("Read");
-        await _monitor.RecordSuccessAsync("Write");
-        await _monitor.RecordFailureAsync("Write", "permission denied");
+        await _monitor.RecordSuccessAsync("Read"); await _monitor.FlushAsync();
+        await _monitor.RecordSuccessAsync("Write"); await _monitor.FlushAsync();
+        await _monitor.RecordFailureAsync("Write", "permission denied"); await _monitor.FlushAsync();
 
         var result = await _handlers.GetToolScoreAsync(null);
         result.IsError.Should().BeFalse();
@@ -84,8 +84,8 @@ public sealed class ToolScoreDebugToolHandlersTest : IAsyncLifetime {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ResetToolScoreAsync_ResetsScoreToZero() {
-        await _monitor.RecordFailureAsync("failing_tool", "error1");
-        await _monitor.RecordFailureAsync("failing_tool", "error2");
+        await _monitor.RecordFailureAsync("failing_tool", "error1"); await _monitor.FlushAsync();
+        await _monitor.RecordFailureAsync("failing_tool", "error2"); await _monitor.FlushAsync();
 
         var before = await _monitor.GetRecordAsync("failing_tool");
         before!.FailCount.Should().Be(2);

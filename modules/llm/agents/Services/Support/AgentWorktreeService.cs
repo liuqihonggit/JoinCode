@@ -31,13 +31,21 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         ILogger<AgentWorktreeService>? logger = null,
         WorktreeOptions? defaultOptions = null,
         ITelemetryService? telemetryService = null,
-        IClockService? clock = null) {
+        IClockService? clock = null,
+        WorkflowConfig? workflowConfig = null) {
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _gitRunner = gitRunner ?? throw new ArgumentNullException(nameof(gitRunner));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
-        _defaultOptions = defaultOptions ?? new WorktreeOptions();
+        // worktree 键激活 — settings.current.worktree（SparsePaths/SymlinkDirectories）流入默认 WorktreeOptions
+        //（显式 defaultOptions 优先 > WorkflowConfig.Worktree > new() 默认 — 对齐 TS worktree 配置）
+        _defaultOptions = defaultOptions ?? (workflowConfig is { Worktree: { } wt }
+            ? new WorktreeOptions {
+                SparsePaths = wt.SparsePaths.Count > 0 ? wt.SparsePaths : null,
+                SymlinkDirectories = wt.SymlinkDirectories.Count > 0 ? wt.SymlinkDirectories : null,
+              }
+            : new WorktreeOptions());
         _telemetryService = telemetryService;
 
         if (createMiddlewares != null && loggerFactory != null) {

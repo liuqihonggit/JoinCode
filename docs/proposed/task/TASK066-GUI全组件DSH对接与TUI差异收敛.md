@@ -68,6 +68,7 @@
 | C11 | 未接线表面诚实化：`account/*` 部署级引导、`pluginManager/*` 空态/拒绝、`pluginRegistryProbe/fastest` null、`officeToPdf/*` 服务不可用引导、`dynamicCordisRunner/{stopFromPanel,undefineFromPanel}` plugin-missing | ✅ 已验收（单测 6 + `dsh-webui-unsupported.mjs` 13 项真机 ALL_PASS，插件页显示不可管理空态） |
 | C12 | 通用设置页「打开配置文件」：`settings/describe.hasDocument=true` + `settings/openSettingsDocument` 落盘后交系统默认程序 | ✅ 已验收（单测 2 + `dsh-webui-settings-document.mjs` 8 项真机 ALL_PASS） |
 | C13 | 窗口缩放/最大化后 WebView2 控制器尺寸跟随（缩窗后双击最大化露出未绘制黑区） | ✅ 已验收（单测 8 + 真机探针 `1440×900 → 884×601 → 1920×1017 → 884×601`，CDP 视口同步无黑区） |
+| C14 | 跨屏 DPI 切换时控制器物理尺寸跟随（`RenderScaling` 变化） | ⏳ 待真机验证：本机仅单显示器 1920×1080@100%，无 DPI 差异目标；合成 `WM_DPICHANGED` 会制造与系统不一致的假 DPI 状态，不作为缺陷证据 |
 
 ## 四、验收四列表（滚动更新）
 
@@ -255,3 +256,9 @@
 <!-- 原因: Avalonia 在 ArrangeOverride 返回后才赋值 Bounds，读 Bounds 会让控制器永远落后一次窗口尺寸变更。真机探针证实：客户区与 AvaloniaDumbWindow 已变成新尺寸，而 Chrome_WidgetWin_0 仍停在上一次尺寸（缩窗 916x405→884x601 时控制器还是 916x405；最大化到 1920x1017 时控制器还是 884x601），空白区域因此从未被绘制成黑色 -->
 <!-- 替代方案: 监听 TopLevel.SizeChanged 后仍读 Bounds（需要额外维护订阅/解除与 DPI 变化路径，且根源仍是陈旧值）/ 定时轮询窗口尺寸（非确定性且浪费），均不采用 -->
 <!-- 验证: 红测试先编译失败（ResolveControllerBounds 不存在）→ 绿测试 8 例；Host 全量 44/44；Host Debug 0 警告 0 错误；真机探针 1440x900 → 884x601 → 1920x1017 → 884x601，Chrome_WidgetWin_0 每步等于客户区；CDP innerWidth/innerHeight 同步为 1920x1017 / 884x601，页面铺满无黑区 -->
+
+<!-- 🤖 Auto Decision: 2026-10-25 (跨屏 DPI 切换暂不预防性改代码) -->
+<!-- 决策: C14（RenderScaling 变化时的控制器尺寸跟随）只登记待验证，不先加 ScalingChanged 订阅等防御代码；等具备双屏或可切系统缩放的真机环境后按 ADR 0080 复现再修 -->
+<!-- 原因: 本机仅一块 1920x1080@100% 显示器，无法产生真实跨屏 DPI 切换；手工向窗口注入 WM_DPICHANGED(144) 会让 Avalonia 内部按 1.5 缩放而系统仍是 96 DPI，实测出现客户区 1924x1061、控制器 1283x707 的假状态，这是注入消息与系统状态不一致的产物，不能当作产品缺陷证据。finalSize 方案本身已按每次排布的 RenderScaling 换算，真实跨屏时 Windows 会改变物理尺寸并触发排布；没有复现就加订阅属于臆测修复 -->
+<!-- 替代方案: 依据合成消息的假状态直接加订阅（违反“无复现不修复”，且可能掩盖真实根因）/ 修改用户系统显示缩放做验证（影响整机显示，需用户明确授权），均暂不采用 -->
+<!-- 验证: 未改代码；已记录复现条件与探针观察，待双屏真机按同一步骤（Win32 子窗口矩形 + CDP innerWidth/innerHeight/DPR）验收 -->

@@ -137,6 +137,12 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         chatHistory.AddUserMessage(userInput);
         _logger?.LogInformation("[QueryEngine] 开始处理查询: {Input}", userInput);
 
+        // TASK071 query2-④ — 预算注入（对齐 TS taskBudget）：Options.TokenBudget 为正则向预算管理器分配，
+        // 驱动 ConsumeTokens/HistorySnip 链（旧 AllocateBudgetAsync 零调用 → GetRemaining 恒 MaxValue → 裁剪死代码）
+        if (options?.TokenBudget is > 0 && _serviceProvider?.GetService<ITokenBudgetManager>() is { } budgetManager) {
+            await budgetManager.AllocateBudgetAsync(options.TokenBudget.Value, cancellationToken).ConfigureAwait(false);
+        }
+
         var pipeline = _pipeline.Value;
         await pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 

@@ -101,6 +101,9 @@ public sealed class ModelPickerHistoryTests
         ];
 
         public ModelEntry[] GetModelsForProvider(string provider) => Models;
+        public IReadOnlyList<ModelProviderCatalog> GetProviders() => [];
+        public ModelCatalogSnapshot GetSnapshot(string currentProvider, string currentModelId) =>
+            new(currentProvider, currentModelId, []);
         public int? FindModelContextWindow(string modelId, string provider) => null;
         public string? ResolveAlias(string input, string provider) => null;
         public string GetProviderDisplayName(string provider) => provider;

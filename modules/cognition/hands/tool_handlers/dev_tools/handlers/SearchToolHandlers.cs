@@ -21,7 +21,7 @@ public sealed record GrepSearchOptions {
     public string OutputMode { get; init; } = "files_with_matches";
 
     /// <summary>是否大小写不敏感（rg -i）</summary>
-    [McpToolParameter("Case insensitive search (rg -i)", Required = false, DefaultValue = "false")]
+    [McpToolParameter("Case insensitive search (rg -i)", Required = false, DefaultValue = "false", Aliases = ["-i"])]
     public bool CaseInsensitive { get; init; } = false;
 
     /// <summary>是否启用多行模式（rg -U --multiline-dotall）</summary>
@@ -29,23 +29,23 @@ public sealed record GrepSearchOptions {
     public bool Multiline { get; init; } = false;
 
     /// <summary>文件类型过滤（rg --type），如 js/py/rust/go/java</summary>
-    [McpToolParameter("File type to search (rg --type). Common types: js, py, rust, go, java, etc. More efficient than include for standard file types.", Required = false)]
+    [McpToolParameter("File type to search (rg --type). Common types: js, py, rust, go, java, etc. More efficient than include for standard file types.", Required = false, Aliases = ["type"])]
     public string? FileType { get; init; }
 
     /// <summary>匹配行前显示的行数（rg -B），仅 content 模式有效</summary>
-    [McpToolParameter("Number of lines to show before each match (rg -B). Requires output_mode: \"content\", ignored otherwise.", Required = false)]
+    [McpToolParameter("Number of lines to show before each match (rg -B). Requires output_mode: \"content\", ignored otherwise.", Required = false, Aliases = ["-B"])]
     public int? Before { get; init; }
 
     /// <summary>匹配行后显示的行数（rg -A），仅 content 模式有效</summary>
-    [McpToolParameter("Number of lines to show after each match (rg -A). Requires output_mode: \"content\", ignored otherwise.", Required = false)]
+    [McpToolParameter("Number of lines to show after each match (rg -A). Requires output_mode: \"content\", ignored otherwise.", Required = false, Aliases = ["-A"])]
     public int? After { get; init; }
 
     /// <summary>匹配行前后显示的行数（rg -C），仅 content 模式有效</summary>
-    [McpToolParameter("Number of lines to show before and after each match (rg -C). Requires output_mode: \"content\", ignored otherwise.", Required = false)]
+    [McpToolParameter("Number of lines to show before and after each match (rg -C). Requires output_mode: \"content\", ignored otherwise.", Required = false, Aliases = ["-C"])]
     public int? Context { get; init; }
 
     /// <summary>是否显示行号（rg -n），仅 content 模式有效，默认 true</summary>
-    [McpToolParameter("Show line numbers in output (rg -n). Requires output_mode: \"content\", ignored otherwise. Defaults to true.", Required = false, DefaultValue = "true")]
+    [McpToolParameter("Show line numbers in output (rg -n). Requires output_mode: \"content\", ignored otherwise. Defaults to true.", Required = false, DefaultValue = "true", Aliases = ["-n"])]
     public bool LineNumbers { get; init; } = true;
 
     /// <summary>限制输出前 N 行/条目，默认 250，0 表示不限</summary>

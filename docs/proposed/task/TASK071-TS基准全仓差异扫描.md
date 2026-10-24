@@ -67,6 +67,28 @@
 **结构化输出**：TS 有 MAX_RETRIES=5 熔断 + result.structured_output 回传，C# 无限重试风险。
 **行为差异/缺失（登记）**：Complete chunk 缺 duration_api_ms/num_turns/stop_reason/modelUsage 协议字段；query2 无 transcript 预持久化；buddy stats/soul 残缺（GetBuddyPrompt 零调用）；proactive nextTickAt 不可观测；远端会话历史分页缺失。
 
+## 修复进度（2026-10-25 累计 10 commit）
+
+| 批次 | 内容 | commit |
+|------|------|--------|
+| 桥接域 | epoch/重建seq/刷新调度器/flush守卫/心跳/CapacityWake/配置钳制/v2 keepalive | 5d6f9b712 |
+| 工具域 | task_stop 双注册裁决 | 82b236980 |
+| query2-①②③ | ICostTracker 真实计价 + RecordCost 增量 + StopHook 回灌 | 218a1a734 |
+| 服务域-① | SessionScanner transcript.jsonl 布局 | 0e2d0104a |
+| hooks-② | matcher 模式匹配 | 431f07ed6 |
+| 命令技能+deny.interrupt | rate-limit 别名 /clear 双钩子 interrupt 透传 | 0987a935b |
+| hooks-③ | UserPromptSubmit sessionId + additionalContext | 4737f3e76 |
+| 服务域-②③ | ConsolidationLock 时间门/kill回滚/当前会话排除 | 5cf887dff |
+| 工具参数兼容 | 生成器三键查找链(别名→snake→camel)+Grep短旗标+run_in_background | (本批) |
+| query2-④⑤ | TokenBudget 注入链 + DiminishingReturns 每查询Reset | (本批) |
+
+设计偏差记录（已按目标一致性裁决）：
+- ConsolidationLock 用文件内容存时间戳（TS 用 mtime）— C# IFileSystem 无文件级 mtime setter，内容式更抗备份 touch
+- matcher 不做 normalizeLegacyToolName 旧名映射 — C# 无旧工具名历史
+- 工具参数兼容走"三键查找链"而非重命名 C# 参数体系 — 命名体系整体 PascalCase↔snake 决策仍开放（登记待决策 #5）
+
+暴露的既有问题（顺手修复）：IModelCatalog 接口演进漏 ModelPickerHistoryTests fake（全仓构建纪律捕获）。
+
 ## 处置原则（用户指令 2026-10-25）
 
 ## 处置原则（用户指令 2026-10-25）

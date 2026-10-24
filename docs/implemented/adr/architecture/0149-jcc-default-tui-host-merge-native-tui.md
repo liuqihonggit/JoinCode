@@ -1,7 +1,8 @@
 # ADR 0149: jcc 默认 TUI 宿主 — 吞并 NativeTui.Host + 删 CLI REPL
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-10-25
+- 实施完成：2026-10-25（NativeTui.Host 改 Library + jcc 引用 + 入口分流 + CLI REPL 死代码移除；管道验证 TUI 分流生效 + 140 NativeTui.Host.Tests + 31 SessionCommand 测试全过）
 - 关联：supersede ADR 0143（多宿主平等）、回到 ADR 0142 方向（jcc 宿主内嵌 TUI）、ADR 0140（native_tui 独立性，将破坏）
 
 ## 背景与问题

@@ -11,6 +11,11 @@ public sealed class SessionController {
 
     /// <summary>本回合是否有实质产出（空回合防御判定 — 工具调用/子代理事件置位、回合开始复位；文本/思考经长度判定不入此标记）。</summary>
     private bool _hasSubstantiveOutput;
+    /// <summary>本回合 Done 权威 usage 快照（TASK070 C4 — 自动压缩阈值判定的 token 数据源，
+    /// 与 EmitContextUsage 同源；回合开始复位防跨回合泄漏）。</summary>
+    private TokenUsage? _lastDoneUsage;
+    /// <summary>最近一次自动压缩后台任务（TASK070 — internal 测试观察点：单测 await 它消除 fire-and-forget 时序不确定性）。</summary>
+    internal Task? LastAutoCompactTask { get; private set; }
     private readonly string _sessionId;
     private readonly IServiceProvider? _serviceProvider;
     private readonly IClockService _clock;
@@ -50,6 +55,13 @@ public sealed class SessionController {
         _serviceProvider = serviceProvider;
         _clock = clock ?? SystemClockService.Instance;
         _mainAgent = mainAgent;
+
+        // TASK070 E2/DSG046 — 重试感知绑定：主代理 BuildChatOptions → QueryOptions.OnRetry →
+        // QueryEngine 指数退避重试前回调 → consumer.OnRetry 上屏（未注入 notifier = 静默重试旧行为）。
+        if (_mainAgent is not null) {
+            _mainAgent.RetryNotifier = notification =>
+                _consumer.OnRetry(notification.Reason, notification.Attempt, notification.MaxRetries, notification.DelayMs);
+        }
     }
 
     /// <summary>
@@ -79,6 +91,7 @@ public sealed class SessionController {
         var timeoutToken = timeoutCts.Token;
         var hasReceivedEvent = false;
         _hasSubstantiveOutput = false;
+        _lastDoneUsage = null;
 
         try {
             if (_mainAgent is not null) {
@@ -134,6 +147,10 @@ public sealed class SessionController {
 
             // 等待思考内容持久化完成，避免 fire-and-forget 丢失
             await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, cancellationToken).ConfigureAwait(false);
+
+            // TASK070 C4/DSG046 — 回合终态自动压缩判定（对齐 TS autoCompact.ts:241-351 回合末触发）：
+            // Done 权威 usage + ICompactService.ShouldAutoCompact 阈值命中时，压缩异步执行不阻塞 idle 返回。
+            TryTriggerAutoCompact(_lastDoneUsage);
 
             // 空回合防御（修复：流式超时重试后拿到空流被当成功静默返回 — TUI 傻等无消息无错误）：
             // 无文本 + 无思考 + 无工具调用 = 全空产出，判 Error 带诱导（重试提示）；
@@ -228,6 +245,8 @@ public sealed class SessionController {
                 modelId = mid;
                 _consumer.OnDone(usage, mid);
                 EmitContextUsage(usage);
+                if (usage is { PromptTokens: > 0 })
+                    _lastDoneUsage = usage;
             });
         return modelId;
     }
@@ -259,6 +278,53 @@ public sealed class SessionController {
             ? compact.CalculateWarningState(promptTokens, contextWindowTokens).PercentLeft
             : Math.Max(0, (int)Math.Round((contextWindowTokens - promptTokens) * 100.0 / contextWindowTokens));
         _consumer.OnContextUsage(promptTokens, contextWindowTokens, percentLeft);
+    }
+
+    /// <summary>
+    /// 自动压缩判定与触发（TASK070 C4/DSG046 — AutoCompactService.ShouldAutoCompact 首个生产调用方）：
+    /// usage 缺失 / ICompactService 不可达 / 阈值未达 三重门控静默跳过；命中后压缩后台异步执行
+    /// （LLM 摘要含网络调用，不阻塞回合终态返回 — 对齐 DSG046"CompactAsync 异步防阻塞 idle"）。
+    /// </summary>
+    private void TryTriggerAutoCompact(TokenUsage? usage) {
+        if (usage is not { PromptTokens: > 0 })
+            return;
+
+        var compact = _serviceProvider?.GetService<ICompactService>();
+        if (compact is null)
+            return;
+
+        var contextWindowTokens = _serviceProvider?.GetService<IContextWindowResolver>()?.ResolveCurrentContextWindow()
+            ?? DefaultContextWindowTokens;
+        if (!compact.ShouldAutoCompact(usage.PromptTokens, contextWindowTokens))
+            return;
+
+        LastAutoCompactTask = RunAutoCompactAsync(usage.PromptTokens);
+    }
+
+    /// <summary>
+    /// 后台执行自动压缩 — 摘要生成（CompactPromptTemplate 结构化 9 段式，与 CompactCommand 手动路径同链）
+    /// → CompactHistoryAsync 历史压实 → OnCompactCompleted(isAuto:true) 事件上屏；失败仅记日志（回合已成功，不回滚）。
+    /// </summary>
+    private async Task RunAutoCompactAsync(int promptTokens) {
+        try {
+            var history = await _chatService.GetMessageListAsync(CancellationToken.None).ConfigureAwait(false);
+            if (history.Count == 0)
+                return;
+
+            var compactPrompt = Core.Prompts.Templates.Memory.CompactPromptTemplate.GetCompactPrompt(customInstructions: null);
+            var rawSummary = await _chatService.SendMessageAsync(compactPrompt, CancellationToken.None).ConfigureAwait(false);
+            var summary = Core.Prompts.Templates.Memory.CompactPromptTemplate.FormatCompactSummary(rawSummary ?? "[无摘要]");
+            var compressedTokens = summary.Length / 4;
+
+            await _chatService.CompactHistoryAsync(summary, CancellationToken.None).ConfigureAwait(false);
+
+            _consumer.OnCompactCompleted(history.Count, promptTokens, compressedTokens, isAuto: true);
+            _serviceProvider?.GetService<ILogger<SessionController>>()?.LogInformation(
+                "[SessionController] 自动压缩完成: {Messages} 条消息, {Original} → {Compressed} tokens",
+                history.Count, promptTokens, compressedTokens);
+        } catch (Exception ex) {
+            _serviceProvider?.GetService<ILogger<SessionController>>()?.LogWarning(ex, "[SessionController] 自动压缩失败（回合产出不受影响）");
+        }
     }
 
     /// <summary>

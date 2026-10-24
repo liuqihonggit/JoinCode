@@ -375,10 +375,60 @@ public class QueryEngineTests {
         }
     }
 
+    // ─── TASK070 E2/DSG046 — 重试感知通知（NotifyRetry internal 测试面，CalculateRetryDelay 先例）───
+
+    [Fact]
+    public async Task NotifyRetry_OptionsCallback_InvokedWithNotification() {
+        await using var engine = CreateQueryEngine();
+        QueryRetryNotification? received = null;
+        var context = CreateRetryContext(new QueryOptions { OnRetry = notification => received = notification });
+
+        engine.NotifyRetry(context, "连接超时", attempt: 2, maxRetries: 3, delayMs: 2000);
+
+        Assert.NotNull(received);
+        received.Reason.Should().Be("连接超时");
+        received.Attempt.Should().Be(2);
+        received.MaxRetries.Should().Be(3);
+        received.DelayMs.Should().Be(2000);
+    }
+
+    [Fact]
+    public async Task NotifyRetry_CallbackThrows_SwallowedNotPropagated() {
+        await using var engine = CreateQueryEngine();
+        var context = CreateRetryContext(new QueryOptions { OnRetry = _ => throw new InvalidOperationException("回调异常") });
+
+        var act = () => engine.NotifyRetry(context, "boom", 1, 3, 1000);
+
+        act.Should().NotThrow("回调异常不应中断重试节奏");
+    }
+
+    [Fact]
+    public async Task NotifyRetry_NoOptionsOrCallback_NoOp() {
+        await using var engine = CreateQueryEngine();
+
+        var act = () => engine.NotifyRetry(CreateRetryContext(options: null), "boom", 1, 3, 1000);
+
+        act.Should().NotThrow("Options/OnRetry 缺省 = 静默重试旧行为");
+    }
+
     private static QueryEngine CreateQueryEngine(QueryEngineConfig? config = null) {
         var mockKernel = new Mock<IChatClient>();
         var mockRegistry = new Mock<IToolRegistry>();
         var cfg = config ?? new QueryEngineConfig();
         return new QueryEngine(mockKernel.Object, mockRegistry.Object, Microsoft.Extensions.Options.Options.Create(cfg));
+    }
+
+    /// <summary>NotifyRetry 测试上下文 — QueryMiddlewareContext required 成员齐备（Kernel/Registry 为 mock 直传）。</summary>
+    private static QueryMiddlewareContext CreateRetryContext(QueryOptions? options) {
+        var mockKernel = new Mock<IChatClient>();
+        var mockRegistry = new Mock<IToolRegistry>();
+        return new QueryMiddlewareContext {
+            UserInput = "test",
+            ChatHistory = new MessageList(),
+            Config = new QueryEngineConfig(),
+            Kernel = mockKernel.Object,
+            ToolRegistry = mockRegistry.Object,
+            Options = options,
+        };
     }
 }

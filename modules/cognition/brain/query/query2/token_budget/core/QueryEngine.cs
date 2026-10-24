@@ -180,6 +180,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                     var delay = CalculateRetryDelay(retryCount);
                     _logger?.LogWarning(ex, "[QueryEngine] 迭代执行失败，{RetryCount}/{MaxRetries} 次重试，等待 {DelayMs}ms",
                         retryCount, _config.Retry.MaxRetries, delay);
+                    NotifyRetry(context, ex.Message, retryCount, _config.Retry.MaxRetries, delay);
                     await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
                 }
             }
@@ -591,6 +592,23 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         // 指数退避: delay * 2^(retryCount-1)
         var delay = _config.Retry.RetryDelayMs * Math.Pow(2, retryCount - 1);
         return (int)Math.Min(delay, WorkflowConstants.Retry.MaxDelayMs);
+    }
+
+    /// <summary>
+    /// 重试感知通知（TASK070 E2/DSG046 — 静默重试的感知上屏回调）：context.Options.OnRetry 非 null 时
+    /// 触发（主代理路径由 AgentBase.RetryNotifier 透传）；回调异常仅记日志，不影响重试节奏。
+    /// </summary>
+    internal void NotifyRetry(QueryMiddlewareContext context, string reason, int attempt, int maxRetries, int delayMs) {
+        var notifier = context.Options?.OnRetry;
+        if (notifier is null) {
+            return;
+        }
+
+        try {
+            notifier(new QueryRetryNotification(reason, attempt, maxRetries, delayMs));
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "[QueryEngine] OnRetry 回调异常（忽略，不影响重试）");
+        }
     }
 
     // IQueryEngine 接口实现

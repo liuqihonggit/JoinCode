@@ -98,6 +98,10 @@ public class JccChatSessionPermissionSeamTests {
 
         public Task AddAllowedPromptAsync(string prompt, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
+        /// <summary>TASK070 批次3 接口扩展 — 永久批准（seam 测试不消费，no-op 满足接口）。</summary>
+        public Task ApproveToolPermanentlyAsync(string toolName, string? ruleContent, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
         public Task<int> StripDangerousRulesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
 
         public Task RestoreDangerousRulesAsync(int ruleCount, CancellationToken cancellationToken = default) => Task.CompletedTask;

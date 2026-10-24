@@ -57,7 +57,9 @@ public sealed class CompactCommand : ChatCommandBase {
                 };
 
                 TerminalHelper.WriteLine(new CompactSummaryRenderer().Render(fallbackData));
-                return ChatCommandResult.Continue();
+                // TASK070 C6 — 数据随结果透传宿主投影层（TUI bridge 发 compact_completed 事件；
+                // CLI 直连路径忽略 Data，输出已由上方 Renderer 自渲染）
+                return ChatCommandResult.ContinueWith(fallbackData);
             } catch (Exception ex) when (IsPromptTooLongError(ex.Message)) {
                 // 对齐 TS: truncateHeadForPTLRetry — 无管理器可回滚或重试耗尽(attempt=maxPtRetries-1)时,
                 // break 走下方"最终失败"降级路径(兜底再试 + HandleError 收敛),禁止第 3 次 PTL 异常冒泡传播 REPL
@@ -74,6 +76,12 @@ public sealed class CompactCommand : ChatCommandBase {
         try {
             var summary = await GenerateSummaryFromHistoryAsync(history, context, customInstructions).ConfigureAwait(false);
             await context.GetCommandServices().ChatService.CompactHistoryAsync(summary ?? "[无摘要]", context.CancellationToken).ConfigureAwait(false);
+            return ChatCommandResult.ContinueWith(new CompactSummaryData {
+                MessagesSummarized = messageCount,
+                Direction = CompactDirection.UpTo,
+                OriginalTokens = originalTokens,
+                CompressedTokens = (summary?.Length ?? 0) / 4,
+            });
         } catch (Exception ex) {
             HandleError("生成摘要", ex);
         }

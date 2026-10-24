@@ -21,4 +21,5 @@ New Diagnostics:
 - JCC11004: 可空性: 公开 API 禁止返回 null 集合，必须返回空集合。
 - JCC9203: 释放一致性: 释放函数内禁止超时/阻塞等待(.Wait/.WaitAsync/Thread.Join/Task.WhenAny+Delay/GetAwaiter().GetResult)。
 - JCC1017: AOT/JSON: 禁止手写 JSON 字符串拼接(StringBuilder/$"{}"/EscapeJsonString), 必须用 DTO+JsonContext。
+- JCC1018: 跨平台: 测试项目禁止 Windows 盘符路径字面量(如 @"D:epo")— Linux CI Path.GetFullPath 语义分叉破坏匹配, 用 Path.Combine(GetTempPath()) 构造或 pragma 豁免。
 - JCC11005: 可空性: 公开 API 返回 T? 且有 return null 建议改用 TryGet 模式, 粗筛检测(非集合/非Try开头/无out参数)。

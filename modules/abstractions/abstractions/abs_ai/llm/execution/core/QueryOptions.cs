@@ -1,5 +1,14 @@
 namespace JoinCode.Abstractions.LLM.Execution;
 
+/// <summary>
+/// 重试通知载荷（TASK070 E2/DSG046 — QueryEngine 指数退避静默重试的感知上屏回调数据）。
+/// </summary>
+/// <param name="Reason">触发重试的异常摘要（ex.Message）。</param>
+/// <param name="Attempt">即将进行的重试序号（1 基）。</param>
+/// <param name="MaxRetries">最大重试次数（QueryEngineConfig.Retry.MaxRetries）。</param>
+/// <param name="DelayMs">本次退避等待毫秒数（指数退避计算结果）。</param>
+public sealed record QueryRetryNotification(string Reason, int Attempt, int MaxRetries, int DelayMs);
+
 public sealed class QueryOptions {
     /// <summary>获取允许的工具列表。</summary>
     public IReadOnlyList<string> AllowedTools { get; init; } = [];
@@ -13,6 +22,9 @@ public sealed class QueryOptions {
     public HashSet<string> NeverPersistTools { get; init; } = [];
     /// <summary>获取写入转录回调。</summary>
     public Action<IReadOnlyList<ContentReplacementRecord>>? WriteToTranscript { get; init; }
+    /// <summary>获取重试感知回调（TASK070 E2/DSG046 — QueryEngine 指数退避重试前触发；
+    /// 主代理路径由 AgentBase.RetryNotifier 透传，SessionController 绑定 consumer.OnRetry 上屏。null = 静默重试旧行为）。</summary>
+    public Action<QueryRetryNotification>? OnRetry { get; init; }
     /// <summary>获取缓存安全参数。</summary>
     public CacheSafeParams? CacheSafeParams { get; init; }
     /// <summary>获取进度跟踪器。</summary>

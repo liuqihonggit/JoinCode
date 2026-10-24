@@ -65,9 +65,21 @@ public sealed class ChatCommandResult {
     public bool IsHandled { get; init; } = true;
 
     /// <summary>
+    /// 命令结果数据载荷（TASK070 C6/DSG046 — 命令层向宿主投影层回传结构化数据，
+    /// 如 CompactCommand 携带 CompactSummaryData（composition 层 DTO）；
+    /// CLI 直连路径忽略此字段（输出已由命令自渲染），宿主投影层据此发结构化事件）
+    /// </summary>
+    public object? Data { get; init; }
+
+    /// <summary>
     /// 创建继续执行的结果
     /// </summary>
     public static ChatCommandResult Continue() => new() { ShouldContinue = true, IsHandled = true };
+
+    /// <summary>
+    /// 创建继续执行并携带数据载荷的结果（TASK070 C6 — 数据随结果透传给宿主投影层）
+    /// </summary>
+    public static ChatCommandResult ContinueWith(object data) => new() { ShouldContinue = true, IsHandled = true, Data = data };
 
     /// <summary>
     /// 创建退出聊天的结果

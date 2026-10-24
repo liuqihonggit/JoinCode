@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\apps\NativeTui.Host\NativeTui.Host.csproj" />
+    <ProjectReference Include="..\..\..\modules\cognition\prompts\Prompts.csproj" />
   </ItemGroup>
 
 </Project>

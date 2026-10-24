@@ -119,6 +119,18 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
         WriteEvent(new Cli.Bridge.BridgeEvent.BackgroundTask(kind, taskId, description, state));
     }
 
+    /// <summary>上下文压缩完成 → compact_completed（TASK070 C6/DSG046 — 手动 /compact 与回合末自动压缩共用出口；
+    /// TUI 侧 Reset 用量警告 + 通知上屏。显式实现：DIM 默认实现经类类型调用不可见 — DSG041 批3 先例）。</summary>
+    public void OnCompactCompleted(int messagesSummarized, long originalTokens, long compressedTokens, bool isAuto) {
+        WriteEvent(new Cli.Bridge.BridgeEvent.CompactCompleted(messagesSummarized, originalTokens, compressedTokens, isAuto));
+    }
+
+    /// <summary>自动重试通知 → retry（TASK070 E2/DSG046 — 四参直投影，TUI spinner 行提示；
+    /// 显式实现：DIM 默认实现经类类型调用不可见 — DSG041 批3 先例）。</summary>
+    public void OnRetry(string reason, int attempt, int maxRetries, int delayMs) {
+        WriteEvent(new Cli.Bridge.BridgeEvent.Retry(reason, attempt, maxRetries, delayMs));
+    }
+
     /// <summary>回合用量汇总 → token_usage 事件（OnDone 收尾发射；usage null 不发 — 无数据不噪音；
     /// context 余量走 context_usage 独立事件（OnContextUsage — 上游 M8-7 权威数据源））。</summary>
     private void WriteTokenUsageIfAvailable(TokenUsage? usage) {

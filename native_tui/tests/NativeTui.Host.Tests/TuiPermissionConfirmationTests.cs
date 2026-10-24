@@ -15,6 +15,15 @@ public sealed class TuiPermissionConfirmationTests {
         /// <summary>收到的等级批准记录。</summary>
         public List<CommandDangerLevel> LevelApprovals { get; } = [];
 
+        /// <summary>收到的永久批准规则记录（TASK070 P1 — AlwaysAllow 持久化面）。</summary>
+        public List<(string Tool, string? RuleContent)> PermanentApprovals { get; } = [];
+
+        /// <summary>永久批准 — 记录不抛（AlwaysAllow 持久化失败仅记日志，fake 同语义）。</summary>
+        public Task ApproveToolPermanentlyAsync(string toolName, string? ruleContent, CancellationToken cancellationToken = default) {
+            PermanentApprovals.Add((toolName, ruleContent));
+            return Task.CompletedTask;
+        }
+
         /// <summary>未使用（引擎 PermissionRequest 在 JoinCode.Abstractions.Security，与 Core Repl 同名 — 全限定消歧）。</summary>
         public Task<JoinCode.Abstractions.Security.PermissionResult> CheckPermissionAsync(JoinCode.Abstractions.Security.PermissionRequest request, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
@@ -176,15 +185,18 @@ public sealed class TuiPermissionConfirmationTests {
         Assert.Equal([("Bash", TimeSpan.FromMinutes(1))], manager.Approvals);
     }
 
-    /// <summary>AlwaysAllow — 临时批准 30 分钟。</summary>
+    /// <summary>AlwaysAllow — 持久化批准（DSG046 P1 — 对齐基准 settings.json 永久规则：
+    /// ApproveToolPermanentlyAsync 而非临时 30 分钟；旧"TemporarilyApprovesThirtyMinutes"推翻）。</summary>
     [Fact]
-    public void Handler_AlwaysAllow_TemporarilyApprovesThirtyMinutes() {
+    public void Handler_AlwaysAllow_PermanentlyApproves() {
         var manager = new FakePermissionManager();
         var handler = new TuiPermissionConfirmationHandler(new FakeBridge(PermissionConfirmAction.AlwaysAllow), manager);
 
         handler.Confirm("Bash", "run tests");
 
-        Assert.Equal([("Bash", TimeSpan.FromMinutes(30))], manager.Approvals);
+        Assert.Equal([("Bash", (string?)null)], manager.PermanentApprovals);
+        // AlwaysAllow 不再走临时批准（Approvals 仅 Allow 档）
+        Assert.Empty(manager.Approvals);
     }
 
     /// <summary>Deny — 不产生临时批准。</summary>

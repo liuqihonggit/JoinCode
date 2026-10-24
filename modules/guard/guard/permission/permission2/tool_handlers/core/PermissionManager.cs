@@ -133,6 +133,21 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     }
 
     /// <summary>
+    /// 永久批准规则（TASK070 P1/DSG046）— 委托 PermissionChecker.AddToAutoApprovedAndPersistAsync
+    /// （内存 + settings.json 双写唯一数据源）；失败仅记日志不抛（持久化非关键路径，临时批准兜底本回合）。
+    /// </summary>
+    public async Task ApproveToolPermanentlyAsync(string toolName, string? ruleContent, CancellationToken cancellationToken = default) {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        try {
+            await _permissionChecker.AddToAutoApprovedAndPersistAsync(toolName, ruleContent, cancellationToken).ConfigureAwait(false);
+            _logger?.LogInformation("权限规则已持久化: {ToolName}({RuleContent})", toolName, ruleContent ?? "工具级");
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "权限规则持久化失败: {ToolName}({RuleContent}) — 本回合临时批准不受影响", toolName, ruleContent);
+        }
+    }
+
+    /// <summary>
     /// 临时批准工具（在指定时间内自动批准）
     /// </summary>
     /// <param name="toolName">工具名称</param>

@@ -157,6 +157,15 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
             return deniedError;
         }
 
+        // TASK070 P1/DSG046 — AlwaysAllow 持久化（对齐 TS persistPermissionUpdate）：
+        // Shell 类工具（带 command 参数）→ 前缀规则 "Bash(command:*)"；其他 → 工具级 "Tool"。
+        // 失败仅记日志（ApproveToolPermanentlyAsync 内吞）— 临时批准已兜底本回合。
+        if (action == PermissionConfirmAction.AlwaysAllow) {
+            var command = PermissionRuleParser.ExtractCommand(arguments);
+            var ruleContent = command is not null ? $"{command}:*" : null;
+            await _permissionManager.ApproveToolPermanentlyAsync(toolName, ruleContent, cancellationToken).ConfigureAwait(false);
+        }
+
         _logger.LogInformation("用户确认允许工具执行: {ToolName}", toolName);
 
         var retryContext = new ToolExecutionContext {

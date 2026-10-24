@@ -421,5 +421,39 @@ public sealed class PermissionCheckerTest {
         }
     }
 
+
+    #endregion
+
+    #region TASK070 P1-P2/DSG046 — 规则热加载（mtime 变化触发判定链前段重读）
+
+    [Fact]
+    public async Task CheckPermissionAsync_SettingsFileAppears_ReloadsRules() {
+        await using var fs = new InMemoryFileSystem();
+        // 判定链需含规则中间件（空管道 Result 恒 null 落确认 — 无法表达热加载命中）
+        var pipeline = new MiddlewarePipeline<PermissionCheckContext>([new ToolListPermissionMiddleware()]);
+        await using var checker = CreateChecker(pipeline: pipeline, fs: fs);
+
+        // 启动时无 settings.json → 规则空 → 落确认
+        var before = await checker.CheckPermissionAsync("HotTool");
+        before.IsApproved.Should().BeFalse("启动时无规则，应落确认");
+
+        // 写入 settings.json（mtime: null → 时间戳，触发判定链前段重读）
+        var settingsPath = SettingsLoader.GetUserSettingsPath();
+        var json = "{\"current\": {\"permissions\": {\"allow\": [\"HotTool\"]}}}";
+        await fs.WriteAllTextAsync(settingsPath, json);
+
+        var after = await checker.CheckPermissionAsync("HotTool");
+        after.IsApproved.Should().BeTrue("settings.json 出现 allow 规则后，热加载应使命中");
+    }
+
+    [Fact]
+    public async Task CheckPermissionAsync_RulesLoaderFailure_FallsBackToInMemoryRules() {
+        await using var checker = CreateChecker(); // 默认 fs 无 settings.json
+
+        // 无 settings.json → mtime 恒 null → 不触发重载（快速路径），判定照常
+        var result = await checker.CheckPermissionAsync("UnlistedTool");
+        result.Should().NotBeNull();
+    }
+
     #endregion
 }

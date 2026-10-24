@@ -1,3 +1,6 @@
+// JCC1018 豁免: 本测试以 Windows 路径字面量为被测数据（Windows 形态行为/守护判定/端点解析等），
+// 被测对象即 Windows 路径语义，非跨平台误用 — 新增跨平台匹配测试请用 Path.Combine(GetTempPath()) 构造。
+#pragma warning disable JCC1018
 namespace NativeTui.Tests.Bridge;
 
 /// <summary>
@@ -185,6 +188,71 @@ public sealed class ReplBridgeDriverTests
         Assert.False(_view.Footer.Busy);
         Assert.Equal(countBefore, _view.Messages.Count);
         Assert.Equal(0, _spinner.ResponseLength);
+    }
+
+    /// <summary>压缩完成路由（TASK070 C6'/DSG046）— 用量快照作废（Reset 后 Warning 归 None，
+    /// footer 低水位警告消退）+ 通知槽"上下文已压缩"提示。</summary>
+    [Fact]
+    public void Apply_CompactCompleted_ResetsTokenUsageTrackerAndNotifies()
+    {
+        var tracker = new TokenUsageTracker();
+        tracker.RecordUsage(inputTokens: 5_000, outputTokens: 1_000, contextTokens: 197_000, contextLimitTokens: 200_000);
+        Assert.Equal(TokenWarningLevel.Low, tracker.Warning.Level);
+        var notifications = new ReplNotifications();
+        _view.Footer = _view.Footer with { Notifications = notifications };
+        var driver = new ReplBridgeDriver(_view, _spinner, _banner, tokenUsageTracker: tracker);
+
+        driver.Apply(new BridgeEvent.CompactCompleted(12, 197_000, 900, IsAuto: true));
+
+        Assert.Equal(TokenWarningLevel.None, tracker.Warning.Level);
+        Assert.Null(tracker.ContextTokens);
+        Assert.Null(tracker.ContextLimitTokens);
+        Assert.Equal("上下文已压缩（12 条摘要，197,000 → 900）", notifications.Current);
+    }
+
+    /// <summary>压缩完成路由 — tracker/通知队列未注入时静默容忍（纯视图断言场景零异常）。</summary>
+    [Fact]
+    public void Apply_CompactCompleted_WithoutTracker_NotifiesOnly()
+    {
+        _view.Footer = _view.Footer with { Notifications = new ReplNotifications() };
+
+        _driver.Apply(new BridgeEvent.CompactCompleted(3, 10_000, 200, IsAuto: false));
+
+        Assert.Equal("上下文已压缩（3 条摘要，10,000 → 200）", _view.Footer.Notifications!.Current);
+    }
+
+    /// <summary>重试路由（TASK070 E2/E3/DSG046）— spinner 行显示倒计时式提示（非 ErrorMessageItem）。</summary>
+    [Fact]
+    public void Apply_Retry_ShowsSpinnerRetryingHint()
+    {
+        _driver.BeginTurn();
+
+        _driver.Apply(new BridgeEvent.Retry("连接超时", 1, 3, 1000));
+
+        Assert.Equal("Retrying in 1s (1/3)", _spinner.Message);
+    }
+
+    /// <summary>重试路由 — delayMs 亚秒向上取整（350ms → 1s，不显示 0s 误导）。</summary>
+    [Fact]
+    public void Apply_Retry_SubSecondDelay_CeilToOneSecond()
+    {
+        _driver.BeginTurn();
+
+        _driver.Apply(new BridgeEvent.Retry("限流", 2, 5, 350));
+
+        Assert.Equal("Retrying in 1s (2/5)", _spinner.Message);
+    }
+
+    /// <summary>重试路由 — 回合结束后 spinner Message 复位（EndTurn 清空不残留）。</summary>
+    [Fact]
+    public void Apply_Retry_ThenTurnCompleted_MessageCleared()
+    {
+        _driver.BeginTurn();
+        _driver.Apply(new BridgeEvent.Retry("连接超时", 1, 3, 1000));
+
+        _driver.Apply(new BridgeEvent.TurnCompleted());
+
+        Assert.Equal(string.Empty, _spinner.Message);
     }
 
     [Fact]

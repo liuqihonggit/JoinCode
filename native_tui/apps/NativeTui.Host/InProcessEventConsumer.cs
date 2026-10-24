@@ -168,6 +168,18 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
         _events.Enqueue(new BridgeEvent.BackgroundTask(kind, taskId, description, state));
     }
 
+    /// <summary>上下文压缩完成 → CompactCompleted（TASK070 C6/DSG046 — 四参直传内存事件；
+    /// ReplBridgeDriver 路由 TokenUsageTracker.Reset + 通知上屏。显式实现：DIM 默认实现经类类型调用不可见 — 先例同上）。</summary>
+    public void OnCompactCompleted(int messagesSummarized, long originalTokens, long compressedTokens, bool isAuto) {
+        _events.Enqueue(new BridgeEvent.CompactCompleted(messagesSummarized, originalTokens, compressedTokens, isAuto));
+    }
+
+    /// <summary>自动重试通知 → Retry（TASK070 E2/DSG046 — 四参直传内存事件，ReplBridgeDriver 路由 spinner 行提示；
+    /// 显式实现：DIM 默认实现经类类型调用不可见 — 先例同上）。</summary>
+    public void OnRetry(string reason, int attempt, int maxRetries, int delayMs) {
+        _events.Enqueue(new BridgeEvent.Retry(reason, attempt, maxRetries, delayMs));
+    }
+
     /// <summary>排空事件队列 — 主循环每 tick 调用，取走全部待处理事件（ConcurrentQueue 多生产单消费安全）。</summary>
     public IReadOnlyList<BridgeEvent> DrainEvents() {
         List<BridgeEvent>? drained = null;

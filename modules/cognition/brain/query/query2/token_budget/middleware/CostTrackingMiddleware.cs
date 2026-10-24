@@ -6,6 +6,8 @@ namespace Core.Query;
 [Register(typeof(IQueryMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class CostTrackingMiddleware : ServiceEntity, IQueryMiddleware {
     private readonly ITokenCostTracker _costTracker;
+    private readonly ICostTracker? _sessionCostTracker;
+    private readonly IUsdBudgetManager? _usdBudgetManager;
 
 
     /// <summary>
@@ -15,10 +17,18 @@ public sealed partial class CostTrackingMiddleware : ServiceEntity, IQueryMiddle
 
     /// <summary>
     /// 构造函数 — 注入 Token 成本追踪器（可选，缺省使用空追踪器）
+    /// TASK071 query2-② — ICostTracker（真实模型计价权威）优先；其缺失时回退 query2 内部估算器。
     /// </summary>
-    /// <param name="costTracker">Token 成本追踪器</param>
-    public CostTrackingMiddleware(ITokenCostTracker? costTracker = null) {
+    /// <param name="costTracker">Token 成本追踪器（可选）</param>
+    /// <param name="sessionCostTracker">会话成本追踪器（真实计价 — TASK071 query2-② 接线）</param>
+    /// <param name="usdBudgetManager">USD 预算管理器（TASK071 query2-① — 记录增量驱动预算熔断）</param>
+    public CostTrackingMiddleware(
+        ITokenCostTracker? costTracker = null,
+        ICostTracker? sessionCostTracker = null,
+        IUsdBudgetManager? usdBudgetManager = null) {
         _costTracker = costTracker ?? new NullTokenCostTracker();
+        _sessionCostTracker = sessionCostTracker;
+        _usdBudgetManager = usdBudgetManager;
     }
 
     /// <summary>
@@ -33,7 +43,7 @@ public sealed partial class CostTrackingMiddleware : ServiceEntity, IQueryMiddle
         return next(context, ct);
     }
 
-    private Task TrackCostAsync(QueryMiddlewareContext context, CancellationToken ct) {
+    private async Task TrackCostAsync(QueryMiddlewareContext context, CancellationToken ct) {
         _costTracker.TrackUsage(context.InputTokens, context.OutputTokens);
 
         var totalTokens = context.InputTokens + context.OutputTokens;
@@ -45,7 +55,17 @@ public sealed partial class CostTrackingMiddleware : ServiceEntity, IQueryMiddle
             });
         }
 
-        context.TotalCostUsd = _costTracker.GetTotalCost();
-        return Task.CompletedTask;
+        // TASK071 query2-② — 真实模型计价优先（ICostTracker.GetTotalStatistics 权威口径），
+        // 缺失时回退 query2 内部估算；旧实现恒走 NullTracker → Complete chunk 的 CostUsd 恒 0
+        var totalCost = _sessionCostTracker?.GetTotalStatistics().TotalCostUsd ?? _costTracker.GetTotalCost();
+
+        // TASK071 query2-① — 对齐 TS QueryEngine.ts:970-972（每条消息后 getTotalCost 对照 maxBudgetUsd）：
+        // 增量记录到预算管理器（Actor 累计），驱动 IsBudgetExceededAsync 熔断
+        var delta = totalCost - context.TotalCostUsd;
+        if (_usdBudgetManager is not null && delta > 0) {
+            await _usdBudgetManager.RecordCostAsync(delta, $"LLM调用: {context.ToolName ?? "main"}", ct).ConfigureAwait(false);
+        }
+
+        context.TotalCostUsd = totalCost;
     }
 }

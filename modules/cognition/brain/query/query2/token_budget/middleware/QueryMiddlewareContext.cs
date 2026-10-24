@@ -130,6 +130,10 @@ public sealed class QueryMiddlewareContext {
     /// </summary>
     public List<Func<QueryMiddlewareContext, CancellationToken, Task>> OnCompleteHooks { get; } = [];
 
+    /// <summary>Stop hook 阻断消息（TASK071 query2-③ — 对齐 TS stopHooks.ts:257-263 blockingError 回灌；
+    /// 核心循环在完成分支检查非空时注入 ChatHistory 并继续一轮迭代，注入后清空防重复）。</summary>
+    public List<string> StopHookBlockingMessages { get; } = [];
+
     /// <summary>
     /// 内容替换服务 — 由 ContentReplacementMiddleware 设置，核心引擎在 AddToolResultToHistory 中使用
     /// 用于 MaybePersistLargeToolResult（即时持久化，非预算机制）

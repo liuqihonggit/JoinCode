@@ -67,6 +67,7 @@
 | C10 | 模型页与凭据：供应商虚拟命名空间 `settings/describe|mutate`（`providers_llm/config.json` + `models.json`）、`credentials/{describe,set,unset}` 共用 `auth.json`、`llm/discoverModels`、`@` 会话引用 `sessionReferenceResolver/candidates` | ✅ 已验收（单测 12 + `dsh-webui-models-settings.mjs` 27 项、`dsh-webui-credentials-references.mjs` 23 项真机 ALL_PASS） |
 | C11 | 未接线表面诚实化：`account/*` 部署级引导、`pluginManager/*` 空态/拒绝、`pluginRegistryProbe/fastest` null、`officeToPdf/*` 服务不可用引导、`dynamicCordisRunner/{stopFromPanel,undefineFromPanel}` plugin-missing | ✅ 已验收（单测 6 + `dsh-webui-unsupported.mjs` 13 项真机 ALL_PASS，插件页显示不可管理空态） |
 | C12 | 通用设置页「打开配置文件」：`settings/describe.hasDocument=true` + `settings/openSettingsDocument` 落盘后交系统默认程序 | ✅ 已验收（单测 2 + `dsh-webui-settings-document.mjs` 8 项真机 ALL_PASS） |
+| C13 | 窗口缩放/最大化后 WebView2 控制器尺寸跟随（缩窗后双击最大化露出未绘制黑区） | ✅ 已验收（单测 8 + 真机探针 `1440×900 → 884×601 → 1920×1017 → 884×601`，CDP 视口同步无黑区） |
 
 ## 四、验收四列表（滚动更新）
 
@@ -107,6 +108,7 @@
 | `pluginInventory/list` 空清单快照（`managementAvailable=false`） | 插件管理页空态 | ✅ | ✅ 单测 1 例 |
 | `DshSessionStore.ToGoalFace` + `DshHostServices.PublishGoalProjectionAsync`（无目标 JSON `null`；有目标 `{goal,roundsStarted,createdAt,updatedAt}`；写路径后推 `session/control` goal 整值帧） | 前端 GoalDock `useProjection("goal")`、控制帧实时刷新目标条 | ✅ | ✅ 单测 5 例 + `c7-goal-e2e.mjs` 真机 28 项（初始 undefined → 建目标渲染 → 暂停/恢复 → 编辑 → 清除隐藏、基线/帧 seq 水位、两张截图） |
 | `DshRpcDispatcher` goals 七方法（agent 作用域：get/create/edit/pause/resume/complete/clear，create/edit 走 `request` 信封，clear 返回裸 `{id,revision}`，get 无目标省略 `value`） | 目标条按钮 `remote.goals.*`、`useGoalActivation` 读 `goals/get.activation` | ✅ | ✅ 单测 5 例（agent wire/undefined/裸 ref）+ 真机 UI 暂停/恢复/编辑/清除全部生效 |
+| `WebView2Host.ResolveControllerBounds` + `ArrangeOverride(finalSize)` 直传 | 所有 WebView2 宿主窗口（`DshWebUiWindow`/`WebUiWindow`）的缩放、最大化/还原 | ✅ | ✅ 单测 8 例 + 真机探针（缩小→最大化→还原，`Chrome_WidgetWin_0` 每步等于客户区；CDP `innerWidth/innerHeight` 同步 1920×1017 / 884×601，页面无黑区） |
 | `DshUserQuestionBroker`（`$events` 挂接/断连 fail-closed、`user-questions/request` 五键帧、q0..qN 答案映射、结算后 cancel 帧、轮次收尾按会话取消） | 引擎 `ask_user_question` → 前端问题卡片 → `$events/result` → 工具结果 | ✅ | ✅ 单测 10 例 + `dsh-webui-questions.mjs` 真机 23 项 ALL_PASS（真实桩模型 → 卡片 → 提交 → `"是否继续执行？"="继续"`、`"选择要包含的选项？"="A, B"` → `turn/end completed`） |
 | `AvaloniaInteractiveService.ShowQuestionsCallback` + `IJccChatSession.AskUserQuestionsCallback` 转发（GUI DI Order=80 单例） | 引擎工具处理器取整批问题一次性投递给前端卡片（而非逐题原生对话框） | ✅ | ✅ 同上真机 E2E：一张卡片渲染 2 问、单选自动翻页、多选 A/B 同时提交 |
 | `userQuestions/answer` 诚实 false（宿主无 continued 队列）+ `userQuestions/attachWait` 空流（无 timed wait） | 前端在 continued 状态下才走 RPC 回帖；本轮宿主不产生该状态 | ✅ | ✅ 单测 2 例（route 回 false + 引导文案含 callId/answer、attachWait 空流） |
@@ -247,3 +249,9 @@
 <!-- 原因: web_host 目录达到 41 个文件，触发 JCC10001（≤40）；同时仓库规范禁止同目录文件与子文件夹混存（JCC10002），因此改为同级纯文件目录而不是嵌套 settings/ -->
 <!-- 替代方案: 在 web_host 下建子文件夹（触发 JCC10002）/ 归档旧测试（无删除红线，且这些测试仍然有效），均不采用 -->
 <!-- 验证: web_host 37 个文件、web_host_settings 4 个文件，Core 全量 409/409 编译与测试通过 -->
+
+<!-- 🤖 Auto Decision: 2026-10-25 (窗口缩放后 WebView2 控制器尺寸滞后) -->
+<!-- 决策: 控制器物理尺寸由 ArrangeOverride 的 finalSize 直接换算（ResolveControllerBounds），不再读 Bounds；换算结果与当前值相同则跳过 COM 写入 -->
+<!-- 原因: Avalonia 在 ArrangeOverride 返回后才赋值 Bounds，读 Bounds 会让控制器永远落后一次窗口尺寸变更。真机探针证实：客户区与 AvaloniaDumbWindow 已变成新尺寸，而 Chrome_WidgetWin_0 仍停在上一次尺寸（缩窗 916x405→884x601 时控制器还是 916x405；最大化到 1920x1017 时控制器还是 884x601），空白区域因此从未被绘制成黑色 -->
+<!-- 替代方案: 监听 TopLevel.SizeChanged 后仍读 Bounds（需要额外维护订阅/解除与 DPI 变化路径，且根源仍是陈旧值）/ 定时轮询窗口尺寸（非确定性且浪费），均不采用 -->
+<!-- 验证: 红测试先编译失败（ResolveControllerBounds 不存在）→ 绿测试 8 例；Host 全量 44/44；Host Debug 0 警告 0 错误；真机探针 1440x900 → 884x601 → 1920x1017 → 884x601，Chrome_WidgetWin_0 每步等于客户区；CDP innerWidth/innerHeight 同步为 1920x1017 / 884x601，页面铺满无黑区 -->

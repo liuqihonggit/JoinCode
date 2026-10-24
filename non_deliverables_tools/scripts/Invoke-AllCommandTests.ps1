@@ -247,7 +247,8 @@ function Generate-MissingParamScenarios {
     $fullArgs = Generate-DefaultArgs -Schema $Schema
 
     foreach ($reqParam in $Schema.required) {
-        $missingArgs = @($fullArgs | Where-Object { $_ -notlike "$reqParam=*`"" -and $_ -notlike "$reqParam=*" })
+        $prefix = "$reqParam="
+        $missingArgs = @($fullArgs | Where-Object { -not $_.StartsWith($prefix, [StringComparison]::Ordinal) })
         $scenarios += [PSCustomObject]@{
             MissingParam = $reqParam
             Args         = $missingArgs
@@ -284,7 +285,7 @@ function Test-McpTools {
     $dangerousTools = $tools | Where-Object { Get-IsDangerousTool -ToolName $_ }
     if ($dangerousTools) {
         $tools = $tools | Where-Object { -not (Get-IsDangerousTool -ToolName $_) }
-        Write-Host "Skipped $($dangerousTools.Count) dangerous tools (delete/desktop_/git_write/gh_write)" -ForegroundColor Yellow
+        Write-Host "Skipped $($dangerousTools.Count) dangerous tools (gh_*/desktop_*/git_write/delete)" -ForegroundColor Yellow
     }
 
     if ($Limit -gt 0 -and $Limit -lt $tools.Count) {
@@ -401,17 +402,13 @@ function Get-IsDangerousTool {
     param([string]$ToolName)
 
     $dangerousExact = @(
-        "delete", "desktop_click", "desktop_type", "desktop_move",
-        "desktop_scroll", "desktop_screenshot", "desktop_key",
+        "delete",
         "git_add", "git_commit", "git_push", "git_pull", "git_reset",
         "git_clean", "git_branch", "git_clone", "git_merge",
-        "worktree_create", "worktree_remove", "worktree_cleanup", "worktree_merge",
-        "gh_pr_create", "gh_pr_close", "gh_pr_merge", "gh_pr_comment",
-        "gh_pr_review", "gh_pr_update", "gh_pr_approve",
-        "gh_issue_create", "gh_issue_close", "gh_issue_comment", "gh_issue_update",
-        "gh_run_cancel", "gh_run_rerun", "gh_repo_fork"
+        "worktree_create", "worktree_remove", "worktree_cleanup", "worktree_merge"
     )
     if ($dangerousExact -contains $ToolName) { return $true }
+    if ($ToolName -like "gh_*") { return $true }
     if ($ToolName -like "desktop_*") { return $true }
     return $false
 }
@@ -427,6 +424,11 @@ function Test-McpMissingParams {
     }
 
     $tools = $listJson.data | ForEach-Object { $_.name }
+    $dangerousTools = $tools | Where-Object { Get-IsDangerousTool -ToolName $_ }
+    if ($dangerousTools) {
+        $tools = $tools | Where-Object { -not (Get-IsDangerousTool -ToolName $_) }
+        Write-Host "Skipped $($dangerousTools.Count) dangerous tools (gh_*/desktop_*/git_write/delete)" -ForegroundColor Yellow
+    }
     if ($Limit -gt 0 -and $Limit -lt $tools.Count) {
         $tools = $tools[0..($Limit - 1)]
     }

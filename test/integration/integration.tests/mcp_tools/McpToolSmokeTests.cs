@@ -8,18 +8,14 @@
 /// </summary>
 [Trait("Category", "Integration")]
 public sealed class McpToolSmokeTests {
-    private static async Task<(Tools.LocalToolRegistry Registry, IToolExecutionGateway Gateway, IReadOnlyList<ToolInfo> Tools, string TempDir)> BuildAndRegisterAllToolsAsync() {
+    private static async Task<(Tools.LocalToolRegistry Registry, IToolExecutionGateway Gateway, IReadOnlyList<ToolInfo> Tools, string TempDir, string WorkingDir)> BuildAndRegisterAllToolsAsync() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
-#pragma warning disable JCC9108, JCC9305 // fileSystem 通过 DI 容器管理生命周期,不手动释放
-        var fileSystem = new IO.FileSystem.InMemoryFileSystem();
-        fileSystem.CreateDirectory(tempDir);
-        fileSystem.SetCurrentDirectory(tempDir);
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.AppDataFolder, tempDir);
+        Environment.SetEnvironmentVariable("JCC_FILE_SYSTEM_MODE", "InMemory");
 
         var services = new ServiceCollection();
         services.AddLogging(b => b.AddConsole().SetMinimumLevel(LogLevel.Warning));
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
-        services.AddSingleton<IFileSystem>(fileSystem);
 
         var config = new WorkflowConfig();
         services.AddWorkflowServices(config);
@@ -36,7 +32,9 @@ public sealed class McpToolSmokeTests {
         var registry = provider.GetRequiredService<Tools.LocalToolRegistry>();
         var gateway = provider.GetRequiredService<IToolExecutionGateway>();
         var toolInfos = await registry.GetAllToolInfosAsync().ConfigureAwait(true);
-        return (registry, gateway, toolInfos, tempDir);
+        var fs = provider.GetRequiredService<IFileSystem>();
+        var workingDir = fs.GetCurrentDirectory();
+        return (registry, gateway, toolInfos, tempDir, workingDir);
     }
 
     /// <summary>
@@ -147,7 +145,7 @@ public sealed class McpToolSmokeTests {
 
     [Fact]
     public async Task All_Registered_Tools_Can_Be_Called_Without_Crash() {
-        var (registry, gateway, allTools, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var (registry, gateway, allTools, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         allTools.Should().NotBeEmpty("至少应注册一个工具");
 
@@ -230,7 +228,7 @@ public sealed class McpToolSmokeTests {
 
     [Fact]
     public async Task Sleep_Tool_Returns_Valid_Result() {
-        var (registry, _, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var (registry, _, _, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         var args = new Dictionary<string, JsonElement> {
             ["duration_seconds"] = JsonDocument.Parse("1").RootElement.Clone()
@@ -245,7 +243,7 @@ public sealed class McpToolSmokeTests {
 
     [Fact]
     public async Task Mcp_Auth_Status_Tool_Returns_Valid_Result() {
-        var (registry, _, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var (registry, _, _, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         var result = await registry.ExecuteToolAsync("mcp_auth_status", new Dictionary<string, JsonElement>(), CancellationToken.None).ConfigureAwait(true);
 
@@ -256,7 +254,7 @@ public sealed class McpToolSmokeTests {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Unknown_Tool_Returns_Error_Or_Throws() {
-        var (registry, _, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var (registry, _, _, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         // 调用不存在的工具 — 注册表可能抛出异常或返回错误结果，不能静默成功
         Exception? caughtEx = null;
@@ -282,7 +280,7 @@ public sealed class McpToolSmokeTests {
     /// </summary>
     [Fact]
     public async Task Write_Read_Behavior_Verification() {
-        var (_, gateway, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var (_, gateway, _, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
         var fileName = $"patrol-behavior-test-{Guid.NewGuid():N}.txt";
         var content = "hello patrol behavior verification";
         var fileNameJson = System.Text.Json.JsonSerializer.Serialize(fileName);
@@ -306,5 +304,33 @@ public sealed class McpToolSmokeTests {
         // 断言读回内容含写入内容 — 真实行为验证
         var readText = readResult.Content.FirstOrDefault()?.Text ?? "";
         readText.Should().Contain(content, "read 应返回写入的内容（行为验证：不只不崩溃，验证内容一致）");
+    }
+
+    /// <summary>
+    /// write→list 行为验证 — 写入文件后列目录，断言列表含写入文件名。
+    /// </summary>
+    [Fact]
+    public async Task Write_List_Behavior_Verification() {
+        var (_, gateway, _, _, workingDir) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var fileName = $"patrol-list-test-{Guid.NewGuid():N}.txt";
+
+        // write 写入文件(相对路径)
+        var writeArgs = new Dictionary<string, JsonElement> {
+            ["file_path"] = JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(fileName)).RootElement.Clone(),
+            ["content"] = JsonDocument.Parse("\"patrol list test\"").RootElement.Clone(),
+        };
+        var writeResult = await gateway.ExecuteAsync("write", writeArgs, CancellationToken.None).ConfigureAwait(true);
+        writeResult.IsError.Should().BeFalse($"write 应成功: {writeResult.Content.FirstOrDefault()?.Text}");
+
+        // directory_list 列当前目录(用 IFileSystem.GetCurrentDirectory,路径一致)
+        var listArgs = new Dictionary<string, JsonElement> {
+            ["directory_path"] = JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(workingDir)).RootElement.Clone(),
+        };
+        var listResult = await gateway.ExecuteAsync("directory_list", listArgs, CancellationToken.None).ConfigureAwait(true);
+        listResult.IsError.Should().BeFalse($"directory_list 应成功: {listResult.Content.FirstOrDefault()?.Text}");
+
+        // 断言列表含写入文件名
+        var listText = listResult.Content.FirstOrDefault()?.Text ?? "";
+        listText.Should().Contain(fileName, "directory_list 应包含刚写入的文件名（行为验证）");
     }
 }

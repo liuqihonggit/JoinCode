@@ -383,4 +383,18 @@ public sealed class InProcessEventConsumerTests
         var completed = Assert.IsType<BridgeEvent.CompactCompleted>(Assert.Single(events));
         Assert.Equal((42, 150_000L, 3_200L, true), (completed.MessagesSummarized, completed.OriginalTokens, completed.CompressedTokens, completed.IsAuto));
     }
+
+    /// <summary>TASK070 E2/DSG046 自动重试 — OnRetry 四参直传 Retry 内存事件
+    /// （ReplBridgeDriver 路由 spinner 行提示；接口同步由引擎侧 IEventConsumer DIM 完成）。</summary>
+    [Fact]
+    public void OnRetry_EnqueuesRetryEvent()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnRetry("连接超时", 1, 3, 1000);
+
+        var events = consumer.DrainEvents();
+        var retry = Assert.IsType<BridgeEvent.Retry>(Assert.Single(events));
+        Assert.Equal(("连接超时", 1, 3, 1000), (retry.Reason, retry.Attempt, retry.MaxRetries, retry.DelayMs));
+    }
 }

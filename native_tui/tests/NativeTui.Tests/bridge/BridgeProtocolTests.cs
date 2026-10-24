@@ -107,12 +107,32 @@ public sealed class BridgeProtocolTests
     [InlineData("{\"type\":\"turn_completed\"}", typeof(BridgeEvent.TurnCompleted))]
     [InlineData("{\"type\":\"turn_interrupted\"}", typeof(BridgeEvent.TurnInterrupted))]
     [InlineData("{\"type\":\"compact_completed\",\"messagesSummarized\":1,\"originalTokens\":1,\"compressedTokens\":1,\"isAuto\":false}", typeof(BridgeEvent.CompactCompleted))]
+    [InlineData("{\"type\":\"retry\",\"reason\":\"x\",\"attempt\":1,\"maxRetries\":3,\"delayMs\":1000}", typeof(BridgeEvent.Retry))]
     public void ReadEvent_MarkerEvents_ParseByType(string line, Type expected)
     {
         var reader = new StringReader(line + "\n");
         var result = BridgeProtocol.TryReadEvent(reader, out var @event, out _);
         Assert.Equal(BridgeReadResult.Event, result);
         Assert.IsType(expected, @event);
+    }
+
+    /// <summary>自动重试事件（TASK070 E2/DSG046）— 四参 camelCase 解析 + 序列化金样
+    /// （与引擎侧 BridgeEventConsumerTests 金样逐字段镜像；reason 用 ASCII — TUI 侧序列化仅
+    /// 测试往返用途，编码器为默认转义形态，真实链路中文由引擎侧 Safe 编码器直出）。</summary>
+    [Fact]
+    public void ReadEvent_Retry_CarriesReasonAttemptAndDelay()
+    {
+        var reader = new StringReader(
+            "{\"type\":\"retry\",\"reason\":\"连接被重置\",\"attempt\":1,\"maxRetries\":3,\"delayMs\":1000}\n");
+        var result = BridgeProtocol.TryReadEvent(reader, out var @event, out _);
+        Assert.Equal(BridgeReadResult.Event, result);
+        var retry = Assert.IsType<BridgeEvent.Retry>(@event);
+        Assert.Equal(("连接被重置", 1, 3, 1000), (retry.Reason, retry.Attempt, retry.MaxRetries, retry.DelayMs));
+
+        var writer = new StringWriter();
+        writer.Write(BridgeProtocol.SerializeEvent(retry) + "\n");
+        Assert.Equal("{\"type\":\"retry\",\"reason\":\"conn reset\",\"attempt\":1,\"maxRetries\":3,\"delayMs\":1000}\n",
+            BridgeProtocol.SerializeEvent(new BridgeEvent.Retry("conn reset", 1, 3, 1000)) + "\n");
     }
 
     /// <summary>压缩完成事件（TASK070 C6/DSG046）— 四参 camelCase 解析 + 序列化金样
@@ -476,6 +496,7 @@ public sealed class BridgeProtocolTests
             new BridgeEvent.TurnCompleted(),
             new BridgeEvent.TurnInterrupted(),
             new BridgeEvent.CompactCompleted(12, 45_000, 900, IsAuto: true),
+            new BridgeEvent.Retry("连接超时", 1, 3, 1000),
             new BridgeEvent.Error("出错了：参数缺失"),
         ];
 

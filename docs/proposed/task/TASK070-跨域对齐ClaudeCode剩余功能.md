@@ -78,6 +78,11 @@
 
 > ⚠️ bridge_serve 实进程 compact_completed 冒烟需配真实供应商（LLM 摘要调用）——事件行形状已由双侧金样锁定，宿主投影链已由真实命令驱动测试覆盖；实机验收登记待用户配好供应商后随批次 2 顺带执行。
 
+| E2 回调链（QueryRetryNotification + QueryOptions.OnRetry + QueryEngine.NotifyRetry catch 发射） | AgentBase.RetryNotifier → BuildChatOptions（options 组装唯一点）；SessionController 构造期绑定 consumer.OnRetry | ✅ | ✅（QueryEngineTests NotifyRetry 3 用例 internal 测试面 + AgentBaseRetryNotifierTests 透传 2 用例 + SessionControllerTests 绑定 2 用例） |
+| E2 消费协议（双侧 `retry` 事件 `[JsonDerivedType]` + BridgeEventConsumer/InProcessEventConsumer 直投影） | ReplBridgeDriver 路由 spinner.Message | ✅ | ✅（双侧金样：BridgeEventConsumerTests + BridgeProtocolTests ReadEvent/Roundtrip；编码器差异已登记 — TUI 侧仅测试往返） |
+| E3 TUI spinner 提示（"Retrying in Xs (N/M)"，非 ErrorMessageItem） | SpinnerItem.Message（BeginTurn/EndTurn 复位不残留） | ✅ | ✅（ReplBridgeDriverTests 3 用例：1s 显示/亚秒 ceil/回合结束清空） |
+| 批次2 真实 exe 验收（ADR 0080） | NativeTui.Host --selftest | ✅ | ✅（真实 exe EXIT=0；回归 brain.other 415 / agents 643 / brain.context 950 / host.tests 1471 / NativeTui.Tests 2929 / Host.Tests 140 全绿） |
+
 ## 六、决策记录（过程追加）
 
 <!-- 🤖 Auto Decision: 2026-10-24 批次1 -->
@@ -85,3 +90,9 @@
 <!-- 原因: 与手动 /compact 路径行为同源（摘要模板/历史压实）；SLASH 投影复用 Data 载荷不新增命令层事件通道 -->
 <!-- 替代方案: C4 走 ICompactService.CompactAsync 管道 —— 与 ChatService 历史压实脱节，摘要落库语义分裂，弃 -->
 <!-- 验证: host.tests 1468 + NativeTui.Tests 2924 + composition.tests 1000 + Host.Tests 139 全绿 + selftest EXIT=0 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-24 批次2 -->
+<!-- 决策: E2 走 QueryOptions.OnRetry 回调链（AgentBase.BuildChatOptions 唯一组装点透传），NotifyRetry internal 测试面 -->
+<!-- 原因: 与 WriteToTranscript 回调先例同形态；避免新增 Ambient AsyncLocal 通道的作用域管理成本 -->
+<!-- 替代方案: SubAgentEventChannel 复用 —— 语义错位（子代理通道承载主回合重试），弃 -->
+<!-- 验证: brain.other 415 + agents 643 + brain.context 950 + host.tests 1471 + NativeTui.Tests 2929 全绿 + selftest EXIT=0 ✅ -->

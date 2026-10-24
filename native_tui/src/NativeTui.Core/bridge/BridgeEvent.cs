@@ -24,6 +24,7 @@ namespace NativeTui.Core.Bridge;
 [JsonDerivedType(typeof(TurnCompleted), "turn_completed")]
 [JsonDerivedType(typeof(TurnInterrupted), "turn_interrupted")]
 [JsonDerivedType(typeof(CompactCompleted), "compact_completed")]
+[JsonDerivedType(typeof(Retry), "retry")]
 [JsonDerivedType(typeof(SubagentStarted), "subagent_started")]
 [JsonDerivedType(typeof(SubagentToolUse), "subagent_tool_use")]
 [JsonDerivedType(typeof(SubagentFinished), "subagent_finished")]
@@ -127,6 +128,12 @@ public abstract record BridgeEvent
     /// + 通知槽"上下文已压缩"提示；IsAuto 区分手动（/compact）与自动（回合末阈值触发）。
     /// </summary>
     public sealed record CompactCompleted(int MessagesSummarized, long OriginalTokens, long CompressedTokens, bool IsAuto) : BridgeEvent;
+
+    /// <summary>
+    /// 自动重试通知（TASK070 E2/DSG046 — 与引擎侧 Retry 逐字段镜像）：Driver 路由 spinner 行
+    /// "Retrying in Xs (N/M)" 提示（非 ErrorMessageItem — 重试非终态，回合照常继续）。
+    /// </summary>
+    public sealed record Retry(string Reason, int Attempt, int MaxRetries, int DelayMs) : BridgeEvent;
 
     /// <summary>
     /// 子代理启动（M7-7 分组渲染入口）— Driver 惰性建组（回合内首个子代理创建组项落位滚动区），

@@ -55,6 +55,13 @@ public sealed class SessionController {
         _serviceProvider = serviceProvider;
         _clock = clock ?? SystemClockService.Instance;
         _mainAgent = mainAgent;
+
+        // TASK070 E2/DSG046 — 重试感知绑定：主代理 BuildChatOptions → QueryOptions.OnRetry →
+        // QueryEngine 指数退避重试前回调 → consumer.OnRetry 上屏（未注入 notifier = 静默重试旧行为）。
+        if (_mainAgent is not null) {
+            _mainAgent.RetryNotifier = notification =>
+                _consumer.OnRetry(notification.Reason, notification.Attempt, notification.MaxRetries, notification.DelayMs);
+        }
     }
 
     /// <summary>

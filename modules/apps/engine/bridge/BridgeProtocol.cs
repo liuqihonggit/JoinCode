@@ -59,6 +59,7 @@ public abstract record BridgeRequest
 [JsonDerivedType(typeof(BridgeEvent.TurnCompleted), "turn_completed")]
 [JsonDerivedType(typeof(BridgeEvent.TurnInterrupted), "turn_interrupted")]
 [JsonDerivedType(typeof(BridgeEvent.CompactCompleted), "compact_completed")]
+[JsonDerivedType(typeof(BridgeEvent.Retry), "retry")]
 [JsonDerivedType(typeof(BridgeEvent.Error), "error")]
 public abstract record BridgeEvent
 {
@@ -208,6 +209,12 @@ public abstract record BridgeEvent
 
     /// <summary>错误（含诱导说明）。</summary>
     public sealed record Error(string Message) : BridgeEvent;
+
+    /// <summary>
+    /// 自动重试通知（TASK070 E2/DSG046 — QueryEngine 指数退避静默重试的感知上屏）：
+    /// TUI spinner 行提示（非 ErrorMessageItem — 重试非终态，回合照常继续）。
+    /// </summary>
+    public sealed record Retry(string Reason, int Attempt, int MaxRetries, int DelayMs) : BridgeEvent;
 }
 
 /// <summary>

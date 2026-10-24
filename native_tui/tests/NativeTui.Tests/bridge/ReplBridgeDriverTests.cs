@@ -218,6 +218,40 @@ public sealed class ReplBridgeDriverTests
         Assert.Equal("上下文已压缩（3 条摘要，10,000 → 200）", _view.Footer.Notifications!.Current);
     }
 
+    /// <summary>重试路由（TASK070 E2/E3/DSG046）— spinner 行显示倒计时式提示（非 ErrorMessageItem）。</summary>
+    [Fact]
+    public void Apply_Retry_ShowsSpinnerRetryingHint()
+    {
+        _driver.BeginTurn();
+
+        _driver.Apply(new BridgeEvent.Retry("连接超时", 1, 3, 1000));
+
+        Assert.Equal("Retrying in 1s (1/3)", _spinner.Message);
+    }
+
+    /// <summary>重试路由 — delayMs 亚秒向上取整（350ms → 1s，不显示 0s 误导）。</summary>
+    [Fact]
+    public void Apply_Retry_SubSecondDelay_CeilToOneSecond()
+    {
+        _driver.BeginTurn();
+
+        _driver.Apply(new BridgeEvent.Retry("限流", 2, 5, 350));
+
+        Assert.Equal("Retrying in 1s (2/5)", _spinner.Message);
+    }
+
+    /// <summary>重试路由 — 回合结束后 spinner Message 复位（EndTurn 清空不残留）。</summary>
+    [Fact]
+    public void Apply_Retry_ThenTurnCompleted_MessageCleared()
+    {
+        _driver.BeginTurn();
+        _driver.Apply(new BridgeEvent.Retry("连接超时", 1, 3, 1000));
+
+        _driver.Apply(new BridgeEvent.TurnCompleted());
+
+        Assert.Equal(string.Empty, _spinner.Message);
+    }
+
     [Fact]
     public void Apply_ToolResultWithPatch_AppendsToolResultItemUnifiedContract()
     {

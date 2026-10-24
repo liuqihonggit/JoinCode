@@ -72,6 +72,21 @@ public sealed class BridgeEventConsumerTests {
             @out.ToString());
     }
 
+    /// <summary>自动重试通知映射（TASK070 E2/DSG046）— OnRetry → retry 事件行
+    /// （四参 camelCase 直投影；与 native_tui 侧字段逐一对齐）。</summary>
+    [Fact]
+    public void OnRetry_EmitsRetryEventLine() {
+        var (consumer, @out) = Create();
+
+        consumer.OnRetry("连接被重置", attempt: 1, maxRetries: 3, delayMs: 1000);
+        consumer.OnRetry("限流 429", attempt: 2, maxRetries: 3, delayMs: 2000);
+
+        Assert.Equal(
+            "{\"type\":\"retry\",\"reason\":\"连接被重置\",\"attempt\":1,\"maxRetries\":3,\"delayMs\":1000}\n" +
+            "{\"type\":\"retry\",\"reason\":\"限流 429\",\"attempt\":2,\"maxRetries\":3,\"delayMs\":2000}\n",
+            @out.ToString());
+    }
+
     [Fact]
     public void OnText_EmitsTokenDelta_AndOnDoneEmitsFullAssistantMessage() {
         var (consumer, @out) = Create();

@@ -98,6 +98,17 @@ public interface IEventConsumer {
     /// <param name="compressedTokens">压缩后 token 数（摘要文本估算）</param>
     /// <param name="isAuto">是否自动触发（true=回合末阈值触发，false=用户 /compact）</param>
     void OnCompactCompleted(int messagesSummarized, long originalTokens, long compressedTokens, bool isAuto) { }
+
+    /// <summary>
+    /// 自动重试通知（TASK070 E2/DSG046 — QueryEngine 指数退避静默重试的感知上屏；
+    /// TUI spinner 行提示 "Retrying in Xs (N/M)"，非 ErrorMessageItem — 重试非终态。
+    /// 默认空实现 — 既有实现方零改动，默认实现须经接口类型调用才可见）
+    /// </summary>
+    /// <param name="reason">触发重试的异常摘要</param>
+    /// <param name="attempt">即将进行的重试序号（1 基）</param>
+    /// <param name="maxRetries">最大重试次数</param>
+    /// <param name="delayMs">本次退避等待毫秒数</param>
+    void OnRetry(string reason, int attempt, int maxRetries, int delayMs) { }
 }
 
 /// <summary>

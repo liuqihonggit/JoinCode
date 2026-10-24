@@ -617,6 +617,35 @@ public sealed class SessionControllerTests {
         return (mock.Object, compactCalls);
     }
 
+    /// <summary>TASK070 E2/DSG046 — 主代理 RetryNotifier 绑定：构造期把 consumer.OnRetry 挂上
+    /// AgentBase（→ BuildChatOptions → QueryOptions.OnRetry → QueryEngine 重试前回调），触发即上屏。</summary>
+    [Fact]
+    public async Task Constructor_WithMainAgent_BindsRetryNotifierToConsumer() {
+        var queryEngine = CreateMockQueryEngine();
+        await using var agent = new AgentBase(
+            task: string.Empty, options: null, queryEngine: queryEngine, logger: null,
+            name: "main", role: AgentRole.Coordinator);
+        var consumer = new RecordingEventConsumer();
+        _ = new SessionController(
+            CreateMockChatService(Array.Empty<ChatStreamEvent>()), consumer, new TurnDiffService(), "test-session", mainAgent: agent);
+
+        agent.RetryNotifier.Should().NotBeNull("主代理路径构造期应绑定 RetryNotifier");
+        Assert.NotNull(agent.RetryNotifier);
+        agent.RetryNotifier(new QueryRetryNotification("连接超时", 1, 3, 1000));
+
+        var retry = Assert.Single(consumer.Retries);
+        Assert.Equal(("连接超时", 1, 3, 1000), retry);
+    }
+
+    /// <summary>无主代理（ChatService 直连路径）不绑定 — RetryNotifier 仅主代理语义。</summary>
+    [Fact]
+    public void Constructor_WithoutMainAgent_NoRetryBinding() {
+        var consumer = new RecordingEventConsumer();
+        // 无 mainAgent 构造不抛即可（无 agent 可挂）
+        _ = new SessionController(CreateMockChatService(Array.Empty<ChatStreamEvent>()), consumer, new TurnDiffService(), "test-session");
+        Assert.Empty(consumer.Retries);
+    }
+
     private static IChatService CreateMockChatService(IReadOnlyList<ChatStreamEvent> events) {
         var mock = new Mock<IChatService>();
         mock.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -665,6 +694,7 @@ public sealed class SessionControllerTests {
         public List<(TokenUsage? usage, string? modelId)> DoneEvents { get; } = [];
         public List<(int promptTokens, int contextWindowTokens, int percentLeft)> ContextUsages { get; } = [];
         public List<(int messagesSummarized, long originalTokens, long compressedTokens, bool isAuto)> CompactCompleted { get; } = [];
+        public List<(string reason, int attempt, int maxRetries, int delayMs)> Retries { get; } = [];
 
         public void OnText(string content) => TextEvents.Add(content);
         public void OnThinking(string thinking) => ThinkingEvents.Add(thinking);
@@ -676,5 +706,6 @@ public sealed class SessionControllerTests {
         public void OnDone(TokenUsage? usage, string? modelId) => DoneEvents.Add((usage, modelId));
         public void OnContextUsage(int promptTokens, int contextWindowTokens, int percentLeft) => ContextUsages.Add((promptTokens, contextWindowTokens, percentLeft));
         public void OnCompactCompleted(int messagesSummarized, long originalTokens, long compressedTokens, bool isAuto) => CompactCompleted.Add((messagesSummarized, originalTokens, compressedTokens, isAuto));
+        public void OnRetry(string reason, int attempt, int maxRetries, int delayMs) => Retries.Add((reason, attempt, maxRetries, delayMs));
     }
 }

@@ -199,6 +199,11 @@ public sealed class ReplBridgeDriver
             case BridgeEvent.CompactCompleted(var messagesSummarized, var originalTokens, var compressedTokens, var isAuto):
                 ApplyCompactCompleted(messagesSummarized, originalTokens, compressedTokens, isAuto);
                 break;
+            case BridgeEvent.Retry(_, var attempt, var maxRetries, var delayMs):
+                // TASK070 E2/E3/DSG046 — spinner 行重试提示（非 ErrorMessageItem — 重试非终态，
+                // 回合照常继续；EndTurn/BeginTurn 复位 Message，正常完成不残留）。
+                _spinner.Message = $"Retrying in {Math.Max(1, (int)Math.Ceiling(delayMs / 1000.0))}s ({attempt}/{maxRetries})";
+                break;
             case BridgeEvent.SubagentStarted(var subagentId, var agentType, var description):
                 ApplySubagentStarted(subagentId, agentType, description);
                 break;

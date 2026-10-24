@@ -122,6 +122,13 @@ public class AgentBase : Entity, IAgent {
     public JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? OutputChannelManager { get; set; }
 
     /// <summary>
+    /// 重试感知通知器（TASK070 E2/DSG046 — 可选回调，BuildChatOptions 透传为 QueryOptions.OnRetry，
+    /// QueryEngine 指数退避重试前触发；主代理路径由 SessionController 绑定 consumer.OnRetry 上屏，
+    /// 子代理不绑定 = 静默重试旧行为。settable 属性 — 会话组装期绑定，避免构造参数扩散）。
+    /// </summary>
+    public Action<QueryRetryNotification>? RetryNotifier { get; set; }
+
+    /// <summary>
     /// AgentBase 构造函数 — 子类通过 base(...) 委托
     /// </summary>
     public AgentBase(
@@ -618,8 +625,9 @@ public class AgentBase : Entity, IAgent {
         var hasContentReplacementState = Options.ContentReplacementState is not null;
         var hasModelName = !string.IsNullOrEmpty(Options.ModelName);
         var effortLevel = JoinCode.Abstractions.LLM.EffortLevelHelper.ParseEffortLevel(Options.Effort);
+        var hasRetryNotifier = RetryNotifier is not null;
 
-        if (!hasAllowed && !hasDenied && !hasCacheSafeParams && !hasContentReplacementState && effortLevel is null && !hasModelName)
+        if (!hasAllowed && !hasDenied && !hasCacheSafeParams && !hasContentReplacementState && effortLevel is null && !hasModelName && !hasRetryNotifier)
             return null;
 
         return new QueryOptions {
@@ -631,6 +639,7 @@ public class AgentBase : Entity, IAgent {
             SessionId = Options.SessionId,
             EffortLevel = effortLevel,
             ModelId = Options.ModelName,
+            OnRetry = RetryNotifier,
         };
     }
 

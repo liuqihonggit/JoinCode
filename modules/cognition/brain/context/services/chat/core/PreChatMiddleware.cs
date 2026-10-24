@@ -67,6 +67,11 @@ public sealed partial class PreChatMiddleware : ServiceEntity, IChatMiddleware {
             yield return ChatStreamEvent.Text(context.ModalityMismatchInjection + "\n");
         }
 
+        // TASK071 hooks-③ — UserPromptSubmit hook 的 additionalContext 上屏（engine pre-hook 设置）
+        if (!string.IsNullOrEmpty(context.UserPromptSubmitInjection)) {
+            yield return ChatStreamEvent.Text(context.UserPromptSubmitInjection + "\n");
+        }
+
         await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
             yield return evt;
         }

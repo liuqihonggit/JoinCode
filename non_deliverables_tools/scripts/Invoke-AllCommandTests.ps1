@@ -329,7 +329,7 @@ function Test-McpTools {
         if ($schemaJson) { $schema = $schemaJson.data }
 
         $toolArgs = Generate-FullArgs -Schema $schema
-        $callArgs = @("mcp_call", $tool) + $toolArgs + @("--json", "--debuglog")
+        $callArgs = @("mcp_call", $tool) + $toolArgs + @("--json")
         $cmdStart = [System.Diagnostics.Stopwatch]::StartNew()
         $callResult = Invoke-Jcc -CmdArgs $callArgs -Timeout $TimeoutSec
         $cmdStart.Stop()
@@ -470,7 +470,7 @@ function Test-McpMissingParams {
         $JccDll = $using:dllPath
         $TimeoutSec = $using:timeout
 
-        $callArgs = @("mcp_call", $scenario.Tool) + $scenario.Args + @("--json", "--debuglog")
+        $callArgs = @("mcp_call", $scenario.Tool) + $scenario.Args + @("--json")
         $callResult = Invoke-Jcc -CmdArgs $callArgs -Timeout $TimeoutSec
 
         $isError = $false

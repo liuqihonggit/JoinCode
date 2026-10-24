@@ -899,6 +899,50 @@ public sealed class GhCommandResolverTests {
         bound!["fields"].Should().Be("name=test");
     }
 
+    /// <summary>-q 短选项映射到 jq（gh repo view -q '.name'）— 系统 gh CLI 兼容，复现 bug: 原报"多余的位置参数: -q"</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Bind_ShortOption_q_RepoView_ShouldMapToJq() {
+        var parameters = new List<GhParam> {
+            new("repo", IsRequired: false, IsBoolean: false),
+            new("jq", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "-q", ".name" }, parameters, "gh_repo_view", out var error);
+
+        error.Should().BeNull();
+        bound!["jq"].Should().Be(".name");
+    }
+
+    /// <summary>-q 短选项映射到 jq（gh pr list -q '.[].number'）— 系统 gh CLI 兼容，list 命令也支持 -q</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Bind_ShortOption_q_PrList_ShouldMapToJq() {
+        var parameters = new List<GhParam> {
+            new("limit", IsRequired: false, IsBoolean: false),
+            new("jq", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "-q", ".[].number" }, parameters, "gh_pr_list", out var error);
+
+        error.Should().BeNull();
+        bound!["jq"].Should().Be(".[].number");
+    }
+
+    /// <summary>-q 内联值形式（gh repo view -q.name）— 短选项内联值兼容</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Bind_ShortOption_q_InlineValue_ShouldMapToJq() {
+        var parameters = new List<GhParam> {
+            new("jq", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "-q.name" }, parameters, "gh_repo_view", out var error);
+
+        error.Should().BeNull();
+        bound!["jq"].Should().Be(".name");
+    }
+
     /// <summary>重复 -f 短选项追加(逗号分隔): -f name=test -f color=ff0000 → fields="name=test,color=ff0000"</summary>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]

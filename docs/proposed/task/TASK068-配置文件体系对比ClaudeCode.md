@@ -151,6 +151,22 @@ CurrentSettings 49 键审计结论：**A 类活跃 16 / B 类仅 /config 读写 
 - outputStyle（18712bc7a）：完整子系统 — OutputStyleLoader 双层目录（用户 ~/.jcc/output-styles/ + 项目 {cwd}/.jcc/output-styles/ 项目覆盖同名额，文件名即样式名）+ OutputStyleSection 动态注入（内建 explanatory/learning 映射既有两 section，自定义经 loader）+ 全链 settings→WorkflowConfig→SyncSystemPromptProviderOptions（双目录注入）；裁剪项登记：TS frontmatter name 解析/插件风格源/managed 源
 - autoMemory+autoDream（54b2f653f）：dream 配置桥 — WorkflowConfig 两键（默认 true）→ DreamPlugin 注册工厂延迟解析 WorkflowConfig 流入 AutoDreamConfig（万物皆插件，时序无关）
 
+**outputStyle 裁剪项 + C类 10 键第三批（用户决策"全部做"，2026-10-24）**：
+- outputStyle frontmatter 补齐（9cb698bd5）：FrontmatterParser 复用 — name 覆盖文件名/description 提取/正文剥离 YAML 头（修复带 frontmatter 风格把 YAML 原文注入提示词）
+- InMemoryFileSystem searchPattern 真 bug 修复（9cb698bd5）：EnumerateDirectories 此前完全忽略 searchPattern 参数（事故：HousekeepingService "mcp-logs-*" 枚举误扫 sessions 删会话文件）→ 与 EnumerateFiles 同款 Win32 通配语义修复 + InMemorySearchPatternTests 5 测试
+- cleanupPeriodDays（9cb698bd5）：WorkflowConfig.CleanupPeriodDays（默认 30 对齐 TS）→ HousekeepingService.RunAllCleanup 会话清理周期；0=禁用含方法级守卫防 0 当有效周期全删
+- statusLine（9dc34295f）：StatusLineTemplateRenderer 纯函数（{model}/{tokens}/{mode}/{time}/{cost} 变量替换）→ FooterState.StatusLine + FooterBar Row2 最优先渲染 → ReplShell 每帧 SyncStatusLine → Host LoadStatusLineTemplateAsync 读 statusline.enabled/format
+- defaultShell（bb3579699）：DefaultShellResolver 纯函数（settings bash/powershell 覆盖平台默认，对齐 TS resolveDefaultShell）→ ReplShell BashDirectExecutor 装配 → Host LoadSettingAsync 通用单键读取
+- respectGitignore（61ac79d27）：AtFileSuggester 构造注入 isIgnored 委托 → ReplShell gitignorePredicate 透传 → Host LoadGitignorePredicateAsync 读 settings.respectGitignore（默认 true）+ 加载 .gitignore 构造 GitignoreMatcher 闭包
+- worktree（6c39aed9d）：AgentWorktreeService 构造注入 WorkflowConfig → _defaultOptions 从 config.Worktree（SparsePaths/SymlinkDirectories）构造
+
+**C类剩余 5 键登记差异待后续批次**（评估结论：apiKeyHelper 中等-进程执行/sandbox 中等-跨模块/availableModels 中等-跨模块/enabledPlugins 中等-跨模块/actor 大-Actor 系统重构）：
+- apiKeyHelper：ConfigLoader.ResolveApiKeyAsync 加优先级分支（settings.apiKeyHelper 脚本执行取 stdout）— 需 IProcessService 注入
+- sandbox：CodeSandboxService 注入 WorkflowConfig 消费 4 字段（ReadOnlyFilesystem/AllowNetworkAccess/MaxMemoryMB/AllowedDirectories）— 跨 cognition+guard+OS 层
+- availableModels：ModelCatalog/ContextWindowResolver 加白名单过滤（settings.AvailableModels 与 IProviderDefinition.AvailableModels 取交集）— 需先透传到 WorkflowConfig
+- enabledPlugins：PluginManager.LoadWorkflowPluginCoreAsync 按 settings.EnabledPlugins 过滤 — 跨 plugins+guard 模块
+- actor：ActorBackpressure 4 静态预设改为从 config.Actor 动态构造 — 影响 10+ Actor 子类，需新建"Actor 配置解析 + DI 注入"子系统
+
 ## 验收表（四列）
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
@@ -164,3 +180,4 @@ CurrentSettings 49 键审计结论：**A 类活跃 16 / B 类仅 /config 读写 
 | B类 5 键接线（第一批） | language/showTurnDuration/debuglog/autoCompactEnabled/fileCheckpointingEnabled | ✅（70df5a36e/22c67752e/4c0a59543/6e47c5fbf） | ✅（各键红→绿测试 + brain.context 951 + guard.config 1304 + host 1455 + Infra.IO 377 全绿） |
 | 结构归位（第一惯性） | infra.tests 18 跨目录 Include → io/services/utils | ✅（168538987） | ✅（io 377 + services 416 + utils 589 全绿） |
 | B类 5 键实现（第二批） | editorMode/modelHistory/outputStyle/autoMemory/autoDream | ✅（680e2fc52/0546afa47/18712bc7a/54b2f653f） | ✅（EditorModeResolver 12 Theory + ModelPickerHistory 3 + OutputStyle Loader/Section 10 + Dream 桥 2 红→绿；大回归 brain.prompts 204 + brain.context 951 + host 1456 + NativeTui 2844 + NativeTui.Host 136 + dream 188 + guard.config 1304 全绿） |
+| outputStyle frontmatter + InMemory bug + C类 6 键 | frontmatter/cleanupPeriodDays/statusLine/defaultShell/respectGitignore/worktree + InMemoryFileSystem searchPattern 修复 | ✅（9cb698bd5/9dc34295f/bb3579699/61ac79d27/6c39aed9d） | ✅（InMemorySearchPattern 5 + StatusLineTemplateRenderer 5 + DefaultShellResolver 6 + CommandAtFile 13 + agents 641 + NativeTui 2933 + NativeTui.Host 136 + Infra.Services 419 + Infra.IO 377 + Infra.Utils 589 + abs 702 + host 1456 + guard.config 1304 全绿） |

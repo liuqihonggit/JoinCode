@@ -204,6 +204,61 @@ public sealed class SessionCommandTests {
         }
     }
 
+    /// <summary>
+    /// 红测试: /session resume &lt;id&gt; 应调用 ITranscriptService.LoadTranscriptAsync 加载会话并恢复消息。
+    /// 当前 ResumeSession 是空壳(只打印"恢复会话: id"),此测试应失败 — 驱动委托给 ResumeCommand.ResumeSessionAsync。
+    /// </summary>
+    [Fact]
+    public async Task Execute_Resume_WithId_Should_Load_Transcript_And_Restore_Messages() {
+        var transcriptMock = new Mock<ITranscriptService>();
+        transcriptMock.Setup(s => s.TranscriptExistsAsync("sess-target", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        transcriptMock.Setup(s => s.LoadTranscriptAsync("sess-target", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<TranscriptEntry> {
+                new() { SessionId = "sess-target", Role = "user", Content = "你好", Timestamp = DateTime.UtcNow },
+                new() { SessionId = "sess-target", Role = "assistant", Content = "你好，有什么可以帮你？", Timestamp = DateTime.UtcNow },
+            });
+        transcriptMock.Setup(s => s.GetSessionInfoAsync("sess-target", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SessionInfo { Id = "sess-target", ProjectPath = Environment.CurrentDirectory });
+        transcriptMock.Setup(s => s.GetCustomTitleAsync("sess-target", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+
+        var chatServiceMock = new Mock<IChatService>();
+        var fallbackProvider = new ServiceCollection().AddSingleton(transcriptMock.Object).BuildServiceProvider();
+
+        var context = new ChatCommandContext {
+            Arguments = "resume sess-target",
+            CancellationToken = CancellationToken.None,
+            SessionId = "current-session-id",
+            Services = new CommandServiceProvider(new CommandServices {
+                ChatService = chatServiceMock.Object,
+                CodeService = Mock.Of<ICodeService>(),
+                PlanService = Mock.Of<IPlanService>(),
+                FileSystem = TestFileSystem.Current,
+            }, fallbackProvider),
+        };
+
+        TerminalHelper.Init();
+        var sb = new StringBuilder();
+        var originalOut = Console.Out;
+        await using var stringWriter = new StringWriter(sb);
+        var originalForce = TestEnvironmentDetector.ForceNonInteractive;
+        TestEnvironmentDetector.ForceNonInteractive = true;
+
+        try {
+            TerminalHelper.SetOut(stringWriter);
+            var cmd = new SessionCommand();
+
+            var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
+
+            transcriptMock.Verify(s => s.LoadTranscriptAsync("sess-target", It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            chatServiceMock.Verify(s => s.LoadSessionMessagesAsync(It.IsAny<IReadOnlyList<ApiMessageRecord>>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            result.ShouldContinue.Should().BeTrue();
+        } finally {
+            TerminalHelper.SetOut(originalOut);
+            TestEnvironmentDetector.ForceNonInteractive = originalForce;
+        }
+    }
+
     private static ChatCommandContext CreateContext(string arguments) {
         return new ChatCommandContext {
             Arguments = arguments,

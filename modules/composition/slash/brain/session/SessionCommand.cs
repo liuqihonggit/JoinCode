@@ -27,7 +27,7 @@ public sealed class SessionCommand : ChatCommandBase {
             break;
             case "resume" or "open":
             var resumeId = args.Length > 1 ? args[1] : null;
-            ResumeSession(context, resumeId);
+            await ResumeSession(context, resumeId).ConfigureAwait(false);
             break;
             case CrudActionEnumConstants.Delete:
             case CrudActionEnumConstants.Rm:
@@ -48,14 +48,13 @@ public sealed class SessionCommand : ChatCommandBase {
         await ResumeCommand.ListSessionsAsync(context, showAllProjects: false).ConfigureAwait(false);
     }
 
-    private static void ResumeSession(ChatCommandContext context, string? id) {
+    private static async Task ResumeSession(ChatCommandContext context, string? id) {
         if (string.IsNullOrEmpty(id)) {
             TerminalHelper.WriteLine("用法: /session resume <id>");
             return;
         }
 
-        // 待办：接入 SessionStore 服务后实现会话恢复
-        TerminalHelper.WriteLine($"恢复会话: {id}");
+        await ResumeCommand.ResumeSessionAsync(id, context, ResumeEntrypoint.SlashCommandSessionId).ConfigureAwait(false);
     }
 
     private static void DeleteSession(ChatCommandContext context, string? id) {

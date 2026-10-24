@@ -286,6 +286,24 @@ public class QueryEngineTests {
         chunk.Usage.Should().BeNull();
     }
 
+    // === TASK071 查询域 — StopReason 终态标记（对齐 TS result subtype）===
+
+    [Fact]
+    public void BuildCompletionChunk_CarriesEndTurnStopReason() {
+        var chunk = QueryEngine.BuildCompletionChunk("done", 100L, 0, 0m, null);
+        chunk.StopReason.Should().Be("end_turn");
+    }
+
+    [Fact]
+    public void BuildMaxIterationErrorChunk_CarriesMaxTurnsStopReason() {
+        QueryEngine.BuildMaxIterationErrorChunk(128).StopReason.Should().Be("error_max_turns");
+    }
+
+    [Fact]
+    public void BuildRetryExhaustedErrorChunk_CarriesMaxRetriesStopReason() {
+        QueryEngine.BuildRetryExhaustedErrorChunk(3).StopReason.Should().Be("error_max_retries");
+    }
+
     [Fact]
     public void IsRetryable_HttpRequestException_ShouldReturnTrue() {
         IsRetryableWithEnvCleared(new HttpRequestException()).Should().BeTrue();

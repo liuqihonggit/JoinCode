@@ -312,7 +312,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
     internal static QueryStreamChunk BuildMaxIterationErrorChunk(int maxIterations) {
         return new QueryStreamChunk {
             Type = AgentStreamChunkType.Error,
-            Content = $"达到最大工具调用次数限制 ({maxIterations})"
+            Content = $"达到最大工具调用次数限制 ({maxIterations})",
+            StopReason = "error_max_turns"
         };
     }
 
@@ -324,7 +325,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
     internal static QueryStreamChunk BuildRetryExhaustedErrorChunk(int maxRetries) {
         return new QueryStreamChunk {
             Type = AgentStreamChunkType.Error,
-            Content = $"执行失败，已达到最大重试次数 ({maxRetries})"
+            Content = $"执行失败，已达到最大重试次数 ({maxRetries})",
+            StopReason = "error_max_retries"
         };
     }
 
@@ -342,6 +344,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         return new QueryStreamChunk {
             Type = AgentStreamChunkType.Complete,
             Content = content,
+            StopReason = "end_turn",
             ExecutionTimeMs = elapsedMs,
             TotalToolCalls = totalToolCalls,
             CostUsd = costUsd,

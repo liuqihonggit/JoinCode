@@ -39,7 +39,7 @@ public sealed partial class UsdBudgetMiddleware : ServiceEntity, IQueryMiddlewar
         var usdBudgetManager = _usdBudgetManager ?? throw new InvalidOperationException("UsdBudgetManager not available.");
         if (await usdBudgetManager.IsBudgetExceededAsync(ct).ConfigureAwait(false)) {
             context.Logger?.LogWarning("[QueryEngine] USD 预算已超限");
-            context.OutputChunks.Add(new QueryStreamChunk { Type = AgentStreamChunkType.Error, Content = "USD 预算已超限" });
+            context.OutputChunks.Add(new QueryStreamChunk { Type = AgentStreamChunkType.Error, Content = "USD 预算已超限", StopReason = "error_max_budget_usd" });
             context.ShouldStop = true;
         }
     }

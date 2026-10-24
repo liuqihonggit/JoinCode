@@ -121,7 +121,11 @@ public sealed class DshReferenceAndCredentialsTests {
 
         var authJson = await fs.ReadAllTextAsync(AuthPath);
         authJson.Should().Contain("\"deepseek\"", "密钥按引擎供应商键写入共享 auth.json");
-        authJson.Should().NotContain("sk-gui-secret", "落盘必须是加密值");
+        if (OperatingSystem.IsWindows()) {
+            authJson.Should().NotContain("sk-gui-secret", "Windows 落盘必须 DPAPI 加密");
+        } else {
+            authJson.Should().Contain("sk-gui-secret", "非 Windows 无 DPAPI，ApiKeyProtector 降级明文落盘");
+        }
 
         var describe = await dispatcher.HandleAsync(
             "credentials/describe",

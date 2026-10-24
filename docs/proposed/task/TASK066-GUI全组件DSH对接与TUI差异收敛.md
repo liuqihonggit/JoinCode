@@ -68,7 +68,7 @@
 | C11 | 未接线表面诚实化：`account/*` 部署级引导、`pluginManager/*` 空态/拒绝、`pluginRegistryProbe/fastest` null、`officeToPdf/*` 服务不可用引导、`dynamicCordisRunner/{stopFromPanel,undefineFromPanel}` plugin-missing | ✅ 已验收（单测 6 + `dsh-webui-unsupported.mjs` 13 项真机 ALL_PASS，插件页显示不可管理空态） |
 | C12 | 通用设置页「打开配置文件」：`settings/describe.hasDocument=true` + `settings/openSettingsDocument` 落盘后交系统默认程序 | ✅ 已验收（单测 2 + `dsh-webui-settings-document.mjs` 8 项真机 ALL_PASS） |
 | C13 | 窗口缩放/最大化后 WebView2 控制器尺寸跟随（缩窗后双击最大化露出未绘制黑区） | ✅ 已验收（单测 8 + 真机探针 `1440×900 → 884×601 → 1920×1017 → 884×601`，CDP 视口同步无黑区） |
-| C14 | 跨屏 DPI 切换时控制器物理尺寸跟随（`RenderScaling` 变化） | ⏳ 待真机验证：本机仅单显示器 1920×1080@100%，无 DPI 差异目标；合成 `WM_DPICHANGED` 会制造与系统不一致的假 DPI 状态，不作为缺陷证据 |
+| C14 | 非 100% 缩放下控制器物理尺寸跟随（`RenderScaling` 取 1.0 的根因）+ 运行中切换缩放 | ✅ 已验收（单测 46/46；真机 125%：控制器=客户区 1140×653/1054×598/1920×1001；运行中 125%→100%：789×458 同步；CDP DPR 1.25/1.0 对应） |
 
 ## 四、验收四列表（滚动更新）
 
@@ -110,6 +110,7 @@
 | `DshSessionStore.ToGoalFace` + `DshHostServices.PublishGoalProjectionAsync`（无目标 JSON `null`；有目标 `{goal,roundsStarted,createdAt,updatedAt}`；写路径后推 `session/control` goal 整值帧） | 前端 GoalDock `useProjection("goal")`、控制帧实时刷新目标条 | ✅ | ✅ 单测 5 例 + `c7-goal-e2e.mjs` 真机 28 项（初始 undefined → 建目标渲染 → 暂停/恢复 → 编辑 → 清除隐藏、基线/帧 seq 水位、两张截图） |
 | `DshRpcDispatcher` goals 七方法（agent 作用域：get/create/edit/pause/resume/complete/clear，create/edit 走 `request` 信封，clear 返回裸 `{id,revision}`，get 无目标省略 `value`） | 目标条按钮 `remote.goals.*`、`useGoalActivation` 读 `goals/get.activation` | ✅ | ✅ 单测 5 例（agent wire/undefined/裸 ref）+ 真机 UI 暂停/恢复/编辑/清除全部生效 |
 | `WebView2Host.ResolveControllerBounds` + `ArrangeOverride(finalSize)` 直传 | 所有 WebView2 宿主窗口（`DshWebUiWindow`/`WebUiWindow`）的缩放、最大化/还原 | ✅ | ✅ 单测 8 例 + 真机探针（缩小→最大化→还原，`Chrome_WidgetWin_0` 每步等于客户区；CDP `innerWidth/innerHeight` 同步 1920×1017 / 884×601，页面无黑区） |
+| `WebView2Host.ResolveRenderScaling`（`TopLevel.GetTopLevel` 穿透 TopLevelHost） | 高 DPI（125%/150%）及运行中切换缩放时的控制器物理尺寸 | ✅ | ✅ 单测 46/46（含 TopLevelHost 回归）+ 真机 125% 静态与 125%→100% 实时切换：控制器始终等于客户区物理像素，CDP DPR 1.25/1.0 与视口同步 |
 | `DshUserQuestionBroker`（`$events` 挂接/断连 fail-closed、`user-questions/request` 五键帧、q0..qN 答案映射、结算后 cancel 帧、轮次收尾按会话取消） | 引擎 `ask_user_question` → 前端问题卡片 → `$events/result` → 工具结果 | ✅ | ✅ 单测 10 例 + `dsh-webui-questions.mjs` 真机 23 项 ALL_PASS（真实桩模型 → 卡片 → 提交 → `"是否继续执行？"="继续"`、`"选择要包含的选项？"="A, B"` → `turn/end completed`） |
 | `AvaloniaInteractiveService.ShowQuestionsCallback` + `IJccChatSession.AskUserQuestionsCallback` 转发（GUI DI Order=80 单例） | 引擎工具处理器取整批问题一次性投递给前端卡片（而非逐题原生对话框） | ✅ | ✅ 同上真机 E2E：一张卡片渲染 2 问、单选自动翻页、多选 A/B 同时提交 |
 | `userQuestions/answer` 诚实 false（宿主无 continued 队列）+ `userQuestions/attachWait` 空流（无 timed wait） | 前端在 continued 状态下才走 RPC 回帖；本轮宿主不产生该状态 | ✅ | ✅ 单测 2 例（route 回 false + 引导文案含 callId/answer、attachWait 空流） |
@@ -257,8 +258,8 @@
 <!-- 替代方案: 监听 TopLevel.SizeChanged 后仍读 Bounds（需要额外维护订阅/解除与 DPI 变化路径，且根源仍是陈旧值）/ 定时轮询窗口尺寸（非确定性且浪费），均不采用 -->
 <!-- 验证: 红测试先编译失败（ResolveControllerBounds 不存在）→ 绿测试 8 例；Host 全量 44/44；Host Debug 0 警告 0 错误；真机探针 1440x900 → 884x601 → 1920x1017 → 884x601，Chrome_WidgetWin_0 每步等于客户区；CDP innerWidth/innerHeight 同步为 1920x1017 / 884x601，页面铺满无黑区 -->
 
-<!-- 🤖 Auto Decision: 2026-10-25 (跨屏 DPI 切换暂不预防性改代码) -->
-<!-- 决策: C14（RenderScaling 变化时的控制器尺寸跟随）只登记待验证，不先加 ScalingChanged 订阅等防御代码；等具备双屏或可切系统缩放的真机环境后按 ADR 0080 复现再修 -->
-<!-- 原因: 本机仅一块 1920x1080@100% 显示器，无法产生真实跨屏 DPI 切换；手工向窗口注入 WM_DPICHANGED(144) 会让 Avalonia 内部按 1.5 缩放而系统仍是 96 DPI，实测出现客户区 1924x1061、控制器 1283x707 的假状态，这是注入消息与系统状态不一致的产物，不能当作产品缺陷证据。finalSize 方案本身已按每次排布的 RenderScaling 换算，真实跨屏时 Windows 会改变物理尺寸并触发排布；没有复现就加订阅属于臆测修复 -->
-<!-- 替代方案: 依据合成消息的假状态直接加订阅（违反“无复现不修复”，且可能掩盖真实根因）/ 修改用户系统显示缩放做验证（影响整机显示，需用户明确授权），均暂不采用 -->
-<!-- 验证: 未改代码；已记录复现条件与探针观察，待双屏真机按同一步骤（Win32 子窗口矩形 + CDP innerWidth/innerHeight/DPR）验收 -->
+<!-- 🤖 Auto Decision: 2026-10-25 (非 100% 缩放：控制器按 DIP 尺寸绘制) -->
+<!-- 决策: RenderScaling 改用 TopLevel.GetTopLevel(this)?.RenderScaling；不再用 VisualRoot as TopLevel；不额外订阅 ScalingChanged -->
+<!-- 原因: Avalonia 12 的 VisualRoot 是 TopLevelHost（仅承载呈现源），as TopLevel 恒为 null，缩放退回 1.0。100% 时恰好正确，125% 下控制器只占客户区的 1/1.25，右侧底部永久未绘制（真机 125%：客户区 1054x598、控制器 886x602）。运行中切换缩放已实测会触发排布（125%→100% 后客户区 789x458、控制器同步），因此不需要额外的 ScalingChanged 订阅；合成 WM_DPICHANGED 会产生系统 96 DPI 与内部 1.25 缩放不一致的假状态，不作为证据 -->
+<!-- 替代方案: 继续 VisualRoot as TopLevel（高 DPI 永久错位）/ 订阅 ScalingChanged 手动补一次（实测排布已覆盖，纯冗余）/ 在 100% 环境下接受“看不出问题”（掩盖真实缺陷），均不采用 -->
+<!-- 验证: 单测 46/46（新增 TopLevelHost 回归：GetTopLevel 必须返回窗口）；真机 125% 静态 1140x653/1054x598/1920x1001 与 125%→100% 实时切换 789x458，Chrome_WidgetWin_0 每步等于客户区；CDP DPR 1.25/1.0、视口 844x479/884x601 对应；Host Debug 0 警告 0 错误 -->

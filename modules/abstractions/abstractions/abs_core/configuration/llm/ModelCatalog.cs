@@ -1,5 +1,5 @@
 
-namespace JoinCode.ChatCommands;
+namespace JoinCode.Abstractions.Configuration.Llm;
 
 /// <summary>
 /// 模型目录 — 提供按供应商查询模型列表、解析别名、获取默认模型及能力判定等功能
@@ -9,6 +9,55 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
     private readonly IProviderDefinitionRegistry _registry = registry;
     private readonly IModelConfigLoader? _modelConfigLoader = modelConfigLoader;
     private readonly WorkflowConfig? _workflowConfig = workflowConfig;
+
+    /// <summary>
+    /// 获取全部已注册供应商目录 — 供应商集合与显示名来自配置域注册表，
+    /// 模型清单走 <see cref="GetModelsForProvider"/>（含 availableModels 白名单与环境变量自定义模型）。
+    /// </summary>
+    public IReadOnlyList<ModelProviderCatalog> GetProviders() {
+        var providerIds = _registry.GetRegisteredProviders();
+        var providers = new List<ModelProviderCatalog>(providerIds.Length);
+        foreach (var providerId in providerIds) {
+            var definition = _registry.TryGet(providerId);
+            if (definition is null) continue;
+
+            providers.Add(new ModelProviderCatalog(
+                providerId,
+                GetProviderDisplayName(providerId),
+                GetDefaultModelForProvider(providerId),
+                GetDefaultFastModelForProvider(providerId),
+                GetModelsForProvider(providerId)));
+        }
+
+        return providers;
+    }
+
+    /// <summary>
+    /// 构建模型目录快照 — 当前供应商的当前模型补入清单；当前供应商不在注册表时保留占位分组，
+    /// 否则 UI 无法展示/回选正在生效的模型（例如环境变量指向尚未写入 settings.json 的供应商）。
+    /// </summary>
+    public ModelCatalogSnapshot GetSnapshot(string currentProvider, string currentModelId) {
+        var providers = GetProviders().ToList();
+        if (string.IsNullOrWhiteSpace(currentProvider)) {
+            return new ModelCatalogSnapshot(string.Empty, currentModelId, providers);
+        }
+
+        var index = providers.FindIndex(p => string.Equals(p.Id, currentProvider, StringComparison.OrdinalIgnoreCase));
+        if (index < 0) {
+            providers.Add(new ModelProviderCatalog(currentProvider, currentProvider, string.Empty, string.Empty,
+                EnsureCurrentModelInList([], currentModelId)));
+            return new ModelCatalogSnapshot(currentProvider, currentModelId, providers);
+        }
+
+        var current = providers[index];
+        var models = current.Models as ModelEntry[] ?? current.Models.ToArray();
+        var ensured = EnsureCurrentModelInList(models, currentModelId);
+        if (!ReferenceEquals(models, ensured)) {
+            providers[index] = current with { Models = ensured };
+        }
+
+        return new ModelCatalogSnapshot(currentProvider, currentModelId, providers);
+    }
 
     /// <summary>
     /// 获取指定供应商的可用模型列表,支持通过环境变量注入自定义模型。

@@ -2,13 +2,29 @@
 ﻿namespace Integration.Tests.McpTools;
 
 /// <summary>
+/// 工具测试上下文 — BuildAndRegisterAllToolsAsync 的返回值，替代元组更清晰
+/// </summary>
+public sealed record ToolTestContext {
+    /// <summary>工具注册表（直连，绕过权限管道）</summary>
+    public required Tools.LocalToolRegistry Registry { get; init; }
+    /// <summary>工具执行网关（走 13 层权限管道）</summary>
+    public required IToolExecutionGateway Gateway { get; init; }
+    /// <summary>所有已注册工具信息</summary>
+    public required IReadOnlyList<ToolInfo> Tools { get; init; }
+    /// <summary>临时目录（测试隔离用）</summary>
+    public required string TempDir { get; init; }
+    /// <summary>工作目录（IFileSystem.GetCurrentDirectory）</summary>
+    public required string WorkingDir { get; init; }
+}
+
+/// <summary>
 /// MCP 工具冒烟测试 — 验证每个已注册工具能被调用且返回有效 ToolResult
 /// 不验证工具的业务逻辑，只验证不崩溃
 /// 标记 Integration 因遍历全部工具含桌面鼠标/键盘操作（Win32 SendInput 副作用）
 /// </summary>
 [Trait("Category", "Integration")]
 public sealed class McpToolSmokeTests {
-    private static async Task<(Tools.LocalToolRegistry Registry, IToolExecutionGateway Gateway, IReadOnlyList<ToolInfo> Tools, string TempDir, string WorkingDir)> BuildAndRegisterAllToolsAsync() {
+    private static async Task<ToolTestContext> BuildAndRegisterAllToolsAsync() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.AppDataFolder, tempDir);
         Environment.SetEnvironmentVariable("JCC_FILE_SYSTEM_MODE", "InMemory");
@@ -34,7 +50,13 @@ public sealed class McpToolSmokeTests {
         var toolInfos = await registry.GetAllToolInfosAsync().ConfigureAwait(true);
         var fs = provider.GetRequiredService<IFileSystem>();
         var workingDir = fs.GetCurrentDirectory();
-        return (registry, gateway, toolInfos, tempDir, workingDir);
+        return new ToolTestContext {
+            Registry = registry,
+            Gateway = gateway,
+            Tools = toolInfos,
+            TempDir = tempDir,
+            WorkingDir = workingDir,
+        };
     }
 
     /// <summary>
@@ -145,7 +167,9 @@ public sealed class McpToolSmokeTests {
 
     [Fact]
     public async Task All_Registered_Tools_Can_Be_Called_Without_Crash() {
-        var (registry, gateway, allTools, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var gateway = ctx.Gateway;
+        var allTools = ctx.Tools;
 
         allTools.Should().NotBeEmpty("至少应注册一个工具");
 
@@ -228,13 +252,13 @@ public sealed class McpToolSmokeTests {
 
     [Fact]
     public async Task Sleep_Tool_Returns_Valid_Result() {
-        var (registry, _, _, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         var args = new Dictionary<string, JsonElement> {
             ["duration_seconds"] = JsonDocument.Parse("1").RootElement.Clone()
         };
 
-        var result = await registry.ExecuteToolAsync("sleep", args, CancellationToken.None).ConfigureAwait(true);
+        var result = await ctx.Registry.ExecuteToolAsync("sleep", args, CancellationToken.None).ConfigureAwait(true);
 
         result.Should().NotBeNull();
         result.Content.Should().NotBeNull();
@@ -243,9 +267,9 @@ public sealed class McpToolSmokeTests {
 
     [Fact]
     public async Task Mcp_Auth_Status_Tool_Returns_Valid_Result() {
-        var (registry, _, _, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
-        var result = await registry.ExecuteToolAsync("mcp_auth_status", new Dictionary<string, JsonElement>(), CancellationToken.None).ConfigureAwait(true);
+        var result = await ctx.Registry.ExecuteToolAsync("mcp_auth_status", new Dictionary<string, JsonElement>(), CancellationToken.None).ConfigureAwait(true);
 
         result.Should().NotBeNull();
         result.Content.Should().NotBeNull();
@@ -254,13 +278,13 @@ public sealed class McpToolSmokeTests {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Unknown_Tool_Returns_Error_Or_Throws() {
-        var (registry, _, _, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         // 调用不存在的工具 — 注册表可能抛出异常或返回错误结果，不能静默成功
         Exception? caughtEx = null;
         ToolResult? result = null;
         try {
-            result = await registry.ExecuteToolAsync("nonexistent_tool", new Dictionary<string, JsonElement>(), CancellationToken.None).ConfigureAwait(true);
+            result = await ctx.Registry.ExecuteToolAsync("nonexistent_tool", new Dictionary<string, JsonElement>(), CancellationToken.None).ConfigureAwait(true);
         } catch (Exception ex) {
             // 抛出异常也是可接受的行为 — 记录以供断言
             caughtEx = ex;
@@ -280,7 +304,7 @@ public sealed class McpToolSmokeTests {
     /// </summary>
     [Fact]
     public async Task Write_Read_Behavior_Verification() {
-        var (_, gateway, _, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
         var fileName = $"patrol-behavior-test-{Guid.NewGuid():N}.txt";
         var content = "hello patrol behavior verification";
         var fileNameJson = System.Text.Json.JsonSerializer.Serialize(fileName);
@@ -291,14 +315,14 @@ public sealed class McpToolSmokeTests {
             ["file_path"] = JsonDocument.Parse(fileNameJson).RootElement.Clone(),
             ["content"] = JsonDocument.Parse(contentJson).RootElement.Clone(),
         };
-        var writeResult = await gateway.ExecuteAsync("write", writeArgs, CancellationToken.None).ConfigureAwait(true);
+        var writeResult = await ctx.Gateway.ExecuteAsync("write", writeArgs, CancellationToken.None).ConfigureAwait(true);
         writeResult.IsError.Should().BeFalse($"write 应成功: {writeResult.Content.FirstOrDefault()?.Text}");
 
         // read 读回文件
         var readArgs = new Dictionary<string, JsonElement> {
             ["file_path"] = JsonDocument.Parse(fileNameJson).RootElement.Clone(),
         };
-        var readResult = await gateway.ExecuteAsync("read", readArgs, CancellationToken.None).ConfigureAwait(true);
+        var readResult = await ctx.Gateway.ExecuteAsync("read", readArgs, CancellationToken.None).ConfigureAwait(true);
         readResult.IsError.Should().BeFalse($"read 应成功: {readResult.Content.FirstOrDefault()?.Text}");
 
         // 断言读回内容含写入内容 — 真实行为验证
@@ -311,7 +335,7 @@ public sealed class McpToolSmokeTests {
     /// </summary>
     [Fact]
     public async Task Write_List_Behavior_Verification() {
-        var (_, gateway, _, _, workingDir) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
         var fileName = $"patrol-list-test-{Guid.NewGuid():N}.txt";
 
         // write 写入文件(相对路径)
@@ -319,18 +343,157 @@ public sealed class McpToolSmokeTests {
             ["file_path"] = JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(fileName)).RootElement.Clone(),
             ["content"] = JsonDocument.Parse("\"patrol list test\"").RootElement.Clone(),
         };
-        var writeResult = await gateway.ExecuteAsync("write", writeArgs, CancellationToken.None).ConfigureAwait(true);
+        var writeResult = await ctx.Gateway.ExecuteAsync("write", writeArgs, CancellationToken.None).ConfigureAwait(true);
         writeResult.IsError.Should().BeFalse($"write 应成功: {writeResult.Content.FirstOrDefault()?.Text}");
 
         // directory_list 列当前目录(用 IFileSystem.GetCurrentDirectory,路径一致)
         var listArgs = new Dictionary<string, JsonElement> {
-            ["directory_path"] = JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(workingDir)).RootElement.Clone(),
+            ["directory_path"] = JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(ctx.WorkingDir)).RootElement.Clone(),
         };
-        var listResult = await gateway.ExecuteAsync("directory_list", listArgs, CancellationToken.None).ConfigureAwait(true);
+        var listResult = await ctx.Gateway.ExecuteAsync("directory_list", listArgs, CancellationToken.None).ConfigureAwait(true);
         listResult.IsError.Should().BeFalse($"directory_list 应成功: {listResult.Content.FirstOrDefault()?.Text}");
 
         // 断言列表含写入文件名
         var listText = listResult.Content.FirstOrDefault()?.Text ?? "";
         listText.Should().Contain(fileName, "directory_list 应包含刚写入的文件名（行为验证）");
+    }
+
+    /// <summary>
+    /// 默认值参数全量验证 — 用 ArgumentGenerator 生成默认值参数，按分类超时调用所有工具
+    /// </summary>
+    [Fact]
+    public async Task All_Tools_With_Default_Arguments_No_Crash() {
+        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var gateway = ctx.Gateway;
+        var allTools = ctx.Tools;
+        var strategy = new DefaultToolValidationStrategy();
+
+        var results = new List<(string ToolName, ToolValidationKind Kind, string Status, string? ErrorMessage)>();
+        var crashed = new List<(string ToolName, Exception Ex)>();
+        var timedOut = new List<(string ToolName, Exception Ex)>();
+
+        foreach (var tool in allTools.OrderBy(t => t.Name)) {
+            var kind = strategy.GetKind(tool);
+            if (kind is ToolValidationKind.Skip) {
+                results.Add((tool.Name, kind, "SKIPPED", "策略跳过"));
+                continue;
+            }
+            if (kind is ToolValidationKind.MockExecute) {
+                results.Add((tool.Name, kind, "SKIPPED", "写类工具需MockServer，DI层跳过"));
+                continue;
+            }
+            if (kind is ToolValidationKind.ValidateOnly) {
+                results.Add((tool.Name, kind, "SKIPPED", "危险类仅参数校验，见缺失参数测试"));
+                continue;
+            }
+
+            try {
+                var args = ArgumentGenerator.GenerateDefaultArguments(tool);
+                var timeout = ToolTimeoutPolicy.GetTimeout(tool);
+                using var cts = new CancellationTokenSource(timeout);
+                var result = await gateway.ExecuteAsync(tool.Name, args, cts.Token).ConfigureAwait(true);
+
+                result.Should().NotBeNull($"工具 {tool.Name} 返回 null");
+                var status = result.IsError ? "ERROR" : "OK";
+                results.Add((tool.Name, kind, status, result.IsError ? result.Content.FirstOrDefault()?.Text : null));
+            } catch (OperationCanceledException ex) {
+                timedOut.Add((tool.Name, ex));
+                results.Add((tool.Name, kind, "TIMEOUT", $"{ToolTimeoutPolicy.GetTimeout(tool).TotalSeconds}s 超时"));
+            } catch (TimeoutException ex) {
+                timedOut.Add((tool.Name, ex));
+                results.Add((tool.Name, kind, "TIMEOUT", $"{ToolTimeoutPolicy.GetTimeout(tool).TotalSeconds}s 超时"));
+            } catch (Exception ex) {
+                crashed.Add((tool.Name, ex));
+                results.Add((tool.Name, kind, "CRASH", $"{ex.GetType().Name}: {ex.Message}"));
+            }
+        }
+
+        var report = new StringBuilder();
+        report.AppendLine("# 默认值参数全量验证报告");
+        report.AppendLine($"时间: {DateTimeOffset.UtcNow:O}");
+        report.AppendLine($"工具总数: {allTools.Count}");
+        report.AppendLine($"成功: {results.Count(r => r.Status == "OK")}");
+        report.AppendLine($"错误(非崩溃): {results.Count(r => r.Status == "ERROR")}");
+        report.AppendLine($"崩溃: {crashed.Count}");
+        report.AppendLine($"超时: {timedOut.Count}");
+        report.AppendLine($"跳过: {results.Count(r => r.Status == "SKIPPED")}");
+        report.AppendLine();
+        report.AppendLine("## 详细结果");
+        foreach (var (toolName, kind, status, errorMessage) in results.OrderBy(r => r.ToolName)) {
+            var mnemonic = status switch {
+                "OK" => "[OK]", "ERROR" => "[ERR]", "CRASH" => "[CRASH]",
+                "TIMEOUT" => "[TMO]", "SKIPPED" => "[SKIP]", _ => $"[{status}]"
+            };
+            var truncatedError = errorMessage switch {
+                null => "", _ when errorMessage.Length > 80 => errorMessage[..80] + "...", _ => errorMessage
+            };
+            report.AppendLine($"{mnemonic} [{kind}] {toolName} {truncatedError}");
+        }
+        Console.WriteLine(report.ToString());
+
+        crashed.Should().BeEmpty($"以下工具崩溃: {string.Join(", ", crashed.Select(c => c.ToolName))}");
+        timedOut.Should().BeEmpty($"以下工具超时: {string.Join(", ", timedOut.Select(c => c.ToolName))}");
+    }
+
+    /// <summary>
+    /// 缺失必填参数验证 — 逐个移除每个 Required 参数，验证返回明确错误（非静默失败）
+    /// </summary>
+    [Fact]
+    public async Task All_Tools_Missing_Required_Param_Returns_Error() {
+        var ctx = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var gateway = ctx.Gateway;
+        var allTools = ctx.Tools;
+        var strategy = new DefaultToolValidationStrategy();
+
+        var results = new List<(string ToolName, string MissingParam, string Status, string? ErrorMessage)>();
+        var silentFailures = new List<(string ToolName, string MissingParam)>();
+        var crashed = new List<(string ToolName, string MissingParam, Exception Ex)>();
+
+        foreach (var tool in allTools.OrderBy(t => t.Name)) {
+            var kind = strategy.GetKind(tool);
+            if (kind is ToolValidationKind.Skip) continue;
+
+            foreach (var (missingParam, args) in ArgumentGenerator.GenerateMissingParamScenarios(tool)) {
+                try {
+                    var timeout = ToolTimeoutPolicy.GetTimeout(tool);
+                    using var cts = new CancellationTokenSource(timeout);
+                    var result = await gateway.ExecuteAsync(tool.Name, args, cts.Token).ConfigureAwait(true);
+
+                    result.Should().NotBeNull($"工具 {tool.Name} 缺失 {missingParam} 返回 null");
+                    var status = result.IsError ? "ERROR" : "OK";
+                    results.Add((tool.Name, missingParam, status, result.Content.FirstOrDefault()?.Text));
+
+                    if (!result.IsError) {
+                        silentFailures.Add((tool.Name, missingParam));
+                    }
+                } catch (Exception ex) {
+                    crashed.Add((tool.Name, missingParam, ex));
+                    results.Add((tool.Name, missingParam, "CRASH", $"{ex.GetType().Name}: {ex.Message}"));
+                }
+            }
+        }
+
+        var report = new StringBuilder();
+        report.AppendLine("# 缺失必填参数验证报告");
+        report.AppendLine($"时间: {DateTimeOffset.UtcNow:O}");
+        report.AppendLine($"验证用例总数: {results.Count}");
+        report.AppendLine($"返回错误(正确): {results.Count(r => r.Status == "ERROR")}");
+        report.AppendLine($"静默成功(错误): {silentFailures.Count}");
+        report.AppendLine($"崩溃: {crashed.Count}");
+        report.AppendLine();
+        if (silentFailures.Count > 0) {
+            report.AppendLine("## 静默失败详情（缺失必填参数却返回成功）");
+            foreach (var (toolName, missingParam) in silentFailures)
+                report.AppendLine($"- {toolName} 缺失 {missingParam}");
+        }
+        if (crashed.Count > 0) {
+            report.AppendLine("## 崩溃详情");
+            foreach (var (toolName, missingParam, ex) in crashed.Take(20))
+                report.AppendLine($"- {toolName} 缺失 {missingParam}: {ex.GetType().Name}: {ex.Message}");
+        }
+        Console.WriteLine(report.ToString());
+
+        silentFailures.Should().BeEmpty($"以下工具缺失必填参数却静默成功: {string.Join(", ", silentFailures.Select(s => $"{s.ToolName}缺{s.MissingParam}"))}");
+        crashed.Should().BeEmpty($"以下工具缺失参数时崩溃: {string.Join(", ", crashed.Select(c => c.ToolName))}");
     }
 }

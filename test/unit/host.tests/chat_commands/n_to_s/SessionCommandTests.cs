@@ -139,6 +139,71 @@ public sealed class SessionCommandTests {
         result.ShouldContinue.Should().BeTrue();
     }
 
+    /// <summary>
+    /// 红测试: /session list 应调用 ITranscriptService.ListTranscriptsAsync 并显示历史会话列表。
+    /// 当前 ShowSessionList 是空壳(只打印固定文本),此测试应失败 — 驱动接入 ITranscriptService。
+    /// </summary>
+    [Fact]
+    public async Task Execute_List_Should_Display_Transcript_Summaries_From_Service() {
+        var transcriptMock = new Mock<ITranscriptService>();
+        transcriptMock
+            .Setup(s => s.ListTranscriptsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<TranscriptSummary> {
+                new() { SessionId = "sess-a", CreatedAt = DateTime.UtcNow.AddHours(-2),
+                        LastModifiedAt = DateTime.UtcNow.AddHours(-1), MessageCount = 3 },
+                new() { SessionId = "sess-b", CreatedAt = DateTime.UtcNow.AddHours(-5),
+                        LastModifiedAt = DateTime.UtcNow.AddHours(-4), MessageCount = 7 },
+            });
+        transcriptMock
+            .Setup(s => s.GetCustomTitleAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+        transcriptMock
+            .Setup(s => s.GetSessionInfoAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((SessionInfo?)null);
+
+        var fallbackProvider = new ServiceCollection()
+            .AddSingleton(transcriptMock.Object)
+            .BuildServiceProvider();
+
+        var context = new ChatCommandContext {
+            Arguments = "list",
+            CancellationToken = CancellationToken.None,
+            SessionId = "current-session-id",
+            Services = new CommandServiceProvider(new CommandServices {
+                ChatService = Mock.Of<IChatService>(),
+                CodeService = Mock.Of<ICodeService>(),
+                PlanService = Mock.Of<IPlanService>(),
+                FileSystem = TestFileSystem.Current,
+            }, fallbackProvider),
+        };
+
+        TerminalHelper.Init();
+        var sb = new StringBuilder();
+        var originalOut = Console.Out;
+        await using var stringWriter = new StringWriter(sb);
+        var originalForce = TestEnvironmentDetector.ForceNonInteractive;
+        TestEnvironmentDetector.ForceNonInteractive = true;
+
+        try {
+            TerminalHelper.SetOut(stringWriter);
+            var cmd = new SessionCommand();
+
+            var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
+
+            var output = sb.ToString();
+            output.Should().Contain("sess-a");
+            output.Should().Contain("sess-b");
+            result.ShouldContinue.Should().BeTrue();
+
+            transcriptMock.Verify(
+                s => s.ListTranscriptsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()),
+                Times.AtLeastOnce);
+        } finally {
+            TerminalHelper.SetOut(originalOut);
+            TestEnvironmentDetector.ForceNonInteractive = originalForce;
+        }
+    }
+
     private static ChatCommandContext CreateContext(string arguments) {
         return new ChatCommandContext {
             Arguments = arguments,

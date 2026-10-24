@@ -16,14 +16,14 @@ public sealed class SessionCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>命令执行结果。</returns>
-    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetSplitArgs(context);
         var action = args.Length > 0 ? args[0].ToLowerInvariant() : "list";
 
         switch (action) {
             case CrudActionEnumConstants.List:
             case CrudActionEnumConstants.Ls:
-            ShowSessionList(context);
+            await ShowSessionList(context).ConfigureAwait(false);
             break;
             case "resume" or "open":
             var resumeId = args.Length > 1 ? args[1] : null;
@@ -40,17 +40,12 @@ public sealed class SessionCommand : ChatCommandBase {
             break;
         }
 
-        return Task.FromResult(ChatCommandResult.Continue());
+        return ChatCommandResult.Continue();
     }
 
-    private static void ShowSessionList(ChatCommandContext context) {
+    private static async Task ShowSessionList(ChatCommandContext context) {
         TerminalHelper.WriteLine("=== 历史会话 ===\n");
-
-        // 待办：接入 SessionStore 服务后替换为真实会话列表
-        TerminalHelper.WriteLine($"  当前会话: {context.SessionId}");
-        TerminalHelper.NewLine();
-        TerminalHelper.WriteLine("使用 /session resume <id> 恢复会话");
-        TerminalHelper.WriteLine("使用 /session delete <id> 删除会话");
+        await ResumeCommand.ListSessionsAsync(context, showAllProjects: false).ConfigureAwait(false);
     }
 
     private static void ResumeSession(ChatCommandContext context, string? id) {

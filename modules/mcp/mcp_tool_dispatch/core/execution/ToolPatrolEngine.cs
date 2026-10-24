@@ -99,16 +99,20 @@ public sealed class ToolPatrolEngine : IToolPatrolEngine {
     }
 
     /// <summary>
-    /// 判断工具是否有真实副作用（desktop/gh_*/git_*/worktree/network），巡检应跳过。
+    /// 判断工具是否有真实副作用（desktop/gh_*/git_*/worktree/network/agent/LLM），巡检应跳过。
     /// <para>gh_* 全跳：GitHub 写入副作用（create issue/PR/comment、cancel/rerun run、fork repo 等）。</para>
     /// <para>git_* 全跳：git 本地仓库副作用（add/commit/push/branch/clone/reset/clean 等）。</para>
+    /// <para>agent_* + forward_user_input 全跳：创建子代理/转发输入会真实调 LLM 浪费 token。</para>
     /// </summary>
     public static bool HasRealSideEffects(ToolInfo tool) =>
         string.Equals(tool.Category, "desktop", StringComparison.OrdinalIgnoreCase)
         || ToolsWithGitSideEffects.Contains(tool.Name)
         || ToolsWithNetworkSideEffects.Contains(tool.Name)
         || tool.Name.StartsWith("gh_", StringComparison.Ordinal)
-        || tool.Name.StartsWith("git_", StringComparison.Ordinal);
+        || tool.Name.StartsWith("git_", StringComparison.Ordinal)
+        || tool.Name.StartsWith("agent_", StringComparison.Ordinal)
+        || string.Equals(tool.Name, "agent", StringComparison.Ordinal)
+        || string.Equals(tool.Name, "forward_user_input", StringComparison.Ordinal);
 
     /// <summary>
     /// 为工具构造最小参数集 — 对必需参数提供最小有效值（按参数名+类型启发式）。

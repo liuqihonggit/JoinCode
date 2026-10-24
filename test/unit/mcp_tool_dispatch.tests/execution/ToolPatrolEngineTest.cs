@@ -47,6 +47,16 @@ public sealed class ToolPatrolEngineTest {
         ToolPatrolEngine.HasRealSideEffects(MakeTool(toolName)).Should().BeFalse($"普通工具 {toolName} 无副作用，应巡检");
     }
 
+    [Theory]
+    [InlineData("agent")]
+    [InlineData("agent_list")]
+    [InlineData("agent_send_message")]
+    [InlineData("agent_stop")]
+    [InlineData("forward_user_input")]
+    public void HasRealSideEffects_AgentTool_ReturnsTrue(string toolName) {
+        ToolPatrolEngine.HasRealSideEffects(MakeTool(toolName)).Should().BeTrue($"agent 工具 {toolName} 会真实调 LLM 浪费 token，应跳过");
+    }
+
     // === BuildMinimalArguments — 最小参数构造 ===
 
     [Fact]

@@ -7,7 +7,8 @@ namespace McpToolDispatch;
 /// 避免 CTS Dispose 竞态。释放函数禁止超时（StopAsync 直接 await loop，无超时）。</para>
 /// </summary>
 [Register(typeof(IToolPatrolService), ServiceLifetime.Singleton)]
-public sealed class ToolPatrolService : IToolPatrolService, IAsyncDisposable {
+[Register(typeof(IHostedService), ServiceLifetime.Singleton)]
+public sealed class ToolPatrolService : IToolPatrolService, IHostedService, IAsyncDisposable {
     private readonly IToolPatrolEngine _engine;
     private readonly TimeSpan _interval;
     private readonly ILogger<ToolPatrolService>? _logger;

@@ -89,6 +89,16 @@
 | 热加载（PermissionRulesFileLoader 唯一加载实现 + PermissionChecker mtime 前段检查差量同步） | 启动加载（ServiceRegistration 委托）与运行期重读同链 | ✅ | ✅（PermissionCheckerTest：settings.json 出现后判定命中 + 无文件快速路径；loader 异常沿用内存规则） |
 | 批次3 真实 exe 验收（ADR 0080） | NativeTui.Host --selftest | ✅ | ✅（真实 exe EXIT=0；回归 guard.security 1133 / guard.config 1304 / guard.hooks 574 / mcp_tool_dispatch 523 / host.tests 1471 / NativeTui.Tests 2929 / Host.Tests 140 全绿） |
 
+### CI #959 修复轮（2026-10-25 — 三类根因 + 防复发机制）
+
+| 根因 | 修复 | 防复发机制 |
+|------|------|-----------|
+| ① 接口扩展遗漏 native_gui 两域 fake（CS0535，本地只编译改动域） | GuiPermissionConfirmationHandlerTests / JccChatSessionPermissionSeamTests 两 fake 补 ApproveToolPermanentlyAsync | **全仓编译脚本** `non_deliverables_tools/scripts/Build-AllDomains.ps1`（16 域 slnx + host.tests + native_gui csproj）+ AGENTS.md 基准对比工作流第 6 条纪律 |
+| ② B-6 测试硬编码 Windows 盘符路径，Linux CI Path.GetFullPath 语义分叉 | 测试改 Path.Combine(GetTempPath()) 跨平台构造 | **新分析器规则 JCC1018**（语法分析器方案 — 测试项目盘符路径字面量检测，URL 协议不误报，生产项目豁免；aot_safety.tests 5 用例锁规则行为）+ 96 个存量 Windows 行为测试文件级 pragma 豁免 + AGENTS.md 第 7 条纪律 |
+| ③ AsyncLockDiagnosisTests 诊断 sink 时序 flaky（SpinUntil 被 holder 自己的 WAIT-START 提前满足，waiter 未排队即释放） | 阈值 -1ms（任何排队等待必超，不依赖真实等待时长）+ WAIT-START 计数 ≥2 区分 holder/waiter | 确定性改造归档（flaky 两次 CI 根治）；注释记录根因链 |
+
+修复轮回归：全仓编译 20 目标 EXIT=0 + async_lock 600 + SessionResumeStepTests 10 + native_gui 379/36 + aot_safety.tests 254 + host.tests 1471 全绿。
+
 ## 六、决策记录（过程追加）
 
 <!-- 🤖 Auto Decision: 2026-10-24 批次1 -->

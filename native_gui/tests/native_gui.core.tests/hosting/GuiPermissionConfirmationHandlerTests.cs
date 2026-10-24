@@ -113,6 +113,14 @@ public class GuiPermissionConfirmationHandlerTests {
         public Task<PermissionMode> GetCurrentModeAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(PermissionMode.Auto);
 
+        /// <summary>TASK070 批次3 接口扩展 — 永久批准记录（AlwaysAllow 持久化面）。</summary>
+        public (string Tool, string? RuleContent)? PermanentApproval { get; private set; }
+
+        public Task ApproveToolPermanentlyAsync(string toolName, string? ruleContent, CancellationToken cancellationToken = default) {
+            PermanentApproval = (toolName, ruleContent);
+            return Task.CompletedTask;
+        }
+
         public Task AddAllowedPromptAsync(string prompt, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
 

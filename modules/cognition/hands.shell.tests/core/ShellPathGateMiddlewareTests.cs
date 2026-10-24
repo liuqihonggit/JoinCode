@@ -1,3 +1,6 @@
+// JCC1018 豁免: 本测试以 Windows 路径字面量为被测数据（Windows 形态行为/守护判定/端点解析等），
+// 被测对象即 Windows 路径语义，非跨平台误用 — 新增跨平台匹配测试请用 Path.Combine(GetTempPath()) 构造。
+#pragma warning disable JCC1018
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 ﻿namespace Hands.Tests.Shell;
 

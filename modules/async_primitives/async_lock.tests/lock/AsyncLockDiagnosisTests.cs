@@ -80,25 +80,26 @@ public class AsyncLockDiagnosisTests : IDisposable {
     public async Task 诊断Sink_等待过长时收到告警() {
         var messages = new ConcurrentQueue<string>();
         LockRegistry.SetDiagnosticSink(messages.Enqueue);
-        LockRegistry.SetWaitTimeoutThreshold(TimeSpan.FromMilliseconds(50));
+        // 确定性改造（CI 两次 flaky 根治）: 阈值 -1ms — 任何等待时长(≥0ms)必超阈值（OnAcquired 判定 waited > threshold），
+        // waiter 排队后获取成功必发 LOCK-WAIT-SLOW，不依赖真实等待持续时间（50ms 真实计时在 CI 线程池饥饿下失序）。
+        LockRegistry.SetWaitTimeoutThreshold(TimeSpan.FromMilliseconds(-1));
         using var lk = new AsyncLock("wait-long-test");
         using var holder = await lk.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
         // TryLock 同步阻塞, 在另一线程调用以记录等待诊断
         var waitTask = Task.Run(async () => await lk.TryLockAsync());
-        // 确定性等待: LOCK-WAIT-START 诊断消息 = 等待者已进入排队的信号(AsyncLock 排队开始时发射)。
-        // 旧形态固定 Delay(150) 假设 Task.Run 在窗口内开始等待 — CI 线程池饥饿下等待者晚于释放才启动
-        // (等待 0ms 不超阈值 → 漏 LOCK-WAIT-SLOW 告警 flaky); 改等信号后排队的起止时序由测试编排保证
+        // 确定性等待: WAIT-START 计数 ≥ 2 = holder(1) + waiter(1) — waiter 已进入排队。
+        // 旧形态匹配"存在一条 WAIT-START"会被 holder 自己的 WAIT-START 提前满足（CI 实证：holder 获取与
+        // WAIT-START 同毫秒落 sink），waiter 尚未排队 holder 即释放 → 等待 0ms 漏 LOCK-WAIT-SLOW。
         var startedWaiting = System.Threading.SpinWait.SpinUntil(
-            () => messages.Any(m => m.Contains("LOCK-WAIT-START") && m.Contains("wait-long-test")),
+            () => messages.Count(m => m.Contains("LOCK-WAIT-START") && m.Contains("wait-long-test")) >= 2,
             TimeSpan.FromSeconds(5));
-        startedWaiting.Should().BeTrue("等待者应在 5s 内进入等待状态(LOCK-WAIT-START 诊断信号,容忍CI调度延迟)");
-        await Task.Delay(100);
+        startedWaiting.Should().BeTrue("等待者应在 5s 内进入等待状态(第 2 条 WAIT-START 诊断信号,容忍CI调度延迟)");
         holder.Dispose();
         var acquired = await waitTask;
         acquired.Should().NotBeNull();
         acquired!.Dispose();
         messages.Should().Contain(m => m.Contains("LOCK-WAIT-SLOW") && m.Contains("wait-long-test"),
-            "等待时间超过阈值后获取成功时诊断 sink 应收到 LOCK-WAIT-SLOW 告警");
+            "等待者排队后获取成功时诊断 sink 应收到 LOCK-WAIT-SLOW 告警(阈值 -1ms 使任何等待必超)");
     }
 
     [Fact]

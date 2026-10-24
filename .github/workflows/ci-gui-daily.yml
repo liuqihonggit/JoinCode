@@ -38,16 +38,14 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Build
-        run: dotnet build native_gui/tests/native_gui.core.tests/NativeGui.Core.Tests.csproj native_gui/tests/native_gui.host.tests/NativeGui.Host.Tests.csproj -c Release --nologo
+        run: |
+          dotnet build native_gui/tests/native_gui.core.tests/NativeGui.Core.Tests.csproj -c Release --nologo
+          dotnet build native_gui/tests/native_gui.host.tests/NativeGui.Host.Tests.csproj -c Release --nologo
 
       - name: Test
-        run: >
-          dotnet test native_gui/tests/native_gui.core.tests/NativeGui.Core.Tests.csproj
-          dotnet test native_gui/tests/native_gui.host.tests/NativeGui.Host.Tests.csproj
-          -c Release --no-build --nologo
-          --filter "Category!=Integration&Category!=Benchmark"
-          --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=JoinCodeGui.trx"
+        run: |
+          dotnet test native_gui/tests/native_gui.core.tests/NativeGui.Core.Tests.csproj -c Release --no-build --nologo --filter "Category!=Integration&Category!=Benchmark" --logger "console;verbosity=detailed" --logger "trx;LogFileName=JoinCodeGuiCore.trx"
+          dotnet test native_gui/tests/native_gui.host.tests/NativeGui.Host.Tests.csproj -c Release --no-build --nologo --filter "Category!=Integration&Category!=Benchmark" --logger "console;verbosity=detailed" --logger "trx;LogFileName=JoinCodeGuiHost.trx"
 
       - name: Upload Test Results
         if: always()

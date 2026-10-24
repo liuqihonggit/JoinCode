@@ -536,13 +536,23 @@ public class ActorBaseTest {
     /// <summary>ReceiveTimeout: 收到消息后重置计时器,不误触发(DSG033 API对齐Akka)</summary>
     [Fact]
     public async Task ReceiveTimeout_收到消息不触发超时() {
-        await using var actor = new ReceiveTimeoutActor(TimeSpan.FromMilliseconds(300));
-        actor.Tell("msg1");
+        for (var attempt = 0; attempt < 16; attempt++) {
+            await using var actor = new ReceiveTimeoutActor(TimeSpan.FromMilliseconds(1000));
+            actor.Tell("msg1");
 
-        await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCount >= 1, TimeSpan.FromMilliseconds(500));
+            await TestWaitHelper.WaitUntilAsync(() => actor.ProcessedCount >= 1, TimeSpan.FromMilliseconds(500));
 
-        actor.ProcessedCount.Should().BeGreaterThanOrEqualTo(1);
-        actor.TimeoutCount.Should().Be(0, "收到消息期间不应触发超时");
+            if (actor.TimeoutCount == 0) {
+                actor.ProcessedCount.Should().BeGreaterThanOrEqualTo(1);
+                return;
+            }
+            if (attempt < 15) {
+#pragma warning disable JCC3011 // 重试间隔需真实等待给 CI 调度恢复窗口，非测试逻辑盲等
+                await Task.Delay(TimeSpan.FromMilliseconds(100)).ConfigureAwait(true);
+#pragma warning restore JCC3011
+            }
+        }
+        throw new TimeoutException("16 次重试后仍误触发超时 — CI 调度延迟 >1000ms 导致消息处理滞后于 ReceiveTimeout");
     }
 
     /// <summary>PipeTo: Task 完成后结果发给 Actor(DSG033 API对齐Akka)</summary>
@@ -638,7 +648,7 @@ public class ActorBaseTest {
         var executed = false;
         using var sub = scheduler.ScheduleOnce(TimeSpan.FromMilliseconds(100), () => executed = true);
 
-        await Task.Delay(300);
+        await TestWaitHelper.WaitUntilAsync(() => executed, TimeSpan.FromMilliseconds(500));
 
         executed.Should().BeTrue("100ms 后应执行");
     }

@@ -25,7 +25,7 @@
 | `dsh-client-ui-plan` | 计划面板 | `plan/mode` 事件 + `session/control` 投影 + `/plan on|off|status` | ✅ 权限预设 → 引擎 `PermissionMode` → `plan{active,pending=false}` / `permissions{currentValue}` 投影；前端 chip 点击走 `commands/execute /plan off` 宿主拦截 | 单测 8 例 + `c6-e2e.mjs` 真机 30 项（chip 出现/点击/选择器同步） |
 | `dsh-client-ui-subagent` | 子代理卡片 | `subagents/{prompt,interruptByParent}`（catalog 已由 `DshSubagentCatalogProjector` 投影） | ✅ 文本投递 + 中断（image 显式拒绝并引导） | 单测 8 例 + `c6-e2e.mjs` 真机 3 项引导断言 |
 | `dsh-client-ui-commands` / `input-trigger` | 斜杠命令/引用补全 | `commands/list|execute`、`fileReferences/list` | ✅ 斜杠命令 + @ 文件引用补全（索引缓存 5s、排除目录、20 条）+ `/plan` 语义接管 | `dsh-webui-prompt` 回归 + 单测 6 例 + c6 真机 |
-| `dsh-client-ui-settings*`（general/models/shell/agent-loop/subagent/web-search/account/plugins） | 设置中心 + 模型页 | `settings/{describe,mutate,replace,update}` + `llm/{listProviders,listConfigurableProviders,discoverModels}` + `credentials/{describe,set,unset}` | ✅ 通用命名空间四条写/读路径；供应商虚拟命名空间（`llm-deepseek`）`describe/mutate` 直写引擎 `providers_llm/`（含 `config.json` + `models.json`），密钥经共享 `auth.json`（DPAPI）落盘并热更新引擎 | 单测（整段替换/顶层补丁/revision 冲突、供应商配置与模型合并、连续保存稳定版本、环境变量遮蔽拒绝移除）+ `dsh-webui-models-settings.mjs` 与 `dsh-webui-credentials-references.mjs` 真机 ALL_PASS |
+| `dsh-client-ui-settings*`（general/models/shell/agent-loop/subagent/web-search/account/plugins） | 设置中心 + 模型页 | `settings/{describe,mutate,replace,update}` + `llm/{listProviders,listConfigurableProviders,discoverModels}` + `credentials/{describe,set,unset}` | ✅ 通用命名空间四条写/读路径；供应商虚拟命名空间（`llm-deepseek`）`describe/mutate` 直写引擎 `providers_llm/`（含 `config.json` + `models.json`），密钥经共享 `auth.json`（DPAPI）落盘并热更新引擎；通用设置页「打开配置文件」直开 `~/.jcc/dsh-settings.json`（打开前先落盘） | 单测（整段替换/顶层补丁/revision 冲突、供应商配置与模型合并、连续保存稳定版本、环境变量遮蔽拒绝移除、打开文件成功/失败引导）+ `dsh-webui-models-settings.mjs`、`dsh-webui-credentials-references.mjs`、`dsh-webui-settings-document.mjs` 真机 ALL_PASS |
 | `dsh-client-ui-model-selection` | 模型选择 | `session/modelCatalog|selectModel` | ✅ | 既有 E2E |
 | `dsh-client-ui-skill` | 技能面板 | `skills/list` | ✅ 引擎 `ISkillService` 映射（名称/描述/模型可调用/源路径） | 单测（RPC 4 例 + 映射 2 例）+ `c6-e2e.mjs` 真机 19 条技能 |
 | `dsh-client-ui-message-feedback` | 消息反馈 | `messageFeedback/{list,put,delete}` + `sessionFeedback/record` | ✅ 逐条落盘 + 乐观并发 + 契约错误联合体；会话级反馈写 `feedback/record` 日志事件（trim 文本、可选分类、不触发模型工作） | 单测（版本冲突/备注规则/会话反馈 4 例）+ `dsh-webui-session-feedback.mjs` 真机 18 项 ALL_PASS |
@@ -66,6 +66,7 @@
 | C9 | 会话反馈：`sessionFeedback/record` request 信封 + `feedback/record` 日志事件 + 契约错误联合体 | ✅ 已验收（单测 4 + `dsh-webui-session-feedback.mjs` 真机 18 项 ALL_PASS） |
 | C10 | 模型页与凭据：供应商虚拟命名空间 `settings/describe|mutate`（`providers_llm/config.json` + `models.json`）、`credentials/{describe,set,unset}` 共用 `auth.json`、`llm/discoverModels`、`@` 会话引用 `sessionReferenceResolver/candidates` | ✅ 已验收（单测 12 + `dsh-webui-models-settings.mjs` 27 项、`dsh-webui-credentials-references.mjs` 23 项真机 ALL_PASS） |
 | C11 | 未接线表面诚实化：`account/*` 部署级引导、`pluginManager/*` 空态/拒绝、`pluginRegistryProbe/fastest` null、`officeToPdf/*` 服务不可用引导、`dynamicCordisRunner/{stopFromPanel,undefineFromPanel}` plugin-missing | ✅ 已验收（单测 6 + `dsh-webui-unsupported.mjs` 13 项真机 ALL_PASS，插件页显示不可管理空态） |
+| C12 | 通用设置页「打开配置文件」：`settings/describe.hasDocument=true` + `settings/openSettingsDocument` 落盘后交系统默认程序 | ✅ 已验收（单测 2 + `dsh-webui-settings-document.mjs` 8 项真机 ALL_PASS） |
 
 ## 四、验收四列表（滚动更新）
 
@@ -118,6 +119,7 @@
 | `DshPluginRegistriesView` / `DshPluginVersionExemptions` + `pluginManager/*` 读写路由（读路径空形状、写路径 `plugin-manager/rejected`）+ `pluginRegistryProbe/fastest` → null | 插件页空态与安装入口（无 profile 时不触发写路径） | ✅ | ✅ 单测 2 例 + 真机 ALL_PASS（插件页显示「本部署没有可管理的 profile，无法安装或启停插件」） |
 | `officeToPdf/generation` 稳定令牌 + `officeToPdf/render` → `gateway/service-unavailable`（含 PDF/xlsx 替代方案） | docx/pptx 预览失败提示（前端把该错误码映射为「不可用」） | ✅ | ✅ 单测 1 例 + 真机 ALL_PASS（错误码与文案含 PDF 替代路径） |
 | `DshCordisPanelActionResult` + `dynamicCordisRunner/{stopFromPanel,undefineFromPanel}` → `{ok:false,reason:"plugin-missing"}` | Cordis 面板停止/移除按钮（inventory 为空时不渲染行，直接调用也有可读失败） | ✅ | ✅ 单测 1 例 + 真机 ALL_PASS（两个动作均回 plugin-missing，不再 unknown method） |
+| `DshSettingsStore.Describe.HasDocument=true` + `OpenDocument()`（`Persist` 后交 `OpenFile` 默认 shell 打开）+ `settings/openSettingsDocument` 路由 + `DshSettingsDocumentOpenValue` | 通用设置页头部「打开配置文件」按钮（`hasDocument` 门槛）→ `/api/settings/openSettingsDocument` | ✅ | ✅ 单测 2 例（落盘后打开/启动失败引导含文件路径）+ `dsh-webui-settings-document.mjs` 真机 8 项 ALL_PASS（describe、文件内容、按钮可见可点、截图） |
 
 <!-- 🤖 Auto Decision: 2026-10-22 -->
 <!-- 决策: 新建 TASK066 而非复用 TASK065（同名文档已被 TUI 任务占用） -->
@@ -233,3 +235,15 @@
 <!-- 原因: 前端 strict 解码要求形状正确——直接 unknown method 只会显示「网络问题/未知方法」，用户无法判断是本部署不支持还是临时故障；插件页先读 pluginInventory，managementAvailable=false 时不会进入写路径，所以读路径给空形状即可呈现空态；docx/pptx 预览依赖 Office→PDF，本地没有转换进程，诚实回不可用并给出 PDF/xlsx 替代路径；Cordis inventory 为空时面板不渲染行，但直接调用仍需可读结果 -->
 <!-- 替代方案: 全部返回 unimplemented（前端 toast 只有技术错误，用户不知道下一步）/ 假装安装成功（前端进入无实际插件的假状态）/ 引入 Office 转换依赖（体积与运行时成本远超预览需求），均不采用 -->
 <!-- 验证: 单测 6 例全绿（空形状、写拒绝、generation 字符串、render 错误码、plugin-missing、account 前缀）；dsh-webui-unsupported.mjs 真机 13 项 ALL_PASS（真实宿主 /api 调用 + 插件页空态文案 + dshDesktop 探测）；Host Debug 0 警告 0 错误 -->
+
+<!-- 🤖 Auto Decision: 2026-10-25 (通用设置页打开配置文件) -->
+<!-- 决策: settings/describe.hasDocument 恒为 true（本地宿主始终持有 dsh-settings.json）；settings/openSettingsDocument 先 Persist 再交给可替换的 OpenFile 默认 shell 打开，成功回 {opened:true}，启动失败回 settings/rejected 并带文件路径 -->
+<!-- 原因: 前端 settings-general 的「打开配置文件」入口完全由 hasDocument 决定，恒 false 会让该动作永久消失（不是不可用提示，而是根本不渲染）；文件只在首次 mutate 时才落盘，直接打开可能命中不存在的文件，所以先同步落盘；OpenFile 作为可替换委托让单测能验证打开路径而不真的弹出编辑器 -->
+<!-- 替代方案: 保持 hasDocument=false（入口不可见，用户只能去别处找配置）/ 直接 Process.Start 不落盘（首次打开可能失败）/ 真机 E2E 点击打开（会弹出真实编辑器污染测试机），均不采用 -->
+<!-- 验证: 红测试先失败（hasDocument=false / 路由未注册）→ 绿测试 2 例；NativeGui.Core 全量 409/409；Host Debug 0 警告 0 错误；dsh-webui-settings-document.mjs 真机 8 项 ALL_PASS（隔离 home 下文件真实落盘、按钮可见可点）；dsh-webui-unsupported.mjs 回归 13 项 ALL_PASS -->
+
+<!-- 🤖 Auto Decision: 2026-10-25 (设置测试目录拆分) -->
+<!-- 决策: 把 DshSettingsStore/DshSettingsStorePersistence/DshProviderSettings/DshSettingsDocument 四个测试移到 tests/native_gui.core.tests/web_host_settings/ -->
+<!-- 原因: web_host 目录达到 41 个文件，触发 JCC10001（≤40）；同时仓库规范禁止同目录文件与子文件夹混存（JCC10002），因此改为同级纯文件目录而不是嵌套 settings/ -->
+<!-- 替代方案: 在 web_host 下建子文件夹（触发 JCC10002）/ 归档旧测试（无删除红线，且这些测试仍然有效），均不采用 -->
+<!-- 验证: web_host 37 个文件、web_host_settings 4 个文件，Core 全量 409/409 编译与测试通过 -->

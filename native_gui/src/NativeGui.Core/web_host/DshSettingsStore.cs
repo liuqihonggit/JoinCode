@@ -33,6 +33,15 @@ internal sealed class DshSettingsStore {
     internal event Action<string>? PermissionPresetChanged;
 
     /// <summary>
+    /// 打开设置文件的系统动作（默认交给 shell；测试替换为记录器）。
+    /// 返回是否已启动以及失败说明（失败说明会进入 <c>settings/rejected</c> 消息）。
+    /// </summary>
+    internal Func<string, (bool Opened, string? Error)> OpenFile { get; set; } = OpenWithShell;
+
+    /// <summary>设置文件路径（settings/describe.hasDocument 与 openSettingsDocument 的事实源）</summary>
+    internal string FilePath => _filePath;
+
+    /// <summary>
     /// 构造设置存储。
     /// </summary>
     /// <param name="fs">文件系统抽象（dsh-settings.json 持久化）</param>
@@ -95,11 +104,47 @@ internal sealed class DshSettingsStore {
             EnsureDefaults();
             return new DshSettingsDescribe {
                 Writable = true,
-                HasDocument = false,
+                // 宿主始终持有可打开的 dsh-settings.json（首次打开前先落盘），通用设置页据此渲染「打开配置文件」
+                HasDocument = true,
                 Namespaces = [.. States
                     .OrderBy(pair => pair.Key, StringComparer.Ordinal)
                     .Select(pair => View(pair.Key, pair.Value))],
             };
+        }
+    }
+
+    /// <summary>
+    /// settings/openSettingsDocument：先把当前设置落盘（编辑器不会看到空文件），再交给系统默认程序打开。
+    /// 启动失败返回带文件路径的引导，前端在「打开配置文件」按钮旁展示。
+    /// </summary>
+    internal DshRpcResult OpenDocument() {
+        lock (Gate) {
+            EnsureDefaults();
+            Persist();
+        }
+        if (!_fs.FileExists(_filePath)) {
+            return DshRpcResults.Fail(
+                "settings/no-document",
+                $"宿主无法写出设置文件 {_filePath}（目录不可写或文件系统拒绝写入）；请检查该路径的写权限后重试，或直接编辑同一路径。");
+        }
+        var (opened, error) = OpenFile(_filePath);
+        if (!opened) {
+            return DshRpcResults.Fail(
+                "settings/rejected",
+                $"{error ?? "settings/openSettingsDocument 无法启动系统默认程序"}。请在文件管理器中直接打开 {_filePath}。");
+        }
+        return DshRpcResults.Ok(JsonSerializer.SerializeToElement(
+            new DshSettingsDocumentOpenValue { Opened = true },
+            DshJsonContext.Default.DshSettingsDocumentOpenValue));
+    }
+
+    /// <summary>默认打开方式：交给 shell 的默认程序（JSON 编辑器/记事本）</summary>
+    private static (bool Opened, string? Error) OpenWithShell(string path) {
+        try {
+            using var process = Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
+            return (true, null);
+        } catch (Exception ex) {
+            return (false, $"settings/openSettingsDocument 启动默认程序失败：{ex.Message}");
         }
     }
 

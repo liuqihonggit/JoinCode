@@ -1538,6 +1538,12 @@ internal sealed class DshSettingsDescribe {
     public List<DshSettingsNamespaceView> Namespaces { get; set; } = [];
 }
 
+/// <summary>settings/openSettingsDocument 结果（协议要求 <c>{opened:true}</c>）</summary>
+internal sealed class DshSettingsDocumentOpenValue {
+    /// <summary>是否已交给系统打开</summary>
+    public bool Opened { get; set; }
+}
+
 /// <summary>settings/mutate 参数</summary>
 internal sealed class DshSettingsMutateArgs {
     /// <summary>命名空间键</summary>

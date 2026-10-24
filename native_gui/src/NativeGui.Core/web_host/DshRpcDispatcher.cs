@@ -53,6 +53,8 @@ internal sealed class DshRpcDispatcher {
             ["settings/mutate"] = SettingsMutate,
             ["settings/replace"] = SettingsReplace,
             ["settings/update"] = SettingsUpdate,
+            // 通用设置页「打开配置文件」：先落盘再交系统默认程序，失败时把文件路径写进引导
+            ["settings/openSettingsDocument"] = Sync(_ => _services.Settings.OpenDocument()),
             ["credentials/describe"] = CredentialsDescribe,
             ["credentials/set"] = CredentialsSet,
             ["credentials/unset"] = CredentialsUnset,

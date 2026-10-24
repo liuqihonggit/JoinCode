@@ -176,6 +176,7 @@
 [JsonSerializable(typeof(DshCommandOutcome))]
 [JsonSerializable(typeof(List<DshCommandInfo>))]
 [JsonSerializable(typeof(DshSettingsDescribe))]
+[JsonSerializable(typeof(DshSettingsDocumentOpenValue))]
 [JsonSerializable(typeof(DshSettingsNamespaceView))]
 [JsonSerializable(typeof(DshSettingsMutateArgs))]
 [JsonSerializable(typeof(DshSettingsReplaceArgs))]

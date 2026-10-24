@@ -1,6 +1,6 @@
 # ADR 0143: 引擎库化多宿主架构 — JoinCode.Engine 抽取 + native_tui 宿主
 
-- 状态：accepted
+- 状态：superseded by 0149
 - 日期：2026-10-20
 - 实施完成：2026-10-20（阶段一 PR #431 合并 main=680f725cb + 收尾 PR #432；阶段二同日四批次落地，见下文阶段二实施结果）
 - 关联：ADR 0140（native_tui 自研像素级对齐）、ADR 0141（bridge stdio 协议，降级为可选形态）、ADR 0142（superseded by 本 ADR，jcc 宿主内嵌方向）、TASK055

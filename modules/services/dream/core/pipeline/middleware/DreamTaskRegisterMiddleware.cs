@@ -27,11 +27,13 @@ public sealed partial class DreamTaskRegisterMiddleware : ServiceEntity, IDreamM
     /// <param name="ct">取消令牌</param>
     /// <returns>异步任务</returns>
     public async Task InvokeAsync(DreamContext ctx, MiddlewareDelegate<DreamContext> next, CancellationToken ct) {
+        // TASK071 服务域-② — PriorMtime 用 gate 读到的真实前次合并时刻（旧假值使回滚语义失效）
         var taskId = await _taskRegistry.RegisterDreamTaskAsync(
             new DreamTaskRegistrationRequest(
                 ctx.SessionIds.Count(),
-                DateTime.UtcNow.AddHours(-_config.MinHours).Ticks / TimeSpan.TicksPerMillisecond,
-                new CancellationTokenSource()),
+                ctx.PriorMtime,
+                new CancellationTokenSource(),
+                ctx.Lock is null ? null : (prior, token) => ctx.Lock.RollbackAsync(prior, token)),
             ct).ConfigureAwait(false);
 
         ctx.TaskId = taskId;

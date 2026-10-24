@@ -36,6 +36,11 @@ public sealed partial class DreamRecordTurnMiddleware : ServiceEntity, IDreamMid
         await _taskRegistry.CompleteDreamTaskAsync(taskId, ct).ConfigureAwait(false);
         ctx.TaskCompleted = true;
 
+        // TASK071 服务域-② — 合并成功落锁（mtime=now 跨重启持久，时间门下次生效；对齐 TS markConsolidated）
+        if (ctx.Lock is not null) {
+            await ctx.Lock.WriteNowAsync(ct).ConfigureAwait(false);
+        }
+
         ctx.Result = DreamResult.Success(consolidationResult, taskId, ctx.SessionIds.Count(), 0);
 
         await next(ctx, ct).ConfigureAwait(false);

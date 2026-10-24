@@ -8,13 +8,16 @@ namespace McpToolRegistry;
 [Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class CrashSnapshotMiddleware : ServiceEntity, IToolExecutionMiddleware {
     private readonly ICrashSnapshotStore _store;
+    private readonly ILogger<CrashSnapshotMiddleware> _logger;
 
     /// <summary>
-    /// 构造函数 — 注入崩溃快照存储
+    /// 构造函数 — 注入崩溃快照存储和日志记录器
     /// </summary>
     /// <param name="store">崩溃快照存储实例，用于持久化工具执行失败快照</param>
-    public CrashSnapshotMiddleware(ICrashSnapshotStore store) {
+    /// <param name="logger">日志记录器实例</param>
+    public CrashSnapshotMiddleware(ICrashSnapshotStore store, ILogger<CrashSnapshotMiddleware> logger) {
         _store = store;
+        _logger = logger;
     }
 
     /// <summary>
@@ -30,24 +33,32 @@ public sealed partial class CrashSnapshotMiddleware : ServiceEntity, IToolExecut
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
     public async Task InvokeAsync(ToolExecutionContext context, MiddlewareDelegate<ToolExecutionContext> next, CancellationToken ct) {
-        await next(context, ct).ConfigureAwait(false);
+        _logger.LogTrace("[MW:0] CrashSnapshot ENTER tool={ToolName}", context.ToolName);
+        try {
+            await next(context, ct).ConfigureAwait(false);
 
-        if (context.Result is { IsError: true }) {
-            var crashCooldownKey = $"crash-{context.ToolName}";
-            if (!CooldownService.ShouldTrigger(crashCooldownKey)) return;
-            CooldownService.RecordTrigger(crashCooldownKey);
+            if (context.Result is { IsError: true }) {
+                var crashCooldownKey = $"crash-{context.ToolName}";
+                if (!CooldownService.ShouldTrigger(crashCooldownKey)) return;
+                CooldownService.RecordTrigger(crashCooldownKey);
 
-            var errorMsg = context.Result.GetFirstText();
-            var snapshot = new CrashSnapshot(
-                "ToolPipeline",
-                CrashSeverity.Error,
-                new InvalidOperationException(errorMsg ?? "工具执行失败"),
-                new CrashExecutionContext {
-                    ToolName = context.ToolName,
-                    OperationName = "ToolPipeline",
-                });
+                var errorMsg = context.Result.GetFirstText();
+                _logger.LogWarning("[MW:0] CrashSnapshot tool={ToolName} error={Error}", context.ToolName, errorMsg);
+                var snapshot = new CrashSnapshot(
+                    "ToolPipeline",
+                    CrashSeverity.Error,
+                    new InvalidOperationException(errorMsg ?? "工具执行失败"),
+                    new CrashExecutionContext {
+                        ToolName = context.ToolName,
+                        OperationName = "ToolPipeline",
+                    });
 
-            _store.Add(snapshot);
+                _store.Add(snapshot);
+            }
+            _logger.LogTrace("[MW:0] CrashSnapshot EXIT tool={ToolName} ok=true", context.ToolName);
+        } catch (Exception ex) {
+            _logger.LogTrace("[MW:0] CrashSnapshot EXIT tool={ToolName} ok=false err={Err}", context.ToolName, ex.Message);
+            throw;
         }
     }
 }

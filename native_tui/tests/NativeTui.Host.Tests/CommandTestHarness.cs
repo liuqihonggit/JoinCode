@@ -19,8 +19,9 @@ public sealed class SlashCommandSerialCollection
 /// </summary>
 internal static class CommandTestHarness
 {
-    /// <summary>构造 fake 服务容器（SlashCommandRunner 必需依赖齐备）。</summary>
-    public static ServiceProvider BuildFakeServices(FakeChatService chat) =>
+    /// <summary>构造 fake 服务容器（SlashCommandRunner 必需依赖齐备；chat 参数放宽 IChatService —
+    /// TASK070 C6 CompactChatService 子类可注入）。</summary>
+    public static ServiceProvider BuildFakeServices(IChatService chat) =>
         new ServiceCollection()
             .AddSingleton<IChatService>(chat)
             .AddSingleton<ICodeService>(new StubCodeService())
@@ -49,6 +50,32 @@ internal static class CommandTestHarness
         public Task<RewindResult> RewindToStartAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task LoadSessionMessagesAsync(IReadOnlyList<ApiMessageRecord> messages, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task CompactHistoryAsync(string summary, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask DisposeAsync() => default;
+    }
+
+    /// <summary>可压缩 ChatService 桩（TASK070 C6 — /compact 投影测试）：历史/摘要/压实三链路可编程。</summary>
+    internal sealed class CompactChatService : IChatService
+    {
+        public int CompactHistoryCalls;
+
+        public Task ClearHistoryAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<string> SendMessageAsync(string message, CancellationToken cancellationToken = default) => Task.FromResult("稳定摘要文本");
+        public IAsyncEnumerable<string> SendMessageStreamAsync(string message, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(string message, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<ApiMessageRecord>> GetMessageListAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ApiMessageRecord>>([
+                new ApiMessageRecord { Role = "user", Content = "第一问" },
+                new ApiMessageRecord { Role = "assistant", Content = "第一答" },
+            ]);
+        public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<RewindResult> RewindToMessageIndexAsync(int messageIndex, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<RewindResult> RewindToStartAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task LoadSessionMessagesAsync(IReadOnlyList<ApiMessageRecord> messages, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task CompactHistoryAsync(string summary, CancellationToken cancellationToken = default) {
+            CompactHistoryCalls++;
+            return Task.CompletedTask;
+        }
         public ValueTask DisposeAsync() => default;
     }
 

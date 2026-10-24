@@ -106,12 +106,30 @@ public sealed class BridgeProtocolTests
     [InlineData("{\"type\":\"thinking_started\"}", typeof(BridgeEvent.ThinkingStarted))]
     [InlineData("{\"type\":\"turn_completed\"}", typeof(BridgeEvent.TurnCompleted))]
     [InlineData("{\"type\":\"turn_interrupted\"}", typeof(BridgeEvent.TurnInterrupted))]
+    [InlineData("{\"type\":\"compact_completed\",\"messagesSummarized\":1,\"originalTokens\":1,\"compressedTokens\":1,\"isAuto\":false}", typeof(BridgeEvent.CompactCompleted))]
     public void ReadEvent_MarkerEvents_ParseByType(string line, Type expected)
     {
         var reader = new StringReader(line + "\n");
         var result = BridgeProtocol.TryReadEvent(reader, out var @event, out _);
         Assert.Equal(BridgeReadResult.Event, result);
         Assert.IsType(expected, @event);
+    }
+
+    /// <summary>压缩完成事件（TASK070 C6/DSG046）— 四参 camelCase 解析 + 序列化金样
+    /// （与引擎侧 BridgeEventConsumerTests 金样逐字节镜像，防双侧漂移）。</summary>
+    [Fact]
+    public void ReadEvent_CompactCompleted_CarriesMetricsAndAutoFlag()
+    {
+        var reader = new StringReader(
+            "{\"type\":\"compact_completed\",\"messagesSummarized\":42,\"originalTokens\":150000,\"compressedTokens\":3200,\"isAuto\":true}\n");
+        var result = BridgeProtocol.TryReadEvent(reader, out var @event, out _);
+        Assert.Equal(BridgeReadResult.Event, result);
+        var completed = Assert.IsType<BridgeEvent.CompactCompleted>(@event);
+        Assert.Equal((42, 150_000L, 3_200L, true), (completed.MessagesSummarized, completed.OriginalTokens, completed.CompressedTokens, completed.IsAuto));
+
+        var writer = new StringWriter();
+        writer.Write(BridgeProtocol.SerializeEvent(completed) + "\n");
+        Assert.Equal("{\"type\":\"compact_completed\",\"messagesSummarized\":42,\"originalTokens\":150000,\"compressedTokens\":3200,\"isAuto\":true}\n", writer.ToString());
     }
 
     [Fact]
@@ -457,6 +475,7 @@ public sealed class BridgeProtocolTests
             new BridgeEvent.AssistantMessage("完整回复 — 包含中文与 \"引号\""),
             new BridgeEvent.TurnCompleted(),
             new BridgeEvent.TurnInterrupted(),
+            new BridgeEvent.CompactCompleted(12, 45_000, 900, IsAuto: true),
             new BridgeEvent.Error("出错了：参数缺失"),
         ];
 

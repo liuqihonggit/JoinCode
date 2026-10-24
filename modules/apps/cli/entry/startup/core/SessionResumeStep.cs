@@ -39,7 +39,7 @@ internal sealed partial class SessionResumeStep : ServiceEntity, IMiddleware<Sta
 
         // 找目标会话 ID
         var sessionId = options.ContinueSession
-            ? await FindMostRecentSessionIdAsync(transcriptService, ct).ConfigureAwait(false)
+            ? await FindMostRecentSessionIdAsync(transcriptService, Environment.CurrentDirectory, ct).ConfigureAwait(false)
             : await FindSessionByIdOrTitleAsync(transcriptService, options.ResumeSessionId ?? throw new InvalidOperationException("ResumeSessionId required"), ct).ConfigureAwait(false);
 
         if (sessionId is null) {
@@ -79,11 +79,29 @@ internal sealed partial class SessionResumeStep : ServiceEntity, IMiddleware<Sta
 
     /// <summary>
     /// 加载最近的会话 — 对齐 TS --continue 自动选择 last conversation
+    /// TASK070 B-6 — 仅恢复当前项目会话（对齐 TS sessionStorage.ts:4119-4122 项目过滤）：
+    /// meta.json SessionInfo.ProjectPath 与当前目录一致才命中；无 meta（旧会话）或路径不匹配的会话跳过，
+    /// 全部不匹配 → null（上层提示"无历史会话可恢复"，启动新会话）。
+    /// --resume 按 id 显式指定不走此过滤（显式选择允许跨项目，对齐 TS resume 语义）。
+    /// currentProject 参数化（internal — 单元测试注入确定性项目路径，不改进程 cwd）。
     /// </summary>
-    private static async Task<string?> FindMostRecentSessionIdAsync(ITranscriptService service, CancellationToken ct) {
-        var summaries = await service.ListTranscriptsAsync(limit: 1, ct).ConfigureAwait(false);
-        return summaries.Count > 0 ? summaries[0].SessionId : null;
+    internal static async Task<string?> FindMostRecentSessionIdAsync(ITranscriptService service, string currentProject, CancellationToken ct) {
+        var summaries = await service.ListTranscriptsAsync(limit: 100, ct).ConfigureAwait(false);
+        var normalizedCurrent = NormalizeProjectPath(currentProject);
+        foreach (var summary in summaries) {
+            var info = await service.GetSessionInfoAsync(summary.SessionId, ct).ConfigureAwait(false);
+            if (info is null || string.IsNullOrEmpty(info.ProjectPath))
+                continue;
+            if (string.Equals(NormalizeProjectPath(info.ProjectPath), normalizedCurrent, StringComparison.OrdinalIgnoreCase))
+                return summary.SessionId;
+        }
+
+        return null;
     }
+
+    /// <summary>项目路径归一 — 全路径展开 + 去尾部分隔符（跨会话写入时的形态差异：有的带尾分隔符有的不带）。</summary>
+    private static string NormalizeProjectPath(string path) =>
+        Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
 
     /// <summary>
     /// 按 sessionId 精确匹配或 customTitle 模糊匹配查找会话

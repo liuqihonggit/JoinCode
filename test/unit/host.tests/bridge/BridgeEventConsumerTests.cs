@@ -57,6 +57,21 @@ public sealed class BridgeEventConsumerTests {
             @out.ToString());
     }
 
+    /// <summary>压缩完成映射（TASK070 C6/DSG046）— OnCompactCompleted → compact_completed 事件行
+    /// （四参 camelCase 直投影，IsAuto 区分手动/自动；与 native_tui 侧字段逐一对齐）。</summary>
+    [Fact]
+    public void OnCompactCompleted_EmitsCompactCompletedEventLine() {
+        var (consumer, @out) = Create();
+
+        consumer.OnCompactCompleted(messagesSummarized: 42, originalTokens: 150_000, compressedTokens: 3_200, isAuto: false);
+        consumer.OnCompactCompleted(messagesSummarized: 30, originalTokens: 180_000, compressedTokens: 2_800, isAuto: true);
+
+        Assert.Equal(
+            "{\"type\":\"compact_completed\",\"messagesSummarized\":42,\"originalTokens\":150000,\"compressedTokens\":3200,\"isAuto\":false}\n" +
+            "{\"type\":\"compact_completed\",\"messagesSummarized\":30,\"originalTokens\":180000,\"compressedTokens\":2800,\"isAuto\":true}\n",
+            @out.ToString());
+    }
+
     [Fact]
     public void OnText_EmitsTokenDelta_AndOnDoneEmitsFullAssistantMessage() {
         var (consumer, @out) = Create();

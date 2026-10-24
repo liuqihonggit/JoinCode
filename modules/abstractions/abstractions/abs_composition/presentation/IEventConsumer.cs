@@ -87,6 +87,17 @@ public interface IEventConsumer {
     /// <summary>后台任务状态更新（M8-8 — 后台 fork/teammate 代理生命周期，TUI 常驻任务面板显示）。
     /// kind: fork|teammate；state: running|completed|failed|cancelled；upsert 语义按 (kind,taskId)。</summary>
     void OnBackgroundTask(string kind, string taskId, string description, string state) { }
+
+    /// <summary>
+    /// 上下文压缩完成（TASK070 C6/DSG046 — 手动 /compact 与回合末自动压缩共用出口；
+    /// TUI 侧据此重置用量警告（TokenUsageTracker.Reset — 压缩后旧快照作废）+ 通知上屏。
+    /// 默认空实现 — 既有实现方零改动，默认实现须经接口类型调用才可见）
+    /// </summary>
+    /// <param name="messagesSummarized">已摘要的消息数</param>
+    /// <param name="originalTokens">压缩前 token 数（自动路径为 Done 权威 usage.PromptTokens；手动路径为字符估算）</param>
+    /// <param name="compressedTokens">压缩后 token 数（摘要文本估算）</param>
+    /// <param name="isAuto">是否自动触发（true=回合末阈值触发，false=用户 /compact）</param>
+    void OnCompactCompleted(int messagesSummarized, long originalTokens, long compressedTokens, bool isAuto) { }
 }
 
 /// <summary>

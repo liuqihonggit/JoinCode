@@ -6,7 +6,9 @@ namespace JoinCode.Cli.Commands;
 /// <param name="Handled">命令是否被识别并执行（false = 未知命令）。</param>
 /// <param name="ShouldContinue">false 表示命令要求退出程序（如 /exit）。</param>
 /// <param name="Output">命令输出文本（Console.Out 捕获），可能为空串。</param>
-public sealed record SlashCommandResult(bool Handled, bool ShouldContinue, string Output) {
+/// <param name="Data">命令数据载荷透传（TASK070 C6/DSG046 — ChatCommandResult.Data 原样透传，
+/// 宿主投影层据此发结构化事件；CLI 路径忽略。默认 null 不破坏既有位置构造调用）。</param>
+public sealed record SlashCommandResult(bool Handled, bool ShouldContinue, string Output, object? Data = null) {
     /// <summary>未知命令的快捷构造。</summary>
     public static SlashCommandResult Unknown(string commandName) =>
         new(Handled: false, ShouldContinue: true,
@@ -87,10 +89,12 @@ public static class SlashCommandRunner {
         var originalOut = System.Console.Out;
         await using var commandWriter = new System.IO.StringWriter(commandOutput);
         var shouldContinue = true;
+        object? commandData = null;
         try {
             System.Console.SetOut(commandWriter);
             var result = await command.ExecuteAsync(context).ConfigureAwait(false);
             shouldContinue = result.ShouldContinue;
+            commandData = result.Data;
         } catch (Exception ex) {
             return new SlashCommandResult(true, true, $"命令执行失败: {ex.Message}");
         } finally {
@@ -101,7 +105,7 @@ public static class SlashCommandRunner {
         if (!shouldContinue)
             onExitRequested?.Invoke();
 
-        return new SlashCommandResult(true, shouldContinue, commandOutput.ToString().TrimEnd());
+        return new SlashCommandResult(true, shouldContinue, commandOutput.ToString().TrimEnd(), commandData);
     }
 
     /// <summary>

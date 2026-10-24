@@ -461,6 +461,162 @@ public sealed class SessionControllerTests {
         }
     }
 
+    /// <summary>Done usage 超阈值 → 回合后异步自动压缩（TASK070 C4/DSG046）：
+    /// SendMessageAsync 生成摘要 → CompactHistoryAsync 压实 → OnCompactCompleted(isAuto:true)
+    /// （OriginalTokens 为 Done 权威 PromptTokens）；LastAutoCompactTask 测试观察点消除时序不确定性。</summary>
+    [Fact]
+    public async Task StreamResponseAsync_DoneUsageAboveThreshold_RunsAutoCompactInBackground() {
+        var (chatService, compactCalls) = CreateAutoCompactCapableChatService(
+            events: [ChatStreamEvent.Text("ok"), ChatStreamEvent.Done(usage: new TokenUsage(150_000, 500))],
+            historyMessages: 3,
+            summaryText: "结构化摘要文本，用于压缩后的上下文恢复");
+        var compact = new Mock<ICompactService>();
+        compact.Setup(c => c.ShouldAutoCompact(150_000, 200_000)).Returns(true);
+        compact.Setup(c => c.CalculateWarningState(It.IsAny<int>(), It.IsAny<int>()))
+            .Returns(new CompactWarningState {
+                PercentLeft = 25,
+                IsAboveWarningThreshold = false,
+                IsAboveErrorThreshold = false,
+                IsAboveAutoCompactThreshold = false,
+                IsAtBlockingLimit = false,
+                IsAboveSoftCompactThreshold = false,
+            });
+        var resolver = new Mock<IContextWindowResolver>();
+        resolver.Setup(r => r.ResolveCurrentContextWindow()).Returns(200_000);
+        var sp = new ServiceCollection()
+            .AddSingleton(compact.Object)
+            .AddSingleton(resolver.Object)
+            .BuildServiceProvider();
+        var consumer = new RecordingEventConsumer();
+        var controller = new SessionController(chatService, consumer, new TurnDiffService(), "test-session", sp);
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+        Assert.True(result.Succeeded, result.ErrorMessage);
+
+        Assert.NotNull(controller.LastAutoCompactTask);
+        await controller.LastAutoCompactTask.ConfigureAwait(true);
+
+        Assert.Single(compactCalls);
+        var completed = Assert.Single(consumer.CompactCompleted);
+        Assert.Equal(3, completed.messagesSummarized);
+        Assert.Equal(150_000, completed.originalTokens);
+        Assert.Equal("结构化摘要文本，用于压缩后的上下文恢复".Length / 4, completed.compressedTokens);
+        Assert.True(completed.isAuto);
+    }
+
+    /// <summary>usage 未达阈值 → 不触发压缩（无 LastAutoCompactTask、无 CompactHistory 调用、无事件）。</summary>
+    [Fact]
+    public async Task StreamResponseAsync_UsageBelowThreshold_SkipsAutoCompact() {
+        var (chatService, compactCalls) = CreateAutoCompactCapableChatService(
+            events: [ChatStreamEvent.Text("ok"), ChatStreamEvent.Done(usage: new TokenUsage(10_000, 500))],
+            historyMessages: 3,
+            summaryText: "unused");
+        var compact = new Mock<ICompactService>();
+        compact.Setup(c => c.ShouldAutoCompact(10_000, 200_000)).Returns(false);
+        compact.Setup(c => c.CalculateWarningState(It.IsAny<int>(), It.IsAny<int>()))
+            .Returns(new CompactWarningState {
+                PercentLeft = 25,
+                IsAboveWarningThreshold = false,
+                IsAboveErrorThreshold = false,
+                IsAboveAutoCompactThreshold = false,
+                IsAtBlockingLimit = false,
+                IsAboveSoftCompactThreshold = false,
+            });
+        var resolver = new Mock<IContextWindowResolver>();
+        resolver.Setup(r => r.ResolveCurrentContextWindow()).Returns(200_000);
+        var sp = new ServiceCollection()
+            .AddSingleton(compact.Object)
+            .AddSingleton(resolver.Object)
+            .BuildServiceProvider();
+        var consumer = new RecordingEventConsumer();
+        var controller = new SessionController(chatService, consumer, new TurnDiffService(), "test-session", sp);
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(result.Succeeded, $"T={result.TimedOut} C={result.WasCancelled} E={result.ErrorMessage}");
+        Assert.Null(controller.LastAutoCompactTask);
+        Assert.Empty(compactCalls);
+        Assert.Empty(consumer.CompactCompleted);
+    }
+
+    /// <summary>ICompactService 不可达（无 sp）→ 自动压缩静默跳过（不抛、不触发）。</summary>
+    [Fact]
+    public async Task StreamResponseAsync_NoCompactService_SkipsAutoCompact() {
+        var (chatService, compactCalls) = CreateAutoCompactCapableChatService(
+            events: [ChatStreamEvent.Text("ok"), ChatStreamEvent.Done(usage: new TokenUsage(150_000, 500))],
+            historyMessages: 3,
+            summaryText: "unused");
+        var consumer = new RecordingEventConsumer();
+        var controller = new SessionController(chatService, consumer, new TurnDiffService(), "test-session");
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(result.Succeeded, $"T={result.TimedOut} C={result.WasCancelled} E={result.ErrorMessage}");
+        Assert.Null(controller.LastAutoCompactTask);
+        Assert.Empty(compactCalls);
+    }
+
+    /// <summary>自动压缩后台失败（摘要 LLM 调用抛错）→ 回合产出不受影响（已成功返回），无 compact_completed 事件。</summary>
+    [Fact]
+    public async Task StreamResponseAsync_AutoCompactFailure_TurnStillSucceeds() {
+        var chatService = new Mock<IChatService>();
+        chatService.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns((string input, CancellationToken ct) => EmitEventsAsync(
+                [ChatStreamEvent.Text("ok"), ChatStreamEvent.Done(usage: new TokenUsage(150_000, 500))], ct));
+        chatService.Setup(s => s.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ApiMessageRecord> { new() { Role = "user", Content = "q" } });
+        chatService.Setup(s => s.SendMessageAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("LLM 不可达"));
+        var compact = new Mock<ICompactService>();
+        compact.Setup(c => c.ShouldAutoCompact(150_000, 200_000)).Returns(true);
+        compact.Setup(c => c.CalculateWarningState(It.IsAny<int>(), It.IsAny<int>()))
+            .Returns(new CompactWarningState {
+                PercentLeft = 25,
+                IsAboveWarningThreshold = false,
+                IsAboveErrorThreshold = false,
+                IsAboveAutoCompactThreshold = false,
+                IsAtBlockingLimit = false,
+                IsAboveSoftCompactThreshold = false,
+            });
+        var resolver = new Mock<IContextWindowResolver>();
+        resolver.Setup(r => r.ResolveCurrentContextWindow()).Returns(200_000);
+        var sp = new ServiceCollection()
+            .AddSingleton(compact.Object)
+            .AddSingleton(resolver.Object)
+            .BuildServiceProvider();
+        var consumer = new RecordingEventConsumer();
+        var controller = new SessionController(chatService.Object, consumer, new TurnDiffService(), "test-session", sp);
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+        Assert.True(result.Succeeded, result.ErrorMessage);
+
+        Assert.NotNull(controller.LastAutoCompactTask);
+        await controller.LastAutoCompactTask.ConfigureAwait(true);
+
+        Assert.Empty(consumer.CompactCompleted);
+        Assert.Equal("ok", result.Response);
+    }
+
+    private static (IChatService Chat, List<string> CompactCalls) CreateAutoCompactCapableChatService(
+        IReadOnlyList<ChatStreamEvent> events, int historyMessages, string summaryText) {
+        var compactCalls = new List<string>();
+        var mock = new Mock<IChatService>();
+        mock.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns((string input, CancellationToken ct) => EmitEventsAsync(events, ct));
+        mock.Setup(s => s.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Enumerable.Range(0, historyMessages)
+                .Select(_ => new ApiMessageRecord { Role = "user", Content = "消息内容" })
+                .ToList());
+        mock.Setup(s => s.SendMessageAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(summaryText);
+        mock.Setup(s => s.CompactHistoryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns((string summary, CancellationToken ct) => {
+                compactCalls.Add(summary);
+                return Task.CompletedTask;
+            });
+        return (mock.Object, compactCalls);
+    }
+
     private static IChatService CreateMockChatService(IReadOnlyList<ChatStreamEvent> events) {
         var mock = new Mock<IChatService>();
         mock.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -508,6 +664,7 @@ public sealed class SessionControllerTests {
         public List<string> TimingSummaryEvents { get; } = [];
         public List<(TokenUsage? usage, string? modelId)> DoneEvents { get; } = [];
         public List<(int promptTokens, int contextWindowTokens, int percentLeft)> ContextUsages { get; } = [];
+        public List<(int messagesSummarized, long originalTokens, long compressedTokens, bool isAuto)> CompactCompleted { get; } = [];
 
         public void OnText(string content) => TextEvents.Add(content);
         public void OnThinking(string thinking) => ThinkingEvents.Add(thinking);
@@ -518,5 +675,6 @@ public sealed class SessionControllerTests {
         public void OnTimingSummary(string summary) => TimingSummaryEvents.Add(summary);
         public void OnDone(TokenUsage? usage, string? modelId) => DoneEvents.Add((usage, modelId));
         public void OnContextUsage(int promptTokens, int contextWindowTokens, int percentLeft) => ContextUsages.Add((promptTokens, contextWindowTokens, percentLeft));
+        public void OnCompactCompleted(int messagesSummarized, long originalTokens, long compressedTokens, bool isAuto) => CompactCompleted.Add((messagesSummarized, originalTokens, compressedTokens, isAuto));
     }
 }

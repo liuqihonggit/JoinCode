@@ -198,4 +198,62 @@ public class SessionResumeStepTests {
         // Assert — Session 未初始化时不应阻塞
         nextCalled.Should().BeTrue("Session 为 null 时应跳过恢复并继续");
     }
+
+    // ─── TASK070 B-6 — --continue 项目过滤（FindMostRecentSessionIdAsync internal 测试面）───
+
+    private static Mock<ITranscriptService> CreateTranscriptService((string SessionId, string? ProjectPath, DateTime Modified)[] sessions) {
+        var mock = new Mock<ITranscriptService>();
+        mock.Setup(s => s.ListTranscriptsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(sessions
+                .OrderByDescending(s => s.Modified)
+                .Select(s => new TranscriptSummary {
+                    SessionId = s.SessionId,
+                    CreatedAt = s.Modified,
+                    LastModifiedAt = s.Modified,
+                })
+                .ToList());
+        foreach (var (sessionId, projectPath, _) in sessions) {
+            var info = projectPath is null ? null : new SessionInfo { Id = sessionId, ProjectPath = projectPath };
+            mock.Setup(s => s.GetSessionInfoAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(info);
+        }
+        return mock;
+    }
+
+    [Fact]
+    public async Task Continue_FiltersByProjectPath_MostRecentInCurrentProjectWins() {
+        // Arrange — 最新会话属其他项目，较旧会话属当前项目 → 应选当前项目的
+        var service = CreateTranscriptService([
+            ("newest-other", @"D:\other\repo", DateTime.UtcNow.AddMinutes(-1)),
+            ("older-current", @"D:\cur\repo\", DateTime.UtcNow.AddHours(-2)),
+        ]);
+
+        var sessionId = await SessionResumeStep.FindMostRecentSessionIdAsync(service.Object, @"D:\cur\repo", CancellationToken.None);
+
+        sessionId.Should().Be("older-current", "--continue 应按 ProjectPath 过滤选当前项目的最近会话（尾分隔符差异归一）");
+    }
+
+    [Fact]
+    public async Task Continue_NoSessionInCurrentProject_ReturnsNull() {
+        var service = CreateTranscriptService([
+            ("other-1", @"D:\other\repo", DateTime.UtcNow.AddMinutes(-1)),
+            ("other-2", @"E:\elsewhere", DateTime.UtcNow.AddHours(-2)),
+        ]);
+
+        var sessionId = await SessionResumeStep.FindMostRecentSessionIdAsync(service.Object, @"D:\cur\repo", CancellationToken.None);
+
+        sessionId.Should().BeNull("无当前项目会话时应返回 null（上层提示并启动新会话）");
+    }
+
+    [Fact]
+    public async Task Continue_SkipsLegacySessionsWithoutMeta_MatchesOlderCurrentProject() {
+        // Arrange — 最新会话无 meta（旧存量），较旧的当前项目会话应命中
+        var service = CreateTranscriptService([
+            ("legacy-no-meta", null, DateTime.UtcNow.AddMinutes(-1)),
+            ("current-project", @"D:\cur\repo", DateTime.UtcNow.AddHours(-2)),
+        ]);
+
+        var sessionId = await SessionResumeStep.FindMostRecentSessionIdAsync(service.Object, @"D:\cur\repo", CancellationToken.None);
+
+        sessionId.Should().Be("current-project", "无 meta 的旧会话应跳过，不阻塞当前项目会话命中");
+    }
 }

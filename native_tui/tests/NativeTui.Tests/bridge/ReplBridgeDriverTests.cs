@@ -187,6 +187,37 @@ public sealed class ReplBridgeDriverTests
         Assert.Equal(0, _spinner.ResponseLength);
     }
 
+    /// <summary>压缩完成路由（TASK070 C6'/DSG046）— 用量快照作废（Reset 后 Warning 归 None，
+    /// footer 低水位警告消退）+ 通知槽"上下文已压缩"提示。</summary>
+    [Fact]
+    public void Apply_CompactCompleted_ResetsTokenUsageTrackerAndNotifies()
+    {
+        var tracker = new TokenUsageTracker();
+        tracker.RecordUsage(inputTokens: 5_000, outputTokens: 1_000, contextTokens: 197_000, contextLimitTokens: 200_000);
+        Assert.Equal(TokenWarningLevel.Low, tracker.Warning.Level);
+        var notifications = new ReplNotifications();
+        _view.Footer = _view.Footer with { Notifications = notifications };
+        var driver = new ReplBridgeDriver(_view, _spinner, _banner, tokenUsageTracker: tracker);
+
+        driver.Apply(new BridgeEvent.CompactCompleted(12, 197_000, 900, IsAuto: true));
+
+        Assert.Equal(TokenWarningLevel.None, tracker.Warning.Level);
+        Assert.Null(tracker.ContextTokens);
+        Assert.Null(tracker.ContextLimitTokens);
+        Assert.Equal("上下文已压缩（12 条摘要，197,000 → 900）", notifications.Current);
+    }
+
+    /// <summary>压缩完成路由 — tracker/通知队列未注入时静默容忍（纯视图断言场景零异常）。</summary>
+    [Fact]
+    public void Apply_CompactCompleted_WithoutTracker_NotifiesOnly()
+    {
+        _view.Footer = _view.Footer with { Notifications = new ReplNotifications() };
+
+        _driver.Apply(new BridgeEvent.CompactCompleted(3, 10_000, 200, IsAuto: false));
+
+        Assert.Equal("上下文已压缩（3 条摘要，10,000 → 200）", _view.Footer.Notifications!.Current);
+    }
+
     [Fact]
     public void Apply_ToolResultWithPatch_AppendsToolResultItemUnifiedContract()
     {

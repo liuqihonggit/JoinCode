@@ -208,6 +208,13 @@ public sealed class EngineSession : IAsyncDisposable {
             consumer.OnText(output);
         }
 
+        // TASK070 C6/DSG046 — 命令数据载荷投影结构化事件（/compact 成功 → compact_completed，
+        // TUI 据此 Reset 用量警告 + 通知上屏；其余命令无载荷零影响）。
+        // 顺序在 OnDone 之前 — 压缩事件先于回合终态到达，Driver 侧 Reset 不跨回合。
+        if (result.Data is CompactSummaryData summary) {
+            consumer.OnCompactCompleted(summary.MessagesSummarized, summary.OriginalTokens, summary.CompressedTokens, isAuto: false);
+        }
+
         consumer.OnDone(usage: null, modelId: null);
     }
 

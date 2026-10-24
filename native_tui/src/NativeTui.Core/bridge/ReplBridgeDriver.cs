@@ -196,6 +196,9 @@ public sealed class ReplBridgeDriver
                 // TASK066 F4 — 中断路径带标记：进行中工具（pending 未消费）追加"（已中断）"状态标记
                 EndTurn(interrupted: true);
                 break;
+            case BridgeEvent.CompactCompleted(var messagesSummarized, var originalTokens, var compressedTokens, var isAuto):
+                ApplyCompactCompleted(messagesSummarized, originalTokens, compressedTokens, isAuto);
+                break;
             case BridgeEvent.SubagentStarted(var subagentId, var agentType, var description):
                 ApplySubagentStarted(subagentId, agentType, description);
                 break;
@@ -406,6 +409,17 @@ public sealed class ReplBridgeDriver
     {
         var (text, level) = FooterState.ResolveContextWarning(percentLeft);
         _view.Footer = _view.Footer with { ContextWarning = text, ContextWarningLevel = level };
+    }
+
+    /// <summary>压缩完成路由（TASK070 C6'/DSG046 — TokenUsageTracker.Reset 注释承诺的首个调用点）：
+    /// 用量快照作废重算（旧 context/limit 快照在压缩后已失真 — footer 低水位警告随之消退）；
+    /// 通知槽"上下文已压缩"提示（手动/自动同文案 — 压缩本身用户可感知；tracker 未注入静默容忍）。</summary>
+    private void ApplyCompactCompleted(int messagesSummarized, long originalTokens, long compressedTokens, bool isAuto)
+    {
+        _tokenUsageTracker?.Reset();
+        _view.Footer.Notifications?.Enqueue(
+            $"上下文已压缩（{messagesSummarized} 条摘要，{originalTokens:N0} → {compressedTokens:N0}）",
+            NotificationPriority.High);
     }
 
     /// <summary>应用会话握手：banner 换引擎真实数据（模型 null → "当前模型未设置"；供应商 null → 空，banner 退化无前缀）

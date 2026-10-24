@@ -58,6 +58,7 @@ public abstract record BridgeRequest
 [JsonDerivedType(typeof(BridgeEvent.BackgroundTask), "background_task")]
 [JsonDerivedType(typeof(BridgeEvent.TurnCompleted), "turn_completed")]
 [JsonDerivedType(typeof(BridgeEvent.TurnInterrupted), "turn_interrupted")]
+[JsonDerivedType(typeof(BridgeEvent.CompactCompleted), "compact_completed")]
 [JsonDerivedType(typeof(BridgeEvent.Error), "error")]
 public abstract record BridgeEvent
 {
@@ -197,6 +198,13 @@ public abstract record BridgeEvent
 
     /// <summary>回合被打断（idle）。</summary>
     public sealed record TurnInterrupted() : BridgeEvent;
+
+    /// <summary>
+    /// 上下文压缩完成（TASK070 C6/DSG046 — /compact 手动或回合末自动压缩完成后发射）：
+    /// TUI 侧 TokenUsageTracker.Reset 重算 footer 警告（压缩警告抑制）+ 通知上屏。
+    /// IsAuto 区分手动（/compact 命令路径）与自动（回合末阈值触发路径 — 对齐 TS autoCompact.ts:313-321）。
+    /// </summary>
+    public sealed record CompactCompleted(int MessagesSummarized, long OriginalTokens, long CompressedTokens, bool IsAuto) : BridgeEvent;
 
     /// <summary>错误（含诱导说明）。</summary>
     public sealed record Error(string Message) : BridgeEvent;

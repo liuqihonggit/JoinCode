@@ -369,4 +369,18 @@ public sealed class InProcessEventConsumerTests
         Assert.Equal("检查README", task.Description);
         Assert.Equal("running", task.State);
     }
+
+    /// <summary>TASK070 C6/DSG046 压缩完成 — OnCompactCompleted 四参直传 CompactCompleted 内存事件
+    /// （ReplBridgeDriver 路由 TokenUsageTracker.Reset + 通知上屏；接口同步由引擎侧 IEventConsumer DIM 完成）。</summary>
+    [Fact]
+    public void OnCompactCompleted_EnqueuesCompactCompletedEvent()
+    {
+        var consumer = new InProcessEventConsumer();
+
+        consumer.OnCompactCompleted(42, 150_000, 3_200, isAuto: true);
+
+        var events = consumer.DrainEvents();
+        var completed = Assert.IsType<BridgeEvent.CompactCompleted>(Assert.Single(events));
+        Assert.Equal((42, 150_000L, 3_200L, true), (completed.MessagesSummarized, completed.OriginalTokens, completed.CompressedTokens, completed.IsAuto));
+    }
 }

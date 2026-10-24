@@ -52,15 +52,6 @@ public sealed record TaskUpdateCommand(
     string? Priority,
     List<string>? Tags);
 
-/// <summary>
-/// 停止任务命令
-/// </summary>
-public sealed record TaskStopCommand(
-    [Required(ErrorMessage = "task_id 不能为空")]
-    [StringLength(50, ErrorMessage = "任务ID过长")]
-    string TaskId,
-    [StringLength(500, ErrorMessage = "原因描述过长")]
-    string? Reason);
 
 /// <summary>
 /// 获取任务命令

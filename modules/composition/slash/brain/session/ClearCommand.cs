@@ -37,16 +37,21 @@ public sealed partial class ClearCommand : ChatCommandBase {
         // 对齐 TS: clearConversation — 直接清除，无需确认
         // TS 没有 --force 标志，直接执行清除
 
-        // 1. 执行 SessionEnd hooks（清除前）
-        // 对齐 TS: executeSessionEndHooks('clear', ...)
-        var hookManager = GetService<ISessionStartHookManager>(context);
-        if (hookManager is not null) {
+        // 1. 执行 SessionEnd hooks（清除前）— TASK071 命令技能-② 修复：
+        // 旧实现注释 SessionEnd 却调 ISessionStartHookManager.OnSessionStartAsync（SessionEnd:clear 永不执行）；
+        // 对齐 TS clearConversation:69 executeSessionEndHooks('clear') 走 HookOrchestrator 广播
+        var orchestrator = GetService<IHookOrchestrator>(context);
+        if (orchestrator is not null) {
             try {
-                var hookContext = new SessionStartHookContext {
-                    SessionId = context.SessionId,
-                    Source = "clear"
+                var payload = new Dictionary<string, JsonElement> {
+                    ["source"] = JsonElementHelper.FromString("clear"),
+                    ["session_id"] = JsonElementHelper.FromString(context.SessionId),
                 };
-                await hookManager.OnSessionStartAsync(hookContext, context.CancellationToken).ConfigureAwait(false);
+                await foreach (var _ in orchestrator.ExecuteHooksAsync(
+                    HookEvent.SessionEnd, payload, sessionId: context.SessionId, cancellationToken: context.CancellationToken)
+                    .ConfigureAwait(false)) {
+                    // 广播消费 — 结果由事件层记录（SessionEnd 无阻断语义）
+                }
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, "SessionEnd hook 执行失败，继续清除");
             }
@@ -55,6 +60,20 @@ public sealed partial class ClearCommand : ChatCommandBase {
         // 2. 清空聊天历史
         await context.GetCommandServices().ChatService.ClearHistoryAsync(context.CancellationToken).ConfigureAwait(false);
         _logger?.LogInformation("聊天历史已清空");
+
+        // 2.1 清除后 SessionStart hooks（TASK071 — 对齐 TS clearConversation:245 processSessionStartHooks('clear')；
+        // 旧实现把 SessionStart 放在清除前，时序错位）
+        var sessionStartManager = GetService<ISessionStartHookManager>(context);
+        if (sessionStartManager is not null) {
+            try {
+                await sessionStartManager.OnSessionStartAsync(new SessionStartHookContext {
+                    SessionId = context.SessionId,
+                    Source = "clear",
+                }, context.CancellationToken).ConfigureAwait(false);
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "SessionStart hook 执行失败（清除后）");
+            }
+        }
 
         // 3. 清屏
         context.ClearScreen?.Invoke();

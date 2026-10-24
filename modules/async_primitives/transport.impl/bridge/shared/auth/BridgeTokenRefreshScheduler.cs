@@ -17,6 +17,8 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
     private const int MaxRefreshFailures = 3;
     private const int FailureRetryDelayMs = 60_000;
     private const int FallbackRefreshIntervalMs = 30 * 60 * 1000;
+    /// <summary>刷新延迟下限（TASK071 #3 — 对齐 TS jwtUtils.ts:157 clamp 30s：buffer 超过 expires_in 时防紧循环）。</summary>
+    private const int MinRefreshDelayMs = 30_000;
     private int _disposed;
 
     /// <summary>
@@ -49,12 +51,9 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
             return;
         }
 
-        var delayMs = expiryMs.Value - _options.RefreshBufferMs - _clock.GetUtcNowOffset().ToUnixTimeMilliseconds();
-        if (delayMs <= 0) {
-            TrySend(new DoRefreshCmd(sessionId));
-            return;
-        }
-
+        var delayMs = Math.Max(
+            expiryMs.Value - _options.RefreshBufferMs - _clock.GetUtcNowOffset().ToUnixTimeMilliseconds(),
+            MinRefreshDelayMs);
         TrySend(new ScheduleFromDelayCmd(sessionId, delayMs));
     }
 
@@ -64,12 +63,8 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
     public void ScheduleFromExpiresIn(string sessionId, int expiresInSeconds) {
         ArgumentNullException.ThrowIfNull(sessionId);
 
-        var delayMs = (expiresInSeconds * 1000L) - _options.RefreshBufferMs;
-        if (delayMs <= 0) {
-            TrySend(new DoRefreshCmd(sessionId));
-            return;
-        }
-
+        // 对齐 TS jwtUtils.ts:157 — clamp 30s 下限：buffer 超过 expires_in 时防立即刷新紧循环
+        var delayMs = Math.Max((expiresInSeconds * 1000L) - _options.RefreshBufferMs, MinRefreshDelayMs);
         TrySend(new ScheduleFromDelayCmd(sessionId, delayMs));
     }
 
@@ -135,7 +130,8 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
         if (_timers.Remove(sessionId, out var oldTimer))
             await oldTimer.DisposeAsync().ConfigureAwait(false);
 
-        _failureCounts.Remove(sessionId);
+        // TASK071 #3 — 此处禁止清零 _failureCounts（旧实现重试调度即清零 → MaxRefreshFailures 永不触发）；
+        // 计数只在成功（DoRefreshCoreAsync 成功路径）/取消（Cancel/CancelAll）/达上限放弃时清理。
 
         _timers[sessionId] = _timeProvider.CreateTimer(_ => {
             if (_generations.TryGetValue(sessionId, out var gen) && gen == currentGeneration) {
@@ -147,36 +143,63 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
     private async Task DoRefreshCoreAsync(string sessionId) {
         var generationBeforeRefresh = _generations.GetValueOrDefault(sessionId);
 
+        // 对齐 TS jwtUtils.ts:167-176 — getAccessToken 异常吞掉走 null 分支（不中断刷新链）
+        string? newToken = null;
         try {
-            var newToken = _options.GetAccessToken();
-            if (newToken is not null) {
-                if (!_generations.TryGetValue(sessionId, out var gen) || gen != generationBeforeRefresh) {
-                    _options.Logger?.LogDebug("[{Label}] doRefresh 过时 (gen {OldGen} vs {NewGen})，跳过: {SessionId}",
-                        _options.Label, generationBeforeRefresh, _generations.GetValueOrDefault(sessionId), sessionId);
-                    return;
-                }
+            newToken = _options.GetAccessToken();
+        } catch (Exception ex) {
+            _options.Logger?.LogWarning(ex, "[{Label}] getAccessToken 异常: {SessionId}", _options.Label, sessionId);
+        }
 
-                _options.OnRefresh(sessionId, newToken);
-                _options.Logger?.LogDebug("[{Label}] Token 刷新成功: {SessionId}", _options.Label, sessionId);
+        // 对齐 TS jwtUtils.ts:178-186 — 等待期间被取消/重排则代际失效，直接退出
+        if (!_generations.TryGetValue(sessionId, out var gen) || gen != generationBeforeRefresh) {
+            _options.Logger?.LogDebug("[{Label}] doRefresh 过时 (gen {OldGen} vs {NewGen})，跳过: {SessionId}",
+                _options.Label, generationBeforeRefresh, _generations.GetValueOrDefault(sessionId), sessionId);
+            return;
+        }
 
+        // TASK071 #3 — 对齐 TS jwtUtils.ts:188-206：null token 计数失败，未达上限 60s 重试，达上限放弃。
+        // 旧实现 null token 无任何处理（刷新链静默中断）。
+        if (newToken is null) {
+            var failures = IncrementFailure(sessionId);
+            _options.Logger?.LogError("[{Label}] 无可用 OAuth token，刷新失败 {Failures}/{Max}: {SessionId}",
+                _options.Label, failures, MaxRefreshFailures, sessionId);
+            if (failures < MaxRefreshFailures) {
+                await ScheduleFromDelayCore(sessionId, FailureRetryDelayMs).ConfigureAwait(false);
+            } else {
+                _options.Logger?.LogError("[{Label}] 刷新连续失败达上限，放弃自动刷新链（等待上游 401 恢复接管）: {SessionId}",
+                    _options.Label, sessionId);
                 _failureCounts.Remove(sessionId);
-                Schedule(sessionId, newToken);
             }
+            return;
+        }
+
+        try {
+            _options.OnRefresh(sessionId, newToken);
+            _options.Logger?.LogDebug("[{Label}] Token 刷新成功: {SessionId}", _options.Label, sessionId);
+
+            _failureCounts.Remove(sessionId);
+            Schedule(sessionId, newToken);
         } catch (Exception ex) {
             _options.Logger?.LogWarning(ex, "[{Label}] Token 刷新失败: {SessionId}", _options.Label, sessionId);
 
-            ref var failures = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(_failureCounts, sessionId, out _);
-            failures++;
-
-            if (failures >= MaxRefreshFailures) {
-                _options.Logger?.LogError("[{Label}] Token 刷新连续失败 {Count} 次，{DelayMs}ms 后重试: {SessionId}",
-                    _options.Label, failures, FailureRetryDelayMs, sessionId);
-                _failureCounts[sessionId] = 0;
+            // 对齐 TS — 失败计数不清零（旧实现在 ScheduleFromDelayCore 清零 → 上限永不触发）；
+            // 未达上限 60s 重试，达上限放弃
+            var failures = IncrementFailure(sessionId);
+            if (failures < MaxRefreshFailures) {
                 await ScheduleFromDelayCore(sessionId, FailureRetryDelayMs).ConfigureAwait(false);
             } else {
-                await ScheduleFromDelayCore(sessionId, FallbackRefreshIntervalMs).ConfigureAwait(false);
+                _options.Logger?.LogError("[{Label}] 刷新连续失败达上限，放弃自动刷新链（等待上游 401 恢复接管）: {SessionId}",
+                    _options.Label, sessionId);
+                _failureCounts.Remove(sessionId);
             }
         }
+    }
+
+    private int IncrementFailure(string sessionId) {
+        ref var failures = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(_failureCounts, sessionId, out _);
+        failures++;
+        return failures;
     }
 
     /// <summary>

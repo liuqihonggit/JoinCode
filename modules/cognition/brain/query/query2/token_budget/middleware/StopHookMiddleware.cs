@@ -37,10 +37,15 @@ public sealed partial class StopHookMiddleware : ServiceEntity, IQueryMiddleware
 
     private async Task ExecuteStopHooksAsync(QueryMiddlewareContext context, CancellationToken ct) {
         var stopHookManager = _stopHookManager ?? throw new InvalidOperationException("StopHookManager not available.");
-        var stopResult = await stopHookManager.ExecuteStopHooksAsync("session-id", "query-complete", ct).ConfigureAwait(false);
-        if (!stopResult.ShouldStop) {
-            // 停止 Hook 建议继续 — 但查询已完成，此标志用于指示是否应继续下一轮
-            context.ShouldStop = false;
+        // TASK071 query2-③ — sessionId 从查询选项取（旧硬编码 "session-id" 臺会话级钩子永不匹配）
+        var sessionId = context.Options?.SessionId ?? "query2-default";
+        var stopResult = await stopHookManager.ExecuteStopHooksAsync(sessionId, "query-complete", ct).ConfigureAwait(false);
+
+        // TASK071 query2-③ — 对齐 TS stopHooks.ts:257-263 blockingError 语义：
+        // 仅 BlockingError 非空（hook 主动请求阻断）时回灌，ShouldStop=true（默认停止/查询正常完成）不回灌；
+        // 旧实现误用 ShouldStop 判断 → 没 hook 时默认 Stop() 也触发回灌 → 多消耗 AI 轮次（E2E script exhausted 回归）
+        if (!string.IsNullOrEmpty(stopResult.BlockingError)) {
+            context.StopHookBlockingMessages.Add(stopResult.BlockingError);
         }
     }
 }

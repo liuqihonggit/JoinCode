@@ -44,6 +44,81 @@ public sealed class V2BridgeConfigTests {
         Assert.Equal(V2BridgeConfig.Defaults.HttpTimeoutMs, result.HttpTimeoutMs);
     }
 
+    /// <summary>TASK071 #11 — TS envLessBridgeConfigSchema 上下限对齐（violation 整体回退 DEFAULT）。</summary>
+    [Theory]
+    [InlineData("HeartbeatIntervalMs", 4999)]     // floor 5s
+    [InlineData("HeartbeatIntervalMs", 30001)]    // cap 30s
+    [InlineData("TokenRefreshBufferMs", 29999)]   // floor 30s 防紧循环
+    [InlineData("TokenRefreshBufferMs", 1800001)] // cap 30min 识别语义反转
+    [InlineData("TeardownArchiveTimeoutMs", 499)]
+    [InlineData("TeardownArchiveTimeoutMs", 2001)]
+    [InlineData("ConnectTimeoutMs", 4999)]
+    [InlineData("ConnectTimeoutMs", 60001)]
+    [InlineData("UuidDedupBufferSize", 99)]
+    [InlineData("UuidDedupBufferSize", 50001)]
+    [InlineData("InitRetryMaxAttempts", 11)]
+    [InlineData("InitRetryBaseDelayMs", 99)]
+    [InlineData("InitRetryMaxDelayMs", 499)]
+    [InlineData("HttpTimeoutMs", 1999)]
+    public void Validate_TsSchemaBounds_ViolationReturnsDefaults(string property, int value = 0) {
+        var config = property switch {
+            "HeartbeatIntervalMs" => new V2BridgeConfig { HeartbeatIntervalMs = value },
+            "TokenRefreshBufferMs" => new V2BridgeConfig { TokenRefreshBufferMs = value },
+            "TeardownArchiveTimeoutMs" => new V2BridgeConfig { TeardownArchiveTimeoutMs = value },
+            "ConnectTimeoutMs" => new V2BridgeConfig { ConnectTimeoutMs = value },
+            "UuidDedupBufferSize" => new V2BridgeConfig { UuidDedupBufferSize = value },
+            "InitRetryMaxAttempts" => new V2BridgeConfig { InitRetryMaxAttempts = value },
+            "InitRetryBaseDelayMs" => new V2BridgeConfig { InitRetryBaseDelayMs = value },
+            "InitRetryMaxDelayMs" => new V2BridgeConfig { InitRetryMaxDelayMs = value },
+            "HttpTimeoutMs" => new V2BridgeConfig { HttpTimeoutMs = value },
+            _ => throw new ArgumentException(property),
+        };
+
+        var result = V2BridgeConfig.Validate(config);
+
+        Assert.NotEqual(value, property switch {
+            "HeartbeatIntervalMs" => result.HeartbeatIntervalMs,
+            "TokenRefreshBufferMs" => result.TokenRefreshBufferMs,
+            "TeardownArchiveTimeoutMs" => result.TeardownArchiveTimeoutMs,
+            "ConnectTimeoutMs" => result.ConnectTimeoutMs,
+            "UuidDedupBufferSize" => result.UuidDedupBufferSize,
+            "InitRetryMaxAttempts" => result.InitRetryMaxAttempts,
+            "InitRetryBaseDelayMs" => result.InitRetryBaseDelayMs,
+            "InitRetryMaxDelayMs" => result.InitRetryMaxDelayMs,
+            "HttpTimeoutMs" => result.HttpTimeoutMs,
+            _ => value,
+        });
+    }
+
+    [Theory]
+    [InlineData(-0.1)]
+    [InlineData(0.51)]
+    public void Validate_HeartbeatJitterFractionBeyondCap_ReturnsDefaults(double fraction) {
+        var config = new V2BridgeConfig { HeartbeatJitterFraction = fraction };
+
+        var result = V2BridgeConfig.Validate(config);
+
+        Assert.Equal(V2BridgeConfig.Defaults.HeartbeatJitterFraction, result.HeartbeatJitterFraction);
+    }
+
+    /// <summary>边界内值（floor/cap 恰好命中）应原样通过。</summary>
+    [Fact]
+    public void Validate_BoundaryValues_Pass() {
+        var config = new V2BridgeConfig {
+            HeartbeatIntervalMs = 5000,
+            TokenRefreshBufferMs = 30_000,
+            TeardownArchiveTimeoutMs = 500,
+            ConnectTimeoutMs = 60_000,
+            UuidDedupBufferSize = 100,
+            InitRetryMaxAttempts = 10,
+            HeartbeatJitterFraction = 0.5,
+        };
+
+        var result = V2BridgeConfig.Validate(config);
+
+        Assert.Same(config, result);
+    }
+
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public void Validate_NullConfig_Throws() {

@@ -126,20 +126,48 @@ public sealed class HookConfigurationGroup {
     }
 
     /// <summary>
-    /// 获取特定事件和匹配器的钩子
+    /// 获取特定事件和匹配器的钩子 — TASK071 hooks-② 对齐 TS matchesPattern（hooks.ts:1346-1378）：
+    /// 配置模式支持 "*"（全匹配）、"Bash|Edit"（管道精确）、正则（其余含特殊字符）；
+    /// 旧实现按配置键精确字典查找 → 通配/管道/正则配置静默失效。
+    /// 注：TS 的 normalizeLegacyToolName/getLegacyToolNames 旧名映射不适用（C# 无旧工具名历史）。
     /// </summary>
     public IReadOnlyList<SourcedHookConfig> GetHooks(HookEvent hookEvent, string? matcher) {
-        var matcherKey = matcher ?? "";
+        var matchQuery = matcher ?? "";
 
         if (!_groups.TryGetValue(hookEvent, out var eventGroup)) {
             return Array.Empty<SourcedHookConfig>();
         }
 
-        if (!eventGroup.TryGetValue(matcherKey, out var hookList)) {
-            return Array.Empty<SourcedHookConfig>();
+        return eventGroup
+            .Where(kv => MatchesPattern(matchQuery, kv.Key))
+            .SelectMany(kv => kv.Value)
+            .ToList();
+    }
+
+    /// <summary>
+    /// 钩子模式匹配（对齐 TS matchesPattern）：null/""/"*" 全匹配；纯字母数字_|为管道精确或单名精确；
+    /// 其余按正则（非法正则返回 false — 对齐 TS log+false）。
+    /// </summary>
+    internal static bool MatchesPattern(string matchQuery, string matcherPattern) {
+        if (string.IsNullOrEmpty(matcherPattern) || matcherPattern == "*") {
+            return true;
         }
 
-        return hookList;
+        if (System.Text.RegularExpressions.Regex.IsMatch(matcherPattern, @"^[a-zA-Z0-9_|]+$")) {
+            if (matcherPattern.Contains('|')) {
+                return matcherPattern
+                    .Split('|')
+                    .Any(p => string.Equals(matchQuery, p.Trim(), StringComparison.Ordinal));
+            }
+
+            return string.Equals(matchQuery, matcherPattern, StringComparison.Ordinal);
+        }
+
+        try {
+            return System.Text.RegularExpressions.Regex.IsMatch(matchQuery, matcherPattern);
+        } catch (ArgumentException) {
+            return false; // 非法正则 — 对齐 TS 日志+false
+        }
     }
 
     /// <summary>

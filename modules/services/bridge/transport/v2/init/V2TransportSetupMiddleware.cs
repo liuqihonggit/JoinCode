@@ -22,7 +22,15 @@ internal sealed partial class V2TransportSetupMiddleware : ServiceEntity, IMiddl
         var sdkUrl = BridgeWorkSecretDecoder.BuildCCRv2SdkUrl(credentials.ApiBaseUrl, sessionId);
         IReplBridgeTransport transport;
         try {
-            transport = ctx.TransportFactory.CreateV2Transport(sdkUrl, sessionId, credentials.WorkerJwt, ctx.Config.ConnectTimeoutMs);
+            // TASK071 #5 — 心跳间隔接 config.HeartbeatIntervalMs（旧便捷版误接 ConnectTimeoutMs 致 JCC_BRIDGE_HEARTBEAT_MS 死配置）
+            transport = ctx.TransportFactory.CreateV2Transport(new V2TransportOptions {
+                SseUrl = $"{sdkUrl}/worker/events/stream",
+                ApiBaseUrl = sdkUrl,
+                IngressToken = credentials.WorkerJwt,
+                SessionId = sessionId,
+                HeartbeatIntervalMs = ctx.Config.HeartbeatIntervalMs,
+                GetAuthToken = () => credentials.WorkerJwt,
+            });
         } catch (Exception ex) {
             ctx.Logger?.LogError("Bridge: v2 transport setup failed: {Message}", ex.Message);
             ctx.Fail($"Transport setup failed: {ex.Message}");

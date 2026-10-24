@@ -101,6 +101,10 @@ public sealed class ChatMiddlewareContext {
     /// </summary>
     public string? ModalityMismatchInjection { get; set; }
 
+    /// <summary>UserPromptSubmit hook 的 additionalContext 注入（TASK071 hooks-③ — 对齐 TS
+    /// processUserInput.ts additionalContext；ChatTelemetryPreHook 设置，PreChatMiddleware 消费上屏）。</summary>
+    public string? UserPromptSubmitInjection { get; set; }
+
     /// <summary>
     /// 预处理结果 — 关键词分析、同义词注入、提示注入信息
     /// </summary>

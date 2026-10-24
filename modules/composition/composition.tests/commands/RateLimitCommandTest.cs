@@ -118,7 +118,9 @@ public sealed class RateLimitCommandTest {
         cmd.Name.Should().Be("rate-limit-options");
         cmd.Usage.Should().Be("/rate-limit-options [show]");
         cmd.Description.Should().Contain("速率限制");
-        cmd.Aliases.Should().Contain("rate-limit", "rate-limit 为别名");
+        // TASK071 命令技能-① — "rate-limit" 别名归属 UsageCommand（双声明冲突裁决）；
+// TS 基准 rate-limit-options 无别名（且本命令 IsHidden），别名删除后此断言随语义移除
+cmd.Aliases.Should().NotContain("rate-limit", "别名冲突裁决：rate-limit 归属 UsageCommand");
         cmd.IsHidden.Should().BeTrue("rate-limit-options 为隐藏命令");
     }
 }

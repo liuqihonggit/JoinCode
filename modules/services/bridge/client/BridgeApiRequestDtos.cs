@@ -187,6 +187,13 @@ internal sealed class BridgeKeepAliveMessageDto {
     public required string SessionId { get; init; }
 }
 
+/// <summary>v2 keep_alive 帧（TASK071 #9 — 对齐 TS transport.write({type:'keep_alive'})，无 session_id）</summary>
+internal sealed class BridgeKeepAliveFrameDto {
+    /// <summary>类型(固定 keep_alive)</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = "keep_alive";
+}
+
 /// <summary>Bridge cancel_control_request 消息</summary>
 internal sealed class BridgeCancelControlRequestMessageDto {
     /// <summary>类型(固定 cancel_control_request)</summary>

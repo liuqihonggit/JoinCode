@@ -116,4 +116,84 @@ public sealed class Osc8RenderInjectionTests
 
         Assert.Contains("\x1b]8;;https://e.com/g\x1b\\", output);
     }
+
+    /// <summary>诊断行附带环境快照 — 不支持终端输出含"不支持"头 + 全部 5 个探测键（便于用户贴报问题上下文）。</summary>
+    [Fact]
+    public void FormatDiagnostic_UnsupportedEnv_ContainsAllProbeKeys()
+    {
+        var env = new Dictionary<string, string?>
+        {
+            ["TERM_PROGRAM"] = null,
+            ["LC_TERMINAL"] = null,
+            ["WT_SESSION"] = null,
+            ["TERM"] = "xterm-256color",
+            ["KITTY_WINDOW_ID"] = null,
+        };
+
+        var diag = HyperlinkEmitter.FormatDiagnostic(env);
+
+        Assert.Contains("不支持", diag);
+        Assert.Contains("TERM_PROGRAM=", diag);
+        Assert.Contains("LC_TERMINAL=", diag);
+        Assert.Contains("WT_SESSION=", diag);
+        Assert.Contains("TERM=", diag);
+        Assert.Contains("KITTY_WINDOW_ID=", diag);
+    }
+
+    /// <summary>支持终端（WT_SESSION 非空）诊断行含"支持"头 + 环境快照。</summary>
+    [Fact]
+    public void FormatDiagnostic_SupportedByWtSession_ContainsSupportedHeader()
+    {
+        var env = new Dictionary<string, string?>
+        {
+            ["TERM_PROGRAM"] = null,
+            ["LC_TERMINAL"] = null,
+            ["WT_SESSION"] = "foo",
+            ["TERM"] = "xterm-256color",
+            ["KITTY_WINDOW_ID"] = null,
+        };
+
+        var diag = HyperlinkEmitter.FormatDiagnostic(env);
+
+        Assert.Contains("支持", diag);
+        Assert.Contains("WT_SESSION=foo", diag);
+    }
+
+    /// <summary>未设置键显示 <unset> 标记（区分 null 与空串 — 排查时一眼看出是没设还是设空）。</summary>
+    [Fact]
+    public void FormatDiagnostic_UnsetValue_ShowsUnsetMarker()
+    {
+        var env = new Dictionary<string, string?>
+        {
+            ["TERM_PROGRAM"] = null,
+            ["LC_TERMINAL"] = null,
+            ["WT_SESSION"] = null,
+            ["TERM"] = null,
+            ["KITTY_WINDOW_ID"] = null,
+        };
+
+        var diag = HyperlinkEmitter.FormatDiagnostic(env);
+
+        Assert.Contains("TERM_PROGRAM=<unset>", diag);
+        Assert.Contains("WT_SESSION=<unset>", diag);
+    }
+
+    /// <summary>空串值显示 <empty> 标记（与 null 区分 — 空串是显式设空，null 是未设置）。</summary>
+    [Fact]
+    public void FormatDiagnostic_EmptyValue_ShowsEmptyMarker()
+    {
+        var env = new Dictionary<string, string?>
+        {
+            ["TERM_PROGRAM"] = "",
+            ["LC_TERMINAL"] = "",
+            ["WT_SESSION"] = "",
+            ["TERM"] = "",
+            ["KITTY_WINDOW_ID"] = "",
+        };
+
+        var diag = HyperlinkEmitter.FormatDiagnostic(env);
+
+        Assert.Contains("TERM_PROGRAM=<empty>", diag);
+        Assert.Contains("WT_SESSION=<empty>", diag);
+    }
 }

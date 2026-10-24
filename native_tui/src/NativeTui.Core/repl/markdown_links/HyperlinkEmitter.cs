@@ -112,6 +112,36 @@ public static class HyperlinkEmitter
         return vars.GetValueOrDefault("TERM")?.Contains("kitty") == true || IsSet(vars, "KITTY_WINDOW_ID");
     }
 
+    /// <summary>
+    /// OSC 8 探测诊断行（含环境快照 — 便于用户贴报问题上下文，AI 一眼看清终端环境无需另跑命令）。
+    /// 首行支持/不支持结论（对齐 IsHyperlinkSupported 判定），后续行 ProbedEnvKeys 键值表
+    /// （null→&lt;unset&gt;，空串→&lt;empty&gt; — 排查时区分未设置与显式设空）。
+    /// </summary>
+    /// <param name="env">环境变量快照（键→值，值 null 视为未设置）。</param>
+    /// <returns>多行诊断文本。</returns>
+    public static string FormatDiagnostic(IReadOnlyDictionary<string, string?> env)
+    {
+        var head = IsHyperlinkSupported(env)
+            ? "[diag] OSC 8 超链接: 支持（Markdown 链接渲染深链路后续批次接入）"
+            : "[diag] OSC 8 超链接: 不支持（终端未声明 — 链接降级纯文本，无需动作）";
+        var lines = ProbedEnvKeys
+            .Select(k => $"  {k}={FormatEnvValue(env.GetValueOrDefault(k))}")
+            .Prepend(head);
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    /// <summary>当前进程环境的 OSC 8 探测诊断行（便利重载 — 会话级调用一次）。</summary>
+    /// <returns>多行诊断文本。</returns>
+    public static string FormatDiagnostic() => FormatDiagnostic(EnvironmentSnapshot());
+
+    /// <summary>环境变量值格式化（null→&lt;unset&gt;，空串→&lt;empty&gt;，其余原样 — 区分未设置与显式设空）。</summary>
+    private static string FormatEnvValue(string? value) => value switch
+    {
+        null => "<unset>",
+        { Length: 0 } => "<empty>",
+        _ => value,
+    };
+
     /// <summary>环境快照归一化（键忽略大小写 — 对齐 TerminalCapabilities.Normalize 同语义）。</summary>
     private static Dictionary<string, string?> Normalize(IReadOnlyDictionary<string, string?> env)
     {

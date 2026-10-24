@@ -49,7 +49,9 @@ public sealed class TuiPermissionConfirmationHandler(TuiPermissionBridge bridge,
         if (action == PermissionConfirmAction.Allow)
             PermissionManager.ApproveToolTemporarily(toolName, AllowDuration);
         else if (action == PermissionConfirmAction.AlwaysAllow)
-            PermissionManager.ApproveToolTemporarily(toolName, AlwaysAllowDuration);
+            // DSG046 P1 — 持久化批准（对齐基准 settings.json 永久规则 — ApproveToolPermanentlyAsync
+            // 而非临时 30 分钟；同步阻塞等持久化完成 — 权限确认非热路径，文件写入快）
+            PermissionManager.ApproveToolPermanentlyAsync(toolName, null, CancellationToken.None).GetAwaiter().GetResult();
 
         var level = DangerLevelPromptParser.ParseLevelFromPrompt(confirmationPrompt);
         if (level is not null)

@@ -185,15 +185,18 @@ public sealed class TuiPermissionConfirmationTests {
         Assert.Equal([("Bash", TimeSpan.FromMinutes(1))], manager.Approvals);
     }
 
-    /// <summary>AlwaysAllow — 临时批准 30 分钟。</summary>
+    /// <summary>AlwaysAllow — 持久化批准（DSG046 P1 — 对齐基准 settings.json 永久规则：
+    /// ApproveToolPermanentlyAsync 而非临时 30 分钟；旧"TemporarilyApprovesThirtyMinutes"推翻）。</summary>
     [Fact]
-    public void Handler_AlwaysAllow_TemporarilyApprovesThirtyMinutes() {
+    public void Handler_AlwaysAllow_PermanentlyApproves() {
         var manager = new FakePermissionManager();
         var handler = new TuiPermissionConfirmationHandler(new FakeBridge(PermissionConfirmAction.AlwaysAllow), manager);
 
         handler.Confirm("Bash", "run tests");
 
-        Assert.Equal([("Bash", TimeSpan.FromMinutes(30))], manager.Approvals);
+        Assert.Equal([("Bash", (string?)null)], manager.PermanentApprovals);
+        // AlwaysAllow 不再走临时批准（Approvals 仅 Allow 档）
+        Assert.Empty(manager.Approvals);
     }
 
     /// <summary>Deny — 不产生临时批准。</summary>

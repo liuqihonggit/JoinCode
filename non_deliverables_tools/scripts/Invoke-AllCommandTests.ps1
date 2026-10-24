@@ -281,6 +281,12 @@ function Test-McpTools {
     $tools = $listJson.data | ForEach-Object { $_.name }
     Write-Host "Found $($tools.Count) MCP tools"
 
+    $dangerousTools = $tools | Where-Object { Get-IsDangerousTool -ToolName $_ }
+    if ($dangerousTools) {
+        $tools = $tools | Where-Object { -not (Get-IsDangerousTool -ToolName $_) }
+        Write-Host "Skipped $($dangerousTools.Count) dangerous tools (delete/desktop_/git_write/gh_write)" -ForegroundColor Yellow
+    }
+
     if ($Limit -gt 0 -and $Limit -lt $tools.Count) {
         $tools = $tools[0..($Limit - 1)]
         Write-Host "Limited to first $Limit tools"
@@ -389,6 +395,25 @@ function Test-McpTools {
         Write-Host "  [$i/$($results.Count)] $($r.Name) -> $($r.Status) ($($r.Steps)) $($r.Duration)s" -ForegroundColor $(switch ($r.Status) { "OK" { "Green" } "ERROR" { "Yellow" } default { "Red" } })
     }
     return $results
+}
+
+function Get-IsDangerousTool {
+    param([string]$ToolName)
+
+    $dangerousExact = @(
+        "delete", "desktop_click", "desktop_type", "desktop_move",
+        "desktop_scroll", "desktop_screenshot", "desktop_key",
+        "git_add", "git_commit", "git_push", "git_pull", "git_reset",
+        "git_clean", "git_branch", "git_clone", "git_merge",
+        "worktree_create", "worktree_remove", "worktree_cleanup", "worktree_merge",
+        "gh_pr_create", "gh_pr_close", "gh_pr_merge", "gh_pr_comment",
+        "gh_pr_review", "gh_pr_update", "gh_pr_approve",
+        "gh_issue_create", "gh_issue_close", "gh_issue_comment", "gh_issue_update",
+        "gh_run_cancel", "gh_run_rerun", "gh_repo_fork"
+    )
+    if ($dangerousExact -contains $ToolName) { return $true }
+    if ($ToolName -like "desktop_*") { return $true }
+    return $false
 }
 
 function Test-McpMissingParams {

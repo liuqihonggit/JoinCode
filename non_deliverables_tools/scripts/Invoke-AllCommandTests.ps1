@@ -343,9 +343,9 @@ function Test-McpTools {
         try {
             $callJson = Extract-Json -Text $callResult.stdout
             if ($callJson) {
-                $isError = [bool]$callJson.isError
-                if ($callJson.content) {
-                    $contentText = ($callJson.content | ForEach-Object { $_.text } | Out-String).Trim()
+                $isError = [bool]$callJson.data.isError
+                if ($callJson.data.content) {
+                    $contentText = ($callJson.data.content | ForEach-Object { $_.text } | Out-String).Trim()
                 }
             }
         } catch {
@@ -450,16 +450,25 @@ function Test-McpMissingParams {
     $dllPath = $JccDll
     $timeout = $TimeoutSec
 
-    $allScenarios = @()
-    foreach ($tool in $tools) {
+    $allScenarios = $tools | ForEach-Object -Parallel {
+        $tool = $_
+        Set-Item function:Invoke-Jcc $using:funcDefs.InvokeJcc
+        Set-Item function:Extract-Json $using:funcDefs.ExtractJson
+        Set-Item function:Generate-ArgValue $using:funcDefs.GenerateArgValue
+        Set-Item function:Generate-DefaultArgs $using:funcDefs.GenerateDefaultArgs
+        Set-Item function:Generate-MissingParamScenarios $using:funcDefs.GenerateMissingParamScenarios
+        $JccDll = $using:dllPath
+        $TimeoutSec = $using:timeout
+
         $schemaResult = Invoke-Jcc -CmdArgs @("mcp_schema", $tool, "--json")
         $schemaJson = Extract-Json -Text $schemaResult.stdout
         $schema = if ($schemaJson) { $schemaJson.data } else { $null }
         $scenarios = Generate-MissingParamScenarios -Schema $schema
         foreach ($s in $scenarios) {
-            $allScenarios += [PSCustomObject]@{ Tool = $tool; MissingParam = $s.MissingParam; Args = $s.Args }
+            [PSCustomObject]@{ Tool = $tool; MissingParam = $s.MissingParam; Args = $s.Args }
         }
-    }
+    } -ThrottleLimit $Concurrency
+    $allScenarios = @($allScenarios)
 
     Write-Host "Found $($allScenarios.Count) missing-param scenarios for $($tools.Count) tools"
 
@@ -479,9 +488,9 @@ function Test-McpMissingParams {
         try {
             $callJson = Extract-Json -Text $callResult.stdout
             if ($callJson) {
-                $isError = [bool]$callJson.isError
-                if ($callJson.content) {
-                    $contentText = ($callJson.content | ForEach-Object { $_.text } | Out-String).Trim()
+                $isError = [bool]$callJson.data.isError
+                if ($callJson.data.content) {
+                    $contentText = ($callJson.data.content | ForEach-Object { $_.text } | Out-String).Trim()
                 }
             }
         } catch {}

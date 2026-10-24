@@ -432,6 +432,14 @@ public sealed class ReplShell
     /// 基准 REPL.tsx:3326 CLAUDE_CODE_IDLE_THRESHOLD_MINUTES 默认 75，宿主读 env 后传参 — Core 不读 env 惯例）。</summary>
     private readonly int _idleReturnThresholdMinutes;
 
+    /// <summary>statusline 模板（statusline 键激活 — /statusline format 写入的模板文本；
+    /// null = 未启用零渲染变化。每帧 SyncStatusLine 渲染变量替换后投影 FooterState.StatusLine）。</summary>
+    private readonly string? _statusLineTemplate;
+
+    /// <summary>statusline {model} 变量实时源（Host 闭包 IFastModeService.PrimaryModelId；
+    /// null = {model} 渲染为空 — Core 不依赖引擎服务惯例）。</summary>
+    private readonly Func<string?>? _statusLineModelProvider;
+
     /// <summary>空闲返回 token 门槛（构造 idleReturnTokenThreshold 注入，默认 100_000；
     /// 基准 REPL.tsx:3327 CLAUDE_CODE_IDLE_TOKEN_THRESHOLD 默认 100_000 — 小对话不弹）。</summary>
     private readonly long _idleReturnTokenThreshold;
@@ -588,7 +596,9 @@ public sealed class ReplShell
         Func<string, ImageAttachment?>? loadImageFromFile = null,
         bool vimMode = false,
         double? wheelBaseLines = null,
-        Func<Task<ImageAttachment?>>? readClipboardImage = null)
+        Func<Task<ImageAttachment?>>? readClipboardImage = null,
+        string? statusLineTemplate = null,
+        Func<string?>? statusLineModelProvider = null)
     {
         _engine = engine;
         _banner = banner;
@@ -628,6 +638,10 @@ public sealed class ReplShell
         _idleReturnTokenThreshold = idleReturnTokenThreshold ?? 100_000;
         // E4 接线 — 图片文件读取委托注入（null = 无文件读取能力，图片路径粘贴降级纯文本零行为变化）
         _loadImageFromFile = loadImageFromFile;
+        // statusline 键激活 — 模板 + 模型实时源注入（null 模板 = 未启用零行为变化；
+        // Host 读 statusline.enabled/format 后传参，theme 先例同模式）
+        _statusLineTemplate = statusLineTemplate;
+        _statusLineModelProvider = statusLineModelProvider;
         // TASK066 板块 E 连线 E3 — vim 引擎装配（null = 关闭：全部按键走原编辑链零行为变化；
         // 开启 = INSERT 初始态 — 基准 createInitialVimState 返回 INSERT，types.ts:188-190）
         _vimEngine = vimMode ? new VimEngine() : null;
@@ -3271,6 +3285,28 @@ public sealed class ReplShell
         };
     }
 
+    /// <summary>statusline 每帧投影（statusline 键激活 — 模板变量实时渲染：
+    /// {model} 模型源/{tokens} 用量/{mode} 权限模式/{time} 当前时间/{cost} 无源空）。
+    /// 模板 null no-op（未启用零行为变化）；与 SyncSuggestionState 同款每帧同步模式。</summary>
+    private void SyncStatusLine()
+    {
+        if (_statusLineTemplate is null)
+        {
+            return;
+        }
+
+        var tokens = _view.Footer.Tokens is { } tracker
+            ? $"{tracker.InputTokens / 1000}k/{tracker.ContextLimitTokens / 1000 ?? 200}k"
+            : null;
+        var statusLine = StatusLineTemplateRenderer.Render(
+            _statusLineTemplate,
+            model: _statusLineModelProvider?.Invoke(),
+            tokens: tokens,
+            mode: _view.Footer.Mode.ToString().ToLowerInvariant(),
+            time: DateTime.Now.ToString("HH:mm"));
+        _view.Footer = _view.Footer with { StatusLine = statusLine };
+    }
+
     /// <summary>Esc 处置（对齐基准重载链 — 用户决策"全部对齐基准"2026-10-23）：
     /// 忙时：有排队输入 → 弹回全部到输入框（基准 popAllCommandsFromQueue — 优先于打断判定）；
     /// 无排队 → 单击立即打断（基准 useCancelRequest.ts:97-102 abortSignal 未 aborted 单击 onCancel — 双击确认层移除）。
@@ -3826,6 +3862,7 @@ public sealed class ReplShell
         SyncSuggestionState();
         SyncCursorHighlight();
         SyncTranscriptView();
+        SyncStatusLine();
         _view.HelpOpen = _helpOpen;
         ReassertTerminalModesIfIdle();
         EnsureScreens();

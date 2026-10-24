@@ -344,6 +344,9 @@ public static class Program {
                 //（对齐 TS GlobalConfig.editorMode，经 IConfigurationService 读取 — theme 先例）；
                 // JCC_TUI_VIM 灰度 OR 语义保留（EditorModeResolver 唯一判定源）
                 var vimMode = await LoadVimModeAsync(session.Services).ConfigureAwait(false);
+                // statusline 键激活 — statusline.enabled=true + statusline.format 模板
+                //（/statusline 命令写入的键，theme 先例同模式读取）
+                var statusLineTemplate = await LoadStatusLineTemplateAsync(session.Services).ConfigureAwait(false);
                 var rawInputPump = useRawStdinPump ? new RawStdinPump(terminalQuerier) : null;
                 // TASK066 板块A — 终端状态三路装配（标题/21337 tab/9;4 进度）：
                 // 标题写通道平台分流（基准 use-terminal-title.ts：Windows=process.title → Console.Title，
@@ -420,12 +423,16 @@ public static class Program {
                      // 持久启用 + JCC_TUI_VIM 灰度 OR 语义 — EditorModeResolver 唯一判定源，
                      // 对齐 TS GlobalConfig.editorMode；默认关零行为变化 — main #480 落地，
                      // 取代板块E的纯 env 开关形态）
-                     vimMode: vimMode,
-                     // TASK066 板块C P3 — 滚轮加速度基础步长（基准 CLAUDE_CODE_SCROLL_SPEED 旋钮 —
-                     // readScrollSpeedBase :305-310 clamp (0,20] 默认 1；Core 不读 env 由宿主读传入，
-                     // 对齐 idleReturnThresholdMinutes 先例）
-                     wheelBaseLines: WheelSpeedTracker.ParseScrollSpeedBase(
-                         Environment.GetEnvironmentVariable("CLAUDE_CODE_SCROLL_SPEED")),
+                      vimMode: vimMode,
+                      // statusline 键激活 — 模板 + {model} 实时源（IFastModeService.PrimaryModelId
+                      // 闭包 — ReplShell 每帧变量替换投影 FooterState.StatusLine Row2 最优先渲染）
+                      statusLineTemplate: statusLineTemplate,
+                      statusLineModelProvider: () => session.Services.GetService<IFastModeService>()?.PrimaryModelId,
+                      // TASK066 板块C P3 — 滚轮加速度基础步长（基准 CLAUDE_CODE_SCROLL_SPEED 旋钮 —
+                      // readScrollSpeedBase :305-310 clamp (0,20] 默认 1；Core 不读 env 由宿主读传入，
+                      // 对齐 idleReturnThresholdMinutes 先例）
+                      wheelBaseLines: WheelSpeedTracker.ParseScrollSpeedBase(
+                          Environment.GetEnvironmentVariable("CLAUDE_CODE_SCROLL_SPEED")),
                       // TASK066 板块E — 图片文件读取委托（粘贴图片路径 → base64 附件；magic 嗅探
                       // mime，读失败 null 降级该行回退纯文本粘贴）
                       loadImageFromFile: LoadImageFromFile,
@@ -599,6 +606,27 @@ public static class Program {
             return EditorModeResolver.ResolveVimMode(editorMode, Environment.GetEnvironmentVariable(EditorModeResolver.VimEnvVar));
         } catch (Exception ex) when (ex is InvalidOperationException or IOException) {
             return false;
+        }
+    }
+
+    /// <summary>加载 statusline 模板（statusline 键激活 — theme 先例同模式）：
+    /// statusline.enabled=true 且 statusline.format 非空 → 返回模板；否则 null（未启用零行为变化）。</summary>
+    private static async Task<string?> LoadStatusLineTemplateAsync(IServiceProvider services) {
+        try {
+            var config = services.GetService<IConfigurationService>();
+            if (config is null) {
+                return null;
+            }
+
+            var enabled = await config.GetAsync("statusline.enabled").ConfigureAwait(false);
+            if (enabled != "true") {
+                return null;
+            }
+
+            var format = await config.GetAsync("statusline.format").ConfigureAwait(false);
+            return string.IsNullOrWhiteSpace(format) ? null : format;
+        } catch (Exception ex) when (ex is InvalidOperationException or IOException) {
+            return null;
         }
     }
 

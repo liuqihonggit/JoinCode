@@ -65,6 +65,14 @@ public sealed record FooterState
     /// null 亦涵盖 vim 关闭（构造默认 — 零渲染变化）。
     /// </summary>
     public string? VimMode { get; init; }
+
+    /// <summary>
+    /// 自定义状态行（statusline 键激活 — /statusline format 模板经 StatusLineTemplateRenderer
+    /// 渲染后的文本）：Row2 右侧最优先渲染（用户自定义状态行常驻，对齐 TS statusLine 常驻语义；
+    /// 上下文告警等瞬态信息退让 — 告警持续态由 ContextWarning 独立槽承接时用户可 /statusline off）。
+    /// null = 未启用（statusline.enabled != true 或无模板 — 零渲染变化）。
+    /// </summary>
+    public string? StatusLine { get; init; }
 }
 
 /// <summary>上下文余量告警级别（M8-7 — 三色形态选色键：告急 error / 警告 warning / 无 None）。</summary>

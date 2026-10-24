@@ -67,7 +67,7 @@
 **结构化输出**：TS 有 MAX_RETRIES=5 熔断 + result.structured_output 回传，C# 无限重试风险。
 **行为差异/缺失（登记）**：Complete chunk 缺 duration_api_ms/num_turns/stop_reason/modelUsage 协议字段；query2 无 transcript 预持久化；buddy stats/soul 残缺（GetBuddyPrompt 零调用）；proactive nextTickAt 不可观测；远端会话历史分页缺失。
 
-## 修复进度（2026-10-25 累计 10 commit）
+## 修复进度（2026-10-25 累计 12 commit）
 
 | 批次 | 内容 | commit |
 |------|------|--------|
@@ -87,7 +87,38 @@
 - matcher 不做 normalizeLegacyToolName 旧名映射 — C# 无旧工具名历史
 - 工具参数兼容走"三键查找链"而非重命名 C# 参数体系 — 命名体系整体 PascalCase↔snake 决策仍开放（登记待决策 #5）
 
+| 查询域协议 | QueryStreamChunk.StopReason 终态标记（end_turn/error_max_turns/error_max_retries/error_max_budget_usd） | 17b4c424b |
+
 暴露的既有问题（顺手修复）：IModelCatalog 接口演进漏 ModelPickerHistoryTests fake（全仓构建纪律捕获）。
+
+## 待决策清单（终版 — 全部需要用户裁决，未动）
+
+**A. 整域缺失（做/不做/何时）**：
+1. upstreamproxy（CONNECT→WS 隧道中继+CA bundle — Windows 产品可能 N/A）
+2. remote 会话订阅端（CCR viewer-only 模式）
+3. 直连服务器客户端（server 模式）
+4. 设置迁移机制（11 个 TS 迁移脚本 — 老版本升级用户配置静默失效）
+5. 交互输入历史 history.jsonl（跨会话 Up/Ctrl+R 召回 — CLI 核心体验）
+6. 团队记忆密钥扫描（gitleaks 规则 — 安全面）
+7. LocalAgentTask/主会话后台化任务类型
+
+**B. 架构分歧（保留 C# 设计还是对齐 TS）**：
+1. 工具命名体系：C# snake_case（生成器统一）vs TS PascalCase — 已用三键查找链兼容传参，schema 呈现仍是 snake
+2. 记忆子系统：C# JSON 结构化+衰减归档/删除 vs TS Markdown 永不过期 — C# 模型会静默删除 TS 语义下应保留的记忆
+3. 技能生态：C# 步骤机+单目录 vs TS SKILL.md prompt 扩展（frontmatter 全键/项目目录发现/参数插值/内置技能 prompt 化）
+4. 插件钩子链：C# 进程内插件无 manifest 模型，PluginHookInjector 注入后无消费方（死链根因是架构而非漏接线）
+5. dream 时间门 ConsolidationLock 已落地，但 C# dream 独立进程/命令触发（TS 是 stop hook 内联自动触发）— 自动触发路径仍缺失
+
+**C. 行为差异待逐项裁决（高价值节选）**：
+1. DiminishingReturns 判据：C# 增长率<0.1 连续3次截断 vs TS delta<500 附续跑 nudge（已修 Reset 泄漏，判据差异未动）
+2. 召回算法：关键词打分取10 vs LLM sideQuery 选≤5（含 recentTools/已曝光过滤）
+3. /init 输出物（.jcc/project_rules.md vs CLAUDE.md）、/memory（DB 管理 vs 编辑 CLAUDE.md）、/loop（内联循环 vs cron）、/branch+/fork 双命令 vs 单命令
+4. TaskCreate 参数体系（title vs subject+activeForm）、AskUserQuestion schema（string 内嵌 JSON vs 结构化数组+answers 回传）
+5. Glob 大小写敏感/条数上限、Bash 超时环境变量覆盖、TaskOutput block/timeout 语义
+6. 结构化输出体系（synthetic tool + 重试上限5 + result.structured_output — 需整体设计）
+7. Complete 协议其余字段（duration_api_ms/num_turns/modelUsage/permission_denials — StopReason 已做，其余需消费方决策）
+
+**D. hooks 协议层系统性不对齐（大工程，需专项排期）**：stdin 输入 JSON、snake_case 字段、CLAUDE_* 环境变量族、HTTP wire format、多行 JSON 输出解析、approve/systemMessage/suppressOutput、ask/allow/updatedInput 进权限流、trust 门禁。
 
 ## 处置原则（用户指令 2026-10-25）
 

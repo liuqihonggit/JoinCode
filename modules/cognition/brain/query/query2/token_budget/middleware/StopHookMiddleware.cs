@@ -41,12 +41,11 @@ public sealed partial class StopHookMiddleware : ServiceEntity, IQueryMiddleware
         var sessionId = context.Options?.SessionId ?? "query2-default";
         var stopResult = await stopHookManager.ExecuteStopHooksAsync(sessionId, "query-complete", ct).ConfigureAwait(false);
 
-        // TASK071 query2-③ — 对齐 TS stopHooks.ts:257-263 语义反转修正：
-        // ShouldStop=true = hook 请求阻断（blockingError）→ 阻断消息回灌（核心循环继续一轮收尾）；
-        // 旧实现在查询完成后设 ShouldStop=false（无效 — 循环已结束），阻断请求被静默丢弃
-        if (stopResult.ShouldStop) {
-            context.StopHookBlockingMessages.Add(
-                stopResult.Message ?? "Stop hook 阻断 — 请继续完成当前任务收尾后再结束");
+        // TASK071 query2-③ — 对齐 TS stopHooks.ts:257-263 blockingError 语义：
+        // 仅 BlockingError 非空（hook 主动请求阻断）时回灌，ShouldStop=true（默认停止/查询正常完成）不回灌；
+        // 旧实现误用 ShouldStop 判断 → 没 hook 时默认 Stop() 也触发回灌 → 多消耗 AI 轮次（E2E script exhausted 回归）
+        if (!string.IsNullOrEmpty(stopResult.BlockingError)) {
+            context.StopHookBlockingMessages.Add(stopResult.BlockingError);
         }
     }
 }

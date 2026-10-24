@@ -1,9 +1,10 @@
 namespace Core.Tests.StopHooks;
 
 /// <summary>
-/// TASK071 query2-③ — Stop hook 中间件组件测试（对齐 TS stopHooks.ts:257-263）：
-/// ShouldStop=true（hook 请求阻断）→ 阻断消息进 context.StopHookBlockingMessages（核心循环据此回灌继续一轮）；
-/// sessionId 从 QueryOptions.SessionId 透传（旧硬编码 "session-id" 致会话级钩子永不匹配）；
+/// TASK071 query2-③ — Stop hook 中间件组件测试（对齐 TS stopHooks.ts:257-263 blockingError）：
+/// BlockingError 非空（hook 主动请求阻断）→ 阻断消息进 context.StopHookBlockingMessages（核心循环据此回灌继续一轮）；
+/// sessionId 从 QueryOptions.SessionId 透传（旧硬编码 "session-id" 臺会话级钩子永不匹配）；
+/// ShouldStop=true 但 BlockingError 为空（默认 Stop / 查询正常完成）→ 不产生阻断消息（守卫：防 E2E script exhausted 回归）；
 /// ShouldStop=false（Continue）→ 不产生阻断消息。
 /// </summary>
 public sealed class StopHookReplyLoopTests {
@@ -42,26 +43,35 @@ public sealed class StopHookReplyLoopTests {
     }
 
     [Fact]
-    public async Task StopRequested_AddsBlockingMessage_WithSessionIdFromOptions() {
+    public async Task BlockRequested_AddsBlockingMessage_WithSessionIdFromOptions() {
         var manager = new FakeStopHookManager();
-        manager.Results.Enqueue(StopHookResult.Stop("任务未完成，请继续收尾"));
+        manager.Results.Enqueue(StopHookResult.Block("任务未完成，请继续收尾"));
 
         var (context, seen) = await RunHookAsync(manager, CreateContext(sessionId: "my-session-42")).ConfigureAwait(true);
 
-        context.StopHookBlockingMessages.Should().ContainSingle("hook 请求阻断应产生回灌消息");
+        context.StopHookBlockingMessages.Should().ContainSingle("hook 主动阻断应产生回灌消息");
         context.StopHookBlockingMessages[0].Should().Be("任务未完成，请继续收尾");
         seen.SeenSessionIds.Should().Contain("my-session-42", "sessionId 应从 QueryOptions 透传（旧硬编码修复）");
     }
 
     [Fact]
-    public async Task StopRequested_WithoutMessage_UsesFallbackText() {
+    public async Task DefaultStop_NoBlockingMessage_GuardAgainstE2ERegression() {
         var manager = new FakeStopHookManager();
         manager.Results.Enqueue(StopHookResult.Stop());
 
         var (context, _) = await RunHookAsync(manager, CreateContext()).ConfigureAwait(true);
 
-        context.StopHookBlockingMessages.Should().ContainSingle();
-        context.StopHookBlockingMessages[0].Should().Contain("Stop hook");
+        context.StopHookBlockingMessages.Should().BeEmpty("默认 Stop（查询正常完成）不应触发回灌 — 守卫：防 E2E script exhausted 回归");
+    }
+
+    [Fact]
+    public async Task StopWithMessage_NoBlockingMessage() {
+        var manager = new FakeStopHookManager();
+        manager.Results.Enqueue(StopHookResult.Stop("预算耗尽"));
+
+        var (context, _) = await RunHookAsync(manager, CreateContext()).ConfigureAwait(true);
+
+        context.StopHookBlockingMessages.Should().BeEmpty("Stop(message) 是停止语义不是阻断语义，不应触发回灌");
     }
 
     [Fact]

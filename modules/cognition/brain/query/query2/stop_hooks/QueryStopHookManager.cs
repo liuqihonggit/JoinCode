@@ -84,6 +84,13 @@ public sealed partial class StopHookResult {
     public string? Message { get; init; }
 
     /// <summary>
+    /// 阻断错误（对齐 TS stopHooks.ts blockingError）— 仅 hook 主动请求阻断时非空，
+    /// 区分"默认 Stop（查询正常完成）"与"hook 请求阻断回灌继续收尾"。
+    /// Stop() 不设此字段；Block(message) 设此字段驱动 StopHookMiddleware 回灌。
+    /// </summary>
+    public string? BlockingError { get; init; }
+
+    /// <summary>
     /// 附加数据
     /// </summary>
     public Dictionary<string, JsonElement> AdditionalData { get; init; } = new();
@@ -101,6 +108,14 @@ public sealed partial class StopHookResult {
     /// <param name="message">消息（可选）</param>
     /// <returns>ShouldStop=true 的结果</returns>
     public static StopHookResult Stop(string? message = null) => new() { ShouldStop = true, Message = message };
+
+    /// <summary>
+    /// 创建"阻断"结果（对齐 TS stopHooks.ts blockingError）— hook 主动请求阻断回灌，
+    /// 区别于 Stop() 的默认停止语义。BlockingError 非空时 StopHookMiddleware 添加回灌消息。
+    /// </summary>
+    /// <param name="blockingError">阻断错误说明（回灌到 ChatHistory 供模型收尾）</param>
+    /// <returns>ShouldStop=true 且 BlockingError 非空的结果</returns>
+    public static StopHookResult Block(string blockingError) => new() { ShouldStop = true, BlockingError = blockingError };
 }
 
 /// <summary>

@@ -242,4 +242,7 @@ dotnet_diagnostic.JCC3006.severity = error
 dotnet_diagnostic.JCC5001.severity = error
 dotnet_diagnostic.JCC1009.severity = error
 
+#### JCC2010: MCP 参数描述验证 — 全仓 0 警告,升级 error 强制 ####
+dotnet_diagnostic.JCC2010.severity = error
+
 #### 档3：卫语句检测 ####

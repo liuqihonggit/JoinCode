@@ -8,7 +8,7 @@
 /// </summary>
 [Trait("Category", "Integration")]
 public sealed class McpToolSmokeTests {
-    private static async Task<(Tools.LocalToolRegistry Registry, IReadOnlyList<ToolInfo> Tools)> BuildAndRegisterAllToolsAsync() {
+    private static async Task<(Tools.LocalToolRegistry Registry, IToolExecutionGateway Gateway, IReadOnlyList<ToolInfo> Tools)> BuildAndRegisterAllToolsAsync() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
         await using var fileSystem = new IO.FileSystem.InMemoryFileSystem();
         fileSystem.CreateDirectory(tempDir);
@@ -32,8 +32,9 @@ public sealed class McpToolSmokeTests {
         var allTools = await toolRegistry.GetAllToolsAsync().ConfigureAwait(true);
 
         var registry = provider.GetRequiredService<Tools.LocalToolRegistry>();
+        var gateway = provider.GetRequiredService<IToolExecutionGateway>();
         var toolInfos = await registry.GetAllToolInfosAsync().ConfigureAwait(true);
-        return (registry, toolInfos);
+        return (registry, gateway, toolInfos);
     }
 
     /// <summary>
@@ -120,74 +121,114 @@ public sealed class McpToolSmokeTests {
     );
 
     /// <summary>
-    /// 判断工具是否有真实副作用（桌面 Win32 SendInput / git worktree 操作），冒烟测试应跳过
+    /// 有真实网络副作用的工具 — 冒烟测试跳过，避免连接外部服务器导致超时（mcp_connect 连真实 MCP 服务器）
+    /// </summary>
+    private static readonly FrozenSet<string> ToolsWithNetworkSideEffects = FrozenSet.Create(
+        StringComparer.Ordinal,
+        [
+            "mcp_connect",
+        ]
+    );
+
+    /// <summary>
+    /// 判断工具是否有真实副作用（桌面 Win32 SendInput / git worktree / 网络连接 / GitHub 写入 / git 操作），冒烟测试应跳过。
+    /// <para>gh_* 全跳过：GitHub 工具有写入副作用（create issue/PR/comment、cancel/rerun run、fork repo、close/merge PR 等），
+    /// 巡检用最小参数真实调用会向用户仓库写入数据。</para>
+    /// <para>git_* 全跳过：git 工具有本地仓库副作用（add/commit/push/branch/clone/reset/clean 等）。</para>
     /// </summary>
     private static bool HasRealSideEffects(ToolInfo tool) =>
         string.Equals(tool.Category, "desktop", StringComparison.OrdinalIgnoreCase)
-        || ToolsWithGitSideEffects.Contains(tool.Name);
+        || ToolsWithGitSideEffects.Contains(tool.Name)
+        || ToolsWithNetworkSideEffects.Contains(tool.Name)
+        || tool.Name.StartsWith("gh_", StringComparison.Ordinal)
+        || tool.Name.StartsWith("git_", StringComparison.Ordinal);
 
     [Fact]
     public async Task All_Registered_Tools_Can_Be_Called_Without_Crash() {
-        var (registry, allTools) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var (registry, gateway, allTools) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         allTools.Should().NotBeEmpty("至少应注册一个工具");
 
-        var results = new List<(string ToolName, bool IsError, string? ErrorMessage)>();
+        var results = new List<(string ToolName, string Status, string? ErrorMessage)>();
         var crashed = new List<(string ToolName, Exception Ex)>();
+        var deadlocked = new List<(string ToolName, Exception Ex)>();
+        var timedOut = new List<(string ToolName, Exception Ex)>();
         var skipped = new List<string>();
 
         foreach (var tool in allTools.OrderBy(t => t.Name)) {
             if (HasRealSideEffects(tool)) {
                 skipped.Add(tool.Name);
-                results.Add((tool.Name, false, "SKIPPED: 有真实副作用"));
+                results.Add((tool.Name, "SKIPPED", "有真实副作用"));
                 continue;
             }
 
             try {
                 var args = BuildMinimalArguments(tool);
-                var result = await registry.ExecuteToolAsync(tool.Name, args, CancellationToken.None).ConfigureAwait(true);
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                var result = await gateway.ExecuteAsync(tool.Name, args, cts.Token).ConfigureAwait(true);
 
                 result.Should().NotBeNull($"工具 {tool.Name} 返回 null");
                 result.Content.Should().NotBeNull($"工具 {tool.Name} 返回 null Content");
 
-                results.Add((tool.Name, result.IsError, result.IsError ? result.Content.FirstOrDefault()?.Text : null));
+                var status = result.IsError ? "ERROR" : "OK";
+                results.Add((tool.Name, status, result.IsError ? result.Content.FirstOrDefault()?.Text : null));
+            } catch (ActorAskDeadlockException ex) {
+                deadlocked.Add((tool.Name, ex));
+                results.Add((tool.Name, "DEADLOCK", $"ActorAskDeadlock: {ex.Message}"));
+            } catch (OperationCanceledException ex) {
+                timedOut.Add((tool.Name, ex));
+                results.Add((tool.Name, "TIMEOUT", $"30s 超时: {ex.Message}"));
+            } catch (TimeoutException ex) {
+                timedOut.Add((tool.Name, ex));
+                results.Add((tool.Name, "TIMEOUT", $"TimeoutException: {ex.Message}"));
             } catch (Exception ex) {
                 crashed.Add((tool.Name, ex));
-                results.Add((tool.Name, true, $"CRASH: {ex.GetType().Name}: {ex.Message}"));
+                results.Add((tool.Name, "CRASH", $"{ex.GetType().Name}: {ex.Message}"));
             }
         }
 
-        // 生成报告
         var report = new StringBuilder();
-        report.AppendLine("# MCP 工具冒烟测试报告");
+        report.AppendLine("# MCP 工具冒烟测试报告（走完整 16 层管道 + 30s 超时守卫）");
         report.AppendLine($"时间: {DateTimeOffset.UtcNow:O}");
         report.AppendLine($"工具总数: {allTools.Count}");
-        report.AppendLine($"成功: {results.Count(r => !r.IsError)}");
-        report.AppendLine($"错误(非崩溃): {results.Count(r => r.IsError && !r.ErrorMessage?.StartsWith("CRASH") == true)}");
+        report.AppendLine($"成功: {results.Count(r => r.Status == "OK")}");
+        report.AppendLine($"错误(非崩溃): {results.Count(r => r.Status == "ERROR")}");
         report.AppendLine($"崩溃: {crashed.Count}");
+        report.AppendLine($"死锁(ActorAskDeadlock): {deadlocked.Count}");
+        report.AppendLine($"超时(30s): {timedOut.Count}");
         report.AppendLine($"跳过(有真实副作用): {skipped.Count}");
         report.AppendLine();
 
-        report.AppendLine("## 详细结果");
-        foreach (var (toolName, isError, errorMessage) in results.OrderBy(r => r.ToolName)) {
-            var status = isError ? (errorMessage?.StartsWith("CRASH") == true ? "CRASH" : "ERROR") : "OK";
+        report.AppendLine("## 详细结果（助记符验收：[OK]成功 [ERR]错误 [CRASH]崩溃 [LOCK]死锁 [TMO]超时 [SKIP]跳过）");
+        foreach (var (toolName, status, errorMessage) in results.OrderBy(r => r.ToolName)) {
+            var mnemonic = status switch {
+                "OK" => "[OK]",
+                "ERROR" => "[ERR]",
+                "CRASH" => "[CRASH]",
+                "DEADLOCK" => "[LOCK]",
+                "TIMEOUT" => "[TMO]",
+                "SKIPPED" => "[SKIP]",
+                _ => $"[{status}]"
+            };
             var truncatedError = errorMessage switch {
                 null => "",
                 _ when errorMessage.Length > 100 => errorMessage[..100] + "...",
                 _ => errorMessage
             };
-            report.AppendLine($"| {status} | {toolName} | {truncatedError} |");
+            report.AppendLine($"{mnemonic} {toolName} {truncatedError}");
         }
 
         Console.WriteLine(report.ToString());
 
-        // 崩溃的工具应该为 0（工具可以返回错误，但不能崩溃）
+        // 强制失败：崩溃/死锁/超时必须为 0（工具可以返回错误，但不能崩溃/死锁/超时）
         crashed.Should().BeEmpty($"以下工具崩溃: {string.Join(", ", crashed.Select(c => c.ToolName))}");
+        deadlocked.Should().BeEmpty($"以下工具死锁(ActorAskDeadlockException): {string.Join(", ", deadlocked.Select(c => c.ToolName))}");
+        timedOut.Should().BeEmpty($"以下工具 30s 超时: {string.Join(", ", timedOut.Select(c => c.ToolName))}");
     }
 
     [Fact]
     public async Task Sleep_Tool_Returns_Valid_Result() {
-        var (registry, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var (registry, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         var args = new Dictionary<string, JsonElement> {
             ["duration_seconds"] = JsonDocument.Parse("1").RootElement.Clone()
@@ -202,7 +243,7 @@ public sealed class McpToolSmokeTests {
 
     [Fact]
     public async Task Mcp_Auth_Status_Tool_Returns_Valid_Result() {
-        var (registry, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var (registry, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         var result = await registry.ExecuteToolAsync("mcp_auth_status", new Dictionary<string, JsonElement>(), CancellationToken.None).ConfigureAwait(true);
 
@@ -213,7 +254,7 @@ public sealed class McpToolSmokeTests {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Unknown_Tool_Returns_Error_Or_Throws() {
-        var (registry, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var (registry, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         // 调用不存在的工具 — 注册表可能抛出异常或返回错误结果，不能静默成功
         Exception? caughtEx = null;

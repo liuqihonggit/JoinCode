@@ -270,9 +270,9 @@ public static class Program {
         Console.Error.WriteLine("引擎启动中…");
         // S12 OSC8 最小集成 — 会话级探测一次（stderr 诊断旁路 — 对齐 DrainDiagnostics 写 stderr 先例）：
         // 探测结果缓存于日志供链接渲染深链路批次消费（本批仅探测 + 说明，见未决问题）
-        Console.Error.WriteLine(HyperlinkEmitter.IsHyperlinkSupported()
-            ? "[diag] OSC 8 超链接: 支持（Markdown 链接渲染深链路后续批次接入）"
-            : "[diag] OSC 8 超链接: 不支持（终端未声明 — 链接降级纯文本，无需动作）");
+        // 诊断行附带环境快照（TERM_PROGRAM/LC_TERMINAL/WT_SESSION/TERM/KITTY_WINDOW_ID）—
+        // 用户贴报问题时 AI 一眼看清终端环境，无需另跑命令排查
+        Console.Error.WriteLine(HyperlinkEmitter.FormatDiagnostic());
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
         TestEnvironmentDetector.ForceNonInteractive = true;
 

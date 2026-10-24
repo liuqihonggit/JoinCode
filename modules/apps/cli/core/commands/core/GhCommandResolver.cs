@@ -583,9 +583,10 @@ internal static class GhArgsBinder {
         var isView = toolName.EndsWith("_view");
         var isCreateOrEdit = toolName.EndsWith("_create") || toolName.EndsWith("_edit");
 
-        // 通用: -L→limit, -w→web
+        // 通用: -L→limit, -w→web, -q→jq (jq 表达式, 所有 view/list 命令, 对齐系统 gh CLI)
         if (shortKey == 'L' && isList) return "limit";
         if (shortKey == 'w' && isView) return "web";
+        if (shortKey == 'q' && (isView || isList)) return "jq";
 
         var isPr = toolName.StartsWith("gh_pr_");
         var isIssue = toolName.StartsWith("gh_issue_");

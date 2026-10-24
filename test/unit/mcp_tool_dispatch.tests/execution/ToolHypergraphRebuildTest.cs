@@ -25,9 +25,9 @@ public sealed class ToolHypergraphRebuildTest : IAsyncLifetime {
     [Fact]
     public async Task RebuildFromTransitionsAsync_AddsDynamicEdges_WhenFrequencyAboveThreshold() {
         for (var i = 0; i < 10; i++)
-            await _monitor.RecordTransitionAsync("tool_a", "tool_b");
+            await _monitor.RecordTransitionAsync("tool_a", "tool_b"); await _monitor.FlushAsync();
         for (var i = 0; i < 8; i++)
-            await _monitor.RecordTransitionAsync("tool_b", "tool_c");
+            await _monitor.RecordTransitionAsync("tool_b", "tool_c"); await _monitor.FlushAsync();
 
         using var scorer = new ToolHypergraphScorer(monitor: _monitor);
         await scorer.RebuildFromTransitionsAsync(frequencyThreshold: 5);
@@ -39,8 +39,8 @@ public sealed class ToolHypergraphRebuildTest : IAsyncLifetime {
 
     [Fact]
     public async Task RebuildFromTransitionsAsync_DoesNotAddEdges_WhenFrequencyBelowThreshold() {
-        await _monitor.RecordTransitionAsync("tool_a", "tool_b");
-        await _monitor.RecordTransitionAsync("tool_a", "tool_b");
+        await _monitor.RecordTransitionAsync("tool_a", "tool_b"); await _monitor.FlushAsync();
+        await _monitor.RecordTransitionAsync("tool_a", "tool_b"); await _monitor.FlushAsync();
 
         using var scorer = new ToolHypergraphScorer(monitor: _monitor);
         await scorer.RebuildFromTransitionsAsync(frequencyThreshold: 5);
@@ -62,7 +62,7 @@ public sealed class ToolHypergraphRebuildTest : IAsyncLifetime {
     [Fact]
     public async Task RebuildFromTransitionsAsync_LowFreqCandidates_TrackedCorrectly() {
         for (var i = 0; i < 10; i++)
-            await _monitor.RecordTransitionAsync("tool_a", "tool_b");
+            await _monitor.RecordTransitionAsync("tool_a", "tool_b"); await _monitor.FlushAsync();
 
         using var scorer = new ToolHypergraphScorer(monitor: _monitor);
         await scorer.RebuildFromTransitionsAsync(frequencyThreshold: 5, lowFreqThreshold: 100);
@@ -73,7 +73,7 @@ public sealed class ToolHypergraphRebuildTest : IAsyncLifetime {
     [Fact]
     public async Task RebuildFromTransitionsAsync_NoLowFreqCandidates_WhenAllEdgesHealthy() {
         for (var i = 0; i < 10; i++)
-            await _monitor.RecordTransitionAsync("tool_a", "tool_b");
+            await _monitor.RecordTransitionAsync("tool_a", "tool_b"); await _monitor.FlushAsync();
 
         using var scorer = new ToolHypergraphScorer(monitor: _monitor);
         await scorer.RebuildFromTransitionsAsync(frequencyThreshold: 5, lowFreqThreshold: -100);
@@ -84,7 +84,7 @@ public sealed class ToolHypergraphRebuildTest : IAsyncLifetime {
     [Fact]
     public async Task RemoveLowFreqCandidates_RemovesMarkedEdges() {
         for (var i = 0; i < 10; i++)
-            await _monitor.RecordTransitionAsync("tool_a", "tool_b");
+            await _monitor.RecordTransitionAsync("tool_a", "tool_b"); await _monitor.FlushAsync();
 
         using var scorer = new ToolHypergraphScorer(monitor: _monitor);
         await scorer.RebuildFromTransitionsAsync(frequencyThreshold: 5, lowFreqThreshold: 100);
@@ -108,7 +108,7 @@ public sealed class ToolHypergraphRebuildTest : IAsyncLifetime {
     [Fact]
     public async Task RebuildFromTransitionsAsync_DynamicEdgeWeight_ScalesWithFrequency() {
         for (var i = 0; i < 50; i++)
-            await _monitor.RecordTransitionAsync("tool_a", "tool_b");
+            await _monitor.RecordTransitionAsync("tool_a", "tool_b"); await _monitor.FlushAsync();
 
         using var scorer = new ToolHypergraphScorer(monitor: _monitor);
         await scorer.RebuildFromTransitionsAsync(frequencyThreshold: 5);

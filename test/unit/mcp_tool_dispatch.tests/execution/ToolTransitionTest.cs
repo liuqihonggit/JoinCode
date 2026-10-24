@@ -25,12 +25,12 @@ public sealed class ToolTransitionTest : IAsyncLifetime {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RecordTransitionAsync_RecordsFrequency() {
-        await _monitor.RecordTransitionAsync("tool_a", "tool_b");
-        await _monitor.RecordTransitionAsync("tool_a", "tool_b");
-        await _monitor.RecordTransitionAsync("tool_a", "tool_b");
-        await _monitor.RecordTransitionAsync("tool_a", "tool_c");
+        await _monitor.RecordTransitionAsync("tool_a", "tool_b"); await _monitor.FlushAsync();
+        await _monitor.RecordTransitionAsync("tool_a", "tool_b"); await _monitor.FlushAsync();
+        await _monitor.RecordTransitionAsync("tool_a", "tool_b"); await _monitor.FlushAsync();
+        await _monitor.RecordTransitionAsync("tool_a", "tool_c"); await _monitor.FlushAsync();
 
-        var record = await _monitor.GetRecordAsync("tool_a");
+        var record = await _monitor.GetRecordAsync("tool_a"); ArgumentNullException.ThrowIfNull(record);
         record!.NextToolFrequency["tool_b"].Should().Be(3);
         record.NextToolFrequency["tool_c"].Should().Be(1);
     }
@@ -38,11 +38,11 @@ public sealed class ToolTransitionTest : IAsyncLifetime {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RecordTransitionAsync_DifferentTools_TrackedSeparately() {
-        await _monitor.RecordTransitionAsync("tool_a", "tool_b");
-        await _monitor.RecordTransitionAsync("tool_b", "tool_c");
+        await _monitor.RecordTransitionAsync("tool_a", "tool_b"); await _monitor.FlushAsync();
+        await _monitor.RecordTransitionAsync("tool_b", "tool_c"); await _monitor.FlushAsync();
 
-        var recordA = await _monitor.GetRecordAsync("tool_a");
-        var recordB = await _monitor.GetRecordAsync("tool_b");
+        var recordA = await _monitor.GetRecordAsync("tool_a"); ArgumentNullException.ThrowIfNull(recordA);
+        var recordB = await _monitor.GetRecordAsync("tool_b"); ArgumentNullException.ThrowIfNull(recordB);
         recordA!.NextToolFrequency["tool_b"].Should().Be(1);
         recordB!.NextToolFrequency["tool_c"].Should().Be(1);
     }
@@ -50,10 +50,10 @@ public sealed class ToolTransitionTest : IAsyncLifetime {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RecordTransitionAsync_SameTool_NoTransitionRecorded() {
-        await _monitor.RecordSuccessAsync("tool_a");
-        await _monitor.RecordTransitionAsync("tool_a", "tool_a");
+        await _monitor.RecordSuccessAsync("tool_a"); await _monitor.FlushAsync();
+        await _monitor.RecordTransitionAsync("tool_a", "tool_a"); await _monitor.FlushAsync();
 
-        var record = await _monitor.GetRecordAsync("tool_a");
+        var record = await _monitor.GetRecordAsync("tool_a"); ArgumentNullException.ThrowIfNull(record);
         record!.NextToolFrequency.Should().BeEmpty();
     }
 
@@ -61,12 +61,12 @@ public sealed class ToolTransitionTest : IAsyncLifetime {
     [Fact]
     public async Task GetChainRecommendations_FrequencyBased_WhenAboveThreshold() {
         for (var i = 0; i < 5; i++)
-            await _monitor.RecordTransitionAsync("tool_a", "tool_b");
+            await _monitor.RecordTransitionAsync("tool_a", "tool_b"); await _monitor.FlushAsync();
         for (var i = 0; i < 3; i++)
-            await _monitor.RecordTransitionAsync("tool_a", "tool_c");
+            await _monitor.RecordTransitionAsync("tool_a", "tool_c"); await _monitor.FlushAsync();
 
         using var scorer = new ToolHypergraphScorer();
-        var record = await _monitor.GetRecordAsync("tool_a");
+        var record = await _monitor.GetRecordAsync("tool_a"); ArgumentNullException.ThrowIfNull(record);
         var chain = scorer.GetChainRecommendations("tool_a", record, frequencyThreshold: 3);
 
         chain.Should().NotBeNull();
@@ -76,11 +76,11 @@ public sealed class ToolTransitionTest : IAsyncLifetime {
 
     [Fact]
     public async Task GetChainRecommendations_FallsBackToStatic_WhenFrequencyBelowThreshold() {
-        await _monitor.RecordTransitionAsync("file_read", "file_edit");
-        await _monitor.RecordTransitionAsync("file_read", "file_edit");
+        await _monitor.RecordTransitionAsync("file_read", "file_edit"); await _monitor.FlushAsync();
+        await _monitor.RecordTransitionAsync("file_read", "file_edit"); await _monitor.FlushAsync();
 
         using var scorer = new ToolHypergraphScorer();
-        var record = await _monitor.GetRecordAsync("file_read");
+        var record = await _monitor.GetRecordAsync("file_read"); ArgumentNullException.ThrowIfNull(record);
         var chain = scorer.GetChainRecommendations(FileToolName.FileRead.ToValue(), record, frequencyThreshold: 3);
 
         chain.Should().NotBeNull();

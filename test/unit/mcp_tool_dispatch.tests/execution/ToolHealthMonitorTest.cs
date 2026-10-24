@@ -39,7 +39,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
 
     [Fact]
     public async Task RecordSuccessAsync_IncrementsScoreBySuccessDelta() {
-        var record = await _monitor.RecordSuccessAsync("tool_a");
+        await _monitor.RecordSuccessAsync("tool_a"); await _monitor.FlushAsync(); var record = await _monitor.GetRecordAsync("tool_a"); ArgumentNullException.ThrowIfNull(record);
         record.Score.Should().Be(1);
         record.SuccessCount.Should().Be(1);
     }
@@ -47,28 +47,28 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RecordSuccessAsync_MultipleSuccesses_ScoreAccumulates() {
-        await _monitor.RecordSuccessAsync("tool_a");
-        await _monitor.RecordSuccessAsync("tool_a");
-        await _monitor.RecordSuccessAsync("tool_a");
+        await _monitor.RecordSuccessAsync("tool_a"); await _monitor.FlushAsync();
+        await _monitor.RecordSuccessAsync("tool_a"); await _monitor.FlushAsync();
+        await _monitor.RecordSuccessAsync("tool_a"); await _monitor.FlushAsync();
 
-        var record = await _monitor.GetRecordAsync("tool_a");
+        var record = await _monitor.GetRecordAsync("tool_a"); ArgumentNullException.ThrowIfNull(record);
         record!.Score.Should().Be(3);
         record.SuccessCount.Should().Be(3);
     }
 
     [Fact]
     public async Task RecordSuccessAsync_ResetsConsecutiveFailures() {
-        await _monitor.RecordFailureAsync("tool_a", "err");
-        await _monitor.RecordFailureAsync("tool_a", "err");
+        await _monitor.RecordFailureAsync("tool_a", "err"); await _monitor.FlushAsync();
+        await _monitor.RecordFailureAsync("tool_a", "err"); await _monitor.FlushAsync();
 
-        var record = await _monitor.RecordSuccessAsync("tool_a");
+        await _monitor.RecordSuccessAsync("tool_a"); await _monitor.FlushAsync(); var record = await _monitor.GetRecordAsync("tool_a"); ArgumentNullException.ThrowIfNull(record);
         record.ConsecutiveFailures.Should().Be(0);
     }
 
     [Fact]
     public async Task RecordSuccessAsync_ClearsLastErrorMessage() {
-        await _monitor.RecordFailureAsync("tool_a", "some error");
-        var record = await _monitor.RecordSuccessAsync("tool_a");
+        await _monitor.RecordFailureAsync("tool_a", "some error"); await _monitor.FlushAsync();
+        await _monitor.RecordSuccessAsync("tool_a"); await _monitor.FlushAsync(); var record = await _monitor.GetRecordAsync("tool_a"); ArgumentNullException.ThrowIfNull(record);
         record.LastErrorMessage.Should().BeNull();
     }
 
@@ -76,9 +76,9 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
     [Fact]
     public async Task RecordSuccessAsync_ScoreClampedToMax() {
         for (var i = 0; i < 150; i++)
-            await _monitor.RecordSuccessAsync("tool_a");
+            await _monitor.RecordSuccessAsync("tool_a"); await _monitor.FlushAsync();
 
-        var record = await _monitor.GetRecordAsync("tool_a");
+        var record = await _monitor.GetRecordAsync("tool_a"); ArgumentNullException.ThrowIfNull(record);
         record!.Score.Should().Be(100);
     }
 
@@ -86,7 +86,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
 
     [Fact]
     public async Task RecordFailureAsync_DecrementsScoreByFailDelta() {
-        var record = await _monitor.RecordFailureAsync("tool_a", "timeout");
+        await _monitor.RecordFailureAsync("tool_a", "timeout"); await _monitor.FlushAsync(); var record = await _monitor.GetRecordAsync("tool_a"); ArgumentNullException.ThrowIfNull(record);
         record.Score.Should().Be(-5);
         record.FailCount.Should().Be(1);
         record.ConsecutiveFailures.Should().Be(1);
@@ -96,10 +96,10 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RecordFailureAsync_MultipleFailures_ScoreAccumulates() {
-        await _monitor.RecordFailureAsync("tool_a", "err1");
-        await _monitor.RecordFailureAsync("tool_a", "err2");
+        await _monitor.RecordFailureAsync("tool_a", "err1"); await _monitor.FlushAsync();
+        await _monitor.RecordFailureAsync("tool_a", "err2"); await _monitor.FlushAsync();
 
-        var record = await _monitor.GetRecordAsync("tool_a");
+        var record = await _monitor.GetRecordAsync("tool_a"); ArgumentNullException.ThrowIfNull(record);
         record!.Score.Should().Be(-10);
         record.FailCount.Should().Be(2);
         record.ConsecutiveFailures.Should().Be(2);
@@ -109,9 +109,9 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
     [Fact]
     public async Task RecordFailureAsync_ScoreClampedToMin() {
         for (var i = 0; i < 30; i++)
-            await _monitor.RecordFailureAsync("tool_a", "err");
+            await _monitor.RecordFailureAsync("tool_a", "err"); await _monitor.FlushAsync();
 
-        var record = await _monitor.GetRecordAsync("tool_a");
+        var record = await _monitor.GetRecordAsync("tool_a"); ArgumentNullException.ThrowIfNull(record);
         record!.Score.Should().Be(-100);
     }
 
@@ -120,11 +120,11 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RecordFailureAsync_ConsecutiveFailuresReachesThreshold_StaysEnabled() {
-        await _monitor.RecordFailureAsync("tool_a", "err1");
-        await _monitor.RecordFailureAsync("tool_a", "err2");
+        await _monitor.RecordFailureAsync("tool_a", "err1"); await _monitor.FlushAsync();
+        await _monitor.RecordFailureAsync("tool_a", "err2"); await _monitor.FlushAsync();
         (await _monitor.GetRecordAsync("tool_a"))!.IsEnabled.Should().BeTrue();
 
-        var record = await _monitor.RecordFailureAsync("tool_a", "err3");
+        await _monitor.RecordFailureAsync("tool_a", "err3"); await _monitor.FlushAsync(); var record = await _monitor.GetRecordAsync("tool_a"); ArgumentNullException.ThrowIfNull(record);
         record.ConsecutiveFailures.Should().Be(3);
         record.IsEnabled.Should().BeTrue();
     }
@@ -132,12 +132,12 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RecordFailureAsync_SuccessBetweenFailures_ResetsConsecutiveCount() {
-        await _monitor.RecordFailureAsync("tool_a", "err1");
-        await _monitor.RecordFailureAsync("tool_a", "err2");
-        await _monitor.RecordSuccessAsync("tool_a");
-        await _monitor.RecordFailureAsync("tool_a", "err3");
+        await _monitor.RecordFailureAsync("tool_a", "err1"); await _monitor.FlushAsync();
+        await _monitor.RecordFailureAsync("tool_a", "err2"); await _monitor.FlushAsync();
+        await _monitor.RecordSuccessAsync("tool_a"); await _monitor.FlushAsync();
+        await _monitor.RecordFailureAsync("tool_a", "err3"); await _monitor.FlushAsync();
 
-        var record = await _monitor.GetRecordAsync("tool_a");
+        var record = await _monitor.GetRecordAsync("tool_a"); ArgumentNullException.ThrowIfNull(record);
         record!.ConsecutiveFailures.Should().Be(1);
         record.IsEnabled.Should().BeTrue();
     }
@@ -147,15 +147,15 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RecordSuccessAsync_ScoreRecoversAfterFailures() {
-        await _monitor.RecordFailureAsync("tool_a", "err1");
-        await _monitor.RecordFailureAsync("tool_a", "err2");
-        await _monitor.RecordFailureAsync("tool_a", "err3");
+        await _monitor.RecordFailureAsync("tool_a", "err1"); await _monitor.FlushAsync();
+        await _monitor.RecordFailureAsync("tool_a", "err2"); await _monitor.FlushAsync();
+        await _monitor.RecordFailureAsync("tool_a", "err3"); await _monitor.FlushAsync();
         (await _monitor.GetRecordAsync("tool_a"))!.IsEnabled.Should().BeTrue();
 
         for (var i = 0; i < 20; i++)
-            await _monitor.RecordSuccessAsync("tool_a");
+            await _monitor.RecordSuccessAsync("tool_a"); await _monitor.FlushAsync();
 
-        var record = await _monitor.GetRecordAsync("tool_a");
+        var record = await _monitor.GetRecordAsync("tool_a"); ArgumentNullException.ThrowIfNull(record);
         record!.IsEnabled.Should().BeTrue();
         record.Score.Should().BeGreaterThan(-50);
     }
@@ -165,14 +165,14 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task ResetToolAsync_ResetsScoreAndConsecutiveFailures() {
-        await _monitor.RecordFailureAsync("tool_a", "err1");
-        await _monitor.RecordFailureAsync("tool_a", "err2");
-        await _monitor.RecordFailureAsync("tool_a", "err3");
+        await _monitor.RecordFailureAsync("tool_a", "err1"); await _monitor.FlushAsync();
+        await _monitor.RecordFailureAsync("tool_a", "err2"); await _monitor.FlushAsync();
+        await _monitor.RecordFailureAsync("tool_a", "err3"); await _monitor.FlushAsync();
         (await _monitor.GetRecordAsync("tool_a"))!.IsEnabled.Should().BeTrue();
 
         await _monitor.ResetToolAsync("tool_a");
 
-        var record = await _monitor.GetRecordAsync("tool_a");
+        var record = await _monitor.GetRecordAsync("tool_a"); ArgumentNullException.ThrowIfNull(record);
         record!.Score.Should().Be(0);
         record.ConsecutiveFailures.Should().Be(0);
         record.IsEnabled.Should().BeTrue();
@@ -196,8 +196,8 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
 
     [Fact]
     public async Task GetAllRecordsAsync_ReturnsAllRecords() {
-        await _monitor.RecordSuccessAsync("tool_a");
-        await _monitor.RecordFailureAsync("tool_b", "err");
+        await _monitor.RecordSuccessAsync("tool_a"); await _monitor.FlushAsync();
+        await _monitor.RecordFailureAsync("tool_b", "err"); await _monitor.FlushAsync();
 
         var all = await _monitor.GetAllRecordsAsync();
         all.Count.Should().Be(2);
@@ -210,7 +210,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task RecordSuccessAsync_PersistsToDisk() {
-        await _monitor.RecordSuccessAsync("tool_a");
+        await _monitor.RecordSuccessAsync("tool_a"); await _monitor.FlushAsync();
         await _monitor.DisposeAsync();
         var monitor2 = new ToolHealthMonitor(_fs, config: new ToolScoreConfig());
         await monitor2.DisposeAsync();
@@ -225,19 +225,19 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SuccessRate_MixedResults_CalculatesCorrectly() {
-        await _monitor.RecordSuccessAsync("tool_a");
-        await _monitor.RecordSuccessAsync("tool_a");
-        await _monitor.RecordFailureAsync("tool_a", "err");
+        await _monitor.RecordSuccessAsync("tool_a"); await _monitor.FlushAsync();
+        await _monitor.RecordSuccessAsync("tool_a"); await _monitor.FlushAsync();
+        await _monitor.RecordFailureAsync("tool_a", "err"); await _monitor.FlushAsync();
 
-        var record = await _monitor.GetRecordAsync("tool_a");
+        var record = await _monitor.GetRecordAsync("tool_a"); ArgumentNullException.ThrowIfNull(record);
         record!.SuccessRate.Should().BeApproximately(2.0 / 3.0, 0.001);
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task SuccessRate_OnlySuccess_ReturnsOne() {
-        await _monitor.RecordSuccessAsync("tool_a");
-        var record = await _monitor.GetRecordAsync("tool_a");
+        await _monitor.RecordSuccessAsync("tool_a"); await _monitor.FlushAsync();
+        var record = await _monitor.GetRecordAsync("tool_a"); ArgumentNullException.ThrowIfNull(record);
         record!.SuccessRate.Should().Be(1.0);
     }
 
@@ -269,7 +269,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
 
     [Fact]
     public async Task GetEffectiveScore_WithPenalty_ReturnsAdjustedScore() {
-        await _monitorWithBlacklist.RecordSuccessAsync("penalized_tool");
+        await _monitorWithBlacklist.RecordSuccessAsync("penalized_tool"); await _monitorWithBlacklist.FlushAsync();
         _monitorWithBlacklist.GetEffectiveScore("penalized_tool").Should().Be(-19);
     }
 
@@ -280,7 +280,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
 
     [Fact]
     public async Task GetEffectiveScore_NormalTool_ReturnsBaseScore() {
-        await _monitorWithBlacklist.RecordSuccessAsync("normal_tool");
+        await _monitorWithBlacklist.RecordSuccessAsync("normal_tool"); await _monitorWithBlacklist.FlushAsync();
         _monitorWithBlacklist.GetEffectiveScore("normal_tool").Should().Be(1);
     }
 
@@ -373,7 +373,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
         await using var monitor = new ToolHealthMonitor(fs, config: new ToolScoreConfig {
             SuccessDelta = 1, FailDelta = -5, DecayRatePerHour = 1.0, DecayRecoveryScore = 1
         });
-        await monitor.RecordFailureAsync("tool_a", "err");
+        await monitor.RecordFailureAsync("tool_a", "err"); await monitor.FlushAsync();
         var record = await monitor.GetRecordAsync("tool_a");
         record!.Score.Should().Be(-5);
         monitor.SetRecordForTest("tool_a", record! with { LastAdjusted = DateTime.UtcNow - TimeSpan.FromMinutes(30) });
@@ -391,7 +391,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
         await using var monitor = new ToolHealthMonitor(fs, config: new ToolScoreConfig {
             SuccessDelta = 1, FailDelta = -5, DecayRatePerHour = 1.0, DecayRecoveryScore = 1
         });
-        await monitor.RecordFailureAsync("tool_a", "err");
+        await monitor.RecordFailureAsync("tool_a", "err"); await monitor.FlushAsync();
         var record = await monitor.GetRecordAsync("tool_a");
         record!.Score.Should().Be(-5);
         monitor.SetRecordForTest("tool_a", record! with { LastAdjusted = DateTime.UtcNow - TimeSpan.FromHours(2) });
@@ -409,7 +409,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
         await using var monitor = new ToolHealthMonitor(fs, config: new ToolScoreConfig {
             SuccessDelta = 1, FailDelta = -5, DecayRatePerHour = 10.0, DecayRecoveryScore = 1
         });
-        await monitor.RecordFailureAsync("tool_a", "err");
+        await monitor.RecordFailureAsync("tool_a", "err"); await monitor.FlushAsync();
         var record = await monitor.GetRecordAsync("tool_a");
         record!.Score.Should().Be(-5);
         monitor.SetRecordForTest("tool_a", record! with { LastAdjusted = DateTime.UtcNow - TimeSpan.FromHours(2) });
@@ -427,7 +427,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
         await using var monitor = new ToolHealthMonitor(fs, config: new ToolScoreConfig {
             SuccessDelta = 1, FailDelta = -5, DecayRatePerHour = 1.0, DecayRecoveryScore = 1
         });
-        await monitor.RecordSuccessAsync("tool_a");
+        await monitor.RecordSuccessAsync("tool_a"); await monitor.FlushAsync();
         var record = await monitor.GetRecordAsync("tool_a");
         record!.Score.Should().Be(1);
         monitor.SetRecordForTest("tool_a", record! with { LastAdjusted = DateTime.UtcNow - TimeSpan.FromHours(10) });
@@ -445,7 +445,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
         await using var monitor = new ToolHealthMonitor(fs, config: new ToolScoreConfig {
             SuccessDelta = 1, FailDelta = -5, DecayRatePerHour = 1.0, DecayRecoveryScore = 1
         });
-        await monitor.RecordFailureAsync("tool_a", "err");
+        await monitor.RecordFailureAsync("tool_a", "err"); await monitor.FlushAsync();
         var record = await monitor.GetRecordAsync("tool_a");
         record!.Score.Should().Be(-5);
         monitor.SetRecordForTest("tool_a", record! with { IsEnabled = false, LastAdjusted = DateTime.UtcNow - TimeSpan.FromHours(5) });

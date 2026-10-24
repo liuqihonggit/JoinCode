@@ -250,10 +250,9 @@ public sealed class ReplShell
     /// recently-used 分组语义 = 用户常用命令）；SlashSuggester 空查询分组投影数据源；退出 fire-and-forget 持久化）。</summary>
     private readonly CommandUsageMemory _commandUsage = new();
 
-    /// <summary>bash 直通执行器（S10 接线 — `!` 前缀命令；Windows 宿主 cmd.exe /c，其余 bash -c）。</summary>
-    private readonly BashDirectExecutor _bash = OperatingSystem.IsWindows()
-        ? new BashDirectExecutor("cmd.exe", "/c")
-        : new BashDirectExecutor();
+    /// <summary>bash 直通执行器（S10 接线 — `!` 前缀命令；shell 由 defaultShell 键解析 —
+    /// DefaultShellResolver.Resolve(settings.defaultShell, isWindows)，未配置走平台默认）。</summary>
+    private readonly BashDirectExecutor _bash;
 
     /// <summary>bash 直通完成结果缓冲（S10 接线 — ExecuteAsync 完成于线程池线程，AddMessage 必须回主循环线程
     /// （与渲染循环竞争 _view.Messages），复用 /clear 的跨线程缓冲 + 主循环消费先例）。</summary>
@@ -598,7 +597,8 @@ public sealed class ReplShell
         double? wheelBaseLines = null,
         Func<Task<ImageAttachment?>>? readClipboardImage = null,
         string? statusLineTemplate = null,
-        Func<string?>? statusLineModelProvider = null)
+        Func<string?>? statusLineModelProvider = null,
+        string? defaultShell = null)
     {
         _engine = engine;
         _banner = banner;
@@ -642,6 +642,9 @@ public sealed class ReplShell
         // Host 读 statusline.enabled/format 后传参，theme 先例同模式）
         _statusLineTemplate = statusLineTemplate;
         _statusLineModelProvider = statusLineModelProvider;
+        // defaultShell 键激活 — DefaultShellResolver 解析 settings 值（bash/powershell）覆盖平台默认
+        var (shellFileName, commandFlag) = DefaultShellResolver.Resolve(defaultShell, OperatingSystem.IsWindows());
+        _bash = new BashDirectExecutor(shellFileName, commandFlag);
         // TASK066 板块 E 连线 E3 — vim 引擎装配（null = 关闭：全部按键走原编辑链零行为变化；
         // 开启 = INSERT 初始态 — 基准 createInitialVimState 返回 INSERT，types.ts:188-190）
         _vimEngine = vimMode ? new VimEngine() : null;

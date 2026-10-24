@@ -347,6 +347,8 @@ public static class Program {
                 // statusline 键激活 — statusline.enabled=true + statusline.format 模板
                 //（/statusline 命令写入的键，theme 先例同模式读取）
                 var statusLineTemplate = await LoadStatusLineTemplateAsync(session.Services).ConfigureAwait(false);
+                // C类 defaultShell 键 — settings.current.defaultShell（bash/powershell）覆盖平台默认
+                var defaultShell = await LoadSettingAsync(session.Services, "defaultShell").ConfigureAwait(false);
                 var rawInputPump = useRawStdinPump ? new RawStdinPump(terminalQuerier) : null;
                 // TASK066 板块A — 终端状态三路装配（标题/21337 tab/9;4 进度）：
                 // 标题写通道平台分流（基准 use-terminal-title.ts：Windows=process.title → Console.Title，
@@ -428,6 +430,8 @@ public static class Program {
                       // 闭包 — ReplShell 每帧变量替换投影 FooterState.StatusLine Row2 最优先渲染）
                       statusLineTemplate: statusLineTemplate,
                       statusLineModelProvider: () => session.Services.GetService<IFastModeService>()?.PrimaryModelId,
+                      // C类 defaultShell 键 — `!` 命令 shell 选择（settings.current.defaultShell 覆盖平台默认）
+                      defaultShell: defaultShell,
                       // TASK066 板块C P3 — 滚轮加速度基础步长（基准 CLAUDE_CODE_SCROLL_SPEED 旋钮 —
                       // readScrollSpeedBase :305-310 clamp (0,20] 默认 1；Core 不读 env 由宿主读传入，
                       // 对齐 idleReturnThresholdMinutes 先例）
@@ -625,6 +629,18 @@ public static class Program {
 
             var format = await config.GetAsync("statusline.format").ConfigureAwait(false);
             return string.IsNullOrWhiteSpace(format) ? null : format;
+        } catch (Exception ex) when (ex is InvalidOperationException or IOException) {
+            return null;
+        }
+    }
+
+    /// <summary>通用单键读取（theme/vim/statusline/defaultShell 先例同模式）：
+    /// 经 IConfigurationService 读取键值；服务缺失/读取失败返回 null。</summary>
+    private static async Task<string?> LoadSettingAsync(IServiceProvider services, string key) {
+        try {
+            return services.GetService<IConfigurationService>() is { } config
+                ? await config.GetAsync(key).ConfigureAwait(false)
+                : null;
         } catch (Exception ex) when (ex is InvalidOperationException or IOException) {
             return null;
         }

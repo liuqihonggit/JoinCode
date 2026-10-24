@@ -75,8 +75,8 @@ write 写入文件后,没有 read 读回验证内容一致。工具可能:
 
 ### B. 配对行为验证
 
-- [ ] write→read 配对:write 写入 `tmp/test.txt` content="hello" → read 读回 → 断言 Content 含 "hello"
-- [ ] create→list 配对:create `tmp/new.txt` → directory_list `tmp` → 断言结果含 "new.txt"
+- [x] write→read 配对:write 写入 `tmp/test.txt` content="hello" → read 读回 → 断言 Content 含 "hello" ✅ `McpToolSmokeTests.Write_Read_Behavior_Verification` 通过(commit 3278e02c7)
+- [ ] write→list 配对:create `tmp/new.txt` → directory_list `tmp` → 断言结果含 "new.txt" ❌ **阻塞:DI 容器 IFileSystem 注入不一致** — AddWorkflowServices 可能覆盖 InMemoryFileSystem 注册,directory_list 列真实磁盘而非 InMemory,看不到 write 写入的文件。需调查 AddWorkflowServices 内部 IFileSystem 注册,确保 InMemoryFileSystem 不被覆盖
 - [ ] edit→read 配对:write "old" → edit old→new → read → 断言含 "new" 不含 "old"
 - [ ] delete→read 配对:write 文件 → delete → read → 断言 [ERR] "not found"
 

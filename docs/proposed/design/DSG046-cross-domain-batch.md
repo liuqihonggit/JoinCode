@@ -1,6 +1,6 @@
 # DSG046 — 跨域批次（compact 闭环 / 重试感知 / 权限持久化）
 
-> 状态：proposed（TASK069 跨域登记项的实施方案 — 用户决策"全部做"后跨域设计）
+> 状态：accepted（TASK070 三批全部落地 — 6f28842a9 压缩闭环 / 60178d86b 重试感知 / 2c6dfc7b1 权限持久化；验收表见 TASK070 第五节）
 > 来源：TASK069 差异文档跨域批次清单（E2/P1-P2/C4/C6/B-6）
 > 锚点调研：引擎域代理已核对全部改造点（见下表）
 > 基准：withRetry.ts / permissions.ts / permissionRuleParser.ts / autoCompact.ts / compact.ts

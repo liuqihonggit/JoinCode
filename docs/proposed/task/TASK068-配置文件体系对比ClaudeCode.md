@@ -160,10 +160,9 @@ CurrentSettings 49 键审计结论：**A 类活跃 16 / B 类仅 /config 读写 
 - respectGitignore（61ac79d27）：AtFileSuggester 构造注入 isIgnored 委托 → ReplShell gitignorePredicate 透传 → Host LoadGitignorePredicateAsync 读 settings.respectGitignore（默认 true）+ 加载 .gitignore 构造 GitignoreMatcher 闭包
 - worktree（6c39aed9d）：AgentWorktreeService 构造注入 WorkflowConfig → _defaultOptions 从 config.Worktree（SparsePaths/SymlinkDirectories）构造
 
-**C类剩余 4 键登记差异待后续批次**（评估结论：sandbox 大-OS 级沙箱/availableModels 中等-跨模块白名单/enabledPlugins 中等-跨模块过滤/actor 大-Actor 系统重构）：
+**C类剩余 3 键登记差异待后续批次**（评估结论：sandbox 大-OS 级沙箱/enabledPlugins 中等-PluginContext 架构限制/actor 大-Actor 系统重构）：
 - sandbox：CodeSandboxService 4 字段（ReadOnlyFilesystem/AllowNetworkAccess/MaxMemoryMB/AllowedDirectories）需 OS 级沙箱子系统（容器/seccomp/AppContainer）— 当前临时目录编译运行轻量沙箱无法有意义消费，大改造
-- availableModels：ModelCatalog.GetModelsForProvider 加白名单过滤（settings.AvailableModels 与 IProviderDefinition.AvailableModels 取交集）— 需先映射到 WorkflowConfig + ModelCatalog 注入，跨 composition+guard
-- enabledPlugins：PluginManager.LoadWorkflowPluginCoreAsync 按 settings.EnabledPlugins 过滤 — 需先映射到 WorkflowConfig + PluginManager 注入，跨 plugins+guard
+- enabledPlugins：PluginContext 只有 IServiceCollection 无 IServiceProvider（容器未 build），无法在插件 LoadAsync 时读 WorkflowConfig 过滤 — 需 WorkflowPluginHost 加载前过滤或 PluginContext 架构改造
 - actor：ActorBackpressure 4 静态预设改为从 config.Actor 动态构造 — 影响 10+ Actor 子类，需新建"Actor 配置解析 + DI 注入"子系统
 
 ## 验收表（四列）

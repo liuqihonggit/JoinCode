@@ -37,4 +37,11 @@ public sealed class DreamContext : PipelineContextBase {
     public bool TurnRecorded { get; set; }
     /// <summary>任务是否已完成</summary>
     public bool TaskCompleted { get; set; }
+
+    /// <summary>时间门读到的前次合并时刻（TASK071 — gate 设置，注册中间件消费为 PriorMtime，
+    /// kill/失败回滚锁到该值 — 对齐 TS priorMtime 语义）。</summary>
+    public long PriorMtime { get; set; }
+
+    /// <summary>整合锁（gate 注入 — 成功 WriteNow/失败回滚共用；null = 无锁降级旧时间门）。</summary>
+    public ConsolidationLock? Lock { get; set; }
 }

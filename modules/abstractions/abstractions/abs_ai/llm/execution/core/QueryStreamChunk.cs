@@ -39,6 +39,10 @@ public sealed class QueryStreamChunk {
     public string? ModelId { get; init; }
     /// <summary>获取工具调用总数。</summary>
     public int TotalToolCalls { get; init; }
+
+    /// <summary>查询终止原因（TASK071 查询域 — 对齐 TS result subtype：end_turn/error_max_turns/
+    /// error_max_retries/error_max_budget_usd/stop_hook；null = 非终态 chunk。SDK/TUI 终态可观测）。</summary>
+    public string? StopReason { get; init; }
     /// <summary>获取美元成本。</summary>
     public decimal CostUsd { get; init; }
     /// <summary>获取缓存安全参数。</summary>

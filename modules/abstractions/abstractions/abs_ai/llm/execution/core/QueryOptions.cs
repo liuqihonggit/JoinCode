@@ -25,6 +25,11 @@ public sealed class QueryOptions {
     /// <summary>获取重试感知回调（TASK070 E2/DSG046 — QueryEngine 指数退避重试前触发；
     /// 主代理路径由 AgentBase.RetryNotifier 透传，SessionController 绑定 consumer.OnRetry 上屏。null = 静默重试旧行为）。</summary>
     public Action<QueryRetryNotification>? OnRetry { get; init; }
+
+    /// <summary>本次查询 Token 预算（TASK071 query2-④ — 对齐 TS taskBudget：AgentBase 从 SubAgentOptions.TokenBudget
+    /// 透传；QueryEngine 查询开始时 AllocateBudgetAsync 注入 — 驱动 HistorySnip 历史裁剪（旧零调用死代码）。
+    /// null/≤0 = 不设预算（GetRemaining 恒 MaxValue，不裁剪）。</summary>
+    public int? TokenBudget { get; init; }
     /// <summary>获取缓存安全参数。</summary>
     public CacheSafeParams? CacheSafeParams { get; init; }
     /// <summary>获取进度跟踪器。</summary>

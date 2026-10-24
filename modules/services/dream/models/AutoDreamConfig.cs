@@ -38,6 +38,10 @@ public sealed record AutoDreamConfig {
     /// 项目目录（用于扫描会话）
     /// </summary>
     public string? ProjectDir { get; init; }
+
+    /// <summary>当前活跃会话 ID（TASK071 服务域-③ — 对齐 TS autoDream.ts:163-165：
+    /// 会话门控计数排除当前会话 — 当前活跃会话恒满足 mtime 条件会虚增计数）。</summary>
+    public string? CurrentSessionId { get; init; }
 }
 
 /// <summary>

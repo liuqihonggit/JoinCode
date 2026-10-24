@@ -43,6 +43,7 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
             StartTime = DateTime.UtcNow,
             SessionsReviewing = request.SessionsReviewing,
             PriorMtime = request.PriorMtime,
+            RollbackLockAsync = request.RollbackLockAsync,
             AbortController = request.AbortController,
             Status = DreamTaskStatus.Running,
             Phase = DreamPhase.Starting
@@ -133,6 +134,11 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
         }
 
         task.Kill();
+
+        // TASK071 服务域-② — kill 回滚锁（与 InMemory 注册表同语义）
+        if (task.RollbackLockAsync is not null) {
+            await task.RollbackLockAsync(task.PriorMtime, CancellationToken.None).ConfigureAwait(false);
+        }
 
         using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             _activeTasks.Remove(taskId);

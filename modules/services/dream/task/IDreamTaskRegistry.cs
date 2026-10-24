@@ -68,10 +68,13 @@ public interface IDreamTaskRegistry : IRegistry {
 /// <param name="SessionsReviewing">审查中的会话数</param>
 /// <param name="PriorMtime">先前修改时间戳</param>
 /// <param name="AbortController">中止控制器</param>
+/// <param name="RollbackLockAsync">kill 时锁回滚回调（TASK071 服务域-② — 对齐 TS DreamTask.kill
+/// 自带回滚；null = 无锁场景跳过）</param>
 public sealed record DreamTaskRegistrationRequest(
     int SessionsReviewing,
     long PriorMtime,
-    CancellationTokenSource AbortController);
+    CancellationTokenSource AbortController,
+    Func<long, CancellationToken, Task>? RollbackLockAsync = null);
 
 /// <summary>
 /// 内存中的做梦任务注册表实现
@@ -102,6 +105,7 @@ public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsy
             SessionsReviewing = request.SessionsReviewing,
             PriorMtime = request.PriorMtime,
             AbortController = request.AbortController,
+            RollbackLockAsync = request.RollbackLockAsync,
             Status = DreamTaskStatus.Running,
             Phase = DreamPhase.Starting
         };
@@ -153,10 +157,10 @@ public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsy
 
         task.Kill();
 
-        // 如果有锁，回滚锁的mtime
-        if (task.PriorMtime > 0) {
-            // 这里需要通过外部传入ConsolidationLock来执行回滚
-            // 简化处理：只记录需要回滚
+        // TASK071 服务域-② — kill 回滚锁到 PriorMtime（时间门重新放行，kill 可安全重试；
+        // 对齐 TS rollbackConsolidationLock — 旧实现此处是空操作注释）
+        if (task.RollbackLockAsync is not null) {
+            await task.RollbackLockAsync(task.PriorMtime, CancellationToken.None).ConfigureAwait(false);
         }
 
         await Task.CompletedTask.ConfigureAwait(false);

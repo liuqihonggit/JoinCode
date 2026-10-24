@@ -179,6 +179,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
                                     var paramRequired = true;
                                     var paramDefault = (string?)null;
                                     var paramEnum = (string[]?)null;
+                                    var paramAliases = (string[]?)null;
 
                                     if (paramAttrInstance is not null) {
                                         var paramWellKnownMeta = TryGetWellKnownParamMeta(wellKnownParamEnum, paramMetaAttr, paramAttrInstance);
@@ -196,6 +197,8 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
                                                 paramDefault = dv;
                                             else if (named.Key == "EnumValues" && named.Value.Values.Length > 0)
                                                 paramEnum = named.Value.Values.Select(v => v.Value as string ?? "").ToArray();
+                                            else if (named.Key == "Aliases" && named.Value.Values.Length > 0)
+                                                paramAliases = named.Value.Values.Select(v => v.Value as string ?? "").Where(a => !string.IsNullOrEmpty(a)).ToArray();
                                         }
                                     }
 
@@ -217,7 +220,8 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
                                         param.HasExplicitDefaultValue,
                                         paramDefault,
                                         paramEnum,
-                                        null));
+                                        null,
+                                        paramAliases));
                                 }
 
                                 var returnTypeName = method.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
@@ -431,6 +435,34 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
         return "string";
     }
 
+    /// <summary>参数查找键链：显式别名（如 Grep 短旗标 "-B"）→ snake_case（规范名）→ camelCase（TS 基准模型习惯）。
+    /// TASK071 工具参数兼容 — 单点消除"模型按 ClaudeCode 习惯传参被静默丢弃"。</summary>
+    private static string BuildLookupExpr(ParamInfo param, string tempVar) {
+        var keys = new List<string>();
+        if (param.Aliases is { Length: > 0 } aliases) {
+            keys.AddRange(aliases);
+        }
+
+        var snake = ToSnakeCase(param.Name);
+        keys.Add(snake);
+        var camel = ToCamelCase(param.Name);
+        if (camel != snake) {
+            keys.Add(camel);
+        }
+
+        var parts = new List<string>();
+        for (var i = 0; i < keys.Count; i++) {
+            parts.Add(i == 0
+                ? "args.TryGetValue(\"" + EscapeString(keys[i]) + "\", out var " + tempVar + ")"
+                : "args.TryGetValue(\"" + EscapeString(keys[i]) + "\", out " + tempVar + ")");
+        }
+
+        return string.Join(" || ", parts);
+    }
+
+    private static string ToCamelCase(string name) =>
+        name.Length == 0 ? name : char.ToLowerInvariant(name[0]) + name.Substring(1);
+
     private static string GenerateArgExtractor(ParamInfo param) {
         var name = param.Name;
         var typeName = param.TypeName;
@@ -461,14 +493,14 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
                 ? $"new System.Collections.Generic.List<{GetSimpleTypeName(elementType).TrimEnd('?')}>()"
                 : $"Array.Empty<{GetSimpleTypeName(elementType).TrimEnd('?')}>()";
             var nullableSuffix = param.IsNullable ? "null" : emptyDefault;
-            return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) && __{name}El.ValueKind == System.Text.Json.JsonValueKind.Array ? __{name}El.EnumerateArray().Select(e => {elementExtractor}).{collectionMethod} : {nullableSuffix}";
+            return $"{BuildLookupExpr(param, "__" + name + "El")} && __{name}El.ValueKind == System.Text.Json.JsonValueKind.Array ? __{name}El.EnumerateArray().Select(e => {elementExtractor}).{collectionMethod} : {nullableSuffix}";
         }
 
         // 处理 Dictionary<string, JsonElement> 类型（非数组元素）
         if (IsDictionaryOfJsonElement(typeName)) {
             if (param.IsNullable || !param.Required)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) && __{name}El.ValueKind == System.Text.Json.JsonValueKind.Object ? __{name}El.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.Clone()) : null";
-            return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) && __{name}El.ValueKind == System.Text.Json.JsonValueKind.Object ? __{name}El.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.Clone()) : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
+                return $"{BuildLookupExpr(param, "__" + name + "El")} && __{name}El.ValueKind == System.Text.Json.JsonValueKind.Object ? __{name}El.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.Clone()) : null";
+            return $"{BuildLookupExpr(param, "__" + name + "El")} && __{name}El.ValueKind == System.Text.Json.JsonValueKind.Object ? __{name}El.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.Clone()) : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
         }
 
         // 使用简化类型名匹配，结合 IsNullable 判断
@@ -478,57 +510,57 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
         if (baseType == "string") {
             var elExpr = JsonElementToStringExpr($"__{name}El");
             if (isNullableType)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? {elExpr} : null";
+                return $"{BuildLookupExpr(param, "__" + name + "El")} ? {elExpr} : null";
             if (param.HasDefaultValue && param.DefaultValue is not null)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? {elExpr} ?? \"{EscapeString(param.DefaultValue)}\" : \"{EscapeString(param.DefaultValue)}\"";
+                return $"{BuildLookupExpr(param, "__" + name + "El")} ? {elExpr} ?? \"{EscapeString(param.DefaultValue)}\" : \"{EscapeString(param.DefaultValue)}\"";
             if (!param.Required)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? {elExpr} ?? \"\" : \"\"";
-            return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? {elExpr} ?? \"\" : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
+                return $"{BuildLookupExpr(param, "__" + name + "El")} ? {elExpr} ?? \"\" : \"\"";
+            return $"{BuildLookupExpr(param, "__" + name + "El")} ? {elExpr} ?? \"\" : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
         }
         if (baseType == "int") {
             if (isNullableType)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (int?)__{name}El.GetInt32() : null";
+                return $"{BuildLookupExpr(param, "__" + name + "El")} ? (int?)__{name}El.GetInt32() : null";
             if (param.HasDefaultValue && param.DefaultValue is not null)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetInt32() : {param.DefaultValue}";
+                return $"{BuildLookupExpr(param, "__" + name + "El")} ? __{name}El.GetInt32() : {param.DefaultValue}";
             if (!param.Required)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetInt32() : 0";
-            return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetInt32() : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
+                return $"{BuildLookupExpr(param, "__" + name + "El")} ? __{name}El.GetInt32() : 0";
+            return $"{BuildLookupExpr(param, "__" + name + "El")} ? __{name}El.GetInt32() : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
         }
         if (baseType == "long") {
             if (isNullableType)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (long?)__{name}El.GetInt64() : null";
+                return $"{BuildLookupExpr(param, "__" + name + "El")} ? (long?)__{name}El.GetInt64() : null";
             if (param.HasDefaultValue && param.DefaultValue is not null)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetInt64() : {param.DefaultValue}L";
+                return $"{BuildLookupExpr(param, "__" + name + "El")} ? __{name}El.GetInt64() : {param.DefaultValue}L";
             if (!param.Required)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetInt64() : 0L";
-            return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetInt64() : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
+                return $"{BuildLookupExpr(param, "__" + name + "El")} ? __{name}El.GetInt64() : 0L";
+            return $"{BuildLookupExpr(param, "__" + name + "El")} ? __{name}El.GetInt64() : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
         }
         if (baseType == "double") {
             if (isNullableType)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (double?)__{name}El.GetDouble() : null";
+                return $"{BuildLookupExpr(param, "__" + name + "El")} ? (double?)__{name}El.GetDouble() : null";
             if (param.HasDefaultValue && param.DefaultValue is not null)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetDouble() : {param.DefaultValue}";
+                return $"{BuildLookupExpr(param, "__" + name + "El")} ? __{name}El.GetDouble() : {param.DefaultValue}";
             if (!param.Required)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetDouble() : 0.0";
-            return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetDouble() : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
+                return $"{BuildLookupExpr(param, "__" + name + "El")} ? __{name}El.GetDouble() : 0.0";
+            return $"{BuildLookupExpr(param, "__" + name + "El")} ? __{name}El.GetDouble() : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
         }
         if (baseType == "float") {
             if (isNullableType)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (float?)__{name}El.GetSingle() : null";
+                return $"{BuildLookupExpr(param, "__" + name + "El")} ? (float?)__{name}El.GetSingle() : null";
             if (param.HasDefaultValue && param.DefaultValue is not null)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetSingle() : {param.DefaultValue}f";
+                return $"{BuildLookupExpr(param, "__" + name + "El")} ? __{name}El.GetSingle() : {param.DefaultValue}f";
             if (!param.Required)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetSingle() : 0.0f";
-            return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetSingle() : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
+                return $"{BuildLookupExpr(param, "__" + name + "El")} ? __{name}El.GetSingle() : 0.0f";
+            return $"{BuildLookupExpr(param, "__" + name + "El")} ? __{name}El.GetSingle() : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
         }
         if (baseType == "bool") {
             if (isNullableType)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (bool?)__{name}El.GetBoolean() : null";
+                return $"{BuildLookupExpr(param, "__" + name + "El")} ? (bool?)__{name}El.GetBoolean() : null";
             if (param.HasDefaultValue && param.DefaultValue is not null)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetBoolean() : {param.DefaultValue.ToLowerInvariant()}";
+                return $"{BuildLookupExpr(param, "__" + name + "El")} ? __{name}El.GetBoolean() : {param.DefaultValue.ToLowerInvariant()}";
             if (!param.Required)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetBoolean() : false";
-            return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetBoolean() : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
+                return $"{BuildLookupExpr(param, "__" + name + "El")} ? __{name}El.GetBoolean() : false";
+            return $"{BuildLookupExpr(param, "__" + name + "El")} ? __{name}El.GetBoolean() : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
         }
 
         // 可选参数有默认值时，不传则用默认值
@@ -539,7 +571,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
         if (!param.Required)
             return $"default({typeName})";
 
-        return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? {JsonElementToStringExpr($"__{name}El")} ?? \"\" : \"\"";
+        return $"{BuildLookupExpr(param, "__" + name + "El")} ? {JsonElementToStringExpr($"__{name}El")} ?? \"\" : \"\"";
     }
 
     /// <summary>
@@ -767,6 +799,20 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
                 sb.AppendLine($"                        Default = \"{EscapeString(param.DefaultValue)}\",");
             }
             sb.AppendLine("                    },");
+
+            // TASK071 工具参数兼容 — 别名属性同 schema 呈现（optional；模型按 TS 习惯传别名可命中）
+            if (param.Aliases is { Length: > 0 } schemaAliases) {
+                foreach (var alias in schemaAliases) {
+                    sb.AppendLine($"                    [\"{EscapeString(alias)}\"] = new ToolSchemaProperty");
+                    sb.AppendLine("                    {");
+                    sb.AppendLine($"                        Type = \"{(isArray ? "array" : actualType)}\",");
+                    sb.AppendLine($"                        Description = \"alias of {ToSnakeCase(param.Name)} — {EscapeString(param.Description)}\",");
+                    if (isArray) {
+                        sb.AppendLine($"                        Items = new ToolSchemaProperty {{ Type = \"{actualType}\" }},");
+                    }
+                    sb.AppendLine("                    },");
+                }
+            }
         }
 
         sb.AppendLine("                },");
@@ -974,17 +1020,20 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
         public bool HasDefaultValue { get; }
         public string? DefaultValue { get; }
         public string[]? EnumValues { get; }
+        /// <summary>显式参数别名（TASK071 — [McpToolParameter(Aliases=...)]：如 Grep 短旗标 "-B"）。</summary>
+        public string[]? Aliases { get; }
         /// <summary>
         /// 如果该参数从 [McpToolOptions] 参数的属性展开而来，记录原始方法参数名；否则为 null
         /// </summary>
         public string? OptionsParamName { get; }
 
-        public ParamInfo(string name, string typeName, string jsonType, string description, bool required, bool isNullable, bool hasDefaultValue, string? defaultValue, string[]? enumValues, string? optionsParamName = null) {
+        public ParamInfo(string name, string typeName, string jsonType, string description, bool required, bool isNullable, bool hasDefaultValue, string? defaultValue, string[]? enumValues, string? optionsParamName = null, string[]? aliases = null) {
             Name = name;
             TypeName = typeName;
             JsonType = jsonType;
             Description = description;
             Required = required;
+            Aliases = aliases;
             IsNullable = isNullable;
             HasDefaultValue = hasDefaultValue;
             DefaultValue = defaultValue;

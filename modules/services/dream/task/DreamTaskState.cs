@@ -57,6 +57,9 @@ public sealed class DreamTaskState {
     /// </summary>
     public long PriorMtime { get; init; }
 
+    /// <summary>kill 时锁回滚回调（TASK071 — 注册时随请求传入；null = 无锁）。</summary>
+    public Func<long, CancellationToken, Task>? RollbackLockAsync { get; init; }
+
     /// <summary>
     /// 最大保留回合数
     /// </summary>

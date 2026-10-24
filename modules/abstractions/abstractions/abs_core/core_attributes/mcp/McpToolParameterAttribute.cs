@@ -12,6 +12,9 @@ public sealed class McpToolParameterAttribute : Attribute {
     public string[]? EnumValues { get; set; }
     /// <summary>获取或设置 WellKnown 参数枚举 — 设定时生成器从注册表自动填充描述。</summary>
     public WellKnownParam? WellKnown { get; set; }
+    /// <summary>获取或设置参数别名键列表（TASK071 工具参数兼容 — 对齐 TS 基准参数名：
+    /// 如 Grep 上下文 "-B"/"-A"/"-C"；查找链 = 别名 → snake_case → camelCase）。</summary>
+    public string[]? Aliases { get; set; }
 
     /// <summary>构造 MCP 工具参数特性（手写描述）。</summary>
     public McpToolParameterAttribute(string description) {

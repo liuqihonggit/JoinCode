@@ -626,8 +626,9 @@ public class AgentBase : Entity, IAgent {
         var hasModelName = !string.IsNullOrEmpty(Options.ModelName);
         var effortLevel = JoinCode.Abstractions.LLM.EffortLevelHelper.ParseEffortLevel(Options.Effort);
         var hasRetryNotifier = RetryNotifier is not null;
+        var hasTokenBudget = Options.TokenBudget is > 0;
 
-        if (!hasAllowed && !hasDenied && !hasCacheSafeParams && !hasContentReplacementState && effortLevel is null && !hasModelName && !hasRetryNotifier)
+        if (!hasAllowed && !hasDenied && !hasCacheSafeParams && !hasContentReplacementState && effortLevel is null && !hasModelName && !hasRetryNotifier && !hasTokenBudget)
             return null;
 
         return new QueryOptions {
@@ -640,6 +641,7 @@ public class AgentBase : Entity, IAgent {
             EffortLevel = effortLevel,
             ModelId = Options.ModelName,
             OnRetry = RetryNotifier,
+            TokenBudget = Options.TokenBudget,
         };
     }
 

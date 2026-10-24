@@ -179,7 +179,7 @@ public sealed class DreamMiddlewareTests {
 
         var pipeline = new PipelineBuilder<DreamContext>()
             .WithShortCircuit(ctx => ctx.Result is not null)
-            .Use(new DreamGateCheckMiddleware(_sessionScanner.Object, _config, NullLogger<DreamGateCheckMiddleware>.Instance))
+            .Use(new DreamGateCheckMiddleware(_sessionScanner.Object, _config, NullLogger<DreamGateCheckMiddleware>.Instance, new ConsolidationLock(_config, new Testing.Common.Services.InMemoryFileSystem())))
             .Use(new DreamSessionScanMiddleware(_sessionScanner.Object, _config, NullLogger<DreamSessionScanMiddleware>.Instance))
             .Use(new DreamTaskRegisterMiddleware(_taskRegistry, _config))
             .Use(new DreamPromptBuildMiddleware())

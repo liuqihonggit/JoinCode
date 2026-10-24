@@ -29,6 +29,9 @@ public sealed partial class DiminishingReturnsMiddleware : ServiceEntity, IQuery
     /// <returns>表示异步操作的任务</returns>
     public Task InvokeAsync(QueryMiddlewareContext context, MiddlewareDelegate<QueryMiddlewareContext> next, CancellationToken ct) {
         if (_detector is not null) {
+            // TASK071 query2-⑤ — 每查询 Reset（Detector 为 DI Singleton，旧无重置 → 连续低增长计数跨查询/
+            // 跨会话泄漏，把首查询的疲惫误判到后续查询上）
+            _detector.Reset();
             context.AfterToolCallHooks.Add(CheckDiminishingReturnsAsync);
         }
 

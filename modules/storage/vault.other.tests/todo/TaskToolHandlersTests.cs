@@ -36,18 +36,6 @@ public sealed class TaskToolHandlersTests {
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
-    public async Task TaskStopAsync_EmptyTaskId_ReturnsEmptyTaskIdDiagnostic() {
-        var sut = CreateSut();
-
-        var result = await sut.TaskStopAsync("  ").ConfigureAwait(true);
-
-        result.IsError.Should().BeTrue();
-        result.Diagnostic.Should().NotBeNull();
-        result.Diagnostic!.Reason.Should().Be("EmptyTaskId");
-    }
-
-    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    [Fact]
     public async Task TaskGetAsync_EmptyTaskId_ReturnsEmptyTaskIdDiagnostic() {
         var sut = CreateSut();
 

@@ -60,7 +60,14 @@
 **协议层系统性不对齐（高优先级修复面）**：stdin 输入 JSON 不写、字段 snake_case vs camelCase 双契约、基础字段（cwd/transcript_path/session_id）缺失、CLAUDE_* 环境变量族未注入、HTTP wire format 分叉、输出解析只认单行 JSON、approve/systemMessage/suppressOutput 丢弃、ask/allow/updatedInput 不进权限流、trust 门禁缺失（安全）。
 **域级架构差异**：文件式插件生态（manifest/marketplace/组件目录）整体缺失；AppState 缺 ~20 组切片。
 
-### 查询/助手/成本域（调研中）
+### 查询/助手/成本域（已完成调研 — query2 三条控制链"有壳无芯"）
+
+**TASK069 判定更新**：成本 USD 记账已实现（CostTracker + ChatUsageProcessor 接线），不再报缺失。
+**确认 bug（接线断裂 — 待修最高优先）**：① UsdBudgetManager.RecordCostAsync 全仓零调用（USD 预算熔断完全失效）；② ITokenCostTracker 无 DI 注册 → query2 Complete 的 CostUsd 恒 0（两套成本口径不联通）；③ StopHookMiddleware 无 isMeta 消息回灌（无法阻止过早结束）+ sessionId 硬编码 "session-id"；④ TokenBudgetMiddleware.AllocateBudgetAsync 零调用 → 历史裁剪死代码；⑤ DiminishingReturnsDetector Singleton 跨查询泄漏。
+**结构化输出**：TS 有 MAX_RETRIES=5 熔断 + result.structured_output 回传，C# 无限重试风险。
+**行为差异/缺失（登记）**：Complete chunk 缺 duration_api_ms/num_turns/stop_reason/modelUsage 协议字段；query2 无 transcript 预持久化；buddy stats/soul 残缺（GetBuddyPrompt 零调用）；proactive nextTickAt 不可观测；远端会话历史分页缺失。
+
+## 处置原则（用户指令 2026-10-25）
 
 ## 处置原则（用户指令 2026-10-25）
 

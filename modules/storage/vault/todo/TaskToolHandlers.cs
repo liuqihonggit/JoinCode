@@ -135,43 +135,6 @@ public class TaskToolHandlers {
     }
 
     /// <summary>
-    /// 停止任务
-    /// </summary>
-    [McpTool(TaskToolNameEnumConstants.TaskStop, "Stop a task", "task")]
-    public async Task<ToolResult> TaskStopAsync(
-        [McpToolParameter("Task ID")] string task_id,
-        [McpToolParameter("Stop reason (optional)", Required = false)] string? reason = null,
-        CancellationToken cancellationToken = default) {
-        var command = new TaskStopCommand(task_id, reason);
-        var validationError = ValidateCommand(command);
-        if (validationError is not null) {
-            return ToolResultBuilder.Error().WithText(validationError.FormattedMessage).WithDiagnostic(validationError).Build();
-        }
-
-        var result = await _taskService.StopTaskAsync(
-            command.TaskId,
-            command.Reason,
-            cancellationToken).ConfigureAwait(false);
-
-        if (!result.Success) {
-            var errorMsg = result.ErrorMessage ?? L.T(StringKey.VaultStopTaskFailed);
-            var diagnostic = ToolDiagnostic.Create("ServiceFailure", errorMsg,
-                [new DiagnosticDetail("operation", "StopTask"), new DiagnosticDetail("taskId", command.TaskId)],
-                ["确认 task_id 是否存在，可先调用 task_list 获取已有任务的 ID。"]);
-            return ToolResultBuilder.Error().WithText(errorMsg).WithDiagnostic(diagnostic).Build();
-        }
-
-        var response = new System.Text.StringBuilder();
-        response.AppendLine(L.T(StringKey.VaultTaskStopped, command.TaskId));
-
-        if (!string.IsNullOrEmpty(command.Reason)) {
-            response.AppendLine(L.T(StringKey.VaultLabelReason, command.Reason));
-        }
-
-        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-    }
-
-    /// <summary>
     /// 获取任务详情
     /// </summary>
     [McpTool(TaskToolNameEnumConstants.TaskGet, "Get task details", "task")]
@@ -365,7 +328,6 @@ public class TaskToolHandlers {
         return command switch {
             TaskCreateCommand cmd => string.IsNullOrWhiteSpace(cmd.Title) ? BuildEmptyFieldDiagnostic("EmptyTitle", "title", L.T(StringKey.VaultTitleCannotBeEmpty)) : null,
             TaskUpdateCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? BuildEmptyTaskIdDiagnostic() : null,
-            TaskStopCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? BuildEmptyTaskIdDiagnostic() : null,
             TaskGetCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? BuildEmptyTaskIdDiagnostic() : null,
             TaskSetDependencyCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? BuildEmptyTaskIdDiagnostic()
                 : string.IsNullOrWhiteSpace(cmd.DependsOnTaskId) ? BuildEmptyFieldDiagnostic("EmptyDependsOnTaskId", "depends_on_task_id", L.T(StringKey.VaultDependsOnTaskIdCannotBeEmpty)) : null,

@@ -19,7 +19,7 @@
 | `dsh-client-ui-sidebar-terminal` + `dsh-api-terminal-controller` | 侧栏终端面板 | `terminal/{environment,list,shells,create,write,resize,rename,close,retain}` + `terminal/follow` 流 | ✅ ConPTY + 10 方法 + follow/retain；子进程标准句柄显式置空（不继承宿主重定向） | 单测 11 例 + `dsh-webui-terminal.mjs` RPC ALL_PASS + `dsh-webui-terminal-panel.mjs` 界面 11 项 ALL_PASS（真实 pwsh 执行 echo、cwd、无错误条） |
 | `dsh-client-ui-jobs` + `dsh-api-job-controller` | 后台任务面板 | `job/list`、`job/follow` 流、`job/kill` | ✅ 后台代理投影 + rows/output/status | 单测 5 例 + `dsh-webui-jobs.mjs` ALL_PASS（opened 需存在后台代理时覆盖） |
 | `dsh-client-ui-sidebar-files` + `dsh-api-workspace-files` | 文件树 | `workspaceFiles/{list,read,readBytes,stat}` + `workspaceFiles/changes` 流 | ✅ 一元 + ready/change/absent/error 帧；路径支持前端绝对路径（根内校验）；readBytes 走 multipart 二进制 | 单测 11 例 + `c5-stream-e2e.mjs` 8 项 ALL_PASS |
-| `dsh-client-ui-sidebar-documentpreview` | PDF/Excel/图片预览 | `workspaceFiles/readBytes`（multipart 字节附件） | ✅ 资产打包 + 缓存完整性校验 + 二进制契约 | `dsh-webui-c5-preview.mjs` 12 项 ALL_PASS（PDF 3 页、Excel 画布渲染） |
+| `dsh-client-ui-sidebar-documentpreview` | PDF/Excel/图片预览 | `workspaceFiles/readBytes`（multipart 字节附件）+ `officeToPdf/{generation,render}`（诚实拒绝） | ✅ 资产打包 + 缓存完整性校验 + 二进制契约；PDF/Excel/图片可用，docx/pptx 转换服务未接入 → `gateway/service-unavailable` + 替代方案引导 | `dsh-webui-c5-preview.mjs` 12 项 ALL_PASS（PDF 3 页、Excel 画布渲染）+ `dsh-webui-unsupported.mjs` 真机（render 错误形状与文案） |
 | `dsh-client-ui-approval` | 审批面板 | `$events` waterfall + `$events/result` + 审计事件 | ✅ TASK060 B10/B12 | `dsh-webui-approval.mjs` 48/48 |
 | `dsh-client-ui-goal` | 目标条 | `goals/*` 七方法 + `goal` 会话投影 + `session/control` 实时帧 | ✅ agent 作用域七方法（create 用 `request` 信封、edit 用 `request`、clear 返回裸 `{id,revision}`、get 无目标为 undefined）；投影面无目标 JSON `null`，有目标 `{goal,roundsStarted,createdAt,updatedAt}`（不含 activation） | 单测 5 例 + `c7-goal-e2e.mjs` 真机 28 项 ALL_PASS（目标条渲染、暂停/恢复/编辑/清除、控制帧 seq 水位） |
 | `dsh-client-ui-plan` | 计划面板 | `plan/mode` 事件 + `session/control` 投影 + `/plan on|off|status` | ✅ 权限预设 → 引擎 `PermissionMode` → `plan{active,pending=false}` / `permissions{currentValue}` 投影；前端 chip 点击走 `commands/execute /plan off` 宿主拦截 | 单测 8 例 + `c6-e2e.mjs` 真机 30 项（chip 出现/点击/选择器同步） |
@@ -33,7 +33,7 @@
 | `dsh-client-ui-session` | 会话搜索/标题 | `session/rename`、`session/search` | ✅ 字面量搜索 + 20 条上限 + 240 字片段 | 单测（片段/hasMore）+ 真机 E2E |
 | `dsh-client-ui-user-questions` | AskUserQuestion 卡片 | `$events` waterfall `user-questions/request` + `$events/result` + 结算后 `{type:"cancel",eventId}` | ✅ 引擎 `ask_user_question` → 单卡多问（单选自动翻页、多选、自填、跳过）；`userQuestions/answer` 诚实返回 false（宿主无 continued 队列），`userQuestions/attachWait` 空流（无 timed wait） | 单测 10 例 + `dsh-webui-questions.mjs` 真机 23 项 ALL_PASS（五键帧、q0/q1、单选翻页、多选 A/B、提交后工具结果 `"问题"="答案"`、cancel 帧、turn/end completed） |
 | `dsh-client-ui-trajectory` / `deliverables` / `workflow-run` | 轨迹/产物/工作流 | 会话事件 + `api/changes.{summary,diff,open}` + `api/present.{host,open}` | ✅ 轨迹消费轮次事件；deliverables 每轮收口推 `workspace/changes` + 摘要/对比/原生打开；workflow-run 读轮次事件（引擎无独立工作流运行时） | 单测（改动收集 5 例）+ `c7-changes-e2e.mjs` 27 项 + `c7-trajectory-e2e.mjs` 16 项真机 ALL_PASS |
-| `dsh-client-ui-plugin-manager` / `cordis` | 插件管理 | `pluginInventory/list` | ✅ 返回 `managementAvailable=false` + 空清单（本部署无插件 profile，前端显示空态而非网络错误） | 单测 1 例 |
+| `dsh-client-ui-plugin-manager` / `cordis` | 插件管理 | `pluginInventory/list` + `pluginManager/*`（读写诚实化）+ `pluginRegistryProbe/fastest` + `dynamicCordisRunner/{inventory,stopFromPanel,undefineFromPanel}` | ✅ 清单 `managementAvailable=false`；读路径回空清单/空注册表/null，写路径 `plugin-manager/rejected` 引导；Cordis 面板动作回 `{ok:false,reason:"plugin-missing"}` | 单测 6 例 + `dsh-webui-unsupported.mjs` 真机 ALL_PASS（插件页空态「本部署没有可管理的 profile」） |
 | `dsh-api-workspace-controller` | 工作区路径应用 | `session/{openWorkspacePath,workspacePathApplications,canOpenWorkspacePath,initializeDefaultModel}` | ✅ 仅公布资源管理器处理器；能力探测返回桌面宿主；默认模型初始化按本地设置直通 | 单测（引导文案/能力探测）+ 真机 E2E |
 | `dsh-client-ui-agent-preset` | 代理预设 | `agentPresets/{list,read,select}` | ✅ 公布 standard（默认项读 `agent-preset-registry.selectedDefault`） | 单测 + 真机 E2E |
 | `dsh-client-ui-open-in-app` / `shortcuts` / `theme` / `brand` | 外壳能力 | 前端独立 + 主题桥 | ✅ | 截图 |
@@ -65,6 +65,7 @@
 | C8 | 提问卡片：`user-questions/request` waterfall + 批量回帖 + 结算 cancel 帧 | ✅ 已验收（单测 10 + `dsh-webui-questions.mjs` 真机 23 项 ALL_PASS） |
 | C9 | 会话反馈：`sessionFeedback/record` request 信封 + `feedback/record` 日志事件 + 契约错误联合体 | ✅ 已验收（单测 4 + `dsh-webui-session-feedback.mjs` 真机 18 项 ALL_PASS） |
 | C10 | 模型页与凭据：供应商虚拟命名空间 `settings/describe|mutate`（`providers_llm/config.json` + `models.json`）、`credentials/{describe,set,unset}` 共用 `auth.json`、`llm/discoverModels`、`@` 会话引用 `sessionReferenceResolver/candidates` | ✅ 已验收（单测 12 + `dsh-webui-models-settings.mjs` 27 项、`dsh-webui-credentials-references.mjs` 23 项真机 ALL_PASS） |
+| C11 | 未接线表面诚实化：`account/*` 部署级引导、`pluginManager/*` 空态/拒绝、`pluginRegistryProbe/fastest` null、`officeToPdf/*` 服务不可用引导、`dynamicCordisRunner/{stopFromPanel,undefineFromPanel}` plugin-missing | ✅ 已验收（单测 6 + `dsh-webui-unsupported.mjs` 13 项真机 ALL_PASS，插件页显示不可管理空态） |
 
 ## 四、验收四列表（滚动更新）
 
@@ -113,6 +114,10 @@
 | `DshCredentialStore` + `DshRpcDispatcher.credentials/*`（`DeriveKeyRef` 路由映射、env 优先、可写判定、设置后热更新引擎） | 模型页 API 密钥输入/清除、模型发现复用密钥 | ✅ | ✅ 单测 6 例（含环境变量遮蔽时拒绝移除且不改盘）+ `dsh-webui-credentials-references.mjs` 真机 ALL_PASS（UI 填密钥→auth.json 加密、describe=stored、unset→false、env 拒绝指名变量） |
 | `DshModelDiscoveryService`（`llm/discoverModels`：OpenAI/Anthropic 响应归一、基址版本段自适应、20s 超时、500 条上限、协议鉴权头） | 模型页「发现模型」按钮、供应商模型清单刷新 | ✅ | ✅ 单测（Bearer/x-api-key、`context_length` 映射、错误引导）+ 真机 `discoverModels 复用已存密钥` 命中 `stub-model` |
 | `DshSessionStore.ReferenceCandidatesAsync` + `sessionReferenceResolver/candidates` 路由（排除自身、标题/ID/目录匹配、同工作区优先、最多 20 条） | 输入框 `@` 菜单「会话」分组、mention chip | ✅ | ✅ 单测（命中/排除自身/未知会话 context-not-found）+ `dsh-webui-credentials-references.mjs` 真机（fork→rename→候选命中→`@参考` 菜单出现会话） |
+| `DshRpcDispatcher.Unrouted`（`account/*` 前缀 → `account/unsupported` 部署级引导） | 账号设置页（仅在 DSH 桌面渲染器挂载；Web 端 `dshDesktop` 缺失不注册） | ✅ | ✅ 单测 1 例 + `dsh-webui-unsupported.mjs` 真机（`dshDesktop` 探测 + getState 错误文案） |
+| `DshPluginRegistriesView` / `DshPluginVersionExemptions` + `pluginManager/*` 读写路由（读路径空形状、写路径 `plugin-manager/rejected`）+ `pluginRegistryProbe/fastest` → null | 插件页空态与安装入口（无 profile 时不触发写路径） | ✅ | ✅ 单测 2 例 + 真机 ALL_PASS（插件页显示「本部署没有可管理的 profile，无法安装或启停插件」） |
+| `officeToPdf/generation` 稳定令牌 + `officeToPdf/render` → `gateway/service-unavailable`（含 PDF/xlsx 替代方案） | docx/pptx 预览失败提示（前端把该错误码映射为「不可用」） | ✅ | ✅ 单测 1 例 + 真机 ALL_PASS（错误码与文案含 PDF 替代路径） |
+| `DshCordisPanelActionResult` + `dynamicCordisRunner/{stopFromPanel,undefineFromPanel}` → `{ok:false,reason:"plugin-missing"}` | Cordis 面板停止/移除按钮（inventory 为空时不渲染行，直接调用也有可读失败） | ✅ | ✅ 单测 1 例 + 真机 ALL_PASS（两个动作均回 plugin-missing，不再 unknown method） |
 
 <!-- 🤖 Auto Decision: 2026-10-22 -->
 <!-- 决策: 新建 TASK066 而非复用 TASK065（同名文档已被 TUI 任务占用） -->
@@ -222,3 +227,9 @@
 <!-- 原因: 共享真实 home 会污染用户 auth.json，且开发机环境里的 DEEPSEEK_API_KEY 会遮蔽已存密钥，使「set→describe=stored」这类断言无法稳定复现；空值让 describe 按 stored 路径回答，同时保留 STUB_API_KEY 供引擎走本地桩 -->
 <!-- 替代方案: 直接写真实 home（污染用户凭据）/ 在断言里容忍 env（无法验证落盘链路），均不采用 -->
 <!-- 验证: dsh-webui-credentials-references.mjs 23 项 ALL_PASS（UI 保存→auth.json 仅密文、RPC unset→configured=false、env 移除被拒） -->
+
+<!-- 🤖 Auto Decision: 2026-10-25 (未接线表面诚实化：账号/插件/Office/Cordis) -->
+<!-- 决策: account/* 走前缀兜底返回 account/unsupported（账号 UI 只在 DSH 桌面渲染器注册，Web 端 dshDesktop 缺失）；pluginManager 读路径回空清单/空注册表/空豁免 + fastest=null，写路径回 plugin-manager/rejected；officeToPdf/generation 回稳定字符串、render 回 gateway/service-unavailable；Cordis 面板动作回严格 schema 的 {ok:false,reason:"plugin-missing"} -->
+<!-- 原因: 前端 strict 解码要求形状正确——直接 unknown method 只会显示「网络问题/未知方法」，用户无法判断是本部署不支持还是临时故障；插件页先读 pluginInventory，managementAvailable=false 时不会进入写路径，所以读路径给空形状即可呈现空态；docx/pptx 预览依赖 Office→PDF，本地没有转换进程，诚实回不可用并给出 PDF/xlsx 替代路径；Cordis inventory 为空时面板不渲染行，但直接调用仍需可读结果 -->
+<!-- 替代方案: 全部返回 unimplemented（前端 toast 只有技术错误，用户不知道下一步）/ 假装安装成功（前端进入无实际插件的假状态）/ 引入 Office 转换依赖（体积与运行时成本远超预览需求），均不采用 -->
+<!-- 验证: 单测 6 例全绿（空形状、写拒绝、generation 字符串、render 错误码、plugin-missing、account 前缀）；dsh-webui-unsupported.mjs 真机 13 项 ALL_PASS（真实宿主 /api 调用 + 插件页空态文案 + dshDesktop 探测）；Host Debug 0 警告 0 错误 -->

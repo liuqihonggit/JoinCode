@@ -16,6 +16,9 @@ internal sealed class DshRpcDispatcher {
     /// <summary>会话列表一次返回的最大条数（前端空 cursor 即从头拉取）</summary>
     private const int SessionListLimit = DshSessionStore.MaxSessions;
 
+    /// <summary>Office→PDF 的 generation 令牌（本地宿主没有转换服务，仅给前端一个稳定字符串）</summary>
+    private const string OfficePdfGeneration = "local-host-no-office-conversion";
+
     /// <summary>分发表：方法名 → 处理器（命名函数，便于替换与检索）</summary>
     private readonly FrozenDictionary<string, Handler> _routes;
 
@@ -68,8 +71,29 @@ internal sealed class DshRpcDispatcher {
             ["subagents/interruptByParent"] = SubagentInterruptByParent,
             ["dynamicCordisRunner/inventory"] = Sync(_ => OkEmptyArray()),
             ["dynamicCordisRunner/syncInspectManifest"] = Sync(_ => OkNull()),
+            // Cordis 面板停止/移除：本地宿主没有动态插件运行时，按严格 schema 回 plugin-missing（不再落 unknown method）
+            ["dynamicCordisRunner/stopFromPanel"] = Sync(_ => Ok(CordisPluginMissing("停止"))),
+            ["dynamicCordisRunner/undefineFromPanel"] = Sync(_ => Ok(CordisPluginMissing("移除"))),
             // 插件页（TASK066 C7）：宿主没有可管理的 profile，诚实回 managementAvailable=false
             ["pluginInventory/list"] = Sync(_ => Ok(new DshPluginInventorySnapshot())),
+            // 插件管理器读路径：无 profile 时给空清单/空注册表，页面显示空态而不是网络错误
+            ["pluginManager/listBundles"] = Sync(_ => OkEmptyArray()),
+            ["pluginManager/listPlugins"] = Sync(_ => OkEmptyArray()),
+            ["pluginManager/registries"] = Sync(_ => Ok(new DshPluginRegistriesView())),
+            ["pluginManager/listVersionExemptions"] = Sync(_ => Ok(new DshPluginVersionExemptions())),
+            ["pluginRegistryProbe/fastest"] = Sync(_ => OkNull()),
+            // 插件管理器写路径：本部署不支持安装/启停，拒绝并解释原因与下一步
+            ["pluginManager/inspect"] = Sync(_ => PluginManagementRejected("inspect")),
+            ["pluginManager/installBundle"] = Sync(_ => PluginManagementRejected("installBundle")),
+            ["pluginManager/waitForInstall"] = Sync(_ => PluginManagementRejected("waitForInstall")),
+            ["pluginManager/cancelInstall"] = Sync(_ => PluginManagementRejected("cancelInstall")),
+            ["pluginManager/removeBundle"] = Sync(_ => PluginManagementRejected("removeBundle")),
+            ["pluginManager/setBundleEnabled"] = Sync(_ => PluginManagementRejected("setBundleEnabled")),
+            ["pluginManager/setPluginEnabled"] = Sync(_ => PluginManagementRejected("setPluginEnabled")),
+            ["pluginManager/setVersionExemption"] = Sync(_ => PluginManagementRejected("setVersionExemption")),
+            // Office→PDF：本地宿主未接入转换服务，读一次generation后 render 明确不可用（docx/pptx 预览提示改用 PDF/xlsx）
+            ["officeToPdf/generation"] = Sync(_ => Success(JsonSerializer.SerializeToElement(OfficePdfGeneration, DshJsonContext.Default.String))),
+            ["officeToPdf/render"] = Sync(_ => OfficePdfUnavailable()),
             ["directoryPicker/pick"] = Pick,
             ["directoryPicker/list"] = Sync(DirectoryPickerList),
             ["directoryPicker/createDirectory"] = Sync(DirectoryPickerCreateDirectory),
@@ -122,7 +146,14 @@ internal sealed class DshRpcDispatcher {
     internal Task<DshRpcResult> HandleAsync(string method, JsonElement args, CancellationToken cancellationToken = default) =>
         _routes.TryGetValue(method, out var handler)
             ? handler(args, cancellationToken)
-            : Task.FromResult(Fail("unimplemented", $"宿主尚未实现方法 {method}；请在 DshRpcDispatcher 的路由表注册处理器"));
+            : Task.FromResult(Unrouted(method));
+
+    /// <summary>未注册方法：account/* 给部署级引导，其余给路由表引导</summary>
+    private static DshRpcResult Unrouted(string method) =>
+        method.StartsWith("account/", StringComparison.Ordinal)
+            ? Fail("account/unsupported",
+                $"本部署不接入 DeepSeek 平台账号（{method}）；模型鉴权请在 设置→模型 中为供应商保存 API Key，账号登录仅 DSH 桌面客户端提供")
+            : Fail("unimplemented", $"宿主尚未实现方法 {method}；请在 DshRpcDispatcher 的路由表注册处理器");
 
     /// <summary>把同步处理器适配为异步签名</summary>
     private static Handler Sync(Func<JsonElement, DshRpcResult> handler) => (args, _) => Task.FromResult(handler(args));
@@ -1497,6 +1528,29 @@ internal sealed class DshRpcDispatcher {
     private static DshRpcResult Ok(DshCommandsExecuteResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshCommandsExecuteResult));
 
     private static DshRpcResult Ok(Dictionary<string, DshCredentialState> value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DictionaryStringDshCredentialState));
+
+    private static DshRpcResult Ok(DshPluginRegistriesView value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshPluginRegistriesView));
+
+    private static DshRpcResult Ok(DshPluginVersionExemptions value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshPluginVersionExemptions));
+
+    private static DshRpcResult Ok(DshCordisPanelActionResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshCordisPanelActionResult));
+
+    /// <summary>插件管理写路径拒绝：说明本部署没有 profile + 下一步去哪管理</summary>
+    private static DshRpcResult PluginManagementRejected(string method) =>
+        Fail("plugin-manager/rejected",
+            $"宿主未启用插件管理，无法执行 pluginManager/{method}；pluginInventory/list 已返回 managementAvailable=false（本部署没有插件 profile），请改用可执行文件自带的插件清单，或在 DSH 桌面客户端的插件页管理");
+
+    /// <summary>Cordis 面板动作结果：没有动态插件运行时，按严格 schema 回 plugin-missing</summary>
+    private static DshCordisPanelActionResult CordisPluginMissing(string action) => new() {
+        Ok = false,
+        Reason = "plugin-missing",
+        Message = $"本地宿主没有 Cordis 动态插件运行时（inventory 为空），无法{action}该插件；如需动态插件请在 DSH 宿主面板中操作",
+    };
+
+    /// <summary>Office→PDF 不可用引导：解释为什么 + 可行替代预览方式</summary>
+    private static DshRpcResult OfficePdfUnavailable() =>
+        Fail("gateway/service-unavailable",
+            "本地宿主未接入 Office→PDF 转换服务，docx/pptx 无法转成 PDF 预览；请先用 WPS/LibreOffice 另存为 PDF 后预览，xlsx/csv 可直接用表格预览（不依赖该服务）");
 
     private static DshRpcResult OkEmptyArray() => Success(JsonSerializer.SerializeToElement(Array.Empty<JsonElement>(), DshJsonContext.Default.JsonElementArray));
 

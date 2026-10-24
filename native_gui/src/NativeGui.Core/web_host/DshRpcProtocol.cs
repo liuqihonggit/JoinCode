@@ -1726,6 +1726,39 @@ internal sealed class DshPluginInventorySnapshot {
     public List<DshPluginInventoryEntry> Entries { get; set; } = [];
 }
 
+/// <summary>pluginManager/registries 结果（本部署无注册表配置，三项均为空）</summary>
+internal sealed class DshPluginRegistriesView {
+    /// <summary>主注册表地址（无配置时为 null）</summary>
+    public string? Registry { get; set; }
+    /// <summary>回退注册表（无配置时为空）</summary>
+    public List<string> FallbackRegistries { get; set; } = [];
+    /// <summary>解析后的注册表（无配置时为 null）</summary>
+    public string? Resolved { get; set; }
+}
+
+/// <summary>pluginManager/listVersionExemptions 结果（本部署无豁免配置）</summary>
+internal sealed class DshPluginVersionExemptions {
+    /// <summary>按包名分组的豁免版本</summary>
+    public Dictionary<string, List<string>> Exemptions { get; set; } = [];
+    /// <summary>读取告警（无配置时为空）</summary>
+    public List<string> Warnings { get; set; } = [];
+}
+
+/// <summary>Cordis 面板停止/移除结果（严格 schema：成功或 plugin-missing 二选一）</summary>
+internal sealed class DshCordisPanelActionResult {
+    /// <summary>是否执行成功</summary>
+    public bool Ok { get; set; }
+    /// <summary>失败原因（plugin-missing）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Reason { get; set; }
+    /// <summary>失败说明（面向用户）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Message { get; set; }
+    /// <summary>移除时是否仍在运行（成功路径使用；本宿主不产生成功路径）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? WasRunning { get; set; }
+}
+
 /// <summary>插件清单条目（严格 schema 要求 entryId/moduleName/enabled/fiberPhase）</summary>
 internal sealed class DshPluginInventoryEntry {
     /// <summary>条目身份</summary>

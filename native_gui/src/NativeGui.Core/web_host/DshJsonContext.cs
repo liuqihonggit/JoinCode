@@ -281,5 +281,8 @@
 [JsonSerializable(typeof(DshUpdateQueueArgs))]
 [JsonSerializable(typeof(DshQueueAcceptedResult))]
 [JsonSerializable(typeof(DshPluginInventorySnapshot))]
+[JsonSerializable(typeof(DshPluginRegistriesView))]
+[JsonSerializable(typeof(DshPluginVersionExemptions))]
+[JsonSerializable(typeof(DshCordisPanelActionResult))]
 [JsonSerializable(typeof(object))]
 internal sealed partial class DshJsonContext : JsonSerializerContext;

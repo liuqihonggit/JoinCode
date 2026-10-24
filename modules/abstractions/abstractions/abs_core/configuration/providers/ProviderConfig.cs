@@ -20,9 +20,9 @@ public sealed record ProviderConfig {
     public string Protocol { get; init; } = ProtocolKind.OpenAiCompatible.ToValue();
 
     /// <summary>
-    /// API Key
+    /// API Key（可运行时更新：GUI 模型页保存密钥后写回，下一次请求即生效）
     /// </summary>
-    public string ApiKey { get; init; } = string.Empty;
+    public string ApiKey { get; set; } = string.Empty;
 
     /// <summary>
     /// 模型 ID

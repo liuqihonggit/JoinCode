@@ -16,6 +16,9 @@ internal sealed class DshRpcDispatcher {
     /// <summary>会话列表一次返回的最大条数（前端空 cursor 即从头拉取）</summary>
     private const int SessionListLimit = DshSessionStore.MaxSessions;
 
+    /// <summary>Office→PDF 的 generation 令牌（本地宿主没有转换服务，仅给前端一个稳定字符串）</summary>
+    private const string OfficePdfGeneration = "local-host-no-office-conversion";
+
     /// <summary>分发表：方法名 → 处理器（命名函数，便于替换与检索）</summary>
     private readonly FrozenDictionary<string, Handler> _routes;
 
@@ -46,25 +49,53 @@ internal sealed class DshRpcDispatcher {
             ["permissionPresets/catalog"] = PermissionPresetsCatalog,
             ["$events/result"] = EventsResult,
             ["userQuestions/answer"] = Sync(UserQuestionsAnswer),
-            ["settings/describe"] = Sync(_ => Ok(services.Settings.Describe())),
-            ["settings/mutate"] = Sync(args => services.Settings.Mutate(args)),
+            ["settings/describe"] = SettingsDescribe,
+            ["settings/mutate"] = SettingsMutate,
             ["settings/replace"] = SettingsReplace,
             ["settings/update"] = SettingsUpdate,
-            ["credentials/describe"] = Sync(Credentials),
+            // 通用设置页「打开配置文件」：先落盘再交系统默认程序，失败时把文件路径写进引导
+            ["settings/openSettingsDocument"] = Sync(_ => _services.Settings.OpenDocument()),
+            ["credentials/describe"] = CredentialsDescribe,
+            ["credentials/set"] = CredentialsSet,
+            ["credentials/unset"] = CredentialsUnset,
             ["llm/listProviders"] = Sync(LlmListProviders),
-            ["llm/listConfigurableProviders"] = Sync(_ => OkEmptyArray()),
+            ["llm/listConfigurableProviders"] = Sync(_ => Ok(_services.Providers.DeclareProviders())),
+            ["llm/discoverModels"] = LlmDiscoverModels,
+            ["sessionReferenceResolver/candidates"] = SessionReferenceCandidates,
             ["commands/list"] = Sync(CommandsList),
             ["commands/execute"] = CommandsExecute,
             ["messageFeedback/list"] = MessageFeedbackList,
             ["messageFeedback/put"] = MessageFeedbackPut,
             ["messageFeedback/delete"] = MessageFeedbackDelete,
+            ["sessionFeedback/record"] = SessionFeedbackRecord,
             ["skills/list"] = SkillsList,
             ["subagents/prompt"] = SubagentPrompt,
             ["subagents/interruptByParent"] = SubagentInterruptByParent,
             ["dynamicCordisRunner/inventory"] = Sync(_ => OkEmptyArray()),
             ["dynamicCordisRunner/syncInspectManifest"] = Sync(_ => OkNull()),
+            // Cordis 面板停止/移除：本地宿主没有动态插件运行时，按严格 schema 回 plugin-missing（不再落 unknown method）
+            ["dynamicCordisRunner/stopFromPanel"] = Sync(_ => Ok(CordisPluginMissing("停止"))),
+            ["dynamicCordisRunner/undefineFromPanel"] = Sync(_ => Ok(CordisPluginMissing("移除"))),
             // 插件页（TASK066 C7）：宿主没有可管理的 profile，诚实回 managementAvailable=false
             ["pluginInventory/list"] = Sync(_ => Ok(new DshPluginInventorySnapshot())),
+            // 插件管理器读路径：无 profile 时给空清单/空注册表，页面显示空态而不是网络错误
+            ["pluginManager/listBundles"] = Sync(_ => OkEmptyArray()),
+            ["pluginManager/listPlugins"] = Sync(_ => OkEmptyArray()),
+            ["pluginManager/registries"] = Sync(_ => Ok(new DshPluginRegistriesView())),
+            ["pluginManager/listVersionExemptions"] = Sync(_ => Ok(new DshPluginVersionExemptions())),
+            ["pluginRegistryProbe/fastest"] = Sync(_ => OkNull()),
+            // 插件管理器写路径：本部署不支持安装/启停，拒绝并解释原因与下一步
+            ["pluginManager/inspect"] = Sync(_ => PluginManagementRejected("inspect")),
+            ["pluginManager/installBundle"] = Sync(_ => PluginManagementRejected("installBundle")),
+            ["pluginManager/waitForInstall"] = Sync(_ => PluginManagementRejected("waitForInstall")),
+            ["pluginManager/cancelInstall"] = Sync(_ => PluginManagementRejected("cancelInstall")),
+            ["pluginManager/removeBundle"] = Sync(_ => PluginManagementRejected("removeBundle")),
+            ["pluginManager/setBundleEnabled"] = Sync(_ => PluginManagementRejected("setBundleEnabled")),
+            ["pluginManager/setPluginEnabled"] = Sync(_ => PluginManagementRejected("setPluginEnabled")),
+            ["pluginManager/setVersionExemption"] = Sync(_ => PluginManagementRejected("setVersionExemption")),
+            // Office→PDF：本地宿主未接入转换服务，读一次generation后 render 明确不可用（docx/pptx 预览提示改用 PDF/xlsx）
+            ["officeToPdf/generation"] = Sync(_ => Success(JsonSerializer.SerializeToElement(OfficePdfGeneration, DshJsonContext.Default.String))),
+            ["officeToPdf/render"] = Sync(_ => OfficePdfUnavailable()),
             ["directoryPicker/pick"] = Pick,
             ["directoryPicker/list"] = Sync(DirectoryPickerList),
             ["directoryPicker/createDirectory"] = Sync(DirectoryPickerCreateDirectory),
@@ -117,7 +148,14 @@ internal sealed class DshRpcDispatcher {
     internal Task<DshRpcResult> HandleAsync(string method, JsonElement args, CancellationToken cancellationToken = default) =>
         _routes.TryGetValue(method, out var handler)
             ? handler(args, cancellationToken)
-            : Task.FromResult(Fail("unimplemented", $"宿主尚未实现方法 {method}；请在 DshRpcDispatcher 的路由表注册处理器"));
+            : Task.FromResult(Unrouted(method));
+
+    /// <summary>未注册方法：account/* 给部署级引导，其余给路由表引导</summary>
+    private static DshRpcResult Unrouted(string method) =>
+        method.StartsWith("account/", StringComparison.Ordinal)
+            ? Fail("account/unsupported",
+                $"本部署不接入 DeepSeek 平台账号（{method}）；模型鉴权请在 设置→模型 中为供应商保存 API Key，账号登录仅 DSH 桌面客户端提供")
+            : Fail("unimplemented", $"宿主尚未实现方法 {method}；请在 DshRpcDispatcher 的路由表注册处理器");
 
     /// <summary>把同步处理器适配为异步签名</summary>
     private static Handler Sync(Func<JsonElement, DshRpcResult> handler) => (args, _) => Task.FromResult(handler(args));
@@ -620,17 +658,77 @@ internal sealed class DshRpcDispatcher {
         return Success(JsonSerializer.SerializeToElement(request.AgentPreset, DshJsonContext.Default.String));
     }
 
-    /// <summary>settings/replace：整段替换命名空间（先确保存档已加载）</summary>
+    /// <summary>
+    /// settings/describe：宿主设置命名空间 + 模型页供应商命名空间（TASK066 C8）。
+    /// 供应商行由 <see cref="DshProviderSettingsStore"/> 从引擎配置文件投影，前端据此渲染编辑卡片。
+    /// </summary>
+    private async Task<DshRpcResult> SettingsDescribe(JsonElement args, CancellationToken cancellationToken) {
+        await _services.Settings.InitializeAsync(cancellationToken);
+        var describe = _services.Settings.Describe();
+        describe.Namespaces.Add(await _services.Providers.DescribeAsync(cancellationToken));
+        return Ok(describe);
+    }
+
+    /// <summary>
+    /// settings/mutate：<c>llm-deepseek</c> 走供应商写回（providers_llm 子文件），其余命名空间走宿主设置存档。
+    /// ns 无法解析时交给存档处理器返回统一的格式引导。
+    /// </summary>
+    private Task<DshRpcResult> SettingsMutate(JsonElement args, CancellationToken cancellationToken) =>
+        string.Equals(ReadSettingsNamespace(args), DshProviderSettingsStore.Namespace, StringComparison.Ordinal)
+            ? _services.Providers.MutateAsync(args, cancellationToken)
+            : Task.FromResult(_services.Settings.Mutate(args));
+
+    /// <summary>读取 settings 系方法的 ns 字段（非对象/无法解析返回 null）</summary>
+    private static string? ReadSettingsNamespace(JsonElement args) {
+        if (args.ValueKind != JsonValueKind.Object) {
+            return null;
+        }
+        try {
+            return args.Deserialize(DshJsonContext.Default.DshSettingsMutateArgs)?.Ns;
+        } catch (JsonException) {
+            return null;
+        }
+    }
+
+    /// <summary>settings/replace：整段替换命名空间（先确保存档已加载；供应商命名空间引导改用 mutate）</summary>
     private async Task<DshRpcResult> SettingsReplace(JsonElement args, CancellationToken cancellationToken) {
+        if (IsProviderNamespace(args)) {
+            return RejectProviderReplace("replace");
+        }
         await _services.Settings.InitializeAsync(cancellationToken);
         return _services.Settings.Replace(args);
     }
 
-    /// <summary>settings/update：按顶层字段补丁合并命名空间（先确保存档已加载）</summary>
+    /// <summary>settings/update：按顶层字段补丁合并命名空间（先确保存档已加载；供应商命名空间引导改用 mutate）</summary>
     private async Task<DshRpcResult> SettingsUpdate(JsonElement args, CancellationToken cancellationToken) {
+        if (IsProviderNamespace(args)) {
+            return RejectProviderReplace("update");
+        }
         await _services.Settings.InitializeAsync(cancellationToken);
         return _services.Settings.Update(args);
     }
+
+    /// <summary>判断 settings/replace|update 的目标是否模型页供应商命名空间</summary>
+    private static bool IsProviderNamespace(JsonElement args) {
+        if (args.ValueKind != JsonValueKind.Object) {
+            return false;
+        }
+        try {
+            return string.Equals(
+                args.Deserialize(DshJsonContext.Default.DshSettingsUpdateArgs)?.Ns,
+                DshProviderSettingsStore.Namespace,
+                StringComparison.Ordinal);
+        } catch (JsonException) {
+            return false;
+        }
+    }
+
+    /// <summary>供应商命名空间整段替换的拒绝提示（指出正确写法：逐字段 set/unset）</summary>
+    private static DshRpcResult RejectProviderReplace(string method) =>
+        Fail("settings/rejected",
+            $"settings/{method} 不能整段替换 {DshProviderSettingsStore.Namespace}：供应商配置由引擎 providers_llm/{{vendor}}/ 维护，"
+            + "整段写入会抹掉协议、供应商身份等模型页不展示的字段。请改用 settings/mutate 逐字段 set/unset，"
+            + "路径形如 profiles/deepseek/baseURL 或 profiles/deepseek/models。");
 
     /// <summary>messageFeedback/list：会话反馈列表（会话不存在返回契约错误联合体）</summary>
     private async Task<DshRpcResult> MessageFeedbackList(JsonElement args, CancellationToken cancellationToken) {
@@ -736,6 +834,34 @@ internal sealed class DshRpcDispatcher {
                 Ok = false,
                 Error = SerializeFeedbackError(new DshMessageFeedbackVersionConflictError { Current = outcome.Current }),
             });
+    }
+
+    /// <summary>sessionFeedback/record：把用户反馈写进会话日志事件（log-only，不启动模型工作）</summary>
+    private async Task<DshRpcResult> SessionFeedbackRecord(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshRequestEnvelopeDshSessionFeedbackRecordArgs)?.Request;
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionId)) {
+            return Fail("gateway/bad-request",
+                $"sessionFeedback/record 需要 request.sessionId；收到 args={Describe(args)}。");
+        }
+        if (request.Category is { } category && DshFeedbackCategoryExtensions.FromValue(category) is null) {
+            return Fail("gateway/bad-request",
+                $"sessionFeedback/record 的 category 不是 DSH 分类词汇（other/task-result/instruction-following/product-interaction/service-stability/resource-cost/security-privacy-permission）；收到 \"{category}\"。");
+        }
+        if (!await _services.Sessions.ExistsAsync(request.SessionId, cancellationToken)) {
+            return Ok(new DshSessionFeedbackRecordResult {
+                Ok = false,
+                Error = SerializeFeedbackError(new DshMessageFeedbackSessionNotFoundError { SessionId = request.SessionId }),
+            });
+        }
+        var text = request.Text?.Trim();
+        await _services.Streams.PublishAsync(
+            request.SessionId,
+            "feedback/record",
+            new DshFeedbackRecordData {
+                Text = string.IsNullOrEmpty(text) ? null : text,
+                Category = request.Category,
+            });
+        return Ok(new DshSessionFeedbackRecordResult { Value = new DshSessionFeedbackRecordValue() });
     }
 
     /// <summary>反馈错误体序列化（每类错误字段集严格对齐契约联合体）</summary>
@@ -1209,12 +1335,67 @@ internal sealed class DshRpcDispatcher {
         });
     }
 
-    /// <summary>credentials/describe：按环境变量判断是否已配置</summary>
-    private static DshRpcResult Credentials(JsonElement args) =>
-        Ok(ReadStrings(args, "refs").ToDictionary(
-            name => name,
-            name => new DshCredentialState { Configured = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(name)) },
-            StringComparer.Ordinal));
+    /// <summary>
+    /// credentials/describe：按引用名批量回状态 — 环境变量优先，其次共享 auth.json；
+    /// 可写标记只对当前可路由供应商为真（模型页据此决定显示编辑/删除）。
+    /// </summary>
+    private async Task<DshRpcResult> CredentialsDescribe(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshCredentialsDescribeArgs);
+        if (request is null || request.Refs.Count == 0) {
+            return Fail("credentials/rejected",
+                $"credentials/describe 需要 refs（凭据引用名数组，元素如 DEEPSEEK_API_KEY）；收到 args={Describe(args)}");
+        }
+        return Ok(await _services.Credentials.DescribeAsync(request.Refs, cancellationToken));
+    }
+
+    /// <summary>credentials/set：写入供应商密钥（只接受当前供应商路由的引用，未知引用给出可写清单）</summary>
+    private async Task<DshRpcResult> CredentialsSet(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshCredentialsSetArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.Ref)) {
+            return Fail("credentials/rejected",
+                $"credentials/set 需要 ref（凭据引用名，如 DEEPSEEK_API_KEY）与 value（明文密钥）；收到 args={Describe(args)}");
+        }
+        var (ok, message) = await _services.Credentials.SetAsync(request.Ref, request.Value, cancellationToken);
+        return ok ? OkUndefined() : Fail("credentials/rejected", message);
+    }
+
+    /// <summary>credentials/unset：移除共享 auth.json 中的密钥（环境变量来源诚实拒绝并指明变量名）</summary>
+    private async Task<DshRpcResult> CredentialsUnset(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshCredentialsUnsetArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.Ref)) {
+            return Fail("credentials/rejected",
+                $"credentials/unset 需要 ref（凭据引用名，如 DEEPSEEK_API_KEY）；收到 args={Describe(args)}");
+        }
+        var (ok, message) = await _services.Credentials.UnsetAsync(request.Ref, cancellationToken);
+        return ok ? OkUndefined() : Fail("credentials/rejected", message);
+    }
+
+    /// <summary>llm/discoverModels：按供应商协议拉模型清单（密钥优先用请求体，其次复用已存凭据）</summary>
+    private async Task<DshRpcResult> LlmDiscoverModels(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshDiscoverModelsArgs);
+        if (request is null) {
+            return Fail("llm/discoverModels-rejected",
+                $"llm/discoverModels 需要 {{settingsNs, request:{{\"baseURL\",\"api\",\"apiKey\",\"provider\"}}}}；收到 args={Describe(args)}");
+        }
+        return await _services.Discovery.DiscoverAsync(request.Request, cancellationToken);
+    }
+
+    /// <summary>
+    /// sessionReferenceResolver/candidates：@ 菜单里的会话候选 — 排除发起会话自身，
+    /// 查询词匹配标题/会话 ID/工作目录，同工作区优先。会话不存在时返回 context-not-found（前端按空列表降级）。
+    /// </summary>
+    private async Task<DshRpcResult> SessionReferenceCandidates(JsonElement args, CancellationToken cancellationToken) {
+        var request = args.Deserialize(DshJsonContext.Default.DshSessionReferenceCandidatesArgs);
+        if (request is null || string.IsNullOrWhiteSpace(request.AgentId)) {
+            return Fail("sessionReferenceResolver/rejected",
+                $"sessionReferenceResolver/candidates 需要 agentId（发起补全的会话）与 query（@ 后已输入的文本，可为空串）；收到 args={Describe(args)}");
+        }
+        if (!await _services.Sessions.ExistsAsync(request.AgentId, cancellationToken)) {
+            return Fail("gateway/context-not-found",
+                $"会话 {request.AgentId} 不存在（或引擎会话存储尚未就绪），无法解析 @ 会话引用；请先打开一个已存在的会话再输入 @");
+        }
+        return Ok(await _services.Sessions.ReferenceCandidatesAsync(request.AgentId, request.Query, cancellationToken));
+    }
 
     /// <summary>
     /// $events/result：前端对 waterfall 帧的回帖（approval 决策等）。
@@ -1296,6 +1477,8 @@ internal sealed class DshRpcDispatcher {
 
     private static DshRpcResult Ok(IReadOnlyList<DshFileReferenceItem> value) => Success(JsonSerializer.SerializeToElement(value.ToList(), DshJsonContext.Default.ListDshFileReferenceItem));
 
+    private static DshRpcResult Ok(IReadOnlyList<DshSessionReferenceCandidate> value) => Success(JsonSerializer.SerializeToElement(value.ToList(), DshJsonContext.Default.ListDshSessionReferenceCandidate));
+
     private static DshRpcResult OkBool(bool value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.Boolean));
 
     private static DshRpcResult Ok(DshOpenWorkspacePathResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshOpenWorkspacePathResult));
@@ -1320,6 +1503,8 @@ internal sealed class DshRpcDispatcher {
 
     private static DshRpcResult Ok(DshMessageFeedbackDeleteResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshMessageFeedbackDeleteResult));
 
+    private static DshRpcResult Ok(DshSessionFeedbackRecordResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshSessionFeedbackRecordResult));
+
     private static DshRpcResult Ok(DshWorkspaceCreateResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshWorkspaceCreateResult));
 
     private static DshRpcResult Ok(DshWorkspaceResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshWorkspaceResult));
@@ -1338,11 +1523,36 @@ internal sealed class DshRpcDispatcher {
 
     private static DshRpcResult Ok(List<DshProviderInfo> value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.ListDshProviderInfo));
 
+    private static DshRpcResult Ok(List<DshConfigurableProvider> value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.ListDshConfigurableProvider));
+
     private static DshRpcResult Ok(List<DshCommandInfo> value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.ListDshCommandInfo));
 
     private static DshRpcResult Ok(DshCommandsExecuteResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshCommandsExecuteResult));
 
     private static DshRpcResult Ok(Dictionary<string, DshCredentialState> value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DictionaryStringDshCredentialState));
+
+    private static DshRpcResult Ok(DshPluginRegistriesView value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshPluginRegistriesView));
+
+    private static DshRpcResult Ok(DshPluginVersionExemptions value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshPluginVersionExemptions));
+
+    private static DshRpcResult Ok(DshCordisPanelActionResult value) => Success(JsonSerializer.SerializeToElement(value, DshJsonContext.Default.DshCordisPanelActionResult));
+
+    /// <summary>插件管理写路径拒绝：说明本部署没有 profile + 下一步去哪管理</summary>
+    private static DshRpcResult PluginManagementRejected(string method) =>
+        Fail("plugin-manager/rejected",
+            $"宿主未启用插件管理，无法执行 pluginManager/{method}；pluginInventory/list 已返回 managementAvailable=false（本部署没有插件 profile），请改用可执行文件自带的插件清单，或在 DSH 桌面客户端的插件页管理");
+
+    /// <summary>Cordis 面板动作结果：没有动态插件运行时，按严格 schema 回 plugin-missing</summary>
+    private static DshCordisPanelActionResult CordisPluginMissing(string action) => new() {
+        Ok = false,
+        Reason = "plugin-missing",
+        Message = $"本地宿主没有 Cordis 动态插件运行时（inventory 为空），无法{action}该插件；如需动态插件请在 DSH 宿主面板中操作",
+    };
+
+    /// <summary>Office→PDF 不可用引导：解释为什么 + 可行替代预览方式</summary>
+    private static DshRpcResult OfficePdfUnavailable() =>
+        Fail("gateway/service-unavailable",
+            "本地宿主未接入 Office→PDF 转换服务，docx/pptx 无法转成 PDF 预览；请先用 WPS/LibreOffice 另存为 PDF 后预览，xlsx/csv 可直接用表格预览（不依赖该服务）");
 
     private static DshRpcResult OkEmptyArray() => Success(JsonSerializer.SerializeToElement(Array.Empty<JsonElement>(), DshJsonContext.Default.JsonElementArray));
 
@@ -1363,23 +1573,4 @@ internal sealed class DshRpcDispatcher {
         var raw = args.GetRawText();
         return raw.Length <= 200 ? raw : raw[..200] + "…";
     }
-
-    private static string? ReadString(JsonElement args, string parent, string name) =>
-        args.ValueKind == JsonValueKind.Object
-        && args.TryGetProperty(parent, out var node)
-        && node.ValueKind == JsonValueKind.Object
-        && node.TryGetProperty(name, out var value)
-        && value.ValueKind == JsonValueKind.String
-            ? value.GetString()
-            : null;
-
-    private static IReadOnlyList<string> ReadStrings(JsonElement args, string name) =>
-        args.ValueKind == JsonValueKind.Object
-        && args.TryGetProperty(name, out var value)
-        && value.ValueKind == JsonValueKind.Array
-            ? value.EnumerateArray()
-                .Where(item => item.ValueKind == JsonValueKind.String)
-                .Select(item => item.GetString() ?? "")
-                .ToArray()
-            : [];
 }

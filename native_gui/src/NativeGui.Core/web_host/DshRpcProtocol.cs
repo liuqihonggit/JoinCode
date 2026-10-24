@@ -1538,6 +1538,12 @@ internal sealed class DshSettingsDescribe {
     public List<DshSettingsNamespaceView> Namespaces { get; set; } = [];
 }
 
+/// <summary>settings/openSettingsDocument 结果（协议要求 <c>{opened:true}</c>）</summary>
+internal sealed class DshSettingsDocumentOpenValue {
+    /// <summary>是否已交给系统打开</summary>
+    public bool Opened { get; set; }
+}
+
 /// <summary>settings/mutate 参数</summary>
 internal sealed class DshSettingsMutateArgs {
     /// <summary>命名空间键</summary>
@@ -1610,6 +1616,9 @@ internal sealed class DshSchemaNode {
     public DshSchemaMeta Meta { get; set; } = new();
     /// <summary>对象字段名 → 子节点 uid（非对象节点为空表，schemastery 容忍）</summary>
     public Dictionary<string, int> Dict { get; set; } = [];
+    /// <summary>dict/array 的元素节点 uid（schemastery 的 inner；对象节点省略）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Inner { get; set; }
 }
 
 /// <summary>schemastery 元信息（只保留需回传给前端的键，未设置的键省略）</summary>
@@ -1723,6 +1732,39 @@ internal sealed class DshPluginInventorySnapshot {
     public List<DshPluginInventoryEntry> Entries { get; set; } = [];
 }
 
+/// <summary>pluginManager/registries 结果（本部署无注册表配置，三项均为空）</summary>
+internal sealed class DshPluginRegistriesView {
+    /// <summary>主注册表地址（无配置时为 null）</summary>
+    public string? Registry { get; set; }
+    /// <summary>回退注册表（无配置时为空）</summary>
+    public List<string> FallbackRegistries { get; set; } = [];
+    /// <summary>解析后的注册表（无配置时为 null）</summary>
+    public string? Resolved { get; set; }
+}
+
+/// <summary>pluginManager/listVersionExemptions 结果（本部署无豁免配置）</summary>
+internal sealed class DshPluginVersionExemptions {
+    /// <summary>按包名分组的豁免版本</summary>
+    public Dictionary<string, List<string>> Exemptions { get; set; } = [];
+    /// <summary>读取告警（无配置时为空）</summary>
+    public List<string> Warnings { get; set; } = [];
+}
+
+/// <summary>Cordis 面板停止/移除结果（严格 schema：成功或 plugin-missing 二选一）</summary>
+internal sealed class DshCordisPanelActionResult {
+    /// <summary>是否执行成功</summary>
+    public bool Ok { get; set; }
+    /// <summary>失败原因（plugin-missing）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Reason { get; set; }
+    /// <summary>失败说明（面向用户）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Message { get; set; }
+    /// <summary>移除时是否仍在运行（成功路径使用；本宿主不产生成功路径）</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? WasRunning { get; set; }
+}
+
 /// <summary>插件清单条目（严格 schema 要求 entryId/moduleName/enabled/fiberPhase）</summary>
 internal sealed class DshPluginInventoryEntry {
     /// <summary>条目身份</summary>
@@ -1735,263 +1777,3 @@ internal sealed class DshPluginInventoryEntry {
     public string? FiberPhase { get; set; }
 }
 
-/// <summary>DSH 宿主协议 JSON 上下文（AOT 源生成）</summary>
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
-[JsonSerializable(typeof(DshRpcRequest))]
-[JsonSerializable(typeof(DshTerminalAgentArgs))]
-[JsonSerializable(typeof(DshTerminalEnvironmentResult))]
-[JsonSerializable(typeof(DshTerminalShellProfile))]
-[JsonSerializable(typeof(DshTerminalShellProfile[]))]
-[JsonSerializable(typeof(DshTerminalInfo))]
-[JsonSerializable(typeof(DshTerminalInfo[]))]
-[JsonSerializable(typeof(DshTerminalCreateRequest))]
-[JsonSerializable(typeof(DshTerminalCreateArgs))]
-[JsonSerializable(typeof(DshTerminalIdArgs))]
-[JsonSerializable(typeof(DshTerminalWriteArgs))]
-[JsonSerializable(typeof(DshTerminalResizeArgs))]
-[JsonSerializable(typeof(DshTerminalListArgs))]
-[JsonSerializable(typeof(DshTerminalFollowArgs))]
-[JsonSerializable(typeof(DshTerminalRetainArgs))]
-[JsonSerializable(typeof(DshTerminalSnapshotFrame))]
-[JsonSerializable(typeof(DshTerminalOutputFrame))]
-[JsonSerializable(typeof(DshTerminalStateFrame))]
-[JsonSerializable(typeof(DshTerminalRetainedFrame))]
-[JsonSerializable(typeof(DshJobListArgs))]
-[JsonSerializable(typeof(DshJobFollowArgs))]
-[JsonSerializable(typeof(DshJobKillArgs))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshJobListArgs>))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshJobFollowArgs>))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshJobKillArgs>))]
-[JsonSerializable(typeof(DshJobKillResult))]
-[JsonSerializable(typeof(DshJobOutputInfo))]
-[JsonSerializable(typeof(DshJobView))]
-[JsonSerializable(typeof(DshJobRowsFrame))]
-[JsonSerializable(typeof(DshJobOpenedFrame))]
-[JsonSerializable(typeof(DshJobChunk))]
-[JsonSerializable(typeof(DshJobOutputFrame))]
-[JsonSerializable(typeof(DshJobStatusFrame))]
-[JsonSerializable(typeof(DshRpcResponse))]
-[JsonSerializable(typeof(DshRpcMultipartMetadata))]
-[JsonSerializable(typeof(DshStreamOpen))]
-[JsonSerializable(typeof(DshStreamItem))]
-[JsonSerializable(typeof(DshStreamError))]
-[JsonSerializable(typeof(DshStreamErrorBody))]
-[JsonSerializable(typeof(DshEventsReady))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshWorkspacePathArgs>))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshSessionRenameArgs>))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshWorkspaceIdArgs>))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshWorkspaceRenameArgs>))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshWorkspaceInsertBeforeArgs>))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshWorkspaceInsertSessionBeforeArgs>))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshSessionIdArgs>))]
-[JsonSerializable(typeof(DshWorkspaceBaseline))]
-[JsonSerializable(typeof(DshWorkspacePathArgs))]
-[JsonSerializable(typeof(DshWorkspaceCreateResult))]
-[JsonSerializable(typeof(DshWorkspaceIdArgs))]
-[JsonSerializable(typeof(DshWorkspaceRenameArgs))]
-[JsonSerializable(typeof(DshWorkspaceInsertBeforeArgs))]
-[JsonSerializable(typeof(DshWorkspaceInsertSessionBeforeArgs))]
-[JsonSerializable(typeof(DshWorkspaceResult))]
-[JsonSerializable(typeof(DshWorkspaceOrderResult))]
-[JsonSerializable(typeof(DshWorkspaceDeletedResult))]
-[JsonSerializable(typeof(DshSessionIdArgs))]
-[JsonSerializable(typeof(DshArchivedResult))]
-[JsonSerializable(typeof(DshPinnedResult))]
-[JsonSerializable(typeof(DshSessionControlBaseline))]
-[JsonSerializable(typeof(DshSessionList))]
-[JsonSerializable(typeof(DshSessionProjections))]
-[JsonSerializable(typeof(DshSessionProjectionValues))]
-[JsonSerializable(typeof(DshSessionPlanProjection))]
-[JsonSerializable(typeof(DshSessionGoalProjection))]
-[JsonSerializable(typeof(DshGoalView))]
-[JsonSerializable(typeof(DshSessionPermissionProjection))]
-[JsonSerializable(typeof(DshSessionControlProjection))]
-[JsonSerializable(typeof(DshSessionModelSelectionProjection))]
-[JsonSerializable(typeof(DshModelSelectionRef))]
-[JsonSerializable(typeof(DshSessionListMetadata))]
-[JsonSerializable(typeof(DshSessionRenameArgs))]
-[JsonSerializable(typeof(DshSessionRenameResult))]
-[JsonSerializable(typeof(DshSessionCancelResult))]
-[JsonSerializable(typeof(DshSessionPromptArgs))]
-[JsonSerializable(typeof(DshPromptContent))]
-[JsonSerializable(typeof(DshSessionPromptValue))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshSessionPromptArgs>))]
-[JsonSerializable(typeof(DshTurnEndError))]
-[JsonSerializable(typeof(DshTurnEndCancelCause))]
-[JsonSerializable(typeof(DshSessionCancelArgs))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshSessionCancelArgs>))]
-[JsonSerializable(typeof(string))]
-[JsonSerializable(typeof(DshSessionCreateResult))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshSessionCreateArgs>))]
-[JsonSerializable(typeof(DshSessionCreateArgs))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshSessionProjectionsArgs>))]
-[JsonSerializable(typeof(DshSessionProjectionsArgs))]
-[JsonSerializable(typeof(DshSessionProjectionSnapshot))]
-[JsonSerializable(typeof(DshSubagentCatalogEntry))]
-[JsonSerializable(typeof(List<DshSubagentCatalogEntry>))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshSessionFollowArgs>))]
-[JsonSerializable(typeof(DshSessionFollowArgs))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshSessionPageArgs>))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshMessageFeedbackListRequest>))]
-[JsonSerializable(typeof(DshSessionPageArgs))]
-[JsonSerializable(typeof(DshTurnWindow))]
-[JsonSerializable(typeof(DshSessionPageResult))]
-[JsonSerializable(typeof(DshSessionAddress))]
-[JsonSerializable(typeof(DshSessionFollowSnapshot))]
-[JsonSerializable(typeof(DshSessionHeader))]
-[JsonSerializable(typeof(DshSessionRecord))]
-[JsonSerializable(typeof(DshSessionEvent))]
-[JsonSerializable(typeof(DshWireContentBlock))]
-[JsonSerializable(typeof(DshWireMessageSource))]
-[JsonSerializable(typeof(DshWireMessage))]
-[JsonSerializable(typeof(List<DshWireContentBlock>))]
-[JsonSerializable(typeof(DshTurnStartData))]
-[JsonSerializable(typeof(DshStepData))]
-[JsonSerializable(typeof(DshToolCallData))]
-[JsonSerializable(typeof(DshToolResultData))]
-[JsonSerializable(typeof(DshTurnEndData))]
-[JsonSerializable(typeof(DshTurnEndReason))]
-[JsonSerializable(typeof(DshAssistantMessageData))]
-[JsonSerializable(typeof(DshTurnUsage))]
-[JsonSerializable(typeof(DshWorkflowRunStartData))]
-[JsonSerializable(typeof(DshWorkflowAgentStartData))]
-[JsonSerializable(typeof(DshWorkflowAgentEndData))]
-[JsonSerializable(typeof(DshWorkflowRunEndData))]
-[JsonSerializable(typeof(List<JsonElement>))]
-[JsonSerializable(typeof(DshAssistantStreamBaseline))]
-[JsonSerializable(typeof(DshAssistantStreamAttempt))]
-[JsonSerializable(typeof(DshAssistantStreamRecord))]
-[JsonSerializable(typeof(DshAssistantStreamFrame))]
-[JsonSerializable(typeof(DshAssistantStreamEnvelope))]
-[JsonSerializable(typeof(DshAssistantStreamOutcome))]
-[JsonSerializable(typeof(DshDeltaChunk))]
-[JsonSerializable(typeof(Dictionary<string, DshSessionProjectionSnapshot>))]
-[JsonSerializable(typeof(DshModelCatalog))]
-[JsonSerializable(typeof(DshSessionSelectModelArgs))]
-[JsonSerializable(typeof(DshSessionSelectModelResult))]
-[JsonSerializable(typeof(DshSessionForkArgs))]
-[JsonSerializable(typeof(DshSessionForkResult))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshSessionSelectModelArgs>))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshSessionForkArgs>))]
-[JsonSerializable(typeof(DshAgentPresetList))]
-[JsonSerializable(typeof(DshAgentPreset))]
-[JsonSerializable(typeof(DshAgentPresetReadResult))]
-[JsonSerializable(typeof(DshAgentPresetSelectArgs))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshSessionSearchArgs>))]
-[JsonSerializable(typeof(DshSessionSearchArgs))]
-[JsonSerializable(typeof(DshSessionSearchResult))]
-[JsonSerializable(typeof(DshSessionSearchItem))]
-[JsonSerializable(typeof(List<DshSessionSearchItem>))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshOpenWorkspacePathArgs>))]
-[JsonSerializable(typeof(DshOpenWorkspacePathArgs))]
-[JsonSerializable(typeof(DshOpenWorkspacePathResult))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshWorkspacePathAppsArgs>))]
-[JsonSerializable(typeof(DshWorkspacePathAppsArgs))]
-[JsonSerializable(typeof(DshWorkspacePathApp))]
-[JsonSerializable(typeof(List<DshWorkspacePathApp>))]
-[JsonSerializable(typeof(DshPermissionPresetCatalog))]
-[JsonSerializable(typeof(DshWaterfallFrame))]
-[JsonSerializable(typeof(DshApprovalRequestBody))]
-[JsonSerializable(typeof(DshEventsResultArgs))]
-[JsonSerializable(typeof(DshEventOutcome))]
-[JsonSerializable(typeof(DshEventsResultValue))]
-[JsonSerializable(typeof(DshUserQuestionRequest))]
-[JsonSerializable(typeof(DshUserQuestion))]
-[JsonSerializable(typeof(DshUserQuestionOption))]
-[JsonSerializable(typeof(DshUserQuestionAnswerBatch))]
-[JsonSerializable(typeof(DshUserQuestionAnswerItem))]
-[JsonSerializable(typeof(DshUserQuestionsAnswerArgs))]
-[JsonSerializable(typeof(DshUserQuestionsAttachWaitArgs))]
-[JsonSerializable(typeof(DshWaterfallCancelFrame))]
-[JsonSerializable(typeof(DshApprovalAskedData))]
-[JsonSerializable(typeof(DshApprovalDecidedData))]
-[JsonSerializable(typeof(DshEventErrorBody))]
-[JsonSerializable(typeof(DshCommandInfo))]
-[JsonSerializable(typeof(DshCommandInputInfo))]
-[JsonSerializable(typeof(DshCommandsExecuteArgs))]
-[JsonSerializable(typeof(DshCommandsExecuteResult))]
-[JsonSerializable(typeof(DshCommandOutcome))]
-[JsonSerializable(typeof(List<DshCommandInfo>))]
-[JsonSerializable(typeof(DshSettingsDescribe))]
-[JsonSerializable(typeof(DshSettingsNamespaceView))]
-[JsonSerializable(typeof(DshSettingsMutateArgs))]
-[JsonSerializable(typeof(DshSettingsReplaceArgs))]
-[JsonSerializable(typeof(DshSettingsUpdateArgs))]
-[JsonSerializable(typeof(DshSettingsDocument))]
-[JsonSerializable(typeof(DshSettingsNamespaceDocument))]
-[JsonSerializable(typeof(DshSchemaEnvelope))]
-[JsonSerializable(typeof(DshSkillList))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshSkillListArgs>))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshSubagentPromptRequest>))]
-[JsonSerializable(typeof(DshSubagentInterruptArgs))]
-[JsonSerializable(typeof(DshSubagentPromptReceipt))]
-[JsonSerializable(typeof(DshSubagentInterruptReceipt))]
-[JsonSerializable(typeof(DshPlanModeData))]
-[JsonSerializable(typeof(bool))]
-[JsonSerializable(typeof(DshDirectoryListArgs))]
-[JsonSerializable(typeof(DshDirectoryCreateArgs))]
-[JsonSerializable(typeof(DshDirectoryListing))]
-[JsonSerializable(typeof(DshDirectoryCrumb))]
-[JsonSerializable(typeof(List<DshDirectoryCrumb>))]
-[JsonSerializable(typeof(DshDirectoryEntry))]
-[JsonSerializable(typeof(List<DshDirectoryEntry>))]
-[JsonSerializable(typeof(DshFileReferencesListArgs))]
-[JsonSerializable(typeof(DshFileReferenceItem))]
-[JsonSerializable(typeof(List<DshFileReferenceItem>))]
-[JsonSerializable(typeof(DshMessageFeedbackListResult))]
-[JsonSerializable(typeof(DshMessageFeedbackListValue))]
-[JsonSerializable(typeof(DshMessageFeedbackItem))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshMessageFeedbackPutArgs>))]
-[JsonSerializable(typeof(DshMessageFeedbackPutArgs))]
-[JsonSerializable(typeof(DshMessageFeedbackPutResult))]
-[JsonSerializable(typeof(DshRequestEnvelope<DshMessageFeedbackDeleteArgs>))]
-[JsonSerializable(typeof(DshMessageFeedbackDeleteArgs))]
-[JsonSerializable(typeof(DshMessageFeedbackDeleteResult))]
-[JsonSerializable(typeof(DshMessageFeedbackDeleteValue))]
-[JsonSerializable(typeof(DshMessageFeedbackSessionNotFoundError))]
-[JsonSerializable(typeof(DshMessageFeedbackTargetNotFoundError))]
-[JsonSerializable(typeof(DshMessageFeedbackVersionConflictError))]
-[JsonSerializable(typeof(DshMessageFeedbackNoteBlankError))]
-[JsonSerializable(typeof(DshMessageFeedbackNoteTooLargeError))]
-[JsonSerializable(typeof(DshMessageFeedbackDocument))]
-[JsonSerializable(typeof(DshProviderInfo))]
-[JsonSerializable(typeof(List<DshProviderInfo>))]
-[JsonSerializable(typeof(JsonElement[]))]
-[JsonSerializable(typeof(Dictionary<string, DshCredentialState>))]
-[JsonSerializable(typeof(DshRpcErrorDetails))]
-[JsonSerializable(typeof(DshWorkspaceChangesData))]
-[JsonSerializable(typeof(DshChangesSummary))]
-[JsonSerializable(typeof(DshChangedFile))]
-[JsonSerializable(typeof(List<DshChangedFile>))]
-[JsonSerializable(typeof(DshChangesDiff))]
-[JsonSerializable(typeof(DshChangesHunk))]
-[JsonSerializable(typeof(List<DshChangesHunk>))]
-[JsonSerializable(typeof(DshPresentHost))]
-[JsonSerializable(typeof(DshWorkspaceFilesArgs))]
-[JsonSerializable(typeof(DshWorkspaceFilesListResult))]
-[JsonSerializable(typeof(DshWorkspaceFilesReadResult))]
-[JsonSerializable(typeof(DshWorkspaceFilesReadBytesResult))]
-[JsonSerializable(typeof(DshWorkspaceFilesStatResult))]
-[JsonSerializable(typeof(DshFileChangeFrame))]
-[JsonSerializable(typeof(DshChangeReady))]
-[JsonSerializable(typeof(DshGoal))]
-[JsonSerializable(typeof(DshGoalRef))]
-[JsonSerializable(typeof(DshGoalsAgentArgs))]
-[JsonSerializable(typeof(DshGoalsRefArgs))]
-[JsonSerializable(typeof(DshGoalsCreateArgs))]
-[JsonSerializable(typeof(DshGoalsCreateRequest))]
-[JsonSerializable(typeof(DshGoalsCreateResult))]
-[JsonSerializable(typeof(DshGoalsEditArgs))]
-[JsonSerializable(typeof(DshGoalChanges))]
-[JsonSerializable(typeof(DshGoalsDocument))]
-[JsonSerializable(typeof(DshGoalActivationChanged))]
-[JsonSerializable(typeof(DshFileUploadsUploadArgs))]
-[JsonSerializable(typeof(DshFileUploadResult))]
-[JsonSerializable(typeof(DshAttachmentRecord))]
-[JsonSerializable(typeof(DshSessionAttachmentArgs))]
-[JsonSerializable(typeof(DshSessionAttachmentResult))]
-[JsonSerializable(typeof(DshUpdateQueueArgs))]
-[JsonSerializable(typeof(DshQueueAcceptedResult))]
-[JsonSerializable(typeof(DshPluginInventorySnapshot))]
-[JsonSerializable(typeof(object))]
-internal sealed partial class DshJsonContext : JsonSerializerContext;

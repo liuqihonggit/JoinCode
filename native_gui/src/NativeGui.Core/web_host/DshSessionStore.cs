@@ -128,6 +128,74 @@ internal sealed class DshSessionStore {
     /// <summary>命中点前保留的上下文字符数</summary>
     private const int SnippetPadding = 80;
 
+    /// <summary>
+    /// @ 会话引用候选（TASK066 C8 <c>sessionReferenceResolver/candidates</c>）：
+    /// 排除发起会话自身，按标题/会话 ID/工作目录做大小写不敏感的子串匹配，
+    /// 同工作区优先、其次按创建时间倒序，最多 <see cref="ReferenceCandidateLimit"/> 条。
+    /// 引擎未就绪返回空列表。
+    /// </summary>
+    /// <param name="currentSessionId">发起补全的会话（必须存在，由调用方先校验）</param>
+    /// <param name="query">用户已输入的查询词（空串列出全部）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    internal async Task<IReadOnlyList<DshSessionReferenceCandidate>> ReferenceCandidatesAsync(
+        string currentSessionId,
+        string query,
+        CancellationToken cancellationToken) {
+        if (_transcripts is not { } transcripts) {
+            return [];
+        }
+        var currentCwd = NormalizePath((await transcripts.GetSessionInfoAsync(currentSessionId, cancellationToken))?.ProjectPath);
+        var summaries = await transcripts.ListTranscriptsAsync(ReferenceScanLimit, cancellationToken);
+        var matches = new List<DshSessionReferenceCandidate>();
+        foreach (var summary in summaries) {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.Equals(summary.SessionId, currentSessionId, StringComparison.Ordinal)) {
+                continue;
+            }
+            var title = await transcripts.GetCustomTitleAsync(summary.SessionId, cancellationToken);
+            var info = await transcripts.GetSessionInfoAsync(summary.SessionId, cancellationToken);
+            var label = string.IsNullOrWhiteSpace(title) ? summary.SessionId : title.Trim();
+            var cwd = info?.ProjectPath;
+            if (!MatchesReferenceQuery(query, label, summary.SessionId, cwd)) {
+                continue;
+            }
+            var normalizedCwd = NormalizePath(cwd);
+            matches.Add(new DshSessionReferenceCandidate {
+                Mention = $"@{label}",
+                SessionId = summary.SessionId,
+                Label = label,
+                DisplayTitle = string.IsNullOrWhiteSpace(title) ? null : label,
+                Cwd = string.IsNullOrWhiteSpace(cwd) ? null : cwd,
+                SameWorkspace = currentCwd.Length > 0 && normalizedCwd.Length > 0
+                    && string.Equals(normalizedCwd, currentCwd, StringComparison.OrdinalIgnoreCase),
+                CreatedAt = ToUnixMilliseconds(info?.CreatedAt ?? summary.CreatedAt),
+            });
+        }
+        return [.. matches
+            .OrderByDescending(candidate => candidate.SameWorkspace)
+            .ThenByDescending(candidate => candidate.CreatedAt)
+            .Take(ReferenceCandidateLimit)];
+    }
+
+    /// <summary>候选匹配：标题/会话 ID/工作目录任一包含查询词即命中（空查询全命中）</summary>
+    private static bool MatchesReferenceQuery(string query, string label, string sessionId, string? cwd) {
+        var normalized = query.Trim();
+        return normalized.Length == 0
+            || label.Contains(normalized, StringComparison.OrdinalIgnoreCase)
+            || sessionId.Contains(normalized, StringComparison.OrdinalIgnoreCase)
+            || (cwd?.Contains(normalized, StringComparison.OrdinalIgnoreCase) ?? false);
+    }
+
+    /// <summary>路径归一（分隔符与尾斜杠；空值返回空串）</summary>
+    private static string NormalizePath(string? path) =>
+        string.IsNullOrWhiteSpace(path) ? "" : path.Replace('\\', '/').TrimEnd('/');
+
+    /// <summary>一次 @ 补全最多回传的候选条数（前端下拉展示上限量级）</summary>
+    private const int ReferenceCandidateLimit = 20;
+
+    /// <summary>@ 补全扫描的会话上限（按更新时间取最近的会话，控制逐条读标题/元信息的 I/O）</summary>
+    private const int ReferenceScanLimit = 50;
+
     /// <summary>列出会话 ID → 标题（供会话投影与工作区归属填充）</summary>
     /// <param name="limit">最多返回条数</param>
     /// <param name="cancellationToken">取消令牌</param>

@@ -629,6 +629,52 @@ public static class SettingsLoader {
         await fs.WriteAllTextAsync(path, json, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 写回单个供应商的 <c>providers_llm/{vendor}/config.json</c> — 树状布局下单点落盘入口
+    /// （模型列表由 SettingsJsonModelWriter 单独写 models.json）。
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="baseDir">jcc 基础目录（<c>~/.jcc/</c>）</param>
+    /// <param name="vendor">供应商键（providers_llm 子目录名）</param>
+    /// <param name="config">供应商连接配置（models 由 models.json 承载）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    public static async Task SaveVendorConfigAsync(
+        IFileSystem fs,
+        string baseDir,
+        string vendor,
+        VendorConfigFile config,
+        CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(vendor);
+        var vendorDir = Path.Combine(baseDir, "providers_llm", vendor);
+        DirectoryHelper.EnsureDirectoryExists(fs, vendorDir);
+        var json = RelaxedJsonSerializer.SerializeIndented(config, ConfigIndentedJsonContext.Default);
+        await fs.WriteAllTextAsync(Path.Combine(vendorDir, "config.json"), json, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 写回单个供应商的 <c>providers_llm/{vendor}/models.json</c> — 与 <see cref="SaveVendorConfigAsync"/>
+    /// 配对使用（配置文件只含连接字段，模型列表单独落盘）。
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="baseDir">jcc 基础目录（<c>~/.jcc/</c>）</param>
+    /// <param name="vendor">供应商键（providers_llm 子目录名）</param>
+    /// <param name="models">模型列表</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    public static async Task SaveVendorModelsAsync(
+        IFileSystem fs,
+        string baseDir,
+        string vendor,
+        IReadOnlyList<ModelItemConfig> models,
+        CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(vendor);
+        var vendorDir = Path.Combine(baseDir, "providers_llm", vendor);
+        DirectoryHelper.EnsureDirectoryExists(fs, vendorDir);
+        var json = RelaxedJsonSerializer.SerializeIndented(
+            new VendorModelsFile { Models = [.. models] },
+            ConfigIndentedJsonContext.Default);
+        await fs.WriteAllTextAsync(Path.Combine(vendorDir, "models.json"), json, cancellationToken).ConfigureAwait(false);
+    }
+
     #region 路径解析
 
     /// <summary>

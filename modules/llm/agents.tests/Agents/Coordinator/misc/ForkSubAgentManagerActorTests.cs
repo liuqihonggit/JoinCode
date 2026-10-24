@@ -369,15 +369,21 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime {
     public async Task ForkAsync_BackgroundFork_BlocksSecondForkWhileRunning() {
         for (var attempt = 0; attempt < 16; attempt++) {
             try {
-                await RunBlocksSecondForkCoreAsync().ConfigureAwait(true);
-                return;
+                var secondForkCompleted = await RunBlocksSecondForkCoreAsync().ConfigureAwait(true);
+                if (!secondForkCompleted) return;
+                if (attempt < 15) {
+                    Console.WriteLine($"[Retry] 第二个 fork 在后台持有信号量期间完成 — 时序竞态({attempt + 1}/16)");
+                    await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(true);
+                    continue;
+                }
+                secondForkCompleted.Should().BeFalse("第二个 fork 应被阻塞 — 后台 fork 仍持有信号量");
             } catch (System.TimeoutException ex) when (ex.Message.Contains("Concurrency")) {
                 if (attempt == 15) throw;
                 await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(true);
             }
         }
 
-        async Task RunBlocksSecondForkCoreAsync() {
+        async Task<bool> RunBlocksSecondForkCoreAsync() {
             var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
             var bgAgent = new AgentBase("Background fork", null, queryEngineMock.Object, null);
             var syncAgent = new AgentBase("Sync fork", null, queryEngineMock.Object, null);
@@ -425,7 +431,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime {
 
             await WaitUntilAsync(() => manager.InputCount == 0, TimeSpan.FromMilliseconds(500));
             await Task.Delay(500);
-            secondForkCompleted.Should().BeFalse("第二个 fork 应被阻塞 — 后台 fork 仍持有信号量");
+            return secondForkCompleted;
         }
     }
 

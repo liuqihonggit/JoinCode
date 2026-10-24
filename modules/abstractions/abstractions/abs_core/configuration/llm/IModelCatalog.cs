@@ -1,9 +1,23 @@
-namespace JoinCode.ChatCommands;
+namespace JoinCode.Abstractions.Configuration.Llm;
 
 /// <summary>
 /// 模型目录接口 - 提供模型列表、别名解析、能力查询
 /// </summary>
 public interface IModelCatalog {
+    /// <summary>
+    /// 获取全部已注册供应商目录（供应商身份 + 显示名 + 默认模型 + 模型清单）。
+    /// 供应商集合来自配置域注册表（settings.json 的 vendor 节点），UI 不得自行枚举。
+    /// </summary>
+    IReadOnlyList<ModelProviderCatalog> GetProviders();
+
+    /// <summary>
+    /// 构建模型目录快照 — 当前选择 + 全部供应商分组。
+    /// 当前供应商的当前模型会补入清单（即使配置里没有），避免 UI 选不中正在生效的模型。
+    /// </summary>
+    /// <param name="currentProvider">当前供应商标识</param>
+    /// <param name="currentModelId">当前模型 ID</param>
+    ModelCatalogSnapshot GetSnapshot(string currentProvider, string currentModelId);
+
     /// <summary>
     /// 获取指定提供商的模型列表
     /// </summary>

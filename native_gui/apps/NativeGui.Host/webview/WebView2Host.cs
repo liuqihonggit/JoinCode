@@ -55,7 +55,7 @@ internal sealed class WebView2Host : NativeControlHost {
             core.Profile.PreferredColorScheme = MapColorScheme(GuiPalette.CurrentVariant);
             core.WebMessageReceived += OnWebMessage;
             _core = core;
-            UpdateControllerBounds();
+            UpdateControllerBounds(Bounds.Size);
             WebViewReady?.Invoke(core);
             core.Navigate(_pageUri);
         } catch (Exception ex) {
@@ -85,22 +85,43 @@ internal sealed class WebView2Host : NativeControlHost {
     /// <inheritdoc/>
     protected override Size ArrangeOverride(Size finalSize) {
         var result = base.ArrangeOverride(finalSize);
-        UpdateControllerBounds();
+        // 必须用 finalSize：Avalonia 在 ArrangeOverride 返回后才更新 Bounds，
+        // 读 Bounds 会让控制器落后一次窗口尺寸变更（缩窗后最大化露出未绘制黑区）
+        UpdateControllerBounds(finalSize);
         return result;
     }
 
-    /// <summary>控制器挂在原生子窗口上，Bounds 以物理像素计，随 Avalonia 布局同步尺寸</summary>
-    private void UpdateControllerBounds() {
+    /// <summary>
+    /// 排布尺寸（DIP）→ 控制器物理像素尺寸。窗口缩放必须逐次换算本次排布尺寸，
+    /// 非正尺寸返回 <c>null</c>（最小化/初始化前不写控制器）。
+    /// </summary>
+    internal static (int Width, int Height)? ResolveControllerBounds(Size arrangedSize, double renderScaling) {
+        var w = (int)Math.Round(arrangedSize.Width * renderScaling);
+        var h = (int)Math.Round(arrangedSize.Height * renderScaling);
+        return w <= 0 || h <= 0 ? null : (w, h);
+    }
+
+    /// <summary>
+    /// 取排布目标的渲染缩放。Avalonia 12 的 <c>VisualRoot</c> 是 TopLevelHost（非 Window），
+    /// 直接 <c>as TopLevel</c> 会得到 null 并退回 1.0，高 DPI 下控制器就按 DIP 尺寸绘制、右侧底部露空白带。
+    /// </summary>
+    internal static double ResolveRenderScaling(Visual visual) =>
+        TopLevel.GetTopLevel(visual)?.RenderScaling ?? 1.0;
+
+    /// <summary>控制器挂在原生子窗口上，Bounds 以物理像素计，随 Avalonia 排布同步尺寸</summary>
+    private void UpdateControllerBounds(Size arrangedSize) {
         if (_controller is null) {
             return;
         }
-        var scale = (VisualRoot as TopLevel)?.RenderScaling ?? 1.0;
-        var w = (int)Math.Round(Bounds.Width * scale);
-        var h = (int)Math.Round(Bounds.Height * scale);
-        if (w <= 0 || h <= 0) {
+        var scale = ResolveRenderScaling(this);
+        if (ResolveControllerBounds(arrangedSize, scale) is not { } size) {
             return;
         }
-        _controller.Bounds = new Windows.Foundation.Rect(0, 0, w, h);
+        var bounds = new Windows.Foundation.Rect(0, 0, size.Width, size.Height);
+        if (_controller.Bounds.Equals(bounds)) {
+            return;
+        }
+        _controller.Bounds = bounds;
     }
 
     /// <inheritdoc/>

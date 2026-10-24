@@ -16,6 +16,9 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     private readonly IFileSystem _fs;
     private readonly Task _loadTask;
     private volatile bool _disableBypassGate;
+    /// <summary>规则热加载 mtime 快照（TASK070 P1-P2/DSG046 — settings.json 最后写入时间，
+    /// 判定链前段比对变化触发重读；null = 启动时文件不存在）。</summary>
+    private DateTime? _rulesLastWriteUtc;
 
     /// <summary>
     /// Bypass 安全闸 — 从 settings.json 的 disableBypassPermissionsMode 加载
@@ -58,6 +61,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
 
         // 会话级已批准危险等级 — 用户确认某等级后同会话内同等级自动通过，非持久化
         _approvedLevels = new HashSet<CommandDangerLevel>();
+        _rulesLastWriteUtc = ReadRulesFileWriteTimeUtc();
     }
 
     /// <summary>
@@ -165,6 +169,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
         ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
 
         await _loadTask.ConfigureAwait(false);
+        await ReloadRulesIfSettingsChangedAsync().ConfigureAwait(false);
 
         var context = new PermissionCheckContext {
             ToolName = toolName,
@@ -179,6 +184,48 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
         await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
         return context.Result ?? ToolPermissionCheckResult.PendingConfirmation($"工具 '{toolName}' 请求执行操作，是否批准？");
+    }
+
+    /// <summary>
+    /// 规则热加载（TASK070 P1-P2/DSG046 — "加载判定链 + 热加载"）：settings.json mtime 变化时
+    /// 重读规则（PermissionRulesFileLoader 唯一加载实现 — 与启动加载同链），同步更新
+    /// _config 字典与判定链 HashSet（差量更新，避免 Clear 空窗）。失败沿用内存规则不阻塞判定。
+    /// </summary>
+    private async Task ReloadRulesIfSettingsChangedAsync() {
+        var lastWrite = ReadRulesFileWriteTimeUtc();
+        if (lastWrite == _rulesLastWriteUtc)
+            return;
+
+        try {
+            await PermissionRulesFileLoader.LoadAsync(_config, _fs, _logger).ConfigureAwait(false);
+            SyncRuleSet(_config.AutoApprovedTools, _autoApprovedTools);
+            SyncRuleSet(_config.AutoRejectedTools, _autoRejectedTools);
+            _rulesLastWriteUtc = lastWrite;
+            _logger?.LogInformation("[PermissionChecker] settings.json 权限规则热加载完成 (allow={Allow}, deny={Deny})",
+                _config.AutoApprovedTools.Count, _config.AutoRejectedTools.Count);
+        } catch (Exception ex) {
+            _rulesLastWriteUtc = lastWrite; // 失败也更新快照，避免每次判定都重试 IO
+            _logger?.LogWarning(ex, "[PermissionChecker] 规则热加载失败（沿用内存规则）");
+        }
+    }
+
+    /// <summary>规则集差量同步 — 移除消失键 + 追加/保留现存键（无 Clear 空窗，并发 Contains 容忍）。</summary>
+    private static void SyncRuleSet(
+        Structura.Collections.ImmutableHamT<string, ToolPermissionRule> rules,
+        HashSet<string> toolNames) {
+        toolNames.ExceptWith(toolNames.Where(k => !rules.ContainsKey(k)).ToList());
+        foreach (var key in rules.Keys) {
+            toolNames.Add(key);
+        }
+    }
+
+    private DateTime? ReadRulesFileWriteTimeUtc() {
+        try {
+            var path = SettingsLoader.GetUserSettingsPath();
+            return _fs.FileExists(path) ? _fs.GetLastWriteTimeUtc(path) : null;
+        } catch {
+            return _rulesLastWriteUtc; // IO 异常保持旧快照（不触发无谓重载）
+        }
     }
 
     /// <summary>
@@ -220,10 +267,8 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
 
         try {
             // 对齐 TS 版: 持久化到 settings.json 的 permissions.allow 数组
-            // 格式: "WebFetch(domain:example.com)" — 对齐 TS 版 PermissionRuleValue
-            var permissionValue = string.IsNullOrEmpty(ruleContent)
-                ? toolName
-                : $"{toolName}({ruleContent})";
+            // 格式委托 PermissionRuleParser.Format（TASK070 P1-P2 唯一数据源）
+            var permissionValue = PermissionRuleParser.Format(toolName, string.IsNullOrEmpty(ruleContent) ? null : ruleContent);
 
             // 读取当前 settings.json
             var settings = await SettingsLoader.LoadUserSettingsAsync(_fs, cancellationToken).ConfigureAwait(false) ?? new SettingsJson();

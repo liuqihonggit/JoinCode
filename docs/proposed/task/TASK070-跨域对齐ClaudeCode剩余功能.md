@@ -83,6 +83,12 @@
 | E3 TUI spinner 提示（"Retrying in Xs (N/M)"，非 ErrorMessageItem） | SpinnerItem.Message（BeginTurn/EndTurn 复位不残留） | ✅ | ✅（ReplBridgeDriverTests 3 用例：1s 显示/亚秒 ceil/回合结束清空） |
 | 批次2 真实 exe 验收（ADR 0080） | NativeTui.Host --selftest | ✅ | ✅（真实 exe EXIT=0；回归 brain.other 415 / agents 643 / brain.context 950 / host.tests 1471 / NativeTui.Tests 2929 / Host.Tests 140 全绿） |
 
+| P1-P2 解析器（PermissionRuleParser Parse/Format/MatchesContent/ExtractCommand — 唯一数据源） | ServiceRegistration 启动加载 / PermissionChecker 持久化 / ToolListPermissionMiddleware 判定 / PermissionAwareToolExecutor AlwaysAllow 规则生成 全部委托 | ✅ | ✅（PermissionRuleParserTests 6 组 Theory：三形态解析/非法 null/往返一致/前缀精确匹配/命令提取） |
+| P2 判定链内容粒度（前缀规则参数匹配才决策，未命中落确认） | ToolListPermissionMiddleware.MatchesRule（deny 优先于 allow） | ✅ | ✅（ToolListPermissionGranularTests 6 用例：工具级整放行/前缀命中/前缀未命中续链/无 command 续链/deny 优先/未列出续链） |
+| P1 AlwaysAllow 持久化（IToolPermissionManager.ApproveToolPermanentlyAsync + Executor 接线 Shell 前缀规则） | PermissionManager → PermissionChecker.AddToAutoApprovedAndPersistAsync（内存+settings.json 双写）；TUI/CLI 两路径共用 | ✅ | ✅（Executor 3 用例：AlwaysAllow 工具级/带 command 前缀 "cmd:*"/Allow 不持久化 + PermissionManagerTest 2 用例内存生效与后缀保留） |
+| 热加载（PermissionRulesFileLoader 唯一加载实现 + PermissionChecker mtime 前段检查差量同步） | 启动加载（ServiceRegistration 委托）与运行期重读同链 | ✅ | ✅（PermissionCheckerTest：settings.json 出现后判定命中 + 无文件快速路径；loader 异常沿用内存规则） |
+| 批次3 真实 exe 验收（ADR 0080） | NativeTui.Host --selftest | ✅ | ✅（真实 exe EXIT=0；回归 guard.security 1133 / guard.config 1304 / guard.hooks 574 / mcp_tool_dispatch 523 / host.tests 1471 / NativeTui.Tests 2929 / Host.Tests 140 全绿） |
+
 ## 六、决策记录（过程追加）
 
 <!-- 🤖 Auto Decision: 2026-10-24 批次1 -->
@@ -96,3 +102,9 @@
 <!-- 原因: 与 WriteToTranscript 回调先例同形态；避免新增 Ambient AsyncLocal 通道的作用域管理成本 -->
 <!-- 替代方案: SubAgentEventChannel 复用 —— 语义错位（子代理通道承载主回合重试），弃 -->
 <!-- 验证: brain.other 415 + agents 643 + brain.context 950 + host.tests 1471 + NativeTui.Tests 2929 全绿 + selftest EXIT=0 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-24 批次3 -->
+<!-- 决策: AlwaysAllow 持久化接线在 PermissionAwareToolExecutor（TUI/CLI 共用确认闭环点）而非各 handler；前缀规则 ":*" 语义对齐 TS；WebFetch domain 等非命令内容规则保持整工具语义由专用中间件兜底 -->
+<!-- 原因: executor 同时持有 toolName+arguments+action，handler 层无参数通道；P2 实证缺陷（Contains(toolName) 把前缀规则退化成全量放行）在此一并消除 -->
+<!-- 替代方案: TUI handler 内持久化 — 无 arguments 可提取且 CLI 需重复接线，弃 -->
+<!-- 验证: guard.security 1133 + guard.config 1304 + guard.hooks 574 + mcp 523 + host.tests 1471 + NativeTui.Tests 2929 全绿 + selftest EXIT=0 ✅ -->

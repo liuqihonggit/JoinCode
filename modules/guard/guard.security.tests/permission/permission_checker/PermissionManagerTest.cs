@@ -28,6 +28,29 @@ public sealed class PermissionManagerTest {
         return (manager, config);
     }
 
+    /// <summary>TASK070 P1/DSG046 — 永久批准委托 PermissionChecker.AddToAutoApprovedAndPersistAsync
+    /// （内存 SetItem + settings.json 写入；InMemoryFileSystem 可读回验证）。</summary>
+    [Fact]
+    public async Task ApproveToolPermanentlyAsync_PersistsRuleToConfig() {
+        var (manager, config) = CreateManager();
+
+        await manager.ApproveToolPermanentlyAsync("CustomTool", null);
+
+        Assert.True(config.AutoApprovedTools.ContainsKey("CustomTool"),
+            "永久批准应内存即时生效（AddToAutoApproved 双写先例）");
+    }
+
+    /// <summary>TASK070 P1/DSG046 — 永久批准带前缀规则（RuleContent 含 ":*" 后缀，中间件按前缀语义匹配）。</summary>
+    [Fact]
+    public async Task ApproveToolPermanentlyAsync_WithPrefixRule_PreservesSuffix() {
+        var (manager, config) = CreateManager();
+
+        await manager.ApproveToolPermanentlyAsync("Bash", "npm run build:*");
+
+        Assert.True(config.AutoApprovedTools.TryGetValue("Bash", out var rule));
+        Assert.Equal("npm run build:*", rule.RuleContent);
+    }
+
     private static PermissionConfig CreateConfigWithDangerousTools() {
         var config = PermissionConfig.CreateDefault();
         config.AutoApprovedTools = config.AutoApprovedTools

@@ -15,6 +15,15 @@ public sealed class TuiPermissionConfirmationTests {
         /// <summary>收到的等级批准记录。</summary>
         public List<CommandDangerLevel> LevelApprovals { get; } = [];
 
+        /// <summary>收到的永久批准规则记录（TASK070 P1 — AlwaysAllow 持久化面）。</summary>
+        public List<(string Tool, string? RuleContent)> PermanentApprovals { get; } = [];
+
+        /// <summary>永久批准 — 记录不抛（AlwaysAllow 持久化失败仅记日志，fake 同语义）。</summary>
+        public Task ApproveToolPermanentlyAsync(string toolName, string? ruleContent, CancellationToken cancellationToken = default) {
+            PermanentApprovals.Add((toolName, ruleContent));
+            return Task.CompletedTask;
+        }
+
         /// <summary>未使用（引擎 PermissionRequest 在 JoinCode.Abstractions.Security，与 Core Repl 同名 — 全限定消歧）。</summary>
         public Task<JoinCode.Abstractions.Security.PermissionResult> CheckPermissionAsync(JoinCode.Abstractions.Security.PermissionRequest request, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();

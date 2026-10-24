@@ -141,67 +141,10 @@ public static partial class ServiceRegistration {
         return services;
     }
 
-    private static async Task LoadPermissionsFromSettingsAsync(PermissionConfig options, IFileSystem fs, ILogger? logger = null) {
-        try {
-            var settings = await SettingsLoader.LoadUserSettings(fs).ConfigureAwait(false);
-            if (settings?.Current?.Permissions is null)
-                return;
-
-            if (settings.Current.Permissions.Allow is { Count: > 0 }) {
-                foreach (var rule in settings.Current.Permissions.Allow) {
-                    var parsed = ParsePermissionRuleValue(rule);
-                    if (parsed is not null && !options.AutoApprovedTools.Values.Any(r =>
-                        string.Equals(r.ToolName, parsed.ToolName, StringComparison.OrdinalIgnoreCase) &&
-                        string.Equals(r.RuleContent ?? "", parsed.RuleContent ?? "", StringComparison.OrdinalIgnoreCase))) {
-                        options.AutoApprovedTools = options.AutoApprovedTools.SetItem(parsed.ToolName, parsed);
-                    }
-                }
-            }
-
-            if (settings.Current.Permissions.Deny is { Count: > 0 }) {
-                foreach (var rule in settings.Current.Permissions.Deny) {
-                    var parsed = ParsePermissionRuleValue(rule);
-                    if (parsed is not null)
-                        options.AutoRejectedTools = options.AutoRejectedTools.SetItem(parsed.ToolName, parsed);
-                }
-            }
-
-            if (settings.Current.Permissions.Ask is { Count: > 0 }) {
-                foreach (var rule in settings.Current.Permissions.Ask) {
-                    var parsed = ParsePermissionRuleValue(rule);
-                    if (parsed is not null)
-                        options.AskRules.Add(parsed);
-                }
-            }
-
-            if (settings.Current.Permissions.ToolOverrides is { Count: > 0 }) {
-                foreach (var (mode, entry) in settings.Current.Permissions.ToolOverrides) {
-                    options.ToolOverrides = options.ToolOverrides.SetItem(mode, entry);
-                }
-            }
-        } catch (Exception ex) {
-            logger?.LogWarning(ex, "Failed to load permission settings");
-        }
-    }
-
-    private static ToolPermissionRule? ParsePermissionRuleValue(string ruleValue) {
-        if (string.IsNullOrEmpty(ruleValue))
-            return null;
-
-        var parenIndex = ruleValue.IndexOf('(');
-        if (parenIndex > 0 && ruleValue.EndsWith(')')) {
-            var toolName = ruleValue[..parenIndex];
-            var ruleContent = ruleValue.Substring(parenIndex + 1, ruleValue.Length - parenIndex - 2);
-            return new ToolPermissionRule {
-                ToolName = toolName,
-                RuleContent = ruleContent,
-                Description = $"From settings.json: {ruleValue}"
-            };
-        }
-
-        return new ToolPermissionRule {
-            ToolName = ruleValue,
-            Description = $"From settings.json: {ruleValue}"
-        };
-    }
+    /// <summary>
+    /// 权限规则加载 — 委托 <see cref="PermissionRulesFileLoader"/>（TASK070 P1-P2 唯一数据源：
+    /// 启动加载与运行期热加载共用同一实现，消除双处维护）。
+    /// </summary>
+    private static Task LoadPermissionsFromSettingsAsync(PermissionConfig options, IFileSystem fs, ILogger? logger = null) =>
+        PermissionRulesFileLoader.LoadAsync(options, fs, logger);
 }

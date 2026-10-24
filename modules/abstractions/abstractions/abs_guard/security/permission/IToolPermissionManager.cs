@@ -58,6 +58,17 @@ public interface IToolPermissionManager {
     void ApproveToolTemporarily(string toolName, TimeSpan duration);
 
     /// <summary>
+    /// 永久批准规则（TASK070 P1/DSG046 — AlwaysAllow 持久化）：规则串写入 settings.json
+    /// permissions.allow + 内存即时生效（AddToAutoApproved 双写先例 — 对齐 TS persistPermissionUpdate）。
+    /// 规则串形态由 PermissionRuleParser 唯一数据源约束（"Tool" 工具级 / "Tool(content)" 内容级 /
+    /// "Tool(prefix:*)" 前缀级）。失败仅记日志不抛（持久化非关键路径，临时批准已兜底本回合）。
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <param name="ruleContent">规则内容（null = 工具级；前缀规则传 "npm run:*" 含后缀）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    Task ApproveToolPermanentlyAsync(string toolName, string? ruleContent, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 会话级批准某危险等级 — 用户确认后同会话内同等级操作自动通过
     /// 非持久化，每次打开新 exe 重新提示。Safe/Dangerous 传入无效果（Safe 无需批准，Dangerous 永不批准）
     /// </summary>

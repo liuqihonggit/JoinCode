@@ -223,16 +223,62 @@ public class PermissionAwareToolExecutorTest {
         var confirmHandler = new Mock<IPermissionConfirmationHandler>();
         confirmHandler.Setup(c => c.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(PermissionConfirmAction.AlwaysAllow);
+        var permissionManager = new Mock<IToolPermissionManager>();
+        permissionManager.Setup(p => p.GetCurrentModeAsync(It.IsAny<CancellationToken>())).ReturnsAsync(PermissionMode.Auto);
 
         await using var executor = new PermissionAwareToolExecutor(
             CreateRegistry(handler), CreatePipeline(new PendingThenSuccessMiddleware()),
-            CreatePermissionManager(), confirmationHandler: confirmHandler.Object,
+            permissionManager.Object, confirmationHandler: confirmHandler.Object,
             logger: NullLogger<PermissionAwareToolExecutor>.Instance);
 
         var result = await executor.ExecuteAsync("test_tool", []);
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("success after confirm");
+        // TASK070 P1/DSG046 — AlwaysAllow 持久化（无 command 参数 → 工具级规则 null）
+        permissionManager.Verify(p => p.ApproveToolPermanentlyAsync("test_tool", null, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>TASK070 P1/DSG046 — AlwaysAllow 带 command 参数（Shell 类）→ 前缀规则 "command:*" 持久化。</summary>
+    [Fact]
+    public async Task HandlePendingConfirmation_UserAlwaysAllow_WithCommand_PersistsPrefixRule() {
+        var handler = CreateStubHandler();
+        var confirmHandler = new Mock<IPermissionConfirmationHandler>();
+        confirmHandler.Setup(c => c.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PermissionConfirmAction.AlwaysAllow);
+        var permissionManager = new Mock<IToolPermissionManager>();
+        permissionManager.Setup(p => p.GetCurrentModeAsync(It.IsAny<CancellationToken>())).ReturnsAsync(PermissionMode.Auto);
+
+        await using var executor = new PermissionAwareToolExecutor(
+            CreateRegistry(handler, "Bash"), CreatePipeline(new PendingThenSuccessMiddleware()),
+            permissionManager.Object, confirmationHandler: confirmHandler.Object,
+            logger: NullLogger<PermissionAwareToolExecutor>.Instance);
+        var arguments = new Dictionary<string, JsonElement> { ["command"] = JsonDocument.Parse("\"npm run build\"").RootElement.Clone() };
+
+        await executor.ExecuteAsync("Bash", arguments);
+
+        permissionManager.Verify(
+            p => p.ApproveToolPermanentlyAsync("Bash", "npm run build:*", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>TASK070 P1/DSG046 — Allow（本次允许）不触发持久化。</summary>
+    [Fact]
+    public async Task HandlePendingConfirmation_UserAllowOnce_DoesNotPersist() {
+        var handler = CreateStubHandler();
+        var confirmHandler = new Mock<IPermissionConfirmationHandler>();
+        confirmHandler.Setup(c => c.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PermissionConfirmAction.Allow);
+        var permissionManager = new Mock<IToolPermissionManager>();
+        permissionManager.Setup(p => p.GetCurrentModeAsync(It.IsAny<CancellationToken>())).ReturnsAsync(PermissionMode.Auto);
+
+        await using var executor = new PermissionAwareToolExecutor(
+            CreateRegistry(handler), CreatePipeline(new PendingThenSuccessMiddleware()),
+            permissionManager.Object, confirmationHandler: confirmHandler.Object,
+            logger: NullLogger<PermissionAwareToolExecutor>.Instance);
+
+        await executor.ExecuteAsync("test_tool", []);
+
+        permissionManager.Verify(p => p.ApproveToolPermanentlyAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]

@@ -5,7 +5,7 @@ namespace JoinCode.Gui.Tests.WebHost;
 /// <c>settings/openSettingsDocument</c> 打开宿主持有的 <c>dsh-settings.json</c>。
 /// </summary>
 public sealed class DshSettingsDocumentTests {
-    private const string AppDataFolder = "C:/test/.jcc";
+    private static readonly string AppDataFolder = Path.Combine(Path.GetTempPath(), "jcc_dsh_settings_test", ".jcc");
     private static readonly string SettingsPath = Path.Combine(AppDataFolder, "dsh-settings.json");
 
     private static DshHostServices CreateServices(IFileSystem fs) =>

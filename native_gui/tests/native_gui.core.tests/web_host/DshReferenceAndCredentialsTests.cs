@@ -8,8 +8,10 @@ namespace JoinCode.Gui.Tests.WebHost;
 public sealed class DshReferenceAndCredentialsTests {
     private const string SessionsDir = "/test/sessions";
     private const string JournalDir = "/test/dsh_journal";
-    private const string AppDataFolder = "C:/test/.jcc";
-    private const string AuthPath = AppDataFolder + "/auth.json";
+    private static readonly string AppDataFolder = Path.Combine(Path.GetTempPath(), "jcc_ref_cred_test", ".jcc");
+    private static readonly string AuthPath = Path.Combine(AppDataFolder, "auth.json");
+    private static readonly string WorkA = Path.Combine(Path.GetTempPath(), "jcc_ref_test", "work_a");
+    private static readonly string WorkB = Path.Combine(Path.GetTempPath(), "jcc_ref_test", "work_b");
 
     /// <summary>建一个带真实转录与事件日志的宿主服务与分发器（模型目录注入 deepseek 供应商）</summary>
     private static async Task<(DshHostServices Services, DshRpcDispatcher Dispatcher, State.TranscriptService Transcripts)> CreateHostAsync(IFileSystem fs) {
@@ -51,9 +53,9 @@ public sealed class DshReferenceAndCredentialsTests {
     public async Task Candidates_ListsMatchingSessionsWithMentionAndWorkspaceFlag() {
         await using var fs = new InMemoryFileSystem();
         var (_, dispatcher, transcripts) = await CreateHostAsync(fs);
-        await AddSessionAsync(transcripts, "current", "D:/work/a");
-        await AddSessionAsync(transcripts, "s1", "D:/work/a", new DateTime(2026, 5, 1, 12, 0, 0, DateTimeKind.Utc));
-        await AddSessionAsync(transcripts, "s2", "D:/work/b", new DateTime(2026, 5, 2, 12, 0, 0, DateTimeKind.Utc));
+        await AddSessionAsync(transcripts, "current", WorkA);
+        await AddSessionAsync(transcripts, "s1", WorkA, new DateTime(2026, 5, 1, 12, 0, 0, DateTimeKind.Utc));
+        await AddSessionAsync(transcripts, "s2", WorkB, new DateTime(2026, 5, 2, 12, 0, 0, DateTimeKind.Utc));
         await transcripts.SaveCustomTitleAsync("s1", "修复登录", CancellationToken.None);
 
         var result = await dispatcher.HandleAsync(
@@ -67,7 +69,7 @@ public sealed class DshReferenceAndCredentialsTests {
         candidate.Label.Should().Be("修复登录");
         candidate.DisplayTitle.Should().Be("修复登录");
         candidate.Mention.Should().Be("@修复登录");
-        candidate.Cwd.Should().Be("D:/work/a");
+        candidate.Cwd.Should().Be(WorkA);
         candidate.SameWorkspace.Should().BeTrue();
         candidate.CreatedAt.Should().Be(new DateTimeOffset(2026, 5, 1, 12, 0, 0, TimeSpan.Zero).ToUnixTimeMilliseconds());
     }
@@ -76,9 +78,9 @@ public sealed class DshReferenceAndCredentialsTests {
     public async Task Candidates_EmptyQueryExcludesCurrentSessionAndOrdersSameWorkspaceFirst() {
         await using var fs = new InMemoryFileSystem();
         var (_, dispatcher, transcripts) = await CreateHostAsync(fs);
-        await AddSessionAsync(transcripts, "current", "D:/work/a");
-        await AddSessionAsync(transcripts, "other", "D:/work/b", new DateTime(2026, 5, 3, 0, 0, 0, DateTimeKind.Utc));
-        await AddSessionAsync(transcripts, "same", "D:/work/a", new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc));
+        await AddSessionAsync(transcripts, "current", WorkA);
+        await AddSessionAsync(transcripts, "other", WorkB, new DateTime(2026, 5, 3, 0, 0, 0, DateTimeKind.Utc));
+        await AddSessionAsync(transcripts, "same", WorkA, new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc));
         await transcripts.SaveCustomTitleAsync("other", "另一个会话", CancellationToken.None);
 
         var result = await dispatcher.HandleAsync(

@@ -81,9 +81,11 @@ public sealed partial class PermissionHookExecutor : ServiceEntity, IPermissionH
                         Parameters = u.Parameters
                     }).ToList()
                     : null),
+            // TASK071 hooks-④ — 对齐 TS deny.interrupt（types/hooks.ts:255-258）：拒绝时可选中断当前回合；
+            // 旧实现硬编码 false 丢弃 Interrupt。端到端消费（回合中断）登记 TASK071 待接线。
             _ => PermissionRequestResult.Deny(
                 result is JoinCode.Abstractions.Hooks.PermissionDenyResult deny ? deny.Message ?? "Permission denied" : "Permission denied",
-                false)
+                result is JoinCode.Abstractions.Hooks.PermissionDenyResult deny2 && deny2.Interrupt)
         };
     }
 

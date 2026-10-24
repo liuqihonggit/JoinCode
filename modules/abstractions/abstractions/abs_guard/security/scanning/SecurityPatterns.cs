@@ -414,6 +414,7 @@ public static partial class SecurityPatterns {
 
         // NTFS 备用数据流 (ADS): 跳过前2个字符以忽略驱动器号 (C:)
         // 示例: file.txt::$DATA, .bashrc:hidden, settings.json:stream
+        if (path.Length < 2) return false;
         var colonIndex = path.IndexOf(':', 2);
         if (colonIndex != -1)
             return true;

@@ -108,4 +108,56 @@ public class V2ReplBridgeTransportTest {
         V2ReplBridgeTransport.TryParseSequenceNumber("-1", out var seqNum).Should().BeTrue();
         seqNum.Should().Be(-1);
     }
+
+    // === TryParseWorkerEpoch: registerWorker 响应解析（TASK071 #1 — 对齐 TS workSecret.ts:115-126）===
+    // TS 契约: protojson 把 int64 序列化为字符串，Go 端也可能返回 number — 双形态都收；字段名是 worker_epoch。
+
+    /// <summary>字符串形态（protojson int64）解析成功。</summary>
+    [Fact]
+    public void TryParseWorkerEpoch_StringForm_Parses() {
+        V2ReplBridgeTransport.TryParseWorkerEpoch(@"{""worker_epoch"": ""42""}", out var epoch).Should().BeTrue();
+        epoch.Should().Be(42);
+    }
+
+    /// <summary>数字形态解析成功。</summary>
+    [Fact]
+    public void TryParseWorkerEpoch_NumberForm_Parses() {
+        V2ReplBridgeTransport.TryParseWorkerEpoch(@"{""worker_epoch"": 42}", out var epoch).Should().BeTrue();
+        epoch.Should().Be(42);
+    }
+
+    /// <summary>缺失字段返回 false（调用方应 throw，禁止静默 0 — 旧 bug 恒 0 致 409 风暴）。</summary>
+    [Fact]
+    public void TryParseWorkerEpoch_MissingField_Fails() {
+        V2ReplBridgeTransport.TryParseWorkerEpoch(@"{""ok"": true}", out var epoch).Should().BeFalse();
+        epoch.Should().Be(0);
+    }
+
+    /// <summary>字段名错误（旧 bug 的 "epoch"）返回 false — 字段名回归锁（TS 契约 worker_epoch）。</summary>
+    [Fact]
+    public void TryParseWorkerEpoch_WrongFieldName_Fails() {
+        V2ReplBridgeTransport.TryParseWorkerEpoch(@"{""epoch"": 42}", out var epoch).Should().BeFalse();
+        epoch.Should().Be(0);
+    }
+
+    /// <summary>非数字字符串返回 false。</summary>
+    [Fact]
+    public void TryParseWorkerEpoch_NonNumericString_Fails() {
+        V2ReplBridgeTransport.TryParseWorkerEpoch(@"{""worker_epoch"": ""abc""}", out var epoch).Should().BeFalse();
+        epoch.Should().Be(0);
+    }
+
+    /// <summary>非法 JSON 返回 false。</summary>
+    [Fact]
+    public void TryParseWorkerEpoch_InvalidJson_Fails() {
+        V2ReplBridgeTransport.TryParseWorkerEpoch("not-json", out var epoch).Should().BeFalse();
+        epoch.Should().Be(0);
+    }
+
+    /// <summary>null 返回 false。</summary>
+    [Fact]
+    public void TryParseWorkerEpoch_Null_Fails() {
+        V2ReplBridgeTransport.TryParseWorkerEpoch(null, out var epoch).Should().BeFalse();
+        epoch.Should().Be(0);
+    }
 }

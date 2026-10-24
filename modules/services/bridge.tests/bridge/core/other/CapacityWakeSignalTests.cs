@@ -5,17 +5,16 @@ namespace Bridge.Tests;
 /// 测试容量唤醒信号的正常唤醒、超时返回 false、取消返回 false
 /// </summary>
 public sealed class CapacityWakeSignalTests {
+    /// <summary>TASK071 #10 语义变更锁（对齐 TS controller 轮换）— wake 只影响在途等待者：
+    /// 先 wake 后 sleep 拿到的是换新信号代，应睡满超时返回 false（旧 SemaphoreSlim 残留令牌会立即 true）。</summary>
     [Fact]
-    public async Task SleepUntilCapacityWakesAsync_AfterWakeUp_ReturnsTrue() {
-        // Arrange
+    public async Task SleepUntilCapacityWakesAsync_AfterWakeUp_NewGenerationSleepsFull_ReturnsFalse() {
         using var signal = new CapacityWakeSignal();
         signal.WakeUp();
 
-        // Act
-        var result = await signal.SleepUntilCapacityWakesAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
+        var result = await signal.SleepUntilCapacityWakesAsync(TimeSpan.FromMilliseconds(50)).ConfigureAwait(true);
 
-        // Assert
-        result.Should().BeTrue("唤醒后等待应返回 true");
+        result.Should().BeFalse("wake 后换新信号代 — 无在途等待者时信号丢弃，不应陈旧唤醒");
     }
 
     [Fact]
@@ -80,38 +79,32 @@ public sealed class CapacityWakeSignalTests {
         result.Should().BeFalse("等待期间取消应返回 false");
     }
 
+    /// <summary>连续 wake 等价一次（TS 轮换语义 — 只换新代，无令牌累积）。</summary>
     [Fact]
-    public async Task WakeUp_MultipleTimes_AllWakeupsConsumed() {
-        // Arrange
+    public async Task WakeUp_MultipleTimes_EquivalentToSingleWake() {
         using var signal = new CapacityWakeSignal();
-        const int wakeCount = 3;
-
-        for (var i = 0; i < wakeCount; i++) {
+        for (var i = 0; i < 3; i++) {
             signal.WakeUp();
         }
 
-        // Act & Assert — each sleep should succeed
-        for (var i = 0; i < wakeCount; i++) {
-            var result = await signal.SleepUntilCapacityWakesAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(true);
-            result.Should().BeTrue($"第 {i + 1} 次唤醒应返回 true");
-        }
+        // 无在途等待者 — 三次 wake 的信号全部随代丢弃
+        var result = await signal.SleepUntilCapacityWakesAsync(TimeSpan.FromMilliseconds(50)).ConfigureAwait(true);
+        result.Should().BeFalse("连续 wake 无等待者时不应陈旧唤醒");
     }
 
+    /// <summary>多个并发等待者 — 一次 wake 全部唤醒（TS 每 sleep 私有 merged signal，abort 当前代全醒）。</summary>
     [Fact]
-    public async Task SleepUntilCapacityWakesAsync_AfterAllWakeupsConsumed_TimeoutReturnsFalse() {
-        // Arrange
+    public async Task WakeUp_MultipleWaiters_AllWoken() {
         using var signal = new CapacityWakeSignal();
+        using var cts = new CancellationTokenSource();
+        var sleep1 = signal.SleepUntilCapacityWakesAsync(TimeSpan.FromSeconds(10), cts.Token);
+        var sleep2 = signal.SleepUntilCapacityWakesAsync(TimeSpan.FromSeconds(10), cts.Token);
+        await Task.Delay(50).ConfigureAwait(true);
+
         signal.WakeUp();
 
-        // Act — consume the single wakeup
-        var first = await signal.SleepUntilCapacityWakesAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(true);
-        first.Should().BeTrue();
-
-        // No more wakeups — should timeout
-        var second = await signal.SleepUntilCapacityWakesAsync(TimeSpan.FromMilliseconds(50)).ConfigureAwait(true);
-
-        // Assert
-        second.Should().BeFalse("唤醒已消费完，再次等待应超时返回 false");
+        (await sleep1.ConfigureAwait(true)).Should().BeTrue("等待者 1 应被唤醒");
+        (await sleep2.ConfigureAwait(true)).Should().BeTrue("等待者 2 应被唤醒（旧单放行语义只醒一个）");
     }
 
     [Fact]

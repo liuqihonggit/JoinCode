@@ -29,6 +29,8 @@ public sealed class BridgeInitState {
 
     /// <summary>认证恢复是否正在进行 — 防止并发恢复</summary>
     public bool AuthRecoveryInFlight;
+    /// <summary>当前激活传输（TASK071 #4 — 初始/重建接线时更新；flush 完成回调比对快照防旧闭包 drain 进已释放传输）。</summary>
+    public IReplBridgeTransport? Transport;
 
     /// <summary>上次传输的 SSE 序列号高水位 — 对齐 TS 端 lastTransportSequenceNum</summary>
     public int LastTransportSequenceNum;

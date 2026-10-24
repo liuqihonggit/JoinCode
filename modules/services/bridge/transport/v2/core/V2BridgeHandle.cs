@@ -45,7 +45,24 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle {
         _refresh = transportContext.Refresh;
         _logger = logger;
         _bridgeState = BridgeState.Ready;
+
+        // TASK071 #9 — 对齐 TS replBridge.ts:1528-1545：固定间隔推送静默 keep_alive 帧
+        // 防上游代理与会话入口层 GC 空闲会话（v1 句柄已有，v2 此前缺失）。0 = 禁用。
+        if (_config.SessionKeepaliveIntervalV2Ms > 0) {
+            _keepAliveTimer = new Timer(_ => {
+                try {
+                    if (_state.TornDown) return;
+                    var keepAliveJson = JsonSerializer.Serialize(
+                        new BridgeKeepAliveFrameDto(),
+                        BridgeJsonContext.Default.BridgeKeepAliveFrameDto);
+                    _ = _transport.WriteAsync(keepAliveJson, _disposeCts.Token);
+                } catch (Exception ex) { _logger?.LogWarning(ex, "[V2BridgeHandle] keep_alive 发送失败"); }
+            }, null, TimeSpan.FromMilliseconds(_config.SessionKeepaliveIntervalV2Ms),
+               TimeSpan.FromMilliseconds(_config.SessionKeepaliveIntervalV2Ms));
+        }
     }
+
+    private readonly Timer? _keepAliveTimer;
 
     /// <summary>写入消息 — 对齐 TS 端 writeMessages: FlushGate + dedup + titleDerivation + toSDKMessages</summary>
     /// <param name="messages">消息数组</param>
@@ -210,6 +227,11 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle {
             _config.TeardownArchiveTimeoutMs,
             _httpClient,
             ct).ConfigureAwait(false);
+
+        // 关闭 keep_alive 定时器（禁用配置时为 null）
+        if (_keepAliveTimer is not null) {
+            await _keepAliveTimer.DisposeAsync().ConfigureAwait(false);
+        }
 
         // 关闭传输
         await _transport.DisposeAsync().ConfigureAwait(false);

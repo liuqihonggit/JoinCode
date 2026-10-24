@@ -105,6 +105,7 @@ namespace Core.Bridge;
 [JsonSerializable(typeof(BridgeControlResponseDto))]
 [JsonSerializable(typeof(BridgeControlResponseBodyDto))]
 [JsonSerializable(typeof(BridgeKeepAliveMessageDto))]
+[JsonSerializable(typeof(BridgeKeepAliveFrameDto))]
 [JsonSerializable(typeof(BridgeCancelControlRequestMessageDto))]
 [JsonSerializable(typeof(BridgeSimpleResultMessageDto))]
 [JsonSerializable(typeof(BridgeUpdateEnvVarsMessageDto))]

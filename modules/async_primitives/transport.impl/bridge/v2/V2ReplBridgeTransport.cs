@@ -286,17 +286,55 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport {
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-        var result = RelaxedJsonSerializer.Deserialize(json, TransportBridgeJsonContext.Default.DictionaryStringJsonElement);
-        if (result?.TryGetValue("epoch", out var epochValue) == true && epochValue.ValueKind == JsonValueKind.Number) {
-            return epochValue.GetInt32();
+        if (!TryParseWorkerEpoch(json, out var epoch)) {
+            // 对齐 TS workSecret.ts:123-126 — 非法响应 throw，禁止静默 0（恒 0 → heartbeat/state 全 409 会话不可用）
+            throw new TransportFatalError($"registerWorker: invalid worker_epoch in response: {json}", (int)response.StatusCode, "invalid_epoch");
         }
 
-        return 0;
+        return epoch;
     }
 
     #endregion
 
     #region 纯计算分支(internal static 测试可见)
+
+    /// <summary>
+    /// 解析 registerWorker 响应的 worker_epoch — 对齐 TS workSecret.ts:115-126。
+    /// TS 契约: protojson 把 int64 序列化为字符串，Go 端也可能返回 number — 双形态都收；
+    /// 字段名为 worker_epoch（旧实现误用 "epoch" 且解析失败静默返回 0 — TASK071 #1）。
+    /// </summary>
+    /// <param name="json">响应 JSON 文本（可能为 null/非法）。</param>
+    /// <param name="epoch">解析成功的 epoch 值；失败时 0。</param>
+    /// <returns>true = 解析成功。</returns>
+    internal static bool TryParseWorkerEpoch(string? json, out int epoch) {
+        epoch = 0;
+        if (string.IsNullOrEmpty(json)) {
+            return false;
+        }
+
+        Dictionary<string, JsonElement>? result;
+        try {
+            result = RelaxedJsonSerializer.Deserialize(json, TransportBridgeJsonContext.Default.DictionaryStringJsonElement);
+        } catch (JsonException) {
+            return false; // 非法 JSON — 与字段缺失同语义：false → 调用方 throw
+        }
+
+        if (result?.TryGetValue("worker_epoch", out var value) != true) {
+            return false;
+        }
+
+        long? parsed = value.ValueKind switch {
+            JsonValueKind.Number when value.TryGetInt64(out var number) => number,
+            JsonValueKind.String when long.TryParse(value.GetString(), out var text) => text,
+            _ => null,
+        };
+        if (parsed is not { } parsedValue || parsedValue < 0) {
+            return false;
+        }
+
+        epoch = (int)Math.Min(parsedValue, int.MaxValue);
+        return true;
+    }
 
     /// <summary>
     /// 判断 SSE 响应状态码是否为永久拒绝 — 401/403/404 不重连。

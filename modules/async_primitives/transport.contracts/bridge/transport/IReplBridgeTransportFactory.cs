@@ -5,11 +5,6 @@ namespace JoinCode.Transport.Bridge;
 /// </summary>
 public interface IReplBridgeTransportFactory {
     /// <summary>
-    /// 创建 v2 传输（简化参数，env-less 路径使用）
-    /// </summary>
-    IReplBridgeTransport CreateV2Transport(string sdkUrl, string sessionId, string workerJwt, int connectTimeoutMs);
-
-    /// <summary>
     /// 创建 v1 传输（完整选项）
     /// </summary>
     IReplBridgeTransport CreateV1Transport(V1TransportOptions options, ILogger? logger = null);

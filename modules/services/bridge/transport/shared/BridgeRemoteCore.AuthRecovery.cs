@@ -125,7 +125,18 @@ public static partial class BridgeRemoteCore {
 
             // 对齐 TS 端: 创建新传输
             var sdkUrl = BridgeWorkSecretDecoder.BuildCCRv2SdkUrl(fresh.ApiBaseUrl, sessionId);
-            var newTransport = transportFactory.CreateV2Transport(sdkUrl, sessionId, fresh.WorkerJwt, config.ConnectTimeoutMs);
+            // TASK071 #2/#5 — 对齐 TS remoteBridgeCore.ts:486-500：重建传输必须携带旧 seq（防 SSE 全量回放）+
+            // fresh epoch（防双重 bump 409）+ 心跳接 config.HeartbeatIntervalMs（便捷版曾误接 ConnectTimeoutMs）
+            var newTransport = transportFactory.CreateV2Transport(new V2TransportOptions {
+                SseUrl = $"{sdkUrl}/worker/events/stream",
+                ApiBaseUrl = sdkUrl,
+                IngressToken = fresh.WorkerJwt,
+                SessionId = sessionId,
+                Epoch = (int)Math.Min(fresh.WorkerEpoch, int.MaxValue),
+                InitialSequenceNum = seq,
+                HeartbeatIntervalMs = config.HeartbeatIntervalMs,
+                GetAuthToken = () => fresh.WorkerJwt,
+            });
 
             if (state.TornDown) {
                 await newTransport.DisposeAsync().ConfigureAwait(false);
@@ -173,6 +184,8 @@ public static partial class BridgeRemoteCore {
         IReplBridgeTransportFactory transportFactory,
         BridgeTokenRefreshScheduler refresh,
         CancellationToken ct) {
+        // TASK071 #4 — 记录当前激活传输（重建时 RebuildTransportAsync 再次调用本方法覆盖）
+        state.Transport = transport;
         transport.SetOnConnect(() => {
             if (!state.InitialFlushDone && parameters.InitialMessages is { Length: > 0 }) {
                 state.InitialFlushDone = true;
@@ -188,7 +201,9 @@ public static partial class BridgeRemoteCore {
                         logger?.LogError("Bridge: flushHistory failed: {Message}", task.Exception?.InnerException?.Message);
                     }
 
-                    if (state.TornDown) return;
+                    // TASK071 #4 — 对齐 TS remoteBridgeCore.ts:407-416 三重守卫：
+                    // transport !== flushTransport（重建换传输后旧闭包不得 drain）|| tornDown || authRecoveryInFlight
+                    if (state.TornDown || state.AuthRecoveryInFlight || !ReferenceEquals(state.Transport, transport)) return;
                     DrainFlushGate(state.FlushGate, state.RecentPostedUUIDs, parameters.ToSDKMessages, transport, sessionId, state.InitCts.Token);
                     parameters.OnStateChange?.Invoke(BridgeState.Connected, null);
                 }, state.InitCts.Token);

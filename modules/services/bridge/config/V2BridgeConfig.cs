@@ -50,6 +50,10 @@ public sealed class V2BridgeConfig {
     [JsonPropertyName("connect_timeout_ms")]
     public int ConnectTimeoutMs { get; init; } = 15000;
 
+    /// <summary>v2 keep_alive 帧间隔（TASK071 #9 — 对齐 TS session_keepalive_interval_v2_ms 默认 120s；0 = 禁用。
+    /// 防上游代理与会话入口层 GC 空闲会话）。Validate 不设上下限 — 0 有"禁用"语义，>0 即生效。</summary>
+    public int SessionKeepaliveIntervalV2Ms { get; init; } = 120_000;
+
     /// <summary>最低版本要求 — 默认 "0.0.0"</summary>
     [JsonPropertyName("min_version")]
     public string MinVersion { get; init; } = "0.0.0";
@@ -68,17 +72,23 @@ public sealed class V2BridgeConfig {
     public static V2BridgeConfig Validate(V2BridgeConfig config) {
         ArgumentNullException.ThrowIfNull(config);
 
-        if (config.InitRetryMaxAttempts < 1) return Defaults;
-        if (config.InitRetryBaseDelayMs < 0) return Defaults;
-        if (config.InitRetryJitterFraction < 0 || config.InitRetryJitterFraction > 1) return Defaults;
-        if (config.InitRetryMaxDelayMs < 0) return Defaults;
-        if (config.HttpTimeoutMs < 1000) return Defaults;
-        if (config.UuidDedupBufferSize < 0) return Defaults;
-        if (config.HeartbeatIntervalMs < 0) return Defaults;
-        if (config.HeartbeatJitterFraction < 0 || config.HeartbeatJitterFraction > 1) return Defaults;
-        if (config.TokenRefreshBufferMs < 0) return Defaults;
-        if (config.TeardownArchiveTimeoutMs < 0) return Defaults;
-        if (config.ConnectTimeoutMs < 0) return Defaults;
+        // TASK071 #11 — 对齐 TS envLessBridgeConfigSchema 上下限（violation 整体回退 DEFAULT，同 pollConfig 纵深防御）
+        if (config.InitRetryMaxAttempts is < 1 or > 10) return Defaults;
+        if (config.InitRetryBaseDelayMs < 100) return Defaults;
+        if (config.InitRetryJitterFraction is < 0 or > 1) return Defaults;
+        if (config.InitRetryMaxDelayMs < 500) return Defaults;
+        if (config.HttpTimeoutMs < 2000) return Defaults;
+        if (config.UuidDedupBufferSize is < 100 or > 50_000) return Defaults;
+        // heartbeat: floor 5s 防 thrash，cap 30s 保 ≥2× TTL(60s) 余量
+        if (config.HeartbeatIntervalMs is < 5000 or > 30_000) return Defaults;
+        // jitter cap 0.5：30s 间隔 × 1.5 = 45s worst case 仍低于 60s TTL
+        if (config.HeartbeatJitterFraction is < 0 or > 0.5) return Defaults;
+        // refresh buffer: floor 30s 防紧循环，cap 30min 识别 buffer-vs-delay 语义反转（TS 注释同源）
+        if (config.TokenRefreshBufferMs is < 30_000 or > 1_800_000) return Defaults;
+        // teardown cap 2000 保持在 gracefulShutdown 2s 清理竞态之下
+        if (config.TeardownArchiveTimeoutMs is < 500 or > 2000) return Defaults;
+        // connect: floor 5s 界定误报率，cap 60s 界定真卡死会话黑窗
+        if (config.ConnectTimeoutMs is < 5000 or > 60_000) return Defaults;
         if (string.IsNullOrEmpty(config.MinVersion)) return Defaults;
 
         return config;
@@ -125,6 +135,7 @@ public sealed class V2BridgeConfig {
             TokenRefreshBufferMs = TryGetEnvInt("JCC_BRIDGE_TOKEN_REFRESH_MS", out var p6) ? p6 : 300000,
             TeardownArchiveTimeoutMs = TryGetEnvInt("JCC_BRIDGE_TEARDOWN_MS", out var p7) ? p7 : 1500,
             ConnectTimeoutMs = TryGetEnvInt("JCC_BRIDGE_CONNECT_TIMEOUT_MS", out var p8) ? p8 : 15000,
+            SessionKeepaliveIntervalV2Ms = TryGetEnvInt("JCC_BRIDGE_KEEPALIVE_MS", out var p9) ? p9 : 120_000,
             MinVersion = Environment.GetEnvironmentVariable("JCC_BRIDGE_MIN_VERSION") ?? "0.0.0",
         };
     }

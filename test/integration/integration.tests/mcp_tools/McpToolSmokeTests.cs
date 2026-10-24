@@ -8,10 +8,12 @@
 /// </summary>
 [Trait("Category", "Integration")]
 public sealed class McpToolSmokeTests {
-    private static async Task<(Tools.LocalToolRegistry Registry, IToolExecutionGateway Gateway, IReadOnlyList<ToolInfo> Tools)> BuildAndRegisterAllToolsAsync() {
+    private static async Task<(Tools.LocalToolRegistry Registry, IToolExecutionGateway Gateway, IReadOnlyList<ToolInfo> Tools, string TempDir)> BuildAndRegisterAllToolsAsync() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
-        await using var fileSystem = new IO.FileSystem.InMemoryFileSystem();
+#pragma warning disable JCC9108, JCC9305 // fileSystem 通过 DI 容器管理生命周期,不手动释放
+        var fileSystem = new IO.FileSystem.InMemoryFileSystem();
         fileSystem.CreateDirectory(tempDir);
+        fileSystem.SetCurrentDirectory(tempDir);
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.AppDataFolder, tempDir);
 
         var services = new ServiceCollection();
@@ -34,7 +36,7 @@ public sealed class McpToolSmokeTests {
         var registry = provider.GetRequiredService<Tools.LocalToolRegistry>();
         var gateway = provider.GetRequiredService<IToolExecutionGateway>();
         var toolInfos = await registry.GetAllToolInfosAsync().ConfigureAwait(true);
-        return (registry, gateway, toolInfos);
+        return (registry, gateway, toolInfos, tempDir);
     }
 
     /// <summary>
@@ -145,7 +147,7 @@ public sealed class McpToolSmokeTests {
 
     [Fact]
     public async Task All_Registered_Tools_Can_Be_Called_Without_Crash() {
-        var (registry, gateway, allTools) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var (registry, gateway, allTools, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         allTools.Should().NotBeEmpty("至少应注册一个工具");
 
@@ -228,7 +230,7 @@ public sealed class McpToolSmokeTests {
 
     [Fact]
     public async Task Sleep_Tool_Returns_Valid_Result() {
-        var (registry, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var (registry, _, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         var args = new Dictionary<string, JsonElement> {
             ["duration_seconds"] = JsonDocument.Parse("1").RootElement.Clone()
@@ -243,7 +245,7 @@ public sealed class McpToolSmokeTests {
 
     [Fact]
     public async Task Mcp_Auth_Status_Tool_Returns_Valid_Result() {
-        var (registry, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var (registry, _, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         var result = await registry.ExecuteToolAsync("mcp_auth_status", new Dictionary<string, JsonElement>(), CancellationToken.None).ConfigureAwait(true);
 
@@ -254,7 +256,7 @@ public sealed class McpToolSmokeTests {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task Unknown_Tool_Returns_Error_Or_Throws() {
-        var (registry, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var (registry, _, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         // 调用不存在的工具 — 注册表可能抛出异常或返回错误结果，不能静默成功
         Exception? caughtEx = null;
@@ -273,5 +275,36 @@ public sealed class McpToolSmokeTests {
 
         result.Should().NotBeNull();
         result!.IsError.Should().BeTrue("不存在的工具应该返回错误结果");
+    }
+
+    /// <summary>
+    /// write→read 行为验证 — 写入文件后读回，断言内容一致。真实验证写入/读取行为，不只"不崩溃"。
+    /// </summary>
+    [Fact]
+    public async Task Write_Read_Behavior_Verification() {
+        var (_, gateway, _, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
+        var fileName = $"patrol-behavior-test-{Guid.NewGuid():N}.txt";
+        var content = "hello patrol behavior verification";
+        var fileNameJson = System.Text.Json.JsonSerializer.Serialize(fileName);
+        var contentJson = System.Text.Json.JsonSerializer.Serialize(content);
+
+        // write 写入文件(相对路径,沙箱放行)
+        var writeArgs = new Dictionary<string, JsonElement> {
+            ["file_path"] = JsonDocument.Parse(fileNameJson).RootElement.Clone(),
+            ["content"] = JsonDocument.Parse(contentJson).RootElement.Clone(),
+        };
+        var writeResult = await gateway.ExecuteAsync("write", writeArgs, CancellationToken.None).ConfigureAwait(true);
+        writeResult.IsError.Should().BeFalse($"write 应成功: {writeResult.Content.FirstOrDefault()?.Text}");
+
+        // read 读回文件
+        var readArgs = new Dictionary<string, JsonElement> {
+            ["file_path"] = JsonDocument.Parse(fileNameJson).RootElement.Clone(),
+        };
+        var readResult = await gateway.ExecuteAsync("read", readArgs, CancellationToken.None).ConfigureAwait(true);
+        readResult.IsError.Should().BeFalse($"read 应成功: {readResult.Content.FirstOrDefault()?.Text}");
+
+        // 断言读回内容含写入内容 — 真实行为验证
+        var readText = readResult.Content.FirstOrDefault()?.Text ?? "";
+        readText.Should().Contain(content, "read 应返回写入的内容（行为验证：不只不崩溃，验证内容一致）");
     }
 }

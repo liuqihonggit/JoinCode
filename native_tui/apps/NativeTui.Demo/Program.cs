@@ -35,6 +35,7 @@ public static class Program
         }
 
         return rest.ToArray() is ["--selftest"] ? RunSelftest()
+            : rest is ["--selftest-bash"] ? RunSelftestBash()
             : rest is ["--bridge-selftest"] ? RunBridgeSelftest()
             : rest is ["--bridge-echo-child"] ? RunBridgeEchoChild()
             : rest is ["--capture", string capturePath] ? RunCapture(capturePath)
@@ -359,6 +360,107 @@ public static class Program
         }
 
         Console.WriteLine("SELFTEST OK — spinner 动画链路 / 静态零输出 / 输入编辑 / inline 渲染链路 全部通过");
+        return 0;
+    }
+
+    /// <summary>TASK074 D3 启动验收 — bash mode shell 命令补全全链路真实运行（非 mock）：
+    /// 构造 ReplShell + ShellCompleter（真实 PATH 扫描），模拟 !g 键序列进 bash mode + 输入前缀，
+    /// 验证建议激活 + Tab 接受 + Esc 关闭 + prompt mode 不激活。退出码 0/1。</summary>
+    private static int RunSelftestBash()
+    {
+        var failures = new List<string>();
+
+        var pathDir = Path.Combine(Path.GetTempPath(), "nativetui-selftest-bash-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(pathDir);
+        File.WriteAllText(Path.Combine(pathDir, "git"), "x");
+        File.WriteAllText(Path.Combine(pathDir, "grep"), "x");
+        File.WriteAllText(Path.Combine(pathDir, "ls"), "x");
+
+        try
+        {
+            var completer = new ShellCompleter([pathDir]);
+            var engine = new SimulatedEngine();
+            var banner = new BannerItem("1.0.0", "test", "API", "/tmp");
+            var commands = new CommandSuggestion[]
+            {
+                new("help", "帮助", [], false),
+            };
+            var shell = new ReplShell(engine, banner, new StringWriter(), commands: commands,
+                shellCompleter: completer);
+            shell.SeedContent();
+
+            // 进 bash mode：空输入 + !
+            shell.HandleKey(new ConsoleKeyInfo('!', ConsoleKey.None, false, false, false));
+            if (shell.InputMode != InputMode.Bash)
+            {
+                failures.Add("进 bash mode: 期望 Bash 实际 " + shell.InputMode);
+            }
+
+            // 输入 g 触发补全
+            shell.HandleKey(new ConsoleKeyInfo('g', ConsoleKey.None, false, false, false));
+            if (shell.ShellSuggestions is null || shell.ShellSuggestions.Count == 0)
+            {
+                failures.Add("输入 g: 期望 shell 建议激活");
+            }
+            else if (!shell.ShellSuggestions.Any(s => s.Name == "git") || !shell.ShellSuggestions.Any(s => s.Name == "grep"))
+            {
+                failures.Add("输入 g: 期望建议含 git+grep");
+            }
+
+            // Esc 关闭建议
+            shell.HandleKey(new ConsoleKeyInfo('\x1b', ConsoleKey.Escape, false, false, false));
+            if (shell.ShellSuggestions is not null)
+            {
+                failures.Add("Esc: 期望建议关闭");
+            }
+
+            if (shell.InputMode != InputMode.Bash)
+            {
+                failures.Add("Esc 后: 期望仍 Bash mode（非空输入 Esc 只关建议不退 mode）");
+            }
+
+            // Backspace 清输入后重新输入 g + Tab 接受
+            shell.HandleKey(new ConsoleKeyInfo('\b', ConsoleKey.Backspace, false, false, false));
+            shell.HandleKey(new ConsoleKeyInfo('g', ConsoleKey.None, false, false, false));
+            shell.HandleKey(new ConsoleKeyInfo('\t', ConsoleKey.Tab, false, false, false));
+            if (shell.Input.Text != "git ")
+            {
+                failures.Add("Tab 接受: 期望输入 'git ' 实际 '" + shell.Input.Text + "'");
+            }
+
+            // 清输入退 prompt mode（Backspace 删 "git " → 空输入 Esc 退 mode）
+            shell.HandleKey(new ConsoleKeyInfo('\b', ConsoleKey.Backspace, false, false, false));
+            shell.HandleKey(new ConsoleKeyInfo('\b', ConsoleKey.Backspace, false, false, false));
+            shell.HandleKey(new ConsoleKeyInfo('\b', ConsoleKey.Backspace, false, false, false));
+            shell.HandleKey(new ConsoleKeyInfo('\b', ConsoleKey.Backspace, false, false, false));
+            shell.HandleKey(new ConsoleKeyInfo('\x1b', ConsoleKey.Escape, false, false, false));
+            if (shell.InputMode != InputMode.Prompt)
+            {
+                failures.Add("退 prompt mode: 期望 Prompt 实际 " + shell.InputMode);
+            }
+
+            shell.HandleKey(new ConsoleKeyInfo('g', ConsoleKey.None, false, false, false));
+            if (shell.ShellSuggestions is not null)
+            {
+                failures.Add("prompt mode: 期望 shell 建议不激活");
+            }
+        }
+        finally
+        {
+            Directory.Delete(pathDir, recursive: true);
+        }
+
+        if (failures.Count > 0)
+        {
+            foreach (var f in failures)
+            {
+                Console.Error.WriteLine("FAIL: " + f);
+            }
+
+            return 1;
+        }
+
+        Console.WriteLine("SELFTEST-BASH OK — bash mode shell 补全链路通过（进 mode + 建议激活 + Esc 关闭 + Tab 接受 + prompt 不激活）");
         return 0;
     }
 

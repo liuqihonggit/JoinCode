@@ -28,6 +28,7 @@ public sealed class TranscriptController
     private readonly Action<bool> _onVerboseChanged;
     private readonly Action<string>? _openTranscriptInEditor;
     private int _searchAnchorOffset;
+    private string? _pendingDumpText;
 
     /// <summary>构造 — 快照提供器（进入时调用一次拍摄冻结行集合与流式长度）；verbose 联动回调（Toggle 进出时通知，S6 接 ReplView.SetVerboseMode）；打开浏览委托（transcript 模态按 v 时调用，接收 join 后的全文文本，由宿主负责写临时文件 + 调 $EDITOR，对齐基准 REPL.tsx:4340-4382 less-style v）。</summary>
     /// <param name="snapshotProvider">快照数据源（live 消息全文行投影 — 进入 transcript 时调用一次冻结）。</param>
@@ -128,7 +129,17 @@ public sealed class TranscriptController
         Search.Reset();
         ScrollOffset = 0;
         UptimeMs = 0;
+        _pendingDumpText = null;
         _onVerboseChanged(false);
+    }
+
+    /// <summary>取出待 dump 的全文文本（[ 键触发 — 退出 transcript 时把全文 dump 到主屏 scrollback；
+    /// 取后清空防重复 dump）。null = 无待 dump。</summary>
+    public string? TakePendingDump()
+    {
+        var text = _pendingDumpText;
+        _pendingDumpText = null;
+        return text;
     }
 
     /// <summary>搜索栏键路由 — readline 编辑（对齐基准 useSearchInput）：可打印字符增量查询
@@ -183,6 +194,14 @@ public sealed class TranscriptController
             {
                 _openTranscriptInEditor(string.Join("\n", Snapshot.Lines));
             }
+            return true;
+        }
+
+        if (IsPlainChar(key) && key.Input == "[")
+        {
+            var dumpText = Snapshot is not null ? string.Join("\n", Snapshot.Lines) : null;
+            ExitTranscript();
+            _pendingDumpText = dumpText;
             return true;
         }
 

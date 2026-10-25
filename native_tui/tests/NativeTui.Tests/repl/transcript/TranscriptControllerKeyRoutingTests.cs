@@ -450,4 +450,48 @@ public sealed class TranscriptControllerKeyRoutingTests
         Assert.True(controller.Search.BarOpen);
         Assert.Contains("v", controller.Search.Query);
     }
+
+    /// <summary>transcript 模态按 [ dump 全文到 scrollback 并退出（对齐基准 REPL.tsx:4332-4338 Diagnostic escape hatch）。</summary>
+    [Fact]
+    public void LeftBracket_DumpsTranscriptAndExits()
+    {
+        var lines = new[] { "L000", "L001", "L002" };
+        var controller = new TranscriptController(() => new TranscriptSnapshot(lines, 0), _ => { })
+        {
+            ViewportHeight = 10,
+        };
+        controller.Toggle();
+
+        var consumed = controller.TryHandleKey(Parse("["));
+
+        Assert.True(consumed);
+        Assert.False(controller.IsActive);
+        Assert.Equal("L000\nL001\nL002", controller.TakePendingDump());
+    }
+
+    /// <summary>TakePendingDump 取后清空（二次取返回 null — 防重复 dump）。</summary>
+    [Fact]
+    public void LeftBracket_TakePendingDump_ClearsAfterTake()
+    {
+        var lines = new[] { "L000" };
+        var controller = new TranscriptController(() => new TranscriptSnapshot(lines, 0), _ => { })
+        {
+            ViewportHeight = 10,
+        };
+        controller.Toggle();
+        controller.TryHandleKey(Parse("["));
+        controller.TakePendingDump();
+
+        Assert.Null(controller.TakePendingDump());
+    }
+
+    /// <summary>未进入 transcript 时按 [ 不消费（fall through）。</summary>
+    [Fact]
+    public void LeftBracket_WhenNotActive_FallsThrough()
+    {
+        var controller = new TranscriptController(() => new TranscriptSnapshot([], 0), _ => { });
+        var consumed = controller.TryHandleKey(Parse("["));
+        Assert.False(consumed);
+        Assert.Null(controller.TakePendingDump());
+    }
 }

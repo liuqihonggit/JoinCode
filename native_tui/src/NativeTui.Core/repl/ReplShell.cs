@@ -2428,6 +2428,7 @@ public sealed class ReplShell
         if (_transcript.TryHandleKey(key))
         {
             SyncAlternateScreen(wasActive);
+            DumpTranscriptToScrollbackIfPending();
             SyncTranscriptView();
             return;
         }
@@ -2487,6 +2488,20 @@ public sealed class ReplShell
         {
             _alternateScreen.Exit();
         }
+    }
+
+    /// <summary>transcript dump-to-scrollback（TASK073 — 基准 REPL.tsx:4332-4338 [ Diagnostic escape hatch）：
+    /// [ 键退出 transcript 时把全文写到主屏 scrollback（已退出备用屏 — SyncAlternateScreen 已调），
+    /// 让终端原生 cmd-F/tmux 搜索能找到 transcript 内容。无待 dump 时零操作。</summary>
+    private void DumpTranscriptToScrollbackIfPending()
+    {
+        var dumpText = _transcript.TakePendingDump();
+        if (dumpText is null)
+        {
+            return;
+        }
+
+        _output.Write(dumpText);
     }
 
     /// <summary>'?' 触发判定 — 空闲态（非忙 + 空输入 + 无修饰）的裸 '?'（有输入时 '?' 走正常字符插入；

@@ -403,4 +403,51 @@ public sealed class TranscriptControllerKeyRoutingTests
         Assert.True(controller.TryHandleKey(KeyPress.Named(KeyKind.Return)));
         Assert.False(controller.Search.BarOpen);
     }
+
+    /// <summary>transcript 模态按 v 触发打开浏览委托，接收 join 后的全文文本（对齐基准 REPL.tsx:4340-4382 less-style v）。</summary>
+    [Fact]
+    public void V_OpensTranscriptInEditor_WithJoinedLines()
+    {
+        string? received = null;
+        var lines = new[] { "L000", "L001", "L002" };
+        var controller = new TranscriptController(() => new TranscriptSnapshot(lines, 0), _ => { }, t => received = t)
+        {
+            ViewportHeight = 10,
+        };
+        controller.Toggle();
+
+        var consumed = controller.TryHandleKey(Parse("v"));
+
+        Assert.True(consumed);
+        Assert.Equal("L000\nL001\nL002", received);
+    }
+
+    /// <summary>未注入打开浏览委托时按 v — 静默返回 true 不崩溃（无浏览能力降级）。</summary>
+    [Fact]
+    public void V_WhenNoDelegate_ReturnsTrueSilently()
+    {
+        var controller = EnterController();
+        var consumed = controller.TryHandleKey(Parse("v"));
+        Assert.True(consumed);
+    }
+
+    /// <summary>搜索栏打开时按 v — v 进搜索栏文本不触发打开浏览（搜索栏优先消费裸字符）。</summary>
+    [Fact]
+    public void V_WhenSearchBarOpen_EntersSearchTextNotEditor()
+    {
+        string? received = null;
+        var lines = new[] { "L000", "L001" };
+        var controller = new TranscriptController(() => new TranscriptSnapshot(lines, 0), _ => { }, t => received = t)
+        {
+            ViewportHeight = 10,
+        };
+        controller.Toggle();
+        controller.TryHandleKey(Parse("/"));
+
+        controller.TryHandleKey(Parse("v"));
+
+        Assert.Null(received);
+        Assert.True(controller.Search.BarOpen);
+        Assert.Contains("v", controller.Search.Query);
+    }
 }

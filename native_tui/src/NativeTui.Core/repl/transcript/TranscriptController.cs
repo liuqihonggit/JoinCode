@@ -26,15 +26,18 @@ public sealed class TranscriptController
 
     private readonly Func<TranscriptSnapshot> _snapshotProvider;
     private readonly Action<bool> _onVerboseChanged;
+    private readonly Action<string>? _openTranscriptInEditor;
     private int _searchAnchorOffset;
 
-    /// <summary>构造 — 快照提供器（进入时调用一次拍摄冻结行集合与流式长度）；verbose 联动回调（Toggle 进出时通知，S6 接 ReplView.SetVerboseMode）。</summary>
+    /// <summary>构造 — 快照提供器（进入时调用一次拍摄冻结行集合与流式长度）；verbose 联动回调（Toggle 进出时通知，S6 接 ReplView.SetVerboseMode）；打开浏览委托（transcript 模态按 v 时调用，接收 join 后的全文文本，由宿主负责写临时文件 + 调 $EDITOR，对齐基准 REPL.tsx:4340-4382 less-style v）。</summary>
     /// <param name="snapshotProvider">快照数据源（live 消息全文行投影 — 进入 transcript 时调用一次冻结）。</param>
     /// <param name="onVerboseChanged">verbose 联动回调（进入 true / 退出 false）。</param>
-    public TranscriptController(Func<TranscriptSnapshot> snapshotProvider, Action<bool> onVerboseChanged)
+    /// <param name="openTranscriptInEditor">打开浏览委托（transcript 模态按 v 时调用，接收 join 后的全文文本；null = 无浏览能力，v 键静默返回 true）。</param>
+    public TranscriptController(Func<TranscriptSnapshot> snapshotProvider, Action<bool> onVerboseChanged, Action<string>? openTranscriptInEditor = null)
     {
         _snapshotProvider = snapshotProvider;
         _onVerboseChanged = onVerboseChanged;
+        _openTranscriptInEditor = openTranscriptInEditor;
         Search = new TranscriptSearchState(() => Snapshot?.Lines ?? []);
     }
 
@@ -171,6 +174,15 @@ public sealed class TranscriptController
         if (IsPlainChar(key) && key.Input == "q")
         {
             ExitTranscript();
+            return true;
+        }
+
+        if (IsPlainChar(key) && key.Input == "v")
+        {
+            if (_openTranscriptInEditor is not null && Snapshot is not null)
+            {
+                _openTranscriptInEditor(string.Join("\n", Snapshot.Lines));
+            }
             return true;
         }
 

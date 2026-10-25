@@ -226,7 +226,6 @@ public sealed class KeybindingProfile
         (KeybindingContext.Tabs, KeybindingAction.TabsPrevious, "left"),
 
         // Transcript（基准 defaultBindings.ts:160-170 — q 为 pager 惯例退出键）
-        (KeybindingContext.Transcript, KeybindingAction.TranscriptToggleShowAll, "ctrl+e"),
         (KeybindingContext.Transcript, KeybindingAction.TranscriptExit, "ctrl+c"),
         (KeybindingContext.Transcript, KeybindingAction.TranscriptExit, "escape"),
         (KeybindingContext.Transcript, KeybindingAction.TranscriptExit, "q"),

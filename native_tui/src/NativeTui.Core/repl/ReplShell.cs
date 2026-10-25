@@ -631,7 +631,7 @@ public sealed class ReplShell
         _spinner.Frames = TerminalCapabilities.DetectSpinnerFrames();
         // S8 接线 — 挂起态 BackTab 权限模式循环请求转发引擎回执通道（复用 Shift+Tab 循环实现）
         _permission.ModeCycleRequested += CyclePermissionMode;
-        _transcript = new TranscriptController(BuildTranscriptSnapshot, verbose => _view.SetVerboseMode(verbose));
+        _transcript = new TranscriptController(BuildTranscriptSnapshot, verbose => _view.SetVerboseMode(verbose), OpenTranscriptInEditor);
         // TASK066 C3 — 备用屏控制器注入（null = 不启用零行为变化）
         _alternateScreen = alternateScreen;
         // TASK066 C6 — 选区状态机 + 选中即复制委托注入（null selection = 默认实例能力恒在；
@@ -2428,6 +2428,7 @@ public sealed class ReplShell
         if (_transcript.TryHandleKey(key))
         {
             SyncAlternateScreen(wasActive);
+            DumpTranscriptToScrollbackIfPending();
             SyncTranscriptView();
             return;
         }
@@ -2487,6 +2488,20 @@ public sealed class ReplShell
         {
             _alternateScreen.Exit();
         }
+    }
+
+    /// <summary>transcript dump-to-scrollback（TASK073 — 基准 REPL.tsx:4332-4338 [ Diagnostic escape hatch）：
+    /// [ 键退出 transcript 时把全文写到主屏 scrollback（已退出备用屏 — SyncAlternateScreen 已调），
+    /// 让终端原生 cmd-F/tmux 搜索能找到 transcript 内容。无待 dump 时零操作。</summary>
+    private void DumpTranscriptToScrollbackIfPending()
+    {
+        var dumpText = _transcript.TakePendingDump();
+        if (dumpText is null)
+        {
+            return;
+        }
+
+        _output.Write(dumpText);
     }
 
     /// <summary>'?' 触发判定 — 空闲态（非忙 + 空输入 + 无修饰）的裸 '?'（有输入时 '?' 走正常字符插入；
@@ -4253,6 +4268,27 @@ public sealed class ReplShell
 
         _externalEditorActive = true;
         _externalEditorTask = EditInExternalEditorAsync(text);
+    }
+
+    /// <summary>transcript 模态 v 键打开浏览（TASK073 — 基准 REPL.tsx:4340-4382 less-style v）：
+    /// 复用 _launchExternalEditor 通道 fire-and-forget 打开 $EDITOR 浏览 transcript 全文，
+    /// 结果丢弃（不回填输入框 — 浏览语义非编辑语义）；委托未注入无操作。</summary>
+    private void OpenTranscriptInEditor(string text)
+    {
+        if (_launchExternalEditor is null)
+        {
+            return;
+        }
+
+        _ = Task.Run(async () => {
+            try
+            {
+                await _launchExternalEditor(text).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
+            {
+            }
+        });
     }
 
     /// <summary>外部编辑器异步等待体 — 线程池完成不触 UI 状态（结果入并发队列，

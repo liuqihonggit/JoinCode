@@ -146,9 +146,6 @@ public enum KeybindingAction
 
     // ── 转录视图动作（基准 schema.ts:112-114）──
 
-    /// <summary>transcript:toggleShowAll — 切换全部消息展开（Transcript ctrl+e）。</summary>
-    TranscriptToggleShowAll,
-
     /// <summary>transcript:exit — 退出转录视图（Transcript ctrl+c / escape / q 三键位）。</summary>
     TranscriptExit,
 

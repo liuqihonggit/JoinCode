@@ -85,7 +85,6 @@ public static class KeybindingNames
         (KeybindingAction.TabsNext, "tabs:next"),
         (KeybindingAction.TabsPrevious, "tabs:previous"),
         // 转录（schema.ts:112-114）
-        (KeybindingAction.TranscriptToggleShowAll, "transcript:toggleShowAll"),
         (KeybindingAction.TranscriptExit, "transcript:exit"),
         // 历史搜索（schema.ts:115-119）
         (KeybindingAction.HistorySearchNext, "historySearch:next"),

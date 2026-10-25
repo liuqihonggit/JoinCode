@@ -16,6 +16,7 @@ public sealed partial class InputBuffer
     private readonly StringBuilder _text = new();
     private readonly PastedContentTracker _pasteTracker = new();
     private readonly List<UndoSnapshot> _undoStack = [];
+    private bool _hasAppliedTruncation;
 
     /// <summary>创建空缓冲。</summary>
     public InputBuffer()
@@ -356,6 +357,7 @@ public sealed partial class InputBuffer
         CursorCol = 0;
         _undoStack.Clear();
         _pasteTracker.Clear();
+        _hasAppliedTruncation = false;
     }
 
     /// <summary>当前粘贴登记快照（DSG045 — 提交入史携带：Clear 前由调用方取）。</summary>
@@ -371,6 +373,7 @@ public sealed partial class InputBuffer
         _text.Append(text);
         CursorCol = cursorToStart ? 0 : text.Length;
         _pasteTracker.LoadPasted(pasted);
+        MaybeTruncateWholeInput();
     }
 
     /// <summary>全量替换文本（历史导航/补全接受用）— cursorToStart=true 光标置行首（基准历史导航语义），否则置末尾。</summary>
@@ -381,6 +384,7 @@ public sealed partial class InputBuffer
         _text.Clear();
         _text.Append(text);
         CursorCol = cursorToStart ? 0 : text.Length;
+        MaybeTruncateWholeInput();
     }
 
     /// <summary>全量替换文本并指定光标位置（S10 接线 — @ 文件补全替换写回：token 段替换后光标置
@@ -413,6 +417,24 @@ public sealed partial class InputBuffer
         // 先显式压栈（同 Text 去重使 InsertText 内的 Push 合并，栈内快照登记=粘贴前状态）
         PushUndoSnapshot();
         InsertText(_pasteTracker.RegisterPaste(rawText, maxVisibleLines));
+        MaybeTruncateWholeInput();
+    }
+
+    /// <summary>whole-input 截断检查（对齐基准 useMaybeTruncateInput）— 超 TruncationThreshold 时
+    /// 留前/后 500 字符 + 中段折叠为 [...Truncated text #N]，每轮只应用一次（_hasAppliedTruncation 标记，
+    /// Clear 重置）。接线点：Paste/Replace/ReplaceWithPasted 末尾。</summary>
+    private void MaybeTruncateWholeInput()
+    {
+        if (_hasAppliedTruncation || _text.Length <= PastedContentTracker.TruncationThreshold)
+        {
+            return;
+        }
+
+        var truncated = _pasteTracker.TruncateIfTooLong(_text.ToString());
+        _text.Clear();
+        _text.Append(truncated);
+        CursorCol = Math.Clamp(CursorCol, 0, _text.Length);
+        _hasAppliedTruncation = true;
     }
 
     /// <summary>词左移（Alt+B / Ctrl+Left）— 跳到前一词首：越过非词字符到词首；CJK 单字成词。</summary>

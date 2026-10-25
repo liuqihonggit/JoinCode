@@ -93,20 +93,20 @@ internal static class BridgeServeLoop {
             case Cli.Bridge.BridgeRequest.Submit(var text, var images):
                 if (turnTask is { IsCompleted: false }) {
                     WriteEvent(stdout, new Cli.Bridge.BridgeEvent.Error(
-                        "回合进行中，本次提交已忽略。如需提交新输入，请先发送 interrupt 打断当前回合。"));
+                        "回合进行中，本次提交已忽略。如需提交新输入，请先发送 interrupt 打断当前回合。") { AckSeq = request.Seq });
                     return (false, turnCts, turnTask);
                 }
 
                 turnCts?.Dispose();
                 var newCts = new CancellationTokenSource();
                 var newTask = RunTurnAsync(stdout, consumer, executeTurn, backgroundPump,
-                    ProjectImageAttachments(text, images), newCts.Token);
+                    ProjectImageAttachments(text, images), newCts.Token, request.Seq);
                 return (false, newCts, newTask);
             case Cli.Bridge.BridgeRequest.Interrupt:
                 turnCts?.Cancel();
                 return (false, turnCts, turnTask);
             case Cli.Bridge.BridgeRequest.SetPermissionMode(var mode):
-                ApplyPermissionMode(stdout, applyPermissionMode, mode);
+                ApplyPermissionMode(stdout, applyPermissionMode, mode, request.Seq);
                 return (false, turnCts, turnTask);
             case Cli.Bridge.BridgeRequest.StopTask(var kind, var taskId):
                 // M8-8 后续 — 停止后台任务分派（fire-and-forget：泵内部吞异常降级 + cancelled 终态
@@ -128,15 +128,15 @@ internal static class BridgeServeLoop {
     /// 应用权限模式：成功 → permission_mode_changed 回执（实际生效值 — 安全闸拦截时与请求值不同）；
     /// 未知值 / 引擎未提供权限系统 → error 诱导事件（合法值清单 + bypass 安全闸说明）。
     /// </summary>
-    private static void ApplyPermissionMode(TextWriter stdout, PermissionModeApplier? applyPermissionMode, string mode) {
+    private static void ApplyPermissionMode(TextWriter stdout, PermissionModeApplier? applyPermissionMode, string mode, ulong? seq) {
         var applied = applyPermissionMode?.Invoke(mode);
         if (applied is { } actual) {
-            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.PermissionModeChanged(actual.ToValue()));
+            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.PermissionModeChanged(actual.ToValue()) { AckSeq = seq });
             return;
         }
 
         WriteEvent(stdout, new Cli.Bridge.BridgeEvent.Error(
-            $"权限模式 '{mode}' 无法应用（未知值或引擎未提供权限系统）。合法值：{ValidPermissionModes}。bypass 受 settings.json 的 disableBypassPermissionsMode 安全闸管控，被拦截时保持原模式。"));
+            $"权限模式 '{mode}' 无法应用（未知值或引擎未提供权限系统）。合法值：{ValidPermissionModes}。bypass 受 settings.json 的 disableBypassPermissionsMode 安全闸管控，被拦截时保持原模式。") { AckSeq = seq });
     }
 
     /// <summary>
@@ -169,17 +169,19 @@ internal static class BridgeServeLoop {
         TurnExecutor executeTurn,
         BackgroundTaskEventPump? backgroundPump,
         string input,
-        CancellationToken ct) {
-        WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnStarted());
+        CancellationToken ct,
+        ulong? seq) {
+        WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnStarted() { AckSeq = seq });
         consumer.Reset();
+        consumer.SetAckSeq(seq);
         try {
             await executeTurn(input, consumer, ct).ConfigureAwait(false);
-            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnCompleted());
+            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnCompleted() { AckSeq = seq });
         } catch (OperationCanceledException) {
-            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnInterrupted());
+            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnInterrupted() { AckSeq = seq });
         } catch (Exception ex) {
-            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.Error($"回合执行失败：{ex.Message}"));
-            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnCompleted());
+            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.Error($"回合执行失败：{ex.Message}") { AckSeq = seq });
+            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnCompleted() { AckSeq = seq });
         } finally {
             if (backgroundPump is not null)
                 await backgroundPump.PublishSnapshotAsync(CancellationToken.None).ConfigureAwait(false);

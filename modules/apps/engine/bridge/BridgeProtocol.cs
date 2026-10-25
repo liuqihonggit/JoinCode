@@ -13,6 +13,13 @@ namespace JoinCode.Cli.Bridge;
 [JsonDerivedType(typeof(BridgeRequest.Quit), "quit")]
 public abstract record BridgeRequest
 {
+    /// <summary>
+    /// 请求流水号（ADR 0150）— 客户端单调递增，用于关联响应与请求。
+    /// null 表示旧客户端未发送，bridge_serve 容忍（不幂等但兼容）。
+    /// </summary>
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ulong? Seq { get; init; }
+
     /// <summary>提交用户输入，开始回合（G4 — images 可选图片附件数组：null 不序列化字段
     /// WhenWritingNull，旧 TUI JSON 零破坏 — 对齐 BridgeDiffLine 行号字段扩展先例；
     /// 与 native_tui 侧 BridgeRequest.Submit 逐字段镜像，JSON 形状由 BridgeJsonContractTests 锁定防漂移）。</summary>
@@ -63,6 +70,13 @@ public abstract record BridgeRequest
 [JsonDerivedType(typeof(BridgeEvent.Error), "error")]
 public abstract record BridgeEvent
 {
+    /// <summary>
+    /// 回函确认流水号（ADR 0150）— 关联触发的请求 seq。
+    /// null 表示非请求触发事件（如 session_info）或旧客户端兼容。
+    /// </summary>
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ulong? AckSeq { get; init; }
+
     /// <summary>
     /// 会话握手（引擎启动后首条事件）— 版本/当前模型/权限模式/bypass 可用性/cwd。
     /// Model 为 null 表示引擎未设置模型（TUI banner 显示"当前模型未设置"）。

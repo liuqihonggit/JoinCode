@@ -1,6 +1,6 @@
 // JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-#pragma warning disable JCC1017
+#pragma warning disable JCC1017, JCC11003, JCC3013
 namespace MockServer.E2E.Tests.Core;
 
 // 测试运行器需要启动真实进程和访问文件系统路径
@@ -125,9 +125,10 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
             }
         }
 
+        // ADR 0149: 多轮交互改用 bridge_serve NDJSON 协议（不再依赖已删除的 CLI REPL --force-interactive）
         var args = script.Mode == ConversationMode.NonInteractive
             ? $"--trust -p \"{script.Turns[0].UserInput}\""
-            : "--trust --force-interactive";
+            : $"bridge_serve --vendor {providerValue} --model {modelId}";
 
         if (!string.IsNullOrWhiteSpace(script.AdditionalArgs)) {
             args += $" {script.AdditionalArgs}";
@@ -437,17 +438,17 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
 
         await WaitForProcessReadyAsync(ct).ConfigureAwait(true);
 
-        var startupOutput = await _processManager!.GetOutputAsync().ConfigureAwait(true);
-
         for (var i = 0; i < script.Turns.Count; i++) {
             var turn = script.Turns[i];
             _logger.LogInformation("[DualRoleRunner] Turn {Index}/{Total}: UserInput=\"{Input}\"",
                 i + 1, script.Turns.Count, turn.UserInput);
 
             await _processManager!.ClearOutputAsync().ConfigureAwait(true);
-            await _processManager.SendAsync(turn.UserInput, ct).ConfigureAwait(true);
+            var submitJson = JsonSerializer.Serialize(new BridgeRequest.Submit(turn.UserInput), BridgeJsonContext.Safe.BridgeRequest);
+            await _processManager.SendAsync(submitJson, ct).ConfigureAwait(true);
 
-            var output = await WaitForStableOutputAsync(turn.ResponseTimeout, ct, i + 1, script.Turns.Count).ConfigureAwait(true);
+            var events = await WaitForTurnCompletedAsync(turn.ResponseTimeout, ct, i + 1, script.Turns.Count).ConfigureAwait(true);
+            var output = RebuildTextFromEvents(events);
 
             var record = ConversationOutputParser.Parse(output);
             var turnRecord = record with { UserInput = turn.UserInput };
@@ -470,7 +471,8 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
         LogStepComponents(stderrOutput);
 
         try {
-            await _processManager!.SendAsync("/exit", ct).ConfigureAwait(true);
+            var quitJson = JsonSerializer.Serialize(new BridgeRequest.Quit(), BridgeJsonContext.Safe.BridgeRequest);
+            await _processManager!.SendAsync(quitJson, ct).ConfigureAwait(true);
             if (_processManager!.IsRunning) {
                 using var exitCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 exitCts.CancelAfter(TimeSpan.FromSeconds(3));
@@ -488,6 +490,82 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
             AssertResults = assertResults,
             StderrOutput = stderrOutput
         };
+    }
+
+    /// <summary>等待 bridge_serve turn_completed 事件，收集回合内所有 BridgeEvent。</summary>
+    private async Task<List<BridgeEvent>> WaitForTurnCompletedAsync(TimeSpan timeout, CancellationToken ct, int turnIndex, int totalTurns) {
+        var startTime = DateTime.UtcNow;
+        var events = new List<BridgeEvent>();
+
+        while (DateTime.UtcNow - startTime < timeout) {
+            ct.ThrowIfCancellationRequested();
+
+            if (!_processManager!.IsRunning) {
+                var exitError = await CaptureStderrAsync().ConfigureAwait(true);
+                throw new InvalidOperationException($"[GEN021] jcc.exe 进程已退出, stderr={exitError}");
+            }
+
+            var incrementalOutput = await _processManager!.GetOutputIncrementalAsync().ConfigureAwait(true);
+            foreach (var evt in ParseBridgeEvents(incrementalOutput)) {
+                events.Add(evt);
+                if (evt is BridgeEvent.TurnCompleted) {
+                    _logger.LogInformation("[DualRoleRunner] 检测到 turn_completed 事件，事件数={Count}", events.Count);
+                    return events;
+                }
+            }
+
+            await Task.Delay(50, ct).ConfigureAwait(true);
+        }
+
+        throw new TimeoutException($"[GEN023] 等待 turn_completed 超时 (>{timeout.TotalSeconds}s), turn={turnIndex}/{totalTurns}, events={events.Count}");
+    }
+
+    /// <summary>从 stdout 增量文本按行解析 BridgeEvent（NDJSON 每行一条 JSON 事件）。</summary>
+    private static List<BridgeEvent> ParseBridgeEvents(string incrementalOutput) {
+        var result = new List<BridgeEvent>();
+        if (string.IsNullOrEmpty(incrementalOutput)) return result;
+        foreach (var line in incrementalOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries)) {
+            var trimmed = line.Trim();
+            if (trimmed.Length == 0 || trimmed[0] != '{') continue;
+            try {
+                if (JsonSerializer.Deserialize(trimmed, BridgeJsonContext.Safe.BridgeEvent) is { } evt)
+                    result.Add(evt);
+            } catch (JsonException) {
+            }
+        }
+        return result;
+    }
+
+    /// <summary>从 BridgeEvent 事件流重建含 [Tool]/[OK]/[FAIL] 标记的文本，复用 ConversationOutputParser.Parse。</summary>
+    private static string RebuildTextFromEvents(List<BridgeEvent> events) {
+        var sb = new StringBuilder();
+        string? pendingToolName = null;
+        foreach (var evt in events) {
+            switch (evt) {
+                case BridgeEvent.ToolCall tc:
+                    pendingToolName = tc.Name;
+                    sb.AppendLine($"[Tool] {tc.Name}({tc.Args})");
+                    break;
+                case BridgeEvent.ToolResult tr:
+                    var name = pendingToolName ?? "unknown";
+                    var isSuccess = !tr.Summary.Contains("错误", StringComparison.Ordinal) && !tr.Summary.Contains("error", StringComparison.OrdinalIgnoreCase);
+                    sb.AppendLine(isSuccess ? $"[OK] {name}" : $"[FAIL] {name}");
+                    if (!string.IsNullOrEmpty(tr.Summary))
+                        sb.AppendLine($"  {tr.Summary}");
+                    pendingToolName = null;
+                    break;
+                case BridgeEvent.AssistantMessage am:
+                    sb.AppendLine(am.Text);
+                    break;
+                case BridgeEvent.Error err:
+                    sb.AppendLine($"Error: {err.Message}");
+                    break;
+                case BridgeEvent.ToolProgress tp:
+                    sb.AppendLine($"[...] {tp.ToolName}: {tp.Message}");
+                    break;
+            }
+        }
+        return sb.ToString();
     }
 
     /// <summary>
@@ -658,8 +736,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
     }
 
     /// <summary>
-    /// 等待 jcc.exe 进程就绪 — 监听 stderr 中的 [READY] 标记
-    /// jcc.exe 在 ReplLoopStep/NonInteractiveExecuteStep 就绪时输出 [READY] 到 stderr
+    /// 等待 jcc.exe 进程就绪 — bridge_serve 模式下监听 stdout 的 session_info NDJSON 事件。
     /// </summary>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task WaitForProcessReadyAsync(CancellationToken ct) {
@@ -675,27 +752,38 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
                 throw new InvalidOperationException($"[GEN024] jcc.exe 进程已退出, stderr={exitError}");
             }
 
-            var incrementalStderr = await CaptureStderrIncrementalAsync().ConfigureAwait(true);
-            if (incrementalStderr.Contains("[AI助手] 就绪", StringComparison.Ordinal)) {
-                _logger.LogInformation("[DualRoleRunner] 检测到 [AI助手] 就绪标记，进程就绪");
+            var incrementalOutput = await _processManager!.GetOutputIncrementalAsync().ConfigureAwait(true);
+            if (TryDetectSessionInfo(incrementalOutput)) {
+                _logger.LogInformation("[DualRoleRunner] 检测到 session_info 事件，进程就绪");
                 return;
             }
 
             pollCount++;
             if (pollCount % 100 == 0) {
                 var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
-                var stderrLen = (await CaptureStderrAsync().ConfigureAwait(true)).Length;
-                _logger.LogWarning("[DualRoleRunner] 等待 jcc.exe 就绪已 {Elapsed:F0}s (轮询={Polls}, stderrLen={StderrLen}, provider={Provider})",
-                    elapsed, pollCount, stderrLen, _activeProvider);
+                _logger.LogWarning("[DualRoleRunner] 等待 jcc.exe 就绪已 {Elapsed:F0}s (轮询={Polls}, provider={Provider})",
+                    elapsed, pollCount, _activeProvider);
             }
 
             await Task.Delay(100, ct).ConfigureAwait(true);
         }
 
-        var finalStderr = await CaptureStderrAsync().ConfigureAwait(true);
-        _logger.LogError("[DualRoleRunner] 等待进程就绪超时(60s), 未检测到 [READY], provider={Provider}, stderr前200字符={Preview}",
-            _activeProvider, finalStderr.Length > 200 ? finalStderr[..200] : finalStderr);
-        throw new TimeoutException($"[GEN025] jcc.exe 60秒内未输出 [READY]，provider={_activeProvider}，可能初始化卡住");
+        throw new TimeoutException($"[GEN025] jcc.exe 60秒内未输出 session_info，provider={_activeProvider}，可能初始化卡住");
+    }
+
+    /// <summary>检测 stdout 增量中是否含 session_info NDJSON 事件（bridge_serve 握手）。</summary>
+    private static bool TryDetectSessionInfo(string incrementalOutput) {
+        if (string.IsNullOrEmpty(incrementalOutput)) return false;
+        foreach (var line in incrementalOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries)) {
+            var trimmed = line.Trim();
+            if (trimmed.Length == 0 || trimmed[0] != '{') continue;
+            try {
+                if (JsonSerializer.Deserialize(trimmed, BridgeJsonContext.Safe.BridgeEvent) is BridgeEvent.SessionInfo)
+                    return true;
+            } catch (JsonException) {
+            }
+        }
+        return false;
     }
 
     private string WriteMockServerConfig(ConversationScript script) {

@@ -9,6 +9,7 @@ global using JoinCode.Abstractions.Hooks;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Utils;
+global using JoinCode.Cli.Bridge;
 global using JoinCode.Entry;
 global using Microsoft.Extensions.Logging.Abstractions;
 global using Microsoft.Extensions.DependencyInjection;

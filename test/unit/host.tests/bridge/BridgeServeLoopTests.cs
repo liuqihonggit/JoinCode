@@ -336,4 +336,83 @@ public sealed class BridgeServeLoopTests {
         Assert.Equal(0, exitCode);
         Assert.Equal(string.Empty, stdout.ToString());
     }
+
+    // === ADR 0150: 流水号/ACK 回函确认 ===
+
+    [Fact]
+    public async Task Submit_WithSeq_EmitsEventsWithAckSeq() {
+        var req = new CliBridge.BridgeRequest.Submit("你好") { Seq = 42 };
+        using var stdin = new StringReader(WriteRequest(req) + "\n");
+        await using var stdout = new StringWriter();
+
+        var exitCode = await BridgeServeLoop.RunAsync(stdin, stdout, new StringWriter(),
+            (input, consumer, ct) => {
+                consumer.OnText("回复");
+                consumer.OnDone(null, null);
+                return Task.CompletedTask;
+            }, CancellationToken.None);
+
+        Assert.Equal(0, exitCode);
+        var output = stdout.ToString();
+        Assert.Contains("\"ackSeq\":42", output);
+        Assert.Contains("{\"type\":\"turn_started\",\"ackSeq\":42}", output);
+        Assert.Contains("{\"type\":\"turn_completed\",\"ackSeq\":42}", output);
+    }
+
+    [Fact]
+    public async Task ExecutorThrows_WithSeq_EmitsErrorAndTurnCompletedWithAckSeq() {
+        var req = new CliBridge.BridgeRequest.Submit("触发异常") { Seq = 99 };
+        using var stdin = new StringReader(string.Join('\n',
+            WriteRequest(req),
+            WriteRequest(new CliBridge.BridgeRequest.Quit())));
+        await using var stdout = new StringWriter();
+
+        var exitCode = await BridgeServeLoop.RunAsync(stdin, stdout, new StringWriter(),
+            (input, consumer, ct) => throw new InvalidOperationException("LLM 连接失败"),
+            CancellationToken.None);
+
+        Assert.Equal(0, exitCode);
+        var output = stdout.ToString();
+        Assert.Contains("\"ackSeq\":99", output);
+        Assert.Contains("\"type\":\"error\"", output);
+        Assert.Contains("LLM 连接失败", output);
+        Assert.Contains("\"type\":\"turn_completed\"", output);
+    }
+
+    [Fact]
+    public async Task SetPermissionMode_WithSeq_EmitsPermissionModeChangedWithAckSeq() {
+        var req = new CliBridge.BridgeRequest.SetPermissionMode("auto") { Seq = 7 };
+        using var stdin = new StringReader(string.Join('\n',
+            WriteRequest(req),
+            WriteRequest(new CliBridge.BridgeRequest.Quit())));
+        await using var stdout = new StringWriter();
+
+        var exitCode = await BridgeServeLoop.RunAsync(stdin, stdout, new StringWriter(),
+            (input, consumer, ct) => Task.CompletedTask, CancellationToken.None,
+            mode => mode == "auto" ? PermissionMode.Auto : null);
+
+        Assert.Equal(0, exitCode);
+        var output = stdout.ToString();
+        Assert.Contains("\"ackSeq\":7", output);
+        Assert.Contains("\"type\":\"permission_mode_changed\"", output);
+    }
+
+    [Fact]
+    public async Task DuplicateSubmit_WithSameSeq_IsIdempotent() {
+        var req1 = new CliBridge.BridgeRequest.Submit("第一回合") { Seq = 1 };
+        var req2 = new CliBridge.BridgeRequest.Submit("重复提交") { Seq = 1 };
+        using var stdin = new StringReader(string.Join('\n',
+            WriteRequest(req1),
+            WriteRequest(req2),
+            WriteRequest(new CliBridge.BridgeRequest.Quit())));
+        await using var stdout = new StringWriter();
+
+        var exitCode = await BridgeServeLoop.RunAsync(stdin, stdout, new StringWriter(),
+            (input, consumer, ct) => Task.CompletedTask, CancellationToken.None);
+
+        Assert.Equal(0, exitCode);
+        var output = stdout.ToString();
+        // 第二个相同 seq 的 submit 被幂等拒绝（重复提交 或 回合进行中）
+        Assert.Contains("\"ackSeq\":1", output);
+    }
 }

@@ -27,6 +27,7 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
     private readonly StringBuilder _fullResponse = new();
     private long? _thinkingStartMs;
     private bool _thinkingSignalled;
+    private ulong? _ackSeq;
 
     /// <summary>构造函数 — 注入事件输出口与墙钟（测试注入确定性时钟）。</summary>
     public BridgeEventConsumer(TextWriter stdout, Func<long>? wallClock = null) {
@@ -34,11 +35,15 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
         _wallClock = wallClock ?? (static () => Environment.TickCount64);
     }
 
+    /// <summary>设置回函确认流水号（ADR 0150）— BridgeServeLoop 在回合开始前调用，回合内事件带此 ack_seq。</summary>
+    public void SetAckSeq(ulong? seq) => _ackSeq = seq;
+
     /// <summary>重置状态（新一轮对话前由 BridgeServeLoop 调用，防跨回合泄漏）。</summary>
     public void Reset() {
         _fullResponse.Clear();
         _thinkingStartMs = null;
         _thinkingSignalled = false;
+        _ackSeq = null;
     }
 
     /// <summary>收到文本内容 → token_delta(length, text)（M8-1 逐字流式 — 携带增量文本，TUI StreamingTextItem 消费）；思考结束时结算 thinking_ended。</summary>
@@ -198,8 +203,11 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
                 }).ToArray(),
             }).ToArray();
 
-    /// <summary>写一条事件行（单次 Write 保证行原子性 + LF + Flush，协议统一 \n；外层配 TextWriter.Synchronized）。</summary>
+    /// <summary>写一条事件行（单次 Write 保证行原子性 + LF + Flush，协议统一 \n；外层配 TextWriter.Synchronized；
+    /// ADR 0150 — 回合内事件带 _ackSeq 关联触发的请求 seq）。</summary>
     private void WriteEvent(Cli.Bridge.BridgeEvent bridgeEvent) {
+        if (_ackSeq is { } seq && bridgeEvent.AckSeq is null)
+            bridgeEvent = bridgeEvent with { AckSeq = seq };
         _stdout.Write(Cli.Bridge.BridgeProtocol.SerializeEvent(bridgeEvent) + "\n");
         _stdout.Flush();
     }

@@ -230,4 +230,49 @@ public sealed class BridgeJsonContractTests {
         var progress = Assert.IsType<CliBridge.BridgeEvent.ToolProgress>(request);
         Assert.Equal(("PowerShell", "ps_progress", "ok"), (progress.ToolName, progress.ProgressType, progress.Message));
     }
+
+    // === ADR 0150: seq/ackSeq 流水号 JSON 契约 ===
+
+    /// <summary>submit 带 seq → JSON 含 seq 字段（ADR 0150 流水号）。</summary>
+    [Fact]
+    public void Serialize_SubmitWithSeq_CarriesSeqField() {
+        var json = JsonSerializer.Serialize(
+            new CliBridge.BridgeRequest.Submit("hello") { Seq = 42 }, CliBridge.BridgeJsonContext.Safe.BridgeRequest);
+        Assert.Contains("\"seq\":42", json);
+    }
+
+    /// <summary>turn_completed 带 ackSeq → JSON 含 ackSeq 字段（ADR 0150 回函确认）。</summary>
+    [Fact]
+    public void Serialize_TurnCompletedWithAckSeq_CarriesAckSeqField() {
+        var json = JsonSerializer.Serialize(
+            new CliBridge.BridgeEvent.TurnCompleted() { AckSeq = 42 }, CliBridge.BridgeJsonContext.Safe.BridgeEvent);
+        Assert.Contains("\"ackSeq\":42", json);
+    }
+
+    /// <summary>反解析带 seq 的 submit → Seq 字段正确（roundtrip）。</summary>
+    [Fact]
+    public void Deserialize_SubmitWithSeq_ParsesSeqBack() {
+        var request = JsonSerializer.Deserialize(
+            "{\"type\":\"submit\",\"text\":\"hi\",\"seq\":99}", CliBridge.BridgeJsonContext.Safe.BridgeRequest);
+        var submit = Assert.IsType<CliBridge.BridgeRequest.Submit>(request);
+        Assert.Equal(99UL, submit.Seq);
+    }
+
+    /// <summary>反解析带 ackSeq 的 turn_completed → AckSeq 字段正确（roundtrip）。</summary>
+    [Fact]
+    public void Deserialize_TurnCompletedWithAckSeq_ParsesAckSeqBack() {
+        var evt = JsonSerializer.Deserialize(
+            "{\"type\":\"turn_completed\",\"ackSeq\":99}", CliBridge.BridgeJsonContext.Safe.BridgeEvent);
+        var completed = Assert.IsType<CliBridge.BridgeEvent.TurnCompleted>(evt);
+        Assert.Equal(99UL, completed.AckSeq);
+    }
+
+    /// <summary>旧客户端不带 seq → 反序列化 Seq=null 兼容。</summary>
+    [Fact]
+    public void Deserialize_LegacySubmitWithoutSeq_SeqStaysNull() {
+        var request = JsonSerializer.Deserialize(
+            "{\"type\":\"submit\",\"text\":\"legacy\"}", CliBridge.BridgeJsonContext.Safe.BridgeRequest);
+        var submit = Assert.IsType<CliBridge.BridgeRequest.Submit>(request);
+        Assert.Null(submit.Seq);
+    }
 }

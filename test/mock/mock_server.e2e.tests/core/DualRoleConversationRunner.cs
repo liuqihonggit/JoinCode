@@ -444,10 +444,11 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
                 i + 1, script.Turns.Count, turn.UserInput);
 
             await _processManager!.ClearOutputAsync().ConfigureAwait(true);
-            var submitJson = JsonSerializer.Serialize(new BridgeRequest.Submit(turn.UserInput), BridgeJsonContext.Safe.BridgeRequest);
+            var seq = (ulong)(i + 1);
+            var submitJson = JsonSerializer.Serialize(new BridgeRequest.Submit(turn.UserInput) { Seq = seq }, BridgeJsonContext.Safe.BridgeRequest);
             await _processManager.SendAsync(submitJson, ct).ConfigureAwait(true);
 
-            var events = await WaitForTurnCompletedAsync(turn.ResponseTimeout, ct, i + 1, script.Turns.Count).ConfigureAwait(true);
+            var events = await WaitForTurnCompletedAsync(turn.ResponseTimeout, ct, i + 1, script.Turns.Count, seq).ConfigureAwait(true);
             var output = RebuildTextFromEvents(events);
 
             var record = ConversationOutputParser.Parse(output);
@@ -492,8 +493,8 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
         };
     }
 
-    /// <summary>等待 bridge_serve turn_completed 事件，收集回合内所有 BridgeEvent。</summary>
-    private async Task<List<BridgeEvent>> WaitForTurnCompletedAsync(TimeSpan timeout, CancellationToken ct, int turnIndex, int totalTurns) {
+    /// <summary>等待 bridge_serve turn_completed 事件，收集回合内所有 BridgeEvent。ADR 0150 — 验证 ack_seq 关联请求 seq。</summary>
+    private async Task<List<BridgeEvent>> WaitForTurnCompletedAsync(TimeSpan timeout, CancellationToken ct, int turnIndex, int totalTurns, ulong? expectedSeq = null) {
         var startTime = DateTime.UtcNow;
         var events = new List<BridgeEvent>();
 
@@ -509,7 +510,9 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
             foreach (var evt in ParseBridgeEvents(incrementalOutput)) {
                 events.Add(evt);
                 if (evt is BridgeEvent.TurnCompleted) {
-                    _logger.LogInformation("[DualRoleRunner] 检测到 turn_completed 事件，事件数={Count}", events.Count);
+                    if (expectedSeq is { } exp && evt.AckSeq is { } got && got != exp)
+                        _logger.LogWarning("[DualRoleRunner] ackSeq 不匹配: expected={Expected}, got={Got}", exp, got);
+                    _logger.LogInformation("[DualRoleRunner] 检测到 turn_completed 事件，事件数={Count}, ackSeq={AckSeq}", events.Count, evt.AckSeq);
                     return events;
                 }
             }

@@ -14,6 +14,13 @@ namespace NativeTui.Core.Bridge;
 [JsonDerivedType(typeof(Quit), "quit")]
 public abstract record BridgeRequest
 {
+    /// <summary>
+    /// 请求流水号（ADR 0150）— 客户端单调递增，用于关联响应与请求。
+    /// null 表示旧客户端未发送，bridge_serve 容忍（不幂等但兼容）。
+    /// </summary>
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ulong? Seq { get; init; }
+
     /// <summary>提交用户输入，开始回合。</summary>
     /// <param name="Text">提交文本（图片占位 [Image #N] 已由 shell 剥离）。</param>
     /// <param name="Images">图片附件数组（TASK066 板块 G G4 bridge 协议图片通道 — null 不序列化字段

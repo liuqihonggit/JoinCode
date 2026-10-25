@@ -34,6 +34,13 @@ namespace NativeTui.Core.Bridge;
 public abstract record BridgeEvent
 {
     /// <summary>
+    /// 回函确认流水号（ADR 0150）— 关联触发的请求 seq。
+    /// null 表示非请求触发事件或旧客户端兼容。
+    /// </summary>
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ulong? AckSeq { get; init; }
+
+    /// <summary>
     /// 会话握手（引擎启动后首条事件）— 版本/当前模型/权限模式/bypass 可用性/cwd/供应商/登录态。
     /// Model 为 null 表示引擎未设置模型（banner 显示"当前模型未设置"）；
     /// Vendor 为 null 表示引擎未上报（banner 退化为不带供应商前缀，旧引擎兼容）；

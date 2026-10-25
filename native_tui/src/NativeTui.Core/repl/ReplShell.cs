@@ -1408,6 +1408,13 @@ public sealed class ReplShell
                 HandlePaste(key.Input);
                 break;
             case KeyKind.Char:
+                // TASK074 D1b — 空输入+!+Prompt mode → 切 Bash mode（对齐基准 PromptInput.tsx:869-887
+                // 空输入+! → onModeChange('bash') + 剥前缀进入态；不插入 ! 字符）
+                if (_inputMode == InputMode.Prompt && _input.Text.Length == 0 && key.Input == "!")
+                {
+                    _inputMode = InputMode.Bash;
+                    return;
+                }
                 if (key.Input.Length == 1)
                 {
                     _input.Insert(key.Input[0]);
@@ -3370,6 +3377,14 @@ public sealed class ReplShell
 
             _lastEscapeMs = 0;
             _engine.Interrupt();
+            return;
+        }
+
+        // TASK074 D5 — 空输入+Bash mode+Esc → 切回 Prompt（对齐基准 useCancelRequest.ts:131-135
+        // isInSpecialModeWithEmptyInput 让 PromptInput 处理 mode exit）
+        if (_inputMode == InputMode.Bash && _input.Text.Length == 0)
+        {
+            _inputMode = InputMode.Prompt;
             return;
         }
 

@@ -242,6 +242,26 @@ public sealed class ReplShellTests
         var (shell, _) = CreateShell();
         Assert.Equal(InputMode.Prompt, shell.InputMode);
     }
+
+    /// <summary>空输入+! → 切 Bash mode（TASK074 D1b — 对齐基准 PromptInput.tsx:869-887）。</summary>
+    [Fact]
+    public void BashMode_EnterOnEmptyInputWithExclamation()
+    {
+        var (shell, _) = CreateShell();
+        shell.HandleRawKeyPress(new KeyPress(KeyKind.Char, "!"));
+        Assert.Equal(InputMode.Bash, shell.InputMode);
+        Assert.Equal("", shell.Input.Text);
+    }
+
+    /// <summary>Bash mode + 空输入 + Esc → 切回 Prompt（TASK074 D5 — 对齐基准 useCancelRequest.ts:131-135）。</summary>
+    [Fact]
+    public void BashMode_EscOnEmptyInputReturnsToPrompt()
+    {
+        var (shell, _) = CreateShell();
+        shell.HandleRawKeyPress(new KeyPress(KeyKind.Char, "!"));
+        shell.HandleRawKeyPress(KeyPress.Named(KeyKind.Escape));
+        Assert.Equal(InputMode.Prompt, shell.InputMode);
+    }
 }
 
 /// <summary>测试注入用动画项（IAnimatable 消费面 — 广播路由断言）。</summary>

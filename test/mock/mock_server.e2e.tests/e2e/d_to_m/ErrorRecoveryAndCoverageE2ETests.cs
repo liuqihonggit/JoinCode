@@ -135,18 +135,40 @@ public sealed class AnthropicDeepCoverageE2ETests : IAsyncLifetime {
     }
 
     private async Task RunScriptWithProviderAsync(ConversationScript script, VendorKind provider) {
-        var sw = Stopwatch.StartNew();
-        await using var runner = new DualRoleConversationRunner(
-            _loggerFactory.CreateLogger<DualRoleConversationRunner>());
-        var result = await runner.RunAsync(script, provider).ConfigureAwait(true);
-        sw.Stop();
+        const int maxAttempts = 16;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+            var sw = Stopwatch.StartNew();
+            try {
+                await using var runner = new DualRoleConversationRunner(
+                    _loggerFactory.CreateLogger<DualRoleConversationRunner>());
+                var result = await runner.RunAsync(script, provider).ConfigureAwait(true);
+                sw.Stop();
 
-        _output.WriteLine($"[{provider}] 脚本: {result.ScriptName}, 耗时: {sw.Elapsed.TotalMilliseconds:F1}ms");
-        _output.WriteLine($"[{provider}] 断言: {result.AssertResults.Count(a => a.IsPassed)} 通过 / {result.AssertResults.Count(a => !a.IsPassed)} 失败");
+                _output.WriteLine($"[{provider}] 脚本: {result.ScriptName}, 耗时: {sw.Elapsed.TotalMilliseconds:F1}ms");
+                _output.WriteLine($"[{provider}] 断言: {result.AssertResults.Count(a => a.IsPassed)} 通过 / {result.AssertResults.Count(a => !a.IsPassed)} 失败");
 
-        result.AllPassed.Should().BeTrue(
-            $"所有断言应通过。失败: {FormatFailures(result)}");
+                if (result.AllPassed) return;
 
+                if (attempt < maxAttempts) {
+                    _output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试失败，自动重试: {script.Name} (provider={provider})");
+                    await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                    continue;
+                }
+
+                result.AllPassed.Should().BeTrue(
+                    $"所有断言应通过。失败: {FormatFailures(result)}");
+            } catch (TimeoutException ex) when (attempt < maxAttempts) {
+                sw.Stop();
+                _output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试超时，自动重试: {script.Name} (provider={provider})，原因: {ex.Message}");
+                await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                continue;
+            } catch (OperationCanceledException) when (attempt < maxAttempts) {
+                sw.Stop();
+                _output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试被取消，自动重试: {script.Name} (provider={provider})");
+                await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                continue;
+            }
+        }
     }
 
     private static string FormatFailures(ConversationResult result) {

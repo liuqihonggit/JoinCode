@@ -132,8 +132,11 @@ public sealed class BridgeServeLoopTests {
             CancellationToken.None);
 
         Assert.Equal(0, exitCode);
-        var errorLine = stdout.ToString().Split('\n').Single(l => l.Contains("\"error\""));
+        var output = stdout.ToString();
+        var errorLine = output.Split('\n').Single(l => l.Contains("\"error\""));
         Assert.Contains("LLM 连接失败", errorLine);
+        // 回合失败也必须发 turn_completed，否则消费方（TUI/E2E）永远等不到回合结束 → 超时
+        Assert.Contains("\"type\":\"turn_completed\"", output);
     }
 
     [Fact]

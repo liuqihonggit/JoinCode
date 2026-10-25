@@ -75,6 +75,12 @@ class Program {
 
             var fs = IO.FileSystem.FileSystemFactory.Create();
 
+            // ADR 0149: 默认(非非交互)→ TUI, 非交互(-p)→ NonInteractiveModeRunner
+            // TUI 分支: NativeTui.Host 自己组装引擎(EngineSession.CreateAsync),跳过 CreateCliSessionAsync 避免重复组装
+            if (!options.IsNonInteractiveMode) {
+                return await NativeTui.Host.Program.RunInteractiveAsync().ConfigureAwait(false);
+            }
+
             var engineResult = await App.Builder.CliSessionFactory.CreateCliSessionAsync(options, fs).ConfigureAwait(false);
 
             var config = engineResult.Config;
@@ -83,12 +89,7 @@ class Program {
             logger = host.Services.GetService<ILogger<Program>>();
 
             int exitCode;
-            if (options.IsNonInteractiveMode)
-                exitCode = await Entry.NonInteractiveModeRunner.RunAsync(config, options, host).ConfigureAwait(false);
-            else {
-                await Entry.InteractiveModeRunner.RunAsync(config, options, host).ConfigureAwait(false);
-                exitCode = 0;
-            }
+            exitCode = await Entry.NonInteractiveModeRunner.RunAsync(config, options, host).ConfigureAwait(false);
 
             return exitCode;
         } catch (OperationCanceledException) {

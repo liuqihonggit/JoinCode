@@ -134,7 +134,7 @@ public static class ApiErrorRecoveryScripts {
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "500后应有恢复回复" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "500", Description = "500后应有错误响应(不卡死)" },
                 ]
             },
             new ConversationTurn

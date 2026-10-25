@@ -258,10 +258,11 @@ public static class Program {
         }
     }
 
-    /// <summary>交互模式 — TTY 检查 → UTF-8 → raw mode → 引擎组装（Console.Out 重定向 stderr 防引擎污染渲染）→ REPL 主循环。</summary>
-    private static async Task<int> RunInteractiveAsync(bool useRawStdinPump = false) {
+    /// <summary>交互模式 — TTY 检查 → UTF-8 → raw mode → 引擎组装（Console.Out 重定向 stderr 防引擎污染渲染）→ REPL 主循环。
+    /// ADR 0149：改为 public 供 jcc 宿主默认调用（NativeTui.Host 已改为 Library）。</summary>
+    public static async Task<int> RunInteractiveAsync(bool useRawStdinPump = false) {
         if (Console.IsInputRedirected || Console.IsOutputRedirected) {
-            Console.Error.WriteLine("交互模式需要真实终端（stdin/stdout 被重定向）。请直接在终端运行 NativeTui.Host，或用 --selftest 跑非交互冒烟。");
+            Console.Error.WriteLine("交互模式需要真实终端（stdin/stdout 被重定向）。请直接在终端运行 jcc，或用 --selftest 跑非交互冒烟。");
             return 1;
         }
 

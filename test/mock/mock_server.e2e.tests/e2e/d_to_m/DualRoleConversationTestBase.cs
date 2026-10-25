@@ -43,21 +43,25 @@ public abstract class DualRoleConversationTestBase : IAsyncLifetime {
 
                 if (attempt < maxAttempts) {
                     Output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试失败，自动重试: {script.Name}");
-                    await Task.Delay(RetryInterval).ConfigureAwait(true);
+                    await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
                     continue;
                 }
 
                 result.AllPassed.Should().BeTrue($"所有断言应通过。失败: {FormatFailures(result)}");
+            } catch (TimeoutException ex) when (attempt < maxAttempts) {
+                Output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试超时，自动重试: {script.Name}，原因: {ex.Message}");
+                await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                continue;
             } catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested) {
                 if (attempt < maxAttempts) {
                     Output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试超时(>60s)，自动重试: {script.Name}");
-                    await Task.Delay(RetryInterval).ConfigureAwait(true);
+                    await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
                     continue;
                 }
                 throw new TimeoutException($"[GEN036] 测试超时(>60s): {script.Name}");
             } catch (OperationCanceledException) when (!timeoutCts.IsCancellationRequested && attempt < maxAttempts) {
                 Output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试被内层取消(如MockServer就绪超时)，自动重试: {script.Name}");
-                await Task.Delay(RetryInterval).ConfigureAwait(true);
+                await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
                 continue;
             } finally {
                 await runner.DisposeAsync().ConfigureAwait(true);
@@ -85,22 +89,26 @@ public abstract class DualRoleConversationTestBase : IAsyncLifetime {
 
                 if (attempt < maxAttempts) {
                     Output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试失败，自动重试: {script.Name}");
-                    await Task.Delay(RetryInterval).ConfigureAwait(true);
+                    await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
                     continue;
                 }
 
                 result.AllPassed.Should().BeTrue($"所有断言应通过。失败: {FormatFailures(result)}");
                 return result;
+            } catch (TimeoutException ex) when (attempt < maxAttempts) {
+                Output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试超时，自动重试: {script.Name}，原因: {ex.Message}");
+                await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                continue;
             } catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested) {
                 if (attempt < maxAttempts) {
                     Output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试超时(>60s)，自动重试: {script.Name}");
-                    await Task.Delay(RetryInterval).ConfigureAwait(true);
+                    await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
                     continue;
                 }
                 throw new TimeoutException($"[GEN037] 测试超时(>60s): {script.Name}");
             } catch (OperationCanceledException) when (!timeoutCts.IsCancellationRequested && attempt < maxAttempts) {
                 Output.WriteLine($"[DualRole] ⚠ 第{attempt}次尝试被内层取消(如MockServer就绪超时)，自动重试: {script.Name}");
-                await Task.Delay(RetryInterval).ConfigureAwait(true);
+                await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
                 continue;
             } finally {
                 await runner.DisposeAsync().ConfigureAwait(true);

@@ -77,7 +77,7 @@ public abstract class CoverageTestBase : IAsyncLifetime {
 
                 if (attempt < maxAttempts) {
                     Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试失败，自动重试: {script.Name} (provider={provider})");
-                    await Task.Delay(RetryInterval).ConfigureAwait(true);
+                    await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
                     continue;
                 }
 
@@ -87,19 +87,24 @@ public abstract class CoverageTestBase : IAsyncLifetime {
                 sw.Stop();
                 if (attempt < maxAttempts) {
                     Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试超时(>60s)，自动重试: {script.Name} (provider={provider})");
-                    await Task.Delay(RetryInterval).ConfigureAwait(true);
+                    await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
                     continue;
                 }
                 throw new TimeoutException($"[GEN035] 测试超时(>60s): {script.Name} (provider={provider})");
             } catch (OperationCanceledException) when (!timeoutCts.IsCancellationRequested && attempt < maxAttempts) {
                 sw.Stop();
                 Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试被内层取消(如MockServer就绪超时)，自动重试: {script.Name} (provider={provider})");
-                await Task.Delay(RetryInterval).ConfigureAwait(true);
+                await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                continue;
+            } catch (TimeoutException ex) when (attempt < maxAttempts) {
+                sw.Stop();
+                Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试超时，自动重试: {script.Name} (provider={provider})，原因: {ex.Message}");
+                await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
                 continue;
             } catch (InvalidOperationException ex) when (IsRetryableProcessFailure(ex) && attempt < maxAttempts) {
                 sw.Stop();
                 Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试进程暂时失败，自动重试: {script.Name} (provider={provider})，原因: {ex.Message}");
-                await Task.Delay(RetryInterval).ConfigureAwait(true);
+                await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
                 continue;
             } finally {
                 await runner.DisposeAsync().ConfigureAwait(true);

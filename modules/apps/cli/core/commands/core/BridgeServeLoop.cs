@@ -179,6 +179,7 @@ internal static class BridgeServeLoop {
             WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnInterrupted());
         } catch (Exception ex) {
             WriteEvent(stdout, new Cli.Bridge.BridgeEvent.Error($"回合执行失败：{ex.Message}"));
+            WriteEvent(stdout, new Cli.Bridge.BridgeEvent.TurnCompleted());
         } finally {
             if (backgroundPump is not null)
                 await backgroundPump.PublishSnapshotAsync(CancellationToken.None).ConfigureAwait(false);

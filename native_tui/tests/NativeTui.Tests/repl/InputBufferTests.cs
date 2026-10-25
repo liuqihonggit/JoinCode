@@ -326,4 +326,70 @@ public sealed class InputBufferTests
         buffer.Backspace();
         Assert.Equal("ab", buffer.Text);
     }
+
+    /// <summary>粘贴超截断阈值（&gt;10000 字符）应触发 whole-input 截断（对齐基准 useMaybeTruncateInput）。
+    /// 场景：Replace 10000 字符（不超阈值不截断）+ Paste 500 字符（&lt;800 不折叠）累积超阈值 → 触发。</summary>
+    [Fact]
+    public void Paste_AccumulatedOverTruncationThreshold_TruncatesWholeInput()
+    {
+        var buffer = new InputBuffer();
+        buffer.Replace(new string('a', PastedContentTracker.TruncationThreshold));
+        buffer.Paste(new string('x', 500));
+
+        Assert.Contains("[...Truncated text", buffer.Text);
+        Assert.True(buffer.Text.Length < PastedContentTracker.TruncationThreshold + 500);
+    }
+
+    /// <summary>替换超截断阈值应触发 whole-input 截断（历史导航回填超长消息路径）。</summary>
+    [Fact]
+    public void Replace_OverTruncationThreshold_TruncatesWholeInput()
+    {
+        var buffer = new InputBuffer();
+        var huge = new string('b', PastedContentTracker.TruncationThreshold + 2000);
+
+        buffer.Replace(huge);
+
+        Assert.Contains("[...Truncated text", buffer.Text);
+        Assert.True(buffer.Text.Length < huge.Length);
+    }
+
+    /// <summary>粘贴未超折叠阈值不截断（原文直插，无任何折叠标记）。</summary>
+    [Fact]
+    public void Paste_BelowTruncationThreshold_DoesNotTruncate()
+    {
+        var buffer = new InputBuffer();
+        var small = new string('c', PastedContentTracker.PasteThreshold - 1);
+
+        buffer.Paste(small);
+
+        Assert.DoesNotContain("[...Truncated text", buffer.Text);
+        Assert.Equal(small, buffer.Text);
+    }
+
+    /// <summary>Clear 重置截断标记位 — 之后再次替换超长应重新截断（对齐基准 hasAppliedTruncationToInput 清空重置）。</summary>
+    [Fact]
+    public void Clear_ResetsTruncation_AllowsReTruncate()
+    {
+        var buffer = new InputBuffer();
+        var huge = new string('d', PastedContentTracker.TruncationThreshold + 2000);
+
+        buffer.Replace(huge);
+        Assert.Contains("[...Truncated text", buffer.Text);
+
+        buffer.Clear();
+        buffer.Replace(huge);
+        Assert.Contains("[...Truncated text", buffer.Text);
+    }
+
+    /// <summary>截断后 ExpandedText 展开回原文（提交语义 — 显示折叠形态，提交全文）。</summary>
+    [Fact]
+    public void Replace_Truncated_ExpandedTextRestoresOriginal()
+    {
+        var buffer = new InputBuffer();
+        var huge = new string('e', PastedContentTracker.TruncationThreshold + 2000);
+
+        buffer.Replace(huge);
+
+        Assert.Equal(huge, buffer.ExpandedText);
+    }
 }

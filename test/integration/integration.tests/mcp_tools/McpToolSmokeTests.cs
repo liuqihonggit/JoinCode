@@ -562,4 +562,15 @@ public sealed class McpToolSmokeTests {
         silentFailures.Should().BeEmpty($"以下工具缺失必填参数却静默成功: {string.Join(", ", silentFailures.Select(s => $"{s.ToolName}缺{s.MissingParam}"))}");
         crashed.Should().BeEmpty($"以下工具缺失参数时崩溃: {string.Join(", ", crashed.Select(c => c.ToolName))}");
     }
+
+    /// <summary>
+    /// 验证有网络副作用的工具被策略跳过 — mcp_connect 连真实 MCP 服务器，CI 环境会超时
+    /// </summary>
+    [Fact]
+    public void Network_Side_Effect_Tools_Are_Skipped() {
+        var strategy = new DefaultToolValidationStrategy();
+        var mcpConnectTool = new ToolInfo { Name = "mcp_connect", Category = "mcp", Description = "连接 MCP 服务器" };
+        strategy.GetKind(mcpConnectTool).Should().Be(ToolValidationKind.Skip,
+            "mcp_connect 连真实 MCP 服务器，CI 环境无可用服务器会超时");
+    }
 }

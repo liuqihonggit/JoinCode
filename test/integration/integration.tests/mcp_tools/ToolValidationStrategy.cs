@@ -60,8 +60,22 @@ public sealed class DefaultToolValidationStrategy : IToolValidationStrategy {
         ]
     );
 
+    /// <summary>
+    /// 有真实网络副作用的工具 — 冒烟测试跳过，避免连接外部服务器导致超时
+    /// （mcp_connect 连真实 MCP 服务器，CI 环境无可用服务器）
+    /// </summary>
+    private static readonly FrozenSet<string> NetworkSideEffectTools = FrozenSet.Create(
+        StringComparer.Ordinal,
+        [
+            "mcp_connect",
+        ]
+    );
+
     /// <summary>获取工具的验证类型</summary>
     public ToolValidationKind GetKind(ToolInfo tool) {
+        if (NetworkSideEffectTools.Contains(tool.Name))
+            return ToolValidationKind.Skip;
+
         if (DangerousTools.Contains(tool.Name) ||
             string.Equals(tool.Category, "desktop", StringComparison.OrdinalIgnoreCase))
             return ToolValidationKind.ValidateOnly;

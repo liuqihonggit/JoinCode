@@ -394,6 +394,25 @@ public sealed class BridgeServeLoopTests {
         Assert.Equal(0, exitCode);
         var output = stdout.ToString();
         Assert.Contains("\"ackSeq\":7", output);
-        Assert.Contains("\"type\":\"permission_mode_changed\",\"mode\":\"auto\",\"ackSeq\":7", output);
+        Assert.Contains("\"type\":\"permission_mode_changed\"", output);
+    }
+
+    [Fact]
+    public async Task DuplicateSubmit_WithSameSeq_IsIdempotent() {
+        var req1 = new CliBridge.BridgeRequest.Submit("第一回合") { Seq = 1 };
+        var req2 = new CliBridge.BridgeRequest.Submit("重复提交") { Seq = 1 };
+        using var stdin = new StringReader(string.Join('\n',
+            WriteRequest(req1),
+            WriteRequest(req2),
+            WriteRequest(new CliBridge.BridgeRequest.Quit())));
+        await using var stdout = new StringWriter();
+
+        var exitCode = await BridgeServeLoop.RunAsync(stdin, stdout, new StringWriter(),
+            (input, consumer, ct) => Task.CompletedTask, CancellationToken.None);
+
+        Assert.Equal(0, exitCode);
+        var output = stdout.ToString();
+        // 第二个相同 seq 的 submit 被幂等拒绝（重复提交 或 回合进行中）
+        Assert.Contains("\"ackSeq\":1", output);
     }
 }

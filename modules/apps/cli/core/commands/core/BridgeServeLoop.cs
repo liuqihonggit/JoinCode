@@ -52,6 +52,7 @@ internal static class BridgeServeLoop {
         CancellationTokenSource? turnCts = null;
         Task? turnTask = null;
         var exit = false;
+        ulong? lastProcessedSeq = null;
 
         while (!exit && !ct.IsCancellationRequested) {
             var result = Cli.Bridge.BridgeProtocol.TryReadRequest(stdin, out var request, out var diagnostic);
@@ -63,8 +64,16 @@ internal static class BridgeServeLoop {
                     stderr.WriteLine(diagnostic);
                     break;
                 default:
-                    if (request is not null)
+                    if (request is not null) {
+                        if (request is Cli.Bridge.BridgeRequest.Submit { Seq: { } dupSeq } && dupSeq == lastProcessedSeq) {
+                            WriteEvent(synced, new Cli.Bridge.BridgeEvent.Error("重复提交(seq 已处理)，已忽略。") { AckSeq = dupSeq });
+                            WriteEvent(synced, new Cli.Bridge.BridgeEvent.TurnCompleted() { AckSeq = dupSeq });
+                            break;
+                        }
+                        if (request is Cli.Bridge.BridgeRequest.Submit { Seq: { } newSeq })
+                            lastProcessedSeq = newSeq;
                         (exit, turnCts, turnTask) = DispatchRequest(request, synced, consumer, executeTurn, applyPermissionMode, backgroundPump, turnCts, turnTask);
+                    }
                     break;
             }
         }

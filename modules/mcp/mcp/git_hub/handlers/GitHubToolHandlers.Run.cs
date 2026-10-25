@@ -52,7 +52,7 @@ public partial class GitHubToolHandlers {
                 return Ok(ApplyPaginationAndTruncation(filtered, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: effectiveVerbosity != 2));
             }
             var hasFailure = result.Body.Contains("\"conclusion\":\"failure\"", StringComparison.OrdinalIgnoreCase);
-            var failureHint = hasFailure ? GitHubRunLogHints.RunListFailureHint : "";
+            var failureHint = hasFailure ? await BuildDynamicFailureHintAsync(client, owner, repoName, result.Body, cancellationToken).ConfigureAwait(false) : "";
             var formattedOutput = effectiveVerbosity switch {
                 2 => result.Body + failureHint,
                 1 => GitHubRunListSummarizer.SummarizeRunList(result.Body) + failureHint,
@@ -1348,6 +1348,66 @@ public partial class GitHubToolHandlers {
         }
 
         return Ok(sb.ToString(), $"CI 告警: {alerts.Count} 条");
+    }
+
+    /// <summary>
+    /// 动态构建失败 run 排障提示 — 解析 run list 找到失败 run,自动拉取 jobs 列表提取失败 job ID
+    /// <para>减少 AI 工具调用次数: 从 3 次(run list → expand=jobs → log)减到 2 次(run list → log)</para>
+    /// <para>最多展开 3 个失败 run,避免大量 API 调用</para>
+    /// </summary>
+    private static async Task<string> BuildDynamicFailureHintAsync(
+        IGitHubApiClient client, string owner, string repoName,
+        string runListJson, CancellationToken ct) {
+        WorkflowRunListBriefResponse? resp;
+        try {
+            resp = JsonSerializer.Deserialize(runListJson, GitHubApiJsonContext.Safe.WorkflowRunListBriefResponse);
+        } catch {
+            return GitHubRunLogHints.RunListFailureHint;
+        }
+        if (resp?.WorkflowRuns is null) return GitHubRunLogHints.RunListFailureHint;
+
+        var failedRuns = resp.WorkflowRuns
+            .Where(r => string.Equals(r.Conclusion, "failure", StringComparison.OrdinalIgnoreCase))
+            .Take(3)
+            .ToList();
+        if (failedRuns.Count == 0) return "";
+
+        var sb = new StringBuilder(512);
+        sb.Append("\n\n💡 排障步骤(失败 run 已展开,直接拉日志):\n");
+
+        foreach (var run in failedRuns) {
+            var branch = run.HeadBranch ?? "?";
+            sb.Append($"❌ run {run.Id} [{branch}] #{run.RunNumber}\n");
+
+            try {
+                var jobsResult = await client.SendAsync(HttpMethod.Get,
+                    $"repos/{owner}/{repoName}/actions/runs/{run.Id}/jobs",
+                    paginate: true, ct: ct).ConfigureAwait(false);
+                if (!jobsResult.Success) {
+                    sb.Append($"  → gh_run_view run_id={run.Id} expand=failed\n");
+                    continue;
+                }
+                var jobsResp = JsonSerializer.Deserialize(jobsResult.Body, GitHubApiJsonContext.Safe.RunJobListResponse);
+                if (jobsResp?.Jobs is null) {
+                    sb.Append($"  → gh_run_view run_id={run.Id} expand=failed\n");
+                    continue;
+                }
+                var failedJobs = jobsResp.Jobs
+                    .Where(j => string.Equals(j.Conclusion, "failure", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (failedJobs.Count == 0) {
+                    sb.Append($"  → gh_run_view run_id={run.Id} expand=failed\n");
+                    continue;
+                }
+                foreach (var job in failedJobs)
+                    sb.Append($"  ❌ job {job.Id} [{job.Name}]\n");
+                sb.Append($"  → gh_run_view run_id={run.Id} log=true job_id={failedJobs[0].Id} filter=error\n");
+            } catch {
+                sb.Append($"  → gh_run_view run_id={run.Id} expand=failed\n");
+            }
+        }
+
+        return sb.ToString();
     }
 }
 

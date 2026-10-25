@@ -212,6 +212,51 @@ function Generate-FullArgs {
     return $args
 }
 
+function Generate-DefaultArgs {
+    param([object]$Schema)
+
+    if (-not $Schema -or -not $Schema.properties) { return @() }
+
+    $args = @()
+    foreach ($prop in $Schema.properties.PSObject.Properties) {
+        $name = $prop.Name
+        $info = $prop.Value
+        $type = if ($info.type) { $info.type } else { "string" }
+        $enum = if ($info.enum) { $info.enum } else { $null }
+        $default = if ($info.default) { $info.default } else { $null }
+
+        $value = Generate-ArgValue -ParamName $name -Type $type -Enum $enum -Default $default
+
+        if ($type -eq "integer" -or $type -eq "boolean") {
+            $args += "$name=$value"
+        } elseif ($type -eq "array" -or $type -eq "object") {
+            $args += "$name=$value"
+        } else {
+            $args += "$name=`"$value`""
+        }
+    }
+    return $args
+}
+
+function Generate-MissingParamScenarios {
+    param([object]$Schema)
+
+    if (-not $Schema -or -not $Schema.required) { return @() }
+
+    $scenarios = @()
+    $fullArgs = Generate-DefaultArgs -Schema $Schema
+
+    foreach ($reqParam in $Schema.required) {
+        $prefix = "$reqParam="
+        $missingArgs = @($fullArgs | Where-Object { -not $_.StartsWith($prefix, [StringComparison]::Ordinal) })
+        $scenarios += [PSCustomObject]@{
+            MissingParam = $reqParam
+            Args         = $missingArgs
+        }
+    }
+    return $scenarios
+}
+
 function Extract-Steps {
     param([string]$Stderr)
     $steps = @()
@@ -236,6 +281,12 @@ function Test-McpTools {
 
     $tools = $listJson.data | ForEach-Object { $_.name }
     Write-Host "Found $($tools.Count) MCP tools"
+
+    $dangerousTools = $tools | Where-Object { Get-IsDangerousTool -ToolName $_ }
+    if ($dangerousTools) {
+        $tools = $tools | Where-Object { -not (Get-IsDangerousTool -ToolName $_) }
+        Write-Host "Skipped $($dangerousTools.Count) dangerous tools (gh_*/desktop_*/git_write/delete)" -ForegroundColor Yellow
+    }
 
     if ($Limit -gt 0 -and $Limit -lt $tools.Count) {
         $tools = $tools[0..($Limit - 1)]
@@ -278,7 +329,7 @@ function Test-McpTools {
         if ($schemaJson) { $schema = $schemaJson.data }
 
         $toolArgs = Generate-FullArgs -Schema $schema
-        $callArgs = @("mcp_call", $tool) + $toolArgs + @("--json", "--debuglog")
+        $callArgs = @("mcp_call", $tool) + $toolArgs + @("--json")
         $cmdStart = [System.Diagnostics.Stopwatch]::StartNew()
         $callResult = Invoke-Jcc -CmdArgs $callArgs -Timeout $TimeoutSec
         $cmdStart.Stop()
@@ -292,9 +343,9 @@ function Test-McpTools {
         try {
             $callJson = Extract-Json -Text $callResult.stdout
             if ($callJson) {
-                $isError = [bool]$callJson.isError
-                if ($callJson.content) {
-                    $contentText = ($callJson.content | ForEach-Object { $_.text } | Out-String).Trim()
+                $isError = [bool]$callJson.data.isError
+                if ($callJson.data.content) {
+                    $contentText = ($callJson.data.content | ForEach-Object { $_.text } | Out-String).Trim()
                 }
             }
         } catch {
@@ -344,6 +395,126 @@ function Test-McpTools {
         $i++
         Write-Host "  [$i/$($results.Count)] $($r.Name) -> $($r.Status) ($($r.Steps)) $($r.Duration)s" -ForegroundColor $(switch ($r.Status) { "OK" { "Green" } "ERROR" { "Yellow" } default { "Red" } })
     }
+    return $results
+}
+
+function Get-IsDangerousTool {
+    param([string]$ToolName)
+
+    $dangerousExact = @(
+        "delete",
+        "git_add", "git_commit", "git_push", "git_pull", "git_reset",
+        "git_clean", "git_branch", "git_clone", "git_merge",
+        "worktree_create", "worktree_remove", "worktree_cleanup", "worktree_merge"
+    )
+    if ($dangerousExact -contains $ToolName) { return $true }
+    if ($ToolName -like "gh_*") { return $true }
+    if ($ToolName -like "desktop_*") { return $true }
+    return $false
+}
+
+function Test-McpMissingParams {
+    Write-Host "`n=== MCP Missing Param Validation ===" -ForegroundColor Cyan
+
+    $listResult = Invoke-Jcc -CmdArgs @("mcp_list", "--json")
+    $listJson = Extract-Json -Text $listResult.stdout
+    if (-not $listJson -or -not $listJson.ok) {
+        Write-Error "mcp_list failed"
+        return @()
+    }
+
+    $tools = $listJson.data | ForEach-Object { $_.name }
+    $dangerousTools = $tools | Where-Object { Get-IsDangerousTool -ToolName $_ }
+    if ($dangerousTools) {
+        $tools = $tools | Where-Object { -not (Get-IsDangerousTool -ToolName $_) }
+        Write-Host "Skipped $($dangerousTools.Count) dangerous tools (gh_*/desktop_*/git_write/delete)" -ForegroundColor Yellow
+    }
+    if ($Limit -gt 0 -and $Limit -lt $tools.Count) {
+        $tools = $tools[0..($Limit - 1)]
+    }
+    if ($TotalShards -gt 1) {
+        $shardSize = [int][Math]::Ceiling($tools.Count / $TotalShards)
+        $start = ($Shard - 1) * $shardSize
+        $end = [Math]::Min($start + $shardSize - 1, $tools.Count - 1)
+        if ($start -ge $tools.Count) { return @() }
+        $tools = $tools[$start..$end]
+    }
+
+    $funcDefs = @{
+        InvokeJcc = (Get-Command Invoke-Jcc).Definition
+        ExtractJson = (Get-Command Extract-Json).Definition
+        GenerateArgValue = (Get-Command Generate-ArgValue).Definition
+        GenerateDefaultArgs = (Get-Command Generate-DefaultArgs).Definition
+        GenerateMissingParamScenarios = (Get-Command Generate-MissingParamScenarios).Definition
+    }
+    $dllPath = $JccDll
+    $timeout = $TimeoutSec
+
+    $allScenarios = $tools | ForEach-Object -Parallel {
+        $tool = $_
+        Set-Item function:Invoke-Jcc $using:funcDefs.InvokeJcc
+        Set-Item function:Extract-Json $using:funcDefs.ExtractJson
+        Set-Item function:Generate-ArgValue $using:funcDefs.GenerateArgValue
+        Set-Item function:Generate-DefaultArgs $using:funcDefs.GenerateDefaultArgs
+        Set-Item function:Generate-MissingParamScenarios $using:funcDefs.GenerateMissingParamScenarios
+        $JccDll = $using:dllPath
+        $TimeoutSec = $using:timeout
+
+        $schemaResult = Invoke-Jcc -CmdArgs @("mcp_schema", $tool, "--json")
+        $schemaJson = Extract-Json -Text $schemaResult.stdout
+        $schema = if ($schemaJson) { $schemaJson.data } else { $null }
+        $scenarios = Generate-MissingParamScenarios -Schema $schema
+        foreach ($s in $scenarios) {
+            [PSCustomObject]@{ Tool = $tool; MissingParam = $s.MissingParam; Args = $s.Args }
+        }
+    } -ThrottleLimit $Concurrency
+    $allScenarios = @($allScenarios)
+
+    Write-Host "Found $($allScenarios.Count) missing-param scenarios for $($tools.Count) tools"
+
+    $results = $allScenarios | ForEach-Object -Parallel {
+        $scenario = $_
+        Set-Item function:Invoke-Jcc $using:funcDefs.InvokeJcc
+        Set-Item function:Extract-Json $using:funcDefs.ExtractJson
+        $JccDll = $using:dllPath
+        $TimeoutSec = $using:timeout
+
+        $callArgs = @("mcp_call", $scenario.Tool) + $scenario.Args + @("--json")
+        $callResult = Invoke-Jcc -CmdArgs $callArgs -Timeout $TimeoutSec
+
+        $isError = $false
+        $contentText = ""
+        $callJson = $null
+        try {
+            $callJson = Extract-Json -Text $callResult.stdout
+            if ($callJson) {
+                $isError = [bool]$callJson.data.isError
+                if ($callJson.data.content) {
+                    $contentText = ($callJson.data.content | ForEach-Object { $_.text } | Out-String).Trim()
+                }
+            }
+        } catch {}
+
+        $status = if ($callResult.timedOut) { "TIMEOUT" }
+                  elseif ($isError) { "ERROR" }
+                  elseif ($callJson -and -not $isError) { "SILENT_OK" }
+                  else { "CRASH" }
+
+        [PSCustomObject]@{
+            Category     = "MissingParam"
+            Tool         = $scenario.Tool
+            MissingParam = $scenario.MissingParam
+            Status       = $status
+            Reason       = if ($contentText) { $contentText.Substring(0, [Math]::Min(120, $contentText.Length)) } else { "" }
+            Duration     = 0
+        }
+    } -ThrottleLimit $Concurrency
+
+    $results = @($results)
+    $silentOk = ($results | Where-Object { $_.Status -eq "SILENT_OK" }).Count
+    $errorOk = ($results | Where-Object { $_.Status -eq "ERROR" }).Count
+    Write-Host "  SilentSuccess(BUG): $silentOk | ErrorReturned(correct): $errorOk | Crash: $(($results | Where-Object { $_.Status -eq 'CRASH' }).Count)"
+
     return $results
 }
 
@@ -464,8 +635,12 @@ function Test-SlashCommands {
 
 $startTime = Get-Date
 $allResults = @()
+$missingParamResults = @()
 
-if ($TestType -eq "all" -or $TestType -eq "mcp") { $allResults += Test-McpTools }
+if ($TestType -eq "all" -or $TestType -eq "mcp") {
+    $allResults += Test-McpTools
+    $missingParamResults += Test-McpMissingParams
+}
 if ($TestType -eq "all" -or $TestType -eq "slash") { $allResults += Test-SlashCommands }
 
 $duration = (Get-Date) - $startTime
@@ -544,11 +719,46 @@ if ($okForDebug) {
     }
 }
 
+if ($missingParamResults.Count -gt 0) {
+    $mpSilentOk = ($missingParamResults | Where-Object { $_.Status -eq "SILENT_OK" }).Count
+    $mpError = ($missingParamResults | Where-Object { $_.Status -eq "ERROR" }).Count
+    $mpCrash = ($missingParamResults | Where-Object { $_.Status -eq "CRASH" }).Count
+    $mpTimeout = ($missingParamResults | Where-Object { $_.Status -eq "TIMEOUT" }).Count
+
+    [void]$report.AppendLine()
+    [void]$report.AppendLine("## 缺失必填参数验证")
+    [void]$report.AppendLine()
+    [void]$report.AppendLine("| 维度 | 值 |")
+    [void]$report.AppendLine("|------|------|")
+    [void]$report.AppendLine("| 用例总数 | $($missingParamResults.Count) |")
+    [void]$report.AppendLine("| 返回错误(正确) | $mpError |")
+    [void]$report.AppendLine("| 静默成功(BUG) | $mpSilentOk |")
+    [void]$report.AppendLine("| 崩溃 | $mpCrash |")
+    [void]$report.AppendLine("| 超时 | $mpTimeout |")
+    [void]$report.AppendLine()
+
+    if ($mpSilentOk -gt 0) {
+        [void]$report.AppendLine("### 静默失败详情（缺失必填参数却返回成功）")
+        [void]$report.AppendLine()
+        [void]$report.AppendLine("| 工具 | 缺失参数 | 原因 |")
+        [void]$report.AppendLine("|------|---------|------|")
+        foreach ($r in $missingParamResults | Where-Object { $_.Status -eq "SILENT_OK" }) {
+            $reasonShort = if ($r.Reason.Length -gt 80) { $r.Reason.Substring(0, 77) + "..." } else { $r.Reason }
+            [void]$report.AppendLine("| $($r.Tool) | $($r.MissingParam) | $reasonShort |")
+        }
+        [void]$report.AppendLine()
+    }
+}
+
 $reportText = $report.ToString()
 $reportText | Out-File -FilePath $ReportPath -Encoding UTF8
 
 Write-Host "`n=== Summary ===" -ForegroundColor Cyan
 Write-Host "Total: $($allResults.Count) | OK: $okCount | ERROR: $errorCount | CRASH: $crashCount | TIMEOUT: $timeoutCount | SKIP: $skipCount"
+if ($missingParamResults.Count -gt 0) {
+    $mpSilent = ($missingParamResults | Where-Object { $_.Status -eq "SILENT_OK" }).Count
+    Write-Host "MissingParam: $($missingParamResults.Count) scenarios | SilentSuccess(BUG): $mpSilent"
+}
 Write-Host "Duration: $([math]::Round($duration.TotalSeconds, 1))s"
 Write-Host "Report: $ReportPath"
 

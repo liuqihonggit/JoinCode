@@ -16,23 +16,23 @@ public sealed class SessionCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>命令执行结果。</returns>
-    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetSplitArgs(context);
         var action = args.Length > 0 ? args[0].ToLowerInvariant() : "list";
 
         switch (action) {
             case CrudActionEnumConstants.List:
             case CrudActionEnumConstants.Ls:
-            ShowSessionList(context);
+            await ShowSessionList(context).ConfigureAwait(false);
             break;
             case "resume" or "open":
             var resumeId = args.Length > 1 ? args[1] : null;
-            ResumeSession(context, resumeId);
+            await ResumeSession(context, resumeId).ConfigureAwait(false);
             break;
             case CrudActionEnumConstants.Delete:
             case CrudActionEnumConstants.Rm:
             var deleteId = args.Length > 1 ? args[1] : null;
-            DeleteSession(context, deleteId);
+            await DeleteSession(context, deleteId).ConfigureAwait(false);
             break;
             default:
             TerminalHelper.WriteLine($"未知操作: {action}");
@@ -40,36 +40,40 @@ public sealed class SessionCommand : ChatCommandBase {
             break;
         }
 
-        return Task.FromResult(ChatCommandResult.Continue());
+        return ChatCommandResult.Continue();
     }
 
-    private static void ShowSessionList(ChatCommandContext context) {
+    private static async Task ShowSessionList(ChatCommandContext context) {
         TerminalHelper.WriteLine("=== 历史会话 ===\n");
-
-        // 待办：接入 SessionStore 服务后替换为真实会话列表
-        TerminalHelper.WriteLine($"  当前会话: {context.SessionId}");
-        TerminalHelper.NewLine();
-        TerminalHelper.WriteLine("使用 /session resume <id> 恢复会话");
-        TerminalHelper.WriteLine("使用 /session delete <id> 删除会话");
+        await ResumeCommand.ListSessionsAsync(context, showAllProjects: false).ConfigureAwait(false);
     }
 
-    private static void ResumeSession(ChatCommandContext context, string? id) {
+    private static async Task ResumeSession(ChatCommandContext context, string? id) {
         if (string.IsNullOrEmpty(id)) {
             TerminalHelper.WriteLine("用法: /session resume <id>");
             return;
         }
 
-        // 待办：接入 SessionStore 服务后实现会话恢复
-        TerminalHelper.WriteLine($"恢复会话: {id}");
+        await ResumeCommand.ResumeSessionAsync(id, context, ResumeEntrypoint.SlashCommandSessionId).ConfigureAwait(false);
     }
 
-    private static void DeleteSession(ChatCommandContext context, string? id) {
+    private static async Task DeleteSession(ChatCommandContext context, string? id) {
         if (string.IsNullOrEmpty(id)) {
             TerminalHelper.WriteLine("用法: /session delete <id>");
             return;
         }
 
-        // 待办：接入 SessionStore 服务后实现会话删除
-        TerminalHelper.WriteLine($"已删除会话: {id}");
+        var transcriptService = ChatCommandBase.GetService<ITranscriptService>(context, typeof(ITranscriptService));
+        if (transcriptService is null) {
+            TerminalHelper.WriteLine($"{TerminalColors.Error}ITranscriptService 不可用，无法删除会话{AnsiStyleEnumConstants.Reset}");
+            return;
+        }
+
+        var deleted = await transcriptService.DeleteTranscriptAsync(id, context.CancellationToken).ConfigureAwait(false);
+        if (deleted) {
+            TerminalHelper.WriteLine($"{TerminalColors.Success}已删除会话: {id}{AnsiStyleEnumConstants.Reset}");
+        } else {
+            TerminalHelper.WriteLine($"{TerminalColors.Error}会话不存在或删除失败: {id}{AnsiStyleEnumConstants.Reset}");
+        }
     }
 }

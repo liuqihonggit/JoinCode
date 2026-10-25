@@ -139,6 +139,170 @@ public sealed class SessionCommandTests {
         result.ShouldContinue.Should().BeTrue();
     }
 
+    /// <summary>
+    /// 红测试: /session list 应调用 ITranscriptService.ListTranscriptsAsync 并显示历史会话列表。
+    /// 当前 ShowSessionList 是空壳(只打印固定文本),此测试应失败 — 驱动接入 ITranscriptService。
+    /// </summary>
+    [Fact]
+    public async Task Execute_List_Should_Display_Transcript_Summaries_From_Service() {
+        var transcriptMock = new Mock<ITranscriptService>();
+        transcriptMock
+            .Setup(s => s.ListTranscriptsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<TranscriptSummary> {
+                new() { SessionId = "sess-a", CreatedAt = DateTime.UtcNow.AddHours(-2),
+                        LastModifiedAt = DateTime.UtcNow.AddHours(-1), MessageCount = 3 },
+                new() { SessionId = "sess-b", CreatedAt = DateTime.UtcNow.AddHours(-5),
+                        LastModifiedAt = DateTime.UtcNow.AddHours(-4), MessageCount = 7 },
+            });
+        transcriptMock
+            .Setup(s => s.GetCustomTitleAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+        transcriptMock
+            .Setup(s => s.GetSessionInfoAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((SessionInfo?)null);
+
+        var fallbackProvider = new ServiceCollection()
+            .AddSingleton(transcriptMock.Object)
+            .BuildServiceProvider();
+
+        var context = new ChatCommandContext {
+            Arguments = "list",
+            CancellationToken = CancellationToken.None,
+            SessionId = "current-session-id",
+            Services = new CommandServiceProvider(new CommandServices {
+                ChatService = Mock.Of<IChatService>(),
+                CodeService = Mock.Of<ICodeService>(),
+                PlanService = Mock.Of<IPlanService>(),
+                FileSystem = TestFileSystem.Current,
+            }, fallbackProvider),
+        };
+
+        TerminalHelper.Init();
+        var sb = new StringBuilder();
+        var originalOut = Console.Out;
+        await using var stringWriter = new StringWriter(sb);
+        var originalForce = TestEnvironmentDetector.ForceNonInteractive;
+        TestEnvironmentDetector.ForceNonInteractive = true;
+
+        try {
+            TerminalHelper.SetOut(stringWriter);
+            var cmd = new SessionCommand();
+
+            var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
+
+            var output = sb.ToString();
+            output.Should().Contain("sess-a");
+            output.Should().Contain("sess-b");
+            result.ShouldContinue.Should().BeTrue();
+
+            transcriptMock.Verify(
+                s => s.ListTranscriptsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()),
+                Times.AtLeastOnce);
+        } finally {
+            TerminalHelper.SetOut(originalOut);
+            TestEnvironmentDetector.ForceNonInteractive = originalForce;
+        }
+    }
+
+    /// <summary>
+    /// 红测试: /session resume &lt;id&gt; 应调用 ITranscriptService.LoadTranscriptAsync 加载会话并恢复消息。
+    /// 当前 ResumeSession 是空壳(只打印"恢复会话: id"),此测试应失败 — 驱动委托给 ResumeCommand.ResumeSessionAsync。
+    /// </summary>
+    [Fact]
+    public async Task Execute_Resume_WithId_Should_Load_Transcript_And_Restore_Messages() {
+        var transcriptMock = new Mock<ITranscriptService>();
+        transcriptMock.Setup(s => s.TranscriptExistsAsync("sess-target", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        transcriptMock.Setup(s => s.LoadTranscriptAsync("sess-target", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<TranscriptEntry> {
+                new() { SessionId = "sess-target", Role = "user", Content = "你好", Timestamp = DateTime.UtcNow },
+                new() { SessionId = "sess-target", Role = "assistant", Content = "你好，有什么可以帮你？", Timestamp = DateTime.UtcNow },
+            });
+        transcriptMock.Setup(s => s.GetSessionInfoAsync("sess-target", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SessionInfo { Id = "sess-target", ProjectPath = Environment.CurrentDirectory });
+        transcriptMock.Setup(s => s.GetCustomTitleAsync("sess-target", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+
+        var chatServiceMock = new Mock<IChatService>();
+        var fallbackProvider = new ServiceCollection().AddSingleton(transcriptMock.Object).BuildServiceProvider();
+
+        var context = new ChatCommandContext {
+            Arguments = "resume sess-target",
+            CancellationToken = CancellationToken.None,
+            SessionId = "current-session-id",
+            Services = new CommandServiceProvider(new CommandServices {
+                ChatService = chatServiceMock.Object,
+                CodeService = Mock.Of<ICodeService>(),
+                PlanService = Mock.Of<IPlanService>(),
+                FileSystem = TestFileSystem.Current,
+            }, fallbackProvider),
+        };
+
+        TerminalHelper.Init();
+        var sb = new StringBuilder();
+        var originalOut = Console.Out;
+        await using var stringWriter = new StringWriter(sb);
+        var originalForce = TestEnvironmentDetector.ForceNonInteractive;
+        TestEnvironmentDetector.ForceNonInteractive = true;
+
+        try {
+            TerminalHelper.SetOut(stringWriter);
+            var cmd = new SessionCommand();
+
+            var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
+
+            transcriptMock.Verify(s => s.LoadTranscriptAsync("sess-target", It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            chatServiceMock.Verify(s => s.LoadSessionMessagesAsync(It.IsAny<IReadOnlyList<ApiMessageRecord>>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            result.ShouldContinue.Should().BeTrue();
+        } finally {
+            TerminalHelper.SetOut(originalOut);
+            TestEnvironmentDetector.ForceNonInteractive = originalForce;
+        }
+    }
+
+    /// <summary>
+    /// 红测试: /session delete &lt;id&gt; 应调用 ITranscriptService.DeleteTranscriptAsync 删除会话。
+    /// 当前 DeleteSession 是空壳(只打印"已删除会话: id"),此测试应失败 — 驱动接入 ITranscriptService。
+    /// </summary>
+    [Fact]
+    public async Task Execute_Delete_WithId_Should_Call_DeleteTranscriptAsync() {
+        var transcriptMock = new Mock<ITranscriptService>();
+        transcriptMock.Setup(s => s.DeleteTranscriptAsync("sess-del", It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var fallbackProvider = new ServiceCollection().AddSingleton(transcriptMock.Object).BuildServiceProvider();
+
+        var context = new ChatCommandContext {
+            Arguments = "delete sess-del",
+            CancellationToken = CancellationToken.None,
+            SessionId = "current-session-id",
+            Services = new CommandServiceProvider(new CommandServices {
+                ChatService = Mock.Of<IChatService>(),
+                CodeService = Mock.Of<ICodeService>(),
+                PlanService = Mock.Of<IPlanService>(),
+                FileSystem = TestFileSystem.Current,
+            }, fallbackProvider),
+        };
+
+        TerminalHelper.Init();
+        var sb = new StringBuilder();
+        var originalOut = Console.Out;
+        await using var stringWriter = new StringWriter(sb);
+        var originalForce = TestEnvironmentDetector.ForceNonInteractive;
+        TestEnvironmentDetector.ForceNonInteractive = true;
+
+        try {
+            TerminalHelper.SetOut(stringWriter);
+            var cmd = new SessionCommand();
+
+            var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
+
+            transcriptMock.Verify(s => s.DeleteTranscriptAsync("sess-del", It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            result.ShouldContinue.Should().BeTrue();
+        } finally {
+            TerminalHelper.SetOut(originalOut);
+            TestEnvironmentDetector.ForceNonInteractive = originalForce;
+        }
+    }
+
     private static ChatCommandContext CreateContext(string arguments) {
         return new ChatCommandContext {
             Arguments = arguments,

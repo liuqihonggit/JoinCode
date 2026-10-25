@@ -3,11 +3,11 @@ name: Daily Command Test
 # > ADR: [0080](docs/adr/0080-manual-exe-testing-guide.md) — 手动测试 exe 功能(非mock操作)
 # 每日定时遍历全部 MCP 工具 + 斜杠命令,全参数填充调用,验证功能正常
 # 报告含每个命令耗时,可针对性优化(>30s 的命令需备注,见 ADR 0080)
-# 并行架构: MCP工具分3片并行 + 斜杠命令1片, 每片内部ForEach-Object -Parallel并发8
+# 并行架构: MCP工具分6片并行 + 斜杠命令2片, 每片内部ForEach-Object -Parallel并发8
 
 on:
   schedule:
-    - cron: '0 7 */2 * *'
+    - cron: '0 7 * * *'
   workflow_dispatch:
     inputs:
       limit:
@@ -32,10 +32,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: "MCP Shard 1/3",  test_type: mcp,   shard: 1, total: 3 }
-          - { name: "MCP Shard 2/3",  test_type: mcp,   shard: 2, total: 3 }
-          - { name: "MCP Shard 3/3",  test_type: mcp,   shard: 3, total: 3 }
-          - { name: "Slash Commands", test_type: slash, shard: 1, total: 1 }
+          - { name: "MCP Shard 1/6",   test_type: mcp,   shard: 1, total: 6 }
+          - { name: "MCP Shard 2/6",   test_type: mcp,   shard: 2, total: 6 }
+          - { name: "MCP Shard 3/6",   test_type: mcp,   shard: 3, total: 6 }
+          - { name: "MCP Shard 4/6",   test_type: mcp,   shard: 4, total: 6 }
+          - { name: "MCP Shard 5/6",   test_type: mcp,   shard: 5, total: 6 }
+          - { name: "MCP Shard 6/6",   test_type: mcp,   shard: 6, total: 6 }
+          - { name: "Slash Shard 1/2", test_type: slash, shard: 1, total: 2 }
+          - { name: "Slash Shard 2/2", test_type: slash, shard: 2, total: 2 }
 
     steps:
       - name: Checkout

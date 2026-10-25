@@ -101,7 +101,7 @@ public sealed class ResumeCommand : ChatCommandBase {
     /// 按自定义标题搜索会话
     /// 对齐 TS: sessionStorage.ts searchSessionsByCustomTitle
     /// </summary>
-    private async Task<List<SessionLiteData>> SearchByCustomTitleAsync(string searchTerm, CancellationToken cancellationToken, ITranscriptService? transcriptService, ILogger? logger = null) {
+    internal static async Task<List<SessionLiteData>> SearchByCustomTitleAsync(string searchTerm, CancellationToken cancellationToken, ITranscriptService? transcriptService, ILogger? logger = null) {
         if (transcriptService is null) {
             return [];
         }
@@ -149,7 +149,7 @@ public sealed class ResumeCommand : ChatCommandBase {
     /// L3.4: 支持 showAllProjects 切换
     /// L3.3: 使用 Lite 日志快速加载
     /// </summary>
-    private async Task ListSessionsAsync(ChatCommandContext context, bool showAllProjects) {
+    internal static async Task ListSessionsAsync(ChatCommandContext context, bool showAllProjects) {
         var currentSessionId = context.SessionId;
 
         // L3.3: Lite 日志加载 — 只读取会话 stat 信息，不读内容
@@ -253,7 +253,7 @@ public sealed class ResumeCommand : ChatCommandBase {
     /// 对齐 TS: isLiteLog / getStatOnlyLogsForWorktrees
     /// 统一入口: 通过 ITranscriptService.ListTranscriptsAsync + GetSessionInfoAsync + GetCustomTitleAsync
     /// </summary>
-    private async Task<List<SessionLiteData>> LoadLiteSessionsAsync(bool showAllProjects, ITranscriptService? transcriptService, ILogger? logger = null) {
+    internal static async Task<List<SessionLiteData>> LoadLiteSessionsAsync(bool showAllProjects, ITranscriptService? transcriptService, ILogger? logger = null) {
         if (transcriptService is null) {
             return [];
         }
@@ -300,14 +300,14 @@ public sealed class ResumeCommand : ChatCommandBase {
     /// <summary>
     /// 会话条目（供 Selector 使用）
     /// </summary>
-    private sealed record SessionEntry(string SessionId, string Preview, string TimeAgo, SessionLiteData LiteData);
+    internal sealed record SessionEntry(string SessionId, string Preview, string TimeAgo, SessionLiteData LiteData);
 
     /// <summary>
     /// 恢复指定会话
     /// 对齐 TS: call 函数 — UUID 精确匹配 + 直接恢复
     /// L3.5: 添加 ResumeEntrypoint 追踪
     /// </summary>
-    private async Task ResumeSessionAsync(string sessionId, ChatCommandContext context, ResumeEntrypoint entrypoint) {
+    internal static async Task ResumeSessionAsync(string sessionId, ChatCommandContext context, ResumeEntrypoint entrypoint) {
         var transcriptService = ChatCommandBase.GetService<ITranscriptService>(context, typeof(ITranscriptService));
         if (transcriptService is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}ITranscriptService 不可用，无法恢复会话{AnsiStyleEnumConstants.Reset}");
@@ -389,7 +389,7 @@ public sealed class ResumeCommand : ChatCommandBase {
         } catch (OperationCanceledException) {
             TerminalHelper.WriteLine(L.T(StringKey.HostResumeOperationCancelled));
         } catch (Exception ex) {
-            HandleError("恢复会话", ex);
+            ChatCommandBase.HandleError("恢复会话", ex);
         }
     }
 

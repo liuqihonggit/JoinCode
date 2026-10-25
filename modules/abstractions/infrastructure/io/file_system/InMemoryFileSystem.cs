@@ -9,7 +9,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable {
     private readonly ConcurrentDictionary<string, InMemoryDirectoryEntry> _directories = new();
     private readonly WatcherRegistry _watcherRegistry = new();
     private readonly EditFileActor _editActor;
-    private string _currentDirectory = "/test";
+    private string _currentDirectory = System.IO.Directory.GetCurrentDirectory();
 
     /// <summary>
     /// 构造内存文件系统，初始化根目录和默认当前目录

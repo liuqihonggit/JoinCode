@@ -72,4 +72,18 @@ public class SecurityPatternsDosDeviceNameTests {
     }
 
     #endregion
+
+    #region 短路径（length < 2）— 不应越界（BUG: IndexOf(':',2) startIndex 越界）
+
+    [Theory]
+    [InlineData(".")]
+    [InlineData("x")]
+    [InlineData("C")]
+    public void Short_Path_Should_Not_Throw(string path) {
+        Action act = () => SecurityPatterns.HasSuspiciousWindowsPathPattern(path);
+        act.Should().NotThrow();
+        SecurityPatterns.HasSuspiciousWindowsPathPattern(path).Should().BeFalse();
+    }
+
+    #endregion
 }

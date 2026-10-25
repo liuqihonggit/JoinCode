@@ -80,7 +80,17 @@ public class PermissionConfig {
                 [WebToolNameEnumConstants.WebSearch] = new ToolPermissionRule { ToolName = WebToolNameEnumConstants.WebSearch, Description = "Web search" },
                 [TaskToolNameEnumConstants.TaskList] = new ToolPermissionRule { ToolName = TaskToolNameEnumConstants.TaskList, Description = "List tasks" },
                 [TaskToolNameEnumConstants.TaskGet] = new ToolPermissionRule { ToolName = TaskToolNameEnumConstants.TaskGet, Description = "Get task" },
-                [SystemToolNameEnumConstants.TaskOutput] = new ToolPermissionRule { ToolName = SystemToolNameEnumConstants.TaskOutput, Description = "Get task output" }
+                [SystemToolNameEnumConstants.TaskOutput] = new ToolPermissionRule { ToolName = SystemToolNameEnumConstants.TaskOutput, Description = "Get task output" },
+                // 视觉只读测量工具 — 对齐 read/glob/grep 放行策略
+                ["measure_length"] = new ToolPermissionRule { ToolName = "measure_length", Description = "Measure pixel distance" },
+                ["measure_ratio"] = new ToolPermissionRule { ToolName = "measure_ratio", Description = "Measure aspect ratio" },
+                ["measure_depth"] = new ToolPermissionRule { ToolName = "measure_depth", Description = "Measure depth" },
+                ["quadtree_build"] = new ToolPermissionRule { ToolName = "quadtree_build", Description = "Build quadtree grid" },
+                ["quadtree_zoom"] = new ToolPermissionRule { ToolName = "quadtree_zoom", Description = "Zoom quadtree cell" },
+                ["quadtree_paint"] = new ToolPermissionRule { ToolName = "quadtree_paint", Description = "Paint quadtree cell" },
+                ["quadtree_render"] = new ToolPermissionRule { ToolName = "quadtree_render", Description = "Render quadtree" },
+                ["quadtree_neighbor"] = new ToolPermissionRule { ToolName = "quadtree_neighbor", Description = "Find quadtree neighbor" },
+                ["screen_indicate"] = new ToolPermissionRule { ToolName = "screen_indicate", Description = "Indicate screen cell" }
             }.ToImmutableHamT().WithComparers(StringComparer.OrdinalIgnoreCase),
             DangerousOperationPatterns =
             [

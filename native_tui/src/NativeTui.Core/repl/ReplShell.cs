@@ -261,6 +261,20 @@ public sealed class ReplShell
     /// <summary>bash 直通超时守卫（S10 接线 — 执行命令允许超时：30s 杀进程树返回部分输出 + Interrupted）。</summary>
     private static readonly TimeSpan BashDirectTimeout = TimeSpan.FromSeconds(30);
 
+    /// <summary>当前输入模式（TASK074 D1 — 对齐基准 inputModes.ts prompt/bash 两态；
+    /// Bash 模式：空输入+! 进入，提交后退出回 Prompt；Esc+空输入退 Prompt）。</summary>
+    private InputMode _inputMode = InputMode.Prompt;
+
+    /// <summary>当前输入模式（Prompt=发引擎 / Bash=本地直通）— 外部只读，切换经按键处理内部路径。</summary>
+    public InputMode InputMode => _inputMode;
+
+    /// <summary>切换输入模式 + 同步 ReplView 投影（TASK074 D2 — PromptInputBox 边框/提示符按 mode 变色）。</summary>
+    private void SetInputMode(InputMode mode)
+    {
+        _inputMode = mode;
+        _view.InputMode = mode;
+    }
+
     /// <summary>@ 文件补全数据层（S10 接线 — 构造注入工作区根；null = 禁用降级无建议）。</summary>
     private readonly AtFileSuggester? _atFileSuggester;
 
@@ -1401,6 +1415,13 @@ public sealed class ReplShell
                 HandlePaste(key.Input);
                 break;
             case KeyKind.Char:
+                // TASK074 D1b — 空输入+!+Prompt mode → 切 Bash mode（对齐基准 PromptInput.tsx:869-887
+                // 空输入+! → onModeChange('bash') + 剥前缀进入态；不插入 ! 字符）
+                if (_inputMode == InputMode.Prompt && _input.Text.Length == 0 && key.Input == "!")
+                {
+                    SetInputMode(InputMode.Bash);
+                    return;
+                }
                 if (key.Input.Length == 1)
                 {
                     _input.Insert(key.Input[0]);
@@ -3366,6 +3387,14 @@ public sealed class ReplShell
             return;
         }
 
+        // TASK074 D5 — 空输入+Bash mode+Esc → 切回 Prompt（对齐基准 useCancelRequest.ts:131-135
+        // isInSpecialModeWithEmptyInput 让 PromptInput 处理 mode exit）
+        if (_inputMode == InputMode.Bash && _input.Text.Length == 0)
+        {
+            SetInputMode(InputMode.Prompt);
+            return;
+        }
+
         if (_input.Text.Length > 0)
         {
             if (isDoubleTap)
@@ -3535,6 +3564,13 @@ public sealed class ReplShell
         if (text.Length == 0)
         {
             return;
+        }
+
+        // TASK074 D1 — Bash 模式提交加回 ! 前缀（对齐基准 REPL.tsx:3350 prependModeCharacterToInput）+ 切回 Prompt
+        if (_inputMode == InputMode.Bash)
+        {
+            text = "!" + text;
+            SetInputMode(InputMode.Prompt);
         }
 
         var expanded = _input.ExpandedText;

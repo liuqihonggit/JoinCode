@@ -25,18 +25,23 @@ public sealed class PromptInputBox
     ///（光标在折行后段仍可见 — 旧右界截断行为废弃）。
     /// ghostSuffix 非空时以 dim 色渲染在末可见视觉行文本之后。
     /// </summary>
-    public void Render(Screen screen, Rect frame, Theme theme, string text, int cursorCol, bool busy = false, string ghostSuffix = "")
+    public void Render(Screen screen, Rect frame, Theme theme, string text, int cursorCol, bool busy = false, string ghostSuffix = "", InputMode inputMode = InputMode.Prompt)
     {
-        var border = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.PromptBorder });
+        // TASK074 D2 — Bash mode 边框 Dim + 提示符 ! （对齐基准 PromptInputModeIndicator.tsx:82 mode==='bash' → ! bashBorder）
+        var bashMode = inputMode == InputMode.Bash;
+        var border = bashMode
+            ? screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.PromptBorder, Dim = true })
+            : screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.PromptBorder });
         BorderPainter.DrawRule(screen, frame.Y, frame.X, frame.Width, border);
         BorderPainter.DrawRule(screen, frame.Y + frame.Height - 1, frame.X, frame.Width, border);
 
         var promptStyle = busy ? screen.Styles.GetOrAdd(new TextStyle { Dim = true }) : 0;
+        var promptChar = bashMode ? "! " : $"{Figures.Pointer} ";
         var contentCols = Math.Max(1, frame.Width - PromptWidth);
         var visualLines = InputLineLayout.Wrap(text, contentCols);
         var (cursorVisual, cursorDisplayCol) = LocateVisualCursor(text, visualLines, cursorCol);
         var topLine = FirstVisibleLine(visualLines.Count, Math.Max(1, frame.Height - 2), cursorVisual);
-        RenderTextLines(screen, frame, text, visualLines, topLine, promptStyle);
+        RenderTextLines(screen, frame, text, visualLines, topLine, promptStyle, promptChar);
         RenderGhostSuffix(screen, frame, text, visualLines, topLine, ghostSuffix);
         DrawCursor(screen, frame, visualLines, topLine, cursorVisual, cursorDisplayCol);
     }
@@ -93,7 +98,7 @@ public sealed class PromptInputBox
     }
 
     /// <summary>逐视觉行渲染 — 首视觉行（index 0）带 ❯ 前缀，其余视觉行顶格无前缀；可见窗口外的行不画。</summary>
-    private static void RenderTextLines(Screen screen, Rect frame, string text, List<VisualLine> visualLines, int topLine, int promptStyle)
+    private static void RenderTextLines(Screen screen, Rect frame, string text, List<VisualLine> visualLines, int topLine, int promptStyle, string promptChar)
     {
         var logicalLines = SplitLogicalLines(text);
         var maxVisible = Math.Max(1, frame.Height - 2);
@@ -104,7 +109,7 @@ public sealed class PromptInputBox
             var segment = logicalLines[visual.LogicalLine].Substring(visual.StartOffset, visual.Length);
             if (i == 0)
             {
-                screen.WriteText(row, frame.X, $"{Figures.Pointer} ", promptStyle, frame.Right);
+                screen.WriteText(row, frame.X, promptChar, promptStyle, frame.Right);
                 screen.WriteText(row, frame.X + PromptWidth, segment, 0, frame.Right);
             }
             else

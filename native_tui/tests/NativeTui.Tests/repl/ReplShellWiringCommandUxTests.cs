@@ -127,16 +127,17 @@ public sealed class ReplShellWiringCommandUxTests
         Assert.Contains("退出码 1", error.Text);
     }
 
-    /// <summary>接线点13 — 裸 `!` 前缀（长度 1）不算命令：正常透传引擎。</summary>
+    /// <summary>接线点13 — 裸 `!` 空输入进入 Bash 模式（TASK074 D1b — 对齐基准 PromptInput.tsx:869-887
+    /// 空输入+! → onModeChange('bash') + 剥前缀进入态；不插入 ! 字符不透传引擎）。</summary>
     [Fact]
-    public void BareExclamation_SubmitsNormally()
+    public void BareExclamation_EntersBashMode()
     {
-        var (shell, engine, _) = CreateShell();
+        var (shell, _, _) = CreateShell();
 
         Type(shell, "!");
-        shell.Submit();
 
-        Assert.Equal(["!"], engine.Submits);
+        Assert.Equal(InputMode.Bash, shell.InputMode);
+        Assert.Equal("", shell.Input.Text);
     }
 
     /// <summary>接线点14 — @token 输入触发文件补全投影（相对路径名 + 选中索引 0 预选）。</summary>

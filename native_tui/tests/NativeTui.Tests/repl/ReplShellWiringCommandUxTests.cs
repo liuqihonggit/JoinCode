@@ -17,13 +17,13 @@ public sealed class ReplShellWiringCommandUxTests
     ];
 
     /// <summary>构造测试 shell（可选工作区根注入 @ 补全）。</summary>
-    private static (ReplShell Shell, FakeReplEngine Engine, CommandUsageMemory Usage) CreateShell(string? workspaceRoot = null)
+    private static (ReplShell Shell, FakeReplEngine Engine, CommandUsageMemory Usage) CreateShell(string? workspaceRoot = null, ShellCompleter? shellCompleter = null)
     {
         var engine = new FakeReplEngine();
         var banner = new BannerItem("1.0.0", "test-model", "API 按量计费", "/tmp");
         var usage = new CommandUsageMemory(timeProvider: new FakeTimeProvider());
         var shell = new ReplShell(engine, banner, new StringWriter(), commands: Commands,
-            sizeSource: new FakeTerminalSizeSource(80, 24), commandUsage: usage, workspaceRoot: workspaceRoot);
+            sizeSource: new FakeTerminalSizeSource(80, 24), commandUsage: usage, workspaceRoot: workspaceRoot, shellCompleter: shellCompleter);
         shell.SeedContent();
         return (shell, engine, usage);
     }
@@ -138,6 +138,128 @@ public sealed class ReplShellWiringCommandUxTests
 
         Assert.Equal(InputMode.Bash, shell.InputMode);
         Assert.Equal("", shell.Input.Text);
+    }
+
+    /// <summary>TASK074 D3 — bash mode 下输入前缀触发 shell 命令补全（PATH 扫描按前缀过滤）。</summary>
+    [Fact]
+    public void BashMode_TypeText_ShowsShellSuggestions()
+    {
+        var pathDir = CreateTempPathDir("git", "grep", "ls");
+        try
+        {
+            var completer = new ShellCompleter([pathDir]);
+            var (shell, _, _) = CreateShell(shellCompleter: completer);
+
+            Type(shell, "!g");
+
+            Assert.Equal(InputMode.Bash, shell.InputMode);
+            Assert.NotNull(shell.ShellSuggestions);
+            Assert.Contains(shell.ShellSuggestions!, s => s.Name == "git");
+            Assert.Contains(shell.ShellSuggestions!, s => s.Name == "grep");
+        }
+        finally
+        {
+            Directory.Delete(pathDir, recursive: true);
+        }
+    }
+
+    /// <summary>TASK074 D3 — DownArrow 导航 shell 建议列表（选中索引循环递增）。</summary>
+    [Fact]
+    public void BashMode_DownArrow_NavigatesShellSuggestions()
+    {
+        var pathDir = CreateTempPathDir("git", "grep");
+        try
+        {
+            var completer = new ShellCompleter([pathDir]);
+            var (shell, _, _) = CreateShell(shellCompleter: completer);
+
+            Type(shell, "!g");
+            shell.HandleKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+
+            Assert.Equal(1, shell.ShellSuggestionIndex);
+        }
+        finally
+        {
+            Directory.Delete(pathDir, recursive: true);
+        }
+    }
+
+    /// <summary>TASK074 D3 — Tab 接受 shell 建议填入输入框（命令名 + 尾随空格进参数态）。</summary>
+    [Fact]
+    public void BashMode_Tab_AcceptsShellSuggestion()
+    {
+        var pathDir = CreateTempPathDir("git", "grep");
+        try
+        {
+            var completer = new ShellCompleter([pathDir]);
+            var (shell, _, _) = CreateShell(shellCompleter: completer);
+
+            Type(shell, "!gi");
+            shell.HandleKey(new ConsoleKeyInfo('\t', ConsoleKey.Tab, false, false, false));
+
+            Assert.Equal("git ", shell.Input.Text);
+            Assert.Null(shell.ShellSuggestions);
+        }
+        finally
+        {
+            Directory.Delete(pathDir, recursive: true);
+        }
+    }
+
+    /// <summary>TASK074 D3 — Esc 关闭 shell 建议不退 mode（非空输入 Esc 只关建议）。</summary>
+    [Fact]
+    public void BashMode_Esc_DismissesShellSuggestions()
+    {
+        var pathDir = CreateTempPathDir("git", "grep");
+        try
+        {
+            var completer = new ShellCompleter([pathDir]);
+            var (shell, _, _) = CreateShell(shellCompleter: completer);
+
+            Type(shell, "!g");
+            shell.HandleKey(new ConsoleKeyInfo('\x1b', ConsoleKey.Escape, false, false, false));
+
+            Assert.Null(shell.ShellSuggestions);
+            Assert.Equal(InputMode.Bash, shell.InputMode);
+        }
+        finally
+        {
+            Directory.Delete(pathDir, recursive: true);
+        }
+    }
+
+    /// <summary>TASK074 D3 — prompt mode 下不激活 shell 建议（仅 bash mode 触发）。</summary>
+    [Fact]
+    public void PromptMode_NoShellSuggestions()
+    {
+        var pathDir = CreateTempPathDir("git", "grep");
+        try
+        {
+            var completer = new ShellCompleter([pathDir]);
+            var (shell, _, _) = CreateShell(shellCompleter: completer);
+
+            Type(shell, "g");
+
+            Assert.Equal(InputMode.Prompt, shell.InputMode);
+            Assert.Null(shell.ShellSuggestions);
+        }
+        finally
+        {
+            Directory.Delete(pathDir, recursive: true);
+        }
+    }
+
+    /// <summary>创建临时 PATH 目录放假可执行文件。</summary>
+    private static string CreateTempPathDir(params string[] fileNames)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "nativetui-shell-wiring-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        foreach (var name in fileNames)
+        {
+            File.WriteAllText(Path.Combine(dir, name), "x");
+        }
+
+        return dir;
     }
 
     /// <summary>接线点14 — @token 输入触发文件补全投影（相对路径名 + 选中索引 0 预选）。</summary>

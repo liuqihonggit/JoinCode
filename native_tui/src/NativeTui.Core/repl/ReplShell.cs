@@ -261,6 +261,13 @@ public sealed class ReplShell
     /// <summary>bash 直通超时守卫（S10 接线 — 执行命令允许超时：30s 杀进程树返回部分输出 + Interrupted）。</summary>
     private static readonly TimeSpan BashDirectTimeout = TimeSpan.FromSeconds(30);
 
+    /// <summary>当前输入模式（TASK074 D1 — 对齐基准 inputModes.ts prompt/bash 两态；
+    /// Bash 模式：空输入+! 进入，提交后退出回 Prompt；Esc+空输入退 Prompt）。</summary>
+    private InputMode _inputMode = InputMode.Prompt;
+
+    /// <summary>当前输入模式（Prompt=发引擎 / Bash=本地直通）— 外部只读，切换经按键处理内部路径。</summary>
+    public InputMode InputMode => _inputMode;
+
     /// <summary>@ 文件补全数据层（S10 接线 — 构造注入工作区根；null = 禁用降级无建议）。</summary>
     private readonly AtFileSuggester? _atFileSuggester;
 
@@ -3535,6 +3542,13 @@ public sealed class ReplShell
         if (text.Length == 0)
         {
             return;
+        }
+
+        // TASK074 D1 — Bash 模式提交加回 ! 前缀（对齐基准 REPL.tsx:3350 prependModeCharacterToInput）+ 切回 Prompt
+        if (_inputMode == InputMode.Bash)
+        {
+            text = "!" + text;
+            _inputMode = InputMode.Prompt;
         }
 
         var expanded = _input.ExpandedText;

@@ -234,6 +234,14 @@ public sealed class ReplShellTests
         Assert.Equal(100, fake.AnimTimeMs);
         Assert.Equal(fake.AnimTimeMs, spinner.AnimTimeMs);
     }
+
+    /// <summary>输入模式初始为 Prompt（TASK074 D1 — 对齐基准 inputModes.ts 默认 prompt mode）。</summary>
+    [Fact]
+    public void InputMode_InitiallyPrompt()
+    {
+        var (shell, _) = CreateShell();
+        Assert.Equal(InputMode.Prompt, shell.InputMode);
+    }
 }
 
 /// <summary>测试注入用动画项（IAnimatable 消费面 — 广播路由断言）。</summary>

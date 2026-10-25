@@ -95,7 +95,7 @@ public partial class GitHubToolHandlers {
             sb.Append(span.Slice(start, length));
             sb.Append('\n');
         }
-        sb.Append($"... [已截断，共 {ranges.Count} 行，仅显示前 {maxLines} 行。如需更多请缩小过滤范围或用 --job 精准拉取]");
+        sb.Append($"... [已截断，共 {ranges.Count} 行，仅显示前 {maxLines} 行]\n💡 查看更多：增大 max_lines（如 max_lines={Math.Min(maxLines * 2, 5000)}）或用 jq 表达式筛选");
         return sb.ToString();
     }
 

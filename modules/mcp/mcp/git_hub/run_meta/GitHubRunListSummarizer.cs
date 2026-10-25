@@ -56,6 +56,7 @@ internal static class GitHubRunListSummarizer {
             sb.AppendLine("S  ID           NUM   NAME                    BRANCH     EVENT       ELAPSED");
             sb.AppendLine("-  -----------  ----  ----------------------  --------   ---------   -------");
 
+            var anyTruncated = false;
             foreach (var run in resp.WorkflowRuns) {
                 var status = run.Status ?? "";
                 var conclusion = run.Conclusion;
@@ -68,13 +69,16 @@ internal static class GitHubRunListSummarizer {
                 var elapsed = GitHubRunFormatHelper.FormatElapsed(run.CreatedAt, run.UpdatedAt) ?? "";
 
                 sb.Append(symbol).Append("  ");
-                AppendFixedWidth(sb, id, 11); sb.Append("  ");
-                AppendFixedWidth(sb, number, 4); sb.Append("  ");
-                AppendFixedWidth(sb, name, 22); sb.Append("  ");
-                AppendFixedWidth(sb, branch, 8); sb.Append("   ");
-                AppendFixedWidth(sb, evt, 9); sb.Append("   ");
+                anyTruncated |= AppendFixedWidth(sb, id, 11); sb.Append("  ");
+                anyTruncated |= AppendFixedWidth(sb, number, 4); sb.Append("  ");
+                anyTruncated |= AppendFixedWidth(sb, name, 22); sb.Append("  ");
+                anyTruncated |= AppendFixedWidth(sb, branch, 8); sb.Append("   ");
+                anyTruncated |= AppendFixedWidth(sb, evt, 9); sb.Append("   ");
                 sb.AppendLine(elapsed);
             }
+
+            if (anyTruncated)
+                sb.Append('\n').Append("💡 列宽截断：用 json_fields=id,name,head_branch,event 查看完整字段");
 
             return sb.ToString().TrimEnd();
         } catch {
@@ -83,13 +87,14 @@ internal static class GitHubRunListSummarizer {
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void AppendFixedWidth(StringBuilder sb, string value, int width) {
+    private static bool AppendFixedWidth(StringBuilder sb, string value, int width) {
         if (value.Length <= width) {
             sb.Append(value);
             for (var i = value.Length; i < width; i++) sb.Append(' ');
-        } else {
-            sb.Append(value, 0, width - 1).Append('…');
+            return false;
         }
+        sb.Append(value, 0, width - 1).Append('…');
+        return true;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

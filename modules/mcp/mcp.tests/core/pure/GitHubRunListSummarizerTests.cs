@@ -153,4 +153,60 @@ public sealed class GitHubRunListSummarizerTests {
         var result = GitHubRunListSummarizer.SummarizeRunListBrief(json);
         result.Should().Be(json);
     }
+
+    [Fact]
+    public void SummarizeRunListBrief_LongName_TruncatesWithHint() {
+        var json = """
+        {
+            "total_count": 1,
+            "workflow_runs": [
+                {
+                    "id": 101,
+                    "name": "CI Daily - Uncovered Tests With Very Long Name",
+                    "head_branch": "main",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "run_number": 5,
+                    "created_at": "2026-09-30T10:00:00Z",
+                    "updated_at": "2026-09-30T10:02:30Z",
+                    "event": "schedule",
+                    "display_title": "Daily"
+                }
+            ]
+        }
+        """;
+
+        var result = GitHubRunListSummarizer.SummarizeRunListBrief(json);
+
+        result.Should().Contain("…", "长名称应被截断用 … 标记");
+        result.Should().Contain("💡 列宽截断", "截断时应附友好提示说明如何查看完整字段");
+        result.Should().Contain("json_fields", "提示应说明用 json_fields 查看完整字段");
+    }
+
+    [Fact]
+    public void SummarizeRunListBrief_ShortName_NoTruncationHint() {
+        var json = """
+        {
+            "total_count": 1,
+            "workflow_runs": [
+                {
+                    "id": 101,
+                    "name": "CI",
+                    "head_branch": "main",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "run_number": 5,
+                    "created_at": "2026-09-30T10:00:00Z",
+                    "updated_at": "2026-09-30T10:02:30Z",
+                    "event": "push",
+                    "display_title": "Push"
+                }
+            ]
+        }
+        """;
+
+        var result = GitHubRunListSummarizer.SummarizeRunListBrief(json);
+
+        result.Should().NotContain("💡 列宽截断", "短名称不截断时不应有截断提示");
+    }
 }

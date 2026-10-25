@@ -1,6 +1,6 @@
 # bash 模式态差异 — 四问深度版
 
-> **状态**：implemented — 核心模式态体验（D1+D2+D5）落地；D6 已实现（调研误判）；D3+D4 登记遗留（需新组件/导航过滤改造）；D7 低优先级遗留
+> **状态**：implemented — 核心模式态体验（D1+D2+D3+D4+D5）落地；D6 已实现（调研误判）；D7 低优先级遗留
 > **来源**：四问深度法实战调研（BaselineSurveyPromptTemplate 派发 explore 代理）
 > **创建时间**：2026-10-25
 > **关联**：TASK067 差异文档第 272 行"输入模式体系（! bash 模式态） — 低 — 直通已有、模式态无"
@@ -93,8 +93,8 @@
 | D6 跨 shell 路由 | 高（Windows 可用性） | 优先实现 | ✅ 已实现（调研误判） | implemented（ReplShell:651 DefaultShellResolver.Resolve） |
 | D1 进入态机制 | 中 | 随 D6 一起 | ✅ 实现 | implemented（1dbfe11a9） |
 | D2 边框指示 | 中 | 随 D1 | ✅ 实现 | implemented（ae64c5113） |
-| D3 bash 补全 | 中 | 随 D1 | ⚠️ 登记遗留 | 需新 shell 补全组件 getShellCompletions |
-| D4 历史分组 | 中 | 随 D1 | ⚠️ 登记遗留 | 需导航过滤逻辑改造（TryUp/TryDown 按 mode） |
+| D3 bash 补全 | 中 | 随 D1 | ✅ 实现 | implemented（ca078a8d8）— ShellCompleter 从 PATH 扫描 + ReplShell 接线 |
+| D4 历史分组 | 中 | 随 D1 | ✅ 实现 | implemented（5b0099560）— NavigateHistory TryUp 按 mode 过滤 |
 | D5 Esc 退出 | 中 | 随 D1 | ✅ 实现 | implemented（1dbfe11a9） |
 | D7 埋点 | 低 | 可选 | ⚠️ 低优先级遗留 | 需埋点基础设施 |
 
@@ -107,6 +107,8 @@
 | `InputMode` 枚举（Prompt/Bash）+ `ReplShell._inputMode` 字段 + `SetInputMode` 方法同步 `_view.InputMode` | `ReplShell.Submit` Bash mode 加前缀 + `HandleKeyPress` 空输入+!切 mode + `HandleEscape` Esc 退 mode | ✅ | ✅ 3 测试（初始 Prompt/进入态/Esc 退出）+ NativeTui.Tests 全A 全量 2960 回归 |
 | `PromptInputBox.Render` 加 `InputMode` 参数 + 边框 Dim + 提示符 `!` + `RenderTextLines` promptChar | `ReplView` 加 `InputMode` 属性 + Render 调用传参 | ✅ | ✅ NativeTui.Tests 全量 2960 回归无破坏 |
 | `DefaultShellResolver.Resolve` shell 路由（bash/powershell/cmd.exe） | `ReplShell:651` 构造调 Resolve 注入 BashDirectExecutor | ✅（既有实现） | ✅ 调研误判纠正（默认值非硬编码） |
+| `ShellCompleter` 从 PATH 扫描可执行文件按前缀过滤（D3） | `ReplShell.UpdateShellSuggestions` bash mode 下激活 + `HandleSuggestionKey` Tab/Up/Down/Esc + `SyncSuggestionState` 投影 + `AcceptShellSuggestion` 填入 | ✅ | ✅ 8 组件测试 + 5 接线测试 + `--selftest-bash` 启动验收（ADR 0080）+ NativeTui.Tests 全量 2973 回归 |
+| `NavigateHistory` TryUp 按 mode 过滤 + `IsBashHistoryEntry` 辅助（D4） | `ReplShell.NavigateHistory` bash mode 下只翻 bash 历史 | ✅ | ✅ NativeTui.Tests 全量 2960 回归 |
 
 ---
 

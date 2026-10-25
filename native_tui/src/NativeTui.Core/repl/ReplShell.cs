@@ -273,6 +273,8 @@ public sealed class ReplShell
     {
         _inputMode = mode;
         _view.InputMode = mode;
+        _shellSuggestions = null;
+        _shellSuggestionIndex = 0;
     }
 
     /// <summary>@ 文件补全数据层（S10 接线 — 构造注入工作区根；null = 禁用降级无建议）。</summary>
@@ -287,6 +289,17 @@ public sealed class ReplShell
 
     /// <summary>@ 文件补全抑制 token（Esc 关闭后同一 token 不再建议 — 对齐 SlashSuggester.Dismiss 抑制语义）。</summary>
     private string _atSuppressedToken = string.Empty;
+
+    /// <summary>shell 命令补全器（TASK074 D3 — 对齐基准 useTypeahead getShellCompletions 分支：
+    /// bash mode 下从 PATH 扫描可执行文件按前缀过滤）。会话级快照（构造时扫描 PATH 缓存）。</summary>
+    private readonly ShellCompleter _shellCompleter;
+
+    /// <summary>shell 命令补全当前建议投影（CommandSuggestion 形态喂 SuggestionBox 渲染；
+    /// null = 未激活。选中索引复用 _shellSuggestionIndex）。</summary>
+    private IReadOnlyList<CommandSuggestion>? _shellSuggestions;
+
+    /// <summary>shell 命令补全选中索引（SuggestionBox 导航）。</summary>
+    private int _shellSuggestionIndex;
 
     /// <summary>动态通知队列（S4 产出 — footer 行 2 右侧渲染源；帧拍 Tick 推进到期/出队，
     /// 种子 effort 提示经 Enqueue 一次性入队保留首屏语义）。</summary>
@@ -617,7 +630,8 @@ public sealed class ReplShell
         string? statusLineTemplate = null,
         Func<string?>? statusLineModelProvider = null,
         string? defaultShell = null,
-        Func<string, bool>? gitignorePredicate = null)
+        Func<string, bool>? gitignorePredicate = null,
+        ShellCompleter? shellCompleter = null)
     {
         _engine = engine;
         _banner = banner;
@@ -627,6 +641,7 @@ public sealed class ReplShell
         _commandUsage = commandUsage ?? new CommandUsageMemory();
         // S10 接线 — 分组注入：空查询 "/" 走 recently-used + 来源分组视图（有查询仍走既有匹配排序）
         _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands, new CommandGrouping(_commandUsage)) : null;
+        _shellCompleter = shellCompleter ?? new ShellCompleter();
         _sizeSource = sizeSource ?? new ConsoleTerminalSizeSource();
         _copyToClipboard = clipboard;
         _saveThemeAsync = saveThemeAsync;
@@ -710,6 +725,12 @@ public sealed class ReplShell
 
     /// <summary>@ 文件补全选中索引（测试断言面）。</summary>
     internal int AtSuggestionIndex => _atSuggestionIndex;
+
+    /// <summary>shell 命令补全当前建议（TASK074 D3 — 测试断言面；null = 未激活）。</summary>
+    internal IReadOnlyList<CommandSuggestion>? ShellSuggestions => _shellSuggestions;
+
+    /// <summary>shell 命令补全选中索引（测试断言面）。</summary>
+    internal int ShellSuggestionIndex => _shellSuggestionIndex;
 
     /// <summary>命令使用记忆（S10 接线 — 测试断言面：RecordUse 记账验证）。</summary>
     internal CommandUsageMemory CommandUsage => _commandUsage;
@@ -2940,6 +2961,30 @@ public sealed class ReplShell
     /// 其余键返回 false 走正常编辑路径（编辑后刷新建议）。</summary>
     private bool HandleSuggestionKey(KeyPress key)
     {
+        // TASK074 D3 — shell 命令补全激活态（bash mode 下；斜杠/@ 建议互斥为空不可达）
+        if (_shellSuggestions is { Count: > 0 } && _suggester is not { IsActive: true } && _atSuggestions is null)
+        {
+            switch (key.Kind)
+            {
+                case KeyKind.UpArrow when !key.Shift && !key.Ctrl && !key.Meta:
+                    _shellSuggestionIndex = (_shellSuggestionIndex - 1 + _shellSuggestions.Count) % _shellSuggestions.Count;
+                    return true;
+                case KeyKind.DownArrow when !key.Shift && !key.Ctrl && !key.Meta:
+                    _shellSuggestionIndex = (_shellSuggestionIndex + 1) % _shellSuggestions.Count;
+                    return true;
+                case KeyKind.Tab:
+                case KeyKind.RightArrow when _input.CursorCol == _input.Text.Length:
+                    AcceptShellSuggestion();
+                    return true;
+                case KeyKind.Escape:
+                    _shellSuggestions = null;
+                    _shellSuggestionIndex = 0;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         // S10 接线 — @ 文件补全激活态（斜杠建议优先 — 其激活时 @ 投影为空不可达）
         if (_atSuggestions is { Count: > 0 } && _suggester is not { IsActive: true })
         {
@@ -3077,9 +3122,20 @@ public sealed class ReplShell
         HistoryEntry entry;
         if (direction < 0)
         {
-            if (!_history.TryUp(out entry, _input.Text))
+            // TASK074 D4 — 按 InputMode 过滤历史（bash mode 只翻 ! 前缀，prompt mode 只翻非 ! 前缀；
+            // 对齐基准 useArrowKeyHistory.ts:42-48 entryMode !== modeFilter continue）
+            var wantBash = _inputMode == InputMode.Bash;
+            while (true)
             {
-                return;
+                if (!_history.TryUp(out entry, _input.Text))
+                {
+                    return;
+                }
+
+                if (entry.Text.Length == 0 || IsBashHistoryEntry(entry.Text) == wantBash)
+                {
+                    break;
+                }
             }
         }
         else if (!_history.TryDown(out entry))
@@ -3091,6 +3147,9 @@ public sealed class ReplShell
         _programmaticFill = true;
         _input.ReplaceWithPasted(entry.Text, entry.PastedContents, cursorToStart: direction < 0);
     }
+
+    /// <summary>历史条目是否 bash 命令（! 前缀 — TASK074 D4 mode 过滤判定）。</summary>
+    private static bool IsBashHistoryEntry(string text) => text.Length > 0 && text[0] == '!';
 
     /// <summary>程序化填充输入（历史导航/补全接受）— 设置跳过标记，HandleKey 尾部不刷新建议。</summary>
     private void FillInput(string text, bool cursorToStart)
@@ -3108,6 +3167,7 @@ public sealed class ReplShell
     {
         _suggester?.Update(_input.Text);
         UpdateAtSuggestions();
+        UpdateShellSuggestions();
     }
 
     /// <summary>@ 文件补全刷新（S10 接线 — 基准 useTypeahead fileSuggestions 分支）：
@@ -3141,6 +3201,30 @@ public sealed class ReplShell
             .Select(static file => new CommandSuggestion(file.RelativePath, string.Empty, [], IsHidden: false))
             .ToList();
         _atSuggestionIndex = 0;
+    }
+
+    /// <summary>shell 命令补全刷新（TASK074 D3 — 基准 useTypeahead getShellCompletions 分支）：
+    /// bash mode 下按输入前缀过滤 PATH 可执行文件投影建议清单；非 bash mode 或斜杠/@ 建议激活时清空
+    ///（互斥优先级：斜杠 > @ 文件 > shell）。</summary>
+    private void UpdateShellSuggestions()
+    {
+        if (_inputMode != InputMode.Bash || _suggester is { IsActive: true } || _atSuggestions is { Count: > 0 })
+        {
+            _shellSuggestions = null;
+            _shellSuggestionIndex = 0;
+            return;
+        }
+
+        var suggestions = _shellCompleter.Complete(_input.Text);
+        if (suggestions.Count == 0)
+        {
+            _shellSuggestions = null;
+            _shellSuggestionIndex = 0;
+            return;
+        }
+
+        _shellSuggestions = suggestions;
+        _shellSuggestionIndex = 0;
     }
 
     /// <summary>提取光标处前最近的 @token（S10 接线）— 从光标向前扫描到文本头或空白（空格/换行），
@@ -3182,6 +3266,21 @@ public sealed class ReplShell
         _input.ReplaceAt(replaced, tokenStart + 1 + selected.Length);
         _atSuggestions = null;
         _atSuggestionIndex = 0;
+    }
+
+    /// <summary>接受 shell 命令补全建议（TASK074 D3 — 基准 typeahead applyCommandSuggestion）：
+    /// Tab/Right 接受选中建议，替换整个输入为完整命令名 + 尾随空格（进参数态），光标置末尾。</summary>
+    private void AcceptShellSuggestion()
+    {
+        if (_shellSuggestions is not { Count: > 0 })
+        {
+            return;
+        }
+
+        var selected = _shellSuggestions[Math.Clamp(_shellSuggestionIndex, 0, _shellSuggestions.Count - 1)].Name;
+        FillInput(selected + " ", cursorToStart: false);
+        _shellSuggestions = null;
+        _shellSuggestionIndex = 0;
     }
 
     /// <summary>
@@ -4051,6 +4150,13 @@ public sealed class ReplShell
             _view.Suggestions = _atSuggestions;
             _view.SuggestionIndex = _atSuggestionIndex;
             _view.SuggestionNameColumnWidth = _atSuggestions.Max(static item => item.Name.Length) + 4;
+            _view.SuggestionArgumentMode = true;
+        }
+        else if (_shellSuggestions is { Count: > 0 })
+        {
+            _view.Suggestions = _shellSuggestions;
+            _view.SuggestionIndex = _shellSuggestionIndex;
+            _view.SuggestionNameColumnWidth = _shellSuggestions.Max(static item => item.Name.Length) + 4;
             _view.SuggestionArgumentMode = true;
         }
         else

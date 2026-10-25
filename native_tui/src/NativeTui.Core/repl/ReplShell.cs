@@ -3077,9 +3077,20 @@ public sealed class ReplShell
         HistoryEntry entry;
         if (direction < 0)
         {
-            if (!_history.TryUp(out entry, _input.Text))
+            // TASK074 D4 — 按 InputMode 过滤历史（bash mode 只翻 ! 前缀，prompt mode 只翻非 ! 前缀；
+            // 对齐基准 useArrowKeyHistory.ts:42-48 entryMode !== modeFilter continue）
+            var wantBash = _inputMode == InputMode.Bash;
+            while (true)
             {
-                return;
+                if (!_history.TryUp(out entry, _input.Text))
+                {
+                    return;
+                }
+
+                if (entry.Text.Length == 0 || IsBashHistoryEntry(entry.Text) == wantBash)
+                {
+                    break;
+                }
             }
         }
         else if (!_history.TryDown(out entry))
@@ -3091,6 +3102,9 @@ public sealed class ReplShell
         _programmaticFill = true;
         _input.ReplaceWithPasted(entry.Text, entry.PastedContents, cursorToStart: direction < 0);
     }
+
+    /// <summary>历史条目是否 bash 命令（! 前缀 — TASK074 D4 mode 过滤判定）。</summary>
+    private static bool IsBashHistoryEntry(string text) => text.Length > 0 && text[0] == '!';
 
     /// <summary>程序化填充输入（历史导航/补全接受）— 设置跳过标记，HandleKey 尾部不刷新建议。</summary>
     private void FillInput(string text, bool cursorToStart)

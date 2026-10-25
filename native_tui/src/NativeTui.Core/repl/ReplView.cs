@@ -94,6 +94,9 @@ public sealed class ReplView
     /// <summary>输入框文本。</summary>
     public string Input { get; set; } = string.Empty;
 
+    /// <summary>当前输入模式（TASK074 D2 — PromptInputBox 边框/提示符按 mode 变色；ReplShell 同步）。</summary>
+    public InputMode InputMode { get; set; } = InputMode.Prompt;
+
     /// <summary>光标文本内偏移（0 = 首字符之前）。</summary>
     public int CursorCol { get; set; }
 
@@ -274,7 +277,7 @@ public sealed class ReplView
         // S7 接线 — 输入区高度多行化（HeightFor(逻辑行数)：单行 3 与既有布局一致，多行随行数增长）
         var inputHeight = InputHeightOf(screen.Cols);
         var inputFrame = new Rect(0, screen.Rows - footerHeight - actionsHeight - suggestionHeight - inputHeight, screen.Cols, inputHeight);
-        _inputBox.Render(screen, inputFrame, theme, Input, CursorCol, Footer.Busy, GhostSuffix);
+        _inputBox.Render(screen, inputFrame, theme, Input, CursorCol, Footer.Busy, GhostSuffix, InputMode);
 
         if (queueHeight > 0)
         {

@@ -3,7 +3,7 @@
 > 📍 **导航**: [docs/](../../README.md) › [adr/](../README.md)
 > 🔗 **上游索引**: [adr/README.md](../README.md) — 修改本文档后须同步更新此索引
 
-> 状态: proposed
+> 状态: accepted（2026-10-26 落地验证：22 单测绿 — seq/ackSeq 关联 + 幂等 submit + 回合失败发 turn_completed）
 > 创建: 2026-10-26
 > 决策者: 用户主导（跨进程通信可靠性要求 — 流水号/ACK/幂等/回函编号确认）
 > 影响: modules/apps/engine/bridge/BridgeProtocol.cs + modules/apps/cli/core/commands/core/BridgeServeLoop.cs + 所有消费方（native_tui BridgeEventPump + E2E DualRoleConversationRunner）

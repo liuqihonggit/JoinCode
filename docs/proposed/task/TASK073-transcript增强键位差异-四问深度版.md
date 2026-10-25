@@ -1,6 +1,6 @@
 # transcript 增强键位差异 — 四问深度版
 
-> **状态**：proposed — 待用户一问一答决策
+> **状态**：implemented — 三项全部落地（2026-10-25）
 > **来源**：四问深度法实战调研（BaselineSurveyPromptTemplate 派发 explore 代理）
 > **创建时间**：2026-10-25
 > **关联**：TASK067 差异文档第 269 行"transcript ctrl+e 全展开 / `[` dump / `v` 编辑器 — 低 — 阅读增强小项"、M8-3 ctrl+o 全局 transcript 模式（已实现）
@@ -90,9 +90,19 @@
 
 | 差异项 | 价值 | 建议 | 用户决策 | 状态 |
 |--------|------|------|----------|------|
-| ctrl+e 全展开 | 低 | 不实现（或删悬空声明） | ⬜ 待决策 | proposed |
-| `[` dump | 中 | 可选（`/` 已覆盖搜索） | ⬜ 待决策 | proposed |
-| `v` 编辑器 | 中-高 | 建议实现（less 标准+低成本） | ⬜ 待决策 | proposed |
+| ctrl+e 全展开 | 低 | 不实现（或删悬空声明） | ✅ 删悬空声明 | implemented（0f0399107） |
+| `[` dump | 中 | 可选（`/` 已覆盖搜索） | ✅ 实现 | implemented（52dc00dbc） |
+| `v` 编辑器 | 中-高 | 建议实现（less 标准+低成本） | ✅ 实现 | implemented（124b13c7d） |
+
+---
+
+## 七、验收表（四列强制）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| `TranscriptController` 构造加 `openTranscriptInEditor` 委托 + `HandleBrowseKey` v 分派（join Lines 调委托） | `ReplShell.OpenTranscriptInEditor`（复用 `_launchExternalEditor` 通道 fire-and-forget 打开浏览，结果丢弃不回填） | ✅ | ✅ 3 测试（按v触发委托/无委托静默/搜索栏优先）+ NativeTui.Tests 全量 2957 回归 |
+| `TranscriptController` 加 `_pendingDumpText` + `[` handler（保存 join 全文 + ExitTranscript + 设 pending）+ `TakePendingDump` 方法 | `ReplShell.DumpTranscriptToScrollbackIfPending`（HandleTranscriptKey 在 SyncAlternateScreen 后调，写 `_output` 主屏） | ✅ | ✅ 3 测试（dump+退出/取后清空/未激活不消费）+ NativeTui.Tests 全量 2957 回归 |
+| 删 `KeybindingAction.TranscriptToggleShowAll` 枚举 + `KeybindingNames` 名称映射 + `KeybindingProfile` ctrl+e 绑定 | 无消费方（悬空声明已删） | ✅ | ✅ NativeTui.Tests 全量 2954 回归无破坏 |
 
 ---
 

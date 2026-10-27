@@ -329,6 +329,71 @@ public sealed class ResilientHttpExecutorTests {
     }
 
     /// <summary>
+    /// 容量错误（429/529）在预算模式下无限重试 — 对齐基准 persistent 模式
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_TransientErrorPredicate_CapacityErrorInfiniteRetry() {
+        var policy = new ResiliencePolicy {
+            Name = "test",
+            OperationTimeout = TimeSpan.FromSeconds(5),
+            Retry = new RetryConfig {
+                MaxRetries = 2,
+                TotalBudget = TimeSpan.FromSeconds(5),
+                BaseDelay = TimeSpan.FromMilliseconds(10),
+                MaxDelay = TimeSpan.FromMilliseconds(20),
+                Strategy = BackoffStrategy.Fixed,
+                TransientErrorPredicate = _ => true,
+            },
+        };
+
+        var executor = new ResilientHttpExecutor(policy);
+        var attempt = 0;
+
+        using var result = await executor.ExecuteAsync(
+            _ => {
+                attempt++;
+                if (attempt < 5) throw new HttpRequestException("429");
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+            },
+            "test-op");
+
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+        attempt.Should().Be(5, "容量错误应无限重试直到成功（超过 MaxRetries=2）");
+    }
+
+    /// <summary>
+    /// 非容量错误（500）在预算模式下有限重试 — 对齐基准非 429/529 错误不无限重试
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_TransientErrorPredicate_NonCapacityErrorFiniteRetry() {
+        var policy = new ResiliencePolicy {
+            Name = "test",
+            OperationTimeout = TimeSpan.FromSeconds(5),
+            Retry = new RetryConfig {
+                MaxRetries = 2,
+                TotalBudget = TimeSpan.FromSeconds(5),
+                BaseDelay = TimeSpan.FromMilliseconds(10),
+                MaxDelay = TimeSpan.FromMilliseconds(20),
+                Strategy = BackoffStrategy.Fixed,
+                TransientErrorPredicate = _ => false,
+            },
+        };
+
+        var executor = new ResilientHttpExecutor(policy);
+        var attempt = 0;
+
+        await Assert.ThrowsAsync<HttpRequestException>(() =>
+            executor.ExecuteAsync(
+                _ => {
+                    attempt++;
+                    throw new HttpRequestException("500");
+                },
+                "test-op"));
+
+        attempt.Should().Be(3, "非容量错误应有限重试（MaxRetries=2 + 初始尝试=1）");
+    }
+
+    /// <summary>
     /// 集成测试 — 验证 Gateway 包裹透传操作时无重试放大（1:1 调用，无嵌套）
     /// <para>重试配置从 NetworkRetryOptions.ToTestRetryConfig 派生，共用生产策略/开关，避免改了生产没改测试</para>
     /// </summary>

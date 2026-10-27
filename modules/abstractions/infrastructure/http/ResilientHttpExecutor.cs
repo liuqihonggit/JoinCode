@@ -163,7 +163,7 @@ public sealed class ResilientHttpExecutor {
                 return result;
             } catch (OperationCanceledException ex) when (IsUserCancellation(ex, ct)) {
                 throw;
-            } catch (Exception ex) when (ShouldRetry(ex, retry) && (budget.HasValue || attempt < retry.MaxRetries)) {
+            } catch (Exception ex) when (ShouldRetry(ex, retry) && IsRetryAllowed(ex, retry, budget, attempt)) {
                 attempt++;
                 var delay = CalculateDelay(attempt, retry, ex);
 
@@ -246,6 +246,18 @@ public sealed class ResilientHttpExecutor {
             || ex is TaskCanceledException
             || ex is HttpRequestException
             || ex is IOException;
+    }
+
+    /// <summary>
+    /// 判断是否允许重试 — 区分容量错误（429/529）和其他错误
+    /// <para>容量错误 + 预算模式 → 无限重试（对齐基准 persistent 模式仅 429/529 无限）</para>
+    /// <para>其他错误 → 有限重试（MaxRetries 驱动）</para>
+    /// <para>TransientErrorPredicate 未配置 → 向后兼容（预算模式无限重试所有错误）</para>
+    /// </summary>
+    private static bool IsRetryAllowed(Exception ex, RetryConfig retry, TimeSpan? budget, int attempt) {
+        if (budget is null) return attempt < retry.MaxRetries;
+        if (retry.TransientErrorPredicate is null) return true;
+        return retry.TransientErrorPredicate(ex) || attempt < retry.MaxRetries;
     }
 
     private static TimeSpan CalculateDelay(int attempt, RetryConfig retry, Exception? ex = null) {

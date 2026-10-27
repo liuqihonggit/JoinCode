@@ -25,6 +25,12 @@ public sealed class NetworkRetryOptions {
     /// <summary>网络不可用时是否暂停预算计时，默认 true</summary>
     public bool PauseBudgetOnNetworkUnavailable { get; init; } = true;
 
+    /// <summary>无人值守模式单次延迟上限，默认 6h（对齐基准 PERSISTENT_RESET_CAP_MS）</summary>
+    public TimeSpan UnattendedSingleDelayCap { get; init; } = TimeSpan.FromHours(6);
+
+    /// <summary>无人值守模式心跳间隔，默认 30s（对齐基准 HEARTBEAT_INTERVAL_MS）</summary>
+    public TimeSpan UnattendedHeartbeatInterval { get; init; } = TimeSpan.FromSeconds(30);
+
     /// <summary>长连接重连起始延迟，默认 2s（供 SSE/SSH/Bridge/MCP 统一取用）</summary>
     public TimeSpan ReconnectBaseDelay { get; init; } = TimeSpan.FromSeconds(2);
 
@@ -34,12 +40,15 @@ public sealed class NetworkRetryOptions {
     /// <summary>
     /// 转换为 ResilientHttpExecutor 的 RetryConfig — 请求-响应型重试配置
     /// </summary>
-    public RetryConfig ToRetryConfig() => new() {
+    /// <param name="isUnattended">无人值守模式 — 启用 SingleDelayCap + HeartbeatInterval</param>
+    public RetryConfig ToRetryConfig(bool isUnattended = false) => new() {
         TotalBudget = TotalBudget,
         BaseDelay = BaseDelay,
         MaxDelay = MaxDelay,
         Strategy = ParseStrategy(Strategy),
         PauseBudgetOnNetworkUnavailable = PauseBudgetOnNetworkUnavailable,
+        SingleDelayCap = isUnattended ? UnattendedSingleDelayCap : null,
+        HeartbeatInterval = isUnattended ? UnattendedHeartbeatInterval : null,
     };
 
     /// <summary>
@@ -55,12 +64,15 @@ public sealed class NetworkRetryOptions {
     /// <param name="totalBudget">测试重试预算（建议 >= 2s）</param>
     /// <param name="baseDelay">测试基础延迟（建议 >= 100ms，对齐生产量级）</param>
     /// <param name="maxDelay">测试最大延迟（默认 baseDelay*5，至少 500ms）</param>
-    public RetryConfig ToTestRetryConfig(TimeSpan totalBudget, TimeSpan baseDelay, TimeSpan? maxDelay = null) => new() {
+    /// <param name="isUnattended">无人值守模式 — 启用 SingleDelayCap + HeartbeatInterval</param>
+    public RetryConfig ToTestRetryConfig(TimeSpan totalBudget, TimeSpan baseDelay, TimeSpan? maxDelay = null, bool isUnattended = false) => new() {
         TotalBudget = totalBudget,
         BaseDelay = baseDelay,
         MaxDelay = maxDelay ?? TimeSpan.FromMilliseconds(Math.Max(baseDelay.TotalMilliseconds * 5, 500)),
         Strategy = ParseStrategy(Strategy),
         PauseBudgetOnNetworkUnavailable = PauseBudgetOnNetworkUnavailable,
+        SingleDelayCap = isUnattended ? UnattendedSingleDelayCap : null,
+        HeartbeatInterval = isUnattended ? UnattendedHeartbeatInterval : null,
     };
 
     private static BackoffStrategy ParseStrategy(string s) => s switch {

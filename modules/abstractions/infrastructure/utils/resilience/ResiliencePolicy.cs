@@ -85,6 +85,13 @@ public sealed class RetryConfig {
     /// </summary>
     public Action<Exception, TimeSpan, int>? HeartbeatCallback { get; init; }
 
+    /// <summary>
+    /// 容量错误判定 — 返回 true 时该错误在预算模式下无限重试
+    /// <para>对齐基准 withRetry.ts:106-110 isTransientCapacityError（仅 429/529）</para>
+    /// <para>null 时所有可重试错误都无限重试（向后兼容）</para>
+    /// </summary>
+    public Func<Exception, bool>? TransientErrorPredicate { get; init; }
+
     /// <summary>默认重试配置实例</summary>
     internal static readonly RetryConfig Default = new();
 }

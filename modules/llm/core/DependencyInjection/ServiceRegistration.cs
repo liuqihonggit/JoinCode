@@ -107,6 +107,7 @@ public static partial class ServiceRegistration {
 
     /// <summary>
     /// 创建 LLM API 韧性执行器 — 超时+重试+熔断，受 JCC_RESILIENCE_ENABLED 控制
+    /// <para>无人值守模式（CLAUDE_CODE_UNATTENDED_RETRY=1）：启用 6h 单次 cap + 30s 心跳 + 仅 429/529 无限重试</para>
     /// </summary>
     private static ResilientHttpExecutor? CreateLlmResilientExecutor(IServiceProvider sp) {
         var resilienceEnabled = Environment.GetEnvironmentVariable("JCC_RESILIENCE_ENABLED") is not "0";
@@ -115,18 +116,55 @@ public static partial class ServiceRegistration {
         var logger = sp.GetService<ILogger<ResilientHttpExecutor>>();
         var networkService = sp.GetService<INetworkConnectivityService>();
         var retryOptions = sp.GetService<IOptions<NetworkRetryOptions>>()?.Value;
+        var isUnattended = IsUnattendedRetryEnabled();
 
-        // 用统一配置创建 24h 预算驱动 policy；无配置则 fallback 到 LlmDefault
+        var retryConfig = retryOptions is not null
+            ? retryOptions.ToRetryConfig(isUnattended)
+            : new RetryConfig();
+
+        if (isUnattended) {
+            retryConfig = new RetryConfig {
+                MaxRetries = retryConfig.MaxRetries,
+                BaseDelay = retryConfig.BaseDelay,
+                MaxDelay = retryConfig.MaxDelay,
+                Strategy = retryConfig.Strategy,
+                ShouldRetry = retryConfig.ShouldRetry,
+                TotalBudget = retryConfig.TotalBudget,
+                PauseBudgetOnNetworkUnavailable = retryConfig.PauseBudgetOnNetworkUnavailable,
+                RetryAfterExtractor = retryConfig.RetryAfterExtractor,
+                SingleDelayCap = retryConfig.SingleDelayCap,
+                HeartbeatInterval = retryConfig.HeartbeatInterval,
+                HeartbeatCallback = (ex, remaining, attempt) =>
+                    logger?.LogWarning("[LLM:UNATTENDED] 重试等待 {RemainingMs:F0}ms (尝试 {Attempt}) | {ExType}: {Message}",
+                        remaining.TotalMilliseconds, attempt, ex.GetType().Name, ex.Message),
+                TransientErrorPredicate = IsTransientCapacityError,
+            };
+        }
+
         var policy = retryOptions is not null
             ? new ResiliencePolicy {
                 Name = "LLM",
                 OperationTimeout = TimeSpan.FromSeconds(30),
-                Retry = retryOptions.ToRetryConfig(),
+                Retry = retryConfig,
             }
             : ResiliencePolicy.LlmDefault("LLM");
 
         return new ResilientHttpExecutor(policy, logger, networkService);
     }
+
+    /// <summary>
+    /// 无人值守重试是否启用 — 对齐基准 withRetry.ts:100-104 isPersistentRetryEnabled
+    /// <para>环境变量 CLAUDE_CODE_UNATTENDED_RETRY=1/true 启用</para>
+    /// </summary>
+    private static bool IsUnattendedRetryEnabled() =>
+        Environment.GetEnvironmentVariable("CLAUDE_CODE_UNATTENDED_RETRY") is { } val
+        && (val.Equals("true", StringComparison.OrdinalIgnoreCase) || val == "1");
+
+    /// <summary>
+    /// 判断是否为容量错误（429/529）— 对齐基准 withRetry.ts:106-110 isTransientCapacityError
+    /// </summary>
+    private static bool IsTransientCapacityError(Exception ex) =>
+        ex is ApiException api && (api.StatusCode == 429 || api.StatusCode == 529);
 
     /// <summary>
     /// 用 StreamingFallbackDecorator + BufferedStreamingDecorator 包装内部 QueryService

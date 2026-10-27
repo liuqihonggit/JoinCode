@@ -41,6 +41,7 @@ public static class SlashCommandRunner {
         Func<string, bool>? confirm = null,
         Func<string, string?>? prompt = null,
         Func<string, string?>? readPassword = null,
+        Func<SessionPickerRequest, CancellationToken, Task<string?>>? beginSessionPicker = null,
         Action? onExitRequested = null,
         CancellationToken cancellationToken = default) {
         var commandRegistry = services.GetService<ChatCommandRegistry>();
@@ -82,6 +83,7 @@ public static class SlashCommandRunner {
             Confirm = confirm,
             Prompt = prompt,
             ReadPassword = readPassword,
+            BeginSessionPicker = beginSessionPicker,
         };
 
         // 捕获命令输出 — 重定向 Console.Out 到 StringBuilder（对齐 CLI/TUI 既有行为）

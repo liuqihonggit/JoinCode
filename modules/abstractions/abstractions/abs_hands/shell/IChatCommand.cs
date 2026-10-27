@@ -45,6 +45,13 @@ public sealed class ChatCommandContext {
     public Func<string, string?>? ReadPassword { get; init; }
 
     /// <summary>
+    /// TUI 会话选择器回调（可选，TUI 宿主注入）— 传入会话列表，返回用户选中的会话 ID 或 null（取消）。
+    /// 命令侧 await 此回调等待用户选择；TUI 宿主挂载 SessionPickerDialog（IScrollItem）到滚动区，
+    /// 用户 Enter/Esc 后 TaskCompletionSource 完成返回。非 TUI 宿主不注入，命令侧回退到 CLI 简化版 Selector。
+    /// </summary>
+    public Func<SessionPickerRequest, CancellationToken, Task<string?>>? BeginSessionPicker { get; init; }
+
+    /// <summary>
     /// DI 服务容器 — composition 层通过 GetCommandServices() 扩展方法获取强类型 CommandServices
     /// </summary>
     public required IServiceProvider Services { get; init; }

@@ -466,7 +466,10 @@ public static class Program {
                 session.CommandCallbacks.BindInteractions(
                     confirm: shell.ConfirmCommand,
                     prompt: shell.PromptCommand,
-                    readPassword: shell.ReadPasswordCommand);
+                    readPassword: shell.ReadPasswordCommand,
+                    beginSessionPicker: (request, ct) => shell.BeginSessionPickerCoreAsync(
+                        request.Entries.Select(e => new SessionPickerItem(e.SessionId, e.Preview, e.TimeAgo)).ToList(),
+                        request.Title));
                 // earlyInput 回灌 — 引擎组装窗口期捕获的按键回填输入框（基准 earlyInput.ts:164-169
                 // consume — 启动期输入不丢失：分派链全量复用，shell 状态此时已就绪）
                 foreach (var earlyKey in earlyKeys) {

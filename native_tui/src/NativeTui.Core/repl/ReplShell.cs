@@ -437,6 +437,10 @@ public sealed class ReplShell
     /// null = 未挂载；互斥由分派链序保证）。</summary>
     private GlobalSearchDialog? _globalSearchDialog;
 
+    /// <summary>会话选择器对话框挂载态（/session /resume 命令选择历史会话 — 替代 CLI Selector；
+    /// null = 未挂载；互斥由分派链序保证 — 模态激活期间其余对话框触发键被本分支吞掉）。</summary>
+    private SessionPickerDialog? _sessionPickerDialog;
+
     /// <summary>空闲返回对话框挂载态（TASK066 板块 D D1+D7/D8 — 空闲超阈值提交时拦截挂载；
     /// null = 未挂载；互斥由分派链序保证 — 模态激活期间其余对话框触发键被吞）。</summary>
     private IdleReturnDialog? _idleReturnDialog;
@@ -1209,6 +1213,12 @@ public sealed class ReplShell
         if (_globalSearchDialog is not null)
         {
             HandleGlobalSearchKey(key);
+            return;
+        }
+
+        if (_sessionPickerDialog is not null)
+        {
+            HandleSessionPickerKey(key);
             return;
         }
 
@@ -2072,6 +2082,45 @@ public sealed class ReplShell
             InsertAtCursor($"@{path} ");
             _notifications.Enqueue($"已引用 {path}");
         }
+    }
+
+    /// <summary>
+    /// 会话选择器对话框挂载（/session /resume 命令选择历史会话 — 替代 CLI Selector）：
+    /// 构造 SessionPickerDialog + AddMessage 到滚动区 + 返回 SelectionTask（TCS 桥 — 命令侧 await 等待用户选择）。
+    /// 挂载不可重入（已挂载时返回 null 防死等）。
+    /// </summary>
+    public Task<string?> BeginSessionPickerCoreAsync(IReadOnlyList<SessionPickerItem> items, string title)
+    {
+        if (_sessionPickerDialog is not null)
+        {
+            return Task.FromResult<string?>(null);
+        }
+
+        var dialog = new SessionPickerDialog(items, title);
+        _sessionPickerDialog = dialog;
+        AddMessage(dialog);
+        return dialog.SelectionTask;
+    }
+
+    /// <summary>
+    /// 会话选择器对话框模态按键 — TryHandleKey 消费键位（↑↓ 导航/enter 接受/esc 取消）；
+    /// IsClosed 终态收尾 — 清字段 + RemoveDialogItem 卸载（SelectionTask 已由 dialog 内部 TCS 完成）。
+    /// </summary>
+    private void HandleSessionPickerKey(KeyPress key)
+    {
+        if (_sessionPickerDialog is not { } dialog)
+        {
+            return;
+        }
+
+        dialog.TryHandleKey(key);
+        if (!dialog.IsClosed)
+        {
+            return;
+        }
+
+        _sessionPickerDialog = null;
+        RemoveDialogItem<SessionPickerDialog>();
     }
 
     /// <summary>

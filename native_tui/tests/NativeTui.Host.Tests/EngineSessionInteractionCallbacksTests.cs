@@ -41,7 +41,7 @@ public sealed class EngineSessionInteractionCallbacksTests
         Func<string, string?> prompt = _ => "input";
         Func<string, string?> readPassword = _ => "secret";
 
-        callbacks.BindInteractions(confirm, prompt, readPassword);
+        callbacks.BindInteractions(confirm, prompt, readPassword, null);
 
         Assert.Same(confirm, callbacks.Confirm);
         Assert.Same(prompt, callbacks.Prompt);
@@ -58,7 +58,7 @@ public sealed class EngineSessionInteractionCallbacksTests
     {
         var callbacks = new TuiCommandCallbacks();
         Func<string, bool> confirm = _ => true;
-        callbacks.BindInteractions(confirm, null, null);
+        callbacks.BindInteractions(confirm, null, null, null);
 
         callbacks.Bind(clearScreen: () => { }, onExitRequested: null);
 
@@ -75,7 +75,7 @@ public sealed class EngineSessionInteractionCallbacksTests
         Action clear = () => { };
         callbacks.Bind(clear, null);
 
-        callbacks.BindInteractions(null, null, null);
+        callbacks.BindInteractions(null, null, null, null);
 
         Assert.Same(clear, callbacks.ClearScreen);
         Assert.Null(callbacks.Confirm);
@@ -104,7 +104,8 @@ public sealed class EngineSessionInteractionCallbacksTests
         callbacks.BindInteractions(
             confirm: message => { received = message; return true; },
             prompt: null,
-            readPassword: null);
+            readPassword: null,
+            beginSessionPicker: null);
         var probe = new InteractionProbeCommand(ConfirmCommandName);
         using var services = BuildFakeServices(probe);
 
@@ -119,7 +120,7 @@ public sealed class EngineSessionInteractionCallbacksTests
     public async Task Dispatch_ConfirmCommand_DenialPropagatesToCommand()
     {
         var callbacks = new TuiCommandCallbacks();
-        callbacks.BindInteractions(confirm: _ => false, prompt: null, readPassword: null);
+        callbacks.BindInteractions(confirm: _ => false, prompt: null, readPassword: null, beginSessionPicker: null);
         var probe = new InteractionProbeCommand(ConfirmCommandName);
         using var services = BuildFakeServices(probe);
 
@@ -137,7 +138,8 @@ public sealed class EngineSessionInteractionCallbacksTests
         callbacks.BindInteractions(
             confirm: null,
             prompt: message => { received = message; return "用户输入的文本"; },
-            readPassword: null);
+            readPassword: null,
+            beginSessionPicker: null);
         var probe = new InteractionProbeCommand(PromptCommandName);
         using var services = BuildFakeServices(probe);
 
@@ -156,7 +158,8 @@ public sealed class EngineSessionInteractionCallbacksTests
         callbacks.BindInteractions(
             confirm: null,
             prompt: null,
-            readPassword: message => { received = message; return "secret-token"; });
+            readPassword: message => { received = message; return "secret-token"; },
+            beginSessionPicker: null);
         var probe = new InteractionProbeCommand(PasswordCommandName);
         using var services = BuildFakeServices(probe);
 

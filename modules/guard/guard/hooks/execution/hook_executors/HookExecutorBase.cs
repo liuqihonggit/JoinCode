@@ -125,10 +125,17 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
 
         // 退出码 0 - 成功
         if (exitCode == 0) {
-            // 尝试从 stdout 解析 JSON 响应
-            var jsonLine = stdout.Split('\n')
-                .Select(l => l.Trim())
-                .FirstOrDefault(l => l.StartsWith('{') && l.EndsWith('}'));
+            // TASK071-D6 — 多行 JSON 支持（对齐基准 parseHookOutput: stdout.trim() 后开头 { 则整体解析）
+            var trimmed = stdout.AsSpan().Trim();
+            string? jsonLine = null;
+            if (trimmed.StartsWith('{')) {
+                jsonLine = trimmed.ToString();
+            } else {
+                // 回退：单行查找（hook 输出非纯 JSON 时取第一行 JSON）
+                jsonLine = stdout.Split('\n')
+                    .Select(l => l.Trim())
+                    .FirstOrDefault(l => l.StartsWith('{') && l.EndsWith('}'));
+            }
 
             if (jsonLine != null) {
                 try {

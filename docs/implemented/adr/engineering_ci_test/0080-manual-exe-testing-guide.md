@@ -362,3 +362,74 @@ C# LSP 服务器从 OmniSharp 切换为 csharp-ls（`dotnet tool install -g csha
 | 10 | `a4c426d97` | `2>nul` 全变体改写为 `/dev/null` | 仅处理 `2>nul`,未覆盖 `>nul`/`1>nul`/`&>nul`/`>>nul`/`<nul` 等 |
 
 **统一返回结构为 JSON**（ADR 0069 决策6）：所有子命令默认输出 JSON，`--format text` 显式请求彩色文本，`--json` 作为别名（默认即 JSON）。
+
+## TUI 交互验证（JCC_FORCE_TTY 开关）
+
+> 追加日期：2026-10-28 — 源于 `/session` TUI 渲染错位 bug 修复（SessionPickerDialog 替代 CLI Selector）
+
+### 背景
+
+TUI 应用（jcc 交互模式）需要真正的 tty（stdin/stdout 非管道），bash 工具的 stdin/stdout 是管道，jcc 检测到重定向拒绝进入交互模式。`--force-interactive` 参数文档说"即使 stdin 重定向也启用 REPL"，但 `RunInteractiveAsync` 的 tty 检查 + `RawConsoleMode` + `EarlyInputBuffer` + `ReadKeyPump` 均依赖 `Console.KeyAvailable`/`Console.ReadKey`（stdin 重定向时抛 `InvalidOperationException`）。
+
+### JCC_FORCE_TTY 开关（临时旁路，不提交生产）
+
+设置 `JCC_FORCE_TTY=1` 环境变量旁路 tty 检查，让 jcc 在 bash 工具管道中运行 TUI 交互模式。修改点（4 处，受环境变量控制，生产环境无影响）：
+
+| 文件 | 行号 | 旁路内容 |
+|------|------|----------|
+| `;`native_tui/apps/NativeTui.Host/Program.cs` | RunInteractiveAsync 入口 | tty 检查加 `JCC_FORCE_TTY != "1"` 条件 |
+| `native_tui/apps/NativeTui.Host/Program.cs` | RawConsoleMode 创建 | `JCC_FORCE_TTY == "1"` 时跳过（null using） |
+| `native_tui/apps/NativeTui.Host/Program.cs` | EarlyInputBuffer | `JCC_FORCE_TTY == "1"` 时跳过（空列表） |
+| `native_tui/src/NativeTui.Core/repl/input/ReadKeyPump.cs` | Drain 方法 | `JCC_FORCE_TTY == "1"` 时用 `Console.In.Peek/Read` 替代 `KeyAvailable/ReadKey` |
+
+### ReadKeyPump forceTty 路径键映射
+
+`Console.In.Read()` 返回 int 字符码，需映射到 `ConsoleKeyInfo`。关键：**Enter 的 KeyChar 必须用 `\0`**（不能用 `\n`），否则 `ConsoleKeyAdapter.ToKeyPress` 第 26 行控制字符拦截（`\n`=10 在 `\u0001`-`\u001a` 范围）会映射为 Ctrl+j 而非 Return。
+
+```csharp
+info = ch switch {
+    '\r' or '\n' => new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false),
+    '\u001b' => new ConsoleKeyInfo('\u001b', ConsoleKey.Escape, false, false, false),
+    '\u0010' => new ConsoleKeyInfo('\0', ConsoleKey.UpArrow, false, false, false),   // Ctrl+P → Up
+    '\u000e' => new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false), // Ctrl+N → Down
+    _ => new ConsoleKeyInfo(ch, ConsoleKey.None, false, false, false),
+};
+```
+
+### 管道输入时序问题
+
+命令异步执行（在引擎回合线程），对话框挂载有延迟。管道输入的所有字符一次性到达 stdin，`ReadKeyPump.Drain` 逐字符快速处理，方向键可能在对话框挂载前到达，被 slash picker 处理（`sessPk=False suggest=True`）。
+
+**解法**：用 `sleep` 分段输入模拟真实终端时序（用户看到对话框后再按方向键）：
+
+```bash
+{ printf '/session\n'; sleep 3; printf '\x0e\x0e\x10'; } | timeout 20 dotnet jcc.dll --force-interactive --await 15
+```
+
+### TUI 对话框交互验收清单
+
+验证 TUI 原生对话框（如 SessionPickerDialog）必须覆盖以下交互：
+
+| 验收项 | 验证方法 | 通过标准 |
+|--------|----------|----------|
+| **渲染** | 管道输入触发命令，捕获 stdout | 标题 + 列表项（焦点指示符 `❯` + 内容）+ 溢出行 `… 及 N 项` + footer 快捷键行 |
+| **方向键焦点移动** | `sleep` 分段输入 `\x0e`（Down）/`\x10`（Up），调试输出看 `selected` 变化 | `MoveFocus` 正确（Down+1, Up-1, clamp 不环绕），滚动窗口跟随 |
+| **Enter 提交** | 输入 `\n`，看对话框卸载 | `IsClosed=true`，对话框从滚动区移除，触发选择回调（TCS 完成） |
+| **Esc 取消** | 输入 `\x1b`，看对话框卸载 | `IsClosed=true`，对话框移除，TUI 回到正常状态（spinner 恢复） |
+| **无错位** | 对比 bug 前后渲染 | 命令输出不与 slash picker/输入框重叠（如 `❯ /se=== 历史会话 ===` 不再出现） |
+
+### 运行命令模板
+
+```bash
+# 编译（workdir: D:\project\w4）
+dotnet build modules/apps/cli/JoinCode.csproj -c Debug --no-incremental --nologo
+
+# 运行 TUI 交互（workdir: jcc.dll 所在目录）
+export JCC_FORCE_TTY=1
+printf '/session\n' | timeout 15 dotnet jcc.dll --force-interactive --await 10 > output.txt 2>&1
+
+# 分段输入（方向键交互，sleep 等对话框挂载）
+{ printf '/session\n'; sleep 3; printf '\x0e\x0e\x10'; } | timeout 20 dotnet jcc.dll --force-interactive --await 15 > output.txt 2>&1
+```
+
+> ⚠️ `dotnet jcc.dll` 对 workdir 敏感，须在 jcc.dll 所在目录运行（`artifacts\bin\JoinCode\Debug\net10.0\`），不能串联 build && run（build 在项目根，run 在 jcc.dll 目录）。

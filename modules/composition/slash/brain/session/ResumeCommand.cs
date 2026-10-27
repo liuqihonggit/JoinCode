@@ -362,6 +362,9 @@ public sealed class ResumeCommand : ChatCommandBase {
             }
 
             // 同项目 — 直接恢复
+            // TASK069-C5 bug 修复 — /resume 命令路径未 SwitchSession（续写落盘到错误会话文件）
+            // 对齐 SessionResumeStep:64 — transcript 落盘下沉引擎管道后必须 SwitchSession 才能续写到恢复的会话文件
+            context.Services?.GetService<IChatContextManager>()?.SwitchSession(sessionId);
             await context.GetCommandServices().ChatService.LoadSessionMessagesAsync(messages, context.CancellationToken).ConfigureAwait(false);
 
             var customTitle = await transcriptService.GetCustomTitleAsync(sessionId, context.CancellationToken).ConfigureAwait(false);

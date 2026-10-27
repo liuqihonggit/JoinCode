@@ -73,11 +73,7 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook> {
         // 构建请求
         using var request = new HttpRequestMessage(HttpMethod.Post, hook.Url);
 
-        // 添加请求头
-        request.Headers.Add("X-Hook-Event", input.Event.ToEventName());
-        request.Headers.Add("X-Hook-Tool-Name", input.ToolName ?? "");
-        request.Headers.Add("X-Hook-Tool-Use-Id", input.ToolUseId ?? "");
-        request.Headers.Add("X-Hook-Session-Id", input.SessionId ?? "");
+        // TASK071-D5 — 移除 X-Hook-* 头（对齐基准 execHttpHook.ts，基准无这些头）
 
         // 添加自定义请求头（支持环境变量插值）
         if (hook.Headers != null) {
@@ -87,19 +83,9 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook> {
             }
         }
 
-        // 构建请求体
-        var payload = new HookHttpPayload {
-            Event = input.Event.ToEventName(),
-            EventName = input.EventName,
-            ToolName = input.ToolName,
-            ToolUseId = input.ToolUseId,
-            SessionId = input.SessionId,
-            Matcher = input.Matcher,
-            Payload = input.Payload,
-            Timestamp = _clock.GetUtcNowOffset()
-        };
-
-        request.Content = JsonContent.Create(payload, jsonTypeInfo: HooksJsonContext.Default.HookHttpPayload);
+        // TASK071-D5 — body 改用 snake_case 完整 hook input（对齐基准 execHttpHook.ts）
+        var jsonBody = HookStdinBuilder.BuildStdinJson(input);
+        request.Content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
 
         // 发送请求
         var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);

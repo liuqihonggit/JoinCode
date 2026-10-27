@@ -179,20 +179,21 @@ public sealed class ResumeCommand : ChatCommandBase {
             entries.Add(new SessionEntry(lite.Id, preview, timeAgo, lite));
         }
 
-        // 交互模式：使用 Selector 组件
+        var projectLabel = showAllProjects ? "（所有项目）" : "（当前仓库）";
+        var title = string.Format(L.T(StringKey.HostResumeSelectorTitle), projectLabel);
+
+        // TUI 宿主注入 BeginSessionPicker 回调时走 TUI 原生选择器（SessionPickerDialog），
+        // 避免 Selector.WriteLineReal 直写 stdout 与 TUI 帧渲染冲突（渲染错位 bug 修复）
+        // 注意：TUI 模式下 TestEnvironmentDetector.ForceNonInteractive=true（禁止命令侧阻塞输入），
+        // 所以 TUI 分支必须在 IsNonInteractive 检查之前，否则被跳过走非交互纯文本列表
+        if (context.BeginSessionPicker is not null) {
+            await ResumeViaTuiPickerAsync(entries, title, context).ConfigureAwait(false);
+            return;
+        }
+
+        // 交互模式：CLI 简化版 Selector（非 TUI 宿主 — WriteLineReal 直写 stdout）
         // 对齐 TS: LogSelector — 上下键+搜索+Enter选择+Esc取消
         if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
-            var projectLabel = showAllProjects ? "（所有项目）" : "（当前仓库）";
-            var title = string.Format(L.T(StringKey.HostResumeSelectorTitle), projectLabel);
-
-            // TUI 宿主注入 BeginSessionPicker 回调时走 TUI 原生选择器（SessionPickerDialog），
-            // 避免 Selector.WriteLineReal 直写 stdout 与 TUI 帧渲染冲突（渲染错位 bug 修复）
-            if (context.BeginSessionPicker is not null) {
-                await ResumeViaTuiPickerAsync(entries, title, context).ConfigureAwait(false);
-                return;
-            }
-
-            // 回退：CLI 简化版 Selector（非 TUI 宿主 — WriteLineReal 直写 stdout）
             var selector = new Selector<SessionEntry>(
                 title,
                 [.. entries],

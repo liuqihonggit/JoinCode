@@ -261,13 +261,13 @@ public static class Program {
     /// <summary>交互模式 — TTY 检查 → UTF-8 → raw mode → 引擎组装（Console.Out 重定向 stderr 防引擎污染渲染）→ REPL 主循环。
     /// ADR 0149：改为 public 供 jcc 宿主默认调用（NativeTui.Host 已改为 Library）。</summary>
     public static async Task<int> RunInteractiveAsync(bool useRawStdinPump = false) {
-        if (Console.IsInputRedirected || Console.IsOutputRedirected) {
+        if (Environment.GetEnvironmentVariable("JCC_FORCE_TTY") != "1" && (Console.IsInputRedirected || Console.IsOutputRedirected)) {
             Console.Error.WriteLine("交互模式需要真实终端（stdin/stdout 被重定向）。请直接在终端运行 jcc，或用 --selftest 跑非交互冒烟。");
             return 1;
         }
 
         Console.OutputEncoding = Encoding.UTF8;
-        using var raw = new RawConsoleMode();
+        using var raw = (Environment.GetEnvironmentVariable("JCC_FORCE_TTY") == "1" ? (IDisposable?)null : new RawConsoleMode());
         Console.Error.WriteLine("引擎启动中…");
         // S12 OSC8 最小集成 — 会话级探测一次（stderr 诊断旁路 — 对齐 DrainDiagnostics 写 stderr 先例）：
         // 探测结果缓存于日志供链接渲染深链路批次消费（本批仅探测 + 说明，见未决问题）
@@ -288,7 +288,9 @@ public static class Program {
         using var restoreGuard = new TerminalRestoreGuard(tuiOutput);
         // earlyInput — 引擎组装窗口期按键捕获（基准 earlyInput.ts:29-67 — 启动期输入不丢失，
         // 就绪后回填输入框；非阻塞 KeyAvailable 轮询，无按键零耗时）
-        var earlyKeys = EarlyInputBuffer.CaptureAvailable(() => Console.KeyAvailable, Console.ReadKey);
+        var earlyKeys = Environment.GetEnvironmentVariable("JCC_FORCE_TTY") == "1"
+            ? new List<ConsoleKeyInfo>()
+            : EarlyInputBuffer.CaptureAvailable(() => Console.KeyAvailable, Console.ReadKey);
         // 终端查询路由器（TASK067 批4 — 探测链路地基：DA1/DECRPM/kitty flags/DSR/XTVERSION
         // 查询-应答 promise；RawStdinPump 前置分流路由；主动探测接入 TerminalCapabilities 为后续增量）
         using var terminalQuerier = new TerminalQuerier(tuiOutput);

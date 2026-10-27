@@ -18,10 +18,25 @@ public sealed class ReadKeyPump : IInputPump
     public bool Drain(Action<KeyPress> dispatch)
     {
         var dispatched = false;
-        while (_pendingKeys.Count > 0 || Console.KeyAvailable)
+        var forceTty = Environment.GetEnvironmentVariable("JCC_FORCE_TTY") == "1";
+        while (_pendingKeys.Count > 0 || (forceTty ? Console.In.Peek() != -1 : Console.KeyAvailable))
         {
-            var info = _pendingKeys.Count > 0 ? _pendingKeys.Dequeue() : Console.ReadKey(intercept: true);
-            if (info.Key == ConsoleKey.Escape && info.KeyChar == '\u001b' && TryCollectPaste(out var content))
+            ConsoleKeyInfo info;
+            if (_pendingKeys.Count > 0) {
+                info = _pendingKeys.Dequeue();
+            } else if (forceTty) {
+                var ch = (char)Console.In.Read();
+                info = ch switch {
+                    '\r' or '\n' => new ConsoleKeyInfo('\0', ConsoleKey.Enter, false, false, false),
+                    '\u001b' => new ConsoleKeyInfo('\u001b', ConsoleKey.Escape, false, false, false),
+                    '\u0010' => new ConsoleKeyInfo('\0', ConsoleKey.UpArrow, false, false, false),
+                    '\u000e' => new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false),
+                    _ => new ConsoleKeyInfo(ch, ConsoleKey.None, false, false, false),
+                };
+            } else {
+                info = Console.ReadKey(intercept: true);
+            }
+            if (!forceTty && info.Key == ConsoleKey.Escape && info.KeyChar == '\u001b' && TryCollectPaste(out var content))
             {
                 dispatch(ConsoleKeyAdapter.Paste(content));
                 dispatched = true;

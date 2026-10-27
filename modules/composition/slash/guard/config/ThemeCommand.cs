@@ -143,9 +143,8 @@ public sealed class ThemeCommand : ChatCommandBase {
                 : ThemeKindEnumConstants.Dark;
         }
 
-        // 解析 daltonized → 基础主题 + 色盲友好调色
-        // 解析 ansi → 基础主题 + 仅 ANSI 颜色
-        // 待办: 实现色盲友好调色板和 ANSI-only 颜色映射
+        // daltonized: 色盲友好调色板（Cyan 替代 White/Black，提高色盲可辨识度）
+        // ansi: 仅 ANSI 16 色映射（当前终端已为 ANSI 模式，退化为标准主题）
         var isDaltonized = theme.Contains("daltonized");
         var isAnsi = theme.Contains("ansi");
         var isDark = resolvedTheme.Contains("dark") || (!resolvedTheme.Contains("light") && theme.Contains("dark"));

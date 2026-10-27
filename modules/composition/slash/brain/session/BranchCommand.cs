@@ -5,7 +5,7 @@ namespace JoinCode.ChatCommands;
 /// TS 使用对话分支功能，创建/切换/列表对话分支
 /// 对齐内容：list+create+switch+delete 分支操作
 /// 架构差异：TS 有 React 交互式分支树，C# 为命令行操作
-/// 待办：需要 BranchManager 服务实现分支存储和切换
+/// 注意：分支管理服务(BranchManager)尚未实现，当前所有操作诚实拒绝而非假装成功
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Branch, Description = "管理对话分支", Usage = "/branch [list|create|switch|delete] [name]", Category = ChatCommandCategory.Session, Aliases = ["branches"], ArgumentHint = "[list|create|switch|delete]")]
 [ChatCommandArg("action", Type = "string", Description = "分支操作", Enum = new[] { "list", "create", "switch", "delete" })]
@@ -50,12 +50,9 @@ public sealed class BranchCommand : ChatCommandBase {
 
     private static void ShowBranchList(ChatCommandContext context) {
         TerminalHelper.WriteLine("=== 对话分支 ===\n");
-
-        // 待办：接入 BranchManager 服务后替换为真实分支列表
-        TerminalHelper.WriteLine($"  * main (当前)");
+        TerminalHelper.WriteLine("  ⚠ 分支管理服务尚未实现，无法列出分支。");
         TerminalHelper.NewLine();
-        TerminalHelper.WriteLine("使用 /branch create <name> 创建新分支");
-        TerminalHelper.WriteLine("使用 /branch switch <name> 切换分支");
+        TerminalHelper.WriteLine("如需使用对话分支功能，请等待 BranchManager 服务落地。");
     }
 
     private static void CreateBranch(ChatCommandContext context, string? name) {
@@ -64,8 +61,7 @@ public sealed class BranchCommand : ChatCommandBase {
             return;
         }
 
-        // 待办：接入 BranchManager 服务后实现分支创建
-        TerminalHelper.WriteLine($"已创建分支: {name}");
+        TerminalHelper.WriteLine($"  ⚠ 分支管理服务尚未实现，无法创建分支 '{name}'。");
     }
 
     private static void SwitchBranch(ChatCommandContext context, string? name) {
@@ -74,8 +70,7 @@ public sealed class BranchCommand : ChatCommandBase {
             return;
         }
 
-        // 待办：接入 BranchManager 服务后实现分支切换
-        TerminalHelper.WriteLine($"已切换到分支: {name}");
+        TerminalHelper.WriteLine($"  ⚠ 分支管理服务尚未实现，无法切换到分支 '{name}'。");
     }
 
     private static void DeleteBranch(ChatCommandContext context, string? name) {
@@ -84,7 +79,6 @@ public sealed class BranchCommand : ChatCommandBase {
             return;
         }
 
-        // 待办：接入 BranchManager 服务后实现分支删除
-        TerminalHelper.WriteLine($"已删除分支: {name}");
+        TerminalHelper.WriteLine($"  ⚠ 分支管理服务尚未实现，无法删除分支 '{name}'。");
     }
 }

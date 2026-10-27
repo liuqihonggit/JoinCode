@@ -13,7 +13,7 @@
 |---|------|------|------|------|------|
 | 1 | TASK071-A5 | 交互输入历史 history.jsonl — 跨会话 Up/Ctrl+R 召回 | TASK071 | 高 | 已有等价实现（HistorySeeder 复用 transcript，HistoryDiskStore 已归档 .xxx） |
 | 2 | TASK071-B2 | 记忆子系统架构分歧 — C# JSON 衰减删除 vs TS Markdown 永不过期（数据丢失风险） | TASK071 | 高 | 已完成（方案 C 分层保留，ADR 0150） |
-| 3 | TASK071-D | hooks 协议层系统性对齐 — trust 门禁缺失 + snake_case/cwd/CLAUDE_* 环境变量族 | TASK071 | 高（安全） | 待开工 |
+| 3 | TASK071-D | hooks 协议层系统性对齐 — trust 门禁缺失 + snake_case/cwd/CLAUDE_* 环境变量族 | TASK071 | 高（安全） | 已完成（D1-D9 全部落地，D7 suppressOutput 遗留需 HookResult 加字段） |
 | 4 | TASK069-C5 | 会话切换状态恢复 — C# 仅纯文本 vs 基准恢复文件/agent/成本/plan 全套+TUI 历史重放 | TASK069 | 高 | 待开工 |
 | 5 | TASK069-E5 | 无人值守重试 — 基准 429/529 无限重试 6h cap+30s 心跳；C# 无 | TASK069 | 高 | 待开工 |
 

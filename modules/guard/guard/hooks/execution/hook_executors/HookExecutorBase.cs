@@ -193,11 +193,57 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
     }
 
     /// <summary>
-    /// 解析特定于事件的输出
+    /// 解析特定于事件的输出（TASK071-D7+D8 — 对齐基准 processHookJSONOutput）：
+    /// permissionDecision(allow/deny/ask) → PermissionRequestResult；
+    /// updatedInput → UpdatedInput；systemMessage → SystemMessage；suppressOutput → 标记。
     /// </summary>
     protected virtual HookResult ParseHookSpecificOutput(JsonObject specificOutput, HookResult result) {
-        // 子类可以重写以处理特定事件类型的输出
+        // D7 — systemMessage（对齐基准 hooks.ts:546）
+        if (specificOutput["systemMessage"]?.GetValue<string>() is { } systemMessage) {
+            result = result with { SystemMessage = systemMessage };
+        }
+
+        // D8 — permissionDecision（对齐基准 hooks.ts:555-614）
+        if (specificOutput["permissionDecision"]?.GetValue<string>() is { } permissionDecision) {
+            var decision = permissionDecision.ToLowerInvariant();
+            if (decision == "allow") {
+                var updatedInput = ExtractUpdatedInput(specificOutput);
+                result = result with {
+                    PermissionRequestResult = PermissionRequestResult.Allow(updatedInput)
+                };
+            } else if (decision == "deny") {
+                var denyMessage = specificOutput["permissionDecisionReason"]?.GetValue<string>() ?? "Denied by hook";
+                result = result with {
+                    PermissionRequestResult = PermissionRequestResult.Deny(denyMessage)
+                };
+            }
+        }
+
+        // D8 — updatedInput（对齐基准 hooks.ts:618-620，非权限场景的输入更新）
+        if (specificOutput["updatedInput"] is { } updatedInputNode && result.PermissionRequestResult is null) {
+            var updatedInput = ExtractUpdatedInput(specificOutput);
+            if (updatedInput is not null) {
+                result = result with { UpdatedInput = updatedInput };
+            }
+        }
+
         return result;
+    }
+
+    /// <summary>从 hookSpecificOutput 提取 updatedInput（7-620）。</summary>
+    private static Dictionary<string, JsonElement>? ExtractUpdatedInput(JsonObject specificOutput) {
+        if (specificOutput["updatedInput"] is not { } updatedInputNode) {
+            return null;
+        }
+
+        var json = updatedInputNode.ToJsonString();
+        using var doc = JsonDocument.Parse(json);
+        var dict = new Dictionary<string, JsonElement>();
+        foreach (var prop in doc.RootElement.EnumerateObject()) {
+            dict[prop.Name] = prop.Value.Clone();
+        }
+
+        return dict;
     }
 
     /// <summary>

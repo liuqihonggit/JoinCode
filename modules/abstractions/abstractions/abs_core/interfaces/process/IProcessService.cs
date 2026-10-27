@@ -52,6 +52,11 @@ public sealed class ProcessOptions {
     /// <summary>获取或设置是否重定向标准错误。</summary>
     public bool RedirectStandardError { get; init; } = true;
     /// <summary>
+    /// 标准输入内容 — 非 null 时写入进程 stdin 后关闭（TASK071-D1 — 对齐基准 hooks.ts stdin.write(jsonInput)）。
+    /// <para>null = 不写 stdin（默认，向后兼容）；非 null = RedirectStandardInput=true + 写入 + 关闭</para>
+    /// </summary>
+    public string? StandardInput { get; init; }
+    /// <summary>
     /// 是否跳过参数危险字符校验 — 仅用于 Shell 命令本身需要元字符的场景（如 bash -c "cmd &amp;&amp; cmd"）
     /// <para>默认 false：执行参数黑名单校验，拒绝 &amp;|;`$()&lt;&gt; 等 shell 元字符</para>
     /// </summary>

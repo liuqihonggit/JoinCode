@@ -218,4 +218,89 @@ public class HookOrchestratorTests {
             m => m.GetHooksForEventAsync(HookEvent.PreToolUse, ShellToolNameEnumConstants.Bash, It.IsAny<CancellationToken>()),
             Times.Once);
     }
+
+    /// <summary>TASK071-D9 — 未信任工作区跳过所有 hooks（对齐基准 shouldSkipHookDueToTrust）。</summary>
+    [Fact]
+    public async Task ExecuteHooksAsync_UntrustedWorkspace_SkipsAllHooks() {
+        var trustMock = new Mock<ITrustFolderManager>();
+        trustMock.Setup(t => t.IsTrusted(It.IsAny<string>())).Returns(false);
+        var executorFactory = new HookExecutorFactory();
+        executorFactory.RegisterExecutor(new FunctionHookExecutor());
+        await using var orchestrator = new HookOrchestrator(
+            _configManagerMock.Object, executorFactory, _sessionManagerMock.Object,
+            _broadcasterMock.Object, _asyncRegistryMock.Object, _conditionEvaluatorMock.Object,
+            trustMock.Object);
+
+        var hookExecuted = false;
+        _sessionManagerMock
+            .Setup(m => m.GetSessionFunctionHooksAsync(It.IsAny<string>(), It.IsAny<HookEvent?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<FunctionHook> {
+                new() { Id = "test-hook", Callback = (_, _) => { hookExecuted = true; return Task.FromResult(HookResult.Success()); } }
+            });
+
+        var input = new HookInput {
+            Event = HookEvent.PreToolUse,
+            ToolName = ShellToolNameEnumConstants.Bash,
+            SessionId = "test-session",
+            Payload = new Dictionary<string, JsonElement>()
+        };
+
+        var results = await orchestrator.ExecuteHooksAsync(input).ToListAsync().ConfigureAwait(true);
+
+        results.Should().BeEmpty();
+        hookExecuted.Should().BeFalse("未信任工作区应跳过所有 hooks");
+    }
+
+    /// <summary>TASK071-D9 — 已信任工作区正常执行 hooks。</summary>
+    [Fact]
+    public async Task ExecuteHooksAsync_TrustedWorkspace_ExecutesHooks() {
+        var trustMock = new Mock<ITrustFolderManager>();
+        trustMock.Setup(t => t.IsTrusted(It.IsAny<string>())).Returns(true);
+        var executorFactory = new HookExecutorFactory();
+        executorFactory.RegisterExecutor(new FunctionHookExecutor());
+        await using var orchestrator = new HookOrchestrator(
+            _configManagerMock.Object, executorFactory, _sessionManagerMock.Object,
+            _broadcasterMock.Object, _asyncRegistryMock.Object, _conditionEvaluatorMock.Object,
+            trustMock.Object);
+
+        var hookExecuted = false;
+        _sessionManagerMock
+            .Setup(m => m.GetSessionFunctionHooksAsync(It.IsAny<string>(), It.IsAny<HookEvent?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<FunctionHook> {
+                new() { Id = "test-hook", Callback = (_, _) => { hookExecuted = true; return Task.FromResult(HookResult.Success()); } }
+            });
+
+        var input = new HookInput {
+            Event = HookEvent.PreToolUse,
+            ToolName = ShellToolNameEnumConstants.Bash,
+            SessionId = "test-session",
+            Payload = new Dictionary<string, JsonElement>()
+        };
+
+        await orchestrator.ExecuteHooksAsync(input).ToListAsync().ConfigureAwait(true);
+
+        hookExecuted.Should().BeTrue("已信任工作区应正常执行 hooks");
+    }
+
+    /// <summary>TASK071-D9 — 无 trustManager（null）正常执行 hooks（向后兼容）。</summary>
+    [Fact]
+    public async Task ExecuteHooksAsync_NoTrustManager_ExecutesHooks() {
+        var hookExecuted = false;
+        _sessionManagerMock
+            .Setup(m => m.GetSessionFunctionHooksAsync(It.IsAny<string>(), It.IsAny<HookEvent?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<FunctionHook> {
+                new() { Id = "test-hook", Callback = (_, _) => { hookExecuted = true; return Task.FromResult(HookResult.Success()); } }
+            });
+
+        var input = new HookInput {
+            Event = HookEvent.PreToolUse,
+            ToolName = ShellToolNameEnumConstants.Bash,
+            SessionId = "test-session",
+            Payload = new Dictionary<string, JsonElement>()
+        };
+
+        await _orchestrator.ExecuteHooksAsync(input).ToListAsync().ConfigureAwait(true);
+
+        hookExecuted.Should().BeTrue("无 trustManager 应正常执行 hooks（向后兼容）");
+    }
 }

@@ -103,10 +103,11 @@ public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashComma
         var (fileName, argumentList) = GetShellCommand(shell, command);
 
         var envVars = new Dictionary<string, string> {
-            ["HOOK_EVENT"] = input.Event.ToEventName(),
-            ["HOOK_TOOL_NAME"] = input.ToolName ?? "",
-            ["HOOK_TOOL_USE_ID"] = input.ToolUseId ?? "",
-            ["HOOK_SESSION_ID"] = input.SessionId ?? ""
+            ["CLAUDE_PROJECT_DIR"] = Environment.CurrentDirectory,
+            ["CLAUDE_HOOK_EVENT"] = input.Event.ToEventName(),
+            ["CLAUDE_HOOK_TOOL_NAME"] = input.ToolName ?? "",
+            ["CLAUDE_HOOK_TOOL_USE_ID"] = input.ToolUseId ?? "",
+            ["CLAUDE_HOOK_SESSION_ID"] = input.SessionId ?? ""
         };
 
         try {
@@ -115,7 +116,8 @@ public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashComma
                 ArgumentList = argumentList,
                 SkipArgumentValidation = true,
                 WorkingDirectory = Environment.CurrentDirectory,
-                EnvironmentVariables = envVars
+                EnvironmentVariables = envVars,
+                StandardInput = HookStdinBuilder.BuildStdinJson(input)
             };
 
             var result = await _processService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);

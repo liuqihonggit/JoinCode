@@ -1,4 +1,4 @@
-namespace JoinCode.SystemActuator;
+namespace Services.SystemActuator;
 
 /// <summary>
 /// 工具执行信息 — 记录每个工具（如 bash）的子进程生命周期（ADR 0152 session 级别工具 map）
@@ -10,7 +10,7 @@ namespace JoinCode.SystemActuator;
 /// <param name="WarningThreshold">警报时间（到此时异步提示宿主代理"工具执行时间较长"）</param>
 /// <param name="KillThreshold">真实杀死时间（到此时强制杀死子进程）</param>
 /// <param name="AgentId">启动此工具的子代理 ID（子代理崩溃时杀死其所有工具子进程）</param>
-public sealed record ToolInfo(
+public sealed record ToolLifecycleInfo(
     string ToolName,
     int ProcessId,
     DateTime StartTime,
@@ -33,7 +33,7 @@ public sealed record ToolInfo(
 /// session 级别工具生命周期 map — 每个会话持有，管理所有工具子进程的生命周期（ADR 0152）
 /// </summary>
 public sealed class SessionToolMap {
-    private readonly ConcurrentDictionary<string, ToolInfo> _tools = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, ToolLifecycleInfo> _tools = new(StringComparer.Ordinal);
     private readonly ILogger? _logger;
 
     /// <summary>构造函数 — 注入可选日志记录器。</summary>
@@ -43,7 +43,7 @@ public sealed class SessionToolMap {
     }
 
     /// <summary>注册工具执行信息</summary>
-    public void Register(ToolInfo info) {
+    public void Register(ToolLifecycleInfo info) {
         _tools[info.ToolName] = info;
         _logger?.LogDebug("[SessionToolMap] 注册工具 {Name} PID={Pid} Agent={Agent}", info.ToolName, info.ProcessId, info.AgentId);
     }
@@ -57,13 +57,13 @@ public sealed class SessionToolMap {
     }
 
     /// <summary>获取工具信息</summary>
-    public ToolInfo? Get(string toolName) => _tools.TryGetValue(toolName, out var info) ? info : null;
+    public ToolLifecycleInfo? Get(string toolName) => _tools.TryGetValue(toolName, out var info) ? info : null;
 
     /// <summary>获取所有工具</summary>
-    public IReadOnlyDictionary<string, ToolInfo> GetAll() => _tools;
+    public IReadOnlyDictionary<string, ToolLifecycleInfo> GetAll() => _tools;
 
     /// <summary>获取指定子代理的所有工具</summary>
-    public IReadOnlyList<ToolInfo> GetByAgent(string agentId) =>
+    public IReadOnlyList<ToolLifecycleInfo> GetByAgent(string agentId) =>
         [.. _tools.Values.Where(t => t.AgentId == agentId)];
 
     /// <summary>杀死指定子代理的所有工具子进程 — 子代理崩溃时调用（ADR 0152 双向绑定）</summary>
@@ -89,9 +89,9 @@ public sealed class SessionToolMap {
     }
 
     /// <summary>检查超时工具 — 返回需要警报和需要杀死的工具列表（定时器调用）</summary>
-    public (List<ToolInfo> ToWarn, List<ToolInfo> ToKill) CheckTimeouts(DateTime now) {
-        var toWarn = new List<ToolInfo>();
-        var toKill = new List<ToolInfo>();
+    public (List<ToolLifecycleInfo> ToWarn, List<ToolLifecycleInfo> ToKill) CheckTimeouts(DateTime now) {
+        var toWarn = new List<ToolLifecycleInfo>();
+        var toKill = new List<ToolLifecycleInfo>();
 
         foreach (var kvp in _tools) {
             var info = kvp.Value;
@@ -104,7 +104,7 @@ public sealed class SessionToolMap {
         return (toWarn, toKill);
     }
 
-    private bool TryKillProcess(ToolInfo info) {
+    private bool TryKillProcess(ToolLifecycleInfo info) {
         try {
             var process = System.Diagnostics.Process.GetProcessById(info.ProcessId);
             process.Kill(entireProcessTree: true);

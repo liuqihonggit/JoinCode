@@ -237,6 +237,98 @@ public sealed class ResilientHttpExecutorTests {
     }
 
     /// <summary>
+    /// Retry-After 提取器优先于指数退避 — 服务器返回 Retry-After 时直接使用该值
+    /// 对齐基准 withRetry.ts:533-538 getRetryDelay 优先 Retry-After 头
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_RetryAfterExtractor_PrioritizedOverBackoff() {
+        var policy = new ResiliencePolicy {
+            Name = "test",
+            OperationTimeout = TimeSpan.FromSeconds(5),
+            Retry = new RetryConfig {
+                MaxRetries = 1,
+                BaseDelay = TimeSpan.FromMilliseconds(10),
+                MaxDelay = TimeSpan.FromMilliseconds(20),
+                Strategy = BackoffStrategy.Fixed,
+                RetryAfterExtractor = _ => TimeSpan.FromMilliseconds(150),
+            },
+        };
+
+        var executor = new ResilientHttpExecutor(policy);
+        var sw = Stopwatch.StartNew();
+
+        await Assert.ThrowsAsync<HttpRequestException>(() =>
+            executor.ExecuteAsync(
+                _ => throw new HttpRequestException("429"),
+                "test-op"));
+
+        sw.Elapsed.TotalMilliseconds.Should().BeGreaterThanOrEqualTo(140,
+            "Retry-After 150ms 应优先于 BaseDelay 10ms");
+    }
+
+    /// <summary>
+    /// 单次延迟上限 cap — 退避计算值超过 cap 时被限制
+    /// 对齐基准 withRetry.ts:446 PERSISTENT_RESET_CAP_MS = 6h
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_SingleDelayCap_LimitsDelay() {
+        var policy = new ResiliencePolicy {
+            Name = "test",
+            OperationTimeout = TimeSpan.FromSeconds(5),
+            Retry = new RetryConfig {
+                MaxRetries = 1,
+                BaseDelay = TimeSpan.FromMilliseconds(500),
+                MaxDelay = TimeSpan.FromSeconds(10),
+                Strategy = BackoffStrategy.Fixed,
+                SingleDelayCap = TimeSpan.FromMilliseconds(80),
+            },
+        };
+
+        var executor = new ResilientHttpExecutor(policy);
+        var sw = Stopwatch.StartNew();
+
+        await Assert.ThrowsAsync<HttpRequestException>(() =>
+            executor.ExecuteAsync(
+                _ => throw new HttpRequestException("fail"),
+                "test-op"));
+
+        sw.Elapsed.TotalMilliseconds.Should().BeLessThan(150,
+            "SingleDelayCap 80ms 应限制退避延迟（Fixed=500ms 被 cap 到 80ms）");
+        sw.Elapsed.TotalMilliseconds.Should().BeGreaterThanOrEqualTo(70);
+    }
+
+    /// <summary>
+    /// 心跳回调在重试等待期间被调用 — 分块睡眠 + 回调让宿主看到周期性活动
+    /// 对齐基准 withRetry.ts:489-503 分块睡眠 + yield SystemAPIErrorMessage
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_HeartbeatCallback_InvokedDuringWait() {
+        var heartbeatCalls = 0;
+        var policy = new ResiliencePolicy {
+            Name = "test",
+            OperationTimeout = TimeSpan.FromSeconds(5),
+            Retry = new RetryConfig {
+                MaxRetries = 1,
+                BaseDelay = TimeSpan.FromMilliseconds(60),
+                MaxDelay = TimeSpan.FromMilliseconds(60),
+                Strategy = BackoffStrategy.Fixed,
+                HeartbeatInterval = TimeSpan.FromMilliseconds(15),
+                HeartbeatCallback = (_, _, _) => Interlocked.Increment(ref heartbeatCalls),
+            },
+        };
+
+        var executor = new ResilientHttpExecutor(policy);
+
+        await Assert.ThrowsAsync<HttpRequestException>(() =>
+            executor.ExecuteAsync(
+                _ => throw new HttpRequestException("fail"),
+                "test-op"));
+
+        heartbeatCalls.Should().BeGreaterThanOrEqualTo(2,
+            "60ms 等待分块为 15ms 心跳，应至少调用 2 次回调");
+    }
+
+    /// <summary>
     /// 集成测试 — 验证 Gateway 包裹透传操作时无重试放大（1:1 调用，无嵌套）
     /// <para>重试配置从 NetworkRetryOptions.ToTestRetryConfig 派生，共用生产策略/开关，避免改了生产没改测试</para>
     /// </summary>

@@ -95,6 +95,8 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
     /// <param name="useSandbox">是否使用沙箱</param>
     /// <param name="sandboxTmpDir">沙箱临时目录路径</param>
     /// <param name="logger">日志记录器</param>
+    /// <param name="toolMap">session 级别工具生命周期 map（ADR 0152，null 不注册）</param>
+    /// <param name="agentId">启动此工具的子代理 ID（ADR 0152）</param>
     /// <returns>已启动的命令上下文</returns>
     public static async Task<SystemActuatorCommandContext> StartAsync(
         string command,
@@ -105,7 +107,9 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         bool shouldAutoBackground = true,
         bool useSandbox = false,
         string? sandboxTmpDir = null,
-        ILogger? logger = null) {
+        ILogger? logger = null,
+        SessionToolMap? toolMap = null,
+        string? agentId = null) {
         var sessionId = global::Core.Utils.SessionIdFactory.DefaultSessionId;
         var options = new SystemActuatorExecOptions {
             SessionId = sessionId,
@@ -142,6 +146,24 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
 
         var process = new Process { StartInfo = psi };
         process.Start();
+
+        // ADR 0152: 注册工具生命周期信息到 SessionToolMap
+        string? registeredToolName = null;
+        if (toolMap is not null) {
+            registeredToolName = $"bash:{command[..Math.Min(50, command.Length)]}";
+            toolMap.Register(new ToolLifecycleInfo(
+                ToolName: registeredToolName,
+                ProcessId: process.Id,
+                StartTime: DateTime.UtcNow,
+                TimeoutDuration: TimeSpan.FromMinutes(10),
+                WarningThreshold: TimeSpan.FromSeconds(30),
+                KillThreshold: TimeSpan.FromMinutes(5),
+                AgentId: agentId));
+
+            // 进程退出时注销
+            process.EnableRaisingEvents = true;
+            process.Exited += (_, _) => toolMap.Unregister(registeredToolName);
+        }
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 

@@ -115,7 +115,8 @@ public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashComma
                 ArgumentList = argumentList,
                 SkipArgumentValidation = true,
                 WorkingDirectory = Environment.CurrentDirectory,
-                EnvironmentVariables = envVars
+                EnvironmentVariables = envVars,
+                StandardInput = HookStdinBuilder.BuildStdinJson(input)
             };
 
             var result = await _processService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);

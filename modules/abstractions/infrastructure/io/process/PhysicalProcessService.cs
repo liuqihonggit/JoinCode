@@ -41,6 +41,13 @@ public sealed class PhysicalProcessService : IProcessService {
         }
         using var process = startedProcess;
 
+        // TASK071-D1 — 写入 stdin（对齐基准 hooks.ts stdin.write(jsonInput) + stdin.end()）
+        if (options.StandardInput is not null) {
+            await process.StandardInput.WriteAsync(options.StandardInput.AsMemory(), ct).ConfigureAwait(false);
+            await process.StandardInput.FlushAsync(ct).ConfigureAwait(false);
+            process.StandardInput.Close();
+        }
+
         var sw = Stopwatch.StartNew();
 
         var stdoutTask = options.RedirectStandardOutput

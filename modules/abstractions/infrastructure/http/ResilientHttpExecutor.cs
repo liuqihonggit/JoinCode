@@ -163,9 +163,9 @@ public sealed class ResilientHttpExecutor {
                 return result;
             } catch (OperationCanceledException ex) when (IsUserCancellation(ex, ct)) {
                 throw;
-            } catch (Exception ex) when (ShouldRetry(ex, retry) && (budget.HasValue || attempt < retry.MaxRetries)) {
+            } catch (Exception ex) when (ShouldRetry(ex, retry) && IsRetryAllowed(ex, retry, budget, attempt)) {
                 attempt++;
-                var delay = CalculateDelay(attempt, retry);
+                var delay = CalculateDelay(attempt, retry, ex);
 
                 Diag.WriteLine($"[{_policy.Name}:RETRY] {operationName} 失败 (尝试 {attempt}/{maxLabel}), {delay.TotalMilliseconds}ms 后重试 | {ex.GetType().Name}: {ex.InnerException?.Message ?? ex.Message}");
 
@@ -178,7 +178,7 @@ public sealed class ResilientHttpExecutor {
                     await WaitForNetworkAsync(effectiveCt, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
                 }
 
-                await Task.Delay(delay, ct).ConfigureAwait(false);
+                await DelayWithHeartbeatAsync(delay, retry, ex, attempt, ct).ConfigureAwait(false);
             } catch (Exception ex) {
                 _circuitBreaker?.RecordFailure();
                 _logger?.LogError("[{Policy}:RETRY] {Operation} 最终失败 (尝试 {Attempt}) | {ExType}: {Message}",
@@ -248,7 +248,19 @@ public sealed class ResilientHttpExecutor {
             || ex is IOException;
     }
 
-    private static TimeSpan CalculateDelay(int attempt, RetryConfig retry) {
+    /// <summary>
+    /// 判断是否允许重试 — 区分容量错误（429/529）和其他错误
+    /// <para>容量错误 + 预算模式 → 无限重试（对齐基准 persistent 模式仅 429/529 无限）</para>
+    /// <para>其他错误 → 有限重试（MaxRetries 驱动）</para>
+    /// <para>TransientErrorPredicate 未配置 → 向后兼容（预算模式无限重试所有错误）</para>
+    /// </summary>
+    private static bool IsRetryAllowed(Exception ex, RetryConfig retry, TimeSpan? budget, int attempt) {
+        if (budget is null) return attempt < retry.MaxRetries;
+        if (retry.TransientErrorPredicate is null) return true;
+        return retry.TransientErrorPredicate(ex) || attempt < retry.MaxRetries;
+    }
+
+    private static TimeSpan CalculateDelay(int attempt, RetryConfig retry, Exception? ex = null) {
         var delay = retry.Strategy switch {
             BackoffStrategy.Fixed => retry.BaseDelay,
             BackoffStrategy.Linear => retry.BaseDelay * attempt,
@@ -264,6 +276,43 @@ public sealed class ResilientHttpExecutor {
             delay = TimeSpan.FromMilliseconds(delay.TotalMilliseconds * jitter);
         }
 
+        if (ex is not null && retry.RetryAfterExtractor is { } extractor) {
+            var retryAfter = extractor(ex);
+            if (retryAfter.HasValue) {
+                delay = retryAfter.Value;
+            }
+        }
+
+        if (retry.SingleDelayCap is { } cap) {
+            delay = TimeSpan.FromMilliseconds(Math.Min(delay.TotalMilliseconds, cap.TotalMilliseconds));
+        }
+
         return delay;
+    }
+
+    /// <summary>
+    /// 带心跳的延迟等待 — 将延迟分块为 HeartbeatInterval 片段，每块前调用 HeartbeatCallback
+    /// <para>对齐基准 withRetry.ts:489-503 分块睡眠 + yield SystemAPIErrorMessage</para>
+    /// <para>未配置心跳时直接整段等待</para>
+    /// </summary>
+    /// <param name="delay">总等待时间</param>
+    /// <param name="retry">重试配置</param>
+    /// <param name="ex">当前异常</param>
+    /// <param name="attempt">当前尝试次数</param>
+    /// <param name="ct">取消令牌</param>
+    private static async Task DelayWithHeartbeatAsync(TimeSpan delay, RetryConfig retry, Exception ex, int attempt, CancellationToken ct) {
+        if (retry.HeartbeatInterval is not { } interval || retry.HeartbeatCallback is null || delay <= interval) {
+            await Task.Delay(delay, ct).ConfigureAwait(false);
+            return;
+        }
+
+        var remaining = delay;
+        while (remaining > TimeSpan.Zero) {
+            ct.ThrowIfCancellationRequested();
+            retry.HeartbeatCallback(ex, remaining, attempt);
+            var chunk = TimeSpan.FromMilliseconds(Math.Min(remaining.TotalMilliseconds, interval.TotalMilliseconds));
+            await Task.Delay(chunk, ct).ConfigureAwait(false);
+            remaining -= chunk;
+        }
     }
 }

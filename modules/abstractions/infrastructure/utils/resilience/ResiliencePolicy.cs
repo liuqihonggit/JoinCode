@@ -58,6 +58,40 @@ public sealed class RetryConfig {
     /// </summary>
     public bool PauseBudgetOnNetworkUnavailable { get; init; } = true;
 
+    /// <summary>
+    /// Retry-After 提取器 — 从异常中提取服务器建议的重试等待时间
+    /// <para>设置后优先于退避策略计算，对齐基准 withRetry.ts:533-538 Retry-After 头优先</para>
+    /// <para>返回 null 时回退到退避策略计算</para>
+    /// </summary>
+    public Func<Exception, TimeSpan?>? RetryAfterExtractor { get; init; }
+
+    /// <summary>
+    /// 单次延迟上限 — 退避计算值超过此 cap 时被限制
+    /// <para>对齐基准 withRetry.ts:446 PERSISTENT_RESET_CAP_MS = 6h（单次延迟上限，非总预算）</para>
+    /// <para>null 时不 cap，仅受 MaxDelay 约束</para>
+    /// </summary>
+    public TimeSpan? SingleDelayCap { get; init; }
+
+    /// <summary>
+    /// 心跳间隔 — 重试等待期间分块睡眠的块大小
+    /// <para>对齐基准 withRetry.ts:489-503 分块睡眠 + yield SystemAPIErrorMessage</para>
+    /// <para>null 时不分块，整段等待</para>
+    /// </summary>
+    public TimeSpan? HeartbeatInterval { get; init; }
+
+    /// <summary>
+    /// 心跳回调 — 每个心跳块调用一次，让宿主看到周期性活动避免 idle 标记
+    /// <para>参数：(当前异常, 剩余等待时间, 当前尝试次数)</para>
+    /// </summary>
+    public Action<Exception, TimeSpan, int>? HeartbeatCallback { get; init; }
+
+    /// <summary>
+    /// 容量错误判定 — 返回 true 时该错误在预算模式下无限重试
+    /// <para>对齐基准 withRetry.ts:106-110 isTransientCapacityError（仅 429/529）</para>
+    /// <para>null 时所有可重试错误都无限重试（向后兼容）</para>
+    /// </summary>
+    public Func<Exception, bool>? TransientErrorPredicate { get; init; }
+
     /// <summary>默认重试配置实例</summary>
     internal static readonly RetryConfig Default = new();
 }

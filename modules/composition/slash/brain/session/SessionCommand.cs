@@ -44,7 +44,6 @@ public sealed class SessionCommand : ChatCommandBase {
     }
 
     private static async Task ShowSessionList(ChatCommandContext context) {
-        TerminalHelper.WriteLine("=== 历史会话 ===\n");
         await ResumeCommand.ListSessionsAsync(context, showAllProjects: false).ConfigureAwait(false);
     }
 

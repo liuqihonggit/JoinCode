@@ -39,7 +39,7 @@ public sealed class TuiCommandInteractionTests
             return "输入结果";
         };
 
-        callbacks.BindInteractions(confirm: confirm, prompt: prompt, readPassword: null);
+        callbacks.BindInteractions(confirm: confirm, prompt: prompt, readPassword: null, beginSessionPicker: null);
 
         Assert.Same(confirm, callbacks.Confirm);
         Assert.Same(prompt, callbacks.Prompt);
@@ -68,7 +68,8 @@ public sealed class TuiCommandInteractionTests
                 return false;
             },
             prompt: null,
-            readPassword: null);
+            readPassword: null,
+            beginSessionPicker: null);
         var consumer = new InProcessEventConsumer();
 
         await EngineSession.DispatchSlashCommandAsync(services, "/exit", consumer, callbacks, CancellationToken.None);
@@ -90,7 +91,8 @@ public sealed class TuiCommandInteractionTests
         callbacks.BindInteractions(
             confirm: static _ => true,
             prompt: null,
-            readPassword: null);
+            readPassword: null,
+            beginSessionPicker: null);
 
         await EngineSession.DispatchSlashCommandAsync(services, "/exit", new InProcessEventConsumer(), callbacks, CancellationToken.None);
 

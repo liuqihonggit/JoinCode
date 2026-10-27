@@ -74,7 +74,8 @@ public sealed class EngineSession : IAsyncDisposable {
             commandCallbacks.BindInteractions(
                 confirm: message => MapConfirmResult(permissionBridge.Confirm(CommandConfirmToolName, message)),
                 prompt: null,
-                readPassword: null);
+                readPassword: null,
+                beginSessionPicker: null);
 
             // M8-8 后台任务事件泵 — 订阅 ForkCompleted/TeammateCompleted 直推 consumer
             // （绕开回合作用域 SubAgentEventChannel 的 idle 丢弃 gap）；两面任一可解析即建泵
@@ -200,6 +201,7 @@ public sealed class EngineSession : IAsyncDisposable {
             confirm: commandCallbacks.Confirm,
             prompt: commandCallbacks.Prompt,
             readPassword: commandCallbacks.ReadPassword,
+            beginSessionPicker: commandCallbacks.BeginSessionPicker,
             onExitRequested: commandCallbacks.OnExitRequested,
             cancellationToken: ct).ConfigureAwait(false);
 
@@ -265,6 +267,7 @@ public sealed class TuiCommandCallbacks {
     private volatile Func<string, bool>? _confirm;
     private volatile Func<string, string?>? _prompt;
     private volatile Func<string, string?>? _readPassword;
+    private volatile Func<SessionPickerRequest, CancellationToken, Task<string?>>? _beginSessionPicker;
 
     /// <summary>绑定 TUI 能力（Program 交互模式组装点 — shell 构造后、Run 前调用；重绑幂等覆盖。
     /// 只覆盖 shell 能力面（clearScreen/onExitRequested），不触碰 BindInteractions 交互面）。</summary>
@@ -273,12 +276,13 @@ public sealed class TuiCommandCallbacks {
         _onExitRequested = onExitRequested;
     }
 
-    /// <summary>绑定命令交互回调（S8 — confirm/prompt/readPassword；独立于 Bind 的 shell 能力面，
-    /// 重绑幂等覆盖。null = 该回调降级 — 命令侧默认拒绝/空输入）。</summary>
-    public void BindInteractions(Func<string, bool>? confirm, Func<string, string?>? prompt, Func<string, string?>? readPassword) {
+    /// <summary>绑定命令交互回调（S8 — confirm/prompt/readPassword/beginSessionPicker；独立于 Bind 的 shell 能力面，
+    /// 重绑幂等覆盖。null = 该回调降级 — 命令侧默认拒绝/空输入/回退 CLI Selector）。</summary>
+    public void BindInteractions(Func<string, bool>? confirm, Func<string, string?>? prompt, Func<string, string?>? readPassword, Func<SessionPickerRequest, CancellationToken, Task<string?>>? beginSessionPicker) {
         _confirm = confirm;
         _prompt = prompt;
         _readPassword = readPassword;
+        _beginSessionPicker = beginSessionPicker;
     }
 
     /// <summary>清屏回调（/clear → 清 TUI 滚动区，保留 banner+spinner 常驻项；Bind 前为 null — 命令侧跳过）。</summary>
@@ -299,7 +303,12 @@ public sealed class TuiCommandCallbacks {
     /// TASK065 F2b，回显 PasswordMask 遮蔽 + Enter 提交原文/Esc null。null — 命令侧默认空串降级）。</summary>
     public Func<string, string?>? ReadPassword => _readPassword;
 
+    /// <summary>TUI 会话选择器回调（交互模式经 BindInteractions 重绑为 ReplShell SessionPickerDialog —
+    /// /session /resume 等命令选择历史会话。null — 命令侧回退 CLI 简化版 Selector）。</summary>
+    public Func<SessionPickerRequest, CancellationToken, Task<string?>>? BeginSessionPicker => _beginSessionPicker;
+
     /// <summary>已绑定任一回调（internal — Program 接线测试断言面）。</summary>
     internal bool IsBound => _clearScreen is not null || _onExitRequested is not null
-        || _confirm is not null || _prompt is not null || _readPassword is not null;
+        || _confirm is not null || _prompt is not null || _readPassword is not null
+        || _beginSessionPicker is not null;
 }

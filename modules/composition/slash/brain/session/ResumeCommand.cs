@@ -179,12 +179,23 @@ public sealed class ResumeCommand : ChatCommandBase {
             entries.Add(new SessionEntry(lite.Id, preview, timeAgo, lite));
         }
 
-        // 交互模式：使用 Selector 组件
+        var projectLabel = showAllProjects ? "（所有项目）" : "（当前仓库）";
+        var title = string.Format(L.T(StringKey.HostResumeSelectorTitle), projectLabel);
+
+        // TUI 宿主注入 BeginSessionPicker 回调时走 TUI 原生选择器（SessionPickerDialog），
+        // 避免 Selector.WriteLineReal 直写 stdout 与 TUI 帧渲染冲突（渲染错位 bug 修复）
+        // 注意：TUI 模式下 TestEnvironmentDetector.ForceNonInteractive=true（禁止命令侧阻塞输入），
+        // 所以 TUI 分支必须在 IsNonInteractive 检查之前，否则被跳过走非交互纯文本列表
+        if (context.BeginSessionPicker is not null) {
+            await ResumeViaTuiPickerAsync(entries, title, context).ConfigureAwait(false);
+            return;
+        }
+
+        // 交互模式：CLI 简化版 Selector（非 TUI 宿主 — WriteLineReal 直写 stdout）
         // 对齐 TS: LogSelector — 上下键+搜索+Enter选择+Esc取消
         if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
-            var projectLabel = showAllProjects ? "（所有项目）" : "（当前仓库）";
             var selector = new Selector<SessionEntry>(
-                string.Format(L.T(StringKey.HostResumeSelectorTitle), projectLabel),
+                title,
                 [.. entries],
                 e => $"[{e.SessionId[..Math.Min(8, e.SessionId.Length)]}...] {e.TimeAgo}",
                 e => e.Preview,
@@ -246,6 +257,27 @@ public sealed class ResumeCommand : ChatCommandBase {
         } else {
             TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostResumeInvalidChoice)}{AnsiStyleEnumConstants.Reset}");
         }
+    }
+
+    /// <summary>
+    /// TUI 原生会话选择器恢复路径 — 通过 BeginSessionPicker 回调挂载 SessionPickerDialog，
+    /// 用户选择后恢复会话。替代 CLI Selector（WriteLineReal 直写 stdout 与 TUI 帧渲染冲突）。
+    /// </summary>
+    private static async Task ResumeViaTuiPickerAsync(List<SessionEntry> entries, string title, ChatCommandContext context) {
+        var picker = context.BeginSessionPicker;
+        if (picker is null) {
+            return;
+        }
+
+        var pickerEntries = entries.Select(e => new SessionPickerEntry(e.SessionId, e.Preview, e.TimeAgo)).ToList();
+        var request = new SessionPickerRequest(pickerEntries, title);
+        var selectedId = await picker.Invoke(request, context.CancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrEmpty(selectedId)) {
+            TerminalHelper.WriteLine(L.T(StringKey.HostResumeCancelled));
+            return;
+        }
+
+        await ResumeSessionAsync(selectedId, context, ResumeEntrypoint.SlashCommandPicker).ConfigureAwait(false);
     }
 
     /// <summary>

@@ -66,6 +66,7 @@ global using JoinCode.Abstractions.Models.Runtime;
 global using JoinCode.Abstractions.Models.Telemetry;
 global using JoinCode.Abstractions.Network;
 global using JoinCode.Abstractions.Pipeline;
+global using JoinCode.Abstractions.Interfaces.Security;
 global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Auditing;
 global using JoinCode.Abstractions.Security.Permission;

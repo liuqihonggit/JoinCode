@@ -28,6 +28,7 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
     private readonly IHookEventBroadcaster _eventBroadcaster;
     private readonly IAsyncHookRegistry _asyncHookRegistry;
     private readonly IHookConditionEvaluator _conditionEvaluator;
+    private readonly ITrustFolderManager? _trustFolderManager;
     private readonly ILogger<HookOrchestrator>? _logger;
 
     /// <summary>
@@ -39,6 +40,7 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
     /// <param name="eventBroadcaster">钩子事件广播器</param>
     /// <param name="asyncHookRegistry">异步钩子注册表</param>
     /// <param name="conditionEvaluator">钩子条件求值器</param>
+    /// <param name="trustFolderManager">可选的工作区信任管理器（TASK071-D9 — null = 不检查 trust，对齐基准 shouldSkipHookDueToTrust）</param>
     /// <param name="logger">可选的日志记录器</param>
     public HookOrchestrator(
         IHookConfigurationManager configurationManager,
@@ -47,6 +49,7 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
         IHookEventBroadcaster eventBroadcaster,
         IAsyncHookRegistry asyncHookRegistry,
         IHookConditionEvaluator conditionEvaluator,
+        ITrustFolderManager? trustFolderManager = null,
         ILogger<HookOrchestrator>? logger = null) {
         _configurationManager = configurationManager;
         _executorFactory = executorFactory;
@@ -54,6 +57,7 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
         _eventBroadcaster = eventBroadcaster;
         _asyncHookRegistry = asyncHookRegistry;
         _conditionEvaluator = conditionEvaluator;
+        _trustFolderManager = trustFolderManager;
         _logger = logger;
     }
 
@@ -61,6 +65,13 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
     public async IAsyncEnumerable<HookResult> ExecuteHooksAsync(
         HookInput input,
         [EnumeratorCancellation] CancellationToken cancellationToken = default) {
+        // TASK071-D9 — trust 门禁（对齐基准 shouldSkipHookDueToTrust）：
+        // 交互模式下未信任工作区跳过所有 hooks（安全：防未信任工作区执行任意 hook 命令）
+        if (ShouldSkipDueToTrust()) {
+            _logger?.LogDebug("Skipping hooks for event {Event} — workspace not trusted", input.Event);
+            yield break;
+        }
+
         var hookId = Guid.NewGuid().ToString("N");
 
         _logger?.LogDebug(
@@ -113,6 +124,17 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
         };
 
         return ExecuteHooksAsync(input, cancellationToken);
+    }
+
+    /// <summary>TASK071-D9 — trust 门禁判定（对齐基准 shouldSkipHookDueToTrust）：
+    /// _trustFolderManager 为 null = 不检查（向后兼容）；非 null 且当前工作区未信任 = 跳过所有 hooks。</summary>
+    private bool ShouldSkipDueToTrust() {
+        if (_trustFolderManager is null) {
+            return false;
+        }
+
+        var cwd = Environment.CurrentDirectory;
+        return !_trustFolderManager.IsTrusted(cwd);
     }
 
     private async IAsyncEnumerable<HookResult> ExecuteHooksInternalAsync(

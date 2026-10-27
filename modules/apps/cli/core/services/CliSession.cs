@@ -19,6 +19,11 @@ public sealed class CliSession {
     private readonly ICmdMap _cmdMap;
 
     /// <summary>
+    /// 宿主级后台任务取消源 — 宿主退出时取消所有后台任务（防止孤儿 bash 子进程，ADR 0151 双向绑定）
+    /// </summary>
+    private readonly CancellationTokenSource _backgroundCts = new();
+
+    /// <summary>
     /// 会话实体 — 派生自 Entity，自动注册到 Session.Registry + ObjectIdManager
     /// </summary>
     private readonly Session _sessionEntity;
@@ -153,7 +158,17 @@ public sealed class CliSession {
         _optionalServices?.GoalRegistry?.SetSessionId(sessionId);
         _optionalServices?.CronTaskStore?.SetSessionId(sessionId);
         _optionalServices?.DreamTaskRegistry?.SetSessionId(sessionId);
+
+        // ADR 0151 双向绑定: 宿主退出时取消所有后台任务（防止孤儿 bash 子进程）
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => {
+            try { _backgroundCts.Cancel(); } catch (ObjectDisposedException ex) { Diag.WriteLifecycle($"[DIAG-CLI] ProcessExit 取消后台任务异常: {ex.Message}"); }
+        };
     }
+
+    /// <summary>
+    /// 停止所有后台任务 — 宿主退出时调用，取消后台任务防止孤儿 bash 子进程（ADR 0151 双向绑定）
+    /// </summary>
+    public void StopBackgroundTasks() => _backgroundCts.Cancel();
 
     /// <summary>
     /// 初始化 — 加载自定义命令

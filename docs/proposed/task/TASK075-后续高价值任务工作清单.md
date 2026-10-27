@@ -21,7 +21,7 @@
 
 | # | 编号 | 描述 | 来源 | 价值 | 状态 |
 |---|------|------|------|------|------|
-| 6 | DSG043 | OSC 8 超链接深链路 — 数据层已就绪（102 测试全绿），渲染链未消费 | DSG043 | 中高 | 待开工 |
+| 6 | DSG043 | OSC 8 超链接深链路 — 数据层已就绪（102 测试全绿），渲染链未消费 | DSG043 | 中高 | 已完成（三Phase均落地：MarkdigProjector解析→MarkdownSegment.Url→LayoutLines.ExtractLinkSpans→Screen.SetLinks→AnsiCellWriter OSC8注入→InlineComposer/FrameComposer接线，9测试全绿） |
 | 7 | TASK071-B3 | 技能生态对齐 — C# 步骤机+单目录 vs TS SKILL.md prompt 扩展模型 | TASK071 | 中高 | 待开工 |
 | 8 | TASK071-C6 | 结构化输出体系 — synthetic tool + 重试上限5 + result.structured_output | TASK071 | 中高 | 待开工 |
 | 9 | TASK071-A4 | 设置迁移机制 — 11 个 TS 迁移脚本，老版本升级配置静默失效 | TASK071 | 中高 | 待开工 |

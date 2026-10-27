@@ -18,8 +18,10 @@ public sealed class AdvisorCommand(IModelConfigLoader? modelConfigLoader = null)
         var advisorService = ChatCommandBase.GetService<IAdvisorService>(context);
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
-        if (advisorService is null)
+        if (advisorService is null) {
+            TerminalHelper.WriteLine("  ⚠ 顾问服务不可用，无法执行 /advisor 命令。");
             return ChatCommandResult.Continue();
+        }
 
         if (string.IsNullOrEmpty(args)) {
             if (await advisorService.GetIsAdvisorEnabledAsync().ConfigureAwait(false)) {

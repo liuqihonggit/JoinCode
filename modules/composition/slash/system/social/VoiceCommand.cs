@@ -54,7 +54,10 @@ public sealed class VoiceCommand : ToggleCommandBase {
     /// <param name="context">命令执行上下文，包含取消令牌</param>
     protected override async Task OnEnabledAsync(ChatCommandContext context) {
         var voiceService = GetService<IVoiceService>(context);
-        if (voiceService is null) return;
+        if (voiceService is null) {
+            TerminalHelper.WriteLine("  ⚠ 语音服务不可用，无法启动录制。");
+            return;
+        }
 
         try {
             await voiceService.StartRecordingAsync(context.CancellationToken).ConfigureAwait(false);
@@ -70,7 +73,10 @@ public sealed class VoiceCommand : ToggleCommandBase {
     /// <param name="context">命令执行上下文，包含取消令牌</param>
     protected override async Task OnDisabledAsync(ChatCommandContext context) {
         var voiceService = GetService<IVoiceService>(context);
-        if (voiceService is null) return;
+        if (voiceService is null) {
+            TerminalHelper.WriteLine("  ⚠ 语音服务不可用，无法停止录制。");
+            return;
+        }
 
         try {
             var result = await voiceService.StopRecordingAsync(context.CancellationToken).ConfigureAwait(false);
@@ -89,7 +95,10 @@ public sealed class VoiceCommand : ToggleCommandBase {
     /// <param name="context">命令执行上下文</param>
     protected override Task PrintStatusAsync(ChatCommandContext context) {
         var voiceService = GetService<IVoiceService>(context);
-        if (voiceService is null) return Task.CompletedTask;
+        if (voiceService is null) {
+            TerminalHelper.WriteLine("  ⚠ 语音服务不可用。");
+            return Task.CompletedTask;
+        }
 
         var state = voiceService.State;
         var isRecording = voiceService.IsRecording;

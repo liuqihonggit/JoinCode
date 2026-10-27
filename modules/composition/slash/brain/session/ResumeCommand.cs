@@ -362,6 +362,23 @@ public sealed class ResumeCommand : ChatCommandBase {
             }
 
             // 同项目 — 直接恢复
+            // TASK069-C5 bug 修复 — /resume 命令路径未 SwitchSession（续写落盘到错误会话文件）
+            // 对齐 SessionResumeStep:64 — transcript 落盘下沉引擎管道后必须 SwitchSession 才能续写到恢复的会话文件
+            context.Services?.GetService<IChatContextManager>()?.SwitchSession(sessionId);
+
+            // TASK069-C5 bug 修复 — /resume 命令路径未恢复目标会话成本（对齐基准 REPL.tsx:1867-1942 save+reset+restore）
+            var sessionCostPersistence = context.Services?.GetService<ISessionCostPersistence>();
+            var sessionStats = context.Services?.GetService<ISessionStats>();
+            if (sessionCostPersistence is not null && sessionStats is not null) {
+                var restoredStats = await sessionCostPersistence.RestoreCostStateForSessionAsync(sessionId, context.CancellationToken).ConfigureAwait(false);
+                if (restoredStats is not null) {
+                    sessionStats.SeedCarryover(
+                        restoredStats.CacheReadTokens,
+                        restoredStats.CacheCreationTokens,
+                        restoredStats.TotalCostUsd);
+                }
+            }
+
             await context.GetCommandServices().ChatService.LoadSessionMessagesAsync(messages, context.CancellationToken).ConfigureAwait(false);
 
             var customTitle = await transcriptService.GetCustomTitleAsync(sessionId, context.CancellationToken).ConfigureAwait(false);

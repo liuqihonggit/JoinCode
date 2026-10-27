@@ -320,7 +320,36 @@ public sealed class CliSession {
         ChatCommandResult result;
         try {
             Diag.WriteLifecycle($"[DIAG-CLI] executing command '{command.Name}', args='{parseResult.Arguments}'");
-            result = await command.ExecuteAsync(context).ConfigureAwait(false);
+
+            // ADR 0151: 命令执行超 5s 自动转后台（非交互模式不转 — 进程执行完即退出）
+            if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
+                result = await command.ExecuteAsync(context).ConfigureAwait(false);
+            } else {
+                var execTask = command.ExecuteAsync(context);
+                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(5), context.CancellationToken);
+
+                if (await Task.WhenAny(execTask, timeoutTask).ConfigureAwait(false) == timeoutTask) {
+                    var taskId = Guid.NewGuid().ToString("N")[..8];
+                    commandOutput.Append($"命令执行超过 5s，已转后台 (任务ID: {taskId})\n");
+                    commandOutput.Append("使用 /tasks 查看任务状态\n");
+
+                    _ = execTask.ContinueWith(t => {
+                        try {
+                            originalOut.WriteLine(t.IsFaulted
+                                ? $"[后台任务 {taskId}] 失败: {t.Exception?.InnerException?.Message}"
+                                : $"[后台任务 {taskId}] 完成");
+                            originalOut.Flush();
+                        } catch (Exception bgEx) {
+                            Diag.WriteLifecycle($"[DIAG-CLI] 后台任务 {taskId} 输出异常: {bgEx.Message}");
+                        }
+                    }, TaskScheduler.Default);
+
+                    result = ChatCommandResult.Continue();
+                } else {
+                    result = await execTask.ConfigureAwait(false);
+                }
+            }
+
             Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' returned: ShouldContinue={result.ShouldContinue}, resultType={result.GetType().FullName}");
         } catch (Exception ex) {
             Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' THREW {ex.GetType().Name}: {ex.Message}");

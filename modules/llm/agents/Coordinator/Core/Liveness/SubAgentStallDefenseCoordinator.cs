@@ -7,14 +7,12 @@ namespace Core.Agents.Coordinator.Liveness;
 /// 1. 启动 SubAgentLivenessScanner 后台扫描
 /// 2. 订阅 AgentStalled 事件 → SubAgentActivator 激活 → 等待恢复 → 仍卡死则 ProgressiveCompactor 压缩
 /// 3. 订阅 ChainStalled 事件 → ProgressiveCompactor 压缩链上所有节点
-/// 4. 暴露 TryPreemptAsync 供上层抢塞新任务
 /// </para>
 /// </summary>
 public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
     private readonly SubAgentLivenessScanner _scanner;
     private readonly SubAgentActivator _activator;
     private readonly ProgressiveCompactor _compactor;
-    private readonly PreemptiveScheduler _preemptiveScheduler;
     private readonly SubAgentLivenessOptions _options;
     private readonly IToolLifecycleKiller? _toolLifecycleKiller;
     private readonly ILogger? _logger;
@@ -28,7 +26,6 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
     /// <param name="scanner">后台扫描器（L2 检测）</param>
     /// <param name="activator">激活动作（L3 干预）</param>
     /// <param name="compactor">渐进式压缩（L4 恢复）</param>
-    /// <param name="preemptiveScheduler">抢占式调度器（L3 抢塞）</param>
     /// <param name="options">卡死检测配置</param>
     /// <param name="toolLifecycleKiller">工具生命周期杀手（ADR 0152，子代理放弃时杀死其 bash 子进程，可选）</param>
     /// <param name="logger">日志记录器（可选）</param>
@@ -37,7 +34,6 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
         SubAgentLivenessScanner scanner,
         SubAgentActivator activator,
         ProgressiveCompactor compactor,
-        PreemptiveScheduler preemptiveScheduler,
         SubAgentLivenessOptions options,
         IToolLifecycleKiller? toolLifecycleKiller = null,
         ILogger? logger = null,
@@ -45,7 +41,6 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
         _scanner = scanner ?? throw new ArgumentNullException(nameof(scanner));
         _activator = activator ?? throw new ArgumentNullException(nameof(activator));
         _compactor = compactor ?? throw new ArgumentNullException(nameof(compactor));
-        _preemptiveScheduler = preemptiveScheduler ?? throw new ArgumentNullException(nameof(preemptiveScheduler));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _toolLifecycleKiller = toolLifecycleKiller;
         _logger = logger;
@@ -60,13 +55,6 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
         _scanner.ChainStalled += OnChainStalled;
         _scanner.Start();
         _logger?.LogInformation("[SubAgentStallDefense] 纵深防御体系已启动");
-    }
-
-    /// <summary>
-    /// 尝试抢塞新任务到已完成的子代理
-    /// </summary>
-    public Task<PreemptResult> TryPreemptAsync(string taskDescription, CancellationToken ct = default) {
-        return _preemptiveScheduler.TryPreemptAsync(taskDescription, ct);
     }
 
     /// <summary>

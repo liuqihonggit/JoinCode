@@ -10,15 +10,6 @@ public static class SubAgentStallDefenseExtensions {
     /// <param name="services">DI 容器</param>
     /// <returns>已注册服务的 IServiceCollection 实例</returns>
     public static IServiceCollection AddSubAgentStallDefense(this IServiceCollection services) {
-        // SubAgentPool — 代理池（L3 抢塞）
-        services.AddSingleton<SubAgentPool>(sp => {
-            var options = sp.GetRequiredService<SubAgentLivenessOptions>();
-            var logger = sp.GetService<ILoggerFactory>()?.CreateLogger<SubAgentPool>();
-            var pool = new SubAgentPool(options, logger);
-            pool.Start();
-            return pool;
-        });
-
         // SubAgentLivenessScanner — 后台扫描器（L2 检测）
         services.AddSingleton<SubAgentLivenessScanner>(sp => {
             var stateMachine = sp.GetRequiredService<AgentStateMachine>();
@@ -43,25 +34,15 @@ public static class SubAgentStallDefenseExtensions {
             return new ProgressiveCompactor(contextManager, logger);
         });
 
-        // PreemptiveScheduler — 抢占式调度器（L3 抢塞）
-        services.AddSingleton<PreemptiveScheduler>(sp => {
-            var pool = sp.GetRequiredService<SubAgentPool>();
-            var contextManager = sp.GetRequiredService<IChatContextManager>();
-            var options = sp.GetRequiredService<SubAgentLivenessOptions>();
-            var logger = sp.GetService<ILoggerFactory>()?.CreateLogger<PreemptiveScheduler>();
-            return new PreemptiveScheduler(pool, contextManager, options, logger);
-        });
-
         // SubAgentStallDefenseCoordinator — 纵深防御协调器（集成层）
         services.AddSingleton<SubAgentStallDefenseCoordinator>(sp => {
             var scanner = sp.GetRequiredService<SubAgentLivenessScanner>();
             var activator = sp.GetRequiredService<SubAgentActivator>();
             var compactor = sp.GetRequiredService<ProgressiveCompactor>();
-            var preemptive = sp.GetRequiredService<PreemptiveScheduler>();
             var options = sp.GetRequiredService<SubAgentLivenessOptions>();
             var toolLifecycleKiller = sp.GetService<IToolLifecycleKiller>();
             var logger = sp.GetService<ILoggerFactory>()?.CreateLogger<SubAgentStallDefenseCoordinator>();
-            var coordinator = new SubAgentStallDefenseCoordinator(scanner, activator, compactor, preemptive, options, toolLifecycleKiller, logger);
+            var coordinator = new SubAgentStallDefenseCoordinator(scanner, activator, compactor, options, toolLifecycleKiller, logger);
             coordinator.Start();
             return coordinator;
         });

@@ -152,7 +152,8 @@ public sealed class AgentsCommand : ChatCommandBase {
         TerminalHelper.WriteLine($"{TerminalColors.Info}正在从 transcript 恢复所有被中断的子代理...{AnsiStyleEnumConstants.Reset}");
 
         try {
-            var resumed = await agentService.ResumeAllAgentsAsync(resumePrompt, context.CancellationToken).ConfigureAwait(false);
+            var sessionId = string.IsNullOrEmpty(context.SessionId) ? null : context.SessionId;
+            var resumed = await agentService.ResumeAllAgentsAsync(resumePrompt, sessionId, context.CancellationToken).ConfigureAwait(false);
             if (resumed.Count == 0) {
                 TerminalHelper.WriteLine($"{TerminalColors.Muted}没有需要恢复的子代理（所有子代理已在运行中或已完成）{AnsiStyleEnumConstants.Reset}");
                 return;

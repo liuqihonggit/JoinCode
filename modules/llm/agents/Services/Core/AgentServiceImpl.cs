@@ -551,12 +551,14 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// 批量从 transcript 恢复所有被中断的子代理 — 列出会话下所有子代理元数据，
     /// 过滤非运行中的，逐个从 transcript.jsonl 加载历史并重新 spawn（带历史）。
     /// </summary>
-    public async Task<List<JoinCode.Abstractions.Interfaces.AgentInfo>> ResumeAllAgentsAsync(string resumePrompt, CancellationToken cancellationToken = default) {
+    public async Task<List<JoinCode.Abstractions.Interfaces.AgentInfo>> ResumeAllAgentsAsync(string resumePrompt, string? sessionId = null, CancellationToken cancellationToken = default) {
         if (_transcriptService is null)
             throw new InvalidOperationException("[AGT009] IAgentTranscriptService 未注册，无法恢复代理");
 
-        var sessionId = global::Core.Utils.SessionIdFactory.DefaultSessionId;
-        var allMetadata = await _transcriptService.ListMetadataAsync(sessionId, cancellationToken).ConfigureAwait(false);
+        var effectiveSessionId = !string.IsNullOrEmpty(sessionId) ? sessionId
+            : !string.IsNullOrEmpty(_subAgentContextAccessor.Current?.SessionId) ? _subAgentContextAccessor.Current!.SessionId
+            : global::Core.Utils.SessionIdFactory.DefaultSessionId;
+        var allMetadata = await _transcriptService.ListMetadataAsync(effectiveSessionId, cancellationToken).ConfigureAwait(false);
 
         var runningAgents = await GetRunningAgentsAsync(cancellationToken).ConfigureAwait(false);
         var runningIds = new HashSet<string>(runningAgents.Select(a => a.Id), StringComparer.Ordinal);

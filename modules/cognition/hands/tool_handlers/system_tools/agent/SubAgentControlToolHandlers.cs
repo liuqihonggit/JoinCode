@@ -159,7 +159,7 @@ public sealed partial class SubAgentControlToolHandlers : ServiceEntity {
     private async Task<ToolResult> ResumeAllFromTranscriptAsync(string? prompt, CancellationToken ct) {
         var resumePrompt = string.IsNullOrEmpty(prompt) ? "请继续执行你之前被中断的任务" : prompt;
         try {
-            var resumed = await _agentService.ResumeAllAgentsAsync(resumePrompt, ct).ConfigureAwait(false);
+            var resumed = await _agentService.ResumeAllAgentsAsync(resumePrompt, null, ct).ConfigureAwait(false);
             if (resumed.Count == 0)
                 return ToolResultBuilder.Success().WithText("没有需要恢复的子代理（所有子代理已在运行中或无历史记录）").Build();
             var lines = resumed.Select(a => $"- {a.Id} | {a.Description}");

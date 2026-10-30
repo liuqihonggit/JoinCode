@@ -58,11 +58,7 @@
 - 死循环输出 → 直接触发 L4 渐进式压缩（复用 `InformationEntropyGuardian` 检测结果）
 - 完全无输出 → 注入催促提示消息 + `ResumeAgentAsync`
 
-**抢塞新任务**（需求5，对已完成）→ 架构级变更：
-- 新建 `SubAgentPool` 代理池：改造 `AgentLifecycleManager.DisposeAgentAsync` 为回池而非销毁
-- 新建 `PreemptiveScheduler` 抢占式调度器：基于 `PriorityMailbox` 三通道严格优先级
-- 抢塞时新任务接在旧上下文之后（**保前缀缓存**：前缀不变，KV cache 命中）
-- 窗口上限保护：上下文长度逼近窗口时拒绝抢塞，走 L4 压缩
+**抢塞新任务**（需求5，对已完成）→ **已删除**（2026-10-31）— 对齐 ClaudeCode，子代理是一次性模型，完成即销毁 + KillByAgent，无代理池复用。原 SubAgentPool/PreemptiveScheduler/PreemptResult 已归档到 `.xxx/`。详见 ADR 0152 KillByAgent 集成。
 
 ### L4 恢复：渐进式压缩
 
@@ -104,8 +100,8 @@
 | AC-02 | 子代理 30s 无活动且无孙代理 → `SubAgentIdleDetector` 进入 Suspected → 5s 内仍无活动 → Confirmed |
 | AC-03 | 完成率 ≥ 80% 时触发一次全量巡查，日志记录巡查结果 |
 | AC-04 | 子孙链所有节点都 Confirmed → 触发链路告警 → L4 压缩 |
-| AC-05 | 子代理完成后回池而非 Dispose，新任务可抢塞复用上下文 |
-| AC-06 | 抢塞新任务后前缀缓存命中（CacheReadInputTokens > 0） |
+| AC-05 | ~~子代理完成后回池而非 Dispose，新任务可抢塞复用上下文~~ — **已删除**（对齐 ClaudeCode，完成即销毁） |
+| AC-06 | ~~抢塞新任务后前缀缓存命中（CacheReadInputTokens > 0）~~ — **已删除**（回池设计已移除） |
 | AC-07 | 卡死确认后渐进式压缩：Light 失败 → Aggressive 失败 → ExitWithSummary |
 | AC-08 | 所有阈值可通过 `SubAgentLivenessOptions` 配置，支持热重载 |
 

@@ -555,8 +555,9 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         if (_transcriptService is null)
             throw new InvalidOperationException("[AGT009] IAgentTranscriptService 未注册，无法恢复代理");
 
+        var currentSessionId = _subAgentContextAccessor.Current?.SessionId;
         var effectiveSessionId = !string.IsNullOrEmpty(sessionId) ? sessionId
-            : !string.IsNullOrEmpty(_subAgentContextAccessor.Current?.SessionId) ? _subAgentContextAccessor.Current!.SessionId
+            : !string.IsNullOrEmpty(currentSessionId) ? currentSessionId
             : global::Core.Utils.SessionIdFactory.DefaultSessionId;
         var allMetadata = await _transcriptService.ListMetadataAsync(effectiveSessionId, cancellationToken).ConfigureAwait(false);
 

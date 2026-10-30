@@ -9,6 +9,7 @@ global using JoinCode.Abstractions.Entity;
 global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Exceptions;
+global using JoinCode.Abstractions.Utils.Diagnostics;
 global using JoinCode.Abstractions.Configuration.Providers;
 global using JoinCode.Abstractions.Configuration.Llm;
 global using JoinCode.Abstractions.Interfaces;

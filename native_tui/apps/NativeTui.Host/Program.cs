@@ -277,11 +277,13 @@ public static class Program {
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
         TestEnvironmentDetector.ForceNonInteractive = true;
 
-        // Console.Out → stderr：引擎内部任何 Console 输出不得污染 TUI 渲染流
-        // （TUI 渲染走重定向前捕获的独立 writer，不受 SetOut 影响 — 对齐 BridgeServeCommand 先例）
+        // TUI 渲染独占 writer — 闸门换装前捕获（换装后 Console.Out 是环形缓冲 writer，不可用作渲染通道）
         var tuiOutput = Console.Out;
-        var originalOut = Console.Out;
-        Console.SetOut(Console.Error);
+        // TASK077 控制台抑制闸门 — 会话期 Console.Out/Error 全部导入环形缓冲（替换旧 SetOut(Console.Error)
+        // 拦截：stderr 在真实终端与 TUI 同一画布，[DIAG-ERR] 等诊断行照旧污染渲染流 — 底行溢出滚屏打垮
+        // InlineComposer 相对光标模型，整帧永久失同步）；引擎杂散输出/Diag/McpPluginBootstrap 一律不再
+        // 触碰终端，最外层退出时冲刷回原 stderr（CI/E2E 诊断捕获不受损）
+        using var consoleSuppression = ConsoleSuppressionGate.Begin("TUI 会话");
         // E1 崩溃兜底 — CursorLifecycle 注释契约兑现：raw mode 运行期内任何未处理异常/信号退出路径，
         // 钩子统一补发硬件光标 Show + bracketed paste Disable（using RawConsoleMode 只恢复 console mode，
         // 覆盖不了 DEC 25/2004 两个终端层状态 — 对齐基准 ink.tsx signal-exit 恢复链）
@@ -294,7 +296,7 @@ public static class Program {
         // 终端查询路由器（TASK067 批4 — 探测链路地基：DA1/DECRPM/kitty flags/DSR/XTVERSION
         // 查询-应答 promise；RawStdinPump 前置分流路由；主动探测接入 TerminalCapabilities 为后续增量）
         using var terminalQuerier = new TerminalQuerier(tuiOutput);
-        try {
+        {
             EngineSession session;
             try {
                 session = await EngineSession.CreateAsync().ConfigureAwait(false);
@@ -484,8 +486,6 @@ public static class Program {
                 // IsBackground 线程随进程退出回收 — Dispose 不等待线程终结防挂）
                 rawInputPump?.Dispose();
             }
-        } finally {
-            Console.SetOut(originalOut);
         }
 
         Console.WriteLine("NativeTui.Host 已退出。");

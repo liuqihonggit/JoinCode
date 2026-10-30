@@ -96,13 +96,17 @@ public sealed partial class ConfigChangeNotifier : FileWatcherActorBase, IConfig
         return ValueTask.CompletedTask;
     }
 
-    /// <summary>向上遍历找到最顶层有配置文件的目录 — 从该目录向下监控覆盖所有配置文件</summary>
-    private string FindWatchRoot(string workingDirectory) {
+    /// <summary>向上遍历找到最顶层有配置文件的目录 — 从该目录向下监控覆盖所有配置文件。
+    /// <para>边界: 遇到 .git 目录就停止向上遍历 — .git 是项目根标志,避免遍历到文件系统根目录(/)导致 watcher 监控范围过大。</para>
+    /// </summary>
+    internal string FindWatchRoot(string workingDirectory) {
         var current = FileSystem.GetFullPath(workingDirectory);
         var topMost = current;
         while (current != null) {
             if (HasConfigFiles(current))
                 topMost = current;
+            if (FileSystem.DirectoryExists(Path.Combine(current, ".git")))
+                break;
             current = FileSystem.GetParentPath(current);
         }
         return topMost;

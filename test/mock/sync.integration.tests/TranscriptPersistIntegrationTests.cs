@@ -24,20 +24,14 @@ public sealed class TranscriptPersistIntegrationTests : IAsyncLifetime {
     }
 
     public async Task DisposeAsync() {
-        var sw = System.Diagnostics.Stopwatch.StartNew();
         if (_serviceProvider != null) {
             await _serviceProvider.DisposeAsync();
-            Console.WriteLine($"[DIAG-SP] ServiceProvider.DisposeAsync took {sw.Elapsed}");
             _serviceProvider = null;
         }
 
-        sw.Restart();
         if (_mockServer != null) {
             await _mockServer.StopAsync(CancellationToken.None);
-            Console.WriteLine($"[DIAG-MS] MockServer.StopAsync took {sw.Elapsed}");
-            sw.Restart();
             await _mockServer.DisposeAsync();
-            Console.WriteLine($"[DIAG-MS] MockServer.DisposeAsync took {sw.Elapsed}");
         }
     }
 

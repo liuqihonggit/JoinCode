@@ -277,11 +277,13 @@ public static class Program {
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
         TestEnvironmentDetector.ForceNonInteractive = true;
 
-        // Console.Out → stderr：引擎内部任何 Console 输出不得污染 TUI 渲染流
-        // （TUI 渲染走重定向前捕获的独立 writer，不受 SetOut 影响 — 对齐 BridgeServeCommand 先例）
+        // TUI 渲染独占 writer — 闸门换装前捕获（换装后 Console.Out 是环形缓冲 writer，不可用作渲染通道）
         var tuiOutput = Console.Out;
-        var originalOut = Console.Out;
-        Console.SetOut(Console.Error);
+        // TASK077 控制台抑制闸门 — 会话期 Console.Out/Error 全部导入环形缓冲（替换旧 SetOut(Console.Error)
+        // 拦截：stderr 在真实终端与 TUI 同一画布，[DIAG-ERR] 等诊断行照旧污染渲染流 — 底行溢出滚屏打垮
+        // InlineComposer 相对光标模型，整帧永久失同步）；引擎杂散输出/Diag/McpPluginBootstrap 一律不再
+        // 触碰终端，最外层退出时冲刷回原 stderr（CI/E2E 诊断捕获不受损）
+        using var consoleSuppression = ConsoleSuppressionGate.Begin("TUI 会话");
         // E1 崩溃兜底 — CursorLifecycle 注释契约兑现：raw mode 运行期内任何未处理异常/信号退出路径，
         // 钩子统一补发硬件光标 Show + bracketed paste Disable（using RawConsoleMode 只恢复 console mode，
         // 覆盖不了 DEC 25/2004 两个终端层状态 — 对齐基准 ink.tsx signal-exit 恢复链）
@@ -294,7 +296,7 @@ public static class Program {
         // 终端查询路由器（TASK067 批4 — 探测链路地基：DA1/DECRPM/kitty flags/DSR/XTVERSION
         // 查询-应答 promise；RawStdinPump 前置分流路由；主动探测接入 TerminalCapabilities 为后续增量）
         using var terminalQuerier = new TerminalQuerier(tuiOutput);
-        try {
+        {
             EngineSession session;
             try {
                 session = await EngineSession.CreateAsync().ConfigureAwait(false);
@@ -378,7 +380,98 @@ public static class Program {
                 {
                     Console.Error.WriteLine(keybindingError.ToString());
                 }
-                var shell = new ReplShell(pickerEngine, banner, tuiOutput, commands: commands,
+                // TASK078 — TUI 原生需求澄清：/?? //ask 拦截为正常回合（CLI 版 AskClarifyCommand 是
+                // 直写终端的交互循环，TUI 会话内不可见且 ReadLine 阻塞卡死）；提示词单一数据源 =
+                // composition AskClarifyPrompts（宿主注入，本装饰器不依赖 composition）
+                var clarifyEngine = new ClarifyModeEngine(pickerEngine, JoinCode.ChatCommands.AskClarifyPrompts.SystemPrompt);
+                // TASK079 — 提示词透明化：/prompt 把首次注入的系统提示词全文 + 工具清单 dump 进
+                // transcript（数据 = 引擎会话服务真实对象：ISystemPromptProvider sections +
+                // IMcpToolRegistry 工具清单，单一数据源不硬编码；registry 异步预热缓存）
+                var toolRegistry = session.Services.GetService<IMcpToolRegistry>();
+                var promptProvider = session.Services.GetService<ISystemPromptProvider>();
+                // TASK079 — 工具清单惰性构建（文本 + 统计：总数/完整注入数供折叠项摘要行展示）
+                var toolInventoryCache = new Lazy<(string Text, int Total, int System)>(() =>
+                {
+                    if (toolRegistry is null)
+                    {
+                        return ("（工具注册表不可用）", 0, 0);
+                    }
+
+                    var tools = toolRegistry.GetAllToolsAsync().GetAwaiter().GetResult()
+                        .OrderBy(t => t.Value.Category, StringComparer.OrdinalIgnoreCase)
+                        .ThenBy(t => t.Key, StringComparer.Ordinal)
+                        .ToList();
+                    var sb = new System.Text.StringBuilder();
+                    sb.AppendLine($"共 {tools.Count} 个工具：");
+                    string? lastCategory = null;
+                    foreach (var (name, handler) in tools)
+                    {
+                        if (handler.Category != lastCategory)
+                        {
+                            sb.AppendLine();
+                            sb.AppendLine($"[{handler.Category ?? "其他"}]");
+                            lastCategory = handler.Category;
+                        }
+
+                        sb.AppendLine($"  {name} ({handler.Kind.ToValue()}): {handler.Description}");
+                    }
+
+                    var systemCount = tools.Count(t => t.Value.Kind == ToolKind.System);
+                    return (sb.ToString(), tools.Count, systemCount);
+                }, LazyThreadSafetyMode.ExecutionAndPublication);
+                var promptSnapshotBuilder = new Lazy<string>(() =>
+                {
+                    var sb = new System.Text.StringBuilder();
+                    sb.AppendLine("【首次注入的系统提示词】");
+                    if (promptProvider is not null)
+                    {
+                        foreach (var section in promptProvider.GetSections())
+                        {
+                            var content = section.ComputeValueTaskAsync().GetAwaiter().GetResult();
+                            if (!string.IsNullOrWhiteSpace(content))
+                            {
+                                sb.AppendLine($"── {section.Name} ──");
+                                sb.AppendLine(content);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        sb.AppendLine("（系统提示词提供器不可用）");
+                    }
+
+                    sb.AppendLine();
+                    sb.AppendLine("【工具清单】");
+                    sb.AppendLine(toolInventoryCache.Value.Text);
+                    return sb.ToString();
+                }, LazyThreadSafetyMode.ExecutionAndPublication);
+                // TASK079 终版 — 快照写入 %TEMP%\.md（OSC 8 file 链接目标：终端原生点击打开，
+                // 无鼠标接管原生选择复制不受影响）；/prompt 模态保留双通道
+                string? promptFileUrl = null;
+                string? promptFallbackPath = null;
+                try
+                {
+                    promptFallbackPath = Path.Combine(Path.GetTempPath(), $"jcc-prompt-{DateTime.Now:yyyyMMdd-HHmmss}.md");
+                    File.WriteAllText(promptFallbackPath, promptSnapshotBuilder.Value);
+                    promptFileUrl = new Uri(promptFallbackPath).AbsoluteUri;
+                }
+                catch (IOException)
+                {
+                }
+                catch (UnauthorizedAccessException)
+                {
+                }
+
+                var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
+                // TASK079 — bash/powershell 执行倒计时：超时秒数取 ShellExecutionConfig（会话服务，默认 120s）
+                var shellExecutionConfig = session.Services.GetService<ShellExecutionConfig>();
+                var shell = new ReplShell(transparencyEngine, banner, tuiOutput, commands: commands,
+                    shellTimeoutSeconds: shellExecutionConfig?.AbsoluteTimeoutSeconds ?? 120,
+                    promptContextSnapshot: promptSnapshotBuilder.Value,
+                    promptContextInventory: () => toolInventoryCache.Value,
+                    promptContextFileUrl: promptFileUrl,
+                    hyperlinkSupported: HyperlinkEmitter.IsHyperlinkSupported(),
+                    promptContextFallbackPath: promptFallbackPath,
                     clipboard: text => _ = clipboardService?.SetTextAsync(text),
                     themeName: themeName,
                     commandUsage: commandUsage,
@@ -451,7 +544,7 @@ public static class Program {
                       // win32 PowerShell Get-Clipboard -Format Image → 临时 PNG → base64 附件；
                       // 非 Windows null 降级 → Core 侧 footer 通知"剪贴板未找到图片"）
                       readClipboardImage: ReadClipboardImage);
-                pickerEngine.Attach(shell);
+                transparencyEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);
                 // M8-5 命令交互回调接线（/clear 清 TUI 滚动区+scrollback、/exit /quit /logout 结束主循环）—
@@ -484,8 +577,6 @@ public static class Program {
                 // IsBackground 线程随进程退出回收 — Dispose 不等待线程终结防挂）
                 rawInputPump?.Dispose();
             }
-        } finally {
-            Console.SetOut(originalOut);
         }
 
         Console.WriteLine("NativeTui.Host 已退出。");

@@ -205,7 +205,8 @@ public sealed class ChatStreamEvent {
         Func<TokenUsage?, string?, T> onDone,
         Func<string, T>? onAgentStarted = null,
         Func<string, bool?, T>? onAgentFinished = null,
-        Func<string, T>? onSteerInput = null) {
+        Func<string, T>? onSteerInput = null,
+        Func<string, T>? onSystemNotice = null) {
         return Type switch {
             ChatStreamEventType.Content => onText(Content ?? string.Empty),
             ChatStreamEventType.Thinking => onThinking(ThinkingContent ?? string.Empty),
@@ -224,6 +225,9 @@ public sealed class ChatStreamEvent {
             ChatStreamEventType.SteerInput => onSteerInput is not null
                 ? onSteerInput(Content ?? string.Empty)
                 : throw new InvalidOperationException($"SteerInput 事件需要 {nameof(onSteerInput)} 回调"),
+            ChatStreamEventType.SystemNotice => onSystemNotice is not null
+                ? onSystemNotice(Content ?? string.Empty)
+                : throw new InvalidOperationException($"SystemNotice 事件需要 {nameof(onSystemNotice)} 回调"),
             _ => throw new InvalidOperationException($"Unknown event type: {Type}")
         };
     }
@@ -240,7 +244,8 @@ public sealed class ChatStreamEvent {
         Action<TokenUsage?, string?> onDone,
         Action<string>? onAgentStarted = null,
         Action<string, bool?>? onAgentFinished = null,
-        Action<string>? onSteerInput = null) {
+        Action<string>? onSteerInput = null,
+        Action<string>? onSystemNotice = null) {
         switch (Type) {
             case ChatStreamEventType.Content:
             onText(Content ?? string.Empty);
@@ -276,6 +281,11 @@ public sealed class ChatStreamEvent {
             // 轮内注入在未提供回调时静默忽略 — 既有 CLI 消费方（未启用 steer）零改动
             case ChatStreamEventType.SteerInput:
             onSteerInput?.Invoke(Content ?? string.Empty);
+            break;
+            // 系统通知在未提供回调时静默忽略 — 旁白不进正文，既有消费方（SessionController/AskClarifyCommand）
+            // 零改动兼容（TASK078 — 此前落 default 抛 Unknown event type 打死整个回合）
+            case ChatStreamEventType.SystemNotice:
+            onSystemNotice?.Invoke(Content ?? string.Empty);
             break;
             default:
             throw new InvalidOperationException($"Unknown event type: {Type}");

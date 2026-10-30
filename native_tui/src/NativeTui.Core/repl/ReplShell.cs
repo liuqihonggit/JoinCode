@@ -254,6 +254,31 @@ public sealed class ReplShell
     /// DefaultShellResolver.Resolve(settings.defaultShell, isWindows)，未配置走平台默认）。</summary>
     private readonly BashDirectExecutor _bash;
 
+
+    /// <summary>注入上下文折叠项（TASK079 — 首帧插入，点击//prompt 打开详情页；null = 宿主未启用）。</summary>
+    private PromptContextItem? _promptContextItem;
+
+    /// <summary>注入提示词详情页打开标记（模态 — esc 关闭；TASK079 用户指令"新页面"形态）。</summary>
+    private bool _promptPageOpen;
+
+    /// <summary>注入提示词详情页打开（测试断言面 — 对齐 IsBackgroundTaskDetailOpen 先例）。</summary>
+    internal bool IsPromptPageOpen => _promptPageOpen;
+
+    /// <summary>注入上下文快照（宿主注入 — 系统提示词全文 + 工具清单；null = 未启用）。</summary>
+    private readonly string? _promptContextSnapshot;
+
+    /// <summary>工具清单惰性求值器（展开时调注册表 — 彼时已装载）。</summary>
+    private readonly Func<(string Text, int Total, int System)>? _promptContextInventory;
+
+    /// <summary>注入快照文件 file URL（OSC 8 链接目标 — null = 未写文件/不支持）。</summary>
+    private readonly string? _promptContextFileUrl;
+
+    /// <summary>终端 OSC 8 支持标记（HyperlinkEmitter 探测 — 不支持降级纯文本路径）。</summary>
+    private readonly bool _hyperlinkSupported;
+
+    /// <summary>快照 .md 降级路径（Host 写 %TEMP% — 终端不支持 OSC 8 时摘要显示供手动打开）。</summary>
+    private readonly string? _promptContextFallbackPath;
+
     /// <summary>bash 直通完成结果缓冲（S10 接线 — ExecuteAsync 完成于线程池线程，AddMessage 必须回主循环线程
     /// （与渲染循环竞争 _view.Messages），复用 /clear 的跨线程缓冲 + 主循环消费先例）。</summary>
     private readonly ConcurrentQueue<BashDirectResult> _bashResults = new();
@@ -537,7 +562,7 @@ public sealed class ReplShell
     private readonly ManualResetEventSlim _inputWake = new(false);
 
     /// <summary>强制重绘空白前置帧（零尺寸屏 — InlineComposer 判 prev.Cols ≠ next.Cols 走
-    /// FullReset 路径：光标移视口顶 + EraseScreen + 重绘可见区；缓存复用零分配）。</summary>
+    /// FullReset 路径：2J+3J+光标归位 绝对锚定整帧重绘；缓存复用零分配）。</summary>
     private Screen? _blankPrev;
     private long _animTimeMs;
     private volatile bool _running = true;
@@ -622,6 +647,12 @@ public sealed class ReplShell
         TerminalStatusCoordinator? terminalStatus = null,
         KeybindingProfile? keybindings = null,
         string? issueOwnerRepo = null,
+        int shellTimeoutSeconds = 120,
+        string? promptContextSnapshot = null,
+        Func<(string Text, int Total, int System)>? promptContextInventory = null,
+        string? promptContextFileUrl = null,
+        bool hyperlinkSupported = false,
+        string? promptContextFallbackPath = null,
         AlternateScreenController? alternateScreen = null,
         SelectionState? selection = null,
         Action<string>? copySelection = null,
@@ -642,6 +673,11 @@ public sealed class ReplShell
         _output = output;
         _inline = inline;
         _seedMessages = seedMessages ?? [];
+        _promptContextSnapshot = promptContextSnapshot;
+        _promptContextInventory = promptContextInventory;
+        _promptContextFileUrl = promptContextFileUrl;
+        _hyperlinkSupported = hyperlinkSupported;
+        _promptContextFallbackPath = promptContextFallbackPath;
         _commandUsage = commandUsage ?? new CommandUsageMemory();
         // S10 接线 — 分组注入：空查询 "/" 走 recently-used + 来源分组视图（有查询仍走既有匹配排序）
         _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands, new CommandGrouping(_commandUsage)) : null;
@@ -694,7 +730,7 @@ public sealed class ReplShell
         _wheelSpeed = new WheelSpeedTracker(() => WheelClock(), wheelBaseLines ?? 1);
         // TASK066 板块 E 收尾 — 剪贴板图片读取委托注入（null = 能力降级 alt+v/ctrl+v 无操作零行为变化）
         _readClipboardImage = readClipboardImage;
-        _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter, _tokenUsage, _sizeSource, streamingProjector, issueOwnerRepo);
+        _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter, _tokenUsage, _sizeSource, streamingProjector, issueOwnerRepo, shellTimeoutSeconds);
     }
 
     /// <summary>视图（测试断言面）。</summary>
@@ -759,6 +795,8 @@ public sealed class ReplShell
     {
         CursorLifecycle.HideCursor(_output);
         _output.Write(DecPrivateMode.Enable(DecPrivateModeKind.BracketedPaste));
+        // TASK079 终版 — 主屏不启用鼠标上报（与原生选择复制互斥，用户实测复制失效）；
+        // 注入内容查看 = 折叠行 OSC 8 file 链接（终端原生点击打开 .md，无损）+ /prompt 模态
         // A5 接线 — 焦点上报（DEC 1004）：仅协调器存在时启用（有消费者才开 — 退出 WriteExit 尾对称 Disable）
         if (_terminalStatus is not null)
         {
@@ -801,6 +839,20 @@ public sealed class ReplShell
         };
         _notifications.Enqueue(PickerEffortLevel.Medium.ToFooterNotificationText());
         _view.Messages.Add(_banner);
+        // TASK079 终版 — 注入上下文折叠项（OSC 8 file 链接：终端原生点击打开快照 .md，
+        // 不接管鼠标原生选择复制不受影响；/prompt 全页模态双通道；null = 宿主未启用）
+        if (_promptContextSnapshot is not null && _promptContextInventory is not null)
+        {
+            _promptContextItem = new PromptContextItem(
+                summaryPrefix: $"📎 首次注入 · 系统提示词 {_promptContextSnapshot.Length} 字符",
+                promptChars: _promptContextSnapshot.Length,
+                fileUrl: _promptContextFileUrl,
+                hyperlinkSupported: _hyperlinkSupported,
+                fallbackPath: _promptContextFallbackPath);
+            _view.Messages.Add(_promptContextItem);
+            _driver.PromptContextItemTarget = _promptContextItem;
+        }
+
         foreach (var message in _seedMessages)
         {
             _view.Messages.Add(message);
@@ -1249,6 +1301,13 @@ public sealed class ReplShell
         if (_backgroundTaskDetailOpen)
         {
             HandleBackgroundTaskDetailKey(key);
+            return;
+        }
+
+        // TASK079 注入提示词详情页模态（对齐后台任务详情轻量模态形态 — esc 关闭其余吞）
+        if (_promptPageOpen)
+        {
+            HandlePromptPageKey(key);
             return;
         }
 
@@ -2347,6 +2406,7 @@ public sealed class ReplShell
             || _search is not null
             || _view.BackgroundTasks.IsSelectionActive
             || _backgroundTaskDetailOpen
+            || _promptPageOpen
             || _helpOpen)
         {
             return;
@@ -2710,6 +2770,42 @@ public sealed class ReplShell
     /// AddMessage + 关闭时 RemoveDialogItem 移除；查看后保持选中态（对话框关闭回选中态
     /// 可继续导航 — 对话框激活期间按键路由见 HandleBackgroundTaskDetailKey；挂载不可重入 —
     /// 分派链对话框分支拦截 Enter）。无选中/索引越界防御 no-op。</summary>
+    /// <summary>打开注入提示词详情页（TASK079 用户指令"新页面"— /prompt 或点击折叠项）：
+    /// 挂载 PromptDetailDialog 消息项（紧邻输入框立即可见，终端滚动回看全文）；
+    /// 已打开时重复触发 = 关闭（切换语义）。</summary>
+    internal void ShowPromptPage()
+    {
+        if (_promptPageOpen)
+        {
+            ClosePromptPage();
+            return;
+        }
+
+        if (_promptContextSnapshot is null || _promptContextInventory is null)
+        {
+            return;
+        }
+
+        _promptPageOpen = true;
+        AddMessage(new PromptDetailDialog(_promptContextSnapshot, _promptContextSnapshot.Length, _promptContextInventory));
+    }
+
+    /// <summary>注入提示词详情页模态按键（对齐后台任务详情模态形态 — esc 关闭，其余吞掉）。</summary>
+    private void HandlePromptPageKey(KeyPress key)
+    {
+        if (key.Kind is KeyKind.Escape or KeyKind.LeftArrow)
+        {
+            ClosePromptPage();
+        }
+    }
+
+    /// <summary>关闭注入提示词详情页（移除对话框项 — 回主循环视图）。</summary>
+    private void ClosePromptPage()
+    {
+        _promptPageOpen = false;
+        RemoveDialogItem<PromptDetailDialog>();
+    }
+
     private void ShowSelectedBackgroundTask()
     {
         var tasks = _view.BackgroundTasks.Tasks;
@@ -4408,7 +4504,7 @@ public sealed class ReplShell
     }
 
     /// <summary>ctrl+l 强制全量重绘（S6 任务 8）：inline — 下一帧走 FullReset（零尺寸空白前置帧
-    /// 触发 InlineComposer 跨尺寸分支：光标移视口顶 + EraseScreen + 重绘可见区，scrollback 历史保留）；
+    /// 触发 InlineComposer 跨尺寸分支：2J+3J+光标归位 绝对锚定整帧重绘，对齐基准 clearTerminal.ts）；
     /// viewport — 前缓冲失效下帧全量输出。prevOverride 一并丢弃（旧帧不复用作 diff 基准）。</summary>
     internal void ForceFullRepaint()
     {

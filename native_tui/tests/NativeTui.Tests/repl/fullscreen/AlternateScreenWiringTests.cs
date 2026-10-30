@@ -140,8 +140,13 @@ public sealed class AlternateScreenWiringTests
 
         Assert.Null(harness.Shell.AlternateScreen);
         Assert.DoesNotContain("\x1b[?1049", harness.ShellOut);
-        // 1000/1002/1003/1004/1006 前缀一并排除（1004 未注入 coordinator 本就不发 — 零输出总契约）
-        Assert.DoesNotContain("\x1b[?10", harness.ShellOut);
+        // TASK079 — 主屏现启用鼠标上报（1000/1002/1006 启用 + 退出对称关闭），1004 仍不发
+        //（未注入 coordinator）；备用屏 1049 仍零出现 — 断言收敛到各模式启用序列（退出关闭序列 l 不在其列）
+        Assert.DoesNotContain("\x1b[?1000h", harness.ShellOut);
+        Assert.DoesNotContain("\x1b[?1002h", harness.ShellOut);
+        Assert.DoesNotContain("\x1b[?1003h", harness.ShellOut);
+        Assert.DoesNotContain("\x1b[?1004h", harness.ShellOut);
+        Assert.DoesNotContain("\x1b[?1006h", harness.ShellOut);
     }
 
     private static void CtrlO(ReplShell shell) =>

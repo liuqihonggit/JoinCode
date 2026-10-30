@@ -384,6 +384,49 @@ public sealed class AnthropicQueryServiceTests {
     }
 
     [Fact]
+    public void FilterDeferredTools_ToolSearchAlreadySystemInjected_DoesNotDuplicatePlaceholder() {
+        var allTools = new List<AnthropicToolDefinition> { MakeTool(SystemToolName.ToolSearch.ToValue()), MakeTool("hidden_tool") };
+        var deferred = new List<DeferredToolInfo> { new("hidden_tool", "hidden desc") };
+
+        var result = AnthropicQueryService.FilterDeferredTools(allTools, deferred, []);
+
+        result.Count(t => t.Name == SystemToolName.ToolSearch.ToValue()).Should().Be(1, "tool_search 提为 System 后占位不得重复");
+    }
+
+    #region ToolDiscoveryOrdering — tool_search 首位（TASK078 用户指令）
+
+    [Fact]
+    public void PutToolSearchFirst_MovesToolSearchToFront_StableForRest() {
+        var tools = new List<AnthropicToolDefinition> { MakeTool("a"), MakeTool(SystemToolName.ToolSearch.ToValue()), MakeTool("b") };
+
+        var result = Api.LLM.ToolDiscoveryOrdering.PutToolSearchFirst(tools, t => t.Name);
+
+        result[0].Name.Should().Be(SystemToolName.ToolSearch.ToValue());
+        result.Skip(1).Select(t => t.Name).Should().ContainInOrder("a", "b");
+    }
+
+    [Fact]
+    public void PutToolSearchFirst_AlreadyFirst_ReturnsUnchanged() {
+        var tools = new List<AnthropicToolDefinition> { MakeTool(SystemToolName.ToolSearch.ToValue()), MakeTool("a") };
+
+        var result = Api.LLM.ToolDiscoveryOrdering.PutToolSearchFirst(tools, t => t.Name);
+
+        result[0].Name.Should().Be(SystemToolName.ToolSearch.ToValue());
+        result.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void PutToolSearchFirst_NoToolSearch_ReturnsUnchanged() {
+        var tools = new List<AnthropicToolDefinition> { MakeTool("a"), MakeTool("b") };
+
+        var result = Api.LLM.ToolDiscoveryOrdering.PutToolSearchFirst(tools, t => t.Name);
+
+        result.Select(t => t.Name).Should().ContainInOrder("a", "b");
+    }
+
+    #endregion
+
+    [Fact]
     public void FilterDeferredTools_DeferredToolNotDiscovered_ReplacesWithPlaceholderAndToolSearch() {
         var allTools = new List<AnthropicToolDefinition> { MakeTool("hidden_tool") };
         var deferred = new List<DeferredToolInfo> { new("hidden_tool", "hidden desc") };

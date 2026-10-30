@@ -119,10 +119,32 @@ public static class TerminalHelper {
     }
 
     /// <summary>
+    /// TUI 会话期闸门改道 — 闸门激活时 Console.Out 即闸门环形缓冲捕获 writer，
+    /// CLI 直写（含 ConsoleActor 持有的 Init 期 _realOut 引用）不再触碰终端画布（TASK078）。
+    /// </summary>
+    /// <param name="write">改道后的写入动作（目标 = 闸门捕获 writer）</param>
+    /// <returns>是否已改道（闸门未激活返回 false，调用方走原路径）</returns>
+    private static bool TryWriteThroughGate(Action<System.IO.TextWriter> write) {
+        if (!ConsoleSuppressionGate.IsActive) {
+            return false;
+        }
+
+        write(System.Console.Out);
+        return true;
+    }
+
+    /// <summary>
     /// 写入一行文本并换行 — 经过 ConsoleActor 串行化
     /// </summary>
     /// <param name="text">要写入的文本，null 时仅换行</param>
     public static void WriteLine(string? text = null) {
+        if (TryWriteThroughGate(w => {
+            if (text is null) w.WriteLine();
+            else w.WriteLine(text);
+        })) {
+            return;
+        }
+
         if (_consoleActor is not null)
             _consoleActor.WriteLine(text);
         else {
@@ -136,6 +158,10 @@ public static class TerminalHelper {
     /// 写入空行 — 经过 ConsoleActor 串行化
     /// </summary>
     public static void NewLine() {
+        if (TryWriteThroughGate(w => w.WriteLine())) {
+            return;
+        }
+
         if (_consoleActor is not null)
             _consoleActor.WriteLine();
         else {
@@ -149,6 +175,10 @@ public static class TerminalHelper {
     /// </summary>
     /// <param name="text">要写入的文本</param>
     public static void WriteRaw(string text) {
+        if (TryWriteThroughGate(w => w.Write(text))) {
+            return;
+        }
+
         if (_consoleActor is not null)
             _consoleActor.WriteRaw(text);
         else {
@@ -162,6 +192,10 @@ public static class TerminalHelper {
     /// </summary>
     /// <param name="c">要写入的字符</param>
     public static void WriteRaw(char c) {
+        if (TryWriteThroughGate(w => w.Write(c))) {
+            return;
+        }
+
         if (_consoleActor is not null)
             _consoleActor.WriteRaw(new string(c, 1));
         else {
@@ -175,6 +209,10 @@ public static class TerminalHelper {
     /// </summary>
     /// <param name="sb">要写入的 StringBuilder</param>
     public static void WriteRaw(StringBuilder sb) {
+        if (TryWriteThroughGate(w => w.Write(sb.ToString()))) {
+            return;
+        }
+
         if (_consoleActor is not null)
             _consoleActor.WriteRaw(sb.ToString());
         else {
@@ -188,8 +226,13 @@ public static class TerminalHelper {
     /// </summary>
     /// <param name="span">要写入的字符跨度</param>
     public static void WriteRaw(ReadOnlySpan<char> span) {
+        var text = new string(span);
+        if (TryWriteThroughGate(w => w.Write(text))) {
+            return;
+        }
+
         if (_consoleActor is not null)
-            _consoleActor.WriteRaw(new string(span));
+            _consoleActor.WriteRaw(text);
         else {
             System.Console.Write(span);
             if (System.Console.IsOutputRedirected) System.Console.Out.Flush();
@@ -375,7 +418,16 @@ public static class TerminalHelper {
     /// 重定向标准输出到指定写入器
     /// </summary>
     /// <param name="writer">目标写入器</param>
-    public static void SetOut(System.IO.TextWriter writer) => System.Console.SetOut(writer);
+    /// <remarks>TASK078 — TUI 会话期（ConsoleSuppressionGate 激活）拒绝换装：CLI 命令经
+    /// Console.OpenStandardOutput 重开物理句柄可绕过闸门直写终端画布（/?? 需求澄清实测整帧错乱），
+    /// 会话期本方法为 no-op — 写入仍进闸门环形缓冲，会话结束随冲刷可见；CLI 模式（闸门未激活）行为不变。</remarks>
+    public static void SetOut(System.IO.TextWriter writer) {
+        if (ConsoleSuppressionGate.IsActive) {
+            return;
+        }
+
+        System.Console.SetOut(writer);
+    }
 
     /// <summary>
     /// 输出到真实 stdout（绕过 SetOut 重定向）— 用于交互式提示。
@@ -383,6 +435,13 @@ public static class TerminalHelper {
     /// <para>若需在非交互模式下输出可被捕获的内容，请改用 <see cref="WriteLine"/>。</para>
     /// </summary>
     public static void WriteLineReal(string? text = null) {
+        if (TryWriteThroughGate(w => {
+            if (text is null) w.WriteLine();
+            else w.WriteLine(text);
+        })) {
+            return;
+        }
+
         if (System.Console.IsOutputRedirected && !_isActorActive) {
             System.Console.Error.WriteLine($"[TerminalHelper] 警告: WriteLineReal 在 stdout 重定向时被调用，E2E 测试将捕获不到此输出。请改用 WriteLine。 text={text}");
         }
@@ -401,6 +460,10 @@ public static class TerminalHelper {
     /// <para>若需在非交互模式下输出可被捕获的内容，请改用 <see cref="WriteLine"/>。</para>
     /// </summary>
     public static void WriteRawReal(string text) {
+        if (TryWriteThroughGate(w => w.Write(text))) {
+            return;
+        }
+
         if (System.Console.IsOutputRedirected && !_isActorActive) {
             System.Console.Error.WriteLine($"[TerminalHelper] 警告: WriteRawReal 在 stdout 重定向时被调用，E2E 测试将捕获不到此输出。请改用 Write。 text={text}");
         }

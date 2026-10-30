@@ -445,6 +445,23 @@ public static class Program {
                     sb.AppendLine(toolInventoryCache.Value.Text);
                     return sb.ToString();
                 }, LazyThreadSafetyMode.ExecutionAndPublication);
+                // TASK079 终版 — 快照写入 %TEMP%\.md（OSC 8 file 链接目标：终端原生点击打开，
+                // 无鼠标接管原生选择复制不受影响）；/prompt 模态保留双通道
+                string? promptFileUrl = null;
+                string? promptFallbackPath = null;
+                try
+                {
+                    promptFallbackPath = Path.Combine(Path.GetTempPath(), $"jcc-prompt-{DateTime.Now:yyyyMMdd-HHmmss}.md");
+                    File.WriteAllText(promptFallbackPath, promptSnapshotBuilder.Value);
+                    promptFileUrl = new Uri(promptFallbackPath).AbsoluteUri;
+                }
+                catch (IOException)
+                {
+                }
+                catch (UnauthorizedAccessException)
+                {
+                }
+
                 var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
                 // TASK079 — bash/powershell 执行倒计时：超时秒数取 ShellExecutionConfig（会话服务，默认 120s）
                 var shellExecutionConfig = session.Services.GetService<ShellExecutionConfig>();
@@ -452,6 +469,9 @@ public static class Program {
                     shellTimeoutSeconds: shellExecutionConfig?.AbsoluteTimeoutSeconds ?? 120,
                     promptContextSnapshot: promptSnapshotBuilder.Value,
                     promptContextInventory: () => toolInventoryCache.Value,
+                    promptContextFileUrl: promptFileUrl,
+                    hyperlinkSupported: HyperlinkEmitter.IsHyperlinkSupported(),
+                    promptContextFallbackPath: promptFallbackPath,
                     clipboard: text => _ = clipboardService?.SetTextAsync(text),
                     themeName: themeName,
                     commandUsage: commandUsage,

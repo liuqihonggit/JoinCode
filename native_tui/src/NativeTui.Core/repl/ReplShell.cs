@@ -264,14 +264,20 @@ public sealed class ReplShell
     /// <summary>注入提示词详情页打开（测试断言面 — 对齐 IsBackgroundTaskDetailOpen 先例）。</summary>
     internal bool IsPromptPageOpen => _promptPageOpen;
 
-    /// <summary>鼠标上报是否已武装（Run 启动时按 JCC_TUI_MOUSE 决定 — 退出对称关闭依据）。</summary>
-    private bool _mouseArmed;
-
     /// <summary>注入上下文快照（宿主注入 — 系统提示词全文 + 工具清单；null = 未启用）。</summary>
     private readonly string? _promptContextSnapshot;
 
     /// <summary>工具清单惰性求值器（展开时调注册表 — 彼时已装载）。</summary>
     private readonly Func<(string Text, int Total, int System)>? _promptContextInventory;
+
+    /// <summary>注入快照文件 file URL（OSC 8 链接目标 — null = 未写文件/不支持）。</summary>
+    private readonly string? _promptContextFileUrl;
+
+    /// <summary>终端 OSC 8 支持标记（HyperlinkEmitter 探测 — 不支持降级纯文本路径）。</summary>
+    private readonly bool _hyperlinkSupported;
+
+    /// <summary>快照 .md 降级路径（Host 写 %TEMP% — 终端不支持 OSC 8 时摘要显示供手动打开）。</summary>
+    private readonly string? _promptContextFallbackPath;
 
     /// <summary>bash 直通完成结果缓冲（S10 接线 — ExecuteAsync 完成于线程池线程，AddMessage 必须回主循环线程
     /// （与渲染循环竞争 _view.Messages），复用 /clear 的跨线程缓冲 + 主循环消费先例）。</summary>
@@ -644,6 +650,9 @@ public sealed class ReplShell
         int shellTimeoutSeconds = 120,
         string? promptContextSnapshot = null,
         Func<(string Text, int Total, int System)>? promptContextInventory = null,
+        string? promptContextFileUrl = null,
+        bool hyperlinkSupported = false,
+        string? promptContextFallbackPath = null,
         AlternateScreenController? alternateScreen = null,
         SelectionState? selection = null,
         Action<string>? copySelection = null,
@@ -666,6 +675,9 @@ public sealed class ReplShell
         _seedMessages = seedMessages ?? [];
         _promptContextSnapshot = promptContextSnapshot;
         _promptContextInventory = promptContextInventory;
+        _promptContextFileUrl = promptContextFileUrl;
+        _hyperlinkSupported = hyperlinkSupported;
+        _promptContextFallbackPath = promptContextFallbackPath;
         _commandUsage = commandUsage ?? new CommandUsageMemory();
         // S10 接线 — 分组注入：空查询 "/" 走 recently-used + 来源分组视图（有查询仍走既有匹配排序）
         _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands, new CommandGrouping(_commandUsage)) : null;
@@ -783,18 +795,8 @@ public sealed class ReplShell
     {
         CursorLifecycle.HideCursor(_output);
         _output.Write(DecPrivateMode.Enable(DecPrivateModeKind.BracketedPaste));
-        // TASK079 — 主屏鼠标上报（用户指令"鼠标点击查看注入提示词"）：点击命中折叠项打开详情页
-        // （AddMessage 页面紧邻输入框立即可见 — 修复此前原地展开在两屏外的感知问题）。
-        // ⚠ 权衡：鼠标追踪与终端原生选择复制互斥（应用内选区 C6 替代）；JCC_TUI_MOUSE=0 逃生门
-        // 可禁用（恢复原生选择，页面仍可 /prompt 打开）
-        if (Environment.GetEnvironmentVariable("JCC_TUI_MOUSE") != "0")
-        {
-            _mouseArmed = true;
-            _output.Write(
-                DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
-                + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
-                + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
-        }
+        // TASK079 终版 — 主屏不启用鼠标上报（与原生选择复制互斥，用户实测复制失效）；
+        // 注入内容查看 = 折叠行 OSC 8 file 链接（终端原生点击打开 .md，无损）+ /prompt 模态
         // A5 接线 — 焦点上报（DEC 1004）：仅协调器存在时启用（有消费者才开 — 退出 WriteExit 尾对称 Disable）
         if (_terminalStatus is not null)
         {
@@ -837,13 +839,16 @@ public sealed class ReplShell
         };
         _notifications.Enqueue(PickerEffortLevel.Medium.ToFooterNotificationText());
         _view.Messages.Add(_banner);
-        // TASK079 用户指令 — 注入上下文折叠项（鼠标点击展开查看首次注入的提示词/工具清单）：
-        // 宿主注入快照惰性求值器（首次展开才构建）+ 统计（工具总数/完整注入数）；null = 宿主未启用
+        // TASK079 终版 — 注入上下文折叠项（OSC 8 file 链接：终端原生点击打开快照 .md，
+        // 不接管鼠标原生选择复制不受影响；/prompt 全页模态双通道；null = 宿主未启用）
         if (_promptContextSnapshot is not null && _promptContextInventory is not null)
         {
             _promptContextItem = new PromptContextItem(
-                $"📎 首次注入 · 系统提示词 {_promptContextSnapshot.Length} 字符 · 点击查看（含工具清单）",
-                _promptContextSnapshot.Length);
+                summaryPrefix: $"📎 首次注入 · 系统提示词 {_promptContextSnapshot.Length} 字符",
+                promptChars: _promptContextSnapshot.Length,
+                fileUrl: _promptContextFileUrl,
+                hyperlinkSupported: _hyperlinkSupported,
+                fallbackPath: _promptContextFallbackPath);
             _view.Messages.Add(_promptContextItem);
             _driver.PromptContextItemTarget = _promptContextItem;
         }
@@ -2483,13 +2488,6 @@ public sealed class ReplShell
         if (hitId is null)
         {
             return false;
-        }
-
-        // 注入上下文折叠项点击（TASK079 用户指令 — 左键单击打开提示词详情页）
-        if (hitId == PromptContextItem.HitIdValue)
-        {
-            ShowPromptPage();
-            return true;
         }
 
         // 面板空白命中（溢出行 "+N more" 等）— 吞：面板是 UI 交互区不启动文本选区
@@ -4416,13 +4414,7 @@ public sealed class ReplShell
         var focusDisable = _terminalStatus is not null
             ? DecPrivateMode.Disable(DecPrivateModeKind.FocusReporting)
             : string.Empty;
-        _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste)
-            + (_mouseArmed
-                ? DecPrivateMode.Disable(DecPrivateModeKind.MouseSgrEncoding)
-                + DecPrivateMode.Disable(DecPrivateModeKind.MouseEventTracking)
-                + DecPrivateMode.Disable(DecPrivateModeKind.MouseClickTracking)
-                : string.Empty)
-            + focusDisable);
+        _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste) + focusDisable);
         _terminalStatus?.Shutdown();
         _output.Flush();
         DrainPendingConsoleInput();

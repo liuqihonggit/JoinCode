@@ -32,7 +32,7 @@ public sealed record ToolLifecycleInfo(
 /// <summary>
 /// session 级别工具生命周期 map — 每个会话持有，管理所有工具子进程的生命周期（ADR 0152）
 /// </summary>
-public sealed class SessionToolMap {
+public sealed class SessionToolMap : IToolLifecycleKiller {
     private readonly ConcurrentDictionary<string, ToolLifecycleInfo> _tools = new(StringComparer.Ordinal);
     private readonly ILogger? _logger;
 

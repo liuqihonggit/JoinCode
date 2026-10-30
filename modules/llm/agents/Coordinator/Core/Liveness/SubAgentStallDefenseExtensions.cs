@@ -59,8 +59,9 @@ public static class SubAgentStallDefenseExtensions {
             var compactor = sp.GetRequiredService<ProgressiveCompactor>();
             var preemptive = sp.GetRequiredService<PreemptiveScheduler>();
             var options = sp.GetRequiredService<SubAgentLivenessOptions>();
+            var toolLifecycleKiller = sp.GetService<IToolLifecycleKiller>();
             var logger = sp.GetService<ILoggerFactory>()?.CreateLogger<SubAgentStallDefenseCoordinator>();
-            var coordinator = new SubAgentStallDefenseCoordinator(scanner, activator, compactor, preemptive, options, logger);
+            var coordinator = new SubAgentStallDefenseCoordinator(scanner, activator, compactor, preemptive, options, toolLifecycleKiller, logger);
             coordinator.Start();
             return coordinator;
         });

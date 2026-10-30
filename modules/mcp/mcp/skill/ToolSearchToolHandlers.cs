@@ -51,9 +51,8 @@ public partial class ToolSearchToolHandlers {
                 response.AppendLine(L.T(StringKey.ToolSearchNoMatchingTools));
                 response.AppendLine(L.T(StringKey.ToolSearchRegisteredToolsCount, allTools.Count));
             } else {
-                var withGroupPath = query.StartsWith("map[", StringComparison.OrdinalIgnoreCase);
                 foreach (var name in result.MatchedToolNames) {
-                    AppendToolEntry(response, name, allTools, withGroupPath);
+                    AppendToolEntry(response, name, allTools);
                 }
 
                 response.AppendLine();
@@ -68,20 +67,16 @@ public partial class ToolSearchToolHandlers {
     }
 
     /// <summary>
-    /// 追加单个工具条目到响应 — withGroupPath=true 时显示分组路径,否则简单格式
+    /// 追加单个工具条目到响应 — 恒带 [组别[子组]] 路径（反查能力：知道工具名即可定位其组别，TASK078）
     /// </summary>
-    private static void AppendToolEntry(System.Text.StringBuilder response, string name, IReadOnlyDictionary<string, IToolHandler> allTools, bool withGroupPath) {
+    private static void AppendToolEntry(System.Text.StringBuilder response, string name, IReadOnlyDictionary<string, IToolHandler> allTools) {
         if (!allTools.TryGetValue(name, out var tool)) {
             response.AppendLine($"- {name}: no description");
             return;
         }
-        if (withGroupPath) {
-            var path = tool.Category is not null
-                ? $"{tool.Category}{(tool.GroupName is not null ? $"[{tool.GroupName}]" : string.Empty)}"
-                : (tool.GroupName is not null ? tool.GroupName : "其他");
-            response.AppendLine($"[{path}] {name}: {tool.Description}");
-        } else {
-            response.AppendLine($"- {name}: {tool.Description}");
-        }
+        var path = tool.Category is not null
+            ? $"{tool.Category}{(tool.GroupName is not null ? $"[{tool.GroupName}]" : string.Empty)}"
+            : (tool.GroupName is not null ? tool.GroupName : "其他");
+        response.AppendLine($"[{path}] {name}: {tool.Description}");
     }
 }

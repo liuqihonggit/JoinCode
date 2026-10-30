@@ -30,8 +30,13 @@ public static class ToolsSection {
         items.Add($"反向提醒：当专用工具无法覆盖某些场景时（如进程管理、系统配置、管道组合、环境调试等），{ShellToolNameEnumConstants.Bash}和系统工具是正确选择。不要因为训练数据习惯而回避使用{ShellToolNameEnumConstants.Bash}——该用就用，关键是判断\"是否有专用工具能更好地完成这个任务\"。");
         items.Add($"使用{TodoToolNameEnumConstants.TodoWrite}工具分解和管理工作。这些工具有助于规划工作和帮助用户跟踪您的进度。完成任务后立即标记为完成。不要批量完成多个任务后再标记。");
         items.Add("您可以在单个响应中调用多个工具。如果您打算调用多个工具并且它们之间没有依赖关系，请并行进行所有独立的工具调用。尽可能最大化并行工具调用的使用以提高效率。但是，如果某些工具调用依赖于先前的调用来通知依赖值，请不要并行调用这些工具，而是顺序调用它们。例如，如果一个操作必须在另一个开始之前完成，请顺序运行这些操作。");
-        items.Add($"MCP 工具采用两阶段加载：首次只展示工具分组和名称（不含完整参数定义）。需要调用某个 MCP 工具时，先使用 {SystemToolNameEnumConstants.ToolSearch} 工具搜索并加载其完整描述，然后根据描述中的参数定义进行调用。核心工具（Read/Write/Edit/Bash/Glob/Grep 等）已完整展示，可直接调用。");
-        items.Add($"使用 {SystemToolNameEnumConstants.ToolSearch} 浏览工具分组时，可用 'list_groups' 列出所有分组，用 'map[主分组]' 下钻查看某分组内所有工具，用 'map[主分组][子分组]' 下钻到子分组，用 'map[主分组][子分组][工具名]' 直达具体工具。");
+        items.Add($"MCP 工具采用两阶段加载：上方清单仅含高频核心工具（完整参数定义），其余工具按组别存放、不在首轮清单中 — 遇到下列情况按 → 行动：");
+        items.Add($"首轮清单没有需要的能力 → 调用 {SystemToolNameEnumConstants.ToolSearch} 并传 query='list_groups'，列出全部工具组别；");
+        items.Add($"看到疑似相关的组别 → query='map[组别名]' 展开该组全部工具名与描述；");
+        items.Add($"需要某工具的完整参数定义 → query='map[组别名][工具名]' 直取 schema 后按定义调用；");
+        items.Add($"知道工具名但不知道属于哪组 → query='关键词' 模糊搜索，结果自带 [组别[子组]] 路径；");
+        items.Add($"若感知不到某个工具，可通过 {SystemToolNameEnumConstants.ToolSearch} 搜索、组别展开（list_groups / map[组别名]）等方式获取工具名称 — 不要因首轮清单未列出就断言工具不存在。");
+        items.Add($"工具组规模差异极大 → 按需下钻到目标工具即可，不要整组展开后逐个阅读。");
         items.Add($"若感知不到某个工具，可通过 {SystemToolNameEnumConstants.ToolSearch} 搜索工具、组别展开（list_groups / map[分组]）等方式获取工具名称与完整定义 — 不要因首轮工具清单未列出就断言工具不存在。");
 
         var result = new System.Text.StringBuilder();

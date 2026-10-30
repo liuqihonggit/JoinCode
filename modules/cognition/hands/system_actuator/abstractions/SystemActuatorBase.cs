@@ -42,6 +42,12 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator 
     /// <inheritdoc />
     public bool Detached => Capability.Detached;
 
+    /// <summary>session 级别工具生命周期 map（ADR 0152，null 不注册工具生命周期）</summary>
+    public SessionToolMap? ToolMap { get; set; }
+
+    /// <summary>当前子代理 ID（ADR 0152，用于关联工具与子代理）</summary>
+    public string? CurrentAgentId { get; set; }
+
     /// <inheritdoc />
     public Encoding OutputEncoding => Capability.OutputEncoding;
 
@@ -182,7 +188,8 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator 
 
             await using var context = await SystemActuatorCommandContext.StartAsync(
                 command, cwd, _fs, this, timeout,
-                shouldAutoBackground: false, useSandbox, sandboxTmpDir, _logger).ConfigureAwait(false);
+                shouldAutoBackground: false, useSandbox, sandboxTmpDir, _logger,
+                toolMap: ToolMap, agentId: CurrentAgentId).ConfigureAwait(false);
 
             var result = await context.ResultTask.ConfigureAwait(false);
 
@@ -228,7 +235,8 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator 
 
         var context = await SystemActuatorCommandContext.StartAsync(
             command, cwd, _fs, this, timeout,
-            shouldAutoBackground, useSandbox, sandboxTmpDir, _logger).ConfigureAwait(false);
+            shouldAutoBackground, useSandbox, sandboxTmpDir, _logger,
+            toolMap: ToolMap, agentId: CurrentAgentId).ConfigureAwait(false);
 
         sleepScope.DetachTo(context.ResultTask);
 

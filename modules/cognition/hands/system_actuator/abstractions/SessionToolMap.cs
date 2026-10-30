@@ -104,6 +104,46 @@ public sealed class SessionToolMap {
         return (toWarn, toKill);
     }
 
+    private CancellationTokenSource? _monitoringCts;
+    private Task? _monitoringTask;
+
+    /// <summary>启动后台监控 — 定期检查超时工具，警报回调 + 杀死回调（ADR 0152）</summary>
+    /// <param name="onWarn">警报回调（工具到达 WarningThreshold 时调用，异步提示宿主代理）</param>
+    /// <param name="onKill">杀死回调（工具到达 KillThreshold 时调用，通知宿主代理后强制杀死）</param>
+    /// <param name="checkInterval">检查间隔（默认 5s）</param>
+    /// <param name="ct">取消令牌</param>
+    public void StartMonitoring(Func<ToolLifecycleInfo, Task> onWarn, Func<ToolLifecycleInfo, Task> onKill, TimeSpan? checkInterval = null, CancellationToken ct = default) {
+        _monitoringCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var interval = checkInterval ?? TimeSpan.FromSeconds(5);
+
+        _monitoringTask = Task.Run(async () => {
+            while (!_monitoringCts.Token.IsCancellationRequested) {
+                try {
+                    await Task.Delay(interval, _monitoringCts.Token).ConfigureAwait(false);
+                    var now = DateTime.UtcNow;
+                    var (toWarn, toKill) = CheckTimeouts(now);
+                    foreach (var info in toWarn)
+                        await onWarn(info).ConfigureAwait(false);
+                    foreach (var info in toKill) {
+                        await onKill(info).ConfigureAwait(false);
+                        TryKillProcess(info);
+                    }
+                } catch (OperationCanceledException) {
+                    break;
+                } catch (Exception ex) {
+                    _logger?.LogWarning(ex, "[SessionToolMap] 监控循环异常");
+                }
+            }
+        }, _monitoringCts.Token);
+    }
+
+    /// <summary>停止后台监控（不等待 — 释放函数禁止超时，ADR 0152）</summary>
+    public void StopMonitoring() {
+        _monitoringCts?.Cancel();
+        _monitoringCts?.Dispose();
+        _monitoringCts = null;
+    }
+
     private bool TryKillProcess(ToolLifecycleInfo info) {
         try {
             var process = System.Diagnostics.Process.GetProcessById(info.ProcessId);

@@ -32,19 +32,25 @@ public static class SystemActuatorInitializer {
     /// </summary>
     internal static Dictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>> BuildActuatorFactories() {
         return new Dictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>> {
-            [SystemActuatorKind.Bash] = deps => new BashSystemActuator(
+            [SystemActuatorKind.Bash] = deps => WithToolMap(new BashSystemActuator(
                 deps.FileSystem, logger: deps.Logger, sandboxManager: deps.SandboxManager,
-                preventSleepService: deps.PreventSleepService, config: deps.Config),
-            [SystemActuatorKind.PowerShell] = deps => new PowerShellSystemActuator(
+                preventSleepService: deps.PreventSleepService, config: deps.Config), deps.ToolMap),
+            [SystemActuatorKind.PowerShell] = deps => WithToolMap(new PowerShellSystemActuator(
                 deps.FileSystem, logger: deps.Logger, sandboxManager: deps.SandboxManager,
-                preventSleepService: deps.PreventSleepService, config: deps.Config),
-            [SystemActuatorKind.Cmd] = deps => new CmdSystemActuator(
+                preventSleepService: deps.PreventSleepService, config: deps.Config), deps.ToolMap),
+            [SystemActuatorKind.Cmd] = deps => WithToolMap(new CmdSystemActuator(
                 deps.FileSystem, logger: deps.Logger, sandboxManager: deps.SandboxManager,
-                preventSleepService: deps.PreventSleepService, config: deps.Config),
-            [SystemActuatorKind.Python] = deps => new PythonSystemActuator(
+                preventSleepService: deps.PreventSleepService, config: deps.Config), deps.ToolMap),
+            [SystemActuatorKind.Python] = deps => WithToolMap(new PythonSystemActuator(
                 deps.FileSystem, logger: deps.Logger, sandboxManager: deps.SandboxManager,
-                preventSleepService: deps.PreventSleepService, config: deps.Config),
+                preventSleepService: deps.PreventSleepService, config: deps.Config), deps.ToolMap),
         };
+    }
+
+    private static ISystemActuator WithToolMap(ISystemActuator actuator, SessionToolMap? toolMap) {
+        if (actuator is SystemActuatorBase baseActuator)
+            baseActuator.ToolMap = toolMap;
+        return actuator;
     }
 
     /// <summary>

@@ -189,7 +189,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator 
             await using var context = await SystemActuatorCommandContext.StartAsync(
                 command, cwd, _fs, this, timeout,
                 shouldAutoBackground: false, useSandbox, sandboxTmpDir, _logger,
-                toolMap: ToolMap, agentId: CurrentAgentId).ConfigureAwait(false);
+                toolMap: ToolMap, agentId: CurrentAgentId ?? SubAgentContext.Current?.AgentId).ConfigureAwait(false);
 
             var result = await context.ResultTask.ConfigureAwait(false);
 
@@ -236,7 +236,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator 
         var context = await SystemActuatorCommandContext.StartAsync(
             command, cwd, _fs, this, timeout,
             shouldAutoBackground, useSandbox, sandboxTmpDir, _logger,
-            toolMap: ToolMap, agentId: CurrentAgentId).ConfigureAwait(false);
+            toolMap: ToolMap, agentId: CurrentAgentId ?? SubAgentContext.Current?.AgentId).ConfigureAwait(false);
 
         sleepScope.DetachTo(context.ResultTask);
 

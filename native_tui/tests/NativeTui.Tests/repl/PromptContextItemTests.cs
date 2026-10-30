@@ -11,10 +11,13 @@ public sealed class PromptContextItemTests
 
     private static string RowTextOf(Screen screen, int row, int width = 120) => RowText.Of(screen, row, 0, width).TrimEnd();
 
+    private static (string Text, int Total, int System) Inventory() =>
+        ("【工具清单】" + Environment.NewLine + "  bash (system): 运行命令", 505, 35);
+
     [Fact]
     public void Collapsed_RendersSummaryLineWithExpandHint()
     {
-        var item = new PromptContextItem(Snapshot, Snapshot.Length, totalTools: 505, systemTools: 35);
+        var item = new PromptContextItem(Snapshot, Snapshot.Length, Inventory);
         using var screen = new Screen(cols: 120, rows: 3);
 
         Assert.Equal(1, item.MeasureHeight(120));
@@ -23,19 +26,19 @@ public sealed class PromptContextItemTests
         var row = RowTextOf(screen, 0);
         Assert.Contains("📎 首次注入", row);
         Assert.Contains($"{Snapshot.Length} 字符", row);
-        Assert.Contains("工具 505（35 完整注入）", row);
+        Assert.Contains("工具清单", row);
         Assert.Contains("点击展开", row);
     }
 
     [Fact]
     public void Toggle_Expanded_RendersSnapshotLinesAndCollapseHint()
     {
-        var item = new PromptContextItem(Snapshot, Snapshot.Length, totalTools: 505, systemTools: 35);
+        var item = new PromptContextItem(Snapshot, Snapshot.Length, Inventory);
         item.Toggle();
         using var screen = new Screen(cols: 120, rows: 8);
 
-        // 快照 4 行 + 摘要 1 行 = 5
-        Assert.Equal(5, item.MeasureHeight(120));
+        // 高度 = 摘要 1 + 快照 4 行 + 空行分隔 1 + 工具清单 2 行 = 8
+        Assert.Equal(8, item.MeasureHeight(120));
         item.Render(screen, new Rect(0, 0, 120, 8), Theme.Dark);
 
         Assert.Contains("点击收起", RowTextOf(screen, 0));
@@ -48,7 +51,7 @@ public sealed class PromptContextItemTests
     [Fact]
     public void Toggle_Twice_BackToCollapsed()
     {
-        var item = new PromptContextItem(Snapshot, Snapshot.Length, totalTools: 505, systemTools: 35);
+        var item = new PromptContextItem(Snapshot, Snapshot.Length, Inventory);
         item.Toggle();
         item.Toggle();
         Assert.Equal(1, item.MeasureHeight(120));
@@ -57,7 +60,7 @@ public sealed class PromptContextItemTests
     [Fact]
     public void HitTestId_IsPromptContextConstant()
     {
-        var item = new PromptContextItem(Snapshot, 10, 505, 35);
+        var item = new PromptContextItem(Snapshot, 10, Inventory);
         Assert.Equal(PromptContextItem.HitIdValue, item.HitTestId);
         Assert.Equal("prompt-context", PromptContextItem.HitIdValue);
     }
@@ -66,7 +69,7 @@ public sealed class PromptContextItemTests
     public void WideSnapshot_WrapsToMultipleLines()
     {
         var longLine = "x" + new string('长', 200); // 400+ 列宽 — 必然折行
-        var item = new PromptContextItem(longLine, longLine.Length, totalTools: 505, systemTools: 35);
+        var item = new PromptContextItem(longLine, longLine.Length, Inventory);
         item.Toggle();
 
         Assert.True(item.MeasureHeight(80) > 2);

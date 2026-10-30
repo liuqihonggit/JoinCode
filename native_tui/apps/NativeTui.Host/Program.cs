@@ -451,7 +451,7 @@ public static class Program {
                 var shell = new ReplShell(transparencyEngine, banner, tuiOutput, commands: commands,
                     shellTimeoutSeconds: shellExecutionConfig?.AbsoluteTimeoutSeconds ?? 120,
                     promptContextSnapshot: promptSnapshotBuilder.Value,
-                    promptContextToolStats: (toolInventoryCache.Value.Total, toolInventoryCache.Value.System),
+                    promptContextInventory: () => toolInventoryCache.Value,
                     clipboard: text => _ = clipboardService?.SetTextAsync(text),
                     themeName: themeName,
                     commandUsage: commandUsage,

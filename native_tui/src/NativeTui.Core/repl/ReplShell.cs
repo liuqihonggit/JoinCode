@@ -268,8 +268,8 @@ public sealed class ReplShell
     /// <summary>注入上下文快照（宿主注入 — 系统提示词全文 + 工具清单；null = 未启用）。</summary>
     private readonly string? _promptContextSnapshot;
 
-    /// <summary>工具统计（总数/完整注入数 — 摘要行展示）。</summary>
-    private readonly (int Total, int System)? _promptContextToolStats;
+    /// <summary>工具清单惰性求值器（展开时调注册表 — 彼时已装载）。</summary>
+    private readonly Func<(string Text, int Total, int System)>? _promptContextInventory;
 
     /// <summary>bash 直通完成结果缓冲（S10 接线 — ExecuteAsync 完成于线程池线程，AddMessage 必须回主循环线程
     /// （与渲染循环竞争 _view.Messages），复用 /clear 的跨线程缓冲 + 主循环消费先例）。</summary>
@@ -641,7 +641,7 @@ public sealed class ReplShell
         string? issueOwnerRepo = null,
         int shellTimeoutSeconds = 120,
         string? promptContextSnapshot = null,
-        (int Total, int System)? promptContextToolStats = null,
+        Func<(string Text, int Total, int System)>? promptContextInventory = null,
         AlternateScreenController? alternateScreen = null,
         SelectionState? selection = null,
         Action<string>? copySelection = null,
@@ -663,7 +663,7 @@ public sealed class ReplShell
         _inline = inline;
         _seedMessages = seedMessages ?? [];
         _promptContextSnapshot = promptContextSnapshot;
-        _promptContextToolStats = promptContextToolStats;
+        _promptContextInventory = promptContextInventory;
         _commandUsage = commandUsage ?? new CommandUsageMemory();
         // S10 接线 — 分组注入：空查询 "/" 走 recently-used + 来源分组视图（有查询仍走既有匹配排序）
         _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands, new CommandGrouping(_commandUsage)) : null;
@@ -781,6 +781,13 @@ public sealed class ReplShell
     {
         CursorLifecycle.HideCursor(_output);
         _output.Write(DecPrivateMode.Enable(DecPrivateModeKind.BracketedPaste));
+        // TASK079 用户指令 — 主屏启用鼠标上报（此前仅备用屏启用 → inline 模式点击永不上报，
+        // 命中表/折叠项点击全哑）：1000 点击追踪 + 1002 按钮事件（拖动选区）+ 1006 SGR 编码；
+        // 退出 WriteExitSequences 尾对称 Disable（对齐 bracketed paste S7 先例）
+        _output.Write(
+            DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
+            + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
+            + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
         // A5 接线 — 焦点上报（DEC 1004）：仅协调器存在时启用（有消费者才开 — 退出 WriteExit 尾对称 Disable）
         if (_terminalStatus is not null)
         {
@@ -825,9 +832,9 @@ public sealed class ReplShell
         _view.Messages.Add(_banner);
         // TASK079 用户指令 — 注入上下文折叠项（鼠标点击展开查看首次注入的提示词/工具清单）：
         // 宿主注入快照惰性求值器（首次展开才构建）+ 统计（工具总数/完整注入数）；null = 宿主未启用
-        if (_promptContextSnapshot is not null && _promptContextToolStats is { } stats)
+        if (_promptContextSnapshot is not null && _promptContextInventory is not null)
         {
-            _promptContextItem = new PromptContextItem(_promptContextSnapshot, _promptContextSnapshot.Length, stats.Total, stats.System);
+            _promptContextItem = new PromptContextItem(_promptContextSnapshot, _promptContextSnapshot.Length, _promptContextInventory);
             _view.Messages.Add(_promptContextItem);
             _driver.PromptContextItemTarget = _promptContextItem;
         }
@@ -4356,7 +4363,11 @@ public sealed class ReplShell
         var focusDisable = _terminalStatus is not null
             ? DecPrivateMode.Disable(DecPrivateModeKind.FocusReporting)
             : string.Empty;
-        _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste) + focusDisable);
+        _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste)
+            + DecPrivateMode.Disable(DecPrivateModeKind.MouseSgrEncoding)
+            + DecPrivateMode.Disable(DecPrivateModeKind.MouseEventTracking)
+            + DecPrivateMode.Disable(DecPrivateModeKind.MouseClickTracking)
+            + focusDisable);
         _terminalStatus?.Shutdown();
         _output.Flush();
         DrainPendingConsoleInput();

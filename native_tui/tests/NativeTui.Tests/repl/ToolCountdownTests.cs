@@ -100,7 +100,7 @@ public sealed class ToolCountdownTests
         var spinner = new SpinnerItem();
         var view = new ReplView();
         view.Messages.Add(spinner);
-        var contextItem = new PromptContextItem("快照", 3, 505, 35);
+        var contextItem = new PromptContextItem("快照", 3, () => ("【工具清单】", 505, 35));
         view.Messages.Add(contextItem);
         var driver = new ReplBridgeDriver(view, spinner, new BannerItem("1.0.0", "m", "计费", "/tmp"), shellTimeoutSeconds: 90);
         driver.PromptContextItemTarget = contextItem;
@@ -114,7 +114,7 @@ public sealed class ToolCountdownTests
     public void ContextItem_Summary_ShowsRealTokens_WhenAvailable()
     {
         using var screen = new Screen(cols: 140, rows: 3);
-        var item = new PromptContextItem("快照", 12307, 505, 35) { PromptTokens = 4200 };
+        var item = new PromptContextItem("快照", 12307, () => ("【工具清单】", 505, 35)) { PromptTokens = 4200 };
 
         item.Render(screen, new Rect(0, 0, 140, 3), Theme.Dark);
 

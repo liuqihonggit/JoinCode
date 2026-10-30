@@ -18,11 +18,12 @@ public sealed class PromptContextItem : IScrollItem
     /// <summary>系统提示词字符数（摘要行展示）。</summary>
     public int PromptChars { get; }
 
-    /// <summary>工具总数（完整注入 + 按组两阶段）。</summary>
-    public int TotalTools { get; }
+    /// <summary>工具清单惰性求值器（宿主注入 — 首次展开才调注册表：shell 构造早于工具装载，
+    /// 急切求值得 0 — TASK079 用户实测修正）。</summary>
+    private readonly Func<(string Text, int Total, int System)> _inventoryProvider;
 
-    /// <summary>完整注入工具数（Kind=System）。</summary>
-    public int SystemTools { get; }
+    /// <summary>已求值的工具统计（缓存）。</summary>
+    private (string Text, int Total, int System)? _inventory;
 
     /// <summary>展开态（false = 塌缩摘要行；true = 摘要行 + 快照全文）。</summary>
     public bool Expanded { get; set; }
@@ -30,13 +31,15 @@ public sealed class PromptContextItem : IScrollItem
     /// <summary>摘要行统计追加（首回合 TokenUsage 到达后更新真实 prompt tokens — null = 未更新）。</summary>
     public int? PromptTokens { get; set; }
 
-    public PromptContextItem(string snapshot, int promptChars, int totalTools, int systemTools)
+    public PromptContextItem(string snapshot, int promptChars, Func<(string Text, int Total, int System)> inventoryProvider)
     {
         _snapshot = snapshot;
         PromptChars = promptChars;
-        TotalTools = totalTools;
-        SystemTools = systemTools;
+        _inventoryProvider = inventoryProvider;
     }
+
+    /// <summary>工具统计（首次展开求值并缓存 — 彼时工具注册表已装载完毕）。</summary>
+    private (string Text, int Total, int System) Inventory => _inventory ??= _inventoryProvider();
 
     /// <summary>命中标识 — 非空即参与鼠标单击命中（左键 Toggle 展开/收起）。</summary>
     public string? HitTestId => HitIdValue;
@@ -55,8 +58,8 @@ public sealed class PromptContextItem : IScrollItem
         var accent = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
         var tokenNote = PromptTokens is { } tokens ? $" · 约 {tokens} tokens" : string.Empty;
         var summary = Expanded
-            ? $"📎 首次注入 · 系统提示词 {PromptChars} 字符{tokenNote} · 工具 {TotalTools}（{SystemTools} 完整注入）· 点击收起"
-            : $"📎 首次注入 · 系统提示词 {PromptChars} 字符{tokenNote} · 工具 {TotalTools}（{SystemTools} 完整注入）· 点击展开";
+            ? $"📎 首次注入 · 系统提示词 {PromptChars} 字符{tokenNote} · {Inventory.Total} 工具（{Inventory.System} 完整注入）· 点击收起"
+            : $"📎 首次注入 · 系统提示词 {PromptChars} 字符{tokenNote} · 工具清单 · 点击展开";
         var row = frame.Y;
         screen.WriteText(row, frame.X, summary, accent, frame.Right);
 
@@ -74,10 +77,10 @@ public sealed class PromptContextItem : IScrollItem
         }
     }
 
-    /// <summary>快照全文行（按宽度硬折行）。</summary>
+    /// <summary>快照全文行（按宽度硬折行；展开态 = 提示词全文 + 工具清单）。</summary>
     private List<string> SnapshotLines(int width)
     {
-        var text = _snapshot;
+        var text = _snapshot + System.Environment.NewLine + System.Environment.NewLine + Inventory.Text;
         var lines = new List<string>();
         var bodyWidth = Math.Max(20, width - 2);
         foreach (var raw in text.Split('\n'))

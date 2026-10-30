@@ -380,7 +380,11 @@ public static class Program {
                 {
                     Console.Error.WriteLine(keybindingError.ToString());
                 }
-                var shell = new ReplShell(pickerEngine, banner, tuiOutput, commands: commands,
+                // TASK078 — TUI 原生需求澄清：/?? //ask 拦截为正常回合（CLI 版 AskClarifyCommand 是
+                // 直写终端的交互循环，TUI 会话内不可见且 ReadLine 阻塞卡死）；提示词单一数据源 =
+                // composition AskClarifyPrompts（宿主注入，本装饰器不依赖 composition）
+                var clarifyEngine = new ClarifyModeEngine(pickerEngine, JoinCode.ChatCommands.AskClarifyPrompts.SystemPrompt);
+                var shell = new ReplShell(clarifyEngine, banner, tuiOutput, commands: commands,
                     clipboard: text => _ = clipboardService?.SetTextAsync(text),
                     themeName: themeName,
                     commandUsage: commandUsage,
@@ -453,7 +457,7 @@ public static class Program {
                       // win32 PowerShell Get-Clipboard -Format Image → 临时 PNG → base64 附件；
                       // 非 Windows null 降级 → Core 侧 footer 通知"剪贴板未找到图片"）
                       readClipboardImage: ReadClipboardImage);
-                pickerEngine.Attach(shell);
+                clarifyEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);
                 // M8-5 命令交互回调接线（/clear 清 TUI 滚动区+scrollback、/exit /quit /logout 结束主循环）—

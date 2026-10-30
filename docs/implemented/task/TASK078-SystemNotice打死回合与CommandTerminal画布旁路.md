@@ -65,7 +65,20 @@ NativeTui.Tests **2974/2974** ✅；跨域契约变更走 `Build-AllDomains.ps1`
 3. **pyte 把 CJK 按 1 列解码** — 列级 VT 分析必须用 wcwidth 忠实解码器
    （`native_tui/tool/screenshot/resize_probe/vt_grid.py`，含 conhost pending-wrap/滚屏建模）。
 
-## 五、后续候选（不阻塞）
+## 五、TUI 原生 /??（用户验收卡死后补齐，2026-10-31）
+
+闸门拦截后 /?? 的 CLI 交互循环在 TUI 内**不可见且 `TerminalHelper.ReadLine` 阻塞卡死**（用户实测
+"没有任何返回?我卡死了"）— 抑制解法不完整。补齐 **TUI 原生澄清**：
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| `ClarifyModeEngine`（NativeTui.Core/repl/ 装饰器，对齐 CommandPickerEngine 模式）：/?? 与 /ask 拦截 → 剥离命令名 → 组合 `AskClarifyPrompts.SystemPrompt + 用户需求` 以**正常回合**提交；空参数引导 AI 主动发问；其余输入透传；Attach 传播给内层拾取器 | Host Program.cs（引擎栈最外层装饰，宿主注入 composition 提示词 — 提示词单一数据源） | ✅ | ✅ 7 行为测试 + E2E |
+| `AskClarifyPrompts` internal → public（提示词资产跨层消费） | NativeTui.Host 注入 | ✅ | ✅ 全仓编译 |
+
+多轮语义 = 会话连续对话（AI 澄清问题作为普通 assistant 消息上屏，用户在输入框应答）；
+E2E：/?? 回合走正常管线（SystemNotice 消息项上屏、无 Unknown event、画布零污染、不卡死）。
+
+## 六、后续候选（不阻塞）
 
 - TUI 原生需求澄清流程（当前 /?? 在 TUI 内的直写 UI 全部进环形缓冲，会话结束随冲刷可见 — 功能语义后续 TUI 化）。
 - `IEventConsumer.OnSystemNotice` 接口扩展 + TUI 系统通知消息项（通知当前静默丢弃）。

@@ -145,11 +145,11 @@ public sealed class AskClarifyCommand : ChatCommandBase {
 /// <summary>
 /// 需求澄清提示词 — 硬编码在命令内,不进入 PromptSection 体系
 /// </summary>
-internal static class AskClarifyPrompts {
+public static class AskClarifyPrompts {
     /// <summary>
     /// 澄清模式系统提示词 — 作为第一条消息前缀发送给 LLM
     /// </summary>
-    internal static string SystemPrompt = $"""
+    public static string SystemPrompt = $"""
 【需求澄清模式】
 你是一个专业的编程助手,你需要协助用户提供专业知识,每次回答的时候要附带解释选型的好坏,让用户做选择题而不是问答题.
 如果涉及代码功能设计,按照鱼骨图思路展开,从难点开始分解,每次用 {UserInteractionToolNameEnumConstants.AskUserQuestion} 工具询问用户选择.

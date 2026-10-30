@@ -96,6 +96,39 @@ public sealed class AgentsCommandTests {
         result.ShouldContinue.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task Execute_WithResumeAll_Should_Return_Continue() {
+        // resume-all 无 IAgentService 时输出"代理服务不可用"，不崩溃
+        var cmd = new AgentsCommand();
+        var context = CreateContext("resume-all");
+
+        var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
+
+        result.ShouldContinue.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Execute_WithResumeAllUppercase_Should_Be_CaseInsensitive() {
+        // RESUME-ALL 大写路由
+        var cmd = new AgentsCommand();
+        var context = CreateContext("RESUME-ALL");
+
+        var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
+
+        result.ShouldContinue.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Execute_WithResumeAllAndCustomPrompt_Should_NotThrow() {
+        // resume-all 带自定义提示词
+        var cmd = new AgentsCommand();
+        var context = CreateContext("resume-all 自定义恢复提示");
+
+        var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
+
+        result.ShouldContinue.Should().BeTrue();
+    }
+
     private static ChatCommandContext CreateContext(string arguments) {
         return new ChatCommandContext {
             Arguments = arguments,

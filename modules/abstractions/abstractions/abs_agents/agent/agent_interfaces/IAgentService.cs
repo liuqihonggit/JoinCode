@@ -35,6 +35,17 @@ public interface IAgentService {
     Task<AgentInfo> ResumeAgentAsync(AgentResumeOptions options, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 批量从 transcript 恢复所有被中断的子代理 — 列出会话下所有子代理元数据，
+    /// 过滤非运行中的，逐个从 transcript.jsonl 加载历史并重新 spawn（带历史）。
+    /// 适用于 Esc/关机/网络中断后用户说"恢复所有子代理运行"的场景。
+    /// </summary>
+    /// <param name="resumePrompt">恢复后给每个子代理的提示词（如"请继续执行你之前被中断的任务"）</param>
+    /// <param name="sessionId">会话 ID（null=从当前上下文获取）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>成功恢复的子代理列表</returns>
+    Task<List<AgentInfo>> ResumeAllAgentsAsync(string resumePrompt, string? sessionId = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 向运行中的代理发送消息
     /// </summary>
     Task<bool> SendMessageToAgentAsync(string agentId, string message, CancellationToken cancellationToken = default);

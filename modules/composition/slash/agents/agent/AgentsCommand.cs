@@ -3,8 +3,8 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// /agents 命令 — 查看和管理代理，支持列出代理列表和查看代理详情
 /// </summary>
-[ChatCommand(Name = ChatCommandNameEnumConstants.Agents, Description = "查看和管理代理", Usage = "/agents [list|info <name>]", Category = ChatCommandCategory.Agent, ArgumentHint = "[list|info <name>]")]
-[ChatCommandArg("action", Type = "string", Description = "操作: list=列出代理, info=查看详情", Enum = new[] { "list", "info" }, Default = "list")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Agents, Description = "查看和管理代理", Usage = "/agents [list|info <name>|resume-all]", Category = ChatCommandCategory.Agent, ArgumentHint = "[list|info <name>|resume-all]")]
+[ChatCommandArg("action", Type = "string", Description = "操作: list=列出代理, info=查看详情, resume-all=从历史恢复所有被中断的子代理", Enum = new[] { "list", "info", "resume-all" }, Default = "list")]
 [ChatCommandArg("name", Type = "string", Description = "代理名称,仅在 action=info 时使用")]
 public sealed class AgentsCommand : ChatCommandBase {
     /// <summary>
@@ -23,6 +23,9 @@ public sealed class AgentsCommand : ChatCommandBase {
             break;
             case "info":
             await ShowAgentInfoAsync(context, args).ConfigureAwait(false);
+            break;
+            case "resume-all":
+            await ResumeAllFromTranscriptAsync(context, args).ConfigureAwait(false);
             break;
             default:
             TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostAgentsUnknownAction, action)}{AnsiStyleEnumConstants.Reset}");
@@ -132,6 +135,35 @@ public sealed class AgentsCommand : ChatCommandBase {
         }
 
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// 从 transcript 恢复所有被中断的子代理 — 加载历史对话+工具记录，重新 spawn 带历史的子代理
+    /// </summary>
+    private static async Task ResumeAllFromTranscriptAsync(ChatCommandContext context, string[] args) {
+        var agentService = ChatCommandBase.GetService<IAgentService>(context, typeof(IAgentService));
+        if (agentService is null) {
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}代理服务不可用{AnsiStyleEnumConstants.Reset}");
+            return;
+        }
+
+        var resumePrompt = args.Length > 1 ? string.Join(" ", args[1..]) : "请继续执行你之前被中断的任务";
+
+        TerminalHelper.WriteLine($"{TerminalColors.Info}正在从 transcript 恢复所有被中断的子代理...{AnsiStyleEnumConstants.Reset}");
+
+        try {
+            var sessionId = string.IsNullOrEmpty(context.SessionId) ? null : context.SessionId;
+            var resumed = await agentService.ResumeAllAgentsAsync(resumePrompt, sessionId, context.CancellationToken).ConfigureAwait(false);
+            if (resumed.Count == 0) {
+                TerminalHelper.WriteLine($"{TerminalColors.Muted}没有需要恢复的子代理（所有子代理已在运行中或已完成）{AnsiStyleEnumConstants.Reset}");
+                return;
+            }
+            TerminalHelper.WriteLine($"{TerminalColors.Success}已从 transcript 恢复 {resumed.Count} 个子代理:{AnsiStyleEnumConstants.Reset}");
+            foreach (var a in resumed)
+                TerminalHelper.WriteLine($"  ● {a.Id} — {a.Description}");
+        } catch (Exception ex) {
+            TerminalHelper.WriteLine($"{TerminalColors.Error}批量恢复失败: {ex.Message}{AnsiStyleEnumConstants.Reset}");
+        }
     }
 
     private static async Task ShowAgentInfoAsync(ChatCommandContext context, string[] args) {

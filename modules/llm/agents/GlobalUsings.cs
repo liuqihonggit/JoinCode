@@ -2,7 +2,6 @@
 global using Core.Agents;
 global using Core.Agents.Coordinator;
 global using Core.Agents.Coordinator.Liveness;
-global using Core.Agents.Coordinator.Pool;
 global using Core.Agents.Interfaces;
 global using Core.Agents.ToolHandlers;
 global using Core.Agents.Worktree;

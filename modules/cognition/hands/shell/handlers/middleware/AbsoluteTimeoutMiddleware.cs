@@ -10,15 +10,18 @@ namespace Tools.Shell;
 [Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class AbsoluteTimeoutMiddleware : ServiceEntity, IShellMiddleware {
     private readonly ShellExecutionConfig _config;
+    private readonly SessionToolMap? _sessionToolMap;
     private readonly ILogger<AbsoluteTimeoutMiddleware>? _logger;
 
     /// <summary>
     /// 构造绝对超时中间件
     /// </summary>
     /// <param name="config">Shell 执行配置</param>
+    /// <param name="sessionToolMap">session 级别工具生命周期 map（可选，注入后超时时杀死进程，ADR 0153 统一超时）</param>
     /// <param name="logger">日志器（可选）</param>
-    public AbsoluteTimeoutMiddleware(ShellExecutionConfig config, ILogger<AbsoluteTimeoutMiddleware>? logger = null) {
+    public AbsoluteTimeoutMiddleware(ShellExecutionConfig config, SessionToolMap? sessionToolMap = null, ILogger<AbsoluteTimeoutMiddleware>? logger = null) {
         _config = config ?? throw new ArgumentNullException(nameof(config));
+        _sessionToolMap = sessionToolMap;
         _logger = logger;
     }
 
@@ -50,11 +53,20 @@ public sealed partial class AbsoluteTimeoutMiddleware : ServiceEntity, IShellMid
             await next(context, cts.Token).ConfigureAwait(false);
         } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
             _logger?.LogWarning("Shell 命令绝对超时 ({Seconds}s): {Command}", effectiveSeconds, context.Command);
+            KillProcessByCommand(context.Command);
             SetTimeoutResult(context, effectiveSeconds);
         } catch (TimeoutException ex) when (!ct.IsCancellationRequested) {
             _logger?.LogWarning("Shell 命令超时: {Command} - {Message}", context.Command, ex.Message);
+            KillProcessByCommand(context.Command);
             SetTimeoutResult(context, effectiveSeconds);
         }
+    }
+
+    private void KillProcessByCommand(string command) {
+        if (_sessionToolMap is null) return;
+        var killed = _sessionToolMap.KillByCommand(command);
+        if (killed > 0)
+            _logger?.LogWarning("超时后通过 SessionToolMap 杀死进程: {Command} (killed={Killed})", command, killed);
     }
 
     private static void SetTimeoutResult(ShellPipelineContext context, int seconds) {

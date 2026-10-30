@@ -48,8 +48,14 @@ public static partial class ServiceRegistration {
     /// </summary>
     /// <param name="services">DI 容器。</param>
     internal static void RegisterSubAgentStallDefense(IServiceCollection services) {
+        // 注册 SessionToolMap + IToolLifecycleKiller（ADR 0152，session 级别工具生命周期 map）
+        services.AddSingleton<SessionToolMap>();
+        services.AddSingleton<IToolLifecycleKiller>(sp => sp.GetRequiredService<SessionToolMap>());
+        // 注册 IToolTimeoutNotifier（ADR 0153，工具超时唤醒宿主决策）
+        services.AddSingleton<IToolTimeoutNotifier, ToolTimeoutNotifier>();
         services.AddSubAgentStallDefense();
         services.AddHostedService<SubAgentStallDefenseHostedService>();
+        services.AddHostedService<SessionToolMapMonitoringHostedService>();
     }
 
     /// <summary>

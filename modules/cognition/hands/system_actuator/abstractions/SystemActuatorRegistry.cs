@@ -16,6 +16,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     private readonly ISandboxManager? _sandboxManager;
     private readonly IPreventSleepService? _preventSleepService;
     private readonly ShellExecutionConfig? _config;
+    private readonly SessionToolMap? _toolMap;
     private ImmutableHamT<string, SystemActuatorBackgroundTaskEntry> _tasks = ImmutableHamT<string, SystemActuatorBackgroundTaskEntry>.Empty;
     private int _disposed;
 
@@ -29,6 +30,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     /// <param name="config">Shell 执行配置</param>
     /// <param name="telemetryService">遥测服务（用于记录后台任务指标）</param>
     /// <param name="notificationQueue">Agent 通知队列（用于推送任务完成通知）</param>
+    /// <param name="toolMap">session 级别工具生命周期 map（ADR 0152，可选）</param>
     public SystemActuatorRegistry(
         IFileSystem fs,
         ILogger<SystemActuatorRegistry>? logger = null,
@@ -36,7 +38,8 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
         IPreventSleepService? preventSleepService = null,
         ShellExecutionConfig? config = null,
         ITelemetryService? telemetryService = null,
-        IAgentNotificationQueue? notificationQueue = null) {
+        IAgentNotificationQueue? notificationQueue = null,
+        SessionToolMap? toolMap = null) {
         _fs = fs;
         _logger = logger;
         _sandboxManager = sandboxManager;
@@ -44,6 +47,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
         _config = config;
         _telemetryService = telemetryService;
         _notificationQueue = notificationQueue;
+        _toolMap = toolMap;
     }
 
     /// <summary>
@@ -63,7 +67,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
         if (!_factories.TryGetValue(kind, out var factory))
             throw new InvalidOperationException($"No SystemActuator registered for {kind.Id}");
 
-        var deps = new RegistryDeps(_fs, _logger, _sandboxManager, _preventSleepService, _config);
+        var deps = new RegistryDeps(_fs, _logger, _sandboxManager, _preventSleepService, _config, _toolMap);
         return factory(deps);
     }
 
@@ -73,7 +77,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
             actuator = null;
             return false;
         }
-        var deps = new RegistryDeps(_fs, _logger, _sandboxManager, _preventSleepService, _config);
+        var deps = new RegistryDeps(_fs, _logger, _sandboxManager, _preventSleepService, _config, _toolMap);
         actuator = factory(deps);
         return true;
     }
@@ -87,7 +91,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
         if (!_factoriesLoaded)
             return FrozenDictionary<SystemActuatorKind, SystemActuatorInfo>.Empty;
 
-        var deps = new RegistryDeps(_fs, _logger, _sandboxManager, _preventSleepService, _config);
+        var deps = new RegistryDeps(_fs, _logger, _sandboxManager, _preventSleepService, _config, _toolMap);
         return _factories.ToFrozenDictionary(
             kvp => kvp.Key,
             kvp => kvp.Value(deps) is SystemActuatorBase sab
@@ -401,9 +405,16 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
 /// <summary>
 /// 注册表依赖项 — 传递给工厂方法创建执行器实例
 /// </summary>
+/// <param name="FileSystem">文件系统抽象</param>
+/// <param name="Logger">日志记录器</param>
+/// <param name="SandboxManager">沙箱管理器</param>
+/// <param name="PreventSleepService">防休眠服务</param>
+/// <param name="Config">Shell 执行配置</param>
+/// <param name="ToolMap">session 级别工具生命周期 map（ADR 0152，null 不注册工具生命周期）</param>
 public sealed record RegistryDeps(
     IFileSystem FileSystem,
     ILogger? Logger,
     ISandboxManager? SandboxManager,
     IPreventSleepService? PreventSleepService,
-    ShellExecutionConfig? Config);
+    ShellExecutionConfig? Config,
+    SessionToolMap? ToolMap = null);

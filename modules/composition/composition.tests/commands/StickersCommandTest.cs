@@ -23,14 +23,14 @@ public sealed class StickersCommandTest {
     }
 
     [Fact]
-    public async Task Execute_WithoutService_ReturnsContinueSilently() {
+    public async Task Execute_WithoutService_ShowsFriendlyHint() {
         var (cmd, sticker, context) = Arrange(withService: false);
 
         var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
 
         result.ShouldContinue.Should().BeTrue();
         result.IsHandled.Should().BeTrue();
-        output.Should().BeEmpty("贴纸服务缺失应静默降级");
+        output.Should().Contain("表情包服务不可用");
         sticker.Verify(s => s.OpenStickerPageAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 

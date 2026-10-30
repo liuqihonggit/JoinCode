@@ -7,15 +7,14 @@ namespace Core.Agents.Coordinator.Liveness;
 /// 1. 启动 SubAgentLivenessScanner 后台扫描
 /// 2. 订阅 AgentStalled 事件 → SubAgentActivator 激活 → 等待恢复 → 仍卡死则 ProgressiveCompactor 压缩
 /// 3. 订阅 ChainStalled 事件 → ProgressiveCompactor 压缩链上所有节点
-/// 4. 暴露 TryPreemptAsync 供上层抢塞新任务
 /// </para>
 /// </summary>
 public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
     private readonly SubAgentLivenessScanner _scanner;
     private readonly SubAgentActivator _activator;
     private readonly ProgressiveCompactor _compactor;
-    private readonly PreemptiveScheduler _preemptiveScheduler;
     private readonly SubAgentLivenessOptions _options;
+    private readonly IToolLifecycleKiller? _toolLifecycleKiller;
     private readonly ILogger? _logger;
     private readonly Func<DateTimeOffset> _clock;
     private volatile ImmutableHamT<string, DateTimeOffset> _activationTimes = ImmutableHamT<string, DateTimeOffset>.Empty;
@@ -24,19 +23,26 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
     /// <summary>
     /// 构造子代理卡死防护协调器
     /// </summary>
+    /// <param name="scanner">后台扫描器（L2 检测）</param>
+    /// <param name="activator">激活动作（L3 干预）</param>
+    /// <param name="compactor">渐进式压缩（L4 恢复）</param>
+    /// <param name="options">卡死检测配置</param>
+    /// <param name="toolLifecycleKiller">工具生命周期杀手（ADR 0152，子代理放弃时杀死其 bash 子进程，可选）</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="clock">时钟函数（可选，测试注入）</param>
     public SubAgentStallDefenseCoordinator(
         SubAgentLivenessScanner scanner,
         SubAgentActivator activator,
         ProgressiveCompactor compactor,
-        PreemptiveScheduler preemptiveScheduler,
         SubAgentLivenessOptions options,
+        IToolLifecycleKiller? toolLifecycleKiller = null,
         ILogger? logger = null,
         Func<DateTimeOffset>? clock = null) {
         _scanner = scanner ?? throw new ArgumentNullException(nameof(scanner));
         _activator = activator ?? throw new ArgumentNullException(nameof(activator));
         _compactor = compactor ?? throw new ArgumentNullException(nameof(compactor));
-        _preemptiveScheduler = preemptiveScheduler ?? throw new ArgumentNullException(nameof(preemptiveScheduler));
         _options = options ?? throw new ArgumentNullException(nameof(options));
+        _toolLifecycleKiller = toolLifecycleKiller;
         _logger = logger;
         _clock = clock ?? (() => DateTimeOffset.UtcNow);
     }
@@ -49,13 +55,6 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
         _scanner.ChainStalled += OnChainStalled;
         _scanner.Start();
         _logger?.LogInformation("[SubAgentStallDefense] 纵深防御体系已启动");
-    }
-
-    /// <summary>
-    /// 尝试抢塞新任务到已完成的子代理
-    /// </summary>
-    public Task<PreemptResult> TryPreemptAsync(string taskDescription, CancellationToken ct = default) {
-        return _preemptiveScheduler.TryPreemptAsync(taskDescription, ct);
     }
 
     /// <summary>
@@ -97,7 +96,10 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
             if (!activationResult.Success) {
                 _logger?.LogWarning("[SubAgentStallDefense] Agent {AgentId} 激活失败: {Reason}",
                     agentId, activationResult.Reason);
-                // 激活失败，直接走 L4 压缩
+                // 激活失败，放弃子代理 — 先杀死其所有工具子进程（ADR 0152 防孤儿），再走 L4 压缩
+                var killed = _toolLifecycleKiller?.KillByAgent(agentId) ?? 0;
+                if (killed > 0)
+                    _logger?.LogWarning("[SubAgentStallDefense] Agent {AgentId} 激活失败，杀死 {Count} 个工具子进程", agentId, killed);
                 await _compactor.CompactProgressiveAsync(agentId).ConfigureAwait(false);
                 return;
             }
@@ -122,9 +124,13 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
                 return;
             }
 
-            // 仍未恢复，触发 L4 渐进式压缩
+            // 仍未恢复，放弃子代理 — 先杀死其所有工具子进程（ADR 0152 防孤儿），再触发 L4 渐进式压缩
             _logger?.LogWarning("[SubAgentStallDefense] Agent {AgentId} 激活后 {Seconds}s 仍未恢复，触发 L4 压缩",
                 agentId, _options.ActivationRecoverySeconds);
+
+            var killed = _toolLifecycleKiller?.KillByAgent(agentId) ?? 0;
+            if (killed > 0)
+                _logger?.LogWarning("[SubAgentStallDefense] Agent {AgentId} 恢复超时，杀死 {Count} 个工具子进程", agentId, killed);
 
             var result = await _compactor.CompactProgressiveAsync(agentId).ConfigureAwait(false);
             TryRemoveActivationTime(agentId, out _);
@@ -150,8 +156,11 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
             _logger?.LogWarning("[SubAgentStallDefense] 链路卡死: {Chain}，开始压缩所有节点",
                 string.Join("→", e.Chain));
 
-            // 从叶子到根依次压缩
+            // 从叶子到根依次杀死工具子进程（ADR 0152 防孤儿）+ 压缩
             foreach (var agentId in e.Chain) {
+                var killed = _toolLifecycleKiller?.KillByAgent(agentId) ?? 0;
+                if (killed > 0)
+                    _logger?.LogWarning("[SubAgentStallDefense] 链路卡死，杀死 Agent {AgentId} 的 {Count} 个工具子进程", agentId, killed);
                 await _compactor.CompactProgressiveAsync(agentId).ConfigureAwait(false);
             }
         } catch (Exception ex) when (ex is not OperationCanceledException) {

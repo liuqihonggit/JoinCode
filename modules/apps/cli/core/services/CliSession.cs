@@ -19,6 +19,11 @@ public sealed class CliSession {
     private readonly ICmdMap _cmdMap;
 
     /// <summary>
+    /// 宿主级后台任务取消源 — 宿主退出时取消所有后台任务（防止孤儿 bash 子进程，ADR 0151 双向绑定）
+    /// </summary>
+    private readonly CancellationTokenSource _backgroundCts = new();
+
+    /// <summary>
     /// 会话实体 — 派生自 Entity，自动注册到 Session.Registry + ObjectIdManager
     /// </summary>
     private readonly Session _sessionEntity;
@@ -153,7 +158,17 @@ public sealed class CliSession {
         _optionalServices?.GoalRegistry?.SetSessionId(sessionId);
         _optionalServices?.CronTaskStore?.SetSessionId(sessionId);
         _optionalServices?.DreamTaskRegistry?.SetSessionId(sessionId);
+
+        // ADR 0151 双向绑定: 宿主退出时取消所有后台任务（防止孤儿 bash 子进程）
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => {
+            try { _backgroundCts.Cancel(); } catch (ObjectDisposedException ex) { Diag.WriteLifecycle($"[DIAG-CLI] ProcessExit 取消后台任务异常: {ex.Message}"); }
+        };
     }
+
+    /// <summary>
+    /// 停止所有后台任务 — 宿主退出时调用，取消后台任务防止孤儿 bash 子进程（ADR 0151 双向绑定）
+    /// </summary>
+    public void StopBackgroundTasks() => _backgroundCts.Cancel();
 
     /// <summary>
     /// 初始化 — 加载自定义命令
@@ -320,7 +335,36 @@ public sealed class CliSession {
         ChatCommandResult result;
         try {
             Diag.WriteLifecycle($"[DIAG-CLI] executing command '{command.Name}', args='{parseResult.Arguments}'");
-            result = await command.ExecuteAsync(context).ConfigureAwait(false);
+
+            // ADR 0151: 命令执行超 5s 自动转后台（非交互模式不转 — 进程执行完即退出）
+            if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
+                result = await command.ExecuteAsync(context).ConfigureAwait(false);
+            } else {
+                var execTask = command.ExecuteAsync(context);
+                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(5), context.CancellationToken);
+
+                if (await Task.WhenAny(execTask, timeoutTask).ConfigureAwait(false) == timeoutTask) {
+                    var taskId = Guid.NewGuid().ToString("N")[..8];
+                    commandOutput.Append($"命令执行超过 5s，已转后台 (任务ID: {taskId})\n");
+                    commandOutput.Append("使用 /tasks 查看任务状态\n");
+
+                    _ = execTask.ContinueWith(t => {
+                        try {
+                            originalOut.WriteLine(t.IsFaulted
+                                ? $"[后台任务 {taskId}] 失败: {t.Exception?.InnerException?.Message}"
+                                : $"[后台任务 {taskId}] 完成");
+                            originalOut.Flush();
+                        } catch (Exception bgEx) {
+                            Diag.WriteLifecycle($"[DIAG-CLI] 后台任务 {taskId} 输出异常: {bgEx.Message}");
+                        }
+                    }, TaskScheduler.Default);
+
+                    result = ChatCommandResult.Continue();
+                } else {
+                    result = await execTask.ConfigureAwait(false);
+                }
+            }
+
             Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' returned: ShouldContinue={result.ShouldContinue}, resultType={result.GetType().FullName}");
         } catch (Exception ex) {
             Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' THREW {ex.GetType().Name}: {ex.Message}");

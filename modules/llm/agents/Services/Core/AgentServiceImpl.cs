@@ -548,6 +548,55 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     }
 
     /// <summary>
+    /// 批量从 transcript 恢复所有被中断的子代理 — 列出会话下所有子代理元数据，
+    /// 过滤非运行中的，逐个从 transcript.jsonl 加载历史并重新 spawn（带历史）。
+    /// </summary>
+    public async Task<List<JoinCode.Abstractions.Interfaces.AgentInfo>> ResumeAllAgentsAsync(string resumePrompt, string? sessionId = null, CancellationToken cancellationToken = default) {
+        if (_transcriptService is null)
+            throw new InvalidOperationException("[AGT009] IAgentTranscriptService 未注册，无法恢复代理");
+
+        var currentSessionId = _subAgentContextAccessor.Current?.SessionId;
+        var effectiveSessionId = !string.IsNullOrEmpty(sessionId) ? sessionId
+            : !string.IsNullOrEmpty(currentSessionId) ? currentSessionId
+            : global::Core.Utils.SessionIdFactory.DefaultSessionId;
+        var allMetadata = await _transcriptService.ListMetadataAsync(effectiveSessionId, cancellationToken).ConfigureAwait(false);
+
+        var runningAgents = await GetRunningAgentsAsync(cancellationToken).ConfigureAwait(false);
+        var runningIds = new HashSet<string>(runningAgents.Select(a => a.Id), StringComparer.Ordinal);
+
+        var toResume = allMetadata
+            .Where(m => !runningIds.Contains(m.AgentId))
+            .Where(m => !IsCompletedStatus(m.Status))
+            .ToList();
+
+        if (toResume.Count == 0)
+            return [];
+
+        var resumed = new List<JoinCode.Abstractions.Interfaces.AgentInfo>();
+        foreach (var meta in toResume) {
+            try {
+                var options = new JoinCode.Abstractions.Interfaces.AgentResumeOptions {
+                    AgentId = meta.AgentId,
+                    NewPrompt = resumePrompt,
+                    SessionId = sessionId,
+                    RunInBackground = true,
+                };
+                var info = await ResumeAgentAsync(options, cancellationToken).ConfigureAwait(false);
+                resumed.Add(info);
+                _logger?.LogInformation("[AgentServiceImpl] 从 transcript 恢复子代理 {AgentId} → 新代理 {NewAgentId}", meta.AgentId, info.Id);
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "[AgentServiceImpl] 恢复子代理 {AgentId} 失败", meta.AgentId);
+            }
+        }
+
+        return resumed;
+    }
+
+    private static bool IsCompletedStatus(string? status) =>
+        !string.IsNullOrEmpty(status) &&
+        string.Equals(status, "completed", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// 向指定代理发送消息，通过消息代理路由并记录到 transcript
     /// </summary>
     /// <param name="agentId">目标代理唯一标识</param>
@@ -821,7 +870,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
                 WorktreePath = concreteAgent.Options.WorktreePath,
                 ModelName = concreteAgent.Options.ModelName,
                 CompletedAt = _clock.GetUtcNow(),
-                Status = status.ToString(),
+                Status = status.ToValue(),
                 ErrorMessage = result.Success ? null : result.Error,
                 DurationMs = durationMs
             }, cancellationToken).ConfigureAwait(false);

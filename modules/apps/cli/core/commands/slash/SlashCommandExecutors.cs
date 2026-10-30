@@ -39,10 +39,13 @@ internal static class SlashCallExecutor {
                 return 1;
             }
 
+            var resumeSessionId = FlatSubCommandRouter.GetOptionValue(args, "--resume") ?? FlatSubCommandRouter.GetOptionValue(args, "-r");
+
             var context = new ChatCommandContext {
                 Arguments = argsJson,
                 CancellationToken = ct,
                 Services = services,
+                SessionId = resumeSessionId ?? string.Empty,
             };
 
             await command.ExecuteAsync(context).ConfigureAwait(false);

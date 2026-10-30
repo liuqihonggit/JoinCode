@@ -314,7 +314,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
         var baseType = typeSymbol.BaseType;
         while (baseType is not null) {
             if (baseType.Name == "OneShotCommandGroup")
-                return "AbsoluteTwoMinutes";
+                return "AbsoluteThreeMinutes";
             if (baseType.Name == "LongRunningGroup")
                 return "None";
             baseType = baseType.BaseType;

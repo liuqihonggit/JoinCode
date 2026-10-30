@@ -16,9 +16,9 @@ public sealed record ToolTimeoutPolicy {
     /// <summary>无限制 — 长期运行工具使用</summary>
     public static readonly ToolTimeoutPolicy None = new();
 
-    /// <summary>2分钟绝对超时 + kill + 可续期 — 一次性命令使用</summary>
-    public static readonly ToolTimeoutPolicy AbsoluteTwoMinutes = new() {
-        AbsoluteTimeoutSeconds = 120,
+    /// <summary>3分钟绝对超时 + kill + 可续期 — 一次性命令使用</summary>
+    public static readonly ToolTimeoutPolicy AbsoluteThreeMinutes = new() {
+        AbsoluteTimeoutSeconds = 180,
         SupportsResume = true,
         KillOnTimeout = true,
     };

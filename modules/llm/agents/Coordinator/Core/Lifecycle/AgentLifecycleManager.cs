@@ -10,9 +10,9 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     private readonly IQueryEngine _queryEngine;
     private readonly ILogger? _logger;
     private readonly AgentStateMachine _stateMachine;
+    private readonly IToolLifecycleKiller? _toolLifecycleKiller;
     private ImmutableHamT<string, AgentEntry> _entries = ImmutableHamT<string, AgentEntry>.Empty;
     private readonly SubAgentLivenessOptions? _livenessOptions;
-    private readonly SubAgentPool? _agentPool;
     private int _agentCounter;
 
     private sealed record AgentEntry(AgentBase Agent, SubAgentResult? Result = null);
@@ -23,9 +23,6 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// <summary>暴露给同程序集内部使用的卡死防护配置，供 Scanner/Activator 等同程序集组件读取</summary>
     internal SubAgentLivenessOptions? LivenessOptions => _livenessOptions;
 
-    /// <summary>暴露给同程序集内部使用的代理池，供 Coordinator 抢塞新任务</summary>
-    internal SubAgentPool? AgentPool => _agentPool;
-
     /// <summary>
     /// 构造 Agent 生命周期管理器实例
     /// </summary>
@@ -33,18 +30,18 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// <param name="stateMachine">Agent 状态机，负责跟踪各 Agent 的执行状态</param>
     /// <param name="logger">可选日志记录器</param>
     /// <param name="livenessOptions">卡死防护配置（L1 超时 + L2 检测参数），null=使用默认值</param>
-    /// <param name="agentPool">代理池（L3 抢塞），null=完成后直接 Dispose</param>
+    /// <param name="toolLifecycleKiller">工具生命周期杀手（ADR 0152，取消/销毁 agent 时杀死其 bash 子进程防孤儿，可选）</param>
     public AgentLifecycleManager(
         IQueryEngine queryEngine,
         AgentStateMachine stateMachine,
         ILogger? logger = null,
         SubAgentLivenessOptions? livenessOptions = null,
-        SubAgentPool? agentPool = null) {
+        IToolLifecycleKiller? toolLifecycleKiller = null) {
         _queryEngine = queryEngine ?? throw new ArgumentNullException(nameof(queryEngine));
         _logger = logger;
         _stateMachine = stateMachine;
         _livenessOptions = livenessOptions;
-        _agentPool = agentPool;
+        _toolLifecycleKiller = toolLifecycleKiller;
     }
 
     /// <summary>
@@ -201,6 +198,10 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
         var entry = _entries.GetValueOrDefault(agentId);
         if (entry is not null) {
             entry.Agent.Cancel();
+            // 取消时杀死其所有工具子进程（ADR 0152 防孤儿进程）
+            var killed = _toolLifecycleKiller?.KillByAgent(agentId) ?? 0;
+            if (killed > 0)
+                _logger?.LogWarning("[AgentLifecycleManager] Agent {AgentId} 取消，杀死 {Count} 个工具子进程", agentId, killed);
             return await _stateMachine.TryTransitionAsync(agentId, TaskExecutionStatus.Cancelled, "用户取消", ct).ConfigureAwait(false);
         }
         return false;
@@ -213,6 +214,10 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
         var snapshot = _entries;
         foreach (var entry in snapshot.Values) {
             entry.Agent.Cancel();
+            // 批量取消时杀死其所有工具子进程（ADR 0152 防孤儿进程）
+            var killed = _toolLifecycleKiller?.KillByAgent(entry.Agent.ObjectId.UniqueId) ?? 0;
+            if (killed > 0)
+                _logger?.LogWarning("[AgentLifecycleManager] 批量取消 Agent {AgentId}，杀死 {Count} 个工具子进程", entry.Agent.ObjectId.UniqueId, killed);
         }
 
         await Task.WhenAll(snapshot.Values.Select(entry =>
@@ -244,7 +249,7 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     }
 
     /// <summary>
-    /// 释放Agent资源 — 如果有代理池且 agent 已完成，回池而非 Dispose（ADR 0106 L3 抢塞）
+    /// 释放Agent资源 — 直接 Dispose + 杀死工具子进程（对齐 ClaudeCode，无回池复用）
     /// </summary>
     public async Task DisposeAgentAsync(string agentId, CancellationToken cancellationToken = default) {
         AgentBase? agent = null;
@@ -259,17 +264,20 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
         }
 
         if (agent is not null) {
-            // L3 抢塞：已完成/失败的 agent 回池等待复用，否则直接 Dispose
-            if (_agentPool is null || agent.Status is not (TaskExecutionStatus.Completed or TaskExecutionStatus.Failed)) {
-                _logger?.LogDebug("[AgentLifecycleManager] Agent {AgentId} 状态 {State}，直接 Dispose", agentId, agent.Status);
-                await agent.DisposeAsync().ConfigureAwait(false);
-            } else if (await _agentPool.Return(agent).ConfigureAwait(false)) {
-                _logger?.LogDebug("[AgentLifecycleManager] Agent {AgentId} 回池等待复用", agentId);
-            } else {
-                _logger?.LogDebug("[AgentLifecycleManager] Agent {AgentId} 回池失败（池满/禁用），已 Dispose", agentId);
-            }
+            _logger?.LogDebug("[AgentLifecycleManager] Agent {AgentId} 状态 {State}，直接 Dispose", agentId, agent.Status);
+            KillToolsForAgent(agentId, "Dispose");
+            await agent.DisposeAsync().ConfigureAwait(false);
         }
         _stateMachine.RemoveAgent(agentId);
+    }
+
+    /// <summary>杀死指定 agent 的所有工具子进程（ADR 0152 防孤儿进程）</summary>
+    /// <param name="agentId">agent ID</param>
+    /// <param name="reason">杀死原因（日志用）</param>
+    private void KillToolsForAgent(string agentId, string reason) {
+        var killed = _toolLifecycleKiller?.KillByAgent(agentId) ?? 0;
+        if (killed > 0)
+            _logger?.LogWarning("[AgentLifecycleManager] Agent {AgentId} {Reason}，杀死 {Count} 个工具子进程", agentId, reason, killed);
     }
 
     /// <summary>

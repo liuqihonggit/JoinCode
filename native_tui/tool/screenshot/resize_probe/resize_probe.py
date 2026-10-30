@@ -31,8 +31,8 @@ import argparse
 import codecs
 import dataclasses
 import json
+import os
 import re
-import shutil
 import sys
 import threading
 import time
@@ -192,10 +192,17 @@ def run(args: argparse.Namespace) -> int:
     marks = args.mark or DEFAULT_MARKS
 
     target_argv = [args.target, *args.target_args]
+    env = dict(os.environ)
+    for entry in args.env:
+        key, _, value = entry.partition("=")
+        if not key:
+            raise argparse.ArgumentTypeError(f"--env 格式错误: {entry!r}（应为 KEY=VALUE）")
+        env[key] = value
     print(f"[probe] spawn: {' '.join(target_argv)} @ {phases[0].cols}x{phases[0].rows}", flush=True)
     proc = PtyProcess.spawn(
         target_argv,
         cwd=args.cwd or None,
+        env=env,
         dimensions=(phases[0].rows, phases[0].cols),
     )
     recorder = ConptyRecorder(proc)
@@ -302,6 +309,7 @@ def main() -> int:
     parser.add_argument("--target", required=True, help="目标 exe 路径（jcc.exe / NativeTui.Demo.exe）")
     parser.add_argument("--target-args", nargs="*", default=[], help="目标 exe 附加参数")
     parser.add_argument("--cwd", help="目标工作目录（缺省继承探针进程）")
+    parser.add_argument("--env", action="append", default=[], help="目标环境变量（KEY=VALUE，可重复 — 如联测 MockServer 的 JCC_ENDPOINT）")
     parser.add_argument("--phases", required=True, help='相位序列 "120x30@800,80x24@900"（WxH@settle_ms）')
     parser.add_argument("--out", required=True, help="输出目录（原始流/网格/报告）")
     parser.add_argument("--mark", action="append", help=f"定位标记正则（可重复；缺省 {DEFAULT_MARKS}）")

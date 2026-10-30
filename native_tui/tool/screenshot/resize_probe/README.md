@@ -59,5 +59,8 @@ python native_tui/tool/screenshot/resize_probe/resize_probe.py `
 | 3 | 90×20（再缩） | 0 | ✅（侥幸 — 帧对齐未被 reflow 破坏） |
 
 **修复后**（demo_fixed — 方案 A 基准对齐：fullReset 改 2J+3J+光标归位 绝对锚定 + 整帧重绘）：
-四相位 banner 恒在第 0 行，布局逐行一致。差异分析与 TDD 验收记录见
+四相位 banner 恒在第 0 行，布局逐行一致。**真实 jcc.exe**（修复后重编，联测 MockServer
+`--env JCC_ENDPOINT=...`）同样验证：启动屏缩放 + 对话进行中双重缩窗
+（100×30→80×24→60×18），每相位整帧重锚第 0 行（`.xxx/resize_probe/jcc_fixed/`）。
+差异分析与 TDD 验收记录见
 [TASK076](../../docs/proposed/task/TASK076-TUI-resize-fullReset-锚定语义差异-四问深度版.md)。

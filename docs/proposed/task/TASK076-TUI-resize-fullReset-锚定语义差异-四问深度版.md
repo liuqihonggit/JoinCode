@@ -127,12 +127,22 @@ banner 恒在第 0 行。
 四相位布局逐行一致（banner 0 / `❯` 4 / footer 17），相位 1 顶部 4 行空白消失，scrollback
 由整帧重绘自然重建 — 与基准 clearTerminal.ts 语义对齐。
 
+**真实 jcc.exe 验收（用户报告的原始目标二进制 — 修复后重编 Debug，联测 MockServer）**：
+
+ConPTY 实测（探针 `--env JCC_ENDPOINT/...`）：启动屏 120×30 渲染后缩窗 80×24、放窗 140×40，
+banner 恒第 0 行、布局干净（`.xxx/resize_probe/jcc_fixed/`）；对话进行中（用户消息已提交、
+spinner 转动）连续双重缩窗 100×30→80×24→60×18，每相位整帧重锚第 0 行、无残留无错乱。
+
+⚠️ **边界观察（诚实报告，非本次修复引入）**：assistant 回复未在观测窗口内上屏 — 引擎请求
+已确认到达 MockServer（dump req_0000_20261030_184326），mock 首轮脚本为 bash 工具调用，
+回复收尾/权限确认未走完即到窗口上限。联测链路完整走通属 ADR 0077 范畴，后续可单独排查。
+
 ## 五、本次建成资产
 
 | 资产 | 位置 | 说明 |
 |---|---|---|
-| L3 resize 感知探针 | `native_tui/tool/screenshot/resize_probe/`（resize_probe.py + README.md） | ConPTY 多相位 resize + pyte 独立解释器网格转储 + 标记行量化 + PNG + 原始流留存 |
-| 证据包 | `.xxx/resize_probe/demo_seq/`（report.md / NN_WxH.txt/.png / stream.bin / phases.json） | 上述相位表与网格的原始产物，可离线重放复核 |
+| L3 resize 感知探针 | `native_tui/tool/screenshot/resize_probe/`（resize_probe.py + README.md） | ConPTY 多相位 resize + pyte 独立解释器网格转储 + 标记行量化 + PNG + 原始流留存 + `--env`（联测 MockServer） |
+| 证据包 | `.xxx/resize_probe/demo_seq/`（修复前）+ `demo_fixed/`（修复后）+ `jcc_fixed/`（真实 jcc） | 各相位网格/PNG/原始流，可离线重放复核 |
 
 <!-- 🤖 Auto Decision: 2026-10-31 -->
 <!-- 决策: resize 错位按"基准对比差异"处理（列文档+一问一答），不直接修复 -->

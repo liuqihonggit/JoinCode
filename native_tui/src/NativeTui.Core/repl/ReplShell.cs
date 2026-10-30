@@ -254,6 +254,14 @@ public sealed class ReplShell
     /// DefaultShellResolver.Resolve(settings.defaultShell, isWindows)，未配置走平台默认）。</summary>
     private readonly BashDirectExecutor _bash;
 
+    /// <summary>/prompt 透明化落版（TASK079 用户指令 — 用户应清晰知道注入了什么）：
+    /// 快照文本（首次注入的系统提示词 + 工具清单）作为 assistant 样式消息项插入滚动区，
+    /// ctrl+o transcript 模态可回看；调用方 = Submit 主线程（AddMessage 线程安全语义成立）。</summary>
+    public void AddTranscriptNote(string text)
+    {
+        AddMessage(new AssistantMessageItem(text));
+    }
+
     /// <summary>bash 直通完成结果缓冲（S10 接线 — ExecuteAsync 完成于线程池线程，AddMessage 必须回主循环线程
     /// （与渲染循环竞争 _view.Messages），复用 /clear 的跨线程缓冲 + 主循环消费先例）。</summary>
     private readonly ConcurrentQueue<BashDirectResult> _bashResults = new();
@@ -622,6 +630,7 @@ public sealed class ReplShell
         TerminalStatusCoordinator? terminalStatus = null,
         KeybindingProfile? keybindings = null,
         string? issueOwnerRepo = null,
+        int shellTimeoutSeconds = 120,
         AlternateScreenController? alternateScreen = null,
         SelectionState? selection = null,
         Action<string>? copySelection = null,
@@ -694,7 +703,7 @@ public sealed class ReplShell
         _wheelSpeed = new WheelSpeedTracker(() => WheelClock(), wheelBaseLines ?? 1);
         // TASK066 板块 E 收尾 — 剪贴板图片读取委托注入（null = 能力降级 alt+v/ctrl+v 无操作零行为变化）
         _readClipboardImage = readClipboardImage;
-        _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter, _tokenUsage, _sizeSource, streamingProjector, issueOwnerRepo);
+        _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter, _tokenUsage, _sizeSource, streamingProjector, issueOwnerRepo, shellTimeoutSeconds);
     }
 
     /// <summary>视图（测试断言面）。</summary>

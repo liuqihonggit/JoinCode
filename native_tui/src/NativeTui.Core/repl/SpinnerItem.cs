@@ -13,6 +13,9 @@ namespace NativeTui.Core.Repl;
 /// </summary>
 public sealed class SpinnerItem : IScrollItem, IAnimatable, ICompactAware
 {
+    /// <summary>倒计时 part 前缀（限时工具名 — Driver 按工具名置定，bash/powershell）。</summary>
+    public string ToolCountdownLabel { get; set; } = "bash";
+
     /// <summary>思考 shimmer 常量（基准 THINKING_INACTIVE，非 theme 键）。</summary>
     private static readonly Color ThinkingInactive = Color.FromRgb(153, 153, 153);
 
@@ -139,6 +142,22 @@ public sealed class SpinnerItem : IScrollItem, IAnimatable, ICompactAware
     /// ghostty `✽→*`、darwin `✳`，见 <see cref="SpinnerCharsets"/>；null = 默认集
     /// <see cref="SpinnerMath.SpinnerFrames"/> — 既有消费方零改动兼容）。</summary>
     public string[]? Frames { get; set; }
+
+    /// <summary>工具执行倒计时截止墙钟（WallNowMs 时基 — bash/powershell 等限时工具执行中
+    /// 显示剩余秒数，让用户知道何时自动中断；null = 无倒计时。TASK079 用户指令）。</summary>
+    private long? _toolCountdownEndMs;
+
+    /// <summary>工具执行倒计时总秒数（显示 "剩余 Ns/总秒" 的分母）。</summary>
+    private int _toolCountdownTotalSeconds;
+
+    /// <summary>开始工具执行倒计时（限时工具 ToolCall 时调用 — Driver 传 ShellExecutionConfig 超时）。</summary>
+    public void BeginToolCountdown(int totalSeconds) {
+        _toolCountdownTotalSeconds = totalSeconds;
+        _toolCountdownEndMs = WallNowMs + totalSeconds * 1000L;
+    }
+
+    /// <summary>结束工具执行倒计时（ToolResult/TurnInterrupted/EndTurn — 工具不再限时运行）。</summary>
+    public void EndToolCountdown() => _toolCountdownEndMs = null;
 
     /// <summary>最近完成工具信息行文本（TASK066 F4 — 基准 AgentTool/UI.tsx:788-868 extractLastToolInfo +
     /// AgentProgressLine.tsx:117 显示形态：spinner 行下方 dim `⎿  工具名: 主参数摘要`；
@@ -316,6 +335,14 @@ public sealed class SpinnerItem : IScrollItem, IAnimatable, ICompactAware
         if (!string.IsNullOrEmpty(SpinnerSuffix))
         {
             parts.Add((SpinnerSuffix!, dim));
+        }
+
+        // 工具执行倒计时 part（TASK079 — bash/powershell 限时工具运行中，剩余秒数逐帧递减；
+        // 到 0 显示 0s 直至 ToolResult/TurnInterrupted 清除 — 用户据此知道何时自动中断/何时 esc 打断）
+        if (_toolCountdownEndMs is long endMs)
+        {
+            var remaining = Math.Max(0, (long)Math.Round((endMs - WallNowMs) / 1000.0, MidpointRounding.AwayFromZero));
+            parts.Add(($"{ToolCountdownLabel} 剩余 {remaining}s", dim));
         }
 
         if (showTimer)

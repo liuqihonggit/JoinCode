@@ -89,7 +89,8 @@ public sealed class ReplBridgeDriver
         TokenUsageTracker? tokenUsageTracker = null,
         ITerminalSizeSource? sizeSource = null,
         IStreamingMarkdownProjector? streamingProjector = null,
-        string? issueOwnerRepo = null)
+        string? issueOwnerRepo = null,
+        int shellTimeoutSeconds = 120)
     {
         _view = view;
         _spinner = spinner;
@@ -100,7 +101,15 @@ public sealed class ReplBridgeDriver
         _sizeSource = sizeSource;
         _streamingProjector = streamingProjector;
         _issueOwnerRepo = issueOwnerRepo;
+        _shellTimeoutSeconds = shellTimeoutSeconds;
     }
+
+    /// <summary>限时工具超时秒数（ShellExecutionConfig.AbsoluteTimeoutSeconds — Host 由会话服务解析注入；
+    /// bash/powershell ToolCall 据此启动 spinner 倒计时，TASK079）。</summary>
+    private readonly int _shellTimeoutSeconds;
+
+    /// <summary>限时工具名（bridge 协议字面量 — 该类工具执行有 AbsoluteTimeoutSeconds 上限，倒计时适用）。</summary>
+    private static readonly string[] TimedToolNames = ["bash", "powershell"];
 
     /// <summary>回合进行中（turn_started 后未 completed/interrupted）。</summary>
     public bool IsBusy { get; private set; }
@@ -250,6 +259,13 @@ public sealed class ReplBridgeDriver
         // 上一个工具的流式尾巴定格（引用清空不删项 — 引擎漏发 tool_result 时不串新工具输出）
         _toolStreamingItem = null;
         _pendingToolInfo = ToolTitleFormatter.FormatToolInfo(name, args);
+        // 限时工具倒计时（TASK079 — bash/powershell 执行中 spinner 显示剩余秒数，用户知道何时中断；
+        // 工具名为 bridge 协议字面量 — NativeTui.Core 自包含不引用主仓枚举）
+        if (TimedToolNames.Contains(name, StringComparer.Ordinal))
+        {
+            _spinner.ToolCountdownLabel = name;
+            _spinner.BeginToolCountdown(_shellTimeoutSeconds);
+        }
         _inProgressToolCallCount++;
         if (_condensedProgressItem is not null)
         {
@@ -290,6 +306,7 @@ public sealed class ReplBridgeDriver
     private void ApplyToolResult(string summary, DiffHunk[]? patch, string? rawOutput, int hiddenLines)
     {
         _inProgressToolCallCount = Math.Max(0, _inProgressToolCallCount - 1);
+        _spinner.EndToolCountdown();
         if (_pendingToolInfo is { } completed)
         {
             _spinner.LastToolInfo = completed;
@@ -478,6 +495,7 @@ public sealed class ReplBridgeDriver
     public void EndTurn(bool interrupted = false)
     {
         IsBusy = false;
+        _spinner.EndToolCountdown();
         _activeSubagentGroup?.FinalizePending();
         _activeSubagentGroup = null;
         CloseActiveToolGroup();

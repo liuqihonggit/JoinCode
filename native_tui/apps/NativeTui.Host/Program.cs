@@ -384,7 +384,70 @@ public static class Program {
                 // 直写终端的交互循环，TUI 会话内不可见且 ReadLine 阻塞卡死）；提示词单一数据源 =
                 // composition AskClarifyPrompts（宿主注入，本装饰器不依赖 composition）
                 var clarifyEngine = new ClarifyModeEngine(pickerEngine, JoinCode.ChatCommands.AskClarifyPrompts.SystemPrompt);
-                var shell = new ReplShell(clarifyEngine, banner, tuiOutput, commands: commands,
+                // TASK079 — 提示词透明化：/prompt 把首次注入的系统提示词全文 + 工具清单 dump 进
+                // transcript（数据 = 引擎会话服务真实对象：ISystemPromptProvider sections +
+                // IMcpToolRegistry 工具清单，单一数据源不硬编码；registry 异步预热缓存）
+                var toolRegistry = session.Services.GetService<IMcpToolRegistry>();
+                var promptProvider = session.Services.GetService<ISystemPromptProvider>();
+                var toolInventoryCache = new Lazy<string>(() =>
+                {
+                    if (toolRegistry is null)
+                    {
+                        return "（工具注册表不可用）";
+                    }
+
+                    var tools = toolRegistry.GetAllToolsAsync().GetAwaiter().GetResult()
+                        .OrderBy(t => t.Value.Category, StringComparer.OrdinalIgnoreCase)
+                        .ThenBy(t => t.Key, StringComparer.Ordinal)
+                        .ToList();
+                    var sb = new System.Text.StringBuilder();
+                    sb.AppendLine($"共 {tools.Count} 个工具：");
+                    string? lastCategory = null;
+                    foreach (var (name, handler) in tools)
+                    {
+                        if (handler.Category != lastCategory)
+                        {
+                            sb.AppendLine();
+                            sb.AppendLine($"[{handler.Category ?? "其他"}]");
+                            lastCategory = handler.Category;
+                        }
+
+                        sb.AppendLine($"  {name} ({handler.Kind.ToValue()}): {handler.Description}");
+                    }
+
+                    return sb.ToString();
+                }, LazyThreadSafetyMode.ExecutionAndPublication);
+                var promptSnapshotBuilder = new Lazy<string>(() =>
+                {
+                    var sb = new System.Text.StringBuilder();
+                    sb.AppendLine("【首次注入的系统提示词】");
+                    if (promptProvider is not null)
+                    {
+                        foreach (var section in promptProvider.GetSections())
+                        {
+                            var content = section.ComputeValueTaskAsync().GetAwaiter().GetResult();
+                            if (!string.IsNullOrWhiteSpace(content))
+                            {
+                                sb.AppendLine($"── {section.Name} ──");
+                                sb.AppendLine(content);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        sb.AppendLine("（系统提示词提供器不可用）");
+                    }
+
+                    sb.AppendLine();
+                    sb.AppendLine("【工具清单】");
+                    sb.AppendLine(toolInventoryCache.Value);
+                    return sb.ToString();
+                }, LazyThreadSafetyMode.ExecutionAndPublication);
+                var transparencyEngine = new PromptTransparencyEngine(clarifyEngine, () => promptSnapshotBuilder.Value);
+                // TASK079 — bash/powershell 执行倒计时：超时秒数取 ShellExecutionConfig（会话服务，默认 120s）
+                var shellExecutionConfig = session.Services.GetService<ShellExecutionConfig>();
+                var shell = new ReplShell(transparencyEngine, banner, tuiOutput, commands: commands,
+                    shellTimeoutSeconds: shellExecutionConfig?.AbsoluteTimeoutSeconds ?? 120,
                     clipboard: text => _ = clipboardService?.SetTextAsync(text),
                     themeName: themeName,
                     commandUsage: commandUsage,
@@ -457,7 +520,7 @@ public static class Program {
                       // win32 PowerShell Get-Clipboard -Format Image → 临时 PNG → base64 附件；
                       // 非 Windows null 降级 → Core 侧 footer 通知"剪贴板未找到图片"）
                       readClipboardImage: ReadClipboardImage);
-                clarifyEngine.Attach(shell);
+                transparencyEngine.Attach(shell);
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);
                 // M8-5 命令交互回调接线（/clear 清 TUI 滚动区+scrollback、/exit /quit /logout 结束主循环）—

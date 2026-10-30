@@ -5,7 +5,7 @@
 /// AbsoluteTimeoutMiddleware 单元测试 — 验证超时策略驱动的绝对超时中间件
 /// </summary>
 public class AbsoluteTimeoutMiddlewareTests {
-    private static ShellExecutionConfig DefaultConfig => new() { AbsoluteTimeoutSeconds = 120 };
+    private static ShellExecutionConfig DefaultConfig => new() { AbsoluteTimeoutSeconds = 180 };
 
     [Fact]
     public async Task NonePolicy_DoesNotEnforceTimeout() {
@@ -20,9 +20,9 @@ public class AbsoluteTimeoutMiddlewareTests {
     }
 
     [Fact]
-    public async Task AbsoluteTwoMinutes_NextCompletes_ResultNotModified() {
+    public async Task AbsoluteThreeMinutes_NextCompletes_ResultNotModified() {
         await using var sut = new AbsoluteTimeoutMiddleware(DefaultConfig);
-        var context = CreateContext(ToolTimeoutPolicy.AbsoluteTwoMinutes);
+        var context = CreateContext(ToolTimeoutPolicy.AbsoluteThreeMinutes);
 
         await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
 
@@ -31,10 +31,10 @@ public class AbsoluteTimeoutMiddlewareTests {
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
-    public async Task AbsoluteTwoMinutes_TimeoutFires_SetsErrorResultWithResumeHint() {
+    public async Task AbsoluteThreeMinutes_TimeoutFires_SetsErrorResultWithResumeHint() {
         var config = new ShellExecutionConfig { AbsoluteTimeoutSeconds = 1 };
         await using var sut = new AbsoluteTimeoutMiddleware(config);
-        var context = CreateContext(ToolTimeoutPolicy.AbsoluteTwoMinutes);
+        var context = CreateContext(ToolTimeoutPolicy.AbsoluteThreeMinutes);
 
         await sut.InvokeAsync(context, async (_, ct) => {
             try { await Task.Delay(TimeSpan.FromSeconds(5), ct); } catch (OperationCanceledException) { throw; }
@@ -56,7 +56,7 @@ public class AbsoluteTimeoutMiddlewareTests {
     public async Task ConfigZero_FallsBackToPolicyValue() {
         var config = new ShellExecutionConfig { AbsoluteTimeoutSeconds = 0 };
         await using var sut = new AbsoluteTimeoutMiddleware(config);
-        var context = CreateContext(ToolTimeoutPolicy.AbsoluteTwoMinutes);
+        var context = CreateContext(ToolTimeoutPolicy.AbsoluteThreeMinutes);
 
         await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
 
@@ -68,7 +68,7 @@ public class AbsoluteTimeoutMiddlewareTests {
     public async Task ConfigOverride_UsesConfigValue() {
         var config = new ShellExecutionConfig { AbsoluteTimeoutSeconds = 1 };
         await using var sut = new AbsoluteTimeoutMiddleware(config);
-        var context = CreateContext(ToolTimeoutPolicy.AbsoluteTwoMinutes);
+        var context = CreateContext(ToolTimeoutPolicy.AbsoluteThreeMinutes);
 
         await sut.InvokeAsync(context, async (_, ct) => {
             try { await Task.Delay(TimeSpan.FromSeconds(5), ct); } catch (OperationCanceledException) { throw; }
@@ -86,7 +86,7 @@ public class AbsoluteTimeoutMiddlewareTests {
     [Fact]
     public async Task ExternalCancellation_PropagatesNormally() {
         await using var sut = new AbsoluteTimeoutMiddleware(DefaultConfig);
-        var context = CreateContext(ToolTimeoutPolicy.AbsoluteTwoMinutes);
+        var context = CreateContext(ToolTimeoutPolicy.AbsoluteThreeMinutes);
         using var cts = new CancellationTokenSource();
 
         await sut.Invoking(async x => await x.InvokeAsync(context, async (_, ct) => {
@@ -135,10 +135,10 @@ public class ToolTimeoutPolicyTests {
     }
 
     [Fact]
-    public void AbsoluteTwoMinutes_HasCorrectValues() {
-        var policy = ToolTimeoutPolicy.AbsoluteTwoMinutes;
+    public void AbsoluteThreeMinutes_HasCorrectValues() {
+        var policy = ToolTimeoutPolicy.AbsoluteThreeMinutes;
 
-        policy.AbsoluteTimeoutSeconds.Should().Be(120);
+        policy.AbsoluteTimeoutSeconds.Should().Be(180);
         policy.SupportsResume.Should().BeTrue();
         policy.KillOnTimeout.Should().BeTrue();
     }
@@ -152,9 +152,9 @@ public class ToolTimeoutPolicyTests {
     }
 
     [Fact]
-    public void AbsoluteTwoMinutes_IsImmutable() {
-        var policy1 = ToolTimeoutPolicy.AbsoluteTwoMinutes;
-        var policy2 = ToolTimeoutPolicy.AbsoluteTwoMinutes;
+    public void AbsoluteThreeMinutes_IsImmutable() {
+        var policy1 = ToolTimeoutPolicy.AbsoluteThreeMinutes;
+        var policy2 = ToolTimeoutPolicy.AbsoluteThreeMinutes;
 
         policy1.Should().Be(policy2);
     }
@@ -165,10 +165,10 @@ public class ToolTimeoutPolicyTests {
 /// </summary>
 public class ToolHandlerGroupTests {
     [Fact]
-    public void OneShotCommandGroup_HasAbsoluteTwoMinutesPolicy() {
+    public void OneShotCommandGroup_HasAbsoluteThreeMinutesPolicy() {
         var group = new TestOneShotCommandGroup();
 
-        group.TimeoutPolicy.Should().Be(ToolTimeoutPolicy.AbsoluteTwoMinutes);
+        group.TimeoutPolicy.Should().Be(ToolTimeoutPolicy.AbsoluteThreeMinutes);
     }
 
     [Fact]

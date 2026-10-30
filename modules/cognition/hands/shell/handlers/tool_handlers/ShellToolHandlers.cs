@@ -46,7 +46,7 @@ public partial class ShellToolHandlers : ShellToolBase {
     public async Task<ToolResult> ShellExecuteAsync(
         [McpToolParameter("CMD command to execute. IMPORTANT: For search commands (rg/grep/find/ag), NEVER use --no-ignore/-u flags (bypasses .gitignore, may hang). NEVER search system root paths (C:\\, /, /home, C:\\Users). Always specify a project subdirectory as the search path.")] string command,
         [McpToolParameter("Brief description of the command purpose", Required = false)] string? description = null,
-        [McpToolParameter("Timeout in milliseconds, default 120000ms", Required = false, DefaultValue = "120000")] int? timeout = null,
+        [McpToolParameter("Timeout in milliseconds, default 180000ms (3 minutes)", Required = false, DefaultValue = "180000")] int? timeout = null,
         [McpToolParameter("Working directory, defaults to current directory", Required = false)] string? working_directory = null,
         [McpToolParameter("Run in background (do not wait for completion)", Required = false, DefaultValue = "false")] bool? run_in_background = null,
         [McpToolParameter("Enable auto-backgrounding on timeout", Required = false, DefaultValue = "true")] bool? auto_background = null,

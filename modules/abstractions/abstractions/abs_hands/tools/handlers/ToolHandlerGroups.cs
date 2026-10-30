@@ -11,12 +11,12 @@ public abstract class ToolHandlerGroupBase {
 }
 
 /// <summary>
-/// 一次性命令组 — 2分钟绝对超时 + kill + 可续期。
+/// 一次性命令组 — 3分钟绝对超时 + kill + 可续期。
 /// 适用于 Shell/PowerShell/搜索/Hook 等一次性命令执行工具。
 /// </summary>
 public abstract class OneShotCommandGroup : ToolHandlerGroupBase {
     /// <inheritdoc />
-    public sealed override ToolTimeoutPolicy TimeoutPolicy => ToolTimeoutPolicy.AbsoluteTwoMinutes;
+    public sealed override ToolTimeoutPolicy TimeoutPolicy => ToolTimeoutPolicy.AbsoluteThreeMinutes;
 }
 
 /// <summary>

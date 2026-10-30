@@ -29,7 +29,7 @@ public sealed class SubAgentControlToolHandlersTest {
         _ => AgentStatus.Idle
     };
 
-    private static SubAgentControlOptions Opts(string action, string? id = null) => new() { Action = action, Id = id };
+    private static SubAgentControlOptions Opts(string action, string? id = null, string? prompt = null) => new() { Action = action, Id = id, Prompt = prompt };
 
     [Fact]
     public async Task ControlAsync_List_NoAgents_ReturnsEmptyMessage() {
@@ -168,5 +168,92 @@ public sealed class SubAgentControlToolHandlersTest {
         var result = await handlers.ControlAsync(Opts("resume_all"));
         result.IsError.Should().BeFalse();
         GetText(result).Should().Contain("已恢复 2");
+    }
+
+    [Fact]
+    public async Task ControlAsync_ResumeFromTranscript_NoId_ReturnsError() {
+        await using var handlers = new SubAgentControlToolHandlers(CreateAgentService().Object);
+        var result = await handlers.ControlAsync(Opts("resume_from_transcript"));
+        result.IsError.Should().BeTrue();
+        GetText(result).Should().Contain("需要 id");
+    }
+
+    [Fact]
+    public async Task ControlAsync_ResumeFromTranscript_WithId_DelegatesToResumeAgent() {
+        var agentMock = new Mock<IAgentService>();
+        agentMock.Setup(x => x.ResumeAgentAsync(It.IsAny<AgentResumeOptions>(), It.IsAny<CancellationToken>()))
+                 .ReturnsAsync(new AgentInfo { Id = "new-agent", Description = "Resumed Agent" });
+        await using var handlers = new SubAgentControlToolHandlers(agentMock.Object);
+        var result = await handlers.ControlAsync(Opts("resume_from_transcript", "old-agent"));
+        result.IsError.Should().BeFalse();
+        GetText(result).Should().Contain("已从 transcript 恢复").And.Contain("old-agent").And.Contain("new-agent");
+        agentMock.Verify(x => x.ResumeAgentAsync(It.Is<AgentResumeOptions>(o => o.AgentId == "old-agent"), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ControlAsync_ResumeFromTranscript_WithPrompt_PassesPromptToResumeAgent() {
+        var agentMock = new Mock<IAgentService>();
+        agentMock.Setup(x => x.ResumeAgentAsync(It.IsAny<AgentResumeOptions>(), It.IsAny<CancellationToken>()))
+                 .ReturnsAsync(new AgentInfo { Id = "new-agent", Description = "Resumed" });
+        await using var handlers = new SubAgentControlToolHandlers(agentMock.Object);
+        await handlers.ControlAsync(Opts("resume_from_transcript", "old-agent", "custom resume prompt"));
+        agentMock.Verify(x => x.ResumeAgentAsync(It.Is<AgentResumeOptions>(o => o.NewPrompt == "custom resume prompt"), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ControlAsync_ResumeFromTranscript_ResumeFails_ReturnsError() {
+        var agentMock = new Mock<IAgentService>();
+        agentMock.Setup(x => x.ResumeAgentAsync(It.IsAny<AgentResumeOptions>(), It.IsAny<CancellationToken>()))
+                 .ThrowsAsync(new InvalidOperationException("transcript not found"));
+        await using var handlers = new SubAgentControlToolHandlers(agentMock.Object);
+        var result = await handlers.ControlAsync(Opts("resume_from_transcript", "bad-agent"));
+        result.IsError.Should().BeTrue();
+        GetText(result).Should().Contain("恢复失败").And.Contain("transcript not found");
+    }
+
+    [Fact]
+    public async Task ControlAsync_ResumeAllFromTranscript_NoAgentsToResume_ReturnsEmptyMessage() {
+        var agentMock = new Mock<IAgentService>();
+        agentMock.Setup(x => x.ResumeAllAgentsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                 .ReturnsAsync(new List<AgentInfo>());
+        await using var handlers = new SubAgentControlToolHandlers(agentMock.Object);
+        var result = await handlers.ControlAsync(Opts("resume_all_from_transcript"));
+        result.IsError.Should().BeFalse();
+        GetText(result).Should().Contain("没有需要恢复");
+    }
+
+    [Fact]
+    public async Task ControlAsync_ResumeAllFromTranscript_WithAgents_ReturnsResumeCount() {
+        var agentMock = new Mock<IAgentService>();
+        agentMock.Setup(x => x.ResumeAllAgentsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                 .ReturnsAsync([
+                     new AgentInfo { Id = "r1", Description = "agent-1" },
+                     new AgentInfo { Id = "r2", Description = "agent-2" },
+                 ]);
+        await using var handlers = new SubAgentControlToolHandlers(agentMock.Object);
+        var result = await handlers.ControlAsync(Opts("resume_all_from_transcript"));
+        result.IsError.Should().BeFalse();
+        GetText(result).Should().Contain("已从 transcript 恢复 2").And.Contain("r1").And.Contain("r2");
+    }
+
+    [Fact]
+    public async Task ControlAsync_ResumeAllFromTranscript_WithPrompt_PassesPromptToResumeAll() {
+        var agentMock = new Mock<IAgentService>();
+        agentMock.Setup(x => x.ResumeAllAgentsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                 .ReturnsAsync(new List<AgentInfo>());
+        await using var handlers = new SubAgentControlToolHandlers(agentMock.Object);
+        await handlers.ControlAsync(Opts("resume_all_from_transcript", prompt: "custom prompt"));
+        agentMock.Verify(x => x.ResumeAllAgentsAsync("custom prompt", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ControlAsync_ResumeAllFromTranscript_Fails_ReturnsError() {
+        var agentMock = new Mock<IAgentService>();
+        agentMock.Setup(x => x.ResumeAllAgentsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                 .ThrowsAsync(new InvalidOperationException("service not registered"));
+        await using var handlers = new SubAgentControlToolHandlers(agentMock.Object);
+        var result = await handlers.ControlAsync(Opts("resume_all_from_transcript"));
+        result.IsError.Should().BeTrue();
+        GetText(result).Should().Contain("批量恢复失败").And.Contain("service not registered");
     }
 }

@@ -6,7 +6,7 @@ namespace McpToolDispatch;
 /// <summary>
 /// 用户交互工具处理器 — 向用户提出多选问题以收集信息、澄清歧义或做出决策
 /// </summary>
-[McpToolDispatch(ToolCategory.Interaction)]
+[McpToolDispatch(ToolCategory.Interaction, Kind = ToolKind.System)]
 public class UserInteractionToolHandlers {
     private readonly IInteractiveService _interactiveService;
     private readonly ILogger<UserInteractionToolHandlers>? _logger;

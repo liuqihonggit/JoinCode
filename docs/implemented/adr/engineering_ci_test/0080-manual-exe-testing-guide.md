@@ -433,3 +433,93 @@ printf '/session\n' | timeout 15 dotnet jcc.dll --force-interactive --await 10 >
 ```
 
 > ⚠️ `dotnet jcc.dll` 对 workdir 敏感，须在 jcc.dll 所在目录运行（`artifacts\bin\JoinCode\Debug\net10.0\`），不能串联 build && run（build 在项目根，run 在 jcc.dll 目录）。
+
+## 真实链路验证方法集（2026-10-31 补充）
+
+### 1. 子代理 transcript 恢复验证
+
+**场景**: Esc/关机/网络中断后，用户说"恢复所有子代理运行"，从 transcript 加载历史重新 spawn。
+
+**步骤**:
+
+```bash
+# 1. 构造测试数据 — 3 个子代理（已完成/被中断/一半历史）
+python3 -c "
+import json, os
+base = 'C:/Users/54076/.jcc/sessions/test-resume-all-20261031/subagents'
+os.makedirs(base, exist_ok=True)
+agents = [
+    ('agent-completed', 'completed', '已完成的子代理', ['系统提示', '用户任务', '助手完成结果']),
+    ('agent-interrupted', 'running', '被中断的子代理', ['系统提示', '用户任务', '助手开始执行', '工具调用']),
+    ('agent-half', 'running', '一半历史的子代理', ['系统提示', '用户任务']),
+]
+for agent_id, status, desc, entries in agents:
+    agent_dir = os.path.join(base, agent_id)
+    os.makedirs(agent_dir, exist_ok=True)
+    meta = {'agentId': agent_id, 'role': 0, 'agentType': 'executor', 'description': desc, 'createdAt': '2026-10-31T00:00:00Z', 'status': status}
+    with open(os.path.join(agent_dir, 'meta.json'), 'w', encoding='utf-8') as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+    with open(os.path.join(agent_dir, 'transcript.jsonl'), 'w', encoding='utf-8') as f:
+        for i, content in enumerate(entries):
+            role = 'user' if i == 1 else ('system' if i == 0 else 'assistant')
+            entry = {'sessionId': 'test-resume-all-20261031', 'role': role, 'content': content, 'timestamp': f'2026-10-31T00:0{i}:00Z', 'promptTokens': 0, 'completionTokens': 0, 'agentId': agent_id, 'isSidechain': True}
+            f.write(json.dumps(entry, ensure_ascii=False) + '\n')
+"
+
+# 2. 用 slash_call 调 /agents resume-all，指定 --resume session ID
+echo -n "resume-all" > /tmp/agents-args.txt
+jcc.exe slash_call /agents --resume test-resume-all-20261031 --args-file /tmp/agents-args.txt
+
+# 期望输出:
+# 正在从 transcript 恢复所有被中断的子代理...
+# 已从 transcript 恢复 2 个子代理:
+#   ● agent-xxx — Resume: 一半历史的子代理
+#   ● agent-yyy — Resume: 被中断的子代理
+# （agent-completed 被跳过）
+```
+
+**坑**:
+- `slash_call` 传 JSON 参数给 `ChatCommandContext.Arguments`，但 `/agents` 用 `GetSplitArgs` 解析空格分隔参数 → 用 `--args-file` 传非 JSON 参数
+- `ChatCommandContext.SessionId` 默认是 `string.Empty`（不是 null）→ `??` 运算符不触发 fallback → 必须用 `string.IsNullOrEmpty` 检查
+- `FlatSubCommandRouter.GetOptionValue` 精确匹配 → 需传 `--resume`（含前缀），不是 `resume`
+- transcript 存储路径: `C:\Users\54076\.jcc\sessions\{sessionId}\subagents\{agentId}\` — 不是 `AppData\Local\JoinCode`
+- `meta.json` 字段名是 camelCase（`agentId`/`status`/`createdAt`），`status` 完成时写 `"completed"`（小写，`ToValue()`），不是 `"Completed"`（`ToString()`）
+
+### 2. 超时杀进程验证
+
+**场景**: 命令执行超时后，`AbsoluteTimeoutMiddleware` 通过 `SessionToolMap.KillByCommand` 杀死进程。
+
+**步骤**:
+
+```bash
+# 用纯 bash 循环（约 3s），设 1s 超时，禁用 auto_background
+jcc.exe --bypass mcp_call bash command='for i in $(seq 1 999999); do true; done' timeout=1000 auto_background=false
+
+# 期望输出:
+# exit_code=-1（被杀）, duration_ms≈1100（1s 后被杀）, isError=true
+```
+
+**坑**:
+- `ping -n 30` / `sleep` / `timeout` 等含等待关键字 → `ShellTimeoutKeywordMiddleware` 拦截 → 用纯 CPU 循环 `for i in $(seq 1 N); do true; done`
+- `> nul` 重定向 → `nul` 保留设备名拦截 → 用 `do true` 或 `do rem` 不重定向
+- `cmd /c` → Path violation 拦截 → 用纯 bash 命令
+- `auto_background=true`（默认）→ 超时自动转后台不杀 → 必须设 `auto_background=false`
+- bash 工具自身有 30s 超时 → 循环不能太长，`seq 1 999999` 约 3s 足够
+
+### 3. 默认超时值验证
+
+**场景**: 验证 bash 工具 `timeout` 参数默认值是 180000ms（3 分钟）。
+
+**步骤**:
+
+```bash
+# 查看 bash 工具 schema
+jcc.exe mcp_schema bash
+
+# 检查 timeout 参数:
+# "timeout": {"type":"integer","description":"Timeout in milliseconds, default 180000ms (3 minutes)","default":"180000"}
+```
+
+**坑**:
+- `mcp_schema` 输出是 JSON → 用 `python3 -c "import sys,json; ..."` 解析
+- schema 中 `default` 是字符串 `"180000"`，不是整数

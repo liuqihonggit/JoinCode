@@ -48,26 +48,60 @@ public static class CommandTerminal {
     /// <summary>获取终端高度。</summary>
     public static int GetHeight() => Console.GetHeight();
 
+    /// <summary>
+    /// TUI 会话期闸门改道 — 闸门激活时 System.Console.Out 即闸门环形缓冲捕获 writer，
+    /// composition 命令（AskClarify 等经别名 TerminalHelper 调用本类）的输出不再触碰终端画布（TASK078）。
+    /// </summary>
+    /// <param name="write">改道后的写入动作（目标 = 闸门捕获 writer）</param>
+    /// <returns>是否已改道（闸门未激活返回 false，调用方走原路径）</returns>
+    private static bool TryWriteThroughGate(Action<System.IO.TextWriter> write) {
+        if (!ConsoleSuppressionGate.IsActive) {
+            return false;
+        }
+
+        write(System.Console.Out);
+        return true;
+    }
+
     /// <summary>写入一行文本。</summary>
     public static void WriteLine(string? text = null) {
+        if (TryWriteThroughGate(w => {
+            if (text is null) w.WriteLine();
+            else w.WriteLine(text);
+        })) {
+            return;
+        }
+
         if (text is null) Console.NewLine();
         else Console.WriteLine(text);
     }
 
     /// <summary>写入空行。</summary>
-    public static void NewLine() => Console.NewLine();
+    public static void NewLine() {
+        if (TryWriteThroughGate(w => w.WriteLine())) {
+            return;
+        }
+
+        Console.NewLine();
+    }
 
     /// <summary>写入原始文本。</summary>
-    public static void WriteRaw(string text) => Console.WriteRaw(text);
+    public static void WriteRaw(string text) {
+        if (TryWriteThroughGate(w => w.Write(text))) {
+            return;
+        }
+
+        Console.WriteRaw(text);
+    }
 
     /// <summary>写入原始字符。</summary>
-    public static void WriteRaw(char c) => Console.WriteRaw(c.ToString());
+    public static void WriteRaw(char c) => WriteRaw(c.ToString());
 
     /// <summary>写入原始字符串构建器内容。</summary>
-    public static void WriteRaw(System.Text.StringBuilder sb) => Console.WriteRaw(sb.ToString());
+    public static void WriteRaw(System.Text.StringBuilder sb) => WriteRaw(sb.ToString());
 
     /// <summary>写入原始字符跨度。</summary>
-    public static void WriteRaw(System.ReadOnlySpan<char> span) => Console.WriteRaw(span.ToString());
+    public static void WriteRaw(System.ReadOnlySpan<char> span) => WriteRaw(span.ToString());
 
     /// <summary>读取一行输入。</summary>
     public static string ReadLine() => Console.ReadLine() ?? string.Empty;
@@ -102,12 +136,28 @@ public static class CommandTerminal {
     public static void SetCursorPosition(int left, int top) => Console.SetCursorPosition(left, top);
 
     /// <summary>设置标准输出重定向。</summary>
-    public static void SetOut(System.IO.TextWriter writer) => System.Console.SetOut(writer);
+    /// <remarks>TASK078 — TUI 会话期（ConsoleSuppressionGate 激活）拒绝换装：CLI 命令经
+    /// Console.OpenStandardOutput 重开物理句柄可绕过闸门直写终端画布（/?? 需求澄清实测整帧错乱），
+    /// 会话期本方法为 no-op — 写入仍进闸门环形缓冲；CLI 模式（闸门未激活）行为不变。</remarks>
+    public static void SetOut(System.IO.TextWriter writer) {
+        if (ConsoleSuppressionGate.IsActive) {
+            return;
+        }
+
+        System.Console.SetOut(writer);
+    }
 
     /// <summary>
     /// 输出到真实 stdout（绕过 SetOut 重定向）— 用于交互式提示
     /// </summary>
     public static void WriteLineReal(string? text = null) {
+        if (TryWriteThroughGate(w => {
+            if (text is null) w.WriteLine();
+            else w.WriteLine(text);
+        })) {
+            return;
+        }
+
         if (text is null) RealOut.WriteLine();
         else RealOut.WriteLine(text);
         RealOut.Flush();
@@ -117,6 +167,10 @@ public static class CommandTerminal {
     /// 输出到真实 stdout（绕过 SetOut 重定向）— 用于交互式提示
     /// </summary>
     public static void WriteRawReal(string text) {
+        if (TryWriteThroughGate(w => w.Write(text))) {
+            return;
+        }
+
         RealOut.Write(text);
         RealOut.Flush();
     }
@@ -130,12 +184,25 @@ public static class CommandTerminal {
 
     /// <summary>写入错误信息。</summary>
     public static void WriteError(string? text = null) {
+        if (TryWriteThroughGate(w => {
+            if (text is null) w.WriteLine();
+            else w.WriteLine(text);
+        })) {
+            return;
+        }
+
         if (text is null) Console.WriteError(string.Empty);
         else Console.WriteError(text);
     }
 
     /// <summary>写入原始错误信息。</summary>
-    public static void WriteErrorRaw(string text) => Console.WriteErrorRaw(text);
+    public static void WriteErrorRaw(string text) {
+        if (TryWriteThroughGate(w => w.Write(text))) {
+            return;
+        }
+
+        Console.WriteErrorRaw(text);
+    }
 
     /// <summary>获取或设置输出编码。</summary>
     public static System.Text.Encoding OutputEncoding {

@@ -34,6 +34,15 @@ public static class ConsoleSuppressionGate {
     private static SuppressingWriter? _suppressingOut;
     private static SuppressingWriter? _suppressingError;
 
+    /// <summary>闸门是否激活（TUI 会话期）— CLI 直写组件（TerminalHelper.RealOut 等持原始 writer 的旁路）据此改道环形缓冲。</summary>
+    public static bool IsActive {
+        get {
+            lock (GateLock) {
+                return _depth > 0;
+            }
+        }
+    }
+
     /// <summary>开始抑制 — 返回 using var 作用域；嵌套调用引用计数。</summary>
     /// <param name="reason">抑制原因（如 "TUI 会话"）— 语义标注，当前不落盘。</param>
     public static ConsoleSuppressionScope Begin(string reason = "") {
@@ -52,9 +61,12 @@ public static class ConsoleSuppressionGate {
         return new ConsoleSuppressionScope();
     }
 
-    /// <summary>排水 — 取走当前缓冲行并清空（/debuglog 类消费方；抑制期间调用安全）。</summary>
+    /// <summary>排水 — 取走当前缓冲行并清空（/debuglog 类消费方；抑制期间调用安全）。
+    /// 先冲刷两个捕获 writer 的未换行半行 — WriteRaw 类无换行写也可见。</summary>
     public static IReadOnlyList<string> TakeSuppressedLines() {
         lock (GateLock) {
+            _suppressingOut?.FlushPending();
+            _suppressingError?.FlushPending();
             var lines = Ring.ToArray();
             Ring.Clear();
             return lines;
@@ -138,6 +150,9 @@ public static class ConsoleSuppressionGate {
         public override void WriteLine() => CommitPending();
 
         public override void Flush() { }
+
+        /// <summary>冲刷未换行半行进环形缓冲 — 排水/收尾路径调用（WriteRaw 类写无换行也可见）。</summary>
+        internal void FlushPending() => CommitPending();
 
         protected override void Dispose(bool disposing) {
             if (Interlocked.Exchange(ref _disposed, 1) == 0) {

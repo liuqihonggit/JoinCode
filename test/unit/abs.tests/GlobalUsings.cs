@@ -22,6 +22,8 @@ global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Utils.Text;
 global using JoinCode.Abstractions.Utils.Web;
+global using JoinCode.Abstractions.Shell;
+global using JoinCode.Abstractions.Utils.Diagnostics;
 global using Moq;
 global using System.Collections.Frozen;
 global using System.Text.Encodings.Web;

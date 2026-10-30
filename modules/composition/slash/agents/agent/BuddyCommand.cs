@@ -14,10 +14,8 @@ public sealed class BuddyCommand : ChatCommandBase {
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var buddyService = ChatCommandBase.GetService<IBuddyService>(context);
 
-        if (buddyService is null) {
-            TerminalHelper.WriteLine("  ⚠ 伙伴服务不可用，无法执行 /buddy 命令。");
+        if (buddyService is null)
             return Task.FromResult(ChatCommandResult.Continue());
-        }
 
         var userId = context.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
         var buddy = buddyService.GetBuddy(userId);

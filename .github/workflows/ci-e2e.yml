@@ -236,8 +236,34 @@ jobs:
           path: '**/*.trx'
           retention-days: 7
 
+  e2e-sync:
+    name: E2E - Sync Integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-test-env
+        with:
+          build-e2e-exes: true
+      - name: E2E - Sync Integration
+        run: >
+          dotnet test test/mock/sync.integration.tests/Sync.Integration.Tests.csproj
+          -c Debug --nologo
+          -p:UsePackedComponents=true
+          -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-sync.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results-sync
+          path: '**/*.trx'
+          retention-days: 7
+
   e2e-mcp-smoke:
-    name: E2E - MCP + Sync + CodeIndex + Smoke
+    name: E2E - MCP + CodeIndex + Smoke
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -255,14 +281,6 @@ jobs:
           --filter "FullyQualifiedName~McpIntegrationTests|FullyQualifiedName~McpProtocolE2ETests"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=e2e-mcp.trx"
-      - name: E2E - Sync Integration
-        run: >
-          dotnet test test/mock/sync.integration.tests/Sync.Integration.Tests.csproj
-          -c Debug --nologo
-          -p:UsePackedComponents=true
-          -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
-          --logger "console;verbosity=detailed"
-          --logger "trx;LogFileName=e2e-sync.trx"
       - name: E2E - CodeIndex
         run: >
           dotnet test modules/perception/code_index.e2e.tests/CodeIndex.E2E.Tests.csproj
@@ -518,7 +536,6 @@ jobs:
           name: e2e-results-mcp-smoke
           path: |
             **/e2e-mcp.trx
-            **/e2e-sync.trx
             **/e2e-codeindex.trx
             .xxx/jcc_full_stderr.txt
           retention-days: 7

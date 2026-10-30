@@ -564,6 +564,8 @@ public void Dispose() {
 
 ### 🔧 gh / rg 工具使用（优先 jcc/内置，回退系统）
 
+> ⚠️ **工具环境维护纪律**：使用 gh 工具期间若**首次调用**就出错，表示你在凭直觉使用（未先查 schema/参数）。必须先修复用法问题再继续，**gh 和 rg 也是需要维护的工具环境，切勿隐匿不舒服的工具环境**——遇到工具出错要记录到过程笔记，收尾时汇总报告给用户作为修复建议，禁止假装工具正常继续硬凑任务。
+
 > ADR: [0089](docs/implemented/adr/interaction/0089-jcc-builtin-tools-only-no-system-gh-rg.md) — 详见 ADR 文档（含实测证据、边缘错误提示清单）
 
 **`jcc.exe` 启动后已自带大量工具**（实测：`jcc mcp_list` = **400 个工具 / 49 个分类**）。

@@ -118,11 +118,13 @@ public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
 
     private async ValueTask StopWatcherCoreAsync() {
         if (_watcher is null) return;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         _watcher.DebouncedChanged -= OnWatcherChanged;
         _watcher.DebouncedCreated -= OnWatcherChanged;
         _watcher.DebouncedDeleted -= OnWatcherChanged;
         _watcher.DebouncedRenamed -= OnWatcherRenamed;
         await _watcher.DisposeAsync().ConfigureAwait(false);
+        Console.WriteLine($"[DIAG-FW] StopWatcherCoreAsync _watcher.DisposeAsync took {sw.Elapsed}");
         _watcher = null;
     }
 
@@ -139,8 +141,12 @@ public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
     /// <para>不直接访问 _watcher(遵守 Consumer 独占约定),所有状态清理在 Consumer 线程或 PostStopAsync(Consumer 退出后)进行。</para>
     /// </summary>
     public override async ValueTask DisposeAsync() {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         TrySend(new FileWatcherStopCmd());
+        Console.WriteLine($"[DIAG-FW] TrySend(StopCmd) took {sw.Elapsed}");
+        sw.Restart();
         await base.DisposeAsync().ConfigureAwait(false);
+        Console.WriteLine($"[DIAG-FW] base.DisposeAsync (wait Consumer) took {sw.Elapsed}");
     }
 
     /// <summary>
@@ -149,11 +155,13 @@ public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
     /// </summary>
     protected override async ValueTask PostStopAsync() {
         if (_watcher is not null) {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             _watcher.DebouncedChanged -= OnWatcherChanged;
             _watcher.DebouncedCreated -= OnWatcherChanged;
             _watcher.DebouncedDeleted -= OnWatcherChanged;
             _watcher.DebouncedRenamed -= OnWatcherRenamed;
             await _watcher.DisposeAsync().ConfigureAwait(false);
+            Console.WriteLine($"[DIAG-FW] PostStopAsync _watcher.DisposeAsync took {sw.Elapsed}");
         }
         _watcher = null;
         await base.PostStopAsync().ConfigureAwait(false);

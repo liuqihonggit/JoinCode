@@ -107,12 +107,11 @@ public sealed class SessionToolMap : IToolLifecycleKiller {
     private CancellationTokenSource? _monitoringCts;
     private Task? _monitoringTask;
 
-    /// <summary>启动后台监控 — 定期检查超时工具，警报回调 + 杀死回调（ADR 0152）</summary>
-    /// <param name="onWarn">警报回调（工具到达 WarningThreshold 时调用，异步提示宿主代理）</param>
-    /// <param name="onKill">杀死回调（工具到达 KillThreshold 时调用，通知宿主代理后强制杀死）</param>
+    /// <summary>启动后台监控 — 定期检查超时工具，通过 IToolTimeoutNotifier 唤醒宿主/杀死（ADR 0152 + ADR 0153）</summary>
+    /// <param name="notifier">工具超时通知器（null=不通知，仅杀死）</param>
     /// <param name="checkInterval">检查间隔（默认 5s）</param>
     /// <param name="ct">取消令牌</param>
-    public void StartMonitoring(Func<ToolLifecycleInfo, Task> onWarn, Func<ToolLifecycleInfo, Task> onKill, TimeSpan? checkInterval = null, CancellationToken ct = default) {
+    public void StartMonitoring(IToolTimeoutNotifier? notifier = null, TimeSpan? checkInterval = null, CancellationToken ct = default) {
         _monitoringCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var interval = checkInterval ?? TimeSpan.FromSeconds(5);
 
@@ -123,9 +122,9 @@ public sealed class SessionToolMap : IToolLifecycleKiller {
                     var now = DateTime.UtcNow;
                     var (toWarn, toKill) = CheckTimeouts(now);
                     foreach (var info in toWarn)
-                        await onWarn(info).ConfigureAwait(false);
+                        await NotifyWarningAsync(notifier, info, now).ConfigureAwait(false);
                     foreach (var info in toKill) {
-                        await onKill(info).ConfigureAwait(false);
+                        await NotifyKillAsync(notifier, info, now).ConfigureAwait(false);
                         TryKillProcess(info);
                     }
                 } catch (OperationCanceledException) {
@@ -135,6 +134,22 @@ public sealed class SessionToolMap : IToolLifecycleKiller {
                 }
             }
         }, _monitoringCts.Token);
+    }
+
+    private static async Task NotifyWarningAsync(IToolTimeoutNotifier? notifier, ToolLifecycleInfo info, DateTime now) {
+        if (notifier is null) return;
+        var timeoutInfo = new ToolTimeoutInfo(
+            info.ToolName, info.ProcessId, info.AgentId,
+            now - info.StartTime, info.WarningThreshold, info.KillThreshold);
+        await notifier.NotifyWarningAsync(timeoutInfo).ConfigureAwait(false);
+    }
+
+    private static async Task NotifyKillAsync(IToolTimeoutNotifier? notifier, ToolLifecycleInfo info, DateTime now) {
+        if (notifier is null) return;
+        var timeoutInfo = new ToolTimeoutInfo(
+            info.ToolName, info.ProcessId, info.AgentId,
+            now - info.StartTime, info.WarningThreshold, info.KillThreshold);
+        await notifier.NotifyKillAsync(timeoutInfo).ConfigureAwait(false);
     }
 
     /// <summary>停止后台监控（不等待 — 释放函数禁止超时，ADR 0152）</summary>

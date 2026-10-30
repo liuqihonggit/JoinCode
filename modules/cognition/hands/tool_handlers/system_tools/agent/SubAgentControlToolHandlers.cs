@@ -4,13 +4,17 @@ namespace Tools.Handlers;
 /// 子代理控制选项 — 统一工具 subagent_control 的参数
 /// </summary>
 public sealed record SubAgentControlOptions {
-    /// <summary>操作类型: list/pause/resume/stop/pause_all/resume_all/stop_all/clean</summary>
-    [McpToolParameter("Action: list/pause/resume/stop/pause_all/resume_all/stop_all/clean")]
+    /// <summary>操作类型: list/pause/resume/stop/pause_all/resume_all/stop_all/clean/resume_from_transcript/resume_all_from_transcript</summary>
+    [McpToolParameter("Action: list/pause/resume/stop/pause_all/resume_all/stop_all/clean/resume_from_transcript/resume_all_from_transcript")]
     public required string Action { get; init; }
 
-    /// <summary>子代理 ID — pause/resume/stop 必填，list/pause_all/resume_all/stop_all/clean 忽略</summary>
-    [McpToolParameter("Sub-agent ID (required for pause/resume/stop)", Required = false)]
+    /// <summary>子代理 ID — pause/resume/stop/resume_from_transcript 必填，list/pause_all/resume_all/stop_all/clean/resume_all_from_transcript 忽略</summary>
+    [McpToolParameter("Sub-agent ID (required for pause/resume/stop/resume_from_transcript)", Required = false)]
     public string? Id { get; init; }
+
+    /// <summary>恢复提示词 — resume_from_transcript/resume_all_from_transcript 使用，默认"请继续执行你之前被中断的任务"</summary>
+    [McpToolParameter("Resume prompt for transcript recovery", Required = false)]
+    public string? Prompt { get; init; }
 }
 
 /// <summary>
@@ -33,7 +37,7 @@ public sealed partial class SubAgentControlToolHandlers : ServiceEntity {
     /// <summary>
     /// 子代理控制 — list/pause/resume/stop/pause_all/resume_all/stop_all/clean 统一入口。
     /// </summary>
-    [McpTool(AgentToolNameEnumConstants.SubAgentControl, "Control sub-agents: list/pause/resume/stop/pause_all/resume_all/stop_all/clean", AgentToolNameEnumConstants.Agent)]
+    [McpTool(AgentToolNameEnumConstants.SubAgentControl, "Control sub-agents: list/pause/resume/stop/pause_all/resume_all/stop_all/clean/resume_from_transcript/resume_all_from_transcript", AgentToolNameEnumConstants.Agent)]
     public async Task<ToolResult> ControlAsync(
         [McpToolOptions] SubAgentControlOptions options,
         CancellationToken cancellationToken = default) {
@@ -46,7 +50,9 @@ public sealed partial class SubAgentControlToolHandlers : ServiceEntity {
             "resume_all" => await ResumeAllAsync(cancellationToken).ConfigureAwait(false),
             "stop_all" => await StopAllAsync(cancellationToken).ConfigureAwait(false),
             "clean" => await CleanAsync(cancellationToken).ConfigureAwait(false),
-            _ => ToolResultBuilder.Error().WithText($"未知 action: {options.Action}，有效值: list/pause/resume/stop/pause_all/resume_all/stop_all/clean").Build()
+            "resume_from_transcript" => await ResumeFromTranscriptAsync(options.Id, options.Prompt, cancellationToken).ConfigureAwait(false),
+            "resume_all_from_transcript" => await ResumeAllFromTranscriptAsync(options.Prompt, cancellationToken).ConfigureAwait(false),
+            _ => ToolResultBuilder.Error().WithText($"未知 action: {options.Action}，有效值: list/pause/resume/stop/pause_all/resume_all/stop_all/clean/resume_from_transcript/resume_all_from_transcript").Build()
         };
     }
 
@@ -130,5 +136,36 @@ public sealed partial class SubAgentControlToolHandlers : ServiceEntity {
             return ToolResultBuilder.Success().WithText("清理完成，当前没有运行中的子代理。").Build();
         var lines = agents.Select(a => $"- {a.Id} | {a.Description} | {a.State}");
         return ToolResultBuilder.Success().WithText($"清理完成，仍有 {agents.Count()} 个子代理运行中:\n" + string.Join("\n", lines)).Build();
+    }
+
+    /// <summary>从 transcript 恢复单个子代理 — 加载历史对话+工具记录，重新 spawn 带历史的子代理</summary>
+    private async Task<ToolResult> ResumeFromTranscriptAsync(string? agentId, string? prompt, CancellationToken ct) {
+        if (string.IsNullOrEmpty(agentId))
+            return ToolResultBuilder.Error().WithText("resume_from_transcript 需要 id 参数").Build();
+        var resumePrompt = string.IsNullOrEmpty(prompt) ? "请继续执行你之前被中断的任务" : prompt;
+        try {
+            var info = await _agentService.ResumeAgentAsync(new AgentResumeOptions {
+                AgentId = agentId,
+                NewPrompt = resumePrompt,
+                RunInBackground = true,
+            }, ct).ConfigureAwait(false);
+            return ToolResultBuilder.Success().WithText($"子代理 {agentId} 已从 transcript 恢复为新代理 {info.Id}，历史已加载").Build();
+        } catch (Exception ex) {
+            return ToolResultBuilder.Error().WithText($"恢复失败：{ex.Message}").Build();
+        }
+    }
+
+    /// <summary>批量从 transcript 恢复所有被中断的子代理 — 列出所有非运行中子代理，逐个加载历史重新 spawn</summary>
+    private async Task<ToolResult> ResumeAllFromTranscriptAsync(string? prompt, CancellationToken ct) {
+        var resumePrompt = string.IsNullOrEmpty(prompt) ? "请继续执行你之前被中断的任务" : prompt;
+        try {
+            var resumed = await _agentService.ResumeAllAgentsAsync(resumePrompt, ct).ConfigureAwait(false);
+            if (resumed.Count == 0)
+                return ToolResultBuilder.Success().WithText("没有需要恢复的子代理（所有子代理已在运行中或无历史记录）").Build();
+            var lines = resumed.Select(a => $"- {a.Id} | {a.Description}");
+            return ToolResultBuilder.Success().WithText($"已从 transcript 恢复 {resumed.Count} 个子代理:\n" + string.Join("\n", lines)).Build();
+        } catch (Exception ex) {
+            return ToolResultBuilder.Error().WithText($"批量恢复失败：{ex.Message}").Build();
+        }
     }
 }

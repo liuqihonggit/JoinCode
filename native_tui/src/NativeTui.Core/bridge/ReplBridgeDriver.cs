@@ -104,6 +104,10 @@ public sealed class ReplBridgeDriver
         _shellTimeoutSeconds = shellTimeoutSeconds;
     }
 
+    /// <summary>注入上下文折叠项目标（ReplShell.SeedContent 晚期绑定 — TokenUsage 回填真实 prompt tokens；
+    /// null = 宿主未启用折叠项）。</summary>
+    public PromptContextItem? PromptContextItemTarget { get; set; }
+
     /// <summary>限时工具超时秒数（ShellExecutionConfig.AbsoluteTimeoutSeconds — Host 由会话服务解析注入；
     /// bash/powershell ToolCall 据此启动 spinner 倒计时，TASK079）。</summary>
     private readonly int _shellTimeoutSeconds;
@@ -197,6 +201,13 @@ public sealed class ReplBridgeDriver
             case BridgeEvent.TokenUsage(var inputTokens, var outputTokens, var contextTokens, var contextLimitTokens):
                 // S4 契约 — 用量记账归 tracker（footer 展示由 tracker 内部驱动）；未注入时静默容忍
                 _tokenUsageTracker?.RecordUsage(inputTokens, outputTokens, contextTokens, contextLimitTokens);
+                // TASK079 用户指令 — 注入上下文折叠项回填真实 prompt tokens（InputTokens = 首轮请求实际 tokens，
+                // 摘要行 "约 N tokens" 由估算变为真实值；后续回合持续覆盖为最新请求规模）
+                if (PromptContextItemTarget is { } promptItem)
+                {
+                    promptItem.PromptTokens = (int)inputTokens;
+                }
+
                 break;
             case BridgeEvent.TurnCompleted:
                 EndTurn();

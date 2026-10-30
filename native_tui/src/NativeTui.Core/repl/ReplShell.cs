@@ -829,6 +829,7 @@ public sealed class ReplShell
         {
             _promptContextItem = new PromptContextItem(_promptContextSnapshot, _promptContextSnapshot.Length, stats.Total, stats.System);
             _view.Messages.Add(_promptContextItem);
+            _driver.PromptContextItemTarget = _promptContextItem;
         }
 
         foreach (var message in _seedMessages)

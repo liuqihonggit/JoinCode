@@ -95,6 +95,33 @@ public sealed class ToolCountdownTests
     }
 
     [Fact]
+    public void Driver_TokenUsage_UpdatesContextItemPromptTokens()
+    {
+        var spinner = new SpinnerItem();
+        var view = new ReplView();
+        view.Messages.Add(spinner);
+        var contextItem = new PromptContextItem("快照", 3, 505, 35);
+        view.Messages.Add(contextItem);
+        var driver = new ReplBridgeDriver(view, spinner, new BannerItem("1.0.0", "m", "计费", "/tmp"), shellTimeoutSeconds: 90);
+        driver.PromptContextItemTarget = contextItem;
+
+        driver.Apply(new BridgeEvent.TokenUsage(4200, 14, null, null));
+
+        Assert.Equal(4200, contextItem.PromptTokens);
+    }
+
+    [Fact]
+    public void ContextItem_Summary_ShowsRealTokens_WhenAvailable()
+    {
+        using var screen = new Screen(cols: 140, rows: 3);
+        var item = new PromptContextItem("快照", 12307, 505, 35) { PromptTokens = 4200 };
+
+        item.Render(screen, new Rect(0, 0, 140, 3), Theme.Dark);
+
+        Assert.Contains("约 4200 tokens", RowTextOf(screen, 0));
+    }
+
+    [Fact]
     public void Driver_TurnInterrupted_ClearsCountdown()
     {
         var spinner = new SpinnerItem();

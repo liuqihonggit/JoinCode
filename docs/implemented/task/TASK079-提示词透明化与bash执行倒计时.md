@@ -36,7 +36,14 @@
 - 真实管道（无 ConPTY）端到端：jcc -p → 本地监听器收到真实请求（system 12307 字符 + tool_groups/tool_descriptions 协议三段齐备）— 落 `.xxx/first_prompt_capture.json`。
 - 交互级验收（TUI 视觉/交互）由用户执行：/prompt 查看、bash 运行观察倒计时。
 
-## 五、遗留候选
+## 五、折叠项摘要真实 tokens 回填（用户验收追加，2026-10-31）
+
+ReplBridgeDriver 新增 `PromptContextItemTarget` 晚期绑定（ReplShell.SeedContent 创建折叠项后回填）；
+TokenUsage 事件（InputTokens = 该轮请求实际 tokens）持续覆盖 `PromptContextItem.PromptTokens` —
+折叠摘要行由估算变为**真实 prompt tokens**（首轮即为「首次注入」的真实规模，后续回合跟随最新请求）。
+测试：回填 + 真实 tokens 渲染 2 项（ToolCountdownTests 共 9 项）。
+
+## 六、遗留候选
 
 - TUI 首屏折叠项形态的透明化（当前 /prompt 命令触发；可扩展为自动插入折叠项）。
 - 组名清单注入系统提示词（跨 prompts/engine 管线，~49 组名 1-2KB）。

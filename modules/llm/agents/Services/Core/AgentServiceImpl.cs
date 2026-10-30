@@ -561,7 +561,10 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         var runningAgents = await GetRunningAgentsAsync(cancellationToken).ConfigureAwait(false);
         var runningIds = new HashSet<string>(runningAgents.Select(a => a.Id), StringComparer.Ordinal);
 
-        var toResume = allMetadata.Where(m => !runningIds.Contains(m.AgentId)).ToList();
+        var toResume = allMetadata
+            .Where(m => !runningIds.Contains(m.AgentId))
+            .Where(m => !IsCompletedStatus(m.Status))
+            .ToList();
 
         if (toResume.Count == 0)
             return [];
@@ -585,6 +588,10 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         return resumed;
     }
+
+    private static bool IsCompletedStatus(string? status) =>
+        !string.IsNullOrEmpty(status) &&
+        string.Equals(status, "completed", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// 向指定代理发送消息，通过消息代理路由并记录到 transcript
@@ -860,7 +867,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
                 WorktreePath = concreteAgent.Options.WorktreePath,
                 ModelName = concreteAgent.Options.ModelName,
                 CompletedAt = _clock.GetUtcNow(),
-                Status = status.ToString(),
+                Status = status.ToValue(),
                 ErrorMessage = result.Success ? null : result.Error,
                 DurationMs = durationMs
             }, cancellationToken).ConfigureAwait(false);

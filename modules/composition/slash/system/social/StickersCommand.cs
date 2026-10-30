@@ -15,10 +15,8 @@ public sealed class StickersCommand : ChatCommandBase {
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var stickerService = ChatCommandBase.GetService<IStickerService>(context);
 
-        if (stickerService is null) {
-            TerminalHelper.WriteLine("  ⚠ 表情包服务不可用，无法执行 /stickers 命令。");
+        if (stickerService is null)
             return ChatCommandResult.Continue();
-        }
 
         var success = await stickerService.OpenStickerPageAsync().ConfigureAwait(false);
 

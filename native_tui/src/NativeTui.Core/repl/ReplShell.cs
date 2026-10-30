@@ -262,6 +262,15 @@ public sealed class ReplShell
         AddMessage(new AssistantMessageItem(text));
     }
 
+    /// <summary>注入上下文折叠项（TASK079 — 首帧插入，鼠标点击展开/收起；null = 宿主未启用）。</summary>
+    private PromptContextItem? _promptContextItem;
+
+    /// <summary>注入上下文快照（宿主注入 — 系统提示词全文 + 工具清单；null = 未启用）。</summary>
+    private readonly string? _promptContextSnapshot;
+
+    /// <summary>工具统计（总数/完整注入数 — 摘要行展示）。</summary>
+    private readonly (int Total, int System)? _promptContextToolStats;
+
     /// <summary>bash 直通完成结果缓冲（S10 接线 — ExecuteAsync 完成于线程池线程，AddMessage 必须回主循环线程
     /// （与渲染循环竞争 _view.Messages），复用 /clear 的跨线程缓冲 + 主循环消费先例）。</summary>
     private readonly ConcurrentQueue<BashDirectResult> _bashResults = new();
@@ -631,6 +640,8 @@ public sealed class ReplShell
         KeybindingProfile? keybindings = null,
         string? issueOwnerRepo = null,
         int shellTimeoutSeconds = 120,
+        string? promptContextSnapshot = null,
+        (int Total, int System)? promptContextToolStats = null,
         AlternateScreenController? alternateScreen = null,
         SelectionState? selection = null,
         Action<string>? copySelection = null,
@@ -651,6 +662,8 @@ public sealed class ReplShell
         _output = output;
         _inline = inline;
         _seedMessages = seedMessages ?? [];
+        _promptContextSnapshot = promptContextSnapshot;
+        _promptContextToolStats = promptContextToolStats;
         _commandUsage = commandUsage ?? new CommandUsageMemory();
         // S10 接线 — 分组注入：空查询 "/" 走 recently-used + 来源分组视图（有查询仍走既有匹配排序）
         _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands, new CommandGrouping(_commandUsage)) : null;
@@ -810,6 +823,14 @@ public sealed class ReplShell
         };
         _notifications.Enqueue(PickerEffortLevel.Medium.ToFooterNotificationText());
         _view.Messages.Add(_banner);
+        // TASK079 用户指令 — 注入上下文折叠项（鼠标点击展开查看首次注入的提示词/工具清单）：
+        // 宿主注入快照惰性求值器（首次展开才构建）+ 统计（工具总数/完整注入数）；null = 宿主未启用
+        if (_promptContextSnapshot is not null && _promptContextToolStats is { } stats)
+        {
+            _promptContextItem = new PromptContextItem(_promptContextSnapshot, _promptContextSnapshot.Length, stats.Total, stats.System);
+            _view.Messages.Add(_promptContextItem);
+        }
+
         foreach (var message in _seedMessages)
         {
             _view.Messages.Add(message);
@@ -2437,6 +2458,13 @@ public sealed class ReplShell
         if (hitId is null)
         {
             return false;
+        }
+
+        // 注入上下文折叠项点击（TASK079 用户指令 — 左键单击展开/收起首次注入内容）
+        if (hitId == PromptContextItem.HitIdValue)
+        {
+            _promptContextItem?.Toggle();
+            return true;
         }
 
         // 面板空白命中（溢出行 "+N more" 等）— 吞：面板是 UI 交互区不启动文本选区

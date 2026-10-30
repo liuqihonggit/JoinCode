@@ -389,11 +389,12 @@ public static class Program {
                 // IMcpToolRegistry 工具清单，单一数据源不硬编码；registry 异步预热缓存）
                 var toolRegistry = session.Services.GetService<IMcpToolRegistry>();
                 var promptProvider = session.Services.GetService<ISystemPromptProvider>();
-                var toolInventoryCache = new Lazy<string>(() =>
+                // TASK079 — 工具清单惰性构建（文本 + 统计：总数/完整注入数供折叠项摘要行展示）
+                var toolInventoryCache = new Lazy<(string Text, int Total, int System)>(() =>
                 {
                     if (toolRegistry is null)
                     {
-                        return "（工具注册表不可用）";
+                        return ("（工具注册表不可用）", 0, 0);
                     }
 
                     var tools = toolRegistry.GetAllToolsAsync().GetAwaiter().GetResult()
@@ -415,7 +416,8 @@ public static class Program {
                         sb.AppendLine($"  {name} ({handler.Kind.ToValue()}): {handler.Description}");
                     }
 
-                    return sb.ToString();
+                    var systemCount = tools.Count(t => t.Value.Kind == ToolKind.System);
+                    return (sb.ToString(), tools.Count, systemCount);
                 }, LazyThreadSafetyMode.ExecutionAndPublication);
                 var promptSnapshotBuilder = new Lazy<string>(() =>
                 {
@@ -440,7 +442,7 @@ public static class Program {
 
                     sb.AppendLine();
                     sb.AppendLine("【工具清单】");
-                    sb.AppendLine(toolInventoryCache.Value);
+                    sb.AppendLine(toolInventoryCache.Value.Text);
                     return sb.ToString();
                 }, LazyThreadSafetyMode.ExecutionAndPublication);
                 var transparencyEngine = new PromptTransparencyEngine(clarifyEngine, () => promptSnapshotBuilder.Value);
@@ -448,6 +450,8 @@ public static class Program {
                 var shellExecutionConfig = session.Services.GetService<ShellExecutionConfig>();
                 var shell = new ReplShell(transparencyEngine, banner, tuiOutput, commands: commands,
                     shellTimeoutSeconds: shellExecutionConfig?.AbsoluteTimeoutSeconds ?? 120,
+                    promptContextSnapshot: promptSnapshotBuilder.Value,
+                    promptContextToolStats: (toolInventoryCache.Value.Total, toolInventoryCache.Value.System),
                     clipboard: text => _ = clipboardService?.SetTextAsync(text),
                     themeName: themeName,
                     commandUsage: commandUsage,

@@ -100,9 +100,9 @@ public sealed class AnthropicQueryService : QueryServiceBase {
 
         if (deferredToolInfos is { Count: > 0 } && discoveredTools != null) {
             var snapshot = await discoveredTools.SnapshotAsync().ConfigureAwait(false);
-            request.Tools = FilterDeferredTools(allTools, deferredToolInfos, snapshot);
+            request.Tools = ToolDiscoveryOrdering.PutToolSearchFirst(FilterDeferredTools(allTools, deferredToolInfos, snapshot), t => t.Name);
         } else {
-            request.Tools = allTools;
+            request.Tools = ToolDiscoveryOrdering.PutToolSearchFirst(allTools, t => t.Name);
         }
 
         if (toolGroups.Count > 0) {
@@ -158,7 +158,10 @@ public sealed class AnthropicQueryService : QueryServiceBase {
         if (deferredNotDiscovered.Count > 0) {
             var deferredDefs = BuildDeferredToolDefinitions(deferredNotDiscovered);
             filteredTools.AddRange(deferredDefs);
-            filteredTools.Add(BuildToolSearchToolDefinition());
+            // tool_search 提为 Kind=System 后已随 allTools 进场 — 防占位重复（TASK078）
+            if (!filteredTools.Any(t => string.Equals(t.Name, SystemToolName.ToolSearch.ToValue(), StringComparison.Ordinal))) {
+                filteredTools.Add(BuildToolSearchToolDefinition());
+            }
         }
 
         return filteredTools;

@@ -5,7 +5,7 @@ namespace McpToolDispatch;
 /// <summary>
 /// 工具搜索处理器 — 提供按关键词、精确选择、分组下钻等方式搜索可用工具的功能
 /// </summary>
-[McpToolDispatch(SystemToolNameEnumConstants.ToolSearch, Optional = true)]
+[McpToolDispatch(SystemToolNameEnumConstants.ToolSearch, Optional = true, Kind = ToolKind.System)]
 public partial class ToolSearchToolHandlers {
     private readonly IMcpToolRegistry _toolRegistry;
     private readonly ILogger<ToolSearchToolHandlers>? _logger;

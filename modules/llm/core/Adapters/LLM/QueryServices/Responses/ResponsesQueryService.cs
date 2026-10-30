@@ -344,7 +344,7 @@ public class ResponsesQueryService : QueryServiceBase {
         if (settings?.ToolChoice == ToolChoice.AutoInvoke && kernel != null) {
             var (tools, toolGroups) = BuildToolsFromKernel(kernel);
             if (tools.Count > 0) {
-                request.Tools = tools;
+                request.Tools = ToolDiscoveryOrdering.PutToolSearchFirst(tools, t => t.Name);
                 request.ToolChoice = "auto";
             }
             if (toolGroups.Count > 0) {

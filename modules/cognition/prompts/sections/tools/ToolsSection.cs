@@ -32,6 +32,7 @@ public static class ToolsSection {
         items.Add("您可以在单个响应中调用多个工具。如果您打算调用多个工具并且它们之间没有依赖关系，请并行进行所有独立的工具调用。尽可能最大化并行工具调用的使用以提高效率。但是，如果某些工具调用依赖于先前的调用来通知依赖值，请不要并行调用这些工具，而是顺序调用它们。例如，如果一个操作必须在另一个开始之前完成，请顺序运行这些操作。");
         items.Add($"MCP 工具采用两阶段加载：首次只展示工具分组和名称（不含完整参数定义）。需要调用某个 MCP 工具时，先使用 {SystemToolNameEnumConstants.ToolSearch} 工具搜索并加载其完整描述，然后根据描述中的参数定义进行调用。核心工具（Read/Write/Edit/Bash/Glob/Grep 等）已完整展示，可直接调用。");
         items.Add($"使用 {SystemToolNameEnumConstants.ToolSearch} 浏览工具分组时，可用 'list_groups' 列出所有分组，用 'map[主分组]' 下钻查看某分组内所有工具，用 'map[主分组][子分组]' 下钻到子分组，用 'map[主分组][子分组][工具名]' 直达具体工具。");
+        items.Add($"若感知不到某个工具，可通过 {SystemToolNameEnumConstants.ToolSearch} 搜索工具、组别展开（list_groups / map[分组]）等方式获取工具名称与完整定义 — 不要因首轮工具清单未列出就断言工具不存在。");
 
         var result = new System.Text.StringBuilder();
         result.AppendLine("# 使用您的工具");

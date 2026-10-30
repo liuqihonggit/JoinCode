@@ -14,10 +14,13 @@ public sealed class PromptContextItemTests
     private static (string Text, int Total, int System) Inventory() =>
         ("【工具清单】" + Environment.NewLine + "  bash (system): 运行命令", 505, 35);
 
+    private static PromptContextItem CreateItem() =>
+        new(Snapshot, Snapshot.Length, Inventory);
+
     [Fact]
     public void Collapsed_RendersSummaryLineWithExpandHint()
     {
-        var item = new PromptContextItem(Snapshot, Snapshot.Length, Inventory);
+        var item = CreateItem();
         using var screen = new Screen(cols: 120, rows: 3);
 
         Assert.Equal(1, item.MeasureHeight(120));
@@ -26,14 +29,13 @@ public sealed class PromptContextItemTests
         var row = RowTextOf(screen, 0);
         Assert.Contains("📎 首次注入", row);
         Assert.Contains($"{Snapshot.Length} 字符", row);
-        Assert.Contains("工具清单", row);
-        Assert.Contains("点击展开", row);
+        Assert.Contains("/prompt 展开查看（含工具清单）", row);
     }
 
     [Fact]
     public void Toggle_Expanded_RendersSnapshotLinesAndCollapseHint()
     {
-        var item = new PromptContextItem(Snapshot, Snapshot.Length, Inventory);
+        var item = CreateItem();
         item.Toggle();
         using var screen = new Screen(cols: 120, rows: 8);
 
@@ -41,7 +43,7 @@ public sealed class PromptContextItemTests
         Assert.Equal(8, item.MeasureHeight(120));
         item.Render(screen, new Rect(0, 0, 120, 8), Theme.Dark);
 
-        Assert.Contains("点击收起", RowTextOf(screen, 0));
+        Assert.Contains("/prompt 收起", RowTextOf(screen, 0));
         var body = string.Join("\n", Enumerable.Range(1, 4).Select(r => RowTextOf(screen, r).Trim()));
         Assert.Contains("【首次注入的系统提示词】", body);
         Assert.Contains("你是 jcc 编程助手。", body);
@@ -51,7 +53,7 @@ public sealed class PromptContextItemTests
     [Fact]
     public void Toggle_Twice_BackToCollapsed()
     {
-        var item = new PromptContextItem(Snapshot, Snapshot.Length, Inventory);
+        var item = CreateItem();
         item.Toggle();
         item.Toggle();
         Assert.Equal(1, item.MeasureHeight(120));

@@ -445,7 +445,7 @@ public static class Program {
                     sb.AppendLine(toolInventoryCache.Value.Text);
                     return sb.ToString();
                 }, LazyThreadSafetyMode.ExecutionAndPublication);
-                var transparencyEngine = new PromptTransparencyEngine(clarifyEngine, () => promptSnapshotBuilder.Value);
+                var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
                 // TASK079 — bash/powershell 执行倒计时：超时秒数取 ShellExecutionConfig（会话服务，默认 120s）
                 var shellExecutionConfig = session.Services.GetService<ShellExecutionConfig>();
                 var shell = new ReplShell(transparencyEngine, banner, tuiOutput, commands: commands,

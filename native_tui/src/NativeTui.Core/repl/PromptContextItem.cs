@@ -58,8 +58,8 @@ public sealed class PromptContextItem : IScrollItem
         var accent = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
         var tokenNote = PromptTokens is { } tokens ? $" · 约 {tokens} tokens" : string.Empty;
         var summary = Expanded
-            ? $"📎 首次注入 · 系统提示词 {PromptChars} 字符{tokenNote} · {Inventory.Total} 工具（{Inventory.System} 完整注入）· 点击收起"
-            : $"📎 首次注入 · 系统提示词 {PromptChars} 字符{tokenNote} · 工具清单 · 点击展开";
+            ? $"📎 首次注入 · 系统提示词 {PromptChars} 字符{tokenNote} · {Inventory.Total} 工具（{Inventory.System} 完整注入）· /prompt 收起"
+            : $"📎 首次注入 · 系统提示词 {PromptChars} 字符{tokenNote} · /prompt 展开查看（含工具清单）";
         var row = frame.Y;
         screen.WriteText(row, frame.X, summary, accent, frame.Right);
 

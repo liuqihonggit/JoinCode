@@ -254,12 +254,11 @@ public sealed class ReplShell
     /// DefaultShellResolver.Resolve(settings.defaultShell, isWindows)，未配置走平台默认）。</summary>
     private readonly BashDirectExecutor _bash;
 
-    /// <summary>/prompt 透明化落版（TASK079 用户指令 — 用户应清晰知道注入了什么）：
-    /// 快照文本（首次注入的系统提示词 + 工具清单）作为 assistant 样式消息项插入滚动区，
-    /// ctrl+o transcript 模态可回看；调用方 = Submit 主线程（AddMessage 线程安全语义成立）。</summary>
-    public void AddTranscriptNote(string text)
+    /// <summary>/prompt 透明化（TASK079 用户指令 — 切换注入上下文折叠项展开/收起：
+    /// 终端滚动回看展开内容 — 主屏不启用鼠标上报（与应用内选区互斥），键盘/命令无损通道）。</summary>
+    public void TogglePromptContext()
     {
-        AddMessage(new AssistantMessageItem(text));
+        _promptContextItem?.Toggle();
     }
 
     /// <summary>注入上下文折叠项（TASK079 — 首帧插入，鼠标点击展开/收起；null = 宿主未启用）。</summary>
@@ -781,13 +780,9 @@ public sealed class ReplShell
     {
         CursorLifecycle.HideCursor(_output);
         _output.Write(DecPrivateMode.Enable(DecPrivateModeKind.BracketedPaste));
-        // TASK079 用户指令 — 主屏启用鼠标上报（此前仅备用屏启用 → inline 模式点击永不上报，
-        // 命中表/折叠项点击全哑）：1000 点击追踪 + 1002 按钮事件（拖动选区）+ 1006 SGR 编码；
-        // 退出 WriteExitSequences 尾对称 Disable（对齐 bracketed paste S7 先例）
-        _output.Write(
-            DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
-            + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
-            + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
+        // TASK079 复盘 — 主屏不启用鼠标上报：终端鼠标追踪与应用内选区互斥（启用即接管，
+        // 原生选择复制失效 — 用户实测净倒退）；折叠项改 /prompt 切换展开（终端无损），
+        // 鼠标路径保留代码（命中表/折叠项 HitTestId）待用户权衡后再议
         // A5 接线 — 焦点上报（DEC 1004）：仅协调器存在时启用（有消费者才开 — 退出 WriteExit 尾对称 Disable）
         if (_terminalStatus is not null)
         {
@@ -4363,11 +4358,7 @@ public sealed class ReplShell
         var focusDisable = _terminalStatus is not null
             ? DecPrivateMode.Disable(DecPrivateModeKind.FocusReporting)
             : string.Empty;
-        _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste)
-            + DecPrivateMode.Disable(DecPrivateModeKind.MouseSgrEncoding)
-            + DecPrivateMode.Disable(DecPrivateModeKind.MouseEventTracking)
-            + DecPrivateMode.Disable(DecPrivateModeKind.MouseClickTracking)
-            + focusDisable);
+        _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste) + focusDisable);
         _terminalStatus?.Shutdown();
         _output.Flush();
         DrainPendingConsoleInput();

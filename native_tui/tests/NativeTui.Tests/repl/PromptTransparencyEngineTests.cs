@@ -10,25 +10,28 @@ public sealed class PromptTransparencyEngineTests
     private static (PromptTransparencyEngine Engine, FakeReplEngine Inner, ReplShell Shell) Create(string snapshot)
     {
         var inner = new FakeReplEngine();
-        var engine = new PromptTransparencyEngine(inner, () => snapshot);
+        var engine = new PromptTransparencyEngine(inner);
         var banner = new BannerItem("1.0.0", "test-model", "API 按量计费", "/tmp");
-        var shell = new ReplShell(engine, banner, new StringWriter());
+        var shell = new ReplShell(engine, banner, new StringWriter(), promptContextSnapshot: snapshot,
+            promptContextInventory: () => ("【工具清单】" + Environment.NewLine + "  bash (system): 运行命令", 505, 35));
         shell.SeedContent();
         engine.Attach(shell);
         return (engine, inner, shell);
     }
 
     [Fact]
-    public void Submit_Prompt_DumpsSnapshotIntoTranscript()
+    public void Submit_Prompt_TogglesContextItemExpanded()
     {
         var (engine, inner, shell) = Create("【首次注入的系统提示词】测试快照正文");
 
         engine.Submit("/prompt");
 
         Assert.Empty(inner.Submits);
-        var note = shell.View.Messages.Items.OfType<AssistantMessageItem>().LastOrDefault();
-        Assert.NotNull(note);
-        Assert.Contains("测试快照正文", note!.Text);
+        var item = shell.View.Messages.Items.OfType<PromptContextItem>().Single();
+        Assert.True(item.Expanded);
+
+        engine.Submit("/prompt");
+        Assert.False(item.Expanded);
     }
 
     [Fact]
@@ -39,7 +42,7 @@ public sealed class PromptTransparencyEngineTests
         engine.Submit("普通消息");
 
         Assert.Equal(["普通消息"], inner.Submits);
-        Assert.DoesNotContain(shell.View.Messages.Items.OfType<AssistantMessageItem>(), i => i.Text.Contains("快照"));
+        Assert.DoesNotContain(shell.View.Messages.Items.OfType<PromptContextItem>(), i => i.Expanded);
     }
 
     [Fact]

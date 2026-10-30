@@ -150,7 +150,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         // ADR 0152: 注册工具生命周期信息到 SessionToolMap
         string? registeredToolName = null;
         if (toolMap is not null) {
-            registeredToolName = $"bash:{command[..Math.Min(50, command.Length)]}";
+            registeredToolName = SessionToolMap.BuildToolName(command);
             toolMap.Register(new ToolLifecycleInfo(
                 ToolName: registeredToolName,
                 ProcessId: process.Id,

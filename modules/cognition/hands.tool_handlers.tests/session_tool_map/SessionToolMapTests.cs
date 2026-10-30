@@ -166,4 +166,30 @@ public sealed class SessionToolMapTests {
 
         map.GetAll().Should().BeEmpty();
     }
+
+    [Fact]
+    public void BuildToolName_Should_Prefix_With_Bash_And_Truncate_To_50() {
+        SessionToolMap.BuildToolName("ls").Should().Be("bash:ls");
+        SessionToolMap.BuildToolName("dotnet build").Should().Be("bash:dotnet build");
+
+        var longCmd = new string('a', 60);
+        var name = SessionToolMap.BuildToolName(longCmd);
+        name.Should().Be($"bash:{new string('a', 50)}");
+        name.Length.Should().Be(55);
+    }
+
+    [Fact]
+    public void KillByCommand_Should_Return_Zero_When_Not_Registered() {
+        var map = new SessionToolMap();
+        map.KillByCommand("nonexistent-command").Should().Be(0);
+    }
+
+    [Fact]
+    public void KillByCommand_Should_Return_Zero_When_Process_Already_Exited() {
+        var map = new SessionToolMap();
+        map.Register(CreateInfo(SessionToolMap.BuildToolName("test-cmd"), 999999));
+
+        map.KillByCommand("test-cmd").Should().Be(0);
+        map.Get(SessionToolMap.BuildToolName("test-cmd")).Should().BeNull();
+    }
 }

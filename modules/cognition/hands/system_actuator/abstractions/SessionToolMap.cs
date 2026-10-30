@@ -66,6 +66,18 @@ public sealed class SessionToolMap : IToolLifecycleKiller {
     public IReadOnlyList<ToolLifecycleInfo> GetByAgent(string agentId) =>
         [.. _tools.Values.Where(t => t.AgentId == agentId)];
 
+    /// <summary>根据命令杀死对应工具子进程 — 供 AbsoluteTimeoutMiddleware 超时后调用（ADR 0153 统一超时）</summary>
+    public int KillByCommand(string command) {
+        var toolName = BuildToolName(command);
+        if (_tools.TryGetValue(toolName, out var info) && TryKillProcess(info))
+            return 1;
+        return 0;
+    }
+
+    /// <summary>构造工具注册名 — 统一命名格式，供注册方和查找方共用</summary>
+    public static string BuildToolName(string command) =>
+        $"bash:{command[..Math.Min(50, command.Length)]}";
+
     /// <summary>杀死指定子代理的所有工具子进程 — 子代理崩溃时调用（ADR 0152 双向绑定）</summary>
     public int KillByAgent(string agentId) {
         var tools = GetByAgent(agentId);

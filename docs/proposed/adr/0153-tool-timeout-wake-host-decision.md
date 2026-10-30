@@ -3,10 +3,10 @@
 > 📍 **导航**: [docs/](../../README.md) › [adr/](../README.md)
 > 🔗 **上游索引**: [adr/README.md](../README.md) — 修改本文档后须同步更新此索引
 
-> 状态: proposed
+> 状态: accepted
 > 创建: 2026-10-31
 > 决策者: 用户主导（工具超时唤醒宿主 AI 决策继续等候/结束运行）
-> 影响: modules/cognition/hands/system_actuator/abstractions/SessionToolMap.cs + ADR 0146 steer 注入 + ADR 0106 卡死防护
+> 影响: modules/cognition/hands/system_actuator/abstractions/SessionToolMap.cs + ADR 0146 steer 注入 + ADR 0106 卡死防护 + AbsoluteTimeoutMiddleware 统一超时
 > 关联: [ADR 0152](0152-session-tool-lifecycle-map.md)（SessionToolMap）、[ADR 0146](0146-steer-in-turn-injection-mailbox.md)（steer 轮内注入）、[ADR 0106](../implemented/adr/data_core_selection/0106-subagent-stall-defense-in-depth.md)（卡死防护）
 
 ## 背景
@@ -97,9 +97,25 @@ public interface IToolTimeoutNotifier {
 - 多工具同时超时时多个 steer 提示排队，LLM 一次看到多个决策请求
 
 ### 实现顺序
-1. ⏳ IToolTimeoutNotifier 接口（Abstractions）
-2. ⏳ ToolTimeoutNotifier 实现（Composition）
-3. ⏳ SessionToolMap.StartMonitoring 接收 IToolTimeoutNotifier
-4. ⏳ session 启动时调 StartMonitoring
-5. ⏳ 提示词模板 + 单元测试
-6. ⏳ 集成测试（真实工具超时 → steer 注入 → 宿主决策）
+1. ✅ IToolTimeoutNotifier 接口（Abstractions）
+2. ✅ ToolTimeoutNotifier 实现（Composition）
+3. ✅ SessionToolMap.StartMonitoring 接收 IToolTimeoutNotifier
+4. ✅ SessionToolMapMonitoringHostedService 自动启动监控
+5. ✅ 提示词模板 + 单元测试（15 测试全绿）
+6. ✅ 集成测试（真实工具超时 → steer 注入 → 宿主决策）
+7. ✅ AbsoluteTimeoutMiddleware 统一超时 — 超时后通过 SessionToolMap.KillByCommand 杀死进程
+
+### 统一 AbsoluteTimeoutMiddleware（ADR 0153 扩展）
+
+**问题**: `AbsoluteTimeoutMiddleware`（管道级，120s 同步超时截断）与 `SessionToolMap`（session 级，30s 警告 + 5min 杀死）两套超时机制并行，配置不关联。120s 超时后只设置错误结果不杀进程，进程空跑到 5min 才被 `SessionToolMap` 杀。
+
+**统一方案**:
+1. `SessionToolMap.BuildToolName(command)` — 提取命名格式为公共静态方法，注册方和查找方共用
+2. `SessionToolMap.KillByCommand(command)` — 按命令查找并杀死对应进程
+3. `AbsoluteTimeoutMiddleware` 注入 `SessionToolMap?`（可选），超时后调 `KillByCommand` 杀死进程
+4. `SessionToolMap.KillThreshold`（5min）保留作为兜底（非 shell 工具的唯一超时保障）
+
+**统一后时间线**:
+- 30s: `SessionToolMap` 警告 → steer 注入唤醒宿主
+- 120s: `AbsoluteTimeoutMiddleware` 超时 → `KillByCommand` 杀死进程 + 设置错误结果 + 提示续期
+- 5min: `SessionToolMap.KillThreshold` 兜底（正常情况不会到达，因为 120s 已杀）

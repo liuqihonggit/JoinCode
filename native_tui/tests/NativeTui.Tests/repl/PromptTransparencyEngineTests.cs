@@ -19,19 +19,26 @@ public sealed class PromptTransparencyEngineTests
         return (engine, inner, shell);
     }
 
+    private static PromptDetailDialog? PageDialog(ReplShell shell) =>
+        shell.View.Messages.Items.OfType<PromptDetailDialog>().FirstOrDefault();
+
     [Fact]
-    public void Submit_Prompt_TogglesContextItemExpanded()
+    public void Submit_Prompt_OpensPageModal_AndSecondPromptCloses()
     {
         var (engine, inner, shell) = Create("【首次注入的系统提示词】测试快照正文");
 
         engine.Submit("/prompt");
 
         Assert.Empty(inner.Submits);
-        var item = shell.View.Messages.Items.OfType<PromptContextItem>().Single();
-        Assert.True(item.Expanded);
+        Assert.True(shell.IsPromptPageOpen);
+        var page = PageDialog(shell);
+        Assert.NotNull(page);
+        Assert.Contains("测试快照正文", page!.SnapshotForTest);
+        Assert.True(page.MeasureHeight(80) > 7, "页面高度 = 头部 7 行 + 快照正文");
 
         engine.Submit("/prompt");
-        Assert.False(item.Expanded);
+        Assert.False(shell.IsPromptPageOpen);
+        Assert.Null(PageDialog(shell));
     }
 
     [Fact]
@@ -42,7 +49,7 @@ public sealed class PromptTransparencyEngineTests
         engine.Submit("普通消息");
 
         Assert.Equal(["普通消息"], inner.Submits);
-        Assert.DoesNotContain(shell.View.Messages.Items.OfType<PromptContextItem>(), i => i.Expanded);
+        Assert.False(shell.IsPromptPageOpen);
     }
 
     [Fact]

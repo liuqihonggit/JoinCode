@@ -254,15 +254,18 @@ public sealed class ReplShell
     /// DefaultShellResolver.Resolve(settings.defaultShell, isWindows)，未配置走平台默认）。</summary>
     private readonly BashDirectExecutor _bash;
 
-    /// <summary>/prompt 透明化（TASK079 用户指令 — 切换注入上下文折叠项展开/收起：
-    /// 终端滚动回看展开内容 — 主屏不启用鼠标上报（与应用内选区互斥），键盘/命令无损通道）。</summary>
-    public void TogglePromptContext()
-    {
-        _promptContextItem?.Toggle();
-    }
 
-    /// <summary>注入上下文折叠项（TASK079 — 首帧插入，鼠标点击展开/收起；null = 宿主未启用）。</summary>
+    /// <summary>注入上下文折叠项（TASK079 — 首帧插入，点击//prompt 打开详情页；null = 宿主未启用）。</summary>
     private PromptContextItem? _promptContextItem;
+
+    /// <summary>注入提示词详情页打开标记（模态 — esc 关闭；TASK079 用户指令"新页面"形态）。</summary>
+    private bool _promptPageOpen;
+
+    /// <summary>注入提示词详情页打开（测试断言面 — 对齐 IsBackgroundTaskDetailOpen 先例）。</summary>
+    internal bool IsPromptPageOpen => _promptPageOpen;
+
+    /// <summary>鼠标上报是否已武装（Run 启动时按 JCC_TUI_MOUSE 决定 — 退出对称关闭依据）。</summary>
+    private bool _mouseArmed;
 
     /// <summary>注入上下文快照（宿主注入 — 系统提示词全文 + 工具清单；null = 未启用）。</summary>
     private readonly string? _promptContextSnapshot;
@@ -780,9 +783,18 @@ public sealed class ReplShell
     {
         CursorLifecycle.HideCursor(_output);
         _output.Write(DecPrivateMode.Enable(DecPrivateModeKind.BracketedPaste));
-        // TASK079 复盘 — 主屏不启用鼠标上报：终端鼠标追踪与应用内选区互斥（启用即接管，
-        // 原生选择复制失效 — 用户实测净倒退）；折叠项改 /prompt 切换展开（终端无损），
-        // 鼠标路径保留代码（命中表/折叠项 HitTestId）待用户权衡后再议
+        // TASK079 — 主屏鼠标上报（用户指令"鼠标点击查看注入提示词"）：点击命中折叠项打开详情页
+        // （AddMessage 页面紧邻输入框立即可见 — 修复此前原地展开在两屏外的感知问题）。
+        // ⚠ 权衡：鼠标追踪与终端原生选择复制互斥（应用内选区 C6 替代）；JCC_TUI_MOUSE=0 逃生门
+        // 可禁用（恢复原生选择，页面仍可 /prompt 打开）
+        if (Environment.GetEnvironmentVariable("JCC_TUI_MOUSE") != "0")
+        {
+            _mouseArmed = true;
+            _output.Write(
+                DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
+                + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
+                + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
+        }
         // A5 接线 — 焦点上报（DEC 1004）：仅协调器存在时启用（有消费者才开 — 退出 WriteExit 尾对称 Disable）
         if (_terminalStatus is not null)
         {
@@ -829,7 +841,9 @@ public sealed class ReplShell
         // 宿主注入快照惰性求值器（首次展开才构建）+ 统计（工具总数/完整注入数）；null = 宿主未启用
         if (_promptContextSnapshot is not null && _promptContextInventory is not null)
         {
-            _promptContextItem = new PromptContextItem(_promptContextSnapshot, _promptContextSnapshot.Length, _promptContextInventory);
+            _promptContextItem = new PromptContextItem(
+                $"📎 首次注入 · 系统提示词 {_promptContextSnapshot.Length} 字符 · 点击查看（含工具清单）",
+                _promptContextSnapshot.Length);
             _view.Messages.Add(_promptContextItem);
             _driver.PromptContextItemTarget = _promptContextItem;
         }
@@ -1282,6 +1296,13 @@ public sealed class ReplShell
         if (_backgroundTaskDetailOpen)
         {
             HandleBackgroundTaskDetailKey(key);
+            return;
+        }
+
+        // TASK079 注入提示词详情页模态（对齐后台任务详情轻量模态形态 — esc 关闭其余吞）
+        if (_promptPageOpen)
+        {
+            HandlePromptPageKey(key);
             return;
         }
 
@@ -2380,6 +2401,7 @@ public sealed class ReplShell
             || _search is not null
             || _view.BackgroundTasks.IsSelectionActive
             || _backgroundTaskDetailOpen
+            || _promptPageOpen
             || _helpOpen)
         {
             return;
@@ -2463,10 +2485,10 @@ public sealed class ReplShell
             return false;
         }
 
-        // 注入上下文折叠项点击（TASK079 用户指令 — 左键单击展开/收起首次注入内容）
+        // 注入上下文折叠项点击（TASK079 用户指令 — 左键单击打开提示词详情页）
         if (hitId == PromptContextItem.HitIdValue)
         {
-            _promptContextItem?.Toggle();
+            ShowPromptPage();
             return true;
         }
 
@@ -2750,6 +2772,42 @@ public sealed class ReplShell
     /// AddMessage + 关闭时 RemoveDialogItem 移除；查看后保持选中态（对话框关闭回选中态
     /// 可继续导航 — 对话框激活期间按键路由见 HandleBackgroundTaskDetailKey；挂载不可重入 —
     /// 分派链对话框分支拦截 Enter）。无选中/索引越界防御 no-op。</summary>
+    /// <summary>打开注入提示词详情页（TASK079 用户指令"新页面"— /prompt 或点击折叠项）：
+    /// 挂载 PromptDetailDialog 消息项（紧邻输入框立即可见，终端滚动回看全文）；
+    /// 已打开时重复触发 = 关闭（切换语义）。</summary>
+    internal void ShowPromptPage()
+    {
+        if (_promptPageOpen)
+        {
+            ClosePromptPage();
+            return;
+        }
+
+        if (_promptContextSnapshot is null || _promptContextInventory is null)
+        {
+            return;
+        }
+
+        _promptPageOpen = true;
+        AddMessage(new PromptDetailDialog(_promptContextSnapshot, _promptContextSnapshot.Length, _promptContextInventory));
+    }
+
+    /// <summary>注入提示词详情页模态按键（对齐后台任务详情模态形态 — esc 关闭，其余吞掉）。</summary>
+    private void HandlePromptPageKey(KeyPress key)
+    {
+        if (key.Kind is KeyKind.Escape or KeyKind.LeftArrow)
+        {
+            ClosePromptPage();
+        }
+    }
+
+    /// <summary>关闭注入提示词详情页（移除对话框项 — 回主循环视图）。</summary>
+    private void ClosePromptPage()
+    {
+        _promptPageOpen = false;
+        RemoveDialogItem<PromptDetailDialog>();
+    }
+
     private void ShowSelectedBackgroundTask()
     {
         var tasks = _view.BackgroundTasks.Tasks;
@@ -4358,7 +4416,13 @@ public sealed class ReplShell
         var focusDisable = _terminalStatus is not null
             ? DecPrivateMode.Disable(DecPrivateModeKind.FocusReporting)
             : string.Empty;
-        _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste) + focusDisable);
+        _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste)
+            + (_mouseArmed
+                ? DecPrivateMode.Disable(DecPrivateModeKind.MouseSgrEncoding)
+                + DecPrivateMode.Disable(DecPrivateModeKind.MouseEventTracking)
+                + DecPrivateMode.Disable(DecPrivateModeKind.MouseClickTracking)
+                : string.Empty)
+            + focusDisable);
         _terminalStatus?.Shutdown();
         _output.Flush();
         DrainPendingConsoleInput();

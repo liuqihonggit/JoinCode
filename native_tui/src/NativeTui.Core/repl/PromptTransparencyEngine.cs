@@ -19,11 +19,10 @@ public sealed class PromptTransparencyEngine(IReplEngine inner) : IReplEngine
         }
     }
 
-    /// <summary>提交回合 — /prompt 切换注入上下文折叠项展开/收起（用户实测追加消息项形态
-    /// 不符合预期；快照内容已在折叠项内，切换即可见），其余原样透传。</summary>
+    /// <summary>提交回合 — /prompt 打开注入提示词详情页（全页模态，esc 关闭），其余原样透传。</summary>
     public void Submit(string text) {
         if (text.Trim().Equals("/prompt", StringComparison.OrdinalIgnoreCase)) {
-            _shell?.TogglePromptContext();
+            _shell?.ShowPromptPage();
             return;
         }
 

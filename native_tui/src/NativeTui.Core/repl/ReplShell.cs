@@ -537,7 +537,7 @@ public sealed class ReplShell
     private readonly ManualResetEventSlim _inputWake = new(false);
 
     /// <summary>强制重绘空白前置帧（零尺寸屏 — InlineComposer 判 prev.Cols ≠ next.Cols 走
-    /// FullReset 路径：光标移视口顶 + EraseScreen + 重绘可见区；缓存复用零分配）。</summary>
+    /// FullReset 路径：2J+3J+光标归位 绝对锚定整帧重绘；缓存复用零分配）。</summary>
     private Screen? _blankPrev;
     private long _animTimeMs;
     private volatile bool _running = true;
@@ -4408,7 +4408,7 @@ public sealed class ReplShell
     }
 
     /// <summary>ctrl+l 强制全量重绘（S6 任务 8）：inline — 下一帧走 FullReset（零尺寸空白前置帧
-    /// 触发 InlineComposer 跨尺寸分支：光标移视口顶 + EraseScreen + 重绘可见区，scrollback 历史保留）；
+    /// 触发 InlineComposer 跨尺寸分支：2J+3J+光标归位 绝对锚定整帧重绘，对齐基准 clearTerminal.ts）；
     /// viewport — 前缓冲失效下帧全量输出。prevOverride 一并丢弃（旧帧不复用作 diff 基准）。</summary>
     internal void ForceFullRepaint()
     {

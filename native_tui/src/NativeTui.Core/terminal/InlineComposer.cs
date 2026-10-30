@@ -7,8 +7,10 @@ public readonly record struct CursorPos(int Col, int Row);
 /// inline（非 alt-screen）帧组装器 — 对齐基准 ink/log-update.ts 主屏渲染语义：
 /// ① 相对光标操作（CR/LF/CUU/CUB/CUF）— 终端滚动后绝对坐标不可知，只有相对量可靠；
 /// ② 增长行 append（LF 前进）自然滚入终端 scrollback 成为原生历史（可被终端选择复制）；
-/// ③ 收缩清底部行（EraseLine）；④ 变更落在 scrollback 区（不可达）→ fullReset
-/// （EraseScreen 重绘可见区）；⑤ 首帧不清屏（保留终端既有历史）；⑥ 零变化零光标移动 → 零输出。
+/// ③ 收缩清底部行（EraseLine）；④ 变更落在 scrollback 区（不可达）/跨尺寸 → fullReset
+/// （EraseScreen+EraseSavedLines+光标归位 绝对锚定整帧重绘 — reflow 后物理光标不可知，
+/// 相对 CUU 落点失同步，对齐基准 clearTerminal.ts:59-69 + log-update.ts:509-512 renderFrame）；
+/// ⑤ 首帧不清屏（保留终端既有历史）；⑥ 零变化零光标移动 → 零输出。
 /// 帧尾光标由调用方指定（frameEndCursor，通常为输入框光标位），返回 nextCursor 供下帧传入。
 /// OSC 8 超链接（DSG043 P3）：行级链接区间（Screen.SetLinks）在 cell 流输出时按区间边界
 /// 注入开/闭序列对（与 SGR 正交 — 终端流上独立标记，对齐基准 ink Link 同构）；
@@ -51,7 +53,7 @@ public sealed class InlineComposer
             || HasScrollbackChange(prev, next, Math.Max(0, prev.Rows - viewportRows))
             || IsShrinkBeyondViewport(prev, next, viewportRows))
         {
-            FullReset(builder, next, viewportRows, ref cursor);
+            FullReset(builder, next, ref cursor);
         }
         else
         {
@@ -114,14 +116,17 @@ public sealed class InlineComposer
     private static bool IsShrinkBeyondViewport(Screen prev, Screen next, int viewportRows) =>
         next.Rows < prev.Rows && prev.Rows - next.Rows > viewportRows;
 
-    /// <summary>fullReset：光标相对移到视口顶 → EraseScreen → 重绘可见区（scrollback 历史保留不动）。</summary>
-    private void FullReset(StringBuilder builder, Screen next, int viewportRows, ref CursorPos cursor)
+    /// <summary>fullReset：2J+3J+光标归位 绝对锚定（对齐基准 clearTerminal.ts:59-69 — 终端
+    /// resize 时 conhost reflow 重排缓冲区，物理光标落点由 reflow 决定，相对 CUU 从旧内容坐标
+    /// 信念出发必然失同步；清视口+清 scrollback+归零后整帧重绘，重排无关确定性对齐）→
+    /// 整帧重绘 [0, Rows)（对齐基准 log-update.ts:509-512 renderFrame — scrollback 由重绘自然重建）。</summary>
+    private void FullReset(StringBuilder builder, Screen next, ref CursorPos cursor)
     {
-        var top = Math.Max(0, next.Rows - viewportRows);
-        MoveTo(builder, ref cursor, new CursorPos(0, top));
         builder.Append(Csi.EraseScreen());
-        cursor = new CursorPos(0, top);
-        RenderSlice(builder, next, top, next.Rows, ref cursor);
+        builder.Append(Csi.EraseSavedLines());
+        builder.Append(Csi.CursorPosition(1, 1));
+        cursor = new CursorPos(0, 0);
+        RenderSlice(builder, next, 0, next.Rows, ref cursor);
     }
 
     /// <summary>

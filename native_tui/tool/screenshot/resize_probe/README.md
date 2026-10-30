@@ -47,7 +47,9 @@ python native_tui/tool/screenshot/resize_probe/resize_probe.py `
 - 输出：`report.md`（跨相位标记行汇总表 + 各相位网格）、`NN_WxH.txt/.png`、
   `stream.bin`（原始流，可离线重放分析）、`phases.json`（偏移索引）。
 
-## 已产出的证据（2026-10-31，demo_seq）
+## 已产出的证据（2026-10-31，TASK076）
+
+**修复前**（demo_seq — InlineComposer 相对锚定 fullReset）：
 
 | 相位 | 尺寸 | banner `jcc v` 行 | 判定 |
 |---|---|---|---|
@@ -56,4 +58,6 @@ python native_tui/tool/screenshot/resize_probe/resize_probe.py `
 | 2 | 140×40（放窗） | 0 | ✅（CUU 钳制侥幸归位） |
 | 3 | 90×20（再缩） | 0 | ✅（侥幸 — 帧对齐未被 reflow 破坏） |
 
-根因与修复方向见 [TASK076](../../docs/proposed/task/TASK076-TUI-resize-fullReset-锚定语义差异-四问深度版.md)。
+**修复后**（demo_fixed — 方案 A 基准对齐：fullReset 改 2J+3J+光标归位 绝对锚定 + 整帧重绘）：
+四相位 banner 恒在第 0 行，布局逐行一致。差异分析与 TDD 验收记录见
+[TASK076](../../docs/proposed/task/TASK076-TUI-resize-fullReset-锚定语义差异-四问深度版.md)。

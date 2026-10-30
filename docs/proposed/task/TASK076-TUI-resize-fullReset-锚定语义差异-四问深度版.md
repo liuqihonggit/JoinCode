@@ -1,6 +1,6 @@
 # TUI resize fullReset 锚定语义差异 — 四问深度版
 
-> **状态**：proposed — 差异已确证 + 探针工具已建成，修复方向待用户决策（未修复）
+> **状态**：implemented — 方案 A 基准对齐已落地（2026-10-31，TDD 红绿 + 探针物理验收全绿）
 > **来源**：用户报告"拖拽终端窗口调整大小时，banner 内容没有永远保证最顶部" + 基准对比调研
 > **创建时间**：2026-10-31
 > **关联**：TASK072 基准对比调研模板；`native_tui/tool/screenshot/resize_probe/`（本次建成的 L3 感知探针）；L2 像素比对 `native_tui/tool/screenshot/compare/`
@@ -103,18 +103,29 @@ banner 恒在第 0 行。
 
 ---
 
-## 四、修复方向（供用户决策 — 按纪律未先行修复）
+## 四、修复落地（方案 A 基准对齐，2026-10-31 用户决策后 TDD 执行）
 
-| 方案 | 内容 | 代价 | 与基准关系 |
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| `InlineComposer.FullReset` 改 `2J+3J+CUP(1;1)` 绝对锚定 + 整帧重绘（`InlineComposer.cs`） | resize 跨尺寸 / scrollback 变更 / 收缩超视口 / ctrl+l（`ReplShell.RenderAndFlush` + `ForceFullRepaint`） | ✅ | ✅ 探针物理验收（下表） |
+| 旧语义断言翻转 + 整帧重绘红测试（`InlineComposerTests.cs`：AbsoluteAnchor 前缀 / scrollback 行重发 / 稳态帧禁 3J 守卫） | 单元回归面 | ✅ 11/11 | ✅ `dotnet test NativeTui.Tests` 2974/2974 |
+| ReplShell 过时注释同步（`_blankPrev` / `ForceFullRepaint` 旧行为描述） | 文档一致性 | ✅ | ✅ 编译零警告 |
+
+**TDD 记录**：🔴 红 — 4 断言失败，失败输出即旧实现失同步签名 `\r\x1b[9A\x1b[2J...`（相对 CUU +
+仅 2J + 底部行重绘）；🟢 绿 — `FullReset` 绝对锚定后 InlineComposerTests 11/11；
+🔵 重构 — FullReset 去视口参数（不再需要 top 计算）；回归 2974/2974 全绿。
+
+**E2E 物理验收（resize_probe demo_fixed，与修复前 demo_seq 同序列同标记）**：
+
+| 相位 | 尺寸 | 修复前 banner 行 | 修复后 banner 行 |
 |---|---|---|---|
-| **A. 基准对齐（推荐）** | `FullReset` 改绝对锚定：发 `2J+3J+CUP(1;1)`，从内容行 0 **整帧重绘**（对齐 `clearTerminal.ts` + `renderFrame`） | 长会话 resize 全量重发 + 闪烁（基准同款代价，作者已论证"resize 罕见"） | 完美同步 |
-| **B. 绝对锚定+保留 scrollback** | 发 `2J+CUP(1;1)`（不清 3J），从内容行 `top` 重绘底部视口行 — 视口内确定性对齐，scrollback 历史保留可复制 | 输出量小，但 scrollback 深度/内容与基准有残差（非完美同步） | 部分对齐 |
-| **C. 维持现状** | 记录为已知差异 | 缩窗错位持续存在 | 不同 |
+| 0 | 120×30 | 0 | 0 |
+| 1 | 80×24（缩窗） | **4 ❌** | **0 ✅** |
+| 2 | 140×40（放窗） | 0 | 0 |
+| 3 | 90×20（再缩） | 0 | 0 |
 
-推荐 A：项目原则"ts 和 cs 两边功能完美同步"；resize 是罕见事件，确定性优先于字节量
-（基准同名论证）；闪烁可用既有 DEC 2026 同步输出包裹缓解。
-
----
+四相位布局逐行一致（banner 0 / `❯` 4 / footer 17），相位 1 顶部 4 行空白消失，scrollback
+由整帧重绘自然重建 — 与基准 clearTerminal.ts 语义对齐。
 
 ## 五、本次建成资产
 
@@ -128,3 +139,9 @@ banner 恒在第 0 行。
 <!-- 原因: C# InlineComposer.cs:117 "scrollback 历史保留不动"是有注释的刻意选择，属"功能相同实现不同"而非无争议 bug；AGENTS.md 基准对比纪律要求此类走用户决策 -->
 <!-- 替代方案: 直接按方案 A 修复（若用户确认即执行 TDD 流程） -->
 <!-- 验证: 探针 demo_seq 复现错位（banner 行 0→4），pyte 独立重放可复核 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-10-31 -->
+<!-- 决策: 用户选定方案 A 后，fullReset 语义翻转处将编码旧语义的测试断言一并翻转（ChangeInScrollback_TriggersFullReset 的 DoesNotContain("AAA") → Contains） -->
+<!-- 原因: 该断言是旧"scrollback 历史保留"语义的载体，与新基准对齐语义直接冲突；无后向兼容原则 -->
+<!-- 替代方案: 保留旧测试另加新测试（两套断言互相矛盾，不可行） -->
+<!-- 验证: InlineComposerTests 11/11 + NativeTui.Tests 2974/2974 + 探针 demo_fixed 四相位 banner 行 0 ✅ -->

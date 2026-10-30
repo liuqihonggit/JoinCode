@@ -3,8 +3,9 @@
 > 📍 **导航**: [docs/](../../README.md) › [adr/](../README.md)
 > 🔗 **上游索引**: [adrDadr/README.md](../README.md) — 修改本文档后须同步更新此索引
 
-> 状态: proposed
+> 状态: accepted
 > 创建: 2026-10-28
+> 接受: 2026-10-31
 > 决策者: 用户主导（子代理崩溃时杀死其 bash 子进程 — session 级别绑定每个工具触发）
 > 影响: modules/cognition/hands/system_actuator/abstractions/SessionToolMap.cs + BashSystemActuator + ADR 0106 卡死检测
 > 关联: [ADR 0106](../implemented/adr/data_core_selection/0106-subagent-stall-defense-in-depth.md)（子代理卡死防护）、[ADR 0151](0151-command-timeout-auto-background.md)（命令超时转后台）
@@ -75,7 +76,7 @@
 
 ### 实现顺序
 1. ✅ ToolInfo + SessionToolMap 数据结构
-2. ⏳ 单元测试
-3. ⏳ BashSystemActuator 集成（注册 ToolInfo）
-4. ⏳ 后台定时器（CheckTimeouts）
-5. ⏳ ADR 0106 卡死检测集成（KillByAgent）
+2. ✅ 单元测试（12 测试全绿）
+3. ✅ BashSystemActuator 集成（注册 ToolInfo — SystemActuatorCommandContext.StartAsync）
+4. ✅ 后台定时器（CheckTimeouts — StartMonitoring/StopMonitoring）
+5. ✅ ADR 0106 卡死检测集成（KillByAgent — SubAgentStallDefenseCoordinator 三个放弃点）

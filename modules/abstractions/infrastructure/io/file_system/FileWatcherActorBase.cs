@@ -12,6 +12,7 @@ public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
     private IFileSystemWatcher? _watcher;
     private readonly Dictionary<string, DateTimeOffset> _internalWrites = new(StringComparer.Ordinal);
     private TimeSpan _internalWriteWindow = TimeSpan.FromSeconds(5);
+    private volatile bool _disposing;
 
     /// <summary>文件系统抽象 — 子类可访问用于路径检查等</summary>
     protected readonly IFileSystem FileSystem;
@@ -118,35 +119,38 @@ public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
 
     private async ValueTask StopWatcherCoreAsync() {
         if (_watcher is null) return;
-        var sw = System.Diagnostics.Stopwatch.StartNew();
         _watcher.DebouncedChanged -= OnWatcherChanged;
         _watcher.DebouncedCreated -= OnWatcherChanged;
         _watcher.DebouncedDeleted -= OnWatcherChanged;
         _watcher.DebouncedRenamed -= OnWatcherRenamed;
         await _watcher.DisposeAsync().ConfigureAwait(false);
-        Console.WriteLine($"[DIAG-FW] StopWatcherCoreAsync _watcher.DisposeAsync took {sw.Elapsed}");
         _watcher = null;
     }
 
-    /// <summary>watcher 变更事件 → 投递 FileChangedCmd 到邮箱(不访问状态,可从任意线程调用)</summary>
-    private void OnWatcherChanged(object? sender, FileChangedEventArgs e)
-        => TrySend(new FileChangedCmd(e.FullPath, e.ChangeType, DateTimeOffset.UtcNow));
+    /// <summary>watcher 变更事件 → 投递 FileChangedCmd 到邮箱(不访问状态,可从任意线程调用)。
+    /// <para>释放期间丢弃事件 — _disposing=true 时不再入队,避免 Consumer 退出前队列积压。</para>
+    /// </summary>
+    private void OnWatcherChanged(object? sender, FileChangedEventArgs e) {
+        if (_disposing) return;
+        TrySend(new FileChangedCmd(e.FullPath, e.ChangeType, DateTimeOffset.UtcNow));
+    }
 
-    /// <summary>watcher 重命名事件 → 投递 FileRenamedCmd 到邮箱(不访问状态,可从任意线程调用)</summary>
-    private void OnWatcherRenamed(object? sender, FileRenamedEventArgs e)
-        => TrySend(new FileRenamedCmd(e.OldFullPath, e.FullPath, DateTimeOffset.UtcNow));
+    /// <summary>watcher 重命名事件 → 投递 FileRenamedCmd 到邮箱(不访问状态,可从任意线程调用)。
+    /// <para>释放期间丢弃事件 — _disposing=true 时不再入队。</para>
+    /// </summary>
+    private void OnWatcherRenamed(object? sender, FileRenamedEventArgs e) {
+        if (_disposing) return;
+        TrySend(new FileRenamedCmd(e.OldFullPath, e.FullPath, DateTimeOffset.UtcNow));
+    }
 
     /// <summary>
-    /// 释放 Actor — 发停止命令让 Consumer 清理 _watcher,等 Consumer 退出后由 PostStopAsync 兜底。
+    /// 释放 Actor — 先阻止新事件入队(_disposing),再发停止命令让 Consumer 清理 _watcher,等 Consumer 退出后由 PostStopAsync 兜底。
     /// <para>不直接访问 _watcher(遵守 Consumer 独占约定),所有状态清理在 Consumer 线程或 PostStopAsync(Consumer 退出后)进行。</para>
     /// </summary>
     public override async ValueTask DisposeAsync() {
-        var sw = System.Diagnostics.Stopwatch.StartNew();
+        _disposing = true;
         TrySend(new FileWatcherStopCmd());
-        Console.WriteLine($"[DIAG-FW] TrySend(StopCmd) took {sw.Elapsed}");
-        sw.Restart();
         await base.DisposeAsync().ConfigureAwait(false);
-        Console.WriteLine($"[DIAG-FW] base.DisposeAsync (wait Consumer) took {sw.Elapsed}");
     }
 
     /// <summary>
@@ -155,13 +159,11 @@ public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
     /// </summary>
     protected override async ValueTask PostStopAsync() {
         if (_watcher is not null) {
-            var sw = System.Diagnostics.Stopwatch.StartNew();
             _watcher.DebouncedChanged -= OnWatcherChanged;
             _watcher.DebouncedCreated -= OnWatcherChanged;
             _watcher.DebouncedDeleted -= OnWatcherChanged;
             _watcher.DebouncedRenamed -= OnWatcherRenamed;
             await _watcher.DisposeAsync().ConfigureAwait(false);
-            Console.WriteLine($"[DIAG-FW] PostStopAsync _watcher.DisposeAsync took {sw.Elapsed}");
         }
         _watcher = null;
         await base.PostStopAsync().ConfigureAwait(false);

@@ -78,4 +78,35 @@ public sealed class ConfigChangeNotifierTests {
     public Task FileChange_CodexCommandsDir_Should_Raise_ConfigChanged() {
         return Task.CompletedTask;
     }
+
+    [Fact]
+    public async Task FindWatchRoot_Should_Stop_At_GitDirectory() {
+        var fs = new InMemoryFileSystem();
+        fs.CreateDirectory("/root/parent/project");
+        fs.CreateDirectory("/root/parent/project/.git");
+        fs.CreateDirectory("/root/parent");
+        await fs.WriteAllText("/root/parent/AGENTS.md", "# parent");
+        await fs.WriteAllText("/root/parent/project/AGENTS.md", "# project");
+
+        await using var notifier = new ConfigChangeNotifier(fs);
+        var watchRoot = notifier.FindWatchRoot("/root/parent/project");
+
+        watchRoot.Should().Be(fs.GetFullPath("/root/parent/project"),
+            "遇到 .git 目录应停止向上遍历,不会遍历到 /root/parent");
+    }
+
+    [Fact]
+    public async Task FindWatchRoot_Should_Traverse_Up_Without_GitDirectory() {
+        var fs = new InMemoryFileSystem();
+        fs.CreateDirectory("/root/parent/project");
+        fs.CreateDirectory("/root/parent");
+        await fs.WriteAllText("/root/parent/AGENTS.md", "# parent");
+        await fs.WriteAllText("/root/parent/project/AGENTS.md", "# project");
+
+        await using var notifier = new ConfigChangeNotifier(fs);
+        var watchRoot = notifier.FindWatchRoot("/root/parent/project");
+
+        watchRoot.Should().Be(fs.GetParentPath(fs.GetFullPath("/root/parent/project")),
+            "无 .git 目录时应继续向上遍历找到最顶层有配置文件的目录");
+    }
 }

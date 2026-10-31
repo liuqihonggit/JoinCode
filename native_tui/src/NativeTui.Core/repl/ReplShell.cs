@@ -816,9 +816,11 @@ public sealed class ReplShell
         CursorLifecycle.HideCursor(_output);
         _output.Write(DecPrivateMode.Enable(DecPrivateModeKind.BracketedPaste));
         // TASK079 — 鼠标上报（Win32InputPump ReadConsoleInput 可见 MOUSE_EVENT 记录）
+        // TASK077 — MouseAnyEventTracking(DEC 1003) 启用 hover 追踪（Move 事件驱动高亮）
         _output.Write(
             DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
             + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
+            + DecPrivateMode.Enable(DecPrivateModeKind.MouseAnyEventTracking)
             + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
         // A5 接线 — 焦点上报（DEC 1004）：仅协调器存在时启用（有消费者才开 — 退出 WriteExit 尾对称 Disable）
         if (_terminalStatus is not null)
@@ -2444,6 +2446,27 @@ public sealed class ReplShell
                 var down = evt.Kind == MouseKind.WheelDown;
                 var step = _wheelSpeed.OnWheelEvent(down);
                 _transcript.ScrollBy(down ? step : -step);
+            }
+
+            return;
+        }
+
+        // TASK077 — hover 高亮：Move 事件经 HitTest 查询，命中 PromptContextItem 时切换 hover 样式。
+        // DEC 1003 启用无按钮移动上报（Move 事件量经终端节流可控；状态变化由每拍渲染消费）
+        if (evt.Kind == MouseKind.Move && _promptContextItem is { } hoverItem)
+        {
+            var screenRow = evt.Row;
+            if (_inline && _viewportProbe is { } probe)
+            {
+                var viewportOffset = probe.QueryViewportOffset(_cursor.Row);
+                screenRow = TerminalViewportProbe.ScreenRowFromSgr(evt.Row, viewportOffset);
+            }
+
+            var hitId = _view.HitTests.HitTest(screenRow, evt.Col);
+            var newHovered = hitId == PromptContextItem.HitIdValue;
+            if (hoverItem.IsHovered != newHovered)
+            {
+                hoverItem.IsHovered = newHovered;
             }
 
             return;
@@ -4465,6 +4488,7 @@ public sealed class ReplShell
         // TASK077 — 主屏鼠标武装对称解除（Run 启用 ?1000h/?1002h/?1006h，退出必须 Disable
         // 否则终端残留鼠标应用模式影响 shell 正常使用）
         var mouseDisable = DecPrivateMode.Disable(DecPrivateModeKind.MouseSgrEncoding)
+            + DecPrivateMode.Disable(DecPrivateModeKind.MouseAnyEventTracking)
             + DecPrivateMode.Disable(DecPrivateModeKind.MouseEventTracking)
             + DecPrivateMode.Disable(DecPrivateModeKind.MouseClickTracking);
         _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste) + mouseDisable + focusDisable);

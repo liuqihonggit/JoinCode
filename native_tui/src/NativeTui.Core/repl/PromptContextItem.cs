@@ -25,6 +25,9 @@ public sealed class PromptContextItem : IScrollItem
     /// <summary>展开态（transcript 模态内查看全文 — /prompt 置位）。</summary>
     public bool Expanded { get; set; }
 
+    /// <summary>鼠标悬停态（TASK077 — hover 高亮：Move 事件经 HitTest 查询置位，渲染时切换样式）。</summary>
+    public bool IsHovered { get; set; }
+
     /// <summary>展开内容（系统提示词全文 + 工具清单 — ReplShell 注入；null = 未注入回退摘要）。</summary>
     public string? ExpandedContent { get; set; }
 
@@ -39,13 +42,20 @@ public sealed class PromptContextItem : IScrollItem
     /// <summary>塌缩单行摘要（1 行）。</summary>
     public int MeasureHeight(int width) => 1;
 
-    /// <summary>渲染摘要行（dim 纯文本 — 无 OSC 8 无 SetLinks，点击直达应用命中表）。</summary>
+    /// <summary>渲染摘要行（hover 时正常亮度+下划线，非 hover 时 dim 纯文本 — 无 OSC 8 无 SetLinks，点击直达应用命中表）。</summary>
     public void Render(Screen screen, Rect frame, Theme theme)
     {
-        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
         var tokenNote = PromptTokens is { } tokens ? $" · 约 {tokens} tokens" : string.Empty;
-        screen.WriteText(frame.Y, frame.X,
-            $"📎 首次注入 · 系统提示词 {PromptChars} 字符{tokenNote} · 点击展开",
-            dim, frame.Right);
+        var text = $"📎 首次注入 · 系统提示词 {PromptChars} 字符{tokenNote} · 点击展开";
+        if (IsHovered)
+        {
+            var hoverStyle = screen.Styles.GetOrAdd(new TextStyle { Underline = true });
+            screen.WriteText(frame.Y, frame.X, text, hoverStyle, frame.Right);
+        }
+        else
+        {
+            var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+            screen.WriteText(frame.Y, frame.X, text, dim, frame.Right);
+        }
     }
 }

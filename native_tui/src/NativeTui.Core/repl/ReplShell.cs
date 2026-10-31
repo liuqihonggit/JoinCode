@@ -811,12 +811,9 @@ public sealed class ReplShell
     {
         CursorLifecycle.HideCursor(_output);
         _output.Write(DecPrivateMode.Enable(DecPrivateModeKind.BracketedPaste));
-        // TASK079 用户终版指令 — 点击折叠项进入备用屏查看注入内容：鼠标上报必需
-        // （应用内选区 C6 替代原生选择 — 拖选高亮+松开自动复制）
-        _output.Write(
-            DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
-            + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
-            + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
+        // TASK079 — 主屏不启用鼠标上报：Console.ReadKey 架构性跳过 MOUSE_EVENT 记录，
+        // 武装无效果且破坏终端原生选择复制。鼠标支持需 ReadConsoleInput 输入泵重构（后续任务）。
+        // 注入内容查看 = /prompt 命令 → transcript 备用屏（已验证可用）
         // A5 接线 — 焦点上报（DEC 1004）：仅协调器存在时启用（有消费者才开 — 退出 WriteExit 尾对称 Disable）
         if (_terminalStatus is not null)
         {

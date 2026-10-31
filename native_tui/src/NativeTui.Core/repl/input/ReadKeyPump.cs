@@ -36,11 +36,23 @@ public sealed class ReadKeyPump : IInputPump
             } else {
                 info = Console.ReadKey(intercept: true);
             }
-            if (!forceTty && info.Key == ConsoleKey.Escape && info.KeyChar == '\u001b' && TryCollectPaste(out var content))
+            if (!forceTty && info.Key == ConsoleKey.Escape && info.KeyChar == '\u001b')
             {
-                dispatch(ConsoleKeyAdapter.Paste(content));
-                dispatched = true;
-                continue;
+                if (TryCollectPaste(out var content))
+                {
+                    dispatch(ConsoleKeyAdapter.Paste(content));
+                    dispatched = true;
+                    continue;
+                }
+
+                // TASK079 — ESC 序列通用收集解析（SGR 鼠标/CSI/kitty 全模式 — KeyPressParser）：
+                // 控制台宿主唯一不翻译的就是 ESC 序列（箭头等有原生 INPUT_RECORD 直达），
+                // 此前非 paste 序列被逐字符撕碎（鼠标点击无反应的真正根因 — 用户 WT 实测）
+                if (TryDispatchEscapeSequence(dispatch))
+                {
+                    dispatched = true;
+                    continue;
+                }
             }
 
             if (ConsoleKeyAdapter.ToKeyPress(info) is { } key)
@@ -51,6 +63,59 @@ public sealed class ReadKeyPump : IInputPump
         }
 
         return dispatched;
+    }
+
+    /// <summary>收集上限（单序列字符数防御 — 正常 SGR 鼠标 ≤ 16 字符，粘贴已前置短路）。</summary>
+    private const int MaxEscapeSequenceChars = 64;
+
+    /// <summary>
+    /// ESC 序列通用收集解析（TASK079 鼠标链路修复）：从 pending 队列与 KeyAvailable 逐字符收集，
+    /// 每次增量后跑 KeyPressParser.TryParseNext（非 force — 不完整序列继续攒）；
+    /// 解析产出即分派（SGR 鼠标/CSI/kitty 全模式）；KeyAvailable 耗尽仍不完整 → force 解析
+    /// （孤 ESC 产出 Escape 键 — 孤立 Esc 既有语义）；产出后余字符回 pending 队列零丢弃。
+    /// </summary>
+    /// <param name="dispatch">按键分派回调。</param>
+    /// <returns>true = 已消费 ESC 及序列（调用方 continue）；false = 罕见回退（按孤 ESC 分派）。</returns>
+    private bool TryDispatchEscapeSequence(Action<KeyPress> dispatch)
+    {
+        var consumed = new List<char> { '\u001b' };
+        while (_pendingKeys.Count > 0 && consumed.Count < MaxEscapeSequenceChars)
+        {
+            consumed.Add(_pendingKeys.Dequeue().KeyChar);
+        }
+
+        while (Console.KeyAvailable && consumed.Count < MaxEscapeSequenceChars)
+        {
+            consumed.Add(Console.ReadKey(intercept: true).KeyChar);
+            if (TryParseAndDispatchCollected(dispatch, consumed))
+            {
+                return true;
+            }
+        }
+
+        // KeyAvailable 耗尽 — force 解析（孤 ESC → Escape；不完整序列产出部分键防卡死）
+        return TryParseAndDispatchCollected(dispatch, consumed, force: true);
+    }
+
+    /// <summary>对已收集字符跑解析器并分派产出（force 可选）；余字符（不完整尾段）回 pending 队列。</summary>
+    private bool TryParseAndDispatchCollected(Action<KeyPress> dispatch, List<char> consumed, bool force = false)
+    {
+        Span<char> span = stackalloc char[consumed.Count];
+        consumed.CopyTo(span);
+        var rest = (ReadOnlySpan<char>)span;
+        var dispatchedAny = false;
+        while (KeyPressParser.TryParseNext(ref rest, out var key, force))
+        {
+            dispatch(key);
+            dispatchedAny = true;
+        }
+
+        foreach (var ch in rest)
+        {
+            _pendingKeys.Enqueue(new ConsoleKeyInfo(ch, ConsoleKey.None, false, false, false));
+        }
+
+        return dispatchedAny;
     }
 
     /// <summary>尝试收集 bracketed paste 块 — 前提：ESC 键已消费。

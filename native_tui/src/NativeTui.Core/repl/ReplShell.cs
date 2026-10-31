@@ -26,6 +26,10 @@ public sealed class ReplShell
     // DSG043 P3 — 超链接支持经 HyperlinkEmitter 终端白名单探测（无参构造默认；不支持终端零注入降级）
     private readonly InlineComposer _inlineComposer = new(NativeTui.Core.Repl.HyperlinkEmitter.IsHyperlinkSupported());
 
+    /// <summary>终端视口探测器（TASK077 — inline 模式 SGR 鼠标坐标 ↔ Screen 内容坐标偏移计算）。
+    /// Windows 专用；非 Windows 平台 QueryViewportOffset 返回 0 零偏移降级。</summary>
+    private readonly TerminalViewportProbe? _viewportProbe = OperatingSystem.IsWindows() ? new() : null;
+
     /// <summary>视口模式帧组装器（S9 接线 — DEC 2026 探测结果条件构造：不支持终端跳过 BSU/ESU 包裹）。</summary>
     private readonly FrameComposer _composer = new(TerminalCapabilities.IsSynchronizedOutputSupported(),
         NativeTui.Core.Repl.HyperlinkEmitter.IsHyperlinkSupported());
@@ -299,16 +303,6 @@ public sealed class ReplShell
     private readonly Func<(string Text, int Total, int System)>? _promptContextInventory;
 
     /// <summary>注入快照文件 file URL（OSC 8 链接目标 — null = 未写文件/不支持）。</summary>
-    private readonly string? _promptContextFileUrl;
-
-    /// <summary>终端 OSC 8 支持标记（HyperlinkEmitter 探测 — 不支持降级纯文本路径）。</summary>
-    private readonly bool _hyperlinkSupported;
-
-    /// <summary>快照 .md 降级路径（Host 写 %TEMP% — 终端不支持 OSC 8 时摘要显示供手动打开）。</summary>
-    private readonly string? _promptContextFallbackPath;
-
-    /// <summary>鼠标上报武装标记（Run 启动按终端能力门控决定 — WriteExit 对称关闭依据）。</summary>
-    private bool _mouseArmed;
 
     /// <summary>bash 直通完成结果缓冲（S10 接线 — ExecuteAsync 完成于线程池线程，AddMessage 必须回主循环线程
     /// （与渲染循环竞争 _view.Messages），复用 /clear 的跨线程缓冲 + 主循环消费先例）。</summary>
@@ -681,9 +675,7 @@ public sealed class ReplShell
         int shellTimeoutSeconds = 120,
         string? promptContextSnapshot = null,
         Func<(string Text, int Total, int System)>? promptContextInventory = null,
-        string? promptContextFileUrl = null,
-        bool hyperlinkSupported = false,
-        string? promptContextFallbackPath = null,
+
         AlternateScreenController? alternateScreen = null,
         SelectionState? selection = null,
         Action<string>? copySelection = null,
@@ -706,9 +698,6 @@ public sealed class ReplShell
         _seedMessages = seedMessages ?? [];
         _promptContextSnapshot = promptContextSnapshot;
         _promptContextInventory = promptContextInventory;
-        _promptContextFileUrl = promptContextFileUrl;
-        _hyperlinkSupported = hyperlinkSupported || Terminal.TerminalHostDetector.IsWindowsTerminalHosting();
-        _promptContextFallbackPath = promptContextFallbackPath;
         _commandUsage = commandUsage ?? new CommandUsageMemory();
         // S10 接线 — 分组注入：空查询 "/" 走 recently-used + 来源分组视图（有查询仍走既有匹配排序）
         _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands, new CommandGrouping(_commandUsage)) : null;
@@ -716,7 +705,7 @@ public sealed class ReplShell
         _sizeSource = sizeSource ?? new ConsoleTerminalSizeSource();
         _copyToClipboard = clipboard;
         _saveThemeAsync = saveThemeAsync;
-        _inputPump = inputPump ?? new ReadKeyPump();
+        _inputPump = inputPump ?? new Win32InputPump();
         _terminalStatus = terminalStatus;
         // TASK066 B4 — 键位表注入（null = 默认表零行为变化 — 既有测试契约兜底）
         _keybindings = keybindings ?? KeybindingProfile.Default;
@@ -826,19 +815,13 @@ public sealed class ReplShell
     {
         CursorLifecycle.HideCursor(_output);
         _output.Write(DecPrivateMode.Enable(DecPrivateModeKind.BracketedPaste));
-        // TASK079 用户反馈终版 — 鼠标上报**能力门控**：仅现代终端（WT/VSCode/kitty 等声明支持者）
-        // 启用（点击折叠项/链接/滚动可用）；conhost 原生窗口不声明 → 不武装（终端原生选择复制
-        // 完整保留 — 用户实测 conhost 下武装导致复制失效且点击依旧不可用：conhost 不转发鼠标序列）。
-        // JCC_TUI_MOUSE=0 逃生门强制禁用；探测与 OSC 8 链接门控同源（HyperlinkEmitter）
-        if (Environment.GetEnvironmentVariable("JCC_TUI_MOUSE") != "0"
-            && (HyperlinkEmitter.IsHyperlinkSupported() || Terminal.TerminalHostDetector.IsWindowsTerminalHosting()))
-        {
-            _mouseArmed = true;
-            _output.Write(
-                DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
-                + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
-                + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
-        }
+        // TASK079 — 鼠标上报（Win32InputPump ReadConsoleInput 可见 MOUSE_EVENT 记录）
+        // TASK077 — MouseAnyEventTracking(DEC 1003) 启用 hover 追踪（Move 事件驱动高亮）
+        _output.Write(
+            DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
+            + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
+            + DecPrivateMode.Enable(DecPrivateModeKind.MouseAnyEventTracking)
+            + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
         // A5 接线 — 焦点上报（DEC 1004）：仅协调器存在时启用（有消费者才开 — 退出 WriteExit 尾对称 Disable）
         if (_terminalStatus is not null)
         {
@@ -887,11 +870,8 @@ public sealed class ReplShell
         if (_promptContextSnapshot is not null && _promptContextInventory is not null)
         {
             _promptContextItem = new PromptContextItem(
-                summaryPrefix: $"📎 首次注入 · 系统提示词 {_promptContextSnapshot.Length} 字符",
-                promptChars: _promptContextSnapshot.Length,
-                fileUrl: _promptContextFileUrl,
-                hyperlinkSupported: _hyperlinkSupported,
-                fallbackPath: _promptContextFallbackPath);
+                $"📎 首次注入 · 系统提示词 {_promptContextSnapshot.Length} 字符",
+                _promptContextSnapshot.Length);
             _view.Messages.Add(_promptContextItem);
             _driver.PromptContextItemTarget = _promptContextItem;
         }
@@ -2471,6 +2451,27 @@ public sealed class ReplShell
             return;
         }
 
+        // TASK077 — hover 高亮：Move 事件经 HitTest 查询，命中 PromptContextItem 时切换 hover 样式。
+        // DEC 1003 启用无按钮移动上报（Move 事件量经终端节流可控；状态变化由每拍渲染消费）
+        if (evt.Kind == MouseKind.Move && _promptContextItem is { } hoverItem)
+        {
+            var screenRow = evt.Row;
+            if (_inline && _viewportProbe is { } probe)
+            {
+                var viewportOffset = probe.QueryViewportOffset(_cursor.Row);
+                screenRow = TerminalViewportProbe.ScreenRowFromSgr(evt.Row, viewportOffset);
+            }
+
+            var hitId = _view.HitTests.HitTest(screenRow, evt.Col);
+            var newHovered = hitId == PromptContextItem.HitIdValue;
+            if (hoverItem.IsHovered != newHovered)
+            {
+                hoverItem.IsHovered = newHovered;
+            }
+
+            return;
+        }
+
         // TASK066 C2 消费 — 单击命中分派（先于选区锚定；模态互斥/transcript 特例之后 —
         // 挂起期间点击已吞不变）：无修饰左键 Press 经命中表查询，面板行命中 → 选中该行 +
         // 单击直查（对齐基准 CoordinatorAgentStatus.tsx:73-75 onClick 单击即查看；一次点击等价
@@ -2522,12 +2523,21 @@ public sealed class ReplShell
     /// 查看后保持选中态可继续键位导航）/ 其他域 id 或未命中返回 false 回落既有选区 Press 链。
     /// 分派原语对齐基准 dispatchClick（hit-test.ts:49-89 — 查找 + 分派）：w2 无 DOM 冒泡树 —
     /// 单层 id 精确匹配等价（当前唯一标注源为后台任务面板，消息项 HitTestId 全 DIM null；
-    /// 未来其他域 id 不匹配即回落，前向兼容）。</summary>
-    /// <param name="evt">左键无修饰 Press 事件（Row/Col 为 0-based 屏幕坐标 — HitTest 同系）。</param>
+    /// 未来其他域 id 不匹配即回落，前向兼容）。
+    /// TASK077 — inline 模式 SGR 鼠标坐标是终端视口坐标，HitTest 注册的是 Screen 内容坐标。
+    /// 用 TerminalViewportProbe 查询偏移量转换：screenRow = sgrRow - viewportOffset。</summary>
+    /// <param name="evt">左键无修饰 Press 事件（Row/Col 为 0-based SGR 终端视口坐标）。</param>
     /// <returns>true = 命中已消费（吞事件）；false = 未命中回落选区链。</returns>
     private bool TryDispatchHitTestClick(MouseEvent evt)
     {
-        var hitId = _view.HitTests.HitTest(evt.Row, evt.Col);
+        var screenRow = evt.Row;
+        if (_inline && _viewportProbe is { } probe)
+        {
+            var viewportOffset = probe.QueryViewportOffset(_cursor.Row);
+            screenRow = TerminalViewportProbe.ScreenRowFromSgr(evt.Row, viewportOffset);
+        }
+
+        var hitId = _view.HitTests.HitTest(screenRow, evt.Col);
         if (hitId is null)
         {
             return false;
@@ -2547,7 +2557,7 @@ public sealed class ReplShell
         // 注入上下文折叠项点击 — 打开提示词详情页（/prompt 同效）
         if (hitId == PromptContextItem.HitIdValue)
         {
-            ShowPromptPage();
+            TogglePromptContext();
             return true;
         }
 
@@ -2699,6 +2709,17 @@ public sealed class ReplShell
         else
         {
             _alternateScreen.Exit();
+            // TASK077 — 备用屏退出禁用了所有鼠标模式，主屏需重新启用（否则点击/hover 失效）
+            _output.Write(
+                DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
+                + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
+                + DecPrivateMode.Enable(DecPrivateModeKind.MouseAnyEventTracking)
+                + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
+            // TASK077 — 清除 hover 残留（退出备用屏时光标不在主屏 PromptContextItem 上）
+            if (_promptContextItem is { } item)
+            {
+                item.IsHovered = false;
+            }
         }
     }
 
@@ -4475,13 +4496,13 @@ public sealed class ReplShell
         var focusDisable = _terminalStatus is not null
             ? DecPrivateMode.Disable(DecPrivateModeKind.FocusReporting)
             : string.Empty;
-        _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste)
-            + (_mouseArmed
-                ? DecPrivateMode.Disable(DecPrivateModeKind.MouseSgrEncoding)
-                + DecPrivateMode.Disable(DecPrivateModeKind.MouseEventTracking)
-                + DecPrivateMode.Disable(DecPrivateModeKind.MouseClickTracking)
-                : string.Empty)
-            + focusDisable);
+        // TASK077 — 主屏鼠标武装对称解除（Run 启用 ?1000h/?1002h/?1006h，退出必须 Disable
+        // 否则终端残留鼠标应用模式影响 shell 正常使用）
+        var mouseDisable = DecPrivateMode.Disable(DecPrivateModeKind.MouseSgrEncoding)
+            + DecPrivateMode.Disable(DecPrivateModeKind.MouseAnyEventTracking)
+            + DecPrivateMode.Disable(DecPrivateModeKind.MouseEventTracking)
+            + DecPrivateMode.Disable(DecPrivateModeKind.MouseClickTracking);
+        _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste) + mouseDisable + focusDisable);
         _terminalStatus?.Shutdown();
         _output.Flush();
         DrainPendingConsoleInput();

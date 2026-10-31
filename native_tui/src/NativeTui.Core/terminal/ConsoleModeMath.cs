@@ -24,12 +24,16 @@ public static class ConsoleModeMath
     /// <summary>虚拟终端处理输出（ANSI 序列直通）。</summary>
     public const uint EnableVirtualTerminalProcessing = 0x4;
 
+    /// <summary>虚拟终端输入处理（VT 序列解析为 KEY_EVENT — Node.js raw mode 启用此项；
+    /// TASK077 验证 WT 是否需此项才把 VT 鼠标序列发到 stdin）。</summary>
+    public const uint EnableVirtualTerminalInput = 0x0200;
+
     /// <summary>
-    /// 计算 raw 输入模式：仅清除行输入/回显/处理输入，QuickEdit/EXTENDED/窗口/鼠标位保留原样
+    /// 计算 raw 输入模式：清除行输入/回显/处理输入，启用 VT 输入处理，QuickEdit/EXTENDED/窗口/鼠标位保留原样
     /// （QuickEdit 保留 = conhost 鼠标选择复制可用，Windows Terminal 原生选择不受影响）。
     /// </summary>
     public static uint ToRawInput(uint current) =>
-        current & ~(EnableProcessedInput | EnableLineInput | EnableEchoInput);
+        (current & ~(EnableProcessedInput | EnableLineInput | EnableEchoInput)) | EnableVirtualTerminalInput;
 
     /// <summary>计算 VT 输出模式：置位虚拟终端处理，保留其余位。</summary>
     public static uint ToVtOutput(uint current) => current | EnableVirtualTerminalProcessing;

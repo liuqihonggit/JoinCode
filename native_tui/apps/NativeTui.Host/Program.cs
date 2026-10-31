@@ -356,7 +356,19 @@ public static class Program {
                 var defaultShell = await LoadSettingAsync(session.Services, "defaultShell").ConfigureAwait(false);
                 // C类 respectGitignore 键 — settings.current.respectGitignore（默认 true）控制 @ 文件补全是否尊重 .gitignore
                 var gitignorePredicate = await LoadGitignorePredicateAsync(session.Services, Environment.CurrentDirectory).ConfigureAwait(false);
-                var rawInputPump = useRawStdinPump ? new RawStdinPump(terminalQuerier) : null;
+                // TASK077 — 输入泵平台分流：Windows 默认 RawStdinPump（stdin 原始流 VT 全链 —
+                // ENABLE_VIRTUAL_TERMINAL_INPUT 启用后 WT 把 VT 鼠标序列发到 stdin，KeyPressParser
+                // 解析 SGR 鼠标事件）；--raw-input 显式同路径；Linux 默认 null（ReplShell 回退
+                // ReadKeyPump — Linux 终端 stdin VT 序列天然含鼠标）
+                IInputPump? inputPump;
+                if (useRawStdinPump || OperatingSystem.IsWindows())
+                {
+                    inputPump = new RawStdinPump(terminalQuerier);
+                }
+                else
+                {
+                    inputPump = null;
+                }
                 // TASK066 板块A — 终端状态三路装配（标题/21337 tab/9;4 进度）：
                 // 标题写通道平台分流（基准 use-terminal-title.ts：Windows=process.title → Console.Title，
                 // 其余 OSC 0 经 TUI 输出流）；CLAUDE_CODE_DISABLE_TERMINAL_TITLE 对齐禁用；
@@ -445,7 +457,18 @@ public static class Program {
                     sb.AppendLine(toolInventoryCache.Value.Text);
                     return sb.ToString();
                 }, LazyThreadSafetyMode.ExecutionAndPublication);
-                var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
+                string? promptFileUrl = null;
+string? promptFallbackPath = null;
+try
+{
+    promptFallbackPath = Path.Combine(Path.GetTempPath(), $"jcc-prompt-{DateTime.Now:yyyyMMdd-HHmmss}.md");
+    File.WriteAllText(promptFallbackPath, promptSnapshotBuilder.Value);
+    promptFileUrl = new Uri(promptFallbackPath).AbsoluteUri;
+}
+catch (IOException) { }
+catch (UnauthorizedAccessException) { }
+
+var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
                 // TASK079 — bash/powershell 执行倒计时：超时秒数取 ShellExecutionConfig（会话服务，默认 120s）
                 var shellExecutionConfig = session.Services.GetService<ShellExecutionConfig>();
                 var shell = new ReplShell(transparencyEngine, banner, tuiOutput, commands: commands,
@@ -478,10 +501,10 @@ public static class Program {
                     // DSG043 尾批 — issue 引用短形态上下文（git remote origin → owner/repo；
                     // 无 git/无 remote/非 GitHub = null 短形态不展开，完整形态恒展开）
                     issueOwnerRepo: await ResolveIssueOwnerRepoAsync().ConfigureAwait(false),
-                    // DSG042 P2 — 输入泵通道：默认 ReadKeyPump（现役稳定）；
+                    // DSG042 P2 — 输入泵通道：Windows 默认 Win32ConsoleInputPump（TASK077 鼠标支持）；
                     // --raw-input 灰度启用 RawStdinPump（stdin 原始流 VT 全链 — 修饰组合键保留/
-                    // paste 整块直出；双终端实测矩阵跑齐后 P3 切默认）；引用留 Host 收尾 Dispose
-                    inputPump: rawInputPump,
+                    // paste 整块直出）；Linux 默认 ReadKeyPump（ReplShell 内构造）；引用留 Host 收尾 Dispose
+                    inputPump: inputPump,
                     // TASK066 板块A — 终端状态协调器（null 降级路径仅测试用 — 宿主恒装配）
                     terminalStatus: terminalStatus,
                     // TASK066 板块B — 键位绑定表（用户 json 合并结果 — 全局键层表驱动数据源，
@@ -553,9 +576,12 @@ public static class Program {
 
                 shell.Run();
                 shell.WriteExit();
-                // DSG042 P2 — 原始流泵收尾（通道完成 + 读循环取消；阻塞中的 stdin Read 由
-                // IsBackground 线程随进程退出回收 — Dispose 不等待线程终结防挂）
-                rawInputPump?.Dispose();
+                // DSG042 P2 / TASK077 — 输入泵收尾（通道完成 + 读循环取消；阻塞中的
+                // ReadConsoleInput/stdin Read 由 IsBackground 线程随进程退出回收 — Dispose 不等待线程终结防挂）
+                if (inputPump is IDisposable d)
+                {
+                    d.Dispose();
+                }
             }
         }
 

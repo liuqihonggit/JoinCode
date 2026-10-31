@@ -14,6 +14,7 @@ public sealed class Win32ConsoleInput : IDisposable
     private const uint EnableMouseInput = 0x0010;
     private const uint EnableWindowInput = 0x0008;
     private const uint EnableExtendedFlags = 0x0080;
+    private const uint EnableVirtualTerminalInput = 0x0200;
 
     private readonly IntPtr _handle;
     private readonly uint _originalMode;
@@ -26,7 +27,7 @@ public sealed class Win32ConsoleInput : IDisposable
     {
         _handle = GetStdHandle(StdInputHandle);
         GetConsoleMode(_handle, out _originalMode);
-        SetConsoleMode(_handle, _originalMode | EnableMouseInput | EnableWindowInput | EnableExtendedFlags);
+        SetConsoleMode(_handle, _originalMode | EnableMouseInput | EnableWindowInput | EnableExtendedFlags | EnableVirtualTerminalInput);
     }
 
     /// <summary>读取一批 INPUT_RECORD 并转换为统一事件序列（阻塞直到至少一个事件）。</summary>

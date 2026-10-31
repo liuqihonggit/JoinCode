@@ -70,9 +70,12 @@ public static class HyperlinkEmitter
         return Osc.Hyperlink(url) + text + Osc.HyperlinkEnd();
     }
 
-    /// <summary>当前进程环境的 OSC 8 支持探测（每会话判定一次 — 消费方缓存结果）。</summary>
+    /// <summary>当前进程环境的 OSC 8 支持探测（每会话判定一次 — 消费方缓存结果）：
+    /// env 探测 OR Win32 宿主类名探测（Win10 默认终端=WT 时直接路径启动不注入 WT_SESSION，
+    /// 环境探测失效 — 窗口类名 CASCADIA_HOSTING_WINDOW_CLASS 为权威信号，TASK079 用户实测）。</summary>
     /// <returns>是否支持 OSC 8 超链接。</returns>
-    public static bool IsHyperlinkSupported() => IsHyperlinkSupported(EnvironmentSnapshot());
+    public static bool IsHyperlinkSupported() =>
+        IsHyperlinkSupported(EnvironmentSnapshot()) || Terminal.TerminalHostDetector.IsWindowsTerminalHosting();
 
     /// <summary>
     /// OSC 8 支持探测纯函数（env 注入可测，键大小写不敏感 — 跨 Windows/Unix 环境块统一）。

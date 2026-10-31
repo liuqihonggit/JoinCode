@@ -10,6 +10,9 @@ namespace NativeTui.Core.Repl;
 /// </summary>
 public sealed class PromptContextItem : IScrollItem
 {
+    /// <summary>命中标识常量（ReplShell.TryDispatchHitTestClick 分派依据 — 打开提示词详情页）。</summary>
+    public const string HitIdValue = "prompt-context";
+
     /// <summary>摘要前缀（链接段之前的统计文本）。</summary>
     private readonly string _summaryPrefix;
 

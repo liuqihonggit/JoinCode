@@ -258,6 +258,12 @@ public sealed class ReplShell
     /// <summary>注入上下文折叠项（TASK079 — 首帧插入；/prompt 在 transcript 备用屏内展开查看）。</summary>
     private PromptContextItem? _promptContextItem;
 
+    /// <summary>注入提示词详情页打开标记（模态 — esc 关闭；TASK079 用户指令"新页面"形态）。</summary>
+    private bool _promptPageOpen;
+
+    /// <summary>注入提示词详情页打开（测试断言面 — 对齐 IsBackgroundTaskDetailOpen 先例）。</summary>
+    internal bool IsPromptPageOpen => _promptPageOpen;
+
     /// <summary>/prompt 透明化（TASK079 用户指令 — 另开一屏查看首次注入内容）：
     /// 展开折叠项全文 + 进入 transcript 备用屏（鼠标/滚动/搜索全基建，与子代理查看同模式）
     /// + 滚到顶（提示词位于消息列表前列）；已展开且 transcript 激活时 → 关闭 transcript。</summary>
@@ -701,7 +707,7 @@ public sealed class ReplShell
         _promptContextSnapshot = promptContextSnapshot;
         _promptContextInventory = promptContextInventory;
         _promptContextFileUrl = promptContextFileUrl;
-        _hyperlinkSupported = hyperlinkSupported;
+        _hyperlinkSupported = hyperlinkSupported || Terminal.TerminalHostDetector.IsWindowsTerminalHosting();
         _promptContextFallbackPath = promptContextFallbackPath;
         _commandUsage = commandUsage ?? new CommandUsageMemory();
         // S10 接线 — 分组注入：空查询 "/" 走 recently-used + 来源分组视图（有查询仍走既有匹配排序）
@@ -825,7 +831,7 @@ public sealed class ReplShell
         // 完整保留 — 用户实测 conhost 下武装导致复制失效且点击依旧不可用：conhost 不转发鼠标序列）。
         // JCC_TUI_MOUSE=0 逃生门强制禁用；探测与 OSC 8 链接门控同源（HyperlinkEmitter）
         if (Environment.GetEnvironmentVariable("JCC_TUI_MOUSE") != "0"
-            && HyperlinkEmitter.IsHyperlinkSupported())
+            && (HyperlinkEmitter.IsHyperlinkSupported() || Terminal.TerminalHostDetector.IsWindowsTerminalHosting()))
         {
             _mouseArmed = true;
             _output.Write(
@@ -1338,6 +1344,13 @@ public sealed class ReplShell
         if (_backgroundTaskDetailOpen)
         {
             HandleBackgroundTaskDetailKey(key);
+            return;
+        }
+
+        // TASK079 注入提示词详情页模态（对齐后台任务详情轻量模态形态 — esc 关闭其余吞）
+        if (_promptPageOpen)
+        {
+            HandlePromptPageKey(key);
             return;
         }
 
@@ -2436,6 +2449,7 @@ public sealed class ReplShell
             || _search is not null
             || _view.BackgroundTasks.IsSelectionActive
             || _backgroundTaskDetailOpen
+            || _promptPageOpen
             || _helpOpen)
         {
             return;
@@ -2517,6 +2531,24 @@ public sealed class ReplShell
         if (hitId is null)
         {
             return false;
+        }
+
+        // TASK079 用户指令 — 工具结果行点击原地展开/收起（查看 AI 用 read/edit 看了什么）
+        if (hitId.StartsWith("tool-result:", StringComparison.Ordinal))
+        {
+            if (_view.Messages.Items.FirstOrDefault(i => i.HitTestId == hitId) is ToolResultItem result)
+            {
+                result.ToggleExpand();
+            }
+
+            return true;
+        }
+
+        // 注入上下文折叠项点击 — 打开提示词详情页（/prompt 同效）
+        if (hitId == PromptContextItem.HitIdValue)
+        {
+            ShowPromptPage();
+            return true;
         }
 
         // 面板空白命中（溢出行 "+N more" 等）— 吞：面板是 UI 交互区不启动文本选区
@@ -2807,6 +2839,42 @@ public sealed class ReplShell
             _backgroundTaskDetailOpen = true;
             AddMessage(new BackgroundTaskDetailDialog(tasks[index], Environment.TickCount64));
         }
+    }
+
+    /// <summary>打开注入提示词详情页（TASK079 用户指令"新页面"— /prompt 或点击折叠项）：
+    /// 挂载 PromptDetailDialog 消息项（紧邻输入框立即可见，终端滚动回看全文）；
+    /// 已打开时重复触发 = 关闭（切换语义）。</summary>
+    internal void ShowPromptPage()
+    {
+        if (_promptPageOpen)
+        {
+            ClosePromptPage();
+            return;
+        }
+
+        if (_promptContextSnapshot is null || _promptContextInventory is null)
+        {
+            return;
+        }
+
+        _promptPageOpen = true;
+        AddMessage(new PromptDetailDialog(_promptContextSnapshot, _promptContextSnapshot.Length, _promptContextInventory));
+    }
+
+    /// <summary>注入提示词详情页模态按键（对齐后台任务详情模态形态 — esc 关闭，其余吞掉）。</summary>
+    private void HandlePromptPageKey(KeyPress key)
+    {
+        if (key.Kind is KeyKind.Escape or KeyKind.LeftArrow)
+        {
+            ClosePromptPage();
+        }
+    }
+
+    /// <summary>关闭注入提示词详情页（移除对话框项 — 回主循环视图）。</summary>
+    private void ClosePromptPage()
+    {
+        _promptPageOpen = false;
+        RemoveDialogItem<PromptDetailDialog>();
     }
 
     /// <summary>后台任务详情对话框模态按键（对齐 HandleHelpKey 轻量模态形态 — 详情只读无交互，

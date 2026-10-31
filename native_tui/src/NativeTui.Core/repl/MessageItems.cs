@@ -174,6 +174,12 @@ public sealed class ToolCallItem : IScrollItem, ICursorNavigable, IToolCallInfo,
 /// </summary>
 public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchable
 {
+
+    private static int _hitIdCounter;
+
+    /// <summary>命中标识（TASK079 — 鼠标点击原地展开/收起完整输出；实例序号稳定）。</summary>
+    public string? HitTestId { get; }
+
     /// <summary>构造期拆分的输出行缓存（渲染/测量共享 — 50ms 帧拍零重复 Split；null/空输出为空数组）。</summary>
     private readonly string[] _outputLines;
 
@@ -203,6 +209,8 @@ public sealed class ToolResultItem : IScrollItem, ICursorNavigable, ITextMatchab
         int previewLimit = ToolFoldingPolicy.MaxToolOutputLines,
         ICodeHighlighter? codeHighlighter = null)
     {
+
+        HitTestId = $"tool-result:{Interlocked.Increment(ref _hitIdCounter)}";
         Summary = summary;
         Patch = patch;
         RawOutput = rawOutput;

@@ -823,8 +823,12 @@ public sealed class ReplShell
     {
         CursorLifecycle.HideCursor(_output);
         _output.Write(DecPrivateMode.Enable(DecPrivateModeKind.BracketedPaste));
-        // TASK079 终版 — 主屏不启用鼠标上报（与原生选择复制互斥且对 OSC 8 链接毫无必要：
-        // 链接点击由终端原生处理 — Claude Code 同款机制）；注入内容查看 = OSC 8 file 链接 + /prompt 模态
+        // TASK079 用户终版指令 — 点击折叠项进入备用屏查看注入内容：鼠标上报必需
+        // （应用内选区 C6 替代原生选择 — 拖选高亮+松开自动复制）
+        _output.Write(
+            DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
+            + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
+            + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
         // A5 接线 — 焦点上报（DEC 1004）：仅协调器存在时启用（有消费者才开 — 退出 WriteExit 尾对称 Disable）
         if (_terminalStatus is not null)
         {
@@ -2533,7 +2537,7 @@ public sealed class ReplShell
         // 注入上下文折叠项点击 — 打开提示词详情页（/prompt 同效）
         if (hitId == PromptContextItem.HitIdValue)
         {
-            ShowPromptPage();
+            TogglePromptContext();
             return true;
         }
 

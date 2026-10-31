@@ -15,6 +15,8 @@ public static class MouseTestMode
         // TASK077 — 必须 RawConsoleMode 启用 ENABLE_VIRTUAL_TERMINAL_PROCESSING，
         // 否则 Windows Terminal 不识别 ?1000h 武装序列，鼠标事件不发到 stdin
         using var raw = new RawConsoleMode();
+        // TASK077 调试 — 进 alternate screen（DEC 1049）验证 WT 是否只在备用屏转发鼠标
+        output.Write("\x1b[?1049h");
         output.Write(NativeTui.Core.Ansi.DecPrivateMode.Enable(NativeTui.Core.Ansi.DecPrivateModeKind.MouseClickTracking)
             + NativeTui.Core.Ansi.DecPrivateMode.Enable(NativeTui.Core.Ansi.DecPrivateModeKind.MouseEventTracking)
             + NativeTui.Core.Ansi.DecPrivateMode.Enable(NativeTui.Core.Ansi.DecPrivateModeKind.MouseSgrEncoding));
@@ -82,6 +84,8 @@ public static class MouseTestMode
         output.Write(NativeTui.Core.Ansi.DecPrivateMode.Disable(NativeTui.Core.Ansi.DecPrivateModeKind.MouseSgrEncoding)
             + NativeTui.Core.Ansi.DecPrivateMode.Disable(NativeTui.Core.Ansi.DecPrivateModeKind.MouseEventTracking)
             + NativeTui.Core.Ansi.DecPrivateMode.Disable(NativeTui.Core.Ansi.DecPrivateModeKind.MouseClickTracking));
+        // TASK077 调试 — 退出 alternate screen
+        output.Write("\x1b[?1049l");
         output.WriteLine();
         output.WriteLine($"共捕获 {count} 个鼠标事件。");
         output.Flush();

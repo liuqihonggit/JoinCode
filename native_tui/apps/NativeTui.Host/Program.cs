@@ -356,7 +356,23 @@ public static class Program {
                 var defaultShell = await LoadSettingAsync(session.Services, "defaultShell").ConfigureAwait(false);
                 // C类 respectGitignore 键 — settings.current.respectGitignore（默认 true）控制 @ 文件补全是否尊重 .gitignore
                 var gitignorePredicate = await LoadGitignorePredicateAsync(session.Services, Environment.CurrentDirectory).ConfigureAwait(false);
-                var rawInputPump = useRawStdinPump ? new RawStdinPump(terminalQuerier) : null;
+                // TASK077 — 输入泵平台分流：Windows 默认 Win32ConsoleInputPump（ReadConsoleInput
+                // P/Invoke 直读 INPUT_RECORD，键盘鼠标同通道 — Console.ReadKey 跳过 MOUSE_EVENT 的
+                // 架构性根因修复）；--raw-input 灰度启用 RawStdinPump（stdin 原始流 VT 全链）；
+                // Linux 默认 null（ReplShell 回退 ReadKeyPump — Linux 终端 stdin VT 序列天然含鼠标）
+                IInputPump? inputPump;
+                if (useRawStdinPump)
+                {
+                    inputPump = new RawStdinPump(terminalQuerier);
+                }
+                else if (OperatingSystem.IsWindows())
+                {
+                    inputPump = new Win32ConsoleInputPump();
+                }
+                else
+                {
+                    inputPump = null;
+                }
                 // TASK066 板块A — 终端状态三路装配（标题/21337 tab/9;4 进度）：
                 // 标题写通道平台分流（基准 use-terminal-title.ts：Windows=process.title → Console.Title，
                 // 其余 OSC 0 经 TUI 输出流）；CLAUDE_CODE_DISABLE_TERMINAL_TITLE 对齐禁用；
@@ -489,10 +505,10 @@ var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
                     // DSG043 尾批 — issue 引用短形态上下文（git remote origin → owner/repo；
                     // 无 git/无 remote/非 GitHub = null 短形态不展开，完整形态恒展开）
                     issueOwnerRepo: await ResolveIssueOwnerRepoAsync().ConfigureAwait(false),
-                    // DSG042 P2 — 输入泵通道：默认 ReadKeyPump（现役稳定）；
+                    // DSG042 P2 — 输入泵通道：Windows 默认 Win32ConsoleInputPump（TASK077 鼠标支持）；
                     // --raw-input 灰度启用 RawStdinPump（stdin 原始流 VT 全链 — 修饰组合键保留/
-                    // paste 整块直出；双终端实测矩阵跑齐后 P3 切默认）；引用留 Host 收尾 Dispose
-                    inputPump: rawInputPump,
+                    // paste 整块直出）；Linux 默认 ReadKeyPump（ReplShell 内构造）；引用留 Host 收尾 Dispose
+                    inputPump: inputPump,
                     // TASK066 板块A — 终端状态协调器（null 降级路径仅测试用 — 宿主恒装配）
                     terminalStatus: terminalStatus,
                     // TASK066 板块B — 键位绑定表（用户 json 合并结果 — 全局键层表驱动数据源，
@@ -564,9 +580,12 @@ var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
 
                 shell.Run();
                 shell.WriteExit();
-                // DSG042 P2 — 原始流泵收尾（通道完成 + 读循环取消；阻塞中的 stdin Read 由
-                // IsBackground 线程随进程退出回收 — Dispose 不等待线程终结防挂）
-                rawInputPump?.Dispose();
+                // DSG042 P2 / TASK077 — 输入泵收尾（通道完成 + 读循环取消；阻塞中的
+                // ReadConsoleInput/stdin Read 由 IsBackground 线程随进程退出回收 — Dispose 不等待线程终结防挂）
+                if (inputPump is IDisposable d)
+                {
+                    d.Dispose();
+                }
             }
         }
 

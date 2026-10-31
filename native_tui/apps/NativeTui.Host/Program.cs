@@ -445,13 +445,27 @@ public static class Program {
                     sb.AppendLine(toolInventoryCache.Value.Text);
                     return sb.ToString();
                 }, LazyThreadSafetyMode.ExecutionAndPublication);
-                var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
+                string? promptFileUrl = null;
+string? promptFallbackPath = null;
+try
+{
+    promptFallbackPath = Path.Combine(Path.GetTempPath(), $"jcc-prompt-{DateTime.Now:yyyyMMdd-HHmmss}.md");
+    File.WriteAllText(promptFallbackPath, promptSnapshotBuilder.Value);
+    promptFileUrl = new Uri(promptFallbackPath).AbsoluteUri;
+}
+catch (IOException) { }
+catch (UnauthorizedAccessException) { }
+
+var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
                 // TASK079 — bash/powershell 执行倒计时：超时秒数取 ShellExecutionConfig（会话服务，默认 120s）
                 var shellExecutionConfig = session.Services.GetService<ShellExecutionConfig>();
                 var shell = new ReplShell(transparencyEngine, banner, tuiOutput, commands: commands,
                     shellTimeoutSeconds: shellExecutionConfig?.AbsoluteTimeoutSeconds ?? 120,
                     promptContextSnapshot: promptSnapshotBuilder.Value,
                     promptContextInventory: () => toolInventoryCache.Value,
+                    promptContextFileUrl: promptFileUrl,
+                    hyperlinkSupported: true, // 无条件 — 不支持 OSC 8 的终端无害降级
+                    promptContextFallbackPath: promptFallbackPath,
                     clipboard: text => _ = clipboardService?.SetTextAsync(text),
                     themeName: themeName,
                     commandUsage: commandUsage,

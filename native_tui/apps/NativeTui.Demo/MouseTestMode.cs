@@ -12,6 +12,9 @@ public static class MouseTestMode
 {
     public static int Run(TextWriter output)
     {
+        // TASK077 — 必须 RawConsoleMode 启用 ENABLE_VIRTUAL_TERMINAL_PROCESSING，
+        // 否则 Windows Terminal 不识别 ?1000h 武装序列，鼠标事件不发到 stdin
+        using var raw = new RawConsoleMode();
         output.Write(NativeTui.Core.Ansi.DecPrivateMode.Enable(NativeTui.Core.Ansi.DecPrivateModeKind.MouseClickTracking)
             + NativeTui.Core.Ansi.DecPrivateMode.Enable(NativeTui.Core.Ansi.DecPrivateModeKind.MouseEventTracking)
             + NativeTui.Core.Ansi.DecPrivateMode.Enable(NativeTui.Core.Ansi.DecPrivateModeKind.MouseSgrEncoding));

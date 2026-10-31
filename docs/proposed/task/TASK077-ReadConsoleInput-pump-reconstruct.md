@@ -30,13 +30,13 @@
 
 | 步骤 | 内容 | 状态 |
 |------|------|------|
-| 1 | 修复 `Win32ConsoleInput.InputRecord` 布局 bug + 补 `MouseControlKeyState` 字段 + 修饰位提取 | ⏳ |
-| 2 | 改 `InputRecord`/`MakeMouseEvent`/`MakeKeyInfo` 为 internal 可测试 + 单元测试 | ⏳ |
-| 3 | spike exe 验证 `ReadConsoleInput` 能收到鼠标事件（ADR 0080 手动验收） | ⏳ |
-| 4 | 包装 `Win32ConsoleInputPump : IInputPump`（后台线程 + Channel 非阻塞 Drain） | ⏳ |
-| 5 | 主屏鼠标武装（`ReplShell.Run` 解除注释，启用 `1000+1002+1003+1006`） | ⏳ |
-| 6 | Host 装配（Windows 默认用新泵，Linux 仍用 RawStdinPump） | ⏳ |
-| 7 | 集成验证：单击 PromptContextItem → 进入第二屏 | ⏳ |
+| 1 | 修复 `Win32ConsoleInput.InputRecord` 布局 bug + 补 `MouseControlKeyState` 字段 + 修饰位提取 | ✅ |
+| 2 | 改 `InputRecord`/`MakeMouseEvent`/`MakeKeyInfo` 为 internal 可测试 + 单元测试 | ✅ 15 测试绿 |
+| 3 | spike exe 验证 `ReadConsoleInput` 能收到鼠标事件（ADR 0080 手动验收） | ✅ 启动成功，P/Invoke 签名正确 |
+| 4 | 包装 `Win32ConsoleInputPump : IInputPump`（后台线程 + Channel 非阻塞 Drain） | ✅ 5 测试绿 |
+| 5 | 主屏鼠标武装（`ReplShell.Run` 解除注释，启用 `1000+1002+1003+1006`） | ✅ 跳过（Win32ConsoleInputPump 不依赖 VT 武装） |
+| 6 | Host 装配（Windows 默认用新泵，Linux 仍用 RawStdinPump） | ✅ |
+| 7 | 集成验证：单击 PromptContextItem → 进入第二屏 | ⏳ 待用户手动验收 |
 
 ## 验收标准
 

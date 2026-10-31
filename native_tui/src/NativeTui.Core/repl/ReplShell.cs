@@ -701,7 +701,7 @@ public sealed class ReplShell
         _sizeSource = sizeSource ?? new ConsoleTerminalSizeSource();
         _copyToClipboard = clipboard;
         _saveThemeAsync = saveThemeAsync;
-        _inputPump = inputPump ?? new ReadKeyPump();
+        _inputPump = inputPump ?? new Win32InputPump();
         _terminalStatus = terminalStatus;
         // TASK066 B4 — 键位表注入（null = 默认表零行为变化 — 既有测试契约兜底）
         _keybindings = keybindings ?? KeybindingProfile.Default;
@@ -811,9 +811,11 @@ public sealed class ReplShell
     {
         CursorLifecycle.HideCursor(_output);
         _output.Write(DecPrivateMode.Enable(DecPrivateModeKind.BracketedPaste));
-        // TASK079 — 主屏不启用鼠标上报：Console.ReadKey 架构性跳过 MOUSE_EVENT 记录，
-        // 武装无效果且破坏终端原生选择复制。鼠标支持需 ReadConsoleInput 输入泵重构（后续任务）。
-        // 注入内容查看 = /prompt 命令 → transcript 备用屏（已验证可用）
+        // TASK079 — 鼠标上报（Win32InputPump ReadConsoleInput 可见 MOUSE_EVENT 记录）
+        _output.Write(
+            DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
+            + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
+            + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
         // A5 接线 — 焦点上报（DEC 1004）：仅协调器存在时启用（有消费者才开 — 退出 WriteExit 尾对称 Disable）
         if (_terminalStatus is not null)
         {

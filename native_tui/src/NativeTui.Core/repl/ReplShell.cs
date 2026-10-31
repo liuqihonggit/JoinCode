@@ -2709,6 +2709,17 @@ public sealed class ReplShell
         else
         {
             _alternateScreen.Exit();
+            // TASK077 — 备用屏退出禁用了所有鼠标模式，主屏需重新启用（否则点击/hover 失效）
+            _output.Write(
+                DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
+                + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
+                + DecPrivateMode.Enable(DecPrivateModeKind.MouseAnyEventTracking)
+                + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
+            // TASK077 — 清除 hover 残留（退出备用屏时光标不在主屏 PromptContextItem 上）
+            if (_promptContextItem is { } item)
+            {
+                item.IsHovered = false;
+            }
         }
     }
 

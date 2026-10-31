@@ -65,10 +65,18 @@ jobs:
         shell: bash
         run: |
           set -e
+          # 先编译所有项目（共享依赖只编译一次，增量编译跳过已编译项目）
+          for proj in ${{ matrix.csprojs }}; do
+            echo "=== Building: $proj ==="
+            dotnet build "$proj" -c Debug --nologo \
+              -p:UsePackedComponents=true \
+              -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
+          done
+          # 用 --no-build 运行测试（复用编译产物）
           for proj in ${{ matrix.csprojs }}; do
             name=$(basename "$proj" .csproj)
             echo "=== Testing: $proj ==="
-            dotnet test "$proj" -c Debug --nologo \
+            dotnet test "$proj" -c Debug --nologo --no-build \
               -p:UsePackedComponents=true \
               -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
               --filter "Category!=Integration&Category!=Benchmark" \

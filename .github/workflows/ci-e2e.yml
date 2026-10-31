@@ -22,24 +22,14 @@ jobs:
         with:
           build-e2e-exes: true
       - name: E2E Tests
-        shell: pwsh
-        run: |
-          $tests = @(
-            @{Name="conv-a"; Filter="FullyQualifiedName~DualRoleConversationTestsA"},
-            @{Name="conv-b"; Filter="FullyQualifiedName~DualRoleConversationTestsB"}
-          )
-          foreach ($t in $tests) {
-              $name = $t.Name
-              $filter = $t.Filter
-              & dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj `
-                -c Debug --nologo `
-                /p:UsePackedComponents=true `
-                /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
-                --filter $filter `
-                --logger "console;verbosity=normal" `
-                --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
-              if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
-          }
+        run: >
+          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
+          -c Debug --nologo
+          -p:UsePackedComponents=true
+          -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
+          --filter "FullyQualifiedName~DualRoleConversationTestsA|FullyQualifiedName~DualRoleConversationTestsB"
+          --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=e2e-conversations.trx"
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
@@ -59,24 +49,14 @@ jobs:
         with:
           build-e2e-exes: true
       - name: E2E Tests
-        shell: pwsh
-        run: |
-          $tests = @(
-            @{Name="multi-provider"; Filter="FullyQualifiedName~MultiProviderE2ETests|FullyQualifiedName~AnthropicDeepCoverageE2ETests|FullyQualifiedName~ConcurrentRequestE2ETests"},
-            @{Name="cluster"; Filter="FullyQualifiedName~ClusterE2ETests"}
-          )
-          foreach ($t in $tests) {
-              $name = $t.Name
-              $filter = $t.Filter
-              & dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj `
-                -c Debug --nologo `
-                /p:UsePackedComponents=true `
-                /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
-                --filter $filter `
-                --logger "console;verbosity=normal" `
-                --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
-              if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
-          }
+        run: >
+          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
+          -c Debug --nologo
+          -p:UsePackedComponents=true
+          -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
+          --filter "FullyQualifiedName~MultiProviderE2ETests|FullyQualifiedName~AnthropicDeepCoverageE2ETests|FullyQualifiedName~ConcurrentRequestE2ETests|FullyQualifiedName~ClusterE2ETests"
+          --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=e2e-provider-cluster.trx"
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
@@ -96,25 +76,14 @@ jobs:
         with:
           build-e2e-exes: true
       - name: E2E Tests
-        shell: pwsh
-        run: |
-          $tests = @(
-            @{Name="file-tools"; Filter="FullyQualifiedName~FileToolCoverageTests|FullyQualifiedName~SearchToolCoverageTests|FullyQualifiedName~ShellGitToolCoverageTests|FullyQualifiedName~ExtendedToolCoverageTests"},
-            @{Name="agent-tools"; Filter="FullyQualifiedName~AgentToolCoverageTests|FullyQualifiedName~BatchToolCoverageTests|FullyQualifiedName~TaskToolCoverageTests|FullyQualifiedName~AstIntegrationTests"},
-            @{Name="subagent-events"; Filter="FullyQualifiedName~SubAgentEventStreamE2ETests|FullyQualifiedName~SubAgentEventMainAgentPathE2ETests"}
-          )
-          foreach ($t in $tests) {
-              $name = $t.Name
-              $filter = $t.Filter
-              & dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj `
-                -c Debug --nologo `
-                /p:UsePackedComponents=true `
-                /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
-                --filter $filter `
-                --logger "console;verbosity=normal" `
-                --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
-              if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
-          }
+        run: >
+          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
+          -c Debug --nologo
+          -p:UsePackedComponents=true
+          -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
+          --filter "FullyQualifiedName~FileToolCoverageTests|FullyQualifiedName~SearchToolCoverageTests|FullyQualifiedName~ShellGitToolCoverageTests|FullyQualifiedName~ExtendedToolCoverageTests|FullyQualifiedName~AgentToolCoverageTests|FullyQualifiedName~BatchToolCoverageTests|FullyQualifiedName~TaskToolCoverageTests|FullyQualifiedName~AstIntegrationTests|FullyQualifiedName~SubAgentEventStreamE2ETests|FullyQualifiedName~SubAgentEventMainAgentPathE2ETests"
+          --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=e2e-tools.trx"
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
@@ -134,24 +103,14 @@ jobs:
         with:
           build-e2e-exes: true
       - name: E2E Tests
-        shell: pwsh
-        run: |
-          $tests = @(
-            @{Name="chatcmd-basic"; Filter="FullyQualifiedName~ChatCommandBasicCoverageTests"},
-            @{Name="chatcmd-extended"; Filter="FullyQualifiedName~ChatCommandExtendedCoverageTests"}
-          )
-          foreach ($t in $tests) {
-              $name = $t.Name
-              $filter = $t.Filter
-              & dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj `
-                -c Debug --nologo `
-                /p:UsePackedComponents=true `
-                /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
-                --filter $filter `
-                --logger "console;verbosity=normal" `
-                --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
-              if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
-          }
+        run: >
+          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
+          -c Debug --nologo
+          -p:UsePackedComponents=true
+          -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
+          --filter "FullyQualifiedName~ChatCommandBasicCoverageTests|FullyQualifiedName~ChatCommandExtendedCoverageTests"
+          --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=e2e-chatcmd-misc.trx"
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
@@ -171,26 +130,14 @@ jobs:
         with:
           build-e2e-exes: true
       - name: E2E Tests
-        shell: pwsh
-        run: |
-          $tests = @(
-            @{Name="code-a1"; Filter="FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~ReviewCommand_ShouldReviewCode|FullyQualifiedName~DiffFilesCommand_ShouldListChangedFiles|FullyQualifiedName~FilesCommand_ShouldListFiles|FullyQualifiedName~ExecuteCommand_ShouldExecuteCode|FullyQualifiedName~AnalyzeCommand_ShouldAnalyzeCode|FullyQualifiedName~AddDirCommand_ShouldAddDirectory)"},
-            @{Name="code-a2"; Filter="FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~SecurityReviewCommand_ShouldReviewSecurity|FullyQualifiedName~CommitCommand_ShouldShowCommitInfo|FullyQualifiedName~WorktreeCommand_ShouldListWorktrees|FullyQualifiedName~ThemeCommand_ShouldSetTheme|FullyQualifiedName~ColorCommand_ShouldShowColorTest)"},
-            @{Name="code-b1"; Filter="FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~VimCommand_ShouldToggleVimMode|FullyQualifiedName~EnvCommand_ShouldShowEnvVars|FullyQualifiedName~SandboxToggleCommand_ShouldShowStatus|FullyQualifiedName~PermissionsCommand_ShouldListPermissions|FullyQualifiedName~InitCommand_ShouldQuickInit|FullyQualifiedName~DoctorCommand_ShouldNotHang)"},
-            @{Name="code-b2"; Filter="FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~StatusCommand_ShouldShowStatus|FullyQualifiedName~UsageCommand_ShouldShowUsage|FullyQualifiedName~InsightsCommand_ShouldShowStats|FullyQualifiedName~ReleaseNotesCommand_ShouldShowNotes|FullyQualifiedName~ContextCommand_ShouldShowContext)"}
-          )
-          foreach ($t in $tests) {
-              $name = $t.Name
-              $filter = $t.Filter
-              & dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj `
-                -c Debug --nologo `
-                /p:UsePackedComponents=true `
-                /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
-                --filter $filter `
-                --logger "console;verbosity=normal" `
-                --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
-              if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
-          }
+        run: >
+          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
+          -c Debug --nologo
+          -p:UsePackedComponents=true
+          -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
+          --filter "FullyQualifiedName~ChatCommandCodeCoverageTests"
+          --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=e2e-chatcmd-code.trx"
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7
@@ -210,24 +157,14 @@ jobs:
         with:
           build-e2e-exes: true
       - name: E2E Tests
-        shell: pwsh
-        run: |
-          $tests = @(
-            @{Name="chatcmd-auth"; Filter="FullyQualifiedName~ChatCommandAuthExportCoverageTests"},
-            @{Name="errors-permission"; Filter="FullyQualifiedName~ApiErrorRecoveryE2ETests|FullyQualifiedName~StreamInterruptionE2ETests|FullyQualifiedName~PermissionDenialE2ETests|FullyQualifiedName~StreamingIncrementalE2ETests"}
-          )
-          foreach ($t in $tests) {
-              $name = $t.Name
-              $filter = $t.Filter
-              & dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj `
-                -c Debug --nologo `
-                /p:UsePackedComponents=true `
-                /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none `
-                --filter $filter `
-                --logger "console;verbosity=normal" `
-                --logger "trx;LogFileName=$name.trx" 2>&1 | Out-Host
-              if ($LASTEXITCODE -ne 0) { throw "Test FAILED: $name" }
-          }
+        run: >
+          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj
+          -c Debug --nologo
+          -p:UsePackedComponents=true
+          -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
+          --filter "FullyQualifiedName~ChatCommandAuthExportCoverageTests|FullyQualifiedName~ApiErrorRecoveryE2ETests|FullyQualifiedName~StreamInterruptionE2ETests|FullyQualifiedName~PermissionDenialE2ETests|FullyQualifiedName~StreamingIncrementalE2ETests"
+          --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=e2e-chatcmd-errors.trx"
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7

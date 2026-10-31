@@ -59,7 +59,7 @@ public sealed class Win32ConsoleInput : IDisposable
     }
 
     /// <summary>KEY_EVENT → ConsoleKeyInfo（VK 码直映 ConsoleKey + 修饰键提取）。</summary>
-    private static System.ConsoleKeyInfo MakeKeyInfo(InputRecord record)
+    internal static System.ConsoleKeyInfo MakeKeyInfo(InputRecord record)
     {
         var ctrl = (record.ControlKeyState & 0x000C) != 0; // LEFT_CTRL | RIGHT_CTRL
         var alt = (record.ControlKeyState & 0x0003) != 0;  // LEFT_ALT | RIGHT_ALT
@@ -68,13 +68,17 @@ public sealed class Win32ConsoleInput : IDisposable
         return new System.ConsoleKeyInfo(record.UnicodeChar, key, shift, alt, ctrl);
     }
 
-    /// <summary>MOUSE_EVENT → MouseEvent（位置 0-based，按钮/滚轮/拖动分类）。</summary>
-    private static NativeTui.Core.Repl.MouseEvent MakeMouseEvent(InputRecord record)
+    /// <summary>MOUSE_EVENT → MouseEvent（位置 0-based，按钮/滚轮/修饰位分类）。
+    /// 修饰位从 MOUSE_EVENT_RECORD.dwControlKeyState 提取（偏移 12 — 修复前误读为 EventFlags）。</summary>
+    internal static NativeTui.Core.Repl.MouseEvent MakeMouseEvent(InputRecord record)
     {
         const uint leftDown = 0x0002;
         const uint rightDown = 0x0004;
         const uint doubleClick = 0x0002;
         const uint mouseWheeled = 0x0008;
+        const uint shiftPressed = 0x0010;
+        const uint ctrlPressed = 0x000C; // LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED
+        const uint altPressed = 0x0003;  // LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED
 
         var kind = record.EventFlags switch
         {
@@ -91,25 +95,33 @@ public sealed class Win32ConsoleInput : IDisposable
             ? NativeTui.Core.Repl.MouseButton.Right
             : NativeTui.Core.Repl.MouseButton.Left;
 
-        return new NativeTui.Core.Repl.MouseEvent(kind, button, record.MouseX, record.MouseY, false, false, false);
+        var shift = (record.MouseControlKeyState & shiftPressed) != 0;
+        var ctrl = (record.MouseControlKeyState & ctrlPressed) != 0;
+        var alt = (record.MouseControlKeyState & altPressed) != 0;
+        return new NativeTui.Core.Repl.MouseEvent(kind, button, record.MouseX, record.MouseY, shift, alt, ctrl);
     }
 
-    /// <summary>INPUT_RECORD — Win32 控制台输入记录（显式布局，union 字段按偏移覆盖）。</summary>
+    /// <summary>INPUT_RECORD — Win32 控制台输入记录（显式布局，union 字段按偏移覆盖）。
+    /// 偏移对照 Win32 API 文档：KEY_EVENT_RECORD（bKeyDown@4/wRepeatCount@8/wVirtualKeyCode@10/
+    /// wVirtualScanCode@12/uChar@14/dwControlKeyState@16）；MOUSE_EVENT_RECORD（dwMousePosition@4/
+    /// dwButtonState@8/dwControlKeyState@12/dwEventFlags@16）。</summary>
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Explicit, Size = 20)]
-    private struct InputRecord
+    internal struct InputRecord
     {
         [System.Runtime.InteropServices.FieldOffset(0)] public ushort EventType;
         // KEY_EVENT union 成员（EventType == 1）
         [System.Runtime.InteropServices.FieldOffset(4)] public int KeyDown;
         [System.Runtime.InteropServices.FieldOffset(8)] public ushort RepeatCount;
         [System.Runtime.InteropServices.FieldOffset(10)] public ushort VirtualKeyCode;
+        [System.Runtime.InteropServices.FieldOffset(12)] public ushort VirtualScanCode;
         [System.Runtime.InteropServices.FieldOffset(14)] public char UnicodeChar;
         [System.Runtime.InteropServices.FieldOffset(16)] public uint ControlKeyState;
         // MOUSE_EVENT union 成员（EventType == 2）
         [System.Runtime.InteropServices.FieldOffset(4)] public short MouseX;
         [System.Runtime.InteropServices.FieldOffset(6)] public short MouseY;
         [System.Runtime.InteropServices.FieldOffset(8)] public uint ButtonState;
-        [System.Runtime.InteropServices.FieldOffset(12)] public uint EventFlags;
+        [System.Runtime.InteropServices.FieldOffset(12)] public uint MouseControlKeyState;
+        [System.Runtime.InteropServices.FieldOffset(16)] public uint EventFlags;
     }
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll")]

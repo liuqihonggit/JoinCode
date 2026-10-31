@@ -557,6 +557,13 @@ public sealed class ReplShell
     /// <summary>种子消息（Demo 模拟模式示例内容；真实引擎为空）。</summary>
     private readonly IReadOnlyList<IScrollItem> _seedMessages;
 
+    /// <summary>启动诊断行（TASK077 — DEC 1049 备用屏不保存 scrollback，退出后重输出恢复历史）。
+    /// 宿主在构造后、Run 前调用 <see cref="AddStartupLine"/> 添加。</summary>
+    private readonly List<string> _startupLines = [];
+
+    /// <summary>添加启动诊断行（宿主在 Run 前调用 — 退出备用屏后重输出到 scrollback 恢复历史）。</summary>
+    public void AddStartupLine(string line) => _startupLines.Add(line);
+
     /// <summary>inline（主屏 log-update）渲染模式 — 默认；false = 视口全屏 diff（旧模式）。</summary>
     private readonly bool _inline;
 
@@ -2715,7 +2722,22 @@ public sealed class ReplShell
                 + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
                 + DecPrivateMode.Enable(DecPrivateModeKind.MouseAnyEventTracking)
                 + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
-            // TASK077 — 清除 hover 残留（退出备用屏时光标不在主屏 PromptContextItem 上）
+            // TASK077 — DEC 1049 不保存 scrollback，退出后启动诊断行丢失。
+            // 清屏 + 重输出诊断行 + 首帧重绘恢复完整历史（诊断行在 scrollback，Screen 内容在视口）
+            if (_startupLines.Count > 0)
+            {
+                _output.Write(Sgr.Reset + Csi.EraseScreen() + Csi.EraseSavedLines() + Csi.CursorPosition(1, 1));
+                foreach (var line in _startupLines)
+                {
+                    _output.WriteLine(line);
+                }
+
+                _frontValid = false;
+                _prevOverride = null;
+                _cursor = new CursorPos(Col: 0, Row: 0);
+            }
+
+            // TASK077 — 清除 hover 拘留（退出备用屏时光标不在主屏 PromptContextItem 上）
             if (_promptContextItem is { } item)
             {
                 item.IsHovered = false;

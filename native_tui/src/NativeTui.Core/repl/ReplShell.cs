@@ -301,6 +301,9 @@ public sealed class ReplShell
     /// <summary>快照 .md 降级路径（Host 写 %TEMP% — 终端不支持 OSC 8 时摘要显示供手动打开）。</summary>
     private readonly string? _promptContextFallbackPath;
 
+    /// <summary>鼠标上报武装标记（Run 启动按终端能力门控决定 — WriteExit 对称关闭依据）。</summary>
+    private bool _mouseArmed;
+
     /// <summary>bash 直通完成结果缓冲（S10 接线 — ExecuteAsync 完成于线程池线程，AddMessage 必须回主循环线程
     /// （与渲染循环竞争 _view.Messages），复用 /clear 的跨线程缓冲 + 主循环消费先例）。</summary>
     private readonly ConcurrentQueue<BashDirectResult> _bashResults = new();
@@ -817,8 +820,19 @@ public sealed class ReplShell
     {
         CursorLifecycle.HideCursor(_output);
         _output.Write(DecPrivateMode.Enable(DecPrivateModeKind.BracketedPaste));
-        // TASK079 终版 — 主屏不启用鼠标上报（与原生选择复制互斥，用户实测复制失效）；
-        // 注入内容查看 = 折叠行 OSC 8 file 链接（终端原生点击打开 .md，无损）+ /prompt 模态
+        // TASK079 用户反馈终版 — 鼠标上报**能力门控**：仅现代终端（WT/VSCode/kitty 等声明支持者）
+        // 启用（点击折叠项/链接/滚动可用）；conhost 原生窗口不声明 → 不武装（终端原生选择复制
+        // 完整保留 — 用户实测 conhost 下武装导致复制失效且点击依旧不可用：conhost 不转发鼠标序列）。
+        // JCC_TUI_MOUSE=0 逃生门强制禁用；探测与 OSC 8 链接门控同源（HyperlinkEmitter）
+        if (Environment.GetEnvironmentVariable("JCC_TUI_MOUSE") != "0"
+            && HyperlinkEmitter.IsHyperlinkSupported())
+        {
+            _mouseArmed = true;
+            _output.Write(
+                DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
+                + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
+                + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
+        }
         // A5 接线 — 焦点上报（DEC 1004）：仅协调器存在时启用（有消费者才开 — 退出 WriteExit 尾对称 Disable）
         if (_terminalStatus is not null)
         {
@@ -4393,7 +4407,13 @@ public sealed class ReplShell
         var focusDisable = _terminalStatus is not null
             ? DecPrivateMode.Disable(DecPrivateModeKind.FocusReporting)
             : string.Empty;
-        _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste) + focusDisable);
+        _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste)
+            + (_mouseArmed
+                ? DecPrivateMode.Disable(DecPrivateModeKind.MouseSgrEncoding)
+                + DecPrivateMode.Disable(DecPrivateModeKind.MouseEventTracking)
+                + DecPrivateMode.Disable(DecPrivateModeKind.MouseClickTracking)
+                : string.Empty)
+            + focusDisable);
         _terminalStatus?.Shutdown();
         _output.Flush();
         DrainPendingConsoleInput();

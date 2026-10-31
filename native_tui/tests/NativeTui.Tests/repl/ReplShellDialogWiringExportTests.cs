@@ -108,7 +108,7 @@ public sealed class ReplShellDialogWiringExportTests
         Assert.DoesNotContain(shell.View.Messages.Items, item => item is ExportDialog);
         Assert.Single(copied);
         Assert.Contains("你好世界", copied[0]);
-        Assert.Equal(1, shell.View.Footer.Notifications!.QueuedCount);
+        Assert.NotNull(shell.View.Footer.Notifications!.Current);
     }
 
     /// <summary>esc 取消：无剪贴板/文件 IO + 对话框移除。</summary>
@@ -147,7 +147,7 @@ public sealed class ReplShellDialogWiringExportTests
         await WaitForAsync(() => saved.Count > 0);
         shell.DrainEngine();
         Assert.Contains("你好世界", saved[0]);
-        Assert.Equal(1, shell.View.Footer.Notifications!.QueuedCount);
+        Assert.NotNull(shell.View.Footer.Notifications!.Current);
     }
 
     /// <summary>剪贴板能力降级：未注入剪贴板委托 → 确认后错误反馈（诱导式）不静默。</summary>

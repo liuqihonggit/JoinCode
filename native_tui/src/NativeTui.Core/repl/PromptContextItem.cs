@@ -10,6 +10,9 @@ namespace NativeTui.Core.Repl;
 /// </summary>
 public sealed class PromptContextItem : IScrollItem
 {
+    /// <summary>命中标识常量（ReplShell.TryDispatchHitTestClick 分派依据 — 打开提示词详情页）。</summary>
+    public const string HitIdValue = "prompt-context";
+
     /// <summary>摘要前缀（链接段之前的统计文本）。</summary>
     private readonly string _summaryPrefix;
 
@@ -18,6 +21,9 @@ public sealed class PromptContextItem : IScrollItem
 
     /// <summary>系统提示词字符数。</summary>
     public int PromptChars { get; }
+
+    /// <summary>塌缩摘要行文本（Render/TranscriptLines 投影共用 — 构造时由宿主组装）。</summary>
+    public string Summary => _summaryPrefix;
 
     /// <summary>file URL（快照 .md 文件 — null = 未写文件）。</summary>
     public string? FileUrl { get; }
@@ -30,6 +36,12 @@ public sealed class PromptContextItem : IScrollItem
 
     /// <summary>真实 prompt tokens（TokenUsage 回填 — null = 首轮未完成）。</summary>
     public int? PromptTokens { get; set; }
+
+    /// <summary>展开态（transcript 模态内查看全文 — /prompt 置位）。</summary>
+    public bool Expanded { get; set; }
+
+    /// <summary>展开内容（系统提示词全文 + 工具清单 — ReplShell 注入；null = 未注入回退摘要）。</summary>
+    public string? ExpandedContent { get; set; }
 
     public PromptContextItem(string summaryPrefix, int promptChars, string? fileUrl, bool hyperlinkSupported, string? fallbackPath = null)
     {

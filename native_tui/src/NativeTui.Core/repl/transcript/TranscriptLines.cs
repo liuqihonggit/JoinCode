@@ -37,6 +37,10 @@ public static class TranscriptLines
             SubagentGroupItem group => SubagentLines(group),
             CollapsedToolGroupItem collapsed => CollapsedGroupLines(collapsed),
             CondensedToolProgressItem condensed => CondensedLines(condensed),
+            // TASK079 — 注入上下文折叠项：展开态投影全文（系统提示词+工具清单），塌缩态投影摘要行
+            PromptContextItem prompt => prompt.Expanded && prompt.ExpandedContent is { } content
+                ? PrefixedLines("📎 ", content)
+                : PrefixedLines("📎 ", prompt.Summary),
             _ => [],
         };
     }

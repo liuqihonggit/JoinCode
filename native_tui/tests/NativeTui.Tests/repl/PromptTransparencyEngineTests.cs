@@ -1,9 +1,9 @@
 namespace NativeTui.Tests.Repl;
 
 /// <summary>
-/// PromptTransparencyEngine 行为测试（TASK079 用户指令 — 用户应清晰知道注入了什么）：
-/// /prompt 拦截把宿主注入的快照（首次注入的系统提示词全文 + 工具清单）dump 进 transcript，
-/// 其余输入原样透传给内层引擎。
+/// PromptTransparencyEngine 行为测试（TASK079 用户指令 — 另开一屏查看首次注入内容）：
+/// /prompt → 折叠项展开全文 + transcript 备用屏打开（滚动/鼠标/搜索全基建，与子代理查看同模式）
+/// + 滚动定位顶部；transcript 激活时再 /prompt → 关闭。普通消息原样透传。
 /// </summary>
 public sealed class PromptTransparencyEngineTests
 {
@@ -19,26 +19,32 @@ public sealed class PromptTransparencyEngineTests
         return (engine, inner, shell);
     }
 
-    private static PromptDetailDialog? PageDialog(ReplShell shell) =>
-        shell.View.Messages.Items.OfType<PromptDetailDialog>().FirstOrDefault();
-
     [Fact]
-    public void Submit_Prompt_OpensPageModal_AndSecondPromptCloses()
+    public void Submit_Prompt_ExpandsItem_OpensTranscript_ScrollsTop()
     {
         var (engine, inner, shell) = Create("【首次注入的系统提示词】测试快照正文");
 
         engine.Submit("/prompt");
 
         Assert.Empty(inner.Submits);
-        Assert.True(shell.IsPromptPageOpen);
-        var page = PageDialog(shell);
-        Assert.NotNull(page);
-        Assert.Contains("测试快照正文", page!.SnapshotForTest);
-        Assert.True(page.MeasureHeight(80) > 7, "页面高度 = 头部 7 行 + 快照正文");
+        var item = shell.View.Messages.Items.OfType<PromptContextItem>().Single();
+        Assert.True(item.Expanded);
+        Assert.Contains("测试快照正文", item.ExpandedContent);
+        Assert.True(shell.Transcript.IsActive);
+        Assert.Equal(0, shell.Transcript.ScrollOffset);
+    }
+
+    [Fact]
+    public void Submit_Prompt_WhenTranscriptActive_Closes()
+    {
+        var (engine, inner, shell) = Create("快照");
+        engine.Submit("/prompt");
+        Assert.True(shell.Transcript.IsActive);
 
         engine.Submit("/prompt");
-        Assert.False(shell.IsPromptPageOpen);
-        Assert.Null(PageDialog(shell));
+
+        Assert.False(shell.Transcript.IsActive);
+        Assert.True(shell.View.Messages.Items.OfType<PromptContextItem>().Single().Expanded, "展开态保持 — ctrl+o 重进仍可见全文");
     }
 
     [Fact]
@@ -49,7 +55,7 @@ public sealed class PromptTransparencyEngineTests
         engine.Submit("普通消息");
 
         Assert.Equal(["普通消息"], inner.Submits);
-        Assert.False(shell.IsPromptPageOpen);
+        Assert.False(shell.Transcript.IsActive);
     }
 
     [Fact]

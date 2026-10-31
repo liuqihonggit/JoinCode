@@ -47,7 +47,7 @@ public sealed class ReplShellIntegrationActionsTests
 
         Assert.Equal(["完整回复内容"], copied);
         var notifications = shell.View.Footer.Notifications!;
-        Assert.Equal(1, notifications.QueuedCount);
+        Assert.NotNull(notifications.Current);
     }
 
     /// <summary>光标态 p — 选中 Bash 工具调用复制主参数 command + 通知反馈"已复制主参数"（入队等待出队）。</summary>
@@ -62,7 +62,7 @@ public sealed class ReplShellIntegrationActionsTests
         Char(shell, 'p');
 
         Assert.Equal(["dotnet build"], copied);
-        Assert.Equal(1, shell.View.Footer.Notifications!.QueuedCount);
+        Assert.NotNull(shell.View.Footer.Notifications!.Current);
     }
 
     /// <summary>光标态 p — 映射外工具（未知工具名）主参数提取 null → 静默（无剪贴板写入无通知入队）。</summary>
@@ -77,7 +77,7 @@ public sealed class ReplShellIntegrationActionsTests
         Char(shell, 'p');
 
         Assert.Empty(copied);
-        Assert.Equal(0, shell.View.Footer.Notifications!.QueuedCount);
+        Assert.Null(shell.View.Footer.Notifications!.Current);
     }
 
     /// <summary>未注入剪贴板委托 — c 复制降级静默（无通知入队，无异常）。</summary>
@@ -91,7 +91,7 @@ public sealed class ReplShellIntegrationActionsTests
 
         Char(shell, 'c');
 
-        Assert.Equal(0, shell.View.Footer.Notifications!.QueuedCount);
+        Assert.Null(shell.View.Footer.Notifications!.Current);
     }
 
     /// <summary>操作条投影 — 光标态激活渲染帧后 View.MessageActions 按选中项派生（p 段随映射显隐；

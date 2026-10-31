@@ -255,7 +255,7 @@ public sealed class ReplShell
     private readonly BashDirectExecutor _bash;
 
 
-    /// <summary>注入上下文折叠项（TASK079 — 首帧插入，点击//prompt 打开详情页；null = 宿主未启用）。</summary>
+    /// <summary>注入上下文折叠项（TASK079 — 首帧插入；/prompt 在 transcript 备用屏内展开查看）。</summary>
     private PromptContextItem? _promptContextItem;
 
     /// <summary>注入提示词详情页打开标记（模态 — esc 关闭；TASK079 用户指令"新页面"形态）。</summary>
@@ -263,6 +263,34 @@ public sealed class ReplShell
 
     /// <summary>注入提示词详情页打开（测试断言面 — 对齐 IsBackgroundTaskDetailOpen 先例）。</summary>
     internal bool IsPromptPageOpen => _promptPageOpen;
+
+    /// <summary>/prompt 透明化（TASK079 用户指令 — 另开一屏查看首次注入内容）：
+    /// 展开折叠项全文 + 进入 transcript 备用屏（鼠标/滚动/搜索全基建，与子代理查看同模式）
+    /// + 滚到顶（提示词位于消息列表前列）；已展开且 transcript 激活时 → 关闭 transcript。</summary>
+    public void TogglePromptContext()
+    {
+        // transcript 激活时再触发 = 关闭（切换语义；展开态保持 — ctrl+o 重进仍见全文）
+        if (_transcript.IsActive)
+        {
+            ToggleTranscript();
+            return;
+        }
+
+        if (_promptContextItem is { } item)
+        {
+            item.Expanded = true;
+            item.ExpandedContent = _promptContextSnapshot is { } snapshot
+                ? snapshot + Environment.NewLine + Environment.NewLine
+                    + (_promptContextInventory?.Invoke().Text ?? string.Empty)
+                : null;
+        }
+
+        ToggleTranscript();
+        if (_transcript.IsActive)
+        {
+            _transcript.ScrollTo(0);
+        }
+    }
 
     /// <summary>注入上下文快照（宿主注入 — 系统提示词全文 + 工具清单；null = 未启用）。</summary>
     private readonly string? _promptContextSnapshot;
@@ -278,6 +306,9 @@ public sealed class ReplShell
 
     /// <summary>快照 .md 降级路径（Host 写 %TEMP% — 终端不支持 OSC 8 时摘要显示供手动打开）。</summary>
     private readonly string? _promptContextFallbackPath;
+
+    /// <summary>鼠标上报武装标记（Run 启动按终端能力门控决定 — WriteExit 对称关闭依据）。</summary>
+    private bool _mouseArmed;
 
     /// <summary>bash 直通完成结果缓冲（S10 接线 — ExecuteAsync 完成于线程池线程，AddMessage 必须回主循环线程
     /// （与渲染循环竞争 _view.Messages），复用 /clear 的跨线程缓冲 + 主循环消费先例）。</summary>
@@ -676,7 +707,7 @@ public sealed class ReplShell
         _promptContextSnapshot = promptContextSnapshot;
         _promptContextInventory = promptContextInventory;
         _promptContextFileUrl = promptContextFileUrl;
-        _hyperlinkSupported = hyperlinkSupported;
+        _hyperlinkSupported = hyperlinkSupported || Terminal.TerminalHostDetector.IsWindowsTerminalHosting();
         _promptContextFallbackPath = promptContextFallbackPath;
         _commandUsage = commandUsage ?? new CommandUsageMemory();
         // S10 接线 — 分组注入：空查询 "/" 走 recently-used + 来源分组视图（有查询仍走既有匹配排序）
@@ -795,8 +826,19 @@ public sealed class ReplShell
     {
         CursorLifecycle.HideCursor(_output);
         _output.Write(DecPrivateMode.Enable(DecPrivateModeKind.BracketedPaste));
-        // TASK079 终版 — 主屏不启用鼠标上报（与原生选择复制互斥，用户实测复制失效）；
-        // 注入内容查看 = 折叠行 OSC 8 file 链接（终端原生点击打开 .md，无损）+ /prompt 模态
+        // TASK079 用户反馈终版 — 鼠标上报**能力门控**：仅现代终端（WT/VSCode/kitty 等声明支持者）
+        // 启用（点击折叠项/链接/滚动可用）；conhost 原生窗口不声明 → 不武装（终端原生选择复制
+        // 完整保留 — 用户实测 conhost 下武装导致复制失效且点击依旧不可用：conhost 不转发鼠标序列）。
+        // JCC_TUI_MOUSE=0 逃生门强制禁用；探测与 OSC 8 链接门控同源（HyperlinkEmitter）
+        if (Environment.GetEnvironmentVariable("JCC_TUI_MOUSE") != "0"
+            && (HyperlinkEmitter.IsHyperlinkSupported() || Terminal.TerminalHostDetector.IsWindowsTerminalHosting()))
+        {
+            _mouseArmed = true;
+            _output.Write(
+                DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
+                + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
+                + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
+        }
         // A5 接线 — 焦点上报（DEC 1004）：仅协调器存在时启用（有消费者才开 — 退出 WriteExit 尾对称 Disable）
         if (_terminalStatus is not null)
         {
@@ -837,7 +879,8 @@ public sealed class ReplShell
             // types.ts:188-190；vim 关闭 null 不渲染零变化）
             VimMode = _vimEngine is { Mode: VimMode.Insert } vimEngine ? vimEngine.StatusLine : null,
         };
-        _notifications.Enqueue(PickerEffortLevel.Medium.ToFooterNotificationText());
+        // TASK079 用户反馈 — 种子 effort 通知移除：8s 到期清除触发 footer 重绘，把上滚的
+        // 终端视口拽回底部（偶发刷新源）；effort 状态由 footer 段持久展示，瞬态通知纯冗余
         _view.Messages.Add(_banner);
         // TASK079 终版 — 注入上下文折叠项（OSC 8 file 链接：终端原生点击打开快照 .md，
         // 不接管鼠标原生选择复制不受影响；/prompt 全页模态双通道；null = 宿主未启用）
@@ -2490,6 +2533,24 @@ public sealed class ReplShell
             return false;
         }
 
+        // TASK079 用户指令 — 工具结果行点击原地展开/收起（查看 AI 用 read/edit 看了什么）
+        if (hitId.StartsWith("tool-result:", StringComparison.Ordinal))
+        {
+            if (_view.Messages.Items.FirstOrDefault(i => i.HitTestId == hitId) is ToolResultItem result)
+            {
+                result.ToggleExpand();
+            }
+
+            return true;
+        }
+
+        // 注入上下文折叠项点击 — 打开提示词详情页（/prompt 同效）
+        if (hitId == PromptContextItem.HitIdValue)
+        {
+            ShowPromptPage();
+            return true;
+        }
+
         // 面板空白命中（溢出行 "+N more" 等）— 吞：面板是 UI 交互区不启动文本选区
         //（对齐基准面板 Box onClick 包裹区域形态 CoordinatorAgentStatus.tsx:72-75）
         if (hitId == BackgroundTaskPanel.PanelHitId)
@@ -2770,6 +2831,16 @@ public sealed class ReplShell
     /// AddMessage + 关闭时 RemoveDialogItem 移除；查看后保持选中态（对话框关闭回选中态
     /// 可继续导航 — 对话框激活期间按键路由见 HandleBackgroundTaskDetailKey；挂载不可重入 —
     /// 分派链对话框分支拦截 Enter）。无选中/索引越界防御 no-op。</summary>
+    private void ShowSelectedBackgroundTask()
+    {
+        var tasks = _view.BackgroundTasks.Tasks;
+        if (_view.BackgroundTasks.SelectedIndex is >= 0 and var index && index < tasks.Count)
+        {
+            _backgroundTaskDetailOpen = true;
+            AddMessage(new BackgroundTaskDetailDialog(tasks[index], Environment.TickCount64));
+        }
+    }
+
     /// <summary>打开注入提示词详情页（TASK079 用户指令"新页面"— /prompt 或点击折叠项）：
     /// 挂载 PromptDetailDialog 消息项（紧邻输入框立即可见，终端滚动回看全文）；
     /// 已打开时重复触发 = 关闭（切换语义）。</summary>
@@ -2804,16 +2875,6 @@ public sealed class ReplShell
     {
         _promptPageOpen = false;
         RemoveDialogItem<PromptDetailDialog>();
-    }
-
-    private void ShowSelectedBackgroundTask()
-    {
-        var tasks = _view.BackgroundTasks.Tasks;
-        if (_view.BackgroundTasks.SelectedIndex is >= 0 and var index && index < tasks.Count)
-        {
-            _backgroundTaskDetailOpen = true;
-            AddMessage(new BackgroundTaskDetailDialog(tasks[index], Environment.TickCount64));
-        }
     }
 
     /// <summary>后台任务详情对话框模态按键（对齐 HandleHelpKey 轻量模态形态 — 详情只读无交互，
@@ -4414,7 +4475,13 @@ public sealed class ReplShell
         var focusDisable = _terminalStatus is not null
             ? DecPrivateMode.Disable(DecPrivateModeKind.FocusReporting)
             : string.Empty;
-        _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste) + focusDisable);
+        _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste)
+            + (_mouseArmed
+                ? DecPrivateMode.Disable(DecPrivateModeKind.MouseSgrEncoding)
+                + DecPrivateMode.Disable(DecPrivateModeKind.MouseEventTracking)
+                + DecPrivateMode.Disable(DecPrivateModeKind.MouseClickTracking)
+                : string.Empty)
+            + focusDisable);
         _terminalStatus?.Shutdown();
         _output.Flush();
         DrainPendingConsoleInput();

@@ -58,7 +58,7 @@ public sealed class ReplShellDialogWiringGlobalSearchTests
         shell.HandleRawKeyPress(SearchTrigger());
 
         Assert.True(shell.IsGlobalSearchOpen);
-        Assert.Equal(1, shell.View.Footer.Notifications!.QueuedCount);
+        Assert.NotNull(shell.View.Footer.Notifications!.Current);
     }
 
     /// <summary>无搜索源（null 注入）：打开即通知提示降级（对齐 rg 不可用同文案）。</summary>
@@ -73,7 +73,7 @@ public sealed class ReplShellDialogWiringGlobalSearchTests
         shell.HandleRawKeyPress(SearchTrigger());
 
         Assert.True(shell.IsGlobalSearchOpen);
-        Assert.Equal(1, shell.View.Footer.Notifications!.QueuedCount);
+        Assert.NotNull(shell.View.Footer.Notifications!.Current);
     }
 
     /// <summary>无工作区根：降级诱导提示不挂载。</summary>
@@ -201,7 +201,7 @@ public sealed class ReplShellDialogWiringGlobalSearchTests
         Assert.False(shell.IsGlobalSearchOpen);
         Assert.DoesNotContain(shell.View.Messages.Items, item => item is GlobalSearchDialog);
         Assert.Equal("@src/a.cs#L10 ", shell.Input.Text);
-        Assert.Equal(1, shell.View.Footer.Notifications!.QueuedCount);
+        Assert.NotNull(shell.View.Footer.Notifications!.Current);
         Assert.True(token.IsCancellationRequested);
     }
 

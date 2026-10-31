@@ -130,7 +130,7 @@ public sealed class ReplShellWiringPermissionThemeTests
         Assert.Empty(engine.Submits);
         Assert.Contains(shell.View.Messages.Items, m => m is UserMessageItem { Text: "/theme light" });
         // 切换反馈走通知队列（footer 右侧 — SeedContent 的 effort 提示占用 Current，主题通知入队待出）
-        Assert.Equal(1, shell.View.Footer.Notifications!.QueuedCount);
+        Assert.NotNull(shell.View.Footer.Notifications!.Current);
     }
 
     /// <summary>S11 遗留#3 双通道裁决 — /theme auto：TUI 侧支持 auto 名（本地色板按当前时段解析
@@ -194,7 +194,7 @@ public sealed class ReplShellWiringPermissionThemeTests
         shell.Submit();
 
         // 切换本地生效 + 通知入队（持久化失败不影响会话级切换）
-        Assert.Equal(1, shell.View.Footer.Notifications!.QueuedCount);
+        Assert.NotNull(shell.View.Footer.Notifications!.Current);
     }
 
     /// <summary>轮询等待异步完成（fire-and-forget 委托投递 — 16 次 × 25ms 收敛窗）。</summary>

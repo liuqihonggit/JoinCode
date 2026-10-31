@@ -394,7 +394,8 @@ public sealed class TranscriptController
     public void ScrollBy(int delta) => ScrollTo(ScrollOffset + delta);
 
     /// <summary>绝对滚动（clamp 到 [0, MaxScrollOffset] — 不足一屏不可滚）。</summary>
-    private void ScrollTo(int offset) => ScrollOffset = Math.Clamp(offset, 0, MaxScrollOffset);
+    /// <summary>滚动到指定行偏移（0 = 顶部 — /prompt 打开时定位提示词，TASK079）。</summary>
+    public void ScrollTo(int offset) => ScrollOffset = Math.Clamp(offset, 0, MaxScrollOffset);
 
     /// <summary>半屏滚动量 — max(1, 视口行数/2)（基准 floor(viewportHeight/2)）。</summary>
     private int HalfPage() => Math.Max(1, ViewportHeight / 2);

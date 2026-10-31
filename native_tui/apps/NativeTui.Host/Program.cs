@@ -268,12 +268,20 @@ public static class Program {
 
         Console.OutputEncoding = Encoding.UTF8;
         using var raw = (Environment.GetEnvironmentVariable("JCC_FORCE_TTY") == "1" ? (IDisposable?)null : new RawConsoleMode());
-        Console.Error.WriteLine("引擎启动中…");
+        // TASK077 — 启动诊断行保存（退出备用屏后重输出恢复 scrollback 历史）
+        var startupLines = new List<string>();
+        void WriteStartupLine(string line)
+        {
+            startupLines.Add(line);
+            Console.Error.WriteLine(line);
+        }
+
+        WriteStartupLine("引擎启动中…");
         // S12 OSC8 最小集成 — 会话级探测一次（stderr 诊断旁路 — 对齐 DrainDiagnostics 写 stderr 先例）：
         // 探测结果缓存于日志供链接渲染深链路批次消费（本批仅探测 + 说明，见未决问题）
         // 诊断行附带环境快照（TERM_PROGRAM/LC_TERMINAL/WT_SESSION/TERM/KITTY_WINDOW_ID）—
         // 用户贴报问题时 AI 一眼看清终端环境，无需另跑命令排查
-        Console.Error.WriteLine(HyperlinkEmitter.FormatDiagnostic());
+        WriteStartupLine(HyperlinkEmitter.FormatDiagnostic());
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
         TestEnvironmentDetector.ForceNonInteractive = true;
 
@@ -548,6 +556,12 @@ var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
                       // 非 Windows null 降级 → Core 侧 footer 通知"剪贴板未找到图片"）
                       readClipboardImage: ReadClipboardImage);
                 transparencyEngine.Attach(shell);
+                // TASK077 — 启动诊断行注入（退出备用屏后重输出恢复 scrollback 历史）
+                foreach (var line in startupLines)
+                {
+                    shell.AddStartupLine(line);
+                }
+
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
                 session.PermissionBridge.Bind(shell);
                 // M8-5 命令交互回调接线（/clear 清 TUI 滚动区+scrollback、/exit /quit /logout 结束主循环）—

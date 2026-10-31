@@ -356,18 +356,14 @@ public static class Program {
                 var defaultShell = await LoadSettingAsync(session.Services, "defaultShell").ConfigureAwait(false);
                 // C类 respectGitignore 键 — settings.current.respectGitignore（默认 true）控制 @ 文件补全是否尊重 .gitignore
                 var gitignorePredicate = await LoadGitignorePredicateAsync(session.Services, Environment.CurrentDirectory).ConfigureAwait(false);
-                // TASK077 — 输入泵平台分流：Windows 默认 Win32ConsoleInputPump（ReadConsoleInput
-                // P/Invoke 直读 INPUT_RECORD，键盘鼠标同通道 — Console.ReadKey 跳过 MOUSE_EVENT 的
-                // 架构性根因修复）；--raw-input 灰度启用 RawStdinPump（stdin 原始流 VT 全链）；
-                // Linux 默认 null（ReplShell 回退 ReadKeyPump — Linux 终端 stdin VT 序列天然含鼠标）
+                // TASK077 — 输入泵平台分流：Windows 默认 RawStdinPump（stdin 原始流 VT 全链 —
+                // ENABLE_VIRTUAL_TERMINAL_INPUT 启用后 WT 把 VT 鼠标序列发到 stdin，KeyPressParser
+                // 解析 SGR 鼠标事件）；--raw-input 显式同路径；Linux 默认 null（ReplShell 回退
+                // ReadKeyPump — Linux 终端 stdin VT 序列天然含鼠标）
                 IInputPump? inputPump;
-                if (useRawStdinPump)
+                if (useRawStdinPump || OperatingSystem.IsWindows())
                 {
                     inputPump = new RawStdinPump(terminalQuerier);
-                }
-                else if (OperatingSystem.IsWindows())
-                {
-                    inputPump = new Win32ConsoleInputPump();
                 }
                 else
                 {

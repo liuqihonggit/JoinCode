@@ -4449,7 +4449,12 @@ public sealed class ReplShell
         var focusDisable = _terminalStatus is not null
             ? DecPrivateMode.Disable(DecPrivateModeKind.FocusReporting)
             : string.Empty;
-        _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste) + focusDisable);
+        // TASK077 — 主屏鼠标武装对称解除（Run 启用 ?1000h/?1002h/?1006h，退出必须 Disable
+        // 否则终端残留鼠标应用模式影响 shell 正常使用）
+        var mouseDisable = DecPrivateMode.Disable(DecPrivateModeKind.MouseSgrEncoding)
+            + DecPrivateMode.Disable(DecPrivateModeKind.MouseEventTracking)
+            + DecPrivateMode.Disable(DecPrivateModeKind.MouseClickTracking);
+        _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste) + mouseDisable + focusDisable);
         _terminalStatus?.Shutdown();
         _output.Flush();
         DrainPendingConsoleInput();

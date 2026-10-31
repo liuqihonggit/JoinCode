@@ -311,10 +311,8 @@ public sealed class ModelPickerEffortTests
 
         Assert.Equal(PickerEffortLevel.Max, applied[0]);
         Assert.False(shell.ModelPicker.IsPending);
-        // 种子通知占 current（Enqueue 立即出队语义）→ effort 通知入队等待；Tick 推进 8s+ 种子到期 → 档位文本上屏
+        // TASK079 — 种子通知移除：effort 反馈即时上屏（Current 直达，无 8s 队列等待）
         var notifications = shell.View.Footer!.Notifications!;
-        Assert.Equal(1, notifications.QueuedCount);
-        notifications.Tick(9000);
         Assert.Equal(PickerEffortLevel.Max.ToFooterNotificationText(), notifications.Current);
     }
 
@@ -330,7 +328,7 @@ public sealed class ModelPickerEffortTests
         shell.HandleKey(new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false));
 
         Assert.Null(applied[0]);
-        Assert.Equal(0, shell.View.Footer!.Notifications!.QueuedCount);
+        Assert.Null(shell.View.Footer!.Notifications!.Current);
     }
 
     /// <summary>Esc — 取消不触发 effort 回调（基准 onCancel 无 effort）。</summary>

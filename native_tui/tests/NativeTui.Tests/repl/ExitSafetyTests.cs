@@ -149,7 +149,7 @@ public sealed class ExitSafetyTests
         shell.HandleKey(new ConsoleKeyInfo('\x04', ConsoleKey.D, false, false, false));
 
         Assert.True(shell.IsRunning);
-        Assert.Equal(1, shell.View.Footer.Notifications!.QueuedCount);
+        Assert.NotNull(shell.View.Footer.Notifications!.Current);
     }
 
     /// <summary>Ctrl+D 空输入双击（确认窗口内）→ 退出（唯一按键退出路径 — 双击确认）。</summary>

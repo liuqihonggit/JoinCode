@@ -255,14 +255,36 @@ public sealed class ReplShell
     private readonly BashDirectExecutor _bash;
 
 
-    /// <summary>注入上下文折叠项（TASK079 — 首帧插入，点击//prompt 打开详情页；null = 宿主未启用）。</summary>
+    /// <summary>注入上下文折叠项（TASK079 — 首帧插入；/prompt 在 transcript 备用屏内展开查看）。</summary>
     private PromptContextItem? _promptContextItem;
 
-    /// <summary>注入提示词详情页打开标记（模态 — esc 关闭；TASK079 用户指令"新页面"形态）。</summary>
-    private bool _promptPageOpen;
+    /// <summary>/prompt 透明化（TASK079 用户指令 — 另开一屏查看首次注入内容）：
+    /// 展开折叠项全文 + 进入 transcript 备用屏（鼠标/滚动/搜索全基建，与子代理查看同模式）
+    /// + 滚到顶（提示词位于消息列表前列）；已展开且 transcript 激活时 → 关闭 transcript。</summary>
+    public void TogglePromptContext()
+    {
+        // transcript 激活时再触发 = 关闭（切换语义；展开态保持 — ctrl+o 重进仍见全文）
+        if (_transcript.IsActive)
+        {
+            ToggleTranscript();
+            return;
+        }
 
-    /// <summary>注入提示词详情页打开（测试断言面 — 对齐 IsBackgroundTaskDetailOpen 先例）。</summary>
-    internal bool IsPromptPageOpen => _promptPageOpen;
+        if (_promptContextItem is { } item)
+        {
+            item.Expanded = true;
+            item.ExpandedContent = _promptContextSnapshot is { } snapshot
+                ? snapshot + Environment.NewLine + Environment.NewLine
+                    + (_promptContextInventory?.Invoke().Text ?? string.Empty)
+                : null;
+        }
+
+        ToggleTranscript();
+        if (_transcript.IsActive)
+        {
+            _transcript.ScrollTo(0);
+        }
+    }
 
     /// <summary>注入上下文快照（宿主注入 — 系统提示词全文 + 工具清单；null = 未启用）。</summary>
     private readonly string? _promptContextSnapshot;
@@ -837,7 +859,8 @@ public sealed class ReplShell
             // types.ts:188-190；vim 关闭 null 不渲染零变化）
             VimMode = _vimEngine is { Mode: VimMode.Insert } vimEngine ? vimEngine.StatusLine : null,
         };
-        _notifications.Enqueue(PickerEffortLevel.Medium.ToFooterNotificationText());
+        // TASK079 用户反馈 — 种子 effort 通知移除：8s 到期清除触发 footer 重绘，把上滚的
+        // 终端视口拽回底部（偶发刷新源）；effort 状态由 footer 段持久展示，瞬态通知纯冗余
         _view.Messages.Add(_banner);
         // TASK079 终版 — 注入上下文折叠项（OSC 8 file 链接：终端原生点击打开快照 .md，
         // 不接管鼠标原生选择复制不受影响；/prompt 全页模态双通道；null = 宿主未启用）
@@ -1301,13 +1324,6 @@ public sealed class ReplShell
         if (_backgroundTaskDetailOpen)
         {
             HandleBackgroundTaskDetailKey(key);
-            return;
-        }
-
-        // TASK079 注入提示词详情页模态（对齐后台任务详情轻量模态形态 — esc 关闭其余吞）
-        if (_promptPageOpen)
-        {
-            HandlePromptPageKey(key);
             return;
         }
 
@@ -2406,7 +2422,6 @@ public sealed class ReplShell
             || _search is not null
             || _view.BackgroundTasks.IsSelectionActive
             || _backgroundTaskDetailOpen
-            || _promptPageOpen
             || _helpOpen)
         {
             return;
@@ -2770,42 +2785,6 @@ public sealed class ReplShell
     /// AddMessage + 关闭时 RemoveDialogItem 移除；查看后保持选中态（对话框关闭回选中态
     /// 可继续导航 — 对话框激活期间按键路由见 HandleBackgroundTaskDetailKey；挂载不可重入 —
     /// 分派链对话框分支拦截 Enter）。无选中/索引越界防御 no-op。</summary>
-    /// <summary>打开注入提示词详情页（TASK079 用户指令"新页面"— /prompt 或点击折叠项）：
-    /// 挂载 PromptDetailDialog 消息项（紧邻输入框立即可见，终端滚动回看全文）；
-    /// 已打开时重复触发 = 关闭（切换语义）。</summary>
-    internal void ShowPromptPage()
-    {
-        if (_promptPageOpen)
-        {
-            ClosePromptPage();
-            return;
-        }
-
-        if (_promptContextSnapshot is null || _promptContextInventory is null)
-        {
-            return;
-        }
-
-        _promptPageOpen = true;
-        AddMessage(new PromptDetailDialog(_promptContextSnapshot, _promptContextSnapshot.Length, _promptContextInventory));
-    }
-
-    /// <summary>注入提示词详情页模态按键（对齐后台任务详情模态形态 — esc 关闭，其余吞掉）。</summary>
-    private void HandlePromptPageKey(KeyPress key)
-    {
-        if (key.Kind is KeyKind.Escape or KeyKind.LeftArrow)
-        {
-            ClosePromptPage();
-        }
-    }
-
-    /// <summary>关闭注入提示词详情页（移除对话框项 — 回主循环视图）。</summary>
-    private void ClosePromptPage()
-    {
-        _promptPageOpen = false;
-        RemoveDialogItem<PromptDetailDialog>();
-    }
-
     private void ShowSelectedBackgroundTask()
     {
         var tasks = _view.BackgroundTasks.Tasks;

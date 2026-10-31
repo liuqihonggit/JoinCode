@@ -19,10 +19,10 @@ public sealed class PromptTransparencyEngine(IReplEngine inner) : IReplEngine
         }
     }
 
-    /// <summary>提交回合 — /prompt 打开注入提示词详情页（全页模态，esc 关闭），其余原样透传。</summary>
+    /// <summary>提交回合 — /prompt 另开一屏（transcript 备用屏）查看首次注入内容，其余原样透传。</summary>
     public void Submit(string text) {
         if (text.Trim().Equals("/prompt", StringComparison.OrdinalIgnoreCase)) {
-            _shell?.ShowPromptPage();
+            _shell?.TogglePromptContext();
             return;
         }
 

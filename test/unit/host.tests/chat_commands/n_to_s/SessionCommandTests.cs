@@ -4,7 +4,9 @@ namespace Host.Tests.ChatCommands;
 /// SessionCommand 取值范围测试 — 验证 CrudAction 枚举字面量(ls/rm 等)正确路由
 /// 覆盖:list/ls/resume/open/delete/rm/未知子命令
 /// 验证目标:Step 3.3 重构后,所有 case 标签能被正确识别,语义保持
+/// Console.SetOut/TerminalHelper.SetOut 是进程全局态 — 加入 ConsoleOutput collection 串行执行。
 /// </summary>
+[Collection("ConsoleOutput")]
 public sealed class SessionCommandTests {
     [Fact]
     public void Name_Should_Be_session() {

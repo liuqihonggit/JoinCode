@@ -7,6 +7,7 @@ namespace Host.Tests.Cli;
 /// 曾直接写 RealOut 与 inline 渲染器双写互踩（用户实测整帧错乱）。
 /// Console.SetOut 是进程全局态 — 本类测试串行（xUnit 同类内串行）。
 /// </summary>
+[Collection("ConsoleOutput")]
 public sealed class TerminalHelperGateRoutingTests {
     [Fact]
     public void WriteLine_DuringGate_RoutesToRingNotOriginalWriter() {

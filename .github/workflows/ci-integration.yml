@@ -30,11 +30,7 @@ jobs:
             --filter "Category!=Benchmark" \
             --logger "console;verbosity=normal" \
             --logger "trx;LogFileName=integration-all.trx"
-          dotnet build build/sln/JoinCode.slnx \
-            -c Debug --nologo \
-            -p:UsePackedComponents=true \
-            -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
-          dotnet test build/sln/JoinCode.slnx \
+          dotnet test test/integration/integration.tests/Integration.Tests.csproj \
             -c Debug --nologo --no-build \
             -p:UsePackedComponents=true \
             -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
@@ -57,32 +53,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
       - uses: ./.github/actions/setup-test-env
-      - name: Build and set execute permission
-        shell: bash
-        run: |
-          dotnet build build/sln/JoinCode.slnx \
-            -c Debug --nologo \
-            -p:UsePackedComponents=true \
-            -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
-          find artifacts/bin/ -type f -name '*.exe' -exec chmod +x {} + 2>/dev/null || true
+        with:
+          build-e2e-exes: true
       - name: Integration Tests
         shell: bash
         run: |
           set -e
-          dotnet test build/sln/JoinCode.slnx \
-            -c Debug --nologo --no-build \
+          dotnet test test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj \
+            -c Debug --nologo \
             -p:UsePackedComponents=true \
             -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
-            --filter "Category=Integration&(FullyQualifiedName~Brain|FullyQualifiedName~Clock)" \
+            --filter "Category=Integration&(FullyQualifiedName~Brain|FullyQualifiedName~Clock|FullyQualifiedName~Guard|FullyQualifiedName~Vault)" \
             --logger "console;verbosity=normal" \
-            --logger "trx;LogFileName=integration-brain-clock.trx"
-          dotnet test build/sln/JoinCode.slnx \
-            -c Debug --nologo --no-build \
-            -p:UsePackedComponents=true \
-            -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none \
-            --filter "Category=Integration&(FullyQualifiedName~Guard|FullyQualifiedName~Vault)" \
-            --logger "console;verbosity=normal" \
-            --logger "trx;LogFileName=integration-guard-vault.trx"
+            --logger "trx;LogFileName=integration-safety.trx"
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v7

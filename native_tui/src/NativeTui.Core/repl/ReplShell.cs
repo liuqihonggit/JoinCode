@@ -299,13 +299,6 @@ public sealed class ReplShell
     private readonly Func<(string Text, int Total, int System)>? _promptContextInventory;
 
     /// <summary>注入快照文件 file URL（OSC 8 链接目标 — null = 未写文件/不支持）。</summary>
-    private readonly string? _promptContextFileUrl;
-
-    /// <summary>终端 OSC 8 支持标记（HyperlinkEmitter 探测 — 不支持降级纯文本路径）。</summary>
-    private readonly bool _hyperlinkSupported;
-
-    /// <summary>快照 .md 降级路径（Host 写 %TEMP% — 终端不支持 OSC 8 时摘要显示供手动打开）。</summary>
-    private readonly string? _promptContextFallbackPath;
 
     /// <summary>bash 直通完成结果缓冲（S10 接线 — ExecuteAsync 完成于线程池线程，AddMessage 必须回主循环线程
     /// （与渲染循环竞争 _view.Messages），复用 /clear 的跨线程缓冲 + 主循环消费先例）。</summary>
@@ -678,9 +671,7 @@ public sealed class ReplShell
         int shellTimeoutSeconds = 120,
         string? promptContextSnapshot = null,
         Func<(string Text, int Total, int System)>? promptContextInventory = null,
-        string? promptContextFileUrl = null,
-        bool hyperlinkSupported = false,
-        string? promptContextFallbackPath = null,
+
         AlternateScreenController? alternateScreen = null,
         SelectionState? selection = null,
         Action<string>? copySelection = null,
@@ -703,9 +694,6 @@ public sealed class ReplShell
         _seedMessages = seedMessages ?? [];
         _promptContextSnapshot = promptContextSnapshot;
         _promptContextInventory = promptContextInventory;
-        _promptContextFileUrl = promptContextFileUrl;
-        _hyperlinkSupported = hyperlinkSupported || Terminal.TerminalHostDetector.IsWindowsTerminalHosting();
-        _promptContextFallbackPath = promptContextFallbackPath;
         _commandUsage = commandUsage ?? new CommandUsageMemory();
         // S10 接线 — 分组注入：空查询 "/" 走 recently-used + 来源分组视图（有查询仍走既有匹配排序）
         _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands, new CommandGrouping(_commandUsage)) : null;
@@ -877,11 +865,8 @@ public sealed class ReplShell
         if (_promptContextSnapshot is not null && _promptContextInventory is not null)
         {
             _promptContextItem = new PromptContextItem(
-                summaryPrefix: $"📎 首次注入 · 系统提示词 {_promptContextSnapshot.Length} 字符",
-                promptChars: _promptContextSnapshot.Length,
-                fileUrl: _promptContextFileUrl,
-                hyperlinkSupported: _hyperlinkSupported,
-                fallbackPath: _promptContextFallbackPath);
+                $"📎 首次注入 · 系统提示词 {_promptContextSnapshot.Length} 字符",
+                _promptContextSnapshot.Length);
             _view.Messages.Add(_promptContextItem);
             _driver.PromptContextItemTarget = _promptContextItem;
         }

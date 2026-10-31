@@ -463,9 +463,6 @@ var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
                     shellTimeoutSeconds: shellExecutionConfig?.AbsoluteTimeoutSeconds ?? 120,
                     promptContextSnapshot: promptSnapshotBuilder.Value,
                     promptContextInventory: () => toolInventoryCache.Value,
-                    promptContextFileUrl: promptFileUrl,
-                    hyperlinkSupported: true, // 无条件 — 不支持 OSC 8 的终端无害降级
-                    promptContextFallbackPath: promptFallbackPath,
                     clipboard: text => _ = clipboardService?.SetTextAsync(text),
                     themeName: themeName,
                     commandUsage: commandUsage,

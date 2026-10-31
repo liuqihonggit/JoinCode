@@ -41,6 +41,11 @@ public static class MouseTestMode
                 break;
             }
 
+            // TASK077 调试 — 输出原始字节 hex，看 stdin 收到什么（VT 鼠标序列/键盘/空）
+            var hex = string.Join(' ', bytes.AsSpan(0, read).ToArray().Select(b => $"{b:X2}"));
+            output.WriteLine($"  [RAW {read} bytes] {hex}");
+            output.Flush();
+
             var produced = decoder.GetChars(bytes, 0, read, chars, 0, flush: false);
             for (var i = 0; i < produced; i++)
             {

@@ -39,6 +39,7 @@ public static class Program
             : rest is ["--bridge-selftest"] ? RunBridgeSelftest()
             : rest is ["--bridge-echo-child"] ? RunBridgeEchoChild()
             : rest is ["--capture", string capturePath] ? RunCapture(capturePath)
+            : rest is ["--mouse-test"] ? MouseTestMode.Run(System.Console.Out)
             : rest is ["--bridge", string exePath] ? RunBridgeInteractive(exePath, model, viewport)
             : RunInteractive(model, viewport);
     }

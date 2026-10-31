@@ -64,14 +64,16 @@ public sealed class ConsoleModeMathTests
         const uint typical = 0x1 | 0x2 | 0x4 | 0x8 | 0x10 | 0x40 | 0x80;
         var raw = ConsoleModeMath.ToRawInput(typical);
         // 行/回显/处理输入清零；QuickEdit/EXTENDED 保留原样（对齐基准 Node 行为：
-        // conhost 宿主下 QuickEdit 是鼠标选择复制的唯一机制，禁用即无法选择）
-        Assert.Equal(0x8u | 0x10u | 0x40u | 0x80u, raw);
+        // conhost 宿主下 QuickEdit 是鼠标选择复制的唯一机制，禁用即无法选择）；
+        // TASK077 — ENABLE_VIRTUAL_TERMINAL_INPUT(0x200) 启用（WT 需此项才把 VT 鼠标序列发到 stdin）
+        Assert.Equal(0x8u | 0x10u | 0x40u | 0x80u | 0x200u, raw);
     }
 
     [Fact]
     public void ToRawInput_MinimalMode_OnlyClearsRawBits()
     {
-        Assert.Equal(0u, ConsoleModeMath.ToRawInput(0x7));
+        // TASK077 — ENABLE_VIRTUAL_TERMINAL_INPUT(0x200) 始终启用
+        Assert.Equal(0x200u, ConsoleModeMath.ToRawInput(0x7));
     }
 
     [Fact]

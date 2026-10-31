@@ -117,15 +117,6 @@ public sealed class RawStdinPump : IInputPump, IDisposable
                     break;
                 }
 
-                // TASK077 调试 — 后台线程读到的原始字节 hex 写文件（确认是否收到 VT 鼠标序列）
-                try
-                {
-                    var hex = string.Join(' ', bytes.AsSpan(0, read).ToArray().Select(b => $"{b:X2}"));
-                    System.IO.File.AppendAllText("D:\\project\\w2\\.xxx\\raw_stdin_debug.txt",
-                        $"[{System.DateTime.Now:HH:mm:ss.fff} {read}B] {hex}\n");
-                }
-                catch { }
-
                 var charCount = _utf8Decoder.GetChars(bytes, 0, read, _charBuffer, 0, flush: false);
                 lock (_gate)
                 {

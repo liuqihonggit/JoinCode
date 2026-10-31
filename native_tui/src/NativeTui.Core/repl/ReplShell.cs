@@ -26,6 +26,10 @@ public sealed class ReplShell
     // DSG043 P3 — 超链接支持经 HyperlinkEmitter 终端白名单探测（无参构造默认；不支持终端零注入降级）
     private readonly InlineComposer _inlineComposer = new(NativeTui.Core.Repl.HyperlinkEmitter.IsHyperlinkSupported());
 
+    /// <summary>终端视口探测器（TASK077 — inline 模式 SGR 鼠标坐标 ↔ Screen 内容坐标偏移计算）。
+    /// Windows 专用；非 Windows 平台 QueryViewportOffset 返回 0 零偏移降级。</summary>
+    private readonly TerminalViewportProbe? _viewportProbe = OperatingSystem.IsWindows() ? new() : null;
+
     /// <summary>视口模式帧组装器（S9 接线 — DEC 2026 探测结果条件构造：不支持终端跳过 BSU/ESU 包裹）。</summary>
     private readonly FrameComposer _composer = new(TerminalCapabilities.IsSynchronizedOutputSupported(),
         NativeTui.Core.Repl.HyperlinkEmitter.IsHyperlinkSupported());
@@ -2496,12 +2500,21 @@ public sealed class ReplShell
     /// 查看后保持选中态可继续键位导航）/ 其他域 id 或未命中返回 false 回落既有选区 Press 链。
     /// 分派原语对齐基准 dispatchClick（hit-test.ts:49-89 — 查找 + 分派）：w2 无 DOM 冒泡树 —
     /// 单层 id 精确匹配等价（当前唯一标注源为后台任务面板，消息项 HitTestId 全 DIM null；
-    /// 未来其他域 id 不匹配即回落，前向兼容）。</summary>
-    /// <param name="evt">左键无修饰 Press 事件（Row/Col 为 0-based 屏幕坐标 — HitTest 同系）。</param>
+    /// 未来其他域 id 不匹配即回落，前向兼容）。
+    /// TASK077 — inline 模式 SGR 鼠标坐标是终端视口坐标，HitTest 注册的是 Screen 内容坐标。
+    /// 用 TerminalViewportProbe 查询偏移量转换：screenRow = sgrRow - viewportOffset。</summary>
+    /// <param name="evt">左键无修饰 Press 事件（Row/Col 为 0-based SGR 终端视口坐标）。</param>
     /// <returns>true = 命中已消费（吞事件）；false = 未命中回落选区链。</returns>
     private bool TryDispatchHitTestClick(MouseEvent evt)
     {
-        var hitId = _view.HitTests.HitTest(evt.Row, evt.Col);
+        var screenRow = evt.Row;
+        if (_inline && _viewportProbe is { } probe)
+        {
+            var viewportOffset = probe.QueryViewportOffset(_cursor.Row);
+            screenRow = TerminalViewportProbe.ScreenRowFromSgr(evt.Row, viewportOffset);
+        }
+
+        var hitId = _view.HitTests.HitTest(screenRow, evt.Col);
         if (hitId is null)
         {
             return false;

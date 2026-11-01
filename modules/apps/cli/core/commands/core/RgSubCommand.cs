@@ -188,6 +188,7 @@ internal static class RgSubCommand {
         long? maxFilesize = null;
         var regexpPatterns = new List<string>();
         var listFiles = false;
+        var formatExplicitlySet = false;
 
         for (var i = 1; i < args.Length; i++) {
             var arg = args[i];
@@ -241,6 +242,14 @@ internal static class RgSubCommand {
                     case "--hidden": hidden = true; break;
                     case "--no-ignore": noIgnore = true; break;
                     case "--json": json = true; break;
+                    case "--format": {
+                        var v = inlineValue ?? ReadNextValue(args, ref i);
+                        if (string.Equals(v, "json", StringComparison.OrdinalIgnoreCase))
+                            json = true;
+                        else if (string.Equals(v, "text", StringComparison.OrdinalIgnoreCase))
+                            json = false;
+                        formatExplicitlySet = true;
+                    } break;
                     case "--count": outputMode = SearchOutputMode.Count; break;
                     case "--files-with-matches": outputMode = SearchOutputMode.Files; break;
                     case "--content": outputMode = SearchOutputMode.Content; break;
@@ -313,6 +322,14 @@ internal static class RgSubCommand {
             TerminalHelper.WriteError("示例: jcc rg \"WorktreeToolNameEnumConstants\" core/ --type cs -l");
             TerminalHelper.WriteError("      jcc rg \"class SearchService\" app/JoinCode -n --content");
             return null;
+        }
+
+        if (!formatExplicitlySet) {
+            var envFormat = Environment.GetEnvironmentVariable("JCC_OUTPUT_FORMAT");
+            if (string.Equals(envFormat, "json", StringComparison.OrdinalIgnoreCase))
+                json = true;
+            else if (string.Equals(envFormat, "text", StringComparison.OrdinalIgnoreCase))
+                json = false;
         }
 
         var effectiveLineNumbers = lineNumbers || outputMode == SearchOutputMode.Content;
@@ -510,17 +527,17 @@ internal static class RgSubCommand {
             foreach (var r in outcome.Results) {
                 if (r.ContentLines is not null)
                     foreach (var line in r.ContentLines)
-                        sb.AppendLine(line);
+                        sb.Append(line).Append('\n');
             }
             break;
             case SearchOutputMode.Count:
             foreach (var r in outcome.Results)
-                sb.AppendLine($"{r.FilePath}:{r.MatchCount}");
+                sb.Append(r.FilePath.Replace('\\', '/')).Append(':').Append(r.MatchCount).Append('\n');
             sb.Append($"Found {outcome.TotalMatches} total matches across {outcome.Results.Count} file(s).");
             break;
             default:
             foreach (var r in outcome.Results)
-                sb.AppendLine(r.FilePath);
+                sb.Append(r.FilePath.Replace('\\', '/')).Append('\n');
             break;
         }
 
@@ -528,7 +545,7 @@ internal static class RgSubCommand {
             var parts = new List<string>(2);
             if (outcome.AppliedLimit.HasValue) parts.Add($"limit: {outcome.AppliedLimit.Value}");
             if (outcome.AppliedOffset.HasValue && outcome.AppliedOffset.Value > 0) parts.Add($"offset: {outcome.AppliedOffset.Value}");
-            sb.AppendLine();
+            sb.Append('\n');
             sb.Append($"[pagination: {string.Join(", ", parts)}]");
         }
 
@@ -542,7 +559,7 @@ internal static class RgSubCommand {
             var lines = r.ContentLines is not null && r.ContentLines.Count > 0
                 ? new List<string>(r.ContentLines)
                 : null;
-            matches.Add(new RgJsonMatch(r.FilePath, r.MatchCount, lines));
+            matches.Add(new RgJsonMatch(r.FilePath.Replace('\\', '/'), r.MatchCount, lines));
         }
         var result = new RgJsonResult(matches, outcome.TotalMatches, outcome.Results.Count);
         System.Console.WriteLine(Cli.Output.CliOutputEnvelope<RgJsonResult>.Success(result).ToJsonString());

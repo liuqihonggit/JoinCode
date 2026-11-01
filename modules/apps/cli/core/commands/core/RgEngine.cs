@@ -223,6 +223,7 @@ internal static class RgEngine {
 
     private static RgFileResult? SearchContent(string path, ReadOnlySpan<char> contentSpan, Regex regex, RgQuery q, CancellationToken ct) {
         var lineRanges = LineSpanIndexer.BuildLineRanges(contentSpan, ct);
+        var normalizedPath = path.Replace('\\', '/');
 
         var matchedLines = new List<int>();
         if (q.Multiline) {
@@ -265,7 +266,7 @@ internal static class RgEngine {
                     formatted = lineContent;
                 }
 
-                var prefix = q.LineNumbers ? $"{path}:{current + 1}:" : $"{path}:";
+                var prefix = q.LineNumbers ? $"{normalizedPath}:{current + 1}:" : $"{normalizedPath}:";
                 contentLines.Add($"{prefix}{formatted}");
             }
         }

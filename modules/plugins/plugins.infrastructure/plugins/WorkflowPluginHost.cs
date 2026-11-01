@@ -127,8 +127,12 @@ public sealed class WorkflowPluginHost : PluginResourceBase, IPluginHost {
             return OperationResult.Ok();
         } catch (OperationCanceledException) {
             throw;
+        } catch (ObjectDisposedException ex) {
+            // 退出竞态良性噪音（容器已释放，插件初始化无意义）→ Debug 静默，不打印堆栈给用户
+            _logger?.LogDebug("初始化工作流插件 {PluginName} 跳过 — 退出竞态（容器已释放）: {Error}", _plugin.Name, ex.Message);
+            return OperationResult.Fail($"初始化异常: {ex.Message}");
         } catch (Exception ex) {
-            _logger?.LogError(ex, "初始化工作流插件 {PluginName} 时发生异常", _plugin.Name);
+            _logger?.LogError("初始化工作流插件 {PluginName} 时发生异常: {Error}", _plugin.Name, ex.Message);
             return OperationResult.Fail($"初始化异常: {ex.Message}");
         }
     }

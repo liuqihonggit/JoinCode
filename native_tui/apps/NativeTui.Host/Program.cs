@@ -509,7 +509,8 @@ public static class Program {
                 // TASK078 — 注入真实引擎 + 引擎服务
                 lazyEngine.AttachReal(transparencyEngine);
                 shell.AttachEngineServices(commands, themeName, commandUsage, statusLineTemplate,
-                    promptSnapshotBuilder.Value, () => toolInventoryCache.Value, promptFileUrl);
+                    promptSnapshotBuilder.Value, () => toolInventoryCache.Value, promptFileUrl,
+                    defaultShell, vimMode);
                 transparencyEngine.Attach(shell);
 
                 // 绑定回调

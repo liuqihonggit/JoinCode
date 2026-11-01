@@ -379,6 +379,7 @@ public static class Program {
                 // 解析 SGR 鼠标事件）；--raw-input 显式同路径；Linux 默认 null（ReplShell 回退
                 // ReadKeyPump — Linux 终端 stdin VT 序列天然含鼠标）
                 IInputPump? inputPump;
+                Probe("inputPump 创建前");
                 if (useRawStdinPump || OperatingSystem.IsWindows())
                 {
                     inputPump = new RawStdinPump(terminalQuerier);
@@ -406,6 +407,7 @@ public static class Program {
                 // 缺文件静默回退默认（ENOENT 语义）；坏条目尽力合并（合法条目生效、错误条目跳过）
                 // + 校验错误 stderr 诊断不中断启动（对齐 command-history 坏文件降级 + 诊断先例）
                 var keybindingLoad = KeybindingLoader.Load();
+                Probe("KeybindingLoader.Load 完成");
                 foreach (var keybindingError in keybindingLoad.Errors)
                 {
                     Console.Error.WriteLine(keybindingError.ToString());
@@ -487,8 +489,10 @@ catch (IOException) { }
 catch (UnauthorizedAccessException) { }
 
 var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
+                Probe("transparencyEngine 创建完成");
                 // TASK079 — bash/powershell 执行倒计时：超时秒数取 ShellExecutionConfig（会话服务，默认 120s）
                 var shellExecutionConfig = session.Services.GetService<ShellExecutionConfig>();
+                Probe("ReplShell 构造前");
                 var shell = new ReplShell(transparencyEngine, banner, tuiOutput, commands: commands,
                     shellTimeoutSeconds: shellExecutionConfig?.AbsoluteTimeoutSeconds ?? 120,
                     promptContextSnapshot: promptSnapshotBuilder.Value,

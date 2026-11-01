@@ -256,7 +256,7 @@ public sealed class ReplShell
 
     /// <summary>bash 直通执行器（S10 接线 — `!` 前缀命令；shell 由 defaultShell 键解析 —
     /// DefaultShellResolver.Resolve(settings.defaultShell, isWindows)，未配置走平台默认）。</summary>
-    private readonly BashDirectExecutor _bash;
+    private BashDirectExecutor _bash;
 
 
     /// <summary>注入上下文折叠项（TASK079 — 首帧插入；/prompt 在 transcript 备用屏内展开查看）。</summary>
@@ -452,7 +452,7 @@ public sealed class ReplShell
     /// INSERT 透传原编辑链引擎仅记账（基准 useVimInput.ts:209-229）、NORMAL 拦截按键驱动命令状态机
     ///（基准 transitions.ts）；镜像经 <see cref="SyncVimMirror"/> 回写（宿主真身 → 引擎镜像通道 —
     /// 基准每次按键实时读 props.value/textInput.offset 的等价物，useVimInput.ts:72/82/182）。</summary>
-    private readonly VimEngine? _vimEngine;
+    private VimEngine? _vimEngine;
 
     /// <summary>序列前缀首键（M2 → B4 数据源化 — 原布尔 _ctrlXPrefix 升级承载首键数据）：
     /// IsSequenceStart 命中的序列首键（默认 ctrl+x ctrl+e / ctrl+x ctrl+k 的 ctrl+x）置位等待后续，
@@ -773,7 +773,9 @@ public sealed class ReplShell
         string? statusLineTemplate,
         string? promptContextSnapshot,
         Func<(string Text, int Total, int System)>? promptContextInventory,
-        string? promptContextFileUrl)
+        string? promptContextFileUrl,
+        string? defaultShell = null,
+        bool vimMode = false)
     {
         if (commandUsage is not null) _commandUsage = commandUsage;
         if (commands is { Count: > 0 }) _suggester = new SlashSuggester(commands, new CommandGrouping(_commandUsage));
@@ -782,6 +784,14 @@ public sealed class ReplShell
         _promptContextSnapshot = promptContextSnapshot;
         _promptContextInventory = promptContextInventory;
         _promptContextFileUrl = promptContextFileUrl;
+        // TASK078 — defaultShell 后注入（首帧用平台默认，引擎就绪后切换用户配置）
+        if (defaultShell is not null)
+        {
+            var (shellFileName, commandFlag) = DefaultShellResolver.Resolve(defaultShell, OperatingSystem.IsWindows());
+            _bash = new BashDirectExecutor(shellFileName, commandFlag);
+        }
+        // TASK078 — vimMode 后注入（首帧关闭，引擎就绪后按用户配置启用）
+        if (vimMode && _vimEngine is null) _vimEngine = new VimEngine();
     }
 
     /// <summary>视图（测试断言面）。</summary>

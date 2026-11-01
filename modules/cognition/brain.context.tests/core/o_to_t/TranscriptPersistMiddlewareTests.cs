@@ -44,16 +44,23 @@ public sealed class TranscriptPersistMiddlewareTests {
 
     [Fact]
     public async Task InvokeAsync_WithNewMessages_AppendsDeltaEntries() {
-        // 轮次开始时 2 条，结束时 4 条 → 差量 2 条写盘
-        var messages = new List<ApiMessage>
+        // TranscriptPersist 在 PreChat 之前：startSnapshot 不含本轮 user，结束 snapshot 含 user+assistant
+        var startMessages = new List<ApiMessage>
+        {
+            new(MessageRole.User, "旧问题"),
+            new(MessageRole.Assistant, "旧回答"),
+        };
+        var endMessages = new List<ApiMessage>
         {
             new(MessageRole.User, "旧问题"),
             new(MessageRole.Assistant, "旧回答"),
             new(MessageRole.User, "新问题"),
             new(MessageRole.Assistant, "新回答"),
         };
-        var (mw, transcript, ctxMgr) = Create(messages);
-        ctxMgr.SetupSequence(c => c.CurrentMessageCount).Returns(2).Returns(4);
+        var (mw, transcript, ctxMgr) = Create();
+        ctxMgr.SetupSequence(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList(startMessages))
+            .ReturnsAsync(new MessageList(endMessages));
 
         await RunAsync(mw);
 
@@ -68,8 +75,10 @@ public sealed class TranscriptPersistMiddlewareTests {
     [Fact]
     public async Task InvokeAsync_NoDelta_DoesNotWrite() {
         var messages = new List<ApiMessage> { new(MessageRole.User, "只有旧的") };
-        var (mw, transcript, ctxMgr) = Create(messages);
-        ctxMgr.SetupSequence(c => c.CurrentMessageCount).Returns(1).Returns(1);
+        var (mw, transcript, ctxMgr) = Create();
+        ctxMgr.SetupSequence(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList(messages))
+            .ReturnsAsync(new MessageList(messages));
 
         await RunAsync(mw);
 
@@ -84,8 +93,7 @@ public sealed class TranscriptPersistMiddlewareTests {
             new(MessageRole.User, "a"),
             new(MessageRole.Assistant, "b"),
         };
-        var (mw, transcript, ctxMgr) = Create(messages);
-        ctxMgr.SetupSequence(c => c.CurrentMessageCount).Returns(0).Returns(2);
+        var (mw, transcript, _) = Create(messages);
 
         await RunAsync(mw, dryRun: true);
 
@@ -95,13 +103,16 @@ public sealed class TranscriptPersistMiddlewareTests {
 
     [Fact]
     public async Task InvokeAsync_TranscriptThrows_EventsStillFlow() {
-        var messages = new List<ApiMessage>
+        var startMessages = new List<ApiMessage>();
+        var endMessages = new List<ApiMessage>
         {
             new(MessageRole.User, "q"),
             new(MessageRole.Assistant, "r"),
         };
-        var (mw, transcript, ctxMgr) = Create(messages);
-        ctxMgr.SetupSequence(c => c.CurrentMessageCount).Returns(0).Returns(2);
+        var (mw, transcript, ctxMgr) = Create();
+        ctxMgr.SetupSequence(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList(startMessages))
+            .ReturnsAsync(new MessageList(endMessages));
         transcript.Setup(t => t.AppendEntriesAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<TranscriptEntry>>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new IOException("disk full"));
 

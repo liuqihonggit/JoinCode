@@ -267,6 +267,7 @@ public sealed class KestrelMockServer : IHttpMockServer {
         Log($"[{_serverName}]   Server:    {_serverName}");
         Log($"[{_serverName}]   URL:       {Url}");
         Log($"[{_serverName}]   Port:      {_port}");
+        Log($"[{_serverName}]   Control:   {Url}__control__/state|requests|inject|clear|script|record|replay");
         Log($"[{_serverName}]   Dump Dir:  {_dumpDir}");
         Log($"[{_serverName}] ========================================");
 

@@ -3,6 +3,7 @@ namespace MockServer.Core;
 /// <summary>
 /// MockServer 控制面模式
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<MockServerMode>))]
 public enum MockServerMode {
     /// <summary>回放模式 — 按脚本/录制文件回放，不连真实 LLM</summary>
     Replay,

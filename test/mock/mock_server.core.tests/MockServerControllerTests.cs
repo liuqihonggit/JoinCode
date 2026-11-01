@@ -147,7 +147,7 @@ public sealed class MockServerControllerTests {
         var json = JsonSerializer.SerializeToUtf8Bytes(state, MockServerJsonContext.Default.ControlState);
         var text = Encoding.UTF8.GetString(json);
 
-        text.Should().Contain("\"mode\":2");
+        text.Should().Contain("\"mode\":\"Interactive\"");
         text.Should().Contain("\"total_requests\":5");
     }
 

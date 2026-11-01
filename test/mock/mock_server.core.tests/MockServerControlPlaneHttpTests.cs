@@ -55,6 +55,8 @@ public sealed class MockServerControlPlaneHttpTests {
     public async Task Interactive_RequestWaitsThenInject_ReturnsInjected() {
         var (server, client) = await StartServerAsync();
         try {
+            await client.PostAsync("/__control__/mode/interactive", new StringContent("{}", Encoding.UTF8, "application/json"));
+
             var requestTask = client.PostAsync("/v1/chat/completions",
                 new StringContent("""{"model":"gpt-4o","messages":[{"role":"user","content":"hi"}]}""", Encoding.UTF8, "application/json"));
 

@@ -44,9 +44,9 @@ public sealed class MockServerControllerTests {
     }
 
     [Fact]
-    public void Mode_DefaultIsInteractive() {
+    public void Mode_DefaultIsReplay() {
         var controller = new MockServerController();
-        controller.Mode.Should().Be(MockServerMode.Interactive);
+        controller.Mode.Should().Be(MockServerMode.Replay);
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public sealed class MockServerControllerTests {
 
         var state = controller.GetState(totalRequests: 5);
 
-        state.Mode.Should().Be(MockServerMode.Interactive);
+        state.Mode.Should().Be(MockServerMode.Replay);
         state.TotalRequests.Should().Be(5);
         state.InjectQueueLength.Should().Be(2);
         state.RecordedInteractions.Should().Be(0);

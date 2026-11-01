@@ -262,8 +262,7 @@ public static class Program {
     /// ADR 0149：改为 public 供 jcc 宿主默认调用（NativeTui.Host 已改为 Library）。</summary>
     public static async Task<int> RunInteractiveAsync(bool useRawStdinPump = false) {
         var probeSw = System.Diagnostics.Stopwatch.StartNew();
-        var probeLog = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), ".xxx", "logs", "startup_timing.txt");
-        System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(probeLog)!);
+        var probeLog = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jcc_startup_timing.txt");
         void Probe(string label) => System.IO.File.AppendAllText(probeLog, $"[probe] t={probeSw.ElapsedMilliseconds}ms {label}\n");
         Probe("RunInteractiveAsync 入口");
 

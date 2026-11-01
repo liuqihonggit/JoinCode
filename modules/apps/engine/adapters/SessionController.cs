@@ -95,8 +95,12 @@ public sealed class SessionController {
 
         try {
             if (_mainAgent is not null) {
+                // Bug 19 根因 A 修复：startCount 基于含系统提示词的快照计数，与 GetMessageListAsync 索引空间一致
                 var contextManagerForCount = _serviceProvider?.GetService<IChatContextManager>();
-                var startCount = contextManagerForCount?.CurrentMessageCount ?? 0;
+                var startSnapshot = contextManagerForCount is not null
+                    ? await contextManagerForCount.GetMessageListAsync(timeoutToken).ConfigureAwait(false)
+                    : null;
+                var startCount = startSnapshot?.Count ?? 0;
                 var preprocess = await PreProcessMainAgentAsync(input, timeoutToken).ConfigureAwait(false);
                 if (preprocess.PromptInjection is { Length: > 0 } injection) {
                     _consumer.OnText(injection + "\n\n");
@@ -487,11 +491,15 @@ public sealed class SessionController {
             var entries = new List<TranscriptEntry>(snapshot.Count - startCount);
             for (var i = startCount; i < snapshot.Count; i++) {
                 var message = snapshot[i];
-                if (string.IsNullOrEmpty(message.Content))
+                // Bug 19 根因 B 修复：空 content 的 assistant 消息（工具调用轮次）仍写入 transcript
+                var content = message.Content;
+                if (string.IsNullOrEmpty(content) && string.Equals(message.Role.ToValue(), "assistant", StringComparison.OrdinalIgnoreCase))
+                    content = "(tool call)";
+                if (string.IsNullOrEmpty(content))
                     continue;
                 entries.Add(new TranscriptEntry {
                     Role = message.Role.ToValue(),
-                    Content = message.Content,
+                    Content = content,
                     Timestamp = DateTime.UtcNow,
                     ModelId = modelId,
                 });

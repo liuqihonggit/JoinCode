@@ -73,6 +73,15 @@ public sealed class CliOutputEnvelope<T> {
     public static CliOutputEnvelope<T> Create(T data, bool ok, CliOutputMeta? meta = null) =>
         new() { Ok = ok, Data = data, Meta = meta };
 
+    /// <summary>构造统一响应信封 — 同时携带 data 和 error（Bug 16: 统一 JSON 信封返回格式）</summary>
+    /// <param name="data">数据负载（始终携带，消费者可读 exitCode/response）</param>
+    /// <param name="ok">操作是否成功（exitCode==0 时 true）</param>
+    /// <param name="error">结构化错误（exitCode!=0 时非 null，成功时 null）</param>
+    /// <param name="meta">可选的元数据</param>
+    /// <returns>同时包含 data 和 error 的 <see cref="CliOutputEnvelope{T}"/> 实例</returns>
+    public static CliOutputEnvelope<T> Create(T data, bool ok, CliStructuredError? error, CliOutputMeta? meta = null) =>
+        new() { Ok = ok, Data = data, Error = error, Meta = meta };
+
     /// <summary>序列化为 JSON 字符串 — T 必须在 CliOutputJsonContext 注册 CliOutputEnvelope&lt;T&gt;</summary>
     /// <returns>符合 {ok, data, error, meta, schemaVersion} 结构的 JSON 字符串</returns>
     public string ToJsonString() =>

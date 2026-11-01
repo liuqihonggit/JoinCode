@@ -55,9 +55,8 @@ internal sealed partial class SessionResumeStep : ServiceEntity, IMiddleware<Sta
             var resumeId = options.ResumeSessionId ?? throw new InvalidOperationException("ResumeSessionId required");
             Diag.WriteLine($"[STEP] SessionResume: 未找到会话: {resumeId}");
             context.ExitCode = (int)ExitCode.SessionResumeFailed;
-            if (context.OutputContract is not null) {
-                context.OutputContract.WriteError(Cli.Output.CliErrorCatalog.ResourceSessionNotFound(resumeId));
-            } else {
+            context.StructuredError = Cli.Output.CliErrorCatalog.ResourceSessionNotFound(resumeId);
+            if (context.OutputContract is null) {
                 Cli.TerminalHelper.WriteError($"错误: 未找到会话 '{resumeId}'");
                 Cli.TerminalHelper.WriteError("使用 /history 查看可用会话列表");
             }

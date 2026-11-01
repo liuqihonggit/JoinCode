@@ -51,6 +51,24 @@ public sealed class CliOutputContract {
     }
 
     /// <summary>
+    /// 写入统一结果信封到 stdout — 同时携带 data 和 error（Bug 16: 统一 JSON 信封返回格式）
+    /// JSON 模式: 输出 {ok:bool, data:..., error:..., meta:...}
+    /// 文本模式: 直接输出 data 的 ToString()，错误走 stderr
+    /// </summary>
+    public void WriteResult<T>(T data, bool ok, CliStructuredError? error, CliOutputMeta? meta = null) {
+        if (_jsonMode) {
+            var envelope = CliOutputEnvelope<T>.Create(data, ok, error, meta);
+            var json = envelope.ToJsonString();
+            Console.WriteLine(json);
+        } else {
+            if (data is not null)
+                TerminalHelper.WriteLine(data.ToString());
+            if (error is not null)
+                WriteError(error);
+        }
+    }
+
+    /// <summary>
     /// 写入结构化错误到 stderr
     /// JSON 模式: stderr 输出 {ok:false, error:{code,message,hint,retryable}}
     /// 文本模式: stderr 输出人类可读错误（带颜色）

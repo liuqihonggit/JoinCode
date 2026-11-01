@@ -136,7 +136,7 @@ public class SessionResumeStepTests {
 
     [Fact]
     public async Task Resume_WithNonExistentId_ShouldStillCallNextWithoutError() {
-        // Arrange
+        // Arrange — Session 为 null（模拟 SessionInitStep 未初始化），应跳过恢复不阻塞
         await using var step = new SessionResumeStep();
         await using var fs = new InMemoryFileSystem();
         fs.CreateDirectory(SessionsDir);
@@ -150,8 +150,60 @@ public class SessionResumeStepTests {
             return Task.CompletedTask;
         }, CancellationToken.None);
 
-        // Assert — 找不到会话不应崩溃，应友好提示并继续启动
-        nextCalled.Should().BeTrue("找不到会话时应继续启动新会话，不阻塞用户");
+        // Assert — Session 未初始化时应跳过恢复并继续（不进入 sessionId 查找路径）
+        nextCalled.Should().BeTrue("Session 为 null 时应跳过恢复并继续");
+    }
+
+    /// <summary>
+    /// Bug 11 回归: --resume <invalid-id> 当 Session 已初始化但会话不存在时，
+    /// 应错误退出（ExitCode.SessionResumeFailed=5）而非静默创建新会话。
+    /// 修复前：打印 hint 到 stdout 后继续启动新会话（污染 JSON 输出 + 误导用户）。
+    /// 修复后：设置 ExitCode=5，输出结构化错误，不调用 next。
+    /// </summary>
+    [Fact]
+    public async Task Resume_WithNonExistentId_AndSessionInitialized_ShouldFailWithError() {
+        // Arrange — 需要完整的 Host 设置（ITranscriptService 返回会话不存在）
+        await using var step = new SessionResumeStep();
+        await using var fs = new InMemoryFileSystem();
+        fs.CreateDirectory(SessionsDir);
+
+        var transcriptMock = new Mock<ITranscriptService>();
+        transcriptMock.Setup(t => t.TranscriptExistsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        transcriptMock.Setup(t => t.ListTranscriptsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var serviceCollection = new ServiceCollection();
+        serviceCollection.AddSingleton(transcriptMock.Object);
+        var serviceProvider = serviceCollection.BuildServiceProvider();
+        var hostMock = new Mock<IHost>();
+        hostMock.Setup(h => h.Services).Returns(serviceProvider);
+
+        var config = new WorkflowConfig {
+            Provider = new ProviderConfig { ApiKey = "sk-test", Vendor = "openai", ModelId = "gpt-4o" }
+        };
+        var context = new StartupContext {
+            Config = config,
+            Options = new CommandLineOptions { ResumeSessionId = "definitely-non-existent" },
+            Host = hostMock.Object,
+            FileSystem = fs,
+            Session = new CliSession(
+                new Mock<IChatService>().Object,
+                new Mock<ICodeService>().Object,
+                new Mock<IPlanService>().Object,
+                new Mock<IToolRegistry>().Object,
+                fs)
+        };
+
+        var nextCalled = false;
+        await step.InvokeAsync(context, (_, _) => {
+            nextCalled = true;
+            return Task.CompletedTask;
+        }, CancellationToken.None);
+
+        // Assert — 未找到会话应错误退出，不继续对话
+        nextCalled.Should().BeFalse("未找到 --resume 指定的会话时不应继续对话");
+        context.ExitCode.Should().Be((int)ExitCode.SessionResumeFailed, "应设置 SessionResumeFailed 退出码");
     }
 
     [Fact]

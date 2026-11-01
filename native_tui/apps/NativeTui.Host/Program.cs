@@ -261,6 +261,12 @@ public static class Program {
     /// <summary>交互模式 — TTY 检查 → UTF-8 → raw mode → 引擎组装（Console.Out 重定向 stderr 防引擎污染渲染）→ REPL 主循环。
     /// ADR 0149：改为 public 供 jcc 宿主默认调用（NativeTui.Host 已改为 Library）。</summary>
     public static async Task<int> RunInteractiveAsync(bool useRawStdinPump = false) {
+        var probeSw = System.Diagnostics.Stopwatch.StartNew();
+        var probeLog = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), ".xxx", "logs", "startup_timing.txt");
+        System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(probeLog)!);
+        void Probe(string label) => System.IO.File.AppendAllText(probeLog, $"[probe] t={probeSw.ElapsedMilliseconds}ms {label}\n");
+        Probe("RunInteractiveAsync 入口");
+
         if (Environment.GetEnvironmentVariable("JCC_FORCE_TTY") != "1" && (Console.IsInputRedirected || Console.IsOutputRedirected)) {
             Console.Error.WriteLine("交互模式需要真实终端（stdin/stdout 被重定向）。请直接在终端运行 jcc，或用 --selftest 跑非交互冒烟。");
             return 1;
@@ -286,6 +292,7 @@ public static class Program {
         WriteStartupLine(HyperlinkEmitter.FormatDiagnostic());
         // 开关状态诊断（AGENTS.md 开关优先 + 助记符 — 启动 banner 列出当前开关状态）
         WriteStartupLine($"[diag] 开关: MouseTracking={JccFeatureFlags.MouseTrackingEnabled} Hover={JccFeatureFlags.HoverHighlightEnabled} ClickExpand={JccFeatureFlags.ClickExpandEnabled} (JCC_NO_MOUSE_TRACKING={Environment.GetEnvironmentVariable("JCC_NO_MOUSE_TRACKING") ?? "(未设置)"})");
+        Probe("WriteStartupLine 完成");
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
         TestEnvironmentDetector.ForceNonInteractive = true;
 
@@ -561,6 +568,7 @@ var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
                       // 非 Windows null 降级 → Core 侧 footer 通知"剪贴板未找到图片"）
                       readClipboardImage: ReadClipboardImage);
                 transparencyEngine.Attach(shell);
+                Probe("ReplShell 构造完成");
                 // TASK077 — 启动诊断行注入（退出备用屏后重输出恢复 scrollback 历史）
                 foreach (var line in startupLines)
                 {
@@ -594,6 +602,7 @@ var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
                 }
 
                 shell.Run();
+                Probe("shell.Run() 返回");
                 shell.WriteExit();
                 // DSG042 P2 / TASK077 — 输入泵收尾（通道完成 + 读循环取消；阻塞中的
                 // ReadConsoleInput/stdin Read 由 IsBackground 线程随进程退出回收 — Dispose 不等待线程终结防挂）

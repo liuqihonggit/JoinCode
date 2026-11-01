@@ -65,6 +65,11 @@ internal static class RgSubCommand {
             try {
                 var query = BuildQuery(parsed, pattern);
 
+                if (CanStream(parsed)) {
+                    var streamed = await Task.Run(() => StreamSearch(query, parsed, token), token).ConfigureAwait(false);
+                    return streamed;
+                }
+
                 RgOutcome outcome;
                 try {
                     outcome = await Task.Run(() => RgEngine.Search(query, token), token).ConfigureAwait(false);
@@ -501,6 +506,53 @@ internal static class RgSubCommand {
     internal static bool IsRootPath(string fullPath) => PathSafetyValidator.IsRootPath(fullPath);
 
     private static bool IsRootOrUnsafePath(string? path) => PathSafetyValidator.IsRootOrUnsafePath(path);
+
+    private static bool CanStream(RgOptions opts) =>
+        !opts.Json
+        && !opts.ListFiles
+        && (string.IsNullOrEmpty(opts.Sort) || opts.Sort == "none")
+        && !opts.HeadLimit.HasValue
+        && (!opts.Offset.HasValue || opts.Offset.Value == 0);
+
+    private static int StreamSearch(RgQuery query, RgOptions opts, CancellationToken token) {
+        var hasOutput = false;
+        var fileCount = 0;
+        var limit = opts.HeadLimit ?? 250;
+        using var streamCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+        var sb = new StringBuilder(256);
+        try {
+            RgEngine.Search(query, streamCts.Token, onFileResult: r => {
+                hasOutput = true;
+                sb.Clear();
+                switch (opts.OutputMode) {
+                    case SearchOutputMode.Content:
+                        if (r.ContentLines is not null)
+                            foreach (var line in r.ContentLines)
+                                sb.Append(line).Append('\n');
+                        break;
+                    case SearchOutputMode.Count:
+                        sb.Append(r.FilePath.Replace('\\', '/')).Append(':').Append(r.MatchCount).Append('\n');
+                        break;
+                    default:
+                        sb.Append(r.FilePath.Replace('\\', '/')).Append('\n');
+                        break;
+                }
+                if (sb.Length > 0)
+                    TerminalHelper.WriteRaw(sb);
+                fileCount++;
+                if (fileCount >= limit)
+                    streamCts.Cancel();
+            });
+        } catch (OperationCanceledException) when (!token.IsCancellationRequested && fileCount >= limit) {
+            // head-limit 截断，非超时
+        } catch (OperationCanceledException) when (!token.IsCancellationRequested) {
+            TerminalHelper.WriteError($"搜索超时（{opts.TimeoutSeconds}s）。请缩小搜索范围、用 --type/-g 过滤，或增加 --timeout。");
+            return (int)ExitCode.ToolExecutionTimeout;
+        }
+        if (hasOutput && fileCount >= limit)
+            TerminalHelper.WriteRaw($"[pagination: limit: {limit}]\n");
+        return hasOutput ? 0 : 1;
+    }
 
     private static int OutputOutcome(RgOutcome outcome, RgOptions opts) {
         if (!outcome.Success) {

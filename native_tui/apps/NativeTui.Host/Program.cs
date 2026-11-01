@@ -261,10 +261,6 @@ public static class Program {
     /// <summary>交互模式 — TTY 检查 → UTF-8 → raw mode → 引擎组装（Console.Out 重定向 stderr 防引擎污染渲染）→ REPL 主循环。
     /// ADR 0149：改为 public 供 jcc 宿主默认调用（NativeTui.Host 已改为 Library）。</summary>
     public static async Task<int> RunInteractiveAsync(bool useRawStdinPump = false) {
-        var probeSw = System.Diagnostics.Stopwatch.StartNew();
-        var probeLog = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jcc_startup_timing.txt");
-        void Probe(string label) => System.IO.File.AppendAllText(probeLog, $"[probe] t={probeSw.ElapsedMilliseconds}ms {label}\n");
-        Probe("RunInteractiveAsync 入口");
 
         if (Environment.GetEnvironmentVariable("JCC_FORCE_TTY") != "1" && (Console.IsInputRedirected || Console.IsOutputRedirected)) {
             Console.Error.WriteLine("交互模式需要真实终端（stdin/stdout 被重定向）。请直接在终端运行 jcc，或用 --selftest 跑非交互冒烟。");
@@ -291,7 +287,6 @@ public static class Program {
         WriteStartupLine(HyperlinkEmitter.FormatDiagnostic());
         // 开关状态诊断（AGENTS.md 开关优先 + 助记符 — 启动 banner 列出当前开关状态）
         WriteStartupLine($"[diag] 开关: MouseTracking={JccFeatureFlags.MouseTrackingEnabled} Hover={JccFeatureFlags.HoverHighlightEnabled} ClickExpand={JccFeatureFlags.ClickExpandEnabled} (JCC_NO_MOUSE_TRACKING={Environment.GetEnvironmentVariable("JCC_NO_MOUSE_TRACKING") ?? "(未设置)"})");
-        Probe("WriteStartupLine 完成");
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
         TestEnvironmentDetector.ForceNonInteractive = true;
 
@@ -302,22 +297,18 @@ public static class Program {
         // InlineComposer 相对光标模型，整帧永久失同步）；引擎杂散输出/Diag/McpPluginBootstrap 一律不再
         // 触碰终端，最外层退出时冲刷回原 stderr（CI/E2E 诊断捕获不受损）
         using var consoleSuppression = ConsoleSuppressionGate.Begin("TUI 会话");
-        Probe("ConsoleSuppressionGate.Begin 完成");
         // E1 崩溃兜底 — CursorLifecycle 注释契约兑现：raw mode 运行期内任何未处理异常/信号退出路径，
         // 钩子统一补发硬件光标 Show + bracketed paste Disable（using RawConsoleMode 只恢复 console mode，
         // 覆盖不了 DEC 25/2004 两个终端层状态 — 对齐基准 ink.tsx signal-exit 恢复链）
         using var restoreGuard = new TerminalRestoreGuard(tuiOutput);
-        Probe("TerminalRestoreGuard 完成");
         // earlyInput — 引擎组装窗口期按键捕获（基准 earlyInput.ts:29-67 — 启动期输入不丢失，
         // 就绪后回填输入框；非阻塞 KeyAvailable 轮询，无按键零耗时）
         var earlyKeys = Environment.GetEnvironmentVariable("JCC_FORCE_TTY") == "1"
             ? new List<ConsoleKeyInfo>()
             : EarlyInputBuffer.CaptureAvailable(() => Console.KeyAvailable, Console.ReadKey);
-        Probe("EarlyInputBuffer.CaptureAvailable 完成");
         // 终端查询路由器（TASK067 批4 — 探测链路地基：DA1/DECRPM/kitty flags/DSR/XTVERSION
         // 查询-应答 promise；RawStdinPump 前置分流路由；主动探测接入 TerminalCapabilities 为后续增量）
         using var terminalQuerier = new TerminalQuerier(tuiOutput);
-        Probe("TerminalQuerier 构造完成");
         // TASK078 — 首帧最小集：不依赖引擎的工作（~10ms），先构造 ReplShell 渲染首帧
         // banner 占位值 — 后台引擎就绪后 session_info 种子事件覆盖为真实数据
         var banner = new BannerItem("0.0.0", "当前模型未设置", "API 按量计费", Environment.CurrentDirectory);
@@ -331,7 +322,6 @@ public static class Program {
         {
             inputPump = null;
         }
-        Probe("inputPump 创建完成");
         // TASK066 板块A — 终端状态三路装配（首帧必需 — 标题/tab/进度）
         var titleTracker = new TerminalTitleTracker(
             "JoinCode",
@@ -346,7 +336,6 @@ public static class Program {
             progressEnabled: TerminalCapabilities.IsProgressReportingAvailable());
         // TASK066 板块B — 用户键位装配（不依赖引擎，首帧加载）
         var keybindingLoad = KeybindingLoader.Load();
-        Probe("KeybindingLoader.Load 完成");
         foreach (var keybindingError in keybindingLoad.Errors)
         {
             Console.Error.WriteLine(keybindingError.ToString());
@@ -362,7 +351,6 @@ public static class Program {
 
         // TASK078 — LazyEngine 占位 IReplEngine（首帧用，后台引擎就绪后 AttachReal 注入）
         var lazyEngine = new LazyEngine();
-        Probe("LazyEngine 创建完成");
 
         // TASK078 — 首帧：用 LazyEngine + null/no-op/闭包委托构造 ReplShell（~60ms）
         var issueOwnerRepo = await ResolveIssueOwnerRepoAsync().ConfigureAwait(false);
@@ -391,7 +379,6 @@ public static class Program {
             issueOwnerRepo: issueOwnerRepo,
             shellTimeoutSeconds: 120,
             workspaceRoot: Environment.CurrentDirectory);
-        Probe("首帧 ReplShell 构造完成");
 
         // TASK077 — 启动诊断行注入
         foreach (var line in startupLines)
@@ -408,12 +395,9 @@ public static class Program {
         EngineSession? loadedSession = null;
         var engineLoadTask = Task.Run(async () => {
             try {
-                Probe("EngineSession.CreateAsync 前（后台）");
                 loadedSession = await EngineSession.CreateAsync().ConfigureAwait(false);
-                Probe("EngineSession.CreateAsync 完成（后台）");
                 var session = loadedSession;
                 var commands = ApplyPickerHints(SlashCommandSource.Load(session.Services));
-                Probe("SlashCommandSource.Load 完成（后台）");
                 // M7-6 模型选择器 + TASK058 供应商选择器
                 var pickerEngine = new CommandPickerEngine(
                     new CommandPickerEngine(
@@ -436,17 +420,11 @@ public static class Program {
                     });
                 var clipboardService = session.Services.GetService<IClipboardService>();
                 var themeName = await LoadThemeNameAsync(session.Services).ConfigureAwait(false);
-                Probe("LoadThemeNameAsync 完成（后台）");
                 var commandUsage = await CommandUsageMemory.LoadAsync(CommandUsageMemory.DefaultFilePath).ConfigureAwait(false);
-                Probe("CommandUsageMemory.LoadAsync 完成（后台）");
                 var vimMode = await LoadVimModeAsync(session.Services).ConfigureAwait(false);
-                Probe("LoadVimModeAsync 完成（后台）");
                 var statusLineTemplate = await LoadStatusLineTemplateAsync(session.Services).ConfigureAwait(false);
-                Probe("LoadStatusLineTemplateAsync 完成（后台）");
                 var defaultShell = await LoadSettingAsync(session.Services, "defaultShell").ConfigureAwait(false);
-                Probe("LoadSettingAsync(defaultShell) 完成（后台）");
                 var gitignorePredicate = await LoadGitignorePredicateAsync(session.Services, Environment.CurrentDirectory).ConfigureAwait(false);
-                Probe("LoadGitignorePredicateAsync 完成（后台）");
                 // TASK078 — /?? //ask 拦截为正常回合
                 var clarifyEngine = new ClarifyModeEngine(pickerEngine, JoinCode.ChatCommands.AskClarifyPrompts.SystemPrompt);
                 // TASK079 — 提示词透明化
@@ -519,7 +497,6 @@ public static class Program {
                 catch (UnauthorizedAccessException) { }
 
                 var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
-                Probe("transparencyEngine 创建完成（后台）");
 
                 // TASK078 — 填充闭包委托引用（ReplShell 构造时传入的闭包现在生效）
                 clipboardRef = text => _ = clipboardService?.SetTextAsync(text);
@@ -534,7 +511,6 @@ public static class Program {
                 shell.AttachEngineServices(commands, themeName, commandUsage, statusLineTemplate,
                     promptSnapshotBuilder.Value, () => toolInventoryCache.Value, promptFileUrl);
                 transparencyEngine.Attach(shell);
-                Probe("引擎服务注入完成（后台）");
 
                 // 绑定回调
                 session.PermissionBridge.Bind(shell);
@@ -549,7 +525,6 @@ public static class Program {
                         request.Entries.Select(e => new SessionPickerItem(e.SessionId, e.Preview, e.TimeAgo)).ToList(),
                         request.Title));
                 await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
-                Probe("HistorySeeder 完成（后台）");
             } catch (ConfigurationException) {
                 throw; // 冒泡 Main 统一友好呈现
             } catch (Exception ex) {
@@ -559,7 +534,6 @@ public static class Program {
 
         // TASK078 — 主循环（首帧已渲染，后台引擎预热中 — LazyEngine 占位 DrainEvents 返回空）
         shell.Run();
-        Probe("shell.Run() 返回");
         shell.WriteExit();
 
         // TASK078 — 等待后台引擎加载完成（主循环退出后 — 确保 session 正确 Dispose）

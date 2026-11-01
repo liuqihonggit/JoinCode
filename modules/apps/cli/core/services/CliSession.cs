@@ -425,23 +425,10 @@ public sealed class CliSession {
             }
         } else {
             Diag.WriteLine($"[CliSession] Exception: {result.ErrorMessage}");
-            if (!string.IsNullOrEmpty(result.ErrorCode)) {
-                TerminalHelper.WriteLine();
-                TerminalHelper.WriteLine($"✖ {result.ErrorMessage}");
-                WriteRetryHint(result.IsRetryable);
-                TerminalHelper.WriteLine("  请检查：1. API Key 配置  2. 网络连接  3. API 服务状态");
-            } else {
-                TerminalHelper.WriteLine($"错误: {result.ErrorMessage}");
-            }
             LastResponse = result.Response;
             throw new InvalidOperationException(result.ErrorMessage ?? "LLM 请求失败");
         }
         Diag.WriteLine($"[CliSession] StreamResponseAsync done: succeeded={result.Succeeded}, responseLen={result.Response.Length}");
-    }
-
-    private static void WriteRetryHint(bool isRetryable) {
-        if (isRetryable)
-            TerminalHelper.WriteLine("  此错误通常可重试，请稍后再试。");
     }
 
 

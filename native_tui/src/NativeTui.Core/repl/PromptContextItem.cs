@@ -65,7 +65,7 @@ public sealed class PromptContextItem : IScrollItem
         {
             var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
             screen.WriteText(frame.Y, frame.X, text, dim, frame.Right);
-            screen.SetLinks(frame.Y, [new LinkSpan(frame.X, frame.X + text.Length, url)]);
+            screen.SetLinks(frame.Y, [new LinkSpan(frame.X, frame.X + StringWidth.Of(text), url)]);
         }
         else
         {

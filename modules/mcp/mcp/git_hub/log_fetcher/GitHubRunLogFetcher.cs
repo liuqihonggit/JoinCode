@@ -31,7 +31,7 @@ internal sealed class GitHubRunLogFetcher {
     /// <para>超时冒泡: timeoutJobIds 中的 cancelled job 升级为 ⏱ TimedOut 并标注原因,
     /// 避免把超时误读为手动取消(判据: check-run annotation "exceeded the maximum execution time")</para>
     /// </summary>
-    public static ToolResult FormatJobsList(List<RunJobItemResponse> jobs, string runId, HashSet<long>? timeoutJobIds = null) {
+    public static ToolResult FormatJobsList(List<RunJobItemResponse> jobs, string runId, HashSet<long>? timeoutJobIds = null, bool all = false) {
         timeoutJobIds ??= [];
         var jobSeverities = jobs.Select(j => (j.Id, j.Name, j.Conclusion ?? "", severity: CiJobSeverityExtensions.FromConclusion(j.Conclusion, j.Status, timeoutJobIds.Contains(j.Id)))).ToList();
         var anomalyCount = jobSeverities.Count(j => j.severity.IsAnomaly());
@@ -51,7 +51,8 @@ internal sealed class GitHubRunLogFetcher {
             .OrderBy(j => j.Name)
             .ToList();
         const int maxSuccessDisplay = 5;
-        var displayedSuccess = successJobs.Take(maxSuccessDisplay).ToList();
+        var effectiveMaxSuccess = all ? int.MaxValue : maxSuccessDisplay;
+        var displayedSuccess = successJobs.Take(effectiveMaxSuccess).ToList();
         var omittedSuccess = successCount - displayedSuccess.Count;
 
         // 缺陷5: 限制非成功 job 显示数量,避免超 2000 字符触发 McpResultCollapseClassifier 折叠

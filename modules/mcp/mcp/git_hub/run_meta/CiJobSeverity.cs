@@ -168,6 +168,10 @@ internal static class CiLogAnalyzer {
             return (true, CiErrorCategory.MsBuild);
         if (line.Contains("[FAIL]", StringComparison.OrdinalIgnoreCase) || line.Contains("  Failed ", StringComparison.OrdinalIgnoreCase))
             return (true, CiErrorCategory.TestFailure);
+        if (line.Contains("Error Message:", StringComparison.OrdinalIgnoreCase) || line.Contains("Stack Trace:", StringComparison.OrdinalIgnoreCase))
+            return (true, CiErrorCategory.TestFailure);
+        if (line.Contains("Assert.", StringComparison.OrdinalIgnoreCase) && line.Contains("Failure", StringComparison.OrdinalIgnoreCase))
+            return (true, CiErrorCategory.TestFailure);
         if (line.Contains("was canceled", StringComparison.OrdinalIgnoreCase) || line.Contains("Cancelling the job", StringComparison.OrdinalIgnoreCase))
             return (true, CiErrorCategory.Cancelled);
         if (line.Contains("exceeded the maximum", StringComparison.OrdinalIgnoreCase) || line.Contains("timed out", StringComparison.OrdinalIgnoreCase))
@@ -184,6 +188,12 @@ internal static class CiLogAnalyzer {
     /// <para>扩展模式: error CS####(C#编译) / error MSB####(MSBuild) / [FAIL](xUnit) / Failed (测试汇总) / 超时/取消</para>
     /// </summary>
     internal static bool IsErrorIndicator(ReadOnlySpan<char> line) => TryClassifyError(line).isError;
+
+    /// <summary>
+    /// 检测 xUnit 测试通过行 — "  Passed " 前缀(dotnet test 输出格式),用于 --log_failed 模式跳过无关行省 token
+    /// </summary>
+    internal static bool IsPassedTestLine(ReadOnlySpan<char> line)
+        => line.Contains("  Passed ", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>错误行分类 — 委托 TryClassifyError 单次扫描,从错误行内容提取类型用于摘要统计</summary>
     internal static CiErrorCategory ClassifyError(ReadOnlySpan<char> line) => TryClassifyError(line).category;

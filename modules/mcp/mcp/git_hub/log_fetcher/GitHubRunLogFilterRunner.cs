@@ -702,7 +702,7 @@ internal sealed class GitHubRunLogFilterRunner {
         string owner, string repo, string runId, string? jobId, bool failedOnly,
         string scope, FrozenSet<string>? markers, GitHubLogFilter? filterLevel,
         int maxLines, CancellationToken ct, string? hint = null, int skipLines = 0, bool wantRefresh = false,
-        bool forceSmartStart = false) {
+        bool forceSmartStart = false, int? contextOverride = null) {
         var matched = new List<string>(maxLines);
         var skipped = 0;
         var lineNumber = 0;
@@ -721,20 +721,22 @@ internal sealed class GitHubRunLogFilterRunner {
         // forceSmartStart: expand=failed 排障模式强制 smart start(跳到错误行附近)
         var smartStartNoFilter = markers is null && (failedOnly || forceSmartStart);
         var smartStartWithErrorFilter = markers is not null && markers.Contains(CiLogAnalyzer.ErrorMarker);
+        var totalLines = 0;
         if (smartStartNoFilter || smartStartWithErrorFilter) {
             var fallbackOnNoError = smartStartNoFilter;
-            matched = await CollectWithSmartStartAsync(logLines, maxLines, skipLines, fallbackOnNoError, ct).ConfigureAwait(false);
+            (matched, totalLines) = await CollectWithSmartStartAsync(logLines, maxLines, skipLines, fallbackOnNoError, ct, contextOverride).ConfigureAwait(false);
         } else {
+            var reachedMax = false;
             await foreach (var line in logLines.ConfigureAwait(false)) {
                 lineNumber++;
+                if (reachedMax) continue;
                 if (markers is not null && !LineMatchesAnyMarker(line.AsSpan(), markers))
                     continue;
-                // 先跳过 skipLines 行(分页续读)
                 if (skipped < skipLines) { skipped++; continue; }
-                // 加行号前缀,方便定位(去时间戳减少噪音)
                 matched.Add(LineNumberFormatter.Format(lineNumber, GitHubRunLogText.StripLogTimestamp(line), _compactLinePrefix));
-                if (matched.Count >= maxLines) break;
+                if (matched.Count >= maxLines) reachedMax = true;
             }
+            totalLines = lineNumber;
         }
         var prefix = GitHubRunLogFilter.BuildPrefix(runId, scope, filterLevel, matched.Count);
         if (matched.Count == 0) {
@@ -746,7 +748,7 @@ internal sealed class GitHubRunLogFilterRunner {
         var text = string.Join('\n', matched);
         // 达到 maxLines 说明可能还有更多行,追加续读提示
         if (matched.Count >= maxLines)
-            text += $"\n... [显示第 {skipLines + 1}-{skipLines + matched.Count} 行，用 start_line={skipLines + maxLines + 1} 续读]";
+            text += $"\n... [显示第 {skipLines + 1}-{skipLines + matched.Count} 行/共 {totalLines} 行，用 start_line={skipLines + maxLines + 1} 续读]";
         if (hint is not null) text += hint;
         if (GitHubRunLogFilter.HasNoStackTrace(text))
             text += GitHubRunLogHints.NoStackTraceHint;
@@ -767,45 +769,49 @@ internal sealed class GitHubRunLogFilterRunner {
     /// <para>fallbackOnNoError=true(--log_failed): 无错误行时回退到最后 tailFallback=20 行(至少看到尾部)</para>
     /// <para>fallbackOnNoError=false(filter=error): 收集所有错误行+各自上下文,跳过无关行;无错误行时返回空</para>
     /// </summary>
-    private async Task<List<string>> CollectWithSmartStartAsync(
-        IAsyncEnumerable<string> logLines, int maxLines, int skipLines, bool fallbackOnNoError, CancellationToken ct)
+    private async Task<(List<string> matched, int totalLines)> CollectWithSmartStartAsync(
+        IAsyncEnumerable<string> logLines, int maxLines, int skipLines, bool fallbackOnNoError, CancellationToken ct, int? contextOverride = null)
         => fallbackOnNoError
-            ? await CollectSmartStartTailAsync(logLines, maxLines, skipLines, ct).ConfigureAwait(false)
-            : await CollectAllErrorContextsAsync(logLines, maxLines, skipLines, ct).ConfigureAwait(false);
+            ? await CollectSmartStartTailAsync(logLines, maxLines, skipLines, ct, contextOverride).ConfigureAwait(false)
+            : await CollectAllErrorContextsAsync(logLines, maxLines, skipLines, ct, contextOverride).ConfigureAwait(false);
 
-    /// <summary>--log_failed 模式：找到第一个错误行,输出上下文 + 后续所有行;无错误时回退 tail</summary>
-    private async Task<List<string>> CollectSmartStartTailAsync(
-        IAsyncEnumerable<string> logLines, int maxLines, int skipLines, CancellationToken ct) {
+    /// <summary>--log_failed 模式：找到第一个错误行,输出上下文 + 后续行(跳过纯 Passed 行省 token);无错误时回退 tail</summary>
+    private async Task<(List<string> matched, int totalLines)> CollectSmartStartTailAsync(
+        IAsyncEnumerable<string> logLines, int maxLines, int skipLines, CancellationToken ct, int? contextOverride = null) {
         const int contextBefore = 5;
         const int tailFallback = 20;
+        var effectiveContext = contextOverride ?? contextBefore;
         var matched = new List<string>(maxLines);
-        var contextWindow = new Queue<string>(contextBefore);
+        var contextWindow = new Queue<string>(effectiveContext);
         var tailWindow = new Queue<string>(tailFallback);
         var skipped = 0;
         var lineNumber = 0;
         var foundError = false;
+        var reachedMax = false;
 
         await foreach (var line in logLines.ConfigureAwait(false)) {
             lineNumber++;
+            if (reachedMax) continue;
             var formatted = LineNumberFormatter.Format(lineNumber, GitHubRunLogText.StripLogTimestamp(line), _compactLinePrefix);
             if (foundError) {
+                if (CiLogAnalyzer.IsPassedTestLine(line.AsSpan())) continue;
                 if (skipped < skipLines) { skipped++; continue; }
                 matched.Add(formatted);
-                if (matched.Count >= maxLines) break;
+                if (matched.Count >= maxLines) reachedMax = true;
             } else if (CiLogAnalyzer.IsErrorIndicator(line.AsSpan())) {
                 foundError = true;
                 foreach (var ctxLine in contextWindow) {
                     if (skipped < skipLines) { skipped++; continue; }
                     matched.Add(ctxLine);
-                    if (matched.Count >= maxLines) break;
+                    if (matched.Count >= maxLines) { reachedMax = true; break; }
                 }
-                if (matched.Count >= maxLines) break;
+                if (reachedMax) continue;
                 if (skipped < skipLines) { skipped++; continue; }
                 matched.Add(formatted);
-                if (matched.Count >= maxLines) break;
+                if (matched.Count >= maxLines) reachedMax = true;
             } else {
                 contextWindow.Enqueue(formatted);
-                if (contextWindow.Count > contextBefore) contextWindow.Dequeue();
+                if (contextWindow.Count > effectiveContext) contextWindow.Dequeue();
                 tailWindow.Enqueue(formatted);
                 if (tailWindow.Count > tailFallback) tailWindow.Dequeue();
             }
@@ -818,39 +824,43 @@ internal sealed class GitHubRunLogFilterRunner {
                 if (matched.Count >= maxLines) break;
             }
         }
-        return matched;
+        return (matched, lineNumber);
     }
 
     /// <summary>filter=error 模式：收集所有错误行 + 各自前5后3上下文,跳过无关 Passed 行(错误前置,信息密度高)</summary>
     /// <para>优化G: 上下文去重 — 多个错误行的上下文窗口重叠时,同一行只输出一次(HashSet 按格式化内容去重)</para>
     /// <para>优化H: 错误摘要前置 — 输出开头先显示错误数+类型分布,AI 一眼看到错误规模(委托 CiLogAnalyzer 统一工具类)</para>
-    private async Task<List<string>> CollectAllErrorContextsAsync(
-        IAsyncEnumerable<string> logLines, int maxLines, int skipLines, CancellationToken ct) {
+    private async Task<(List<string> matched, int totalLines)> CollectAllErrorContextsAsync(
+        IAsyncEnumerable<string> logLines, int maxLines, int skipLines, CancellationToken ct, int? contextOverride = null) {
         const int contextBefore = 5;
         const int contextAfter = 3;
+        var effectiveContextBefore = contextOverride ?? contextBefore;
+        var effectiveContextAfter = contextOverride ?? contextAfter;
         var matched = new List<string>(maxLines);
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        var contextWindow = new Queue<string>(contextBefore);
+        var contextWindow = new Queue<string>(effectiveContextBefore);
         var errorCategories = new Dictionary<CiErrorCategory, int>();
         var errorCount = 0;
         var skipped = 0;
         var lineNumber = 0;
         var pendingAfter = 0;
+        var reachedMax = false;
 
         await foreach (var line in logLines.ConfigureAwait(false)) {
             lineNumber++;
+            if (reachedMax) continue;
             var formatted = LineNumberFormatter.Format(lineNumber, GitHubRunLogText.StripLogTimestamp(line), _compactLinePrefix);
             if (pendingAfter > 0) {
                 if (skipped < skipLines) { skipped++; continue; }
                 if (!seen.Add(formatted)) { pendingAfter--; continue; }
                 matched.Add(formatted);
-                if (matched.Count >= maxLines) break;
+                if (matched.Count >= maxLines) { reachedMax = true; continue; }
                 pendingAfter--;
                 continue;
             }
             if (!CiLogAnalyzer.IsErrorIndicator(line.AsSpan())) {
                 contextWindow.Enqueue(formatted);
-                if (contextWindow.Count > contextBefore) contextWindow.Dequeue();
+                if (contextWindow.Count > effectiveContextBefore) contextWindow.Dequeue();
                 continue;
             }
             errorCount++;
@@ -860,20 +870,20 @@ internal sealed class GitHubRunLogFilterRunner {
                 if (skipped < skipLines) { skipped++; continue; }
                 if (!seen.Add(ctxLine)) continue;
                 matched.Add(ctxLine);
-                if (matched.Count >= maxLines) break;
+                if (matched.Count >= maxLines) { reachedMax = true; break; }
             }
-            if (matched.Count >= maxLines) break;
+            if (reachedMax) continue;
             if (skipped < skipLines) { skipped++; continue; }
             if (!seen.Add(formatted)) continue;
             matched.Add(formatted);
-            pendingAfter = contextAfter;
-            if (matched.Count >= maxLines) break;
+            pendingAfter = effectiveContextAfter;
+            if (matched.Count >= maxLines) reachedMax = true;
         }
 
-        if (errorCount == 0) return matched;
+        if (errorCount == 0) return (matched, lineNumber);
         var result = new List<string>(matched.Count + 1) { CiLogAnalyzer.BuildErrorSummary(errorCount, errorCategories) };
         result.AddRange(matched);
-        return result;
+        return (result, lineNumber);
     }
 
 

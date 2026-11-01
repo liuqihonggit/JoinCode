@@ -65,6 +65,16 @@ internal static class RgSubCommand {
             try {
                 var query = BuildQuery(parsed, pattern);
 
+                if (parsed.Stream && !CanStream(parsed)) {
+                    var reasons = new List<string>();
+                    if (parsed.Json) reasons.Add("--json");
+                    if (parsed.ListFiles) reasons.Add("--files");
+                    if (!string.IsNullOrEmpty(parsed.Sort) && parsed.Sort != "none") reasons.Add($"--sort {parsed.Sort}");
+                    if (parsed.Offset.HasValue && parsed.Offset.Value > 0) reasons.Add($"--offset {parsed.Offset}");
+                    if (reasons.Count > 0)
+                        TerminalHelper.WriteError($"提示: --stream 与 {string.Join(", ", reasons)} 不兼容，已回退全量模式。");
+                }
+
                 if (CanStream(parsed)) {
                     var streamed = await Task.Run(() => StreamSearch(query, parsed, token), token).ConfigureAwait(false);
                     return streamed;
@@ -194,6 +204,7 @@ internal static class RgSubCommand {
         var regexpPatterns = new List<string>();
         var listFiles = false;
         var formatExplicitlySet = false;
+        var stream = false;
 
         for (var i = 1; i < args.Length; i++) {
             var arg = args[i];
@@ -247,6 +258,7 @@ internal static class RgSubCommand {
                     case "--hidden": hidden = true; break;
                     case "--no-ignore": noIgnore = true; break;
                     case "--json": json = true; break;
+                    case "--stream": stream = true; break;
                     case "--format": {
                         var v = inlineValue ?? ReadNextValue(args, ref i);
                         if (string.Equals(v, "json", StringComparison.OrdinalIgnoreCase))
@@ -368,7 +380,8 @@ internal static class RgSubCommand {
             MaxCount: maxCount,
             Threads: threads,
             MaxFilesize: maxFilesize,
-            ListFiles: listFiles);
+            ListFiles: listFiles,
+            Stream: stream);
     }
 
     private static string? ReadNextValue(string[] args, ref int i) {
@@ -508,20 +521,23 @@ internal static class RgSubCommand {
     private static bool IsRootOrUnsafePath(string? path) => PathSafetyValidator.IsRootOrUnsafePath(path);
 
     private static bool CanStream(RgOptions opts) =>
-        !opts.Json
+        opts.Stream
+        && !opts.Json
         && !opts.ListFiles
         && (string.IsNullOrEmpty(opts.Sort) || opts.Sort == "none")
-        && !opts.HeadLimit.HasValue
         && (!opts.Offset.HasValue || opts.Offset.Value == 0);
 
     private static int StreamSearch(RgQuery query, RgOptions opts, CancellationToken token) {
         var hasOutput = false;
         var fileCount = 0;
-        var limit = opts.HeadLimit ?? 250;
+        var limit = opts.HeadLimit.HasValue ? opts.HeadLimit.Value : 250;
         using var streamCts = CancellationTokenSource.CreateLinkedTokenSource(token);
         var sb = new StringBuilder(256);
         try {
             RgEngine.Search(query, streamCts.Token, onFileResult: r => {
+                var current = Interlocked.Increment(ref fileCount);
+                if (limit > 0 && current > limit)
+                    return;
                 hasOutput = true;
                 sb.Clear();
                 switch (opts.OutputMode) {
@@ -539,17 +555,16 @@ internal static class RgSubCommand {
                 }
                 if (sb.Length > 0)
                     TerminalHelper.WriteRaw(sb);
-                fileCount++;
-                if (fileCount >= limit)
+                if (limit > 0 && current == limit)
                     streamCts.Cancel();
             });
-        } catch (OperationCanceledException) when (!token.IsCancellationRequested && fileCount >= limit) {
+        } catch (OperationCanceledException) when (!token.IsCancellationRequested && limit > 0 && Volatile.Read(ref fileCount) >= limit) {
             // head-limit 截断，非超时
         } catch (OperationCanceledException) when (!token.IsCancellationRequested) {
             TerminalHelper.WriteError($"搜索超时（{opts.TimeoutSeconds}s）。请缩小搜索范围、用 --type/-g 过滤，或增加 --timeout。");
             return (int)ExitCode.ToolExecutionTimeout;
         }
-        if (hasOutput && fileCount >= limit)
+        if (hasOutput && limit > 0 && Volatile.Read(ref fileCount) >= limit)
             TerminalHelper.WriteRaw($"[pagination: limit: {limit}]\n");
         return hasOutput ? 0 : 1;
     }
@@ -597,8 +612,7 @@ internal static class RgSubCommand {
             var parts = new List<string>(2);
             if (outcome.AppliedLimit.HasValue) parts.Add($"limit: {outcome.AppliedLimit.Value}");
             if (outcome.AppliedOffset.HasValue && outcome.AppliedOffset.Value > 0) parts.Add($"offset: {outcome.AppliedOffset.Value}");
-            sb.Append('\n');
-            sb.Append($"[pagination: {string.Join(", ", parts)}]");
+            sb.Append($"[pagination: {string.Join(", ", parts)}]\n");
         }
 
         TerminalHelper.WriteRaw(sb);
@@ -642,8 +656,15 @@ internal static class RgSubCommand {
               jcc rg "finally\s*\{" core/ --type cs -g "!**/tests/**"
               jcc rg "TODO|FIXME" src/ -i -n -C 2
               jcc rg "class\s+\w+Service" app/JoinCode -A 2 -B 1 --content
+              jcc rg "public" modules/ --stream | head -1            # 流式输出，首行立即到达
               echo "TODO" | jcc rg - modules/abstractions --type cs    # stdin 作为 pattern
               git diff | jcc rg "TODO" -                                # stdin 作为搜索内容（对齐 rg -）
+
+            --stream 流式输出:
+              搜索到结果立即输出到 stdout，不等全量搜索完成
+              适用于管道场景（| head / | grep），首行立即到达
+              输出顺序不确定（先完成的文件先输出），与 ripgrep 并行搜索一致
+              限制: 不能与 --json/--sort/--head-limit/--offset 同用（需全量排序/分页）
 
             stdin 支持（- 占位符）:
               - 作为 pattern（第一个位置参数）: 从 stdin 读取搜索词
@@ -695,7 +716,8 @@ internal static class RgSubCommand {
         int? MaxCount,
         int? Threads,
         long? MaxFilesize,
-        bool ListFiles);
+        bool ListFiles,
+        bool Stream);
 }
 
 /// <summary>rg --json 单条匹配结果 DTO</summary>

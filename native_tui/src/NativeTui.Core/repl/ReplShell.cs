@@ -2781,15 +2781,11 @@ public sealed class ReplShell
                     + DecPrivateMode.Enable(DecPrivateModeKind.MouseAnyEventTracking)
                     + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
             }
-            // TASK077 — DEC 1049 不保存 scrollback，退出后启动诊断行丢失。
-            // 清屏 + 重输出诊断行 + 首帧重绘恢复完整历史（诊断行在 scrollback，Screen 内容在视口）
+            // TASK077 — DEC 1049 不保存 scrollback，退出后清屏 + 首帧重绘恢复主屏内容。
+            // 启动诊断行已作为 StartupLineItem 纫入 TUI 渲染，无需重输出到 scrollback。
             if (_startupLines.Count > 0)
             {
                 _output.Write(Sgr.Reset + Csi.EraseScreen() + Csi.EraseSavedLines() + Csi.CursorPosition(1, 1));
-                foreach (var line in _startupLines)
-                {
-                    _output.WriteLine(line);
-                }
 
                 _frontValid = false;
                 _prevOverride = null;

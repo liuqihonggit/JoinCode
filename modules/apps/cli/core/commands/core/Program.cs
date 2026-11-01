@@ -29,7 +29,10 @@ class Program {
         var awaitError = ValidateAwaitArg(args);
         if (awaitError is not null) {
             Cli.TerminalHelper.Init();
-            App.ErrorConsole.Warning(awaitError);
+            if (IsStructuredOutputFromArgs(args))
+                WriteStructuredErrorToStdout(Cli.Output.CliErrorCatalog.ArgParseError(awaitError), IsNdjsonFromArgs(args));
+            else
+                App.ErrorConsole.Warning(awaitError);
             return (int)ExitCode.ArgumentParseError;
         }
 
@@ -37,7 +40,10 @@ class Program {
         var enumError = ValidateEnumArgs(args);
         if (enumError is not null) {
             Cli.TerminalHelper.Init();
-            App.ErrorConsole.Warning(enumError);
+            if (IsStructuredOutputFromArgs(args))
+                WriteStructuredErrorToStdout(Cli.Output.CliErrorCatalog.ArgParseError(enumError), IsNdjsonFromArgs(args));
+            else
+                App.ErrorConsole.Warning(enumError);
             return (int)ExitCode.ArgumentParseError;
         }
 

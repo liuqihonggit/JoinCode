@@ -149,9 +149,15 @@ public sealed class KestrelMockServer : IHttpMockServer {
                 else Stats.CacheMisses++;
             }
 
+            // 捕获响应状态码 — OnCompleted 回调在响应发送完成后执行
+            ctx.Response.OnCompleted(() => {
+                captured.ResponseStatusCode = ctx.Response.StatusCode;
+                return Task.CompletedTask;
+            });
+
             var injection = _controller.ConsumeInjection();
             if (injection is not null) {
-                await HandleInjectedResponseAsync(ctx, injection, requestIndex);
+                await HandleInjectedResponseAsync(ctx, injection, requestIndex, captured);
                 return;
             }
 
@@ -164,7 +170,7 @@ public sealed class KestrelMockServer : IHttpMockServer {
                 Console.WriteLine($"[{_serverName}]   Interactive: waiting for inject (30s timeout)...");
                 injection = await _controller.WaitForInjectionAsync(ctx.RequestAborted, TimeSpan.FromSeconds(30));
                 if (injection is not null) {
-                    await HandleInjectedResponseAsync(ctx, injection, requestIndex);
+                    await HandleInjectedResponseAsync(ctx, injection, requestIndex, captured);
                     return;
                 }
                 Console.WriteLine($"[{_serverName}]   Interactive: inject timeout, falling back to script");
@@ -710,6 +716,11 @@ function renderDetail(r) {
 
   // Raw body
   html += '<div class="section"><div class="section-title">Raw Body</div><div class="body-json">' + escapeHtml(r.body || '(empty)') + '</div></div>';
+
+  // Response
+  if (r.response_status_code || r.response_body) {
+    html += '<div class="section"><div class="section-title">Response' + (r.response_status_code ? ' (HTTP ' + r.response_status_code + ')' : '') + '</div><div class="body-json">' + escapeHtml(r.response_body || '(no body captured)') + '</div></div>';
+  }
   d.innerHTML = html;
 }
 
@@ -751,19 +762,25 @@ setInterval(() => {
             ?? throw new InvalidOperationException($"反序列化 {type.Name} 失败"));
     }
 
-    private async Task HandleInjectedResponseAsync(HttpContext ctx, InjectedResponse injection, int requestIndex) {
+    private async Task HandleInjectedResponseAsync(HttpContext ctx, InjectedResponse injection, int requestIndex, CapturedRequest? captured = null) {
         Console.WriteLine($"[{_serverName}]   Response: injected (queue), status={injection.StatusCode}, stream={injection.IsStream}");
         ctx.Response.StatusCode = injection.StatusCode;
         ctx.Response.ContentType = injection.ContentType;
 
         if (injection.IsStream && injection.StreamChunks is { Count: > 0 }) {
+            var sb = new StringBuilder();
             foreach (var chunk in injection.StreamChunks) {
                 await ctx.Response.WriteAsync(chunk, ctx.RequestAborted);
                 await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
                 await Task.Delay(20, ctx.RequestAborted);
+                sb.Append(chunk);
             }
+            if (captured is not null)
+                captured.ResponseBody = sb.ToString();
         } else {
             await ctx.Response.WriteAsync(injection.Body, ctx.RequestAborted);
+            if (captured is not null)
+                captured.ResponseBody = injection.Body;
         }
         Console.WriteLine($"[{_serverName}] === Request #{requestIndex} complete (injected) ===");
     }

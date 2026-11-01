@@ -782,6 +782,16 @@ public sealed class ReplShell
         _promptContextSnapshot = promptContextSnapshot;
         _promptContextInventory = promptContextInventory;
         _promptContextFileUrl = promptContextFileUrl;
+        // TASK078 — 引擎就绪后补创建 PromptContextItem（首帧时 promptContextSnapshot 为 null 未创建）
+        if (_promptContextItem is null && _promptContextSnapshot is not null && _promptContextInventory is not null)
+        {
+            _promptContextItem = new PromptContextItem(
+                $"📎 首次注入 · 系统提示词 {_promptContextSnapshot.Length} 字符",
+                _promptContextSnapshot.Length,
+                _promptContextFileUrl);
+            _view.Messages.Add(_promptContextItem);
+            _driver.PromptContextItemTarget = _promptContextItem;
+        }
     }
 
     /// <summary>视图（测试断言面）。</summary>

@@ -110,7 +110,7 @@ public sealed class MockServerController {
     private readonly ConcurrentQueue<TaskCompletionSource<InjectedResponse?>> _waiters = new();
     private readonly List<RecordedInteraction> _recordedInteractions = [];
     private readonly object _lock = new();
-    private MockServerMode _mode = MockServerMode.Interactive;
+    private MockServerMode _mode = MockServerMode.Replay;
     private string? _recordingUpstream;
     private string? _recordingApiKey;
     private string _recordingVendor = "openai";

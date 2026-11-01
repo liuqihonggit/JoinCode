@@ -638,35 +638,43 @@ body { font-family: 'Segoe UI',system-ui,sans-serif; background:#1e1e2e; color:#
 <script>
 let selectedIdx = -1;
 let allRequests = [];
+let lastCount = 0;
 
 async function loadRequests() {
   try {
     const resp = await fetch('/__control__/requests');
     allRequests = await resp.json();
     document.getElementById('stats').textContent = allRequests.length + ' requests';
-    renderSidebar();
-    if (selectedIdx >= 0 && selectedIdx < allRequests.length)
-      renderDetail(allRequests[selectedIdx]);
+    // Diff: 只在请求数量变化时更新列表，避免滚动条重置
+    if (allRequests.length !== lastCount) {
+      appendNewRequests();
+      lastCount = allRequests.length;
+    }
   } catch(e) {
     document.getElementById('stats').textContent = 'Error: ' + e.message;
   }
 }
 
-function renderSidebar() {
+function appendNewRequests() {
   const sb = document.getElementById('sidebar');
-  sb.innerHTML = allRequests.map((r,i) => {
+  // 只追加新请求项，不重新渲染已有项
+  for (let i = lastCount; i < allRequests.length; i++) {
+    const r = allRequests[i];
     const cls = i === selectedIdx ? 'req-item selected' : 'req-item';
-    return `<div class="${cls}" onclick="selectReq(${i})">
-      <span class="req-index">#${r.index}</span>
-      <span class="req-method ${r.method}">${r.method}</span>
-      <span class="req-path">${r.path}</span>
-    </div>`;
-  }).join('');
+    const div = document.createElement('div');
+    div.className = cls;
+    div.onclick = () => selectReq(i);
+    div.innerHTML = `<span class="req-index">#${r.index}</span><span class="req-method ${r.method}">${r.method}</span><span class="req-path">${r.path}</span>`;
+    sb.appendChild(div);
+  }
 }
 
 function selectReq(i) {
   selectedIdx = i;
-  renderSidebar();
+  // 只更新选中状态，不重新渲染整个列表
+  document.querySelectorAll('.req-item').forEach((el, idx) => {
+    el.classList.toggle('selected', idx === i);
+  });
   renderDetail(allRequests[i]);
 }
 
@@ -713,6 +721,9 @@ async function clearRequests() {
   try {
     await fetch('/__control__/clear', {method:'POST'});
     selectedIdx = -1;
+    lastCount = 0;
+    document.getElementById('sidebar').innerHTML = '';
+    document.getElementById('detail').innerHTML = '<div class="empty">Select a request to view details</div>';
     loadRequests();
   } catch(e) { alert('Clear failed: ' + e.message); }
 }

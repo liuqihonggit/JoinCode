@@ -302,22 +302,28 @@ public static class Program {
         // InlineComposer 相对光标模型，整帧永久失同步）；引擎杂散输出/Diag/McpPluginBootstrap 一律不再
         // 触碰终端，最外层退出时冲刷回原 stderr（CI/E2E 诊断捕获不受损）
         using var consoleSuppression = ConsoleSuppressionGate.Begin("TUI 会话");
+        Probe("ConsoleSuppressionGate.Begin 完成");
         // E1 崩溃兜底 — CursorLifecycle 注释契约兑现：raw mode 运行期内任何未处理异常/信号退出路径，
         // 钩子统一补发硬件光标 Show + bracketed paste Disable（using RawConsoleMode 只恢复 console mode，
         // 覆盖不了 DEC 25/2004 两个终端层状态 — 对齐基准 ink.tsx signal-exit 恢复链）
         using var restoreGuard = new TerminalRestoreGuard(tuiOutput);
+        Probe("TerminalRestoreGuard 完成");
         // earlyInput — 引擎组装窗口期按键捕获（基准 earlyInput.ts:29-67 — 启动期输入不丢失，
         // 就绪后回填输入框；非阻塞 KeyAvailable 轮询，无按键零耗时）
         var earlyKeys = Environment.GetEnvironmentVariable("JCC_FORCE_TTY") == "1"
             ? new List<ConsoleKeyInfo>()
             : EarlyInputBuffer.CaptureAvailable(() => Console.KeyAvailable, Console.ReadKey);
+        Probe("EarlyInputBuffer.CaptureAvailable 完成");
         // 终端查询路由器（TASK067 批4 — 探测链路地基：DA1/DECRPM/kitty flags/DSR/XTVERSION
         // 查询-应答 promise；RawStdinPump 前置分流路由；主动探测接入 TerminalCapabilities 为后续增量）
         using var terminalQuerier = new TerminalQuerier(tuiOutput);
+        Probe("TerminalQuerier 构造完成");
         {
             EngineSession session;
             try {
+                Probe("EngineSession.CreateAsync 前");
                 session = await EngineSession.CreateAsync().ConfigureAwait(false);
+                Probe("EngineSession.CreateAsync 完成");
             } catch (ConfigurationException) {
                 throw; // 冒泡 Main 统一友好呈现（raw mode 由 using 恢复后再打印）
             } catch (Exception ex) {
@@ -329,6 +335,7 @@ public static class Program {
                 // banner 占位值 — 首拍 session_info 种子事件覆盖为引擎真实数据（EngineSession.Enqueue）
                 var banner = new BannerItem("0.0.0", "当前模型未设置", "API 按量计费", Environment.CurrentDirectory);
                 var commands = ApplyPickerHints(SlashCommandSource.Load(session.Services));
+                Probe("SlashCommandSource.Load 完成");
                 // M7-6 模型选择器 — 装饰引擎拦截 /model（清单从引擎 IModelCatalog 后端获取，切换链自研）；
                 // 切换成功后 RefreshSessionInfo 重发握手事件刷新 banner（当前模型显示同步）
                 // TASK058 供应商选择器 — 外层再装饰拦截 /vendor（清单 VendorKind 枚举投影，切换链对齐 GUI SetVendorAsync）
@@ -362,18 +369,24 @@ public static class Program {
                 // auto 按本地小时解析 light/dark，对齐引擎 ThemeCommand.ApplyTheme）+ 命令使用记忆
                 //（~/.jcc/command-history.json 坏文件静默降级空记忆）+ 工作区根（@ 文件补全索引根，banner cwd 同源）
                 var themeName = await LoadThemeNameAsync(session.Services).ConfigureAwait(false);
+                Probe("LoadThemeNameAsync 完成");
                 var commandUsage = await CommandUsageMemory.LoadAsync(CommandUsageMemory.DefaultFilePath).ConfigureAwait(false);
+                Probe("CommandUsageMemory.LoadAsync 完成");
                 // B类 editorMode 键接线 — settings.current.editorMode="vim" 持久启用 vim 编辑模式
                 //（对齐 TS GlobalConfig.editorMode，经 IConfigurationService 读取 — theme 先例）；
                 // JCC_TUI_VIM 灰度 OR 语义保留（EditorModeResolver 唯一判定源）
                 var vimMode = await LoadVimModeAsync(session.Services).ConfigureAwait(false);
+                Probe("LoadVimModeAsync 完成");
                 // statusline 键激活 — statusline.enabled=true + statusline.format 模板
                 //（/statusline 命令写入的键，theme 先例同模式读取）
                 var statusLineTemplate = await LoadStatusLineTemplateAsync(session.Services).ConfigureAwait(false);
+                Probe("LoadStatusLineTemplateAsync 完成");
                 // C类 defaultShell 键 — settings.current.defaultShell（bash/powershell）覆盖平台默认
                 var defaultShell = await LoadSettingAsync(session.Services, "defaultShell").ConfigureAwait(false);
+                Probe("LoadSettingAsync(defaultShell) 完成");
                 // C类 respectGitignore 键 — settings.current.respectGitignore（默认 true）控制 @ 文件补全是否尊重 .gitignore
                 var gitignorePredicate = await LoadGitignorePredicateAsync(session.Services, Environment.CurrentDirectory).ConfigureAwait(false);
+                Probe("LoadGitignorePredicateAsync 完成");
                 // TASK077 — 输入泵平台分流：Windows 默认 RawStdinPump（stdin 原始流 VT 全链 —
                 // ENABLE_VIRTUAL_TERMINAL_INPUT 启用后 WT 把 VT 鼠标序列发到 stdin，KeyPressParser
                 // 解析 SGR 鼠标事件）；--raw-input 显式同路径；Linux 默认 null（ReplShell 回退

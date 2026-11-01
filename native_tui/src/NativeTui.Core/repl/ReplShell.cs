@@ -878,6 +878,11 @@ public sealed class ReplShell
         };
         // TASK079 用户反馈 — 种子 effort 通知移除：8s 到期清除触发 footer 重绘，把上滚的
         // 终端视口拽回底部（偶发刷新源）；effort 状态由 footer 段持久展示，瞬态通知纯冗余
+        // TASK077 — 启动诊断行纫入 TUI 渲染（应用内选区覆盖，无需 Shift 选择）
+        foreach (var line in _startupLines)
+        {
+            _view.Messages.Add(new StartupLineItem(line));
+        }
         _view.Messages.Add(_banner);
         // TASK079 终版 — 注入上下文折叠项（OSC 8 file 链接：终端原生点击打开快照 .md，
         // 不接管鼠标原生选择复制不受影响；/prompt 全页模态双通道；null = 宿主未启用）

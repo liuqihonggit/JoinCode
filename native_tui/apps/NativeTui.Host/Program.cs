@@ -268,12 +268,11 @@ public static class Program {
 
         Console.OutputEncoding = Encoding.UTF8;
         using var raw = (Environment.GetEnvironmentVariable("JCC_FORCE_TTY") == "1" ? (IDisposable?)null : new RawConsoleMode());
-        // TASK077 — 启动诊断行保存（退出备用屏后重输出恢复 scrollback 历史）
+        // TASK077 — 启动诊断行保存（纫入 TUI 渲染 — 应用内选区覆盖，不写 Console.Error 避免 scrollback 重复）
         var startupLines = new List<string>();
         void WriteStartupLine(string line)
         {
             startupLines.Add(line);
-            Console.Error.WriteLine(line);
         }
 
         WriteStartupLine("引擎启动中…");

@@ -74,7 +74,7 @@ public sealed class ReplShell
     private Action<PickerEffortLevel?>? _modelPickerEffortCallback;
 
     /// <summary>斜杠命令补全状态机（TASK056 — 宿主注入命令清单后启用；null = 无补全能力）。</summary>
-    private readonly SlashSuggester? _suggester;
+    private SlashSuggester? _suggester;
 
     /// <summary>终端尺寸源（resize 事件化注入面 — 每拍取尺寸，变化触发屏重建跨尺寸 diff）。</summary>
     private readonly ITerminalSizeSource _sizeSource;
@@ -252,7 +252,7 @@ public sealed class ReplShell
 
     /// <summary>命令使用记忆（S10 接线 — 斜杠命令提交时 RecordUse（提交即使用：TUI 无引擎侧执行成败回执，
     /// recently-used 分组语义 = 用户常用命令）；SlashSuggester 空查询分组投影数据源；退出 fire-and-forget 持久化）。</summary>
-    private readonly CommandUsageMemory _commandUsage = new();
+    private CommandUsageMemory _commandUsage = new();
 
     /// <summary>bash 直通执行器（S10 接线 — `!` 前缀命令；shell 由 defaultShell 键解析 —
     /// DefaultShellResolver.Resolve(settings.defaultShell, isWindows)，未配置走平台默认）。</summary>
@@ -297,13 +297,13 @@ public sealed class ReplShell
     }
 
     /// <summary>注入上下文快照（宿主注入 — 系统提示词全文 + 工具清单；null = 未启用）。</summary>
-    private readonly string? _promptContextSnapshot;
+    private string? _promptContextSnapshot;
 
     /// <summary>工具清单惰性求值器（展开时调注册表 — 彼时已装载）。</summary>
-    private readonly Func<(string Text, int Total, int System)>? _promptContextInventory;
+    private Func<(string Text, int Total, int System)>? _promptContextInventory;
 
     /// <summary>注入快照文件 file URL（OSC 8 链接目标 — null = 未写文件/不支持）。</summary>
-    private readonly string? _promptContextFileUrl;
+    private string? _promptContextFileUrl;
 
     /// <summary>bash 直通完成结果缓冲（S10 接线 — ExecuteAsync 完成于线程池线程，AddMessage 必须回主循环线程
     /// （与渲染循环竞争 _view.Messages），复用 /clear 的跨线程缓冲 + 主循环消费先例）。</summary>
@@ -515,7 +515,7 @@ public sealed class ReplShell
 
     /// <summary>statusline 模板（statusline 键激活 — /statusline format 写入的模板文本；
     /// null = 未启用零渲染变化。每帧 SyncStatusLine 渲染变量替换后投影 FooterState.StatusLine）。</summary>
-    private readonly string? _statusLineTemplate;
+    private string? _statusLineTemplate;
 
     /// <summary>statusline {model} 变量实时源（Host 闭包 IFastModeService.PrimaryModelId；
     /// null = {model} 渲染为空 — Core 不依赖引擎服务惯例）。</summary>
@@ -761,6 +761,27 @@ public sealed class ReplShell
         // TASK066 板块 E 收尾 — 剪贴板图片读取委托注入（null = 能力降级 alt+v/ctrl+v 无操作零行为变化）
         _readClipboardImage = readClipboardImage;
         _driver = new ReplBridgeDriver(_view, _spinner, _banner, BeginPermissionRequest, codeHighlighter, _tokenUsage, _sizeSource, streamingProjector, issueOwnerRepo, shellTimeoutSeconds);
+    }
+
+    /// <summary>TASK078 — 引擎就绪后注入真实服务（后台预热完成时调用）。
+    /// 更新斜杠补全/主题/命令记忆/状态栏/提示词上下文等首帧占位为真实值。
+    /// 幂等 — 重复调用只更新值不重构造 suggester（已就绪时）。</summary>
+    internal void AttachEngineServices(
+        IReadOnlyList<CommandSuggestion>? commands,
+        string? themeName,
+        CommandUsageMemory? commandUsage,
+        string? statusLineTemplate,
+        string? promptContextSnapshot,
+        Func<(string Text, int Total, int System)>? promptContextInventory,
+        string? promptContextFileUrl)
+    {
+        if (commandUsage is not null) _commandUsage = commandUsage;
+        if (commands is { Count: > 0 }) _suggester = new SlashSuggester(commands, new CommandGrouping(_commandUsage));
+        if (themeName is not null) _theme = ThemeSelection.Resolve(themeName);
+        if (statusLineTemplate is not null) _statusLineTemplate = statusLineTemplate;
+        _promptContextSnapshot = promptContextSnapshot;
+        _promptContextInventory = promptContextInventory;
+        _promptContextFileUrl = promptContextFileUrl;
     }
 
     /// <summary>视图（测试断言面）。</summary>

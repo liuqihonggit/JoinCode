@@ -318,27 +318,103 @@ public static class Program {
         // 查询-应答 promise；RawStdinPump 前置分流路由；主动探测接入 TerminalCapabilities 为后续增量）
         using var terminalQuerier = new TerminalQuerier(tuiOutput);
         Probe("TerminalQuerier 构造完成");
+        // TASK078 — 首帧最小集：不依赖引擎的工作（~10ms），先构造 ReplShell 渲染首帧
+        // banner 占位值 — 后台引擎就绪后 session_info 种子事件覆盖为真实数据
+        var banner = new BannerItem("0.0.0", "当前模型未设置", "API 按量计费", Environment.CurrentDirectory);
+        // TASK077 — 输入泵平台分流（首帧必需 — 接收用户输入）
+        IInputPump? inputPump;
+        if (useRawStdinPump || OperatingSystem.IsWindows())
         {
-            EngineSession session;
-            try {
-                Probe("EngineSession.CreateAsync 前");
-                session = await EngineSession.CreateAsync().ConfigureAwait(false);
-                Probe("EngineSession.CreateAsync 完成");
-            } catch (ConfigurationException) {
-                throw; // 冒泡 Main 统一友好呈现（raw mode 由 using 恢复后再打印）
-            } catch (Exception ex) {
-                Console.Error.WriteLine($"引擎启动失败: {ex.Message}。请检查 jcc 引擎配置（settings.json / providers）后重试。");
-                return 1;
-            }
+            inputPump = new RawStdinPump(terminalQuerier);
+        }
+        else
+        {
+            inputPump = null;
+        }
+        Probe("inputPump 创建完成");
+        // TASK066 板块A — 终端状态三路装配（首帧必需 — 标题/tab/进度）
+        var titleTracker = new TerminalTitleTracker(
+            "JoinCode",
+            OperatingSystem.IsWindows()
+                ? title => Console.Title = title
+                : title => tuiOutput.Write(Osc.SetTitle(title)),
+            disabled: Environment.GetEnvironmentVariable("CLAUDE_CODE_DISABLE_TERMINAL_TITLE") is not null
+                and not ("0" or "false"));
+        var tabStatusEnabled = Environment.GetEnvironmentVariable("JCC_TUI_TAB_STATUS") != "0";
+        var terminalStatus = new TerminalStatusCoordinator(
+            tuiOutput, titleTracker, tabStatusEnabled,
+            progressEnabled: TerminalCapabilities.IsProgressReportingAvailable());
+        // TASK066 板块B — 用户键位装配（不依赖引擎，首帧加载）
+        var keybindingLoad = KeybindingLoader.Load();
+        Probe("KeybindingLoader.Load 完成");
+        foreach (var keybindingError in keybindingLoad.Errors)
+        {
+            Console.Error.WriteLine(keybindingError.ToString());
+        }
 
-            await using (session) {
-                // banner 占位值 — 首拍 session_info 种子事件覆盖为引擎真实数据（EngineSession.Enqueue）
-                var banner = new BannerItem("0.0.0", "当前模型未设置", "API 按量计费", Environment.CurrentDirectory);
+        // TASK078 — 闭包包装的 lazy 委托引用（引擎就绪后填充，ReplShell 构造时用闭包捕获）
+        Action<string>? clipboardRef = null;
+        Action<string>? copySelectionRef = null;
+        Action<string, string>? onStopTaskRef = null;
+        Func<string, Task>? saveThemeAsyncRef = null;
+        Func<string?>? statusLineModelProviderRef = null;
+        Func<string, bool>? gitignorePredicateRef = null;
+
+        // TASK078 — LazyEngine 占位 IReplEngine（首帧用，后台引擎就绪后 AttachReal 注入）
+        var lazyEngine = new LazyEngine();
+        Probe("LazyEngine 创建完成");
+
+        // TASK078 — 首帧：用 LazyEngine + null/no-op/闭包委托构造 ReplShell（~60ms）
+        var issueOwnerRepo = await ResolveIssueOwnerRepoAsync().ConfigureAwait(false);
+        var shell = new ReplShell(
+            engine: lazyEngine,
+            banner: banner,
+            output: tuiOutput,
+            commands: null,
+            keybindings: keybindingLoad.Profile,
+            inputPump: inputPump,
+            terminalStatus: terminalStatus,
+            alternateScreen: new AlternateScreenController(tuiOutput.Write),
+            clipboard: text => clipboardRef?.Invoke(text),
+            copySelection: text => copySelectionRef?.Invoke(text),
+            onStopTask: (kind, taskId) => onStopTaskRef?.Invoke(kind, taskId),
+            saveThemeAsync: name => saveThemeAsyncRef?.Invoke(name) ?? Task.CompletedTask,
+            statusLineModelProvider: () => statusLineModelProviderRef?.Invoke(),
+            gitignorePredicate: path => gitignorePredicateRef?.Invoke(path) ?? false,
+            launchExternalEditor: text => ExternalEditorLauncher.EditAsync(text),
+            saveExportAsync: text => SaveConversationExportAsync(text),
+            searchSource: new RipgrepSearcher(),
+            loadImageFromFile: LoadImageFromFile,
+            readClipboardImage: ReadClipboardImage,
+            wheelBaseLines: WheelSpeedTracker.ParseScrollSpeedBase(
+                Environment.GetEnvironmentVariable("CLAUDE_CODE_SCROLL_SPEED")),
+            issueOwnerRepo: issueOwnerRepo,
+            shellTimeoutSeconds: 120,
+            workspaceRoot: Environment.CurrentDirectory);
+        Probe("首帧 ReplShell 构造完成");
+
+        // TASK077 — 启动诊断行注入
+        foreach (var line in startupLines)
+        {
+            shell.AddStartupLine(line);
+        }
+
+        // earlyInput 回灌 — 引擎组装窗口期捕获的按键回填输入框
+        foreach (var earlyKey in earlyKeys) {
+            shell.HandleKey(earlyKey);
+        }
+
+        // TASK078 — 后台预热引擎（fire-and-forget — 不阻塞首帧主循环）
+        EngineSession? loadedSession = null;
+        var engineLoadTask = Task.Run(async () => {
+            try {
+                Probe("EngineSession.CreateAsync 前（后台）");
+                loadedSession = await EngineSession.CreateAsync().ConfigureAwait(false);
+                Probe("EngineSession.CreateAsync 完成（后台）");
+                var session = loadedSession;
                 var commands = ApplyPickerHints(SlashCommandSource.Load(session.Services));
-                Probe("SlashCommandSource.Load 完成");
-                // M7-6 模型选择器 — 装饰引擎拦截 /model（清单从引擎 IModelCatalog 后端获取，切换链自研）；
-                // 切换成功后 RefreshSessionInfo 重发握手事件刷新 banner（当前模型显示同步）
-                // TASK058 供应商选择器 — 外层再装饰拦截 /vendor（清单 VendorKind 枚举投影，切换链对齐 GUI SetVendorAsync）
+                Probe("SlashCommandSource.Load 完成（后台）");
+                // M7-6 模型选择器 + TASK058 供应商选择器
                 var pickerEngine = new CommandPickerEngine(
                     new CommandPickerEngine(
                         session.Client,
@@ -349,10 +425,6 @@ public static class Program {
                             ModelPickerAssembly.ApplyModel(session.Services, id);
                             session.RefreshSessionInfo();
                         },
-                        // TASK066 D5 — effort 通道接入引擎现有链（唯一数据源）：
-                        // 会话档位种子投影（IExecutionSettingsProvider.EffortLevel，Auto → null）+
-                        // 确认应用（执行设置写入 + settings.json 持久化 + max 降级 — 模型回调先行，
-                        // effort 应用时 PrimaryModelId 已为确认选中的新模型）
                         () => ModelPickerAssembly.LoadEffortConfig(session.Services),
                         level => ModelPickerAssembly.ApplyEffort(session.Services, level)),
                     "/vendor",
@@ -362,79 +434,24 @@ public static class Program {
                         VendorPickerAssembly.ApplyVendor(session.Services, vendor);
                         session.RefreshSessionInfo();
                     });
-                // TASK059 退出安全 — Esc 永不退出（忙时双击中断）、Ctrl+C 复制最后 assistant 消息；
-                // 退出路径：Ctrl+D（空输入）或 /exit 命令。剪贴板走引擎 IClipboardService（fire-and-forget 写入）。
                 var clipboardService = session.Services.GetService<IClipboardService>();
-                // S9/S10 接线 — 主题配置名（引擎 settings.json theme 键 → ThemeSelection.Resolve，
-                // auto 按本地小时解析 light/dark，对齐引擎 ThemeCommand.ApplyTheme）+ 命令使用记忆
-                //（~/.jcc/command-history.json 坏文件静默降级空记忆）+ 工作区根（@ 文件补全索引根，banner cwd 同源）
                 var themeName = await LoadThemeNameAsync(session.Services).ConfigureAwait(false);
-                Probe("LoadThemeNameAsync 完成");
+                Probe("LoadThemeNameAsync 完成（后台）");
                 var commandUsage = await CommandUsageMemory.LoadAsync(CommandUsageMemory.DefaultFilePath).ConfigureAwait(false);
-                Probe("CommandUsageMemory.LoadAsync 完成");
-                // B类 editorMode 键接线 — settings.current.editorMode="vim" 持久启用 vim 编辑模式
-                //（对齐 TS GlobalConfig.editorMode，经 IConfigurationService 读取 — theme 先例）；
-                // JCC_TUI_VIM 灰度 OR 语义保留（EditorModeResolver 唯一判定源）
+                Probe("CommandUsageMemory.LoadAsync 完成（后台）");
                 var vimMode = await LoadVimModeAsync(session.Services).ConfigureAwait(false);
-                Probe("LoadVimModeAsync 完成");
-                // statusline 键激活 — statusline.enabled=true + statusline.format 模板
-                //（/statusline 命令写入的键，theme 先例同模式读取）
+                Probe("LoadVimModeAsync 完成（后台）");
                 var statusLineTemplate = await LoadStatusLineTemplateAsync(session.Services).ConfigureAwait(false);
-                Probe("LoadStatusLineTemplateAsync 完成");
-                // C类 defaultShell 键 — settings.current.defaultShell（bash/powershell）覆盖平台默认
+                Probe("LoadStatusLineTemplateAsync 完成（后台）");
                 var defaultShell = await LoadSettingAsync(session.Services, "defaultShell").ConfigureAwait(false);
-                Probe("LoadSettingAsync(defaultShell) 完成");
-                // C类 respectGitignore 键 — settings.current.respectGitignore（默认 true）控制 @ 文件补全是否尊重 .gitignore
+                Probe("LoadSettingAsync(defaultShell) 完成（后台）");
                 var gitignorePredicate = await LoadGitignorePredicateAsync(session.Services, Environment.CurrentDirectory).ConfigureAwait(false);
-                Probe("LoadGitignorePredicateAsync 完成");
-                // TASK077 — 输入泵平台分流：Windows 默认 RawStdinPump（stdin 原始流 VT 全链 —
-                // ENABLE_VIRTUAL_TERMINAL_INPUT 启用后 WT 把 VT 鼠标序列发到 stdin，KeyPressParser
-                // 解析 SGR 鼠标事件）；--raw-input 显式同路径；Linux 默认 null（ReplShell 回退
-                // ReadKeyPump — Linux 终端 stdin VT 序列天然含鼠标）
-                IInputPump? inputPump;
-                Probe("inputPump 创建前");
-                if (useRawStdinPump || OperatingSystem.IsWindows())
-                {
-                    inputPump = new RawStdinPump(terminalQuerier);
-                }
-                else
-                {
-                    inputPump = null;
-                }
-                // TASK066 板块A — 终端状态三路装配（标题/21337 tab/9;4 进度）：
-                // 标题写通道平台分流（基准 use-terminal-title.ts：Windows=process.title → Console.Title，
-                // 其余 OSC 0 经 TUI 输出流）；CLAUDE_CODE_DISABLE_TERMINAL_TITLE 对齐禁用；
-                // tab 状态默认开 + JCC_TUI_TAB_STATUS=0 关闭；进度走能力判定（WT 排除/ConEmu 白名单）
-                var titleTracker = new TerminalTitleTracker(
-                    "JoinCode",
-                    OperatingSystem.IsWindows()
-                        ? title => Console.Title = title
-                        : title => tuiOutput.Write(Osc.SetTitle(title)),
-                    disabled: Environment.GetEnvironmentVariable("CLAUDE_CODE_DISABLE_TERMINAL_TITLE") is not null
-                        and not ("0" or "false"));
-                var tabStatusEnabled = Environment.GetEnvironmentVariable("JCC_TUI_TAB_STATUS") != "0";
-                var terminalStatus = new TerminalStatusCoordinator(
-                    tuiOutput, titleTracker, tabStatusEnabled,
-                    progressEnabled: TerminalCapabilities.IsProgressReportingAvailable());
-                // TASK066 板块B 连线B4 — 用户键位装配（~/.jcc/keybindings.json 覆盖默认表）：
-                // 缺文件静默回退默认（ENOENT 语义）；坏条目尽力合并（合法条目生效、错误条目跳过）
-                // + 校验错误 stderr 诊断不中断启动（对齐 command-history 坏文件降级 + 诊断先例）
-                var keybindingLoad = KeybindingLoader.Load();
-                Probe("KeybindingLoader.Load 完成");
-                foreach (var keybindingError in keybindingLoad.Errors)
-                {
-                    Console.Error.WriteLine(keybindingError.ToString());
-                }
-                // TASK078 — TUI 原生需求澄清：/?? //ask 拦截为正常回合（CLI 版 AskClarifyCommand 是
-                // 直写终端的交互循环，TUI 会话内不可见且 ReadLine 阻塞卡死）；提示词单一数据源 =
-                // composition AskClarifyPrompts（宿主注入，本装饰器不依赖 composition）
+                Probe("LoadGitignorePredicateAsync 完成（后台）");
+                // TASK078 — /?? //ask 拦截为正常回合
                 var clarifyEngine = new ClarifyModeEngine(pickerEngine, JoinCode.ChatCommands.AskClarifyPrompts.SystemPrompt);
-                // TASK079 — 提示词透明化：/prompt 把首次注入的系统提示词全文 + 工具清单 dump 进
-                // transcript（数据 = 引擎会话服务真实对象：ISystemPromptProvider sections +
-                // IMcpToolRegistry 工具清单，单一数据源不硬编码；registry 异步预热缓存）
+                // TASK079 — 提示词透明化
                 var toolRegistry = session.Services.GetService<IMcpToolRegistry>();
                 var promptProvider = session.Services.GetService<ISystemPromptProvider>();
-                // TASK079 — 工具清单惰性构建（文本 + 统计：总数/完整注入数供折叠项摘要行展示）
                 var toolInventoryCache = new Lazy<(string Text, int Total, int System)>(() =>
                 {
                     if (toolRegistry is null)
@@ -491,119 +508,39 @@ public static class Program {
                     return sb.ToString();
                 }, LazyThreadSafetyMode.ExecutionAndPublication);
                 string? promptFileUrl = null;
-string? promptFallbackPath = null;
-try
-{
-    promptFallbackPath = Path.Combine(Path.GetTempPath(), $"jcc-prompt-{DateTime.Now:yyyyMMdd-HHmmss}.md");
-    File.WriteAllText(promptFallbackPath, promptSnapshotBuilder.Value);
-    promptFileUrl = new Uri(promptFallbackPath).AbsoluteUri;
-}
-catch (IOException) { }
-catch (UnauthorizedAccessException) { }
-
-var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
-                Probe("transparencyEngine 创建完成");
-                // TASK079 — bash/powershell 执行倒计时：超时秒数取 ShellExecutionConfig（会话服务，默认 120s）
-                var shellExecutionConfig = session.Services.GetService<ShellExecutionConfig>();
-                Probe("ReplShell 构造前");
-                var shell = new ReplShell(transparencyEngine, banner, tuiOutput, commands: commands,
-                    shellTimeoutSeconds: shellExecutionConfig?.AbsoluteTimeoutSeconds ?? 120,
-                    promptContextSnapshot: promptSnapshotBuilder.Value,
-                    promptContextInventory: () => toolInventoryCache.Value,
-                    promptContextFileUrl: promptFileUrl,
-                    clipboard: text => _ = clipboardService?.SetTextAsync(text),
-                    themeName: themeName,
-                    commandUsage: commandUsage,
-                    workspaceRoot: Environment.CurrentDirectory,
-                    // M8-8 后续 — x 停止后台任务委托：面板运行中条目 → 回合客户端停止入口（多态统一面 —
-                    // 进程内 EngineTurnClient 泵分派 CancelFork/StopTeammate，bridge 形态走同接口的
-                    // BridgeEngine 写 stop_task 请求；cancelled 终态 upsert 由泵推回面板即时反馈）
-                    onStopTask: (kind, taskId) => session.Client.StopBackgroundTask(kind, taskId),
-                    // 方案 B — 流式期 Markdown 块级增量投影（Markdig 卫星注入：稳定前缀 memoize +
-                    // 增长尾纯文本，对齐基准 StreamingMarkdown；落定替换 MarkdownMessageItem 全量渲染）
-                    streamingProjector: new StreamingMarkdownProjector(),
-                    // S11 遗留#1 — /theme 持久化：合法切换写回引擎 settings.json theme 键
-                    //（IConfigurationService.SetAsync；写盘失败静默降级会话级 — ReplShell 侧容错）
-                    saveThemeAsync: name => SaveThemeAsync(session.Services, name),
-                    // TASK064 P3 — ctrl+g 外部编辑器委托：输入文本 → temp 文件 → $EDITOR
-                    //（未设置时 Windows notepad.exe / 其余 vi 兜底）→ 读回编辑后文本；失败 null 降级丢弃
-                    launchExternalEditor: text => ExternalEditorLauncher.EditAsync(text),
-                    // S12 四域接线 — /export 文件目标写盘委托：conversation-{时间戳}.md 写当前目录
-                    //（同刻冲突递增后缀防覆盖；返回文件名供通知反馈，异常由 ReplShell 侧容错降级）
-                    saveExportAsync: text => SaveConversationExportAsync(text),
-                    // S12 四域接线 — ctrl+shift+f 全局搜索源：rg 执行器（PATH 解析，缺失时
-                    // 对话框打开即降级提示；搜索根 = workspaceRoot 同一工作区根）
-                    searchSource: new RipgrepSearcher(),
-                    // DSG043 尾批 — issue 引用短形态上下文（git remote origin → owner/repo；
-                    // 无 git/无 remote/非 GitHub = null 短形态不展开，完整形态恒展开）
-                    issueOwnerRepo: await ResolveIssueOwnerRepoAsync().ConfigureAwait(false),
-                    // DSG042 P2 — 输入泵通道：Windows 默认 Win32ConsoleInputPump（TASK077 鼠标支持）；
-                    // --raw-input 灰度启用 RawStdinPump（stdin 原始流 VT 全链 — 修饰组合键保留/
-                    // paste 整块直出）；Linux 默认 ReadKeyPump（ReplShell 内构造）；引用留 Host 收尾 Dispose
-                    inputPump: inputPump,
-                    // TASK066 板块A — 终端状态协调器（null 降级路径仅测试用 — 宿主恒装配）
-                    terminalStatus: terminalStatus,
-                    // TASK066 板块B — 键位绑定表（用户 json 合并结果 — 全局键层表驱动数据源，
-                    // esc/ctrl+g/ctrl+o/ctrl+l/ctrl+r/ctrl+s/ctrl+d 等非模态全局键走表查询）
-                    keybindings: keybindingLoad.Profile,
-                    // TASK066 板块C — 备用屏控制器（transcript 模态升级 DEC 1049 真备用屏 +
-                    // 四鼠标模式组合 1000/1002/1003/1006；与 tuiOutput 同通道主循环串行）
-                    alternateScreen: new AlternateScreenController(tuiOutput.Write),
-                    // TASK066 板块C — 选中即复制（Release 后 settled 选区 → 引擎剪贴板服务，
-                    // 复用 clipboard 同源注入；选区纯空白跳过在 Core 层守卫）
-                     copySelection: text => _ = clipboardService?.SetTextAsync(text),
-                     // TASK066 板块D — 空闲返回阈值（基准 CLAUDE_CODE_IDLE_THRESHOLD_MINUTES
-                     // 环境变量覆盖，默认 75min — Core 不读 env 由宿主读传入）
-                     idleReturnThresholdMinutes: int.TryParse(
-                         Environment.GetEnvironmentVariable("CLAUDE_CODE_IDLE_THRESHOLD_MINUTES"), out var idleMin) && idleMin > 0
-                         ? idleMin
-                         : null,
-                     // B类 editorMode 键接线 — vim 编辑模式开关（settings.current.editorMode="vim"
-                     // 持久启用 + JCC_TUI_VIM 灰度 OR 语义 — EditorModeResolver 唯一判定源，
-                     // 对齐 TS GlobalConfig.editorMode；默认关零行为变化 — main #480 落地，
-                     // 取代板块E的纯 env 开关形态）
-                      vimMode: vimMode,
-                      // statusline 键激活 — 模板 + {model} 实时源（IFastModeService.PrimaryModelId
-                      // 闭包 — ReplShell 每帧变量替换投影 FooterState.StatusLine Row2 最优先渲染）
-                      statusLineTemplate: statusLineTemplate,
-                      statusLineModelProvider: () => session.Services.GetService<IFastModeService>()?.PrimaryModelId,
-                      // C类 defaultShell 键 — `!` 命令 shell 选择（settings.current.defaultShell 覆盖平台默认）
-                      defaultShell: defaultShell,
-                      // C类 respectGitignore 键 — @ 文件补全 gitignore 过滤（settings.current.respectGitignore 默认 true）
-                      gitignorePredicate: gitignorePredicate,
-                      // TASK066 板块C P3 — 滚轮加速度基础步长（基准 CLAUDE_CODE_SCROLL_SPEED 旋钮 —
-                      // readScrollSpeedBase :305-310 clamp (0,20] 默认 1；Core 不读 env 由宿主读传入，
-                      // 对齐 idleReturnThresholdMinutes 先例）
-                      wheelBaseLines: WheelSpeedTracker.ParseScrollSpeedBase(
-                          Environment.GetEnvironmentVariable("CLAUDE_CODE_SCROLL_SPEED")),
-                      // TASK066 板块E — 图片文件读取委托（粘贴图片路径 → base64 附件；magic 嗅探
-                      // mime，读失败 null 降级该行回退纯文本粘贴）
-                      loadImageFromFile: LoadImageFromFile,
-                      // TASK066 板块E 收尾 — 剪贴板图片读取委托（chat:imagePaste 键主动读取：
-                      // win32 PowerShell Get-Clipboard -Format Image → 临时 PNG → base64 附件；
-                      // 非 Windows null 降级 → Core 侧 footer 通知"剪贴板未找到图片"）
-                      readClipboardImage: ReadClipboardImage);
-                transparencyEngine.Attach(shell);
-                Probe("ReplShell 构造完成");
-                // TASK077 — 启动诊断行注入（退出备用屏后重输出恢复 scrollback 历史）
-                foreach (var line in startupLines)
+                string? promptFallbackPath = null;
+                try
                 {
-                    shell.AddStartupLine(line);
+                    promptFallbackPath = Path.Combine(Path.GetTempPath(), $"jcc-prompt-{DateTime.Now:yyyyMMdd-HHmmss}.md");
+                    File.WriteAllText(promptFallbackPath, promptSnapshotBuilder.Value);
+                    promptFileUrl = new Uri(promptFallbackPath).AbsoluteUri;
                 }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
 
-                await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
+                var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
+                Probe("transparencyEngine 创建完成（后台）");
+
+                // TASK078 — 填充闭包委托引用（ReplShell 构造时传入的闭包现在生效）
+                clipboardRef = text => _ = clipboardService?.SetTextAsync(text);
+                copySelectionRef = text => _ = clipboardService?.SetTextAsync(text);
+                onStopTaskRef = (kind, taskId) => session.Client.StopBackgroundTask(kind, taskId);
+                saveThemeAsyncRef = name => SaveThemeAsync(session.Services, name);
+                statusLineModelProviderRef = () => session.Services.GetService<IFastModeService>()?.PrimaryModelId;
+                gitignorePredicateRef = gitignorePredicate;
+
+                // TASK078 — 注入真实引擎 + 引擎服务
+                lazyEngine.AttachReal(transparencyEngine);
+                shell.AttachEngineServices(commands, themeName, commandUsage, statusLineTemplate,
+                    promptSnapshotBuilder.Value, () => toolInventoryCache.Value, promptFileUrl);
+                transparencyEngine.Attach(shell);
+                Probe("引擎服务注入完成（后台）");
+
+                // 绑定回调
                 session.PermissionBridge.Bind(shell);
-                // M8-5 命令交互回调接线（/clear 清 TUI 滚动区+scrollback、/exit /quit /logout 结束主循环）—
-                // ReplShell 公开入口已由主智能体收编落地（ClearMessagesExceptBannerAndSpinner/RequestExit）；
-                // TASK065 F1 融合 — 退出回调带命令名（RequestExit(reason) 上 "⎿ /{reason} — 退出 jcc" 提示行）
                 session.CommandCallbacks.Bind(
                     clearScreen: shell.ClearMessagesExceptBannerAndSpinner,
                     onExitRequested: () => shell.RequestExit("exit"));
-                // TASK065 F2/S8 融合 — 交互面重绑：confirm/prompt 从组装期权限对话框初值升级为
-                // ReplShell 命令对话框同步桥（语义更准：命令确认非工具权限；/commit /login /resume 等
-                // 交互命令解锁 — 回合线程挂起等模态按键，对齐 TuiPermissionBridge 先例）；
-                // readPassword 密文模态（TASK065 F2b — 回显 PasswordMask 遮蔽 + Enter 提交原文/Esc null，
-                // /login 等密文输入命令解锁）
                 session.CommandCallbacks.BindInteractions(
                     confirm: shell.ConfirmCommand,
                     prompt: shell.PromptCommand,
@@ -611,23 +548,38 @@ var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
                     beginSessionPicker: (request, ct) => shell.BeginSessionPickerCoreAsync(
                         request.Entries.Select(e => new SessionPickerItem(e.SessionId, e.Preview, e.TimeAgo)).ToList(),
                         request.Title));
-                // earlyInput 回灌 — 引擎组装窗口期捕获的按键回填输入框（基准 earlyInput.ts:164-169
-                // consume — 启动期输入不丢失：分派链全量复用，shell 状态此时已就绪）
-                foreach (var earlyKey in earlyKeys) {
-                    shell.HandleKey(earlyKey);
-                }
-
-                shell.Run();
-                Probe("shell.Run() 返回");
-                shell.WriteExit();
-                // DSG042 P2 / TASK077 — 输入泵收尾（通道完成 + 读循环取消；阻塞中的
-                // ReadConsoleInput/stdin Read 由 IsBackground 线程随进程退出回收 — Dispose 不等待线程终结防挂）
-                if (inputPump is IDisposable d)
-                {
-                    d.Dispose();
-                }
+                await HistorySeeder.SeedAsync(shell, session.Services, session.SessionId).ConfigureAwait(false);
+                Probe("HistorySeeder 完成（后台）");
+            } catch (ConfigurationException) {
+                throw; // 冒泡 Main 统一友好呈现
+            } catch (Exception ex) {
+                Console.Error.WriteLine($"引擎启动失败: {ex.Message}。请检查 jcc 引擎配置（settings.json / providers）后重试。");
             }
+        });
+
+        // TASK078 — 主循环（首帧已渲染，后台引擎预热中 — LazyEngine 占位 DrainEvents 返回空）
+        shell.Run();
+        Probe("shell.Run() 返回");
+        shell.WriteExit();
+
+        // TASK078 — 等待后台引擎加载完成（主循环退出后 — 确保 session 正确 Dispose）
+        try {
+            await engineLoadTask.ConfigureAwait(false);
+        } catch (ConfigurationException) {
+            throw;
+        } catch {
+            // 引擎加载失败已在 Task 内打印错误，此处吞掉
         }
+        if (loadedSession is not null) {
+            await loadedSession.DisposeAsync().ConfigureAwait(false);
+        }
+
+        // DSG042 P2 / TASK077 — 输入泵收尾
+        if (inputPump is IDisposable d)
+        {
+            d.Dispose();
+        }
+
 
         Console.WriteLine("NativeTui.Host 已退出。");
         return 0;

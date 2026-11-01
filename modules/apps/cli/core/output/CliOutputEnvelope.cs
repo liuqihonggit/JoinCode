@@ -65,6 +65,14 @@ public sealed class CliOutputEnvelope<T> {
     public static CliOutputEnvelope<T> Success(T data, CliOutputMeta? meta = null) =>
         new() { Ok = true, Data = data, Meta = meta };
 
+    /// <summary>构造响应信封 — 显式指定 Ok 字段（exitCode != 0 时 ok=false，对齐 Bug 9 修复）</summary>
+    /// <param name="data">数据负载（始终携带，消费者可读 exitCode/response）</param>
+    /// <param name="ok">操作是否成功（exitCode==0 时 true）</param>
+    /// <param name="meta">可选的元数据</param>
+    /// <returns>指定 Ok 的 <see cref="CliOutputEnvelope{T}"/> 实例</returns>
+    public static CliOutputEnvelope<T> Create(T data, bool ok, CliOutputMeta? meta = null) =>
+        new() { Ok = ok, Data = data, Meta = meta };
+
     /// <summary>序列化为 JSON 字符串 — T 必须在 CliOutputJsonContext 注册 CliOutputEnvelope&lt;T&gt;</summary>
     /// <returns>符合 {ok, data, error, meta, schemaVersion} 结构的 JSON 字符串</returns>
     public string ToJsonString() =>

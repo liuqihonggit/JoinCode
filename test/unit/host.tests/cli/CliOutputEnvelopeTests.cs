@@ -70,6 +70,29 @@ public sealed class CliOutputEnvelopeTests {
         json.Should().Contain("\"response\":\"hello world\"");
     }
 
+    /// <summary>
+    /// Bug 9 回归: exitCode != 0 时 JSON 信封 ok 应为 false —
+    /// NonInteractiveApiKeyCheckStep 短路返回1返回时 exitCode=4 但 ok=true，消费者用 ok 判断会误判。
+    /// Create 方法允许显式指定 ok 字段，NonInteractiveModeRunner 用 exitCode==0 设置 ok。
+    /// </summary>
+    [Fact]
+    public void Create_WithOkFalse_ShouldSerializeOkFalse() {
+        var data = new CliNonInteractiveResult(4, "");
+        var json = CliOutputEnvelope<CliNonInteractiveResult>.Create(data, ok: false).ToJsonString();
+
+        json.Should().Contain("\"ok\":false");
+        json.Should().Contain("\"exitCode\":4");
+    }
+
+    [Fact]
+    public void Create_WithOkTrue_ShouldSerializeOkTrue() {
+        var data = new CliNonInteractiveResult(0, "success");
+        var json = CliOutputEnvelope<CliNonInteractiveResult>.Create(data, ok: true).ToJsonString();
+
+        json.Should().Contain("\"ok\":true");
+        json.Should().Contain("\"exitCode\":0");
+    }
+
     [Fact]
     public void Success_Generic_ShouldSerializeToolResult() {
         var result = new JoinCode.Abstractions.Tools.ToolResult {

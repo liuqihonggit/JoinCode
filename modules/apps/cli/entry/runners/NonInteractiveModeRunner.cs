@@ -50,10 +50,10 @@ internal static class NonInteractiveModeRunner {
         await pipeline.ExecuteAsync(context, CancellationToken.None).ConfigureAwait(false);
         Diag.WriteLine($"[RUN] pipeline done, exitCode={context.ExitCode}");
 
-        // JSON 模式: 输出最终结果信封
+        // JSON 模式: 输出最终结果信封 — ok=exitCode==0（Bug 9 修复：exitCode!=0 时 ok=false）
         if (options.IsJsonMode && context.OutputContract is not null) {
             var result = new Cli.Output.CliNonInteractiveResult(context.ExitCode, context.FullResponse ?? string.Empty);
-            context.OutputContract.WriteData(result, new Cli.Output.CliOutputMeta {
+            context.OutputContract.WriteResult(result, ok: context.ExitCode == 0, new Cli.Output.CliOutputMeta {
                 DurationMs = context.ElapsedMs,
             });
         }

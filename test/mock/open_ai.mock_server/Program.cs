@@ -33,6 +33,9 @@ public sealed class Program {
             };
             await server.StartAsync().ConfigureAwait(true);
 
+            // Interactive 模式：请求挂起等待 responder 注入响应，避免 Replay 模式下注入被下一个请求消费（off-by-one）
+            server.Controller.SetInteractiveMode();
+
             // 睡眠/唤醒监控 — 通用 SleepWakeMonitor，唤醒后检查 Kestrel 健康
             global::MockServer.Core.SleepWakeMonitor.OnResume(() => {
                 LogMain("[OpenAI.MockServer] 检测到系统唤醒，Kestrel 自动恢复中...");

@@ -2455,7 +2455,7 @@ public sealed class ReplShell
             return;
         }
 
-        // transcript 特例 — 滚轮可用（transcript 内滚动），其余鼠标吞掉
+        // transcript 特例 — 滚轮滚动 + 选区交互（Press/Drag/Release），其余鼠标吞掉
         if (_transcript.IsActive)
         {
             if (evt.Kind is MouseKind.WheelUp or MouseKind.WheelDown)
@@ -2466,6 +2466,15 @@ public sealed class ReplShell
                 var down = evt.Kind == MouseKind.WheelDown;
                 var step = _wheelSpeed.OnWheelEvent(down);
                 _transcript.ScrollBy(down ? step : -step);
+            }
+            else if (evt.Kind is MouseKind.Press or MouseKind.Drag or MouseKind.Release)
+            {
+                // 第二屏选区交互 — transcript 全屏渲染坐标与 _back 一致，无需 inline 转换
+                _selection.HandleMouse(evt, BuildSelectionScreen());
+                if (evt.Kind == MouseKind.Release)
+                {
+                    CopySelectionIfSettled();
+                }
             }
 
             return;

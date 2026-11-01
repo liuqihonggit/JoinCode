@@ -263,6 +263,11 @@ public sealed class TranscriptController
             switch (key.Kind)
             {
                 case KeyKind.UpArrow:
+                    if (ScrollOffset == 0)
+                    {
+                        ExitTranscript();
+                        return true;
+                    }
                     ScrollBy(-1);
                     return true;
                 case KeyKind.DownArrow:

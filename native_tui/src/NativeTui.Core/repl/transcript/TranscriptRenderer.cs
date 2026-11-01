@@ -17,11 +17,19 @@ public static class TranscriptRenderer
     /// <summary>footer 内容左起列（paddingX=2 — 对齐 FooterBar 组装层 frame.X=2 先例）。</summary>
     private const int FooterPaddingX = 2;
 
-    /// <summary>渲染整屏 transcript（行窗口 → footer 行；屏高 ≥ 1）。</summary>
+    /// <summary>渲染整屏 transcript（首行提示 → 行窗口 → footer 行；屏高 ≥ 2）。</summary>
     public static void Render(Screen screen, Theme theme, TranscriptScreenData data)
     {
+        RenderHeader(screen, theme);
         RenderLines(screen, data);
         RenderFooter(screen, theme, data);
+    }
+
+    /// <summary>首行红色提示 — 告知用户可 ESC 或 ↑ 退出。</summary>
+    private static void RenderHeader(Screen screen, Theme theme)
+    {
+        var errorStyle = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Error });
+        screen.WriteText(0, 0, "按 ESC 或 ↑ 退出", errorStyle, screen.Cols);
     }
 
     /// <summary>帧尾光标位（inline 模式 — ReplShell frameEnd 消费）：
@@ -36,10 +44,10 @@ public static class TranscriptRenderer
         return new CursorPos(0, screenRows - 1);
     }
 
-    /// <summary>行窗口渲染 — 视口逐行写冻结行（行索引超快照末尾即止；右缘裁剪走 rightBound）。</summary>
+    /// <summary>行窗口渲染 — 视口逐行写冻结行（首行被提示占用，从 row 1 开始；行索引超快照末尾即止；右缘裁剪走 rightBound）。</summary>
     private static void RenderLines(Screen screen, TranscriptScreenData data)
     {
-        for (var viewRow = 0; viewRow < data.ViewportHeight && viewRow < screen.Rows - FooterRows; viewRow++)
+        for (var viewRow = 0; viewRow < data.ViewportHeight && viewRow + 1 < screen.Rows - FooterRows; viewRow++)
         {
             var lineIndex = data.ScrollOffset + viewRow;
             if (lineIndex >= data.Lines.Count)
@@ -47,7 +55,7 @@ public static class TranscriptRenderer
                 return;
             }
 
-            screen.WriteText(viewRow, 0, data.Lines[lineIndex], 0, screen.Cols);
+            screen.WriteText(viewRow + 1, 0, data.Lines[lineIndex], 0, screen.Cols);
         }
     }
 

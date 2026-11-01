@@ -89,6 +89,8 @@ internal sealed partial class SessionResumeStep : ServiceEntity, IMiddleware<Sta
         var summaries = await service.ListTranscriptsAsync(limit: 100, ct).ConfigureAwait(false);
         var normalizedCurrent = NormalizeProjectPath(currentProject);
         foreach (var summary in summaries) {
+            if (summary.MessageCount == 0)
+                continue;
             var info = await service.GetSessionInfoAsync(summary.SessionId, ct).ConfigureAwait(false);
             if (info is null || string.IsNullOrEmpty(info.ProjectPath))
                 continue;

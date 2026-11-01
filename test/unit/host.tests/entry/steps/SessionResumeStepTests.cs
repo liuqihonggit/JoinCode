@@ -211,7 +211,7 @@ public class SessionResumeStepTests {
     private static string ProjectPathWithTrailingSep(params string[] segments) =>
         ProjectPath(segments) + Path.DirectorySeparatorChar;
 
-    private static Mock<ITranscriptService> CreateTranscriptService((string SessionId, string? ProjectPath, DateTime Modified)[] sessions) {
+    private static Mock<ITranscriptService> CreateTranscriptService((string SessionId, string? ProjectPath, DateTime Modified, int MessageCount)[] sessions) {
         var mock = new Mock<ITranscriptService>();
         mock.Setup(s => s.ListTranscriptsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(sessions
@@ -220,9 +220,10 @@ public class SessionResumeStepTests {
                     SessionId = s.SessionId,
                     CreatedAt = s.Modified,
                     LastModifiedAt = s.Modified,
+                    MessageCount = s.MessageCount,
                 })
                 .ToList());
-        foreach (var (sessionId, projectPath, _) in sessions) {
+        foreach (var (sessionId, projectPath, _, _) in sessions) {
             var info = projectPath is null ? null : new SessionInfo { Id = sessionId, ProjectPath = projectPath };
             mock.Setup(s => s.GetSessionInfoAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(info);
         }
@@ -234,8 +235,8 @@ public class SessionResumeStepTests {
         // Arrange — 最新会话属其他项目，较旧会话属当前项目（尾分隔符差异）→ 应选当前项目的
         var currentProject = ProjectPath("cur", "repo");
         var service = CreateTranscriptService([
-            ("newest-other", ProjectPath("other", "repo"), DateTime.UtcNow.AddMinutes(-1)),
-            ("older-current", ProjectPathWithTrailingSep("cur", "repo"), DateTime.UtcNow.AddHours(-2)),
+            ("newest-other", ProjectPath("other", "repo"), DateTime.UtcNow.AddMinutes(-1), 1),
+            ("older-current", ProjectPathWithTrailingSep("cur", "repo"), DateTime.UtcNow.AddHours(-2), 1),
         ]);
 
         var sessionId = await SessionResumeStep.FindMostRecentSessionIdAsync(service.Object, currentProject, CancellationToken.None);
@@ -246,8 +247,8 @@ public class SessionResumeStepTests {
     [Fact]
     public async Task Continue_NoSessionInCurrentProject_ReturnsNull() {
         var service = CreateTranscriptService([
-            ("other-1", ProjectPath("other", "repo"), DateTime.UtcNow.AddMinutes(-1)),
-            ("other-2", ProjectPath("elsewhere", "root"), DateTime.UtcNow.AddHours(-2)),
+            ("other-1", ProjectPath("other", "repo"), DateTime.UtcNow.AddMinutes(-1), 1),
+            ("other-2", ProjectPath("elsewhere", "root"), DateTime.UtcNow.AddHours(-2), 1),
         ]);
 
         var sessionId = await SessionResumeStep.FindMostRecentSessionIdAsync(
@@ -261,12 +262,27 @@ public class SessionResumeStepTests {
         // Arrange — 最新会话无 meta（旧存量），较旧的当前项目会话应命中
         var currentProject = ProjectPath("cur", "repo");
         var service = CreateTranscriptService([
-            ("legacy-no-meta", null, DateTime.UtcNow.AddMinutes(-1)),
-            ("current-project", currentProject, DateTime.UtcNow.AddHours(-2)),
+            ("legacy-no-meta", null, DateTime.UtcNow.AddMinutes(-1), 1),
+            ("current-project", currentProject, DateTime.UtcNow.AddHours(-2), 1),
         ]);
 
         var sessionId = await SessionResumeStep.FindMostRecentSessionIdAsync(service.Object, currentProject, CancellationToken.None);
 
         sessionId.Should().Be("current-project", "无 meta 的旧会话应跳过，不阻塞当前项目会话命中");
+    }
+
+    /// <summary>--continue 应跳过空会话（MessageCount=0）— 刚创建的新会话 transcript.jsonl 为空，
+    /// 不应被当作"最近历史会话"恢复（否则 -c 恢复空会话而非之前有内容的会话）。</summary>
+    [Fact]
+    public async Task Continue_SkipsEmptySession_MatchesNonEmptySession() {
+        var currentProject = ProjectPath("cur", "repo");
+        var service = CreateTranscriptService([
+            ("empty-newest", currentProject, DateTime.UtcNow.AddMinutes(-1), 0),
+            ("nonempty-older", currentProject, DateTime.UtcNow.AddHours(-2), 4),
+        ]);
+
+        var sessionId = await SessionResumeStep.FindMostRecentSessionIdAsync(service.Object, currentProject, CancellationToken.None);
+
+        sessionId.Should().Be("nonempty-older", "空会话（MessageCount=0）应跳过，选有内容的较旧会话");
     }
 }

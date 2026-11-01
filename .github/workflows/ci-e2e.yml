@@ -290,6 +290,7 @@ jobs:
             $psi.EnvironmentVariables["OPENAI_API_KEY"] = "sk-test-ci-key"
             $psi.EnvironmentVariables["JCC_VENDOR"] = "openai"
             $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
+            $psi.EnvironmentVariables["JCC_PERMISSION_MODE"] = "bypass"
             $psi.EnvironmentVariables["JCC_SKIP_MCP_INIT"] = "1"
             $psi.EnvironmentVariables["JCC_SKIP_PLUGIN_SKILLS"] = "1"
             $psi.EnvironmentVariables["JCC_APP_DATA_FOLDER"] = $stateDir
@@ -406,6 +407,7 @@ jobs:
             $psi.EnvironmentVariables["OPENAI_API_KEY"] = "sk-test-ci-key"
             $psi.EnvironmentVariables["JCC_VENDOR"] = "openai"
             $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
+            $psi.EnvironmentVariables["JCC_PERMISSION_MODE"] = "bypass"
             $psi.EnvironmentVariables["JCC_APP_DATA_FOLDER"] = $stateDir
             $psi.UseShellExecute = $false
             $psi.RedirectStandardOutput = $true

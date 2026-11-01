@@ -264,7 +264,8 @@ public sealed class ResilientHttpExecutor {
         if (ex is TimeoutException || ex is TaskCanceledException || ex is IOException)
             return true;
         if (ex is HttpRequestException httpEx) {
-            var code = (int?)(httpEx.StatusCode) ?? 0;
+            var code = (int?)(httpEx.StatusCode);
+            if (code is null) return true;
             return code is 408 or 429 or 500 or 502 or 503 or 504;
         }
         return false;

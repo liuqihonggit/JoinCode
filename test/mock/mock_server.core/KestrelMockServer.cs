@@ -14,11 +14,15 @@ public sealed class KestrelMockServer : IHttpMockServer {
     private readonly CancellationTokenSource _cts = new();
     private IHostApplicationLifetime? _appLifetime;
     private string _dumpDir = string.Empty;
+    private readonly MockServerController _controller = new();
+    private HttpClient? _recordingClient;
 
     /// <summary>获取服务器 URL。</summary>
     public string Url { get; private set; } = string.Empty;
     /// <summary>获取服务器统计信息。</summary>
     public MockServerStats Stats { get; } = new();
+    /// <summary>获取控制面控制器 — 运行时注入响应、录制回放、状态查询。</summary>
+    public MockServerController Controller => _controller;
     public event Action? ShutdownRequested;
 
     /// <summary>构造 Kestrel 模拟服务器。</summary>
@@ -91,6 +95,8 @@ public sealed class KestrelMockServer : IHttpMockServer {
             await ctx.Response.WriteAsync("{\"status\":\"ok\"}");
         });
 
+        RegisterControlEndpoints(_app);
+
         _app.MapPost("{**path}", async (HttpContext ctx) => {
             using var reader = ctx.Request.Body.AsUtf8Reader();
             var body = await reader.ReadToEndAsync(ctx.RequestAborted);
@@ -141,6 +147,27 @@ public sealed class KestrelMockServer : IHttpMockServer {
                 Stats.TotalRequests++;
                 if (cacheStats.CacheReadTokens > 0) Stats.CacheHits++;
                 else Stats.CacheMisses++;
+            }
+
+            var injection = _controller.ConsumeInjection();
+            if (injection is not null) {
+                await HandleInjectedResponseAsync(ctx, injection, requestIndex);
+                return;
+            }
+
+            if (_controller.Mode == MockServerMode.Recording) {
+                await HandleRecordingPassthroughAsync(ctx, path, body, requestIndex);
+                return;
+            }
+
+            if (_controller.Mode == MockServerMode.Interactive) {
+                Console.WriteLine($"[{_serverName}]   Interactive: waiting for inject (30s timeout)...");
+                injection = await _controller.WaitForInjectionAsync(ctx.RequestAborted, TimeSpan.FromSeconds(30));
+                if (injection is not null) {
+                    await HandleInjectedResponseAsync(ctx, injection, requestIndex);
+                    return;
+                }
+                Console.WriteLine($"[{_serverName}]   Interactive: inject timeout, falling back to script");
             }
 
             _responseStrategy.OnRequestStarted(requestJson.RootElement);
@@ -250,6 +277,7 @@ public sealed class KestrelMockServer : IHttpMockServer {
         Log($"[{_serverName}]   Server:    {_serverName}");
         Log($"[{_serverName}]   URL:       {Url}");
         Log($"[{_serverName}]   Port:      {_port}");
+        Log($"[{_serverName}]   Control:   {Url}__control__/state|requests|inject|clear|script|record|replay");
         Log($"[{_serverName}]   Dump Dir:  {_dumpDir}");
         Log($"[{_serverName}] ========================================");
 
@@ -335,6 +363,8 @@ public sealed class KestrelMockServer : IHttpMockServer {
             await _app.DisposeSafeAsync();
             _app = null;
         }
+        _recordingClient?.DisposeSafe();
+        _recordingClient = null;
 
         if (_runTask is not null) {
             try { await _runTask; } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"Run task failed during disposal: {ex.Message}"); }
@@ -455,5 +485,155 @@ public sealed class KestrelMockServer : IHttpMockServer {
         }
 
         return lines;
+    }
+
+    private void RegisterControlEndpoints(WebApplication app) {
+        app.MapGet("/__control__/state", async (HttpContext ctx) => {
+            var state = _controller.GetState(Stats.TotalRequests);
+            var json = JsonSerializer.SerializeToUtf8Bytes(state, MockServerJsonContext.Default.ControlState);
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.Body.WriteAsync(json, ctx.RequestAborted);
+        });
+
+        app.MapGet("/__control__/requests", async (HttpContext ctx) => {
+            var requests = GetAllRequests();
+            var json = JsonSerializer.SerializeToUtf8Bytes(requests, typeof(List<CapturedRequest>), MockServerJsonContext.Default);
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.Body.WriteAsync(json, ctx.RequestAborted);
+        });
+
+        app.MapPost("/__control__/inject", async (HttpContext ctx) => {
+            var response = await ReadJsonAsync<InjectedResponse>(ctx, MockServerJsonContext.Default.InjectedResponse);
+            _controller.Inject(response);
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync("{\"status\":\"injected\"}");
+        });
+
+        app.MapPost("/__control__/clear", async (HttpContext ctx) => {
+            Clear();
+            _controller.ClearInjections();
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync("{\"status\":\"cleared\"}");
+        });
+
+        app.MapPost("/__control__/script", async (HttpContext ctx) => {
+            var responses = await ReadJsonAsync<List<InjectedResponse>>(ctx, typeof(List<InjectedResponse>));
+            _controller.ClearInjections();
+            foreach (var r in responses) {
+                _controller.Inject(r);
+            }
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync("{\"status\":\"script_loaded\"}");
+        });
+
+        app.MapPost("/__control__/record/start", async (HttpContext ctx) => {
+            var request = await ReadJsonAsync<RecordStartRequest>(ctx, MockServerJsonContext.Default.RecordStartRequest);
+            _recordingClient?.DisposeSafe();
+            _recordingClient = new HttpClient();
+            _controller.StartRecording(request);
+            Console.WriteLine($"[{_serverName}] Recording started -> {request.Upstream}");
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync("{\"status\":\"recording\"}");
+        });
+
+        app.MapPost("/__control__/record/stop", async (HttpContext ctx) => {
+            var result = _controller.StopRecording();
+            _recordingClient?.DisposeSafe();
+            _recordingClient = null;
+            Console.WriteLine($"[{_serverName}] Recording stopped, {result.InteractionCount} interactions");
+            var json = JsonSerializer.SerializeToUtf8Bytes(result, MockServerJsonContext.Default.RecordingResult);
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.Body.WriteAsync(json, ctx.RequestAborted);
+        });
+
+        app.MapPost("/__control__/replay/load", async (HttpContext ctx) => {
+            var file = await ReadJsonAsync<RecordingFile>(ctx, MockServerJsonContext.Default.RecordingFile);
+            _controller.LoadReplay(file);
+            Console.WriteLine($"[{_serverName}] Replay loaded, {file.Interactions.Count} interactions");
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync("{\"status\":\"replay_loaded\"}");
+        });
+
+        app.MapPost("/__control__/mode/interactive", async (HttpContext ctx) => {
+            _controller.SetInteractiveMode();
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync("{\"status\":\"interactive\"}");
+        });
+    }
+
+    private static async Task<T> ReadJsonAsync<T>(HttpContext ctx, JsonTypeInfo<T> typeInfo) {
+        using var reader = new StreamReader(ctx.Request.Body);
+        var body = await reader.ReadToEndAsync(ctx.RequestAborted);
+        return JsonSerializer.Deserialize(body, typeInfo)
+            ?? throw new InvalidOperationException($"反序列化 {typeof(T).Name} 失败");
+    }
+
+    private static async Task<T> ReadJsonAsync<T>(HttpContext ctx, Type type) {
+        using var reader = new StreamReader(ctx.Request.Body);
+        var body = await reader.ReadToEndAsync(ctx.RequestAborted);
+        return (T)(JsonSerializer.Deserialize(body, type, MockServerJsonContext.Default)
+            ?? throw new InvalidOperationException($"反序列化 {type.Name} 失败"));
+    }
+
+    private async Task HandleInjectedResponseAsync(HttpContext ctx, InjectedResponse injection, int requestIndex) {
+        Console.WriteLine($"[{_serverName}]   Response: injected (queue), status={injection.StatusCode}, stream={injection.IsStream}");
+        ctx.Response.StatusCode = injection.StatusCode;
+        ctx.Response.ContentType = injection.ContentType;
+
+        if (injection.IsStream && injection.StreamChunks is { Count: > 0 }) {
+            foreach (var chunk in injection.StreamChunks) {
+                await ctx.Response.WriteAsync(chunk, ctx.RequestAborted);
+                await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
+                await Task.Delay(20, ctx.RequestAborted);
+            }
+        } else {
+            await ctx.Response.WriteAsync(injection.Body, ctx.RequestAborted);
+        }
+        Console.WriteLine($"[{_serverName}] === Request #{requestIndex} complete (injected) ===");
+    }
+
+    private async Task HandleRecordingPassthroughAsync(HttpContext ctx, string path, string requestBody, int requestIndex) {
+        var (upstream, apiKey, vendor) = _controller.GetRecordingConfig();
+        if (string.IsNullOrEmpty(upstream) || _recordingClient is null) {
+            ctx.Response.StatusCode = 500;
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync("""{"error":"recording not initialized"}""", ctx.RequestAborted);
+            return;
+        }
+
+        var upstreamUrl = upstream.TrimEnd('/') + path;
+        Console.WriteLine($"[{_serverName}]   Recording: passthrough → {upstreamUrl}");
+
+        using var upstreamRequest = new HttpRequestMessage(HttpMethod.Post, upstreamUrl) {
+            Content = new StringContent(requestBody, Encoding.UTF8, "application/json")
+        };
+        if (!string.IsNullOrEmpty(apiKey)) {
+            if (vendor == "anthropic")
+                upstreamRequest.Headers.Add("x-api-key", apiKey);
+            else
+                upstreamRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+        }
+
+        using var upstreamResponse = await _recordingClient.SendAsync(upstreamRequest, ctx.RequestAborted);
+        var responseBytes = await upstreamResponse.Content.ReadAsByteArrayAsync(ctx.RequestAborted);
+        var responseBody = Encoding.UTF8.GetString(responseBytes);
+        var responseContentType = upstreamResponse.Content.Headers.ContentType?.MediaType ?? "application/json";
+
+        ctx.Response.StatusCode = (int)upstreamResponse.StatusCode;
+        ctx.Response.ContentType = responseContentType;
+        await ctx.Response.Body.WriteAsync(responseBytes, ctx.RequestAborted);
+
+        _controller.RecordInteraction(new RecordedInteraction {
+            Index = requestIndex,
+            Method = "POST",
+            Path = path,
+            RequestBody = requestBody,
+            StatusCode = (int)upstreamResponse.StatusCode,
+            ResponseBody = responseBody,
+            ResponseContentType = responseContentType
+        });
+
+        Console.WriteLine($"[{_serverName}]   Recording: captured {responseBody.Length} chars, status={upstreamResponse.StatusCode}");
+        Console.WriteLine($"[{_serverName}] === Request #{requestIndex} complete (recorded) ===");
     }
 }

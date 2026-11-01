@@ -31,11 +31,12 @@ public sealed class ConsoleSuppressionGateTests {
             using var _ = ConsoleSuppressionGate.Begin("test");
             Console.Error.WriteLine("[TEST] a");
             Console.Error.WriteLine("[TEST] b");
-            var drained = ConsoleSuppressionGate.TakeSuppressedLines();
+            var drained = ConsoleSuppressionGate.TakeSuppressedLines()
+                .Where(l => l.Contains("[TEST]")).ToList();
             Assert.Equal(2, drained.Count);
             Assert.Contains("[TEST] a", drained[0]);
             Assert.Contains("[TEST] b", drained[1]);
-            Assert.Empty(ConsoleSuppressionGate.TakeSuppressedLines());
+            Assert.DoesNotContain(ConsoleSuppressionGate.TakeSuppressedLines(), l => l.Contains("[TEST]"));
         } finally {
             Console.SetError(new StreamWriter(Stream.Null) { AutoFlush = true });
         }

@@ -773,12 +773,14 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 
 | 助记符 | 行为 | 默认 |
 |--------|------|------|
-| `JCC_NO_MOUSE_TRACKING` | 强制禁用所有鼠标追踪模式（DEC 1000/1002/1003/1006），恢复终端原生选区 | 未设置=自动适配 |
-| `JCC_FORCE_MOUSE_TRACKING` | 强制启用鼠标追踪模式（hover + 点击进第二屏，选区需 Shift） | 未设置=自动适配 |
+| `JCC_NO_MOUSE_TRACKING` | 禁用鼠标追踪走 OSC 8 模式（终端原生选区 + OSC 8 hover/点击，ctrl+o 进第二屏） | 未设置=启用追踪 |
+| `JCC_FORCE_MOUSE_TRACKING` | 强制启用鼠标追踪（与 NO_MOUSE_TRACKING 互斥，FORCE 优先） | 未设置=启用追踪 |
 | `JCC_NO_HOVER` | 禁用 hover 高亮（Move 事件驱动 / OSC 8 终端原生下划线） | 未设置=启用 hover |
 | `JCC_NO_CLICK_EXPAND` | 禁用点击展开 PromptContextItem 第二屏（仅保留 ctrl+o 键盘入口） | 未设置=启用点击 |
 
-> **自动适配**：OSC 8 支持（Windows Terminal）→ 默认禁用鼠标追踪（原生选区 + OSC 8 hover/点击）；OSC 8 不支持（普通控制台）→ 默认启用鼠标追踪（hover + 点击进第二屏，选区需 Shift）。环境变量覆盖自动适配。
+> **默认行为**：启用鼠标追踪 — 应用内选区高亮（反色叠加，不需要 Shift）+ hover 高亮 + 点击进第二屏。选区高亮渲染在 ReplShell.ApplySelectionHighlight（_view.Render 之后叠加反色到 _back cell 网格）。
+>
+> **OSC 8 备选模式**：`JCC_NO_MOUSE_TRACKING=1` 禁用鼠标追踪 → 终端原生选区 + OSC 8 超链接 hover/点击 + ctrl+o 进第二屏（点击走终端原生打开 .md 文件，不进应用内第二屏）。
 
 > 新增开关时在此表登记，保持词典单一真相源。
 

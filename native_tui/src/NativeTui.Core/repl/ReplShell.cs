@@ -2612,6 +2612,37 @@ public sealed class ReplShell
         return new SelectionScreen(FrontLineAt, _front.Cols, _front.Rows);
     }
 
+    /// <summary>选区高亮叠加（TASK066 C6 补全 — SelectionState.Bounds 投影到 Screen cell 网格做反色）。
+    /// 在 _view.Render 之后、差分上屏之前调用 — 选区几何与 cell 内容都齐备，反色自动 diff 出屏。
+    /// 选区坐标为屏幕网格坐标（0-based），与 _back cell 索引直接对应；Bounds 已 NormalizeBounds（Start ≤ End，End inclusive）。</summary>
+    private void ApplySelectionHighlight(Screen screen, SelectionState selection)
+    {
+        if (selection.Bounds is not { } bounds)
+        {
+            return;
+        }
+
+        var inverseStyle = screen.Styles.GetOrAdd(new TextStyle { Inverse = true });
+        var startRow = Math.Max(0, bounds.Start.Row);
+        var endRow = Math.Min(screen.Rows - 1, bounds.End.Row);
+        for (var row = startRow; row <= endRow; row++)
+        {
+            var colStart = row == bounds.Start.Row ? bounds.Start.Col : 0;
+            var colEnd = row == bounds.End.Row ? bounds.End.Col : screen.Cols - 1;
+            colStart = Math.Max(0, colStart);
+            colEnd = Math.Min(screen.Cols - 1, colEnd);
+            for (var col = colStart; col <= colEnd; col++)
+            {
+                var cell = screen[row, col];
+                if (cell.Width == CellWidth.SpacerTail)
+                {
+                    continue;
+                }
+                screen[row, col] = cell with { StyleId = inverseStyle };
+            }
+        }
+    }
+
     /// <summary>前缓冲行文本（0-based 行 → 定长 Cols 文本；越界行返回空 span —
     /// SelectionScreen.LineAt 约定；鼠标事件低频，逐行分配可接受）。</summary>
     private ReadOnlySpan<char> FrontLineAt(int row)
@@ -4304,6 +4335,7 @@ public sealed class ReplShell
         // 基准 isFullscreen 条件，见 ReplView.ViewportRender）
         _view.ViewportRender = !_inline;
         _view.Render(_back, _theme);
+        ApplySelectionHighlight(_back, _selection);
         if (_inline)
         {
             var viewportRows = _sizeSource.Current.Rows;

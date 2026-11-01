@@ -125,14 +125,16 @@ public partial class GitHubToolHandlers {
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("跳过前 N 行(用于续读截断日志,默认 0)", Required = false)] int? skip_lines = null,
         [McpToolParameter("从第 N 行开始(1-indexed,等价 skip_lines=N-1,用于行号定位跳转)", Required = false)] int? start_line = null,
-        [McpToolParameter("按步骤展开: jobs=列出job列表, steps=按job_id下载日志后列出步骤, failed=只拉失败步骤, failures=跨所有失败job批量提取测试名+错误+栈帧, step:Name=只拉指定步骤", Required = false)] string? expand = null,
+        [McpToolParameter("按步骤展开: jobs=列出job列表, steps=按job_id下载日志后列出步骤, failed=只拉失败步骤(最常用), failures=跨所有失败job批量提取测试名+错误+栈帧, step:Name=只拉指定步骤", Required = false)] string? expand = null,
         [McpToolParameter("日志过滤级别(error/warning/info/all/failed,默认 all=不过滤;failed=智能提取测试失败+Rust风格输出)", Required = false)] string? filter = null,
         [McpToolParameter("强制刷新缓存(默认 false,rerun 后用 true 避免脏数据)", Required = false)] bool? refresh = null,
         [McpToolParameter("web=true 只返回 Run 浏览器 URL", Required = false)] bool? web = null,
         [McpToolParameter("重试次数(可选,查看指定 attempt 的详情)", Required = false)] int? attempt = null,
-        [McpToolParameter("log_failed=true 只拉失败步骤日志(等价于 --expand failed --log,系统 gh CLI --log-failed 缩写)", Required = false)] bool? log_failed = null,
+        [McpToolParameter("log_failed=true 只拉失败步骤日志(等价于 --expand failed --log,系统 gh CLI --log-failed 缩写)。三选项区别: --log_failed=最常用(只拉失败步骤), --filter error=从全部日志过滤错误行, --expand failed=失败job汇总+各job失败步骤日志", Required = false)] bool? log_failed = null,
         [McpToolParameter("错误行上下文行数(默认 5,--log_failed/--filter error 时控制错误行前后上下文行数)", Required = false)] int? context = null,
         [McpToolParameter("跳转到第 N 行附近查看(输出该行前后各 context 行,默认 context=10)", Required = false)] int? around = null,
+        [McpToolParameter("显示全部 job/check(含全部 success,默认 false 时 success 最多显示 5 个)", Required = false)] bool? all = null,
+        [McpToolParameter("每个失败 job 的最大日志行数(可选,--expand failed 时控制每个 job 日志量,默认 maxLines/失败job数)", Required = false)] int? max_lines_per_job = null,
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
@@ -172,7 +174,7 @@ public partial class GitHubToolHandlers {
             return await GhRunViewCoreAsync(
                 new GhRepoCtx { Client = client, Owner = owner, Repo = repoName, Ct = cancellationToken },
                 new GhRunTarget { RunId = resolvedRunId!, JobId = job_id, Attempt = attempt },
-                new GhLogOpts { Log = log, MaxLines = max_lines ?? limit, SkipLines = start_line.HasValue ? start_line.Value - 1 : skip_lines, Expand = expand, Filter = filter, Refresh = refresh, Verbosity = common?.Verbosity, Context = context, Around = around }
+                new GhLogOpts { Log = log, MaxLines = max_lines ?? limit, SkipLines = start_line.HasValue ? start_line.Value - 1 : skip_lines, Expand = expand, Filter = filter, Refresh = refresh, Verbosity = common?.Verbosity, Context = context, Around = around, All = all, MaxLinesPerJob = max_lines_per_job }
             ).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
@@ -369,6 +371,10 @@ public partial class GitHubToolHandlers {
         public int? Context { get; init; }
         /// <summary>跳转到第 N 行附近查看(输出该行前后各 context 行,默认 context=10)</summary>
         public int? Around { get; init; }
+        /// <summary>显示全部 job/check(含全部 success,默认 false 时;success 最多显示 5 个)</summary>
+        public bool? All { get; init; }
+        /// <summary>每个失败 job 的最大日志行数(--expand failed 时控制每个 job 日志量)</summary>
+        public int? MaxLinesPerJob { get; init; }
     }
 
     /// <summary>
@@ -398,7 +404,7 @@ public partial class GitHubToolHandlers {
         // === expand=jobs: 列出 job 列表(走 LSM 缓存,不下载日志) ===
         if (string.Equals(opts.Expand, "jobs", StringComparison.OrdinalIgnoreCase)) {
             var (jobs, timeoutIds) = await GetJobsWithTimeoutIdsAsync(repo.Owner, repo.Repo, target.RunId, wantRefresh, repo.Ct).ConfigureAwait(false);
-            return GitHubRunLogFetcher.FormatJobsList(jobs, target.RunId, timeoutIds);
+            return GitHubRunLogFetcher.FormatJobsList(jobs, target.RunId, timeoutIds, opts.All == true);
         }
 
         // === filter=failed: 智能过滤测试失败(状态机提取 Failed+Error+StackTrace,Rust 风格输出) ===
@@ -421,7 +427,7 @@ public partial class GitHubToolHandlers {
             if (timeoutIds.Count > 0)
                 sb.Append($"\n\n⏱ 超时 job 排查(共 {timeoutIds.Count} 个): 超过 timeout-minutes 上限被 GitHub 强制取消,非手动取消(依据 check-run annotation)。用 expand=steps job_id=<超时job的ID> 看步骤日志尾部: 日志停在半截=挂死(死锁/CPU无限自旋,查被测代码防御);日志持续推进到接近上限=纯慢(拆分任务或提高 timeout)");
 
-            var perJobMaxLines = Math.Max(maxLines / failedJobs.Count, 50);
+            var perJobMaxLines = opts.MaxLinesPerJob ?? Math.Max(maxLines / failedJobs.Count, 50);
             // 并行拉取各失败 job 日志(对齐 expand=failures 的 Semaphore+并行模式,避免串行逐个 await)
             var failConcurrency = Math.Min(failedJobs.Count, GitHubRunLogFilterRunner.GetMaxConcurrency());
             using var failSemaphore = new SemaphoreSlim(failConcurrency);

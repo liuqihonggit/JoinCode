@@ -254,11 +254,12 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("有失败立即标记(可选)", Required = false)] bool? fail_fast = null,
         [McpToolParameter("最大显示 check 数量(可选,默认全部,pass 最多 5)", Required = false)] int? limit = null,
         [McpToolParameter("强制刷新缓存(默认 false,绕过 detail TTL 直拉最新 check-runs — 状态冻结/已 rerun 时用)", Required = false)] bool? refresh = null,
+        [McpToolParameter("显示全部 check(含全部 pass,默认 false 时 pass 最多显示 5 个)", Required = false)] bool? all = null,
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             if (watch == true) return await GhPrChecksWatchAsync(client, owner, repoName, pr_number, interval, fail_fast, required, limit, cancellationToken).ConfigureAwait(false);
-            return await GhPrChecksCoreAsync(client, owner, repoName, pr_number, fail_fast, required, common?.JsonFields, limit, refresh == true, cancellationToken).ConfigureAwait(false);
+            return await GhPrChecksCoreAsync(client, owner, repoName, pr_number, fail_fast, required, common?.JsonFields, limit, refresh == true, all == true, cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -272,7 +273,7 @@ public partial class GitHubToolHandlers {
         try {
             for (var i = 0; i < 120; i++) {
                 // 每轮强制 evict（双保险：tracker.CacheDisabled 依赖 AsyncLocal 存在，直调/无 tracker 场景由此兜底）
-                var checkResult = await GhPrChecksCoreAsync(client, owner, repoName, prNumber, failFast, required, null, limit, forceRefresh: true, ct).ConfigureAwait(false);
+                var checkResult = await GhPrChecksCoreAsync(client, owner, repoName, prNumber, failFast, required, null, limit, forceRefresh: true, all: false, ct).ConfigureAwait(false);
                 if (checkResult.IsError) return checkResult;
                 var text = checkResult.GetFirstText() ?? "";
                 // 汇总行由 Core 唯一构造（"汇总: N 通过, N 失败, N 警告, N 进行中, N 跳过"）——
@@ -367,7 +368,7 @@ public partial class GitHubToolHandlers {
     /// GhPrChecks 核心逻辑 — 调 REST API 获取 check-runs,正确处理 skipping 语义(非失败),支持 required 过滤和 fail-fast 标记
     /// </summary>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    private async Task<ToolResult> GhPrChecksCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, bool? failFast, bool? required, string? json_fields, int? limit, bool forceRefresh = false, CancellationToken ct = default) {
+    private async Task<ToolResult> GhPrChecksCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, bool? failFast, bool? required, string? json_fields, int? limit, bool forceRefresh = false, bool all = false, CancellationToken ct = default) {
         var number = ParseNumberFromRef(prNumber);
         if (forceRefresh && _cacheService is { } cache) {
             await cache.EvictApiAsync($"repos/{owner}/{repoName}/pulls/{number}", null, ct).ConfigureAwait(false);
@@ -425,6 +426,7 @@ public partial class GitHubToolHandlers {
         sb.Append($"汇总: {passCount} 通过, {failCount} 失败, {warnCount} 警告, {pendingCount} 进行中, {skipCount} 跳过(依赖链跳过,非失败)");
         if (failFast == true && failCount > 0) sb.Append("\n⚠ fail-fast: 检测到失败");
         const int maxPassDisplay = 5;
+        var effectiveMaxPass = all ? int.MaxValue : maxPassDisplay;
         var maxLimit = limit is > 0 ? limit.Value : int.MaxValue;
         var ordered = checks
             .OrderBy(c => c.severity.SortKey())
@@ -435,7 +437,7 @@ public partial class GitHubToolHandlers {
         var omittedByLimit = 0;
         foreach (var (name, severity) in ordered) {
             if (displayedTotal >= maxLimit) { omittedByLimit++; continue; }
-            if (severity == CiJobSeverity.Success && displayedPass >= maxPassDisplay) { omittedByLimit++; continue; }
+            if (severity == CiJobSeverity.Success && displayedPass >= effectiveMaxPass) { omittedByLimit++; continue; }
             sb.Append($"\n{name}\t{severity.ToDisplayShort()}");
             displayedTotal++;
             if (severity == CiJobSeverity.Success) displayedPass++;
@@ -448,6 +450,9 @@ public partial class GitHubToolHandlers {
         // 优化E: 有失败 job 时自动附加排障命令提示,引导 AI 直接拉失败日志而非翻页
         if (failCount > 0 && !string.IsNullOrEmpty(headRef))
             sb.Append($"\n\n💡 排障建议:\njcc gh run list --branch {headRef} --limit 1  → 找到最新 run ID\njcc gh run view <run_id> --log_failed  → 直接拉失败步骤日志(智能定位错误行)");
+        // pending 引导: CI 还在跑时提示 AI 等待后刷新
+        if (pendingCount > 0 && failCount == 0)
+            sb.Append($"\n\n⏳ {pendingCount} 个 check 仍在运行,建议过 30s 后用 --refresh 再查: jcc gh pr checks {prNumber} --refresh");
         return Ok(sb.ToString());
     }
 

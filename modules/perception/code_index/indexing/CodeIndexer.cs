@@ -30,6 +30,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     private int _disposed;
     private int _autoLoadState;
     private string? _autoDiscoveredWorkspaceRoot;
+    private volatile bool _embeddingLazyInitialized;
+    private readonly object _embeddingInitLock = new();
     private static readonly string AutoLoadSubDir = Path.Combine(AppDataConstants.AppDataFolder, "code-index");
 
     /// <summary>
@@ -63,7 +65,6 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         _factory = leaseFactory;
         _persistence = new GraphPersistence(store, leaseFactory);
         _visualization = new GraphVisualization(store);
-        TryInitEmbeddingIndex(fs, logger);
         BuildIndexStoreList();
     }
 
@@ -73,6 +74,21 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     private void BuildIndexStoreList() {
         _indexStores = [_persistence];
         if (_embeddingIndex is not null) _indexStores.Add(_embeddingIndex);
+    }
+
+    /// <summary>
+    /// 懒初始化向量索引 — 首次使用向量搜索/索引时才加载 ONNX 模型（启动开销优化）。
+    /// <para>构造函数不再调用 TryInitEmbeddingIndex，避免 jcc gh 等不需要向量搜索的命令承担 ~1s ONNX 加载开销。</para>
+    /// <para>线程安全：volatile 标志 + lock 双检查，确保只初始化一次。</para>
+    /// </summary>
+    private void EnsureEmbeddingIndexLazy() {
+        if (_embeddingLazyInitialized) return;
+        lock (_embeddingInitLock) {
+            if (_embeddingLazyInitialized) return;
+            TryInitEmbeddingIndex(_fs, _logger);
+            BuildIndexStoreList();
+            _embeddingLazyInitialized = true;
+        }
     }
 
     /// <summary>
@@ -125,6 +141,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// </summary>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     public async Task EnsureEmbeddingModelAsync(CancellationToken ct = default) {
+        EnsureEmbeddingIndexLazy();
         if (_embeddingIndex is not null) return;
         if (_httpClient is null) return;
         try {
@@ -158,6 +175,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     public void SetEmbeddingIndex(EmbeddingIndex embeddingIndex) {
         ArgumentNullException.ThrowIfNull(embeddingIndex);
         _embeddingIndex = embeddingIndex;
+        _embeddingLazyInitialized = true;
+        BuildIndexStoreList();
     }
 
     /// <summary>
@@ -172,6 +191,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <returns>匹配的代码块列表，按相似度降序排列。</returns>
     public async Task<IReadOnlyList<ChunkSearchResult>> SearchSemanticAsync(
         string query, int topK, CancellationToken ct, SearchOptions? options = null) {
+        EnsureEmbeddingIndexLazy();
         if (_embeddingIndex is null) return [];
         return await _embeddingIndex.SearchAsync(query, topK, ct, options).ConfigureAwait(false);
     }
@@ -207,6 +227,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     public async Task<BuildIndexResult> BuildIndexAsync(CodeIndexOptions options, CancellationToken ct, IProgress<IndexProgress>? progress = null) {
         ArgumentNullException.ThrowIfNull(options);
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
+        EnsureEmbeddingIndexLazy();
 
         var totalSw = Stopwatch.StartNew();
         var phaseSw = Stopwatch.StartNew();
@@ -471,6 +492,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     public async Task UpdateFileAsync(string filePath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(filePath);
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
+        EnsureEmbeddingIndexLazy();
 
         var result = await _updater.UpdateAsync(filePath, ct).ConfigureAwait(false);
         await InvalidateGraphCachesForFileAsync(filePath, ct).ConfigureAwait(false);

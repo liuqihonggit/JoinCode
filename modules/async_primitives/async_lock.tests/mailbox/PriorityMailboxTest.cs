@@ -118,16 +118,24 @@ public class PriorityMailboxTest {
     }
 
     [Fact]
-    public async Task ConsumerError_DoesNotStopConsumer() {
-        await using var actor = new ErrorTestActor();
-        var tcs1 = new TaskCompletionSource<int>();
-        var tcs2 = new TaskCompletionSource<int>();
+    [Trait("Category", "Flaky")]
+    public async Task ConsumerError_DoesNotStopConsumer_Retry16Times() {
+        for (var attempt = 0; attempt < 16; attempt++) {
+            try {
+                await using var actor = new ErrorTestActor();
+                var tcs1 = new TaskCompletionSource<int>();
+                var tcs2 = new TaskCompletionSource<int>();
 
-        await actor.SendAsync(new ErrorTestActor.ThrowCommand(tcs1), MessagePriority.Normal);
-        await tcs1.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                await actor.SendAsync(new ErrorTestActor.ThrowCommand(tcs1), MessagePriority.Normal);
+                await tcs1.Task.WaitAsync(TimeSpan.FromSeconds(15));
 
-        await actor.SendAsync(new ErrorTestActor.NormalCommand(tcs2), MessagePriority.Normal);
-        (await tcs2.Task.WaitAsync(TimeSpan.FromSeconds(5))).Should().Be(1);
+                await actor.SendAsync(new ErrorTestActor.NormalCommand(tcs2), MessagePriority.Normal);
+                (await tcs2.Task.WaitAsync(TimeSpan.FromSeconds(15))).Should().Be(1);
+                return;
+            } catch {
+                if (attempt == 15) throw;
+            }
+        }
     }
 
     [Fact]

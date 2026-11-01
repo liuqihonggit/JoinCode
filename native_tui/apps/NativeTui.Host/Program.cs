@@ -272,7 +272,10 @@ public static class Program {
         var startupLines = new List<string>();
         void WriteStartupLine(string line)
         {
-            startupLines.Add(line);
+            foreach (var part in line.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
+            {
+                startupLines.Add(part);
+            }
         }
 
         WriteStartupLine("引擎启动中…");

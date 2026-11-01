@@ -14,7 +14,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Win32.SystemEvents" Version="9.0.0" />
+    <ProjectReference Include="$(RepoRoot)test/mock/mock_server.core/MockServer.Core.csproj" />
   </ItemGroup>
 
 </Project>

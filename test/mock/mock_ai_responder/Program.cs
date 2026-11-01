@@ -23,18 +23,16 @@ internal static class Program {
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
-        // 睡眠/唤醒自动恢复 — 唤醒后取消卡住的 HTTP 请求，重建 HttpClient
+        // 睡眠/唤醒自动恢复 — 通用 SleepWakeMonitor，唤醒后取消卡住的 HTTP 请求，重建 HttpClient
         var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
         var resumeCts = new CancellationTokenSource();
         var resumeRequested = false;
 
-        if (OperatingSystem.IsWindows()) {
-            RegisterPowerResumeHandler(() => {
-                Console.WriteLine("[Responder] 检测到系统唤醒，重建连接...");
-                resumeRequested = true;
-                resumeCts.Cancel();
-            });
-        }
+        MockServer.Core.SleepWakeMonitor.OnResume(() => {
+            Console.WriteLine("[Responder] 检测到系统唤醒，重建连接...");
+            resumeRequested = true;
+            resumeCts.Cancel();
+        });
 
         while (!cts.Token.IsCancellationRequested) {
             try {
@@ -92,13 +90,5 @@ internal static class Program {
             if (args[i] == name) return args[i + 1];
         }
         return defaultValue;
-    }
-
-    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
-    private static void RegisterPowerResumeHandler(Action onResume) {
-        Microsoft.Win32.SystemEvents.PowerModeChanged += (_, e) => {
-            if (e.Mode == Microsoft.Win32.PowerModes.Resume)
-                onResume();
-        };
     }
 }

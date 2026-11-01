@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.Win32.SystemEvents" Version="9.0.0" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/services/update/Update.csproj" />
   </ItemGroup>

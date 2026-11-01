@@ -32,6 +32,11 @@ public sealed class Program {
             };
             await server.StartAsync().ConfigureAwait(true);
 
+            // 睡眠/唤醒监控 — 通用 SleepWakeMonitor，唤醒后检查 Kestrel 健康
+            global::MockServer.Core.SleepWakeMonitor.OnResume(() => {
+                LogMain("[OpenAI.MockServer] 检测到系统唤醒，Kestrel 自动恢复中...");
+            });
+
             LogMain($"[OpenAI.MockServer] Server started, URL={server.Url}, waiting for requests...");
 
             ShutdownEvent.Wait(TimeSpan.FromMinutes(30));

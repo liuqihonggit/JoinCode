@@ -303,6 +303,7 @@ public sealed class ReplShell
     private readonly Func<(string Text, int Total, int System)>? _promptContextInventory;
 
     /// <summary>注入快照文件 file URL（OSC 8 链接目标 — null = 未写文件/不支持）。</summary>
+    private readonly string? _promptContextFileUrl;
 
     /// <summary>bash 直通完成结果缓冲（S10 接线 — ExecuteAsync 完成于线程池线程，AddMessage 必须回主循环线程
     /// （与渲染循环竞争 _view.Messages），复用 /clear 的跨线程缓冲 + 主循环消费先例）。</summary>
@@ -682,6 +683,7 @@ public sealed class ReplShell
         int shellTimeoutSeconds = 120,
         string? promptContextSnapshot = null,
         Func<(string Text, int Total, int System)>? promptContextInventory = null,
+        string? promptContextFileUrl = null,
 
         AlternateScreenController? alternateScreen = null,
         SelectionState? selection = null,
@@ -705,6 +707,7 @@ public sealed class ReplShell
         _seedMessages = seedMessages ?? [];
         _promptContextSnapshot = promptContextSnapshot;
         _promptContextInventory = promptContextInventory;
+        _promptContextFileUrl = promptContextFileUrl;
         _commandUsage = commandUsage ?? new CommandUsageMemory();
         // S10 接线 — 分组注入：空查询 "/" 走 recently-used + 来源分组视图（有查询仍走既有匹配排序）
         _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands, new CommandGrouping(_commandUsage)) : null;
@@ -882,7 +885,8 @@ public sealed class ReplShell
         {
             _promptContextItem = new PromptContextItem(
                 $"📎 首次注入 · 系统提示词 {_promptContextSnapshot.Length} 字符",
-                _promptContextSnapshot.Length);
+                _promptContextSnapshot.Length,
+                _promptContextFileUrl);
             _view.Messages.Add(_promptContextItem);
             _driver.PromptContextItemTarget = _promptContextItem;
         }

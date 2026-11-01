@@ -3,10 +3,12 @@ namespace NativeTui.Core.Repl;
 /// <summary>
 /// 注入上下文折叠项（TASK079 用户终版指令 — 首次注入的提示词在 TUI 可见可查看）：
 /// 塌缩单行摘要（📎 首次注入 · 系统提示词 N 字符 · 点击展开）。
-/// 鼠标左键点击 → ReplShell.TryDispatchHitTestClick 分派 → TogglePromptContext
-/// → 进入 transcript 备用屏（DEC 1049 第二屏）查看全文，esc 退出回主屏。
-/// ⚠ 此项**不得**渲染 OSC 8 超链接 — 终端拦截超链接点击打开外部程序，
-/// 鼠标事件到不了应用命中表（用户实测）。摘要行统计由 TokenUsage 回填真实 prompt tokens。
+/// 双模式渲染：
+/// ① OSC 8 超链接模式（FileUrl 非 null）— 终端原生 hover 下划线高亮 + 点击用默认编辑器打开 .md 快照；
+///   不依赖鼠标追踪模式，终端原生选区不受影响。ctrl+o 键盘入口进应用内第二屏。
+/// ② 应用内命中模式（FileUrl null）— 鼠标左键点击经 ReplShell.TryDispatchHitTestClick 分派 →
+///   TogglePromptContext → transcript 备用屏（DEC 1049）；hover 高亮经 Move 事件 + IsHovered（需鼠标追踪）。
+/// 摘要行统计由 TokenUsage 回填真实 prompt tokens。
 /// </summary>
 public sealed class PromptContextItem : IScrollItem
 {
@@ -25,15 +27,19 @@ public sealed class PromptContextItem : IScrollItem
     /// <summary>展开态（transcript 模态内查看全文 — /prompt 置位）。</summary>
     public bool Expanded { get; set; }
 
-    /// <summary>鼠标悬停态（TASK077 — hover 高亮：Move 事件经 HitTest 查询置位，渲染时切换样式）。</summary>
+    /// <summary>鼠标悬停态（应用内命中模式 — Move 事件经 HitTest 查询置位，渲染时切换样式；OSC 8 模式不用）。</summary>
     public bool IsHovered { get; set; }
 
     /// <summary>展开内容（系统提示词全文 + 工具清单 — ReplShell 注入；null = 未注入回退摘要）。</summary>
     public string? ExpandedContent { get; set; }
 
-    public PromptContextItem(string summaryPrefix, int promptChars)
+    /// <summary>OSC 8 超链接目标 URL（file:// 指向 .md 快照 — null = 应用内命中模式）。</summary>
+    public string? FileUrl { get; }
+
+    public PromptContextItem(string summaryPrefix, int promptChars, string? fileUrl = null)
     {
         PromptChars = promptChars;
+        FileUrl = fileUrl;
     }
 
     /// <summary>命中标识 — 非空即参与鼠标单击命中（左键进 transcript 备用屏）。</summary>
@@ -42,12 +48,20 @@ public sealed class PromptContextItem : IScrollItem
     /// <summary>塌缩单行摘要（1 行）。</summary>
     public int MeasureHeight(int width) => 1;
 
-    /// <summary>渲染摘要行（hover 时正常亮度+下划线，非 hover 时 dim 纯文本 — 无 OSC 8 无 SetLinks，点击直达应用命中表）。</summary>
+    /// <summary>渲染摘要行。
+    /// OSC 8 模式（FileUrl 非 null）：写文本 + SetLinks 整行链接区间 — 终端原生 hover 下划线 + 点击打开 .md。
+    /// 应用内命中模式（FileUrl null）：hover 时正常亮度+下划线，非 hover 时 dim 纯文本 — 点击直达应用命中表。</summary>
     public void Render(Screen screen, Rect frame, Theme theme)
     {
         var tokenNote = PromptTokens is { } tokens ? $" · 约 {tokens} tokens" : string.Empty;
         var text = $"📎 首次注入 · 系统提示词 {PromptChars} 字符{tokenNote} · 点击展开";
-        if (IsHovered)
+        if (FileUrl is { Length: > 0 } url)
+        {
+            var style = screen.Styles.GetOrAdd(new TextStyle { Underline = true });
+            screen.WriteText(frame.Y, frame.X, text, style, frame.Right);
+            screen.SetLinks(frame.Y, [new LinkSpan(frame.X, frame.X + text.Length, url)]);
+        }
+        else if (IsHovered)
         {
             var hoverStyle = screen.Styles.GetOrAdd(new TextStyle { Underline = true });
             screen.WriteText(frame.Y, frame.X, text, hoverStyle, frame.Right);

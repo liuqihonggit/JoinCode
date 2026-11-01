@@ -483,6 +483,7 @@ var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
                     shellTimeoutSeconds: shellExecutionConfig?.AbsoluteTimeoutSeconds ?? 120,
                     promptContextSnapshot: promptSnapshotBuilder.Value,
                     promptContextInventory: () => toolInventoryCache.Value,
+                    promptContextFileUrl: promptFileUrl,
                     clipboard: text => _ = clipboardService?.SetTextAsync(text),
                     themeName: themeName,
                     commandUsage: commandUsage,

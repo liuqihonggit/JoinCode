@@ -80,7 +80,11 @@ public sealed class EngineApplicationBuilder {
                 if (loggerProvider is not null)
                     logging.AddProvider(loggerProvider);
                 else
-                    logging.AddConsole(consoleOptions => { consoleOptions.FormatterName = "simple"; });
+                    // Bug 13 修复：AddConsole 默认写 stdout，污染 JSON 输出。设 LogToStandardErrorThreshold=Trace 使全部日志走 stderr
+                    logging.AddConsole(consoleOptions => {
+                        consoleOptions.FormatterName = "simple";
+                        consoleOptions.LogToStandardErrorThreshold = LogLevel.Trace;
+                    });
 
                 var minLevelStr = Environment.GetEnvironmentVariable("JCC_LOG_LEVEL");
                 var minLevel = minLevelStr switch {

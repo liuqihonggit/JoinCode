@@ -69,7 +69,7 @@ public static class ApplicationBuilder {
     /// <returns>已注册 Guard 服务及依赖的 ServiceProvider（调用方负责 Dispose）</returns>
     internal static ServiceProvider BuildBridgeGuardServices(IFileSystem fs) {
         var services = new ServiceCollection();
-        services.AddLogging(b => b.AddConsole());
+        services.AddLogging(b => b.AddConsole(o => o.LogToStandardErrorThreshold = LogLevel.Trace));
         services.AddSingleton(fs);
 
         // ConfigurationService — 依赖 IFileSystem（已注册）

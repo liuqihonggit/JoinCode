@@ -11,7 +11,6 @@ internal static class Program {
         var pollMs = int.Parse(ParseArg(args, "--poll-ms", "100"));
         var pollInterval = TimeSpan.FromMilliseconds(pollMs);
 
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
         var jsonOpts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
         var lastSeenIndex = -1;
 
@@ -24,9 +23,21 @@ internal static class Program {
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 
+        // 睡眠/唤醒自动恢复 — 通用 SleepWakeMonitor，唤醒后取消卡住的 HTTP 请求，重建 HttpClient
+        var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        var resumeCts = new CancellationTokenSource();
+        var resumeRequested = false;
+
+        MockServer.Core.SleepWakeMonitor.OnResume(() => {
+            Console.WriteLine("[Responder] 检测到系统唤醒，重建连接...");
+            resumeRequested = true;
+            resumeCts.Cancel();
+        });
+
         while (!cts.Token.IsCancellationRequested) {
             try {
-                var requests = await http.GetFromJsonAsync<List<CapturedRequestDto>>($"{controlUrl}/requests", jsonOpts, cts.Token);
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, resumeCts.Token);
+                var requests = await http.GetFromJsonAsync<List<CapturedRequestDto>>($"{controlUrl}/requests", jsonOpts, linked.Token);
                 if (requests is null) continue;
 
                 var newRequests = requests.Where(r => r.Index > lastSeenIndex).OrderBy(r => r.Index).ToList();
@@ -37,7 +48,7 @@ internal static class Program {
                     var payload = JsonSerializer.Serialize(response, jsonOpts);
 
                     await http.PostAsync($"{controlUrl}/inject",
-                        new StringContent(payload, Encoding.UTF8, "application/json"), cts.Token);
+                        new StringContent(payload, Encoding.UTF8, "application/json"), linked.Token);
 
                     var userMsg = IntentMatcher.ExtractLastUserMessage(req.Body);
                     var preview = userMsg.Length > 80 ? userMsg[..80] + "..." : userMsg;
@@ -45,6 +56,16 @@ internal static class Program {
                     Console.WriteLine($"[#{req.Index}] 回应: {description}");
                     Console.WriteLine();
                 }
+            } catch (OperationCanceledException) when (resumeRequested && !cts.Token.IsCancellationRequested) {
+                // 系统唤醒 — 重建 HttpClient（旧连接池有坏连接），重置状态
+                http.Dispose();
+                http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+                resumeCts.Dispose();
+                resumeCts = new CancellationTokenSource();
+                resumeRequested = false;
+                lastSeenIndex = -1;
+                Console.WriteLine("[Responder] 连接已重建，继续轮询...");
+                continue;
             } catch (OperationCanceledException) {
                 break;
             } catch (HttpRequestException ex) {
@@ -59,6 +80,8 @@ internal static class Program {
             }
         }
 
+        http.Dispose();
+        resumeCts.Dispose();
         Console.WriteLine("[Responder] 已退出。");
     }
 

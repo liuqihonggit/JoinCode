@@ -301,4 +301,48 @@ public sealed class CliOutputEnvelopeTests {
         kindString.Should().Be(expected);
         kindString.Should().NotBeNullOrEmpty("BUG-1 修复: kind 来自 t.Kind.ToString() 而非硬编码空字符串");
     }
+
+    // ===== BUG-10 回归测试: --await 超时时 JSON 模式应输出结构化错误信封 =====
+
+    /// <summary>
+    /// Bug 10 回归: --await 超时时 JSON 模式应输出结构化错误信封到 stdout。
+    /// 修复前 Environment.Exit 直接退出，JSON 模式消费者收不到任何输出。
+    /// 修复后 StartAwaitTimer 在 Environment.Exit 前写 CliOutputEnvelope.Fail 到 stdout。
+    /// </summary>
+    [Fact]
+    public void Fail_AwaitTimeout_ShouldSerializeTimeoutAwaitDiagnosticError() {
+        var error = CliErrorCatalog.TimeoutAwaitDiagnostic(10);
+        var json = CliOutputEnvelope.Fail(error).ToString();
+
+        json.Should().Contain("\"ok\":false");
+        json.Should().Contain("\"code\":\"TIMEOUT_AWAIT_DIAGNOSTIC\"");
+        json.Should().Contain("\"message\":\"--await 10s 诊断超时，进程强制退出\"");
+        json.Should().Contain("\"retryable\":true");
+    }
+
+    /// <summary>
+    /// Bug 10 回归: 超时错误信封不应包含 data 字段（Fail 路径 Data 为 null）。
+    /// </summary>
+    [Fact]
+    public void Fail_AwaitTimeout_ShouldNotContainDataField() {
+        var error = CliErrorCatalog.TimeoutAwaitDiagnostic(30);
+        var json = CliOutputEnvelope.Fail(error).ToString();
+
+        json.Should().NotContain("\"data\"");
+        json.Should().Contain("\"ok\":false");
+    }
+
+    /// <summary>
+    /// Bug 10 回归: 不同超时秒数应反映在错误消息中。
+    /// </summary>
+    [Theory]
+    [InlineData(5)]
+    [InlineData(60)]
+    [InlineData(300)]
+    public void Fail_AwaitTimeout_ShouldReflectSecondsInMessage(int seconds) {
+        var error = CliErrorCatalog.TimeoutAwaitDiagnostic(seconds);
+        var json = CliOutputEnvelope.Fail(error).ToString();
+
+        json.Should().Contain($"--await {seconds}s");
+    }
 }

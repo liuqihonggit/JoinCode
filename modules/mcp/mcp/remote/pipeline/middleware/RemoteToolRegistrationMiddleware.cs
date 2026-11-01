@@ -44,7 +44,7 @@ public sealed partial class RemoteToolRegistrationMiddleware : ServiceEntity, IR
                 })
                 .ToList();
 
-            await Task.WhenAll(toolItems.Select(item => _toolRegistry.RegisterToolAsync(item.Handler, ct))).ConfigureAwait(false);
+            await _toolRegistry.RegisterToolsBatchAsync(toolItems.Select(item => item.Handler).ToList(), ct).ConfigureAwait(false);
 
             var newSpecs = ctx.ToolsResult.GetData()
                 .Select(t => new ToolSpec(

@@ -71,6 +71,8 @@ class Program {
             if (options.ShowHelp) { App.Builder.ApplicationBuilder.ShowHelp(GetHelpTopic(args)); return 0; }
             if (options.ShowVersion) { App.Builder.ApplicationBuilder.ShowVersion(); return 0; }
 
+            // 早期超时计时器已完成使命（子命令路由已过），主路径计时器接管 — 避免双重超时输出
+            earlyAwaitTimer?.Dispose();
             await using var awaitTimer = StartAwaitTimer(options, options.IsJsonMode, logger);
 
             var fs = IO.FileSystem.FileSystemFactory.Create();

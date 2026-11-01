@@ -131,6 +131,8 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("web=true 只返回 Run 浏览器 URL", Required = false)] bool? web = null,
         [McpToolParameter("重试次数(可选,查看指定 attempt 的详情)", Required = false)] int? attempt = null,
         [McpToolParameter("log_failed=true 只拉失败步骤日志(等价于 --expand failed --log,系统 gh CLI --log-failed 缩写)", Required = false)] bool? log_failed = null,
+        [McpToolParameter("错误行上下文行数(默认 5,--log_failed/--filter error 时控制错误行前后上下文行数)", Required = false)] int? context = null,
+        [McpToolParameter("跳转到第 N 行附近查看(输出该行前后各 context 行,默认 context=10)", Required = false)] int? around = null,
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
@@ -170,7 +172,7 @@ public partial class GitHubToolHandlers {
             return await GhRunViewCoreAsync(
                 new GhRepoCtx { Client = client, Owner = owner, Repo = repoName, Ct = cancellationToken },
                 new GhRunTarget { RunId = resolvedRunId!, JobId = job_id, Attempt = attempt },
-                new GhLogOpts { Log = log, MaxLines = max_lines ?? limit, SkipLines = start_line.HasValue ? start_line.Value - 1 : skip_lines, Expand = expand, Filter = filter, Refresh = refresh, Verbosity = common?.Verbosity }
+                new GhLogOpts { Log = log, MaxLines = max_lines ?? limit, SkipLines = start_line.HasValue ? start_line.Value - 1 : skip_lines, Expand = expand, Filter = filter, Refresh = refresh, Verbosity = common?.Verbosity, Context = context, Around = around }
             ).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
@@ -363,6 +365,10 @@ public partial class GitHubToolHandlers {
         public bool? Refresh { get; init; }
         /// <summary>输出档位(0=gh风格[默认] 1=精简JSON 2=完整JSON)</summary>
         public int? Verbosity { get; init; }
+        /// <summary>错误行上下文行数(默认 5,--log_failed/--filter error 时控制错误行前后上下文行数)</summary>
+        public int? Context { get; init; }
+        /// <summary>跳转到第 N 行附近查看(输出该行前后各 context 行,默认 context=10)</summary>
+        public int? Around { get; init; }
     }
 
     /// <summary>
@@ -372,6 +378,12 @@ public partial class GitHubToolHandlers {
         var maxLines = opts.MaxLines ?? 200;
         var skip = opts.SkipLines ?? 0;
         var wantRefresh = opts.Refresh == true;
+        // --around N: 跳转到第 N 行附近,输出前后各 context 行(默认 context=10)
+        if (opts.Around is int aroundLine && aroundLine > 0) {
+            var aroundContext = opts.Context ?? 10;
+            skip = Math.Max(0, aroundLine - aroundContext - 1);
+            maxLines = aroundContext * 2 + 1;
+        }
         // MCP 框架可能把缺失的 string? 参数传成空字符串,统一归一化为 null
         var job_id = string.IsNullOrWhiteSpace(target.JobId) ? null : target.JobId;
         var hasFilter = GitHubRunLogFilter.TryParseLogFilter(opts.Filter, out var filterLevel) && filterLevel != GitHubLogFilter.None;
@@ -419,7 +431,7 @@ public partial class GitHubToolHandlers {
                     var jobResult = await StreamAndFilterAsync(
                         repo.Owner, repo.Repo, target.RunId, job.Id.ToString(),
                         false, $"失败步骤({job.Name})", markers, filterLevel,
-                        perJobMaxLines, repo.Ct, null, skip, wantRefresh, forceSmartStart: true).ConfigureAwait(false);
+                        perJobMaxLines, repo.Ct, null, skip, wantRefresh, forceSmartStart: true, contextOverride: opts.Context).ConfigureAwait(false);
                     var jobText = jobResult.Content.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? "";
                     return (job, jobText);
                 } finally {
@@ -453,7 +465,7 @@ public partial class GitHubToolHandlers {
 
         if (wantLog) {
             // log=true: 用 REST API 日志流 + 过滤/分页
-            var logResult = await StreamAndFilterAsync(repo.Owner, repo.Repo, target.RunId, job_id, false, "日志", markers, filterLevel, maxLines, repo.Ct, GitHubRunLogHints.LogHint, skip, wantRefresh).ConfigureAwait(false);
+            var logResult = await StreamAndFilterAsync(repo.Owner, repo.Repo, target.RunId, job_id, false, "日志", markers, filterLevel, maxLines, repo.Ct, GitHubRunLogHints.LogHint, skip, wantRefresh, contextOverride: opts.Context).ConfigureAwait(false);
             // read_offset 模式: 行号已由 StreamAndFilterAsync 内部添加,直接返回
             return logResult;
         }
@@ -873,8 +885,8 @@ public partial class GitHubToolHandlers {
         string owner, string repo, string runId, string? jobId, bool failedOnly,
         string scope, FrozenSet<string>? markers, GitHubLogFilter? filterLevel,
         int maxLines, CancellationToken ct, string? hint = null, int skipLines = 0, bool wantRefresh = false,
-        bool forceSmartStart = false)
-        => LogFilterRunner.StreamAndFilterAsync(owner, repo, runId, jobId, failedOnly, scope, markers, filterLevel, maxLines, ct, hint, skipLines, wantRefresh, forceSmartStart);
+        bool forceSmartStart = false, int? contextOverride = null)
+        => LogFilterRunner.StreamAndFilterAsync(owner, repo, runId, jobId, failedOnly, scope, markers, filterLevel, maxLines, ct, hint, skipLines, wantRefresh, forceSmartStart, contextOverride);
 
     /// <summary>
     /// 统一日志流入口 — 委托给 LogFilterRunner.GetLogStreamAsync(架构统一: 先入库 LSM 缓存再 yield)

@@ -66,6 +66,12 @@ public sealed class StartupContext {
     public long? ElapsedMs { get; set; }
 
     /// <summary>
+    /// 结构化错误 — 由中间件（ExecuteStep/SessionResumeStep 等）在捕获异常或管道内错误时设置，
+    /// NonInteractiveModeRunner 最终输出统一 JSON 信封时读取，同时包含 data 和 error 字段（Bug 16 统一格式）
+    /// </summary>
+    public Cli.Output.CliStructuredError? StructuredError { get; set; }
+
+    /// <summary>
     /// 用户在启动时选择要 dump 的调试信息类别 — 由 DebugDumpPromptStep 设置，由 InitDebugDumpStep 消费
     /// 决策: 位标志枚举而非 bool，支持用户选择组合（如 Init+Prompt）
     /// 决策: 询问放在 WorkspaceTrustStep 之后（用户要求），dump 放在 SystemPromptApplyStep 之后（确保 system prompt 已应用）

@@ -34,15 +34,10 @@ internal static class NonInteractiveModeRunner {
             .Use(sp.GetRequiredService<NonInteractiveExitCleanupStep>())
             .OnError((ctx, ex) => {
                 Diag.WriteLine($"[RUN] OnError: {ex.GetType().Name}: {ex.Message}");
-                if (ctx.OutputContract is not null) {
-                    var error = new Cli.Output.CliStructuredError(
-                        "RUNTIME_ERROR", ex.Message,
-                        hint: "请检查错误日志获取详细信息",
-                        retryable: false);
-                    ctx.OutputContract.WriteError(error);
-                } else {
-                    Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
-                }
+                ctx.StructuredError = new Cli.Output.CliStructuredError(
+                    "RUNTIME_ERROR", ex.Message,
+                    hint: "请检查错误日志获取详细信息",
+                    retryable: false);
                 ctx.ExitCode = (int)ExitCode.GeneralError;
             })
             .Build();
@@ -51,10 +46,12 @@ internal static class NonInteractiveModeRunner {
         await pipeline.ExecuteAsync(context, CancellationToken.None).ConfigureAwait(false);
         Diag.WriteLine($"[RUN] pipeline done, exitCode={context.ExitCode}");
 
-        // JSON 模式: 输出最终结果信封 — ok=exitCode==0（Bug 9 修复：exitCode!=0 时 ok=false）
+        // JSON 模式: 输出统一结果信封 — 同时包含 data 和 error（Bug 16: 统一 JSON 信封返回格式）
         if (options.IsJsonMode && context.OutputContract is not null) {
             var result = new Cli.Output.CliNonInteractiveResult(context.ExitCode, context.FullResponse ?? string.Empty);
-            context.OutputContract.WriteResult(result, ok: context.ExitCode == 0, new Cli.Output.CliOutputMeta {
+            var ok = context.ExitCode == 0;
+            var error = ok ? null : (context.StructuredError ?? ((ExitCode)context.ExitCode).ToStructuredError());
+            context.OutputContract.WriteResult(result, ok, error, new Cli.Output.CliOutputMeta {
                 DurationMs = context.ElapsedMs,
             });
         }

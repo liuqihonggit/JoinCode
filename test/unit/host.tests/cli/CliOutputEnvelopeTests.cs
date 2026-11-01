@@ -345,4 +345,100 @@ public sealed class CliOutputEnvelopeTests {
 
         json.Should().Contain($"--await {seconds}s");
     }
+
+    // ===== BUG-16 回归测试: 统一 JSON 信封返回格式 — 同时包含 data 和 error =====
+
+    /// <summary>
+    /// Bug 16 回归: Create(data, ok, error, meta) 重载应同时序列化 data 和 error 字段。
+    /// 修复前 data 路径无 error 字段，error 路径无 data 字段，消费者不知道该读哪个。
+    /// </summary>
+    [Fact]
+    public void Create_WithDataAndError_ShouldSerializeBothFields() {
+        var data = new CliNonInteractiveResult(5, "");
+        var error = CliErrorCatalog.ResourceSessionNotFound("test-session-id");
+        var json = CliOutputEnvelope<CliNonInteractiveResult>.Create(data, ok: false, error).ToJsonString();
+
+        json.Should().Contain("\"ok\":false");
+        json.Should().Contain("\"exitCode\":5");
+        json.Should().Contain("\"code\":\"RESOURCE_SESSION_NOT_FOUND\"");
+        json.Should().Contain("\"message\":\"会话 'test-session-id' 不存在\"");
+    }
+
+    /// <summary>
+    /// Bug 16 回归: 成功路径 error 应为 null（JSON 中省略），data 完整。
+    /// </summary>
+    [Fact]
+    public void Create_WithSuccess_ShouldHaveNullError() {
+        var data = new CliNonInteractiveResult(0, "hello");
+        var json = CliOutputEnvelope<CliNonInteractiveResult>.Create(data, ok: true, error: null).ToJsonString();
+
+        json.Should().Contain("\"ok\":true");
+        json.Should().Contain("\"exitCode\":0");
+        json.Should().Contain("\"response\":\"hello\"");
+        json.Should().NotContain("\"error\"");
+    }
+
+    /// <summary>
+    /// Bug 16 回归: ExitCode.ToStructuredError 映射 — Success 应返回 null。
+    /// </summary>
+    [Fact]
+    public void ToStructuredError_Success_ShouldReturnNull() {
+        var error = ExitCode.Success.ToStructuredError();
+
+        error.Should().BeNull();
+    }
+
+    /// <summary>
+    /// Bug 16 回归: ExitCode.ToStructuredError 映射 — SessionResumeFailed 应返回 RESOURCE_SESSION_NOT_FOUND。
+    /// </summary>
+    [Fact]
+    public void ToStructuredError_SessionResumeFailed_ShouldMapToResourceNotFound() {
+        if (ExitCode.SessionResumeFailed.ToStructuredError() is { } error)
+            error.Code.Should().Be("RESOURCE_SESSION_NOT_FOUND");
+        else
+            Assert.Fail("Expected non-null error for SessionResumeFailed");
+    }
+
+    /// <summary>
+    /// Bug 16 回归: ExitCode.ToStructuredError 映射 — LlmCallTimeout 应返回 NET_TIMEOUT。
+    /// </summary>
+    [Fact]
+    public void ToStructuredError_LlmCallTimeout_ShouldMapToNetTimeout() {
+        if (ExitCode.LlmCallTimeout.ToStructuredError() is { } error) {
+            error.Code.Should().Be("NET_TIMEOUT");
+            error.Retryable.Should().BeTrue();
+        } else
+            Assert.Fail("Expected non-null error for LlmCallTimeout");
+    }
+
+    /// <summary>
+    /// Bug 16 回归: ExitCode.ToStructuredError 映射 — GeneralError 应返回 RUNTIME_ERROR。
+    /// </summary>
+    [Fact]
+    public void ToStructuredError_GeneralError_ShouldMapToRuntimeError() {
+        if (ExitCode.GeneralError.ToStructuredError() is { } error) {
+            error.Code.Should().Be("RUNTIME_ERROR");
+            error.Retryable.Should().BeFalse();
+        } else
+            Assert.Fail("Expected non-null error for GeneralError");
+    }
+
+    /// <summary>
+    /// Bug 16 回归: 统一信封在异常路径应同时包含 data(exitCode,response) 和 error(code,message)。
+    /// 模拟 NonInteractiveModeRunner OnError 场景：exitCode=1, error=RUNTIME_ERROR。
+    /// </summary>
+    [Fact]
+    public void UnifiedEnvelope_OnException_ShouldContainDataAndError() {
+        var data = new CliNonInteractiveResult(1, "");
+        var error = new CliStructuredError("RUNTIME_ERROR", "test exception", "hint", false);
+        var json = CliOutputEnvelope<CliNonInteractiveResult>.Create(data, ok: false, error).ToJsonString();
+
+        json.Should().Contain("\"ok\":false");
+        json.Should().Contain("\"exitCode\":1");
+        json.Should().Contain("\"response\":\"\"");
+        json.Should().Contain("\"code\":\"RUNTIME_ERROR\"");
+        json.Should().Contain("\"message\":\"test exception\"");
+        json.Should().Contain("\"hint\":\"hint\"");
+        json.Should().Contain("\"retryable\":false");
+    }
 }

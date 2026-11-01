@@ -50,7 +50,10 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
                 await next(context, ct).ConfigureAwait(false);
                 return;
             }
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             await session.ProcessUserInputAsync(prompt, ct).ConfigureAwait(false);
+            sw.Stop();
+            context.ElapsedMs = sw.ElapsedMilliseconds;
             await Console.Out.FlushAsync().ConfigureAwait(false);
             context.FullResponse = session.LastResponse;
             Diag.WriteLifecycle("[AI对话结束]");
@@ -61,21 +64,19 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
             return;
         } catch (TimeoutException ex) {
             Diag.WriteLine($"[STEP] ExecuteStep timeout: {ex.Message}");
-            if (context.OutputContract is not null)
-                context.OutputContract.WriteError(new Cli.Output.CliStructuredError("LLM_TIMEOUT", ex.Message, null, true));
-            else
+            context.StructuredError = new Cli.Output.CliStructuredError("LLM_TIMEOUT", ex.Message, null, true);
+            if (context.OutputContract is null)
                 Cli.TerminalHelper.WriteLine($"错误: 请求超时 — {ex.Message}");
             context.ExitCode = (int)ExitCode.LlmCallTimeout;
             return;
         } catch (Exception ex) {
             Diag.WriteLine($"[STEP] ExecuteStep exception: {ex.GetType().Name}: {ex.Message}");
             var errorLog = await WriteErrorLogAsync(ex).ConfigureAwait(false);
-            if (context.OutputContract is not null) {
-                var retryable = ex is JoinCode.Abstractions.Exceptions.ApiException apiEx && apiEx.IsRetryable;
-                context.OutputContract.WriteError(new Cli.Output.CliStructuredError("RUNTIME_ERROR", ex.Message, $"详细日志: {errorLog}", retryable));
-            } else {
+            var retryable = ex is JoinCode.Abstractions.Exceptions.ApiException apiEx && apiEx.IsRetryable;
+            context.StructuredError = new Cli.Output.CliStructuredError("RUNTIME_ERROR", ex.Message, $"详细日志: {errorLog}", retryable);
+            if (context.OutputContract is null) {
                 Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
-                if (ex is JoinCode.Abstractions.Exceptions.ApiException apiEx && apiEx.IsRetryable)
+                if (retryable)
                     Cli.TerminalHelper.WriteLine("  此错误通常可重试，请稍后重试。");
                 Cli.TerminalHelper.WriteLine($"  详细日志: {errorLog}");
             }

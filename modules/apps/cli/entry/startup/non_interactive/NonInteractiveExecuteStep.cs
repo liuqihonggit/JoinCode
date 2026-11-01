@@ -52,6 +52,7 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
             }
             await session.ProcessUserInputAsync(prompt, ct).ConfigureAwait(false);
             await Console.Out.FlushAsync().ConfigureAwait(false);
+            context.FullResponse = session.LastResponse;
             Diag.WriteLifecycle("[AI对话结束]");
             Diag.WriteLine("[STEP] ExecuteStep ProcessUserInputAsync returned, stdout flushed");
         } catch (OperationCanceledException) when (ct.IsCancellationRequested) {

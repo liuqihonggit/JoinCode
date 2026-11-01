@@ -2524,7 +2524,15 @@ public sealed class ReplShell
                 return;
             default:
                 // 选区交互 — Press/Drag/Release 路由状态机（滚轮/Move 已在上方 return）
-                _selection.HandleMouse(evt, BuildSelectionScreen());
+                // TASK077 — inline 模式 SGR 鼠标坐标是终端视口坐标，选区高亮用 Screen 内容坐标，
+                // 用 TerminalViewportProbe 转换（与 TryDispatchHitTestClick 同一转换路径）
+                var selectionEvt = evt;
+                if (_inline && _viewportProbe is { } probe)
+                {
+                    var viewportOffset = probe.QueryViewportOffset(_cursor.Row);
+                    selectionEvt = evt with { Row = TerminalViewportProbe.ScreenRowFromSgr(evt.Row, viewportOffset) };
+                }
+                _selection.HandleMouse(selectionEvt, BuildSelectionScreen());
                 if (evt.Kind == MouseKind.Release)
                 {
                     CopySelectionIfSettled();

@@ -408,7 +408,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager {
                 })
                 .ToList();
 
-            await Task.WhenAll(toolItems.Select(item => _toolRegistry.RegisterToolAsync(item.Handler, cancellationToken))).ConfigureAwait(false);
+            await _toolRegistry.RegisterToolsBatchAsync(toolItems.Select(item => item.Handler).ToList(), cancellationToken).ConfigureAwait(false);
 
             _toolSpecCache.Update(clientId, newSpecs);
 

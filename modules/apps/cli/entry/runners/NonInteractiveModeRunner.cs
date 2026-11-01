@@ -16,6 +16,7 @@ internal static class NonInteractiveModeRunner {
         if (options.IsJsonMode) {
             var jsonContext = Cli.Output.CliOutputJsonContext.Default;
             context.OutputContract = new Cli.Output.CliOutputContract(jsonMode: true, jsonContext: jsonContext);
+            Cli.TerminalHelper.SuppressStdout = true; // Bug 12: 抑制 stdout 信息输出，确保只有 JSON 信封
             Diag.WriteLine("[RUN] JSON output mode enabled (--json or --format json)");
         }
 
@@ -58,6 +59,7 @@ internal static class NonInteractiveModeRunner {
             });
         }
 
+        Cli.TerminalHelper.SuppressStdout = false; // 恢复 stdout（测试可重入）
         return context.ExitCode;
     }
 }

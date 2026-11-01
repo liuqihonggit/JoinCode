@@ -29,6 +29,12 @@ public static class TerminalHelper {
     public static bool ForceInteractive { get; set; }
 
     /// <summary>
+    /// Bug 12 修复：JSON 模式下抑制 stdout 信息输出 — 所有 WriteLine/WriteRaw/NewLine 重定向到 stderr。
+    /// 由 NonInteractiveModeRunner 在 JSON 模式启动时设置，确保 stdout 只有 JSON 信封（CliOutputContract 用 Console.WriteLine 直写，不走 TerminalHelper）。
+    /// </summary>
+    public static bool SuppressStdout { get; set; }
+
+    /// <summary>
     /// ConsoleActor 实例 — 串行化所有 Console I/O，消除后台输出与 ReadLine 竞态（ADR 0100）
     /// </summary>
     private static ConsoleActor? _consoleActor;
@@ -138,6 +144,7 @@ public static class TerminalHelper {
     /// </summary>
     /// <param name="text">要写入的文本，null 时仅换行</param>
     public static void WriteLine(string? text = null) {
+        if (SuppressStdout) { WriteError(text); return; }
         if (TryWriteThroughGate(w => {
             if (text is null) w.WriteLine();
             else w.WriteLine(text);
@@ -158,6 +165,7 @@ public static class TerminalHelper {
     /// 写入空行 — 经过 ConsoleActor 串行化
     /// </summary>
     public static void NewLine() {
+        if (SuppressStdout) { WriteError(); return; }
         if (TryWriteThroughGate(w => w.WriteLine())) {
             return;
         }
@@ -175,6 +183,7 @@ public static class TerminalHelper {
     /// </summary>
     /// <param name="text">要写入的文本</param>
     public static void WriteRaw(string text) {
+        if (SuppressStdout) { WriteErrorRaw(text); return; }
         if (TryWriteThroughGate(w => w.Write(text))) {
             return;
         }
@@ -192,6 +201,7 @@ public static class TerminalHelper {
     /// </summary>
     /// <param name="c">要写入的字符</param>
     public static void WriteRaw(char c) {
+        if (SuppressStdout) { WriteErrorRaw(c.ToString()); return; }
         if (TryWriteThroughGate(w => w.Write(c))) {
             return;
         }
@@ -209,6 +219,7 @@ public static class TerminalHelper {
     /// </summary>
     /// <param name="sb">要写入的 StringBuilder</param>
     public static void WriteRaw(StringBuilder sb) {
+        if (SuppressStdout) { WriteErrorRaw(sb.ToString()); return; }
         if (TryWriteThroughGate(w => w.Write(sb.ToString()))) {
             return;
         }
@@ -227,6 +238,7 @@ public static class TerminalHelper {
     /// <param name="span">要写入的字符跨度</param>
     public static void WriteRaw(ReadOnlySpan<char> span) {
         var text = new string(span);
+        if (SuppressStdout) { WriteErrorRaw(text); return; }
         if (TryWriteThroughGate(w => w.Write(text))) {
             return;
         }

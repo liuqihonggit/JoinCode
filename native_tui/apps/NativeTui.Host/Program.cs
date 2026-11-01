@@ -530,6 +530,7 @@ public static class Program {
                 throw; // 冒泡 Main 统一友好呈现
             } catch (Exception ex) {
                 Console.Error.WriteLine($"引擎启动失败: {ex.Message}。请检查 jcc 引擎配置（settings.json / providers）后重试。");
+                lazyEngine.EnqueueError($"引擎启动失败: {ex.Message}。请检查配置后重试。");
             }
         });
 
@@ -537,7 +538,10 @@ public static class Program {
         shell.Run();
         shell.WriteExit();
 
-        // TASK078 — 等待后台引擎加载完成（主循环退出后 — 确保 session 正确 Dispose）
+        // TASK078 — 等待后台引擎加载完成（5s 超时 — 引擎卡住时不阻塞退出）
+        try {
+            await Task.WhenAny(engineLoadTask, Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false);
+        } catch { }
         try {
             await engineLoadTask.ConfigureAwait(false);
         } catch (ConfigurationException) {

@@ -9,6 +9,7 @@ internal sealed class LazyEngine : IReplEngine
 {
     private IReplEngine? _real;
     private readonly Queue<(string Text, IReadOnlyList<BridgeImageAttachment>? Images)> _pendingSubmit = new();
+    private readonly Queue<BridgeEvent> _pendingEvents = new();
     private readonly Lock _gate = new();
 
     /// <summary>注入真实引擎并回放排队的提交（幂等 — 重复调用忽略）。</summary>
@@ -26,6 +27,15 @@ internal sealed class LazyEngine : IReplEngine
     /// <summary>引擎是否就绪（真实引擎已注入）。</summary>
     public bool IsReady => Volatile.Read(ref _real) is not null;
 
+    /// <summary>TASK078 — 引擎加载失败时入队错误事件（DrainEvents 返回给 TUI 显示 + IsAlive=false 触发退出）。</summary>
+    public void EnqueueError(string message)
+    {
+        lock (_gate)
+        {
+            if (_real is null) _pendingEvents.Enqueue(new BridgeEvent.Error(message));
+        }
+    }
+
     public void Submit(string text) => Submit(text, null);
 
     public void Submit(string text, IReadOnlyList<BridgeImageAttachment>? images)
@@ -41,7 +51,17 @@ internal sealed class LazyEngine : IReplEngine
 
     public void SetPermissionMode(string mode) => Volatile.Read(ref _real)?.SetPermissionMode(mode);
 
-    public IReadOnlyList<BridgeEvent> DrainEvents() => Volatile.Read(ref _real)?.DrainEvents() ?? Array.Empty<BridgeEvent>();
+    public IReadOnlyList<BridgeEvent> DrainEvents()
+    {
+        lock (_gate)
+        {
+            if (_real is { } real) return real.DrainEvents();
+            if (_pendingEvents.Count == 0) return Array.Empty<BridgeEvent>();
+            var events = new List<BridgeEvent>(_pendingEvents.Count);
+            while (_pendingEvents.TryDequeue(out var evt)) events.Add(evt);
+            return events;
+        }
+    }
 
     public IReadOnlyList<string> DrainDiagnostics() => Volatile.Read(ref _real)?.DrainDiagnostics() ?? Array.Empty<string>();
 

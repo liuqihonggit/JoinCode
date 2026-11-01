@@ -29,7 +29,7 @@ public static class TranscriptRenderer
     private static void RenderHeader(Screen screen, Theme theme)
     {
         var errorStyle = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Error });
-        screen.WriteText(0, 0, "按 ESC 或 ↑ 退出", errorStyle, screen.Cols);
+        screen.WriteText(0, 0, "按 ESC 退出", errorStyle, screen.Cols);
     }
 
     /// <summary>帧尾光标位（inline 模式 — ReplShell frameEnd 消费）：

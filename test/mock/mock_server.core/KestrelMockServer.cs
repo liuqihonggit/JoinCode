@@ -702,7 +702,17 @@ function renderDetail(r) {
       const role = m.role || 'unknown';
       let content = m.content;
       if (typeof content === 'object') content = JSON.stringify(content, null, 2);
-      html += `<div class="msg ${role}"><div class="msg-role ${role}">${role}</div><div class="msg-content">${escapeHtml(content || '')}</div></div>`;
+      // Show tool_calls if present (assistant message with tool calls has null content)
+      let toolCallsHtml = '';
+      if (m.tool_calls && Array.isArray(m.tool_calls)) {
+        toolCallsHtml = '<div style="margin-top:4px;color:#fab387;font-size:11px;">tool_calls:</div>';
+        for (const tc of m.tool_calls) {
+          const fn = tc.function || {};
+          toolCallsHtml += `<div style="margin-left:12px;color:#f9e2af;font-size:11px;">${fn.name || '(unknown)'}(${(fn.arguments || '').substring(0, 200)})</div>`;
+        }
+      }
+      const contentDisplay = content || (toolCallsHtml ? '(tool call, no text)' : '(null/empty)');
+      html += `<div class="msg ${role}"><div class="msg-role ${role}">${role}</div><div class="msg-content">${escapeHtml(contentDisplay)}</div>${toolCallsHtml}</div>`;
     }
     html += '</div></div>';
   }

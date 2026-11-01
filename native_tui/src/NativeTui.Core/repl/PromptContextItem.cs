@@ -57,8 +57,8 @@ public sealed class PromptContextItem : IScrollItem
         var text = $"📎 首次注入 · 系统提示词 {PromptChars} 字符{tokenNote} · 点击展开";
         if (FileUrl is { Length: > 0 } url)
         {
-            var style = screen.Styles.GetOrAdd(new TextStyle { Underline = true });
-            screen.WriteText(frame.Y, frame.X, text, style, frame.Right);
+            var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
+            screen.WriteText(frame.Y, frame.X, text, dim, frame.Right);
             screen.SetLinks(frame.Y, [new LinkSpan(frame.X, frame.X + text.Length, url)]);
         }
         else if (IsHovered)

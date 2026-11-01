@@ -282,6 +282,8 @@ public static class Program {
         // 诊断行附带环境快照（TERM_PROGRAM/LC_TERMINAL/WT_SESSION/TERM/KITTY_WINDOW_ID）—
         // 用户贴报问题时 AI 一眼看清终端环境，无需另跑命令排查
         WriteStartupLine(HyperlinkEmitter.FormatDiagnostic());
+        // 开关状态诊断（AGENTS.md 开关优先 + 助记符 — 启动 banner 列出当前开关状态）
+        WriteStartupLine($"[diag] 开关: MouseTracking={JccFeatureFlags.MouseTrackingEnabled} Hover={JccFeatureFlags.HoverHighlightEnabled} ClickExpand={JccFeatureFlags.ClickExpandEnabled} (JCC_NO_MOUSE_TRACKING={Environment.GetEnvironmentVariable("JCC_NO_MOUSE_TRACKING") ?? "(未设置)"})");
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
         TestEnvironmentDetector.ForceNonInteractive = true;
 

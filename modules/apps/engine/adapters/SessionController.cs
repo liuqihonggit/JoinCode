@@ -95,6 +95,8 @@ public sealed class SessionController {
 
         try {
             if (_mainAgent is not null) {
+                var contextManagerForCount = _serviceProvider?.GetService<IChatContextManager>();
+                var startCount = contextManagerForCount?.CurrentMessageCount ?? 0;
                 var preprocess = await PreProcessMainAgentAsync(input, timeoutToken).ConfigureAwait(false);
                 if (preprocess.PromptInjection is { Length: > 0 } injection) {
                     _consumer.OnText(injection + "\n\n");
@@ -134,7 +136,7 @@ public sealed class SessionController {
 
                 auditLogger?.LogInformation("[Audit] Assistant: {Chars} chars, Model={Model}", fullResponse.Length, lastModelId);
 
-                await PostProcessMainAgentAsync(preprocess.PreprocessResult, fullResponse.ToString(), cancellationToken).ConfigureAwait(false);
+                await PostProcessMainAgentAsync(preprocess.PreprocessResult, fullResponse.ToString(), startCount, lastModelId, cancellationToken).ConfigureAwait(false);
             } else {
                 await foreach (var evt in _chatService.StreamWithEventsAsync(input, timeoutToken).ConfigureAwait(false)) {
                     hasReceivedEvent = true;
@@ -186,6 +188,14 @@ public sealed class SessionController {
                 }
             }
 
+            if (ex is AggregateException aggEx) {
+                var innerMessages = aggEx.InnerExceptions
+                    .Select(e => e?.Message)
+                    .Where(m => !string.IsNullOrEmpty(m))
+                    .Distinct();
+                var combined = string.Join("; ", innerMessages);
+                return SessionTurnResult.Error($"流式和非流式请求均失败：{combined}", LastResponse);
+            }
             if (ex is JoinCode.Abstractions.Exceptions.ApiException apiEx)
                 return SessionTurnResult.Error(apiEx.Message, LastResponse, apiEx.ErrorCode, apiEx.IsRetryable);
             if (ex is JoinCode.Abstractions.Exceptions.WorkflowException wfEx)
@@ -428,7 +438,7 @@ public sealed class SessionController {
     /// 主代理路径后处理 — 对齐 SaveContextMiddleware + CleanupInjectionsMiddleware：
     /// 回写 assistant 响应 → 持久化上下文 → 清理注入
     /// </summary>
-    private async Task PostProcessMainAgentAsync(PreprocessResult? preprocessResult, string assistantResponse, CancellationToken ct) {
+    private async Task PostProcessMainAgentAsync(PreprocessResult? preprocessResult, string assistantResponse, int startCount, string? modelId, CancellationToken ct) {
         if (_serviceProvider is null) return;
 
         var contextManager = _serviceProvider.GetService<IChatContextManager>();
@@ -458,6 +468,41 @@ public sealed class SessionController {
                     _serviceProvider.GetService<ILogger<SessionController>>()?.LogError(ex, "[SessionController] 清理注入失败");
                 }
             }
+        }
+
+        // transcript 增量持久化 — 对齐 TranscriptPersistMiddleware（mainAgent 路径绕过 ChatService 管道，需手动补；
+        // 取快照差量 → 过滤空 content → AppendEntriesAsync，含 Worker 进程守卫）
+        if (contextManager is null)
+            return;
+        var transcriptService = _serviceProvider.GetService<ITranscriptService>();
+        if (transcriptService is null)
+            return;
+        var agentRole = Environment.GetEnvironmentVariable(JccEnvVar.AgentRole.ToValue());
+        if (string.Equals(agentRole, "worker", StringComparison.OrdinalIgnoreCase))
+            return;
+        try {
+            var snapshot = await contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
+            if (snapshot.Count <= startCount)
+                return;
+            var entries = new List<TranscriptEntry>(snapshot.Count - startCount);
+            for (var i = startCount; i < snapshot.Count; i++) {
+                var message = snapshot[i];
+                if (string.IsNullOrEmpty(message.Content))
+                    continue;
+                entries.Add(new TranscriptEntry {
+                    Role = message.Role.ToValue(),
+                    Content = message.Content,
+                    Timestamp = DateTime.UtcNow,
+                    ModelId = modelId,
+                });
+            }
+            if (entries.Count > 0) {
+                await transcriptService.AppendEntriesAsync(contextManager.SessionId, entries, ct).ConfigureAwait(false);
+            }
+        } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+            throw;
+        } catch (Exception ex) {
+            _serviceProvider.GetService<ILogger<SessionController>>()?.LogError(ex, "[SessionController] transcript 写入失败（会话 {SessionId}）", contextManager.SessionId);
         }
     }
 

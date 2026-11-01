@@ -96,6 +96,16 @@ public static class CliErrorCatalog {
             "请使用 /history 查看可用会话列表",
             retryable: false);
 
+    // ── 超时类 (TIMEOUT_) ──
+
+    /// <summary>--await 诊断超时强制退出 — Bug 10 修复：JSON 模式下超时也输出结构化错误信封</summary>
+    /// <param name="seconds">超时秒数</param>
+    public static CliStructuredError TimeoutAwaitDiagnostic(int seconds) =>
+        new("TIMEOUT_AWAIT_DIAGNOSTIC",
+            $"--await {seconds}s 诊断超时，进程强制退出",
+            "请增加 --await 的值，或检查是否有卡死操作",
+            retryable: true);
+
     // ── 冲突类 (CONFLICT_) ──
 
     /// <summary>工作目录未信任</summary>

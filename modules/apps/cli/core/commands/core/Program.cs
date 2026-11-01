@@ -71,7 +71,9 @@ class Program {
             if (options.ShowHelp) { App.Builder.ApplicationBuilder.ShowHelp(GetHelpTopic(args)); return 0; }
             if (options.ShowVersion) { App.Builder.ApplicationBuilder.ShowVersion(); return 0; }
 
-            await using var awaitTimer = StartAwaitTimer(options, logger);
+            // 早期超时计时器已完成使命（子命令路由已过），主路径计时器接管 — 避免双重超时输出
+            earlyAwaitTimer?.Dispose();
+            await using var awaitTimer = StartAwaitTimer(options, options.IsJsonMode, logger);
 
             var fs = IO.FileSystem.FileSystemFactory.Create();
 
@@ -117,9 +119,6 @@ class Program {
                 WriteJsonError(error);
             } else {
             App.ErrorConsole.Warning(ex.Message);
-            Console.Error.WriteLine($"[CONFIG-ERROR] 完整异常: {ex}");
-            if (ex.InnerException is not null)
-                Console.Error.WriteLine($"[CONFIG-ERROR] InnerException: {ex.InnerException.GetType().FullName}: {ex.InnerException.Message}\n{ex.InnerException.StackTrace}");
             if (!string.IsNullOrEmpty(ex.ConfigurationKey))
                     Cli.TerminalHelper.WriteError($"  配置项: {ex.ConfigurationKey}");
                 if (!string.IsNullOrEmpty(ex.ConfigurationFilePath))
@@ -134,11 +133,11 @@ class Program {
         } catch (Exception ex) {
             // 通用异常 — 记录日志并友好提示
             // 视角2 #27: 使用 ErrorConsole.Fatal 渲染（红色致命错误 + 图标）
-            // 诊断: 输出完整异常信息到 stderr（Type + Message + StackTrace + InnerException），供 E2E 测试捕获
-            Console.Error.WriteLine($"[MAIN] 未捕获异常: {ex.GetType().FullName}: {ex.Message}");
-            Console.Error.WriteLine($"[MAIN] StackTrace:\n{ex.StackTrace}");
+            // 诊断: 完整异常信息写入 error.log 供调试，不直接打印堆栈给用户
+            Diag.WriteLine($"[MAIN] 未捕获异常: {ex.GetType().FullName}: {ex.Message}");
+            Diag.WriteLine($"[MAIN] StackTrace:\n{ex.StackTrace}");
             if (ex.InnerException is not null)
-                Console.Error.WriteLine($"[MAIN] InnerException: {ex.InnerException.GetType().FullName}: {ex.InnerException.Message}\n{ex.InnerException.StackTrace}");
+                Diag.WriteLine($"[MAIN] InnerException: {ex.InnerException.GetType().FullName}: {ex.InnerException.Message}\n{ex.InnerException.StackTrace}");
 
             var errorLog = await WriteErrorLogAsync(ex, logger: logger).ConfigureAwait(false);
 
@@ -192,6 +191,35 @@ class Program {
     }
 
     /// <summary>
+    /// Bug 10 修复：--await 超时时 JSON 模式输出结构化错误信封到 stdout。
+    /// <para>写 stdout 而非 stderr — stderr 重定向到未读取 pipe 时会阻塞导致 Environment.Exit 永不执行（见 StartAwaitTimer remarks）。
+    /// stdout 在 JSON 模式下由消费者读取，不会阻塞。消费者通过 ok:false 判断为错误。</para>
+    /// </summary>
+    /// <param name="seconds">超时秒数</param>
+    private static void WriteAwaitTimeoutJsonToStdout(int seconds) {
+        try {
+            var error = Cli.Output.CliErrorCatalog.TimeoutAwaitDiagnostic(seconds);
+            var envelope = Cli.Output.CliOutputEnvelope.Fail(error);
+            var json = envelope.ToString();
+            Console.Out.WriteLine(json);
+            Console.Out.Flush();
+        } catch (Exception ex) {
+            Diag.WriteLine($"[MAIN] 写入超时 JSON 错误信封失败: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 从原始 args 中检测是否启用 JSON 输出模式 — 供 StartEarlyAwaitTimer 在 options 解析前使用。
+    /// </summary>
+    private static bool IsJsonModeFromArgs(string[] args) {
+        for (var i = 0; i < args.Length; i++) {
+            if (args[i] == "--json" || args[i] == "--format" && i + 1 < args.Length && string.Equals(args[i + 1], "json", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
     /// 启动 --await N 超时计时器。
     /// N 秒后强制退出进程并返回 ExitCode.AwaitTimeout (=1234)，用于诊断卡死问题。
     /// 正常完成时 using 释放计时器，不影响返回值。
@@ -203,7 +231,7 @@ class Program {
     /// 进程卡死。详见 <c>docs/ai_interaction_docs/MockServer测试问题清单.md</c> P2-1。
     /// 启动时的日志 + ExitCode=AwaitTimeout 已足够诊断超时触发。
     /// </remarks>
-    private static System.Threading.Timer? StartAwaitTimer(CommandLineOptions options, ILogger? logger = null) {
+    private static System.Threading.Timer? StartAwaitTimer(CommandLineOptions options, bool isJsonMode, ILogger? logger = null) {
         if (options.AwaitTimeoutSeconds is not { } seconds || seconds <= 0)
             return null;
 
@@ -212,6 +240,10 @@ class Program {
         return new System.Threading.Timer(
             callback: _ => {
                 // ⚠️ 禁止在 Environment.Exit 之前写 Console.Error（详见方法 remarks 注释）
+                // Bug 10 修复：JSON 模式下写结构化错误信封到 stdout（非 stderr，避免 pipe 阻塞）
+                if (isJsonMode)
+                    WriteAwaitTimeoutJsonToStdout(seconds);
+
                 // 超时诊断降级：写时间戳文件留审计轨迹（文件写不依赖 Console，不会因 pipe 阻塞）
                 try {
                     var timeoutLog = Cli.Output.XdgPathResolver.GetAwaitTimeoutLogPath();
@@ -309,8 +341,13 @@ class Program {
         for (var i = 0; i < args.Length - 1; i++) {
             if (args[i] == JccCliArgEnumConstants.Await && int.TryParse(args[i + 1], out var seconds) && seconds > 0) {
                 Diag.WriteLine($"[MAIN] --await {seconds}s 早期计时器已启动（超时返回{(int)ExitCode.AwaitTimeout}）");
+                var earlyIsJsonMode = IsJsonModeFromArgs(args);
                 return new System.Threading.Timer(
                     callback: _ => {
+                        // Bug 10 修复：JSON 模式下写结构化错误信封到 stdout
+                        if (earlyIsJsonMode)
+                            WriteAwaitTimeoutJsonToStdout(seconds);
+
                         try {
                             var timeoutLog = Cli.Output.XdgPathResolver.GetAwaitTimeoutLogPath();
                             SafeFileIO.AppendAllText(timeoutLog,

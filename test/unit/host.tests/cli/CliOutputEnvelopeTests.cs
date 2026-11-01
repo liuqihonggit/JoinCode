@@ -70,6 +70,29 @@ public sealed class CliOutputEnvelopeTests {
         json.Should().Contain("\"response\":\"hello world\"");
     }
 
+    /// <summary>
+    /// Bug 9 回归: exitCode != 0 时 JSON 信封 ok 应为 false —
+    /// NonInteractiveApiKeyCheckStep 短路返回1返回时 exitCode=4 但 ok=true，消费者用 ok 判断会误判。
+    /// Create 方法允许显式指定 ok 字段，NonInteractiveModeRunner 用 exitCode==0 设置 ok。
+    /// </summary>
+    [Fact]
+    public void Create_WithOkFalse_ShouldSerializeOkFalse() {
+        var data = new CliNonInteractiveResult(4, "");
+        var json = CliOutputEnvelope<CliNonInteractiveResult>.Create(data, ok: false).ToJsonString();
+
+        json.Should().Contain("\"ok\":false");
+        json.Should().Contain("\"exitCode\":4");
+    }
+
+    [Fact]
+    public void Create_WithOkTrue_ShouldSerializeOkTrue() {
+        var data = new CliNonInteractiveResult(0, "success");
+        var json = CliOutputEnvelope<CliNonInteractiveResult>.Create(data, ok: true).ToJsonString();
+
+        json.Should().Contain("\"ok\":true");
+        json.Should().Contain("\"exitCode\":0");
+    }
+
     [Fact]
     public void Success_Generic_ShouldSerializeToolResult() {
         var result = new JoinCode.Abstractions.Tools.ToolResult {
@@ -277,5 +300,49 @@ public sealed class CliOutputEnvelopeTests {
 
         kindString.Should().Be(expected);
         kindString.Should().NotBeNullOrEmpty("BUG-1 修复: kind 来自 t.Kind.ToString() 而非硬编码空字符串");
+    }
+
+    // ===== BUG-10 回归测试: --await 超时时 JSON 模式应输出结构化错误信封 =====
+
+    /// <summary>
+    /// Bug 10 回归: --await 超时时 JSON 模式应输出结构化错误信封到 stdout。
+    /// 修复前 Environment.Exit 直接退出，JSON 模式消费者收不到任何输出。
+    /// 修复后 StartAwaitTimer 在 Environment.Exit 前写 CliOutputEnvelope.Fail 到 stdout。
+    /// </summary>
+    [Fact]
+    public void Fail_AwaitTimeout_ShouldSerializeTimeoutAwaitDiagnosticError() {
+        var error = CliErrorCatalog.TimeoutAwaitDiagnostic(10);
+        var json = CliOutputEnvelope.Fail(error).ToString();
+
+        json.Should().Contain("\"ok\":false");
+        json.Should().Contain("\"code\":\"TIMEOUT_AWAIT_DIAGNOSTIC\"");
+        json.Should().Contain("\"message\":\"--await 10s 诊断超时，进程强制退出\"");
+        json.Should().Contain("\"retryable\":true");
+    }
+
+    /// <summary>
+    /// Bug 10 回归: 超时错误信封不应包含 data 字段（Fail 路径 Data 为 null）。
+    /// </summary>
+    [Fact]
+    public void Fail_AwaitTimeout_ShouldNotContainDataField() {
+        var error = CliErrorCatalog.TimeoutAwaitDiagnostic(30);
+        var json = CliOutputEnvelope.Fail(error).ToString();
+
+        json.Should().NotContain("\"data\"");
+        json.Should().Contain("\"ok\":false");
+    }
+
+    /// <summary>
+    /// Bug 10 回归: 不同超时秒数应反映在错误消息中。
+    /// </summary>
+    [Theory]
+    [InlineData(5)]
+    [InlineData(60)]
+    [InlineData(300)]
+    public void Fail_AwaitTimeout_ShouldReflectSecondsInMessage(int seconds) {
+        var error = CliErrorCatalog.TimeoutAwaitDiagnostic(seconds);
+        var json = CliOutputEnvelope.Fail(error).ToString();
+
+        json.Should().Contain($"--await {seconds}s");
     }
 }

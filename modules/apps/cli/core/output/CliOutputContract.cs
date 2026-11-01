@@ -35,6 +35,22 @@ public sealed class CliOutputContract {
     }
 
     /// <summary>
+    /// 写入带成功标志的结果到 stdout — ok 由调用方指定（exitCode==0 时 true）
+    /// JSON 模式: 输出 {ok:exitCode==0, data:..., meta:...}
+    /// 文本模式: 直接输出 data 的 ToString()
+    /// </summary>
+    public void WriteResult<T>(T data, bool ok, CliOutputMeta? meta = null) {
+        if (_jsonMode) {
+            var envelope = CliOutputEnvelope<T>.Create(data, ok, meta);
+            var json = envelope.ToJsonString();
+            Console.WriteLine(json);
+        } else {
+            if (data is not null)
+                TerminalHelper.WriteLine(data.ToString());
+        }
+    }
+
+    /// <summary>
     /// 写入结构化错误到 stderr
     /// JSON 模式: stderr 输出 {ok:false, error:{code,message,hint,retryable}}
     /// 文本模式: stderr 输出人类可读错误（带颜色）

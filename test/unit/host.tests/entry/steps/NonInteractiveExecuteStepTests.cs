@@ -71,6 +71,29 @@ public sealed class NonInteractiveExecuteStepTests {
         nextCalled.Should().BeFalse("空提示词应直接返回不调用 next");
     }
 
+    /// <summary>
+    /// Bug 8 回归: JSON 模式 response 字段始终为空 — NonInteractiveExecuteStep 执行后
+    /// 应将 session.LastResponse 赋给 context.FullResponse，供 JSON 信封输出。
+    /// 验证手段: IsRunning=false 让 ProcessUserInputAsync 直接 return，反射预设 LastResponse，
+    /// 断言 context.FullResponse 被赋值为预设值。
+    /// </summary>
+    [Fact]
+    public async Task Execute_Should_Populate_FullResponse_From_Session_LastResponse() {
+        await using var step = new NonInteractiveExecuteStep();
+        var context = CreateContext(dryRun: false, prompt: "测试提示词");
+        // IsRunning=false → ProcessUserInputAsync 直接 return（不触碰 _controller）
+#pragma warning disable JCC11003
+        typeof(CliSession).GetProperty("IsRunning")!.SetValue(context.Session, false);
+        // 反射预设 LastResponse（模拟 StreamResponseAsync 成功后的赋值）
+        typeof(CliSession).GetProperty("LastResponse")!.SetValue(context.Session, "AI 回应内容");
+#pragma warning restore JCC11003
+
+        await step.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        context.FullResponse.Should().Be("AI 回应内容",
+            "NonInteractiveExecuteStep 应将 session.LastResponse 赋给 context.FullResponse 供 JSON 信封输出");
+    }
+
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static StartupContext CreateContext(bool dryRun, string prompt) {
         var config = new WorkflowConfig {

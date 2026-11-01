@@ -523,3 +523,91 @@ jcc.exe mcp_schema bash
 **坑**:
 - `mcp_schema` 输出是 JSON → 用 `python3 -c "import sys,json; ..."` 解析
 - schema 中 `default` 是字符串 `"180000"`，不是整数
+
+## MockServer 聊天室式对话验证（2026-11-01 补充）
+
+### 背景
+
+需要 AI 亲自测试 jcc 的完整对话链路（非 mock），但不依赖真实 LLM。通过 MockServer Interactive 模式 + mock_ai_responder 控制台程序，实现两种测试方式：
+
+1. **自己和自己对话** — AI 用 bash 调 `jcc -p "消息"`，responder 自动匹配意图并 inject 响应，AI 同时扮演用户和 AI
+2. **留言板式对话** — 用户用 `jcc -p "留言"` 留言，AI 用 `jcc -p "回复"` 回复，通过 transcript 持久化 + `-c` 恢复实现跨进程对话
+
+### 架构
+
+```
+jcc -p "你好"  →  MockServer (端口 8090)  →  挂起等注入 (Interactive 模式)
+                        ↑                          ↓
+                   responder 轮询 requests  ←  控制面 /__control__/*
+                        ↓                          ↓
+                   意图匹配 + inject 响应  →  唤醒挂起请求  →  jcc 显示响应
+```
+
+### MockServer Interactive 模式挂起机制
+
+`KestrelMockServer` Interactive 模式：无预注入时请求挂起 30s 等注入（`WaitForInjectionAsync` + `_waiters` 队列），`Inject` 优先唤醒等待者。超时兜底走脚本响应。
+
+- 控制端点和 LLM 端点在同一端口（`/__control__/*` vs `/v1/chat/completions`），jcc 走的 HTTP 路径和真实环境一致
+- `MockServerController.Inject` 优先唤醒 `_waiters` 队列中的挂起请求，无等待者时存入预注入队列
+
+### mock_ai_responder 控制台程序
+
+`test/mock/mock_ai_responder/` — 轮询 MockServer 控制面 `requests` 端点，意图匹配后 `inject` 响应：
+
+| 意图 | 匹配关键词 | 响应 |
+|------|-----------|------|
+| 问候 | 你好/hello/hi | 自我介绍 + 引导 |
+| 写代码 | 写/实现/函数/方法 | 代码示例 |
+| 解释 | 解释/什么是/为什么 | 解释性回复 |
+| 工具 | 工具/mcp/command | 工具列表 |
+| 默认 | * | 通用回复 |
+
+支持 OpenAI 流式（SSE `data: {...}`）+ 非流式 + Anthropic 响应格式。
+
+### 启动命令模板
+
+```bash
+# 1. 编译（workdir: D:\project\w1）
+dotnet build test/mock/open_ai.mock_server/OpenAI.MockServer.csproj -c Debug --no-restore
+dotnet build test/mock/mock_ai_responder/MockAiResponder.csproj -c Debug --no-restore
+dotnet build modules/apps/cli/JoinCode.csproj -c Debug --no-restore
+
+# 2. 启动 MockServer + responder 后台
+dotnet run --no-build --project test/mock/open_ai.mock_server -- --port 8090 > .xxx/logs/mockserver.log 2>&1 &
+dotnet run --no-build --project test/mock/mock_ai_responder -- --mock-url http://localhost:8090 > .xxx/logs/responder.log 2>&1 &
+
+# 3. jcc 对话（自己和自己对话）
+JCC="dotnet artifacts/bin/JoinCode/Debug/net10.0/jcc.dll"
+export JCC_VENDOR=openai JCC_ENDPOINT=http://localhost:8090/v1 OPENAI_API_KEY=fake-key JCC_HTTP_MODE=Real
+$JCC -p "你好" --await 20
+
+# 4. 留言板式对话（用户留言后 AI 回复）
+$JCC -p "用户留言内容" --await 20    # 用户留言
+$JCC -c -p "AI 回复内容" --await 20   # AI 恢复会话后回复
+```
+
+### 验收清单
+
+| 验收项 | 验证方法 | 通过标准 |
+|--------|----------|----------|
+| **jcc → MockServer 链路** | `jcc -p "你好"`，看响应 | 非空响应，responder 日志显示匹配意图 |
+| **transcript 写入** | `jcc -p "你好"` 后查 `~/.jcc/sessions/*/transcript.jsonl` | 包含 user + assistant 条目（非空） |
+| **-c 恢复有内容会话** | `jcc -c`，看"N 条消息" | N > 0（恢复有内容会话，非空会话） |
+| **流式响应** | jcc 默认 stream=true，看 SSE 分块 | 响应完整拼接，无格式错误 |
+| **500 错误处理** | inject 500 响应，看 jcc 输出 | 错误提示清晰，非 AggregateException 混乱 |
+
+### 已发现并修复的 bug
+
+| # | Commit | 修复内容 | 根因 |
+|---|--------|----------|------|
+| 1 | `fix: CliSession.InitializeAsync 改用 EnsureSessionAsync` | `-p` 创建的会话 `-c` 能找到 | `SaveSessionInfoAsync` 只写 meta.json 不建 transcript.jsonl，`ListTranscriptsAsync` 跳过无 transcript 文件的目录 |
+| 2 | `fix: mainAgent 路径补 transcript 增量持久化` | `-p` 对话后 transcript.jsonl 有内容 | mainAgent 路径绕过 ChatService 管道，`TranscriptPersistMiddleware` 从未被调用，`PostProcessMainAgentAsync` 漏了 transcript 写入 |
+| 3 | `fix: -c 跳过空会话恢复有内容会话` | `-c` 恢复有内容会话而非空会话 | `FindMostRecentSessionIdAsync` 按修改时间排序选了刚创建的空会话（MessageCount=0），需跳过空会话 |
+
+### 坑
+
+- **jcc 环境变量**：API 端点用 `JCC_ENDPOINT`（不是 `JCC_API_BASE_URL` 或 `OPENAI_BASE_URL`），供应商用 `JCC_VENDOR=openai`
+- **jcc 流式优先**：jcc 默认发 `stream=true` 请求，流式失败后降级非流式
+- **预注入残留竞态**：预注入残留响应会被新请求消费，导致格式不匹配错误。启动前清空 inject 队列
+- **responder exe 锁定**：旧 responder 进程未杀时 build 报 `MSB3027 超出重试计数`，需 `taskkill //F //IM mock_ai_responder.exe` 后重新 build
+- **transcript 过滤**：`-c` 恢复时只加载 `role == "user" || role == "assistant"` 的条目（line 58），system 消息被过滤

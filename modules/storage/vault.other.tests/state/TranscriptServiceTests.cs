@@ -205,6 +205,23 @@ public sealed class TranscriptServiceTests : IDisposable {
         Assert.Equal(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), loaded.CreatedAt);
     }
 
+    /// <summary>
+    /// 复现 bug: SaveSessionInfoAsync 只写 meta.json 不建 transcript.jsonl，
+    /// ListTranscriptsAsync 跳过无 transcript 文件的目录 → -c 找不到 -p 的会话。
+    /// 修复: CliSession.InitializeAsync 应改用 EnsureSessionAsync。
+    /// </summary>
+    [Fact]
+    public async Task SaveSessionInfoOnly_NoTranscript_ListTranscriptsSkipsIt() {
+        var info = new SessionInfo { Id = "saveonly-1", ProjectPath = "/proj/saveonly", CreatedAt = DateTime.UtcNow };
+
+        await _service.SaveSessionInfoAsync("saveonly-1", info).ConfigureAwait(true);
+
+        Assert.True(_fs.FileExists("/test/transcript/saveonly-1/meta.json"));
+        Assert.False(_fs.FileExists("/test/transcript/saveonly-1/transcript.jsonl"));
+        var summaries = await _service.ListTranscriptsAsync().ConfigureAwait(true);
+        Assert.DoesNotContain(summaries, s => s.SessionId == "saveonly-1");
+    }
+
     [Fact]
     public async Task GetSessionInfoAsync_Should_Return_Null_For_Nonexistent() {
         var info = await _service.GetSessionInfoAsync("no-meta-session").ConfigureAwait(true);

@@ -43,12 +43,24 @@ internal sealed partial class SessionResumeStep : ServiceEntity, IMiddleware<Sta
             : await FindSessionByIdOrTitleAsync(transcriptService, options.ResumeSessionId ?? throw new InvalidOperationException("ResumeSessionId required"), ct).ConfigureAwait(false);
 
         if (sessionId is null) {
-            var hint = options.ContinueSession
-                ? "无历史会话可恢复，将启动新会话"
-                : $"未找到会话: {options.ResumeSessionId}";
-            Cli.TerminalHelper.WriteLine(hint);
-            Diag.WriteLine($"[STEP] SessionResume: {hint}");
-            await next(context, ct).ConfigureAwait(false);
+            if (options.ContinueSession) {
+                // --continue 无历史会话 → 提示到 stderr（不污染 stdout JSON），启动新会话
+                Cli.TerminalHelper.WriteError("无历史会话可恢复，将启动新会话");
+                Diag.WriteLine("[STEP] SessionResume: 无历史会话可恢复，将启动新会话");
+                await next(context, ct).ConfigureAwait(false);
+                return;
+            }
+
+            // --resume <id> 未找到 → 错误退出（非静默创建新会话）
+            var resumeId = options.ResumeSessionId ?? throw new InvalidOperationException("ResumeSessionId required");
+            Diag.WriteLine($"[STEP] SessionResume: 未找到会话: {resumeId}");
+            context.ExitCode = (int)ExitCode.SessionResumeFailed;
+            if (context.OutputContract is not null) {
+                context.OutputContract.WriteError(Cli.Output.CliErrorCatalog.ResourceSessionNotFound(resumeId));
+            } else {
+                Cli.TerminalHelper.WriteError($"错误: 未找到会话 '{resumeId}'");
+                Cli.TerminalHelper.WriteError("使用 /history 查看可用会话列表");
+            }
             return;
         }
 
@@ -89,6 +101,8 @@ internal sealed partial class SessionResumeStep : ServiceEntity, IMiddleware<Sta
         var summaries = await service.ListTranscriptsAsync(limit: 100, ct).ConfigureAwait(false);
         var normalizedCurrent = NormalizeProjectPath(currentProject);
         foreach (var summary in summaries) {
+            if (summary.MessageCount == 0)
+                continue;
             var info = await service.GetSessionInfoAsync(summary.SessionId, ct).ConfigureAwait(false);
             if (info is null || string.IsNullOrEmpty(info.ProjectPath))
                 continue;

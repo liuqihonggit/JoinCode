@@ -82,7 +82,7 @@ public sealed class ModelListFetcher : IModelListFetcher {
             _logger?.LogInformation("[ModelListFetcher] {Profile} 拉取到 {Count} 个模型", profile, models.Count);
             return (profile, models);
         } catch (Exception ex) {
-            _logger?.LogWarning(ex, "[ModelListFetcher] 拉取 {Profile} 失败，跳过", profile);
+            _logger?.LogWarning("[ModelListFetcher] 拉取 {Profile} 失败，跳过: {Error}", profile, ex.Message);
             return (profile, null);
         }
     }

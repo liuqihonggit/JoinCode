@@ -92,6 +92,26 @@ public sealed class SessionControllerTests {
         Assert.Equal("API error", result.ErrorMessage);
     }
 
+    /// <summary>AggregateException（流式+非流式降级均失败）应解包内部异常消息，
+    /// 不显示 "Both streaming and non-streaming fallback failed" 原始英文包装消息。</summary>
+    [Fact]
+    public async Task StreamResponseAsync_AggregateException_UnwrapsInnerMessages() {
+        var inner1 = new System.Net.Http.HttpRequestException("流式请求失败 (HTTP 500)");
+        var inner2 = new System.Net.Http.HttpRequestException("非流式降级也失败 (HTTP 500)");
+        var aggEx = new AggregateException("Both streaming and non-streaming fallback failed", inner1, inner2);
+        var chatService = CreateMockChatService(_ => aggEx);
+        var consumer = new RecordingEventConsumer();
+        var controller = new SessionController(chatService, consumer, new TurnDiffService(), "test-session");
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.False(result.Succeeded);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.Contains("流式和非流式请求均失败", result.ErrorMessage);
+        Assert.Contains("流式请求失败 (HTTP 500)", result.ErrorMessage);
+        Assert.Contains("非流式降级也失败 (HTTP 500)", result.ErrorMessage);
+    }
+
     [Fact]
     public async Task StreamResponseAsync_LoopDetected_DispatchedToConsumer() {
         var events = new List<ChatStreamEvent>
@@ -350,6 +370,56 @@ public sealed class SessionControllerTests {
         Assert.True(result.Succeeded);
         contextManager.Verify(c => c.SaveContextAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce,
             "主代理路径应在完成后调用 SaveContextAsync 持久化上下文");
+    }
+
+    /// <summary>mainAgent 路径应在完成后写 transcript 增量条目（对齐 TranscriptPersistMiddleware —
+    /// mainAgent 绕过 ChatService 管道，PostProcessMainAgentAsync 手动补 transcript 持久化）。</summary>
+    [Fact]
+    public async Task StreamResponseAsync_MainAgentPath_WritesTranscriptEntries() {
+        var queryEngine = CreateMockQueryEngine();
+        await using var agent = new AgentBase(
+            task: string.Empty, options: null, queryEngine: queryEngine, logger: null,
+            name: "main", role: AgentRole.Coordinator);
+
+        var contextManager = new Mock<IChatContextManager>();
+        contextManager.SetupGet(c => c.CurrentMessageCount).Returns(0);
+        contextManager.SetupGet(c => c.SessionId).Returns("test-session");
+        contextManager.Setup(c => c.AddAssistantMessageAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        contextManager.Setup(c => c.SaveContextAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList([
+                new ApiMessage { Role = MessageRole.User, Content = "test" },
+                new ApiMessage { Role = MessageRole.Assistant, Content = "Hello" },
+            ]));
+
+        var transcriptService = new Mock<ITranscriptService>();
+        IReadOnlyList<TranscriptEntry>? capturedEntries = null;
+        transcriptService.Setup(t => t.AppendEntriesAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<TranscriptEntry>>(), It.IsAny<CancellationToken>()))
+            .Callback((string _, IReadOnlyList<TranscriptEntry> entries, CancellationToken _) => capturedEntries = entries)
+            .Returns(Task.CompletedTask);
+
+        var services = new ServiceCollection();
+        services.AddSingleton(contextManager.Object);
+        services.AddSingleton(transcriptService.Object);
+        var sp = services.BuildServiceProvider();
+
+        var chatService = CreateMockChatService(Array.Empty<ChatStreamEvent>());
+        var consumer = new RecordingEventConsumer();
+        var controller = new SessionController(chatService, consumer, new TurnDiffService(), "test-session", sp, mainAgent: agent);
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.True(result.Succeeded, result.ErrorMessage);
+        transcriptService.Verify(t => t.AppendEntriesAsync("test-session", It.IsAny<IReadOnlyList<TranscriptEntry>>(), It.IsAny<CancellationToken>()), Times.Once,
+            "主代理路径应在完成后写 transcript 增量条目");
+        Assert.NotNull(capturedEntries);
+        if (capturedEntries is not { } entries) return;
+        Assert.Equal(2, entries.Count);
+        Assert.Equal("user", entries[0].Role);
+        Assert.Equal("test", entries[0].Content);
+        Assert.Equal("assistant", entries[1].Role);
+        Assert.Equal("Hello", entries[1].Content);
+        Assert.Equal("test-model", entries[1].ModelId);
     }
 
     [Fact]

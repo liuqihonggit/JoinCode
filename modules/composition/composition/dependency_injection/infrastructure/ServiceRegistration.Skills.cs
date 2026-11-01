@@ -37,16 +37,22 @@ public static partial class ServiceRegistration {
             pm.PluginLoaded += async (_, pluginName) => {
                 try {
                     await skillBridge.RegisterPluginSkillsAsync(pluginName).ConfigureAwait(false);
+                } catch (ObjectDisposedException ex) {
+                    // 退出竞态良性噪音（PluginManager 已释放，注册技能无意义）→ Debug 静默，不打印堆栈给用户
+                    logger?.LogDebug("[PluginSkillBridge] RegisterPluginSkills 跳过 — 退出竞态（PluginManager 已释放）: {PluginName}: {Error}", pluginName, ex.Message);
                 } catch (Exception ex) {
-                    logger?.LogWarning(ex, L.T(StringKey.RegisterPluginSkillFailedLog, pluginName, ex.Message));
+                    logger?.LogWarning(L.T(StringKey.RegisterPluginSkillFailedLog, pluginName, ex.Message));
                 }
             };
 
             pm.PluginUnloading += async (_, pluginName) => {
                 try {
                     await skillBridge.UnregisterPluginSkillsAsync(pluginName).ConfigureAwait(false);
+                } catch (ObjectDisposedException ex) {
+                    // 退出竞态良性噪音 → Debug 静默
+                    logger?.LogDebug("[PluginSkillBridge] UnregisterPluginSkills 跳过 — 退出竞态: {PluginName}: {Error}", pluginName, ex.Message);
                 } catch (Exception ex) {
-                    logger?.LogWarning(ex, "[PluginSkillBridge] UnregisterPluginSkills failed for {PluginName}: {Error}", pluginName, ex.Message);
+                    logger?.LogWarning("[PluginSkillBridge] UnregisterPluginSkills failed for {PluginName}: {Error}", pluginName, ex.Message);
                 }
             };
         }

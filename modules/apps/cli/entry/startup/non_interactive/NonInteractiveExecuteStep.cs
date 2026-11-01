@@ -50,7 +50,10 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
                 await next(context, ct).ConfigureAwait(false);
                 return;
             }
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             await session.ProcessUserInputAsync(prompt, ct).ConfigureAwait(false);
+            sw.Stop();
+            context.ElapsedMs = sw.ElapsedMilliseconds;
             await Console.Out.FlushAsync().ConfigureAwait(false);
             context.FullResponse = session.LastResponse;
             Diag.WriteLifecycle("[AI对话结束]");

@@ -17,8 +17,13 @@ internal sealed partial class NonInteractivePromptStep : ServiceEntity, IMiddlew
         }
 
         if (string.IsNullOrWhiteSpace(prompt)) {
-            Cli.TerminalHelper.WriteLine("错误: 未提供提示词。");
             context.ExitCode = (int)ExitCode.ArgumentParseError;
+            context.StructuredError = new Cli.Output.CliStructuredError(
+                "ARG_PROMPT_EMPTY", "提示词为空，请提供 -p 参数或通过 stdin 输入",
+                hint: "用法: jcc -p \"你的问题\" 或 echo \"问题\" | jcc",
+                retryable: false);
+            if (context.OutputContract is null)
+                Cli.TerminalHelper.WriteLine("错误: 未提供提示词。");
             Diag.WriteLine("[STEP] PromptStep empty, short-circuit");
             return;
         }

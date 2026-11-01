@@ -434,6 +434,7 @@ public sealed class CliSession {
                 TerminalHelper.WriteLine($"错误: {result.ErrorMessage}");
             }
             LastResponse = result.Response;
+            throw new InvalidOperationException(result.ErrorMessage ?? "LLM 请求失败");
         }
         Diag.WriteLine($"[CliSession] StreamResponseAsync done: succeeded={result.Succeeded}, responseLen={result.Response.Length}");
     }

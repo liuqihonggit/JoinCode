@@ -183,7 +183,7 @@ public sealed class CliSession {
 
         if (_optionalServices?.TranscriptService is { } transcriptSvc) {
             try {
-                await transcriptSvc.SaveSessionInfoAsync(_sessionId, new SessionInfo {
+                await transcriptSvc.EnsureSessionAsync(_sessionId, new SessionInfo {
                     Id = _sessionId,
                     ProjectPath = workingDir,
                     ModelId = Environment.GetEnvironmentVariable("JCC_MODEL_ID") ?? string.Empty,

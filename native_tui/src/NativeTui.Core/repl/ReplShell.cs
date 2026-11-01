@@ -782,16 +782,6 @@ public sealed class ReplShell
         _promptContextSnapshot = promptContextSnapshot;
         _promptContextInventory = promptContextInventory;
         _promptContextFileUrl = promptContextFileUrl;
-        // TASK078 — 引擎就绪后补创建 PromptContextItem（首帧时 promptContextSnapshot 为 null 未创建）
-        if (_promptContextItem is null && _promptContextSnapshot is not null && _promptContextInventory is not null)
-        {
-            _promptContextItem = new PromptContextItem(
-                $"📎 首次注入 · 系统提示词 {_promptContextSnapshot.Length} 字符",
-                _promptContextSnapshot.Length,
-                _promptContextFileUrl);
-            _view.Messages.Add(_promptContextItem);
-            _driver.PromptContextItemTarget = _promptContextItem;
-        }
     }
 
     /// <summary>视图（测试断言面）。</summary>
@@ -915,17 +905,7 @@ public sealed class ReplShell
             _view.Messages.Add(new StartupLineItem(line));
         }
         _view.Messages.Add(_banner);
-        // TASK079 终版 — 注入上下文折叠项（OSC 8 file 链接：终端原生点击打开快照 .md，
-        // 不接管鼠标原生选择复制不受影响；/prompt 全页模态双通道；null = 宿主未启用）
-        if (_promptContextSnapshot is not null && _promptContextInventory is not null)
-        {
-            _promptContextItem = new PromptContextItem(
-                $"📎 首次注入 · 系统提示词 {_promptContextSnapshot.Length} 字符",
-                _promptContextSnapshot.Length,
-                _promptContextFileUrl);
-            _view.Messages.Add(_promptContextItem);
-            _driver.PromptContextItemTarget = _promptContextItem;
-        }
+        // TASK078 — PromptContextItem 改为每次注入时动态创建（SubmitCore 中用户消息前插入），不再 SeedContent 静态创建
 
         foreach (var message in _seedMessages)
         {
@@ -4118,6 +4098,17 @@ public sealed class ReplShell
             _queuedInputs.Add((text, expanded, attachments));
             _view.QueuedInputs = _queuedInputs.Select(static entry => entry.Display).ToList();
             return;
+        }
+
+        // TASK078 — 每次注入提示词时在用户消息前添加折叠项（引擎就绪后 _promptContextSnapshot 有值才创建）
+        if (_promptContextSnapshot is not null && _promptContextInventory is not null)
+        {
+            _promptContextItem = new PromptContextItem(
+                $"📎 系统提示词 {_promptContextSnapshot.Length} 字符",
+                _promptContextSnapshot.Length,
+                _promptContextFileUrl);
+            AddMessage(_promptContextItem);
+            _driver.PromptContextItemTarget = _promptContextItem;
         }
 
         AddMessage(new UserMessageItem(text));

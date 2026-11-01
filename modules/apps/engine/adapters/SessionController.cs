@@ -188,6 +188,14 @@ public sealed class SessionController {
                 }
             }
 
+            if (ex is AggregateException aggEx) {
+                var innerMessages = aggEx.InnerExceptions
+                    .Select(e => e?.Message)
+                    .Where(m => !string.IsNullOrEmpty(m))
+                    .Distinct();
+                var combined = string.Join("; ", innerMessages);
+                return SessionTurnResult.Error($"流式和非流式请求均失败：{combined}", LastResponse);
+            }
             if (ex is JoinCode.Abstractions.Exceptions.ApiException apiEx)
                 return SessionTurnResult.Error(apiEx.Message, LastResponse, apiEx.ErrorCode, apiEx.IsRetryable);
             if (ex is JoinCode.Abstractions.Exceptions.WorkflowException wfEx)

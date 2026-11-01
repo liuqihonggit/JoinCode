@@ -92,6 +92,26 @@ public sealed class SessionControllerTests {
         Assert.Equal("API error", result.ErrorMessage);
     }
 
+    /// <summary>AggregateException（流式+非流式降级均失败）应解包内部异常消息，
+    /// 不显示 "Both streaming and non-streaming fallback failed" 原始英文包装消息。</summary>
+    [Fact]
+    public async Task StreamResponseAsync_AggregateException_UnwrapsInnerMessages() {
+        var inner1 = new System.Net.Http.HttpRequestException("流式请求失败 (HTTP 500)");
+        var inner2 = new System.Net.Http.HttpRequestException("非流式降级也失败 (HTTP 500)");
+        var aggEx = new AggregateException("Both streaming and non-streaming fallback failed", inner1, inner2);
+        var chatService = CreateMockChatService(_ => aggEx);
+        var consumer = new RecordingEventConsumer();
+        var controller = new SessionController(chatService, consumer, new TurnDiffService(), "test-session");
+
+        var result = await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        Assert.False(result.Succeeded);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.Contains("流式和非流式请求均失败", result.ErrorMessage);
+        Assert.Contains("流式请求失败 (HTTP 500)", result.ErrorMessage);
+        Assert.Contains("非流式降级也失败 (HTTP 500)", result.ErrorMessage);
+    }
+
     [Fact]
     public async Task StreamResponseAsync_LoopDetected_DispatchedToConsumer() {
         var events = new List<ChatStreamEvent>

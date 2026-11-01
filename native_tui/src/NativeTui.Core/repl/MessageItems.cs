@@ -467,3 +467,21 @@ public sealed class ErrorMessageItem(string text) : IScrollItem, ICursorNavigabl
     /// <summary>错误正文匹配。</summary>
     public bool ContainsText(string query) => Text.Contains(query, StringComparison.OrdinalIgnoreCase);
 }
+
+/// <summary>启动诊断行项 — 纯文本 dim 渲染（引擎启动中/[diag] 等）。
+/// 纳入 TUI 渲染内容使应用内选区覆盖（无需 Shift 选择）。</summary>
+public sealed class StartupLineItem(string text) : IScrollItem
+{
+    /// <summary>诊断行文本。</summary>
+    public string Text { get; } = text;
+
+    /// <summary>单行高度。</summary>
+    public int MeasureHeight(int width) => 1;
+
+    /// <summary>dim 样式渲染纯文本行（淡红色警告色）。</summary>
+    public void Render(Screen screen, Rect frame, Theme theme)
+    {
+        var style = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Error });
+        screen.WriteText(frame.Y, frame.X, Text, style, frame.Right);
+    }
+}

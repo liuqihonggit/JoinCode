@@ -268,12 +268,14 @@ public static class Program {
 
         Console.OutputEncoding = Encoding.UTF8;
         using var raw = (Environment.GetEnvironmentVariable("JCC_FORCE_TTY") == "1" ? (IDisposable?)null : new RawConsoleMode());
-        // TASK077 — 启动诊断行保存（退出备用屏后重输出恢复 scrollback 历史）
+        // TASK077 — 启动诊断行保存（纫入 TUI 渲染 — 应用内选区覆盖，不写 Console.Error 避免 scrollback 重复）
         var startupLines = new List<string>();
         void WriteStartupLine(string line)
         {
-            startupLines.Add(line);
-            Console.Error.WriteLine(line);
+            foreach (var part in line.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
+            {
+                startupLines.Add(part);
+            }
         }
 
         WriteStartupLine("引擎启动中…");
@@ -282,6 +284,8 @@ public static class Program {
         // 诊断行附带环境快照（TERM_PROGRAM/LC_TERMINAL/WT_SESSION/TERM/KITTY_WINDOW_ID）—
         // 用户贴报问题时 AI 一眼看清终端环境，无需另跑命令排查
         WriteStartupLine(HyperlinkEmitter.FormatDiagnostic());
+        // 开关状态诊断（AGENTS.md 开关优先 + 助记符 — 启动 banner 列出当前开关状态）
+        WriteStartupLine($"[diag] 开关: MouseTracking={JccFeatureFlags.MouseTrackingEnabled} Hover={JccFeatureFlags.HoverHighlightEnabled} ClickExpand={JccFeatureFlags.ClickExpandEnabled} (JCC_NO_MOUSE_TRACKING={Environment.GetEnvironmentVariable("JCC_NO_MOUSE_TRACKING") ?? "(未设置)"})");
         using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
         TestEnvironmentDetector.ForceNonInteractive = true;
 
@@ -483,6 +487,7 @@ var transparencyEngine = new PromptTransparencyEngine(clarifyEngine);
                     shellTimeoutSeconds: shellExecutionConfig?.AbsoluteTimeoutSeconds ?? 120,
                     promptContextSnapshot: promptSnapshotBuilder.Value,
                     promptContextInventory: () => toolInventoryCache.Value,
+                    promptContextFileUrl: promptFileUrl,
                     clipboard: text => _ = clipboardService?.SetTextAsync(text),
                     themeName: themeName,
                     commandUsage: commandUsage,

@@ -303,6 +303,7 @@ public sealed class ReplShell
     private readonly Func<(string Text, int Total, int System)>? _promptContextInventory;
 
     /// <summary>注入快照文件 file URL（OSC 8 链接目标 — null = 未写文件/不支持）。</summary>
+    private readonly string? _promptContextFileUrl;
 
     /// <summary>bash 直通完成结果缓冲（S10 接线 — ExecuteAsync 完成于线程池线程，AddMessage 必须回主循环线程
     /// （与渲染循环竞争 _view.Messages），复用 /clear 的跨线程缓冲 + 主循环消费先例）。</summary>
@@ -682,6 +683,7 @@ public sealed class ReplShell
         int shellTimeoutSeconds = 120,
         string? promptContextSnapshot = null,
         Func<(string Text, int Total, int System)>? promptContextInventory = null,
+        string? promptContextFileUrl = null,
 
         AlternateScreenController? alternateScreen = null,
         SelectionState? selection = null,
@@ -705,6 +707,7 @@ public sealed class ReplShell
         _seedMessages = seedMessages ?? [];
         _promptContextSnapshot = promptContextSnapshot;
         _promptContextInventory = promptContextInventory;
+        _promptContextFileUrl = promptContextFileUrl;
         _commandUsage = commandUsage ?? new CommandUsageMemory();
         // S10 接线 — 分组注入：空查询 "/" 走 recently-used + 来源分组视图（有查询仍走既有匹配排序）
         _suggester = commands is { Count: > 0 } ? new SlashSuggester(commands, new CommandGrouping(_commandUsage)) : null;
@@ -824,11 +827,15 @@ public sealed class ReplShell
         _output.Write(DecPrivateMode.Enable(DecPrivateModeKind.BracketedPaste));
         // TASK079 — 鼠标上报（Win32InputPump ReadConsoleInput 可见 MOUSE_EVENT 记录）
         // TASK077 — MouseAnyEventTracking(DEC 1003) 启用 hover 追踪（Move 事件驱动高亮）
-        _output.Write(
-            DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
-            + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
-            + DecPrivateMode.Enable(DecPrivateModeKind.MouseAnyEventTracking)
-            + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
+        // 开关 JCC_NO_MOUSE_TRACKING — 设置时禁用所有鼠标追踪模式，恢复终端原生选区
+        if (JccFeatureFlags.MouseTrackingEnabled)
+        {
+            _output.Write(
+                DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
+                + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
+                + DecPrivateMode.Enable(DecPrivateModeKind.MouseAnyEventTracking)
+                + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
+        }
         // A5 接线 — 焦点上报（DEC 1004）：仅协调器存在时启用（有消费者才开 — 退出 WriteExit 尾对称 Disable）
         if (_terminalStatus is not null)
         {
@@ -871,6 +878,11 @@ public sealed class ReplShell
         };
         // TASK079 用户反馈 — 种子 effort 通知移除：8s 到期清除触发 footer 重绘，把上滚的
         // 终端视口拽回底部（偶发刷新源）；effort 状态由 footer 段持久展示，瞬态通知纯冗余
+        // TASK077 — 启动诊断行纫入 TUI 渲染（应用内选区覆盖，无需 Shift 选择）
+        foreach (var line in _startupLines)
+        {
+            _view.Messages.Add(new StartupLineItem(line));
+        }
         _view.Messages.Add(_banner);
         // TASK079 终版 — 注入上下文折叠项（OSC 8 file 链接：终端原生点击打开快照 .md，
         // 不接管鼠标原生选择复制不受影响；/prompt 全页模态双通道；null = 宿主未启用）
@@ -878,7 +890,8 @@ public sealed class ReplShell
         {
             _promptContextItem = new PromptContextItem(
                 $"📎 首次注入 · 系统提示词 {_promptContextSnapshot.Length} 字符",
-                _promptContextSnapshot.Length);
+                _promptContextSnapshot.Length,
+                _promptContextFileUrl);
             _view.Messages.Add(_promptContextItem);
             _driver.PromptContextItemTarget = _promptContextItem;
         }
@@ -2442,7 +2455,7 @@ public sealed class ReplShell
             return;
         }
 
-        // transcript 特例 — 滚轮可用（transcript 内滚动），其余鼠标吞掉
+        // transcript 特例 — 滚轮滚动 + 选区交互（Press/Drag/Release），其余鼠标吞掉
         if (_transcript.IsActive)
         {
             if (evt.Kind is MouseKind.WheelUp or MouseKind.WheelDown)
@@ -2454,13 +2467,24 @@ public sealed class ReplShell
                 var step = _wheelSpeed.OnWheelEvent(down);
                 _transcript.ScrollBy(down ? step : -step);
             }
+            else if (evt.Kind is MouseKind.Press or MouseKind.Drag or MouseKind.Release)
+            {
+                // 第二屏选区交互 — transcript 全屏渲染坐标与 _back 一致，无需 inline 转换
+                _selection.HandleMouse(evt, BuildSelectionScreen());
+                if (evt.Kind == MouseKind.Release)
+                {
+                    CopySelectionIfSettled();
+                }
+            }
 
             return;
         }
 
         // TASK077 — hover 高亮：Move 事件经 HitTest 查询，命中 PromptContextItem 时切换 hover 样式。
         // DEC 1003 启用无按钮移动上报（Move 事件量经终端节流可控；状态变化由每拍渲染消费）
-        if (evt.Kind == MouseKind.Move && _promptContextItem is { } hoverItem)
+        // 开关 JCC_NO_HOVER — 设置时禁用 hover 高亮；JCC_NO_MOUSE_TRACKING 隐式禁用（无 Move 事件）
+        if (JccFeatureFlags.HoverHighlightEnabled
+            && evt.Kind == MouseKind.Move && _promptContextItem is { } hoverItem)
         {
             var screenRow = evt.Row;
             if (_inline && _viewportProbe is { } probe)
@@ -2514,7 +2538,15 @@ public sealed class ReplShell
                 return;
             default:
                 // 选区交互 — Press/Drag/Release 路由状态机（滚轮/Move 已在上方 return）
-                _selection.HandleMouse(evt, BuildSelectionScreen());
+                // TASK077 — inline 模式 SGR 鼠标坐标是终端视口坐标，选区高亮用 Screen 内容坐标，
+                // 用 TerminalViewportProbe 转换（与 TryDispatchHitTestClick 同一转换路径）
+                var selectionEvt = evt;
+                if (_inline && _viewportProbe is { } probe)
+                {
+                    var viewportOffset = probe.QueryViewportOffset(_cursor.Row);
+                    selectionEvt = evt with { Row = TerminalViewportProbe.ScreenRowFromSgr(evt.Row, viewportOffset) };
+                }
+                _selection.HandleMouse(selectionEvt, BuildSelectionScreen());
                 if (evt.Kind == MouseKind.Release)
                 {
                     CopySelectionIfSettled();
@@ -2562,7 +2594,8 @@ public sealed class ReplShell
         }
 
         // 注入上下文折叠项点击 — 打开提示词详情页（/prompt 同效）
-        if (hitId == PromptContextItem.HitIdValue)
+        // 开关 JCC_NO_CLICK_EXPAND — 设置时禁用点击展开（仅保留 ctrl+o 键盘入口）
+        if (JccFeatureFlags.ClickExpandEnabled && hitId == PromptContextItem.HitIdValue)
         {
             TogglePromptContext();
             return true;
@@ -2599,6 +2632,37 @@ public sealed class ReplShell
         }
 
         return new SelectionScreen(FrontLineAt, _front.Cols, _front.Rows);
+    }
+
+    /// <summary>选区高亮叠加（TASK066 C6 补全 — SelectionState.Bounds 投影到 Screen cell 网格做反色）。
+    /// 在 _view.Render 之后、差分上屏之前调用 — 选区几何与 cell 内容都齐备，反色自动 diff 出屏。
+    /// 选区坐标为屏幕网格坐标（0-based），与 _back cell 索引直接对应；Bounds 已 NormalizeBounds（Start ≤ End，End inclusive）。</summary>
+    private void ApplySelectionHighlight(Screen screen, SelectionState selection)
+    {
+        if (selection.Bounds is not { } bounds)
+        {
+            return;
+        }
+
+        var inverseStyle = screen.Styles.GetOrAdd(new TextStyle { Inverse = true });
+        var startRow = Math.Max(0, bounds.Start.Row);
+        var endRow = Math.Min(screen.Rows - 1, bounds.End.Row);
+        for (var row = startRow; row <= endRow; row++)
+        {
+            var colStart = row == bounds.Start.Row ? bounds.Start.Col : 0;
+            var colEnd = row == bounds.End.Row ? bounds.End.Col : screen.Cols - 1;
+            colStart = Math.Max(0, colStart);
+            colEnd = Math.Min(screen.Cols - 1, colEnd);
+            for (var col = colStart; col <= colEnd; col++)
+            {
+                var cell = screen[row, col];
+                if (cell.Width == CellWidth.SpacerTail)
+                {
+                    continue;
+                }
+                screen[row, col] = cell with { StyleId = inverseStyle };
+            }
+        }
     }
 
     /// <summary>前缓冲行文本（0-based 行 → 定长 Cols 文本；越界行返回空 span —
@@ -2717,20 +2781,20 @@ public sealed class ReplShell
         {
             _alternateScreen.Exit();
             // TASK077 — 备用屏退出禁用了所有鼠标模式，主屏需重新启用（否则点击/hover 失效）
-            _output.Write(
-                DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
-                + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
-                + DecPrivateMode.Enable(DecPrivateModeKind.MouseAnyEventTracking)
-                + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
-            // TASK077 — DEC 1049 不保存 scrollback，退出后启动诊断行丢失。
-            // 清屏 + 重输出诊断行 + 首帧重绘恢复完整历史（诊断行在 scrollback，Screen 内容在视口）
+            // 开关 JCC_NO_MOUSE_TRACKING — 设置时跳过（用户选择原生选区）
+            if (JccFeatureFlags.MouseTrackingEnabled)
+            {
+                _output.Write(
+                    DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
+                    + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
+                    + DecPrivateMode.Enable(DecPrivateModeKind.MouseAnyEventTracking)
+                    + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
+            }
+            // TASK077 — DEC 1049 不保存 scrollback，退出后清屏 + 首帧重绘恢复主屏内容。
+            // 启动诊断行已作为 StartupLineItem 纫入 TUI 渲染，无需重输出到 scrollback。
             if (_startupLines.Count > 0)
             {
                 _output.Write(Sgr.Reset + Csi.EraseScreen() + Csi.EraseSavedLines() + Csi.CursorPosition(1, 1));
-                foreach (var line in _startupLines)
-                {
-                    _output.WriteLine(line);
-                }
 
                 _frontValid = false;
                 _prevOverride = null;
@@ -4289,6 +4353,7 @@ public sealed class ReplShell
         // 基准 isFullscreen 条件，见 ReplView.ViewportRender）
         _view.ViewportRender = !_inline;
         _view.Render(_back, _theme);
+        ApplySelectionHighlight(_back, _selection);
         if (_inline)
         {
             var viewportRows = _sizeSource.Current.Rows;
@@ -4520,10 +4585,13 @@ public sealed class ReplShell
             : string.Empty;
         // TASK077 — 主屏鼠标武装对称解除（Run 启用 ?1000h/?1002h/?1006h，退出必须 Disable
         // 否则终端残留鼠标应用模式影响 shell 正常使用）
-        var mouseDisable = DecPrivateMode.Disable(DecPrivateModeKind.MouseSgrEncoding)
-            + DecPrivateMode.Disable(DecPrivateModeKind.MouseAnyEventTracking)
-            + DecPrivateMode.Disable(DecPrivateModeKind.MouseEventTracking)
-            + DecPrivateMode.Disable(DecPrivateModeKind.MouseClickTracking);
+        // 开关 JCC_NO_MOUSE_TRACKING — 未启用则无需 Disable（避免发送冗余序列）
+        var mouseDisable = JccFeatureFlags.MouseTrackingEnabled
+            ? DecPrivateMode.Disable(DecPrivateModeKind.MouseSgrEncoding)
+              + DecPrivateMode.Disable(DecPrivateModeKind.MouseAnyEventTracking)
+              + DecPrivateMode.Disable(DecPrivateModeKind.MouseEventTracking)
+              + DecPrivateMode.Disable(DecPrivateModeKind.MouseClickTracking)
+            : string.Empty;
         _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste) + mouseDisable + focusDisable);
         _terminalStatus?.Shutdown();
         _output.Flush();

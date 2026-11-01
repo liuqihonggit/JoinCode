@@ -49,22 +49,23 @@ public sealed class PromptContextItem : IScrollItem
     public int MeasureHeight(int width) => 1;
 
     /// <summary>渲染摘要行。
-    /// OSC 8 模式（FileUrl 非 null）：写文本 + SetLinks 整行链接区间 — 终端原生 hover 下划线 + 点击打开 .md。
-    /// 应用内命中模式（FileUrl null）：hover 时正常亮度+下划线，非 hover 时 dim 纯文本 — 点击直达应用命中表。</summary>
+    /// 鼠标追踪启用 → 应用内命中模式：hover 时下划线高亮，非 hover 时 dim — 点击直达应用命中表进第二屏。
+    /// 鼠标追踪禁用 + FileUrl 非 null → OSC 8 模式：dim + SetLinks — 终端原生 hover 下划线 + 点击打开 .md。
+    /// 鼠标追踪禁用 + FileUrl null → dim 纯文本（仅 ctrl+o 键盘入口）。</summary>
     public void Render(Screen screen, Rect frame, Theme theme)
     {
         var tokenNote = PromptTokens is { } tokens ? $" · 约 {tokens} tokens" : string.Empty;
         var text = $"📎 首次注入 · 系统提示词 {PromptChars} 字符{tokenNote} · 点击展开";
-        if (FileUrl is { Length: > 0 } url)
+        if (JccFeatureFlags.MouseTrackingEnabled && IsHovered)
+        {
+            var hoverStyle = screen.Styles.GetOrAdd(new TextStyle { Underline = true });
+            screen.WriteText(frame.Y, frame.X, text, hoverStyle, frame.Right);
+        }
+        else if (!JccFeatureFlags.MouseTrackingEnabled && FileUrl is { Length: > 0 } url)
         {
             var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
             screen.WriteText(frame.Y, frame.X, text, dim, frame.Right);
             screen.SetLinks(frame.Y, [new LinkSpan(frame.X, frame.X + text.Length, url)]);
-        }
-        else if (IsHovered)
-        {
-            var hoverStyle = screen.Styles.GetOrAdd(new TextStyle { Underline = true });
-            screen.WriteText(frame.Y, frame.X, text, hoverStyle, frame.Right);
         }
         else
         {

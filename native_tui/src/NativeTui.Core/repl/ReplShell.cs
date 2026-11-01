@@ -824,11 +824,15 @@ public sealed class ReplShell
         _output.Write(DecPrivateMode.Enable(DecPrivateModeKind.BracketedPaste));
         // TASK079 — 鼠标上报（Win32InputPump ReadConsoleInput 可见 MOUSE_EVENT 记录）
         // TASK077 — MouseAnyEventTracking(DEC 1003) 启用 hover 追踪（Move 事件驱动高亮）
-        _output.Write(
-            DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
-            + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
-            + DecPrivateMode.Enable(DecPrivateModeKind.MouseAnyEventTracking)
-            + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
+        // 开关 JCC_NO_MOUSE_TRACKING — 设置时禁用所有鼠标追踪模式，恢复终端原生选区
+        if (JccFeatureFlags.MouseTrackingEnabled)
+        {
+            _output.Write(
+                DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
+                + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
+                + DecPrivateMode.Enable(DecPrivateModeKind.MouseAnyEventTracking)
+                + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
+        }
         // A5 接线 — 焦点上报（DEC 1004）：仅协调器存在时启用（有消费者才开 — 退出 WriteExit 尾对称 Disable）
         if (_terminalStatus is not null)
         {
@@ -2460,7 +2464,9 @@ public sealed class ReplShell
 
         // TASK077 — hover 高亮：Move 事件经 HitTest 查询，命中 PromptContextItem 时切换 hover 样式。
         // DEC 1003 启用无按钮移动上报（Move 事件量经终端节流可控；状态变化由每拍渲染消费）
-        if (evt.Kind == MouseKind.Move && _promptContextItem is { } hoverItem)
+        // 开关 JCC_NO_HOVER — 设置时禁用 hover 高亮；JCC_NO_MOUSE_TRACKING 隐式禁用（无 Move 事件）
+        if (JccFeatureFlags.HoverHighlightEnabled
+            && evt.Kind == MouseKind.Move && _promptContextItem is { } hoverItem)
         {
             var screenRow = evt.Row;
             if (_inline && _viewportProbe is { } probe)
@@ -2562,7 +2568,8 @@ public sealed class ReplShell
         }
 
         // 注入上下文折叠项点击 — 打开提示词详情页（/prompt 同效）
-        if (hitId == PromptContextItem.HitIdValue)
+        // 开关 JCC_NO_CLICK_EXPAND — 设置时禁用点击展开（仅保留 ctrl+o 键盘入口）
+        if (JccFeatureFlags.ClickExpandEnabled && hitId == PromptContextItem.HitIdValue)
         {
             TogglePromptContext();
             return true;
@@ -2717,11 +2724,15 @@ public sealed class ReplShell
         {
             _alternateScreen.Exit();
             // TASK077 — 备用屏退出禁用了所有鼠标模式，主屏需重新启用（否则点击/hover 失效）
-            _output.Write(
-                DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
-                + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
-                + DecPrivateMode.Enable(DecPrivateModeKind.MouseAnyEventTracking)
-                + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
+            // 开关 JCC_NO_MOUSE_TRACKING — 设置时跳过（用户选择原生选区）
+            if (JccFeatureFlags.MouseTrackingEnabled)
+            {
+                _output.Write(
+                    DecPrivateMode.Enable(DecPrivateModeKind.MouseClickTracking)
+                    + DecPrivateMode.Enable(DecPrivateModeKind.MouseEventTracking)
+                    + DecPrivateMode.Enable(DecPrivateModeKind.MouseAnyEventTracking)
+                    + DecPrivateMode.Enable(DecPrivateModeKind.MouseSgrEncoding));
+            }
             // TASK077 — DEC 1049 不保存 scrollback，退出后启动诊断行丢失。
             // 清屏 + 重输出诊断行 + 首帧重绘恢复完整历史（诊断行在 scrollback，Screen 内容在视口）
             if (_startupLines.Count > 0)
@@ -4520,10 +4531,13 @@ public sealed class ReplShell
             : string.Empty;
         // TASK077 — 主屏鼠标武装对称解除（Run 启用 ?1000h/?1002h/?1006h，退出必须 Disable
         // 否则终端残留鼠标应用模式影响 shell 正常使用）
-        var mouseDisable = DecPrivateMode.Disable(DecPrivateModeKind.MouseSgrEncoding)
-            + DecPrivateMode.Disable(DecPrivateModeKind.MouseAnyEventTracking)
-            + DecPrivateMode.Disable(DecPrivateModeKind.MouseEventTracking)
-            + DecPrivateMode.Disable(DecPrivateModeKind.MouseClickTracking);
+        // 开关 JCC_NO_MOUSE_TRACKING — 未启用则无需 Disable（避免发送冗余序列）
+        var mouseDisable = JccFeatureFlags.MouseTrackingEnabled
+            ? DecPrivateMode.Disable(DecPrivateModeKind.MouseSgrEncoding)
+              + DecPrivateMode.Disable(DecPrivateModeKind.MouseAnyEventTracking)
+              + DecPrivateMode.Disable(DecPrivateModeKind.MouseEventTracking)
+              + DecPrivateMode.Disable(DecPrivateModeKind.MouseClickTracking)
+            : string.Empty;
         _output.Write(sequences + DecPrivateMode.Disable(DecPrivateModeKind.BracketedPaste) + mouseDisable + focusDisable);
         _terminalStatus?.Shutdown();
         _output.Flush();

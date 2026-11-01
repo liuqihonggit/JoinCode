@@ -755,6 +755,30 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 
 > 📖 各规则已收编为 ADR，详见 [docs/README.md](docs/README.md) 索引。下方每条规则标注对应 ADR 编号，可二次打开查看完整决策上下文与替代方案。
 
+## 🔧 开关优先 + 助记符命名（强制）
+
+任何功能行为都必须设计为可开关，**禁止硬编码启用/禁用**。处理任何事情都先想"这该是哪个开关"。
+
+| 规则 | 说明 |
+|------|------|
+| **助记符命名** | 环境变量用 `JCC_` 前缀 + 易记助记符（如 `JCC_NO_MOUSE_TRACKING`、`JCC_NATIVE_SELECTION`）。助记符 = 行为缩写，一眼能猜出含义，禁止晦涩编号 |
+| **开关粒度** | 每个独立行为一个开关，禁止一个开关控制多个不相关行为。正交行为用正交开关 |
+| **默认值** | 向后兼容 + 用户期望优先。默认值在开关定义处用 `const` 声明，禁止散落魔法值 |
+| **统一消费** | 通过 `JccFeatureFlags` 静态门面消费（内部读 `Environment.GetEnvironmentVariable`），禁止散落 ad-hoc `GetEnvironmentVariable` 调用 |
+| **助记符枚举** | 开关名收编为 `JccFeatureFlag` 枚举 + `[EnumValue]`，源码生成器产出常量，禁止手写字符串 |
+| **文档同步** | 新增开关必须同步更新 `JccFeatureFlags` XML 注释 + 启动诊断输出（`--help` 或启动 banner 列出当前开关状态） |
+| **三态语义** | 开关支持 `1`/`true`/`yes` 启用、`0`/`false`/`no` 禁用、未设置=默认。禁止二态强制 |
+
+### 开关命名助记符词典（现行）
+
+| 助记符 | 行为 | 默认 |
+|--------|------|------|
+| `JCC_NO_MOUSE_TRACKING` | 禁用所有鼠标追踪模式（DEC 1000/1002/1003/1006），恢复终端原生选区 | 未设置=启用追踪 |
+| `JCC_NO_HOVER` | 禁用 hover 高亮（Move 事件驱动） | 未设置=启用 hover |
+| `JCC_NO_CLICK_EXPAND` | 禁用点击展开 PromptContextItem 第二屏 | 未设置=启用点击 |
+
+> 新增开关时在此表登记，保持词典单一真相源。
+
 ## ⚠️ 反例清单（踩过的坑，禁止再犯）
 
 > ADR: [0079](docs/implemented/adr/component_strategy/0079-anti-pattern-examples.md) — 详见 ADR 文档（含反例1-6：不查AGENTS.md/改共享配置/治标修复链/加法思维/模型ID推断模态/多余ToList拷贝）

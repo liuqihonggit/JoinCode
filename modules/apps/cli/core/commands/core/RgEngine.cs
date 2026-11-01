@@ -14,9 +14,10 @@ internal static class RgEngine {
 
     /// <summary>
     /// 执行搜索。PLINQ 链式：收集文件 → 并行搜索 → 过滤 → 排序 → 分页。
+    /// <para>流式模式（onFileResult 非 null）：每搜完一个文件立即回调输出，跳过排序/分页。</para>
     /// </summary>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    public static RgOutcome Search(RgQuery q, CancellationToken ct) {
+    public static RgOutcome Search(RgQuery q, CancellationToken ct, Action<RgFileResult>? onFileResult = null) {
         ct.ThrowIfCancellationRequested();
 
         var (regex, compileError) = CompileRegex(q);
@@ -28,6 +29,17 @@ internal static class RgEngine {
             return RgOutcome.Empty();
 
         var degree = q.Threads is > 0 ? q.Threads.Value : Environment.ProcessorCount;
+
+        if (onFileResult is not null) {
+            var streamLock = new object();
+            files.AsCpuParallel()
+                .WithCancellation(ct)
+                .WithDegreeOfParallelism(degree)
+                .Select(f => SearchFile(f, regex, q, ct))
+                .Where(r => r is not null)
+                .ForAll(r => { lock (streamLock) onFileResult(r!); });
+            return RgOutcome.Ok([], null, null);
+        }
 
         var results = new ConcurrentBag<RgFileResult>();
 
@@ -223,6 +235,7 @@ internal static class RgEngine {
 
     private static RgFileResult? SearchContent(string path, ReadOnlySpan<char> contentSpan, Regex regex, RgQuery q, CancellationToken ct) {
         var lineRanges = LineSpanIndexer.BuildLineRanges(contentSpan, ct);
+        var normalizedPath = path.Replace('\\', '/');
 
         var matchedLines = new List<int>();
         if (q.Multiline) {
@@ -265,7 +278,7 @@ internal static class RgEngine {
                     formatted = lineContent;
                 }
 
-                var prefix = q.LineNumbers ? $"{path}:{current + 1}:" : $"{path}:";
+                var prefix = q.LineNumbers ? $"{normalizedPath}:{current + 1}:" : $"{normalizedPath}:";
                 contentLines.Add($"{prefix}{formatted}");
             }
         }

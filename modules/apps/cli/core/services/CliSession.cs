@@ -60,6 +60,7 @@ public sealed class CliSession {
     /// <param name="clock">时钟服务；null 时使用系统时钟</param>
     /// <param name="logger">日志记录器；null 时不记录日志</param>
     /// <param name="sessionId">会话 ID；null 时自动生成新会话 ID</param>
+    /// <param name="agentMode">true 启用 AX 模式（NDJSON 事件流），false 为 DX 模式（彩色输出）— Bug 14: --format ndjson 接线</param>
     public CliSession(
         IChatService chatService,
         ICodeService codeService,
@@ -69,7 +70,8 @@ public sealed class CliSession {
         EngineServiceContext? optionalServices = null,
         IClockService? clock = null,
         ILogger<CliSession>? logger = null,
-        string? sessionId = null) {
+        string? sessionId = null,
+        bool agentMode = false) {
         _clock = clock ?? SystemClockService.Instance;
         _logger = logger;
         _sessionStartedAt = _clock.GetUtcNow();
@@ -98,9 +100,14 @@ public sealed class CliSession {
         var outputChannelManager = optionalServices?.ServiceProvider?.GetService<JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager>();
         var consumerOutputChannel = mainAgent is null ? outputChannelManager : null;
 
+        // Bug 14: --format ndjson 启用 AX 模式（NDJSON 事件流），否则 DX 模式（彩色输出/通道管理器）
+        var eventConsumer = agentMode
+            ? new CliEventConsumer(agentMode: true)
+            : new CliEventConsumer(consumerOutputChannel);
+
         _controller = new SessionController(
             chatService,
-            new CliEventConsumer(consumerOutputChannel),
+            eventConsumer,
             _turnDiffService,
             _sessionId,
             optionalServices?.ServiceProvider,

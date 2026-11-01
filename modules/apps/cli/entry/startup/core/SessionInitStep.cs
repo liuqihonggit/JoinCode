@@ -82,7 +82,7 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
         // T6：sessionId 同源 — 复用引擎工厂生成的 ID（transcript 落盘已下沉引擎管道，双方必须一致）
         var engineSessionId = context.SessionId ?? host.Services.GetService<IChatContextManager>()?.SessionId;
         context.SessionId = engineSessionId;
-        var session = new CliSession(chatService, codeService, planService, toolRegistry, host.Services.GetRequiredService<IFileSystem>(), services, sessionId: engineSessionId);
+        var session = new CliSession(chatService, codeService, planService, toolRegistry, host.Services.GetRequiredService<IFileSystem>(), services, sessionId: engineSessionId, agentMode: context.Options.IsNdjsonMode);
         await session.InitializeAsync(ct).ConfigureAwait(false);
 
         context.Session = session;

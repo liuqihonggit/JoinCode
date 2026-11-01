@@ -149,9 +149,15 @@ public sealed class KestrelMockServer : IHttpMockServer {
                 else Stats.CacheMisses++;
             }
 
+            // 捕获响应状态码 — OnCompleted 回调在响应发送完成后执行
+            ctx.Response.OnCompleted(() => {
+                captured.ResponseStatusCode = ctx.Response.StatusCode;
+                return Task.CompletedTask;
+            });
+
             var injection = _controller.ConsumeInjection();
             if (injection is not null) {
-                await HandleInjectedResponseAsync(ctx, injection, requestIndex);
+                await HandleInjectedResponseAsync(ctx, injection, requestIndex, captured);
                 return;
             }
 
@@ -164,7 +170,7 @@ public sealed class KestrelMockServer : IHttpMockServer {
                 Console.WriteLine($"[{_serverName}]   Interactive: waiting for inject (30s timeout)...");
                 injection = await _controller.WaitForInjectionAsync(ctx.RequestAborted, TimeSpan.FromSeconds(30));
                 if (injection is not null) {
-                    await HandleInjectedResponseAsync(ctx, injection, requestIndex);
+                    await HandleInjectedResponseAsync(ctx, injection, requestIndex, captured);
                     return;
                 }
                 Console.WriteLine($"[{_serverName}]   Interactive: inject timeout, falling back to script");
@@ -277,7 +283,7 @@ public sealed class KestrelMockServer : IHttpMockServer {
         Log($"[{_serverName}]   Server:    {_serverName}");
         Log($"[{_serverName}]   URL:       {Url}");
         Log($"[{_serverName}]   Port:      {_port}");
-        Log($"[{_serverName}]   Control:   {Url}__control__/state|requests|inject|clear|script|record|replay");
+        Log($"[{_serverName}]   Control:   {Url}__control__/dashboard|state|requests|inject|clear|script|record|replay");
         Log($"[{_serverName}]   Dump Dir:  {_dumpDir}");
         Log($"[{_serverName}] ========================================");
 
@@ -488,6 +494,11 @@ public sealed class KestrelMockServer : IHttpMockServer {
     }
 
     private void RegisterControlEndpoints(WebApplication app) {
+        app.MapGet("/__control__/dashboard", (HttpContext ctx) => {
+            ctx.Response.ContentType = "text/html; charset=utf-8";
+            return ctx.Response.WriteAsync(BuildDashboardHtml());
+        });
+
         app.MapGet("/__control__/state", async (HttpContext ctx) => {
             var state = _controller.GetState(Stats.TotalRequests);
             var json = JsonSerializer.SerializeToUtf8Bytes(state, MockServerJsonContext.Default.ControlState);
@@ -561,6 +572,192 @@ public sealed class KestrelMockServer : IHttpMockServer {
         });
     }
 
+    /// <summary>
+    /// 构建 Dashboard HTML 页面 — 展示所有请求/响应历史，支持自动刷新、JSON 格式化高亮、消息展开。
+    /// 纯内联 CSS+JS，无外部依赖。
+    /// </summary>
+    private static string BuildDashboardHtml() => """
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MockServer Dashboard</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Segoe UI',system-ui,sans-serif; background:#1e1e2e; color:#cdd6f4; }
+.header { background:#181825; padding:12px 20px; display:flex; align-items:center; gap:16px; border-bottom:1px solid #313244; }
+.header h1 { font-size:18px; color:#89b4fa; }
+.header .stats { color:#a6adc8; font-size:13px; }
+.header .auto-refresh { margin-left:auto; display:flex; align-items:center; gap:8px; }
+.header button { background:#313244; color:#cdd6f4; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px; }
+.header button:hover { background:#45475a; }
+.header button.active { background:#89b4fa; color:#1e1e2e; }
+.header input[type=checkbox] { accent-color:#89b4fa; }
+.main { display:flex; height:calc(100vh - 55px); }
+.sidebar { width:320px; overflow-y:auto; border-right:1px solid #313244; background:#181825; }
+.sidebar .req-item { padding:10px 16px; border-bottom:1px solid #313244; cursor:pointer; }
+.sidebar .req-item:hover { background:#313244; }
+.sidebar .req-item.selected { background:#45475a; border-left:3px solid #89b4fa; }
+.sidebar .req-method { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold; margin-right:8px; }
+.sidebar .req-method.GET { background:#a6e3a1; color:#1e1e2e; }
+.sidebar .req-method.POST { background:#f38ba8; color:#1e1e2e; }
+.sidebar .req-path { font-size:12px; color:#a6adc8; word-break:break-all; }
+.sidebar .req-index { font-size:11px; color:#6c7086; margin-right:6px; }
+.detail { flex:1; overflow-y:auto; padding:20px; }
+.detail .section { margin-bottom:20px; }
+.detail .section-title { font-size:14px; color:#89b4fa; margin-bottom:8px; border-bottom:1px solid #313244; padding-bottom:4px; }
+.detail .headers-table { width:100%; border-collapse:collapse; font-size:12px; }
+.detail .headers-table td { padding:4px 8px; border-bottom:1px solid #313244; }
+.detail .headers-table td:first-child { color:#fab387; width:200px; }
+.detail .body-json { background:#11111b; padding:12px; border-radius:8px; font-family:'Cascadia Code',Consolas,monospace; font-size:12px; overflow-x:auto; white-space:pre-wrap; word-break:break-all; max-height:600px; overflow-y:auto; }
+.detail .messages { display:flex; flex-direction:column; gap:8px; }
+.detail .msg { padding:8px 12px; border-radius:6px; font-size:13px; }
+.detail .msg.system { background:#1e1e2e; border-left:3px solid #f9e2af; }
+.detail .msg.user { background:#1e1e2e; border-left:3px solid #a6e3a1; }
+.detail .msg.assistant { background:#1e1e2e; border-left:3px solid #89b4fa; }
+.detail .msg.tool { background:#1e1e2e; border-left:3px solid #fab387; }
+.detail .msg-role { font-size:11px; font-weight:bold; margin-bottom:4px; }
+.detail .msg-role.system { color:#f9e2af; }
+.detail .msg-role.user { color:#a6e3a1; }
+.detail .msg-role.assistant { color:#89b4fa; }
+.detail .msg-role.tool { color:#fab387; }
+.detail .msg-content { color:#cdd6f4; white-space:pre-wrap; word-break:break-all; max-height:300px; overflow-y:auto; }
+.detail .empty { color:#6c7086; text-align:center; padding:40px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>MockServer Dashboard</h1>
+  <span class="stats" id="stats">Loading...</span>
+  <div class="auto-refresh">
+    <input type="checkbox" id="autoRefresh" checked>
+    <label for="autoRefresh" style="font-size:13px;color:#a6adc8">Auto refresh (2s)</label>
+    <button onclick="loadRequests()">Refresh</button>
+    <button id="clearBtn" onclick="clearRequests()">Clear</button>
+  </div>
+</div>
+<div class="main">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="detail" id="detail"><div class="empty">Select a request to view details</div></div>
+</div>
+<script>
+let selectedIdx = -1;
+let allRequests = [];
+let lastCount = 0;
+
+async function loadRequests() {
+  try {
+    const resp = await fetch('/__control__/requests');
+    allRequests = await resp.json();
+    document.getElementById('stats').textContent = allRequests.length + ' requests';
+    // Diff: 只在请求数量变化时更新列表，避免滚动条重置
+    if (allRequests.length !== lastCount) {
+      appendNewRequests();
+      lastCount = allRequests.length;
+    }
+  } catch(e) {
+    document.getElementById('stats').textContent = 'Error: ' + e.message;
+  }
+}
+
+function appendNewRequests() {
+  const sb = document.getElementById('sidebar');
+  // 只追加新请求项，不重新渲染已有项
+  for (let i = lastCount; i < allRequests.length; i++) {
+    const r = allRequests[i];
+    const cls = i === selectedIdx ? 'req-item selected' : 'req-item';
+    const div = document.createElement('div');
+    div.className = cls;
+    div.onclick = () => selectReq(i);
+    div.innerHTML = `<span class="req-index">#${r.index}</span><span class="req-method ${r.method}">${r.method}</span><span class="req-path">${r.path}</span>`;
+    sb.appendChild(div);
+  }
+}
+
+function selectReq(i) {
+  selectedIdx = i;
+  // 只更新选中状态，不重新渲染整个列表
+  document.querySelectorAll('.req-item').forEach((el, idx) => {
+    el.classList.toggle('selected', idx === i);
+  });
+  renderDetail(allRequests[i]);
+}
+
+function renderDetail(r) {
+  const d = document.getElementById('detail');
+  let html = '<div class="section"><div class="section-title">Headers</div><table class="headers-table">';
+  for (const [k,v] of Object.entries(r.headers || {}))
+    html += `<tr><td>${k}</td><td>${v}</td></tr>`;
+  html += '</table></div>';
+
+  // Parse body as JSON
+  let bodyJson = null;
+  try { bodyJson = JSON.parse(r.body); } catch {}
+
+  // Show messages array specially
+  if (bodyJson && bodyJson.messages && Array.isArray(bodyJson.messages)) {
+    html += '<div class="section"><div class="section-title">Messages (' + bodyJson.messages.length + ')</div><div class="messages">';
+    for (const m of bodyJson.messages) {
+      const role = m.role || 'unknown';
+      let content = m.content;
+      if (typeof content === 'object') content = JSON.stringify(content, null, 2);
+      // Show tool_calls if present (assistant message with tool calls has null content)
+      let toolCallsHtml = '';
+      if (m.tool_calls && Array.isArray(m.tool_calls)) {
+        toolCallsHtml = '<div style="margin-top:4px;color:#fab387;font-size:11px;">tool_calls:</div>';
+        for (const tc of m.tool_calls) {
+          const fn = tc.function || {};
+          toolCallsHtml += `<div style="margin-left:12px;color:#f9e2af;font-size:11px;">${fn.name || '(unknown)'}(${(fn.arguments || '').substring(0, 200)})</div>`;
+        }
+      }
+      const contentDisplay = content || (toolCallsHtml ? '(tool call, no text)' : '(null/empty)');
+      html += `<div class="msg ${role}"><div class="msg-role ${role}">${role}</div><div class="msg-content">${escapeHtml(contentDisplay)}</div>${toolCallsHtml}</div>`;
+    }
+    html += '</div></div>';
+  }
+
+  // Show model and other top-level fields
+  if (bodyJson) {
+    const meta = {...bodyJson};
+    delete meta.messages;
+    html += '<div class="section"><div class="section-title">Request Meta</div><div class="body-json">' + escapeHtml(JSON.stringify(meta, null, 2)) + '</div></div>';
+  }
+
+  // Raw body
+  html += '<div class="section"><div class="section-title">Raw Body</div><div class="body-json">' + escapeHtml(r.body || '(empty)') + '</div></div>';
+
+  // Response
+  if (r.response_status_code || r.response_body) {
+    html += '<div class="section"><div class="section-title">Response' + (r.response_status_code ? ' (HTTP ' + r.response_status_code + ')' : '') + '</div><div class="body-json">' + escapeHtml(r.response_body || '(no body captured)') + '</div></div>';
+  }
+  d.innerHTML = html;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function clearRequests() {
+  try {
+    await fetch('/__control__/clear', {method:'POST'});
+    selectedIdx = -1;
+    lastCount = 0;
+    document.getElementById('sidebar').innerHTML = '';
+    document.getElementById('detail').innerHTML = '<div class="empty">Select a request to view details</div>';
+    loadRequests();
+  } catch(e) { alert('Clear failed: ' + e.message); }
+}
+
+loadRequests();
+setInterval(() => {
+  if (document.getElementById('autoRefresh').checked) loadRequests();
+}, 2000);
+</script>
+</body>
+</html>
+""";
+
     private static async Task<T> ReadJsonAsync<T>(HttpContext ctx, JsonTypeInfo<T> typeInfo) {
         using var reader = new StreamReader(ctx.Request.Body);
         var body = await reader.ReadToEndAsync(ctx.RequestAborted);
@@ -575,19 +772,25 @@ public sealed class KestrelMockServer : IHttpMockServer {
             ?? throw new InvalidOperationException($"反序列化 {type.Name} 失败"));
     }
 
-    private async Task HandleInjectedResponseAsync(HttpContext ctx, InjectedResponse injection, int requestIndex) {
+    private async Task HandleInjectedResponseAsync(HttpContext ctx, InjectedResponse injection, int requestIndex, CapturedRequest? captured = null) {
         Console.WriteLine($"[{_serverName}]   Response: injected (queue), status={injection.StatusCode}, stream={injection.IsStream}");
         ctx.Response.StatusCode = injection.StatusCode;
         ctx.Response.ContentType = injection.ContentType;
 
         if (injection.IsStream && injection.StreamChunks is { Count: > 0 }) {
+            var sb = new StringBuilder();
             foreach (var chunk in injection.StreamChunks) {
                 await ctx.Response.WriteAsync(chunk, ctx.RequestAborted);
                 await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
                 await Task.Delay(20, ctx.RequestAborted);
+                sb.Append(chunk);
             }
+            if (captured is not null)
+                captured.ResponseBody = sb.ToString();
         } else {
             await ctx.Response.WriteAsync(injection.Body, ctx.RequestAborted);
+            if (captured is not null)
+                captured.ResponseBody = injection.Body;
         }
         Console.WriteLine($"[{_serverName}] === Request #{requestIndex} complete (injected) ===");
     }

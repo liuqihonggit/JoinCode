@@ -166,6 +166,17 @@ public record CommandLineOptions {
     public bool IsJsonMode => JsonOutput || string.Equals(OutputFormat, "json", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
+    /// 是否启用 NDJSON 流式输出模式（--format ndjson）— 每行一个 JSON 事件对象，输出到 stdout
+    /// <para>与 <see cref="IsJsonMode"/> 互斥：JSON 模式输出单个信封，NDJSON 模式输出事件流</para>
+    /// </summary>
+    public bool IsNdjsonMode => string.Equals(OutputFormat, "ndjson", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 是否启用结构化输出模式（JSON 或 NDJSON）— 需要抑制 stdout 信息输出
+    /// </summary>
+    public bool IsStructuredOutputMode => IsJsonMode || IsNdjsonMode;
+
+    /// <summary>
     /// 试跑模式（--dry-run 参数）— 只显示将要执行的操作，不实际执行
     /// 对齐架构指南安全设计：Agent 安全网，先试跑确认无误后再执行
     /// </summary>

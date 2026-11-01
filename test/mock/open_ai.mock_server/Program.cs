@@ -13,7 +13,8 @@ public sealed class Program {
             LogMain($"[OpenAI.MockServer] Args.Length={args.Length}, Args=[{string.Join("|", args)}]");
             var configPath = ParseArgument(args, "--config") ?? "mockserver.json";
             var portArg = ParseArgument(args, "--port");
-            LogMain($"[OpenAI.MockServer] configPath={configPath}, portArg={portArg}");
+            var noOpenBrowser = Array.IndexOf(args, "--no-open-browser") >= 0;
+            LogMain($"[OpenAI.MockServer] configPath={configPath}, portArg={portArg}, openBrowser={!noOpenBrowser}");
             var config = await MockServerConfig.LoadFromFileOrDefault(configPath).ConfigureAwait(true);
 
             var port = int.TryParse(portArg, out var p) ? p : config.Port;
@@ -38,6 +39,20 @@ public sealed class Program {
             });
 
             LogMain($"[OpenAI.MockServer] Server started, URL={server.Url}, waiting for requests...");
+
+            // 自动打开浏览器 Dashboard
+            if (!noOpenBrowser) {
+                var dashboardUrl = $"{server.Url}__control__/dashboard";
+                LogMain($"[OpenAI.MockServer] Opening browser: {dashboardUrl}");
+                try {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
+                        FileName = dashboardUrl,
+                        UseShellExecute = true,
+                    });
+                } catch (Exception ex) {
+                    LogMain($"[OpenAI.MockServer] Failed to open browser: {ex.Message}");
+                }
+            }
 
             ShutdownEvent.Wait(TimeSpan.FromMinutes(30));
 

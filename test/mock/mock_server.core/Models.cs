@@ -11,6 +11,10 @@ public sealed class CapturedRequest {
     public required Dictionary<string, string> Headers { get; init; }
     /// <summary>获取或设置请求索引。</summary>
     public int Index { get; init; }
+    /// <summary>响应状态码 — 请求处理完成后设置</summary>
+    public int? ResponseStatusCode { get; set; }
+    /// <summary>响应体 — 请求处理完成后设置（流式响应可能截断）</summary>
+    public string? ResponseBody { get; set; }
 }
 
 public sealed class MockServerStats {

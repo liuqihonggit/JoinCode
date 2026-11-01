@@ -19,7 +19,7 @@ internal sealed partial class InitDebugDumpStep : ServiceEntity, IMiddleware<Sta
         var choice = context.DebugDumpChoice;
 
         // 未选择任何调试信息 → 跳过
-        if (choice == DebugDumpSection.None || context.Options.IsJsonMode) {
+        if (choice == DebugDumpSection.None || context.Options.IsStructuredOutputMode) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }

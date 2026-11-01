@@ -63,4 +63,10 @@ public sealed class CliStreamEventData {
 
     /// <summary>模型标识（done 事件）</summary>
     public string? ModelId { get; init; }
+
+    /// <summary>退出码（result 事件）— Bug 14: NDJSON 最终 result 事件携带 exitCode</summary>
+    public int? ExitCode { get; set; }
+
+    /// <summary>结构化错误（result 事件，exitCode!=0 时非 null）— Bug 14: NDJSON 错误事件</summary>
+    public CliStructuredError? Error { get; set; }
 }

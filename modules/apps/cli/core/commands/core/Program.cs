@@ -73,7 +73,7 @@ class Program {
 
             // 早期超时计时器已完成使命（子命令路由已过），主路径计时器接管 — 避免双重超时输出
             earlyAwaitTimer?.Dispose();
-            await using var awaitTimer = StartAwaitTimer(options, options.IsJsonMode, logger);
+            await using var awaitTimer = StartAwaitTimer(options, options.IsStructuredOutputMode, logger);
 
             var fs = IO.FileSystem.FileSystemFactory.Create();
 
@@ -101,8 +101,8 @@ class Program {
         } catch (TimeoutException ex) {
             // 超时兜底 — NonInteractiveExecuteStep 已先捕获，此处处理管道其他步骤的超时
             Cli.TerminalHelper.Init();
-            if (options?.IsJsonMode == true) {
-                WriteJsonError(Cli.Output.CliErrorCatalog.NetTimeout(ex.Message));
+            if (options?.IsStructuredOutputMode == true) {
+                WriteStructuredErrorToStdout(Cli.Output.CliErrorCatalog.NetTimeout(ex.Message), options.IsNdjsonMode);
             } else {
                 App.ErrorConsole.Warning($"请求超时: {ex.Message}");
             }
@@ -111,12 +111,12 @@ class Program {
             // P2-7: 配置问题 — 友好提示，不写入 error.log（非程序 bug，用户可自行修复）
             // 退出码 2 = 配置错误专用，便于 CI/脚本区分配置问题与运行时错误
             Cli.TerminalHelper.Init();
-            if (options?.IsJsonMode == true) {
+            if (options?.IsStructuredOutputMode == true) {
                 var error = Cli.Output.CliErrorCatalog.ConfigInvalidValue(
                     ex.ConfigurationKey ?? "unknown",
                     ex.Message,
                     "请检查配置文件或环境变量后重试");
-                WriteJsonError(error);
+                WriteStructuredErrorToStdout(error, options.IsNdjsonMode);
             } else {
             App.ErrorConsole.Warning(ex.Message);
             if (!string.IsNullOrEmpty(ex.ConfigurationKey))
@@ -142,11 +142,11 @@ class Program {
             var errorLog = await WriteErrorLogAsync(ex, logger: logger).ConfigureAwait(false);
 
             Cli.TerminalHelper.Init();
-            if (options?.IsJsonMode == true) {
-                WriteJsonError(new Cli.Output.CliStructuredError(
+            if (options?.IsStructuredOutputMode == true) {
+                WriteStructuredErrorToStdout(new Cli.Output.CliStructuredError(
                     "RUNTIME_ERROR", ex.Message,
                     hint: $"详细日志: {errorLog}",
-                    retryable: false));
+                    retryable: false), options.IsNdjsonMode);
             } else {
                 App.ErrorConsole.Fatal(ex.Message);
                 Cli.TerminalHelper.WriteError($"  详细日志: {errorLog}");
@@ -191,29 +191,68 @@ class Program {
     }
 
     /// <summary>
-    /// Bug 10 修复：--await 超时时 JSON 模式输出结构化错误信封到 stdout。
+    /// 写入结构化错误到 stdout — Bug 14: 支持 JSON 信封和 NDJSON 事件两种格式
+    /// <para>JSON 模式: 输出 {ok:false, error:{...}} 信封</para>
+    /// <para>NDJSON 模式: 输出 {type:"error", data:{error:{...}}} 事件</para>
+    /// </summary>
+    private static void WriteStructuredErrorToStdout(Cli.Output.CliStructuredError error, bool isNdjson) {
+        try {
+            if (isNdjson) {
+                var evt = new Cli.Output.CliStreamEvent("error") {
+                    Data = new Cli.Output.CliStreamEventData { Error = error },
+                };
+                var json = RelaxedJsonSerializer.Serialize(evt, Cli.Output.CliOutputJsonContext.Default);
+                Console.Out.WriteLine(json);
+            } else {
+                var envelope = Cli.Output.CliOutputEnvelope.Fail(error);
+                Console.Out.WriteLine(envelope.ToString());
+            }
+            Console.Out.Flush();
+        } catch (Exception ex) {
+            Diag.WriteLine($"[MAIN] 写入结构化错误失败: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Bug 10 修复：--await 超时时结构化输出模式输出错误信封到 stdout。
     /// <para>写 stdout 而非 stderr — stderr 重定向到未读取 pipe 时会阻塞导致 Environment.Exit 永不执行（见 StartAwaitTimer remarks）。
-    /// stdout 在 JSON 模式下由消费者读取，不会阻塞。消费者通过 ok:false 判断为错误。</para>
+    /// stdout 在结构化输出模式下由消费者读取，不会阻塞。消费者通过 ok:false 或 type:"error" 判断为错误。</para>
+    /// <para>Bug 14: 支持 NDJSON 事件格式（isNdjson=true 时输出 {type:"error",data:{error:{...}}}）</para>
     /// </summary>
     /// <param name="seconds">超时秒数</param>
-    private static void WriteAwaitTimeoutJsonToStdout(int seconds) {
+    /// <param name="isNdjson">是否 NDJSON 模式（false=JSON 信封模式）</param>
+    private static void WriteAwaitTimeoutJsonToStdout(int seconds, bool isNdjson = false) {
         try {
             var error = Cli.Output.CliErrorCatalog.TimeoutAwaitDiagnostic(seconds);
-            var envelope = Cli.Output.CliOutputEnvelope.Fail(error);
-            var json = envelope.ToString();
-            Console.Out.WriteLine(json);
-            Console.Out.Flush();
+            WriteStructuredErrorToStdout(error, isNdjson);
         } catch (Exception ex) {
             Diag.WriteLine($"[MAIN] 写入超时 JSON 错误信封失败: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
     /// <summary>
-    /// 从原始 args 中检测是否启用 JSON 输出模式 — 供 StartEarlyAwaitTimer 在 options 解析前使用。
+    /// 从原始 args 中检测是否启用结构化输出模式（JSON 或 NDJSON）— 供 StartEarlyAwaitTimer 在 options 解析前使用。
     /// </summary>
-    private static bool IsJsonModeFromArgs(string[] args) {
+    private static bool IsStructuredOutputFromArgs(string[] args) {
         for (var i = 0; i < args.Length; i++) {
-            if (args[i] == "--json" || args[i] == "--format" && i + 1 < args.Length && string.Equals(args[i + 1], "json", StringComparison.OrdinalIgnoreCase))
+            if (args[i] == "--json")
+                return true;
+            if (args[i] == "--format" && i + 1 < args.Length) {
+                var fmt = args[i + 1];
+                if (string.Equals(fmt, "json", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(fmt, "ndjson", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 从原始 args 中检测是否启用 NDJSON 模式 — 供 StartEarlyAwaitTimer 在 options 解析前使用。
+    /// </summary>
+    private static bool IsNdjsonFromArgs(string[] args) {
+        for (var i = 0; i < args.Length - 1; i++) {
+            if (args[i] == "--format" && string.Equals(args[i + 1], "ndjson", StringComparison.OrdinalIgnoreCase))
                 return true;
         }
         return false;
@@ -231,7 +270,7 @@ class Program {
     /// 进程卡死。详见 <c>docs/ai_interaction_docs/MockServer测试问题清单.md</c> P2-1。
     /// 启动时的日志 + ExitCode=AwaitTimeout 已足够诊断超时触发。
     /// </remarks>
-    private static System.Threading.Timer? StartAwaitTimer(CommandLineOptions options, bool isJsonMode, ILogger? logger = null) {
+    private static System.Threading.Timer? StartAwaitTimer(CommandLineOptions options, bool isStructuredOutput, ILogger? logger = null) {
         if (options.AwaitTimeoutSeconds is not { } seconds || seconds <= 0)
             return null;
 
@@ -240,9 +279,9 @@ class Program {
         return new System.Threading.Timer(
             callback: _ => {
                 // ⚠️ 禁止在 Environment.Exit 之前写 Console.Error（详见方法 remarks 注释）
-                // Bug 10 修复：JSON 模式下写结构化错误信封到 stdout（非 stderr，避免 pipe 阻塞）
-                if (isJsonMode)
-                    WriteAwaitTimeoutJsonToStdout(seconds);
+                // Bug 10 修复：结构化输出模式下写错误信封到 stdout（非 stderr，避免 pipe 阻塞）
+                if (isStructuredOutput)
+                    WriteAwaitTimeoutJsonToStdout(seconds, options.IsNdjsonMode);
 
                 // 超时诊断降级：写时间戳文件留审计轨迹（文件写不依赖 Console，不会因 pipe 阻塞）
                 try {
@@ -341,12 +380,13 @@ class Program {
         for (var i = 0; i < args.Length - 1; i++) {
             if (args[i] == JccCliArgEnumConstants.Await && int.TryParse(args[i + 1], out var seconds) && seconds > 0) {
                 Diag.WriteLine($"[MAIN] --await {seconds}s 早期计时器已启动（超时返回{(int)ExitCode.AwaitTimeout}）");
-                var earlyIsJsonMode = IsJsonModeFromArgs(args);
+                var earlyIsStructuredOutput = IsStructuredOutputFromArgs(args);
+                var earlyIsNdjson = IsNdjsonFromArgs(args);
                 return new System.Threading.Timer(
                     callback: _ => {
-                        // Bug 10 修复：JSON 模式下写结构化错误信封到 stdout
-                        if (earlyIsJsonMode)
-                            WriteAwaitTimeoutJsonToStdout(seconds);
+                        // Bug 10 修复：结构化输出模式下写错误信封到 stdout
+                        if (earlyIsStructuredOutput)
+                            WriteAwaitTimeoutJsonToStdout(seconds, earlyIsNdjson);
 
                         try {
                             var timeoutLog = Cli.Output.XdgPathResolver.GetAwaitTimeoutLogPath();

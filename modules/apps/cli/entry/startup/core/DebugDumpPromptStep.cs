@@ -19,15 +19,15 @@ internal sealed partial class DebugDumpPromptStep : ServiceEntity, IMiddleware<S
         var options = context.Options;
 
         // --debuglog 已启用 → 直接设为 All，跳过询问（用户已明确意图）
-        if (options.DebugLog && !options.IsJsonMode) {
+        if (options.DebugLog && !options.IsStructuredOutputMode) {
             context.DebugDumpChoice = DebugDumpSection.All;
             Diag.WriteLine("[STEP] DebugDumpPrompt: --debuglog 已启用，跳过询问，设为 All");
             await next(context, ct).ConfigureAwait(false);
             return;
         }
 
-        // 非交互模式 / JSON 模式 / 测试环境 → 跳过询问
-        if (options.IsNonInteractiveMode || options.IsJsonMode || Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
+        // 非交互模式 / 结构化输出模式 / 测试环境 → 跳过询问
+        if (options.IsNonInteractiveMode || options.IsStructuredOutputMode || Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }

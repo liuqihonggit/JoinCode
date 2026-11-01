@@ -12,12 +12,16 @@ internal static class NonInteractiveModeRunner {
             FileSystem = IO.FileSystem.FileSystemFactory.Create()
         };
 
-        // JSON 输出模式: 非交互模式下 --json 生效，注册 CliOutputContract 到上下文
-        if (options.IsJsonMode) {
-            var jsonContext = Cli.Output.CliOutputJsonContext.Default;
-            context.OutputContract = new Cli.Output.CliOutputContract(jsonMode: true, jsonContext: jsonContext);
-            Cli.TerminalHelper.SuppressStdout = true; // Bug 12: 抑制 stdout 信息输出，确保只有 JSON 信封
-            Diag.WriteLine("[RUN] JSON output mode enabled (--json or --format json)");
+        // 结构化输出模式: JSON/NDJSON 非交互模式下抑制 stdout 信息输出
+        if (options.IsStructuredOutputMode) {
+            if (options.IsJsonMode) {
+                var jsonContext = Cli.Output.CliOutputJsonContext.Default;
+                context.OutputContract = new Cli.Output.CliOutputContract(jsonMode: true, jsonContext: jsonContext);
+                Diag.WriteLine("[RUN] JSON output mode enabled (--json or --format json)");
+            } else if (options.IsNdjsonMode) {
+                Diag.WriteLine("[RUN] NDJSON stream mode enabled (--format ndjson)");
+            }
+            Cli.TerminalHelper.SuppressStdout = true; // Bug 12: 抑制 stdout 信息输出，确保只有结构化输出
         }
 
         var sp = host.Services;
@@ -54,6 +58,18 @@ internal static class NonInteractiveModeRunner {
             context.OutputContract.WriteResult(result, ok, error, new Cli.Output.CliOutputMeta {
                 DurationMs = context.ElapsedMs,
             });
+        } else if (options.IsNdjsonMode) {
+            // NDJSON 模式: 事件已由 CliEventConsumer 流式输出，此处仅输出最终 result 事件（含 exitCode 和 error）
+            var resultEvent = new Cli.Output.CliStreamEvent("result") {
+                Data = new Cli.Output.CliStreamEventData {
+                    ExitCode = context.ExitCode,
+                    Content = context.FullResponse,
+                },
+            };
+            if (context.StructuredError is not null)
+                resultEvent.Data.Error = context.StructuredError;
+            var json = RelaxedJsonSerializer.Serialize(resultEvent, Cli.Output.CliOutputJsonContext.Default);
+            Console.WriteLine(json);
         }
 
         Cli.TerminalHelper.SuppressStdout = false; // 恢复 stdout（测试可重入）

@@ -258,7 +258,7 @@ jobs:
           $listener.Stop()
           Write-Host "Dynamic port: $port"
 
-          $mockServer = Start-Process -FilePath $mockServerExe -ArgumentList "--port $port" -PassThru -NoNewWindow
+          $mockServer = Start-Process -FilePath $mockServerExe -ArgumentList "--config mockserver_smoke.json --port $port" -PassThru -NoNewWindow
 
           $ready = $false
           for ($i = 0; $i -lt 15; $i++) {
@@ -375,7 +375,7 @@ jobs:
           $listener2.Stop()
           Write-Host "Dynamic port: $port"
 
-          $mockServer = Start-Process -FilePath $mockServerExe -ArgumentList "--port $port" -PassThru -NoNewWindow
+          $mockServer = Start-Process -FilePath $mockServerExe -ArgumentList "--config mockserver_smoke.json --port $port" -PassThru -NoNewWindow
 
           $ready = $false
           for ($i = 0; $i -lt 15; $i++) {

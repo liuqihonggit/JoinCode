@@ -1,0 +1,5 @@
+{
+  "port": 0,
+  "default_response": "Mock server smoke test response.",
+  "scripted_turns": []
+}

@@ -478,10 +478,10 @@ public sealed class StartupLineItem(string text) : IScrollItem
     /// <summary>单行高度。</summary>
     public int MeasureHeight(int width) => 1;
 
-    /// <summary>dim 样式渲染纯文本行。</summary>
+    /// <summary>dim 样式渲染纯文本行（淡红色警告色）。</summary>
     public void Render(Screen screen, Rect frame, Theme theme)
     {
-        var dim = screen.Styles.GetOrAdd(new TextStyle { Dim = true });
-        screen.WriteText(frame.Y, frame.X, Text, dim, frame.Right);
+        var style = screen.Styles.GetOrAdd(new TextStyle { Foreground = theme.Error });
+        screen.WriteText(frame.Y, frame.X, Text, style, frame.Right);
     }
 }

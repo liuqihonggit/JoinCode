@@ -52,14 +52,21 @@ public sealed class MockServerControlPlaneHttpTests {
     }
 
     [Fact]
-    public async Task NoInjection_FallsBackToScript() {
+    public async Task Interactive_RequestWaitsThenInject_ReturnsInjected() {
         var (server, client) = await StartServerAsync();
         try {
-            var llmResp = await client.PostAsync("/v1/chat/completions",
+            var requestTask = client.PostAsync("/v1/chat/completions",
                 new StringContent("""{"model":"gpt-4o","messages":[{"role":"user","content":"hi"}]}""", Encoding.UTF8, "application/json"));
 
+            await Task.Delay(300);
+            requestTask.IsCompleted.Should().BeFalse("Interactive 模式无注入时请求应挂起");
+
+            var injectPayload = """{"status_code":200,"content_type":"application/json","body":"responder reply"}""";
+            await client.PostAsync("/__control__/inject", new StringContent(injectPayload, Encoding.UTF8, "application/json"));
+
+            var llmResp = await requestTask;
             llmResp.IsSuccessStatusCode.Should().BeTrue();
-            (await llmResp.Content.ReadAsStringAsync()).Should().Contain("default mock response");
+            (await llmResp.Content.ReadAsStringAsync()).Should().Contain("responder reply");
         } finally {
             client.Dispose();
             await server.StopAsync();

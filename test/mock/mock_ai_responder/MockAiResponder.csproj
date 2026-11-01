@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ProjectType>test</ProjectType>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>false</IsTestProject>
+    <AssemblyName>mock_ai_responder</AssemblyName>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012;IL2026;IL3050</NoWarn>
+    <GenerateProgramFile>false</GenerateProgramFile>
+  </PropertyGroup>
+
+</Project>

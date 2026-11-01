@@ -107,6 +107,7 @@ public sealed class RecordingFile {
 /// </summary>
 public sealed class MockServerController {
     private readonly Queue<InjectedResponse> _injectQueue = new();
+    private readonly ConcurrentQueue<TaskCompletionSource<InjectedResponse?>> _waiters = new();
     private readonly List<RecordedInteraction> _recordedInteractions = [];
     private readonly object _lock = new();
     private MockServerMode _mode = MockServerMode.Interactive;
@@ -119,9 +120,12 @@ public sealed class MockServerController {
         get { lock (_lock) return _mode; }
     }
 
-    /// <summary>注入一个响应到队列尾部</summary>
+    /// <summary>注入一个响应。优先唤醒等待中的请求，无等待者则入队列。</summary>
     public void Inject(InjectedResponse response) {
         ArgumentNullException.ThrowIfNull(response);
+        while (_waiters.TryDequeue(out var waiter)) {
+            if (waiter.TrySetResult(response)) return;
+        }
         lock (_lock) {
             _injectQueue.Enqueue(response);
         }
@@ -134,10 +138,33 @@ public sealed class MockServerController {
         }
     }
 
-    /// <summary>清空注入队列</summary>
+    /// <summary>
+    /// 等待注入响应。先消费队列，有则立即返回；无则挂起等待 Inject 唤醒或超时。
+    /// 用于 Interactive 模式下让 jcc 请求挂起，直到 responder 通过 inject 注入响应。
+    /// </summary>
+    /// <param name="ct">请求取消令牌（客户端断开时触发）</param>
+    /// <param name="timeout">等待超时，超时返回 null 由调用方走兜底</param>
+    public async Task<InjectedResponse?> WaitForInjectionAsync(CancellationToken ct, TimeSpan timeout) {
+        var existing = ConsumeInjection();
+        if (existing is not null) return existing;
+
+        var tcs = new TaskCompletionSource<InjectedResponse?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _waiters.Enqueue(tcs);
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(timeout);
+        using var registration = cts.Token.Register(() => tcs.TrySetResult(null));
+
+        return await tcs.Task;
+    }
+
+    /// <summary>清空注入队列和所有等待者</summary>
     public void ClearInjections() {
         lock (_lock) {
             _injectQueue.Clear();
+        }
+        while (_waiters.TryDequeue(out var waiter)) {
+            waiter.TrySetResult(null);
         }
     }
 

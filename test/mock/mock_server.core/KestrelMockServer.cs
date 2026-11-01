@@ -160,6 +160,16 @@ public sealed class KestrelMockServer : IHttpMockServer {
                 return;
             }
 
+            if (_controller.Mode == MockServerMode.Interactive) {
+                Console.WriteLine($"[{_serverName}]   Interactive: waiting for inject (30s timeout)...");
+                injection = await _controller.WaitForInjectionAsync(ctx.RequestAborted, TimeSpan.FromSeconds(30));
+                if (injection is not null) {
+                    await HandleInjectedResponseAsync(ctx, injection, requestIndex);
+                    return;
+                }
+                Console.WriteLine($"[{_serverName}]   Interactive: inject timeout, falling back to script");
+            }
+
             _responseStrategy.OnRequestStarted(requestJson.RootElement);
 
             // 两阶段工具加载: 首次请求只有 tool_groups(分组),没有 tool_descriptions(完整描述)

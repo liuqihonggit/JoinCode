@@ -91,7 +91,9 @@ internal static class RgEngine {
             ct.ThrowIfCancellationRequested();
 
             if (File.Exists(path)) {
-                allFiles.Add(Path.GetFullPath(path));
+                var fullPath = Path.GetFullPath(path);
+                if (ShouldIncludeFile(fullPath, q))
+                    allFiles.Add(fullPath);
                 continue;
             }
 
@@ -115,6 +117,9 @@ internal static class RgEngine {
         foreach (var file in enumeration) {
             ct.ThrowIfCancellationRequested();
 
+            if (!ShouldIncludeFile(file, q))
+                continue;
+
             var rel = Path.GetRelativePath(root, file).Replace('\\', '/');
 
             if (VcsDirectoryExclusions.IsVcsPath(rel))
@@ -124,12 +129,6 @@ internal static class RgEngine {
                 continue;
 
             if (!MatchesGlob(rel, q.Globs))
-                continue;
-
-            if (!FileTypeExtensionMap.MatchesFileType(file, q.FileType))
-                continue;
-
-            if (BinaryFileDetector.IsBinaryByExtension(file))
                 continue;
 
             yield return file;
@@ -145,6 +144,20 @@ internal static class RgEngine {
         }
 
         return matcher is not null && matcher.IsIgnored(rel);
+    }
+
+    /// <summary>检查文件是否匹配类型/排除类型/二进制过滤（不依赖相对路径的过滤）。</summary>
+    private static bool ShouldIncludeFile(string file, RgQuery q) {
+        if (!FileTypeExtensionMap.MatchesFileType(file, q.FileType))
+            return false;
+
+        if (!string.IsNullOrEmpty(q.TypeNot) && FileTypeExtensionMap.MatchesFileType(file, q.TypeNot))
+            return false;
+
+        if (BinaryFileDetector.IsBinaryByExtension(file))
+            return false;
+
+        return true;
     }
 
     private static GitignoreMatcher? LoadGitignore(string root) {
@@ -436,6 +449,7 @@ internal sealed record RgQuery(
     IReadOnlyList<string> Paths,
     IReadOnlyList<string>? Globs,
     string? FileType,
+    string? TypeNot,
     bool CaseInsensitive,
     bool SmartCase,
     bool WordRegexp,

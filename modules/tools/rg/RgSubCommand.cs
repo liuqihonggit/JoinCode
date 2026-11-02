@@ -154,6 +154,7 @@ internal static class RgSubCommand {
         Paths: paths ?? parsed.Paths,
         Globs: parsed.Globs,
         FileType: parsed.FileType,
+        TypeNot: parsed.TypeNot,
         CaseInsensitive: parsed.CaseInsensitive,
         SmartCase: parsed.SmartCase,
         WordRegexp: parsed.WordRegexp,
@@ -206,6 +207,7 @@ internal static class RgSubCommand {
         var noIgnore = false;
         var json = false;
         string? fileType = null;
+        string? typeNot = null;
         string? replace = null;
         string? sort = null;
         var globs = new List<string>();
@@ -331,6 +333,7 @@ internal static class RgSubCommand {
                     case "--sort": sort = inlineValue ?? ReadNextValue(args, ref i); break;
                     case "--sortr": sort = "r" + (inlineValue ?? ReadNextValue(args, ref i)); break;
                     case "--type": fileType = inlineValue ?? ReadNextValue(args, ref i); break;
+                    case "--type-not": typeNot = inlineValue ?? ReadNextValue(args, ref i); break;
                     case "--glob": { var v = inlineValue ?? ReadNextValue(args, ref i); if (v is not null) globs.Add(v); } break;
                     case "--head-limit": headLimit = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
                     case "--offset": offset = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
@@ -346,7 +349,7 @@ internal static class RgSubCommand {
                 if (!ParseShortOptionCluster(arg, args, ref i,
                         ref caseInsensitive, ref smartCase, ref wordRegexp, ref onlyMatching,
                         ref lineNumbers, ref multiline, ref fixedStrings,
-                        ref json, globs, ref fileType, ref replace,
+                        ref json, globs, ref fileType, ref typeNot, ref replace,
                         ref before, ref after, ref context, ref headLimit, ref offset,
                         ref timeoutSeconds, ref outputMode,
                         ref invertMatch, ref lineRegexp, ref maxCount, regexpPatterns, ref threads,
@@ -405,6 +408,7 @@ internal static class RgSubCommand {
             Paths: paths,
             Globs: globs,
             FileType: fileType,
+            TypeNot: typeNot,
             CaseInsensitive: caseInsensitive,
             SmartCase: smartCase,
             WordRegexp: wordRegexp,
@@ -477,7 +481,7 @@ internal static class RgSubCommand {
         string arg, string[] args, ref int i,
         ref bool caseInsensitive, ref bool smartCase, ref bool wordRegexp, ref bool onlyMatching,
         ref bool lineNumbers, ref bool multiline, ref bool fixedStrings,
-        ref bool json, List<string> globs, ref string? fileType, ref string? replace,
+        ref bool json, List<string> globs, ref string? fileType, ref string? typeNot, ref string? replace,
         ref int? before, ref int? after, ref int? context, ref int? headLimit, ref int? offset,
         ref int timeoutSeconds, ref SearchOutputMode outputMode,
         ref bool invertMatch, ref bool lineRegexp, ref int? maxCount, List<string> regexpPatterns, ref int? threads,
@@ -506,6 +510,7 @@ internal static class RgSubCommand {
                 case 'C': context = ConsumeShortNumber(span, ref j, args, ref i); break;
                 case 'g': { var v = ConsumeShortString(span, ref j, args, ref i); if (v is not null) globs.Add(v); } break;
                 case 't': fileType = ConsumeShortString(span, ref j, args, ref i); break;
+                case 'T': typeNot = ConsumeShortString(span, ref j, args, ref i); break;
                 case 'r': replace = ConsumeShortString(span, ref j, args, ref i); break;
                 case 'h': PrintUsage(); return false;
                 case '0': j++; break;
@@ -773,6 +778,7 @@ internal static class RgSubCommand {
         IReadOnlyList<string> Paths,
         IReadOnlyList<string>? Globs,
         string? FileType,
+        string? TypeNot,
         bool CaseInsensitive,
         bool SmartCase,
         bool WordRegexp,

@@ -595,6 +595,188 @@ internal static class IntentMatcher {
                 }
             }], "V5: 空 tool_call_id");
         }
+        if (lower.Contains("w1") || lower.Contains("multi chunk") || lower.Contains("多chunk")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo w1_done"}"""
+                }
+            }], "W1: 多 content chunk 分散");
+        }
+        if (lower.Contains("w2") || lower.Contains("file path") || lower.Contains("文件路径结果")) {
+#pragma warning disable JCC1018 // W2 确需 Windows 路径测试
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo 'C:\\Users\\test\\file.txt'"}"""
+                }
+            }], "W2: 工具结果包含 Windows 文件路径");
+#pragma warning restore JCC1018
+        }
+        if (lower.Contains("w3") || lower.Contains("underscore name") || lower.Contains("下划线工具名")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "tool_name_test",
+                    Arguments = """{"command": "echo w3"}"""
+                }
+            }], "W3: 工具名包含下划线");
+        }
+        if (lower.Contains("w4") || lower.Contains("array args") || lower.Contains("数组参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """["a","b","c"]"""
+                }
+            }], "W4: 工具参数为 JSON 数组");
+        }
+        if (lower.Contains("w5") || lower.Contains("long tool name") || lower.Contains("超长工具名")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = new string('t', 200),
+                    Arguments = """{"command": "echo w5"}"""
+                }
+            }], "W5: 超长工具名（200字符）");
+        }
+        if (lower.Contains("w6") || lower.Contains("special id") || lower.Contains("特殊字符id")) {
+            return ([new ToolCallDto {
+                Id = "call_!@#$%^&*()_+",
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo w6_done"}"""
+                }
+            }], "W6: tool_call_id 包含特殊字符");
+        }
+        if (lower.Contains("w7") || lower.Contains("empty lines") || lower.Contains("空行结果")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "printf '\\n\\n\\n'"}"""
+                }
+            }], "W7: 工具结果只有空行");
+        }
+        if (lower.Contains("w8") || lower.Contains("float args") || lower.Contains("浮点参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo", "timeout": 3.14, "count": -42}"""
+                }
+            }], "W8: 工具参数包含浮点数和负数");
+        }
+        if (lower.Contains("w9") || lower.Contains("emoji result") || lower.Contains("emoji结果")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo 'Hello 🌍 🚀 ✨ emoji'}"""
+                }
+            }], "W9: 工具结果包含 emoji");
+        }
+        if (lower.Contains("w10") || lower.Contains("csv result") || lower.Contains("csv结果")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo 'a,b,c\\n1,2,3\\n4,5,6'"}"""
+                }
+            }], "W10: 工具结果包含 CSV");
+        }
+        if (lower.Contains("w11") || lower.Contains("xml result") || lower.Contains("xml结果")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo '<root><item>test</item></root>'"}"""
+                }
+            }], "W11: 工具结果包含 XML");
+        }
+        if (lower.Contains("w12") || lower.Contains("html result") || lower.Contains("html结果")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo '<html><body><h1>Title</h1></body></html>'"}"""
+                }
+            }], "W12: 工具结果包含 HTML");
+        }
+        if (lower.Contains("w13") || lower.Contains("empty object") || lower.Contains("空对象参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = "{}"
+                }
+            }], "W13: 工具参数为空对象 {}");
+        }
+        if (lower.Contains("w14") || lower.Contains("only spaces") || lower.Contains("纯空格结果")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "printf '   '"}"""
+                }
+            }], "W14: 工具结果只有空格");
+        }
+        if (lower.Contains("w15") || lower.Contains("crlf") || lower.Contains("回车换行")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "printf 'line1\\r\\nline2\\r\\n'"}"""
+                }
+            }], "W15: 工具结果包含 CRLF");
+        }
+        if (lower.Contains("w16") || lower.Contains("deep nested") || lower.Contains("深层嵌套")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo w16", "a": {"b": {"c": {"d": {"e": "deep"}}}}}"""
+                }
+            }], "W16: 工具参数深层嵌套 JSON");
+        }
+        if (lower.Contains("w17") || lower.Contains("number name") || lower.Contains("数字工具名")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "123456",
+                    Arguments = """{"command": "echo w17"}"""
+                }
+            }], "W17: 工具名为纯数字");
+        }
+        if (lower.Contains("w18") || lower.Contains("tsv result") || lower.Contains("tsv结果")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "printf 'a\\tb\\tc\\n1\\t2\\t3\\n'"}"""
+                }
+            }], "W18: 工具结果包含 TSV");
+        }
+        if (lower.Contains("w19") || lower.Contains("bool args") || lower.Contains("布尔参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo w19", "verbose": true, "dry_run": false}"""
+                }
+            }], "W19: 工具参数包含布尔值");
+        }
+        if (lower.Contains("w20") || lower.Contains("mixed encoding") || lower.Contains("混合编码")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo 'ASCII 中文 日本語 한국어 🎉 mixed'"}"""
+                }
+            }], "W20: 工具结果混合编码");
+        }
         return (null, "");
     }
 

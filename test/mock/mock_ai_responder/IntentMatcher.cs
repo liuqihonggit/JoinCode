@@ -24,16 +24,8 @@ internal static class IntentMatcher {
         var toolResultCount = CountToolResultMessages(root);
 
         if (toolResultCount == 0) {
-            var prevAssistant = ExtractPreviousAssistantMessage(root);
-            if (prevAssistant is not null && prevAssistant.Length > 0 && protocol == "anthropic") {
-                return (new InjectDto { Body = BuildAnthropicResponse($"我记得你之前说了：{prevAssistant}") }, "M1: 多轮对话记忆 [anthropic]");
-            }
-            if (prevAssistant is not null && prevAssistant.Length > 0 && isStream) {
-                return (new InjectDto { IsStream = true, ContentType = "text/event-stream", StreamChunks = BuildOpenAiStreamChunks($"我记得你之前说了：{prevAssistant}") }, "M1: 多轮对话记忆 [stream]");
-            }
-            if (prevAssistant is not null && prevAssistant.Length > 0) {
-                return (new InjectDto { Body = BuildOpenAiResponse($"我记得你之前说了：{prevAssistant}") }, "M1: 多轮对话记忆");
-            }
+            var earlyReturn = HandleNoToolResult(root, userMessage, protocol, isStream);
+            if (earlyReturn is not null) return earlyReturn.Value;
         }
 
         if (toolResultCount > 0) {
@@ -57,14 +49,6 @@ internal static class IntentMatcher {
                 return (new InjectDto { IsStream = true, ContentType = "text/event-stream", StreamChunks = BuildOpenAiStreamChunks(finalReply) }, $"{finalDesc} [stream]");
             }
             return (new InjectDto { Body = BuildOpenAiResponse(finalReply) }, finalDesc);
-        }
-
-        var (toolCalls, toolDesc) = MatchToolCallIntent(userMessage);
-        if (toolCalls is not null) {
-            if (protocol == "openai" && isStream) {
-                return (new InjectDto { IsStream = true, ContentType = "text/event-stream", StreamChunks = BuildOpenAiToolCallStreamChunks(toolCalls) }, $"{toolDesc} [stream]");
-            }
-            return (new InjectDto { Body = BuildOpenAiToolCallResponse(toolCalls) }, toolDesc);
         }
 
         var (replyText, desc) = MatchIntent(userMessage);
@@ -521,15 +505,97 @@ internal static class IntentMatcher {
                 }
             }], "R3: 工具结果超长行（5000字符无换行）");
         }
+        if (lower.Contains("s3") || lower.Contains("content and tool") || lower.Contains("文本加工具")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo s3_done"}"""
+                }
+            }], "S3: content+tool_call 同时出现（附带文本）");
+        }
+        if (lower.Contains("t1") || lower.Contains("dot name") || lower.Contains("点号工具名")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "read.file",
+                    Arguments = """{"file_path": "/nonexistent/t1.txt"}"""
+                }
+            }], "T1: 工具名包含点号 read.file");
+        }
+        if (lower.Contains("t2") || lower.Contains("dash name") || lower.Contains("连字符工具名")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "read-file",
+                    Arguments = """{"file_path": "/nonexistent/t2.txt"}"""
+                }
+            }], "T2: 工具名包含连字符 read-file");
+        }
+        if (lower.Contains("t4") || lower.Contains("markdown result") || lower.Contains("markdown结果")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo '| col1 | col2 |\\n|---|---|\\n| a | b |'"}"""
+                }
+            }], "T4: 工具结果包含 markdown 表格");
+        }
+        if (lower.Contains("t5") || lower.Contains("json result") || lower.Contains("json结果")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo '{\"key\":\"value\",\"num\":42}'"}"""
+                }
+            }], "T5: 工具结果包含 JSON");
+        }
         return (null, "");
     }
 
-    private static string BuildOpenAiToolCallResponse(List<ToolCallDto> toolCalls) {
+    /// <summary>toolResultCount == 0 时的处理：工具调用优先，其次 M1 多轮对话记忆</summary>
+    private static (InjectDto Response, string Description)? HandleNoToolResult(JsonElement root, string userMessage, string protocol, bool isStream) {
+        var (toolCalls, toolDesc) = MatchToolCallIntent(userMessage);
+        if (toolCalls is not null)
+            return BuildToolCallResponse(toolCalls, toolDesc, userMessage, protocol, isStream);
+
+        var prevAssistant = ExtractPreviousAssistantMessage(root);
+        if (prevAssistant is null || prevAssistant.Length == 0) return null;
+
+        var m1Reply = $"我记得你之前说了：{prevAssistant}";
+        if (protocol == "anthropic")
+            return (new InjectDto { Body = BuildAnthropicResponse(m1Reply) }, "M1: 多轮对话记忆 [anthropic]");
+        if (isStream)
+            return (new InjectDto { IsStream = true, ContentType = "text/event-stream", StreamChunks = BuildOpenAiStreamChunks(m1Reply) }, "M1: 多轮对话记忆 [stream]");
+        return (new InjectDto { Body = BuildOpenAiResponse(m1Reply) }, "M1: 多轮对话记忆");
+    }
+
+    /// <summary>构建工具调用响应（含 S3 content 前缀支持）</summary>
+    private static (InjectDto Response, string Description) BuildToolCallResponse(List<ToolCallDto> toolCalls, string toolDesc, string userMessage, string protocol, bool isStream) {
+        var lower = userMessage.ToLowerInvariant();
+        var s3Content = lower.Contains("s3") || lower.Contains("content and tool") || lower.Contains("文本加工具")
+            ? "我先分析一下，然后调用工具。" : null;
+        if (protocol == "openai" && isStream)
+            return (new InjectDto { IsStream = true, ContentType = "text/event-stream", StreamChunks = BuildS3StreamChunks(toolCalls, s3Content) }, $"{toolDesc} [stream]");
+        return (new InjectDto { Body = BuildOpenAiToolCallResponse(toolCalls, s3Content) }, toolDesc);
+    }
+
+    /// <summary>S3: 构建带可选 content 前缀的 tool_call 流式 chunks</summary>
+    private static List<string> BuildS3StreamChunks(List<ToolCallDto> toolCalls, string? content) {
+        var chunks = BuildOpenAiToolCallStreamChunks(toolCalls);
+        if (content is not null) {
+            var contentChunks = BuildOpenAiStreamChunks(content);
+            chunks.InsertRange(0, contentChunks.GetRange(0, contentChunks.Count - 2));
+        }
+        return chunks;
+    }
+
+    private static string BuildOpenAiToolCallResponse(List<ToolCallDto> toolCalls, string? content = null) {
         var resp = new OpenAiResponse {
             Id = $"chatcmpl-{Guid.NewGuid():N}"[..30],
             Choices = [new OpenAiChoice {
                 Index = 0,
-                Message = new OpenAiMessage { Content = null, ToolCalls = toolCalls },
+                Message = new OpenAiMessage { Content = content, ToolCalls = toolCalls },
                 FinishReason = toolCalls.Count == 0 ? "stop" : "tool_calls"
             }]
         };

@@ -1,5 +1,5 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-namespace JoinCode.CliCommands;
+namespace JoinCode.Rg;
 
 /// <summary>
 /// 高性能 ripgrep 兼容搜索引擎 — mmap + PLINQ 并行 + 零 GC 行遍历。
@@ -404,6 +404,10 @@ internal static class RgEngine {
             "modified" => list.OrderBy(r => File.GetLastWriteTime(r.FilePath)).ToList(),
             "accessed" => list.OrderBy(r => File.GetLastAccessTime(r.FilePath)).ToList(),
             "created" => list.OrderBy(r => File.GetCreationTime(r.FilePath)).ToList(),
+            "rpath" => list.OrderByDescending(r => r.FilePath, StringComparer.Ordinal).ToList(),
+            "rmodified" => list.OrderByDescending(r => File.GetLastWriteTime(r.FilePath)).ToList(),
+            "raccessed" => list.OrderByDescending(r => File.GetLastAccessTime(r.FilePath)).ToList(),
+            "rcreated" => list.OrderByDescending(r => File.GetCreationTime(r.FilePath)).ToList(),
             "none" => list,
             _ => list,
         };

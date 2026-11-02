@@ -38,7 +38,7 @@ internal sealed class CommandCatalog : ICommandCatalog {
         // 网络
         "ping", "netstat", "ifconfig", "nslookup", "traceroute",
         // 版本
-        "whoami", "pwd", "echo", "printenv", "env");
+        "whoami", "pwd", "echo", "printf", "printenv", "env");
 
     /// <summary>
     /// 安全的 Git 子命令 — 委托 GitCommandCatalog.SafeSubcommands 唯一数据源

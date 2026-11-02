@@ -777,6 +777,190 @@ internal static class IntentMatcher {
                 }
             }], "W20: 工具结果混合编码");
         }
+        if (lower.Contains("x10") || lower.Contains("control chars") || lower.Contains("控制字符")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "printf '\\x01\\x02\\x03 control'"}"""
+                }
+            }], "X10: 工具结果包含控制字符");
+        }
+        if (lower.Contains("x11") || lower.Contains("unicode name") || lower.Contains("unicode工具名")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "tööl",
+                    Arguments = """{"command": "echo x11"}"""
+                }
+            }], "X11: 工具名包含 Unicode 变音符号");
+        }
+        if (lower.Contains("x12") || lower.Contains("json string args") || lower.Contains("json字符串参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo x12", "data": "{\"key\":\"value\"}"}"""
+                }
+            }], "X12: 工具参数包含 JSON 字符串值");
+        }
+        if (lower.Contains("x13") || lower.Contains("very long args") || lower.Contains("超长参数值")) {
+            var longVal = new string('a', 50000);
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = JsonSerializer.Serialize(new { command = $"echo {longVal}" })
+                }
+            }], "X13: 工具参数值超长（50KB）");
+        }
+        if (lower.Contains("x14") || lower.Contains("many keys") || lower.Contains("多键参数")) {
+            var bigObj = new Dictionary<string, string>();
+            for (var k = 0; k < 100; k++) bigObj[$"key{k}"] = $"value{k}";
+            bigObj["command"] = "echo x14";
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = JsonSerializer.Serialize(bigObj)
+                }
+            }], "X14: 工具参数包含 100 个键");
+        }
+        if (lower.Contains("x15") || lower.Contains("tab in args") || lower.Contains("制表符参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = "{\"command\": \"echo\\tx15\"}"
+                }
+            }], "X15: 工具参数包含制表符");
+        }
+        if (lower.Contains("x16") || lower.Contains("newline in args") || lower.Contains("换行参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = "{\"command\": \"echo\\nx16\"}"
+                }
+            }], "X16: 工具参数包含换行符");
+        }
+        if (lower.Contains("x17") || lower.Contains("slash in args") || lower.Contains("斜杠参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo 'a/b/c\\d/e/f'"}"""
+                }
+            }], "X17: 工具参数包含正反斜杠混合");
+        }
+        if (lower.Contains("x18") || lower.Contains("pipe in args") || lower.Contains("管道参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo a | grep a"}"""
+                }
+            }], "X18: 工具参数包含管道符");
+        }
+        if (lower.Contains("x19") || lower.Contains("semicolon in args") || lower.Contains("分号参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo a; echo b"}"""
+                }
+            }], "X19: 工具参数包含分号");
+        }
+        if (lower.Contains("x20") || lower.Contains("backtick in args") || lower.Contains("反引号参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo `date`"}"""
+                }
+            }], "X20: 工具参数包含反引号");
+        }
+        if (lower.Contains("x1") || lower.Contains("base64 result") || lower.Contains("base64结果")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo 'SGVsbG8gV29ybGQ='"}"""
+                }
+            }], "X1: 工具结果包含 base64");
+        }
+        if (lower.Contains("x2") || lower.Contains("space in name") || lower.Contains("空格在名中")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "tool name",
+                    Arguments = """{"command": "echo x2"}"""
+                }
+            }], "X2: 工具名中间有空格");
+        }
+        if (lower.Contains("x3") || lower.Contains("number args") || lower.Contains("数字参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = "12345"
+                }
+            }], "X3: 工具参数为纯数字");
+        }
+        if (lower.Contains("x4") || lower.Contains("string args") || lower.Contains("字符串参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = "\"hello world\""
+                }
+            }], "X4: 工具参数为纯字符串");
+        }
+        if (lower.Contains("x5") || lower.Contains("chinese name") || lower.Contains("中文工具名")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "工具",
+                    Arguments = """{"command": "echo x5"}"""
+                }
+            }], "X5: 工具名为中文");
+        }
+        if (lower.Contains("x6") || lower.Contains("chinese key") || lower.Contains("中文键参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"命令": "echo x6"}"""
+                }
+            }], "X6: 工具参数包含中文键");
+        }
+        if (lower.Contains("x7") || lower.Contains("sql result") || lower.Contains("sql结果")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo 'SELECT * FROM users WHERE id = 1; DROP TABLE users;'"}"""
+                }
+            }], "X7: 工具结果包含 SQL 注入");
+        }
+        if (lower.Contains("x8") || lower.Contains("regex result") || lower.Contains("正则结果")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo '^[a-zA-Z0-9]+@[a-zA-Z0-9]+\\\\.[a-zA-Z]{2,}$'"}"""
+                }
+            }], "X8: 工具结果包含正则表达式");
+        }
+        if (lower.Contains("x9") || lower.Contains("datetime args") || lower.Contains("日期参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo x9", "date": "2026-11-02T13:45:00Z"}"""
+                }
+            }], "X9: 工具参数包含 ISO 8601 日期");
+        }
         return (null, "");
     }
 

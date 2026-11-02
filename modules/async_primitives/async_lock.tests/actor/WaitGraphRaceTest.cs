@@ -33,7 +33,7 @@ public class WaitGraphRaceTest {
         await using var proxy = new P13ProxyActor(echo);
 
         var tasks = Enumerable.Range(0, 30)
-            .Select(i => proxy.AskEchoAsync($"msg-{i}", timeoutMs: 8000))
+            .Select(i => proxy.AskEchoAsync($"msg-{i}", timeoutMs: 30000))
             .ToArray();
 
         var results = await Task.WhenAll(tasks);

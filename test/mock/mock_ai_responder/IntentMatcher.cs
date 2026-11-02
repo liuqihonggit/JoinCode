@@ -514,6 +514,42 @@ internal static class IntentMatcher {
                 }
             }], "S3: content+tool_call 同时出现（附带文本）");
         }
+        if (lower.Contains("t1") || lower.Contains("dot name") || lower.Contains("点号工具名")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "read.file",
+                    Arguments = """{"file_path": "/nonexistent/t1.txt"}"""
+                }
+            }], "T1: 工具名包含点号 read.file");
+        }
+        if (lower.Contains("t2") || lower.Contains("dash name") || lower.Contains("连字符工具名")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "read-file",
+                    Arguments = """{"file_path": "/nonexistent/t2.txt"}"""
+                }
+            }], "T2: 工具名包含连字符 read-file");
+        }
+        if (lower.Contains("t4") || lower.Contains("markdown result") || lower.Contains("markdown结果")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo '| col1 | col2 |\\n|---|---|\\n| a | b |'"}"""
+                }
+            }], "T4: 工具结果包含 markdown 表格");
+        }
+        if (lower.Contains("t5") || lower.Contains("json result") || lower.Contains("json结果")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo '{\"key\":\"value\",\"num\":42}'"}"""
+                }
+            }], "T5: 工具结果包含 JSON");
+        }
         return (null, "");
     }
 

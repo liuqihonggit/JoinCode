@@ -45,6 +45,11 @@ public sealed class EngineApplicationBuilder {
                 // 视角1 #3: 注册 CommandLineOptions 为单例，供 PermissionConfig 后配置读取
                 services.AddSingleton(options);
 
+                // SkipChatServices=true 且未 SkipToolFilter 时只注册 gh_* 工具 — jcc gh/mcp_call 等元命令不需要 file/shell/search 等工具
+                // mcp serve 需要暴露所有工具给外部客户端，设 SkipToolFilter=true 跳过过滤
+                if (options.SkipChatServices && !options.SkipToolFilter)
+                    services.AddSingleton<Func<string, bool>>(static name => name.StartsWith("gh_", StringComparison.OrdinalIgnoreCase));
+
                 foreach (var module in ordered) {
                     module.ConfigureServices(services, context);
                 }

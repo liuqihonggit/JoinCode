@@ -124,9 +124,9 @@ public sealed class McpCliCommand {
             return 0;
         }, ct: ct);
 
-    internal static async Task<IAsyncHost> BuildHostAsync(string? vendor = null, string? model = null, CancellationToken ct = default) {
+    internal static async Task<IAsyncHost> BuildHostAsync(string? vendor = null, string? model = null, CancellationToken ct = default, bool skipToolFilter = false) {
         var fs = IO.FileSystem.FileSystemFactory.Create();
-        var options = new CommandLineOptions { NonInteractive = true, TrustWorkspace = true, SkipModelFetch = true, SkipProviderValidation = true, SkipChatServices = true };
+        var options = new CommandLineOptions { NonInteractive = true, TrustWorkspace = true, SkipModelFetch = true, SkipProviderValidation = true, SkipChatServices = true, SkipToolFilter = skipToolFilter };
         if (!string.IsNullOrEmpty(vendor))
             options = options with { Vendor = vendor };
         if (!string.IsNullOrEmpty(model))
@@ -146,7 +146,7 @@ public sealed class McpCliCommand {
             return 1;
         }
 
-        await using var appHost = await BuildHostAsync(ct: ct).ConfigureAwait(false);
+        await using var appHost = await BuildHostAsync(ct: ct, skipToolFilter: true).ConfigureAwait(false);
 
         // mcp serve 需要 shell 执行器 — BuildHostAsync 跳过了 ShellCapabilityInit（SkipChatServices=true），此处补调
         Core.DependencyInjection.ShellCapabilityInitializer.Initialize(

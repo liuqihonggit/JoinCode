@@ -20,8 +20,16 @@ public static partial class ServiceRegistration {
         GeneratedToolHandlerRegistration_JoinCode_Composition.AddMcpToolDispatchSingletons(services);
 
         // 注册 Composition 级别的工具注册委托，让 McpService 使用包含所有组件 Handler 的注册方法
+        // ToolNameFilter 委托由 EngineApplicationBuilder.BuildHost 根据 SkipChatServices 注册
         services.AddSingleton<Func<IMcpToolRegistry, IServiceProvider, CancellationToken, Task<IMcpToolRegistry>>>(
-            (registry, sp, ct) => GeneratedToolHandlerRegistration_JoinCode_Composition.RegisterAllMcpToolDispatchAsync(registry, sp, ct));
+            async (registry, sp, ct) => {
+                var toolFilter = sp.GetService<Func<string, bool>>();
+                var timing = System.Environment.GetEnvironmentVariable("JCC_DEBUG_TIMING") is "1" or "true";
+                var sw = timing ? System.Diagnostics.Stopwatch.StartNew() : null;
+                var result = await GeneratedToolHandlerRegistration_JoinCode_Composition.RegisterAllMcpToolDispatchAsync(registry, sp, ct, toolFilter).ConfigureAwait(false);
+                if (sw is not null) System.Console.Error.WriteLine($"[TIMING] RegisterAll 总耗时: {sw.ElapsedMilliseconds}ms (filter={toolFilter is not null})");
+                return result;
+            });
 
         // 工具评分配置 — 从 WorkflowConfig.ToolExecution 提取
         services.AddSingleton(sp => {

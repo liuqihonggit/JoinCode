@@ -25,7 +25,7 @@ internal static class GhDispatcher {
             if (p.GetCustomAttribute<McpToolOptionsAttribute>() is not null) {
                 foreach (var prop in p.ParameterType.GetProperties()) {
                     if (prop.GetCustomAttribute<McpToolParameterAttribute>() is null) continue;
-                    AddParam(result, prop.Name, prop.PropertyType, prop.GetCustomAttribute<McpToolParameterAttribute>(), false);
+                    AddParam(result, prop.Name, prop.PropertyType, prop.GetCustomAttribute<McpToolParameterAttribute>(), true);
                 }
                 continue;
             }

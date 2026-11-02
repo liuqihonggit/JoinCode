@@ -8,13 +8,13 @@ internal static class GhHost {
         var fs = IO.FileSystem.FileSystemFactory.Create();
         var httpClient = new HttpClient();
         var apiClient = new IO.ProcessService.GitHubApiClient(httpClient, fs);
-        var downloader = new SimpleDownloader();
+        var downloader = new SimpleDownloader(httpClient);
         s_handler = new GitHubToolHandlers(downloader, fs, apiClient);
         return s_handler;
     }
 }
 
-internal sealed class SimpleDownloader : IDownloader {
+internal sealed class SimpleDownloader(HttpClient http) : IDownloader {
     public IDownloadSession StartDownload(
         string url, string filePath, DownloadOptions? options = null,
         IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default) {

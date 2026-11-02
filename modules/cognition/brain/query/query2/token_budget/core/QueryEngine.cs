@@ -424,8 +424,11 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
                     if (string.IsNullOrWhiteSpace(name)) continue;
 
+                    var repairedName = LlmJsonHelper.RepairToolName(name, _logger);
+                    if (string.IsNullOrEmpty(repairedName)) continue;
+
                     pendingToolCalls.Add(new ToolCallRequest {
-                        ToolName = name,
+                        ToolName = repairedName,
                         ToolCallId = id,
                         RawArguments = arguments,
                         Arguments = ExtractArguments(streamChunk.Metadata, arguments)

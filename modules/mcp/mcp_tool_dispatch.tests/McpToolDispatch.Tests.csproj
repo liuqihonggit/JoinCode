@@ -13,6 +13,7 @@
     <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/mcp/mcp/Mcp.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/tools/gh/gh.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/cognition/hands/Hands.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/guard/guard/Guard.csproj" />
   </ItemGroup>

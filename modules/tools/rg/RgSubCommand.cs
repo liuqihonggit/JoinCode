@@ -149,8 +149,8 @@ internal static class RgSubCommand {
     }
 
     /// <summary>从解析结果构造 RgQuery（搜索与列文件模式共用）。</summary>
-    private static RgQuery BuildQuery(RgOptions parsed, string pattern, IReadOnlyList<string>? paths = null) => new(
-        Pattern: pattern,
+    private static RgQuery BuildQuery(RgOptions parsed, string? pattern, IReadOnlyList<string>? paths = null) => new(
+        Pattern: pattern ?? "",
         Paths: paths ?? parsed.Paths,
         Globs: parsed.Globs,
         FileType: parsed.FileType,
@@ -415,7 +415,7 @@ internal static class RgSubCommand {
         var effectiveLineNumbers = lineNumbers || outputMode == SearchOutputMode.Content;
 
         return new RgOptions(
-            Pattern: pattern,
+            Pattern: pattern ?? "",
             Paths: paths,
             Globs: globs,
             FileType: fileType,

@@ -334,3 +334,38 @@ D9 错误消息从 "模型返回空回复" 改为 "模型回复被安全过滤�
 | finish_reason 全链路透传 | SessionController 精准错误消息 | ✅ | ✅ D9 场景验证 |
 | 第二流路径修复 | tool_description_request 路径 | ✅ | ✅ 编译通过 + LLM 609 测试通过 |
 | responder E1-E20 场景 | IntentMatcher.EdgeE.cs | ✅ | ✅ 手动 exe 验收 |
+
+---
+
+## 2026-11-03 第五轮：F1-F20 工具调用高级边缘场景
+
+### F1-F20 场景测试结果
+
+| 场景 | 关键词 | 结果 | 说明 |
+|------|--------|------|------|
+| F1 | 10kb single line | ✅ exit=0 | 工具结果含 10KB 单行正确处理 |
+| F2 | 1000 lines | ✅ exit=0 | 工具结果含 1000 行正确处理 |
+| F3 | crlf output | ✅ exit=0 | 工具结果含 CRLF Windows 换行正确处理 |
+| F4 | bom output | ✅ exit=0 | 工具结果含 UTF-8 BOM 头正确处理 |
+| F5 | nested json 5 | ✅ exit=0 | 工具参数含嵌套 JSON 5 层正确处理 |
+| F6 | 100 keys args | ✅ exit=0 | 工具参数含 100 个键正确处理 |
+| F7 | all json types | ✅ exit=0 | 工具参数含所有 JSON 类型正确处理 |
+| F8 | 3 rounds 3 tools | ✅ exit=0 | 一轮 3 个工具调用全部成功 |
+| F9 | empty then tool | ✅ exit=0 | 空 content 后工具调用正确处理 |
+| F10 | tool name digits | ✅ exit=0 | 工具名含数字（bash123）正确处理 |
+| F11 | tool name underscore | ✅ exit=0 | 工具名含下划线正确处理 |
+| F12 | tool name mixed case | ✅ exit=0 | 工具名混合大小写（Bash）正确处理 |
+| F13 | 4 byte emoji args | ✅ exit=0 | 工具参数含 4 字节 emoji（补充平面）正确处理 |
+| F14 | ansi color output | ✅ exit=0 | 工具结果含 ANSI 颜色码正确处理 |
+| F15 | terminal control | ✅ exit=0 | 工具结果含终端控制码正确处理 |
+| F16 | chinese args | ✅ exit=0 | 工具参数含中文正确处理 |
+| F17 | japanese args | ✅ exit=0 | 工具参数含日文正确处理 |
+| F18 | korean args | �.exit=0 | 工具参数含韩文正确处理 |
+| F19 | cyrillic args | ✅ exit=0 | 工具参数含西里尔文正确处理 |
+| F20 | mixed script | ✅ exit=0 | 工具参数含混合脚本正确处理 |
+
+### 验收表（追加）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| responder F1-F20 场景 | IntentMatcher.EdgeF.cs | ✅ | ✅ 手动 exe 验收 |

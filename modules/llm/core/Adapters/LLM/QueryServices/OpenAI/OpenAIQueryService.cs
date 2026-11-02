@@ -78,6 +78,7 @@ public class OpenAIQueryService : QueryServiceBase {
         var toolCallAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
         var isFirstChunk = true;
         var descRequestAccumulator = new StringBuilder();
+        var lastFinishReason = OpenAIFinishReasonEnumConstants.Stop;
 
         await foreach (var chunk in responseStream) {
             // 最终 usage chunk: choices 为空但包含 usage 字段 —
@@ -90,7 +91,7 @@ public class OpenAIQueryService : QueryServiceBase {
 
                 var usageMetadata = new Dictionary<string, JsonElement> {
                     ["Id"] = JsonElementHelper.FromString(chunk.Id),
-                    ["FinishReason"] = JsonElementHelper.FromString(OpenAIFinishReasonEnumConstants.Stop),
+                    ["FinishReason"] = JsonElementHelper.FromString(lastFinishReason),
                     ["Created"] = JsonElementHelper.FromInt64(chunk.Created),
                     ["Usage"] = JsonElementHelper.FromObject(tokenUsage, NativeJsonContext.Default.TokenUsage)
                 };
@@ -196,7 +197,14 @@ public class OpenAIQueryService : QueryServiceBase {
                 metadata["reasoning_content"] = JsonElementHelper.FromBoolean(true);
             }
 
-            if (choice.FinishReason == OpenAIFinishReasonEnumConstants.ToolCalls && toolCallAccumulator.Count > 0) {
+            if (!string.IsNullOrEmpty(choice.FinishReason))
+                lastFinishReason = choice.FinishReason;
+
+            var isToolCallFinish = choice.FinishReason is OpenAIFinishReasonEnumConstants.ToolCalls
+                or OpenAIFinishReasonEnumConstants.Length
+                or OpenAIFinishReasonEnumConstants.ContentFilter;
+
+            if (isToolCallFinish && toolCallAccumulator.Count > 0) {
                 var entries = toolCallAccumulator
                     .OrderBy(kv => kv.Key)
                     .Select(kv => new ToolCallEntry {
@@ -233,7 +241,7 @@ public class OpenAIQueryService : QueryServiceBase {
                 .ToList();
             var flushMeta = new Dictionary<string, JsonElement> {
                 ["Id"] = JsonElementHelper.FromString("flush"),
-                ["FinishReason"] = JsonElementHelper.FromString(OpenAIFinishReasonEnumConstants.ToolCalls),
+                ["FinishReason"] = JsonElementHelper.FromString(lastFinishReason),
                 ["Created"] = JsonElementHelper.FromInt64(0),
                 ["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries)
             };
@@ -517,7 +525,7 @@ public class OpenAIQueryService : QueryServiceBase {
             if (!line.StartsWith("data: ")) continue;
 
             var data = line[6..];
-            if (data == "[DONE]") {
+            if (data.AsSpan().TrimEnd() == "[DONE]") {
                 Diag.WriteLine($"[WIRE {CallTrace.CurrentId}] 流结束 | chunks={chunkCount}, content={contentChunks}, toolCalls={toolCallChunks}");
                 yield break;
             }

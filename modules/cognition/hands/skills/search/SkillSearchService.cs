@@ -7,23 +7,27 @@ namespace Core.Skills.Search;
 [Register(typeof(ISkillSearchService), ServiceLifetime.Singleton)]
 [Register(typeof(JoinCode.Abstractions.Interfaces.ISkillSearchService), ServiceLifetime.Singleton)]
 public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchService, JoinCode.Abstractions.Interfaces.ISkillSearchService {
-    private readonly ISkillService _skillService;
+    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<SkillSearchService>? _logger;
+    private ISkillService? _skillService;
     private ImmutableHamT<string, FrozenSet<string>> _tagIndex = ImmutableHamT<string, FrozenSet<string>>.Empty;
     private ImmutableHamT<string, string> _nameIndex = ImmutableHamT<string, string>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private DateTime _lastIndexTime = DateTime.MinValue;
     private readonly AsyncLock _indexLock = new();
 
+    /// <summary>懒解析 ISkillService — 首次调用搜索方法时才构造，避免 IToolRegistry 解析链提前触发</summary>
+    private ISkillService SkillService => _skillService ??= _serviceProvider.GetRequiredService<ISkillService>();
+
     /// <summary>
     /// 创建技能搜索服务
     /// </summary>
-    /// <param name="skillService">技能服务</param>
+    /// <param name="serviceProvider">DI 服务提供者（懒解析 ISkillService）</param>
     /// <param name="logger">日志记录器</param>
     public SkillSearchService(
-        ISkillService skillService,
+        IServiceProvider serviceProvider,
         ILogger<SkillSearchService>? logger = null) {
-        ArgumentNullException.ThrowIfNull(skillService);
-        _skillService = skillService;
+        ArgumentNullException.ThrowIfNull(serviceProvider);
+        _serviceProvider = serviceProvider;
         _logger = logger;
     }
 
@@ -40,7 +44,7 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
 
         await EnsureIndexAsync(cancellationToken).ConfigureAwait(false);
 
-        var skills = await _skillService.GetAvailableSkillsAsync(cancellationToken).ConfigureAwait(false);
+        var skills = await SkillService.GetAvailableSkillsAsync(cancellationToken).ConfigureAwait(false);
         var results = new List<SkillSearchResult>();
 
         foreach (var skill in skills) {
@@ -86,7 +90,7 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
 
         await EnsureIndexAsync(cancellationToken).ConfigureAwait(false);
 
-        var skills = await _skillService.GetAvailableSkillsAsync(cancellationToken).ConfigureAwait(false);
+        var skills = await SkillService.GetAvailableSkillsAsync(cancellationToken).ConfigureAwait(false);
         var results = new List<SkillSearchResult>();
 
         var contextKeywords = ExtractKeywords(context);
@@ -124,7 +128,7 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
 
         await EnsureIndexAsync(cancellationToken).ConfigureAwait(false);
 
-        var skills = await _skillService.GetAvailableSkillsAsync(cancellationToken).ConfigureAwait(false);
+        var skills = await SkillService.GetAvailableSkillsAsync(cancellationToken).ConfigureAwait(false);
 
         foreach (var skill in skills) {
             cancellationToken.ThrowIfCancellationRequested();
@@ -153,7 +157,7 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
 
         if ((DateTime.UtcNow - _lastIndexTime).TotalMinutes < 5) return;
 
-        var skills = await _skillService.GetAvailableSkillsAsync(cancellationToken).ConfigureAwait(false);
+        var skills = await SkillService.GetAvailableSkillsAsync(cancellationToken).ConfigureAwait(false);
         var tagNamePairs = new List<(string Name, FrozenSet<string> Tags)>();
         var namePairs = new List<(string Name, string Value)>();
 

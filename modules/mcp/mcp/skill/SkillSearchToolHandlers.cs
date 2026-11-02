@@ -7,16 +7,20 @@ namespace McpToolDispatch;
 /// </summary>
 [McpToolDispatch(ToolCategory.Skill, Optional = true)]
 public sealed partial class SkillSearchToolHandlers {
-    private readonly JoinCode.Abstractions.Interfaces.ISkillSearchService _searchService;
+    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<SkillSearchToolHandlers>? _logger;
+    private JoinCode.Abstractions.Interfaces.ISkillSearchService? _searchService;
+
+    /// <summary>懒解析 ISkillSearchService — 首次调用搜索工具时才构造，避免 IToolRegistry 解析链提前触发</summary>
+    private JoinCode.Abstractions.Interfaces.ISkillSearchService SearchService => _searchService ??= _serviceProvider.GetRequiredService<JoinCode.Abstractions.Interfaces.ISkillSearchService>();
 
     /// <summary>
     /// 初始化 <see cref="SkillSearchToolHandlers"/> 实例
     /// </summary>
-    /// <param name="searchService">技能搜索服务</param>
+    /// <param name="serviceProvider">DI 服务提供者（懒解析 ISkillSearchService）</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public SkillSearchToolHandlers(JoinCode.Abstractions.Interfaces.ISkillSearchService searchService, ILogger<SkillSearchToolHandlers>? logger = null) {
-        _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
+    public SkillSearchToolHandlers(IServiceProvider serviceProvider, ILogger<SkillSearchToolHandlers>? logger = null) {
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _logger = logger;
     }
 
@@ -44,7 +48,7 @@ public sealed partial class SkillSearchToolHandlers {
                 PageSize = max_results
             };
 
-            var results = await _searchService.SearchAsync(query, cancellationToken).ConfigureAwait(false);
+            var results = await SearchService.SearchAsync(query, cancellationToken).ConfigureAwait(false);
 
             var response = new StringBuilder(512);
             response.AppendLine(L.T(StringKey.SkillSearchResult, results.Count));
@@ -87,7 +91,7 @@ public sealed partial class SkillSearchToolHandlers {
         }
 
         try {
-            var results = await _searchService.RecommendAsync(context, max_results, cancellationToken).ConfigureAwait(false);
+            var results = await SearchService.RecommendAsync(context, max_results, cancellationToken).ConfigureAwait(false);
 
             var response = new StringBuilder(512);
             response.AppendLine(L.T(StringKey.SkillRecommendResult, results.Count));
@@ -129,11 +133,11 @@ public sealed partial class SkillSearchToolHandlers {
 
         try {
             // 对齐 TS: 先用关键词搜索，再用上下文推荐，合并去重
-            var keywordResults = await _searchService.SearchAsync(
+            var keywordResults = await SearchService.SearchAsync(
                 new JoinCode.Abstractions.Models.SkillSearch.SkillSearchQuery { Keyword = context, PageSize = max_results },
                 cancellationToken).ConfigureAwait(false);
 
-            var recommendResults = await _searchService.RecommendAsync(
+            var recommendResults = await SearchService.RecommendAsync(
                 context, max_results, cancellationToken).ConfigureAwait(false);
 
             // 合并去重（按 SkillName）

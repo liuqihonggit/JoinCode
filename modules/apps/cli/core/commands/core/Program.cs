@@ -151,11 +151,11 @@ class Program {
             if (options?.IsStructuredOutputMode == true) {
                 WriteStructuredErrorToStdout(new Cli.Output.CliStructuredError(
                     "RUNTIME_ERROR", ex.Message,
-                    hint: $"详细日志: {errorLog}",
+                    hint: $"详细日志: {Cli.Output.XdgPathResolver.ShortenPath(errorLog)}",
                     retryable: false), options.IsNdjsonMode);
             } else {
                 App.ErrorConsole.Fatal(ex.Message);
-                Cli.TerminalHelper.WriteError($"  详细日志: {errorLog}");
+                Cli.TerminalHelper.WriteError($"  详细日志: {Cli.Output.XdgPathResolver.ShortenPath(errorLog)}");
             }
 
             return (int)ExitCode.GeneralError;

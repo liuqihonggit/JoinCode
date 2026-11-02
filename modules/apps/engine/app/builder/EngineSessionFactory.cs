@@ -153,7 +153,7 @@ public sealed class EngineSessionFactory {
             Core.DependencyInjection.ShellCapabilityInitializer.Initialize(
                 fs, host.Services.GetService<ILogger<EngineSessionFactory>>());
 
-        if (!options.SkipModelFetch)
+        if (!options.SkipModelFetch && !IsEnvSkipModelFetch())
             StartModelFetchBackground(fs, host.Services, cancellationToken);
 
         var chatService = options.SkipChatServices
@@ -180,6 +180,15 @@ public sealed class EngineSessionFactory {
         if (diModelConfigLoader is null || diModelConfigLoader == source) return;
 
         diModelConfigLoader.ApplyProviders(source.Config.Providers);
+    }
+
+    /// <summary>
+    /// 检查 JCC_SKIP_MODEL_FETCH 环境变量 — 设为 1/true/yes 时跳过启动时 model list 拉取
+    /// <para>用于 E2E 测试/本地调试：避免对 api.openai.com 等公网 endpoint 发起连接导致 30 秒超时</para>
+    /// </summary>
+    private static bool IsEnvSkipModelFetch() {
+        var value = Environment.GetEnvironmentVariable(JccEnvVar.SkipModelFetch.ToValue());
+        return value is "1" or "true" or "yes";
     }
 
     /// <summary>

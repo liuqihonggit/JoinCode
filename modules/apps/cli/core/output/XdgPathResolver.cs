@@ -40,4 +40,17 @@ public static class XdgPathResolver {
     /// <summary>获取 --await 超时日志路径 — ~/.jcc/runtime/jcc_await_timeout.log（ADR 0055）</summary>
     public static string GetAwaitTimeoutLogPath() =>
         JoinCode.Abstractions.Configuration.AppData.AppDataConstants.UserRuntimeAwaitTimeoutLogPath;
+
+    /// <summary>
+    /// 将绝对路径缩短为 ~ 形式 — 替换用户主目录前缀为 ~，避免泄露用户名/主目录到错误消息
+    /// <para>例: C:\Users\foo\.jcc\runtime\jcc_error.log → ~/.jcc/runtime/jcc_error.log</para>
+    /// </summary>
+    public static string ShortenPath(string absolutePath) {
+        if (string.IsNullOrEmpty(absolutePath)) return absolutePath;
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrEmpty(home)) return absolutePath;
+        if (absolutePath.StartsWith(home, StringComparison.OrdinalIgnoreCase))
+            return "~" + absolutePath[home.Length..];
+        return absolutePath;
+    }
 }

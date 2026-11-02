@@ -73,13 +73,13 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
             Diag.WriteLine($"[STEP] ExecuteStep exception: {ex.GetType().Name}: {ex.Message}");
             var errorLog = await WriteErrorLogAsync(ex).ConfigureAwait(false);
             var retryable = ex is JoinCode.Abstractions.Exceptions.ApiException apiEx && apiEx.IsRetryable;
-            context.StructuredError = new Cli.Output.CliStructuredError("RUNTIME_ERROR", ex.Message, $"详细日志: {errorLog}", retryable);
+            context.StructuredError = new Cli.Output.CliStructuredError("RUNTIME_ERROR", ex.Message, $"详细日志: {Cli.Output.XdgPathResolver.ShortenPath(errorLog)}", retryable);
             if (context.OutputContract is null) {
                 Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
                 if (retryable)
                     Cli.TerminalHelper.WriteLine("  此错误通常可重试，请稍后重试。");
                 Cli.TerminalHelper.WriteLine("  请检查：1. API Key 配置  2. 网络连接  3. API 服务状态");
-                Cli.TerminalHelper.WriteLine($"  详细日志: {errorLog}");
+                Cli.TerminalHelper.WriteLine($"  详细日志: {Cli.Output.XdgPathResolver.ShortenPath(errorLog)}");
             }
             context.ExitCode = (int)ExitCode.GeneralError;
             return;

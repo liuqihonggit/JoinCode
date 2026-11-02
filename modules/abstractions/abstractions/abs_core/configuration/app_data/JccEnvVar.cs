@@ -41,6 +41,9 @@ public enum JccEnvVar {
     [EnumValue("JCC_CUSTOM_MODEL_OPTION_DESCRIPTION")] CustomModelOptionDescription,
     [EnumValue("JCC_SKILL_CHAR_BUDGET")] SkillCharBudget,
     [EnumValue("JCC_SKIP_WEB_FETCH_PREFLIGHT")] SkipWebFetchPreflight,
+    [EnumValue("JCC_SKIP_MODEL_FETCH")]
+    [SubCommandInfo("跳过启动时 model list 拉取 (1/true/yes)", "调试/诊断")]
+    SkipModelFetch,
 
     // 新增: 运行时配置
     [EnumValue("JCC_SANDBOX_MODE")]

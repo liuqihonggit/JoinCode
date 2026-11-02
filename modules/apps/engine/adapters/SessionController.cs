@@ -168,7 +168,7 @@ public sealed class SessionController {
                 var emptyMsg = _lastStopReason switch {
                     "content_filter" => "模型回复被安全过滤（content_filter）。请调整请求内容后重试，或切换模型/供应商。",
                     "max_tokens" => "模型回复因达到最大 token 限制被截断（length）。请增大 max_tokens 或精简请求后重试。",
-                    _ => "模型返回空回复（无文本/思考/工具产出）。可能为请求过大超时或供应商响应异常，请按 Esc 打断后重试，或切换模型/供应商。"
+                    _ => "模型返回空回复（无文本/思考/工具产出）。可能为请求过大超时或供应商响应异常，请重试或切换模型/供应商。"
                 };
                 return SessionTurnResult.Error(emptyMsg, partialResponse: string.Empty);
             }

@@ -4,7 +4,7 @@ namespace MockAiResponder;
 /// 意图匹配器 — 解析 jcc 请求，按用户消息内容生成模拟 AI 响应。
 /// 支持 OpenAI（流式+非流式）和 Anthropic（非流式）协议。
 /// </summary>
-internal static class IntentMatcher {
+internal static partial class IntentMatcher {
     private static readonly JsonSerializerOptions JsonOpts = new() {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -1683,6 +1683,12 @@ internal static class IntentMatcher {
         var (toolCalls, toolDesc) = MatchToolCallIntent(userMessage);
         if (toolCalls is not null)
             return BuildToolCallResponse(toolCalls, toolDesc, userMessage, protocol, isStream);
+
+        if (protocol == "openai" && isStream) {
+            var dResult = MatchStreamingEdgeIntent(userMessage);
+            if (dResult is not null)
+                return dResult;
+        }
 
         var prevAssistant = ExtractPreviousAssistantMessage(root);
         if (prevAssistant is null || prevAssistant.Length == 0) return null;

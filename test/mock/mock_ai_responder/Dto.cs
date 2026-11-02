@@ -67,18 +67,22 @@ internal sealed class StreamChunk {
     public string Id { get; set; } = "";
     [JsonPropertyName("object")]
     public string Object { get; set; } = "chat.completion.chunk";
+    public string? Model { get; set; }
     public List<StreamChoice> Choices { get; set; } = [];
+    public OpenAiUsage? Usage { get; set; }
 }
 
 internal sealed class StreamChoice {
     public int Index { get; set; }
-    public StreamDelta Delta { get; set; } = new();
+    public StreamDelta? Delta { get; set; } = new();
     public string? FinishReason { get; set; }
 }
 
 internal sealed class StreamDelta {
     public string? Role { get; set; }
     public string? Content { get; set; }
+    [JsonPropertyName("reasoning_content")]
+    public string? ReasoningContent { get; set; }
 #pragma warning disable JCC11002
     public List<StreamToolCallDelta>? ToolCalls { get; set; }
 #pragma warning restore JCC11002

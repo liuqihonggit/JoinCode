@@ -234,3 +234,255 @@ AI 用 bash 调 `jcc -p "消息"`，responder 自动匹配意图并 inject 响�
 | StringExtensions.SafeTruncate | 17个文件的字符串截断 | ✅ | ✅ 编译通过 |
 | responder IntentMatcher A/W/X/Y/Z 匹配 | A1-A20 场景测试 | ✅ | ✅ 手动 exe 验收 |
 | responder IntentMatcher C1-C20 | C1-C20 场景测试 | ✅ | ✅ 手动 exe 验收 |
+
+---
+
+## 2026-11-03 第三轮：D1-D20 流式响应边缘场景 + 流式处理 10 个 bug 修复
+
+### D1-D20 场景测试结果
+
+| 场景 | 关键词 | 结果 | 说明 |
+|------|--------|------|------|
+| D1 | role only | ✅ exit=1 | 只有 role chunk 无 content → 正确报空回复 |
+| D2 | empty content between | ✅ exit=0 | 空 content chunk 正确跳过，输出 "helloworld" |
+| D3 | usage first | ✅ exit=0 | usage 在首个 chunk 正确处理 |
+| D4 | empty choices | ✅ exit=0 | 空 choices 数组正确跳过 |
+| D5 | null delta | ✅ exit=0 | null delta 正确处理 |
+| D6 | char by char | ✅ exit=0 | 逐字符流式（28+ chunk）正确累积 |
+| D7 | interleaved | ✅ exit=0 | content 和 tool_call 交错 chunk 正确处理 |
+| D8 | length finish | ✅ exit=0 | finish_reason=length 部分内容正确返回 |
+| D9 | content filter | ✅ exit=1 | content_filter 无内容 → 正确报空回复 |
+| D10 | done then extra | ✅ exit=0 | [DONE] 后额外数据正确忽略 |
+| D11 | done whitespace | ✅ exit=0 | [DONE] 带尾随空格正确处理（问题8修复生效） |
+| D12 | no done marker | ✅ exit=0 | 缺少 [DONE] 正确处理 |
+| D13 | sse comment | ✅ exit=0 | SSE 注释行正确跳过 |
+| D14 | extra fields | ✅ exit=0 | chunk 含额外字段正确忽略 |
+| D15 | model change | ✅ exit=0 | 流中 model 名变化正确处理 |
+| D16 | empty content chunks | ✅ exit=0 | 多个空 content chunk 正确跳过 |
+| D17 | whitespace only | ✅ exit=0 | 纯空白 content 正确保留 |
+| D18 | reasoning content | ✅ exit=0 | reasoning_content 正确流式输出 |
+| D19 | multiple choices | ✅ exit=0 | 多 choices 只读 choices[0] |
+| D20 | index gap | ✅ exit=0 | tool_call index 跳跃（0,2 缺 1）正确处理 |
+
+### 流式处理 10 个 bug 修复
+
+| 问题 | 严重度 | 位置 | 修复 | commit |
+|------|--------|------|------|--------|
+| 问题1 | 高 | ChatStreamChunkProcessor.cs:102 | IndexOutOfRange 崩溃 — 添加 Count==0 检查 | `7d190f7b3` |
+| 问题2 | 中 | OpenAIQueryService.cs:93 | usage chunk FinishReason 硬编码 "stop" → 用 lastFinishReason | `449427ffb` |
+| 问题3 | 中 | OpenAIQueryService.cs:199 | 只处理 "tool_calls" → 扩展到 "length"/"content_filter" | `449427ffb` |
+| 问题4 | 中 | OpenAIQueryService.cs:236 | 兜底 flush FinishReason 硬编码 → 用 lastFinishReason | `449427ffb` |
+| 问题5 | 高 | OpenAIQueryService.cs:157 | Index 缺失合并 — 提取 ProcessToolCallDelta 方法 | `7d190f7b3` |
+| 问题6 | 中 | OpenAIQueryService.cs:159 | Id 覆盖重置 Arguments — ProcessToolCallDelta 修复 | `7d190f7b3` |
+| 问题7 | 中 | OpenAIQueryService.cs:159 | Name 不更新 — ProcessToolCallDelta 修复 | `7d190f7b3` |
+| 问题8 | 低 | OpenAIQueryService.cs:520 | [DONE] 不容忍尾随空格 → TrimEnd | `449427ffb` |
+| 问题9 | 中 | QueryEngine.cs:428 | ToolName 未经过 RepairToolName — 添加修复 | `138b17cd6` |
+| 问题10 | 高 | QueryEngine.cs:460 | length 截断时工具调用丢失 — 被问题3修复覆盖 | `449427ffb` |
+
+### 验收表（追加）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| ProcessToolCallDelta 方法 | OpenAIQueryService 流式 tool_call delta 处理 | ✅ | ✅ 编译通过 + LLM 609 测试通过 |
+| lastFinishReason 跟踪 | usage chunk + 兜底 flush FinishReason | ✅ | ✅ D3/D8 场景验证 |
+| [DONE] TrimEnd | OpenAIQueryService [DONE] 匹配 | ✅ | ✅ D11 场景验证 |
+| RepairToolName in QueryEngine | QueryEngine 工具名修复 | ✅ | ✅ 编译通过 + Brain 951 测试通过 |
+| responder D1-D20 场景 | IntentMatcher.StreamingEdge.cs | ✅ | ✅ 手动 exe 验收 |
+
+---
+
+## 2026-11-03 第四轮：E1-E20 工具调用边缘场景 + D9 content_filter 精准错误消息 + 第二流路径修复
+
+### D9 content_filter 修复
+
+| 根因 | 修复 | commit |
+|------|------|--------|
+| finish_reason 在事件管道中丢失 | 全链路透传：QueryEngine → QueryStreamChunk → AgentStreamChunk → AgentStreamChunkAdapter → ChatStreamEvent → QueryLoopMiddleware → SessionController | `d1ebdd526` |
+| 第二流路径 4 个同类 bug | 硬编码 stop/inline delta/只检查 tool_calls/无兜底 flush | `d1ebdd526` |
+
+D9 错误消息从 "模型返回空回复" 改为 "模型回复被安全过滤（content_filter）。请调整请求内容后重试，或切换模型/供应商。"
+
+### E1-E20 场景测试结果
+
+| 场景 | 关键词 | 结果 | 说明 |
+|------|--------|------|------|
+| E1 | parallel fail success | ✅ exit=0 | 并行调用一个成功一个失败，不影响最终结果 |
+| E2 | retry after fail | ✅ exit=0 | 工具失败后 LLM 重试成功 |
+| E3 | five parallel | ✅ exit=0 | 5 个并行工具调用全部成功 |
+| E4 | chain depth 5 | ✅ exit=0 | 工具链 5 层深度全部完成 |
+| E5 | missing quotes | ✅ exit=0 | 畸形 JSON（缺少引号）被修复管道正确修复 |
+| E6 | trailing comma | ✅ exit=0 | 畸形 JSON（多余逗号）被修复管道正确修复 |
+| E7 | single quote | ✅ exit=0 | 畸形 JSON（单引号）被修复管道正确修复 |
+| E8 | json comment | ✅ exit=0 | 畸形 JSON（含注释）被修复管道正确修复 |
+| E9 | 100 lines output | ✅ exit=0 | 工具输出 100 行正确处理 |
+| E10 | json output tool | ✅ exit=0 | 工具输出 JSON 正确处理 |
+| E11 | markdown table | ✅ exit=0 | 工具输出 markdown 表格正确处理 |
+| E12 | code block output | ✅ exit=0 | 工具输出代码块正确处理 |
+| E13 | empty history | ✅ exit=0 | 空对话历史首次消息正确处理 |
+| E14 | long system prompt | ✅ exit=0 | 超长系统提示下工具调用正确处理 |
+| E15 | emoji args | ✅ exit=0 | 工具参数包含 emoji 正确处理 |
+| E16 | rtl text | ✅ exit=0 | 工具参数包含 RTL 文本正确处理 |
+| E17 | very long id | ✅ exit=0 | 工具调用 ID 超长 1000 字符正确处理 |
+| E18 | ten tool calls | ✅ exit=0 | 一轮 10 个工具调用全部成功 |
+| E19 | null byte output | ✅ exit=0 | 工具输出包含 null 字节正确处理 |
+| E20 | control chars | ✅ exit=0 | 工具输出包含控制字符正确处理 |
+
+### 验收表（追加）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| finish_reason 全链路透传 | SessionController 精准错误消息 | ✅ | ✅ D9 场景验证 |
+| 第二流路径修复 | tool_description_request 路径 | ✅ | ✅ 编译通过 + LLM 609 测试通过 |
+| responder E1-E20 场景 | IntentMatcher.EdgeE.cs | ✅ | ✅ 手动 exe 验收 |
+
+---
+
+## 2026-11-03 第五轮：F1-F20 工具调用高级边缘场景
+
+### F1-F20 场景测试结果
+
+| 场景 | 关键词 | 结果 | 说明 |
+|------|--------|------|------|
+| F1 | 10kb single line | ✅ exit=0 | 工具结果含 10KB 单行正确处理 |
+| F2 | 1000 lines | ✅ exit=0 | 工具结果含 1000 行正确处理 |
+| F3 | crlf output | ✅ exit=0 | 工具结果含 CRLF Windows 换行正确处理 |
+| F4 | bom output | ✅ exit=0 | 工具结果含 UTF-8 BOM 头正确处理 |
+| F5 | nested json 5 | ✅ exit=0 | 工具参数含嵌套 JSON 5 层正确处理 |
+| F6 | 100 keys args | ✅ exit=0 | 工具参数含 100 个键正确处理 |
+| F7 | all json types | ✅ exit=0 | 工具参数含所有 JSON 类型正确处理 |
+| F8 | 3 rounds 3 tools | ✅ exit=0 | 一轮 3 个工具调用全部成功 |
+| F9 | empty then tool | ✅ exit=0 | 空 content 后工具调用正确处理 |
+| F10 | tool name digits | ✅ exit=0 | 工具名含数字（bash123）正确处理 |
+| F11 | tool name underscore | ✅ exit=0 | 工具名含下划线正确处理 |
+| F12 | tool name mixed case | ✅ exit=0 | 工具名混合大小写（Bash）正确处理 |
+| F13 | 4 byte emoji args | ✅ exit=0 | 工具参数含 4 字节 emoji（补充平面）正确处理 |
+| F14 | ansi color output | ✅ exit=0 | 工具结果含 ANSI 颜色码正确处理 |
+| F15 | terminal control | ✅ exit=0 | 工具结果含终端控制码正确处理 |
+| F16 | chinese args | ✅ exit=0 | 工具参数含中文正确处理 |
+| F17 | japanese args | ✅ exit=0 | 工具参数含日文正确处理 |
+| F18 | korean args | �.exit=0 | 工具参数含韩文正确处理 |
+| F19 | cyrillic args | ✅ exit=0 | 工具参数含西里尔文正确处理 |
+| F20 | mixed script | ✅ exit=0 | 工具参数含混合脚本正确处理 |
+
+### 验收表（追加）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| responder F1-F20 场景 | IntentMatcher.EdgeF.cs | ✅ | ✅ 手动 exe 验收 |
+
+---
+
+## 2026-11-03 第六轮：G1-G20 工具调用参数边缘场景
+
+### G1-G20 场景测试结果
+
+| 场景 | 关键词 | 结果 | 说明 |
+|------|--------|------|------|
+| G1 | empty arguments | ✅ exit=0 | 空 arguments {} 正确处理 |
+| G2 | no arguments field | ✅ exit=0 | 无 arguments 字段（null）正确处理 |
+| G3 | duplicate tool id | ✅ exit=0 | 重复 tool_call_id 正确处理 |
+| G4 | very long tool name | ✅ exit=0 | 超长工具名 255 字符正确处理 |
+| G5 | special char id | ✅ exit=0 | ID 含特殊字符 @#$%^&*() 正确处理 |
+| G6 | empty model field | ✅ exit=0 | 响应缺 model 字段正确处理 |
+| G7 | extra metadata | ✅ exit=0 | 响应含额外 metadata 正确处理 |
+| G8 | usage every chunk | ✅ exit=0 | usage 在每个 chunk 正确处理 |
+| G9 | cached tokens | ✅ exit=0 | cached_tokens 在 usage 正确处理 |
+| G10 | reasoning non stream | ✅ exit=0 | reasoning_content 非流式正确处理 |
+| G11 | multi choices non stream | ✅ exit=0 | 多 choices 非流式正确处理 |
+| G12 | markdown link output | ✅ exit=0 | 工具结果含 markdown 链接正确处理 |
+| G13 | html entities | ✅ exit=0 | 工具结果含 HTML 实体正确处理 |
+| G14 | unicode escape | ✅ exit=0 | 工具结果含 Unicode 转义正确处理 |
+| G15 | repeated lines | ✅ exit=0 | 工具结果含重复行 100 行正确处理 |
+| G16 | progressive output | ✅ exit=0 | 工具结果含渐进式输出正确处理 |
+| G17 | tool then text | ✅ exit=0 | 工具调用后纯文本无工具正确处理 |
+| G18 | 5 round tool chain | ✅ exit=0 | 5 轮工具调用链全部完成 |
+| G19 | nested array 3 | ✅ exit=0 | 工具参数含嵌套数组 3 层正确处理 |
+| G20 | null value args | ✅ exit=0 | 工具参数含 null 值正确处理 |
+
+### 验收表（追加）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| responder G1-G20 场景 | IntentMatcher.EdgeG.cs | ✅ | ✅ 手动 exe 验收 |
+
+---
+
+## 2026-11-03 第七轮：H1-H20 纯内容流式边缘场景
+
+### H1-H20 场景测试结果
+
+| 场景 | 关键词 | 结果 | 说明 |
+|------|--------|------|------|
+| H1 | single line text | ✅ exit=0 | 纯文本 1 行正确返回 |
+| H2 | 100 lines text | ✅ exit=0 | 纯文本 100 行正确返回 |
+| H3 | code block text | ✅ exit=0 | 纯文本含代码块正确返回 |
+| H4 | table text | ✅ exit=0 | 纯文本含 markdown 表格正确返回 |
+| H5 | link text | ✅ exit=0 | 纯文本含 markdown 链接正确返回 |
+| H6 | emoji text | ✅ exit=0 | 纯文本含 emoji 正确返回 |
+| H7 | 4byte emoji text | ✅ exit=0 | 纯文本含 4 字节 emoji 正确返回 |
+| H8 | chinese text | ✅ exit=0 | 纯文本含中文正确返回 |
+| H9 | japanese text | ✅ exit=0 | 纯文本含日文正确返回 |
+| H10 | korean text | ✅ exit=0 | 纯文本含韩文正确返回 |
+| H11 | cyrillic text | ✅ exit=0 | 纯文本含西里尔文正确返回 |
+| H12 | rtl text content | ✅ exit=0 | 纯文本含 RTL 文本正确返回 |
+| H13 | mixed script text | ✅ exit=0 | 纯文本含混合脚本正确返回 |
+| H14 | 100kb text | ✅ exit=0 | 纯文本 100KB 正确返回 |
+| H15 | json in text | ✅ exit=0 | 纯文本含 JSON 正确返回 |
+| H16 | xml in text | ✅ exit=0 | 纯文本含 XML 正确返回 |
+| H17 | html in text | ✅ exit=0 | 纯文本含 HTML 正确返回 |
+| H18 | sql in text | ✅ exit=0 | 纯文本含 SQL 正确返回 |
+| H19 | url in text | ✅ exit=0 | 纯文本含 URL 正确返回 |
+| H20 | control chars text | ✅ exit=0 | 纯文本含控制字符正确返回 |
+
+### 验收表（追加）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| responder H1-H20 场景 | IntentMatcher.EdgeH.cs | ✅ | ✅ 手动 exe 验收 |
+
+## I1-I20: 错误恢复与安全边缘场景（2026-11-03）
+
+### 场景列表
+
+| 编号 | 描述 | 结果 | 说明 |
+|------|------|------|------|
+| I1 | fail then retry | ✅ exit=0 | 工具失败后 LLM 重试成功 |
+| I2 | 3 consecutive fails | ✅ exit=0 | 连续 3 次工具失败后正确终止 |
+| I3 | slow command | ✅ exit=0 | sleep 2 慢命令正确执行 |
+| I4 | exit code 1 | ✅ exit=0 | bash exit 1 正确处理 |
+| I5 | exit code 127 | ✅ exit=0 | command_not_found 正确处理 |
+| I6 | exit code 255 | ✅ exit=0 | bash exit 255 正确处理 |
+| I7 | large stderr | ✅ exit=0 | 大量 stderr 输出正确处理 |
+| I8 | stdout stderr mix | ✅ exit=0 | stdout+stderr 混合正确处理 |
+| I9 | nonexistent tool name | ✅ exit=0 | 不存在工具名正确报错 |
+| I10 | missing required field | ✅ exit=0 | 参数缺失必需字段正确处理 |
+| I11 | wrong param type | ✅ exit=0 | 参数类型错误正确处理 |
+| I12 | empty command | ✅ exit=0 | 空命令正确处理 |
+| I13 | whitespace command | ✅ exit=0 | 纯空白命令正确处理 |
+| I14 | injection attempt | ✅ exit=0 | 注入尝试安全处理 |
+| I15 | pipe command | ✅ exit=0 | 管道命令正确执行 |
+| I16 | redirect command | ✅ exit=0 | 重定向命令正确执行 |
+| I17 | background command | ✅ exit=0 | 后台命令正确处理 |
+| I18 | subshell command | ✅ exit=0 | 子shell 命令正确执行 |
+| I19 | variable command | ✅ exit=0 | 变量命令正确执行 |
+| I20 | wildcard command | ✅ exit=0 | 通配符命令正确处理 |
+
+### 匹配冲突修复
+
+**根因**: 旧 I1/I2/I3 场景用 `Contains("i1")` 等子串匹配，抢先匹配新 I1-I20 场景的 `"i1\n..."` 提示词。同理 F1/F2/F3、H4、C1/C2/C3 也有子串冲突。
+
+**修复**:
+- 旧 I1/I2/I3: `Contains("i1")` → `Contains("i_empty\n")` / `Contains("i_multi\n")` / `Contains("i_error\n")`
+- 旧 F1/F2/F3: `Contains("f1")` → `Contains("f1_read\n")` / `Contains("f2_timeout\n")` / `Contains("f3_multi\n")`
+- 旧 H4: `Contains("h4")` → `Contains("h4_unicode\n")`
+- C1/C2/C3: `Contains("exit code 1")` → `Contains("c1 exit code 1")` (加 c 前缀)
+- I4/I5/I6: `Contains("exit code 1")` → `Contains("i4 exit code 1")` (加 i 前缀, 避免子串匹配 "exit code 127")
+
+**commit**: `1d4a65dda`
+
+### 验收表（追加）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| responder I1-I20 场景 | IntentMatcher.EdgeI.cs | ✅ | ✅ 手动 exe 验收 |
+| 匹配冲突修复 | IntentMatcher.cs + EdgeI.cs | ✅ | ✅ I1-I20 全部通过 |

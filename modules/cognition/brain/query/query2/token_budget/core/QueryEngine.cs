@@ -250,7 +250,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 var usage = (totalInputTokens > 0 || totalOutputTokens > 0)
                     ? new JoinCode.Abstractions.LLM.Chat.TokenUsage(totalInputTokens, totalOutputTokens)
                     : null;
-                context.OutputChunks.Add(BuildCompletionChunk(content, context.Stopwatch.ElapsedMilliseconds, context.TotalToolCalls, context.TotalCostUsd, BuildCacheSafeParams(context), usage));
+                context.OutputChunks.Add(BuildCompletionChunk(content, context.Stopwatch.ElapsedMilliseconds, context.TotalToolCalls, context.TotalCostUsd, BuildCacheSafeParams(context), usage, MapFinishReasonToStopReason(iterationResult.FinishReason)));
                 return;
             }
 
@@ -339,12 +339,13 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
     /// <param name="costUsd">USD 成本</param>
     /// <param name="cacheSafeParams">缓存安全参数</param>
     /// <param name="usage">累计 token 用量 — 沿链透传到子代理 AgentFinished 事件（P7 完成态权威校正数据源）</param>
+    /// <param name="stopReason">查询终止原因（end_turn/max_tokens/content_filter/tool_calls），null 默认 end_turn</param>
     /// <returns>完成类型的 QueryStreamChunk</returns>
-    internal static QueryStreamChunk BuildCompletionChunk(string content, long elapsedMs, int totalToolCalls, decimal costUsd, JoinCode.Abstractions.LLM.Chat.CacheSafeParams? cacheSafeParams, JoinCode.Abstractions.LLM.Chat.TokenUsage? usage = null) {
+    internal static QueryStreamChunk BuildCompletionChunk(string content, long elapsedMs, int totalToolCalls, decimal costUsd, JoinCode.Abstractions.LLM.Chat.CacheSafeParams? cacheSafeParams, JoinCode.Abstractions.LLM.Chat.TokenUsage? usage = null, string? stopReason = null) {
         return new QueryStreamChunk {
             Type = AgentStreamChunkType.Complete,
             Content = content,
-            StopReason = "end_turn",
+            StopReason = stopReason ?? "end_turn",
             ExecutionTimeMs = elapsedMs,
             TotalToolCalls = totalToolCalls,
             CostUsd = costUsd,
@@ -352,6 +353,15 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             Usage = usage
         };
     }
+
+    /// <summary>将 OpenAI finish_reason 映射为查询域 StopReason</summary>
+    private static string? MapFinishReasonToStopReason(string? finishReason) => finishReason switch {
+        "stop" => "end_turn",
+        "length" => "max_tokens",
+        "content_filter" => "content_filter",
+        "tool_calls" => "tool_calls",
+        _ => null
+    };
 
     private async Task<QueryIterationResult> ExecuteIterationInternalAsync(
         QueryMiddlewareContext context,
@@ -400,11 +410,17 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         var pendingToolCalls = new List<ToolCallRequest>();
         var inputTokens = 0;
         var outputTokens = 0;
+        var lastFinishReason = (string?)null;
 
         await foreach (var streamChunk in chatCompletionService.GetStreamEventContentsAsync(
             context.ChatHistory, executionSettings, _kernel, cancellationToken)) {
             cancellationToken.ThrowIfCancellationRequested();
             var content = streamChunk.Content ?? string.Empty;
+
+            if (streamChunk.Metadata?.TryGetValue("FinishReason", out var frEl) == true && frEl.ValueKind == JsonValueKind.String) {
+                var fr = frEl.GetString();
+                if (!string.IsNullOrEmpty(fr)) lastFinishReason = fr;
+            }
 
             // 检查工具调用 — 统一读 AllToolCalls 数组（含0~N个工具调用）
             if (streamChunk.Metadata?.TryGetValue("AllToolCalls", out var allEl) == true &&
@@ -424,8 +440,11 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
                     if (string.IsNullOrWhiteSpace(name)) continue;
 
+                    var repairedName = LlmJsonHelper.RepairToolName(name, _logger);
+                    if (string.IsNullOrEmpty(repairedName)) continue;
+
                     pendingToolCalls.Add(new ToolCallRequest {
-                        ToolName = name,
+                        ToolName = repairedName,
                         ToolCallId = id,
                         RawArguments = arguments,
                         Arguments = ExtractArguments(streamChunk.Metadata, arguments)
@@ -467,7 +486,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 Content = finalContent,
                 Chunks = chunks,
                 InputTokens = inputTokens,
-                OutputTokens = outputTokens
+                OutputTokens = outputTokens,
+                FinishReason = lastFinishReason
             };
         }
 
@@ -480,7 +500,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             ToolCalls = pendingToolCalls,
             Chunks = chunks,
             InputTokens = inputTokens,
-            OutputTokens = outputTokens
+            OutputTokens = outputTokens,
+            FinishReason = lastFinishReason
         };
     }
 
@@ -749,6 +770,8 @@ internal sealed class QueryIterationResult {
     public int InputTokens { get; init; }
     /// <summary>获取输出 Token 数</summary>
     public int OutputTokens { get; init; }
+    /// <summary>获取本轮 LLM finish_reason（stop/length/content_filter/tool_calls），null=未知</summary>
+    public string? FinishReason { get; init; }
 }
 
 /// <summary>

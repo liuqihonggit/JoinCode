@@ -226,11 +226,14 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             await _services.PostSamplingCallbacks.FireAsync(postSamplingCtx).ConfigureAwait(false);
         }
 
+        var innerStopReason = (string?)null;
         await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
+            if (evt.Type == ChatStreamEventType.Complete)
+                innerStopReason = evt.StopReason;
             yield return evt;
         }
 
-        yield return ChatStreamEvent.Done(finalUsage, finalModelId);
+        yield return ChatStreamEvent.Done(finalUsage, finalModelId, innerStopReason);
     }
 
     /// <summary>请求前上下文预算守卫（TASK061）— 估算比率 ≥ 1.0（消息+工具已超模型上下文窗口本体，

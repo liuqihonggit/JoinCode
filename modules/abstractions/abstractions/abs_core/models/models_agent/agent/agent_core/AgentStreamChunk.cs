@@ -96,6 +96,11 @@ public sealed class AgentStreamChunk {
     public string? ModelId { get; init; }
 
     /// <summary>
+    /// 查询终止原因（Complete 类型）— 对齐 ChatStreamEvent.StopReason
+    /// </summary>
+    public string? StopReason { get; init; }
+
+    /// <summary>
     /// 智能体 ID
     /// </summary>
     public required string AgentId { get; init; }
@@ -156,6 +161,7 @@ public sealed class AgentStreamChunk {
                 Type = AgentStreamChunkType.Complete,
                 Usage = evt.Usage,
                 ModelId = evt.ModelId,
+                StopReason = evt.StopReason,
                 AgentId = agentId
             },
             _ => null

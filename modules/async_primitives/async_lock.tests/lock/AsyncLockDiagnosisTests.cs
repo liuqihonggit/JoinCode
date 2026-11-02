@@ -1,10 +1,14 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
 namespace LockDiagnosis.Tests;
 
+[CollectionDefinition("LockRegistry")]
+public sealed class LockRegistryCollection { }
+
 /// <summary>
 /// AsyncLock 互斥语义 + LockRegistry 诊断能力 — 时序部分(需 Task.Delay/并发/SpinUntil/超时竞争)。
 /// <para>拆分自原 AsyncLockDiagnosisTests,确定性部分见 AsyncLockDiagnosisPureTests。</para>
 /// </summary>
+[Collection("LockRegistry")]
 public class AsyncLockDiagnosisTests : IDisposable {
     public AsyncLockDiagnosisTests() {
         LockRegistry.ClearForTesting();

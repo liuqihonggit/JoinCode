@@ -55,6 +55,7 @@ public static class ConsoleSuppressionGate {
                 _suppressingError = new SuppressingWriter(Append);
                 Console.SetOut(_suppressingOut);
                 Console.SetError(_suppressingError);
+                Ring.Clear();
             }
         }
 

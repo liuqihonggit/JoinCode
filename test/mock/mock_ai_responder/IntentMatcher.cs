@@ -251,6 +251,22 @@ internal static partial class IntentMatcher {
                 }, "C19: 工具链第二步");
             }
         }
+        if (lower.Contains("e2\n") || lower.Contains("retry after fail")) {
+            if (toolResultCount == 1) {
+                return (new ToolCallDto {
+                    Id = $"call_{Guid.NewGuid():N}"[..20],
+                    Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo e2_retry_success"}""" }
+                }, "E2: 工具失败后重试（第2次成功）");
+            }
+        }
+        if (lower.Contains("e4\n") || lower.Contains("chain depth 5")) {
+            if (toolResultCount is > 0 and < 5) {
+                return (new ToolCallDto {
+                    Id = $"call_{Guid.NewGuid():N}"[..20],
+                    Function = new ToolCallFunctionDto { Name = "bash", Arguments = JsonSerializer.Serialize(new { command = $"echo e4_step{toolResultCount + 1}" }, JsonOpts) }
+                }, $"E4: 工具链第{toolResultCount + 1}步");
+            }
+        }
         return (null, "");
     }
     private static (List<ToolCallDto>? ToolCalls, string Description) MatchToolCallIntent(string userMessage) {
@@ -1675,6 +1691,11 @@ internal static partial class IntentMatcher {
                 Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo c20_done"}""" }
             }], "C20: 工具调用后空 content");
         }
+
+        var eResult = MatchEdgeEIntent(userMessage);
+        if (eResult.ToolCalls is not null)
+            return eResult;
+
         return (null, "");
     }
 

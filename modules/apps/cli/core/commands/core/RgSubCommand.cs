@@ -578,7 +578,7 @@ internal static class RgSubCommand {
         if (outcome.Results.Count == 0) {
             if (opts.Json) {
                 var result = new RgJsonResult([], 0, 0);
-                System.Console.WriteLine(Cli.Output.CliOutputEnvelope<RgJsonResult>.Success(result).ToJsonString());
+                System.Console.WriteLine(Cli.Output.CliOutputEnvelope<RgJsonResult>.Create(result, ok: false).ToJsonString());
             }
             return 1;
         }

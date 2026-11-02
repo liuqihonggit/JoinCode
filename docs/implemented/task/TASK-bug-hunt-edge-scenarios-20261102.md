@@ -22,8 +22,13 @@ AI 用 bash 调 `jcc -p "消息"`，responder 自动匹配意图并 inject 响�
 | L10 空消息 | (空) | ✅ | exitCode=3 + 引导提示 |
 | L11 参数特殊字符 | l11 | ✅ | 引号/换行/制表/反斜杠 |
 | L12 参数 Unicode | l12 | ✅ | 中文/日文/韩文/emoji |
+| M1 --continue 上下文 | hello→--continue | ✅ | 第二轮包含第一轮 assistant 消息 |
+| M3 5轮工具调用 | m3 | ✅ | 5轮 read 失败 → 最终回应，exitCode=0 |
+| M4 tool_call_id 匹配 | m4 | ✅ | jcc 正确传递 tool_call_id |
+| M5 嵌套工具调用 | m5 | ✅ | bash echo → bash echo → 最终回应 |
+| M6 JSON/NDJSON 统一 | --format json/ndjson | ✅ | 字段名统一为 content（修复） |
 
-**总计：14 场景全部通过，0 新 bug**
+**总计：21 场景全部通过，2 个 bug 修复**
 
 ## 修复的问题
 
@@ -31,6 +36,16 @@ AI 用 bash 调 `jcc -p "消息"`，responder 自动匹配意图并 inject 响�
 - **根因**: `BuildOpenAiStreamChunks` 逐字符生成 6000+ chunk，HTTP 注入超时
 - **修复**: 改为按行发送，100 行只需 100 chunk
 - **提交**: `7fe2219be`
+
+### M6 JSON/NDJSON 字段名不一致（bug）
+- **根因**: JSON 模式 `CliNonInteractiveResult.Response`（→ `response`），NDJSON 模式 `CliStreamEventData.Content`（→ `content`），字段名不一致
+- **修复**: `CliNonInteractiveResult.Response` → `Content`，两种模式统一用 `content`
+- **提交**: `4cd8ddca9`
+
+### 模态误判 — ReadPdf 过宽关键词（bug）
+- **根因**: `MediaIntentDetector` 的 `ReadPdf` 关键词包含 `"文件"`、`"file"`、`"文档"`、`"document"`，用户说"读取不存在的文件"就误判为 PDF 识别意图
+- **修复**: 移除过宽关键词，仅保留 `"PDF"` 和 `"pdf"`
+- **提交**: `2c662773b`
 
 ## 验收表
 

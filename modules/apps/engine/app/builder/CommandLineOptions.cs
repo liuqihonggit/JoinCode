@@ -210,4 +210,10 @@ public record CommandLineOptions {
     /// 跳过 Provider API Key 验证（元命令模式如 mcp_list/slash_call/slash_list 不需要 LLM 服务，CI 环境无 API Key 时也能运行）
     /// </summary>
     public bool SkipProviderValidation { get; init; }
+
+    /// <summary>
+    /// 跳过聊天相关服务构造（IChatService/ISkillService/IChatClient）— 工具元命令模式如 gh/mcp_call/mcp_list
+    /// 只需 IMcpToolRegistry，不承担聊天依赖链构造开销（启动开销优化）
+    /// </summary>
+    public bool SkipChatServices { get; init; }
 }

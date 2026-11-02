@@ -52,6 +52,11 @@ internal static class BridgeServeCommand {
             var fastMode = engine.Services.GetService<IFastModeService>();
             WriteEvent(stdout, BuildSessionInfo(permissionChecker, fastMode, options));
 
+            // bridge-serve 需要完整聊天服务 — SkipChatServices 模式下 ChatService 为 null，直接报错退出
+            if (engine.ChatService is null)
+                return 1;
+            var chatService = engine.ChatService;
+
             // M8-8 后台任务事件泵 — 订阅 ForkCompleted/TeammateCompleted 直推 consumer（绕开回合作用域通道），
             // 每回合终态后全量快照 upsert；两查询面均可选（引擎未注册时泵为 null，零行为变化）
             var backgroundPump = CreateBackgroundTaskPump(engine.Services);
@@ -62,7 +67,7 @@ internal static class BridgeServeCommand {
             return await BridgeServeLoop.RunAsync(stdin, stdout, Console.Error, (input, consumer, turnCt) => {
                 // 首次 submit 时绑定回合驱动器 — consumer 即协议事件出口（loop 构造，全程同一实例）
                 controller ??= new SessionController(
-                    engine.ChatService, consumer, new TurnDiffService(), engine.SessionId, engine.Services,
+                    chatService, consumer, new TurnDiffService(), engine.SessionId, engine.Services,
                     mainAgent: mainAgent);
                 return RunTurnAsync(controller, input, turnCt);
             }, ct, BuildPermissionModeApplier(permissionChecker), backgroundPump).ConfigureAwait(false);

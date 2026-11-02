@@ -3,8 +3,9 @@ namespace MockServer.E2E.Tests;
 /// <summary>
 /// 文件操作工具 E2E 覆盖测试 — 拆分自 CoverageExpansionTests 以启用 xUnit 集合并行
 /// </summary>
+[Collection("MockServerShared")]
 public sealed class FileToolCoverageTests : CoverageTestBase {
-    public FileToolCoverageTests(ITestOutputHelper output) : base(output) { }
+    public FileToolCoverageTests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     // ============================================================
     // 文件操作工具测试

@@ -4,8 +4,9 @@ namespace MockServer.E2E.Tests;
 /// P1 高频命令 E2E 覆盖测试 — TASK065 第六波补覆盖
 /// 包含: /debuglog -e（错误段查询）、/??（需求澄清）、/sampling（无参查询）、/switch（无参显示模式）、/diag recent（崩溃快照查询）
 /// </summary>
+[Collection("MockServerShared")]
 public sealed class ChatCommandP1CoverageTests : CoverageTestBase {
-    public ChatCommandP1CoverageTests(ITestOutputHelper output) : base(output) { }
+    public ChatCommandP1CoverageTests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     /// <summary>/debuglog -e — 断言错误段标题输出且无错误</summary>
     [Fact]

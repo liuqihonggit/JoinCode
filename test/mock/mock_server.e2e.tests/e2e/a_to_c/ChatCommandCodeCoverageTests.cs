@@ -4,8 +4,9 @@ namespace MockServer.E2E.Tests;
 /// 代码与工作流聊天命令 E2E 覆盖测试 — 拆分自 CoverageExpansionTests 以启用 xUnit 集合并行
 /// 包含 Code 类命令、Config 类命令、Info 类命令
 /// </summary>
+[Collection("MockServerShared")]
 public sealed class ChatCommandCodeCoverageTests : CoverageTestBase {
-    public ChatCommandCodeCoverageTests(ITestOutputHelper output) : base(output) { }
+    public ChatCommandCodeCoverageTests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     // ============================================================
     // 阶段 1c: Code 类命令 E2E — 2026-06-28 新增

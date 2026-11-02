@@ -27,11 +27,13 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
     private DataReceivedEventHandler? _onMockError;
     private DataReceivedEventHandler? _onMcpMockOutput;
     private DataReceivedEventHandler? _onMcpMockError;
+    private readonly MockServerSharedFixture? _sharedFixture;
 
-    public DualRoleConversationRunner(ILogger<DualRoleConversationRunner> logger, IFileSystem? fs = null) {
+    public DualRoleConversationRunner(ILogger<DualRoleConversationRunner> logger, IFileSystem? fs = null, MockServerSharedFixture? sharedFixture = null) {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _fs = fs ?? new IO.FileSystem.PhysicalFileSystem();
         _loggerFactory = LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information));
+        _sharedFixture = sharedFixture;
     }
 
     /// <summary>
@@ -72,8 +74,16 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
             await StartMcpMockServerAsync(_mcpMockServerPort, ct).ConfigureAwait(true);
         }
 
-        _configFilePath = WriteMockServerConfig(script);
-        await StartMockServerAsync(_configFilePath, ct).ConfigureAwait(true);
+        if (_sharedFixture is not null) {
+            // 共享 MockServer 模式:通过 HTTP API 动态替换脚本,复用同一个进程和端口
+            var configJson = BuildMockServerConfigJson(script);
+            await _sharedFixture.ReplaceScriptAsync(configJson, ct).ConfigureAwait(true);
+            _mockServerPort = _sharedFixture.Port;
+            _logger.LogInformation("[DualRoleRunner] 使用共享 MockServer, 端口: {Port}", _mockServerPort);
+        } else {
+            _configFilePath = WriteMockServerConfig(script);
+            await StartMockServerAsync(_configFilePath, ct).ConfigureAwait(true);
+        }
 
         var exePath = ResolveExecutablePath();
         _logger.LogInformation("[DualRoleRunner] jcc.exe 路径: {Path}", exePath);
@@ -678,11 +688,24 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
     }
 
     private string WriteMockServerConfig(ConversationScript script) {
-        // 构建 MockServer 配置 JSON（snake_case 格式，匹配 MockServerJsonContext）
-        // ⚠️ 带工具调用的对话轮次需要 2 个 MockServer 脚本轮次:
-        //   1) 工具调用响应 (tool_calls)
-        //   2) 跟进文本响应 (follow_up_text → text_response)
-        //   因为 LLM 协议中: 用户输入 → 工具调用 → 工具结果 → 跟进文本 是 2 次请求
+        var json = BuildMockServerConfigJson(script);
+        _mockServerConfigDir = _fs.CombinePath(Path.GetTempPath(), $"jcc_mock_cfg_{Guid.NewGuid():N}");
+        _fs.CreateDirectory(_mockServerConfigDir);
+        var filePath = _fs.CombinePath(_mockServerConfigDir, "mockserver.json");
+        _fs.WriteAllText(filePath, json).GetAwaiter().GetResult();
+
+        _logger.LogInformation("[DualRoleRunner] MockServer 配置文件: {Path}", filePath);
+        return filePath;
+    }
+
+    /// <summary>
+    /// 构建 MockServer 配置 JSON（snake_case 格式，匹配 MockServerJsonContext）。
+    /// ⚠️ 带工具调用的对话轮次需要 2 个 MockServer 脚本轮次:
+    ///   1) 工具调用响应 (tool_calls)
+    ///   2) 跟进文本响应 (follow_up_text → text_response)
+    ///   因为 LLM 协议中: 用户输入 → 工具调用 → 工具结果 → 跟进文本 是 2 次请求
+    /// </summary>
+    private string BuildMockServerConfigJson(ConversationScript script) {
         var sb = new StringBuilder();
         sb.AppendLine("{");
         sb.AppendLine("  \"port\": 0,");
@@ -746,14 +769,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
 
         sb.AppendLine("  ]");
         sb.AppendLine("}");
-
-        _mockServerConfigDir = _fs.CombinePath(Path.GetTempPath(), $"jcc_mock_cfg_{Guid.NewGuid():N}");
-        _fs.CreateDirectory(_mockServerConfigDir);
-        var filePath = _fs.CombinePath(_mockServerConfigDir, "mockserver.json");
-        _fs.WriteAllText(filePath, sb.ToString()).GetAwaiter().GetResult();
-
-        _logger.LogInformation("[DualRoleRunner] MockServer 配置文件: {Path}", filePath);
-        return filePath;
+        return sb.ToString();
     }
 
     /// <summary>

@@ -8,12 +8,14 @@ namespace MockServer.E2E.Tests;
 public abstract class CoverageTestBase : IAsyncLifetime {
     protected readonly ITestOutputHelper Output;
     protected readonly ILoggerFactory LoggerFactory;
+    protected readonly MockServerSharedFixture? SharedFixture;
 
     /// <summary>重试间隔 — 固定1s,16次共16s,防CI雪崩</summary>
     private static readonly TimeSpan RetryInterval = TimeSpan.FromSeconds(1);
 
-    protected CoverageTestBase(ITestOutputHelper output) {
+    protected CoverageTestBase(ITestOutputHelper output, MockServerSharedFixture? sharedFixture = null) {
         Output = output;
+        SharedFixture = sharedFixture;
         LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder => {
             builder.AddConsole();
             builder.SetMinimumLevel(LogLevel.Information);
@@ -62,7 +64,7 @@ public abstract class CoverageTestBase : IAsyncLifetime {
         for (var attempt = 1; attempt <= maxAttempts; attempt++) {
             var sw = Stopwatch.StartNew();
             var runner = new DualRoleConversationRunner(
-                LoggerFactory.CreateLogger<DualRoleConversationRunner>());
+                LoggerFactory.CreateLogger<DualRoleConversationRunner>(), sharedFixture: SharedFixture);
 
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             try {

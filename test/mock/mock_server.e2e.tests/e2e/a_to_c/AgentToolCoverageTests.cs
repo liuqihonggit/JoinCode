@@ -3,8 +3,9 @@ namespace MockServer.E2E.Tests;
 /// <summary>
 /// Agent / 子代理 spawn 工具 E2E 覆盖测试 — 拆分自 CoverageExpansionTests 以启用 xUnit 集合并行
 /// </summary>
+[Collection("MockServerShared")]
 public sealed class AgentToolCoverageTests : CoverageTestBase {
-    public AgentToolCoverageTests(ITestOutputHelper output) : base(output) { }
+    public AgentToolCoverageTests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     // ============================================================
     // Agent / 子代理 spawn 测试

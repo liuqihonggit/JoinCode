@@ -5,8 +5,9 @@ namespace MockServer.E2E.Tests;
 /// 验证 --execute 标志应触发 PlanService.ExecutePlanWithResultAsync
 /// </summary>
 [Trait("Category", "Integration")]
+[Collection("MockServerShared")]
 public sealed class UltraplanExecuteE2ETests : CoverageTestBase {
-    public UltraplanExecuteE2ETests(ITestOutputHelper output) : base(output) { }
+    public UltraplanExecuteE2ETests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     /// <summary>
     /// 带 --execute 应真正调用 LLM 执行计划，不再输出"尚未实现"警告

@@ -3,8 +3,9 @@ namespace MockServer.E2E.Tests;
 /// <summary>
 /// /falv 结构化推理 E2E 覆盖测试 — 假定/裁决/预算/续费/证据链
 /// </summary>
+[Collection("MockServerShared")]
 public sealed class FalvCoverageTests : CoverageTestBase {
-    public FalvCoverageTests(ITestOutputHelper output) : base(output) { }
+    public FalvCoverageTests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     [Fact]
     public async Task FalvStatus_ShouldShowEmptyEngine() {

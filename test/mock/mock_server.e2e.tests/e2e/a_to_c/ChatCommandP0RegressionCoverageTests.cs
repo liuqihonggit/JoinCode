@@ -5,8 +5,9 @@ namespace MockServer.E2E.Tests;
 /// 锁定第三/五波修复的生产 bug 不复发: /vendor catalog 崩溃降级、/mcp add 子命令识别、/model 别名透传直切、/effort 设置
 /// 真实 jcc 进程 + MockServer 模拟 LLM，NonInteractive 单轮形态
 /// </summary>
+[Collection("MockServerShared")]
 public sealed class ChatCommandP0RegressionCoverageTests : CoverageTestBase {
-    public ChatCommandP0RegressionCoverageTests(ITestOutputHelper output) : base(output) { }
+    public ChatCommandP0RegressionCoverageTests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     // ============================================================
     // Phase 6: P0 bug 回归锁定 — 2026-10-23 新增

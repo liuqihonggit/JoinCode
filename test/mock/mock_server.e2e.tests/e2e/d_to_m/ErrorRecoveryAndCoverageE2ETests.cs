@@ -1,8 +1,9 @@
 namespace MockServer.E2E.Tests;
 
 [Trait("Category", "Integration")]
+[Collection("MockServerShared")]
 public sealed class ApiErrorRecoveryE2ETests : CoverageTestBase {
-    public ApiErrorRecoveryE2ETests(ITestOutputHelper output) : base(output) { }
+    public ApiErrorRecoveryE2ETests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     [Fact]
     public async Task RateLimit429_ShouldRecoverOnRetry() {
@@ -31,8 +32,9 @@ public sealed class ApiErrorRecoveryE2ETests : CoverageTestBase {
 }
 
 [Trait("Category", "Integration")]
+[Collection("MockServerShared")]
 public sealed class StreamInterruptionE2ETests : CoverageTestBase {
-    public StreamInterruptionE2ETests(ITestOutputHelper output) : base(output) { }
+    public StreamInterruptionE2ETests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     [Fact]
     public async Task ToolCallFailure_ShouldRecoverOnNextTurn() {
@@ -51,8 +53,9 @@ public sealed class StreamInterruptionE2ETests : CoverageTestBase {
 }
 
 [Trait("Category", "Integration")]
+[Collection("MockServerShared")]
 public sealed class PermissionDenialE2ETests : CoverageTestBase {
-    public PermissionDenialE2ETests(ITestOutputHelper output) : base(output) { }
+    public PermissionDenialE2ETests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     [Fact]
     public async Task AskPermissionMode_TextOnly_ShouldGetResponse() {
@@ -180,8 +183,9 @@ public sealed class AnthropicDeepCoverageE2ETests : IAsyncLifetime {
 }
 
 [Trait("Category", "Integration")]
+[Collection("MockServerShared")]
 public sealed class McpProtocolE2ETests : CoverageTestBase {
-    public McpProtocolE2ETests(ITestOutputHelper output) : base(output) { }
+    public McpProtocolE2ETests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     [Fact]
     public async Task McpToolList_ShouldReturnClientList() {
@@ -200,8 +204,9 @@ public sealed class McpProtocolE2ETests : CoverageTestBase {
 }
 
 [Trait("Category", "Integration")]
+[Collection("MockServerShared")]
 public sealed class ConcurrentRequestE2ETests : CoverageTestBase {
-    public ConcurrentRequestE2ETests(ITestOutputHelper output) : base(output) { }
+    public ConcurrentRequestE2ETests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     [Fact]
     public async Task RapidSequentialRequests_ShouldHandleAll() {

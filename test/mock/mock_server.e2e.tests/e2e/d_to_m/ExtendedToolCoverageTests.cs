@@ -4,8 +4,9 @@ namespace MockServer.E2E.Tests;
 /// 扩展工具 E2E 覆盖测试 — 拆分自 CoverageExpansionTests 以启用 xUnit 集合并行
 /// 包含交互工具、结构化输出、Web 工具、步骤完成及 Phase 4 工具类别覆盖测试 (20 个类别)
 /// </summary>
+[Collection("MockServerShared")]
 public sealed class ExtendedToolCoverageTests : CoverageTestBase {
-    public ExtendedToolCoverageTests(ITestOutputHelper output) : base(output) { }
+    public ExtendedToolCoverageTests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     // ============================================================
     // 交互工具测试

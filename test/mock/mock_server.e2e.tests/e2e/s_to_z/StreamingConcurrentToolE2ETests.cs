@@ -4,8 +4,9 @@
 namespace MockServer.E2E.Tests;
 
 [Trait("Category", "Integration")]
+[Collection("MockServerShared")]
 public sealed class StreamingConcurrentToolE2ETests : CoverageTestBase {
-    public StreamingConcurrentToolE2ETests(ITestOutputHelper output) : base(output) { }
+    public StreamingConcurrentToolE2ETests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     [Fact]
     public async Task ConcurrentSafeTools_ReadAndGrep_ShouldExecuteInParallel() {

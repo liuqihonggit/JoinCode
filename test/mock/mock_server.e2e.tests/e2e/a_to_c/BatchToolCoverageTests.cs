@@ -4,8 +4,9 @@ namespace MockServer.E2E.Tests;
 /// 批量工具 E2E 覆盖测试 — 拆分自 CoverageExpansionTests 以启用 xUnit 集合并行
 /// 包含 Interaction/Code/Plan/System/Notebook/Worktree/Workflow/Skill/Team/Memory/Todo/Mcp 批量测试
 /// </summary>
+[Collection("MockServerShared")]
 public sealed class BatchToolCoverageTests : CoverageTestBase {
-    public BatchToolCoverageTests(ITestOutputHelper output) : base(output) { }
+    public BatchToolCoverageTests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     // ============================================================
     // 批量工具测试 — 每批覆盖多个同类工具

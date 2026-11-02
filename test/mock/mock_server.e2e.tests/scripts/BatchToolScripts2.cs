@@ -31,7 +31,7 @@ public static class BatchCodeToolScripts {
                     new() { Type = AssertType.ContainsToolCall, Expected = "grep", Description = "应包含Grep" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "glob", Description = "应包含Glob" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "read", Description = "应包含Read" },
-                    new() { Type = AssertType.ContainsToolCall, Expected = "SearchCodebase", Description = "应包含SearchCodebase" },
+                    new() { Type = AssertType.ContainsToolCall, Expected = "search_codebase", Description = "应包含search_codebase" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "search_code", Description = "应包含search_code" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "search_files", Description = "应包含search_files" },
                     new() { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
@@ -217,8 +217,8 @@ public static class BatchTeamToolScripts {
                     new() { Type = AssertType.ContainsToolCall, Expected = "team_list", Description = "应包含team_list" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "team_get", Description = "应包含team_get" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "team_get_messages", Description = "应包含team_get_messages" },
-                    new() { Type = AssertType.ContainsToolCall, Expected = "TeamCreate", Description = "应包含TeamCreate" },
-                    new() { Type = AssertType.ContainsToolCall, Expected = "TeamDelete", Description = "应包含TeamDelete" },
+                    new() { Type = AssertType.ContainsToolCall, Expected = "team_create", Description = "应包含team_create" },
+                    new() { Type = AssertType.ContainsToolCall, Expected = "team_delete", Description = "应包含team_delete" },
                     new() { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }
@@ -295,7 +295,7 @@ public static class BatchTodoToolScripts {
                     new() { Type = AssertType.ContainsToolCall, Expected = "todo_list", Description = "应包含todo_list" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "todo_create", Description = "应包含todo_create" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "todo_read", Description = "应包含todo_read" },
-                    new() { Type = AssertType.ContainsToolCall, Expected = "TodoWrite", Description = "应包含TodoWrite" },
+                    new() { Type = AssertType.ContainsToolCall, Expected = "todo_write", Description = "应包含todo_write" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "todo_delete", Description = "应包含todo_delete" },
                     new() { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]

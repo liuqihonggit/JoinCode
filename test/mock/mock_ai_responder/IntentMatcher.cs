@@ -550,6 +550,33 @@ internal static class IntentMatcher {
                 }
             }], "T5: 工具结果包含 JSON");
         }
+        if (lower.Contains("u1") || lower.Contains("no finish") || lower.Contains("无finish")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo u1_done"}"""
+                }
+            }], "U1: 流式 tool_call 后无 finish_reason");
+        }
+        if (lower.Contains("u2") || lower.Contains("code block") || lower.Contains("代码块结果")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo '```python\\nprint(\"hello\")\\n```'"}"""
+                }
+            }], "U2: 工具结果包含代码块");
+        }
+        if (lower.Contains("u4") || lower.Contains("nested json") || lower.Contains("嵌套json参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo u4", "options": {"verbose": true, "flags": ["a", "b"]}}"""
+                }
+            }], "U4: 工具参数包含嵌套 JSON");
+        }
         return (null, "");
     }
 
@@ -570,13 +597,17 @@ internal static class IntentMatcher {
         return (new InjectDto { Body = BuildOpenAiResponse(m1Reply) }, "M1: 多轮对话记忆");
     }
 
-    /// <summary>构建工具调用响应（含 S3 content 前缀支持）</summary>
+    /// <summary>构建工具调用响应（含 S3 content 前缀 + U1 无 finish_reason 支持）</summary>
     private static (InjectDto Response, string Description) BuildToolCallResponse(List<ToolCallDto> toolCalls, string toolDesc, string userMessage, string protocol, bool isStream) {
         var lower = userMessage.ToLowerInvariant();
         var s3Content = lower.Contains("s3") || lower.Contains("content and tool") || lower.Contains("文本加工具")
             ? "我先分析一下，然后调用工具。" : null;
-        if (protocol == "openai" && isStream)
-            return (new InjectDto { IsStream = true, ContentType = "text/event-stream", StreamChunks = BuildS3StreamChunks(toolCalls, s3Content) }, $"{toolDesc} [stream]");
+        if (protocol == "openai" && isStream) {
+            var chunks = BuildS3StreamChunks(toolCalls, s3Content);
+            if (lower.Contains("u1") || lower.Contains("no finish") || lower.Contains("无finish"))
+                chunks.RemoveAt(chunks.Count - 2);
+            return (new InjectDto { IsStream = true, ContentType = "text/event-stream", StreamChunks = chunks }, $"{toolDesc} [stream]");
+        }
         return (new InjectDto { Body = BuildOpenAiToolCallResponse(toolCalls, s3Content) }, toolDesc);
     }
 

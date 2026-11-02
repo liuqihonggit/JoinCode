@@ -46,8 +46,11 @@ AI 用 bash 调 `jcc -p "消息"`，responder 自动匹配意图并 inject 响�
 | T2 连字符工具名 | t2 | ✅ | read-file not found（合理行为） |
 | T4 markdown结果 | t4 | ✅ | 工具输出 markdown 表格 |
 | T5 json结果 | t5 | ✅ | 工具输出 JSON 格式 |
+| U1 无finish_reason | u1 | ✅ | 流式 tool_call 后无 finish_reason 兜底刷出（修复） |
+| U2 代码块结果 | u2 | ✅ | 工具输出代码块 |
+| U4 嵌套json参数 | u4 | ✅ | 工具参数含嵌套 JSON |
 
-**总计：43 场景全部通过，3 个 bug 修复**
+**总计：46 场景全部通过，4 个 bug 修复**
 
 ## 修复的问题
 
@@ -70,6 +73,11 @@ AI 用 bash 调 `jcc -p "消息"`，responder 自动匹配意图并 inject 响�
 - **根因**: `QueryEngine.cs:425` 和 `ChatStreamChunkProcessor.cs:230` 只判 `name is null` 不判空字符串/空白，空名工具调用静默通过到 `IsToolAllowed` 抛 `ArgumentException`，异常消息暴露给用户
 - **修复**: `name is null` → `string.IsNullOrWhiteSpace(name)`，空名工具调用静默跳过
 - **提交**: `24b652dfd`
+
+### U1 流式 tool_call 无 finish_reason 报空回复（bug）
+- **根因**: `OpenAIQueryService.cs:184` 用 `finish_reason == "tool_calls"` 守门写入 `AllToolCalls`，[DONE] 时直接 `yield break` 不检查 `toolCallAccumulator`，无 finish_reason chunk → `AllToolCalls` 永不写入 → 下游报"模型返回空回复"
+- **修复**: `await foreach` 循环结束后兜底检查 `toolCallAccumulator.Count > 0`，若有未刷出的 tool_call，构造带 `AllToolCalls` 的末尾 StreamEvent yield 出去
+- **提交**: `323f08c12`
 
 ## 验收表
 

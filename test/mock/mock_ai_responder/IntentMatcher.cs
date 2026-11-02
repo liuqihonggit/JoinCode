@@ -1727,6 +1727,10 @@ internal static partial class IntentMatcher {
                 return dResult;
         }
 
+        var hResult = MatchEdgeHIntent(userMessage, protocol, isStream);
+        if (hResult is not null)
+            return hResult;
+
         var prevAssistant = ExtractPreviousAssistantMessage(root);
         if (prevAssistant is null || prevAssistant.Length == 0) return null;
 

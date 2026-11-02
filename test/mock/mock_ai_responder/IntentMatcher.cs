@@ -37,6 +37,9 @@ internal static class IntentMatcher {
         }
 
         if (toolResultCount > 0) {
+            var m4Check = CheckM4ToolCallId(root, userMessage, toolResultCount, protocol, isStream);
+            if (m4Check is not null) return m4Check.Value;
+
             var (nextToolCall, nextDesc) = MatchNextToolCallIntent(userMessage, toolResultCount);
             if (nextToolCall is not null && protocol == "openai" && isStream) {
                 return (new InjectDto { IsStream = true, ContentType = "text/event-stream", StreamChunks = BuildOpenAiToolCallStreamChunks([nextToolCall]) }, $"{nextDesc} [stream]");
@@ -172,6 +175,51 @@ internal static class IntentMatcher {
         return last;
     }
 
+    /// <summary>M4: 检查 tool 消息的 tool_call_id 是否与 LLM 返回的 id 匹配</summary>
+    private static (InjectDto Response, string Description)? CheckM4ToolCallId(JsonElement root, string userMessage, int toolResultCount, string protocol, bool isStream) {
+        var lower = userMessage.ToLowerInvariant();
+        if (!lower.Contains("m4") && !lower.Contains("id mismatch") && !lower.Contains("id不匹配"))
+            return null;
+
+        const string expectedId = "call_m4_fixed_id";
+        var actualIds = ExtractToolCallIds(root);
+        if (actualIds.Count == 0) return null;
+
+        var actualId = actualIds[0];
+        string reply;
+        string desc;
+        if (actualId == expectedId) {
+            reply = "M4: tool_call_id 匹配正确，工具结果已正确关联。这是模拟 AI 的最终回应。";
+            desc = $"M4: tool_call_id 匹配正确 (id={actualId})";
+        } else {
+            reply = $"M4: tool_call_id 不匹配！期望 {expectedId}，实际得到 {actualId}。这可能导致对话上下文断裂。";
+            desc = $"M4: tool_call_id 不匹配 (期望={expectedId}, 实际={actualId})";
+        }
+
+        if (protocol == "anthropic") {
+            return (new InjectDto { Body = BuildAnthropicResponse(reply) }, $"{desc} [anthropic]");
+        }
+        if (isStream) {
+            return (new InjectDto { IsStream = true, ContentType = "text/event-stream", StreamChunks = BuildOpenAiStreamChunks(reply) }, $"{desc} [stream]");
+        }
+        return (new InjectDto { Body = BuildOpenAiResponse(reply) }, desc);
+    }
+
+    /// <summary>提取所有 tool 角色消息的 tool_call_id</summary>
+    private static List<string> ExtractToolCallIds(JsonElement root) {
+        var ids = new List<string>();
+        if (!root.TryGetProperty("messages", out var messages))
+            return ids;
+        foreach (var msg in messages.EnumerateArray()) {
+            if (msg.TryGetProperty("role", out var r) && r.GetString() == "tool") {
+                if (msg.TryGetProperty("tool_call_id", out var idProp) && idProp.ValueKind == JsonValueKind.String) {
+                    ids.Add(idProp.GetString() ?? "");
+                }
+            }
+        }
+        return ids;
+    }
+
     /// <summary>多轮工具调用：根据已完成的工具结果数决定下一步</summary>
     private static (ToolCallDto? ToolCall, string Description) MatchNextToolCallIntent(string userMessage, int toolResultCount) {
         var lower = userMessage.ToLowerInvariant();
@@ -196,6 +244,17 @@ internal static class IntentMatcher {
                         Arguments = args
                     }
                 }, $"M3: 5轮工具调用（第{toolResultCount + 1}个）");
+            }
+        }
+        if (lower.Contains("m5") || lower.Contains("nested tool") || lower.Contains("嵌套工具")) {
+            if (toolResultCount == 1) {
+                return (new ToolCallDto {
+                    Id = $"call_{Guid.NewGuid():N}"[..20],
+                    Function = new ToolCallFunctionDto {
+                        Name = "bash",
+                        Arguments = """{"command": "echo m5_step2_done"}"""
+                    }
+                }, "M5: 嵌套工具调用（第2个，基于第1个结果）");
             }
         }
         return (null, "");
@@ -314,6 +373,24 @@ internal static class IntentMatcher {
                     Arguments = """{"file_path": "/nonexistent/m3_file1.txt"}"""
                 }
             }], "M3: 5轮工具调用（第1个）");
+        }
+        if (lower.Contains("m4") || lower.Contains("id mismatch") || lower.Contains("id不匹配")) {
+            return ([new ToolCallDto {
+                Id = "call_m4_fixed_id",
+                Function = new ToolCallFunctionDto {
+                    Name = "read",
+                    Arguments = """{"file_path": "/nonexistent/m4_test.txt"}"""
+                }
+            }], "M4: 工具调用 ID 匹配测试（固定 id=call_m4_fixed_id）");
+        }
+        if (lower.Contains("m5") || lower.Contains("nested tool") || lower.Contains("嵌套工具")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo m5_step1_done"}"""
+                }
+            }], "M5: 嵌套工具调用（第1个）");
         }
         return (null, "");
     }

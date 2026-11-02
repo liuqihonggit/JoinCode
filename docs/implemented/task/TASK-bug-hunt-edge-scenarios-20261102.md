@@ -288,3 +288,49 @@ AI 用 bash 调 `jcc -p "消息"`，responder 自动匹配意图并 inject 响�
 | [DONE] TrimEnd | OpenAIQueryService [DONE] 匹配 | ✅ | ✅ D11 场景验证 |
 | RepairToolName in QueryEngine | QueryEngine 工具名修复 | ✅ | ✅ 编译通过 + Brain 951 测试通过 |
 | responder D1-D20 场景 | IntentMatcher.StreamingEdge.cs | ✅ | ✅ 手动 exe 验收 |
+
+---
+
+## 2026-11-03 第四轮：E1-E20 工具调用边缘场景 + D9 content_filter 精准错误消息 + 第二流路径修复
+
+### D9 content_filter 修复
+
+| 根因 | 修复 | commit |
+|------|------|--------|
+| finish_reason 在事件管道中丢失 | 全链路透传：QueryEngine → QueryStreamChunk → AgentStreamChunk → AgentStreamChunkAdapter → ChatStreamEvent → QueryLoopMiddleware → SessionController | `d1ebdd526` |
+| 第二流路径 4 个同类 bug | 硬编码 stop/inline delta/只检查 tool_calls/无兜底 flush | `d1ebdd526` |
+
+D9 错误消息从 "模型返回空回复" 改为 "模型回复被安全过滤（content_filter）。请调整请求内容后重试，或切换模型/供应商。"
+
+### E1-E20 场景测试结果
+
+| 场景 | 关键词 | 结果 | 说明 |
+|------|--------|------|------|
+| E1 | parallel fail success | ✅ exit=0 | 并行调用一个成功一个失败，不影响最终结果 |
+| E2 | retry after fail | ✅ exit=0 | 工具失败后 LLM 重试成功 |
+| E3 | five parallel | ✅ exit=0 | 5 个并行工具调用全部成功 |
+| E4 | chain depth 5 | ✅ exit=0 | 工具链 5 层深度全部完成 |
+| E5 | missing quotes | ✅ exit=0 | 畸形 JSON（缺少引号）被修复管道正确修复 |
+| E6 | trailing comma | ✅ exit=0 | 畸形 JSON（多余逗号）被修复管道正确修复 |
+| E7 | single quote | ✅ exit=0 | 畸形 JSON（单引号）被修复管道正确修复 |
+| E8 | json comment | ✅ exit=0 | 畸形 JSON（含注释）被修复管道正确修复 |
+| E9 | 100 lines output | ✅ exit=0 | 工具输出 100 行正确处理 |
+| E10 | json output tool | ✅ exit=0 | 工具输出 JSON 正确处理 |
+| E11 | markdown table | ✅ exit=0 | 工具输出 markdown 表格正确处理 |
+| E12 | code block output | ✅ exit=0 | 工具输出代码块正确处理 |
+| E13 | empty history | ✅ exit=0 | 空对话历史首次消息正确处理 |
+| E14 | long system prompt | ✅ exit=0 | 超长系统提示下工具调用正确处理 |
+| E15 | emoji args | ✅ exit=0 | 工具参数包含 emoji 正确处理 |
+| E16 | rtl text | ✅ exit=0 | 工具参数包含 RTL 文本正确处理 |
+| E17 | very long id | ✅ exit=0 | 工具调用 ID 超长 1000 字符正确处理 |
+| E18 | ten tool calls | ✅ exit=0 | 一轮 10 个工具调用全部成功 |
+| E19 | null byte output | ✅ exit=0 | 工具输出包含 null 字节正确处理 |
+| E20 | control chars | ✅ exit=0 | 工具输出包含控制字符正确处理 |
+
+### 验收表（追加）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| finish_reason 全链路透传 | SessionController 精准错误消息 | ✅ | ✅ D9 场景验证 |
+| 第二流路径修复 | tool_description_request 路径 | ✅ | ✅ 编译通过 + LLM 609 测试通过 |
+| responder E1-E20 场景 | IntentMatcher.EdgeE.cs | ✅ | ✅ 手动 exe 验收 |

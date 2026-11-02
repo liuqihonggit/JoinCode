@@ -89,6 +89,18 @@ public sealed partial class PipeQueryService : IQueryService {
                     ["Created"] = JsonElementHelper.FromInt64(chunk.Created)
                 });
         }
+
+        if (toolCallName is not null) {
+            yield return new StreamEvent(MessageRole.Assistant, null, null,
+                new Dictionary<string, JsonElement> {
+                    ["Id"] = JsonElementHelper.FromString("flush"),
+                    ["FinishReason"] = JsonElementHelper.FromString(OpenAIFinishReasonEnumConstants.ToolCalls),
+                    ["Created"] = JsonElementHelper.FromInt64(0),
+                    ["AllToolCalls"] = ToolCallEntry.ToToolCallsJson([
+                        new() { Id = toolCallId, Name = toolCallName, Arguments = toolCallArguments.ToString() }
+                    ])
+                });
+        }
     }
 
     private HttpClient CreatePipeHttpClient(PipeTransportConfig config, string? apiKey) {

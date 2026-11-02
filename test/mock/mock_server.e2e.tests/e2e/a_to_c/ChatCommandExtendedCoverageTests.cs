@@ -4,8 +4,9 @@ namespace MockServer.E2E.Tests;
 /// 扩展/Bridge/平台/社交/生成 聊天命令 E2E 覆盖测试 — 拆分自 ChatCommandAdvancedCoverageTests 以启用 xUnit 集合并行
 /// 包含 目标与主动 (2) + 扩展与集成 (5) + Bridge (2) + 平台集成 (4) + 社交与反馈 (5) + 简化模式 (1) + 生成与协作 (3) = 22 个测试
 /// </summary>
+[Collection("MockServerShared")]
 public sealed class ChatCommandExtendedCoverageTests : CoverageTestBase {
-    public ChatCommandExtendedCoverageTests(ITestOutputHelper output) : base(output) { }
+    public ChatCommandExtendedCoverageTests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     // ============================================================
     // 阶段 2c: Task 类命令 E2E — 2026-06-28 新增

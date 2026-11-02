@@ -537,6 +537,21 @@ public sealed class KestrelMockServer : IHttpMockServer {
             await ctx.Response.WriteAsync("{\"status\":\"script_loaded\"}");
         });
 
+        app.MapPost("/__control__/replace_script", async (HttpContext ctx) => {
+            if (_responseStrategy is not ScriptedResponseStrategyBase baseStrategy) {
+                ctx.Response.StatusCode = 400;
+                ctx.Response.ContentType = "application/json";
+                await ctx.Response.WriteAsync("{\"error\":\"response strategy does not support script replacement\"}");
+                return;
+            }
+            var config = await ReadJsonAsync<MockServerConfig>(ctx, MockServerJsonContext.Default.MockServerConfig);
+            baseStrategy.ReplaceScript(config.ScriptedTurns, config.DefaultResponse);
+            _controller.ClearInjections();
+            Console.WriteLine($"[{_serverName}] Script replaced: {config.ScriptedTurns.Count} turns, default=\"{config.DefaultResponse}\"");
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync("{\"status\":\"script_replaced\"}");
+        });
+
         app.MapPost("/__control__/record/start", async (HttpContext ctx) => {
             var request = await ReadJsonAsync<RecordStartRequest>(ctx, MockServerJsonContext.Default.RecordStartRequest);
             _recordingClient?.DisposeSafe();

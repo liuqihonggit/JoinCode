@@ -4,8 +4,9 @@ namespace MockServer.E2E.Tests;
 /// 任务与调度工具 E2E 覆盖测试 — 拆分自 CoverageExpansionTests 以启用 xUnit 集合并行
 /// 包含 TaskCreate/List/Get/Stop/Update/Output 及 CronCreate/Delete/List
 /// </summary>
+[Collection("MockServerShared")]
 public sealed class TaskToolCoverageTests : CoverageTestBase {
-    public TaskToolCoverageTests(ITestOutputHelper output) : base(output) { }
+    public TaskToolCoverageTests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     // ============================================================
     // 任务工具测试

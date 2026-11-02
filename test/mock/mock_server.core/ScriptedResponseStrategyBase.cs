@@ -17,7 +17,7 @@ public abstract class ScriptedResponseStrategyBase : IResponseStrategy {
     /// <summary>
     /// 脚本耗尽时的默认响应
     /// </summary>
-    protected string DefaultResponse { get; }
+    protected string DefaultResponse { get; set; }
 
     /// <summary>
     /// 是否支持流式响应
@@ -135,6 +135,22 @@ public abstract class ScriptedResponseStrategyBase : IResponseStrategy {
     public virtual int GetHttpStatusCode(JsonElement request) {
         lock (_lock) {
             return CurrentTurn.HttpStatusCode ?? 200;
+        }
+    }
+
+    /// <summary>
+    /// 动态替换脚本并重置游标 — 供共享 MockServer 进程的 E2E 测试在每次测试前加载新脚本。
+    /// 线程安全:在 _lock 保护下清空旧脚本、加载新脚本、重置游标。
+    /// </summary>
+    public void ReplaceScript(List<ScriptedTurn> newTurns, string? newDefaultResponse = null) {
+        lock (_lock) {
+            _turns.Clear();
+            _turns.AddRange(newTurns);
+            _turnIndex = 0;
+            _currentTurn = null;
+            _defaultTurnCache = null;
+            if (newDefaultResponse is not null)
+                DefaultResponse = newDefaultResponse;
         }
     }
 

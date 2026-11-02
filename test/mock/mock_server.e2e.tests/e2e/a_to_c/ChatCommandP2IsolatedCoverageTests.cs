@@ -5,8 +5,9 @@ namespace MockServer.E2E.Tests;
 /// 包含: /reset-config all（JCC_APP_DATA_FOLDER 隔离目录重置）、/code-index（fixture 目录索引重建）
 /// 隔离验证: /reset-config 写入目标为 runner 设置的 %TEMP%\jcc_test_{guid}（Path.Combine 对绝对路径直接采用），不碰真实 ~/.jcc
 /// </summary>
+[Collection("MockServerShared")]
 public sealed class ChatCommandP2IsolatedCoverageTests : CoverageTestBase {
-    public ChatCommandP2IsolatedCoverageTests(ITestOutputHelper output) : base(output) { }
+    public ChatCommandP2IsolatedCoverageTests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     /// <summary>/reset-config all — 断言隔离 AppData 配置重置输出（重置开始/配置树骨架/重置完成）且无错误</summary>
     [Fact]

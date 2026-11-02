@@ -6,8 +6,9 @@ namespace MockServer.E2E.Tests;
 /// 验证: stderr 输出 [STEP] CodeIndexService.StartAsync done, elapsed=Xms (性能计时)
 /// 验证: code_index_stats / code_index_search / code_index_find_references / code_index_get_callers 4 个工具链路
 /// </summary>
+[Collection("MockServerShared")]
 public sealed class AstIntegrationTests : CoverageTestBase {
-    public AstIntegrationTests(ITestOutputHelper output) : base(output) { }
+    public AstIntegrationTests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     /// <summary>
     /// AST 启动构造并验证查询链路 — 覆盖 stats/search/find_references/get_callers

@@ -5,8 +5,9 @@ namespace MockServer.E2E.Tests;
 /// 链路: LLM(MockServer)返回 mcp_connect/mcp_call_tool 工具调用 → jcc 执行 → Mcp.MockServer 响应
 /// 独立测试类以启用 xUnit 集合并行
 /// </summary>
+[Collection("MockServerShared")]
 public sealed class McpIntegrationTests : CoverageTestBase {
-    public McpIntegrationTests(ITestOutputHelper output) : base(output) { }
+    public McpIntegrationTests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     /// <summary>
     /// MCP 正向链路验证 — 连接 Mcp.MockServer 并调用 echo 工具

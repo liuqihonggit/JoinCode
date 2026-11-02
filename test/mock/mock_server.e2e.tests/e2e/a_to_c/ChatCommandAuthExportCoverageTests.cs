@@ -4,8 +4,9 @@ namespace MockServer.E2E.Tests;
 /// Auth/System/高级功能 聊天命令 E2E 覆盖测试 — 拆分自 ChatCommandAdvancedCoverageTests 以启用 xUnit 集合并行
 /// 包含 System 类命令 (8) + Auth 类命令 (5) + 高级功能 (7) = 20 个测试
 /// </summary>
+[Collection("MockServerShared")]
 public sealed class ChatCommandAuthExportCoverageTests : CoverageTestBase {
-    public ChatCommandAuthExportCoverageTests(ITestOutputHelper output) : base(output) { }
+    public ChatCommandAuthExportCoverageTests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     // ============================================================
     // 阶段 1f: System 类命令 E2E — 2026-06-28 新增

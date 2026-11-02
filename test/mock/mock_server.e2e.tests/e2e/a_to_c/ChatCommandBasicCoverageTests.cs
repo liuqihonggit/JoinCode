@@ -4,8 +4,9 @@ namespace MockServer.E2E.Tests;
 /// 基础聊天命令 E2E 覆盖测试 — 拆分自 CoverageExpansionTests 以启用 xUnit 集合并行
 /// 包含 Help/Clear/Exit/Compact 等基础命令、会话管理命令、模式与限制命令
 /// </summary>
+[Collection("MockServerShared")]
 public sealed class ChatCommandBasicCoverageTests : CoverageTestBase {
-    public ChatCommandBasicCoverageTests(ITestOutputHelper output) : base(output) { }
+    public ChatCommandBasicCoverageTests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
 
     // ============================================================
     // 聊天命令测试

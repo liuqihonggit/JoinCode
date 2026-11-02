@@ -404,3 +404,38 @@ D9 错误消息从 "模型返回空回复" 改为 "模型回复被安全过滤�
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
 | responder G1-G20 场景 | IntentMatcher.EdgeG.cs | ✅ | ✅ 手动 exe 验收 |
+
+---
+
+## 2026-11-03 第七轮：H1-H20 纯内容流式边缘场景
+
+### H1-H20 场景测试结果
+
+| 场景 | 关键词 | 结果 | 说明 |
+|------|--------|------|------|
+| H1 | single line text | ✅ exit=0 | 纯文本 1 行正确返回 |
+| H2 | 100 lines text | ✅ exit=0 | 纯文本 100 行正确返回 |
+| H3 | code block text | ✅ exit=0 | 纯文本含代码块正确返回 |
+| H4 | table text | ✅ exit=0 | 纯文本含 markdown 表格正确返回 |
+| H5 | link text | ✅ exit=0 | 纯文本含 markdown 链接正确返回 |
+| H6 | emoji text | ✅ exit=0 | 纯文本含 emoji 正确返回 |
+| H7 | 4byte emoji text | ✅ exit=0 | 纯文本含 4 字节 emoji 正确返回 |
+| H8 | chinese text | ✅ exit=0 | 纯文本含中文正确返回 |
+| H9 | japanese text | ✅ exit=0 | 纯文本含日文正确返回 |
+| H10 | korean text | ✅ exit=0 | 纯文本含韩文正确返回 |
+| H11 | cyrillic text | ✅ exit=0 | 纯文本含西里尔文正确返回 |
+| H12 | rtl text content | ✅ exit=0 | 纯文本含 RTL 文本正确返回 |
+| H13 | mixed script text | ✅ exit=0 | 纯文本含混合脚本正确返回 |
+| H14 | 100kb text | ✅ exit=0 | 纯文本 100KB 正确返回 |
+| H15 | json in text | ✅ exit=0 | 纯文本含 JSON 正确返回 |
+| H16 | xml in text | ✅ exit=0 | 纯文本含 XML 正确返回 |
+| H17 | html in text | ✅ exit=0 | 纯文本含 HTML 正确返回 |
+| H18 | sql in text | ✅ exit=0 | 纯文本含 SQL 正确返回 |
+| H19 | url in text | ✅ exit=0 | 纯文本含 URL 正确返回 |
+| H20 | control chars text | ✅ exit=0 | 纯文本含控制字符正确返回 |
+
+### 验收表（追加）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| responder H1-H20 场景 | IntentMatcher.EdgeH.cs | ✅ | ✅ 手动 exe 验收 |

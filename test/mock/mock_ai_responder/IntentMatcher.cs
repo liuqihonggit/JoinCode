@@ -267,6 +267,14 @@ internal static partial class IntentMatcher {
                 }, $"E4: 工具链第{toolResultCount + 1}步");
             }
         }
+        if (lower.Contains("g18\n") || lower.Contains("5 round tool chain")) {
+            if (toolResultCount is > 0 and < 5) {
+                return (new ToolCallDto {
+                    Id = $"call_{Guid.NewGuid():N}"[..20],
+                    Function = new ToolCallFunctionDto { Name = "bash", Arguments = JsonSerializer.Serialize(new { command = $"echo g18_round_{toolResultCount + 1}" }, JsonOpts) }
+                }, $"G18: 5 轮工具链第{toolResultCount + 1}步");
+            }
+        }
         return (null, "");
     }
     private static (List<ToolCallDto>? ToolCalls, string Description) MatchToolCallIntent(string userMessage) {
@@ -1699,6 +1707,10 @@ internal static partial class IntentMatcher {
         var fResult = MatchEdgeFIntent(userMessage);
         if (fResult.ToolCalls is not null)
             return fResult;
+
+        var gResult = MatchEdgeGIntent(userMessage);
+        if (gResult.ToolCalls is not null)
+            return gResult;
 
         return (null, "");
     }

@@ -34,8 +34,20 @@ AI 用 bash 调 `jcc -p "消息"`，responder 自动匹配意图并 inject 响�
 | P4 空参数串 | p4 | ✅ | bash 报缺少必需参数 |
 | P5 null参数 | p5 | ✅ | bash 报缺少必需参数 |
 | P6 超长ID | p6 | ✅ | 200字符 tool_call_id 正常处理 |
+| Q2 大写工具名 | q2 | ✅ | BASH not found（合理行为） |
+| Q3 前后空格工具名 | q3 | ✅ | " bash " not found（合理行为） |
+| Q4 重复ID | q4 | ✅ | 两个相同 id 工具调用都执行 |
+| R1 ANSI输出 | r1 | ✅ | 安全拦截器触发 Path violation |
+| R2 null字节 | r2 | ✅ | printf 含 \x00 正确处理 |
+| R3 超长行 | r3 | ✅ | 5000字符无换行正确处理 |
+| S1 --continue+工具 | s1→f1 --continue | ✅ | 恢复会话后工具调用正常 |
+| S3 content+tool_call | s3 | ✅ | 文本和工具调用同时出现 |
+| T1 点号工具名 | t1 | ✅ | read.file not found（合理行为） |
+| T2 连字符工具名 | t2 | ✅ | read-file not found（合理行为） |
+| T4 markdown结果 | t4 | ✅ | 工具输出 markdown 表格 |
+| T5 json结果 | t5 | ✅ | 工具输出 JSON 格式 |
 
-**总计：28 场景全部通过，3 个 bug 修复**
+**总计：43 场景全部通过，3 个 bug 修复**
 
 ## 修复的问题
 

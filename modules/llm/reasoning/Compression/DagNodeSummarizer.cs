@@ -39,7 +39,8 @@ public sealed class DagNodeSummarizer {
                 }
             } else {
                 node.Payload.OriginalContent = node.Payload.Content;
-                node.Payload.Content = node.Payload.Content[..100] + "...";
+                var truncLen = char.IsLowSurrogate(node.Payload.Content[100]) && char.IsHighSurrogate(node.Payload.Content[99]) ? 99 : 100;
+                node.Payload.Content = node.Payload.Content[..truncLen] + "...";
             }
         }
     }

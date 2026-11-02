@@ -300,6 +300,7 @@
 | 禁止跳过 | 即使只改了一个注释，也必须走完整个流水线 |
 | 禁止单元测试不通过 | 单元测试不通过 = 不允许提交 |
 | 允许 push（非 main/master） | LLM 可 `git commit` + `git push` 到功能分支；禁止 force push 到 main/master |
+| **PR 创建后只 commit 不 push** | 用户让创建 PR 后即进入 PR 中状态，后续接续任务**只允许 `git commit`，禁止 `git push`**（避免触发 CI 重跑、浪费配额）。push 须等用户明确指示 |
 | HEREDOC 禁令 | PowerShell 不支持 HEREDOC。`git commit` 用多个 `-m` 参数；`gh pr create --body` 用双引号多行字符串 `--body "line1\nline2"`；Shell命令中HEREDOC由 `HeredocRewriter` 自动检测并转换为双引号字符串（优先级200，无需手动处理） |
 | 特殊字符禁令 | commit 消息禁止 `$`、反引号、三引号 |
 | ⚠️ 源码生成器 + 增量编译 | `dotnet build` 默认增量编译，会缓存生成器输出。**新增/修改 `[Register]` 类后必须用 `--no-incremental` 全量重建**，否则生成器不会重新扫描新类型 |

@@ -66,7 +66,7 @@ public sealed class CliOutputEnvelope<T> {
         new() { Ok = true, Data = data, Meta = meta };
 
     /// <summary>构造响应信封 — 显式指定 Ok 字段（exitCode != 0 时 ok=false，对齐 Bug 9 修复）</summary>
-    /// <param name="data">数据负载（始终携带，消费者可读 exitCode/response）</param>
+    /// <param name="data">数据负载（始终携带，消费者可读 exitCode/content）</param>
     /// <param name="ok">操作是否成功（exitCode==0 时 true）</param>
     /// <param name="meta">可选的元数据</param>
     /// <returns>指定 Ok 的 <see cref="CliOutputEnvelope{T}"/> 实例</returns>
@@ -74,7 +74,7 @@ public sealed class CliOutputEnvelope<T> {
         new() { Ok = ok, Data = data, Meta = meta };
 
     /// <summary>构造统一响应信封 — 同时携带 data 和 error（Bug 16: 统一 JSON 信封返回格式）</summary>
-    /// <param name="data">数据负载（始终携带，消费者可读 exitCode/response）</param>
+    /// <param name="data">数据负载（始终携带，消费者可读 exitCode/content）</param>
     /// <param name="ok">操作是否成功（exitCode==0 时 true）</param>
     /// <param name="error">结构化错误（exitCode!=0 时非 null，成功时 null）</param>
     /// <param name="meta">可选的元数据</param>
@@ -108,8 +108,8 @@ public sealed class CliOutputMeta {
     public string? Timing { get; init; }
 }
 
-/// <summary>非交互模式运行结果 — 替代匿名类型，AOT 兼容</summary>
-public sealed record CliNonInteractiveResult(int ExitCode, string Response);
+/// <summary>非交互模式运行结果 — 替代匿名类型，AOT 兼容。字段 Content 与 NDJSON CliStreamEventData.Content 统一</summary>
+public sealed record CliNonInteractiveResult(int ExitCode, string Content);
 
 /// <summary>CLI schema 属性 DTO — 手写镜像 CliArgSchemaProperty（生成器生成），确保 JsonSourceGeneration 可见</summary>
 public sealed record CliSchemaPropertyDto(

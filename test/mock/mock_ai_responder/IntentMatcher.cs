@@ -23,7 +23,23 @@ internal static class IntentMatcher {
         var userMessage = ExtractLastUserMessage(root);
         var toolResultCount = CountToolResultMessages(root);
 
+        if (toolResultCount == 0) {
+            var prevAssistant = ExtractPreviousAssistantMessage(root);
+            if (prevAssistant is not null && prevAssistant.Length > 0 && protocol == "anthropic") {
+                return (new InjectDto { Body = BuildAnthropicResponse($"我记得你之前说了：{prevAssistant}") }, "M1: 多轮对话记忆 [anthropic]");
+            }
+            if (prevAssistant is not null && prevAssistant.Length > 0 && isStream) {
+                return (new InjectDto { IsStream = true, ContentType = "text/event-stream", StreamChunks = BuildOpenAiStreamChunks($"我记得你之前说了：{prevAssistant}") }, "M1: 多轮对话记忆 [stream]");
+            }
+            if (prevAssistant is not null && prevAssistant.Length > 0) {
+                return (new InjectDto { Body = BuildOpenAiResponse($"我记得你之前说了：{prevAssistant}") }, "M1: 多轮对话记忆");
+            }
+        }
+
         if (toolResultCount > 0) {
+            var m4Check = CheckM4ToolCallId(root, userMessage, toolResultCount, protocol, isStream);
+            if (m4Check is not null) return m4Check.Value;
+
             var (nextToolCall, nextDesc) = MatchNextToolCallIntent(userMessage, toolResultCount);
             if (nextToolCall is not null && protocol == "openai" && isStream) {
                 return (new InjectDto { IsStream = true, ContentType = "text/event-stream", StreamChunks = BuildOpenAiToolCallStreamChunks([nextToolCall]) }, $"{nextDesc} [stream]");
@@ -143,6 +159,67 @@ internal static class IntentMatcher {
         return count;
     }
 
+    /// <summary>提取前一条 assistant 消息内容（非空、非工具调用），用于多轮对话记忆测试</summary>
+    private static string? ExtractPreviousAssistantMessage(JsonElement root) {
+        if (!root.TryGetProperty("messages", out var messages))
+            return null;
+        string? last = null;
+        foreach (var msg in messages.EnumerateArray()) {
+            if (msg.TryGetProperty("role", out var r) && r.GetString() == "assistant") {
+                var content = msg.TryGetProperty("content", out var c)
+                    ? c.ValueKind == JsonValueKind.String ? c.GetString() : null
+                    : null;
+                if (!string.IsNullOrEmpty(content)) last = content;
+            }
+        }
+        return last;
+    }
+
+    /// <summary>M4: 检查 tool 消息的 tool_call_id 是否与 LLM 返回的 id 匹配</summary>
+    private static (InjectDto Response, string Description)? CheckM4ToolCallId(JsonElement root, string userMessage, int toolResultCount, string protocol, bool isStream) {
+        var lower = userMessage.ToLowerInvariant();
+        if (!lower.Contains("m4") && !lower.Contains("id mismatch") && !lower.Contains("id不匹配"))
+            return null;
+
+        const string expectedId = "call_m4_fixed_id";
+        var actualIds = ExtractToolCallIds(root);
+        if (actualIds.Count == 0) return null;
+
+        var actualId = actualIds[0];
+        string reply;
+        string desc;
+        if (actualId == expectedId) {
+            reply = "M4: tool_call_id 匹配正确，工具结果已正确关联。这是模拟 AI 的最终回应。";
+            desc = $"M4: tool_call_id 匹配正确 (id={actualId})";
+        } else {
+            reply = $"M4: tool_call_id 不匹配！期望 {expectedId}，实际得到 {actualId}。这可能导致对话上下文断裂。";
+            desc = $"M4: tool_call_id 不匹配 (期望={expectedId}, 实际={actualId})";
+        }
+
+        if (protocol == "anthropic") {
+            return (new InjectDto { Body = BuildAnthropicResponse(reply) }, $"{desc} [anthropic]");
+        }
+        if (isStream) {
+            return (new InjectDto { IsStream = true, ContentType = "text/event-stream", StreamChunks = BuildOpenAiStreamChunks(reply) }, $"{desc} [stream]");
+        }
+        return (new InjectDto { Body = BuildOpenAiResponse(reply) }, desc);
+    }
+
+    /// <summary>提取所有 tool 角色消息的 tool_call_id</summary>
+    private static List<string> ExtractToolCallIds(JsonElement root) {
+        var ids = new List<string>();
+        if (!root.TryGetProperty("messages", out var messages))
+            return ids;
+        foreach (var msg in messages.EnumerateArray()) {
+            if (msg.TryGetProperty("role", out var r) && r.GetString() == "tool") {
+                if (msg.TryGetProperty("tool_call_id", out var idProp) && idProp.ValueKind == JsonValueKind.String) {
+                    ids.Add(idProp.GetString() ?? "");
+                }
+            }
+        }
+        return ids;
+    }
+
     /// <summary>多轮工具调用：根据已完成的工具结果数决定下一步</summary>
     private static (ToolCallDto? ToolCall, string Description) MatchNextToolCallIntent(string userMessage, int toolResultCount) {
         var lower = userMessage.ToLowerInvariant();
@@ -155,6 +232,29 @@ internal static class IntentMatcher {
                         Arguments = """{"file_path": "/nonexistent/file2.txt"}"""
                     }
                 }, "F3: 多工具连续调用（第2个）");
+            }
+        }
+        if (lower.Contains("many tools") || lower.Contains("多工具链") || lower.Contains("m3")) {
+            if (toolResultCount < 5) {
+                var args = JsonSerializer.Serialize(new { file_path = $"/nonexistent/m3_file{toolResultCount + 1}.txt" });
+                return (new ToolCallDto {
+                    Id = $"call_{Guid.NewGuid():N}"[..20],
+                    Function = new ToolCallFunctionDto {
+                        Name = "read",
+                        Arguments = args
+                    }
+                }, $"M3: 5轮工具调用（第{toolResultCount + 1}个）");
+            }
+        }
+        if (lower.Contains("m5") || lower.Contains("nested tool") || lower.Contains("嵌套工具")) {
+            if (toolResultCount == 1) {
+                return (new ToolCallDto {
+                    Id = $"call_{Guid.NewGuid():N}"[..20],
+                    Function = new ToolCallFunctionDto {
+                        Name = "bash",
+                        Arguments = """{"command": "echo m5_step2_done"}"""
+                    }
+                }, "M5: 嵌套工具调用（第2个，基于第1个结果）");
             }
         }
         return (null, "");
@@ -264,6 +364,162 @@ internal static class IntentMatcher {
                     Arguments = "{}"
                 }
             }], "K2: 工具参数缺失（空对象无 file_path）");
+        }
+        if (lower.Contains("many tools") || lower.Contains("多工具链") || lower.Contains("m3")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "read",
+                    Arguments = """{"file_path": "/nonexistent/m3_file1.txt"}"""
+                }
+            }], "M3: 5轮工具调用（第1个）");
+        }
+        if (lower.Contains("m4") || lower.Contains("id mismatch") || lower.Contains("id不匹配")) {
+            return ([new ToolCallDto {
+                Id = "call_m4_fixed_id",
+                Function = new ToolCallFunctionDto {
+                    Name = "read",
+                    Arguments = """{"file_path": "/nonexistent/m4_test.txt"}"""
+                }
+            }], "M4: 工具调用 ID 匹配测试（固定 id=call_m4_fixed_id）");
+        }
+        if (lower.Contains("m5") || lower.Contains("nested tool") || lower.Contains("嵌套工具")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo m5_step1_done"}"""
+                }
+            }], "M5: 嵌套工具调用（第1个）");
+        }
+        if (lower.Contains("n1") || lower.Contains("unknown tool") || lower.Contains("不存在工具")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "nonexistent_tool_xyz",
+                    Arguments = """{"arg": "test"}"""
+                }
+            }], "N1: 不存在的工具名");
+        }
+        if (lower.Contains("n2") || lower.Contains("empty name") || lower.Contains("空名工具")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "",
+                    Arguments = """{"arg": "test"}"""
+                }
+            }], "N2: 空工具名");
+        }
+        if (lower.Contains("n3") || lower.Contains("bad json args") || lower.Contains("非json参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = "this is not json {{{"
+                }
+            }], "N3: 工具参数非 JSON");
+        }
+        if (lower.Contains("n4") || lower.Contains("huge args") || lower.Contains("超大参数")) {
+            var bigArg = new string('x', 10000);
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = JsonSerializer.Serialize(new { command = $"echo {bigArg}" })
+                }
+            }], "N4: 超大工具参数（10KB）");
+        }
+        if (lower.Contains("p4") || lower.Contains("empty args") || lower.Contains("空参数串")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = ""
+                }
+            }], "P4: 工具参数为空字符串");
+        }
+        if (lower.Contains("p5") || lower.Contains("null args") || lower.Contains("null参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = "null"
+                }
+            }], "P5: 工具参数为 null 字面量");
+        }
+        if (lower.Contains("p6") || lower.Contains("long id") || lower.Contains("超长id")) {
+            var longId = new string('a', 200);
+            return ([new ToolCallDto {
+                Id = longId,
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo p6"}"""
+                }
+            }], "P6: 超长 tool_call_id（200字符）");
+        }
+        if (lower.Contains("q2") || lower.Contains("upper case") || lower.Contains("大写工具名")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "BASH",
+                    Arguments = """{"command": "echo q2"}"""
+                }
+            }], "Q2: 大写工具名 BASH");
+        }
+        if (lower.Contains("q3") || lower.Contains("whitespace name") || lower.Contains("空格工具名")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = " bash ",
+                    Arguments = """{"command": "echo q3"}"""
+                }
+            }], "Q3: 前后空格工具名");
+        }
+        if (lower.Contains("q4") || lower.Contains("dup id") || lower.Contains("重复id")) {
+            var dupId = $"call_{Guid.NewGuid():N}"[..20];
+            return ([
+                new ToolCallDto {
+                    Id = dupId,
+                    Function = new ToolCallFunctionDto {
+                        Name = "bash",
+                        Arguments = """{"command": "echo q4_first"}"""
+                    }
+                },
+                new ToolCallDto {
+                    Id = dupId,
+                    Function = new ToolCallFunctionDto {
+                        Name = "bash",
+                        Arguments = """{"command": "echo q4_second"}"""
+                    }
+                }
+            ], "Q4: 重复 tool_call_id");
+        }
+        if (lower.Contains("r1") || lower.Contains("ansi output") || lower.Contains("ansi输出")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "printf '\\033[31mred\\033[0m text'"}"""
+                }
+            }], "R1: 工具结果包含 ANSI 转义序列");
+        }
+        if (lower.Contains("r2") || lower.Contains("null byte") || lower.Contains("null字节")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "printf 'before\\x00after'"}"""
+                }
+            }], "R2: 工具结果包含 null 字节");
+        }
+        if (lower.Contains("r3") || lower.Contains("long line") || lower.Contains("超长行")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "printf '%0.sx' {1..5000}"}"""
+                }
+            }], "R3: 工具结果超长行（5000字符无换行）");
         }
         return (null, "");
     }

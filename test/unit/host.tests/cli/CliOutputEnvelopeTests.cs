@@ -67,7 +67,7 @@ public sealed class CliOutputEnvelopeTests {
 
         json.Should().Contain("\"ok\":true");
         json.Should().Contain("\"exitCode\":0");
-        json.Should().Contain("\"response\":\"hello world\"");
+        json.Should().Contain("\"content\":\"hello world\"");
     }
 
     /// <summary>
@@ -374,7 +374,7 @@ public sealed class CliOutputEnvelopeTests {
 
         json.Should().Contain("\"ok\":true");
         json.Should().Contain("\"exitCode\":0");
-        json.Should().Contain("\"response\":\"hello\"");
+        json.Should().Contain("\"content\":\"hello\"");
         json.Should().NotContain("\"error\"");
     }
 
@@ -424,7 +424,7 @@ public sealed class CliOutputEnvelopeTests {
     }
 
     /// <summary>
-    /// Bug 16 回归: 统一信封在异常路径应同时包含 data(exitCode,response) 和 error(code,message)。
+    /// Bug 16 回归: 统一信封在异常路径应同时包含 data(exitCode,content) 和 error(code,message)。
     /// 模拟 NonInteractiveModeRunner OnError 场景：exitCode=1, error=RUNTIME_ERROR。
     /// </summary>
     [Fact]
@@ -435,7 +435,7 @@ public sealed class CliOutputEnvelopeTests {
 
         json.Should().Contain("\"ok\":false");
         json.Should().Contain("\"exitCode\":1");
-        json.Should().Contain("\"response\":\"\"");
+        json.Should().Contain("\"content\":\"\"");
         json.Should().Contain("\"code\":\"RUNTIME_ERROR\"");
         json.Should().Contain("\"message\":\"test exception\"");
         json.Should().Contain("\"hint\":\"hint\"");

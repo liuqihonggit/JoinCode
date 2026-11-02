@@ -22,8 +22,20 @@ AI 用 bash 调 `jcc -p "消息"`，responder 自动匹配意图并 inject 响�
 | L10 空消息 | (空) | ✅ | exitCode=3 + 引导提示 |
 | L11 参数特殊字符 | l11 | ✅ | 引号/换行/制表/反斜杠 |
 | L12 参数 Unicode | l12 | ✅ | 中文/日文/韩文/emoji |
+| M1 --continue 上下文 | hello→--continue | ✅ | 第二轮包含第一轮 assistant 消息 |
+| M3 5轮工具调用 | m3 | ✅ | 5轮 read 失败 → 最终回应，exitCode=0 |
+| M4 tool_call_id 匹配 | m4 | ✅ | jcc 正确传递 tool_call_id |
+| M5 嵌套工具调用 | m5 | ✅ | bash echo → bash echo → 最终回应 |
+| M6 JSON/NDJSON 统一 | --format json/ndjson | ✅ | 字段名统一为 content（修复） |
+| N1 不存在工具名 | n1 | ✅ | 正确报 "Tool not found" |
+| N2 空工具名 | n2 | ✅ | 修复 ArgumentException 暴露 → 静默跳过 |
+| N3 非JSON参数 | n3 | ✅ | bash 报缺少必需参数 |
+| N4 超大参数 | n4 | ✅ | bash 报 command 过长 |
+| P4 空参数串 | p4 | ✅ | bash 报缺少必需参数 |
+| P5 null参数 | p5 | ✅ | bash 报缺少必需参数 |
+| P6 超长ID | p6 | ✅ | 200字符 tool_call_id 正常处理 |
 
-**总计：14 场景全部通过，0 新 bug**
+**总计：28 场景全部通过，3 个 bug 修复**
 
 ## 修复的问题
 
@@ -31,6 +43,21 @@ AI 用 bash 调 `jcc -p "消息"`，responder 自动匹配意图并 inject 响�
 - **根因**: `BuildOpenAiStreamChunks` 逐字符生成 6000+ chunk，HTTP 注入超时
 - **修复**: 改为按行发送，100 行只需 100 chunk
 - **提交**: `7fe2219be`
+
+### M6 JSON/NDJSON 字段名不一致（bug）
+- **根因**: JSON 模式 `CliNonInteractiveResult.Response`（→ `response`），NDJSON 模式 `CliStreamEventData.Content`（→ `content`），字段名不一致
+- **修复**: `CliNonInteractiveResult.Response` → `Content`，两种模式统一用 `content`
+- **提交**: `4cd8ddca9`
+
+### 模态误判 — ReadPdf 过宽关键词（bug）
+- **根因**: `MediaIntentDetector` 的 `ReadPdf` 关键词包含 `"文件"`、`"file"`、`"文档"`、`"document"`，用户说"读取不存在的文件"就误判为 PDF 识别意图
+- **修复**: 移除过宽关键词，仅保留 `"PDF"` 和 `"pdf"`
+- **提交**: `2c662773b`
+
+### N2 空工具名 ArgumentException 暴露（bug）
+- **根因**: `QueryEngine.cs:425` 和 `ChatStreamChunkProcessor.cs:230` 只判 `name is null` 不判空字符串/空白，空名工具调用静默通过到 `IsToolAllowed` 抛 `ArgumentException`，异常消息暴露给用户
+- **修复**: `name is null` → `string.IsNullOrWhiteSpace(name)`，空名工具调用静默跳过
+- **提交**: `24b652dfd`
 
 ## 验收表
 

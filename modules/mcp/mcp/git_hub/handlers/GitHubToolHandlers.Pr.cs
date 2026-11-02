@@ -1037,7 +1037,7 @@ public partial class GitHubToolHandlers {
     /// 编辑 PR — 修改标题/body/base 分支/标签/指派人/审查者/里程碑，调 REST API PATCH /pulls + PATCH /issues + POST/DELETE labels/reviewers/assignees
     /// </summary>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    [McpTool(GitHubToolNameEnumConstants.GhPrEdit, "编辑 PR(title/body/body_file/base/label/add_label/remove_label/assignee/add_reviewer/remove_reviewer/add_assignee/remove_assignee/milestone/remove_milestone)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhPrEdit, "编辑 PR(title/body/body_file/base/label/add_label/remove_label/assignee/add_reviewer/remove_reviewer/add_assignee/remove_assignee/milestone/remove_milestone/auto_merge/merge_method)", "github")]
     public async Task<ToolResult> GhPrEditAsync(
         [McpToolParameter(WellKnownParam.PrNumber)] string pr_number,
         [McpToolParameter("新标题(可选)", Required = false)] string? title = null,
@@ -1057,6 +1057,8 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("添加到项目(可选,按项目标题)", Required = false)] string? add_project = null,
         [McpToolParameter("从项目移除(可选,按项目标题)", Required = false)] string? remove_project = null,
         [McpToolParameter("附加文件(可选,上传到 GitHub 附件)", Required = false)] string? attach = null,
+        [McpToolParameter("是否启用 auto-merge(CI 通过后自动合并,可选)", Required = false)] bool? auto_merge = null,
+        [McpToolParameter("auto-merge 合并方式(squash/merge/rebase,默认 squash,可选)", Required = false)] string? merge_method = null,
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
@@ -1143,6 +1145,14 @@ public partial class GitHubToolHandlers {
                     var attachResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", prBody, ct: cancellationToken).ConfigureAwait(false);
                     if (!attachResult.Success) return Fail(attachResult.Error);
                 }
+            }
+            if (auto_merge == true) {
+                var (nodeId, nodeErr) = await GetPrNodeIdAsync(client, owner, repoName, number, cancellationToken).ConfigureAwait(false);
+                if (nodeErr is not null) return Fail(nodeErr);
+                var method = string.IsNullOrWhiteSpace(merge_method) ? "squash" : merge_method;
+                var (amSuccess, usedMethod, amErr) = await EnableAutoMergeAsync(client, nodeId, method, cancellationToken).ConfigureAwait(false);
+                if (!amSuccess) return Fail(amErr!);
+                return Ok($"已编辑 PR {number} 并启用 auto-merge（{usedMethod}）");
             }
             return OkBrief("", $"已编辑 PR {number}");
         }).ConfigureAwait(false);

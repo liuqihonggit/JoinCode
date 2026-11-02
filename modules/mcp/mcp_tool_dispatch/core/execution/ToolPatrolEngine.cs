@@ -168,11 +168,19 @@ public sealed class ToolPatrolEngine : IToolPatrolEngine {
         foreach (var r in report.Results.OrderBy(r => r.ToolName)) {
             var truncated = r.ErrorMessage switch {
                 null => "",
-                { Length: > 100 } => r.ErrorMessage[..100] + "...",
+                { Length: > 100 } => SafeTruncate(r.ErrorMessage, 100),
                 _ => r.ErrorMessage,
             };
             sb.AppendLine($"{r.Mnemonic} {r.ToolName} {truncated}");
         }
         return sb.ToString();
+    }
+
+    /// <summary>安全截断字符串，避免破坏 Unicode 代理对</summary>
+    private static string SafeTruncate(string s, int maxLen) {
+        if (s.Length <= maxLen) return s;
+        if (maxLen > 0 && char.IsLowSurrogate(s[maxLen]) && char.IsHighSurrogate(s[maxLen - 1]))
+            return s[..(maxLen - 1)] + "...";
+        return s[..maxLen] + "...";
     }
 }

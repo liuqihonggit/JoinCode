@@ -44,7 +44,7 @@ public sealed class MockServerSharedFixture : IAsyncLifetime {
 
         _mockServerProcess = new Process { StartInfo = startInfo };
         var readyTcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
-        const string readyMarker = "[OpenAI]   URL:";
+        const string readyMarker = "[OpenAI.MockServer] Server started, URL=";
 
         _onOutput = (_, e) => {
             if (string.IsNullOrEmpty(e.Data)) return;
@@ -76,26 +76,6 @@ public sealed class MockServerSharedFixture : IAsyncLifetime {
         } catch (OperationCanceledException) {
             throw new InvalidOperationException("[GEN041] 等待共享 MockServer 就绪超时(25s)");
         }
-
-        await WaitForKestrelListenAsync(cts.Token).ConfigureAwait(true);
-    }
-
-    /// <summary>
-    /// 等待 Kestrel 真正开始监听端口 — URL 标记可能在 Kestrel.StartAsync 完成前输出,
-    /// 导致首个测试 POST 时 Connection refused。用健康检查重试确认监听就绪。
-    /// </summary>
-    private async Task WaitForKestrelListenAsync(CancellationToken ct) {
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
-        for (var attempt = 0; attempt < 30; attempt++) {
-            try {
-                using var resp = await http.GetAsync($"{BaseUrl}/health", ct).ConfigureAwait(true);
-                if (resp.IsSuccessStatusCode || resp.StatusCode == System.Net.HttpStatusCode.NotFound)
-                    return;
-            } catch (HttpRequestException) {
-                await Task.Delay(200, ct).ConfigureAwait(true);
-            }
-        }
-        throw new InvalidOperationException("[GEN043] 共享 MockServer Kestrel 监听就绪超时(6s)");
     }
 
     /// <summary>

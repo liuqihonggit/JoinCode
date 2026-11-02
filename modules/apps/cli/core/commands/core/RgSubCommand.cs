@@ -614,26 +614,18 @@ internal static class RgSubCommand {
         }
 
         if (opts.Json) {
-            OutputJson(outcome);
+            OutputJson(outcome, stdinTempFile);
             return 0;
         }
 
         var sb = new StringBuilder(256);
         switch (opts.OutputMode) {
             case SearchOutputMode.Content:
+            var stdinPrefix = stdinTempFile?.Replace('\\', '/');
             foreach (var r in outcome.Results) {
                 if (r.ContentLines is null) continue;
-                foreach (var line in r.ContentLines) {
-                    if (stdinTempFile is null) { sb.Append(line).Append('\n'); continue; }
-                    var prefix = stdinTempFile.Replace('\\', '/');
-                    if (!line.StartsWith(prefix, StringComparison.Ordinal)) { sb.Append(line).Append('\n'); continue; }
-                    var afterPrefix = line.AsSpan(prefix.Length);
-                    var colonIdx = afterPrefix.IndexOf(':');
-                    if (colonIdx < 0) { sb.Append(afterPrefix).Append('\n'); continue; }
-                    var afterColon = afterPrefix[(colonIdx + 1)..];
-                    var nextColon = afterColon.IndexOf(':');
-                    sb.Append(nextColon >= 0 ? afterColon[(nextColon + 1)..] : afterColon).Append('\n');
-                }
+                foreach (var line in r.ContentLines)
+                    sb.Append(StripStdinPrefix(line, stdinPrefix)).Append('\n');
             }
             break;
             case SearchOutputMode.Count:
@@ -658,16 +650,35 @@ internal static class RgSubCommand {
         return 0;
     }
 
-    private static void OutputJson(RgOutcome outcome) {
+    private static void OutputJson(RgOutcome outcome, string? stdinTempFile = null) {
+        var stdinPrefix = stdinTempFile?.Replace('\\', '/');
         var matches = new List<RgJsonMatch>(outcome.Results.Count);
         foreach (var r in outcome.Results) {
-            var lines = r.ContentLines is not null && r.ContentLines.Count > 0
-                ? new List<string>(r.ContentLines)
-                : null;
-            matches.Add(new RgJsonMatch(r.FilePath.Replace('\\', '/'), r.MatchCount, lines));
+            var filePath = r.FilePath.Replace('\\', '/');
+            var displayFile = stdinPrefix is not null && filePath == stdinPrefix ? "<stdin>" : filePath;
+            List<string>? lines = null;
+            if (r.ContentLines is not null && r.ContentLines.Count > 0) {
+                lines = new List<string>(r.ContentLines.Count);
+                foreach (var line in r.ContentLines)
+                    lines.Add(StripStdinPrefix(line, stdinPrefix));
+            }
+            matches.Add(new RgJsonMatch(displayFile, r.MatchCount, lines));
         }
         var result = new RgJsonResult(matches, outcome.TotalMatches, outcome.Results.Count);
         System.Console.WriteLine(Cli.Output.CliOutputEnvelope<RgJsonResult>.Success(result).ToJsonString());
+    }
+
+    /// <summary>剥离 stdin 临时文件路径前缀，返回用户可见的行内容（无前缀或剥离失败时原样返回）。</summary>
+    private static string StripStdinPrefix(string line, string? stdinPrefix) {
+        if (stdinPrefix is null || !line.StartsWith(stdinPrefix, StringComparison.Ordinal))
+            return line;
+        var afterPrefix = line.AsSpan(stdinPrefix.Length);
+        var colonIdx = afterPrefix.IndexOf(':');
+        if (colonIdx < 0)
+            return afterPrefix.ToString();
+        var afterColon = afterPrefix[(colonIdx + 1)..];
+        var nextColon = afterColon.IndexOf(':');
+        return nextColon >= 0 ? afterColon[(nextColon + 1)..].ToString() : afterColon.ToString();
     }
 
     private static void AppendEscaped(StringBuilder sb, string text) {

@@ -369,3 +369,38 @@ D9 错误消息从 "模型返回空回复" 改为 "模型回复被安全过滤�
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
 | responder F1-F20 场景 | IntentMatcher.EdgeF.cs | ✅ | ✅ 手动 exe 验收 |
+
+---
+
+## 2026-11-03 第六轮：G1-G20 工具调用参数边缘场景
+
+### G1-G20 场景测试结果
+
+| 场景 | 关键词 | 结果 | 说明 |
+|------|--------|------|------|
+| G1 | empty arguments | ✅ exit=0 | 空 arguments {} 正确处理 |
+| G2 | no arguments field | ✅ exit=0 | 无 arguments 字段（null）正确处理 |
+| G3 | duplicate tool id | ✅ exit=0 | 重复 tool_call_id 正确处理 |
+| G4 | very long tool name | ✅ exit=0 | 超长工具名 255 字符正确处理 |
+| G5 | special char id | ✅ exit=0 | ID 含特殊字符 @#$%^&*() 正确处理 |
+| G6 | empty model field | ✅ exit=0 | 响应缺 model 字段正确处理 |
+| G7 | extra metadata | ✅ exit=0 | 响应含额外 metadata 正确处理 |
+| G8 | usage every chunk | ✅ exit=0 | usage 在每个 chunk 正确处理 |
+| G9 | cached tokens | ✅ exit=0 | cached_tokens 在 usage 正确处理 |
+| G10 | reasoning non stream | ✅ exit=0 | reasoning_content 非流式正确处理 |
+| G11 | multi choices non stream | ✅ exit=0 | 多 choices 非流式正确处理 |
+| G12 | markdown link output | ✅ exit=0 | 工具结果含 markdown 链接正确处理 |
+| G13 | html entities | ✅ exit=0 | 工具结果含 HTML 实体正确处理 |
+| G14 | unicode escape | ✅ exit=0 | 工具结果含 Unicode 转义正确处理 |
+| G15 | repeated lines | ✅ exit=0 | 工具结果含重复行 100 行正确处理 |
+| G16 | progressive output | ✅ exit=0 | 工具结果含渐进式输出正确处理 |
+| G17 | tool then text | ✅ exit=0 | 工具调用后纯文本无工具正确处理 |
+| G18 | 5 round tool chain | ✅ exit=0 | 5 轮工具调用链全部完成 |
+| G19 | nested array 3 | ✅ exit=0 | 工具参数含嵌套数组 3 层正确处理 |
+| G20 | null value args | ✅ exit=0 | 工具参数含 null 值正确处理 |
+
+### 验收表（追加）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| responder G1-G20 场景 | IntentMatcher.EdgeG.cs | ✅ | ✅ 手动 exe 验收 |

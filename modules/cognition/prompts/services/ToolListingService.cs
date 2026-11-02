@@ -14,19 +14,19 @@ public sealed partial class ToolListingService : ServiceEntity {
     /// <param name="reminderManager">系统提醒管理器。</param>
     /// <param name="agentProvider">Agent 定义提供者，可选。</param>
     /// <param name="roleRegistry">Agent 角色注册表，可选。</param>
-    /// <param name="skillService">技能服务，可选。</param>
+    /// <param name="serviceProvider">服务提供者，用于懒解析 ISkillService，可选。</param>
     /// <param name="logger">日志记录器，可选。</param>
-    public ToolListingService(ISystemReminderManager reminderManager, IAgentDefinitionProvider? agentProvider = null, JoinCode.Abstractions.Interfaces.IAgentRoleRegistry? roleRegistry = null, ISkillService? skillService = null, ILogger<ToolListingService>? logger = null) {
+    public ToolListingService(ISystemReminderManager reminderManager, IAgentDefinitionProvider? agentProvider = null, JoinCode.Abstractions.Interfaces.IAgentRoleRegistry? roleRegistry = null, IServiceProvider? serviceProvider = null, ILogger<ToolListingService>? logger = null) {
         _reminderManager = reminderManager;
         _agentProvider = agentProvider;
         _roleRegistry = roleRegistry;
-        _skillService = skillService;
+        _serviceProvider = serviceProvider;
         _logger = logger;
     }
     private readonly ISystemReminderManager _reminderManager;
     private readonly IAgentDefinitionProvider? _agentProvider;
     private readonly JoinCode.Abstractions.Interfaces.IAgentRoleRegistry? _roleRegistry;
-    private readonly ISkillService? _skillService;
+    private readonly IServiceProvider? _serviceProvider;
     private readonly ILogger<ToolListingService>? _logger;
 
     /// <summary>
@@ -114,9 +114,10 @@ public sealed partial class ToolListingService : ServiceEntity {
     /// 使用 SkillDescriptionTruncator.FormatSkillsWithinBudget 进行预算内截断
     /// </summary>
     public async Task InjectSkillListingAsync(int? contextWindowTokens = null, CancellationToken ct = default) {
-        if (_skillService is null) return;
+        var skillService = _serviceProvider?.GetService<ISkillService>();
+        if (skillService is null) return;
 
-        var skills = await _skillService.GetAvailableSkillsAsync(ct).ConfigureAwait(false);
+        var skills = await skillService.GetAvailableSkillsAsync(ct).ConfigureAwait(false);
         if (skills.Count == 0) return;
 
         // 过滤掉禁止模型自动调用的技能

@@ -228,13 +228,32 @@ public sealed class ResilientHttpExecutor {
             opCts.CancelAfter(_policy.OperationTimeout.Value);
 
             try {
-                return await operation(opCts.Token).ConfigureAwait(false);
+                return await CheckResponseStatusAsync(await operation(opCts.Token).ConfigureAwait(false), operationName).ConfigureAwait(false);
             } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                 throw new TimeoutException($"[INF001] [{_policy.Name}] {operationName} 操作超时 ({_policy.OperationTimeout.Value.TotalSeconds}s)");
             }
         }
 
-        return await operation(ct).ConfigureAwait(false);
+        return await CheckResponseStatusAsync(await operation(ct).ConfigureAwait(false), operationName).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 检查 HTTP 响应状态码 — 非 2xx 抛 HttpRequestException，让重试/熔断逻辑正确处理 LLM API 错误。
+    /// </summary>
+    private static async Task<HttpResponseMessage> CheckResponseStatusAsync(HttpResponseMessage response, string operationName) {
+        if (response.IsSuccessStatusCode) return response;
+        var statusCode = (int)response.StatusCode;
+        string body;
+        try {
+            body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        } catch {
+            body = "";
+        }
+        response.Dispose();
+        throw new HttpRequestException(
+            $"[{operationName}] HTTP {statusCode}: {body.Trim()}",
+            null,
+            response.StatusCode);
     }
 
     private static bool ShouldRetry(Exception ex, RetryConfig retry) {
@@ -242,10 +261,14 @@ public sealed class ResilientHttpExecutor {
             return retry.ShouldRetry(ex);
         }
 
-        return ex is TimeoutException
-            || ex is TaskCanceledException
-            || ex is HttpRequestException
-            || ex is IOException;
+        if (ex is TimeoutException || ex is TaskCanceledException || ex is IOException)
+            return true;
+        if (ex is HttpRequestException httpEx) {
+            var code = (int?)(httpEx.StatusCode);
+            if (code is null) return true;
+            return code is 408 or 429 or 500 or 502 or 503 or 504;
+        }
+        return false;
     }
 
     /// <summary>

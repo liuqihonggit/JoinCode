@@ -110,17 +110,30 @@ public sealed class StreamMiddlewarePipeline<TContext, TEvent> {
         if (predicate(context))
             yield break;
 
-        var events = new List<TEvent>();
+        var shouldBreak = false;
+        var enumerator = middleware.InvokeAsync(context, next, ct).GetAsyncEnumerator(ct);
         try {
-            await foreach (var evt in middleware.InvokeAsync(context, next, ct).ConfigureAwait(false)) {
-                events.Add(evt);
-            }
-        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
-            handler(context, ex);
-        }
+            while (!shouldBreak) {
+                bool hasMore;
+                try {
+                    hasMore = await enumerator.MoveNextAsync().ConfigureAwait(false);
+                } catch (OperationCanceledException) {
+                    throw;
+                } catch (Exception ex) {
+                    handler(context, ex);
+                    shouldBreak = true;
+                    continue;
+                }
 
-        foreach (var evt in events) {
-            yield return evt;
+                if (!hasMore) {
+                    shouldBreak = true;
+                    continue;
+                }
+
+                yield return enumerator.Current;
+            }
+        } finally {
+            await enumerator.DisposeAsync().ConfigureAwait(false);
         }
     }
 
@@ -133,17 +146,30 @@ public sealed class StreamMiddlewarePipeline<TContext, TEvent> {
         Action<TContext, Exception> handler,
         TContext context,
         [EnumeratorCancellation] CancellationToken ct) {
-        var events = new List<TEvent>();
+        var shouldBreak = false;
+        var enumerator = middleware.InvokeAsync(context, next, ct).GetAsyncEnumerator(ct);
         try {
-            await foreach (var evt in middleware.InvokeAsync(context, next, ct).ConfigureAwait(false)) {
-                events.Add(evt);
-            }
-        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
-            handler(context, ex);
-        }
+            while (!shouldBreak) {
+                bool hasMore;
+                try {
+                    hasMore = await enumerator.MoveNextAsync().ConfigureAwait(false);
+                } catch (OperationCanceledException) {
+                    throw;
+                } catch (Exception ex) {
+                    handler(context, ex);
+                    shouldBreak = true;
+                    continue;
+                }
 
-        foreach (var evt in events) {
-            yield return evt;
+                if (!hasMore) {
+                    shouldBreak = true;
+                    continue;
+                }
+
+                yield return enumerator.Current;
+            }
+        } finally {
+            await enumerator.DisposeAsync().ConfigureAwait(false);
         }
     }
 

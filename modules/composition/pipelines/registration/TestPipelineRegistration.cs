@@ -22,13 +22,13 @@ public static class TestPipelineRegistration {
         // Chat 聊天管道 (Stream) — 跳过 4 个 CLI 专属中间件与限流
         services.AddSingleton<StreamMiddlewarePipeline<ChatMiddlewareContext, ChatStreamEvent>>(sp =>
             new StreamPipelineBuilder<ChatMiddlewareContext, ChatStreamEvent>()
+                .Use(sp.GetRequiredService<TranscriptPersistMiddleware>())
                 .Use(sp.GetRequiredService<PreChatMiddleware>())
                 .Use(sp.GetRequiredService<QueryLoopMiddleware>())
                 .Use(sp.GetRequiredService<LoopInterventionMiddleware>())
                 .Use(sp.GetRequiredService<ProcessUsageMiddleware>())
                 .Use(sp.GetRequiredService<CleanupInjectionsMiddleware>())
                 .Use(sp.GetRequiredService<SaveContextMiddleware>())
-                .Use(sp.GetRequiredService<TranscriptPersistMiddleware>())
                 .WithHooks(sp)
                 .Build());
 

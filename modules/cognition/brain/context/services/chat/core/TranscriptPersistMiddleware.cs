@@ -38,7 +38,9 @@ public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMi
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
         [EnumeratorCancellation] CancellationToken ct) {
-        var startCount = _contextManager.CurrentMessageCount;
+        // Bug 19 根因 A 修复：startCount 必须基于含系统提示词的快照计数，与 GetMessageListAsync 索引空间一致
+        var startSnapshot = await _contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
+        var startCount = startSnapshot.Count;
 
         await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
             yield return evt;
@@ -59,11 +61,16 @@ public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMi
         var entries = new List<TranscriptEntry>(snapshot.Count - startCount);
         for (var i = startCount; i < snapshot.Count; i++) {
             var message = snapshot[i];
-            if (string.IsNullOrEmpty(message.Content))
+            // Bug 19 根因 B 修复：空 content 的 assistant 消息（工具调用轮次）仍写入 transcript，
+            // 用占位文本避免恢复时丢失 assistant 轮次（否则 messages 数组只有 user 没有 assistant）
+            var content = message.Content;
+            if (string.IsNullOrEmpty(content) && string.Equals(message.Role.ToValue(), "assistant", StringComparison.OrdinalIgnoreCase))
+                content = "(tool call)";
+            if (string.IsNullOrEmpty(content))
                 continue;
             entries.Add(new TranscriptEntry {
                 Role = message.Role.ToValue(),
-                Content = message.Content,
+                Content = content,
                 Timestamp = DateTime.UtcNow,
                 ModelId = context.FinalModelId,
             });

@@ -258,7 +258,7 @@ jobs:
           $listener.Stop()
           Write-Host "Dynamic port: $port"
 
-          $mockServer = Start-Process -FilePath $mockServerExe -ArgumentList "--port $port" -PassThru -NoNewWindow
+          $mockServer = Start-Process -FilePath $mockServerExe -ArgumentList "--config mockserver_smoke.json --port $port --no-open-browser" -PassThru -NoNewWindow
 
           $ready = $false
           for ($i = 0; $i -lt 15; $i++) {
@@ -280,7 +280,7 @@ jobs:
           try {
             $stateDir = Join-Path $env:RUNNER_TEMP "jcc_smoke_skipmcp_$([System.Guid]::NewGuid().ToString('N'))"
             New-Item -ItemType Directory -Path $stateDir -Force | Out-Null
-            $settingsJson = '{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","models":[{"id":"gpt-4o","displayName":"GPT-4o","capabilities":{"modalities":["text"]}},{"id":"gpt-4o-mini","displayName":"GPT-4o Mini","capabilities":{"modalities":["text"]}}]},"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY","models":[{"id":"claude-sonnet-4-20250514","displayName":"Claude Sonnet 4","capabilities":{"modalities":["text"]}}]},"deepseek":{"protocol":"openai-compatible","apiKeyEnvVar":"DEEPSEEK_API_KEY","models":[{"id":"deepseek-v4-flash","displayName":"DeepSeek V4 Flash","capabilities":{"modalities":["text"]}}]}}}'
+            $settingsJson = '{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","models":[{"id":"gpt-4o","displayName":"GPT-4o","contextWindow":128000,"capabilities":{"modalities":["text"]}},{"id":"gpt-4o-mini","displayName":"GPT-4o Mini","contextWindow":128000,"capabilities":{"modalities":["text"]}}]},"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY","models":[{"id":"claude-sonnet-4-20250514","displayName":"Claude Sonnet 4","contextWindow":200000,"capabilities":{"modalities":["text"]}}]},"deepseek":{"protocol":"openai-compatible","apiKeyEnvVar":"DEEPSEEK_API_KEY","models":[{"id":"deepseek-v4-flash","displayName":"DeepSeek V4 Flash","contextWindow":128000,"capabilities":{"modalities":["text"]}}]}}}'
             [System.IO.File]::WriteAllText((Join-Path $stateDir "settings.json"), $settingsJson)
 
             $psi = [System.Diagnostics.ProcessStartInfo]::new()
@@ -290,6 +290,7 @@ jobs:
             $psi.EnvironmentVariables["OPENAI_API_KEY"] = "sk-test-ci-key"
             $psi.EnvironmentVariables["JCC_VENDOR"] = "openai"
             $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
+            $psi.EnvironmentVariables["JCC_PERMISSION_MODE"] = "bypass"
             $psi.EnvironmentVariables["JCC_SKIP_MCP_INIT"] = "1"
             $psi.EnvironmentVariables["JCC_SKIP_PLUGIN_SKILLS"] = "1"
             $psi.EnvironmentVariables["JCC_APP_DATA_FOLDER"] = $stateDir
@@ -374,7 +375,7 @@ jobs:
           $listener2.Stop()
           Write-Host "Dynamic port: $port"
 
-          $mockServer = Start-Process -FilePath $mockServerExe -ArgumentList "--port $port" -PassThru -NoNewWindow
+          $mockServer = Start-Process -FilePath $mockServerExe -ArgumentList "--config mockserver_smoke.json --port $port --no-open-browser" -PassThru -NoNewWindow
 
           $ready = $false
           for ($i = 0; $i -lt 15; $i++) {
@@ -396,7 +397,7 @@ jobs:
           try {
             $stateDir = Join-Path $env:RUNNER_TEMP "jcc_smoke_full_$([System.Guid]::NewGuid().ToString('N'))"
             New-Item -ItemType Directory -Path $stateDir -Force | Out-Null
-            $settingsJson = '{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","models":[{"id":"gpt-4o","displayName":"GPT-4o","capabilities":{"modalities":["text"]}},{"id":"gpt-4o-mini","displayName":"GPT-4o Mini","capabilities":{"modalities":["text"]}}]},"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY","models":[{"id":"claude-sonnet-4-20250514","displayName":"Claude Sonnet 4","capabilities":{"modalities":["text"]}}]},"deepseek":{"protocol":"openai-compatible","apiKeyEnvVar":"DEEPSEEK_API_KEY","models":[{"id":"deepseek-v4-flash","displayName":"DeepSeek V4 Flash","capabilities":{"modalities":["text"]}}]}}}'
+            $settingsJson = '{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","models":[{"id":"gpt-4o","displayName":"GPT-4o","contextWindow":128000,"capabilities":{"modalities":["text"]}},{"id":"gpt-4o-mini","displayName":"GPT-4o Mini","contextWindow":128000,"capabilities":{"modalities":["text"]}}]},"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY","models":[{"id":"claude-sonnet-4-20250514","displayName":"Claude Sonnet 4","contextWindow":200000,"capabilities":{"modalities":["text"]}}]},"deepseek":{"protocol":"openai-compatible","apiKeyEnvVar":"DEEPSEEK_API_KEY","models":[{"id":"deepseek-v4-flash","displayName":"DeepSeek V4 Flash","contextWindow":128000,"capabilities":{"modalities":["text"]}}]}}}'
             [System.IO.File]::WriteAllText((Join-Path $stateDir "settings.json"), $settingsJson)
 
             $psi = [System.Diagnostics.ProcessStartInfo]::new()
@@ -406,6 +407,7 @@ jobs:
             $psi.EnvironmentVariables["OPENAI_API_KEY"] = "sk-test-ci-key"
             $psi.EnvironmentVariables["JCC_VENDOR"] = "openai"
             $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
+            $psi.EnvironmentVariables["JCC_PERMISSION_MODE"] = "bypass"
             $psi.EnvironmentVariables["JCC_APP_DATA_FOLDER"] = $stateDir
             $psi.UseShellExecute = $false
             $psi.RedirectStandardOutput = $true

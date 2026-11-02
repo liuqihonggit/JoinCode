@@ -122,6 +122,26 @@ public static partial class ServiceRegistration {
             ? retryOptions.ToRetryConfig(isUnattended)
             : new RetryConfig();
 
+        // JCC_DISABLE_RETRY=true 时禁用 ResilientHttpExecutor 层重试（QueryEngine.IsRetryable 已检查此开关，
+        // 但 ResilientHttpExecutor 有独立重试循环，需在此设置 ShouldRetry 委托才能生效）
+        if (Environment.GetEnvironmentVariable("JCC_DISABLE_RETRY") is { } disableRetryVal
+            && (disableRetryVal.Equals("true", StringComparison.OrdinalIgnoreCase) || disableRetryVal == "1")) {
+            retryConfig = new RetryConfig {
+                MaxRetries = 0,
+                BaseDelay = retryConfig.BaseDelay,
+                MaxDelay = retryConfig.MaxDelay,
+                Strategy = retryConfig.Strategy,
+                ShouldRetry = _ => false,
+                TotalBudget = retryConfig.TotalBudget,
+                PauseBudgetOnNetworkUnavailable = retryConfig.PauseBudgetOnNetworkUnavailable,
+                RetryAfterExtractor = retryConfig.RetryAfterExtractor,
+                SingleDelayCap = retryConfig.SingleDelayCap,
+                HeartbeatInterval = retryConfig.HeartbeatInterval,
+                HeartbeatCallback = retryConfig.HeartbeatCallback,
+                TransientErrorPredicate = retryConfig.TransientErrorPredicate,
+            };
+        }
+
         if (isUnattended) {
             retryConfig = new RetryConfig {
                 MaxRetries = retryConfig.MaxRetries,

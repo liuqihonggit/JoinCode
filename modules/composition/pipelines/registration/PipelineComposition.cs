@@ -56,13 +56,13 @@ public static class PipelineComposition {
                 .Use(sp.GetRequiredService<AuditLogMiddleware>())
                 .Use(sp.GetRequiredService<TokenBudgetMiddleware>())
                 .Use(sp.GetRequiredService<ModalityValidationMiddleware>())
+                .Use(sp.GetRequiredService<TranscriptPersistMiddleware>())
                 .Use(sp.GetRequiredService<PreChatMiddleware>())
                 .Use(sp.GetRequiredService<QueryLoopMiddleware>())
                 .Use(sp.GetRequiredService<LoopInterventionMiddleware>())
                 .Use(sp.GetRequiredService<ProcessUsageMiddleware>())
                 .Use(sp.GetRequiredService<CleanupInjectionsMiddleware>())
                 .Use(sp.GetRequiredService<SaveContextMiddleware>())
-                .Use(sp.GetRequiredService<TranscriptPersistMiddleware>())
                 .WithHooks(sp)
                 .Build());
 

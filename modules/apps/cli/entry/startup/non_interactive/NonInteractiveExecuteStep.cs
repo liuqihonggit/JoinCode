@@ -78,6 +78,7 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
                 Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
                 if (retryable)
                     Cli.TerminalHelper.WriteLine("  此错误通常可重试，请稍后重试。");
+                Cli.TerminalHelper.WriteLine("  请检查：1. API Key 配置  2. 网络连接  3. API 服务状态");
                 Cli.TerminalHelper.WriteLine($"  详细日志: {errorLog}");
             }
             context.ExitCode = (int)ExitCode.GeneralError;

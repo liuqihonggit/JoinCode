@@ -39,7 +39,21 @@ internal sealed class OpenAiChoice {
 
 internal sealed class OpenAiMessage {
     public string Role { get; set; } = "assistant";
-    public string Content { get; set; } = "";
+    public string? Content { get; set; }
+#pragma warning disable JCC11002
+    public List<ToolCallDto>? ToolCalls { get; set; }
+#pragma warning restore JCC11002
+}
+
+internal sealed class ToolCallDto {
+    public string Id { get; set; } = "";
+    public string Type { get; set; } = "function";
+    public ToolCallFunctionDto Function { get; set; } = new();
+}
+
+internal sealed class ToolCallFunctionDto {
+    public string Name { get; set; } = "";
+    public string Arguments { get; set; } = "{}";
 }
 
 internal sealed class OpenAiUsage {
@@ -65,4 +79,19 @@ internal sealed class StreamChoice {
 internal sealed class StreamDelta {
     public string? Role { get; set; }
     public string? Content { get; set; }
+#pragma warning disable JCC11002
+    public List<StreamToolCallDelta>? ToolCalls { get; set; }
+#pragma warning restore JCC11002
+}
+
+internal sealed class StreamToolCallDelta {
+    public int Index { get; set; }
+    public string? Id { get; set; }
+    public string? Type { get; set; }
+    public StreamToolCallFunctionDelta? Function { get; set; }
+}
+
+internal sealed class StreamToolCallFunctionDelta {
+    public string? Name { get; set; }
+    public string? Arguments { get; set; }
 }

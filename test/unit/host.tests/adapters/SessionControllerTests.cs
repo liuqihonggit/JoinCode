@@ -386,7 +386,9 @@ public sealed class SessionControllerTests {
         contextManager.SetupGet(c => c.SessionId).Returns("test-session");
         contextManager.Setup(c => c.AddAssistantMessageAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         contextManager.Setup(c => c.SaveContextAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+        // startSnapshot 在 PreProcess 前取（空），结束 snapshot 含 user+assistant
+        contextManager.SetupSequence(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MessageList([]))
             .ReturnsAsync(new MessageList([
                 new ApiMessage { Role = MessageRole.User, Content = "test" },
                 new ApiMessage { Role = MessageRole.Assistant, Content = "Hello" },

@@ -14,7 +14,8 @@ public sealed class Program {
             var configPath = ParseArgument(args, "--config") ?? "mockserver.json";
             var portArg = ParseArgument(args, "--port");
             var noOpenBrowser = Array.IndexOf(args, "--no-open-browser") >= 0;
-            LogMain($"[OpenAI.MockServer] configPath={configPath}, portArg={portArg}, openBrowser={!noOpenBrowser}");
+            var interactive = Array.IndexOf(args, "--interactive") >= 0;
+            LogMain($"[OpenAI.MockServer] configPath={configPath}, portArg={portArg}, openBrowser={!noOpenBrowser}, interactive={interactive}");
             var config = await MockServerConfig.LoadFromFileOrDefault(configPath).ConfigureAwait(true);
 
             var port = int.TryParse(portArg, out var p) ? p : config.Port;
@@ -32,6 +33,11 @@ public sealed class Program {
                 ShutdownEvent.Set();
             };
             await server.StartAsync().ConfigureAwait(true);
+
+            // Interactive 模式：请求挂起等待 responder 注入响应，避免 Replay 模式下注入被下一个请求消费（off-by-one）
+            // 仅在 --interactive 参数启用（手动 responder 场景）；e2e 测试用 Replay 脚本，不启用
+            if (interactive)
+                server.Controller.SetInteractiveMode();
 
             // 睡眠/唤醒监控 — 通用 SleepWakeMonitor，唤醒后检查 Kestrel 健康
             global::MockServer.Core.SleepWakeMonitor.OnResume(() => {

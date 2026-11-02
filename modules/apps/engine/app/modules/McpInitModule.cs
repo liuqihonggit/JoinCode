@@ -29,15 +29,19 @@ public sealed class McpInitModule : IAppModule {
     /// <returns>表示异步操作的任务</returns>
     public async Task ConfigureAsync(IServiceProvider services, CancellationToken ct) {
         var logger = services.GetService<ILogger<McpInitModule>>();
+        var options = services.GetService<CommandLineOptions>();
 
         var remoteClientManager = services.GetRequiredService<RemoteClientManager>();
         var syncBridge = services.GetRequiredService<McpToolSyncBridge>();
+
+        var skipChat = options?.SkipChatServices ?? false;
 
         // async void 事件处理器必须 try/catch — 否则异常逃逸到同步上下文导致进程崩溃
         remoteClientManager.ToolsListChanged += async (_, _) => {
             try {
                 await syncBridge.OnToolsListChangedAsync().ConfigureAwait(false);
-                await RefreshKernelPluginsAsync(services, logger).ConfigureAwait(false);
+                if (!skipChat)
+                    await RefreshKernelPluginsAsync(services, logger).ConfigureAwait(false);
             } catch (Exception ex) { logger?.LogError(ex, "[MCP] OnToolsListChanged handler failed"); }
         };
 
@@ -49,7 +53,8 @@ public sealed class McpInitModule : IAppModule {
             try { await syncBridge.OnPromptsListChangedAsync(args.ClientId, args.SyncResult).ConfigureAwait(false); } catch (Exception ex) { logger?.LogError(ex, "[MCP] OnPromptsListChanged handler failed"); }
         };
 
-        services.WirePluginSkillBridge();
+        if (!skipChat)
+            services.WirePluginSkillBridge();
 
         // 启动开销优化（TASK037 后续）— 八插件加载后台化：启动不阻塞等待加载墙钟（实测 ~1.6s，
         // mcpInit 插件 MCP 客户端握手为关键路径）；工具就绪后就绪钩子自动补齐
@@ -58,7 +63,7 @@ public sealed class McpInitModule : IAppModule {
         services.GetRequiredService<McpPluginBootstrapHandle>()
             .Run(ct => McpPluginBootstrap.StartAsync(
                 ct => StartPluginLoads(services, logger, ct),
-                ct => OnPluginsReadyAsync(services, logger, ct),
+                ct => OnPluginsReadyAsync(services, logger, ct, skipChat),
                 ct));
     }
 
@@ -94,7 +99,7 @@ public sealed class McpInitModule : IAppModule {
 
     /// <summary>插件就绪钩子 — 全部加载成功后同步工具列表 + 刷新 kernel.Plugins
     /// （原 ConfigureAsync 尾部逻辑原样迁移；异常由 Bootstrap SafeAsync 兜底吞掉）。</summary>
-    private static async Task OnPluginsReadyAsync(IServiceProvider services, ILogger? logger, CancellationToken ct) {
+    private static async Task OnPluginsReadyAsync(IServiceProvider services, ILogger? logger, CancellationToken ct, bool skipChat) {
         // 所有工具注册完成后，同步工具列表 + 刷新 kernel.Plugins
         try {
             var toolsBridge = services.GetRequiredService<Core.DependencyInjection.McpToolSyncBridge>();
@@ -106,7 +111,9 @@ public sealed class McpInitModule : IAppModule {
         // 把 IToolRegistry 中的工具挂载到 kernel.Plugins — 修复断裂的工具管线
         // McpToolBridge.CreatePluginAsync 从 IToolRegistry 提取所有工具（含 SlashToMcpAdapter 注册的斜杠命令）
         // 挂载到 IChatClient.Plugins 后，AnthropicQueryService/OpenAIQueryService 能通过 BuildXxxToolsFromKernel 构建工具列表发送给 LLM
-        await RefreshKernelPluginsAsync(services, logger).ConfigureAwait(false);
+        // SkipChatServices 模式（gh/mcp_call 等工具元命令）不需要 kernel.Plugins，跳过 IChatClient 构造
+        if (!skipChat)
+            await RefreshKernelPluginsAsync(services, logger).ConfigureAwait(false);
     }
 
     /// <summary>

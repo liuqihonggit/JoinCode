@@ -50,8 +50,8 @@ public sealed class EngineSessionFactory {
         /// <summary>DI 服务提供者 — 用于解析 IExecutionSettingsProvider、IConfigurationService 等辅助服务</summary>
         public required IServiceProvider Services { get; init; }
 
-        /// <summary>聊天服务 — GUI StreamAsync / CLI NonInteractive 的主通道</summary>
-        public required IChatService ChatService { get; init; }
+        /// <summary>聊天服务 — GUI StreamAsync / CLI NonInteractive 的主通道；null 表示 SkipChatServices 模式（工具元命令不需要）</summary>
+        public IChatService? ChatService { get; init; }
 
         /// <summary>工作流配置 — CLI/GUI 读写 Vendor/ModelId 的共享实例</summary>
         public required WorkflowConfig Config { get; init; }
@@ -146,7 +146,9 @@ public sealed class EngineSessionFactory {
         if (!options.SkipModelFetch)
             StartModelFetchBackground(fs, host.Services, cancellationToken);
 
-        var chatService = host.Services.GetRequiredService<IChatService>();
+        var chatService = options.SkipChatServices
+            ? null
+            : host.Services.GetRequiredService<IChatService>();
 
         return new Result {
             Services = host.Services,

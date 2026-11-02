@@ -11,19 +11,23 @@ namespace McpToolDispatch;
 /// </summary>
 [McpToolDispatch(ToolCategory.Skill)]
 public class SkillToolHandlers {
-    private readonly ISkillService _skillService;
+    private readonly IServiceProvider _serviceProvider;
     private readonly IAgentService? _agentService;
     private readonly ArgumentSubstitutor _argumentSubstitutor = new();
     private readonly ILogger<SkillToolHandlers>? _logger;
+    private ISkillService? _skillService;
+
+    /// <summary>懒解析 ISkillService — 首次调用技能工具时才构造，避免 IToolRegistry 解析链提前触发</summary>
+    private ISkillService SkillService => _skillService ??= _serviceProvider.GetRequiredService<ISkillService>();
 
     /// <summary>
     /// 初始化 <see cref="SkillToolHandlers"/> 实例
     /// </summary>
-    /// <param name="skillService">技能服务</param>
+    /// <param name="serviceProvider">DI 服务提供者（懒解析 ISkillService）</param>
     /// <param name="agentService">智能体服务（可选，用于 fork 模式执行）</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public SkillToolHandlers(ISkillService skillService, IAgentService? agentService = null, ILogger<SkillToolHandlers>? logger = null) {
-        _skillService = skillService ?? throw new ArgumentNullException(nameof(skillService));
+    public SkillToolHandlers(IServiceProvider serviceProvider, IAgentService? agentService = null, ILogger<SkillToolHandlers>? logger = null) {
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _agentService = agentService;
         _logger = logger;
     }
@@ -43,12 +47,12 @@ public class SkillToolHandlers {
 
         var skillName = skill.TrimStart('/');
 
-        if (!_skillService.SkillExists(skillName)) {
+        if (!SkillService.SkillExists(skillName)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.SkillNotFound, skillName)).Build();
         }
 
         // 获取技能定义 — 在执行前检查执行模式
-        var skillDef = await _skillService.GetSkillAsync(skillName, cancellationToken).ConfigureAwait(false);
+        var skillDef = await SkillService.GetSkillAsync(skillName, cancellationToken).ConfigureAwait(false);
 
         // 参数权限验证 — 对齐 TS SkillTool.validateInput + checkPermissions
         var validation = ValidateSkillInvocation(skillName, skillDef);
@@ -84,7 +88,7 @@ public class SkillToolHandlers {
         }
 
         var ctx = new ExecutionContext(cancellationToken);
-        var result = await _skillService.ExecuteAsync(skillName, parameters, ctx).ConfigureAwait(false);
+        var result = await SkillService.ExecuteAsync(skillName, parameters, ctx).ConfigureAwait(false);
 
         var response = new StringBuilder(256);
         response.AppendLine(L.T(StringKey.LabelSkill, result.SkillName));
@@ -149,12 +153,12 @@ public class SkillToolHandlers {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.SkillNameCannotBeEmpty)).Build();
         }
 
-        if (!_skillService.SkillExists(skill_name)) {
+        if (!SkillService.SkillExists(skill_name)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.SkillNotFound, skill_name)).Build();
         }
 
         var ctx = new ExecutionContext(cancellationToken);
-        var result = await _skillService.ExecuteAsync(skill_name, parameters, ctx).ConfigureAwait(false);
+        var result = await SkillService.ExecuteAsync(skill_name, parameters, ctx).ConfigureAwait(false);
 
         var response = new StringBuilder(256);
         response.AppendLine(L.T(StringKey.LabelSkill, result.SkillName));
@@ -186,7 +190,7 @@ public class SkillToolHandlers {
     [McpTool(SkillToolNameEnumConstants.SkillList, "List all available skills", "skill")]
     public async Task<ToolResult> SkillListAsync(
         CancellationToken cancellationToken = default) {
-        var skills = await _skillService.GetAvailableSkillsAsync(cancellationToken).ConfigureAwait(false);
+        var skills = await SkillService.GetAvailableSkillsAsync(cancellationToken).ConfigureAwait(false);
 
         var response = new StringBuilder(512);
         response.AppendLine(L.T(StringKey.AvailableSkills, skills.Count));

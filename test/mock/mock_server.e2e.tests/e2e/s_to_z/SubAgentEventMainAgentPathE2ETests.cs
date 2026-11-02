@@ -81,8 +81,9 @@ public sealed class SubAgentEventMainAgentPathE2ETests {
                 }
 
                 var consumer = new RecordingSubagentConsumer();
+                var chatService = session.ChatService ?? throw new InvalidOperationException("ChatService 不应为 null");
                 var controller = new JoinCode.Adapters.SessionController(
-                    session.ChatService, consumer, new JoinCode.Cli.TurnDiffService(),
+                    chatService, consumer, new JoinCode.Cli.TurnDiffService(),
                     session.SessionId, session.Services, mainAgent: mainAgent);
 
                 var result = await controller.StreamResponseAsync("帮我检查项目中的README文件", ct).ConfigureAwait(true);

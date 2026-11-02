@@ -114,7 +114,8 @@ public sealed class SubAgentEventStreamE2ETests {
                 }
 
                 var events = new List<ChatStreamEvent>();
-                await foreach (var evt in session.ChatService.StreamWithEventsAsync(
+                var chatService = session.ChatService ?? throw new InvalidOperationException("ChatService 不应为 null");
+                await foreach (var evt in chatService.StreamWithEventsAsync(
                     "帮我检查项目中的README文件", ct).ConfigureAwait(true)) {
                     events.Add(evt);
                     if (evt.Type == ChatStreamEventType.Content)

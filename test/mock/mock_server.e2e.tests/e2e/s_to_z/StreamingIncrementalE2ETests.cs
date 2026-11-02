@@ -71,7 +71,8 @@ public sealed class StreamingIncrementalE2ETests {
 
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();
                 var timings = new List<long>();
-                await foreach (var evt in session.ChatService.StreamWithEventsAsync(
+                var chatService = session.ChatService ?? throw new InvalidOperationException("ChatService 不应为 null");
+                await foreach (var evt in chatService.StreamWithEventsAsync(
                     "给我讲一个很长的故事", ct).ConfigureAwait(true)) {
                     if (evt.Type == ChatStreamEventType.Content) {
                         timings.Add(stopwatch.ElapsedMilliseconds);

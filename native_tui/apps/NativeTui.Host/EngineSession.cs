@@ -86,6 +86,11 @@ public sealed class EngineSession : IAsyncDisposable {
                 backgroundPump = new BackgroundTaskEventPump(forkManager, teammateExecutor);
             }
 
+            // TUI 需要完整聊天服务 — ChatService 为 null 时无法运行
+            if (engine.ChatService is null)
+                throw new InvalidOperationException("TUI 模式需要聊天服务，但 ChatService 为 null");
+            var chatService = engine.ChatService;
+
             // 首次 submit 时绑定回合驱动器 — consumer 即进程内事件出口（client 构造，全程同一实例，对齐 BridgeServeCommand 先例）
             SessionController? controller = null;
             var client = new EngineTurnClient(
@@ -96,7 +101,7 @@ public sealed class EngineSession : IAsyncDisposable {
                     }
 
                     controller ??= new SessionController(
-                        engine.ChatService, consumer, new TurnDiffService(), engine.SessionId, engine.Services,
+                        chatService, consumer, new TurnDiffService(), engine.SessionId, engine.Services,
                         mainAgent: mainAgent);
                     return RunTurnAsync(controller, input, turnCt);
                 },
@@ -105,7 +110,7 @@ public sealed class EngineSession : IAsyncDisposable {
                 // G3 D8 — 新会话启动器绑定引擎真实 API：IChatService.ClearHistoryAsync（IChatService.cs:23，
                 // 与引擎 /clear 斜杠命令 ClearCommand.ExecuteAsync 同一落点 — 清对话上下文即 D8 Clear 语义）；
                 // EngineTurnClient 在下回合执行器前串行等待完成（防清历史与回合读上下文竞态）
-                () => engine.ChatService.ClearHistoryAsync(CancellationToken.None));
+                () => chatService.ClearHistoryAsync(CancellationToken.None));
 
             if (backgroundPump is not null) {
                 backgroundPump.Bind(client.Consumer);

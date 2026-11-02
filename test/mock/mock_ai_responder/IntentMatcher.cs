@@ -961,6 +961,195 @@ internal static class IntentMatcher {
                 }
             }], "X9: 工具参数包含 ISO 8601 日期");
         }
+        if (lower.Contains("y1") || lower.Contains("parallel calls") || lower.Contains("并行调用")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo y1a"}"""
+                }
+            }, new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo y1b"}"""
+                }
+            }], "Y1: 单次响应包含多个并行工具调用");
+        }
+        if (lower.Contains("y2") || lower.Contains("missing args field") || lower.Contains("缺失arguments字段")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = null
+                }
+            }], "Y2: 工具调用 arguments 字段缺失（null）");
+        }
+        if (lower.Contains("y3") || lower.Contains("empty function name") || lower.Contains("空函数名")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "",
+                    Arguments = """{"command": "echo y3"}"""
+                }
+            }], "Y3: 工具调用函数名为空字符串");
+        }
+        if (lower.Contains("y4") || lower.Contains("missing id") || lower.Contains("缺失id")) {
+            return ([new ToolCallDto {
+                Id = "",
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo y4"}"""
+                }
+            }], "Y4: 工具调用 ID 为空字符串");
+        }
+        if (lower.Contains("y5") || lower.Contains("null content") || lower.Contains("null内容")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo y5"}"""
+                }
+            }], "Y5: 响应 content 为 null（工具调用本身）");
+        }
+        if (lower.Contains("y6") || lower.Contains("null in args") || lower.Contains("参数含null")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": null}"""
+                }
+            }], "Y6: 工具参数 command 值为 null");
+        }
+        if (lower.Contains("y7") || lower.Contains("empty string param") || lower.Contains("空字符串参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": ""}"""
+                }
+            }], "Y7: 工具参数 command 为空字符串");
+        }
+        if (lower.Contains("y8") || lower.Contains("number for string param") || lower.Contains("数字代替字符串")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": 12345}"""
+                }
+            }], "Y8: 工具参数 command 为数字而非字符串");
+        }
+        if (lower.Contains("y9") || lower.Contains("boolean for string param") || lower.Contains("布尔代替字符串")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": true}"""
+                }
+            }], "Y9: 工具参数 command 为布尔值");
+        }
+        if (lower.Contains("y10") || lower.Contains("array for string param") || lower.Contains("数组代替字符串")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": ["echo", "y10"]}"""
+                }
+            }], "Y10: 工具参数 command 为数组");
+        }
+        if (lower.Contains("y11") || lower.Contains("object for string param") || lower.Contains("对象代替字符串")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": {"nested": "value"}}"""
+                }
+            }], "Y11: 工具参数 command 为对象");
+        }
+        if (lower.Contains("y12") || lower.Contains("whitespace only args") || lower.Contains("纯空白参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = "   "
+                }
+            }], "Y12: 工具参数为纯空白字符");
+        }
+        if (lower.Contains("y13") || lower.Contains("args as array") || lower.Contains("参数为数组")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = "[]"
+                }
+            }], "Y13: 工具参数为 JSON 空数组");
+        }
+        if (lower.Contains("y14") || lower.Contains("args as boolean") || lower.Contains("参数为布尔")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = "true"
+                }
+            }], "Y14: 工具参数为 JSON 布尔值 true");
+        }
+        if (lower.Contains("y15") || lower.Contains("args as null") || lower.Contains("参数为null")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = "null"
+                }
+            }], "Y15: 工具参数为 JSON null");
+        }
+        if (lower.Contains("y16") || lower.Contains("long id") || lower.Contains("超长id")) {
+            var longId = new string('a', 1000);
+            return ([new ToolCallDto {
+                Id = longId,
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo y16"}"""
+                }
+            }], "Y16: 工具调用 ID 超长（1000字符）");
+        }
+        if (lower.Contains("y17") || lower.Contains("id with spaces") || lower.Contains("id含空格")) {
+            return ([new ToolCallDto {
+                Id = "call with spaces and quotes",
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo y17"}"""
+                }
+            }], "Y17: 工具调用 ID 包含空格和引号");
+        }
+        if (lower.Contains("y18") || lower.Contains("all ascii") || lower.Contains("全ascii")) {
+            var ascii = new StringBuilder();
+            for (var c = 32; c < 127; c++) ascii.Append((char)c);
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = JsonSerializer.Serialize(new { command = $"echo '{ascii}'" })
+                }
+            }], "Y18: 工具参数包含全部 ASCII 可打印字符");
+        }
+        if (lower.Contains("y19") || lower.Contains("unicode bom") || lower.Contains("bom头")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo '\uFEFFy19'"}"""
+                }
+            }], "Y19: 工具参数包含 Unicode BOM");
+        }
+        if (lower.Contains("y20") || lower.Contains("zero width") || lower.Contains("零宽字符")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo 'y\u200B\u200C\u200D20'"}"""
+                }
+            }], "Y20: 工具参数包含零宽字符");
+        }
         return (null, "");
     }
 

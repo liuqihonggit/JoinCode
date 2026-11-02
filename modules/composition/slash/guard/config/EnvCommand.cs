@@ -40,7 +40,7 @@ public sealed class EnvCommand : ChatCommandBase {
             var name = entry.Key.ToString() ?? "";
             var value = entry.Value?.ToString() ?? "";
             if (value.Length > 120)
-                value = value[..117] + "...";
+                value = value.SafeTruncate(117);
 
             TerminalHelper.WriteLine($"  {TerminalColors.Accent}{name}{AnsiStyleEnumConstants.Reset}={value}");
             shown++;

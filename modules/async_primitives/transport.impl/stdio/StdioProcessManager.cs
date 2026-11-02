@@ -79,7 +79,7 @@ public sealed partial class StdioProcessManager : IAsyncDisposable {
         if (_stdinWriter == null)
             throw new InvalidOperationException("[TRN010] 进程未启动");
 
-        _logger?.LogDebug("[StdioManager] 发送: {Message}", message.Length > 100 ? message[..100] + "..." : message);
+        _logger?.LogDebug("[StdioManager] 发送: {Message}", message.SafeTruncate(100));
 
         await _stdinWriter.WriteLineAsync(message.AsMemory(), ct).ConfigureAwait(false);
         await _stdinWriter.FlushAsync(ct).ConfigureAwait(false);
@@ -212,7 +212,7 @@ public sealed partial class StdioProcessManager : IAsyncDisposable {
                 if (line == null) break;
 
                 await _outputChannel.AddAsync(line, ct).ConfigureAwait(false);
-                _logger?.LogTrace("[StdioManager] stdout: {Line}", line.Length > 200 ? line[..200] + "..." : line);
+                _logger?.LogTrace("[StdioManager] stdout: {Line}", line.SafeTruncate(200));
             }
         } catch (OperationCanceledException) { } catch (TimeoutException) {
             _logger?.LogDebug("[StdioManager] stdout 读取超时，退出读取循环");

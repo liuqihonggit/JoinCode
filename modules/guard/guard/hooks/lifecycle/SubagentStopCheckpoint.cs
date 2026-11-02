@@ -99,7 +99,7 @@ public sealed partial class SubagentStopCheckpoint : ServiceEntity, ISubagentSto
             if (result.ExitCode != 0) {
                 violations.Add(new CheckpointViolation {
                     Rule = "build-must-pass",
-                    Message = $"编译失败: {(result.Output?.Length > 200 ? result.Output[..200] + "..." : result.Output)}",
+                    Message = $"编译失败: {(result.Output?.Length > 200 ? result.Output.SafeTruncate(200) : result.Output)}",
                     Severity = "error"
                 });
             }

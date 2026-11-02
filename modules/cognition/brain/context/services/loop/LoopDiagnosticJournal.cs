@@ -243,7 +243,7 @@ public sealed record LoopAnomalyRecord {
             data["entropy"] = Entropy.Value.ToString("F4");
 
         if (TextSnippet is not null)
-            data["text_snippet"] = TextSnippet.Length > 200 ? TextSnippet[..200] + "..." : TextSnippet;
+            data["text_snippet"] = TextSnippet.SafeTruncate(200);
 
         return data;
     }

@@ -152,12 +152,12 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
                 if (msg.Role == MessageRole.User && !string.IsNullOrEmpty(msg.Content)) {
                     var content = msg.Content.Trim();
                     if (content.Length > 200)
-                        content = content[..200] + "...";
+                        content = content.SafeTruncate(200);
                     userMessages.Add(content);
                 } else if (msg.Role == MessageRole.Assistant && !string.IsNullOrEmpty(msg.Content)) {
                     var content = msg.Content.Trim();
                     if (content.Length > 150)
-                        content = content[..150] + "...";
+                        content = content.SafeTruncate(150);
                     if (!string.IsNullOrWhiteSpace(content))
                         assistantSnippets.Add(content);
                 } else if (msg.Role == MessageRole.Tool) {

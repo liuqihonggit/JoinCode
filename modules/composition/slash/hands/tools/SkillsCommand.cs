@@ -102,7 +102,7 @@ public sealed class SkillsCommand : IChatCommand {
         TerminalHelper.WriteLine($"禁用模型调用: {(match.DisableModelInvocation ? "是" : "否")}");
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine("内容预览:");
-        var preview = match.Content.Length > 200 ? match.Content[..200] + "..." : match.Content;
+        var preview = match.Content.Length > 200 ? match.Content.SafeTruncate(200) : match.Content;
         TerminalHelper.WriteLine($"  {preview}");
     }
 
@@ -131,7 +131,7 @@ public sealed class SkillsCommand : IChatCommand {
         TerminalHelper.WriteLine($"禁用模型调用: {(match.DisableModelInvocation ? "是" : "否")}");
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine("内容预览:");
-        var preview = match.Content.Length > 200 ? match.Content[..200] + "..." : match.Content;
+        var preview = match.Content.Length > 200 ? match.Content.SafeTruncate(200) : match.Content;
         TerminalHelper.WriteLine($"  {preview}");
     }
 

@@ -264,7 +264,7 @@ public static class TerminalHelper {
         var result = _consoleActor is not null
             ? _consoleActor.ReadLine()
             : (System.Console.ReadLine() ?? string.Empty);
-        Diag.WriteLifecycle($"[DIAG-TERM] ReadLine: returned '{(result.Length > 60 ? result[..60] + "..." : result)}'");
+        Diag.WriteLifecycle($"[DIAG-TERM] ReadLine: returned '{(result.SafeTruncate(60))}'");
         return result;
     }
 

@@ -48,7 +48,7 @@ public sealed record ScanResult {
                 sb.AppendLine($"    行号: {finding.LineNumber}");
             sb.AppendLine($"    匹配模式: {finding.MatchedPattern}");
             var truncated = finding.MatchedContent.Length > 40
-                ? finding.MatchedContent[..40] + "..."
+                ? finding.MatchedContent.SafeTruncate(40)
                 : finding.MatchedContent;
             sb.AppendLine($"    匹配内容: {truncated}");
             sb.AppendLine();

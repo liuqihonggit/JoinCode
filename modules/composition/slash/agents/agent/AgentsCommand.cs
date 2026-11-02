@@ -85,7 +85,7 @@ public sealed class AgentsCommand : ChatCommandBase {
             foreach (var agent in agentList) {
                 var bgMarker = agent.IsBackground ? " [后台]" : "";
                 var desc = string.IsNullOrEmpty(agent.Description) ? agent.WhenToUse : agent.Description;
-                var shortDesc = desc.Length > 60 ? desc[..60] + "..." : desc;
+                var shortDesc = desc.SafeTruncate(60);
                 TerminalHelper.WriteLine($"    {agent.DisplayId}{bgMarker}");
                 TerminalHelper.WriteLine($"      {shortDesc}");
             }

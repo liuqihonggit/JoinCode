@@ -105,7 +105,7 @@ public sealed partial class CompactHistoryHandler : ServiceEntity, IChatAdminOpe
 
             foreach (var todo in result.Todos) {
                 var statusMarker = todo.Status.Equals(completedValue, StringComparison.OrdinalIgnoreCase) ? "[x]" : "[ ]";
-                var content = todo.Content.Length > 100 ? todo.Content[..100] + "..." : todo.Content;
+                var content = todo.Content.Length > 100 ? todo.Content.SafeTruncate(100) : todo.Content;
                 sb.AppendLine($"  {statusMarker} {content} (优先级: {todo.Priority})");
             }
 

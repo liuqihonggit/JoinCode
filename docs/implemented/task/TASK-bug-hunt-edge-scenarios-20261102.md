@@ -486,3 +486,30 @@ D9 错误消息从 "模型返回空回复" 改为 "模型回复被安全过滤�
 |---------|--------|--------|--------|
 | responder I1-I20 场景 | IntentMatcher.EdgeI.cs | ✅ | ✅ 手动 exe 验收 |
 | 匹配冲突修复 | IntentMatcher.cs + EdgeI.cs | ✅ | ✅ I1-I20 全部通过 |
+
+## 不舒服点修复（2026-11-03）
+
+### 修复清单
+
+| # | 不舒服点 | 根因 | 修复 | commit |
+|---|---------|------|------|--------|
+| 1 | jcc 启动卡 30 秒 | ModelListFetcher 遍历全部 7 个 profile 并行拉取, JCC_ENDPOINT 只覆盖一个, 其余指向 api.openai.com | 新增 JCC_SKIP_MODEL_FETCH=1 环境变量跳过 model fetch | `18e182aba` |
+| 2 | 错误消息泄露用户路径 | hint 包含绝对路径 C:\Users\XXX\.jcc\runtime\jcc_error.log | XdgPathResolver.ShortenPath 将主目录替换为 ~ | `18e182aba` |
+| 3 | 非交互模式提示按 Esc | "请按 Esc 打断后重试" 在 --non-interactive 模式无意义 | 移除 Esc 提示, 改为通用 "请重试" | `a01011af2` |
+| 4 | responder lastSeenIndex 不重置 | MockServer clear 后 responder lastSeenIndex 保持高值, 新请求 index 从 0 被过滤 | 检测请求列表为空或全部 index <= lastSeenIndex 时重置 | `183bf4aac` |
+
+### 回归测试
+
+| 域 | 测试数 | 结果 |
+|----|--------|------|
+| Host | 1516 | ✅ 全通过 |
+| LLM | 609 | ✅ 全通过 |
+| Agents | 626 | ✅ 全通过 |
+| Hands.Shell | 526 | ✅ 全通过 |
+| Brain.Prompts | 212 | ✅ 全通过 |
+| Brain.Context | 950 | ✅ 全通过 |
+| Guard.Security | 1136 | ✅ 全通过 |
+| Guard.Config | 1306 | ✅ 全通过 |
+| McpToolDispatch | 523 | ✅ 全通过 |
+| Mcp | 1023 | ✅ 全通过 |
+| **总计** | **8427** | **0 失败** |

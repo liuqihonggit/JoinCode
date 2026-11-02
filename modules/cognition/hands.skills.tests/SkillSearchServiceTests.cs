@@ -7,7 +7,9 @@ public sealed class SkillSearchServiceTests {
 
     public SkillSearchServiceTests() {
         _skillServiceMock = new Mock<ISkillService>();
-        _service = new SkillSearchService(_skillServiceMock.Object);
+        var spMock = new Mock<IServiceProvider>();
+        spMock.Setup(sp => sp.GetService(typeof(ISkillService))).Returns(_skillServiceMock.Object);
+        _service = new SkillSearchService(spMock.Object);
     }
 
     private static SkillDefinition CreateSkill(string name, string description, List<string>? tags = null, string? ns = null) {

@@ -300,6 +300,7 @@
 | 禁止跳过 | 即使只改了一个注释，也必须走完整个流水线 |
 | 禁止单元测试不通过 | 单元测试不通过 = 不允许提交 |
 | 允许 push（非 main/master） | LLM 可 `git commit` + `git push` 到功能分支；禁止 force push 到 main/master |
+| **PR 创建后只 commit 不 push** | 用户让创建 PR 后即进入 PR 中状态，后续接续任务**只允许 `git commit`，禁止 `git push`**（避免触发 CI 重跑、浪费配额）。push 须等用户明确指示 |
 | HEREDOC 禁令 | PowerShell 不支持 HEREDOC。`git commit` 用多个 `-m` 参数；`gh pr create --body` 用双引号多行字符串 `--body "line1\nline2"`；Shell命令中HEREDOC由 `HeredocRewriter` 自动检测并转换为双引号字符串（优先级200，无需手动处理） |
 | 特殊字符禁令 | commit 消息禁止 `$`、反引号、三引号 |
 | ⚠️ 源码生成器 + 增量编译 | `dotnet build` 默认增量编译，会缓存生成器输出。**新增/修改 `[Register]` 类后必须用 `--no-incremental` 全量重建**，否则生成器不会重新扫描新类型 |
@@ -411,6 +412,8 @@
 | 类拆分 | 字段太多时拆成多个类，封装层次更清晰 |
 | 枚举扩展 | 用 `[EnumValue]` + 源码生成器遍历特性收集函数，实现扩展 |
 | **禁止元组作为公开 API** | 公开接口/回调签名/DTO 字段禁止用 `ValueTuple`/`(T1,T2)` 元组，必须定义具名 `record`/`class` DTO。元组仅限内部临时计算。**用户明确厌恶元组** — 可读性差、无语义、重构困难 |
+| **⛔ 禁止 `#pragma warning disable` 抑制分析器** | 分析器报错必须真正修复根因，禁止用 `#pragma warning disable` / `[SuppressMessage]` 抑制。JCC9001(绕过 IFileSystem)/JCC9308(事件未取消)/JCC9305(资源未释放)/JCC3013(空 catch) 等必须按规范修复 |
+| **⛔ 禁止 `!` null-forgiving 运算符** | 禁止 `xx!.Member`，用 `if (xx is null) return;` / `if (xx is null) throw new(...)` 代替。断言后仍需显式 null 检查，不依赖 `!` 绕过可空分析 |
 
 ### 数据容器选型规范（AOT编译 + GC释放效率优先）
 

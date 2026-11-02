@@ -43,6 +43,28 @@ public class OpenAIQueryService : QueryServiceBase {
         return response.Choices.Select(c => ConvertToApiMessage(c, response.Usage)).ToList();
     }
 
+    /// <summary>处理流式 tool_call delta — 累积到 toolCallAccumulator，支持 Index 缺失/Id 匹配/Name 更新</summary>
+    private static void ProcessToolCallDelta(OpenAIToolCall tc, Dictionary<int, (string Id, string Name, StringBuilder Arguments)> toolCallAccumulator) {
+        var idx = tc.Index ?? 0;
+
+        if (!string.IsNullOrEmpty(tc.Id)) {
+            var existingByIdx = toolCallAccumulator.FirstOrDefault(kv => kv.Value.Id == tc.Id);
+            if (existingByIdx.Key != default || (toolCallAccumulator.Count > 0 && toolCallAccumulator.ContainsKey(idx) && toolCallAccumulator[idx].Id == tc.Id))
+                idx = existingByIdx.Key;
+        }
+
+        if (!string.IsNullOrEmpty(tc.Id) || !toolCallAccumulator.ContainsKey(idx)) {
+            var effectiveId = string.IsNullOrEmpty(tc.Id) ? $"call_{Guid.NewGuid():N}"[..20] : tc.Id;
+            toolCallAccumulator[idx] = (effectiveId, tc.Function?.Name ?? "", new StringBuilder());
+        } else if (!string.IsNullOrEmpty(tc.Function?.Name) && toolCallAccumulator.TryGetValue(idx, out var existingName)) {
+            toolCallAccumulator[idx] = (existingName.Id, tc.Function.Name, existingName.Arguments);
+        }
+
+        if (tc.Function?.Arguments != null && toolCallAccumulator.TryGetValue(idx, out var existing)) {
+            existing.Arguments.Append(tc.Function.Arguments);
+        }
+    }
+
     /// <summary>流式：构建 OpenAI 请求 → 发送流式 → 累积工具调用 → yield StreamEvent</summary>
     public override async IAsyncEnumerable<StreamEvent> GetStreamEventContentsAsync(
         MessageList chatHistory,
@@ -153,18 +175,8 @@ public class OpenAIQueryService : QueryServiceBase {
             }
 
             if (choice.Delta?.ToolCalls != null) {
-                foreach (var tc in choice.Delta.ToolCalls) {
-                    var idx = tc.Index ?? 0;
-
-                    if (!string.IsNullOrEmpty(tc.Id) || !toolCallAccumulator.ContainsKey(idx)) {
-                        var effectiveId = string.IsNullOrEmpty(tc.Id) ? $"call_{Guid.NewGuid():N}"[..20] : tc.Id;
-                        toolCallAccumulator[idx] = (effectiveId, tc.Function?.Name ?? "", new StringBuilder());
-                    }
-
-                    if (tc.Function?.Arguments != null && toolCallAccumulator.TryGetValue(idx, out var existing)) {
-                        existing.Arguments.Append(tc.Function.Arguments);
-                    }
-                }
+                foreach (var tc in choice.Delta.ToolCalls)
+                    ProcessToolCallDelta(tc, toolCallAccumulator);
             }
 
             var metadata = new Dictionary<string, JsonElement> {

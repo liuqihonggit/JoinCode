@@ -99,6 +99,10 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
             ParseAllToolCalls(allEl, state, _logger);
 
             // 设置 state 的单工具调用字段（兼容现有逻辑）— 取第一个
+            if (state.ToolCalls.Count == 0) {
+                _logger?.LogWarning("AllToolCalls 数组非空但全部 Name 为空，跳过");
+                return new StreamChunkResult { Action = ChunkAction.Continue, Events = [] };
+            }
             var first = state.ToolCalls[0];
             state.ToolCallName = first.Name;
             state.ToolCallId = first.Id;

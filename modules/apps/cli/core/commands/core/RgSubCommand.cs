@@ -19,6 +19,7 @@ internal static class RgSubCommand {
             return await ExecuteListFilesAsync(parsed, ct).ConfigureAwait(false);
 
         var tempFiles = new List<string>();
+        string? stdinTempFile = null;
         try {
             var pattern = parsed.Pattern;
             var paths = parsed.Paths;
@@ -38,10 +39,12 @@ internal static class RgSubCommand {
 
             if (paths.Any(p => p == "-")) {
                 var stdinContent = await Console.In.ReadToEndAsync(ct).ConfigureAwait(false);
-                var tempFile = Path.GetTempFileName();
+                var tempFile = Path.Combine(Path.GetTempPath(), $"jcc-rg-stdin-{Guid.NewGuid():N}.txt").Replace('\\', '/');
                 await File.WriteAllTextAsync(tempFile, stdinContent, ct).ConfigureAwait(false);
                 tempFiles.Add(tempFile);
+                stdinTempFile = tempFile;
                 paths = paths.Select(p => p == "-" ? tempFile : p).ToList();
+                parsed = parsed with { Paths = paths };
             }
 
             var fixedPattern = FixPowerShellEscaping(pattern);
@@ -63,7 +66,7 @@ internal static class RgSubCommand {
             var token = timeoutCts.Token;
 
             try {
-                var query = BuildQuery(parsed, pattern);
+                var query = BuildQuery(parsed, pattern, paths);
 
                 if (parsed.Stream && !CanStream(parsed)) {
                     var reasons = new List<string>();
@@ -87,8 +90,7 @@ internal static class RgSubCommand {
                     TerminalHelper.WriteError($"搜索超时（{parsed.TimeoutSeconds}s）。请缩小搜索范围、用 --type/-g 过滤，或增加 --timeout。");
                     return (int)ExitCode.ToolExecutionTimeout;
                 }
-
-                return OutputOutcome(outcome, parsed);
+                return OutputOutcome(outcome, parsed, stdinTempFile);
             } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                 TerminalHelper.WriteError($"搜索超时（{parsed.TimeoutSeconds}s）— 已硬终止。");
                 return (int)ExitCode.ToolExecutionTimeout;
@@ -129,9 +131,9 @@ internal static class RgSubCommand {
     }
 
     /// <summary>从解析结果构造 RgQuery（搜索与列文件模式共用）。</summary>
-    private static RgQuery BuildQuery(RgOptions parsed, string pattern) => new(
+    private static RgQuery BuildQuery(RgOptions parsed, string pattern, IReadOnlyList<string>? paths = null) => new(
         Pattern: pattern,
-        Paths: parsed.Paths,
+        Paths: paths ?? parsed.Paths,
         Globs: parsed.Globs,
         FileType: parsed.FileType,
         CaseInsensitive: parsed.CaseInsensitive,
@@ -334,11 +336,16 @@ internal static class RgSubCommand {
         }
 
         if (paths.Count == 0) {
-            TerminalHelper.WriteError("错误: 必须指定搜索路径。禁止无路径搜索（会扫盘卡死）。");
-            TerminalHelper.WriteError("用法: jcc rg <pattern> <path> [path...]");
-            TerminalHelper.WriteError("示例: jcc rg \"WorktreeToolNameEnumConstants\" core/ --type cs -l");
-            TerminalHelper.WriteError("      jcc rg \"class SearchService\" app/JoinCode -n --content");
-            return null;
+            // 宽容：stdin 被重定向/管道时，自动从 stdin 读取搜索目标（对齐系统 rg 管道行为）
+            if (Console.IsInputRedirected) {
+                paths.Add("-");
+            } else {
+                TerminalHelper.WriteError("错误: 必须指定搜索路径。禁止无路径搜索（会扫盘卡死）。");
+                TerminalHelper.WriteError("用法: jcc rg <pattern> <path> [path...]");
+                TerminalHelper.WriteError("示例: jcc rg \"WorktreeToolNameEnumConstants\" core/ --type cs -l");
+                TerminalHelper.WriteError("      jcc rg \"class SearchService\" app/JoinCode -n --content");
+                return null;
+            }
         }
 
         if (!formatExplicitlySet) {
@@ -569,7 +576,7 @@ internal static class RgSubCommand {
         return hasOutput ? 0 : 1;
     }
 
-    private static int OutputOutcome(RgOutcome outcome, RgOptions opts) {
+    private static int OutputOutcome(RgOutcome outcome, RgOptions opts, string? stdinTempFile = null) {
         if (!outcome.Success) {
             TerminalHelper.WriteError(outcome.Error ?? "搜索失败");
             return 1;
@@ -592,9 +599,18 @@ internal static class RgSubCommand {
         switch (opts.OutputMode) {
             case SearchOutputMode.Content:
             foreach (var r in outcome.Results) {
-                if (r.ContentLines is not null)
-                    foreach (var line in r.ContentLines)
-                        sb.Append(line).Append('\n');
+                if (r.ContentLines is null) continue;
+                foreach (var line in r.ContentLines) {
+                    if (stdinTempFile is null) { sb.Append(line).Append('\n'); continue; }
+                    var prefix = stdinTempFile.Replace('\\', '/');
+                    if (!line.StartsWith(prefix, StringComparison.Ordinal)) { sb.Append(line).Append('\n'); continue; }
+                    var afterPrefix = line.AsSpan(prefix.Length);
+                    var colonIdx = afterPrefix.IndexOf(':');
+                    if (colonIdx < 0) { sb.Append(afterPrefix).Append('\n'); continue; }
+                    var afterColon = afterPrefix[(colonIdx + 1)..];
+                    var nextColon = afterColon.IndexOf(':');
+                    sb.Append(nextColon >= 0 ? afterColon[(nextColon + 1)..] : afterColon).Append('\n');
+                }
             }
             break;
             case SearchOutputMode.Count:

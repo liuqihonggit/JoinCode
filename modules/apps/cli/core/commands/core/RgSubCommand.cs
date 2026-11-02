@@ -18,6 +18,9 @@ internal static class RgSubCommand {
         if (parsed.ListFiles)
             return await ExecuteListFilesAsync(parsed, ct).ConfigureAwait(false);
 
+        if (parsed.TypeList)
+            return ExecuteTypeList();
+
         var tempFiles = new List<string>();
         string? stdinTempFile = null;
         try {
@@ -104,6 +107,17 @@ internal static class RgSubCommand {
                 try { if (File.Exists(f)) File.Delete(f); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[RgSubCommand] 清理临时文件失败: {f} - {ex.Message}"); }
             }
         }
+    }
+
+    /// <summary>
+    /// 执行 --type-list — 列出所有内置文件类型及其 glob 模式（对齐 ripgrep --type-list 格式）。
+    /// </summary>
+    private static int ExecuteTypeList() {
+        foreach (var (type, exts) in FileTypeExtensionMap.Map.OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)) {
+            var globs = exts.Select(e => e.StartsWith('.') ? $"*{e}" : e);
+            Console.WriteLine($"{type}: {string.Join(", ", globs)}");
+        }
+        return 0;
     }
 
     /// <summary>
@@ -209,6 +223,7 @@ internal static class RgSubCommand {
         long? maxFilesize = null;
         var regexpPatterns = new List<string>();
         var listFiles = false;
+        var typeList = false;
         var formatExplicitlySet = false;
         var stream = false;
 
@@ -279,6 +294,7 @@ internal static class RgSubCommand {
                     case "--invert-match": invertMatch = true; break;
                     case "--line-regexp": lineRegexp = true; break;
                     case "--files": listFiles = true; outputMode = SearchOutputMode.Files; break;
+                    case "--type-list": typeList = true; break;
                     case "--max-count": maxCount = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
                     case "--regexp": { var v = inlineValue ?? ReadNextValue(args, ref i); if (v is not null) regexpPatterns.Add(v); } break;
                     case "--threads": threads = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
@@ -333,13 +349,13 @@ internal static class RgSubCommand {
         if (lineRegexp && pattern is not null)
             pattern = $"^(?:{pattern})$";
 
-        if (pattern is null && !listFiles) {
+        if (pattern is null && !listFiles && !typeList) {
             TerminalHelper.WriteError("错误: 缺少 pattern 参数。用法: jcc rg <pattern> <path> [path...] 或 jcc rg --files <path>");
             PrintUsage();
             return null;
         }
 
-        if (paths.Count == 0) {
+        if (paths.Count == 0 && !typeList) {
             // 宽容：stdin 被重定向/管道时，自动从 stdin 读取搜索目标（对齐系统 rg 管道行为）
             if (Console.IsInputRedirected) {
                 paths.Add("-");
@@ -392,6 +408,7 @@ internal static class RgSubCommand {
             Threads: threads,
             MaxFilesize: maxFilesize,
             ListFiles: listFiles,
+            TypeList: typeList,
             Stream: stream);
     }
 
@@ -737,6 +754,7 @@ internal static class RgSubCommand {
         int? Threads,
         long? MaxFilesize,
         bool ListFiles,
+        bool TypeList,
         bool Stream);
 }
 

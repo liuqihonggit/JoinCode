@@ -191,6 +191,7 @@ public class OpenAIQueryService : QueryServiceBase {
                     })
                     .ToList();
                 metadata["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries);
+                toolCallAccumulator.Clear();
             }
 
             var streamContent = choice.Delta?.ReasoningContent ?? content;

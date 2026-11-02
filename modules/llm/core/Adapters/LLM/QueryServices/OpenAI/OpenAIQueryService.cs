@@ -205,6 +205,24 @@ public class OpenAIQueryService : QueryServiceBase {
             }
             yield return new StreamEvent(role, streamContent, chunk.Model, metadata);
         }
+
+        if (toolCallAccumulator.Count > 0) {
+            var entries = toolCallAccumulator
+                .OrderBy(kv => kv.Key)
+                .Select(kv => new ToolCallEntry {
+                    Id = kv.Value.Id,
+                    Name = kv.Value.Name,
+                    Arguments = kv.Value.Arguments.ToString()
+                })
+                .ToList();
+            var flushMeta = new Dictionary<string, JsonElement> {
+                ["Id"] = JsonElementHelper.FromString("flush"),
+                ["FinishReason"] = JsonElementHelper.FromString(OpenAIFinishReasonEnumConstants.ToolCalls),
+                ["Created"] = JsonElementHelper.FromInt64(0),
+                ["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries)
+            };
+            yield return new StreamEvent(MessageRole.Assistant, null, null, flushMeta);
+        }
     }
 
     #region 请求构建

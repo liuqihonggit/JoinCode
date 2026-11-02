@@ -116,10 +116,15 @@ public sealed class EngineSessionFactory {
         ILoggerProvider? loggerProvider = null,
         CancellationToken cancellationToken = default,
         bool clearPipeEndpoint = false) {
+        var __timing = System.Environment.GetEnvironmentVariable("JCC_DEBUG_TIMING") is "1" or "true";
+        var __sw0 = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;
         await EngineConfigInitializer.EnsureConfigFilesExistAsync(fs).ConfigureAwait(false);
+        if (__sw0 is not null) System.Console.Error.WriteLine($"[TIMING] EnsureConfigFiles: {__sw0.ElapsedMilliseconds}ms");
 
+        var __sw1 = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;
         var modelConfigLoader = new ModelConfigLoader();
         var config = await EngineApplicationBuilder.LoadConfigAsync(options, fs, modelConfigLoader).ConfigureAwait(false);
+        if (__sw1 is not null) System.Console.Error.WriteLine($"[TIMING] LoadConfig: {__sw1.ElapsedMilliseconds}ms");
 
         if (clearPipeEndpoint)
             config = config with { PipeEndpoint = null };
@@ -128,9 +133,13 @@ public sealed class EngineSessionFactory {
         foreach (var module in modules)
             builder = builder.UseModule(module);
 
+        var __sw2 = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;
         var host = builder.BuildHost(config, options, loggerProvider);
+        if (__sw2 is not null) System.Console.Error.WriteLine($"[TIMING] BuildHost(DI): {__sw2.ElapsedMilliseconds}ms");
 
+        var __sw3 = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;
         await builder.ConfigureModulesAsync(host.Services).ConfigureAwait(false);
+        if (__sw3 is not null) System.Console.Error.WriteLine($"[TIMING] ConfigureModules: {__sw3.ElapsedMilliseconds}ms");
 
         // 统一会话 ID — 工厂生成一次，引擎内存桶 + transcript 落盘 + 调用方（CliSession 等）三方同源。
         // 此前 CLI/GUI/TUI 各自管理 sessionId（CLI=CliSession.Generate、GUI=GUID、TUI=引擎 default），

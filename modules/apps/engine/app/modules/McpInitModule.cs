@@ -31,30 +31,31 @@ public sealed class McpInitModule : IAppModule {
         var logger = services.GetService<ILogger<McpInitModule>>();
         var options = services.GetService<CommandLineOptions>();
 
-        var remoteClientManager = services.GetRequiredService<RemoteClientManager>();
-        var syncBridge = services.GetRequiredService<McpToolSyncBridge>();
-
         var skipChat = options?.SkipChatServices ?? false;
 
-        // async void 事件处理器必须 try/catch — 否则异常逃逸到同步上下文导致进程崩溃
-        remoteClientManager.ToolsListChanged += async (_, _) => {
-            try {
-                await syncBridge.OnToolsListChangedAsync().ConfigureAwait(false);
-                if (!skipChat)
+        // skipChat 时跳过 RemoteClientManager/McpToolSyncBridge 的 DI 解析和事件挂载 — jcc gh/mcp_call 等元命令不需要远程客户端管理
+        if (!skipChat) {
+            var remoteClientManager = services.GetRequiredService<RemoteClientManager>();
+            var syncBridge = services.GetRequiredService<McpToolSyncBridge>();
+
+            // async void 事件处理器必须 try/catch — 否则异常逃逸到同步上下文导致进程崩溃
+            remoteClientManager.ToolsListChanged += async (_, _) => {
+                try {
+                    await syncBridge.OnToolsListChangedAsync().ConfigureAwait(false);
                     await RefreshKernelPluginsAsync(services, logger).ConfigureAwait(false);
-            } catch (Exception ex) { logger?.LogError(ex, "[MCP] OnToolsListChanged handler failed"); }
-        };
+                } catch (Exception ex) { logger?.LogError(ex, "[MCP] OnToolsListChanged handler failed"); }
+            };
 
-        remoteClientManager.ResourcesListChanged += async (_, args) => {
-            try { await syncBridge.OnResourcesListChangedAsync(args.ClientId, args.SyncResult).ConfigureAwait(false); } catch (Exception ex) { logger?.LogError(ex, "[MCP] OnResourcesListChanged handler failed"); }
-        };
+            remoteClientManager.ResourcesListChanged += async (_, args) => {
+                try { await syncBridge.OnResourcesListChangedAsync(args.ClientId, args.SyncResult).ConfigureAwait(false); } catch (Exception ex) { logger?.LogError(ex, "[MCP] OnResourcesListChanged handler failed"); }
+            };
 
-        remoteClientManager.PromptsListChanged += async (_, args) => {
-            try { await syncBridge.OnPromptsListChangedAsync(args.ClientId, args.SyncResult).ConfigureAwait(false); } catch (Exception ex) { logger?.LogError(ex, "[MCP] OnPromptsListChanged handler failed"); }
-        };
+            remoteClientManager.PromptsListChanged += async (_, args) => {
+                try { await syncBridge.OnPromptsListChangedAsync(args.ClientId, args.SyncResult).ConfigureAwait(false); } catch (Exception ex) { logger?.LogError(ex, "[MCP] OnPromptsListChanged handler failed"); }
+            };
 
-        if (!skipChat)
             services.WirePluginSkillBridge();
+        }
 
         // 启动开销优化（TASK037 后续）— 八插件加载后台化：启动不阻塞等待加载墙钟（实测 ~1.6s，
         // mcpInit 插件 MCP 客户端握手为关键路径）；工具就绪后就绪钩子自动补齐
@@ -87,9 +88,12 @@ public sealed class McpInitModule : IAppModule {
     /// </summary>
     private static async Task LoadPluginSafeAsync<TPlugin>(string name, IServiceProvider services, ILogger? logger, CancellationToken ct)
         where TPlugin : class, IWorkflowPlugin, new() {
+        var __timing = System.Environment.GetEnvironmentVariable("JCC_DEBUG_TIMING") is "1" or "true";
+        var __sw = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;
         try {
             var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
             await pluginManager.LoadWorkflowPluginAsync<TPlugin>(ct).ConfigureAwait(false);
+            if (__sw is not null) System.Console.Error.WriteLine($"[TIMING]   插件 {name}: {__sw.ElapsedMilliseconds}ms");
         } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             // 宿主关闭取消 — 静默收尾（非失败）
         } catch (Exception ex) {

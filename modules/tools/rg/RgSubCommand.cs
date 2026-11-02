@@ -392,7 +392,8 @@ internal static class RgSubCommand {
 
         if (paths.Count == 0 && !typeList) {
             // 宽容：stdin 被重定向/管道时，自动从 stdin 读取搜索目标（对齐系统 rg 管道行为）
-            if (Console.IsInputRedirected) {
+            // --files 模式不从 stdin 读取（列文件模式无 stdin 概念）
+            if (!listFiles && Console.IsInputRedirected) {
                 paths.Add("-");
             } else {
                 Console.Error.WriteLine("错误: 必须指定搜索路径。禁止无路径搜索（会扫盘卡死）。");

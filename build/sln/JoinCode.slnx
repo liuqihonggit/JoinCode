@@ -27,6 +27,10 @@
     <Project Path="../../modules/plugins/plugins.tests/Plugins.Tests.csproj" />
     <Project Path="../../modules/persistence/pithosdb/PithosDB.Core.csproj" />
     <Project Path="../../modules/tools/onnx_embedding/OnnxEmbeddingExe.csproj" />
+    <Project Path="../../modules/tools/rg/rg.csproj" />
+    <Project Path="../../modules/tools/rg.tests/Rg.Tests.csproj" />
+    <Project Path="../../modules/tools/gh/gh.csproj" />
+    <Project Path="../../modules/tools/gh.tests/Gh.Tests.csproj" />
   </Folder>
   <Folder Name="/infrastructure/">
     <Project Path="../../modules/abstractions/infrastructure/Infrastructure.csproj" />

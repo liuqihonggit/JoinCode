@@ -229,6 +229,14 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// <param name="entry">待回写的重试条目</param>
     internal bool TryRequeueRetryEntry(RetryEntry<TCommand> entry) => _retryEngine.TryRequeue(entry);
 
+    /// <summary>
+    /// 直接触发 SendFailed 事件 — 供测试确定性验证事件多播异常隔离(P0-C)。
+    /// <para>消除 RunLoopAsync 后台消费时序依赖:测试无需占位 retry queue + 背压信号抢跑,直接调此方法验证多播。</para>
+    /// </summary>
+    /// <param name="command">触发 SendFailed 的命令</param>
+    /// <param name="retryCount">重试次数</param>
+    internal void RaiseSendFailedForTest(TCommand command, int retryCount = 0) => RaiseSendFailed(command, retryCount);
+
     /// <summary>重试队列 — 供测试直接写入构造边界条件(内部接口,转发至 MessageRetryEngine)</summary>
     internal Channel<RetryEntry<TCommand>> RetryQueueInternal => _retryEngine.RetryQueue;
 

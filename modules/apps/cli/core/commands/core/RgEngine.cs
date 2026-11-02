@@ -268,17 +268,23 @@ internal static class RgEngine {
                 else
                     lineContent = lineSpan.ToString();
 
-                string formatted;
-                if (q.OnlyMatching) {
-                    var match = regex.Match(lineContent);
-                    formatted = match.Success ? match.Value : lineContent;
-                } else if (q.Replace is not null) {
-                    formatted = regex.Replace(lineContent, q.Replace);
-                } else {
-                    formatted = lineContent;
+                var prefix = q.LineNumbers ? $"{normalizedPath}:{current + 1}:" : $"{normalizedPath}:";
+
+                if (current == index && q.OnlyMatching) {
+                    var matches = regex.Matches(lineContent);
+                    if (matches.Count > 0) {
+                        foreach (Match m in matches)
+                            contentLines.Add($"{prefix}{m.Value}");
+                        continue;
+                    }
                 }
 
-                var prefix = q.LineNumbers ? $"{normalizedPath}:{current + 1}:" : $"{normalizedPath}:";
+                string formatted;
+                if (current == index && q.Replace is not null)
+                    formatted = regex.Replace(lineContent, q.Replace);
+                else
+                    formatted = lineContent;
+
                 contentLines.Add($"{prefix}{formatted}");
             }
         }

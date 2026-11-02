@@ -297,6 +297,10 @@ internal static class RgSubCommand {
                     case "--line-regexp": lineRegexp = true; break;
                     case "--files": listFiles = true; outputMode = SearchOutputMode.Files; break;
                     case "--type-list": typeList = true; break;
+                    case "--color": _ = inlineValue ?? ReadNextValue(args, ref i); break;
+                    case "--heading": break;
+                    case "--no-heading": break;
+                    case "--null": break;
                     case "--max-count": maxCount = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
                     case "--regexp": { var v = inlineValue ?? ReadNextValue(args, ref i); if (v is not null) regexpPatterns.Add(v); } break;
                     case "--threads": threads = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
@@ -487,6 +491,7 @@ internal static class RgSubCommand {
                 case 't': fileType = ConsumeShortString(span, ref j, args, ref i); break;
                 case 'r': replace = ConsumeShortString(span, ref j, args, ref i); break;
                 case 'h': PrintUsage(); return false;
+                case '0': j++; break;
                 default:
                 TerminalHelper.WriteError($"未知短参数: -{c}（在 {arg} 中）");
                 return false;

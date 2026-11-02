@@ -42,7 +42,7 @@ public static class AgentStreamChunkAdapter {
 
             AgentStreamChunkType.TimingSummary => ChatStreamEvent.TimingSummary(chunk.Content ?? string.Empty),
 
-            AgentStreamChunkType.Complete => ChatStreamEvent.Done(chunk.Usage, chunk.ModelId),
+            AgentStreamChunkType.Complete => ChatStreamEvent.Done(chunk.Usage, chunk.ModelId, chunk.StopReason),
 
             AgentStreamChunkType.Error => null,
 

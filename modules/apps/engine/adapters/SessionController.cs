@@ -14,6 +14,8 @@ public sealed class SessionController {
     /// <summary>本回合 Done 权威 usage 快照（TASK070 C4 — 自动压缩阈值判定的 token 数据源，
     /// 与 EmitContextUsage 同源；回合开始复位防跨回合泄漏）。</summary>
     private TokenUsage? _lastDoneUsage;
+    /// <summary>本回合 LLM 终止原因（end_turn/max_tokens/content_filter/tool_calls），空回合防御时用于精准错误消息。</summary>
+    private string? _lastStopReason;
     /// <summary>最近一次自动压缩后台任务（TASK070 — internal 测试观察点：单测 await 它消除 fire-and-forget 时序不确定性）。</summary>
     internal Task? LastAutoCompactTask { get; private set; }
     private readonly string _sessionId;
@@ -92,6 +94,7 @@ public sealed class SessionController {
         var hasReceivedEvent = false;
         _hasSubstantiveOutput = false;
         _lastDoneUsage = null;
+        _lastStopReason = null;
 
         try {
             if (_mainAgent is not null) {
@@ -162,9 +165,12 @@ public sealed class SessionController {
             // 无文本 + 无思考 + 无工具调用 = 全空产出，判 Error 带诱导（重试提示）；
             // 工具回合/思考回合文本空属合法半产出（onToolEnd/onThinking 已独立消费），不误判。
             if (LastResponse.Length == 0 && thinkingContent.Length == 0 && !_hasSubstantiveOutput) {
-                return SessionTurnResult.Error(
-                    "模型返回空回复（无文本/思考/工具产出）。可能为请求过大超时或供应商响应异常，请按 Esc 打断后重试，或切换模型/供应商。",
-                    partialResponse: string.Empty);
+                var emptyMsg = _lastStopReason switch {
+                    "content_filter" => "模型回复被安全过滤（content_filter）。请调整请求内容后重试，或切换模型/供应商。",
+                    "max_tokens" => "模型回复因达到最大 token 限制被截断（length）。请增大 max_tokens 或精简请求后重试。",
+                    _ => "模型返回空回复（无文本/思考/工具产出）。可能为请求过大超时或供应商响应异常，请按 Esc 打断后重试，或切换模型/供应商。"
+                };
+                return SessionTurnResult.Error(emptyMsg, partialResponse: string.Empty);
             }
 
             return SessionTurnResult.Success(LastResponse, requestTimestamp);
@@ -261,6 +267,7 @@ public sealed class SessionController {
                 EmitContextUsage(usage);
                 if (usage is { PromptTokens: > 0 })
                     _lastDoneUsage = usage;
+                _lastStopReason = evt.StopReason;
             });
         return modelId;
     }

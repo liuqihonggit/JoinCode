@@ -40,6 +40,9 @@ public sealed class ChatStreamEvent {
     /// <summary>获取模型标识。</summary>
     public string? ModelId { get; init; }
 
+    /// <summary>获取查询终止原因（end_turn/max_tokens/content_filter/tool_calls/error_*），仅 Done 事件携带。</summary>
+    public string? StopReason { get; init; }
+
     /// <summary>
     /// 结构化 Patch — 对齐 TS FileEditOutput.structuredPatch
     /// 仅 ToolCallEnd 事件携带，传递给 UI 渲染
@@ -156,10 +159,11 @@ public sealed class ChatStreamEvent {
     };
 
     /// <summary>创建完成事件。</summary>
-    public static ChatStreamEvent Done(TokenUsage? usage = null, string? modelId = null) => new() {
+    public static ChatStreamEvent Done(TokenUsage? usage = null, string? modelId = null, string? stopReason = null) => new() {
         Type = ChatStreamEventType.Complete,
         Usage = usage,
-        ModelId = modelId
+        ModelId = modelId,
+        StopReason = stopReason
     };
 
     /// <summary>

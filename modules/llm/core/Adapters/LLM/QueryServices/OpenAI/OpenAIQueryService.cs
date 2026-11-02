@@ -114,6 +114,7 @@ public class OpenAIQueryService : QueryServiceBase {
                 var secondStream = SendStreamingRequestAsync(secondRequest, cancellationToken);
                 var secondAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
                 var secondFirstChunk = true;
+                var secondLastFinishReason = OpenAIFinishReasonEnumConstants.Stop;
 
                 await foreach (var sc in secondStream) {
                     if (sc.Choices.Count == 0 && sc.Usage is null) continue;
@@ -121,7 +122,7 @@ public class OpenAIQueryService : QueryServiceBase {
                         var tu = sc.Usage is { } u ? BuildTokenUsage(u) : new TokenUsage();
                         var um = new Dictionary<string, JsonElement> {
                             ["Id"] = JsonElementHelper.FromString(sc.Id),
-                            ["FinishReason"] = JsonElementHelper.FromString(OpenAIFinishReasonEnumConstants.Stop),
+                            ["FinishReason"] = JsonElementHelper.FromString(secondLastFinishReason),
                             ["Created"] = JsonElementHelper.FromInt64(sc.Created),
                             ["Usage"] = JsonElementHelper.FromObject(tu, NativeJsonContext.Default.TokenUsage)
                         };
@@ -133,15 +134,13 @@ public class OpenAIQueryService : QueryServiceBase {
                     var scContent = sc2.Delta?.Content?.Text ?? string.Empty;
                     var scRole = ConvertRole(sc2.Delta?.Role);
 
-                    foreach (var tc in sc2.Delta?.ToolCalls ?? []) {
-                        var idx = tc.Index ?? 0;
-                        if (!string.IsNullOrEmpty(tc.Id) || !secondAccumulator.ContainsKey(idx)) {
-                            var effectiveId = string.IsNullOrEmpty(tc.Id) ? $"call_{Guid.NewGuid():N}"[..20] : tc.Id;
-                            secondAccumulator[idx] = (effectiveId, tc.Function?.Name ?? "", new StringBuilder());
-                        }
-                        if (tc.Function?.Arguments != null && secondAccumulator.TryGetValue(idx, out var ex))
-                            ex.Arguments.Append(tc.Function.Arguments);
+                    if (sc2.Delta?.ToolCalls != null) {
+                        foreach (var tc in sc2.Delta.ToolCalls)
+                            ProcessToolCallDelta(tc, secondAccumulator);
                     }
+
+                    if (!string.IsNullOrEmpty(sc2.FinishReason))
+                        secondLastFinishReason = sc2.FinishReason;
 
                     var scMeta = new Dictionary<string, JsonElement> {
                         ["Id"] = JsonElementHelper.FromString(sc.Id),
@@ -157,12 +156,17 @@ public class OpenAIQueryService : QueryServiceBase {
                     if (sc2.Delta?.ReasoningContent != null)
                         scMeta["reasoning_content"] = JsonElementHelper.FromBoolean(true);
 
-                    if (sc2.FinishReason == OpenAIFinishReasonEnumConstants.ToolCalls && secondAccumulator.Count > 0) {
+                    var scIsToolCallFinish = sc2.FinishReason is OpenAIFinishReasonEnumConstants.ToolCalls
+                        or OpenAIFinishReasonEnumConstants.Length
+                        or OpenAIFinishReasonEnumConstants.ContentFilter;
+
+                    if (scIsToolCallFinish && secondAccumulator.Count > 0) {
                         var entries = secondAccumulator
                             .OrderBy(kv => kv.Key)
                             .Select(kv => new ToolCallEntry { Id = kv.Value.Id, Name = kv.Value.Name, Arguments = kv.Value.Arguments.ToString() })
                             .ToList();
                         scMeta["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries);
+                        secondAccumulator.Clear();
                     }
 
                     var scStreamContent = sc2.Delta?.ReasoningContent ?? scContent;
@@ -171,6 +175,20 @@ public class OpenAIQueryService : QueryServiceBase {
                         AppendRateLimitHeaders(scMeta);
                     }
                     yield return new StreamEvent(scRole, scStreamContent, sc.Model, scMeta);
+                }
+
+                if (secondAccumulator.Count > 0) {
+                    var entries = secondAccumulator
+                        .OrderBy(kv => kv.Key)
+                        .Select(kv => new ToolCallEntry { Id = kv.Value.Id, Name = kv.Value.Name, Arguments = kv.Value.Arguments.ToString() })
+                        .ToList();
+                    var flushMeta = new Dictionary<string, JsonElement> {
+                        ["Id"] = JsonElementHelper.FromString("flush2"),
+                        ["FinishReason"] = JsonElementHelper.FromString(secondLastFinishReason),
+                        ["Created"] = JsonElementHelper.FromInt64(0),
+                        ["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries)
+                    };
+                    yield return new StreamEvent(MessageRole.Assistant, null, null, flushMeta);
                 }
                 yield break;
             }

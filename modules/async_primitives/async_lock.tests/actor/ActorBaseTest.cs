@@ -210,7 +210,9 @@ public class ActorBaseTest {
 
     /// <summary>
     /// P0-缺陷6: SendFailed 事件多播时,第一个订阅者抛异常不应阻断后续订阅者。
-    /// 确定性测试: 直接调用 TryRequeueRetryEntry 触发 SendFailed。
+    /// 确定性测试: 直接调用 RaiseSendFailedForTest 触发 SendFailed 事件,消除 RunLoopAsync 后台消费时序依赖。
+    /// （原测试靠 ReceiveBackpressureSignal+占位锁住 RunLoop 首条消费,但 RunLoop 在 Task.Delay(10s) 期间
+    /// 读走 occupier1 后 retry queue 只剩 1 条,TryRequeue("D") 的 TryWrite 成功不触发 SendFailed,假阴 flaky）
     /// </summary>
     [Fact]
     public async Task SendFailed_Multicast_FirstHandlerThrows_SecondStillCalled() {
@@ -221,12 +223,7 @@ public class ActorBaseTest {
         actor.SendFailed += (_, _) => throw new InvalidOperationException("handler1 crash");
         actor.SendFailed += (_, _) => handler2Called = true;
 
-        // 竞态根治同 RetryWriteBack_Failed_TriggersSendFailed：占位 2 条 + 10s 背压信号
-        // 锁住 RunLoop 首条消费（断言前占位被抢跑吃掉则 TryWrite 成功不触发 SendFailed 假阴）
-        actor.ReceiveBackpressureSignal(TimeSpan.FromSeconds(10));
-        actor.RetryQueueInternal.Writer.TryWrite(new RetryEntry<string>("occupier1", 1));
-        actor.RetryQueueInternal.Writer.TryWrite(new RetryEntry<string>("occupier2", 1));
-        actor.TryRequeueRetryEntry(new RetryEntry<string>("D", 1));
+        actor.RaiseSendFailedForTest("D", 1);
 
         handler2Called.Should().BeTrue();
     }

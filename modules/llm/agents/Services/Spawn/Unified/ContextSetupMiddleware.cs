@@ -10,16 +10,16 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
     /// <summary>
     /// 构造 ContextSetupMiddleware 实例，注入子代理上下文访问器及可选依赖
     /// </summary>
-    public ContextSetupMiddleware(ISubAgentContextAccessor subAgentContextAccessor, IFileStateCache? fileStateCache = null, ISkillService? skillService = null, IModelConfigLoader? modelConfigLoader = null, ILogger<ContextSetupMiddleware>? logger = null) {
+    public ContextSetupMiddleware(ISubAgentContextAccessor subAgentContextAccessor, IFileStateCache? fileStateCache = null, IServiceProvider? serviceProvider = null, IModelConfigLoader? modelConfigLoader = null, ILogger<ContextSetupMiddleware>? logger = null) {
         _subAgentContextAccessor = subAgentContextAccessor;
         _fileStateCache = fileStateCache;
-        _skillService = skillService;
+        _serviceProvider = serviceProvider;
         _modelConfigLoader = modelConfigLoader;
         _logger = logger;
     }
     private readonly IFileStateCache? _fileStateCache;
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    private readonly ISkillService? _skillService;
+    private readonly IServiceProvider? _serviceProvider;
     private readonly IModelConfigLoader? _modelConfigLoader;
     private readonly ILogger<ContextSetupMiddleware>? _logger;
 
@@ -43,7 +43,7 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
 
         var skills = context.Definition?.Skills;
         MessageList? initialMessageList = null;
-        if (skills is not null && skills.Count > 0 && _skillService is not null) {
+        if (skills is not null && skills.Count > 0 && _serviceProvider is not null) {
             initialMessageList = await BuildSkillPreloadMessageListAsync(skills, ct).ConfigureAwait(false);
         }
 
@@ -139,12 +139,15 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
     /// </summary>
     private async Task<MessageList> BuildSkillPreloadMessageListAsync(List<string> skills, CancellationToken ct) {
         var messageList = new MessageList();
+        var skillService = _serviceProvider?.GetService<ISkillService>();
+        if (skillService is null)
+            return messageList;
         foreach (var skillName in skills) {
-            if (string.IsNullOrWhiteSpace(skillName) || _skillService is null)
+            if (string.IsNullOrWhiteSpace(skillName))
                 continue;
 
             try {
-                var skill = await _skillService.GetSkillAsync(skillName, ct).ConfigureAwait(false);
+                var skill = await skillService.GetSkillAsync(skillName, ct).ConfigureAwait(false);
                 if (skill is null)
                     continue;
 

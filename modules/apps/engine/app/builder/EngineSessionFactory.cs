@@ -140,8 +140,9 @@ public sealed class EngineSessionFactory {
 
         SyncModelConfigToDi(host.Services, modelConfigLoader);
 
-        Core.DependencyInjection.ShellCapabilityInitializer.Initialize(
-            fs, host.Services.GetService<ILogger<EngineSessionFactory>>());
+        if (!options.SkipChatServices)
+            Core.DependencyInjection.ShellCapabilityInitializer.Initialize(
+                fs, host.Services.GetService<ILogger<EngineSessionFactory>>());
 
         if (!options.SkipModelFetch)
             StartModelFetchBackground(fs, host.Services, cancellationToken);

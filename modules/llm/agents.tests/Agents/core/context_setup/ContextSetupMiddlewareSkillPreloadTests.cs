@@ -1,5 +1,5 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-﻿namespace Core.Agents.Tests.Unit.Agents;
+namespace Core.Agents.Tests.Unit.Agents;
 
 
 /// <summary>
@@ -22,7 +22,9 @@ public sealed class ContextSetupMiddlewareSkillPreloadTests {
             .ReturnsAsync(skill);
 
         var contextAccessor = new Mock<ISubAgentContextAccessor>();
-        await using var mw = new ContextSetupMiddleware(contextAccessor.Object, null, skillServiceMock.Object);
+        var spMock = new Mock<IServiceProvider>();
+        spMock.Setup(x => x.GetService(typeof(ISkillService))).Returns(skillServiceMock.Object);
+        await using var mw = new ContextSetupMiddleware(contextAccessor.Object, null, spMock.Object);
 
         var ctx = new UnifiedSpawnContext {
             Task = "test task",
@@ -86,7 +88,9 @@ public sealed class ContextSetupMiddlewareSkillPreloadTests {
             .ReturnsAsync((SkillDefinition?)null);
 
         var contextAccessor = new Mock<ISubAgentContextAccessor>();
-        await using var mw = new ContextSetupMiddleware(contextAccessor.Object, null, skillServiceMock.Object);
+        var spMock = new Mock<IServiceProvider>();
+        spMock.Setup(x => x.GetService(typeof(ISkillService))).Returns(skillServiceMock.Object);
+        await using var mw = new ContextSetupMiddleware(contextAccessor.Object, null, spMock.Object);
 
         var ctx = new UnifiedSpawnContext {
             Task = "test task",

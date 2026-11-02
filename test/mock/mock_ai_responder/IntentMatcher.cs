@@ -429,6 +429,34 @@ internal static class IntentMatcher {
                 }
             }], "N4: 超大工具参数（10KB）");
         }
+        if (lower.Contains("p4") || lower.Contains("empty args") || lower.Contains("空参数串")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = ""
+                }
+            }], "P4: 工具参数为空字符串");
+        }
+        if (lower.Contains("p5") || lower.Contains("null args") || lower.Contains("null参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = "null"
+                }
+            }], "P5: 工具参数为 null 字面量");
+        }
+        if (lower.Contains("p6") || lower.Contains("long id") || lower.Contains("超长id")) {
+            var longId = new string('a', 200);
+            return ([new ToolCallDto {
+                Id = longId,
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo p6"}"""
+                }
+            }], "P6: 超长 tool_call_id（200字符）");
+        }
         return (null, "");
     }
 

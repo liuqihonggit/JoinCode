@@ -379,8 +379,12 @@ internal static class IntentMatcher {
 
         chunks.Add(SseLine(new StreamChunk { Id = id, Choices = [new StreamChoice { Index = 0, Delta = new StreamDelta { Role = "assistant" } }] }));
 
-        foreach (var ch in content) {
-            chunks.Add(SseLine(new StreamChunk { Id = id, Choices = [new StreamChoice { Index = 0, Delta = new StreamDelta { Content = ch.ToString() } }] }));
+        var lines = content.Split('\n');
+        for (var i = 0; i < lines.Length; i++) {
+            var line = i < lines.Length - 1 ? lines[i] + "\n" : lines[i];
+            if (line.Length > 0) {
+                chunks.Add(SseLine(new StreamChunk { Id = id, Choices = [new StreamChoice { Index = 0, Delta = new StreamDelta { Content = line } }] }));
+            }
         }
 
         chunks.Add(SseLine(new StreamChunk { Id = id, Choices = [new StreamChoice { Index = 0, Delta = new StreamDelta(), FinishReason = "stop" }] }));

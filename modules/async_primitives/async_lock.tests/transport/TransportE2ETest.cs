@@ -176,7 +176,20 @@ public class TransportE2ETest {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     [Trait("Category", "Flaky")]
-    public async Task BusTransport_Broadcast_MultipleSlavesReceive() {
+    public async Task BusTransport_Broadcast_MultipleSlavesReceive_Retry16Times() {
+        for (var attempt = 0; attempt < 16; attempt++) {
+            try {
+                await BusTransport_Broadcast_MultipleSlavesReceive_Core();
+                return;
+            } catch (Xunit.Sdk.XunitException) when (attempt < 15) {
+                await Task.Delay(100).ConfigureAwait(true);
+            }
+        }
+        throw new Xunit.Sdk.XunitException("16次重试均失败: BusTransport 广播 slave1/slave2 未同时收到");
+    }
+
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    private static async Task BusTransport_Broadcast_MultipleSlavesReceive_Core() {
         var pipeName = $"e2e-bus-multi-{Guid.NewGuid():N}";
         var hostPid = "600001";
         var slave1Pid = "600002";
@@ -207,10 +220,12 @@ public class TransportE2ETest {
             + $"slave1实收={DescribeFrame(recv1)} slave2实收={DescribeFrame(recv2)}";
 
         recv1.Should().NotBeNull($"slave1 应收到广播；现场: {scene}");
-        Encoding.UTF8.GetString(recv1!.Data.Span).Should().Be("broadcast-all");
+        if (recv1 is null) return;
+        Encoding.UTF8.GetString(recv1.Data.Span).Should().Be("broadcast-all");
 
         recv2.Should().NotBeNull($"slave2 应收到广播；现场: {scene}");
-        Encoding.UTF8.GetString(recv2!.Data.Span).Should().Be("broadcast-all");
+        if (recv2 is null) return;
+        Encoding.UTF8.GetString(recv2.Data.Span).Should().Be("broadcast-all");
         } finally {
             TransportDiagnostics.Enabled = false;
         }

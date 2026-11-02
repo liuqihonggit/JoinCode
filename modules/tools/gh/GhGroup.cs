@@ -1,4 +1,4 @@
-namespace JoinCode.CliCommands;
+namespace JoinCode.Gh;
 
 /// <summary>
 /// gh CLI 分组 — 与 gh_* 工具前缀一一对应

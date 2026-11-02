@@ -1,5 +1,5 @@
 [assembly: SuppressMessage("FileSystemAbstraction", "JCC9001", Scope = "type", Target = "Host.Tests.Cli.RgEngineListFilesTests", Justification = "RgEngine --files 列文件测试需直接访问文件系统验证真实目录枚举+gitignore+glob 过滤行为")]
-namespace Host.Tests.Cli;
+namespace Rg.Tests;
 
 /// <summary>
 /// RgEngine.ListFiles 测试 — --files 模式：复用 CollectFiles 过滤链（gitignore/glob/type/二进制排除），跳过正则搜索。
@@ -111,6 +111,7 @@ public sealed class RgEngineListFilesTests {
         Paths: paths,
         Globs: globs,
         FileType: null,
+        TypeNot: null,
         CaseInsensitive: false,
         SmartCase: false,
         WordRegexp: false,

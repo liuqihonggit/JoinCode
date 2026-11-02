@@ -1,5 +1,5 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-namespace Host.Tests.Cli;
+namespace Gh.Tests;
 
 /// <summary>
 /// jcc gh 子命令解析与参数绑定测试 — 纯函数红绿循环，无需建 Host。

@@ -1,0 +1,128 @@
+namespace JoinCode.Gh;
+
+internal static class GhSubCommand {
+    public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
+        var hasHelp = Array.IndexOf(args, CliArgCliOptionConstants.HelpLongName) >= 0
+                    || Array.IndexOf(args, CliArgCliOptionConstants.HelpShortName) >= 0;
+        if (hasHelp) {
+            var group = FlatSubCommandRouter.GetPositional(args, 0);
+            var action = group is not null ? FlatSubCommandRouter.GetPositional(args, 1) : null;
+            if (group is not null && action is not null)
+                return RenderToolHelp(group, action);
+            TerminalHelper.WriteLine(GhCommandResolver.Usage);
+            return 0;
+        }
+
+        var noCache = Array.IndexOf(args, "--no-cache") >= 0;
+        var cleanArgs = noCache ? args.Where(a => !string.Equals(a, "--no-cache", StringComparison.Ordinal)).ToArray() : args;
+        var resolved = GhCommandResolver.Resolve(cleanArgs, out var resolveError);
+        if (resolved is null) {
+            TerminalHelper.WriteError(resolveError!);
+            return 1;
+        }
+
+        if (!GhDispatcher.ContainsTool(resolved.ToolName)) {
+            TerminalHelper.WriteError(ToolNotFoundMessage(resolved));
+            return 1;
+        }
+
+        var parameters = GhDispatcher.GetParams(resolved.ToolName);
+        var bound = GhArgsBinder.Bind(resolved.Tail, parameters, resolved.ToolName, out var bindError);
+        if (bound is null) {
+            TerminalHelper.WriteError(bindError!);
+            return 1;
+        }
+
+        var tracker = new GhTimingTracker { CacheDisabled = noCache };
+        var prevTimer = GhTimingTracker.CurrentTimer.Value;
+        GhTimingTracker.CurrentTimer.Value = tracker;
+        ToolResult? result;
+        try {
+            result = await GhDispatcher.InvokeAsync(resolved.ToolName, bound, ct).ConfigureAwait(false);
+        } finally {
+            GhTimingTracker.CurrentTimer.Value = prevTimer;
+        }
+        if (result is null) {
+            TerminalHelper.WriteError($"工具 '{resolved.ToolName}' 调用返回 null");
+            return 1;
+        }
+        result.TimingInfo = tracker.Format();
+        return OutputResult(result, resolved.Json);
+    }
+
+    private static string ToolNotFoundMessage(GhResolvedCommand resolved) {
+        var prefix = resolved.Action is null ? $"gh_{resolved.Group}" : $"gh_{resolved.Group}_";
+        var candidates = GhDispatcher.GetToolNames()
+            .Where(n => n.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .Select(t => resolved.Action is null ? t : t[prefix.Length..])
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToList();
+        var head = CliErrorCatalog.ResourceNotFound("gh 子命令", resolved.ToolName).ToRustStyleString(resolved.ToolName);
+        if (candidates.Count == 0)
+            return $"{head}\n提示: 没有以 {prefix} 开头的工具";
+        return $"{head}\n可用: {string.Join(", ", candidates)}";
+    }
+
+    private static int RenderToolHelp(string group, string action) {
+        var toolName = string.Equals(group, "api", StringComparison.OrdinalIgnoreCase)
+            ? "gh_api" : $"gh_{group}_{action}";
+        if (!GhDispatcher.ContainsTool(toolName)) {
+            TerminalHelper.WriteLine(GhCommandResolver.Usage);
+            return 0;
+        }
+        var parameters = GhDispatcher.GetParams(toolName);
+        var sb = new StringBuilder(512);
+        sb.AppendLine($"工具: {toolName}");
+        sb.AppendLine();
+        var required = parameters.Where(p => p.IsRequired).ToList();
+        var optional = parameters.Where(p => !p.IsRequired).ToList();
+        var usageParts = new List<string> { "jcc", "gh", group, action };
+        foreach (var r in required) usageParts.Add($"<{r.Name}>");
+        foreach (var o in optional) usageParts.Add($"[--{o.Name}]");
+        usageParts.Add("[--json]");
+        sb.AppendLine($"用法: {string.Join(' ', usageParts)}");
+        if (required.Count > 0) {
+            sb.AppendLine();
+            sb.AppendLine("必填参数:");
+            foreach (var r in required) sb.AppendLine($"  <{r.Name}>    ({r.TypeHint})");
+        }
+        if (optional.Count > 0) {
+            sb.AppendLine();
+            sb.AppendLine("可选参数:");
+            foreach (var o in optional) {
+                var hint = o.IsBoolean ? "" : " <值>";
+                sb.AppendLine($"  --{o.Name}{hint}    ({o.TypeHint})");
+            }
+        }
+        TerminalHelper.WriteLine(sb.ToString());
+        return 0;
+    }
+
+    private static int OutputResult(ToolResult result, bool json) {
+        if (json) {
+            var text = (result.Content.Count == 1 ? result.Content[0].Text : null) ?? string.Empty;
+            if (result.IsError || string.IsNullOrEmpty(text)) {
+                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(result));
+                return result.IsError ? 1 : 0;
+            }
+            if (text.Length > 0 && (text[0] == '[' || text[0] == '{')) {
+                Console.WriteLine(text);
+                return result.IsError ? 1 : 0;
+            }
+            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(text));
+        } else {
+            var hasOutput = false;
+            foreach (var c in result.Content) {
+                if (!string.IsNullOrEmpty(c.Text)) {
+                    if (result.IsError) Console.Error.WriteLine(c.Text); else Console.WriteLine(c.Text);
+                    hasOutput = true;
+                }
+            }
+            if (!hasOutput) {
+                if (result.IsError) Console.Error.WriteLine("(无文本输出)"); else Console.WriteLine("(无文本输出)");
+            }
+            if (result.TimingInfo is not null) TerminalHelper.WriteLine(result.TimingInfo);
+        }
+        return result.IsError ? 1 : 0;
+    }
+}

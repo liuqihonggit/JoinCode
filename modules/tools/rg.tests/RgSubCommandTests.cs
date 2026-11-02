@@ -3,7 +3,7 @@
 #pragma warning disable JCC1018
 
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-namespace Host.Tests.Cli;
+namespace Rg.Tests;
 public sealed class RgSubCommandTests {
     [Theory]
     [InlineData(@"finally\s*\{", @"finally\s*\{")]

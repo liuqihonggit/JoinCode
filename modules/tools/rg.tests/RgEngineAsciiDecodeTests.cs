@@ -1,5 +1,5 @@
 [assembly: SuppressMessage("FileSystemAbstraction", "JCC9001", Scope = "type", Target = "Host.Tests.Cli.RgEngineAsciiDecodeTests", Justification = "RgEngine 搜索测试需直接访问文件系统验证真实文件的 ASCII 解码行为")]
-namespace Host.Tests.Cli;
+namespace Rg.Tests;
 
 /// <summary>
 /// RgEngine ASCII 解码 bug 修复测试（改动 2）。
@@ -146,6 +146,7 @@ public sealed class RgEngineAsciiDecodeTests {
         Paths: paths,
         Globs: null,
         FileType: null,
+        TypeNot: null,
         CaseInsensitive: false,
         SmartCase: false,
         WordRegexp: false,

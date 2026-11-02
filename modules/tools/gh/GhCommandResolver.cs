@@ -1,5 +1,5 @@
 // JCC11003 抑制: 存量代码可空抑制, 后续逐步修复
-namespace JoinCode.CliCommands;
+namespace JoinCode.Gh;
 
 /// <summary>
 /// gh 子命令的参数元信息 — 由 <see cref="GhParamSchemaParser"/> 从 <c>ToolSchema</c> 抽取，

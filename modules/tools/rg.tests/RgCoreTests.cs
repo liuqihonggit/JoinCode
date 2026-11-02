@@ -1,4 +1,4 @@
-namespace Host.Tests.Cli;
+namespace Rg.Tests;
 
 public sealed class RgCoreTests {
     [Fact]

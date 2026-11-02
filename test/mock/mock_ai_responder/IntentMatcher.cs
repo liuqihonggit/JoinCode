@@ -60,6 +60,11 @@ internal static class IntentMatcher {
 
         if (isStream) {
             var chunks = BuildOpenAiStreamChunks(replyText);
+            if (userMessage.ToLowerInvariant().Contains("l4") || userMessage.ToLowerInvariant().Contains("stream interrupt") || userMessage.ToLowerInvariant().Contains("流式中断")) {
+                chunks.RemoveAt(chunks.Count - 1);
+                chunks.RemoveAt(chunks.Count - 1);
+                return (new InjectDto { IsStream = true, ContentType = "text/event-stream", StreamChunks = chunks }, $"{desc} [stream, L4 中断无DONE]");
+            }
             return (new InjectDto { IsStream = true, ContentType = "text/event-stream", StreamChunks = chunks }, $"{desc} [stream]");
         }
         var nonStreamBody = BuildOpenAiResponse(replyText);
@@ -214,6 +219,33 @@ internal static class IntentMatcher {
                     Arguments = """{"command": "sleep 10 && echo done"}"""
                 }
             }], "F2: 工具执行慢（bash sleep 10）");
+        }
+        if (lower.Contains("long output") || lower.Contains("长输出") || lower.Contains("l6")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "seq 1 500"}"""
+                }
+            }], "L6: 工具返回超长结果（seq 1 500）");
+        }
+        if (lower.Contains("special chars") || lower.Contains("特殊字符") || lower.Contains("l11")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo 'hello \"world\" \n newline \t tab \\ backslash'}"""
+                }
+            }], "L11: 工具参数特殊字符（引号/换行/制表/反斜杠）");
+        }
+        if (lower.Contains("unicode args") || lower.Contains("unicode参数") || lower.Contains("l12")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo '中文 日本語 한국어 \U0001F600 emoji'}"""
+                }
+            }], "L12: 工具参数 Unicode/emoji");
         }
         if (lower.Contains("bad args") || lower.Contains("参数错误") || lower.Contains("k1")) {
             return ([new ToolCallDto {

@@ -33,33 +33,44 @@ public static class ToolExecutionEntityFactory {
 
     private static BashProcessEntity CreateBashEntity(
         Dictionary<string, JsonElement>? arguments, string? toolUseId, string? spanId, ObjectId sessionId) {
-        var command = arguments?.TryGetValue("command", out var cmd) == true ? cmd.GetString() : null;
-        var workingDir = arguments?.TryGetValue("working_directory", out var wd) == true ? wd.GetString() : null;
+        var command = arguments?.TryGetValue("command", out var cmd) == true ? SafeGetString(cmd) : null;
+        var workingDir = arguments?.TryGetValue("working_directory", out var wd) == true ? SafeGetString(wd) : null;
         return new BashProcessEntity(command: command, workingDirectory: workingDir, toolUseId: toolUseId, spanId: spanId, sessionId: sessionId);
     }
 
     private static WebFetchEntity CreateWebEntity(
         Dictionary<string, JsonElement>? arguments, string? toolUseId, string? spanId, ObjectId sessionId) {
-        var url = arguments?.TryGetValue("url", out var u) == true ? u.GetString() : null;
+        var url = arguments?.TryGetValue("url", out var u) == true ? SafeGetString(u) : null;
         return new WebFetchEntity(url: url, toolUseId: toolUseId, spanId: spanId, sessionId: sessionId);
     }
 
     private static SleepEntity CreateSleepEntity(
         Dictionary<string, JsonElement>? arguments, string? toolUseId, string? spanId, ObjectId sessionId) {
         var duration = arguments?.TryGetValue("duration_seconds", out var d) == true ? d.GetInt32() : 0;
-        var reason = arguments?.TryGetValue("reason", out var r) == true ? r.GetString() : null;
+        var reason = arguments?.TryGetValue("reason", out var r) == true ? SafeGetString(r) : null;
         return new SleepEntity(durationSeconds: duration, reason: reason, toolUseId: toolUseId, spanId: spanId, sessionId: sessionId);
     }
 
     private static ReplSessionEntity CreateReplEntity(
         Dictionary<string, JsonElement>? arguments, string? toolUseId, string? spanId, ObjectId sessionId) {
-        var language = arguments?.TryGetValue("language", out var l) == true ? l.GetString() ?? "csharp" : "csharp";
+        var language = arguments?.TryGetValue("language", out var l) == true ? SafeGetString(l) ?? "csharp" : "csharp";
         return new ReplSessionEntity(language: language, toolUseId: toolUseId, spanId: spanId, sessionId: sessionId);
     }
 
     private static UserInteractionEntity CreateUserInteractionEntity(
         Dictionary<string, JsonElement>? arguments, string? toolUseId, string? spanId, ObjectId sessionId) {
-        var question = arguments?.TryGetValue("question", out var q) == true ? q.GetString() : null;
+        var question = arguments?.TryGetValue("question", out var q) == true ? SafeGetString(q) : null;
         return new UserInteractionEntity(question: question, toolUseId: toolUseId, spanId: spanId, sessionId: sessionId);
+    }
+
+    /// <summary>
+    /// 安全获取字符串 — 非字符串类型（数字/布尔/null）转为字符串表示，避免 JsonElement.GetString() 抛 InvalidOperationException
+    /// </summary>
+    private static string? SafeGetString(JsonElement element) {
+        return element.ValueKind switch {
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Null => null,
+            _ => element.GetRawText()
+        };
     }
 }

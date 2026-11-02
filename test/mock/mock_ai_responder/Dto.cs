@@ -53,7 +53,7 @@ internal sealed class ToolCallDto {
 
 internal sealed class ToolCallFunctionDto {
     public string Name { get; set; } = "";
-    public string Arguments { get; set; } = "{}";
+    public string? Arguments { get; set; } = "{}";
 }
 
 internal sealed class OpenAiUsage {

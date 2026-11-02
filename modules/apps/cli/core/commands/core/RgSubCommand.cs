@@ -301,6 +301,11 @@ internal static class RgSubCommand {
                     case "--heading": break;
                     case "--no-heading": break;
                     case "--null": break;
+                    case "--pretty": break;
+                    case "--with-filename": break;
+                    case "--no-filename": break;
+                    case "--type-add": _ = inlineValue ?? ReadNextValue(args, ref i); break;
+                    case "--ignore-file": _ = inlineValue ?? ReadNextValue(args, ref i); break;
                     case "--max-count": maxCount = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
                     case "--regexp": { var v = inlineValue ?? ReadNextValue(args, ref i); if (v is not null) regexpPatterns.Add(v); } break;
                     case "--threads": threads = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;

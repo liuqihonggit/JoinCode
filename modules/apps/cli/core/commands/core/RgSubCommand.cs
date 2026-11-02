@@ -39,6 +39,10 @@ internal static class RgSubCommand {
 
             if (paths.Any(p => p == "-")) {
                 var stdinContent = await Console.In.ReadToEndAsync(ct).ConfigureAwait(false);
+                if (string.IsNullOrEmpty(stdinContent)) {
+                    TerminalHelper.WriteError("错误: stdin 内容为空。请指定搜索路径，或通过管道提供搜索目标。");
+                    return 1;
+                }
                 var tempFile = Path.Combine(Path.GetTempPath(), $"jcc-rg-stdin-{Guid.NewGuid():N}.txt").Replace('\\', '/');
                 await File.WriteAllTextAsync(tempFile, stdinContent, ct).ConfigureAwait(false);
                 tempFiles.Add(tempFile);

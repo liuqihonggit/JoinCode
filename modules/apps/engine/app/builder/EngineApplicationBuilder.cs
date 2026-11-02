@@ -123,7 +123,13 @@ public sealed class EngineApplicationBuilder {
         var configLogLevel = JoinCode.Abstractions.Utils.Diagnostics.Diag.IsDebugLog ? LogLevel.Debug : LogLevel.Warning;
         using var configLoggerFactory = LoggerFactory.Create(b => b.AddProvider(new Core.Configuration.StderrLoggerProvider(configLogLevel)));
 
-        var loader = new Core.Configuration.ConfigLoader(modelConfigLoader: modelConfigLoader, loggerFactory: configLoggerFactory) {
+        // 启动开销优化 — 先创建 registry 再传给 ConfigLoader，避免 ConfigLoader 构造函数内部重复创建
+        // （原流程：ConfigLoader 构造 → ProviderDefinitionRegistry.Create 读 settings.json，
+        //   然后 LoadConfigAsync 行 141 又 CreateAsync 读 settings.json — 重复读取）
+        modelConfigLoader ??= new ModelConfigLoader();
+        var registry = await Core.Configuration.Providers.ProviderDefinitionRegistry.CreateAsync(modelConfigLoader, logger: configLoggerFactory.CreateLogger<Core.Configuration.Providers.ProviderDefinitionRegistry>()).ConfigureAwait(false);
+
+        var loader = new Core.Configuration.ConfigLoader(registry: registry, modelConfigLoader: modelConfigLoader, loggerFactory: configLoggerFactory) {
             SkipProviderValidation = options.SkipProviderValidation
         };
 
@@ -137,8 +143,6 @@ public sealed class EngineApplicationBuilder {
                 throw;
             }
         }
-
-        var registry = await Core.Configuration.Providers.ProviderDefinitionRegistry.CreateAsync(modelConfigLoader ?? new ModelConfigLoader(), logger: configLoggerFactory.CreateLogger<Core.Configuration.Providers.ProviderDefinitionRegistry>()).ConfigureAwait(false);
 
         if (dotEnv is not null) {
             config = dotEnv.ApplyToMemory(config, registry);

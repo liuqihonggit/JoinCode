@@ -1696,6 +1696,10 @@ internal static partial class IntentMatcher {
         if (eResult.ToolCalls is not null)
             return eResult;
 
+        var fResult = MatchEdgeFIntent(userMessage);
+        if (fResult.ToolCalls is not null)
+            return fResult;
+
         return (null, "");
     }
 

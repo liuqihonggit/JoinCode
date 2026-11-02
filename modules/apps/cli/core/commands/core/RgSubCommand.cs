@@ -306,6 +306,17 @@ internal static class RgSubCommand {
                     case "--no-filename": break;
                     case "--type-add": _ = inlineValue ?? ReadNextValue(args, ref i); break;
                     case "--ignore-file": _ = inlineValue ?? ReadNextValue(args, ref i); break;
+                    case "--text": break;
+                    case "--stats": break;
+                    case "--max-depth": _ = inlineValue ?? ReadNextValue(args, ref i); break;
+                    case "--count-matches": outputMode = SearchOutputMode.Count; break;
+                    case "--unrestricted": hidden = true; noIgnore = true; break;
+                    case "--file": {
+                        var filePath = inlineValue ?? ReadNextValue(args, ref i);
+                        if (filePath is not null && File.Exists(filePath))
+                            pattern = File.ReadAllText(filePath).TrimEnd('\r', '\n');
+                    }
+                    break;
                     case "--max-count": maxCount = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
                     case "--regexp": { var v = inlineValue ?? ReadNextValue(args, ref i); if (v is not null) regexpPatterns.Add(v); } break;
                     case "--threads": threads = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
@@ -339,7 +350,8 @@ internal static class RgSubCommand {
                         ref json, globs, ref fileType, ref replace,
                         ref before, ref after, ref context, ref headLimit, ref offset,
                         ref timeoutSeconds, ref outputMode,
-                        ref invertMatch, ref lineRegexp, ref maxCount, regexpPatterns, ref threads)) {
+                        ref invertMatch, ref lineRegexp, ref maxCount, regexpPatterns, ref threads,
+                        ref hidden, ref noIgnore)) {
                     return null;
                 }
             }
@@ -469,7 +481,8 @@ internal static class RgSubCommand {
         ref bool json, List<string> globs, ref string? fileType, ref string? replace,
         ref int? before, ref int? after, ref int? context, ref int? headLimit, ref int? offset,
         ref int timeoutSeconds, ref SearchOutputMode outputMode,
-        ref bool invertMatch, ref bool lineRegexp, ref int? maxCount, List<string> regexpPatterns, ref int? threads) {
+        ref bool invertMatch, ref bool lineRegexp, ref int? maxCount, List<string> regexpPatterns, ref int? threads,
+        ref bool hidden, ref bool noIgnore) {
         var span = arg.AsSpan(1);
         var j = 0;
         while (j < span.Length) {
@@ -497,6 +510,16 @@ internal static class RgSubCommand {
                 case 'r': replace = ConsumeShortString(span, ref j, args, ref i); break;
                 case 'h': PrintUsage(); return false;
                 case '0': j++; break;
+                case 'a': j++; break;
+                case 'u': hidden = true; noIgnore = true; j++; break;
+                case 'f': {
+                    var filePath = ConsumeShortString(span, ref j, args, ref i);
+                    if (filePath is not null && File.Exists(filePath))
+                        foreach (var line in File.ReadAllLines(filePath))
+                            if (!string.IsNullOrEmpty(line))
+                                regexpPatterns.Add(line);
+                } break;
+                case 'D': _ = ConsumeShortString(span, ref j, args, ref i); break;
                 default:
                 TerminalHelper.WriteError($"未知短参数: -{c}（在 {arg} 中）");
                 return false;

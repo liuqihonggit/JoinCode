@@ -25,12 +25,12 @@ internal static class GhDispatcher {
             if (p.GetCustomAttribute<McpToolOptionsAttribute>() is not null) {
                 foreach (var prop in p.ParameterType.GetProperties()) {
                     if (prop.GetCustomAttribute<McpToolParameterAttribute>() is null) continue;
-                    AddParam(result, prop.Name, prop.PropertyType, prop.GetCustomAttribute<McpToolParameterAttribute>(), true);
+                    AddParam(result, ToSnakeCase(prop.Name), prop.PropertyType, prop.GetCustomAttribute<McpToolParameterAttribute>(), true);
                 }
                 continue;
             }
             if (p.ParameterType == typeof(CancellationToken)) continue;
-            AddParam(result, p.Name ?? "?", p.ParameterType, p.GetCustomAttribute<McpToolParameterAttribute>(), p.HasDefaultValue);
+            AddParam(result, ToSnakeCase(p.Name ?? "?"), p.ParameterType, p.GetCustomAttribute<McpToolParameterAttribute>(), p.HasDefaultValue);
         }
         return result;
     }
@@ -59,7 +59,7 @@ internal static class GhDispatcher {
                 continue;
             }
             var paramAttr = p.GetCustomAttribute<McpToolParameterAttribute>();
-            var name = p.Name ?? "?";
+            var name = ToSnakeCase(p.Name ?? "?");
             if (args.TryGetValue(name, out var value)) {
                 argValues[i] = ConvertValue(value, p.ParameterType);
             } else if (p.HasDefaultValue) {
@@ -99,5 +99,22 @@ internal static class GhDispatcher {
             "false" or "0" or "no" or "off" => false,
             _ => bool.TryParse(value, out var b) ? b : null
         };
+    }
+
+    private static string ToSnakeCase(string name) {
+        if (string.IsNullOrEmpty(name)) return name;
+        var sb = new StringBuilder(name.Length + 4);
+        for (var i = 0; i < name.Length; i++) {
+            var c = name[i];
+            if (i > 0 && char.IsUpper(c)) {
+                var prev = name[i - 1];
+                var next = i + 1 < name.Length ? name[i + 1] : '\0';
+                if (char.IsLower(prev) || (char.IsUpper(prev) && char.IsLower(next))) {
+                    sb.Append('_');
+                }
+            }
+            sb.Append(char.ToLowerInvariant(c));
+        }
+        return sb.ToString();
     }
 }

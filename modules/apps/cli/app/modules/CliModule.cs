@@ -74,6 +74,11 @@ public sealed class CliModule : IAppModule {
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步初始化操作的任务</returns>
     public async Task ConfigureAsync(IServiceProvider services, CancellationToken ct) {
+        // SkipChatServices 时跳过斜杠命令注册 — jcc gh/mcp_call 等元命令不需要斜杠命令
+        var options = services.GetService<CommandLineOptions>();
+        if (options?.SkipChatServices ?? false)
+            return;
+
         // 将 ExposeToMcp=true 的斜杠命令注册为 MCP 工具（通过 SlashToMcpAdapter 包装）
         // 这样 LLM 能通过现有 MCP 管线发现和调用斜杠命令
         var commandRegistry = services.GetService<ISlashCommandRegistry>();

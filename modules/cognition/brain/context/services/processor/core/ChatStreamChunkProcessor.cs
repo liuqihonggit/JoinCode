@@ -227,7 +227,7 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
             if (item.TryGetProperty("Arguments", out var argsProp) && argsProp.ValueKind == JsonValueKind.String)
                 arguments = argsProp.GetString() ?? "{}";
 
-            if (name is null) continue;
+            if (string.IsNullOrWhiteSpace(name)) continue;
 
             // 对每个工具调用独立执行工具名修复
             var repairedName = LlmJsonHelper.RepairToolName(name, logger);

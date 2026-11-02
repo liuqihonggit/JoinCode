@@ -422,7 +422,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                     if (item.TryGetProperty("Arguments", out var argsProp) && argsProp.ValueKind == JsonValueKind.String)
                         arguments = argsProp.GetString() ?? "{}";
 
-                    if (name is null) continue;
+                    if (string.IsNullOrWhiteSpace(name)) continue;
 
                     pendingToolCalls.Add(new ToolCallRequest {
                         ToolName = name,

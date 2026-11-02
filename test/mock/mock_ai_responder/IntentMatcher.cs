@@ -117,7 +117,7 @@ internal static partial class IntentMatcher {
         if (lower.Contains("解释") || lower.Contains("explain") || lower.Contains("什么")) {
             return ($"关于\"{userMessage}\"：这是一个模拟回应。真实 AI 会给你详细解释。当前用于调试 jcc 对话流程。", "解释");
         }
-        if (lower.Contains("unicode") || lower.Contains("emoji") || lower.Contains("h4")) {
+        if (lower.Contains("unicode") || lower.Contains("emoji") || lower.Contains("h4_unicode\n")) {
             return ("Unicode 测试：中文 日本語 한국어 العربية \U0001F600 \U0001F680 \u2764\uFE0F \u00A9 \u2122 ✅❌⚡", "H4: Unicode/Emoji");
         }
         if (lower.Contains("超长") || lower.Contains("long response") || lower.Contains("j1")) {
@@ -209,7 +209,7 @@ internal static partial class IntentMatcher {
     /// <summary>多轮工具调用：根据已完成的工具结果数决定下一步</summary>
     private static (ToolCallDto? ToolCall, string Description) MatchNextToolCallIntent(string userMessage, int toolResultCount) {
         var lower = userMessage.ToLowerInvariant();
-        if (lower.Contains("multi tool") || lower.Contains("多工具") || lower.Contains("f3")) {
+        if (lower.Contains("multi tool") || lower.Contains("多工具") || lower.Contains("f3_multi\n")) {
             if (toolResultCount == 1) {
                 return (new ToolCallDto {
                     Id = $"call_{Guid.NewGuid():N}"[..20],
@@ -295,7 +295,7 @@ internal static partial class IntentMatcher {
     }
     private static (List<ToolCallDto>? ToolCalls, string Description) MatchToolCallIntent(string userMessage) {
         var lower = userMessage.ToLowerInvariant();
-        if (lower.Contains("read file") || lower.Contains("读文件") || lower.Contains("f1")) {
+        if (lower.Contains("read file") || lower.Contains("读文件") || lower.Contains("f1_read\n")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -304,7 +304,7 @@ internal static partial class IntentMatcher {
                 }
             }], "F1: 工具调用失败（read 不存在的文件）");
         }
-        if (lower.Contains("multi tool") || lower.Contains("多工具") || lower.Contains("f3")) {
+        if (lower.Contains("multi tool") || lower.Contains("多工具") || lower.Contains("f3_multi\n")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -313,10 +313,10 @@ internal static partial class IntentMatcher {
                 }
             }], "F3: 多工具连续调用（第1个）");
         }
-        if (lower.Contains("empty tool") || lower.Contains("空工具") || lower.Contains("i1")) {
+        if (lower.Contains("empty tool") || lower.Contains("空工具") || lower.Contains("i_empty\n")) {
             return ([], "I1: 空工具调用（tool_calls=[]）");
         }
-        if (lower.Contains("multi call") || lower.Contains("多调用") || lower.Contains("i2")) {
+        if (lower.Contains("multi call") || lower.Contains("多调用") || lower.Contains("i_multi\n")) {
             return ([
                 new ToolCallDto {
                     Id = $"call_{Guid.NewGuid():N}"[..20],
@@ -334,7 +334,7 @@ internal static partial class IntentMatcher {
                 }
             ], "I2: 多个工具调用（一次2个）");
         }
-        if (lower.Contains("tool error") || lower.Contains("工具错误") || lower.Contains("i3")) {
+        if (lower.Contains("tool error") || lower.Contains("工具错误") || lower.Contains("i_error\n")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -343,7 +343,7 @@ internal static partial class IntentMatcher {
                 }
             }], "I3: 工具执行错误（bash exit 1）");
         }
-        if (lower.Contains("tool timeout") || lower.Contains("工具超时") || lower.Contains("f2")) {
+        if (lower.Contains("tool timeout") || lower.Contains("工具超时") || lower.Contains("f2_timeout\n")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1580,19 +1580,19 @@ internal static partial class IntentMatcher {
                 }
             }], "A20: 工具参数 JSON 包含注释");
         }
-        if (lower.Contains("c1\n") || lower.Contains("exit code 1")) {
+        if (lower.Contains("c1\n") || lower.Contains("c1 exit code 1")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo c1_stdout; exit 1"}""" }
             }], "C1: 工具返回 exit code 1");
         }
-        if (lower.Contains("c2\n") || lower.Contains("exit code 127")) {
+        if (lower.Contains("c2\n") || lower.Contains("c2 exit code 127")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "nonexistent_command_xyz"}""" }
             }], "C2: 工具返回 exit code 127");
         }
-        if (lower.Contains("c3\n") || lower.Contains("exit code 255")) {
+        if (lower.Contains("c3\n") || lower.Contains("c3 exit code 255")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "exit 255"}""" }

@@ -27,21 +27,21 @@ internal static partial class IntentMatcher {
             }], "I3: 工具执行慢命令");
         }
 
-        if (lower.Contains("i4\n") || lower.Contains("exit code 1")) {
+        if (lower.Contains("i4\n") || lower.Contains("i4 exit code 1")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "exit 1"}""" }
             }], "I4: 工具返回 exit code 1");
         }
 
-        if (lower.Contains("i5\n") || lower.Contains("exit code 127")) {
+        if (lower.Contains("i5\n") || lower.Contains("i5 exit code 127")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "command_not_found_127"}""" }
             }], "I5: 工具返回 exit code 127");
         }
 
-        if (lower.Contains("i6\n") || lower.Contains("exit code 255")) {
+        if (lower.Contains("i6\n") || lower.Contains("i6 exit code 255")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "exit 255"}""" }

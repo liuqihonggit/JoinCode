@@ -241,13 +241,15 @@ internal static class RgSubCommand {
             }
 
             if (arg[0] != '-') {
-                switch (arg) {
-                    case "content": outputMode = SearchOutputMode.Content; continue;
-                    case "count": outputMode = SearchOutputMode.Count; continue;
-                    case "files-with-matches": outputMode = SearchOutputMode.Files; continue;
-                    case "json": json = true; continue;
-                    case "hidden": hidden = true; continue;
-                    case "no-ignore": noIgnore = true; continue;
+                if (pattern is not null && paths.Count > 0) {
+                    switch (arg) {
+                        case "content": outputMode = SearchOutputMode.Content; continue;
+                        case "count": outputMode = SearchOutputMode.Count; continue;
+                        case "files-with-matches": outputMode = SearchOutputMode.Files; continue;
+                        case "json": json = true; continue;
+                        case "hidden": hidden = true; continue;
+                        case "no-ignore": noIgnore = true; continue;
+                    }
                 }
                 if (pattern is null && regexpPatterns.Count == 0)
                     pattern = arg;

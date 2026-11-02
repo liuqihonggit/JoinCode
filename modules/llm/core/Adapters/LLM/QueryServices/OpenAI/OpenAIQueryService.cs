@@ -112,8 +112,10 @@ public class OpenAIQueryService : QueryServiceBase {
 
                     foreach (var tc in sc2.Delta?.ToolCalls ?? []) {
                         var idx = tc.Index ?? 0;
-                        if (!string.IsNullOrEmpty(tc.Id))
-                            secondAccumulator[idx] = (tc.Id, tc.Function?.Name ?? "", new StringBuilder());
+                        if (!string.IsNullOrEmpty(tc.Id) || !secondAccumulator.ContainsKey(idx)) {
+                            var effectiveId = string.IsNullOrEmpty(tc.Id) ? $"call_{Guid.NewGuid():N}"[..20] : tc.Id;
+                            secondAccumulator[idx] = (effectiveId, tc.Function?.Name ?? "", new StringBuilder());
+                        }
                         if (tc.Function?.Arguments != null && secondAccumulator.TryGetValue(idx, out var ex))
                             ex.Arguments.Append(tc.Function.Arguments);
                     }
@@ -154,8 +156,9 @@ public class OpenAIQueryService : QueryServiceBase {
                 foreach (var tc in choice.Delta.ToolCalls) {
                     var idx = tc.Index ?? 0;
 
-                    if (!string.IsNullOrEmpty(tc.Id)) {
-                        toolCallAccumulator[idx] = (tc.Id, tc.Function?.Name ?? "", new StringBuilder());
+                    if (!string.IsNullOrEmpty(tc.Id) || !toolCallAccumulator.ContainsKey(idx)) {
+                        var effectiveId = string.IsNullOrEmpty(tc.Id) ? $"call_{Guid.NewGuid():N}"[..20] : tc.Id;
+                        toolCallAccumulator[idx] = (effectiveId, tc.Function?.Name ?? "", new StringBuilder());
                     }
 
                     if (tc.Function?.Arguments != null && toolCallAccumulator.TryGetValue(idx, out var existing)) {

@@ -577,6 +577,24 @@ internal static class IntentMatcher {
                 }
             }], "U4: 工具参数包含嵌套 JSON");
         }
+        if (lower.Contains("v2") || lower.Contains("url result") || lower.Contains("url结果")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo 'https://example.com/path?q=1&r=2'"}"""
+                }
+            }], "V2: 工具结果包含 URL");
+        }
+        if (lower.Contains("v5") || lower.Contains("null id") || lower.Contains("null的id")) {
+            return ([new ToolCallDto {
+                Id = "",
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo v5_done"}"""
+                }
+            }], "V5: 空 tool_call_id");
+        }
         return (null, "");
     }
 

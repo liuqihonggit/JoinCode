@@ -103,3 +103,134 @@ AI 用 bash 调 `jcc -p "消息"`，responder 自动匹配意图并 inject 响�
 | l6/长输出 | 超长工具结果 | seq 1 500 |
 | l11/特殊字符 | 参数特殊字符 | 引号/换行/制表 |
 | l12/unicode参数 | 参数 Unicode | 中文/emoji |
+
+---
+
+## 2026-11-03 续测 — A/B/C 系列 + 代码质量 bug 修复
+
+### 新增场景测试（60 场景）
+
+#### A1-A20：工具参数边缘场景
+
+| 场景 | 关键词 | 结果 | 说明 |
+|------|--------|------|------|
+| A1 大参数值100KB | a1 | ✅ | bash 报 command 过长，LLM 继续回应 |
+| A2 名含换行 | a2 | ✅ | Tool 'bash\n' not found |
+| A3 id含换行 | a3 | ✅ | ID 含换行不影响执行 |
+| A4 null字节内容 | a4 | ✅ | null 字节被移除 |
+| A5 纯CRLF | a5 | ✅ | 纯 CRLF 输出为空 |
+| A6 首败次成 | a6 | ✅ | nonexistent_tool 失败 + bash 成功 |
+| A7 键含空格 | a7 | ✅ | JSON 键含空格正常执行 |
+| A8 大写BASH | a8 | ✅ | BASH not found（大小写敏感） |
+| A9 嵌套引号 | a9 | ✅ | 多层嵌套引号正确处理 |
+| A10 超长内容100KB | a10 | ✅ | yes+head 100KB 输出 |
+| A11 纯数字id | a11 | ✅ | 纯数字 ID 正常处理 |
+| A12 unicode id | a12 | ✅ | Unicode ID 正常处理 |
+| A13 名含点号 | a13 | ✅ | bash.bash not found |
+| A14 深层数组20 | a14 | ✅ | 20层嵌套数组参数（修复 responder 缺 Name） |
+| A15 重复键 | a15 | ✅ | JSON 重复键容错 |
+| A16 混合引号 | a16 | ✅ | 混合引号正确处理 |
+| A17 参数含控制符 | a17 | ✅ | 制表符/回车/换行 |
+| A18 空命令值 | a18 | ✅ | command 为空字符串报错 |
+| A19 超长工具名255 | a19 | ✅ | 255字符工具名 not found |
+| A20 JSON含注释 | a20 | ✅ | JSON 注释容错 |
+
+#### B1-B20：命令行参数边缘场景
+
+| 场景 | 结果 | 说明 |
+|------|------|------|
+| B1 空prompt | ✅ | exitCode=3 + ARG_PROMPT_EMPTY |
+| B2 无效format | ✅ | exitCode=3 + 警告 |
+| B3 未知参数 | ✅ | "Unknown option" 错误 |
+| B4 无format | ✅ | 默认 text 格式 |
+| B5 大写JSON | ✅ | format 大小写不敏感 |
+| B6 混合大小写Json | ✅ | format 大小写不敏感 |
+| B7 无prompt | ✅ | exitCode=3 + ARG_PROMPT_EMPTY |
+| B8 空endpoint | ✅ | 回退到默认 endpoint |
+| B9 无效endpoint | ✅ | "Invalid URI" 错误 |
+| B10 空API key | ✅ | MCP 初始化超时 |
+| B11 无效vendor | ✅ | CONFIG_INVALID_VALUE |
+| B12 ndjson格式 | ✅ | NDJSON 输出正确 |
+| B13 text格式 | ✅ | text 输出正确 |
+| B14 xml格式 | ✅ | exitCode=3 + 警告 |
+| B15 null字节prompt | ✅ | null 字节被忽略 |
+| B16 Unicode prompt | ✅ | Unicode 正确保留 |
+| B17 超长prompt 10KB | ✅ | 正常处理 |
+| B18 无效permission mode | ✅ | 正常运行（默认行为） |
+| B19 无效http mode | ✅ | 正常运行（默认行为） |
+| B20 多个--prompt | ✅ | 使用最后一个值 |
+
+#### C1-C20：工具执行结果边缘场景
+
+| 场景 | 关键词 | 结果 | 说明 |
+|------|--------|------|------|
+| C1 exit code 1 | c1 | ✅ | 非零退出码 + LLM 继续回应 |
+| C2 exit code 127 | c2 | ✅ | command not found |
+| C3 exit code 255 | c3 | ✅ | Exit code 255 |
+| C4 stdout+stderr | c4 | ✅ | 同时输出 stdout 和 stderr |
+| C5 ANSI输出 | c5 | ✅ | ANSI 转义序列 |
+| C6 JSON输出 | c6 | ✅ | JSON 格式数据 |
+| C7 markdown输出 | c7 | ✅ | markdown 格式 |
+| C8 代码块输出 | c8 | ✅ | 代码块 |
+| C9 空输出 | c9 | ✅ | 空字符串 |
+| C10 仅换行 | c10 | ✅ | 只有换行符 |
+| C11 仅空格 | c11 | ✅ | 只有空格 |
+| C12 嵌套JSON参数 | c12 | ✅ | 嵌套 JSON 对象 |
+| C13 数组参数 | c13 | ✅ | JSON 数组 |
+| C14 混合类型参数 | c14 | ✅ | 混合类型 |
+| C15 并行一成一败 | c15 | ✅ | 一个成功一个失败 |
+| C16 三并行全成 | c16 | ✅ | 三个并行成功 |
+| C17 三并行全败 | c17 | ✅ | 三个并行失败 |
+| C18 工具后最终回应 | c18 | ✅ | 工具调用后最终回应 |
+| C19 工具链 | c19 | ✅ | 工具链两步 |
+| C20 工具后空content | c20 | ✅ | 空 content 回应 |
+
+**总计：60 新场景全部通过**
+
+### 修复的 bug（18+ 个）
+
+#### responder bug
+
+| Bug | 根因 | 修复 | 提交 |
+|-----|------|------|------|
+| 子串匹配冲突 | `Contains("a1")` 匹配 "a10"-"a19" | `Contains("aX\n")` 利用换行边界 | `8e3f748e8` |
+| A14 缺少 Name | `ToolCallFunctionDto` 缺 `Name="bash"` | 添加 Name | `8e3f748e8` |
+| C1-C20 场景 | 新增工具执行结果边缘场景 | 添加到 IntentMatcher | `ff0b05f36` |
+
+#### jcc 客户端 bug
+
+| Bug | 根因 | 修复 | 提交 |
+|-----|------|------|------|
+| printf PathViolation | printf 未加入 SimpleReadOnlyCommands | 添加 printf | `44c79fdb5` |
+| .NET 异常泄露 | GetString() 未检查 ValueKind | SafeGetString 宽容转换 | `7193dc2bf` |
+| 空 tool_call_id | 空 ID 工具调用静默跳过 | 生成回退 ID | `c58154a5e` |
+| RgSubCommand exitCode/ok 矛盾 | 搜索无结果 ok:true + exitCode:1 | Create(ok:false) | `b20e6e564` |
+
+#### 代码质量 bug（GetString 未检查 ValueKind）
+
+| Bug | 文件 | 修复 | 提交 |
+|-----|------|------|------|
+| Bug1 | OpenAIQueryService.cs:377 | 添加 ValueKind 检查 | `72351d6ec` |
+| Bug1 同类 | ResponsesQueryService.cs:399 | 添加 ValueKind 检查 | `73458236e` |
+| Bug1 同类 | AnthropicQueryService.cs:374 | 添加 ValueKind 检查 | `73458236e` |
+
+#### 代码质量 bug（Unicode 代理对截断）
+
+| Bug | 文件 | 修复 | 提交 |
+|-----|------|------|------|
+| Bug2 | ToolPatrolEngine.cs:171 | SafeTruncate 方法 | `72351d6ec` |
+| Bug3 | OpenAIQueryService.cs:382 | 代理对边界检查 | `46b0fb7ff` |
+| Bug3 同类 | ResponsesQueryService.cs:404 | 代理对边界检查 | `73458236e` |
+| Bug3 同类 | AnthropicQueryService.cs:378 | 代理对边界检查 | `73458236e` |
+| 代理对截断 | DagNodeSummarizer.cs:42 | 代理对边界检查 | `2e57228dc` |
+| 代理对截断 | CtxInspectToolHandlers.cs:62 | 代理对边界检查 | `2e57228dc` |
+| 代理对截断 | InformationEntropyGuardian.cs:265,276 | 代理对边界检查 | `e7911ce7e` |
+| 23处统一修复 | 17个文件 | SafeTruncate 扩展方法 | `b44b8b5a8` |
+
+### 验收表
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| StringExtensions.SafeTruncate | 17个文件的字符串截断 | ✅ | ✅ 编译通过 |
+| responder IntentMatcher A/W/X/Y/Z 匹配 | A1-A20 场景测试 | ✅ | ✅ 手动 exe 验收 |
+| responder IntentMatcher C1-C20 | C1-C20 场景测试 | ✅ | ✅ 手动 exe 验收 |

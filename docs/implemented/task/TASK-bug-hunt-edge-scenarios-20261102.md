@@ -27,8 +27,15 @@ AI 用 bash 调 `jcc -p "消息"`，responder 自动匹配意图并 inject 响�
 | M4 tool_call_id 匹配 | m4 | ✅ | jcc 正确传递 tool_call_id |
 | M5 嵌套工具调用 | m5 | ✅ | bash echo → bash echo → 最终回应 |
 | M6 JSON/NDJSON 统一 | --format json/ndjson | ✅ | 字段名统一为 content（修复） |
+| N1 不存在工具名 | n1 | ✅ | 正确报 "Tool not found" |
+| N2 空工具名 | n2 | ✅ | 修复 ArgumentException 暴露 → 静默跳过 |
+| N3 非JSON参数 | n3 | ✅ | bash 报缺少必需参数 |
+| N4 超大参数 | n4 | ✅ | bash 报 command 过长 |
+| P4 空参数串 | p4 | ✅ | bash 报缺少必需参数 |
+| P5 null参数 | p5 | ✅ | bash 报缺少必需参数 |
+| P6 超长ID | p6 | ✅ | 200字符 tool_call_id 正常处理 |
 
-**总计：21 场景全部通过，2 个 bug 修复**
+**总计：28 场景全部通过，3 个 bug 修复**
 
 ## 修复的问题
 
@@ -46,6 +53,11 @@ AI 用 bash 调 `jcc -p "消息"`，responder 自动匹配意图并 inject 响�
 - **根因**: `MediaIntentDetector` 的 `ReadPdf` 关键词包含 `"文件"`、`"file"`、`"文档"`、`"document"`，用户说"读取不存在的文件"就误判为 PDF 识别意图
 - **修复**: 移除过宽关键词，仅保留 `"PDF"` 和 `"pdf"`
 - **提交**: `2c662773b`
+
+### N2 空工具名 ArgumentException 暴露（bug）
+- **根因**: `QueryEngine.cs:425` 和 `ChatStreamChunkProcessor.cs:230` 只判 `name is null` 不判空字符串/空白，空名工具调用静默通过到 `IsToolAllowed` 抛 `ArgumentException`，异常消息暴露给用户
+- **修复**: `name is null` → `string.IsNullOrWhiteSpace(name)`，空名工具调用静默跳过
+- **提交**: `24b652dfd`
 
 ## 验收表
 

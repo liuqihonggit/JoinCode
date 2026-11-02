@@ -392,6 +392,43 @@ internal static class IntentMatcher {
                 }
             }], "M5: 嵌套工具调用（第1个）");
         }
+        if (lower.Contains("n1") || lower.Contains("unknown tool") || lower.Contains("不存在工具")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "nonexistent_tool_xyz",
+                    Arguments = """{"arg": "test"}"""
+                }
+            }], "N1: 不存在的工具名");
+        }
+        if (lower.Contains("n2") || lower.Contains("empty name") || lower.Contains("空名工具")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "",
+                    Arguments = """{"arg": "test"}"""
+                }
+            }], "N2: 空工具名");
+        }
+        if (lower.Contains("n3") || lower.Contains("bad json args") || lower.Contains("非json参数")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = "this is not json {{{"
+                }
+            }], "N3: 工具参数非 JSON");
+        }
+        if (lower.Contains("n4") || lower.Contains("huge args") || lower.Contains("超大参数")) {
+            var bigArg = new string('x', 10000);
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = JsonSerializer.Serialize(new { command = $"echo {bigArg}" })
+                }
+            }], "N4: 超大工具参数（10KB）");
+        }
         return (null, "");
     }
 

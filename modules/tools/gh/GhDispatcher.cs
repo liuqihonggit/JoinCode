@@ -22,21 +22,29 @@ internal static class GhDispatcher {
         if (!s_toolMap.TryGetValue(toolName, out var method)) return [];
         var result = new List<GhParam>();
         foreach (var p in method.GetParameters()) {
-            if (p.GetCustomAttribute<McpToolOptionsAttribute>() is not null) continue;
+            if (p.GetCustomAttribute<McpToolOptionsAttribute>() is not null) {
+                foreach (var prop in p.ParameterType.GetProperties()) {
+                    if (prop.GetCustomAttribute<McpToolParameterAttribute>() is null) continue;
+                    AddParam(result, prop.Name, prop.PropertyType, prop.GetCustomAttribute<McpToolParameterAttribute>(), false);
+                }
+                continue;
+            }
             if (p.ParameterType == typeof(CancellationToken)) continue;
-            var paramAttr = p.GetCustomAttribute<McpToolParameterAttribute>();
-            var name = p.Name ?? "?";
-            var isRequired = (paramAttr?.Required ?? true) && !p.HasDefaultValue;
-            var typeHint = p.ParameterType switch {
-                _ when p.ParameterType == typeof(string) => "string",
-                _ when p.ParameterType == typeof(int) || p.ParameterType == typeof(int?) => "integer",
-                _ when p.ParameterType == typeof(bool) || p.ParameterType == typeof(bool?) => "boolean",
-                _ => "string"
-            };
-            var isBoolean = typeHint == "boolean";
-            result.Add(new GhParam(name, isRequired, isBoolean, typeHint));
+            AddParam(result, p.Name ?? "?", p.ParameterType, p.GetCustomAttribute<McpToolParameterAttribute>(), p.HasDefaultValue);
         }
         return result;
+    }
+
+    private static void AddParam(List<GhParam> result, string name, Type type, McpToolParameterAttribute? paramAttr, bool hasDefaultValue) {
+        var isRequired = (paramAttr?.Required ?? true) && !hasDefaultValue;
+        var typeHint = type switch {
+            _ when type == typeof(string) => "string",
+            _ when type == typeof(int) || type == typeof(int?) => "integer",
+            _ when type == typeof(bool) || type == typeof(bool?) => "boolean",
+            _ => "string"
+        };
+        var isBoolean = typeHint == "boolean";
+        result.Add(new GhParam(name, isRequired, isBoolean, typeHint));
     }
 
     internal static async Task<ToolResult?> InvokeAsync(string toolName, Dictionary<string, string> args, CancellationToken ct) {

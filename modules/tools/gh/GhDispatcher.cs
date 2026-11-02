@@ -4,6 +4,16 @@ internal static class GhDispatcher {
     private static readonly Dictionary<string, MethodInfo> s_toolMap = BuildToolMap();
     private static readonly GitHubToolHandlers s_handler = GhHost.BuildHandler();
 
+    private static readonly (string Name, Type Type)[] s_commonOptionsProps = [
+        ("Repo", typeof(string)),
+        ("WorkingDir", typeof(string)),
+        ("Verbosity", typeof(int?)),
+        ("JsonFields", typeof(string)),
+        ("Jq", typeof(string)),
+        ("SkipLines", typeof(int?)),
+        ("StartLine", typeof(int?)),
+    ];
+
     private static Dictionary<string, MethodInfo> BuildToolMap() {
         var map = new Dictionary<string, MethodInfo>(StringComparer.Ordinal);
         foreach (var method in typeof(GitHubToolHandlers).GetMethods(BindingFlags.Public | BindingFlags.Instance)) {
@@ -23,9 +33,8 @@ internal static class GhDispatcher {
         var result = new List<GhParam>();
         foreach (var p in method.GetParameters()) {
             if (p.GetCustomAttribute<McpToolOptionsAttribute>() is not null) {
-                foreach (var prop in p.ParameterType.GetProperties()) {
-                    if (prop.GetCustomAttribute<McpToolParameterAttribute>() is null) continue;
-                    AddParam(result, ToSnakeCase(prop.Name), prop.PropertyType, prop.GetCustomAttribute<McpToolParameterAttribute>(), true);
+                foreach (var (name, type) in s_commonOptionsProps) {
+                    AddParam(result, ToSnakeCase(name), type, null, true);
                 }
                 continue;
             }

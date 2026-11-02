@@ -8,7 +8,7 @@
     <RootNamespace>JoinCode.Gh</RootNamespace>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <IsAotCompatible>false</IsAotCompatible>
+    <IsAotCompatible>true</IsAotCompatible>
     <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
   </PropertyGroup>

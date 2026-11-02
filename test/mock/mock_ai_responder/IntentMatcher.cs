@@ -275,6 +275,22 @@ internal static partial class IntentMatcher {
                 }, $"G18: 5 轮工具链第{toolResultCount + 1}步");
             }
         }
+        if (lower.Contains("i1\n") || lower.Contains("fail then retry")) {
+            if (toolResultCount == 1) {
+                return (new ToolCallDto {
+                    Id = $"call_{Guid.NewGuid():N}"[..20],
+                    Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo i1_retry_success"}""" }
+                }, "I1: 工具失败后重试成功");
+            }
+        }
+        if (lower.Contains("i2\n") || lower.Contains("3 consecutive fails")) {
+            if (toolResultCount is > 0 and < 3) {
+                return (new ToolCallDto {
+                    Id = $"call_{Guid.NewGuid():N}"[..20],
+                    Function = new ToolCallFunctionDto { Name = $"nonexistent_i2_{toolResultCount}", Arguments = "{}" }
+                }, $"I2: 第{toolResultCount + 1}次失败");
+            }
+        }
         return (null, "");
     }
     private static (List<ToolCallDto>? ToolCalls, string Description) MatchToolCallIntent(string userMessage) {
@@ -1711,6 +1727,10 @@ internal static partial class IntentMatcher {
         var gResult = MatchEdgeGIntent(userMessage);
         if (gResult.ToolCalls is not null)
             return gResult;
+
+        var iResult = MatchEdgeIIntent(userMessage);
+        if (iResult.ToolCalls is not null)
+            return iResult;
 
         return (null, "");
     }

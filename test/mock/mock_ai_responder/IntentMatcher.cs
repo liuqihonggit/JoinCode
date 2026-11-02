@@ -40,8 +40,10 @@ internal static class IntentMatcher {
                 return (new InjectDto { Body = BuildOpenAiToolCallResponse([nextToolCall]) }, nextDesc);
             }
 
-            const string finalReply = "工具执行完毕。这是模拟 AI 的最终回应。";
-            const string finalDesc = "工具结果→最终回应";
+            var lowerFinal = userMessage.ToLowerInvariant();
+            var isC20 = lowerFinal.Contains("c20\n") || lowerFinal.Contains("tool then empty");
+            var finalReply = isC20 ? "" : "工具执行完毕。这是模拟 AI 的最终回应。";
+            var finalDesc = isC20 ? "C20: 工具结果→空 content" : "工具结果→最终回应";
             if (protocol == "anthropic") {
                 return (new InjectDto { Body = BuildAnthropicResponse(finalReply) }, $"{finalDesc} [anthropic]");
             }
@@ -241,10 +243,16 @@ internal static class IntentMatcher {
                 }, "M5: 嵌套工具调用（第2个，基于第1个结果）");
             }
         }
+        if (lower.Contains("c19\n") || lower.Contains("tool chain")) {
+            if (toolResultCount == 1) {
+                return (new ToolCallDto {
+                    Id = $"call_{Guid.NewGuid():N}"[..20],
+                    Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo c19_step2_done"}""" }
+                }, "C19: 工具链第二步");
+            }
+        }
         return (null, "");
     }
-
-    /// <summary>匹配工具调用意图 — 返回工具调用列表或 null（null=不匹配，空列表=I1空tool_calls）</summary>
     private static (List<ToolCallDto>? ToolCalls, string Description) MatchToolCallIntent(string userMessage) {
         var lower = userMessage.ToLowerInvariant();
         if (lower.Contains("read file") || lower.Contains("读文件") || lower.Contains("f1")) {
@@ -595,7 +603,7 @@ internal static class IntentMatcher {
                 }
             }], "V5: 空 tool_call_id");
         }
-        if (lower.Contains("w1") || lower.Contains("multi chunk") || lower.Contains("多chunk")) {
+        if (lower.Contains("w1\n") || lower.Contains("multi chunk") || lower.Contains("多chunk")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -604,7 +612,7 @@ internal static class IntentMatcher {
                 }
             }], "W1: 多 content chunk 分散");
         }
-        if (lower.Contains("w2") || lower.Contains("file path") || lower.Contains("文件路径结果")) {
+        if (lower.Contains("w2\n") || lower.Contains("file path") || lower.Contains("文件路径结果")) {
 #pragma warning disable JCC1018 // W2 确需 Windows 路径测试
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
@@ -615,7 +623,7 @@ internal static class IntentMatcher {
             }], "W2: 工具结果包含 Windows 文件路径");
 #pragma warning restore JCC1018
         }
-        if (lower.Contains("w3") || lower.Contains("underscore name") || lower.Contains("下划线工具名")) {
+        if (lower.Contains("w3\n") || lower.Contains("underscore name") || lower.Contains("下划线工具名")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -624,7 +632,7 @@ internal static class IntentMatcher {
                 }
             }], "W3: 工具名包含下划线");
         }
-        if (lower.Contains("w4") || lower.Contains("array args") || lower.Contains("数组参数")) {
+        if (lower.Contains("w4\n") || lower.Contains("array args") || lower.Contains("数组参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -633,7 +641,7 @@ internal static class IntentMatcher {
                 }
             }], "W4: 工具参数为 JSON 数组");
         }
-        if (lower.Contains("w5") || lower.Contains("long tool name") || lower.Contains("超长工具名")) {
+        if (lower.Contains("w5\n") || lower.Contains("long tool name") || lower.Contains("超长工具名")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -642,7 +650,7 @@ internal static class IntentMatcher {
                 }
             }], "W5: 超长工具名（200字符）");
         }
-        if (lower.Contains("w6") || lower.Contains("special id") || lower.Contains("特殊字符id")) {
+        if (lower.Contains("w6\n") || lower.Contains("special id") || lower.Contains("特殊字符id")) {
             return ([new ToolCallDto {
                 Id = "call_!@#$%^&*()_+",
                 Function = new ToolCallFunctionDto {
@@ -651,7 +659,7 @@ internal static class IntentMatcher {
                 }
             }], "W6: tool_call_id 包含特殊字符");
         }
-        if (lower.Contains("w7") || lower.Contains("empty lines") || lower.Contains("空行结果")) {
+        if (lower.Contains("w7\n") || lower.Contains("empty lines") || lower.Contains("空行结果")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -660,7 +668,7 @@ internal static class IntentMatcher {
                 }
             }], "W7: 工具结果只有空行");
         }
-        if (lower.Contains("w8") || lower.Contains("float args") || lower.Contains("浮点参数")) {
+        if (lower.Contains("w8\n") || lower.Contains("float args") || lower.Contains("浮点参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -669,7 +677,7 @@ internal static class IntentMatcher {
                 }
             }], "W8: 工具参数包含浮点数和负数");
         }
-        if (lower.Contains("w9") || lower.Contains("emoji result") || lower.Contains("emoji结果")) {
+        if (lower.Contains("w9\n") || lower.Contains("emoji result") || lower.Contains("emoji结果")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -678,7 +686,7 @@ internal static class IntentMatcher {
                 }
             }], "W9: 工具结果包含 emoji");
         }
-        if (lower.Contains("w10") || lower.Contains("csv result") || lower.Contains("csv结果")) {
+        if (lower.Contains("w10\n") || lower.Contains("csv result") || lower.Contains("csv结果")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -687,7 +695,7 @@ internal static class IntentMatcher {
                 }
             }], "W10: 工具结果包含 CSV");
         }
-        if (lower.Contains("w11") || lower.Contains("xml result") || lower.Contains("xml结果")) {
+        if (lower.Contains("w11\n") || lower.Contains("xml result") || lower.Contains("xml结果")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -696,7 +704,7 @@ internal static class IntentMatcher {
                 }
             }], "W11: 工具结果包含 XML");
         }
-        if (lower.Contains("w12") || lower.Contains("html result") || lower.Contains("html结果")) {
+        if (lower.Contains("w12\n") || lower.Contains("html result") || lower.Contains("html结果")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -705,7 +713,7 @@ internal static class IntentMatcher {
                 }
             }], "W12: 工具结果包含 HTML");
         }
-        if (lower.Contains("w13") || lower.Contains("empty object") || lower.Contains("空对象参数")) {
+        if (lower.Contains("w13\n") || lower.Contains("empty object") || lower.Contains("空对象参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -714,7 +722,7 @@ internal static class IntentMatcher {
                 }
             }], "W13: 工具参数为空对象 {}");
         }
-        if (lower.Contains("w14") || lower.Contains("only spaces") || lower.Contains("纯空格结果")) {
+        if (lower.Contains("w14\n") || lower.Contains("only spaces") || lower.Contains("纯空格结果")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -723,7 +731,7 @@ internal static class IntentMatcher {
                 }
             }], "W14: 工具结果只有空格");
         }
-        if (lower.Contains("w15") || lower.Contains("crlf") || lower.Contains("回车换行")) {
+        if (lower.Contains("w15\n") || lower.Contains("crlf") || lower.Contains("回车换行")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -732,7 +740,7 @@ internal static class IntentMatcher {
                 }
             }], "W15: 工具结果包含 CRLF");
         }
-        if (lower.Contains("w16") || lower.Contains("deep nested") || lower.Contains("深层嵌套")) {
+        if (lower.Contains("w16\n") || lower.Contains("deep nested") || lower.Contains("深层嵌套")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -741,7 +749,7 @@ internal static class IntentMatcher {
                 }
             }], "W16: 工具参数深层嵌套 JSON");
         }
-        if (lower.Contains("w17") || lower.Contains("number name") || lower.Contains("数字工具名")) {
+        if (lower.Contains("w17\n") || lower.Contains("number name") || lower.Contains("数字工具名")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -750,7 +758,7 @@ internal static class IntentMatcher {
                 }
             }], "W17: 工具名为纯数字");
         }
-        if (lower.Contains("w18") || lower.Contains("tsv result") || lower.Contains("tsv结果")) {
+        if (lower.Contains("w18\n") || lower.Contains("tsv result") || lower.Contains("tsv结果")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -759,7 +767,7 @@ internal static class IntentMatcher {
                 }
             }], "W18: 工具结果包含 TSV");
         }
-        if (lower.Contains("w19") || lower.Contains("bool args") || lower.Contains("布尔参数")) {
+        if (lower.Contains("w19\n") || lower.Contains("bool args") || lower.Contains("布尔参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -768,7 +776,7 @@ internal static class IntentMatcher {
                 }
             }], "W19: 工具参数包含布尔值");
         }
-        if (lower.Contains("w20") || lower.Contains("mixed encoding") || lower.Contains("混合编码")) {
+        if (lower.Contains("w20\n") || lower.Contains("mixed encoding") || lower.Contains("混合编码")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -777,7 +785,7 @@ internal static class IntentMatcher {
                 }
             }], "W20: 工具结果混合编码");
         }
-        if (lower.Contains("x10") || lower.Contains("control chars") || lower.Contains("控制字符")) {
+        if (lower.Contains("x10\n") || lower.Contains("control chars") || lower.Contains("控制字符")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -786,7 +794,7 @@ internal static class IntentMatcher {
                 }
             }], "X10: 工具结果包含控制字符");
         }
-        if (lower.Contains("x11") || lower.Contains("unicode name") || lower.Contains("unicode工具名")) {
+        if (lower.Contains("x11\n") || lower.Contains("unicode name") || lower.Contains("unicode工具名")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -795,7 +803,7 @@ internal static class IntentMatcher {
                 }
             }], "X11: 工具名包含 Unicode 变音符号");
         }
-        if (lower.Contains("x12") || lower.Contains("json string args") || lower.Contains("json字符串参数")) {
+        if (lower.Contains("x12\n") || lower.Contains("json string args") || lower.Contains("json字符串参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -804,7 +812,7 @@ internal static class IntentMatcher {
                 }
             }], "X12: 工具参数包含 JSON 字符串值");
         }
-        if (lower.Contains("x13") || lower.Contains("very long args") || lower.Contains("超长参数值")) {
+        if (lower.Contains("x13\n") || lower.Contains("very long args") || lower.Contains("超长参数值")) {
             var longVal = new string('a', 50000);
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
@@ -814,7 +822,7 @@ internal static class IntentMatcher {
                 }
             }], "X13: 工具参数值超长（50KB）");
         }
-        if (lower.Contains("x14") || lower.Contains("many keys") || lower.Contains("多键参数")) {
+        if (lower.Contains("x14\n") || lower.Contains("many keys") || lower.Contains("多键参数")) {
             var bigObj = new Dictionary<string, string>();
             for (var k = 0; k < 100; k++) bigObj[$"key{k}"] = $"value{k}";
             bigObj["command"] = "echo x14";
@@ -826,7 +834,7 @@ internal static class IntentMatcher {
                 }
             }], "X14: 工具参数包含 100 个键");
         }
-        if (lower.Contains("x15") || lower.Contains("tab in args") || lower.Contains("制表符参数")) {
+        if (lower.Contains("x15\n") || lower.Contains("tab in args") || lower.Contains("制表符参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -835,7 +843,7 @@ internal static class IntentMatcher {
                 }
             }], "X15: 工具参数包含制表符");
         }
-        if (lower.Contains("x16") || lower.Contains("newline in args") || lower.Contains("换行参数")) {
+        if (lower.Contains("x16\n") || lower.Contains("newline in args") || lower.Contains("换行参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -844,7 +852,7 @@ internal static class IntentMatcher {
                 }
             }], "X16: 工具参数包含换行符");
         }
-        if (lower.Contains("x17") || lower.Contains("slash in args") || lower.Contains("斜杠参数")) {
+        if (lower.Contains("x17\n") || lower.Contains("slash in args") || lower.Contains("斜杠参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -853,7 +861,7 @@ internal static class IntentMatcher {
                 }
             }], "X17: 工具参数包含正反斜杠混合");
         }
-        if (lower.Contains("x18") || lower.Contains("pipe in args") || lower.Contains("管道参数")) {
+        if (lower.Contains("x18\n") || lower.Contains("pipe in args") || lower.Contains("管道参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -862,7 +870,7 @@ internal static class IntentMatcher {
                 }
             }], "X18: 工具参数包含管道符");
         }
-        if (lower.Contains("x19") || lower.Contains("semicolon in args") || lower.Contains("分号参数")) {
+        if (lower.Contains("x19\n") || lower.Contains("semicolon in args") || lower.Contains("分号参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -871,7 +879,7 @@ internal static class IntentMatcher {
                 }
             }], "X19: 工具参数包含分号");
         }
-        if (lower.Contains("x20") || lower.Contains("backtick in args") || lower.Contains("反引号参数")) {
+        if (lower.Contains("x20\n") || lower.Contains("backtick in args") || lower.Contains("反引号参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -880,7 +888,7 @@ internal static class IntentMatcher {
                 }
             }], "X20: 工具参数包含反引号");
         }
-        if (lower.Contains("x1") || lower.Contains("base64 result") || lower.Contains("base64结果")) {
+        if (lower.Contains("x1\n") || lower.Contains("base64 result") || lower.Contains("base64结果")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -889,7 +897,7 @@ internal static class IntentMatcher {
                 }
             }], "X1: 工具结果包含 base64");
         }
-        if (lower.Contains("x2") || lower.Contains("space in name") || lower.Contains("空格在名中")) {
+        if (lower.Contains("x2\n") || lower.Contains("space in name") || lower.Contains("空格在名中")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -898,7 +906,7 @@ internal static class IntentMatcher {
                 }
             }], "X2: 工具名中间有空格");
         }
-        if (lower.Contains("x3") || lower.Contains("number args") || lower.Contains("数字参数")) {
+        if (lower.Contains("x3\n") || lower.Contains("number args") || lower.Contains("数字参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -907,7 +915,7 @@ internal static class IntentMatcher {
                 }
             }], "X3: 工具参数为纯数字");
         }
-        if (lower.Contains("x4") || lower.Contains("string args") || lower.Contains("字符串参数")) {
+        if (lower.Contains("x4\n") || lower.Contains("string args") || lower.Contains("字符串参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -916,7 +924,7 @@ internal static class IntentMatcher {
                 }
             }], "X4: 工具参数为纯字符串");
         }
-        if (lower.Contains("x5") || lower.Contains("chinese name") || lower.Contains("中文工具名")) {
+        if (lower.Contains("x5\n") || lower.Contains("chinese name") || lower.Contains("中文工具名")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -925,7 +933,7 @@ internal static class IntentMatcher {
                 }
             }], "X5: 工具名为中文");
         }
-        if (lower.Contains("x6") || lower.Contains("chinese key") || lower.Contains("中文键参数")) {
+        if (lower.Contains("x6\n") || lower.Contains("chinese key") || lower.Contains("中文键参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -934,7 +942,7 @@ internal static class IntentMatcher {
                 }
             }], "X6: 工具参数包含中文键");
         }
-        if (lower.Contains("x7") || lower.Contains("sql result") || lower.Contains("sql结果")) {
+        if (lower.Contains("x7\n") || lower.Contains("sql result") || lower.Contains("sql结果")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -943,7 +951,7 @@ internal static class IntentMatcher {
                 }
             }], "X7: 工具结果包含 SQL 注入");
         }
-        if (lower.Contains("x8") || lower.Contains("regex result") || lower.Contains("正则结果")) {
+        if (lower.Contains("x8\n") || lower.Contains("regex result") || lower.Contains("正则结果")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -952,7 +960,7 @@ internal static class IntentMatcher {
                 }
             }], "X8: 工具结果包含正则表达式");
         }
-        if (lower.Contains("x9") || lower.Contains("datetime args") || lower.Contains("日期参数")) {
+        if (lower.Contains("x9\n") || lower.Contains("datetime args") || lower.Contains("日期参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -961,7 +969,7 @@ internal static class IntentMatcher {
                 }
             }], "X9: 工具参数包含 ISO 8601 日期");
         }
-        if (lower.Contains("y1") || lower.Contains("parallel calls") || lower.Contains("并行调用")) {
+        if (lower.Contains("y1\n") || lower.Contains("parallel calls") || lower.Contains("并行调用")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -976,7 +984,7 @@ internal static class IntentMatcher {
                 }
             }], "Y1: 单次响应包含多个并行工具调用");
         }
-        if (lower.Contains("y2") || lower.Contains("missing args field") || lower.Contains("缺失arguments字段")) {
+        if (lower.Contains("y2\n") || lower.Contains("missing args field") || lower.Contains("缺失arguments字段")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -985,7 +993,7 @@ internal static class IntentMatcher {
                 }
             }], "Y2: 工具调用 arguments 字段缺失（null）");
         }
-        if (lower.Contains("y3") || lower.Contains("empty function name") || lower.Contains("空函数名")) {
+        if (lower.Contains("y3\n") || lower.Contains("empty function name") || lower.Contains("空函数名")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -994,7 +1002,7 @@ internal static class IntentMatcher {
                 }
             }], "Y3: 工具调用函数名为空字符串");
         }
-        if (lower.Contains("y4") || lower.Contains("missing id") || lower.Contains("缺失id")) {
+        if (lower.Contains("y4\n") || lower.Contains("missing id") || lower.Contains("缺失id")) {
             return ([new ToolCallDto {
                 Id = "",
                 Function = new ToolCallFunctionDto {
@@ -1003,7 +1011,7 @@ internal static class IntentMatcher {
                 }
             }], "Y4: 工具调用 ID 为空字符串");
         }
-        if (lower.Contains("y5") || lower.Contains("null content") || lower.Contains("null内容")) {
+        if (lower.Contains("y5\n") || lower.Contains("null content") || lower.Contains("null内容")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1012,7 +1020,7 @@ internal static class IntentMatcher {
                 }
             }], "Y5: 响应 content 为 null（工具调用本身）");
         }
-        if (lower.Contains("y6") || lower.Contains("null in args") || lower.Contains("参数含null")) {
+        if (lower.Contains("y6\n") || lower.Contains("null in args") || lower.Contains("参数含null")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1021,7 +1029,7 @@ internal static class IntentMatcher {
                 }
             }], "Y6: 工具参数 command 值为 null");
         }
-        if (lower.Contains("y7") || lower.Contains("empty string param") || lower.Contains("空字符串参数")) {
+        if (lower.Contains("y7\n") || lower.Contains("empty string param") || lower.Contains("空字符串参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1030,7 +1038,7 @@ internal static class IntentMatcher {
                 }
             }], "Y7: 工具参数 command 为空字符串");
         }
-        if (lower.Contains("y8") || lower.Contains("number for string param") || lower.Contains("数字代替字符串")) {
+        if (lower.Contains("y8\n") || lower.Contains("number for string param") || lower.Contains("数字代替字符串")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1039,7 +1047,7 @@ internal static class IntentMatcher {
                 }
             }], "Y8: 工具参数 command 为数字而非字符串");
         }
-        if (lower.Contains("y9") || lower.Contains("boolean for string param") || lower.Contains("布尔代替字符串")) {
+        if (lower.Contains("y9\n") || lower.Contains("boolean for string param") || lower.Contains("布尔代替字符串")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1048,7 +1056,7 @@ internal static class IntentMatcher {
                 }
             }], "Y9: 工具参数 command 为布尔值");
         }
-        if (lower.Contains("y10") || lower.Contains("array for string param") || lower.Contains("数组代替字符串")) {
+        if (lower.Contains("y10\n") || lower.Contains("array for string param") || lower.Contains("数组代替字符串")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1057,7 +1065,7 @@ internal static class IntentMatcher {
                 }
             }], "Y10: 工具参数 command 为数组");
         }
-        if (lower.Contains("y11") || lower.Contains("object for string param") || lower.Contains("对象代替字符串")) {
+        if (lower.Contains("y11\n") || lower.Contains("object for string param") || lower.Contains("对象代替字符串")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1066,7 +1074,7 @@ internal static class IntentMatcher {
                 }
             }], "Y11: 工具参数 command 为对象");
         }
-        if (lower.Contains("y12") || lower.Contains("whitespace only args") || lower.Contains("纯空白参数")) {
+        if (lower.Contains("y12\n") || lower.Contains("whitespace only args") || lower.Contains("纯空白参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1075,7 +1083,7 @@ internal static class IntentMatcher {
                 }
             }], "Y12: 工具参数为纯空白字符");
         }
-        if (lower.Contains("y13") || lower.Contains("args as array") || lower.Contains("参数为数组")) {
+        if (lower.Contains("y13\n") || lower.Contains("args as array") || lower.Contains("参数为数组")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1084,7 +1092,7 @@ internal static class IntentMatcher {
                 }
             }], "Y13: 工具参数为 JSON 空数组");
         }
-        if (lower.Contains("y14") || lower.Contains("args as boolean") || lower.Contains("参数为布尔")) {
+        if (lower.Contains("y14\n") || lower.Contains("args as boolean") || lower.Contains("参数为布尔")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1093,7 +1101,7 @@ internal static class IntentMatcher {
                 }
             }], "Y14: 工具参数为 JSON 布尔值 true");
         }
-        if (lower.Contains("y15") || lower.Contains("args as null") || lower.Contains("参数为null")) {
+        if (lower.Contains("y15\n") || lower.Contains("args as null") || lower.Contains("参数为null")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1102,7 +1110,7 @@ internal static class IntentMatcher {
                 }
             }], "Y15: 工具参数为 JSON null");
         }
-        if (lower.Contains("y16") || lower.Contains("long id") || lower.Contains("超长id")) {
+        if (lower.Contains("y16\n") || lower.Contains("long id") || lower.Contains("超长id")) {
             var longId = new string('a', 1000);
             return ([new ToolCallDto {
                 Id = longId,
@@ -1112,7 +1120,7 @@ internal static class IntentMatcher {
                 }
             }], "Y16: 工具调用 ID 超长（1000字符）");
         }
-        if (lower.Contains("y17") || lower.Contains("id with spaces") || lower.Contains("id含空格")) {
+        if (lower.Contains("y17\n") || lower.Contains("id with spaces") || lower.Contains("id含空格")) {
             return ([new ToolCallDto {
                 Id = "call with spaces and quotes",
                 Function = new ToolCallFunctionDto {
@@ -1121,7 +1129,7 @@ internal static class IntentMatcher {
                 }
             }], "Y17: 工具调用 ID 包含空格和引号");
         }
-        if (lower.Contains("y18") || lower.Contains("all ascii") || lower.Contains("全ascii")) {
+        if (lower.Contains("y18\n") || lower.Contains("all ascii") || lower.Contains("全ascii")) {
             var ascii = new StringBuilder();
             for (var c = 32; c < 127; c++) ascii.Append((char)c);
             return ([new ToolCallDto {
@@ -1132,7 +1140,7 @@ internal static class IntentMatcher {
                 }
             }], "Y18: 工具参数包含全部 ASCII 可打印字符");
         }
-        if (lower.Contains("y19") || lower.Contains("unicode bom") || lower.Contains("bom头")) {
+        if (lower.Contains("y19\n") || lower.Contains("unicode bom") || lower.Contains("bom头")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1141,7 +1149,7 @@ internal static class IntentMatcher {
                 }
             }], "Y19: 工具参数包含 Unicode BOM");
         }
-        if (lower.Contains("y20") || lower.Contains("zero width") || lower.Contains("零宽字符")) {
+        if (lower.Contains("y20\n") || lower.Contains("zero width") || lower.Contains("零宽字符")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1150,7 +1158,7 @@ internal static class IntentMatcher {
                 }
             }], "Y20: 工具参数包含零宽字符");
         }
-        if (lower.Contains("z10") || lower.Contains("same tool diff args") || lower.Contains("同名不同参数")) {
+        if (lower.Contains("z10\n") || lower.Contains("same tool diff args") || lower.Contains("同名不同参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1165,7 +1173,7 @@ internal static class IntentMatcher {
                 }
             }], "Z10: 同一工具名不同参数的两次调用");
         }
-        if (lower.Contains("z11") || lower.Contains("line separators") || lower.Contains("行分隔符")) {
+        if (lower.Contains("z11\n") || lower.Contains("line separators") || lower.Contains("行分隔符")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1174,7 +1182,7 @@ internal static class IntentMatcher {
                 }
             }], "Z11: 工具参数包含 Unicode 行分隔符 U+2028/U+2029");
         }
-        if (lower.Contains("z12") || lower.Contains("deep nesting 20") || lower.Contains("深层嵌套20")) {
+        if (lower.Contains("z12\n") || lower.Contains("deep nesting 20") || lower.Contains("深层嵌套20")) {
             var deepJson = new StringBuilder("{\"command\": \"echo z12\", \"data\": ");
             for (var d = 0; d < 20; d++) deepJson.Append("{\"a\": ");
             deepJson.Append("1");
@@ -1188,7 +1196,7 @@ internal static class IntentMatcher {
                 }
             }], "Z12: 工具参数包含 20 层深层嵌套 JSON");
         }
-        if (lower.Contains("z13") || lower.Contains("tool like text") || lower.Contains("工具样文本")) {
+        if (lower.Contains("z13\n") || lower.Contains("tool like text") || lower.Contains("工具样文本")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1197,7 +1205,7 @@ internal static class IntentMatcher {
                 }
             }], "Z13: 工具输出包含类似工具调用的文本");
         }
-        if (lower.Contains("z14") || lower.Contains("name is function") || lower.Contains("名为function")) {
+        if (lower.Contains("z14\n") || lower.Contains("name is function") || lower.Contains("名为function")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1206,7 +1214,7 @@ internal static class IntentMatcher {
                 }
             }], "Z14: 工具名为 function（与 type 字段同名）");
         }
-        if (lower.Contains("z15") || lower.Contains("name is type") || lower.Contains("名为type")) {
+        if (lower.Contains("z15\n") || lower.Contains("name is type") || lower.Contains("名为type")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1215,7 +1223,7 @@ internal static class IntentMatcher {
                 }
             }], "Z15: 工具名为 type（bash 内建命令 type）");
         }
-        if (lower.Contains("z16") || lower.Contains("name is id") || lower.Contains("名为id")) {
+        if (lower.Contains("z16\n") || lower.Contains("name is id") || lower.Contains("名为id")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1224,7 +1232,7 @@ internal static class IntentMatcher {
                 }
             }], "Z16: 工具名为 id（Unix 命令 id）");
         }
-        if (lower.Contains("z17") || lower.Contains("args with newline end") || lower.Contains("参数末尾换行")) {
+        if (lower.Contains("z17\n") || lower.Contains("args with newline end") || lower.Contains("参数末尾换行")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1233,7 +1241,7 @@ internal static class IntentMatcher {
                 }
             }], "Z17: 工具参数 JSON 末尾有换行符");
         }
-        if (lower.Contains("z18") || lower.Contains("args with bom") || lower.Contains("参数bom头")) {
+        if (lower.Contains("z18\n") || lower.Contains("args with bom") || lower.Contains("参数bom头")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1242,7 +1250,7 @@ internal static class IntentMatcher {
                 }
             }], "Z18: 工具参数 JSON 开头有 BOM");
         }
-        if (lower.Contains("z19") || lower.Contains("multiple finish") || lower.Contains("多个finish")) {
+        if (lower.Contains("z19\n") || lower.Contains("multiple finish") || lower.Contains("多个finish")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1251,7 +1259,7 @@ internal static class IntentMatcher {
                 }
             }], "Z19: 流式响应包含多个 finish_reason chunk");
         }
-        if (lower.Contains("z20") || lower.Contains("surrogate pair") || lower.Contains("代理对")) {
+        if (lower.Contains("z20\n") || lower.Contains("surrogate pair") || lower.Contains("代理对")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1260,10 +1268,10 @@ internal static class IntentMatcher {
                 }
             }], "Z20: 工具参数包含 Unicode 代理对（emoji）");
         }
-        if (lower.Contains("z1") || lower.Contains("empty tool calls array") || lower.Contains("空工具调用数组")) {
+        if (lower.Contains("z1\n") || lower.Contains("empty tool calls array") || lower.Contains("空工具调用数组")) {
             return ([], "Z1: 响应包含空 tool_calls 数组");
         }
-        if (lower.Contains("z2") || lower.Contains("duplicate ids") || lower.Contains("重复id")) {
+        if (lower.Contains("z2\n") || lower.Contains("duplicate ids") || lower.Contains("重复id")) {
             var dupId = $"call_{Guid.NewGuid():N}"[..20];
             return ([new ToolCallDto {
                 Id = dupId,
@@ -1279,7 +1287,7 @@ internal static class IntentMatcher {
                 }
             }], "Z2: 两个工具调用使用相同 ID");
         }
-        if (lower.Contains("z3") || lower.Contains("whitespace name") || lower.Contains("纯空白名")) {
+        if (lower.Contains("z3\n") || lower.Contains("whitespace name") || lower.Contains("纯空白名")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1288,7 +1296,7 @@ internal static class IntentMatcher {
                 }
             }], "Z3: 工具名为纯空白字符");
         }
-        if (lower.Contains("z4") || lower.Contains("malformed json args") || lower.Contains("畸形json参数")) {
+        if (lower.Contains("z4\n") || lower.Contains("malformed json args") || lower.Contains("畸形json参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1297,7 +1305,7 @@ internal static class IntentMatcher {
                 }
             }], "Z4: 工具参数为畸形 JSON（缺少闭合引号和括号）");
         }
-        if (lower.Contains("z5") || lower.Contains("empty object args") || lower.Contains("空对象参数")) {
+        if (lower.Contains("z5\n") || lower.Contains("empty object args") || lower.Contains("空对象参数")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1306,7 +1314,7 @@ internal static class IntentMatcher {
                 }
             }], "Z5: 工具参数为空 JSON 对象");
         }
-        if (lower.Contains("z6") || lower.Contains("escaped quotes") || lower.Contains("转义引号")) {
+        if (lower.Contains("z6\n") || lower.Contains("escaped quotes") || lower.Contains("转义引号")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1315,7 +1323,7 @@ internal static class IntentMatcher {
                 }
             }], "Z6: 工具参数包含多层转义引号");
         }
-        if (lower.Contains("z7") || lower.Contains("4byte unicode") || lower.Contains("四字节unicode")) {
+        if (lower.Contains("z7\n") || lower.Contains("4byte unicode") || lower.Contains("四字节unicode")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1324,7 +1332,7 @@ internal static class IntentMatcher {
                 }
             }], "Z7: 工具参数包含 4 字节 Unicode 字符");
         }
-        if (lower.Contains("z8") || lower.Contains("large output") || lower.Contains("大输出")) {
+        if (lower.Contains("z8\n") || lower.Contains("large output") || lower.Contains("大输出")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1333,7 +1341,7 @@ internal static class IntentMatcher {
                 }
             }], "Z8: 工具产生 100KB 输出");
         }
-        if (lower.Contains("z9") || lower.Contains("whitespace output") || lower.Contains("纯空白输出")) {
+        if (lower.Contains("z9\n") || lower.Contains("whitespace output") || lower.Contains("纯空白输出")) {
             return ([new ToolCallDto {
                 Id = $"call_{Guid.NewGuid():N}"[..20],
                 Function = new ToolCallFunctionDto {
@@ -1341,6 +1349,331 @@ internal static class IntentMatcher {
                     Arguments = """{"command": "printf '   \n\t  \n'"}"""
                 }
             }], "Z9: 工具输出为纯空白字符");
+        }
+        if (lower.Contains("a1\n") || lower.Contains("large arg value") || lower.Contains("大参数值")) {
+            var largeVal = new string('x', 100000);
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = JsonSerializer.Serialize(new { command = $"echo {largeVal}" })
+                }
+            }], "A1: 工具参数值 100KB");
+        }
+        if (lower.Contains("a2\n") || lower.Contains("name with newline") || lower.Contains("名含换行")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash\n",
+                    Arguments = """{"command": "echo a2"}"""
+                }
+            }], "A2: 工具名包含换行符");
+        }
+        if (lower.Contains("a3\n") || lower.Contains("id with newline") || lower.Contains("id含换行")) {
+            return ([new ToolCallDto {
+                Id = "call\nwith\nnewline",
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo a3"}"""
+                }
+            }], "A3: 工具 ID 包含换行符");
+        }
+        if (lower.Contains("a4\n") || lower.Contains("null bytes content") || lower.Contains("null字节内容")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "printf 'a\\x00b'"}"""
+                }
+            }], "A4: 工具输出包含 null 字节");
+        }
+        if (lower.Contains("a5\n") || lower.Contains("crlf only") || lower.Contains("纯crlf")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "printf '\\r\\n\\r\\n'"}"""
+                }
+            }], "A5: 工具输出为纯 CRLF");
+        }
+        if (lower.Contains("a6\n") || lower.Contains("first fails second succeeds") || lower.Contains("首败次成")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "nonexistent_tool",
+                    Arguments = "{}"
+                }
+            }, new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo a6"}"""
+                }
+            }], "A6: 第一个工具失败第二个成功");
+        }
+        if (lower.Contains("a7\n") || lower.Contains("key with spaces") || lower.Contains("键含空格")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo a7", "key with spaces": "value"}"""
+                }
+            }], "A7: 工具参数 JSON 键包含空格");
+        }
+        if (lower.Contains("a8\n") || lower.Contains("uppercase bash") || lower.Contains("大写bash")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "BASH",
+                    Arguments = """{"command": "echo a8"}"""
+                }
+            }], "A8: 工具名大写 BASH");
+        }
+        if (lower.Contains("a9\n") || lower.Contains("nested quotes") || lower.Contains("嵌套引号")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = "{\"command\": \"echo \\\"hello 'world' \\\"nested\\\"\\\"\"}"
+                }
+            }], "A9: 工具参数包含多层嵌套引号");
+        }
+        if (lower.Contains("a10\n") || lower.Contains("long content") || lower.Contains("超长内容")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "yes a10 | head -c 100000"}"""
+                }
+            }], "A10: 工具产生 100KB 文本输出");
+        }
+        if (lower.Contains("a11\n") || lower.Contains("id only numbers") || lower.Contains("纯数字id")) {
+            return ([new ToolCallDto {
+                Id = "12345678901234567890",
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo a11"}"""
+                }
+            }], "A11: 工具 ID 为纯数字");
+        }
+        if (lower.Contains("a12\n") || lower.Contains("id unicode") || lower.Contains("unicode id")) {
+            return ([new ToolCallDto {
+                Id = "call_你好世界_🎉",
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo a12"}"""
+                }
+            }], "A12: 工具 ID 包含 Unicode 字符");
+        }
+        if (lower.Contains("a13\n") || lower.Contains("name with dots") || lower.Contains("名含点号")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash.bash",
+                    Arguments = """{"command": "echo a13"}"""
+                }
+            }], "A13: 工具名包含点号");
+        }
+        if (lower.Contains("a14\n") || lower.Contains("deep array") || lower.Contains("深层数组")) {
+            var deepArr = new StringBuilder("{\"command\": \"echo a14\", \"data\": ");
+            for (var d = 0; d < 20; d++) deepArr.Append("[");
+            deepArr.Append("1");
+            for (var d = 0; d < 20; d++) deepArr.Append("]");
+            deepArr.Append("}");
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = deepArr.ToString() }
+            }], "A14: 工具参数包含 20 层深层嵌套数组");
+        }
+        if (lower.Contains("a15\n") || lower.Contains("duplicate keys") || lower.Contains("重复键")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo a15a", "command": "echo a15b"}"""
+                }
+            }], "A15: 工具参数 JSON 包含重复键");
+        }
+        if (lower.Contains("a16\n") || lower.Contains("mixed quotes") || lower.Contains("混合引号")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo 'hello \"world\" a16'"}"""
+                }
+            }], "A16: 工具参数包含混合引号");
+        }
+        if (lower.Contains("a17\n") || lower.Contains("control in args") || lower.Contains("参数含控制符")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = "{\"command\": \"echo 'a17\\t\\r\\n'\"}"
+                }
+            }], "A17: 工具参数包含制表符/回车/换行");
+        }
+        if (lower.Contains("a18\n") || lower.Contains("empty command value") || lower.Contains("空命令值")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "", "extra": "value"}"""
+                }
+            }], "A18: 工具参数 command 为空字符串但有额外参数");
+        }
+        if (lower.Contains("a19\n") || lower.Contains("very long name") || lower.Contains("超长工具名")) {
+            var longName = new string('a', 255);
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = longName,
+                    Arguments = """{"command": "echo a19"}"""
+                }
+            }], "A19: 工具名超长（255 字符）");
+        }
+        if (lower.Contains("a20\n") || lower.Contains("json with comments") || lower.Contains("json含注释")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "echo a20" /* comment */}"""
+                }
+            }], "A20: 工具参数 JSON 包含注释");
+        }
+        if (lower.Contains("c1\n") || lower.Contains("exit code 1")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo c1_stdout; exit 1"}""" }
+            }], "C1: 工具返回 exit code 1");
+        }
+        if (lower.Contains("c2\n") || lower.Contains("exit code 127")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "nonexistent_command_xyz"}""" }
+            }], "C2: 工具返回 exit code 127");
+        }
+        if (lower.Contains("c3\n") || lower.Contains("exit code 255")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "exit 255"}""" }
+            }], "C3: 工具返回 exit code 255");
+        }
+        if (lower.Contains("c4\n") || lower.Contains("stdout and stderr")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo c4_stdout; echo c4_stderr >&2"}""" }
+            }], "C4: 工具同时输出 stdout 和 stderr");
+        }
+        if (lower.Contains("c5\n") || lower.Contains("ansi output")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "printf '\\033[31mred\\033[0m text'"}""" }
+            }], "C5: 工具输出包含 ANSI 转义序列");
+        }
+        if (lower.Contains("c6\n") || lower.Contains("json output")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo '{\"key\":\"value\",\"num\":42}'"}""" }
+            }], "C6: 工具输出 JSON 格式数据");
+        }
+        if (lower.Contains("c7\n") || lower.Contains("markdown output")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo '# Heading\n\n- item1\n- item2\n\n**bold** text'"}""" }
+            }], "C7: 工具输出 markdown 格式");
+        }
+        if (lower.Contains("c8\n") || lower.Contains("code block output")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo '```python\nprint(\"hello\")\n```'"}""" }
+            }], "C8: 工具输出代码块");
+        }
+        if (lower.Contains("c9\n") || lower.Contains("empty output")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "printf ''"}""" }
+            }], "C9: 工具输出为空字符串");
+        }
+        if (lower.Contains("c10\n") || lower.Contains("newline only")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "printf '\\n'"}""" }
+            }], "C10: 工具输出只有一个换行符");
+        }
+        if (lower.Contains("c11\n") || lower.Contains("spaces only")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "printf '   '"}""" }
+            }], "C11: 工具输出只有空格");
+        }
+        if (lower.Contains("c12\n") || lower.Contains("nested json args")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo c12", "options": {"verbose": true, "count": 3}}""" }
+            }], "C12: 工具参数包含嵌套 JSON 对象");
+        }
+        if (lower.Contains("c13\n") || lower.Contains("array args")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo c13", "files": ["a.txt", "b.txt", "c.txt"]}""" }
+            }], "C13: 工具参数包含 JSON 数组");
+        }
+        if (lower.Contains("c14\n") || lower.Contains("mixed type args")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo c14", "count": 42, "verbose": true, "name": "test", "ratio": 3.14, "tags": ["a","b"], "config": {"x":1}}""" }
+            }], "C14: 工具参数包含混合类型");
+        }
+        if (lower.Contains("c15\n") || lower.Contains("parallel success fail")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo c15_ok"}""" }
+            }, new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "nonexistent_tool", Arguments = "{}" }
+            }], "C15: 并行调用一个成功一个失败");
+        }
+        if (lower.Contains("c16\n") || lower.Contains("parallel all success")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo c16_a"}""" }
+            }, new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo c16_b"}""" }
+            }, new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo c16_c"}""" }
+            }], "C16: 三个并行调用全部成功");
+        }
+        if (lower.Contains("c17\n") || lower.Contains("parallel all fail")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "nonexistent_a", Arguments = "{}" }
+            }, new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "nonexistent_b", Arguments = "{}" }
+            }, new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "nonexistent_c", Arguments = "{}" }
+            }], "C17: 三个并行调用全部失败");
+        }
+        if (lower.Contains("c18\n") || lower.Contains("tool then final")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo c18_done"}""" }
+            }], "C18: 工具调用后最终回应");
+        }
+        if (lower.Contains("c19\n") || lower.Contains("tool chain")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo c19_step1"}""" }
+            }], "C19: 工具链第一步");
+        }
+        if (lower.Contains("c20\n") || lower.Contains("tool then empty")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto { Name = "bash", Arguments = """{"command": "echo c20_done"}""" }
+            }], "C20: 工具调用后空 content");
         }
         return (null, "");
     }

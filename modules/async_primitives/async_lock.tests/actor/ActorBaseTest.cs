@@ -164,24 +164,28 @@ public class ActorBaseTest {
 
     /// <summary>
     /// P0-缺陷2: 重试回写失败时必须触发 SendFailed,不能静默丢弃消息。
-    /// 确定性测试: 直接填满重试队列,调用 TryRequeueRetryEntry 验证回写失败触发 SendFailed。
+    /// 确定性测试: 直接构造 MessageRetryEngine 不启动 Start()，消除 RunLoopAsync 后台消费时序依赖。
+    /// （原测试通过 ActorBase 构造会自动 Start()，RunLoopAsync 在 Task.Delay 前取走占位消息导致假阳）
     /// </summary>
     [Fact]
-    public async Task RetryWriteBack_Failed_TriggersSendFailed() {
-        var bp = new ActorBackpressure(Capacity: 1, RetryQueueCapacity: 2);
-        await using var actor = new TestActor(bp);
+    public void RetryWriteBack_Failed_TriggersSendFailed() {
+        var inputChannel = Channel.CreateUnbounded<MessageEnvelope<string>>();
+        var sendFailedEvents = new List<(string Command, int Attempt)>();
+        using var cts = new CancellationTokenSource();
+        var engine = new MessageRetryEngine<string>(
+            retryQueueCapacity: 2,
+            maxRetries: 10,
+            inputWriter: inputChannel.Writer,
+            actorId: "test",
+            logger: null,
+            shutdownCt: cts.Token,
+            onSendFailed: (cmd, attempt) => sendFailedEvents.Add((cmd, attempt)),
+            onEnqueuedToInput: () => { });
 
-        var sendFailedEvents = new List<BackpressureSendFailedEventArgs<string>>();
-        actor.SendFailed += (_, e) => sendFailedEvents.Add(e);
+        engine.RetryQueue.Writer.TryWrite(new RetryEntry<string>("occupier1", 1));
+        engine.RetryQueue.Writer.TryWrite(new RetryEntry<string>("occupier2", 1));
 
-        // 竞态根治（CI 慢机假红）：RunLoop await foreach 取出首条后卡 Task.Delay — 取出即队列空，
-        // 断言前被抢跑则 TryWrite 成功假阳。占位 2 条 + 10s 背压信号拉长首条消费延迟
-        // （RunLoop 串行：首条卡 Delay 期间第二条稳占队列，TryRequeue 满判定确定性成立）
-        actor.ReceiveBackpressureSignal(TimeSpan.FromSeconds(10));
-        actor.RetryQueueInternal.Writer.TryWrite(new RetryEntry<string>("occupier1", 1));
-        actor.RetryQueueInternal.Writer.TryWrite(new RetryEntry<string>("occupier2", 1));
-
-        var result = actor.TryRequeueRetryEntry(new RetryEntry<string>("D", 1));
+        var result = engine.TryRequeue(new RetryEntry<string>("D", 1));
 
         result.Should().BeFalse();
         sendFailedEvents.Should().ContainSingle(e => e.Command == "D");

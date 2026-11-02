@@ -24,20 +24,21 @@ public sealed class AgentMessageRouteLoopTests
         await loop.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
     }
 
-    /// <summary>守卫②：路由消息经 handler 派发（单一职责—— 循环只路由不分发语义）。</summary>
+    /// <summary>守卫②：路由消息经 handler 派发（单一职责—— 循环只路由不分发语义）。
+    /// 确定性等待：TaskCompletionSource 信号替代轮询，handler 收到消息即完成，消除 CI 慢机超时 flaky。</summary>
     [Fact]
     public async Task Start_RoutesMessagesToHandler()
     {
         var broker = CreateBroker();
         broker.RegisterAgent("agent-1", "session-1");
         await broker.WaitForCommandsDrainedAsync();
-        var received = new List<CoordinatorMessage>();
-        await using var loop = new AgentMessageRouteLoop(broker, "agent-1", (msg, _) => { received.Add(msg); return Task.CompletedTask; });
+        var tcs = new TaskCompletionSource<CoordinatorMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var loop = new AgentMessageRouteLoop(broker, "agent-1", (msg, _) => { tcs.TrySetResult(msg); return Task.CompletedTask; });
         loop.Start();
 
         await broker.SendAsync("agent-1", new CoordinatorMessage { MessageType = "test.ping", MessageId = "m-1", FromAgentId = "sender", ToAgentId = "agent-1", Content = "{}" }, CancellationToken.None);
-        await WaitUntilAsync(() => received.Count >= 1, TimeSpan.FromSeconds(5));
-        Assert.Equal("test.ping", received[0].MessageType);
+        var received = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal("test.ping", received.MessageType);
     }
 
     /// <summary>守卫③：Dispose 后不再路由新消息（停止语义）。</summary>

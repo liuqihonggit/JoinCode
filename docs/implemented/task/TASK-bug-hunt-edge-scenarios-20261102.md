@@ -439,3 +439,50 @@ D9 错误消息从 "模型返回空回复" 改为 "模型回复被安全过滤�
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
 | responder H1-H20 场景 | IntentMatcher.EdgeH.cs | ✅ | ✅ 手动 exe 验收 |
+
+## I1-I20: 错误恢复与安全边缘场景（2026-11-03）
+
+### 场景列表
+
+| 编号 | 描述 | 结果 | 说明 |
+|------|------|------|------|
+| I1 | fail then retry | ✅ exit=0 | 工具失败后 LLM 重试成功 |
+| I2 | 3 consecutive fails | ✅ exit=0 | 连续 3 次工具失败后正确终止 |
+| I3 | slow command | ✅ exit=0 | sleep 2 慢命令正确执行 |
+| I4 | exit code 1 | ✅ exit=0 | bash exit 1 正确处理 |
+| I5 | exit code 127 | ✅ exit=0 | command_not_found 正确处理 |
+| I6 | exit code 255 | ✅ exit=0 | bash exit 255 正确处理 |
+| I7 | large stderr | ✅ exit=0 | 大量 stderr 输出正确处理 |
+| I8 | stdout stderr mix | ✅ exit=0 | stdout+stderr 混合正确处理 |
+| I9 | nonexistent tool name | ✅ exit=0 | 不存在工具名正确报错 |
+| I10 | missing required field | ✅ exit=0 | 参数缺失必需字段正确处理 |
+| I11 | wrong param type | ✅ exit=0 | 参数类型错误正确处理 |
+| I12 | empty command | ✅ exit=0 | 空命令正确处理 |
+| I13 | whitespace command | ✅ exit=0 | 纯空白命令正确处理 |
+| I14 | injection attempt | ✅ exit=0 | 注入尝试安全处理 |
+| I15 | pipe command | ✅ exit=0 | 管道命令正确执行 |
+| I16 | redirect command | ✅ exit=0 | 重定向命令正确执行 |
+| I17 | background command | ✅ exit=0 | 后台命令正确处理 |
+| I18 | subshell command | ✅ exit=0 | 子shell 命令正确执行 |
+| I19 | variable command | ✅ exit=0 | 变量命令正确执行 |
+| I20 | wildcard command | ✅ exit=0 | 通配符命令正确处理 |
+
+### 匹配冲突修复
+
+**根因**: 旧 I1/I2/I3 场景用 `Contains("i1")` 等子串匹配，抢先匹配新 I1-I20 场景的 `"i1\n..."` 提示词。同理 F1/F2/F3、H4、C1/C2/C3 也有子串冲突。
+
+**修复**:
+- 旧 I1/I2/I3: `Contains("i1")` → `Contains("i_empty\n")` / `Contains("i_multi\n")` / `Contains("i_error\n")`
+- 旧 F1/F2/F3: `Contains("f1")` → `Contains("f1_read\n")` / `Contains("f2_timeout\n")` / `Contains("f3_multi\n")`
+- 旧 H4: `Contains("h4")` → `Contains("h4_unicode\n")`
+- C1/C2/C3: `Contains("exit code 1")` → `Contains("c1 exit code 1")` (加 c 前缀)
+- I4/I5/I6: `Contains("exit code 1")` → `Contains("i4 exit code 1")` (加 i 前缀, 避免子串匹配 "exit code 127")
+
+**commit**: `1d4a65dda`
+
+### 验收表（追加）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| responder I1-I20 场景 | IntentMatcher.EdgeI.cs | ✅ | ✅ 手动 exe 验收 |
+| 匹配冲突修复 | IntentMatcher.cs + EdgeI.cs | ✅ | ✅ I1-I20 全部通过 |

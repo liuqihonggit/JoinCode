@@ -23,6 +23,19 @@ internal static class IntentMatcher {
         var userMessage = ExtractLastUserMessage(root);
         var toolResultCount = CountToolResultMessages(root);
 
+        if (toolResultCount == 0) {
+            var prevAssistant = ExtractPreviousAssistantMessage(root);
+            if (prevAssistant is not null && prevAssistant.Length > 0 && protocol == "anthropic") {
+                return (new InjectDto { Body = BuildAnthropicResponse($"我记得你之前说了：{prevAssistant}") }, "M1: 多轮对话记忆 [anthropic]");
+            }
+            if (prevAssistant is not null && prevAssistant.Length > 0 && isStream) {
+                return (new InjectDto { IsStream = true, ContentType = "text/event-stream", StreamChunks = BuildOpenAiStreamChunks($"我记得你之前说了：{prevAssistant}") }, "M1: 多轮对话记忆 [stream]");
+            }
+            if (prevAssistant is not null && prevAssistant.Length > 0) {
+                return (new InjectDto { Body = BuildOpenAiResponse($"我记得你之前说了：{prevAssistant}") }, "M1: 多轮对话记忆");
+            }
+        }
+
         if (toolResultCount > 0) {
             var (nextToolCall, nextDesc) = MatchNextToolCallIntent(userMessage, toolResultCount);
             if (nextToolCall is not null && protocol == "openai" && isStream) {
@@ -143,6 +156,22 @@ internal static class IntentMatcher {
         return count;
     }
 
+    /// <summary>提取前一条 assistant 消息内容（非空、非工具调用），用于多轮对话记忆测试</summary>
+    private static string? ExtractPreviousAssistantMessage(JsonElement root) {
+        if (!root.TryGetProperty("messages", out var messages))
+            return null;
+        string? last = null;
+        foreach (var msg in messages.EnumerateArray()) {
+            if (msg.TryGetProperty("role", out var r) && r.GetString() == "assistant") {
+                var content = msg.TryGetProperty("content", out var c)
+                    ? c.ValueKind == JsonValueKind.String ? c.GetString() : null
+                    : null;
+                if (!string.IsNullOrEmpty(content)) last = content;
+            }
+        }
+        return last;
+    }
+
     /// <summary>多轮工具调用：根据已完成的工具结果数决定下一步</summary>
     private static (ToolCallDto? ToolCall, string Description) MatchNextToolCallIntent(string userMessage, int toolResultCount) {
         var lower = userMessage.ToLowerInvariant();
@@ -155,6 +184,18 @@ internal static class IntentMatcher {
                         Arguments = """{"file_path": "/nonexistent/file2.txt"}"""
                     }
                 }, "F3: 多工具连续调用（第2个）");
+            }
+        }
+        if (lower.Contains("many tools") || lower.Contains("多工具链") || lower.Contains("m3")) {
+            if (toolResultCount < 5) {
+                var args = JsonSerializer.Serialize(new { file_path = $"/nonexistent/m3_file{toolResultCount + 1}.txt" });
+                return (new ToolCallDto {
+                    Id = $"call_{Guid.NewGuid():N}"[..20],
+                    Function = new ToolCallFunctionDto {
+                        Name = "read",
+                        Arguments = args
+                    }
+                }, $"M3: 5轮工具调用（第{toolResultCount + 1}个）");
             }
         }
         return (null, "");
@@ -264,6 +305,15 @@ internal static class IntentMatcher {
                     Arguments = "{}"
                 }
             }], "K2: 工具参数缺失（空对象无 file_path）");
+        }
+        if (lower.Contains("many tools") || lower.Contains("多工具链") || lower.Contains("m3")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "read",
+                    Arguments = """{"file_path": "/nonexistent/m3_file1.txt"}"""
+                }
+            }], "M3: 5轮工具调用（第1个）");
         }
         return (null, "");
     }

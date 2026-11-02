@@ -23,7 +23,7 @@ public sealed class MediaIntentDetector {
             (ModelModalityKind.ReadGif, ["动图", "GIF", "gif", "animated image"]),
             (ModelModalityKind.ReadVideo, ["视频", "录像", "影片", "看视频", "video", "clip", "footage", "watch this"]),
             (ModelModalityKind.ReadAudio, ["音频", "语音", "录音", "听", "audio", "voice recording", "listen to"]),
-            (ModelModalityKind.ReadPdf, ["PDF", "pdf", "文档", "文件", "document", "file"]),
+            (ModelModalityKind.ReadPdf, ["PDF", "pdf"]),
             (ModelModalityKind.GenerateImage, ["画图", "生成图片", "绘图", "作画", "画一个", "画一张", "draw", "generate image", "create image", "paint"]),
             (ModelModalityKind.GenerateVideo, ["生成视频", "制作视频", "创建视频", "generate video", "create video", "make video"]),
             (ModelModalityKind.GenerateAudio, ["生成音频", "朗读", "TTS", "text to speech", "generate audio", "read aloud"]),

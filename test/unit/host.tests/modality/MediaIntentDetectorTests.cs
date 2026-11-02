@@ -100,4 +100,28 @@ public sealed class MediaIntentDetectorTests {
         var result = _detector.Detect("draw a cat for me");
         Assert.True(result.DetectedModalities.HasFlag(ModelModalityKind.GenerateImage));
     }
+
+    [Fact]
+    public void Detect_GenericFileWord_ShouldNotTriggerReadPdf() {
+        var result = _detector.Detect("读取不存在的文件");
+        Assert.False(result.DetectedModalities.HasFlag(ModelModalityKind.ReadPdf));
+    }
+
+    [Fact]
+    public void Detect_GenericDocumentWord_ShouldNotTriggerReadPdf() {
+        var result = _detector.Detect("帮我看看这个文档");
+        Assert.False(result.DetectedModalities.HasFlag(ModelModalityKind.ReadPdf));
+    }
+
+    [Fact]
+    public void Detect_GenericEnglishFileWord_ShouldNotTriggerReadPdf() {
+        var result = _detector.Detect("read this file");
+        Assert.False(result.DetectedModalities.HasFlag(ModelModalityKind.ReadPdf));
+    }
+
+    [Fact]
+    public void Detect_PdfKeywordStillTriggersReadPdf() {
+        var result = _detector.Detect("帮我分析这个PDF");
+        Assert.True(result.DetectedModalities.HasFlag(ModelModalityKind.ReadPdf));
+    }
 }

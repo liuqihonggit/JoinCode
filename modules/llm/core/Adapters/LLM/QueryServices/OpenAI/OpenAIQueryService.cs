@@ -374,6 +374,7 @@ public class OpenAIQueryService : QueryServiceBase {
         try {
             using var doc = JsonDocument.Parse(descRequestContent);
             toolNames = doc.RootElement.GetProperty("tools").EnumerateArray()
+                .Where(t => t.ValueKind == JsonValueKind.String)
                 .Select(t => t.GetString() ?? "")
                 .Where(s => !string.IsNullOrEmpty(s))
                 .ToHashSet(StringComparer.Ordinal);

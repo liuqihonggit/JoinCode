@@ -313,6 +313,16 @@ internal static class RgSubCommand {
                     case "--max-depth": _ = inlineValue ?? ReadNextValue(args, ref i); break;
                     case "--count-matches": outputMode = SearchOutputMode.Count; break;
                     case "--unrestricted": hidden = true; noIgnore = true; break;
+                    case "--column": break;
+                    case "--crlf": break;
+                    case "--max-columns": _ = inlineValue ?? ReadNextValue(args, ref i); break;
+                    case "--path-separator": _ = inlineValue ?? ReadNextValue(args, ref i); break;
+                    case "--debug": break;
+                    case "--trace": break;
+                    case "--follow": break;
+                    case "--search-zip": break;
+                    case "--pcre2": break;
+                    case "--encoding": _ = inlineValue ?? ReadNextValue(args, ref i); break;
                     case "--file": {
                         var filePath = inlineValue ?? ReadNextValue(args, ref i);
                         if (filePath is not null && File.Exists(filePath))
@@ -516,6 +526,10 @@ internal static class RgSubCommand {
                 case '0': j++; break;
                 case 'a': j++; break;
                 case 'u': hidden = true; noIgnore = true; j++; break;
+                case 'L': j++; break;
+                case 'z': j++; break;
+                case 'P': j++; break;
+                case 'E': _ = ConsumeShortString(span, ref j, args, ref i); break;
                 case 'f': {
                     var filePath = ConsumeShortString(span, ref j, args, ref i);
                     if (filePath is not null && File.Exists(filePath))

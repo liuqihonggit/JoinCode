@@ -457,6 +457,70 @@ internal static class IntentMatcher {
                 }
             }], "P6: 超长 tool_call_id（200字符）");
         }
+        if (lower.Contains("q2") || lower.Contains("upper case") || lower.Contains("大写工具名")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "BASH",
+                    Arguments = """{"command": "echo q2"}"""
+                }
+            }], "Q2: 大写工具名 BASH");
+        }
+        if (lower.Contains("q3") || lower.Contains("whitespace name") || lower.Contains("空格工具名")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = " bash ",
+                    Arguments = """{"command": "echo q3"}"""
+                }
+            }], "Q3: 前后空格工具名");
+        }
+        if (lower.Contains("q4") || lower.Contains("dup id") || lower.Contains("重复id")) {
+            var dupId = $"call_{Guid.NewGuid():N}"[..20];
+            return ([
+                new ToolCallDto {
+                    Id = dupId,
+                    Function = new ToolCallFunctionDto {
+                        Name = "bash",
+                        Arguments = """{"command": "echo q4_first"}"""
+                    }
+                },
+                new ToolCallDto {
+                    Id = dupId,
+                    Function = new ToolCallFunctionDto {
+                        Name = "bash",
+                        Arguments = """{"command": "echo q4_second"}"""
+                    }
+                }
+            ], "Q4: 重复 tool_call_id");
+        }
+        if (lower.Contains("r1") || lower.Contains("ansi output") || lower.Contains("ansi输出")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "printf '\\033[31mred\\033[0m text'"}"""
+                }
+            }], "R1: 工具结果包含 ANSI 转义序列");
+        }
+        if (lower.Contains("r2") || lower.Contains("null byte") || lower.Contains("null字节")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "printf 'before\\x00after'"}"""
+                }
+            }], "R2: 工具结果包含 null 字节");
+        }
+        if (lower.Contains("r3") || lower.Contains("long line") || lower.Contains("超长行")) {
+            return ([new ToolCallDto {
+                Id = $"call_{Guid.NewGuid():N}"[..20],
+                Function = new ToolCallFunctionDto {
+                    Name = "bash",
+                    Arguments = """{"command": "printf '%0.sx' {1..5000}"}"""
+                }
+            }], "R3: 工具结果超长行（5000字符无换行）");
+        }
         return (null, "");
     }
 

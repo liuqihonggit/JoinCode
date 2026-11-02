@@ -632,7 +632,7 @@ public static class ToolCoverageScripts {
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "RemoteTrigger", Description = "应包含RemoteTrigger工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "remote_trigger", Description = "应包含remote_trigger工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }

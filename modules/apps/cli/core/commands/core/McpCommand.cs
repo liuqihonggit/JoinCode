@@ -148,6 +148,11 @@ public sealed class McpCliCommand {
 
         await using var appHost = await BuildHostAsync(ct: ct).ConfigureAwait(false);
 
+        // mcp serve 需要 shell 执行器 — BuildHostAsync 跳过了 ShellCapabilityInit（SkipChatServices=true），此处补调
+        Core.DependencyInjection.ShellCapabilityInitializer.Initialize(
+            appHost.Services.GetRequiredService<IFileSystem>(),
+            appHost.Services.GetService<ILogger<JccMcpServer>>());
+
         var registry = appHost.Services.GetRequiredService<IMcpToolRegistry>();
         var toolCount = await registry.GetCountAsync(ct).ConfigureAwait(false);
         // tools/call 统一走权限管道（13 层中间件），禁止直连注册表绕过权限层 — ADR 0138

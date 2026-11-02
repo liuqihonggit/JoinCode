@@ -124,9 +124,9 @@ public sealed class McpCliCommand {
             return 0;
         }, ct: ct);
 
-    internal static async Task<IAsyncHost> BuildHostAsync(string? vendor = null, string? model = null, CancellationToken ct = default) {
+    internal static async Task<IAsyncHost> BuildHostAsync(string? vendor = null, string? model = null, CancellationToken ct = default, bool skipToolFilter = false) {
         var fs = IO.FileSystem.FileSystemFactory.Create();
-        var options = new CommandLineOptions { NonInteractive = true, TrustWorkspace = true, SkipModelFetch = true, SkipProviderValidation = true, SkipChatServices = true };
+        var options = new CommandLineOptions { NonInteractive = true, TrustWorkspace = true, SkipModelFetch = true, SkipProviderValidation = true, SkipChatServices = true, SkipToolFilter = skipToolFilter };
         if (!string.IsNullOrEmpty(vendor))
             options = options with { Vendor = vendor };
         if (!string.IsNullOrEmpty(model))
@@ -146,7 +146,7 @@ public sealed class McpCliCommand {
             return 1;
         }
 
-        await using var appHost = await BuildHostAsync(ct: ct).ConfigureAwait(false);
+        await using var appHost = await BuildHostAsync(ct: ct, skipToolFilter: true).ConfigureAwait(false);
 
         // mcp serve 需要 shell 执行器 — BuildHostAsync 跳过了 ShellCapabilityInit（SkipChatServices=true），此处补调
         Core.DependencyInjection.ShellCapabilityInitializer.Initialize(
@@ -245,12 +245,17 @@ public sealed class McpCliCommand {
         // 使跨进程缓存命中(第一次 MISS → flush → 第二次 HIT)。
         // 历史注释"host.Dispose() 调 Environment.Exit(210)"已过时:退出码 210 在代码中不存在,
         // 且 ExecuteServeAsync 已用 await using var appHost 验证 DisposeAsync 安全。
+        var __timing = System.Environment.GetEnvironmentVariable("JCC_DEBUG_TIMING") is "1" or "true";
+        var __swBuild = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;
         await using var host = await BuildHostAsync(vendor, model, ct).ConfigureAwait(false);
+        if (__swBuild is not null) System.Console.Error.WriteLine($"[TIMING] BuildHostAsync: {__swBuild.ElapsedMilliseconds}ms");
         // 单次命令等待插件后台链完成：八插件加载后台化后 registry 同步可见仅 15 个工具（gh_pr_* 全缺失），
         // gh/mcp_call/mcp_list 查询前等 Completion 补齐工具表（长驻宿主不等待，保留启动优化收益）
+        var __swBoot = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;
         if (host.Services.GetService<JoinCode.App.Modules.McpPluginBootstrapHandle>() is { } bootstrap) {
             await bootstrap.Completion.WaitAsync(ct).ConfigureAwait(false);
         }
+        if (__swBoot is not null) System.Console.Error.WriteLine($"[TIMING] bootstrap.Completion: {__swBoot.ElapsedMilliseconds}ms");
         return await action(host.Services).ConfigureAwait(false);
     }
 

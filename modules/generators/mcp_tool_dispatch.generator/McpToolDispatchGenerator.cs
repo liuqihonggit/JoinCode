@@ -675,27 +675,43 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
         sb.AppendLine($"    public static async Task<IMcpToolRegistry> RegisterAllMcpToolDispatchAsync(");
         sb.AppendLine("        this IMcpToolRegistry registry,");
         sb.AppendLine("        IServiceProvider serviceProvider,");
-        sb.AppendLine("        CancellationToken cancellationToken = default)");
+        sb.AppendLine("        CancellationToken cancellationToken = default,");
+        sb.AppendLine("        Func<string, bool>? toolFilter = null)");
         sb.AppendLine("    {");
+        sb.AppendLine("        var __timing = System.Environment.GetEnvironmentVariable(\"JCC_DEBUG_TIMING\") is \"1\" or \"true\";");
         sb.AppendLine("        var logger = serviceProvider.GetService<ILogger<IMcpToolRegistry>>();");
+        sb.AppendLine("        var __sw0 = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;");
         sb.AppendLine("        var initialCount = await registry.GetCountAsync(cancellationToken);");
+        sb.AppendLine("        if (__sw0 is not null) System.Console.Error.WriteLine($\"[TIMING] GetCount(初始): {__sw0.ElapsedMilliseconds}ms\");");
         sb.AppendLine();
         sb.AppendLine("        // 16 批并行收集 IToolHandler（DI 解析 + schema 构造并行，无锁竞争）");
         sb.AppendLine("        var allHandlers = new ConcurrentBag<IToolHandler>();");
+        sb.AppendLine("        var __sw1 = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;");
         sb.AppendLine("        var batchTasks = new Task[]");
         sb.AppendLine("        {");
 
         for (var i = 0; i < BatchCount && i * batchSize < handlers.Count; i++) {
-            sb.AppendLine($"            BatchRegister{i}Async(allHandlers, serviceProvider, logger, cancellationToken),");
+            sb.AppendLine($"            BatchRegister{i}Async(allHandlers, serviceProvider, logger, cancellationToken, toolFilter),");
         }
 
         sb.AppendLine("        };");
         sb.AppendLine("        await Task.WhenAll(batchTasks).ConfigureAwait(false);");
+        sb.AppendLine("        if (__sw1 is not null) System.Console.Error.WriteLine($\"[TIMING] DI解析+WhenAll: {__sw1.ElapsedMilliseconds}ms, handlers={allHandlers.Count}\");");
+        sb.AppendLine();
+        sb.AppendLine("        // 过滤工具 — toolFilter 非 null 时只保留匹配的工具（如 SkipChatServices 只注册 gh_*）");
+        sb.AppendLine("        var handlersToRegister = toolFilter is not null");
+        sb.AppendLine("            ? allHandlers.Where(h => toolFilter(h.Name)).ToList()");
+        sb.AppendLine("            : allHandlers.ToList();");
+        sb.AppendLine("        if (__timing) System.Console.Error.WriteLine($\"[TIMING] 过滤后: {handlersToRegister.Count} 个工具\");");
         sb.AppendLine();
         sb.AppendLine("        // 单次批量注册 — 消除 N 次锁获取与 async 状态机开销");
-        sb.AppendLine("        await registry.RegisterToolsBatchAsync(allHandlers.ToList(), cancellationToken).ConfigureAwait(false);");
+        sb.AppendLine("        var __sw2 = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;");
+        sb.AppendLine("        await registry.RegisterToolsBatchAsync(handlersToRegister, cancellationToken).ConfigureAwait(false);");
+        sb.AppendLine("        if (__sw2 is not null) System.Console.Error.WriteLine($\"[TIMING] 注册(Batch): {__sw2.ElapsedMilliseconds}ms\");");
         sb.AppendLine();
+        sb.AppendLine("        var __sw3 = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;");
         sb.AppendLine("        var finalCount = await registry.GetCountAsync(cancellationToken);");
+        sb.AppendLine("        if (__sw3 is not null) System.Console.Error.WriteLine($\"[TIMING] GetCount(最终): {__sw3.ElapsedMilliseconds}ms\");");
         sb.AppendLine("        var totalRegistered = finalCount - initialCount;");
         sb.AppendLine("        logger?.LogInformation(\"MCP Tool Handlers 注册完成，共 {TotalCount} 个工具\", totalRegistered);");
         sb.AppendLine();
@@ -711,13 +727,21 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
             sb.AppendLine("        ConcurrentBag<IToolHandler> handlers,");
             sb.AppendLine("        IServiceProvider serviceProvider,");
             sb.AppendLine("        ILogger<IMcpToolRegistry>? logger,");
-            sb.AppendLine("        CancellationToken cancellationToken)");
+            sb.AppendLine("        CancellationToken cancellationToken,");
+            sb.AppendLine("        Func<string, bool>? toolFilter)");
             sb.AppendLine("    {");
 
             for (var j = start; j < end; j++) {
                 var handler = handlers[j];
                 var optionalArg = handler.Optional ? "true" : "false";
-                sb.AppendLine($"        await Register{handler.TypeName}ToolsAsync(handlers, serviceProvider, logger, cancellationToken, {optionalArg}).ConfigureAwait(false);");
+                var toolNames = handler.Tools.Select(t => t.Name).ToList();
+                if (toolNames.Count > 0) {
+                    var filterChecks = string.Join(" || ", toolNames.Select(n => $"toolFilter(\"{n}\")"));
+                    sb.AppendLine($"        if (toolFilter is null || {filterChecks})");
+                    sb.AppendLine($"            await Register{handler.TypeName}ToolsAsync(handlers, serviceProvider, logger, cancellationToken, {optionalArg}).ConfigureAwait(false);");
+                } else {
+                    sb.AppendLine($"        await Register{handler.TypeName}ToolsAsync(handlers, serviceProvider, logger, cancellationToken, {optionalArg}).ConfigureAwait(false);");
+                }
             }
 
             sb.AppendLine("    }");

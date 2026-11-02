@@ -216,4 +216,9 @@ public record CommandLineOptions {
     /// 只需 IMcpToolRegistry，不承担聊天依赖链构造开销（启动开销优化）
     /// </summary>
     public bool SkipChatServices { get; init; }
+
+    /// <summary>
+    /// 跳过工具名过滤 — mcp serve 需要暴露所有工具给外部客户端，不受 SkipChatServices 触发的 gh_* 过滤影响
+    /// </summary>
+    public bool SkipToolFilter { get; init; }
 }

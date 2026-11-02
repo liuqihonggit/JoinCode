@@ -396,12 +396,16 @@ public class ResponsesQueryService : QueryServiceBase {
         try {
             using var doc = JsonDocument.Parse(descRequestContent);
             toolNames = doc.RootElement.GetProperty("tools").EnumerateArray()
+                .Where(t => t.ValueKind == JsonValueKind.String)
                 .Select(t => t.GetString() ?? "")
                 .Where(s => !string.IsNullOrEmpty(s))
                 .ToHashSet(StringComparer.Ordinal);
         } catch (JsonException ex) {
+            var truncLen = Math.Min(descRequestContent.Length, 200);
+            if (truncLen > 0 && truncLen < descRequestContent.Length && char.IsLowSurrogate(descRequestContent[truncLen]) && char.IsHighSurrogate(descRequestContent[truncLen - 1]))
+                truncLen--;
             throw new InvalidOperationException(
-                $"Failed to parse tool_description_request JSON: {ex.Message} | Content: {descRequestContent[..Math.Min(descRequestContent.Length, 200)]}", ex);
+                $"Failed to parse tool_description_request JSON: {ex.Message} | Content: {descRequestContent[..truncLen]}", ex);
         }
 
         var descriptions = new List<ResponsesTool>();

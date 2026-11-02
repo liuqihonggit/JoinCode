@@ -234,3 +234,57 @@ AI 用 bash 调 `jcc -p "消息"`，responder 自动匹配意图并 inject 响�
 | StringExtensions.SafeTruncate | 17个文件的字符串截断 | ✅ | ✅ 编译通过 |
 | responder IntentMatcher A/W/X/Y/Z 匹配 | A1-A20 场景测试 | ✅ | ✅ 手动 exe 验收 |
 | responder IntentMatcher C1-C20 | C1-C20 场景测试 | ✅ | ✅ 手动 exe 验收 |
+
+---
+
+## 2026-11-03 第三轮：D1-D20 流式响应边缘场景 + 流式处理 10 个 bug 修复
+
+### D1-D20 场景测试结果
+
+| 场景 | 关键词 | 结果 | 说明 |
+|------|--------|------|------|
+| D1 | role only | ✅ exit=1 | 只有 role chunk 无 content → 正确报空回复 |
+| D2 | empty content between | ✅ exit=0 | 空 content chunk 正确跳过，输出 "helloworld" |
+| D3 | usage first | ✅ exit=0 | usage 在首个 chunk 正确处理 |
+| D4 | empty choices | ✅ exit=0 | 空 choices 数组正确跳过 |
+| D5 | null delta | ✅ exit=0 | null delta 正确处理 |
+| D6 | char by char | ✅ exit=0 | 逐字符流式（28+ chunk）正确累积 |
+| D7 | interleaved | ✅ exit=0 | content 和 tool_call 交错 chunk 正确处理 |
+| D8 | length finish | ✅ exit=0 | finish_reason=length 部分内容正确返回 |
+| D9 | content filter | ✅ exit=1 | content_filter 无内容 → 正确报空回复 |
+| D10 | done then extra | ✅ exit=0 | [DONE] 后额外数据正确忽略 |
+| D11 | done whitespace | ✅ exit=0 | [DONE] 带尾随空格正确处理（问题8修复生效） |
+| D12 | no done marker | ✅ exit=0 | 缺少 [DONE] 正确处理 |
+| D13 | sse comment | ✅ exit=0 | SSE 注释行正确跳过 |
+| D14 | extra fields | ✅ exit=0 | chunk 含额外字段正确忽略 |
+| D15 | model change | ✅ exit=0 | 流中 model 名变化正确处理 |
+| D16 | empty content chunks | ✅ exit=0 | 多个空 content chunk 正确跳过 |
+| D17 | whitespace only | ✅ exit=0 | 纯空白 content 正确保留 |
+| D18 | reasoning content | ✅ exit=0 | reasoning_content 正确流式输出 |
+| D19 | multiple choices | ✅ exit=0 | 多 choices 只读 choices[0] |
+| D20 | index gap | ✅ exit=0 | tool_call index 跳跃（0,2 缺 1）正确处理 |
+
+### 流式处理 10 个 bug 修复
+
+| 问题 | 严重度 | 位置 | 修复 | commit |
+|------|--------|------|------|--------|
+| 问题1 | 高 | ChatStreamChunkProcessor.cs:102 | IndexOutOfRange 崩溃 — 添加 Count==0 检查 | `7d190f7b3` |
+| 问题2 | 中 | OpenAIQueryService.cs:93 | usage chunk FinishReason 硬编码 "stop" → 用 lastFinishReason | `449427ffb` |
+| 问题3 | 中 | OpenAIQueryService.cs:199 | 只处理 "tool_calls" → 扩展到 "length"/"content_filter" | `449427ffb` |
+| 问题4 | 中 | OpenAIQueryService.cs:236 | 兜底 flush FinishReason 硬编码 → 用 lastFinishReason | `449427ffb` |
+| 问题5 | 高 | OpenAIQueryService.cs:157 | Index 缺失合并 — 提取 ProcessToolCallDelta 方法 | `7d190f7b3` |
+| 问题6 | 中 | OpenAIQueryService.cs:159 | Id 覆盖重置 Arguments — ProcessToolCallDelta 修复 | `7d190f7b3` |
+| 问题7 | 中 | OpenAIQueryService.cs:159 | Name 不更新 — ProcessToolCallDelta 修复 | `7d190f7b3` |
+| 问题8 | 低 | OpenAIQueryService.cs:520 | [DONE] 不容忍尾随空格 → TrimEnd | `449427ffb` |
+| 问题9 | 中 | QueryEngine.cs:428 | ToolName 未经过 RepairToolName — 添加修复 | `138b17cd6` |
+| 问题10 | 高 | QueryEngine.cs:460 | length 截断时工具调用丢失 — 被问题3修复覆盖 | `449427ffb` |
+
+### 验收表（追加）
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| ProcessToolCallDelta 方法 | OpenAIQueryService 流式 tool_call delta 处理 | ✅ | ✅ 编译通过 + LLM 609 测试通过 |
+| lastFinishReason 跟踪 | usage chunk + 兜底 flush FinishReason | ✅ | ✅ D3/D8 场景验证 |
+| [DONE] TrimEnd | OpenAIQueryService [DONE] 匹配 | ✅ | ✅ D11 场景验证 |
+| RepairToolName in QueryEngine | QueryEngine 工具名修复 | ✅ | ✅ 编译通过 + Brain 951 测试通过 |
+| responder D1-D20 场景 | IntentMatcher.StreamingEdge.cs | ✅ | ✅ 手动 exe 验收 |

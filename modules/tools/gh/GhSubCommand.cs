@@ -33,6 +33,8 @@ internal static class GhSubCommand {
             return 1;
         }
 
+        if (resolved.Json) bound["verbosity"] = "2";
+
         var tracker = new GhTimingTracker { CacheDisabled = noCache };
         var prevTimer = GhTimingTracker.CurrentTimer.Value;
         GhTimingTracker.CurrentTimer.Value = tracker;

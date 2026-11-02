@@ -248,7 +248,7 @@ public sealed class CliSession {
     }
 
     private async Task HandlePrefixCommandAsync(string input, CancellationToken cancellationToken) {
-        Diag.WriteLifecycle($"[DIAG-CLI] HandlePrefixCommandAsync entry: input='{(input.Length > 60 ? input[..60] + "..." : input)}'");
+        Diag.WriteLifecycle($"[DIAG-CLI] HandlePrefixCommandAsync entry: input='{(input.SafeTruncate(60))}'");
 
         var context = new PrefixCommandContext {
             Services = new CommandServiceProvider(_commandServices, _optionalServices?.ServiceProvider),
@@ -270,7 +270,7 @@ public sealed class CliSession {
     }
 
     private async Task HandleCommandAsync(string input, CancellationToken cancellationToken) {
-        Diag.WriteLifecycle($"[DIAG-CLI] HandleCommandAsync entry: input='{(input.Length > 60 ? input[..60] + "..." : input)}'");
+        Diag.WriteLifecycle($"[DIAG-CLI] HandleCommandAsync entry: input='{(input.SafeTruncate(60))}'");
         var parseResult = _commandRegistry.Parse(input);
         if (!parseResult.IsSuccess) {
             Diag.WriteLifecycle($"[DIAG-CLI] Parse FAILED for: '{input}', error={parseResult.ErrorMessage}");
@@ -382,7 +382,7 @@ public sealed class CliSession {
         }
 
         var outputText = commandOutput.ToString();
-        Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' outputLen={outputText.Length}, outputPreview='{(outputText.Length > 200 ? outputText[..200] + "..." : outputText)}'");
+        Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' outputLen={outputText.Length}, outputPreview='{(outputText.SafeTruncate(200))}'");
         if (!string.IsNullOrWhiteSpace(outputText)) {
             TerminalHelper.WriteLine(outputText.TrimEnd());
         }

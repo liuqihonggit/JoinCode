@@ -47,7 +47,7 @@ public sealed class ShareCommand : ChatCommandBase {
             TerminalHelper.WriteLine($"  长度: {content.Length:N0} 字符");
             TerminalHelper.NewLine();
             TerminalHelper.WriteLine("--- 预览（前500字符）---");
-            TerminalHelper.WriteLine(content.Length > 500 ? content[..500] + "..." : content);
+            TerminalHelper.WriteLine(content.SafeTruncate(500));
             TerminalHelper.WriteLine("--- 结束 ---");
 
             try {

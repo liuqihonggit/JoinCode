@@ -59,7 +59,9 @@ public partial class CtxInspectToolHandlers {
                 foreach (var msg in history.TakeLast(5)) {
                     var role = msg.Role.ToString();
                     var content = msg.Content ?? "";
-                    var truncated = content.Length > 80 ? content[..80] + "..." : content;
+                    var truncated = content.Length > 80
+                        ? (char.IsLowSurrogate(content[80]) && char.IsHighSurrogate(content[79]) ? content[..79] : content[..80]) + "..."
+                        : content;
                     response.AppendLine($"  [{role}] {truncated}");
                 }
             }

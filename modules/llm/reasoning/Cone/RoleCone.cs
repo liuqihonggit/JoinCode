@@ -101,7 +101,7 @@ public sealed class RoleCone {
             $"摘要:{f.FoldedSummary}\n" +
             $"指纹结论:{f.Fingerprint.OutputConclusion}\n" +
             $"置信度:{f.Fingerprint.Confidence:F2}\n" +
-            $"原始文:{(f.RawText.Length > 50 ? f.RawText[..50] + "..." : f.RawText)}"));
+            $"原始文:{(f.RawText.Length > 50 ? f.RawText.SafeTruncate(50) : f.RawText)}"));
     }
 
     /// <summary>

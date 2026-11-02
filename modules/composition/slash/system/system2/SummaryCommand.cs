@@ -47,7 +47,7 @@ public sealed class SummaryCommand : ChatCommandBase {
 
                 var preview = msg.Content;
                 if (preview.Length > 100)
-                    preview = preview[..97] + "...";
+                    preview = preview.SafeTruncate(97);
 
                 TerminalHelper.WriteLine($"  {roleLabel}: {preview}");
             }

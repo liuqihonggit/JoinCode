@@ -262,7 +262,7 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
                     ? value.GetString() ?? ""
                     : value.GetRawText();
                 if (str.Length > 50)
-                    str = str[..50] + "...";
+                    str = (char.IsLowSurrogate(str[50]) && char.IsHighSurrogate(str[49]) ? str[..49] : str[..50]) + "...";
                 parts.Add($"{key}={str}");
             }
         }
@@ -273,7 +273,7 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
                     ? kvp.Value.GetString() ?? ""
                     : kvp.Value.GetRawText();
                 if (str.Length > 50)
-                    str = str[..50] + "...";
+                    str = (char.IsLowSurrogate(str[50]) && char.IsHighSurrogate(str[49]) ? str[..49] : str[..50]) + "...";
                 parts.Add($"{kvp.Key}={str}");
             }
         }

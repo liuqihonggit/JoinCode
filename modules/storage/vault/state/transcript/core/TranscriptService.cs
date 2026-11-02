@@ -148,7 +148,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
             if (entry is null) return (entryCount, null);
             var preview = entry.Content;
             if (preview is not null && preview.Length > 80) {
-                preview = preview[..80] + "...";
+                preview = preview.SafeTruncate(80);
             }
             return (entryCount, preview);
         } catch (JsonException) {
@@ -169,7 +169,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         if (entryCount is 0) return (entryCount, null);
         var preview = entries[^1].Content;
         if (preview is not null && preview.Length > 80) {
-            preview = preview[..80] + "...";
+            preview = preview.SafeTruncate(80);
         }
         return (entryCount, preview);
     }

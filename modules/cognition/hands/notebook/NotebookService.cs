@@ -305,7 +305,7 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService {
     public List<(int Index, NotebookCellType Type, string Preview)> ListCells(NotebookDocument notebook) {
         return notebook.Cells.Select((cell, index) => {
             var preview = cell.SourceText.Length > 50
-                ? cell.SourceText[..50] + "..."
+                ? cell.SourceText.SafeTruncate(50)
                 : cell.SourceText;
 
             return (index, cell.Type, preview.Replace("\n", " "));

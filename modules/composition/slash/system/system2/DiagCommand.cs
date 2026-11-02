@@ -146,7 +146,7 @@ public sealed class DiagCommand : ChatCommandBase {
         if (snapshot.Attachments.Count > 0) {
             TerminalHelper.WriteLine("附件:");
             foreach (var (name, content) in snapshot.Attachments)
-                TerminalHelper.WriteLine($"  {name}: {(content.Length > 200 ? content[..200] + "..." : content)}");
+                TerminalHelper.WriteLine($"  {name}: {(content.SafeTruncate(200))}");
         }
     }
 }

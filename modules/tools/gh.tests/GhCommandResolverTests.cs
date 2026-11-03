@@ -18,7 +18,7 @@ public sealed class GhCommandResolverTests {
         resolved.Group.Should().Be("pr");
         resolved.Action.Should().Be("view");
         resolved.Tail.Should().BeEquivalentTo(new[] { "123" });
-        resolved.Json.Should().BeTrue(); // 默认 JSON 输出 (ADR 0069 决策6)
+        resolved.Json.Should().BeFalse(); // 默认文本输出,与系统 gh CLI 一致 (--json 才输出 JSON)
     }
 
     /// <summary>jcc gh api &lt;path&gt; 是单级命令 → gh_api，无 action</summary>
@@ -1402,5 +1402,69 @@ public sealed class GhCommandResolverTests {
         error.Should().BeNull();
         bound.Should().NotBeNull();
         bound!["pr_number"].Should().Be("565");
+    }
+
+    /// <summary>BUG 修复: 默认输出应为文本(表格)模式,与系统 gh CLI 一致。--json 才切换到 JSON。</summary>
+    /// <para>根因: ShouldOutputJson 默认返回 true → 所有命令默认输出完整 JSON,人类不可读。</para>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Resolve_DefaultFormat_ShouldBeText_NotJson() {
+        using var env = EnvVarScope.Set("JCC_OUTPUT_FORMAT", null);
+        var resolved = GhCommandResolver.Resolve(new[] { "gh", "pr", "list" }, out _);
+        resolved!.Json.Should().BeFalse();
+    }
+
+    /// <summary>--json 标志应切换到 JSON 输出模式</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Resolve_JsonFlag_ShouldEnableJsonOutput() {
+        using var env = EnvVarScope.Set("JCC_OUTPUT_FORMAT", null);
+        var resolved = GhCommandResolver.Resolve(new[] { "gh", "pr", "list", "--json" }, out _);
+        resolved!.Json.Should().BeTrue();
+    }
+
+    /// <summary>--format json 应切换到 JSON 输出模式</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Resolve_FormatJson_ShouldEnableJsonOutput() {
+        using var env = EnvVarScope.Set("JCC_OUTPUT_FORMAT", null);
+        var resolved = GhCommandResolver.Resolve(new[] { "gh", "pr", "list", "--format", "json" }, out _);
+        resolved!.Json.Should().BeTrue();
+    }
+
+    /// <summary>--format text 应切换到文本输出模式(即使 JCC_OUTPUT_FORMAT=full_json)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Resolve_FormatText_ShouldOverrideEnvToText() {
+        using var env = EnvVarScope.Set("JCC_OUTPUT_FORMAT", "full_json");
+        var resolved = GhCommandResolver.Resolve(new[] { "gh", "pr", "list", "--format", "text" }, out _);
+        resolved!.Json.Should().BeFalse();
+    }
+
+    /// <summary>JCC_OUTPUT_FORMAT=full_json 应使默认输出为 JSON</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Resolve_EnvFullJson_ShouldEnableJsonOutput() {
+        using var env = EnvVarScope.Set("JCC_OUTPUT_FORMAT", "full_json");
+        var resolved = GhCommandResolver.Resolve(new[] { "gh", "pr", "list" }, out _);
+        resolved!.Json.Should().BeTrue();
+    }
+
+    /// <summary>JCC_OUTPUT_FORMAT=compact_json 应使默认输出为 JSON</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Resolve_EnvCompactJson_ShouldEnableJsonOutput() {
+        using var env = EnvVarScope.Set("JCC_OUTPUT_FORMAT", "compact_json");
+        var resolved = GhCommandResolver.Resolve(new[] { "gh", "pr", "list" }, out _);
+        resolved!.Json.Should().BeTrue();
+    }
+
+    /// <summary>JCC_OUTPUT_FORMAT=gh_style 应使默认输出为文本(表格)</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Resolve_EnvGhStyle_ShouldBeTextOutput() {
+        using var env = EnvVarScope.Set("JCC_OUTPUT_FORMAT", "gh_style");
+        var resolved = GhCommandResolver.Resolve(new[] { "gh", "pr", "list" }, out _);
+        resolved!.Json.Should().BeFalse();
     }
 }

@@ -857,9 +857,10 @@ public partial class GitHubToolHandlers {
             if (!result.Success) return Fail(result.Error);
             var (prNumber, nodeId) = ExtractPrInfoFromResponse(result.Body);
             if (prNumber > 0) await AddPrPostCreateAttributesAsync(client, owner, repoName, prNumber, assignee, label, reviewer, milestone, cancellationToken).ConfigureAwait(false);
+            string? projectWarning = null;
             if (project is not null && prNumber > 0 && !string.IsNullOrEmpty(nodeId)) {
                 var projectResult = await AddToProjectAsync(client, owner, nodeId, project.Value, cancellationToken).ConfigureAwait(false);
-                if (!projectResult.Success) _logger?.LogWarning("添加 PR 到 Project #{Project} 失败: {Error}", project, projectResult.Error);
+                if (!projectResult.Success) projectWarning = $"\n⚠ 添加到 Project #{project} 失败: {projectResult.Error}";
             }
             var auditWarning = await auditTask.ConfigureAwait(false);
             if (auto_merge == true && prNumber > 0 && !string.IsNullOrEmpty(nodeId)) {
@@ -869,12 +870,12 @@ public partial class GitHubToolHandlers {
                     : $"PR {prNumber} 创建成功（auto-merge 启用失败: {autoMergeResult.Error}）";
                 if (wait == true && prNumber > 0) {
                     var waitResult = await GhPrWaitCoreAsync(client, owner, repoName, prNumber.ToString(), wait_timeout, null, fail_fast == true, common?.WorkingDir, cancellationToken, null).ConfigureAwait(false);
-                    return Ok(msg + auditWarning + fillInfo + "\n\n" + waitResult.GetFirstText());
+                    return Ok(msg + projectWarning + auditWarning + fillInfo + "\n\n" + waitResult.GetFirstText());
                 }
-                return Ok(msg + auditWarning + fillInfo);
+                return Ok(msg + projectWarning + auditWarning + fillInfo);
             }
             var prUrl = TryExtractJsonField(result.Body, "html_url") ?? TryExtractJsonField(result.Body, "url");
-            var createMsg = prUrl is not null ? $"{prUrl}\nPR 创建成功{auditWarning}{fillInfo}" : $"PR 创建成功{auditWarning}{fillInfo}";
+            var createMsg = prUrl is not null ? $"{prUrl}\nPR 创建成功{projectWarning}{auditWarning}{fillInfo}" : $"PR 创建成功{projectWarning}{auditWarning}{fillInfo}";
             if (wait == true && prNumber > 0) {
                 var waitResult = await GhPrWaitCoreAsync(client, owner, repoName, prNumber.ToString(), wait_timeout, null, fail_fast == true, common?.WorkingDir, cancellationToken, null).ConfigureAwait(false);
                 return Ok(createMsg + "\n\n" + waitResult.GetFirstText());

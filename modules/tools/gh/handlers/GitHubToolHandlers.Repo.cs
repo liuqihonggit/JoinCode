@@ -129,7 +129,7 @@ public partial class GitHubToolHandlers {
         var result = await _apiClient.SendAsync(HttpMethod.Post, createPath, jsonBody, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
 
-        var repoFullName = !string.IsNullOrWhiteSpace(org) ? $"{org}/{name}" : name;
+        var repoFullName = TryExtractJsonField(result.Body, "full_name") ?? (!string.IsNullOrWhiteSpace(org) ? $"{org}/{name}" : name);
         if (!string.IsNullOrWhiteSpace(org) && !string.IsNullOrWhiteSpace(team)) {
             var teamResult = await _apiClient.SendAsync(HttpMethod.Put, $"orgs/{org}/teams/{team}/repos/{org}/{name}", ct: cancellationToken).ConfigureAwait(false);
             if (!teamResult.Success) return OkBrief(result.Body, $"已创建仓库 {repoFullName}（但添加到团队失败: {teamResult.Error}）");
@@ -207,9 +207,7 @@ public partial class GitHubToolHandlers {
 
         if (clone != true) return OkBrief(result.Body, $"已 Fork {repo}");
         if (_git is null) return OkBrief(result.Body, $"已 Fork {repo}（但未克隆：git 未配置）");
-        var forkFullName = !string.IsNullOrWhiteSpace(org)
-            ? $"{org}/{fork_name ?? repoName}"
-            : fork_name is not null ? $"{owner}/{fork_name}" : repo;
+        var forkFullName = TryExtractJsonField(result.Body, "full_name") ?? repo;
         var cloneResult = await _git.ExecuteAsync($"clone https://github.com/{forkFullName}.git", common?.WorkingDir, cancellationToken).ConfigureAwait(false);
         if (!cloneResult.Success) return OkBrief(result.Body, $"已 Fork {repo}（但克隆失败: {cloneResult.Error}）");
         if (string.IsNullOrWhiteSpace(remote) || remote == "origin") return OkBrief(result.Body, $"已 Fork {repo}");

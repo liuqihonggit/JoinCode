@@ -135,8 +135,7 @@ public partial class GitHubToolHandlers {
             var nodeId = TryExtractNodeId(result.Body, "Issue create");
             if (string.IsNullOrEmpty(nodeId)) return OkBrief(result.Body, "Issue 创建成功");
             var projectResult = await AddToProjectAsync(client, owner, nodeId!, project.Value, cancellationToken).ConfigureAwait(false);
-            if (!projectResult.Success) _logger?.LogWarning("添加 Issue 到 Project #{Project} 失败: {Error}", project, projectResult.Error);
-            return OkBrief(result.Body, "Issue 创建成功");
+            return OkBrief(result.Body, projectResult.Success ? "Issue 创建成功" : $"Issue 创建成功(但添加到 Project #{project} 失败: {projectResult.Error})");
         }).ConfigureAwait(false);
 
     /// <summary>

@@ -310,8 +310,9 @@ public class QueryEngineTests {
     }
 
     [Fact]
-    public void IsRetryable_HttpRequestExceptionWithStatusCode_ShouldReturnTrue() {
-        IsRetryableWithEnvCleared(new HttpRequestException("server error", null, HttpStatusCode.InternalServerError)).Should().BeTrue();
+    public void IsRetryable_HttpRequestExceptionWithStatusCode_ShouldReturnFalse() {
+        // HttpRequestException 不重试 — ResilientHttpExecutor 已在其层重试，QueryEngine 再重试会三层叠加
+        IsRetryableWithEnvCleared(new HttpRequestException("server error", null, HttpStatusCode.InternalServerError)).Should().BeFalse();
     }
 
     [Fact]

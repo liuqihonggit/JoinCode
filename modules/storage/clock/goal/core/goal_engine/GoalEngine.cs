@@ -373,8 +373,17 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             _engineLoop = Task.Run(() => RunGoalLoopAsync(_engineCts.Token));
         }
 
-        return _state;
+        return SnapshotOf(_state);
     }
+
+    /// <summary>创建 GoalState 快照 — 避免后台 RunGoalLoopAsync 并发修改 _state.Status 导致调用方读到竞态值</summary>
+    private static GoalState SnapshotOf(GoalState s) => new() {
+        GoalId = s.GoalId, Objective = s.Objective, Status = s.Status,
+        Constraints = s.Constraints, TokenBudget = s.TokenBudget, TurnBudget = s.TurnBudget,
+        TokensUsed = s.TokensUsed, TurnsCompleted = s.TurnsCompleted, CreatedAt = s.CreatedAt,
+        PausedAt = s.PausedAt, AchievedAt = s.AchievedAt, LastEvaluation = s.LastEvaluation,
+        StagnationAlertedAt = s.StagnationAlertedAt, SessionId = s.SessionId, PersistedHistory = s.PersistedHistory,
+    };
 
     private async Task<GoalState> StartDirectAsync(
         string objective,
@@ -415,7 +424,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
         await PersistStateAsync(cancellationToken).ConfigureAwait(false);
 
-        return _state;
+        return SnapshotOf(_state);
     }
 
     /// <summary>

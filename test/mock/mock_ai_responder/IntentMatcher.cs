@@ -1740,6 +1740,10 @@ internal static partial class IntentMatcher {
         if (yResult.ToolCalls is not null)
             return yResult;
 
+        var szResult = MatchEdgeSZIntent(userMessage);
+        if (szResult.ToolCalls is not null)
+            return szResult;
+
         return (null, "");
     }
 

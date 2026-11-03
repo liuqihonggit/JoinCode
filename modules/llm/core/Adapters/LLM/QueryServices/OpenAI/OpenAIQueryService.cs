@@ -503,7 +503,8 @@ public class OpenAIQueryService : QueryServiceBase {
         try {
             result = RelaxedJsonSerializer.Deserialize(responseJson, NativeJsonContext.Default.OpenAIChatResponse);
         } catch (Exception ex) when (ex is JsonException or FormatException) {
-            throw new InvalidOperationException($"Failed to deserialize chat completion response: {ex.Message}", ex);
+            var preview = responseJson.Length > 200 ? responseJson[..200] + "..." : responseJson;
+            throw new InvalidOperationException($"Failed to deserialize chat completion response: {ex.Message} | Response body: {preview}", ex);
         }
 
         if (result == null) {

@@ -660,7 +660,7 @@ internal static class RgSubCommand {
         if (outcome.Results.Count == 0) {
             if (opts.Json) {
                 var result = new RgJsonResult([], 0, 0);
-                System.Console.WriteLine(JsonSerializer.Serialize(new RgJsonEnvelope(false, result), RgJsonContext.Default.RgJsonEnvelope));
+                System.Console.WriteLine(RgJsonContext.UnescapeHtmlChars(JsonSerializer.Serialize(new RgJsonEnvelope(false, result), RgJsonContext.Safe.RgJsonEnvelope)));
             }
             return 1;
         }
@@ -717,7 +717,7 @@ internal static class RgSubCommand {
             matches.Add(new RgJsonMatch(displayFile, r.MatchCount, lines));
         }
         var result = new RgJsonResult(matches, outcome.TotalMatches, outcome.Results.Count);
-        System.Console.WriteLine(JsonSerializer.Serialize(new RgJsonEnvelope(true, result), RgJsonContext.Default.RgJsonEnvelope));
+        System.Console.WriteLine(RgJsonContext.UnescapeHtmlChars(JsonSerializer.Serialize(new RgJsonEnvelope(true, result), RgJsonContext.Safe.RgJsonEnvelope)));
     }
 
     /// <summary>剥离 stdin 临时文件路径前缀，返回用户可见的行内容（无前缀或剥离失败时原样返回）。</summary>
@@ -834,4 +834,19 @@ public sealed record RgJsonEnvelope(bool Ok, RgJsonResult? Data, string SchemaVe
 
 [JsonSerializable(typeof(RgJsonEnvelope))]
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
-internal sealed partial class RgJsonContext : JsonSerializerContext;
+internal sealed partial class RgJsonContext : JsonSerializerContext {
+    private static readonly Lazy<RgJsonContext> s_safe = new(() => new RgJsonContext(
+        new JsonSerializerOptions(Default!.Options) {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            TypeInfoResolver = Default!
+        }));
+
+    /// <summary>带 UnsafeRelaxedJsonEscaping 的上下文 — 不转义中文等非 ASCII 字符</summary>
+    public static RgJsonContext Safe => s_safe.Value;
+
+    /// <summary>
+    /// 把 UnsafeRelaxedJsonEscaping 转义的 HTML 敏感字符 \uXXXX 还原为原始字符。
+    /// 委托 RelaxedJsonSerializer.UnescapeHtmlChars，rg/gh 统一实现。
+    /// </summary>
+    public static string UnescapeHtmlChars(string json) => RelaxedJsonSerializer.UnescapeHtmlChars(json);
+}

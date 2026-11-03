@@ -345,15 +345,15 @@ public class StreamingFallbackDecoratorTests {
         var decorator = CreateDecorator();
         var ex = new HttpRequestException("not found", null, HttpStatusCode.NotFound);
 
-        decorator.ShouldFallback(ex, CancellationToken.None).Should().BeTrue("HttpRequestException 本身触发 fallback");
+        decorator.ShouldFallback(ex, CancellationToken.None).Should().BeFalse("非 fallback 状态码的 HttpRequestException 不触发 fallback");
     }
 
     [Fact]
-    public void ShouldFallback_HttpRequestExceptionWithoutStatusCode_ReturnsTrue() {
+    public void ShouldFallback_HttpRequestExceptionWithoutStatusCode_ReturnsFalse() {
         var decorator = CreateDecorator();
         var ex = new HttpRequestException("network error");
 
-        decorator.ShouldFallback(ex, CancellationToken.None).Should().BeTrue();
+        decorator.ShouldFallback(ex, CancellationToken.None).Should().BeFalse("连接级错误（无 StatusCode）不 fallback — 服务器未连上，非流式也会失败");
     }
 
     [Fact]
@@ -658,7 +658,7 @@ public class StreamingFallbackDecoratorTests {
         mock.Setup(s => s.GetStreamEventContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),
                 It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
-            .Returns(FailAtStartStreamAsync(new HttpRequestException("overload"), CancellationToken.None));
+            .Returns(FailAtStartStreamAsync(new HttpRequestException("overload", null, HttpStatusCode.ServiceUnavailable), CancellationToken.None));
 
         mock.Setup(s => s.GetApiMessageContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),

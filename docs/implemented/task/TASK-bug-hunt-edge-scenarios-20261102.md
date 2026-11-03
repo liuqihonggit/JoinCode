@@ -513,3 +513,94 @@ D9 错误消息从 "模型返回空回复" 改为 "模型回复被安全过滤�
 | McpToolDispatch | 523 | ✅ 全通过 |
 | Mcp | 1023 | ✅ 全通过 |
 | **总计** | **8427** | **0 失败** |
+
+## 全量回归测试（2026-11-03）
+
+### 测试范围
+
+220 场景全量回归，分批执行（每 40 场景重启 MockServer + responder，避免服务状态污染）。
+
+| 批次 | 场景 | 数量 | 结果 | 耗时 |
+|------|------|------|------|------|
+| 1 | A-F | 120 | ✅ 全通过 | 698s |
+| 2 | G-H | 40 | ✅ 全通过 | 228s |
+| 3 | I + SX + SY | 60 | ✅ 全通过 | 392s |
+| **总计** | **A-I + SX + SY** | **220** | **0 失败** | **1318s** |
+
+### 场景系列清单
+
+| 系列 | 场景数 | 说明 |
+|------|--------|------|
+| A1-A20 | 20 | 基础工具调用 |
+| B1-B20 | 20 | 参数处理 |
+| C1-C20 | 20 | 错误恢复 |
+| D1-D20 | 20 | 流式响应边缘场景 |
+| E1-E20 | 20 | 工具调用边缘场景 |
+| F1-F20 | 20 | 工具调用高级边缘场景 |
+| G1-G20 | 20 | 工具调用参数边缘场景 |
+| H1-H20 | 20 | 纯内容流式边缘场景 |
+| I1-I20 | 20 | 错误恢复与安全边缘场景 |
+| SX1-SX20 | 20 | 流式协议边缘场景 |
+| SY1-SY20 | 20 | 工具调用处理边缘场景 |
+
+### 发现：服务状态污染
+
+长时间运行 MockServer + responder（>100 场景）后出现状态污染导致假失败。根因：MockServer Interactive 模式累积请求队列 + responder lastSeenIndex 跟踪不同步。解决方案：分批测试，每 40 场景重启服务。
+
+## 第五轮：连接失败无限重试修复（2026-11-03）
+
+### Bug：连接失败时 jcc 无限重试卡死 60 秒+
+
+**根因**：三层重试叠加 + 无限重试配置
+
+| 层 | 问题 | 修复 |
+|----|------|------|
+| ResilientHttpExecutor | `TransientErrorPredicate = null` + `TotalBudget = 24h` → `IsRetryAllowed` 总返回 true → 无限重试 | 默认模式也设置 `TransientErrorPredicate = IsTransientCapacityError`，只有 429/529 无限重试 |
+| StreamingFallbackDecorator | `HttpRequestException` 无条件触发 fallback → 连接失败后非流式又重试 | 连接级错误（无 StatusCode）不 fallback |
+| QueryEngine | `IsRetryable` 对 `HttpRequestException` 返回 true → 再重试 3 次 | 连接级错误不重试（ResilientHttpExecutor 已重试） |
+| SocketsHttpHandler | 未设 `ConnectTimeout` → 连接超时默认 15 秒 | `ConnectTimeout = 5 秒` |
+
+**修复效果**：连接失败从无限卡死（60 秒+超时）→ 35 秒返回错误（重试 3 次后放弃）
+
+**commit**: `a18b7eb3a`
+
+### SZ1-SZ20: 工具执行边缘场景
+
+20 个工具执行边缘场景（超长输出、ANSI 转义、JSON、markdown、多语言等），全部通过。
+
+## 第六轮：HTTP 错误响应 + 错误消息质量修复（2026-11-03）
+
+### 测试结果
+
+| 场景 | 结果 | 说明 |
+|------|------|------|
+| HTTP 500 | ✅ | ok=false, code=RUNTIME_ERROR, 错误消息包含响应体 |
+| HTTP 429 | ✅ | ok=false, code=RUNTIME_ERROR |
+| HTTP 503 | ✅ | ok=false, code=RUNTIME_ERROR |
+| 无效 JSON | ✅ | ok=false, 错误消息包含响应体 |
+| 空响应体 | ✅ | 5.2 秒返回错误（之前卡死 30 秒，已被连接失败修复覆盖） |
+| 并发 5 请求 | ✅ | 全部成功 |
+| NDJSON 格式 | ✅ | 每行有效 JSON |
+| --help | ✅ | 无路径泄露 |
+| --continue | ✅ | 正常工作 |
+| 退出码 | ✅ | 20 场景全部合理 |
+
+### Bug：JSON 解析失败错误消息缺少响应体内容
+
+**根因**：`SendRequestAsync` 的 `JsonException` catch 只包含异常消息，不包含响应体内容
+**修复**：OpenAI/Anthropic/Responses 三个 QueryService 的 `JsonException` catch 中添加 `Response body: {preview}`
+**commit**: `398ce67b5`
+
+### 全量单元测试
+
+| 域 | 测试数 | 结果 |
+|----|--------|------|
+| LLM | 609 | ✅ |
+| Brain.Context | 950 | ✅ |
+| Brain.Other | 426 | ✅ |
+| Hands.Shell | 526 | ✅ |
+| Guard.Config | 1306 | ✅ |
+| Guard.Security | 1136 | ✅ |
+| MCP | 1023 | ✅ |
+| Agents | 626 | ✅ |
+| **总计** | **6602** | **0 失败** |

@@ -142,24 +142,26 @@ public static partial class ServiceRegistration {
             };
         }
 
-        if (isUnattended) {
-            retryConfig = new RetryConfig {
-                MaxRetries = retryConfig.MaxRetries,
-                BaseDelay = retryConfig.BaseDelay,
-                MaxDelay = retryConfig.MaxDelay,
-                Strategy = retryConfig.Strategy,
-                ShouldRetry = retryConfig.ShouldRetry,
-                TotalBudget = retryConfig.TotalBudget,
-                PauseBudgetOnNetworkUnavailable = retryConfig.PauseBudgetOnNetworkUnavailable,
-                RetryAfterExtractor = retryConfig.RetryAfterExtractor,
-                SingleDelayCap = retryConfig.SingleDelayCap,
-                HeartbeatInterval = retryConfig.HeartbeatInterval,
-                HeartbeatCallback = (ex, remaining, attempt) =>
+        // 默认模式也设置 TransientErrorPredicate — 只有容量错误（429/529）才无限重试，
+        // 连接失败/超时等非容量错误在 MaxRetries 次后放弃，避免无限重试卡死非交互模式
+        retryConfig = new RetryConfig {
+            MaxRetries = retryConfig.MaxRetries,
+            BaseDelay = retryConfig.BaseDelay,
+            MaxDelay = retryConfig.MaxDelay,
+            Strategy = retryConfig.Strategy,
+            ShouldRetry = retryConfig.ShouldRetry,
+            TotalBudget = retryConfig.TotalBudget,
+            PauseBudgetOnNetworkUnavailable = retryConfig.PauseBudgetOnNetworkUnavailable,
+            RetryAfterExtractor = retryConfig.RetryAfterExtractor,
+            SingleDelayCap = retryConfig.SingleDelayCap,
+            HeartbeatInterval = retryConfig.HeartbeatInterval,
+            HeartbeatCallback = isUnattended
+                ? (ex, remaining, attempt) =>
                     logger?.LogWarning("[LLM:UNATTENDED] 重试等待 {RemainingMs:F0}ms (尝试 {Attempt}) | {ExType}: {Message}",
-                        remaining.TotalMilliseconds, attempt, ex.GetType().Name, ex.Message),
-                TransientErrorPredicate = IsTransientCapacityError,
-            };
-        }
+                        remaining.TotalMilliseconds, attempt, ex.GetType().Name, ex.Message)
+                : retryConfig.HeartbeatCallback,
+            TransientErrorPredicate = IsTransientCapacityError,
+        };
 
         var policy = retryOptions is not null
             ? new ResiliencePolicy {

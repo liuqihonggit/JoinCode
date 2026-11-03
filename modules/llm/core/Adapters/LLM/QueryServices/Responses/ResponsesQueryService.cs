@@ -531,7 +531,8 @@ public class ResponsesQueryService : QueryServiceBase {
         try {
             result = RelaxedJsonSerializer.Deserialize(responseJson, NativeJsonContext.Default.ResponsesResponse);
         } catch (Exception ex) when (ex is JsonException or FormatException) {
-            throw new InvalidOperationException($"Failed to deserialize Responses API response: {ex.Message}", ex);
+            var preview = responseJson.Length > 200 ? responseJson[..200] + "..." : responseJson;
+            throw new InvalidOperationException($"Failed to deserialize Responses API response: {ex.Message} | Response body: {preview}", ex);
         }
 
         return result ?? throw new InvalidOperationException("Failed to deserialize Responses API response");

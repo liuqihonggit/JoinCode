@@ -305,8 +305,13 @@ public class QueryEngineTests {
     }
 
     [Fact]
-    public void IsRetryable_HttpRequestException_ShouldReturnTrue() {
-        IsRetryableWithEnvCleared(new HttpRequestException()).Should().BeTrue();
+    public void IsRetryable_HttpRequestExceptionWithoutStatusCode_ShouldReturnFalse() {
+        IsRetryableWithEnvCleared(new HttpRequestException()).Should().BeFalse("连接级错误（无 StatusCode）不重试 — ResilientHttpExecutor 已重试");
+    }
+
+    [Fact]
+    public void IsRetryable_HttpRequestExceptionWithStatusCode_ShouldReturnTrue() {
+        IsRetryableWithEnvCleared(new HttpRequestException("server error", null, HttpStatusCode.InternalServerError)).Should().BeTrue();
     }
 
     [Fact]

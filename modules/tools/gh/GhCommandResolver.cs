@@ -263,6 +263,12 @@ internal static class GhArgsBinder {
                 if (TryBindBareKeyValue(token, byName, result))
                     continue;
                 if (slotIndex >= slots.Count) {
+                    // 宽容: 多余位置参数像 owner/repo 格式时,自动赋给未设置的 repo 参数
+                    if (token.Contains('/') && byName.TryGetValue("repo", out var repoParam)
+                        && !result.ContainsKey("repo")) {
+                        result["repo"] = token;
+                        continue;
+                    }
                     error = TooManyPositionalError(toolName, token, parameters);
                     return null;
                 }

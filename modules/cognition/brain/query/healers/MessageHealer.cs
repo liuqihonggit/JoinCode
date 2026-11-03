@@ -28,9 +28,7 @@ public static class MessageHealer {
 
             if (msg.Role == MessageRole.Assistant && HasToolCalls(msg)) {
                 var toolCallIds = ExtractToolCallIds(msg);
-                foreach (var id in toolCallIds) {
-                    pendingToolCallIds.Add(id);
-                }
+                pendingToolCallIds.UnionWith(toolCallIds);
 
                 var isLast = i == messages.Count - 1;
                 var nextIsToolResult = !isLast && messages[i + 1].Role == MessageRole.Tool;

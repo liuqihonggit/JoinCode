@@ -370,22 +370,17 @@ public partial class GitHubToolHandlers {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private async Task<ToolResult> GhPrChecksCoreAsync(IGitHubApiClient client, string owner, string repoName, string prNumber, bool? failFast, bool? required, string? json_fields, int? limit, bool forceRefresh = false, bool all = false, CancellationToken ct = default) {
         var number = ParseNumberFromRef(prNumber);
-        if (forceRefresh && _cacheService is { } cache) {
+        if (forceRefresh && _cacheService is { } cache)
             await cache.EvictApiAsync($"repos/{owner}/{repoName}/pulls/{number}", null, ct).ConfigureAwait(false);
-        }
-        var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: ct).ConfigureAwait(false);
-        if (!prResult.Success) return Fail(prResult.Error);
-        string? headSha; string? headRef;
-        try {
-            var prDetail = JsonSerializer.Deserialize(prResult.Body, GitHubApiJsonContext.Safe.PrDetailResponse);
-            headSha = prDetail?.Head?.Sha;
-            headRef = prDetail?.Head?.Ref;
-        } catch (Exception ex) { return Fail($"解析 PR head sha 失败: {ex.Message}"); }
-        if (string.IsNullOrEmpty(headSha)) return Fail("无法从 PR 响应中解析 head.sha");
-        if (forceRefresh && _cacheService is { } checksCache) {
+
+        var (headSha, headRef, headError) = await FetchPrHeadAsync(client, owner, repoName, number, ct).ConfigureAwait(false);
+        if (headError is not null) return Fail(headError);
+        if (headSha is null) return Fail("无法从 PR 响应中解析 head.sha");
+
+        if (forceRefresh && _cacheService is { } checksCache)
             await checksCache.EvictApiAsync($"repos/{owner}/{repoName}/commits/{headSha}/check-runs",
                 new Dictionary<string, string> { ["per_page"] = "100" }, ct).ConfigureAwait(false);
-        }
+
         var checksResult = await client.SendAsync(
             HttpMethod.Get,
             $"repos/{owner}/{repoName}/commits/{headSha}/check-runs",
@@ -393,45 +388,79 @@ public partial class GitHubToolHandlers {
             paginate: true,
             ct: ct).ConfigureAwait(false);
         if (!checksResult.Success) return Fail(checksResult.Error);
+
         if (!string.IsNullOrEmpty(json_fields))
             return Ok(FilterCheckRunFields(checksResult.Body, json_fields));
+
         var requiredContexts = required == true && !string.IsNullOrEmpty(headRef)
             ? await GetRequiredStatusChecksAsync(client, owner, repoName, headRef!, ct).ConfigureAwait(false)
             : null;
-        var sb = new StringBuilder();
-        var severityCounts = new Dictionary<CiJobSeverity, int>();
-        var checks = new List<(string name, CiJobSeverity severity)>();
+
+        var (checks, severityCounts, parseError) = ParseCheckRuns(checksResult.Body, requiredContexts);
+        if (parseError is not null) return Fail(parseError);
+        return Ok(BuildChecksSummary(checks, severityCounts, failFast, all, limit, prNumber, headRef));
+    }
+
+    /// <summary>获取 PR head sha/ref — 解析 PR detail 响应。返回 Error 保留原始失败原因(网络/404/认证/解析)</summary>
+    private static async Task<(string? Sha, string? Ref, string? Error)> FetchPrHeadAsync(IGitHubApiClient client, string owner, string repoName, string number, CancellationToken ct) {
+        var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: ct).ConfigureAwait(false);
+        if (!prResult.Success) return (null, null, prResult.Error);
         try {
-            var checksResp = JsonSerializer.Deserialize(checksResult.Body, GitHubApiJsonContext.Safe.CheckRunListResponse);
-            if (checksResp is not null) {
-                foreach (var run in checksResp.CheckRuns) {
-                    var name = run.Name;
-                    if (requiredContexts is not null && !requiredContexts.Contains(name)) continue;
-                    var severity = CiJobSeverityExtensions.FromConclusion(run.Conclusion, run.Status);
-                    checks.Add((name, severity));
-                    severityCounts[severity] = severityCounts.GetValueOrDefault(severity) + 1;
-                }
+            var prDetail = JsonSerializer.Deserialize(prResult.Body, GitHubApiJsonContext.Safe.PrDetailResponse);
+            return (prDetail?.Head?.Sha, prDetail?.Head?.Ref, null);
+        } catch (Exception ex) { return (null, null, $"解析 PR head sha 失败: {ex.Message}"); }
+    }
+
+    /// <summary>解析 check-runs 响应为 (name, severity) 列表 + 严重度计数。解析失败返回 Error 而非静默空列表</summary>
+    private static (List<(string name, CiJobSeverity severity)> Checks, Dictionary<CiJobSeverity, int> Counts, string? Error) ParseCheckRuns(string body, HashSet<string>? requiredContexts) {
+        var checks = new List<(string, CiJobSeverity)>();
+        var counts = new Dictionary<CiJobSeverity, int>();
+        try {
+            var resp = JsonSerializer.Deserialize(body, GitHubApiJsonContext.Safe.CheckRunListResponse);
+            if (resp is null) return (checks, counts, null);
+            foreach (var run in resp.CheckRuns) {
+                if (requiredContexts is not null && !requiredContexts.Contains(run.Name)) continue;
+                var severity = CiJobSeverityExtensions.FromConclusion(run.Conclusion, run.Status);
+                checks.Add((run.Name, severity));
+                counts[severity] = counts.GetValueOrDefault(severity) + 1;
             }
-        } catch (Exception ex) { return Fail($"解析 check-runs 失败: {ex.Message}"); }
+        } catch (Exception ex) { return (checks, counts, $"解析 check-runs 失败: {ex.Message}"); }
+        return (checks, counts, null);
+    }
 
-        var failCount = severityCounts.GetValueOrDefault(CiJobSeverity.Failure)
-            + severityCounts.GetValueOrDefault(CiJobSeverity.TimedOut)
-            + severityCounts.GetValueOrDefault(CiJobSeverity.Cancelled);
-        var warnCount = severityCounts.GetValueOrDefault(CiJobSeverity.Warning);
-        var pendingCount = severityCounts.GetValueOrDefault(CiJobSeverity.Pending);
-        var skipCount = severityCounts.GetValueOrDefault(CiJobSeverity.Skipped);
-        var passCount = severityCounts.GetValueOrDefault(CiJobSeverity.Success);
+    /// <summary>构建 check 汇总输出 — 汇总前置+异常置顶+pass 截断+排障引导</summary>
+    private static string BuildChecksSummary(List<(string name, CiJobSeverity severity)> checks, Dictionary<CiJobSeverity, int> counts, bool? failFast, bool all, int? limit, string prNumber, string? headRef) {
+        var failCount = counts.GetValueOrDefault(CiJobSeverity.Failure) + counts.GetValueOrDefault(CiJobSeverity.TimedOut) + counts.GetValueOrDefault(CiJobSeverity.Cancelled);
+        var warnCount = counts.GetValueOrDefault(CiJobSeverity.Warning);
+        var pendingCount = counts.GetValueOrDefault(CiJobSeverity.Pending);
+        var skipCount = counts.GetValueOrDefault(CiJobSeverity.Skipped);
+        var passCount = counts.GetValueOrDefault(CiJobSeverity.Success);
 
-        // 优化A1: 汇总前置+异常置顶+pass 截断,降低 AI token 消耗(AI 首屏定位问题)
+        var sb = new StringBuilder();
         sb.Append($"汇总: {passCount} 通过, {failCount} 失败, {warnCount} 警告, {pendingCount} 进行中, {skipCount} 跳过(依赖链跳过,非失败)");
         if (failFast == true && failCount > 0) sb.Append("\n⚠ fail-fast: 检测到失败");
-        const int maxPassDisplay = 5;
-        var effectiveMaxPass = all ? int.MaxValue : maxPassDisplay;
+
+        var effectiveMaxPass = all ? int.MaxValue : 5;
         var maxLimit = limit is > 0 ? limit.Value : int.MaxValue;
-        var ordered = checks
-            .OrderBy(c => c.severity.SortKey())
-            .ThenBy(c => c.name)
-            .ToList();
+        var ordered = checks.OrderBy(c => c.severity.SortKey()).ThenBy(c => c.name).ToList();
+
+        var (displayedPass, displayedTotal, omittedByLimit) = RenderOrderedChecks(sb, ordered, effectiveMaxPass, maxLimit);
+
+        var omittedPass = passCount - displayedPass;
+        if (omittedPass > 0 && omittedByLimit == 0)
+            sb.Append($"\n… 另有 {omittedPass} 个 pass 未列出");
+        else if (omittedByLimit > 0)
+            sb.Append($"\n… 另有 {omittedByLimit} 个 check 未列出(limit={maxLimit})");
+
+        if (failCount > 0 && !string.IsNullOrEmpty(headRef))
+            sb.Append($"\n\n💡 排障建议:\njcc gh run list --branch {headRef} --limit 1  → 找到最新 run ID\njcc gh run view <run_id> --log_failed  → 直接拉失败步骤日志(智能定位错误行)");
+        if (pendingCount > 0 && failCount == 0)
+            sb.Append($"\n\n⏳ {pendingCount} 个 check 仍在运行,建议过 30s 后用 --refresh 再查: jcc gh pr checks {prNumber} --refresh");
+        return sb.ToString();
+    }
+
+    /// <summary>渲染排序后的 check 列表 — 返回 (displayedPass, displayedTotal, omittedByLimit)</summary>
+    private static (int Pass, int Total, int Omitted) RenderOrderedChecks(StringBuilder sb, List<(string name, CiJobSeverity severity)> ordered, int effectiveMaxPass, int maxLimit) {
         var displayedPass = 0;
         var displayedTotal = 0;
         var omittedByLimit = 0;
@@ -442,18 +471,7 @@ public partial class GitHubToolHandlers {
             displayedTotal++;
             if (severity == CiJobSeverity.Success) displayedPass++;
         }
-        var omittedPass = passCount - displayedPass;
-        if (omittedPass > 0 && omittedByLimit == 0)
-            sb.Append($"\n… 另有 {omittedPass} 个 pass 未列出");
-        else if (omittedByLimit > 0)
-            sb.Append($"\n… 另有 {omittedByLimit} 个 check 未列出(limit={maxLimit})");
-        // 优化E: 有失败 job 时自动附加排障命令提示,引导 AI 直接拉失败日志而非翻页
-        if (failCount > 0 && !string.IsNullOrEmpty(headRef))
-            sb.Append($"\n\n💡 排障建议:\njcc gh run list --branch {headRef} --limit 1  → 找到最新 run ID\njcc gh run view <run_id> --log_failed  → 直接拉失败步骤日志(智能定位错误行)");
-        // pending 引导: CI 还在跑时提示 AI 等待后刷新
-        if (pendingCount > 0 && failCount == 0)
-            sb.Append($"\n\n⏳ {pendingCount} 个 check 仍在运行,建议过 30s 后用 --refresh 再查: jcc gh pr checks {prNumber} --refresh");
-        return Ok(sb.ToString());
+        return (displayedPass, displayedTotal, omittedByLimit);
     }
 
     /// <summary>

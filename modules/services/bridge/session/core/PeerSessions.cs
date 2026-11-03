@@ -31,7 +31,8 @@ public sealed partial class PeerSession {
 
     /// <summary>会话状态</summary>
     [JsonPropertyName("status")]
-    public PeerSessionStatus Status { get; set; } = PeerSessionStatus.Connecting;
+    public PeerSessionStatus Status { get => _status; set => _status = value; }
+    private volatile PeerSessionStatus _status = PeerSessionStatus.Connecting;
 
     /// <summary>创建时间戳（Unix 毫秒）</summary>
     [JsonPropertyName("createdAt")]
@@ -45,7 +46,6 @@ public sealed partial class PeerSession {
 public sealed partial class PeerSessionManager : ServiceEntity {
     private readonly ILogger<PeerSessionManager>? _logger;
     private readonly ConcurrentDictionary<string, PeerSession> _sessions;
-    private readonly AsyncLock _stateLock = new();
     private int _asyncDisposed;
 
     /// <summary>对等会话已连接事件</summary>
@@ -79,25 +79,23 @@ public sealed partial class PeerSessionManager : ServiceEntity {
         ArgumentNullException.ThrowIfNull(localPeerId);
         ArgumentNullException.ThrowIfNull(remotePeerId);
 
-        using (await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时")) {
-            ObjectDisposedException.ThrowIf(_asyncDisposed != 0, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _asyncDisposed) != 0, this);
 
-            var session = new PeerSession {
-                SessionId = Guid.NewGuid().ToString("N"),
-                LocalPeerId = localPeerId,
-                RemotePeerId = remotePeerId,
-                Status = PeerSessionStatus.Connecting,
-                CreatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-            };
+        var session = new PeerSession {
+            SessionId = Guid.NewGuid().ToString("N"),
+            LocalPeerId = localPeerId,
+            RemotePeerId = remotePeerId,
+            Status = PeerSessionStatus.Connecting,
+            CreatedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        };
 
-            _sessions[session.SessionId] = session;
+        _sessions[session.SessionId] = session;
 
-            _logger?.LogInformation(
-                "[PeerSessionManager] 创建对等会话: {SessionId}, 本地: {LocalPeerId}, 远程: {RemotePeerId}",
-                session.SessionId, localPeerId, remotePeerId);
+        _logger?.LogInformation(
+            "[PeerSessionManager] 创建对等会话: {SessionId}, 本地: {LocalPeerId}, 远程: {RemotePeerId}",
+            session.SessionId, localPeerId, remotePeerId);
 
-            return session;
-        }
+        return session;
     }
 
     /// <summary>
@@ -105,19 +103,19 @@ public sealed partial class PeerSessionManager : ServiceEntity {
     /// </summary>
     /// <param name="sessionId">会话 ID</param>
     /// <param name="ct">取消令牌</param>
-    public async Task ClosePeerSessionAsync(string sessionId, CancellationToken ct = default) {
+    public Task ClosePeerSessionAsync(string sessionId, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(sessionId);
 
-        using (await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时")) {
-            if (_sessions.TryRemove(sessionId, out var session)) {
-                session.Status = PeerSessionStatus.Disconnected;
+        if (_sessions.TryRemove(sessionId, out var session)) {
+            session.Status = PeerSessionStatus.Disconnected;
 
-                _logger?.LogInformation(
-                    "[PeerSessionManager] 关闭对等会话: {SessionId}", sessionId);
+            _logger?.LogInformation(
+                "[PeerSessionManager] 关闭对等会话: {SessionId}", sessionId);
 
-                PeerSessionDisconnected?.Invoke(this, new PeerSessionEventArgs(session));
-            }
+            PeerSessionDisconnected?.Invoke(this, new PeerSessionEventArgs(session));
         }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -143,24 +141,24 @@ public sealed partial class PeerSessionManager : ServiceEntity {
     /// </summary>
     /// <param name="sessionId">会话 ID</param>
     /// <param name="ct">取消令牌</param>
-    public async Task MarkConnectedAsync(string sessionId, CancellationToken ct = default) {
-        using (await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时")) {
-            if (_sessions.TryGetValue(sessionId, out var session)) {
-                if (session.Status != PeerSessionStatus.Connecting) {
-                    _logger?.LogDebug(
-                        "[PeerSessionManager] 对等会话已非 Connecting 状态,跳过: {SessionId}, 当前: {Status}",
-                        sessionId, session.Status);
-                    return;
-                }
-
-                session.Status = PeerSessionStatus.Connected;
-
-                _logger?.LogInformation(
-                    "[PeerSessionManager] 对等会话已连接: {SessionId}", sessionId);
-
-                PeerSessionConnected?.Invoke(this, new PeerSessionEventArgs(session));
+    public Task MarkConnectedAsync(string sessionId, CancellationToken ct = default) {
+        if (_sessions.TryGetValue(sessionId, out var session)) {
+            if (session.Status != PeerSessionStatus.Connecting) {
+                _logger?.LogDebug(
+                    "[PeerSessionManager] 对等会话已非 Connecting 状态,跳过: {SessionId}, 当前: {Status}",
+                    sessionId, session.Status);
+                return Task.CompletedTask;
             }
+
+            session.Status = PeerSessionStatus.Connected;
+
+            _logger?.LogInformation(
+                "[PeerSessionManager] 对等会话已连接: {SessionId}", sessionId);
+
+            PeerSessionConnected?.Invoke(this, new PeerSessionEventArgs(session));
         }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -219,7 +217,6 @@ public sealed partial class PeerSessionManager : ServiceEntity {
     /// </summary>
     public override void Dispose() {
         if (_asyncDisposed == 1) return;
-        _stateLock.Dispose();
         base.Dispose();
     }
 }

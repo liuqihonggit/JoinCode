@@ -8,7 +8,7 @@ namespace JoinCode.Gh;
 internal sealed partial class GhJsonContext : JsonSerializerContext {
     private static readonly Lazy<GhJsonContext> s_safe = new(() => new GhJsonContext(
         new JsonSerializerOptions(Default!.Options) {
-            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
             TypeInfoResolver = Default!
         }));
 

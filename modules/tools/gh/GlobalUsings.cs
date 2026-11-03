@@ -24,6 +24,7 @@ global using System.Text.Json.Nodes;
 global using System.Text.Json.Serialization;
 global using System.Text.Json.Serialization.Metadata;
 global using System.Text.RegularExpressions;
+global using System.Text.Unicode;
 global using System.Threading;
 global using System.Threading.Channels;
 global using System.Threading.Tasks;

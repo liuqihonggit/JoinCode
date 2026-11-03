@@ -138,7 +138,13 @@ internal static class SimpleJqEvaluator {
         "workflow_runs", "items", "data", "runs", "jobs", "pulls", "issues",
         "repositories", "assets", "entries", "results", "records", "list",
         "branches", "tags", "releases", "labels", "milestones", "comments",
-        "reviews", "commits", "files", "checks", "steps", "workflows"
+        "reviews", "commits", "files", "checks", "steps", "workflows",
+        "secrets", "variables", "actions_caches", "rulesets", "codespaces",
+        "discussions", "projects", "teams", "members", "collaborators",
+        "contributors", "forks", "environments", "deployments", "statuses",
+        "check_runs", "check_suites", "artifacts", "events", "reactions",
+        "assignees", "gists", "keys", "ssh_keys", "gpg_keys", "topics",
+        "hooks", "invitations", "installations", "permissions", "roles"
     ];
 
     /// <summary>select(.field=="value" or .field2=="value2") — 过滤数组或单个对象</summary>

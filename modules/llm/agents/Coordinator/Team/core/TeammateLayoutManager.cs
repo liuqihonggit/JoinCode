@@ -12,10 +12,10 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
 
     private readonly JoinCode.Abstractions.Interfaces.IPaneBackend _backend;
     private readonly ILogger<TeammateLayoutManager>? _logger;
-    private readonly Dictionary<string, string> _teammateColors = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, string> _teammatePanes = new(StringComparer.Ordinal);
-    private readonly AsyncLock _lock = new();
+    private readonly ConcurrentDictionary<string, TeammateEntry> _teammates = new(StringComparer.Ordinal);
     private int _colorIndex;
+
+    private record TeammateEntry(string PaneId, string Color);
 
     /// <summary>
     /// 当前面板后端类型
@@ -44,12 +44,10 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
     /// <returns>创建面板结果</returns>
     public async Task<JoinCode.Abstractions.Interfaces.CreatePaneResult> CreateTeammatePaneAsync(
         string teammateId, string agentType, string command, CancellationToken cancellationToken = default) {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         var result = await _backend.CreateTeammatePaneAsync(teammateId, command, cancellationToken).ConfigureAwait(false);
-        _teammatePanes[teammateId] = result.PaneId;
-
         var color = AssignTeammateColor(teammateId);
+        _teammates[teammateId] = new TeammateEntry(result.PaneId, color);
         await _backend.SetPaneBorderColorAsync(result.PaneId, color, cancellationToken).ConfigureAwait(false);
         await _backend.SetPaneTitleAsync(result.PaneId, $"{agentType}:{teammateId[..Math.Min(8, teammateId.Length)]}", cancellationToken).ConfigureAwait(false);
 
@@ -66,13 +64,11 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
     /// <param name="teammateId">Teammate 标识</param>
     /// <returns>分配的颜色十六进制字符串</returns>
     public string AssignTeammateColor(string teammateId) {
-        if (_teammateColors.TryGetValue(teammateId, out var existing))
-            return existing;
+        if (_teammates.TryGetValue(teammateId, out var existing))
+            return existing.Color;
 
-        var color = AgentColors[_colorIndex % AgentColors.Length];
-        _colorIndex++;
-        _teammateColors[teammateId] = color;
-        return color;
+        var index = Interlocked.Increment(ref _colorIndex) - 1;
+        return AgentColors[index % AgentColors.Length];
     }
 
     /// <summary>
@@ -82,14 +78,12 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
     public async Task RemoveTeammatePaneAsync(string teammateId, CancellationToken cancellationToken = default) {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        if (_teammatePanes.TryGetValue(teammateId, out var paneId)) {
-            await _backend.KillPaneAsync(paneId, cancellationToken).ConfigureAwait(false);
-            _teammatePanes.Remove(teammateId);
-            _teammateColors.Remove(teammateId);
+        if (_teammates.TryGetValue(teammateId, out var entry)) {
+            await _backend.KillPaneAsync(entry.PaneId, cancellationToken).ConfigureAwait(false);
+            _teammates.TryRemove(teammateId, out _);
 
-            if (_teammatePanes.Count > 0)
+            if (_teammates.Count > 0)
                 await _backend.RebalancePanesAsync(cancellationToken).ConfigureAwait(false);
         }
 
@@ -101,7 +95,6 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
     public async Task RebalanceLayoutAsync(CancellationToken cancellationToken = default) {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         await _backend.RebalancePanesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -109,7 +102,6 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
 
     /// <summary>释放资源 — 释放布局管理锁</summary>
     public override void Dispose() {
-        _lock.Dispose();
         base.Dispose();
     }
 }

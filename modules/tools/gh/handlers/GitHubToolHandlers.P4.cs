@@ -142,8 +142,8 @@ public partial class GitHubToolHandlers {
                 if (cacheList is null || (cacheList.ActionsCaches?.Count ?? 0) == 0) return Ok("无缓存可删除");
                 var count = 0;
                 foreach (var c in cacheList.ActionsCaches ?? []) {
-                    if (c.Id > 0) {
-                        var delResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/actions/caches/{c.Id}", ct: cancellationToken).ConfigureAwait(false);
+                    if (c.Id.Value > 0) {
+                        var delResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/actions/caches/{c.Id.Value}", ct: cancellationToken).ConfigureAwait(false);
                         if (delResult.Success) count++;
                     }
                 }

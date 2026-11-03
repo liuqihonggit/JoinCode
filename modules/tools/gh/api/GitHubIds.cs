@@ -171,3 +171,53 @@ public readonly record struct MilestoneNumber {
     }
     public override string ToString() => Value.ToString();
 }
+
+/// <summary>GitHub Actions cache ID</summary>
+public readonly record struct CacheId {
+    public long Value { get; }
+    public CacheId(long value) {
+        if (value <= 0) throw new ArgumentOutOfRangeException(nameof(value), "CacheId must be positive");
+        Value = value;
+    }
+    public override string ToString() => Value.ToString();
+}
+
+/// <summary>GitHub Ruleset ID</summary>
+public readonly record struct RulesetId {
+    public long Value { get; }
+    public RulesetId(long value) {
+        if (value <= 0) throw new ArgumentOutOfRangeException(nameof(value), "RulesetId must be positive");
+        Value = value;
+    }
+    public override string ToString() => Value.ToString();
+}
+
+/// <summary>Discussion 编号</summary>
+public readonly record struct DiscussionNumber {
+    public int Value { get; }
+    public DiscussionNumber(int value) {
+        if (value <= 0) throw new ArgumentOutOfRangeException(nameof(value), "DiscussionNumber must be positive");
+        Value = value;
+    }
+    public override string ToString() => Value.ToString();
+}
+
+/// <summary>Project 编号</summary>
+public readonly record struct ProjectNumber {
+    public int Value { get; }
+    public ProjectNumber(int value) {
+        if (value <= 0) throw new ArgumentOutOfRangeException(nameof(value), "ProjectNumber must be positive");
+        Value = value;
+    }
+    public override string ToString() => Value.ToString();
+}
+
+/// <summary>Project item 编号</summary>
+public readonly record struct ProjectItemNumber {
+    public int Value { get; }
+    public ProjectItemNumber(int value) {
+        if (value <= 0) throw new ArgumentOutOfRangeException(nameof(value), "ProjectItemNumber must be positive");
+        Value = value;
+    }
+    public override string ToString() => Value.ToString();
+}

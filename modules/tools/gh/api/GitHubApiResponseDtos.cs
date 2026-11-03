@@ -704,7 +704,7 @@ internal sealed class CacheListResponse {
 internal sealed class CacheItemResponse {
     /// <summary>缓存 ID</summary>
     [JsonPropertyName("id")]
-    public long Id { get; init; }
+    public CacheId Id { get; init; }
     /// <summary>缓存 key</summary>
     [JsonPropertyName("key")]
     public string Key { get; init; } = "";
@@ -725,7 +725,7 @@ internal sealed class CacheItemResponse {
 internal sealed class RulesetResponse {
     /// <summary>规则集 ID</summary>
     [JsonPropertyName("id")]
-    public long Id { get; init; }
+    public RulesetId Id { get; init; }
     /// <summary>名称</summary>
     [JsonPropertyName("name")]
     public string Name { get; init; } = "";
@@ -825,7 +825,7 @@ internal sealed class DiscussionCategoryRefResponse {
 internal sealed class DiscussionListItemResponse {
     /// <summary>编号</summary>
     [JsonPropertyName("number")]
-    public int Number { get; init; }
+    public DiscussionNumber Number { get; init; }
     /// <summary>标题</summary>
     [JsonPropertyName("title")]
     public string Title { get; init; } = "";
@@ -844,7 +844,7 @@ internal sealed class DiscussionListItemResponse {
 internal sealed class DiscussionDetailResponse {
     /// <summary>编号</summary>
     [JsonPropertyName("number")]
-    public int Number { get; init; }
+    public DiscussionNumber Number { get; init; }
     /// <summary>标题</summary>
     [JsonPropertyName("title")]
     public string Title { get; init; } = "";
@@ -916,7 +916,7 @@ internal sealed class DiscussionViewWrapperResponse {
 internal sealed class ProjectListItemResponse {
     /// <summary>编号</summary>
     [JsonPropertyName("number")]
-    public int Number { get; init; }
+    public ProjectNumber Number { get; init; }
     /// <summary>标题</summary>
     [JsonPropertyName("title")]
     public string Title { get; init; } = "";
@@ -939,7 +939,7 @@ internal sealed class ProjectListWrapperResponse {
 internal sealed class ProjectItemContentResponse {
     /// <summary>编号</summary>
     [JsonPropertyName("number")]
-    public int Number { get; init; }
+    public ProjectItemNumber Number { get; init; }
     /// <summary>标题</summary>
     [JsonPropertyName("title")]
     public string Title { get; init; } = "";

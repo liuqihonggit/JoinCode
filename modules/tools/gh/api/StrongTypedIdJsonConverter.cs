@@ -48,5 +48,10 @@ internal static class StrongTypedIdConverterRegistry {
         options.Converters.Add(new StrongTypedIdJsonConverter<IssueNumber>(v => new IssueNumber((int)v), id => id.Value, nameof(IssueNumber)));
         options.Converters.Add(new StrongTypedIdJsonConverter<RunNumber>(v => new RunNumber((int)v), id => id.Value, nameof(RunNumber)));
         options.Converters.Add(new StrongTypedIdJsonConverter<MilestoneNumber>(v => new MilestoneNumber((int)v), id => id.Value, nameof(MilestoneNumber)));
+        options.Converters.Add(new StrongTypedIdJsonConverter<CacheId>(v => new CacheId(v), id => id.Value, nameof(CacheId)));
+        options.Converters.Add(new StrongTypedIdJsonConverter<RulesetId>(v => new RulesetId(v), id => id.Value, nameof(RulesetId)));
+        options.Converters.Add(new StrongTypedIdJsonConverter<DiscussionNumber>(v => new DiscussionNumber((int)v), id => id.Value, nameof(DiscussionNumber)));
+        options.Converters.Add(new StrongTypedIdJsonConverter<ProjectNumber>(v => new ProjectNumber((int)v), id => id.Value, nameof(ProjectNumber)));
+        options.Converters.Add(new StrongTypedIdJsonConverter<ProjectItemNumber>(v => new ProjectItemNumber((int)v), id => id.Value, nameof(ProjectItemNumber)));
     }
 }

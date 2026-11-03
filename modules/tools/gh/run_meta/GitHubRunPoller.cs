@@ -234,7 +234,7 @@ internal static class GitHubRunPoller {
                 }
                 if (CiJobSeverityExtensions.FromConclusion(conclusion).IsAnomaly()) {
                     failed++;
-                    if (job.Id != 0) failedJobIds.Add(job.Id);
+                    if (job.Id.Value != 0) failedJobIds.Add(job.Id.Value);
                 } else {
                     completed++;
                 }

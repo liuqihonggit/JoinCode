@@ -316,10 +316,10 @@ public partial class GitHubToolHandlers {
         try {
             var release = JsonSerializer.Deserialize(viewResult.Body, GitHubApiJsonContext.Safe.ReleaseResponse);
             if (release is null) return Fail("解析 Release 响应失败");
-            releaseId = release.Id;
+            releaseId = release.Id.Value;
             existingAssets = new Dictionary<string, long>();
             foreach (var asset in release.Assets) {
-                if (!string.IsNullOrEmpty(asset.Name) && asset.Id > 0) existingAssets[asset.Name] = asset.Id;
+                if (!string.IsNullOrEmpty(asset.Name) && asset.Id.Value > 0) existingAssets[asset.Name] = asset.Id.Value;
             }
         } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
 
@@ -377,7 +377,7 @@ public partial class GitHubToolHandlers {
             try {
                 var release = JsonSerializer.Deserialize(viewResult.Body, GitHubApiJsonContext.Safe.ReleaseResponse);
                 if (release is null) return Fail("解析 Release 响应失败");
-                releaseId = release.Id;
+                releaseId = release.Id.Value;
             } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/releases/{releaseId}", ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
@@ -405,10 +405,10 @@ public partial class GitHubToolHandlers {
             try {
                 var release = JsonSerializer.Deserialize(viewResult.Body, GitHubApiJsonContext.Safe.ReleaseResponse);
                 if (release is null) return Fail("解析 Release 响应失败");
-                releaseId = release.Id;
+                releaseId = release.Id.Value;
                 assetMap = new Dictionary<string, long>();
                 foreach (var asset in release.Assets) {
-                    if (!string.IsNullOrEmpty(asset.Name) && asset.Id > 0) assetMap[asset.Name] = asset.Id;
+                    if (!string.IsNullOrEmpty(asset.Name) && asset.Id.Value > 0) assetMap[asset.Name] = asset.Id.Value;
                 }
             } catch (Exception ex) { return Fail($"解析 Release 失败: {ex.Message}"); }
 
@@ -463,7 +463,7 @@ public partial class GitHubToolHandlers {
             try {
                 var release = JsonSerializer.Deserialize(viewResult.Body, GitHubApiJsonContext.Safe.ReleaseResponse);
                 if (release is null) return Fail("解析 Release 响应失败");
-                releaseId = release.Id;
+                releaseId = release.Id.Value;
                 existingTag = release.TagName;
                 existingTarget = release.TargetCommitish;
             } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }

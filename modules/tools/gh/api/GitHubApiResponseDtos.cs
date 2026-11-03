@@ -9,7 +9,7 @@ namespace McpToolDispatch;
 internal sealed class LabelResponse {
     /// <summary>标签 ID</summary>
     [JsonPropertyName("id")]
-    public int Id { get; init; }
+    public LabelId Id { get; init; }
     /// <summary>标签名</summary>
     [JsonPropertyName("name")]
     public string Name { get; init; } = "";
@@ -39,7 +39,7 @@ internal sealed class OrgResponse {
 internal sealed class SshKeyResponse {
     /// <summary>Key ID</summary>
     [JsonPropertyName("id")]
-    public int Id { get; init; }
+    public SshKeyId Id { get; init; }
     /// <summary>Key 标题</summary>
     [JsonPropertyName("title")]
     public string Title { get; init; } = "";
@@ -54,7 +54,7 @@ internal sealed class SshKeyResponse {
 internal sealed class GpgKeyResponse {
     /// <summary>Key ID</summary>
     [JsonPropertyName("id")]
-    public int Id { get; init; }
+    public GpgKeyId Id { get; init; }
     /// <summary>Key ID(hex)</summary>
     [JsonPropertyName("key_id")]
     public string KeyId { get; init; } = "";
@@ -168,7 +168,7 @@ internal sealed class SearchIssueResponse {
 internal sealed class SearchIssueItemResponse {
     /// <summary>编号</summary>
     [JsonPropertyName("number")]
-    public int Number { get; init; }
+    public IssueNumber Number { get; init; }
     /// <summary>标题</summary>
     [JsonPropertyName("title")]
     public string Title { get; init; } = "";
@@ -291,7 +291,7 @@ internal sealed class WorkflowListResponse {
 internal sealed class WorkflowResponse {
     /// <summary>Workflow ID</summary>
     [JsonPropertyName("id")]
-    public long Id { get; init; }
+    public WorkflowId Id { get; init; }
     /// <summary>名称</summary>
     [JsonPropertyName("name")]
     public string Name { get; init; } = "";
@@ -315,7 +315,7 @@ internal sealed class WorkflowResponse {
 internal sealed class ReleaseAssetResponse {
     /// <summary>Asset ID</summary>
     [JsonPropertyName("id")]
-    public long Id { get; init; }
+    public ReleaseAssetId Id { get; init; }
     /// <summary>Asset 名称</summary>
     [JsonPropertyName("name")]
     public string Name { get; init; } = "";
@@ -334,7 +334,7 @@ internal sealed class ReleaseAssetResponse {
 internal sealed class ReleaseResponse {
     /// <summary>Release ID</summary>
     [JsonPropertyName("id")]
-    public long Id { get; init; }
+    public ReleaseId Id { get; init; }
     /// <summary>tag 名</summary>
     [JsonPropertyName("tag_name")]
     public string TagName { get; init; } = "";
@@ -380,7 +380,7 @@ internal sealed class ReleaseGenerateNotesResponse {
 internal sealed class AutolinkResponse {
     /// <summary>Autolink ID</summary>
     [JsonPropertyName("id")]
-    public int Id { get; init; }
+    public AutolinkId Id { get; init; }
     /// <summary>键前缀</summary>
     [JsonPropertyName("key_prefix")]
     public string KeyPrefix { get; init; } = "";
@@ -393,7 +393,7 @@ internal sealed class AutolinkResponse {
 internal sealed class DeployKeyResponse {
     /// <summary>Key ID</summary>
     [JsonPropertyName("id")]
-    public int Id { get; init; }
+    public DeployKeyId Id { get; init; }
     /// <summary>标题</summary>
     [JsonPropertyName("title")]
     public string Title { get; init; } = "";
@@ -471,7 +471,7 @@ internal sealed class LabelRefResponse {
 internal sealed class PrDetailResponse {
     /// <summary>PR 编号</summary>
     [JsonPropertyName("number")]
-    public int Number { get; init; }
+    public PrNumber Number { get; init; }
     /// <summary>node ID(GraphQL)</summary>
     [JsonPropertyName("node_id")]
     public string? NodeId { get; init; }
@@ -523,7 +523,7 @@ internal sealed class PrDetailResponse {
 internal sealed class PrListItemResponse {
     /// <summary>PR 编号</summary>
     [JsonPropertyName("number")]
-    public int Number { get; init; }
+    public PrNumber Number { get; init; }
     /// <summary>标题</summary>
     [JsonPropertyName("title")]
     public string Title { get; init; } = "";
@@ -561,7 +561,7 @@ internal sealed class PrListItemsResponse {
 internal sealed class IssueDetailResponse {
     /// <summary>Issue 编号</summary>
     [JsonPropertyName("number")]
-    public int Number { get; init; }
+    public IssueNumber Number { get; init; }
     /// <summary>标题</summary>
     [JsonPropertyName("title")]
     public string Title { get; init; } = "";
@@ -586,7 +586,7 @@ internal sealed class IssueDetailResponse {
 internal sealed class IssueListItemResponse {
     /// <summary>Issue 编号</summary>
     [JsonPropertyName("number")]
-    public int Number { get; init; }
+    public IssueNumber Number { get; init; }
     /// <summary>标题</summary>
     [JsonPropertyName("title")]
     public string Title { get; init; } = "";
@@ -611,7 +611,7 @@ internal sealed class IssueListItemsResponse {
 internal sealed class RepoDetailResponse {
     /// <summary>仓库 node_id(数字 ID)</summary>
     [JsonPropertyName("id")]
-    public long Id { get; init; }
+    public RepoId Id { get; init; }
     /// <summary>仓库名</summary>
     [JsonPropertyName("name")]
     public string Name { get; init; } = "";
@@ -651,7 +651,7 @@ internal sealed class CommentResponse {
 internal sealed class PrStatusItemResponse {
     /// <summary>PR 编号</summary>
     [JsonPropertyName("number")]
-    public int Number { get; init; }
+    public PrNumber Number { get; init; }
     /// <summary>标题</summary>
     [JsonPropertyName("title")]
     public string Title { get; init; } = "";
@@ -676,7 +676,7 @@ internal sealed class PullRequestRefResponse;
 internal sealed class IssueStatusItemResponse {
     /// <summary>Issue 编号</summary>
     [JsonPropertyName("number")]
-    public int Number { get; init; }
+    public IssueNumber Number { get; init; }
     /// <summary>标题</summary>
     [JsonPropertyName("title")]
     public string Title { get; init; } = "";
@@ -1063,7 +1063,7 @@ internal sealed class WorkflowRunListResponse {
 internal sealed class WorkflowRunItemResponse {
     /// <summary>run ID(GitHub API 返回数字)</summary>
     [JsonPropertyName("id")]
-    public long Id { get; init; }
+    public RunId Id { get; init; }
     /// <summary>结论</summary>
     [JsonPropertyName("conclusion")]
     public string? Conclusion { get; init; }
@@ -1170,7 +1170,7 @@ internal sealed class AttachmentUploadResponse {
 internal sealed class RunDetailResponse {
     /// <summary>Run ID</summary>
     [JsonPropertyName("id")]
-    public long Id { get; init; }
+    public RunId Id { get; init; }
     /// <summary>Run 名称</summary>
     [JsonPropertyName("name")]
     public string? Name { get; init; }
@@ -1194,7 +1194,7 @@ internal sealed class RunDetailResponse {
     public string? DisplayTitle { get; init; }
     /// <summary>run 编号</summary>
     [JsonPropertyName("run_number")]
-    public int RunNumber { get; init; }
+    public RunNumber RunNumber { get; init; }
     /// <summary>触发事件</summary>
     [JsonPropertyName("event")]
     public string? Event { get; init; }
@@ -1220,10 +1220,10 @@ internal sealed class RunNumberLookupListResponse {
 internal sealed class RunNumberLookupItemResponse {
     /// <summary>Run ID</summary>
     [JsonPropertyName("id")]
-    public long Id { get; init; }
+    public RunId Id { get; init; }
     /// <summary>run 编号</summary>
     [JsonPropertyName("run_number")]
-    public int RunNumber { get; init; }
+    public RunNumber RunNumber { get; init; }
 }
 
 /// <summary>Run job 列表响应 — GET /actions/runs/{id}/jobs</summary>
@@ -1237,7 +1237,7 @@ internal sealed class RunJobListResponse {
 internal sealed class RunJobItemResponse {
     /// <summary>Job ID</summary>
     [JsonPropertyName("id")]
-    public long Id { get; init; }
+    public RunJobId Id { get; init; }
     /// <summary>Job 名称</summary>
     [JsonPropertyName("name")]
     public string Name { get; init; } = "";
@@ -1292,7 +1292,7 @@ internal sealed class RunArtifactListResponse {
 internal sealed class RunArtifactItemResponse {
     /// <summary>Artifact ID</summary>
     [JsonPropertyName("id")]
-    public long Id { get; init; }
+    public RunArtifactId Id { get; init; }
     /// <summary>Artifact 名称</summary>
     [JsonPropertyName("name")]
     public string Name { get; init; } = "";
@@ -1313,7 +1313,7 @@ internal sealed class NodeIdResponse {
 internal sealed class MilestoneItemResponse {
     /// <summary>Milestone 编号</summary>
     [JsonPropertyName("number")]
-    public int Number { get; init; }
+    public MilestoneNumber Number { get; init; }
     /// <summary>Milestone 标题</summary>
     [JsonPropertyName("title")]
     public string Title { get; init; } = "";
@@ -1347,7 +1347,7 @@ internal sealed class WorkflowRunListBriefResponse {
 internal sealed class WorkflowRunBriefItemResponse {
     /// <summary>Run ID</summary>
     [JsonPropertyName("id")]
-    public long Id { get; init; }
+    public RunId Id { get; init; }
     /// <summary>Run 名称</summary>
     [JsonPropertyName("name")]
     public string? Name { get; init; }
@@ -1362,7 +1362,7 @@ internal sealed class WorkflowRunBriefItemResponse {
     public string? Conclusion { get; init; }
     /// <summary>run 编号</summary>
     [JsonPropertyName("run_number")]
-    public int RunNumber { get; init; }
+    public RunNumber RunNumber { get; init; }
     /// <summary>创建时间</summary>
     [JsonPropertyName("created_at")]
     public string? CreatedAt { get; init; }

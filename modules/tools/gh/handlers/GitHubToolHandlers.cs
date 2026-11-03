@@ -352,7 +352,7 @@ public partial class GitHubToolHandlers {
             var milestones = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.ListMilestoneItemResponse);
             if (milestones is null) return null;
             foreach (var m in milestones) {
-                if (m.Title == milestoneName) return m.Number;
+                if (m.Title == milestoneName) return m.Number.Value;
             }
         } catch (Exception ex) { _logger?.LogWarning(ex, "解析 milestones 响应失败"); }
         return null;

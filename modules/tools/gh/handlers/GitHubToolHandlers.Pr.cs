@@ -626,7 +626,7 @@ public partial class GitHubToolHandlers {
             if (runsResp is not null && runsResp.WorkflowRuns is not null) {
                 foreach (var r in runsResp.WorkflowRuns) {
                     if (r.Conclusion != "failure") continue;
-                    if (r.Id > 0) failedRunIds.Add(r.Id.ToString());
+                    if (r.Id.Value > 0) failedRunIds.Add(r.Id.Value.ToString());
                 }
             }
         } catch (Exception ex) {
@@ -932,7 +932,7 @@ public partial class GitHubToolHandlers {
     private (int Number, string? NodeId) ExtractPrInfoFromResponse(string body) {
         try {
             var pr = JsonSerializer.Deserialize(body, GitHubApiJsonContext.Safe.PrDetailResponse);
-            return (pr?.Number ?? 0, pr?.NodeId);
+            return (pr is not null ? pr.Number.Value : 0, pr?.NodeId);
         } catch (Exception ex) { _logger?.LogDebug(ex, "解析 PR 信息失败"); return (0, null); }
     }
 
@@ -1238,7 +1238,7 @@ public partial class GitHubToolHandlers {
                 var headRef = pr.Head?.Ref ?? "";
                 var mergeable = pr.Mergeable ?? false;
                 if (!byAuthor.TryGetValue(author, out var list)) { list = new(); byAuthor[author] = list; }
-                list.Add((pr.Number, pr.Title, headRef, pr.Draft, mergeable));
+                list.Add((pr.Number.Value, pr.Title, headRef, pr.Draft, mergeable));
             }
             var sb = new StringBuilder(512);
             foreach (var (author, authorPrs) in byAuthor) {

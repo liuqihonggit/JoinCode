@@ -151,10 +151,10 @@ internal sealed class GitHubRunLogFilterRunner {
         var jobs = await GetOrFetchJobsAsync(owner, repo, runId, wantRefresh, ct).ConfigureAwait(false);
         var failedJobIds = new List<long>(jobs.Count);
         foreach (var job in jobs) {
-            if (job.Id == 0) continue;
+            if (job.Id.Value == 0) continue;
             var severity = CiJobSeverityExtensions.FromConclusion(job.Conclusion, job.Status);
             if (severity.IsAnomaly())
-                failedJobIds.Add(job.Id);
+                failedJobIds.Add(job.Id.Value);
         }
         return failedJobIds;
     }
@@ -237,7 +237,7 @@ internal sealed class GitHubRunLogFilterRunner {
     public async Task<HashSet<long>> GetOrFetchTimeoutJobIdsAsync(
         string owner, string repo, string runId, List<RunJobItemResponse> jobs, bool wantRefresh, CancellationToken ct) {
         var cancelledJobs = jobs
-            .Where(j => j.Id != 0 && string.Equals(j.Conclusion, "cancelled", StringComparison.OrdinalIgnoreCase))
+            .Where(j => j.Id.Value != 0 && string.Equals(j.Conclusion, "cancelled", StringComparison.OrdinalIgnoreCase))
             .ToList();
         if (cancelledJobs.Count == 0) return [];
 
@@ -249,11 +249,11 @@ internal sealed class GitHubRunLogFilterRunner {
         var concurrency = Math.Min(cancelledJobs.Count, GetMaxConcurrency());
         using var semaphore = new SemaphoreSlim(concurrency);
         var probeTasks = cancelledJobs.Select(async job => {
-            if (!TryExtractCheckRunId(job.CheckRunUrl, out var checkRunId)) return (job.Id, false);
+            if (!TryExtractCheckRunId(job.CheckRunUrl, out var checkRunId)) return (job.Id.Value, false);
             await semaphore.WaitAsync(ct).ConfigureAwait(false);
             try {
                 var isTimeout = await IsTimeoutCancelledAsync(owner, repo, checkRunId, ct).ConfigureAwait(false);
-                return (job.Id, isTimeout);
+                return (job.Id.Value, isTimeout);
             } finally {
                 semaphore.Release();
             }

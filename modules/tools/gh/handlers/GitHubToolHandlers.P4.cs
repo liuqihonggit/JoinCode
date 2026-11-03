@@ -358,9 +358,9 @@ public partial class GitHubToolHandlers {
         var repoResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}", ct: cancellationToken).ConfigureAwait(false);
         if (!repoResult.Success) return Fail(repoResult.Error);
         var repoDetail = JsonSerializer.Deserialize(repoResult.Body, GitHubApiJsonContext.Safe.RepoDetailResponse);
-        if (repoDetail is null || repoDetail.Id == 0) return Fail("无法获取仓库 ID");
+        if (repoDetail is null || repoDetail.Id.Value == 0) return Fail("无法获取仓库 ID");
         body = JsonSerializer.Serialize(new CodespaceCreateRequest {
-            RepositoryId = repoDetail.Id,
+            RepositoryId = repoDetail.Id.Value,
             Ref = branch,
             Machine = machine,
             DevcontainerPath = devcontainer_path,

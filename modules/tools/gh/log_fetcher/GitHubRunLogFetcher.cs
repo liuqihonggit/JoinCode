@@ -33,7 +33,7 @@ internal sealed class GitHubRunLogFetcher {
     /// </summary>
     public static ToolResult FormatJobsList(List<RunJobItemResponse> jobs, string runId, HashSet<long>? timeoutJobIds = null, bool all = false) {
         timeoutJobIds ??= [];
-        var jobSeverities = jobs.Select(j => (j.Id, j.Name, j.Conclusion ?? "", severity: CiJobSeverityExtensions.FromConclusion(j.Conclusion, j.Status, timeoutJobIds.Contains(j.Id)))).ToList();
+        var jobSeverities = jobs.Select(j => (j.Id.Value, j.Name, j.Conclusion ?? "", severity: CiJobSeverityExtensions.FromConclusion(j.Conclusion, j.Status, timeoutJobIds.Contains(j.Id.Value)))).ToList();
         var anomalyCount = jobSeverities.Count(j => j.severity.IsAnomaly());
         var timeoutCount = jobSeverities.Count(j => j.severity == CiJobSeverity.TimedOut);
         var pendingCount = jobSeverities.Count(j => j.severity == CiJobSeverity.Pending);

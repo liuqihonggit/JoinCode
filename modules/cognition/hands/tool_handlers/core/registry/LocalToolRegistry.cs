@@ -6,10 +6,9 @@ namespace Tools;
 /// </summary>
 [Register(typeof(IToolRegistry), ServiceLifetime.Singleton)]
 public sealed partial class LocalToolRegistry : IToolRegistry {
-    private readonly SwissTable<string, IToolHandler> _tools = new();
-    private readonly SwissTable<ToolKind, SwissTable<string, IToolHandler>> _kindIndex = new();
-    private readonly SwissTable<string, SwissTable<string, IToolHandler>> _groupIndex = new(StringComparer.OrdinalIgnoreCase);
-    private readonly AsyncLock _lock = new();
+    private readonly ConcurrentDictionary<string, IToolHandler> _tools = new();
+    private readonly ConcurrentDictionary<ToolKind, ConcurrentDictionary<string, IToolHandler>> _kindIndex = new();
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, IToolHandler>> _groupIndex = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger? _logger;
     private int _disposed;
 
@@ -49,17 +48,12 @@ public sealed partial class LocalToolRegistry : IToolRegistry {
     /// <param name="handler">要注册的工具处理器。</param>
     /// <param name="cancellationToken">用于取消异步操作的取消令牌。</param>
     /// <returns>表示异步注册操作的任务。</returns>
-    public async Task RegisterToolAsync(IToolHandler handler, CancellationToken cancellationToken = default) {
+    public Task RegisterToolAsync(IToolHandler handler, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(handler);
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        var isOverwrite = _tools.ContainsKey(handler.Name);
-
-        if (isOverwrite) {
-            var old = _tools[handler.Name];
+        var isOverwrite = _tools.TryGetValue(handler.Name, out var old);
+        if (isOverwrite && old is not null)
             RemoveFromIndex(old);
-        }
 
         _tools[handler.Name] = handler;
         AddToIndex(handler);
@@ -67,6 +61,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry {
         OnToolRegistered(handler.Name, handler.Description);
         _logger?.LogDebug(isOverwrite ? "Tool re-registered (overwritten): {ToolName}" : "Tool registered: {ToolName}", handler.Name);
 
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -82,35 +77,30 @@ public sealed partial class LocalToolRegistry : IToolRegistry {
     /// <param name="timeoutPolicy">工具超时策略，可为 null。</param>
     /// <param name="category">工具分类标识，可为 null。</param>
     /// <returns>表示异步注册操作的任务。</returns>
-    public async Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null, string? category = null) {
+    public Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null, string? category = null) {
         ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentException.ThrowIfNullOrEmpty(description);
         ArgumentNullException.ThrowIfNull(inputSchema);
         ArgumentNullException.ThrowIfNull(handler);
 
-        await RegisterToolAsync(new DelegateToolHandler(name, description, inputSchema, handler, kind, groupName, timeoutPolicy, category), cancellationToken).ConfigureAwait(false);
+        return RegisterToolAsync(new DelegateToolHandler(name, description, inputSchema, handler, kind, groupName, timeoutPolicy, category), cancellationToken);
     }
 
     /// <summary>
-    /// 异步批量注册工具处理器 — 单次锁获取注册多个工具，消除逐个注册的锁开销与 async 状态机开销。
+    /// 异步批量注册工具处理器 — 单次操作注册多个工具，消除逐个注册的 async 状态机开销。
     /// </summary>
     /// <param name="handlers">要注册的工具处理器列表。</param>
     /// <param name="cancellationToken">用于取消异步操作的取消令牌。</param>
-    public async Task RegisterToolsBatchAsync(IReadOnlyList<IToolHandler> handlers, CancellationToken cancellationToken = default) {
+    public Task RegisterToolsBatchAsync(IReadOnlyList<IToolHandler> handlers, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(handlers);
-        if (handlers.Count == 0) return;
-
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        if (handlers.Count == 0) return Task.CompletedTask;
 
         for (var i = 0; i < handlers.Count; i++) {
             var handler = handlers[i];
             ArgumentNullException.ThrowIfNull(handler);
 
-            var isOverwrite = _tools.ContainsKey(handler.Name);
-            if (isOverwrite) {
-                var old = _tools[handler.Name];
+            if (_tools.TryGetValue(handler.Name, out var old))
                 RemoveFromIndex(old);
-            }
 
             _tools[handler.Name] = handler;
             AddToIndex(handler);
@@ -118,6 +108,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry {
         }
 
         _logger?.LogDebug("Tools batch registered: {Count} tools", handlers.Count);
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -126,18 +117,16 @@ public sealed partial class LocalToolRegistry : IToolRegistry {
     /// <param name="toolName">要注销的工具名称。</param>
     /// <param name="cancellationToken">用于取消异步操作的取消令牌。</param>
     /// <returns>若工具存在并已注销则返回 true，否则返回 false。</returns>
-    public async Task<bool> UnregisterToolAsync(string toolName, CancellationToken cancellationToken = default) {
+    public Task<bool> UnregisterToolAsync(string toolName, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(toolName);
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        if (!_tools.Remove(toolName, out var handler))
-            return false;
+        if (!_tools.TryRemove(toolName, out var handler))
+            return Task.FromResult(false);
 
         RemoveFromIndex(handler);
         OnToolUnregistered(toolName);
         _logger?.LogDebug("Tool unregistered: {ToolName}", toolName);
-        return true;
+        return Task.FromResult(true);
 
     }
 
@@ -147,12 +136,10 @@ public sealed partial class LocalToolRegistry : IToolRegistry {
     /// <param name="toolName">工具名称。</param>
     /// <param name="cancellationToken">用于取消异步操作的取消令牌。</param>
     /// <returns>若找到则返回对应的工具处理器，否则返回 null。</returns>
-    public async Task<IToolHandler?> GetToolAsync(string toolName, CancellationToken cancellationToken = default) {
+    public Task<IToolHandler?> GetToolAsync(string toolName, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(toolName);
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        return _tools.GetValueOrDefault(toolName);
+        return Task.FromResult(_tools.GetValueOrDefault(toolName));
 
     }
 
@@ -161,10 +148,9 @@ public sealed partial class LocalToolRegistry : IToolRegistry {
     /// </summary>
     /// <param name="cancellationToken">用于取消异步操作的取消令牌。</param>
     /// <returns>以工具名称为键的工具处理器只读字典。</returns>
-    public async Task<IReadOnlyDictionary<string, IToolHandler>> GetAllToolsAsync(CancellationToken cancellationToken = default) {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+    public Task<IReadOnlyDictionary<string, IToolHandler>> GetAllToolsAsync(CancellationToken cancellationToken = default) {
 
-        return _tools.ToFrozenDictionary();
+        return Task.FromResult<IReadOnlyDictionary<string, IToolHandler>>(_tools.ToFrozenDictionary());
 
     }
 
@@ -173,10 +159,9 @@ public sealed partial class LocalToolRegistry : IToolRegistry {
     /// </summary>
     /// <param name="cancellationToken">用于取消异步操作的取消令牌。</param>
     /// <returns>分组名称的不可变集合。</returns>
-    public async Task<FrozenSet<string>> GetGroupNamesAsync(CancellationToken cancellationToken = default) {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+    public Task<FrozenSet<string>> GetGroupNamesAsync(CancellationToken cancellationToken = default) {
 
-        return _groupIndex.Keys.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+        return Task.FromResult(_groupIndex.Keys.ToFrozenSet(StringComparer.OrdinalIgnoreCase));
 
     }
 
@@ -186,10 +171,9 @@ public sealed partial class LocalToolRegistry : IToolRegistry {
     /// <param name="kind">工具种类。</param>
     /// <param name="cancellationToken">用于取消异步操作的取消令牌。</param>
     /// <returns>属于指定种类的工具处理器只读字典，若无则返回空字典。</returns>
-    public async Task<IReadOnlyDictionary<string, IToolHandler>> GetToolsByKindAsync(ToolKind kind, CancellationToken cancellationToken = default) {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+    public Task<IReadOnlyDictionary<string, IToolHandler>> GetToolsByKindAsync(ToolKind kind, CancellationToken cancellationToken = default) {
 
-        return _kindIndex.GetValueOrDefault(kind)?.ToFrozenDictionary() ?? FrozenDictionary<string, IToolHandler>.Empty;
+        return Task.FromResult<IReadOnlyDictionary<string, IToolHandler>>(_kindIndex.GetValueOrDefault(kind)?.ToFrozenDictionary() ?? FrozenDictionary<string, IToolHandler>.Empty);
 
     }
 
@@ -199,12 +183,10 @@ public sealed partial class LocalToolRegistry : IToolRegistry {
     /// <param name="groupName">分组名称。</param>
     /// <param name="cancellationToken">用于取消异步操作的取消令牌。</param>
     /// <returns>属于指定分组的工具处理器只读字典，若无则返回空字典。</returns>
-    public async Task<IReadOnlyDictionary<string, IToolHandler>> GetToolsByGroupAsync(string groupName, CancellationToken cancellationToken = default) {
+    public Task<IReadOnlyDictionary<string, IToolHandler>> GetToolsByGroupAsync(string groupName, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(groupName);
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        return _groupIndex.GetValueOrDefault(groupName)?.ToFrozenDictionary() ?? FrozenDictionary<string, IToolHandler>.Empty;
+        return Task.FromResult<IReadOnlyDictionary<string, IToolHandler>>(_groupIndex.GetValueOrDefault(groupName)?.ToFrozenDictionary() ?? FrozenDictionary<string, IToolHandler>.Empty);
 
     }
 
@@ -224,14 +206,11 @@ public sealed partial class LocalToolRegistry : IToolRegistry {
         ArgumentException.ThrowIfNullOrEmpty(toolName);
         ArgumentNullException.ThrowIfNull(arguments);
 
-        IToolHandler? handler;
-        using (var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            if (!_tools.TryGetValue(toolName, out handler)) {
-                return new ToolResult {
-                    Content = [new() { Type = ToolContentType.Text, Text = $"Tool '{toolName}' not found." }],
-                    IsError = true
-                };
-            }
+        if (!_tools.TryGetValue(toolName, out var handler)) {
+            return new ToolResult {
+                Content = [new() { Type = ToolContentType.Text, Text = $"Tool '{toolName}' not found." }],
+                IsError = true
+            };
         }
 
         try {
@@ -252,16 +231,15 @@ public sealed partial class LocalToolRegistry : IToolRegistry {
     /// <param name="toolName">工具名称。</param>
     /// <param name="cancellationToken">用于取消异步操作的取消令牌。</param>
     /// <returns>若找到则返回工具元信息，否则返回 null。</returns>
-    public async Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default) {
-        var handler = await GetToolAsync(toolName, cancellationToken).ConfigureAwait(false);
-        if (handler == null) return null;
-        return new ToolInfo {
+    public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default) {
+        if (!_tools.TryGetValue(toolName, out var handler)) return Task.FromResult<ToolInfo?>(null);
+        return Task.FromResult<ToolInfo?>(new ToolInfo {
             Name = handler.Name,
             Description = handler.Description,
             InputSchema = handler.InputSchema,
             Category = handler.Category,
             GroupName = handler.GroupName
-        };
+        });
     }
 
     /// <summary>
@@ -269,16 +247,16 @@ public sealed partial class LocalToolRegistry : IToolRegistry {
     /// </summary>
     /// <param name="cancellationToken">用于取消异步操作的取消令牌。</param>
     /// <returns>所有工具的元信息只读列表。</returns>
-    public async Task<IReadOnlyList<ToolInfo>> GetAllToolInfosAsync(CancellationToken cancellationToken = default) {
-        return (await GetAllToolsAsync(cancellationToken).ConfigureAwait(false))
-            .Select(kvp => new ToolInfo {
+    public Task<IReadOnlyList<ToolInfo>> GetAllToolInfosAsync(CancellationToken cancellationToken = default) {
+        return Task.FromResult<IReadOnlyList<ToolInfo>>(
+            _tools.Select(kvp => new ToolInfo {
                 Name = kvp.Value.Name,
                 Description = kvp.Value.Description,
                 InputSchema = kvp.Value.InputSchema,
                 Category = kvp.Value.Category,
                 GroupName = kvp.Value.GroupName
-            })
-            .ToList();
+            }).ToList()
+        );
     }
 
     /// <summary>
@@ -287,12 +265,10 @@ public sealed partial class LocalToolRegistry : IToolRegistry {
     /// <param name="toolName">工具名称。</param>
     /// <param name="cancellationToken">用于取消异步操作的取消令牌。</param>
     /// <returns>若工具已注册则返回 true，否则返回 false。</returns>
-    public async Task<bool> ContainsToolAsync(string toolName, CancellationToken cancellationToken = default) {
+    public Task<bool> ContainsToolAsync(string toolName, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(toolName);
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        return _tools.ContainsKey(toolName);
+        return Task.FromResult(_tools.ContainsKey(toolName));
 
     }
 
@@ -301,10 +277,9 @@ public sealed partial class LocalToolRegistry : IToolRegistry {
     /// </summary>
     /// <param name="cancellationToken">用于取消异步操作的取消令牌。</param>
     /// <returns>已注册工具的数量。</returns>
-    public async Task<int> GetCountAsync(CancellationToken cancellationToken = default) {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+    public Task<int> GetCountAsync(CancellationToken cancellationToken = default) {
 
-        return _tools.Count;
+        return Task.FromResult(_tools.Count);
 
     }
 
@@ -313,15 +288,14 @@ public sealed partial class LocalToolRegistry : IToolRegistry {
     /// </summary>
     /// <param name="cancellationToken">用于取消异步操作的取消令牌。</param>
     /// <returns>表示异步清空操作的任务。</returns>
-    public async Task ClearAsync(CancellationToken cancellationToken = default) {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
+    public Task ClearAsync(CancellationToken cancellationToken = default) {
         _tools.Clear();
         _kindIndex.Clear();
         _groupIndex.Clear();
         OnToolsCleared();
         _logger?.LogInformation("All tools cleared");
 
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -329,33 +303,26 @@ public sealed partial class LocalToolRegistry : IToolRegistry {
     /// </summary>
     /// <returns>表示异步释放操作的任务。</returns>
     public ValueTask DisposeAsync() {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return default;
-        _lock.Dispose();
-        return ValueTask.CompletedTask;
+        Interlocked.Exchange(ref _disposed, 1);
+        return default;
     }
 
     private void AddToIndex(IToolHandler handler) {
-        if (!_kindIndex.TryGetValue(handler.Kind, out var kindBucket)) {
-            kindBucket = new SwissTable<string, IToolHandler>();
-            _kindIndex[handler.Kind] = kindBucket;
-        }
+        var kindBucket = _kindIndex.GetOrAdd(handler.Kind, _ => new ConcurrentDictionary<string, IToolHandler>());
         kindBucket[handler.Name] = handler;
 
         if (handler.GroupName is not null) {
-            if (!_groupIndex.TryGetValue(handler.GroupName, out var groupBucket)) {
-                groupBucket = new SwissTable<string, IToolHandler>(StringComparer.OrdinalIgnoreCase);
-                _groupIndex[handler.GroupName] = groupBucket;
-            }
+            var groupBucket = _groupIndex.GetOrAdd(handler.GroupName, _ => new ConcurrentDictionary<string, IToolHandler>(StringComparer.OrdinalIgnoreCase));
             groupBucket[handler.Name] = handler;
         }
     }
 
     private void RemoveFromIndex(IToolHandler handler) {
         if (_kindIndex.TryGetValue(handler.Kind, out var kindBucket))
-            kindBucket.Remove(handler.Name);
+            kindBucket.TryRemove(handler.Name, out _);
 
         if (handler.GroupName is not null && _groupIndex.TryGetValue(handler.GroupName, out var groupBucket))
-            groupBucket.Remove(handler.Name);
+            groupBucket.TryRemove(handler.Name, out _);
     }
 
     private void OnToolRegistered(string toolName, string description) {

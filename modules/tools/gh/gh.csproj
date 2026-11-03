@@ -15,8 +15,6 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="JoinCode.Gh.Tests" />
-    <InternalsVisibleTo Include="JoinCode.Mcp.Tests" />
-    <InternalsVisibleTo Include="JoinCode.McpToolDispatch.Tests" />
   </ItemGroup>
 
   <ItemGroup>

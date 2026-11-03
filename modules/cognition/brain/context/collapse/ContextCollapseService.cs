@@ -7,7 +7,6 @@ namespace Core.Context.Collapse;
 [Register(typeof(IContextCollapseService), ServiceLifetime.Singleton)]
 public sealed partial class ContextCollapseService : ServiceEntity, IContextCollapseService {
     private readonly ILogger<ContextCollapseService>? _logger;
-    private readonly AsyncLock _collapseLock = new();
 
     /// <summary>
     /// 构造上下文折叠服务
@@ -31,7 +30,6 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         ArgumentException.ThrowIfNullOrEmpty(content);
         options ??= ContextCollapseOptions.Balanced;
 
-        using var guard = await _collapseLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_collapseLock.Name}' 等待超时");
         try {
             var segments = await IdentifyCollapsibleSegmentsAsync(content, options, cancellationToken).ConfigureAwait(false);
             var originalTokenCount = EstimateTokenCount(content);
@@ -456,7 +454,6 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
     /// 释放资源
     /// </summary>
     public override void Dispose() {
-        _collapseLock.Dispose();
         base.Dispose();
     }
 

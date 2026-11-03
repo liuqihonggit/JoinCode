@@ -19,7 +19,6 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport {
     private readonly ILogger? _logger;
     private readonly HttpClient _writeClient;
     private readonly HttpClient _sseClient;
-    private readonly AsyncLock _writeLock = new();
     private readonly SerialBatchEventUploader _eventUploader;
     private readonly SerialBatchEventUploader _deliveryUploader;
     private readonly CancellationTokenSource _heartbeatCts;
@@ -523,7 +522,6 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport {
         _writeClient.Dispose();
         _sseClient.Dispose();
         _heartbeatCts.Dispose();
-        _writeLock.Dispose();
         return new ValueTask(Task.WhenAll(_sseReadTask ?? Task.CompletedTask, _heartbeatTask ?? Task.CompletedTask));
     }
 }

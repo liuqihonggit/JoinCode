@@ -14,10 +14,9 @@ public class WorkflowToolHandlers {
     private readonly IConfiguration _configuration;
     private readonly IFileSystem? _fileSystem;
     private readonly ILogger<WorkflowToolHandlers>? _logger;
-    private readonly AsyncLock _historyLock = new();
 
     // 内存中的对话历史（用于提示词模式下的多轮对话测试）
-    private readonly List<ApiMessageRecord> _inMemoryMessageList = new();
+    private ImmutableList<ApiMessageRecord> _inMemoryMessageList = ImmutableList<ApiMessageRecord>.Empty;
 
     /// <summary>
     /// 初始化工作流工具处理器
@@ -256,19 +255,21 @@ public class WorkflowToolHandlers {
 
     #region In-Memory Chat History (for Prompt-Only Mode Testing)
 
-    private async Task RecordApiMessageAsync(string role, string content, CancellationToken ct = default) {
-        using var guard = await _historyLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_historyLock.Name}' 等待超时");
-        _inMemoryMessageList.Add(new ApiMessageRecord(role, content, DateTime.UtcNow));
+    private Task RecordApiMessageAsync(string role, string content, CancellationToken ct = default) {
+        ct.ThrowIfCancellationRequested();
+        ImmutableInterlocked.Update(ref _inMemoryMessageList, list => list.Add(new ApiMessageRecord(role, content, DateTime.UtcNow)));
+        return Task.CompletedTask;
     }
 
-    private async Task ClearInMemoryHistoryAsync(CancellationToken ct = default) {
-        using var guard = await _historyLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_historyLock.Name}' 等待超时");
-        _inMemoryMessageList.Clear();
+    private Task ClearInMemoryHistoryAsync(CancellationToken ct = default) {
+        ct.ThrowIfCancellationRequested();
+        Interlocked.Exchange(ref _inMemoryMessageList, ImmutableList<ApiMessageRecord>.Empty);
+        return Task.CompletedTask;
     }
 
-    private async Task<IReadOnlyList<ApiMessageRecord>> GetInMemoryHistoryAsync(CancellationToken ct = default) {
-        using var guard = await _historyLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_historyLock.Name}' 等待超时");
-        return new List<ApiMessageRecord>(_inMemoryMessageList);
+    private Task<IReadOnlyList<ApiMessageRecord>> GetInMemoryHistoryAsync(CancellationToken ct = default) {
+        ct.ThrowIfCancellationRequested();
+        return Task.FromResult<IReadOnlyList<ApiMessageRecord>>(Volatile.Read(ref _inMemoryMessageList));
     }
 
     private record ApiMessageRecord(string Role, string Content, DateTime Timestamp);

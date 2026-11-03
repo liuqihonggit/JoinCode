@@ -7,9 +7,8 @@ namespace McpToolDispatch;
 /// </summary>
 [McpToolDispatch(ToolCategory.McpClient)]
 public partial class McpClientToolHandlers : ServiceEntity {
-    private readonly Dictionary<string, IMcpClient> _clients = new();
+    private readonly ConcurrentDictionary<string, IMcpClient> _clients = new();
     private readonly ILogger<McpClientToolHandlers>? _logger;
-    private readonly AsyncLock _clientLock = new();
     private readonly McpClientToolDeps _deps;
     private int _asyncDisposed;
 
@@ -64,10 +63,8 @@ public partial class McpClientToolHandlers : ServiceEntity {
             return ToolResultBuilder.Error().WithText($"MCP 服务器 '{connection_name}' 已被禁用，请先启用后再连接").Build();
         }
 
-        using (var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_clientLock.Name}' 等待超时")) {
-            if (_clients.ContainsKey(connection_name)) {
-                return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionAlreadyExists, connection_name)).Build();
-            }
+        if (_clients.ContainsKey(connection_name)) {
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionAlreadyExists, connection_name)).Build();
         }
 
         try {
@@ -110,24 +107,21 @@ public partial class McpClientToolHandlers : ServiceEntity {
 
             await client.ConnectAsync(cancellationToken).ConfigureAwait(false);
 
-            using (var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_clientLock.Name}' 等待超时")) {
-                if (_clients.ContainsKey(connection_name)) {
-                    await client.DisconnectAsync(cancellationToken).ConfigureAwait(false);
-                    return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionAlreadyExists, connection_name)).Build();
-                }
-                _clients[connection_name] = client;
-                var newEntry = new McpConnectionEntry {
-                    Name = connection_name,
-                    Endpoint = endpoint,
-                    TransportType = transport_type,
-                    UseOAuth = use_oauth,
-                    AuthName = auth_name
-                };
-                while (true) {
-                    var current = _connectionConfigs;
-                    var updated = current.SetItem(connection_name, newEntry);
-                    if (Interlocked.CompareExchange(ref _connectionConfigs, updated, current) == current) break;
-                }
+            if (!_clients.TryAdd(connection_name, client)) {
+                await client.DisconnectAsync(cancellationToken).ConfigureAwait(false);
+                return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionAlreadyExists, connection_name)).Build();
+            }
+            var newEntry = new McpConnectionEntry {
+                Name = connection_name,
+                Endpoint = endpoint,
+                TransportType = transport_type,
+                UseOAuth = use_oauth,
+                AuthName = auth_name
+            };
+            while (true) {
+                var current = _connectionConfigs;
+                var updated = current.SetItem(connection_name, newEntry);
+                if (Interlocked.CompareExchange(ref _connectionConfigs, updated, current) == current) break;
             }
 
             if (_deps.ElicitationHandler is not null) {
@@ -166,14 +160,13 @@ public partial class McpClientToolHandlers : ServiceEntity {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
-        using var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_clientLock.Name}' 等待超时");
         try {
             if (!_clients.TryGetValue(connection_name, out var client)) {
                 return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
             }
 
             await client.DisconnectAsync(cancellationToken).ConfigureAwait(false);
-            _clients.Remove(connection_name);
+            _clients.TryRemove(connection_name, out _);
             while (true) {
                 var current = _connectionConfigs;
                 var updated = current.Remove(connection_name);
@@ -210,11 +203,10 @@ public partial class McpClientToolHandlers : ServiceEntity {
 
         var disabled = await _deps.ServerStateManager.DisableAsync(connection_name, cancellationToken).ConfigureAwait(false);
 
-        using var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_clientLock.Name}' 等待超时");
         try {
             if (_clients.TryGetValue(connection_name, out var client)) {
                 await client.DisconnectAsync(cancellationToken).ConfigureAwait(false);
-                _clients.Remove(connection_name);
+                _clients.TryRemove(connection_name, out _);
                 while (true) {
                     var current = _connectionConfigs;
                     var updated = current.Remove(connection_name);
@@ -502,7 +494,6 @@ public partial class McpClientToolHandlers : ServiceEntity {
 
     private async Task<IMcpClient?> GetClientAsync(string connectionName, CancellationToken cancellationToken) {
         await WaitForRestoreAsync().ConfigureAwait(false);
-        using var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_clientLock.Name}' 等待超时");
         _clients.TryGetValue(connectionName, out var client);
         return client;
     }
@@ -589,7 +580,6 @@ public partial class McpClientToolHandlers : ServiceEntity {
     /// <summary>释放资源 — 在未异步释放时释放客户端锁。</summary>
     public override void Dispose() {
         if (_asyncDisposed == 1) return;
-        _clientLock.Dispose();
         base.Dispose();
     }
 

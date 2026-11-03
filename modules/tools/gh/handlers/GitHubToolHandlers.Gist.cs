@@ -119,4 +119,31 @@ public partial class GitHubToolHandlers {
         var result = await _apiClient.SendAsync(HttpMethod.Patch, $"gists/{gist_id}", body, ct: cancellationToken).ConfigureAwait(false);
         return result.Success ? OkBrief(result.Body, $"已更新 Gist {gist_id}") : Fail(EnrichApiError(result.Error, "gh_gist_edit", $"gists/{gist_id}"));
     }
+
+    /// <summary>
+    /// 重命名 Gist 文件 — 先 GET 获取旧文件内容，再 PATCH 删旧加新
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhGistRename, "重命名 Gist 文件", "github")]
+    public async Task<ToolResult> GhGistRenameAsync(
+        [McpToolParameter("Gist ID", Required = true)] string gist_id,
+        [McpToolParameter("旧文件名", Required = true)] string old_filename,
+        [McpToolParameter("新文件名", Required = true)] string new_filename,
+        CancellationToken cancellationToken = default) {
+        if (_apiClient is null) return ApiClientNotConfigured();
+        var getResult = await _apiClient.SendAsync(HttpMethod.Get, $"gists/{gist_id}", ct: cancellationToken).ConfigureAwait(false);
+        if (!getResult.Success) return Fail(EnrichApiError(getResult.Error, "gh_gist_rename", $"gists/{gist_id}"));
+        var gist = JsonSerializer.Deserialize(getResult.Body, GitHubApiJsonContext.Safe.GistResponse);
+        if (gist?.Files is null || !gist.Files.TryGetValue(old_filename, out var oldFile) || oldFile is null)
+            return Fail($"Gist {gist_id} 中不存在文件 '{old_filename}'。提示: 用 gh gist view {gist_id} 查看文件列表");
+        var content = oldFile.Content ?? "";
+        var request = new GistCreateRequest {
+            Files = new() {
+                [old_filename] = null,
+                [new_filename] = new GistFileContent { Content = content }
+            }
+        };
+        var body = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.GistCreateRequest);
+        var result = await _apiClient.SendAsync(HttpMethod.Patch, $"gists/{gist_id}", body, ct: cancellationToken).ConfigureAwait(false);
+        return result.Success ? OkBrief(result.Body, $"已重命名 {old_filename} → {new_filename}") : Fail(EnrichApiError(result.Error, "gh_gist_rename", $"gists/{gist_id}"));
+    }
 }

@@ -402,6 +402,7 @@ public partial class GitHubToolHandlers {
             "gh_gist_create" => $"Gist 创建失败 — {error}。可能原因: ① 文件内容为空 ② token 缺 gist scope。提示: 到 https://github.com/settings/tokens 更新 token scope",
             "gh_gist_delete" => $"Gist 删除失败 — {error}。可能原因: ① Gist ID 不存在 ② token 缺 gist scope。提示: 用 gh gist list 查看可用 Gist ID",
             "gh_gist_edit" => $"Gist 编辑失败 — {error}。可能原因: ① Gist ID 不存在 ② token 缺 gist scope。提示: 用 gh gist list 查看可用 Gist ID",
+            "gh_gist_rename" => $"Gist 文件重命名失败 — {error}。可能原因: ① Gist ID 不存在 ② 旧文件名不存在 ③ token 缺 gist scope。提示: 用 gh gist view 查看 Gist 文件列表",
             "gh_repo_gitignore_view" => $"gitignore 模板获取失败 — {error}。可能原因: ① 模板名不存在 ② 模板名大小写错误。提示: 用 gh repo gitignore-list 查看可用模板",
             "gh_repo_license_view" => $"License 获取失败 — {error}。可能原因: ① license key 不存在 ② key 大小写错误。提示: 用 gh repo license-list 查看可用 license",
             "gh_org_view" => $"组织获取失败 — {error}。可能原因: ① 组织名不存在 ② token 无权限访问该组织。提示: 用 gh org list 查看当前用户所属组织",
@@ -415,7 +416,7 @@ public partial class GitHubToolHandlers {
             "gh_notification_list" => $"通知列表获取失败 — {error}。可能原因: token 缺 notifications scope。提示: 到 https://github.com/settings/tokens 更新 token scope 添加 notifications 后重新设置 JCC_GITHUB_TOKEN",
             _ => $"{toolName ?? "gh"} 调用失败 — {error}。API 路径: {apiPath}"
         };
-        var noGenericHint = toolName is "gh_gpg_key_list" or "gh_gpg_key_add" or "gh_gpg_key_delete" or "gh_ssh_key_view" or "gh_gpg_key_view" or "gh_org_view" or "gh_team_list" or "gh_collaborator_list" or "gh_notification_list" or "gh_gist_list" or "gh_gist_view" or "gh_gist_create" or "gh_gist_delete" or "gh_gist_edit" or "gh_repo_gitignore_view" or "gh_repo_license_view";
+        var noGenericHint = toolName is "gh_gpg_key_list" or "gh_gpg_key_add" or "gh_gpg_key_delete" or "gh_ssh_key_view" or "gh_gpg_key_view" or "gh_org_view" or "gh_team_list" or "gh_collaborator_list" or "gh_notification_list" or "gh_gist_list" or "gh_gist_view" or "gh_gist_create" or "gh_gist_delete" or "gh_gist_edit" or "gh_gist_rename" or "gh_repo_gitignore_view" or "gh_repo_license_view";
         return noGenericHint ? context : $"{context}\n提示: 若仓库为私有, 404 也可能是 token 未配置/无效 — 设置 JCC_GITHUB_TOKEN 或运行 gh auth login";
     }
 

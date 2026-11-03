@@ -10,7 +10,7 @@ namespace McpToolDispatch;
 internal sealed class GistCreateRequest {
     /// <summary>文件名 → 内容</summary>
     [JsonPropertyName("files")]
-    public Dictionary<string, GistFileContent> Files { get; init; } = new();
+    public Dictionary<string, GistFileContent?> Files { get; init; } = new();
 
     /// <summary>描述</summary>
     [JsonPropertyName("description")]

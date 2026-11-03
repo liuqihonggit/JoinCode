@@ -52,12 +52,14 @@ internal static class FlatSubCommandRouter {
     }
 
     internal static bool ShouldOutputJson(string[] args) {
+        if (Array.IndexOf(args, CliArgCliOptionConstants.JsonLongName) >= 0) return true;
         var formatValue = GetOptionValue(args, CliArgCliOptionConstants.FormatLongName);
         if (!string.IsNullOrEmpty(formatValue))
             return !string.Equals(formatValue, "text", StringComparison.OrdinalIgnoreCase);
         var envFormat = Environment.GetEnvironmentVariable("JCC_OUTPUT_FORMAT");
-        if (string.Equals(envFormat, "text", StringComparison.OrdinalIgnoreCase)) return false;
-        return true;
+        if (string.Equals(envFormat, "full_json", StringComparison.OrdinalIgnoreCase)) return true;
+        if (string.Equals(envFormat, "compact_json", StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
     }
 
     private static string? GetOptionValue(string[] args, string optionName) {

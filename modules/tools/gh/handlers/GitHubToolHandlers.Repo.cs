@@ -18,7 +18,7 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             if (web == true) {
                 var repoResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}", ct: cancellationToken).ConfigureAwait(false);
-                if (!repoResult.Success) return Fail(repoResult.Error);
+                if (!repoResult.Success) return Fail(EnrichApiError(repoResult.Error, "gh_repo_view", $"repos/{owner}/{repoName}"));
                 var url = ExtractHtmlUrl(repoResult.Body);
                 if (string.IsNullOrEmpty(url)) return Fail("无法从仓库响应中解析 html_url");
                 if (!string.IsNullOrWhiteSpace(branch)) url += $"/tree/{branch}";
@@ -600,14 +600,14 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 精简 gitignore 模板列表 — 提取 names 数组
+    /// 精简 gitignore 模板列表 — GitHub API 返回顶层数组 ["Actionscript",...],逐行输出
     /// </summary>
     private static string SummarizeGitignoreList(string json) {
         try {
-            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.GitignoreListResponse);
-            if (resp is null) return json;
+            var names = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ListString);
+            if (names is null) return json;
             var sb = new StringBuilder(256);
-            foreach (var n in resp.Names) sb.AppendLine(n);
+            foreach (var n in names) sb.AppendLine(n);
             return sb.ToString();
         } catch { return json; }
     }
@@ -621,7 +621,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, $"gitignore/templates/{name}", ct: cancellationToken).ConfigureAwait(false);
-        if (!result.Success) return Fail(result.Error);
+        if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_repo_gitignore_view", $"gitignore/templates/{name}"));
         return Ok(SummarizeGitignoreTemplate(result.Body));
     }
 
@@ -672,6 +672,24 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, $"licenses/{key}", ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body) : Fail(result.Error);
+        if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_repo_license_view", $"licenses/{key}"));
+        return Ok(SummarizeLicense(result.Body));
+    }
+
+    /// <summary>精简 license 详情 — 提取名称/SPDX/描述/正文</summary>
+    private static string SummarizeLicense(string json) {
+        try {
+            var lic = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.LicenseResponse);
+            if (lic is null) return json;
+            var sb = new StringBuilder(512);
+            sb.AppendLine($"License: {lic.Name} ({lic.SpdxId})");
+            if (!string.IsNullOrEmpty(lic.HtmlUrl)) sb.AppendLine($"URL: {lic.HtmlUrl}");
+            if (!string.IsNullOrEmpty(lic.Description)) sb.AppendLine($"描述: {lic.Description}");
+            if (!string.IsNullOrEmpty(lic.Body)) {
+                sb.AppendLine();
+                sb.Append(lic.Body);
+            }
+            return sb.ToString();
+        } catch { return json; }
     }
 }

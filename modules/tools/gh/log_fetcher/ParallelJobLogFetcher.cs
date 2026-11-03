@@ -25,10 +25,10 @@ internal sealed class ParallelJobLogFetcher(GitHubRunLogFilterRunner runner) : I
         var anomalyJobIds = new List<long>(jobs.Count);
         var successCount = 0;
         foreach (var j in jobs) {
-            if (j.Id == 0) continue;
+            if (j.Id.Value == 0) continue;
             var severity = CiJobSeverityExtensions.FromConclusion(j.Conclusion, j.Status);
             if (severity.IsAnomaly())
-                anomalyJobIds.Add(j.Id);
+                anomalyJobIds.Add(j.Id.Value);
             else
                 successCount++;
         }

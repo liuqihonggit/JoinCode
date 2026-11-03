@@ -104,30 +104,31 @@ internal static class GhSubCommand {
         => json ? OutputJsonResult(result) : OutputTextResult(result);
 
     /// <summary>JSON 模式输出 — 3 路优先级：error/empty → 序列化整个结果；已是 JSON → 直接输出；否则 → 序列化字符串</summary>
-    /// <para>timing 信息输出到 stderr，不破坏 stdout 的 JSON 解析</para>
+    /// <para>timing 信息用 XML 标签包裹输出到 stdout 末尾,AI 可区分数据与元信息</para>
     private static int OutputJsonResult(ToolResult result) {
         var text = (result.Content.Count == 1 ? result.Content[0].Text : null) ?? string.Empty;
         if (result.IsError || string.IsNullOrEmpty(text)) {
             Console.WriteLine(GhJsonContext.UnescapeHtmlChars(JsonSerializer.Serialize(result, GhJsonContext.Safe.ToolResult)));
-            if (result.TimingInfo is not null) Console.Error.WriteLine(result.TimingInfo);
+            if (result.TimingInfo is not null) WriteToChannel(result.TimingInfo, result.IsError);
             return result.IsError ? 1 : 0;
         }
         if (text.Length > 0 && (text[0] == '[' || text[0] == '{' || text[0] == '"' || IsJsonPrimitive(text))) {
             Console.WriteLine(text);
-            if (result.TimingInfo is not null) Console.Error.WriteLine(result.TimingInfo);
+            if (result.TimingInfo is not null) WriteToChannel(result.TimingInfo, result.IsError);
             return result.IsError ? 1 : 0;
         }
         Console.WriteLine(GhJsonContext.UnescapeHtmlChars(JsonSerializer.Serialize(text, GhJsonContext.Safe.String)));
-        if (result.TimingInfo is not null) Console.Error.WriteLine(result.TimingInfo);
+        if (result.TimingInfo is not null) WriteToChannel(result.TimingInfo, result.IsError);
         return result.IsError ? 1 : 0;
     }
 
     /// <summary>文本模式输出 — LINQ 过滤非空内容消除 hasOutput 标志位，无内容时输出占位提示</summary>
+    /// <para>timing 信息与内容走同一 channel(错误→stderr,成功→stdout),保证顺序确定</para>
     private static int OutputTextResult(ToolResult result) {
         var nonEmptyContents = result.Content.Where(c => !string.IsNullOrEmpty(c.Text)).ToList();
         if (nonEmptyContents.Count == 0) WriteToChannel("(无文本输出)", result.IsError);
         else nonEmptyContents.ForEach(c => WriteToChannel(c.Text, result.IsError));
-        if (result.TimingInfo is not null) TerminalHelper.WriteLine(result.TimingInfo);
+        if (result.TimingInfo is not null) WriteToChannel(result.TimingInfo, result.IsError);
         return result.IsError ? 1 : 0;
     }
 

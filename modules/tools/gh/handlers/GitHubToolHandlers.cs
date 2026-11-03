@@ -136,7 +136,7 @@ public partial class GitHubToolHandlers {
         // jq/json_fields 是显式过滤，优先级高于 full_json — 即使 verbosity=2 也先处理
         var filtered = ApplyExplicitFilters(body, jq, json_fields);
         if (filtered is not null)
-            return ApplyPaginationAndTruncation(filtered, skipLines, startLine, toolName, _compactLinePrefix, addLineNumbers: true);
+            return ApplyPaginationAndTruncation(filtered, skipLines, startLine, toolName, _compactLinePrefix, addLineNumbers: false);
 
         var effectiveVerbosity = verbosity ?? GetVerbosityFromEnv();
         if (effectiveVerbosity == 2) return body;  // full_json: 无显式过滤时直接返回完整JSON
@@ -144,7 +144,7 @@ public partial class GitHubToolHandlers {
         var formatted = effectiveVerbosity == 1
             ? FilterJsonFields(body, compactFields ?? "id,number,title,state,name")
             : summarize(body);
-        return ApplyPaginationAndTruncation(formatted, skipLines, startLine, toolName, _compactLinePrefix, addLineNumbers: true);
+        return ApplyPaginationAndTruncation(formatted, skipLines, startLine, toolName, _compactLinePrefix, addLineNumbers: false);
     }
 
     /// <summary>应用显式过滤 — jq/json_fields 非空时返回过滤结果，均为空时返回 null 交回 verbosity 决策
@@ -352,7 +352,7 @@ public partial class GitHubToolHandlers {
             var milestones = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.ListMilestoneItemResponse);
             if (milestones is null) return null;
             foreach (var m in milestones) {
-                if (m.Title == milestoneName) return m.Number;
+                if (m.Title == milestoneName) return m.Number.Value;
             }
         } catch (Exception ex) { _logger?.LogWarning(ex, "解析 milestones 响应失败"); }
         return null;
@@ -377,6 +377,25 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// 为 API 错误添加上下文 — 404 Not Found 时给出可能原因和引导,避免裸 "Not Found" 让 AI 困惑
+    /// </summary>
+    private static string EnrichApiError(string error, string? toolName, string apiPath) {
+        if (!error.Contains("Not Found", StringComparison.OrdinalIgnoreCase))
+            return error;
+        return toolName switch {
+            "gh_pr_view"    => $"PR 获取失败 — {error}。可能原因: ① PR 编号不存在 ② 仓库不存在或无权限。提示: 用 gh pr list 查看可用 PR 编号",
+            "gh_pr_checks"  => $"PR checks 获取失败 — {error}。可能原因: ① PR 编号不存在 ② 仓库不存在或无权限 ③ PR 无 CI checks。提示: 用 gh pr list 查看可用 PR 编号",
+            "gh_issue_view" => $"Issue 获取失败 — {error}。可能原因: ① Issue 编号不存在 ② 仓库不存在或无权限。提示: 用 gh issue list 查看可用 Issue 编号",
+            "gh_repo_view"  => $"仓库获取失败 — {error}。可能原因: ① 仓库不存在或无权限 ② 仓库名格式错误(应为 owner/repo)。提示: 用 gh search repos 搜索仓库",
+            "gh_release_view" => $"Release 获取失败 — {error}。可能原因: ① Release 不存在 ② 仓库不存在或无权限。提示: 用 gh release list 查看可用 Release",
+            "gh_workflow_view" => $"Workflow 获取失败 — {error}。可能原因: ① Workflow ID 不存在 ② 仓库不存在或无权限。提示: 用 gh workflow list 查看可用 Workflow",
+            "gh_repo_gitignore_view" => $"gitignore 模板获取失败 — {error}。可能原因: ① 模板名不存在 ② 模板名大小写错误。提示: 用 gh repo gitignore-list 查看可用模板",
+            "gh_repo_license_view" => $"License 获取失败 — {error}。可能原因: ① license key 不存在 ② key 大小写错误。提示: 用 gh repo license-list 查看可用 license",
+            _ => $"{toolName ?? "gh"} 调用失败 — {error}。API 路径: {apiPath}"
+        };
+    }
+
+    /// <summary>
     /// verbosity 三档输出模板 — 调 API 取数据,按 verbosity 决定输出格式
     /// <para>缓存由 CacheGitHubApiClient 装饰器统一处理,此处只管输出格式</para>
     /// <para>verbosity: 0=gh风格人类可读(默认) 1=精简JSON 2=完整JSON</para>
@@ -386,7 +405,7 @@ public partial class GitHubToolHandlers {
         string? json_fields, Func<string, string> summarize, string? compactFields,
         CancellationToken ct, string? jq = null, int? skipLines = null, int? startLine = null, string? toolName = null) {
         var result = await client.SendAsync(HttpMethod.Get, apiPath, ct: ct).ConfigureAwait(false);
-        if (!result.Success) return Fail(result.Error);
+        if (!result.Success) return Fail(EnrichApiError(result.Error, toolName, apiPath));
         return Ok(FormatGhOutput(result.Body, verbosity, json_fields, summarize, compactFields, jq, skipLines, startLine, toolName));
     }
 

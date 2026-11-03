@@ -37,13 +37,15 @@ public sealed class GhTimingTracker {
     /// <summary>ticks 转 毫秒</summary>
     private static double TicksToMs(long ticks) => ticks * 1000.0 / Stopwatch.Frequency;
 
-    /// <summary>格式化耗时统计 — 附加到 gh 命令输出末尾,让用户看见各阶段耗时</summary>
+    /// <summary>格式化耗时统计 — 用 XML 标签包裹输出到 stdout 末尾,AI 可区分数据与元信息</summary>
+    /// <para>含 --no-cache 提示,让 AI 知道可以强制刷新缓存(不依赖 --help)</para>
     public string Format() {
         var totalMs = TicksToMs(Stopwatch.GetTimestamp() - _startTimestamp);
         var netMs = TicksToMs(_networkTicks);
         var readMs = TicksToMs(_lsmReadTicks);
         var writeMs = TicksToMs(_lsmWriteTicks);
         var parseMs = TicksToMs(_parseTicks);
-        return $"⏱ {totalMs:F0}ms | 网络 {netMs:F0}ms | LSM读 {readMs:F0}ms | LSM写 {writeMs:F0}ms | 解析 {parseMs:F0}ms | 缓存 命中{_cacheHits} 未命中{_cacheMisses}";
+        var cacheStatus = CacheDisabled ? "已禁用" : $"命中{_cacheHits} 未命中{_cacheMisses}";
+        return $"<gh-meta>⏱ {totalMs:F0}ms | 网络 {netMs:F0}ms | LSM读 {readMs:F0}ms | LSM写 {writeMs:F0}ms | 解析 {parseMs:F0}ms | 缓存 {cacheStatus} | refresh=true 强制刷新</gh-meta>";
     }
 }

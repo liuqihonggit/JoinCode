@@ -853,12 +853,14 @@ internal sealed class MilestoneRequest {
 internal sealed partial class GitHubApiJsonContext : JsonSerializerContext
 {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    private static readonly Lazy<GitHubApiJsonContext> s_safe = new(() => new GitHubApiJsonContext(
-        new JsonSerializerOptions(Default!.Options)
-        {
+    private static readonly Lazy<GitHubApiJsonContext> s_safe = new(() => {
+        var opts = new JsonSerializerOptions(Default!.Options) {
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
             TypeInfoResolver = Default!
-        }));
+        };
+        StrongTypedIdConverterRegistry.Register(opts);
+        return new GitHubApiJsonContext(opts);
+    });
 
     /// <summary>
     /// 带 UnsafeRelaxedJsonEscaping 的上下文 — 不转义中文等非 ASCII 字符

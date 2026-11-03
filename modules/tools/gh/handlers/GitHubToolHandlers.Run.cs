@@ -43,13 +43,13 @@ public partial class GitHubToolHandlers {
             var effectiveVerbosity = common?.Verbosity ?? GetVerbosityFromEnv();
             if (!string.IsNullOrEmpty(common?.Jq)) {
                 var jqOutput = SimpleJqEvaluator.Evaluate(result.Body, common.Jq);
-                return Ok(ApplyPaginationAndTruncation(jqOutput ?? result.Body, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: effectiveVerbosity != 2));
+                return Ok(ApplyPaginationAndTruncation(jqOutput ?? result.Body, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: false));
             }
             if (!string.IsNullOrEmpty(common?.JsonFields)) {
                 var filtered = FilterJsonFields(result.Body, common.JsonFields);
                 if (filtered is "[]" or "{}")
                     return Ok(filtered + "\n\n⚠️ 返回空: 可能原因: ① 字段名不匹配(用 verbosity=2 查看完整字段) ② 该 run 无此字段");
-                return Ok(ApplyPaginationAndTruncation(filtered, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: effectiveVerbosity != 2));
+                return Ok(ApplyPaginationAndTruncation(filtered, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: false));
             }
             var hasFailure = result.Body.Contains("\"conclusion\":\"failure\"", StringComparison.OrdinalIgnoreCase);
             var failureHint = hasFailure ? await BuildDynamicFailureHintAsync(client, owner, repoName, result.Body, cancellationToken).ConfigureAwait(false) : "";
@@ -58,7 +58,7 @@ public partial class GitHubToolHandlers {
                 1 => GitHubRunListSummarizer.SummarizeRunList(result.Body) + failureHint,
                 _ => GitHubRunListSummarizer.SummarizeRunListBrief(result.Body) + failureHint
             };
-            return Ok(ApplyPaginationAndTruncation(formattedOutput, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: effectiveVerbosity != 2));
+            return Ok(ApplyPaginationAndTruncation(formattedOutput, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: false));
         }).ConfigureAwait(false);
 
 
@@ -146,7 +146,7 @@ public partial class GitHubToolHandlers {
                     return Fail($"PR #{pr} 未找到对应的 CI run。可能原因: ① PR 号错误 ② PR 无关联 run(未触发 CI) ③ 仓库不存在或无权限。提示: 用 gh run list --branch <分支名> 查看 run 列表");
             }
             if (string.IsNullOrEmpty(effectiveRunId))
-                return Fail("run_id 和 pr 至少提供一个一个。用法: gh run view <run_id> 或 gh run view --pr <PR号>");
+                return Fail("run_id 和 pr 至少提供一个。用法: gh run view <run_id> 或 gh run view --pr <PR号>");
             // 宽容: AI 可能传 run number(如 752)而非 run id(如 37663049294),自动解析
             var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, effectiveRunId, cancellationToken).ConfigureAwait(false);
             if (runIdError is not null) return runIdError;
@@ -441,7 +441,7 @@ public partial class GitHubToolHandlers {
     private async Task<ToolResult?> ExpandFailedModeAsync(GhRepoCtx repo, GhRunTarget target, GhLogOpts opts, string? job_id, int maxLines, int skip, bool wantRefresh, bool hasFilter, GitHubLogFilter filterLevel, FrozenSet<string>? markers) {
         if (!string.Equals(opts.Expand, "failed", StringComparison.OrdinalIgnoreCase)) return null;
         var (jobs, timeoutIds) = await GetJobsWithTimeoutIdsAsync(repo.Owner, repo.Repo, target.RunId, wantRefresh, repo.Ct).ConfigureAwait(false);
-        var failedJobs = jobs.Where(j => CiJobSeverityExtensions.FromConclusion(j.Conclusion, j.Status, timeoutIds.Contains(j.Id)).IsAnomaly()).ToList();
+        var failedJobs = jobs.Where(j => CiJobSeverityExtensions.FromConclusion(j.Conclusion, j.Status, timeoutIds.Contains(j.Id.Value)).IsAnomaly()).ToList();
         if (failedJobs.Count == 0) return Ok("无失败 job");
 
         var sb = BuildFailedJobsSummary(failedJobs, timeoutIds);
@@ -458,7 +458,7 @@ public partial class GitHubToolHandlers {
     private static StringBuilder BuildFailedJobsSummary(List<RunJobItemResponse> failedJobs, HashSet<long> timeoutIds) {
         var sb = new StringBuilder($"⚠️ 失败 job 汇总({failedJobs.Count} 个,先看全貌再修,禁止只修一个就 push):");
         foreach (var job in failedJobs) {
-            var severity = CiJobSeverityExtensions.FromConclusion(job.Conclusion, job.Status, timeoutIds.Contains(job.Id));
+            var severity = CiJobSeverityExtensions.FromConclusion(job.Conclusion, job.Status, timeoutIds.Contains(job.Id.Value));
             sb.Append($"\n  {severity.Marker()}  {job.Name}  [{severity.ToConclusionDisplay(job.Conclusion)}]");
         }
         if (timeoutIds.Count > 0)
@@ -530,12 +530,12 @@ public partial class GitHubToolHandlers {
         try {
             var (jobs, timeoutIds) = await GetJobsWithTimeoutIdsAsync(owner, repo, runId, wantRefresh, ct).ConfigureAwait(false);
             var failedJobs = jobs
-                .Where(j => CiJobSeverityExtensions.FromConclusion(j.Conclusion, j.Status, timeoutIds.Contains(j.Id)).IsAnomaly())
+                .Where(j => CiJobSeverityExtensions.FromConclusion(j.Conclusion, j.Status, timeoutIds.Contains(j.Id.Value)).IsAnomaly())
                 .ToList();
             if (failedJobs.Count == 0) return null;
             var sb = new StringBuilder($"⚠️ 失败 job 汇总({failedJobs.Count} 个,先看全貌再修,禁止只修一个就 push):");
             foreach (var job in failedJobs) {
-                var severity = CiJobSeverityExtensions.FromConclusion(job.Conclusion, job.Status, timeoutIds.Contains(job.Id));
+                var severity = CiJobSeverityExtensions.FromConclusion(job.Conclusion, job.Status, timeoutIds.Contains(job.Id.Value));
                 sb.Append($"\n  {severity.Marker()}  {job.Name}  [{severity.ToConclusionDisplay(job.Conclusion)}]");
             }
             return sb.ToString();
@@ -566,13 +566,13 @@ public partial class GitHubToolHandlers {
         GhRepoCtx repo, string runId, int maxLines, int skip, bool wantRefresh, CancellationToken ct) {
         var (jobs, timeoutIds) = await GetJobsWithTimeoutIdsAsync(repo.Owner, repo.Repo, runId, wantRefresh, ct).ConfigureAwait(false);
         var failedJobs = jobs
-            .Where(j => CiJobSeverityExtensions.FromConclusion(j.Conclusion, j.Status, timeoutIds.Contains(j.Id)).IsAnomaly())
+            .Where(j => CiJobSeverityExtensions.FromConclusion(j.Conclusion, j.Status, timeoutIds.Contains(j.Id.Value)).IsAnomaly())
             .ToList();
 
         if (failedJobs.Count == 0) return Ok("没有失败 job。", $"Run {runId} 失败汇总(0 job)");
 
         // 并行提取所有失败 job 的测试失败信息(委托给底层统一并行基建)
-        var jobIds = failedJobs.Select(j => j.Id).ToArray();
+        var jobIds = failedJobs.Select(j => j.Id.Value).ToArray();
         var (failuresByJob, timing) = await LogFilterRunner.ExtractFailuresForJobsAsync(
             repo.Owner, repo.Repo, runId, jobIds, GitHubRunLogFilterRunner.GetMaxConcurrency(), wantRefresh, ct).ConfigureAwait(false);
 
@@ -585,8 +585,8 @@ public partial class GitHubToolHandlers {
             if (shown >= maxLines) break;
             shown++;
 
-            var failures = failuresByJob[job.Id];
-            var severity = CiJobSeverityExtensions.FromConclusion(job.Conclusion, job.Status, timeoutIds.Contains(job.Id));
+            var failures = failuresByJob[job.Id.Value];
+            var severity = CiJobSeverityExtensions.FromConclusion(job.Conclusion, job.Status, timeoutIds.Contains(job.Id.Value));
             var marker = severity.Marker();
 
             if (failures.Count == 0) {
@@ -744,7 +744,7 @@ public partial class GitHubToolHandlers {
             var name = string.IsNullOrEmpty(job.Name) ? "unknown" : job.Name;
             var s = string.IsNullOrEmpty(job.Status) ? "?" : job.Status;
             var c = job.Conclusion ?? "";
-            jobs.Add((job.Id, name, s, c, timeoutIds.Contains(job.Id)));
+            jobs.Add((job.Id.Value, name, s, c, timeoutIds.Contains(job.Id.Value)));
         }
 
         if (jobs.Count == 0) return baseSummary;
@@ -1146,11 +1146,11 @@ public partial class GitHubToolHandlers {
                         newFailedJobs = [];
                         if (resp?.Jobs is not null) {
                             foreach (var job in resp.Jobs) {
-                                if (job.Id == 0) continue;
+                                if (job.Id.Value == 0) continue;
                                 if (!CiJobSeverityExtensions.FromConclusion(job.Conclusion).IsAnomaly()) continue;
-                                if (reportedJobIds.Contains(job.Id)) continue;
-                                reportedJobIds.Add(job.Id);
-                                newFailedJobs.Add((job.Id, job.Name, job.Conclusion ?? "failure"));
+                                if (reportedJobIds.Contains(job.Id.Value)) continue;
+                                reportedJobIds.Add(job.Id.Value);
+                                newFailedJobs.Add((job.Id.Value, job.Name, job.Conclusion ?? "failure"));
                             }
                         }
                     } catch (JsonException ex) { _logger?.LogWarning(ex, "后台监控解析 jobs 失败: runId={RunId}", runId); continue; }
@@ -1232,9 +1232,9 @@ public partial class GitHubToolHandlers {
                 artifacts = [];
                 if (artsResp is not null) {
                     foreach (var art in artsResp.Artifacts) {
-                        if (string.IsNullOrEmpty(art.Name) || art.Id == 0) continue;
+                        if (string.IsNullOrEmpty(art.Name) || art.Id.Value == 0) continue;
                         if (!string.IsNullOrWhiteSpace(name) && !SimpleMatchArtifact(name, art.Name)) continue;
-                        artifacts.Add((art.Name, art.Id));
+                        artifacts.Add((art.Name, art.Id.Value));
                     }
                 }
             } catch (Exception ex) { return Fail($"解析 artifact 列表失败: {ex.Message}"); }

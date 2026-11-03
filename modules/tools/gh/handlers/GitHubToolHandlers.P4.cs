@@ -142,8 +142,8 @@ public partial class GitHubToolHandlers {
                 if (cacheList is null || (cacheList.ActionsCaches?.Count ?? 0) == 0) return Ok("无缓存可删除");
                 var count = 0;
                 foreach (var c in cacheList.ActionsCaches ?? []) {
-                    if (c.Id > 0) {
-                        var delResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/actions/caches/{c.Id}", ct: cancellationToken).ConfigureAwait(false);
+                    if (c.Id.Value > 0) {
+                        var delResult = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/actions/caches/{c.Id.Value}", ct: cancellationToken).ConfigureAwait(false);
                         if (delResult.Success) count++;
                     }
                 }
@@ -358,9 +358,9 @@ public partial class GitHubToolHandlers {
         var repoResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}", ct: cancellationToken).ConfigureAwait(false);
         if (!repoResult.Success) return Fail(repoResult.Error);
         var repoDetail = JsonSerializer.Deserialize(repoResult.Body, GitHubApiJsonContext.Safe.RepoDetailResponse);
-        if (repoDetail is null || repoDetail.Id == 0) return Fail("无法获取仓库 ID");
+        if (repoDetail is null || repoDetail.Id.Value == 0) return Fail("无法获取仓库 ID");
         body = JsonSerializer.Serialize(new CodespaceCreateRequest {
-            RepositoryId = repoDetail.Id,
+            RepositoryId = repoDetail.Id.Value,
             Ref = branch,
             Machine = machine,
             DevcontainerPath = devcontainer_path,

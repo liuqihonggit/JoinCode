@@ -26,16 +26,16 @@ public partial class GitHubToolHandlers {
             }
             if (web == true) {
                 var prResult = await client.SendAsync(HttpMethod.Get, apiPath, ct: cancellationToken).ConfigureAwait(false);
-                if (!prResult.Success) return Fail(prResult.Error);
+                if (!prResult.Success) return Fail(EnrichApiError(prResult.Error, "gh_pr_view", apiPath));
                 var url = ExtractHtmlUrl(prResult.Body);
                 return string.IsNullOrEmpty(url) ? Fail("无法从 PR 响应中解析 html_url") : Ok(url);
             }
             if (comments == true) {
                 var prResult = await client.SendAsync(HttpMethod.Get, apiPath, ct: cancellationToken).ConfigureAwait(false);
-                if (!prResult.Success) return Fail(prResult.Error);
+                if (!prResult.Success) return Fail(EnrichApiError(prResult.Error, "gh_pr_view", apiPath));
                 var summary = FormatGhOutput(prResult.Body, common.Verbosity, common.JsonFields, SummarizePr, "number,title,state,head_branch,user,html_url", common.Jq, common.SkipLines, common.StartLine, "gh_pr_view");
                 var commentsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues/{number}/comments", ct: cancellationToken).ConfigureAwait(false);
-                if (!commentsResult.Success) return Fail(commentsResult.Error);
+                if (!commentsResult.Success) return Fail(EnrichApiError(commentsResult.Error, "gh_pr_view", $"repos/{owner}/{repoName}/issues/{number}/comments"));
                 return Ok($"{summary}\n\n## 评论\n{SummarizeComments(commentsResult.Body)}");
             }
             if (!string.IsNullOrEmpty(common.JsonFields) && common.JsonFields.Contains("statusCheckRollup", StringComparison.OrdinalIgnoreCase))
@@ -626,7 +626,7 @@ public partial class GitHubToolHandlers {
             if (runsResp is not null && runsResp.WorkflowRuns is not null) {
                 foreach (var r in runsResp.WorkflowRuns) {
                     if (r.Conclusion != "failure") continue;
-                    if (r.Id > 0) failedRunIds.Add(r.Id.ToString());
+                    if (r.Id.Value > 0) failedRunIds.Add(r.Id.Value.ToString());
                 }
             }
         } catch (Exception ex) {
@@ -932,7 +932,7 @@ public partial class GitHubToolHandlers {
     private (int Number, string? NodeId) ExtractPrInfoFromResponse(string body) {
         try {
             var pr = JsonSerializer.Deserialize(body, GitHubApiJsonContext.Safe.PrDetailResponse);
-            return (pr?.Number ?? 0, pr?.NodeId);
+            return (pr is not null ? pr.Number.Value : 0, pr?.NodeId);
         } catch (Exception ex) { _logger?.LogDebug(ex, "解析 PR 信息失败"); return (0, null); }
     }
 
@@ -1238,7 +1238,7 @@ public partial class GitHubToolHandlers {
                 var headRef = pr.Head?.Ref ?? "";
                 var mergeable = pr.Mergeable ?? false;
                 if (!byAuthor.TryGetValue(author, out var list)) { list = new(); byAuthor[author] = list; }
-                list.Add((pr.Number, pr.Title, headRef, pr.Draft, mergeable));
+                list.Add((pr.Number.Value, pr.Title, headRef, pr.Draft, mergeable));
             }
             var sb = new StringBuilder(512);
             foreach (var (author, authorPrs) in byAuthor) {

@@ -13,7 +13,7 @@ public partial class GitHubToolHandlers {
         if (!result.Success) return null;
         try {
             var repo = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.RepoDetailResponse);
-            return repo?.Id > 0 ? repo.Id : null;
+            return repo is not null && repo.Id.Value > 0 ? repo.Id.Value : null;
         } catch (Exception ex) { _logger?.LogWarning(ex, "解析 repo id 失败"); return null; }
     }
 

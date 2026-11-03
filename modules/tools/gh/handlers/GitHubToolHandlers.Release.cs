@@ -24,42 +24,25 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 精简 Release 列表 JSON — 只保留关键字段，去掉冗余 URL 和 author 对象，便于人类浏览和 AI 解析；支持排除 draft/prerelease
+    /// 精简 Release 列表 — 表格格式(tag, name, draft, prerelease, published_at)，支持排除 draft/prerelease
     /// </summary>
     private static string SummarizeReleaseList(string json, bool? excludeDrafts = null, bool? excludePrereleases = null) {
         try {
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
-            var buffer = new ArrayBufferWriter<byte>();
-            using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping })) {
-                writer.WriteStartArray();
-                foreach (var release in doc.RootElement.EnumerateArray()) {
-                    if (excludeDrafts == true && release.TryGetProperty(GitHubJsonFields.Draft, out var d) && d.GetBoolean()) continue;
-                    if (excludePrereleases == true && release.TryGetProperty("prerelease", out var p) && p.GetBoolean()) continue;
-                    writer.WriteStartObject();
-                    CopyProperty(release, writer, "id");
-                    CopyProperty(release, writer, "tag_name");
-                    CopyProperty(release, writer, "name");
-                    CopyProperty(release, writer, "draft");
-                    CopyProperty(release, writer, "prerelease");
-                    CopyProperty(release, writer, "created_at");
-                    CopyProperty(release, writer, "published_at");
-                    if (release.TryGetProperty(GitHubJsonFields.Assets, out var assets) && assets.ValueKind == JsonValueKind.Array) {
-                        writer.WritePropertyName("assets");
-                        writer.WriteStartArray();
-                        foreach (var asset in assets.EnumerateArray()) {
-                            writer.WriteStartObject();
-                            CopyProperty(asset, writer, "name");
-                            CopyProperty(asset, writer, "size");
-                            writer.WriteEndObject();
-                        }
-                        writer.WriteEndArray();
-                    }
-                    writer.WriteEndObject();
-                }
-                writer.WriteEndArray();
+            var sb = new StringBuilder(512);
+            sb.AppendLine("Tag\t名称\tDraft\tPre\t发布时间");
+            foreach (var release in doc.RootElement.EnumerateArray()) {
+                if (excludeDrafts == true && release.TryGetProperty(GitHubJsonFields.Draft, out var d) && d.GetBoolean()) continue;
+                if (excludePrereleases == true && release.TryGetProperty("prerelease", out var p) && p.GetBoolean()) continue;
+                var tag = release.TryGetProperty("tag_name", out var tn) ? tn.GetString() ?? "" : "";
+                var name = release.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                var draft = release.TryGetProperty(GitHubJsonFields.Draft, out var df) && df.GetBoolean();
+                var pre = release.TryGetProperty("prerelease", out var pe) && pe.GetBoolean();
+                var published = release.TryGetProperty("published_at", out var pa) ? pa.GetString() ?? "未发布" : "未发布";
+                sb.AppendLine($"{tag}\t{name}\t{(draft ? "✓" : "")}\t{(pre ? "✓" : "")}\t{published}");
             }
-            return Encoding.UTF8.GetString(buffer.WrittenSpan);
+            return sb.ToString();
         } catch (Exception) {
             return json;
         }
@@ -333,10 +316,10 @@ public partial class GitHubToolHandlers {
         try {
             var release = JsonSerializer.Deserialize(viewResult.Body, GitHubApiJsonContext.Safe.ReleaseResponse);
             if (release is null) return Fail("解析 Release 响应失败");
-            releaseId = release.Id;
+            releaseId = release.Id.Value;
             existingAssets = new Dictionary<string, long>();
             foreach (var asset in release.Assets) {
-                if (!string.IsNullOrEmpty(asset.Name) && asset.Id > 0) existingAssets[asset.Name] = asset.Id;
+                if (!string.IsNullOrEmpty(asset.Name) && asset.Id.Value > 0) existingAssets[asset.Name] = asset.Id.Value;
             }
         } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
 
@@ -394,7 +377,7 @@ public partial class GitHubToolHandlers {
             try {
                 var release = JsonSerializer.Deserialize(viewResult.Body, GitHubApiJsonContext.Safe.ReleaseResponse);
                 if (release is null) return Fail("解析 Release 响应失败");
-                releaseId = release.Id;
+                releaseId = release.Id.Value;
             } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/releases/{releaseId}", ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
@@ -422,10 +405,10 @@ public partial class GitHubToolHandlers {
             try {
                 var release = JsonSerializer.Deserialize(viewResult.Body, GitHubApiJsonContext.Safe.ReleaseResponse);
                 if (release is null) return Fail("解析 Release 响应失败");
-                releaseId = release.Id;
+                releaseId = release.Id.Value;
                 assetMap = new Dictionary<string, long>();
                 foreach (var asset in release.Assets) {
-                    if (!string.IsNullOrEmpty(asset.Name) && asset.Id > 0) assetMap[asset.Name] = asset.Id;
+                    if (!string.IsNullOrEmpty(asset.Name) && asset.Id.Value > 0) assetMap[asset.Name] = asset.Id.Value;
                 }
             } catch (Exception ex) { return Fail($"解析 Release 失败: {ex.Message}"); }
 
@@ -480,7 +463,7 @@ public partial class GitHubToolHandlers {
             try {
                 var release = JsonSerializer.Deserialize(viewResult.Body, GitHubApiJsonContext.Safe.ReleaseResponse);
                 if (release is null) return Fail("解析 Release 响应失败");
-                releaseId = release.Id;
+                releaseId = release.Id.Value;
                 existingTag = release.TagName;
                 existingTarget = release.TargetCommitish;
             } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }

@@ -18,7 +18,7 @@ internal static class GitHubRunViewSummarizer {
             var conclusion = resp.Conclusion;
             var symbol = GitHubRunFormatHelper.GetStatusSymbol(status, conclusion);
             var title = resp.DisplayTitle ?? resp.Name ?? "(unknown)";
-            var runNumber = resp.RunNumber;
+            var runNumber = resp.RunNumber.Value;
             sb.Append(symbol).Append(' ').Append(title);
             if (runNumber > 0) sb.Append(" · ").Append(runNumber);
             sb.AppendLine();

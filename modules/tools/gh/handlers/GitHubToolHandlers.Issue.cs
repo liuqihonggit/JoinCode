@@ -457,7 +457,7 @@ public partial class GitHubToolHandlers {
                 if (issue.PullRequest is not null) continue;
                 var author = issue.User?.Login ?? "";
                 if (!byAuthor.TryGetValue(author, out var list)) { list = new(); byAuthor[author] = list; }
-                list.Add((issue.Number, issue.Title));
+                list.Add((issue.Number.Value, issue.Title));
             }
             var sb = new StringBuilder(512);
             foreach (var (author, authorIssues) in byAuthor) {

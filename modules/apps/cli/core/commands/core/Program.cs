@@ -146,6 +146,20 @@ class Program {
                 Cli.TerminalHelper.WriteError("  请检查 JCC_ENDPOINT 环境变量或配置文件中的端点格式。");
             }
             return (int)ExitCode.ConfigurationError;
+        } catch (NotSupportedException ex) when (ex.Message.Contains("scheme", StringComparison.OrdinalIgnoreCase)) {
+            // 不支持的 URI scheme（如 ftp://）— 配置错误，友好提示
+            Cli.TerminalHelper.Init();
+            if (options?.IsStructuredOutputMode == true) {
+                var error = Cli.Output.CliErrorCatalog.ConfigInvalidValue(
+                    "endpoint",
+                    ex.Message,
+                    "请检查 JCC_ENDPOINT 环境变量或配置文件中的端点格式（仅支持 http/https）");
+                WriteStructuredErrorToStdout(error, options.IsNdjsonMode);
+            } else {
+                App.ErrorConsole.Warning($"端点协议不支持: {ex.Message}");
+                Cli.TerminalHelper.WriteError("  请检查 JCC_ENDPOINT 环境变量或配置文件中的端点格式（仅支持 http/https）。");
+            }
+            return (int)ExitCode.ConfigurationError;
         } catch (Exception ex) when (ex is OutOfMemoryException or TypeInitializationException) {
             // P2-7: 不可恢复异常 — 记录日志后 rethrow 让进程崩溃（继续运行可能损坏数据）
             await WriteErrorLogAsync(ex, fatal: true, logger).ConfigureAwait(false);

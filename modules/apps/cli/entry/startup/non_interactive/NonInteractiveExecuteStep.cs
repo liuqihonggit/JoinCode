@@ -113,6 +113,8 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
         System.Net.Http.HttpRequestException => (ExitCode.LlmCallFailed, "LLM_HTTP_ERROR"),
         JoinCode.Abstractions.Exceptions.ConfigurationException => (ExitCode.ConfigurationError, "CONFIG_ERROR"),
         JoinCode.Abstractions.Exceptions.CodeExecutionException => (ExitCode.ToolExecutionFailed, "TOOL_EXECUTION_FAILED"),
+        System.NotSupportedException when ex.Message.Contains("scheme", StringComparison.OrdinalIgnoreCase) => (ExitCode.ConfigurationError, "CONFIG_ERROR"),
+        System.InvalidOperationException when ex.Message.Contains("scheme", StringComparison.OrdinalIgnoreCase) => (ExitCode.ConfigurationError, "CONFIG_ERROR"),
         System.InvalidOperationException when IsLlmError(ex.Message) => (ExitCode.LlmCallFailed, "LLM_CALL_FAILED"),
         _ => (ExitCode.GeneralError, "RUNTIME_ERROR")
     };

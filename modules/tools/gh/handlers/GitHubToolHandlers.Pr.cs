@@ -466,39 +466,25 @@ public partial class GitHubToolHandlers {
         try {
             using var doc = JsonDocument.Parse(json);
             if (!doc.RootElement.TryGetProperty("check_runs", out var runs)) return "[]";
-            var sb = new StringBuilder(512);
-            sb.Append('[');
-            var first = true;
-            foreach (var run in runs.EnumerateArray()) {
-                if (!first) sb.Append(',');
-                first = false;
-                sb.Append('{');
-                var firstField = true;
-                foreach (var field in fieldSet) {
-                    if (!firstField) sb.Append(',');
-                    firstField = false;
-                    sb.Append('"').Append(field).Append("\":");
-                    if (string.Equals(field, "state", StringComparison.OrdinalIgnoreCase)) {
-                        var status = run.TryGetProperty("status", out var s) ? s.GetString() ?? "" : "";
-                        var conclusion = run.TryGetProperty("conclusion", out var c) ? c.GetString() ?? "" : "";
-                        sb.Append('"').Append(MapCheckState(status, conclusion)).Append('"');
-                    } else if (string.Equals(field, "workflow_job_id", StringComparison.OrdinalIgnoreCase)
-                               || string.Equals(field, "job_id", StringComparison.OrdinalIgnoreCase)) {
-                        var jobId = ExtractJobIdFromDetailsUrl(run);
-                        sb.Append(jobId is null ? "null" : $"\"{jobId}\"");
-                    } else if (run.TryGetProperty(field, out var value)) {
-                        sb.Append(value.GetRawText());
-                    } else {
-                        sb.Append("null");
-                    }
-                }
-                sb.Append('}');
-            }
-            sb.Append(']');
-            return sb.ToString();
+            var objects = runs.EnumerateArray().Select(run =>
+                $"{{{string.Join(",", fieldSet.Select(f => $"\"{f}\":{ResolveCheckRunFieldJson(f, run)}"))}}}");
+            return $"[{string.Join(",", objects)}]";
         } catch (JsonException) {
             return "[]";
         }
+    }
+
+    /// <summary>解析 check-run 单个字段为 JSON 片段 — state 映射/job_id 提取/普通字段透传</summary>
+    private static string ResolveCheckRunFieldJson(string field, JsonElement run) {
+        if (string.Equals(field, "state", StringComparison.OrdinalIgnoreCase)) {
+            var status = run.TryGetProperty("status", out var s) ? s.GetString() ?? "" : "";
+            var conclusion = run.TryGetProperty("conclusion", out var c) ? c.GetString() ?? "" : "";
+            return $"\"{MapCheckState(status, conclusion)}\"";
+        }
+        if (string.Equals(field, "workflow_job_id", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(field, "job_id", StringComparison.OrdinalIgnoreCase))
+            return ExtractJobIdFromDetailsUrl(run) is { } jobId ? $"\"{jobId}\"" : "null";
+        return run.TryGetProperty(field, out var value) ? value.GetRawText() : "null";
     }
 
     /// <summary>从 check-run 的 details_url 解析 job ID — URL 格式: .../runs/{runId}/jobs/{jobId}</summary>

@@ -146,4 +146,20 @@ public partial class GitHubToolHandlers {
         var result = await _apiClient.SendAsync(HttpMethod.Patch, $"gists/{gist_id}", body, ct: cancellationToken).ConfigureAwait(false);
         return result.Success ? OkBrief(result.Body, $"已重命名 {old_filename} → {new_filename}") : Fail(EnrichApiError(result.Error, "gh_gist_rename", $"gists/{gist_id}"));
     }
+
+    /// <summary>
+    /// 克隆 Gist — 调 git clone https://gist.github.com/{id}.git
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhGistClone, "克隆 Gist 到本地", "github")]
+    public async Task<ToolResult> GhGistCloneAsync(
+        [McpToolParameter("Gist ID", Required = true)] string gist_id,
+        [McpToolParameter("目标目录(可选,默认用 Gist ID)", Required = false)] string? dir = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        CancellationToken cancellationToken = default) {
+        if (_git is null) return Fail("git 命令未配置");
+        var gistUrl = $"https://gist.github.com/{gist_id}.git";
+        var targetDir = string.IsNullOrWhiteSpace(dir) ? gist_id : dir;
+        var result = await _git.ExecuteAsync($"clone {gistUrl} {targetDir}", working_dir, cancellationToken).ConfigureAwait(false);
+        return result.Success ? Ok($"已克隆 Gist {gist_id} 到 {targetDir}") : Fail(result.Error);
+    }
 }

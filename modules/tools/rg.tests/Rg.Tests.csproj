@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ProjectType>test</ProjectType>
+    <RootNamespace>Rg.Tests</RootNamespace>
+    <AssemblyName>JoinCode.Rg.Tests</AssemblyName>
+    <Description>JoinCode Rg 独立工具单元测试</Description>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
+    <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/tools/rg/rg.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

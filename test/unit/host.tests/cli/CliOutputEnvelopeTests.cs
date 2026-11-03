@@ -9,32 +9,6 @@ namespace Host.Tests.Cli;
 public sealed class CliOutputEnvelopeTests {
 
     [Fact]
-    public void Success_Generic_ShouldSerializeRgJsonResult() {
-        var matches = new List<RgJsonMatch> {
-            new("src/foo.cs", 3, ["1", "5", "10"]),
-            new("src/bar.cs", 1, null),
-        };
-        var data = new RgJsonResult(matches, 4, 2);
-        var json = CliOutputEnvelope<RgJsonResult>.Success(data).ToJsonString();
-
-        json.Should().Contain("\"ok\":true");
-        json.Should().Contain("\"totalMatches\":4");
-        json.Should().Contain("\"fileCount\":2");
-        json.Should().Contain("\"file\":\"src/foo.cs\"");
-        json.Should().Contain("\"count\":3");
-        json.Should().Contain("\"lines\":[\"1\",\"5\",\"10\"]");
-    }
-
-    [Fact]
-    public void Success_Generic_ShouldSerializeRgJsonResult_EmptyLinesOmitted() {
-        var data = new RgJsonResult([new("x.cs", 1, null)], 1, 1);
-        var json = CliOutputEnvelope<RgJsonResult>.Success(data).ToJsonString();
-
-        json.Should().Contain("\"count\":1");
-        json.Should().NotContain("\"lines\"");
-    }
-
-    [Fact]
     public void Success_Generic_ShouldSerializeMcpServeExitReport() {
         var data = new McpServeExitReport("http", 40, 100, 5, 3.14);
         var json = CliOutputEnvelope<McpServeExitReport>.Success(data).ToJsonString();
@@ -136,8 +110,8 @@ public sealed class CliOutputEnvelopeTests {
 
     [Fact]
     public void Success_Generic_Data_ShouldBeStrongTyped() {
-        var data = new RgJsonResult([], 0, 0);
-        var envelope = CliOutputEnvelope<RgJsonResult>.Success(data);
+        var data = new McpServeExitReport("http", 1, 1, 0, 0.0);
+        var envelope = CliOutputEnvelope<McpServeExitReport>.Success(data);
 
         envelope.Data.Should().BeSameAs(data);
         envelope.Ok.Should().BeTrue();

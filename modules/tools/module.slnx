@@ -3,5 +3,9 @@
   <Project Path="onnx_embedding/OnnxEmbeddingExe.csproj" />
   <Project Path="onnx_embedding_verify/OnnxEmbeddingVerify.csproj" />
   <Project Path="simd_vector_verify/SimdVectorVerify.csproj" />
+  <Project Path="rg/rg.csproj" />
+  <Project Path="rg.tests/Rg.Tests.csproj" />
+  <Project Path="gh/gh.csproj" />
+  <Project Path="gh.tests/Gh.Tests.csproj" />
   <!-- REMOVED: scripts/scripts.csproj (no .csproj found) -->
 </Solution>

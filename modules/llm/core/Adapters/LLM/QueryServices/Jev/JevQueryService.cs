@@ -64,7 +64,7 @@ public class JevQueryService : QueryServiceBase, ITypedDecisionService {
         var endpoint = GetChatEndpoint(Config);
 
         var response = await SendWithResilienceAsync(json, endpoint, "LLM.Jev", cancellationToken).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessWithBodyAsync(cancellationToken).ConfigureAwait(false);
         ExtractRateLimitHeaders(response);
 
         var responseJson = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);

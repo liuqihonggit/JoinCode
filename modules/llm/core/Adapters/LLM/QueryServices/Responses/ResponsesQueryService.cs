@@ -43,7 +43,7 @@ public class ResponsesQueryService : QueryServiceBase {
         var response = await SendWithResilienceAsync(json, endpoint, "LLM.ResponsesStreaming", cancellationToken,
             HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
 
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessWithBodyAsync(cancellationToken).ConfigureAwait(false);
         ExtractRateLimitHeaders(response);
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
@@ -158,7 +158,7 @@ public class ResponsesQueryService : QueryServiceBase {
         var secondEndpoint = GetChatEndpoint(Config);
         var secondResponse = await SendWithResilienceAsync(secondJson, secondEndpoint, "LLM.ResponsesStreaming2", cancellationToken,
             HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
-        secondResponse.EnsureSuccessStatusCode();
+        await secondResponse.EnsureSuccessWithBodyAsync(cancellationToken).ConfigureAwait(false);
         ExtractRateLimitHeaders(secondResponse);
         var secondStream = await secondResponse.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using var secondReader = secondStream.AsUtf8Reader();
@@ -523,7 +523,7 @@ public class ResponsesQueryService : QueryServiceBase {
         var response = await SendWithResilienceAsync(json, endpoint, "LLM.Responses", cancellationToken,
             HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
 
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessWithBodyAsync(cancellationToken).ConfigureAwait(false);
         ExtractRateLimitHeaders(response);
 
         var responseJson = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);

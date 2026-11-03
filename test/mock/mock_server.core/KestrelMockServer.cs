@@ -317,6 +317,16 @@ public sealed class KestrelMockServer : IHttpMockServer {
         }
     }
 
+    /// <summary>获取 index 大于 <paramref name="since"/> 的请求（增量查询，避免全量传输）。</summary>
+    /// <param name="since">上次已处理的最大 index，返回 index > since 的请求。</param>
+    public IReadOnlyList<CapturedRequest> GetRequestsSince(int since) {
+        var releaser = _lock.TryLock()
+            ?? throw new TimeoutException("[GEN016] [E2E005] 获取请求列表超时：锁被持有");
+        using (releaser) {
+            return _capturedRequests.Where(r => r.Index > since).ToList();
+        }
+    }
+
     /// <summary>清除所有请求。</summary>
     public void Clear() {
         var releaser = _lock.TryLock()
@@ -507,7 +517,8 @@ public sealed class KestrelMockServer : IHttpMockServer {
         });
 
         app.MapGet("/__control__/requests", async (HttpContext ctx) => {
-            var requests = GetAllRequests();
+            var since = ctx.Request.Query.TryGetValue("since", out var sinceVal) && int.TryParse(sinceVal, out var s) ? s : -1;
+            var requests = since < 0 ? GetAllRequests() : GetRequestsSince(since);
             var json = JsonSerializer.SerializeToUtf8Bytes(requests, typeof(List<CapturedRequest>), MockServerJsonContext.Default);
             ctx.Response.ContentType = "application/json";
             await ctx.Response.Body.WriteAsync(json, ctx.RequestAborted);

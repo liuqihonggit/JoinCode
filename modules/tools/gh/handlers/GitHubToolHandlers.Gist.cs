@@ -47,7 +47,7 @@ public partial class GitHubToolHandlers {
         var result = await _apiClient.SendAsync(HttpMethod.Get, $"gists/{gist_id}", ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
         if (!string.IsNullOrEmpty(common?.Jq))
-            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, _ => result.Body, jq: common.Jq, skipLines: common?.SkipLines, startLine: common?.StartLine, toolName: "gh_gist_view"));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, _ => result.Body, jq: common?.Jq, skipLines: common?.SkipLines, startLine: common?.StartLine, toolName: "gh_gist_view"));
         if (common?.JsonFields is { } jf && !string.IsNullOrEmpty(jf)) return Ok(FilterJsonFields(result.Body, jf));
         if (common?.Verbosity == 2) return Ok(result.Body);
         if (common?.Verbosity == 1) return Ok(FilterJsonFields(result.Body, "id,description,html_url"));

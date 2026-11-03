@@ -621,7 +621,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, $"gitignore/templates/{name}", ct: cancellationToken).ConfigureAwait(false);
-        if (!result.Success) return Fail(result.Error);
+        if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_repo_gitignore_view", $"gitignore/templates/{name}"));
         return Ok(SummarizeGitignoreTemplate(result.Body));
     }
 

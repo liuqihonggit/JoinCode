@@ -1625,6 +1625,22 @@ internal static partial class IntentMatcher {
         if (sccResult.ToolCalls is not null)
             return sccResult;
 
+        var sddResult = MatchEdgeSDDIntent(userMessage);
+        if (sddResult.ToolCalls is not null)
+            return sddResult;
+
+        var seeResult = MatchEdgeSEEIntent(userMessage);
+        if (seeResult.ToolCalls is not null)
+            return seeResult;
+
+        var sffResult = MatchEdgeSFFIntent(userMessage);
+        if (sffResult.ToolCalls is not null)
+            return sffResult;
+
+        var sggResult = MatchEdgeSGGIntent(userMessage);
+        if (sggResult.ToolCalls is not null)
+            return sggResult;
+
         return (null, "");
     }
 

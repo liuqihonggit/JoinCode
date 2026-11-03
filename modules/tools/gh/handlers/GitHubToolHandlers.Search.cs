@@ -100,4 +100,80 @@ public partial class GitHubToolHandlers {
             return sb.ToString();
         } catch { return json; }
     }
+
+    /// <summary>
+    /// 搜索代码 — 调 GET /search/code，支持 query/limit/order/sort
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhSearchCode, "搜索 GitHub 代码", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhSearchCodeAsync(
+        [McpToolParameter("搜索查询(GitHub code search 语法,如 auto_merge repo:owner/repo)", Required = true)] string query,
+        [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
+        [McpToolParameter("排序(indexed,可选)", Required = false)] string? sort = null,
+        [McpToolParameter("顺序(asc/desc,默认 desc)", Required = false)] string? order = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
+        CancellationToken cancellationToken = default) {
+        if (_apiClient is null) return ApiClientNotConfigured();
+        var queryDict = new Dictionary<string, string> { ["q"] = query, ["per_page"] = (limit ?? 30).ToString() };
+        if (!string.IsNullOrWhiteSpace(sort)) queryDict["sort"] = sort;
+        queryDict["order"] = string.IsNullOrWhiteSpace(order) ? "desc" : order;
+        var result = await _apiClient.SendAsync(HttpMethod.Get, "search/code", query: queryDict, ct: cancellationToken).ConfigureAwait(false);
+        if (!result.Success) return Fail(result.Error);
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeSearchCode, "name,path,html_url,repository", common?.Jq, common?.SkipLines, common?.StartLine, "gh_search_code"));
+    }
+
+    /// <summary>
+    /// 精简搜索代码结果 — 表格格式(path, repository)
+    /// </summary>
+    private static string SummarizeSearchCode(string json) {
+        try {
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.SearchCodeResponse);
+            if (resp is null) return json;
+            var sb = new StringBuilder(512);
+            sb.AppendLine($"共 {resp.TotalCount} 个结果");
+            sb.AppendLine("路径\t仓库");
+            foreach (var item in resp.Items)
+                sb.AppendLine($"{item.Path}\t{item.Repository?.FullName ?? ""}");
+            return sb.ToString();
+        } catch { return json; }
+    }
+
+    /// <summary>
+    /// 搜索提交 — 调 GET /search/commits，支持 query/limit/order/sort
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhSearchCommits, "搜索 GitHub 提交", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhSearchCommitsAsync(
+        [McpToolParameter("搜索查询(GitHub commit search 语法,如 fix repo:owner/repo)", Required = true)] string query,
+        [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
+        [McpToolParameter("排序(author-date/committer-date,可选)", Required = false)] string? sort = null,
+        [McpToolParameter("顺序(asc/desc,默认 desc)", Required = false)] string? order = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
+        CancellationToken cancellationToken = default) {
+        if (_apiClient is null) return ApiClientNotConfigured();
+        var queryDict = new Dictionary<string, string> { ["q"] = query, ["per_page"] = (limit ?? 30).ToString() };
+        if (!string.IsNullOrWhiteSpace(sort)) queryDict["sort"] = sort;
+        queryDict["order"] = string.IsNullOrWhiteSpace(order) ? "desc" : order;
+        var result = await _apiClient.SendAsync(HttpMethod.Get, "search/commits", query: queryDict, ct: cancellationToken).ConfigureAwait(false);
+        if (!result.Success) return Fail(result.Error);
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeSearchCommits, "sha,commit.message,html_url,repository", common?.Jq, common?.SkipLines, common?.StartLine, "gh_search_commits"));
+    }
+
+    /// <summary>
+    /// 精简搜索提交结果 — 表格格式(sha, message, repository)
+    /// </summary>
+    private static string SummarizeSearchCommits(string json) {
+        try {
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.SearchCommitResponse);
+            if (resp is null) return json;
+            var sb = new StringBuilder(512);
+            sb.AppendLine($"共 {resp.TotalCount} 个提交");
+            sb.AppendLine("SHA\t消息\t仓库");
+            foreach (var item in resp.Items) {
+                var sha = item.Sha.Length > 7 ? item.Sha[..7] : item.Sha;
+                var msg = item.Commit?.Message ?? "";
+                if (msg.Contains('\n')) msg = msg[..msg.IndexOf('\n')];
+                sb.AppendLine($"{sha}\t{msg}\t{item.Repository?.FullName ?? ""}");
+            }
+            return sb.ToString();
+        } catch { return json; }
+    }
 }

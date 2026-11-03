@@ -340,6 +340,14 @@ public enum GitHubToolName {
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhSearchPrs,
 
+    [EnumValue("gh_search_code")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhSearchCode,
+
+    [EnumValue("gh_search_commits")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhSearchCommits,
+
     // === Workflow 管理 ===
     [EnumValue("gh_workflow_list")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]

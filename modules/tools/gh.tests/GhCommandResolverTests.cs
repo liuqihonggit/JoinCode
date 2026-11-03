@@ -1366,4 +1366,41 @@ public sealed class GhCommandResolverTests {
         bound!["auto_merge"].Should().Be("true");
         bound["merge_method"].Should().Be("squash");
     }
+
+    /// <summary>
+    /// gh pr ready [PR号] 应支持位置参数 — pr_number 是 optional 但用户习惯用位置参数传递。
+    /// <para>复现 bug: gh pr ready 565 报"多余的位置参数: 565"，因为 pr_number 不在位置参数槽位中。</para>
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Bind_PrReady_PositionalPrNumber_ShouldBind() {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: false, IsBoolean: false),
+            new("undo", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "565" }, parameters, "gh_pr_ready", out var error);
+
+        error.Should().BeNull();
+        bound.Should().NotBeNull();
+        bound!["pr_number"].Should().Be("565");
+    }
+
+    /// <summary>
+    /// gh pr update-branch [PR号] 应支持位置参数 — pr_number 是 optional 但用户习惯用位置参数传递。
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Bind_PrUpdateBranch_PositionalPrNumber_ShouldBind() {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: false, IsBoolean: false),
+            new("update_method", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "565" }, parameters, "gh_pr_update_branch", out var error);
+
+        error.Should().BeNull();
+        bound.Should().NotBeNull();
+        bound!["pr_number"].Should().Be("565");
+    }
 }

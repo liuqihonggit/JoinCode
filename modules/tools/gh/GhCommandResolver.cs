@@ -94,8 +94,20 @@ internal static class GhCommandResolver {
         }
 
         var toolName = $"gh_{toolGroup}_{action.Replace('-', '_')}";
+        toolName = ResolveCommandAlias(toolName);
         return new GhResolvedCommand(toolName, group, action, CollectTail(args, 3), json);
     }
+
+    /// <summary>
+    /// 命令名别名映射 — 某些命令名语义不直观，提供更清晰的别名。
+    /// </summary>
+    private static readonly FrozenDictionary<string, string> CommandAliasMap = new Dictionary<string, string> {
+        ["gh_repo_set_default_branch"] = "gh_repo_set_default",
+    }.ToFrozenDictionary();
+
+    /// <summary>查命令名别名表，返回规范工具名。</summary>
+    private static string ResolveCommandAlias(string toolName)
+        => CommandAliasMap.TryGetValue(toolName, out var canonical) ? canonical : toolName;
 
     /// <summary>
     /// 从指定下标开始取下一个位置参数（跳过 <c>--option</c> 及其值）。
@@ -440,10 +452,12 @@ internal static class GhArgsBinder {
     /// </summary>
     private static List<GhParam> GetOptionalPositionalSlots(string toolName, IReadOnlyList<GhParam> parameters)
         => toolName switch {
-            "gh_repo_clone"   => parameters.Where(p => p.Name == "dir").ToList(),
-            "gh_pr_checkout"  => parameters.Where(p => p.Name == "branch").ToList(),
-            "gh_run_view"     => parameters.Where(p => p.Name == "run_id").ToList(),
-            "gh_api"          => parameters.Where(p => p.Name == "body").ToList(),
+            "gh_repo_clone"        => parameters.Where(p => p.Name == "dir").ToList(),
+            "gh_pr_checkout"       => parameters.Where(p => p.Name == "branch").ToList(),
+            "gh_run_view"          => parameters.Where(p => p.Name == "run_id").ToList(),
+            "gh_api"               => parameters.Where(p => p.Name == "body").ToList(),
+            "gh_pr_ready"          => parameters.Where(p => p.Name == "pr_number").ToList(),
+            "gh_pr_update_branch"  => parameters.Where(p => p.Name == "pr_number").ToList(),
             _ => []
         };
 

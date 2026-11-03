@@ -177,6 +177,18 @@ public sealed partial class SettingsMapper : ServiceEntity {
                 provider = provider with { Protocol = profile.Protocol };
             else
                 provider = provider with { Protocol = definition.Protocol.ToValue() };
+        } else if (SkipProviderValidation) {
+            Diag.WriteLifecycle($"[WARN] 跳过 Provider 验证 — 未知 Provider '{provider.Vendor}'，可用值: {string.Join(", ", _registry.GetRegisteredProviders())}。元命令模式降级运行。");
+        } else if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JccEnvVar.Endpoint.ToValue()))) {
+            // Bug 26 (EC4) 修正: JCC_ENDPOINT 显式设置时允许未知 vendor — 用户提供了完整连接信息（端点+API Key），
+            // 常见于 E2E 测试和自定义供应商场景。仅当既无 registry 定义又无显式端点时才报错。
+            Diag.WriteLifecycle($"[WARN] 未知 Provider '{provider.Vendor}' 但 JCC_ENDPOINT 已显式设置，使用自定义端点降级运行。");
+        } else {
+            // Bug 26 (EC4): vendor 不存在且无显式端点时抛 ConfigurationException，无论是否指定 model。
+            // 此前仅当 profile.Model 为空时才抛异常，指定 model 时跳过验证导致后续 ApiKeyCheck 返回 rc=4 而非 rc=2。
+            throw new ConfigurationException(
+                $"未知的 Provider '{provider.Vendor}'，可用值: {string.Join(", ", _registry.GetRegisteredProviders())}。" +
+                $"请通过 {JccEnvVar.Vendor.ToValue()} 环境变量指定正确的 Provider。");
         }
 
         if (!string.IsNullOrEmpty(profile?.Model)) {
@@ -187,12 +199,6 @@ public sealed partial class SettingsMapper : ServiceEntity {
                 throw new ConfigurationException(
                     $"Provider '{definition.ProviderName}' 没有定义默认模型，请通过 vendor[current.profile].model 或 {JccEnvVar.ModelId.ToValue()} 环境变量指定模型。");
             }
-        } else if (SkipProviderValidation) {
-            Diag.WriteLifecycle($"[WARN] 跳过 Provider 验证 — 未知 Provider '{provider.Vendor}'，可用值: {string.Join(", ", _registry.GetRegisteredProviders())}。元命令模式降级运行。");
-        } else {
-            throw new ConfigurationException(
-                $"未知的 Provider '{provider.Vendor}'，可用值: {string.Join(", ", _registry.GetRegisteredProviders())}。" +
-                $"请通过 {JccEnvVar.Vendor.ToValue()} 环境变量指定正确的 Provider。");
         }
 
         config = config with { Provider = provider };

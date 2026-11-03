@@ -196,6 +196,28 @@ public class ConfigLoaderTests : IDisposable {
     }
 
     /// <summary>
+    /// Bug 26 (EC4): --vendor non-existent --model gpt-4o → 应抛 ConfigurationException (rc=2)，
+    /// 而非跳过 vendor 验证后到 ApiKeyCheck 返回 rc=4 (ApiKeyMissing)。
+    /// 根因: SettingsMapper.ApplyProviderSettings 当 profile.Model 非空时直接设置 ModelId，
+    /// 跳过 vendor 存在性验证（definition 为 null 时未抛异常）。
+    /// </summary>
+    [Fact]
+    public async Task LoadConfig_UnknownVendorWithModel_ThrowsConfigurationException() {
+        Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.Vendor, "non-existent-vendor");
+        Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.ModelId, "gpt-4o");
+        var realKey = TestConfiguration.GetRealApiKey();
+        Environment.SetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey, realKey);
+
+        var sharedModelLoader = new ModelConfigLoader();
+        var registry = new TestProviderDefinitionRegistry(sharedModelLoader);
+        var loader = new ConfigLoader(registry: registry, modelConfigLoader: sharedModelLoader);
+
+        var ex = await Assert.ThrowsAsync<ConfigurationException>(() => loader.LoadConfigAsync(_fs));
+
+        Assert.Contains("non-existent-vendor", ex.Message);
+    }
+
+    /// <summary>
     /// JCC_MODEL_ID 指定未在 settings.json models 列表注册的模型 → 无条件抛 ConfigurationException[GRD016]
     /// </summary>
     [Fact]

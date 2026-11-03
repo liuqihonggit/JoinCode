@@ -870,6 +870,14 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(AuthUserResponse))]
 [JsonSerializable(typeof(WorkflowRunListBriefResponse))]
 [JsonSerializable(typeof(WorkflowRunBriefItemResponse))]
+[JsonSerializable(typeof(NotificationItemResponse))]
+[JsonSerializable(typeof(NotificationSubjectResponse))]
+[JsonSerializable(typeof(List<NotificationItemResponse>))]
+[JsonSerializable(typeof(TeamItemResponse))]
+[JsonSerializable(typeof(List<TeamItemResponse>))]
+[JsonSerializable(typeof(CollaboratorItemResponse))]
+[JsonSerializable(typeof(CollaboratorPermissionsResponse))]
+[JsonSerializable(typeof(List<CollaboratorItemResponse>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 internal sealed partial class GitHubApiJsonContext : JsonSerializerContext
 {

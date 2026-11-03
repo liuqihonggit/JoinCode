@@ -510,6 +510,21 @@ public enum GitHubToolName {
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhMilestoneView,
 
+    // === Notification ===
+    [EnumValue("gh_notification_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhNotificationList,
+
+    // === Team ===
+    [EnumValue("gh_team_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhTeamList,
+
+    // === Collaborator ===
+    [EnumValue("gh_collaborator_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhCollaboratorList,
+
     // === 通用 API 调用 ===
     [EnumValue("gh_api")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]

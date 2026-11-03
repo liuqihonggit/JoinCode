@@ -1429,3 +1429,75 @@ internal sealed class WorkflowRunBriefItemResponse {
     [JsonPropertyName("event")]
     public string? Event { get; init; }
 }
+
+// === Notification ===
+
+/// <summary>通知列表项 — GET /notifications 数组元素</summary>
+internal sealed class NotificationItemResponse {
+    [JsonPropertyName("id")]
+    public string Id { get; init; } = "";
+    [JsonPropertyName("unread")]
+    public bool Unread { get; init; }
+    [JsonPropertyName("reason")]
+    public string? Reason { get; init; }
+    [JsonPropertyName("subject")]
+    public NotificationSubjectResponse? Subject { get; init; }
+    [JsonPropertyName("repository")]
+    public SearchRepoItemResponse? Repository { get; init; }
+    [JsonPropertyName("updated_at")]
+    public string? UpdatedAt { get; init; }
+}
+
+internal sealed class NotificationSubjectResponse {
+    [JsonPropertyName("title")]
+    public string? Title { get; init; }
+    [JsonPropertyName("type")]
+    public string? Type { get; init; }
+    [JsonPropertyName("url")]
+    public string? Url { get; init; }
+}
+
+// === Team ===
+
+/// <summary>团队列表项 — GET /orgs/{org}/teams 数组元素</summary>
+internal sealed class TeamItemResponse {
+    [JsonPropertyName("id")]
+    public long Id { get; init; }
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+    [JsonPropertyName("slug")]
+    public string? Slug { get; init; }
+    [JsonPropertyName("description")]
+    public string? Description { get; init; }
+    [JsonPropertyName("privacy")]
+    public string? Privacy { get; init; }
+    [JsonPropertyName("permission")]
+    public string? Permission { get; init; }
+    [JsonPropertyName("members_count")]
+    public int MembersCount { get; init; }
+    [JsonPropertyName("repos_count")]
+    public int ReposCount { get; init; }
+}
+
+// === Collaborator ===
+
+/// <summary>协作者列表项 — GET /repos/{o}/{r}/collaborators 数组元素</summary>
+internal sealed class CollaboratorItemResponse {
+    [JsonPropertyName("login")]
+    public string Login { get; init; } = "";
+    [JsonPropertyName("permissions")]
+    public CollaboratorPermissionsResponse? Permissions { get; init; }
+}
+
+internal sealed class CollaboratorPermissionsResponse {
+    [JsonPropertyName("admin")]
+    public bool Admin { get; init; }
+    [JsonPropertyName("maintain")]
+    public bool Maintain { get; init; }
+    [JsonPropertyName("push")]
+    public bool Push { get; init; }
+    [JsonPropertyName("triage")]
+    public bool Triage { get; init; }
+    [JsonPropertyName("pull")]
+    public bool Pull { get; init; }
+}

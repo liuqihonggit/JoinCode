@@ -552,7 +552,8 @@ public partial class GitHubToolHandlers {
                     sb.AppendLine($"Assets: {release.Assets.Count} 个");
                     foreach (var asset in release.Assets) {
                         var digest = asset.Digest ?? "";
-                        sb.AppendLine($"  - {asset.Name}{(string.IsNullOrEmpty(digest) ? "" : $" (digest: {digest[..Math.Min(16, digest.Length)]}...)")}");
+                        var digestDisplay = digest.Length > 16 ? $"{digest[..16]}..." : digest;
+                        sb.AppendLine($"  - {asset.Name}{(string.IsNullOrEmpty(digest) ? "" : $" (digest: {digestDisplay})")}");
                     }
                 }
             } catch { return Fail("解析 Release 响应失败"); }

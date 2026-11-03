@@ -398,7 +398,9 @@ public partial class GitHubToolHandlers {
             if (string.IsNullOrEmpty(nodeId)) return Fail("无法从 Issue 响应中解析 node_id");
             var graphqlBody = "{\"query\":\"mutation{deleteIssue(input:{issueId:\\\"" + nodeId + "\\\"}){clientMutationId}}\"}";
             var result = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已删除 Issue {number}") : Fail(result.Error);
+            if (!result.Success) return Fail(result.Error);
+            { if (CheckGraphQLError(result.Body) is { } gqlError) return gqlError; }
+            return OkBrief(result.Body, $"已删除 Issue {number}");
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -508,7 +510,9 @@ public partial class GitHubToolHandlers {
             if (nodeId is null) return Fail($"无法获取 Issue {number} 的 node_id");
             var graphqlBody = "{\"query\":\"mutation{pinIssue(input:{issueId:\\\"" + nodeId + "\\\"}){issue{number}}}\"}";
             var result = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已固定 Issue {number}") : Fail(result.Error);
+            if (!result.Success) return Fail(result.Error);
+            { if (CheckGraphQLError(result.Body) is { } gqlError) return gqlError; }
+            return OkBrief(result.Body, $"已固定 Issue {number}");
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -525,7 +529,9 @@ public partial class GitHubToolHandlers {
             if (nodeId is null) return Fail($"无法获取 Issue {number} 的 node_id");
             var graphqlBody = "{\"query\":\"mutation{unpinIssue(input:{issueId:\\\"" + nodeId + "\\\"}){issue{number}}}\"}";
             var result = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已取消固定 Issue {number}") : Fail(result.Error);
+            if (!result.Success) return Fail(result.Error);
+            { if (CheckGraphQLError(result.Body) is { } gqlError) return gqlError; }
+            return OkBrief(result.Body, $"已取消固定 Issue {number}");
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -549,7 +555,9 @@ public partial class GitHubToolHandlers {
             if (string.IsNullOrEmpty(destNodeId)) return Fail("无法从目标仓库响应中解析 node_id");
             var graphqlBody = "{\"query\":\"mutation{transferIssue(input:{issueId:\\\"" + nodeId + "\\\",repositoryId:\\\"" + destNodeId + "\\\"}){issue{number}}}\"}";
             var result = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已转移 Issue {number} 到 {destination_repo}") : Fail(result.Error);
+            if (!result.Success) return Fail(result.Error);
+            { if (CheckGraphQLError(result.Body) is { } gqlError) return gqlError; }
+            return OkBrief(result.Body, $"已转移 Issue {number} 到 {destination_repo}");
         }).ConfigureAwait(false);
 
     /// <summary>

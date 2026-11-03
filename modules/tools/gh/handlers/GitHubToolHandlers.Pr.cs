@@ -666,6 +666,7 @@ public partial class GitHubToolHandlers {
             if (nodeErr is not null) return Fail(nodeErr);
             var graphqlBody = $$"""{"query":"mutation { disablePullRequestAutoMerge(input: {pullRequestId: \"{{nodeId}}\"}) { pullRequest { number } } }"}""";
             var graphqlResult = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: ct).ConfigureAwait(false);
+            { if (CheckGraphQLError(graphqlResult.Body) is { } gqlError) return gqlError; }
             if (!graphqlResult.Success) return Fail(graphqlResult.Error);
             return Ok($"已为 PR {number} 禁用 auto-merge");
         }
@@ -968,7 +969,9 @@ public partial class GitHubToolHandlers {
         if (string.IsNullOrEmpty(projectId)) return (false, $"无法找到 Project #{projectNumber}（尝试 organization 和 viewer 均失败）");
         var mutation = BuildGraphQL($"mutation{{addProjectV2ItemById(input:{{projectId:\"{projectId}\",contentId:\"{contentNodeId}\"}}){{item{{id}}}}}}");
         var mutationResult = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
-        return mutationResult.Success ? (true, null) : (false, mutationResult.Error);
+        if (!mutationResult.Success) return (false, mutationResult.Error);
+        { var gqlErr = TryExtractGraphQLError(mutationResult.Body); if (gqlErr is not null) return (false, gqlErr); }
+        return (true, null);
     }
 
     /// <summary>
@@ -979,7 +982,9 @@ public partial class GitHubToolHandlers {
         var graphqlMethod = method.ToUpperInvariant() switch { "SQUASH" => "SQUASH", "REBASE" => "REBASE", _ => "MERGE" };
         var graphqlBody = $$"""{"query":"mutation { enablePullRequestAutoMerge(input: {pullRequestId: \"{{nodeId}}\", mergeMethod: {{graphqlMethod}}}) { pullRequest { number } } }"}""";
         var graphqlResult = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: ct).ConfigureAwait(false);
-        return graphqlResult.Success ? (true, method, null) : (false, method, graphqlResult.Error);
+        if (!graphqlResult.Success) return (false, method, graphqlResult.Error);
+        { var gqlErr = TryExtractGraphQLError(graphqlResult.Body); if (gqlErr is not null) return (false, method, gqlErr); }
+        return (true, method, null);
     }
 
     /// <summary>

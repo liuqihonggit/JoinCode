@@ -414,6 +414,7 @@ public partial class GitHubToolHandlers {
             var first = Math.Min(limit ?? 30, 100);
             var graphql = BuildGraphQL($"query{{repository(owner:\"{owner}\",name:\"{repoName}\"){{discussions(first:{first}){{nodes{{number title author{{login}} category{{name}} createdAt}}}}}}}}");
             var result = await client.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
+            { if (CheckGraphQLError(result.Body) is { } gqlError) return gqlError; }
             if (!result.Success) return Fail(result.Error);
             return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeDiscussionList, "number,title,author,category,createdAt", common?.Jq, common?.SkipLines, common?.StartLine, "gh_discussion_list"));
         }).ConfigureAwait(false);
@@ -444,6 +445,7 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var graphql = BuildGraphQL($"query{{repository(owner:\"{owner}\",name:\"{repoName}\"){{discussion(number:{number}){{number title body author{{login}} category{{name}} createdAt url}}}}}}");
             var result = await client.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
+            { if (CheckGraphQLError(result.Body) is { } gqlError) return gqlError; }
             if (!result.Success) return Fail(result.Error);
             return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeDiscussionView, "number,title,body,author,category,createdAt,url", common?.Jq, common?.SkipLines, common?.StartLine, "gh_discussion_view"));
         }).ConfigureAwait(false);
@@ -475,6 +477,7 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var catQuery = BuildGraphQL($"query{{repository(owner:\"{owner}\",name=\"{repoName}\"){{discussionCategories(first:50){{nodes{{id name}}}}}}}}");
             var catResult = await client.SendAsync(HttpMethod.Post, "graphql", catQuery, ct: cancellationToken).ConfigureAwait(false);
+            { if (CheckGraphQLError(catResult.Body) is { } gqlError) return gqlError; }
             if (!catResult.Success) return Fail(catResult.Error);
             string? categoryId = null;
             try {
@@ -492,6 +495,7 @@ public partial class GitHubToolHandlers {
             if (categoryId is null) return Fail($"未找到分类 '{category}'");
             var repoIdQuery = BuildGraphQL($"query{{repository(owner:\"{owner}\",name:\"{repoName}\"){{id}}}}");
             var repoIdResult = await client.SendAsync(HttpMethod.Post, "graphql", repoIdQuery, ct: cancellationToken).ConfigureAwait(false);
+            { if (CheckGraphQLError(repoIdResult.Body) is { } gqlError) return gqlError; }
             if (!repoIdResult.Success) return Fail(repoIdResult.Error);
             string? repoId = null;
             try {
@@ -503,7 +507,9 @@ public partial class GitHubToolHandlers {
             var escapedBody = EscapeGraphQLString(body);
             var mutation = BuildGraphQL($"mutation{{createDiscussion(input:{{repositoryId:\"{repoId}\",categoryId:\"{categoryId}\",title:\"{escapedTitle}\",body:\"{escapedBody}\"}}){{discussion{{number url}}}}}}");
             var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已创建 Discussion: {title}") : Fail(result.Error);
+            if (!result.Success) return Fail(result.Error);
+            { if (CheckGraphQLError(result.Body) is { } gqlError) return gqlError; }
+            return OkBrief(result.Body, $"已创建 Discussion: {title}");
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -519,6 +525,7 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var idQuery = BuildGraphQL($"query{{repository(owner:\"{owner}\",name=\"{repoName}\"){{discussion(number:{number}){{id}}}}}}");
             var idResult = await client.SendAsync(HttpMethod.Post, "graphql", idQuery, ct: cancellationToken).ConfigureAwait(false);
+            { if (CheckGraphQLError(idResult.Body) is { } gqlError) return gqlError; }
             if (!idResult.Success) return Fail(idResult.Error);
             string? discussionId = null;
             try {
@@ -533,7 +540,9 @@ public partial class GitHubToolHandlers {
             var inputFields = string.Join(",", parts);
             var mutation = BuildGraphQL($"mutation{{updateDiscussion(input:{{discussionId:\"{discussionId}\",{inputFields}}}){{discussion{{number url}}}}}}");
             var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已编辑 Discussion #{number}") : Fail(result.Error);
+            if (!result.Success) return Fail(result.Error);
+            { if (CheckGraphQLError(result.Body) is { } gqlError) return gqlError; }
+            return OkBrief(result.Body, $"已编辑 Discussion #{number}");
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -548,6 +557,7 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var idQuery = BuildGraphQL($"query{{repository(owner:\"{owner}\",name=\"{repoName}\"){{discussion(number:{number}){{id}}}}}}");
             var idResult = await client.SendAsync(HttpMethod.Post, "graphql", idQuery, ct: cancellationToken).ConfigureAwait(false);
+            { if (CheckGraphQLError(idResult.Body) is { } gqlError) return gqlError; }
             if (!idResult.Success) return Fail(idResult.Error);
             string? discussionId = null;
             try {
@@ -558,7 +568,9 @@ public partial class GitHubToolHandlers {
             var escapedBody = EscapeGraphQLString(body);
             var mutation = BuildGraphQL($"mutation{{addDiscussionComment(input:{{discussionId:\"{discussionId}\",body:\"{escapedBody}\"}}){{comment{{id}}}}}}");
             var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已评论 Discussion #{number}") : Fail(result.Error);
+            if (!result.Success) return Fail(result.Error);
+            { if (CheckGraphQLError(result.Body) is { } gqlError) return gqlError; }
+            return OkBrief(result.Body, $"已评论 Discussion #{number}");
         }).ConfigureAwait(false);
 
     // === Project（GraphQL）===
@@ -581,8 +593,7 @@ public partial class GitHubToolHandlers {
             graphql = BuildGraphQL($"query{{viewer{{projectsV2(first:{first}){{nodes{{number title url closed}}}}}}}}");
         var result = await _apiClient.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        var gqlError = CheckGraphQLError(result.Body);
-        if (gqlError is not null) return gqlError;
+        { if (CheckGraphQLError(result.Body) is { } gqlError) return gqlError; }
         return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeProjectList, "number,title,closed,url", common?.Jq, common?.SkipLines, common?.StartLine, "gh_project_list"));
     }
 
@@ -623,6 +634,7 @@ public partial class GitHubToolHandlers {
         else
             graphql = BuildGraphQL($"query{{viewer{{projectV2(number:{number}){{title url closed items(first:20){{nodes{{content{{...on Issue{{number title}} ...on PullRequest{{number title}}}}}}}}}}}}");
         var result = await _apiClient.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
+        { if (CheckGraphQLError(result.Body) is { } gqlError) return gqlError; }
         if (!result.Success) return Fail(result.Error);
         return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeProjectView, "title,url,closed,items", common?.Jq, common?.SkipLines, common?.StartLine, "gh_project_view"));
     }
@@ -669,6 +681,7 @@ public partial class GitHubToolHandlers {
         else {
             var viewerQuery = BuildGraphQL("query{viewer{id}}");
             var viewerResult = await _apiClient.SendAsync(HttpMethod.Post, "graphql", viewerQuery, ct: cancellationToken).ConfigureAwait(false);
+            { if (CheckGraphQLError(viewerResult.Body) is { } gqlError) return gqlError; }
             if (!viewerResult.Success) return Fail(viewerResult.Error);
             string? viewerId = null;
             try {
@@ -679,7 +692,9 @@ public partial class GitHubToolHandlers {
             graphql = BuildGraphQL($"mutation{{createProjectV2(input:{{ownerId:\"{viewerId}\",title:\"{escapedTitle}\"}}){{projectV2{{number url}}}}}}");
         }
         var result = await _apiClient.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? OkBrief(result.Body, $"已创建 Project: {title}") : Fail(result.Error);
+        if (!result.Success) return Fail(result.Error);
+        { if (CheckGraphQLError(result.Body) is { } gqlError) return gqlError; }
+        return OkBrief(result.Body, $"已创建 Project: {title}");
     }
 
     /// <summary>
@@ -697,6 +712,7 @@ public partial class GitHubToolHandlers {
         else
             idQuery = BuildGraphQL($"query{{viewer{{projectV2(number:{number}){{id}}}}}}");
         var idResult = await _apiClient.SendAsync(HttpMethod.Post, "graphql", idQuery, ct: cancellationToken).ConfigureAwait(false);
+        { if (CheckGraphQLError(idResult.Body) is { } gqlError) return gqlError; }
         if (!idResult.Success) return Fail(idResult.Error);
         string? projectId = null;
         try {
@@ -711,7 +727,9 @@ public partial class GitHubToolHandlers {
         if (projectId is null) return Fail("无法获取 Project node_id");
         var mutation = BuildGraphQL($"mutation{{deleteProjectV2(input:{{projectId:\"{projectId}\"}}){{projectV2{{number}}}}}}");
         var result = await _apiClient.SendAsync(HttpMethod.Post, "graphql", mutation, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok($"已删除 Project #{number}") : Fail(result.Error);
+        if (!result.Success) return Fail(result.Error);
+        { if (CheckGraphQLError(result.Body) is { } gqlError) return gqlError; }
+        return Ok($"已删除 Project #{number}");
     }
 
     /// <summary>
@@ -731,6 +749,7 @@ public partial class GitHubToolHandlers {
         else
             idQuery = BuildGraphQL($"query{{viewer{{projectV2(number:{number}){{id}}}}}}");
         var idResult = await _apiClient.SendAsync(HttpMethod.Post, "graphql", idQuery, ct: cancellationToken).ConfigureAwait(false);
+        { if (CheckGraphQLError(idResult.Body) is { } gqlError) return gqlError; }
         if (!idResult.Success) return Fail(idResult.Error);
         string? projectId = null;
         try {
@@ -750,7 +769,9 @@ public partial class GitHubToolHandlers {
         var inputFields = string.Join(",", parts);
         var mutation = BuildGraphQL($"mutation{{updateProjectV2(input:{{projectId:\"{projectId}\",{inputFields}}}){{projectV2{{number url}}}}}}");
         var result = await _apiClient.SendAsync(HttpMethod.Post, "graphql", mutation, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? OkBrief(result.Body, $"已编辑 Project #{number}") : Fail(result.Error);
+        if (!result.Success) return Fail(result.Error);
+        { if (CheckGraphQLError(result.Body) is { } gqlError) return gqlError; }
+        return OkBrief(result.Body, $"已编辑 Project #{number}");
     }
 
     /// <summary>
@@ -768,6 +789,7 @@ public partial class GitHubToolHandlers {
         else
             idQuery = BuildGraphQL($"query{{viewer{{projectV2(number:{number}){{id}}}}}}");
         var idResult = await _apiClient.SendAsync(HttpMethod.Post, "graphql", idQuery, ct: cancellationToken).ConfigureAwait(false);
+        { if (CheckGraphQLError(idResult.Body) is { } gqlError) return gqlError; }
         if (!idResult.Success) return Fail(idResult.Error);
         string? projectId = null;
         try {
@@ -782,7 +804,9 @@ public partial class GitHubToolHandlers {
         if (projectId is null) return Fail("无法获取 Project node_id");
         var mutation = BuildGraphQL($"mutation{{updateProjectV2(input:{{projectId:\"{projectId}\",closed:true}}){{projectV2{{number url}}}}}}");
         var result = await _apiClient.SendAsync(HttpMethod.Post, "graphql", mutation, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? OkBrief(result.Body, $"已关闭 Project #{number}") : Fail(result.Error);
+        if (!result.Success) return Fail(result.Error);
+        { if (CheckGraphQLError(result.Body) is { } gqlError) return gqlError; }
+        return OkBrief(result.Body, $"已关闭 Project #{number}");
     }
 
     // === Alias（本地配置，提示用系统 gh）===

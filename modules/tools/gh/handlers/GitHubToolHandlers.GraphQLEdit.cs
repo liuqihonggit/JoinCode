@@ -69,7 +69,9 @@ public partial class GitHubToolHandlers {
         if (string.IsNullOrEmpty(projectId)) return (false, $"未找到项目 \"{projectTitle}\"。可能原因: ① Token 缺少 read:project scope（运行 gh auth refresh -s project 添加） ② 项目标题不存在 ③ 项目属于其他 organization");
         var mutation = BuildGraphQL($"mutation{{addProjectV2ItemById(input:{{projectId:\"{projectId}\",contentId:\"{contentNodeId}\"}}){{item{{id}}}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
-        return result.Success ? (true, null) : (false, result.Error);
+        if (!result.Success) return (false, result.Error);
+        { var gqlErr = TryExtractGraphQLError(result.Body); if (gqlErr is not null) return (false, gqlErr); }
+        return (true, null);
     }
 
     /// <summary>
@@ -82,7 +84,9 @@ public partial class GitHubToolHandlers {
         if (string.IsNullOrEmpty(itemId)) return (false, $"Issue/PR 不在项目 \"{projectTitle}\" 中。可能原因: ① Issue/PR 未添加到该项目 ② 项目标题不匹配");
         var mutation = BuildGraphQL($"mutation{{deleteProjectV2Item(input:{{projectId:\"{projectId}\",itemId:\"{itemId}\"}}){{clientMutationId}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
-        return result.Success ? (true, null) : (false, result.Error);
+        if (!result.Success) return (false, result.Error);
+        { var gqlErr = TryExtractGraphQLError(result.Body); if (gqlErr is not null) return (false, gqlErr); }
+        return (true, null);
     }
 
     /// <summary>
@@ -91,7 +95,9 @@ public partial class GitHubToolHandlers {
     private async Task<(bool Success, string? Error)> AddSubIssueGraphQLAsync(IGitHubApiClient client, string parentId, string childId, CancellationToken ct) {
         var mutation = BuildGraphQL($"mutation{{addSubIssue(input:{{issueId:\"{parentId}\",subIssueId:\"{childId}\",replaceParent:true}}){{issue{{id}}}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
-        return result.Success ? (true, null) : (false, result.Error);
+        if (!result.Success) return (false, result.Error);
+        { var gqlErr = TryExtractGraphQLError(result.Body); if (gqlErr is not null) return (false, gqlErr); }
+        return (true, null);
     }
 
     /// <summary>
@@ -100,7 +106,9 @@ public partial class GitHubToolHandlers {
     private async Task<(bool Success, string? Error)> RemoveSubIssueGraphQLAsync(IGitHubApiClient client, string parentId, string childId, CancellationToken ct) {
         var mutation = BuildGraphQL($"mutation{{removeSubIssue(input:{{issueId:\"{parentId}\",subIssueId:\"{childId}\"}}){{issue{{id}}}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
-        return result.Success ? (true, null) : (false, result.Error);
+        if (!result.Success) return (false, result.Error);
+        { var gqlErr = TryExtractGraphQLError(result.Body); if (gqlErr is not null) return (false, gqlErr); }
+        return (true, null);
     }
 
     /// <summary>
@@ -109,7 +117,9 @@ public partial class GitHubToolHandlers {
     private async Task<(bool Success, string? Error)> AddBlockedByGraphQLAsync(IGitHubApiClient client, string issueId, string blockingIssueId, CancellationToken ct) {
         var mutation = BuildGraphQL($"mutation{{addBlockedBy(input:{{issueId:\"{issueId}\",blockingIssueId:\"{blockingIssueId}\"}}){{issue{{id}}}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
-        return result.Success ? (true, null) : (false, result.Error);
+        if (!result.Success) return (false, result.Error);
+        { var gqlErr = TryExtractGraphQLError(result.Body); if (gqlErr is not null) return (false, gqlErr); }
+        return (true, null);
     }
 
     /// <summary>
@@ -118,7 +128,9 @@ public partial class GitHubToolHandlers {
     private async Task<(bool Success, string? Error)> RemoveBlockedByGraphQLAsync(IGitHubApiClient client, string issueId, string blockingIssueId, CancellationToken ct) {
         var mutation = BuildGraphQL($"mutation{{removeBlockedBy(input:{{issueId:\"{issueId}\",blockingIssueId:\"{blockingIssueId}\"}}){{issue{{id}}}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
-        return result.Success ? (true, null) : (false, result.Error);
+        if (!result.Success) return (false, result.Error);
+        { var gqlErr = TryExtractGraphQLError(result.Body); if (gqlErr is not null) return (false, gqlErr); }
+        return (true, null);
     }
 
     /// <summary>
@@ -146,7 +158,9 @@ public partial class GitHubToolHandlers {
     private async Task<(bool Success, string? Error)> SetIssueTypeAsync(IGitHubApiClient client, string issueId, string issueTypeId, CancellationToken ct) {
         var mutation = BuildGraphQL($"mutation{{updateIssueIssueType(input:{{issueId:\"{issueId}\",issueTypeId:\"{issueTypeId}\"}}){{issue{{id}}}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
-        return result.Success ? (true, null) : (false, result.Error);
+        if (!result.Success) return (false, result.Error);
+        { var gqlErr = TryExtractGraphQLError(result.Body); if (gqlErr is not null) return (false, gqlErr); }
+        return (true, null);
     }
 
     /// <summary>
@@ -155,7 +169,9 @@ public partial class GitHubToolHandlers {
     private async Task<(bool Success, string? Error)> RemoveIssueTypeAsync(IGitHubApiClient client, string issueId, CancellationToken ct) {
         var mutation = BuildGraphQL($"mutation{{updateIssueIssueType(input:{{issueId:\"{issueId}\",issueTypeId:null}}){{issue{{id}}}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
-        return result.Success ? (true, null) : (false, result.Error);
+        if (!result.Success) return (false, result.Error);
+        { var gqlErr = TryExtractGraphQLError(result.Body); if (gqlErr is not null) return (false, gqlErr); }
+        return (true, null);
     }
 
     /// <summary>

@@ -15,7 +15,7 @@ public partial class GitHubToolHandlers {
         if (_apiClient is null) return ApiClientNotConfigured();
         var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
         var result = await _apiClient.SendAsync(HttpMethod.Get, "gists", query: query, ct: cancellationToken).ConfigureAwait(false);
-        if (!result.Success) return Fail(result.Error);
+        if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_gist_list", "gists"));
         if (!string.IsNullOrEmpty(common?.Jq))
             return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, _ => result.Body, jq: common?.Jq, skipLines: common?.SkipLines, startLine: common?.StartLine, toolName: "gh_gist_list"));
         if (common?.JsonFields is { } jf && !string.IsNullOrEmpty(jf)) return Ok(FilterJsonFields(result.Body, jf));
@@ -45,7 +45,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, $"gists/{gist_id}", ct: cancellationToken).ConfigureAwait(false);
-        if (!result.Success) return Fail(result.Error);
+        if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_gist_view", $"gists/{gist_id}"));
         if (!string.IsNullOrEmpty(common?.Jq))
             return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, _ => result.Body, jq: common?.Jq, skipLines: common?.SkipLines, startLine: common?.StartLine, toolName: "gh_gist_view"));
         if (common?.JsonFields is { } jf && !string.IsNullOrEmpty(jf)) return Ok(FilterJsonFields(result.Body, jf));
@@ -86,7 +86,7 @@ public partial class GitHubToolHandlers {
         };
         var body = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.GistCreateRequest);
         var result = await _apiClient.SendAsync(HttpMethod.Post, "gists", body, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? OkBrief(result.Body, "Gist 创建成功") : Fail(result.Error);
+        return result.Success ? OkBrief(result.Body, "Gist 创建成功") : Fail(EnrichApiError(result.Error, "gh_gist_create", "gists"));
     }
 
     /// <summary>
@@ -98,7 +98,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Delete, $"gists/{gist_id}", ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok($"已删除 Gist {gist_id}") : Fail(result.Error);
+        return result.Success ? Ok($"已删除 Gist {gist_id}") : Fail(EnrichApiError(result.Error, "gh_gist_delete", $"gists/{gist_id}"));
     }
 
     /// <summary>
@@ -117,6 +117,6 @@ public partial class GitHubToolHandlers {
             request = new GistCreateRequest { Description = description, Files = new() { [filename] = new GistFileContent { Content = content } } };
         var body = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.GistCreateRequest);
         var result = await _apiClient.SendAsync(HttpMethod.Patch, $"gists/{gist_id}", body, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? OkBrief(result.Body, $"已更新 Gist {gist_id}") : Fail(result.Error);
+        return result.Success ? OkBrief(result.Body, $"已更新 Gist {gist_id}") : Fail(EnrichApiError(result.Error, "gh_gist_edit", $"gists/{gist_id}"));
     }
 }

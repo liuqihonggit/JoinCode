@@ -393,6 +393,15 @@ public partial class GitHubToolHandlers {
             "gh_workflow_run" => $"Workflow 触发失败 — {error}。可能原因: ① Workflow ID 不存在 ② workflow 未启用 ③ token 缺 actions:write scope。提示: 用 gh workflow list 查看可用 Workflow",
             "gh_workflow_enable" => $"Workflow 启用失败 — {error}。可能原因: ① Workflow ID 不存在 ② token 缺 actions:write scope。提示: 用 gh workflow list 查看可用 Workflow",
             "gh_workflow_disable" => $"Workflow 禁用失败 — {error}。可能原因: ① Workflow ID 不存在 ② token 缺 actions:write scope。提示: 用 gh workflow list 查看可用 Workflow",
+            "gh_label_list" => $"标签列表获取失败 — {error}。可能原因: ① 仓库不存在或无权限。提示: 用 gh repo view 确认仓库存在",
+            "gh_label_create" => $"标签创建失败 — {error}。可能原因: ① 标签已存在(用 --force 更新) ② 颜色格式错误(应为 6 字符 hex)。提示: 用 gh label list 查看已有标签",
+            "gh_label_delete" => $"标签删除失败 — {error}。可能原因: ① 标签不存在。提示: 用 gh label list 查看已有标签",
+            "gh_label_edit" => $"标签编辑失败 — {error}。可能原因: ① 标签不存在。提示: 用 gh label list 查看已有标签",
+            "gh_gist_list" => $"Gist 列表获取失败 — {error}。可能原因: token 缺 gist scope。提示: 到 https://github.com/settings/tokens 更新 token scope",
+            "gh_gist_view" => $"Gist 获取失败 — {error}。可能原因: ① Gist ID 不存在 ② token 缺 gist scope。提示: 用 gh gist list 查看可用 Gist ID",
+            "gh_gist_create" => $"Gist 创建失败 — {error}。可能原因: ① 文件内容为空 ② token 缺 gist scope。提示: 到 https://github.com/settings/tokens 更新 token scope",
+            "gh_gist_delete" => $"Gist 删除失败 — {error}。可能原因: ① Gist ID 不存在 ② token 缺 gist scope。提示: 用 gh gist list 查看可用 Gist ID",
+            "gh_gist_edit" => $"Gist 编辑失败 — {error}。可能原因: ① Gist ID 不存在 ② token 缺 gist scope。提示: 用 gh gist list 查看可用 Gist ID",
             "gh_repo_gitignore_view" => $"gitignore 模板获取失败 — {error}。可能原因: ① 模板名不存在 ② 模板名大小写错误。提示: 用 gh repo gitignore-list 查看可用模板",
             "gh_repo_license_view" => $"License 获取失败 — {error}。可能原因: ① license key 不存在 ② key 大小写错误。提示: 用 gh repo license-list 查看可用 license",
             "gh_org_view" => $"组织获取失败 — {error}。可能原因: ① 组织名不存在 ② token 无权限访问该组织。提示: 用 gh org list 查看当前用户所属组织",
@@ -406,7 +415,7 @@ public partial class GitHubToolHandlers {
             "gh_notification_list" => $"通知列表获取失败 — {error}。可能原因: token 缺 notifications scope。提示: 到 https://github.com/settings/tokens 更新 token scope 添加 notifications 后重新设置 JCC_GITHUB_TOKEN",
             _ => $"{toolName ?? "gh"} 调用失败 — {error}。API 路径: {apiPath}"
         };
-        var noGenericHint = toolName is "gh_gpg_key_list" or "gh_gpg_key_add" or "gh_gpg_key_delete" or "gh_ssh_key_view" or "gh_gpg_key_view" or "gh_org_view" or "gh_team_list" or "gh_collaborator_list" or "gh_notification_list";
+        var noGenericHint = toolName is "gh_gpg_key_list" or "gh_gpg_key_add" or "gh_gpg_key_delete" or "gh_ssh_key_view" or "gh_gpg_key_view" or "gh_org_view" or "gh_team_list" or "gh_collaborator_list" or "gh_notification_list" or "gh_gist_list" or "gh_gist_view" or "gh_gist_create" or "gh_gist_delete" or "gh_gist_edit";
         return noGenericHint ? context : $"{context}\n提示: 若仓库为私有, 404 也可能是 token 未配置/无效 — 设置 JCC_GITHUB_TOKEN 或运行 gh auth login";
     }
 

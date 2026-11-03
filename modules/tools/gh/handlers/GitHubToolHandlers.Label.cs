@@ -20,7 +20,7 @@ public partial class GitHubToolHandlers {
             if (!string.IsNullOrWhiteSpace(sort)) query["sort"] = sort;
             if (!string.IsNullOrWhiteSpace(order)) query["order"] = order;
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/labels", query: query, ct: cancellationToken).ConfigureAwait(false);
-            if (!result.Success) return Fail(result.Error);
+            if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_label_list", $"repos/{owner}/{repoName}/labels"));
             return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, body => SummarizeLabelList(body, search), "id,name,color,description", common?.Jq, common?.SkipLines, common?.StartLine, "gh_label_list"));
         }).ConfigureAwait(false);
 
@@ -59,9 +59,9 @@ public partial class GitHubToolHandlers {
             if (result.Success) return OkBrief(result.Body, $"已创建标签 {name}");
             if (force == true && result.StatusCode == 422) {
                 var patchResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/labels/{Uri.EscapeDataString(name)}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
-                return patchResult.Success ? OkBrief(patchResult.Body, $"已更新标签 {name}") : Fail(patchResult.Error);
+                return patchResult.Success ? OkBrief(patchResult.Body, $"已更新标签 {name}") : Fail(EnrichApiError(patchResult.Error, "gh_label_create", $"repos/{owner}/{repoName}/labels/{name}"));
             }
-            return Fail(result.Error);
+            return Fail(EnrichApiError(result.Error, "gh_label_create", $"repos/{owner}/{repoName}/labels"));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -76,7 +76,7 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             if (yes != true) return Fail("删除标签需要 yes=true 确认");
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/labels/{Uri.EscapeDataString(name)}", ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已删除标签 {name}") : Fail(result.Error);
+            return result.Success ? OkBrief(result.Body, $"已删除标签 {name}") : Fail(EnrichApiError(result.Error, "gh_label_delete", $"repos/{owner}/{repoName}/labels/{name}"));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -94,6 +94,6 @@ public partial class GitHubToolHandlers {
             var request = new LabelEditRequest { NewName = new_name, Color = color, Description = description };
             var jsonBody = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.LabelEditRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/labels/{Uri.EscapeDataString(name)}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已更新标签 {name}") : Fail(result.Error);
+            return result.Success ? OkBrief(result.Body, $"已更新标签 {name}") : Fail(EnrichApiError(result.Error, "gh_label_edit", $"repos/{owner}/{repoName}/labels/{name}"));
         }).ConfigureAwait(false);
 }

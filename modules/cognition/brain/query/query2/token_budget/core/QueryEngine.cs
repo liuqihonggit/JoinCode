@@ -297,6 +297,15 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 // 将工具结果添加到对话历史
                 await AddToolResultToHistory(context, toolCall, toolResult).ConfigureAwait(false);
 
+                // 子代理 usage 累计 — agent 工具的 ToolResult.Usage 携带子代理 token 用量（含缓存命中）
+                if (toolResult.Usage is { } subagentUsage) {
+                    totalInputTokens += subagentUsage.PromptTokens;
+                    totalOutputTokens += subagentUsage.CompletionTokens;
+                    totalCacheRead += subagentUsage.CacheReadInputTokens;
+                    totalCacheCreation += subagentUsage.CacheCreationInputTokens;
+                    totalReasoning += subagentUsage.ReasoningTokens;
+                }
+
                 // 工具调用后钩子（内容替换预算检查、递减回报检测、历史裁剪、空闲提醒等）
                 foreach (var hook in context.AfterToolCallHooks) {
                     await hook(context, cancellationToken).ConfigureAwait(false);

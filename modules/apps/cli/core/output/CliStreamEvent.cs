@@ -69,4 +69,19 @@ public sealed class CliStreamEventData {
 
     /// <summary>结构化错误（result 事件，exitCode!=0 时非 null）— Bug 14: NDJSON 错误事件</summary>
     public CliStructuredError? Error { get; set; }
+
+    /// <summary>子代理标识（agent_started/agent_finished 事件）</summary>
+    public string? SubagentId { get; init; }
+
+    /// <summary>代理类型（agent_started 事件）</summary>
+    public string? AgentType { get; init; }
+
+    /// <summary>任务描述（agent_started 事件）</summary>
+    public string? Description { get; init; }
+
+    /// <summary>是否错误（agent_finished 事件）</summary>
+    public bool? SubagentIsError { get; init; }
+
+    /// <summary>子代理总 token 消耗（agent_finished 事件）</summary>
+    public int? TokenTotal { get; init; }
 }

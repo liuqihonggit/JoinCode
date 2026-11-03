@@ -159,6 +159,27 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         }
     }
 
+    /// <summary>子代理启动 — NDJSON 模式输出 agent_started 事件（显式实现：DIM 默认空实现经类类型调用不可见）</summary>
+    public void OnSubagentStarted(string subagentId, string agentType, string description) {
+        if (_agentMode) {
+            WriteNdJsonEvent("agent_started", new Cli.Output.CliStreamEventData { SubagentId = subagentId, AgentType = agentType, Description = description });
+        }
+    }
+
+    /// <summary>子代理工具活动 — NDJSON 模式输出 subagent_tool_use 事件</summary>
+    public void OnSubagentToolUse(string subagentId, string toolName, string summary, int tokenGain) {
+        if (_agentMode) {
+            WriteNdJsonEvent("subagent_tool_use", new Cli.Output.CliStreamEventData { SubagentId = subagentId, ToolName = toolName, Content = summary });
+        }
+    }
+
+    /// <summary>子代理完成 — NDJSON 模式输出 agent_finished 事件</summary>
+    public void OnSubagentFinished(string subagentId, bool isError, int tokenTotal) {
+        if (_agentMode) {
+            WriteNdJsonEvent("agent_finished", new Cli.Output.CliStreamEventData { SubagentId = subagentId, SubagentIsError = isError, TokenTotal = tokenTotal });
+        }
+    }
+
     /// <summary>
     /// 写入 NDJSON 事件 — AX 模式下每行一个 JSON 对象，输出到 stdout
     /// </summary>

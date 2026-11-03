@@ -272,7 +272,8 @@ internal static class GhArgsBinder {
             byName[p.Name] = p;
 
         var slots = parameters.Where(p => p.IsRequired).ToList();
-        slots.AddRange(GetOptionalPositionalSlots(toolName, parameters));
+        var requiredNames = new HashSet<string>(slots.Select(s => s.Name), StringComparer.Ordinal);
+        slots.AddRange(GetOptionalPositionalSlots(toolName, parameters).Where(p => !requiredNames.Contains(p.Name)));
         var slotIndex = 0;
 
         for (var i = 0; i < tail.Length; i++) {

@@ -546,3 +546,24 @@ D9 错误消息从 "模型返回空回复" 改为 "模型回复被安全过滤�
 ### 发现：服务状态污染
 
 长时间运行 MockServer + responder（>100 场景）后出现状态污染导致假失败。根因：MockServer Interactive 模式累积请求队列 + responder lastSeenIndex 跟踪不同步。解决方案：分批测试，每 40 场景重启服务。
+
+## 第五轮：连接失败无限重试修复（2026-11-03）
+
+### Bug：连接失败时 jcc 无限重试卡死 60 秒+
+
+**根因**：三层重试叠加 + 无限重试配置
+
+| 层 | 问题 | 修复 |
+|----|------|------|
+| ResilientHttpExecutor | `TransientErrorPredicate = null` + `TotalBudget = 24h` → `IsRetryAllowed` 总返回 true → 无限重试 | 默认模式也设置 `TransientErrorPredicate = IsTransientCapacityError`，只有 429/529 无限重试 |
+| StreamingFallbackDecorator | `HttpRequestException` 无条件触发 fallback → 连接失败后非流式又重试 | 连接级错误（无 StatusCode）不 fallback |
+| QueryEngine | `IsRetryable` 对 `HttpRequestException` 返回 true → 再重试 3 次 | 连接级错误不重试（ResilientHttpExecutor 已重试） |
+| SocketsHttpHandler | 未设 `ConnectTimeout` → 连接超时默认 15 秒 | `ConnectTimeout = 5 秒` |
+
+**修复效果**：连接失败从无限卡死（60 秒+超时）→ 35 秒返回错误（重试 3 次后放弃）
+
+**commit**: `a18b7eb3a`
+
+### SZ1-SZ20: 工具执行边缘场景
+
+20 个工具执行边缘场景（超长输出、ANSI 转义、JSON、markdown、多语言等），全部通过。

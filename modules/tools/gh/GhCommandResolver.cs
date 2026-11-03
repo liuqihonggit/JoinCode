@@ -440,10 +440,12 @@ internal static class GhArgsBinder {
     /// </summary>
     private static List<GhParam> GetOptionalPositionalSlots(string toolName, IReadOnlyList<GhParam> parameters)
         => toolName switch {
-            "gh_repo_clone"   => parameters.Where(p => p.Name == "dir").ToList(),
-            "gh_pr_checkout"  => parameters.Where(p => p.Name == "branch").ToList(),
-            "gh_run_view"     => parameters.Where(p => p.Name == "run_id").ToList(),
-            "gh_api"          => parameters.Where(p => p.Name == "body").ToList(),
+            "gh_repo_clone"        => parameters.Where(p => p.Name == "dir").ToList(),
+            "gh_pr_checkout"       => parameters.Where(p => p.Name == "branch").ToList(),
+            "gh_run_view"          => parameters.Where(p => p.Name == "run_id").ToList(),
+            "gh_api"               => parameters.Where(p => p.Name == "body").ToList(),
+            "gh_pr_ready"          => parameters.Where(p => p.Name == "pr_number").ToList(),
+            "gh_pr_update_branch"  => parameters.Where(p => p.Name == "pr_number").ToList(),
             _ => []
         };
 

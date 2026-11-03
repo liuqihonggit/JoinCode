@@ -17,7 +17,8 @@ internal sealed record BranchProtectionAuditResult(
     IReadOnlyList<string> Matched,
     IReadOnlyList<string> MissingFromProtection,
     IReadOnlyList<string> StaleInProtection,
-    string? Note = null) {
+    string? Note = null,
+    string? Repo = null) {
 
     /// <summary>
     /// 是否完全一致(无差异)
@@ -43,11 +44,13 @@ internal sealed record BranchProtectionAuditResult(
         sb.AppendLine($"❌ 保护有但 CI 无 ({StaleInProtection.Count} 个): {string.Join(", ", StaleInProtection)}");
         sb.AppendLine();
         if (MissingFromProtection.Count > 0) {
-            sb.AppendLine("建议: 以下测试项目已加入 CI 但未锁定到分支保护, 运行 gh branch sync-protection 添加:");
+            var cmd = Repo is null ? "gh branch sync-protection" : $"gh branch sync-protection --repo {Repo}";
+            sb.AppendLine($"建议: 以下测试项目已加入 CI 但未锁定到分支保护, 运行 `{cmd}` 添加:");
             foreach (var name in MissingFromProtection) sb.AppendLine($"  + {name}");
         }
         if (StaleInProtection.Count > 0) {
-            sb.AppendLine("警告: 以下 required_status_checks 在 CI 中已不存在, 可能测试项目已删除, 运行 gh branch sync-protection 清理:");
+            var cmd = Repo is null ? "gh branch sync-protection" : $"gh branch sync-protection --repo {Repo}";
+            sb.AppendLine($"警告: 以下 required_status_checks 在 CI 中已不存在, 可能测试项目已删除, 运行 `{cmd}` 清理:");
             foreach (var name in StaleInProtection) sb.AppendLine($"  - {name}");
         }
         if (IsConsistent)
@@ -84,18 +87,19 @@ internal sealed class BranchProtectionAuditor {
     /// <returns>审计结果(三类差异), 失败时 Note 含错误说明</returns>
     internal async Task<BranchProtectionAuditResult> AuditAsync(
         string owner, string repo, string branch, string ymlPath, CancellationToken cancellationToken = default) {
+        var repoSlug = $"{owner}/{repo}";
         if (!_fs.FileExists(ymlPath))
-            return EmptyResult(branch, $"CI yml 文件不存在: {ymlPath}");
+            return EmptyResult(branch, $"CI yml 文件不存在: {ymlPath}", repoSlug);
 
         var ymlContent = await _fs.ReadAllTextAsync(ymlPath, cancellationToken).ConfigureAwait(false);
         var ciJobNames = CiMatrixParser.ExtractMatrixJobNames(ymlContent);
         if (ciJobNames.Count == 0)
-            return EmptyResult(branch, $"未能从 {ymlPath} 中解析出 matrix job 名");
+            return EmptyResult(branch, $"未能从 {ymlPath} 中解析出 matrix job 名", repoSlug);
 
         var jobId = CiMatrixParser.ExtractJobId(ymlContent) ?? "unit-tests";
         var requiredChecks = await GetRequiredStatusChecksAsync(owner, repo, branch, cancellationToken).ConfigureAwait(false);
         if (requiredChecks is null)
-            return BuildResult(branch, ciJobNames, [], "分支无保护规则或 required_status_checks 未配置, 建议先创建分支保护规则");
+            return BuildResult(branch, ciJobNames, [], "分支无保护规则或 required_status_checks 未配置, 建议先创建分支保护规则", repoSlug);
 
         // 从 required_status_checks 中提取对应 job_id 的 matrix name, 其他 workflow 的 check 不在审计范围
         var requiredMatrixNames = requiredChecks
@@ -103,7 +107,7 @@ internal sealed class BranchProtectionAuditor {
             .Where(n => n is not null)
             .Cast<string>()
             .ToList();
-        return BuildResult(branch, ciJobNames, requiredMatrixNames);
+        return BuildResult(branch, ciJobNames, requiredMatrixNames, repo: repoSlug);
     }
 
     private async Task<List<string>?> GetRequiredStatusChecksAsync(string owner, string repo, string branch, CancellationToken ct) {
@@ -126,7 +130,7 @@ internal sealed class BranchProtectionAuditor {
     }
 
     private static BranchProtectionAuditResult BuildResult(
-        string branch, IReadOnlyList<string> ciJobNames, IReadOnlyList<string> requiredChecks, string? note = null) {
+        string branch, IReadOnlyList<string> ciJobNames, IReadOnlyList<string> requiredChecks, string? note = null, string? repo = null) {
         var ciSet = new HashSet<string>(ciJobNames, StringComparer.Ordinal);
         var reqSet = new HashSet<string>(requiredChecks, StringComparer.Ordinal);
         return new BranchProtectionAuditResult(
@@ -134,9 +138,9 @@ internal sealed class BranchProtectionAuditor {
             Matched: ciSet.Intersect(reqSet).OrderBy(x => x, StringComparer.Ordinal).ToList(),
             MissingFromProtection: ciSet.Except(reqSet).OrderBy(x => x, StringComparer.Ordinal).ToList(),
             StaleInProtection: reqSet.Except(ciSet).OrderBy(x => x, StringComparer.Ordinal).ToList(),
-            Note: note);
+            Note: note, Repo: repo);
     }
 
-    private static BranchProtectionAuditResult EmptyResult(string branch, string note)
-        => new(branch, [], [], [], [], [], note);
+    private static BranchProtectionAuditResult EmptyResult(string branch, string note, string? repo = null)
+        => new(branch, [], [], [], [], [], note, repo);
 }

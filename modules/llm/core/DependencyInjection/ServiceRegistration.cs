@@ -163,13 +163,35 @@ public static partial class ServiceRegistration {
             TransientErrorPredicate = IsTransientCapacityError,
         };
 
+        var defaultPolicy = ResiliencePolicy.LlmDefault("LLM");
+        var defaultRetry = defaultPolicy.Retry ?? new RetryConfig { MaxRetries = 3, BaseDelay = TimeSpan.FromSeconds(1), MaxDelay = TimeSpan.FromSeconds(30) };
         var policy = retryOptions is not null
             ? new ResiliencePolicy {
                 Name = "LLM",
                 OperationTimeout = TimeSpan.FromSeconds(30),
                 Retry = retryConfig,
             }
-            : ResiliencePolicy.LlmDefault("LLM");
+            : new ResiliencePolicy {
+                Name = defaultPolicy.Name,
+                TotalTimeout = defaultPolicy.TotalTimeout,
+                OperationTimeout = defaultPolicy.OperationTimeout,
+                Retry = new RetryConfig {
+                    MaxRetries = defaultRetry.MaxRetries,
+                    BaseDelay = defaultRetry.BaseDelay,
+                    MaxDelay = defaultRetry.MaxDelay,
+                    Strategy = defaultRetry.Strategy,
+                    ShouldRetry = defaultRetry.ShouldRetry,
+                    TotalBudget = defaultRetry.TotalBudget,
+                    PauseBudgetOnNetworkUnavailable = defaultRetry.PauseBudgetOnNetworkUnavailable,
+                    RetryAfterExtractor = defaultRetry.RetryAfterExtractor,
+                    SingleDelayCap = defaultRetry.SingleDelayCap,
+                    HeartbeatInterval = defaultRetry.HeartbeatInterval,
+                    HeartbeatCallback = defaultRetry.HeartbeatCallback,
+                    TransientErrorPredicate = IsTransientCapacityError,
+                },
+                CircuitBreaker = defaultPolicy.CircuitBreaker,
+                HealthCheck = defaultPolicy.HealthCheck,
+            };
 
         return new ResilientHttpExecutor(policy, logger, networkService);
     }

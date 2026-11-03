@@ -26,16 +26,16 @@ public partial class GitHubToolHandlers {
             }
             if (web == true) {
                 var prResult = await client.SendAsync(HttpMethod.Get, apiPath, ct: cancellationToken).ConfigureAwait(false);
-                if (!prResult.Success) return Fail(prResult.Error);
+                if (!prResult.Success) return Fail(EnrichApiError(prResult.Error, "gh_pr_view", apiPath));
                 var url = ExtractHtmlUrl(prResult.Body);
                 return string.IsNullOrEmpty(url) ? Fail("无法从 PR 响应中解析 html_url") : Ok(url);
             }
             if (comments == true) {
                 var prResult = await client.SendAsync(HttpMethod.Get, apiPath, ct: cancellationToken).ConfigureAwait(false);
-                if (!prResult.Success) return Fail(prResult.Error);
+                if (!prResult.Success) return Fail(EnrichApiError(prResult.Error, "gh_pr_view", apiPath));
                 var summary = FormatGhOutput(prResult.Body, common.Verbosity, common.JsonFields, SummarizePr, "number,title,state,head_branch,user,html_url", common.Jq, common.SkipLines, common.StartLine, "gh_pr_view");
                 var commentsResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues/{number}/comments", ct: cancellationToken).ConfigureAwait(false);
-                if (!commentsResult.Success) return Fail(commentsResult.Error);
+                if (!commentsResult.Success) return Fail(EnrichApiError(commentsResult.Error, "gh_pr_view", $"repos/{owner}/{repoName}/issues/{number}/comments"));
                 return Ok($"{summary}\n\n## 评论\n{SummarizeComments(commentsResult.Body)}");
             }
             if (!string.IsNullOrEmpty(common.JsonFields) && common.JsonFields.Contains("statusCheckRollup", StringComparison.OrdinalIgnoreCase))

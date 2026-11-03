@@ -18,7 +18,7 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             if (web == true) {
                 var repoResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}", ct: cancellationToken).ConfigureAwait(false);
-                if (!repoResult.Success) return Fail(repoResult.Error);
+                if (!repoResult.Success) return Fail(EnrichApiError(repoResult.Error, "gh_repo_view", $"repos/{owner}/{repoName}"));
                 var url = ExtractHtmlUrl(repoResult.Body);
                 if (string.IsNullOrEmpty(url)) return Fail("无法从仓库响应中解析 html_url");
                 if (!string.IsNullOrWhiteSpace(branch)) url += $"/tree/{branch}";

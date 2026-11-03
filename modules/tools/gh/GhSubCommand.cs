@@ -109,25 +109,26 @@ internal static class GhSubCommand {
         var text = (result.Content.Count == 1 ? result.Content[0].Text : null) ?? string.Empty;
         if (result.IsError || string.IsNullOrEmpty(text)) {
             Console.WriteLine(GhJsonContext.UnescapeHtmlChars(JsonSerializer.Serialize(result, GhJsonContext.Safe.ToolResult)));
-            if (result.TimingInfo is not null) Console.WriteLine(result.TimingInfo);
+            if (result.TimingInfo is not null) WriteToChannel(result.TimingInfo, result.IsError);
             return result.IsError ? 1 : 0;
         }
         if (text.Length > 0 && (text[0] == '[' || text[0] == '{' || text[0] == '"' || IsJsonPrimitive(text))) {
             Console.WriteLine(text);
-            if (result.TimingInfo is not null) Console.WriteLine(result.TimingInfo);
+            if (result.TimingInfo is not null) WriteToChannel(result.TimingInfo, result.IsError);
             return result.IsError ? 1 : 0;
         }
         Console.WriteLine(GhJsonContext.UnescapeHtmlChars(JsonSerializer.Serialize(text, GhJsonContext.Safe.String)));
-        if (result.TimingInfo is not null) Console.WriteLine(result.TimingInfo);
+        if (result.TimingInfo is not null) WriteToChannel(result.TimingInfo, result.IsError);
         return result.IsError ? 1 : 0;
     }
 
     /// <summary>文本模式输出 — LINQ 过滤非空内容消除 hasOutput 标志位，无内容时输出占位提示</summary>
+    /// <para>timing 信息与内容走同一 channel(错误→stderr,成功→stdout),保证顺序确定</para>
     private static int OutputTextResult(ToolResult result) {
         var nonEmptyContents = result.Content.Where(c => !string.IsNullOrEmpty(c.Text)).ToList();
         if (nonEmptyContents.Count == 0) WriteToChannel("(无文本输出)", result.IsError);
         else nonEmptyContents.ForEach(c => WriteToChannel(c.Text, result.IsError));
-        if (result.TimingInfo is not null) Console.WriteLine(result.TimingInfo);
+        if (result.TimingInfo is not null) WriteToChannel(result.TimingInfo, result.IsError);
         return result.IsError ? 1 : 0;
     }
 

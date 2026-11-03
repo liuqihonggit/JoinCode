@@ -162,10 +162,11 @@ public partial class GitHubToolHandlers {
                 if (!jobsResult.Success) return Fail(jobsResult.Error);
                 return Ok(FilterJsonFields(jobsResult.Body, common.JsonFields));
             }
-            if (!string.IsNullOrEmpty(common?.JsonFields)) {
-                var runResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}", ct: cancellationToken).ConfigureAwait(false);
-                if (!runResult.Success) return Fail(runResult.Error);
-                return Ok(FilterJsonFields(runResult.Body, common.JsonFields));
+            // jq / json_fields: 作用于 run 详情,短路输出(与 GhRunListAsync 一致)
+            if (!string.IsNullOrEmpty(common?.Jq) || !string.IsNullOrEmpty(common?.JsonFields)) {
+                var detailForFormat = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{resolvedRunId}", ct: cancellationToken).ConfigureAwait(false);
+                if (!detailForFormat.Success) return Fail(detailForFormat.Error);
+                return Ok(FormatGhOutput(detailForFormat.Body, common?.Verbosity, common?.JsonFields, _ => detailForFormat.Body, jq: common?.Jq, skipLines: common?.SkipLines, startLine: common?.StartLine, toolName: "gh_run_view"));
             }
             if (log_failed == true) {
                 expand = "failed";

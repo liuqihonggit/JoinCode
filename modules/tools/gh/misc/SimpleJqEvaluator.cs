@@ -90,6 +90,9 @@ internal static class SimpleJqEvaluator {
             if (current is null)
                 return null;
             if (isArrayExpand && current is not JsonArray)
+                // 宽容: [] 作用于对象时,自动查找常见数组字段展开（如 workflow_runs/items/data/runs/jobs）
+                current = UnwrapCommonArrayField(current);
+            if (current is null)
                 return null;
         }
         return current;
@@ -116,6 +119,27 @@ internal static class SimpleJqEvaluator {
         }
         return mapped;
     }
+
+    /// <summary>
+    /// 宽容: [] 作用于对象时,自动查找常见数组字段展开。
+    /// GitHub API 常用包装: {workflow_runs:[...]}, {items:[...]}, {data:[...]}, {runs:[...]}, {jobs:[...]} 等
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static JsonNode? UnwrapCommonArrayField(JsonNode? current) {
+        if (current is not JsonObject obj) return null;
+        foreach (var key in s_commonArrayFields) {
+            if (obj.TryGetPropertyValue(key, out var val) && val is JsonArray arr)
+                return arr;
+        }
+        return null;
+    }
+
+    private static readonly string[] s_commonArrayFields = [
+        "workflow_runs", "items", "data", "runs", "jobs", "pulls", "issues",
+        "repositories", "assets", "entries", "results", "records", "list",
+        "branches", "tags", "releases", "labels", "milestones", "comments",
+        "reviews", "commits", "files", "checks", "steps", "workflows"
+    ];
 
     /// <summary>select(.field=="value" or .field2=="value2") — 过滤数组或单个对象</summary>
     private static JsonNode? ApplySelect(JsonNode? input, string stage) {

@@ -277,7 +277,7 @@ internal static class RgEngine {
                 var lineSpan = contentSpan.Slice(ls, ll);
                 string lineContent;
                 if (lineSpan.Length > MaxContentLineLength)
-                    lineContent = string.Concat(lineSpan.Slice(0, MaxContentLineLength).ToString(), "...");
+                    lineContent = string.Concat(lineSpan.Slice(0, MaxContentLineLength), "...");
                 else
                     lineContent = lineSpan.ToString();
 

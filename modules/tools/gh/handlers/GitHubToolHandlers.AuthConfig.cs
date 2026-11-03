@@ -124,40 +124,42 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>列出 YAML 顶层 key-value 对（跳过注释和空行），支持 host 嵌套</summary>
-    private static List<(string Key, string Value)> ListYamlEntries(string content, string? host) {
+    private static List<(string Key, string Value)> ListYamlEntries(string content, string? host)
+        => string.IsNullOrWhiteSpace(host) ? ListTopLevelEntries(content) : ListHostEntries(content, host!);
+
+    /// <summary>列出顶层 key-value — 跳过注释/空行/缩进行，只取冒号分隔的顶层键</summary>
+    private static List<(string Key, string Value)> ListTopLevelEntries(string content) {
         var lines = content.Split('\n');
-        var result = new List<(string, string)>();
-        if (string.IsNullOrWhiteSpace(host)) {
-            foreach (var line in lines) {
-                if (line.StartsWith('#') || string.IsNullOrWhiteSpace(line)) continue;
-                if (line.Length > 0 && char.IsWhiteSpace(line[0])) continue;
-                var colonIdx = line.IndexOf(':');
-                if (colonIdx < 0) continue;
-                var key = line[..colonIdx].Trim();
-                var value = line[(colonIdx + 1)..].Trim();
-                if (!string.IsNullOrEmpty(key)) result.Add((key, value));
-            }
-        } else {
-            var hostIndent = -1;
-            for (var i = 0; i < lines.Length; i++) {
-                var trimmed = lines[i].TrimStart();
-                if (trimmed.StartsWith($"{host}:", StringComparison.OrdinalIgnoreCase)) { hostIndent = lines[i].Length - trimmed.Length; break; }
-            }
-            if (hostIndent < 0) return result;
-            for (var i = 0; i < lines.Length; i++) {
-                var trimmed = lines[i].TrimStart();
-                var indent = lines[i].Length - trimmed.Length;
-                if (indent <= hostIndent && i > 0 && lines[i - 1].TrimStart().StartsWith($"{host}:", StringComparison.OrdinalIgnoreCase)) break;
-                if (indent > hostIndent) {
-                    var colonIdx = trimmed.IndexOf(':');
-                    if (colonIdx < 0) continue;
-                    var key = trimmed[..colonIdx].Trim();
-                    var value = trimmed[(colonIdx + 1)..].Trim();
-                    if (!string.IsNullOrEmpty(key)) result.Add((key, value));
-                }
-            }
-        }
-        return result;
+        return lines
+            .Where(l => !l.StartsWith('#') && !string.IsNullOrWhiteSpace(l) && l.Length > 0 && !char.IsWhiteSpace(l[0]))
+            .Select(ParseYamlKeyValue)
+            .Where(kv => !string.IsNullOrEmpty(kv.Key))
+            .ToList();
+    }
+
+    /// <summary>列出 host 块内的 key-value — 从 host 行之后开始，indent <= hostIndent 即 break</summary>
+    private static List<(string Key, string Value)> ListHostEntries(string content, string host) {
+        var lines = content.Split('\n');
+        var hostLineIndex = Array.FindIndex(lines, l => l.TrimStart().StartsWith($"{host}:", StringComparison.OrdinalIgnoreCase));
+        if (hostLineIndex < 0) return [];
+        var hostIndent = lines[hostLineIndex].Length - lines[hostLineIndex].TrimStart().Length;
+        return lines.Skip(hostLineIndex + 1)
+            .TakeWhile(l => {
+                var trimmed = l.TrimStart();
+                if (string.IsNullOrWhiteSpace(trimmed)) return true;  // 空行仍属于 host 块
+                return l.Length - trimmed.Length > hostIndent;
+            })
+            .Select(ParseYamlKeyValue)
+            .Where(kv => !string.IsNullOrEmpty(kv.Key))
+            .ToList();
+    }
+
+    /// <summary>解析单行 YAML key: value — 返回 (key, value)，非 key:value 行返回 ("", "")</summary>
+    private static (string Key, string Value) ParseYamlKeyValue(string line) {
+        var trimmed = line.TrimStart();
+        var colonIdx = trimmed.IndexOf(':');
+        if (colonIdx < 0) return ("", "");
+        return (trimmed[..colonIdx].Trim(), trimmed[(colonIdx + 1)..].Trim());
     }
 
     /// <summary>

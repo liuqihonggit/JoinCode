@@ -96,4 +96,42 @@ public partial class GitHubToolHandlers {
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/labels/{Uri.EscapeDataString(name)}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已更新标签 {name}") : Fail(EnrichApiError(result.Error, "gh_label_edit", $"repos/{owner}/{repoName}/labels/{name}"));
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 克隆标签 — 从源仓库复制所有标签到目标仓库，--force 覆盖已存在
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhLabelClone, "克隆标签(从源仓库复制到目标仓库)", "github")]
+    public async Task<ToolResult> GhLabelCloneAsync(
+        [McpToolParameter("源仓库(owner/repo)", Required = true)] string source_repo,
+        [McpToolParameter("force=true 覆盖已存在标签(默认 false)", Required = false)] bool? force = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
+            var srcRef = ParseGitHubRepoRef(source_repo);
+            if (srcRef is null) return Fail($"源仓库格式错误: '{source_repo}'，应为 owner/repo");
+            var (srcOwner, srcRepo) = srcRef.Value;
+            var srcResult = await client.SendAsync(HttpMethod.Get, $"repos/{srcOwner}/{srcRepo}/labels", query: new Dictionary<string, string> { ["per_page"] = "100" }, paginate: true, ct: cancellationToken).ConfigureAwait(false);
+            if (!srcResult.Success) return Fail(EnrichApiError(srcResult.Error, "gh_label_clone", $"repos/{srcOwner}/{srcRepo}/labels"));
+            List<LabelResponse>? srcLabels;
+            try { srcLabels = JsonSerializer.Deserialize(srcResult.Body, GitHubApiJsonContext.Safe.ListLabelResponse); }
+            catch (Exception ex) { return Fail($"解析源仓库标签失败: {ex.Message}"); }
+            if (srcLabels is null || srcLabels.Count == 0) return Ok($"源仓库 {source_repo} 无标签可克隆");
+            var created = 0; var skipped = 0; var errors = new List<string>();
+            foreach (var label in srcLabels) {
+                var request = new LabelCreateRequest { Name = label.Name, Color = label.Color, Description = label.Description };
+                var jsonBody = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.LabelCreateRequest);
+                var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/labels", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+                if (result.Success) { created++; continue; }
+                if (force == true && result.StatusCode == 422) {
+                    var patchResult = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/labels/{Uri.EscapeDataString(label.Name)}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+                    if (patchResult.Success) { created++; continue; }
+                    errors.Add($"{label.Name}: {patchResult.Error}");
+                } else if (result.StatusCode == 422) { skipped++; }
+                else { errors.Add($"{label.Name}: {result.Error}"); }
+            }
+            var sb = new StringBuilder(128);
+            sb.AppendLine($"从 {source_repo} 克隆到 {owner}/{repoName}: 创建 {created} 跳过 {skipped}");
+            if (errors.Count > 0) sb.AppendLine($"失败 {errors.Count} 个: {string.Join(", ", errors)}");
+            return Ok(sb.ToString().TrimEnd());
+        }).ConfigureAwait(false);
 }

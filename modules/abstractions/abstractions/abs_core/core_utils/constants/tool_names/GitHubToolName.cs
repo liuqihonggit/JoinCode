@@ -331,6 +331,10 @@ public enum GitHubToolName {
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhLabelEdit,
 
+    [EnumValue("gh_label_clone")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhLabelClone,
+
     // === Search ===
     [EnumValue("gh_search_repos")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]

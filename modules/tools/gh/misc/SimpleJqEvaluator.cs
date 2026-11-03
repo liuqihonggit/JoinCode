@@ -2,7 +2,7 @@ namespace McpToolDispatch;
 
 /// <summary>
 /// 简易 jq 表达式求值器 — 支持 jq 子集用于 gh api --jq 参数（缺陷1b）。
-/// <para>支持语法: .field, .field.sub, [], select(.field=="value" or ...), {key: .field}, | 管道</para>
+/// <para>支持语法: .field, .field.sub, [], select(.field=="value" or/and ...), {key: .field}, | 管道, length 函数</para>
 /// <para>AOT 兼容: 仅用 JsonNode（无反射 emit），适合 NativeAOT 发布</para>
 /// </summary>
 internal static class SimpleJqEvaluator {
@@ -65,8 +65,19 @@ internal static class SimpleJqEvaluator {
         => stage switch {
             var s when s.StartsWith("select(", StringComparison.Ordinal) => ApplySelect(input, s),
             var s when s.StartsWith('{') => ApplyObjectConstruct(input, s),
-            var s when s.Contains(' ') => null,
-            _ => ApplyPath(input, stage),
+            "length" => ApplyLength(input),
+            var s when s.StartsWith('.') && !s.Contains(' ') => ApplyPath(input, stage),
+            _ => null,
+        };
+
+    /// <summary>length 函数 — 数组返回元素数，对象返回字段数，null 返回 0，标量返回 1</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static JsonNode? ApplyLength(JsonNode? node)
+        => node switch {
+            JsonArray arr => arr.Count,
+            JsonObject obj => obj.Count,
+            null => 0,
+            _ => 1
         };
 
     /// <summary>
@@ -239,7 +250,7 @@ internal static class SimpleJqEvaluator {
         return EvaluateCondition(input, condition) ? input : null;
     }
 
-    /// <summary>.field=="value" or .field2=="value2" — 支持 or 逻辑</summary>
+    /// <summary>.field=="value" or .field2=="value2" — 支持 or/and 混合逻辑（and 优先级高于 or）</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool EvaluateCondition(JsonNode? node, string condition) {
         var span = condition.AsSpan();
@@ -248,9 +259,23 @@ internal static class SimpleJqEvaluator {
             var part = orIdx < 0 ? span : span[..orIdx];
             span = orIdx < 0 ? default : span[(orIdx + 4)..];
             if (part.IsEmpty) continue;
-            if (EvaluateComparison(node, part.Trim().ToString())) return true;
+            if (EvaluateAndParts(node, part.Trim().ToString())) return true;
         }
         return false;
+    }
+
+    /// <summary>and 子表达式 — 所有比较都满足才返回 true</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool EvaluateAndParts(JsonNode? node, string condition) {
+        var span = condition.AsSpan();
+        while (!span.IsEmpty) {
+            var andIdx = span.IndexOf(" and ");
+            var part = andIdx < 0 ? span : span[..andIdx];
+            span = andIdx < 0 ? default : span[(andIdx + 5)..];
+            if (part.IsEmpty) continue;
+            if (!EvaluateComparison(node, part.Trim().ToString())) return false;
+        }
+        return true;
     }
 
     /// <summary>.field=="value" 或 .field!="value"</summary>

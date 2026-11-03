@@ -112,4 +112,41 @@ public sealed class SimpleJqEvaluatorTests {
         var result = SimpleJqEvaluator.Evaluate(json, ".matrix[0][1]");
         result.Should().Be("2");
     }
+
+    /// <summary>length 函数 — 数组返回元素数</summary>
+    [Fact]
+    public void Evaluate_Length_OnArray_ShouldReturnCount() {
+        var json = """{"check_runs":[{"name":"a"},{"name":"b"},{"name":"c"}]}""";
+        var result = SimpleJqEvaluator.Evaluate(json, ".check_runs | length");
+        result.Should().Be("3");
+    }
+
+    /// <summary>length 函数 — 对象返回字段数</summary>
+    [Fact]
+    public void Evaluate_Length_OnObject_ShouldReturnFieldCount() {
+        var json = """{"name":"a","id":1,"conclusion":"success"}""";
+        var result = SimpleJqEvaluator.Evaluate(json, "length");
+        result.Should().Be("3");
+    }
+
+    /// <summary>select(.field=="value" and .field2=="value2") — and 逻辑过滤</summary>
+    [Fact]
+    public void Evaluate_SelectAndCondition_ShouldFilterByBothConditions() {
+        var json = """[{"conclusion":"failure","name":"a"},{"conclusion":"success","name":"b"},{"conclusion":"failure","name":"c"}]""";
+        var result = SimpleJqEvaluator.Evaluate(json, """select(.conclusion=="failure" and .name=="c")""");
+        result.Should().Contain("\"name\":\"c\"");
+        result.Should().NotContain("\"name\":\"a\"");
+        result.Should().NotContain("\"name\":\"b\"");
+    }
+
+    /// <summary>select with and + or 混合逻辑</summary>
+    [Fact]
+    public void Evaluate_SelectMixedAndOr_ShouldRespectPrecedence() {
+        var json = """[{"a":"1","b":"1"},{"a":"1","b":"2"},{"a":"2","b":"1"}]""";
+        // .a=="1" and .b=="1" or .a=="2" → 第1个和第3个匹配
+        var result = SimpleJqEvaluator.Evaluate(json, """select(.a=="1" and .b=="1" or .a=="2")""");
+        result.Should().Contain("\"a\":\"1\",\"b\":\"1\"");
+        result.Should().Contain("\"a\":\"2\",\"b\":\"1\"");
+        result.Should().NotContain("\"a\":\"1\",\"b\":\"2\"");
+    }
 }

@@ -379,9 +379,11 @@ public class StreamingFallbackDecoratorTests {
     }
 
     [Fact]
-    public void ShouldFallback_TaskCanceledException_ReturnsTrue() {
+    public void ShouldFallback_TaskCanceledException_ReturnsFalse() {
+        // Bug 29: 超时令牌触发的 TaskCanceledException 不应 fallback —
+        // 令牌已取消，非流式也会被立即取消，fallback 只会翻倍等待时间
         var decorator = CreateDecorator();
-        decorator.ShouldFallback(new TaskCanceledException(), CancellationToken.None).Should().BeTrue();
+        decorator.ShouldFallback(new TaskCanceledException(), CancellationToken.None).Should().BeFalse();
     }
 
     [Fact]

@@ -416,7 +416,7 @@ public sealed class CliSession {
             // 此处不再手动 AppendEntries 双写；sessionId 同源由构造函数注入保证
         } else if (result.TimedOut) {
             Diag.WriteLine($"[CliSession] API timeout ({result.TimeoutMs}ms no response)");
-            throw new TimeoutException($"API 请求超时（{result.TimeoutMs / 1000}s 无响应）");
+            throw new TimeoutException($"API 请求超时（{result.TimeoutMs / 1000.0:F1}s 无响应）");
         } else if (result.WasCancelled) {
             Diag.WriteLine("[CliSession] OperationCanceledException (cancelled)");
             LastResponse = result.Response;

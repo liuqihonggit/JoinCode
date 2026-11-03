@@ -616,7 +616,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
     /// <summary>
     /// 判断异常是否可重试 — 纯函数（TASK031 阶段2.1 提取为 internal 供测试）
-    /// HttpRequestException / TimeoutException / TaskCanceledException 可重试
+    /// TimeoutException 可重试；HttpRequestException / TaskCanceledException 不可重试
     /// </summary>
     /// <param name="ex">异常</param>
     /// <returns>是否可重试</returns>
@@ -629,7 +629,13 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         // QueryEngine 再重试只会与底层叠加翻倍等待时间（三层重试叠加问题）
         if (ex is HttpRequestException)
             return false;
-        return ex is TimeoutException or TaskCanceledException;
+        // TaskCanceledException 不重试 —
+        // 超时令牌触发后令牌已取消，重试会立即再次取消导致无限重试耗尽预算，
+        // 最终返回空回复 rc=1 而非 rc=1240（Bug 29）。
+        // SessionController 的 catch(OperationCanceledException) 已区分超时 vs 用户取消。
+        if (ex is TaskCanceledException)
+            return false;
+        return ex is TimeoutException;
     }
 
     /// <summary>

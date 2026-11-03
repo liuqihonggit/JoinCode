@@ -223,8 +223,10 @@ public sealed class StreamingFallbackDecorator : IQueryService {
         }
 
         return ex is TimeoutException
-            || ex is TaskCanceledException
             || ex is IOException;
+        // TaskCanceledException 不 fallback —
+        // 超时令牌触发后令牌已取消，非流式也会被立即取消，fallback 只会翻倍等待时间（Bug 29）。
+        // 上游 IsUserCancellation 已过滤用户取消，到此处必为超时令牌触发。
     }
 
     /// <summary>

@@ -321,8 +321,10 @@ public class QueryEngineTests {
     }
 
     [Fact]
-    public void IsRetryable_TaskCanceledException_ShouldReturnTrue() {
-        IsRetryableWithEnvCleared(new TaskCanceledException()).Should().BeTrue();
+    public void IsRetryable_TaskCanceledException_ShouldReturnFalse() {
+        // Bug 29: 超时令牌触发的 TaskCanceledException 不应重试 —
+        // 令牌已取消，重试会立即再次取消导致无限重试耗尽预算，最终返回空回复 rc=1 而非 rc=1240
+        IsRetryableWithEnvCleared(new TaskCanceledException()).Should().BeFalse();
     }
 
     [Fact]

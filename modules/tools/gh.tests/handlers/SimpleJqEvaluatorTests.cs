@@ -104,4 +104,12 @@ public sealed class SimpleJqEvaluatorTests {
         result.Should().Contain("\"name\":\"a\"");
         result.Should().NotContain("\"name\":\"b\"");
     }
+
+    /// <summary>.field[N][M] 嵌套数组索引访问 — 修复前静默丢失第二索引</summary>
+    [Fact]
+    public void Evaluate_NestedArrayIndex_ShouldExtractNestedElement() {
+        var json = """{"matrix":[[1,2,3],[4,5,6]]}""";
+        var result = SimpleJqEvaluator.Evaluate(json, ".matrix[0][1]");
+        result.Should().Be("2");
+    }
 }

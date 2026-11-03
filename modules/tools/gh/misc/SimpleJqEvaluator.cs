@@ -102,7 +102,7 @@ internal static class SimpleJqEvaluator {
         return tokens;
     }
 
-    /// <summary>解析单个 part（如 items[]/items[0]/items）为 token 序列</summary>
+    /// <summary>解析单个 part（如 items[]/items[0]/items[0][1]）为 token 序列 — 支持嵌套数组访问</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void AddPartTokens(List<PathToken> tokens, string part) {
         var bracketIdx = part.IndexOf('[');
@@ -114,11 +114,17 @@ internal static class SimpleJqEvaluator {
         var fieldName = part[..bracketIdx];
         if (!string.IsNullOrEmpty(fieldName))
             tokens.Add(new PathToken.Field(fieldName));
-        var bracketContent = part[(bracketIdx + 1)..^1];
-        if (string.IsNullOrEmpty(bracketContent))
-            tokens.Add(new PathToken.ArrayExpand());
-        else if (int.TryParse(bracketContent, out var index))
-            tokens.Add(new PathToken.IndexAccess(index));
+        var remaining = part.AsSpan(bracketIdx);
+        while (remaining.Length > 0 && remaining[0] == '[') {
+            var closeIdx = remaining.IndexOf(']');
+            if (closeIdx < 0) break;
+            var content = remaining[1..closeIdx];
+            if (content.IsEmpty)
+                tokens.Add(new PathToken.ArrayExpand());
+            else if (int.TryParse(content, out var index))
+                tokens.Add(new PathToken.IndexAccess(index));
+            remaining = remaining[(closeIdx + 1)..];
+        }
     }
 
     /// <summary>.field 路径访问 — 对象取字段，数组逐元素 map</summary>

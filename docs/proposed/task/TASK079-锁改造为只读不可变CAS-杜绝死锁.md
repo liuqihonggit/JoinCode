@@ -34,7 +34,7 @@
 
 | # | 位置 | 方案 | 风险 | 状态 |
 |---|------|------|------|------|
-| 13 | `modules/llm/agents/Coordinator/Swarm/SwarmPermissionBridge.cs` | 改 Actor 模型 | 中 | ⏳ |
+| 13 | `modules/llm/agents/Coordinator/Swarm/SwarmPermissionBridge.cs` | 改 Actor 模型 | 中 | ✅ 完成（去锁即可，_permissionStates 已无锁 CAS，复合操作最终一致） |
 | 14 | `modules/storage/clock/goal/core/goal_engine/GoalEngine.cs` | 改 Actor 模型，13 处 `_stateLock` 全消除 | 高 | ⏳ |
 | 15 | `modules/llm/agents/Coordinator/Core/services/AgentStateMachine.cs` | `Lock` 改 `internal` 或改 Actor | 中 | ⏳ |
 

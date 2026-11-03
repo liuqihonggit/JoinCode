@@ -108,7 +108,7 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
     /// <summary>
     /// 将异常分类为退出码和错误代码 — 区分 LLM 调用失败、配置错误、工具执行失败和通用错误
     /// </summary>
-    private static (ExitCode exitCode, string errorCode) ClassifyException(Exception ex) => ex switch {
+    internal static (ExitCode exitCode, string errorCode) ClassifyException(Exception ex) => ex switch {
         JoinCode.Abstractions.Exceptions.ApiException => (ExitCode.LlmCallFailed, "LLM_CALL_FAILED"),
         System.Net.Http.HttpRequestException => (ExitCode.LlmCallFailed, "LLM_HTTP_ERROR"),
         JoinCode.Abstractions.Exceptions.ConfigurationException => (ExitCode.ConfigurationError, "CONFIG_ERROR"),
@@ -118,8 +118,15 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
     };
 
     /// <summary>
-    /// 判断异常消息是否表示 LLM 调用失败 — CliSession.StreamResponseAsync 把 LLM 错误包装成 InvalidOperationException
+    /// 判断异常消息是否表示 LLM 调用失败 — CliSession.StreamResponseAsync 把 LLM 错误包装成 InvalidOperationException。
+    /// 覆盖：LLM 标识、HTTP 状态码、连接拒绝/网络错误（中英文）。
     /// </summary>
-    private static bool IsLlmError(string message) =>
-        message.Contains("LLM.", StringComparison.Ordinal) || message.Contains("HTTP ", StringComparison.Ordinal);
+    internal static bool IsLlmError(string message) =>
+        message.Contains("LLM", StringComparison.Ordinal) ||
+        message.Contains("HTTP", StringComparison.Ordinal) ||
+        message.Contains("连接", StringComparison.Ordinal) ||
+        message.Contains("refused", StringComparison.OrdinalIgnoreCase) ||
+        message.Contains("unreachable", StringComparison.OrdinalIgnoreCase) ||
+        message.Contains("网络", StringComparison.Ordinal) ||
+        message.Contains("network", StringComparison.OrdinalIgnoreCase);
 }

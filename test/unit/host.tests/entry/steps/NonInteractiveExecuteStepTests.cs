@@ -94,6 +94,27 @@ public sealed class NonInteractiveExecuteStepTests {
             "NonInteractiveExecuteStep 应将 session.LastResponse 赋给 context.FullResponse 供 JSON 信封输出");
     }
 
+    /// <summary>
+    /// Bug 27 回归: 连接拒绝被包装为 InvalidOperationException 后,ClassifyException 应返回 LlmCallFailed 而非 GeneralError。
+    /// 根因: CliSession.cs:429 把 HttpRequestException(连接拒绝)包装成 InvalidOperationException,
+    /// 消息 "由于目标计算机积极拒绝" 不含 IsLlmError 关键词,落入兜底 rc=1。
+    /// 修复: 扩展 IsLlmError 覆盖网络错误关键词(连接/refused/unreachable/网络/network)。
+    /// </summary>
+    [Theory]
+    [InlineData("由于目标计算机积极拒绝，无法连接。 (localhost:9999)", "中文连接拒绝")]
+    [InlineData("LLM 请求失败", "CliSession 默认消息")]
+    [InlineData("网络不可达", "中文网络错误")]
+    [InlineData("Connection refused (localhost:9999)", "英文连接拒绝")]
+    [InlineData("Network unreachable", "英文网络不可达")]
+    [InlineData("[LLM.StreamingChatCompletion] HTTP 429: rate limited", "HTTP 429 错误")]
+    public void ClassifyException_ConnectionError_Should_Return_LlmCallFailed(string message, string description) {
+        var ex = new InvalidOperationException(message);
+        var (exitCode, errorCode) = NonInteractiveExecuteStep.ClassifyException(ex);
+        exitCode.Should().Be(ExitCode.LlmCallFailed,
+            $"{description}: 连接/网络错误应归类为 LLM 调用失败(rc=10)而非 GeneralError(rc=1)");
+        errorCode.Should().Be("LLM_CALL_FAILED");
+    }
+
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static StartupContext CreateContext(bool dryRun, string prompt) {
         var config = new WorkflowConfig {

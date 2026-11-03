@@ -710,3 +710,52 @@ D9 错误消息从 "模型返回空回复" 改为 "模型回复被安全过滤�
 1. SL10: `--model gpt-4o --vendor non-existent` → rc=4 (ApiKeyMissing) 而非 rc=2 (ConfigurationError) — 非存在 vendor 报 ApiKeyMissing 语义不够精确
 
 **结论**：六方向 120 场景全部通过，jcc 在交互模式/会话恢复/MCP工具/权限模式/多模型切换/缓存行为方面表现健壮，未发现新 bug。
+
+---
+
+## 退出码语义深挖（EC1-EC130，2026-11-04）
+
+### 退出码体系（ExitCode.cs）
+
+| 退出码 | 枚举名 | 语义 | 状态 |
+|--------|--------|------|------|
+| 0 | Success | 成功 | ✅ 已验证 |
+| 1 | GeneralError | 通用错误 | ✅ 已验证 |
+| 2 | ConfigurationError | 配置错误 | ✅ 已验证 |
+| 3 | ArgumentParseError | 参数错误 | ✅ 已验证 |
+| 4 | ApiKeyMissing | API Key 缺失 | ✅ 已验证 |
+| 5 | SessionResumeFailed | 会话恢复失败 | ✅ 已验证 |
+| 10 | LlmCallFailed | LLM 调用失败 | ✅ 已验证（本次修复） |
+| 11 | ToolExecutionFailed | 工具执行失败 | 预留 |
+| 12 | McpConnectionFailed | MCP 连接失败 | 预留 |
+| 13 | SubprocessCrashed | 子进程崩溃 | 预留 |
+| 1234 | AwaitTimeout | --await 超时 | ✅ 已验证 |
+| 1240 | LlmCallTimeout | LLM 调用超时 | 预留 |
+| 130 | Interrupted | 用户中断 | 预留 |
+
+### 修复的 bug
+
+#### Bug 24: HTTP 错误退出码从 GeneralError(1) 改为 LlmCallFailed(10)
+
+- **根因**：`NonInteractiveExecuteStep.cs` 的 `catch(Exception)` 块把所有异常都映射到 `ExitCode.GeneralError`(1)，未区分 LLM 调用失败
+- **包装链**：`CliSession.StreamResponseAsync:429` 把 LLM 错误包装成 `InvalidOperationException`（消息含 "LLM." 或 "HTTP "），`ClassifyException` 需用 `IsLlmError` 消息匹配
+- **修复**：新增 `ClassifyException` 方法按异常类型分类退出码，新增 `IsLlmError` 判断消息是否表示 LLM 错误
+- **验证**：HTTP 400/401/403/404/500/502/503/429 全部返回 rc=10 (LlmCallFailed)，errCode=LLM_CALL_FAILED
+- **提交**：`67019b366`
+
+#### Bug 25: 三层重试叠加导致 500/429 耗时过长
+
+- **根因**：`QueryEngine.IsRetryable` 对 `HttpRequestException` 返回 true，与 `ResilientHttpExecutor` 层重试叠加（3×4=12 次尝试）
+- **修复**：`IsRetryable` 对所有 `HttpRequestException` 返回 false（ResilientHttpExecutor 已在其层完成重试）
+- **效果**：500 从 70s→19s，429 从 67s→18s
+- **提交**：`cef98ef4f`
+
+### 场景统计
+
+| 系列 | 范围 | 场景数 | 结果 |
+|------|------|--------|------|
+| EC1-EC30 | 退出码基线 | 30 | ✅ 全通过 |
+| EC31-EC70 | 深入退出码 | 40 | ✅ 全通过 |
+| EC71-EC100 | 难触发退出码 | 31 | ✅ 全通过 |
+| EC101-EC130 | 修复验证 | 17 | ✅ 全通过 |
+| **合计** | | **118** | **✅ 全通过** |

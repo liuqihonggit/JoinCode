@@ -17,13 +17,7 @@ internal sealed partial class GhJsonContext : JsonSerializerContext {
 
     /// <summary>
     /// 把 UnsafeRelaxedJsonEscaping 转义的 HTML 敏感字符 \uXXXX 还原为原始字符。
-    /// CLI 输出不需要 XSS 防护，+ &lt; &gt; &amp; ' / 应直接输出。
+    /// 委托 RelaxedJsonSerializer.UnescapeHtmlChars，rg/gh 统一实现。
     /// </summary>
-    public static string UnescapeHtmlChars(string json) => json
-        .Replace("\\u002B", "+")
-        .Replace("\\u003C", "<")
-        .Replace("\\u003E", ">")
-        .Replace("\\u0026", "&")
-        .Replace("\\u0027", "'")
-        .Replace("\\u002F", "/");
+    public static string UnescapeHtmlChars(string json) => RelaxedJsonSerializer.UnescapeHtmlChars(json);
 }

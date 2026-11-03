@@ -35,6 +35,23 @@ public static class RelaxedJsonSerializer {
     public static string SerializeCompact<T>(T value, JsonSerializerContext context) => Serialize(value, context);
 
     /// <summary>
+    /// 把 UnsafeRelaxedJsonEscaping 转义的 HTML 敏感字符 \uXXXX 还原为原始字符。
+    /// CLI 输出不需要 XSS 防护，+ &lt; &gt; &amp; ' / 应直接输出。
+    /// rg/gh 独立 exe 的 CLI 输出统一调用此方法。
+    /// </summary>
+    public static string UnescapeHtmlChars(string json) => json
+        .Replace("\\u002B", "+")
+        .Replace("\\u003C", "<")
+        .Replace("\\u003E", ">")
+        .Replace("\\u0026", "&")
+        .Replace("\\u0027", "'")
+        .Replace("\\u002F", "/");
+
+    /// <summary>序列化为 CLI 友好 JSON（真实中文 + HTML 敏感字符不转义）。等价于 UnescapeHtmlChars(Serialize(value, context))。</summary>
+    public static string SerializeForCli<T>(T value, JsonSerializerContext context)
+        => UnescapeHtmlChars(Serialize(value, context));
+
+    /// <summary>
     /// 从 JSON 字符串反序列化（统一入口）。使用 context 的 RelaxedOptions，继承声明的宽容策略：
     /// AllowTrailingCommas、PropertyNameCaseInsensitive、ReadCommentHandling.Skip 等。
     /// 遇到 BOM 或前后空白时自动清理。TypeInfoResolver 为源码生成，AOT 安全。

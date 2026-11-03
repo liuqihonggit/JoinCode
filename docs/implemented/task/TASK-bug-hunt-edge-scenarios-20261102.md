@@ -567,3 +567,40 @@ D9 错误消息从 "模型返回空回复" 改为 "模型回复被安全过滤�
 ### SZ1-SZ20: 工具执行边缘场景
 
 20 个工具执行边缘场景（超长输出、ANSI 转义、JSON、markdown、多语言等），全部通过。
+
+## 第六轮：HTTP 错误响应 + 错误消息质量修复（2026-11-03）
+
+### 测试结果
+
+| 场景 | 结果 | 说明 |
+|------|------|------|
+| HTTP 500 | ✅ | ok=false, code=RUNTIME_ERROR, 错误消息包含响应体 |
+| HTTP 429 | ✅ | ok=false, code=RUNTIME_ERROR |
+| HTTP 503 | ✅ | ok=false, code=RUNTIME_ERROR |
+| 无效 JSON | ✅ | ok=false, 错误消息包含响应体 |
+| 空响应体 | ✅ | 5.2 秒返回错误（之前卡死 30 秒，已被连接失败修复覆盖） |
+| 并发 5 请求 | ✅ | 全部成功 |
+| NDJSON 格式 | ✅ | 每行有效 JSON |
+| --help | ✅ | 无路径泄露 |
+| --continue | ✅ | 正常工作 |
+| 退出码 | ✅ | 20 场景全部合理 |
+
+### Bug：JSON 解析失败错误消息缺少响应体内容
+
+**根因**：`SendRequestAsync` 的 `JsonException` catch 只包含异常消息，不包含响应体内容
+**修复**：OpenAI/Anthropic/Responses 三个 QueryService 的 `JsonException` catch 中添加 `Response body: {preview}`
+**commit**: `398ce67b5`
+
+### 全量单元测试
+
+| 域 | 测试数 | 结果 |
+|----|--------|------|
+| LLM | 609 | ✅ |
+| Brain.Context | 950 | ✅ |
+| Brain.Other | 426 | ✅ |
+| Hands.Shell | 526 | ✅ |
+| Guard.Config | 1306 | ✅ |
+| Guard.Security | 1136 | ✅ |
+| MCP | 1023 | ✅ |
+| Agents | 626 | ✅ |
+| **总计** | **6602** | **0 失败** |

@@ -576,12 +576,12 @@ public partial class GitHubToolHandlers {
         var first = Math.Min(limit ?? 30, 100);
         string graphql;
         if (!string.IsNullOrWhiteSpace(org))
-            graphql = BuildGraphQL($"query{{organization(login:\"{org}\"){{projectsV2(first:{first}){{nodes{{number title url closed state}}}}}}}}");
+            graphql = BuildGraphQL($"query{{organization(login:\"{org}\"){{projectsV2(first:{first}){{nodes{{number title url closed}}}}}}}}");
         else
-            graphql = BuildGraphQL($"query{{viewer{{projectsV2(first:{first}){{nodes{{number title url closed state}}}}}}}}");
+            graphql = BuildGraphQL($"query{{viewer{{projectsV2(first:{first}){{nodes{{number title url closed}}}}}}}}");
         var result = await _apiClient.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeProjectList, "number,title,state,url", common?.Jq, common?.SkipLines, common?.StartLine, "gh_project_list"));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeProjectList, "number,title,closed,url", common?.Jq, common?.SkipLines, common?.StartLine, "gh_project_list"));
     }
 
     /// <summary>精简 Project 列表 — 表格格式(number, title, state, url)</summary>
@@ -599,7 +599,7 @@ public partial class GitHubToolHandlers {
             }
             if (nodes is null) return json;
             foreach (var p in nodes) {
-                sb.AppendLine($"{p.Number}\t{p.Title}\t{p.State ?? ""}\t{p.Url ?? ""}");
+                sb.AppendLine($"{p.Number}\t{p.Title}\t{(p.Closed ? "closed" : "open")}\t{p.Url ?? ""}");
             }
             return sb.ToString();
         } catch (Exception ex) { return $"解析 Project 列表失败: {ex.Message}"; }
@@ -617,12 +617,12 @@ public partial class GitHubToolHandlers {
         if (_apiClient is null) return ApiClientNotConfigured();
         string graphql;
         if (!string.IsNullOrWhiteSpace(org))
-            graphql = BuildGraphQL($"query{{organization(login:\"{org}\"){{projectV2(number:{number}){{title url closed state items(first:20){{nodes{{content{{...on Issue{{number title}} ...on PullRequest{{number title}}}}}}}}}}}}");
+            graphql = BuildGraphQL($"query{{organization(login:\"{org}\"){{projectV2(number:{number}){{title url closed items(first:20){{nodes{{content{{...on Issue{{number title}} ...on PullRequest{{number title}}}}}}}}}}}}");
         else
-            graphql = BuildGraphQL($"query{{viewer{{projectV2(number:{number}){{title url closed state items(first:20){{nodes{{content{{...on Issue{{number title}} ...on PullRequest{{number title}}}}}}}}}}}}");
+            graphql = BuildGraphQL($"query{{viewer{{projectV2(number:{number}){{title url closed items(first:20){{nodes{{content{{...on Issue{{number title}} ...on PullRequest{{number title}}}}}}}}}}}}");
         var result = await _apiClient.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeProjectView, "title,url,state,items", common?.Jq, common?.SkipLines, common?.StartLine, "gh_project_view"));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeProjectView, "title,url,closed,items", common?.Jq, common?.SkipLines, common?.StartLine, "gh_project_view"));
     }
 
     /// <summary>精简 Project 详情 — 人类可读文本</summary>
@@ -639,7 +639,7 @@ public partial class GitHubToolHandlers {
             if (proj is null) return json;
             var sb = new StringBuilder(256);
             sb.AppendLine($"Project: {proj.Title}");
-            sb.AppendLine($"State: {proj.State ?? ""}  URL: {proj.Url ?? ""}");
+            sb.AppendLine($"State: {(proj.Closed ? "closed" : "open")}  URL: {proj.Url ?? ""}");
             if (proj.Items.Nodes.Count > 0) {
                 sb.AppendLine("Items:");
                 foreach (var item in proj.Items.Nodes) {
@@ -926,11 +926,13 @@ public partial class GitHubToolHandlers {
     /// 查看可用许可证列表 — 调 REST API GET /licenses 获取 SPDX 许可证列表
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhLicenses, "查看可用开源许可证列表(API)", "github", ConcurrencySafe = true)]
-    public async Task<ToolResult> GhLicensesAsync(CancellationToken cancellationToken = default) {
+    public async Task<ToolResult> GhLicensesAsync(
+        [McpToolOptions] GitHubCommonOptions? common = null,
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return Fail("GitHub REST API 客户端未配置(IGitHubApiClient 未注入)");
         var result = await _apiClient.SendAsync(HttpMethod.Get, "licenses", ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(SummarizeLicenses(result.Body));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeLicenses, "key,name,spdx_id", common?.Jq, common?.SkipLines, common?.StartLine, "gh_licenses"));
     }
 
     /// <summary>

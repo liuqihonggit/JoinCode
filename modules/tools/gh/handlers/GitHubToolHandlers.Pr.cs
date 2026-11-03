@@ -40,7 +40,7 @@ public partial class GitHubToolHandlers {
             }
             if (!string.IsNullOrEmpty(common.JsonFields) && common.JsonFields.Contains("statusCheckRollup", StringComparison.OrdinalIgnoreCase))
                 return await GetPrViewWithRollupAsync(client, owner, repoName, number, common.JsonFields, cancellationToken).ConfigureAwait(false);
-            return await GetOrFetchWithCacheAsync(client, apiPath, common.Verbosity, common.JsonFields, SummarizePr, "number,title,state,head_branch,user,html_url", cancellationToken).ConfigureAwait(false);
+            return await GetOrFetchWithCacheAsync(client, apiPath, common.Verbosity, common.JsonFields, SummarizePr, "number,title,state,head_branch,user,html_url", cancellationToken, common.Jq, common.SkipLines, common.StartLine, "gh_pr_view").ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>

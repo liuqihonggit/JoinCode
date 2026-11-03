@@ -371,15 +371,10 @@ public partial class GitHubToolHandlers {
     private async Task<ToolResult> GetOrFetchWithCacheAsync(
         IGitHubApiClient client, string apiPath, int? verbosity,
         string? json_fields, Func<string, string> summarize, string? compactFields,
-        CancellationToken ct) {
+        CancellationToken ct, string? jq = null, int? skipLines = null, int? startLine = null, string? toolName = null) {
         var result = await client.SendAsync(HttpMethod.Get, apiPath, ct: ct).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        if (!string.IsNullOrEmpty(json_fields)) return Ok(FilterJsonFields(result.Body, json_fields));
-        return Ok(verbosity switch {
-            2 => result.Body,
-            1 => FilterJsonFields(result.Body, compactFields ?? "id,number,title,state,name"),
-            _ => summarize(result.Body)
-        });
+        return Ok(FormatGhOutput(result.Body, verbosity, json_fields, summarize, compactFields, jq, skipLines, startLine, toolName));
     }
 
     /// <summary>

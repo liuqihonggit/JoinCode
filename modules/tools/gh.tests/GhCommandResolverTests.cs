@@ -1271,4 +1271,99 @@ public sealed class GhCommandResolverTests {
         bound!["auto_merge"].Should().Be("true");
         bound["merge_method"].Should().Be("squash");
     }
+
+    /// <summary>
+    /// --enable-merge（省略 auto- 前缀）在 gh pr create 应映射到 auto_merge=true。
+    /// <para>复现 bug: AI 首次使用时习惯写 --enable-merge 而非 --enable-auto-merge，报"未知选项"。</para>
+    /// <para>用户准则: 首次使用出错即不舒服，必须添加宽容别名。</para>
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Bind_PrCreate_EnableMerge_ShouldMapToAutoMergeTrue() {
+        var parameters = new List<GhParam> {
+            new("title", IsRequired: true, IsBoolean: false),
+            new("body", IsRequired: false, IsBoolean: false),
+            new("head", IsRequired: false, IsBoolean: false),
+            new("base", IsRequired: false, IsBoolean: false),
+            new("auto_merge", IsRequired: false, IsBoolean: true),
+            new("merge_method", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(
+            new[] { "--title", "feat: test", "--enable-merge" },
+            parameters, "gh_pr_create", out var error);
+
+        error.Should().BeNull();
+        bound.Should().NotBeNull();
+        bound!["auto_merge"].Should().Be("true");
+    }
+
+    /// <summary>
+    /// --enable-merge（省略 auto- 前缀）在 gh pr merge 也应映射到 auto_merge=true。
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Bind_PrMerge_EnableMerge_ShouldMapToAutoMergeTrue() {
+        var parameters = new List<GhParam> {
+            new("pr_number", IsRequired: true, IsBoolean: false),
+            new("merge_method", IsRequired: false, IsBoolean: false),
+            new("auto_merge", IsRequired: false, IsBoolean: true),
+        };
+
+        var bound = GhArgsBinder.Bind(new[] { "382", "--enable-merge" }, parameters, "gh_pr_merge", out var error);
+
+        error.Should().BeNull();
+        bound.Should().NotBeNull();
+        bound!["auto_merge"].Should().Be("true");
+    }
+
+    /// <summary>
+    /// --auto 在 gh pr create 应映射到 auto_merge=true（与 gh pr merge --auto 对称）。
+    /// <para>系统 gh CLI 的 gh pr create --auto 是常用写法，jcc 侧 gh_pr_create 别名组缺失 --auto。</para>
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Bind_PrCreate_Auto_ShouldMapToAutoMergeTrue() {
+        var parameters = new List<GhParam> {
+            new("title", IsRequired: true, IsBoolean: false),
+            new("body", IsRequired: false, IsBoolean: false),
+            new("head", IsRequired: false, IsBoolean: false),
+            new("base", IsRequired: false, IsBoolean: false),
+            new("auto_merge", IsRequired: false, IsBoolean: true),
+            new("merge_method", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(
+            new[] { "--title", "feat: test", "--auto" },
+            parameters, "gh_pr_create", out var error);
+
+        error.Should().BeNull();
+        bound.Should().NotBeNull();
+        bound!["auto_merge"].Should().Be("true");
+    }
+
+    /// <summary>
+    /// --enable-merge --squash 组合应同时映射 auto_merge=true + merge_method=squash。
+    /// </summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Bind_PrCreate_EnableMergeAndSquash_ShouldMapBoth() {
+        var parameters = new List<GhParam> {
+            new("title", IsRequired: true, IsBoolean: false),
+            new("body", IsRequired: false, IsBoolean: false),
+            new("head", IsRequired: false, IsBoolean: false),
+            new("base", IsRequired: false, IsBoolean: false),
+            new("auto_merge", IsRequired: false, IsBoolean: true),
+            new("merge_method", IsRequired: false, IsBoolean: false),
+        };
+
+        var bound = GhArgsBinder.Bind(
+            new[] { "--title", "feat: test", "--enable-merge", "--squash" },
+            parameters, "gh_pr_create", out var error);
+
+        error.Should().BeNull();
+        bound.Should().NotBeNull();
+        bound!["auto_merge"].Should().Be("true");
+        bound["merge_method"].Should().Be("squash");
+    }
 }

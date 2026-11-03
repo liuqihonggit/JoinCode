@@ -834,9 +834,6 @@ internal sealed class ProjectListItemResponse {
     /// <summary>是否关闭</summary>
     [JsonPropertyName("closed")]
     public bool Closed { get; init; }
-    /// <summary>状态</summary>
-    [JsonPropertyName("state")]
-    public string? State { get; init; }
 }
 
 /// <summary>Project projectsV2 包装(含 nodes)</summary>
@@ -881,9 +878,6 @@ internal sealed class ProjectDetailResponse {
     /// <summary>是否关闭</summary>
     [JsonPropertyName("closed")]
     public bool Closed { get; init; }
-    /// <summary>状态</summary>
-    [JsonPropertyName("state")]
-    public string? State { get; init; }
     /// <summary>items(含 nodes)</summary>
     [JsonPropertyName("items")]
     public GraphQLNodesResponse<ProjectItemResponse> Items { get; init; } = new();

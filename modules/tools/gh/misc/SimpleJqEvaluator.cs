@@ -69,30 +69,91 @@ internal static class SimpleJqEvaluator {
             _ => ApplyPath(input, stage),
         };
 
-    /// <summary>.field 或 .field.sub 或 .field[] 或 .field[].sub</summary>
-    private static JsonNode? ApplyPath(JsonNode? input, string path) {
+    /// <summary>
+    /// 路径 token — 状态机的状态，由 ParsePathTokens 解析，由 ApplyToken 执行。
+    /// <para>Field: .field 字段访问（对数组逐元素 map）</para>
+    /// <para>ArrayExpand: .field[] 数组展开（对对象宽容展开常见数组字段）</para>
+    /// <para>IndexAccess: .field[N] 索引访问（越界返回空数组 []）</para>
+    /// </summary>
+    private abstract record PathToken {
+        public sealed record Field(string Name) : PathToken;
+        public sealed record ArrayExpand() : PathToken;
+        public sealed record IndexAccess(int Index) : PathToken;
+    }
+
+    /// <summary>
+    /// 解析路径字符串为 token 序列（状态机转换函数）。
+    /// <para>例: ".items[0].name" → [Field("items"), IndexAccess(0), Field("name")]</para>
+    /// <para>例: ".[]" → [ArrayExpand()]</para>
+    /// <para>例: ".workflow_runs[].id" → [Field("workflow_runs"), ArrayExpand(), Field("id")]</para>
+    /// </summary>
+    private static List<PathToken> ParsePathTokens(string path) {
         var remaining = path.AsSpan().Trim();
         if (remaining.Length > 0 && remaining[0] == '.')
             remaining = remaining[1..];
-        if (remaining.IsEmpty) return input;
-
-        var current = input;
+        var tokens = new List<PathToken>();
         while (!remaining.IsEmpty) {
             var dotIdx = remaining.IndexOf('.');
             var part = dotIdx < 0 ? remaining : remaining[..dotIdx];
             remaining = dotIdx < 0 ? default : remaining[(dotIdx + 1)..];
             if (part.IsEmpty) continue;
-
-            var isArrayExpand = part.Length >= 2 && part[^2] == '[' && part[^1] == ']';
-            var fieldName = isArrayExpand ? part[..^2] : part;
-            if (!fieldName.IsEmpty)
-                current = GetFieldOrMapArray(current, fieldName.ToString());
-            if (current is null)
-                return null;
-            if (isArrayExpand && current is not JsonArray)
-                return null;
+            AddPartTokens(tokens, part.ToString());
         }
-        return current;
+        return tokens;
+    }
+
+    /// <summary>解析单个 part（如 items[]/items[0]/items）为 token 序列</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void AddPartTokens(List<PathToken> tokens, string part) {
+        var bracketIdx = part.IndexOf('[');
+        if (bracketIdx < 0) {
+            if (!string.IsNullOrEmpty(part))
+                tokens.Add(new PathToken.Field(part));
+            return;
+        }
+        var fieldName = part[..bracketIdx];
+        if (!string.IsNullOrEmpty(fieldName))
+            tokens.Add(new PathToken.Field(fieldName));
+        var bracketContent = part[(bracketIdx + 1)..^1];
+        if (string.IsNullOrEmpty(bracketContent))
+            tokens.Add(new PathToken.ArrayExpand());
+        else if (int.TryParse(bracketContent, out var index))
+            tokens.Add(new PathToken.IndexAccess(index));
+    }
+
+    /// <summary>.field 路径访问 — 对象取字段，数组逐元素 map</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static JsonNode? ApplyField(JsonNode? node, string name)
+        => GetFieldOrMapArray(node, name);
+
+    /// <summary>[] 数组展开 — 数组原样返回，对象宽容展开常见数组字段</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static JsonNode? ApplyArrayExpand(JsonNode? node)
+        => node is JsonArray ? node : UnwrapCommonArrayField(node);
+
+    /// <summary>[N] 索引访问 — 越界或非数组返回空数组 []（非 null，避免 Evaluate 跳过 stage）</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static JsonNode? ApplyIndexAccess(JsonNode? node, int index) {
+        var arr = node as JsonArray ?? UnwrapCommonArrayField(node) as JsonArray;
+        if (arr is null) return new JsonArray();
+        return index >= 0 && index < arr.Count ? arr[index] : new JsonArray();
+    }
+
+    /// <summary>token 变换分派 — LINQ Aggregate 的单步函数</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static JsonNode? ApplyToken(JsonNode? node, PathToken token)
+        => token switch {
+            PathToken.Field f => ApplyField(node, f.Name),
+            PathToken.ArrayExpand => ApplyArrayExpand(node),
+            PathToken.IndexAccess i => ApplyIndexAccess(node, i.Index),
+            _ => node
+        };
+
+    /// <summary>.field 或 .field.sub 或 .field[] 或 .field[].sub — LINQ Aggregate 链式执行</summary>
+    private static JsonNode? ApplyPath(JsonNode? input, string path) {
+        var tokens = ParsePathTokens(path);
+        return tokens.Aggregate(input, (current, token) =>
+            current is null ? null : ApplyToken(current, token));
     }
 
     /// <summary>从对象取字段，或对数组逐元素取字段（jq map 语义）</summary>
@@ -116,6 +177,41 @@ internal static class SimpleJqEvaluator {
         }
         return mapped;
     }
+
+    /// <summary>
+    /// 宽容: [] 作用于对象时,自动查找常见数组字段展开。
+    /// GitHub API 常用包装: {workflow_runs:[...]}, {items:[...]}, {data:[...]}, {runs:[...]}, {jobs:[...]} 等
+    /// GraphQL 响应多层嵌套: {data:{repository:{discussions:{nodes:[...]}}}} — 递归查找(限深 4 层)
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static JsonNode? UnwrapCommonArrayField(JsonNode? current, int depth = 0) {
+        if (current is not JsonObject obj || depth > 4) return null;
+        foreach (var key in s_commonArrayFields) {
+            if (obj.TryGetPropertyValue(key, out var val) && val is JsonArray arr)
+                return arr;
+        }
+        foreach (var kvp in obj) {
+            if (kvp.Value is JsonObject child) {
+                var found = UnwrapCommonArrayField(child, depth + 1);
+                if (found is not null) return found;
+            }
+        }
+        return null;
+    }
+
+    private static readonly string[] s_commonArrayFields = [
+        "workflow_runs", "items", "data", "runs", "jobs", "pulls", "issues",
+        "repositories", "assets", "entries", "results", "records", "list",
+        "branches", "tags", "releases", "labels", "milestones", "comments",
+        "reviews", "commits", "files", "checks", "steps", "workflows",
+        "secrets", "variables", "actions_caches", "rulesets", "codespaces",
+        "discussions", "projects", "teams", "members", "collaborators",
+        "contributors", "forks", "environments", "deployments", "statuses",
+        "check_runs", "check_suites", "artifacts", "events", "reactions",
+        "assignees", "gists", "keys", "ssh_keys", "gpg_keys", "topics",
+        "hooks", "invitations", "installations", "permissions", "roles",
+        "nodes", "edges", "contents"
+    ];
 
     /// <summary>select(.field=="value" or .field2=="value2") — 过滤数组或单个对象</summary>
     private static JsonNode? ApplySelect(JsonNode? input, string stage) {
@@ -195,9 +291,16 @@ internal static class SimpleJqEvaluator {
             span = commaIdx < 0 ? default : span[(commaIdx + 1)..];
             if (pair.IsEmpty) continue;
             var colonIdx = pair.IndexOf(':');
-            if (colonIdx < 0) continue;
-            var key = pair[..colonIdx].Trim().Trim('"').ToString();
-            var valuePath = pair[(colonIdx + 1)..].Trim().ToString();
+            string key;
+            string valuePath;
+            if (colonIdx < 0) {
+                var fieldName = pair.Trim().Trim('"').ToString();
+                key = fieldName;
+                valuePath = "." + fieldName;
+            } else {
+                key = pair[..colonIdx].Trim().Trim('"').ToString();
+                valuePath = pair[(colonIdx + 1)..].Trim().ToString();
+            }
             obj[key] = GetFieldValue(input, valuePath)?.DeepClone();
         }
         return obj;

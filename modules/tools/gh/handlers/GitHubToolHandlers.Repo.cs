@@ -24,7 +24,7 @@ public partial class GitHubToolHandlers {
                 if (!string.IsNullOrWhiteSpace(branch)) url += $"/tree/{branch}";
                 return Ok(url);
             }
-            return await GetOrFetchWithCacheAsync(client, $"repos/{owner}/{repoName}", common?.Verbosity, common?.JsonFields, SummarizeRepo, "name,full_name,description,language,default_branch,html_url", cancellationToken).ConfigureAwait(false);
+            return await GetOrFetchWithCacheAsync(client, $"repos/{owner}/{repoName}", common?.Verbosity, common?.JsonFields, SummarizeRepo, "name,full_name,description,language,default_branch,html_url", cancellationToken, common?.Jq, common?.SkipLines, common?.StartLine, "gh_repo_view").ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>

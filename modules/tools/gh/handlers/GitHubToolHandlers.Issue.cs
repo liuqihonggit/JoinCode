@@ -87,7 +87,7 @@ public partial class GitHubToolHandlers {
                 if (!commentsResult.Success) return Fail(commentsResult.Error);
                 return Ok($"{summary}\n\n## 评论\n{SummarizeComments(commentsResult.Body)}");
             }
-            return await GetOrFetchWithCacheAsync(client, apiPath, common?.Verbosity, common?.JsonFields, SummarizeIssue, "number,title,state,labels,assignees,html_url", cancellationToken).ConfigureAwait(false);
+            return await GetOrFetchWithCacheAsync(client, apiPath, common?.Verbosity, common?.JsonFields, SummarizeIssue, "number,title,state,labels,assignees,html_url", cancellationToken, common?.Jq, common?.SkipLines, common?.StartLine, "gh_issue_view").ConfigureAwait(false);
         }).ConfigureAwait(false);
 
     /// <summary>

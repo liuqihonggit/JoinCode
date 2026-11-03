@@ -107,7 +107,7 @@ internal static class GhSubCommand {
                 Console.WriteLine(GhJsonContext.UnescapeHtmlChars(JsonSerializer.Serialize(result, GhJsonContext.Safe.ToolResult)));
                 return result.IsError ? 1 : 0;
             }
-            if (text.Length > 0 && (text[0] == '[' || text[0] == '{')) {
+            if (text.Length > 0 && (text[0] == '[' || text[0] == '{' || text[0] == '"' || IsJsonPrimitive(text))) {
                 Console.WriteLine(text);
                 return result.IsError ? 1 : 0;
             }
@@ -127,4 +127,9 @@ internal static class GhSubCommand {
         }
         return result.IsError ? 1 : 0;
     }
+
+    /// <summary>判断 text 是否是 JSON 原始值（数字/true/false/null），用于 --jq 结果直接输出而非再次序列化</summary>
+    private static bool IsJsonPrimitive(string text)
+        => text is "true" or "false" or "null"
+           || (text.Length > 0 && (char.IsDigit(text[0]) || text[0] == '-') && double.TryParse(text, out _));
 }

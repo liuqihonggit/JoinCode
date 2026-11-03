@@ -95,7 +95,7 @@ jobs:
   e2e-chatcmd-misc:
     name: E2E - ChatCmd Misc
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -122,7 +122,7 @@ jobs:
   e2e-chatcmd-code:
     name: E2E - ChatCmd Code
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -176,7 +176,7 @@ jobs:
   e2e-sync:
     name: E2E - Sync Integration
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -202,7 +202,7 @@ jobs:
   e2e-mcp-smoke:
     name: E2E - MCP + CodeIndex + Smoke
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5

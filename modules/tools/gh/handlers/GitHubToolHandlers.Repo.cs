@@ -314,7 +314,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             if (!string.IsNullOrWhiteSpace(visibility) && accept_visibility_change_consequences != true)
-                _logger?.LogDebug("visibility 变更未带 --accept_visibility_change_consequences,继续执行");
+                return Fail($"visibility 变更(→{visibility})需要 --accept_visibility_change_consequences=true 确认\n原因: 可见性变更可能暴露敏感代码/secret(尤其 private→public)\n提示: 确认后重传 --accept_visibility_change_consequences=true");
             SecurityAndAnalysis? security = null;
             if (enable_advanced_security is not null || enable_secret_scanning is not null || enable_secret_scanning_push_protection is not null) {
                 security = new SecurityAndAnalysis {

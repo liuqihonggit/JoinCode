@@ -104,14 +104,14 @@ internal static class GhSubCommand {
         if (json) {
             var text = (result.Content.Count == 1 ? result.Content[0].Text : null) ?? string.Empty;
             if (result.IsError || string.IsNullOrEmpty(text)) {
-                Console.WriteLine(JsonSerializer.Serialize(result, GhJsonContext.Safe.ToolResult));
+                Console.WriteLine(GhJsonContext.UnescapeHtmlChars(JsonSerializer.Serialize(result, GhJsonContext.Safe.ToolResult)));
                 return result.IsError ? 1 : 0;
             }
             if (text.Length > 0 && (text[0] == '[' || text[0] == '{')) {
                 Console.WriteLine(text);
                 return result.IsError ? 1 : 0;
             }
-            Console.WriteLine(JsonSerializer.Serialize(text, GhJsonContext.Safe.String));
+            Console.WriteLine(GhJsonContext.UnescapeHtmlChars(JsonSerializer.Serialize(text, GhJsonContext.Safe.String)));
         } else {
             var hasOutput = false;
             foreach (var c in result.Content) {

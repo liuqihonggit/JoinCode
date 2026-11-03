@@ -21,7 +21,19 @@ internal static class SimpleJqEvaluator {
             node = next;
         }
 
-        return node.ToJsonString();
+        return WriteNodeWithEncoder(node);
+    }
+
+    /// <summary>
+    /// 用 UnsafeRelaxedJsonEscaping 序列化（不转义中文/emoji），
+    /// 然后把 HTML 敏感字符的 \uXXXX 转义还原为原始字符（CLI 输出不需要 XSS 防护）。
+    /// </summary>
+    private static string WriteNodeWithEncoder(JsonNode node) {
+        var json = node.ToJsonString(new JsonSerializerOptions {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            WriteIndented = false
+        });
+        return GhJsonContext.UnescapeHtmlChars(json);
     }
 
     /// <summary>按 | 分割管道阶段（忽略引号/括号内的 |）</summary>

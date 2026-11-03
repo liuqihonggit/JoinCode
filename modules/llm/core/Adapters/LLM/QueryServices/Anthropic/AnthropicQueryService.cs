@@ -242,15 +242,13 @@ public sealed class AnthropicQueryService : QueryServiceBase {
 
                     var toolCalls = ConvertToOpenAIToolCalls(toolCallsObj);
                     if (toolCalls != null) {
-                        foreach (var tc in toolCalls) {
-                            contentBlocks.Add(new AnthropicToolUseBlock {
-                                Id = tc.Id ?? "",
-                                Name = tc.Function?.Name ?? "",
-                                Input = tc.Function?.Arguments is not null
-                                    ? JsonElementHelper.FromJson(tc.Function.Arguments)
-                                    : null
-                            });
-                        }
+                        contentBlocks.AddRange(toolCalls.Select(tc => new AnthropicToolUseBlock {
+                            Id = tc.Id ?? "",
+                            Name = tc.Function?.Name ?? "",
+                            Input = tc.Function?.Arguments is not null
+                                ? JsonElementHelper.FromJson(tc.Function.Arguments)
+                                : null
+                        }));
                     }
 
                     messages.Add(new AnthropicMessage { Role = "assistant", Content = contentBlocks });

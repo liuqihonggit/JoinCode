@@ -494,7 +494,7 @@ public class OpenAIQueryService : QueryServiceBase {
         var response = await SendWithResilienceAsync(json, endpoint, "LLM.ChatCompletion", cancellationToken,
             HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
 
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessWithBodyAsync(cancellationToken).ConfigureAwait(false);
 
         ExtractRateLimitHeaders(response);
 
@@ -525,7 +525,7 @@ public class OpenAIQueryService : QueryServiceBase {
         var response = await SendWithResilienceAsync(json, endpoint, "LLM.StreamingChatCompletion", cancellationToken,
             HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
 
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessWithBodyAsync(cancellationToken).ConfigureAwait(false);
 
         ExtractRateLimitHeaders(response);
         Logger?.LogDebug("[WIRE {CallId}] POST {Endpoint} → {StatusCode}", CallTrace.CurrentId, endpoint, response.StatusCode);

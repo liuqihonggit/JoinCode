@@ -604,3 +604,82 @@ D9 错误消息从 "模型返回空回复" 改为 "模型回复被安全过滤�
 | MCP | 1023 | ✅ |
 | Agents | 626 | ✅ |
 | **总计** | **6602** | **0 失败** |
+
+---
+
+## 第五轮：服务状态污染 + 错误消息技术化修复 — 2026-11-03
+
+### Bug 5: 服务状态污染根因 — /requests 全量传输
+
+**现象**：长时间运行 MockServer + responder（>100 场景）后出现假失败（SAA1 超时、220 场景回归 15 个假失败）
+**根因**：`/requests` 端点返回所有累积请求（200+），每次轮询全量传输+反序列化开销大，轮询周期变长可能超过 MockServer 30 秒注入超时
+**修复**：
+1. `KestrelMockServer.cs`：`/requests` 端点支持 `?since=N` 参数，只返回 index > N 的请求
+2. `Program.cs`（responder）：使用 `$"{controlUrl}/requests?since={lastSeenIndex}"` 增量查询，移除旧的 `lastSeenIndex` 重置逻辑
+**commit**: `6dc6048ed`
+
+### Bug 6: HTTP 错误消息技术化 — EnsureSuccessStatusCode 无响应体
+
+**现象**：HTTP 500/429/503 错误消息是 "Response status code does not indicate success: 500 (Internal Server Error)."，不包含响应体内容
+**根因**：`EnsureSuccessStatusCode()` 抛出的异常只有状态码，没有响应体
+**修复**：
+1. 新建 `HttpResponseExtensions.cs`：`EnsureSuccessWithBodyAsync` 替代 `EnsureSuccessStatusCode`，错误消息格式 `HTTP 429 TooManyRequests: {响应体前200字符}`
+2. OpenAI/Anthropic/Responses/Jev 四个 QueryService 的 8 处 `EnsureSuccessStatusCode()` 替换为 `await EnsureSuccessWithBodyAsync(cancellationToken)`
+3. 端到端验证：`ResilientHttpExecutor.CheckResponseStatusAsync` 已在更早阶段提供用户友好错误消息 `[LLM.StreamingChatCompletion] HTTP 500: {"error":{"message":"Internal server error"}}`，`EnsureSuccessWithBodyAsync` 作为防御性编程补充
+**commit**: `6dc6048ed`
+
+### 回归验证
+
+| 域 | 测试数 | 结果 |
+|----|--------|------|
+| LLM | 609 | ✅ |
+| MockServer.Core | 85 | ✅ |
+| Brain.Context | 950 | ✅ |
+| Brain.Other | 426 | ✅ |
+| MCP | 384 | ✅ |
+| Guard.Config | 1306 | ✅ |
+| Guard.Security | 1136 | ✅ |
+| **总计** | **4896** | **0 失败** |
+
+---
+
+## 剩余任务清单
+
+### 不舒服点挖掘方向（持续探测，3 次出现就修复）
+
+| # | 方向 | 说明 | 出现次数 | 状态 |
+|---|------|------|----------|------|
+| 1 | 超长 prompt（>100KB） | jcc 是否能处理超长输入？是否有截断/分块？ | 0 | 待探测 |
+| 2 | 并发竞争 | 多个 jcc 同时请求 MockServer，是否有竞态条件？ | 0 | 待探测 |
+| 3 | 工具链路异常 | 工具执行超时/崩溃/返回异常时 jcc 如何处理？ | 0 | 待探测 |
+| 4 | 上下文压缩边界 | 上下文接近 token 上限时是否正确压缩？ | 0 | 待探测 |
+| 5 | 流式中断恢复 | 流式响应中途断开（网络故障）时是否正确恢复？ | 0 | 待探测 |
+| 6 | JSON 特殊字符 | prompt 包含 Unicode/emoji/控制字符时是否正确处理？ | 0 | 待探测 |
+| 7 | 工具参数边界值 | 空字符串/null/超长参数/嵌套 JSON 参数 | 0 | 待探测 |
+| 8 | 多轮工具调用 | 连续 5+ 轮工具调用是否正常？ | 0 | 待探测 |
+| 9 | 环境变量缺失 | 必需环境变量未设置时错误消息是否友好？ | 0 | 待探测 |
+| 10 | 信号处理 | Ctrl+C/SIGTERM 时是否优雅退出？ | 0 | 待探测 |
+
+### 场景扩展计划
+
+| 系列 | 前缀 | 说明 | 状态 |
+|------|------|------|------|
+| SBB1-SBB20 | `sbb_` | 工具参数边界值场景（空/null/超长/嵌套） | 待创建 |
+| SCC1-SCC20 | `scc_` | 并发竞争场景（多请求/共享状态/竞态） | 待创建 |
+| SDD1-SDD20 | `sdd_` | 流式中断/恢复/异常场景 | 待创建 |
+| SEE1-SEE20 | `see_` | 上下文压缩/token 上限场景 | 待创建 |
+| SFF1-SFF20 | `sff_` | JSON 特殊字符/Unicode/emoji 场景 | 待创建 |
+| SGG1-SGG20 | `sgg_` | 多轮工具调用/工具链路异常场景 | 待创建 |
+
+### 不舒服点探测结果（六轮 60+ 探测点）
+
+| 轮次 | 方向 | 探测数 | 发现问题 | 说明 |
+|------|------|--------|----------|------|
+| 1 | 基础探测 | 20 | 0 | Python/Windows 限制，非 jcc bug |
+| 2 | 超长prompt/Unicode/并发 | 10 | 0 | 50KB/100KB/200KB/Unicode/控制字符/并发 全通过 |
+| 3 | 工具链路/环境变量缺失 | 10 | 0 | 无APIkey/无vendor/无效vendor/无效endpoint/不存在端口 全正确报错 |
+| 4 | CLI参数处理 | 10 | 0 | help/version/未知参数/无效format/重复prompt/超长模型 全正确处理 |
+| 5 | 工具参数边界值 | 10 | 0 | 空字符串/特殊字符/重复请求/多轮5轮/超长参数/嵌套引号/反斜杠 全通过 |
+| 6 | 配置文件异常/退出码 | 5 | 0 | 损坏配置容错/不存在模型/供应商/无效权限模式/HTTP模式 全正确报错 |
+
+**结论**：jcc 在 60+ 个不舒服点探测中表现良好，未发现新 bug。退出码体系完整（0-15+1234），映射到结构化错误+友好字符串。

@@ -37,15 +37,10 @@ internal static class Program {
         while (!cts.Token.IsCancellationRequested) {
             try {
                 using var linked = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, resumeCts.Token);
-                var requests = await http.GetFromJsonAsync<List<CapturedRequestDto>>($"{controlUrl}/requests", jsonOpts, linked.Token);
+                var requests = await http.GetFromJsonAsync<List<CapturedRequestDto>>($"{controlUrl}/requests?since={lastSeenIndex}", jsonOpts, linked.Token);
                 if (requests is null) continue;
 
-                if (requests.Count == 0 && lastSeenIndex > -1)
-                    lastSeenIndex = -1;
-                else if (requests.Count > 0 && requests[0].Index <= lastSeenIndex && requests[^1].Index <= lastSeenIndex)
-                    lastSeenIndex = -1;
-
-                var newRequests = requests.Where(r => r.Index > lastSeenIndex).OrderBy(r => r.Index).ToList();
+                var newRequests = requests.OrderBy(r => r.Index).ToList();
                 foreach (var req in newRequests) {
                     lastSeenIndex = Math.Max(lastSeenIndex, req.Index);
 

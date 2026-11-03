@@ -491,7 +491,7 @@ public sealed class AnthropicQueryService : QueryServiceBase {
         var response = await SendWithResilienceAsync(json, endpoint, "LLM.Anthropic.ChatCompletion", cancellationToken,
             HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
 
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessWithBodyAsync(cancellationToken).ConfigureAwait(false);
 
         ExtractRateLimitHeaders(response);
 
@@ -598,7 +598,7 @@ public sealed class AnthropicQueryService : QueryServiceBase {
         var response = await SendWithResilienceAsync(json, endpoint, "LLM.Anthropic.StreamingChatCompletion", cancellationToken,
             HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
 
-        response.EnsureSuccessStatusCode();
+        await response.EnsureSuccessWithBodyAsync(cancellationToken).ConfigureAwait(false);
 
         ExtractRateLimitHeaders(response);
 

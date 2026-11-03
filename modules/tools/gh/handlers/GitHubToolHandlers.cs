@@ -400,6 +400,41 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// 检测 GraphQL 响应中的错误 — GraphQL 返回 HTTP 200 但 body 可能包含 {"errors":[...]}
+    /// <para>返回 null 表示无错误,返回 string 表示友好的错误消息</para>
+    /// </summary>
+    private static string? TryExtractGraphQLError(string body) {
+        if (!body.Contains("\"errors\"", StringComparison.Ordinal)) return null;
+        try {
+            using var doc = JsonDocument.Parse(body);
+            if (!doc.RootElement.TryGetProperty("errors", out var errorsEl) || errorsEl.ValueKind != JsonValueKind.Array) return null;
+            if (errorsEl.GetArrayLength() == 0) return null;
+            var sb = new StringBuilder(256);
+            sb.AppendLine("GraphQL 查询失败:");
+            foreach (var err in errorsEl.EnumerateArray()) {
+                var msg = err.TryGetProperty("message", out var msgEl) ? msgEl.GetString() : null;
+                var type = err.TryGetProperty("type", out var typeEl) ? typeEl.GetString() : null;
+                if (!string.IsNullOrEmpty(type) && type == "INSUFFICIENT_SCOPES")
+                    sb.AppendLine($"  [权限不足] {msg}");
+                else if (!string.IsNullOrEmpty(type))
+                    sb.AppendLine($"  [{type}] {msg}");
+                else
+                    sb.AppendLine($"  {msg}");
+            }
+            sb.AppendLine("提示: 若为权限不足,请到 https://github.com/settings/tokens 更新 token scope 后重新设置 JCC_GITHUB_TOKEN");
+            return sb.ToString();
+        } catch { return null; }
+    }
+
+    /// <summary>
+    /// 检测 GraphQL 响应错误并返回 Fail ToolResult — 无错误时返回 null
+    /// </summary>
+    private static ToolResult? CheckGraphQLError(string body) {
+        var error = TryExtractGraphQLError(body);
+        return error is null ? null : Fail(error);
+    }
+
+    /// <summary>
     /// verbosity 三档输出模板 — 调 API 取数据,按 verbosity 决定输出格式
     /// <para>缓存由 CacheGitHubApiClient 装饰器统一处理,此处只管输出格式</para>
     /// <para>verbosity: 0=gh风格人类可读(默认) 1=精简JSON 2=完整JSON</para>

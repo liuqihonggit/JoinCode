@@ -581,6 +581,8 @@ public partial class GitHubToolHandlers {
             graphql = BuildGraphQL($"query{{viewer{{projectsV2(first:{first}){{nodes{{number title url closed}}}}}}}}");
         var result = await _apiClient.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
+        var gqlError = CheckGraphQLError(result.Body);
+        if (gqlError is not null) return gqlError;
         return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeProjectList, "number,title,closed,url", common?.Jq, common?.SkipLines, common?.StartLine, "gh_project_list"));
     }
 

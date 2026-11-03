@@ -4,7 +4,6 @@ namespace JoinCode.Pipe;
 [Register(typeof(CodeSessionManager), ServiceLifetime.Singleton)]
 public sealed partial class CodeSessionManager : ServiceEntity {
     private readonly CodeSessionRepo _repo;
-    private readonly AsyncLock _lock = new();
     private readonly IClockService _clock;
 
     /// <summary>
@@ -30,8 +29,6 @@ public sealed partial class CodeSessionManager : ServiceEntity {
         CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(projectName);
         ArgumentException.ThrowIfNullOrWhiteSpace(workDirectory);
-
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         var record = new CodeSessionRecord {
             SessionId = Guid.NewGuid().ToString("N"),
@@ -97,22 +94,24 @@ public sealed partial class CodeSessionManager : ServiceEntity {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentException.ThrowIfNullOrWhiteSpace(newWorkDirectory);
 
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
         var existing = await _repo.GetAsync(sessionId, ct).ConfigureAwait(false);
         if (existing is null) return false;
 
-        existing.WorkDirectory = newWorkDirectory;
-        existing.UpdatedAt = _clock.GetUtcNowOffset();
-
-        await _repo.SaveAsync(existing, ct).ConfigureAwait(false);
+        var updated = new CodeSessionRecord {
+            SessionId = existing.SessionId,
+            ProjectName = existing.ProjectName,
+            WorkDirectory = newWorkDirectory,
+            Status = existing.Status,
+            CreatedAt = existing.CreatedAt,
+            UpdatedAt = _clock.GetUtcNowOffset()
+        };
+        await _repo.SaveAsync(updated, ct).ConfigureAwait(false);
         return true;
 
     }
 
-    /// <summary>释放托管资源 — 销毁异步锁</summary>
+    /// <summary>释放托管资源</summary>
     public override void Dispose() {
-        _lock.Dispose();
         base.Dispose();
     }
 }

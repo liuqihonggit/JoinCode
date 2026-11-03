@@ -136,7 +136,7 @@ public partial class GitHubToolHandlers {
         // jq/json_fields 是显式过滤，优先级高于 full_json — 即使 verbosity=2 也先处理
         var filtered = ApplyExplicitFilters(body, jq, json_fields);
         if (filtered is not null)
-            return ApplyPaginationAndTruncation(filtered, skipLines, startLine, toolName, _compactLinePrefix, addLineNumbers: true);
+            return ApplyPaginationAndTruncation(filtered, skipLines, startLine, toolName, _compactLinePrefix, addLineNumbers: false);
 
         var effectiveVerbosity = verbosity ?? GetVerbosityFromEnv();
         if (effectiveVerbosity == 2) return body;  // full_json: 无显式过滤时直接返回完整JSON
@@ -144,7 +144,7 @@ public partial class GitHubToolHandlers {
         var formatted = effectiveVerbosity == 1
             ? FilterJsonFields(body, compactFields ?? "id,number,title,state,name")
             : summarize(body);
-        return ApplyPaginationAndTruncation(formatted, skipLines, startLine, toolName, _compactLinePrefix, addLineNumbers: true);
+        return ApplyPaginationAndTruncation(formatted, skipLines, startLine, toolName, _compactLinePrefix, addLineNumbers: false);
     }
 
     /// <summary>应用显式过滤 — jq/json_fields 非空时返回过滤结果，均为空时返回 null 交回 verbosity 决策

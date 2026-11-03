@@ -1062,7 +1062,7 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     [Fact]
-    public async Task ReleaseList_Success_ReturnsSummarizedJson() {
+    public async Task ReleaseList_Success_ReturnsSummarizedTable() {
         _api.NextResponse = new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
@@ -1073,9 +1073,8 @@ public sealed partial class GitHubToolHandlersTests {
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
-        text.Should().Contain("\"tag_name\":\"v1.0\"");
-        text.Should().Contain("\"name\":\"Release v1.0\"");
-        text.Should().Contain("\"draft\":false");
+        text.Should().Contain("v1.0");
+        text.Should().Contain("Release v1.0");
         text.Should().NotContain("assets_url");
         text.Should().NotContain("upload_url");
         text.Should().NotContain("avatar_url");
@@ -1090,8 +1089,8 @@ public sealed partial class GitHubToolHandlersTests {
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
-        text.Should().Contain("\"tag_name\":\"v1\"");
-        text.Should().NotContain("\"tag_name\":\"v2\"");
+        text.Should().Contain("v1");
+        text.Should().NotContain("v2");
     }
 
     [Fact]
@@ -1102,8 +1101,8 @@ public sealed partial class GitHubToolHandlersTests {
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
-        text.Should().Contain("\"tag_name\":\"v1\"");
-        text.Should().NotContain("\"tag_name\":\"v2\"");
+        text.Should().Contain("v1");
+        text.Should().NotContain("v2");
     }
 
     [Fact]

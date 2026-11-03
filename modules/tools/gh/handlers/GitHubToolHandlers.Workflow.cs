@@ -16,7 +16,7 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 50).ToString() };
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/workflows", query: query, ct: cancellationToken).ConfigureAwait(false);
-            if (!result.Success) return Fail(result.Error);
+            if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_workflow_list", $"repos/{owner}/{repoName}/actions/workflows"));
             return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, body => SummarizeWorkflowList(body, all == true), "id,name,state,path", common?.Jq, common?.SkipLines, common?.StartLine, "gh_workflow_list"));
         }).ConfigureAwait(false);
 
@@ -53,7 +53,7 @@ public partial class GitHubToolHandlers {
             var query = new Dictionary<string, string>();
             if (!string.IsNullOrWhiteSpace(@ref)) query["ref"] = @ref;
             var result = await client.SendAsync(HttpMethod.Get, wfPath, query: query.Count > 0 ? query : null, ct: cancellationToken).ConfigureAwait(false);
-            if (!result.Success) return Fail(result.Error);
+            if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_workflow_view", wfPath));
             if (web == true) {
                 var url = TryExtractJsonField(result.Body, "html_url");
                 return url is not null ? Ok(url) : Fail("无法解析 workflow html_url");
@@ -120,7 +120,7 @@ public partial class GitHubToolHandlers {
             var request = new WorkflowDispatchRequest { Ref = refVal, Inputs = inputsDict };
             var body = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.WorkflowDispatchRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/actions/workflows/{Uri.EscapeDataString(workflow_id)}/dispatches", body, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok($"已触发 workflow {workflow_id} 运行(ref={refVal})") : Fail(result.Error);
+            return result.Success ? Ok($"已触发 workflow {workflow_id} 运行(ref={refVal})") : Fail(EnrichApiError(result.Error, "gh_workflow_run", $"repos/{owner}/{repoName}/actions/workflows/{workflow_id}/dispatches"));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -133,7 +133,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/actions/workflows/{Uri.EscapeDataString(workflow_id)}/enable", ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok($"已启用 workflow {workflow_id}") : Fail(result.Error);
+            return result.Success ? Ok($"已启用 workflow {workflow_id}") : Fail(EnrichApiError(result.Error, "gh_workflow_enable", $"repos/{owner}/{repoName}/actions/workflows/{workflow_id}/enable"));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -146,6 +146,6 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/actions/workflows/{Uri.EscapeDataString(workflow_id)}/disable", ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok($"已禁用 workflow {workflow_id}") : Fail(result.Error);
+            return result.Success ? Ok($"已禁用 workflow {workflow_id}") : Fail(EnrichApiError(result.Error, "gh_workflow_disable", $"repos/{owner}/{repoName}/actions/workflows/{workflow_id}/disable"));
         }).ConfigureAwait(false);
 }

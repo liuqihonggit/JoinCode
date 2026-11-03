@@ -10,8 +10,7 @@ namespace JoinCode.Abstractions.Entity;
 /// <para>持有非托管资源表:SafeHandle 包装的非托管内存,卸载时逐个释放</para>
 /// </summary>
 public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeartbeat {
-    private readonly Dictionary<ObjectId, PluginResourceBase> _resources = new();
-    private readonly AsyncLock _resourceLock = new("WorkflowPluginBase");
+    private readonly ConcurrentDictionary<ObjectId, PluginResourceBase> _resources = new();
     private volatile bool _isAlive = true;
     private DateTime _lastHeartbeatAt;
 
@@ -37,13 +36,7 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
     public abstract Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default);
 
     /// <summary>所有已登记的资源</summary>
-    public IReadOnlyCollection<PluginResourceBase> Resources {
-        get {
-            using (_resourceLock.LockOrCrash()) {
-                return _resources.Values.ToList();
-            }
-        }
-    }
+    public IReadOnlyCollection<PluginResourceBase> Resources => _resources.Values.ToArray();
 
     /// <summary>UI 资源表 — 插件持有的界面资源</summary>
     public UiResourceTable UiResources { get; } = new();
@@ -69,9 +62,7 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
     /// </summary>
     protected T RegisterResource<T>(T resource) where T : PluginResourceBase {
         ArgumentNullException.ThrowIfNull(resource);
-        using (_resourceLock.LockOrCrash()) {
-            _resources[resource.ObjectId] = resource;
-        }
+        _resources[resource.ObjectId] = resource;
         return resource;
     }
 
@@ -136,7 +127,6 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
     public override void Dispose() {
         MarkDead();
         UnmanagedResources.ReleaseAll();
-        _resourceLock.Dispose();
         base.Dispose();
     }
 
@@ -145,16 +135,12 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
         MarkDead();
         await ReleaseResourcesAsync().ConfigureAwait(false);
         UnmanagedResources.ReleaseAll();
-        _resourceLock.Dispose();
         await base.DisposeAsync().ConfigureAwait(false);
     }
 
     private async ValueTask ReleaseResourcesAsync() {
-        List<PluginResourceBase> snapshot;
-        using (_resourceLock.LockOrCrash()) {
-            snapshot = _resources.Values.ToList();
-            _resources.Clear();
-        }
+        var snapshot = _resources.Values.ToList();
+        _resources.Clear();
         foreach (var resource in snapshot) {
             try { await resource.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) { Console.WriteLine($"[WorkflowPluginBase:{Name}] 资源释放异常忽略: {ex.Message}"); }
         }

@@ -8,8 +8,7 @@ public sealed partial class McpServerStateManager {
     private readonly IFileSystem _fs;
     private readonly ILogger<McpServerStateManager>? _logger;
     private readonly string _stateFilePath;
-    private readonly AsyncLock _lock = new();
-    private HashSet<string> _disabledServers = new(StringComparer.OrdinalIgnoreCase);
+    private ConcurrentDictionary<string, byte> _disabledServers = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 初始化 MCP 服务器状态管理器
@@ -39,10 +38,12 @@ public sealed partial class McpServerStateManager {
 
             var state = await _fs.ReadAndDeserializeAsync(_stateFilePath, McpClientJsonContext.Default.McpServerDisabledState, cancellationToken).ConfigureAwait(false);
             if (state?.DisabledServers != null) {
-                _disabledServers = new HashSet<string>(state.DisabledServers, StringComparer.OrdinalIgnoreCase);
+                Volatile.Write(ref _disabledServers, new ConcurrentDictionary<string, byte>(
+                    state.DisabledServers.Select(s => new KeyValuePair<string, byte>(s, 0)),
+                    StringComparer.OrdinalIgnoreCase));
             }
 
-            _logger?.LogInformation("已加载 {Count} 个禁用的 MCP 服务器", _disabledServers.Count);
+            _logger?.LogInformation("已加载 {Count} 个禁用的 MCP 服务器", Volatile.Read(ref _disabledServers).Count);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "加载 MCP 服务器状态失败");
         }
@@ -54,7 +55,7 @@ public sealed partial class McpServerStateManager {
     /// <param name="serverName">服务器名称</param>
     /// <returns>若已禁用返回 true；否则 false</returns>
     public bool IsDisabled(string serverName) {
-        return _disabledServers.Contains(serverName);
+        return Volatile.Read(ref _disabledServers).ContainsKey(serverName);
     }
 
     /// <summary>
@@ -64,10 +65,7 @@ public sealed partial class McpServerStateManager {
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>若状态发生变更（由启用变为禁用）返回 true；若原本已禁用返回 false</returns>
     public async Task<bool> DisableAsync(string serverName, CancellationToken cancellationToken = default) {
-        bool changed;
-        using (var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            changed = _disabledServers.Add(serverName);
-        }
+        var changed = Volatile.Read(ref _disabledServers).TryAdd(serverName, 0);
 
         if (!changed) return false;
 
@@ -84,10 +82,7 @@ public sealed partial class McpServerStateManager {
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>若状态发生变更（由禁用变为启用）返回 true；若原本已启用返回 false</returns>
     public async Task<bool> EnableAsync(string serverName, CancellationToken cancellationToken = default) {
-        bool changed;
-        using (var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            changed = _disabledServers.Remove(serverName);
-        }
+        var changed = Volatile.Read(ref _disabledServers).TryRemove(serverName, out _);
 
         if (!changed) return false;
 
@@ -102,13 +97,14 @@ public sealed partial class McpServerStateManager {
     /// </summary>
     /// <returns>禁用服务器名称的只读集合</returns>
     public IReadOnlySet<string> GetDisabledServers() {
-        return _disabledServers;
+        return Volatile.Read(ref _disabledServers).Keys.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
     }
 
     private async Task PersistAsync(CancellationToken cancellationToken) {
         try {
+            var servers = Volatile.Read(ref _disabledServers).Keys.ToList();
             var state = new McpServerDisabledState {
-                DisabledServers = _disabledServers.ToList()
+                DisabledServers = servers
             };
 
             var json = RelaxedJsonSerializer.Serialize(state, McpClientJsonContext.Default);

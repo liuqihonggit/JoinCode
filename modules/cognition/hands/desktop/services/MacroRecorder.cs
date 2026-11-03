@@ -18,10 +18,8 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder {
     private readonly IFileSystem _fileSystem;
     private readonly ILogger<MacroRecorder>? _logger;
 
-    private readonly AsyncLock _lock = new("MacroRecorder");
-    private bool _isRecording;
-    private string _macroName = string.Empty;
-    private readonly List<DesktopOperation> _recordedOperations = new();
+    private record RecordingState(bool IsRecording, string MacroName, ImmutableList<DesktopOperation> Operations);
+    private RecordingState _state = new(false, string.Empty, ImmutableList<DesktopOperation>.Empty);
 
     /// <summary>构造宏录制器实例。</summary>
     /// <param name="input">桌面输入服务，回放时用于执行实际鼠标键盘操作。</param>
@@ -34,42 +32,27 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder {
     }
 
     /// <summary>是否正在录制</summary>
-    public bool IsRecording {
-        get {
-            using (_lock.LockOrCrash()) {
-                return _isRecording;
-            }
-        }
-    }
+    public bool IsRecording => Volatile.Read(ref _state).IsRecording;
 
     /// <summary>开始录制（清空之前的录制内容）</summary>
     public void StartRecording(string macroName) {
         ArgumentException.ThrowIfNullOrWhiteSpace(macroName);
-        using (_lock.LockOrCrash()) {
-            _isRecording = true;
-            _macroName = macroName;
-            _recordedOperations.Clear();
-        }
+        Interlocked.Exchange(ref _state, new RecordingState(true, macroName, ImmutableList<DesktopOperation>.Empty));
         _logger?.LogInformation("开始录制宏: {Name}", macroName);
     }
 
     /// <summary>停止录制并返回宏</summary>
     public Macro StopRecording() {
-        using (_lock.LockOrCrash()) {
-            _isRecording = false;
-            var macro = new Macro(_macroName, _recordedOperations.ToArray(), DateTimeOffset.UtcNow);
-            _logger?.LogInformation("停止录制宏: {Name}, 共 {Count} 步", macro.Name, macro.Operations.Count);
-            return macro;
-        }
+        var current = Interlocked.Exchange(ref _state, new RecordingState(false, string.Empty, ImmutableList<DesktopOperation>.Empty));
+        var macro = new Macro(current.MacroName, current.Operations.ToArray(), DateTimeOffset.UtcNow);
+        _logger?.LogInformation("停止录制宏: {Name}, 共 {Count} 步", macro.Name, macro.Operations.Count);
+        return macro;
     }
 
     /// <summary>记录一个操作（仅在录制状态下有效）</summary>
     public void RecordOperation(DesktopOperation operation) {
         ArgumentNullException.ThrowIfNull(operation);
-        using (_lock.LockOrCrash()) {
-            if (_isRecording)
-                _recordedOperations.Add(operation);
-        }
+        ImmutableInterlocked.Update(ref _state, s => s.IsRecording ? s with { Operations = s.Operations.Add(operation) } : s);
     }
 
     /// <summary>回放宏 — 按顺序执行操作序列</summary>
@@ -152,7 +135,6 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder {
 
     /// <inheritdoc />
     public override void Dispose() {
-        _lock.Dispose();
         base.Dispose();
     }
 }

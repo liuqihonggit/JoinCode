@@ -5,48 +5,42 @@ namespace Core.Prompts;
 /// </summary>
 [Register(typeof(ISystemReminderManager), ServiceLifetime.Singleton)]
 public sealed partial class SystemReminderManager : ISystemReminderManager, IAsyncDisposable {
-    private readonly Dictionary<string, SystemReminder> _reminders = new(StringComparer.Ordinal);
-    private readonly AsyncLock _lock = new();
+    private readonly ConcurrentDictionary<string, SystemReminder> _reminders = new(StringComparer.Ordinal);
     private int _disposed;
 
     /// <summary>
     /// 异步添加提醒
     /// </summary>
-    public async Task AddReminderAsync(string id, string content, int priority = 0, CancellationToken ct = default) {
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            _reminders.Remove(id);
-            _reminders[id] = new SystemReminder(id, content, priority);
-        }
+    public Task AddReminderAsync(string id, string content, int priority = 0, CancellationToken ct = default) {
+        _reminders[id] = new SystemReminder(id, content, priority);
+        return Task.CompletedTask;
     }
 
     /// <summary>
     /// 异步移除提醒
     /// </summary>
-    public async Task RemoveReminderAsync(string id, CancellationToken ct = default) {
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            _reminders.Remove(id);
-        }
+    public Task RemoveReminderAsync(string id, CancellationToken ct = default) {
+        _reminders.TryRemove(id, out _);
+        return Task.CompletedTask;
     }
 
     /// <summary>
     /// 异步获取所有提醒（按优先级排序）
     /// </summary>
-    public async Task<IReadOnlyList<SystemReminder>> GetRemindersAsync(CancellationToken ct = default) {
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            return _reminders.Values
+    public Task<IReadOnlyList<SystemReminder>> GetRemindersAsync(CancellationToken ct = default) {
+        return Task.FromResult<IReadOnlyList<SystemReminder>>(
+            _reminders.Values
                 .OrderByDescending(r => r.Priority)
                 .ThenBy(r => r.CreatedAt)
-                .ToList();
-        }
+                .ToList());
     }
 
     /// <summary>
     /// 异步清除所有提醒
     /// </summary>
-    public async Task ClearAsync(CancellationToken ct = default) {
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            _reminders.Clear();
-        }
+    public Task ClearAsync(CancellationToken ct = default) {
+        _reminders.Clear();
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -71,7 +65,6 @@ public sealed partial class SystemReminderManager : ISystemReminderManager, IAsy
     /// <returns>表示异步释放操作的任务。</returns>
     public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
-        _lock.Dispose();
         return ValueTask.CompletedTask;
     }
 }

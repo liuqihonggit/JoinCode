@@ -8,8 +8,8 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService {
     private readonly HttpClient _httpClient;
     private readonly IConfigurationService? _configService;
     private readonly ILogger<GitHubService>? _logger;
-    private readonly AsyncLock _lock = new();
-    private readonly Dictionary<string, PRSubscription> _subscriptions = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, PRSubscription> _subscriptions = new(StringComparer.Ordinal);
+    private volatile bool _loaded;
 
     /// <summary>
     /// 构造 GitHub 服务实例
@@ -29,7 +29,6 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService {
     /// <param name="ct">取消令牌</param>
     /// <returns>当前所有 PR 订阅列表</returns>
     public async Task<IReadOnlyList<PRSubscription>> ListSubscriptionsAsync(CancellationToken ct = default) {
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
         await LoadSubscriptionsCoreAsync(ct).ConfigureAwait(false);
         return _subscriptions.Values.ToList();
     }
@@ -44,8 +43,6 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService {
     public async Task<PRSubscription> SubscribeAsync(string prRef, string events = "all", CancellationToken ct = default) {
         if (string.IsNullOrWhiteSpace(prRef))
             throw new ArgumentException("[HND003] PR 引用不能为空", nameof(prRef));
-
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         await LoadSubscriptionsCoreAsync(ct).ConfigureAwait(false);
 
@@ -73,11 +70,9 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService {
         if (string.IsNullOrWhiteSpace(prRef))
             throw new ArgumentException("[HND004] PR 引用不能为空", nameof(prRef));
 
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
         await LoadSubscriptionsCoreAsync(ct).ConfigureAwait(false);
 
-        _subscriptions.Remove(prRef);
+        _subscriptions.TryRemove(prRef, out _);
 
         await SaveSubscriptionsCoreAsync(ct).ConfigureAwait(false);
         _logger?.LogInformation("已取消订阅 PR: {PrRef}", prRef);
@@ -85,7 +80,8 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService {
 
     private async Task LoadSubscriptionsCoreAsync(CancellationToken ct) {
         if (_configService == null) return;
-        if (_subscriptions.Count > 0) return;
+        if (_loaded) return;
+        if (Interlocked.CompareExchange(ref _loaded, true, false) != false) return;
 
         try {
             var json = await _configService.GetAsync("github.pr_subscriptions", ct).ConfigureAwait(false);
@@ -117,7 +113,6 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService {
     /// 释放资源 — 释放异步锁
     /// </summary>
     public override void Dispose() {
-        _lock.Dispose();
         base.Dispose();
     }
 }

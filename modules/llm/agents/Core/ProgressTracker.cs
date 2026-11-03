@@ -5,11 +5,10 @@ namespace Core.Agents;
 /// </summary>
 public sealed class ProgressTracker : JoinCode.Abstractions.Interfaces.IProgressTracker {
     private readonly IClockService? _clock;
-    private readonly List<JoinCode.Abstractions.Interfaces.ToolActivity> _recentActivities = new(5);
-    private readonly AsyncLock _recentActivitiesLock = new("ProgressTracker");
+    private ImmutableList<JoinCode.Abstractions.Interfaces.ToolActivity> _recentActivities = ImmutableList<JoinCode.Abstractions.Interfaces.ToolActivity>.Empty;
     private int _toolUseCount;
     private int _tokenCount;
-    private string? _summary;
+    private volatile string? _summary;
     private volatile bool _notified;
 
     /// <summary>
@@ -50,10 +49,10 @@ public sealed class ProgressTracker : JoinCode.Abstractions.Interfaces.IProgress
             Timestamp = _clock?.GetUtcNow() ?? DateTime.UtcNow
         };
 
-        using (_recentActivitiesLock.LockOrCrash()) {
-            if (_recentActivities.Count >= 5)
-                _recentActivities.RemoveAt(0);
-            _recentActivities.Add(activity);
+        while (true) {
+            var current = Volatile.Read(ref _recentActivities);
+            var newList = current.Count >= 5 ? current.RemoveAt(0).Add(activity) : current.Add(activity);
+            if (Interlocked.CompareExchange(ref _recentActivities, newList, current) == current) break;
         }
     }
 
@@ -86,20 +85,16 @@ public sealed class ProgressTracker : JoinCode.Abstractions.Interfaces.IProgress
     /// </summary>
     /// <returns>Agent 进度快照</returns>
     public JoinCode.Abstractions.Interfaces.AgentProgress ToProgress() {
-        JoinCode.Abstractions.Interfaces.ToolActivity? lastActivity;
-        IReadOnlyList<JoinCode.Abstractions.Interfaces.ToolActivity>? recentActivities;
-        using (_recentActivitiesLock.LockOrCrash()) {
-            lastActivity = _recentActivities.Count > 0
-                ? _recentActivities[^1]
-                : null;
-            recentActivities = _recentActivities.ToList();
-        }
+        var activities = Volatile.Read(ref _recentActivities);
+        var lastActivity = activities.Count > 0
+            ? activities[^1]
+            : null;
 
         return new JoinCode.Abstractions.Interfaces.AgentProgress {
             ToolUseCount = _toolUseCount,
             TokenCount = _tokenCount,
             LastActivity = lastActivity,
-            RecentActivities = recentActivities,
+            RecentActivities = activities,
             Summary = _summary
         };
     }

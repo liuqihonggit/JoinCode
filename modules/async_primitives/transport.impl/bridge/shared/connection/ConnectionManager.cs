@@ -11,11 +11,10 @@ namespace JoinCode.Transport.Bridge;
 public sealed partial class ConnectionManager : ServiceEntity, IConnectionManager {
     private readonly ILogger? _logger;
     private readonly TransportConfiguration _config;
-    private readonly AsyncLock _stateLock = new();
 
     private IBridgeTransport? _currentTransport;
     private TransportProtocol _currentProtocol;
-    private TransportConnectionState _connectionState;
+    private volatile TransportConnectionState _connectionState;
 
     private CancellationTokenSource? _reconnectCts;
     private Task? _reconnectTask;
@@ -27,27 +26,22 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     public TransportConnectionState ConnectionState => _connectionState;
 
     /// <summary>
-    /// 异步获取当前连接状态（加锁读取）
+    /// 异步获取当前连接状态
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>当前连接状态</returns>
-    public async ValueTask<TransportConnectionState> GetConnectionStateAsync(CancellationToken ct = default) {
-        using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
-
-        return _connectionState;
-
+    public ValueTask<TransportConnectionState> GetConnectionStateAsync(CancellationToken ct = default) {
+        return new ValueTask<TransportConnectionState>(_connectionState);
     }
 
-    private async Task SetConnectionStateAsync(TransportConnectionState value, CancellationToken ct = default) {
-        using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
-
+    private Task SetConnectionStateAsync(TransportConnectionState value, CancellationToken ct = default) {
         var oldState = _connectionState;
         _connectionState = value;
         if (oldState != value) {
             _logger?.LogDebug("[ConnectionManager] 连接状态变更: {OldState} -> {NewState}", oldState, value);
             ConnectionStateChanged?.Invoke(this, new StateChangedEventArgs<TransportConnectionState>(oldState, value));
         }
-
+        return Task.CompletedTask;
     }
 
     /// <summary>当前传输协议</summary>
@@ -316,13 +310,12 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     }
 
     /// <summary>
-    /// 释放托管资源（重连令牌和锁）
+    /// 释放托管资源（重连令牌）
     /// </summary>
     public override void Dispose() {
         if (_asyncDisposed == 1) return;
         _reconnectCts?.Dispose();
         _reconnectCts = null;
-        _stateLock.Dispose();
         base.Dispose();
     }
 }

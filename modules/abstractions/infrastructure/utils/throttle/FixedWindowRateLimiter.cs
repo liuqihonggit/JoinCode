@@ -4,11 +4,11 @@ namespace Core.Utils;
 /// 固定窗口限流器 — 在固定时间窗口内限制最大请求数
 /// </summary>
 public sealed class FixedWindowRateLimiter {
-    private readonly AsyncLock _lock = new("FixedWindowRateLimiter");
     private readonly int _maxRequests;
     private readonly TimeSpan _window;
-    private int _currentCount;
-    private DateTime _windowStart = DateTime.UtcNow;
+    private WindowState _state = new(0, DateTime.UtcNow);
+
+    private sealed record WindowState(int Count, DateTime WindowStart);
 
     /// <summary>
     /// 构造固定窗口限流器
@@ -27,18 +27,23 @@ public sealed class FixedWindowRateLimiter {
     /// </summary>
     /// <returns>窗口内未达上限返回 true，否则 false</returns>
     public bool TryAcquire() {
-        using (_lock.LockOrCrash()) {
+        while (true) {
+            var current = Volatile.Read(ref _state);
             var now = DateTime.UtcNow;
-            if (now - _windowStart >= _window) {
-                _windowStart = now;
-                _currentCount = 0;
+            var count = current.Count;
+            var windowStart = current.WindowStart;
+
+            if (now - windowStart >= _window) {
+                windowStart = now;
+                count = 0;
             }
 
-            if (_currentCount >= _maxRequests)
+            if (count >= _maxRequests)
                 return false;
 
-            _currentCount++;
-            return true;
+            var newState = new WindowState(count + 1, windowStart);
+            if (Interlocked.CompareExchange(ref _state, newState, current) == current)
+                return true;
         }
     }
 
@@ -46,9 +51,6 @@ public sealed class FixedWindowRateLimiter {
     /// 重置限流器，清空当前窗口计数并重新开始计时
     /// </summary>
     public void Reset() {
-        using (_lock.LockOrCrash()) {
-            _windowStart = DateTime.UtcNow;
-            _currentCount = 0;
-        }
+        Interlocked.Exchange(ref _state, new WindowState(0, DateTime.UtcNow));
     }
 }

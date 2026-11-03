@@ -12,11 +12,10 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
     private readonly TimeSpan _cacheDuration;
     private readonly TimeProvider _timeProvider;
 
-    private IReadOnlyList<ReleaseInfo> _cachedReleases = [];
-    private bool _releasesCached;
-    private DateTimeOffset _cacheTimestamp;
-    private readonly AsyncLock _cacheLock = new();
-    private bool _disposed;
+    private CacheState _cacheState = new([], false, DateTimeOffset.MinValue);
+    private int _disposed;
+
+    private sealed record CacheState(IReadOnlyList<ReleaseInfo> Releases, bool IsCached, DateTimeOffset Timestamp);
 
     /// <summary>
     /// 构造 Release Notes 服务实例
@@ -89,9 +88,9 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
 
     /// <summary>尝试从缓存获取 release 列表，缓存有效返回 true</summary>
     private bool TryGetCachedReleases(int count, out IReadOnlyList<ReleaseInfo> result) {
-        using var guard = _cacheLock.LockOrCrash();
-        if (_releasesCached && _timeProvider.GetUtcNow() - _cacheTimestamp < _cacheDuration) {
-            result = _cachedReleases.Count <= count ? _cachedReleases : _cachedReleases.Take(count).ToList();
+        var state = Volatile.Read(ref _cacheState);
+        if (state.IsCached && _timeProvider.GetUtcNow() - state.Timestamp < _cacheDuration) {
+            result = state.Releases.Count <= count ? state.Releases : state.Releases.Take(count).ToList();
             return true;
         }
         result = [];
@@ -100,17 +99,12 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
 
     /// <summary>更新 release 缓存</summary>
     private void UpdateCache(IReadOnlyList<ReleaseInfo> releases, CancellationToken ct) {
-        using var guard = _cacheLock.LockOrCrash();
-        _cachedReleases = releases;
-        _releasesCached = true;
-        _cacheTimestamp = _timeProvider.GetUtcNow();
+        Interlocked.Exchange(ref _cacheState, new CacheState(releases, true, _timeProvider.GetUtcNow()));
     }
 
-    /// <summary>释放资源 — P2-2: 补全 IDisposable 释放 SemaphoreSlim 避免资源累积</summary>
+    /// <summary>释放资源</summary>
     public override void Dispose() {
-        if (_disposed) return;
-        _disposed = true;
-        _cacheLock.Dispose();
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         base.Dispose();
     }
 

@@ -1122,10 +1122,8 @@ public partial class GitHubToolHandlers {
                             foreach (var job in resp.Jobs) {
                                 if (job.Id == 0) continue;
                                 if (!CiJobSeverityExtensions.FromConclusion(job.Conclusion).IsAnomaly()) continue;
-                                lock (reportedJobIds) {
-                                    if (reportedJobIds.Contains(job.Id)) continue;
-                                    reportedJobIds.Add(job.Id);
-                                }
+                                if (reportedJobIds.Contains(job.Id)) continue;
+                                reportedJobIds.Add(job.Id);
                                 newFailedJobs.Add((job.Id, job.Name, job.Conclusion ?? "failure"));
                             }
                         }

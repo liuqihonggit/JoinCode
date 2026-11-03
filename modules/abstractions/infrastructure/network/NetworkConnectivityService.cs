@@ -17,9 +17,8 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
     private readonly Func<bool> _proxyEnvDetector;
     private readonly TimeProvider _timeProvider;
 
-    private readonly AsyncLock _stateLock = new("NetworkConnectivityService");
-    private NetworkConnectivityState _currentState;
-    private bool _subscribed;
+    private int _currentState;
+    private volatile bool _subscribed;
 
     private static readonly FrozenSet<string> VpnKeywords = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase,
@@ -43,23 +42,21 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
         _interfaceProvider = interfaceProvider ?? DiscoverInterfaces;
         _vpnProcessDetector = vpnProcessDetector ?? DetectVpnProcesses;
         _proxyEnvDetector = proxyEnvDetector ?? DetectProxyEnv;
-        _currentState = ComputeState();
+        _currentState = (int)ComputeState();
         SubscribeNetworkChange();
     }
 
     /// <inheritdoc/>
-    public NetworkConnectivityState CurrentState {
-        get { using (_stateLock.LockOrCrash()) return _currentState; }
-    }
+    public NetworkConnectivityState CurrentState => (NetworkConnectivityState)Volatile.Read(ref _currentState);
 
     /// <inheritdoc/>
     public bool IsNetworkAvailable() {
-        using (_stateLock.LockOrCrash()) return _currentState != NetworkConnectivityState.Offline;
+        return (NetworkConnectivityState)Volatile.Read(ref _currentState) != NetworkConnectivityState.Offline;
     }
 
     /// <inheritdoc/>
     public bool IsVpnActive() {
-        using (_stateLock.LockOrCrash()) return _currentState == NetworkConnectivityState.OnlineWithVpn;
+        return (NetworkConnectivityState)Volatile.Read(ref _currentState) == NetworkConnectivityState.OnlineWithVpn;
     }
 
     /// <inheritdoc/>
@@ -110,19 +107,15 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
     }
 
     private void OnNetworkChanged(string reason) {
-        var newState = ComputeState();
-        NetworkConnectivityState previous;
-        using (_stateLock.LockOrCrash()) {
-            if (_currentState == newState) return;
-            previous = _currentState;
-            _currentState = newState;
-        }
+        var newState = (int)ComputeState();
+        var previous = (NetworkConnectivityState)Interlocked.Exchange(ref _currentState, newState);
+        if (previous == (NetworkConnectivityState)newState) return;
 
-        _logger?.LogInformation("网络状态变化: {Previous} → {Current} ({Reason})", previous, newState, reason);
+        _logger?.LogInformation("网络状态变化: {Previous} → {Current} ({Reason})", previous, (NetworkConnectivityState)newState, reason);
 
         StateChanged?.Invoke(this, new NetworkConnectivityChangedEventArgs {
             PreviousState = previous,
-            CurrentState = newState,
+            CurrentState = (NetworkConnectivityState)newState,
             Timestamp = _timeProvider.GetLocalNow(),
             Reason = reason,
         });
@@ -156,7 +149,6 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
     /// <inheritdoc/>
     public override void Dispose() {
         UnsubscribeNetworkChange();
-        _stateLock.Dispose();
         base.Dispose();
     }
 

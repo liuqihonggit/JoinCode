@@ -604,3 +604,39 @@ D9 错误消息从 "模型返回空回复" 改为 "模型回复被安全过滤�
 | MCP | 1023 | ✅ |
 | Agents | 626 | ✅ |
 | **总计** | **6602** | **0 失败** |
+
+---
+
+## 第五轮：服务状态污染 + 错误消息技术化修复 — 2026-11-03
+
+### Bug 5: 服务状态污染根因 — /requests 全量传输
+
+**现象**：长时间运行 MockServer + responder（>100 场景）后出现假失败（SAA1 超时、220 场景回归 15 个假失败）
+**根因**：`/requests` 端点返回所有累积请求（200+），每次轮询全量传输+反序列化开销大，轮询周期变长可能超过 MockServer 30 秒注入超时
+**修复**：
+1. `KestrelMockServer.cs`：`/requests` 端点支持 `?since=N` 参数，只返回 index > N 的请求
+2. `Program.cs`（responder）：使用 `$"{controlUrl}/requests?since={lastSeenIndex}"` 增量查询，移除旧的 `lastSeenIndex` 重置逻辑
+**commit**: `6dc6048ed`
+
+### Bug 6: HTTP 错误消息技术化 — EnsureSuccessStatusCode 无响应体
+
+**现象**：HTTP 500/429/503 错误消息是 "Response status code does not indicate success: 500 (Internal Server Error)."，不包含响应体内容
+**根因**：`EnsureSuccessStatusCode()` 抛出的异常只有状态码，没有响应体
+**修复**：
+1. 新建 `HttpResponseExtensions.cs`：`EnsureSuccessWithBodyAsync` 替代 `EnsureSuccessStatusCode`，错误消息格式 `HTTP 429 TooManyRequests: {响应体前200字符}`
+2. OpenAI/Anthropic/Responses/Jev 四个 QueryService 的 8 处 `EnsureSuccessStatusCode()` 替换为 `await EnsureSuccessWithBodyAsync(cancellationToken)`
+3. 端到端验证：`ResilientHttpExecutor.CheckResponseStatusAsync` 已在更早阶段提供用户友好错误消息 `[LLM.StreamingChatCompletion] HTTP 500: {"error":{"message":"Internal server error"}}`，`EnsureSuccessWithBodyAsync` 作为防御性编程补充
+**commit**: `6dc6048ed`
+
+### 回归验证
+
+| 域 | 测试数 | 结果 |
+|----|--------|------|
+| LLM | 609 | ✅ |
+| MockServer.Core | 85 | ✅ |
+| Brain.Context | 950 | ✅ |
+| Brain.Other | 426 | ✅ |
+| MCP | 384 | ✅ |
+| Guard.Config | 1306 | ✅ |
+| Guard.Security | 1136 | ✅ |
+| **总计** | **4896** | **0 失败** |

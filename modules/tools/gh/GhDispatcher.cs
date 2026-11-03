@@ -1,7 +1,7 @@
 namespace JoinCode.Gh;
 
 internal static class GhDispatcher {
-    private static readonly Dictionary<string, MethodInfo> s_toolMap = BuildToolMap();
+    private static readonly FrozenDictionary<string, MethodInfo> s_toolMap = BuildToolMap();
     private static readonly GitHubToolHandlers s_handler = GhHost.BuildHandler();
 
     private static readonly (string Name, Type Type)[] s_commonOptionsProps = [
@@ -14,7 +14,7 @@ internal static class GhDispatcher {
         ("StartLine", typeof(int?)),
     ];
 
-    private static Dictionary<string, MethodInfo> BuildToolMap() {
+    private static FrozenDictionary<string, MethodInfo> BuildToolMap() {
         var map = new Dictionary<string, MethodInfo>(StringComparer.Ordinal);
         foreach (var method in typeof(GitHubToolHandlers).GetMethods(BindingFlags.Public | BindingFlags.Instance)) {
             var attr = method.GetCustomAttribute<McpToolAttribute>();
@@ -22,7 +22,7 @@ internal static class GhDispatcher {
             var name = attr.Name;
             if (!string.IsNullOrEmpty(name)) map[name] = method;
         }
-        return map;
+        return map.ToFrozenDictionary(StringComparer.Ordinal);
     }
 
     internal static IReadOnlyList<string> GetToolNames() => s_toolMap.Keys.OrderBy(n => n).ToList();

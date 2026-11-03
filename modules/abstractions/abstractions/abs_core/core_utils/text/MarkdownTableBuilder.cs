@@ -65,8 +65,34 @@ public sealed class MarkdownTableBuilder {
     /// <summary>转义单元格内容中的管道符和换行</summary>
     private static string Escape(string value) {
         if (string.IsNullOrEmpty(value)) return string.Empty;
-        return value.Contains('|') || value.Contains('\n') || value.Contains('\r')
-            ? value.Replace("|", "\\|").Replace("\r", " ").Replace("\n", " ")
-            : value;
+
+        var span = value.AsSpan();
+        var pipeCount = 0;
+        var needsEscape = false;
+        foreach (var c in span) {
+            if (c == '|') { pipeCount++; needsEscape = true; }
+            else if (c == '\r' || c == '\n') needsEscape = true;
+        }
+        if (!needsEscape) return value;
+
+        var len = span.Length + pipeCount;
+        if (len <= 512) {
+            Span<char> buf = stackalloc char[len];
+            WriteEscaped(buf, span);
+            return new string(buf);
+        }
+        var heapBuf = new char[len];
+        WriteEscaped(heapBuf, span);
+        return new string(heapBuf);
+
+        static void WriteEscaped(Span<char> buf, ReadOnlySpan<char> src) {
+            var j = 0;
+            for (var i = 0; i < src.Length; i++) {
+                var c = src[i];
+                if (c == '|') { buf[j++] = '\\'; buf[j++] = '|'; }
+                else if (c == '\r' || c == '\n') buf[j++] = ' ';
+                else buf[j++] = c;
+            }
+        }
     }
 }

@@ -109,27 +109,29 @@ public sealed partial class ApplyPatchLogic : ServiceEntity {
 
     internal static List<PatchHunk> ParsePatch(string patch) {
         var hunks = new List<PatchHunk>();
-        var ranges = LineSpanIndexer.BuildLineRanges(patch.AsSpan());
+        var patchSpan = patch.AsSpan();
+        var ranges = LineSpanIndexer.BuildLineRanges(patchSpan);
         string? currentFile = null;
         PatchHunk? currentHunk = null;
 
         foreach (var (start, length) in ranges) {
-            var line = patch.Substring(start, length).TrimEnd('\r');
+            var lineSpan = patchSpan.Slice(start, length).TrimEnd('\r');
 
-            if (line.StartsWith("--- "))
+            if (lineSpan.StartsWith("--- "))
                 continue;
 
-            if (line.StartsWith("+++ ")) {
-                var path = line[4..];
-                if (path.StartsWith("b/"))
-                    path = path[2..];
-                currentFile = path.Trim();
+            if (lineSpan.StartsWith("+++ ")) {
+                var pathSpan = lineSpan[4..];
+                if (pathSpan.StartsWith("b/"))
+                    pathSpan = pathSpan[2..];
+                currentFile = new string(pathSpan.Trim());
                 continue;
             }
 
-            if (line.StartsWith("diff --git") || line.StartsWith("index "))
+            if (lineSpan.StartsWith("diff --git") || lineSpan.StartsWith("index "))
                 continue;
 
+            var line = new string(lineSpan);
             var hunkMatch = HunkHeaderRegex().Match(line);
             if (hunkMatch.Success && currentFile is not null) {
                 currentHunk = new PatchHunk {

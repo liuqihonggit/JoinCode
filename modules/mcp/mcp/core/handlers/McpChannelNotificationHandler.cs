@@ -224,7 +224,55 @@ public sealed partial class McpChannelNotificationHandler {
     }
 
     private static string EscapeXmlAttr(string value) {
-        return value.Replace("&", "&amp;").Replace("\"", "&quot;").Replace("<", "&lt;").Replace(">", "&gt;");
+        var span = value.AsSpan();
+        var ampCount = 0;
+        var quotCount = 0;
+        var ltCount = 0;
+        var gtCount = 0;
+        foreach (var c in span) {
+            switch (c) {
+                case '&': ampCount++; break;
+                case '"': quotCount++; break;
+                case '<': ltCount++; break;
+                case '>': gtCount++; break;
+            }
+        }
+        if (ampCount == 0 && quotCount == 0 && ltCount == 0 && gtCount == 0)
+            return value;
+
+        var len = span.Length + ampCount * 4 + quotCount * 5 + ltCount * 3 + gtCount * 3;
+        if (len <= 512) {
+            Span<char> buf = stackalloc char[len];
+            WriteEscapedXml(buf, span);
+            return new string(buf);
+        }
+        var heapBuf = new char[len];
+        WriteEscapedXml(heapBuf, span);
+        return new string(heapBuf);
+
+        static void WriteEscapedXml(Span<char> buf, ReadOnlySpan<char> src) {
+            var j = 0;
+            for (var i = 0; i < src.Length; i++) {
+                var c = src[i];
+                switch (c) {
+                    case '&':
+                        buf[j++] = '&'; buf[j++] = 'a'; buf[j++] = 'm'; buf[j++] = 'p'; buf[j++] = ';';
+                        break;
+                    case '"':
+                        buf[j++] = '&'; buf[j++] = 'q'; buf[j++] = 'u'; buf[j++] = 'o'; buf[j++] = 't'; buf[j++] = ';';
+                        break;
+                    case '<':
+                        buf[j++] = '&'; buf[j++] = 'l'; buf[j++] = 't'; buf[j++] = ';';
+                        break;
+                    case '>':
+                        buf[j++] = '&'; buf[j++] = 'g'; buf[j++] = 't'; buf[j++] = ';';
+                        break;
+                    default:
+                        buf[j++] = c;
+                        break;
+                }
+            }
+        }
     }
 }
 

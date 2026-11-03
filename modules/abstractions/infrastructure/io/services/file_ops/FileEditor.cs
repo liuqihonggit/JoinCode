@@ -209,10 +209,11 @@ public sealed class FileEditor {
             List<string> allLines;
             if (fileEncoding is UTF8Encoding) {
                 var content = await _fs.ReadAllTextAsync(normalizedPath, cancellationToken).ConfigureAwait(false);
-                var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan(), cancellationToken);
+                var contentSpan = content.AsSpan();
+                var ranges = LineSpanIndexer.BuildLineRanges(contentSpan, cancellationToken);
                 allLines = new List<string>(ranges.Count);
                 foreach (var (start, length) in ranges)
-                    allLines.Add(content.Substring(start, length));
+                    allLines.Add(new string(contentSpan.Slice(start, length)));
             } else {
                 allLines = new List<string>();
                 await using var stream = _fs.CreateStream(normalizedPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);

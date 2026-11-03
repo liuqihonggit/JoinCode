@@ -455,7 +455,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable {
         var filesToMove = _files.Keys.Where(f => f.StartsWith(normalizedSource + "/", StringComparison.Ordinal)).ToList();
         foreach (var file in filesToMove) {
             if (_files.TryRemove(file, out var entry)) {
-                var newPath = normalizedDest + file.Substring(normalizedSource.Length);
+                var newPath = string.Concat(normalizedDest, file.AsSpan(normalizedSource.Length));
                 entry.FullPath = newPath;
                 _files[newPath] = entry;
             }
@@ -465,7 +465,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable {
         var dirsToMove = _directories.Keys.Where(d => d.StartsWith(normalizedSource + "/", StringComparison.Ordinal)).OrderBy(d => d.Length).ToList();
         foreach (var dir in dirsToMove) {
             if (_directories.TryRemove(dir, out var entry)) {
-                var newPath = normalizedDest + dir.Substring(normalizedSource.Length);
+                var newPath = string.Concat(normalizedDest, dir.AsSpan(normalizedSource.Length));
                 entry.FullPath = newPath;
                 _directories[newPath] = entry;
             }

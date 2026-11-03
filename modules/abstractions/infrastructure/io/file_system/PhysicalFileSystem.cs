@@ -103,11 +103,12 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
     public string[] ReadAllLines(string path) {
         using var reader = MappedFileReader.Open(path);
         var content = reader.ReadToEnd();
-        var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan());
+        var contentSpan = content.AsSpan();
+        var ranges = LineSpanIndexer.BuildLineRanges(contentSpan);
         var lines = new string[ranges.Count];
         for (var i = 0; i < ranges.Count; i++) {
             var (start, length) = ranges[i];
-            lines[i] = content.Substring(start, length);
+            lines[i] = new string(contentSpan.Slice(start, length));
         }
         return lines;
     }
@@ -363,11 +364,12 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
         cancellationToken.ThrowIfCancellationRequested();
         using var reader = MappedFileReader.Open(path);
         var content = reader.ReadToEnd();
-        var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan());
+        var contentSpan = content.AsSpan();
+        var ranges = LineSpanIndexer.BuildLineRanges(contentSpan);
         var lines = new string[ranges.Count];
         for (var i = 0; i < ranges.Count; i++) {
             var (start, length) = ranges[i];
-            lines[i] = content.Substring(start, length);
+            lines[i] = new string(contentSpan.Slice(start, length));
         }
         return Task.FromResult(lines);
     }

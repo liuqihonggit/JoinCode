@@ -52,7 +52,6 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
     private const int MinimumSampleSize = 2;
 
     private int _consecutiveLowValueCount;
-    private readonly AsyncLock _resetLock = new("DiminishingReturnsDetector");
     private readonly ITelemetryService? _telemetryService;
 
     /// <summary>
@@ -102,44 +101,43 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
 
         var averageRatio = ratios.Average();
 
-        using (_resetLock.LockOrCrash()) {
-            if (averageRatio < LowValueThreshold) {
-                _consecutiveLowValueCount++;
-            } else {
-                _consecutiveLowValueCount = 0;
+        int consecutiveCount;
+        while (true) {
+            var oldCount = Volatile.Read(ref _consecutiveLowValueCount);
+            var newCount = averageRatio < LowValueThreshold ? oldCount + 1 : 0;
+            if (Interlocked.CompareExchange(ref _consecutiveLowValueCount, newCount, oldCount) == oldCount) {
+                consecutiveCount = newCount;
+                break;
             }
-
-            var isDiminishing = _consecutiveLowValueCount >= ConsecutiveThreshold;
-            var recommendation = isDiminishing switch {
-                true when _consecutiveLowValueCount >= ConsecutiveThreshold + 2 => "Stop iteration - sustained diminishing returns",
-                true => "Consider compacting context or switching strategy",
-                _ => null
-            };
-
-            _telemetryService?.RecordCount("query.diminishing.check.count", new() { ["diminishing"] = isDiminishing.ToString() }, "count", "Diminishing returns check count");
-            _telemetryService?.RecordHistogram("query.diminishing.effectiveness", averageRatio, unit: "ratio", description: "Effectiveness ratio");
-
-            return new DiminishingReturnsResult {
-                IsDiminishing = isDiminishing,
-                EffectivenessRatio = averageRatio,
-                Recommendation = recommendation,
-                ConsecutiveLowValueIterations = _consecutiveLowValueCount
-            };
         }
+
+        var isDiminishing = consecutiveCount >= ConsecutiveThreshold;
+        var recommendation = isDiminishing switch {
+            true when consecutiveCount >= ConsecutiveThreshold + 2 => "Stop iteration - sustained diminishing returns",
+            true => "Consider compacting context or switching strategy",
+            _ => null
+        };
+
+        _telemetryService?.RecordCount("query.diminishing.check.count", new() { ["diminishing"] = isDiminishing.ToString() }, "count", "Diminishing returns check count");
+        _telemetryService?.RecordHistogram("query.diminishing.effectiveness", averageRatio, unit: "ratio", description: "Effectiveness ratio");
+
+        return new DiminishingReturnsResult {
+            IsDiminishing = isDiminishing,
+            EffectivenessRatio = averageRatio,
+            Recommendation = recommendation,
+            ConsecutiveLowValueIterations = consecutiveCount
+        };
     }
 
     /// <summary>
     /// 重置检测器状态 — 清零连续低效计数
     /// </summary>
     public void Reset() {
-        using (_resetLock.LockOrCrash()) {
-            _consecutiveLowValueCount = 0;
-        }
+        Interlocked.Exchange(ref _consecutiveLowValueCount, 0);
     }
 
     /// <inheritdoc />
     public override void Dispose() {
-        _resetLock.Dispose();
         base.Dispose();
     }
 }

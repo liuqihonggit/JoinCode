@@ -10,8 +10,8 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
     private ImmutableHamT<string, SkillDefinition> _mcpSkills = ImmutableHamT<string, SkillDefinition>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private ImmutableHamT<string, McpSkillAdapter> _adapters = ImmutableHamT<string, McpSkillAdapter>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger<McpSkillProvider>? _logger;
-    private readonly AsyncLock _refreshLock = new();
-    private bool _isDisposed;
+    private int _isRefreshing;
+    private int _isDisposed;
 
     /// <summary>
     /// 创建 MCP 技能提供者
@@ -133,45 +133,47 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
     public async Task RefreshAsync(CancellationToken cancellationToken = default) {
-        using var guard = await _refreshLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_refreshLock.Name}' 等待超时");
+        if (Interlocked.CompareExchange(ref _isRefreshing, 1, 0) != 0) return;
+        try {
+            Interlocked.Exchange(ref _mcpSkills, ImmutableHamT<string, SkillDefinition>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
 
-        Interlocked.Exchange(ref _mcpSkills, ImmutableHamT<string, SkillDefinition>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
-
-        foreach (var (serverName, client) in Volatile.Read(ref _clients)) {
-            try {
-                if (!client.IsConnected) {
-                    await client.ConnectAsync(cancellationToken).ConfigureAwait(false);
-                }
-
-                var toolsResult = await client.ListToolsAsync(cancellationToken).ConfigureAwait(false);
-                if (!toolsResult.Success) {
-                    _logger?.LogWarning("[McpSkillProvider] 获取 MCP 服务器 {Server} 工具列表失败: {Error}",
-                        serverName, toolsResult.ErrorMessage);
-                    continue;
-                }
-
-                var adapter = Volatile.Read(ref _adapters).GetValueOrDefault(serverName);
-                if (adapter == null) {
-                    continue;
-                }
-
-                var newSkills = new List<SkillDefinition>();
-                foreach (var tool in toolsResult.GetData()) {
-                    var skill = await adapter.AdaptToolAsync(tool, cancellationToken).ConfigureAwait(false);
-                    if (skill != null) {
-                        newSkills.Add(skill with { Namespace = $"mcp.{serverName}" });
+            foreach (var (serverName, client) in Volatile.Read(ref _clients)) {
+                try {
+                    if (!client.IsConnected) {
+                        await client.ConnectAsync(cancellationToken).ConfigureAwait(false);
                     }
+
+                    var toolsResult = await client.ListToolsAsync(cancellationToken).ConfigureAwait(false);
+                    if (!toolsResult.Success) {
+                        _logger?.LogWarning("[McpSkillProvider] 获取 MCP 服务器 {Server} 工具列表失败: {Error}",
+                            serverName, toolsResult.ErrorMessage);
+                        continue;
+                    }
+
+                    var adapter = Volatile.Read(ref _adapters).GetValueOrDefault(serverName);
+                    if (adapter == null) {
+                        continue;
+                    }
+
+                    var newSkills = new List<SkillDefinition>();
+                    foreach (var tool in toolsResult.GetData()) {
+                        var skill = await adapter.AdaptToolAsync(tool, cancellationToken).ConfigureAwait(false);
+                        if (skill != null) {
+                            newSkills.Add(skill with { Namespace = $"mcp.{serverName}" });
+                        }
+                    }
+                    if (newSkills.Count > 0)
+                        ImmutableInterlocked.Update(ref _mcpSkills, d => d.SetItems(newSkills.Select(s => new KeyValuePair<string, SkillDefinition>(s.Name, s))));
+
+                    _logger?.LogInformation("[McpSkillProvider] 从 MCP 服务器 {Server} 加载 {Count} 个技能",
+                        serverName, toolsResult.GetData().Count);
+                } catch (Exception ex) {
+                    _logger?.LogError(ex, "[McpSkillProvider] 刷新 MCP 服务器 {Server} 失败", serverName);
                 }
-                if (newSkills.Count > 0)
-                    ImmutableInterlocked.Update(ref _mcpSkills, d => d.SetItems(newSkills.Select(s => new KeyValuePair<string, SkillDefinition>(s.Name, s))));
-
-                _logger?.LogInformation("[McpSkillProvider] 从 MCP 服务器 {Server} 加载 {Count} 个技能",
-                    serverName, toolsResult.GetData().Count);
-            } catch (Exception ex) {
-                _logger?.LogError(ex, "[McpSkillProvider] 刷新 MCP 服务器 {Server} 失败", serverName);
             }
+        } finally {
+            Interlocked.Exchange(ref _isRefreshing, 0);
         }
-
     }
 
     /// <summary>
@@ -189,11 +191,9 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync() {
-        if (_isDisposed) {
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) {
             return;
         }
-
-        _isDisposed = true;
 
         foreach (var (_, client) in Interlocked.Exchange(ref _clients, ImmutableHamT<string, IMcpClient>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase))) {
             try {
@@ -205,7 +205,6 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
 
         Interlocked.Exchange(ref _mcpSkills, ImmutableHamT<string, SkillDefinition>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
         Interlocked.Exchange(ref _adapters, ImmutableHamT<string, McpSkillAdapter>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase));
-        _refreshLock.Dispose();
     }
 
     private McpSkillAdapter? FindAdapterForSkill(SkillDefinition skill) {

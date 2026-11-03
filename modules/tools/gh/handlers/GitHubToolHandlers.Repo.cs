@@ -672,6 +672,24 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, $"licenses/{key}", ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body) : Fail(result.Error);
+        if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_repo_license_view", $"licenses/{key}"));
+        return Ok(SummarizeLicense(result.Body));
+    }
+
+    /// <summary>精简 license 详情 — 提取名称/SPDX/描述/正文</summary>
+    private static string SummarizeLicense(string json) {
+        try {
+            var lic = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.LicenseResponse);
+            if (lic is null) return json;
+            var sb = new StringBuilder(512);
+            sb.AppendLine($"License: {lic.Name} ({lic.SpdxId})");
+            if (!string.IsNullOrEmpty(lic.HtmlUrl)) sb.AppendLine($"URL: {lic.HtmlUrl}");
+            if (!string.IsNullOrEmpty(lic.Description)) sb.AppendLine($"描述: {lic.Description}");
+            if (!string.IsNullOrEmpty(lic.Body)) {
+                sb.AppendLine();
+                sb.Append(lic.Body);
+            }
+            return sb.ToString();
+        } catch { return json; }
     }
 }

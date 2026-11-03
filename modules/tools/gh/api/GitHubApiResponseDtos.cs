@@ -430,6 +430,15 @@ internal sealed class LicenseResponse {
     /// <summary>SPDX ID</summary>
     [JsonPropertyName("spdx_id")]
     public string SpdxId { get; init; } = "";
+    /// <summary>HTML URL</summary>
+    [JsonPropertyName("html_url")]
+    public string? HtmlUrl { get; init; }
+    /// <summary>描述</summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; init; }
+    /// <summary>许可证正文</summary>
+    [JsonPropertyName("body")]
+    public string? Body { get; init; }
 }
 
 /// <summary>Topics 响应 — GET /repos/{o}/{r}/topics</summary>

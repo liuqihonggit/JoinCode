@@ -415,7 +415,7 @@ public partial class GitHubToolHandlers {
             "gh_notification_list" => $"通知列表获取失败 — {error}。可能原因: token 缺 notifications scope。提示: 到 https://github.com/settings/tokens 更新 token scope 添加 notifications 后重新设置 JCC_GITHUB_TOKEN",
             _ => $"{toolName ?? "gh"} 调用失败 — {error}。API 路径: {apiPath}"
         };
-        var noGenericHint = toolName is "gh_gpg_key_list" or "gh_gpg_key_add" or "gh_gpg_key_delete" or "gh_ssh_key_view" or "gh_gpg_key_view" or "gh_org_view" or "gh_team_list" or "gh_collaborator_list" or "gh_notification_list" or "gh_gist_list" or "gh_gist_view" or "gh_gist_create" or "gh_gist_delete" or "gh_gist_edit";
+        var noGenericHint = toolName is "gh_gpg_key_list" or "gh_gpg_key_add" or "gh_gpg_key_delete" or "gh_ssh_key_view" or "gh_gpg_key_view" or "gh_org_view" or "gh_team_list" or "gh_collaborator_list" or "gh_notification_list" or "gh_gist_list" or "gh_gist_view" or "gh_gist_create" or "gh_gist_delete" or "gh_gist_edit" or "gh_repo_gitignore_view" or "gh_repo_license_view";
         return noGenericHint ? context : $"{context}\n提示: 若仓库为私有, 404 也可能是 token 未配置/无效 — 设置 JCC_GITHUB_TOKEN 或运行 gh auth login";
     }
 

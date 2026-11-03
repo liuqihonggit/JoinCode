@@ -219,9 +219,16 @@ internal static class SimpleJqEvaluator {
             span = commaIdx < 0 ? default : span[(commaIdx + 1)..];
             if (pair.IsEmpty) continue;
             var colonIdx = pair.IndexOf(':');
-            if (colonIdx < 0) continue;
-            var key = pair[..colonIdx].Trim().Trim('"').ToString();
-            var valuePath = pair[(colonIdx + 1)..].Trim().ToString();
+            string key;
+            string valuePath;
+            if (colonIdx < 0) {
+                var fieldName = pair.Trim().Trim('"').ToString();
+                key = fieldName;
+                valuePath = "." + fieldName;
+            } else {
+                key = pair[..colonIdx].Trim().Trim('"').ToString();
+                valuePath = pair[(colonIdx + 1)..].Trim().ToString();
+            }
             obj[key] = GetFieldValue(input, valuePath)?.DeepClone();
         }
         return obj;

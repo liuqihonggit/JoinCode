@@ -624,11 +624,12 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         if (Environment.GetEnvironmentVariable(JccEnvVar.DisableRetry.ToValue()) is { } val &&
             (val.Equals("true", StringComparison.OrdinalIgnoreCase) || val == "1"))
             return false;
-        // 连接级错误（HttpRequestException 无 StatusCode = 连接拒绝/DNS失败）不重试 —
-        // ResilientHttpExecutor 已在其层重试，QueryEngine 再重试只会翻倍等待时间
-        if (ex is HttpRequestException { StatusCode: null })
+        // HttpRequestException 不重试 —
+        // ResilientHttpExecutor 已在其层按 ShouldRetry/IsRetryAllowed 完成重试，
+        // QueryEngine 再重试只会与底层叠加翻倍等待时间（三层重试叠加问题）
+        if (ex is HttpRequestException)
             return false;
-        return ex is HttpRequestException or TimeoutException or TaskCanceledException;
+        return ex is TimeoutException or TaskCanceledException;
     }
 
     /// <summary>

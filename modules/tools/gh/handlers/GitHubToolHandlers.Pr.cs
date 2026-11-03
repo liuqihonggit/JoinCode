@@ -404,7 +404,7 @@ public partial class GitHubToolHandlers {
     /// <summary>获取 PR head sha/ref — 解析 PR detail 响应。返回 Error 保留原始失败原因(网络/404/认证/解析)</summary>
     private static async Task<(string? Sha, string? Ref, string? Error)> FetchPrHeadAsync(IGitHubApiClient client, string owner, string repoName, string number, CancellationToken ct) {
         var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: ct).ConfigureAwait(false);
-        if (!prResult.Success) return (null, null, prResult.Error);
+        if (!prResult.Success) return (null, null, EnrichApiError(prResult.Error, "gh_pr_checks", $"repos/{owner}/{repoName}/pulls/{number}"));
         try {
             var prDetail = JsonSerializer.Deserialize(prResult.Body, GitHubApiJsonContext.Safe.PrDetailResponse);
             return (prDetail?.Head?.Sha, prDetail?.Head?.Ref, null);

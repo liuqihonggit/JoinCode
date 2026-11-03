@@ -125,18 +125,25 @@ public partial class GitHubToolHandlers {
     /// <para>full_json: 完整JSON不截断不加行号,直接返回原始body</para>
     /// </summary>
     internal string FormatGhOutput(string body, int? verbosity, string? json_fields, Func<string, string> summarize, string? compactFields = null, string? jq = null, int? skipLines = null, int? startLine = null, string? toolName = null) {
-        var effectiveVerbosity = verbosity ?? GetVerbosityFromEnv();
-        if (effectiveVerbosity == 2) return body;  // full_json: 完整JSON不截断不加行号,直接返回
+        // jq/json_fields 是显式过滤，优先级高于 full_json — 即使 verbosity=2 也先处理
+        var filtered = ApplyExplicitFilters(body, jq, json_fields);
+        if (filtered is not null)
+            return ApplyPaginationAndTruncation(filtered, skipLines, startLine, toolName, _compactLinePrefix, addLineNumbers: true);
 
-        var formatted = ResolveFormattedBody(body, effectiveVerbosity, json_fields, summarize, compactFields, jq);
+        var effectiveVerbosity = verbosity ?? GetVerbosityFromEnv();
+        if (effectiveVerbosity == 2) return body;  // full_json: 无显式过滤时直接返回完整JSON
+
+        var formatted = effectiveVerbosity == 1
+            ? FilterJsonFields(body, compactFields ?? "id,number,title,state,name")
+            : summarize(body);
         return ApplyPaginationAndTruncation(formatted, skipLines, startLine, toolName, _compactLinePrefix, addLineNumbers: true);
     }
 
-    /// <summary>解析输出体 — 3 路优先级：jq → json_fields → compact_json/gh_style</summary>
-    private string ResolveFormattedBody(string body, int verbosity, string? json_fields, Func<string, string> summarize, string? compactFields, string? jq) {
+    /// <summary>应用显式过滤 — jq/json_fields 非空时返回过滤结果，均为空时返回 null 交回 verbosity 决策</summary>
+    private static string? ApplyExplicitFilters(string body, string? jq, string? json_fields) {
         if (!string.IsNullOrEmpty(jq)) return SimpleJqEvaluator.Evaluate(body, jq) ?? body;
         if (!string.IsNullOrEmpty(json_fields)) return FilterJsonFields(body, json_fields);
-        return verbosity == 1 ? FilterJsonFields(body, compactFields ?? "id,number,title,state,name") : summarize(body);
+        return null;
     }
 
     /// <summary>

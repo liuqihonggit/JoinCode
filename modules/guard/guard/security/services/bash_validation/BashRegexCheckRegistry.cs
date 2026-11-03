@@ -647,10 +647,10 @@ public static class BashRegexCheckRegistry {
 
             if (c == '#' && !inSingleQuote && !inDoubleQuote) {
                 var lineEnd = command.IndexOf('\n', i);
-                var commentText = lineEnd == -1
-                    ? command.Substring(i + 1)
-                    : command.Substring(i + 1, lineEnd - i - 1);
-                if (commentText.Contains('\'') || commentText.Contains('"'))
+                var commentSpan = lineEnd == -1
+                    ? command.AsSpan(i + 1)
+                    : command.AsSpan(i + 1, lineEnd - i - 1);
+                if (commentSpan.Contains('\'') || commentSpan.Contains('"'))
                     return Fail(BashSecurityCheckId.CommentQuoteDesync,
                         "命令包含注释中引号字符，可能导致引号追踪失同步", true);
                 if (lineEnd == -1) break;
@@ -681,8 +681,8 @@ public static class BashRegexCheckRegistry {
                 var lineStart = i + 1;
                 var nextNewline = command.IndexOf('\n', lineStart);
                 var lineEnd = nextNewline == -1 ? command.Length : nextNewline;
-                var nextLine = command.Substring(lineStart, lineEnd - lineStart);
-                if (nextLine.TrimStart().StartsWith('#'))
+                var nextLineSpan = command.AsSpan(lineStart, lineEnd - lineStart);
+                if (nextLineSpan.TrimStart().StartsWith('#'))
                     return Fail(BashSecurityCheckId.QuotedNewline,
                         "命令包含引号内换行后跟井号行，可能从基于行的权限检查中隐藏参数", true);
             }

@@ -261,14 +261,14 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
 
         if (source.Contains(target)) return 1.0;
 
-        var sourceChars = source.ToCharArray();
-        var targetChars = target.ToCharArray();
+        var sourceSpan = source.AsSpan();
+        var targetSpan = target.AsSpan();
         var matchCount = 0;
         var sourceIndex = 0;
 
-        foreach (var tc in targetChars) {
-            while (sourceIndex < sourceChars.Length) {
-                if (sourceChars[sourceIndex] == tc) {
+        foreach (var tc in targetSpan) {
+            while (sourceIndex < sourceSpan.Length) {
+                if (sourceSpan[sourceIndex] == tc) {
                     matchCount++;
                     sourceIndex++;
                     break;
@@ -277,7 +277,7 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
             }
         }
 
-        return (double)matchCount / targetChars.Length;
+        return (double)matchCount / targetSpan.Length;
     }
 
     private static string? GenerateHighlight(SkillDefinition skill, SkillSearchQuery query) {

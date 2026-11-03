@@ -104,17 +104,21 @@ internal static class GhSubCommand {
         => json ? OutputJsonResult(result) : OutputTextResult(result);
 
     /// <summary>JSON 模式输出 — 3 路优先级：error/empty → 序列化整个结果；已是 JSON → 直接输出；否则 → 序列化字符串</summary>
+    /// <para>timing 信息输出到 stderr，不破坏 stdout 的 JSON 解析</para>
     private static int OutputJsonResult(ToolResult result) {
         var text = (result.Content.Count == 1 ? result.Content[0].Text : null) ?? string.Empty;
         if (result.IsError || string.IsNullOrEmpty(text)) {
             Console.WriteLine(GhJsonContext.UnescapeHtmlChars(JsonSerializer.Serialize(result, GhJsonContext.Safe.ToolResult)));
+            if (result.TimingInfo is not null) Console.Error.WriteLine(result.TimingInfo);
             return result.IsError ? 1 : 0;
         }
         if (text.Length > 0 && (text[0] == '[' || text[0] == '{' || text[0] == '"' || IsJsonPrimitive(text))) {
             Console.WriteLine(text);
+            if (result.TimingInfo is not null) Console.Error.WriteLine(result.TimingInfo);
             return result.IsError ? 1 : 0;
         }
         Console.WriteLine(GhJsonContext.UnescapeHtmlChars(JsonSerializer.Serialize(text, GhJsonContext.Safe.String)));
+        if (result.TimingInfo is not null) Console.Error.WriteLine(result.TimingInfo);
         return result.IsError ? 1 : 0;
     }
 

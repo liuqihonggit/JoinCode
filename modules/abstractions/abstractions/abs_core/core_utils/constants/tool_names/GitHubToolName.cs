@@ -501,6 +501,15 @@ public enum GitHubToolName {
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhBranchRename,
 
+    // === Milestone ===
+    [EnumValue("gh_milestone_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhMilestoneList,
+
+    [EnumValue("gh_milestone_view")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhMilestoneView,
+
     // === 通用 API 调用 ===
     [EnumValue("gh_api")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]

@@ -57,6 +57,7 @@ internal static class GhCommandResolver {
         GhGroupEnumConstants.Browse,
         GhGroupEnumConstants.Status,
         GhGroupEnumConstants.Licenses,
+        GhGroupEnumConstants.Milestone,
     ];
 
     /// <summary>单级命令 — 工具名就是 <c>gh_{group}</c>，不需要 action（如 gh_api/gh_browse/gh_status/gh_licenses）。</summary>

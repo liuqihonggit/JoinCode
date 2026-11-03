@@ -1346,6 +1346,27 @@ internal sealed class MilestoneItemResponse {
     /// <summary>Milestone 标题</summary>
     [JsonPropertyName("title")]
     public string Title { get; init; } = "";
+    /// <summary>状态(open/closed)</summary>
+    [JsonPropertyName("state")]
+    public string State { get; init; } = "";
+    /// <summary>描述</summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; init; }
+    /// <summary>HTML URL</summary>
+    [JsonPropertyName("html_url")]
+    public string? HtmlUrl { get; init; }
+    /// <summary>创建时间</summary>
+    [JsonPropertyName("created_at")]
+    public string? CreatedAt { get; init; }
+    /// <summary>截止时间</summary>
+    [JsonPropertyName("due_on")]
+    public string? DueOn { get; init; }
+    /// <summary>open issue 数</summary>
+    [JsonPropertyName("open_issues")]
+    public int OpenIssues { get; init; }
+    /// <summary>closed issue 数</summary>
+    [JsonPropertyName("closed_issues")]
+    public int ClosedIssues { get; init; }
 }
 
 // === Auth User 响应(AuthConfig 专用) ===

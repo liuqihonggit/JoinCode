@@ -12,23 +12,23 @@
 
 | # | 位置 | 方案 | 消除锁数 | 状态 |
 |---|------|------|---------|------|
-| 1 | `modules/services/bridge/core/services/BridgeFaultInjection.cs` | `List`→`ImmutableList`+`Interlocked.Exchange`；`_handle`→`volatile`；`BridgeFault`改 record+init | 6 处静态锁 | 🔄 进行中 |
-| 2 | `modules/guard/guard/permission/permission2/tool_handlers/core/PermissionManager.cs` | `_currentMode`→`volatile PermissionMode` | 3 处 | ⏳ |
-| 3 | `modules/storage/vault/state/store/StoreSelector.cs` | `_currentValue`→`volatile`+不可变值 | 3 处 | ⏳ |
-| 4 | `modules/abstractions/abstractions/abs_ai/llm/chat/chat_core/SubAgentEventChannel.cs` | `List _buffer`→`Channel<ChatStreamEvent>`+`volatile bool` | 5 处 | ⏳ |
-| 5 | `modules/storage/scheduling/core/AgentTaskContext.cs` | `Dictionary`→`ConcurrentDictionary` 或 `ImmutableHamT`+CAS | 6 处 | ⏳ |
-| 6 | 6 处初始化双检查锁（LspService/FileBasedTaskService/Puppeteer/SandboxIpc/ConfigPersistent/CodeIndexer） | 统一改 `Interlocked.CompareExchange` | 6 处 | ⏳ |
+| 1 | `modules/services/bridge/core/services/BridgeFaultInjection.cs` | `List`→`ImmutableList`+`Interlocked.Exchange`；`_handle`→`volatile`；`BridgeFault`改 record+init | 6 处静态锁 | ✅ 完成 |
+| 2 | `modules/guard/guard/permission/permission2/tool_handlers/core/PermissionManager.cs` | `_currentMode`→`volatile PermissionMode` | 3 处 | ✅ 完成 |
+| 3 | `modules/storage/vault/state/store/StoreSelector.cs` | `_currentValue`→`volatile`+不可变值 | 3 处 | ✅ 完成 |
+| 4 | `modules/abstractions/abstractions/abs_ai/llm/chat/chat_core/SubAgentEventChannel.cs` | `List _buffer`→`Channel<ChatStreamEvent>`+`volatile bool` | 5 处 | ✅ 完成 |
+| 5 | `modules/storage/scheduling/core/AgentTaskContext.cs` | `Dictionary`→`ConcurrentDictionary` 或 `ImmutableHamT`+CAS | 6 处 | ✅ 完成 |
+| 6 | 6 处初始化双检查锁（LspService/FileBasedTaskService/Puppeteer/SandboxIpc/ConfigPersistent/CodeIndexer） | 统一改 `Interlocked.CompareExchange` | 6 处 | ⏸️ 保留（5 处 async 需等待语义，1 处 sync 需失败重试语义，AsyncLock/lock 合理） |
 
 ### P1 中难度
 
 | # | 位置 | 方案 | 消除锁数 | 状态 |
 |---|------|------|---------|------|
-| 7 | `modules/perception/code_index/vector/BruteForceAnn.cs` | `Dictionary`→`ImmutableHamT`+`Interlocked.Exchange` | 1 处 RW 锁 | ⏳ |
-| 8 | `PersistentDreamTaskRegistry.cs` + `IDreamTaskRegistry.cs` + `PersistentGoalRegistry.cs` | `Dictionary`→`ImmutableHamT`+CAS | 17 处 | ⏳ |
-| 9 | `modules/cognition/hands/skills/search/SkillSearchService.cs` | 已用 `ImmutableHamT`，锁改 CAS | 1 处 | ⏳ |
-| 10 | `modules/storage/scheduling/tasks/core/WorkflowTask.cs` | 已用 `ConcurrentDictionary`，锁改 CAS | 1 处 | ⏳ |
-| 11 | `modules/abstractions/infrastructure/utils/resilience/UnifiedCircuitBreaker.cs` | FSM 状态→`volatile` 不可变快照+CAS | 10 处 | ⏳ |
-| 12 | `modules/cognition/hands/system/PreventSleepService.cs` | `_isSleepPrevented`→`volatile`+`Interlocked` | 2 处 | ⏳ |
+| 7 | `modules/perception/code_index/vector/BruteForceAnn.cs` | `Dictionary`→`ImmutableHamT`+`Interlocked.Exchange` | 1 处 RW 锁 | ✅ 完成 |
+| 8 | `PersistentDreamTaskRegistry.cs` + `IDreamTaskRegistry.cs` + `PersistentGoalRegistry.cs` | `Dictionary`→`ImmutableHamT`+CAS | 17 处 | ✅ 完成 |
+| 9 | `modules/cognition/hands/skills/search/SkillSearchService.cs` | 已用 `ImmutableHamT`，锁改 CAS | 1 处 | ⏸️ 保留（async 初始化需等待语义） |
+| 10 | `modules/storage/scheduling/tasks/core/WorkflowTask.cs` | 已用 `ConcurrentDictionary`，锁改 CAS | 1 处 | ⏸️ 保留（保护 runState 两字段原子性） |
+| 11 | `modules/abstractions/infrastructure/utils/resilience/UnifiedCircuitBreaker.cs` | FSM 状态→`volatile` 不可变快照+CAS | 10 处 | ⏸️ 保留（FSM 状态机复合操作，需重构 Fsm 为不可变，工作量过大） |
+| 12 | `modules/cognition/hands/system/PreventSleepService.cs` | `_isSleepPrevented`→`volatile`+`Interlocked` | 2 处 | ✅ 完成 |
 
 ### P2 架构调整（需评估，Actor 模型）
 

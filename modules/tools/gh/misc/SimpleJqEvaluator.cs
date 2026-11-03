@@ -98,9 +98,11 @@ internal static class SimpleJqEvaluator {
                 // 宽容: [] 作用于对象时,自动查找常见数组字段展开（如 workflow_runs/items/data/runs/jobs）
                 current = UnwrapCommonArrayField(current);
             if (isIndexAccess && current is JsonArray idxArr)
-                current = index >= 0 && index < idxArr.Count ? idxArr[index] : null;
-            else if (isIndexAccess)
-                return null;
+                current = index >= 0 && index < idxArr.Count ? idxArr[index] : new JsonArray();
+            else if (isIndexAccess && current is not JsonArray)
+                current = UnwrapCommonArrayField(current) is JsonArray unwrappedArr
+                    ? (index >= 0 && index < unwrappedArr.Count ? unwrappedArr[index] : new JsonArray())
+                    : new JsonArray();
             if (current is null)
                 return null;
         }

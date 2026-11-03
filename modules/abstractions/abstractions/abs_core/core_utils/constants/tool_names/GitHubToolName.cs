@@ -327,6 +327,10 @@ public enum GitHubToolName {
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhLabelDelete,
 
+    [EnumValue("gh_label_edit")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhLabelEdit,
+
     // === Search ===
     [EnumValue("gh_search_repos")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
@@ -420,10 +424,18 @@ public enum GitHubToolName {
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhOrgList,
 
+    [EnumValue("gh_org_view")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhOrgView,
+
     // === SSH Key ===
     [EnumValue("gh_ssh_key_list")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhSshKeyList,
+
+    [EnumValue("gh_ssh_key_view")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhSshKeyView,
 
     [EnumValue("gh_ssh_key_add")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
@@ -437,6 +449,10 @@ public enum GitHubToolName {
     [EnumValue("gh_gpg_key_list")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhGpgKeyList,
+
+    [EnumValue("gh_gpg_key_view")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhGpgKeyView,
 
     [EnumValue("gh_gpg_key_add")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]

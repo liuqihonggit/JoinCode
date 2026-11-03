@@ -391,6 +391,9 @@ public partial class GitHubToolHandlers {
             "gh_workflow_view" => $"Workflow 获取失败 — {error}。可能原因: ① Workflow ID 不存在 ② 仓库不存在或无权限。提示: 用 gh workflow list 查看可用 Workflow",
             "gh_repo_gitignore_view" => $"gitignore 模板获取失败 — {error}。可能原因: ① 模板名不存在 ② 模板名大小写错误。提示: 用 gh repo gitignore-list 查看可用模板",
             "gh_repo_license_view" => $"License 获取失败 — {error}。可能原因: ① license key 不存在 ② key 大小写错误。提示: 用 gh repo license-list 查看可用 license",
+            "gh_org_view" => $"组织获取失败 — {error}。可能原因: ① 组织名不存在 ② token 无权限访问该组织。提示: 用 gh org list 查看当前用户所属组织",
+            "gh_ssh_key_view" => $"SSH Key 获取失败 — {error}。可能原因: ① Key ID 不存在。提示: 用 gh ssh-key list 查看可用 Key ID",
+            "gh_gpg_key_view" => $"GPG Key 获取失败 — {error}。可能原因: ① Key ID 不存在。提示: 用 gh gpg-key list 查看可用 Key ID",
             _ => $"{toolName ?? "gh"} 调用失败 — {error}。API 路径: {apiPath}"
         };
         return $"{context}\n提示: 若仓库为私有, 404 也可能是 token 未配置/无效 — 设置 JCC_GITHUB_TOKEN 或运行 gh auth login";

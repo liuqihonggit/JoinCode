@@ -23,7 +23,7 @@ internal sealed class LabelResponse {
 
 // === Org 响应 ===
 
-/// <summary>组织响应 — GET /user/orgs</summary>
+/// <summary>组织响应 — GET /user/orgs 或 GET /orgs/{org}</summary>
 internal sealed class OrgResponse {
     /// <summary>组织登录名</summary>
     [JsonPropertyName("login")]
@@ -31,6 +31,60 @@ internal sealed class OrgResponse {
     /// <summary>描述</summary>
     [JsonPropertyName("description")]
     public string? Description { get; init; }
+    /// <summary>组织 ID</summary>
+    [JsonPropertyName("id")]
+    public RepoId Id { get; init; }
+    /// <summary>组织 URL</summary>
+    [JsonPropertyName("url")]
+    public string? Url { get; init; }
+    /// <summary>组织主页</summary>
+    [JsonPropertyName("html_url")]
+    public string? HtmlUrl { get; init; }
+    /// <summary>组织名称(全称)</summary>
+    [JsonPropertyName("name")]
+    public string? Name { get; init; }
+    /// <summary>公司</summary>
+    [JsonPropertyName("company")]
+    public string? Company { get; init; }
+    /// <summary>博客</summary>
+    [JsonPropertyName("blog")]
+    public string? Blog { get; init; }
+    /// <summary>位置</summary>
+    [JsonPropertyName("location")]
+    public string? Location { get; init; }
+    /// <summary>邮箱</summary>
+    [JsonPropertyName("email")]
+    public string? Email { get; init; }
+    /// <summary>Twitter</summary>
+    [JsonPropertyName("twitter_username")]
+    public string? TwitterUsername { get; init; }
+    /// <summary>公开仓库数</summary>
+    [JsonPropertyName("public_repos")]
+    public int PublicRepos { get; init; }
+    /// <summary>公开 gist 数</summary>
+    [JsonPropertyName("public_gists")]
+    public int PublicGists { get; init; }
+    /// <summary>关注者数</summary>
+    [JsonPropertyName("followers")]
+    public int Followers { get; init; }
+    /// <summary>正在关注数</summary>
+    [JsonPropertyName("following")]
+    public int Following { get; init; }
+    /// <summary>创建时间</summary>
+    [JsonPropertyName("created_at")]
+    public string? CreatedAt { get; init; }
+    /// <summary>更新时间</summary>
+    [JsonPropertyName("updated_at")]
+    public string? UpdatedAt { get; init; }
+    /// <summary>组织头像 URL</summary>
+    [JsonPropertyName("avatar_url")]
+    public string? AvatarUrl { get; init; }
+    /// <summary>默认仓库权限</summary>
+    [JsonPropertyName("default_repository_permission")]
+    public string? DefaultRepositoryPermission { get; init; }
+    /// <summary>是否可创建私有仓库</summary>
+    [JsonPropertyName("can_create_private_repos")]
+    public bool? CanCreatePrivateRepos { get; init; }
 }
 
 // === SSH Key 响应 ===

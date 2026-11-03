@@ -108,6 +108,21 @@ internal sealed class LabelCreateRequest {
     public string? Description { get; init; }
 }
 
+/// <summary>Label edit 请求 body — PATCH /labels/{name}</summary>
+internal sealed class LabelEditRequest {
+    /// <summary>新标签名(可选)</summary>
+    [JsonPropertyName("new_name")]
+    public string? NewName { get; init; }
+
+    /// <summary>颜色(6 字符 hex,可选)</summary>
+    [JsonPropertyName("color")]
+    public string? Color { get; init; }
+
+    /// <summary>描述(可选)</summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; init; }
+}
+
 /// <summary>Deploy key add 请求 body — POST /keys</summary>
 internal sealed class DeployKeyAddRequest {
     /// <summary>Key 标题</summary>
@@ -694,6 +709,7 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(List<GistListItem>))]
 [JsonSerializable(typeof(WorkflowDispatchRequest))]
 [JsonSerializable(typeof(LabelCreateRequest))]
+[JsonSerializable(typeof(LabelEditRequest))]
 [JsonSerializable(typeof(DeployKeyAddRequest))]
 [JsonSerializable(typeof(AutolinkCreateRequest))]
 [JsonSerializable(typeof(SshKeyAddRequest))]

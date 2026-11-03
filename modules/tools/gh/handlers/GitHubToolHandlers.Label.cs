@@ -78,4 +78,22 @@ public partial class GitHubToolHandlers {
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/labels/{Uri.EscapeDataString(name)}", ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已删除标签 {name}") : Fail(result.Error);
         }).ConfigureAwait(false);
+
+    /// <summary>
+    /// 编辑标签 — 调 REST API PATCH /labels/{name}
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhLabelEdit, "编辑标签(颜色/描述/重命名)", "github")]
+    public async Task<ToolResult> GhLabelEditAsync(
+        [McpToolParameter("标签名", Required = true)] string name,
+        [McpToolParameter("新标签名(可选)", Required = false)] string? new_name = null,
+        [McpToolParameter("颜色(6 字符 hex,如 ff0000,可选)", Required = false)] string? color = null,
+        [McpToolParameter("描述(可选)", Required = false)] string? description = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
+            var request = new LabelEditRequest { NewName = new_name, Color = color, Description = description };
+            var jsonBody = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.LabelEditRequest);
+            var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/labels/{Uri.EscapeDataString(name)}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已更新标签 {name}") : Fail(result.Error);
+        }).ConfigureAwait(false);
 }

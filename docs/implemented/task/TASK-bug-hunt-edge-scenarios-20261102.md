@@ -687,3 +687,26 @@ D9 错误消息从 "模型返回空回复" 改为 "模型回复被安全过滤�
 | 10 | 极端边界值 | 10 | 0 | 10MB输出/10秒执行/20并发(60s)/20层嵌套/1000Unicode/1000行JSON/BOM+Unicode/超长URL/路径 全通过 |
 
 **结论**：jcc 在 100+ 个不舒服点探测中表现极其健壮，未发现新 bug。退出码体系完整（0-15+1234），映射到结构化错误+友好字符串。
+
+### 六方向扩展场景（SH/SI/SJ/SK/SL/SM — 120 场景全通过）
+
+| 系列 | 前缀 | 说明 | 场景数 | 结果 |
+|------|------|------|--------|------|
+| SH1-SH20 | `sh_` | 交互模式/CLI参数（help/version/unknown/format/empty/multi-prompt/continue/resume/model/vendor/permission） | 20 | ✅ 全通过 |
+| SI1-SI20 | `si_` | 会话恢复（--continue/--resume/多轮/空ID/超长ID/特殊字符/UUID/冲突/Unicode） | 20 | ✅ 全通过 |
+| SJ1-SJ20 | `sj_` | MCP工具/工具过滤（--allowed-tools/--disallowed-tools/--dry-run/通配符/非存在工具/100工具） | 20 | ✅ 全通过 |
+| SK1-SK20 | `sk_` | 权限模式（plan/auto/ask/bypass/invalid/empty/--no-confirm/--yes/--force/--bypass/--trust/组合） | 20 | ✅ 全通过 |
+| SL1-SL20 | `sl_` | 多模型切换（--model/--vendor/非存在/空/特殊字符/超长/Unicode/空白/换行/组合） | 20 | ✅ 全通过 |
+| SM1-SM20 | `sm_` | 缓存/Token/重复（重复请求/JSON结构/ndjson/text/--quiet/--json/--continue/--append-system-prompt） | 20 | ✅ 全通过 |
+
+**退出码分布**：
+- rc=0: 正常成功
+- rc=2: 配置错误（非存在模型/供应商/特殊字符/超长/Unicode/空白/换行）
+- rc=3: 参数解析错误（未知参数/空prompt/无效权限模式/空权限模式）
+- rc=4: API Key 缺失（非存在 vendor 时找不到 key 配置）
+- rc=5: 会话恢复失败（非存在 session ID）
+
+**不舒服点记录**（未达三次阈值，仅记录）：
+1. SL10: `--model gpt-4o --vendor non-existent` → rc=4 (ApiKeyMissing) 而非 rc=2 (ConfigurationError) — 非存在 vendor 报 ApiKeyMissing 语义不够精确
+
+**结论**：六方向 120 场景全部通过，jcc 在交互模式/会话恢复/MCP工具/权限模式/多模型切换/缓存行为方面表现健壮，未发现新 bug。

@@ -84,7 +84,12 @@ internal static class SimpleJqEvaluator {
             if (part.IsEmpty) continue;
 
             var isArrayExpand = part.Length >= 2 && part[^2] == '[' && part[^1] == ']';
-            var fieldName = isArrayExpand ? part[..^2] : part;
+            var index = -1;
+            var isIndexAccess = !isArrayExpand && part.Length >= 3 && part.Contains('[') && part[^1] == ']'
+                && int.TryParse(part[(part.IndexOf('[') + 1)..^1], out index);
+            var fieldName = isArrayExpand ? part[..^2]
+                : isIndexAccess ? part[..part.IndexOf('[')]
+                : part;
             if (!fieldName.IsEmpty)
                 current = GetFieldOrMapArray(current, fieldName.ToString());
             if (current is null)
@@ -92,6 +97,10 @@ internal static class SimpleJqEvaluator {
             if (isArrayExpand && current is not JsonArray)
                 // 宽容: [] 作用于对象时,自动查找常见数组字段展开（如 workflow_runs/items/data/runs/jobs）
                 current = UnwrapCommonArrayField(current);
+            if (isIndexAccess && current is JsonArray idxArr)
+                current = index >= 0 && index < idxArr.Count ? idxArr[index] : null;
+            else if (isIndexAccess)
+                return null;
             if (current is null)
                 return null;
         }

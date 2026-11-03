@@ -81,8 +81,7 @@ public sealed record DreamTaskRegistrationRequest(
 /// </summary>
 [Register(typeof(IDreamTaskRegistry), ServiceLifetime.Singleton)]
 public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsyncDisposable {
-    private readonly Dictionary<string, DreamTaskState> _tasks = new();
-    private readonly AsyncLock _lock = new();
+    private readonly ConcurrentDictionary<string, DreamTaskState> _tasks = new();
     private int _disposed;
 
     /// <summary>
@@ -95,7 +94,7 @@ public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsy
     public void SetSessionId(string sessionId) { }
 
     /// <inheritdoc />
-    public async Task<string> RegisterDreamTaskAsync(DreamTaskRegistrationRequest request, CancellationToken ct = default) {
+    public Task<string> RegisterDreamTaskAsync(DreamTaskRegistrationRequest request, CancellationToken ct = default) {
         var taskId = TaskIdGenerator.GenerateTaskId(TaskType.Dream);
 
         var task = new DreamTaskState {
@@ -110,50 +109,40 @@ public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsy
             Phase = DreamPhase.Starting
         };
 
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            _tasks[taskId] = task;
-        }
+        _tasks[taskId] = task;
 
-        return taskId;
+        return Task.FromResult(taskId);
     }
 
     /// <inheritdoc />
-    public async Task AddDreamTurnAsync(string taskId, DreamTurn turn, IReadOnlyList<string> touchedPaths, CancellationToken ct = default) {
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            if (_tasks.TryGetValue(taskId, out var task)) {
-                task.AddTurn(turn, touchedPaths);
-            }
+    public Task AddDreamTurnAsync(string taskId, DreamTurn turn, IReadOnlyList<string> touchedPaths, CancellationToken ct = default) {
+        if (_tasks.TryGetValue(taskId, out var task)) {
+            task.AddTurn(turn, touchedPaths);
         }
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public async Task CompleteDreamTaskAsync(string taskId, CancellationToken ct = default) {
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            if (_tasks.TryGetValue(taskId, out var task)) {
-                task.Complete();
-            }
+    public Task CompleteDreamTaskAsync(string taskId, CancellationToken ct = default) {
+        if (_tasks.TryGetValue(taskId, out var task)) {
+            task.Complete();
         }
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public async Task FailDreamTaskAsync(string taskId, CancellationToken ct = default) {
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            if (_tasks.TryGetValue(taskId, out var task)) {
-                task.Fail();
-            }
+    public Task FailDreamTaskAsync(string taskId, CancellationToken ct = default) {
+        if (_tasks.TryGetValue(taskId, out var task)) {
+            task.Fail();
         }
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
     public async Task KillDreamTaskAsync(string taskId, CancellationToken ct = default) {
-        DreamTaskState? task;
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            _tasks.TryGetValue(taskId, out task);
-        }
+        if (!_tasks.TryGetValue(taskId, out var task)) return;
 
-        if (task == null || task.IsTerminal) {
-            return;
-        }
+        if (task.IsTerminal) return;
 
         task.Kill();
 
@@ -162,28 +151,22 @@ public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsy
         if (task.RollbackLockAsync is not null) {
             await task.RollbackLockAsync(task.PriorMtime, CancellationToken.None).ConfigureAwait(false);
         }
-
-        await Task.CompletedTask.ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public async Task<DreamTaskState?> GetTaskStateAsync(string taskId, CancellationToken ct = default) {
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            _tasks.TryGetValue(taskId, out var task);
-            return task;
-        }
+    public Task<DreamTaskState?> GetTaskStateAsync(string taskId, CancellationToken ct = default) {
+        _tasks.TryGetValue(taskId, out var task);
+        return Task.FromResult(task);
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyDictionary<string, DreamTaskState>> GetAllTasksAsync(CancellationToken ct = default) {
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            return new Dictionary<string, DreamTaskState>(_tasks);
-        }
+    public Task<IReadOnlyDictionary<string, DreamTaskState>> GetAllTasksAsync(CancellationToken ct = default) {
+        return Task.FromResult<IReadOnlyDictionary<string, DreamTaskState>>(new Dictionary<string, DreamTaskState>(_tasks));
     }
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync() {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _lock.Dispose();
+    public ValueTask DisposeAsync() {
+        Interlocked.Exchange(ref _disposed, 1);
+        return default;
     }
 }

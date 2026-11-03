@@ -3,7 +3,7 @@ namespace Services.SystemPower;
 
 /// <summary>
 /// 防睡眠服务 — 通过 SetThreadExecutionState 阻止系统进入睡眠状态
-/// <para>单例服务,线程安全(AsyncLock 保护),支持连续防睡眠与一次性防睡眠两种模式</para>
+/// <para>单例服务,线程安全(Interlocked.CompareExchange 无锁),支持连续防睡眠与一次性防睡眠两种模式</para>
 /// <para>Dispose 时自动恢复系统默认执行状态</para>
 /// </summary>
 [Register(typeof(IPreventSleepService), ServiceLifetime.Singleton)]
@@ -20,15 +20,14 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
     }
     private readonly ILogger<PreventSleepService>? _logger;
     private readonly ITelemetryService? _telemetryService;
-    private readonly AsyncLock _lock = new();
     private uint _previousExecutionState;
-    private bool _isSleepPrevented;
+    private int _isSleepPrevented;
     private bool _disposed;
 
     /// <summary>
     /// 获取当前是否已阻止系统睡眠
     /// </summary>
-    public bool IsSleepPrevented => _isSleepPrevented;
+    public bool IsSleepPrevented => Volatile.Read(ref _isSleepPrevented) == 1;
 
     /// <summary>
     /// 阻止系统进入睡眠状态 — 根据 <paramref name="type"/> 设置对应的执行状态标志
@@ -37,16 +36,14 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
     /// <param name="type">防睡眠类型,默认为 Continuous(连续防睡眠)</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>成功阻止返回 true;SetThreadExecutionState 失败返回 false</returns>
-    public async Task<bool> PreventSleepAsync(SleepPreventionType type = SleepPreventionType.Continuous, CancellationToken cancellationToken = default) {
+    public Task<bool> PreventSleepAsync(SleepPreventionType type = SleepPreventionType.Continuous, CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (!OperatingSystem.IsWindows()) return true;
+        if (!OperatingSystem.IsWindows()) return Task.FromResult(true);
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        if (_isSleepPrevented) {
+        if (Interlocked.CompareExchange(ref _isSleepPrevented, 1, 0) != 0) {
             _logger?.LogDebug(L.T(StringKey.PreventSleepAlreadyActive));
-            return true;
+            return Task.FromResult(true);
         }
 
         var flags = type == SleepPreventionType.Continuous
@@ -55,16 +52,16 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
 
         var result = SetThreadExecutionState(flags);
         if (result == 0) {
+            Interlocked.Exchange(ref _isSleepPrevented, 0);
             _logger?.LogError(L.T(StringKey.PreventSleepSetStateFailed));
-            return false;
+            return Task.FromResult(false);
         }
 
         _previousExecutionState = result;
-        _isSleepPrevented = true;
 
         _logger?.LogInformation(L.T(StringKey.PreventSleepActivated), type);
         RecordSleepMetrics("prevent", true);
-        return true;
+        return Task.FromResult(true);
 
     }
 
@@ -74,28 +71,25 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>成功恢复返回 true;SetThreadExecutionState 失败返回 false</returns>
-    public async Task<bool> AllowSleepAsync(CancellationToken cancellationToken = default) {
+    public Task<bool> AllowSleepAsync(CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (!OperatingSystem.IsWindows()) return true;
+        if (!OperatingSystem.IsWindows()) return Task.FromResult(true);
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        if (!_isSleepPrevented) {
-            return true;
+        if (Interlocked.CompareExchange(ref _isSleepPrevented, 0, 1) != 1) {
+            return Task.FromResult(true);
         }
 
         var result = SetThreadExecutionState(ES_CONTINUOUS);
         if (result == 0) {
+            Interlocked.Exchange(ref _isSleepPrevented, 1);
             _logger?.LogError(L.T(StringKey.PreventSleepRestoreFailed));
-            return false;
+            return Task.FromResult(false);
         }
-
-        _isSleepPrevented = false;
 
         _logger?.LogInformation(L.T(StringKey.PreventSleepDeactivated));
         RecordSleepMetrics("allow", true);
-        return true;
+        return Task.FromResult(true);
 
     }
 
@@ -105,12 +99,10 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
     public override void Dispose() {
         if (_disposed) return;
 
-        if (_isSleepPrevented && OperatingSystem.IsWindows()) {
+        if (Interlocked.Exchange(ref _isSleepPrevented, 0) == 1 && OperatingSystem.IsWindows()) {
             SetThreadExecutionState(ES_CONTINUOUS);
-            _isSleepPrevented = false;
         }
 
-        _lock.Dispose();
         _disposed = true;
         base.Dispose();
     }

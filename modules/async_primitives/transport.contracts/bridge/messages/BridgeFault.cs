@@ -14,8 +14,9 @@ public enum BridgeFaultKind {
 
 /// <summary>
 /// 一次性故障注入描述 — 对齐 TS 端 BridgeFault
+/// 不可变 record，支持 with 表达式构造递减副本，配合 ImmutableList+CAS 无锁更新
 /// </summary>
-public sealed class BridgeFault {
+public sealed record BridgeFault {
     /// <summary>目标 API 方法名</summary>
     public required string Method { get; init; }
 
@@ -28,6 +29,6 @@ public sealed class BridgeFault {
     /// <summary>错误类型标识（如 ws_closed_1002）</summary>
     public string? ErrorType { get; init; }
 
-    /// <summary>剩余注入次数</summary>
-    public int RemainingCount { get; set; } = 1;
+    /// <summary>剩余注入次数（不可变，递减时用 with 构造新副本）</summary>
+    public int RemainingCount { get; init; } = 1;
 }

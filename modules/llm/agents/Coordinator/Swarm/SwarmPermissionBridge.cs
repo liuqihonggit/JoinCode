@@ -128,7 +128,6 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
     private readonly IClockService _clock;
     private readonly ITelemetryService? _telemetryService;
     private volatile ImmutableHamT<string, PermissionSyncState> _permissionStates = ImmutableHamT<string, PermissionSyncState>.Empty;
-    private readonly AsyncLock _lock = new();
     private bool _disposed;
 
     /// <summary>
@@ -165,54 +164,52 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
     public async Task SyncPermissionsAsync(string agentId, PermissionSyncRequest request, CancellationToken ct = default) {
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            var rule = new AgentPermissionRule {
-                AgentPattern = request.AgentId,
-                Mode = request.Mode,
-                AllowedTools = request.AllowedTools,
-                DeniedTools = request.DeniedTools,
-                AllowedPaths = request.AllowedPaths,
-                DeniedPaths = request.DeniedPaths,
-                Description = $"Synced from coordinator {request.CoordinatorId}"
-            };
+        var rule = new AgentPermissionRule {
+            AgentPattern = request.AgentId,
+            Mode = request.Mode,
+            AllowedTools = request.AllowedTools,
+            DeniedTools = request.DeniedTools,
+            AllowedPaths = request.AllowedPaths,
+            DeniedPaths = request.DeniedPaths,
+            Description = $"Synced from coordinator {request.CoordinatorId}"
+        };
 
-            await _permissionManager.AddRuleAsync(rule, ct).ConfigureAwait(false);
+        await _permissionManager.AddRuleAsync(rule, ct).ConfigureAwait(false);
 
-            var previousState = _permissionStates.GetValueOrDefault(agentId);
+        var previousState = _permissionStates.GetValueOrDefault(agentId);
 
-            var newState = new PermissionSyncState {
-                AgentId = request.AgentId,
-                Mode = request.Mode,
-                LastSyncedAt = _clock.GetUtcNow(),
-                AllowedTools = request.AllowedTools?.ToArray() ?? Array.Empty<string>(),
-                DeniedTools = request.DeniedTools?.ToArray() ?? Array.Empty<string>()
-            };
+        var newState = new PermissionSyncState {
+            AgentId = request.AgentId,
+            Mode = request.Mode,
+            LastSyncedAt = _clock.GetUtcNow(),
+            AllowedTools = request.AllowedTools?.ToArray() ?? Array.Empty<string>(),
+            DeniedTools = request.DeniedTools?.ToArray() ?? Array.Empty<string>()
+        };
 
-            SetPermissionState(agentId, newState);
+        SetPermissionState(agentId, newState);
 
-            var changes = BuildChanges(previousState, newState);
+        var changes = BuildChanges(previousState, newState);
 
-            var message = new CoordinatorAgentMessage {
-                FromAgentId = request.CoordinatorId,
-                ToAgentId = agentId,
-                MessageType = "permission_sync",
-                Content = $"Permission sync: mode={request.Mode}"
-            };
+        var message = new CoordinatorAgentMessage {
+            FromAgentId = request.CoordinatorId,
+            ToAgentId = agentId,
+            MessageType = "permission_sync",
+            Content = $"Permission sync: mode={request.Mode}"
+        };
 
-            await _messageBroker.SendAsync(agentId, message, ct).ConfigureAwait(false);
+        await _messageBroker.SendAsync(agentId, message, ct).ConfigureAwait(false);
 
-            PermissionChanged?.Invoke(this, new PermissionSyncEventArgs {
-                AgentId = agentId,
-                ChangeType = "sync",
-                Changes = changes,
-                Timestamp = _clock.GetUtcNow()
-            });
+        PermissionChanged?.Invoke(this, new PermissionSyncEventArgs {
+            AgentId = agentId,
+            ChangeType = "sync",
+            Changes = changes,
+            Timestamp = _clock.GetUtcNow()
+        });
 
-            _logger?.LogInformation("Synced permissions for agent {AgentId} from coordinator {CoordinatorId}, mode={Mode}",
-                agentId, request.CoordinatorId, request.Mode);
+        _logger?.LogInformation("Synced permissions for agent {AgentId} from coordinator {CoordinatorId}, mode={Mode}",
+            agentId, request.CoordinatorId, request.Mode);
 
-            RecordPermissionBridgeMetrics("sync", true);
-        }
+        RecordPermissionBridgeMetrics("sync", true);
     }
 
     /// <summary>
@@ -222,21 +219,19 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
     /// <param name="ct">取消令牌</param>
     /// <returns>权限同步状态</returns>
     public async Task<PermissionSyncState> GetPermissionStateAsync(string agentId, CancellationToken ct = default) {
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            if (_permissionStates.TryGetValue(agentId, out var state)) {
-                return state;
-            }
-
-            var rule = await _permissionManager.GetRuleForAgentAsync(agentId, ct).ConfigureAwait(false);
-
-            return new PermissionSyncState {
-                AgentId = agentId,
-                Mode = rule?.Mode ?? PermissionMode.Auto,
-                LastSyncedAt = _clock.GetUtcNow(),
-                AllowedTools = rule?.AllowedTools?.ToArray() ?? Array.Empty<string>(),
-                DeniedTools = rule?.DeniedTools?.ToArray() ?? Array.Empty<string>()
-            };
+        if (_permissionStates.TryGetValue(agentId, out var state)) {
+            return state;
         }
+
+        var rule = await _permissionManager.GetRuleForAgentAsync(agentId, ct).ConfigureAwait(false);
+
+        return new PermissionSyncState {
+            AgentId = agentId,
+            Mode = rule?.Mode ?? PermissionMode.Auto,
+            LastSyncedAt = _clock.GetUtcNow(),
+            AllowedTools = rule?.AllowedTools?.ToArray() ?? Array.Empty<string>(),
+            DeniedTools = rule?.DeniedTools?.ToArray() ?? Array.Empty<string>()
+        };
     }
 
     /// <summary>
@@ -246,26 +241,24 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
     public async Task RevokePermissionsAsync(string agentId, CancellationToken ct = default) {
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
-            await _permissionManager.RemoveRuleAsync(agentId, ct).ConfigureAwait(false);
+        await _permissionManager.RemoveRuleAsync(agentId, ct).ConfigureAwait(false);
 
-            TryRemovePermissionState(agentId, out _);
+        TryRemovePermissionState(agentId, out _);
 
-            PermissionChanged?.Invoke(this, new PermissionSyncEventArgs {
-                AgentId = agentId,
-                ChangeType = "revoke",
-                Changes = new Dictionary<string, JsonElement> {
-                    ["mode"] = JsonElementHelper.FromString(PermissionMode.Ask.ToString()),
-                    ["allowedTools"] = JsonElementHelper.FromJson("[]"),
-                    ["deniedTools"] = JsonElementHelper.FromJson("[]")
-                },
-                Timestamp = _clock.GetUtcNow()
-            });
+        PermissionChanged?.Invoke(this, new PermissionSyncEventArgs {
+            AgentId = agentId,
+            ChangeType = "revoke",
+            Changes = new Dictionary<string, JsonElement> {
+                ["mode"] = JsonElementHelper.FromString(PermissionMode.Ask.ToString()),
+                ["allowedTools"] = JsonElementHelper.FromJson("[]"),
+                ["deniedTools"] = JsonElementHelper.FromJson("[]")
+            },
+            Timestamp = _clock.GetUtcNow()
+        });
 
-            _logger?.LogInformation("Revoked permissions for agent {AgentId}", agentId);
+        _logger?.LogInformation("Revoked permissions for agent {AgentId}", agentId);
 
-            RecordPermissionBridgeMetrics("revoke", true);
-        }
+        RecordPermissionBridgeMetrics("revoke", true);
     }
 
     private void RecordPermissionBridgeMetrics(string operation, bool isSuccess)
@@ -311,7 +304,6 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
     public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
-        _lock.Dispose();
         base.Dispose();
     }
 }

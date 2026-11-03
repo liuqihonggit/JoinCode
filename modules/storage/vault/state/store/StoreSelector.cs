@@ -12,7 +12,6 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
     private readonly IStore<TState> _store;
     private readonly Func<TState, TSelected> _selector;
     private readonly IEqualityComparer<TSelected> _comparer;
-    private readonly AsyncLock _valueLock = new("StoreSelector");
     private ImmutableList<Action<TSelected>> _subscribers = ImmutableList<Action<TSelected>>.Empty;
     private readonly ILogger<StoreSelector<TState, TSelected>>? _logger;
 
@@ -44,9 +43,8 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
     /// <inheritdoc />
     public TSelected CurrentValue {
         get {
-            using (_valueLock.LockOrCrash()) {
-                return _currentValue;
-            }
+            Interlocked.MemoryBarrier();
+            return _currentValue;
         }
     }
 
@@ -71,18 +69,15 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
     /// </summary>
     private void OnStoreStateChanged(StateChangedEventArgs<TState> args) {
         var newValue = _selector(args.NewState);
-        TSelected oldValue;
-        using (_valueLock.LockOrCrash()) {
-            oldValue = _currentValue;
-        }
+        Interlocked.MemoryBarrier();
+        var oldValue = _currentValue;
 
         if (_comparer.Equals(oldValue, newValue)) {
             return;
         }
 
-        using (_valueLock.LockOrCrash()) {
-            _currentValue = newValue;
-        }
+        _currentValue = newValue;
+        Interlocked.MemoryBarrier();
 
         var snapshot = Volatile.Read(ref _subscribers);
         foreach (var subscriber in snapshot) {
@@ -113,7 +108,6 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         _storeSubscription?.Dispose();
-        _valueLock.Dispose();
         ImmutableInterlocked.Update(ref _subscribers, _ => ImmutableList<Action<TSelected>>.Empty);
     }
 

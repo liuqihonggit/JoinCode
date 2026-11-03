@@ -7,8 +7,7 @@ namespace Core.Scheduling;
 /// </summary>
 public sealed class AgentTaskContext : IAgentTaskContext {
     private readonly ConcurrentDictionary<string, JsonElement> _metadata = new();
-    private readonly Dictionary<int, StructuredTaskEntry> _structuredTasks = new();
-    private readonly AsyncLock _structuredTasksSemaphore = new();
+    private readonly ConcurrentDictionary<int, StructuredTaskEntry> _structuredTasks = new();
 
     /// <inheritdoc/>
     public required string TaskId { get; init; }
@@ -41,50 +40,44 @@ public sealed class AgentTaskContext : IAgentTaskContext {
     public Dictionary<string, JsonElement> GetMetadata() => new(_metadata);
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<StructuredTaskEntry>> GetStructuredTasksAsync(CancellationToken cancellationToken = default) {
-        using var guard = _structuredTasksSemaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_structuredTasksSemaphore.Name}' 等待超时");
-
-        return _structuredTasks.Values.OrderBy(t => t.Order).ToList();
-
+    public Task<IReadOnlyList<StructuredTaskEntry>> GetStructuredTasksAsync(CancellationToken cancellationToken = default) {
+        return Task.FromResult<IReadOnlyList<StructuredTaskEntry>>(_structuredTasks.Values.OrderBy(t => t.Order).ToList());
     }
 
     /// <inheritdoc/>
-    public async Task AddStructuredTaskAsync(StructuredTaskEntry task, CancellationToken cancellationToken = default) {
-        using var guard = _structuredTasksSemaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_structuredTasksSemaphore.Name}' 等待超时");
-
+    public Task AddStructuredTaskAsync(StructuredTaskEntry task, CancellationToken cancellationToken = default) {
         _structuredTasks[task.Order] = task;
-
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc/>
-    public async Task UpdateStructuredTaskAsync(int order, string? result = null, string? status = null, CancellationToken cancellationToken = default) {
-        using var guard = _structuredTasksSemaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_structuredTasksSemaphore.Name}' 等待超时");
-
-        if (!_structuredTasks.TryGetValue(order, out var existing)) return;
-
-        _structuredTasks[order] = existing with {
-            Result = result ?? existing.Result,
-            Status = status ?? existing.Status
-        };
-
+    public Task UpdateStructuredTaskAsync(int order, string? result = null, string? status = null, CancellationToken cancellationToken = default) {
+        while (true) {
+            if (!_structuredTasks.TryGetValue(order, out var existing)) return Task.CompletedTask;
+            var updated = existing with {
+                Result = result ?? existing.Result,
+                Status = status ?? existing.Status
+            };
+            if (_structuredTasks.TryUpdate(order, updated, existing)) return Task.CompletedTask;
+        }
     }
 
     /// <inheritdoc/>
-    public async Task ExcludePossibilityAsync(int taskOrder, int possibilityIndex, string reason, CancellationToken cancellationToken = default) {
-        using var guard = _structuredTasksSemaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_structuredTasksSemaphore.Name}' 等待超时");
+    public Task ExcludePossibilityAsync(int taskOrder, int possibilityIndex, string reason, CancellationToken cancellationToken = default) {
+        while (true) {
+            if (!_structuredTasks.TryGetValue(taskOrder, out var task)) return Task.CompletedTask;
 
-        if (!_structuredTasks.TryGetValue(taskOrder, out var task)) return;
+            if (possibilityIndex < 0 || possibilityIndex >= task.Possibilities.Count) return Task.CompletedTask;
 
-        if (possibilityIndex < 0 || possibilityIndex >= task.Possibilities.Count) return;
+            var possibilities = task.Possibilities.ToList();
+            possibilities[possibilityIndex] = possibilities[possibilityIndex] with {
+                Excluded = true,
+                ExclusionReason = reason
+            };
 
-        var possibilities = task.Possibilities.ToList();
-        possibilities[possibilityIndex] = possibilities[possibilityIndex] with {
-            Excluded = true,
-            ExclusionReason = reason
-        };
-
-        _structuredTasks[taskOrder] = task with { Possibilities = possibilities };
-
+            var updated = task with { Possibilities = possibilities };
+            if (_structuredTasks.TryUpdate(taskOrder, updated, task)) return Task.CompletedTask;
+        }
     }
 
     /// <summary>取消令牌,用于协作式取消任务执行</summary>
@@ -123,9 +116,6 @@ public sealed class AgentTaskContext : IAgentTaskContext {
             subContext._metadata[key] = value;
         }
 
-        using var guard = _structuredTasksSemaphore.TryLock();
-        if (guard is null)
-            throw new TimeoutException("[SCH001] CreateSubContext: 等待结构化任务信号量超时");
         foreach (var task in _structuredTasks.Values.OrderBy(t => t.Order)) {
             subContext._structuredTasks[task.Order] = task;
         }

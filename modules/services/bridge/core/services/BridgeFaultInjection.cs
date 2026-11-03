@@ -26,69 +26,59 @@ public interface IBridgeDebugHandle {
 /// <summary>
 /// Bridge 故障注入控制器 — 对齐 TS 端 bridgeDebug.ts
 /// 仅限内部(ant)使用，通过模块级变量维护故障队列
+/// 无锁实现：volatile 句柄 + ImmutableList&lt;BridgeFault&gt; + Interlocked.CompareExchange CAS 循环
 /// </summary>
 public static class BridgeDebugController {
     private static IBridgeDebugHandle? _handle;
-    private static readonly List<BridgeFault> _faultQueue = [];
-    private static readonly AsyncLock _lock = new("BridgeFaultInjection");
+    private static ImmutableList<BridgeFault> _faultQueue = ImmutableList<BridgeFault>.Empty;
 
     /// <summary>注册调试句柄</summary>
-    public static void RegisterHandle(IBridgeDebugHandle handle) {
-        using (_lock.LockOrCrash()) {
-            _handle = handle;
-        }
-    }
+    public static void RegisterHandle(IBridgeDebugHandle handle)
+        => Volatile.Write(ref _handle, handle);
 
     /// <summary>清除调试句柄和故障队列</summary>
     public static void ClearHandle() {
-        using (_lock.LockOrCrash()) {
-            _handle = null;
-            _faultQueue.Clear();
-        }
+        Volatile.Write(ref _handle, null);
+        Interlocked.Exchange(ref _faultQueue, ImmutableList<BridgeFault>.Empty);
     }
 
     /// <summary>获取当前调试句柄</summary>
-    public static IBridgeDebugHandle? GetHandle() {
-        using (_lock.LockOrCrash()) {
-            return _handle;
-        }
-    }
+    public static IBridgeDebugHandle? GetHandle()
+        => Volatile.Read(ref _handle);
 
-    /// <summary>向故障队列注入一个故障</summary>
+    /// <summary>向故障队列注入一个故障（CAS 循环无锁追加）</summary>
     public static void InjectFault(BridgeFault fault) {
-        using (_lock.LockOrCrash()) {
-            _faultQueue.Add(fault);
+        while (true) {
+            var snapshot = Volatile.Read(ref _faultQueue);
+            var updated = snapshot.Add(fault);
+            if (Interlocked.CompareExchange(ref _faultQueue, updated, snapshot) == snapshot) return;
         }
     }
 
     /// <summary>
     /// 尝试消费匹配的故障 — 由 FaultInjectionBridgeApiClient 调用
-    /// 返回 null 表示无匹配故障
+    /// 返回 null 表示无匹配故障。CAS 循环无锁消费，并发安全
     /// </summary>
     internal static BridgeFault? TryConsumeFault(string method) {
-        using (_lock.LockOrCrash()) {
-            for (var i = _faultQueue.Count - 1; i >= 0; i--) {
-                var fault = _faultQueue[i];
-                if (!string.Equals(fault.Method, method, StringComparison.OrdinalIgnoreCase)) continue;
+        while (true) {
+            var snapshot = Volatile.Read(ref _faultQueue);
+            var matchIndex = FindMatchIndex(snapshot, method);
+            if (matchIndex < 0) return null;
 
-                // RemainingCount > 0 时递减，到 0 时移除
-                if (fault.RemainingCount > 1) {
-                    fault.RemainingCount--;
-                    return fault;
-                }
+            var fault = snapshot[matchIndex];
+            var updated = fault.RemainingCount > 1
+                ? snapshot.SetItem(matchIndex, fault with { RemainingCount = fault.RemainingCount - 1 })
+                : snapshot.RemoveAt(matchIndex);
 
-                // Swap-and-Pop: O(1) 删除，避免 RemoveAt 的 O(n)
-                var lastIndex = _faultQueue.Count - 1;
-                if (i != lastIndex) {
-                    _faultQueue[i] = _faultQueue[lastIndex];
-                }
-
-                _faultQueue.RemoveAt(lastIndex);
-                return fault;
-            }
-
-            return null;
+            if (Interlocked.CompareExchange(ref _faultQueue, updated, snapshot) == snapshot) return fault;
         }
+    }
+
+    private static int FindMatchIndex(ImmutableList<BridgeFault> queue, string method) {
+        for (var i = 0; i < queue.Count; i++) {
+            if (string.Equals(queue[i].Method, method, StringComparison.OrdinalIgnoreCase)) return i;
+        }
+        return -1;
     }
 }
 

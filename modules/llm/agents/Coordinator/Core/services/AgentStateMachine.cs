@@ -241,8 +241,8 @@ public sealed class AgentStateContext : IAsyncDisposable {
     public DateTime LastTransitionTime { get; set; }
     /// <summary>状态转换历史记录列表</summary>
     public List<StateTransition> TransitionHistory { get; }
-    /// <summary>异步锁，保护状态转换的并发安全</summary>
-    public AsyncLock Lock { get; }
+    /// <summary>异步锁，保护状态转换的并发安全 — internal 收窄，禁止外部直接获取锁，强制走 TryTransitionAsync 接口</summary>
+    internal AsyncLock Lock { get; }
     /// <summary>最近一次状态转换的源状态</summary>
     internal TaskExecutionStatus LastTransitionFrom { get; private set; }
 

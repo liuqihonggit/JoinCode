@@ -329,7 +329,8 @@ public partial class GitHubToolHandlers {
                     if (!ok) return Fail(err!);
                 }
                 if (remove_parent == true) {
-                    var parentId = await GetIssueParentIdAsync(client, owner, repoName, number, cancellationToken).ConfigureAwait(false);
+                    var (parentId, parentErr) = await GetIssueParentIdAsync(client, owner, repoName, number, cancellationToken).ConfigureAwait(false);
+                    if (parentErr is not null) return Fail(parentErr);
                     if (string.IsNullOrEmpty(parentId)) return Fail($"Issue {number} 没有父 issue。如需设置父 issue，使用 --parent <number>");
                     var (ok, err) = await RemoveSubIssueGraphQLAsync(client, parentId, nodeId, cancellationToken).ConfigureAwait(false);
                     if (!ok) return Fail(err!);
@@ -367,7 +368,8 @@ public partial class GitHubToolHandlers {
                     }
                 }
                 if (!string.IsNullOrWhiteSpace(type)) {
-                    var typeId = await FindIssueTypeIdAsync(client, owner, repoName, type, cancellationToken).ConfigureAwait(false);
+                    var (typeId, typeErr) = await FindIssueTypeIdAsync(client, owner, repoName, type, cancellationToken).ConfigureAwait(false);
+                    if (typeErr is not null) return Fail(typeErr);
                     if (string.IsNullOrEmpty(typeId)) return Fail($"未找到 issue 类型 \"{type}\"。可能原因: ① 仓库未配置 issue types（在仓库 Settings → Issues → Issue types 中添加） ② 类型名称不存在");
                     var (ok, err) = await SetIssueTypeAsync(client, nodeId, typeId, cancellationToken).ConfigureAwait(false);
                     if (!ok) return Fail(err!);

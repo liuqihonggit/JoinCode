@@ -9,10 +9,9 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     private readonly PermissionChecker _permissionChecker;
     private readonly ILogger<PermissionManager>? _logger;
     private volatile ImmutableHamT<string, DateTimeOffset> _approvedTools = ImmutableHamT<string, DateTimeOffset>.Empty;
-    private readonly AsyncLock _modeLock = new();
     private readonly PermissionConfig _config;
     private readonly TimeProvider _timeProvider;
-    private PermissionMode _currentMode;
+    private volatile PermissionMode _currentMode;
     private List<ToolPermissionRule> _strippedRules = [];
     private bool _disposed;
     private readonly Task _loadTask;
@@ -63,11 +62,6 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
             return cachedResult;
         }
 
-        PermissionMode currentMode;
-        using (await _modeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_modeLock.Name}' 等待超时")) {
-            currentMode = _currentMode;
-        }
-
         if (IsToolTemporarilyApproved(request.ToolName)) {
             var grantedResult = PermissionResult.Granted();
             await CacheResultAsync(cacheKey, grantedResult).ConfigureAwait(false);
@@ -100,10 +94,8 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     public async Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        using (await _modeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_modeLock.Name}' 等待超时")) {
-            _currentMode = mode;
-            _permissionChecker.CurrentMode = mode;
-        }
+        _currentMode = mode;
+        _permissionChecker.CurrentMode = mode;
 
         await ClearCacheAsync().ConfigureAwait(false);
 
@@ -111,12 +103,10 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     }
 
     /// <inheritdoc />
-    public async Task<PermissionMode> GetCurrentModeAsync(CancellationToken cancellationToken = default) {
+    public Task<PermissionMode> GetCurrentModeAsync(CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        using (await _modeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_modeLock.Name}' 等待超时")) {
-            return _currentMode;
-        }
+        return Task.FromResult(_currentMode);
     }
 
     /// <inheritdoc />
@@ -262,7 +252,6 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         _disposed = true;
 
         await _loadTask.ConfigureAwait(false);
-        _modeLock.Dispose();
         while (true) {
             var current = _approvedTools;
             if (Interlocked.CompareExchange(ref _approvedTools, ImmutableHamT<string, DateTimeOffset>.Empty, current) == current) break;

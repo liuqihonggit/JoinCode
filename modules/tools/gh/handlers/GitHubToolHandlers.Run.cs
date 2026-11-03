@@ -43,13 +43,13 @@ public partial class GitHubToolHandlers {
             var effectiveVerbosity = common?.Verbosity ?? GetVerbosityFromEnv();
             if (!string.IsNullOrEmpty(common?.Jq)) {
                 var jqOutput = SimpleJqEvaluator.Evaluate(result.Body, common.Jq);
-                return Ok(ApplyPaginationAndTruncation(jqOutput ?? result.Body, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: effectiveVerbosity != 2));
+                return Ok(ApplyPaginationAndTruncation(jqOutput ?? result.Body, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: false));
             }
             if (!string.IsNullOrEmpty(common?.JsonFields)) {
                 var filtered = FilterJsonFields(result.Body, common.JsonFields);
                 if (filtered is "[]" or "{}")
                     return Ok(filtered + "\n\n⚠️ 返回空: 可能原因: ① 字段名不匹配(用 verbosity=2 查看完整字段) ② 该 run 无此字段");
-                return Ok(ApplyPaginationAndTruncation(filtered, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: effectiveVerbosity != 2));
+                return Ok(ApplyPaginationAndTruncation(filtered, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: false));
             }
             var hasFailure = result.Body.Contains("\"conclusion\":\"failure\"", StringComparison.OrdinalIgnoreCase);
             var failureHint = hasFailure ? await BuildDynamicFailureHintAsync(client, owner, repoName, result.Body, cancellationToken).ConfigureAwait(false) : "";
@@ -58,7 +58,7 @@ public partial class GitHubToolHandlers {
                 1 => GitHubRunListSummarizer.SummarizeRunList(result.Body) + failureHint,
                 _ => GitHubRunListSummarizer.SummarizeRunListBrief(result.Body) + failureHint
             };
-            return Ok(ApplyPaginationAndTruncation(formattedOutput, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: effectiveVerbosity != 2));
+            return Ok(ApplyPaginationAndTruncation(formattedOutput, common?.SkipLines, common?.StartLine, "gh_run_list", _compactLinePrefix, addLineNumbers: false));
         }).ConfigureAwait(false);
 
 

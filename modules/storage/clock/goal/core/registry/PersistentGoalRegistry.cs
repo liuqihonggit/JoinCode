@@ -8,12 +8,11 @@ namespace Core.Goal;
 /// </summary>
 [Register(typeof(IGoalRegistry), ServiceLifetime.Singleton)]
 public sealed partial class PersistentGoalRegistry : IGoalRegistry {
-    private readonly Dictionary<string, GoalEngine> _engines = new();
+    private readonly ConcurrentDictionary<string, GoalEngine> _engines = new();
     private readonly IServiceProvider _serviceProvider;
     private readonly IGoalStateStore? _stateStore = null;
     private readonly ILogger<PersistentGoalRegistry>? _logger;
-    private readonly AsyncLock _lock = new();
-    private string? _currentGoalId;
+    private volatile string? _currentGoalId;
     private string? _sessionId;
 
     /// <summary>
@@ -47,8 +46,6 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry {
             engine.SetSessionId(_sessionId);
         var state = await engine.StartAsync(objective, constraints, tokenBudget, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
         _engines[state.GoalId] = engine;
         _currentGoalId = state.GoalId;
 
@@ -59,14 +56,11 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry {
 
     /// <inheritdoc />
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    public async Task<IReadOnlyList<GoalState>> ListActiveGoalsAsync(CancellationToken cancellationToken = default) {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        return _engines.Values
+    public Task<IReadOnlyList<GoalState>> ListActiveGoalsAsync(CancellationToken cancellationToken = default) {
+        return Task.FromResult<IReadOnlyList<GoalState>>(_engines.Values
             .Where(e => e.CurrentState is not null)
             .Select(e => e.CurrentState!)
-            .ToList();
-
+            .ToList());
     }
 
     /// <inheritdoc />
@@ -88,8 +82,6 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry {
             var activeGoals = await _stateStore.GetActiveGoalsAsync(_sessionId, cancellationToken).ConfigureAwait(false);
             if (activeGoals.Count == 0) return;
 
-            using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
             foreach (var state in activeGoals) {
                 if (_engines.ContainsKey(state.GoalId)) continue;
                 var engine = CreateEngine();
@@ -97,7 +89,7 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry {
                 await engine.RehydrateAsync(cancellationToken, state.GoalId).ConfigureAwait(false);
                 _engines[state.GoalId] = engine;
             }
-            _currentGoalId ??= activeGoals[0].GoalId;
+            if (_currentGoalId is null) _currentGoalId = activeGoals[0].GoalId;
 
             _logger?.LogInformation("[PersistentGoalRegistry] 恢复 {Count} 个活跃目标", activeGoals.Count);
         } catch (Exception ex) {
@@ -122,13 +114,10 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry {
         if (CurrentEngine is not { } engine) return;
         await engine.ClearAsync(cancellationToken).ConfigureAwait(false);
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
         if (_currentGoalId is not null) {
-            _engines.Remove(_currentGoalId);
+            _engines.TryRemove(_currentGoalId, out _);
             _currentGoalId = _engines.Keys.FirstOrDefault();
         }
-
     }
 
     private GoalEngine CreateEngine() {

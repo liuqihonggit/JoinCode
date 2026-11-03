@@ -382,7 +382,7 @@ public partial class GitHubToolHandlers {
     private static string EnrichApiError(string error, string? toolName, string apiPath) {
         if (!error.Contains("Not Found", StringComparison.OrdinalIgnoreCase))
             return error;
-        return toolName switch {
+        var context = toolName switch {
             "gh_pr_view"    => $"PR 获取失败 — {error}。可能原因: ① PR 编号不存在 ② 仓库不存在或无权限。提示: 用 gh pr list 查看可用 PR 编号",
             "gh_pr_checks"  => $"PR checks 获取失败 — {error}。可能原因: ① PR 编号不存在 ② 仓库不存在或无权限 ③ PR 无 CI checks。提示: 用 gh pr list 查看可用 PR 编号",
             "gh_issue_view" => $"Issue 获取失败 — {error}。可能原因: ① Issue 编号不存在 ② 仓库不存在或无权限。提示: 用 gh issue list 查看可用 Issue 编号",
@@ -393,6 +393,7 @@ public partial class GitHubToolHandlers {
             "gh_repo_license_view" => $"License 获取失败 — {error}。可能原因: ① license key 不存在 ② key 大小写错误。提示: 用 gh repo license-list 查看可用 license",
             _ => $"{toolName ?? "gh"} 调用失败 — {error}。API 路径: {apiPath}"
         };
+        return $"{context}\n提示: 若仓库为私有, 404 也可能是 token 未配置/无效 — 设置 JCC_GITHUB_TOKEN 或运行 gh auth login";
     }
 
     /// <summary>

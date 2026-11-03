@@ -45,6 +45,24 @@ public sealed partial class GitHubToolHandlersTests {
         result.GetFirstText().Should().Contain("could not find pr");
     }
 
+    /// <summary>404 错误应提示 token 未配置/无效 — 私有仓库无 token 时 GitHub 返回 404 而非 401</summary>
+    [Fact]
+    public async Task PrView_NotFound_ShouldHintTokenConfiguration() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = false,
+            StatusCode = 404,
+            Error = "Not Found",
+        };
+
+        var result = await _handler.GhPrViewAsync("999", common: new GitHubCommonOptions { Repo = "owner/repo" });
+
+        result.IsError.Should().BeTrue();
+        var text = result.GetFirstText();
+        text.Should().Contain("PR 获取失败");
+        text.Should().Contain("JCC_GITHUB_TOKEN");
+        text.Should().Contain("token");
+    }
+
     [Fact]
     public async Task PrCreate_Success_ReturnsCreatedPr() {
         _api.NextResponse = new GitHubApiResponse {

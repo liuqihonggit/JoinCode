@@ -86,6 +86,8 @@
 |---|------|------|---------|------|
 | 16 | `modules/cognition/brain/context/services/chat/core/SteerInputMailbox.cs` | `Dictionary`+`lock`→`ConcurrentDictionary`+`ConcurrentQueue` | 3 处 | ✅ 完成 |
 | 17 | `modules/async_primitives/async_lock/actor/EventStream.cs` | `ConcurrentDictionary`+`lock`→`ImmutableHamT`+`ImmutableInterlocked.Update` CAS | 2 处 | ✅ 完成 |
+| 18 | `modules/storage/scheduling/core/ExecutionContext.cs` | `List<Task>`+`AsyncLock`→`ConcurrentDictionary<Task,byte>` 无锁 | 1 处 | ✅ 完成（AddRunningTask/GetSnapshot/Cleanup/GetCount/Dispose 全去锁） |
+| 19 | `modules/abstractions/abstractions/abs_core/configuration/localization/L.cs` | `AsyncLock.LockOrCrash`→`Volatile.Write` 原子更新 | 1 处 | ✅ 完成（Initialize 仅启动时调用，引用类型赋值原子） |
 
 ## 验收标准
 

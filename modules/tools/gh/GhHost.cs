@@ -9,7 +9,9 @@ internal static class GhHost {
         var httpClient = new HttpClient();
         var apiClient = new IO.ProcessService.GitHubApiClient(httpClient, fs);
         var downloader = new SimpleDownloader(httpClient);
-        s_handler = new GitHubToolHandlers(downloader, fs, apiClient);
+        var processService = IO.ProcessService.ProcessServiceFactory.Create();
+        var git = new IO.ProcessService.GitCommandRunner(processService);
+        s_handler = new GitHubToolHandlers(downloader, fs, apiClient, git);
         return s_handler;
     }
 }

@@ -1,13 +1,12 @@
 namespace Infrastructure.HotSpot;
 
 /// <summary>
-/// 意图收集器实现 — ConcurrentDictionary + per-key lock 线程安全
+/// 意图收集器实现 — ImmutableHamT + ImmutableInterlocked.Update CAS 无锁线程安全
 /// 按 filePath 索引意图，支持多 Worker 并发上报和清理
 /// </summary>
 [Register(typeof(IIntentCollector), ServiceLifetime.Singleton)]
 public sealed class IntentCollector : IIntentCollector {
     private ImmutableHamT<string, ImmutableList<FileModifyIntent>> _intentsByFile = ImmutableHamT<string, ImmutableList<FileModifyIntent>>.Empty;
-    private ImmutableHamT<string, AsyncLock> _locks = ImmutableHamT<string, AsyncLock>.Empty;
     private readonly IClockService _clock;
 
     /// <summary>
@@ -34,13 +33,10 @@ public sealed class IntentCollector : IIntentCollector {
         foreach (var intent in intents) {
             cancellationToken.ThrowIfCancellationRequested();
             var key = NormalizePath(intent.FilePath);
-            var lk = GetLock(key);
-            using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-                ImmutableInterlocked.Update(ref _intentsByFile, d => {
-                    var list = d.GetValueOrDefault(key, ImmutableList<FileModifyIntent>.Empty);
-                    return d.SetItem(key, list.Add(intent));
-                });
-            }
+            ImmutableInterlocked.Update(ref _intentsByFile, d => {
+                var list = d.GetValueOrDefault(key, ImmutableList<FileModifyIntent>.Empty);
+                return d.SetItem(key, list.Add(intent));
+            });
         }
 
         return Task.CompletedTask;
@@ -54,28 +50,15 @@ public sealed class IntentCollector : IIntentCollector {
     public IReadOnlyList<FileModifyIntent> GetIntents(string filePath) {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         var key = NormalizePath(filePath);
-        var lk = GetLock(key);
-        using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-            if (Volatile.Read(ref _intentsByFile).TryGetValue(key, out var list))
-                return [.. list];
-        }
-        return [];
+        return Volatile.Read(ref _intentsByFile).TryGetValue(key, out var list) ? [.. list] : [];
     }
 
     /// <summary>
     /// 获取所有文件的所有修改意图
     /// </summary>
     /// <returns>全部修改意图列表</returns>
-    public IReadOnlyList<FileModifyIntent> GetAllIntents() {
-        var all = new List<FileModifyIntent>();
-        foreach (var kvp in Volatile.Read(ref _intentsByFile)) {
-            var lk = GetLock(kvp.Key);
-            using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-                all.AddRange(kvp.Value);
-            }
-        }
-        return all;
-    }
+    public IReadOnlyList<FileModifyIntent> GetAllIntents() =>
+        Volatile.Read(ref _intentsByFile).SelectMany(kvp => kvp.Value).ToList();
 
     /// <summary>
     /// 异步移除指定 Worker 的所有意图记录
@@ -89,27 +72,14 @@ public sealed class IntentCollector : IIntentCollector {
 
         foreach (var kvp in Volatile.Read(ref _intentsByFile)) {
             cancellationToken.ThrowIfCancellationRequested();
-            var lk = GetLock(kvp.Key);
-            using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
-                ImmutableInterlocked.Update(ref _intentsByFile, d => {
-                    if (!d.TryGetValue(kvp.Key, out var list)) return d;
-                    var next = list.RemoveAll(x => x.WorkerId == workerId);
-                    return next.IsEmpty ? d.Remove(kvp.Key) : d.SetItem(kvp.Key, next);
-                });
-            }
+            ImmutableInterlocked.Update(ref _intentsByFile, d => {
+                if (!d.TryGetValue(kvp.Key, out var list)) return d;
+                var next = list.RemoveAll(x => x.WorkerId == workerId);
+                return next.IsEmpty ? d.Remove(kvp.Key) : d.SetItem(kvp.Key, next);
+            });
         }
 
         return Task.CompletedTask;
-    }
-
-    private LockRef GetLock(string filePath) {
-        var snapshot = Volatile.Read(ref _locks);
-        if (snapshot.TryGetValue(filePath, out var existing))
-            return new LockRef(existing);
-
-        var newLock = new AsyncLock(nameof(IntentCollector));
-        ImmutableInterlocked.Update(ref _locks, d => d.ContainsKey(filePath) ? d : d.Add(filePath, newLock));
-        return new LockRef(Volatile.Read(ref _locks)[filePath]);
     }
 
     private static string NormalizePath(string filePath) => filePath.Replace('\\', '/');

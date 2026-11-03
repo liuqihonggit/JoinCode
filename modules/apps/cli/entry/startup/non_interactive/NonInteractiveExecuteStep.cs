@@ -73,7 +73,8 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
             Diag.WriteLine($"[STEP] ExecuteStep exception: {ex.GetType().Name}: {ex.Message}");
             var errorLog = await WriteErrorLogAsync(ex).ConfigureAwait(false);
             var retryable = ex is JoinCode.Abstractions.Exceptions.ApiException apiEx && apiEx.IsRetryable;
-            context.StructuredError = new Cli.Output.CliStructuredError("RUNTIME_ERROR", ex.Message, $"详细日志: {Cli.Output.XdgPathResolver.ShortenPath(errorLog)}", retryable);
+            var (exitCode, errorCode) = ClassifyException(ex);
+            context.StructuredError = new Cli.Output.CliStructuredError(errorCode, ex.Message, $"详细日志: {Cli.Output.XdgPathResolver.ShortenPath(errorLog)}", retryable);
             if (context.OutputContract is null) {
                 Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
                 if (retryable)
@@ -81,7 +82,7 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
                 Cli.TerminalHelper.WriteLine("  请检查：1. API Key 配置  2. 网络连接  3. API 服务状态");
                 Cli.TerminalHelper.WriteLine($"  详细日志: {Cli.Output.XdgPathResolver.ShortenPath(errorLog)}");
             }
-            context.ExitCode = (int)ExitCode.GeneralError;
+            context.ExitCode = (int)exitCode;
             return;
         }
 
@@ -103,4 +104,22 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
         }
         return errorLog;
     }
+
+    /// <summary>
+    /// 将异常分类为退出码和错误代码 — 区分 LLM 调用失败、配置错误、工具执行失败和通用错误
+    /// </summary>
+    private static (ExitCode exitCode, string errorCode) ClassifyException(Exception ex) => ex switch {
+        JoinCode.Abstractions.Exceptions.ApiException => (ExitCode.LlmCallFailed, "LLM_CALL_FAILED"),
+        System.Net.Http.HttpRequestException => (ExitCode.LlmCallFailed, "LLM_HTTP_ERROR"),
+        JoinCode.Abstractions.Exceptions.ConfigurationException => (ExitCode.ConfigurationError, "CONFIG_ERROR"),
+        JoinCode.Abstractions.Exceptions.CodeExecutionException => (ExitCode.ToolExecutionFailed, "TOOL_EXECUTION_FAILED"),
+        System.InvalidOperationException when IsLlmError(ex.Message) => (ExitCode.LlmCallFailed, "LLM_CALL_FAILED"),
+        _ => (ExitCode.GeneralError, "RUNTIME_ERROR")
+    };
+
+    /// <summary>
+    /// 判断异常消息是否表示 LLM 调用失败 — CliSession.StreamResponseAsync 把 LLM 错误包装成 InvalidOperationException
+    /// </summary>
+    private static bool IsLlmError(string message) =>
+        message.Contains("LLM.", StringComparison.Ordinal) || message.Contains("HTTP ", StringComparison.Ordinal);
 }

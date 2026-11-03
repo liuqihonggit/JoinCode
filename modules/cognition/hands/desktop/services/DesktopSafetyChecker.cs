@@ -6,8 +6,7 @@ namespace JoinCode.Hands.Desktop;
 /// </summary>
 [Register(typeof(IDesktopSafetyChecker), ServiceLifetime.Singleton)]
 public sealed partial class DesktopSafetyChecker : ServiceEntity, IDesktopSafetyChecker {
-    private readonly List<DangerousZone> _zones = new();
-    private readonly AsyncLock _lock = new("DesktopSafetyChecker");
+    private ImmutableList<DangerousZone> _zones = ImmutableList<DangerousZone>.Empty;
 
     private static readonly FrozenSet<string> UnsavedKeywords = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase, "未保存", "unsaved", "modified");
@@ -16,12 +15,11 @@ public sealed partial class DesktopSafetyChecker : ServiceEntity, IDesktopSafety
     public Task<UnsafeOperationKind> CheckClickAsync(int x, int y, CancellationToken cancellationToken = default) {
         cancellationToken.ThrowIfCancellationRequested();
 
-        using (_lock.LockOrCrash()) {
-            foreach (var zone in _zones) {
-                if (x >= zone.X && x <= zone.X + zone.Width &&
-                    y >= zone.Y && y <= zone.Y + zone.Height)
-                    return Task.FromResult(UnsafeOperationKind.DangerousCoordinate);
-            }
+        var snapshot = Volatile.Read(ref _zones);
+        foreach (var zone in snapshot) {
+            if (x >= zone.X && x <= zone.X + zone.Width &&
+                y >= zone.Y && y <= zone.Y + zone.Height)
+                return Task.FromResult(UnsafeOperationKind.DangerousCoordinate);
         }
 
         return Task.FromResult(UnsafeOperationKind.None);
@@ -48,26 +46,16 @@ public sealed partial class DesktopSafetyChecker : ServiceEntity, IDesktopSafety
 
     /// <summary>注册危险坐标区域 — 如通过视觉识别到"确定删除"按钮时调用（U-04）</summary>
     public void RegisterDangerousZone(int x, int y, int width, int height) {
-        using (_lock.LockOrCrash()) {
-            _zones.Add(new DangerousZone(x, y, width, height));
-        }
+        ImmutableInterlocked.Update(ref _zones, list => list.Add(new DangerousZone(x, y, width, height)));
     }
 
     /// <summary>清空危险区域集合</summary>
     public void ClearDangerousZones() {
-        using (_lock.LockOrCrash()) {
-            _zones.Clear();
-        }
+        Interlocked.Exchange(ref _zones, ImmutableList<DangerousZone>.Empty);
     }
 
     /// <summary>当前已注册的危险区域数量</summary>
-    public int DangerousZoneCount {
-        get {
-            using (_lock.LockOrCrash()) {
-                return _zones.Count;
-            }
-        }
-    }
+    public int DangerousZoneCount => Volatile.Read(ref _zones).Count;
 
     private static string GetWindowTitle(IntPtr hWnd) {
         var length = User32NativeMethods.GetWindowTextLength(hWnd);
@@ -80,10 +68,4 @@ public sealed partial class DesktopSafetyChecker : ServiceEntity, IDesktopSafety
     }
 
     private readonly record struct DangerousZone(int X, int Y, int Width, int Height);
-
-    /// <summary>释放安全检查器资源。</summary>
-    public override void Dispose() {
-        _lock.Dispose();
-        base.Dispose();
-    }
 }

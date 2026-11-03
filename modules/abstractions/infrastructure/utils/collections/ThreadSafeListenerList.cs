@@ -1,13 +1,12 @@
 namespace Core.Utils;
 
 /// <summary>
-/// 线程安全监听器列表 — 基于 AsyncLock 保护读写,提供注册、注销与广播通知能力
+/// 线程安全监听器列表 — 基于不可变列表+CAS 保护读写,提供注册、注销与广播通知能力
 /// <para>Notify 在快照上遍历,单个监听器抛出异常不影响其他监听器</para>
 /// </summary>
 /// <typeparam name="T">监听器类型</typeparam>
 public sealed class ThreadSafeListenerList<T> {
-    private readonly List<T> _listeners = [];
-    private readonly AsyncLock _lock = new("ThreadSafeListenerList");
+    private ImmutableList<T> _listeners = ImmutableList<T>.Empty;
     private readonly ILogger<ThreadSafeListenerList<T>>? _logger;
 
     /// <summary>
@@ -25,10 +24,7 @@ public sealed class ThreadSafeListenerList<T> {
     /// <returns>调用 Dispose 即可注销该监听器</returns>
     public IDisposable Register(T listener) {
         ArgumentNullException.ThrowIfNull(listener);
-        using (_lock.LockOrCrash()) {
-            _listeners.Add(listener);
-        }
-
+        ImmutableInterlocked.Update(ref _listeners, list => list.Add(listener));
         return new UnsubscribeToken(this, listener);
     }
 
@@ -39,11 +35,7 @@ public sealed class ThreadSafeListenerList<T> {
     public void Notify(Action<T> action) {
         ArgumentNullException.ThrowIfNull(action);
 
-        T[] snapshot;
-        using (_lock.LockOrCrash()) {
-            snapshot = _listeners.ToArray();
-        }
-
+        var snapshot = Volatile.Read(ref _listeners);
         foreach (var listener in snapshot) {
             try {
                 action(listener);
@@ -54,18 +46,10 @@ public sealed class ThreadSafeListenerList<T> {
     }
 
     /// <summary>当前已注册监听器数量</summary>
-    public int Count {
-        get {
-            using (_lock.LockOrCrash()) {
-                return _listeners.Count;
-            }
-        }
-    }
+    public int Count => Volatile.Read(ref _listeners).Count;
 
     private void Unsubscribe(T listener) {
-        using (_lock.LockOrCrash()) {
-            _listeners.Remove(listener);
-        }
+        ImmutableInterlocked.Update(ref _listeners, list => list.Remove(listener));
     }
 
     private sealed class UnsubscribeToken(ThreadSafeListenerList<T> owner, T listener) : IDisposable {

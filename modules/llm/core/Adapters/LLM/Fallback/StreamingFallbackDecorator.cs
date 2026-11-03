@@ -206,6 +206,11 @@ public sealed class StreamingFallbackDecorator : IQueryService {
             && oce.CancellationToken == originalToken)
             return false;
 
+        // 连接级错误（HttpRequestException 无 StatusCode = 连接拒绝/DNS失败等）不 fallback —
+        // 服务器都没连上，非流式也会同样失败，fallback 只会翻倍重试时间卡死用户
+        if (ex is HttpRequestException { StatusCode: null })
+            return false;
+
         if (ex is HttpRequestException httpEx && httpEx.StatusCode.HasValue) {
             var statusCode = (int)httpEx.StatusCode.Value;
             if (_config.FallbackStatusCodes.Contains(statusCode))
@@ -219,7 +224,6 @@ public sealed class StreamingFallbackDecorator : IQueryService {
 
         return ex is TimeoutException
             || ex is TaskCanceledException
-            || ex is HttpRequestException
             || ex is IOException;
     }
 

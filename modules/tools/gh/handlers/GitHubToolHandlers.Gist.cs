@@ -100,4 +100,23 @@ public partial class GitHubToolHandlers {
         var result = await _apiClient.SendAsync(HttpMethod.Delete, $"gists/{gist_id}", ct: cancellationToken).ConfigureAwait(false);
         return result.Success ? Ok($"已删除 Gist {gist_id}") : Fail(result.Error);
     }
+
+    /// <summary>
+    /// 编辑 Gist — 调 PATCH /gists/{id}，可修改描述和文件内容
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhGistEdit, "编辑 Gist(描述/文件内容)", "github")]
+    public async Task<ToolResult> GhGistEditAsync(
+        [McpToolParameter("Gist ID", Required = true)] string gist_id,
+        [McpToolParameter("描述(可选)", Required = false)] string? description = null,
+        [McpToolParameter("文件名(可选,指定则更新该文件内容)", Required = false)] string? filename = null,
+        [McpToolParameter("文件内容(可选,需配合 filename)", Required = false)] string? content = null,
+        CancellationToken cancellationToken = default) {
+        if (_apiClient is null) return ApiClientNotConfigured();
+        var request = new GistCreateRequest { Description = description };
+        if (!string.IsNullOrEmpty(filename) && content is not null)
+            request = new GistCreateRequest { Description = description, Files = new() { [filename] = new GistFileContent { Content = content } } };
+        var body = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.GistCreateRequest);
+        var result = await _apiClient.SendAsync(HttpMethod.Patch, $"gists/{gist_id}", body, ct: cancellationToken).ConfigureAwait(false);
+        return result.Success ? OkBrief(result.Body, $"已更新 Gist {gist_id}") : Fail(result.Error);
+    }
 }

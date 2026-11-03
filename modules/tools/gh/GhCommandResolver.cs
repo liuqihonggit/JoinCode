@@ -561,6 +561,7 @@ internal static class GhArgsBinder {
         ["gh_api"]            = new(('H', "header"), ('i', "include"), ('X', "method"), ('p', "preview"), ('f', "fields")),
         ["gh_auth_status"]    = new(('a', "active"), ('h', "hostname"), ('t', "show_token")),
         ["gh_auth_token"]     = new(('h', "hostname"), ('u', "user")),
+        ["gh_config_list"]    = new(('h', "host")),
         ["gh_config_get"]     = new(('h', "host")),
         ["gh_config_set"]     = new(('h', "host")),
         ["gh_alias_set"]      = new(('s', "shell")),

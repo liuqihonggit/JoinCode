@@ -106,6 +106,61 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
+    /// 列出所有 gh 配置 — 读取 config.yml 顶层 key-value（host 参数列出 hosts.yml per-host 设置）
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhConfigList, "列出 gh 配置(读写 config.yml)", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhConfigListAsync(
+        [McpToolParameter("host(可选,列出 per-host 设置,读写 hosts.yml)", Required = false)] string? host = null,
+        CancellationToken cancellationToken = default) {
+        var configPath = GetGhConfigPath(host is not null);
+        if (!_fs.FileExists(configPath)) return Fail($"gh 配置文件不存在: {configPath} — 请用系统 gh CLI 登录: gh auth login");
+        var content = await _fs.ReadAllTextAsync(configPath, cancellationToken).ConfigureAwait(false);
+        var entries = ListYamlEntries(content, host);
+        if (entries.Count == 0) return Ok("(无配置项)");
+        var sb = new StringBuilder(128);
+        foreach (var (key, value) in entries)
+            sb.AppendLine($"{key}\t{value}");
+        return Ok(sb.ToString());
+    }
+
+    /// <summary>列出 YAML 顶层 key-value 对（跳过注释和空行），支持 host 嵌套</summary>
+    private static List<(string Key, string Value)> ListYamlEntries(string content, string? host) {
+        var lines = content.Split('\n');
+        var result = new List<(string, string)>();
+        if (string.IsNullOrWhiteSpace(host)) {
+            foreach (var line in lines) {
+                if (line.StartsWith('#') || string.IsNullOrWhiteSpace(line)) continue;
+                if (line.Length > 0 && char.IsWhiteSpace(line[0])) continue;
+                var colonIdx = line.IndexOf(':');
+                if (colonIdx < 0) continue;
+                var key = line[..colonIdx].Trim();
+                var value = line[(colonIdx + 1)..].Trim();
+                if (!string.IsNullOrEmpty(key)) result.Add((key, value));
+            }
+        } else {
+            var hostIndent = -1;
+            for (var i = 0; i < lines.Length; i++) {
+                var trimmed = lines[i].TrimStart();
+                if (trimmed.StartsWith($"{host}:", StringComparison.OrdinalIgnoreCase)) { hostIndent = lines[i].Length - trimmed.Length; break; }
+            }
+            if (hostIndent < 0) return result;
+            for (var i = 0; i < lines.Length; i++) {
+                var trimmed = lines[i].TrimStart();
+                var indent = lines[i].Length - trimmed.Length;
+                if (indent <= hostIndent && i > 0 && lines[i - 1].TrimStart().StartsWith($"{host}:", StringComparison.OrdinalIgnoreCase)) break;
+                if (indent > hostIndent) {
+                    var colonIdx = trimmed.IndexOf(':');
+                    if (colonIdx < 0) continue;
+                    var key = trimmed[..colonIdx].Trim();
+                    var value = trimmed[(colonIdx + 1)..].Trim();
+                    if (!string.IsNullOrEmpty(key)) result.Add((key, value));
+                }
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
     /// 读取配置 — 读写 gh config.yml 顶层 key-value（host 参数读写 hosts.yml per-host 设置）
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhConfigGet, "读取 gh 配置(读写 config.yml)", "github", ConcurrencySafe = true)]

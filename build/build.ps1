@@ -36,6 +36,9 @@
 .PARAMETER Timing
   输出计时报告
 
+.PARAMETER Dev
+  使用 JoinCode.Dev.slnx 瘦身版（移除 mock/bench/aot/non_deliverables/integration/rg/gh，约 96 项目 vs 125），日常迭代加速
+
 .EXAMPLE
   .\build.ps1                              # Full模式 (提交前)
   .\build.ps1 -Fast                        # 日常开发 - 最快
@@ -62,7 +65,8 @@ param(
     [string]$Subsystem,
     [switch]$KillAll,
     [switch]$CI,
-    [switch]$Timing
+    [switch]$Timing,
+    [switch]$Dev
 )
 
 # -Fast 开关向后兼容
@@ -75,8 +79,8 @@ if ($CI -and -not $PSBoundParameters.ContainsKey('Configuration')) {
 
 $ErrorActionPreference = 'Stop'
 $rootDir = Split-Path $PSScriptRoot -Parent
-$slnx = "$rootDir\build\sln\JoinCode.slnx"
-$compSlnx = "$rootDir\build\sln\JoinCode.slnx"
+$slnx = if ($Dev) { "$rootDir\build\sln\JoinCode.Dev.slnx" } else { "$rootDir\build\sln\JoinCode.slnx" }
+$compSlnx = $slnx
 $genSlnx = "$rootDir\modules\generators\module.slnx"
 
 # ── 模式 → MSBuild 属性 ──
@@ -97,7 +101,8 @@ Write-Host ''
 if ($GeneratorsOnly) {
     Write-Host "  Mode=GeneratorsOnly  Config=$Configuration" -ForegroundColor Cyan
 } else {
-    Write-Host "  Mode=$Mode  Config=$Configuration  Serial=$Serial  NoShutdown=$NoShutdown" -ForegroundColor Cyan
+    $slnxLabel = if ($Dev) { "Dev" } else { "Full" }
+    Write-Host "  Mode=$Mode  Slnx=$slnxLabel  Config=$Configuration  Serial=$Serial  NoShutdown=$NoShutdown" -ForegroundColor Cyan
 }
 Write-Host ''
 

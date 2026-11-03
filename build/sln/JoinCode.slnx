@@ -17,6 +17,7 @@
     <Project Path="../../modules/generators/fsm.generator.tests/Fsm.Generator.Tests.csproj" />
   </Folder>
   <Folder Name="/lib/">
+    <Project Path="../../modules/abstractions/primitives/Abstractions.Primitives.csproj" />
     <Project Path="../../modules/abstractions/abstractions/Abstractions.csproj" />
     <Project Path="../../modules/storage/downloader/Downloader.csproj" />
     <Project Path="../../modules/collections/structura/Structura.csproj" />

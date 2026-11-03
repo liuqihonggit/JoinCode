@@ -600,14 +600,14 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 精简 gitignore 模板列表 — 提取 names 数组
+    /// 精简 gitignore 模板列表 — GitHub API 返回顶层数组 ["Actionscript",...],逐行输出
     /// </summary>
     private static string SummarizeGitignoreList(string json) {
         try {
-            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.GitignoreListResponse);
-            if (resp is null) return json;
+            var names = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ListString);
+            if (names is null) return json;
             var sb = new StringBuilder(256);
-            foreach (var n in resp.Names) sb.AppendLine(n);
+            foreach (var n in names) sb.AppendLine(n);
             return sb.ToString();
         } catch { return json; }
     }

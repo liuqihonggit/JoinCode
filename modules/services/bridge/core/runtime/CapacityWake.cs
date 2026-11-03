@@ -119,7 +119,6 @@ public sealed partial class CapacityChangedEventArgs : EventArgs {
 public sealed partial class CapacityWakeService : IAsyncDisposable {
     private readonly CapacityWakeOptions _options;
     private readonly ILogger<CapacityWakeService>? _logger;
-    private readonly AsyncLock _stateLock = new();
 
     private CancellationTokenSource? _monitorCts;
     private Task? _monitorTask;
@@ -151,26 +150,22 @@ public sealed partial class CapacityWakeService : IAsyncDisposable {
     /// <summary>
     /// 启动监控循环
     /// </summary>
-    public async Task StartMonitoringAsync(CancellationToken cancellationToken = default) {
-        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
-
+    public Task StartMonitoringAsync(CancellationToken cancellationToken = default) {
         if (_monitorTask is { IsCompleted: false }) {
             _logger?.LogWarning("[CapacityWake] 监控已在运行");
-            return;
+            return Task.CompletedTask;
         }
 
         _monitorCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _monitorTask = RunMonitorLoopAsync(_monitorCts.Token);
         _logger?.LogInformation("[CapacityWake] 监控已启动，当前实例数: {InstanceCount}", _currentInstanceCount);
-
+        return Task.CompletedTask;
     }
 
     /// <summary>
     /// 停止监控循环
     /// </summary>
     public async Task StopMonitoringAsync(CancellationToken cancellationToken = default) {
-        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
-
         await (_monitorCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false);
 
 
@@ -209,37 +204,37 @@ public sealed partial class CapacityWakeService : IAsyncDisposable {
     /// <summary>
     /// 手动扩容一个实例
     /// </summary>
-    public async Task ScaleUpAsync(CancellationToken cancellationToken = default) {
-        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
-
-        var oldCount = _currentInstanceCount;
-        if (oldCount >= _options.MaxInstances) {
-            _logger?.LogWarning("[CapacityWake] 已达最大实例数 {MaxInstances}，无法扩容", _options.MaxInstances);
-            return;
+    public Task ScaleUpAsync(CancellationToken cancellationToken = default) {
+        while (true) {
+            var oldCount = Volatile.Read(ref _currentInstanceCount);
+            if (oldCount >= _options.MaxInstances) {
+                _logger?.LogWarning("[CapacityWake] 已达最大实例数 {MaxInstances}，无法扩容", _options.MaxInstances);
+                return Task.CompletedTask;
+            }
+            if (Interlocked.CompareExchange(ref _currentInstanceCount, oldCount + 1, oldCount) == oldCount) {
+                _logger?.LogInformation("[CapacityWake] 扩容: {OldCount} -> {NewCount}", oldCount, oldCount + 1);
+                CapacityChanged?.Invoke(this, new CapacityChangedEventArgs(oldCount, oldCount + 1, Volatile.Read(ref _currentMetrics)));
+                return Task.CompletedTask;
+            }
         }
-
-        _currentInstanceCount = oldCount + 1;
-        _logger?.LogInformation("[CapacityWake] 扩容: {OldCount} -> {NewCount}", oldCount, _currentInstanceCount);
-        CapacityChanged?.Invoke(this, new CapacityChangedEventArgs(oldCount, _currentInstanceCount, _currentMetrics));
-
     }
 
     /// <summary>
     /// 手动缩容一个实例
     /// </summary>
-    public async Task ScaleDownAsync(CancellationToken cancellationToken = default) {
-        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
-
-        var oldCount = _currentInstanceCount;
-        if (oldCount <= _options.MinInstances) {
-            _logger?.LogWarning("[CapacityWake] 已达最小实例数 {MinInstances}，无法缩容", _options.MinInstances);
-            return;
+    public Task ScaleDownAsync(CancellationToken cancellationToken = default) {
+        while (true) {
+            var oldCount = Volatile.Read(ref _currentInstanceCount);
+            if (oldCount <= _options.MinInstances) {
+                _logger?.LogWarning("[CapacityWake] 已达最小实例数 {MinInstances}，无法缩容", _options.MinInstances);
+                return Task.CompletedTask;
+            }
+            if (Interlocked.CompareExchange(ref _currentInstanceCount, oldCount - 1, oldCount) == oldCount) {
+                _logger?.LogInformation("[CapacityWake] 缩容: {OldCount} -> {NewCount}", oldCount, oldCount - 1);
+                CapacityChanged?.Invoke(this, new CapacityChangedEventArgs(oldCount, oldCount - 1, Volatile.Read(ref _currentMetrics)));
+                return Task.CompletedTask;
+            }
         }
-
-        _currentInstanceCount = oldCount - 1;
-        _logger?.LogInformation("[CapacityWake] 缩容: {OldCount} -> {NewCount}", oldCount, _currentInstanceCount);
-        CapacityChanged?.Invoke(this, new CapacityChangedEventArgs(oldCount, _currentInstanceCount, _currentMetrics));
-
     }
 
     private readonly CapacityWakeSignal _wakeSignal = new();
@@ -291,7 +286,6 @@ public sealed partial class CapacityWakeService : IAsyncDisposable {
         }
 
         await StopMonitoringAsync(CancellationToken.None).ConfigureAwait(false);
-        _stateLock.Dispose();
         _wakeSignal.Dispose();
     }
 }

@@ -132,13 +132,20 @@ internal static class SimpleJqEvaluator {
     /// <summary>
     /// 宽容: [] 作用于对象时,自动查找常见数组字段展开。
     /// GitHub API 常用包装: {workflow_runs:[...]}, {items:[...]}, {data:[...]}, {runs:[...]}, {jobs:[...]} 等
+    /// GraphQL 响应多层嵌套: {data:{repository:{discussions:{nodes:[...]}}}} — 递归查找(限深 4 层)
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static JsonNode? UnwrapCommonArrayField(JsonNode? current) {
-        if (current is not JsonObject obj) return null;
+    private static JsonNode? UnwrapCommonArrayField(JsonNode? current, int depth = 0) {
+        if (current is not JsonObject obj || depth > 4) return null;
         foreach (var key in s_commonArrayFields) {
             if (obj.TryGetPropertyValue(key, out var val) && val is JsonArray arr)
                 return arr;
+        }
+        foreach (var kvp in obj) {
+            if (kvp.Value is JsonObject child) {
+                var found = UnwrapCommonArrayField(child, depth + 1);
+                if (found is not null) return found;
+            }
         }
         return null;
     }
@@ -153,7 +160,8 @@ internal static class SimpleJqEvaluator {
         "contributors", "forks", "environments", "deployments", "statuses",
         "check_runs", "check_suites", "artifacts", "events", "reactions",
         "assignees", "gists", "keys", "ssh_keys", "gpg_keys", "topics",
-        "hooks", "invitations", "installations", "permissions", "roles"
+        "hooks", "invitations", "installations", "permissions", "roles",
+        "nodes", "edges", "contents"
     ];
 
     /// <summary>select(.field=="value" or .field2=="value2") — 过滤数组或单个对象</summary>

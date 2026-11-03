@@ -16,29 +16,32 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     ];
 
     private readonly OnboardingStatePersistence _persistence;
-    private readonly AsyncLock _lock = new();
     private bool _disposed;
-    private OnboardingStep _currentStep = OnboardingStep.Welcome;
-    private int _currentStepIndex;
-    private int _selectedIndex;
-    private bool _isOnboardingComplete;
-    private string? _apiKey;
+
+    private sealed record FlowState(
+        OnboardingStep CurrentStep,
+        int CurrentStepIndex,
+        int SelectedIndex,
+        bool IsComplete,
+        string? ApiKey
+    ) {
+        public static readonly FlowState Initial = new(OnboardingStep.Welcome, 0, 0, false, null);
+    }
+
+    private FlowState _flowState = FlowState.Initial;
 
     /// <inheritdoc />
-    public bool IsOnboardingComplete {
-        get {
-            using var guard = _lock.TryLock();
-            if (guard is null) return Volatile.Read(ref _isOnboardingComplete);
-            return _isOnboardingComplete;
-        }
-    }
+    public bool IsOnboardingComplete => Volatile.Read(ref _flowState).IsComplete;
 
     /// <inheritdoc />
     public OnboardingState CurrentState {
         get {
-            using var guard = _lock.TryLock();
-            if (guard is null) return BuildStateUnsafe();
-            return BuildState();
+            var s = Volatile.Read(ref _flowState);
+            return new OnboardingState {
+                CurrentStep = s.CurrentStep,
+                TotalSteps = TotalStepCount,
+                CurrentStepIndex = s.CurrentStepIndex,
+            };
         }
     }
 
@@ -55,112 +58,63 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
 
     /// <inheritdoc />
     public async Task InitializeAsync(CancellationToken cancellationToken = default) {
-        _isOnboardingComplete = await _persistence.IsCompleteAsync(cancellationToken).ConfigureAwait(false);
+        var isComplete = await _persistence.IsCompleteAsync(cancellationToken).ConfigureAwait(false);
+        UpdateState(s => s with { IsComplete = isComplete });
     }
 
     /// <inheritdoc />
     public Task StartAsync(CancellationToken cancellationToken = default) {
-        OnboardingStep previous;
-        using var guard = _lock.TryLock();
-        if (guard is null) return Task.CompletedTask;
-        if (_isOnboardingComplete) return Task.CompletedTask;
-        previous = _currentStep;
-        _currentStep = OnboardingStep.Welcome;
-        _currentStepIndex = 0;
-        _selectedIndex = 0;
-        _apiKey = null;
-
-        RaiseStateChanged(previous, OnboardingStep.Welcome);
+        var (previous, next) = UpdateState(s =>
+            s.IsComplete ? s : s with { CurrentStep = OnboardingStep.Welcome, CurrentStepIndex = 0, SelectedIndex = 0, ApiKey = null });
+        RaiseStateChanged(previous.CurrentStep, next.CurrentStep);
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
     public Task NextStepAsync(CancellationToken cancellationToken = default) {
-        OnboardingStep previous;
-        OnboardingStep next;
-
-        using var guard = _lock.TryLock();
-        if (guard is null) return Task.CompletedTask;
-        if (_isOnboardingComplete) return Task.CompletedTask;
-        previous = _currentStep;
-
-        var currentIndex = Array.IndexOf(Steps, _currentStep);
-        if (currentIndex < 0 || currentIndex >= Steps.Length - 1) {
-            if (_currentStep == OnboardingStep.Complete) return Task.CompletedTask;
-            next = OnboardingStep.Complete;
-            _currentStep = next;
-            _currentStepIndex = TotalStepCount;
-        } else {
-            _currentStepIndex = currentIndex + 1;
-            _currentStep = Steps[_currentStepIndex];
-            next = _currentStep;
-        }
-
-        RaiseStateChanged(previous, next);
+        var (previous, next) = UpdateState(s => {
+            if (s.IsComplete) return s;
+            var currentIndex = Array.IndexOf(Steps, s.CurrentStep);
+            if (currentIndex < 0 || currentIndex >= Steps.Length - 1) {
+                if (s.CurrentStep == OnboardingStep.Complete) return s;
+                return s with { CurrentStep = OnboardingStep.Complete, CurrentStepIndex = TotalStepCount };
+            }
+            return s with { CurrentStepIndex = currentIndex + 1, CurrentStep = Steps[currentIndex + 1] };
+        });
+        RaiseStateChanged(previous.CurrentStep, next.CurrentStep);
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
     public Task PreviousStepAsync(CancellationToken cancellationToken = default) {
-        OnboardingStep previous;
-        OnboardingStep next;
+        var (previous, next) = UpdateState(s => {
+            if (s.IsComplete) return s;
+            if (s.CurrentStep == OnboardingStep.Welcome) return s;
 
-        using var guard = _lock.TryLock();
-        if (guard is null) return Task.CompletedTask;
-        if (_isOnboardingComplete) return Task.CompletedTask;
-        previous = _currentStep;
+            if (s.CurrentStep == OnboardingStep.Complete)
+                return s with { CurrentStep = OnboardingStep.TerminalSetup, CurrentStepIndex = TotalStepCount - 1 };
 
-        if (_currentStep == OnboardingStep.Welcome) return Task.CompletedTask;
-
-        if (_currentStep == OnboardingStep.Complete) {
-            _currentStep = OnboardingStep.TerminalSetup;
-            _currentStepIndex = TotalStepCount - 1;
-            next = _currentStep;
-        } else {
-            var currentIndex = Array.IndexOf(Steps, _currentStep);
-            if (currentIndex > 0) {
-                _currentStepIndex = currentIndex - 1;
-                _currentStep = Steps[_currentStepIndex];
-                next = _currentStep;
-            } else {
-                return Task.CompletedTask;
-            }
-        }
-
-        RaiseStateChanged(previous, next);
+            var currentIndex = Array.IndexOf(Steps, s.CurrentStep);
+            if (currentIndex > 0)
+                return s with { CurrentStepIndex = currentIndex - 1, CurrentStep = Steps[currentIndex - 1] };
+            return s;
+        });
+        RaiseStateChanged(previous.CurrentStep, next.CurrentStep);
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
     public async Task CompleteAsync(CancellationToken cancellationToken = default) {
-        OnboardingStep previous;
-
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        previous = _currentStep;
-        _currentStep = OnboardingStep.Complete;
-        _currentStepIndex = TotalStepCount;
-        _isOnboardingComplete = true;
-
-
+        var (previous, _) = UpdateState(s => s with { CurrentStep = OnboardingStep.Complete, CurrentStepIndex = TotalStepCount, IsComplete = true });
         await _persistence.MarkCompleteAsync(cancellationToken).ConfigureAwait(false);
-        RaiseStateChanged(previous, OnboardingStep.Complete);
+        RaiseStateChanged(previous.CurrentStep, OnboardingStep.Complete);
     }
 
     /// <inheritdoc />
     public async Task SkipAsync(CancellationToken cancellationToken = default) {
-        OnboardingStep previous;
-
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        previous = _currentStep;
-        _currentStep = OnboardingStep.Complete;
-        _currentStepIndex = TotalStepCount;
-        _isOnboardingComplete = true;
-
-
+        var (previous, _) = UpdateState(s => s with { CurrentStep = OnboardingStep.Complete, CurrentStepIndex = TotalStepCount, IsComplete = true });
         await _persistence.MarkCompleteAsync(cancellationToken).ConfigureAwait(false);
-        RaiseStateChanged(previous, OnboardingStep.Complete);
+        RaiseStateChanged(previous.CurrentStep, OnboardingStep.Complete);
     }
 
     /// <inheritdoc />
@@ -169,10 +123,7 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
             throw new ArgumentException("API key cannot be null or whitespace.", nameof(apiKey));
         }
 
-        using var guard = _lock.TryLock();
-        if (guard is null) return Task.CompletedTask;
-        _apiKey = apiKey;
-
+        UpdateState(s => s with { ApiKey = apiKey });
         return Task.CompletedTask;
     }
 
@@ -182,27 +133,17 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
             throw new ArgumentOutOfRangeException(nameof(optionIndex), "Option index cannot be negative.");
         }
 
-        using var guard = _lock.TryLock();
-        if (guard is null) return Task.CompletedTask;
-        _selectedIndex = optionIndex;
-
+        UpdateState(s => s with { SelectedIndex = optionIndex });
         return Task.CompletedTask;
     }
 
-    private OnboardingState BuildState() {
-        return new OnboardingState {
-            CurrentStep = _currentStep,
-            TotalSteps = TotalStepCount,
-            CurrentStepIndex = _currentStepIndex,
-        };
-    }
-
-    private OnboardingState BuildStateUnsafe() {
-        return new OnboardingState {
-            CurrentStep = _currentStep,
-            TotalSteps = TotalStepCount,
-            CurrentStepIndex = _currentStepIndex,
-        };
+    private (FlowState previous, FlowState next) UpdateState(Func<FlowState, FlowState> updater) {
+        while (true) {
+            var current = Volatile.Read(ref _flowState);
+            var next = updater(current);
+            if (ReferenceEquals(next, current)) return (current, current);
+            if (Interlocked.CompareExchange(ref _flowState, next, current) == current) return (current, next);
+        }
     }
 
     private void RaiseStateChanged(OnboardingStep previous, OnboardingStep current) {
@@ -215,11 +156,10 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     }
 
     /// <summary>
-    /// 释放资源 — 释放内部异步锁
+    /// 释放资源
     /// </summary>
     public override void Dispose() {
         if (_disposed) return; _disposed = true;
-        _lock.Dispose();
         base.Dispose();
     }
 }

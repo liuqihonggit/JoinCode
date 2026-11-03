@@ -35,8 +35,35 @@
 | # | 位置 | 方案 | 风险 | 状态 |
 |---|------|------|------|------|
 | 13 | `modules/llm/agents/Coordinator/Swarm/SwarmPermissionBridge.cs` | 改 Actor 模型 | 中 | ✅ 完成（去锁即可，_permissionStates 已无锁 CAS，复合操作最终一致） |
-| 14 | `modules/storage/clock/goal/core/goal_engine/GoalEngine.cs` | 改 Actor 模型，13 处 `_stateLock` 全消除 | 高 | ⏳ |
-| 15 | `modules/llm/agents/Coordinator/Core/services/AgentStateMachine.cs` | `Lock` 改 `internal` 或改 Actor | 中 | ⏳ |
+| 14 | `modules/storage/clock/goal/core/goal_engine/GoalEngine.cs` | 改 Actor 模型，13 处 `_stateLock` 全消除 | 高 | 🔄 Actor 改造设计中 |
+
+### GoalEngine Actor 改造设计
+
+**范围**：`GoalEngine.cs`（1010 行，13 处锁，13 个接口成员）。接口 `IGoalEngine` 不变，调用方无感知。
+
+**方案**：内部 `Channel<GoalEngineCommand>` + 单 Consumer 线程
+1. 定义 `GoalEngineCommand` 基类（含 `TaskCompletionSource<object?>` 回复）
+2. 定义 13 个具体命令：`StartCmd`/`PauseCmd`/`ResumeCmd`/`ClearCmd`/`RehydrateCmd`/`MarkCompletedCmd`/`MarkUnmetCmd`/`WaitForCompletionCmd`/`SetGraphDefinitionCmd`/`SetSessionIdCmd`
+3. `GoalEngine` 持有 `Channel<GoalEngineCommand>` + Consumer 线程（构造时启动，DisposeAsync 时停止）
+4. 每个 `Task` 返回方法变成 `_channel.Writer.WriteAsync(cmd)` + `await cmd.Reply.Task`
+5. `void` 方法（`SetGraphDefinition`/`SetSessionId`）同步发消息（fire-and-forget 或 WriteAsync + await Reply）
+6. Consumer 串行处理命令（原方法体去锁），所有可变状态由 Consumer 独占
+7. 属性（`CurrentState`/`IsRunning`/`HasGraphDefinition`）用 `volatile` 读（`_state`/`_goalGraph` 改 volatile）
+8. `_stateLock` 删除
+
+**为什么不能直接去锁**（与 SwarmPermissionBridge 不同）：
+- 锁保护状态机生命周期（启动/暂停/恢复/心跳），有严格时序依赖
+- `StartAsync`：检查 `_state` + 启动 `_engineLoop`，去锁导致重复启动
+- `Pause`/`Resume` 并发导致状态混乱
+- `_engineCts` 被覆盖导致资源泄漏
+
+**实施步骤**：
+1. 定义消息类型 + Channel + Consumer 骨架
+2. 改造 13 个方法为发消息
+3. Consumer 实现原方法体（去锁）
+4. 属性改 volatile 读
+5. 编译 + 测试 + 提交
+| 15 | `modules/llm/agents/Coordinator/Core/services/AgentStateMachine.cs` | `Lock` 改 `internal` 或改 Actor | 中 | ✅ 完成（Lock 改 internal，收窄封装） |
 
 ### 必须保留锁（CAS 无法替代，不改造）
 

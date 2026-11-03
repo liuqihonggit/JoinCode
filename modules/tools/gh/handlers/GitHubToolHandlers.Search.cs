@@ -151,7 +151,8 @@ public partial class GitHubToolHandlers {
             sb.AppendLine("编号\t状态\t标题\t仓库");
             foreach (var item in resp.Items) {
                 var repoUrl = item.RepositoryUrl ?? "";
-                var repoName = repoUrl.Contains('/') ? repoUrl[(repoUrl.LastIndexOf('/') + 1)..] : "";
+                var lastSlash = repoUrl.LastIndexOf('/');
+                var repoName = lastSlash > 0 ? repoUrl[(repoUrl.LastIndexOf('/', lastSlash - 1) + 1)..] : "";
                 sb.AppendLine($"{item.Number}\t{item.State}\t{item.Title}\t{repoName}");
             }
             return sb.ToString();

@@ -2,7 +2,7 @@ namespace McpToolDispatch;
 
 /// <summary>
 /// 简易 jq 表达式求值器 — 支持 jq 子集用于 gh api --jq 参数（缺陷1b）。
-/// <para>支持语法: .field, .field.sub, [], select(.field=="value" or ...), {key: .field}, | 管道</para>
+/// <para>支持语法: .field, .field.sub, [], select(.field=="value" or/and ...), {key: .field}, | 管道, length 函数</para>
 /// <para>AOT 兼容: 仅用 JsonNode（无反射 emit），适合 NativeAOT 发布</para>
 /// </summary>
 internal static class SimpleJqEvaluator {
@@ -17,12 +17,23 @@ internal static class SimpleJqEvaluator {
         var stages = SplitPipeline(jqExpr);
         foreach (var stage in stages) {
             var next = ApplyStage(node, stage);
-            if (next is null) continue;
+            if (next is null) {
+                if (IsSupportedStage(stage)) return "null";
+                continue;
+            }
             node = next;
         }
 
         return WriteNodeWithEncoder(node);
     }
+
+    /// <summary>判断 stage 是否为支持的 jq 语法 — 用于区分"路径不存在"与"不支持的语法"</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsSupportedStage(string stage)
+        => stage.StartsWith("select(", StringComparison.Ordinal)
+           || stage.StartsWith('{')
+           || stage == "length"
+           || (stage.StartsWith('.') && !stage.Contains(' '));
 
     /// <summary>
     /// 用 UnsafeRelaxedJsonEscaping 序列化（不转义中文/emoji），
@@ -65,8 +76,19 @@ internal static class SimpleJqEvaluator {
         => stage switch {
             var s when s.StartsWith("select(", StringComparison.Ordinal) => ApplySelect(input, s),
             var s when s.StartsWith('{') => ApplyObjectConstruct(input, s),
-            var s when s.Contains(' ') => null,
-            _ => ApplyPath(input, stage),
+            "length" => ApplyLength(input),
+            var s when s.StartsWith('.') && !s.Contains(' ') => ApplyPath(input, stage),
+            _ => null,
+        };
+
+    /// <summary>length 函数 — 数组返回元素数，对象返回字段数，null 返回 0，标量返回 1</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static JsonNode? ApplyLength(JsonNode? node)
+        => node switch {
+            JsonArray arr => arr.Count,
+            JsonObject obj => obj.Count,
+            null => 0,
+            _ => 1
         };
 
     /// <summary>
@@ -102,7 +124,7 @@ internal static class SimpleJqEvaluator {
         return tokens;
     }
 
-    /// <summary>解析单个 part（如 items[]/items[0]/items）为 token 序列</summary>
+    /// <summary>解析单个 part（如 items[]/items[0]/items[0][1]）为 token 序列 — 支持嵌套数组访问</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void AddPartTokens(List<PathToken> tokens, string part) {
         var bracketIdx = part.IndexOf('[');
@@ -114,11 +136,17 @@ internal static class SimpleJqEvaluator {
         var fieldName = part[..bracketIdx];
         if (!string.IsNullOrEmpty(fieldName))
             tokens.Add(new PathToken.Field(fieldName));
-        var bracketContent = part[(bracketIdx + 1)..^1];
-        if (string.IsNullOrEmpty(bracketContent))
-            tokens.Add(new PathToken.ArrayExpand());
-        else if (int.TryParse(bracketContent, out var index))
-            tokens.Add(new PathToken.IndexAccess(index));
+        var remaining = part.AsSpan(bracketIdx);
+        while (remaining.Length > 0 && remaining[0] == '[') {
+            var closeIdx = remaining.IndexOf(']');
+            if (closeIdx < 0) break;
+            var content = remaining[1..closeIdx];
+            if (content.IsEmpty)
+                tokens.Add(new PathToken.ArrayExpand());
+            else if (int.TryParse(content, out var index))
+                tokens.Add(new PathToken.IndexAccess(index));
+            remaining = remaining[(closeIdx + 1)..];
+        }
     }
 
     /// <summary>.field 路径访问 — 对象取字段，数组逐元素 map</summary>
@@ -233,7 +261,7 @@ internal static class SimpleJqEvaluator {
         return EvaluateCondition(input, condition) ? input : null;
     }
 
-    /// <summary>.field=="value" or .field2=="value2" — 支持 or 逻辑</summary>
+    /// <summary>.field=="value" or .field2=="value2" — 支持 or/and 混合逻辑（and 优先级高于 or）</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool EvaluateCondition(JsonNode? node, string condition) {
         var span = condition.AsSpan();
@@ -242,9 +270,23 @@ internal static class SimpleJqEvaluator {
             var part = orIdx < 0 ? span : span[..orIdx];
             span = orIdx < 0 ? default : span[(orIdx + 4)..];
             if (part.IsEmpty) continue;
-            if (EvaluateComparison(node, part.Trim().ToString())) return true;
+            if (EvaluateAndParts(node, part.Trim().ToString())) return true;
         }
         return false;
+    }
+
+    /// <summary>and 子表达式 — 所有比较都满足才返回 true</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool EvaluateAndParts(JsonNode? node, string condition) {
+        var span = condition.AsSpan();
+        while (!span.IsEmpty) {
+            var andIdx = span.IndexOf(" and ");
+            var part = andIdx < 0 ? span : span[..andIdx];
+            span = andIdx < 0 ? default : span[(andIdx + 5)..];
+            if (part.IsEmpty) continue;
+            if (!EvaluateComparison(node, part.Trim().ToString())) return false;
+        }
+        return true;
     }
 
     /// <summary>.field=="value" 或 .field!="value"</summary>

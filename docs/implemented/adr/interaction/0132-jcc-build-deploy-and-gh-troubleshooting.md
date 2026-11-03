@@ -20,25 +20,33 @@ jcc 是独立实现的 GitHub CLI + ripgrep 兼容搜索工具。`gh`/`rg` 命�
 
 ```bash
 # 1. 编译（Debug 模式，增量编译）
-dotnet build app/cli/JoinCode.csproj -c Debug
+dotnet build modules/apps/cli/JoinCode.csproj -c Debug
 
 # 2. 新增/修改 [Register] 类后必须 --no-incremental 全量重建
-dotnet build app/cli/JoinCode.csproj --no-incremental -c Debug
+dotnet build modules/apps/cli/JoinCode.csproj --no-incremental -c Debug
 
 # 3. 部署编译产物到 dev 目录 — ⚠️ 必须全量复制,禁止只复制 jcc.exe
 # ⚠️ 禁止用 robocopy /MIR — 跨盘符(D:→C:)时时间戳比较不可靠,DLL 不更新(见下方"部署坑")
 # ⚠️ 禁止只复制 jcc.exe — jcc.exe(162KB)依赖同目录 Mcp.dll 等多个 DLL,只复制 exe 会运行旧 DLL
-# ✅ 用 cp -f 全量复制 dll+exe+json(bash 原生,跨盘符可靠)
-cp -f D:/project/w3/artifacts/bin/JoinCode/Debug/net10.0/*.dll \
+# ⚠️ 必须额外部署 jcc-gh.dll — gh 工具编译为独立项目 jcc-gh.dll,不在 JoinCode 输出目录中(见下方"部署坑:jcc-gh.dll 遗漏")
+# ✅ 用2步部署: 先复制 JoinCode 产物, 再复制 jcc-gh 产物
+cp -f D:/project/w2/artifacts/bin/JoinCode/Debug/net10.0/*.dll \
      C:/Users/54076/bin/jcc.d/dev/
-cp -f D:/project/w3/artifacts/bin/JoinCode/Debug/net10.0/*.exe \
+cp -f D:/project/w2/artifacts/bin/JoinCode/Debug/net10.0/*.exe \
      C:/Users/54076/bin/jcc.d/dev/
-cp -f D:/project/w3/artifacts/bin/JoinCode/Debug/net10.0/*.json \
+cp -f D:/project/w2/artifacts/bin/JoinCode/Debug/net10.0/*.json \
+     C:/Users/54076/bin/jcc.d/dev/
+# 额外部署 jcc-gh.dll + jcc-gh.exe (gh 工具独立编译产物)
+cp -f D:/project/w2/artifacts/bin/gh/Debug/net10.0/jcc-gh.dll \
+     C:/Users/54076/bin/jcc.d/dev/
+cp -f D:/project/w2/artifacts/bin/gh/Debug/net10.0/jcc-gh.exe \
      C:/Users/54076/bin/jcc.d/dev/
 
 # 4. 部署后验证(强制) — 对比关键 DLL 时间戳,确认确实更新
 ls -la "C:/Users/54076/bin/jcc.d/dev/Mcp.dll" \
-       "D:/project/w3/artifacts/bin/JoinCode/Debug/net10.0/Mcp.dll"
+       "D:/project/w2/artifacts/bin/JoinCode/Debug/net10.0/Mcp.dll"
+ls -la "C:/Users/54076/bin/jcc.d/dev/jcc-gh.dll" \
+       "D:/project/w2/artifacts/bin/gh/Debug/net10.0/jcc-gh.dll"
 # 两个时间戳应接近(差<2分钟),大小一致;不符则 cp -f 重复制
 ```
 
@@ -49,6 +57,16 @@ ls -la "C:/Users/54076/bin/jcc.d/dev/Mcp.dll" \
 **根因**: robocopy `/MIR` 默认按时间戳判断"新"文件。跨盘符(D:→C:)时 Windows 文件系统时间戳精度差异(NTFS 100ns vs FAT 2s)或夏令时偏移导致 robocopy 误判"源不比目标新",跳过复制。bash 调用 robocopy 还可能有路径转义问题。
 
 **修复**: 改用 `cp -f`(bash 原生,强制覆盖不依赖时间戳比较),部署后必须对比 DLL 时间戳验证。
+
+#### 部署坑:jcc-gh.dll 遗漏
+
+**症状**: 修改了 `SimpleJqEvaluator.cs` 或 `GitHubToolHandlers.*.cs` 等 gh 工具代码,编译 JoinCode 并部署后,`jcc gh` 仍运行旧代码 — `--jq 'length'` 等新功能不生效。
+
+**根因**: gh 工具是独立项目 `modules/tools/gh/gh.csproj`,编译产物为 `jcc-gh.dll`/`jcc-gh.exe`,输出到 `artifacts/bin/gh/Debug/net10.0/`。`JoinCode.csproj` 不直接引用 `gh.csproj`,所以 `jcc-gh.dll` **不在** `artifacts/bin/JoinCode/Debug/net10.0/` 中。`cp -f artifacts/bin/JoinCode/Debug/net10.0/*.dll` 只复制了 JoinCode 的 DLL,遗漏了 `jcc-gh.dll`。
+
+**修复**: 部署时必须额外从 `artifacts/bin/gh/Debug/net10.0/` 复制 `jcc-gh.dll` 和 `jcc-gh.exe`。部署后对比 `jcc-gh.dll` 时间戳验证。
+
+**通用教训**: 任何独立编译的卫星项目(如 `jcc-rg`、`jcc-audit-cli` 等)都需要在部署流程中额外复制其编译产物,不能只复制主项目 `JoinCode` 的输出。
 
 ### 2. 目录结构
 
@@ -136,6 +154,11 @@ C:\Users\54076\bin\
 | `gh branch audit-protection` | ✅ 可用 | 对比 CI yml matrix 与 GitHub required_status_checks，报告匹配/缺失/多余三类差异。`CiMatrixParser` 解析 yml，`BranchProtectionAuditor` 封装审计逻辑 |
 | `gh run view --expand jobs` 截断 | ✅ 已修复(2026-10-08) | `MergeJsonArrays` 支持对象结构分页合并（识别 jobs/check_runs/items 包裹键），双向对比验证 62 jobs 一致 |
 | `gh api --jq` 字段提取 | ✅ 已修复(2026-10-08) | `SimpleJqEvaluator` 支持 .field/[]/select(.f=="v")/{k:.f}/\| 管道，AI 无需 Python 二次解析 |
+| `--jq` length 函数 | ✅ 已修复(2026-11-04) | `SimpleJqEvaluator` 新增 `length` 函数支持（数组返回元素数，对象返回字段数）。之前 `.check_runs \| length` 返回 `[]` |
+| `--jq` and 逻辑 | ✅ 已修复(2026-11-04) | `SimpleJqEvaluator` 新增 `and` 逻辑（与原有 `or` 配合，and 优先级高于 or）。之前 `select(.a=="x" and .b=="y")` 不支持 |
+| `--json` + `--jq` 同时使用 | ✅ 已修复(2026-11-04) | `ApplyExplicitFilters` 改为先 `FilterJsonFields` 再 `SimpleJqEvaluator`（之前 jq 优先导致 json_fields 被忽略，`--json headRefOid --jq'headRefOid'` 返回完整 PR 对象） |
+| `--json` 字段名映射 | ✅ 已修复(2026-11-04) | `TryResolveFlattenedAlias` 新增 `databaseId→id` 和 `nameWithOwner→full_name` 映射。之前 `--json databaseId` 返回 null |
+| `jcc-gh.dll` 部署遗漏 | ✅ 已查明(2026-11-04) | gh 工具是独立项目，编译产物 `jcc-gh.dll` 不在 JoinCode 输出目录中。部署时必须额外从 `artifacts/bin/gh/Debug/net10.0/` 复制 `jcc-gh.dll`+`jcc-gh.exe` |
 | `--jq` 仅 gh_api 支持 | ✅ 已修复(2026-10-18) | `GitHubCommonOptions.Jq` 加入公共选项，所有 gh 工具通过 `FormatGhOutput` 统一支持 `--jq` 后处理（优先级：jq > json_fields > verbosity）。27 个 `FormatGhOutput` 调用点 + `GhRunListAsync` 独立处理 |
 | `gh run list --workflow` 传显示名称报 404 | ✅ 已修复(2026-10-18) | `ResolveWorkflowIdentifierAsync` 自动将显示名称（如 "CI Daily - Uncovered Tests"）解析为文件名（如 ci-daily-uncovered.yml）：查工作流列表匹配 `name` 字段，提取 `path` 纯文件名。数字 ID/已含 .yml 后缀直接返回 |
 | `gh pr checks` 大量 check 截断 | ✅ 已修复(2026-10-08) | check-runs 端点加 per_page=100 + paginate=true，配合对象分页合并获取全部 |

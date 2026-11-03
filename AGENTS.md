@@ -619,6 +619,26 @@ Grep tool: pattern=正则表达式, path=搜索目录, include=文件过滤
 
 > ADR: [0075](docs/implemented/adr/interaction/0075-gh-cli-troubleshooting-guide.md) — 详见 ADR 文档（含坑1-5：jq引号/超时/Sandbox拦截/checks格式/管道死锁 + CI排错完整流程）
 
+### jcc gh --jq 限制（SimpleJqEvaluator）
+
+`jcc gh` 的 `--jq` 是简化求值器（`modules/tools/gh/misc/SimpleJqEvaluator.cs`），非完整 jq 实现：
+
+**支持**：`.field`, `.field.sub`, `.field[]`, `.field[N]`, `select(.field=="value" or/and ...)`, `{key: .field}`, `|` 管道, `length` 函数
+**不支持**：`| length` 之外的函数、以 `[]` 开头的数组构造、复杂管道组合
+
+### jcc gh --json 字段名映射
+
+`jcc gh --json` 支持官方 gh CLI 字段名别名（`TryResolveFlattenedAlias` 自动映射）：
+
+| 官方 gh CLI 字段名 | GitHub API 原始字段 |
+|---|---|
+| `databaseId` | `id` |
+| `nameWithOwner` | `full_name` |
+| `headRefName` | `head.ref` |
+| `headRefOid` | `head.sha` |
+| `baseRefName` | `base.ref` |
+| `baseRefOid` | `base.sha` |
+
 ### UTF-8 编码配置
 
 ```powershell

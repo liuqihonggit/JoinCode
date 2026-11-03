@@ -129,7 +129,7 @@ public partial class GitHubToolHandlers {
         var result = await _apiClient.SendAsync(HttpMethod.Post, createPath, jsonBody, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
 
-        var repoFullName = !string.IsNullOrWhiteSpace(org) ? $"{org}/{name}" : name;
+        var repoFullName = TryExtractJsonField(result.Body, "full_name") ?? (!string.IsNullOrWhiteSpace(org) ? $"{org}/{name}" : name);
         if (!string.IsNullOrWhiteSpace(org) && !string.IsNullOrWhiteSpace(team)) {
             var teamResult = await _apiClient.SendAsync(HttpMethod.Put, $"orgs/{org}/teams/{team}/repos/{org}/{name}", ct: cancellationToken).ConfigureAwait(false);
             if (!teamResult.Success) return OkBrief(result.Body, $"已创建仓库 {repoFullName}（但添加到团队失败: {teamResult.Error}）");
@@ -207,9 +207,7 @@ public partial class GitHubToolHandlers {
 
         if (clone != true) return OkBrief(result.Body, $"已 Fork {repo}");
         if (_git is null) return OkBrief(result.Body, $"已 Fork {repo}（但未克隆：git 未配置）");
-        var forkFullName = !string.IsNullOrWhiteSpace(org)
-            ? $"{org}/{fork_name ?? repoName}"
-            : fork_name is not null ? $"{owner}/{fork_name}" : repo;
+        var forkFullName = TryExtractJsonField(result.Body, "full_name") ?? repo;
         var cloneResult = await _git.ExecuteAsync($"clone https://github.com/{forkFullName}.git", common?.WorkingDir, cancellationToken).ConfigureAwait(false);
         if (!cloneResult.Success) return OkBrief(result.Body, $"已 Fork {repo}（但克隆失败: {cloneResult.Error}）");
         if (string.IsNullOrWhiteSpace(remote) || remote == "origin") return OkBrief(result.Body, $"已 Fork {repo}");
@@ -241,8 +239,7 @@ public partial class GitHubToolHandlers {
         if (archived is not null) query["archived"] = archived.Value ? "true" : "false";
         var result = await _apiClient.SendAsync(HttpMethod.Get, "user/repos", query: query, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        if (common?.Verbosity == 2) return Ok(result.Body);
-        return Ok(SummarizeRepoList(result.Body, source, fork, topic, common?.JsonFields));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, body => SummarizeRepoList(body, source, fork, topic, common?.JsonFields), null, common?.Jq, common?.SkipLines, common?.StartLine, "gh_repo_list"));
     }
 
     /// <summary>
@@ -317,7 +314,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             if (!string.IsNullOrWhiteSpace(visibility) && accept_visibility_change_consequences != true)
-                _logger?.LogDebug("visibility 变更未带 --accept_visibility_change_consequences,继续执行");
+                return Fail($"visibility 变更(→{visibility})需要 --accept_visibility_change_consequences=true 确认\n原因: 可见性变更可能暴露敏感代码/secret(尤其 private→public)\n提示: 确认后重传 --accept_visibility_change_consequences=true");
             SecurityAndAnalysis? security = null;
             if (enable_advanced_security is not null || enable_secret_scanning is not null || enable_secret_scanning_push_protection is not null) {
                 security = new SecurityAndAnalysis {

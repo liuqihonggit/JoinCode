@@ -832,58 +832,76 @@ internal sealed class GitHubRunLogFilterRunner {
     /// <para>优化H: 错误摘要前置 — 输出开头先显示错误数+类型分布,AI 一眼看到错误规模(委托 CiLogAnalyzer 统一工具类)</para>
     private async Task<(List<string> matched, int totalLines)> CollectAllErrorContextsAsync(
         IAsyncEnumerable<string> logLines, int maxLines, int skipLines, CancellationToken ct, int? contextOverride = null) {
-        const int contextBefore = 5;
-        const int contextAfter = 3;
-        var effectiveContextBefore = contextOverride ?? contextBefore;
-        var effectiveContextAfter = contextOverride ?? contextAfter;
-        var matched = new List<string>(maxLines);
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        var contextWindow = new Queue<string>(effectiveContextBefore);
-        var errorCategories = new Dictionary<CiErrorCategory, int>();
-        var errorCount = 0;
-        var skipped = 0;
-        var lineNumber = 0;
-        var pendingAfter = 0;
-        var reachedMax = false;
-
+        var state = new ErrorContextState(maxLines, skipLines, contextOverride ?? 5, contextOverride ?? 3);
         await foreach (var line in logLines.ConfigureAwait(false)) {
-            lineNumber++;
-            if (reachedMax) continue;
-            var formatted = LineNumberFormatter.Format(lineNumber, GitHubRunLogText.StripLogTimestamp(line), _compactLinePrefix);
-            if (pendingAfter > 0) {
-                if (skipped < skipLines) { skipped++; continue; }
-                if (!seen.Add(formatted)) { pendingAfter--; continue; }
-                matched.Add(formatted);
-                if (matched.Count >= maxLines) { reachedMax = true; continue; }
-                pendingAfter--;
-                continue;
-            }
-            if (!CiLogAnalyzer.IsErrorIndicator(line.AsSpan())) {
-                contextWindow.Enqueue(formatted);
-                if (contextWindow.Count > effectiveContextBefore) contextWindow.Dequeue();
-                continue;
-            }
-            errorCount++;
-            var category = CiLogAnalyzer.ClassifyError(line.AsSpan());
-            errorCategories[category] = errorCategories.GetValueOrDefault(category) + 1;
-            foreach (var ctxLine in contextWindow) {
-                if (skipped < skipLines) { skipped++; continue; }
-                if (!seen.Add(ctxLine)) continue;
-                matched.Add(ctxLine);
-                if (matched.Count >= maxLines) { reachedMax = true; break; }
-            }
-            if (reachedMax) continue;
-            if (skipped < skipLines) { skipped++; continue; }
-            if (!seen.Add(formatted)) continue;
-            matched.Add(formatted);
-            pendingAfter = effectiveContextAfter;
-            if (matched.Count >= maxLines) reachedMax = true;
+            state.LineNumber++;
+            if (state.ReachedMax) continue;
+            var formatted = LineNumberFormatter.Format(state.LineNumber, GitHubRunLogText.StripLogTimestamp(line), _compactLinePrefix);
+            state.ProcessLine(line.AsSpan(), formatted);
+        }
+        return state.BuildResult();
+    }
+
+    /// <summary>错误上下文收集状态机 — 封装滑动窗口+去重+分页+max 截断,TryEmit 统一 3 处重复的 skip/dedup/max 守卫</summary>
+    private sealed class ErrorContextState {
+        private readonly int _maxLines, _skipLines, _contextBefore, _contextAfter;
+        private readonly List<string> _matched;
+        private readonly HashSet<string> _seen;
+        private readonly Queue<string> _contextWindow;
+        private readonly Dictionary<CiErrorCategory, int> _errorCategories;
+        private int _skipped, _pendingAfter, _errorCount;
+
+        internal int LineNumber;
+        internal bool ReachedMax;
+
+        internal ErrorContextState(int maxLines, int skipLines, int contextBefore, int contextAfter) {
+            _maxLines = maxLines; _skipLines = skipLines;
+            _contextBefore = contextBefore; _contextAfter = contextAfter;
+            _matched = new(maxLines);
+            _seen = new(StringComparer.Ordinal);
+            _contextWindow = new(contextBefore);
+            _errorCategories = new();
         }
 
-        if (errorCount == 0) return (matched, lineNumber);
-        var result = new List<string>(matched.Count + 1) { CiLogAnalyzer.BuildErrorSummary(errorCount, errorCategories) };
-        result.AddRange(matched);
-        return (result, lineNumber);
+        private enum EmitOutcome { Skipped, Duplicate, Emitted, ReachedMax }
+
+        /// <summary>统一发射守卫 — skip(分页跳过) → dedup(HashSet 去重) → emit → max(截断)</summary>
+        private EmitOutcome TryEmit(string formatted) {
+            if (_skipped < _skipLines) { _skipped++; return EmitOutcome.Skipped; }
+            if (!_seen.Add(formatted)) return EmitOutcome.Duplicate;
+            _matched.Add(formatted);
+            if (_matched.Count >= _maxLines) { ReachedMax = true; return EmitOutcome.ReachedMax; }
+            return EmitOutcome.Emitted;
+        }
+
+        /// <summary>处理单行 — context-after 续 emit / 非错误入滑动窗口 / 错误行 emit 窗口+自身+开启 after</summary>
+        internal void ProcessLine(ReadOnlySpan<char> line, string formatted) {
+            if (_pendingAfter > 0) {
+                if (TryEmit(formatted) is EmitOutcome.Duplicate or EmitOutcome.Emitted) _pendingAfter--;
+                return;
+            }
+            if (!CiLogAnalyzer.IsErrorIndicator(line)) {
+                _contextWindow.Enqueue(formatted);
+                if (_contextWindow.Count > _contextBefore) _contextWindow.Dequeue();
+                return;
+            }
+            _errorCount++;
+            var category = CiLogAnalyzer.ClassifyError(line);
+            _errorCategories[category] = _errorCategories.GetValueOrDefault(category) + 1;
+            foreach (var ctxLine in _contextWindow) {
+                TryEmit(ctxLine);
+                if (ReachedMax) return;
+            }
+            if (TryEmit(formatted) == EmitOutcome.Emitted) _pendingAfter = _contextAfter;
+        }
+
+        /// <summary>构建最终结果 — 有错误时前置摘要行(委托 CiLogAnalyzer.BuildErrorSummary)</summary>
+        internal (List<string> matched, int totalLines) BuildResult() {
+            if (_errorCount == 0) return (_matched, LineNumber);
+            var result = new List<string>(_matched.Count + 1) { CiLogAnalyzer.BuildErrorSummary(_errorCount, _errorCategories) };
+            result.AddRange(_matched);
+            return (result, LineNumber);
+        }
     }
 
 

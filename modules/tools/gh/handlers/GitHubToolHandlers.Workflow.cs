@@ -102,7 +102,14 @@ public partial class GitHubToolHandlers {
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
-            var refVal = string.IsNullOrWhiteSpace(@ref) ? "main" : @ref;
+            var refVal = @ref;
+            if (string.IsNullOrWhiteSpace(refVal)) {
+                var repoResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}", ct: cancellationToken).ConfigureAwait(false);
+                if (repoResult.Success) {
+                    try { refVal = JsonSerializer.Deserialize(repoResult.Body, GitHubApiJsonContext.Safe.RepoDetailResponse)?.DefaultBranch; } catch { }
+                }
+                refVal = string.IsNullOrWhiteSpace(refVal) ? "main" : refVal;
+            }
             var inputsDict = new Dictionary<string, string>();
             if (!string.IsNullOrWhiteSpace(inputs)) {
                 try {

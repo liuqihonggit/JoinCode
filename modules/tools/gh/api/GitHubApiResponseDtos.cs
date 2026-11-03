@@ -1204,6 +1204,9 @@ internal sealed class RunDetailResponse {
     /// <summary>更新时间</summary>
     [JsonPropertyName("updated_at")]
     public string? UpdatedAt { get; init; }
+    /// <summary>重试次数(1=首次,2=第一次重试,...) — 大于 1 表示此 run 被重试过,首次尝试可能失败/超时</summary>
+    [JsonPropertyName("run_attempt")]
+    public int RunAttempt { get; init; }
 }
 
 /// <summary>Run 列表(run_number 查找用) — GET /actions/runs</summary>

@@ -116,8 +116,8 @@ internal static class GhCommandResolver {
         for (var i = startIndex; i < args.Length; i++) {
             var token = args[i];
             if (token.StartsWith("--")) {
-                // --key=value 自带值，不吞下一个 token
-                if (i + 1 < args.Length && !token.Contains('=') && !args[i + 1].StartsWith("--"))
+                if (!CliArgCliOptionConstants.BooleanFlags.Contains(token)
+                    && i + 1 < args.Length && !token.Contains('=') && !args[i + 1].StartsWith("--"))
                     i++;
                 continue;
             }
@@ -317,6 +317,10 @@ internal static class GhArgsBinder {
         return true;
     }
 
+    /// <summary>判断 token 是否像选项(--key 或 -X 单字母短选项),排除负数(-5)和单独 dash(-)</summary>
+    private static bool IsOptionLike(string token)
+        => token.Length >= 2 && token[0] == '-' && (token[1] == '-' || char.IsLetter(token[1]));
+
     /// <summary>绑定 -- 前缀 token — --key=value / --key value / 别名 / 全局穿透</summary>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static bool BindDashToken(
@@ -354,7 +358,7 @@ internal static class GhArgsBinder {
             return true;
         }
 
-        if (i + 1 >= tail.Length || tail[i + 1].StartsWith("--")) {
+        if (i + 1 >= tail.Length || IsOptionLike(tail[i + 1])) {
             error = $"{CliErrorCatalog.ArgMissingRequired($"--{key}({param.TypeHint}) 的值").ToRustStyleString(token)}\n提示: 用法 --{key} <值> 或 --{key}=<值>";
             return false;
         }
@@ -724,6 +728,10 @@ internal static class GhArgsBinder {
             result[longName] = result.TryGetValue(longName, out var prev2) ? $"{prev2},{val}" : val;
             i++;
             return true;
+        }
+        if (byName.TryGetValue(longName, out var param2) && !param2.IsBoolean) {
+            error = $"-{shortKey} 映射到 --{longName}({param2.TypeHint}),缺少值\n提示: 用法 -{shortKey} <值> 或 -{shortKey}=<值>";
+            return false;
         }
         result[longName] = "true";
         return true;

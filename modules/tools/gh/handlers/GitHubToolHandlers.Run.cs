@@ -146,7 +146,7 @@ public partial class GitHubToolHandlers {
                     return Fail($"PR #{pr} 未找到对应的 CI run。可能原因: ① PR 号错误 ② PR 无关联 run(未触发 CI) ③ 仓库不存在或无权限。提示: 用 gh run list --branch <分支名> 查看 run 列表");
             }
             if (string.IsNullOrEmpty(effectiveRunId))
-                return Fail("run_id 和 pr 至少提供一个一个。用法: gh run view <run_id> 或 gh run view --pr <PR号>");
+                return Fail("run_id 和 pr 至少提供一个。用法: gh run view <run_id> 或 gh run view --pr <PR号>");
             // 宽容: AI 可能传 run number(如 752)而非 run id(如 37663049294),自动解析
             var (resolvedRunId, runIdError) = await ResolveRunIdOrFailAsync(client, owner, repoName, effectiveRunId, cancellationToken).ConfigureAwait(false);
             if (runIdError is not null) return runIdError;

@@ -317,6 +317,22 @@ internal sealed class PrUpdateBranchRequest {
     public string UpdateMethod { get; init; } = "merge";
 }
 
+/// <summary>创建分支请求 — POST /git/refs</summary>
+internal sealed class CreateBranchRequest {
+    [JsonPropertyName("ref")]
+    public string Ref { get; init; } = "";
+    [JsonPropertyName("sha")]
+    public string Sha { get; init; } = "";
+    public CreateBranchRequest(string refName, string sha) { Ref = refName; Sha = sha; }
+}
+
+/// <summary>重命名分支请求 — POST /branches/{branch}/rename</summary>
+internal sealed class RenameBranchRequest {
+    [JsonPropertyName("new_name")]
+    public string NewName { get; init; } = "";
+    public RenameBranchRequest(string newName) { NewName = newName; }
+}
+
 /// <summary>PR ready 请求 — PATCH /pulls/{n} {"draft":false}</summary>
 internal sealed class PrDraftRequest {
     /// <summary>是否 draft</summary>
@@ -810,6 +826,11 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(CheckRunItemResponse))]
 [JsonSerializable(typeof(RequiredStatusChecksResponse))]
 [JsonSerializable(typeof(BranchProtectionContextsResponse))]
+[JsonSerializable(typeof(BranchListItemResponse))]
+[JsonSerializable(typeof(BranchCommitRefResponse))]
+[JsonSerializable(typeof(List<BranchListItemResponse>))]
+[JsonSerializable(typeof(CreateBranchRequest))]
+[JsonSerializable(typeof(RenameBranchRequest))]
 [JsonSerializable(typeof(WorkflowRunListResponse))]
 [JsonSerializable(typeof(WorkflowRunItemResponse))]
 [JsonSerializable(typeof(ProjectIdTitleItemResponse))]

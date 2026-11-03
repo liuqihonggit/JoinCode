@@ -474,6 +474,26 @@ internal sealed class LabelRefResponse {
     public string Name { get; init; } = "";
 }
 
+/// <summary>分支列表项 — GET /repos/{o}/{r}/branches 数组元素</summary>
+internal sealed class BranchListItemResponse {
+    /// <summary>分支名</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+    /// <summary>最新 commit</summary>
+    [JsonPropertyName("commit")]
+    public BranchCommitRefResponse? Commit { get; init; }
+    /// <summary>是否受分支保护</summary>
+    [JsonPropertyName("protected")]
+    public bool Protected { get; init; }
+}
+
+/// <summary>分支 commit 引用(嵌套)</summary>
+internal sealed class BranchCommitRefResponse {
+    /// <summary>commit SHA</summary>
+    [JsonPropertyName("sha")]
+    public string? Sha { get; init; }
+}
+
 // === PR 详情/列表 ===
 
 /// <summary>PR 详情响应 — GET /pulls/{n}</summary>

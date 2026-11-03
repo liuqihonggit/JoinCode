@@ -266,71 +266,13 @@ internal static class GhArgsBinder {
 
         for (var i = 0; i < tail.Length; i++) {
             var token = tail[i];
-            if (!token.StartsWith("--")) {
-                // 短选项: -X 或 -Xvalue (单 dash + 字母), 如 -L 5 / -L5 / -d
-                if (token.Length >= 2 && token[0] == '-' && char.IsLetter(token[1])
-                    && TryBindShortOption(token, toolName, tail, ref i, result, byName, out error))
-                    continue;
-                // 宽容策略: AI 习惯写 key=value(不带 -- 前缀),优先解析为命名参数
-                if (TryBindBareKeyValue(token, byName, result))
-                    continue;
-                if (slotIndex >= slots.Count) {
-                    // 宽容: 多余位置参数像 owner/repo 格式时,自动赋给未设置的 repo 参数
-                    if (token.Contains('/') && byName.TryGetValue("repo", out var repoParam)
-                        && !result.ContainsKey("repo")) {
-                        result["repo"] = token;
-                        continue;
-                    }
-                    error = TooManyPositionalError(toolName, token, parameters);
+            if (token.StartsWith("--")) {
+                if (!BindDashToken(tail, ref i, token, toolName, parameters, byName, result, out error))
                     return null;
-                }
-                var slot = slots[slotIndex++];
-                if (result.ContainsKey(slot.Name)) {
-                    error = DuplicateParamError(slot.Name);
-                    return null;
-                }
-                result[slot.Name] = token;
                 continue;
             }
-
-            var key = token[2..];
-            string? inlineValue = null;
-            var eqIdx = key.IndexOf('=');
-            if (eqIdx > 0) {
-                inlineValue = key[(eqIdx + 1)..];
-                key = key[..eqIdx];
-            }
-
-            // 宽容策略: 真实 gh CLI 用连字符（--max-lines），工具 schema 用下划线（max_lines）
-            if (!byName.TryGetValue(key, out var param) && !byName.TryGetValue(key.Replace('-', '_'), out param)) {
-                // 宽容策略: 系统 gh CLI 缩写别名（--auto→auto_merge, --squash→merge_method=squash, --job→job_id 等）
-                if (TryBindAlias(key, toolName, tail, ref i, result, token, inlineValue, out error))
-                    continue;
-                // 洋葱穿透: 全局选项(非工具参数)跳过,不报错(工具参数已在上面匹配)
-                if (CliArgCliOptionConstants.AllOptionNames.Contains(token))
-                    continue;
-                error = UnknownOptionError(key, parameters);
+            if (!BindNonDashToken(tail, ref i, token, toolName, parameters, byName, result, slots, ref slotIndex, out error))
                 return null;
-            }
-            key = param.Name;
-
-            if (inlineValue is not null) {
-                result[key] = param.IsBoolean ? NormalizeBoolValue(inlineValue) : inlineValue;
-                continue;
-            }
-
-            if (param.IsBoolean) {
-                BindBooleanParam(key, tail, ref i, result);
-                continue;
-            }
-
-            if (i + 1 >= tail.Length || tail[i + 1].StartsWith("--")) {
-                error = $"{CliErrorCatalog.ArgMissingRequired($"--{key}({param.TypeHint}) 的值").ToRustStyleString(token)}\n提示: 用法 --{key} <值> 或 --{key}=<值>";
-                return null;
-            }
-
-            result[key] = tail[i + 1];
-            i++;
         }
 
         var missing = slots.FirstOrDefault(s => s.IsRequired && !result.ContainsKey(s.Name));
@@ -340,6 +282,86 @@ internal static class GhArgsBinder {
         }
 
         return result;
+    }
+
+    /// <summary>绑定非 -- 前缀 token — 短选项/裸 key=value/位置参数</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    private static bool BindNonDashToken(
+        string[] tail, ref int i, string token, string toolName, IReadOnlyList<GhParam> parameters,
+        Dictionary<string, GhParam> byName, Dictionary<string, string> result,
+        List<GhParam> slots, ref int slotIndex, out string? error) {
+        error = null;
+        // 短选项: -X 或 -Xvalue (单 dash + 字母), 如 -L 5 / -L5 / -d
+        if (token.Length >= 2 && token[0] == '-' && char.IsLetter(token[1])
+            && TryBindShortOption(token, toolName, tail, ref i, result, byName, out error))
+            return true;
+        // 宽容策略: AI 习惯写 key=value(不带 -- 前缀),优先解析为命名参数
+        if (TryBindBareKeyValue(token, byName, result))
+            return true;
+        if (slotIndex >= slots.Count) {
+            // 宽容: 多余位置参数像 owner/repo 格式时,自动赋给未设置的 repo 参数
+            if (token.Contains('/') && byName.TryGetValue("repo", out var repoParam)
+                && !result.ContainsKey("repo")) {
+                result["repo"] = token;
+                return true;
+            }
+            error = TooManyPositionalError(toolName, token, parameters);
+            return false;
+        }
+        var slot = slots[slotIndex++];
+        if (result.ContainsKey(slot.Name)) {
+            error = DuplicateParamError(slot.Name);
+            return false;
+        }
+        result[slot.Name] = token;
+        return true;
+    }
+
+    /// <summary>绑定 -- 前缀 token — --key=value / --key value / 别名 / 全局穿透</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    private static bool BindDashToken(
+        string[] tail, ref int i, string token, string toolName, IReadOnlyList<GhParam> parameters,
+        Dictionary<string, GhParam> byName, Dictionary<string, string> result, out string? error) {
+        error = null;
+        var key = token[2..];
+        string? inlineValue = null;
+        var eqIdx = key.IndexOf('=');
+        if (eqIdx > 0) {
+            inlineValue = key[(eqIdx + 1)..];
+            key = key[..eqIdx];
+        }
+
+        // 宽容策略: 真实 gh CLI 用连字符（--max-lines），工具 schema 用下划线（max_lines）
+        if (!byName.TryGetValue(key, out var param) && !byName.TryGetValue(key.Replace('-', '_'), out param)) {
+            // 宽容策略: 系统 gh CLI 缩写别名（--auto→auto_merge, --squash→merge_method=squash, --job→job_id 等）
+            if (TryBindAlias(key, toolName, tail, ref i, result, token, inlineValue, out error))
+                return true;
+            // 洋葱穿透: 全局选项(非工具参数)跳过,不报错(工具参数已在上面匹配)
+            if (CliArgCliOptionConstants.AllOptionNames.Contains(token))
+                return true;
+            error = UnknownOptionError(key, parameters);
+            return false;
+        }
+        key = param.Name;
+
+        if (inlineValue is not null) {
+            result[key] = param.IsBoolean ? NormalizeBoolValue(inlineValue) : inlineValue;
+            return true;
+        }
+
+        if (param.IsBoolean) {
+            BindBooleanParam(key, tail, ref i, result);
+            return true;
+        }
+
+        if (i + 1 >= tail.Length || tail[i + 1].StartsWith("--")) {
+            error = $"{CliErrorCatalog.ArgMissingRequired($"--{key}({param.TypeHint}) 的值").ToRustStyleString(token)}\n提示: 用法 --{key} <值> 或 --{key}=<值>";
+            return false;
+        }
+
+        result[key] = tail[i + 1];
+        i++;
+        return true;
     }
 
     /// <summary>

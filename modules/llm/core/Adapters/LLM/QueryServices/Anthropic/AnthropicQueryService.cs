@@ -500,7 +500,8 @@ public sealed class AnthropicQueryService : QueryServiceBase {
         try {
             result = RelaxedJsonSerializer.Deserialize(responseJson, AnthropicJsonContext.Default.AnthropicMessagesResponse);
         } catch (JsonException ex) {
-            throw new InvalidOperationException($"Failed to deserialize Anthropic messages response: {ex.Message}", ex);
+            var preview = responseJson.Length > 200 ? responseJson[..200] + "..." : responseJson;
+            throw new InvalidOperationException($"Failed to deserialize Anthropic messages response: {ex.Message} | Response body: {preview}", ex);
         }
 
         if (result == null) {

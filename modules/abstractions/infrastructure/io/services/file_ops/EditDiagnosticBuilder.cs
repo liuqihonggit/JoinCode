@@ -149,22 +149,14 @@ public static class EditDiagnosticBuilder {
         if (string.IsNullOrEmpty(text))
             return [];
 
-        // 优化：大多数情况不需要分配 List
-        var lines = new List<string>(capacity: Math.Min(text.Length / 32 + 1, 256));
-        var start = 0;
-        for (var i = 0; i < text.Length; i++) {
-            if (text[i] == '\n') {
-                lines.Add(text.Substring(start, i - start));
-                start = i + 1;
-            }
+        var textSpan = text.AsSpan();
+        var ranges = LineSpanIndexer.BuildLineRanges(textSpan);
+        var lines = new string[ranges.Count];
+        for (var i = 0; i < ranges.Count; i++) {
+            var (start, length) = ranges[i];
+            lines[i] = new string(textSpan.Slice(start, length));
         }
-
-        // 末尾无换行符的最后一行
-        if (start < text.Length) {
-            lines.Add(text.Substring(start, text.Length - start));
-        }
-
-        return lines.ToArray();
+        return lines;
     }
 
     /// <summary>

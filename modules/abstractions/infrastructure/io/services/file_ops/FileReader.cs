@@ -112,12 +112,13 @@ public sealed class FileReader {
         if (rawContent.Length > 0 && rawContent[0] == '\uFEFF')
             rawContent = rawContent[1..];
 
-        var ranges = LineSpanIndexer.BuildLineRanges(rawContent.AsSpan(), cancellationToken);
+        var rawSpan = rawContent.AsSpan();
+        var ranges = LineSpanIndexer.BuildLineRanges(rawSpan, cancellationToken);
         totalLines = ranges.Count;
         for (var i = 0; i < ranges.Count; i++) {
             if (linesToSkip > 0) { linesToSkip--; continue; }
             var (start, length) = ranges[i];
-            var line = rawContent.Substring(start, length);
+            var line = new string(rawSpan.Slice(start, length));
             if (linesToTake.HasValue) {
                 if (linesToTake.Value > 0) { lines.Add(line); linesToTake--; }
             } else { lines.Add(line); }

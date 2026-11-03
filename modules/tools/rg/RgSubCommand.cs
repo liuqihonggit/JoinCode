@@ -345,6 +345,8 @@ internal static class RgSubCommand {
                     case "--type": fileType = inlineValue ?? ReadNextValue(args, ref i); break;
                     case "--type-not": typeNot = inlineValue ?? ReadNextValue(args, ref i); break;
                     case "--glob": { var v = inlineValue ?? ReadNextValue(args, ref i); if (v is not null) globs.Add(v); } break;
+                    case "--include": { var v = inlineValue ?? ReadNextValue(args, ref i); if (v is not null) globs.Add(v); } break;
+                    case "--exclude": { var v = inlineValue ?? ReadNextValue(args, ref i); if (v is not null) globs.Add($"!{v}"); } break;
                     case "--head-limit": headLimit = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
                     case "--offset": offset = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
                     case "--timeout": timeoutSeconds = ClampTimeout(ParseInt(inlineValue ?? ReadNextValue(args, ref i))); break;

@@ -42,10 +42,14 @@ internal static class GitHubRunViewSummarizer {
             parts.Clear();
             if (!string.IsNullOrEmpty(id)) parts.Add($"ID: {id}");
             if (!string.IsNullOrEmpty(elapsed)) parts.Add($"Elapsed: {elapsed}");
+            if (resp.RunAttempt > 1) parts.Add($"Attempt: {resp.RunAttempt}(已重试)");
             if (parts.Count > 0) sb.AppendLine(string.Join("  ", parts));
 
             var url = resp.HtmlUrl;
             if (!string.IsNullOrEmpty(url)) sb.AppendLine($"URL: {url}");
+
+            if (resp.RunAttempt > 1)
+                sb.AppendLine($"⚠ 此 run 为第 {resp.RunAttempt} 次尝试,首次尝试可能失败/超时。用 gh api repos/o/r/actions/runs/{resp.Id}/attempts/1 查看首次尝试详情");
 
             return sb.ToString().TrimEnd();
         } catch {

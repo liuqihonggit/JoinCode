@@ -149,4 +149,28 @@ public sealed class SimpleJqEvaluatorTests {
         result.Should().Contain("\"a\":\"2\",\"b\":\"1\"");
         result.Should().NotContain("\"a\":\"1\",\"b\":\"2\"");
     }
+
+    /// <summary>路径字段不存在时应返回 null 而非完整原始对象 — 修复前 continue 跳过导致返回完整对象</summary>
+    [Fact]
+    public void Evaluate_NonExistentField_ShouldReturnNull_NotOriginalObject() {
+        var json = """{"name":"test","id":42}""";
+        var result = SimpleJqEvaluator.Evaluate(json, ".jobs");
+        result.Should().Be("null");
+    }
+
+    /// <summary>嵌套路径中间字段不存在时应返回 null — 修复前返回完整原始对象</summary>
+    [Fact]
+    public void Evaluate_NestedNonExistentField_ShouldReturnNull_NotOriginalObject() {
+        var json = """{"name":"test","id":42}""";
+        var result = SimpleJqEvaluator.Evaluate(json, ".jobs[0].conclusion");
+        result.Should().Be("null");
+    }
+
+    /// <summary>管道中路径不存在应传播 null — 修复前返回前一阶段结果</summary>
+    [Fact]
+    public void Evaluate_PipelineNonExistentField_ShouldPropagateNull() {
+        var json = """{"items":[{"name":"a"}]}""";
+        var result = SimpleJqEvaluator.Evaluate(json, ".nonexistent | .sub");
+        result.Should().Be("null");
+    }
 }

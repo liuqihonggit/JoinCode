@@ -17,12 +17,23 @@ internal static class SimpleJqEvaluator {
         var stages = SplitPipeline(jqExpr);
         foreach (var stage in stages) {
             var next = ApplyStage(node, stage);
-            if (next is null) continue;
+            if (next is null) {
+                if (IsSupportedStage(stage)) return "null";
+                continue;
+            }
             node = next;
         }
 
         return WriteNodeWithEncoder(node);
     }
+
+    /// <summary>判断 stage 是否为支持的 jq 语法 — 用于区分"路径不存在"与"不支持的语法"</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsSupportedStage(string stage)
+        => stage.StartsWith("select(", StringComparison.Ordinal)
+           || stage.StartsWith('{')
+           || stage == "length"
+           || (stage.StartsWith('.') && !stage.Contains(' '));
 
     /// <summary>
     /// 用 UnsafeRelaxedJsonEscaping 序列化（不转义中文/emoji），

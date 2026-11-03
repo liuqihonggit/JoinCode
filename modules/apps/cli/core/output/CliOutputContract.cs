@@ -76,7 +76,7 @@ public sealed class CliOutputContract {
     public void WriteError(CliStructuredError error) {
         if (_jsonMode) {
             var envelope = CliOutputEnvelope.Fail(error);
-            var json = RelaxedJsonSerializer.Serialize(envelope, _jsonContext);
+            var json = RelaxedJsonSerializer.SerializeForCli(envelope, _jsonContext);
             TerminalHelper.WriteError(json);
         } else {
             using (TerminalHelper.SetColorRaw(ConsoleColor.Red)) {

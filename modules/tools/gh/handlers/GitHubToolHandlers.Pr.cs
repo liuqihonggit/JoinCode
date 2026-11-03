@@ -1304,8 +1304,8 @@ public partial class GitHubToolHandlers {
                 mergeCommitSha = prDetail?.MergeCommitSha;
                 headRef = prDetail?.Head?.Ref;
                 baseRef = prDetail?.Base?.Ref;
-            } catch { mergeCommitSha = null; headRef = null; baseRef = null; }
-            if (string.IsNullOrEmpty(mergeCommitSha)) return Fail($"PR {number} 尚未合并，无法 revert");
+            } catch (Exception ex) { return Fail($"解析 PR 响应失败: {ex.Message}"); }
+            if (string.IsNullOrEmpty(mergeCommitSha)) return Fail($"PR {number} 尚未合并(merge_commit_sha 为空)，无法 revert");
             var revertBranch = $"revert-{number}-{mergeCommitSha[..7]}";
             var checkoutResult = await _git.ExecuteAsync($"checkout -b {revertBranch} {baseRef}", common?.WorkingDir, cancellationToken).ConfigureAwait(false);
             if (!checkoutResult.Success) return Fail($"创建回退分支失败: {checkoutResult.Output}");

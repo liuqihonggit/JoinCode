@@ -111,7 +111,8 @@ internal static class GitHubRunPoller {
         if (!result.Success)
             return (PollOutcomeKind.Error, default!, result.Error);
 
-        var (status, conclusion) = ParseRunStatus(result.Body);
+        var (status, conclusion, statusError) = ParseRunStatus(result.Body);
+        if (statusError is not null) return (PollOutcomeKind.Error, default!, statusError);
         var data = new RunPollData { Status = status ?? "unknown", Conclusion = conclusion, Body = result.Body };
         var kind = status == "completed" ? PollOutcomeKind.Completed : PollOutcomeKind.Continue;
         return (kind, data, null);
@@ -198,7 +199,8 @@ internal static class GitHubRunPoller {
         if (!runResult.Success) return (PollOutcomeKind.Error, default!, runResult.Error);
         if (!jobsResult.Success) return (PollOutcomeKind.Error, default!, jobsResult.Error);
 
-        var (runStatus, runConclusion) = ParseRunStatus(runResult.Body);
+        var (runStatus, runConclusion, statusError) = ParseRunStatus(runResult.Body);
+        if (statusError is not null) return (PollOutcomeKind.Error, default!, statusError);
         var (failedJobIds, jobSummary) = ParseJobsForFailure(jobsResult.Body);
 
         var status = runStatus ?? "unknown";
@@ -248,12 +250,12 @@ internal static class GitHubRunPoller {
     /// <summary>
     /// 从 run JSON 解析 status 和 conclusion
     /// </summary>
-    private static (string? status, string? conclusion) ParseRunStatus(string json) {
+    private static (string? status, string? conclusion, string? error) ParseRunStatus(string json) {
         try {
             var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.RunDetailResponse);
-            return (resp?.Status, resp?.Conclusion);
-        } catch {
-            return (null, null);
+            return (resp?.Status, resp?.Conclusion, null);
+        } catch (Exception ex) {
+            return (null, null, $"解析 run 状态失败: {ex.Message}");
         }
     }
 

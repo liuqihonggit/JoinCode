@@ -152,7 +152,8 @@ public partial class GitHubToolHandlers {
             foreach (var item in resp.Items) {
                 var repoUrl = item.RepositoryUrl ?? "";
                 var lastSlash = repoUrl.LastIndexOf('/');
-                var repoName = lastSlash > 0 ? repoUrl[(repoUrl.LastIndexOf('/', lastSlash - 1) + 1)..] : "";
+                var secondLastSlash = lastSlash > 0 ? repoUrl.LastIndexOf('/', lastSlash - 1) : -1;
+                var repoName = secondLastSlash >= 0 ? repoUrl[(secondLastSlash + 1)..] : (lastSlash >= 0 ? repoUrl[(lastSlash + 1)..] : "");
                 sb.AppendLine($"{item.Number}\t{item.State}\t{item.Title}\t{repoName}");
             }
             return sb.ToString();

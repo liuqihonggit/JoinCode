@@ -76,9 +76,20 @@ public static class CacheKeyGenerator {
     /// <param name="content">用于生成哈希的内容</param>
     /// <returns>格式为 {prefix}:{hash} 的缓存键</returns>
     public static string GenerateCacheKey(string prefix, ReadOnlySpan<char> content) {
-        var utf8Bytes = Encoding.UTF8.GetBytes(content.ToArray());
-        var hash = XxHash3.Hash(utf8Bytes);
-        var hashString = Convert.ToHexString(hash);
-        return $"{prefix}:{hashString}";
+        var byteCount = Encoding.UTF8.GetByteCount(content);
+        if (byteCount <= 128) {
+            Span<byte> buf = stackalloc byte[128];
+            Encoding.UTF8.GetBytes(content, buf);
+            var hash = XxHash3.Hash(buf[..byteCount]);
+            return $"{prefix}:{Convert.ToHexString(hash)}";
+        }
+        var rented = ArrayPool<byte>.Shared.Rent(byteCount);
+        try {
+            Encoding.UTF8.GetBytes(content, rented);
+            var hash = XxHash3.Hash(rented.AsSpan(..byteCount));
+            return $"{prefix}:{Convert.ToHexString(hash)}";
+        } finally {
+            ArrayPool<byte>.Shared.Return(rented);
+        }
     }
 }

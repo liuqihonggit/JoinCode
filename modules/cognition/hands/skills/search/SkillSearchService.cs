@@ -45,26 +45,10 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
         await EnsureIndexAsync(cancellationToken).ConfigureAwait(false);
 
         var skills = await SkillService.GetAvailableSkillsAsync(cancellationToken).ConfigureAwait(false);
-        var results = new List<SkillSearchResult>();
 
-        foreach (var skill in skills) {
-            var score = CalculateRelevanceScore(skill, query);
-            if (score > 0) {
-                var (matchType, matchedField) = DetermineMatchType(skill, query);
-                results.Add(new SkillSearchResult {
-                    SkillName = skill.Name,
-                    Description = skill.Description,
-                    RelevanceScore = score,
-                    MatchType = matchType,
-                    Tags = skill.Tags,
-                    Category = skill.Namespace,
-                    MatchedField = matchedField,
-                    Highlight = GenerateHighlight(skill, query)
-                });
-            }
-        }
-
-        var sorted = results
+        var sorted = skills
+            .Select(skill => ScoreSkill(skill, query))
+            .OfType<SkillSearchResult>()
             .OrderByDescending(r => r.RelevanceScore)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
@@ -73,6 +57,23 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
         _logger?.LogDebug(L.T(StringKey.SkillSearchIndexRebuilt), query.Keyword, sorted.Count);
 
         return sorted;
+    }
+
+    /// <summary>计算技能相关性分数并构造搜索结果（无匹配返回 null）</summary>
+    private static SkillSearchResult? ScoreSkill(SkillDefinition skill, SkillSearchQuery query) {
+        var score = CalculateRelevanceScore(skill, query);
+        if (score <= 0) return null;
+        var (matchType, matchedField) = DetermineMatchType(skill, query);
+        return new SkillSearchResult {
+            SkillName = skill.Name,
+            Description = skill.Description,
+            RelevanceScore = score,
+            MatchType = matchType,
+            Tags = skill.Tags,
+            Category = skill.Namespace,
+            MatchedField = matchedField,
+            Highlight = GenerateHighlight(skill, query)
+        };
     }
 
     /// <summary>
@@ -91,25 +92,19 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
         await EnsureIndexAsync(cancellationToken).ConfigureAwait(false);
 
         var skills = await SkillService.GetAvailableSkillsAsync(cancellationToken).ConfigureAwait(false);
-        var results = new List<SkillSearchResult>();
-
         var contextKeywords = ExtractKeywords(context);
 
-        foreach (var skill in skills) {
-            var score = CalculateContextRelevance(skill, contextKeywords);
-            if (score > 0.2) {
-                results.Add(new SkillSearchResult {
-                    SkillName = skill.Name,
-                    Description = skill.Description,
-                    RelevanceScore = score,
-                    MatchType = SkillMatchType.ContextRecommendation,
-                    Tags = skill.Tags,
-                    Category = skill.Namespace
-                });
-            }
-        }
-
-        return results
+        return skills
+            .Select(skill => (skill, score: CalculateContextRelevance(skill, contextKeywords)))
+            .Where(t => t.score > 0.2)
+            .Select(t => new SkillSearchResult {
+                SkillName = t.skill.Name,
+                Description = t.skill.Description,
+                RelevanceScore = t.score,
+                MatchType = SkillMatchType.ContextRecommendation,
+                Tags = t.skill.Tags,
+                Category = t.skill.Namespace
+            })
             .OrderByDescending(r => r.RelevanceScore)
             .Take(maxResults)
             .ToList();
@@ -266,14 +261,14 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
 
         if (source.Contains(target)) return 1.0;
 
-        var sourceChars = source.ToCharArray();
-        var targetChars = target.ToCharArray();
+        var sourceSpan = source.AsSpan();
+        var targetSpan = target.AsSpan();
         var matchCount = 0;
         var sourceIndex = 0;
 
-        foreach (var tc in targetChars) {
-            while (sourceIndex < sourceChars.Length) {
-                if (sourceChars[sourceIndex] == tc) {
+        foreach (var tc in targetSpan) {
+            while (sourceIndex < sourceSpan.Length) {
+                if (sourceSpan[sourceIndex] == tc) {
                     matchCount++;
                     sourceIndex++;
                     break;
@@ -282,7 +277,7 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
             }
         }
 
-        return (double)matchCount / targetChars.Length;
+        return (double)matchCount / targetSpan.Length;
     }
 
     private static string? GenerateHighlight(SkillDefinition skill, SkillSearchQuery query) {

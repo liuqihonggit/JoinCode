@@ -28,15 +28,14 @@ public sealed class DsmlToolCallParser : ITextToolCallParser {
     public TextToolCallParseResult? TryParse(ReadOnlySpan<char> content) {
         if (content.IsEmpty) return null;
 
-        var text = content.ToString();
-        var startIdx = text.IndexOf(ToolCallsOpen, StringComparison.Ordinal);
+        var startIdx = content.IndexOf(ToolCallsOpen, StringComparison.Ordinal);
         if (startIdx < 0) return null;
 
-        var endIdx = text.IndexOf(ToolCallsClose, startIdx, StringComparison.Ordinal);
+        var afterOpen = content.Slice(startIdx + ToolCallsOpen.Length);
+        var endIdx = afterOpen.IndexOf(ToolCallsClose, StringComparison.Ordinal);
         if (endIdx < 0) return null;
 
-        var blockStart = startIdx + ToolCallsOpen.Length;
-        var block = text.Substring(blockStart, endIdx - blockStart);
+        var block = afterOpen.Slice(0, endIdx).ToString();
 
         var toolCalls = new List<ToolCallEntry>();
         var matches = InvokeRegex.Matches(block);
@@ -54,8 +53,8 @@ public sealed class DsmlToolCallParser : ITextToolCallParser {
         if (toolCalls.Count == 0) return null;
 
         string? remaining = null;
-        var before = text.AsSpan(0, startIdx);
-        var after = text.AsSpan(endIdx + ToolCallsClose.Length);
+        var before = content.Slice(0, startIdx);
+        var after = afterOpen.Slice(endIdx + ToolCallsClose.Length);
         if (!before.IsEmpty || !after.IsEmpty) {
             var sb = new StringBuilder(before.Length + after.Length);
             sb.Append(before);

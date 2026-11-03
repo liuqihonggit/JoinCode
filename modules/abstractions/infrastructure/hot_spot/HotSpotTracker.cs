@@ -44,12 +44,7 @@ public sealed class HotSpotTracker : IHotSpotTracker {
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var hotSpots = new List<string>();
-        foreach (var file in candidateFiles) {
-            if (GetHotSpotInfo(file).IsHotSpot)
-                hotSpots.Add(file);
-        }
-        return hotSpots;
+        return candidateFiles.Where(file => GetHotSpotInfo(file).IsHotSpot).ToList();
     }
 
     /// <summary>

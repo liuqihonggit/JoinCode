@@ -201,9 +201,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             }
 
             // 处理内容输出
-            foreach (var chunk in iterationResult.Chunks) {
-                context.OutputChunks.Add(chunk);
-            }
+            context.OutputChunks.AddRange(iterationResult.Chunks);
 
             // 更新上下文的 Token 使用信息（最后一轮值 — 钩子消费语义不变）+ 跨轮累计（P7 权威校正数据源）
             context.InputTokens = iterationResult.InputTokens;

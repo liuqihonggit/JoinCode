@@ -5,10 +5,9 @@ namespace JoinCode.Abstractions.Localization;
 /// 默认语言为中文，设置 JCC_LANGUAGE=en 切换为英文。
 /// 生产环境：Program.cs 调用 LocalizerInitializer.Initialize() 初始化完整字典
 /// 测试环境：L.T() 首次调用时通过 LazyInitializer 自动初始化
-/// 线程安全：Initialize 和 EnsureInitialized 通过 lock 保护，T() 读取 FrozenDictionary 是线程安全的
+/// 线程安全：Initialize 用 Volatile.Write 原子更新，T() 读取 FrozenDictionary 是线程安全的
 /// </summary>
 public static class L {
-    private static readonly AsyncLock s_lock = new("L");
     private static IReadOnlyDictionary<string, string> _entries =
         FrozenDictionary<string, string>.Empty;
 
@@ -23,11 +22,9 @@ public static class L {
     /// 初始化本地化系统。可多次调用（后者覆盖前者）。线程安全。
     /// </summary>
     public static void Initialize(string language, IReadOnlyDictionary<string, string> entries) {
-        using (s_lock.LockOrCrash()) {
-            CurrentLanguage = language;
-            _entries = entries;
-            _initialized = true;
-        }
+        CurrentLanguage = language;
+        Volatile.Write(ref _entries, entries);
+        _initialized = true;
     }
 
     /// <summary>

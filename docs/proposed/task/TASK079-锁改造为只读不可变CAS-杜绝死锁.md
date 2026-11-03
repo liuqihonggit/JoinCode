@@ -26,8 +26,8 @@
 | 7 | `modules/perception/code_index/vector/BruteForceAnn.cs` | `Dictionary`→`ImmutableHamT`+`Interlocked.Exchange` | 1 处 RW 锁 | ✅ 完成 |
 | 8 | `PersistentDreamTaskRegistry.cs` + `IDreamTaskRegistry.cs` + `PersistentGoalRegistry.cs` | `Dictionary`→`ImmutableHamT`+CAS | 17 处 | ✅ 完成 |
 | 9 | `modules/cognition/hands/skills/search/SkillSearchService.cs` | 已用 `ImmutableHamT`，锁改 CAS | 1 处 | ⏸️ 保留（async 初始化需等待语义） |
-| 10 | `modules/storage/scheduling/tasks/core/WorkflowTask.cs` | 已用 `ConcurrentDictionary`，锁改 CAS | 1 处 | ⏸️ 保留（保护 runState 两字段原子性） |
-| 11 | `modules/abstractions/infrastructure/utils/resilience/UnifiedCircuitBreaker.cs` | FSM 状态→`volatile` 不可变快照+CAS | 10 处 | ⏸️ 保留（FSM 状态机复合操作，需重构 Fsm 为不可变，工作量过大） |
+| 10 | `modules/storage/scheduling/tasks/core/WorkflowTask.cs` | 已用 `ConcurrentDictionary`，锁改 CAS | 1 处 | ✅ 完成（CancelWorkflowAsync 去锁：Cts.Cancel 线程安全 + State 赋值幂等） |
+| 11 | `modules/abstractions/infrastructure/utils/resilience/UnifiedCircuitBreaker.cs` | FSM 状态→`CbState` record+`Volatile.Read`+`Interlocked.CompareExchange` CAS | 10 处 | ✅ 完成（去掉 Fsm 源码生成器+AsyncLock，不可变快照+CAS 无锁） |
 | 12 | `modules/cognition/hands/system/PreventSleepService.cs` | `_isSleepPrevented`→`volatile`+`Interlocked` | 2 处 | ✅ 完成 |
 
 ### P2 架构调整（需评估，Actor 模型）
@@ -67,7 +67,9 @@
 
 ### 必须保留锁（CAS 无法替代，不改造）
 
-- `ConsoleSuppressionGate.cs` — Console 全局副作用，需原子替换多个 writer
+- `ConsoleSuppressionGate.cs` + `ErrorConsole.cs` — Console 全局副作用，需原子替换多个 writer
+- `RgEngine.cs` — PLINQ 流式回调互斥（`onFileResult` 可能非线程安全）
+- `CodeIndexer.cs` — 双检查锁懒初始化（#6 同类，初始化操作非简单赋值）
 - `HnswAnn.cs` — HNSW 多层邻接表图，不可变复制代价过高
 - `PithosDb.cs` + `LeveledCompactor.cs` — LSM-Tree 核心数据结构，RW 锁合理
 - `LruBlockCache.cs` + `S3FifoBlockCache.cs` — LRU/S3-FIFO 链表结构复杂
@@ -77,6 +79,15 @@
 - `AsyncLockedDictionary.cs` — per-key 异步 factory 串行化
 - 所有限流锁（`AgentCoordinator`/`ForkSubAgentManagerActor`/`GoalGraphEngine`/`AgentBase`/GH 下载/Downloader/`AgentExecutionEngine`） — 限流非互斥
 - `OrderedLockManager.cs` — 已用排序预防死锁
+
+### 补充改造（调研遗漏项）
+
+| # | 位置 | 方案 | 消除锁数 | 状态 |
+|---|------|------|---------|------|
+| 16 | `modules/cognition/brain/context/services/chat/core/SteerInputMailbox.cs` | `Dictionary`+`lock`→`ConcurrentDictionary`+`ConcurrentQueue` | 3 处 | ✅ 完成 |
+| 17 | `modules/async_primitives/async_lock/actor/EventStream.cs` | `ConcurrentDictionary`+`lock`→`ImmutableHamT`+`ImmutableInterlocked.Update` CAS | 2 处 | ✅ 完成 |
+| 18 | `modules/storage/scheduling/core/ExecutionContext.cs` | `List<Task>`+`AsyncLock`→`ConcurrentDictionary<Task,byte>` 无锁 | 1 处 | ✅ 完成（AddRunningTask/GetSnapshot/Cleanup/GetCount/Dispose 全去锁） |
+| 19 | `modules/abstractions/abstractions/abs_core/configuration/localization/L.cs` | `AsyncLock.LockOrCrash`→`Volatile.Write` 原子更新 | 1 处 | ✅ 完成（Initialize 仅启动时调用，引用类型赋值原子） |
 
 ## 验收标准
 

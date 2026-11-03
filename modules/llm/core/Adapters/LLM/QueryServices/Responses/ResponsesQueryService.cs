@@ -373,14 +373,12 @@ public class ResponsesQueryService : QueryServiceBase {
                     Tools = group.Functions.Select(f => f.Name).ToList()
                 });
             } else {
-                foreach (var function in group.Functions) {
-                    tools.Add(new ResponsesTool {
-                        Type = "function",
-                        Name = function.Name,
-                        Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
-                        Parameters = BuildParameters(function.Parameters)
-                    });
-                }
+                tools.AddRange(group.Functions.Select(function => new ResponsesTool {
+                    Type = "function",
+                    Name = function.Name,
+                    Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
+                    Parameters = BuildParameters(function.Parameters)
+                }));
             }
         }
 

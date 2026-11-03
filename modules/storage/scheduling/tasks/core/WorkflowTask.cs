@@ -205,7 +205,6 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
     private readonly IWorkflowStateStore? _stateStore;
     private readonly IWorkflowProgressSink? _progressSink;
     private readonly ConcurrentDictionary<string, WorkflowRunState> _activeWorkflows = new();
-    private readonly AsyncLock _stateLock = new();
 
     /// <summary>
     /// 构造工作流任务执行器。
@@ -283,14 +282,12 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
     }
 
     /// <inheritdoc/>
-    public async Task CancelWorkflowAsync(string workflowId, CancellationToken ct = default) {
+    public Task CancelWorkflowAsync(string workflowId, CancellationToken ct = default) {
         if (_activeWorkflows.TryGetValue(workflowId, out var runState)) {
-            using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
-
-            runState.Cts.Cancel();
             runState.State = TaskExecutionStatus.Cancelled;
-
+            runState.Cts.Cancel();
         }
+        return Task.CompletedTask;
     }
 
     private async Task<WorkflowResult> ExecuteSequentialAsync(WorkflowRunState runState, CancellationToken ct) {
@@ -606,7 +603,6 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
             kvp.Value.Cts.CancelAndDisposeSafe(_logger);
         }
         _activeWorkflows.Clear();
-        _stateLock.Dispose();
         base.Dispose();
     }
 

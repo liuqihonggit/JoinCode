@@ -497,12 +497,10 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
         var state = new ContentReplacementState();
 
         // 1. 从消息历史提取所有 candidate IDs — 对齐 TS collectCandidatesByMessage
-        var candidateIds = new HashSet<string>(StringComparer.Ordinal);
         var groups = CollectCandidatesByMessage(messages);
-        foreach (var group in groups) {
-            foreach (var c in group)
-                candidateIds.Add(c.ToolCallId);
-        }
+        var candidateIds = new HashSet<string>(
+            groups.SelectMany(g => g).Select(c => c.ToolCallId),
+            StringComparer.Ordinal);
 
         // 2. 将所有 candidate IDs 添加到 seenIds
         foreach (var id in candidateIds)

@@ -17,75 +17,33 @@ public enum CircuitBreakerPhase {
 }
 
 /// <summary>
-/// 熔断器事件枚举 — 驱动状态机转换（ADR 0040）
+/// 熔断器不可变状态快照 — 所有可变状态打包为 record，Volatile.Read 读 + Interlocked.CompareExchange CAS 更新
 /// </summary>
-public enum CircuitBreakerEvent {
-    /// <summary>记录成功 — 任意状态 → Closed</summary>
-    [EnumValue("record_success")]
-    RecordSuccess,
-
-    /// <summary>记录失败 — Closed → Open(达阈值) 或 HalfOpen → Open</summary>
-    [EnumValue("record_failure")]
-    RecordFailure,
-
-    /// <summary>探针请求 — HalfOpen 下限流</summary>
-    [EnumValue("try_probe")]
-    TryProbe,
-
-    /// <summary>Open 超时 → HalfOpen</summary>
-    [EnumValue("open_timeout")]
-    OpenTimeout,
-
-    /// <summary>重置 → Closed</summary>
-    [EnumValue("reset")]
-    Reset,
+internal sealed record CbState(
+    CircuitBreakerPhase Phase,
+    int ConsecutiveFailures,
+    int TotalFailures,
+    int TotalSuccesses,
+    int HalfOpenProbeCount,
+    DateTimeOffset OpenedAt,
+    DateTimeOffset LastFailureTime
+) {
+    public static readonly CbState Initial = new(
+        CircuitBreakerPhase.Closed, 0, 0, 0, 0,
+        DateTimeOffset.MinValue, DateTimeOffset.MinValue
+    );
 }
 
 /// <summary>
-/// 熔断器共享上下文 — ADR 0040 FsmContext 强类型子类
+/// 统一熔断器 — 不可变状态快照 + CAS 无锁更新（ADR 0040 企业级状态机）
+/// <para>行为流程：Volatile.Read 快照 → 惰性 Open→HalfOpen → 纯函数计算下一状态 → Interlocked.CompareExchange CAS</para>
+/// <para>计数器递增在状态转换前，惰性求值在读取 Phase 时触发 OpenTimeout</para>
 /// </summary>
-internal sealed class CircuitBreakerContext : FsmContext {
-    /// <summary>连续失败次数</summary>
-    public int ConsecutiveFailures;
-    /// <summary>累计失败次数</summary>
-    public int TotalFailures;
-    /// <summary>累计成功次数</summary>
-    public int TotalSuccesses;
-    /// <summary>半开态已放行的探针请求计数</summary>
-    public int HalfOpenProbeCount;
-    /// <summary>熔断开启时间</summary>
-    public DateTimeOffset OpenedAt;
-    /// <summary>最近一次失败时间</summary>
-    public DateTimeOffset LastFailureTime;
-    /// <summary>当前时间（由调用方注入，用于守卫判定）</summary>
-    public DateTimeOffset Now;
-    /// <summary>连续失败熔断阈值</summary>
-    public int FailureThreshold;
-    /// <summary>半开态最大探针请求数</summary>
-    public int HalfOpenMaxProbe;
-}
-
-/// <summary>
-/// 统一熔断器 — 转换表 + 守卫 + 共享上下文（ADR 0040 企业级状态机）
-/// <para>行为流程：获取当前状态 → 查表 → 守卫判定 → 执行动作 → 转移</para>
-/// <para>计数器递增在 Fsm.Trigger 之前（状态机外），惰性求值在读取 Phase 时触发 OpenTimeout</para>
-/// </summary>
-[FsmStateMachine(typeof(CircuitBreakerPhase), typeof(CircuitBreakerEvent), CircuitBreakerPhase.Closed)]
-[Transition(CircuitBreakerPhase.Closed, CircuitBreakerEvent.RecordFailure, CircuitBreakerPhase.Open)]
-[Transition(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.RecordFailure, CircuitBreakerPhase.Open)]
-[Transition(CircuitBreakerPhase.Closed, CircuitBreakerEvent.RecordSuccess, CircuitBreakerPhase.Closed)]
-[Transition(CircuitBreakerPhase.Open, CircuitBreakerEvent.RecordSuccess, CircuitBreakerPhase.Closed)]
-[Transition(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.RecordSuccess, CircuitBreakerPhase.Closed)]
-[Transition(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.TryProbe, CircuitBreakerPhase.HalfOpen)]
-[Transition(CircuitBreakerPhase.Open, CircuitBreakerEvent.OpenTimeout, CircuitBreakerPhase.HalfOpen)]
-[Transition(CircuitBreakerPhase.Closed, CircuitBreakerEvent.Reset, CircuitBreakerPhase.Closed)]
-[Transition(CircuitBreakerPhase.Open, CircuitBreakerEvent.Reset, CircuitBreakerPhase.Closed)]
-[Transition(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.Reset, CircuitBreakerPhase.Closed)]
 public sealed partial class UnifiedCircuitBreaker : IDisposable {
     private readonly TimeSpan _openDuration;
-    private readonly AsyncLock _lock = new("UnifiedCircuitBreaker");
-    private readonly Fsm<CircuitBreakerPhase, CircuitBreakerEvent> _fsm;
-    private readonly CircuitBreakerContext _ctx;
+    private readonly int _failureThreshold;
+    private readonly int _halfOpenMaxProbe;
+    private CbState _state = CbState.Initial;
     private int _disposed;
 
     /// <summary>熔断器名称</summary>
@@ -95,36 +53,22 @@ public sealed partial class UnifiedCircuitBreaker : IDisposable {
     public CircuitBreakerPhase State => Phase;
 
     /// <summary>当前相位 — 读取时惰性触发 Open→HalfOpen 转换</summary>
-    public CircuitBreakerPhase Phase {
-        get {
-            using (_lock.LockOrCrash()) {
-                MaybeTransitionToHalfOpen();
-                return _fsm.CurrentState;
-            }
-        }
-    }
+    public CircuitBreakerPhase Phase => GetSnapshotWithLazyTransition().Phase;
 
     /// <summary>连续失败次数</summary>
-    public int ConsecutiveFailures {
-        get { using (_lock.LockOrCrash()) { return _ctx.ConsecutiveFailures; } }
-    }
+    public int ConsecutiveFailures => Volatile.Read(ref _state).ConsecutiveFailures;
 
     /// <summary>累计失败次数</summary>
-    public int TotalFailures {
-        get { using (_lock.LockOrCrash()) { return _ctx.TotalFailures; } }
-    }
+    public int TotalFailures => Volatile.Read(ref _state).TotalFailures;
 
     /// <summary>累计成功次数</summary>
-    public int TotalSuccesses {
-        get { using (_lock.LockOrCrash()) { return _ctx.TotalSuccesses; } }
-    }
+    public int TotalSuccesses => Volatile.Read(ref _state).TotalSuccesses;
 
     /// <summary>熔断开启时间;未开启返回 null</summary>
     public DateTimeOffset? OpenedAt {
         get {
-            using (_lock.LockOrCrash()) {
-                return _fsm.CurrentState != CircuitBreakerPhase.Closed ? _ctx.OpenedAt : null;
-            }
+            var s = Volatile.Read(ref _state);
+            return s.Phase != CircuitBreakerPhase.Closed ? s.OpenedAt : null;
         }
     }
 
@@ -133,7 +77,10 @@ public sealed partial class UnifiedCircuitBreaker : IDisposable {
 
     /// <summary>最近一次失败时间;无失败记录返回 null</summary>
     public DateTimeOffset? LastFailureTime {
-        get { using (_lock.LockOrCrash()) { return _ctx.LastFailureTime == DateTimeOffset.MinValue ? null : _ctx.LastFailureTime; } }
+        get {
+            var s = Volatile.Read(ref _state);
+            return s.LastFailureTime == DateTimeOffset.MinValue ? null : s.LastFailureTime;
+        }
     }
 
     /// <summary>
@@ -149,15 +96,9 @@ public sealed partial class UnifiedCircuitBreaker : IDisposable {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(halfOpenMaxProbe);
 
         Name = name;
+        _failureThreshold = failureThreshold;
         _openDuration = openDuration ?? TimeSpan.FromSeconds(30);
-        _ctx = new CircuitBreakerContext {
-            FailureThreshold = failureThreshold,
-            HalfOpenMaxProbe = halfOpenMaxProbe,
-            OpenedAt = DateTimeOffset.MinValue,
-            LastFailureTime = DateTimeOffset.MinValue,
-        };
-        _fsm = new Fsm<CircuitBreakerPhase, CircuitBreakerEvent>(_fsmSortedKeys, _fsmRules, CircuitBreakerPhase.Closed);
-        _fsm.StateChanged += OnFsmStateChanged;
+        _halfOpenMaxProbe = halfOpenMaxProbe;
     }
 
     /// <summary>
@@ -174,17 +115,20 @@ public sealed partial class UnifiedCircuitBreaker : IDisposable {
     /// </summary>
     /// <returns>放行返回 true,拒绝返回 false</returns>
     public bool TryProbe() {
-        using (_lock.LockOrCrash()) {
-            MaybeTransitionToHalfOpen();
-            var state = _fsm.CurrentState;
+        while (true) {
+            var snapshot = GetSnapshotWithLazyTransition();
 
-            if (state == CircuitBreakerPhase.Closed)
+            if (snapshot.Phase == CircuitBreakerPhase.Closed)
                 return true;
 
-            if (state == CircuitBreakerPhase.HalfOpen) {
-                _ctx.Now = DateTimeOffset.UtcNow;
-                var result = _fsm.Trigger(CircuitBreakerEvent.TryProbe, _ctx);
-                return result.Transitioned;
+            if (snapshot.Phase == CircuitBreakerPhase.HalfOpen) {
+                if (snapshot.HalfOpenProbeCount >= _halfOpenMaxProbe)
+                    return false;
+
+                var next = snapshot with { HalfOpenProbeCount = snapshot.HalfOpenProbeCount + 1 };
+                if (Interlocked.CompareExchange(ref _state, next, snapshot) == snapshot)
+                    return true;
+                continue;
             }
 
             return false;
@@ -193,92 +137,82 @@ public sealed partial class UnifiedCircuitBreaker : IDisposable {
 
     /// <summary>记录成功 — 任意状态回到 Closed 并清零失败计数</summary>
     public void RecordSuccess() {
-        using (_lock.LockOrCrash()) {
-            MaybeTransitionToHalfOpen();
-            _ctx.TotalSuccesses++;
-            _fsm.Trigger(CircuitBreakerEvent.RecordSuccess, _ctx);
+        while (true) {
+            var snapshot = GetSnapshotWithLazyTransition();
+            var next = snapshot with {
+                TotalSuccesses = snapshot.TotalSuccesses + 1,
+                ConsecutiveFailures = 0,
+                HalfOpenProbeCount = 0,
+                Phase = CircuitBreakerPhase.Closed
+            };
+            if (Interlocked.CompareExchange(ref _state, next, snapshot) == snapshot) return;
         }
     }
 
     /// <summary>记录失败 — 累加失败计数,达阈值则熔断</summary>
     public void RecordFailure() {
-        using (_lock.LockOrCrash()) {
-            MaybeTransitionToHalfOpen();
+        while (true) {
+            var snapshot = GetSnapshotWithLazyTransition();
+            var now = DateTimeOffset.UtcNow;
+            var consecutiveFailures = snapshot.ConsecutiveFailures + 1;
 
-            _ctx.ConsecutiveFailures++;
-            _ctx.TotalFailures++;
-            _ctx.Now = DateTimeOffset.UtcNow;
-            _ctx.LastFailureTime = _ctx.Now;
+            var next = snapshot with {
+                ConsecutiveFailures = consecutiveFailures,
+                TotalFailures = snapshot.TotalFailures + 1,
+                LastFailureTime = now
+            };
 
-            _fsm.Trigger(CircuitBreakerEvent.RecordFailure, _ctx);
+            if ((snapshot.Phase == CircuitBreakerPhase.Closed && consecutiveFailures >= _failureThreshold) ||
+                snapshot.Phase == CircuitBreakerPhase.HalfOpen) {
+                next = next with {
+                    Phase = CircuitBreakerPhase.Open,
+                    OpenedAt = now,
+                    HalfOpenProbeCount = 0
+                };
+            }
+
+            if (Interlocked.CompareExchange(ref _state, next, snapshot) == snapshot) return;
         }
     }
 
     /// <summary>手动重置 — 任意状态回到 Closed 并清零所有计数</summary>
     public void Reset() {
-        using (_lock.LockOrCrash()) {
-            _fsm.Trigger(CircuitBreakerEvent.Reset, _ctx);
+        while (true) {
+            var snapshot = Volatile.Read(ref _state);
+            var next = snapshot with {
+                Phase = CircuitBreakerPhase.Closed,
+                ConsecutiveFailures = 0,
+                HalfOpenProbeCount = 0,
+                OpenedAt = DateTimeOffset.MinValue
+            };
+            if (Interlocked.CompareExchange(ref _state, next, snapshot) == snapshot) return;
         }
     }
 
     /// <summary>
-    /// 惰性求值 — Open 状态超时则触发 OpenTimeout 事件转 HalfOpen
+    /// 惰性求值 — Open 状态超时则 CAS 转换到 HalfOpen，返回最新快照
     /// </summary>
-    private void MaybeTransitionToHalfOpen() {
-        if (_fsm.CurrentState == CircuitBreakerPhase.Open &&
-            DateTimeOffset.UtcNow - _ctx.OpenedAt > _openDuration) {
-            _ctx.Now = DateTimeOffset.UtcNow;
-            _fsm.Trigger(CircuitBreakerEvent.OpenTimeout, _ctx);
+    private CbState GetSnapshotWithLazyTransition() {
+        while (true) {
+            var snapshot = Volatile.Read(ref _state);
+            if (snapshot.Phase != CircuitBreakerPhase.Open ||
+                DateTimeOffset.UtcNow - snapshot.OpenedAt <= _openDuration) {
+                return snapshot;
+            }
+            var next = snapshot with {
+                Phase = CircuitBreakerPhase.HalfOpen,
+                HalfOpenProbeCount = 0
+            };
+            if (Interlocked.CompareExchange(ref _state, next, snapshot) == snapshot) {
+                return next;
+            }
         }
     }
 
-    [Guard(CircuitBreakerPhase.Closed, CircuitBreakerEvent.RecordFailure)]
-    private static bool FsmGuardFailuresExceedThreshold(FsmContext? ctx) => ctx is CircuitBreakerContext c && c.ConsecutiveFailures >= c.FailureThreshold;
-
-    [Guard(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.TryProbe)]
-    private static bool FsmGuardProbeCountUnderMax(FsmContext? ctx) => ctx is CircuitBreakerContext c && c.HalfOpenProbeCount < c.HalfOpenMaxProbe;
-
-    [TransitionAction(CircuitBreakerPhase.Closed, CircuitBreakerEvent.RecordFailure)]
-    [TransitionAction(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.RecordFailure)]
-    private static void FsmActOpen(FsmContext? ctx) {
-        if (ctx is not CircuitBreakerContext c) return;
-        c.OpenedAt = DateTimeOffset.UtcNow;
-        c.HalfOpenProbeCount = 0;
-    }
-
-    [TransitionAction(CircuitBreakerPhase.Closed, CircuitBreakerEvent.RecordSuccess)]
-    [TransitionAction(CircuitBreakerPhase.Open, CircuitBreakerEvent.RecordSuccess)]
-    [TransitionAction(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.RecordSuccess)]
-    private static void FsmActSuccess(FsmContext? ctx) {
-        if (ctx is not CircuitBreakerContext c) return;
-        c.ConsecutiveFailures = 0;
-        c.HalfOpenProbeCount = 0;
-    }
-
-    [TransitionAction(CircuitBreakerPhase.Closed, CircuitBreakerEvent.Reset)]
-    [TransitionAction(CircuitBreakerPhase.Open, CircuitBreakerEvent.Reset)]
-    [TransitionAction(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.Reset)]
-    private static void FsmActReset(FsmContext? ctx) {
-        if (ctx is not CircuitBreakerContext c) return;
-        c.ConsecutiveFailures = 0;
-        c.HalfOpenProbeCount = 0;
-        c.OpenedAt = DateTimeOffset.MinValue;
-    }
-
-    [TransitionAction(CircuitBreakerPhase.Open, CircuitBreakerEvent.OpenTimeout)]
-    private static void FsmActHalfOpen(FsmContext? ctx) { if (ctx is CircuitBreakerContext c) c.HalfOpenProbeCount = 0; }
-
-    [TransitionAction(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.TryProbe)]
-    private static void FsmActTryProbe(FsmContext? ctx) { if (ctx is CircuitBreakerContext c) c.HalfOpenProbeCount++; }
-
     /// <summary>
-    /// 释放资源 — 取消状态机事件订阅并释放锁,防止内存泄漏
+    /// 释放资源 — 标记已释放
     /// </summary>
     public void Dispose() {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _fsm.StateChanged -= OnFsmStateChanged;
-        _lock.Dispose();
+        Interlocked.Exchange(ref _disposed, 1);
     }
-
-    private void OnFsmStateChanged(object? sender, TransitionResult<CircuitBreakerPhase, CircuitBreakerEvent> e) => FsmDispatchEvent(e);
 }

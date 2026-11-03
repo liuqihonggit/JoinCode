@@ -209,19 +209,20 @@ public static class SemanticSearchReranker {
 
     /// <summary>PascalCase 拆分 — "CosineSimilarity" → "cosine", "similarity"。</summary>
     private static void AddSplitTerms(HashSet<string> terms, List<char> token) {
-        var word = new string(token.ToArray()).ToLowerInvariant();
+        var tokenSpan = CollectionsMarshal.AsSpan(token);
+        var word = new string(tokenSpan).ToLowerInvariant();
         terms.Add(word);
 
         var start = 0;
-        for (var i = 1; i < token.Count; i++) {
-            if (char.IsUpper(token[i]) && i > start && !char.IsUpper(token[i - 1])) {
-                var sub = new string(token.GetRange(start, i - start).ToArray()).ToLowerInvariant();
+        for (var i = 1; i < tokenSpan.Length; i++) {
+            if (char.IsUpper(tokenSpan[i]) && i > start && !char.IsUpper(tokenSpan[i - 1])) {
+                var sub = new string(tokenSpan.Slice(start, i - start)).ToLowerInvariant();
                 if (sub.Length > 1) terms.Add(sub);
                 start = i;
             }
         }
-        if (start > 0 && start < token.Count) {
-            var last = new string(token.GetRange(start, token.Count - start).ToArray()).ToLowerInvariant();
+        if (start > 0 && start < tokenSpan.Length) {
+            var last = new string(tokenSpan.Slice(start, tokenSpan.Length - start)).ToLowerInvariant();
             if (last.Length > 1) terms.Add(last);
         }
     }

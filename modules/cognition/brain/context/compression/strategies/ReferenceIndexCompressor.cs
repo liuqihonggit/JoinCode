@@ -203,19 +203,13 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase {
     }
 
     private static List<ReferenceEntry> ParseAlternativeFormat(string content) {
-        var entries = new List<ReferenceEntry>();
-        var seenPaths = new HashSet<string>(StringComparer.Ordinal);
         var filePathPattern = @"([a-zA-Z]:\\)?([\\/][^\\/:*?""<>|]+)+\.[a-zA-Z0-9]+";
-        var matches = Regex.Matches(content, filePathPattern);
-
-        foreach (Match match in matches) {
-            var filePath = match.Value;
-            if (seenPaths.Add(filePath)) {
-                entries.Add(new ReferenceEntry { FilePath = filePath });
-            }
-        }
-
-        return entries;
+        return Regex.Matches(content, filePathPattern)
+            .Cast<Match>()
+            .Select(m => m.Value)
+            .Distinct(StringComparer.Ordinal)
+            .Select(fp => new ReferenceEntry { FilePath = fp })
+            .ToList();
     }
 
     private static List<ReferenceEntry> PrioritizeEntries(List<ReferenceEntry> entries) {

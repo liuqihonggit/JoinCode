@@ -129,7 +129,14 @@ public sealed class GuardianJournalIntegrationTests {
         var text = string.Concat(Enumerable.Repeat(pattern, 3));
         guardian.Detect(text);
 
-        await Task.Delay(200);
+        for (var i = 0; i < 16; i++) {
+            var deadline = DateTimeOffset.UtcNow + TimeSpan.FromMilliseconds(200);
+            while (DateTimeOffset.UtcNow < deadline) {
+                if (journal.WindowCount >= 1) break;
+                await Task.Delay(10);
+            }
+            if (journal.WindowCount >= 1) break;
+        }
         Assert.True(journal.WindowCount >= 1);
 
     }

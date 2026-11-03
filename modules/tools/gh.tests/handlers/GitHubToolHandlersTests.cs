@@ -1274,26 +1274,26 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task RepoList_WithSource_FiltersNonForks() {
-        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"name":"r1","fork":false},{"name":"r2","fork":true}]""" };
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"name":"r1","full_name":"o/r1","fork":false},{"name":"r2","full_name":"o/r2","fork":true}]""" };
 
         var result = await _handler.GhRepoListAsync(source: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
-        text.Should().Contain("\"name\":\"r1\"");
-        text.Should().NotContain("\"name\":\"r2\"");
+        text.Should().Contain("o/r1");
+        text.Should().NotContain("o/r2");
     }
 
     [Fact]
     public async Task RepoList_WithFork_OnlyForks() {
-        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"name":"r1","fork":false},{"name":"r2","fork":true}]""" };
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"name":"r1","full_name":"o/r1","fork":false},{"name":"r2","full_name":"o/r2","fork":true}]""" };
 
         var result = await _handler.GhRepoListAsync(fork: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
-        text.Should().NotContain("\"name\":\"r1\"");
-        text.Should().Contain("\"name\":\"r2\"");
+        text.Should().NotContain("o/r1");
+        text.Should().Contain("o/r2");
     }
 
     [Fact]

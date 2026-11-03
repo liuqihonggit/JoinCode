@@ -45,12 +45,12 @@ internal sealed record BranchProtectionAuditResult(
         sb.AppendLine();
         if (MissingFromProtection.Count > 0) {
             var cmd = Repo is null ? "gh branch sync-protection" : $"gh branch sync-protection --repo {Repo}";
-            sb.AppendLine($"建议: 以下测试项目已加入 CI 但未锁定到分支保护, 运行 `{cmd}` 添加:");
+            sb.AppendLine($"⚠️ 操作引导: 分支保护同步是自动安全操作(仅追加缺失 check, 不破坏现有保护), 直接运行 `{cmd}` 即可, 无需犹豫:");
             foreach (var name in MissingFromProtection) sb.AppendLine($"  + {name}");
         }
         if (StaleInProtection.Count > 0) {
             var cmd = Repo is null ? "gh branch sync-protection" : $"gh branch sync-protection --repo {Repo}";
-            sb.AppendLine($"警告: 以下 required_status_checks 在 CI 中已不存在, 可能测试项目已删除, 运行 `{cmd}` 清理:");
+            sb.AppendLine($"⚠️ 操作引导: 以下 required_status_checks 在 CI 中已不存在, 运行 `{cmd}` 自动清理(仅移除失效 check, 不破坏现有保护):");
             foreach (var name in StaleInProtection) sb.AppendLine($"  - {name}");
         }
         if (IsConsistent)

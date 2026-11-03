@@ -382,113 +382,139 @@ public partial class GitHubToolHandlers {
     /// GhRunView 核心逻辑 — expand/filter/log 多分支调度,两级缓存(ADR 0067)
     /// </summary>
     private async Task<ToolResult> GhRunViewCoreAsync(GhRepoCtx repo, GhRunTarget target, GhLogOpts opts) {
+        var (maxLines, skip, wantRefresh) = ResolveViewParameters(opts);
+        var job_id = string.IsNullOrWhiteSpace(target.JobId) ? null : target.JobId;
+        var hasFilter = GitHubRunLogFilter.TryParseLogFilter(opts.Filter, out var filterLevel) && filterLevel != GitHubLogFilter.None;
+        var markers = hasFilter ? GitHubRunLogFilter.GetFilterMarkers(filterLevel) : null;
+
+        return await DispatchRunViewMode(repo, target, opts, job_id, maxLines, skip, wantRefresh, hasFilter, filterLevel, markers).ConfigureAwait(false);
+    }
+
+    /// <summary>解析 view 参数 — --around N 调整 skip/maxLines，--refresh 强制刷新</summary>
+    private static (int maxLines, int skip, bool wantRefresh) ResolveViewParameters(GhLogOpts opts) {
         var maxLines = opts.MaxLines ?? 200;
         var skip = opts.SkipLines ?? 0;
         var wantRefresh = opts.Refresh == true;
-        // --around N: 跳转到第 N 行附近,输出前后各 context 行(默认 context=10)
         if (opts.Around is int aroundLine && aroundLine > 0) {
             var aroundContext = opts.Context ?? 10;
             skip = Math.Max(0, aroundLine - aroundContext - 1);
             maxLines = aroundContext * 2 + 1;
         }
-        // MCP 框架可能把缺失的 string? 参数传成空字符串,统一归一化为 null
-        var job_id = string.IsNullOrWhiteSpace(target.JobId) ? null : target.JobId;
-        var hasFilter = GitHubRunLogFilter.TryParseLogFilter(opts.Filter, out var filterLevel) && filterLevel != GitHubLogFilter.None;
-        var markers = hasFilter ? GitHubRunLogFilter.GetFilterMarkers(filterLevel) : null;
+        return (maxLines, skip, wantRefresh);
+    }
 
-        // === filter=正则表达式: 非预定义级别时宽容当作正则过滤日志行 ===
-        if (!string.IsNullOrWhiteSpace(opts.Filter) && !hasFilter
-            && !string.Equals(opts.Filter, "failed", StringComparison.OrdinalIgnoreCase)) {
-            return await FilterByRegexAsync(repo, target, job_id, opts.Filter, maxLines, skip, wantRefresh).ConfigureAwait(false);
+    /// <summary>调度 run view 模式 — 按优先级链式匹配，首个命中返回</summary>
+    private async Task<ToolResult> DispatchRunViewMode(
+        GhRepoCtx repo, GhRunTarget target, GhLogOpts opts, string? job_id,
+        int maxLines, int skip, bool wantRefresh, bool hasFilter,
+        GitHubLogFilter filterLevel, FrozenSet<string>? markers)
+        => await FilterByRegexModeAsync(repo, target, opts, job_id, maxLines, skip, wantRefresh, hasFilter).ConfigureAwait(false)
+           ?? await ExpandJobsModeAsync(repo, target, opts, wantRefresh).ConfigureAwait(false)
+           ?? await FilterFailedModeAsync(repo, target, opts, job_id, maxLines, skip, wantRefresh).ConfigureAwait(false)
+           ?? await ExpandFailedModeAsync(repo, target, opts, job_id, maxLines, skip, wantRefresh, hasFilter, filterLevel, markers).ConfigureAwait(false)
+           ?? await ExpandFailuresModeAsync(repo, target, opts, maxLines, skip, wantRefresh).ConfigureAwait(false)
+           ?? await ExpandStepsModeAsync(repo, target, opts, job_id, maxLines, skip, wantRefresh, filterLevel, markers).ConfigureAwait(false)
+           ?? await LogModeAsync(repo, target, opts, job_id, maxLines, skip, wantRefresh, filterLevel, markers).ConfigureAwait(false)
+           ?? await DetailModeAsync(repo, target, opts, wantRefresh).ConfigureAwait(false);
+
+    /// <summary>filter=正则表达式模式 — 非预定义级别时宽容当作正则过滤日志行</summary>
+    private async Task<ToolResult?> FilterByRegexModeAsync(GhRepoCtx repo, GhRunTarget target, GhLogOpts opts, string? job_id, int maxLines, int skip, bool wantRefresh, bool hasFilter) {
+        if (string.IsNullOrWhiteSpace(opts.Filter) || hasFilter || string.Equals(opts.Filter, "failed", StringComparison.OrdinalIgnoreCase))
+            return null;
+        return await FilterByRegexAsync(repo, target, job_id, opts.Filter, maxLines, skip, wantRefresh).ConfigureAwait(false);
+    }
+
+    /// <summary>expand=jobs 模式 — 列出 job 列表(走 LSM 缓存,不下载日志)</summary>
+    private async Task<ToolResult?> ExpandJobsModeAsync(GhRepoCtx repo, GhRunTarget target, GhLogOpts opts, bool wantRefresh) {
+        if (!string.Equals(opts.Expand, "jobs", StringComparison.OrdinalIgnoreCase)) return null;
+        var (jobs, timeoutIds) = await GetJobsWithTimeoutIdsAsync(repo.Owner, repo.Repo, target.RunId, wantRefresh, repo.Ct).ConfigureAwait(false);
+        return GitHubRunLogFetcher.FormatJobsList(jobs, target.RunId, timeoutIds, opts.All == true);
+    }
+
+    /// <summary>filter=failed 模式 — 智能过滤测试失败(状态机提取 Failed+Error+StackTrace)</summary>
+    private async Task<ToolResult?> FilterFailedModeAsync(GhRepoCtx repo, GhRunTarget target, GhLogOpts opts, string? job_id, int maxLines, int skip, bool wantRefresh) {
+        if (!string.Equals(opts.Filter, "failed", StringComparison.OrdinalIgnoreCase)) return null;
+        return await FilterFailedTestsAsync(repo.Owner, repo.Repo, target.RunId, job_id, maxLines, skip, wantRefresh, repo.Ct).ConfigureAwait(false);
+    }
+
+    /// <summary>expand=failed 模式 — 前置失败 job 汇总 + 按 job 分组拉失败步骤日志</summary>
+    private async Task<ToolResult?> ExpandFailedModeAsync(GhRepoCtx repo, GhRunTarget target, GhLogOpts opts, string? job_id, int maxLines, int skip, bool wantRefresh, bool hasFilter, GitHubLogFilter filterLevel, FrozenSet<string>? markers) {
+        if (!string.Equals(opts.Expand, "failed", StringComparison.OrdinalIgnoreCase)) return null;
+        var (jobs, timeoutIds) = await GetJobsWithTimeoutIdsAsync(repo.Owner, repo.Repo, target.RunId, wantRefresh, repo.Ct).ConfigureAwait(false);
+        var failedJobs = jobs.Where(j => CiJobSeverityExtensions.FromConclusion(j.Conclusion, j.Status, timeoutIds.Contains(j.Id)).IsAnomaly()).ToList();
+        if (failedJobs.Count == 0) return Ok("无失败 job");
+
+        var sb = BuildFailedJobsSummary(failedJobs, timeoutIds);
+        var perJobMaxLines = opts.MaxLinesPerJob ?? Math.Max(maxLines / failedJobs.Count, 50);
+        var failJobResults = await FetchFailedJobLogsParallel(repo, target.RunId, failedJobs, perJobMaxLines, skip, wantRefresh, opts.Context, markers, filterLevel).ConfigureAwait(false);
+        foreach (var (job, jobText) in failJobResults) {
+            if (!string.IsNullOrEmpty(jobText))
+                sb.Append($"\n\n{new string('=', 60)}\n❌ {job.Name}\n{new string('=', 60)}\n{jobText}");
         }
+        return Ok(sb.ToString());
+    }
 
-        // === expand=jobs: 列出 job 列表(走 LSM 缓存,不下载日志) ===
-        if (string.Equals(opts.Expand, "jobs", StringComparison.OrdinalIgnoreCase)) {
-            var (jobs, timeoutIds) = await GetJobsWithTimeoutIdsAsync(repo.Owner, repo.Repo, target.RunId, wantRefresh, repo.Ct).ConfigureAwait(false);
-            return GitHubRunLogFetcher.FormatJobsList(jobs, target.RunId, timeoutIds, opts.All == true);
+    /// <summary>构建失败 job 汇总头 — 让 AI 一眼看到所有失败 job 而非只看到第一个错误</summary>
+    private static StringBuilder BuildFailedJobsSummary(List<RunJobItemResponse> failedJobs, HashSet<long> timeoutIds) {
+        var sb = new StringBuilder($"⚠️ 失败 job 汇总({failedJobs.Count} 个,先看全貌再修,禁止只修一个就 push):");
+        foreach (var job in failedJobs) {
+            var severity = CiJobSeverityExtensions.FromConclusion(job.Conclusion, job.Status, timeoutIds.Contains(job.Id));
+            sb.Append($"\n  {severity.Marker()}  {job.Name}  [{severity.ToConclusionDisplay(job.Conclusion)}]");
         }
+        if (timeoutIds.Count > 0)
+            sb.Append($"\n\n⏱ 超时 job 排查(共 {timeoutIds.Count} 个): 超过 timeout-minutes 上限被 GitHub 强制取消,非手动取消(依据 check-run annotation)。用 expand=steps job_id=<超时job的ID> 看步骤日志尾部: 日志停在半截=挂死(死锁/CPU无限自旋,查被测代码防御);日志持续推进到接近上限=纯慢(拆分任务或提高 timeout)");
+        return sb;
+    }
 
-        // === filter=failed: 智能过滤测试失败(状态机提取 Failed+Error+StackTrace,Rust 风格输出) ===
-        if (string.Equals(opts.Filter, "failed", StringComparison.OrdinalIgnoreCase)) {
-            return await FilterFailedTestsAsync(repo.Owner, repo.Repo, target.RunId, job_id, maxLines, skip, wantRefresh, repo.Ct).ConfigureAwait(false);
-        }
-
-        // === expand=failed: 前置失败 job 汇总 + 按 job 分组拉失败步骤日志(走 LSM 缓存,wantRefresh 可强制刷新) ===
-        if (string.Equals(opts.Expand, "failed", StringComparison.OrdinalIgnoreCase)) {
-            var (jobs, timeoutIds) = await GetJobsWithTimeoutIdsAsync(repo.Owner, repo.Repo, target.RunId, wantRefresh, repo.Ct).ConfigureAwait(false);
-            var failedJobs = jobs.Where(j => CiJobSeverityExtensions.FromConclusion(j.Conclusion, j.Status, timeoutIds.Contains(j.Id)).IsAnomaly()).ToList();
-            if (failedJobs.Count == 0)
-                return Ok("无失败 job");
-
-            var sb = new StringBuilder($"⚠️ 失败 job 汇总({failedJobs.Count} 个,先看全貌再修,禁止只修一个就 push):");
-            foreach (var job in failedJobs) {
-                var severity = CiJobSeverityExtensions.FromConclusion(job.Conclusion, job.Status, timeoutIds.Contains(job.Id));
-                sb.Append($"\n  {severity.Marker()}  {job.Name}  [{severity.ToConclusionDisplay(job.Conclusion)}]");
+    /// <summary>并行拉取各失败 job 日志(对齐 expand=failures 的 Semaphore+并行模式)</summary>
+    private async Task<(RunJobItemResponse Job, string Text)[]> FetchFailedJobLogsParallel(GhRepoCtx repo, string runId, List<RunJobItemResponse> failedJobs, int perJobMaxLines, int skip, bool wantRefresh, int? contextOverride, FrozenSet<string>? markers, GitHubLogFilter filterLevel) {
+        var failConcurrency = Math.Min(failedJobs.Count, GitHubRunLogFilterRunner.GetMaxConcurrency());
+        using var failSemaphore = new SemaphoreSlim(failConcurrency);
+        var failJobTasks = failedJobs.Select(async job => {
+            await failSemaphore.WaitAsync(repo.Ct).ConfigureAwait(false);
+            try {
+                var jobResult = await StreamAndFilterAsync(
+                    repo.Owner, repo.Repo, runId, job.Id.ToString(),
+                    false, $"失败步骤({job.Name})", markers, filterLevel,
+                    perJobMaxLines, repo.Ct, null, skip, wantRefresh, forceSmartStart: true, contextOverride: contextOverride).ConfigureAwait(false);
+                var jobText = jobResult.Content.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? "";
+                return (job, jobText);
+            } finally {
+                failSemaphore.Release();
             }
-            if (timeoutIds.Count > 0)
-                sb.Append($"\n\n⏱ 超时 job 排查(共 {timeoutIds.Count} 个): 超过 timeout-minutes 上限被 GitHub 强制取消,非手动取消(依据 check-run annotation)。用 expand=steps job_id=<超时job的ID> 看步骤日志尾部: 日志停在半截=挂死(死锁/CPU无限自旋,查被测代码防御);日志持续推进到接近上限=纯慢(拆分任务或提高 timeout)");
+        }).ToArray();
+        return await Task.WhenAll(failJobTasks).ConfigureAwait(false);
+    }
 
-            var perJobMaxLines = opts.MaxLinesPerJob ?? Math.Max(maxLines / failedJobs.Count, 50);
-            // 并行拉取各失败 job 日志(对齐 expand=failures 的 Semaphore+并行模式,避免串行逐个 await)
-            var failConcurrency = Math.Min(failedJobs.Count, GitHubRunLogFilterRunner.GetMaxConcurrency());
-            using var failSemaphore = new SemaphoreSlim(failConcurrency);
-            var failJobTasks = failedJobs.Select(async job => {
-                await failSemaphore.WaitAsync(repo.Ct).ConfigureAwait(false);
-                try {
-                    var jobResult = await StreamAndFilterAsync(
-                        repo.Owner, repo.Repo, target.RunId, job.Id.ToString(),
-                        false, $"失败步骤({job.Name})", markers, filterLevel,
-                        perJobMaxLines, repo.Ct, null, skip, wantRefresh, forceSmartStart: true, contextOverride: opts.Context).ConfigureAwait(false);
-                    var jobText = jobResult.Content.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text ?? "";
-                    return (job, jobText);
-                } finally {
-                    failSemaphore.Release();
-                }
-            }).ToArray();
-            var failJobResults = await Task.WhenAll(failJobTasks).ConfigureAwait(false);
-            foreach (var (job, jobText) in failJobResults) {
-                if (!string.IsNullOrEmpty(jobText))
-                    sb.Append($"\n\n{new string('=', 60)}\n❌ {job.Name}\n{new string('=', 60)}\n{jobText}");
-            }
-            return Ok(sb.ToString());
-        }
+    /// <summary>expand=failures 模式 — 跨所有失败 job 批量提取失败测试详情</summary>
+    private async Task<ToolResult?> ExpandFailuresModeAsync(GhRepoCtx repo, GhRunTarget target, GhLogOpts opts, int maxLines, int skip, bool wantRefresh) {
+        if (!string.Equals(opts.Expand, "failures", StringComparison.OrdinalIgnoreCase)) return null;
+        return await ExtractAllFailuresAsync(repo, target.RunId, maxLines, skip, wantRefresh, repo.Ct).ConfigureAwait(false);
+    }
 
-        // === expand=failures: 跨所有失败 job 批量提取失败测试详情(测试名+错误+栈帧,一站式) ===
-        if (string.Equals(opts.Expand, "failures", StringComparison.OrdinalIgnoreCase)) {
-            return await ExtractAllFailuresAsync(repo, target.RunId, maxLines, skip, wantRefresh, repo.Ct).ConfigureAwait(false);
-        }
-
-        // === expand=steps 或 expand=step:Name: 两级缓存(ADR 0067) ===
-        var expandStep = opts.Expand?.StartsWith("step:", StringComparison.OrdinalIgnoreCase) == true
-            ? opts.Expand[5..].Trim()
-            : null;
+    /// <summary>expand=steps 或 expand=step:Name 模式 — 两级缓存(ADR 0067)</summary>
+    private async Task<ToolResult?> ExpandStepsModeAsync(GhRepoCtx repo, GhRunTarget target, GhLogOpts opts, string? job_id, int maxLines, int skip, bool wantRefresh, GitHubLogFilter filterLevel, FrozenSet<string>? markers) {
+        var expandStep = opts.Expand?.StartsWith("step:", StringComparison.OrdinalIgnoreCase) == true ? opts.Expand[5..].Trim() : null;
         var wantSteps = string.Equals(opts.Expand, "steps", StringComparison.OrdinalIgnoreCase);
+        if (!wantSteps && expandStep is null) return null;
+        return await HandleExpandStepsAsync(repo, target, opts, job_id, expandStep, wantSteps, markers, filterLevel, maxLines, skip, wantRefresh).ConfigureAwait(false);
+    }
 
-        if (wantSteps || expandStep is not null)
-            return await HandleExpandStepsAsync(repo, target, opts, job_id, expandStep, wantSteps, markers, filterLevel, maxLines, skip, wantRefresh).ConfigureAwait(false);
+    /// <summary>log=true 模式 — REST API 日志流 + 过滤/分页</summary>
+    private async Task<ToolResult?> LogModeAsync(GhRepoCtx repo, GhRunTarget target, GhLogOpts opts, string? job_id, int maxLines, int skip, bool wantRefresh, GitHubLogFilter filterLevel, FrozenSet<string>? markers) {
+        if (opts.Log != true) return null;
+        return await StreamAndFilterAsync(repo.Owner, repo.Repo, target.RunId, job_id, false, "日志", markers, filterLevel, maxLines, repo.Ct, GitHubRunLogHints.LogHint, skip, wantRefresh, contextOverride: opts.Context).ConfigureAwait(false);
+    }
 
-        // === 常规模式: log=false 看详情, log=true 拉日志 ===
-        var wantLog = opts.Log == true;
-
-        if (wantLog) {
-            // log=true: 用 REST API 日志流 + 过滤/分页
-            var logResult = await StreamAndFilterAsync(repo.Owner, repo.Repo, target.RunId, job_id, false, "日志", markers, filterLevel, maxLines, repo.Ct, GitHubRunLogHints.LogHint, skip, wantRefresh, contextOverride: opts.Context).ConfigureAwait(false);
-            // read_offset 模式: 行号已由 StreamAndFilterAsync 内部添加,直接返回
-            return logResult;
-        }
-
-        // log=false: 获取 run 详情,根据 verbosity 选择输出格式
+    /// <summary>log=false 详情模式 — 获取 run 详情,根据 verbosity 选择输出格式</summary>
+    private async Task<ToolResult> DetailModeAsync(GhRepoCtx repo, GhRunTarget target, GhLogOpts opts, bool wantRefresh) {
         var detailPath = target.Attempt is not null
             ? $"repos/{repo.Owner}/{repo.Repo}/actions/runs/{target.RunId}/attempts/{target.Attempt}"
             : $"repos/{repo.Owner}/{repo.Repo}/actions/runs/{target.RunId}";
         var detailResult = await repo.Client.SendAsync(HttpMethod.Get, detailPath, ct: repo.Ct).ConfigureAwait(false);
         if (!detailResult.Success) return Fail(detailResult.Error);
-
-        // 优化D1: 默认模式(verbosity=0/null)run 失败/进行中时,附加失败 job 列表+"尚未拉取"提示
-        // 渐进式披露: 首次 view 就置顶错误,AI 无需再调 expand=jobs→expand=failed 两步
         if (opts.Verbosity is null or 0)
             return Ok(await EnhanceDefaultViewWithJobsAsync(repo.Owner, repo.Repo, target.RunId, wantRefresh, detailResult.Body, repo.Ct).ConfigureAwait(false));
-
         return opts.Verbosity switch {
             2 => Ok(detailResult.Body),
             1 => Ok(FilterJsonFields(detailResult.Body, "id,name,head_branch,head_sha,status,conclusion,run_number,event,created_at,updated_at,html_url,display_title")),

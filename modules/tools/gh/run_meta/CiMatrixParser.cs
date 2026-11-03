@@ -20,25 +20,40 @@ internal static class CiMatrixParser {
             if (string.IsNullOrWhiteSpace(line)) continue;
             var indent = line.Length - line.TrimStart().Length;
             var trimmed = line.AsSpan().Trim();
-            if (trimmed.StartsWith("include:")) { includeIndent = indent; continue; }
+
+            if (IsIncludeHeader(trimmed)) {
+                includeIndent = indent;
+                continue;
+            }
             if (includeIndent is null) continue;
-            if (trimmed.StartsWith("- ") && indent == includeIndent + 2) {
-                if (currentEntry is not null) entries.Add(currentEntry);
+
+            if (IsNewEntryDash(trimmed, indent, includeIndent.Value)) {
+                FlushEntry(entries, ref currentEntry);
                 currentEntry = new Dictionary<string, string>();
                 entryDashIndent = indent;
                 ParseField(trimmed[2..], currentEntry);
-            } else if (currentEntry is not null && entryDashIndent is not null &&
-                       indent > entryDashIndent && !trimmed.StartsWith("-") && !trimmed.StartsWith("#")) {
+            } else if (currentEntry is not null && entryDashIndent is not null && IsEntryContinuation(trimmed, indent, entryDashIndent.Value)) {
                 ParseField(trimmed, currentEntry);
-            } else if (indent <= includeIndent && !trimmed.StartsWith("-") && !trimmed.StartsWith("#")) {
-                if (currentEntry is not null) entries.Add(currentEntry);
-                currentEntry = null;
+            } else if (IsIncludeBlockEnd(trimmed, indent, includeIndent.Value)) {
+                FlushEntry(entries, ref currentEntry);
                 includeIndent = null;
                 entryDashIndent = null;
             }
         }
-        if (currentEntry is not null) entries.Add(currentEntry);
+        FlushEntry(entries, ref currentEntry);
         return entries;
+
+        static bool IsIncludeHeader(ReadOnlySpan<char> trimmed) => trimmed.StartsWith("include:");
+        static bool IsNewEntryDash(ReadOnlySpan<char> trimmed, int indent, int includeIndent)
+            => trimmed.StartsWith("- ") && indent == includeIndent + 2;
+        static bool IsEntryContinuation(ReadOnlySpan<char> trimmed, int indent, int entryDashIndent)
+            => indent > entryDashIndent && !trimmed.StartsWith("-") && !trimmed.StartsWith("#");
+        static bool IsIncludeBlockEnd(ReadOnlySpan<char> trimmed, int indent, int includeIndent)
+            => indent <= includeIndent && !trimmed.StartsWith("-") && !trimmed.StartsWith("#");
+        static void FlushEntry(List<Dictionary<string, string>> entries, ref Dictionary<string, string>? current) {
+            if (current is not null) entries.Add(current);
+            current = null;
+        }
 
         static void ParseField(ReadOnlySpan<char> content, Dictionary<string, string> entry) {
             var colonIdx = content.IndexOf(':');

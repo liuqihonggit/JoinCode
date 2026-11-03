@@ -266,71 +266,13 @@ internal static class GhArgsBinder {
 
         for (var i = 0; i < tail.Length; i++) {
             var token = tail[i];
-            if (!token.StartsWith("--")) {
-                // 短选项: -X 或 -Xvalue (单 dash + 字母), 如 -L 5 / -L5 / -d
-                if (token.Length >= 2 && token[0] == '-' && char.IsLetter(token[1])
-                    && TryBindShortOption(token, toolName, tail, ref i, result, byName, out error))
-                    continue;
-                // 宽容策略: AI 习惯写 key=value(不带 -- 前缀),优先解析为命名参数
-                if (TryBindBareKeyValue(token, byName, result))
-                    continue;
-                if (slotIndex >= slots.Count) {
-                    // 宽容: 多余位置参数像 owner/repo 格式时,自动赋给未设置的 repo 参数
-                    if (token.Contains('/') && byName.TryGetValue("repo", out var repoParam)
-                        && !result.ContainsKey("repo")) {
-                        result["repo"] = token;
-                        continue;
-                    }
-                    error = TooManyPositionalError(toolName, token, parameters);
+            if (token.StartsWith("--")) {
+                if (!BindDashToken(tail, ref i, token, toolName, parameters, byName, result, out error))
                     return null;
-                }
-                var slot = slots[slotIndex++];
-                if (result.ContainsKey(slot.Name)) {
-                    error = DuplicateParamError(slot.Name);
-                    return null;
-                }
-                result[slot.Name] = token;
                 continue;
             }
-
-            var key = token[2..];
-            string? inlineValue = null;
-            var eqIdx = key.IndexOf('=');
-            if (eqIdx > 0) {
-                inlineValue = key[(eqIdx + 1)..];
-                key = key[..eqIdx];
-            }
-
-            // 宽容策略: 真实 gh CLI 用连字符（--max-lines），工具 schema 用下划线（max_lines）
-            if (!byName.TryGetValue(key, out var param) && !byName.TryGetValue(key.Replace('-', '_'), out param)) {
-                // 宽容策略: 系统 gh CLI 缩写别名（--auto→auto_merge, --squash→merge_method=squash, --job→job_id 等）
-                if (TryBindAlias(key, toolName, tail, ref i, result, token, inlineValue, out error))
-                    continue;
-                // 洋葱穿透: 全局选项(非工具参数)跳过,不报错(工具参数已在上面匹配)
-                if (CliArgCliOptionConstants.AllOptionNames.Contains(token))
-                    continue;
-                error = UnknownOptionError(key, parameters);
+            if (!BindNonDashToken(tail, ref i, token, toolName, parameters, byName, result, slots, ref slotIndex, out error))
                 return null;
-            }
-            key = param.Name;
-
-            if (inlineValue is not null) {
-                result[key] = param.IsBoolean ? NormalizeBoolValue(inlineValue) : inlineValue;
-                continue;
-            }
-
-            if (param.IsBoolean) {
-                BindBooleanParam(key, tail, ref i, result);
-                continue;
-            }
-
-            if (i + 1 >= tail.Length || tail[i + 1].StartsWith("--")) {
-                error = $"{CliErrorCatalog.ArgMissingRequired($"--{key}({param.TypeHint}) 的值").ToRustStyleString(token)}\n提示: 用法 --{key} <值> 或 --{key}=<值>";
-                return null;
-            }
-
-            result[key] = tail[i + 1];
-            i++;
         }
 
         var missing = slots.FirstOrDefault(s => s.IsRequired && !result.ContainsKey(s.Name));
@@ -340,6 +282,86 @@ internal static class GhArgsBinder {
         }
 
         return result;
+    }
+
+    /// <summary>绑定非 -- 前缀 token — 短选项/裸 key=value/位置参数</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    private static bool BindNonDashToken(
+        string[] tail, ref int i, string token, string toolName, IReadOnlyList<GhParam> parameters,
+        Dictionary<string, GhParam> byName, Dictionary<string, string> result,
+        List<GhParam> slots, ref int slotIndex, out string? error) {
+        error = null;
+        // 短选项: -X 或 -Xvalue (单 dash + 字母), 如 -L 5 / -L5 / -d
+        if (token.Length >= 2 && token[0] == '-' && char.IsLetter(token[1])
+            && TryBindShortOption(token, toolName, tail, ref i, result, byName, out error))
+            return true;
+        // 宽容策略: AI 习惯写 key=value(不带 -- 前缀),优先解析为命名参数
+        if (TryBindBareKeyValue(token, byName, result))
+            return true;
+        if (slotIndex >= slots.Count) {
+            // 宽容: 多余位置参数像 owner/repo 格式时,自动赋给未设置的 repo 参数
+            if (token.Contains('/') && byName.TryGetValue("repo", out var repoParam)
+                && !result.ContainsKey("repo")) {
+                result["repo"] = token;
+                return true;
+            }
+            error = TooManyPositionalError(toolName, token, parameters);
+            return false;
+        }
+        var slot = slots[slotIndex++];
+        if (result.ContainsKey(slot.Name)) {
+            error = DuplicateParamError(slot.Name);
+            return false;
+        }
+        result[slot.Name] = token;
+        return true;
+    }
+
+    /// <summary>绑定 -- 前缀 token — --key=value / --key value / 别名 / 全局穿透</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    private static bool BindDashToken(
+        string[] tail, ref int i, string token, string toolName, IReadOnlyList<GhParam> parameters,
+        Dictionary<string, GhParam> byName, Dictionary<string, string> result, out string? error) {
+        error = null;
+        var key = token[2..];
+        string? inlineValue = null;
+        var eqIdx = key.IndexOf('=');
+        if (eqIdx > 0) {
+            inlineValue = key[(eqIdx + 1)..];
+            key = key[..eqIdx];
+        }
+
+        // 宽容策略: 真实 gh CLI 用连字符（--max-lines），工具 schema 用下划线（max_lines）
+        if (!byName.TryGetValue(key, out var param) && !byName.TryGetValue(key.Replace('-', '_'), out param)) {
+            // 宽容策略: 系统 gh CLI 缩写别名（--auto→auto_merge, --squash→merge_method=squash, --job→job_id 等）
+            if (TryBindAlias(key, toolName, tail, ref i, result, token, inlineValue, out error))
+                return true;
+            // 洋葱穿透: 全局选项(非工具参数)跳过,不报错(工具参数已在上面匹配)
+            if (CliArgCliOptionConstants.AllOptionNames.Contains(token))
+                return true;
+            error = UnknownOptionError(key, parameters);
+            return false;
+        }
+        key = param.Name;
+
+        if (inlineValue is not null) {
+            result[key] = param.IsBoolean ? NormalizeBoolValue(inlineValue) : inlineValue;
+            return true;
+        }
+
+        if (param.IsBoolean) {
+            BindBooleanParam(key, tail, ref i, result);
+            return true;
+        }
+
+        if (i + 1 >= tail.Length || tail[i + 1].StartsWith("--")) {
+            error = $"{CliErrorCatalog.ArgMissingRequired($"--{key}({param.TypeHint}) 的值").ToRustStyleString(token)}\n提示: 用法 --{key} <值> 或 --{key}=<值>";
+            return false;
+        }
+
+        result[key] = tail[i + 1];
+        i++;
+        return true;
     }
 
     /// <summary>
@@ -599,70 +621,63 @@ internal static class GhArgsBinder {
     }.ToFrozenDictionary();
 
     /// <summary>
-    /// 系统 gh CLI 短选项映射 — 优先用计算规则处理通用映射（按工具名前缀/后缀），
-    /// 仅歧义项查 <see cref="ShortOptionMap"/> 字典。
+    /// 短选项规则 — 数据驱动的 (shortKey, toolPredicate) → longName 映射，按优先级排列。
+    /// 新增短选项只需在 s_shortOptionRules 追加一行，无需修改控制流。
     /// </summary>
-    private static string? ResolveGhShortOption(char shortKey, string toolName) {
-        var isList = toolName.EndsWith("_list");
-        var isView = toolName.EndsWith("_view");
-        var isCreateOrEdit = toolName.EndsWith("_create") || toolName.EndsWith("_edit");
+    private sealed record ShortOptionRule(char Key, Func<string, bool> ToolPredicate, string LongName);
 
-        // 通用: -L→limit, -w→web, -q→jq (jq 表达式, 所有 view/list 命令, 对齐系统 gh CLI)
-        if (shortKey == 'L' && isList) return "limit";
-        if (shortKey == 'w' && isView) return "web";
-        if (shortKey == 'q' && (isView || isList)) return "jq";
-
-        var isPr = toolName.StartsWith("gh_pr_");
-        var isIssue = toolName.StartsWith("gh_issue_");
-        var isPrOrIssue = isPr || isIssue;
-        var isRelease = toolName.StartsWith("gh_release_");
-        var isSecretOrVar = toolName.StartsWith("gh_secret_") || toolName.StartsWith("gh_variable_");
-        var isCodespace = toolName.StartsWith("gh_codespace_");
-        var isRuleset = toolName.StartsWith("gh_ruleset_");
-
-        // pr/issue 通用短选项
-        if (isPrOrIssue) {
-            if (shortKey == 'a' && (isList || toolName.EndsWith("_create"))) return "assignee";
-            if (shortKey == 'A' && isList) return "author";
-            if (shortKey == 'l' && (isList || toolName.EndsWith("_create"))) return "label";
-            if (shortKey == 'm') return "milestone";
-            if (shortKey == 'b' && isCreateOrEdit) return "body";
-            if (shortKey == 'F') return "body_file";
-            if (shortKey == 't' && isCreateOrEdit) return "title";
-            if (shortKey == 's' && isList) return "state";
-            if (shortKey == 'S' && isList) return "search";
-        }
-
-        // pr 通用: -B→base (list/create/edit), -H→head (list/create)
-        if (isPr) {
-            if (shortKey == 'B') return "base";
-            if (shortKey == 'H' && (isList || toolName.EndsWith("_create"))) return "head";
-        }
-        if (toolName == "gh_search_prs" && (shortKey == 'B' || shortKey == 'H'))
-            return shortKey == 'B' ? "base" : "head";
-
+    /// <summary>短选项规则表 — 按声明顺序匹配，首个命中即返回</summary>
+    private static readonly ShortOptionRule[] s_shortOptionRules = [
+        // 通用: -L→limit, -w→web, -q→jq
+        new('L', IsList, "limit"),
+        new('w', IsView, "web"),
+        new('q', t => IsView(t) || IsList(t), "jq"),
+        // pr/issue 通用
+        new('a', t => IsPrOrIssue(t) && (IsList(t) || t.EndsWith("_create")), "assignee"),
+        new('A', t => IsPrOrIssue(t) && IsList(t), "author"),
+        new('l', t => IsPrOrIssue(t) && (IsList(t) || t.EndsWith("_create")), "label"),
+        new('m', IsPrOrIssue, "milestone"),
+        new('b', t => IsPrOrIssue(t) && IsCreateOrEdit(t), "body"),
+        new('F', IsPrOrIssue, "body_file"),
+        new('t', t => IsPrOrIssue(t) && IsCreateOrEdit(t), "title"),
+        new('s', t => IsPrOrIssue(t) && IsList(t), "state"),
+        new('S', t => IsPrOrIssue(t) && IsList(t), "search"),
+        // pr 通用: -B→base, -H→head
+        new('B', IsPr, "base"),
+        new('H', t => IsPr(t) && (IsList(t) || t.EndsWith("_create")), "head"),
+        // search prs: -B→base, -H→head
+        new('B', t => t == "gh_search_prs", "base"),
+        new('H', t => t == "gh_search_prs", "head"),
         // release: -F→notes_file, -t→title
-        if (isRelease) {
-            if (shortKey == 'F') return "notes_file";
-            if (shortKey == 't' && isCreateOrEdit) return "title";
-        }
-
+        new('F', IsRelease, "notes_file"),
+        new('t', t => IsRelease(t) && IsCreateOrEdit(t), "title"),
         // api: -F→fields, workflow run: -F→field
-        if (shortKey == 'F' && toolName == "gh_api") return "fields";
-        if (shortKey == 'F' && toolName == "gh_workflow_run") return "field";
-
+        new('F', t => t == "gh_api", "fields"),
+        new('F', t => t == "gh_workflow_run", "field"),
         // run list: -s→status
-        if (shortKey == 's' && toolName == "gh_run_list") return "status";
-
+        new('s', t => t == "gh_run_list", "status"),
         // secret/variable/codespace/ruleset: -o→org
-        if (shortKey == 'o' && (isSecretOrVar || isCodespace || isRuleset)) return "org";
-
+        new('o', t => IsSecretOrVar(t) || t.StartsWith("gh_codespace_") || t.StartsWith("gh_ruleset_"), "org"),
         // run/release download: -D→dir
-        if (shortKey == 'D' && toolName.EndsWith("_download") && (toolName.StartsWith("gh_run_") || isRelease)) return "dir";
+        new('D', t => t.EndsWith("_download") && (t.StartsWith("gh_run_") || IsRelease(t)), "dir"),
+    ];
 
-        // 歧义项查字典
-        return ShortOptionMap.TryGetValue(toolName, out var group) ? group.Resolve(shortKey) : null;
-    }
+    /// <summary>工具名特征判断 — 有名函数，消除内联 lambda 重复计算</summary>
+    private static bool IsList(string t) => t.EndsWith("_list");
+    private static bool IsView(string t) => t.EndsWith("_view");
+    private static bool IsCreateOrEdit(string t) => t.EndsWith("_create") || t.EndsWith("_edit");
+    private static bool IsPr(string t) => t.StartsWith("gh_pr_");
+    private static bool IsIssue(string t) => t.StartsWith("gh_issue_");
+    private static bool IsPrOrIssue(string t) => IsPr(t) || IsIssue(t);
+    private static bool IsRelease(string t) => t.StartsWith("gh_release_");
+    private static bool IsSecretOrVar(string t) => t.StartsWith("gh_secret_") || t.StartsWith("gh_variable_");
+
+    /// <summary>
+    /// 系统 gh CLI 短选项映射 — 数据驱动规则表匹配，未命中查 <see cref="ShortOptionMap"/> 歧义字典。
+    /// </summary>
+    private static string? ResolveGhShortOption(char shortKey, string toolName)
+        => s_shortOptionRules.FirstOrDefault(r => r.Key == shortKey && r.ToolPredicate(toolName))?.LongName
+           ?? (ShortOptionMap.TryGetValue(toolName, out var group) ? group.Resolve(shortKey) : null);
 
     /// <summary>尝试绑定系统 gh CLI 短选项 — 成功返回 true 并更新 result/i，失败返回 false（不设 error，fall through 到位置参数）</summary>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]

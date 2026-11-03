@@ -261,8 +261,12 @@ public sealed class ResilientHttpExecutor {
             return retry.ShouldRetry(ex);
         }
 
-        if (ex is TimeoutException || ex is TaskCanceledException || ex is IOException)
+        if (ex is TimeoutException || ex is IOException)
             return true;
+        // TaskCanceledException 不重试 —
+        // 超时令牌触发后令牌已取消，重试会立即再次取消导致无限重试耗尽预算，
+        // 最终返回空回复 rc=1 而非 rc=1240（Bug 29）。
+        // IsUserCancellation 已在上游 catch 中过滤用户取消，到此处必为超时令牌触发。
         if (ex is HttpRequestException httpEx) {
             var code = (int?)(httpEx.StatusCode);
             if (code is null) return true;

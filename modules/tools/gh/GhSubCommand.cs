@@ -100,32 +100,37 @@ internal static class GhSubCommand {
         return 0;
     }
 
-    private static int OutputResult(ToolResult result, bool json) {
-        if (json) {
-            var text = (result.Content.Count == 1 ? result.Content[0].Text : null) ?? string.Empty;
-            if (result.IsError || string.IsNullOrEmpty(text)) {
-                Console.WriteLine(GhJsonContext.UnescapeHtmlChars(JsonSerializer.Serialize(result, GhJsonContext.Safe.ToolResult)));
-                return result.IsError ? 1 : 0;
-            }
-            if (text.Length > 0 && (text[0] == '[' || text[0] == '{' || text[0] == '"' || IsJsonPrimitive(text))) {
-                Console.WriteLine(text);
-                return result.IsError ? 1 : 0;
-            }
-            Console.WriteLine(GhJsonContext.UnescapeHtmlChars(JsonSerializer.Serialize(text, GhJsonContext.Safe.String)));
-        } else {
-            var hasOutput = false;
-            foreach (var c in result.Content) {
-                if (!string.IsNullOrEmpty(c.Text)) {
-                    if (result.IsError) Console.Error.WriteLine(c.Text); else Console.WriteLine(c.Text);
-                    hasOutput = true;
-                }
-            }
-            if (!hasOutput) {
-                if (result.IsError) Console.Error.WriteLine("(无文本输出)"); else Console.WriteLine("(无文本输出)");
-            }
-            if (result.TimingInfo is not null) TerminalHelper.WriteLine(result.TimingInfo);
+    private static int OutputResult(ToolResult result, bool json)
+        => json ? OutputJsonResult(result) : OutputTextResult(result);
+
+    /// <summary>JSON 模式输出 — 3 路优先级：error/empty → 序列化整个结果；已是 JSON → 直接输出；否则 → 序列化字符串</summary>
+    private static int OutputJsonResult(ToolResult result) {
+        var text = (result.Content.Count == 1 ? result.Content[0].Text : null) ?? string.Empty;
+        if (result.IsError || string.IsNullOrEmpty(text)) {
+            Console.WriteLine(GhJsonContext.UnescapeHtmlChars(JsonSerializer.Serialize(result, GhJsonContext.Safe.ToolResult)));
+            return result.IsError ? 1 : 0;
         }
+        if (text.Length > 0 && (text[0] == '[' || text[0] == '{' || text[0] == '"' || IsJsonPrimitive(text))) {
+            Console.WriteLine(text);
+            return result.IsError ? 1 : 0;
+        }
+        Console.WriteLine(GhJsonContext.UnescapeHtmlChars(JsonSerializer.Serialize(text, GhJsonContext.Safe.String)));
         return result.IsError ? 1 : 0;
+    }
+
+    /// <summary>文本模式输出 — LINQ 过滤非空内容消除 hasOutput 标志位，无内容时输出占位提示</summary>
+    private static int OutputTextResult(ToolResult result) {
+        var nonEmptyContents = result.Content.Where(c => !string.IsNullOrEmpty(c.Text)).ToList();
+        if (nonEmptyContents.Count == 0) WriteToChannel("(无文本输出)", result.IsError);
+        else nonEmptyContents.ForEach(c => WriteToChannel(c.Text, result.IsError));
+        if (result.TimingInfo is not null) TerminalHelper.WriteLine(result.TimingInfo);
+        return result.IsError ? 1 : 0;
+    }
+
+    /// <summary>按错误标志分流到 stderr/stdout</summary>
+    private static void WriteToChannel(string? text, bool isError) {
+        if (string.IsNullOrEmpty(text)) return;
+        if (isError) Console.Error.WriteLine(text); else Console.WriteLine(text);
     }
 
     /// <summary>判断 text 是否是 JSON 原始值（数字/true/false/null），用于 --jq 结果直接输出而非再次序列化</summary>

@@ -126,25 +126,17 @@ public partial class GitHubToolHandlers {
     /// </summary>
     internal string FormatGhOutput(string body, int? verbosity, string? json_fields, Func<string, string> summarize, string? compactFields = null, string? jq = null, int? skipLines = null, int? startLine = null, string? toolName = null) {
         var effectiveVerbosity = verbosity ?? GetVerbosityFromEnv();
-        var isFullJson = effectiveVerbosity == 2;
-        var addLineNumbers = !isFullJson;
+        if (effectiveVerbosity == 2) return body;  // full_json: 完整JSON不截断不加行号,直接返回
 
-        // jq: 最高优先级,所有模式均支持
-        if (!string.IsNullOrEmpty(jq))
-            return ApplyPaginationAndTruncation(SimpleJqEvaluator.Evaluate(body, jq) ?? body, skipLines, startLine, toolName, _compactLinePrefix, addLineNumbers);
+        var formatted = ResolveFormattedBody(body, effectiveVerbosity, json_fields, summarize, compactFields, jq);
+        return ApplyPaginationAndTruncation(formatted, skipLines, startLine, toolName, _compactLinePrefix, addLineNumbers: true);
+    }
 
-        // json_fields: 第二优先级
-        if (!string.IsNullOrEmpty(json_fields))
-            return ApplyPaginationAndTruncation(FilterJsonFields(body, json_fields), skipLines, startLine, toolName, _compactLinePrefix, addLineNumbers);
-
-        // full_json: 完整JSON不截断不加行号,直接返回
-        if (isFullJson) return body;
-
-        // compact_json(1) 或 gh_style(0): 格式化 + 分页 + 截断 + 行号
-        var formatted = effectiveVerbosity == 1
-            ? FilterJsonFields(body, compactFields ?? "id,number,title,state,name")
-            : summarize(body);
-        return ApplyPaginationAndTruncation(formatted, skipLines, startLine, toolName, _compactLinePrefix, addLineNumbers);
+    /// <summary>解析输出体 — 3 路优先级：jq → json_fields → compact_json/gh_style</summary>
+    private string ResolveFormattedBody(string body, int verbosity, string? json_fields, Func<string, string> summarize, string? compactFields, string? jq) {
+        if (!string.IsNullOrEmpty(jq)) return SimpleJqEvaluator.Evaluate(body, jq) ?? body;
+        if (!string.IsNullOrEmpty(json_fields)) return FilterJsonFields(body, json_fields);
+        return verbosity == 1 ? FilterJsonFields(body, compactFields ?? "id,number,title,state,name") : summarize(body);
     }
 
     /// <summary>

@@ -926,11 +926,13 @@ public partial class GitHubToolHandlers {
     /// 查看可用许可证列表 — 调 REST API GET /licenses 获取 SPDX 许可证列表
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhLicenses, "查看可用开源许可证列表(API)", "github", ConcurrencySafe = true)]
-    public async Task<ToolResult> GhLicensesAsync(CancellationToken cancellationToken = default) {
+    public async Task<ToolResult> GhLicensesAsync(
+        [McpToolOptions] GitHubCommonOptions? common = null,
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return Fail("GitHub REST API 客户端未配置(IGitHubApiClient 未注入)");
         var result = await _apiClient.SendAsync(HttpMethod.Get, "licenses", ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(SummarizeLicenses(result.Body));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeLicenses, "key,name,spdx_id", common?.Jq, common?.SkipLines, common?.StartLine, "gh_licenses"));
     }
 
     /// <summary>

@@ -754,17 +754,14 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
-            if (!string.IsNullOrWhiteSpace(comment)) {
-                var commentBody = JsonSerializer.Serialize(new CommentRequest { Body = comment }, GitHubApiJsonContext.Safe.CommentRequest);
-                await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", commentBody, ct: cancellationToken).ConfigureAwait(false);
-            }
+            var commentWarning = await TryPostCommentAsync(client, owner, repoName, number, comment, cancellationToken).ConfigureAwait(false);
             var body = JsonSerializer.Serialize(new PrEditRequest { State = "closed" }, GitHubApiJsonContext.Safe.PrEditRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", body, ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(result.Error);
             if (delete_branch == true) {
                 await TryDeleteBranchAsync(client, owner, repoName, number, cancellationToken).ConfigureAwait(false);
             }
-            return OkBrief(result.Body, $"已关闭 PR {number}");
+            return OkBrief(result.Body, $"已关闭 PR {number}{commentWarning}");
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -778,13 +775,10 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var number = ParseNumberFromRef(pr_number);
-            if (!string.IsNullOrWhiteSpace(comment)) {
-                var commentBody = JsonSerializer.Serialize(new CommentRequest { Body = comment }, GitHubApiJsonContext.Safe.CommentRequest);
-                await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", commentBody, ct: cancellationToken).ConfigureAwait(false);
-            }
+            var commentWarning = await TryPostCommentAsync(client, owner, repoName, number, comment, cancellationToken).ConfigureAwait(false);
             var body = JsonSerializer.Serialize(new PrEditRequest { State = "open" }, GitHubApiJsonContext.Safe.PrEditRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", body, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已重开 PR {number}") : Fail(result.Error);
+            return result.Success ? OkBrief(result.Body, $"已重开 PR {number}{commentWarning}") : Fail(result.Error);
         }).ConfigureAwait(false);
 
     /// <summary>

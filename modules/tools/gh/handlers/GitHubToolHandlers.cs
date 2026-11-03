@@ -106,6 +106,14 @@ public partial class GitHubToolHandlers {
         return ToolResultBuilder.Error().WithText(message).Build();
     }
 
+    /// <summary>发布评论并返回警告文案(失败时非 null) — close/reopen 附带评论场景,评论失败不阻止主操作但警告用户</summary>
+    internal static async Task<string?> TryPostCommentAsync(IGitHubApiClient client, string owner, string repoName, string number, string? comment, CancellationToken ct) {
+        if (string.IsNullOrWhiteSpace(comment)) return null;
+        var commentBody = JsonSerializer.Serialize(new CommentRequest { Body = comment }, GitHubApiJsonContext.Safe.CommentRequest);
+        var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", commentBody, ct: ct).ConfigureAwait(false);
+        return result.Success ? null : $"(⚠ 评论发布失败: {result.Error})";
+    }
+
     /// <summary>
     /// 构建成功 ToolResult
     /// </summary>

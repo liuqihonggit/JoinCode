@@ -372,6 +372,7 @@ internal static class GhArgsBinder {
         ["gh_pr_merge"] = new(
             ("auto",              new GhCliAlias("auto_merge", "true", AliasKind.FixedValue)),
             ("enable-auto-merge", new GhCliAlias("auto_merge", "true", AliasKind.FixedValue)),
+            ("enable-merge",      new GhCliAlias("auto_merge", "true", AliasKind.FixedValue)),
             ("squash",            new GhCliAlias("merge_method", "squash", AliasKind.FixedValue)),
             ("merge",             new GhCliAlias("merge_method", "merge", AliasKind.FixedValue)),
             ("rebase",            new GhCliAlias("merge_method", "rebase", AliasKind.FixedValue)),
@@ -391,6 +392,8 @@ internal static class GhArgsBinder {
             ("fill-first",        new GhCliAlias("fill_first", "true", AliasKind.FixedValue)),
             ("fill-verbose",      new GhCliAlias("fill_verbose", "true", AliasKind.FixedValue)),
             ("enable-auto-merge", new GhCliAlias("auto_merge", "true", AliasKind.FixedValue)),
+            ("enable-merge",      new GhCliAlias("auto_merge", "true", AliasKind.FixedValue)),
+            ("auto",              new GhCliAlias("auto_merge", "true", AliasKind.FixedValue)),
             ("auto-merge-method", new GhCliAlias("merge_method", null, AliasKind.TakeNextToken)),
             ("squash",            new GhCliAlias("merge_method", "squash", AliasKind.FixedValue)),
             ("merge",             new GhCliAlias("merge_method", "merge", AliasKind.FixedValue)),

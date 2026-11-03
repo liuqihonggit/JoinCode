@@ -183,6 +183,98 @@ internal sealed class SearchIssueItemResponse {
     public string? RepositoryUrl { get; init; }
 }
 
+/// <summary>搜索代码响应 — GET /search/code</summary>
+internal sealed class SearchCodeResponse {
+    /// <summary>总数</summary>
+    [JsonPropertyName("total_count")]
+    public int TotalCount { get; init; }
+    /// <summary>代码结果列表</summary>
+    [JsonPropertyName("items")]
+    public List<SearchCodeItemResponse> Items { get; init; } = new();
+}
+
+/// <summary>搜索代码项</summary>
+internal sealed class SearchCodeItemResponse {
+    /// <summary>文件名</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+    /// <summary>文件路径</summary>
+    [JsonPropertyName("path")]
+    public string Path { get; init; } = "";
+    /// <summary>HTML URL</summary>
+    [JsonPropertyName("html_url")]
+    public string? HtmlUrl { get; init; }
+    /// <summary>所属仓库</summary>
+    [JsonPropertyName("repository")]
+    public SearchCodeRepoResponse? Repository { get; init; }
+}
+
+/// <summary>搜索代码项中的仓库信息</summary>
+internal sealed class SearchCodeRepoResponse {
+    /// <summary>全名(owner/repo)</summary>
+    [JsonPropertyName("full_name")]
+    public string FullName { get; init; } = "";
+    /// <summary>HTML URL</summary>
+    [JsonPropertyName("html_url")]
+    public string? HtmlUrl { get; init; }
+}
+
+/// <summary>搜索提交响应 — GET /search/commits</summary>
+internal sealed class SearchCommitResponse {
+    /// <summary>总数</summary>
+    [JsonPropertyName("total_count")]
+    public int TotalCount { get; init; }
+    /// <summary>提交列表</summary>
+    [JsonPropertyName("items")]
+    public List<SearchCommitItemResponse> Items { get; init; } = new();
+}
+
+/// <summary>搜索提交项</summary>
+internal sealed class SearchCommitItemResponse {
+    /// <summary>SHA</summary>
+    [JsonPropertyName("sha")]
+    public string Sha { get; init; } = "";
+    /// <summary>提交信息</summary>
+    [JsonPropertyName("commit")]
+    public SearchCommitInfoResponse? Commit { get; init; }
+    /// <summary>HTML URL</summary>
+    [JsonPropertyName("html_url")]
+    public string? HtmlUrl { get; init; }
+    /// <summary>作者</summary>
+    [JsonPropertyName("author")]
+    public SearchCommitUserResponse? Author { get; init; }
+    /// <summary>所属仓库</summary>
+    [JsonPropertyName("repository")]
+    public SearchCodeRepoResponse? Repository { get; init; }
+}
+
+/// <summary>搜索提交项中的 commit 信息</summary>
+internal sealed class SearchCommitInfoResponse {
+    /// <summary>提交消息</summary>
+    [JsonPropertyName("message")]
+    public string Message { get; init; } = "";
+    /// <summary>作者信息</summary>
+    [JsonPropertyName("author")]
+    public SearchCommitAuthorResponse? Author { get; init; }
+}
+
+/// <summary>搜索提交项中的作者信息</summary>
+internal sealed class SearchCommitAuthorResponse {
+    /// <summary>名字</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+    /// <summary>日期</summary>
+    [JsonPropertyName("date")]
+    public string Date { get; init; } = "";
+}
+
+/// <summary>搜索提交项中的用户信息</summary>
+internal sealed class SearchCommitUserResponse {
+    /// <summary>登录名</summary>
+    [JsonPropertyName("login")]
+    public string Login { get; init; } = "";
+}
+
 // === Workflow 响应 ===
 
 /// <summary>Workflow 列表响应 — GET /actions/workflows</summary>

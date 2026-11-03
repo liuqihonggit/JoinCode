@@ -179,9 +179,16 @@ internal static class GhCommandResolver {
     /// <summary>缺少动作时的 Rust 风格报错 + 该分组用法。</summary>
     private static string MissingActionError(string group) {
         var known = string.Join(" | ", KnownGroups);
-        var hint = Array.IndexOf(KnownGroups, group.ToLowerInvariant()) >= 0
-            ? $"用法: jcc gh {group} <action> [参数]（用 jcc mcp_list --category github 查看全部 gh_* 工具）"
-            : $"未知分组: {group}。可用分组: {known}";
+        if (Array.IndexOf(KnownGroups, group.ToLowerInvariant()) < 0)
+            return $"{CliErrorCatalog.ResourceNotFound("gh 分组", group).ToRustStyleString($"gh {group}")}\n可用分组: {known}";
+        var prefix = $"gh_{group.Replace('-', '_')}_";
+        var actions = GhDispatcher.GetToolNames()
+            .Where(n => n.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .Select(n => n[prefix.Length..].Replace('_', '-'))
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToList();
+        var actionHint = actions.Count > 0 ? $"\n可用 action: {string.Join(", ", actions)}" : "";
+        var hint = $"用法: jcc gh {group} <action> [参数]{actionHint}";
         return $"{CliErrorCatalog.ArgParseError("缺少 action").ToRustStyleString($"gh {group}")}\n{hint}";
     }
 

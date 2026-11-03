@@ -5,23 +5,24 @@ namespace Core.Utils;
 /// <para>支持同步 TryConsume 与异步 WaitForTokensAsync 两种消费方式</para>
 /// </summary>
 public sealed class TokenBucket : IDisposable {
-    private readonly AsyncLock _gate = new();
     private readonly double _capacity;
     private readonly double _refillRatePerSecond;
     private readonly Func<DateTime> _timeProvider;
-    private double _tokens;
-    private DateTime _lastRefillTime;
+    private BucketState _state;
+    private int _disposed;
+
+    private sealed record BucketState(double Tokens, DateTime LastRefillTime);
 
     /// <summary>当前可用令牌数(读取时触发惰性补充)</summary>
     public double CurrentTokens {
         get {
-            var guard = _gate.TryLock();
-            if (guard is null)
-                return _tokens;
-
-            using (guard) {
-                Refill();
-                return _tokens;
+            while (true) {
+                var current = Volatile.Read(ref _state);
+                var refilled = Refill(current);
+                if (refilled == current)
+                    return refilled.Tokens;
+                if (Interlocked.CompareExchange(ref _state, refilled, current) == current)
+                    return refilled.Tokens;
             }
         }
     }
@@ -38,8 +39,7 @@ public sealed class TokenBucket : IDisposable {
         _capacity = capacity;
         _refillRatePerSecond = refillRatePerSecond;
         _timeProvider = timeProvider ?? DefaultTimeProvider;
-        _tokens = capacity;
-        _lastRefillTime = _timeProvider();
+        _state = new BucketState(capacity, _timeProvider());
     }
 
     /// <summary>
@@ -49,15 +49,14 @@ public sealed class TokenBucket : IDisposable {
     /// <param name="ct">取消令牌</param>
     public async Task WaitForTokensAsync(double requiredTokens, CancellationToken ct = default) {
         while (true) {
-            using var guard = await _gate.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_gate.Name}' 等待超时");
+            var current = Volatile.Read(ref _state);
+            var refilled = Refill(current);
 
-            Refill();
-
-            if (_tokens >= requiredTokens) {
-                _tokens -= requiredTokens;
-                return;
+            if (refilled.Tokens >= requiredTokens) {
+                var newState = refilled with { Tokens = refilled.Tokens - requiredTokens };
+                if (Interlocked.CompareExchange(ref _state, newState, current) == current)
+                    return;
             }
-
 
             await Task.Delay(10, ct).ConfigureAwait(false);
         }
@@ -67,37 +66,37 @@ public sealed class TokenBucket : IDisposable {
     /// 尝试同步消费令牌,令牌不足时立即返回 false
     /// </summary>
     /// <param name="requiredTokens">需要的令牌数</param>
-    /// <returns>消费成功返回 true,令牌不足或锁竞争失败返回 false</returns>
+    /// <returns>消费成功返回 true,令牌不足返回 false</returns>
     public bool TryConsume(double requiredTokens) {
-        var guard = _gate.TryLock();
-        if (guard is null)
-            return false;
+        while (true) {
+            var current = Volatile.Read(ref _state);
+            var refilled = Refill(current);
 
-        using (guard) {
-            Refill();
-
-            if (_tokens >= requiredTokens) {
-                _tokens -= requiredTokens;
-                return true;
+            if (refilled.Tokens >= requiredTokens) {
+                var newState = refilled with { Tokens = refilled.Tokens - requiredTokens };
+                if (Interlocked.CompareExchange(ref _state, newState, current) == current)
+                    return true;
+            } else {
+                return false;
             }
-
-            return false;
         }
     }
 
-    private void Refill() {
+    private BucketState Refill(BucketState state) {
         var now = _timeProvider();
-        var elapsedSeconds = (now - _lastRefillTime).TotalSeconds;
+        var elapsedSeconds = (now - state.LastRefillTime).TotalSeconds;
 
         if (elapsedSeconds > 0) {
             var tokensToAdd = elapsedSeconds * _refillRatePerSecond;
-            _tokens = Math.Min(_capacity, _tokens + tokensToAdd);
-            _lastRefillTime = now;
+            return state with { Tokens = Math.Min(_capacity, state.Tokens + tokensToAdd), LastRefillTime = now };
         }
+        return state;
     }
 
-    /// <summary>释放令牌桶内部锁资源</summary>
-    public void Dispose() => _gate.Dispose();
+    /// <summary>释放令牌桶资源</summary>
+    public void Dispose() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+    }
 
     private static DateTime DefaultTimeProvider() => DateTime.UtcNow;
 }

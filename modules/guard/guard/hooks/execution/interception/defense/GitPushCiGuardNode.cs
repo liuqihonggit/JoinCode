@@ -10,14 +10,14 @@ namespace Core.Hooks.Execution.Interception.Defense;
 /// </summary>
 [Register(typeof(GitPushCiGuardNode), ServiceLifetime.Singleton)]
 public sealed class GitPushCiGuardNode {
-    private readonly ICiRunStatusChecker _ciStatusChecker;
+    private readonly ICiRunStatusChecker? _ciStatusChecker;
 
     /// <summary>
     /// 构造 git push CI 守卫 node。
     /// </summary>
-    /// <param name="ciStatusChecker">CI 运行状态检查器（查 GitHub Actions in_progress run）</param>
-    public GitPushCiGuardNode(ICiRunStatusChecker ciStatusChecker) {
-        _ciStatusChecker = ciStatusChecker ?? throw new ArgumentNullException(nameof(ciStatusChecker));
+    /// <param name="ciStatusChecker">CI 运行状态检查器（查 GitHub Actions in_progress run）。可选 — gh 工具未引用时为 null，降级为不检查。</param>
+    public GitPushCiGuardNode(ICiRunStatusChecker? ciStatusChecker = null) {
+        _ciStatusChecker = ciStatusChecker;
     }
 
     /// <summary>
@@ -30,6 +30,7 @@ public sealed class GitPushCiGuardNode {
     public async ValueTask<GitPushCiGuardResult?> CheckGitPushAsync(string command, string workingDirectory, CancellationToken ct) {
         var branch = ExtractPushBranch(command);
         if (branch is null) return null;
+        if (_ciStatusChecker is null) return null;
 
         var status = await _ciStatusChecker.CheckBranchCiStatusAsync(workingDirectory, branch, ct).ConfigureAwait(false);
         if (!status.IsRunning) return null;

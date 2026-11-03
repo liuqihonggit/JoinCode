@@ -169,7 +169,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, "user/gpg_keys", ct: cancellationToken).ConfigureAwait(false);
-        if (!result.Success) return Fail(result.Error);
+        if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_gpg_key_list", "user/gpg_keys"));
         return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeGpgKeyList, "id,key_id,public_key", common?.Jq, common?.SkipLines, common?.StartLine, "gh_gpg_key_list"));
     }
 
@@ -183,7 +183,7 @@ public partial class GitHubToolHandlers {
         if (_apiClient is null) return ApiClientNotConfigured();
         var jsonBody = JsonSerializer.Serialize(new GpgKeyAddRequest { ArmoredPublicKey = key }, GitHubApiJsonContext.Safe.GpgKeyAddRequest);
         var result = await _apiClient.SendAsync(HttpMethod.Post, "user/gpg_keys", jsonBody, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? OkBrief(result.Body, "GPG Key 添加成功") : Fail(result.Error);
+        return result.Success ? OkBrief(result.Body, "GPG Key 添加成功") : Fail(EnrichApiError(result.Error, "gh_gpg_key_add", "user/gpg_keys"));
     }
 
     /// <summary>
@@ -195,7 +195,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Delete, $"user/gpg_keys/{key_id}", ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok($"已删除 GPG Key {key_id}") : Fail(result.Error);
+        return result.Success ? Ok($"已删除 GPG Key {key_id}") : Fail(EnrichApiError(result.Error, "gh_gpg_key_delete", $"user/gpg_keys/{key_id}"));
     }
 
     /// <summary>

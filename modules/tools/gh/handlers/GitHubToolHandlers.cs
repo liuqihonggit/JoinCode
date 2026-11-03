@@ -394,9 +394,13 @@ public partial class GitHubToolHandlers {
             "gh_org_view" => $"组织获取失败 — {error}。可能原因: ① 组织名不存在 ② token 无权限访问该组织。提示: 用 gh org list 查看当前用户所属组织",
             "gh_ssh_key_view" => $"SSH Key 获取失败 — {error}。可能原因: ① Key ID 不存在。提示: 用 gh ssh-key list 查看可用 Key ID",
             "gh_gpg_key_view" => $"GPG Key 获取失败 — {error}。可能原因: ① Key ID 不存在。提示: 用 gh gpg-key list 查看可用 Key ID",
+            "gh_gpg_key_list" => $"GPG Key 列表获取失败 — {error}。可能原因: token 缺少 admin:gpg_key scope。提示: 到 https://github.com/settings/tokens 更新 token scope 添加 admin:gpg_key 后重新设置 JCC_GITHUB_TOKEN",
+            "gh_gpg_key_add" => $"GPG Key 添加失败 — {error}。可能原因: ① key 格式不是 ASCII armored ② token 缺少 admin:gpg_key scope。提示: 到 https://github.com/settings/tokens 更新 token scope",
+            "gh_gpg_key_delete" => $"GPG Key 删除失败 — {error}。可能原因: ① Key ID 不存在 ② token 缺少 admin:gpg_key scope。提示: 用 gh gpg-key list 查看可用 Key ID",
             _ => $"{toolName ?? "gh"} 调用失败 — {error}。API 路径: {apiPath}"
         };
-        return $"{context}\n提示: 若仓库为私有, 404 也可能是 token 未配置/无效 — 设置 JCC_GITHUB_TOKEN 或运行 gh auth login";
+        var noGenericHint = toolName is "gh_gpg_key_list" or "gh_gpg_key_add" or "gh_gpg_key_delete" or "gh_ssh_key_view" or "gh_gpg_key_view" or "gh_org_view";
+        return noGenericHint ? context : $"{context}\n提示: 若仓库为私有, 404 也可能是 token 未配置/无效 — 设置 JCC_GITHUB_TOKEN 或运行 gh auth login";
     }
 
     /// <summary>

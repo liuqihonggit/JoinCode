@@ -124,6 +124,11 @@ public sealed class AgentToolContext {
     public long? ExecutionTimeMs { get; set; }
 
     /// <summary>
+    /// 子代理 TokenUsage — 由流式执行中间件设置，供 HandoffMiddleware 透传到 ToolResult.Usage
+    /// </summary>
+    public JoinCode.Abstractions.LLM.Chat.TokenUsage? SubagentUsage { get; set; }
+
+    /// <summary>
     /// 内容输出 — 由流式执行中间件累积
     /// </summary>
     public StringBuilder ContentBuilder { get; } = new();

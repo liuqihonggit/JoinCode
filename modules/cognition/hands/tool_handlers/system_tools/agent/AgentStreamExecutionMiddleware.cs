@@ -114,6 +114,7 @@ public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAge
         context.AgentId = agentId;
         context.Succeeded = succeeded;
         context.ErrorMessage = errorMessage;
+        context.SubagentUsage = finalUsage;
 
         if (agentId is not null) {
             // 统计收尾：成功携带最终输出（Complete 块），失败携带错误消息

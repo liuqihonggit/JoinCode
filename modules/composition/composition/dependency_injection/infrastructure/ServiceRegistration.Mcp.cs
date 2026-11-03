@@ -52,7 +52,9 @@ public static partial class ServiceRegistration {
         });
 
         services.AddSingleton<MiddlewarePipeline<AgentToolContext>>(sp => {
-            var middlewares = sp.GetServices<IAgentToolMiddleware>().Cast<IMiddleware<AgentToolContext>>();
+            var middlewares = sp.GetServices<IAgentToolMiddleware>()
+                .Cast<IMiddleware<AgentToolContext>>()
+                .OrderBy(m => ((IAgentToolMiddleware)m).Order);
             var builder = new PipelineBuilder<AgentToolContext>()
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
                 .UseRange(middlewares);

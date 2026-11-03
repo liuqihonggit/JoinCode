@@ -191,6 +191,13 @@ public sealed record ToolResult {
     [JsonIgnore]
     public string? TimingInfo { get; set; }
 
+    /// <summary>
+    /// 子代理 TokenUsage — agent 工具执行后携带子代理的 token 用量（含缓存命中），
+    /// 供 QueryEngine 累计到主代理的最终 Done 事件 usage
+    /// </summary>
+    [JsonIgnore]
+    public JoinCode.Abstractions.LLM.Chat.TokenUsage? Usage { get; set; }
+
     /// <summary>获取首个非空文本内容。</summary>
     public string? GetFirstText() => Content.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text;
 

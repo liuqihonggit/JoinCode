@@ -88,6 +88,7 @@ public sealed partial class AgentHandoffMiddleware : ServiceEntity, IAgentToolMi
         context.Result = ToolResultBuilder.Success()
             .WithText(responseBuilder.ToString())
             .Build();
+        context.Result = context.Result with { Usage = context.SubagentUsage };
 
         await next(context, ct).ConfigureAwait(false);
     }

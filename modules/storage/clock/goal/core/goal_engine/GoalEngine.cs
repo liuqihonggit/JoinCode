@@ -15,7 +15,9 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     private readonly IChatClient _kernel;
     private readonly IGoalEvaluator _evaluator;
     private readonly IGoalHeartbeat _heartbeat;
-    private readonly AsyncLock _stateLock = new();
+    private readonly Channel<GoalEngineCommand> _commandChannel = Channel.CreateUnbounded<GoalEngineCommand>(
+        new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
+    private readonly Task _consumerTask;
     private readonly ILogger<GoalEngine>? _logger;
     private readonly IClockService _clock;
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
@@ -24,17 +26,17 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     private readonly IGoalGraphTemplateRegistry _templateRegistry = null!;
     private readonly IToolPermissionManager? _permissionManager;
     private readonly MiddlewarePipeline<GoalLifecycleContext>? _lifecyclePipeline;
-    private GoalState? _state;
+    private volatile GoalState? _state;
     private CancellationTokenSource? _engineCts;
     private Task? _engineLoop;
     private int _goalCounter;
     private PermissionMode? _savedPermissionMode;
     private readonly MessageList _chatHistory;
-    private TaskCompletionSource? _completionTcs;
-    private GoalGraph? _goalGraph;
-    private GoalGraphEngine? _graphEngine;
+    private volatile TaskCompletionSource? _completionTcs;
+    private volatile GoalGraph? _goalGraph;
+    private volatile GoalGraphEngine? _graphEngine;
     private readonly IGoalStateStore? _stateStore = null;
-    private string? _sessionId;
+    private volatile string? _sessionId;
     private int _disposed;
 
     /// <summary>当前目标状态，未启动时为 null</summary>
@@ -217,6 +219,8 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         } else if (lifecycleMiddlewares is not null) {
             _lifecyclePipeline = new MiddlewarePipeline<GoalLifecycleContext>(lifecycleMiddlewares);
         }
+
+        _consumerTask = Task.Run(ConsumeCommandsAsync);
     }
 
     /// <summary>
@@ -235,14 +239,16 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         string? systemPrompt = null,
         CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(objective);
-
-        BuildDefaultGraphIfAbsent(objective, tokenBudget);
-
-        if (_lifecyclePipeline is not null) {
-            return await StartViaPipelineAsync(objective, constraints, tokenBudget, systemPrompt, cancellationToken).ConfigureAwait(false);
-        }
-
-        return await StartDirectAsync(objective, constraints, tokenBudget, systemPrompt, cancellationToken).ConfigureAwait(false);
+        var cmd = new StartCmd {
+            Objective = objective,
+            Constraints = constraints ?? [],
+            TokenBudget = tokenBudget,
+            SystemPrompt = systemPrompt,
+            CancellationToken = cancellationToken,
+        };
+        await _commandChannel.Writer.WriteAsync(cmd, cancellationToken).ConfigureAwait(false);
+        var reply = await cmd.Reply.Task.ConfigureAwait(false);
+        return reply is GoalState state ? state : throw new InvalidOperationException("StartAsync reply was not a GoalState");
     }
 
     private void BuildDefaultGraphIfAbsent(string objective, int? tokenBudget) {
@@ -314,7 +320,6 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         int? tokenBudget,
         string? systemPrompt,
         CancellationToken cancellationToken) {
-        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state != null && _state.Status == GoalStatus.Pursuing) {
             throw new InvalidOperationException(L.T(StringKey.GoalEngineAlreadyRunning));
@@ -377,7 +382,6 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         int? tokenBudget,
         string? systemPrompt,
         CancellationToken cancellationToken) {
-        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state != null && _state.Status == GoalStatus.Pursuing) {
             throw new InvalidOperationException(L.T(StringKey.GoalEngineAlreadyRunning));
@@ -419,17 +423,12 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     public async Task PauseAsync(CancellationToken cancellationToken = default) {
-        if (_lifecyclePipeline is not null) {
-            await PauseViaPipelineAsync(cancellationToken).ConfigureAwait(false);
-        } else {
-            await PauseDirectAsync(cancellationToken).ConfigureAwait(false);
-        }
-
-        await PersistStateAsync(cancellationToken).ConfigureAwait(false);
+        var cmd = new PauseCmd { CancellationToken = cancellationToken };
+        await _commandChannel.Writer.WriteAsync(cmd, cancellationToken).ConfigureAwait(false);
+        await cmd.Reply.Task.ConfigureAwait(false);
     }
 
     private async Task PauseViaPipelineAsync(CancellationToken cancellationToken) {
-        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Pursuing) return;
 
@@ -459,7 +458,6 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     }
 
     private async Task PauseDirectAsync(CancellationToken cancellationToken) {
-        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Pursuing) return;
 
@@ -476,17 +474,12 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     public async Task ResumeAsync(CancellationToken cancellationToken = default) {
-        if (_lifecyclePipeline is not null) {
-            await ResumeViaPipelineAsync(cancellationToken).ConfigureAwait(false);
-        } else {
-            await ResumeDirectAsync(cancellationToken).ConfigureAwait(false);
-        }
-
-        await PersistStateAsync(cancellationToken).ConfigureAwait(false);
+        var cmd = new ResumeCmd { CancellationToken = cancellationToken };
+        await _commandChannel.Writer.WriteAsync(cmd, cancellationToken).ConfigureAwait(false);
+        await cmd.Reply.Task.ConfigureAwait(false);
     }
 
     private async Task ResumeViaPipelineAsync(CancellationToken cancellationToken) {
-        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Paused) return;
 
@@ -529,7 +522,6 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     }
 
     private async Task ResumeDirectAsync(CancellationToken cancellationToken) {
-        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Paused) return;
 
@@ -559,17 +551,12 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     public async Task ClearAsync(CancellationToken cancellationToken = default) {
-        if (_lifecyclePipeline is not null) {
-            await ClearViaPipelineAsync(cancellationToken).ConfigureAwait(false);
-        } else {
-            await ClearDirectAsync(cancellationToken).ConfigureAwait(false);
-        }
-
-        await PersistStateAsync(cancellationToken).ConfigureAwait(false);
+        var cmd = new ClearCmd { CancellationToken = cancellationToken };
+        await _commandChannel.Writer.WriteAsync(cmd, cancellationToken).ConfigureAwait(false);
+        await cmd.Reply.Task.ConfigureAwait(false);
     }
 
     private async Task ClearViaPipelineAsync(CancellationToken cancellationToken) {
-        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == null) return;
 
@@ -606,7 +593,6 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     }
 
     private async Task ClearDirectAsync(CancellationToken cancellationToken) {
-        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == null) return;
 
@@ -645,6 +631,12 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// 指定 goalId 时恢复该特定目标；未指定时恢复第一个活跃目标（单 goal 场景）。
     /// </summary>
     public async Task RehydrateAsync(CancellationToken cancellationToken = default, string? goalId = null) {
+        var cmd = new RehydrateCmd { CancellationToken = cancellationToken, GoalId = goalId };
+        await _commandChannel.Writer.WriteAsync(cmd, cancellationToken).ConfigureAwait(false);
+        await cmd.Reply.Task.ConfigureAwait(false);
+    }
+
+    private async Task RehydrateCoreAsync(CancellationToken cancellationToken, string? goalId) {
         if (_stateStore is null || _sessionId is null) return;
         try {
             GoalState? target;
@@ -658,7 +650,6 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             if (target is null) return;
 
             var first = target;
-            using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
             _state = first;
             _chatHistory.Clear();
@@ -682,18 +673,12 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// <param name="cancellationToken">取消令牌</param>
     public async Task MarkCompletedAsync(string reason, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
-
-        if (_lifecyclePipeline is not null) {
-            await MarkCompletedViaPipelineAsync(reason, cancellationToken).ConfigureAwait(false);
-        } else {
-            await MarkCompletedDirectAsync(reason, cancellationToken).ConfigureAwait(false);
-        }
-
-        await PersistStateAsync(cancellationToken).ConfigureAwait(false);
+        var cmd = new MarkCompletedCmd { Reason = reason, CancellationToken = cancellationToken };
+        await _commandChannel.Writer.WriteAsync(cmd, cancellationToken).ConfigureAwait(false);
+        await cmd.Reply.Task.ConfigureAwait(false);
     }
 
     private async Task MarkCompletedViaPipelineAsync(string reason, CancellationToken cancellationToken) {
-        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Pursuing) return;
 
@@ -736,7 +721,6 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     }
 
     private async Task MarkCompletedDirectAsync(string reason, CancellationToken cancellationToken) {
-        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Pursuing) return;
 
@@ -759,18 +743,12 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// <param name="cancellationToken">取消令牌</param>
     public async Task MarkUnmetAsync(string reason, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
-
-        if (_lifecyclePipeline is not null) {
-            await MarkUnmetViaPipelineAsync(reason, cancellationToken).ConfigureAwait(false);
-        } else {
-            await MarkUnmetDirectAsync(reason, cancellationToken).ConfigureAwait(false);
-        }
-
-        await PersistStateAsync(cancellationToken).ConfigureAwait(false);
+        var cmd = new MarkUnmetCmd { Reason = reason, CancellationToken = cancellationToken };
+        await _commandChannel.Writer.WriteAsync(cmd, cancellationToken).ConfigureAwait(false);
+        await cmd.Reply.Task.ConfigureAwait(false);
     }
 
     private async Task MarkUnmetViaPipelineAsync(string reason, CancellationToken cancellationToken) {
-        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Pursuing) return;
 
@@ -814,8 +792,6 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private async Task MarkUnmetDirectAsync(string reason, CancellationToken cancellationToken) {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
-
-        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Pursuing) return;
 
@@ -900,6 +876,13 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// </summary>
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+
+        _commandChannel.Writer.TryComplete();
+        try {
+            await _consumerTask.ConfigureAwait(false);
+        } catch (OperationCanceledException) {
+        }
+
         _engineCts?.Cancel();
         await _heartbeat.ResetAsync().ConfigureAwait(false);
 
@@ -915,10 +898,10 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         }
 
         await _heartbeat.DisposeAsync().ConfigureAwait(false);
-        _stateLock.Dispose();
         _engineCts?.Dispose();
         _engineCts = null;
-        if (_graphEngine is not null) await _graphEngine.DisposeAsync().ConfigureAwait(false);
+        var graphEngine = _graphEngine;
+        if (graphEngine is not null) await graphEngine.DisposeAsync().ConfigureAwait(false);
         _graphEngine = null;
         _completionTcs?.TrySetCanceled();
     }
@@ -1006,5 +989,124 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         }
 
         _logger?.LogInformation("[GoalEngine] mainAgent 创建并注册到 SessionScope: {AgentId}, Goal={GoalId}", mainAgent.Id, goalId);
+    }
+
+    private async Task ConsumeCommandsAsync() {
+        await foreach (var cmd in _commandChannel.Reader.ReadAllAsync()) {
+            try {
+                await ProcessCommandAsync(cmd).ConfigureAwait(false);
+            } catch (Exception ex) {
+                cmd.Reply.TrySetException(ex);
+            }
+        }
+    }
+
+    private async Task ProcessCommandAsync(GoalEngineCommand cmd) {
+        switch (cmd) {
+            case StartCmd c:
+                BuildDefaultGraphIfAbsent(c.Objective, c.TokenBudget);
+                GoalState startResult;
+                if (_lifecyclePipeline is not null) {
+                    startResult = await StartViaPipelineAsync(c.Objective, c.Constraints, c.TokenBudget, c.SystemPrompt, c.CancellationToken).ConfigureAwait(false);
+                } else {
+                    startResult = await StartDirectAsync(c.Objective, c.Constraints, c.TokenBudget, c.SystemPrompt, c.CancellationToken).ConfigureAwait(false);
+                }
+                c.Reply.SetResult(startResult);
+                break;
+
+            case PauseCmd c:
+                if (_lifecyclePipeline is not null) {
+                    await PauseViaPipelineAsync(c.CancellationToken).ConfigureAwait(false);
+                } else {
+                    await PauseDirectAsync(c.CancellationToken).ConfigureAwait(false);
+                }
+                await PersistStateAsync(c.CancellationToken).ConfigureAwait(false);
+                c.Reply.SetResult(null);
+                break;
+
+            case ResumeCmd c:
+                if (_lifecyclePipeline is not null) {
+                    await ResumeViaPipelineAsync(c.CancellationToken).ConfigureAwait(false);
+                } else {
+                    await ResumeDirectAsync(c.CancellationToken).ConfigureAwait(false);
+                }
+                await PersistStateAsync(c.CancellationToken).ConfigureAwait(false);
+                c.Reply.SetResult(null);
+                break;
+
+            case ClearCmd c:
+                if (_lifecyclePipeline is not null) {
+                    await ClearViaPipelineAsync(c.CancellationToken).ConfigureAwait(false);
+                } else {
+                    await ClearDirectAsync(c.CancellationToken).ConfigureAwait(false);
+                }
+                await PersistStateAsync(c.CancellationToken).ConfigureAwait(false);
+                c.Reply.SetResult(null);
+                break;
+
+            case RehydrateCmd c:
+                await RehydrateCoreAsync(c.CancellationToken, c.GoalId).ConfigureAwait(false);
+                c.Reply.SetResult(null);
+                break;
+
+            case MarkCompletedCmd c:
+                if (_lifecyclePipeline is not null) {
+                    await MarkCompletedViaPipelineAsync(c.Reason, c.CancellationToken).ConfigureAwait(false);
+                } else {
+                    await MarkCompletedDirectAsync(c.Reason, c.CancellationToken).ConfigureAwait(false);
+                }
+                await PersistStateAsync(c.CancellationToken).ConfigureAwait(false);
+                c.Reply.SetResult(null);
+                break;
+
+            case MarkUnmetCmd c:
+                if (_lifecyclePipeline is not null) {
+                    await MarkUnmetViaPipelineAsync(c.Reason, c.CancellationToken).ConfigureAwait(false);
+                } else {
+                    await MarkUnmetDirectAsync(c.Reason, c.CancellationToken).ConfigureAwait(false);
+                }
+                await PersistStateAsync(c.CancellationToken).ConfigureAwait(false);
+                c.Reply.SetResult(null);
+                break;
+        }
+    }
+
+    private abstract class GoalEngineCommand {
+        internal TaskCompletionSource<object?> Reply { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    }
+
+    private sealed class StartCmd : GoalEngineCommand {
+        internal required string Objective { get; init; }
+        internal List<string> Constraints { get; init; } = [];
+        internal int? TokenBudget { get; init; }
+        internal string? SystemPrompt { get; init; }
+        internal CancellationToken CancellationToken { get; init; }
+    }
+
+    private sealed class PauseCmd : GoalEngineCommand {
+        internal CancellationToken CancellationToken { get; init; }
+    }
+
+    private sealed class ResumeCmd : GoalEngineCommand {
+        internal CancellationToken CancellationToken { get; init; }
+    }
+
+    private sealed class ClearCmd : GoalEngineCommand {
+        internal CancellationToken CancellationToken { get; init; }
+    }
+
+    private sealed class RehydrateCmd : GoalEngineCommand {
+        internal CancellationToken CancellationToken { get; init; }
+        internal string? GoalId { get; init; }
+    }
+
+    private sealed class MarkCompletedCmd : GoalEngineCommand {
+        internal required string Reason { get; init; }
+        internal CancellationToken CancellationToken { get; init; }
+    }
+
+    private sealed class MarkUnmetCmd : GoalEngineCommand {
+        internal required string Reason { get; init; }
+        internal CancellationToken CancellationToken { get; init; }
     }
 }

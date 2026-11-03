@@ -542,7 +542,7 @@ public class OpenAIQueryService : QueryServiceBase {
             if (!line.StartsWith("data: ")) continue;
 
             var data = line[6..];
-            if (data.AsSpan().TrimEnd() == "[DONE]") {
+            if (data.TrimEnd() == "[DONE]") {
                 Diag.WriteLine($"[WIRE {CallTrace.CurrentId}] 流结束 | chunks={chunkCount}, content={contentChunks}, toolCalls={toolCallChunks}");
                 yield break;
             }

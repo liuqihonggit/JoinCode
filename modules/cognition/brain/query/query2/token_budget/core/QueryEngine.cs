@@ -161,6 +161,9 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         var retryCount = 0;
         var totalInputTokens = 0;
         var totalOutputTokens = 0;
+        var totalCacheRead = 0;
+        var totalCacheCreation = 0;
+        var totalReasoning = 0;
         var stopHookReplies = 0;
 
         while (context.TotalToolCalls < _config.MaxToolCallIterations) {
@@ -208,6 +211,11 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             context.OutputTokens = iterationResult.OutputTokens;
             totalInputTokens += iterationResult.InputTokens;
             totalOutputTokens += iterationResult.OutputTokens;
+            if (iterationResult.Usage is { } iterUsage) {
+                totalCacheRead += iterUsage.CacheReadInputTokens;
+                totalCacheCreation += iterUsage.CacheCreationInputTokens;
+                totalReasoning += iterUsage.ReasoningTokens;
+            }
             context.ToolName = iterationResult.ToolCall?.ToolName;
             context.HasToolCall = iterationResult.ToolCall is not null;
 
@@ -246,7 +254,13 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 var content = iterationResult.Content ?? string.Empty;
                 // P7：累计 usage 随 Complete chunk 透传 — metadata 未提供 token 数时保持 null（禁伪 0）
                 var usage = (totalInputTokens > 0 || totalOutputTokens > 0)
-                    ? new JoinCode.Abstractions.LLM.Chat.TokenUsage(totalInputTokens, totalOutputTokens)
+                    ? new JoinCode.Abstractions.LLM.Chat.TokenUsage {
+                        PromptTokens = totalInputTokens,
+                        CompletionTokens = totalOutputTokens,
+                        CacheReadInputTokens = totalCacheRead,
+                        CacheCreationInputTokens = totalCacheCreation,
+                        ReasoningTokens = totalReasoning,
+                    }
                     : null;
                 context.OutputChunks.Add(BuildCompletionChunk(content, context.Stopwatch.ElapsedMilliseconds, context.TotalToolCalls, context.TotalCostUsd, BuildCacheSafeParams(context), usage, MapFinishReasonToStopReason(iterationResult.FinishReason)));
                 return;
@@ -408,6 +422,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         var pendingToolCalls = new List<ToolCallRequest>();
         var inputTokens = 0;
         var outputTokens = 0;
+        JoinCode.Abstractions.LLM.Chat.TokenUsage? streamUsage = null;
         var lastFinishReason = (string?)null;
 
         await foreach (var streamChunk in chatCompletionService.GetStreamEventContentsAsync(
@@ -467,6 +482,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                     if (JsonSerializer.Deserialize<JoinCode.Abstractions.LLM.Chat.TokenUsage>(usageEl, Core.Context.ChatServiceJsonContext.Default.TokenUsage) is { } tokenUsage) {
                         inputTokens = tokenUsage.PromptTokens;
                         outputTokens = tokenUsage.CompletionTokens;
+                        streamUsage = tokenUsage;
                     }
                 } catch (JsonException ex) {
                     _logger?.LogWarning(ex, "[QueryEngine] Usage metadata 反序列化失败，跳过");
@@ -485,6 +501,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 Chunks = chunks,
                 InputTokens = inputTokens,
                 OutputTokens = outputTokens,
+                Usage = streamUsage,
                 FinishReason = lastFinishReason
             };
         }
@@ -499,6 +516,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             Chunks = chunks,
             InputTokens = inputTokens,
             OutputTokens = outputTokens,
+            Usage = streamUsage,
             FinishReason = lastFinishReason
         };
     }
@@ -779,6 +797,8 @@ internal sealed class QueryIterationResult {
     public int InputTokens { get; init; }
     /// <summary>获取输出 Token 数</summary>
     public int OutputTokens { get; init; }
+    /// <summary>获取本轮完整 TokenUsage（含缓存命中/创建/推理 token — P7 透传至 Done 事件）</summary>
+    public JoinCode.Abstractions.LLM.Chat.TokenUsage? Usage { get; init; }
     /// <summary>获取本轮 LLM finish_reason（stop/length/content_filter/tool_calls），null=未知</summary>
     public string? FinishReason { get; init; }
 }

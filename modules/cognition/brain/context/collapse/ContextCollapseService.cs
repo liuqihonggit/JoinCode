@@ -346,16 +346,16 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
 
     private static List<PatternRange> DetectRepetitivePatterns(string content) {
         var patterns = new List<PatternRange>();
-        var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan());
+        var contentSpan = content.AsSpan();
+        var ranges = LineSpanIndexer.BuildLineRanges(contentSpan);
         var lineCounts = new Dictionary<string, (int Count, int FirstLine, int LastLine)>();
 
         for (var i = 0; i < ranges.Count; i++) {
             var (start, length) = ranges[i];
-            var line = content.Substring(start, length);
-            var trimmed = line.Trim();
+            var trimmed = contentSpan.Slice(start, length).Trim();
             if (trimmed.Length < 10) continue;
 
-            var key = trimmed.Length > 50 ? trimmed[..50] : trimmed;
+            var key = new string(trimmed.Length > 50 ? trimmed[..50] : trimmed);
             if (lineCounts.TryGetValue(key, out var existing)) {
                 lineCounts[key] = (existing.Count + 1, existing.FirstLine, i);
             } else {

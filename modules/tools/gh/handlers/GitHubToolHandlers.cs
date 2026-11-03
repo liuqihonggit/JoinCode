@@ -139,10 +139,16 @@ public partial class GitHubToolHandlers {
         return ApplyPaginationAndTruncation(formatted, skipLines, startLine, toolName, _compactLinePrefix, addLineNumbers: true);
     }
 
-    /// <summary>应用显式过滤 — jq/json_fields 非空时返回过滤结果，均为空时返回 null 交回 verbosity 决策</summary>
+    /// <summary>应用显式过滤 — jq/json_fields 非空时返回过滤结果，均为空时返回 null 交回 verbosity 决策
+    /// <para>当 json_fields 和 jq 同时存在时,先应用 json_fields 过滤再应用 jq（支持 --json headRefOid --jq '.headRefOid' 模式）</para>
+    /// </summary>
     private static string? ApplyExplicitFilters(string body, string? jq, string? json_fields) {
+        if (!string.IsNullOrEmpty(json_fields)) {
+            var filtered = FilterJsonFields(body, json_fields);
+            if (!string.IsNullOrEmpty(jq)) return SimpleJqEvaluator.Evaluate(filtered, jq) ?? filtered;
+            return filtered;
+        }
         if (!string.IsNullOrEmpty(jq)) return SimpleJqEvaluator.Evaluate(body, jq) ?? body;
-        if (!string.IsNullOrEmpty(json_fields)) return FilterJsonFields(body, json_fields);
         return null;
     }
 
@@ -467,10 +473,15 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// gh CLI 平铺字段别名解析 — 系统 gh CLI 用 --json headRefName 时从嵌套 head.ref 提取并平铺输出
     /// <para>映射: headRefName→head.ref, headRefOid→head.sha, baseRefName→base.ref, baseRefOid→base.sha</para>
+    /// <para>简单别名: databaseId→id, nameWithOwner→full_name</para>
     /// <para>宽容: 字段名忽略大小写，匹配 gh CLI 习惯</para>
     /// </summary>
     private static bool TryResolveFlattenedAlias(JsonElement element, string field, out JsonElement value) {
         value = default;
+        if (field.Equals("databaseId", StringComparison.OrdinalIgnoreCase))
+            return element.TryGetProperty("id", out value);
+        if (field.Equals("nameWithOwner", StringComparison.OrdinalIgnoreCase))
+            return element.TryGetProperty("full_name", out value);
         string parent, child;
         if (field.Equals("headRefName", StringComparison.OrdinalIgnoreCase)) { parent = "head"; child = "ref"; }
         else if (field.Equals("headRefOid", StringComparison.OrdinalIgnoreCase)) { parent = "head"; child = "sha"; }

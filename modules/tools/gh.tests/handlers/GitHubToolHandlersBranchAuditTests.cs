@@ -103,7 +103,7 @@ public sealed partial class GitHubToolHandlersTests {
         report.Should().Contain("⚠️ CI 有但保护缺 (2 个)");
         report.Should().Contain("Downloader");
         report.Should().Contain("Llm");
-        report.Should().Contain("建议");
+        report.Should().Contain("操作引导");
         report.Should().Contain("gh branch sync-protection");
     }
 
@@ -117,8 +117,8 @@ public sealed partial class GitHubToolHandlersTests {
         report.Should().Contain("❌ 保护有但 CI 无 (2 个)");
         report.Should().Contain("OldDeleted");
         report.Should().Contain("StaleCheck");
-        report.Should().Contain("警告");
-        report.Should().Contain("可能测试项目已删除");
+        report.Should().Contain("操作引导");
+        report.Should().Contain("自动清理");
     }
 
     [Fact]

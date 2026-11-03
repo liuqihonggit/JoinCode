@@ -85,7 +85,7 @@ public sealed class CliOutputEnvelope<T> {
     /// <summary>序列化为 JSON 字符串 — T 必须在 CliOutputJsonContext 注册 CliOutputEnvelope&lt;T&gt;</summary>
     /// <returns>符合 {ok, data, error, meta, schemaVersion} 结构的 JSON 字符串</returns>
     public string ToJsonString() =>
-        RelaxedJsonSerializer.Serialize(this, CliOutputJsonContext.Default);
+        RelaxedJsonSerializer.SerializeForCli(this, CliOutputJsonContext.Default);
 }
 
 /// <summary>

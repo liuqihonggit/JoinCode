@@ -447,12 +447,14 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 设置默认分支 — 调 REST API PATCH default_branch
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhRepoSetDefault, "设置默认分支", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhRepoSetDefault, "设置默认分支(用 gh repo set-default-branch 更清晰)", "github")]
     public async Task<ToolResult> GhRepoSetDefaultAsync(
-        [McpToolParameter("默认分支名", Required = true)] string branch,
+        [McpToolParameter("默认分支名(如 main/master,非 owner/repo)", Required = true)] string branch,
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
+            if (branch.Contains('/'))
+                return Fail($"gh repo set-default 是设置默认分支,非设置默认仓库。你传入的 '{branch}' 像 owner/repo 格式。正确用法: gh repo set-default main（设置默认分支为 main）");
             var jsonBody = JsonSerializer.Serialize(new RepoSetDefaultRequest { DefaultBranch = branch }, GitHubApiJsonContext.Safe.RepoSetDefaultRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已设置 {owner}/{repoName} 默认分支为 {branch}") : Fail(result.Error);

@@ -94,8 +94,20 @@ internal static class GhCommandResolver {
         }
 
         var toolName = $"gh_{toolGroup}_{action.Replace('-', '_')}";
+        toolName = ResolveCommandAlias(toolName);
         return new GhResolvedCommand(toolName, group, action, CollectTail(args, 3), json);
     }
+
+    /// <summary>
+    /// 命令名别名映射 — 某些命令名语义不直观，提供更清晰的别名。
+    /// </summary>
+    private static readonly FrozenDictionary<string, string> CommandAliasMap = new Dictionary<string, string> {
+        ["gh_repo_set_default_branch"] = "gh_repo_set_default",
+    }.ToFrozenDictionary();
+
+    /// <summary>查命令名别名表，返回规范工具名。</summary>
+    private static string ResolveCommandAlias(string toolName)
+        => CommandAliasMap.TryGetValue(toolName, out var canonical) ? canonical : toolName;
 
     /// <summary>
     /// 从指定下标开始取下一个位置参数（跳过 <c>--option</c> 及其值）。

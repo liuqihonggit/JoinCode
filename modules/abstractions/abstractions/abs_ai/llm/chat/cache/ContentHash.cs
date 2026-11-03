@@ -37,13 +37,7 @@ public static class ContentHash {
     /// </summary>
     public static string ComputeConversation(IEnumerable<ApiMessage> messages) {
         ArgumentNullException.ThrowIfNull(messages);
-        var builder = new StringBuilder();
-        foreach (var m in messages) {
-            builder.Append(m.Role.ToValue());
-            builder.Append('\x01');
-            builder.Append(m.Content);
-            builder.Append('\x00');
-        }
-        return Compute(builder.ToString());
+        return Compute(string.Concat(messages.Select(m =>
+            $"{m.Role.ToValue()}\x01{m.Content}\x00")));
     }
 }

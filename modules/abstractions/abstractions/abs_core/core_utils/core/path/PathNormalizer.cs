@@ -34,7 +34,36 @@ public static class PathNormalizer {
         if (string.IsNullOrWhiteSpace(path))
             return string.Empty;
         var sep = System.IO.Path.DirectorySeparatorChar;
-        return path.Trim().Replace('\\', sep).Replace('/', sep).TrimEnd(sep);
+        var span = path.AsSpan().Trim();
+        if (span.IsEmpty) return string.Empty;
+
+        var end = span.Length;
+        while (end > 0 && (span[end - 1] == '\\' || span[end - 1] == '/'))
+            end--;
+        if (end == 0) return string.Empty;
+        var effective = span[..end];
+
+        var needsReplace = false;
+        for (var i = 0; i < effective.Length; i++) {
+            if (effective[i] == '\\' || effective[i] == '/') { needsReplace = true; break; }
+        }
+        if (!needsReplace) return effective.ToString();
+
+        var len = effective.Length;
+        if (len <= 512) {
+            Span<char> buf = stackalloc char[len];
+            for (var i = 0; i < len; i++) {
+                var c = effective[i];
+                buf[i] = (c == '\\' || c == '/') ? sep : c;
+            }
+            return new string(buf);
+        }
+        var heapBuf = new char[len];
+        for (var i = 0; i < len; i++) {
+            var c = effective[i];
+            heapBuf[i] = (c == '\\' || c == '/') ? sep : c;
+        }
+        return new string(heapBuf);
     }
 
     /// <summary>

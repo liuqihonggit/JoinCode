@@ -37,8 +37,30 @@ public sealed partial class InMemoryIndexStore : ServiceEntity {
     /// <summary>
     /// 规范化路径键 — 统一路径分隔符用于字典查找
     /// </summary>
-    internal static string NormalizeKey(string path) =>
-        path.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
+    internal static string NormalizeKey(string path) {
+        var sep = Path.DirectorySeparatorChar;
+        var span = path.AsSpan();
+        var needsReplace = false;
+        for (var i = 0; i < span.Length; i++) {
+            if (span[i] == '/' || span[i] == '\\') { needsReplace = true; break; }
+        }
+        if (!needsReplace) return path;
+        var len = span.Length;
+        if (len <= 512) {
+            Span<char> buf = stackalloc char[len];
+            for (var i = 0; i < len; i++) {
+                var c = span[i];
+                buf[i] = (c == '/' || c == '\\') ? sep : c;
+            }
+            return new string(buf);
+        }
+        var heapBuf = new char[len];
+        for (var i = 0; i < len; i++) {
+            var c = span[i];
+            heapBuf[i] = (c == '/' || c == '\\') ? sep : c;
+        }
+        return new string(heapBuf);
+    }
 
     /// <summary>
     /// 释放资源

@@ -6,8 +6,7 @@ namespace Core.Scheduling;
 /// </summary>
 internal sealed class ExecutionContext : IAsyncDisposable {
     private readonly ConcurrentDictionary<string, byte> _completedTaskIds;
-    private readonly List<Task> _runningTasks;
-    private readonly AsyncLock _runningTasksLock = new();
+    private readonly ConcurrentDictionary<Task, byte> _runningTasks = new();
     private int _isDisposed;
 
     /// <summary>构造执行上下文。</summary>
@@ -17,7 +16,6 @@ internal sealed class ExecutionContext : IAsyncDisposable {
         Options = options;
         CancellationToken = cancellationToken;
         ConcurrencyLock = new AsyncLock(nameof(ExecutionContext) + ".Concurrency", options.MaxConcurrentTasks, options.MaxConcurrentTasks);
-        _runningTasks = new List<Task>();
         _completedTaskIds = new ConcurrentDictionary<string, byte>();
     }
 
@@ -29,39 +27,36 @@ internal sealed class ExecutionContext : IAsyncDisposable {
     public AsyncLock ConcurrencyLock { get; }
 
     /// <summary>
-    /// 添加运行中的任务 - 线程安全
+    /// 添加运行中的任务 - 线程安全（ConcurrentDictionary 无锁）
     /// </summary>
-    public async Task AddRunningTaskAsync(Task task) {
-        using (await _runningTasksLock.TryLockAsync(CancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_runningTasksLock.Name}' 等待超时")) {
-            _runningTasks.Add(task);
-        }
+    public Task AddRunningTaskAsync(Task task) {
+        _runningTasks.TryAdd(task, 0);
+        return Task.CompletedTask;
     }
 
     /// <summary>
-    /// 获取运行中的任务列表快照 - 线程安全
+    /// 获取运行中的任务列表快照 - 线程安全（ConcurrentDictionary 无锁）
     /// </summary>
-    public async Task<List<Task>> GetRunningTasksSnapshotAsync() {
-        using (await _runningTasksLock.TryLockAsync(CancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_runningTasksLock.Name}' 等待超时")) {
-            return _runningTasks.ToList();
-        }
+    public Task<List<Task>> GetRunningTasksSnapshotAsync() {
+        return Task.FromResult(_runningTasks.Keys.ToList());
     }
 
     /// <summary>
-    /// 清理已完成的任务 - 线程安全
+    /// 清理已完成的任务 - 线程安全（ConcurrentDictionary 遍历+TryRemove 无锁）
     /// </summary>
-    public async Task CleanupCompletedTasksAsync(CancellationToken cancellationToken = default) {
-        using (await _runningTasksLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_runningTasksLock.Name}' 等待超时")) {
-            _runningTasks.RemoveAll(t => t.IsCompleted);
+    public Task CleanupCompletedTasksAsync(CancellationToken cancellationToken = default) {
+        foreach (var kvp in _runningTasks) {
+            if (kvp.Key.IsCompleted)
+                _runningTasks.TryRemove(kvp.Key, out _);
         }
+        return Task.CompletedTask;
     }
 
     /// <summary>
-    /// 获取运行中任务数量 - 线程安全
+    /// 获取运行中任务数量 - 线程安全（ConcurrentDictionary.Count 无锁）
     /// </summary>
-    public async Task<int> GetRunningTaskCountAsync(CancellationToken cancellationToken = default) {
-        using (await _runningTasksLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_runningTasksLock.Name}' 等待超时")) {
-            return _runningTasks.Count;
-        }
+    public Task<int> GetRunningTaskCountAsync(CancellationToken cancellationToken = default) {
+        return Task.FromResult(_runningTasks.Count);
     }
 
     /// <summary>
@@ -87,13 +82,9 @@ internal sealed class ExecutionContext : IAsyncDisposable {
             return;
         }
 
-        List<Task> snapshot;
-        using (await _runningTasksLock.TryLockAsync(CancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_runningTasksLock.Name}' 等待超时")) {
-            snapshot = _runningTasks.ToList();
-        }
+        var snapshot = _runningTasks.Keys.ToArray();
         await Task.WhenAll(snapshot).ConfigureAwait(false);
 
         ConcurrencyLock.Dispose();
-        _runningTasksLock.Dispose();
     }
 }

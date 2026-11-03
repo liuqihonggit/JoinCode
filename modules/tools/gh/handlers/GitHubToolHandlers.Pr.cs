@@ -602,8 +602,8 @@ public partial class GitHubToolHandlers {
         var summaryText = $"汇总: {waitResult.Summary}\n轮询次数: {waitResult.PollCount}, 耗时: {waitResult.ElapsedMs / 1000}s";
         if (waitResult.FailCount == 0)
             return Ok(summaryText, $"PR #{number} 所有 CI checks 已完成 ✅");
-        var failedRunIds = await GetFailedPrRunIdsAsync(client, owner, repoName, headSha, ct).ConfigureAwait(false);
-        var runList = failedRunIds.Count > 0 ? string.Join(", ", failedRunIds) : "无(可能是第三方 CI)";
+        var (failedRunIds, failedError) = await GetFailedPrRunIdsAsync(client, owner, repoName, headSha, ct).ConfigureAwait(false);
+        var runList = failedRunIds.Count > 0 ? string.Join(", ", failedRunIds) : failedError ?? "无(可能是第三方 CI)";
         return Ok(summaryText + $"\n\n❌ 失败 runs: {runList}\n\n💡 用 gh run view <run_id> --log --filter failed 从 LSM 缓存读日志(--refresh 强制刷新)", $"PR #{number} CI checks 已完成(有 {waitResult.FailCount} 个失败) ❌");
     }
 
@@ -611,13 +611,13 @@ public partial class GitHubToolHandlers {
     /// 查 PR 对应失败 Actions run 的 ID 列表 — 用 head_sha 查 actions/runs,筛选 conclusion=failure 的 run
     /// <para>日志不下载到磁盘,AI 用 gh run view --log 从 LSM 缓存读(见 persistence-reuse-lsm-tree)</para>
     /// </summary>
-    private async Task<List<string>> GetFailedPrRunIdsAsync(
+    private async Task<(List<string> Ids, string? Error)> GetFailedPrRunIdsAsync(
         IGitHubApiClient client, string owner, string repo, string headSha, CancellationToken ct) {
         var runsResult = await client.SendAsync(
             HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs",
             query: new Dictionary<string, string> { ["head_sha"] = headSha },
             ct: ct).ConfigureAwait(false);
-        if (!runsResult.Success) return [];
+        if (!runsResult.Success) return ([], $"查询 Actions runs 失败: {runsResult.Error}");
 
         List<string> failedRunIds;
         try {
@@ -629,11 +629,11 @@ public partial class GitHubToolHandlers {
                     if (r.Id > 0) failedRunIds.Add(r.Id.ToString());
                 }
             }
-        } catch {
-            return [];
+        } catch (Exception ex) {
+            return ([], $"解析 runs 响应失败: {ex.Message}");
         }
 
-        return failedRunIds;
+        return (failedRunIds, null);
     }
 
     /// <summary>

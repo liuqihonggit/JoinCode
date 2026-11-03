@@ -401,12 +401,60 @@ internal static class JsonRepairPipeline {
     /// <para>幂等：已转义的 \\n 不受影响（它是两个字符 \ 和 n，不是裸换行符）</para>
     /// </summary>
     private static string FixRawNewlines(string json, List<string> hints) {
-        if (!json.Contains('\r') && !json.Contains('\n') && !json.Contains('\t'))
+        var span = json.AsSpan();
+        var crlfCount = 0;
+        var crCount = 0;
+        var lfCount = 0;
+        var tabCount = 0;
+        for (var i = 0; i < span.Length; i++) {
+            var c = span[i];
+            if (c == '\r') {
+                if (i + 1 < span.Length && span[i + 1] == '\n') { crlfCount++; i++; }
+                else crCount++;
+            } else if (c == '\n') {
+                lfCount++;
+            } else if (c == '\t') {
+                tabCount++;
+            }
+        }
+        if (crlfCount == 0 && crCount == 0 && lfCount == 0 && tabCount == 0)
             return json;
 
-        var repaired = json.Replace("\r\n", "\\n").Replace("\r", "\\n").Replace("\n", "\\n").Replace("\t", "\\t");
+        var len = span.Length + crCount + lfCount + tabCount;
+        string result;
+        if (len <= 512) {
+            Span<char> buf = stackalloc char[len];
+            WriteFixedNewlines(buf, span);
+            result = new string(buf);
+        } else {
+            var heapBuf = new char[len];
+            WriteFixedNewlines(heapBuf, span);
+            result = new string(heapBuf);
+        }
         hints.Add("replaced raw newline/tab with escape sequences");
-        return repaired;
+        return result;
+
+        static void WriteFixedNewlines(Span<char> buf, ReadOnlySpan<char> src) {
+            var j = 0;
+            var i = 0;
+            while (i < src.Length) {
+                var c = src[i];
+                if (c == '\r') {
+                    if (i + 1 < src.Length && src[i + 1] == '\n') i += 2;
+                    else i++;
+                    buf[j++] = '\\'; buf[j++] = 'n';
+                } else if (c == '\n') {
+                    i++;
+                    buf[j++] = '\\'; buf[j++] = 'n';
+                } else if (c == '\t') {
+                    i++;
+                    buf[j++] = '\\'; buf[j++] = 't';
+                } else {
+                    buf[j++] = c;
+                    i++;
+                }
+            }
+        }
     }
 
     private static string FixSingleQuotedStrings(string json, List<string> hints) {

@@ -436,6 +436,9 @@ public partial class GitHubToolHandlers {
             "gh_repo_autolink_view" => $"Autolink 获取失败 — {error}。可能原因: ① Autolink ID 不存在 ② token 缺 admin scope。提示: 用 gh repo autolink-list 查看已有 Autolink",
             "gh_repo_autolink_create" => $"Autolink 创建失败 — {error}。可能原因: ① 仓库不存在或无权限 ② token 缺 admin scope ③ key_prefix/url_template 格式错误。提示: 到 https://github.com/settings/tokens 更新 token scope",
             "gh_repo_autolink_delete" => $"Autolink 删除失败 — {error}。可能原因: ① Autolink ID 不存在 ② token 缺 admin scope。提示: 用 gh repo autolink-list 查看已有 Autolink",
+            "gh_codespace_list" => $"Codespace 列表获取失败 — {error}。可能原因: ① token 缺 codespace scope ② fine-grained token 需 codespaces 权限。提示: 到 https://github.com/settings/tokens 更新 token scope",
+            "gh_codespace_create" => $"Codespace 创建失败 — {error}。可能原因: ① 仓库不存在或无权限 ② token 缺 codespace:write scope ③ 分支不存在。提示: 到 https://github.com/settings/tokens 更新 token scope",
+            "gh_codespace_delete" => $"Codespace 删除失败 — {error}。可能原因: ① Codespace 不存在 ② token 缺 codespace:write scope。提示: 用 gh codespace list 查看可用 Codespace",
             _ => $"{toolName ?? "gh"} 调用失败 — {error}。API 路径: {apiPath}"
         };
         var noGenericHint = toolName is "gh_gpg_key_list" or "gh_gpg_key_add" or "gh_gpg_key_delete" or "gh_ssh_key_view" or "gh_gpg_key_view" or "gh_org_view" or "gh_team_list" or "gh_collaborator_list" or "gh_notification_list" or "gh_gist_list" or "gh_gist_view" or "gh_gist_create" or "gh_gist_delete" or "gh_gist_edit" or "gh_gist_rename" or "gh_repo_gitignore_view" or "gh_repo_license_view";

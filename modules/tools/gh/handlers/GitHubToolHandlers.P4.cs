@@ -313,7 +313,7 @@ public partial class GitHubToolHandlers {
             if (parsed is not null) path = $"repos/{parsed.Value.owner}/{parsed.Value.repo}/codespaces";
         }
         var result = await _apiClient.SendAsync(HttpMethod.Get, path, query: query, ct: cancellationToken).ConfigureAwait(false);
-        if (!result.Success) return Fail(result.Error);
+        if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_codespace_list", path));
         return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeCodespaceList, "name,display_name,state,repository", common?.Jq, common?.SkipLines, common?.StartLine, "gh_codespace_list"));
     }
 
@@ -356,7 +356,7 @@ public partial class GitHubToolHandlers {
             DisplayName = display_name
         }, GitHubApiJsonContext.Safe.CodespaceCreateRequest);
         var repoResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}", ct: cancellationToken).ConfigureAwait(false);
-        if (!repoResult.Success) return Fail(repoResult.Error);
+        if (!repoResult.Success) return Fail(EnrichApiError(repoResult.Error, "gh_codespace_create", $"repos/{owner}/{repoName}"));
         var repoDetail = JsonSerializer.Deserialize(repoResult.Body, GitHubApiJsonContext.Safe.RepoDetailResponse);
         if (repoDetail is null || repoDetail.Id.Value == 0) return Fail("无法获取仓库 ID");
         body = JsonSerializer.Serialize(new CodespaceCreateRequest {
@@ -367,7 +367,7 @@ public partial class GitHubToolHandlers {
             DisplayName = display_name
         }, GitHubApiJsonContext.Safe.CodespaceCreateRequest);
         var result = await _apiClient.SendAsync(HttpMethod.Post, "user/codespaces", body, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? OkBrief(result.Body, $"已创建 Codespace for {repo}") : Fail(result.Error);
+        return result.Success ? OkBrief(result.Body, $"已创建 Codespace for {repo}") : Fail(EnrichApiError(result.Error, "gh_codespace_create", "user/codespaces"));
     }
 
     /// <summary>
@@ -379,7 +379,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Delete, $"user/codespaces/{codespace_name}", ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok($"已删除 Codespace {codespace_name}") : Fail(result.Error);
+        return result.Success ? Ok($"已删除 Codespace {codespace_name}") : Fail(EnrichApiError(result.Error, "gh_codespace_delete", $"user/codespaces/{codespace_name}"));
     }
 
     /// <summary>

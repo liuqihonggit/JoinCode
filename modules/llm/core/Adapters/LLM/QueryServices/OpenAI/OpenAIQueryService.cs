@@ -44,7 +44,7 @@ public class OpenAIQueryService : QueryServiceBase {
     }
 
     /// <summary>处理流式 tool_call delta — 累积到 toolCallAccumulator，支持 Index 缺失/Id 匹配/Name 更新</summary>
-    private static void ProcessToolCallDelta(OpenAIToolCall tc, Dictionary<int, (string Id, string Name, StringBuilder Arguments)> toolCallAccumulator) {
+    internal static void ProcessToolCallDelta(OpenAIToolCall tc, Dictionary<int, (string Id, string Name, StringBuilder Arguments)> toolCallAccumulator) {
         var idx = tc.Index ?? 0;
 
         if (!string.IsNullOrEmpty(tc.Id)) {

@@ -67,47 +67,62 @@ public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAge
                 role: roleValue));
         }
 
-        await foreach (var chunk in _agentService.RunAgentStreamAsync(spawnOptions, ct).ConfigureAwait(false)) {
-            var isFirstChunk = agentId is null;
-            agentId ??= chunk.AgentId;
-            if (isFirstChunk && agentId is not null)
-                EmitStarted(agentId);
+        try {
+            await foreach (var chunk in _agentService.RunAgentStreamAsync(spawnOptions, ct).ConfigureAwait(false)) {
+                var isFirstChunk = agentId is null;
+                agentId ??= chunk.AgentId;
+                if (isFirstChunk && agentId is not null)
+                    EmitStarted(agentId);
 
-            switch (chunk.Type) {
-                case AgentStreamChunkType.Content:
-                context.ContentBuilder.Append(chunk.Content);
-                channel?.Emit(BuildChunkEvent(chunk, agentId)!);
-                break;
-                case AgentStreamChunkType.ThinkingStart:
-                case AgentStreamChunkType.Thinking:
-                {
-                    var evt = BuildChunkEvent(chunk, agentId);
-                    if (evt is not null)
-                        channel?.Emit(evt);
+                switch (chunk.Type) {
+                    case AgentStreamChunkType.Content:
+                    context.ContentBuilder.Append(chunk.Content);
+                    channel?.Emit(BuildChunkEvent(chunk, agentId)!);
+                    break;
+                    case AgentStreamChunkType.ThinkingStart:
+                    case AgentStreamChunkType.Thinking:
+                    {
+                        var evt = BuildChunkEvent(chunk, agentId);
+                        if (evt is not null)
+                            channel?.Emit(evt);
+                        break;
+                    }
+                    case AgentStreamChunkType.ToolCallStart:
+                    // 工具调用开始 — 对齐 TS onProgress({type:'agent_progress'})
+                    _logger?.LogDebug("[AgentStreamExecution] Agent {AgentId} calling tool: {ToolName}", chunk.AgentId, chunk.ToolName);
+                    channel?.Emit(BuildChunkEvent(chunk, agentId)!);
+                    break;
+                    case AgentStreamChunkType.ToolCallEnd:
+                    case AgentStreamChunkType.ToolProgress:
+                    channel?.Emit(BuildChunkEvent(chunk, agentId)!);
+                    break;
+                    case AgentStreamChunkType.Complete:
+                    context.ExecutionTimeMs = chunk.ExecutionTimeMs;
+                    // Complete 块的 Content 是最终输出，追加到响应
+                    if (chunk.Content is not null && succeeded) {
+                        context.ContentBuilder.Append(chunk.Content);
+                        finalOutput = chunk.Content;
+                    }
+                    finalUsage = chunk.Usage;
+                    break;
+                    case AgentStreamChunkType.Error:
+                    succeeded = false;
+                    errorMessage = chunk.Content;
                     break;
                 }
-                case AgentStreamChunkType.ToolCallStart:
-                // 工具调用开始 — 对齐 TS onProgress({type:'agent_progress'})
-                _logger?.LogDebug("[AgentStreamExecution] Agent {AgentId} calling tool: {ToolName}", chunk.AgentId, chunk.ToolName);
-                channel?.Emit(BuildChunkEvent(chunk, agentId)!);
-                break;
-                case AgentStreamChunkType.ToolCallEnd:
-                case AgentStreamChunkType.ToolProgress:
-                channel?.Emit(BuildChunkEvent(chunk, agentId)!);
-                break;
-                case AgentStreamChunkType.Complete:
-                context.ExecutionTimeMs = chunk.ExecutionTimeMs;
-                // Complete 块的 Content 是最终输出，追加到响应
-                if (chunk.Content is not null && succeeded) {
-                    context.ContentBuilder.Append(chunk.Content);
-                    finalOutput = chunk.Content;
-                }
-                finalUsage = chunk.Usage;
-                break;
-                case AgentStreamChunkType.Error:
-                succeeded = false;
-                errorMessage = chunk.Content;
-                break;
+            }
+        } catch (OperationCanceledException) {
+            throw;
+        } catch (Exception ex) {
+            // RunAgentStreamAsync 抛异常时（如 LLM 500 错误），仍需发射配对的 agent_started/agent_finished 事件
+            // 否则下游（GUI 多 subAgent 运行期）收不到子代理生命周期边界事件
+            succeeded = false;
+            errorMessage = ex.Message;
+            _logger?.LogError(ex, "[AgentStreamExecution] Agent stream failed for {AgentType}", context.ResolvedPrimaryType);
+            // 异常发生在首个 chunk 之前时 agentId 仍为 null — 生成临时 ID 并补发 AgentStarted
+            if (agentId is null) {
+                agentId = $"agent-error-{Guid.NewGuid():N}"[..^16];
+                EmitStarted(agentId);
             }
         }
 

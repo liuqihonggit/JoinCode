@@ -4,6 +4,7 @@ namespace Downloader.Tests;
 /// <summary>
 /// BatchDownloader 单元测试 — 验证批量并行下载、空列表、部分失败、默认选项
 /// </summary>
+[Collection(ProxyEnvCollection.Name)]
 public sealed class BatchDownloaderTests {
 
     [Fact]
@@ -78,7 +79,7 @@ public sealed class BatchDownloaderTests {
         var results = await batch.DownloadAllAsync(items);
 
         results.Should().HaveCount(1);
-        results[0].Success.Should().BeTrue();
+        results[0].Success.Should().BeTrue($"下载失败原因: {results[0].Error}");
         (await fs.ReadAllBytes("/tmp/file.bin")).Should().Equal(data);
     }
 

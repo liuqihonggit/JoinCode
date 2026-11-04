@@ -5,6 +5,7 @@ namespace Downloader.Tests;
 /// DownloadSession 状态流转测试 — 验证 Pause/Resume/资源变更/大文件并发
 /// <para>用 DelayedStubHandler 确保下载进行中可 Pause,零真实网络</para>
 /// </summary>
+[Collection(ProxyEnvCollection.Name)]
 public sealed class DownloadSessionStateTransitionTests {
     private const string Url = "https://example.com/file.bin";
     private const string FilePath = "/tmp/file.bin";

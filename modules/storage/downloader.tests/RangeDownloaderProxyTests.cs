@@ -3,6 +3,7 @@ namespace Downloader.Tests;
 /// <summary>
 /// RangeDownloader 代理解析单元测试 — 验证优先级:options > 环境变量 > VPN/代理路由
 /// </summary>
+[Collection(ProxyEnvCollection.Name)]
 public sealed class RangeDownloaderProxyTests {
     // === options 显式指定(最高优先级)===
 

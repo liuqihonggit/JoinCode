@@ -48,7 +48,7 @@ public partial class GitHubToolHandlers {
         }
         var cleanPath = UndoMsysPathConversion(path);
         var result = await _apiClient.SendAsync(httpMethod, cleanPath, resolvedBody, query, paginate == true, cancellationToken).ConfigureAwait(false);
-        if (!result.Success) return Fail(BuildApiErrorHint(path, result.StatusCode, result.Error));
+        if (!result.Success) return Fail(BuildApiErrorHint(cleanPath, result.StatusCode, result.Error));
 
         var output = string.IsNullOrWhiteSpace(jq)
             ? result.Body

@@ -475,6 +475,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                         name = nameProp.GetString();
                     if (item.TryGetProperty("Arguments", out var argsProp) && argsProp.ValueKind == JsonValueKind.String)
                         arguments = argsProp.GetString() ?? "{}";
+                    if (string.IsNullOrWhiteSpace(arguments)) arguments = "{}";
 
                     if (string.IsNullOrWhiteSpace(name)) continue;
 

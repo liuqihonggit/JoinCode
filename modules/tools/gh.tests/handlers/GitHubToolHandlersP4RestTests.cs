@@ -402,10 +402,10 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     [Fact]
-    public async Task ProjectList_WithOrg_UsesOrganizationQuery() {
+    public async Task ProjectList_WithOwner_UsesOrganizationQuery() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"data":{"organization":{"projectsV2":{"nodes":[]}}}}""" };
 
-        await _handler.GhProjectListAsync(org: "myorg");
+        await _handler.GhProjectListAsync(owner: "myorg");
 
         _api.LastBody.Should().Contain("organization");
         _api.LastBody.Should().Contain("myorg");
@@ -426,22 +426,22 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     [Fact]
-    public async Task ProjectView_WithOrg_UsesOrganizationQuery() {
+    public async Task ProjectView_WithOwner_UsesOrganizationQuery() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"data":{"organization":{"projectV2":{"title":"P","url":"","closed":false,"state":"open","items":{"nodes":[]}}}}}""" };
 
-        await _handler.GhProjectViewAsync(1, org: "myorg");
+        await _handler.GhProjectViewAsync(1, owner: "myorg");
 
         _api.LastBody.Should().Contain("organization");
     }
 
     [Fact]
-    public async Task ProjectCreate_WithOrg_PostsMutationDirectly() {
+    public async Task ProjectCreate_WithOwner_PostsMutationDirectly() {
         _api.NextResponse = new GitHubApiResponse {
             Success = true, StatusCode = 200,
             Body = """{"data":{"createProjectV2":{"projectV2":{"number":2,"url":"https://github.com/orgs/myorg/projects/2"}}}}""",
         };
 
-        var result = await _handler.GhProjectCreateAsync("新项目", org: "myorg");
+        var result = await _handler.GhProjectCreateAsync("新项目", owner: "myorg");
 
         result.IsError.Should().BeFalse();
         _api.LastPath.Should().Be("graphql");

@@ -13,6 +13,7 @@
     <ProjectReference Include="$(RepoRoot)modules/llm/core/Llm.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/composition/composition/Composition.csproj" />
     <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
+    <ProjectReference Include="$(RepoRoot)test/mock/mock_server.core/MockServer.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

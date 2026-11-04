@@ -27,6 +27,8 @@ public sealed class InjectedResponse {
     public bool IsStream { get; set; }
     /// <summary>流式分片（IsStream=true 时使用，每片按 SSE 格式发送）</summary>
     public List<string> StreamChunks { get; set; } = [];
+    /// <summary>响应前延迟毫秒数（模拟慢服务器，用于超时测试）。默认 0 = 无延迟</summary>
+    public int DelayMs { get; set; }
 }
 
 /// <summary>

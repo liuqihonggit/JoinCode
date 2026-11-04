@@ -21,7 +21,7 @@
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/primitives/Abstractions.Primitives.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Primitives" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/collections/structura/Structura.csproj" />
-    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="Structura" Version="$(JccComponentPackageVersion)" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Structura" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
 
   <ItemGroup>

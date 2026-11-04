@@ -23,7 +23,7 @@ internal sealed class LabelResponse {
 
 // === Org 响应 ===
 
-/// <summary>组织响应 — GET /user/orgs</summary>
+/// <summary>组织响应 — GET /user/orgs 或 GET /orgs/{org}</summary>
 internal sealed class OrgResponse {
     /// <summary>组织登录名</summary>
     [JsonPropertyName("login")]
@@ -31,6 +31,60 @@ internal sealed class OrgResponse {
     /// <summary>描述</summary>
     [JsonPropertyName("description")]
     public string? Description { get; init; }
+    /// <summary>组织 ID</summary>
+    [JsonPropertyName("id")]
+    public RepoId Id { get; init; }
+    /// <summary>组织 URL</summary>
+    [JsonPropertyName("url")]
+    public string? Url { get; init; }
+    /// <summary>组织主页</summary>
+    [JsonPropertyName("html_url")]
+    public string? HtmlUrl { get; init; }
+    /// <summary>组织名称(全称)</summary>
+    [JsonPropertyName("name")]
+    public string? Name { get; init; }
+    /// <summary>公司</summary>
+    [JsonPropertyName("company")]
+    public string? Company { get; init; }
+    /// <summary>博客</summary>
+    [JsonPropertyName("blog")]
+    public string? Blog { get; init; }
+    /// <summary>位置</summary>
+    [JsonPropertyName("location")]
+    public string? Location { get; init; }
+    /// <summary>邮箱</summary>
+    [JsonPropertyName("email")]
+    public string? Email { get; init; }
+    /// <summary>Twitter</summary>
+    [JsonPropertyName("twitter_username")]
+    public string? TwitterUsername { get; init; }
+    /// <summary>公开仓库数</summary>
+    [JsonPropertyName("public_repos")]
+    public int PublicRepos { get; init; }
+    /// <summary>公开 gist 数</summary>
+    [JsonPropertyName("public_gists")]
+    public int PublicGists { get; init; }
+    /// <summary>关注者数</summary>
+    [JsonPropertyName("followers")]
+    public int Followers { get; init; }
+    /// <summary>正在关注数</summary>
+    [JsonPropertyName("following")]
+    public int Following { get; init; }
+    /// <summary>创建时间</summary>
+    [JsonPropertyName("created_at")]
+    public string? CreatedAt { get; init; }
+    /// <summary>更新时间</summary>
+    [JsonPropertyName("updated_at")]
+    public string? UpdatedAt { get; init; }
+    /// <summary>组织头像 URL</summary>
+    [JsonPropertyName("avatar_url")]
+    public string? AvatarUrl { get; init; }
+    /// <summary>默认仓库权限</summary>
+    [JsonPropertyName("default_repository_permission")]
+    public string? DefaultRepositoryPermission { get; init; }
+    /// <summary>是否可创建私有仓库</summary>
+    [JsonPropertyName("can_create_private_repos")]
+    public bool? CanCreatePrivateRepos { get; init; }
 }
 
 // === SSH Key 响应 ===
@@ -472,6 +526,26 @@ internal sealed class LabelRefResponse {
     /// <summary>标签名</summary>
     [JsonPropertyName("name")]
     public string Name { get; init; } = "";
+}
+
+/// <summary>分支列表项 — GET /repos/{o}/{r}/branches 数组元素</summary>
+internal sealed class BranchListItemResponse {
+    /// <summary>分支名</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+    /// <summary>最新 commit</summary>
+    [JsonPropertyName("commit")]
+    public BranchCommitRefResponse? Commit { get; init; }
+    /// <summary>是否受分支保护</summary>
+    [JsonPropertyName("protected")]
+    public bool Protected { get; init; }
+}
+
+/// <summary>分支 commit 引用(嵌套)</summary>
+internal sealed class BranchCommitRefResponse {
+    /// <summary>commit SHA</summary>
+    [JsonPropertyName("sha")]
+    public string? Sha { get; init; }
 }
 
 // === PR 详情/列表 ===
@@ -1326,6 +1400,27 @@ internal sealed class MilestoneItemResponse {
     /// <summary>Milestone 标题</summary>
     [JsonPropertyName("title")]
     public string Title { get; init; } = "";
+    /// <summary>状态(open/closed)</summary>
+    [JsonPropertyName("state")]
+    public string State { get; init; } = "";
+    /// <summary>描述</summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; init; }
+    /// <summary>HTML URL</summary>
+    [JsonPropertyName("html_url")]
+    public string? HtmlUrl { get; init; }
+    /// <summary>创建时间</summary>
+    [JsonPropertyName("created_at")]
+    public string? CreatedAt { get; init; }
+    /// <summary>截止时间</summary>
+    [JsonPropertyName("due_on")]
+    public string? DueOn { get; init; }
+    /// <summary>open issue 数</summary>
+    [JsonPropertyName("open_issues")]
+    public int OpenIssues { get; init; }
+    /// <summary>closed issue 数</summary>
+    [JsonPropertyName("closed_issues")]
+    public int ClosedIssues { get; init; }
 }
 
 // === Auth User 响应(AuthConfig 专用) ===
@@ -1387,4 +1482,76 @@ internal sealed class WorkflowRunBriefItemResponse {
     /// <summary>触发事件</summary>
     [JsonPropertyName("event")]
     public string? Event { get; init; }
+}
+
+// === Notification ===
+
+/// <summary>通知列表项 — GET /notifications 数组元素</summary>
+internal sealed class NotificationItemResponse {
+    [JsonPropertyName("id")]
+    public string Id { get; init; } = "";
+    [JsonPropertyName("unread")]
+    public bool Unread { get; init; }
+    [JsonPropertyName("reason")]
+    public string? Reason { get; init; }
+    [JsonPropertyName("subject")]
+    public NotificationSubjectResponse? Subject { get; init; }
+    [JsonPropertyName("repository")]
+    public SearchRepoItemResponse? Repository { get; init; }
+    [JsonPropertyName("updated_at")]
+    public string? UpdatedAt { get; init; }
+}
+
+internal sealed class NotificationSubjectResponse {
+    [JsonPropertyName("title")]
+    public string? Title { get; init; }
+    [JsonPropertyName("type")]
+    public string? Type { get; init; }
+    [JsonPropertyName("url")]
+    public string? Url { get; init; }
+}
+
+// === Team ===
+
+/// <summary>团队列表项 — GET /orgs/{org}/teams 数组元素</summary>
+internal sealed class TeamItemResponse {
+    [JsonPropertyName("id")]
+    public long Id { get; init; }
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+    [JsonPropertyName("slug")]
+    public string? Slug { get; init; }
+    [JsonPropertyName("description")]
+    public string? Description { get; init; }
+    [JsonPropertyName("privacy")]
+    public string? Privacy { get; init; }
+    [JsonPropertyName("permission")]
+    public string? Permission { get; init; }
+    [JsonPropertyName("members_count")]
+    public int MembersCount { get; init; }
+    [JsonPropertyName("repos_count")]
+    public int ReposCount { get; init; }
+}
+
+// === Collaborator ===
+
+/// <summary>协作者列表项 — GET /repos/{o}/{r}/collaborators 数组元素</summary>
+internal sealed class CollaboratorItemResponse {
+    [JsonPropertyName("login")]
+    public string Login { get; init; } = "";
+    [JsonPropertyName("permissions")]
+    public CollaboratorPermissionsResponse? Permissions { get; init; }
+}
+
+internal sealed class CollaboratorPermissionsResponse {
+    [JsonPropertyName("admin")]
+    public bool Admin { get; init; }
+    [JsonPropertyName("maintain")]
+    public bool Maintain { get; init; }
+    [JsonPropertyName("push")]
+    public bool Push { get; init; }
+    [JsonPropertyName("triage")]
+    public bool Triage { get; init; }
+    [JsonPropertyName("pull")]
+    public bool Pull { get; init; }
 }

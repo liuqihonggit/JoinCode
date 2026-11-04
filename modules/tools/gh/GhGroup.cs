@@ -32,4 +32,8 @@ internal enum GhGroup {
     [EnumValue("browse")] Browse,
     [EnumValue("status")] Status,
     [EnumValue("licenses")] Licenses,
+    [EnumValue("milestone")] Milestone,
+    [EnumValue("notification")] Notification,
+    [EnumValue("team")] Team,
+    [EnumValue("collaborator")] Collaborator,
 }

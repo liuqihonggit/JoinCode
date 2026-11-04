@@ -382,17 +382,77 @@ public partial class GitHubToolHandlers {
     private static string EnrichApiError(string error, string? toolName, string apiPath) {
         if (!error.Contains("Not Found", StringComparison.OrdinalIgnoreCase))
             return error;
-        return toolName switch {
+        var context = toolName switch {
             "gh_pr_view"    => $"PR 获取失败 — {error}。可能原因: ① PR 编号不存在 ② 仓库不存在或无权限。提示: 用 gh pr list 查看可用 PR 编号",
             "gh_pr_checks"  => $"PR checks 获取失败 — {error}。可能原因: ① PR 编号不存在 ② 仓库不存在或无权限 ③ PR 无 CI checks。提示: 用 gh pr list 查看可用 PR 编号",
             "gh_issue_view" => $"Issue 获取失败 — {error}。可能原因: ① Issue 编号不存在 ② 仓库不存在或无权限。提示: 用 gh issue list 查看可用 Issue 编号",
             "gh_repo_view"  => $"仓库获取失败 — {error}。可能原因: ① 仓库不存在或无权限 ② 仓库名格式错误(应为 owner/repo)。提示: 用 gh search repos 搜索仓库",
             "gh_release_view" => $"Release 获取失败 — {error}。可能原因: ① Release 不存在 ② 仓库不存在或无权限。提示: 用 gh release list 查看可用 Release",
             "gh_workflow_view" => $"Workflow 获取失败 — {error}。可能原因: ① Workflow ID 不存在 ② 仓库不存在或无权限。提示: 用 gh workflow list 查看可用 Workflow",
+            "gh_workflow_list" => $"Workflow 列表获取失败 — {error}。可能原因: ① 仓库不存在或无权限 ② token 缺 repo scope。提示: 用 gh repo view 确认仓库存在",
+            "gh_workflow_run" => $"Workflow 触发失败 — {error}。可能原因: ① Workflow ID 不存在 ② workflow 未启用 ③ token 缺 actions:write scope。提示: 用 gh workflow list 查看可用 Workflow",
+            "gh_workflow_enable" => $"Workflow 启用失败 — {error}。可能原因: ① Workflow ID 不存在 ② token 缺 actions:write scope。提示: 用 gh workflow list 查看可用 Workflow",
+            "gh_workflow_disable" => $"Workflow 禁用失败 — {error}。可能原因: ① Workflow ID 不存在 ② token 缺 actions:write scope。提示: 用 gh workflow list 查看可用 Workflow",
+            "gh_label_list" => $"标签列表获取失败 — {error}。可能原因: ① 仓库不存在或无权限。提示: 用 gh repo view 确认仓库存在",
+            "gh_label_create" => $"标签创建失败 — {error}。可能原因: ① 标签已存在(用 --force 更新) ② 颜色格式错误(应为 6 字符 hex)。提示: 用 gh label list 查看已有标签",
+            "gh_label_delete" => $"标签删除失败 — {error}。可能原因: ① 标签不存在。提示: 用 gh label list 查看已有标签",
+            "gh_label_edit" => $"标签编辑失败 — {error}。可能原因: ① 标签不存在。提示: 用 gh label list 查看已有标签",
+            "gh_gist_list" => $"Gist 列表获取失败 — {error}。可能原因: token 缺 gist scope。提示: 到 https://github.com/settings/tokens 更新 token scope",
+            "gh_gist_view" => $"Gist 获取失败 — {error}。可能原因: ① Gist ID 不存在 ② token 缺 gist scope。提示: 用 gh gist list 查看可用 Gist ID",
+            "gh_gist_create" => $"Gist 创建失败 — {error}。可能原因: ① 文件内容为空 ② token 缺 gist scope。提示: 到 https://github.com/settings/tokens 更新 token scope",
+            "gh_gist_delete" => $"Gist 删除失败 — {error}。可能原因: ① Gist ID 不存在 ② token 缺 gist scope。提示: 用 gh gist list 查看可用 Gist ID",
+            "gh_gist_edit" => $"Gist 编辑失败 — {error}。可能原因: ① Gist ID 不存在 ② token 缺 gist scope。提示: 用 gh gist list 查看可用 Gist ID",
+            "gh_gist_rename" => $"Gist 文件重命名失败 — {error}。可能原因: ① Gist ID 不存在 ② 旧文件名不存在 ③ token 缺 gist scope。提示: 用 gh gist view 查看 Gist 文件列表",
             "gh_repo_gitignore_view" => $"gitignore 模板获取失败 — {error}。可能原因: ① 模板名不存在 ② 模板名大小写错误。提示: 用 gh repo gitignore-list 查看可用模板",
             "gh_repo_license_view" => $"License 获取失败 — {error}。可能原因: ① license key 不存在 ② key 大小写错误。提示: 用 gh repo license-list 查看可用 license",
+            "gh_org_view" => $"组织获取失败 — {error}。可能原因: ① 组织名不存在 ② token 无权限访问该组织。提示: 用 gh org list 查看当前用户所属组织",
+            "gh_ssh_key_view" => $"SSH Key 获取失败 — {error}。可能原因: ① Key ID 不存在。提示: 用 gh ssh-key list 查看可用 Key ID",
+            "gh_gpg_key_view" => $"GPG Key 获取失败 — {error}。可能原因: ① Key ID 不存在。提示: 用 gh gpg-key list 查看可用 Key ID",
+            "gh_gpg_key_list" => $"GPG Key 列表获取失败 — {error}。可能原因: token 缺少 admin:gpg_key scope。提示: 到 https://github.com/settings/tokens 更新 token scope 添加 admin:gpg_key 后重新设置 JCC_GITHUB_TOKEN",
+            "gh_gpg_key_add" => $"GPG Key 添加失败 — {error}。可能原因: ① key 格式不是 ASCII armored ② token 缺少 admin:gpg_key scope。提示: 到 https://github.com/settings/tokens 更新 token scope",
+            "gh_gpg_key_delete" => $"GPG Key 删除失败 — {error}。可能原因: ① Key ID 不存在 ② token 缺少 admin:gpg_key scope。提示: 用 gh gpg-key list 查看可用 Key ID",
+            "gh_team_list" => $"团队列表获取失败 — {error}。可能原因: ① 组织名不存在 ② {apiPath} 路径不对(token 缺 read:org scope) ③ 参数是用户名而非组织名。提示: 用 gh org list 查看当前用户所属组织",
+            "gh_collaborator_list" => $"协作者列表获取失败 — {error}。可能原因: ① 仓库不存在或无权限 ② 仓库名格式错误(应为 owner/repo)。提示: 用 gh repo view 确认仓库存在",
+            "gh_notification_list" => $"通知列表获取失败 — {error}。可能原因: token 缺 notifications scope。提示: 到 https://github.com/settings/tokens 更新 token scope 添加 notifications 后重新设置 JCC_GITHUB_TOKEN",
             _ => $"{toolName ?? "gh"} 调用失败 — {error}。API 路径: {apiPath}"
         };
+        var noGenericHint = toolName is "gh_gpg_key_list" or "gh_gpg_key_add" or "gh_gpg_key_delete" or "gh_ssh_key_view" or "gh_gpg_key_view" or "gh_org_view" or "gh_team_list" or "gh_collaborator_list" or "gh_notification_list" or "gh_gist_list" or "gh_gist_view" or "gh_gist_create" or "gh_gist_delete" or "gh_gist_edit" or "gh_gist_rename" or "gh_repo_gitignore_view" or "gh_repo_license_view";
+        return noGenericHint ? context : $"{context}\n提示: 若仓库为私有, 404 也可能是 token 未配置/无效 — 设置 JCC_GITHUB_TOKEN 或运行 gh auth login";
+    }
+
+    /// <summary>
+    /// 检测 GraphQL 响应中的错误 — GraphQL 返回 HTTP 200 但 body 可能包含 {"errors":[...]}
+    /// <para>返回 null 表示无错误,返回 string 表示友好的错误消息</para>
+    /// </summary>
+    private static string? TryExtractGraphQLError(string body) {
+        if (!body.Contains("\"errors\"", StringComparison.Ordinal)) return null;
+        try {
+            using var doc = JsonDocument.Parse(body);
+            if (!doc.RootElement.TryGetProperty("errors", out var errorsEl) || errorsEl.ValueKind != JsonValueKind.Array) return null;
+            if (errorsEl.GetArrayLength() == 0) return null;
+            var sb = new StringBuilder(256);
+            sb.AppendLine("GraphQL 查询失败:");
+            foreach (var err in errorsEl.EnumerateArray()) {
+                var msg = err.TryGetProperty("message", out var msgEl) ? msgEl.GetString() : null;
+                var type = err.TryGetProperty("type", out var typeEl) ? typeEl.GetString() : null;
+                if (!string.IsNullOrEmpty(type) && type == "INSUFFICIENT_SCOPES")
+                    sb.AppendLine($"  [权限不足] {msg}");
+                else if (!string.IsNullOrEmpty(type))
+                    sb.AppendLine($"  [{type}] {msg}");
+                else
+                    sb.AppendLine($"  {msg}");
+            }
+            sb.AppendLine("提示: 若为权限不足,请到 https://github.com/settings/tokens 更新 token scope 后重新设置 JCC_GITHUB_TOKEN");
+            return sb.ToString();
+        } catch { return null; }
+    }
+
+    /// <summary>
+    /// 检测 GraphQL 响应错误并返回 Fail ToolResult — 无错误时返回 null
+    /// </summary>
+    private static ToolResult? CheckGraphQLError(string body) {
+        var error = TryExtractGraphQLError(body);
+        return error is null ? null : Fail(error);
     }
 
     /// <summary>

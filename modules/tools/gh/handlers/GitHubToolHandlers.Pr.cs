@@ -404,7 +404,7 @@ public partial class GitHubToolHandlers {
     /// <summary>获取 PR head sha/ref — 解析 PR detail 响应。返回 Error 保留原始失败原因(网络/404/认证/解析)</summary>
     private static async Task<(string? Sha, string? Ref, string? Error)> FetchPrHeadAsync(IGitHubApiClient client, string owner, string repoName, string number, CancellationToken ct) {
         var prResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: ct).ConfigureAwait(false);
-        if (!prResult.Success) return (null, null, prResult.Error);
+        if (!prResult.Success) return (null, null, EnrichApiError(prResult.Error, "gh_pr_checks", $"repos/{owner}/{repoName}/pulls/{number}"));
         try {
             var prDetail = JsonSerializer.Deserialize(prResult.Body, GitHubApiJsonContext.Safe.PrDetailResponse);
             return (prDetail?.Head?.Sha, prDetail?.Head?.Ref, null);
@@ -666,6 +666,7 @@ public partial class GitHubToolHandlers {
             if (nodeErr is not null) return Fail(nodeErr);
             var graphqlBody = $$"""{"query":"mutation { disablePullRequestAutoMerge(input: {pullRequestId: \"{{nodeId}}\"}) { pullRequest { number } } }"}""";
             var graphqlResult = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: ct).ConfigureAwait(false);
+            { if (CheckGraphQLError(graphqlResult.Body) is { } gqlError) return gqlError; }
             if (!graphqlResult.Success) return Fail(graphqlResult.Error);
             return Ok($"已为 PR {number} 禁用 auto-merge");
         }
@@ -968,7 +969,9 @@ public partial class GitHubToolHandlers {
         if (string.IsNullOrEmpty(projectId)) return (false, $"无法找到 Project #{projectNumber}（尝试 organization 和 viewer 均失败）");
         var mutation = BuildGraphQL($"mutation{{addProjectV2ItemById(input:{{projectId:\"{projectId}\",contentId:\"{contentNodeId}\"}}){{item{{id}}}}}}");
         var mutationResult = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
-        return mutationResult.Success ? (true, null) : (false, mutationResult.Error);
+        if (!mutationResult.Success) return (false, mutationResult.Error);
+        { var gqlErr = TryExtractGraphQLError(mutationResult.Body); if (gqlErr is not null) return (false, gqlErr); }
+        return (true, null);
     }
 
     /// <summary>
@@ -979,7 +982,9 @@ public partial class GitHubToolHandlers {
         var graphqlMethod = method.ToUpperInvariant() switch { "SQUASH" => "SQUASH", "REBASE" => "REBASE", _ => "MERGE" };
         var graphqlBody = $$"""{"query":"mutation { enablePullRequestAutoMerge(input: {pullRequestId: \"{{nodeId}}\", mergeMethod: {{graphqlMethod}}}) { pullRequest { number } } }"}""";
         var graphqlResult = await client.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: ct).ConfigureAwait(false);
-        return graphqlResult.Success ? (true, method, null) : (false, method, graphqlResult.Error);
+        if (!graphqlResult.Success) return (false, method, graphqlResult.Error);
+        { var gqlErr = TryExtractGraphQLError(graphqlResult.Body); if (gqlErr is not null) return (false, method, gqlErr); }
+        return (true, method, null);
     }
 
     /// <summary>

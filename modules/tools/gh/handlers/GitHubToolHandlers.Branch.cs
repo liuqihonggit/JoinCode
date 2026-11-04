@@ -234,4 +234,83 @@ public partial class GitHubToolHandlers {
         foreach (var ctx in newContexts) sb.AppendLine($"  - {ctx}");
         return sb.ToString();
     }
+
+    /// <summary>列出仓库分支 — 调 GET /repos/{o}/{r}/branches</summary>
+    [McpTool(GitHubToolNameEnumConstants.GhBranchList, "列出仓库分支(支持 protected 过滤)", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhBranchListAsync(
+        [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
+        [McpToolParameter("只列出受保护分支(true)/未保护(false)", Required = false)] bool? @protected = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
+            var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
+            if (@protected == true) query["protected"] = "true";
+            var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/branches", query: query, ct: cancellationToken).ConfigureAwait(false);
+            if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_branch_list", $"repos/{owner}/{repoName}/branches"));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeBranchList, "name,protected,commit.sha", common?.Jq, common?.SkipLines, common?.StartLine, "gh_branch_list"));
+        }).ConfigureAwait(false);
+
+    /// <summary>精简分支列表 — 表格输出(分支名/保护/SHA)</summary>
+    private static string SummarizeBranchList(string json) {
+        try {
+            var branches = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ListBranchListItemResponse);
+            if (branches is null) return json;
+            var sb = new StringBuilder(256);
+            sb.AppendLine("分支\t保护\tSHA");
+            foreach (var b in branches) {
+                var sha = b.Commit?.Sha?[..Math.Min(7, b.Commit.Sha.Length)] ?? "";
+                sb.AppendLine($"{b.Name}\t{(b.Protected ? "🔒" : "")}\t{sha}");
+            }
+            return sb.ToString();
+        } catch { return json; }
+    }
+
+    /// <summary>创建分支 — 调 POST /repos/{o}/{r}/git/refs(从指定 SHA 或分支创建)</summary>
+    [McpTool(GitHubToolNameEnumConstants.GhBranchCreate, "创建分支(从指定 SHA 或源分支创建)", "github")]
+    public async Task<ToolResult> GhBranchCreateAsync(
+        [McpToolParameter("新分支名", Required = true)] string branch,
+        [McpToolParameter("源分支名(默认仓库默认分支)", Required = false)] string? from = null,
+        [McpToolParameter("源 commit SHA(优先于 from)", Required = false)] string? sha = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
+            var effectiveSha = sha;
+            if (string.IsNullOrEmpty(effectiveSha)) {
+                var sourceBranch = from ?? "main";
+                var refResult = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/git/refs/heads/{sourceBranch}", ct: cancellationToken).ConfigureAwait(false);
+                if (!refResult.Success) return Fail(EnrichApiError(refResult.Error, "gh_branch_create", $"repos/{owner}/{repoName}/git/refs/heads/{sourceBranch}"));
+                using var refDoc = JsonDocument.Parse(refResult.Body);
+                effectiveSha = refDoc.RootElement.GetProperty("object").GetProperty("sha").GetString();
+            }
+            var body = new CreateBranchRequest($"refs/heads/{branch}", effectiveSha!);
+            var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/git/refs", body: JsonSerializer.Serialize(body, GitHubApiJsonContext.Safe.CreateBranchRequest), ct: cancellationToken).ConfigureAwait(false);
+            if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_branch_create", $"repos/{owner}/{repoName}/git/refs"));
+            return Ok($"分支 '{branch}' 已创建(SHA: {effectiveSha![..7]})");
+        }).ConfigureAwait(false);
+
+    /// <summary>删除分支 — 调 DELETE /repos/{o}/{r}/git/refs/heads/{branch}</summary>
+    [McpTool(GitHubToolNameEnumConstants.GhBranchDelete, "删除分支", "github")]
+    public async Task<ToolResult> GhBranchDeleteAsync(
+        [McpToolParameter("要删除的分支名", Required = true)] string branch,
+        [McpToolOptions] GitHubCommonOptions? common = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
+            var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/git/refs/heads/{branch}", ct: cancellationToken).ConfigureAwait(false);
+            if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_branch_delete", $"repos/{owner}/{repoName}/git/refs/heads/{branch}"));
+            return Ok($"分支 '{branch}' 已删除");
+        }).ConfigureAwait(false);
+
+    /// <summary>重命名分支 — 调 POST /repos/{o}/{r}/branches/{branch}/rename</summary>
+    [McpTool(GitHubToolNameEnumConstants.GhBranchRename, "重命名分支", "github")]
+    public async Task<ToolResult> GhBranchRenameAsync(
+        [McpToolParameter("当前分支名", Required = true)] string branch,
+        [McpToolParameter("新分支名", Required = true)] string new_name,
+        [McpToolOptions] GitHubCommonOptions? common = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
+            var body = new RenameBranchRequest(new_name);
+            var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/branches/{branch}/rename", body: JsonSerializer.Serialize(body, GitHubApiJsonContext.Safe.RenameBranchRequest), ct: cancellationToken).ConfigureAwait(false);
+            if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_branch_rename", $"repos/{owner}/{repoName}/branches/{branch}/rename"));
+            return Ok($"分支 '{branch}' 已重命名为 '{new_name}'");
+        }).ConfigureAwait(false);
 }

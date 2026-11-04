@@ -327,6 +327,14 @@ public enum GitHubToolName {
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhLabelDelete,
 
+    [EnumValue("gh_label_edit")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhLabelEdit,
+
+    [EnumValue("gh_label_clone")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhLabelClone,
+
     // === Search ===
     [EnumValue("gh_search_repos")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
@@ -411,6 +419,18 @@ public enum GitHubToolName {
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhGistCreate,
 
+    [EnumValue("gh_gist_edit")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhGistEdit,
+
+    [EnumValue("gh_gist_rename")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhGistRename,
+
+    [EnumValue("gh_gist_clone")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhGistClone,
+
     [EnumValue("gh_gist_delete")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhGistDelete,
@@ -420,10 +440,18 @@ public enum GitHubToolName {
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhOrgList,
 
+    [EnumValue("gh_org_view")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhOrgView,
+
     // === SSH Key ===
     [EnumValue("gh_ssh_key_list")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhSshKeyList,
+
+    [EnumValue("gh_ssh_key_view")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhSshKeyView,
 
     [EnumValue("gh_ssh_key_add")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
@@ -437,6 +465,10 @@ public enum GitHubToolName {
     [EnumValue("gh_gpg_key_list")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhGpgKeyList,
+
+    [EnumValue("gh_gpg_key_view")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhGpgKeyView,
 
     [EnumValue("gh_gpg_key_add")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
@@ -484,6 +516,46 @@ public enum GitHubToolName {
     [EnumValue("gh_branch_audit_protection")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhBranchAuditProtection,
+
+    [EnumValue("gh_branch_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhBranchList,
+
+    [EnumValue("gh_branch_create")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhBranchCreate,
+
+    [EnumValue("gh_branch_delete")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhBranchDelete,
+
+    [EnumValue("gh_branch_rename")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhBranchRename,
+
+    // === Milestone ===
+    [EnumValue("gh_milestone_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhMilestoneList,
+
+    [EnumValue("gh_milestone_view")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhMilestoneView,
+
+    // === Notification ===
+    [EnumValue("gh_notification_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhNotificationList,
+
+    // === Team ===
+    [EnumValue("gh_team_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhTeamList,
+
+    // === Collaborator ===
+    [EnumValue("gh_collaborator_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhCollaboratorList,
 
     // === 通用 API 调用 ===
     [EnumValue("gh_api")]

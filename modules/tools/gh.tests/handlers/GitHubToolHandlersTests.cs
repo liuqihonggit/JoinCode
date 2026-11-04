@@ -45,6 +45,24 @@ public sealed partial class GitHubToolHandlersTests {
         result.GetFirstText().Should().Contain("could not find pr");
     }
 
+    /// <summary>404 错误应提示 token 未配置/无效 — 私有仓库无 token 时 GitHub 返回 404 而非 401</summary>
+    [Fact]
+    public async Task PrView_NotFound_ShouldHintTokenConfiguration() {
+        _api.NextResponse = new GitHubApiResponse {
+            Success = false,
+            StatusCode = 404,
+            Error = "Not Found",
+        };
+
+        var result = await _handler.GhPrViewAsync("999", common: new GitHubCommonOptions { Repo = "owner/repo" });
+
+        result.IsError.Should().BeTrue();
+        var text = result.GetFirstText();
+        text.Should().Contain("PR 获取失败");
+        text.Should().Contain("JCC_GITHUB_TOKEN");
+        text.Should().Contain("token");
+    }
+
     [Fact]
     public async Task PrCreate_Success_ReturnsCreatedPr() {
         _api.NextResponse = new GitHubApiResponse {
@@ -1256,26 +1274,26 @@ public sealed partial class GitHubToolHandlersTests {
 
     [Fact]
     public async Task RepoList_WithSource_FiltersNonForks() {
-        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"name":"r1","fork":false},{"name":"r2","fork":true}]""" };
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"name":"r1","full_name":"o/r1","fork":false},{"name":"r2","full_name":"o/r2","fork":true}]""" };
 
         var result = await _handler.GhRepoListAsync(source: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
-        text.Should().Contain("\"name\":\"r1\"");
-        text.Should().NotContain("\"name\":\"r2\"");
+        text.Should().Contain("o/r1");
+        text.Should().NotContain("o/r2");
     }
 
     [Fact]
     public async Task RepoList_WithFork_OnlyForks() {
-        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"name":"r1","fork":false},{"name":"r2","fork":true}]""" };
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """[{"name":"r1","full_name":"o/r1","fork":false},{"name":"r2","full_name":"o/r2","fork":true}]""" };
 
         var result = await _handler.GhRepoListAsync(fork: true, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
-        text.Should().NotContain("\"name\":\"r1\"");
-        text.Should().Contain("\"name\":\"r2\"");
+        text.Should().NotContain("o/r1");
+        text.Should().Contain("o/r2");
     }
 
     [Fact]

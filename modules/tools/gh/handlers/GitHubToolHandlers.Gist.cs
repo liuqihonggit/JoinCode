@@ -15,7 +15,7 @@ public partial class GitHubToolHandlers {
         if (_apiClient is null) return ApiClientNotConfigured();
         var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
         var result = await _apiClient.SendAsync(HttpMethod.Get, "gists", query: query, ct: cancellationToken).ConfigureAwait(false);
-        if (!result.Success) return Fail(result.Error);
+        if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_gist_list", "gists"));
         if (!string.IsNullOrEmpty(common?.Jq))
             return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, _ => result.Body, jq: common?.Jq, skipLines: common?.SkipLines, startLine: common?.StartLine, toolName: "gh_gist_list"));
         if (common?.JsonFields is { } jf && !string.IsNullOrEmpty(jf)) return Ok(FilterJsonFields(result.Body, jf));
@@ -45,7 +45,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, $"gists/{gist_id}", ct: cancellationToken).ConfigureAwait(false);
-        if (!result.Success) return Fail(result.Error);
+        if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_gist_view", $"gists/{gist_id}"));
         if (!string.IsNullOrEmpty(common?.Jq))
             return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, _ => result.Body, jq: common?.Jq, skipLines: common?.SkipLines, startLine: common?.StartLine, toolName: "gh_gist_view"));
         if (common?.JsonFields is { } jf && !string.IsNullOrEmpty(jf)) return Ok(FilterJsonFields(result.Body, jf));
@@ -86,7 +86,7 @@ public partial class GitHubToolHandlers {
         };
         var body = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.GistCreateRequest);
         var result = await _apiClient.SendAsync(HttpMethod.Post, "gists", body, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? OkBrief(result.Body, "Gist 创建成功") : Fail(result.Error);
+        return result.Success ? OkBrief(result.Body, "Gist 创建成功") : Fail(EnrichApiError(result.Error, "gh_gist_create", "gists"));
     }
 
     /// <summary>
@@ -98,6 +98,68 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Delete, $"gists/{gist_id}", ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok($"已删除 Gist {gist_id}") : Fail(result.Error);
+        return result.Success ? Ok($"已删除 Gist {gist_id}") : Fail(EnrichApiError(result.Error, "gh_gist_delete", $"gists/{gist_id}"));
+    }
+
+    /// <summary>
+    /// 编辑 Gist — 调 PATCH /gists/{id}，可修改描述和文件内容
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhGistEdit, "编辑 Gist(描述/文件内容)", "github")]
+    public async Task<ToolResult> GhGistEditAsync(
+        [McpToolParameter("Gist ID", Required = true)] string gist_id,
+        [McpToolParameter("描述(可选)", Required = false)] string? description = null,
+        [McpToolParameter("文件名(可选,指定则更新该文件内容)", Required = false)] string? filename = null,
+        [McpToolParameter("文件内容(可选,需配合 filename)", Required = false)] string? content = null,
+        CancellationToken cancellationToken = default) {
+        if (_apiClient is null) return ApiClientNotConfigured();
+        var request = new GistCreateRequest { Description = description };
+        if (!string.IsNullOrEmpty(filename) && content is not null)
+            request = new GistCreateRequest { Description = description, Files = new() { [filename] = new GistFileContent { Content = content } } };
+        var body = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.GistCreateRequest);
+        var result = await _apiClient.SendAsync(HttpMethod.Patch, $"gists/{gist_id}", body, ct: cancellationToken).ConfigureAwait(false);
+        return result.Success ? OkBrief(result.Body, $"已更新 Gist {gist_id}") : Fail(EnrichApiError(result.Error, "gh_gist_edit", $"gists/{gist_id}"));
+    }
+
+    /// <summary>
+    /// 重命名 Gist 文件 — 先 GET 获取旧文件内容，再 PATCH 删旧加新
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhGistRename, "重命名 Gist 文件", "github")]
+    public async Task<ToolResult> GhGistRenameAsync(
+        [McpToolParameter("Gist ID", Required = true)] string gist_id,
+        [McpToolParameter("旧文件名", Required = true)] string old_filename,
+        [McpToolParameter("新文件名", Required = true)] string new_filename,
+        CancellationToken cancellationToken = default) {
+        if (_apiClient is null) return ApiClientNotConfigured();
+        var getResult = await _apiClient.SendAsync(HttpMethod.Get, $"gists/{gist_id}", ct: cancellationToken).ConfigureAwait(false);
+        if (!getResult.Success) return Fail(EnrichApiError(getResult.Error, "gh_gist_rename", $"gists/{gist_id}"));
+        var gist = JsonSerializer.Deserialize(getResult.Body, GitHubApiJsonContext.Safe.GistResponse);
+        if (gist?.Files is null || !gist.Files.TryGetValue(old_filename, out var oldFile) || oldFile is null)
+            return Fail($"Gist {gist_id} 中不存在文件 '{old_filename}'。提示: 用 gh gist view {gist_id} 查看文件列表");
+        var content = oldFile.Content ?? "";
+        var request = new GistCreateRequest {
+            Files = new() {
+                [old_filename] = null,
+                [new_filename] = new GistFileContent { Content = content }
+            }
+        };
+        var body = JsonSerializer.Serialize(request, GitHubApiJsonContext.Safe.GistCreateRequest);
+        var result = await _apiClient.SendAsync(HttpMethod.Patch, $"gists/{gist_id}", body, ct: cancellationToken).ConfigureAwait(false);
+        return result.Success ? OkBrief(result.Body, $"已重命名 {old_filename} → {new_filename}") : Fail(EnrichApiError(result.Error, "gh_gist_rename", $"gists/{gist_id}"));
+    }
+
+    /// <summary>
+    /// 克隆 Gist — 调 git clone https://gist.github.com/{id}.git
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhGistClone, "克隆 Gist 到本地", "github")]
+    public async Task<ToolResult> GhGistCloneAsync(
+        [McpToolParameter("Gist ID", Required = true)] string gist_id,
+        [McpToolParameter("目标目录(可选,默认用 Gist ID)", Required = false)] string? dir = null,
+        [McpToolParameter(WellKnownParam.WorkingDir)] string? working_dir = null,
+        CancellationToken cancellationToken = default) {
+        if (_git is null) return Fail("git 命令未配置");
+        var gistUrl = $"https://gist.github.com/{gist_id}.git";
+        var targetDir = string.IsNullOrWhiteSpace(dir) ? gist_id : dir;
+        var result = await _git.ExecuteAsync($"clone {gistUrl} {targetDir}", working_dir, cancellationToken).ConfigureAwait(false);
+        return result.Success ? Ok($"已克隆 Gist {gist_id} 到 {targetDir}") : Fail(result.Error);
     }
 }

@@ -238,45 +238,40 @@ public partial class GitHubToolHandlers {
         if (!string.IsNullOrWhiteSpace(visibility)) query["visibility"] = visibility;
         if (archived is not null) query["archived"] = archived.Value ? "true" : "false";
         var result = await _apiClient.SendAsync(HttpMethod.Get, "user/repos", query: query, ct: cancellationToken).ConfigureAwait(false);
-        if (!result.Success) return Fail(result.Error);
-        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, body => SummarizeRepoList(body, source, fork, topic, common?.JsonFields), null, common?.Jq, common?.SkipLines, common?.StartLine, "gh_repo_list"));
+        if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_repo_list", "user/repos"));
+        return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, body => SummarizeRepoList(body, source, fork, topic), "name,full_name,private,fork,description,language,stargazers_count,updated_at,default_branch", common?.Jq, common?.SkipLines, common?.StartLine, "gh_repo_list"));
     }
 
     /// <summary>
     /// 精简仓库列表 JSON — 只保留关键字段，去掉冗余 URL，便于人类浏览和 AI 解析；支持 source/fork/topic 客户端过滤
     /// </summary>
-    private static readonly string[] DefaultRepoFields = ["name", "full_name", "private", "fork", "description", "language", "stargazers_count", "updated_at", "default_branch"];
-
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    private static string SummarizeRepoList(string json, bool? source = null, bool? fork = null, string? topic = null, string? jsonFields = null) {
+    private static string SummarizeRepoList(string json, bool? source = null, bool? fork = null, string? topic = null) {
         var topicSet = topic?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var fields = string.IsNullOrWhiteSpace(jsonFields) ? DefaultRepoFields : jsonFields.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         try {
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
-            var buffer = new ArrayBufferWriter<byte>();
-            using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping })) {
-                writer.WriteStartArray();
-                foreach (var repo in doc.RootElement.EnumerateArray()) {
-                    var isFork = repo.TryGetProperty(GitHubJsonFields.Fork, out var f) && f.GetBoolean();
-                    if (source == true && isFork) continue;
-                    if (fork == true && !isFork) continue;
-                    if (topicSet is { Count: > 0 } && repo.TryGetProperty("topics", out var topicsEl) && topicsEl.ValueKind == JsonValueKind.Array) {
-                        var hasAnyTopic = false;
-                        foreach (var t in topicsEl.EnumerateArray()) {
-                            if (t.ValueKind == JsonValueKind.String && topicSet.Contains(t.GetString()!)) { hasAnyTopic = true; break; }
-                        }
-                        if (!hasAnyTopic) continue;
+            var sb = new StringBuilder(256);
+            sb.AppendLine("仓库\t可见性\tFork\t语言\tStars\t描述");
+            foreach (var repo in doc.RootElement.EnumerateArray()) {
+                var isFork = repo.TryGetProperty(GitHubJsonFields.Fork, out var f) && f.GetBoolean();
+                if (source == true && isFork) continue;
+                if (fork == true && !isFork) continue;
+                if (topicSet is { Count: > 0 } && repo.TryGetProperty("topics", out var topicsEl) && topicsEl.ValueKind == JsonValueKind.Array) {
+                    var hasAnyTopic = false;
+                    foreach (var t in topicsEl.EnumerateArray()) {
+                        if (t.ValueKind == JsonValueKind.String && topicSet.Contains(t.GetString()!)) { hasAnyTopic = true; break; }
                     }
-                    writer.WriteStartObject();
-                    foreach (var field in fields) {
-                        CopyProperty(repo, writer, field);
-                    }
-                    writer.WriteEndObject();
+                    if (!hasAnyTopic) continue;
                 }
-                writer.WriteEndArray();
+                var fullName = repo.TryGetProperty("full_name", out var fn) ? fn.GetString() : "";
+                var isPrivate = repo.TryGetProperty("private", out var p) && p.GetBoolean();
+                var lang = repo.TryGetProperty("language", out var l) && l.ValueKind == JsonValueKind.String ? l.GetString() : "";
+                var stars = repo.TryGetProperty("stargazers_count", out var s) ? s.GetInt32() : 0;
+                var desc = repo.TryGetProperty("description", out var d) && d.ValueKind == JsonValueKind.String ? d.GetString() : "";
+                sb.AppendLine($"{fullName}\t{(isPrivate ? "private" : "public")}\t{(isFork ? "fork" : "")}\t{lang}\t{stars}\t{desc}");
             }
-            return Encoding.UTF8.GetString(buffer.WrittenSpan);
+            return sb.ToString();
         } catch (Exception) {
             return json;
         }

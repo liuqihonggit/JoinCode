@@ -21,6 +21,8 @@ public partial class GitHubToolHandlers {
         GitHubCommonOptions? common, CancellationToken ct) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var q = BuildSearchQuery(spec, query);
+        if (!string.IsNullOrWhiteSpace(common?.Repo) && !q.Contains("repo:", StringComparison.OrdinalIgnoreCase))
+            q = $"{q} repo:{common.Repo}";
         var queryDict = BuildSearchQueryDict(q, limit, sort, order);
         var result = await _apiClient.SendAsync(HttpMethod.Get, spec.Endpoint, query: queryDict, ct: ct).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);

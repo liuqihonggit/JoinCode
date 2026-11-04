@@ -19,70 +19,82 @@ public partial class GitHubToolHandlers {
 
     /// <summary>
     /// 按 title 查 Project v2 ID — 先查 organization projects，再查 viewer projects
+    /// <para>返回 (Result, Error): Error 非 null=GraphQL 错误, Result 非 null=找到, 都 null=未找到</para>
     /// </summary>
-    private async Task<string?> FindProjectIdByTitleAsync(IGitHubApiClient client, string owner, string projectTitle, CancellationToken ct) {
+    private async Task<(string? Result, string? Error)> FindProjectIdByTitleAsync(IGitHubApiClient client, string owner, string projectTitle, CancellationToken ct) {
         var orgQuery = BuildGraphQL($"query{{organization(login:\"{owner}\"){{projectsV2(first:50){{nodes{{id title}}}}}}}}");
         var orgResult = await client.SendAsync(HttpMethod.Post, "graphql", orgQuery, ct: ct).ConfigureAwait(false);
         if (orgResult.Success) {
+            { if (TryExtractGraphQLError(orgResult.Body) is { } gqlErr) return (null, gqlErr); }
             try {
                 var orgResp = JsonSerializer.Deserialize(orgResult.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLOrganizationResponseProjectIdTitleListWrapperResponse);
                 var match = orgResp?.Data?.Organization?.ProjectsV2.Nodes.FirstOrDefault(n => n.Title == projectTitle);
-                if (match is not null) return match.Id;
+                if (match is not null) return (match.Id, null);
             } catch (Exception ex) { _logger?.LogDebug(ex, "解析 organization projectsV2 失败"); }
         }
         var viewerQuery = BuildGraphQL("query{viewer{projectsV2(first:50){nodes{id title}}}}");
         var viewerResult = await client.SendAsync(HttpMethod.Post, "graphql", viewerQuery, ct: ct).ConfigureAwait(false);
         if (viewerResult.Success) {
+            { if (TryExtractGraphQLError(viewerResult.Body) is { } gqlErr) return (null, gqlErr); }
             try {
                 var viewerResp = JsonSerializer.Deserialize(viewerResult.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLViewerResponseProjectIdTitleListWrapperResponse);
                 var match = viewerResp?.Data?.Viewer?.ProjectsV2.Nodes.FirstOrDefault(n => n.Title == projectTitle);
-                if (match is not null) return match.Id;
+                if (match is not null) return (match.Id, null);
             } catch (Exception ex) { _logger?.LogDebug(ex, "解析 viewer projectsV2 失败"); }
         }
-        return null;
+        return (null, null);
     }
 
     /// <summary>
     /// 查 Project items 找到匹配 contentNodeId 的 item ID — 用于 deleteProjectV2Item
+    /// <para>返回 (Result, Error): Error 非 null=GraphQL 错误, Result 非 null=找到, 都 null=未找到</para>
     /// </summary>
-    private async Task<string?> FindProjectItemIdAsync(IGitHubApiClient client, string projectId, string contentNodeId, CancellationToken ct) {
+    private async Task<(string? Result, string? Error)> FindProjectItemIdAsync(IGitHubApiClient client, string projectId, string contentNodeId, CancellationToken ct) {
         var query = BuildGraphQL($"query{{node(id:\"{projectId}\"){{...on ProjectV2{{items(first:100){{nodes{{id content{{...on Issue{{id}} ...on PullRequest{{id}}}}}}}}}}}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", query, ct: ct).ConfigureAwait(false);
-        if (!result.Success) return null;
+        if (!result.Success) return (null, result.Error);
+        { if (TryExtractGraphQLError(result.Body) is { } gqlErr) return (null, gqlErr); }
         try {
             var resp = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLNodeWrapperResponseProjectNodeItemsWrapperResponse);
             var nodes = resp?.Data?.Node?.Items.Nodes;
             if (nodes is not null) {
                 foreach (var node in nodes) {
-                    if (node.Content?.Id == contentNodeId) return node.Id;
+                    if (node.Content?.Id == contentNodeId) return (node.Id, null);
                 }
             }
         } catch (Exception ex) { _logger?.LogWarning(ex, "解析 project items 失败"); }
-        return null;
+        return (null, null);
     }
 
     /// <summary>
     /// 按 title 添加 Issue/PR 到 Project v2 — 查 project ID 后调 addProjectV2ItemById
     /// </summary>
     private async Task<(bool Success, string? Error)> AddToProjectByTitleAsync(IGitHubApiClient client, string owner, string contentNodeId, string projectTitle, CancellationToken ct) {
-        var projectId = await FindProjectIdByTitleAsync(client, owner, projectTitle, ct).ConfigureAwait(false);
+        var (projectId, projError) = await FindProjectIdByTitleAsync(client, owner, projectTitle, ct).ConfigureAwait(false);
+        if (projError is not null) return (false, projError);
         if (string.IsNullOrEmpty(projectId)) return (false, $"未找到项目 \"{projectTitle}\"。可能原因: ① Token 缺少 read:project scope（运行 gh auth refresh -s project 添加） ② 项目标题不存在 ③ 项目属于其他 organization");
         var mutation = BuildGraphQL($"mutation{{addProjectV2ItemById(input:{{projectId:\"{projectId}\",contentId:\"{contentNodeId}\"}}){{item{{id}}}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
-        return result.Success ? (true, null) : (false, result.Error);
+        if (!result.Success) return (false, result.Error);
+        { var gqlErr = TryExtractGraphQLError(result.Body); if (gqlErr is not null) return (false, gqlErr); }
+        return (true, null);
     }
 
     /// <summary>
     /// 按 title 从 Project v2 移除 Issue/PR — 查 project ID + item ID 后调 deleteProjectV2Item
     /// </summary>
     private async Task<(bool Success, string? Error)> RemoveFromProjectByTitleAsync(IGitHubApiClient client, string owner, string contentNodeId, string projectTitle, CancellationToken ct) {
-        var projectId = await FindProjectIdByTitleAsync(client, owner, projectTitle, ct).ConfigureAwait(false);
+        var (projectId, projError) = await FindProjectIdByTitleAsync(client, owner, projectTitle, ct).ConfigureAwait(false);
+        if (projError is not null) return (false, projError);
         if (string.IsNullOrEmpty(projectId)) return (false, $"未找到项目 \"{projectTitle}\"。可能原因: ① Token 缺少 read:project scope（运行 gh auth refresh -s project 添加） ② 项目标题不存在 ③ 项目属于其他 organization");
-        var itemId = await FindProjectItemIdAsync(client, projectId, contentNodeId, ct).ConfigureAwait(false);
+        var (itemId, itemError) = await FindProjectItemIdAsync(client, projectId, contentNodeId, ct).ConfigureAwait(false);
+        if (itemError is not null) return (false, itemError);
         if (string.IsNullOrEmpty(itemId)) return (false, $"Issue/PR 不在项目 \"{projectTitle}\" 中。可能原因: ① Issue/PR 未添加到该项目 ② 项目标题不匹配");
         var mutation = BuildGraphQL($"mutation{{deleteProjectV2Item(input:{{projectId:\"{projectId}\",itemId:\"{itemId}\"}}){{clientMutationId}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
-        return result.Success ? (true, null) : (false, result.Error);
+        if (!result.Success) return (false, result.Error);
+        { var gqlErr = TryExtractGraphQLError(result.Body); if (gqlErr is not null) return (false, gqlErr); }
+        return (true, null);
     }
 
     /// <summary>
@@ -91,7 +103,9 @@ public partial class GitHubToolHandlers {
     private async Task<(bool Success, string? Error)> AddSubIssueGraphQLAsync(IGitHubApiClient client, string parentId, string childId, CancellationToken ct) {
         var mutation = BuildGraphQL($"mutation{{addSubIssue(input:{{issueId:\"{parentId}\",subIssueId:\"{childId}\",replaceParent:true}}){{issue{{id}}}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
-        return result.Success ? (true, null) : (false, result.Error);
+        if (!result.Success) return (false, result.Error);
+        { var gqlErr = TryExtractGraphQLError(result.Body); if (gqlErr is not null) return (false, gqlErr); }
+        return (true, null);
     }
 
     /// <summary>
@@ -100,7 +114,9 @@ public partial class GitHubToolHandlers {
     private async Task<(bool Success, string? Error)> RemoveSubIssueGraphQLAsync(IGitHubApiClient client, string parentId, string childId, CancellationToken ct) {
         var mutation = BuildGraphQL($"mutation{{removeSubIssue(input:{{issueId:\"{parentId}\",subIssueId:\"{childId}\"}}){{issue{{id}}}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
-        return result.Success ? (true, null) : (false, result.Error);
+        if (!result.Success) return (false, result.Error);
+        { var gqlErr = TryExtractGraphQLError(result.Body); if (gqlErr is not null) return (false, gqlErr); }
+        return (true, null);
     }
 
     /// <summary>
@@ -109,7 +125,9 @@ public partial class GitHubToolHandlers {
     private async Task<(bool Success, string? Error)> AddBlockedByGraphQLAsync(IGitHubApiClient client, string issueId, string blockingIssueId, CancellationToken ct) {
         var mutation = BuildGraphQL($"mutation{{addBlockedBy(input:{{issueId:\"{issueId}\",blockingIssueId:\"{blockingIssueId}\"}}){{issue{{id}}}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
-        return result.Success ? (true, null) : (false, result.Error);
+        if (!result.Success) return (false, result.Error);
+        { var gqlErr = TryExtractGraphQLError(result.Body); if (gqlErr is not null) return (false, gqlErr); }
+        return (true, null);
     }
 
     /// <summary>
@@ -118,26 +136,30 @@ public partial class GitHubToolHandlers {
     private async Task<(bool Success, string? Error)> RemoveBlockedByGraphQLAsync(IGitHubApiClient client, string issueId, string blockingIssueId, CancellationToken ct) {
         var mutation = BuildGraphQL($"mutation{{removeBlockedBy(input:{{issueId:\"{issueId}\",blockingIssueId:\"{blockingIssueId}\"}}){{issue{{id}}}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
-        return result.Success ? (true, null) : (false, result.Error);
+        if (!result.Success) return (false, result.Error);
+        { var gqlErr = TryExtractGraphQLError(result.Body); if (gqlErr is not null) return (false, gqlErr); }
+        return (true, null);
     }
 
     /// <summary>
     /// 查 issue type ID by name — GraphQL repository.issueTypes
+    /// <para>返回 (Result, Error): Error 非 null=GraphQL 错误, Result 非 null=找到, 都 null=未找到</para>
     /// </summary>
-    private async Task<string?> FindIssueTypeIdAsync(IGitHubApiClient client, string owner, string repoName, string typeName, CancellationToken ct) {
+    private async Task<(string? Result, string? Error)> FindIssueTypeIdAsync(IGitHubApiClient client, string owner, string repoName, string typeName, CancellationToken ct) {
         var query = BuildGraphQL($"query{{repository(owner:\"{owner}\",name:\"{repoName}\"){{issueTypes(first:50){{nodes{{id name}}}}}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", query, ct: ct).ConfigureAwait(false);
-        if (!result.Success) return null;
+        if (!result.Success) return (null, result.Error);
+        { if (TryExtractGraphQLError(result.Body) is { } gqlErr) return (null, gqlErr); }
         try {
             var resp = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLRepositoryResponseIssueTypeListWrapperResponse);
             var nodes = resp?.Data?.Repository?.IssueTypes.Nodes;
             if (nodes is not null) {
                 foreach (var node in nodes) {
-                    if (node.Name == typeName) return node.Id;
+                    if (node.Name == typeName) return (node.Id, null);
                 }
             }
         } catch (Exception ex) { _logger?.LogWarning(ex, "解析 issueTypes 失败"); }
-        return null;
+        return (null, null);
     }
 
     /// <summary>
@@ -146,7 +168,9 @@ public partial class GitHubToolHandlers {
     private async Task<(bool Success, string? Error)> SetIssueTypeAsync(IGitHubApiClient client, string issueId, string issueTypeId, CancellationToken ct) {
         var mutation = BuildGraphQL($"mutation{{updateIssueIssueType(input:{{issueId:\"{issueId}\",issueTypeId:\"{issueTypeId}\"}}){{issue{{id}}}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
-        return result.Success ? (true, null) : (false, result.Error);
+        if (!result.Success) return (false, result.Error);
+        { var gqlErr = TryExtractGraphQLError(result.Body); if (gqlErr is not null) return (false, gqlErr); }
+        return (true, null);
     }
 
     /// <summary>
@@ -155,22 +179,26 @@ public partial class GitHubToolHandlers {
     private async Task<(bool Success, string? Error)> RemoveIssueTypeAsync(IGitHubApiClient client, string issueId, CancellationToken ct) {
         var mutation = BuildGraphQL($"mutation{{updateIssueIssueType(input:{{issueId:\"{issueId}\",issueTypeId:null}}){{issue{{id}}}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", mutation, ct: ct).ConfigureAwait(false);
-        return result.Success ? (true, null) : (false, result.Error);
+        if (!result.Success) return (false, result.Error);
+        { var gqlErr = TryExtractGraphQLError(result.Body); if (gqlErr is not null) return (false, gqlErr); }
+        return (true, null);
     }
 
     /// <summary>
     /// 查 issue 的 parent ID — GraphQL repository.issue(number) { parent { id } }
+    /// <para>返回 (Result, Error): Error 非 null=GraphQL 错误, Result 非 null=找到, 都 null=未找到</para>
     /// </summary>
-    private async Task<string?> GetIssueParentIdAsync(IGitHubApiClient client, string owner, string repoName, string number, CancellationToken ct) {
+    private async Task<(string? Result, string? Error)> GetIssueParentIdAsync(IGitHubApiClient client, string owner, string repoName, string number, CancellationToken ct) {
         var query = BuildGraphQL($"query{{repository(owner:\"{owner}\",name:\"{repoName}\"){{issue(number:{number}){{parent{{id}}}}}}}}");
         var result = await client.SendAsync(HttpMethod.Post, "graphql", query, ct: ct).ConfigureAwait(false);
-        if (!result.Success) return null;
+        if (!result.Success) return (null, result.Error);
+        { if (TryExtractGraphQLError(result.Body) is { } gqlErr) return (null, gqlErr); }
         try {
             var resp = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.GraphQLDataResponseGraphQLRepositoryResponseIssueParentWrapperResponse);
             var parent = resp?.Data?.Repository?.Issue?.Parent;
-            if (parent is not null) return parent.Id;
+            if (parent is not null) return (parent.Id, null);
         } catch (Exception ex) { _logger?.LogWarning(ex, "解析 issue parent 失败"); }
-        return null;
+        return (null, null);
     }
 
     /// <summary>

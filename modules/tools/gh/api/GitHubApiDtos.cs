@@ -10,7 +10,7 @@ namespace McpToolDispatch;
 internal sealed class GistCreateRequest {
     /// <summary>文件名 → 内容</summary>
     [JsonPropertyName("files")]
-    public Dictionary<string, GistFileContent> Files { get; init; } = new();
+    public Dictionary<string, GistFileContent?> Files { get; init; } = new();
 
     /// <summary>描述</summary>
     [JsonPropertyName("description")]
@@ -104,6 +104,21 @@ internal sealed class LabelCreateRequest {
     public string? Color { get; init; }
 
     /// <summary>描述</summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; init; }
+}
+
+/// <summary>Label edit 请求 body — PATCH /labels/{name}</summary>
+internal sealed class LabelEditRequest {
+    /// <summary>新标签名(可选)</summary>
+    [JsonPropertyName("new_name")]
+    public string? NewName { get; init; }
+
+    /// <summary>颜色(6 字符 hex,可选)</summary>
+    [JsonPropertyName("color")]
+    public string? Color { get; init; }
+
+    /// <summary>描述(可选)</summary>
     [JsonPropertyName("description")]
     public string? Description { get; init; }
 }
@@ -315,6 +330,22 @@ internal sealed class PrUpdateBranchRequest {
     /// <summary>更新方法(merge/rebase)</summary>
     [JsonPropertyName("update_method")]
     public string UpdateMethod { get; init; } = "merge";
+}
+
+/// <summary>创建分支请求 — POST /git/refs</summary>
+internal sealed class CreateBranchRequest {
+    [JsonPropertyName("ref")]
+    public string Ref { get; init; } = "";
+    [JsonPropertyName("sha")]
+    public string Sha { get; init; } = "";
+    public CreateBranchRequest(string refName, string sha) { Ref = refName; Sha = sha; }
+}
+
+/// <summary>重命名分支请求 — POST /branches/{branch}/rename</summary>
+internal sealed class RenameBranchRequest {
+    [JsonPropertyName("new_name")]
+    public string NewName { get; init; } = "";
+    public RenameBranchRequest(string newName) { NewName = newName; }
 }
 
 /// <summary>PR ready 请求 — PATCH /pulls/{n} {"draft":false}</summary>
@@ -678,6 +709,7 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(List<GistListItem>))]
 [JsonSerializable(typeof(WorkflowDispatchRequest))]
 [JsonSerializable(typeof(LabelCreateRequest))]
+[JsonSerializable(typeof(LabelEditRequest))]
 [JsonSerializable(typeof(DeployKeyAddRequest))]
 [JsonSerializable(typeof(AutolinkCreateRequest))]
 [JsonSerializable(typeof(SshKeyAddRequest))]
@@ -810,6 +842,11 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(CheckRunItemResponse))]
 [JsonSerializable(typeof(RequiredStatusChecksResponse))]
 [JsonSerializable(typeof(BranchProtectionContextsResponse))]
+[JsonSerializable(typeof(BranchListItemResponse))]
+[JsonSerializable(typeof(BranchCommitRefResponse))]
+[JsonSerializable(typeof(List<BranchListItemResponse>))]
+[JsonSerializable(typeof(CreateBranchRequest))]
+[JsonSerializable(typeof(RenameBranchRequest))]
 [JsonSerializable(typeof(WorkflowRunListResponse))]
 [JsonSerializable(typeof(WorkflowRunItemResponse))]
 [JsonSerializable(typeof(ProjectIdTitleItemResponse))]
@@ -849,6 +886,14 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(AuthUserResponse))]
 [JsonSerializable(typeof(WorkflowRunListBriefResponse))]
 [JsonSerializable(typeof(WorkflowRunBriefItemResponse))]
+[JsonSerializable(typeof(NotificationItemResponse))]
+[JsonSerializable(typeof(NotificationSubjectResponse))]
+[JsonSerializable(typeof(List<NotificationItemResponse>))]
+[JsonSerializable(typeof(TeamItemResponse))]
+[JsonSerializable(typeof(List<TeamItemResponse>))]
+[JsonSerializable(typeof(CollaboratorItemResponse))]
+[JsonSerializable(typeof(CollaboratorPermissionsResponse))]
+[JsonSerializable(typeof(List<CollaboratorItemResponse>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 internal sealed partial class GitHubApiJsonContext : JsonSerializerContext
 {

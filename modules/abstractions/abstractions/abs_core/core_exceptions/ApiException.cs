@@ -84,7 +84,7 @@ public class ApiException : WorkflowException {
     /// 创建限流异常
     /// </summary>
     public static ApiException RateLimit(string endpoint, TimeSpan? retryAfter = null) {
-        var retryMsg = retryAfter.HasValue ? $" 请在 {retryAfter.Value.TotalSeconds}s 后重试" : string.Empty;
+        var retryMsg = retryAfter.HasValue ? $" 请在 {retryAfter.Value.TotalSeconds}s 后重试" : " 请降低请求频率或等待限流窗口结束后重试";
         var ex = new ApiException(
             $"API 请求被限流: {endpoint}.{retryMsg}",
             statusCode: 429,
@@ -109,7 +109,7 @@ public class ApiException : WorkflowException {
     /// </summary>
     public static ApiException ResponseError(string endpoint, int statusCode, string responseContent) {
         return new ApiException(
-            $"API 返回错误响应 (HTTP {statusCode})",
+            $"API 返回错误响应 (HTTP {statusCode}): {responseContent}",
             statusCode: statusCode,
             endpoint: endpoint,
             responseContent: responseContent,

@@ -176,4 +176,43 @@ public sealed class ChatErrorHandlingMiddlewareTests {
         Assert.Same(original, result);
         Assert.IsType<JoinCode.Abstractions.Exceptions.WorkflowException>(result);
     }
+
+    /// <summary>
+    /// 第24条：429 错误消息应包含可操作性提示（降低请求频率/等待限流窗口）
+    /// </summary>
+    [Fact]
+    public void ClassifyException_429_MessageShouldContainRateLimitGuidance() {
+        var original = new System.Net.Http.HttpRequestException("Rate limited", null, System.Net.HttpStatusCode.TooManyRequests);
+
+        var result = JoinCode.Pipelines.Middlewares.ChatErrorHandlingMiddleware.ClassifyException(original);
+
+        var apiEx = Assert.IsType<JoinCode.Abstractions.Exceptions.ApiException>(result);
+        Assert.Contains("降低请求频率", apiEx.Message);
+    }
+
+    /// <summary>
+    /// 第24条：503 错误消息应包含"服务端暂时不可用"提示
+    /// </summary>
+    [Fact]
+    public void ClassifyException_503_MessageShouldContainServiceUnavailableHint() {
+        var original = new System.Net.Http.HttpRequestException("Service Unavailable", null, System.Net.HttpStatusCode.ServiceUnavailable);
+
+        var result = JoinCode.Pipelines.Middlewares.ChatErrorHandlingMiddleware.ClassifyException(original);
+
+        var apiEx = Assert.IsType<JoinCode.Abstractions.Exceptions.ApiException>(result);
+        Assert.Contains("暂时不可用", apiEx.Message);
+    }
+
+    /// <summary>
+    /// 第24条：502 错误消息应包含"网关错误"提示
+    /// </summary>
+    [Fact]
+    public void ClassifyException_502_MessageShouldContainBadGatewayHint() {
+        var original = new System.Net.Http.HttpRequestException("Bad Gateway", null, System.Net.HttpStatusCode.BadGateway);
+
+        var result = JoinCode.Pipelines.Middlewares.ChatErrorHandlingMiddleware.ClassifyException(original);
+
+        var apiEx = Assert.IsType<JoinCode.Abstractions.Exceptions.ApiException>(result);
+        Assert.Contains("网关错误", apiEx.Message);
+    }
 }

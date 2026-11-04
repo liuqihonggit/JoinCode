@@ -42,6 +42,7 @@ global using JoinCode.Abstractions.Models.Voice;
 global using JoinCode.Abstractions.Pipeline;
 global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Shell;
+global using JoinCode.Abstractions.Transport;
 global using JoinCode.Abstractions.Utils;
 global using System.Collections.Frozen;
 global using System.Collections.Immutable;

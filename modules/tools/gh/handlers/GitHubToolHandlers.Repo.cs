@@ -460,20 +460,20 @@ public partial class GitHubToolHandlers {
     // === Autolink 管理 ===
 
     /// <summary>
-    /// 列出仓库 Autolink 引用 — 调 REST API GET /keys/autolinks
+    /// 列出仓库 Autolink 引用 — 调 REST API GET /autolinks
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRepoAutolinkList, "列出仓库 Autolink 引用", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRepoAutolinkListAsync(
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
-            var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/keys/autolinks", ct: cancellationToken).ConfigureAwait(false);
-            if (!result.Success) return Fail(result.Error);
+            var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/autolinks", ct: cancellationToken).ConfigureAwait(false);
+            if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_repo_autolink_list", $"repos/{owner}/{repoName}/autolinks"));
             return Ok(SummarizeAutolinkList(result.Body));
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 查看 Autolink 详情 — 调 REST API GET /keys/autolinks/{id}
+    /// 查看 Autolink 详情 — 调 REST API GET /autolinks/{id}
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRepoAutolinkView, "查看 Autolink 详情", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRepoAutolinkViewAsync(
@@ -481,12 +481,12 @@ public partial class GitHubToolHandlers {
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
-            var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/keys/autolinks/{autolink_id}", ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok(result.Body) : Fail(result.Error);
+            var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/autolinks/{autolink_id}", ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? Ok(result.Body) : Fail(EnrichApiError(result.Error, "gh_repo_autolink_view", $"repos/{owner}/{repoName}/autolinks/{autolink_id}"));
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 创建 Autolink 引用 — 调 REST API POST /keys/autolinks
+    /// 创建 Autolink 引用 — 调 REST API POST /autolinks
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRepoAutolinkCreate, "创建 Autolink 引用", "github")]
     public async Task<ToolResult> GhRepoAutolinkCreateAsync(
@@ -496,12 +496,12 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var jsonBody = JsonSerializer.Serialize(new AutolinkCreateRequest { KeyPrefix = key_prefix, UrlTemplate = url_template }, GitHubApiJsonContext.Safe.AutolinkCreateRequest);
-            var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/keys/autolinks", jsonBody, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, "Autolink 创建成功") : Fail(result.Error);
+            var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/autolinks", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, "Autolink 创建成功") : Fail(EnrichApiError(result.Error, "gh_repo_autolink_create", $"repos/{owner}/{repoName}/autolinks"));
         }).ConfigureAwait(false);
 
     /// <summary>
-    /// 删除 Autolink 引用 — 调 REST API DELETE /keys/autolinks/{id}
+    /// 删除 Autolink 引用 — 调 REST API DELETE /autolinks/{id}
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRepoAutolinkDelete, "删除 Autolink 引用", "github")]
     public async Task<ToolResult> GhRepoAutolinkDeleteAsync(
@@ -509,8 +509,8 @@ public partial class GitHubToolHandlers {
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
-            var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/keys/autolinks/{autolink_id}", ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已删除 Autolink {autolink_id}") : Fail(result.Error);
+            var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/autolinks/{autolink_id}", ct: cancellationToken).ConfigureAwait(false);
+            return result.Success ? OkBrief(result.Body, $"已删除 Autolink {autolink_id}") : Fail(EnrichApiError(result.Error, "gh_repo_autolink_delete", $"repos/{owner}/{repoName}/autolinks/{autolink_id}"));
         }).ConfigureAwait(false);
 
     /// <summary>

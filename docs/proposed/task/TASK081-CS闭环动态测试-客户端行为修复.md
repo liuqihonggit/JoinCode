@@ -269,6 +269,63 @@ MockServer:
         jcc 退出 (T+18942ms)，显示错误信息 + 检查建议
 ```
 
+### 2026-11-05 B10 修复 — 计时摘要与错误信息粘连
+
+#### 根因
+
+`CliEventConsumer.OnTimingSummary`（`CliEventConsumer.cs:178`）用 `WriteRaw(summary)` 输出 `Total: 188ms` 不换行，后续异常处理 `WriteLine($"错误: {ex.Message}")` 直接接在同一行，产生 `Total: 188ms错误: ...` 粘连。
+
+#### 修复
+
+| 文件 | 行号 | 修改 |
+|------|------|------|
+| `modules/apps/cli/adapters/CliEventConsumer.cs` | 178 | `WriteRaw(summary)` → `WriteLine(summary)`，保证计时摘要独立成行 |
+
+#### 验证
+
+```
+修复前: Total: 188ms错误: 模型返回空回复...
+修复后: Total: 187ms
+        错误: 模型返回空回复...
+```
+
+commit `619de6a2b`
+
+### 2026-11-05 B13 修复 — HTTP 错误信息显示裸 JSON body
+
+#### 根因
+
+1. `ResilientHttpExecutor.CheckResponseStatusAsync`（`ResilientHttpExecutor.cs:256`）抛 `[{operationName}] HTTP {statusCode}: {body.Trim()}`，把整个 JSON body 拼进异常消息
+2. `HttpResponseExtensions.EnsureSuccessWithBodyAsync`（`HttpResponseExtensions.cs:30`）同样把 body preview 拼进异常消息
+3. 两处都不提取 OpenAI 错误格式 `{"error":{"message":"..."}}` 的 `error.message` 字段
+
+#### 修复
+
+| 文件 | 行号 | 修改 |
+|------|------|------|
+| `modules/abstractions/infrastructure/http/ResilientHttpExecutor.cs` | 256-279 | 新增 `ExtractErrorMessage` 方法，`JsonDocument.Parse` 解析 `error.message`，失败回退原始 body 前 200 字符；空 catch 改为带日志 |
+| `modules/llm/core/Adapters/LLM/QueryServices/core/HttpResponseExtensions.cs` | 30-48 | 同样新增 `ExtractErrorMessage` 方法，复用相同逻辑 |
+
+#### 验证
+
+```
+修复前: 错误: [LLM.StreamingChatCompletion] HTTP 404: {"error": {"message": "Not Found", "type": "server_error", "code": "internal_error"}}
+修复后: 错误: [LLM.StreamingChatCompletion] HTTP 404: Not Found
+```
+
+commit `0af9b595d`
+
+### 2026-11-05 扩展场景测试结果
+
+| 场景 | exit | 耗时 | 结果 | 备注 |
+|------|------|------|------|------|
+| R6 长文本 (30×重复) | 0 | 5944ms | ✓ | 分块渲染正确 |
+| R7 Unicode (emoji+换行+缩进+引号) | 0 | 5324ms | ✓ | 特殊字符全部正确 |
+| R8 404 错误 | 10 | 4953ms | ✓ B13 已修复 | 错误信息友好 |
+| R9 429 限流 | -1 | 25161ms | ⚠️ | 重试 3 次后超时（无 Retry-After 头） |
+| R10 思考链 (reasoning_content) | 0 | 5667ms | ✓ | reasoning + content 都正确显示 |
+| T1 工具调用 (Read) | -1 | 25128ms | ✓ 链路通 | 工具执行成功，第二轮超时（未预注入后续响应） |
+
 ## 不舒服记录
 
 > 三次同类不舒服即修复。记录：轮次 | 现象 | 分类 | 是否已修复

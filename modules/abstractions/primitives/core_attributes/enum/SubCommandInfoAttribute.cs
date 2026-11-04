@@ -2,7 +2,7 @@ namespace JoinCode.Abstractions.Attributes;
 
 /// <summary>
 /// 标记枚举成员为子命令 — 源码生成器据此自动生成多级渐进式展开帮助文本
-/// <para>用法: 标注在 <see cref="JoinCode.Abstractions.Utils.CliSubCommand"/> 枚举字段上</para>
+/// <para>用法: 标注在 CliSubCommand 枚举字段上</para>
 /// <para>生成器扫描此特性, 生成 SubCommandHelpText 类, 支持按分类逐级展开</para>
 /// </summary>
 [AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = false)]

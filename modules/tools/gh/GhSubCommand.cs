@@ -9,6 +9,8 @@ internal static class GhSubCommand {
             var action = group is not null ? FlatSubCommandRouter.GetPositional(args, 1) : null;
             if (group is not null && action is not null)
                 return RenderToolHelp(group, action);
+            if (string.Equals(group, "api", StringComparison.OrdinalIgnoreCase))
+                return RenderToolHelp("api", "");
             TerminalHelper.WriteLine(GhCommandResolver.Usage);
             return 0;
         }

@@ -9,7 +9,10 @@
   <ItemGroup>
     <InternalsVisibleTo Include="JoinCode.Integration.Tests" />
     <InternalsVisibleTo Include="JoinCode.Plugins.Infrastructure" />
-    <InternalsVisibleTo Include="JoinCode.Abs.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Abs.Core.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Abs.Ai.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Abs.Guard.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Abs.Hands.Tests" />
     <InternalsVisibleTo Include="JoinCode.Plugins.Tests" />
   </ItemGroup>
 
@@ -29,6 +32,11 @@
   <ItemGroup>
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/primitives/Abstractions.Primitives.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Primitives" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/guard/Abstractions.Guard.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Guard" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
 
   <ItemGroup>

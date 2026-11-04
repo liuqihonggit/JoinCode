@@ -26,7 +26,7 @@ jobs:
           - domain: async_primitives
             csprojs: modules/async_primitives/async_lock.tests/AsyncLock.Tests.csproj modules/async_primitives/bcl_bridge.tests/JoinCode.BclBridge.Tests.csproj modules/async_primitives/transport.impl.tests/Transport.Impl.Tests.csproj
           - domain: abstractions
-            csprojs: test/unit/infra.tests/io/Infra.IO.Tests.csproj test/unit/infra.tests/services/Infra.Services.Tests.csproj test/unit/infra.tests/utils/Infra.Utils.Tests.csproj test/unit/abs.tests/Abs.Tests.csproj
+            csprojs: test/unit/infra.tests/io/Infra.IO.Tests.csproj test/unit/infra.tests/services/Infra.Services.Tests.csproj test/unit/infra.tests/utils/Infra.Utils.Tests.csproj test/unit/abs.core.tests/Abs.Core.Tests.csproj test/unit/abs.ai.tests/Abs.Ai.Tests.csproj test/unit/abs.guard.tests/Abs.Guard.Tests.csproj test/unit/abs.hands.tests/Abs.Hands.Tests.csproj
           - domain: guard
             csprojs: modules/guard/guard.config.tests/Guard.Config.Tests.csproj modules/guard/guard.hooks.tests/Guard.Hooks.Tests.csproj modules/guard/guard.security.tests/Guard.Security.Tests.csproj
           - domain: storage

@@ -2,9 +2,9 @@
 
   <PropertyGroup>
         <ProjectType>test</ProjectType>
-  <RootNamespace>Abs.Tests</RootNamespace>
-    <AssemblyName>JoinCode.Abs.Tests</AssemblyName>
-    <Description>JoinCode Abstractions 库单元测试（枚举 + DTO + 契约）</Description>
+  <RootNamespace>Abs.Core.Tests</RootNamespace>
+    <AssemblyName>JoinCode.Abs.Core.Tests</AssemblyName>
+    <Description>JoinCode Abstractions Core 库单元测试（constants/configuration/context/io/json_repair/session_router/utils）</Description>
     <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
   </PropertyGroup>
 

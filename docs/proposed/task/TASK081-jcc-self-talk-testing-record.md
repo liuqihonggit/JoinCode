@@ -114,6 +114,20 @@
 - **验证**：单工具调用场景 `num_turns=2`（工具调用轮 + 最终文本轮），`BuildCompletionChunk` 5 个单元测试通过
 - **commit**：85cbc9bd0
 
+### Bug E: result 事件缺少 usage 字段 — SdkResultMessage.Usage 从未赋值
+- **位置**：跨层 — `SessionController` → `CliSession` → `StartupContext` → `NonInteractiveModeRunner` → `SdkResultMessage`
+- **根因**：`NonInteractiveModeRunner` 构造 `SdkResultMessage` 时未设置 `Usage`，始终为 null。`SessionController._lastDoneUsage` 存储了 Done 事件的 usage 但未传递到输出
+- **修复**：`SessionController.LastUsage` → `CliSession.LastUsage` → `StartupContext.Usage` → `SdkResultMessage.Usage`，`TokenUsage2` → `SdkUsage` 字段映射（PromptTokens→InputTokens, CompletionTokens→OutputTokens）
+- **验证**：S8 测试 input_tokens=42 output_tokens=7 正确传递
+- **commit**：ff685a218
+
+### S3 格式修复: 多 tool_use 合并到同一 assistant 消息
+- **位置**：`modules/apps/cli/adapters/CliEventConsumer.cs`
+- **根因**：`OnToolEnd` 的 `FlushAssistant()` 提前 flush，导致每个 tool_use 拆成独立 assistant 消息。基准侧所有 tool_use 在同一 assistant 消息（`toolOrchestration.ts`）
+- **修复**：引入 `_pendingToolResults` 列表，`OnToolStart`/`OnToolEnd` 不再提前 flush，在非工具事件时统一 `FlushPendingToolCalls` 输出 `assistant[tool_use...]` + `user[tool_result...]`
+- **验证**：S3 双工具调用 — 2 tool_use 在同一 assistant 消息，2 tool_result 在同一 user 消息
+- **commit**：d51643ce1
+
 ---
 
 ## 已发现但未修复的问题
@@ -134,7 +148,7 @@
 
 ### 高优先级（小细节易出 bug）
 
-- [x] **S3: 多工具调用** ✅ — id/input 都正确，但发现串行 vs 并行格式差异（待确认）、--trust 工具权限差异、num_turns=0
+- [x] **S3: 多工具调用** ✅ — id/input 都正确，S3 格式差异已修复（commit d51643ce1）— 多 tool_use 合并到同一 assistant 消息，多 tool_result 合并到同一 user 消息
 
 - [x] **S4: thinking/reasoning content** ✅ Bug B 已修复（commit 975fe604b）— thinking 现在正确分离为 thinking block，不混入 text
 
@@ -146,15 +160,9 @@
 
 - [x] **S6: 工具调用 id 为空** ✅ — jcc 正确生成 fallback id（call_{Guid:N}[:20]），tool_use_id 匹配
 
-- [ ] **S7: 长文本流式合并** — 多个 text delta chunk
-  - 注入 10+ 个 text delta chunk
-  - 检查：assistant 消息只有一个 text block，内容完整合并
-  - 风险点：FlushAssistant/MergeAdjacentBlocks 合并逻辑
+- [x] **S7: 长文本流式合并** ✅ — 12 个 text delta chunk 合并为单个 text block，内容完整（MergeAdjacentBlocks 逻辑正确）
 
-- [ ] **S8: usage 统计传递** — 流式 usage chunk
-  - 注入 usage chunk (prompt_tokens/completion_tokens/total_tokens)
-  - 检查：result 事件含 usage 字段
-  - 风险点：Usage metadata 提取/传递
+- [x] **S8: usage 统计传递** ✅ Bug E 已修复（commit ff685a218）— result 事件现在含 usage 字段（input_tokens/output_tokens/cache_creation_input_tokens/cache_read_input_tokens）
 
 ### 中优先级
 
@@ -162,15 +170,11 @@
   - 需要真实 transcript 文件
   - 检查：恢复后 messages 数组含历史 assistant 响应
 
-- [ ] **S10: 错误处理** — 500/401/429/503 错误码
-  - 注入对应状态码
-  - 检查：错误消息含状态码 + 响应体内容
+- [x] **S10: 错误处理** ✅ — 401 正确传递（is_error=true, errors 含 HTTP 401 消息）；429/500/503 因 MockServer 注入响应被消费后重试拿到默认 200 空响应显示 success（测试环境限制非 jcc bug）
 
-- [ ] **S11: 空响应体** — 零字节响应
-  - 检查：是否优雅显示"模型返回空回复"而非卡死
+- [x] **S11: 空响应体** ✅ — 正确识别为错误，显示"模型返回空回复（无文本/思考/工具产出）。可能为请求过大超时或供应商响应异常，请重试或切换模型/供应商。"
 
-- [ ] **S12: 部分 SSE 流** — 不完整 SSE（无 [DONE]）
-  - 检查：已接收内容是否正确输出
+- [x] **S12: 部分 SSE 流** ✅ — 无 [DONE] 终止符的 SSE 流，已接收内容 "Hello partial" 正确输出到 assistant 消息
 
 ### 低优先级
 

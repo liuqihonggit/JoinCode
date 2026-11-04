@@ -55,6 +55,14 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
             sw.Stop();
             context.ElapsedMs = sw.ElapsedMilliseconds;
             context.NumTurns = session.TotalTurns;
+            context.Usage = session.LastUsage is { } usage
+                ? new Cli.Output.SdkUsage {
+                    InputTokens = usage.PromptTokens,
+                    OutputTokens = usage.CompletionTokens,
+                    CacheCreationInputTokens = usage.CacheCreationInputTokens,
+                    CacheReadInputTokens = usage.CacheReadInputTokens,
+                }
+                : null;
             await Console.Out.FlushAsync().ConfigureAwait(false);
             context.FullResponse = session.LastResponse;
             Diag.WriteLifecycle("[AI对话结束]");

@@ -21,6 +21,7 @@
     <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
 
     <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/hands/Abstractions.Hands.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/mcp/mcp/Mcp.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/services/dream/Dream.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/perception/eyes/Eyes.csproj" />

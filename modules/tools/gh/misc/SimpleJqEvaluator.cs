@@ -24,8 +24,28 @@ internal static class SimpleJqEvaluator {
             node = next;
         }
 
-        return WriteNodeWithEncoder(node);
+        return WriteResult(node);
     }
+
+    /// <summary>
+    /// 输出最终结果 — 数组逐行输出每个元素（与官方 jq 一致），标量直接输出（字符串不带引号），对象/数组元素用 JSON 格式。
+    /// </summary>
+    private static string WriteResult(JsonNode node) {
+        if (node is JsonArray arr) {
+            var sb = new StringBuilder();
+            foreach (var item in arr) {
+                if (sb.Length > 0) sb.Append('\n');
+                sb.Append(WriteScalarOrJson(item));
+            }
+            return sb.ToString();
+        }
+        return WriteScalarOrJson(node);
+    }
+
+    /// <summary>标量直接输出（字符串不带引号），对象/数组用 JSON 格式</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static string WriteScalarOrJson(JsonNode? node)
+        => node is null ? "null" : node is JsonValue val && val.TryGetValue<string>(out var s) ? s : WriteNodeWithEncoder(node);
 
     /// <summary>判断 stage 是否为支持的 jq 语法 — 用于区分"路径不存在"与"不支持的语法"</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -4,44 +4,44 @@ namespace Gh.Tests;
 /// 简易 jq 解释器测试 — 覆盖 gh api --jq 最常用模式（缺陷1b）
 /// </summary>
 public sealed class SimpleJqEvaluatorTests {
-    /// <summary>.field 取顶层字段</summary>
+    /// <summary>.field 取顶层字段 — jq 语义: 字符串标量不带引号</summary>
     [Fact]
     public void Evaluate_SingleField_ShouldExtractValue() {
         var json = """{"name":"test","id":42}""";
         var result = SimpleJqEvaluator.Evaluate(json, ".name");
-        result.Should().Be("\"test\"");
+        result.Should().Be("test");
     }
 
-    /// <summary>.field.sub 嵌套字段</summary>
+    /// <summary>.field.sub 嵌套字段 — jq 语义: 字符串标量不带引号</summary>
     [Fact]
     public void Evaluate_NestedField_ShouldExtractNestedValue() {
         var json = """{"user":{"login":"alice","id":1}}""";
         var result = SimpleJqEvaluator.Evaluate(json, ".user.login");
-        result.Should().Be("\"alice\"");
+        result.Should().Be("alice");
     }
 
-    /// <summary>.field[] 数组展开</summary>
+    /// <summary>.field[] 数组展开 — jq 语义: 逐行输出每个元素</summary>
     [Fact]
     public void Evaluate_ArrayExpand_ShouldReturnArray() {
         var json = """{"check_runs":[{"name":"a"},{"name":"b"}]}""";
         var result = SimpleJqEvaluator.Evaluate(json, ".check_runs[]");
-        result.Should().Be("""[{"name":"a"},{"name":"b"}]""");
+        result.Should().Be("""{"name":"a"}""" + "\n" + """{"name":"b"}""");
     }
 
-    /// <summary>.field[] | .sub 数组展开 + 取字段</summary>
+    /// <summary>.field[] | .sub 数组展开 + 取字段 — jq 语义: 逐行输出标量</summary>
     [Fact]
     public void Evaluate_ArrayExpandAndField_ShouldExtractFieldFromEach() {
         var json = """{"items":[{"name":"a"},{"name":"b"}]}""";
         var result = SimpleJqEvaluator.Evaluate(json, ".items[] | .name");
-        result.Should().Be("""["a","b"]""");
+        result.Should().Be("a\nb");
     }
 
-    /// <summary>select(.field=="value") 过滤数组</summary>
+    /// <summary>select(.field=="value") 过滤数组 — jq 语义: 逐行输出匹配元素</summary>
     [Fact]
     public void Evaluate_SelectEqual_ShouldFilterArray() {
         var json = """[{"conclusion":"failure","name":"a"},{"conclusion":"success","name":"b"}]""";
         var result = SimpleJqEvaluator.Evaluate(json, """select(.conclusion=="failure")""");
-        result.Should().Be("""[{"conclusion":"failure","name":"a"}]""");
+        result.Should().Be("""{"conclusion":"failure","name":"a"}""");
     }
 
     /// <summary>select(.field=="value" or .field2=="value2") 多条件过滤</summary>

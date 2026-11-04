@@ -63,6 +63,34 @@ public sealed partial class ApiTimeoutE2ETests : IAsyncLifetime {
         elapsed.Should().BeLessThan(TimeSpan.FromSeconds(10), "应在 3s 超时后快速返回，不应等满 10s 延迟");
     }
 
+    /// <summary>
+    /// 第25条：空响应体不应卡死 30s，应快速返回（空回复或错误）
+    /// </summary>
+    [Fact]
+    public async Task EmptyResponseBody_ShouldNotHang_ShouldReturnQuickly() {
+        var configPath = await WriteSimpleMockServerConfigAsync();
+        await StartMockServerAsync(configPath).ConfigureAwait(true);
+
+        var exePath = ResolveJccExePath();
+        _output.WriteLine($"[ApiTimeoutE2E] jcc.exe: {exePath}");
+
+        using var http = new HttpClient { BaseAddress = new Uri($"http://localhost:{_mockServerPort}") };
+        var responses = Enumerable.Repeat(new MockServer.Core.InjectedResponse { Body = "" }, 5).ToList();
+        var jsonBytes = JsonSerializer.SerializeToUtf8Bytes(responses, typeof(List<MockServer.Core.InjectedResponse>), MockServer.Core.MockServerJsonContext.Default);
+        var injectResp = await http.PostAsync("/__control__/script",
+            new ByteArrayContent(jsonBytes) { Headers = { ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json") } }).ConfigureAwait(true);
+        injectResp.EnsureSuccessStatusCode();
+        _output.WriteLine("[ApiTimeoutE2E] 已注入 5 个空响应体");
+
+        var (exitCode, elapsed) = await RunJccAsync(
+            exePath, _mockServerPort, prompt: "hello",
+            apiTimeoutMs: 10_000, awaitSeconds: 15, timeoutSeconds: 30).ConfigureAwait(true);
+
+        _output.WriteLine($"[ApiTimeoutE2E] jcc.exe 退出码: {exitCode}, 耗时: {elapsed.TotalSeconds:F1}s");
+
+        elapsed.Should().BeLessThan(TimeSpan.FromSeconds(15), "空响应体不应卡死 30s，应快速返回");
+    }
+
     private async Task InjectDelayedResponsesAsync(int port, int delayMs, int count) {
         using var http = new HttpClient { BaseAddress = new Uri($"http://localhost:{port}") };
         var responses = Enumerable.Repeat(new MockServer.Core.InjectedResponse { DelayMs = delayMs, Body = "{}" }, count).ToList();

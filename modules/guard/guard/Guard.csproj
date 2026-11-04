@@ -42,4 +42,8 @@
 
 
 
-  </Project>
+    <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/composition/Abstractions.Composition.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Composition" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
+</Project>

@@ -21,6 +21,7 @@
     <Project Path="../../modules/abstractions/guard/Abstractions.Guard.csproj" />
     <Project Path="../../modules/abstractions/perception/Abstractions.Perception.csproj" />
     <Project Path="../../modules/abstractions/abstractions/Abstractions.csproj" />
+    <Project Path="../../modules/abstractions/composition/Abstractions.Composition.csproj" />
     <Project Path="../../modules/storage/downloader/Downloader.csproj" />
     <Project Path="../../modules/collections/structura/Structura.csproj" />
     <Project Path="../../modules/collections/structura.tests/Structura.Tests.csproj" />

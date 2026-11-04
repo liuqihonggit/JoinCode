@@ -12,6 +12,7 @@ global using JoinCode.Abstractions.Entity;
 global using JoinCode.Abstractions.Exceptions;
 global using JoinCode.Abstractions.Hooks;
 global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Models;
 global using JoinCode.Abstractions.Models.Agent;
 global using JoinCode.Abstractions.Models.Analytics;

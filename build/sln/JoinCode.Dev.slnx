@@ -115,7 +115,10 @@
     <Project Path="../../modules/storage/downloader.tests/Downloader.Tests.csproj" />
     <Project Path="../../test/unit/testing.common/Testing.Common.csproj" />
     <Project Path="../../test/unit/hands.tests/Hands.Tests.csproj" />
-    <Project Path="../../test/unit/abs.tests/Abs.Tests.csproj" />
+    <Project Path="../../test/unit/abs.core.tests/Abs.Core.Tests.csproj" />
+    <Project Path="../../test/unit/abs.ai.tests/Abs.Ai.Tests.csproj" />
+    <Project Path="../../test/unit/abs.guard.tests/Abs.Guard.Tests.csproj" />
+    <Project Path="../../test/unit/abs.hands.tests/Abs.Hands.Tests.csproj" />
     <Project Path="../../test/unit/mcp.tests/Mcp.UniqueTests.csproj" />
     <Project Path="../../test/unit/mcp_tool_dispatch.tests/McpToolDispatch.UniqueTests.csproj" />
   </Folder>

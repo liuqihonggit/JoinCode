@@ -152,7 +152,7 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
     }
 
     /// <summary>子代理完成 → SubagentFinished（条目定格，isError 聚合组头 ● 红；tokenTotal 完成态权威校正）。</summary>
-    public void OnSubagentFinished(string subagentId, bool isError, int tokenTotal) {
+    public void OnSubagentFinished(string subagentId, bool isError, int tokenTotal, TokenUsage? usage = null) {
         _events.Enqueue(new BridgeEvent.SubagentFinished(subagentId, isError, tokenTotal));
     }
 

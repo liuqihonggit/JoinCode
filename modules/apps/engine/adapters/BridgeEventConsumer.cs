@@ -109,7 +109,7 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
     }
 
     /// <summary>子代理完成 → subagent_finished（条目定格，isError 聚合组头；tokenTotal 完成态权威校正）。</summary>
-    public void OnSubagentFinished(string subagentId, bool isError, int tokenTotal) {
+    public void OnSubagentFinished(string subagentId, bool isError, int tokenTotal, TokenUsage? usage = null) {
         WriteEvent(new Cli.Bridge.BridgeEvent.SubagentFinished(subagentId, isError, tokenTotal));
     }
 

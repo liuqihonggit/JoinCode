@@ -27,6 +27,6 @@ internal static class HttpResponseExtensions {
         }
 
         var preview = body.Length > 200 ? body[..200] + "..." : body;
-        throw new HttpRequestException($"HTTP {(int)response.StatusCode} {response.StatusCode}: {preview}");
+        throw new HttpRequestException($"HTTP {(int)response.StatusCode} {response.StatusCode}: {preview}", null, response.StatusCode);
     }
 }

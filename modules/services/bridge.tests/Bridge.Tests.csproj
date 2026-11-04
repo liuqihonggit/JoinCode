@@ -21,4 +21,8 @@
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="$(MicrosoftExtensionsTimeProviderTestingVersion)" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/memory/Abstractions.Memory.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Memory" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
 </Project>

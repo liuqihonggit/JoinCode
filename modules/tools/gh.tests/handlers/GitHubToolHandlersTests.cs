@@ -908,33 +908,33 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     [Fact]
-    public async Task IssueList_WithAuthor_GoesThroughIssuesApi() {
-        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" };
+    public async Task IssueList_WithAuthor_GoesThroughSearchApi() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"items":[]}""" };
 
         await _handler.GhIssueListAsync(author: "alice", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
-        _api.LastPath.Should().Be("repos/owner/repo/issues");
-        _api.LastQuery.Should().ContainKey("creator").WhoseValue.Should().Be("alice");
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("author:alice");
     }
 
     [Fact]
-    public async Task IssueList_WithMention_GoesThroughIssuesApi() {
-        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" };
+    public async Task IssueList_WithMention_GoesThroughSearchApi() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"items":[]}""" };
 
         await _handler.GhIssueListAsync(mention: "bob", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
-        _api.LastPath.Should().Be("repos/owner/repo/issues");
-        _api.LastQuery.Should().ContainKey("mentioned").WhoseValue.Should().Be("bob");
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("mentions:bob");
     }
 
     [Fact]
-    public async Task IssueList_WithMilestone_GoesThroughIssuesApi() {
-        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" };
+    public async Task IssueList_WithMilestone_GoesThroughSearchApi() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"items":[]}""" };
 
         await _handler.GhIssueListAsync(milestone: "5", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
-        _api.LastPath.Should().Be("repos/owner/repo/issues");
-        _api.LastQuery.Should().ContainKey("milestone").WhoseValue.Should().Be("5");
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("milestone:5");
     }
 
     [Fact]
@@ -1510,7 +1510,7 @@ public sealed partial class GitHubToolHandlersTests {
     public async Task RepoSetDefault_PatchesDefaultBranch() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
 
-        await _handler.GhRepoSetDefaultAsync("develop", common: new GitHubCommonOptions { Repo = "owner/repo" });
+        await _handler.GhRepoSetDefaultBranchAsync("develop", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastMethod.Should().Be(HttpMethod.Patch);
         _api.LastPath.Should().Be("repos/owner/repo");
@@ -1695,7 +1695,7 @@ public sealed partial class GitHubToolHandlersTests {
         var result = await _handler.GhRepoAutolinkListAsync(common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         result.IsError.Should().BeFalse();
-        _api.LastPath.Should().Be("repos/owner/repo/keys/autolinks");
+        _api.LastPath.Should().Be("repos/owner/repo/autolinks");
         result.GetFirstText().Should().Contain("TICKET-");
     }
 
@@ -1706,7 +1706,7 @@ public sealed partial class GitHubToolHandlersTests {
         await _handler.GhRepoAutolinkCreateAsync("TICKET-", "https://example.com/<num>", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastMethod.Should().Be(HttpMethod.Post);
-        _api.LastPath.Should().Be("repos/owner/repo/keys/autolinks");
+        _api.LastPath.Should().Be("repos/owner/repo/autolinks");
         _api.LastBody.Should().Contain("\"key_prefix\":\"TICKET-\"");
     }
 
@@ -1717,7 +1717,7 @@ public sealed partial class GitHubToolHandlersTests {
         await _handler.GhRepoAutolinkDeleteAsync(1, common: new GitHubCommonOptions { Repo = "owner/repo" });
 
         _api.LastMethod.Should().Be(HttpMethod.Delete);
-        _api.LastPath.Should().Be("repos/owner/repo/keys/autolinks/1");
+        _api.LastPath.Should().Be("repos/owner/repo/autolinks/1");
     }
 
     [Fact]

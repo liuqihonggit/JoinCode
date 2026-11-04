@@ -1,8 +1,15 @@
 namespace Core.Tests.Web;
 
 /// <summary>
+/// DeepSeek 环境变量测试 collection — 防止并行测试设置 DEEPSEEK_API_KEY 竞态导致 flaky
+/// </summary>
+[CollectionDefinition("DeepSeekEnv")]
+public sealed class DeepSeekEnvCollection { }
+
+/// <summary>
 /// DeepSeekFetchProvider 单元测试 — mock IApiClient HTTP 响应，验证 JSON 解析与 Markdown 内容提取。
 /// </summary>
+[Collection("DeepSeekEnv")]
 public sealed class DeepSeekFetchProviderTests {
     private static Mock<IApiClient> CreateJsonApiClient(string json, HttpStatusCode status = HttpStatusCode.OK) {
         var mock = new Mock<IApiClient>();

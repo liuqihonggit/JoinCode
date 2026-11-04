@@ -14,7 +14,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/secrets", ct: cancellationToken).ConfigureAwait(false);
-            if (!result.Success) return Fail(result.Error);
+            if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_secret_list", $"repos/{owner}/{repoName}/actions/secrets"));
             return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeSecretList, "name,created_at", common?.Jq, common?.SkipLines, common?.StartLine, "gh_secret_list"));
         }).ConfigureAwait(false);
 
@@ -49,7 +49,7 @@ public partial class GitHubToolHandlers {
                 ? $"repos/{owner}/{repoName}/actions/secrets/public-key"
                 : $"repos/{owner}/{repoName}/environments/{env}/secrets/public-key";
             var keyResponse = await client.SendAsync(HttpMethod.Get, publicKeyPath, ct: cancellationToken).ConfigureAwait(false);
-            if (!keyResponse.Success) return Fail($"获取公钥失败: {keyResponse.Error}");
+            if (!keyResponse.Success) return Fail(EnrichApiError($"获取公钥失败: {keyResponse.Error}", "gh_secret_set", publicKeyPath));
             string keyId;
             byte[] publicKeyBytes;
             try {
@@ -69,7 +69,7 @@ public partial class GitHubToolHandlers {
                 KeyId = keyId
             }, GitHubApiJsonContext.Safe.SecretSetRequest);
             var result = await client.SendAsync(HttpMethod.Put, secretPath, secretBody, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok($"已设置 Secret {name}") : Fail(result.Error);
+            return result.Success ? Ok($"已设置 Secret {name}") : Fail(EnrichApiError(result.Error, "gh_secret_set", secretPath));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -82,7 +82,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/actions/secrets/{name}", ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok($"已删除 Secret {name}") : Fail(result.Error);
+            return result.Success ? Ok($"已删除 Secret {name}") : Fail(EnrichApiError(result.Error, "gh_secret_delete", $"repos/{owner}/{repoName}/actions/secrets/{name}"));
         }).ConfigureAwait(false);
 
     // === Variable ===
@@ -96,7 +96,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/variables", ct: cancellationToken).ConfigureAwait(false);
-            if (!result.Success) return Fail(result.Error);
+            if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_variable_list", $"repos/{owner}/{repoName}/actions/variables"));
             return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeVariableList, "name,value,created_at,updated_at", common?.Jq, common?.SkipLines, common?.StartLine, "gh_variable_list"));
         }).ConfigureAwait(false);
 
@@ -110,7 +110,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/variables/{name}", ct: cancellationToken).ConfigureAwait(false);
-            if (!result.Success) return Fail(result.Error);
+            if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_variable_get", $"repos/{owner}/{repoName}/actions/variables/{name}"));
             try {
                 var variable = JsonSerializer.Deserialize(result.Body, GitHubApiJsonContext.Safe.VariableItemResponse);
                 return Ok(variable?.Value ?? "");
@@ -131,7 +131,7 @@ public partial class GitHubToolHandlers {
             var putResult = await client.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/actions/variables/{name}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             if (putResult.Success) return Ok($"已更新 Variable {name}");
             var postResult = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/actions/variables", jsonBody, ct: cancellationToken).ConfigureAwait(false);
-            return postResult.Success ? Ok($"已创建 Variable {name}") : Fail(postResult.Error);
+            return postResult.Success ? Ok($"已创建 Variable {name}") : Fail(EnrichApiError(postResult.Error, "gh_variable_set", $"repos/{owner}/{repoName}/actions/variables"));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -144,7 +144,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/actions/variables/{name}", ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok($"已删除 Variable {name}") : Fail(result.Error);
+            return result.Success ? Ok($"已删除 Variable {name}") : Fail(EnrichApiError(result.Error, "gh_variable_delete", $"repos/{owner}/{repoName}/actions/variables/{name}"));
         }).ConfigureAwait(false);
 
     /// <summary>

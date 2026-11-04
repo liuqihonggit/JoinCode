@@ -96,6 +96,8 @@ internal static class GhDispatcher {
         if (targetType == typeof(string)) return value;
         if (targetType == typeof(int)) return int.TryParse(value, out var i) ? i : 0;
         if (targetType == typeof(int?)) return int.TryParse(value, out var i2) ? i2 : null;
+        if (targetType == typeof(long)) return long.TryParse(value, out var l) ? l : 0;
+        if (targetType == typeof(long?)) return long.TryParse(value, out var l2) ? l2 : null;
         if (targetType == typeof(bool)) return ParseBool(value);
         if (targetType == typeof(bool?)) return ParseBool(value);
         return value;

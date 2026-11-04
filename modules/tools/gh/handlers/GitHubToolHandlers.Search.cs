@@ -58,9 +58,22 @@ public partial class GitHubToolHandlers {
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("排序(stars/forks/updated,可选)", Required = false)] string? sort = null,
         [McpToolParameter("顺序(asc/desc,默认 desc)", Required = false)] string? order = null,
+        [McpToolParameter("按语言过滤(如 CSharp/Go/Python)", Required = false)] string? language = null,
+        [McpToolParameter("按 owner 过滤", Required = false)] string? owner = null,
+        [McpToolParameter("按 topic 过滤", Required = false)] string? topic = null,
         [McpToolOptions] GitHubCommonOptions? common = null,
-        CancellationToken cancellationToken = default)
-        => SearchAsync(s_searchReposSpec, query, limit, sort, order, common, cancellationToken);
+        CancellationToken cancellationToken = default) {
+        var q = query;
+        if (!string.IsNullOrWhiteSpace(language)) q = AppendFilter(q, $"language:{language}");
+        if (!string.IsNullOrWhiteSpace(owner)) q = AppendFilter(q, $"user:{owner}");
+        if (!string.IsNullOrWhiteSpace(topic)) q = AppendFilter(q, $"topic:{topic}");
+        return SearchAsync(s_searchReposSpec, q, limit, sort, order, common, cancellationToken);
+    }
+
+    /// <summary>追加搜索过滤条件到查询字符串</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static string AppendFilter(string? query, string filter)
+        => string.IsNullOrWhiteSpace(query) ? filter : $"{query} {filter}";
 
     /// <summary>搜索 Issue — 调 GET /search/issues，自动加 is:issue 限定</summary>
     [McpTool(GitHubToolNameEnumConstants.GhSearchIssues, "搜索 GitHub Issue", "github", ConcurrencySafe = true)]

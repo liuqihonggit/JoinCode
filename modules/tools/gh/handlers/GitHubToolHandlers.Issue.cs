@@ -25,10 +25,12 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var pageCount = (limit ?? 30).ToString();
             var stateVal = string.IsNullOrWhiteSpace(state) ? "open" : state;
-            var needSearch = !string.IsNullOrWhiteSpace(search) || string.Equals(type, "pr", StringComparison.OrdinalIgnoreCase);
+            var typeVal = string.IsNullOrWhiteSpace(type) ? "issue" : type;
+            // 总是走 search API — is:issue/is:pr 过滤,避免 issues API 返回 PR(type 未指定时默认 is:issue)
+            var needSearch = true;
             var compactFields = "number,title,state,labels,assignees,updated_at,html_url";
             if (needSearch) {
-                var q = BuildIssueSearchQuery(owner, repoName, stateVal, author, mention, milestone, label, assignee, search, type);
+                var q = BuildIssueSearchQuery(owner, repoName, stateVal, author, mention, milestone, label, assignee, search, typeVal);
                 var query = new Dictionary<string, string> { ["q"] = q, ["per_page"] = pageCount };
                 var result = await client.SendAsync(HttpMethod.Get, "search/issues", query: query, ct: cancellationToken).ConfigureAwait(false);
                 if (!result.Success) return Fail(result.Error);

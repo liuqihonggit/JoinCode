@@ -9,6 +9,12 @@ internal static class GhSubCommand {
             var action = group is not null ? FlatSubCommandRouter.GetPositional(args, 1) : null;
             if (group is not null && action is not null)
                 return RenderToolHelp(group, action);
+            if (string.Equals(group, "api", StringComparison.OrdinalIgnoreCase))
+                return RenderToolHelp("api", "");
+            if (group is not null && GhCommandResolver.SingleLevelGroups.Contains(group, StringComparer.OrdinalIgnoreCase))
+                return RenderToolHelp(group, "");
+            if (group is not null)
+                return RenderGroupHelp(group);
             TerminalHelper.WriteLine(GhCommandResolver.Usage);
             return 0;
         }
@@ -57,6 +63,7 @@ internal static class GhSubCommand {
         var candidates = GhDispatcher.GetToolNames()
             .Where(n => n.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             .Select(t => resolved.Action is null ? t : t[prefix.Length..])
+            .Select(t => t.Replace('_', '-'))
             .OrderBy(n => n, StringComparer.Ordinal)
             .ToList();
         var head = CliErrorCatalog.ResourceNotFound("gh 子命令", resolved.ToolName).ToRustStyleString(resolved.ToolName);
@@ -66,8 +73,10 @@ internal static class GhSubCommand {
     }
 
     private static int RenderToolHelp(string group, string action) {
-        var toolName = string.Equals(group, "api", StringComparison.OrdinalIgnoreCase)
-            ? "gh_api" : $"gh_{group}_{action}";
+        var normalizedGroup = group.Replace('-', '_');
+        var normalizedAction = action.Replace('-', '_');
+        var toolName = string.IsNullOrEmpty(normalizedAction)
+            ? $"gh_{normalizedGroup}" : $"gh_{normalizedGroup}_{normalizedAction}";
         if (!GhDispatcher.ContainsTool(toolName)) {
             TerminalHelper.WriteLine(GhCommandResolver.Usage);
             return 0;
@@ -76,8 +85,8 @@ internal static class GhSubCommand {
         var sb = new StringBuilder(512);
         sb.AppendLine($"工具: {toolName}");
         sb.AppendLine();
-        var required = parameters.Where(p => p.IsRequired).ToList();
-        var optional = parameters.Where(p => !p.IsRequired).ToList();
+        var required = parameters.Where(p => p.IsRequired).DistinctBy(p => p.Name).ToList();
+        var optional = parameters.Where(p => !p.IsRequired).DistinctBy(p => p.Name).ToList();
         var usageParts = new List<string> { "jcc", "gh", group, action };
         foreach (var r in required) usageParts.Add($"<{r.Name}>");
         foreach (var o in optional) usageParts.Add($"[--{o.Name}]");
@@ -95,6 +104,28 @@ internal static class GhSubCommand {
                 var hint = o.IsBoolean ? "" : " <值>";
                 sb.AppendLine($"  --{o.Name}{hint}    ({o.TypeHint})");
             }
+        }
+        TerminalHelper.WriteLine(sb.ToString());
+        return 0;
+    }
+
+    /// <summary>显示分组下所有可用子命令 — gh <group> --help</summary>
+    private static int RenderGroupHelp(string group) {
+        var normalizedGroup = group.Replace('-', '_');
+        var prefix = $"gh_{normalizedGroup}_";
+        var actions = GhDispatcher.GetToolNames()
+            .Where(n => n.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .Select(n => n[prefix.Length..].Replace('_', '-'))
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToList();
+        var sb = new StringBuilder(256);
+        sb.AppendLine($"分组: {group}");
+        if (actions.Count == 0) {
+            sb.AppendLine("  该分组下无可用子命令。提示: 用 jcc gh --help 查看所有分组");
+        } else {
+            sb.AppendLine($"可用子命令 ({actions.Count}):");
+            foreach (var a in actions) sb.AppendLine($"  gh {group} {a}");
+            sb.AppendLine($"用法: jcc gh {group} <子命令> [参数] — 用 jcc gh {group} <子命令> --help 查看具体参数");
         }
         TerminalHelper.WriteLine(sb.ToString());
         return 0;

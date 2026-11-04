@@ -4,6 +4,7 @@ namespace Core.Tests.Web;
 /// 各搜索引擎供应商单元测试 — mock IApiClient HTTP 响应，验证 JSON 解析与结果提取（ADR 0138）。
 /// 覆盖 Tavily/Serper/Brave/SearXNG/SubAgent 五个供应商。
 /// </summary>
+[Collection("DeepSeekEnv")]
 public sealed class SearchProvidersTests {
     private static Mock<IApiClient> CreateJsonApiClient(string json, HttpStatusCode status = HttpStatusCode.OK) {
         var mock = new Mock<IApiClient>();

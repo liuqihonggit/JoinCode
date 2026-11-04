@@ -270,6 +270,10 @@ public enum GitHubToolName {
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhRepoSetDefault,
 
+    [EnumValue("gh_repo_set_default_branch")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhRepoSetDefaultBranch,
+
     [EnumValue("gh_repo_autolink_list")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhRepoAutolinkList,

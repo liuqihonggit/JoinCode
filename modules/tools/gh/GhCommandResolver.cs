@@ -64,7 +64,7 @@ internal static class GhCommandResolver {
     ];
 
     /// <summary>单级命令 — 工具名就是 <c>gh_{group}</c>，不需要 action（如 gh_api/gh_browse/gh_status/gh_licenses）。</summary>
-    private static readonly string[] SingleLevelGroups = ["api", "browse", "status", "licenses"];
+    internal static readonly string[] SingleLevelGroups = ["api", "browse", "status", "licenses"];
 
     /// <summary>
     /// 解析 <c>jcc gh ...</c> 命令行（<paramref name="args"/>[0] 为子命令名 <c>gh</c>）。
@@ -97,16 +97,28 @@ internal static class GhCommandResolver {
             return null;
         }
 
+        // 三级命令支持: gh repo deploy-key list / gh repo autolink view 1 → 合并 subgroup + action
+        // 当 action 是已知三级子命令前缀且下一个位置参数存在时,合并为 "subgroup-action"
+        if (ThreeLevelSubGroups.TryGetValue(group, out var subGroups) && subGroups.Contains(action, StringComparer.OrdinalIgnoreCase)) {
+            var subAction = NextPositional(args, 3);
+            if (subAction is not null)
+                action = $"{action}-{subAction}";
+        }
+
         var toolName = $"gh_{toolGroup}_{action.Replace('-', '_')}";
         toolName = ResolveCommandAlias(toolName);
-        return new GhResolvedCommand(toolName, group, action, CollectTail(args, 3), json);
+        return new GhResolvedCommand(toolName, group, action, CollectTail(args, action.Contains('-') ? 4 : 3), json);
     }
+
+    /// <summary>三级命令子分组 — group → 该 group 下含空格分隔的子分组(如 repo → deploy-key/autolink/gitignore/license)</summary>
+    private static readonly FrozenDictionary<string, string[]> ThreeLevelSubGroups = new Dictionary<string, string[]> {
+        ["repo"] = ["deploy-key", "autolink", "gitignore", "license"],
+    }.ToFrozenDictionary();
 
     /// <summary>
     /// 命令名别名映射 — 某些命令名语义不直观，提供更清晰的别名。
     /// </summary>
     private static readonly FrozenDictionary<string, string> CommandAliasMap = new Dictionary<string, string> {
-        ["gh_repo_set_default_branch"] = "gh_repo_set_default",
     }.ToFrozenDictionary();
 
     /// <summary>查命令名别名表，返回规范工具名。</summary>
@@ -491,11 +503,13 @@ internal static class GhArgsBinder {
     private static List<GhParam> GetOptionalPositionalSlots(string toolName, IReadOnlyList<GhParam> parameters)
         => toolName switch {
             "gh_repo_clone"        => parameters.Where(p => p.Name == "dir").ToList(),
+            "gh_repo_set_default"  => parameters.Where(p => p.Name == "repository").ToList(),
             "gh_pr_checkout"       => parameters.Where(p => p.Name == "branch").ToList(),
             "gh_run_view"          => parameters.Where(p => p.Name == "run_id").ToList(),
             "gh_api"               => parameters.Where(p => p.Name == "body").ToList(),
             "gh_pr_ready"          => parameters.Where(p => p.Name == "pr_number").ToList(),
             "gh_pr_update_branch"  => parameters.Where(p => p.Name == "pr_number").ToList(),
+            "gh_cache_delete"      => parameters.Where(p => p.Name == "cache_id").ToList(),
             "gh_search_repos"      => parameters.Where(p => p.Name == "query").ToList(),
             "gh_search_issues"     => parameters.Where(p => p.Name == "query").ToList(),
             "gh_search_prs"        => parameters.Where(p => p.Name == "query").ToList(),

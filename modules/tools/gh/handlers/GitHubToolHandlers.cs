@@ -377,10 +377,15 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 为 API 错误添加上下文 — 404 Not Found 时给出可能原因和引导,避免裸 "Not Found" 让 AI 困惑
+    /// 为 API 错误添加上下文 — 404 Not Found / 403 Forbidden 时给出可能原因和引导,避免裸错误让 AI 困惑
     /// </summary>
     private static string EnrichApiError(string error, string? toolName, string apiPath) {
-        if (!error.Contains("Not Found", StringComparison.OrdinalIgnoreCase))
+        var isNotFound = error.Contains("Not Found", StringComparison.OrdinalIgnoreCase);
+        var isForbidden = error.Contains("Forbidden", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("You must have", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("Resource not accessible", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("Must have admin", StringComparison.OrdinalIgnoreCase);
+        if (!isNotFound && !isForbidden)
             return error;
         var context = toolName switch {
             "gh_pr_view"    => $"PR 获取失败 — {error}。可能原因: ① PR 编号不存在 ② 仓库不存在或无权限。提示: 用 gh pr list 查看可用 PR 编号",
@@ -414,10 +419,31 @@ public partial class GitHubToolHandlers {
             "gh_team_list" => $"团队列表获取失败 — {error}。可能原因: ① 组织名不存在 ② {apiPath} 路径不对(token 缺 read:org scope) ③ 参数是用户名而非组织名。提示: 用 gh org list 查看当前用户所属组织",
             "gh_collaborator_list" => $"协作者列表获取失败 — {error}。可能原因: ① 仓库不存在或无权限 ② 仓库名格式错误(应为 owner/repo)。提示: 用 gh repo view 确认仓库存在",
             "gh_notification_list" => $"通知列表获取失败 — {error}。可能原因: token 缺 notifications scope。提示: 到 https://github.com/settings/tokens 更新 token scope 添加 notifications 后重新设置 JCC_GITHUB_TOKEN",
+            "gh_secret_list" => $"Secret 列表获取失败 — {error}。可能原因: ① 仓库不存在或无权限 ② token 缺 actions:write scope(fine-grained token 需 secrets 权限)。提示: 到 https://github.com/settings/tokens 更新 token scope",
+            "gh_secret_set" => $"Secret 设置失败 — {error}。可能原因: ① 仓库不存在或无权限 ② token 缺 actions:write scope ③ 环境名不存在。提示: 到 https://github.com/settings/tokens 更新 token scope",
+            "gh_secret_delete" => $"Secret 删除失败 — {error}。可能原因: ① Secret 不存在 ② token 缺 actions:write scope。提示: 用 gh secret list 查看已有 Secret",
+            "gh_variable_list" => $"Variable 列表获取失败 — {error}。可能原因: ① 仓库不存在或无权限 ② token 缺 actions:write scope(fine-grained token 需 variables 权限)。提示: 到 https://github.com/settings/tokens 更新 token scope",
+            "gh_variable_get" => $"Variable 获取失败 — {error}。可能原因: ① Variable 不存在 ② token 缺 actions:write scope。提示: 用 gh variable list 查看已有 Variable",
+            "gh_variable_set" => $"Variable 设置失败 — {error}。可能原因: ① 仓库不存在或无权限 ② token 缺 actions:write scope。提示: 到 https://github.com/settings/tokens 更新 token scope",
+            "gh_variable_delete" => $"Variable 删除失败 — {error}。可能原因: ① Variable 不存在 ② token 缺 actions:write scope。提示: 用 gh variable list 查看已有 Variable",
+            "gh_repo_deploy_key_list" => $"Deploy Key 列表获取失败 — {error}。可能原因: ① 仓库不存在或无权限 ② token 缺 admin:public_key scope。提示: 到 https://github.com/settings/tokens 更新 token scope",
+            "gh_repo_deploy_key_add" => $"Deploy Key 添加失败 — {error}。可能原因: ① 仓库不存在或无权限 ② token 缺 admin:public_key scope ③ key 格式错误。提示: 到 https://github.com/settings/tokens 更新 token scope",
+            "gh_repo_deploy_key_delete" => $"Deploy Key 删除失败 — {error}。可能原因: ① Key ID 不存在 ② token 缺 admin:public_key scope。提示: 用 gh repo deploy-key-list 查看已有 Key",
+            "gh_ruleset_list" => $"规则集列表获取失败 — {error}。可能原因: ① 仓库/组织不存在或无权限 ② token 缺 admin scope。提示: 到 https://github.com/settings/tokens 更新 token scope",
+            "gh_ruleset_view" => $"规则集获取失败 — {error}。可能原因: ① 规则集 ID 不存在 ② token 缺 admin scope。提示: 用 gh ruleset list 查看可用规则集",
+            "gh_ruleset_check" => $"规则检查失败 — {error}。可能原因: ① 分支不存在 ② token 缺 admin scope。提示: 用 gh branch list 查看可用分支",
+            "gh_repo_autolink_list" => $"Autolink 列表获取失败 — {error}。可能原因: ① 仓库不存在或无权限 ② token 缺 admin scope。提示: 到 https://github.com/settings/tokens 更新 token scope",
+            "gh_repo_autolink_view" => $"Autolink 获取失败 — {error}。可能原因: ① Autolink ID 不存在 ② token 缺 admin scope。提示: 用 gh repo autolink-list 查看已有 Autolink",
+            "gh_repo_autolink_create" => $"Autolink 创建失败 — {error}。可能原因: ① 仓库不存在或无权限 ② token 缺 admin scope ③ key_prefix/url_template 格式错误。提示: 到 https://github.com/settings/tokens 更新 token scope",
+            "gh_repo_autolink_delete" => $"Autolink 删除失败 — {error}。可能原因: ① Autolink ID 不存在 ② token 缺 admin scope。提示: 用 gh repo autolink-list 查看已有 Autolink",
+            "gh_codespace_list" => $"Codespace 列表获取失败 — {error}。可能原因: ① token 缺 codespace scope ② fine-grained token 需 codespaces 权限。提示: 到 https://github.com/settings/tokens 更新 token scope",
+            "gh_codespace_create" => $"Codespace 创建失败 — {error}。可能原因: ① 仓库不存在或无权限 ② token 缺 codespace:write scope ③ 分支不存在。提示: 到 https://github.com/settings/tokens 更新 token scope",
+            "gh_codespace_delete" => $"Codespace 删除失败 — {error}。可能原因: ① Codespace 不存在 ② token 缺 codespace:write scope。提示: 用 gh codespace list 查看可用 Codespace",
             _ => $"{toolName ?? "gh"} 调用失败 — {error}。API 路径: {apiPath}"
         };
         var noGenericHint = toolName is "gh_gpg_key_list" or "gh_gpg_key_add" or "gh_gpg_key_delete" or "gh_ssh_key_view" or "gh_gpg_key_view" or "gh_org_view" or "gh_team_list" or "gh_collaborator_list" or "gh_notification_list" or "gh_gist_list" or "gh_gist_view" or "gh_gist_create" or "gh_gist_delete" or "gh_gist_edit" or "gh_gist_rename" or "gh_repo_gitignore_view" or "gh_repo_license_view";
-        return noGenericHint ? context : $"{context}\n提示: 若仓库为私有, 404 也可能是 token 未配置/无效 — 设置 JCC_GITHUB_TOKEN 或运行 gh auth login";
+        if (noGenericHint || isForbidden) return context;
+        return $"{context}\n提示: 若仓库为私有, 404 也可能是 token 未配置/无效 — 设置 JCC_GITHUB_TOKEN 或运行 gh auth login";
     }
 
     /// <summary>
@@ -521,7 +547,7 @@ public partial class GitHubToolHandlers {
     /// <summary>
     /// 查找对象中的列表数组属性 — 优先 items,其次 workflows/workflow_runs/secrets/variables/releases/labels/runs 等已知包装属性
     /// </summary>
-    private static readonly string[] ArrayPropertyCandidates = ["items", "workflows", "workflow_runs", "secrets", "variables", "releases", "labels", "runs", "issues", "pulls", "jobs", "check_runs"];
+    private static readonly string[] ArrayPropertyCandidates = ["items", "workflows", "workflow_runs", "secrets", "variables", "releases", "labels", "runs", "issues", "pulls", "jobs", "check_runs", "actions_caches", "codespaces", "branches", "teams", "keys", "autolinks", "milestones", "notifications", "repositories", "topics", "collaborators", "assignees", "reviewers", "events", "comments", "reviews", "statuses", "deployments", "tags", "contents", "commits", "hooks", "installations", "permissions"];
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static string? FindArrayProperty(JsonElement element) {

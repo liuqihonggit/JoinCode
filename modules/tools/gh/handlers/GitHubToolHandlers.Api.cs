@@ -87,14 +87,28 @@ public partial class GitHubToolHandlers {
     }
 
     /// <summary>
-    /// 解析 fields 字符串(key=value,逗号分隔)为查询参数字典
+    /// 解析 fields 字符串(key=value,逗号分隔)为查询参数字典 — 逗号分割时跳过花括号/引号内的逗号(支持 GraphQL 查询)
     /// </summary>
-    private static IReadOnlyDictionary<string, string>? ParseFieldsToQuery(string? fields) {
+    private static IReadOnlyDictionary<string, string>? ParseFieldsToQuery(string? fields)
+        => ParseFieldPairs(fields)?.ToFrozenDictionary(StringComparer.Ordinal);
+
+    /// <summary>
+    /// 将 fields(key=value,逗号分隔)转为 JSON body — 用于非 GET 请求的系统 gh CLI 兼容
+    /// <para>系统 gh CLI 的 -f/--field 将 key=value 添加到 request body(非 GET), 不是 query param</para>
+    /// <para>AI 习惯用 --fields state=open 做 PATCH 请求, jcc 应自动转为 {"state":"open"} body</para>
+    /// </summary>
+    private static string FieldsToJsonBody(string fields)
+        => JsonSerializer.Serialize(ParseFieldPairs(fields) ?? new Dictionary<string, string>(), GitHubApiJsonContext.Safe.DictionaryStringString);
+
+    /// <summary>
+    /// 解析 fields 字符串为 key=value 对列表 — 智能分割逗号(跳过花括号/引号内的逗号,支持 GraphQL 查询含逗号)
+    /// </summary>
+    private static Dictionary<string, string>? ParseFieldPairs(string? fields) {
         if (string.IsNullOrWhiteSpace(fields)) return null;
         var dict = new Dictionary<string, string>(StringComparer.Ordinal);
         var span = fields.AsSpan();
         while (!span.IsEmpty) {
-            var commaIdx = span.IndexOf(',');
+            var commaIdx = FindFieldSeparator(span);
             var pair = commaIdx < 0 ? span : span[..commaIdx];
             span = commaIdx < 0 ? default : span[(commaIdx + 1)..];
             if (pair.IsEmpty) continue;
@@ -108,27 +122,20 @@ public partial class GitHubToolHandlers {
         return dict.Count == 0 ? null : dict;
     }
 
-    /// <summary>
-    /// 将 fields(key=value,逗号分隔)转为 JSON body — 用于非 GET 请求的系统 gh CLI 兼容
-    /// <para>系统 gh CLI 的 -f/--field 将 key=value 添加到 request body(非 GET), 不是 query param</para>
-    /// <para>AI 习惯用 --fields state=open 做 PATCH 请求, jcc 应自动转为 {"state":"open"} body</para>
-    /// </summary>
-    private static string FieldsToJsonBody(string fields) {
-        var dict = new Dictionary<string, string>(StringComparer.Ordinal);
-        var span = fields.AsSpan();
-        while (!span.IsEmpty) {
-            var commaIdx = span.IndexOf(',');
-            var pair = commaIdx < 0 ? span : span[..commaIdx];
-            span = commaIdx < 0 ? default : span[(commaIdx + 1)..];
-            if (pair.IsEmpty) continue;
-            var eqIdx = pair.IndexOf('=');
-            if (eqIdx > 0 && eqIdx < pair.Length - 1) {
-                var key = pair[..eqIdx].Trim().ToString();
-                var value = pair[(eqIdx + 1)..].Trim().ToString();
-                dict[key] = value;
-            }
+    /// <summary>查找字段分隔逗号位置 — 跳过花括号{}和引号""内的逗号(支持 GraphQL 查询含逗号)</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int FindFieldSeparator(ReadOnlySpan<char> span) {
+        var braceDepth = 0;
+        var inString = false;
+        for (var i = 0; i < span.Length; i++) {
+            var c = span[i];
+            if (c == '"') inString = !inString;
+            else if (inString) continue;
+            else if (c == '{') braceDepth++;
+            else if (c == '}') braceDepth--;
+            else if (c == ',' && braceDepth == 0) return i;
         }
-        return JsonSerializer.Serialize(dict, GitHubApiJsonContext.Safe.DictionaryStringString);
+        return -1;
     }
 
     /// <summary>

@@ -62,7 +62,12 @@ public sealed class CliStreamEventData {
     public TokenUsage? Usage { get; init; }
 
     /// <summary>模型标识（done 事件）</summary>
+    [JsonPropertyName("model_id")]
     public string? ModelId { get; init; }
+
+    /// <summary>停止原因（done 事件）— stop/tool_calls/length/content_filter 等</summary>
+    [JsonPropertyName("stop_reason")]
+    public string? StopReason { get; init; }
 
     /// <summary>退出码（result 事件）— Bug 14: NDJSON 最终 result 事件携带 exitCode</summary>
     public int? ExitCode { get; set; }
@@ -79,9 +84,22 @@ public sealed class CliStreamEventData {
     /// <summary>任务描述（agent_started 事件）</summary>
     public string? Description { get; init; }
 
+    /// <summary>代理角色（agent_started 事件）— executor/researcher/planner 等</summary>
+    [JsonPropertyName("role")]
+    public string? Role { get; init; }
+
     /// <summary>是否错误（agent_finished 事件）</summary>
     public bool? SubagentIsError { get; init; }
 
     /// <summary>子代理总 token 消耗（agent_finished 事件）</summary>
     public int? TokenTotal { get; init; }
+
+    /// <summary>当前上下文窗口占用 token 数（context_usage 事件）</summary>
+    public int? ContextPromptTokens { get; init; }
+
+    /// <summary>上下文窗口总容量 token 数（context_usage 事件）</summary>
+    public int? ContextWindowTokens { get; init; }
+
+    /// <summary>上下文窗口剩余百分比（context_usage 事件）</summary>
+    public int? PercentLeft { get; init; }
 }

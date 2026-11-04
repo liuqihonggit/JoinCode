@@ -98,6 +98,113 @@ public class AgentStreamExecutionMiddlewareTests {
         finished.Content.Should().Be("boom");
     }
 
+    /// <summary>
+    /// RunAgentStreamAsync 抛异常时（如 LLM 500 错误），仍须发射配对的 agent_started/agent_finished 事件。
+    /// 修复前：异常直接传播，agent_started/agent_finished 从未发射，GUI 多 subAgent 运行期丢失生命周期边界。
+    /// </summary>
+    [Fact]
+    public async Task OnException_Should_EmitStartedAndFinishedWithFailure() {
+        var mock = new Mock<IAgentService>();
+        mock.Setup(s => s.RunAgentStreamAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
+            .Returns(new ThrowingAsyncEnumerable<AgentStreamChunk>(new InvalidOperationException("LLM 500")));
+        await using var sut = new AgentStreamExecutionMiddleware(mock.Object);
+        var context = CreateContext();
+        var channel = new SubAgentEventChannel();
+
+        using (channel.EnterScope()) {
+            await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
+        }
+
+        var events = channel.TryDrain();
+        events.Should().HaveCount(2);
+        events[0].Type.Should().Be(ChatStreamEventType.AgentStarted);
+        events[1].Type.Should().Be(ChatStreamEventType.AgentFinished);
+        events[1].AgentSuccess.Should().BeFalse();
+        events[1].Content.Should().Be("LLM 500");
+        context.Succeeded.Should().BeFalse();
+        context.ErrorMessage.Should().Be("LLM 500");
+        context.AgentId.Should().NotBeNull();
+    }
+
+    /// <summary>
+    /// 异常发生在首个 chunk 之后时，agentId 已从 chunk 获取，AgentFinished 应携带该 agentId。
+    /// </summary>
+    [Fact]
+    public async Task OnException_AfterFirstChunk_Should_EmitFinishedWithExistingAgentId() {
+        var mock = new Mock<IAgentService>();
+        mock.Setup(s => s.RunAgentStreamAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
+            .Returns(new ChunksThenThrowAsyncEnumerable(
+                new AgentStreamChunk { Type = AgentStreamChunkType.Content, Content = "部分输出", AgentId = "ag-partial" },
+                new InvalidOperationException("mid-stream failure")));
+        await using var sut = new AgentStreamExecutionMiddleware(mock.Object);
+        var context = CreateContext();
+        var channel = new SubAgentEventChannel();
+
+        using (channel.EnterScope()) {
+            await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
+        }
+
+        var events = channel.TryDrain();
+        events[0].Type.Should().Be(ChatStreamEventType.AgentStarted);
+        events[0].AgentId.Should().Be("ag-partial");
+        events[^1].Type.Should().Be(ChatStreamEventType.AgentFinished);
+        events[^1].AgentId.Should().Be("ag-partial");
+        events[^1].AgentSuccess.Should().BeFalse();
+        context.AgentId.Should().Be("ag-partial");
+    }
+
+    /// <summary>
+    /// 异常时无 GUI 通道（CLI 纯文本模式）— 不应抛异常，应正常返回失败结果。
+    /// </summary>
+    [Fact]
+    public async Task OnException_WithoutChannel_Should_NotThrow() {
+        var mock = new Mock<IAgentService>();
+        mock.Setup(s => s.RunAgentStreamAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
+            .Returns(new ThrowingAsyncEnumerable<AgentStreamChunk>(new InvalidOperationException("no channel")));
+        await using var sut = new AgentStreamExecutionMiddleware(mock.Object);
+        var context = CreateContext();
+
+        var act = async () => await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        await act.Should().NotThrowAsync();
+        context.Succeeded.Should().BeFalse();
+        context.ErrorMessage.Should().Be("no channel");
+    }
+
+    private sealed class ThrowingAsyncEnumerable<T> : IAsyncEnumerable<T> {
+        private readonly Exception _ex;
+        public ThrowingAsyncEnumerable(Exception ex) => _ex = ex;
+        public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => new ThrowingEnumerator<T>(_ex);
+    }
+
+    private sealed class ThrowingEnumerator<T> : IAsyncEnumerator<T> {
+        private readonly Exception _ex;
+        public ThrowingEnumerator(Exception ex) => _ex = ex;
+        public T Current => throw new InvalidOperationException("No current");
+        public ValueTask<bool> MoveNextAsync() => throw _ex;
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    private sealed class ChunksThenThrowAsyncEnumerable : IAsyncEnumerable<AgentStreamChunk> {
+        private readonly AgentStreamChunk _first;
+        private readonly Exception _ex;
+        public ChunksThenThrowAsyncEnumerable(AgentStreamChunk first, Exception ex) { _first = first; _ex = ex; }
+        public IAsyncEnumerator<AgentStreamChunk> GetAsyncEnumerator(CancellationToken cancellationToken = default) => new ChunksThenThrowEnumerator(_first, _ex);
+    }
+
+    private sealed class ChunksThenThrowEnumerator : IAsyncEnumerator<AgentStreamChunk> {
+        private readonly AgentStreamChunk _first;
+        private readonly Exception _ex;
+        private int _state;
+        public ChunksThenThrowEnumerator(AgentStreamChunk first, Exception ex) { _first = first; _ex = ex; _state = 0; }
+        public AgentStreamChunk Current => _first;
+        public ValueTask<bool> MoveNextAsync() {
+            if (_state == 0) { _state = 1; return new(true); }
+            throw _ex;
+        }
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
     [Fact]
     public async Task WithoutChannel_Should_NotThrow() {
         // 无 GUI 通道时（CLI 纯文本模式等）静默跳过发射，执行不受影响

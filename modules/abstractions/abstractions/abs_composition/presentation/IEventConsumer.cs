@@ -44,7 +44,10 @@ public interface IEventConsumer {
     /// <summary>
     /// 流式响应完成
     /// </summary>
-    void OnDone(TokenUsage? usage, string? modelId);
+    /// <param name="usage">令牌用量</param>
+    /// <param name="modelId">模型标识</param>
+    /// <param name="stopReason">停止原因（stop/tool_calls/length/content_filter 等）；null = 未提供</param>
+    void OnDone(TokenUsage? usage, string? modelId, string? stopReason = null);
 
     /// <summary>
     /// 子代理启动（DSG041 批1 — 协议本体先扩，投影层后跟；默认空实现 — 既有实现方零改动，
@@ -53,7 +56,8 @@ public interface IEventConsumer {
     /// <param name="subagentId">子代理标识（事件路由键，分组渲染 AddAgent 键）</param>
     /// <param name="agentType">代理类型（组头同型拼接 + 八色取色键）</param>
     /// <param name="description">任务描述（状态行括号段）</param>
-    void OnSubagentStarted(string subagentId, string agentType, string description) { }
+    /// <param name="role">代理角色（executor/researcher/planner 等）；null = 未提供</param>
+    void OnSubagentStarted(string subagentId, string agentType, string description, string? role = null) { }
 
     /// <summary>
     /// 子代理工具活动（DSG041 批1 — Started 与 Finished 间的过程事件；默认空实现）
@@ -72,7 +76,9 @@ public interface IEventConsumer {
     /// <param name="tokenTotal">子代理总令牌消耗（TASK062 P7 — AgentFinished 事件 Usage.TotalTokens 权威值；
     /// 完成态一次性校正优于逐活动增量 — 引擎数据流中 token 仅回合/完成粒度存在（RecordTokenUsage 亦完成时调用）；
     /// 0 = 无 usage 数据（FinalizePending 等兜底路径），消费方保持原累计值）</param>
-    void OnSubagentFinished(string subagentId, bool isError, int tokenTotal) { }
+    /// <param name="usage">子代理完整 token 用量（含 prompt/completion/cache_read/cache_creation/reasoning）；
+    /// null = 无 usage 数据。NDJSON 消费方可据此显示子代理 token 详情</param>
+    void OnSubagentFinished(string subagentId, bool isError, int tokenTotal, TokenUsage? usage = null) { }
 
     /// <summary>
     /// 上下文窗口余量上报（M8-7 — 每回合 Done 后消费侧 footer 告警显示；默认空实现，

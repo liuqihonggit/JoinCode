@@ -124,9 +124,12 @@ public sealed class SessionController {
                 using (var subAgentScope = subAgentChannel.EnterScope()) {
                     await foreach (var chunk in _mainAgent.ExecuteStreamAsync(timeoutToken).ConfigureAwait(false)) {
                         hasReceivedEvent = true;
-                        DrainSubAgentEvents(subAgentChannel, fullResponse, thinkingContent);
                         var evt = AgentStreamChunkAdapter.ToChatStreamEvent(chunk);
-                        if (evt is null) continue;
+                        if (evt is null) {
+                            DrainSubAgentEvents(subAgentChannel, fullResponse, thinkingContent);
+                            continue;
+                        }
+                        DrainSubAgentEvents(subAgentChannel, fullResponse, thinkingContent);
                         var mid = ProcessEvent(evt, fullResponse, thinkingContent);
                         if (mid is not null) lastModelId = mid;
                     }
@@ -267,7 +270,7 @@ public sealed class SessionController {
             },
             onDone: (usage, mid) => {
                 modelId = mid;
-                _consumer.OnDone(usage, mid);
+                _consumer.OnDone(usage, mid, evt.StopReason);
                 EmitContextUsage(usage);
                 if (usage is { PromptTokens: > 0 })
                     _lastDoneUsage = usage;
@@ -365,10 +368,10 @@ public sealed class SessionController {
 
         switch (evt.Type) {
             case ChatStreamEventType.AgentStarted:
-                _consumer.OnSubagentStarted(agentId, evt.AgentName ?? string.Empty, evt.AgentDescription ?? string.Empty);
+                _consumer.OnSubagentStarted(agentId, evt.AgentName ?? string.Empty, evt.AgentDescription ?? string.Empty, evt.AgentRole);
                 return true;
             case ChatStreamEventType.AgentFinished:
-                _consumer.OnSubagentFinished(agentId, isError: evt.AgentSuccess is not true, tokenTotal: evt.Usage?.TotalTokens ?? 0);
+                _consumer.OnSubagentFinished(agentId, isError: evt.AgentSuccess is not true, tokenTotal: evt.Usage?.TotalTokens ?? 0, usage: evt.Usage);
                 return true;
             case ChatStreamEventType.ToolCallStart:
                 _consumer.OnSubagentToolUse(agentId, evt.ToolName ?? string.Empty, evt.ToolArguments ?? string.Empty, tokenGain: 0);

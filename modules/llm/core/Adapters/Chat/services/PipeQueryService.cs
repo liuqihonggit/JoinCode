@@ -42,10 +42,8 @@ public sealed partial class PipeQueryService : IQueryService {
         var request = CreateChatRequest(chatHistory, executionSettings, stream: true);
         var responseStream = SendStreamingRequestAsync(request, cancellationToken);
 
-        // 累积工具调用信息（流式响应中 tool_calls 可能跨多个 chunk）
-        string? toolCallId = null;
-        string? toolCallName = null;
-        var toolCallArguments = new StringBuilder();
+        // 累积工具调用信息（流式响应中 tool_calls 可能跨多个 chunk，多个 tool_calls 按 index 分槽）
+        var toolCallAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
 
         await foreach (var chunk in responseStream) {
             if (chunk.Choices.Count == 0) continue;
@@ -54,31 +52,27 @@ public sealed partial class PipeQueryService : IQueryService {
             var content = choice.Delta?.Content?.Text ?? string.Empty;
             var role = ConvertRole(choice.Delta?.Role);
 
-            // 检测流式 tool_calls
+            // 检测流式 tool_calls — 按 index 累积，支持多 tool_calls 并行
             if (choice.Delta?.ToolCalls?.Count > 0) {
-                foreach (var tc in choice.Delta.ToolCalls) {
-                    if (tc.Id != null) toolCallId = tc.Id;
-                    if (tc.Function?.Name != null) toolCallName = tc.Function.Name;
-                    if (tc.Function?.Arguments != null) toolCallArguments.Append(tc.Function.Arguments);
-                }
+                foreach (var tc in choice.Delta.ToolCalls)
+                    OpenAIQueryService.ProcessToolCallDelta(tc, toolCallAccumulator);
             }
 
             // finish_reason = tool_calls 时，输出完整的工具调用信息
-            if (choice.FinishReason == OpenAIFinishReasonEnumConstants.ToolCalls && toolCallName != null) {
+            if (choice.FinishReason == OpenAIFinishReasonEnumConstants.ToolCalls && toolCallAccumulator.Count > 0) {
+                var entries = toolCallAccumulator
+                    .OrderBy(kv => kv.Key)
+                    .Select(kv => new ToolCallEntry { Id = kv.Value.Id, Name = kv.Value.Name, Arguments = kv.Value.Arguments.ToString() })
+                    .ToList();
                 yield return new StreamEvent(role, content, chunk.Model,
                     new Dictionary<string, JsonElement> {
                         ["Id"] = JsonElementHelper.FromString(chunk.Id),
                         ["FinishReason"] = JsonElementHelper.FromString(choice.FinishReason),
                         ["Created"] = JsonElementHelper.FromInt64(chunk.Created),
-                        ["AllToolCalls"] = ToolCallEntry.ToToolCallsJson([
-                            new() { Id = toolCallId, Name = toolCallName, Arguments = toolCallArguments.ToString() }
-                        ])
+                        ["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries)
                     });
 
-                // 重置累积状态
-                toolCallId = null;
-                toolCallName = null;
-                toolCallArguments.Clear();
+                toolCallAccumulator.Clear();
                 continue;
             }
 
@@ -90,15 +84,17 @@ public sealed partial class PipeQueryService : IQueryService {
                 });
         }
 
-        if (toolCallName is not null) {
+        if (toolCallAccumulator.Count > 0) {
+            var flushEntries = toolCallAccumulator
+                .OrderBy(kv => kv.Key)
+                .Select(kv => new ToolCallEntry { Id = kv.Value.Id, Name = kv.Value.Name, Arguments = kv.Value.Arguments.ToString() })
+                .ToList();
             yield return new StreamEvent(MessageRole.Assistant, null, null,
                 new Dictionary<string, JsonElement> {
                     ["Id"] = JsonElementHelper.FromString("flush"),
                     ["FinishReason"] = JsonElementHelper.FromString(OpenAIFinishReasonEnumConstants.ToolCalls),
                     ["Created"] = JsonElementHelper.FromInt64(0),
-                    ["AllToolCalls"] = ToolCallEntry.ToToolCallsJson([
-                        new() { Id = toolCallId, Name = toolCallName, Arguments = toolCallArguments.ToString() }
-                    ])
+                    ["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(flushEntries)
                 });
         }
     }

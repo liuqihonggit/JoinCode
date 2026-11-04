@@ -6,7 +6,7 @@ namespace JoinCode.Cli.Output;
 /// 否则 ToJsonString 运行时报 JsonTypeInfo not found。</para>
 /// </summary>
 [System.Text.Json.Serialization.JsonSourceGenerationOptions(
-    PropertyNamingPolicy = System.Text.Json.Serialization.JsonKnownNamingPolicy.CamelCase,
+    PropertyNamingPolicy = System.Text.Json.Serialization.JsonKnownNamingPolicy.SnakeCaseLower,
     DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
     AllowTrailingCommas = true,
     ReadCommentHandling = System.Text.Json.JsonCommentHandling.Skip,

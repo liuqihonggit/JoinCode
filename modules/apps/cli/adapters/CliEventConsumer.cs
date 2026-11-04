@@ -150,9 +150,9 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     }
 
     /// <summary>流式响应完成</summary>
-    public void OnDone(TokenUsage? usage, string? modelId) {
+    public void OnDone(TokenUsage? usage, string? modelId, string? stopReason = null) {
         if (_agentMode) {
-            WriteNdJsonEvent("done", new Cli.Output.CliStreamEventData { Usage = usage, ModelId = modelId });
+            WriteNdJsonEvent("done", new Cli.Output.CliStreamEventData { Usage = usage, ModelId = modelId, StopReason = stopReason });
         } else {
             TerminalHelper.WriteLine();
             try { System.Console.Out.Flush(); } catch (IOException) { System.Diagnostics.Debug.WriteLine("[CliEventConsumer] stdout flush failed"); }
@@ -160,9 +160,9 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     }
 
     /// <summary>子代理启动 — NDJSON 模式输出 agent_started 事件（显式实现：DIM 默认空实现经类类型调用不可见）</summary>
-    public void OnSubagentStarted(string subagentId, string agentType, string description) {
+    public void OnSubagentStarted(string subagentId, string agentType, string description, string? role = null) {
         if (_agentMode) {
-            WriteNdJsonEvent("agent_started", new Cli.Output.CliStreamEventData { SubagentId = subagentId, AgentType = agentType, Description = description });
+            WriteNdJsonEvent("agent_started", new Cli.Output.CliStreamEventData { SubagentId = subagentId, AgentType = agentType, Description = description, Role = role });
         }
     }
 
@@ -173,10 +173,21 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         }
     }
 
-    /// <summary>子代理完成 — NDJSON 模式输出 agent_finished 事件</summary>
-    public void OnSubagentFinished(string subagentId, bool isError, int tokenTotal) {
+    /// <summary>子代理完成 — NDJSON 模式输出 agent_finished 事件（含完整 usage 详情）</summary>
+    public void OnSubagentFinished(string subagentId, bool isError, int tokenTotal, TokenUsage? usage = null) {
         if (_agentMode) {
-            WriteNdJsonEvent("agent_finished", new Cli.Output.CliStreamEventData { SubagentId = subagentId, SubagentIsError = isError, TokenTotal = tokenTotal });
+            WriteNdJsonEvent("agent_finished", new Cli.Output.CliStreamEventData { SubagentId = subagentId, SubagentIsError = isError, TokenTotal = tokenTotal, Usage = usage });
+        }
+    }
+
+    /// <summary>上下文窗口余量 — NDJSON 模式输出 context_usage 事件（显式实现：DIM 默认空实现经类类型调用不可见）</summary>
+    public void OnContextUsage(int promptTokens, int contextWindowTokens, int percentLeft) {
+        if (_agentMode) {
+            WriteNdJsonEvent("context_usage", new Cli.Output.CliStreamEventData {
+                ContextPromptTokens = promptTokens,
+                ContextWindowTokens = contextWindowTokens,
+                PercentLeft = percentLeft
+            });
         }
     }
 

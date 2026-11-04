@@ -4,6 +4,7 @@ namespace Host.Tests.ChatCommands;
 /// MobileCommand 取值范围测试 — 验证 PlatformAction 枚举字面量正确路由
 /// 覆盖:start/stop/url + 单字母别名(s/d/u) + 大小写不敏感 + 默认 status
 /// </summary>
+[Collection("ConsoleOutput")]
 public sealed class MobileCommandTests {
     [Fact]
     public void Name_Should_Be_mobile() {

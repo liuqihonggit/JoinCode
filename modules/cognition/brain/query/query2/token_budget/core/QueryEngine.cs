@@ -287,6 +287,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 context.OutputChunks.Enqueue(new QueryStreamChunk {
                     Type = AgentStreamChunkType.ToolCallStart,
                     ToolName = toolCall.ToolName,
+                    ToolCallId = toolCall.ToolCallId,
+                    ToolArguments = toolCall.RawArguments,
                     ToolCallNumber = context.TotalToolCalls
                 });
 
@@ -296,6 +298,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 context.OutputChunks.Enqueue(new QueryStreamChunk {
                     Type = AgentStreamChunkType.ToolCallEnd,
                     ToolName = toolCall.ToolName,
+                    ToolCallId = toolCall.ToolCallId,
                     ToolResult = toolResult,
                     ToolResultText = ExtractToolResultText(toolResult),
                     IsToolError = toolResult.IsError,

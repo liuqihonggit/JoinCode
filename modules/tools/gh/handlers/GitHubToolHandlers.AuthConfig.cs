@@ -76,6 +76,57 @@ public partial class GitHubToolHandlers {
         => Task.FromResult(Fail("auth refresh 需 OAuth refresh_token 流程，jcc 未实现。请用系统 gh CLI: gh auth refresh" + (string.IsNullOrWhiteSpace(host) ? "" : $" --host {host}")));
 
     /// <summary>
+    /// 登出 GitHub — 从 hosts.yml 中删除对应 host 的认证信息
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhAuthLogout, "登出 GitHub(从 hosts.yml 删除认证信息)", "github")]
+    public async Task<ToolResult> GhAuthLogoutAsync(
+        [McpToolParameter("host(可选,默认 github.com)", Required = false)] string? host = null,
+        CancellationToken cancellationToken = default) {
+        var hostname = string.IsNullOrWhiteSpace(host) ? "github.com" : host;
+        var hostsPath = GetGhConfigPath(true);
+        if (!_fs.FileExists(hostsPath)) return Ok($"已登出 {hostname}（hosts.yml 不存在，无需操作）");
+        var content = await _fs.ReadAllTextAsync(hostsPath, cancellationToken).ConfigureAwait(false);
+        var updated = RemoveYamlHostSection(content, hostname);
+        if (updated == content) return Ok($"已登出 {hostname}（未找到该 host 的认证信息）");
+        await _fs.WriteAllTextAsync(hostsPath, updated, cancellationToken).ConfigureAwait(false);
+        return Ok($"已登出 {hostname}\n认证信息已从 {hostsPath} 删除");
+    }
+
+    /// <summary>
+    /// 配置 git 使用 gh 作为凭证助手 — 设置 git credential helper 为 gh auth git-credential
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhAuthSetupGit, "配置 git credential helper 使用 gh", "github")]
+    public async Task<ToolResult> GhAuthSetupGitAsync(
+        [McpToolParameter("host(可选,默认 github.com)", Required = false)] string? host = null,
+        CancellationToken cancellationToken = default) {
+        if (_git is null) return Fail("git 未配置(IGitExecutor 未注入) — 无法设置 credential helper");
+        var hostname = string.IsNullOrWhiteSpace(host) ? "github.com" : host;
+        var setHelper = await _git.ExecuteAsync($"config --global credential.https://{hostname}.helper '!gh auth git-credential'", null, cancellationToken).ConfigureAwait(false);
+        if (!setHelper.Success) return Fail($"设置 credential helper 失败: {setHelper.Error}");
+        return Ok($"已配置 git credential helper for {hostname}\ngit 将使用 gh auth git-credential 进行认证");
+    }
+
+    /// <summary>
+    /// 从 YAML 内容中删除指定 host 的整个 section（含其下所有缩进条目）
+    /// </summary>
+    private static string RemoveYamlHostSection(string content, string hostname) {
+        var lines = new List<string>(content.Split('\n'));
+        var hostLineIndex = lines.FindIndex(l => l.TrimStart().StartsWith($"{hostname}:", StringComparison.OrdinalIgnoreCase));
+        if (hostLineIndex < 0) return content;
+        var hostIndent = lines[hostLineIndex].Length - lines[hostLineIndex].TrimStart().Length;
+        var removeEnd = hostLineIndex + 1;
+        while (removeEnd < lines.Count) {
+            var trimmed = lines[removeEnd].TrimStart();
+            if (string.IsNullOrWhiteSpace(trimmed)) { removeEnd++; continue; }
+            var indent = lines[removeEnd].Length - trimmed.Length;
+            if (indent <= hostIndent) break;
+            removeEnd++;
+        }
+        lines.RemoveRange(hostLineIndex, removeEnd - hostLineIndex);
+        return string.Join("\n", lines);
+    }
+
+    /// <summary>
     /// 设置 hosts.yml 中 host 下的 user 和 oauth_token（不存在则追加 host section）
     /// </summary>
     private static string SetYamlHostToken(string content, string hostname, string user, string token) {

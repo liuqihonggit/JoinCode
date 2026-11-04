@@ -490,6 +490,9 @@ internal static class GhArgsBinder {
         ),
         ["gh_release_create"] = new(("latest", new GhCliAlias("make_latest", null, AliasKind.RenameOnly))),
         ["gh_release_edit"]   = new(("latest", new GhCliAlias("make_latest", null, AliasKind.RenameOnly))),
+        ["gh_gist_create"] = new(("desc", new GhCliAlias("description", null, AliasKind.TakeNextToken))),
+        ["gh_gist_edit"]   = new(("desc", new GhCliAlias("description", null, AliasKind.TakeNextToken))),
+        ["gh_repo_fork"]   = new(("remote-name", new GhCliAlias("remote", null, AliasKind.TakeNextToken))),
         ["gh_api"] = new(
             ("raw-field", new GhCliAlias("fields", null, AliasKind.TakeNextToken)),
             ("field",     new GhCliAlias("fields", null, AliasKind.TakeNextToken))
@@ -624,8 +627,8 @@ internal static class GhArgsBinder {
         ["gh_label_edit"]     = new(('c', "color"), ('d', "description"), ('n', "name")),
         ["gh_label_clone"]    = new(('f', "force")),
         ["gh_gist_view"]      = new(('f', "filename"), ('r', "raw")),
-        ["gh_gist_create"]    = new(('d', "desc"), ('f', "filename"), ('p', "public")),
-        ["gh_gist_edit"]      = new(('a', "add"), ('d', "desc"), ('f', "filename"), ('r', "remove")),
+        ["gh_gist_create"]    = new(('d', "description"), ('f', "filename"), ('p', "public")),
+        ["gh_gist_edit"]      = new(('a', "add"), ('d', "description"), ('f', "filename"), ('r', "remove")),
         ["gh_secret_list"]    = new(('a', "app"), ('e', "env"), ('u', "user")),
         ["gh_secret_set"]     = new(('a', "app"), ('b', "body"), ('e', "env"), ('f', "env_file"), ('r', "repos"), ('u', "user"), ('v', "visibility")),
         ["gh_secret_delete"]  = new(('a', "app"), ('e', "env"), ('u', "user")),

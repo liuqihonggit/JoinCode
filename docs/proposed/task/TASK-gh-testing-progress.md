@@ -12,6 +12,10 @@
 | 3 | 3f10c90d2 | `gh api /repos/xxx` 404 提示不友好 | `BuildApiErrorHint` 接收原始 path（带前导斜杠），条件不匹配，改为接收 cleanPath |
 | 4 | 53a86a851 | `gh project list --owner` 报错 | 系统 gh CLI 用 `--owner`，jcc 原 `--org`，6 个 project handler 改名 |
 | 5 | 2809776fd | `--json field --jq '.field'` 输出带引号 | `--json` 带值被误判为纯标志，`IsJsonFlagPresent` 检测 `--json` 后是否跟选项或末尾 |
+| 6 | cf9a194eb | `gh gist create --desc`/`-d` 绑定失败 | ShortOptionMap 映射 `desc` 但 handler 参数是 `description`，改为 `('d',"description")` + LongAliasMap `desc`→`description` |
+| 7 | cf9a194eb | `gh repo fork --remote-name` 绑定失败 | handler 参数是 `remote`，添加 LongAliasMap `remote-name`→`remote` (TakeNextToken) |
+| 8 | 7a81ebf | 新增 `gh auth logout` 命令 | 从 hosts.yml 删除 host section（RemoveYamlHostSection） |
+| 9 | 7a81ebf | 新增 `gh auth setup-git` 命令 | 配置 git credential helper 为 `!gh auth git-credential` |
 
 ## 已检查且正常工作的命令
 
@@ -161,8 +165,6 @@
 | 命令 | 备注 |
 |------|------|
 | `gh search labels` | 系统 gh CLI 也不支持 |
-| `gh auth logout` | 缺失，待补充 |
-| `gh auth setup-git` | 缺失，待补充 |
 
 ## 待测试的命令（未检查）
 

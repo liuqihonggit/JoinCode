@@ -406,6 +406,14 @@ public enum GitHubToolName {
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhAuthToken,
 
+    [EnumValue("gh_auth_logout")]
+    [SecurityClass("safe-write", AutoAllowed = false, PlanAllowed = false, AskAllowed = true)]
+    GhAuthLogout,
+
+    [EnumValue("gh_auth_setup_git")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhAuthSetupGit,
+
     [EnumValue("gh_config_list")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhConfigList,

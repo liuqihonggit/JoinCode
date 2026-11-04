@@ -18,6 +18,26 @@ jcc 是独立实现的 GitHub CLI + ripgrep 兼容搜索工具。`gh`/`rg` 命�
 
 ### 1. 编译产物部署流程
 
+#### ✅ 推荐方式：用 Deploy-JccDev.ps1 脚本（全量编译 + 全量部署）
+
+```bash
+# 一键全量编译 + 部署（推荐）
+pwsh non_deliverables_tools/scripts/Deploy-JccDev.ps1
+
+# 跳过编译，仅部署（已手动编译后）
+pwsh non_deliverables_tools/scripts/Deploy-JccDev.ps1 -SkipBuild
+```
+
+脚本逻辑：
+1. 调用 `Build-AllDomains.ps1` 全量编译 16 域 + 卫星项目
+2. 拷贝 `artifacts/bin/JoinCode/Debug/net10.0/` 的所有文件（dll/exe/json/pdb/xml）到 `C:/Users/54076/bin/jcc.d/dev/`
+3. 拷贝 `artifacts/bin/gh/Debug/net10.0/jcc-gh.*` 到 `C:/Users/54076/bin/jcc.d/dev/`
+4. 验证 `jcc.exe`/`jcc-gh.dll`/`jcc.deps.json` 存在
+
+⚠️ **必须全量拷贝**，包括 `*.deps.json` 和 `*.runtimeconfig.json`。只拷贝 dll 不拷贝 deps.json 会导致 `Could not load file or assembly` 错误（deps.json 包含程序集依赖图，旧 deps.json 不含新增依赖）。
+
+#### 手动方式（不推荐，容易遗漏）
+
 ```bash
 # 1. 编译（Debug 模式，增量编译）
 dotnet build modules/apps/cli/JoinCode.csproj -c Debug
@@ -29,24 +49,25 @@ dotnet build modules/apps/cli/JoinCode.csproj --no-incremental -c Debug
 # ⚠️ 禁止用 robocopy /MIR — 跨盘符(D:→C:)时时间戳比较不可靠,DLL 不更新(见下方"部署坑")
 # ⚠️ 禁止只复制 jcc.exe — jcc.exe(162KB)依赖同目录 Mcp.dll 等多个 DLL,只复制 exe 会运行旧 DLL
 # ⚠️ 必须额外部署 jcc-gh.dll — gh 工具编译为独立项目 jcc-gh.dll,不在 JoinCode 输出目录中(见下方"部署坑:jcc-gh.dll 遗漏")
+# ⚠️ 必须拷贝 *.deps.json — deps.json 包含程序集依赖图,不拷贝会导致 AssemblyLoadContext 找不到新增依赖
 # ✅ 用2步部署: 先复制 JoinCode 产物, 再复制 jcc-gh 产物
-cp -f D:/project/w2/artifacts/bin/JoinCode/Debug/net10.0/*.dll \
+cp -f D:/project/w4/artifacts/bin/JoinCode/Debug/net10.0/*.dll \
      C:/Users/54076/bin/jcc.d/dev/
-cp -f D:/project/w2/artifacts/bin/JoinCode/Debug/net10.0/*.exe \
+cp -f D:/project/w4/artifacts/bin/JoinCode/Debug/net10.0/*.exe \
      C:/Users/54076/bin/jcc.d/dev/
-cp -f D:/project/w2/artifacts/bin/JoinCode/Debug/net10.0/*.json \
+cp -f D:/project/w4/artifacts/bin/JoinCode/Debug/net10.0/*.json \
      C:/Users/54076/bin/jcc.d/dev/
 # 额外部署 jcc-gh.dll + jcc-gh.exe (gh 工具独立编译产物)
-cp -f D:/project/w2/artifacts/bin/gh/Debug/net10.0/jcc-gh.dll \
+cp -f D:/project/w4/artifacts/bin/gh/Debug/net10.0/jcc-gh.dll \
      C:/Users/54076/bin/jcc.d/dev/
-cp -f D:/project/w2/artifacts/bin/gh/Debug/net10.0/jcc-gh.exe \
+cp -f D:/project/w4/artifacts/bin/gh/Debug/net10.0/jcc-gh.exe \
      C:/Users/54076/bin/jcc.d/dev/
 
 # 4. 部署后验证(强制) — 对比关键 DLL 时间戳,确认确实更新
 ls -la "C:/Users/54076/bin/jcc.d/dev/Mcp.dll" \
-       "D:/project/w2/artifacts/bin/JoinCode/Debug/net10.0/Mcp.dll"
+       "D:/project/w4/artifacts/bin/JoinCode/Debug/net10.0/Mcp.dll"
 ls -la "C:/Users/54076/bin/jcc.d/dev/jcc-gh.dll" \
-       "D:/project/w2/artifacts/bin/gh/Debug/net10.0/jcc-gh.dll"
+       "D:/project/w4/artifacts/bin/gh/Debug/net10.0/jcc-gh.dll"
 # 两个时间戳应接近(差<2分钟),大小一致;不符则 cp -f 重复制
 ```
 
@@ -164,6 +185,7 @@ C:\Users\54076\bin\
 | `gh pr checks` 大量 check 截断 | ✅ 已修复(2026-10-08) | check-runs 端点加 per_page=100 + paginate=true，配合对象分页合并获取全部 |
 | robocopy /MIR 部署 DLL 不更新 | ✅ 已查明 | 跨盘符(D:→C:)时间戳比较不可靠,robocopy 跳过复制。改用 `cp -f` 强制覆盖+部署后验证 DLL 时间戳 |
 | 只复制 jcc.exe 部署 | ✅ 已查明 | jcc.exe(162KB)依赖同目录 Mcp.dll 等多个 DLL,只复制 exe 会运行旧 DLL 导致修复不生效。必须全量复制 *.dll+*.exe+*.json |
+| 只复制 dll 不复制 deps.json | ✅ 已查明(2026-11-05) | deps.json 包含程序集依赖图，旧 deps.json 不含新增依赖（如 Abstractions.Guard），导致 `Could not load file or assembly` 错误。必须拷贝 *.deps.json + *.runtimeconfig.json。用 `Deploy-JccDev.ps1` 脚本可避免此问题 |
 | `gh run rerun/cancel/wait/download/delete/watch` 用 run number 报 Not Found | ✅ 已修复(2026-10-10) | 6 个 handler 添加 `ResolveRunIdAsync` 自动将短数字(run number)转换为完整 run ID(10+位)。`GhRunViewAsync` 已有此逻辑,其余 6 个遗漏 |
 | `gh run view --log` cancelled job 返回原始 404 XML | ✅ 已修复(2026-10-10) | `GetRunLogsAsync`/`GetJobLogsAsync` 检测 404 时返回中文提示"日志不存在(job 可能被取消或未产生日志)",非 404 错误仍返回原始信息 |
 | `gh run view --expand steps` cancelled job 只显示 `1 行 ERROR` | ✅ 已修复(2026-10-10) | 提取 `HandleExpandStepsAsync`/`BuildStepsListResultAsync` 扁平化嵌套(满足 JCC10009),日志下载失败时回退到 API job 详情(`GetJobStepsFromApiAsync`),显示步骤名/状态/结论 |

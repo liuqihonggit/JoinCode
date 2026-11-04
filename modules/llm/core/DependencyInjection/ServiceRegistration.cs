@@ -206,9 +206,13 @@ public static partial class ServiceRegistration {
 
     /// <summary>
     /// 判断是否为容量错误（429/529）— 对齐基准 withRetry.ts:106-110 isTransientCapacityError
+    /// <para>检查 ApiException 和 HttpRequestException 两种异常类型：
+    /// ResilientHttpExecutor.CheckResponseStatusAsync 抛 HttpRequestException（非 ApiException），
+    /// 若只检查 ApiException 会漏判，导致 429/529 走 MaxRetries 有限重试而非无限重试。</para>
     /// </summary>
     private static bool IsTransientCapacityError(Exception ex) =>
-        ex is ApiException api && (api.StatusCode == 429 || api.StatusCode == 529);
+        ex is ApiException api && (api.StatusCode == 429 || api.StatusCode == 529)
+        || ex is HttpRequestException http && (int?)http.StatusCode is 429 or 529;
 
     /// <summary>
     /// 用 StreamingFallbackDecorator + BufferedStreamingDecorator 包装内部 QueryService

@@ -149,7 +149,9 @@ public sealed class ResilientHttpExecutor {
         var budget = retry.TotalBudget;
         var sw = budget.HasValue ? Stopwatch.StartNew() : null;
         var attempt = 0;
-        var maxLabel = budget.HasValue ? "∞" : retry.MaxRetries.ToString();
+        // 预算模式 + 无 TransientErrorPredicate = 所有错误无限重试 → 显示 ∞
+        // 预算模式 + 有 TransientErrorPredicate = 仅容量错误无限，其他受 MaxRetries 限制 → 显示 MaxRetries
+        var maxLabel = budget.HasValue && retry.TransientErrorPredicate is null ? "∞" : retry.MaxRetries.ToString();
 
         while (true) {
             if (sw is not null && sw.Elapsed >= budget.GetValueOrDefault()) {

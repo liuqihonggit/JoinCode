@@ -56,7 +56,8 @@ public interface IEventConsumer {
     /// <param name="subagentId">子代理标识（事件路由键，分组渲染 AddAgent 键）</param>
     /// <param name="agentType">代理类型（组头同型拼接 + 八色取色键）</param>
     /// <param name="description">任务描述（状态行括号段）</param>
-    void OnSubagentStarted(string subagentId, string agentType, string description) { }
+    /// <param name="role">代理角色（executor/researcher/planner 等）；null = 未提供</param>
+    void OnSubagentStarted(string subagentId, string agentType, string description, string? role = null) { }
 
     /// <summary>
     /// 子代理工具活动（DSG041 批1 — Started 与 Finished 间的过程事件；默认空实现）

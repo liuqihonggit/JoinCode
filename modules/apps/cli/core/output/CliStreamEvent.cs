@@ -84,6 +84,10 @@ public sealed class CliStreamEventData {
     /// <summary>任务描述（agent_started 事件）</summary>
     public string? Description { get; init; }
 
+    /// <summary>代理角色（agent_started 事件）— executor/researcher/planner 等</summary>
+    [JsonPropertyName("role")]
+    public string? Role { get; init; }
+
     /// <summary>是否错误（agent_finished 事件）</summary>
     public bool? SubagentIsError { get; init; }
 

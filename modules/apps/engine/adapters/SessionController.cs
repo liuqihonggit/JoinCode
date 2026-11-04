@@ -368,7 +368,7 @@ public sealed class SessionController {
 
         switch (evt.Type) {
             case ChatStreamEventType.AgentStarted:
-                _consumer.OnSubagentStarted(agentId, evt.AgentName ?? string.Empty, evt.AgentDescription ?? string.Empty);
+                _consumer.OnSubagentStarted(agentId, evt.AgentName ?? string.Empty, evt.AgentDescription ?? string.Empty, evt.AgentRole);
                 return true;
             case ChatStreamEventType.AgentFinished:
                 _consumer.OnSubagentFinished(agentId, isError: evt.AgentSuccess is not true, tokenTotal: evt.Usage?.TotalTokens ?? 0, usage: evt.Usage);

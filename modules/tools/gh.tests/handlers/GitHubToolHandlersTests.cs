@@ -908,33 +908,33 @@ public sealed partial class GitHubToolHandlersTests {
     }
 
     [Fact]
-    public async Task IssueList_WithAuthor_GoesThroughIssuesApi() {
-        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" };
+    public async Task IssueList_WithAuthor_GoesThroughSearchApi() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"items":[]}""" };
 
         await _handler.GhIssueListAsync(author: "alice", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
-        _api.LastPath.Should().Be("repos/owner/repo/issues");
-        _api.LastQuery.Should().ContainKey("creator").WhoseValue.Should().Be("alice");
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("author:alice");
     }
 
     [Fact]
-    public async Task IssueList_WithMention_GoesThroughIssuesApi() {
-        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" };
+    public async Task IssueList_WithMention_GoesThroughSearchApi() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"items":[]}""" };
 
         await _handler.GhIssueListAsync(mention: "bob", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
-        _api.LastPath.Should().Be("repos/owner/repo/issues");
-        _api.LastQuery.Should().ContainKey("mentioned").WhoseValue.Should().Be("bob");
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("mentions:bob");
     }
 
     [Fact]
-    public async Task IssueList_WithMilestone_GoesThroughIssuesApi() {
-        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "[]" };
+    public async Task IssueList_WithMilestone_GoesThroughSearchApi() {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"items":[]}""" };
 
         await _handler.GhIssueListAsync(milestone: "5", common: new GitHubCommonOptions { Repo = "owner/repo" });
 
-        _api.LastPath.Should().Be("repos/owner/repo/issues");
-        _api.LastQuery.Should().ContainKey("milestone").WhoseValue.Should().Be("5");
+        _api.LastPath.Should().Be("search/issues");
+        _api.LastQuery.Should().ContainKey("q").WhoseValue.Should().Contain("milestone:5");
     }
 
     [Fact]

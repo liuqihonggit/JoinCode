@@ -442,16 +442,56 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
+    /// 设置默认仓库 — 本地 git config remote.origin.gh-resolved（与官方 gh CLI 语义一致）。
+    /// 不传 repository 时从 origin remote URL 推断；--view 查看当前默认仓库；--unset 取消设置。
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhRepoSetDefault, "设置默认仓库(本地 git config,与官方 gh CLI 一致)", "github")]
+    public async Task<ToolResult> GhRepoSetDefaultAsync(
+        [McpToolParameter("仓库(owner/repo,空则从 origin remote 推断)", Required = false)] string? repository = null,
+        [McpToolParameter("查看当前默认仓库", Required = false)] bool? view = null,
+        [McpToolParameter("取消默认仓库设置", Required = false)] bool? unset = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
+        CancellationToken cancellationToken = default) {
+        if (_git is null) return Fail("git 命令执行器未配置（IGitCommandRunner 未注入）");
+        var wd = common?.WorkingDir;
+        const string configKey = "remote.origin.gh-resolved";
+
+        if (view == true) {
+            var r = await _git.ExecuteAsync($"config --get {configKey}", wd, cancellationToken).ConfigureAwait(false);
+            return r.Success ? OkBrief("", $"默认仓库: {r.Output.Trim()}") : Fail("未设置默认仓库（用 gh repo set-default <owner/repo> 设置）");
+        }
+
+        if (unset == true) {
+            var r = await _git.ExecuteAsync($"config --unset {configKey}", wd, cancellationToken).ConfigureAwait(false);
+            return r.Success ? OkBrief("", "已取消默认仓库设置") : Fail(r.Error);
+        }
+
+        string repo;
+        if (!string.IsNullOrWhiteSpace(repository)) {
+            var parsed = ParseGitHubRepoRef(repository);
+            if (parsed is null) return Fail($"仓库格式错误，应为 owner/repo: {repository}");
+            repo = $"{parsed.Value.owner}/{parsed.Value.repo}";
+        } else {
+            var remoteR = await _git.ExecuteAsync("remote get-url origin", wd, cancellationToken).ConfigureAwait(false);
+            if (!remoteR.Success) return Fail("无法获取 origin remote URL（请先 git remote add origin <url> 或显式传入 owner/repo）");
+            var parsed = ParseGitHubRepoRef(remoteR.Output.Trim());
+            if (parsed is null) return Fail($"无法从 remote URL 推断 owner/repo: {remoteR.Output.Trim()}");
+            repo = $"{parsed.Value.owner}/{parsed.Value.repo}";
+        }
+
+        var setResult = await _git.ExecuteAsync($"config {configKey} {repo}", wd, cancellationToken).ConfigureAwait(false);
+        return setResult.Success ? OkBrief("", $"已设置默认仓库为 {repo}") : Fail(setResult.Error);
+    }
+
+    /// <summary>
     /// 设置默认分支 — 调 REST API PATCH default_branch
     /// </summary>
-    [McpTool(GitHubToolNameEnumConstants.GhRepoSetDefault, "设置默认分支(用 gh repo set-default-branch 更清晰)", "github")]
-    public async Task<ToolResult> GhRepoSetDefaultAsync(
-        [McpToolParameter("默认分支名(如 main/master,非 owner/repo)", Required = true)] string branch,
+    [McpTool(GitHubToolNameEnumConstants.GhRepoSetDefaultBranch, "设置默认分支(REST API PATCH default_branch)", "github")]
+    public async Task<ToolResult> GhRepoSetDefaultBranchAsync(
+        [McpToolParameter("默认分支名(如 main/master)", Required = true)] string branch,
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
-            if (branch.Contains('/'))
-                return Fail($"gh repo set-default 是设置默认分支,非设置默认仓库。你传入的 '{branch}' 像 owner/repo 格式。正确用法: gh repo set-default main（设置默认分支为 main）");
             var jsonBody = JsonSerializer.Serialize(new RepoSetDefaultRequest { DefaultBranch = branch }, GitHubApiJsonContext.Safe.RepoSetDefaultRequest);
             var result = await client.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}", jsonBody, ct: cancellationToken).ConfigureAwait(false);
             return result.Success ? OkBrief(result.Body, $"已设置 {owner}/{repoName} 默认分支为 {branch}") : Fail(result.Error);

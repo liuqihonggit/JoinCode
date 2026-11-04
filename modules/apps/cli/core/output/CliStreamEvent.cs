@@ -84,4 +84,13 @@ public sealed class CliStreamEventData {
 
     /// <summary>子代理总 token 消耗（agent_finished 事件）</summary>
     public int? TokenTotal { get; init; }
+
+    /// <summary>当前上下文窗口占用 token 数（context_usage 事件）</summary>
+    public int? ContextPromptTokens { get; init; }
+
+    /// <summary>上下文窗口总容量 token 数（context_usage 事件）</summary>
+    public int? ContextWindowTokens { get; init; }
+
+    /// <summary>上下文窗口剩余百分比（context_usage 事件）</summary>
+    public int? PercentLeft { get; init; }
 }

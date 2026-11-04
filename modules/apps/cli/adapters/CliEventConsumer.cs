@@ -180,6 +180,17 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         }
     }
 
+    /// <summary>上下文窗口余量 — NDJSON 模式输出 context_usage 事件（显式实现：DIM 默认空实现经类类型调用不可见）</summary>
+    public void OnContextUsage(int promptTokens, int contextWindowTokens, int percentLeft) {
+        if (_agentMode) {
+            WriteNdJsonEvent("context_usage", new Cli.Output.CliStreamEventData {
+                ContextPromptTokens = promptTokens,
+                ContextWindowTokens = contextWindowTokens,
+                PercentLeft = percentLeft
+            });
+        }
+    }
+
     /// <summary>
     /// 写入 NDJSON 事件 — AX 模式下每行一个 JSON 对象，输出到 stdout
     /// </summary>

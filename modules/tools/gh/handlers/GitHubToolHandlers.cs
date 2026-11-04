@@ -757,7 +757,9 @@ public partial class GitHubToolHandlers {
     /// 解析 "owner/repo" 格式
     /// </summary>
     private static (string owner, string repo)? ParseGitHubRepoRef(string repo) {
-        if (repo.StartsWith("http", StringComparison.OrdinalIgnoreCase) || repo.StartsWith("git@"))
+        if (repo.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            || repo.StartsWith("git@", StringComparison.OrdinalIgnoreCase)
+            || repo.StartsWith("ssh://", StringComparison.OrdinalIgnoreCase))
             return ParseGitHubRemoteUrl(repo);
         var parts = repo.Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 2) return null;

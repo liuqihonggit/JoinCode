@@ -97,10 +97,23 @@ internal static class GhCommandResolver {
             return null;
         }
 
+        // 三级命令支持: gh repo deploy-key list / gh repo autolink view 1 → 合并 subgroup + action
+        // 当 action 是已知三级子命令前缀且下一个位置参数存在时,合并为 "subgroup-action"
+        if (ThreeLevelSubGroups.TryGetValue(group, out var subGroups) && subGroups.Contains(action, StringComparer.OrdinalIgnoreCase)) {
+            var subAction = NextPositional(args, 3);
+            if (subAction is not null)
+                action = $"{action}-{subAction}";
+        }
+
         var toolName = $"gh_{toolGroup}_{action.Replace('-', '_')}";
         toolName = ResolveCommandAlias(toolName);
-        return new GhResolvedCommand(toolName, group, action, CollectTail(args, 3), json);
+        return new GhResolvedCommand(toolName, group, action, CollectTail(args, action.Contains('-') ? 4 : 3), json);
     }
+
+    /// <summary>三级命令子分组 — group → 该 group 下含空格分隔的子分组(如 repo → deploy-key/autolink/gitignore/license)</summary>
+    private static readonly FrozenDictionary<string, string[]> ThreeLevelSubGroups = new Dictionary<string, string[]> {
+        ["repo"] = ["deploy-key", "autolink", "gitignore", "license"],
+    }.ToFrozenDictionary();
 
     /// <summary>
     /// 命令名别名映射 — 某些命令名语义不直观，提供更清晰的别名。

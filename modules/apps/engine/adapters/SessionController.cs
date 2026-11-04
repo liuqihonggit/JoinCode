@@ -34,6 +34,9 @@ public sealed class SessionController {
     /// <summary>本次 StreamResponseAsync 的 LLM 调用轮次数（对齐 ClaudeCode SDK num_turns 语义）</summary>
     public int TotalTurns => _totalTurns;
 
+    /// <summary>本回合 Done 权威 usage 快照（对齐 ClaudeCode SDK usage 语义）</summary>
+    public JoinCode.Abstractions.LLM.Chat.TokenUsage? LastUsage => _lastDoneUsage;
+
     /// <summary>聊天服务</summary>
     public IChatService ChatService => _chatService;
 

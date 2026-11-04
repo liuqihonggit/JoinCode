@@ -67,6 +67,7 @@ internal static class NonInteractiveModeRunner {
                 IsError = !ok,
                 Result = context.FullResponse ?? string.Empty,
                 NumTurns = context.NumTurns,
+                Usage = context.Usage,
                 Errors = ok ? [] : [context.StructuredError?.Message ?? $"Exit code {context.ExitCode}"],
             };
             var json = RelaxedJsonSerializer.Serialize(resultMessage, Cli.Output.CliOutputJsonContext.Default);

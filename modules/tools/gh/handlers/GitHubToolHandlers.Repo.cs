@@ -433,7 +433,12 @@ public partial class GitHubToolHandlers {
             var defaultBranch = branch ?? "main";
             var jsonBody = JsonSerializer.Serialize(new RepoSyncRequest { Branch = defaultBranch }, GitHubApiJsonContext.Safe.RepoSyncRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/merge-upstream", jsonBody, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已同步仓库 {owner}/{repoName} 分支 {defaultBranch}") : Fail(result.Error);
+            if (!result.Success) {
+                if (result.Error.Contains("Validation Failed", StringComparison.OrdinalIgnoreCase))
+                    return Fail($"仓库同步失败 — {result.Error}。可能原因: ① {owner}/{repoName} 不是 fork 仓库(merge-upstream 仅适用于 fork) ② 分支不存在。提示: 用 gh repo view 确认仓库是否为 fork");
+                return Fail(EnrichApiError(result.Error, "gh_repo_sync", $"repos/{owner}/{repoName}/merge-upstream"));
+            }
+            return OkBrief(result.Body, $"已同步仓库 {owner}/{repoName} 分支 {defaultBranch}");
         }).ConfigureAwait(false);
 
     /// <summary>

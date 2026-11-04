@@ -34,4 +34,8 @@
     <InternalsVisibleTo Include="JoinCode.Composition.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/brain/Abstractions.Brain.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Brain" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
 </Project>

@@ -496,6 +496,7 @@ internal static class GhArgsBinder {
             "gh_api"               => parameters.Where(p => p.Name == "body").ToList(),
             "gh_pr_ready"          => parameters.Where(p => p.Name == "pr_number").ToList(),
             "gh_pr_update_branch"  => parameters.Where(p => p.Name == "pr_number").ToList(),
+            "gh_cache_delete"      => parameters.Where(p => p.Name == "cache_id").ToList(),
             "gh_search_repos"      => parameters.Where(p => p.Name == "query").ToList(),
             "gh_search_issues"     => parameters.Where(p => p.Name == "query").ToList(),
             "gh_search_prs"        => parameters.Where(p => p.Name == "query").ToList(),

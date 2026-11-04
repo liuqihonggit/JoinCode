@@ -469,7 +469,7 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/autolinks", ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_repo_autolink_list", $"repos/{owner}/{repoName}/autolinks"));
-            return Ok(SummarizeAutolinkList(result.Body));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeAutolinkList, "id,key_prefix,url_template", common?.Jq, common?.SkipLines, common?.StartLine, "gh_repo_autolink_list"));
         }).ConfigureAwait(false);
 
     /// <summary>

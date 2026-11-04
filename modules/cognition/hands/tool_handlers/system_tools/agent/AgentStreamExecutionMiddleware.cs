@@ -62,7 +62,7 @@ public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAge
         void EmitStarted(string id) {
             channel?.Emit(JoinCode.Abstractions.LLM.Chat.ChatStreamEvent.AgentStarted(
                 id,
-                name: spawnOptions.Name ?? context.ResolvedPrimaryType,
+                name: spawnOptions.Name ?? context.ResolvedPrimaryType ?? context.SubagentType,
                 description: spawnOptions.Description,
                 role: roleValue));
         }

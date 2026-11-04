@@ -92,7 +92,22 @@ internal static class SimpleJqEvaluator {
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static JsonNode? ApplyStage(JsonNode? input, string stage)
+    private static JsonNode? ApplyStage(JsonNode? input, string stage) {
+        var commaParts = SplitTopLevelComma(stage);
+        if (commaParts.Count > 1) {
+            var merged = new JsonArray();
+            foreach (var part in commaParts) {
+                var next = ApplySingleStage(input, part);
+                if (next is JsonArray arr) foreach (var item in arr) merged.Add(item?.DeepClone());
+                else merged.Add(next?.DeepClone());
+            }
+            return merged;
+        }
+        return ApplySingleStage(input, stage);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static JsonNode? ApplySingleStage(JsonNode? input, string stage)
         => stage switch {
             var s when s.StartsWith("select(", StringComparison.Ordinal) => ApplySelect(input, s),
             var s when s.StartsWith('{') => ApplyObjectConstruct(input, s),
@@ -100,6 +115,33 @@ internal static class SimpleJqEvaluator {
             var s when s.StartsWith('.') && !s.Contains(' ') => ApplyPath(input, stage),
             _ => null,
         };
+
+    /// <summary>按顶层逗号分割（忽略 {}/()/[]/"" 内的逗号）— jq 逗号分隔多表达式</summary>
+    private static List<string> SplitTopLevelComma(string expr) {
+        var parts = new List<string>();
+        var parenDepth = 0;
+        var bracketDepth = 0;
+        var braceDepth = 0;
+        var inString = false;
+        var start = 0;
+        for (var i = 0; i < expr.Length; i++) {
+            var c = expr[i];
+            if (c == '"') inString = !inString;
+            else if (inString) continue;
+            else if (c == '(') parenDepth++;
+            else if (c == ')') parenDepth--;
+            else if (c == '[') bracketDepth++;
+            else if (c == ']') bracketDepth--;
+            else if (c == '{') braceDepth++;
+            else if (c == '}') braceDepth--;
+            else if (c == ',' && parenDepth == 0 && bracketDepth == 0 && braceDepth == 0) {
+                parts.Add(expr[start..i].Trim());
+                start = i + 1;
+            }
+        }
+        parts.Add(expr[start..].Trim());
+        return parts;
+    }
 
     /// <summary>length 函数 — 数组返回元素数，对象返回字段数，null 返回 0，标量返回 1</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

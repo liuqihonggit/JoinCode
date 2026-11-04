@@ -99,7 +99,7 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
     }
 
     /// <summary>子代理启动 → subagent_started（DSG041 批3 — 显式实现：DIM 默认实现经类类型调用不可见）。</summary>
-    public void OnSubagentStarted(string subagentId, string agentType, string description) {
+    public void OnSubagentStarted(string subagentId, string agentType, string description, string? role = null) {
         WriteEvent(new Cli.Bridge.BridgeEvent.SubagentStarted(subagentId, agentType, description));
     }
 

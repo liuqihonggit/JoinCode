@@ -142,7 +142,7 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
 
     /// <summary>子代理启动 → SubagentStarted（DSG041 批4 — 显式实现：DIM 默认实现经类类型调用不可见；
     /// ReplBridgeDriver 路由已就绪，分组渲染零改动验收面）。</summary>
-    public void OnSubagentStarted(string subagentId, string agentType, string description) {
+    public void OnSubagentStarted(string subagentId, string agentType, string description, string? role = null) {
         _events.Enqueue(new BridgeEvent.SubagentStarted(subagentId, agentType, description));
     }
 

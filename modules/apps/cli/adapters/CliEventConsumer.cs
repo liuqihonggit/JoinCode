@@ -150,9 +150,9 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     }
 
     /// <summary>流式响应完成</summary>
-    public void OnDone(TokenUsage? usage, string? modelId) {
+    public void OnDone(TokenUsage? usage, string? modelId, string? stopReason = null) {
         if (_agentMode) {
-            WriteNdJsonEvent("done", new Cli.Output.CliStreamEventData { Usage = usage, ModelId = modelId });
+            WriteNdJsonEvent("done", new Cli.Output.CliStreamEventData { Usage = usage, ModelId = modelId, StopReason = stopReason });
         } else {
             TerminalHelper.WriteLine();
             try { System.Console.Out.Flush(); } catch (IOException) { System.Diagnostics.Debug.WriteLine("[CliEventConsumer] stdout flush failed"); }

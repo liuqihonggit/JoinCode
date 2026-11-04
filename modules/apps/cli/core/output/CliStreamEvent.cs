@@ -62,7 +62,12 @@ public sealed class CliStreamEventData {
     public TokenUsage? Usage { get; init; }
 
     /// <summary>模型标识（done 事件）</summary>
+    [JsonPropertyName("model_id")]
     public string? ModelId { get; init; }
+
+    /// <summary>停止原因（done 事件）— stop/tool_calls/length/content_filter 等</summary>
+    [JsonPropertyName("stop_reason")]
+    public string? StopReason { get; init; }
 
     /// <summary>退出码（result 事件）— Bug 14: NDJSON 最终 result 事件携带 exitCode</summary>
     public int? ExitCode { get; set; }

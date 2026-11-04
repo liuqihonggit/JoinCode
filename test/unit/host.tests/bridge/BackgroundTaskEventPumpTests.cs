@@ -17,7 +17,7 @@ public sealed class BackgroundTaskEventPumpTests {
         public void OnToolProgress(string toolName, string progressType, string? progressMessage) { }
         public void OnLoopDetected(int triggerCount, int loopStartIndex, string? repeatedPattern) { }
         public void OnTimingSummary(string summary) { }
-        public void OnDone(TokenUsage? usage, string? modelId) { }
+        public void OnDone(TokenUsage? usage, string? modelId, string? stopReason = null) { }
 
         public void OnBackgroundTask(string kind, string taskId, string description, string state) =>
             Calls.Add((kind, taskId, description, state));

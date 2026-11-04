@@ -775,7 +775,7 @@ public sealed class SessionControllerTests {
         public void OnToolProgress(string toolName, string progressType, string? progressMessage) => ToolProgressEvents.Add((toolName, progressType, progressMessage));
         public void OnLoopDetected(int triggerCount, int loopStartIndex, string? repeatedPattern) => LoopDetectedEvents.Add((triggerCount, loopStartIndex, repeatedPattern));
         public void OnTimingSummary(string summary) => TimingSummaryEvents.Add(summary);
-        public void OnDone(TokenUsage? usage, string? modelId) => DoneEvents.Add((usage, modelId));
+        public void OnDone(TokenUsage? usage, string? modelId, string? stopReason = null) => DoneEvents.Add((usage, modelId));
         public void OnContextUsage(int promptTokens, int contextWindowTokens, int percentLeft) => ContextUsages.Add((promptTokens, contextWindowTokens, percentLeft));
         public void OnCompactCompleted(int messagesSummarized, long originalTokens, long compressedTokens, bool isAuto) => CompactCompleted.Add((messagesSummarized, originalTokens, compressedTokens, isAuto));
         public void OnRetry(string reason, int attempt, int maxRetries, int delayMs) => Retries.Add((reason, attempt, maxRetries, delayMs));

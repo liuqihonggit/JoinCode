@@ -270,7 +270,7 @@ public sealed class SessionController {
             },
             onDone: (usage, mid) => {
                 modelId = mid;
-                _consumer.OnDone(usage, mid);
+                _consumer.OnDone(usage, mid, evt.StopReason);
                 EmitContextUsage(usage);
                 if (usage is { PromptTokens: > 0 })
                     _lastDoneUsage = usage;

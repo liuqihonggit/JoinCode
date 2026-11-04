@@ -91,7 +91,7 @@ public sealed class BridgeEventConsumer : IResettableEventConsumer {
     }
 
     /// <summary>流式响应完成 → 思考结算 + assistant_message(完整文本) + token_usage(用量汇总 — usage null 不发)。</summary>
-    public void OnDone(TokenUsage? usage, string? modelId) {
+    public void OnDone(TokenUsage? usage, string? modelId, string? stopReason = null) {
         EndThinkingIfActive();
         if (_fullResponse.Length > 0)
             WriteEvent(new Cli.Bridge.BridgeEvent.AssistantMessage(_fullResponse.ToString()));

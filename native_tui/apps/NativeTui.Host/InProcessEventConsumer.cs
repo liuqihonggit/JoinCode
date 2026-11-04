@@ -121,7 +121,7 @@ public sealed class InProcessEventConsumer : IResettableEventConsumer {
     /// <summary>流式响应完成 → 思考结算 + assistant_message(完整文本 + Markdown 投影；无语法快路径降级纯文本
     /// ；命令回合纯文本模式强制 Markdown=null — TASK065 F6 防缩进对齐文本被 Markdig 重排，发后自动复位)
     /// + token_usage(用量汇总 — usage null 不发；与 engine BridgeEventConsumer 行序镜像：assistant 前、收尾发)。</summary>
-    public void OnDone(TokenUsage? usage, string? modelId) {
+    public void OnDone(TokenUsage? usage, string? modelId, string? stopReason = null) {
         EndThinkingIfActive();
         if (_fullResponse.Length > 0) {
             var fullText = _fullResponse.ToString();

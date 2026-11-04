@@ -272,7 +272,7 @@ public sealed class SessionControllerSubagentEventTests
         public void OnToolProgress(string toolName, string progressType, string? progressMessage) { }
         public void OnLoopDetected(int triggerCount, int loopStartIndex, string? repeatedPattern) { }
         public void OnTimingSummary(string summary) { }
-        public void OnDone(TokenUsage? usage, string? modelId) => DoneEvents.Add((usage, modelId));
+        public void OnDone(TokenUsage? usage, string? modelId, string? stopReason = null) => DoneEvents.Add((usage, modelId));
         public void OnSubagentStarted(string subagentId, string agentType, string description) => SubagentStarts.Add((subagentId, agentType, description));
         public void OnSubagentToolUse(string subagentId, string toolName, string summary, int tokenGain) => SubagentToolUses.Add((subagentId, toolName, summary, tokenGain));
         public void OnSubagentFinished(string subagentId, bool isError, int tokenTotal, TokenUsage? usage = null) => SubagentFinishes.Add((subagentId, isError, tokenTotal));

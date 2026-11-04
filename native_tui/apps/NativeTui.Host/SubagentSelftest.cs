@@ -226,7 +226,7 @@ internal static class SubagentSelftest
         public void OnToolProgress(string toolName, string progressType, string? progressMessage) { }
         public void OnLoopDetected(int triggerCount, int loopStartIndex, string? repeatedPattern) { }
         public void OnTimingSummary(string summary) { }
-        public void OnDone(TokenUsage? usage, string? modelId) { }
+        public void OnDone(TokenUsage? usage, string? modelId, string? stopReason = null) { }
         public void OnSubagentStarted(string subagentId, string agentType, string description) => SubagentStarts.Add((subagentId, agentType, description));
         public void OnSubagentToolUse(string subagentId, string toolName, string summary, int tokenGain) => SubagentToolUses.Add((subagentId, toolName, summary, tokenGain));
         public void OnSubagentFinished(string subagentId, bool isError, int tokenTotal) => SubagentFinishes.Add((subagentId, isError, tokenTotal));

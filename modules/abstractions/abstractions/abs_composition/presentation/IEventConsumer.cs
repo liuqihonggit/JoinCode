@@ -44,7 +44,10 @@ public interface IEventConsumer {
     /// <summary>
     /// 流式响应完成
     /// </summary>
-    void OnDone(TokenUsage? usage, string? modelId);
+    /// <param name="usage">令牌用量</param>
+    /// <param name="modelId">模型标识</param>
+    /// <param name="stopReason">停止原因（stop/tool_calls/length/content_filter 等）；null = 未提供</param>
+    void OnDone(TokenUsage? usage, string? modelId, string? stopReason = null);
 
     /// <summary>
     /// 子代理启动（DSG041 批1 — 协议本体先扩，投影层后跟；默认空实现 — 既有实现方零改动，

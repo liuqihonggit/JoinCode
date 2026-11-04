@@ -1,4 +1,6 @@
 global using JoinCode.Abstractions.Attributes;
+global using JoinCode.Abstractions.ChatCommands;
+global using JoinCode.Abstractions.Commands;
 global using JoinCode.Abstractions.Hooks;
 global using JoinCode.Abstractions.Models;
 global using JoinCode.Abstractions.Models.Agent;
@@ -29,6 +31,7 @@ global using JoinCode.Abstractions.Models.Vcr;
 global using JoinCode.Abstractions.Models.Voice;
 global using JoinCode.Abstractions.Pipeline;
 global using JoinCode.Abstractions.Security;
+global using JoinCode.Abstractions.Utils;
 global using System.Collections.Frozen;
 global using System.ComponentModel.DataAnnotations;
 global using System.Diagnostics.CodeAnalysis;

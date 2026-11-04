@@ -173,10 +173,10 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         }
     }
 
-    /// <summary>子代理完成 — NDJSON 模式输出 agent_finished 事件</summary>
-    public void OnSubagentFinished(string subagentId, bool isError, int tokenTotal) {
+    /// <summary>子代理完成 — NDJSON 模式输出 agent_finished 事件（含完整 usage 详情）</summary>
+    public void OnSubagentFinished(string subagentId, bool isError, int tokenTotal, TokenUsage? usage = null) {
         if (_agentMode) {
-            WriteNdJsonEvent("agent_finished", new Cli.Output.CliStreamEventData { SubagentId = subagentId, SubagentIsError = isError, TokenTotal = tokenTotal });
+            WriteNdJsonEvent("agent_finished", new Cli.Output.CliStreamEventData { SubagentId = subagentId, SubagentIsError = isError, TokenTotal = tokenTotal, Usage = usage });
         }
     }
 

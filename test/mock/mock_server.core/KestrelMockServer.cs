@@ -799,9 +799,12 @@ setInterval(() => {
     }
 
     private async Task HandleInjectedResponseAsync(HttpContext ctx, InjectedResponse injection, int requestIndex, CapturedRequest? captured = null) {
-        Console.WriteLine($"[{_serverName}]   Response: injected (queue), status={injection.StatusCode}, stream={injection.IsStream}");
+        Console.WriteLine($"[{_serverName}]   Response: injected (queue), status={injection.StatusCode}, stream={injection.IsStream}, delay={injection.DelayMs}ms");
         ctx.Response.StatusCode = injection.StatusCode;
         ctx.Response.ContentType = injection.ContentType;
+
+        if (injection.DelayMs > 0)
+            await Task.Delay(injection.DelayMs, ctx.RequestAborted);
 
         if (injection.IsStream && injection.StreamChunks is { Count: > 0 }) {
             var sb = new StringBuilder();

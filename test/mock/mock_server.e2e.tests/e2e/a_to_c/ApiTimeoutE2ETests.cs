@@ -75,8 +75,8 @@ public sealed partial class ApiTimeoutE2ETests : IAsyncLifetime {
         _output.WriteLine($"[ApiTimeoutE2E] jcc.exe: {exePath}");
 
         using var http = new HttpClient { BaseAddress = new Uri($"http://localhost:{_mockServerPort}") };
-        var responses = Enumerable.Repeat(new MockServer.Core.InjectedResponse { Body = "" }, 5).ToList();
-        var jsonBytes = JsonSerializer.SerializeToUtf8Bytes(responses, typeof(List<MockServer.Core.InjectedResponse>), MockServer.Core.MockServerJsonContext.Default);
+        var responses = Enumerable.Repeat(new E2eInjectedResponse { Body = "" }, 5).ToList();
+        var jsonBytes = JsonSerializer.SerializeToUtf8Bytes(responses, typeof(List<E2eInjectedResponse>), E2eJsonContext.Default);
         var injectResp = await http.PostAsync("/__control__/script",
             new ByteArrayContent(jsonBytes) { Headers = { ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json") } }).ConfigureAwait(true);
         injectResp.EnsureSuccessStatusCode();
@@ -93,8 +93,8 @@ public sealed partial class ApiTimeoutE2ETests : IAsyncLifetime {
 
     private async Task InjectDelayedResponsesAsync(int port, int delayMs, int count) {
         using var http = new HttpClient { BaseAddress = new Uri($"http://localhost:{port}") };
-        var responses = Enumerable.Repeat(new MockServer.Core.InjectedResponse { DelayMs = delayMs, Body = "{}" }, count).ToList();
-        var jsonBytes = JsonSerializer.SerializeToUtf8Bytes(responses, typeof(List<MockServer.Core.InjectedResponse>), MockServer.Core.MockServerJsonContext.Default);
+        var responses = Enumerable.Repeat(new E2eInjectedResponse { DelayMs = delayMs, Body = "{}" }, count).ToList();
+        var jsonBytes = JsonSerializer.SerializeToUtf8Bytes(responses, typeof(List<E2eInjectedResponse>), E2eJsonContext.Default);
         var response = await http.PostAsync("/__control__/script",
             new ByteArrayContent(jsonBytes) { Headers = { ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json") } }).ConfigureAwait(true);
         response.EnsureSuccessStatusCode();

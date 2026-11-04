@@ -26,7 +26,24 @@ internal static class HttpResponseExtensions {
             Console.Error.WriteLine($"[HttpResponseExtensions] 读取错误响应体失败: {ex.Message}");
         }
 
-        var preview = body.Length > 200 ? body[..200] + "..." : body;
-        throw new HttpRequestException($"HTTP {(int)response.StatusCode} {response.StatusCode}: {preview}", null, response.StatusCode);
+        var message = ExtractErrorMessage(body);
+        throw new HttpRequestException($"HTTP {(int)response.StatusCode} {response.StatusCode}: {message}", null, response.StatusCode);
+    }
+
+    /// <summary>
+    /// 从错误响应体提取用户友好消息。优先解析 OpenAI 格式 <c>{"error":{"message":"..."}}</c>，
+    /// 失败则返回原始 body 前 200 字符预览。
+    /// </summary>
+    private static string ExtractErrorMessage(string body) {
+        if (string.IsNullOrEmpty(body)) return "(空响应体)";
+        try {
+            using var doc = System.Text.Json.JsonDocument.Parse(body);
+            if (doc.RootElement.TryGetProperty("error", out var errEl) && errEl.TryGetProperty("message", out var msgEl)) {
+                return msgEl.GetString() ?? body;
+            }
+        } catch (System.Text.Json.JsonException) {
+            Console.Error.WriteLine($"[HttpResponseExtensions] 错误响应体非 JSON 格式，回退到原始文本: {body[..Math.Min(80, body.Length)]}");
+        }
+        return body.Length > 200 ? body[..200] + "..." : body;
     }
 }

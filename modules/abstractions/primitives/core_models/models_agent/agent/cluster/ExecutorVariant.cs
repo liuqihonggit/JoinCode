@@ -38,7 +38,7 @@ public enum ExecutorVariant {
     /// <summary>
     /// 引导执行者 — 提供使用指导和最佳实践
     /// </summary>
-    [EnumValue(ClaudeCompatConstants.EnumClaudeCodeGuide)] JoinCodeGuide,
+    [EnumValue("claudeCodeGuide")] JoinCodeGuide,
 
     /// <summary>
     /// 上下文压缩执行者 — 智能压缩和管理上下文

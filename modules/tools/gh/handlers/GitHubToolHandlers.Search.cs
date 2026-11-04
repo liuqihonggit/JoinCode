@@ -104,9 +104,19 @@ public partial class GitHubToolHandlers {
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("排序(indexed,可选)", Required = false)] string? sort = null,
         [McpToolParameter("顺序(asc/desc,默认 desc)", Required = false)] string? order = null,
+        [McpToolParameter("按语言过滤(如 CSharp/Go/Python)", Required = false)] string? language = null,
+        [McpToolParameter("按扩展名过滤(如 cs/go/py)", Required = false)] string? extension = null,
+        [McpToolParameter("按路径过滤(如 src/handlers)", Required = false)] string? path = null,
+        [McpToolParameter("按文件名过滤(如 README.md)", Required = false)] string? filename = null,
         [McpToolOptions] GitHubCommonOptions? common = null,
-        CancellationToken cancellationToken = default)
-        => SearchAsync(s_searchCodeSpec, query, limit, sort, order, common, cancellationToken);
+        CancellationToken cancellationToken = default) {
+        var q = query;
+        if (!string.IsNullOrWhiteSpace(language)) q = AppendFilter(q, $"language:{language}");
+        if (!string.IsNullOrWhiteSpace(extension)) q = AppendFilter(q, $"extension:{extension}");
+        if (!string.IsNullOrWhiteSpace(path)) q = AppendFilter(q, $"path:{path}");
+        if (!string.IsNullOrWhiteSpace(filename)) q = AppendFilter(q, $"filename:{filename}");
+        return SearchAsync(s_searchCodeSpec, q, limit, sort, order, common, cancellationToken);
+    }
 
     /// <summary>搜索提交 — 调 GET /search/commits</summary>
     [McpTool(GitHubToolNameEnumConstants.GhSearchCommits, "搜索 GitHub 提交", "github", ConcurrencySafe = true)]

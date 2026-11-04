@@ -119,6 +119,7 @@ internal static class GhCommandResolver {
     /// 命令名别名映射 — 某些命令名语义不直观，提供更清晰的别名。
     /// </summary>
     private static readonly FrozenDictionary<string, string> CommandAliasMap = new Dictionary<string, string> {
+        ["gh_repo_gitignore"] = "gh_repo_gitignore_list",
     }.ToFrozenDictionary();
 
     /// <summary>查命令名别名表，返回规范工具名。</summary>
@@ -149,7 +150,7 @@ internal static class GhCommandResolver {
     /// <para>宽容: 系统 gh CLI 的 --json field1,field2 转为 --json_fields=field1,field2（缺陷1a）。</para>
     /// </summary>
     private static string[] CollectTail(string[] args, int startIndex) {
-        var tail = new List<string>(args.Length - startIndex);
+        var tail = new List<string>(Math.Max(0, args.Length - startIndex));
         for (var i = startIndex; i < args.Length; i++) {
             var token = args[i];
             if (!token.StartsWith("--") || !CliArgCliOptionConstants.AllOptionNames.Contains(token)) {

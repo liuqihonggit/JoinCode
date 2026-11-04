@@ -315,6 +315,32 @@ commit `619de6a2b`
 
 commit `0af9b595d`
 
+### 2026-11-05 B14 修复 — 429 限流不处理 Retry-After 头
+
+#### 根因
+
+1. `ResilientHttpExecutor.CheckResponseStatusAsync` 抛 `HttpRequestException` 时不携带 Retry-After 头信息
+2. `ServiceRegistration.cs` 的 `RetryAfterExtractor` 从未被赋值实际提取函数（一直为 null）
+3. MockServer `InjectedResponse` 无 `Headers` 字段，无法注入自定义响应头
+
+#### 修复
+
+| 文件 | 行号 | 修改 |
+|------|------|------|
+| `modules/abstractions/infrastructure/http/ResilientHttpExecutor.cs` | 255-282 | 新增 `ExtractRetryAfterMs` 方法，`CheckResponseStatusAsync` 提取 Retry-After 头存入 `HttpRequestException.Data["RetryAfterMs"]` |
+| `modules/llm/core/DependencyInjection/ServiceRegistration.cs` | 155,218-225 | `RetryAfterExtractor = ExtractRetryAfterFromException`，从异常 Data 字典读取 Retry-After |
+| `test/mock/mock_server.core/MockServerController.cs` | 33 | `InjectedResponse` 新增 `Headers` 字段（`Dictionary<string, string> = []`） |
+| `test/mock/mock_server.core/KestrelMockServer.cs` | 806-810 | `HandleInjectedResponseAsync` 设置注入的自定义响应头 |
+
+#### 验证
+
+```
+修复前: [LLM:RETRY] 失败 (尝试 1/3), 2321ms 后重试 | HTTP 429（指数退避，忽略 Retry-After 头）
+修复后: [LLM:RETRY] 失败 (尝试 1/3), 1000ms 后重试 | HTTP 429（使用 Retry-After: 1 头指定的 1 秒）
+```
+
+commit `8174113b5`
+
 ### 2026-11-05 扩展场景测试结果
 
 | 场景 | exit | 耗时 | 结果 | 备注 |

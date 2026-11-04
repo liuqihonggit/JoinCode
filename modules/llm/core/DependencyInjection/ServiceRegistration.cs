@@ -152,7 +152,7 @@ public static partial class ServiceRegistration {
             ShouldRetry = retryConfig.ShouldRetry,
             TotalBudget = retryConfig.TotalBudget,
             PauseBudgetOnNetworkUnavailable = retryConfig.PauseBudgetOnNetworkUnavailable,
-            RetryAfterExtractor = retryConfig.RetryAfterExtractor,
+            RetryAfterExtractor = ExtractRetryAfterFromException,
             SingleDelayCap = retryConfig.SingleDelayCap,
             HeartbeatInterval = retryConfig.HeartbeatInterval,
             HeartbeatCallback = isUnattended
@@ -213,6 +213,17 @@ public static partial class ServiceRegistration {
     private static bool IsTransientCapacityError(Exception ex) =>
         ex is ApiException api && (api.StatusCode == 429 || api.StatusCode == 529)
         || ex is HttpRequestException http && (int?)http.StatusCode is 429 or 529;
+
+    /// <summary>
+    /// 从异常 Data 字典提取 Retry-After 毫秒数。
+    /// <para>ResilientHttpExecutor.CheckResponseStatusAsync 将 Retry-After 头解析后存入 HttpRequestException.Data["RetryAfterMs"]。</para>
+    /// </summary>
+    private static TimeSpan? ExtractRetryAfterFromException(Exception ex) {
+        if (ex is HttpRequestException { Data.Count: > 0 } http && http.Data["RetryAfterMs"] is long ms) {
+            return TimeSpan.FromMilliseconds(ms);
+        }
+        return null;
+    }
 
     /// <summary>
     /// 用 StreamingFallbackDecorator + BufferedStreamingDecorator 包装内部 QueryService

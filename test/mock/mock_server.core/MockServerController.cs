@@ -29,6 +29,8 @@ public sealed class InjectedResponse {
     public List<string> StreamChunks { get; set; } = [];
     /// <summary>响应前延迟毫秒数（模拟慢服务器，用于超时测试）。默认 0 = 无延迟</summary>
     public int DelayMs { get; set; }
+    /// <summary>自定义响应头（如 Retry-After、X-RateLimit-Remaining 等）。键=头名，值=头值</summary>
+    public Dictionary<string, string> Headers { get; set; } = [];
 }
 
 /// <summary>

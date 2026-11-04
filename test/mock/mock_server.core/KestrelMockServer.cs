@@ -803,6 +803,12 @@ setInterval(() => {
         ctx.Response.StatusCode = injection.StatusCode;
         ctx.Response.ContentType = injection.ContentType;
 
+        if (injection.Headers.Count > 0) {
+            foreach (var (key, value) in injection.Headers) {
+                ctx.Response.Headers[key] = value;
+            }
+        }
+
         if (injection.DelayMs > 0)
             await Task.Delay(injection.DelayMs, ctx.RequestAborted);
 

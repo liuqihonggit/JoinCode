@@ -252,11 +252,33 @@ public sealed class ResilientHttpExecutor {
             Console.Error.WriteLine($"[ResilientHttpExecutor] 读取错误响应体失败: {ex.Message}");
             body = "";
         }
+        var retryAfterMs = ExtractRetryAfterMs(response);
         response.Dispose();
-        throw new HttpRequestException(
+        var exn = new HttpRequestException(
             $"[{operationName}] HTTP {statusCode}: {ExtractErrorMessage(body)}",
             null,
             response.StatusCode);
+        if (retryAfterMs.HasValue) {
+            exn.Data["RetryAfterMs"] = retryAfterMs.Value;
+        }
+        throw exn;
+    }
+
+    /// <summary>
+    /// 从 Retry-After 头提取重试等待毫秒数。支持秒数格式（"1"）和 HTTP 日期格式。
+    /// </summary>
+    private static long? ExtractRetryAfterMs(HttpResponseMessage response) {
+        if (!response.Headers.TryGetValues("Retry-After", out var values)) return null;
+        var raw = values.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        if (long.TryParse(raw, out var seconds)) {
+            return seconds * 1000;
+        }
+        if (DateTimeOffset.TryParse(raw, out var date)) {
+            var delta = date - DateTimeOffset.UtcNow;
+            return delta.TotalMilliseconds > 0 ? (long)delta.TotalMilliseconds : null;
+        }
+        return null;
     }
 
     /// <summary>

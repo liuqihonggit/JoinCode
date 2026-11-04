@@ -92,7 +92,7 @@ public sealed class GhCommandResolverTests {
         resolved.Tail.Should().BeEquivalentTo(new[] { "--limit", "3" });
     }
 
-    /// <summary>系统 gh CLI 的 --json field1,field2 应转为 --json_fields=field1,field2</summary>
+    /// <summary>系统 gh CLI 的 --json field1,field2 应转为 --json_fields=field1,field2(不设 json 标志)</summary>
     /// <para>缺陷1a: AI习惯写 --json statusCheckRollup（系统gh语法），jcc要求 --json_fields</para>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
@@ -101,7 +101,7 @@ public sealed class GhCommandResolverTests {
             new[] { "gh", "pr", "view", "387", "--json", "statusCheckRollup" }, out var error);
 
         error.Should().BeNull();
-        resolved!.Json.Should().BeTrue();
+        resolved!.Json.Should().BeFalse();
         resolved.Tail.Should().BeEquivalentTo(new[] { "387", "--json_fields=statusCheckRollup" });
     }
 

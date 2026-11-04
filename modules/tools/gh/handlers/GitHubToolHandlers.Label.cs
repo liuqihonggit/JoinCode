@@ -25,6 +25,29 @@ public partial class GitHubToolHandlers {
         }).ConfigureAwait(false);
 
     /// <summary>
+    /// 查看标签详情 — 调 REST API GET /labels/{name}
+    /// </summary>
+    [McpTool(GitHubToolNameEnumConstants.GhLabelView, "查看标签详情", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhLabelViewAsync(
+        [McpToolParameter("标签名", Required = true)] string name,
+        [McpToolOptions] GitHubCommonOptions? common = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
+            var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/labels/{Uri.EscapeDataString(name)}", ct: cancellationToken).ConfigureAwait(false);
+            if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_label_view", $"repos/{owner}/{repoName}/labels/{name}"));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeLabelView, "id,name,color,description", common?.Jq, common?.SkipLines, common?.StartLine, "gh_label_view"));
+        }).ConfigureAwait(false);
+
+    /// <summary>精简标签详情 — 名称/颜色/描述</summary>
+    private static string SummarizeLabelView(string json) {
+        try {
+            var label = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.LabelResponse);
+            if (label is null) return json;
+            return $"名称: {label.Name}\n颜色: #{label.Color}\n描述: {label.Description}";
+        } catch { return json; }
+    }
+
+    /// <summary>
     /// 精简标签列表 — 表格格式(name, color, description)，可选客户端 search 过滤
     /// </summary>
     private static string SummarizeLabelList(string json, string? search) {

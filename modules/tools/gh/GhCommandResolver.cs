@@ -99,15 +99,18 @@ internal static class GhCommandResolver {
 
         // 三级命令支持: gh repo deploy-key list / gh repo autolink view 1 → 合并 subgroup + action
         // 当 action 是已知三级子命令前缀且下一个位置参数存在时,合并为 "subgroup-action"
+        var actionMerged = false;
         if (ThreeLevelSubGroups.TryGetValue(group, out var subGroups) && subGroups.Contains(action, StringComparer.OrdinalIgnoreCase)) {
             var subAction = NextPositional(args, 3);
-            if (subAction is not null)
+            if (subAction is not null) {
                 action = $"{action}-{subAction}";
+                actionMerged = true;
+            }
         }
 
         var toolName = $"gh_{toolGroup}_{action.Replace('-', '_')}";
         toolName = ResolveCommandAlias(toolName);
-        return new GhResolvedCommand(toolName, group, action, CollectTail(args, action.Contains('-') ? 4 : 3), json);
+        return new GhResolvedCommand(toolName, group, action, CollectTail(args, actionMerged ? 4 : 3), json);
     }
 
     /// <summary>三级命令子分组 — group → 该 group 下含空格分隔的子分组(如 repo → deploy-key/autolink/gitignore/license)</summary>

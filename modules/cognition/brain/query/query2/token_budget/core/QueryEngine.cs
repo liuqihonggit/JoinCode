@@ -490,13 +490,22 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 }
             }
 
-            // 累积内容
+            // 累积内容 — 区分 thinking/reasoning_content 与普通 text
             if (!string.IsNullOrEmpty(content)) {
-                responseBuilder.Append(content);
-                chunks.Add(new QueryStreamChunk {
-                    Type = AgentStreamChunkType.Content,
-                    Content = content
-                });
+                var isThinking = streamChunk.Metadata?.ContainsKey("thinking_content") == true
+                    || streamChunk.Metadata?.ContainsKey("reasoning_content") == true;
+                if (isThinking) {
+                    chunks.Add(new QueryStreamChunk {
+                        Type = AgentStreamChunkType.Thinking,
+                        Content = content
+                    });
+                } else {
+                    responseBuilder.Append(content);
+                    chunks.Add(new QueryStreamChunk {
+                        Type = AgentStreamChunkType.Content,
+                        Content = content
+                    });
+                }
             }
 
             // 追踪 Token 使用量 — 消费 provider 统一约定 metadata["Usage"]（TokenUsage JSON，OpenAI/Anthropic 双侧一致）；

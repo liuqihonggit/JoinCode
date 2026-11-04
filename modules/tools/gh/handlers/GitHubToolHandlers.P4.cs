@@ -189,7 +189,7 @@ public partial class GitHubToolHandlers {
             var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
             var path = !string.IsNullOrWhiteSpace(org) ? $"orgs/{org}/rulesets" : $"repos/{owner}/{repoName}/rulesets";
             var result = await client.SendAsync(HttpMethod.Get, path, query: query, ct: cancellationToken).ConfigureAwait(false);
-            if (!result.Success) return Fail(result.Error);
+            if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_ruleset_list", path));
             return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeRulesetList, "id,name,target,enforcement", common?.Jq, common?.SkipLines, common?.StartLine, "gh_ruleset_list"));
         }).ConfigureAwait(false);
 
@@ -219,7 +219,7 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var path = !string.IsNullOrWhiteSpace(org) ? $"orgs/{org}/rulesets/{ruleset_id}" : $"repos/{owner}/{repoName}/rulesets/{ruleset_id}";
             var result = await client.SendAsync(HttpMethod.Get, path, ct: cancellationToken).ConfigureAwait(false);
-            if (!result.Success) return Fail(result.Error);
+            if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_ruleset_view", path));
             return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeRulesetView, "id,name,target,enforcement,html_url", common?.Jq, common?.SkipLines, common?.StartLine, "gh_ruleset_view"));
         }).ConfigureAwait(false);
 
@@ -245,7 +245,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/rulesets-rs/{branch}", ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? Ok(result.Body) : Fail(result.Error);
+            return result.Success ? Ok(result.Body) : Fail(EnrichApiError(result.Error, "gh_ruleset_check", $"repos/{owner}/{repoName}/rulesets-rs/{branch}"));
         }).ConfigureAwait(false);
 
     // === Status（跨仓库状态）===

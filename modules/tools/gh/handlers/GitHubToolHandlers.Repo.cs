@@ -538,7 +538,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/keys", ct: cancellationToken).ConfigureAwait(false);
-            if (!result.Success) return Fail(result.Error);
+            if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_repo_deploy_key_list", $"repos/{owner}/{repoName}/keys"));
             return Ok(SummarizeDeployKeyList(result.Body));
         }).ConfigureAwait(false);
 
@@ -555,7 +555,7 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var jsonBody = JsonSerializer.Serialize(new DeployKeyAddRequest { Title = title, Key = key, ReadOnly = read_only }, GitHubApiJsonContext.Safe.DeployKeyAddRequest);
             var result = await client.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/keys", jsonBody, ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, "Deploy Key 添加成功") : Fail(result.Error);
+            return result.Success ? OkBrief(result.Body, "Deploy Key 添加成功") : Fail(EnrichApiError(result.Error, "gh_repo_deploy_key_add", $"repos/{owner}/{repoName}/keys"));
         }).ConfigureAwait(false);
 
     /// <summary>
@@ -568,7 +568,7 @@ public partial class GitHubToolHandlers {
         CancellationToken cancellationToken = default)
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/keys/{key_id}", ct: cancellationToken).ConfigureAwait(false);
-            return result.Success ? OkBrief(result.Body, $"已删除 Deploy Key {key_id}") : Fail(result.Error);
+            return result.Success ? OkBrief(result.Body, $"已删除 Deploy Key {key_id}") : Fail(EnrichApiError(result.Error, "gh_repo_deploy_key_delete", $"repos/{owner}/{repoName}/keys/{key_id}"));
         }).ConfigureAwait(false);
 
     /// <summary>

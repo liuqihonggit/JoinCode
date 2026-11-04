@@ -149,7 +149,9 @@ public sealed class ResilientHttpExecutor {
         var budget = retry.TotalBudget;
         var sw = budget.HasValue ? Stopwatch.StartNew() : null;
         var attempt = 0;
-        var maxLabel = budget.HasValue ? "∞" : retry.MaxRetries.ToString();
+        // 预算模式 + 无 TransientErrorPredicate = 所有错误无限重试 → 显示 ∞
+        // 预算模式 + 有 TransientErrorPredicate = 仅容量错误无限，其他受 MaxRetries 限制 → 显示 MaxRetries
+        var maxLabel = budget.HasValue && retry.TransientErrorPredicate is null ? "∞" : retry.MaxRetries.ToString();
 
         while (true) {
             if (sw is not null && sw.Elapsed >= budget.GetValueOrDefault()) {
@@ -246,14 +248,54 @@ public sealed class ResilientHttpExecutor {
         string body;
         try {
             body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-        } catch {
+        } catch (Exception ex) {
+            Console.Error.WriteLine($"[ResilientHttpExecutor] 读取错误响应体失败: {ex.Message}");
             body = "";
         }
+        var retryAfterMs = ExtractRetryAfterMs(response);
         response.Dispose();
-        throw new HttpRequestException(
-            $"[{operationName}] HTTP {statusCode}: {body.Trim()}",
+        var exn = new HttpRequestException(
+            $"[{operationName}] HTTP {statusCode}: {ExtractErrorMessage(body)}",
             null,
             response.StatusCode);
+        if (retryAfterMs.HasValue) {
+            exn.Data["RetryAfterMs"] = retryAfterMs.Value;
+        }
+        throw exn;
+    }
+
+    /// <summary>
+    /// 从 Retry-After 头提取重试等待毫秒数。支持秒数格式（"1"）和 HTTP 日期格式。
+    /// </summary>
+    private static long? ExtractRetryAfterMs(HttpResponseMessage response) {
+        if (!response.Headers.TryGetValues("Retry-After", out var values)) return null;
+        var raw = values.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        if (long.TryParse(raw, out var seconds)) {
+            return seconds * 1000;
+        }
+        if (DateTimeOffset.TryParse(raw, out var date)) {
+            var delta = date - DateTimeOffset.UtcNow;
+            return delta.TotalMilliseconds > 0 ? (long)delta.TotalMilliseconds : null;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 从错误响应体提取用户友好消息。优先解析 OpenAI 格式 <c>{"error":{"message":"..."}}</c>，
+    /// 失败则返回原始 body 前 200 字符预览。
+    /// </summary>
+    private static string ExtractErrorMessage(string body) {
+        if (string.IsNullOrEmpty(body)) return "(空响应体)";
+        try {
+            using var doc = System.Text.Json.JsonDocument.Parse(body);
+            if (doc.RootElement.TryGetProperty("error", out var errEl) && errEl.TryGetProperty("message", out var msgEl)) {
+                return msgEl.GetString() ?? body;
+            }
+        } catch (System.Text.Json.JsonException) {
+            Console.Error.WriteLine($"[ResilientHttpExecutor] 错误响应体非 JSON 格式，回退到原始文本: {body[..Math.Min(80, body.Length)]}");
+        }
+        return body.Length > 200 ? body[..200] + "..." : body;
     }
 
     private static bool ShouldRetry(Exception ex, RetryConfig retry) {

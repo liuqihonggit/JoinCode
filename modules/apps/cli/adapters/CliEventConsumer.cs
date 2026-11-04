@@ -170,7 +170,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     public void OnTimingSummary(string summary) {
         if (!_agentMode) {
             TerminalHelper.WriteLine();
-            TerminalHelper.WriteRaw(summary);
+            TerminalHelper.WriteLine(summary);
         }
     }
 

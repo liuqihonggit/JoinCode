@@ -42,9 +42,9 @@ public sealed class QueryMiddlewareContext {
     public ILogger? Logger { get; init; }
 
     /// <summary>
-    /// 输出块列表 — 核心引擎和中间件向此列表添加输出块
+    /// 输出块队列 — 核心引擎和中间件向此队列添加输出块；QueryAsync 并行轮询 yield 实现流式输出
     /// </summary>
-    public List<QueryStreamChunk> OutputChunks { get; } = [];
+    public System.Collections.Concurrent.ConcurrentQueue<QueryStreamChunk> OutputChunks { get; } = new();
 
     /// <summary>
     /// 计时器

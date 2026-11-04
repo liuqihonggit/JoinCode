@@ -144,11 +144,18 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         }
 
         var pipeline = _pipeline.Value;
-        await pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
+        var pipelineTask = pipeline.ExecuteAsync(context, cancellationToken);
 
-        foreach (var chunk in context.OutputChunks) {
-            yield return chunk;
+        while (!pipelineTask.IsCompleted) {
+            while (context.OutputChunks.TryDequeue(out var chunk))
+                yield return chunk;
+            await Task.Yield();
         }
+
+        await pipelineTask.ConfigureAwait(false);
+
+        while (context.OutputChunks.TryDequeue(out var chunk))
+            yield return chunk;
     }
 
     /// <summary>
@@ -199,12 +206,13 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             }
 
             if (!success || iterationResult == null) {
-                context.OutputChunks.Add(BuildRetryExhaustedErrorChunk(_config.Retry.MaxRetries));
+                context.OutputChunks.Enqueue(BuildRetryExhaustedErrorChunk(_config.Retry.MaxRetries));
                 return;
             }
 
             // 处理内容输出
-            context.OutputChunks.AddRange(iterationResult.Chunks);
+            foreach (var c in iterationResult.Chunks)
+                context.OutputChunks.Enqueue(c);
 
             // 更新上下文的 Token 使用信息（最后一轮值 — 钩子消费语义不变）+ 跨轮累计（P7 权威校正数据源）
             context.InputTokens = iterationResult.InputTokens;
@@ -262,7 +270,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                         ReasoningTokens = totalReasoning,
                     }
                     : null;
-                context.OutputChunks.Add(BuildCompletionChunk(content, context.Stopwatch.ElapsedMilliseconds, context.TotalToolCalls, context.TotalCostUsd, BuildCacheSafeParams(context), usage, MapFinishReasonToStopReason(iterationResult.FinishReason), iterationResult.ModelId));
+                context.OutputChunks.Enqueue(BuildCompletionChunk(content, context.Stopwatch.ElapsedMilliseconds, context.TotalToolCalls, context.TotalCostUsd, BuildCacheSafeParams(context), usage, MapFinishReasonToStopReason(iterationResult.FinishReason), iterationResult.ModelId));
                 return;
             }
 
@@ -276,7 +284,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 context.ToolName = toolCall.ToolName;
                 context.HasToolCall = true;
 
-                context.OutputChunks.Add(new QueryStreamChunk {
+                context.OutputChunks.Enqueue(new QueryStreamChunk {
                     Type = AgentStreamChunkType.ToolCallStart,
                     ToolName = toolCall.ToolName,
                     ToolCallNumber = context.TotalToolCalls
@@ -285,7 +293,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 // 执行工具调用
                 var toolResult = await ExecuteToolAsync(toolCall, context.Options, cancellationToken).ConfigureAwait(false);
 
-                context.OutputChunks.Add(new QueryStreamChunk {
+                context.OutputChunks.Enqueue(new QueryStreamChunk {
                     Type = AgentStreamChunkType.ToolCallEnd,
                     ToolName = toolCall.ToolName,
                     ToolResult = toolResult,
@@ -322,7 +330,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         }
 
         _logger?.LogWarning("[QueryEngine] 达到最大工具调用次数限制: {Max}", _config.MaxToolCallIterations);
-        context.OutputChunks.Add(BuildMaxIterationErrorChunk(_config.MaxToolCallIterations));
+        context.OutputChunks.Enqueue(BuildMaxIterationErrorChunk(_config.MaxToolCallIterations));
     }
 
     /// <summary>

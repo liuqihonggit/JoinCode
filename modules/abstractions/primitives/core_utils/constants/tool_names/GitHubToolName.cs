@@ -323,6 +323,10 @@ public enum GitHubToolName {
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhLabelList,
 
+    [EnumValue("gh_label_view")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhLabelView,
+
     [EnumValue("gh_label_create")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhLabelCreate,
@@ -359,6 +363,10 @@ public enum GitHubToolName {
     [EnumValue("gh_search_commits")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhSearchCommits,
+
+    [EnumValue("gh_search_users")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhSearchUsers,
 
     // === Workflow 管理 ===
     [EnumValue("gh_workflow_list")]
@@ -524,6 +532,10 @@ public enum GitHubToolName {
     [EnumValue("gh_branch_list")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhBranchList,
+
+    [EnumValue("gh_branch_view")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    GhBranchView,
 
     [EnumValue("gh_branch_create")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]

@@ -551,6 +551,10 @@ public partial class GitHubToolHandlers {
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static string? FindArrayProperty(JsonElement element) {
+        // search API 包装: {"total_count": N, "incomplete_results": false, "items": [...], ...} — 有 total_count 就是 search 包装
+        if (element.TryGetProperty("items", out var itemsProp) && itemsProp.ValueKind == JsonValueKind.Array
+            && element.TryGetProperty("total_count", out _))
+            return "items";
         foreach (var name in ArrayPropertyCandidates) {
             if (element.TryGetProperty(name, out var prop) && prop.ValueKind == JsonValueKind.Array) {
                 // list API 包装: {"total_count": N, "items": [...]} — 属性少(<=3)
@@ -753,7 +757,9 @@ public partial class GitHubToolHandlers {
     /// 解析 "owner/repo" 格式
     /// </summary>
     private static (string owner, string repo)? ParseGitHubRepoRef(string repo) {
-        if (repo.StartsWith("http", StringComparison.OrdinalIgnoreCase) || repo.StartsWith("git@"))
+        if (repo.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            || repo.StartsWith("git@", StringComparison.OrdinalIgnoreCase)
+            || repo.StartsWith("ssh://", StringComparison.OrdinalIgnoreCase))
             return ParseGitHubRemoteUrl(repo);
         var parts = repo.Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 2) return null;

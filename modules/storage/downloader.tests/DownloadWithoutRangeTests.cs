@@ -3,6 +3,7 @@ namespace Downloader.Tests;
 /// <summary>
 /// DownloadSession 单线程回退测试 — 验证服务器不支持 Range 或未知 ContentLength 时走单线程整体下载
 /// </summary>
+[Collection(ProxyEnvCollection.Name)]
 public sealed class DownloadWithoutRangeTests {
     private const string Url = "https://example.com/file.bin";
     private const string FilePath = "/tmp/file.bin";
@@ -15,7 +16,7 @@ public sealed class DownloadWithoutRangeTests {
         await using var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 4 });
         var result = await session.WaitForCompletionAsync();
 
-        result.Success.Should().BeTrue();
+        result.Success.Should().BeTrue($"下载失败原因: {result.ErrorMessage}");
         result.FinalState.Should().Be(DownloadState.Completed);
         fs.FileExists(FilePath).Should().BeTrue();
         (await fs.ReadAllBytes(FilePath)).Should().Equal(data);

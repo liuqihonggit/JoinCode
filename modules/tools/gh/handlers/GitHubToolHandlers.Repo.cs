@@ -632,22 +632,25 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRepoGitignoreList, "列出可用 gitignore 模板", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRepoGitignoreListAsync(
+        [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, "gitignore/templates", ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(SummarizeGitignoreList(result.Body));
+        return Ok(SummarizeGitignoreList(result.Body, limit));
     }
 
     /// <summary>
-    /// 精简 gitignore 模板列表 — GitHub API 返回顶层数组 ["Actionscript",...],逐行输出
+    /// 精简 gitignore 模板列表 — GitHub API 返回顶层数组 ["Actionscript",...],逐行输出;支持 limit 客户端截断
     /// </summary>
-    private static string SummarizeGitignoreList(string json) {
+    private static string SummarizeGitignoreList(string json, int? limit = null) {
         try {
             var names = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ListString);
             if (names is null) return json;
+            var effectiveLimit = limit ?? names.Count;
             var sb = new StringBuilder(256);
-            foreach (var n in names) sb.AppendLine(n);
+            foreach (var n in names.Take(effectiveLimit)) sb.AppendLine(n);
             return sb.ToString();
         } catch { return json; }
     }
@@ -682,23 +685,26 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhRepoLicenseList, "列出常用 license", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRepoLicenseListAsync(
+        [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var result = await _apiClient.SendAsync(HttpMethod.Get, "licenses", ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
-        return Ok(SummarizeLicenseList(result.Body));
+        return Ok(SummarizeLicenseList(result.Body, limit));
     }
 
     /// <summary>
-    /// 精简 license 列表 — 表格格式(key, name, spdx_id)
+    /// 精简 license 列表 — 表格格式(key, name, spdx_id);支持 limit 客户端截断
     /// </summary>
-    private static string SummarizeLicenseList(string json) {
+    private static string SummarizeLicenseList(string json, int? limit = null) {
         try {
             var licenses = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.ListLicenseResponse);
             if (licenses is null) return json;
+            var effectiveLimit = limit ?? licenses.Count;
             var sb = new StringBuilder(256);
             sb.AppendLine("KEY\t名称\tSPDX ID");
-            foreach (var lic in licenses) sb.AppendLine($"{lic.Key}\t{lic.Name}\t{lic.SpdxId}");
+            foreach (var lic in licenses.Take(effectiveLimit)) sb.AppendLine($"{lic.Key}\t{lic.Name}\t{lic.SpdxId}");
             return sb.ToString();
         } catch { return json; }
     }

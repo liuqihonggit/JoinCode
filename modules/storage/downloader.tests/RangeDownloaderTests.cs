@@ -5,6 +5,7 @@ namespace Downloader.Tests;
 /// RangeDownloader + DownloadSession 集成单元测试 — 验证完整下载/多线程/Cancel/WaitForCompletion/状态流转
 /// <para>用 StubHandler mock HTTP + InMemoryFileSystem 零磁盘 IO</para>
 /// </summary>
+[Collection(ProxyEnvCollection.Name)]
 public sealed class RangeDownloaderTests {
     private const string Url = "https://example.com/file.bin";
     private const string FilePath = "/tmp/file.bin";

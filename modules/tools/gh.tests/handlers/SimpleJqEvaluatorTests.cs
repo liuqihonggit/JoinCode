@@ -173,4 +173,28 @@ public sealed class SimpleJqEvaluatorTests {
         var result = SimpleJqEvaluator.Evaluate(json, ".nonexistent | .sub");
         result.Should().Be("null");
     }
+
+    /// <summary>逗号分隔多表达式 — jq 标准语法 .a, .b 分别求值逐行输出</summary>
+    [Fact]
+    public void Evaluate_CommaSeparated_ShouldOutputBoth() {
+        var json = """{"full_name":"cli/cli","stargazers_count":46874}""";
+        var result = SimpleJqEvaluator.Evaluate(json, ".full_name,.stargazers_count");
+        result.Should().Be("cli/cli\n46874");
+    }
+
+    /// <summary>逗号分隔多表达式 + 管道 — 逗号优先级高于管道</summary>
+    [Fact]
+    public void Evaluate_CommaWithPipe_ShouldApplyPipeToEach() {
+        var json = """{"a":{"x":1},"b":{"x":2}}""";
+        var result = SimpleJqEvaluator.Evaluate(json, ".a,.b | .x");
+        result.Should().Be("1\n2");
+    }
+
+    /// <summary>对象构造中的逗号不被顶层逗号分割 — {key: .field, key2: .field2}</summary>
+    [Fact]
+    public void Evaluate_CommaInsideObjectConstruct_ShouldNotSplit() {
+        var json = """{"name":"test","id":42}""";
+        var result = SimpleJqEvaluator.Evaluate(json, """{name: .name, id: .id}""");
+        result.Should().Be("""{"name":"test","id":42}""");
+    }
 }

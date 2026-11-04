@@ -580,15 +580,15 @@ public partial class GitHubToolHandlers {
     /// </summary>
     [McpTool(GitHubToolNameEnumConstants.GhProjectList, "列出 Project(GraphQL v2)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhProjectListAsync(
-        [McpToolParameter("组织名(可选,列出组织 Project,默认当前用户)", Required = false)] string? org = null,
+        [McpToolParameter("所有者(用户或组织,可选,默认当前用户)", Required = false)] string? owner = null,
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var first = Math.Min(limit ?? 30, 100);
         string graphql;
-        if (!string.IsNullOrWhiteSpace(org))
-            graphql = BuildGraphQL($"query{{organization(login:\"{org}\"){{projectsV2(first:{first}){{nodes{{number title url closed}}}}}}}}");
+        if (!string.IsNullOrWhiteSpace(owner))
+            graphql = BuildGraphQL($"query{{organization(login:\"{owner}\"){{projectsV2(first:{first}){{nodes{{number title url closed}}}}}}}}");
         else
             graphql = BuildGraphQL($"query{{viewer{{projectsV2(first:{first}){{nodes{{number title url closed}}}}}}}}");
         var result = await _apiClient.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
@@ -624,13 +624,13 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhProjectView, "查看 Project 详情(GraphQL v2)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhProjectViewAsync(
         [McpToolParameter("Project 编号", Required = true)] int number,
-        [McpToolParameter("组织名(可选,默认当前用户)", Required = false)] string? org = null,
+        [McpToolParameter("所有者(用户或组织,可选,默认当前用户)", Required = false)] string? owner = null,
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         string graphql;
-        if (!string.IsNullOrWhiteSpace(org))
-            graphql = BuildGraphQL($"query{{organization(login:\"{org}\"){{projectV2(number:{number}){{title url closed items(first:20){{nodes{{content{{...on Issue{{number title}} ...on PullRequest{{number title}}}}}}}}}}}}");
+        if (!string.IsNullOrWhiteSpace(owner))
+            graphql = BuildGraphQL($"query{{organization(login:\"{owner}\"){{projectV2(number:{number}){{title url closed items(first:20){{nodes{{content{{...on Issue{{number title}} ...on PullRequest{{number title}}}}}}}}}}}}");
         else
             graphql = BuildGraphQL($"query{{viewer{{projectV2(number:{number}){{title url closed items(first:20){{nodes{{content{{...on Issue{{number title}} ...on PullRequest{{number title}}}}}}}}}}}}");
         var result = await _apiClient.SendAsync(HttpMethod.Post, "graphql", graphql, ct: cancellationToken).ConfigureAwait(false);
@@ -671,13 +671,13 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhProjectCreate, "创建 Project(GraphQL v2)", "github")]
     public async Task<ToolResult> GhProjectCreateAsync(
         [McpToolParameter("标题", Required = true)] string title,
-        [McpToolParameter("组织名(可选,在组织下创建,默认当前用户)", Required = false)] string? org = null,
+        [McpToolParameter("所有者(用户或组织,可选,默认当前用户)", Required = false)] string? owner = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var escapedTitle = EscapeGraphQLString(title);
         string graphql;
-        if (!string.IsNullOrWhiteSpace(org))
-            graphql = BuildGraphQL($"mutation{{createProjectV2(input:{{ownerId:\"{org}\",title:\"{escapedTitle}\"}}){{projectV2{{number url}}}}}}");
+        if (!string.IsNullOrWhiteSpace(owner))
+            graphql = BuildGraphQL($"mutation{{createProjectV2(input:{{ownerId:\"{owner}\",title:\"{escapedTitle}\"}}){{projectV2{{number url}}}}}}");
         else {
             var viewerQuery = BuildGraphQL("query{viewer{id}}");
             var viewerResult = await _apiClient.SendAsync(HttpMethod.Post, "graphql", viewerQuery, ct: cancellationToken).ConfigureAwait(false);
@@ -703,12 +703,12 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhProjectDelete, "删除 Project(GraphQL v2)", "github")]
     public async Task<ToolResult> GhProjectDeleteAsync(
         [McpToolParameter("Project 编号", Required = true)] int number,
-        [McpToolParameter("组织名(可选,默认当前用户)", Required = false)] string? org = null,
+        [McpToolParameter("所有者(用户或组织,可选,默认当前用户)", Required = false)] string? owner = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         string idQuery;
-        if (!string.IsNullOrWhiteSpace(org))
-            idQuery = BuildGraphQL($"query{{organization(login:\"{org}\"){{projectV2(number:{number}){{id}}}}}}");
+        if (!string.IsNullOrWhiteSpace(owner))
+            idQuery = BuildGraphQL($"query{{organization(login:\"{owner}\"){{projectV2(number:{number}){{id}}}}}}");
         else
             idQuery = BuildGraphQL($"query{{viewer{{projectV2(number:{number}){{id}}}}}}");
         var idResult = await _apiClient.SendAsync(HttpMethod.Post, "graphql", idQuery, ct: cancellationToken).ConfigureAwait(false);
@@ -740,12 +740,12 @@ public partial class GitHubToolHandlers {
         [McpToolParameter("Project 编号", Required = true)] int number,
         [McpToolParameter("新标题(可选)", Required = false)] string? title = null,
         [McpToolParameter("新描述(可选)", Required = false)] string? description = null,
-        [McpToolParameter("组织名(可选,默认当前用户)", Required = false)] string? org = null,
+        [McpToolParameter("所有者(用户或组织,可选,默认当前用户)", Required = false)] string? owner = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         string idQuery;
-        if (!string.IsNullOrWhiteSpace(org))
-            idQuery = BuildGraphQL($"query{{organization(login:\"{org}\"){{projectV2(number:{number}){{id}}}}}}");
+        if (!string.IsNullOrWhiteSpace(owner))
+            idQuery = BuildGraphQL($"query{{organization(login:\"{owner}\"){{projectV2(number:{number}){{id}}}}}}");
         else
             idQuery = BuildGraphQL($"query{{viewer{{projectV2(number:{number}){{id}}}}}}");
         var idResult = await _apiClient.SendAsync(HttpMethod.Post, "graphql", idQuery, ct: cancellationToken).ConfigureAwait(false);
@@ -780,12 +780,12 @@ public partial class GitHubToolHandlers {
     [McpTool(GitHubToolNameEnumConstants.GhProjectClose, "关闭 Project(GraphQL v2)", "github")]
     public async Task<ToolResult> GhProjectCloseAsync(
         [McpToolParameter("Project 编号", Required = true)] int number,
-        [McpToolParameter("组织名(可选,默认当前用户)", Required = false)] string? org = null,
+        [McpToolParameter("所有者(用户或组织,可选,默认当前用户)", Required = false)] string? owner = null,
         CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         string idQuery;
-        if (!string.IsNullOrWhiteSpace(org))
-            idQuery = BuildGraphQL($"query{{organization(login:\"{org}\"){{projectV2(number:{number}){{id}}}}}}");
+        if (!string.IsNullOrWhiteSpace(owner))
+            idQuery = BuildGraphQL($"query{{organization(login:\"{owner}\"){{projectV2(number:{number}){{id}}}}}}");
         else
             idQuery = BuildGraphQL($"query{{viewer{{projectV2(number:{number}){{id}}}}}}");
         var idResult = await _apiClient.SendAsync(HttpMethod.Post, "graphql", idQuery, ct: cancellationToken).ConfigureAwait(false);

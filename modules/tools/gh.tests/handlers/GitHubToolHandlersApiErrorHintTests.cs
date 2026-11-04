@@ -52,4 +52,33 @@ public sealed partial class GitHubToolHandlersTests {
         _api.LastMethod.Should().Be(HttpMethod.Post);
         _api.LastBody.Should().Contain("\"query\"");
     }
+
+    [Theory]
+    [InlineData("/users/octocat", "users/octocat")]
+    [InlineData("/repos/owner/repo", "repos/owner/repo")]
+    [InlineData("/orgs/microsoft", "orgs/microsoft")]
+    [InlineData("/search/repositories", "search/repositories")]
+    [InlineData("/rate_limit", "rate_limit")]
+    [InlineData("/graphql", "graphql")]
+    public async Task Api_LeadingSlash_Stripped(string input, string expected) {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhApiAsync(input);
+
+        _api.LastPath.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("C:/Program Files/Git/users/octocat", "users/octocat")]
+    [InlineData("C:/Program Files/Git/repos/owner/repo", "repos/owner/repo")]
+    [InlineData("D:/Git/orgs/microsoft", "orgs/microsoft")]
+    [InlineData("C:\\Program Files\\Git\\search\\repositories", "search/repositories")]
+    [InlineData("C:/Program Files/Git/rate_limit", "rate_limit")]
+    public async Task Api_MsysPathConversion_Undo(string input, string expected) {
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "{}" };
+
+        await _handler.GhApiAsync(input);
+
+        _api.LastPath.Should().Be(expected);
+    }
 }

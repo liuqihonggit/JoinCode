@@ -104,9 +104,19 @@ public partial class GitHubToolHandlers {
         [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
         [McpToolParameter("排序(indexed,可选)", Required = false)] string? sort = null,
         [McpToolParameter("顺序(asc/desc,默认 desc)", Required = false)] string? order = null,
+        [McpToolParameter("按语言过滤(如 CSharp/Go/Python)", Required = false)] string? language = null,
+        [McpToolParameter("按扩展名过滤(如 cs/go/py)", Required = false)] string? extension = null,
+        [McpToolParameter("按路径过滤(如 src/handlers)", Required = false)] string? path = null,
+        [McpToolParameter("按文件名过滤(如 README.md)", Required = false)] string? filename = null,
         [McpToolOptions] GitHubCommonOptions? common = null,
-        CancellationToken cancellationToken = default)
-        => SearchAsync(s_searchCodeSpec, query, limit, sort, order, common, cancellationToken);
+        CancellationToken cancellationToken = default) {
+        var q = query;
+        if (!string.IsNullOrWhiteSpace(language)) q = AppendFilter(q, $"language:{language}");
+        if (!string.IsNullOrWhiteSpace(extension)) q = AppendFilter(q, $"extension:{extension}");
+        if (!string.IsNullOrWhiteSpace(path)) q = AppendFilter(q, $"path:{path}");
+        if (!string.IsNullOrWhiteSpace(filename)) q = AppendFilter(q, $"filename:{filename}");
+        return SearchAsync(s_searchCodeSpec, q, limit, sort, order, common, cancellationToken);
+    }
 
     /// <summary>搜索提交 — 调 GET /search/commits</summary>
     [McpTool(GitHubToolNameEnumConstants.GhSearchCommits, "搜索 GitHub 提交", "github", ConcurrencySafe = true)]
@@ -118,6 +128,17 @@ public partial class GitHubToolHandlers {
         [McpToolOptions] GitHubCommonOptions? common = null,
         CancellationToken cancellationToken = default)
         => SearchAsync(s_searchCommitsSpec, query, limit, sort, order, common, cancellationToken);
+
+    /// <summary>搜索用户 — 调 GET /search/users</summary>
+    [McpTool(GitHubToolNameEnumConstants.GhSearchUsers, "搜索 GitHub 用户", "github", ConcurrencySafe = true)]
+    public Task<ToolResult> GhSearchUsersAsync(
+        [McpToolParameter("搜索查询(GitHub user search 语法,如 type:user)", Required = true)] string query,
+        [McpToolParameter(WellKnownParam.Limit)] int? limit = null,
+        [McpToolParameter("排序(followers/repositories/joined,可选)", Required = false)] string? sort = null,
+        [McpToolParameter("顺序(asc/desc,默认 desc)", Required = false)] string? order = null,
+        [McpToolOptions] GitHubCommonOptions? common = null,
+        CancellationToken cancellationToken = default)
+        => SearchAsync(s_searchUsersSpec, query, limit, sort, order, common, cancellationToken);
 
     // === SearchSpec 实例 — 每个搜索命令的差异点 ===
 
@@ -140,6 +161,10 @@ public partial class GitHubToolHandlers {
     private static readonly SearchSpec s_searchCommitsSpec = new(
         "search/commits", null, "", SummarizeSearchCommits,
         "sha,commit.message,html_url,repository", "gh_search_commits");
+
+    private static readonly SearchSpec s_searchUsersSpec = new(
+        "search/users", null, "", SummarizeSearchUsers,
+        "login,html_url,type", "gh_search_users");
 
     // === 摘要器 — 表格化搜索结果 ===
 
@@ -203,6 +228,20 @@ public partial class GitHubToolHandlers {
                 if (msg.Contains('\n')) msg = msg[..msg.IndexOf('\n')];
                 sb.AppendLine($"{sha}\t{msg}\t{item.Repository?.FullName ?? ""}");
             }
+            return sb.ToString();
+        } catch { return json; }
+    }
+
+    /// <summary>精简搜索用户结果 — 表格格式(login, type)</summary>
+    private static string SummarizeSearchUsers(string json) {
+        try {
+            var resp = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.SearchUserResponse);
+            if (resp is null) return json;
+            var sb = new StringBuilder(512);
+            sb.AppendLine($"共 {resp.TotalCount} 个用户");
+            sb.AppendLine("用户\t类型");
+            foreach (var item in resp.Items)
+                sb.AppendLine($"{item.Login}\t{item.Type ?? ""}");
             return sb.ToString();
         } catch { return json; }
     }

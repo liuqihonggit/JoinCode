@@ -265,6 +265,27 @@ public partial class GitHubToolHandlers {
         } catch { return json; }
     }
 
+    /// <summary>查看分支详情 — 调 GET /repos/{o}/{r}/branches/{branch}</summary>
+    [McpTool(GitHubToolNameEnumConstants.GhBranchView, "查看分支详情", "github", ConcurrencySafe = true)]
+    public async Task<ToolResult> GhBranchViewAsync(
+        [McpToolParameter("分支名", Required = true)] string branch,
+        [McpToolOptions] GitHubCommonOptions? common = null,
+        CancellationToken cancellationToken = default)
+        => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
+            var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/branches/{Uri.EscapeDataString(branch)}", ct: cancellationToken).ConfigureAwait(false);
+            if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_branch_view", $"repos/{owner}/{repoName}/branches/{branch}"));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeBranchView, "name,protected,commit.sha", common?.Jq, common?.SkipLines, common?.StartLine, "gh_branch_view"));
+        }).ConfigureAwait(false);
+
+    /// <summary>精简分支详情 — 分支名/保护/SHA</summary>
+    private static string SummarizeBranchView(string json) {
+        try {
+            var b = JsonSerializer.Deserialize(json, GitHubApiJsonContext.Safe.BranchListItemResponse);
+            if (b is null) return json;
+            return $"分支: {b.Name}\n保护: {(b.Protected ? "是 🔒" : "否")}\nSHA: {b.Commit?.Sha}";
+        } catch { return json; }
+    }
+
     /// <summary>创建分支 — 调 POST /repos/{o}/{r}/git/refs(从指定 SHA 或分支创建)</summary>
     [McpTool(GitHubToolNameEnumConstants.GhBranchCreate, "创建分支(从指定 SHA 或源分支创建)", "github")]
     public async Task<ToolResult> GhBranchCreateAsync(

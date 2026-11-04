@@ -99,15 +99,18 @@ internal static class GhCommandResolver {
 
         // 三级命令支持: gh repo deploy-key list / gh repo autolink view 1 → 合并 subgroup + action
         // 当 action 是已知三级子命令前缀且下一个位置参数存在时,合并为 "subgroup-action"
+        var actionMerged = false;
         if (ThreeLevelSubGroups.TryGetValue(group, out var subGroups) && subGroups.Contains(action, StringComparer.OrdinalIgnoreCase)) {
             var subAction = NextPositional(args, 3);
-            if (subAction is not null)
+            if (subAction is not null) {
                 action = $"{action}-{subAction}";
+                actionMerged = true;
+            }
         }
 
         var toolName = $"gh_{toolGroup}_{action.Replace('-', '_')}";
         toolName = ResolveCommandAlias(toolName);
-        return new GhResolvedCommand(toolName, group, action, CollectTail(args, action.Contains('-') ? 4 : 3), json);
+        return new GhResolvedCommand(toolName, group, action, CollectTail(args, actionMerged ? 4 : 3), json);
     }
 
     /// <summary>三级命令子分组 — group → 该 group 下含空格分隔的子分组(如 repo → deploy-key/autolink/gitignore/license)</summary>
@@ -119,6 +122,7 @@ internal static class GhCommandResolver {
     /// 命令名别名映射 — 某些命令名语义不直观，提供更清晰的别名。
     /// </summary>
     private static readonly FrozenDictionary<string, string> CommandAliasMap = new Dictionary<string, string> {
+        ["gh_repo_gitignore"] = "gh_repo_gitignore_list",
     }.ToFrozenDictionary();
 
     /// <summary>查命令名别名表，返回规范工具名。</summary>
@@ -149,7 +153,7 @@ internal static class GhCommandResolver {
     /// <para>宽容: 系统 gh CLI 的 --json field1,field2 转为 --json_fields=field1,field2（缺陷1a）。</para>
     /// </summary>
     private static string[] CollectTail(string[] args, int startIndex) {
-        var tail = new List<string>(args.Length - startIndex);
+        var tail = new List<string>(Math.Max(0, args.Length - startIndex));
         for (var i = startIndex; i < args.Length; i++) {
             var token = args[i];
             if (!token.StartsWith("--") || !CliArgCliOptionConstants.AllOptionNames.Contains(token)) {

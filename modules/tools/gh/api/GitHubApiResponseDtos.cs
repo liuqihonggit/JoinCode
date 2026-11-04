@@ -329,6 +329,29 @@ internal sealed class SearchCommitUserResponse {
     public string Login { get; init; } = "";
 }
 
+/// <summary>搜索用户响应 — GET /search/users</summary>
+internal sealed class SearchUserResponse {
+    /// <summary>总数</summary>
+    [JsonPropertyName("total_count")]
+    public int TotalCount { get; init; }
+    /// <summary>用户列表</summary>
+    [JsonPropertyName("items")]
+    public List<SearchUserItemResponse> Items { get; init; } = new();
+}
+
+/// <summary>搜索用户项</summary>
+internal sealed class SearchUserItemResponse {
+    /// <summary>登录名</summary>
+    [JsonPropertyName("login")]
+    public string Login { get; init; } = "";
+    /// <summary>HTML URL</summary>
+    [JsonPropertyName("html_url")]
+    public string? HtmlUrl { get; init; }
+    /// <summary>类型(User/Organization)</summary>
+    [JsonPropertyName("type")]
+    public string? Type { get; init; }
+}
+
 // === Workflow 响应 ===
 
 /// <summary>Workflow 列表响应 — GET /actions/workflows</summary>

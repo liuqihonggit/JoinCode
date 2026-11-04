@@ -262,7 +262,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                         ReasoningTokens = totalReasoning,
                     }
                     : null;
-                context.OutputChunks.Add(BuildCompletionChunk(content, context.Stopwatch.ElapsedMilliseconds, context.TotalToolCalls, context.TotalCostUsd, BuildCacheSafeParams(context), usage, MapFinishReasonToStopReason(iterationResult.FinishReason)));
+                context.OutputChunks.Add(BuildCompletionChunk(content, context.Stopwatch.ElapsedMilliseconds, context.TotalToolCalls, context.TotalCostUsd, BuildCacheSafeParams(context), usage, MapFinishReasonToStopReason(iterationResult.FinishReason), iterationResult.ModelId));
                 return;
             }
 
@@ -361,8 +361,9 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
     /// <param name="cacheSafeParams">缓存安全参数</param>
     /// <param name="usage">累计 token 用量 — 沿链透传到子代理 AgentFinished 事件（P7 完成态权威校正数据源）</param>
     /// <param name="stopReason">查询终止原因（end_turn/max_tokens/content_filter/tool_calls），null 默认 end_turn</param>
+    /// <param name="modelId">模型标识（从流式 chunk 提取），null = 未提供</param>
     /// <returns>完成类型的 QueryStreamChunk</returns>
-    internal static QueryStreamChunk BuildCompletionChunk(string content, long elapsedMs, int totalToolCalls, decimal costUsd, JoinCode.Abstractions.LLM.Chat.CacheSafeParams? cacheSafeParams, JoinCode.Abstractions.LLM.Chat.TokenUsage? usage = null, string? stopReason = null) {
+    internal static QueryStreamChunk BuildCompletionChunk(string content, long elapsedMs, int totalToolCalls, decimal costUsd, JoinCode.Abstractions.LLM.Chat.CacheSafeParams? cacheSafeParams, JoinCode.Abstractions.LLM.Chat.TokenUsage? usage = null, string? stopReason = null, string? modelId = null) {
         return new QueryStreamChunk {
             Type = AgentStreamChunkType.Complete,
             Content = content,
@@ -371,7 +372,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             TotalToolCalls = totalToolCalls,
             CostUsd = costUsd,
             CacheSafeParams = cacheSafeParams,
-            Usage = usage
+            Usage = usage,
+            ModelId = modelId
         };
     }
 
@@ -433,11 +435,14 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         var outputTokens = 0;
         JoinCode.Abstractions.LLM.Chat.TokenUsage? streamUsage = null;
         var lastFinishReason = (string?)null;
+        string? streamModelId = null;
 
         await foreach (var streamChunk in chatCompletionService.GetStreamEventContentsAsync(
             context.ChatHistory, executionSettings, _kernel, cancellationToken)) {
             cancellationToken.ThrowIfCancellationRequested();
             var content = streamChunk.Content ?? string.Empty;
+
+            streamModelId ??= streamChunk.ModelId;
 
             if (streamChunk.Metadata?.TryGetValue("FinishReason", out var frEl) == true && frEl.ValueKind == JsonValueKind.String) {
                 var fr = frEl.GetString();
@@ -511,7 +516,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 InputTokens = inputTokens,
                 OutputTokens = outputTokens,
                 Usage = streamUsage,
-                FinishReason = lastFinishReason
+                FinishReason = lastFinishReason,
+                ModelId = streamModelId ?? context.Options?.ModelId
             };
         }
 
@@ -526,7 +532,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             InputTokens = inputTokens,
             OutputTokens = outputTokens,
             Usage = streamUsage,
-            FinishReason = lastFinishReason
+            FinishReason = lastFinishReason,
+            ModelId = streamModelId ?? context.Options?.ModelId
         };
     }
 
@@ -810,6 +817,8 @@ internal sealed class QueryIterationResult {
     public JoinCode.Abstractions.LLM.Chat.TokenUsage? Usage { get; init; }
     /// <summary>获取本轮 LLM finish_reason（stop/length/content_filter/tool_calls），null=未知</summary>
     public string? FinishReason { get; init; }
+    /// <summary>获取本轮实际使用的模型标识（从流式 chunk ModelId 提取；null = 未提供）</summary>
+    public string? ModelId { get; init; }
 }
 
 /// <summary>

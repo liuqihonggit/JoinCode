@@ -59,16 +59,16 @@ internal static class NonInteractiveModeRunner {
                 DurationMs = context.ElapsedMs,
             });
         } else if (options.IsNdjsonMode) {
-            // NDJSON 模式: 事件已由 CliEventConsumer 流式输出，此处仅输出最终 result 事件（含 exitCode 和 error）
-            var resultEvent = new Cli.Output.CliStreamEvent("result") {
-                Data = new Cli.Output.CliStreamEventData {
-                    ExitCode = context.ExitCode,
-                    Content = context.FullResponse,
-                },
+            // NDJSON 模式: 事件已由 CliEventConsumer 流式输出，此处输出最终 result 消息（对齐基准 SDK result message）
+            var ok = context.ExitCode == 0;
+            var resultMessage = new Cli.Output.SdkResultMessage {
+                Subtype = ok ? "success" : "error_during_execution",
+                DurationMs = context.ElapsedMs ?? 0,
+                IsError = !ok,
+                Result = context.FullResponse ?? string.Empty,
+                Errors = ok ? [] : [context.StructuredError?.Message ?? $"Exit code {context.ExitCode}"],
             };
-            if (context.StructuredError is not null)
-                resultEvent.Data.Error = context.StructuredError;
-            var json = RelaxedJsonSerializer.Serialize(resultEvent, Cli.Output.CliOutputJsonContext.Default);
+            var json = RelaxedJsonSerializer.Serialize(resultMessage, Cli.Output.CliOutputJsonContext.Default);
             Console.WriteLine(json);
         }
 

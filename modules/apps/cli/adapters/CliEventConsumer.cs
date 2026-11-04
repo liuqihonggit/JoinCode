@@ -12,6 +12,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     private readonly JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? _outputChannelManager;
 
     private readonly System.Collections.Generic.List<Cli.Output.SdkContentBlock> _pendingBlocks = [];
+    private readonly System.Collections.Generic.List<Cli.Output.SdkToolResultBlock> _pendingToolResults = [];
     private string? _sessionId;
     private bool _systemInitSent;
     private int _uuidCounter;
@@ -52,6 +53,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         _thinkingContent.Clear();
         _isFirstToken = true;
         _pendingBlocks.Clear();
+        _pendingToolResults.Clear();
         _systemInitSent = false;
         _uuidCounter = 0;
     }
@@ -69,6 +71,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
             _fullResponse.Append(content);
             if (_agentMode) {
                 EnsureSystemInit();
+                FlushPendingToolCalls();
                 _pendingBlocks.Add(new Cli.Output.SdkTextBlock { Text = content });
             } else if (_outputChannelManager is not null) {
                 _outputChannelManager.Write("main", "AI助手", content, JoinCode.Abstractions.Interfaces.AgentOutputChunkType.Text);
@@ -85,6 +88,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
             _thinkingContent.Append(thinking);
             if (_agentMode) {
                 EnsureSystemInit();
+                FlushPendingToolCalls();
                 _pendingBlocks.Add(new Cli.Output.SdkThinkingBlock { Thinking = thinking });
             }
         }
@@ -94,7 +98,6 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     public void OnToolStart(string toolName, string? toolCallId, string? arguments) {
         if (_agentMode) {
             EnsureSystemInit();
-            FlushAssistant();
             _pendingBlocks.Add(new Cli.Output.SdkToolUseBlock {
                 Id = toolCallId ?? string.Empty,
                 Name = toolName,
@@ -115,18 +118,10 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     /// <summary>工具调用结束</summary>
     public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch) {
         if (_agentMode) {
-            FlushAssistant();
-            WriteSdkJson(new Cli.Output.SdkUserMessage {
-                Message = new Cli.Output.SdkMessageBody {
-                    Role = "user",
-                    Content = [new Cli.Output.SdkToolResultBlock {
-                        ToolUseId = toolCallId ?? string.Empty,
-                        Content = resultText ?? string.Empty,
-                        IsError = isError ? true : null
-                    }]
-                },
-                Uuid = NextUuid(),
-                SessionId = _sessionId
+            _pendingToolResults.Add(new Cli.Output.SdkToolResultBlock {
+                ToolUseId = toolCallId ?? string.Empty,
+                Content = resultText ?? string.Empty,
+                IsError = isError ? true : null
             });
         } else {
             using var _ = TerminalHelper.SetColor(isError ? ConsoleColor.Red : ConsoleColor.DarkGray);
@@ -183,6 +178,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     public void OnDone(TokenUsage? usage, string? modelId, string? stopReason = null) {
         if (_agentMode) {
             FlushAssistant();
+            FlushToolResults();
         } else {
             TerminalHelper.WriteLine();
             try { System.Console.Out.Flush(); } catch (IOException) { System.Diagnostics.Debug.WriteLine("[CliEventConsumer] stdout flush failed"); }
@@ -229,6 +225,27 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
             SessionId = _sessionId
         });
         _pendingBlocks.Clear();
+    }
+
+    /// <summary>Flush 累积的 tool_result 作为单个 user 消息（对齐基准 — 多 tool_result 合并到同一 user 消息）</summary>
+    private void FlushToolResults() {
+        if (_pendingToolResults.Count == 0) return;
+        WriteSdkJson(new Cli.Output.SdkUserMessage {
+            Message = new Cli.Output.SdkMessageBody {
+                Role = "user",
+                Content = _pendingToolResults.Cast<Cli.Output.SdkContentBlock>().ToList()
+            },
+            Uuid = NextUuid(),
+            SessionId = _sessionId
+        });
+        _pendingToolResults.Clear();
+    }
+
+    /// <summary>Flush pending tool calls（先 assistant[tool_use...] 再 user[tool_result...]），在非工具事件时调用</summary>
+    private void FlushPendingToolCalls() {
+        if (_pendingToolResults.Count == 0) return;
+        FlushAssistant();
+        FlushToolResults();
     }
 
     /// <summary>合并相邻同类型 block（text+text→text, thinking+thinking→thinking）</summary>

@@ -466,6 +466,7 @@ public class AgentBase : Entity, IAgent {
                 Usage = chunk.Usage,
                 ModelId = chunk.ModelId,
                 StopReason = chunk.StopReason,
+                TotalTurns = chunk.TotalTurns,
                 AgentId = UniqueId
             };
         }

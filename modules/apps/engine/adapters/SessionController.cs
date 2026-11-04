@@ -18,6 +18,8 @@ public sealed class SessionController {
     private string? _lastStopReason;
     /// <summary>最近一次自动压缩后台任务（TASK070 — internal 测试观察点：单测 await 它消除 fire-and-forget 时序不确定性）。</summary>
     internal Task? LastAutoCompactTask { get; private set; }
+    /// <summary>本次 StreamResponseAsync 的 LLM 调用轮次数（每次 onDone 递增，回合开始复位；对齐 ClaudeCode SDK num_turns 语义）。</summary>
+    private int _totalTurns;
     private readonly string _sessionId;
     private readonly IServiceProvider? _serviceProvider;
     private readonly IClockService _clock;
@@ -28,6 +30,9 @@ public sealed class SessionController {
 
     /// <summary>最后一次响应文本</summary>
     public string LastResponse { get; private set; } = string.Empty;
+
+    /// <summary>本次 StreamResponseAsync 的 LLM 调用轮次数（对齐 ClaudeCode SDK num_turns 语义）</summary>
+    public int TotalTurns => _totalTurns;
 
     /// <summary>聊天服务</summary>
     public IChatService ChatService => _chatService;
@@ -95,6 +100,7 @@ public sealed class SessionController {
         _hasSubstantiveOutput = false;
         _lastDoneUsage = null;
         _lastStopReason = null;
+        _totalTurns = 0;
 
         try {
             if (_mainAgent is not null) {
@@ -132,6 +138,8 @@ public sealed class SessionController {
                         DrainSubAgentEvents(subAgentChannel, fullResponse, thinkingContent);
                         var mid = ProcessEvent(evt, fullResponse, thinkingContent);
                         if (mid is not null) lastModelId = mid;
+                        if (chunk.Type == AgentStreamChunkType.Complete && chunk.TotalTurns > 0)
+                            _totalTurns = chunk.TotalTurns;
                     }
                 }
 
@@ -270,6 +278,7 @@ public sealed class SessionController {
             },
             onDone: (usage, mid) => {
                 modelId = mid;
+                _totalTurns++;
                 _consumer.OnDone(usage, mid, evt.StopReason);
                 EmitContextUsage(usage);
                 if (usage is { PromptTokens: > 0 })

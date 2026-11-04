@@ -253,25 +253,26 @@ public class QueryEngineTests {
     [Fact]
     public void BuildCompletionChunk_ShouldSetAllFields() {
         var cacheParams = new JoinCode.Abstractions.LLM.Chat.CacheSafeParams();
-        var chunk = QueryEngine.BuildCompletionChunk("done", 1500L, 5, 0.05m, cacheParams);
+        var chunk = QueryEngine.BuildCompletionChunk("done", 1500L, 5, 1, 0.05m, cacheParams);
         chunk.Type.Should().Be(AgentStreamChunkType.Complete);
         chunk.Content.Should().Be("done");
         chunk.ExecutionTimeMs.Should().Be(1500L);
         chunk.TotalToolCalls.Should().Be(5);
+        chunk.TotalTurns.Should().Be(1);
         chunk.CostUsd.Should().Be(0.05m);
         chunk.CacheSafeParams.Should().BeSameAs(cacheParams);
     }
 
     [Fact]
     public void BuildCompletionChunk_WithNullCacheSafeParams_ShouldAllowNull() {
-        var chunk = QueryEngine.BuildCompletionChunk("done", 100L, 0, 0m, null);
+        var chunk = QueryEngine.BuildCompletionChunk("done", 100L, 0, 1, 0m, null);
         chunk.CacheSafeParams.Should().BeNull();
     }
 
     [Fact]
     public void BuildCompletionChunk_ShouldCarryUsage_ForSubagentTokenCorrection() {
         var usage = new JoinCode.Abstractions.LLM.Chat.TokenUsage(promptTokens: 300, completionTokens: 50);
-        var chunk = QueryEngine.BuildCompletionChunk("done", 100L, 0, 0m, null, usage);
+        var chunk = QueryEngine.BuildCompletionChunk("done", 100L, 0, 1, 0m, null, usage);
         chunk.Usage.Should().BeSameAs(usage);
         if (chunk.Usage is { } carried) {
             carried.TotalTokens.Should().Be(350);
@@ -282,7 +283,7 @@ public class QueryEngineTests {
 
     [Fact]
     public void BuildCompletionChunk_WithoutUsage_ShouldKeepNull() {
-        var chunk = QueryEngine.BuildCompletionChunk("done", 100L, 0, 0m, null);
+        var chunk = QueryEngine.BuildCompletionChunk("done", 100L, 0, 1, 0m, null);
         chunk.Usage.Should().BeNull();
     }
 
@@ -290,7 +291,7 @@ public class QueryEngineTests {
 
     [Fact]
     public void BuildCompletionChunk_CarriesEndTurnStopReason() {
-        var chunk = QueryEngine.BuildCompletionChunk("done", 100L, 0, 0m, null);
+        var chunk = QueryEngine.BuildCompletionChunk("done", 100L, 0, 1, 0m, null);
         chunk.StopReason.Should().Be("end_turn");
     }
 

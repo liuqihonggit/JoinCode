@@ -765,6 +765,7 @@ internal sealed class MilestoneRequest {
 [JsonSerializable(typeof(SearchIssueResponse))]
 [JsonSerializable(typeof(SearchCodeResponse))]
 [JsonSerializable(typeof(SearchCommitResponse))]
+[JsonSerializable(typeof(SearchUserResponse))]
 [JsonSerializable(typeof(WorkflowListResponse))]
 [JsonSerializable(typeof(WorkflowResponse))]
 [JsonSerializable(typeof(ReleaseResponse))]

@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="primitives/Abstractions.Primitives.csproj" />
   <Project Path="abstractions/Abstractions.csproj" />
+  <Project Path="hands/Abstractions.Hands.csproj" />
   <Project Path="infrastructure/Infrastructure.csproj" />
 </Solution>

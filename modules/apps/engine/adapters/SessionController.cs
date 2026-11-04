@@ -124,11 +124,14 @@ public sealed class SessionController {
                 using (var subAgentScope = subAgentChannel.EnterScope()) {
                     await foreach (var chunk in _mainAgent.ExecuteStreamAsync(timeoutToken).ConfigureAwait(false)) {
                         hasReceivedEvent = true;
-                        DrainSubAgentEvents(subAgentChannel, fullResponse, thinkingContent);
                         var evt = AgentStreamChunkAdapter.ToChatStreamEvent(chunk);
-                        if (evt is null) continue;
+                        if (evt is null) {
+                            DrainSubAgentEvents(subAgentChannel, fullResponse, thinkingContent);
+                            continue;
+                        }
                         var mid = ProcessEvent(evt, fullResponse, thinkingContent);
                         if (mid is not null) lastModelId = mid;
+                        DrainSubAgentEvents(subAgentChannel, fullResponse, thinkingContent);
                     }
                 }
 

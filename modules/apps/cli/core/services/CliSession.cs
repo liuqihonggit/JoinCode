@@ -45,7 +45,7 @@ public sealed class CliSession {
     public string LastResponse { get; private set; } = string.Empty;
 
     /// <summary>本次会话的 LLM 调用轮次数（对齐 ClaudeCode SDK num_turns 语义）</summary>
-    public int TotalTurns => _controller.TotalTurns;
+    public int TotalTurns => _controller?.TotalTurns ?? 0;
 
     /// <summary>聊天服务</summary>
     public IChatService ChatService => _controller.ChatService;

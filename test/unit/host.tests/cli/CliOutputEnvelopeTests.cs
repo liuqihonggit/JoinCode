@@ -15,8 +15,8 @@ public sealed class CliOutputEnvelopeTests {
 
         json.Should().Contain("\"ok\":true");
         json.Should().Contain("\"transport\":\"http\"");
-        json.Should().Contain("\"toolCount\":40");
-        json.Should().Contain("\"uptimeSeconds\":3.14");
+        json.Should().Contain("\"tool_count\":40");
+        json.Should().Contain("\"uptime_seconds\":3.14");
     }
 
     [Fact]
@@ -30,7 +30,7 @@ public sealed class CliOutputEnvelopeTests {
 
         json.Should().Contain("\"ok\":true");
         json.Should().Contain("\"name\":\"--help\"");
-        json.Should().Contain("\"shortName\":\"-h\"");
+        json.Should().Contain("\"short_name\":\"-h\"");
         json.Should().Contain("\"example\":\"jcc -m gpt-4o\"");
     }
 
@@ -40,7 +40,7 @@ public sealed class CliOutputEnvelopeTests {
         var json = CliOutputEnvelope<CliNonInteractiveResult>.Success(data).ToJsonString();
 
         json.Should().Contain("\"ok\":true");
-        json.Should().Contain("\"exitCode\":0");
+        json.Should().Contain("\"exit_code\":0");
         json.Should().Contain("\"content\":\"hello world\"");
     }
 
@@ -55,7 +55,7 @@ public sealed class CliOutputEnvelopeTests {
         var json = CliOutputEnvelope<CliNonInteractiveResult>.Create(data, ok: false).ToJsonString();
 
         json.Should().Contain("\"ok\":false");
-        json.Should().Contain("\"exitCode\":4");
+        json.Should().Contain("\"exit_code\":4");
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public sealed class CliOutputEnvelopeTests {
         var json = CliOutputEnvelope<CliNonInteractiveResult>.Create(data, ok: true).ToJsonString();
 
         json.Should().Contain("\"ok\":true");
-        json.Should().Contain("\"exitCode\":0");
+        json.Should().Contain("\"exit_code\":0");
     }
 
     [Fact]
@@ -85,8 +85,8 @@ public sealed class CliOutputEnvelopeTests {
         var meta = new CliOutputMeta { TotalCount = 42, DurationMs = 100 };
         var json = CliOutputEnvelope<CliNonInteractiveResult>.Success(data, meta).ToJsonString();
 
-        json.Should().Contain("\"totalCount\":42");
-        json.Should().Contain("\"durationMs\":100");
+        json.Should().Contain("\"total_count\":42");
+        json.Should().Contain("\"duration_ms\":100");
     }
 
     [Fact]
@@ -128,7 +128,7 @@ public sealed class CliOutputEnvelopeTests {
         var json = CliOutputEnvelope<List<CliToolListItem>>.Success(items, meta).ToJsonString();
 
         json.Should().Contain("\"ok\":true");
-        json.Should().Contain("\"totalCount\":2");
+        json.Should().Contain("\"total_count\":2");
         json.Should().Contain("\"name\":\"gh_pr_list\"");
         json.Should().Contain("\"name\":\"gh_pr_view\"");
     }
@@ -159,7 +159,7 @@ public sealed class CliOutputEnvelopeTests {
         json.Should().Contain("\"type\":\"object\"");
         json.Should().Contain("\"pr_number\"");
         json.Should().Contain("\"required\":[\"pr_number\"]");
-        json.Should().Contain("\"totalCount\":1");
+        json.Should().Contain("\"total_count\":1");
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
@@ -188,7 +188,7 @@ public sealed class CliOutputEnvelopeTests {
 
         json.Should().Contain("\"ok\":true");
         json.Should().Contain("\"command\":\"compact\"");
-        json.Should().Contain("\"argumentHint\":\"<指令>\"");
+        json.Should().Contain("\"argument_hint\":\"<指令>\"");
         json.Should().NotContain("\"schema\"");
     }
 
@@ -250,7 +250,7 @@ public sealed class CliOutputEnvelopeTests {
         var json = CliOutputEnvelope<List<CliToolListItem>>.Success(items, meta).ToJsonString();
 
         json.Should().Contain("\"ok\":true");
-        json.Should().Contain("\"totalCount\":2");
+        json.Should().Contain("\"total_count\":2");
         // description 应包含实际描述而非空字符串
         json.Should().Contain("\"description\":\"列出 GitHub PR\"");
         json.Should().Contain("\"description\":\"搜索代码\"");
@@ -333,7 +333,7 @@ public sealed class CliOutputEnvelopeTests {
         var json = CliOutputEnvelope<CliNonInteractiveResult>.Create(data, ok: false, error).ToJsonString();
 
         json.Should().Contain("\"ok\":false");
-        json.Should().Contain("\"exitCode\":5");
+        json.Should().Contain("\"exit_code\":5");
         json.Should().Contain("\"code\":\"RESOURCE_SESSION_NOT_FOUND\"");
         json.Should().Contain("\"message\":\"会话 'test-session-id' 不存在\"");
     }
@@ -347,7 +347,7 @@ public sealed class CliOutputEnvelopeTests {
         var json = CliOutputEnvelope<CliNonInteractiveResult>.Create(data, ok: true, error: null).ToJsonString();
 
         json.Should().Contain("\"ok\":true");
-        json.Should().Contain("\"exitCode\":0");
+        json.Should().Contain("\"exit_code\":0");
         json.Should().Contain("\"content\":\"hello\"");
         json.Should().NotContain("\"error\"");
     }
@@ -408,7 +408,7 @@ public sealed class CliOutputEnvelopeTests {
         var json = CliOutputEnvelope<CliNonInteractiveResult>.Create(data, ok: false, error).ToJsonString();
 
         json.Should().Contain("\"ok\":false");
-        json.Should().Contain("\"exitCode\":1");
+        json.Should().Contain("\"exit_code\":1");
         json.Should().Contain("\"content\":\"\"");
         json.Should().Contain("\"code\":\"RUNTIME_ERROR\"");
         json.Should().Contain("\"message\":\"test exception\"");

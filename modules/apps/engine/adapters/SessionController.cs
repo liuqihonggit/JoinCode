@@ -129,9 +129,9 @@ public sealed class SessionController {
                             DrainSubAgentEvents(subAgentChannel, fullResponse, thinkingContent);
                             continue;
                         }
+                        DrainSubAgentEvents(subAgentChannel, fullResponse, thinkingContent);
                         var mid = ProcessEvent(evt, fullResponse, thinkingContent);
                         if (mid is not null) lastModelId = mid;
-                        DrainSubAgentEvents(subAgentChannel, fullResponse, thinkingContent);
                     }
                 }
 

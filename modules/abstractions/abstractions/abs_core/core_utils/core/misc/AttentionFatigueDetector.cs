@@ -36,7 +36,7 @@ public static class AttentionFatigueDetector {
     private static DateTime _sessionStart = DateTime.UtcNow;
 
     private const string CompactionKey = "compaction";
-    private const string ErrorKey = "error";
+    private const string ErrorKey = "errorDecision";
     private const string TotalKey = "total";
 
     /// <summary>当前上下文压缩次数</summary>

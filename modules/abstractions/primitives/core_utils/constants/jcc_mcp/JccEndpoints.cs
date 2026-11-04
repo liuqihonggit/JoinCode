@@ -2,8 +2,8 @@ namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// 对外暴露地址常量 — 集中管理所有基础设施 URL/Endpoint 的默认值
-/// 业务地址（供应商端点）走 settings.json 配置驱动，基础设施地址走此常量类 + 环境变量覆盖（见 <see cref="JccEndpointsResolver"/>）
-/// 禁止在代码中硬编码基础设施 URL 字符串，统一引用此常量或 <see cref="JccEndpointsResolver"/>
+/// 业务地址（供应商端点）走 settings.json 配置驱动，基础设施地址走此常量类 + 环境变量覆盖（见 JccEndpointsResolver）
+/// 禁止在代码中硬编码基础设施 URL 字符串，统一引用此常量或 JccEndpointsResolver
 /// > ADR: 0063
 /// </summary>
 public static class JccEndpoints {

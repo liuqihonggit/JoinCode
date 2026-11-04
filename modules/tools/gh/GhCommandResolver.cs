@@ -64,7 +64,7 @@ internal static class GhCommandResolver {
     ];
 
     /// <summary>单级命令 — 工具名就是 <c>gh_{group}</c>，不需要 action（如 gh_api/gh_browse/gh_status/gh_licenses）。</summary>
-    private static readonly string[] SingleLevelGroups = ["api", "browse", "status", "licenses"];
+    internal static readonly string[] SingleLevelGroups = ["api", "browse", "status", "licenses"];
 
     /// <summary>
     /// 解析 <c>jcc gh ...</c> 命令行（<paramref name="args"/>[0] 为子命令名 <c>gh</c>）。

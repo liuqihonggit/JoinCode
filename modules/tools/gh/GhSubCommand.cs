@@ -11,6 +11,8 @@ internal static class GhSubCommand {
                 return RenderToolHelp(group, action);
             if (string.Equals(group, "api", StringComparison.OrdinalIgnoreCase))
                 return RenderToolHelp("api", "");
+            if (group is not null && GhCommandResolver.SingleLevelGroups.Contains(group, StringComparer.OrdinalIgnoreCase))
+                return RenderToolHelp(group, "");
             if (group is not null)
                 return RenderGroupHelp(group);
             TerminalHelper.WriteLine(GhCommandResolver.Usage);
@@ -73,8 +75,8 @@ internal static class GhSubCommand {
     private static int RenderToolHelp(string group, string action) {
         var normalizedGroup = group.Replace('-', '_');
         var normalizedAction = action.Replace('-', '_');
-        var toolName = string.Equals(normalizedGroup, "api", StringComparison.OrdinalIgnoreCase)
-            ? "gh_api" : $"gh_{normalizedGroup}_{normalizedAction}";
+        var toolName = string.IsNullOrEmpty(normalizedAction)
+            ? $"gh_{normalizedGroup}" : $"gh_{normalizedGroup}_{normalizedAction}";
         if (!GhDispatcher.ContainsTool(toolName)) {
             TerminalHelper.WriteLine(GhCommandResolver.Usage);
             return 0;

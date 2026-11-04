@@ -57,6 +57,7 @@ internal static class GhSubCommand {
         var candidates = GhDispatcher.GetToolNames()
             .Where(n => n.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             .Select(t => resolved.Action is null ? t : t[prefix.Length..])
+            .Select(t => t.Replace('_', '-'))
             .OrderBy(n => n, StringComparer.Ordinal)
             .ToList();
         var head = CliErrorCatalog.ResourceNotFound("gh 子命令", resolved.ToolName).ToRustStyleString(resolved.ToolName);

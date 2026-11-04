@@ -11,6 +11,11 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     private readonly Cli.Output.CliOutputJsonContext _jsonContext;
     private readonly JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? _outputChannelManager;
 
+    private readonly System.Collections.Generic.List<Cli.Output.SdkContentBlock> _pendingBlocks = [];
+    private string? _sessionId;
+    private bool _systemInitSent;
+    private int _uuidCounter;
+
     /// <summary>默认构造函数 — DX 模式（彩色终端输出）</summary>
     public CliEventConsumer() {
         _agentMode = false;
@@ -46,6 +51,9 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         _fullResponse.Clear();
         _thinkingContent.Clear();
         _isFirstToken = true;
+        _pendingBlocks.Clear();
+        _systemInitSent = false;
+        _uuidCounter = 0;
     }
 
     /// <summary>收到文本内容</summary>
@@ -60,7 +68,8 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         if (content.Length > 0) {
             _fullResponse.Append(content);
             if (_agentMode) {
-                WriteNdJsonEvent("text", new Cli.Output.CliStreamEventData { Content = content });
+                EnsureSystemInit();
+                _pendingBlocks.Add(new Cli.Output.SdkTextBlock { Text = content });
             } else if (_outputChannelManager is not null) {
                 _outputChannelManager.Write("main", "AI助手", content, JoinCode.Abstractions.Interfaces.AgentOutputChunkType.Text);
             } else {
@@ -75,7 +84,8 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         if (thinking.Length > 0) {
             _thinkingContent.Append(thinking);
             if (_agentMode) {
-                WriteNdJsonEvent("thinking", new Cli.Output.CliStreamEventData { Content = thinking });
+                EnsureSystemInit();
+                _pendingBlocks.Add(new Cli.Output.SdkThinkingBlock { Thinking = thinking });
             }
         }
     }
@@ -83,7 +93,13 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     /// <summary>工具调用开始</summary>
     public void OnToolStart(string toolName, string? toolCallId, string? arguments) {
         if (_agentMode) {
-            WriteNdJsonEvent("tool_start", new Cli.Output.CliStreamEventData { ToolName = toolName, ToolCallId = toolCallId, Arguments = arguments });
+            EnsureSystemInit();
+            FlushAssistant();
+            _pendingBlocks.Add(new Cli.Output.SdkToolUseBlock {
+                Id = toolCallId ?? string.Empty,
+                Name = toolName,
+                Input = arguments ?? "{}"
+            });
         } else {
             using var _ = TerminalHelper.SetColor(ConsoleColor.DarkGray);
             TerminalHelper.NewLine();
@@ -99,7 +115,19 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     /// <summary>工具调用结束</summary>
     public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch) {
         if (_agentMode) {
-            WriteNdJsonEvent("tool_end", new Cli.Output.CliStreamEventData { ToolName = toolName, ToolCallId = toolCallId, IsError = isError, ResultLength = resultText?.Length ?? 0 });
+            FlushAssistant();
+            WriteSdkJson(new Cli.Output.SdkUserMessage {
+                Message = new Cli.Output.SdkMessageBody {
+                    Role = "user",
+                    Content = [new Cli.Output.SdkToolResultBlock {
+                        ToolUseId = toolCallId ?? string.Empty,
+                        Content = resultText ?? string.Empty,
+                        IsError = isError ? true : null
+                    }]
+                },
+                Uuid = NextUuid(),
+                SessionId = _sessionId
+            });
         } else {
             using var _ = TerminalHelper.SetColor(isError ? ConsoleColor.Red : ConsoleColor.DarkGray);
             var status = isError ? ToolExecutionStatus.Fail : ToolExecutionStatus.Ok;
@@ -124,7 +152,13 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     /// <summary>工具调用进度</summary>
     public void OnToolProgress(string toolName, string progressType, string? progressMessage) {
         if (_agentMode) {
-            WriteNdJsonEvent("tool_progress", new Cli.Output.CliStreamEventData { ToolName = toolName, ProgressType = progressType, ProgressMessage = progressMessage });
+            WriteSdkJson(new Cli.Output.SdkToolProgressMessage {
+                ToolName = toolName,
+                ToolUseId = string.Empty,
+                ElapsedTimeSeconds = 0,
+                Uuid = NextUuid(),
+                SessionId = _sessionId
+            });
         } else {
             TerminalHelper.WriteLine($"[...] {toolName}: {progressMessage}");
         }
@@ -132,18 +166,14 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
 
     /// <summary>检测到循环输出</summary>
     public void OnLoopDetected(int triggerCount, int loopStartIndex, string? repeatedPattern) {
-        if (_agentMode) {
-            WriteNdJsonEvent("loop_detected", new Cli.Output.CliStreamEventData { TriggerCount = triggerCount, LoopStartIndex = loopStartIndex });
-        } else {
+        if (!_agentMode) {
             TerminalHelper.WriteLine($"[Loop] 检测到循环输出(第{triggerCount}次)");
         }
     }
 
     /// <summary>计时摘要</summary>
     public void OnTimingSummary(string summary) {
-        if (_agentMode) {
-            WriteNdJsonEvent("timing", new Cli.Output.CliStreamEventData { Summary = summary });
-        } else {
+        if (!_agentMode) {
             TerminalHelper.WriteLine();
             TerminalHelper.WriteRaw(summary);
         }
@@ -152,51 +182,60 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     /// <summary>流式响应完成</summary>
     public void OnDone(TokenUsage? usage, string? modelId, string? stopReason = null) {
         if (_agentMode) {
-            WriteNdJsonEvent("done", new Cli.Output.CliStreamEventData { Usage = usage, ModelId = modelId, StopReason = stopReason });
+            FlushAssistant();
         } else {
             TerminalHelper.WriteLine();
             try { System.Console.Out.Flush(); } catch (IOException) { System.Diagnostics.Debug.WriteLine("[CliEventConsumer] stdout flush failed"); }
         }
     }
 
-    /// <summary>子代理启动 — NDJSON 模式输出 agent_started 事件（显式实现：DIM 默认空实现经类类型调用不可见）</summary>
-    public void OnSubagentStarted(string subagentId, string agentType, string description, string? role = null) {
-        if (_agentMode) {
-            WriteNdJsonEvent("agent_started", new Cli.Output.CliStreamEventData { SubagentId = subagentId, AgentType = agentType, Description = description, Role = role });
-        }
+    /// <summary>子代理启动</summary>
+    public void OnSubagentStarted(string subagentId, string agentType, string description, string? role = null) { }
+
+    /// <summary>子代理工具活动</summary>
+    public void OnSubagentToolUse(string subagentId, string toolName, string summary, int tokenGain) { }
+
+    /// <summary>子代理完成</summary>
+    public void OnSubagentFinished(string subagentId, bool isError, int tokenTotal, TokenUsage? usage = null) { }
+
+    /// <summary>上下文窗口余量</summary>
+    public void OnContextUsage(int promptTokens, int contextWindowTokens, int percentLeft) { }
+
+    /// <summary>确保 system/init 消息已发送（首次事件时发送）</summary>
+    private void EnsureSystemInit() {
+        if (_systemInitSent) return;
+        _systemInitSent = true;
+        _sessionId ??= System.Guid.NewGuid().ToString("N");
+        WriteSdkJson(new Cli.Output.SdkSystemInitMessage {
+            Cwd = System.IO.Directory.GetCurrentDirectory(),
+            Model = System.Environment.GetEnvironmentVariable("JCC_MODEL_ID") ?? "unknown",
+            PermissionMode = System.Environment.GetEnvironmentVariable("JCC_PERMISSION_MODE") ?? "default",
+            Uuid = NextUuid(),
+            SessionId = _sessionId
+        });
     }
 
-    /// <summary>子代理工具活动 — NDJSON 模式输出 subagent_tool_use 事件</summary>
-    public void OnSubagentToolUse(string subagentId, string toolName, string summary, int tokenGain) {
-        if (_agentMode) {
-            WriteNdJsonEvent("subagent_tool_use", new Cli.Output.CliStreamEventData { SubagentId = subagentId, ToolName = toolName, Content = summary });
-        }
+    /// <summary>Flush 累积的 assistant 消息（如果有 content blocks）</summary>
+    private void FlushAssistant() {
+        if (_pendingBlocks.Count == 0) return;
+        WriteSdkJson(new Cli.Output.SdkAssistantMessage {
+            Message = new Cli.Output.SdkMessageBody {
+                Role = "assistant",
+                Content = new System.Collections.Generic.List<Cli.Output.SdkContentBlock>(_pendingBlocks)
+            },
+            ParentToolUseId = null,
+            Uuid = NextUuid(),
+            SessionId = _sessionId
+        });
+        _pendingBlocks.Clear();
     }
 
-    /// <summary>子代理完成 — NDJSON 模式输出 agent_finished 事件（含完整 usage 详情）</summary>
-    public void OnSubagentFinished(string subagentId, bool isError, int tokenTotal, TokenUsage? usage = null) {
-        if (_agentMode) {
-            WriteNdJsonEvent("agent_finished", new Cli.Output.CliStreamEventData { SubagentId = subagentId, SubagentIsError = isError, TokenTotal = tokenTotal, Usage = usage });
-        }
-    }
+    /// <summary>生成下一个 uuid</summary>
+    private string NextUuid() => $"msg_{System.Threading.Interlocked.Increment(ref _uuidCounter):x8}";
 
-    /// <summary>上下文窗口余量 — NDJSON 模式输出 context_usage 事件（显式实现：DIM 默认空实现经类类型调用不可见）</summary>
-    public void OnContextUsage(int promptTokens, int contextWindowTokens, int percentLeft) {
-        if (_agentMode) {
-            WriteNdJsonEvent("context_usage", new Cli.Output.CliStreamEventData {
-                ContextPromptTokens = promptTokens,
-                ContextWindowTokens = contextWindowTokens,
-                PercentLeft = percentLeft
-            });
-        }
-    }
-
-    /// <summary>
-    /// 写入 NDJSON 事件 — AX 模式下每行一个 JSON 对象，输出到 stdout
-    /// </summary>
-    private void WriteNdJsonEvent(string eventType, Cli.Output.CliStreamEventData payload) {
-        var evt = new Cli.Output.CliStreamEvent(eventType) { Data = payload };
-        var json = RelaxedJsonSerializer.Serialize(evt, _jsonContext);
+    /// <summary>写入 SDK JSON 消息到 stdout</summary>
+    private void WriteSdkJson<T>(T message) {
+        var json = RelaxedJsonSerializer.Serialize(message, _jsonContext);
         Console.WriteLine(json);
         if (Console.IsOutputRedirected) Console.Out.Flush();
     }

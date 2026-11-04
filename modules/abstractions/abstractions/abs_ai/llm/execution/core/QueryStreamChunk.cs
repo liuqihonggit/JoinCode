@@ -39,6 +39,8 @@ public sealed class QueryStreamChunk {
     public string? ModelId { get; init; }
     /// <summary>获取工具调用总数。</summary>
     public int TotalToolCalls { get; init; }
+    /// <summary>获取 LLM 调用轮次数（对齐 ClaudeCode SDK num_turns 语义）。</summary>
+    public int TotalTurns { get; init; }
 
     /// <summary>查询终止原因（TASK071 查询域 — 对齐 TS result subtype：end_turn/error_max_turns/
     /// error_max_retries/error_max_budget_usd/stop_hook；null = 非终态 chunk。SDK/TUI 终态可观测）。</summary>

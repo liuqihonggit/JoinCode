@@ -101,6 +101,11 @@ public sealed class AgentStreamChunk {
     public string? StopReason { get; init; }
 
     /// <summary>
+    /// LLM 调用轮次数（Complete 类型）— 对齐 ClaudeCode SDK num_turns 语义
+    /// </summary>
+    public int TotalTurns { get; init; }
+
+    /// <summary>
     /// 智能体 ID
     /// </summary>
     public required string AgentId { get; init; }

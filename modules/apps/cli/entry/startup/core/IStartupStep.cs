@@ -66,6 +66,11 @@ public sealed class StartupContext {
     public long? ElapsedMs { get; set; }
 
     /// <summary>
+    /// LLM 调用轮次数 — 由 ExecuteStep 设置，对齐 ClaudeCode SDK num_turns 语义
+    /// </summary>
+    public int NumTurns { get; set; }
+
+    /// <summary>
     /// 结构化错误 — 由中间件（ExecuteStep/SessionResumeStep 等）在捕获异常或管道内错误时设置，
     /// NonInteractiveModeRunner 最终输出统一 JSON 信封时读取，同时包含 data 和 error 字段（Bug 16 统一格式）
     /// </summary>

@@ -172,9 +172,11 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         var totalCacheCreation = 0;
         var totalReasoning = 0;
         var stopHookReplies = 0;
+        var totalTurns = 0;
 
         while (context.TotalToolCalls < _config.MaxToolCallIterations) {
             cancellationToken.ThrowIfCancellationRequested();
+            totalTurns++;
 
             // 迭代前钩子（USD 预算检查等）
             foreach (var hook in context.BeforeIterationHooks) {
@@ -270,7 +272,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                         ReasoningTokens = totalReasoning,
                     }
                     : null;
-                context.OutputChunks.Enqueue(BuildCompletionChunk(content, context.Stopwatch.ElapsedMilliseconds, context.TotalToolCalls, context.TotalCostUsd, BuildCacheSafeParams(context), usage, MapFinishReasonToStopReason(iterationResult.FinishReason), iterationResult.ModelId));
+                context.OutputChunks.Enqueue(BuildCompletionChunk(content, context.Stopwatch.ElapsedMilliseconds, context.TotalToolCalls, totalTurns, context.TotalCostUsd, BuildCacheSafeParams(context), usage, MapFinishReasonToStopReason(iterationResult.FinishReason), iterationResult.ModelId));
                 return;
             }
 
@@ -368,19 +370,21 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
     /// <param name="content">完成内容</param>
     /// <param name="elapsedMs">耗时毫秒</param>
     /// <param name="totalToolCalls">总工具调用次数</param>
+    /// <param name="totalTurns">LLM 调用轮次数（对齐 ClaudeCode SDK num_turns 语义）</param>
     /// <param name="costUsd">USD 成本</param>
     /// <param name="cacheSafeParams">缓存安全参数</param>
     /// <param name="usage">累计 token 用量 — 沿链透传到子代理 AgentFinished 事件（P7 完成态权威校正数据源）</param>
     /// <param name="stopReason">查询终止原因（end_turn/max_tokens/content_filter/tool_calls），null 默认 end_turn</param>
     /// <param name="modelId">模型标识（从流式 chunk 提取），null = 未提供</param>
     /// <returns>完成类型的 QueryStreamChunk</returns>
-    internal static QueryStreamChunk BuildCompletionChunk(string content, long elapsedMs, int totalToolCalls, decimal costUsd, JoinCode.Abstractions.LLM.Chat.CacheSafeParams? cacheSafeParams, JoinCode.Abstractions.LLM.Chat.TokenUsage? usage = null, string? stopReason = null, string? modelId = null) {
+    internal static QueryStreamChunk BuildCompletionChunk(string content, long elapsedMs, int totalToolCalls, int totalTurns, decimal costUsd, JoinCode.Abstractions.LLM.Chat.CacheSafeParams? cacheSafeParams, JoinCode.Abstractions.LLM.Chat.TokenUsage? usage = null, string? stopReason = null, string? modelId = null) {
         return new QueryStreamChunk {
             Type = AgentStreamChunkType.Complete,
             Content = content,
             StopReason = stopReason ?? "end_turn",
             ExecutionTimeMs = elapsedMs,
             TotalToolCalls = totalToolCalls,
+            TotalTurns = totalTurns,
             CostUsd = costUsd,
             CacheSafeParams = cacheSafeParams,
             Usage = usage,

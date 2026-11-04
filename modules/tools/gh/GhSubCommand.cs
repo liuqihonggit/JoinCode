@@ -81,8 +81,8 @@ internal static class GhSubCommand {
         var sb = new StringBuilder(512);
         sb.AppendLine($"工具: {toolName}");
         sb.AppendLine();
-        var required = parameters.Where(p => p.IsRequired).ToList();
-        var optional = parameters.Where(p => !p.IsRequired).ToList();
+        var required = parameters.Where(p => p.IsRequired).DistinctBy(p => p.Name).ToList();
+        var optional = parameters.Where(p => !p.IsRequired).DistinctBy(p => p.Name).ToList();
         var usageParts = new List<string> { "jcc", "gh", group, action };
         foreach (var r in required) usageParts.Add($"<{r.Name}>");
         foreach (var o in optional) usageParts.Add($"[--{o.Name}]");

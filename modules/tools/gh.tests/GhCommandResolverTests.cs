@@ -1467,4 +1467,78 @@ public sealed class GhCommandResolverTests {
         var resolved = GhCommandResolver.Resolve(new[] { "gh", "pr", "list" }, out _);
         resolved!.Json.Should().BeFalse();
     }
+
+    /// <summary>系统 gh CLI 的 --desc 应映射到 jcc 的 --description 参数（gh gist create）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Resolve_GistCreate_Desc_ShouldMapToDescription() {
+        var tail = new[] { "file.txt", "content", "--desc", "my gist desc" };
+        var parameters = new List<GhParam> {
+            new("filename", true, false),
+            new("content", true, false),
+            new("description", false, false),
+            new("public", false, true, "boolean"),
+        };
+        var bound = GhArgsBinder.Bind(tail, parameters, "gh_gist_create", out var error);
+
+        error.Should().BeNull();
+        bound.Should().NotBeNull();
+        bound!["description"].Should().Be("my gist desc");
+    }
+
+    /// <summary>系统 gh CLI 的 -d 短选项应映射到 jcc 的 --description 参数（gh gist create）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Resolve_GistCreate_ShortD_ShouldMapToDescription() {
+        var tail = new[] { "file.txt", "content", "-d", "my gist desc" };
+        var parameters = new List<GhParam> {
+            new("filename", true, false),
+            new("content", true, false),
+            new("description", false, false),
+            new("public", false, true, "boolean"),
+        };
+        var bound = GhArgsBinder.Bind(tail, parameters, "gh_gist_create", out var error);
+
+        error.Should().BeNull();
+        bound.Should().NotBeNull();
+        bound!["description"].Should().Be("my gist desc");
+    }
+
+    /// <summary>系统 gh CLI 的 --desc 应映射到 jcc 的 --description 参数（gh gist edit）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Resolve_GistEdit_Desc_ShouldMapToDescription() {
+        var tail = new[] { "gist123", "--desc", "updated desc" };
+        var parameters = new List<GhParam> {
+            new("gist_id", true, false),
+            new("description", false, false),
+            new("filename", false, false),
+            new("content", false, false),
+        };
+        var bound = GhArgsBinder.Bind(tail, parameters, "gh_gist_edit", out var error);
+
+        error.Should().BeNull();
+        bound.Should().NotBeNull();
+        bound!["description"].Should().Be("updated desc");
+    }
+
+    /// <summary>系统 gh CLI 的 --remote-name 应映射到 jcc 的 --remote 参数（gh repo fork）</summary>
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void Resolve_RepoFork_RemoteName_ShouldMapToRemote() {
+        var tail = new[] { "cli/cli", "--remote-name", "upstream" };
+        var parameters = new List<GhParam> {
+            new("repo", true, false),
+            new("clone", false, true, "boolean"),
+            new("org", false, false),
+            new("fork_name", false, false),
+            new("default_branch_only", false, true, "boolean"),
+            new("remote", false, false),
+        };
+        var bound = GhArgsBinder.Bind(tail, parameters, "gh_repo_fork", out var error);
+
+        error.Should().BeNull();
+        bound.Should().NotBeNull();
+        bound!["remote"].Should().Be("upstream");
+    }
 }

@@ -46,7 +46,8 @@ public partial class GitHubToolHandlers {
         } else {
             query = EnsurePerPageForListEndpoint(ParseFieldsToQuery(fields), httpMethod, path);
         }
-        var result = await _apiClient.SendAsync(httpMethod, path, resolvedBody, query, paginate == true, cancellationToken).ConfigureAwait(false);
+        var cleanPath = UndoMsysPathConversion(path);
+        var result = await _apiClient.SendAsync(httpMethod, cleanPath, resolvedBody, query, paginate == true, cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(BuildApiErrorHint(path, result.StatusCode, result.Error));
 
         var output = string.IsNullOrWhiteSpace(jq)
@@ -173,5 +174,26 @@ public partial class GitHubToolHandlers {
             _ => $"{statusCode} — {originalError}"
         };
         return hint;
+    }
+
+    private static readonly FrozenSet<string> GitHubApiTopSegments = FrozenSet.Create(
+        StringComparer.OrdinalIgnoreCase,
+        "users", "repos", "orgs", "search", "teams", "gists", "markdown",
+        "rate_limit", "emojis", "meta", "octocat", "user", "organizations",
+        "app", "codes_of_conduct", "licenses", "gitignore", "hooks",
+        "marketplace", "scim", "graphql"
+    );
+
+    private static string UndoMsysPathConversion(string path) {
+        if (path.Length < 3 || !char.IsLetter(path[0]) || path[1] != ':')
+            return path.TrimStart('/');
+
+        var segments = path.Replace('\\', '/').Split('/');
+        for (var i = 0; i < segments.Length; i++) {
+            if (GitHubApiTopSegments.Contains(segments[i])) {
+                return string.Join('/', segments.AsSpan(i));
+            }
+        }
+        return path.TrimStart('/');
     }
 }

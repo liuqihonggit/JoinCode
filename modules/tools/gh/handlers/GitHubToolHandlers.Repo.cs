@@ -539,7 +539,7 @@ public partial class GitHubToolHandlers {
         => await ExecuteGhAsync(common?.Repo, common?.WorkingDir, cancellationToken, async (client, owner, repoName) => {
             var result = await client.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/keys", ct: cancellationToken).ConfigureAwait(false);
             if (!result.Success) return Fail(EnrichApiError(result.Error, "gh_repo_deploy_key_list", $"repos/{owner}/{repoName}/keys"));
-            return Ok(SummarizeDeployKeyList(result.Body));
+            return Ok(FormatGhOutput(result.Body, common?.Verbosity, common?.JsonFields, SummarizeDeployKeyList, "id,title,read_only,created_at", common?.Jq, common?.SkipLines, common?.StartLine, "gh_repo_deploy_key_list"));
         }).ConfigureAwait(false);
 
     /// <summary>

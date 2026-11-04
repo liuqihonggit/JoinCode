@@ -11,6 +11,8 @@ internal static class GhSubCommand {
                 return RenderToolHelp(group, action);
             if (string.Equals(group, "api", StringComparison.OrdinalIgnoreCase))
                 return RenderToolHelp("api", "");
+            if (group is not null)
+                return RenderGroupHelp(group);
             TerminalHelper.WriteLine(GhCommandResolver.Usage);
             return 0;
         }
@@ -100,6 +102,28 @@ internal static class GhSubCommand {
                 var hint = o.IsBoolean ? "" : " <值>";
                 sb.AppendLine($"  --{o.Name}{hint}    ({o.TypeHint})");
             }
+        }
+        TerminalHelper.WriteLine(sb.ToString());
+        return 0;
+    }
+
+    /// <summary>显示分组下所有可用子命令 — gh <group> --help</summary>
+    private static int RenderGroupHelp(string group) {
+        var normalizedGroup = group.Replace('-', '_');
+        var prefix = $"gh_{normalizedGroup}_";
+        var actions = GhDispatcher.GetToolNames()
+            .Where(n => n.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .Select(n => n[prefix.Length..].Replace('_', '-'))
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToList();
+        var sb = new StringBuilder(256);
+        sb.AppendLine($"分组: {group}");
+        if (actions.Count == 0) {
+            sb.AppendLine("  该分组下无可用子命令。提示: 用 jcc gh --help 查看所有分组");
+        } else {
+            sb.AppendLine($"可用子命令 ({actions.Count}):");
+            foreach (var a in actions) sb.AppendLine($"  gh {group} {a}");
+            sb.AppendLine($"用法: jcc gh {group} <子命令> [参数] — 用 jcc gh {group} <子命令> --help 查看具体参数");
         }
         TerminalHelper.WriteLine(sb.ToString());
         return 0;

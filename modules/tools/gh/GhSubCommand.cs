@@ -66,8 +66,10 @@ internal static class GhSubCommand {
     }
 
     private static int RenderToolHelp(string group, string action) {
-        var toolName = string.Equals(group, "api", StringComparison.OrdinalIgnoreCase)
-            ? "gh_api" : $"gh_{group}_{action}";
+        var normalizedGroup = group.Replace('-', '_');
+        var normalizedAction = action.Replace('-', '_');
+        var toolName = string.Equals(normalizedGroup, "api", StringComparison.OrdinalIgnoreCase)
+            ? "gh_api" : $"gh_{normalizedGroup}_{normalizedAction}";
         if (!GhDispatcher.ContainsTool(toolName)) {
             TerminalHelper.WriteLine(GhCommandResolver.Usage);
             return 0;

@@ -52,7 +52,7 @@ internal static class FlatSubCommandRouter {
     }
 
     internal static bool ShouldOutputJson(string[] args) {
-        if (Array.IndexOf(args, CliArgCliOptionConstants.JsonLongName) >= 0) return true;
+        if (IsJsonFlagPresent(args)) return true;
         var formatValue = GetOptionValue(args, CliArgCliOptionConstants.FormatLongName);
         if (!string.IsNullOrEmpty(formatValue))
             return !string.Equals(formatValue, "text", StringComparison.OrdinalIgnoreCase);
@@ -66,6 +66,21 @@ internal static class FlatSubCommandRouter {
         for (var i = 1; i < args.Length - 1; i++)
             if (args[i] == optionName) return args[i + 1];
         return null;
+    }
+
+    /// <summary>
+    /// 检测 --json 是否作为纯标志出现(不带值)。
+    /// --json field1,field2 是带值用法(转为 --json_fields),不算纯标志。
+    /// --json 后跟选项(--xxx)或为末尾,才算纯标志。
+    /// </summary>
+    private static bool IsJsonFlagPresent(string[] args) {
+        for (var i = 0; i < args.Length; i++) {
+            if (!string.Equals(args[i], CliArgCliOptionConstants.JsonLongName, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (i + 1 >= args.Length) return true;
+            if (args[i + 1].StartsWith("--")) return true;
+        }
+        return false;
     }
 }
 

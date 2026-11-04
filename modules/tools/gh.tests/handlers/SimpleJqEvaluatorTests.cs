@@ -12,6 +12,14 @@ public sealed class SimpleJqEvaluatorTests {
         result.Should().Be("test");
     }
 
+    /// <summary>.full_name 字段含斜杠 — 确认不带引号</summary>
+    [Fact]
+    public void Evaluate_FullNameField_ShouldExtractWithoutQuotes() {
+        var json = """{"full_name":"cli/cli"}""";
+        var result = SimpleJqEvaluator.Evaluate(json, ".full_name");
+        result.Should().Be("cli/cli");
+    }
+
     /// <summary>.field.sub 嵌套字段 — jq 语义: 字符串标量不带引号</summary>
     [Fact]
     public void Evaluate_NestedField_ShouldExtractNestedValue() {

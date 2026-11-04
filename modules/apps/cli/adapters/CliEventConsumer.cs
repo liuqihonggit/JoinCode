@@ -215,19 +215,36 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         });
     }
 
-    /// <summary>Flush 累积的 assistant 消息（如果有 content blocks）</summary>
+    /// <summary>Flush 累积的 assistant 消息（如果有 content blocks），合并相邻同类型 block</summary>
     private void FlushAssistant() {
         if (_pendingBlocks.Count == 0) return;
+        var merged = MergeAdjacentBlocks(_pendingBlocks);
         WriteSdkJson(new Cli.Output.SdkAssistantMessage {
             Message = new Cli.Output.SdkMessageBody {
                 Role = "assistant",
-                Content = new System.Collections.Generic.List<Cli.Output.SdkContentBlock>(_pendingBlocks)
+                Content = merged
             },
             ParentToolUseId = null,
             Uuid = NextUuid(),
             SessionId = _sessionId
         });
         _pendingBlocks.Clear();
+    }
+
+    /// <summary>合并相邻同类型 block（text+text→text, thinking+thinking→thinking）</summary>
+    private static System.Collections.Generic.List<Cli.Output.SdkContentBlock> MergeAdjacentBlocks(
+        System.Collections.Generic.List<Cli.Output.SdkContentBlock> blocks) {
+        var result = new System.Collections.Generic.List<Cli.Output.SdkContentBlock>(blocks.Count);
+        foreach (var block in blocks) {
+            if (result.Count > 0 && block is Cli.Output.SdkTextBlock text && result[^1] is Cli.Output.SdkTextBlock prevText) {
+                result[^1] = new Cli.Output.SdkTextBlock { Text = prevText.Text + text.Text };
+            } else if (result.Count > 0 && block is Cli.Output.SdkThinkingBlock thinking && result[^1] is Cli.Output.SdkThinkingBlock prevThinking) {
+                result[^1] = new Cli.Output.SdkThinkingBlock { Thinking = prevThinking.Thinking + thinking.Thinking };
+            } else {
+                result.Add(block);
+            }
+        }
+        return result;
     }
 
     /// <summary>生成下一个 uuid</summary>

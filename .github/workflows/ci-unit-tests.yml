@@ -67,10 +67,10 @@ jobs:
         shell: bash
         run: |
           set -e
-          # 先编译所有项目（共享依赖只编译一次，增量编译跳过已编译项目）
+          # 先编译所有项目（-m 并行编译，共享依赖只编译一次，增量编译跳过已编译项目）
           for proj in ${{ matrix.csprojs }}; do
             echo "=== Building: $proj ==="
-            dotnet build "$proj" -c Debug --nologo \
+            dotnet build "$proj" -c Debug --nologo -m \
               -p:UsePackedComponents=true \
               -p:JccAnalyzers=false -p:EnableNETAnalyzers=false -p:AnalysisLevel=none
           done

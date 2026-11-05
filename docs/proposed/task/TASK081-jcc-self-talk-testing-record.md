@@ -156,7 +156,7 @@
 
 - [x] **S22: 并发请求** ✅ — 3 个 jcc 进程同时运行，全部 result.subtype=success
 - [x] **S23: 超大上下文** ✅ — 5000 字符 prompt 正确处理（Windows 命令行长度限制 32767 字符）
-- [ ] **S24: MCP 工具** — 需要 MCP 服务器环境，暂跳过
+- [x] **S24: MCP 工具** ✅ — `jcc mcp_serve --transport http --port 9911` 启动 MCP 服务端，用 curl 验证完整 MCP 协议：initialize（protocolVersion=2025-11-25, server=jcc-mcp v1.0.0）→ tools/list（367 工具/50 分类）→ tools/call 无参数（get_process_info, isError=false）→ tools/call 带参数（tool_search query="read file", isError=false）。权限模式验证：bypass 模式工具调用成功，默认模式被拒绝（isError=true）。测试脚本 `.xxx/test_s24_mcp.py`，11/11 PASS
 - [x] **S25: 权限拒绝** ✅ — default 模式下工具被拒绝（is_error=true），`permission_denials` 已填充 `[{'tool_name': 'bash', 'tool_use_id': 'call_s25_001', 'tool_input': {'command': 'echo hello'}}]`
 
 ### 后续改进项（已完成）

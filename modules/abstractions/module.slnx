@@ -9,4 +9,5 @@
   <Project Path="infrastructure_hot_spot/Infrastructure.HotSpot.csproj" />
   <Project Path="infrastructure_localization/Infrastructure.Localization.csproj" />
   <Project Path="infrastructure_telemetry/Infrastructure.Telemetry.csproj" />
+  <Project Path="infrastructure_resilience/Infrastructure.Resilience.csproj" />
 </Solution>

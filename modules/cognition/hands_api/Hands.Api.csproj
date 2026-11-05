@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.Hands.Api</RootNamespace>
+    <AssemblyName>JoinCode.Hands.Api</AssemblyName>
+    <Description>JoinCode Hands API 子系统 — HTTP API 客户端、VCR 录像/回放、速率限制、重试策略</Description>
+    <PackageId>JoinCode.Hands.Api</PackageId>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>$(OutputPath)$(AssemblyName).xml</DocumentationFile>
+    <NoWarn>$(NoWarn.Replace('CS1591;', '').Replace(';CS1591', '').Replace('CS1591', ''))</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/cognition/hands_core/Hands.Core.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/hands/Abstractions.Hands.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="$(MicrosoftExtensionsVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.Hands" />
+    <InternalsVisibleTo Include="JoinCode.Hands.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Hands.Api.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Integration.Tests" />
+  </ItemGroup>
+
+</Project>

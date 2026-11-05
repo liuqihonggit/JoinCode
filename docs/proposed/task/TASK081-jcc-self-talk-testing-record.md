@@ -236,10 +236,7 @@
 
 ### 中优先级
 
-- [ ] **S9: 多轮对话（-c）** — 会话恢复 + 历史消息
-  - 需要真实 transcript 文件
-  - 检查：恢复后 messages 数组含历史 assistant 响应
-  - ✅ **已修复** — Bug F: NDJSON session_id 与 transcript 目录名不一致（commit d3c769e3f）
+- [x] **S9: 多轮对话（-c）** ✅ — `--continue` 恢复会话成功（"已恢复会话: 20261105-1642-w1-w1-parent-2 (2 条消息)"），transcript.jsonl 包含完整历史（3 user + 3 assistant 消息），第一轮 "Hello from session 1" 和第二轮 "Welcome back to session 2" 均正确保存，session_id 与 transcript 目录名一致（Bug F 已修复）。测试脚本 `.xxx/test_s9_continue.py`，6/6 PASS
 
 - [x] **S10: 错误处理** ✅ — 401 正确传递（is_error=true, errors 含 HTTP 401 消息）；429/500/503 因 MockServer 注入响应被消费后重试拿到默认 200 空响应显示 success（测试环境限制非 jcc bug）
 

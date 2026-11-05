@@ -74,6 +74,8 @@ internal static class NonInteractiveModeRunner {
                 ModelUsage = BuildModelUsage(context),
                 PermissionDenials = context.PermissionDenials,
                 Errors = ok ? [] : [context.StructuredError?.Message ?? $"Exit code {context.ExitCode}"],
+                Uuid = System.Guid.NewGuid().ToString(),
+                SessionId = context.SessionId
             };
             var json = RelaxedJsonSerializer.Serialize(resultMessage, Cli.Output.CliOutputJsonContext.Default);
             Console.WriteLine(json);

@@ -238,6 +238,8 @@ class Program {
                     Result = string.Empty,
                     ModelUsage = new(),
                     Errors = [error.Message],
+                    Uuid = System.Guid.NewGuid().ToString(),
+                    SessionId = System.Guid.NewGuid().ToString("N")
                 };
                 var json = RelaxedJsonSerializer.Serialize(resultMessage, Cli.Output.CliOutputJsonContext.Default);
                 Console.Out.WriteLine(json);

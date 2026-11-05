@@ -76,11 +76,10 @@ public class ConfigLoader {
     /// 配置优先级（从低到高）: UserSettings → ProjectSettings → LocalSettings → FlagSettings → PolicySettings → 环境变量 → Provider 定义环境变量
     /// </summary>
     public async Task<WorkflowConfig> LoadConfigAsync(IFileSystem fs, CancellationToken cancellationToken = default) {
-        var __timing = System.Environment.GetEnvironmentVariable("JCC_DEBUG_TIMING") is "1" or "true";
         try {
             // Step 1: 并行加载多源配置 + 规则文件 + auth.json（4 路并行 I/O）
             var projectDir = fs.GetCurrentDirectory();
-            var __sw = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;
+            var sw = PerfTimer.Start("  Step1 并行I/O");
             var settingsTask = SettingsLoader.LoadAllSourcesAsync(
                 fs,
                 projectDir: projectDir,
@@ -93,7 +92,7 @@ public class ConfigLoader {
             var authTask = LoadAuthFileAsync(fs, cancellationToken);
 
             await Task.WhenAll(settingsTask, projectRulesTask, externalRulesTask, authTask).ConfigureAwait(false);
-            if (__sw is not null) System.Console.Error.WriteLine($"[TIMING]   Step1 并行I/O: {__sw.ElapsedMilliseconds}ms");
+            sw?.Stop();
 
             var settings = await settingsTask.ConfigureAwait(false);
             var preloadedAuthData = await authTask.ConfigureAwait(false);
@@ -121,7 +120,7 @@ public class ConfigLoader {
             EnsureEnvModelInConfig(settings);
 
             // Step 3: SettingsJson → WorkflowConfig（JSON 反序列化映射）
-            var __sw2 = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;
+            var sw2 = PerfTimer.Start("  Step3-5 映射+EnvOverride+ApiKey");
             _settingsMapper.SkipProviderValidation = SkipProviderValidation;
             var config = _settingsMapper.ToWorkflowConfig(settings);
 
@@ -132,7 +131,7 @@ public class ConfigLoader {
             var resolvedApiKey = await ResolveApiKeyAsync(
                 config.Provider.Vendor, config.Provider.Definition, fs, cancellationToken, preloadedAuthData, settings?.Current?.ApiKeyHelper).ConfigureAwait(false);
             config = config with { Provider = config.Provider with { ApiKey = resolvedApiKey } };
-            if (__sw2 is not null) System.Console.Error.WriteLine($"[TIMING]   Step3-5 映射+EnvOverride+ApiKey: {__sw2.ElapsedMilliseconds}ms");
+            sw2?.Stop();
 
             // Step 6: 规则赋值
             config = config with {

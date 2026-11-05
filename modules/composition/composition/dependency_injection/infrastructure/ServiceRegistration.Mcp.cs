@@ -24,10 +24,9 @@ public static partial class ServiceRegistration {
         services.AddSingleton<Func<IMcpToolRegistry, IServiceProvider, CancellationToken, Task<IMcpToolRegistry>>>(
             async (registry, sp, ct) => {
                 var toolFilter = sp.GetService<Func<string, bool>>();
-                var timing = System.Environment.GetEnvironmentVariable("JCC_DEBUG_TIMING") is "1" or "true";
-                var sw = timing ? System.Diagnostics.Stopwatch.StartNew() : null;
+                var sw = PerfTimer.Start($"  RegisterAll (filter={toolFilter is not null})");
                 var result = await GeneratedToolHandlerRegistration_JoinCode_Composition.RegisterAllMcpToolDispatchAsync(registry, sp, ct, toolFilter).ConfigureAwait(false);
-                if (sw is not null) System.Console.Error.WriteLine($"[TIMING] RegisterAll 总耗时: {sw.ElapsedMilliseconds}ms (filter={toolFilter is not null})");
+                sw?.Stop();
                 return result;
             });
 

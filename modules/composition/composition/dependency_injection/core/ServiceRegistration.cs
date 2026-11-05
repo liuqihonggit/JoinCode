@@ -17,31 +17,67 @@ public static partial class ServiceRegistration {
 
         services.AddSingleton(McpToolDispatch.GeneratedToolHandlerRegistration_JoinCode_Composition.SafeToolNames);
 
+        var sw = PerfTimer.Start("    AddJoinCodeCompositionAutoRegisteredServices");
+        var countBefore = services.Count;
         services.AddJoinCodeCompositionAutoRegisteredServices();
+        sw?.Stop();
+        PerfTimer.Mark($"    AddJoinCodeCompositionAutoRegisteredServices: {services.Count - countBefore} services (before={countBefore}, after={services.Count})");
+        sw = PerfTimer.Start("    AddJoinCodeCompositionAutoRegisteredOptions");
         services.AddJoinCodeCompositionAutoRegisteredOptions();
+        sw?.Stop();
 
+        sw = PerfTimer.Start("    AddGuardServices");
         services.AddGuardServices();
+        sw?.Stop();
+        sw = PerfTimer.Start("    AddCoreServices");
         services.AddCoreServices();
+        sw?.Stop();
+        sw = PerfTimer.Start("    AddFileOperationServices");
         services.AddFileOperationServices();
+        sw?.Stop();
+        sw = PerfTimer.Start("    AddToolServices");
         services.AddToolServices();
+        sw?.Stop();
+        sw = PerfTimer.Start("    AddInfrastructureServices");
         services.AddInfrastructureServices();
+        sw?.Stop();
+        sw = PerfTimer.Start("    AddMcpServices");
         services.AddMcpServices();
+        sw?.Stop();
         // IMcpSkillProvider, ISkillDiscoveryService, SkillDiscoveryOptions, SkillOptions,
         // ISkillService, ISkillMiddleware, ICodeService, IPermissionHookExecutor,
         // IPermissionLogger, IPluginSkillBridge — [Register] 自动注册
         // Code 中间件管道 — [RegisterMiddleware] + 生成器自动注册
         // WebFetchCache, BinaryContentStorage, DomainBlocklistChecker, Web 中间件 — [Register] + [RegisterMiddleware] 自动注册
+        sw = PerfTimer.Start("    AddBridgeServices");
         services.AddBridgeServices();
+        sw?.Stop();
+        sw = PerfTimer.Start("    AddAgentServices");
         services.AddAgentServices();
+        sw?.Stop();
+        sw = PerfTimer.Start("    AddSchedulingServices");
         services.AddSchedulingServices();
+        sw?.Stop();
+        sw = PerfTimer.Start("    AddContextCompressionServices");
         services.AddContextCompressionServices();
+        sw?.Stop();
+        sw = PerfTimer.Start("    AddBrainPipelines");
         services.AddBrainPipelines();
+        sw?.Stop();
         // IInteractiveService, IPlanModeManager, IPlanService — [Register] 自动注册
         // ICacheService, IUserInteractionService — [Register] 自动注册
+        sw = PerfTimer.Start("    AddVaultServices");
         services.AddVaultServices();
+        sw?.Stop();
+        sw = PerfTimer.Start("    AddCodeIndexServices");
         services.AddCodeIndexServices(Environment.CurrentDirectory);
+        sw?.Stop();
+        sw = PerfTimer.Start("    AddNewServices");
         services.AddNewServices();
+        sw?.Stop();
+        sw = PerfTimer.Start("    AddReasoning");
         services.AddReasoning();
+        sw?.Stop();
 
         services.AddLogging();
 
@@ -57,10 +93,14 @@ public static partial class ServiceRegistration {
     public static IServiceCollection AddAiWorkflowServices(this IServiceCollection services, WorkflowConfig config) {
         services.AddWorkflowServices(config);
 
+        var sw = PerfTimer.Start("    AddKernelWithPlugins");
         services.AddKernelWithPlugins(config);
+        sw?.Stop();
 
         // IQueryEngine — [Register] 自动注册（QueryEngine），无需手动 RegisterAiServices
+        sw = PerfTimer.Start("    AddReleaseModeAgentServices");
         services.AddReleaseModeAgentServices();
+        sw?.Stop();
 
         return services;
     }

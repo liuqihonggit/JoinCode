@@ -51,7 +51,9 @@ public sealed class EngineApplicationBuilder {
                     services.AddSingleton<Func<string, bool>>(static name => name.StartsWith("gh_", StringComparison.OrdinalIgnoreCase));
 
                 foreach (var module in ordered) {
+                    var sw = PerfTimer.Start($"  ConfigureServices {module.GetType().Name}");
                     module.ConfigureServices(services, context);
+                    sw?.Stop();
                 }
 
                 // 视角1 #3: 后配置 PermissionConfig，合并 --allowed-tools / --disallowed-tools CLI 参数
@@ -109,14 +111,13 @@ public sealed class EngineApplicationBuilder {
     /// 模块初始化 — 按序调用各模块的 ConfigureAsync
     /// </summary>
     public async Task ConfigureModulesAsync(IServiceProvider services) {
-        var __timing = System.Environment.GetEnvironmentVariable("JCC_DEBUG_TIMING") is "1" or "true";
         var ordered = _modules.OrderBy(m => m.Order).ToList();
         foreach (var module in ordered) {
             // P2-5: 迁移到 Diag.WriteLine，统一受 JCC_DEBUGLOG 控制
             Diag.WriteLine($"[MODULE] {module.GetType().Name} start");
-            var __sw = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;
+            var sw = PerfTimer.Start($"  模块 {module.GetType().Name}");
             await module.ConfigureAsync(services, CancellationToken.None).ConfigureAwait(false);
-            if (__sw is not null) System.Console.Error.WriteLine($"[TIMING]   模块 {module.GetType().Name}: {__sw.ElapsedMilliseconds}ms");
+            sw?.Stop();
             Diag.WriteLine($"[MODULE] {module.GetType().Name} done");
         }
     }
@@ -125,10 +126,9 @@ public sealed class EngineApplicationBuilder {
     /// 加载配置 — 含 DotEnv 回退
     /// </summary>
     public static async Task<WorkflowConfig> LoadConfigAsync(CommandLineOptions options, IFileSystem fs, IModelConfigLoader? modelConfigLoader = null) {
-        var __timing = System.Environment.GetEnvironmentVariable("JCC_DEBUG_TIMING") is "1" or "true";
-        var __sw = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;
+        var sw = PerfTimer.Start("  GetDotEnv");
         var dotEnv = GetDotEnv();
-        if (__sw is not null) System.Console.Error.WriteLine($"[TIMING]   GetDotEnv: {__sw.ElapsedMilliseconds}ms");
+        sw?.Stop();
         WorkflowConfig config;
 
         var configLogLevel = JoinCode.Abstractions.Utils.Diagnostics.Diag.IsDebugLog ? LogLevel.Debug : LogLevel.Warning;
@@ -138,15 +138,15 @@ public sealed class EngineApplicationBuilder {
         // （原流程：ConfigLoader 构造 → ProviderDefinitionRegistry.Create 读 settings.json，
         //   然后 LoadConfigAsync 行 141 又 CreateAsync 读 settings.json — 重复读取）
         modelConfigLoader ??= new ModelConfigLoader();
-        var __sw1 = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;
+        var sw1 = PerfTimer.Start("  ProviderRegistry.Create");
         var registry = await Core.Configuration.Providers.ProviderDefinitionRegistry.CreateAsync(modelConfigLoader, logger: configLoggerFactory.CreateLogger<Core.Configuration.Providers.ProviderDefinitionRegistry>()).ConfigureAwait(false);
-        if (__sw1 is not null) System.Console.Error.WriteLine($"[TIMING]   ProviderRegistry.Create: {__sw1.ElapsedMilliseconds}ms");
+        sw1?.Stop();
 
         var loader = new Core.Configuration.ConfigLoader(registry: registry, modelConfigLoader: modelConfigLoader, loggerFactory: configLoggerFactory) {
             SkipProviderValidation = options.SkipProviderValidation
         };
 
-        var __sw2 = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;
+        var sw2 = PerfTimer.Start("  ConfigLoader.Load");
         try {
             config = await loader.LoadConfigAsync(fs).ConfigureAwait(false);
         } catch (ConfigurationException ex) when (ex.Message.Contains("API Key")) {
@@ -157,9 +157,9 @@ public sealed class EngineApplicationBuilder {
                 throw;
             }
         }
-        if (__sw2 is not null) System.Console.Error.WriteLine($"[TIMING]   ConfigLoader.Load: {__sw2.ElapsedMilliseconds}ms");
+        sw2?.Stop();
 
-        var __sw3 = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;
+        var sw3 = PerfTimer.Start("  DotEnv+EnvOverrides");
         if (dotEnv is not null) {
             config = dotEnv.ApplyToMemory(config, registry);
         }
@@ -168,7 +168,7 @@ public sealed class EngineApplicationBuilder {
         // 修复: 之前 ApplyEnvOverrides 只在 dotEnv != null 时调用，
         // 导致无 .env/api.json 时 JCC_ENDPOINT/JCC_MODEL_ID 等环境变量不生效
         config = await new Core.Configuration.SettingsMapper(registry).ApplyEnvOverridesAsync(config).ConfigureAwait(false);
-        if (__sw3 is not null) System.Console.Error.WriteLine($"[TIMING]   DotEnv+EnvOverrides: {__sw3.ElapsedMilliseconds}ms");
+        sw3?.Stop();
 
         // --model 已在 ParseArgs 阶段转为 JCC_MODEL_ID 环境变量，由 EnvOverrideApplier + ApplyEnvOverrides 统一处理
         if (options.IsPipeMode)

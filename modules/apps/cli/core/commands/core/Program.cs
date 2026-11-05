@@ -5,13 +5,18 @@ namespace JoinCode;
 /// </summary>
 class Program {
     static async Task<int> Main(string[] args) {
+        var swTotal = PerfTimer.Start("Program.Main 总耗时");
         args = RestoreMsysPathExpansion(args);
 
+        var sw0 = PerfTimer.Start("NativeDllBootstrapper");
         // 原生 DLL 引导 — 从嵌入资源释放到临时目录并注册搜索路径（必须在任何 P/Invoke 之前）
         await Entry.Startup.NativeDllBootstrapper.InitializeAsync().ConfigureAwait(false);
+        sw0?.Stop();
 
+        var sw1 = PerfTimer.Start("CaptureStartupWindow");
         // 启动时捕获前台窗口 — 此时前台窗口最可能是 jcc 自己的终端窗口
         Hands.Desktop.Win32WindowShakeService.CaptureStartupWindow();
+        sw1?.Stop();
 
         // 密钥红线检查 — 禁止在命令行参数中传递 API Key
         var secretWarning = Cli.Output.ApiKeyRedLine.CheckArgsForSecrets(args);
@@ -73,7 +78,9 @@ class Program {
                 return await App.Builder.ApplicationBuilder.RunSubCommandAsync(ReorderSubCommandToFront(args, idx)).ConfigureAwait(false);
 
             // 4. 参数解析 → CommandLineOptions（后续全部使用 options，不再传递原始 args）
+            var swParse = PerfTimer.Start("ParseArgs");
             options = App.Builder.ApplicationBuilder.ParseArgs(args);
+            swParse?.Stop();
             if (options.ShowHelp) { App.Builder.ApplicationBuilder.ShowHelp(GetHelpTopic(args)); return 0; }
             if (options.ShowVersion) { App.Builder.ApplicationBuilder.ShowVersion(); return 0; }
 
@@ -89,7 +96,9 @@ class Program {
                 return await NativeTui.Host.Program.RunInteractiveAsync().ConfigureAwait(false);
             }
 
+            var swSession = PerfTimer.Start("CreateCliSessionAsync");
             var engineResult = await App.Builder.CliSessionFactory.CreateCliSessionAsync(options, fs).ConfigureAwait(false);
+            swSession?.Stop();
 
             var config = engineResult.Config;
             await using var host = engineResult.Host;
@@ -97,8 +106,11 @@ class Program {
             logger = host.Services.GetService<ILogger<Program>>();
 
             int exitCode;
+            var swRun = PerfTimer.Start("NonInteractiveModeRunner.RunAsync");
             exitCode = await Entry.NonInteractiveModeRunner.RunAsync(config, options, host).ConfigureAwait(false);
+            swRun?.Stop();
 
+            swTotal?.Stop();
             return exitCode;
         } catch (OperationCanceledException) {
             // P2-7: 用户取消（Ctrl+C）或网络请求取消 — 静默退出，不写 error.log（非程序 bug）

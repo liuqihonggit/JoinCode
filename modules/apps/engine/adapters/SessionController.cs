@@ -20,6 +20,10 @@ public sealed class SessionController {
     internal Task? LastAutoCompactTask { get; private set; }
     /// <summary>本次 StreamResponseAsync 的 LLM 调用轮次数（每次 onDone 递增，回合开始复位；对齐 ClaudeCode SDK num_turns 语义）。</summary>
     private int _totalTurns;
+    /// <summary>本回合总成本美元（对齐 ClaudeCode SDK total_cost_usd 语义）。</summary>
+    private decimal _lastCostUsd;
+    /// <summary>本回合 API 耗时毫秒（对齐 ClaudeCode SDK duration_api_ms 语义）。</summary>
+    private long _lastApiDurationMs;
     private readonly string _sessionId;
     private readonly IServiceProvider? _serviceProvider;
     private readonly IClockService _clock;
@@ -36,6 +40,15 @@ public sealed class SessionController {
 
     /// <summary>本回合 Done 权威 usage 快照（对齐 ClaudeCode SDK usage 语义）</summary>
     public JoinCode.Abstractions.LLM.Chat.TokenUsage? LastUsage => _lastDoneUsage;
+
+    /// <summary>本回合总成本美元（对齐 ClaudeCode SDK total_cost_usd 语义）</summary>
+    public decimal LastCostUsd => _lastCostUsd;
+
+    /// <summary>本回合 API 耗时毫秒（对齐 ClaudeCode SDK duration_api_ms 语义）</summary>
+    public long LastApiDurationMs => _lastApiDurationMs;
+
+    /// <summary>本回合停止原因（对齐 ClaudeCode SDK stop_reason 语义）</summary>
+    public string? LastStopReason => _lastStopReason;
 
     /// <summary>聊天服务</summary>
     public IChatService ChatService => _chatService;
@@ -141,8 +154,8 @@ public sealed class SessionController {
                         DrainSubAgentEvents(subAgentChannel, fullResponse, thinkingContent);
                         var mid = ProcessEvent(evt, fullResponse, thinkingContent);
                         if (mid is not null) lastModelId = mid;
-                        if (chunk.Type == AgentStreamChunkType.Complete && chunk.TotalTurns > 0)
-                            _totalTurns = chunk.TotalTurns;
+                        if (chunk.Type == AgentStreamChunkType.Complete)
+                            ApplyCompletionChunk(chunk);
                     }
                 }
 
@@ -240,6 +253,20 @@ public sealed class SessionController {
         foreach (var subEvent in channel.TryDrain()) {
             ProcessEvent(subEvent, fullResponse, thinkingContent);
         }
+    }
+
+    /// <summary>
+    /// 应用 Complete 类型 chunk 的汇总字段到本回合状态（num_turns/cost/api_duration/stop_reason）。
+    /// 提取为方法消除 JCC1009 if 嵌套过深（foreach → if → if → if 三层）。
+    /// </summary>
+    private void ApplyCompletionChunk(AgentStreamChunk chunk) {
+        if (chunk.TotalTurns > 0)
+            _totalTurns = chunk.TotalTurns;
+        _lastCostUsd = chunk.CostUsd;
+        if (chunk.ExecutionTimeMs is { } apiMs)
+            _lastApiDurationMs = apiMs;
+        if (!string.IsNullOrEmpty(chunk.StopReason))
+            _lastStopReason = chunk.StopReason;
     }
 
     /// <summary>

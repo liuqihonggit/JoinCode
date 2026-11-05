@@ -48,8 +48,17 @@ public sealed class CliSession {
     /// <summary>本次会话的 LLM 调用轮次数（对齐 ClaudeCode SDK num_turns 语义）</summary>
     public int TotalTurns => _controller?.TotalTurns ?? 0;
 
-    /// <summary>本回合 Done 权威 usage 快照（对齐 ClaudeCode SDK usage 语义）</summary>
+    /// <summary>本回合 Done 权威 usage 快照（9对齐 ClaudeCode SDK usage 语义）</summary>
     public JoinCode.Abstractions.LLM.Chat.TokenUsage? LastUsage => _controller?.LastUsage;
+
+    /// <summary>本回合总成本美元（对齐 ClaudeCode SDK total_cost_usd 语义）</summary>
+    public decimal LastCostUsd => _controller?.LastCostUsd ?? 0m;
+
+    /// <summary>本回合 API 耗时毫秒（对齐 ClaudeCode SDK duration_api_ms 语义）</summary>
+    public long LastApiDurationMs => _controller?.LastApiDurationMs ?? 0;
+
+    /// <summary>本回合停止原因（对齐 ClaudeCode SDK stop_reason 语义）</summary>
+    public string? LastStopReason => _controller?.LastStopReason;
 
     /// <summary>聊天服务</summary>
     public IChatService ChatService => _controller.ChatService;

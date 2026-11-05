@@ -127,7 +127,9 @@ public sealed class CliSession {
                 _logger?.LogWarning(ex, "[CliSession] 获取工具列表失败，system/init tools 将为空");
             }
         }
-        var modelId = System.Environment.GetEnvironmentVariable("JCC_MODEL_ID") ?? "unknown";
+        var modelId = optionalServices?.WorkflowConfig?.Provider.ModelId
+            ?? System.Environment.GetEnvironmentVariable("JCC_MODEL_ID")
+            ?? "unknown";
         var eventConsumer = agentMode
             ? new CliEventConsumer(agentMode: true, sessionId: _sessionId, tools: toolNames, model: modelId)
             : new CliEventConsumer(consumerOutputChannel);

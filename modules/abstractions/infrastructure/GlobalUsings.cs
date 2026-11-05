@@ -1,6 +1,5 @@
 ﻿global using AsyncFileLock;
 global using Core.Ssh;
-global using Core.Telemetry;
 global using Core.Utils;
 global using Infrastructure.Configuration;
 global using Infrastructure.Http;

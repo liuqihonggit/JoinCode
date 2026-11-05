@@ -47,6 +47,7 @@
     <Project Path="../../modules/abstractions/infrastructure_hot_spot/Infrastructure.HotSpot.csproj" />
     <Project Path="../../modules/abstractions/infrastructure_localization/Infrastructure.Localization.csproj" />
     <Project Path="../../modules/abstractions/infrastructure_telemetry/Infrastructure.Telemetry.csproj" />
+    <Project Path="../../modules/abstractions/infrastructure_resilience/Infrastructure.Resilience.csproj" />
     <Project Path="../../modules/async_primitives/transport.impl/Transport.Impl.csproj" />
     <Project Path="../../modules/async_primitives/transport.impl.tests/Transport.Impl.Tests.csproj" />
   </Folder>

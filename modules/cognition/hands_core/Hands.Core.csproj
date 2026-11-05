@@ -1,0 +1,74 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.Hands</RootNamespace>
+    <AssemblyName>JoinCode.Hands.Core</AssemblyName>
+    <Description>JoinCode Hands 核心 — 工具处理器 + 桌面自动化 + 技能系统 + 场景（强连通核心，不可分割）</Description>
+    <PackageId>JoinCode.Hands.Core</PackageId>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>$(OutputPath)$(AssemblyName).xml</DocumentationFile>
+    <NoWarn>$(NoWarn.Replace('CS1591;', '').Replace(';CS1591', '').Replace('CS1591', ''))</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/hands/Abstractions.Hands.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/plugins/plugins.infrastructure/Plugins.Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/guard/guard/Guard.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/storage/scheduling/Scheduling.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="System.IO.Hashing" Version="$(SystemIOHashingVersion)" />
+    <PackageReference Include="ReverseMarkdown.Aot" Version="4.8.0" />
+    <PackageReference Include="SkiaSharp" Version="$(SkiaSharpVersion)" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="$(SkiaSharpVersion)" />
+    <PackageReference Include="Docnet.Core" Version="$(DocnetCoreVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.Core.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Core.Tests.Terminal" />
+    <InternalsVisibleTo Include="JoinCode.Core.Tests.Permission" />
+    <InternalsVisibleTo Include="JoinCode.Core.Tests.Services" />
+    <InternalsVisibleTo Include="JoinCode.Dream.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Core.Tests.Agents" />
+    <InternalsVisibleTo Include="JoinCode.Core.Tests.Context" />
+    <InternalsVisibleTo Include="JoinCode.Hands.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Hands.ToolHandlers.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Hands.Skills.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Hands.Api.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Hands.Shell.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Integration.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Integration.Desktop.Tests" />
+    <InternalsVisibleTo Include="JoinCode.McpToolDispatch.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Composition" />
+    <InternalsVisibleTo Include="JoinCode.Hands" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/generators/prompt_template.generator/PromptTemplate.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/mcp_tool_dispatch.generator/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/scenario.generator/Scenario.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/composition/Abstractions.Composition.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Composition" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/brain/Abstractions.Brain.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Brain" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/memory/Abstractions.Memory.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Memory" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
+</Project>

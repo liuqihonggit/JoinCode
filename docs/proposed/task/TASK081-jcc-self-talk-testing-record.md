@@ -1,5 +1,6 @@
 # TASK081 — jcc 自己跟自己对话全链路测试记录
 
+> **状态：全部完成 ✅** — 32/32 测试项通过（S1-S25 + D1-D4 + Bug K/L/M + permission_denials/modelUsage 填充）
 > **目标**：AI 同时控制客户端（jcc）和服务端（MockServer），深究整个链路每个细节，找 bug
 > **原则**：抓大不放小 — 小细节往往是 bug 根源（如 ToolCallId 遗漏导致 id/input 空值）
 > **创建**：2026-11-05

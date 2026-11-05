@@ -29,6 +29,12 @@
     <Company>JoinCode</Company>
     <Product>JoinCode</Product>
     <Copyright>Copyright © JoinCode 2025</Copyright>
+    <Authors>JoinCode</Authors>
+    <PackageProjectUrl>https://github.com/JoinCode/JoinCode</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/JoinCode/JoinCode</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>AI;Coding;Assistant;CLI;MCP;NativeAOT</PackageTags>
     <VersionPrefix>1.0.0</VersionPrefix>
     <VersionSuffix Condition="'$(CI_BUILD)' == 'true'">ci-$(BUILD_NUMBER)</VersionSuffix>
     <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
@@ -90,6 +96,7 @@
     <DockerDotNetVersion>3.125.15</DockerDotNetVersion>
     <LiteDBVersion>5.0.21</LiteDBVersion>
     <MicrosoftCodeAnalysisVersion>5.6.0</MicrosoftCodeAnalysisVersion>
+    <MicrosoftCodeAnalysisPublicApiAnalyzersVersion>4.14.0</MicrosoftCodeAnalysisPublicApiAnalyzersVersion>
     <ModelContextProtocolVersion>1.4.0</ModelContextProtocolVersion>
     <BenchmarkDotNetVersion>0.15.8</BenchmarkDotNetVersion>
     <SkiaSharpVersion>4.151.1</SkiaSharpVersion>

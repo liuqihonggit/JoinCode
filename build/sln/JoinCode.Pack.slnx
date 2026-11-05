@@ -1,0 +1,99 @@
+<Solution>
+  <Folder Name="/gen/">
+    <Project Path="../../modules/generators/aot_safety.shared/AotSafety.Shared.csproj" />
+    <Project Path="../../modules/generators/aot_safety.generator/AotSafety.Generator.csproj" />
+    <Project Path="../../modules/generators/app_module.generator/AppModule.Generator.csproj" />
+    <Project Path="../../modules/generators/code_fixes/CodeFixes.csproj" />
+    <Project Path="../../modules/generators/cli_option.generator/CliOption.Generator.csproj" />
+    <Project Path="../../modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" />
+    <Project Path="../../modules/generators/mcp_tool_dispatch.generator/McpToolDispatch.Generator.csproj" />
+    <Project Path="../../modules/generators/prompt_section.generator/PromptSection.Generator.csproj" />
+    <Project Path="../../modules/generators/prompt_template.generator/PromptTemplate.Generator.csproj" />
+    <Project Path="../../modules/generators/tool_prompt.generator/ToolPrompt.Generator.csproj" />
+    <Project Path="../../modules/generators/scenario.generator/Scenario.Generator.csproj" />
+    <Project Path="../../modules/generators/danger_command.generator/DangerCommand.Generator.csproj" />
+    <Project Path="../../modules/generators/fsm.generator/Fsm.Generator.csproj" />
+  </Folder>
+  <Folder Name="/lib/">
+    <Project Path="../../modules/abstractions/primitives/Abstractions.Primitives.csproj" />
+    <Project Path="../../modules/abstractions/exceptions/Abstractions.Exceptions.csproj" />
+    <Project Path="../../modules/abstractions/guard/Abstractions.Guard.csproj" />
+    <Project Path="../../modules/abstractions/perception/Abstractions.Perception.csproj" />
+    <Project Path="../../modules/abstractions/abstractions/Abstractions.csproj" />
+    <Project Path="../../modules/abstractions/hands/Abstractions.Hands.csproj" />
+    <Project Path="../../modules/abstractions/agents/Abstractions.Agents.csproj" />
+    <Project Path="../../modules/abstractions/ai/Abstractions.AI.csproj" />
+    <Project Path="../../modules/abstractions/composition/Abstractions.Composition.csproj" />
+    <Project Path="../../modules/abstractions/brain/Abstractions.Brain.csproj" />
+    <Project Path="../../modules/abstractions/memory/Abstractions.Memory.csproj" />
+    <Project Path="../../modules/storage/downloader/Downloader.csproj" />
+    <Project Path="../../modules/collections/structura/Structura.csproj" />
+    <Project Path="../../modules/async_primitives/transport.contracts/Transport.Contracts.csproj" />
+    <Project Path="../../modules/plugins/plugins.contracts/Plugins.Contracts.csproj" />
+    <Project Path="../../modules/plugins/plugins.infrastructure/Plugins.Infrastructure.csproj" />
+    <Project Path="../../modules/persistence/pithosdb/PithosDB.Core.csproj" />
+    <Project Path="../../modules/tools/onnx_embedding/OnnxEmbeddingExe.csproj" />
+    <Project Path="../../modules/tools/rg/rg.csproj" />
+    <Project Path="../../modules/tools/gh/gh.csproj" />
+  </Folder>
+  <Folder Name="/infrastructure/">
+    <Project Path="../../modules/abstractions/infrastructure/Infrastructure.csproj" />
+    <Project Path="../../modules/async_primitives/transport.impl/Transport.Impl.csproj" />
+  </Folder>
+  <Folder Name="/llm/">
+    <Project Path="../../modules/llm/core/Llm.csproj" />
+    <Project Path="../../modules/llm/agents/Agents.csproj" />
+    <Project Path="../../modules/llm/reasoning/Reasoning.csproj" />
+  </Folder>
+  <Folder Name="/kit/">
+    <Project Path="../../modules/cognition/prompts/Prompts.csproj" />
+    <Project Path="../../modules/composition/slash/Slash.csproj" />
+  </Folder>
+  <Folder Name="/core/execution/">
+    <Project Path="../../modules/cognition/brain_cost_tracking/Brain.CostTracking.csproj" />
+    <Project Path="../../modules/cognition/brain_planning/Brain.Planning.csproj" />
+    <Project Path="../../modules/cognition/brain_summary/Brain.Summary.csproj" />
+    <Project Path="../../modules/cognition/brain/Brain.csproj" />
+    <Project Path="../../modules/cognition/hands_core/Hands.Core.csproj" />
+    <Project Path="../../modules/cognition/hands/Hands.csproj" />
+    <Project Path="../../modules/storage/scheduling/Scheduling.csproj" />
+    <Project Path="../../modules/mcp/mcp_tool_dispatch/McpToolDispatch.csproj" />
+    <Project Path="../../modules/async_primitives/async_lock/AsyncLock.csproj" />
+  </Folder>
+  <Folder Name="/core/safety/">
+    <Project Path="../../modules/guard/guard/Guard.csproj" />
+    <Project Path="../../modules/storage/vault/Vault.csproj" />
+  </Folder>
+  <Folder Name="/core/search/">
+    <Project Path="../../modules/perception/code_index/CodeIndex.csproj" />
+    <Project Path="../../modules/services/browser/Browser.csproj" />
+  </Folder>
+  <Folder Name="/services/">
+    <Project Path="../../modules/mcp/mcp/Mcp.csproj" />
+    <Project Path="../../modules/services/dream/Dream.csproj" />
+    <Project Path="../../modules/perception/eyes/Eyes.csproj" />
+    <Project Path="../../modules/services/bridge/Bridge.csproj" />
+    <Project Path="../../modules/services/sandbox_satellite/SandboxSatellite.csproj" />
+    <Project Path="../../modules/services/update/Update.csproj" />
+    <Project Path="../../modules/perception/vision/Vision.csproj" />
+  </Folder>
+  <Folder Name="/composition/">
+    <Project Path="../../modules/composition/composition/Composition.csproj" />
+    <Project Path="../../modules/storage/clock/Clock.csproj" />
+    <Project Path="../../modules/composition/pipelines/Pipelines.csproj" />
+  </Folder>
+  <Folder Name="/app/">
+    <Project Path="../../modules/apps/cli/JoinCode.csproj" />
+    <Project Path="../../modules/apps/engine/JoinCode.Engine.csproj" />
+    <Project Path="../../modules/apps/sdk/Sdk.csproj" />
+  </Folder>
+  <Folder Name="/test/mock/">
+    <Project Path="../../test/mock/mock_server.core/MockServer.Core.csproj" />
+    <Project Path="../../test/mock/open_ai.mock_server/OpenAI.MockServer.csproj" />
+    <Project Path="../../test/mock/anthropic.mock_server/Anthropic.MockServer.csproj" />
+    <Project Path="../../test/mock/deep_seek.mock_server/DeepSeek.MockServer.csproj" />
+    <Project Path="../../test/mock/mcp.mock_server/Mcp.MockServer.csproj" />
+    <Project Path="../../test/mock/responses.mock_server/Responses.MockServer.csproj" />
+  </Folder>
+  <Project Path="../../modules/async_primitives/bcl_bridge/BclBridge.csproj" />
+</Solution>

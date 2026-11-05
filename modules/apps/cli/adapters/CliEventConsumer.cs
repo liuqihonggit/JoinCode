@@ -114,7 +114,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
             _pendingBlocks.Add(new Cli.Output.SdkToolUseBlock {
                 Id = toolCallId ?? string.Empty,
                 Name = toolName,
-                Input = arguments ?? "{}"
+                Input = ParseInputToJsonElement(arguments)
             });
         } else {
             using var _ = TerminalHelper.SetColor(ConsoleColor.DarkGray);
@@ -281,6 +281,12 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
 
     /// <summary>生成下一个 uuid — 标准 UUID 格式，对齐基准侧 crypto.randomUUID()</summary>
     private string NextUuid() => System.Guid.NewGuid().ToString();
+
+    /// <summary>将工具参数 JSON 字符串解析为 JsonElement，使序列化输出 JSON 对象而非字符串</summary>
+    private static System.Text.Json.JsonElement ParseInputToJsonElement(string? json) {
+        using var doc = System.Text.Json.JsonDocument.Parse(string.IsNullOrEmpty(json) ? "{}" : json);
+        return doc.RootElement.Clone();
+    }
 
     /// <summary>写入 SDK JSON 消息到 stdout</summary>
     private void WriteSdkJson<T>(T message) {

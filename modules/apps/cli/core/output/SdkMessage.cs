@@ -22,8 +22,8 @@ public sealed record SdkToolUseBlock : SdkContentBlock {
     public string Id { get; init; } = string.Empty;
     /// <summary>工具名称</summary>
     public string Name { get; init; } = string.Empty;
-    /// <summary>工具参数 JSON</summary>
-    public string Input { get; init; } = "{}";
+    /// <summary>工具参数 JSON 对象 — 对齐基准侧 tool_use.input 为 JSON 对象而非字符串</summary>
+    public System.Text.Json.JsonElement Input { get; init; }
 }
 
 public sealed record SdkToolResultBlock : SdkContentBlock {

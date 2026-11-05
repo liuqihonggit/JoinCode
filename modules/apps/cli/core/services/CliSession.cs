@@ -60,6 +60,9 @@ public sealed class CliSession {
     /// <summary>本回合停止原因（对齐 ClaudeCode SDK stop_reason 语义）</summary>
     public string? LastStopReason => _controller?.LastStopReason;
 
+    /// <summary>权限拒绝列表（对齐 ClaudeCode SDK permission_denials 语义）</summary>
+    public System.Collections.Generic.IReadOnlyList<Cli.Output.SdkPermissionDenial>? PermissionDenials => _eventConsumer?.PermissionDenials;
+
     /// <summary>聊天服务</summary>
     public IChatService ChatService => _controller.ChatService;
 

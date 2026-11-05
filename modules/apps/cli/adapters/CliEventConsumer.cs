@@ -13,8 +13,13 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
 
     private readonly System.Collections.Generic.List<Cli.Output.SdkContentBlock> _pendingBlocks = [];
     private readonly System.Collections.Generic.List<Cli.Output.SdkToolResultBlock> _pendingToolResults = [];
+    private readonly System.Collections.Generic.List<Cli.Output.SdkPermissionDenial> _permissionDenials = [];
+    private readonly System.Collections.Generic.Dictionary<string, string?> _toolInputs = [];
     private string? _sessionId;
     private bool _systemInitSent;
+
+    /// <summary>获取权限拒绝列表 — 供 NonInteractiveModeRunner 填充到 SdkResultMessage</summary>
+    public System.Collections.Generic.IReadOnlyList<Cli.Output.SdkPermissionDenial> PermissionDenials => _permissionDenials;
 
     /// <summary>默认构造函数 — DX 模式（彩色终端输出）</summary>
     public CliEventConsumer() {
@@ -68,6 +73,8 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         _isFirstToken = true;
         _pendingBlocks.Clear();
         _pendingToolResults.Clear();
+        _permissionDenials.Clear();
+        _toolInputs.Clear();
         _systemInitSent = false;
     }
 
@@ -109,6 +116,8 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
 
     /// <summary>工具调用开始</summary>
     public void OnToolStart(string toolName, string? toolCallId, string? arguments) {
+        if (toolCallId is not null)
+            _toolInputs[toolCallId] = arguments;
         if (_agentMode) {
             EnsureSystemInit();
             _pendingBlocks.Add(new Cli.Output.SdkToolUseBlock {
@@ -130,6 +139,14 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
 
     /// <summary>工具调用结束</summary>
     public void OnToolEnd(string toolName, string? resultText, string? toolCallId, bool isError, StructuredPatchHunk[]? patch) {
+        if (isError && resultText is not null && resultText.Contains("拒绝")) {
+            _toolInputs.TryGetValue(toolCallId ?? string.Empty, out var toolArgs);
+            _permissionDenials.Add(new Cli.Output.SdkPermissionDenial {
+                ToolName = toolName,
+                ToolUseId = toolCallId ?? string.Empty,
+                ToolInput = ParseInputToJsonElement(toolArgs)
+            });
+        }
         if (_agentMode) {
             _pendingToolResults.Add(new Cli.Output.SdkToolResultBlock {
                 ToolUseId = toolCallId ?? string.Empty,

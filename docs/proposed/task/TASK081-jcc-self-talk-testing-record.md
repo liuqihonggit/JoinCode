@@ -165,6 +165,17 @@
 - [x] **permission_denials 填充** ✅ — `CliEventConsumer.OnToolEnd` 检测权限拒绝（resultText 含"拒绝"），记录 tool_name/tool_use_id/tool_input，通过 CliSession → StartupContext → SdkResultMessage 传递。commit a6d097a47
 - [x] **modelUsage 填充** ✅ — `NonInteractiveModeRunner.BuildModelUsage` 从 Usage+TotalCostUsd- 按模型构造用量字典。commit 51bd9999a
 
+### 边缘场景测试（E1-E8，全部通过）
+
+- [x] **E1: 流式断连** ✅ — 无 [DONE] 终止符的 SSE 流，jcc 正确接收并合并部分数据（"Hello partial stream"），result.subtype=success
+- [x] **E2: 多工具调用** ✅ — LLM 一次返回 2 个 tool_calls（bash echo a + bash echo b），jcc 顺序执行，tool_use/tool_result 正确配对（call_e2_1→"a", call_e2_2→"b"），最终文本 "Both tools completed"
+- [x] **E3: 超大工具输出** ✅ — `seq 1 1000` 生成 1000 行输出，tool_result total_len=5023, num_lines=1006，完整未截断
+- [x] **E4: 空工具参数** ✅ — tool_use input={} 正确传递，bash 返回参数缺失错误提示（"调用工具 'bash' 时缺少必需参数"），含诱导方式
+- [x] **E5: 工具调用链** ✅ — 3 轮注入（tool1→result1→tool2→result2→final），7 个事件顺序正确：system→tool_use_1→tool_result_1→tool_use_2→tool_result_2→text→result
+- [x] **E6: 错误工具调用** ✅ — `exit 1` 非零退出码，tool_result is_error=true，content 含 "Exit code: 1 — Command failed"；`nonexistent_cmd` 返回 "command not found" + Exit code 127
+- [x] **E7: 非 UTF-8 字符** ✅ — prompt "你好 🎉 test" 正确传递，响应 "你好世界 🎉 emoji test" 正确输出（len=17, has_emoji=True, has_chinese=True）
+- [x] **E8: 嵌套 JSON 工具参数** ✅ — input 含嵌套对象 `{"command":"echo nested_test","env":{"KEY1":"val1","KEY2":{"nested":true,"arr":[1,2,3]}}}`，正确传递和解析，工具执行成功
+
 ---
 
 ## 已发现但未修复的问题

@@ -10,4 +10,7 @@
   <Project Path="infrastructure_localization/Infrastructure.Localization.csproj" />
   <Project Path="infrastructure_telemetry/Infrastructure.Telemetry.csproj" />
   <Project Path="infrastructure_resilience/Infrastructure.Resilience.csproj" />
+  <Project Path="infrastructure_process/Infrastructure.Process.csproj" />
+  <Project Path="infrastructure_configuration/Infrastructure.Configuration.csproj" />
+  <Project Path="infrastructure_http/Infrastructure.Http.csproj" />
 </Solution>

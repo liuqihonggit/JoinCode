@@ -235,13 +235,13 @@ public sealed class SessionController {
                     .Where(m => !string.IsNullOrEmpty(m))
                     .Distinct();
                 var combined = string.Join("; ", innerMessages);
-                return SessionTurnResult.Error($"流式和非流式请求均失败：{combined}", LastResponse);
+                return SessionTurnResult.Error($"流式和非流式请求均失败：{combined}", LastResponse, originalException: ex);
             }
             if (ex is JoinCode.Abstractions.Exceptions.ApiException apiEx)
-                return SessionTurnResult.Error(apiEx.Message, LastResponse, apiEx.ErrorCode, apiEx.IsRetryable);
+                return SessionTurnResult.Error(apiEx.Message, LastResponse, apiEx.ErrorCode, apiEx.IsRetryable, ex);
             if (ex is JoinCode.Abstractions.Exceptions.WorkflowException wfEx)
-                return SessionTurnResult.Error(wfEx.Message, LastResponse, wfEx.ErrorCode);
-            return SessionTurnResult.Error(ex.Message, LastResponse);
+                return SessionTurnResult.Error(wfEx.Message, LastResponse, wfEx.ErrorCode, originalException: ex);
+            return SessionTurnResult.Error(ex.Message, LastResponse, originalException: ex);
         }
     }
 
@@ -646,6 +646,8 @@ public sealed class SessionTurnResult {
     public int TimeoutMs { get; init; }
     /// <summary>错误消息（仅失败时有效）</summary>
     public string? ErrorMessage { get; init; }
+    /// <summary>原始异常（仅失败时有效）— vv099：保留类型信息供下游 ClassifyException 递归检查 InnerException</summary>
+    public Exception? OriginalException { get; init; }
     /// <summary>错误代码（仅失败时有效）</summary>
     public string? ErrorCode { get; init; }
     /// <summary>错误是否可重试</summary>
@@ -686,11 +688,13 @@ public sealed class SessionTurnResult {
     /// <param name="partialResponse">错误前的部分响应文本</param>
     /// <param name="errorCode">错误代码，可选</param>
     /// <param name="isRetryable">错误是否可重试，默认 false</param>
+    /// <param name="originalException">原始异常，可选 — 保留类型信息供下游递归分类（vv099）</param>
     /// <returns>错误的会话轮次结果</returns>
-    public static SessionTurnResult Error(string errorMessage, string partialResponse, string? errorCode = null, bool isRetryable = false) => new() {
+    public static SessionTurnResult Error(string errorMessage, string partialResponse, string? errorCode = null, bool isRetryable = false, Exception? originalException = null) => new() {
         ErrorMessage = errorMessage,
         ErrorCode = errorCode,
         IsRetryable = isRetryable,
-        Response = partialResponse
+        Response = partialResponse,
+        OriginalException = originalException
     };
 }

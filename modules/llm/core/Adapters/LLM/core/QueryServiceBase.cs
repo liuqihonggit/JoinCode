@@ -24,6 +24,14 @@ public abstract partial class QueryServiceBase : IQueryService {
     /// <summary>可选文件系统（供派生类做 IO 时使用）</summary>
     protected readonly IFileSystem? FileSystem;
 
+    /// <summary>
+    /// SSE 流式逐行读取空闲超时（毫秒）— 对齐 PipeQueryService 的 idle timeout 保护（run #858 回归）。
+    /// HttpClient.Timeout 只覆盖到响应头，ReadAsStreamAsync 之后的流读取无兜底，
+    /// 流卡死（服务器 200 但不发数据不关闭）= 无限挂死。每行读取独立计时，超时抛 TimeoutException。
+    /// 默认 90s，派生类可覆写；测试子类可设短值加速回归。
+    /// </summary>
+    protected internal virtual int StreamIdleTimeoutMs => 90_000;
+
     /// <summary>最近一次响应的速率限制头（流式首块注入 metadata 用）</summary>
     private volatile Dictionary<string, string?> _lastRateLimitHeaders = [];
 

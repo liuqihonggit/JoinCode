@@ -122,9 +122,25 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
     }
 
     /// <summary>
-    /// 将异常分类为退出码和错误代码 — 区分 LLM 调用失败、配置错误、工具执行失败和通用错误
+    /// 将异常分类为退出码和错误代码 — 区分 LLM 调用失败、配置错误、工具执行失败和通用错误。
+    /// <para>vv099 修复：外层异常未匹配时递归检查 InnerException 链 — HttpRequestException 被包为
+    /// InvalidOperationException 后外层 Message 可能不含 IsLlmError 关键词，需递归发现内层类型。</para>
     /// </summary>
-    internal static (ExitCode exitCode, string errorCode) ClassifyException(Exception ex) => ex switch {
+    internal static (ExitCode exitCode, string errorCode) ClassifyException(Exception ex) {
+        var primary = ClassifyCore(ex);
+        if (primary is not (ExitCode.GeneralError, "RUNTIME_ERROR")) return primary;
+
+        var current = ex.InnerException;
+        while (current is not null) {
+            var inner = ClassifyCore(current);
+            if (inner is not (ExitCode.GeneralError, "RUNTIME_ERROR")) return inner;
+            current = current.InnerException;
+        }
+
+        return primary;
+    }
+
+    private static (ExitCode exitCode, string errorCode) ClassifyCore(Exception ex) => ex switch {
         JoinCode.Abstractions.Exceptions.ApiException => (ExitCode.LlmCallFailed, "LLM_CALL_FAILED"),
         System.Net.Http.HttpRequestException => (ExitCode.LlmCallFailed, "LLM_HTTP_ERROR"),
         JoinCode.Abstractions.Exceptions.ConfigurationException => (ExitCode.ConfigurationError, "CONFIG_ERROR"),

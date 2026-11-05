@@ -3,5 +3,6 @@
   <Project Path="abstractions/Abstractions.csproj" />
   <Project Path="hands/Abstractions.Hands.csproj" />
   <Project Path="agents/Abstractions.Agents.csproj" />
+  <Project Path="ai/Abstractions.AI.csproj" />
   <Project Path="infrastructure/Infrastructure.csproj" />
 </Solution>

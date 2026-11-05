@@ -213,9 +213,11 @@
 
 | vv | 缺陷 | 严重度 | 状态 |
 |----|------|--------|------|
-| vv013 | result 事件缺 uuid/session_id 赋值（基准要求有） | 中 | 待修复 |
-| vv088 | 空响应体导致卡死30秒（应优雅处理） | 高 | 待修复 |
-| vv099 | HTTP 异常被包为 InvalidOperationException 导致分类可能误判 | 中 | 待验证 |
+| vv013 | result 事件缺 uuid/session_id 赋值（基准要求有） | 中 | ✅ 已修复（提取 SdkMessageBase + Create() 工厂方法） |
+| vv088 | 空响应体导致卡死30秒（应优雅处理） | 高 | 待修复（错误处理领域） |
+| vv099 | HTTP 异常被包为 InvalidOperationException 导致分类可能误判 | 中 | 待验证（错误处理领域） |
+| ~~子代理事件空实现~~ | ~~OnSubagentStarted/Finished NDJSON 模式不发射~~ | - | ✅ 非缺陷：基准侧 SDK 也无 agent_started/finished 事件，空实现正确对齐 |
+| ~~OnContextUsage/OnLoopDetected/OnTimingSummary 空实现~~ | ~~上下文余量/循环检测/计时摘要不发射~~ | - | ✅ 非缺陷：基准侧 SDK 也无这些事件类型，空实现正确对齐 |
 
 ---
 

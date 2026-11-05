@@ -16,6 +16,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/cognition/hands_api/Hands.Api.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/cognition/hands_web/Hands.Web.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/cognition/hands_shell/Hands.Shell.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/cognition/hands_core/Hands.Core.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/hands/Abstractions.Hands.csproj" />

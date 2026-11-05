@@ -7,6 +7,9 @@
   <Project Path="brain.context.tests/Brain.Context.Tests.csproj" />
   <Project Path="brain.other.tests/Brain.Other.Tests.csproj" />
   <Project Path="brain.prompts.tests/Brain.Prompts.Tests.csproj" />
+  <Project Path="hands_api/Hands.Api.csproj" />
+  <Project Path="hands_web/Hands.Web.csproj" />
+  <Project Path="hands_shell/Hands.Shell.csproj" />
   <Project Path="hands_core/Hands.Core.csproj" />
   <Project Path="hands/Hands.csproj" />
   <Project Path="hands.api.tests/Hands.Api.Tests.csproj" />

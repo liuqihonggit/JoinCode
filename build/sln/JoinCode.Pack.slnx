@@ -54,6 +54,9 @@
     <Project Path="../../modules/cognition/brain_planning/Brain.Planning.csproj" />
     <Project Path="../../modules/cognition/brain_summary/Brain.Summary.csproj" />
     <Project Path="../../modules/cognition/brain/Brain.csproj" />
+    <Project Path="../../modules/cognition/hands_api/Hands.Api.csproj" />
+    <Project Path="../../modules/cognition/hands_web/Hands.Web.csproj" />
+    <Project Path="../../modules/cognition/hands_shell/Hands.Shell.csproj" />
     <Project Path="../../modules/cognition/hands_core/Hands.Core.csproj" />
     <Project Path="../../modules/cognition/hands/Hands.csproj" />
     <Project Path="../../modules/storage/scheduling/Scheduling.csproj" />

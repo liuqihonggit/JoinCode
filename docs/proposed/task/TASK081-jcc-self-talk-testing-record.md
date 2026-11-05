@@ -1,6 +1,7 @@
 # TASK081 — jcc 自己跟自己对话全链路测试记录
 
-> **状态：全部完成 ✅** — 32/32 测试项通过（S1-S25 + D1-D4 + Bug K/L/M + permission_denials/modelUsage 填充）
+> **状态：全部完成 ✅** — 32/32 测试项通过（S1-S25 + D1-D4 + Bug K/L/M + permission_denials/modelUsage 填充）+ 8/8 边缘场景（E1-E8）
+> **校验脚本**：`scripts/verification/task081/`（28 个 Python 脚本，详见 [README.md](../../../scripts/verification/task081/README.md)）
 > **目标**：AI 同时控制客户端（jcc）和服务端（MockServer），深究整个链路每个细节，找 bug
 > **原则**：抓大不放小 — 小细节往往是 bug 根源（如 ToolCallId 遗漏导致 id/input 空值）
 > **创建**：2026-11-05

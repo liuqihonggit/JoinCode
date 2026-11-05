@@ -108,7 +108,7 @@ public sealed class CliSession {
 
         // Bug 14: --format ndjson 启用 AX 模式（NDJSON 事件流），否则 DX 模式（彩色输出/通道管理器）
         var eventConsumer = agentMode
-            ? new CliEventConsumer(agentMode: true)
+            ? new CliEventConsumer(agentMode: true, sessionId: _sessionId)
             : new CliEventConsumer(consumerOutputChannel);
 
         _controller = new SessionController(

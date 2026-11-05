@@ -25,9 +25,11 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
 
     /// <summary>指定模式构造函数</summary>
     /// <param name="agentMode">true 表示 AX 模式（NDJSON 事件流），false 表示 DX 模式（彩色输出）</param>
-    public CliEventConsumer(bool agentMode) {
+    /// <param name="sessionId">会话 ID — 从 CliSession 传入，确保 NDJSON 输出的 session_id 与 transcript 目录名一致（-c 恢复会话依赖此一致性）</param>
+    public CliEventConsumer(bool agentMode, string? sessionId = null) {
         _agentMode = agentMode;
         _jsonContext = Cli.Output.CliOutputJsonContext.Default;
+        _sessionId = sessionId;
     }
 
     /// <summary>指定输出通道管理器构造函数 — DX 模式，通过通道管理器分发输出</summary>

@@ -15,7 +15,6 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     private readonly System.Collections.Generic.List<Cli.Output.SdkToolResultBlock> _pendingToolResults = [];
     private string? _sessionId;
     private bool _systemInitSent;
-    private int _uuidCounter;
 
     /// <summary>默认构造函数 — DX 模式（彩色终端输出）</summary>
     public CliEventConsumer() {
@@ -70,7 +69,6 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         _pendingBlocks.Clear();
         _pendingToolResults.Clear();
         _systemInitSent = false;
-        _uuidCounter = 0;
     }
 
     /// <summary>收到文本内容</summary>
@@ -281,8 +279,8 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         return result;
     }
 
-    /// <summary>生成下一个 uuid</summary>
-    private string NextUuid() => $"msg_{System.Threading.Interlocked.Increment(ref _uuidCounter):x8}";
+    /// <summary>生成下一个 uuid — 标准 UUID 格式，对齐基准侧 crypto.randomUUID()</summary>
+    private string NextUuid() => System.Guid.NewGuid().ToString();
 
     /// <summary>写入 SDK JSON 消息到 stdout</summary>
     private void WriteSdkJson<T>(T message) {

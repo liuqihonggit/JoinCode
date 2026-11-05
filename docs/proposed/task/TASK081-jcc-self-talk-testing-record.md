@@ -128,6 +128,13 @@
 - **验证**：S3 双工具调用 — 2 tool_use 在同一 assistant 消息，2 tool_result 在同一 user 消息
 - **commit**：d51643ce1
 
+### Bug F: NDJSON session_id 与 transcript 目录名不一致 — CliEventConsumer 自生成 UUID
+- **位置**：`modules/apps/cli/adapters/CliEventConsumer.cs:204`
+- **根因**：`CliEventConsumer.EnsureSystemInit()` 行 204 `_sessionId ??= Guid.NewGuid().ToString("N")` 自生成 UUID（如 `02c5959db375433992e26ca52a6e4ed2`），与 `SessionIdGenerator.Generate()` 格式（如 `20261105-1327-w1-w1-parent-2`，transcript 目录名）不一致。`-c <session_id>` 恢复会话时用 NDJSON 输出的 UUID，找不到 transcript 目录
+- **修复**：`CliEventConsumer(bool agentMode, string? sessionId = null)` 构造函数添加 `sessionId` 参数，`CliSession` 构造 `CliEventConsumer` 时传入 `_sessionId`
+- **验证**：S9 端到端 — NDJSON 输出 `session_id=20261105-1327-w1-w1-parent-2`，transcript 目录名 `20261105-1327-w1-w1-parent-2`，一致 ✅
+- **commit**：d3c769e3f
+
 ---
 
 ## 已发现但未修复的问题
@@ -169,6 +176,7 @@
 - [ ] **S9: 多轮对话（-c）** — 会话恢复 + 历史消息
   - 需要真实 transcript 文件
   - 检查：恢复后 messages 数组含历史 assistant 响应
+  - ✅ **已修复** — Bug F: NDJSON session_id 与 transcript 目录名不一致（commit d3c769e3f）
 
 - [x] **S10: 错误处理** ✅ — 401 正确传递（is_error=true, errors 含 HTTP 401 消息）；429/500/503 因 MockServer 注入响应被消费后重试拿到默认 200 空响应显示 success（测试环境限制非 jcc bug）
 

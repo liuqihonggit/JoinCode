@@ -129,7 +129,7 @@
 | vv085 | 超时 → exit=1240 | LLM API 超时 | exit=1240 NET_TIMEOUT | NonInteractiveExecuteStep.cs:81-87 | 是(慢响应) |
 | vv086 | --await 超时 → exit=1234 | `--await N` 超时 | exit=1234 TIMEOUT_AWAIT_DIAGNOSTIC | Program.cs:318-334 | 否 |
 | vv087 | 空响应 {} | LLM 返回 `{}` | "模型返回空回复" | SessionController.cs:202-203 | 是(注入空对象) |
-| vv088 | 空响应体 → 卡死30秒 (**bug**) | LLM 返回空 body | 当前卡死30秒(应优雅处理) | - | 是(注入空 body) |
+| vv088 | 空响应体 → SSE idle timeout | LLM 返回空 body/流卡死 | TimeoutException + 诱导信息 | OpenAIQueryService.cs:538-554 | 是(注入空 body) |
 | vv089 | 重试耗尽 | 重试次数超限 | "error_max_retries" stop_reason | QueryEngine.cs:210-213 | 是(持续 500) |
 | vv090 | 熔断器开启 | 连续失败触发熔断 | "熔断器开启" + CircuitBreakerOpenException | ResilientHttpExecutor.cs:53-56 | 是(持续 500) |
 | vv091 | 预算耗尽 | 重试预算耗尽 | "重试预算耗尽" | ResilientHttpExecutor.cs:157-160 | 是(持续 500+小预算) |
@@ -140,7 +140,7 @@
 | vv096 | 会话恢复失败 → exit=5 | --resume 不存在的会话 | exit=5 RESOURCE_SESSION_NOT_FOUND | SessionResumeStep.cs:54-63 | 否 |
 | vv097 | CrashStore 快照写入 | 未处理异常 | crash_{timestamp}.json + .log | Program.cs:480-554 | 否 |
 | vv098 | 三层重试叠加 | 500 错误 | ResilientHttpExecutor × StreamingFallback × QueryEngine | 三层 | 是(持续 500) |
-| vv099 | 异常包装类型丢失 | HTTP 错误被包为 InvalidOperationException | ClassifyException 可能误判 | NonInteractiveExecuteStep.cs:134 | 是(注入 500) |
+| vv099 | 异常分类递归检查 | HTTP 错误被包为 InvalidOperationException | ClassifyException 递归 InnerException 链 | NonInteractiveExecuteStep.cs:127-149 | 是(注入 500) |
 | vv100 | content_filter stop_reason | LLM 返回 content_filter | "模型回复被安全过滤" | SessionController.cs:199-200 | 是(注入 content_filter) |
 
 ---
@@ -214,8 +214,8 @@
 | vv | 缺陷 | 严重度 | 状态 |
 |----|------|--------|------|
 | vv013 | result 事件缺 uuid/session_id 赋值（基准要求有） | 中 | ✅ 已修复（提取 SdkMessageBase + Create() 工厂方法） |
-| vv088 | 空响应体导致卡死30秒（应优雅处理） | 高 | 待修复（错误处理领域） |
-| vv099 | HTTP 异常被包为 InvalidOperationException 导致分类可能误判 | 中 | 待验证（错误处理领域） |
+| vv088 | 空响应体导致卡死30秒（应优雅处理） | 高 | ✅ 已修复（OpenAIQueryService SSE idle timeout + StreamIdleTimeoutMs 属性） |
+| vv099 | HTTP 异常被包为 InvalidOperationException 导致分类可能误判 | 中 | ✅ 已修复（ClassifyException 递归 InnerException + SessionTurnResult.OriginalException） |
 | ~~子代理事件空实现~~ | ~~OnSubagentStarted/Finished NDJSON 模式不发射~~ | - | ✅ 非缺陷：基准侧 SDK 也无 agent_started/finished 事件，空实现正确对齐 |
 | ~~OnContextUsage/OnLoopDetected/OnTimingSummary 空实现~~ | ~~上下文余量/循环检测/计时摘要不发射~~ | - | ✅ 非缺陷：基准侧 SDK 也无这些事件类型，空实现正确对齐 |
 

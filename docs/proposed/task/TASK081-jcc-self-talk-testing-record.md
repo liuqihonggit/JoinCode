@@ -233,6 +233,12 @@
 
 - [x] **S18: 多轮工具调用** ✅ — T1 串行双工具 num_turns=3 ✅，T2 三轮工具 num_turns=4 ✅，T3 usage 完整字段（input/output/cache_read）✅
 
+- [x] **S19: result 字段验证** ✅ — duration_api_ms=1481 ✅，total_cost_usd=3.009836 ✅，stop_reason=end_turn ✅，num_turns=3 ✅，usage 正确 ✅，duration_ms >= duration_api_ms ✅
+
+- [x] **S20: stop_reason 映射** ✅ — finish_reason=length→max_tokens ✅，content_filter→content_filter ✅，tool_calls→tool_calls（中间轮）✅，stop→end_turn（最终轮）✅
+
+- [x] **S21: thinking + tool_use 混合** ✅ — thinking + tool_use 在同一 assistant 消息，thinking 在 tool_use 之前 ✅；text + thinking + text 混合：两个 text block 被 thinking 分隔不合并（MergeAdjacentBlocks 只合并相邻 block，正确行为），result 字段正确包含所有 text 内容（'Before after'）不含 thinking ✅
+
 ---
 
 ## 关键链路图（非交互模式）

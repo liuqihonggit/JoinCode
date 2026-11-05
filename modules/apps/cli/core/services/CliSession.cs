@@ -13,6 +13,7 @@ public sealed class CliSession {
     private readonly TurnDiffService _turnDiffService = new();
     private readonly DateTime _sessionStartedAt;
     private readonly SessionController _controller;
+    private readonly CliEventConsumer? _eventConsumer;
     private readonly IClockService _clock;
     private readonly ILogger<CliSession>? _logger;
     private readonly CommandServices _commandServices;
@@ -110,6 +111,7 @@ public sealed class CliSession {
         var eventConsumer = agentMode
             ? new CliEventConsumer(agentMode: true, sessionId: _sessionId)
             : new CliEventConsumer(consumerOutputChannel);
+        _eventConsumer = agentMode ? eventConsumer : null;
 
         _controller = new SessionController(
             chatService,
@@ -167,6 +169,7 @@ public sealed class CliSession {
     public void OverrideSessionId(string sessionId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         _sessionId = sessionId;
+        _eventConsumer?.UpdateSessionId(sessionId);
         _optionalServices?.GoalEngine?.SetSessionId(sessionId);
         _optionalServices?.GoalRegistry?.SetSessionId(sessionId);
         _optionalServices?.CronTaskStore?.SetSessionId(sessionId);

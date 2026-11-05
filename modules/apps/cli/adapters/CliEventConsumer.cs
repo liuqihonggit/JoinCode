@@ -49,6 +49,9 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     /// <summary>是否已收到首个 token</summary>
     public bool IsFirstToken => _isFirstToken;
 
+    /// <summary>更新会话 ID — 恢复会话时由 CliSession.OverrideSessionId 调用，确保 NDJSON 输出的 session_id 与恢复的会话一致</summary>
+    public void UpdateSessionId(string sessionId) => _sessionId = sessionId;
+
     /// <summary>重置状态（新一轮对话前调用）</summary>
     public void Reset() {
         _fullResponse.Clear();

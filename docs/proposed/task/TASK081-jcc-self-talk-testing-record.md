@@ -149,10 +149,11 @@
 - **commit**：50dffc502
 - **内容**：E2E 测试移除 MockServer.Core 引用，消除 FrameworkReference 传递
 
-### P3: -c 恢复会话后新 session transcript 为空（待调查）
-- **现象**：`-c <session_id>` 恢复会话成功（`SessionResume: restored ... with 2 messages`），assistant 响应正确，但新 session 目录的 `transcript.jsonl` 为 0 字节
-- **可能根因**：`PostProcessMainAgentAsync` 中 `snapshot.Count <= startCount` 提前返回（恢复的消息已在 contextManager 中，`startCount` 包含恢复的消息，新消息可能未通过 contextManager 添加）
-- **优先级**：P2 — 不影响功能（会话恢复成功，响应正确），仅 transcript 持久化缺失
+### P3: -c 恢复会话后 NDJSON session_id 不一致（已修复）
+- **现象**：`-c <session_id>` 恢复会话成功，但 NDJSON 输出新 session_id（如 `20261105-1335-w1-w1-parent-2`），与恢复的旧 session_id（`20261105-1327-w1-w1-parent-2`）不一致。transcript 写入旧目录（正确），但 NDJSON 输出新 ID 导致用户无法用输出的 session_id 再次恢复
+- **根因**：`SessionResumeStep.OverrideSessionId` 更新了 `CliSession._sessionId`，但 `CliEventConsumer._sessionId` 在构造时已固定（构造发生在 `SessionInitStep`，早于 `SessionResumeStep`），没被更新
+- **修复**：`CliEventConsumer` 添加 `UpdateSessionId(string)` 方法，`CliSession.OverrideSessionId` 调用 `_eventConsumer?.UpdateSessionId(sessionId)` 同步更新
+- **验证**：S9b 端到端 — 恢复后 NDJSON `session_id=20261105-1327-w1-w1-parent-2`（旧 ID），与 transcript 目录一致 ✅
 
 ---
 

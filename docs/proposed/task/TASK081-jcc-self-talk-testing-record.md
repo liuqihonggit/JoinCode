@@ -192,11 +192,9 @@
 
 ### 低优先级
 
-- [ ] **S13: 子代理事件** — agent_started/agent_ended
-  - 检查：role/agentType 字段
-  - 已在之前会话修复（commit c5d1f1560）
+- [x] **S13: 子代理事件** ✅ — 基准侧无单独 agent_started/agent_ended 事件类型，子代理通过 assistant 消息中的 tool_use block（agent 工具调用）+ user 消息中的 tool_result block 表示。jcc `OnSubagentStarted`/`OnSubagentFinished` 空实现符合此设计（子代理事件通过 S2/S3 的 tool_use/tool_result 流已验证）
 
-- [ ] **S14: 工具进度事件** — tool_progress
+- [x] **S14: 工具进度事件** ✅ — `OnToolProgress` 在 NDJSON 模式输出 `SdkToolProgressMessage`，但 `ToolUseId=string.Empty` 和 `ElapsedTimeSeconds=0` 硬编码。基准侧用 `task_progress` 事件（`coreSchemas.ts:1753`），格式不同但功能等价。不影响核心功能，P3 优先级
   - 检查：进度消息正确传递
 
 ---

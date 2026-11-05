@@ -26,11 +26,21 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     /// <summary>指定模式构造函数</summary>
     /// <param name="agentMode">true 表示 AX 模式（NDJSON 事件流），false 表示 DX 模式（彩色输出）</param>
     /// <param name="sessionId">会话 ID — 从 CliSession 传入，确保 NDJSON 输出的 session_id 与 transcript 目录名一致（-c 恢复会话依赖此一致性）</param>
-    public CliEventConsumer(bool agentMode, string? sessionId = null) {
+    /// <param name="tools">可用工具名称列表 — 从 IToolRegistry 获取，填充 system/init 消息的 tools 字段</param>
+    /// <param name="model">模型标识 — 从配置获取，填充 system/init 消息的 model 字段</param>
+    /// <param name="version">jcc 版本号 — 从程序集获取，填充 system/init 消息的 claude_code_version 字段</param>
+    public CliEventConsumer(bool agentMode, string? sessionId = null, System.Collections.Generic.IReadOnlyList<string>? tools = null, string? model = null, string? version = null) {
         _agentMode = agentMode;
         _jsonContext = Cli.Output.CliOutputJsonContext.Default;
         _sessionId = sessionId;
+        _tools = tools ?? [];
+        _model = model;
+        _version = version;
     }
+
+    private readonly System.Collections.Generic.IReadOnlyList<string> _tools = [];
+    private readonly string? _model;
+    private readonly string? _version;
 
     /// <summary>指定输出通道管理器构造函数 — DX 模式，通过通道管理器分发输出</summary>
     /// <param name="outputChannelManager">输出通道管理器（null 时退化为直接终端输出）</param>
@@ -208,8 +218,10 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         _systemInitSent = true;
         _sessionId ??= System.Guid.NewGuid().ToString("N");
         WriteSdkJson(new Cli.Output.SdkSystemInitMessage {
+            ClaudeCodeVersion = _version ?? System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? string.Empty,
             Cwd = System.IO.Directory.GetCurrentDirectory(),
-            Model = System.Environment.GetEnvironmentVariable("JCC_MODEL_ID") ?? "unknown",
+            Model = _model ?? System.Environment.GetEnvironmentVariable("JCC_MODEL_ID") ?? "unknown",
+            Tools = _tools.Count > 0 ? new System.Collections.Generic.List<string>(_tools) : [],
             PermissionMode = System.Environment.GetEnvironmentVariable("JCC_PERMISSION_MODE") ?? "default",
             Uuid = NextUuid(),
             SessionId = _sessionId

@@ -137,27 +137,32 @@
 
 ---
 
-## 待修复项清单（2026-11-05 排查发现）
+## 已修复项清单（PR #602 已合并）
 
-### 格式差异（对齐基准侧）
+### 格式差异（对齐基准侧）— 全部已修复 ✅
 
-- [ ] **D1: uuid 格式** — jcc 用 `msg_00000001` 递增 vs 基准侧 `crypto.randomUUID()`。位置：`CliEventConsumer.cs:285 NextUuid()`。修复：改用 `Guid.NewGuid().ToString()` 或保留递增但格式对齐
-- [ ] **D2: tool_use.input 格式** — jcc 用 JSON 字符串 vs 基准侧 JSON 对象。位置：`SdkMessage.cs:26 SdkToolUseBlock.Input`（string 类型）。修复：改为 `JsonElement` 或 `object` 类型，序列化为 JSON 对象
-- [ ] **D3: stop_reason 值** — jcc 用 `tool_calls` vs Anthropic `tool_use`。位置：`QueryEngine.cs:400 MapFinishReasonToStopReason`。修复：`"tool_calls" => "tool_use"`
-- [ ] **D4: tool_result.is_error** — jcc 工具成功时省略（null）vs 基准侧总是输出 `false`。位置：`CliEventConsumer.cs:139 IsError = isError ? true : null`。修复：改为 `IsError = isError`（非 nullable bool）
+- [x] **D1: uuid 格式** ✅ — 改为 `Guid.NewGuid().ToString()` 标准 UUID 格式。commit 2e4e8b32a
+- [x] **D2: tool_use.input 格式** ✅ — 改为 `JsonElement` 序列化为 JSON 对象。commit d9af16c24
+- [x] **D3: stop_reason 值** ✅ — `"tool_calls" => "tool_use"` 对齐 Anthropic。commit 37280dcde
+- [x] **D4: tool_result.is_error** ✅ — 改为非 nullable bool，工具成功输出 false。commit 37280dcde
 
-### 字段缺失
+### 字段缺失 — 全部已修复 ✅
 
-- [ ] **Bug K: model='unknown'** — system/init 的 model 字段从 `JCC_MODEL_ID` 获取，未设置时为 "unknown"。修复：从 ServiceProvider 获取实际模型名
-- [ ] **Bug L: result 缺 modelUsage** — 基准侧 `SDKResultSuccessSchema` 有 `modelUsage` 字段，jcc `SdkResultMessage` 缺失
-- [ ] **Bug M: result 缺 permission_denials** — 基准侧有 `permission_denials` 字段，jcc 缺失
+- [x] **Bug K: model='unknown'** ✅ — 优先从 `WorkflowConfig.Provider.ModelId` 获取。commit be1c3afde
+- [x] **Bug L: result 缺 modelUsage** ✅ — 添加 `SdkModelUsage` DTO + `ModelUsage` 字段。commit a1b8ce655
+- [x] **Bug M: result 缺 permission_denials** ✅ — 添加 `SdkPermissionDenial` DTO + `PermissionDenials` 字段。commit a1b8ce655
 
 ### 扩展测试场景
 
-- [ ] **S22: 并发请求** — 多个 jcc 进程同时运行
-- [ ] **S23: 超大上下文** — 非常长的 prompt / 非常多轮对话
-- [ ] **S24: MCP 工具** — MCP 服务器工具调用
-- [ ] **S25: 权限拒绝** — default 模式下工具被拒绝，检查 permission_denials
+- [x] **S22: 并发请求** ✅ — 3 个 jcc 进程同时运行，全部 result.subtype=success
+- [x] **S23: 超大上下文** ✅ — 5000 字符 prompt 正确处理（Windows 命令行长度限制 32767 字符）
+- [ ] **S24: MCP 工具** — 需要 MCP 服务器环境，暂跳过
+- [x] **S25: 权限拒绝** ✅ — default 模式下工具被拒绝（is_error=true），`permission_denials` 已填充 `[{'tool_name': 'bash', 'tool_use_id': 'call_s25_001', 'tool_input': {'command': 'echo hello'}}]`
+
+### 后续改进项（已完成）
+
+- [x] **permission_denials 填充** ✅ — `CliEventConsumer.OnToolEnd` 检测权限拒绝（resultText 含"拒绝"），记录 tool_name/tool_use_id/tool_input，通过 CliSession → StartupContext → SdkResultMessage 传递。commit a6d097a47
+- [x] **modelUsage 填充** ✅ — `NonInteractiveModeRunner.BuildModelUsage` 从 Usage+TotalCostUsd- 按模型构造用量字典。commit 51bd9999a
 
 ---
 

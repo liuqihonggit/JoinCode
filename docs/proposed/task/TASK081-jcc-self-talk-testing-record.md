@@ -155,6 +155,34 @@
 - **修复**：`CliEventConsumer` 添加 `UpdateSessionId(string)` 方法，`CliSession.OverrideSessionId` 调用 `_eventConsumer?.UpdateSessionId(sessionId)` 同步更新
 - **验证**：S9b 端到端 — 恢复后 NDJSON `session_id=20261105-1327-w1-w1-parent-2`（旧 ID），与 transcript 目录一致 ✅
 
+### Bug G: system/init 消息 tools/claude_code_version 字段为空
+- **位置**：`modules/apps/cli/adapters/CliEventConsumer.cs:210-216`（EnsureSystemInit）
+- **根因**：`SdkSystemInitMessage` 构造时未设置 `ClaudeCodeVersion`（默认空字符串）和 `Tools`（默认空数组）。`Model` 从 `JCC_MODEL_ID` 获取，未设置时为 "unknown"
+- **修复**：`CliEventConsumer` AX 模式构造函数添加 `tools`/`model`/`version` 参数；`CliSession` 从 `IToolRegistry.GetAllToolInfosAsync()` 获取工具列表传入，版本号从程序集获取
+- **验证**：S17 — `claude_code_version="1.0.0.0"` ✅，`tools=382个` ✅
+- **commit**：fc12bf62a
+
+### Bug H: result 事件 duration_api_ms=0 — API 耗时未记录
+- **位置**：跨层 — `QueryEngine` → `AgentStreamChunk` → `SessionController` → `CliSession` → `StartupContext` → `SdkResultMessage`
+- **根因**：`SdkResultMessage.DurationApiMs` 从未赋值。`QueryStreamChunk.ExecutionTimeMs` 有值但未传递到 `AgentStreamChunk`
+- **修复**：`SessionController.ApplyCompletionChunk` 读取 `chunk.ExecutionTimeMs` 设置 `_lastApiDurationMs`，跨层传递到 `SdkResultMessage.DurationApiMs`
+- **验证**：S17 — `duration_api_ms=189` ✅
+- **commit**：3038564f6
+
+### Bug I: result 事件 total_cost_usd=0 — 成本未传递
+- **位置**：跨层 — `QueryStreamChunk.CostUsd` 有值但 `AgentStreamChunk` 缺 `CostUsd` 字段
+- **根因**：`AgentStreamChunk` 缺 `CostUsd` 字段，`AgentBase.ExecuteStreamAsync` 转换中未传递
+- **修复**：`AgentStreamChunk` 添加 `CostUsd` 字段，`AgentBase` 传递 `CostUsd = chunk.CostUsd`，`SessionController.ApplyCompletionChunk` 读取，跨层传递到 `SdkResultMessage.TotalCostUsd`
+- **验证**：S17 — `total_cost_usd=3.009836` ✅
+- **commit**：3038564f6
+
+### Bug J: result 事件 stop_reason 未设置
+- **位置**：`NonInteractiveModeRunner` 构造 `SdkResultMessage` 时未设置 `StopReason`
+- **根因**：`SessionController._lastStopReason` 有值但未暴露为属性，未传递到 `SdkResultMessage`
+- **修复**：`SessionController.LastStopReason` 属性 → `CliSession.LastStopReason` → `StartupContext.StopReason` → `SdkResultMessage.StopReason`
+- **验证**：S17 — `stop_reason="end_turn"` ✅
+- **commit**：3038564f6
+
 ---
 
 ## 待测试场景清单
@@ -196,6 +224,14 @@
 
 - [x] **S14: 工具进度事件** ✅ — `OnToolProgress` 在 NDJSON 模式输出 `SdkToolProgressMessage`，但 `ToolUseId=string.Empty` 和 `ElapsedTimeSeconds=0` 硬编码。基准侧用 `task_progress` 事件（`coreSchemas.ts:1753`），格式不同但功能等价。不影响核心功能，P3 优先级
   - 检查：进度消息正确传递
+
+- [x] **S15: 超时场景** ✅ — fallback 启用时 idle timeout 触发后降级到非流式，拿到 MockServer 默认响应"成功"（测试环境限制非 jcc bug — MockServer 注入的延迟响应被流式请求消费后，fallback 的非流式请求拿到默认响应）
+
+- [x] **S16: 边缘场景** ✅ — T1 工具失败 is_error=true ✅，T2 特殊字符（中文/emoji/换行/引号/反斜杠）✅，T3 嵌套 JSON 参数 ✅，T4 finish_reason=stop 但有 tool_calls（jcc 仍执行工具，容错行为）⚠️，T5 多 thinking block 合并 ✅
+
+- [x] **S17: system/init 字段** ✅ Bug G/H/I/J 已修复 — `claude_code_version="1.0.0.0"` ✅，`tools=382个` ✅，`duration_api_ms=189` ✅，`total_cost_usd=3.009836` ✅，`stop_reason="end_turn"` ✅
+
+- [x] **S18: 多轮工具调用** ✅ — T1 串行双工具 num_turns=3 ✅，T2 三轮工具 num_turns=4 ✅，T3 usage 完整字段（input/output/cache_read）✅
 
 ---
 

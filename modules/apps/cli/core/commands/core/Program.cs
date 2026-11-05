@@ -236,6 +236,7 @@ class Program {
                     Subtype = "error_during_execution",
                     IsError = true,
                     Result = string.Empty,
+                    ModelUsage = new(),
                     Errors = [error.Message],
                 };
                 var json = RelaxedJsonSerializer.Serialize(resultMessage, Cli.Output.CliOutputJsonContext.Default);

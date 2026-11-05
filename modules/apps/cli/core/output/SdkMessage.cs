@@ -128,6 +128,45 @@ public sealed record SdkUsage {
     public int? CacheReadInputTokens { get; init; }
 }
 
+public sealed record SdkModelUsage {
+    /// <summary>输入 token 数</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("inputTokens")]
+    public int InputTokens { get; init; }
+    /// <summary>输出 token 数</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("outputTokens")]
+    public int OutputTokens { get; init; }
+    /// <summary>缓存读取 token 数</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("cacheReadInputTokens")]
+    public int CacheReadInputTokens { get; init; }
+    /// <summary>缓存创建 token 数</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("cacheCreationInputTokens")]
+    public int CacheCreationInputTokens { get; init; }
+    /// <summary>网络搜索请求数</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("webSearchRequests")]
+    public int WebSearchRequests { get; init; }
+    /// <summary>成本美元</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("costUSD")]
+    public decimal CostUSD { get; init; }
+    /// <summary>上下文窗口大小</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("contextWindow")]
+    public int ContextWindow { get; init; }
+    /// <summary>最大输出 token 数</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("maxOutputTokens")]
+    public int MaxOutputTokens { get; init; }
+}
+
+public sealed record SdkPermissionDenial {
+    /// <summary>被拒绝的工具名称</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("tool_name")]
+    public string ToolName { get; init; } = string.Empty;
+    /// <summary>工具调用标识</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("tool_use_id")]
+    public string ToolUseId { get; init; } = string.Empty;
+    /// <summary>工具输入参数</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("tool_input")]
+    public System.Text.Json.JsonElement ToolInput { get; init; }
+}
+
 public sealed record SdkResultMessage {
     /// <summary>消息类型</summary>
     public string Type => "result";
@@ -155,6 +194,12 @@ public sealed record SdkResultMessage {
     public decimal TotalCostUsd { get; init; }
     /// <summary>token 用量</summary>
     public SdkUsage? Usage { get; init; }
+    /// <summary>按模型统计的用量 — 对齐基准侧 modelUsage 字段</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("modelUsage")]
+    public System.Collections.Generic.Dictionary<string, SdkModelUsage>? ModelUsage { get; init; }
+    /// <summary>权限拒绝列表 — 对齐基准侧 permission_denials 字段</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("permission_denials")]
+    public System.Collections.Generic.List<SdkPermissionDenial> PermissionDenials { get; init; } = [];
     /// <summary>消息唯一标识</summary>
     public string? Uuid { get; init; }
     /// <summary>会话标识</summary>

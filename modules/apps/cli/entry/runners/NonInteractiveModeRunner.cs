@@ -64,10 +64,14 @@ internal static class NonInteractiveModeRunner {
             var resultMessage = new Cli.Output.SdkResultMessage {
                 Subtype = ok ? "success" : "error_during_execution",
                 DurationMs = context.ElapsedMs ?? 0,
+                DurationApiMs = context.ApiDurationMs,
                 IsError = !ok,
                 Result = context.FullResponse ?? string.Empty,
                 NumTurns = context.NumTurns,
+                TotalCostUsd = context.TotalCostUsd,
+                StopReason = context.StopReason,
                 Usage = context.Usage,
+                ModelUsage = new(),
                 Errors = ok ? [] : [context.StructuredError?.Message ?? $"Exit code {context.ExitCode}"],
             };
             var json = RelaxedJsonSerializer.Serialize(resultMessage, Cli.Output.CliOutputJsonContext.Default);

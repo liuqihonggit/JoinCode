@@ -48,8 +48,17 @@ public sealed class CliSession {
     /// <summary>本次会话的 LLM 调用轮次数（对齐 ClaudeCode SDK num_turns 语义）</summary>
     public int TotalTurns => _controller?.TotalTurns ?? 0;
 
-    /// <summary>本回合 Done 权威 usage 快照（对齐 ClaudeCode SDK usage 语义）</summary>
+    /// <summary>本回合 Done 权威 usage 快照（9对齐 ClaudeCode SDK usage 语义）</summary>
     public JoinCode.Abstractions.LLM.Chat.TokenUsage? LastUsage => _controller?.LastUsage;
+
+    /// <summary>本回合总成本美元（对齐 ClaudeCode SDK total_cost_usd 语义）</summary>
+    public decimal LastCostUsd => _controller?.LastCostUsd ?? 0m;
+
+    /// <summary>本回合 API 耗时毫秒（对齐 ClaudeCode SDK duration_api_ms 语义）</summary>
+    public long LastApiDurationMs => _controller?.LastApiDurationMs ?? 0;
+
+    /// <summary>本回合停止原因（对齐 ClaudeCode SDK stop_reason 语义）</summary>
+    public string? LastStopReason => _controller?.LastStopReason;
 
     /// <summary>聊天服务</summary>
     public IChatService ChatService => _controller.ChatService;
@@ -108,8 +117,21 @@ public sealed class CliSession {
         var consumerOutputChannel = mainAgent is null ? outputChannelManager : null;
 
         // Bug 14: --format ndjson 启用 AX 模式（NDJSON 事件流），否则 DX 模式（彩色输出/通道管理器）
+        // Bug G: AX 模式传入工具列表/模型名/版本号，填充 system/init 消息字段
+        System.Collections.Generic.IReadOnlyList<string>? toolNames = null;
+        if (agentMode) {
+            try {
+                var toolInfos = _toolRegistry.GetAllToolInfosAsync().GetAwaiter().GetResult();
+                toolNames = toolInfos.Select(t => t.Name).OrderBy(n => n).ToList();
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "[CliSession] 获取工具列表失败，system/init tools 将为空");
+            }
+        }
+        var modelId = optionalServices?.WorkflowConfig?.Provider.ModelId
+            ?? System.Environment.GetEnvironmentVariable("JCC_MODEL_ID")
+            ?? "unknown";
         var eventConsumer = agentMode
-            ? new CliEventConsumer(agentMode: true, sessionId: _sessionId)
+            ? new CliEventConsumer(agentMode: true, sessionId: _sessionId, tools: toolNames, model: modelId)
             : new CliEventConsumer(consumerOutputChannel);
         _eventConsumer = agentMode ? eventConsumer : null;
 

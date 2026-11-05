@@ -397,7 +397,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         "stop" => "end_turn",
         "length" => "max_tokens",
         "content_filter" => "content_filter",
-        "tool_calls" => "tool_calls",
+        "tool_calls" => "tool_use",
         _ => null
     };
 

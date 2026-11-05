@@ -57,6 +57,9 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
             sw.Stop();
             context.ElapsedMs = sw.ElapsedMilliseconds;
             context.NumTurns = session.TotalTurns;
+            context.TotalCostUsd = session.LastCostUsd;
+            context.ApiDurationMs = session.LastApiDurationMs;
+            context.StopReason = session.LastStopReason;
             context.Usage = session.LastUsage is { } usage
                 ? new Cli.Output.SdkUsage {
                     InputTokens = usage.PromptTokens,

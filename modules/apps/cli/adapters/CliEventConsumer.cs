@@ -15,7 +15,6 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     private readonly System.Collections.Generic.List<Cli.Output.SdkToolResultBlock> _pendingToolResults = [];
     private string? _sessionId;
     private bool _systemInitSent;
-    private int _uuidCounter;
 
     /// <summary>默认构造函数 — DX 模式（彩色终端输出）</summary>
     public CliEventConsumer() {
@@ -26,11 +25,21 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     /// <summary>指定模式构造函数</summary>
     /// <param name="agentMode">true 表示 AX 模式（NDJSON 事件流），false 表示 DX 模式（彩色输出）</param>
     /// <param name="sessionId">会话 ID — 从 CliSession 传入，确保 NDJSON 输出的 session_id 与 transcript 目录名一致（-c 恢复会话依赖此一致性）</param>
-    public CliEventConsumer(bool agentMode, string? sessionId = null) {
+    /// <param name="tools">可用工具名称列表 — 从 IToolRegistry 获取，填充 system/init 消息的 tools 字段</param>
+    /// <param name="model">模型标识 — 从配置获取，填充 system/init 消息的 model 字段</param>
+    /// <param name="version">jcc 版本号 — 从程序集获取，填充 system/init 消息的 claude_code_version 字段</param>
+    public CliEventConsumer(bool agentMode, string? sessionId = null, System.Collections.Generic.IReadOnlyList<string>? tools = null, string? model = null, string? version = null) {
         _agentMode = agentMode;
         _jsonContext = Cli.Output.CliOutputJsonContext.Default;
         _sessionId = sessionId;
+        _tools = tools ?? [];
+        _model = model;
+        _version = version;
     }
+
+    private readonly System.Collections.Generic.IReadOnlyList<string> _tools = [];
+    private readonly string? _model;
+    private readonly string? _version;
 
     /// <summary>指定输出通道管理器构造函数 — DX 模式，通过通道管理器分发输出</summary>
     /// <param name="outputChannelManager">输出通道管理器（null 时退化为直接终端输出）</param>
@@ -60,7 +69,6 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         _pendingBlocks.Clear();
         _pendingToolResults.Clear();
         _systemInitSent = false;
-        _uuidCounter = 0;
     }
 
     /// <summary>收到文本内容</summary>
@@ -106,7 +114,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
             _pendingBlocks.Add(new Cli.Output.SdkToolUseBlock {
                 Id = toolCallId ?? string.Empty,
                 Name = toolName,
-                Input = arguments ?? "{}"
+                Input = ParseInputToJsonElement(arguments)
             });
         } else {
             using var _ = TerminalHelper.SetColor(ConsoleColor.DarkGray);
@@ -126,7 +134,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
             _pendingToolResults.Add(new Cli.Output.SdkToolResultBlock {
                 ToolUseId = toolCallId ?? string.Empty,
                 Content = resultText ?? string.Empty,
-                IsError = isError ? true : null
+                IsError = isError
             });
         } else {
             using var _ = TerminalHelper.SetColor(isError ? ConsoleColor.Red : ConsoleColor.DarkGray);
@@ -208,8 +216,10 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         _systemInitSent = true;
         _sessionId ??= System.Guid.NewGuid().ToString("N");
         WriteSdkJson(new Cli.Output.SdkSystemInitMessage {
+            ClaudeCodeVersion = _version ?? System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? string.Empty,
             Cwd = System.IO.Directory.GetCurrentDirectory(),
-            Model = System.Environment.GetEnvironmentVariable("JCC_MODEL_ID") ?? "unknown",
+            Model = _model ?? System.Environment.GetEnvironmentVariable("JCC_MODEL_ID") ?? "unknown",
+            Tools = _tools.Count > 0 ? new System.Collections.Generic.List<string>(_tools) : [],
             PermissionMode = System.Environment.GetEnvironmentVariable("JCC_PERMISSION_MODE") ?? "default",
             Uuid = NextUuid(),
             SessionId = _sessionId
@@ -269,8 +279,14 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         return result;
     }
 
-    /// <summary>生成下一个 uuid</summary>
-    private string NextUuid() => $"msg_{System.Threading.Interlocked.Increment(ref _uuidCounter):x8}";
+    /// <summary>生成下一个 uuid — 标准 UUID 格式，对齐基准侧 crypto.randomUUID()</summary>
+    private string NextUuid() => System.Guid.NewGuid().ToString();
+
+    /// <summary>将工具参数 JSON 字符串解析为 JsonElement，使序列化输出 JSON 对象而非字符串</summary>
+    private static System.Text.Json.JsonElement ParseInputToJsonElement(string? json) {
+        using var doc = System.Text.Json.JsonDocument.Parse(string.IsNullOrEmpty(json) ? "{}" : json);
+        return doc.RootElement.Clone();
+    }
 
     /// <summary>写入 SDK JSON 消息到 stdout</summary>
     private void WriteSdkJson<T>(T message) {

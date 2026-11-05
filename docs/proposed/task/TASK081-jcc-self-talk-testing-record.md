@@ -137,6 +137,30 @@
 
 ---
 
+## 待修复项清单（2026-11-05 排查发现）
+
+### 格式差异（对齐基准侧）
+
+- [ ] **D1: uuid 格式** — jcc 用 `msg_00000001` 递增 vs 基准侧 `crypto.randomUUID()`。位置：`CliEventConsumer.cs:285 NextUuid()`。修复：改用 `Guid.NewGuid().ToString()` 或保留递增但格式对齐
+- [ ] **D2: tool_use.input 格式** — jcc 用 JSON 字符串 vs 基准侧 JSON 对象。位置：`SdkMessage.cs:26 SdkToolUseBlock.Input`（string 类型）。修复：改为 `JsonElement` 或 `object` 类型，序列化为 JSON 对象
+- [ ] **D3: stop_reason 值** — jcc 用 `tool_calls` vs Anthropic `tool_use`。位置：`QueryEngine.cs:400 MapFinishReasonToStopReason`。修复：`"tool_calls" => "tool_use"`
+- [ ] **D4: tool_result.is_error** — jcc 工具成功时省略（null）vs 基准侧总是输出 `false`。位置：`CliEventConsumer.cs:139 IsError = isError ? true : null`。修复：改为 `IsError = isError`（非 nullable bool）
+
+### 字段缺失
+
+- [ ] **Bug K: model='unknown'** — system/init 的 model 字段从 `JCC_MODEL_ID` 获取，未设置时为 "unknown"。修复：从 ServiceProvider 获取实际模型名
+- [ ] **Bug L: result 缺 modelUsage** — 基准侧 `SDKResultSuccessSchema` 有 `modelUsage` 字段，jcc `SdkResultMessage` 缺失
+- [ ] **Bug M: result 缺 permission_denials** — 基准侧有 `permission_denials` 字段，jcc 缺失
+
+### 扩展测试场景
+
+- [ ] **S22: 并发请求** — 多个 jcc 进程同时运行
+- [ ] **S23: 超大上下文** — 非常长的 prompt / 非常多轮对话
+- [ ] **S24: MCP 工具** — MCP 服务器工具调用
+- [ ] **S25: 权限拒绝** — default 模式下工具被拒绝，检查 permission_denials
+
+---
+
 ## 已发现但未修复的问题
 
 ### P1: NDJSON 格式对齐（已实现，PR #592）
@@ -154,6 +178,34 @@
 - **根因**：`SessionResumeStep.OverrideSessionId` 更新了 `CliSession._sessionId`，但 `CliEventConsumer._sessionId` 在构造时已固定（构造发生在 `SessionInitStep`，早于 `SessionResumeStep`），没被更新
 - **修复**：`CliEventConsumer` 添加 `UpdateSessionId(string)` 方法，`CliSession.OverrideSessionId` 调用 `_eventConsumer?.UpdateSessionId(sessionId)` 同步更新
 - **验证**：S9b 端到端 — 恢复后 NDJSON `session_id=20261105-1327-w1-w1-parent-2`（旧 ID），与 transcript 目录一致 ✅
+
+### Bug G: system/init 消息 tools/claude_code_version 字段为空
+- **位置**：`modules/apps/cli/adapters/CliEventConsumer.cs:210-216`（EnsureSystemInit）
+- **根因**：`SdkSystemInitMessage` 构造时未设置 `ClaudeCodeVersion`（默认空字符串）和 `Tools`（默认空数组）。`Model` 从 `JCC_MODEL_ID` 获取，未设置时为 "unknown"
+- **修复**：`CliEventConsumer` AX 模式构造函数添加 `tools`/`model`/`version` 参数；`CliSession` 从 `IToolRegistry.GetAllToolInfosAsync()` 获取工具列表传入，版本号从程序集获取
+- **验证**：S17 — `claude_code_version="1.0.0.0"` ✅，`tools=382个` ✅
+- **commit**：fc12bf62a
+
+### Bug H: result 事件 duration_api_ms=0 — API 耗时未记录
+- **位置**：跨层 — `QueryEngine` → `AgentStreamChunk` → `SessionController` → `CliSession` → `StartupContext` → `SdkResultMessage`
+- **根因**：`SdkResultMessage.DurationApiMs` 从未赋值。`QueryStreamChunk.ExecutionTimeMs` 有值但未传递到 `AgentStreamChunk`
+- **修复**：`SessionController.ApplyCompletionChunk` 读取 `chunk.ExecutionTimeMs` 设置 `_lastApiDurationMs`，跨层传递到 `SdkResultMessage.DurationApiMs`
+- **验证**：S17 — `duration_api_ms=189` ✅
+- **commit**：3038564f6
+
+### Bug I: result 事件 total_cost_usd=0 — 成本未传递
+- **位置**：跨层 — `QueryStreamChunk.CostUsd` 有值但 `AgentStreamChunk` 缺 `CostUsd` 字段
+- **根因**：`AgentStreamChunk` 缺 `CostUsd` 字段，`AgentBase.ExecuteStreamAsync` 转换中未传递
+- **修复**：`AgentStreamChunk` 添加 `CostUsd` 字段，`AgentBase` 传递 `CostUsd = chunk.CostUsd`，`SessionController.ApplyCompletionChunk` 读取，跨层传递到 `SdkResultMessage.TotalCostUsd`
+- **验证**：S17 — `total_cost_usd=3.009836` ✅
+- **commit**：3038564f6
+
+### Bug J: result 事件 stop_reason 未设置
+- **位置**：`NonInteractiveModeRunner` 构造 `SdkResultMessage` 时未设置 `StopReason`
+- **根因**：`SessionController._lastStopReason` 有值但未暴露为属性，未传递到 `SdkResultMessage`
+- **修复**：`SessionController.LastStopReason` 属性 → `CliSession.LastStopReason` → `StartupContext.StopReason` → `SdkResultMessage.StopReason`
+- **验证**：S17 — `stop_reason="end_turn"` ✅
+- **commit**：3038564f6
 
 ---
 
@@ -196,6 +248,20 @@
 
 - [x] **S14: 工具进度事件** ✅ — `OnToolProgress` 在 NDJSON 模式输出 `SdkToolProgressMessage`，但 `ToolUseId=string.Empty` 和 `ElapsedTimeSeconds=0` 硬编码。基准侧用 `task_progress` 事件（`coreSchemas.ts:1753`），格式不同但功能等价。不影响核心功能，P3 优先级
   - 检查：进度消息正确传递
+
+- [x] **S15: 超时场景** ✅ — fallback 启用时 idle timeout 触发后降级到非流式，拿到 MockServer 默认响应"成功"（测试环境限制非 jcc bug — MockServer 注入的延迟响应被流式请求消费后，fallback 的非流式请求拿到默认响应）
+
+- [x] **S16: 边缘场景** ✅ — T1 工具失败 is_error=true ✅，T2 特殊字符（中文/emoji/换行/引号/反斜杠）✅，T3 嵌套 JSON 参数 ✅，T4 finish_reason=stop 但有 tool_calls（jcc 仍执行工具，容错行为）⚠️，T5 多 thinking block 合并 ✅
+
+- [x] **S17: system/init 字段** ✅ Bug G/H/I/J 已修复 — `claude_code_version="1.0.0.0"` ✅，`tools=382个` ✅，`duration_api_ms=189` ✅，`total_cost_usd=3.009836` ✅，`stop_reason="end_turn"` ✅
+
+- [x] **S18: 多轮工具调用** ✅ — T1 串行双工具 num_turns=3 ✅，T2 三轮工具 num_turns=4 ✅，T3 usage 完整字段（input/output/cache_read）✅
+
+- [x] **S19: result 字段验证** ✅ — duration_api_ms=1481 ✅，total_cost_usd=3.009836 ✅，stop_reason=end_turn ✅，num_turns=3 ✅，usage 正确 ✅，duration_ms >= duration_api_ms ✅
+
+- [x] **S20: stop_reason 映射** ✅ — finish_reason=length→max_tokens ✅，content_filter→content_filter ✅，tool_calls→tool_calls（中间轮）✅，stop→end_turn（最终轮）✅
+
+- [x] **S21: thinking + tool_use 混合** ✅ — thinking + tool_use 在同一 assistant 消息，thinking 在 tool_use 之前 ✅；text + thinking + text 混合：两个 text block 被 thinking 分隔不合并（MergeAdjacentBlocks 只合并相邻 block，正确行为），result 字段正确包含所有 text 内容（'Before after'）不含 thinking ✅
 
 ---
 

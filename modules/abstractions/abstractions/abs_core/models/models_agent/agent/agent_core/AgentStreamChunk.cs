@@ -106,6 +106,11 @@ public sealed class AgentStreamChunk {
     public int TotalTurns { get; init; }
 
     /// <summary>
+    /// 美元成本（Complete 类型）— 对齐 ClaudeCode SDK total_cost_usd 语义
+    /// </summary>
+    public decimal CostUsd { get; init; }
+
+    /// <summary>
     /// 智能体 ID
     /// </summary>
     public required string AgentId { get; init; }

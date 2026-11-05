@@ -232,14 +232,12 @@ class Program {
     private static void WriteStructuredErrorToStdout(Cli.Output.CliStructuredError error, bool isNdjson) {
         try {
             if (isNdjson) {
-                var resultMessage = new Cli.Output.SdkResultMessage {
+                var resultMessage = Cli.Output.SdkResultMessage.Create(System.Guid.NewGuid().ToString("N")) with {
                     Subtype = "error_during_execution",
                     IsError = true,
                     Result = string.Empty,
                     ModelUsage = new(),
                     Errors = [error.Message],
-                    Uuid = System.Guid.NewGuid().ToString(),
-                    SessionId = System.Guid.NewGuid().ToString("N")
                 };
                 var json = RelaxedJsonSerializer.Serialize(resultMessage, Cli.Output.CliOutputJsonContext.Default);
                 Console.Out.WriteLine(json);

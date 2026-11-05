@@ -152,12 +152,12 @@
 - [x] **Bug L: result 缺 modelUsage** ✅ — 添加 `SdkModelUsage` DTO + `ModelUsage` 字段。commit a1b8ce655
 - [x] **Bug M: result 缺 permission_denials** ✅ — 添加 `SdkPermissionDenial` DTO + `PermissionDenials` 字段。commit a1b8ce655
 
-### 扩展测试场景（待做）
+### 扩展测试场景
 
-- [ ] **S22: 并发请求** — 多个 jcc 进程同时运行
-- [ ] **S23: 超大上下文** — 非常长的 prompt / 非常多轮对话
-- [ ] **S24: MCP 工具** — MCP 服务器工具调用
-- [ ] **S25: 权限拒绝** — default 模式下工具被拒绝，检查 permission_denials
+- [x] **S22: 并发请求** ✅ — 3 个 jcc 进程同时运行，全部 result.subtype=success
+- [x] **S23: 超大上下文** ✅ — 5000 字符 prompt 正确处理（Windows 命令行长度限制 32767 字符）
+- [ ] **S24: MCP 工具** — 需要 MCP 服务器环境，暂跳过
+- [x] **S25: 权限拒绝** ⚠️ — default 模式下工具被拒绝（is_error=true），但 `permission_denials` 字段未填充（后续改进项：需在工具拒绝路径中记录到 permission_denials）
 
 ---
 

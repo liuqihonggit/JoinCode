@@ -16,6 +16,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/cognition/brain_cost_tracking/Brain.CostTracking.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/cognition/brain_planning/Brain.Planning.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/cognition/brain_summary/Brain.Summary.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/hands/Abstractions.Hands.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />

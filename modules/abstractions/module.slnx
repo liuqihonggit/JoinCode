@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="primitives/Abstractions.Primitives.csproj" />
+  <Project Path="exceptions/Abstractions.Exceptions.csproj" />
   <Project Path="abstractions/Abstractions.csproj" />
   <Project Path="hands/Abstractions.Hands.csproj" />
   <Project Path="agents/Abstractions.Agents.csproj" />

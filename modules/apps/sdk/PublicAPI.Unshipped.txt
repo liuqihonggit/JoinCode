@@ -1,0 +1,23 @@
+#nullable enable
+JoinCode.Sdk.JoinCodeOptions
+JoinCode.Sdk.JoinCodeOptions.<Clone>$() -> JoinCode.Sdk.JoinCodeOptions!
+JoinCode.Sdk.JoinCodeOptions.ApiKey.get -> string?
+JoinCode.Sdk.JoinCodeOptions.ApiKey.init -> void
+JoinCode.Sdk.JoinCodeOptions.BaseUrl.get -> string?
+JoinCode.Sdk.JoinCodeOptions.BaseUrl.init -> void
+JoinCode.Sdk.JoinCodeOptions.Equals(JoinCode.Sdk.JoinCodeOptions? other) -> bool
+JoinCode.Sdk.JoinCodeOptions.JoinCodeOptions() -> void
+JoinCode.Sdk.JoinCodeOptions.Language.get -> string!
+JoinCode.Sdk.JoinCodeOptions.Language.init -> void
+JoinCode.Sdk.JoinCodeOptions.ModelId.get -> string!
+JoinCode.Sdk.JoinCodeOptions.ModelId.init -> void
+JoinCode.Sdk.JoinCodeOptions.Vendor.get -> JoinCode.Abstractions.Configuration.Providers.VendorKind
+JoinCode.Sdk.JoinCodeOptions.Vendor.init -> void
+JoinCode.Sdk.JoinCodeServiceCollectionExtensions
+override JoinCode.Sdk.JoinCodeOptions.Equals(object? obj) -> bool
+override JoinCode.Sdk.JoinCodeOptions.GetHashCode() -> int
+override JoinCode.Sdk.JoinCodeOptions.ToString() -> string!
+static JoinCode.Sdk.JoinCodeOptions.operator !=(JoinCode.Sdk.JoinCodeOptions? left, JoinCode.Sdk.JoinCodeOptions? right) -> bool
+static JoinCode.Sdk.JoinCodeOptions.operator ==(JoinCode.Sdk.JoinCodeOptions? left, JoinCode.Sdk.JoinCodeOptions? right) -> bool
+static JoinCode.Sdk.JoinCodeServiceCollectionExtensions.AddJoinCode(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<JoinCode.Sdk.JoinCodeOptions!>! configure) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static JoinCode.Sdk.JoinCodeServiceCollectionExtensions.AddJoinCode(this Microsoft.Extensions.Hosting.IHostBuilder! hostBuilder, System.Action<JoinCode.Sdk.JoinCodeOptions!>! configure) -> Microsoft.Extensions.Hosting.IHostBuilder!

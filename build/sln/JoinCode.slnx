@@ -18,6 +18,7 @@
   </Folder>
   <Folder Name="/lib/">
     <Project Path="../../modules/abstractions/primitives/Abstractions.Primitives.csproj" />
+    <Project Path="../../modules/abstractions/exceptions/Abstractions.Exceptions.csproj" />
     <Project Path="../../modules/abstractions/guard/Abstractions.Guard.csproj" />
     <Project Path="../../modules/abstractions/perception/Abstractions.Perception.csproj" />
     <Project Path="../../modules/abstractions/abstractions/Abstractions.csproj" />
@@ -61,9 +62,13 @@
     <Project Path="../../modules/composition/slash/Slash.csproj" />
   </Folder>
   <Folder Name="/core/execution/">
+    <Project Path="../../modules/cognition/brain_cost_tracking/Brain.CostTracking.csproj" />
+    <Project Path="../../modules/cognition/brain_planning/Brain.Planning.csproj" />
+    <Project Path="../../modules/cognition/brain_summary/Brain.Summary.csproj" />
     <Project Path="../../modules/cognition/brain/Brain.csproj" />
     <Project Path="../../modules/cognition/brain.context.tests/Brain.Context.Tests.csproj" />
     <Project Path="../../modules/cognition/brain.other.tests/Brain.Other.Tests.csproj" />
+    <Project Path="../../modules/cognition/hands_core/Hands.Core.csproj" />
     <Project Path="../../modules/cognition/hands/Hands.csproj" />
     <Project Path="../../modules/cognition/hands.api.tests/Hands.Api.Tests.csproj" />
     <Project Path="../../modules/cognition/hands.shell.tests/Hands.Shell.Tests.csproj" />

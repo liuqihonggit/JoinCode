@@ -3,6 +3,7 @@
 #       不等 CI 就暴露其他域的实现遗漏（如 IToolPermissionManager 扩展漏 native_gui 的 fake 实现）。
 # 用法: pwsh non_deliverables_tools/scripts/Build-AllDomains.ps1 [-Domains a,b,c] [-Configuration Debug]
 # 退出码: 0=全部成功; 1=存在失败（输出各域结果表）
+# 优化: 不指定 -Domains 时用 dotnet build JoinCode.slnx（并行编译，~90s vs 串行 ~211s）
 param(
     [string]$Domains = "",
     [string]$Configuration = "Debug"
@@ -14,6 +15,23 @@ $ErrorActionPreference = "Continue"
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 Push-Location $repoRoot
 
+# 快速路径：不指定 -Domains 时用 JoinCode.slnx 并行编译
+if ($Domains -eq "") {
+    Write-Host ">>> dotnet build build/sln/JoinCode.slnx (并行模式) ..." -ForegroundColor Cyan
+    $output = dotnet build build/sln/JoinCode.slnx -c $Configuration --nologo -v q 2>&1
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -eq 0) {
+        Write-Host "全部通过 (JoinCode.slnx)" -ForegroundColor Green
+        Pop-Location
+        exit 0
+    }
+    $output | Select-String -Pattern "error" | Select-Object -First 30 | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
+    Write-Host "JoinCode.slnx 编译失败 (exit $exitCode)" -ForegroundColor Red
+    Pop-Location
+    exit 1
+}
+
+# 按域编译模式（指定 -Domains 时使用）
 # 16 功能域 slnx + 跨层测试/卫星项目（无 slnx 的域按 CI ci-gui-daily.yml 形态直构 csproj）
 $allSolutions = @(
     "modules/abstractions/module.slnx",

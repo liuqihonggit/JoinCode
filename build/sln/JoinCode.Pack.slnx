@@ -38,6 +38,9 @@
   </Folder>
   <Folder Name="/infrastructure/">
     <Project Path="../../modules/abstractions/infrastructure/Infrastructure.csproj" />
+    <Project Path="../../modules/abstractions/infrastructure_hot_spot/Infrastructure.HotSpot.csproj" />
+    <Project Path="../../modules/abstractions/infrastructure_localization/Infrastructure.Localization.csproj" />
+    <Project Path="../../modules/abstractions/infrastructure_telemetry/Infrastructure.Telemetry.csproj" />
     <Project Path="../../modules/async_primitives/transport.impl/Transport.Impl.csproj" />
   </Folder>
   <Folder Name="/llm/">

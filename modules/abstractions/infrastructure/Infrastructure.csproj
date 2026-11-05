@@ -31,6 +31,10 @@
     <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="$(RepoRoot)modules/generators/fsm.generator/Fsm.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/ai/Abstractions.AI.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.AI" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="JoinCode.Brain.Tests" />

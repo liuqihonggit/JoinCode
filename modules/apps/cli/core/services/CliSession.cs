@@ -13,6 +13,7 @@ public sealed class CliSession {
     private readonly TurnDiffService _turnDiffService = new();
     private readonly DateTime _sessionStartedAt;
     private readonly SessionController _controller;
+    private readonly CliEventConsumer? _eventConsumer;
     private readonly IClockService _clock;
     private readonly ILogger<CliSession>? _logger;
     private readonly CommandServices _commandServices;
@@ -108,8 +109,9 @@ public sealed class CliSession {
 
         // Bug 14: --format ndjson 启用 AX 模式（NDJSON 事件流），否则 DX 模式（彩色输出/通道管理器）
         var eventConsumer = agentMode
-            ? new CliEventConsumer(agentMode: true)
+            ? new CliEventConsumer(agentMode: true, sessionId: _sessionId)
             : new CliEventConsumer(consumerOutputChannel);
+        _eventConsumer = agentMode ? eventConsumer : null;
 
         _controller = new SessionController(
             chatService,
@@ -167,6 +169,7 @@ public sealed class CliSession {
     public void OverrideSessionId(string sessionId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         _sessionId = sessionId;
+        _eventConsumer?.UpdateSessionId(sessionId);
         _optionalServices?.GoalEngine?.SetSessionId(sessionId);
         _optionalServices?.GoalRegistry?.SetSessionId(sessionId);
         _optionalServices?.CronTaskStore?.SetSessionId(sessionId);

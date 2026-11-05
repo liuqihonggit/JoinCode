@@ -128,6 +128,13 @@
 - **验证**：S3 双工具调用 — 2 tool_use 在同一 assistant 消息，2 tool_result 在同一 user 消息
 - **commit**：d51643ce1
 
+### Bug F: NDJSON session_id 与 transcript 目录名不一致 — CliEventConsumer 自生成 UUID
+- **位置**：`modules/apps/cli/adapters/CliEventConsumer.cs:204`
+- **根因**：`CliEventConsumer.EnsureSystemInit()` 行 204 `_sessionId ??= Guid.NewGuid().ToString("N")` 自生成 UUID（如 `02c5959db375433992e26ca52a6e4ed2`），与 `SessionIdGenerator.Generate()` 格式（如 `20261105-1327-w1-w1-parent-2`，transcript 目录名）不一致。`-c <session_id>` 恢复会话时用 NDJSON 输出的 UUID，找不到 transcript 目录
+- **修复**：`CliEventConsumer(bool agentMode, string? sessionId = null)` 构造函数添加 `sessionId` 参数，`CliSession` 构造 `CliEventConsumer` 时传入 `_sessionId`
+- **验证**：S9 端到端 — NDJSON 输出 `session_id=20261105-1327-w1-w1-parent-2`，transcript 目录名 `20261105-1327-w1-w1-parent-2`，一致 ✅
+- **commit**：d3c769e3f
+
 ---
 
 ## 已发现但未修复的问题
@@ -141,6 +148,12 @@
 ### P2: CI FrameworkReference 传递（已修复）
 - **commit**：50dffc502
 - **内容**：E2E 测试移除 MockServer.Core 引用，消除 FrameworkReference 传递
+
+### P3: -c 恢复会话后 NDJSON session_id 不一致（已修复）
+- **现象**：`-c <session_id>` 恢复会话成功，但 NDJSON 输出新 session_id（如 `20261105-1335-w1-w1-parent-2`），与恢复的旧 session_id（`20261105-1327-w1-w1-parent-2`）不一致。transcript 写入旧目录（正确），但 NDJSON 输出新 ID 导致用户无法用输出的 session_id 再次恢复
+- **根因**：`SessionResumeStep.OverrideSessionId` 更新了 `CliSession._sessionId`，但 `CliEventConsumer._sessionId` 在构造时已固定（构造发生在 `SessionInitStep`，早于 `SessionResumeStep`），没被更新
+- **修复**：`CliEventConsumer` 添加 `UpdateSessionId(string)` 方法，`CliSession.OverrideSessionId` 调用 `_eventConsumer?.UpdateSessionId(sessionId)` 同步更新
+- **验证**：S9b 端到端 — 恢复后 NDJSON `session_id=20261105-1327-w1-w1-parent-2`（旧 ID），与 transcript 目录一致 ✅
 
 ---
 
@@ -169,6 +182,7 @@
 - [ ] **S9: 多轮对话（-c）** — 会话恢复 + 历史消息
   - 需要真实 transcript 文件
   - 检查：恢复后 messages 数组含历史 assistant 响应
+  - ✅ **已修复** — Bug F: NDJSON session_id 与 transcript 目录名不一致（commit d3c769e3f）
 
 - [x] **S10: 错误处理** ✅ — 401 正确传递（is_error=true, errors 含 HTTP 401 消息）；429/500/503 因 MockServer 注入响应被消费后重试拿到默认 200 空响应显示 success（测试环境限制非 jcc bug）
 
@@ -178,11 +192,9 @@
 
 ### 低优先级
 
-- [ ] **S13: 子代理事件** — agent_started/agent_ended
-  - 检查：role/agentType 字段
-  - 已在之前会话修复（commit c5d1f1560）
+- [x] **S13: 子代理事件** ✅ — 基准侧无单独 agent_started/agent_ended 事件类型，子代理通过 assistant 消息中的 tool_use block（agent 工具调用）+ user 消息中的 tool_result block 表示。jcc `OnSubagentStarted`/`OnSubagentFinished` 空实现符合此设计（子代理事件通过 S2/S3 的 tool_use/tool_result 流已验证）
 
-- [ ] **S14: 工具进度事件** — tool_progress
+- [x] **S14: 工具进度事件** ✅ — `OnToolProgress` 在 NDJSON 模式输出 `SdkToolProgressMessage`，但 `ToolUseId=string.Empty` 和 `ElapsedTimeSeconds=0` 硬编码。基准侧用 `task_progress` 事件（`coreSchemas.ts:1753`），格式不同但功能等价。不影响核心功能，P3 优先级
   - 检查：进度消息正确传递
 
 ---

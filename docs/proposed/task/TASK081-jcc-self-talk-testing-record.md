@@ -157,7 +157,12 @@
 - [x] **S22: 并发请求** ✅ — 3 个 jcc 进程同时运行，全部 result.subtype=success
 - [x] **S23: 超大上下文** ✅ — 5000 字符 prompt 正确处理（Windows 命令行长度限制 32767 字符）
 - [ ] **S24: MCP 工具** — 需要 MCP 服务器环境，暂跳过
-- [x] **S25: 权限拒绝** ⚠️ — default 模式下工具被拒绝（is_error=true），但 `permission_denials` 字段未填充（后续改进项：需在工具拒绝路径中记录到 permission_denials）
+- [x] **S25: 权限拒绝** ✅ — default 模式下工具被拒绝（is_error=true），`permission_denials` 已填充 `[{'tool_name': 'bash', 'tool_use_id': 'call_s25_001', 'tool_input': {'command': 'echo hello'}}]`
+
+### 后续改进项（已完成）
+
+- [x] **permission_denials 填充** ✅ — `CliEventConsumer.OnToolEnd` 检测权限拒绝（resultText 含"拒绝"），记录 tool_name/tool_use_id/tool_input，通过 CliSession → StartupContext → SdkResultMessage 传递。commit a6d097a47
+- [x] **modelUsage 填充** ✅ — `NonInteractiveModeRunner.BuildModelUsage` 从 Usage+TotalCostUsd- 按模型构造用量字典。commit 51bd9999a
 
 ---
 

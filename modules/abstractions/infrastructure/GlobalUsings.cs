@@ -3,6 +3,7 @@ global using Core.Ssh;
 global using Core.Utils;
 global using Infrastructure.Configuration;
 global using Infrastructure.Http;
+global using Infrastructure.Localization;
 global using Infrastructure.IO.Services.Diff;
 global using Infrastructure.IO.Services.FileOps;
 global using Infrastructure.Network.Downloader;

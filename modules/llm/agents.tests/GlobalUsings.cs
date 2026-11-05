@@ -35,7 +35,6 @@ global using JoinCode.Abstractions.Exceptions;
 global using JoinCode.Abstractions.Hooks;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.Interfaces.Context;
-global using JoinCode.Abstractions.Interfaces.Doctor;
 global using JoinCode.Abstractions.Interfaces.Lsp;
 global using JoinCode.Abstractions.Interfaces.Scheduling;
 global using JoinCode.Abstractions.LLM;

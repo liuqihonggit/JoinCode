@@ -1,4 +1,4 @@
-﻿// 引擎库全局命名空间 — 派生自 cli 宿主 GlobalUsings，剔除 CLI 宿主专属行
+// 引擎库全局命名空间 — 派生自 cli 宿主 GlobalUsings，剔除 CLI 宿主专属行
 // （Cli.Display/Interaction/Output、CliCommands、Queue、Pipe、Services、App.Builder、TerminalHelper）
 // 命名空间约定（ADR 0143）：搬移文件保持原命名空间不变，跨程序集同命名空间合法
 global using System.Globalization;
@@ -63,7 +63,6 @@ global using JoinCode.Abstractions.Hooks;
 global using JoinCode.Abstractions.Http;
 global using JoinCode.Abstractions.Insights;
 global using JoinCode.Abstractions.Interfaces;
-global using JoinCode.Abstractions.Interfaces.Doctor;
 global using JoinCode.Abstractions.Interfaces.Scheduling;
 global using JoinCode.Abstractions.Interfaces.Security;
 global using JoinCode.Abstractions.LLM;

@@ -149,6 +149,11 @@
 - **commit**：50dffc502
 - **内容**：E2E 测试移除 MockServer.Core 引用，消除 FrameworkReference 传递
 
+### P3: -c 恢复会话后新 session transcript 为空（待调查）
+- **现象**：`-c <session_id>` 恢复会话成功（`SessionResume: restored ... with 2 messages`），assistant 响应正确，但新 session 目录的 `transcript.jsonl` 为 0 字节
+- **可能根因**：`PostProcessMainAgentAsync` 中 `snapshot.Count <= startCount` 提前返回（恢复的消息已在 contextManager 中，`startCount` 包含恢复的消息，新消息可能未通过 contextManager 添加）
+- **优先级**：P2 — 不影响功能（会话恢复成功，响应正确），仅 transcript 持久化缺失
+
 ---
 
 ## 待测试场景清单

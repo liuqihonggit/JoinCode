@@ -136,7 +136,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
             _pendingToolResults.Add(new Cli.Output.SdkToolResultBlock {
                 ToolUseId = toolCallId ?? string.Empty,
                 Content = resultText ?? string.Empty,
-                IsError = isError ? true : null
+                IsError = isError
             });
         } else {
             using var _ = TerminalHelper.SetColor(isError ? ConsoleColor.Red : ConsoleColor.DarkGray);

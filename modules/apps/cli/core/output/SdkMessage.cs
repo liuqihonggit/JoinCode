@@ -34,7 +34,7 @@ public sealed record SdkToolResultBlock : SdkContentBlock {
     public string Content { get; init; } = string.Empty;
     /// <summary>是否为错误</summary>
     [System.Text.Json.Serialization.JsonPropertyName("is_error")]
-    public bool? IsError { get; init; }
+    public bool IsError { get; init; }
 }
 
 public sealed record SdkMessageBody {

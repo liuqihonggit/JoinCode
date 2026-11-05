@@ -1,5 +1,7 @@
 # TASK081 — jcc 自己跟自己对话全链路测试记录
 
+> **状态：全部完成 ✅** — 32/32 测试项通过（S1-S25 + D1-D4 + Bug K/L/M + permission_denials/modelUsage 填充）+ 8/8 边缘场景（E1-E8）
+> **校验脚本**：`scripts/verification/task081/`（28 个 Python 脚本，详见 [README.md](../../../scripts/verification/task081/README.md)）
 > **目标**：AI 同时控制客户端（jcc）和服务端（MockServer），深究整个链路每个细节，找 bug
 > **原则**：抓大不放小 — 小细节往往是 bug 根源（如 ToolCallId 遗漏导致 id/input 空值）
 > **创建**：2026-11-05
@@ -156,13 +158,24 @@
 
 - [x] **S22: 并发请求** ✅ — 3 个 jcc 进程同时运行，全部 result.subtype=success
 - [x] **S23: 超大上下文** ✅ — 5000 字符 prompt 正确处理（Windows 命令行长度限制 32767 字符）
-- [ ] **S24: MCP 工具** — 需要 MCP 服务器环境，暂跳过
+- [x] **S24: MCP 工具** ✅ — `jcc mcp_serve --transport http --port 9911` 启动 MCP 服务端，用 curl 验证完整 MCP 协议：initialize（protocolVersion=2025-11-25, server=jcc-mcp v1.0.0）→ tools/list（367 工具/50 分类）→ tools/call 无参数（get_process_info, isError=false）→ tools/call 带参数（tool_search query="read file", isError=false）。权限模式验证：bypass 模式工具调用成功，默认模式被拒绝（isError=true）。测试脚本 `.xxx/test_s24_mcp.py`，11/11 PASS
 - [x] **S25: 权限拒绝** ✅ — default 模式下工具被拒绝（is_error=true），`permission_denials` 已填充 `[{'tool_name': 'bash', 'tool_use_id': 'call_s25_001', 'tool_input': {'command': 'echo hello'}}]`
 
 ### 后续改进项（已完成）
 
 - [x] **permission_denials 填充** ✅ — `CliEventConsumer.OnToolEnd` 检测权限拒绝（resultText 含"拒绝"），记录 tool_name/tool_use_id/tool_input，通过 CliSession → StartupContext → SdkResultMessage 传递。commit a6d097a47
 - [x] **modelUsage 填充** ✅ — `NonInteractiveModeRunner.BuildModelUsage` 从 Usage+TotalCostUsd- 按模型构造用量字典。commit 51bd9999a
+
+### 边缘场景测试（E1-E8，全部通过）
+
+- [x] **E1: 流式断连** ✅ — 无 [DONE] 终止符的 SSE 流，jcc 正确接收并合并部分数据（"Hello partial stream"），result.subtype=success
+- [x] **E2: 多工具调用** ✅ — LLM 一次返回 2 个 tool_calls（bash echo a + bash echo b），jcc 顺序执行，tool_use/tool_result 正确配对（call_e2_1→"a", call_e2_2→"b"），最终文本 "Both tools completed"
+- [x] **E3: 超大工具输出** ✅ — `seq 1 1000` 生成 1000 行输出，tool_result total_len=5023, num_lines=1006，完整未截断
+- [x] **E4: 空工具参数** ✅ — tool_use input={} 正确传递，bash 返回参数缺失错误提示（"调用工具 'bash' 时缺少必需参数"），含诱导方式
+- [x] **E5: 工具调用链** ✅ — 3 轮注入（tool1→result1→tool2→result2→final），7 个事件顺序正确：system→tool_use_1→tool_result_1→tool_use_2→tool_result_2→text→result
+- [x] **E6: 错误工具调用** ✅ — `exit 1` 非零退出码，tool_result is_error=true，content 含 "Exit code: 1 — Command failed"；`nonexistent_cmd` 返回 "command not found" + Exit code 127
+- [x] **E7: 非 UTF-8 字符** ✅ — prompt "你好 🎉 test" 正确传递，响应 "你好世界 🎉 emoji test" 正确输出（len=17, has_emoji=True, has_chinese=True）
+- [x] **E8: 嵌套 JSON 工具参数** ✅ — input 含嵌套对象 `{"command":"echo nested_test","env":{"KEY1":"val1","KEY2":{"nested":true,"arr":[1,2,3]}}}`，正确传递和解析，工具执行成功
 
 ---
 
@@ -236,10 +249,7 @@
 
 ### 中优先级
 
-- [ ] **S9: 多轮对话（-c）** — 会话恢复 + 历史消息
-  - 需要真实 transcript 文件
-  - 检查：恢复后 messages 数组含历史 assistant 响应
-  - ✅ **已修复** — Bug F: NDJSON session_id 与 transcript 目录名不一致（commit d3c769e3f）
+- [x] **S9: 多轮对话（-c）** ✅ — `--continue` 恢复会话成功（"已恢复会话: 20261105-1642-w1-w1-parent-2 (2 条消息)"），transcript.jsonl 包含完整历史（3 user + 3 assistant 消息），第一轮 "Hello from session 1" 和第二轮 "Welcome back to session 2" 均正确保存，session_id 与 transcript 目录名一致（Bug F 已修复）。测试脚本 `.xxx/test_s9_continue.py`，6/6 PASS
 
 - [x] **S10: 错误处理** ✅ — 401 正确传递（is_error=true, errors 含 HTTP 401 消息）；429/500/503 因 MockServer 注入响应被消费后重试拿到默认 200 空响应显示 success（测试环境限制非 jcc bug）
 

@@ -52,7 +52,7 @@ jobs:
             csprojs: modules/tools/rg.tests/Rg.Tests.csproj modules/tools/gh.tests/Gh.Tests.csproj
           - domain: gui-core
             # GUI 协议核心（ADR 0145 B3）：纯 net10.0 零 Avalonia/WebView2 — ubuntu 可跑，windows job 收窄
-            os: ubuntu-latest
+            os: ubuntu-24.04
             csprojs: native_gui/tests/native_gui.core.tests/NativeGui.Core.Tests.csproj
           - domain: gui-host
             # GUI 宿主表现层：CsWinRT 投影工具链（Windows PE）+ WebView2 仅 Windows 原生可跑

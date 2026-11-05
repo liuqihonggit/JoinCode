@@ -71,7 +71,7 @@ internal static class NonInteractiveModeRunner {
                 TotalCostUsd = context.TotalCostUsd,
                 StopReason = context.StopReason,
                 Usage = context.Usage,
-                ModelUsage = new(),
+                ModelUsage = BuildModelUsage(context),
                 PermissionDenials = context.PermissionDenials,
                 Errors = ok ? [] : [context.StructuredError?.Message ?? $"Exit code {context.ExitCode}"],
             };
@@ -81,5 +81,21 @@ internal static class NonInteractiveModeRunner {
 
         Cli.TerminalHelper.SuppressStdout = false; // 恢复 stdout（测试可重入）
         return context.ExitCode;
+    }
+
+    /// <summary>从 Usage + TotalCostUsd 构造按模型分组的用量字典</summary>
+    private static System.Collections.Generic.Dictionary<string, Cli.Output.SdkModelUsage> BuildModelUsage(StartupContext context) {
+        var modelId = context.Config.Provider.ModelId;
+        if (string.IsNullOrEmpty(modelId) || context.Usage is null)
+            return new();
+        return new() {
+            [modelId] = new Cli.Output.SdkModelUsage {
+                InputTokens = context.Usage.InputTokens,
+                OutputTokens = context.Usage.OutputTokens,
+                CacheReadInputTokens = context.Usage.CacheReadInputTokens ?? 0,
+                CacheCreationInputTokens = context.Usage.CacheCreationInputTokens ?? 0,
+                CostUSD = context.TotalCostUsd,
+            }
+        };
     }
 }

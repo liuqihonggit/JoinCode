@@ -232,7 +232,7 @@ class Program {
     private static void WriteStructuredErrorToStdout(Cli.Output.CliStructuredError error, bool isNdjson) {
         try {
             if (isNdjson) {
-                var resultMessage = new Cli.Output.SdkResultMessage {
+                var resultMessage = Cli.Output.SdkResultMessage.Create(System.Guid.NewGuid().ToString("N")) with {
                     Subtype = "error_during_execution",
                     IsError = true,
                     Result = string.Empty,

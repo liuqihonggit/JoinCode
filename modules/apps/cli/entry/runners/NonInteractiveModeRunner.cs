@@ -61,7 +61,7 @@ internal static class NonInteractiveModeRunner {
         } else if (options.IsNdjsonMode) {
             // NDJSON 模式: 事件已由 CliEventConsumer 流式输出，此处输出最终 result 消息（对齐基准 SDK result message）
             var ok = context.ExitCode == 0;
-            var resultMessage = new Cli.Output.SdkResultMessage {
+            var resultMessage = Cli.Output.SdkResultMessage.Create(context.SessionId) with {
                 Subtype = ok ? "success" : "error_during_execution",
                 DurationMs = context.ElapsedMs ?? 0,
                 DurationApiMs = context.ApiDurationMs,

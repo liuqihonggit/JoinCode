@@ -115,6 +115,22 @@ public sealed class NonInteractiveExecuteStepTests {
         errorCode.Should().Be("LLM_CALL_FAILED");
     }
 
+    /// <summary>
+    /// vv099 回归：HttpRequestException 被包为 InvalidOperationException 后，
+    /// 外层 Message 不含 IsLlmError 关键词时，ClassifyException 应递归检查 InnerException 类型。
+    /// 修复前：落入 _ => (GeneralError, "RUNTIME_ERROR")，误判为通用错误。
+    /// 修复后：递归发现 InnerException 是 HttpRequestException → (LlmCallFailed, "LLM_HTTP_ERROR")。
+    /// </summary>
+    [Fact]
+    public void ClassifyException_WithInnerHttpRequestException_Should_Return_LlmCallFailed() {
+        var inner = new HttpRequestException("connection reset by peer");
+        var ex = new InvalidOperationException("some generic wrapper", inner);
+        var (exitCode, errorCode) = NonInteractiveExecuteStep.ClassifyException(ex);
+        exitCode.Should().Be(ExitCode.LlmCallFailed,
+            "InnerException 是 HttpRequestException 应递归归类为 LLM 调用失败(rc=10)而非 GeneralError(rc=1)");
+        errorCode.Should().Be("LLM_HTTP_ERROR");
+    }
+
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     private static StartupContext CreateContext(bool dryRun, string prompt) {
         var config = new WorkflowConfig {

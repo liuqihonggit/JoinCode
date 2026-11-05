@@ -17,6 +17,8 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     private readonly System.Collections.Generic.Dictionary<string, string?> _toolInputs = [];
     private string? _sessionId;
     private bool _systemInitSent;
+    private string? _currentToolCallId;
+    private long _toolStartTimestamp;
 
     /// <summary>获取权限拒绝列表 — 供 NonInteractiveModeRunner 填充到 SdkResultMessage</summary>
     public System.Collections.Generic.IReadOnlyList<Cli.Output.SdkPermissionDenial> PermissionDenials => _permissionDenials;
@@ -33,18 +35,22 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     /// <param name="tools">可用工具名称列表 — 从 IToolRegistry 获取，填充 system/init 消息的 tools 字段</param>
     /// <param name="model">模型标识 — 从配置获取，填充 system/init 消息的 model 字段</param>
     /// <param name="version">jcc 版本号 — 从程序集获取，填充 system/init 消息的 claude_code_version 字段</param>
-    public CliEventConsumer(bool agentMode, string? sessionId = null, System.Collections.Generic.IReadOnlyList<string>? tools = null, string? model = null, string? version = null) {
+    public CliEventConsumer(bool agentMode, string? sessionId = null, System.Collections.Generic.IReadOnlyList<string>? tools = null, string? model = null, string? version = null, System.Collections.Generic.IReadOnlyList<Cli.Output.SdkMcpServer>? mcpServers = null, System.Collections.Generic.IReadOnlyList<string>? skills = null) {
         _agentMode = agentMode;
         _jsonContext = Cli.Output.CliOutputJsonContext.Default;
         _sessionId = sessionId;
         _tools = tools ?? [];
         _model = model;
         _version = version;
+        _mcpServers = mcpServers ?? [];
+        _skills = skills ?? [];
     }
 
     private readonly System.Collections.Generic.IReadOnlyList<string> _tools = [];
     private readonly string? _model;
     private readonly string? _version;
+    private readonly System.Collections.Generic.IReadOnlyList<Cli.Output.SdkMcpServer> _mcpServers = [];
+    private readonly System.Collections.Generic.IReadOnlyList<string> _skills = [];
 
     /// <summary>指定输出通道管理器构造函数 — DX 模式，通过通道管理器分发输出</summary>
     /// <param name="outputChannelManager">输出通道管理器（null 时退化为直接终端输出）</param>
@@ -118,6 +124,8 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     public void OnToolStart(string toolName, string? toolCallId, string? arguments) {
         if (toolCallId is not null)
             _toolInputs[toolCallId] = arguments;
+        _currentToolCallId = toolCallId;
+        _toolStartTimestamp = System.Diagnostics.Stopwatch.GetTimestamp();
         if (_agentMode) {
             EnsureSystemInit();
             _pendingBlocks.Add(new Cli.Output.SdkToolUseBlock {
@@ -162,6 +170,8 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
             if (!string.IsNullOrEmpty(displayText))
                 WriteToolEndText(displayText, isError);
         }
+        _currentToolCallId = null;
+        _toolStartTimestamp = 0;
     }
 
     private static void WriteToolEndText(string displayText, bool isError) {
@@ -177,12 +187,10 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     /// <summary>工具调用进度</summary>
     public void OnToolProgress(string toolName, string progressType, string? progressMessage) {
         if (_agentMode) {
-            WriteSdkJson(new Cli.Output.SdkToolProgressMessage {
+            WriteSdkJson(Cli.Output.SdkToolProgressMessage.Create(_sessionId) with {
                 ToolName = toolName,
-                ToolUseId = string.Empty,
-                ElapsedTimeSeconds = 0,
-                Uuid = NextUuid(),
-                SessionId = _sessionId
+                ToolUseId = _currentToolCallId ?? string.Empty,
+                ElapsedTimeSeconds = _toolStartTimestamp > 0 ? System.Diagnostics.Stopwatch.GetElapsedTime(_toolStartTimestamp).TotalSeconds : 0,
             });
         } else {
             TerminalHelper.WriteLine($"[...] {toolName}: {progressMessage}");
@@ -232,14 +240,14 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         if (_systemInitSent) return;
         _systemInitSent = true;
         _sessionId ??= System.Guid.NewGuid().ToString("N");
-        WriteSdkJson(new Cli.Output.SdkSystemInitMessage {
+        WriteSdkJson(Cli.Output.SdkSystemInitMessage.Create(_sessionId) with {
             ClaudeCodeVersion = _version ?? System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? string.Empty,
             Cwd = System.IO.Directory.GetCurrentDirectory(),
             Model = _model ?? System.Environment.GetEnvironmentVariable("JCC_MODEL_ID") ?? "unknown",
             Tools = _tools.Count > 0 ? new System.Collections.Generic.List<string>(_tools) : [],
+            McpServers = _mcpServers.Count > 0 ? new System.Collections.Generic.List<Cli.Output.SdkMcpServer>(_mcpServers) : [],
             PermissionMode = System.Environment.GetEnvironmentVariable("JCC_PERMISSION_MODE") ?? "default",
-            Uuid = NextUuid(),
-            SessionId = _sessionId
+            Skills = _skills.Count > 0 ? new System.Collections.Generic.List<string>(_skills) : [],
         });
     }
 
@@ -247,14 +255,11 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     private void FlushAssistant() {
         if (_pendingBlocks.Count == 0) return;
         var merged = MergeAdjacentBlocks(_pendingBlocks);
-        WriteSdkJson(new Cli.Output.SdkAssistantMessage {
-            Message = new Cli.Output.SdkMessageBody {
-                Role = "assistant",
-                Content = merged
-            },
+        WriteSdkJson(Cli.Output.SdkAssistantMessage.Create(new Cli.Output.SdkMessageBody {
+            Role = "assistant",
+            Content = merged
+        }, _sessionId) with {
             ParentToolUseId = null,
-            Uuid = NextUuid(),
-            SessionId = _sessionId
         });
         _pendingBlocks.Clear();
     }
@@ -262,14 +267,10 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     /// <summary>Flush 累积的 tool_result 作为单个 user 消息（对齐基准 — 多 tool_result 合并到同一 user 消息）</summary>
     private void FlushToolResults() {
         if (_pendingToolResults.Count == 0) return;
-        WriteSdkJson(new Cli.Output.SdkUserMessage {
-            Message = new Cli.Output.SdkMessageBody {
-                Role = "user",
-                Content = _pendingToolResults.Cast<Cli.Output.SdkContentBlock>().ToList()
-            },
-            Uuid = NextUuid(),
-            SessionId = _sessionId
-        });
+        WriteSdkJson(Cli.Output.SdkUserMessage.Create(new Cli.Output.SdkMessageBody {
+            Role = "user",
+            Content = _pendingToolResults.Cast<Cli.Output.SdkContentBlock>().ToList()
+        }, _sessionId));
         _pendingToolResults.Clear();
     }
 
@@ -295,9 +296,6 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         }
         return result;
     }
-
-    /// <summary>生成下一个 uuid — 标准 UUID 格式，对齐基准侧 crypto.randomUUID()</summary>
-    private string NextUuid() => System.Guid.NewGuid().ToString();
 
     /// <summary>将工具参数 JSON 字符串解析为 JsonElement，使序列化输出 JSON 对象而非字符串</summary>
     private static System.Text.Json.JsonElement ParseInputToJsonElement(string? json) {

@@ -44,7 +44,18 @@ public sealed record SdkMessageBody {
     public System.Collections.Generic.List<SdkContentBlock>? Content { get; init; }
 }
 
-public sealed record SdkAssistantMessage {
+/// <summary>SDK 消息基类 — 统一 Uuid + SessionId 字段，子类通过 Create() 工厂方法自动填充默认值</summary>
+public abstract record SdkMessageBase {
+    /// <summary>消息唯一标识</summary>
+    public string? Uuid { get; init; }
+    /// <summary>会话标识</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("session_id")]
+    public string? SessionId { get; init; }
+    /// <summary>生成新的标准 UUID 字符串</summary>
+    protected static string NewUuid() => System.Guid.NewGuid().ToString();
+}
+
+public sealed record SdkAssistantMessage : SdkMessageBase {
     /// <summary>消息类型</summary>
     public string Type => "assistant";
     /// <summary>消息体</summary>
@@ -52,14 +63,11 @@ public sealed record SdkAssistantMessage {
     /// <summary>父工具调用标识（子代理嵌套）</summary>
     [System.Text.Json.Serialization.JsonPropertyName("parent_tool_use_id")]
     public string? ParentToolUseId { get; init; }
-    /// <summary>消息唯一标识</summary>
-    public string? Uuid { get; init; }
-    /// <summary>会话标识</summary>
-    [System.Text.Json.Serialization.JsonPropertyName("session_id")]
-    public string? SessionId { get; init; }
+    /// <summary>创建带默认 Uuid 的实例</summary>
+    public static SdkAssistantMessage Create(SdkMessageBody message, string? sessionId) => new() { Message = message, Uuid = NewUuid(), SessionId = sessionId };
 }
 
-public sealed record SdkUserMessage {
+public sealed record SdkUserMessage : SdkMessageBase {
     /// <summary>消息类型</summary>
     public string Type => "user";
     /// <summary>消息体</summary>
@@ -70,11 +78,8 @@ public sealed record SdkUserMessage {
     /// <summary>结构化工具输出</summary>
     [System.Text.Json.Serialization.JsonPropertyName("tool_use_result")]
     public string? ToolUseResult { get; init; }
-    /// <summary>消息唯一标识</summary>
-    public string? Uuid { get; init; }
-    /// <summary>会话标识</summary>
-    [System.Text.Json.Serialization.JsonPropertyName("session_id")]
-    public string? SessionId { get; init; }
+    /// <summary>创建带默认 Uuid 的实例</summary>
+    public static SdkUserMessage Create(SdkMessageBody message, string? sessionId) => new() { Message = message, Uuid = NewUuid(), SessionId = sessionId };
 }
 
 public sealed record SdkMcpServer {
@@ -84,7 +89,7 @@ public sealed record SdkMcpServer {
     public string Status { get; init; } = "connected";
 }
 
-public sealed record SdkSystemInitMessage {
+public sealed record SdkSystemInitMessage : SdkMessageBase {
     /// <summary>消息类型</summary>
     public string Type => "system";
     /// <summary>消息子类型</summary>
@@ -106,11 +111,8 @@ public sealed record SdkSystemInitMessage {
     public string PermissionMode { get; init; } = "default";
     /// <summary>技能列表</summary>
     public System.Collections.Generic.List<string> Skills { get; init; } = [];
-    /// <summary>消息唯一标识</summary>
-    public string? Uuid { get; init; }
-    /// <summary>会话标识</summary>
-    [System.Text.Json.Serialization.JsonPropertyName("session_id")]
-    public string? SessionId { get; init; }
+    /// <summary>创建带默认 Uuid 的实例</summary>
+    public static SdkSystemInitMessage Create(string? sessionId) => new() { Uuid = NewUuid(), SessionId = sessionId };
 }
 
 public sealed record SdkUsage {
@@ -167,7 +169,7 @@ public sealed record SdkPermissionDenial {
     public System.Text.Json.JsonElement ToolInput { get; init; }
 }
 
-public sealed record SdkResultMessage {
+public sealed record SdkResultMessage : SdkMessageBase {
     /// <summary>消息类型</summary>
     public string Type => "result";
     /// <summary>结果子类型（success/error_during_execution 等）</summary>
@@ -200,16 +202,13 @@ public sealed record SdkResultMessage {
     /// <summary>权限拒绝列表 — 对齐基准侧 permission_denials 字段</summary>
     [System.Text.Json.Serialization.JsonPropertyName("permission_denials")]
     public System.Collections.Generic.List<SdkPermissionDenial> PermissionDenials { get; init; } = [];
-    /// <summary>消息唯一标识</summary>
-    public string? Uuid { get; init; }
-    /// <summary>会话标识</summary>
-    [System.Text.Json.Serialization.JsonPropertyName("session_id")]
-    public string? SessionId { get; init; }
     /// <summary>错误消息列表</summary>
     public System.Collections.Generic.List<string> Errors { get; init; } = [];
+    /// <summary>创建带默认 Uuid 的实例</summary>
+    public static SdkResultMessage Create(string? sessionId) => new() { Uuid = NewUuid(), SessionId = sessionId };
 }
 
-public sealed record SdkToolProgressMessage {
+public sealed record SdkToolProgressMessage : SdkMessageBase {
     /// <summary>消息类型</summary>
     public string Type => "tool_progress";
     /// <summary>工具调用标识</summary>
@@ -224,9 +223,6 @@ public sealed record SdkToolProgressMessage {
     /// <summary>已用秒数</summary>
     [System.Text.Json.Serialization.JsonPropertyName("elapsed_time_seconds")]
     public double ElapsedTimeSeconds { get; init; }
-    /// <summary>消息唯一标识</summary>
-    public string? Uuid { get; init; }
-    /// <summary>会话标识</summary>
-    [System.Text.Json.Serialization.JsonPropertyName("session_id")]
-    public string? SessionId { get; init; }
+    /// <summary>创建带默认 Uuid 的实例</summary>
+    public static SdkToolProgressMessage Create(string? sessionId) => new() { Uuid = NewUuid(), SessionId = sessionId };
 }

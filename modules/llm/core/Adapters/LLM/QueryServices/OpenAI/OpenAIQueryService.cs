@@ -535,8 +535,28 @@ public class OpenAIQueryService : QueryServiceBase {
         var contentChunks = 0;
         var toolCallChunks = 0;
 
+        // SSE 逐行读取空闲超时 — 对齐 PipeQueryService（run #858 回归：流卡死导致无限挂死）
+        // HttpClient.Timeout 只覆盖到响应头，ReadAsStreamAsync 之后的流读取无兜底，
+        // 每行读取独立计时，行间有数据的正常慢流不会误杀，行间静默超过上限才快速失败。
+        using var idleCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var idleTimeout = TimeSpan.FromMilliseconds(Math.Max(StreamIdleTimeoutMs, 1_000));
+
         string? line;
-        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null) {
+        while (true) {
+            idleCts.CancelAfter(idleTimeout);
+            try {
+                line = await reader.ReadLineAsync(idleCts.Token).ConfigureAwait(false);
+            } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
+                throw new TimeoutException(
+                    $"SSE 流式响应超过 {idleTimeout.TotalSeconds:F0}s 无新数据。" +
+                    "触发点：OpenAIQueryService.SendStreamingRequestAsync 逐行读取空闲超时。" +
+                    "处理指引：检查对端服务是否仍在推送流；对端正常但响应慢时增大 StreamIdleTimeoutMs。");
+            }
+
+            if (line == null) {
+                Diag.WriteLine($"[WIRE {CallTrace.CurrentId}] 流异常结束(无[DONE]) | chunks={chunkCount}, content={contentChunks}, toolCalls={toolCallChunks}");
+                yield break;
+            }
             if (cancellationToken.IsCancellationRequested) yield break;
             if (string.IsNullOrWhiteSpace(line)) continue;
             if (!line.StartsWith("data: ")) continue;
@@ -567,8 +587,6 @@ public class OpenAIQueryService : QueryServiceBase {
             }
             yield return chunk;
         }
-
-        Diag.WriteLine($"[WIRE {CallTrace.CurrentId}] 流异常结束(无[DONE]) | chunks={chunkCount}, content={contentChunks}, toolCalls={toolCallChunks}");
     }
 
     internal static ApiMessage ConvertToApiMessage(OpenAIChoice choice, OpenAIUsage? usage) {

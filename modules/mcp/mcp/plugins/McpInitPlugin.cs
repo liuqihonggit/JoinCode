@@ -25,12 +25,11 @@ public sealed partial class McpInitPlugin : WorkflowPluginBase {
     /// <summary>初始化插件 — 调用 IMcpService.InitializeAsync,15s 超时</summary>
     public override async Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default) {
         var logger = serviceProvider.GetService<ILogger<McpInitPlugin>>();
-        var __timing = System.Environment.GetEnvironmentVariable("JCC_DEBUG_TIMING") is "1" or "true";
-        var __sw = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;
+        var sw = PerfTimer.Start("  McpInit DI解析");
         try {
             using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(15));
             var mcpService = serviceProvider.GetRequiredService<IMcpService>();
-            if (__sw is not null) System.Console.Error.WriteLine($"[TIMING]   McpInit DI解析: {__sw.ElapsedMilliseconds}ms");
+            sw?.Stop();
             await mcpService.InitializeAsync(serviceProvider, cts.Token).ConfigureAwait(false);
             return OperationResult.Ok();
         } catch (OperationCanceledException) {

@@ -19,13 +19,20 @@ public sealed class CoreModule : IAppModule {
     /// <param name="context">应用模块上下文，提供配置信息</param>
     public void ConfigureServices(IServiceCollection services, AppModuleContext context) {
         services.AddAiWorkflowServices(context.Config);
+
+        var sw = PerfTimer.Start("    AddJoinCodeEngineAutoRegisteredServices");
         services.AddJoinCodeEngineAutoRegisteredServices();
+        sw?.Stop();
+        sw = PerfTimer.Start("    AddJoinCodeEngineAutoRegisteredOptions");
         services.AddJoinCodeEngineAutoRegisteredOptions();
+        sw?.Stop();
 
         // 中间件已通过 [Register] + AddAutoRegisteredServices 注册到 DI
         // 此处从 DI 解析中间件并按 Order 排序后构建管道
         // 替代源码生成器的 AddAutoRegisteredPipelines（解决跨程序集管道覆盖问题）
+        sw = PerfTimer.Start("    AddAllPipelines");
         services.AddAllPipelines();
+        sw?.Stop();
     }
 
     /// <summary>

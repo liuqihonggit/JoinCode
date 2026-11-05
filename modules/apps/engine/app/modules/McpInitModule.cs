@@ -88,12 +88,11 @@ public sealed class McpInitModule : IAppModule {
     /// </summary>
     private static async Task LoadPluginSafeAsync<TPlugin>(string name, IServiceProvider services, ILogger? logger, CancellationToken ct)
         where TPlugin : class, IWorkflowPlugin, new() {
-        var __timing = System.Environment.GetEnvironmentVariable("JCC_DEBUG_TIMING") is "1" or "true";
-        var __sw = __timing ? System.Diagnostics.Stopwatch.StartNew() : null;
+        var sw = PerfTimer.Start($"  插件 {name}");
         try {
             var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
             await pluginManager.LoadWorkflowPluginAsync<TPlugin>(ct).ConfigureAwait(false);
-            if (__sw is not null) System.Console.Error.WriteLine($"[TIMING]   插件 {name}: {__sw.ElapsedMilliseconds}ms");
+            sw?.Stop();
         } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             // 宿主关闭取消 — 静默收尾（非失败）
         } catch (Exception ex) {

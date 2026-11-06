@@ -13,4 +13,14 @@
     <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.Integration.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Abs.Core.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Abs.Ai.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Abs.Guard.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Abs.Hands.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Plugins.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Plugins.Infrastructure" />
+  </ItemGroup>
+
 </Project>

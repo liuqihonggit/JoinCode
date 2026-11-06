@@ -2,7 +2,7 @@ namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// 子代理 bot 前缀随机中文名生成器 — 生成 <c>bot{中文名}</c> 格式的显示名，进程内去重。
-/// 用于子代理 spawn 时 <see cref="JoinCode.Abstractions.Models.Agent.SubAgentOptions.DisplayName"/> 为空的场景。
+/// 用于子代理 spawn 时 SubAgentOptions.DisplayName 为空的场景。
 /// </summary>
 public static class BotNameGenerator {
     /// <summary>

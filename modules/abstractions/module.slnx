@@ -1,6 +1,14 @@
 <Solution>
   <Project Path="primitives/Abstractions.Primitives.csproj" />
   <Project Path="exceptions/Abstractions.Exceptions.csproj" />
+  <Folder Name="/abstractions.utils/">
+    <Project Path="abstractions.utils/Abstractions.Utils.csproj" />
+  </Folder>
+  <Folder Name="/primitives/" />
+  <Project Path="../collections/structura/Structura.csproj" />
+  <Project Path="../generators/aot_safety.generator/AotSafety.Generator.csproj" />
+  <Project Path="../generators/code_fixes/CodeFixes.csproj" />
+  <Project Path="../generators/enum_metadata.generator/EnumMetadata.Generator.csproj" />
   <Project Path="abstractions/Abstractions.csproj" />
   <Project Path="hands/Abstractions.Hands.csproj" />
   <Project Path="agents/Abstractions.Agents.csproj" />

@@ -518,7 +518,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             if (streamChunk.Metadata?.TryGetValue("Usage", out var usageEl) == true &&
                 usageEl.ValueKind == JsonValueKind.Object) {
                 try {
-                    if (JsonSerializer.Deserialize<JoinCode.Abstractions.LLM.Chat.TokenUsage>(usageEl, Core.Context.ChatServiceJsonContext.Default.TokenUsage) is { } tokenUsage) {
+                    if (JsonSerializer.Deserialize<JoinCode.Abstractions.LLM.Chat.TokenUsage>(usageEl, Core.Query.QueryJsonContext.Default.TokenUsage) is { } tokenUsage) {
                         inputTokens = tokenUsage.PromptTokens;
                         outputTokens = tokenUsage.CompletionTokens;
                         streamUsage = tokenUsage;

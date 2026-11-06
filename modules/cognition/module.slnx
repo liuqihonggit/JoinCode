@@ -4,6 +4,7 @@
   <Project Path="brain_planning/Brain.Planning.csproj" />
   <Project Path="brain_summary/Brain.Summary.csproj" />
   <Project Path="brain/Brain.csproj" />
+  <Project Path="brain.query/Brain.Query.csproj" />
   <Project Path="brain.context.tests/Brain.Context.Tests.csproj" />
   <Project Path="brain.other.tests/Brain.Other.Tests.csproj" />
   <Project Path="brain.prompts.tests/Brain.Prompts.Tests.csproj" />

@@ -32,6 +32,7 @@
   </Folder>
   <Folder Name="/core/execution/">
     <Project Path="../../modules/cognition/brain/Brain.csproj" />
+    <Project Path="../../modules/cognition/brain.query/Brain.Query.csproj" />
     <Project Path="../../modules/cognition/prompts/Prompts.csproj" />
     <Project Path="../../modules/cognition/brain.context.tests/Brain.Context.Tests.csproj" />
     <Project Path="../../modules/cognition/brain.other.tests/Brain.Other.Tests.csproj" />

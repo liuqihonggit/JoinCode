@@ -1,0 +1,10 @@
+import { chromium } from 'playwright-core';
+const cdp = await chromium.connectOverCDP('http://localhost:9222');
+const page = cdp.contexts().flatMap(c => c.pages()).find(p => /^http:\/\/localhost:\d+\//.test(p.url()));
+console.log('url', page.url());
+console.log('viewport', await page.evaluate(() => [innerWidth, innerHeight]));
+const buttons = await page.getByRole('button').evaluateAll(nodes => nodes.map(n => ({ name: (n.getAttribute('aria-label') || n.innerText || '').replace(/\s+/g,' ').trim().slice(0,40), cls: n.className?.toString().slice(0,50) })).filter(b => b.name));
+console.log(JSON.stringify(buttons.filter(b => /侧边栏|标签|终端|文件/.test(b.name)), null, 1));
+console.log('text', (await page.evaluate(() => document.body.innerText)).replace(/\s+/g,' ').slice(0, 500));
+await page.screenshot({ path: 'non_deliverables_tools/dsh_parity/dumps/probe-c5-ui.png' });
+await cdp.close();

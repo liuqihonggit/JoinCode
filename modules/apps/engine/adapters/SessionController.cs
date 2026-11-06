@@ -191,11 +191,15 @@ public sealed class SessionController {
             // 空回合防御（修复：流式超时重试后拿到空流被当成功静默返回 — TUI 傻等无消息无错误）：
             // 无文本 + 无思考 + 无工具调用 = 全空产出，判 Error 带诱导（重试提示）；
             // 工具回合/思考回合文本空属合法半产出（onToolEnd/onThinking 已独立消费），不误判。
+            // 例外：finish_reason=stop 表示流正常结束，空内容是合法 API 响应（模型可返回空），返回 Success。
             if (LastResponse.Length == 0 && thinkingContent.Length == 0 && !_hasSubstantiveOutput) {
                 // Bug 29 修复：超时令牌已取消 + 空产出 = 超时（TaskCanceledException 在 LLM 层被吞没返回空流，
                 // 未传播到 catch(OperationCanceledException)，需在此兜底判定超时）
                 if (timeoutCts.IsCancellationRequested)
                     return SessionTurnResult.Timeout(apiTimeoutMs);
+                // finish_reason=stop/end_turn 表示流正常结束，空内容是合法 API 响应（模型可返回空），返回 Success。
+                if (_lastStopReason is "stop" or "end_turn" or "stop_sequence")
+                    return SessionTurnResult.Success(LastResponse, requestTimestamp);
                 var emptyMsg = _lastStopReason switch {
                     "content_filter" => "模型回复被安全过滤（content_filter）。请调整请求内容后重试，或切换模型/供应商。",
                     "max_tokens" => "模型回复因达到最大 token 限制被截断（length）。请增大 max_tokens 或精简请求后重试。",

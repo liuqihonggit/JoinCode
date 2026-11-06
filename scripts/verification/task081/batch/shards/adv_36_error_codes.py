@@ -15,6 +15,7 @@ ENV = {
     "JCC_DEBUGLOG": "1",
     "JCC_SKIP_CODE_INDEX": "1",
     "JCC_SKIP_MODEL_FETCH": "1",
+    "JCC_DISABLE_RETRY": "1",
 }
 
 results = []
@@ -120,7 +121,8 @@ def test_502_bad_gateway():
     inject_data = {"status_code": 502, "is_stream": False, "body": body, "content_type": "application/json"}
     data = json.dumps(inject_data).encode()
     req = urllib.request.Request(f"{MOCK}/__control__/inject", data=data, method="POST", headers={"Content-Type": "application/json"})
-    urllib.request.urlopen(req, timeout=5)
+    for _ in range(3):
+        urllib.request.urlopen(req, timeout=5)
     code, out, err, elapsed = run_jcc("502错误")
     assert code != 0, f"502应非零退出, got {code}"
 test("502 Bad Gateway", test_502_bad_gateway)
@@ -130,7 +132,8 @@ def test_504_gateway_timeout():
     inject_data = {"status_code": 504, "is_stream": False, "body": body, "content_type": "application/json"}
     data = json.dumps(inject_data).encode()
     req = urllib.request.Request(f"{MOCK}/__control__/inject", data=data, method="POST", headers={"Content-Type": "application/json"})
-    urllib.request.urlopen(req, timeout=5)
+    for _ in range(3):
+        urllib.request.urlopen(req, timeout=5)
     code, out, err, elapsed = run_jcc("504错误")
     assert code != 0, f"504应非零退出, got {code}"
 test("504 Gateway Timeout", test_504_gateway_timeout)

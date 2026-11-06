@@ -13,6 +13,7 @@ ENV = {
     "OPENAI_API_KEY": "test-key",
     "JCC_DEBUGLOG": "1",
     "JCC_SKIP_CODE_INDEX": "1",
+    "JCC_DISABLE_RETRY": "1",
 }
 
 results = []

@@ -15,6 +15,7 @@ ENV = {
     "JCC_DEBUGLOG": "1",
     "JCC_SKIP_CODE_INDEX": "1",
     "JCC_SKIP_MODEL_FETCH": "1",
+    "JCC_DISABLE_RETRY": "1",
 }
 
 results = []
@@ -199,7 +200,8 @@ def test_429_no_header():
 test("429限流无Retry-After", test_429_no_header)
 
 def test_503():
-    inject_non_stream('{"error":{"message":"service unavailable","code":"503"}}', status=503)
+    for _ in range(3):
+        inject_non_stream('{"error":{"message":"service unavailable","code":"503"}}', status=503)
     code, out, err, elapsed = run_jcc("503错误")
     assert code != 0, f"503应非零退出, got {code}"
 test("503服务不可用", test_503)

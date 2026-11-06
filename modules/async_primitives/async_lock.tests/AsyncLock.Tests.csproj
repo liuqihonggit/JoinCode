@@ -13,6 +13,8 @@
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)modules/async_primitives/async_lock/AsyncLock.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions.configuration/Abstractions.Configuration.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Configuration" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/hands/Abstractions.Hands.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/llm/core/Llm.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/llm/agents/Agents.csproj" />

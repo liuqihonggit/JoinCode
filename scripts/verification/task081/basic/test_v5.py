@@ -545,7 +545,7 @@ test("5轮工具链", t_chain5)
 print("\n=== 8. 超大参数/响应 ===")
 
 def t_huge_args():
-    inject_tool_call("write", {"content": "A" * 10000, "filePath": "t.txt"}, "完成")
+    inject_tool_call("write", {"content": "A" * 10000, "filePath": ".xxx/t.txt"}, "完成")
     code, out, err, el = run_jcc("大参数")
     assert_eq(code, 0, f"exit, stderr={err[-100:]}")
 test("超大工具参数(10KB)", t_huge_args)
@@ -562,19 +562,19 @@ test("超大响应(50KB)", t_huge_response)
 print("\n=== 9. 特殊字符 ===")
 
 def t_unicode_args():
-    inject_tool_call("write", {"filePath": "测试/文件.txt", "content": "中文🎉"}, "完成")
+    inject_tool_call("write", {"filePath": ".xxx/测试/文件.txt", "content": "中文🎉"}, "完成")
     code, out, err, el = run_jcc("Unicode参数")
     assert_eq(code, 0, f"exit, stderr={err[-100:]}")
 test("Unicode工具参数", t_unicode_args)
 
 def t_json_args():
-    inject_tool_call("write", {"filePath": "t.json", "content": json.dumps({"k": "v"})}, "完成")
+    inject_tool_call("write", {"filePath": ".xxx/t.json", "content": json.dumps({"k": "v"})}, "完成")
     code, out, err, el = run_jcc("JSON参数")
     assert_eq(code, 0, f"exit, stderr={err[-100:]}")
 test("嵌套JSON参数", t_json_args)
 
 def t_special_args():
-    inject_tool_call("write", {"filePath": "t.txt", "content": '"\'\n\t\\'}, "完成")
+    inject_tool_call("write", {"filePath": ".xxx/t.txt", "content": '"\'\n\t\\'}, "完成")
     code, out, err, el = run_jcc("特殊字符")
     assert_eq(code, 0, f"exit, stderr={err[-100:]}")
 test("特殊字符参数", t_special_args)

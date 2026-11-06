@@ -241,21 +241,21 @@ test("5轮工具链", test_tool_chain_5)
 print("\n=== 18. 特殊字符工具参数 ===")
 
 def test_unicode_tool_args():
-    inject_tool_call("write_file", {"filePath": "测试/文件.txt", "content": "中文内容🎉"}, "写入完成")
+    inject_tool_call("write_file", {"filePath": ".xxx/测试/文件.txt", "content": "中文内容🎉"}, "写入完成")
     code, out, err, elapsed = run_jcc("Unicode工具参数")
     assert_eq(code, 0, f"exit code, stderr={err[-200:]}")
 test("Unicode工具参数", test_unicode_tool_args)
 
 def test_json_in_tool_args():
     """工具参数包含嵌套JSON"""
-    inject_tool_call("write_file", {"filePath": "test.json", "content": json.dumps({"nested": {"key": "value"}})}, "写入完成")
+    inject_tool_call("write_file", {"filePath": ".xxx/test.json", "content": json.dumps({"nested": {"key": "value"}})}, "写入完成")
     code, out, err, elapsed = run_jcc("嵌套JSON参数")
     assert_eq(code, 0, f"exit code, stderr={err[-200:]}")
 test("嵌套JSON工具参数", test_json_in_tool_args)
 
 def test_special_chars_in_args():
     """工具参数包含特殊字符"""
-    inject_tool_call("write_file", {"filePath": "test.txt", "content": '引号"\'\n\t换行\\反斜杠'}, "写入完成")
+    inject_tool_call("write_file", {"filePath": ".xxx/test.txt", "content": '引号"\'\n\t换行\\反斜杠'}, "写入完成")
     code, out, err, elapsed = run_jcc("特殊字符参数")
     assert_eq(code, 0, f"exit code, stderr={err[-200:]}")
 test("特殊字符工具参数", test_special_chars_in_args)

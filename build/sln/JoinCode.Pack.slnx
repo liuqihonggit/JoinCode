@@ -76,6 +76,7 @@
     <Project Path="../../modules/guard/guard.policy/Guard.Policy.csproj" />
     <Project Path="../../modules/guard/guard.sandbox/Guard.Sandbox.csproj" />
     <Project Path="../../modules/guard/guard.danger_classification/Guard.DangerClassification.csproj" />
+    <Project Path="../../modules/guard/guard.configuration/Guard.Configuration.csproj" />
     <Project Path="../../modules/storage/vault/Vault.csproj" />
   </Folder>
   <Folder Name="/core/search/">

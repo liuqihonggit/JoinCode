@@ -32,6 +32,8 @@
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Guard.Sandbox" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/guard/guard.danger_classification/Guard.DangerClassification.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Guard.DangerClassification" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/guard/guard.configuration/Guard.Configuration.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Guard.Configuration" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
 
   <ItemGroup>

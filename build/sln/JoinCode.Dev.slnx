@@ -70,6 +70,7 @@
     <Project Path="../../modules/guard/guard.policy/Guard.Policy.csproj" />
     <Project Path="../../modules/guard/guard.sandbox/Guard.Sandbox.csproj" />
     <Project Path="../../modules/guard/guard.danger_classification/Guard.DangerClassification.csproj" />
+    <Project Path="../../modules/guard/guard.configuration/Guard.Configuration.csproj" />
     <Project Path="../../modules/guard/guard.config.tests/Guard.Config.Tests.csproj" />
     <Project Path="../../modules/guard/guard.hooks.tests/Guard.Hooks.Tests.csproj" />
     <Project Path="../../modules/guard/guard.security.tests/Guard.Security.Tests.csproj" />

@@ -4,6 +4,7 @@
   <Project Path="guard.policy/Guard.Policy.csproj" />
   <Project Path="guard.sandbox/Guard.Sandbox.csproj" />
   <Project Path="guard.danger_classification/Guard.DangerClassification.csproj" />
+  <Project Path="guard.configuration/Guard.Configuration.csproj" />
   <Project Path="guard.config.tests/Guard.Config.Tests.csproj" />
   <Project Path="guard.hooks.tests/Guard.Hooks.Tests.csproj" />
   <Project Path="guard.security.tests/Guard.Security.Tests.csproj" />

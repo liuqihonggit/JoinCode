@@ -9,6 +9,7 @@ env = os.environ.copy()
 env["JCC_ENDPOINT"] = "http://localhost:9901/v1"
 env["OPENAI_API_KEY"] = "test-key"
 env["JCC_DISABLE_STREAMING_FALLBACK"] = "1"
+env["JCC_DISABLE_RETRY"] = "1"
 
 def test_error(status_code, error_body, description):
     # Clear state

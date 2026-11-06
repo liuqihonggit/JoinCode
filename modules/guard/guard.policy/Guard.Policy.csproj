@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+        <ProjectType>library</ProjectType>
+    <RootNamespace>JoinCode.Guard.Policy</RootNamespace>
+    <AssemblyName>JoinCode.Guard.Policy</AssemblyName>
+    <PackageId>JoinCode.Guard.Policy</PackageId>
+    <Description>JoinCode Guard Policy 子系统 — 远程策略拉取、缓存与评估</Description>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>$(OutputPath)$(AssemblyName).xml</DocumentationFile>
+    <NoWarn>$(NoWarn.Replace('CS1591;', '').Replace(';CS1591', '').Replace('CS1591', ''))</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Include="$(RepoRoot)modules/async_primitives/bcl_bridge/BclBridge.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/collections/structura/Structura.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="$(MicrosoftExtensionsDependencyInjectionVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.Guard.Config.Tests" />
+  </ItemGroup>
+
+</Project>

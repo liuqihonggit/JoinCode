@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+        <ProjectType>library</ProjectType>
+    <RootNamespace>JoinCode.Guard.DangerClassification</RootNamespace>
+    <AssemblyName>JoinCode.Guard.DangerClassification</AssemblyName>
+    <PackageId>JoinCode.Guard.DangerClassification</PackageId>
+    <Description>JoinCode Guard DangerClassification 子系统 — 危险命令目录/分类器/路径敏感守卫</Description>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>$(OutputPath)$(AssemblyName).xml</DocumentationFile>
+    <NoWarn>$(NoWarn.Replace('CS1591;', '').Replace(';CS1591', '').Replace('CS1591', ''))</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Include="$(RepoRoot)modules/async_primitives/bcl_bridge/BclBridge.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/collections/structura/Structura.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/danger_command.generator/DangerCommand.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.Guard" />
+    <InternalsVisibleTo Include="JoinCode.Guard.Security.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Guard.Config.Tests" />
+  </ItemGroup>
+
+</Project>

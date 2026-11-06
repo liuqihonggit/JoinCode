@@ -21,8 +21,22 @@
     <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/async_primitives/bcl_bridge/BclBridge.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="$(RepoRoot)modules/generators/mcp_tool_dispatch.generator/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="$(RepoRoot)modules/generators/danger_command.generator/DangerCommand.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" /></ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/generators/mcp_tool_dispatch.generator/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" /></ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/guard/guard.oauth/Guard.OAuth.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Guard.OAuth" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/guard/guard.policy/Guard.Policy.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Guard.Policy" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/guard/guard.sandbox/Guard.Sandbox.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Guard.Sandbox" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/guard/guard.danger_classification/Guard.DangerClassification.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Guard.DangerClassification" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/guard/guard.configuration/Guard.Configuration.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Guard.Configuration" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/guard/guard.permission/Guard.Permission.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Guard.Permission" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="$(MicrosoftExtensionsVersion)" />

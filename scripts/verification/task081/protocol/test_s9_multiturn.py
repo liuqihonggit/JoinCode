@@ -27,7 +27,7 @@ print("Inject1:", urllib.request.urlopen(req).read().decode())
 
 # Run first conversation
 result1 = subprocess.run(
-    ["dotnet", JCC, "--non-interactive", "--prompt", "Remember this: hello123", "--format", "ndjson", "--trust"],
+    [JCC, "--non-interactive", "--prompt", "Remember this: hello123", "--format", "ndjson", "--trust"],
     capture_output=True, text=True, env=env, timeout=30
 )
 
@@ -60,7 +60,7 @@ print("Inject2:", urllib.request.urlopen(req).read().decode())
 
 # Run second conversation with --continue
 result2 = subprocess.run(
-    ["dotnet", JCC, "--non-interactive", "--prompt", "What did I tell you to remember?", "--format", "ndjson", "--trust", "-c"],
+    [JCC, "--non-interactive", "--prompt", "What did I tell you to remember?", "--format", "ndjson", "--trust", "-c"],
     capture_output=True, text=True, env=env, timeout=30
 )
 

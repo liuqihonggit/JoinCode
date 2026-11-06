@@ -25,7 +25,7 @@ def run_jcc(prompt="test", timeout=30):
         "JCC_DEBUGLOG": "1",
         "JCC_DISABLE_STREAMING_FALLBACK": "1",
     }
-    cmd = ["dotnet", JCC, "--non-interactive", "--prompt", prompt, "--format", "ndjson", "--trust", "--permission-mode", "bypass"]
+    cmd = [JCC, "--non-interactive", "--prompt", prompt, "--format", "ndjson", "--trust", "--permission-mode", "bypass"]
     start = time.time()
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env={**os.environ, **env}, cwd=".")
     return proc.returncode, time.time() - start, proc.stdout, proc.stderr

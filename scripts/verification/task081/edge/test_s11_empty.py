@@ -20,7 +20,7 @@ env["OPENAI_API_KEY"] = "test-key"
 env["JCC_DISABLE_STREAMING_FALLBACK"] = "1"
 
 result = subprocess.run(
-    ["dotnet", JCC, "--non-interactive", "--prompt", "test", "--format", "ndjson", "--trust"],
+    [JCC, "--non-interactive", "--prompt", "test", "--format", "ndjson", "--trust"],
     capture_output=True, text=True, env=env, timeout=30
 )
 

@@ -21,7 +21,7 @@ def test_error(status_code, error_body, description):
     urllib.request.urlopen(req)
 
     result = subprocess.run(
-        ["dotnet", JCC, "--non-interactive", "--prompt", "test", "--format", "ndjson", "--trust"],
+        [JCC, "--non-interactive", "--prompt", "test", "--format", "ndjson", "--trust"],
         capture_output=True, text=True, env=env, timeout=30
     )
 

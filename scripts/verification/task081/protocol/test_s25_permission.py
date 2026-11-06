@@ -25,7 +25,7 @@ inject({"is_stream": True, "content_type": "text/event-stream", "stream_chunks":
 ]})
 
 env = {"JCC_ENDPOINT": "http://localhost:9901/v1", "OPENAI_API_KEY": "test-key", "JCC_DISABLE_STREAMING_FALLBACK": "1"}
-cmd = ["dotnet", JCC, "--non-interactive", "--prompt", "run echo hello", "--format", "ndjson", "--trust"]
+cmd = [JCC, "--non-interactive", "--prompt", "run echo hello", "--format", "ndjson", "--trust"]
 proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env={**os.environ, **env}, cwd=".")
 
 events = []

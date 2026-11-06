@@ -28,7 +28,7 @@ def run_jcc(prompt="Say hello"):
     env["JCC_DEBUGLOG"] = "1"
     env["JCC_DISABLE_STREAMING_FALLBACK"] = "1"
     cmd = [
-        "dotnet", "artifacts/bin/JoinCode/Debug/net10.0/jcc.exe",
+        "artifacts/bin/JoinCode/Debug/net10.0/jcc.exe",
         "--non-interactive", "--prompt", prompt,
         "--format", "ndjson", "--trust",
         "--permission-mode", "bypass",

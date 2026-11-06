@@ -55,7 +55,7 @@ def run_jcc(env_extra, timeout=60):
     env.update(env_extra)
 
     cmd = [
-        "dotnet", JCC,
+        JCC,
         "--non-interactive",
         "--prompt", "Say hello",
         "--format", "ndjson",

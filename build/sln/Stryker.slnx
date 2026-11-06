@@ -48,6 +48,8 @@
   </Folder>
   <Folder Name="/core/safety/">
     <Project Path="../../modules/guard/guard/Guard.csproj" />
+    <Project Path="../../modules/guard/guard.oauth/Guard.OAuth.csproj" />
+    <Project Path="../../modules/guard/guard.policy/Guard.Policy.csproj" />
     <Project Path="../../modules/guard/guard.config.tests/Guard.Config.Tests.csproj" />
     <Project Path="../../modules/guard/guard.hooks.tests/Guard.Hooks.Tests.csproj" />
     <Project Path="../../modules/guard/guard.security.tests/Guard.Security.Tests.csproj" />

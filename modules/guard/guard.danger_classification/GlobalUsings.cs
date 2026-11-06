@@ -1,0 +1,12 @@
+global using JoinCode.Abstractions.Attributes;
+global using JoinCode.Abstractions.Entity;
+global using JoinCode.Abstractions.Security.Shell;
+global using JoinCode.Abstractions.Utils;
+global using JoinCode.Abstractions.Utils.Text;
+global using JoinCode.BclBridge;
+global using System.Collections.Frozen;
+global using System.Collections.Immutable;
+global using System.Runtime.CompilerServices;
+global using System.Text.RegularExpressions;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
+global using Structura.Collections;

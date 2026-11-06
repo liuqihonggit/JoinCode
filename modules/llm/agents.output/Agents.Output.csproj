@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.Agents.Output</RootNamespace>
+    <AssemblyName>JoinCode.Agents.Output</AssemblyName>
+    <PackageId>JoinCode.Agents.Output</PackageId>
+    <Description>JoinCode Agents Output 子系统 — 子代理输出封装/截断/摘要 + 内建 Agent 工具处理器</Description>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>$(OutputPath)$(AssemblyName).xml</DocumentationFile>
+    <NoWarn>$(NoWarn.Replace('CS1591;', '').Replace(';CS1591', '').Replace('CS1591', ''))</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/hands/Abstractions.Hands.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/primitives/Abstractions.Primitives.csproj" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/brain/Abstractions.Brain.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Brain" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.Agents" />
+    <InternalsVisibleTo Include="JoinCode.Agents.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -26,6 +26,7 @@
     <Project Path="../../modules/llm/core/Llm.csproj" />
     <Project Path="../../modules/llm/llm.tests/Llm.Tests.csproj" />
     <Project Path="../../modules/llm/agents/Agents.csproj" />
+    <Project Path="../../modules/llm/agents.output/Agents.Output.csproj" />
     <Project Path="../../modules/llm/agents.tests/Agents.Tests.csproj" />
     <Project Path="../../modules/llm/reasoning/Reasoning.csproj" />
     <Project Path="../../modules/llm/reasoning.tests/Reasoning.Tests.csproj" />

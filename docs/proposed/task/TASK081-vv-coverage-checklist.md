@@ -23,17 +23,17 @@
 |----|------|---------|-----------|---------|-----------|
 | va01 | system/init 事件发射 | NDJSON 模式首次收到任意 LLM 事件 | `"type":"system","subtype":"init"` 首行 | CliEventConsumer.cs:235 | 否(任意流式响应即可) |
 | va02 | system/init model 字段 | system/init 发射 | `"model":"<modelId>"` 字段 | CliEventConsumer.cs:238 | 否 |
-| va03 | system/init session_id 字段 | system/init 发射 | `"session_id":"<Guid无连字符>"` 字段 | CliEventConsumer.cs:234,243 | 否 |
+| va03 | system/init session_id 字段 ✅ | system/init 发射 | `"session_id":"<时间戳格式>"` 字段（实际为时间戳格式如 `20261106-1650-w1-...`，非 Guid 无连字符） | CliEventConsumer.cs:234,243 | 否 |
 | va04 | system/init uuid 字段 | system/init 发射 | `"uuid":"<标准UUID>"` 字段 | CliEventConsumer.cs:242 | 否 |
 | va05 | system/init permission_mode 字段 | system/init 发射 | `"permission_mode":"bypass\|default"` 字段 | CliEventConsumer.cs:240 | 否 |
 | va06 | assistant + text block | LLM 返回文本内容 | `"type":"assistant","content":[{"type":"text","text":"..."}]` | CliEventConsumer.cs:250 | 是(返回 content delta) |
-| va07 | assistant + thinking block | LLM 返回思考内容 | `"type":"thinking","thinking":"..."` | CliEventConsumer.cs:250 | 是(返回 thinking delta) |
+| va07 | assistant + thinking block ⚠️TODO | LLM 返回思考内容 | `"type":"thinking","thinking":"..."` | CliEventConsumer.cs:250 | 是(返回 thinking delta) — MockResponseType 不支持 thinking，待扩展 |
 | va08 | assistant + tool_use block (input 是 JSON 对象) | LLM 返回 tool_calls | `"type":"tool_use","input":{"key":"value"}` (input 是对象非字符串) | CliEventConsumer.cs:123-127 | 是(返回 tool_calls chunk) |
 | va09 | user + tool_result block (is_error 是 bool) | 工具执行完成 | `"type":"tool_result","is_error":false` (bool 非 nullable) | CliEventConsumer.cs:265 | 是(触发工具调用) |
-| va10 | tool_progress 事件 | 工具执行期间产生 progress | `"type":"tool_progress"` | CliEventConsumer.cs:180 | 是(长时工具) |
+| va10 | tool_progress 事件 ⚠️TODO | 工具执行期间产生 progress | `"type":"tool_progress"` | CliEventConsumer.cs:180 | 是(长时工具) — MockServer 不支持 tool_progress，待扩展 |
 | va11 | result success 事件 | 管道正常完成 | `"type":"result","subtype":"success","is_error":false` | NonInteractiveModeRunner.cs:64 | 否(任意成功响应) |
-| va12 | result error 事件 | 管道异常或 exitCode!=0 | `"type":"result","subtype":"error_during_execution","is_error":true` | NonInteractiveModeRunner.cs:64; Program.cs:235 | 是(HTTP 500/超时) |
-| va13 | result uuid/session_id 字段 (**缺陷**) | result 发射 | 当前**缺失**，基准要求有 uuid/session_id | SdkMessage.cs:204-207 | 否 |
+| va12 | result error 事件 ❌ | 管道异常或 exitCode!=0 | `"type":"result","subtype":"error_during_execution","is_error":true` | NonInteractiveModeRunner.cs:64; Program.cs:235 | 是(HTTP 500/超时) — jcc 错误处理三层链路(重试/熔断/降级)超时30s，需单独调查 |
+| va13 | result uuid/session_id 字段 ✅ | result 发射 | uuid/session_id 字段已存在（原标注"缺失"已过时，已修复） | SdkMessage.cs:204-207 | 否 |
 | va14 | result modelUsage 字段 | result 发射 | `"modelUsage":{"<model>":{"inputTokens":N,...}}` | SdkMessage.cs:200 | 否 |
 | va15 | result permission_denials 字段 | result 发射 | `"permission_denials":[{"tool_name":"...","tool_use_id":"...","tool_input":"..."}]` | SdkMessage.cs:200-202 | 否 |
 
@@ -214,6 +214,7 @@
 | 编号 | 缺陷 | 严重度 | 状态 |
 |----|------|--------|------|
 | va13 | result 事件缺 uuid/session_id 赋值（基准要求有） | 中 | ✅ 已修复（提取 SdkMessageBase + Create() 工厂方法） |
+| va12 | result error 事件验证超时 | 中 | ❌ 已知问题：jcc 错误处理三层链路(重试/熔断/降级)超时30s，需单独调查 |
 | vd13 | 空响应体导致卡死30秒（应优雅处理） | 高 | ✅ 已修复（OpenAIQueryService SSE idle timeout + StreamIdleTimeoutMs 属性） |
 | vd24 | HTTP 异常被包为 InvalidOperationException 导致分类可能误判 | 中 | ✅ 已修复（ClassifyException 递归 InnerException + SessionTurnResult.OriginalException） |
 | ~~子代理事件空实现~~ | ~~OnSubagentStarted/Finished NDJSON 模式不发射~~ | - | ✅ 非缺陷：基准侧 SDK 也无 agent_started/finished 事件，空实现正确对齐 |

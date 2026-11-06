@@ -194,6 +194,7 @@
     <Project Path="../../non_deliverables_tools/skia_sharp_aot_test/SkiaSharpAotTest.csproj" />
   </Folder>
   <Project Path="../../modules/async_primitives/bcl_bridge/BclBridge.csproj" />
+  <Project Path="../../modules/abstractions/abstractions.utils/Abstractions.Utils.csproj" />
   <Project Path="../../modules/async_primitives/bcl_bridge.tests/JoinCode.BclBridge.Tests.csproj" />
   <Project Path="../../test/benchmarks/structura.benchmarks/Structura.Benchmarks.csproj" />
   <Project Path="../../test/integration/integration.desktop.tests/Integration.Desktop.Tests.csproj" />

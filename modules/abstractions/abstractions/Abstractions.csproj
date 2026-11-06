@@ -35,6 +35,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions.utils/Abstractions.Utils.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Utils" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/exceptions/Abstractions.Exceptions.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Exceptions" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>

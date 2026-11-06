@@ -118,6 +118,7 @@
     <Project Path="../../modules/apps/engine/JoinCode.Engine.csproj" />
     <Project Path="../../modules/apps/sdk/Sdk.csproj" />
   </Folder>
+  <Folder Name="/test/" />
   <Folder Name="/test/unit/">
     <Project Path="../../test/unit/host.tests/Host.Tests.csproj" />
     <Project Path="../../test/unit/infra.tests/io/Infra.IO.Tests.csproj" />
@@ -134,5 +135,6 @@
     <Project Path="../../test/unit/mcp_tool_dispatch.tests/McpToolDispatch.UniqueTests.csproj" />
   </Folder>
   <Project Path="../../modules/async_primitives/bcl_bridge/BclBridge.csproj" />
+  <Project Path="../../modules/abstractions/abstractions.utils/Abstractions.Utils.csproj" />
   <Project Path="../../modules/async_primitives/bcl_bridge.tests/JoinCode.BclBridge.Tests.csproj" />
 </Solution>

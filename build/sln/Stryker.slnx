@@ -31,6 +31,7 @@
     <Project Path="../../modules/llm/reasoning/Reasoning.csproj" />
     <Project Path="../../modules/llm/reasoning.tests/Reasoning.Tests.csproj" />
   </Folder>
+  <Folder Name="/core/" />
   <Folder Name="/core/execution/">
     <Project Path="../../modules/cognition/brain/Brain.csproj" />
     <Project Path="../../modules/cognition/brain.query/Brain.Query.csproj" />
@@ -126,6 +127,7 @@
   <Folder Name="/test/benchmarks/">
     <Project Path="../../test/benchmarks/eyes.benchmarks/Eyes.Benchmarks.csproj" />
   </Folder>
+  <Folder Name="/test/" />
   <Folder Name="/test/aot/">
     <Project Path="../../test/aot/aot_browser_test/aot-browser-test.csproj" />
     <Project Path="../../test/aot/aot_httpclientfactory_test/aot-httpclientfactory-test.csproj" />
@@ -136,4 +138,6 @@
     <Project Path="../../non_deliverables_tools/jcc_audit_ast_cli/tests/JccAuditCli.Tests.csproj" />
     <Project Path="../../non_deliverables_tools/inject_migration/InjectMigration.csproj" />
   </Folder>
+  <Project Path="../../modules/abstractions/abstractions.utils/Abstractions.Utils.csproj" />
+  <Project Path="../../modules/abstractions/primitives/Abstractions.Primitives.csproj" />
 </Solution>

@@ -8,25 +8,33 @@ namespace MockServer.E2E.Tests;
 /// </summary>
 
 [Collection("MockServerShared")]
-public sealed class VbBuiltinToolTests01 : CoverageTestBase {
-    public VbBuiltinToolTests01(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+public sealed class Vb01Tests : CoverageTestBase {
+    public Vb01Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Vb01() { Output.WriteLine("[VB] vb01"); await RunScriptAsync(VbBuiltinToolScripts.Vb01BashSuccess).ConfigureAwait(true); }
+}
 
-    public static IEnumerable<object[]> Data => new[]
-    {
-        new object[] { VbBuiltinToolScripts.Vb01BashSuccess, "vb01" },
-        new object[] { VbBuiltinToolScripts.Vb02BashFailure, "vb02" },
-        new object[] { VbBuiltinToolScripts.Vb03BashTimeout, "vb03" },
-        new object[] { VbBuiltinToolScripts.Vb04BashCommandNotFound, "vb04" },
-        new object[] { VbBuiltinToolScripts.Vb05BashLargeOutputTruncated, "vb05" },
-    };
+[Collection("MockServerShared")]
+public sealed class Vb02Tests : CoverageTestBase {
+    public Vb02Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Vb02() { Output.WriteLine("[VB] vb02"); await RunScriptAsync(VbBuiltinToolScripts.Vb02BashFailure).ConfigureAwait(true); }
+}
 
-    [Theory]
-    [MemberData(nameof(Data))]
-    public async Task Vb01_05_ShouldPassAllAsserts(ConversationScript script, string vbId) {
-        Output.WriteLine($"[VB] 开始验证 {vbId}: {script.Name}");
-        await RunScriptAsync(script).ConfigureAwait(true);
-        Output.WriteLine($"[VB] {vbId} 验证通过");
-    }
+[Collection("MockServerShared")]
+public sealed class Vb03Tests : CoverageTestBase {
+    public Vb03Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Vb03() { Output.WriteLine("[VB] vb03"); await RunScriptAsync(VbBuiltinToolScripts.Vb03BashTimeout).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Vb04Tests : CoverageTestBase {
+    public Vb04Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Vb04() { Output.WriteLine("[VB] vb04"); await RunScriptAsync(VbBuiltinToolScripts.Vb04BashCommandNotFound).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Vb05Tests : CoverageTestBase {
+    public Vb05Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Vb05() { Output.WriteLine("[VB] vb05"); await RunScriptAsync(VbBuiltinToolScripts.Vb05BashLargeOutputTruncated).ConfigureAwait(true); }
 }
 
 [Collection("MockServerShared")]

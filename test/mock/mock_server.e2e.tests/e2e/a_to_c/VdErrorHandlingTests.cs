@@ -55,24 +55,57 @@ public sealed class VdErrorHandlingTests02 : CoverageTestBase {
 }
 
 [Collection("MockServerShared")]
-public sealed class VdErrorHandlingTests03 : CoverageTestBase {
-    public VdErrorHandlingTests03(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+public sealed class Vd12Tests : CoverageTestBase {
+    public Vd12Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact]
+    public async Task Vd12_ShouldPass() {
+        Output.WriteLine("[VD] 开始验证 vd12: 空响应");
+        await RunScriptAsync(VdErrorHandlingScripts.Vd12EmptyResponse).ConfigureAwait(true);
+        Output.WriteLine("[VD] vd12 验证通过");
+    }
+}
 
-    public static IEnumerable<object[]> Data => new[]
-    {
-        new object[] { VdErrorHandlingScripts.Vd12EmptyResponse, "vd12" },
-        new object[] { VdErrorHandlingScripts.Vd13EmptyBodySseIdleTimeout, "vd13" },
-        new object[] { VdErrorHandlingScripts.Vd14RetryExhausted, "vd14" },
-        new object[] { VdErrorHandlingScripts.Vd15CircuitBreakerOpen, "vd15" },
-        new object[] { VdErrorHandlingScripts.Vd16RetryBudgetExhausted, "vd16" },
-    };
+[Collection("MockServerShared")]
+public sealed class Vd13Tests : CoverageTestBase {
+    public Vd13Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact]
+    public async Task Vd13_ShouldPass() {
+        Output.WriteLine("[VD] 开始验证 vd13: 空流式响应");
+        await RunScriptAsync(VdErrorHandlingScripts.Vd13EmptyBodySseIdleTimeout).ConfigureAwait(true);
+        Output.WriteLine("[VD] vd13 验证通过");
+    }
+}
 
-    [Theory]
-    [MemberData(nameof(Data))]
-    public async Task Vd12_16_ShouldPassAllAsserts(ConversationScript script, string vdId) {
-        Output.WriteLine($"[VD] 开始验证 {vdId}: {script.Name}");
-        await RunScriptAsync(script).ConfigureAwait(true);
-        Output.WriteLine($"[VD] {vdId} 验证通过");
+[Collection("MockServerShared")]
+public sealed class Vd14Tests : CoverageTestBase {
+    public Vd14Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact]
+    public async Task Vd14_ShouldPass() {
+        Output.WriteLine("[VD] 开始验证 vd14: 重试耗尽");
+        await RunScriptAsync(VdErrorHandlingScripts.Vd14RetryExhausted).ConfigureAwait(true);
+        Output.WriteLine("[VD] vd14 验证通过");
+    }
+}
+
+[Collection("MockServerShared")]
+public sealed class Vd15Tests : CoverageTestBase {
+    public Vd15Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact]
+    public async Task Vd15_ShouldPass() {
+        Output.WriteLine("[VD] 开始验证 vd15: 熔断器");
+        await RunScriptAsync(VdErrorHandlingScripts.Vd15CircuitBreakerOpen).ConfigureAwait(true);
+        Output.WriteLine("[VD] vd15 验证通过");
+    }
+}
+
+[Collection("MockServerShared")]
+public sealed class Vd16Tests : CoverageTestBase {
+    public Vd16Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact]
+    public async Task Vd16_ShouldPass() {
+        Output.WriteLine("[VD] 开始验证 vd16: 预算耗尽");
+        await RunScriptAsync(VdErrorHandlingScripts.Vd16RetryBudgetExhausted).ConfigureAwait(true);
+        Output.WriteLine("[VD] vd16 验证通过");
     }
 }
 

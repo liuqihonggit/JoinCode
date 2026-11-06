@@ -109,6 +109,13 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
             return;
         }
 
+        // 开关: JCC_SKIP_CODE_INDEX=1 跳过 CodeIndex 启动（E2E 测试/快速启动用，省 ~2.9s 嵌入模型加载+FileWatcher）
+        var skipCodeIndex = Environment.GetEnvironmentVariable("JCC_SKIP_CODE_INDEX");
+        if (skipCodeIndex is "1" or "true" or "yes") {
+            Diag.WriteLine("[STEP] CodeIndex 跳过（JCC_SKIP_CODE_INDEX=1）");
+            return;
+        }
+
         // 检测工作目录是否在 bin/obj/.git/.x 下 — 这些目录无源码,跳过 AST 构造
         // 避免并行 E2E 测试时多个 jcc.exe 同时初始化同一 SQLite 数据库导致锁竞争
         var workingDir = Environment.CurrentDirectory;

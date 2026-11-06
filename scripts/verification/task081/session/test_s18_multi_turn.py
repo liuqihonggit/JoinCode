@@ -32,6 +32,7 @@ def run_jcc(prompt="test", timeout=30):
         "JCC_ENDPOINT": "http://localhost:9901/v1",
         "OPENAI_API_KEY": "test-key",
         "JCC_DEBUGLOG": "1",
+    "JCC_SKIP_CODE_INDEX": "1",
         "JCC_DISABLE_STREAMING_FALLBACK": "1",
     }
     cmd = [JCC, "--non-interactive", "--prompt", prompt, "--format", "ndjson", "--trust", "--permission-mode", "bypass"]

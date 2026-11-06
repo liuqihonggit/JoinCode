@@ -15,6 +15,7 @@ ENV_BASE = {
     "JCC_MODEL_ID": MODEL,
     "OPENAI_API_KEY": "test-key",
     "JCC_DEBUGLOG": "1",
+    "JCC_SKIP_CODE_INDEX": "1",
     "JCC_SKIP_MODEL_FETCH": "1",
     "JCC_DISABLE_RETRY": "1",
 }

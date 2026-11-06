@@ -3,7 +3,7 @@
 import subprocess, os, time, json, threading, urllib.request, uuid
 from pathlib import Path
 
-env = {**os.environ, 'JCC_ENDPOINT':'http://localhost:9901/v1', 'JCC_VENDOR':'openai', 'JCC_MODEL_ID':'gpt-5.6-sol', 'OPENAI_API_KEY':'test-key', 'JCC_SKIP_MODEL_FETCH':'1', 'JCC_DISABLE_RETRY':'1'}
+env = {**os.environ, 'JCC_ENDPOINT':'http://localhost:9901/v1', 'JCC_VENDOR':'openai', 'JCC_MODEL_ID':'gpt-5.6-sol', 'JCC_SKIP_CODE_INDEX': '1', 'OPENAI_API_KEY':'test-key', 'JCC_SKIP_MODEL_FETCH':'1', 'JCC_DISABLE_RETRY':'1'}
 JCC = 'artifacts/bin/JoinCode/Debug/net10.0/jcc.exe'
 MOCK_EXE = 'artifacts/bin/OpenAI.MockServer/Debug/net10.0/JoinCode.OpenAI.MockServer.exe'
 

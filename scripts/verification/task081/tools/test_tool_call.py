@@ -43,6 +43,7 @@ def run_round(prompt, injection, timeout=25, label="R"):
     mock_inject(injection)
     env = os.environ.copy()
     env.update({"OPENAI_API_KEY": "sk-test", "JCC_DEBUGLOG": "1",
+    "JCC_SKIP_CODE_INDEX": "1",
                 "JCC_ENDPOINT": "http://localhost:9901/v1", "JCC_VENDOR": "openai", "JCC_MODEL_ID": "gpt-4o"})
     t0 = time.time()
     proc = subprocess.Popen([JCC_EXE, "--trust", "-p", prompt, "--await", str(int(timeout))],

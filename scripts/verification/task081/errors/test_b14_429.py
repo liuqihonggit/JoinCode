@@ -21,6 +21,7 @@ mock_clear()
 mock_inject(build_error(429, "Rate Limit Exceeded", {"Retry-After": "1"}))
 env = os.environ.copy()
 env.update({"OPENAI_API_KEY": "sk-test", "JCC_DEBUGLOG": "1",
+    "JCC_SKIP_CODE_INDEX": "1",
             "JCC_ENDPOINT": "http://localhost:9901/v1", "JCC_VENDOR": "openai", "JCC_MODEL_ID": "gpt-4o"})
 proc = subprocess.Popen([JCC_EXE, "--trust", "-p", "测试429", "--await", "20"],
     stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, text=True, encoding="utf-8", errors="replace")

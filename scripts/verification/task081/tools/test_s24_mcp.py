@@ -20,6 +20,7 @@ BASE_URL = f"http://localhost:{MCP_PORT}/mcp/"
 def start_mcp_server():
     env = os.environ.copy()
     env["JCC_PERMISSION_MODE"] = "bypass"
+    env["JCC_SKIP_CODE_INDEX"] = "1"
     proc = subprocess.Popen(
         [JCC, "mcp_serve", "--transport", "http", "--port", str(MCP_PORT), "--host", "localhost"],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, text=True, encoding="utf-8", errors="replace"

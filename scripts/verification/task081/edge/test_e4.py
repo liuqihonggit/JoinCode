@@ -29,6 +29,7 @@ big_text = "A" * 10000
 mock_inject(build_stream(big_text))
 env = os.environ.copy()
 env.update({"OPENAI_API_KEY": "sk-test", "JCC_DEBUGLOG": "1",
+    "JCC_SKIP_CODE_INDEX": "1",
             "JCC_ENDPOINT": "http://localhost:9901/v1", "JCC_VENDOR": "openai", "JCC_MODEL_ID": "gpt-4o"})
 proc = subprocess.Popen([JCC_EXE, "--trust", "-p", "输出大文本", "--await", "30"],
     stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, text=True, encoding="utf-8", errors="replace")

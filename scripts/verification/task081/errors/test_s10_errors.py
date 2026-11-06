@@ -8,6 +8,7 @@ def sse(obj):
 env = os.environ.copy()
 env["JCC_ENDPOINT"] = "http://localhost:9901/v1"
 env["OPENAI_API_KEY"] = "test-key"
+env["JCC_SKIP_CODE_INDEX"] = "1"
 env["JCC_DISABLE_STREAMING_FALLBACK"] = "1"
 env["JCC_DISABLE_RETRY"] = "1"
 

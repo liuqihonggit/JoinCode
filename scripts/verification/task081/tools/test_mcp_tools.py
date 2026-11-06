@@ -11,6 +11,7 @@ ENV = {
     "JCC_MODEL_ID": "gpt-5.6-sol",
     "OPENAI_API_KEY": "test-key",
     "JCC_DEBUGLOG": "1",
+    "JCC_SKIP_CODE_INDEX": "1",
     "JCC_SKIP_MODEL_FETCH": "1",
 }
 

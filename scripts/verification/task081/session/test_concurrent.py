@@ -33,6 +33,7 @@ mock_inject(build_stream("响应3：第三个请求结果"))
 
 env = os.environ.copy()
 env.update({"OPENAI_API_KEY": "sk-test", "JCC_DEBUGLOG": "1",
+    "JCC_SKIP_CODE_INDEX": "1",
             "JCC_ENDPOINT": "http://localhost:9901/v1", "JCC_VENDOR": "openai", "JCC_MODEL_ID": "gpt-4o"})
 
 results = {}

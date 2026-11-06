@@ -60,6 +60,7 @@ mock_inject(build_text_stream("已读取 LICENSE 文件并搜索了所有 .md �
 
 env = os.environ.copy()
 env.update({"OPENAI_API_KEY": "sk-test", "JCC_DEBUGLOG": "1",
+    "JCC_SKIP_CODE_INDEX": "1",
             "JCC_ENDPOINT": "http://localhost:9901/v1", "JCC_VENDOR": "openai", "JCC_MODEL_ID": "gpt-4o"})
 
 print("=== 多工具链式调用测试 (Read→Glob→AI总结) ===")

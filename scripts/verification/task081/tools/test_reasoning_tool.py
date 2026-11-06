@@ -46,6 +46,7 @@ mock_inject({"status_code": 200, "content_type": "text/event-stream", "body": "{
 
 env = os.environ.copy()
 env.update({"OPENAI_API_KEY": "sk-test", "JCC_DEBUGLOG": "1",
+    "JCC_SKIP_CODE_INDEX": "1",
             "JCC_ENDPOINT": "http://localhost:9901/v1", "JCC_VENDOR": "openai", "JCC_MODEL_ID": "gpt-4o"})
 print("=== 思考链+工具调用组合测试 ===")
 t0 = time.time()

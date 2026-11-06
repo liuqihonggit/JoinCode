@@ -7,7 +7,8 @@ JCC = "artifacts/bin/JoinCode/Debug/net10.0/jcc.exe"
 MOCK_EXE = "artifacts/bin/OpenAI.MockServer/Debug/net10.0/JoinCode.OpenAI.MockServer.exe"
 MOCK = "http://localhost:9901"
 LOGDIR = Path(".xxx/logs"); LOGDIR.mkdir(parents=True, exist_ok=True)
-ENV = {**os.environ, "JCC_ENDPOINT": "http://localhost:9901/v1", "JCC_VENDOR": "openai", "JCC_MODEL_ID": "gpt-5.6-sol", "OPENAI_API_KEY": "test-key", "JCC_DEBUGLOG": "1", "JCC_SKIP_MODEL_FETCH": "1", "JCC_DISABLE_RETRY": "1"}
+ENV = {**os.environ, "JCC_ENDPOINT": "http://localhost:9901/v1", "JCC_VENDOR": "openai", "JCC_MODEL_ID": "gpt-5.6-sol", "OPENAI_API_KEY": "test-key", "JCC_DEBUGLOG": "1",
+    "JCC_SKIP_CODE_INDEX": "1", "JCC_SKIP_MODEL_FETCH": "1", "JCC_DISABLE_RETRY": "1"}
 results = []; lock = threading.Lock(); mock_proc = None
 
 def log(m): print(m, flush=True)

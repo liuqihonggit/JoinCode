@@ -20,7 +20,7 @@ inject({"is_stream": True, "content_type": "text/event-stream", "stream_chunks":
 ]})
 
 large_prompt = "A" * 5000
-env = {"JCC_ENDPOINT": "http://localhost:9901/v1", "OPENAI_API_KEY": "test-key", "JCC_DISABLE_STREAMING_FALLBACK": "1"}
+env = {"JCC_ENDPOINT": "http://localhost:9901/v1", "JCC_SKIP_CODE_INDEX": "1", "OPENAI_API_KEY": "test-key", "JCC_DISABLE_STREAMING_FALLBACK": "1"}
 cmd = [JCC, "--non-interactive", "--prompt", large_prompt, "--format", "ndjson", "--trust", "--permission-mode", "bypass"]
 proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env={**os.environ, **env}, cwd=".")
 

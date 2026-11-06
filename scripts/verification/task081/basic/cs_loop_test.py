@@ -78,6 +78,7 @@ def run_round(prompt, injection, timeout=20, label="R"):
 
     env = os.environ.copy()
     env.update({"OPENAI_API_KEY": "sk-test-1234567890", "JCC_DEBUGLOG": "1",
+    "JCC_SKIP_CODE_INDEX": "1",
                 "JCC_ENDPOINT": "http://localhost:9901/v1", "JCC_VENDOR": "openai", "JCC_MODEL_ID": "gpt-4o"})
 
     t0 = time.time()

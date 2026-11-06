@@ -159,34 +159,58 @@ public static class TransportDiagnostics {
 /// <summary>
 /// 管道接受循环辅助 — 封装 NamedPipeServerStream 接受连接的循环+协商式取消,
 /// 消除三个 Transport 的重复代码。取消时通过 ct.Register Dispose server 强制中断 WaitForConnectionAsync。
+/// <para><b>竞态消除</b>: 调用方可通过 initialServer 参数传入同步创建的首个 server 实例,
+/// 使 StartAsync 返回时管道已存在 — 消除「Task.Run 调度延迟 vs 客户端立即 ConnectAsync」的竞态窗口
+/// （CI Linux 慢机上 Task.Run 可能延迟数百毫秒才执行到 CreateServer,导致客户端 ECONNREFUSED）。</para>
 /// </summary>
 internal static class PipeAcceptLoop {
     /// <summary>
     /// 循环接受管道连接,每接受一个连接调 handleConnection 处理。取消时优雅退出。
     /// </summary>
+    /// <param name="pipeName">管道名称（仅用于后续实例创建和日志）</param>
+    /// <param name="handleConnection">单个连接的处理回调</param>
+    /// <param name="ct">取消令牌</param>
+    /// <param name="initialServer">预创建的首个 server 实例（同步创建,消除 accept 循环启动延迟竞态）；null 则循环内创建</param>
     public static async Task RunAsync(
         string pipeName,
         Func<NamedPipeServerStream, CancellationToken, Task> handleConnection,
-        CancellationToken ct) {
+        CancellationToken ct,
+        NamedPipeServerStream? initialServer = null) {
         var connectionTasks = new List<Task>();
+        var server = initialServer;
         try {
             while (!ct.IsCancellationRequested) {
-                var server = NamedPipeFactory.CreateServer(pipeName);
+                server ??= NamedPipeFactory.CreateServer(pipeName);
                 try {
                     await using var reg = ct.Register(static s => { if (s is NamedPipeServerStream stream) stream.Dispose(); }, server);
                     await server.WaitForConnectionAsync(ct).ConfigureAwait(false);
                     reg.Unregister();
                     TransportDiagnostics.Log("PIPE-ACCEPT", () => $"accepted connection on {pipeName}");
                     connectionTasks.RemoveAll(t => t.IsCompleted);
-                    connectionTasks.Add(Task.Run(() => handleConnection(server, ct)));
-                } catch (OperationCanceledException) { return; } catch (ObjectDisposedException) { return; } catch (Exception ex) {
+                    var acceptedServer = server;
+                    connectionTasks.Add(Task.Run(() => handleConnection(acceptedServer, ct)));
+                } catch (OperationCanceledException) {
+                    await DisposeServerSafeAsync(server).ConfigureAwait(false);
+                    return;
+                } catch (ObjectDisposedException) {
+                    await DisposeServerSafeAsync(server).ConfigureAwait(false);
+                    return;
+                } catch (Exception ex) {
                     TransportDiagnostics.Log("PIPE-ACCEPT", () => $"连接错误: {ex.Message}");
-                    try { await server.DisposeAsync().ConfigureAwait(false); } catch (Exception) { TransportDiagnostics.Log("PIPE-ACCEPT", "server Dispose 失败"); }
+                    await DisposeServerSafeAsync(server).ConfigureAwait(false);
                 }
+                server = null;
             }
         } finally {
+            await DisposeServerSafeAsync(server).ConfigureAwait(false);
             await Task.WhenAll(connectionTasks).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>安全 Dispose server — 吞异常,仅记日志。供 Transport.DisposeAsync 清理 _initialServer 复用。</summary>
+    internal static async ValueTask DisposeServerSafeAsync(NamedPipeServerStream? server) {
+        if (server is null) return;
+        try { await server.DisposeAsync().ConfigureAwait(false); } catch (Exception) { TransportDiagnostics.Log("PIPE-ACCEPT", "server Dispose 失败"); }
     }
 }
 

@@ -41,6 +41,7 @@
     <MicrosoftNETTestSdkVersion>18.7.0</MicrosoftNETTestSdkVersion>
     <XunitVersion>2.9.3</XunitVersion>
     <XunitRunnerVisualStudioVersion>3.1.5</XunitRunnerVisualStudioVersion>
+    <JccComponentPackageVersion>1.0.0</JccComponentPackageVersion>
   </PropertyGroup>
 
   <!-- AOT / 裁剪 统一配置（对齐根部规范，源码项目 AOT 兼容 + Release 发布 AOT） -->

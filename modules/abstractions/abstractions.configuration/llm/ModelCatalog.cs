@@ -5,7 +5,7 @@ namespace JoinCode.Abstractions.Configuration.Llm;
 /// 模型目录 — 提供按供应商查询模型列表、解析别名、获取默认模型及能力判定等功能
 /// </summary>
 [Register(typeof(IModelCatalog), ServiceLifetime.Singleton)]
-public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, IModelConfigLoader? modelConfigLoader = null, WorkflowConfig? workflowConfig = null) : ServiceEntity, IModelCatalog {
+public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, IModelConfigLoader? modelConfigLoader = null, WorkflowConfig? workflowConfig = null) : IModelCatalog {
     private readonly IProviderDefinitionRegistry _registry = registry;
     private readonly IModelConfigLoader? _modelConfigLoader = modelConfigLoader;
     private readonly WorkflowConfig? _workflowConfig = workflowConfig;

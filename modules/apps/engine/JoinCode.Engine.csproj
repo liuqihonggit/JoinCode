@@ -50,4 +50,8 @@
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/memory/Abstractions.Memory.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Memory" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions.configuration/Abstractions.Configuration.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Configuration" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
 </Project>

@@ -118,5 +118,6 @@
     <Project Path="../../test/mock/responses.mock_server/Responses.MockServer.csproj" />
   </Folder>
   <Project Path="../../modules/abstractions/abstractions.utils/Abstractions.Utils.csproj" />
+  <Project Path="../../modules/abstractions/abstractions.configuration/Abstractions.Configuration.csproj" />
   <Project Path="../../modules/async_primitives/bcl_bridge/BclBridge.csproj" />
 </Solution>

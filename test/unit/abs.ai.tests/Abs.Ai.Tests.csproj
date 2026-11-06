@@ -20,4 +20,8 @@
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/brain/Abstractions.Brain.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Brain" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions.configuration/Abstractions.Configuration.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Configuration" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
 </Project>

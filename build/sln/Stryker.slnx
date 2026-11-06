@@ -139,5 +139,6 @@
     <Project Path="../../non_deliverables_tools/inject_migration/InjectMigration.csproj" />
   </Folder>
   <Project Path="../../modules/abstractions/abstractions.utils/Abstractions.Utils.csproj" />
+  <Project Path="../../modules/abstractions/abstractions.configuration/Abstractions.Configuration.csproj" />
   <Project Path="../../modules/abstractions/primitives/Abstractions.Primitives.csproj" />
 </Solution>

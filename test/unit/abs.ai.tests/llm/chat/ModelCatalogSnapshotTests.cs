@@ -52,7 +52,7 @@ public class ModelCatalogSnapshotTests {
     [Fact]
     public async Task GetProviders_ReturnsRegisteredProvidersInRegistryOrder() {
         using var env = ClearCustomModelEnv();
-        await using var catalog = CreateCatalog(CreateRegistry(OpenAiSpec, AnthropicSpec));
+        var catalog = CreateCatalog(CreateRegistry(OpenAiSpec, AnthropicSpec));
 
         var providers = catalog.GetProviders();
 
@@ -70,7 +70,7 @@ public class ModelCatalogSnapshotTests {
     public async Task GetProviders_AppliesAvailableModelsWhitelist() {
         using var env = ClearCustomModelEnv();
         var workflow = new WorkflowConfig { AvailableModels = ["gpt-4o"] };
-        await using var catalog = CreateCatalog(CreateRegistry(OpenAiSpec, AnthropicSpec), workflow);
+        var catalog = CreateCatalog(CreateRegistry(OpenAiSpec, AnthropicSpec), workflow);
 
         var providers = catalog.GetProviders();
 
@@ -83,7 +83,7 @@ public class ModelCatalogSnapshotTests {
         using var env = EnvVarScope.Set(JccEnvVar.CustomModelOption.ToValue(), "my-custom-model")
             .Add(JccEnvVar.CustomModelOptionName.ToValue(), "My Custom Model")
             .Add(JccEnvVar.CustomModelOptionDescription.ToValue(), "团队私有部署");
-        await using var catalog = CreateCatalog(CreateRegistry(OpenAiSpec));
+        var catalog = CreateCatalog(CreateRegistry(OpenAiSpec));
 
         var providers = catalog.GetProviders();
 
@@ -99,7 +99,7 @@ public class ModelCatalogSnapshotTests {
     [Fact]
     public async Task GetSnapshot_EnsuresCurrentModelInCurrentProvider() {
         using var env = ClearCustomModelEnv();
-        await using var catalog = CreateCatalog(CreateRegistry(OpenAiSpec, AnthropicSpec));
+        var catalog = CreateCatalog(CreateRegistry(OpenAiSpec, AnthropicSpec));
 
         var snapshot = catalog.GetSnapshot("openai", "gpt-5-preview");
 
@@ -114,7 +114,7 @@ public class ModelCatalogSnapshotTests {
     [Fact]
     public async Task GetSnapshot_WhenCurrentModelAlreadyListed_DoesNotDuplicate() {
         using var env = ClearCustomModelEnv();
-        await using var catalog = CreateCatalog(CreateRegistry(OpenAiSpec));
+        var catalog = CreateCatalog(CreateRegistry(OpenAiSpec));
 
         var snapshot = catalog.GetSnapshot("openai", "gpt-4o");
 
@@ -124,7 +124,7 @@ public class ModelCatalogSnapshotTests {
     [Fact]
     public async Task GetSnapshot_UnknownCurrentProvider_AddsPlaceholderGroup() {
         using var env = ClearCustomModelEnv();
-        await using var catalog = CreateCatalog(CreateRegistry(OpenAiSpec));
+        var catalog = CreateCatalog(CreateRegistry(OpenAiSpec));
 
         var snapshot = catalog.GetSnapshot("jev", "jev-1");
 
@@ -138,7 +138,7 @@ public class ModelCatalogSnapshotTests {
     [Fact]
     public async Task GetSnapshot_EmptyCurrentProvider_DoesNotAddPlaceholder() {
         using var env = ClearCustomModelEnv();
-        await using var catalog = CreateCatalog(CreateRegistry(OpenAiSpec));
+        var catalog = CreateCatalog(CreateRegistry(OpenAiSpec));
 
         var snapshot = catalog.GetSnapshot(string.Empty, "gpt-4o");
 
@@ -149,7 +149,7 @@ public class ModelCatalogSnapshotTests {
     [Fact]
     public async Task GetSnapshot_MatchesCurrentProviderCaseInsensitively() {
         using var env = ClearCustomModelEnv();
-        await using var catalog = CreateCatalog(CreateRegistry(OpenAiSpec));
+        var catalog = CreateCatalog(CreateRegistry(OpenAiSpec));
 
         var snapshot = catalog.GetSnapshot("OpenAI", "gpt-5-preview");
 

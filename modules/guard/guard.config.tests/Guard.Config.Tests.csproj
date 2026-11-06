@@ -18,4 +18,8 @@
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions.configuration/Abstractions.Configuration.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Configuration" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
 </Project>

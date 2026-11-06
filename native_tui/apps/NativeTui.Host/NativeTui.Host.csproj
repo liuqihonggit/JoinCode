@@ -23,4 +23,8 @@
     <ProjectReference Include="..\..\..\modules\apps\engine\JoinCode.Engine.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="..\..\..\modules\abstractions\abstractions.configuration\Abstractions.Configuration.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Configuration" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
 </Project>

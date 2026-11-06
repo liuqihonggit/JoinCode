@@ -26,7 +26,7 @@ def run_jcc(prompt="Say hello"):
     env["OPENAI_API_KEY"] = "test-key"
     env["JCC_ENDPOINT"] = f"{ENDPOINT}/v1"
     env["JCC_DEBUGLOG"] = "1"
-env["JCC_SKIP_CODE_INDEX"] = "1"
+    env["JCC_SKIP_CODE_INDEX"] = "1"
     env["JCC_DISABLE_STREAMING_FALLBACK"] = "1"
     cmd = [
         "artifacts/bin/JoinCode/Debug/net10.0/jcc.exe",

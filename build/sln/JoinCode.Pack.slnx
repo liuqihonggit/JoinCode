@@ -42,6 +42,9 @@
     <Project Path="../../modules/abstractions/infrastructure_localization/Infrastructure.Localization.csproj" />
     <Project Path="../../modules/abstractions/infrastructure_telemetry/Infrastructure.Telemetry.csproj" />
     <Project Path="../../modules/abstractions/infrastructure_resilience/Infrastructure.Resilience.csproj" />
+    <Project Path="../../modules/abstractions/infrastructure_process/Infrastructure.Process.csproj" />
+    <Project Path="../../modules/abstractions/infrastructure_configuration/Infrastructure.Configuration.csproj" />
+    <Project Path="../../modules/abstractions/infrastructure_http/Infrastructure.Http.csproj" />
     <Project Path="../../modules/async_primitives/transport.impl/Transport.Impl.csproj" />
   </Folder>
   <Folder Name="/llm/">

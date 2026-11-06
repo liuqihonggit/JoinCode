@@ -250,7 +250,7 @@ public sealed class ToolHypergraphScorerTest {
 
     [Fact]
     public void LoadCustomHyperedges_MergesWithPresets() {
-        var custom = new List<JoinCode.Abstractions.Configuration.Settings.HyperedgeSettings>
+        var custom = new List<JoinCode.Abstractions.Tools.HyperedgeSettings>
         {
             new()
             {
@@ -275,7 +275,7 @@ public sealed class ToolHypergraphScorerTest {
 
     [Fact]
     public void LoadCustomHyperedges_OverridesPresetById() {
-        var custom = new List<JoinCode.Abstractions.Configuration.Settings.HyperedgeSettings>
+        var custom = new List<JoinCode.Abstractions.Tools.HyperedgeSettings>
         {
             new()
             {

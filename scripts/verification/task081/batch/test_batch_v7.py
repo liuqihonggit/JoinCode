@@ -89,7 +89,7 @@ def make_stream_chunks(content_text=None, tool_calls=None, reasoning=None, finis
 
 def inject_stream(chunks, status=200):
     mock_clear()
-    body = {"status": status, "content_type": "text/event-stream", "is_stream": True, "stream_chunks": chunks}
+    body = {"status_code": status, "content_type": "text/event-stream", "is_stream": True, "stream_chunks": chunks}
     try: urllib.request.urlopen(urllib.request.Request(f"{MOCK}/__control__/inject", data=json.dumps(body).encode(), method="POST", headers={"Content-Type": "application/json"}), timeout=3)
     except: pass
 

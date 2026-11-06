@@ -36,7 +36,7 @@ def make_stream_chunks(content_text=None, tool_calls=None, finish_reason="stop",
     return chunks
 
 def inject_stream(chunks, status=200, delay_ms=0):
-    body = {"status": status, "is_stream": True, "stream_chunks": chunks, "content_type": "text/event-stream"}
+    body = {"status_code": status, "is_stream": True, "stream_chunks": chunks, "content_type": "text/event-stream"}
     if delay_ms > 0: body["delay_ms"] = delay_ms
     data = json.dumps(body).encode()
     req = urllib.request.Request(f"{MOCK}/__control__/inject", data=data, method="POST", headers={"Content-Type": "application/json"})
@@ -215,12 +215,12 @@ def test_stream_fallback_to_nonstream():
     """流式失败后回退到非流式"""
     # 第一个注入：非流式响应（流式解析器会失败）
     body = json.dumps({"id": "x", "object": "chat.completion", "choices": [{"index": 0, "message": {"role": "assistant", "content": "回退成功"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}})
-    inject_data = {"status": 200, "is_stream": False, "body": body, "content_type": "application/json"}
+    inject_data = {"status_code": 200, "is_stream": False, "body": body, "content_type": "application/json"}
     data = json.dumps(inject_data).encode()
     req = urllib.request.Request(f"{MOCK}/__control__/inject", data=data, method="POST", headers={"Content-Type": "application/json"})
     urllib.request.urlopen(req, timeout=5)
     # 第二个注入：非流式回退请求的响应
-    inject_data2 = {"status": 200, "is_stream": False, "body": body, "content_type": "application/json"}
+    inject_data2 = {"status_code": 200, "is_stream": False, "body": body, "content_type": "application/json"}
     data2 = json.dumps(inject_data2).encode()
     req2 = urllib.request.Request(f"{MOCK}/__control__/inject", data=data2, method="POST", headers={"Content-Type": "application/json"})
     urllib.request.urlopen(req2, timeout=5)
@@ -296,7 +296,7 @@ print("\n=== 36. 错误码覆盖 ===")
 
 def test_400_bad_request():
     body = json.dumps({"error": {"message": "bad request", "code": "400"}})
-    inject_data = {"status": 400, "is_stream": False, "body": body, "content_type": "application/json"}
+    inject_data = {"status_code": 400, "is_stream": False, "body": body, "content_type": "application/json"}
     data = json.dumps(inject_data).encode()
     req = urllib.request.Request(f"{MOCK}/__control__/inject", data=data, method="POST", headers={"Content-Type": "application/json"})
     urllib.request.urlopen(req, timeout=5)
@@ -306,7 +306,7 @@ test("400 Bad Request", test_400_bad_request)
 
 def test_403_forbidden():
     body = json.dumps({"error": {"message": "forbidden", "code": "403"}})
-    inject_data = {"status": 403, "is_stream": False, "body": body, "content_type": "application/json"}
+    inject_data = {"status_code": 403, "is_stream": False, "body": body, "content_type": "application/json"}
     data = json.dumps(inject_data).encode()
     req = urllib.request.Request(f"{MOCK}/__control__/inject", data=data, method="POST", headers={"Content-Type": "application/json"})
     urllib.request.urlopen(req, timeout=5)
@@ -316,7 +316,7 @@ test("403 Forbidden", test_403_forbidden)
 
 def test_502_bad_gateway():
     body = json.dumps({"error": {"message": "bad gateway", "code": "502"}})
-    inject_data = {"status": 502, "is_stream": False, "body": body, "content_type": "application/json"}
+    inject_data = {"status_code": 502, "is_stream": False, "body": body, "content_type": "application/json"}
     data = json.dumps(inject_data).encode()
     req = urllib.request.Request(f"{MOCK}/__control__/inject", data=data, method="POST", headers={"Content-Type": "application/json"})
     urllib.request.urlopen(req, timeout=5)
@@ -326,7 +326,7 @@ test("502 Bad Gateway", test_502_bad_gateway)
 
 def test_504_gateway_timeout():
     body = json.dumps({"error": {"message": "gateway timeout", "code": "504"}})
-    inject_data = {"status": 504, "is_stream": False, "body": body, "content_type": "application/json"}
+    inject_data = {"status_code": 504, "is_stream": False, "body": body, "content_type": "application/json"}
     data = json.dumps(inject_data).encode()
     req = urllib.request.Request(f"{MOCK}/__control__/inject", data=data, method="POST", headers={"Content-Type": "application/json"})
     urllib.request.urlopen(req, timeout=5)

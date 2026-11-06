@@ -48,7 +48,7 @@ def make_stream_chunks(content_text=None, tool_calls=None, reasoning=None, finis
     return chunks
 
 def inject_stream(chunks, status=200, headers=None, delay_ms=0):
-    body = {"status": status, "is_stream": True, "stream_chunks": chunks, "content_type": "text/event-stream"}
+    body = {"status_code": status, "is_stream": True, "stream_chunks": chunks, "content_type": "text/event-stream"}
     if delay_ms > 0: body["delay_ms"] = delay_ms
     if headers: body["headers"] = headers
     data = json.dumps(body).encode()
@@ -57,7 +57,7 @@ def inject_stream(chunks, status=200, headers=None, delay_ms=0):
     except Exception as e: print(f"  INJECT ERROR: {e}")
 
 def inject_non_stream(body_text, status=200, headers=None):
-    body = {"status": status, "is_stream": False, "body": body_text, "content_type": "application/json"}
+    body = {"status_code": status, "is_stream": False, "body": body_text, "content_type": "application/json"}
     if headers: body["headers"] = headers
     data = json.dumps(body).encode()
     req = urllib.request.Request(f"{MOCK}/__control__/inject", data=data, method="POST", headers={"Content-Type": "application/json"})

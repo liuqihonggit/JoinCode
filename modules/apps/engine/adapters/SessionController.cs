@@ -501,7 +501,7 @@ public sealed class SessionController {
         var contextManager = _serviceProvider.GetService<IChatContextManager>();
         if (contextManager is not null) {
             try {
-                if (!string.IsNullOrEmpty(assistantResponse)) {
+                if (!string.IsNullOrWhiteSpace(assistantResponse)) {
                     await contextManager.AddAssistantMessageAsync(assistantResponse, ct).ConfigureAwait(false);
                 }
                 await contextManager.SaveContextAsync(ct).ConfigureAwait(false);

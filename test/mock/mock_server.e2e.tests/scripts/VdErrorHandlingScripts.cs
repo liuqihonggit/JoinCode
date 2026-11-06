@@ -433,7 +433,7 @@ public static class VdErrorHandlingScripts {
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "vd12: 空响应应有提示" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "空回复", Description = "vd12: 空响应应提示'空回复'" },
                 ]
             },
             new ConversationTurn {
@@ -471,7 +471,7 @@ public static class VdErrorHandlingScripts {
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "vd13: 空 body 应有超时提示" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "空回复", Description = "vd13: 空 body 应提示'空回复'" },
                 ]
             },
             new ConversationTurn {

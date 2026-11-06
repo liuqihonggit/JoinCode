@@ -79,4 +79,12 @@ public sealed class JccEnvBuilder {
     /// <summary>构建最终环境变量字典（副本，修改不影响 builder 状态）</summary>
     /// <returns>带 OrdinalIgnoreCase 比较器的环境变量字典</returns>
     public Dictionary<string, string> Build() => new(_env, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>将环境变量直接应用到 ProcessStartInfo（用于独立 E2E 测试）</summary>
+    /// <param name="psi">进程启动信息</param>
+    public void ApplyTo(ProcessStartInfo psi) {
+        foreach (var (key, value) in _env) {
+            psi.EnvironmentVariables[key] = value;
+        }
+    }
 }

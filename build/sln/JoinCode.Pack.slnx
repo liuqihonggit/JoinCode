@@ -78,6 +78,8 @@
     <Project Path="../../modules/guard/guard.danger_classification/Guard.DangerClassification.csproj" />
     <Project Path="../../modules/guard/guard.configuration/Guard.Configuration.csproj" />
     <Project Path="../../modules/guard/guard.permission/Guard.Permission.csproj" />
+    <Project Path="../../modules/guard/guard.security/Guard.Security.csproj" />
+    <Project Path="../../modules/guard/guard.hooks/Guard.Hooks.csproj" />
     <Project Path="../../modules/storage/vault/Vault.csproj" />
   </Folder>
   <Folder Name="/core/search/">

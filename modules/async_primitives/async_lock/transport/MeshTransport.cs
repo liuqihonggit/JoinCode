@@ -17,6 +17,7 @@ public sealed class MeshTransport : ITransportTopology {
     private readonly CancellationTokenSource _cts;
     private readonly string _processId;
     private Task? _acceptTask;
+    private NamedPipeServerStream? _initialServer;
     private int _started;
     private int _disposed;
 
@@ -71,7 +72,10 @@ public sealed class MeshTransport : ITransportTopology {
         ThrowIfDisposed();
         Interlocked.Exchange(ref _started, 1);
         _logger?.LogInformation("MeshTransport: started on pipe {Pipe} (pid={Pid})", MyPipeName, ProcessId);
-        _acceptTask = Task.Run(() => PipeAcceptLoop.RunAsync(MyPipeName, HandlePeerConnectionAsync, _cts.Token));
+        // 同步创建首个 server 实例 — 消除 accept 循环 Task.Run 调度延迟竞态
+        // （StartAsync 返回时管道已存在,AddPeerAsync/ConnectAsync 可立即连接,无需重试穿透窗口）
+        _initialServer = NamedPipeFactory.CreateServer(MyPipeName);
+        _acceptTask = Task.Run(() => PipeAcceptLoop.RunAsync(MyPipeName, HandlePeerConnectionAsync, _cts.Token, _initialServer));
         return ValueTask.CompletedTask;
     }
 
@@ -240,6 +244,8 @@ public sealed class MeshTransport : ITransportTopology {
 
         if (_acceptTask is not null) await _acceptTask.ConfigureAwait(false);
         _acceptTask = null;
+        await PipeAcceptLoop.DisposeServerSafeAsync(_initialServer).ConfigureAwait(false);
+        _initialServer = null;
         await CleanupAsync(conns, _cts).ConfigureAwait(false);
     }
 

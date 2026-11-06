@@ -21,6 +21,7 @@ public sealed class BusTransport : ITransportTopology {
     private NamedPipeClientStream? _slaveClient;
     private HostElectionResult? _role;
     private Task? _acceptTask;
+    private NamedPipeServerStream? _initialServer;
     private Task? _slaveReceiveTask;
     private int _disposed;
 
@@ -130,7 +131,9 @@ public sealed class BusTransport : ITransportTopology {
 
     private Task StartHostAsync(CancellationToken ct) {
         _logger?.LogInformation("BusTransport: HOST started on pipe {Pipe} (pid={Pid})", _pipeName, ProcessId);
-        _acceptTask = Task.Run(() => PipeAcceptLoop.RunAsync(_pipeName, HandleBusConnectionAsync, _cts.Token));
+        // 同步创建首个 server 实例 — 消除 accept 循环 Task.Run 调度延迟竞态（详见 PipeAcceptLoop.RunAsync 注释）
+        _initialServer = NamedPipeFactory.CreateServer(_pipeName);
+        _acceptTask = Task.Run(() => PipeAcceptLoop.RunAsync(_pipeName, HandleBusConnectionAsync, _cts.Token, _initialServer));
         return Task.CompletedTask;
     }
 
@@ -247,6 +250,8 @@ public sealed class BusTransport : ITransportTopology {
         _slaveClient = null;
         _acceptTask = null;
         _slaveReceiveTask = null;
+        await PipeAcceptLoop.DisposeServerSafeAsync(_initialServer).ConfigureAwait(false);
+        _initialServer = null;
         await CleanupAsync(conns, slaveClient, _election, _cts).ConfigureAwait(false);
     }
 

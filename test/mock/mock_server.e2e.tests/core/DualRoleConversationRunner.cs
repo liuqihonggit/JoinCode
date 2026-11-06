@@ -93,47 +93,12 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
         _stateFilePath = _fs.CombinePath(stateDir, "workflow_state.json");
         await E2eSettingsJsonHelper.WriteSettingsJsonToStateDirAsync(stateDir).ConfigureAwait(true);
 
-        var providerValue = _activeProvider switch {
-            VendorKind.OpenAi => VendorKind.OpenAi.ToValue(),
-            VendorKind.Anthropic => VendorKind.Anthropic.ToValue(),
-            VendorKind.DeepSeek => VendorKind.DeepSeek.ToValue(),
-            _ => VendorKind.OpenAi.ToValue()
-        };
-        var modelId = _activeProvider switch {
-            VendorKind.OpenAi => "gpt-4o",
-            VendorKind.Anthropic => "claude-sonnet-4-20250514",
-            VendorKind.DeepSeek => "deepseek-v4-flash",
-            _ => "gpt-4o"
-        };
-        var apiKeyEnvVar = _activeProvider switch {
-            VendorKind.OpenAi => "OPENAI_API_KEY",
-            VendorKind.Anthropic => "ANTHROPIC_API_KEY",
-            VendorKind.DeepSeek => "DEEPSEEK_API_KEY",
-            _ => "OPENAI_API_KEY"
-        };
-
-        var envVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
-            ["JCC_ENDPOINT"] = $"http://localhost:{_mockServerPort}",
-            ["OPENAI_API_KEY"] = "sk-test-1234567890",
-            ["JCC_VENDOR"] = providerValue,
-            ["JCC_MODEL_ID"] = modelId,
-            [apiKeyEnvVar] = "sk-test-1234567890",
-            ["JCC_STATE_FILE_PATH"] = _stateFilePath,
-            // E2E 测试自动升级权限到 bypass，避免 100+ 工具被权限拒绝阻塞
-            ["JCC_PERMISSION_MODE"] = "bypass",
-            // 隔离 AppData 目录，避免并发测试共享 onboarding_complete.json 导致文件锁冲突
-            ["JCC_APP_DATA_FOLDER"] = stateDir,
-            // CI 环境 MockServer 响应可能较慢，30s 超时避免误判
-            ["JCC_API_TIMEOUT_MS"] = "30000",
-            // E2E 断言硬编码中文，强制中文语言避免 CI 英文系统检测到 en 导致输出语言不匹配
-            ["JCC_LANGUAGE"] = "zh",
-        };
-
-        if (script.ExtraEnvVars is not null) {
-            foreach (var (key, value) in script.ExtraEnvVars) {
-                envVars[key] = value;
-            }
-        }
+        var envVars = JccEnvBuilder
+            .Create(_activeProvider, _mockServerPort, _stateFilePath, stateDir)
+            .WithExtraEnvVars(script.ExtraEnvVars)
+            .Build();
+        var providerValue = envVars["JCC_VENDOR"];
+        var modelId = envVars["JCC_MODEL_ID"];
 
         // ADR 0149: 多轮交互改用 bridge_serve NDJSON 协议（不再依赖已删除的 CLI REPL --force-interactive）
         var args = script.Mode == ConversationMode.NonInteractive
@@ -213,42 +178,13 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
             _processManager = null;
 
             var exePath = ResolveExecutablePath();
-            var providerValue = _activeProvider switch {
-                VendorKind.OpenAi => VendorKind.OpenAi.ToValue(),
-                VendorKind.Anthropic => VendorKind.Anthropic.ToValue(),
-                VendorKind.DeepSeek => VendorKind.DeepSeek.ToValue(),
-                _ => VendorKind.OpenAi.ToValue()
-            };
-            var modelId = _activeProvider switch {
-                VendorKind.OpenAi => "gpt-4o",
-                VendorKind.Anthropic => "claude-sonnet-4-20250514",
-                VendorKind.DeepSeek => "deepseek-v4-flash",
-                _ => "gpt-4o"
-            };
-            var apiKeyEnvVar = _activeProvider switch {
-                VendorKind.OpenAi => "OPENAI_API_KEY",
-                VendorKind.Anthropic => "ANTHROPIC_API_KEY",
-                VendorKind.DeepSeek => "DEEPSEEK_API_KEY",
-                _ => "OPENAI_API_KEY"
-            };
-            var envVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
-                ["JCC_ENDPOINT"] = $"http://localhost:{_mockServerPort}",
-                ["OPENAI_API_KEY"] = "sk-test-1234567890",
-                ["JCC_VENDOR"] = providerValue,
-                ["JCC_MODEL_ID"] = modelId,
-                [apiKeyEnvVar] = "sk-test-1234567890",
-                ["JCC_STATE_FILE_PATH"] = _stateFilePath!,
-                ["JCC_PERMISSION_MODE"] = "bypass",
-                ["JCC_APP_DATA_FOLDER"] = Path.GetDirectoryName(_stateFilePath)!,
-                // E2E 断言硬编码中文，强制中文语言避免 CI 英文系统检测到 en 导致输出语言不匹配
-                ["JCC_LANGUAGE"] = "zh",
-            };
-
-            if (script.ExtraEnvVars is not null) {
-                foreach (var (key, value) in script.ExtraEnvVars) {
-                    envVars[key] = value;
-                }
-            }
+            ArgumentNullException.ThrowIfNull(_stateFilePath);
+            var appData = Path.GetDirectoryName(_stateFilePath) ?? Path.GetTempPath();
+            var envVars = JccEnvBuilder
+                .Create(_activeProvider, _mockServerPort, _stateFilePath, appData)
+                .Without("JCC_API_TIMEOUT_MS")
+                .WithExtraEnvVars(script.ExtraEnvVars)
+                .Build();
 
             var args = $"--trust -p \"{script.Turns[0].UserInput}\"";
             if (!string.IsNullOrWhiteSpace(script.AdditionalArgs)) {

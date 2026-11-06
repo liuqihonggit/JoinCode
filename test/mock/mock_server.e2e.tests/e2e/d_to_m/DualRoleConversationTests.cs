@@ -2,7 +2,7 @@
 namespace MockServer.E2E.Tests;
 
 /// <summary>DualRole 对话 E2E 分组 A — 基础/工具/流式/SessionController（19测试,~97s）</summary>
-public sealed class DualRoleConversationTestsA : DualRoleConversationTestBase {
+public sealed class DualRoleConversationTestsA : CoverageTestBase {
     public DualRoleConversationTestsA(ITestOutputHelper output) : base(output) { }
 
     [Fact]

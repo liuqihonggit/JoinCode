@@ -1,0 +1,10 @@
+import { connectDshPage, until, autoDismissWelcome, bodyText } from '../non_deliverables_tools/dsh_parity/dumps/_e2e.mjs';
+const { cdp, page } = await connectDshPage(9223);
+await autoDismissWelcome(page);
+await until('render', async () => (await bodyText(page)).length > 20, 20000);
+console.log('URL', page.url());
+console.log('BODY', (await bodyText(page)).slice(0, 800));
+console.log('BUTTONS', await page.locator('button').evaluateAll((els) => els.map((e) => (e.getAttribute('aria-label') || e.textContent || '').trim()).filter(Boolean).slice(0, 40)));
+console.log('TREE', await page.locator('[role=treeitem]').evaluateAll((els) => els.map((e) => (e.textContent || '').trim()).slice(0, 20)));
+await page.screenshot({ path: '.xxx/logs/feedback-ui.png' });
+await cdp.close();

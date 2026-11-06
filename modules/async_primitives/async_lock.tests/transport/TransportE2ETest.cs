@@ -175,17 +175,11 @@ public class TransportE2ETest {
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
-    [Trait("Category", "Flaky")]
-    public async Task BusTransport_Broadcast_MultipleSlavesReceive_Retry16Times() {
-        for (var attempt = 0; attempt < 16; attempt++) {
-            try {
-                await BusTransport_Broadcast_MultipleSlavesReceive_Core();
-                return;
-            } catch (Xunit.Sdk.XunitException) when (attempt < 15) {
-                await Task.Delay(100).ConfigureAwait(true);
-            }
-        }
-        throw new Xunit.Sdk.XunitException("16次重试均失败: BusTransport 广播 slave1/slave2 未同时收到");
+    public async Task BusTransport_Broadcast_MultipleSlavesReceive() {
+        // 信号处理式：从源头消除竞态（StartAsync 同步创建 server pipe 实例），
+        // WaitForConnectedAsync 确定性等待 slave 入表，无需机械重试。
+        // 若仍失败，单次执行 + 现场快照直接定位根因（而非盲目重试掩盖信号）。
+        await BusTransport_Broadcast_MultipleSlavesReceive_Core();
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]

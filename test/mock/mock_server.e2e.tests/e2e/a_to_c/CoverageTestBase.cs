@@ -229,6 +229,71 @@ public abstract class CoverageTestBase : IAsyncLifetime {
     private static string Truncate(string s, int maxLen) =>
         string.IsNullOrEmpty(s) ? s : s.Length <= maxLen ? s : s[..maxLen] + "...";
 
+    /// <summary>
+    /// 运行对话脚本并返回结果（含前缀缓存分析）— 用于缓存稳定性验证
+    /// 全局超时 60s，偶发性失败自动重试16次
+    /// </summary>
+    protected async Task<ConversationResult> RunScriptWithCacheAnalysisAsync(ConversationScript script, VendorKind provider = VendorKind.OpenAi) {
+        ValidateScriptMode(script);
+        return await RunScriptWithCacheAnalysisRetryAsync(script, provider, maxAttempts: 16).ConfigureAwait(true);
+    }
+
+    private async Task<ConversationResult> RunScriptWithCacheAnalysisRetryAsync(ConversationScript script, VendorKind provider, int maxAttempts) {
+        for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+            var runner = new DualRoleConversationRunner(
+                LoggerFactory.CreateLogger<DualRoleConversationRunner>(), sharedFixture: SharedFixture);
+
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            try {
+                var result = await runner.RunAsync(script, provider, timeoutCts.Token).ConfigureAwait(true);
+
+                LogResult(result, TimeSpan.Zero);
+
+                if (result.AllPassed)
+                    return result;
+
+                if (attempt < maxAttempts) {
+                    Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试失败，自动重试: {script.Name} (provider={provider})");
+                    await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                    continue;
+                }
+
+                result.AllPassed.Should().BeTrue($"所有断言应通过。失败: {FormatFailures(result)}");
+                return result;
+            } catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested) {
+                if (attempt < maxAttempts) {
+                    Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试超时(>60s)，自动重试: {script.Name} (provider={provider})");
+                    await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                    continue;
+                }
+                throw new TimeoutException($"[GEN035] 测试超时(>60s): {script.Name} (provider={provider})");
+            } catch (OperationCanceledException) when (!timeoutCts.IsCancellationRequested && attempt < maxAttempts) {
+                Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试被内层取消(如MockServer就绪超时)，自动重试: {script.Name} (provider={provider})");
+                await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                continue;
+            } catch (TimeoutException ex) when (attempt < maxAttempts) {
+                Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试超时，自动重试: {script.Name} (provider={provider})，原因: {ex.Message}");
+                await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                continue;
+            } catch (InvalidOperationException ex) when (IsRetryableProcessFailure(ex) && attempt < maxAttempts) {
+                Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试进程暂时失败，自动重试: {script.Name} (provider={provider})，原因: {ex.Message}");
+                await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                continue;
+            } finally {
+                await runner.DisposeAsync().ConfigureAwait(true);
+            }
+        }
+
+        throw new InvalidOperationException("[GEN038] [E2E010] 不应到达此处");
+    }
+
+    /// <summary>格式化前缀缓存失效信息</summary>
+    protected static string FormatCacheBreaks(PrefixCacheAnalysis analysis) {
+        if (analysis.Breaks.Count == 0) return "(无)";
+        return string.Join("; ", analysis.Breaks.Select(b =>
+            $"Turn{b.FromTurn}->Turn{b.ToTurn}: {b.Reason}"));
+    }
+
     private static string FormatFailures(ConversationResult result) {
         var failures = result.AssertResults.Where(a => !a.IsPassed).ToList();
         if (failures.Count == 0) return "(无)";

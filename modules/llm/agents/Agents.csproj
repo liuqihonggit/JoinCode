@@ -18,6 +18,11 @@
     <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" /></ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/llm/agents.output/Agents.Output.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Agents.Output" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="$(RepoRoot)modules/generators/mcp_tool_dispatch.generator/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 

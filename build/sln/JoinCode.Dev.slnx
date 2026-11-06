@@ -39,6 +39,7 @@
     <Project Path="../../modules/llm/core/Llm.csproj" />
     <Project Path="../../modules/llm/llm.tests/Llm.Tests.csproj" />
     <Project Path="../../modules/llm/agents/Agents.csproj" />
+    <Project Path="../../modules/llm/agents.output/Agents.Output.csproj" />
     <Project Path="../../modules/llm/agents.tests/Agents.Tests.csproj" />
     <Project Path="../../modules/llm/reasoning/Reasoning.csproj" />
     <Project Path="../../modules/llm/reasoning.tests/Reasoning.Tests.csproj" />
@@ -50,6 +51,7 @@
   </Folder>
   <Folder Name="/core/execution/">
     <Project Path="../../modules/cognition/brain/Brain.csproj" />
+    <Project Path="../../modules/cognition/brain.query/Brain.Query.csproj" />
     <Project Path="../../modules/cognition/brain.context.tests/Brain.Context.Tests.csproj" />
     <Project Path="../../modules/cognition/brain.other.tests/Brain.Other.Tests.csproj" />
     <Project Path="../../modules/cognition/hands/Hands.csproj" />

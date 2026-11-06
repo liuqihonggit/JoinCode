@@ -25,6 +25,7 @@ global using Infrastructure.Pipeline;
 global using Infrastructure.Utils.IO;
 global using Infrastructure.Utils.Text;
 global using JoinCode.Abstractions.Attributes;
+global using JoinCode.Abstractions.Brain.Context;
 global using JoinCode.Abstractions.Brain.Context.Compression;
 global using JoinCode.Abstractions.Brain.Context.Hierarchy;
 global using JoinCode.Abstractions.Brain.Context.Resolution;

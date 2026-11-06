@@ -50,6 +50,7 @@
   <Folder Name="/llm/">
     <Project Path="../../modules/llm/core/Llm.csproj" />
     <Project Path="../../modules/llm/agents/Agents.csproj" />
+    <Project Path="../../modules/llm/agents.output/Agents.Output.csproj" />
     <Project Path="../../modules/llm/reasoning/Reasoning.csproj" />
   </Folder>
   <Folder Name="/kit/">
@@ -61,6 +62,7 @@
     <Project Path="../../modules/cognition/brain_planning/Brain.Planning.csproj" />
     <Project Path="../../modules/cognition/brain_summary/Brain.Summary.csproj" />
     <Project Path="../../modules/cognition/brain/Brain.csproj" />
+    <Project Path="../../modules/cognition/brain.query/Brain.Query.csproj" />
     <Project Path="../../modules/cognition/hands_api/Hands.Api.csproj" />
     <Project Path="../../modules/cognition/hands_web/Hands.Web.csproj" />
     <Project Path="../../modules/cognition/hands_shell/Hands.Shell.csproj" />

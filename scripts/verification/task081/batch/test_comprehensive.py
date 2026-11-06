@@ -9,29 +9,60 @@ ENV = {
     **os.environ,
     "JCC_ENDPOINT": "http://localhost:9901/v1",
     "JCC_VENDOR": "openai",
-    "JCC_MODEL_ID": "deepseek-chat",
+    "JCC_MODEL_ID": "gpt-4o",
     "OPENAI_API_KEY": "test-key",
     "JCC_DEBUGLOG": "1",
+    "JCC_SKIP_CODE_INDEX": "1",
 }
 
 results = []
 lock = threading.Lock()
 
+def sse_line(obj):
+    """构造 SSE 格式行: data: {json}\n\n"""
+    return "data: " + json.dumps(obj) + "\n\n"
+
+_chunk_seq = 0
+def _auto_complete_chunk(obj):
+    """自动补全 chunk 缺少的字段（id/object/created/model/choices/delta）"""
+    global _chunk_seq
+    _chunk_seq += 1
+    cid = f"chatcmpl-{int(time.time()*1000)%100000}"
+    base = {"id": cid, "object": "chat.completion.chunk", "created": int(time.time()), "model": "gpt-4o"}
+    result = {**base, **obj}
+    if "choices" in result:
+        for ch in result["choices"]:
+            ch.setdefault("index", 0)
+            if "delta" in ch and isinstance(ch["delta"], dict):
+                ch["delta"].setdefault("role", "assistant")
+    return result
+
 def inject(response_text, is_stream=True, status=200, headers=None, delay_ms=0):
-    """预注入响应到 MockServer"""
-    body = {"status": status, "is_stream": is_stream}
+    """预注入响应到 MockServer（stream_chunks 是 List<string>，每个元素是完整 SSE 行）"""
+    body = {"status_code": status, "is_stream": is_stream}
     if is_stream:
         chunks = []
         if isinstance(response_text, list):
-            chunks = response_text
+            for c in response_text:
+                if isinstance(c, dict):
+                    chunks.append(sse_line(_auto_complete_chunk(c)))
+                elif c == "[DONE]":
+                    chunks.append("data: [DONE]\n\n")
+                else:
+                    chunks.append(c)
         else:
-            # 按词分割成 chunk
+            cid = f"chatcmpl-{int(time.time()*1000)%100000}"
+            created = int(time.time())
+            chunks.append(sse_line({"id": cid, "object": "chat.completion.chunk", "created": created, "model": "gpt-4o",
+                "choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}, "finish_reason": None}]}))
             words = response_text.split()
             for w in words:
-                chunks.append({"choices":[{"delta":{"content": w + " "}}]})
-            chunks.append({"choices":[{"delta":{}}],"finish_reason":"stop"})
-            chunks.append("[DONE]")
-        body["chunks"] = chunks
+                chunks.append(sse_line({"id": cid, "object": "chat.completion.chunk", "created": created, "model": "gpt-4o",
+                    "choices": [{"index": 0, "delta": {"content": w + " "}, "finish_reason": None}]}))
+            chunks.append(sse_line({"id": cid, "object": "chat.completion.chunk", "created": created, "model": "gpt-4o",
+                "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]}))
+            chunks.append("data: [DONE]\n\n")
+        body["stream_chunks"] = chunks
     else:
         body["body"] = response_text
     if delay_ms > 0:
@@ -49,14 +80,16 @@ def inject(response_text, is_stream=True, status=200, headers=None, delay_ms=0):
 
 def inject_tool_call(tool_name, tool_args, result_text="完成"):
     """注入一个工具调用响应：第一轮返回 tool_calls，第二轮返回结果"""
+    cid = f"chatcmpl-{int(time.time()*1000)%100000}"
+    created = int(time.time())
+    base = {"id": cid, "object": "chat.completion.chunk", "created": created, "model": "gpt-4o"}
     chunks = [
-        {"choices":[{"delta":{"content": ""}}]},
-        {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"name":tool_name,"arguments":json.dumps(tool_args)}}]}}]},
-        {"choices":[{"delta":{}}],"finish_reason":"tool_calls"},
+        {**base, "choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}, "finish_reason": None}]},
+        {**base, "choices": [{"index": 0, "delta": {"tool_calls": [{"index": 0, "id": "call_1", "type": "function", "function": {"name": tool_name, "arguments": json.dumps(tool_args)}}]}, "finish_reason": None}]},
+        {**base, "choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls"}]},
         "[DONE]"
     ]
     inject(chunks)
-    # 第二轮：工具结果后的 AI 总结
     inject(result_text)
 
 def clear():

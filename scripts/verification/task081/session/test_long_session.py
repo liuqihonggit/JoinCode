@@ -36,6 +36,7 @@ mock_inject(build_stream("是的，我确认数字是 42。上下文保持正确
 
 env = os.environ.copy()
 env.update({"OPENAI_API_KEY": "sk-test", "JCC_DEBUGLOG": "1",
+    "JCC_SKIP_CODE_INDEX": "1",
             "JCC_ENDPOINT": "http://localhost:9901/v1", "JCC_VENDOR": "openai", "JCC_MODEL_ID": "gpt-4o"})
 
 stdin_input = "你好，记住数字42\n我刚才让你记住什么数字？\n确认一下数字\n/exit\n"

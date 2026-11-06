@@ -28,8 +28,8 @@ chunks = [
 ]
 inject({"is_stream": True, "content_type": "text/event-stream", "stream_chunks": chunks})
 
-env = {"JCC_ENDPOINT": "http://localhost:9901/v1", "OPENAI_API_KEY": "test-key", "JCC_DISABLE_STREAMING_FALLBACK": "1"}
-cmd = ["dotnet", JCC, "--non-interactive", "--prompt", "Mixed", "--format", "ndjson", "--trust", "--permission-mode", "bypass"]
+env = {"JCC_ENDPOINT": "http://localhost:9901/v1", "JCC_SKIP_CODE_INDEX": "1", "OPENAI_API_KEY": "test-key", "JCC_DISABLE_STREAMING_FALLBACK": "1"}
+cmd = [JCC, "--non-interactive", "--prompt", "Mixed", "--format", "ndjson", "--trust", "--permission-mode", "bypass"]
 proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env={**os.environ, **env}, cwd=".")
 
 for line in proc.stdout.strip().splitlines():

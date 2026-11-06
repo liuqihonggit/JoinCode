@@ -51,11 +51,12 @@ def run_jcc(env_extra, timeout=60):
         "JCC_ENDPOINT": "http://localhost:9901/v1",
         "OPENAI_API_KEY": "test-key",
         "JCC_DEBUGLOG": "1",
+    "JCC_SKIP_CODE_INDEX": "1",
     }
     env.update(env_extra)
 
     cmd = [
-        "dotnet", JCC,
+        JCC,
         "--non-interactive",
         "--prompt", "Say hello",
         "--format", "ndjson",

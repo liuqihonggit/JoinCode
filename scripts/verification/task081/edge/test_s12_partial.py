@@ -23,10 +23,11 @@ print("Inject:", urllib.request.urlopen(req).read().decode())
 env = os.environ.copy()
 env["JCC_ENDPOINT"] = "http://localhost:9901/v1"
 env["OPENAI_API_KEY"] = "test-key"
+env["JCC_SKIP_CODE_INDEX"] = "1"
 env["JCC_DISABLE_STREAMING_FALLBACK"] = "1"
 
 result = subprocess.run(
-    ["dotnet", JCC, "--non-interactive", "--prompt", "test", "--format", "ndjson", "--trust"],
+    [JCC, "--non-interactive", "--prompt", "test", "--format", "ndjson", "--trust"],
     capture_output=True, text=True, env=env, timeout=30
 )
 

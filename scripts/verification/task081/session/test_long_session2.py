@@ -30,6 +30,7 @@ mock_inject(build_stream("数字是 42"))
 mock_inject(build_stream("确认 42"))
 env = os.environ.copy()
 env.update({"OPENAI_API_KEY": "sk-test", "JCC_DEBUGLOG": "1",
+    "JCC_SKIP_CODE_INDEX": "1",
             "JCC_ENDPOINT": "http://localhost:9901/v1", "JCC_VENDOR": "openai", "JCC_MODEL_ID": "gpt-4o"})
 stdin_input = "你好\n什么数字？\n确认\n/exit\n"
 proc = subprocess.Popen([JCC_EXE, "--trust", "--force-interactive", "--await", "30"],

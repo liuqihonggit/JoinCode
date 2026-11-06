@@ -6,5 +6,5 @@ console.log('URL', page.url());
 console.log('BODY', (await bodyText(page)).slice(0, 800));
 console.log('BUTTONS', await page.locator('button').evaluateAll((els) => els.map((e) => (e.getAttribute('aria-label') || e.textContent || '').trim()).filter(Boolean).slice(0, 40)));
 console.log('TREE', await page.locator('[role=treeitem]').evaluateAll((els) => els.map((e) => (e.textContent || '').trim()).slice(0, 20)));
-await page.screenshot({ path: 'D:/project/w3/.xxx/logs/feedback-ui.png' });
+await page.screenshot({ path: '.xxx/logs/feedback-ui.png' });
 await cdp.close();

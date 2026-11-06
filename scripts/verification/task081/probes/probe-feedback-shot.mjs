@@ -10,5 +10,5 @@ await page.waitForTimeout(1500);
 console.log('URL', page.url());
 console.log('TREE2', await items.evaluateAll((els) => els.map((e) => (e.textContent || '').trim())));
 console.log('BODY', (await bodyText(page)).slice(0, 500));
-await page.screenshot({ path: 'D:/project/w3/.xxx/logs/feedback-open.png' });
+await page.screenshot({ path: '.xxx/logs/feedback-open.png' });
 await cdp.close();

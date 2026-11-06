@@ -1,6 +1,6 @@
 from pathlib import Path
 
-root = Path(r"D:/project/w3/native_gui/src/NativeGui.Core/web_host")
+root = Path("native_gui/src/NativeGui.Core/web_host")
 src = root / "DshRpcProtocol.cs"
 dst = root / "DshInteractionProtocol.cs"
 

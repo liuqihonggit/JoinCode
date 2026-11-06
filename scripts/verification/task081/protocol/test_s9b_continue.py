@@ -35,7 +35,7 @@ def run_jcc_continue(session_id, prompt="What did I say before?"):
         "--permission-mode", "bypass",
         "--continue", session_id,
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=30, cwd="D:\\project\\w1")
+    result = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=30, cwd=".")
     return result
 
 def main():

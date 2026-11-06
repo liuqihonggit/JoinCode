@@ -36,7 +36,7 @@ def run_jcc(prompt="test", timeout=30):
     }
     cmd = ["dotnet", JCC, "--non-interactive", "--prompt", prompt, "--format", "ndjson", "--trust", "--permission-mode", "bypass"]
     start = time.time()
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env={**os.environ, **env}, cwd=r"D:\project\w1")
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env={**os.environ, **env}, cwd=".")
     return proc.returncode, time.time() - start, proc.stdout, proc.stderr
 
 def parse_ndjson(stdout):

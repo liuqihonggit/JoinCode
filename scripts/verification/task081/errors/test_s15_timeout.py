@@ -69,7 +69,7 @@ def run_jcc(env_extra, timeout=60):
         text=True,
         timeout=timeout,
         env={**__import__("os").environ, **env},
-        cwd=r"D:\project\w1",
+        cwd=".",
     )
     elapsed = time.time() - start
     return proc.returncode, elapsed, proc.stdout, proc.stderr

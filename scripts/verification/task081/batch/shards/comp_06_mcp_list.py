@@ -162,7 +162,7 @@ print("\n=== 6. MCP 工具列表测试 ===")
 def test_mcp_list():
     code, out, err, elapsed = run_jcc("", extra_args=["mcp_list"])
     assert_eq(code, 0, f"exit code, stderr={err[:200]}")
-    assert_contains(out, "tool", "mcp_list 应输出工具列表")
+    assert_contains(out, "total_count", "mcp_list 应返回 JSON 含 total_count")
 test("mcp_list 全量工具", test_mcp_list)
 
 def test_mcp_list_category():

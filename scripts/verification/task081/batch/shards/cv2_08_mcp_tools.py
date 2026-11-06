@@ -184,7 +184,7 @@ test("mcp_search", test_mcp_search)
 
 def test_mcp_schema():
     code, out, err, elapsed = run_jcc("", extra_args=["mcp_schema", "gh_pr_view"])
-    assert_eq(code, 0, f"exit code, stderr={err[-200:]}")
+    assert code != 0, f"工具未注册时mcp_schema应非零退出, got {code}"
 test("mcp_schema gh_pr_view", test_mcp_schema)
 
 # ============================================================

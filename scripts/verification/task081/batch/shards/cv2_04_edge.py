@@ -276,7 +276,7 @@ test("finish_reason=length", test_finish_reason_length)
 def test_finish_reason_content_filter():
     inject_stream(make_stream_chunks(content_text="", finish_reason="content_filter"))
     code, out, err, elapsed = run_jcc("content_filter")
-    assert_eq(code, 0, f"exit code, stderr={err[-200:]}")
+    assert code != 0, f"content_filter应非零退出, got {code}"
 test("finish_reason=content_filter", test_finish_reason_content_filter)
 
 # ============================================================

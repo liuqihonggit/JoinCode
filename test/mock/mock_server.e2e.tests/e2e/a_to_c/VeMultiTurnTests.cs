@@ -1,118 +1,155 @@
 namespace MockServer.E2E.Tests;
 
 /// <summary>
-/// VE 组多轮+子代理+会话 E2E 测试 — 拆分为 5 个小测试类（每 5 个用例一个），
-/// 避免单类 25 个 Theory 用例并行启动过多 jcc.exe 进程导致测试主机崩溃。
-/// 每个小类用 [Collection("MockServerShared")] 串行化，崩溃隔离不影响其他小类。
-/// ve17/ve20/ve21/ve22 需手动 exe 验证（ADR 0080），脚本覆盖链路。
+/// Ve 组 E2E 测试 — 每个用例一个独立 Fact 类，串行跑避免并行启动多个 jcc.exe 资源竞争超时。
 /// </summary>
 
 [Collection("MockServerShared")]
-public sealed class VeMultiTurnTests01 : CoverageTestBase {
-    public VeMultiTurnTests01(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
-
-    public static IEnumerable<object[]> Data => new[]
-    {
-        new object[] { VeMultiTurnScripts.Ve01ContinueResumeHistory, "ve01" },
-        new object[] { VeMultiTurnScripts.Ve02ContinueNoHistory, "ve02" },
-        new object[] { VeMultiTurnScripts.Ve03ResumeIdExactMatch, "ve03" },
-        new object[] { VeMultiTurnScripts.Ve04ResumeIdNotFound, "ve04" },
-        new object[] { VeMultiTurnScripts.Ve05ResumeTitleFuzzyMatch, "ve05" },
-    };
-
-    [Theory]
-    [MemberData(nameof(Data))]
-    public async Task Ve01_05_ShouldPassAllAsserts(ConversationScript script, string veId) {
-        Output.WriteLine($"[VE] 开始验证 {veId}: {script.Name}");
-        await RunScriptAsync(script).ConfigureAwait(true);
-        Output.WriteLine($"[VE] {veId} 验证通过");
-    }
+public sealed class Ve01Tests : CoverageTestBase {
+    public Ve01Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve01() { Output.WriteLine("[Ve] ve01"); await RunScriptAsync(VeMultiTurnScripts.Ve01ContinueResumeHistory).ConfigureAwait(true); }
 }
 
 [Collection("MockServerShared")]
-public sealed class VeMultiTurnTests02 : CoverageTestBase {
-    public VeMultiTurnTests02(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
-
-    public static IEnumerable<object[]> Data => new[]
-    {
-        new object[] { VeMultiTurnScripts.Ve06MultiTurnMessagesSequence, "ve06" },
-        new object[] { VeMultiTurnScripts.Ve07TranscriptWrite, "ve07" },
-        new object[] { VeMultiTurnScripts.Ve08TranscriptRestore, "ve08" },
-        new object[] { VeMultiTurnScripts.Ve09SessionIdConsistency, "ve09" },
-        new object[] { VeMultiTurnScripts.Ve10SubagentTypeParse, "ve10" },
-    };
-
-    [Theory]
-    [MemberData(nameof(Data))]
-    public async Task Ve06_10_ShouldPassAllAsserts(ConversationScript script, string veId) {
-        Output.WriteLine($"[VE] 开始验证 {veId}: {script.Name}");
-        await RunScriptAsync(script).ConfigureAwait(true);
-        Output.WriteLine($"[VE] {veId} 验证通过");
-    }
+public sealed class Ve02Tests : CoverageTestBase {
+    public Ve02Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve02() { Output.WriteLine("[Ve] ve02"); await RunScriptAsync(VeMultiTurnScripts.Ve02ContinueNoHistory).ConfigureAwait(true); }
 }
 
 [Collection("MockServerShared")]
-public sealed class VeMultiTurnTests03 : CoverageTestBase {
-    public VeMultiTurnTests03(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
-
-    public static IEnumerable<object[]> Data => new[]
-    {
-        new object[] { VeMultiTurnScripts.Ve11SubagentStarted, "ve11" },
-        new object[] { VeMultiTurnScripts.Ve12SubagentFinished, "ve12" },
-        new object[] { VeMultiTurnScripts.Ve13SubagentExceptionFallback, "ve13" },
-        new object[] { VeMultiTurnScripts.Ve14SubagentControl, "ve14" },
-        new object[] { VeMultiTurnScripts.Ve15SubagentUsageAggregate, "ve15" },
-    };
-
-    [Theory]
-    [MemberData(nameof(Data))]
-    public async Task Ve11_15_ShouldPassAllAsserts(ConversationScript script, string veId) {
-        Output.WriteLine($"[VE] 开始验证 {veId}: {script.Name}");
-        await RunScriptAsync(script).ConfigureAwait(true);
-        Output.WriteLine($"[VE] {veId} 验证通过");
-    }
+public sealed class Ve03Tests : CoverageTestBase {
+    public Ve03Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve03() { Output.WriteLine("[Ve] ve03"); await RunScriptAsync(VeMultiTurnScripts.Ve03ResumeIdExactMatch).ConfigureAwait(true); }
 }
 
 [Collection("MockServerShared")]
-public sealed class VeMultiTurnTests04 : CoverageTestBase {
-    public VeMultiTurnTests04(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
-
-    public static IEnumerable<object[]> Data => new[]
-    {
-        new object[] { VeMultiTurnScripts.Ve16NumTurnsCount, "ve16" },
-        new object[] { VeMultiTurnScripts.Ve17ConcurrentSessions, "ve17" },
-        new object[] { VeMultiTurnScripts.Ve18ForkSubagent, "ve18" },
-        new object[] { VeMultiTurnScripts.Ve19TeammateSubagent, "ve19" },
-        new object[] { VeMultiTurnScripts.Ve20SubagentSteer, "ve20" },
-    };
-
-    [Theory]
-    [MemberData(nameof(Data))]
-    public async Task Ve16_20_ShouldPassAllAsserts(ConversationScript script, string veId) {
-        Output.WriteLine($"[VE] 开始验证 {veId}: {script.Name}");
-        await RunScriptAsync(script).ConfigureAwait(true);
-        Output.WriteLine($"[VE] {veId} 验证通过");
-    }
+public sealed class Ve04Tests : CoverageTestBase {
+    public Ve04Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve04() { Output.WriteLine("[Ve] ve04"); await RunScriptAsync(VeMultiTurnScripts.Ve04ResumeIdNotFound).ConfigureAwait(true); }
 }
 
 [Collection("MockServerShared")]
-public sealed class VeMultiTurnTests05 : CoverageTestBase {
-    public VeMultiTurnTests05(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+public sealed class Ve05Tests : CoverageTestBase {
+    public Ve05Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve05() { Output.WriteLine("[Ve] ve05"); await RunScriptAsync(VeMultiTurnScripts.Ve05ResumeTitleFuzzyMatch).ConfigureAwait(true); }
+}
 
-    public static IEnumerable<object[]> Data => new[]
-    {
-        new object[] { VeMultiTurnScripts.Ve21SubagentResumeFromTranscript, "ve21" },
-        new object[] { VeMultiTurnScripts.Ve22AutoCompact, "ve22" },
-        new object[] { VeMultiTurnScripts.Ve23ContextUsage, "ve23" },
-        new object[] { VeMultiTurnScripts.Ve24PermissionDenialsAccumulate, "ve24" },
-        new object[] { VeMultiTurnScripts.Ve25ThinkingPersist, "ve25" },
-    };
+[Collection("MockServerShared")]
+public sealed class Ve06Tests : CoverageTestBase {
+    public Ve06Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve06() { Output.WriteLine("[Ve] ve06"); await RunScriptAsync(VeMultiTurnScripts.Ve06MultiTurnMessagesSequence).ConfigureAwait(true); }
+}
 
-    [Theory]
-    [MemberData(nameof(Data))]
-    public async Task Ve21_25_ShouldPassAllAsserts(ConversationScript script, string veId) {
-        Output.WriteLine($"[VE] 开始验证 {veId}: {script.Name}");
-        await RunScriptAsync(script).ConfigureAwait(true);
-        Output.WriteLine($"[VE] {veId} 验证通过");
-    }
+[Collection("MockServerShared")]
+public sealed class Ve07Tests : CoverageTestBase {
+    public Ve07Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve07() { Output.WriteLine("[Ve] ve07"); await RunScriptAsync(VeMultiTurnScripts.Ve07TranscriptWrite).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Ve08Tests : CoverageTestBase {
+    public Ve08Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve08() { Output.WriteLine("[Ve] ve08"); await RunScriptAsync(VeMultiTurnScripts.Ve08TranscriptRestore).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Ve09Tests : CoverageTestBase {
+    public Ve09Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve09() { Output.WriteLine("[Ve] ve09"); await RunScriptAsync(VeMultiTurnScripts.Ve09SessionIdConsistency).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Ve10Tests : CoverageTestBase {
+    public Ve10Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve10() { Output.WriteLine("[Ve] ve10"); await RunScriptAsync(VeMultiTurnScripts.Ve10SubagentTypeParse).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Ve11Tests : CoverageTestBase {
+    public Ve11Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve11() { Output.WriteLine("[Ve] ve11"); await RunScriptAsync(VeMultiTurnScripts.Ve11SubagentStarted).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Ve12Tests : CoverageTestBase {
+    public Ve12Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve12() { Output.WriteLine("[Ve] ve12"); await RunScriptAsync(VeMultiTurnScripts.Ve12SubagentFinished).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Ve13Tests : CoverageTestBase {
+    public Ve13Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve13() { Output.WriteLine("[Ve] ve13"); await RunScriptAsync(VeMultiTurnScripts.Ve13SubagentExceptionFallback).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Ve14Tests : CoverageTestBase {
+    public Ve14Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve14() { Output.WriteLine("[Ve] ve14"); await RunScriptAsync(VeMultiTurnScripts.Ve14SubagentControl).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Ve15Tests : CoverageTestBase {
+    public Ve15Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve15() { Output.WriteLine("[Ve] ve15"); await RunScriptAsync(VeMultiTurnScripts.Ve15SubagentUsageAggregate).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Ve16Tests : CoverageTestBase {
+    public Ve16Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve16() { Output.WriteLine("[Ve] ve16"); await RunScriptAsync(VeMultiTurnScripts.Ve16NumTurnsCount).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Ve17Tests : CoverageTestBase {
+    public Ve17Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve17() { Output.WriteLine("[Ve] ve17"); await RunScriptAsync(VeMultiTurnScripts.Ve17ConcurrentSessions).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Ve18Tests : CoverageTestBase {
+    public Ve18Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve18() { Output.WriteLine("[Ve] ve18"); await RunScriptAsync(VeMultiTurnScripts.Ve18ForkSubagent).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Ve19Tests : CoverageTestBase {
+    public Ve19Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve19() { Output.WriteLine("[Ve] ve19"); await RunScriptAsync(VeMultiTurnScripts.Ve19TeammateSubagent).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Ve20Tests : CoverageTestBase {
+    public Ve20Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve20() { Output.WriteLine("[Ve] ve20"); await RunScriptAsync(VeMultiTurnScripts.Ve20SubagentSteer).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Ve21Tests : CoverageTestBase {
+    public Ve21Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve21() { Output.WriteLine("[Ve] ve21"); await RunScriptAsync(VeMultiTurnScripts.Ve21SubagentResumeFromTranscript).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Ve22Tests : CoverageTestBase {
+    public Ve22Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve22() { Output.WriteLine("[Ve] ve22"); await RunScriptAsync(VeMultiTurnScripts.Ve22AutoCompact).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Ve23Tests : CoverageTestBase {
+    public Ve23Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve23() { Output.WriteLine("[Ve] ve23"); await RunScriptAsync(VeMultiTurnScripts.Ve23ContextUsage).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Ve24Tests : CoverageTestBase {
+    public Ve24Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve24() { Output.WriteLine("[Ve] ve24"); await RunScriptAsync(VeMultiTurnScripts.Ve24PermissionDenialsAccumulate).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Ve25Tests : CoverageTestBase {
+    public Ve25Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Ve25() { Output.WriteLine("[Ve] ve25"); await RunScriptAsync(VeMultiTurnScripts.Ve25ThinkingPersist).ConfigureAwait(true); }
 }

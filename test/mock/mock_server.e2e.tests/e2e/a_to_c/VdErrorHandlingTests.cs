@@ -11,25 +11,33 @@ namespace MockServer.E2E.Tests;
 /// </summary>
 
 [Collection("MockServerShared")]
-public sealed class VdErrorHandlingTests01 : CoverageTestBase {
-    public VdErrorHandlingTests01(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+public sealed class Vd01Tests : CoverageTestBase {
+    public Vd01Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Vd01() { Output.WriteLine("[VD] vd01"); await RunScriptAsync(VdErrorHandlingScripts.Vd01Http200Success).ConfigureAwait(true); }
+}
 
-    public static IEnumerable<object[]> Data => new[]
-    {
-        new object[] { VdErrorHandlingScripts.Vd01Http200Success, "vd01" },
-        new object[] { VdErrorHandlingScripts.Vd02Http401AuthError, "vd02" },
-        new object[] { VdErrorHandlingScripts.Vd03Http403Forbidden, "vd03" },
-        new object[] { VdErrorHandlingScripts.Vd04Http429RateLimit, "vd04" },
-        new object[] { VdErrorHandlingScripts.Vd05Http500ServerError, "vd05" },
-    };
+[Collection("MockServerShared")]
+public sealed class Vd02Tests : CoverageTestBase {
+    public Vd02Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Vd02() { Output.WriteLine("[VD] vd02"); await RunScriptAsync(VdErrorHandlingScripts.Vd02Http401AuthError).ConfigureAwait(true); }
+}
 
-    [Theory]
-    [MemberData(nameof(Data))]
-    public async Task Vd01_05_ShouldPassAllAsserts(ConversationScript script, string vdId) {
-        Output.WriteLine($"[VD] 开始验证 {vdId}: {script.Name}");
-        await RunScriptAsync(script).ConfigureAwait(true);
-        Output.WriteLine($"[VD] {vdId} 验证通过");
-    }
+[Collection("MockServerShared")]
+public sealed class Vd03Tests : CoverageTestBase {
+    public Vd03Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Vd03() { Output.WriteLine("[VD] vd03"); await RunScriptAsync(VdErrorHandlingScripts.Vd03Http403Forbidden).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Vd04Tests : CoverageTestBase {
+    public Vd04Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Vd04() { Output.WriteLine("[VD] vd04"); await RunScriptAsync(VdErrorHandlingScripts.Vd04Http429RateLimit).ConfigureAwait(true); }
+}
+
+[Collection("MockServerShared")]
+public sealed class Vd05Tests : CoverageTestBase {
+    public Vd05Tests(ITestOutputHelper output, MockServerSharedFixture fixture) : base(output, fixture) { }
+    [Fact] public async Task Vd05() { Output.WriteLine("[VD] vd05"); await RunScriptAsync(VdErrorHandlingScripts.Vd05Http500ServerError).ConfigureAwait(true); }
 }
 
 [Collection("MockServerShared")]

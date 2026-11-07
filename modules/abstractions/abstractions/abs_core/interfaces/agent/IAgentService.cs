@@ -404,15 +404,6 @@ public sealed record RunningAgentInfo {
 }
 
 /// <summary>
-/// 代理隔离模式
-/// </summary>
-public enum AgentIsolationMode {
-    [EnumValue("none")] None,
-    [EnumValue("worktree")] Worktree,
-    [EnumValue("remote")] Remote
-}
-
-/// <summary>
 /// 代理消息信息
 /// </summary>
 public sealed record AgentMessageInfo {
@@ -424,45 +415,6 @@ public sealed record AgentMessageInfo {
     public required string Content { get; init; }
     /// <summary>获取时间戳。</summary>
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
-}
-
-public sealed record ToolActivity {
-    /// <summary>获取工具名称。</summary>
-    public required string ToolName { get; init; }
-    /// <summary>获取活动描述。</summary>
-    public string? ActivityDescription { get; init; }
-    /// <summary>获取是否为搜索活动。</summary>
-    public bool IsSearch { get; init; }
-    /// <summary>获取是否为读取活动。</summary>
-    public bool IsRead { get; init; }
-    /// <summary>获取工具输入参数。</summary>
-    public Dictionary<string, string>? Input { get; init; }
-    /// <summary>获取时间戳。</summary>
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
-}
-
-public sealed record AgentProgress {
-    /// <summary>获取工具使用次数。</summary>
-    public required int ToolUseCount { get; init; }
-    /// <summary>获取 Token 总数。</summary>
-    public required int TokenCount { get; init; }
-    /// <summary>获取最近一次工具活动。</summary>
-    public ToolActivity? LastActivity { get; init; }
-    /// <summary>获取最近活动集合。</summary>
-    public IEnumerable<ToolActivity>? RecentActivities { get; init; }
-    /// <summary>获取进度摘要。</summary>
-    public string? Summary { get; init; }
-}
-
-public interface IProgressTracker {
-    /// <summary>记录工具使用。</summary>
-    void RecordToolUse(string toolName, string? activityDescription = null, Dictionary<string, string>? input = null);
-    /// <summary>记录 Token 用量。</summary>
-    void RecordTokenUsage(int tokenCount);
-    /// <summary>更新进度摘要。</summary>
-    void UpdateSummary(string summary);
-    /// <summary>转换为代理进度信息。</summary>
-    AgentProgress ToProgress();
 }
 
 /// <summary>

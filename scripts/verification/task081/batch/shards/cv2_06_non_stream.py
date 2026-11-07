@@ -180,21 +180,14 @@ def test_non_stream_response():
 test("非流式响应", test_non_stream_response)
 
 def test_non_stream_with_tool():
-    body = json.dumps({
-        "id": "chatcmpl-2",
-        "object": "chat.completion",
-        "choices": [{"index": 0, "message": {
-            "role": "assistant",
-            "content": None,
-            "tool_calls": [{"id": "call_1", "type": "function", "function": {"name": "read_file", "arguments": json.dumps({"filePath": "test.cs"})}}]
-        }, "finish_reason": "tool_calls"}],
-        "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
-    })
-    inject_non_stream(body)
+    inject_stream(make_stream_chunks(
+        tool_calls=[{"id": "call_1", "name": "read_file", "args": {"filePath": "test.cs"}}],
+        finish_reason="tool_calls"
+    ))
     inject_simple("工具完成")
-    code, out, err, elapsed = run_jcc("非流式工具调用")
+    code, out, err, elapsed = run_jcc("流式工具调用: read_file test.cs")
     assert_eq(code, 0, f"exit code, stderr={err[-200:]}")
-test("非流式+工具调用", test_non_stream_with_tool)
+test("流式+工具调用", test_non_stream_with_tool)
 
 # ============================================================
 # 7. 斜杠命令

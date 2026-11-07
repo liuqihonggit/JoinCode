@@ -97,7 +97,7 @@ def make_stream_chunks(content_text=None, tool_calls=None, reasoning=None, finis
 
 def inject_stream(chunks, status=200, content_type="text/event-stream"):
     mock_clear()
-    body = {"status": status, "content_type": content_type, "is_stream": True, "stream_chunks": chunks}
+    body = {"status_code": status, "content_type": content_type, "is_stream": True, "stream_chunks": chunks}
     req = urllib.request.Request(f"{MOCK}/__control__/inject", data=json.dumps(body).encode(), method="POST", headers={"Content-Type": "application/json"})
     try: urllib.request.urlopen(req, timeout=3)
     except: pass
@@ -231,7 +231,7 @@ print("\n=== 4. SSE 格式错误 ===")
 
 def t_malformed_sse():
     mock_clear()
-    body = {"status": 200, "content_type": "text/event-stream", "is_stream": True, "stream_chunks": ["not a valid sse line\n\n", "data: broken json\n\n"]}
+    body = {"status_code": 200, "content_type": "text/event-stream", "is_stream": True, "stream_chunks": ["not a valid sse line\n\n", "data: broken json\n\n"]}
     req = urllib.request.Request(f"{MOCK}/__control__/inject", data=json.dumps(body).encode(), method="POST", headers={"Content-Type": "application/json"})
     try: urllib.request.urlopen(req, timeout=3)
     except: pass

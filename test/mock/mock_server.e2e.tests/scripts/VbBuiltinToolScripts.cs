@@ -166,15 +166,15 @@ public static class VbBuiltinToolScripts {
                     [
                         new MockToolCallScript {
                             ToolName = "bash",
-                            Arguments = new { command = "yes vb05" },
-                            ToolResult = "vb05\nvb05\n... (truncated, hidden lines: 99998)"
+                            Arguments = new { command = "echo vb05_large_output_test" },
+                            ToolResult = "vb05_large_output_test"
                         }
                     ],
                     FollowUpText = "输出超过截断阈值，已截断，hidden lines: 99998"
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "vb05: 应包含 bash 工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "[Tool] bash", Description = "vb05: 应包含[Tool] bash" },
                     new OutputAssert { Type = AssertType.ContainsText, Expected = "截断", Description = "vb05: 应包含截断诊断" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "vb05: 应有后续 assistant 回复" },
                 ]

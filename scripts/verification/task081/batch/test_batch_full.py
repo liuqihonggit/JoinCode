@@ -54,7 +54,7 @@ def mk_chunks(content=None, tools=None, reasoning=None, finish="stop"):
 
 def inject(chunks, status=200):
     mock_clear()
-    try: urllib.request.urlopen(urllib.request.Request(f"{MOCK}/__control__/inject", data=json.dumps({"status": status, "content_type": "text/event-stream", "is_stream": True, "stream_chunks": chunks}).encode(), method="POST", headers={"Content-Type": "application/json"}), timeout=3)
+    try: urllib.request.urlopen(urllib.request.Request(f"{MOCK}/__control__/inject", data=json.dumps({"status_code": status, "content_type": "text/event-stream", "is_stream": True, "stream_chunks": chunks}).encode(), method="POST", headers={"Content-Type": "application/json"}), timeout=3)
     except: pass
 
 def inj_simple(text="OK", **kw): inject(mk_chunks(content=text, **kw))

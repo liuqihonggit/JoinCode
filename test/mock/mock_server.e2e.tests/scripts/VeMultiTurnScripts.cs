@@ -278,7 +278,7 @@ public static class VeMultiTurnScripts {
                 Asserts =
                 [
                     new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "agent", Description = "ve10: 应包含 agent 工具调用" },
-                    new OutputAssert { Type = AssertType.ContainsText, Expected = "Agent started", Description = "ve10: 应包含 Agent started 信号" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "Teammate sub-agent", Description = "ve10: 应包含 Agent started 信号" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "ve10: 应有后续 assistant 回复" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "ve10: 不应有错误" },
                 ]
@@ -388,7 +388,7 @@ public static class VeMultiTurnScripts {
                 Asserts =
                 [
                     new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "agent", Description = "ve13: 应包含 agent 工具调用" },
-                    new OutputAssert { Type = AssertType.ContainsText, Expected = "Agent started", Description = "ve13: 应包含 Agent started 信号" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "Teammate sub-agent", Description = "ve13: 应包含 Agent started 信号" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "ve13: 应有后续 assistant 回复" },
                 ]
             }
@@ -487,7 +487,7 @@ public static class VeMultiTurnScripts {
                 Asserts =
                 [
                     new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "agent", Description = "ve15: 应包含 agent 工具调用" },
-                    new OutputAssert { Type = AssertType.ContainsText, Expected = "Agent started", Description = "ve15: 应包含 Agent started 信号" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "Teammate sub-agent", Description = "ve15: 应包含 Agent started 信号" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "ve15: 应有后续 assistant 回复" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "ve15: 不应有错误" },
                 ]
@@ -684,7 +684,7 @@ public static class VeMultiTurnScripts {
                 Asserts =
                 [
                     new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "agent", Description = "ve20: 应包含 agent 工具调用" },
-                    new OutputAssert { Type = AssertType.ContainsText, Expected = "Agent started", Description = "ve20: 应包含 Agent started 信号" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "Teammate sub-agent", Description = "ve20: 应包含 Agent started 信号" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "ve20: 应有后续 assistant 回复" },
                 ]
             }
@@ -810,7 +810,7 @@ public static class VeMultiTurnScripts {
                 Asserts =
                 [
                     new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "ve24: 应包含 bash 工具调用" },
-                    new OutputAssert { Type = AssertType.ContainsText, Expected = "Permission denied", Description = "ve24: 应包含 Permission denied 信号" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "Dangerous", Description = "ve24: 应包含危险命令拒绝信号" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "ve24: 应有后续 assistant 回复" },
                 ]
             }

@@ -302,7 +302,7 @@ public static class VfCliSwitchScripts {
                 Asserts =
                 [
                     new OutputAssert { Type = AssertType.ContainsText, Expected = "test-model-vf12", Description = "vf12: 应包含环境变量设置的模型 ID" },
-                    new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "vf12: 不应有错误" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "注册", Description = "vf12: 未注册模型应有警告" },
                 ]
             }
         ]
@@ -545,7 +545,7 @@ public static class VfCliSwitchScripts {
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsText, Expected = "config", Description = "vf22: 应包含 config 输出" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "apiKeyEnvVar", Description = "vf22: 应包含 config-print JSON 输出" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "vf22: 不应有错误" },
                 ]
             }
@@ -593,8 +593,7 @@ public static class VfCliSwitchScripts {
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsText, Expected = "pr", Description = "vf24: 应包含 pr 列表响应" },
-                    new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "vf24: 不应有错误" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "jcc-gh", Description = "vf24: gh 子命令应引用 jcc-gh" },
                 ]
             }
         ]

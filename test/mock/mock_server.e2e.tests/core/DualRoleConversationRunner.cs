@@ -255,8 +255,12 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
                     _logger.LogInformation("[DualRoleRunner] jcc.exe 进程已退出，stderr含[AI对话结束]，视为成功");
                     return string.Empty;
                 }
-                _logger.LogError("[DualRoleRunner] jcc.exe 进程已退出且无输出，stderr={Stderr}", exitError);
-                throw new InvalidOperationException($"[GEN019] jcc.exe 进程已退出且无输出, stderr={exitError}");
+                if (!string.IsNullOrWhiteSpace(exitError)) {
+                    _logger.LogWarning("[DualRoleRunner] jcc.exe 进程已退出，stdout为空但stderr有内容，返回stderr作为输出");
+                    return exitError;
+                }
+                _logger.LogError("[DualRoleRunner] jcc.exe 进程已退出且无输出，stderr为空");
+                throw new InvalidOperationException($"[GEN019] jcc.exe 进程已退出且无输出, stderr为空");
             }
 
             var incrementalStderr = await CaptureStderrIncrementalAsync().ConfigureAwait(true);

@@ -278,7 +278,7 @@ public static class VeMultiTurnScripts {
                 Asserts =
                 [
                     new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "agent", Description = "ve10: 应包含 agent 工具调用" },
-                    new OutputAssert { Type = AssertType.ContainsText, Expected = "Teammate sub-agent", Description = "ve10: 应包含 Agent started 信号" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "Agent started", Description = "ve10: 应包含 Agent started 信号" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "ve10: 应有后续 assistant 回复" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "ve10: 不应有错误" },
                 ]

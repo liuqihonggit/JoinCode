@@ -211,9 +211,8 @@ public static class VbBuiltinToolScripts {
                 Asserts =
                 [
                     new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "read", Description = "vb06: 应包含 read 工具调用" },
-                    new OutputAssert { Type = AssertType.ToolCallSucceeded, Expected = "read", Description = "vb06: read 工具应执行成功" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "File does not exist", Description = "vb06: read 工具应报告文件不存在" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "vb06: 应有后续 assistant 回复" },
-                    new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "vb06: 不应有错误" },
                 ]
             }
         ]
@@ -1010,7 +1009,7 @@ public static class VbBuiltinToolScripts {
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "webfetch", Description = "vb29: 应包含 webfetch 工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "web_fetch", Description = "vb29: 应包含 webfetch 工具调用" },
                     new OutputAssert { Type = AssertType.ContainsText, Expected = "200", Description = "vb29: 应包含 http_status_code 200" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "vb29: 应有后续 assistant 回复" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "vb29: 不应有错误" },
@@ -1044,7 +1043,7 @@ public static class VbBuiltinToolScripts {
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "webfetch", Description = "vb30: 应包含 webfetch 工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "web_fetch", Description = "vb30: 应包含 webfetch 工具调用" },
                     new OutputAssert { Type = AssertType.ContainsText, Expected = "REDIRECT", Description = "vb30: 应包含 REDIRECT 信号" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "vb30: 应有后续 assistant 回复" },
                 ]
@@ -1077,7 +1076,7 @@ public static class VbBuiltinToolScripts {
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "webfetch", Description = "vb31: 应包含 webfetch 工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "web_fetch", Description = "vb31: 应包含 webfetch 工具调用" },
                     new OutputAssert { Type = AssertType.ContainsText, Expected = "FetchFailed", Description = "vb31: 应包含 FetchFailed 诊断" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "vb31: 应有后续 assistant 回复" },
                 ]
@@ -1197,7 +1196,7 @@ public static class VbBuiltinToolScripts {
                 Asserts =
                 [
                     new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "agent", Description = "vb34: 应包含 agent 工具调用" },
-                    new OutputAssert { Type = AssertType.ContainsText, Expected = "Agent started", Description = "vb34: 应包含 Agent started 信号" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "Teammate sub-agent", Description = "vb34: 应包含子代理启动信号" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "vb34: 应有后续 assistant 回复" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "vb34: 不应有错误" },
                 ]

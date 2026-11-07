@@ -318,7 +318,8 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator {
                     };
 
                     var shortName = GetShortTypeName(reg.InterfaceName);
-                    sb.AppendLine($"        services.{regAddMethodName}<{reg.InterfaceName}>(sp =>");
+                    sb.AppendLine("#if DEBUG");
+                    sb.AppendLine($"        services.{regAddMethodName}<{reg.InterfaceName}>(static sp =>");
                     sb.AppendLine("        {");
                     sb.AppendLine($"            if (System.Environment.GetEnvironmentVariable(\"JCC_DI_TRACE\") == \"1\")");
                     sb.AppendLine($"                System.Console.Error.WriteLine(\"[DI] + {shortName}\");");
@@ -327,6 +328,9 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator {
                     sb.AppendLine($"                System.Console.Error.WriteLine(\"[DI] - {shortName}\");");
                     sb.AppendLine("            return svc;");
                     sb.AppendLine("        });");
+                    sb.AppendLine("#else");
+                    sb.AppendLine($"        services.{regAddMethodName}<{reg.InterfaceName}>(static sp => sp.GetRequiredService<{implementationName}>());");
+                    sb.AppendLine("#endif");
                 }
             } else {
                 // 无接口或接口 == 实现类型：只注册一次

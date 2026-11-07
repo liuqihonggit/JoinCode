@@ -10,6 +10,7 @@ public sealed partial class CodeIndexService : IHostedService, IAsyncDisposable 
     private readonly LspIntegration? _lspIntegration;
     private readonly CodeIndexOptions _options;
     private readonly ILogger<CodeIndexService>? _logger;
+    private Task? _startTask;
     private int _disposed;
 
     /// <summary>
@@ -62,6 +63,16 @@ public sealed partial class CodeIndexService : IHostedService, IAsyncDisposable 
     }
 
     /// <summary>
+    /// 等待后台启动完成 — 工具调用方在使用 CodeIndex 前调用此方法确保索引已加载
+    /// </summary>
+    public Task WaitForStartAsync() => _startTask ?? Task.CompletedTask;
+
+    /// <summary>
+    /// 设置后台启动 Task — 由 SessionInitStep 调用，工具调用方通过 WaitForStartAsync 等待
+    /// </summary>
+    public void SetStartTask(Task task) => _startTask = task;
+
+    /// <summary>
     /// 停止托管服务 — 停止文件监视器
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
@@ -80,13 +91,23 @@ public sealed partial class CodeIndexService : IHostedService, IAsyncDisposable 
     /// 异步释放资源 — 释放文件监视器、LSP 集成与索引器
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public ValueTask DisposeAsync() {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) {
-            return ValueTask.CompletedTask;
+            return;
+        }
+
+        if (_startTask is not null) {
+            try {
+                await _startTask.ConfigureAwait(false);
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "CodeIndexService 后台启动失败，释放时忽略");
+            }
         }
 
         _lspIntegration?.Dispose();
         (_indexer as IDisposable)?.Dispose();
-        return _watcher?.DisposeAsync() ?? ValueTask.CompletedTask;
+        if (_watcher is not null) {
+            await _watcher.DisposeAsync().ConfigureAwait(false);
+        }
     }
 }

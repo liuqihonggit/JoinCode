@@ -28,10 +28,11 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     private List<IIndexStore> _indexStores = [];
     private string? _lastVectorIndexDir;
     private int _disposed;
-    private int _autoLoadState;
+    private readonly SemaphoreSlim _autoLoadLock = new(1, 1);
+    private volatile bool _autoLoadCompleted;
     private string? _autoDiscoveredWorkspaceRoot;
     private volatile bool _embeddingLazyInitialized;
-    private readonly object _embeddingInitLock = new();
+    private readonly SemaphoreSlim _embeddingInitLock = new(1, 1);
     private static readonly string AutoLoadSubDir = Path.Combine(AppDataConstants.AppDataFolder, "code-index");
 
     /// <summary>
@@ -83,11 +84,14 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// </summary>
     private void EnsureEmbeddingIndexLazy() {
         if (_embeddingLazyInitialized) return;
-        lock (_embeddingInitLock) {
+        _embeddingInitLock.Wait();
+        try {
             if (_embeddingLazyInitialized) return;
             TryInitEmbeddingIndex(_fs, _logger);
             BuildIndexStoreList();
             _embeddingLazyInitialized = true;
+        } finally {
+            _embeddingInitLock.Release();
         }
     }
 
@@ -778,9 +782,12 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <param name="ct">取消令牌。</param>
     /// <param name="persistDir">持久化目录路径(null 时自动发现 git 工作区根)。</param>
     public async Task EnsureIndexLoadedAsync(CancellationToken ct, string? persistDir = null) {
-        if (Interlocked.CompareExchange(ref _autoLoadState, 1, 0) != 0) return;
+        if (_autoLoadCompleted) return;
 
+        await _autoLoadLock.WaitAsync(ct).ConfigureAwait(false);
         try {
+            if (_autoLoadCompleted) return;
+
             await EnsureEmbeddingModelAsync(ct).ConfigureAwait(false);
             string dir;
             if (persistDir is not null) {
@@ -791,6 +798,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
                 var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs);
                 if (root is null) {
                     _logger?.LogDebug("CodeIndexer: 未发现 .git 工作区根,跳过自动加载");
+                    _autoLoadCompleted = true;
                     return;
                 }
                 _autoDiscoveredWorkspaceRoot = root;
@@ -799,7 +807,6 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
             _lastVectorIndexDir = dir;
 
-            // 统一加载所有 IIndexStore — LINQ 链式，不再写三段 if
             foreach (var store in _indexStores) {
                 ct.ThrowIfCancellationRequested();
                 if (store.IsReady) continue;
@@ -817,8 +824,12 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             }
 
             _logger?.LogDebug("CodeIndexer: EnsureIndexLoadedAsync 完成 — 索引为空时请用 /index 命令显式构建");
+            _autoLoadCompleted = true;
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "CodeIndexer: 自动加载索引失败");
+            _autoLoadCompleted = true;
+        } finally {
+            _autoLoadLock.Release();
         }
     }
 
@@ -910,6 +921,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             return;
         }
 
+        _autoLoadLock.Dispose();
+        _embeddingInitLock.Dispose();
         _updater.Dispose();
         _symbolIndex.Dispose();
         _embeddingIndex?.Dispose();

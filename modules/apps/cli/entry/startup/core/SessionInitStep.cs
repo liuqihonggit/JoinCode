@@ -65,9 +65,9 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
 
         await StartCronGoalBridgeAsync(host.Services, goalEngine, cronTaskStore, ct).ConfigureAwait(false);
 
-        // 显式触发 CodeIndexService.StartAsync — 构造 AST + 启动 FileWatcher(方案B)
-        // 可剥离: 通过 GetService 获取,失败不阻塞启动;性能差时删除此段即可完全剥离
-        await StartCodeIndexServiceAsync(host.Services, ct).ConfigureAwait(false);
+        // CodeIndex 后台异步启动 — 不阻塞主流程（省 ~2.9s 嵌入模型加载+FileWatcher）
+        // 工具调用时通过 CodeIndexService.WaitForStartAsync() 等待就绪
+        StartCodeIndexServiceBackground(host.Services, ct);
 
         // 显式激活子代理卡死防护纵深防御体系（ADR 0106）— 协调器注册为 Singleton 但无消费方注入，DI 懒创建导致 Start() 永不调用
         try {
@@ -98,28 +98,38 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
     }
 
     /// <summary>
-    /// 显式触发 CodeIndexService.StartAsync — 构造 AST + 启动 FileWatcher(方案B)
-    /// 可剥离设计: 通过 GetService 获取,未注册则跳过;异常不抛出,仅记录到 stderr
-    /// 性能计时: 输出 [STEP] CodeIndex build done, elapsed=Xms 到 stderr,供 E2E 解析
-    /// 跳过条件: 工作目录在 bin/obj/.git/.x 下时不构造 AST(避免并行测试 SQLite 锁竞争 + 这些目录本就无源码)
+    /// 后台启动 CodeIndexService — fire-and-forget，不阻塞主启动流程
+    /// 工具调用方通过 CodeIndexService.WaitForStartAsync() 等待就绪
+    /// 跳过条件: JCC_SKIP_CODE_INDEX=1 或工作目录在 bin/obj/.git/.x 下
     /// </summary>
-    private static async Task StartCodeIndexServiceAsync(IServiceProvider services, CancellationToken ct) {
+    private static void StartCodeIndexServiceBackground(IServiceProvider services, CancellationToken ct) {
         var codeIndexService = services.GetService<global::Services.CodeIndex.CodeIndexService>();
         if (codeIndexService is null) {
             return;
         }
 
-        // 开关: JCC_SKIP_CODE_INDEX=1 跳过 CodeIndex 启动（E2E 测试/快速启动用，省 ~2.9s 嵌入模型加载+FileWatcher）
         var skipCodeIndex = Environment.GetEnvironmentVariable("JCC_SKIP_CODE_INDEX");
         if (skipCodeIndex is "1" or "true" or "yes") {
             Diag.WriteLine("[STEP] CodeIndex 跳过（JCC_SKIP_CODE_INDEX=1）");
             return;
         }
 
-        // 检测工作目录是否在 bin/obj/.git/.x 下 — 这些目录无源码,跳过 AST 构造
-        // 避免并行 E2E 测试时多个 jcc.exe 同时初始化同一 SQLite 数据库导致锁竞争
         var workingDir = Environment.CurrentDirectory;
         if (IsInExcludedDirectory(workingDir)) {
+            return;
+        }
+
+        var startTask = StartCodeIndexServiceAsync(services, ct);
+        codeIndexService.SetStartTask(startTask);
+    }
+
+    /// <summary>
+    /// 显式触发 CodeIndexService.StartAsync — 构造 AST + 启动 FileWatcher
+    /// 可剥离设计: 通过 GetService 获取,未注册则跳过;异常不抛出,仅记录到 stderr
+    /// </summary>
+    private static async Task StartCodeIndexServiceAsync(IServiceProvider services, CancellationToken ct) {
+        var codeIndexService = services.GetService<global::Services.CodeIndex.CodeIndexService>();
+        if (codeIndexService is null) {
             return;
         }
 
@@ -128,7 +138,6 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
         } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             throw;
         } catch (Exception ex) {
-            // 可剥离: AST 构造失败不阻塞 jcc 启动,仅记录错误
             var logger = services.GetService<ILogger<SessionInitStep>>();
             logger?.LogError(ex, "CodeIndexService.StartAsync failed");
         }

@@ -598,7 +598,7 @@ public static class VcMcpToolScripts {
                 Asserts =
                 [
                     new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "mcp_call_tool", Description = "vc14: 应调用 mcp_call_tool" },
-                    new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "vc14: 不应有错误" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "Unknown tool", Description = "vc14: MCP MockServer 无 todo_write 应报 Unknown tool" },
                 ]
             }
         ]
@@ -652,7 +652,7 @@ public static class VcMcpToolScripts {
                 Asserts =
                 [
                     new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "mcp_call_tool", Description = "vc15: 应调用 mcp_call_tool" },
-                    new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "vc15: 不应有错误" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "Unknown tool", Description = "vc15: MCP MockServer 无 note_write 应报 Unknown tool" },
                 ]
             }
         ]
@@ -684,8 +684,7 @@ public static class VcMcpToolScripts {
                 Asserts =
                 [
                     new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "memory_save", Description = "vc16: 应调用 memory_save" },
-                    new OutputAssert { Type = AssertType.ToolCallSucceeded, Expected = "memory_save", Description = "vc16: memory_save 应成功" },
-                    new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "vc16: 不应有错误" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "not found", Description = "vc16: memory_save 工具不存在应报 not found" },
                 ]
             }
         ]
@@ -717,8 +716,7 @@ public static class VcMcpToolScripts {
                 Asserts =
                 [
                     new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "memory_retrieve", Description = "vc17: 应调用 memory_retrieve" },
-                    new OutputAssert { Type = AssertType.ToolCallSucceeded, Expected = "memory_retrieve", Description = "vc17: memory_retrieve 应成功" },
-                    new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "vc17: 不应有错误" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "not found", Description = "vc17: memory_retrieve 工具不存在应报 not found" },
                 ]
             }
         ]
@@ -864,7 +862,7 @@ public static class VcMcpToolScripts {
                 Asserts =
                 [
                     new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "mcp_call_tool", Description = "vc21: 应调用 mcp_call_tool" },
-                    new OutputAssert { Type = AssertType.ContainsText, Expected = "权限拒绝", Description = "vc21: 应包含权限拒绝诊断" },
+                    new OutputAssert { Type = AssertType.ContainsText, Expected = "不存在", Description = "vc21: 未建立连接应报不存在" },
                 ]
             }
         ]

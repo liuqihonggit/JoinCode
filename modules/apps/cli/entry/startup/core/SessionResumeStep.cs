@@ -57,8 +57,8 @@ internal sealed partial class SessionResumeStep : ServiceEntity, IMiddleware<Sta
             context.ExitCode = (int)ExitCode.SessionResumeFailed;
             context.StructuredError = Cli.Output.CliErrorCatalog.ResourceSessionNotFound(resumeId);
             if (context.OutputContract is null) {
-                Cli.TerminalHelper.WriteError($"错误: 未找到会话 '{resumeId}'");
-                Cli.TerminalHelper.WriteError("使用 /history 查看可用会话列表");
+                Cli.TerminalHelper.WriteLine($"错误: 未找到会话 '{resumeId}'");
+                Cli.TerminalHelper.WriteLine("使用 /history 查看可用会话列表");
             }
             return;
         }

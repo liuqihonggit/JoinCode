@@ -54,6 +54,11 @@ public sealed partial class RemoteClientManager : IRemoteClientManager {
     public event EventHandler<PromptsListChangedEventArgs>? PromptsListChanged;
 
     /// <summary>
+    /// 引导完成通知事件 — 当 MCP 服务器发送 notifications/elicitation_complete 通知时触发
+    /// </summary>
+    public event EventHandler<ElicitationCompleteEventArgs>? ElicitationCompleteReceived;
+
+    /// <summary>
     /// 初始化 <see cref="RemoteClientManager"/> 实例
     /// </summary>
     /// <param name="toolRegistry">工具注册表</param>
@@ -142,6 +147,22 @@ public sealed partial class RemoteClientManager : IRemoteClientManager {
                     _logger.LogError(ex, "处理远程客户端 {ClientId} 提示模板变更通知时同步失败", clientId);
                 }
             }, $"sync-prompts-{clientId}");
+            break;
+
+            case McpMethod.NotificationElicitationComplete:
+            _logger.LogInformation("远程客户端 {ClientId} 发送引导完成通知", clientId);
+            try {
+                var elicParams = args.Params.HasValue
+                    ? args.Params.Value.Deserialize(McpJsonContext.Default.ElicitationCompleteNotificationParams)
+                    : null;
+                var elicitationId = elicParams?.ElicitationId ?? string.Empty;
+                ElicitationCompleteReceived?.Invoke(this, new ElicitationCompleteEventArgs {
+                    ClientId = clientId,
+                    ElicitationId = elicitationId
+                });
+            } catch (Exception ex) {
+                _logger.LogError(ex, "处理远程客户端 {ClientId} 引导完成通知失败", clientId);
+            }
             break;
         }
     }

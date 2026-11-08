@@ -70,3 +70,10 @@ public sealed class PromptsListChangedEventArgs : EventArgs {
     /// <summary>获取同步结果。</summary>
     public required OperationResult<IReadOnlyList<string>> SyncResult { get; init; }
 }
+
+public sealed class ElicitationCompleteEventArgs : EventArgs {
+    /// <summary>获取客户端标识（即 MCP 服务器名称）。</summary>
+    public required string ClientId { get; init; }
+    /// <summary>获取引导标识。</summary>
+    public required string ElicitationId { get; init; }
+}

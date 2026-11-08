@@ -48,6 +48,9 @@ public sealed class OauthRefreshCommand : ChatCommandBase {
             }
         }
 
+        // TASK073 Phase 3 — Token 刷新开始：触发 auth_status 事件（对齐基准侧 AwsAuthStatusManager.startAuthentication）
+        var eventConsumer = context.GetCommandServices().EventConsumer;
+
         try {
             var existingToken = await services.TokenStorage.LoadTokenAsync(provider, context.CancellationToken).ConfigureAwait(false);
             if (existingToken is null) {
@@ -62,6 +65,7 @@ public sealed class OauthRefreshCommand : ChatCommandBase {
             }
 
             TerminalHelper.WriteLine($"正在刷新 Provider '{provider}' 的 Token...");
+            eventConsumer?.OnAuthStatus(isAuthenticating: true);
 
             var config = optionsFactory.Value.ToOAuthConfig(provider);
             var newToken = await oauthClient.RefreshTokenAsync(config, existingToken.RefreshToken, context.CancellationToken).ConfigureAwait(false);
@@ -71,9 +75,13 @@ public sealed class OauthRefreshCommand : ChatCommandBase {
             TerminalHelper.WriteLine($"{TerminalColors.Success}Token 刷新成功{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine($"  Provider: {provider}");
             TerminalHelper.WriteLine($"  过期时间: {newToken.ExpiresAt:yyyy-MM-dd HH:mm:ss UTC}");
+            // TASK073 Phase 3 — Token 刷新成功：触发 auth_status 事件（对齐基准侧 AwsAuthStatusManager.endAuthentication(success: true)）
+            eventConsumer?.OnAuthStatus(isAuthenticating: false);
         } catch (Exception ex) {
             ChatCommandBase.HandleError("Token刷新", ex);
             TerminalHelper.WriteLine("请使用 /login --oauth 重新登录");
+            // TASK073 Phase 3 — Token 刷新失败：触发 auth_status 事件（对齐基准侧 AwsAuthStatusManager.endAuthentication(success: false)）
+            eventConsumer?.OnAuthStatus(isAuthenticating: false, error: ex.Message);
         }
 
         return ChatCommandResult.Continue();

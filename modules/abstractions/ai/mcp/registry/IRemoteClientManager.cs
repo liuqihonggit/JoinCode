@@ -5,6 +5,12 @@ public interface IRemoteClientManager : IAsyncDisposable {
     event EventHandler<ResourcesListChangedEventArgs>? ResourcesListChanged;
     event EventHandler<PromptsListChangedEventArgs>? PromptsListChanged;
 
+    /// <summary>
+    /// 引导完成通知事件 — 当 MCP 服务器发送 notifications/elicitation_complete 通知时触发
+    /// （对齐基准侧 system/elicitation_complete 事件；URL 模式 elicitation 完成后服务器确认）
+    /// </summary>
+    event EventHandler<ElicitationCompleteEventArgs>? ElicitationCompleteReceived;
+
     /// <summary>注册远程客户端。</summary>
     /// <param name="clientId">客户端标识。</param>
     /// <param name="client">MCP 客户端。</param>

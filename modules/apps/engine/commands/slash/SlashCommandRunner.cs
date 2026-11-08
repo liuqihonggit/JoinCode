@@ -162,6 +162,7 @@ public static class SlashCommandRunner {
             PkceGenerator = services.GetService<IPkceGenerator>(),
             WorktreeService = services.GetService<IAgentWorktreeService>(),
             BridgeClient = services.GetService<BridgeClient>(),
+            EventConsumer = services.GetService<IEventConsumer>(),
         };
 
         return new CommandServiceProvider(commandServices, services);

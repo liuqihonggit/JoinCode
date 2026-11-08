@@ -227,6 +227,7 @@ public sealed class CliSession {
             TurnDiffProvider = _turnDiffService,
             SessionTagService = optionalServices?.SessionTagService ?? optionalServices?.ServiceProvider?.GetService<ISessionTagService>(),
             WebService = optionalServices?.ServiceProvider?.GetService<IWebService>(),
+            EventConsumer = eventConsumer,
             FileSystem = _fs,
         };
 
@@ -281,6 +282,10 @@ public sealed class CliSession {
                 _logger?.LogWarning(ex, "[CliSession] 保存 SessionInfo 失败");
             }
         }
+
+        // TASK073 Phase 3 — 初始化后发送当前认证状态（对齐基准侧 print.ts:4504-4517）
+        // NDJSON 模式下输出 auth_status 事件；非 NDJSON 模式 _eventConsumer 为 null，静默跳过
+        _eventConsumer?.OnAuthStatus(isAuthenticating: false);
     }
 
     /// <summary>
@@ -464,6 +469,8 @@ public sealed class CliSession {
         var outputText = commandOutput.ToString();
         Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' outputLen={outputText.Length}, outputPreview='{(outputText.SafeTruncate(200))}'");
         if (!string.IsNullOrWhiteSpace(outputText)) {
+            // TASK073 Phase 4: trigger local command output event (NDJSON stream-json mode outputs system/local_command_output)
+            _eventConsumer?.OnLocalCommandOutput(outputText.TrimEnd());
             TerminalHelper.WriteLine(outputText.TrimEnd());
         }
 

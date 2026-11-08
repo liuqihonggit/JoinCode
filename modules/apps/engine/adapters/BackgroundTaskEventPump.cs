@@ -64,9 +64,12 @@ public sealed class BackgroundTaskEventPump : IAsyncDisposable {
         if (_forkManager is not null) {
             try {
                 var forks = await _forkManager.GetActiveForksAsync(ct).ConfigureAwait(false);
-                foreach (var fork in forks)
+                foreach (var fork in forks) {
                     consumer.OnBackgroundTask(BackgroundTaskKinds.Fork, fork.ForkId,
                         NormalizeForkDescription(fork.TaskDescription), MapForkState(fork.State));
+                    if (MapForkState(fork.State) == BackgroundTaskStates.Running)
+                        consumer.OnTaskStarted(fork.ForkId, NormalizeForkDescription(fork.TaskDescription), taskType: "fork");
+                }
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, "后台任务泵 fork 快照查询失败，跳过本批");
             }
@@ -75,8 +78,10 @@ public sealed class BackgroundTaskEventPump : IAsyncDisposable {
         if (_teammateExecutor is not null) {
             try {
                 var teammates = await _teammateExecutor.GetActiveTeammateSnapshotsAsync(ct).ConfigureAwait(false);
-                foreach (var teammate in teammates)
+                foreach (var teammate in teammates) {
                     consumer.OnBackgroundTask(BackgroundTaskKinds.Teammate, teammate.TeammateId, teammate.Task, BackgroundTaskStates.Running);
+                    consumer.OnTaskStarted(teammate.TeammateId, teammate.Task ?? string.Empty, taskType: "teammate");
+                }
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, "后台任务泵 teammate 快照查询失败，跳过本批");
             }
@@ -129,16 +134,27 @@ public sealed class BackgroundTaskEventPump : IAsyncDisposable {
     public ValueTask DisposeAsync() => new(StopAsync());
 
     /// <summary>ForkCompleted → OnBackgroundTask("fork", forkId, taskDescription, 终态)。
-    /// Bind 前到达的事件丢弃（组装顺序保证泵先 Bind 后 Start，仅测试直接触发可能越过）。</summary>
-    private void OnForkCompleted(object? sender, ForkCompletedEventArgs e) =>
+    /// Bind 前到达的事件丢弃（组装顺序保证泵先 Bind 后 Start，仅测试直接触发可能越过）。
+    /// TASK073 Phase 3 — 同时触发 OnTaskNotification（NDJSON 专用，更详细的事件字段）。</summary>
+    private void OnForkCompleted(object? sender, ForkCompletedEventArgs e) {
         _consumer?.OnBackgroundTask(BackgroundTaskKinds.Fork, e.ForkId, e.TaskDescription, MapForkState(e.State));
+        var status = MapForkState(e.State) switch {
+            BackgroundTaskStates.Completed => "completed",
+            BackgroundTaskStates.Failed => "failed",
+            BackgroundTaskStates.Cancelled => "stopped",
+            _ => "failed"
+        };
+        _consumer?.OnTaskNotification(e.ForkId, status, e.TaskDescription ?? string.Empty);
+    }
 
     /// <summary>TeammateCompleted → OnBackgroundTask("teammate", teammateId, task, 终态)。
-    /// 事件参数只有 IsSuccess 二态 — 被终止/失败统一映射 failed（无 cancelled 信号源，见泵 XML 注释）。</summary>
-    private void OnTeammateCompleted(object? sender, TeammateCompletedEventArgs e) =>
-        _consumer?.OnBackgroundTask(
-            BackgroundTaskKinds.Teammate, e.TeammateId, e.Task,
-            e.IsSuccess ? BackgroundTaskStates.Completed : BackgroundTaskStates.Failed);
+    /// 事件参数只有 IsSuccess 二态 — 被终止/失败统一映射 failed（无 cancelled 信号源，见泵 XML 注释）。
+    /// TASK073 Phase 3 — 同时触发 OnTaskNotification（NDJSON 专用，更详细的事件字段）。</summary>
+    private void OnTeammateCompleted(object? sender, TeammateCompletedEventArgs e) {
+        var state = e.IsSuccess ? BackgroundTaskStates.Completed : BackgroundTaskStates.Failed;
+        _consumer?.OnBackgroundTask(BackgroundTaskKinds.Teammate, e.TeammateId, e.Task, state);
+        _consumer?.OnTaskNotification(e.TeammateId, e.IsSuccess ? "completed" : "failed", e.Task ?? string.Empty);
+    }
 
     /// <summary>ForkState → 协议四值：[EnumValue] 唯一数据源取值，merged 折叠 completed
     /// （合并即成功终态 — MergeFork 不发完成事件，快照路径亦过滤 merged，此处仅防御性折叠）。</summary>

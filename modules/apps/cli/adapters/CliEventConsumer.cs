@@ -323,6 +323,33 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         }
     }
 
+    /// <summary>任务开始 — NDJSON 模式输出 SdkTaskStartedMessage</summary>
+    public void OnTaskStarted(string taskId, string description, string? toolUseId = null, string? taskType = null, string? workflowName = null, string? prompt = null) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            var msg = Cli.Output.SdkTaskStartedMessage.Create(_sessionId, taskId, description);
+            WriteSdkJson(msg with { ToolUseId = toolUseId, TaskType = taskType, WorkflowName = workflowName, Prompt = prompt });
+        }
+    }
+
+    /// <summary>任务进度 — NDJSON 模式输出 SdkTaskProgressMessage</summary>
+    public void OnTaskProgress(string taskId, string description, string? toolUseId = null, string? lastToolName = null, string? summary = null) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            var msg = Cli.Output.SdkTaskProgressMessage.Create(_sessionId, taskId, description);
+            WriteSdkJson(msg with { ToolUseId = toolUseId, LastToolName = lastToolName, Summary = summary });
+        }
+    }
+
+    /// <summary>任务完成通知 — NDJSON 模式输出 SdkTaskNotificationMessage</summary>
+    public void OnTaskNotification(string taskId, string status, string summary, string? toolUseId = null, string? outputFile = null) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            var msg = Cli.Output.SdkTaskNotificationMessage.Create(_sessionId, taskId, status, summary);
+            WriteSdkJson(msg with { ToolUseId = toolUseId, OutputFile = outputFile ?? string.Empty });
+        }
+    }
+
     /// <summary>确保 system/init 消息已发送（首次事件时发送）</summary>
     private void EnsureSystemInit() {
         if (_systemInitSent) return;

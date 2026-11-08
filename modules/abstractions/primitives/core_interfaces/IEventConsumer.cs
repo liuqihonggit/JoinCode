@@ -166,6 +166,40 @@ public interface IEventConsumer {
     /// <param name="resetsAt">限制重置时间戳（Unix 秒），null = 未提供</param>
     /// <param name="rateLimitType">限制类型（five_hour/seven_day 等），null = 未提供</param>
     void OnRateLimit(string status, long? resetsAt, string? rateLimitType) { }
+
+    /// <summary>
+    /// 任务开始（TASK073 Phase 3 — 对齐基准侧 system/task_started 事件；
+    /// NDJSON 模式输出 SdkTaskStartedMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="taskId">任务标识</param>
+    /// <param name="description">任务描述</param>
+    /// <param name="toolUseId">关联的工具调用标识；null = 未提供</param>
+    /// <param name="taskType">任务类型；null = 未提供</param>
+    /// <param name="workflowName">工作流名称；null = 未提供</param>
+    /// <param name="prompt">任务提示词；null = 未提供</param>
+    void OnTaskStarted(string taskId, string description, string? toolUseId = null, string? taskType = null, string? workflowName = null, string? prompt = null) { }
+
+    /// <summary>
+    /// 任务进度更新（TASK073 Phase 3 — 对齐基准侧 system/task_progress 事件；
+    /// NDJSON 模式输出 SdkTaskProgressMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="taskId">任务标识</param>
+    /// <param name="description">任务描述</param>
+    /// <param name="toolUseId">关联的工具调用标识；null = 未提供</param>
+    /// <param name="lastToolName">最后使用的工具名称；null = 未提供</param>
+    /// <param name="summary">任务摘要；null = 未提供</param>
+    void OnTaskProgress(string taskId, string description, string? toolUseId = null, string? lastToolName = null, string? summary = null) { }
+
+    /// <summary>
+    /// 任务完成通知（TASK073 Phase 3 — 对齐基准侧 system/task_notification 事件；
+    /// NDJSON 模式输出 SdkTaskNotificationMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="taskId">任务标识</param>
+    /// <param name="status">任务状态（completed/failed/stopped）</param>
+    /// <param name="summary">任务摘要</param>
+    /// <param name="toolUseId">关联的工具调用标识；null = 未提供</param>
+    /// <param name="outputFile">输出文件路径；null = 未提供</param>
+    void OnTaskNotification(string taskId, string status, string summary, string? toolUseId = null, string? outputFile = null) { }
 }
 
 /// <summary>

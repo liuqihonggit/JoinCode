@@ -27,4 +27,16 @@ public interface IRateLimitTracker {
 
     /// <summary>清除所有快照。</summary>
     void Clear();
+
+    /// <summary>
+    /// 注册快照更新处理器 — 当 Update 被调用时触发（TASK073 Phase 3 — 速率限制事件桥接）
+    /// </summary>
+    /// <param name="handler">处理器，接收更新后的 RateLimitSnapshot</param>
+    void RegisterUpdateHandler(Action<RateLimitSnapshot> handler);
+
+    /// <summary>
+    /// 注销快照更新处理器
+    /// </summary>
+    /// <param name="handler">要注销的处理器</param>
+    void UnregisterUpdateHandler(Action<RateLimitSnapshot> handler);
 }

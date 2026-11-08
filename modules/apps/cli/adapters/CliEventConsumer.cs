@@ -311,6 +311,18 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         }
     }
 
+    /// <summary>速率限制事件 — NDJSON 模式输出 SdkRateLimitEventMessage</summary>
+    public void OnRateLimit(string status, long? resetsAt, string? rateLimitType) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkRateLimitEventMessage.Create(_sessionId, new Cli.Output.SdkRateLimitInfo {
+                Status = status,
+                ResetsAt = resetsAt?.ToString(),
+                RateLimitType = rateLimitType,
+            }));
+        }
+    }
+
     /// <summary>确保 system/init 消息已发送（首次事件时发送）</summary>
     private void EnsureSystemInit() {
         if (_systemInitSent) return;

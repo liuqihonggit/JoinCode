@@ -29,6 +29,7 @@ public sealed class SessionController {
     private readonly IClockService _clock;
     private readonly AgentBase? _mainAgent;
     private readonly Action<HookExecutionEvent>? _hookEventHandler;
+    private readonly Action<RateLimitSnapshot>? _rateLimitHandler;
 
     /// <summary>会话是否正在运行</summary>
     public bool IsRunning { get; private set; } = true;
@@ -105,6 +106,23 @@ public sealed class SessionController {
                 }
             };
             hookOrchestrator.RegisterHookEventHandler(_hookEventHandler);
+        }
+
+        // TASK073 Phase 3 — RateLimit 事件桥接：IRateLimitTracker → IEventConsumer.OnRateLimit
+        var rateLimitTracker = serviceProvider?.GetService<IRateLimitTracker>();
+        if (rateLimitTracker is not null) {
+            _rateLimitHandler = snapshot => {
+                var status = snapshot.RequestRemaining switch {
+                    <= 0 => "rejected",
+                    <= 10 => "allowed_warning",
+                    _ => "allowed"
+                };
+                long? resetsAtUnix = snapshot.RequestResetsAt.HasValue
+                    ? new DateTimeOffset(snapshot.RequestResetsAt.Value).ToUnixTimeSeconds()
+                    : null;
+                _consumer.OnRateLimit(status, resetsAtUnix, null);
+            };
+            rateLimitTracker.RegisterUpdateHandler(_rateLimitHandler);
         }
     }
 

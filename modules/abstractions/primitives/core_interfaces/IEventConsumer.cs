@@ -157,6 +157,15 @@ public interface IEventConsumer {
     /// <param name="exitCode">退出码</param>
     /// <param name="outcome">执行结果（success/error/cancelled）</param>
     void OnHookResponse(string hookId, string hookName, string hookEvent, string? output, string? stdout, string? stderr, int? exitCode, string outcome) { }
+
+    /// <summary>
+    /// 速率限制事件（TASK073 Phase 3 — 对齐基准侧 rate_limit_event 事件；
+    /// NDJSON 模式输出 SdkRateLimitEventMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="status">限制状态（allowed/allowed_warning/rejected）</param>
+    /// <param name="resetsAt">限制重置时间戳（Unix 秒），null = 未提供</param>
+    /// <param name="rateLimitType">限制类型（five_hour/seven_day 等），null = 未提供</param>
+    void OnRateLimit(string status, long? resetsAt, string? rateLimitType) { }
 }
 
 /// <summary>

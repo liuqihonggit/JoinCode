@@ -104,7 +104,6 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         _pendingToolResults.Clear();
         _permissionDenials.Clear();
         _toolInputs.Clear();
-        _systemInitSent = false;
     }
 
     /// <summary>收到文本内容</summary>

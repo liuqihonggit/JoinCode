@@ -16,7 +16,7 @@ internal interface IFireAndForgetTask : IAsyncDisposable {
 
 public sealed class FireAndForgetTask<T> : IFireAndForgetTask, IAsyncDisposable {
     private readonly Task<T> _task;
-    private readonly CancellationTokenSource _cts;
+    private readonly CancellationTokenSource? _cts;
     private readonly string? _name;
     private readonly Action<Exception>? _onError;
     private int _disposed;
@@ -26,6 +26,19 @@ public sealed class FireAndForgetTask<T> : IFireAndForgetTask, IAsyncDisposable 
         _onError = onError;
         _cts = new CancellationTokenSource();
         _task = System.Threading.Tasks.Task.Run(() => factory(_cts.Token), _cts.Token);
+    }
+
+    private FireAndForgetTask(Task<T> task, string? name, Action<Exception>? onError) {
+        _task = task;
+        _name = name;
+        _onError = onError;
+        _cts = null;
+    }
+
+    /// <summary>从已存在的 Task 创建包装（不启动新任务，无独立 CTS，Cancel 无操作）</summary>
+    internal static FireAndForgetTask<Unit> FromExistingTask(Task task, string? name, Action<Exception>? onError) {
+        var unitTask = task.ContinueWith(_ => Unit.Value, TaskContinuationOptions.ExecuteSynchronously);
+        return new FireAndForgetTask<Unit>(unitTask, name, onError);
     }
 
     /// <summary>启动 fire-and-forget 任务（有返回值）</summary>
@@ -61,7 +74,7 @@ public sealed class FireAndForgetTask<T> : IFireAndForgetTask, IAsyncDisposable 
     Task IFireAndForgetTask.Task => _task;
 
     void IFireAndForgetTask.Cancel() {
-        if (Volatile.Read(ref _disposed) == 0) {
+        if (Volatile.Read(ref _disposed) == 0 && _cts is not null) {
             try { _cts.Cancel(); } catch (ObjectDisposedException) { AsyncStderrWriter.Enqueue($"[FireAndForgetTask:{_name}] CTS 已释放，Cancel 幂等忽略"); }
         }
     }
@@ -69,21 +82,21 @@ public sealed class FireAndForgetTask<T> : IFireAndForgetTask, IAsyncDisposable 
     /// <summary>正常释放 — Cancel + 等待完成（强度 2：释放时等待）</summary>
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _cts.Cancel();
+        _cts?.Cancel();
         try {
             await _task.ConfigureAwait(false);
         } catch (OperationCanceledException) {
         } catch (Exception ex) {
             _onError?.Invoke(ex);
         }
-        _cts.Dispose();
+        _cts?.Dispose();
     }
 
     /// <summary>梯度释放 — Cancel + 有限等待窗口，超时放弃等待（强度 2+：紧急释放）</summary>
     /// <param name="gracePeriod">等待窗口；Zero = 不等待，Infinite = 无限等</param>
     public async ValueTask DisposeAsync(TimeSpan gracePeriod) {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _cts.Cancel();
+        _cts?.Cancel();
         if (gracePeriod > TimeSpan.Zero) {
             var winner = await System.Threading.Tasks.Task.WhenAny(
                 _task,
@@ -101,6 +114,6 @@ public sealed class FireAndForgetTask<T> : IFireAndForgetTask, IAsyncDisposable 
                 _onError?.Invoke(ex);
             }
         }
-        _cts.Dispose();
+        _cts?.Dispose();
     }
 }

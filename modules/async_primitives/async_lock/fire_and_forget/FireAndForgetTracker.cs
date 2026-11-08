@@ -8,6 +8,8 @@ namespace Core.Utils;
 public sealed class FireAndForgetTracker : IAsyncDisposable {
     private readonly ConcurrentQueue<IFireAndForgetTask> _tasks = new();
     private int _disposed;
+    private const int CleanupThreshold = 256;
+    private const int CleanupRetain = 64;
 
     /// <summary>注册 fire-and-forget 任务（有返回值）</summary>
     /// <param name="factory">异步工厂委托，接收 CancellationToken</param>
@@ -19,6 +21,7 @@ public sealed class FireAndForgetTracker : IAsyncDisposable {
 
         var fft = FireAndForgetTask<T>.Run(factory, name, onError);
         _tasks.Enqueue(fft);
+        CleanupIfNeeded();
         return fft;
     }
 
@@ -32,11 +35,46 @@ public sealed class FireAndForgetTracker : IAsyncDisposable {
 
         var fft = FireAndForgetTask<Unit>.Run(factory, name, onError);
         _tasks.Enqueue(fft);
+        CleanupIfNeeded();
         return fft;
     }
 
     /// <summary>已注册任务数</summary>
     public int Count => _tasks.Count;
+
+    /// <summary>注册已启动的 Task（不启动新任务，无独立 CTS，Cancel 无操作）— 供 ActorBase RegisterInFlight 等场景使用</summary>
+    /// <param name="task">已启动的 Task 引用</param>
+    /// <param name="name">任务名称（用于诊断日志）</param>
+    /// <param name="onError">异常回调（默认 null = 静默吞异常）</param>
+    public FireAndForgetTask<Unit> RegisterExistingTask(Task task, string? name = null, Action<Exception>? onError = null) {
+        ArgumentNullException.ThrowIfNull(task);
+        var fft = FireAndForgetTask<Unit>.FromExistingTask(task, name, onError);
+        _tasks.Enqueue(fft);
+        CleanupIfNeeded();
+        return fft;
+    }
+
+    /// <summary>水位线清理 — 超过阈值时清理已完成项，保留最近 CleanupRetain 个供诊断</summary>
+    private void CleanupIfNeeded() {
+        if (_tasks.Count > CleanupThreshold) {
+            CleanupCompleted();
+        }
+    }
+
+    /// <summary>清理已完成的任务 — 从队列头部 Dequeue 已完成项，保留最近 CleanupRetain 个</summary>
+    private void CleanupCompleted() {
+        var retained = 0;
+        var toRequeue = new List<IFireAndForgetTask>();
+        while (_tasks.TryDequeue(out var t)) {
+            if (!t.IsCompleted && retained < CleanupRetain) {
+                toRequeue.Add(t);
+                retained++;
+            }
+        }
+        foreach (var t in toRequeue) {
+            _tasks.Enqueue(t);
+        }
+    }
 
     /// <summary>正常释放 — Cancel 所有任务 + WhenAll 等待完成 + 逐个 Dispose CTS</summary>
     public async ValueTask DisposeAsync() {

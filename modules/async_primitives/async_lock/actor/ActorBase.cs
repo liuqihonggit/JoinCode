@@ -22,7 +22,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     private readonly IdempotencyGate _idempotencyGate;
     private readonly AskWaitGraphTracker _waitGraphTracker;
     private readonly MessageRetryEngine<TCommand> _retryEngine;
-    private readonly ActorInFlightRegistry _inFlightTasks = new();
+    private readonly FireAndForgetTracker _inFlightTracker = new();
     private int _disposed;
     private readonly ILogger? _logger;
 
@@ -298,6 +298,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
     /// 注册 in-flight 任务 — 子类 Handle 里 fire-and-forget 启动的任务应通过此方法注册。
     /// <para>DisposeAsync 在 Consumer 退出后自动等待所有注册的 in-flight 任务完成,确保资源真正释放。</para>
     /// <para>ADR: [0125](docs/adr/0125-actor-register-inflight-dispose-guard.md) — 统一 in-flight 守卫基础设施。</para>
+    /// <para>ADR: [0155](docs/proposed/adr/security_concurrency/0155-unified-fire-and-forget-infrastructure.md) — 统一 FireAndForgetTracker 基础设施。</para>
     /// </summary>
     /// <param name="task">fire-and-forget 启动的任务引用</param>
     protected void RegisterInFlight(Task task) {
@@ -306,11 +307,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         // 任务已 fire-and-forget 启动,必须入队让 Dispose 等待,否则泄漏。
         // 安全保证:RegisterInFlight 仅在 Handle 内调用,Handle 在 Consumer 线程串行执行,
         // Consumer 退出(await _consumerTask)前所有 RegisterInFlight 已完成,Dispose 的 ToArray 必包含全部 in-flight 任务。
-        _inFlightTasks.Register(task);
+        _inFlightTracker.RegisterExistingTask(task);
     }
 
     /// <summary>in-flight 任务当前数 — 供测试验证清理有效性(DSG033 方案B)</summary>
-    internal int InFlightCountForTest => _inFlightTasks.Count;
+    internal int InFlightCountForTest => _inFlightTracker.Count;
 
     /// <summary>
     /// 外部拉取输出流 — 阻塞式 IAsyncEnumerable。
@@ -818,15 +819,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
         try {
             await _retryEngine.WaitForCompletionAsync().ConfigureAwait(false);
         } catch (OperationCanceledException) { }
-        var inflight = _inFlightTasks.ToArray();
-        if (inflight.Length > 0) {
-            try {
-                await Task.WhenAll(inflight).ConfigureAwait(false);
-            } catch (Exception ex) {
-                _logger?.LogWarning(ex, "[Actor:{ActorId}] in-flight 任务异常忽略,继续释放 CTS", Id);
-            }
+        try {
+            await _inFlightTracker.DisposeAsync().ConfigureAwait(false);
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "[Actor:{ActorId}] in-flight 任务异常忽略,继续释放 CTS", Id);
         }
-        _inFlightTasks.Clear();
         PostStop();
         await PostStopAsync().ConfigureAwait(false);
         _cts.Dispose();

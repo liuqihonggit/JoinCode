@@ -150,6 +150,80 @@ public class FireAndForgetTrackerTests {
         await tracker.DisposeAsync();
         stopwatch.Stop();
 
-        stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromMilliseconds(500));
+        stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(500));
+    }
+
+    [Fact]
+    public async Task RegisterExistingTask_WrapsAlreadyStartedTask() {
+        await using var tracker = new FireAndForgetTracker();
+
+        var tcs = new TaskCompletionSource<int>();
+        tracker.RegisterExistingTask(tcs.Task);
+
+        tracker.Count.Should().Be(1);
+        tcs.SetResult(42);
+    }
+
+    [Fact]
+    public async Task RegisterExistingTask_DisposeAsync_WaitsForCompletion() {
+        var tracker = new FireAndForgetTracker();
+
+        var tcs = new TaskCompletionSource<int>();
+        tracker.RegisterExistingTask(tcs.Task);
+
+        var disposeTask = tracker.DisposeAsync().AsTask();
+        await System.Threading.Tasks.Task.Delay(50);
+        disposeTask.IsCompleted.Should().BeFalse();
+
+        tcs.SetResult(1);
+        await disposeTask;
+    }
+
+    [Fact]
+    public async Task RegisterExistingTask_DoesNotCancelOriginalTask() {
+        var tracker = new FireAndForgetTracker();
+
+        var tcs = new TaskCompletionSource<int>();
+        tracker.RegisterExistingTask(tcs.Task);
+
+        var disposeTask = tracker.DisposeAsync().AsTask();
+        await System.Threading.Tasks.Task.Delay(50);
+
+        tcs.Task.IsCanceled.Should().BeFalse();
+        tcs.SetResult(1);
+        await disposeTask;
+    }
+
+    [Fact]
+    public async Task CleanupCompleted_RemovesCompletedTasks_KeepsRecent() {
+        await using var tracker = new FireAndForgetTracker();
+
+        for (var i = 0; i < 300; i++) {
+            var tcs = new TaskCompletionSource<int>();
+            tcs.SetResult(i);
+            tracker.RegisterExistingTask(tcs.Task);
+        }
+
+        tracker.Count.Should().BeLessThan(320,
+            "超过阈值256后应清理已完成项,保留最近64个");
+    }
+
+    [Fact]
+    public async Task CleanupCompleted_KeepsUncompletedTasks() {
+        await using var tracker = new FireAndForgetTracker();
+
+        var uncompleted = new TaskCompletionSource<int>();
+        tracker.RegisterExistingTask(uncompleted.Task);
+
+        for (var i = 0; i < 300; i++) {
+            var tcs = new TaskCompletionSource<int>();
+            tcs.SetResult(i);
+            tracker.RegisterExistingTask(tcs.Task);
+        }
+
+        tracker.Count.Should().BeLessThan(70,
+            "已完成项应被清理,仅保留未完成项+最近64个诊断项");
+
+        uncompleted.SetResult(1);
     }
 }

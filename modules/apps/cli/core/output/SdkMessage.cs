@@ -87,6 +87,9 @@ public sealed record SdkUserMessage : SdkMessageBase {
     public string? Priority { get; init; }
     /// <summary>ISO 时间戳 — 对齐基准侧 timestamp 字段</summary>
     public string? Timestamp { get; init; }
+    /// <summary>是否为回放消息 — 对齐基准侧 isReplay 字段（replay user message 标记）</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("isReplay")]
+    public bool? IsReplay { get; init; }
     /// <summary>创建带默认 Uuid 的实例</summary>
     public static SdkUserMessage Create(SdkMessageBody message, string? sessionId) => new() { Message = message, Uuid = NewUuid(), SessionId = sessionId };
 }
@@ -548,4 +551,76 @@ public sealed record SdkRateLimitInfo {
     /// <summary>速率限制类型</summary>
     [System.Text.Json.Serialization.JsonPropertyName("rateLimitType")]
     public string? RateLimitType { get; init; }
+}
+
+/// <summary>本地命令输出消息 — 对齐基准侧 system/local_command_output 事件</summary>
+public sealed record SdkLocalCommandOutputMessage : SdkMessageBase {
+    /// <summary>消息类型</summary>
+    public string Type => "system";
+    /// <summary>消息子类型</summary>
+    public string Subtype => "local_command_output";
+    /// <summary>命令输出内容</summary>
+    public string Content { get; init; } = string.Empty;
+    /// <summary>创建带默认 Uuid 的本地命令输出消息实例</summary>
+    public static SdkLocalCommandOutputMessage Create(string? sessionId, string content) => new() { Uuid = NewUuid(), SessionId = sessionId, Content = content };
+}
+
+/// <summary>持久化文件信息 — 对齐基准侧 files_persisted.files 数组元素</summary>
+public sealed record SdkPersistedFile {
+    /// <summary>文件名</summary>
+    public string Filename { get; init; } = string.Empty;
+    /// <summary>文件标识</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("file_id")]
+    public string FileId { get; init; } = string.Empty;
+}
+
+/// <summary>持久化失败文件信息 — 对齐基准侧 files_persisted.failed 数组元素</summary>
+public sealed record SdkFailedFile {
+    /// <summary>文件名</summary>
+    public string Filename { get; init; } = string.Empty;
+    /// <summary>失败原因</summary>
+    public string Error { get; init; } = string.Empty;
+}
+
+/// <summary>文件持久化事件消息 — 对齐基准侧 system/files_persisted 事件</summary>
+public sealed record SdkFilesPersistedMessage : SdkMessageBase {
+    /// <summary>消息类型</summary>
+    public string Type => "system";
+    /// <summary>消息子类型</summary>
+    public string Subtype => "files_persisted";
+    /// <summary>成功持久化的文件列表</summary>
+    public System.Collections.Generic.List<SdkPersistedFile> Files { get; init; } = [];
+    /// <summary>持久化失败的文件列表</summary>
+    public System.Collections.Generic.List<SdkFailedFile> Failed { get; init; } = [];
+    /// <summary>处理时间戳</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("processed_at")]
+    public string ProcessedAt { get; init; } = string.Empty;
+    /// <summary>创建带默认 Uuid 的文件持久化事件消息实例</summary>
+    public static SdkFilesPersistedMessage Create(string? sessionId) => new() { Uuid = NewUuid(), SessionId = sessionId };
+}
+
+/// <summary>引导完成消息 — 对齐基准侧 system/elicitation_complete 事件</summary>
+public sealed record SdkElicitationCompleteMessage : SdkMessageBase {
+    /// <summary>消息类型</summary>
+    public string Type => "system";
+    /// <summary>消息子类型</summary>
+    public string Subtype => "elicitation_complete";
+    /// <summary>MCP 服务器名称</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("mcp_server_name")]
+    public string McpServerName { get; init; } = string.Empty;
+    /// <summary>引导标识</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("elicitation_id")]
+    public string ElicitationId { get; init; } = string.Empty;
+    /// <summary>创建带默认 Uuid 的引导完成消息实例</summary>
+    public static SdkElicitationCompleteMessage Create(string? sessionId, string mcpServerName, string elicitationId) => new() { Uuid = NewUuid(), SessionId = sessionId, McpServerName = mcpServerName, ElicitationId = elicitationId };
+}
+
+/// <summary>提示建议消息 — 对齐基准侧 prompt_suggestion 事件</summary>
+public sealed record SdkPromptSuggestionMessage : SdkMessageBase {
+    /// <summary>消息类型</summary>
+    public string Type => "prompt_suggestion";
+    /// <summary>建议内容</summary>
+    public string Suggestion { get; init; } = string.Empty;
+    /// <summary>创建带默认 Uuid 的提示建议消息实例</summary>
+    public static SdkPromptSuggestionMessage Create(string? sessionId, string suggestion) => new() { Uuid = NewUuid(), SessionId = sessionId, Suggestion = suggestion };
 }

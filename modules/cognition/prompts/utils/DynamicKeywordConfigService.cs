@@ -11,7 +11,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
     private readonly ReloadActor _actor;
     private volatile DynamicKeywordConfig _config = new();
     private IFileSystemWatcher? _watcher;
-    private readonly Task _loadTask;
+    private readonly FireAndForgetTask<Unit> _loadTask;
     private int _disposed;
 
     /// <summary>
@@ -28,7 +28,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
         _fs = fs;
         _logger = logger;
         _actor = new ReloadActor(this, logger);
-        _loadTask = LoadConfigAsync().AsTask();
+        _loadTask = FireAndForgetTask<Unit>.Run(async ct => await LoadConfigAsync().ConfigureAwait(false), "DynamicKeywordConfigService init");
         StartWatching();
     }
 
@@ -128,7 +128,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
             await _watcher.DisposeAsync().ConfigureAwait(false);
         }
         _watcher = null;
-        await _loadTask.ConfigureAwait(false);
+        await _loadTask.DisposeAsync().ConfigureAwait(false);
         await _actor.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }

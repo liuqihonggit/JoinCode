@@ -21,7 +21,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService {
         _clock = clock;
         _fs = fs;
         _logger = logger;
-        _loadTask = LoadFromFileAsync().AsTask();
+        _loadTask = FireAndForgetTask<Unit>.Run(async ct => await LoadFromFileAsync().ConfigureAwait(false), "BriefModeService init");
     }
     private bool _isEnabled;
     private DateTime? _enabledAt;
@@ -29,7 +29,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService {
     private readonly IClockService _clock;
     private readonly IFileSystem? _fs;
     private readonly ILogger<BriefModeService>? _logger;
-    private readonly Task _loadTask;
+    private readonly FireAndForgetTask<Unit> _loadTask;
     private static readonly string ModeSubDir = Path.Combine(AppDataConstants.AppDataFolder, "mode");
     private const string ModeFileName = "brief.json";
 
@@ -122,6 +122,12 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService {
         } catch (Exception ex) {
             _logger?.LogWarning("Brief mode 状态保存失败: {Message}", ex.Message);
         }
+    }
+
+    /// <summary>异步释放 — 释放 fire-and-forget 加载任务的 CancellationTokenSource</summary>
+    public override async ValueTask DisposeAsync() {
+        await _loadTask.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }
 

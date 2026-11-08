@@ -12,7 +12,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
     private readonly CancellationTokenSource _disposeCts = new();
     private volatile List<ToolTemplate> _cache = [];
     private volatile ImmutableHamT<string, ToolTemplate> _byKey = ImmutableHamT<string, ToolTemplate>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
-    private readonly Task _loadTask;
+    private readonly FireAndForgetTask<Unit> _loadTask;
     private bool _disposed;
 
     /// <summary>
@@ -26,7 +26,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
         _templatesDir = AppDataConstants.Paths.ToolTemplatesDirectory;
 
         EnsureTemplatesDir();
-        _loadTask = LoadTemplatesAsync(_disposeCts.Token);
+        _loadTask = FireAndForgetTask<Unit>.Run(async ct => await LoadTemplatesAsync(ct).ConfigureAwait(false), "ToolTemplateService init");
     }
 
     /// <summary>
@@ -279,9 +279,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
     public override async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
-        if (_loadTask is not null) {
-            try { await _loadTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
-        }
+        await _loadTask.DisposeAsync().ConfigureAwait(false);
         _disposeCts.CancelAndDisposeSafe(_logger);
         await base.DisposeAsync().ConfigureAwait(false);
     }

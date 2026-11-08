@@ -30,7 +30,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
         _httpClientProvider = httpClientProvider;
         _authPersistenceFs = fileSystem;
         _authStateFilePath = fileSystem is not null ? GetAuthStateFilePath() : null;
-        _loadTask = LoadAuthStateAsync();
+        _loadTask = FireAndForgetTask<Unit>.Run(async ct => await LoadAuthStateAsync().ConfigureAwait(false), "McpAuthToolHandlers init");
     }
 
     /// <summary>
@@ -374,7 +374,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     /// </summary>
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        await _loadTask.ConfigureAwait(false);
+        await _loadTask.DisposeAsync().ConfigureAwait(false);
         await Task.WhenAll(_authProviders.Values.OfType<IAsyncDisposable>()
             .Select(p => p.DisposeAsync().AsTask())).ConfigureAwait(false);
         _authProviders.Clear();

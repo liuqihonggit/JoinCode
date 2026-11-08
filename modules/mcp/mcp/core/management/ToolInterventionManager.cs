@@ -11,7 +11,7 @@ public sealed class ToolInterventionManager : ServiceEntity {
     private readonly IFileSystem _fs;
     private ImmutableHamT<string, InterventionRule> _rules = ImmutableHamT<string, InterventionRule>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private readonly string _configPath;
-    private readonly Task _loadTask;
+    private readonly FireAndForgetTask<Unit> _loadTask;
 
     /// <summary>
     /// 初始化工具干预管理器，从磁盘加载已保存的干预规则
@@ -24,7 +24,7 @@ public sealed class ToolInterventionManager : ServiceEntity {
         _configPath = Path.Combine(
             JoinCode.Abstractions.Configuration.AppData.AppDataConstants.JccDirectory,
             "tool-interventions.json");
-        _loadTask = LoadFromDiskAsync();
+        _loadTask = FireAndForgetTask<Unit>.Run(async ct => await LoadFromDiskAsync().ConfigureAwait(false), "ToolInterventionManager init");
     }
 
     /// <summary>
@@ -161,9 +161,7 @@ public sealed class ToolInterventionManager : ServiceEntity {
 
     /// <summary>异步释放资源 — 等待加载任务完成后再释放。</summary>
     public override async ValueTask DisposeAsync() {
-        if (_loadTask is not null) {
-            try { await _loadTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
-        }
+        await _loadTask.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
 }

@@ -576,18 +576,18 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IActorTell<T
 
         return signal => {
             if (ShouldDelayRetry(signal.SuggestedDelay)) {
-                _ = Task.Run(async () => {
+                _ = FireAndForgetTask<Unit>.Run(async _ => {
                     try {
                         using var flowScope = AsyncFlowIdentity.Restore(capturedFlow);
                         _askWaitGraph.Value = capturedWaitGraph;
                         await Task.Delay(signal.SuggestedDelay, ct).ConfigureAwait(false);
                         resend();
                     } catch (OperationCanceledException) {
-                        // Actor 释放,取消延迟重试
                     } catch (Exception ex) {
                         logger?.LogWarning(ex, "CreateBackpressureHandler resend 异常忽略");
                     }
-                });
+                }, "backpressure-retry",
+                ex => logger?.LogWarning(ex, "CreateBackpressureHandler resend 异常忽略"));
             } else {
                 try {
                     using var flowScope = AsyncFlowIdentity.Restore(capturedFlow);

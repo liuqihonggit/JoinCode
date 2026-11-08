@@ -103,9 +103,9 @@ internal sealed partial class V1WorkPollSetupMiddleware : ServiceEntity, IMiddle
                 }
                 try {
                     // P1-4: 改用异步关闭+释放，消除事件处理程序中的 sync-over-async 阻塞
-                    _ = Task.Run(async () => {
+                    _ = FireAndForgetTask<Unit>.Run(async ct => {
                         try { await oldTransport.DisposeAsync().ConfigureAwait(false); } catch (Exception ex2) { logger?.LogWarning(ex2, "[BridgeRemoteCore] 关闭旧传输失败"); }
-                    });
+                    }, "bridge-close-old-transport");
                 } catch (Exception ex2) { logger?.LogWarning(ex2, "[BridgeRemoteCore] 关闭旧传输失败"); }
             }
 
@@ -121,7 +121,7 @@ internal sealed partial class V1WorkPollSetupMiddleware : ServiceEntity, IMiddle
                 logger?.LogInformation("Bridge v1: CCR v2 路径: sessionUrl={Url}, session={Session}, gen={Gen}",
                     sessionUrl, e.SessionId, thisGen);
 
-                _ = Task.Run(async () => {
+                _ = FireAndForgetTask<Unit>.Run(async _ => {
                     try {
                         var epoch = await BridgeWorkSecretDecoder.RegisterWorkerAsync(
                             sessionUrl, e.IngressToken ?? "", apiClient.HttpClient, ct).ConfigureAwait(false);
@@ -171,7 +171,7 @@ internal sealed partial class V1WorkPollSetupMiddleware : ServiceEntity, IMiddle
                         } catch (Exception ex2) { logger?.LogWarning(ex2, "[BridgeRemoteCore] 创建传输后停止工作失败"); }
                         pollLoop.Wake();
                     }
-                }, ct);
+                }, "bridge-ccr-v2-handshake");
             } else {
                 // v1 路径
                 var wsUrl = BridgeWorkSecretDecoder.BuildSdkUrl(sessionIngressUrl, e.SessionId);
@@ -221,9 +221,9 @@ internal sealed partial class V1WorkPollSetupMiddleware : ServiceEntity, IMiddle
                 }
                 try {
                     // P1-4: 改用异步关闭+释放，消除事件处理程序中的 sync-over-async 阻塞
-                    _ = Task.Run(async () => {
+                    _ = FireAndForgetTask<Unit>.Run(async ct => {
                         try { await currentTransport.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) { logger?.LogWarning(ex, "[BridgeRemoteCore] 拆除期间关闭传输失败"); }
-                    });
+                    }, "bridge-heartbeat-close-transport");
                 } catch (Exception ex) { logger?.LogWarning(ex, "[BridgeRemoteCore] 拆除期间关闭传输失败"); }
                 currentTransport = null;
             }

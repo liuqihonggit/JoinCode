@@ -1,3 +1,4 @@
+global using Core.Utils;
 global using System.Diagnostics.CodeAnalysis;
 global using IO;
 global using IO.FileSystem;

@@ -94,7 +94,7 @@ public sealed partial class BridgeMain {
     /// </summary>
     internal void ReconnectV2SessionFireAndForget(string sessionId) {
         if (EnvironmentId is null || _deps.ReconnectSession is null) return;
-        _ = Task.Run(async () => {
+        _ = FireAndForgetTask<Unit>.Run(async ct => {
             var infraId = SessionIdCompat.ToInfraSessionId(sessionId);
             var candidates = infraId == sessionId
                 ? [sessionId]
@@ -108,7 +108,7 @@ public sealed partial class BridgeMain {
                     _logger?.LogDebug(ex, "BridgeMain: reconnectSession({CandidateId}) failed, trying next", candidateId);
                 }
             }
-        }, CancellationToken.None);
+        }, $"bridge-reconnect-v2-{sessionId}");
     }
 
     /// <summary>
@@ -117,13 +117,13 @@ public sealed partial class BridgeMain {
     internal void UpdateV1SessionTokenFireAndForget(string sessionId, string oauthToken) {
         var handle = _tracker.Sessions.GetHandle(sessionId);
         if (handle is null) return;
-        _ = Task.Run(async () => {
+        _ = FireAndForgetTask<Unit>.Run(async ct => {
             try {
                 await handle.UpdateAccessTokenAsync(oauthToken, CancellationToken.None).ConfigureAwait(false);
             } catch (Exception ex) {
                 _logger?.LogDebug(ex, "BridgeMain: updateAccessToken failed for {SessionId} (non-fatal)", sessionId);
             }
-        }, CancellationToken.None);
+        }, $"bridge-update-v1-token-{sessionId}");
     }
 
     /// <summary>
@@ -269,13 +269,13 @@ public sealed partial class BridgeMain {
 
         // 对齐 TS 端: updateBridgeSessionTitle — 异步更新服务端标题（best-effort）
         if (_deps.UpdateSessionTitle is not null) {
-            _ = Task.Run(async () => {
+            _ = FireAndForgetTask<Unit>.Run(async ct => {
                 try {
                     await _deps.UpdateSessionTitle(sessionId, title, CancellationToken.None).ConfigureAwait(false);
                 } catch (Exception ex) {
                     _logger?.LogDebug(ex, "BridgeMain: failed to update title for {SessionId} (non-fatal)", sessionId);
                 }
-            }, CancellationToken.None);
+            }, $"bridge-update-title-{sessionId}");
         }
     }
 

@@ -119,7 +119,7 @@ public static partial class BridgeRemoteCore {
                 $"Transport closed (code {code}), reconnecting...");
 
             // 异步触发重连 — 对齐 TS 端: void reconnectEnvironmentWithSession()
-            _ = Task.Run(async () => {
+            _ = FireAndForgetTask<Unit>.Run(async ct => {
                 try {
                     var handle = BridgeHandle.GetHandle() as V1BridgeHandle;
                     if (handle is not null) {
@@ -135,7 +135,7 @@ public static partial class BridgeRemoteCore {
                         parameters.OnStateChange?.Invoke(BridgeState.Failed, $"Reconnect error: {ex.Message}");
                     }
                 }
-            }, state.InitCts.Token);
+            }, "bridge-v1-reconnect");
         });
     }
 }

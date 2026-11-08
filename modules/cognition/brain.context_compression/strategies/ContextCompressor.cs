@@ -70,9 +70,9 @@ public sealed partial class ContextCompressor : ServiceEntity, IContextCompresso
                 IsSuccess = true,
                 ProcessingTimeMs = stopwatch.ElapsedMilliseconds,
                 Metadata = new Dictionary<string, JsonElement> {
-                    ["TargetRatio"] = JsonSerializer.SerializeToElement(effectiveOptions.TargetCompressionRatio, ContextDefaultJsonContext.Default.Double),
-                    ["ActualRatio"] = JsonSerializer.SerializeToElement((double)compressedContent.Length / content.Length, ContextDefaultJsonContext.Default.Double),
-                    ["StrategyPriority"] = JsonSerializer.SerializeToElement(strategy.Priority, ContextDefaultJsonContext.Default.Int32)
+                    ["TargetRatio"] = JsonSerializer.SerializeToElement(effectiveOptions.TargetCompressionRatio, CompressionJsonContext.Default.Double),
+                    ["ActualRatio"] = JsonSerializer.SerializeToElement((double)compressedContent.Length / content.Length, CompressionJsonContext.Default.Double),
+                    ["StrategyPriority"] = JsonSerializer.SerializeToElement(strategy.Priority, CompressionJsonContext.Default.Int32)
                 }
             };
         } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
@@ -163,7 +163,7 @@ public sealed partial class ContextCompressor : ServiceEntity, IContextCompresso
             IsSuccess = true,
             ProcessingTimeMs = processingTimeMs,
             Metadata = new Dictionary<string, JsonElement> {
-                ["Reason"] = JsonSerializer.SerializeToElement("Content does not meet compression criteria", ContextDefaultJsonContext.Default.String)
+                ["Reason"] = JsonSerializer.SerializeToElement("Content does not meet compression criteria", CompressionJsonContext.Default.String)
             }
         };
     }

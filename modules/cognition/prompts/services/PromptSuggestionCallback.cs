@@ -45,6 +45,7 @@ public sealed partial class PromptSuggestionCallback : ServiceEntity, IPostSampl
             }
 
             _logger?.LogDebug("PromptSuggestion 生成建议: {Suggestion}", suggestion);
+            context.EventConsumer?.OnPromptSuggestion(suggestion);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "PromptSuggestion 回调执行失败");
         }

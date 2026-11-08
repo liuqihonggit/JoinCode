@@ -18,7 +18,7 @@ public interface IChatService : IAsyncDisposable {
     /// <summary>异步发送消息并返回流式响应。</summary>
     IAsyncEnumerable<string> SendMessageStreamAsync(string message, CancellationToken cancellationToken = default);
     /// <summary>异步发送消息并以事件流形式返回响应。</summary>
-    IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(string message, CancellationToken cancellationToken = default);
+    IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(string message, CancellationToken cancellationToken = default, IEventConsumer? eventConsumer = null);
     /// <summary>异步清空对话历史。</summary>
     Task ClearHistoryAsync(CancellationToken cancellationToken = default);
     /// <summary>异步获取消息列表。</summary>

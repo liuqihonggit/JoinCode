@@ -93,6 +93,12 @@ public sealed class ChatMiddlewareContext {
     /// </summary>
     public int ConversationTurn { get; init; }
 
+    /// <summary>
+    /// 事件消费者 — 由 SessionController 传入，供 PostSampling 回调（如 PromptSuggestionCallback）
+    /// 将结果转发到 NDJSON 输出。null 时 PostSampling 回调无法触发 IEventConsumer 回调。
+    /// </summary>
+    public IEventConsumer? EventConsumer { get; init; }
+
     // === PreChatMiddleware 填充 ===
 
     /// <summary>

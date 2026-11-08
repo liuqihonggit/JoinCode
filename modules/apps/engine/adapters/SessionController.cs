@@ -24,6 +24,8 @@ public sealed class SessionController {
     private decimal _lastCostUsd;
     /// <summary>本回合 API 耗时毫秒（对齐 ClaudeCode SDK duration_api_ms 语义）。</summary>
     private long _lastApiDurationMs;
+    /// <summary>本回合工具调用记录（工具名+callId），用于 onDone 时构造 tool_use_summary 事件。</summary>
+    private readonly List<(string ToolName, string? CallId)> _turnToolCalls = [];
     private readonly string _sessionId;
     private readonly IServiceProvider? _serviceProvider;
     private readonly IClockService _clock;
@@ -229,7 +231,7 @@ public sealed class SessionController {
 
                 await PostProcessMainAgentAsync(preprocess.PreprocessResult, fullResponse.ToString(), startCount, lastModelId, cancellationToken).ConfigureAwait(false);
             } else {
-                await foreach (var evt in _chatService.StreamWithEventsAsync(input, timeoutToken).ConfigureAwait(false)) {
+                await foreach (var evt in _chatService.StreamWithEventsAsync(input, timeoutToken, _consumer).ConfigureAwait(false)) {
                     hasReceivedEvent = true;
                     var mid = ProcessEvent(evt, fullResponse, thinkingContent);
                     if (mid is not null) lastModelId = mid;
@@ -366,6 +368,7 @@ public sealed class SessionController {
             },
             onToolEnd: (toolName, resultText, callId, isToolError, structuredPatch) => {
                 _consumer.OnToolEnd(toolName, resultText, callId, isToolError, structuredPatch);
+                _turnToolCalls.Add((toolName, callId));
                 RecordToolCallForTurnDiff(toolName, resultText, structuredPatch);
             },
             onToolProgress: (toolName, progressType, progressMessage) => {
@@ -385,6 +388,16 @@ public sealed class SessionController {
                 if (usage is { PromptTokens: > 0 })
                     _lastDoneUsage = usage;
                 _lastStopReason = evt.StopReason;
+                if (_turnToolCalls.Count > 0) {
+                    var summary = string.Join(", ", _turnToolCalls.Select(tc => tc.ToolName));
+                    var toolUseIds = new List<string>();
+                    foreach (var tc in _turnToolCalls) {
+                        if (tc.CallId is not null)
+                            toolUseIds.Add(tc.CallId);
+                    }
+                    _consumer.OnToolUseSummary(summary, toolUseIds.Count > 0 ? toolUseIds : null);
+                    _turnToolCalls.Clear();
+                }
             });
         return modelId;
     }

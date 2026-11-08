@@ -179,6 +179,8 @@ public sealed partial class SettingsMapper : ServiceEntity {
                 provider = provider with { Protocol = definition.Protocol.ToValue() };
         } else if (SkipProviderValidation) {
             Diag.WriteLifecycle($"[WARN] 跳过 Provider 验证 — 未知 Provider '{provider.Vendor}'，可用值: {string.Join(", ", _registry.GetRegisteredProviders())}。元命令模式降级运行。");
+        } else if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JccEnvVar.Endpoint.ToValue()))) {
+            Diag.WriteLifecycle($"[WARN] 未知 Provider '{provider.Vendor}' 但 JCC_ENDPOINT 已显式设置，使用自定义端点降级运行。");
         } else {
             throw new ConfigurationException(
                 $"未知的 Provider '{provider.Vendor}'，可用值: {string.Join(", ", _registry.GetRegisteredProviders())}。" +

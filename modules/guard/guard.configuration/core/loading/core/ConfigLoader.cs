@@ -139,16 +139,8 @@ public class ConfigLoader {
                 ExternalRules = await externalRulesTask.ConfigureAwait(false)
             };
 
-            // Step 7: Provider 存在性验证 — vendor 不存在时抛 ConfigurationException (rc=2)
+            // Step 7: Provider 验证已由 SettingsMapper.ApplyProviderSettings 处理（含 JCC_ENDPOINT 降级运行）
             // API Key 缺失检查由 pipeline 的 NonInteractiveApiKeyCheckStep 统一处理 (rc=4)，此处不重复检查
-            if (!SkipProviderValidation) {
-                var definition = _registry.TryGet(config.Provider.Vendor);
-                if (definition is null) {
-                    throw new ConfigurationException(
-                        $"未知的 Provider '{config.Provider.Vendor}'，可用值: {string.Join(", ", _registry.GetRegisteredProviders())}。" +
-                        $"请通过 {JccEnvVar.Vendor.ToValue()} 环境变量指定正确的 Provider。");
-                }
-            }
 
             return config;
         } catch (Exception ex) when (ex is not ConfigurationException) {

@@ -17,6 +17,7 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
     private readonly IToolLifecycleKiller? _toolLifecycleKiller;
     private readonly ILogger? _logger;
     private readonly Func<DateTimeOffset> _clock;
+    private readonly FireAndForgetTracker _fft = new();
     private volatile ImmutableHamT<string, DateTimeOffset> _activationTimes = ImmutableHamT<string, DateTimeOffset>.Empty;
     private bool _disposed;
 
@@ -72,7 +73,7 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
     private void OnAgentStalled(object? sender, SubAgentStalledEventArgs e) {
         _logger?.LogDebug("[SubAgentStallDefense] 收到单点卡死事件: Agent {AgentId}，最后活动: {LastActivity}",
             e.AgentId, e.LastActivityAt);
-        _ = Task.Run(() => HandleAgentStalledAsync(e));
+        _fft.Register(async ct => await HandleAgentStalledAsync(e).ConfigureAwait(false), "agent-stalled");
     }
 
     /// <summary>
@@ -105,7 +106,7 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
             }
 
             // 等待恢复（由 Scanner 在下次扫描时检测到活动后调用 MarkRecovered）
-            _ = Task.Run(() => WaitForRecoveryAsync(agentId));
+            _fft.Register(async ct => await WaitForRecoveryAsync(agentId).ConfigureAwait(false), "wait-recovery");
         } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogError(ex, "[SubAgentStallDefense] HandleAgentStalledAsync 异常: {AgentId}", e.AgentId);
         }
@@ -145,7 +146,7 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
     private void OnChainStalled(object? sender, ChainStallResult e) {
         _logger?.LogDebug("[SubAgentStallDefense] 收到链路卡死事件: {Chain}（{Confirmed}/{Total} 节点确认）",
             string.Join("→", e.Chain), e.ConfirmedNodes, e.TotalNodes);
-        _ = Task.Run(() => HandleChainStalledAsync(e));
+        _fft.Register(async ct => await HandleChainStalledAsync(e).ConfigureAwait(false), "chain-stalled");
     }
 
     /// <summary>
@@ -171,8 +172,8 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
     /// <summary>
     /// 释放协调器资源
     /// </summary>
-    public ValueTask DisposeAsync() {
-        if (_disposed) return ValueTask.CompletedTask;
+    public async ValueTask DisposeAsync() {
+        if (_disposed) return;
         _disposed = true;
         _logger?.LogInformation("[SubAgentStallDefense] 纵深防御体系停止，清理 {Count} 个激活记录", _activationTimes.Count);
         _scanner.AgentStalled -= OnAgentStalled;
@@ -181,7 +182,8 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
             var current = _activationTimes;
             if (Interlocked.CompareExchange(ref _activationTimes, ImmutableHamT<string, DateTimeOffset>.Empty, current) == current) break;
         }
-        return _scanner.DisposeAsync();
+        await _fft.DisposeAsync(TimeSpan.Zero).ConfigureAwait(false);
+        await _scanner.DisposeAsync().ConfigureAwait(false);
     }
 
     private void SetActivationTime(string key, DateTimeOffset value) {

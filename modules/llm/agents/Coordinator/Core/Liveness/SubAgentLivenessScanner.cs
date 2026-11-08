@@ -51,6 +51,7 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable {
     private volatile ImmutableHamT<string, SubAgentIdleDetector> _detectors = ImmutableHamT<string, SubAgentIdleDetector>.Empty;
     private readonly SubAgentChainStallDetector _chainDetector;
     private readonly PeriodicTimer? _scanTimer;
+    private readonly FireAndForgetTracker _fft = new();
     private volatile bool _stopping;
     private volatile bool _milestoneScanTriggered;
     private Task? _scanLoop;
@@ -113,7 +114,7 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable {
             _milestoneScanTriggered = true;
             _logger?.LogInformation("[SubAgentLivenessScanner] 完成率 {Rate:P0} ≥ {Threshold:P0}，触发全量巡查",
                 completionRate, _options.CompletionCheckThreshold);
-            _ = Task.Run(() => ScanAllAsync(CancellationToken.None));
+            _fft.Register(async ct => await ScanAllAsync(CancellationToken.None).ConfigureAwait(false), "milestone-scan");
         }
     }
 
@@ -272,6 +273,7 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable {
         if (_scanLoop is not null) {
             try { await _scanLoop.ConfigureAwait(false); } catch (OperationCanceledException) { }
         }
+        await _fft.DisposeAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
         while (true) {
             var current = _detectors;
             if (Interlocked.CompareExchange(ref _detectors, ImmutableHamT<string, SubAgentIdleDetector>.Empty, current) == current) break;

@@ -198,6 +198,7 @@
   <Project Path="../../modules/abstractions/abstractions.configuration/Abstractions.Configuration.csproj" />
   <Project Path="../../modules/abstractions/abstractions.models/Abstractions.Models.csproj" />
   <Project Path="../../modules/abstractions/abstractions.entity/Abstractions.Entity.csproj" />
+  <Project Path="../../modules/abstractions/abstractions.interfaces/Abstractions.Interfaces.csproj" />
   <Project Path="../../modules/async_primitives/bcl_bridge.tests/JoinCode.BclBridge.Tests.csproj" />
   <Project Path="../../test/benchmarks/structura.benchmarks/Structura.Benchmarks.csproj" />
   <Project Path="../../test/integration/integration.desktop.tests/Integration.Desktop.Tests.csproj" />

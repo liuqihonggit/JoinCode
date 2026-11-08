@@ -13,6 +13,9 @@
   <Folder Name="/abstractions.entity/">
     <Project Path="abstractions.entity/Abstractions.Entity.csproj" />
   </Folder>
+  <Folder Name="/abstractions.interfaces/">
+    <Project Path="abstractions.interfaces/Abstractions.Interfaces.csproj" />
+  </Folder>
   <Folder Name="/primitives/" />
   <Project Path="../collections/structura/Structura.csproj" />
   <Project Path="../generators/aot_safety.generator/AotSafety.Generator.csproj" />

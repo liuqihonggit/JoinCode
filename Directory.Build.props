@@ -59,9 +59,15 @@
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
-  <!-- 源码项目 Release：启用裁剪分析 + AOT 发布 -->
-  <PropertyGroup Condition="!$(MSBuildProjectName.ToUpperInvariant().Contains('.TESTS')) AND '$(EnforceExtendedAnalyzerRules)' != 'true' AND '$(Configuration)' == 'Release'">
+  <!-- 源码项目 Release：启用裁剪分析 + AOT 发布（RTR 模式下禁用 AOT，两者互斥） -->
+  <PropertyGroup Condition="!$(MSBuildProjectName.ToUpperInvariant().Contains('.TESTS')) AND '$(EnforceExtendedAnalyzerRules)' != 'true' AND '$(Configuration)' == 'Release' AND '$(PublishReadyToRun)' != 'true'">
     <PublishAot>true</PublishAot>
+    <TrimMode>full</TrimMode>
+  </PropertyGroup>
+
+  <!-- ReadyToRun 预编译模式 — RTR 与 AOT 互斥，RTR 启用时关闭 AOT 但保留裁剪 -->
+  <PropertyGroup Condition="'$(PublishReadyToRun)' == 'true' AND '$(Configuration)' == 'Release'">
+    <PublishAot>false</PublishAot>
     <TrimMode>full</TrimMode>
   </PropertyGroup>
 
@@ -76,6 +82,21 @@
   <ItemGroup Condition="'$(OutputType)' == 'Exe' AND '$(Configuration)' == 'Release'">
     <RuntimeHostConfigurationOption Include="System.Globalization.Invariant" Value="true" />
   </ItemGroup>
+
+  <!-- R2R 去重 — 修复 crossgen2 "Multiple input files matching same simple name" SDK bug
+       (AppendRuntimeIdentifierToOutputPath=false + 全局 RID 导致 ResolvedFileToPublish 出现同一路径重复项) -->
+  <Target Name="DeduplicateResolvedFilesForR2R"
+          BeforeTargets="_PrepareForReadyToRunCompilation"
+          Condition="'$(PublishReadyToRun)' == 'true' AND '$(OutputType)' == 'Exe'">
+    <ItemGroup>
+      <_ResolvedFileDedup Remove="@(_ResolvedFileDedup)" />
+      <_ResolvedFileDedup Include="@(ResolvedFileToPublish->Distinct())" />
+    </ItemGroup>
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" />
+      <ResolvedFileToPublish Include="@(_ResolvedFileDedup)" />
+    </ItemGroup>
+  </Target>
 
   <PropertyGroup>
     <MicrosoftExtensionsVersion>10.0.9</MicrosoftExtensionsVersion>

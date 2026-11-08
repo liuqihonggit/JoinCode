@@ -266,6 +266,25 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         }
     }
 
+    /// <summary>自动重试 — NDJSON 模式输出 SdkApiRetryMessage</summary>
+    public void OnRetry(string reason, int attempt, int maxRetries, int delayMs) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkApiRetryMessage.Create(_sessionId, attempt, maxRetries, delayMs, reason));
+        }
+    }
+
+    /// <summary>上下文压缩完成 — NDJSON 模式输出 SdkCompactBoundaryMessage</summary>
+    public void OnCompactCompleted(int messagesSummarized, long originalTokens, long compressedTokens, bool isAuto) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkCompactBoundaryMessage.Create(_sessionId, new Cli.Output.SdkCompactMetadata {
+                Trigger = isAuto ? "auto" : "manual",
+                PreTokens = originalTokens,
+            }));
+        }
+    }
+
     /// <summary>确保 system/init 消息已发送（首次事件时发送）</summary>
     private void EnsureSystemInit() {
         if (_systemInitSent) return;

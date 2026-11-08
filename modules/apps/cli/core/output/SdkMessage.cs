@@ -286,3 +286,266 @@ public sealed record SdkSessionStateChangedMessage : SdkMessageBase {
     /// <summary>创建带默认 Uuid 的实例</summary>
     public static SdkSessionStateChangedMessage Create(string? sessionId, string state) => new() { Uuid = NewUuid(), SessionId = sessionId, State = state };
 }
+
+/// <summary>API 重试消息 — 对齐基准侧 system/api_retry 事件</summary>
+public sealed record SdkApiRetryMessage : SdkMessageBase {
+    /// <summary>消息类型</summary>
+    public string Type => "system";
+    /// <summary>消息子类型</summary>
+    public string Subtype => "api_retry";
+    /// <summary>重试次数</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("attempt")]
+    public int Attempt { get; init; }
+    /// <summary>最大重试次数</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("max_retries")]
+    public int MaxRetries { get; init; }
+    /// <summary>重试延迟毫秒数</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("retry_delay_ms")]
+    public int RetryDelayMs { get; init; }
+    /// <summary>错误状态码</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("error_status")]
+    public int? ErrorStatus { get; init; }
+    /// <summary>错误原因</summary>
+    public string? Error { get; init; }
+    /// <summary>创建带默认 Uuid 的 API 重试消息实例</summary>
+    public static SdkApiRetryMessage Create(string? sessionId, int attempt, int maxRetries, int delayMs, string reason) => new() { Uuid = NewUuid(), SessionId = sessionId, Attempt = attempt, MaxRetries = maxRetries, RetryDelayMs = delayMs, Error = reason };
+}
+
+/// <summary>压缩边界消息 — 对齐基准侧 system/compact_boundary 事件</summary>
+public sealed record SdkCompactBoundaryMessage : SdkMessageBase {
+    /// <summary>消息类型</summary>
+    public string Type => "system";
+    /// <summary>消息子类型</summary>
+    public string Subtype => "compact_boundary";
+    /// <summary>压缩元数据</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("compact_metadata")]
+    public SdkCompactMetadata? CompactMetadata { get; init; }
+    /// <summary>创建带默认 Uuid 的压缩边界消息实例</summary>
+    public static SdkCompactBoundaryMessage Create(string? sessionId, SdkCompactMetadata? metadata) => new() { Uuid = NewUuid(), SessionId = sessionId, CompactMetadata = metadata };
+}
+
+public sealed record SdkCompactMetadata {
+    /// <summary>压缩触发原因</summary>
+    public string? Trigger { get; init; }
+    /// <summary>压缩前 token 数</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("pre_tokens")]
+    public long PreTokens { get; init; }
+    /// <summary>保留的对话片段</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("preserved_segment")]
+    public string? PreservedSegment { get; init; }
+}
+
+/// <summary>状态消息 — 对齐基准侧 system/status 事件</summary>
+public sealed record SdkStatusMessage : SdkMessageBase {
+    /// <summary>消息类型</summary>
+    public string Type => "system";
+    /// <summary>消息子类型</summary>
+    public string Subtype => "status";
+    /// <summary>状态描述</summary>
+    public string? Status { get; init; }
+    /// <summary>权限模式</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("permissionMode")]
+    public string? PermissionMode { get; init; }
+    /// <summary>创建带默认 Uuid 的状态消息实例</summary>
+    public static SdkStatusMessage Create(string? sessionId, string? status) => new() { Uuid = NewUuid(), SessionId = sessionId, Status = status };
+}
+
+/// <summary>认证状态消息 — 对齐基准侧 auth_status 事件</summary>
+public sealed record SdkAuthStatusMessage : SdkMessageBase {
+    /// <summary>消息类型</summary>
+    public string Type => "auth_status";
+    /// <summary>是否正在认证</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("isAuthenticating")]
+    public bool IsAuthenticating { get; init; }
+    /// <summary>认证输出信息列表</summary>
+    public System.Collections.Generic.List<string> Output { get; init; } = [];
+    /// <summary>认证错误信息</summary>
+    public string? Error { get; init; }
+    /// <summary>创建带默认 Uuid 的认证状态消息实例</summary>
+    public static SdkAuthStatusMessage Create(string? sessionId, bool isAuthenticating) => new() { Uuid = NewUuid(), SessionId = sessionId, IsAuthenticating = isAuthenticating };
+}
+
+/// <summary>Hook 开始消息 — 对齐基准侧 system/hook_started 事件</summary>
+public sealed record SdkHookStartedMessage : SdkMessageBase {
+    /// <summary>消息类型</summary>
+    public string Type => "system";
+    /// <summary>消息子类型</summary>
+    public string Subtype => "hook_started";
+    /// <summary>Hook 标识</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("hook_id")]
+    public string HookId { get; init; } = string.Empty;
+    /// <summary>Hook 名称</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("hook_name")]
+    public string HookName { get; init; } = string.Empty;
+    /// <summary>Hook 事件类型</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("hook_event")]
+    public string HookEvent { get; init; } = string.Empty;
+    /// <summary>创建带默认 Uuid 的 Hook 开始消息实例</summary>
+    public static SdkHookStartedMessage Create(string? sessionId, string hookId, string hookName, string hookEvent) => new() { Uuid = NewUuid(), SessionId = sessionId, HookId = hookId, HookName = hookName, HookEvent = hookEvent };
+}
+
+/// <summary>Hook 进度消息 — 对齐基准侧 system/hook_progress 事件</summary>
+public sealed record SdkHookProgressMessage : SdkMessageBase {
+    /// <summary>消息类型</summary>
+    public string Type => "system";
+    /// <summary>消息子类型</summary>
+    public string Subtype => "hook_progress";
+    /// <summary>Hook 标识</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("hook_id")]
+    public string HookId { get; init; } = string.Empty;
+    /// <summary>Hook 名称</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("hook_name")]
+    public string HookName { get; init; } = string.Empty;
+    /// <summary>Hook 事件类型</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("hook_event")]
+    public string HookEvent { get; init; } = string.Empty;
+    /// <summary>标准输出</summary>
+    public string? Stdout { get; init; }
+    /// <summary>标准错误输出</summary>
+    public string? Stderr { get; init; }
+    /// <summary>输出内容</summary>
+    public string? Output { get; init; }
+    /// <summary>创建带默认 Uuid 的 Hook 进度消息实例</summary>
+    public static SdkHookProgressMessage Create(string? sessionId, string hookId, string hookName, string hookEvent) => new() { Uuid = NewUuid(), SessionId = sessionId, HookId = hookId, HookName = hookName, HookEvent = hookEvent };
+}
+
+/// <summary>Hook 响应消息 — 对齐基准侧 system/hook_response 事件</summary>
+public sealed record SdkHookResponseMessage : SdkMessageBase {
+    /// <summary>消息类型</summary>
+    public string Type => "system";
+    /// <summary>消息子类型</summary>
+    public string Subtype => "hook_response";
+    /// <summary>Hook 标识</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("hook_id")]
+    public string HookId { get; init; } = string.Empty;
+    /// <summary>Hook 名称</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("hook_name")]
+    public string HookName { get; init; } = string.Empty;
+    /// <summary>Hook 事件类型</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("hook_event")]
+    public string HookEvent { get; init; } = string.Empty;
+    /// <summary>输出内容</summary>
+    public string? Output { get; init; }
+    /// <summary>标准输出</summary>
+    public string? Stdout { get; init; }
+    /// <summary>标准错误输出</summary>
+    public string? Stderr { get; init; }
+    /// <summary>退出码</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("exit_code")]
+    public int? ExitCode { get; init; }
+    /// <summary>执行结果（success/error/aborted）</summary>
+    public string? Outcome { get; init; }
+    /// <summary>创建带默认 Uuid 的 Hook 响应消息实例</summary>
+    public static SdkHookResponseMessage Create(string? sessionId, string hookId, string hookName, string hookEvent) => new() { Uuid = NewUuid(), SessionId = sessionId, HookId = hookId, HookName = hookName, HookEvent = hookEvent };
+}
+
+/// <summary>任务开始消息 — 对齐基准侧 system/task_started 事件</summary>
+public sealed record SdkTaskStartedMessage : SdkMessageBase {
+    /// <summary>消息类型</summary>
+    public string Type => "system";
+    /// <summary>消息子类型</summary>
+    public string Subtype => "task_started";
+    /// <summary>任务标识</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("task_id")]
+    public string TaskId { get; init; } = string.Empty;
+    /// <summary>关联的工具调用标识</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("tool_use_id")]
+    public string? ToolUseId { get; init; }
+    /// <summary>任务描述</summary>
+    public string Description { get; init; } = string.Empty;
+    /// <summary>任务类型</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("task_type")]
+    public string? TaskType { get; init; }
+    /// <summary>工作流名称</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("workflow_name")]
+    public string? WorkflowName { get; init; }
+    /// <summary>任务提示词</summary>
+    public string? Prompt { get; init; }
+    /// <summary>创建带默认 Uuid 的任务开始消息实例</summary>
+    public static SdkTaskStartedMessage Create(string? sessionId, string taskId, string description) => new() { Uuid = NewUuid(), SessionId = sessionId, TaskId = taskId, Description = description };
+}
+
+/// <summary>任务进度消息 — 对齐基准侧 system/task_progress 事件</summary>
+public sealed record SdkTaskProgressMessage : SdkMessageBase {
+    /// <summary>消息类型</summary>
+    public string Type => "system";
+    /// <summary>消息子类型</summary>
+    public string Subtype => "task_progress";
+    /// <summary>任务标识</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("task_id")]
+    public string TaskId { get; init; } = string.Empty;
+    /// <summary>关联的工具调用标识</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("tool_use_id")]
+    public string? ToolUseId { get; init; }
+    /// <summary>任务描述</summary>
+    public string Description { get; init; } = string.Empty;
+    /// <summary>token 用量</summary>
+    public SdkUsage? Usage { get; init; }
+    /// <summary>最后使用的工具名称</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("last_tool_name")]
+    public string? LastToolName { get; init; }
+    /// <summary>任务摘要</summary>
+    public string? Summary { get; init; }
+    /// <summary>创建带默认 Uuid 的任务进度消息实例</summary>
+    public static SdkTaskProgressMessage Create(string? sessionId, string taskId, string description) => new() { Uuid = NewUuid(), SessionId = sessionId, TaskId = taskId, Description = description };
+}
+
+/// <summary>任务通知消息 — 对齐基准侧 system/task_notification 事件</summary>
+public sealed record SdkTaskNotificationMessage : SdkMessageBase {
+    /// <summary>消息类型</summary>
+    public string Type => "system";
+    /// <summary>消息子类型</summary>
+    public string Subtype => "task_notification";
+    /// <summary>任务标识</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("task_id")]
+    public string TaskId { get; init; } = string.Empty;
+    /// <summary>关联的工具调用标识</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("tool_use_id")]
+    public string? ToolUseId { get; init; }
+    /// <summary>任务状态</summary>
+    public string Status { get; init; } = string.Empty;
+    /// <summary>输出文件路径</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("output_file")]
+    public string OutputFile { get; init; } = string.Empty;
+    /// <summary>任务摘要</summary>
+    public string Summary { get; init; } = string.Empty;
+    /// <summary>token 用量</summary>
+    public SdkUsage? Usage { get; init; }
+    /// <summary>创建带默认 Uuid 的任务通知消息实例</summary>
+    public static SdkTaskNotificationMessage Create(string? sessionId, string taskId, string status, string summary) => new() { Uuid = NewUuid(), SessionId = sessionId, TaskId = taskId, Status = status, Summary = summary };
+}
+
+/// <summary>工具使用摘要消息 — 对齐基准侧 tool_use_summary 事件</summary>
+public sealed record SdkToolUseSummaryMessage : SdkMessageBase {
+    /// <summary>消息类型</summary>
+    public string Type => "tool_use_summary";
+    /// <summary>任务摘要</summary>
+    public string Summary { get; init; } = string.Empty;
+    /// <summary>前置工具调用标识列表</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("preceding_tool_use_ids")]
+    public System.Collections.Generic.List<string> PrecedingToolUseIds { get; init; } = [];
+    /// <summary>创建带默认 Uuid 的工具使用摘要消息实例</summary>
+    public static SdkToolUseSummaryMessage Create(string? sessionId, string summary) => new() { Uuid = NewUuid(), SessionId = sessionId, Summary = summary };
+}
+
+/// <summary>速率限制事件消息 — 对齐基准侧 rate_limit_event 事件</summary>
+public sealed record SdkRateLimitEventMessage : SdkMessageBase {
+    /// <summary>消息类型</summary>
+    public string Type => "rate_limit_event";
+    /// <summary>速率限制信息</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("rate_limit_info")]
+    public SdkRateLimitInfo? RateLimitInfo { get; init; }
+    /// <summary>创建带默认 Uuid 的速率限制事件消息实例</summary>
+    public static SdkRateLimitEventMessage Create(string? sessionId, SdkRateLimitInfo? info) => new() { Uuid = NewUuid(), SessionId = sessionId, RateLimitInfo = info };
+}
+
+public sealed record SdkRateLimitInfo {
+    /// <summary>状态描述</summary>
+    public string? Status { get; init; }
+    /// <summary>限制重置时间</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("resetsAt")]
+    public string? ResetsAt { get; init; }
+    /// <summary>速率限制类型</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("rateLimitType")]
+    public string? RateLimitType { get; init; }
+}

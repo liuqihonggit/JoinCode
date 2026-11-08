@@ -9,15 +9,20 @@ internal sealed partial class NonInteractiveApiKeyCheckStep : ServiceEntity, IMi
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
         Diag.WriteLine("[STEP] ApiKeyCheck start");
         if (string.IsNullOrWhiteSpace(context.Config.Provider.ApiKey)) {
-            // R-P2-002 修复: 非交互模式下无 API Key 时直接退出,避免后续 LLM 调用必然失败造成 401
-            // 视角2 #24: 改用 ErrorConsole 渲染 + 添加配置方法提示
-            App.ErrorConsole.ApiError("未配置 API Key，LLM 调用将失败");
-            Cli.TerminalHelper.WriteError("  配置方法:");
-            Cli.TerminalHelper.WriteError("    1. 环境变量: set DEEPSEEK_API_KEY=sk-xxx (按供应商设置)");
-            Cli.TerminalHelper.WriteError("    2. 配置文件: .env/api.json");
-            Cli.TerminalHelper.WriteError("    3. 交互模式运行 /init 命令");
-            Cli.TerminalHelper.WriteError("  支持的环境变量: OPENAI_API_KEY / DEEPSEEK_API_KEY / ANTHROPIC_API_KEY / AZURE_OPENAI_API_KEY");
-            context.ExitCode = (int)ExitCode.ApiKeyMissing;
+            if (context.Config.Provider.Definition is null) {
+                context.ExitCode = (int)ExitCode.ConfigurationError;
+                App.ErrorConsole.Fatal(
+                    $"未知的 Provider '{context.Config.Provider.Vendor}'，请通过 JCC_VENDOR 环境变量指定正确的 Provider。" +
+                    $"如需使用自定义端点，请指定已知 Provider（如 openai）并设置 JCC_ENDPOINT。");
+            } else {
+                App.ErrorConsole.ApiError("未配置 API Key，LLM 调用将失败");
+                Cli.TerminalHelper.WriteError("  配置方法:");
+                Cli.TerminalHelper.WriteError("    1. 环境变量: set DEEPSEEK_API_KEY=sk-xxx (按供应商设置)");
+                Cli.TerminalHelper.WriteError("    2. 配置文件: .env/api.json");
+                Cli.TerminalHelper.WriteError("    3. 交互模式运行 /init 命令");
+                Cli.TerminalHelper.WriteError("  支持的环境变量: OPENAI_API_KEY / DEEPSEEK_API_KEY / ANTHROPIC_API_KEY / AZURE_OPENAI_API_KEY");
+                context.ExitCode = (int)ExitCode.ApiKeyMissing;
+            }
             Diag.WriteLine("[STEP] ApiKeyCheck failed: missing API key, aborting pipeline");
             return;
         }

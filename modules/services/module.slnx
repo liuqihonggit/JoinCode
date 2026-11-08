@@ -1,6 +1,6 @@
 <Solution>
   <Project Path="bridge/Bridge.csproj" />
-  <Project Path="bridge/bridge.config/Bridge.Config.csproj" />
+  <Project Path="bridge.config/Bridge.Config.csproj" />
   <Project Path="bridge.tests/Bridge.Tests.csproj" />
   <Project Path="browser/Browser.csproj" />
   <Project Path="browser.tests/Browser.Tests.csproj" />

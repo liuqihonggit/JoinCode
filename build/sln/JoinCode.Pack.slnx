@@ -91,13 +91,13 @@
   </Folder>
   <Folder Name="/services/">
     <Project Path="../../modules/mcp/mcp/Mcp.csproj" />
-    <Project Path="../../modules/mcp/mcp/mcp.tool_handlers/Mcp.ToolHandlers.csproj" />
-    <Project Path="../../modules/mcp/mcp/mcp.protocol_contracts/Mcp.Protocol.Contracts.csproj" />
-    <Project Path="../../modules/mcp/mcp/mcp.protocol/Mcp.Protocol.csproj" />
+    <Project Path="../../modules/mcp/mcp.tool_handlers/Mcp.ToolHandlers.csproj" />
+    <Project Path="../../modules/mcp/mcp.protocol_contracts/Mcp.Protocol.Contracts.csproj" />
+    <Project Path="../../modules/mcp/mcp.protocol/Mcp.Protocol.csproj" />
     <Project Path="../../modules/services/dream/Dream.csproj" />
     <Project Path="../../modules/perception/eyes/Eyes.csproj" />
     <Project Path="../../modules/services/bridge/Bridge.csproj" />
-    <Project Path="../../modules/services/bridge/bridge.config/Bridge.Config.csproj" />
+    <Project Path="../../modules/services/bridge.config/Bridge.Config.csproj" />
     <Project Path="../../modules/services/sandbox_satellite/SandboxSatellite.csproj" />
     <Project Path="../../modules/services/update/Update.csproj" />
     <Project Path="../../modules/perception/vision/Vision.csproj" />

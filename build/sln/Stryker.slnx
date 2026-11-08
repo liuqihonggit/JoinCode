@@ -34,6 +34,9 @@
   <Folder Name="/core/" />
   <Folder Name="/core/execution/">
     <Project Path="../../modules/cognition/brain/Brain.csproj" />
+    <Project Path="../../modules/cognition/brain.context_compression/Brain.ContextCompression.csproj" />
+    <Project Path="../../modules/cognition/brain.context_resolution/Brain.ContextResolution.csproj" />
+    <Project Path="../../modules/cognition/brain.compact_guard/Brain.CompactGuard.csproj" />
     <Project Path="../../modules/cognition/brain.query/Brain.Query.csproj" />
     <Project Path="../../modules/cognition/prompts/Prompts.csproj" />
     <Project Path="../../modules/cognition/brain.context.tests/Brain.Context.Tests.csproj" />

@@ -19,6 +19,12 @@
     <ProjectReference Include="$(RepoRoot)modules/cognition/brain_cost_tracking/Brain.CostTracking.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/cognition/brain_planning/Brain.Planning.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/cognition/brain_summary/Brain.Summary.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/cognition/brain.context_compression/Brain.ContextCompression.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Brain.ContextCompression" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/cognition/brain.context_resolution/Brain.ContextResolution.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Brain.ContextResolution" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/cognition/brain.compact_guard/Brain.CompactGuard.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Brain.CompactGuard" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions.configuration/Abstractions.Configuration.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Configuration" Version="$(JccComponentPackageVersion)" />

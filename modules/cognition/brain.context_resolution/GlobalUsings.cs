@@ -1,0 +1,13 @@
+global using System.Collections.Frozen;
+global using System.Diagnostics.CodeAnalysis;
+global using System.Text.RegularExpressions;
+global using JoinCode.Abstractions.Attributes;
+global using JoinCode.Abstractions.Constants;
+global using JoinCode.Abstractions.Brain.Context.Resolution;
+global using JoinCode.Abstractions.CodeIndex;
+global using JoinCode.Abstractions.Entity;
+global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.Models.Search;
+global using JoinCode.Abstractions.Services;
+global using Microsoft.Extensions.Logging;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;

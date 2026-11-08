@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>Core.Context.Compact.Guard</RootNamespace>
+    <AssemblyName>JoinCode.Brain.CompactGuard</AssemblyName>
+    <PackageId>JoinCode.Brain.CompactGuard</PackageId>
+    <Description>JoinCode Brain 压缩输出校验 — 乱码检测、重复检测、格式校验</Description>
+    <NoWarn>$(NoWarn);NU5104</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>$(OutputPath)$(AssemblyName).xml</DocumentationFile>
+    <NoWarn>$(NoWarn.Replace('CS1591;', '').Replace(';CS1591', '').Replace('CS1591', ''))</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions/Abstractions.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.Brain" />
+    <InternalsVisibleTo Include="JoinCode.Brain.Tests" />
+  </ItemGroup>
+
+</Project>

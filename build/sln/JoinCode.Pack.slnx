@@ -91,6 +91,7 @@
   </Folder>
   <Folder Name="/services/">
     <Project Path="../../modules/mcp/mcp/Mcp.csproj" />
+    <Project Path="../../modules/mcp/mcp/mcp.tool_handlers/Mcp.ToolHandlers.csproj" />
     <Project Path="../../modules/services/dream/Dream.csproj" />
     <Project Path="../../modules/perception/eyes/Eyes.csproj" />
     <Project Path="../../modules/services/bridge/Bridge.csproj" />

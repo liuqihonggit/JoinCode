@@ -28,7 +28,8 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
                     return ImmutableArray<HandlerInfo>.Empty;
 
                 var results = new List<HandlerInfo>();
-                VisitNamespaces(compilation, compilation.GlobalNamespace, handlerAttr, toolAttr, paramAttr, optionsAttr, wellKnownParamEnum, paramMetaAttr, results);
+                var visited = new HashSet<string>(StringComparer.Ordinal);
+                VisitNamespaces(compilation, compilation.GlobalNamespace, handlerAttr, toolAttr, paramAttr, optionsAttr, wellKnownParamEnum, paramMetaAttr, results, visited);
                 return results.ToImmutableArray();
             })
             .Collect());
@@ -49,14 +50,19 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
         INamedTypeSymbol? optionsAttr,
         INamedTypeSymbol? wellKnownParamEnum,
         INamedTypeSymbol? paramMetaAttr,
-        List<HandlerInfo> results) {
+        List<HandlerInfo> results,
+        HashSet<string> visited) {
         foreach (var member in namespaceSymbol.GetMembers()) {
             if (member is INamespaceSymbol childNamespace)
-                VisitNamespaces(compilation, childNamespace, handlerAttr, toolAttr, paramAttr, optionsAttr, wellKnownParamEnum, paramMetaAttr, results);
+                VisitNamespaces(compilation, childNamespace, handlerAttr, toolAttr, paramAttr, optionsAttr, wellKnownParamEnum, paramMetaAttr, results, visited);
             else if (member is INamedTypeSymbol typeSymbol) {
                 var attribute = typeSymbol.GetAttributes()
                     .FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, handlerAttr));
                 if (attribute is not null) {
+                    var fullyQualifiedName = typeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                    if (!visited.Add(fullyQualifiedName))
+                        continue;
+
                     var displayName = attribute.ConstructorArguments.FirstOrDefault().Value as string ?? typeSymbol.Name;
                     var optional = false;
                     // 默认 mcp（修复：默认 system 致全部工具全量 schema 466KB 巨型请求被超时撞断 —

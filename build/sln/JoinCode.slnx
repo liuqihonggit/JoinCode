@@ -120,6 +120,7 @@
   </Folder>
   <Folder Name="/services/">
     <Project Path="../../modules/mcp/mcp/Mcp.csproj" />
+    <Project Path="../../modules/mcp/mcp/mcp.tool_handlers/Mcp.ToolHandlers.csproj" />
     <Project Path="../../modules/mcp/mcp.tests/Mcp.Tests.csproj" />
     <Project Path="../../modules/services/dream/Dream.csproj" />
     <Project Path="../../modules/services/dream.tests/Dream.Tests.csproj" />

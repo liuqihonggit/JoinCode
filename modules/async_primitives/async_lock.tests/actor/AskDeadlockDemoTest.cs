@@ -115,7 +115,7 @@ internal sealed class DemoActor : ActorBase<DemoCmd, DemoOutput> {
 
     private void EnsureReaderStarted() {
         if (Interlocked.CompareExchange(ref _readerStarted, 1, 0) != 0) return;
-        _ = Task.Run(ReadOutputLoopAsync);
+        _ = FireAndForgetTask<Unit>.Run(async ct => await ReadOutputLoopAsync(), "demo reader loop");
     }
 
     private async Task ReadOutputLoopAsync() {

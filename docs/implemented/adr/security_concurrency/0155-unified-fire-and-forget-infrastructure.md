@@ -3,7 +3,7 @@
 > 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
 > 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-11-09
 - 决策者：项目架构组
 - 关联：[0060](../../implemented/adr/security_concurrency/0060-asynclock-sync-trylock-fireandforget-deadlock.md)、[0125](../../implemented/adr/security_concurrency/0125-actor-register-inflight-dispose-guard.md)
@@ -167,7 +167,9 @@ DisposeAsync(TimeSpan.Zero) → Cancel + 立即走（紧急）
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| `FireAndForgetTask<T>` 类型 | 替换 `_loadTask` 模式的 15+ 类 | ❌ | ❌ |
-| `FireAndForgetTracker` 容器 | 替换 `_ = Task.Run` 裸跑的 20+ 处 | ❌ | ❌ |
-| `DisposeAsync(TimeSpan)` 梯度释放 | 进程退出 / 内存溢出 / 测试 teardown | ❌ | ❌ |
-| 分析器规则增强 | JCC3015 检测裸跑 Task.Run | ❌ | ❌ |
+| `FireAndForgetTask<T>` 类型 | 替换 `_loadTask` 模式的 12 类 | ✅ | ✅ P2 完成 |
+| `FireAndForgetTracker` 容器 | 替换 `_ = Task.Run` 裸跑的 40 处 | ✅ | ✅ P1 完成 |
+|' `RegisterExistingTask` + 水位线清理 | 替换 `RegisterInFlight` 的 ActorBase | ✅ | ✅ P3 完成 |
+| `EnqueueAndWaitAsync` + internal CompletionSource | 替换 `TCS? Completion` 的 PersistRequest | ✅ | ✅ P4 完成 |
+| `DisposeAsync(TimeSpan)` 梯度释放 | 进程退出 / 内存溢出 / 测试 teardown | ✅ | ✅ 单元测试覆盖 |
+| 分析器规则 JCC3021 | 检测 `_ = Task.Run(...)` 裸跑 | ✅ | ✅ Warning 级别 |

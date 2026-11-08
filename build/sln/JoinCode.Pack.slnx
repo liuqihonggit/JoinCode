@@ -119,5 +119,6 @@
   </Folder>
   <Project Path="../../modules/abstractions/abstractions.utils/Abstractions.Utils.csproj" />
   <Project Path="../../modules/abstractions/abstractions.configuration/Abstractions.Configuration.csproj" />
+  <Project Path="../../modules/abstractions/abstractions.models/Abstractions.Models.csproj" />
   <Project Path="../../modules/async_primitives/bcl_bridge/BclBridge.csproj" />
 </Solution>

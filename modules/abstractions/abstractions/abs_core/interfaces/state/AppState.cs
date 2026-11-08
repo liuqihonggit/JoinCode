@@ -53,78 +53,6 @@ public sealed record AppState {
 }
 
 /// <summary>
-/// 会话状态
-/// </summary>
-public sealed record SessionState {
-    /// <summary>
-    /// 会话 ID
-    /// </summary>
-    public string SessionId { get; init; } = Guid.NewGuid().ToString("N");
-
-    /// <summary>
-    /// 系统提示词
-    /// </summary>
-    public string SystemPrompt { get; init; } = string.Empty;
-
-    /// <summary>
-    /// 聊天历史（不可变列表）
-    /// </summary>
-    public ImmutableList<ApiMessageState> MessageList { get; init; } = ImmutableList<ApiMessageState>.Empty;
-
-    /// <summary>
-    /// 会话开始时间
-    /// </summary>
-    public DateTime StartedAt { get; init; } = DateTime.UtcNow;
-
-    /// <summary>
-    /// 最后活动时间
-    /// </summary>
-    public DateTime LastActivityAt { get; init; } = DateTime.UtcNow;
-
-    /// <summary>
-    /// 当前模型名称
-    /// </summary>
-    public string? CurrentModel { get; init; }
-
-    /// <summary>
-    /// 是否处于计划模式
-    /// </summary>
-    public bool IsPlanMode { get; init; }
-
-    /// <summary>
-    /// 当前计划
-    /// </summary>
-    public string? CurrentPlan { get; init; }
-}
-
-/// <summary>
-/// 聊天消息状态（用于序列化）
-/// </summary>
-public sealed record ApiMessageState {
-    /// <summary>
-    /// 消息角色
-    /// </summary>
-    public string Role { get; init; } = string.Empty;
-
-    /// <summary>
-    /// 消息内容
-    /// </summary>
-    public string Content { get; init; } = string.Empty;
-
-    /// <summary>
-    /// 消息时间戳
-    /// </summary>
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
-
-    /// <summary>
-    /// 消息元数据
-    /// </summary>
-    public ImmutableHamT<string, string> Metadata { get; init; } = ImmutableHamT<string, string>.Empty;
-
-
-}
-
-/// <summary>
 /// Agent 状态
 /// </summary>
 public sealed record AgentState {
@@ -420,46 +348,6 @@ public sealed record McpState {
     /// 插件重连密钥（用于触发重新连接）
     /// </summary>
     public int PluginReconnectKey { get; init; }
-}
-
-/// <summary>
-/// MCP 服务器状态
-/// </summary>
-public sealed record McpServerState {
-    /// <summary>
-    /// 服务器名称
-    /// </summary>
-    public string Name { get; init; } = string.Empty;
-
-    /// <summary>
-    /// 服务器 ID
-    /// </summary>
-    public string ServerId { get; init; } = string.Empty;
-
-    /// <summary>
-    /// 连接状态
-    /// </summary>
-    public McpConnectionStatus Status { get; init; } = McpConnectionStatus.Disconnected;
-
-    /// <summary>
-    /// 最后错误信息
-    /// </summary>
-    public string? LastError { get; init; }
-
-    /// <summary>
-    /// 连接时间
-    /// </summary>
-    public DateTime? ConnectedAt { get; init; }
-}
-
-/// <summary>
-/// MCP 连接状态 — [EnumValue] 由 EnumMetadataGenerator 自动生成映射
-/// </summary>
-public enum McpConnectionStatus {
-    [EnumValue("disconnected")] Disconnected,
-    [EnumValue("connecting")] Connecting,
-    [EnumValue("connected")] Connected,
-    [EnumValue("error")] Error
 }
 
 /// <summary>

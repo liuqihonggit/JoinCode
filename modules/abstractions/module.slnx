@@ -7,6 +7,9 @@
   <Folder Name="/abstractions.configuration/">
     <Project Path="abstractions.configuration/Abstractions.Configuration.csproj" />
   </Folder>
+  <Folder Name="/abstractions.models/">
+    <Project Path="abstractions.models/Abstractions.Models.csproj" />
+  </Folder>
   <Folder Name="/primitives/" />
   <Project Path="../collections/structura/Structura.csproj" />
   <Project Path="../generators/aot_safety.generator/AotSafety.Generator.csproj" />

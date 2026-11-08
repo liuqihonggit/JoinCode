@@ -86,6 +86,7 @@
     <Project Path="../../modules/perception/eyes.tests/Eyes.Tests.csproj" />
     <Project Path="../../modules/perception/vision/Vision.csproj" />
     <Project Path="../../modules/services/bridge/Bridge.csproj" />
+    <Project Path="../../modules/services/bridge/bridge.config/Bridge.Config.csproj" />
     <Project Path="../../modules/services/bridge.tests/Bridge.Tests.csproj" />
     <Project Path="../../modules/services/sandbox_satellite/SandboxSatellite.csproj" />
   </Folder>

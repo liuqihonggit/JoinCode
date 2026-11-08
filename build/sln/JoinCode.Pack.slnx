@@ -97,6 +97,7 @@
     <Project Path="../../modules/services/dream/Dream.csproj" />
     <Project Path="../../modules/perception/eyes/Eyes.csproj" />
     <Project Path="../../modules/services/bridge/Bridge.csproj" />
+    <Project Path="../../modules/services/bridge/bridge.config/Bridge.Config.csproj" />
     <Project Path="../../modules/services/sandbox_satellite/SandboxSatellite.csproj" />
     <Project Path="../../modules/services/update/Update.csproj" />
     <Project Path="../../modules/perception/vision/Vision.csproj" />

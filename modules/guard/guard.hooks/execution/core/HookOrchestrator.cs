@@ -272,4 +272,14 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
     public void RegisterConfigurationProvider(HookSource source, IHookConfigurationProvider provider) {
         (_configurationManager as HookConfigurationManager)?.RegisterProvider(source, provider);
     }
+
+    /// <inheritdoc />
+    public void RegisterHookEventHandler(Action<HookExecutionEvent> handler) {
+        _eventBroadcaster.RegisterHandler(handler);
+    }
+
+    /// <inheritdoc />
+    public void UnregisterHookEventHandler(Action<HookExecutionEvent> handler) {
+        _eventBroadcaster.UnregisterHandler(handler);
+    }
 }

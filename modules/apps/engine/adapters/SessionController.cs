@@ -28,6 +28,7 @@ public sealed class SessionController {
     private readonly IServiceProvider? _serviceProvider;
     private readonly IClockService _clock;
     private readonly AgentBase? _mainAgent;
+    private readonly Action<HookExecutionEvent>? _hookEventHandler;
 
     /// <summary>会话是否正在运行</summary>
     public bool IsRunning { get; private set; } = true;
@@ -84,6 +85,26 @@ public sealed class SessionController {
         if (_mainAgent is not null) {
             _mainAgent.RetryNotifier = notification =>
                 _consumer.OnRetry(notification.Reason, notification.Attempt, notification.MaxRetries, notification.DelayMs);
+        }
+
+        // TASK073 Phase 3 — Hook 事件桥接：IHookOrchestrator → HookExecutionEvent → IEventConsumer 回调
+        // 注册 handler 将 Hook 生命周期事件转发到 NDJSON 输出
+        var hookOrchestrator = serviceProvider?.GetService<IHookOrchestrator>();
+        if (hookOrchestrator is not null) {
+            _hookEventHandler = evt => {
+                switch (evt) {
+                    case HookStartedEvent started:
+                        _consumer.OnHookStarted(started.HookId, started.HookName, started.HookEvent.ToString());
+                        break;
+                    case HookProgressEvent progress:
+                        _consumer.OnHookProgress(progress.HookId, progress.HookName, progress.HookEvent.ToString(), progress.Stdout, progress.Stderr);
+                        break;
+                    case HookResponseEvent response:
+                        _consumer.OnHookResponse(response.HookId, response.HookName, response.HookEvent.ToString(), response.Output, response.Stdout, response.Stderr, response.ExitCode, response.Outcome.ToString());
+                        break;
+                }
+            };
+            hookOrchestrator.RegisterHookEventHandler(_hookEventHandler);
         }
     }
 

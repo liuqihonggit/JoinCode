@@ -285,6 +285,32 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         }
     }
 
+    /// <summary>Hook 开始 — NDJSON 模式输出 SdkHookStartedMessage</summary>
+    public void OnHookStarted(string hookId, string hookName, string hookEvent) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkHookStartedMessage.Create(_sessionId, hookId, hookName, hookEvent));
+        }
+    }
+
+    /// <summary>Hook 进度 — NDJSON 模式输出 SdkHookProgressMessage</summary>
+    public void OnHookProgress(string hookId, string hookName, string hookEvent, string? stdout, string? stderr) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            var msg = Cli.Output.SdkHookProgressMessage.Create(_sessionId, hookId, hookName, hookEvent);
+            WriteSdkJson(msg with { Stdout = stdout, Stderr = stderr });
+        }
+    }
+
+    /// <summary>Hook 完成 — NDJSON 模式输出 SdkHookResponseMessage</summary>
+    public void OnHookResponse(string hookId, string hookName, string hookEvent, string? output, string? stdout, string? stderr, int? exitCode, string outcome) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            var msg = Cli.Output.SdkHookResponseMessage.Create(_sessionId, hookId, hookName, hookEvent);
+            WriteSdkJson(msg with { Output = output, Stdout = stdout, Stderr = stderr, ExitCode = exitCode, Outcome = outcome });
+        }
+    }
+
     /// <summary>确保 system/init 消息已发送（首次事件时发送）</summary>
     private void EnsureSystemInit() {
         if (_systemInitSent) return;

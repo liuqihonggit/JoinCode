@@ -123,6 +123,40 @@ public interface IEventConsumer {
     /// </summary>
     /// <param name="state">新状态（idle/running/requires_action）</param>
     void OnSessionStateChanged(string state) { }
+
+    /// <summary>
+    /// Hook 开始执行（TASK073 Phase 3 — 对齐基准侧 system/hook_started 事件；
+    /// NDJSON 模式输出 SdkHookStartedMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="hookId">Hook 标识</param>
+    /// <param name="hookName">Hook 名称</param>
+    /// <param name="hookEvent">Hook 事件类型</param>
+    void OnHookStarted(string hookId, string hookName, string hookEvent) { }
+
+    /// <summary>
+    /// Hook 执行进度更新（TASK073 Phase 3 — 对齐基准侧 system/hook_progress 事件；
+    /// NDJSON 模式输出 SdkHookProgressMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="hookId">Hook 标识</param>
+    /// <param name="hookName">Hook 名称</param>
+    /// <param name="hookEvent">Hook 事件类型</param>
+    /// <param name="stdout">标准输出</param>
+    /// <param name="stderr">标准错误输出</param>
+    void OnHookProgress(string hookId, string hookName, string hookEvent, string? stdout, string? stderr) { }
+
+    /// <summary>
+    /// Hook 执行完成（TASK073 Phase 3 — 对齐基准侧 system/hook_response 事件；
+    /// NDJSON 模式输出 SdkHookResponseMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="hookId">Hook 标识</param>
+    /// <param name="hookName">Hook 名称</param>
+    /// <param name="hookEvent">Hook 事件类型</param>
+    /// <param name="output">合并输出</param>
+    /// <param name="stdout">标准输出</param>
+    /// <param name="stderr">标准错误输出</param>
+    /// <param name="exitCode">退出码</param>
+    /// <param name="outcome">执行结果（success/error/cancelled）</param>
+    void OnHookResponse(string hookId, string hookName, string hookEvent, string? output, string? stdout, string? stderr, int? exitCode, string outcome) { }
 }
 
 /// <summary>

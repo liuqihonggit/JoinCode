@@ -160,6 +160,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator {
                         .Any(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, allowCycleAttr));
                     results.Add(new ServiceRegistrationInfo(
                         typeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                        typeSymbol.ContainingAssembly?.Name ?? "",
                         registrations,
                         constructorDeps,
                         location,
@@ -276,74 +277,100 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator {
         sb.AppendLine($"    public static IServiceCollection {methodName}(this IServiceCollection services)");
         sb.AppendLine("    {");
 
+        // 程序集并行预加载 — 避免创建 ServiceDescriptor 时串行触发 35+ 程序集加载（每个 ~100ms I/O）
+        var assemblyNames = services
+            .Select(s => s.AssemblyName)
+            .Where(name => !string.IsNullOrEmpty(name))
+            .Distinct()
+            .OrderBy(name => name)
+            .ToList();
+
+        if (assemblyNames.Count > 0) {
+            sb.AppendLine("        // 并行预加载程序集 — 避免创建 ServiceDescriptor 时串行触发程序集加载");
+            sb.AppendLine("        var assembliesToPreload = new string[]");
+            sb.AppendLine("        {");
+            foreach (var name in assemblyNames) {
+                sb.AppendLine($"            \"{name}\",");
+            }
+            sb.AppendLine("        };");
+            sb.AppendLine("        System.Threading.Tasks.Parallel.ForEach(assembliesToPreload, name =>");
+            sb.AppendLine("        {");
+            sb.AppendLine("            try { System.Reflection.Assembly.Load(name); } catch { }");
+            sb.AppendLine("        });");
+        }
+
+        // HostedService 单独处理（需要 AddHostedService 扩展方法）
+        foreach (var group in groupedByImpl) {
+            var hasHosted = group.Registrations.Any(r => r.InterfaceName == IHostedServiceFullName);
+            if (hasHosted) {
+                sb.AppendLine($"        services.AddHostedService<{group.ImplementationName}>();");
+            }
+        }
+
+        // 批量注册：ServiceDescriptor 数组 + foreach Add，减少 1359 次 services.Add*() 多层方法调用开销
+        sb.AppendLine("        var descriptors = new ServiceDescriptor[]");
+        sb.AppendLine("        {");
+
         foreach (var group in groupedByImpl) {
             var implementationName = group.ImplementationName;
             var regs = group.Registrations;
 
-            // 过滤掉 IHostedService（单独处理）
             var nonHostedRegs = regs.Where(r => r.InterfaceName != IHostedServiceFullName).ToList();
-            var hasHosted = regs.Any(r => r.InterfaceName == IHostedServiceFullName);
 
-            if (hasHosted) {
-                sb.AppendLine($"        services.AddHostedService<{implementationName}>();");
-            }
-
-            // 找到主接口（第一个非实现类型自身的接口）
             var primaryInterface = nonHostedRegs
                 .FirstOrDefault(r => r.InterfaceName is not null && r.InterfaceName != implementationName);
 
             if (primaryInterface is not null) {
-                var addMethodName = primaryInterface.Lifetime switch {
-                    LifetimeTransient => "AddTransient",
-                    LifetimeScoped => "AddScoped",
-                    _ => "AddSingleton"
+                var sdMethodName = primaryInterface.Lifetime switch {
+                    LifetimeTransient => "Transient",
+                    LifetimeScoped => "Scoped",
+                    _ => "Singleton"
                 };
 
-                // 先注册实现类型自身
-                sb.AppendLine($"        services.{addMethodName}<{implementationName}>();");
+                sb.AppendLine($"            ServiceDescriptor.{sdMethodName}<{implementationName}, {implementationName}>(),");
 
-                // 注册所有接口（转发到实现类型）
                 var registeredInterfaces = new HashSet<string>();
                 foreach (var reg in nonHostedRegs) {
                     if (reg.InterfaceName is null || reg.InterfaceName == implementationName)
                         continue;
 
                     if (!registeredInterfaces.Add(reg.InterfaceName))
-                        continue; // 避免重复注册
+                        continue;
 
-                    var regAddMethodName = reg.Lifetime switch {
-                        LifetimeTransient => "AddTransient",
-                        LifetimeScoped => "AddScoped",
-                        _ => "AddSingleton"
+                    var regSdMethodName = reg.Lifetime switch {
+                        LifetimeTransient => "Transient",
+                        LifetimeScoped => "Scoped",
+                        _ => "Singleton"
                     };
 
                     var shortName = GetShortTypeName(reg.InterfaceName);
                     sb.AppendLine("#if DEBUG");
-                    sb.AppendLine($"        services.{regAddMethodName}<{reg.InterfaceName}>(static sp =>");
-                    sb.AppendLine("        {");
-                    sb.AppendLine($"            if (System.Environment.GetEnvironmentVariable(\"JCC_DI_TRACE\") == \"1\")");
-                    sb.AppendLine($"                System.Console.Error.WriteLine(\"[DI] + {shortName}\");");
-                    sb.AppendLine($"            var svc = sp.GetRequiredService<{implementationName}>();");
-                    sb.AppendLine($"            if (System.Environment.GetEnvironmentVariable(\"JCC_DI_TRACE\") == \"1\")");
-                    sb.AppendLine($"                System.Console.Error.WriteLine(\"[DI] - {shortName}\");");
-                    sb.AppendLine("            return svc;");
-                    sb.AppendLine("        });");
+                    sb.AppendLine($"            ServiceDescriptor.{regSdMethodName}<{reg.InterfaceName}>(static sp =>");
+                    sb.AppendLine("            {");
+                    sb.AppendLine($"                if (System.Environment.GetEnvironmentVariable(\"JCC_DI_TRACE\") == \"1\")");
+                    sb.AppendLine($"                    System.Console.Error.WriteLine(\"[DI] + {shortName}\");");
+                    sb.AppendLine($"                var svc = sp.GetRequiredService<{implementationName}>();");
+                    sb.AppendLine($"                if (System.Environment.GetEnvironmentVariable(\"JCC_DI_TRACE\") == \"1\")");
+                    sb.AppendLine($"                    System.Console.Error.WriteLine(\"[DI] - {shortName}\");");
+                    sb.AppendLine("                return svc;");
+                    sb.AppendLine("            }),");
                     sb.AppendLine("#else");
-                    sb.AppendLine($"        services.{regAddMethodName}<{reg.InterfaceName}>(static sp => sp.GetRequiredService<{implementationName}>());");
+                    sb.AppendLine($"            ServiceDescriptor.{regSdMethodName}<{reg.InterfaceName}>(static sp => sp.GetRequiredService<{implementationName}>()),");
                     sb.AppendLine("#endif");
                 }
             } else {
-                // 无接口或接口 == 实现类型：只注册一次
                 var lifetime = regs.FirstOrDefault()?.Lifetime ?? LifetimeSingleton;
-                var addMethodName = lifetime switch {
-                    LifetimeTransient => "AddTransient",
-                    LifetimeScoped => "AddScoped",
-                    _ => "AddSingleton"
+                var sdMethodName = lifetime switch {
+                    LifetimeTransient => "Transient",
+                    LifetimeScoped => "Scoped",
+                    _ => "Singleton"
                 };
-                sb.AppendLine($"        services.{addMethodName}<{implementationName}>();");
+                sb.AppendLine($"            ServiceDescriptor.{sdMethodName}<{implementationName}, {implementationName}>(),");
             }
         }
 
+        sb.AppendLine("        };");
+        sb.AppendLine("        foreach (var d in descriptors) services.Add(d);");
         sb.AppendLine("        return services;");
         sb.AppendLine("    }");
         sb.AppendLine("}");
@@ -545,6 +572,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator {
 
     private sealed class ServiceRegistrationInfo {
         public string ImplementationName { get; }
+        public string AssemblyName { get; }
         public List<ServiceRegistration> Registrations { get; }
         public List<ConstructorDependency> ConstructorDependencies { get; }
         public Location? Location { get; }
@@ -552,11 +580,13 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator {
 
         public ServiceRegistrationInfo(
             string implementationName,
+            string assemblyName,
             List<ServiceRegistration> registrations,
             List<ConstructorDependency> constructorDependencies,
             Location? location,
             bool hasAllowCycle) {
             ImplementationName = implementationName;
+            AssemblyName = assemblyName;
             Registrations = registrations;
             ConstructorDependencies = constructorDependencies;
             Location = location;

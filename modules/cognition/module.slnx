@@ -7,6 +7,9 @@
   <Project Path="brain.context_compression/Brain.ContextCompression.csproj" />
   <Project Path="brain.context_resolution/Brain.ContextResolution.csproj" />
   <Project Path="brain.compact_guard/Brain.CompactGuard.csproj" />
+  <Project Path="brain.cache/Brain.Cache.csproj" />
+  <Project Path="brain.context_fold/Brain.ContextFold.csproj" />
+  <Project Path="brain.context_collapse/Brain.ContextCollapse.csproj" />
   <Project Path="brain.query/Brain.Query.csproj" />
   <Project Path="brain.context.tests/Brain.Context.Tests.csproj" />
   <Project Path="brain.other.tests/Brain.Other.Tests.csproj" />

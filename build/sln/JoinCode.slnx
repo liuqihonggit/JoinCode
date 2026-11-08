@@ -77,6 +77,9 @@
     <Project Path="../../modules/cognition/brain.context_compression/Brain.ContextCompression.csproj" />
     <Project Path="../../modules/cognition/brain.context_resolution/Brain.ContextResolution.csproj" />
     <Project Path="../../modules/cognition/brain.compact_guard/Brain.CompactGuard.csproj" />
+    <Project Path="../../modules/cognition/brain.cache/Brain.Cache.csproj" />
+    <Project Path="../../modules/cognition/brain.context_fold/Brain.ContextFold.csproj" />
+    <Project Path="../../modules/cognition/brain.context_collapse/Brain.ContextCollapse.csproj" />
     <Project Path="../../modules/cognition/brain.query/Brain.Query.csproj" />
     <Project Path="../../modules/cognition/brain.context.tests/Brain.Context.Tests.csproj" />
     <Project Path="../../modules/cognition/brain.other.tests/Brain.Other.Tests.csproj" />

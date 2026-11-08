@@ -198,7 +198,7 @@ public sealed class EngineSessionFactory {
         IFileSystem fs,
         IServiceProvider services,
         CancellationToken cancellationToken) {
-        _ = Task.Run(async () => {
+        _ = FireAndForgetTask<Unit>.Run(async ct => {
             try {
                 var settings = await SettingsLoader.LoadUserSettingsAsync(fs, cancellationToken).ConfigureAwait(false);
                 if (settings is null || !settings.AutoFetchModels) return;
@@ -213,6 +213,6 @@ public sealed class EngineSessionFactory {
             } catch (Exception ex) {
                 services.GetService<ILogger<EngineSessionFactory>>()?.LogWarning(ex, "[EngineSessionFactory] 模型列表后台拉取失败，不影响启动");
             }
-        }, cancellationToken);
+        }, "model-fetch");
     }
 }

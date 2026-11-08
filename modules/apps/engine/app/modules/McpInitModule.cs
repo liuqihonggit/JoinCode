@@ -37,12 +37,11 @@ public sealed class McpInitModule : IAppModule {
         // 深层依赖链（ISkillService → QueryService 等）首次解析 ~300ms，但事件处理器只在
         // MCP 客户端连接/插件加载后才触发（均后台异步），延迟挂载不影响功能正确性
         if (!skipChat) {
-            _ = Task.Run(() => {
+            _ = FireAndForgetTask<Unit>.Run(async ct => {
                 try {
                     var remoteClientManager = services.GetRequiredService<RemoteClientManager>();
                     var syncBridge = services.GetRequiredService<McpToolSyncBridge>();
 
-                    // async void 事件处理器必须 try/catch — 否则异常逃逸到同步上下文导致进程崩溃
                     remoteClientManager.ToolsListChanged += async (_, _) => {
                         try {
                             await syncBridge.OnToolsListChangedAsync().ConfigureAwait(false);
@@ -62,7 +61,7 @@ public sealed class McpInitModule : IAppModule {
                 } catch (Exception ex) {
                     logger?.LogError(ex, "[MCP] 后台事件挂载失败");
                 }
-            }, ct);
+            }, "mcp-init");
         }
 
         // 启动开销优化（TASK037 后续）— 八插件加载后台化：启动不阻塞等待加载墙钟（实测 ~1.6s，

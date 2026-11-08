@@ -422,9 +422,9 @@ public sealed partial class LspClient : ILspClient {
         try {
             await _channel.StartAsync(config, cancellationToken).ConfigureAwait(false);
 
-            _ = Task.Run(async () => {
+            _ = FireAndForgetTask<Unit>.Run(async ct => {
                 try { await _channel.ReadLoopAsync(OnMessageReceived, _channel.ReadToken).ConfigureAwait(false); } catch (OperationCanceledException) { } catch (Exception ex) { _logger?.LogDebug(ex, "LSP read loop terminated with exception"); }
-            }, _channel.ReadToken);
+            }, "lsp-read-loop");
 
             var rootDir = _channel.GetRootDir(config.WorkingDirectory);
             var initParams = new LspInitializeParams {

@@ -68,9 +68,7 @@ internal sealed class TeammateLoopRunner {
     /// 后台启动 teammate 循环 — 观察未处理异常，避免静默死亡；退出时通知 coordinator
     /// </summary>
     public void RunTeammateLoopBackground(InProcessTeammateDefinition definition, TeammateState state, CancellationToken lifecycleCt) {
-        _ = Task.Run(SafeRunLoopAsync);
-
-        async Task SafeRunLoopAsync() {
+        _ = FireAndForgetTask<Unit>.Run(async ct => {
             try {
                 await RunTeammateLoopAsync(definition, state, lifecycleCt).ConfigureAwait(false);
             } catch (OperationCanceledException) when (lifecycleCt.IsCancellationRequested) {
@@ -79,7 +77,7 @@ internal sealed class TeammateLoopRunner {
                 await NotifyIdleAsync(definition.TeammateId, state, $"后台循环异常: {ex.Message}").ConfigureAwait(false);
                 await _runtime.TryCleanupTeammateAsync(definition.TeammateId).ConfigureAwait(false);
             }
-        }
+        }, $"teammate-loop-{definition.TeammateId}");
     }
 
     private async Task RunTeammateLoopAsync(

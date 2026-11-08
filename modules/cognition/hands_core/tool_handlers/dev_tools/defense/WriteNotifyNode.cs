@@ -84,7 +84,7 @@ public sealed class WriteNotifyNode : IDisposable {
 
         var ct = _disposeCts.Token;
         // fire-and-forget: 不阻塞主流程，错误在 LspFileSync 内部处理
-        _ = Task.Run(async () => {
+        _ = FireAndForgetTask<Unit>.Run(async ct => {
             try {
                 var changeContent = content;
                 if (changeContent is null) {
@@ -106,7 +106,7 @@ public sealed class WriteNotifyNode : IDisposable {
                     ["error"] = ex.GetType().Name
                 }, description: "LSP file change notification error");
             }
-        }, ct).ConfigureAwait(false);
+        }, "lsp-notify");
     }
 
     /// <summary>

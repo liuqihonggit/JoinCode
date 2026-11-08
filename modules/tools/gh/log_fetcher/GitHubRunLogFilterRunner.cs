@@ -358,13 +358,13 @@ internal sealed class GitHubRunLogFilterRunner {
         }).ToArray();
 
         // 后台等待所有完成后关闭 channel(不阻塞调用方 yield)
-        _ = Task.Run(async () => {
+        _ = FireAndForgetTask<Unit>.Run(async ct => {
             try {
                 await Task.WhenAll(tasks).ConfigureAwait(false);
             } finally {
                 writer.TryComplete();
             }
-        });
+        }, "gh-log-channel-close");
 
         await foreach (var line in channel.Reader.ReadAllAsync(ct).ConfigureAwait(false)) {
             yield return line;
@@ -646,10 +646,10 @@ internal sealed class GitHubRunLogFilterRunner {
         }).ToArray();
 
         // 后台等待所有生产者完成后关闭 channel
-        _ = Task.Run(async () => {
+        _ = FireAndForgetTask<Unit>.Run(async ct => {
             try { await Task.WhenAll(producerTasks).ConfigureAwait(false); }
             finally { writer.TryComplete(); }
-        });
+        }, "gh-test-channel-close");
 
         // 消费者: 流式收集结果(一个 job 完成就立即入库,不等其他)
         var results = new Dictionary<long, List<TestFailureInfo>>(jobIds.Count);

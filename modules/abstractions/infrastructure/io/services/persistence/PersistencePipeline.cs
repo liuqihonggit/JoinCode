@@ -27,11 +27,25 @@ public sealed class PersistencePipeline : ActorBase<PersistRequest, Unit>, IPers
     }
 
     /// <inheritdoc />
+    public Task EnqueueAndWaitAsync(PersistRequest request, CancellationToken ct = default) {
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var requestWithCompletion = new PersistRequest {
+            Category = request.Category,
+            Directory = request.Directory,
+            FileName = request.FileName,
+            Content = request.Content,
+            CompletionSource = tcs,
+        };
+        Tell(requestWithCompletion);
+        return tcs.Task.WaitAsync(ct);
+    }
+
+    /// <inheritdoc />
     public bool TryEnqueue(PersistRequest request) => TrySend(request);
 
     /// <summary>
     /// Actor 消费者处理 — 单线程串行执行,无并发。CreateDirectory + WriteAllTextAsync。
-    /// 写完后若 Completion 非空则 TrySetResult,异常时 TrySetException。
+    /// 写完后若 CompletionSource 非空则 TrySetResult,异常时 TrySetException。
     /// </summary>
     protected override void Handle(PersistRequest req, CancellationToken ct) {
         RegisterInFlight(HandleAsyncImpl(req, ct).AsTask());
@@ -46,10 +60,10 @@ public sealed class PersistencePipeline : ActorBase<PersistRequest, Unit>, IPers
             var path = _fs.CombinePath(req.Directory, req.FileName);
             await _fs.WriteAllTextAsync(path, req.Content, ct).ConfigureAwait(false);
             _logger?.LogDebug("持久化完成: {Category} -> {Path}", req.Category, path);
-            req.Completion?.TrySetResult();
+            req.CompletionSource?.TrySetResult();
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "持久化失败: {Category} -> {Directory}/{FileName}", req.Category, req.Directory, req.FileName);
-            req.Completion?.TrySetException(ex);
+            req.CompletionSource?.TrySetException(ex);
         }
     }
 

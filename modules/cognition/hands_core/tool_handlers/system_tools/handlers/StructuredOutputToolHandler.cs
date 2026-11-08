@@ -183,16 +183,13 @@ public sealed class StructuredOutputToolHandler {
 
         var snapshot = Volatile.Read(ref _schemas).Values.ToList();
         var json = RelaxedJsonSerializer.Serialize(snapshot, StructuredOutputJsonContext.Default);
-        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var request = new PersistRequest {
             Category = "structured-output",
             Directory = SchemasSubDir,
             FileName = SchemasFileName,
             Content = json,
-            Completion = tcs,
         };
-        await _persistencePipeline.EnqueueAsync(request, ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await _persistencePipeline.EnqueueAndWaitAsync(request, ct).ConfigureAwait(false);
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]

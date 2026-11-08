@@ -138,17 +138,16 @@ public sealed class TeamMemoryPathStoreTests {
     public async Task AddTeamMemoryPathCoreAsync_WithPipeline_EnqueuesPersistRequestAndCompletes() {
         PersistRequest? captured = null;
         var pipelineMock = new Mock<IPersistencePipeline>();
-        pipelineMock.Setup(x => x.EnqueueAsync(It.IsAny<PersistRequest>(), It.IsAny<CancellationToken>()))
+        pipelineMock.Setup(x => x.EnqueueAndWaitAsync(It.IsAny<PersistRequest>(), It.IsAny<CancellationToken>()))
                     .Callback((PersistRequest req, CancellationToken _) => {
                         captured = req;
-                        req.Completion?.TrySetResult();
                     })
-                    .Returns(ValueTask.CompletedTask);
+                    .Returns(Task.CompletedTask);
 
         var store = new TeamMemoryPathStore(pipelineMock.Object, fs: null, logger: null);
         await store.AddTeamMemoryPathCoreAsync("t1", "/p1", true, new() { "a" }, CancellationToken.None).ConfigureAwait(true);
 
-        pipelineMock.Verify(x => x.EnqueueAsync(It.IsAny<PersistRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+        pipelineMock.Verify(x => x.EnqueueAndWaitAsync(It.IsAny<PersistRequest>(), It.IsAny<CancellationToken>()), Times.Once);
         captured.Should().NotBeNull();
         captured!.Category.Should().Be("memory");
         captured.FileName.Should().Be("team-paths.json");
@@ -165,12 +164,11 @@ public sealed class TeamMemoryPathStoreTests {
     public async Task RemoveTeamMemoryPathCoreAsync_WithPipeline_EnqueuesPersistRequest() {
         PersistRequest? captured = null;
         var pipelineMock = new Mock<IPersistencePipeline>();
-        pipelineMock.Setup(x => x.EnqueueAsync(It.IsAny<PersistRequest>(), It.IsAny<CancellationToken>()))
+        pipelineMock.Setup(x => x.EnqueueAndWaitAsync(It.IsAny<PersistRequest>(), It.IsAny<CancellationToken>()))
                     .Callback((PersistRequest req, CancellationToken _) => {
                         captured = req;
-                        req.Completion?.TrySetResult();
                     })
-                    .Returns(ValueTask.CompletedTask);
+                    .Returns(Task.CompletedTask);
 
         var store = new TeamMemoryPathStore(pipelineMock.Object, fs: null, logger: null);
         await store.AddTeamMemoryPathCoreAsync("t1", "/p1", true, null, CancellationToken.None).ConfigureAwait(true);
@@ -179,7 +177,7 @@ public sealed class TeamMemoryPathStoreTests {
         var removed = await store.RemoveTeamMemoryPathCoreAsync("t1", "/p1", CancellationToken.None).ConfigureAwait(true);
         removed.Should().BeTrue();
 
-        pipelineMock.Verify(x => x.EnqueueAsync(It.IsAny<PersistRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        pipelineMock.Verify(x => x.EnqueueAndWaitAsync(It.IsAny<PersistRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         captured.Should().NotBeNull();
         // 移除后持久化的内容应为空数组
         var roundtrip = RelaxedJsonSerializer.Deserialize<List<TeamMemoryPath>>(captured!.Content, MemdirJsonContext.Default);
@@ -191,12 +189,11 @@ public sealed class TeamMemoryPathStoreTests {
     public async Task AddThenRemove_WithPipeline_FinalPersistedStateIsEmpty() {
         var requests = new List<PersistRequest>();
         var pipelineMock = new Mock<IPersistencePipeline>();
-        pipelineMock.Setup(x => x.EnqueueAsync(It.IsAny<PersistRequest>(), It.IsAny<CancellationToken>()))
+        pipelineMock.Setup(x => x.EnqueueAndWaitAsync(It.IsAny<PersistRequest>(), It.IsAny<CancellationToken>()))
                     .Callback((PersistRequest req, CancellationToken _) => {
                         requests.Add(req);
-                        req.Completion?.TrySetResult();
                     })
-                    .Returns(ValueTask.CompletedTask);
+                    .Returns(Task.CompletedTask);
 
         var store = new TeamMemoryPathStore(pipelineMock.Object, fs: null, logger: null);
         await store.AddTeamMemoryPathCoreAsync("t1", "/p1", true, null, CancellationToken.None).ConfigureAwait(true);

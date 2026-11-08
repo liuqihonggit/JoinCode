@@ -168,16 +168,13 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
 
         var snapshot = _rules.Values.ToList();
         var json = RelaxedJsonSerializer.Serialize(snapshot, PermissionJsonContext.Default);
-        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var request = new PersistRequest {
             Category = "permission",
             Directory = RulesSubDir,
             FileName = RulesFileName,
             Content = json,
-            Completion = tcs,
         };
-        await _persistencePipeline.EnqueueAsync(request, ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await _persistencePipeline.EnqueueAndWaitAsync(request, ct).ConfigureAwait(false);
     }
 
     /// <summary>

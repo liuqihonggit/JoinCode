@@ -35,7 +35,16 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     /// <param name="tools">可用工具名称列表 — 从 IToolRegistry 获取，填充 system/init 消息的 tools 字段</param>
     /// <param name="model">模型标识 — 从配置获取，填充 system/init 消息的 model 字段</param>
     /// <param name="version">jcc 版本号 — 从程序集获取，填充 system/init 消息的 claude_code_version 字段</param>
-    public CliEventConsumer(bool agentMode, string? sessionId = null, System.Collections.Generic.IReadOnlyList<string>? tools = null, string? model = null, string? version = null, System.Collections.Generic.IReadOnlyList<Cli.Output.SdkMcpServer>? mcpServers = null, System.Collections.Generic.IReadOnlyList<string>? skills = null) {
+    /// <param name="mcpServers">MCP 服务器列表 — 从 DI 获取，填充 system/init 消息的 mcp_servers 字段</param>
+    /// <param name="skills">技能列表 — 从 DI 获取，填充 system/init 消息的 skills 字段</param>
+    /// <param name="agents">可用子代理列表 — 从 IAgentService 获取，填充 system/init 消息的 agents 字段</param>
+    /// <param name="apiKeySource">API Key 来源（user/project/org/temporary/oauth）— 填充 system/init 消息的 apiKeySource 字段</param>
+    /// <param name="betas">Beta 特性列表 — 填充 system/init 消息的 betas 字段</param>
+    /// <param name="slashCommands">斜杠命令列表 — 从 ISlashCommandCatalog 获取，填充 system/init 消息的 slash_commands 字段</param>
+    /// <param name="outputStyle">输出风格 — 从配置获取，填充 system/init 消息的 output_style 字段</param>
+    /// <param name="plugins">插件列表 — 从 IPluginManager 获取，填充 system/init 消息的 plugins 字段</param>
+    /// <param name="fastModeState">快速模式状态（off/cooldown/on）— 从 IFastModeService 获取，填充 system/init 消息的 fast_mode_state 字段</param>
+    public CliEventConsumer(bool agentMode, string? sessionId = null, System.Collections.Generic.IReadOnlyList<string>? tools = null, string? model = null, string? version = null, System.Collections.Generic.IReadOnlyList<Cli.Output.SdkMcpServer>? mcpServers = null, System.Collections.Generic.IReadOnlyList<string>? skills = null, System.Collections.Generic.IReadOnlyList<string>? agents = null, string? apiKeySource = null, System.Collections.Generic.IReadOnlyList<string>? betas = null, System.Collections.Generic.IReadOnlyList<string>? slashCommands = null, string? outputStyle = null, System.Collections.Generic.IReadOnlyList<Cli.Output.SdkPlugin>? plugins = null, string? fastModeState = null) {
         _agentMode = agentMode;
         _jsonContext = Cli.Output.CliOutputJsonContext.Default;
         _sessionId = sessionId;
@@ -44,6 +53,13 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         _version = version;
         _mcpServers = mcpServers ?? [];
         _skills = skills ?? [];
+        _agents = agents ?? [];
+        _apiKeySource = apiKeySource ?? "user";
+        _betas = betas ?? [];
+        _slashCommands = slashCommands ?? [];
+        _outputStyle = outputStyle ?? "default";
+        _plugins = plugins ?? [];
+        _fastModeState = fastModeState;
     }
 
     private readonly System.Collections.Generic.IReadOnlyList<string> _tools = [];
@@ -51,6 +67,13 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     private readonly string? _version;
     private readonly System.Collections.Generic.IReadOnlyList<Cli.Output.SdkMcpServer> _mcpServers = [];
     private readonly System.Collections.Generic.IReadOnlyList<string> _skills = [];
+    private readonly System.Collections.Generic.IReadOnlyList<string> _agents = [];
+    private readonly string _apiKeySource = "user";
+    private readonly System.Collections.Generic.IReadOnlyList<string> _betas = [];
+    private readonly System.Collections.Generic.IReadOnlyList<string> _slashCommands = [];
+    private readonly string _outputStyle = "default";
+    private readonly System.Collections.Generic.IReadOnlyList<Cli.Output.SdkPlugin> _plugins = [];
+    private readonly string? _fastModeState;
 
     /// <summary>指定输出通道管理器构造函数 — DX 模式，通过通道管理器分发输出</summary>
     /// <param name="outputChannelManager">输出通道管理器（null 时退化为直接终端输出）</param>
@@ -248,6 +271,13 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
             McpServers = _mcpServers.Count > 0 ? new System.Collections.Generic.List<Cli.Output.SdkMcpServer>(_mcpServers) : [],
             PermissionMode = System.Environment.GetEnvironmentVariable("JCC_PERMISSION_MODE") ?? "default",
             Skills = _skills.Count > 0 ? new System.Collections.Generic.List<string>(_skills) : [],
+            Agents = _agents.Count > 0 ? new System.Collections.Generic.List<string>(_agents) : [],
+            ApiKeySource = _apiKeySource,
+            Betas = _betas.Count > 0 ? new System.Collections.Generic.List<string>(_betas) : [],
+            SlashCommands = _slashCommands.Count > 0 ? new System.Collections.Generic.List<string>(_slashCommands) : [],
+            OutputStyle = _outputStyle,
+            Plugins = _plugins.Count > 0 ? new System.Collections.Generic.List<Cli.Output.SdkPlugin>(_plugins) : [],
+            FastModeState = _fastModeState,
         });
     }
 

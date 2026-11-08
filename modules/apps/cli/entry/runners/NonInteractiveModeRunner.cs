@@ -66,7 +66,7 @@ internal static class NonInteractiveModeRunner {
                 DurationMs = context.ElapsedMs ?? 0,
                 DurationApiMs = context.ApiDurationMs,
                 IsError = !ok,
-                Result = context.FullResponse ?? string.Empty,
+                Result = ok ? (context.FullResponse ?? string.Empty) : null,
                 NumTurns = context.NumTurns,
                 TotalCostUsd = context.TotalCostUsd,
                 StopReason = context.StopReason,

@@ -63,6 +63,8 @@ public sealed record SdkAssistantMessage : SdkMessageBase {
     /// <summary>父工具调用标识（子代理嵌套）</summary>
     [System.Text.Json.Serialization.JsonPropertyName("parent_tool_use_id")]
     public string? ParentToolUseId { get; init; }
+    /// <summary>错误类型（authentication_failed/billing_error/rate_limit/invalid_request/server_error/unknown/max_output_tokens）— 对齐基准侧 assistant.error 字段</summary>
+    public string? Error { get; init; }
     /// <summary>创建带默认 Uuid 的实例</summary>
     public static SdkAssistantMessage Create(SdkMessageBody message, string? sessionId) => new() { Message = message, Uuid = NewUuid(), SessionId = sessionId };
 }
@@ -75,9 +77,16 @@ public sealed record SdkUserMessage : SdkMessageBase {
     /// <summary>父工具调用标识</summary>
     [System.Text.Json.Serialization.JsonPropertyName("parent_tool_use_id")]
     public string? ParentToolUseId { get; init; }
-    /// <summary>结构化工具输出</summary>
+    /// <summary>结构化工具输出 — 对齐基准侧 tool_use_result（object 类型，C# 侧用 JsonElement 保留结构）</summary>
     [System.Text.Json.Serialization.JsonPropertyName("tool_use_result")]
-    public string? ToolUseResult { get; init; }
+    public System.Text.Json.JsonElement? ToolUseResult { get; init; }
+    /// <summary>是否为合成消息 — 对齐基准侧 isSynthetic 字段</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("isSynthetic")]
+    public bool? IsSynthetic { get; init; }
+    /// <summary>消息优先级（now/next/later）— 对齐基准侧 priority 字段</summary>
+    public string? Priority { get; init; }
+    /// <summary>ISO 时间戳 — 对齐基准侧 timestamp 字段</summary>
+    public string? Timestamp { get; init; }
     /// <summary>创建带默认 Uuid 的实例</summary>
     public static SdkUserMessage Create(SdkMessageBody message, string? sessionId) => new() { Message = message, Uuid = NewUuid(), SessionId = sessionId };
 }
@@ -87,6 +96,16 @@ public sealed record SdkMcpServer {
     public string Name { get; init; } = string.Empty;
     /// <summary>连接状态</summary>
     public string Status { get; init; } = "connected";
+}
+
+/// <summary>插件信息 — 对齐基准侧 plugins 数组元素 {name, path, source?}</summary>
+public sealed record SdkPlugin {
+    /// <summary>插件名称</summary>
+    public string Name { get; init; } = string.Empty;
+    /// <summary>插件路径</summary>
+    public string Path { get; init; } = string.Empty;
+    /// <summary>插件来源（plugin/policy）</summary>
+    public string? Source { get; init; }
 }
 
 public sealed record SdkSystemInitMessage : SdkMessageBase {
@@ -106,11 +125,29 @@ public sealed record SdkSystemInitMessage : SdkMessageBase {
     /// <summary>MCP 服务器列表</summary>
     [System.Text.Json.Serialization.JsonPropertyName("mcp_servers")]
     public System.Collections.Generic.List<SdkMcpServer> McpServers { get; init; } = [];
-    /// <summary>权限模式</summary>
-    [System.Text.Json.Serialization.JsonPropertyName("permission_mode")]
+    /// <summary>权限模式 — 对齐基准侧 permissionMode（camelCase）</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("permissionMode")]
     public string PermissionMode { get; init; } = "default";
     /// <summary>技能列表</summary>
     public System.Collections.Generic.List<string> Skills { get; init; } = [];
+    /// <summary>可用子代理列表 — 对齐基准侧 agents 字段</summary>
+    public System.Collections.Generic.List<string> Agents { get; init; } = [];
+    /// <summary>API Key 来源（user/project/org/temporary/oauth）— 对齐基准侧 apiKeySource 字段</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("apiKeySource")]
+    public string ApiKeySource { get; init; } = "user";
+    /// <summary>Beta 特性列表 — 对齐基准侧 betas 字段</summary>
+    public System.Collections.Generic.List<string> Betas { get; init; } = [];
+    /// <summary>斜杠命令列表 — 对齐基准侧 slash_commands 字段</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("slash_commands")]
+    public System.Collections.Generic.List<string> SlashCommands { get; init; } = [];
+    /// <summary>输出风格 — 对齐基准侧 output_style 字段</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("output_style")]
+    public string OutputStyle { get; init; } = "default";
+    /// <summary>插件列表 — 对齐基准侧 plugins 字段</summary>
+    public System.Collections.Generic.List<SdkPlugin> Plugins { get; init; } = [];
+    /// <summary>快速模式状态（off/cooldown/on）— 对齐基准侧 fast_mode_state 字段</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("fast_mode_state")]
+    public string? FastModeState { get; init; }
     /// <summary>创建带默认 Uuid 的实例</summary>
     public static SdkSystemInitMessage Create(string? sessionId) => new() { Uuid = NewUuid(), SessionId = sessionId };
 }
@@ -186,8 +223,10 @@ public sealed record SdkResultMessage : SdkMessageBase {
     /// <summary>对话轮次</summary>
     [System.Text.Json.Serialization.JsonPropertyName("num_turns")]
     public int NumTurns { get; init; }
-    /// <summary>最终结果文本</summary>
-    public string Result { get; init; } = string.Empty;
+    /// <summary>最终结果文本 — error result 时为 null（序列化跳过），对齐基准侧 error result 无 result 字段</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("result")]
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Result { get; init; }
     /// <summary>停止原因</summary>
     [System.Text.Json.Serialization.JsonPropertyName("stop_reason")]
     public string? StopReason { get; init; }
@@ -202,8 +241,14 @@ public sealed record SdkResultMessage : SdkMessageBase {
     /// <summary>权限拒绝列表 — 对齐基准侧 permission_denials 字段</summary>
     [System.Text.Json.Serialization.JsonPropertyName("permission_denials")]
     public System.Collections.Generic.List<SdkPermissionDenial> PermissionDenials { get; init; } = [];
-    /// <summary>错误消息列表</summary>
+    /// <summary>错误消息列表 — error result 时填充</summary>
     public System.Collections.Generic.List<string> Errors { get; init; } = [];
+    /// <summary>结构化输出 — 对齐基准侧 structured_output 字段（仅 success result）</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("structured_output")]
+    public System.Text.Json.JsonElement? StructuredOutput { get; init; }
+    /// <summary>快速模式状态（off/cooldown/on）— 对齐基准侧 fast_mode_state 字段</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("fast_mode_state")]
+    public string? FastModeState { get; init; }
     /// <summary>创建带默认 Uuid 的实例</summary>
     public static SdkResultMessage Create(string? sessionId) => new() { Uuid = NewUuid(), SessionId = sessionId };
 }
@@ -223,6 +268,9 @@ public sealed record SdkToolProgressMessage : SdkMessageBase {
     /// <summary>已用秒数</summary>
     [System.Text.Json.Serialization.JsonPropertyName("elapsed_time_seconds")]
     public double ElapsedTimeSeconds { get; init; }
+    /// <summary>任务标识 — 对齐基准侧 task_id 字段</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("task_id")]
+    public string? TaskId { get; init; }
     /// <summary>创建带默认 Uuid 的实例</summary>
     public static SdkToolProgressMessage Create(string? sessionId) => new() { Uuid = NewUuid(), SessionId = sessionId };
 }

@@ -121,6 +121,7 @@ public sealed class CliSession {
 
         // Bug 14: --format ndjson 启用 AX 模式（NDJSON 事件流），否则 DX 模式（彩色输出/通道管理器）
         // Bug G: AX 模式传入工具列表/模型名/版本号，填充 system/init 消息字段
+        // TASK073: 补齐 system/init 缺失字段 — agents/apiKeySource/betas/slash_commands/output_style/plugins/fast_mode_state
         System.Collections.Generic.IReadOnlyList<string>? toolNames = null;
         if (agentMode) {
             try {
@@ -133,8 +134,53 @@ public sealed class CliSession {
         var modelId = optionalServices?.WorkflowConfig?.Provider.ModelId
             ?? System.Environment.GetEnvironmentVariable("JCC_MODEL_ID")
             ?? "unknown";
+
+        // TASK073: 提取 system/init 新增字段数据
+        System.Collections.Generic.IReadOnlyList<string>? agents = null;
+        System.Collections.Generic.IReadOnlyList<string>? slashCommands = null;
+        System.Collections.Generic.IReadOnlyList<Cli.Output.SdkPlugin>? plugins = null;
+        string? outputStyle = null;
+        string? fastModeState = null;
+        if (agentMode && optionalServices?.ServiceProvider is not null) {
+            try {
+                var agentService = optionalServices.ServiceProvider.GetService<IAgentService>();
+                if (agentService is not null) {
+                    var agentTypes = agentService.GetAvailableAgentTypesAsync().GetAwaiter().GetResult();
+                    agents = agentTypes.Select(a => a.Name).OrderBy(n => n).ToList();
+                }
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "[CliSession] 获取子代理列表失败，system/init agents 将为空");
+            }
+            try {
+                var slashCatalog = optionalServices.ServiceProvider.GetService<ISlashCommandCatalog>();
+                slashCatalog ??= new GeneratedSlashCommandCatalog();
+                slashCommands = slashCatalog.ByCategory
+                    .SelectMany(kv => kv.Value.Select(c => c.Name))
+                    .OrderBy(n => n)
+                    .ToList();
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "[CliSession] 获取斜杠命令列表失败，system/init slash_commands 将为空");
+            }
+            try {
+                var pluginManager = optionalServices.PluginManager;
+                if (pluginManager is not null) {
+                    plugins = pluginManager.LoadedPluginNames
+                        .Select(name => new Cli.Output.SdkPlugin { Name = name })
+                        .ToList();
+                }
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "[CliSession] 获取插件列表失败，system/init plugins 将为空");
+            }
+            outputStyle = optionalServices?.WorkflowConfig?.OutputStyle;
+            if (optionalServices?.FastModeService is { } fm) {
+                fastModeState = fm.IsFastModeActive ? "on" : "off";
+            }
+        }
+
         var eventConsumer = agentMode
-            ? new CliEventConsumer(agentMode: true, sessionId: _sessionId, tools: toolNames, model: modelId)
+            ? new CliEventConsumer(agentMode: true, sessionId: _sessionId, tools: toolNames, model: modelId,
+                agents: agents, slashCommands: slashCommands, outputStyle: outputStyle,
+                plugins: plugins, fastModeState: fastModeState)
             : new CliEventConsumer(consumerOutputChannel);
         _eventConsumer = agentMode ? eventConsumer : null;
 

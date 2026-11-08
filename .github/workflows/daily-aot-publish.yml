@@ -1,4 +1,4 @@
-name: Daily AOT Publish
+name: Daily AOT & RTR Publish
 
 on:
   schedule:
@@ -13,16 +13,17 @@ env:
   Configuration: Release
 
 jobs:
-  aot-publish:
-    name: AOT Publish (${{ matrix.project.name }})
+  publish:
+    name: Publish (${{ matrix.project.name }})
     runs-on: windows-latest
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         project:
-          - { name: 'jcc', path: 'modules/apps/cli/JoinCode.csproj', artifact: 'jcc-aot' }
-          - { name: 'jccgui', path: 'native_gui/apps/NativeGui.Host/NativeGui.Host.csproj', artifact: 'jccgui-aot' }
+          - { name: 'jcc-aot', path: 'modules/apps/cli/JoinCode.csproj', artifact: 'jcc-aot', mode: 'aot' }
+          - { name: 'jccgui-aot', path: 'native_gui/apps/NativeGui.Host/NativeGui.Host.csproj', artifact: 'jccgui-aot', mode: 'aot' }
+          - { name: 'jcc-rtr', path: 'modules/apps/cli/JoinCode.csproj', artifact: 'jcc-rtr', mode: 'rtr' }
 
     steps:
       - name: Checkout
@@ -40,15 +41,27 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
 
-      - name: Publish (${{ matrix.project.name }}) - NativeAOT
+      - name: Publish (${{ matrix.project.name }}) - ${{ matrix.project.mode == 'aot' && 'NativeAOT' || 'ReadyToRun' }}
         run: |
-          dotnet publish ${{ matrix.project.path }} `
-            -c Release `
-            -r win-x64 `
-            -o publish/${{ matrix.project.name }} `
-            --nologo `
-            /p:SkipLocalPack=true `
-            /p:SelfContained=true
+          if ('${{ matrix.project.mode }}' -eq 'rtr') {
+            dotnet publish ${{ matrix.project.path }} `
+              -c Release `
+              -r win-x64 `
+              -o publish/${{ matrix.project.name }} `
+              --nologo `
+              /p:SkipLocalPack=true `
+              /p:SelfContained=true `
+              /p:PublishReadyToRun=true `
+              /p:PublishReadyToRunComposite=true
+          } else {
+            dotnet publish ${{ matrix.project.path }} `
+              -c Release `
+              -r win-x64 `
+              -o publish/${{ matrix.project.name }} `
+              --nologo `
+              /p:SkipLocalPack=true `
+              /p:SelfContained=true
+          }
           if ($LASTEXITCODE -ne 0) { exit 1 }
         shell: pwsh
 

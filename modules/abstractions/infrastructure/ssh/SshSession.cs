@@ -290,14 +290,14 @@ public sealed class SshSession : ISshSession {
         _keepAliveCts = new CancellationTokenSource();
         var ct = _keepAliveCts.Token;
 
-        _ = Task.Run(async () => {
+        _ = FireAndForgetTask<Unit>.Run(async _ => {
             while (!ct.IsCancellationRequested) {
                 await Task.Delay(Config.KeepAliveIntervalMs, ct).ConfigureAwait(false);
                 if (!await KeepAliveAsync(ct).ConfigureAwait(false) && Config.AutoReconnect) {
                     await TryAutoReconnectAsync(ct).ConfigureAwait(false);
                 }
             }
-        }, ct);
+        }, "ssh-keepalive");
     }
 
     private void StopKeepAlive() {

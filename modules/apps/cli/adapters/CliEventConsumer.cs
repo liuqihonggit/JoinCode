@@ -258,6 +258,14 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     /// <summary>上下文窗口余量</summary>
     public void OnContextUsage(int promptTokens, int contextWindowTokens, int percentLeft) { }
 
+    /// <summary>会话状态变更 — NDJSON 模式输出 SdkSessionStateChangedMessage</summary>
+    public void OnSessionStateChanged(string state) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkSessionStateChangedMessage.Create(_sessionId, state));
+        }
+    }
+
     /// <summary>确保 system/init 消息已发送（首次事件时发送）</summary>
     private void EnsureSystemInit() {
         if (_systemInitSent) return;

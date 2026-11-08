@@ -115,6 +115,14 @@ public interface IEventConsumer {
     /// <param name="maxRetries">最大重试次数</param>
     /// <param name="delayMs">本次退避等待毫秒数</param>
     void OnRetry(string reason, int attempt, int maxRetries, int delayMs) { }
+
+    /// <summary>
+    /// 会话状态变更（TASK073 Phase 2 — 对齐基准侧 system/session_state_changed 事件；
+    /// state: idle|running|requires_action。NDJSON 模式输出 SdkSessionStateChangedMessage，
+    /// DX 模式忽略。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="state">新状态（idle/running/requires_action）</param>
+    void OnSessionStateChanged(string state) { }
 }
 
 /// <summary>

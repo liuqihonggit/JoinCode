@@ -53,6 +53,7 @@ namespace JoinCode.Cli.Output;
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkSystemInitMessage))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkResultMessage))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkToolProgressMessage))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(SdkSessionStateChangedMessage))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkMessageBody))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkContentBlock))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkTextBlock))]
@@ -65,6 +66,8 @@ namespace JoinCode.Cli.Output;
 [System.Text.Json.Serialization.JsonSerializable(typeof(System.Collections.Generic.Dictionary<string, SdkModelUsage>))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(System.Collections.Generic.List<SdkPermissionDenial>))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkMcpServer))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(SdkPlugin))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(System.Collections.Generic.List<SdkPlugin>))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(System.Collections.Generic.List<SdkContentBlock>))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(System.Collections.Generic.List<string>))]
 public partial class CliOutputJsonContext : System.Text.Json.Serialization.JsonSerializerContext;

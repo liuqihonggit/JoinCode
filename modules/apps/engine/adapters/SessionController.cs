@@ -103,6 +103,9 @@ public sealed class SessionController {
         if (_consumer is IResettableEventConsumer resettable)
             resettable.Reset();
 
+        // TASK073 Phase 2: 会话状态变更 — idle → running（在 Reset 之后调用，避免 EnsureSystemInit 被重置导致重复输出）
+        _consumer.OnSessionStateChanged("running");
+
         var fullResponse = new StringBuilder();
         var thinkingContent = new StringBuilder();
         var lastModelId = (string?)null;
@@ -246,6 +249,9 @@ public sealed class SessionController {
             if (ex is JoinCode.Abstractions.Exceptions.WorkflowException wfEx)
                 return SessionTurnResult.Error(wfEx.Message, LastResponse, wfEx.ErrorCode, originalException: ex);
             return SessionTurnResult.Error(ex.Message, LastResponse, originalException: ex);
+        } finally {
+            // TASK073 Phase 2: 会话状态变更 — running → idle
+            _consumer.OnSessionStateChanged("idle");
         }
     }
 

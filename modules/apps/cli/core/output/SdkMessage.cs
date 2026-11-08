@@ -274,3 +274,15 @@ public sealed record SdkToolProgressMessage : SdkMessageBase {
     /// <summary>创建带默认 Uuid 的实例</summary>
     public static SdkToolProgressMessage Create(string? sessionId) => new() { Uuid = NewUuid(), SessionId = sessionId };
 }
+
+/// <summary>会话状态变更消息 — 对齐基准侧 system/session_state_changed 事件，state: idle|running|requires_action</summary>
+public sealed record SdkSessionStateChangedMessage : SdkMessageBase {
+    /// <summary>消息类型</summary>
+    public string Type => "system";
+    /// <summary>消息子类型</summary>
+    public string Subtype => "session_state_changed";
+    /// <summary>会话状态（idle/running/requires_action）— 对齐基准侧 state 字段</summary>
+    public string State { get; init; } = "idle";
+    /// <summary>创建带默认 Uuid 的实例</summary>
+    public static SdkSessionStateChangedMessage Create(string? sessionId, string state) => new() { Uuid = NewUuid(), SessionId = sessionId, State = state };
+}

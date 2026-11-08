@@ -1,6 +1,7 @@
 <Solution>
   <Project Path="mcp/Mcp.csproj" />
   <Project Path="mcp/mcp.tool_handlers/Mcp.ToolHandlers.csproj" />
+  <Project Path="mcp/mcp.protocol_contracts/Mcp.Protocol.Contracts.csproj" />
   <Project Path="mcp.tests/Mcp.Tests.csproj" />
   <Project Path="mcp_tool_dispatch/McpToolDispatch.csproj" />
   <Project Path="mcp_tool_dispatch.tests/McpToolDispatch.Tests.csproj" />

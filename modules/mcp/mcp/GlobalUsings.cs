@@ -51,6 +51,7 @@ global using McpClient.Mcpb;
 global using McpClient.Models;
 global using McpClient.Transports;
 global using McpProtocol;
+global using McpProtocol.Contracts;
 global using Microsoft.Extensions.Configuration;
 global using Microsoft.Extensions.DependencyInjection;
 global using System.Buffers;

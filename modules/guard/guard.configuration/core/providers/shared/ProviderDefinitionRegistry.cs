@@ -44,7 +44,7 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry {
     /// 按名称获取供应商定义 — 未注册返回 null
     /// </summary>
     public IProviderDefinition? TryGet(string providerName) {
-        return _definitions.GetValueOrDefault(providerName);
+        return _definitions.GetValueOrDefault(providerName.Trim());
     }
 
     /// <summary>

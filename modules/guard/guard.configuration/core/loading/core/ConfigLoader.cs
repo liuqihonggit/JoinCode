@@ -139,15 +139,14 @@ public class ConfigLoader {
                 ExternalRules = await externalRulesTask.ConfigureAwait(false)
             };
 
-            // Step 7: 验证 Provider 配置 — Provider 必须有 API Key
-            // 元命令模式（mcp_list/slash_call 等）跳过验证，CI 环境无 API Key 时也能运行
+            // Step 7: Provider 存在性验证 — vendor 不存在时抛 ConfigurationException (rc=2)
+            // API Key 缺失检查由 pipeline 的 NonInteractiveApiKeyCheckStep 统一处理 (rc=4)，此处不重复检查
             if (!SkipProviderValidation) {
                 var definition = _registry.TryGet(config.Provider.Vendor);
-                if (definition is not null && !definition.IsValid(config.Provider)) {
+                if (definition is null) {
                     throw new ConfigurationException(
-                        $"Provider '{config.Provider.Vendor}' 配置无效: 缺少 API Key。" +
-                        $"请设置环境变量 {definition.ApiKeyEnvironmentVariable ?? "供应商专属变量"}" +
-                        $" 或在 {AppDataConstants.Paths.AuthFilePath} 中添加 '{config.Provider.Vendor}' 键。");
+                        $"未知的 Provider '{config.Provider.Vendor}'，可用值: {string.Join(", ", _registry.GetRegisteredProviders())}。" +
+                        $"请通过 {JccEnvVar.Vendor.ToValue()} 环境变量指定正确的 Provider。");
                 }
             }
 

@@ -34,7 +34,7 @@ public static class EnvOverrideApplier {
     public static SettingsJson Apply(SettingsJson? settings) {
         settings ??= new SettingsJson();
 
-        var envVendor = Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue());
+        var envVendor = Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue())?.Trim();
         var envModelId = Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue());
         var envEndpoint = Environment.GetEnvironmentVariable(JccEnvVar.Endpoint.ToValue());
         var envProfile = Environment.GetEnvironmentVariable(JccEnvVar.Profile.ToValue());

@@ -33,28 +33,36 @@ public sealed class McpInitModule : IAppModule {
 
         var skipChat = options?.SkipChatServices ?? false;
 
-        // skipChat 时跳过 RemoteClientManager/McpToolSyncBridge 的 DI 解析和事件挂载 — jcc gh/mcp_call 等元命令不需要远程客户端管理
+        // 事件挂载后台化 — RemoteClientManager/McpToolSyncBridge/WirePluginSkillBridge 的 DI 解析
+        // 深层依赖链（ISkillService → QueryService 等）首次解析 ~300ms，但事件处理器只在
+        // MCP 客户端连接/插件加载后才触发（均后台异步），延迟挂载不影响功能正确性
         if (!skipChat) {
-            var remoteClientManager = services.GetRequiredService<RemoteClientManager>();
-            var syncBridge = services.GetRequiredService<McpToolSyncBridge>();
-
-            // async void 事件处理器必须 try/catch — 否则异常逃逸到同步上下文导致进程崩溃
-            remoteClientManager.ToolsListChanged += async (_, _) => {
+            _ = Task.Run(() => {
                 try {
-                    await syncBridge.OnToolsListChangedAsync().ConfigureAwait(false);
-                    await RefreshKernelPluginsAsync(services, logger).ConfigureAwait(false);
-                } catch (Exception ex) { logger?.LogError(ex, "[MCP] OnToolsListChanged handler failed"); }
-            };
+                    var remoteClientManager = services.GetRequiredService<RemoteClientManager>();
+                    var syncBridge = services.GetRequiredService<McpToolSyncBridge>();
 
-            remoteClientManager.ResourcesListChanged += async (_, args) => {
-                try { await syncBridge.OnResourcesListChangedAsync(args.ClientId, args.SyncResult).ConfigureAwait(false); } catch (Exception ex) { logger?.LogError(ex, "[MCP] OnResourcesListChanged handler failed"); }
-            };
+                    // async void 事件处理器必须 try/catch — 否则异常逃逸到同步上下文导致进程崩溃
+                    remoteClientManager.ToolsListChanged += async (_, _) => {
+                        try {
+                            await syncBridge.OnToolsListChangedAsync().ConfigureAwait(false);
+                            await RefreshKernelPluginsAsync(services, logger).ConfigureAwait(false);
+                        } catch (Exception ex) { logger?.LogError(ex, "[MCP] OnToolsListChanged handler failed"); }
+                    };
 
-            remoteClientManager.PromptsListChanged += async (_, args) => {
-                try { await syncBridge.OnPromptsListChangedAsync(args.ClientId, args.SyncResult).ConfigureAwait(false); } catch (Exception ex) { logger?.LogError(ex, "[MCP] OnPromptsListChanged handler failed"); }
-            };
+                    remoteClientManager.ResourcesListChanged += async (_, args) => {
+                        try { await syncBridge.OnResourcesListChangedAsync(args.ClientId, args.SyncResult).ConfigureAwait(false); } catch (Exception ex) { logger?.LogError(ex, "[MCP] OnResourcesListChanged handler failed"); }
+                    };
 
-            services.WirePluginSkillBridge();
+                    remoteClientManager.PromptsListChanged += async (_, args) => {
+                        try { await syncBridge.OnPromptsListChangedAsync(args.ClientId, args.SyncResult).ConfigureAwait(false); } catch (Exception ex) { logger?.LogError(ex, "[MCP] OnPromptsListChanged handler failed"); }
+                    };
+
+                    services.WirePluginSkillBridge();
+                } catch (Exception ex) {
+                    logger?.LogError(ex, "[MCP] 后台事件挂载失败");
+                }
+            }, ct);
         }
 
         // 启动开销优化（TASK037 后续）— 八插件加载后台化：启动不阻塞等待加载墙钟（实测 ~1.6s，

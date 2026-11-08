@@ -350,6 +350,68 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         }
     }
 
+    /// <summary>状态消息 — NDJSON 模式输出 SdkStatusMessage</summary>
+    public void OnStatus(string? status, string? permissionMode = null) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkStatusMessage.Create(_sessionId, status) with { PermissionMode = permissionMode });
+        }
+    }
+
+    /// <summary>认证状态 — NDJSON 模式输出 SdkAuthStatusMessage</summary>
+    public void OnAuthStatus(bool isAuthenticating, System.Collections.Generic.List<string>? output = null, string? error = null) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            var msg = Cli.Output.SdkAuthStatusMessage.Create(_sessionId, isAuthenticating);
+            WriteSdkJson(msg with { Output = output ?? [], Error = error });
+        }
+    }
+
+    /// <summary>工具使用摘要 — NDJSON 模式输出 SdkToolUseSummaryMessage</summary>
+    public void OnToolUseSummary(string summary, System.Collections.Generic.List<string>? precedingToolUseIds = null) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            var msg = Cli.Output.SdkToolUseSummaryMessage.Create(_sessionId, summary);
+            WriteSdkJson(msg with { PrecedingToolUseIds = precedingToolUseIds ?? [] });
+        }
+    }
+
+    /// <summary>本地命令输出 — NDJSON 模式输出 SdkLocalCommandOutputMessage</summary>
+    public void OnLocalCommandOutput(string content) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkLocalCommandOutputMessage.Create(_sessionId, content));
+        }
+    }
+
+    /// <summary>文件持久化 — NDJSON 模式输出 SdkFilesPersistedMessage</summary>
+    public void OnFilesPersisted(System.Collections.Generic.List<(string Filename, string FileId)>? files = null, System.Collections.Generic.List<(string Filename, string Error)>? failed = null) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            var msg = Cli.Output.SdkFilesPersistedMessage.Create(_sessionId) with {
+                Files = files?.Select(f => new Cli.Output.SdkPersistedFile { Filename = f.Filename, FileId = f.FileId }).ToList() ?? [],
+                Failed = failed?.Select(f => new Cli.Output.SdkFailedFile { Filename = f.Filename, Error = f.Error }).ToList() ?? [],
+            };
+            WriteSdkJson(msg);
+        }
+    }
+
+    /// <summary>引导完成 — NDJSON 模式输出 SdkElicitationCompleteMessage</summary>
+    public void OnElicitationComplete(string mcpServerName, string elicitationId) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkElicitationCompleteMessage.Create(_sessionId, mcpServerName, elicitationId));
+        }
+    }
+
+    /// <summary>提示建议 — NDJSON 模式输出 SdkPromptSuggestionMessage</summary>
+    public void OnPromptSuggestion(string suggestion) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkPromptSuggestionMessage.Create(_sessionId, suggestion));
+        }
+    }
+
     /// <summary>确保 system/init 消息已发送（首次事件时发送）</summary>
     private void EnsureSystemInit() {
         if (_systemInitSent) return;

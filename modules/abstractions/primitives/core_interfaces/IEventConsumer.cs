@@ -200,6 +200,61 @@ public interface IEventConsumer {
     /// <param name="toolUseId">关联的工具调用标识；null = 未提供</param>
     /// <param name="outputFile">输出文件路径；null = 未提供</param>
     void OnTaskNotification(string taskId, string status, string summary, string? toolUseId = null, string? outputFile = null) { }
+
+    /// <summary>
+    /// 状态消息（TASK073 Phase 3 — 对齐基准侧 system/status 事件；
+    /// NDJSON 模式输出 SdkStatusMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="status">状态描述（compacting 等）；null = 未提供</param>
+    /// <param name="permissionMode">权限模式；null = 未提供</param>
+    void OnStatus(string? status, string? permissionMode = null) { }
+
+    /// <summary>
+    /// 认证状态（TASK073 Phase 3 — 对齐基准侧 auth_status 事件；
+    /// NDJSON 模式输出 SdkAuthStatusMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="isAuthenticating">是否正在认证</param>
+    /// <param name="output">认证输出信息列表</param>
+    /// <param name="error">认证错误信息；null = 无错误</param>
+    void OnAuthStatus(bool isAuthenticating, System.Collections.Generic.List<string>? output = null, string? error = null) { }
+
+    /// <summary>
+    /// 工具使用摘要（TASK073 Phase 3 — 对齐基准侧 tool_use_summary 事件；
+    /// NDJSON 模式输出 SdkToolUseSummaryMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="summary">工具使用摘要文本</param>
+    /// <param name="precedingToolUseIds">前置工具调用标识列表</param>
+    void OnToolUseSummary(string summary, System.Collections.Generic.List<string>? precedingToolUseIds = null) { }
+
+    /// <summary>
+    /// 本地命令输出（TASK073 Phase 4 — 对齐基准侧 system/local_command_output 事件；
+    /// NDJSON 模式输出 SdkLocalCommandOutputMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="content">命令输出内容</param>
+    void OnLocalCommandOutput(string content) { }
+
+    /// <summary>
+    /// 文件持久化（TASK073 Phase 4 — 对齐基准侧 system/files_persisted 事件；
+    /// NDJSON 模式输出 SdkFilesPersistedMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="files">成功持久化的文件列表</param>
+    /// <param name="failed">持久化失败的文件列表</param>
+    void OnFilesPersisted(System.Collections.Generic.List<(string Filename, string FileId)>? files = null, System.Collections.Generic.List<(string Filename, string Error)>? failed = null) { }
+
+    /// <summary>
+    /// 引导完成（TASK073 Phase 4 — 对齐基准侧 system/elicitation_complete 事件；
+    /// NDJSON 模式输出 SdkElicitationCompleteMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="mcpServerName">MCP 服务器名称</param>
+    /// <param name="elicitationId">引导标识</param>
+    void OnElicitationComplete(string mcpServerName, string elicitationId) { }
+
+    /// <summary>
+    /// 提示建议（TASK073 Phase 4 — 对齐基准侧 prompt_suggestion 事件；
+    /// NDJSON 模式输出 SdkPromptSuggestionMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="suggestion">建议内容</param>
+    void OnPromptSuggestion(string suggestion) { }
 }
 
 /// <summary>

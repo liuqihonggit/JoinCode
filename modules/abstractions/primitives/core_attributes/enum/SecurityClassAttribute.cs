@@ -30,6 +30,11 @@ public sealed class SecurityClassAttribute : Attribute {
     public bool AskAllowed { get; init; }
 
     /// <summary>
+    /// Unattended 模式是否允许（默认 false）— Unattended 模式独立于 Auto，需显式标记
+    /// </summary>
+    public bool UnattendedAllowed { get; init; }
+
+    /// <summary>
     /// Auto 模式是否显式拒绝（默认 false）
     /// </summary>
     public bool AutoDenied { get; init; }
@@ -43,6 +48,11 @@ public sealed class SecurityClassAttribute : Attribute {
     /// Ask 模式是否显式拒绝（默认 false）
     /// </summary>
     public bool AskDenied { get; init; }
+
+    /// <summary>
+    /// Unattended 模式是否显式拒绝（默认 false）— 标记后该工具在无人值守模式下被系统级拦截
+    /// </summary>
+    public bool UnattendedDenied { get; init; }
 
     /// <summary>
     /// Agent 视角下是否为破坏性工具（默认 false）

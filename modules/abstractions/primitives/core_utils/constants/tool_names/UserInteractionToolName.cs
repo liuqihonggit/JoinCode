@@ -12,13 +12,13 @@ public enum UserInteractionToolName {
     /// 归入 ToolCategory.Interaction，禁止标 [McpTool(ConcurrencySafe=true)]。
     /// </summary>
     [EnumValue("confirm_action")]
-    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true, UnattendedDenied = true)]
     ConfirmAction,
 
     /// <summary>
     /// 向用户提出多选问题以收集信息、澄清歧义或做出决策
     /// </summary>
     [EnumValue("ask_user_question")]
-    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true, UnattendedDenied = true)]
     AskUserQuestion,
 }

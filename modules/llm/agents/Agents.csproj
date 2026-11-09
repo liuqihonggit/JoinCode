@@ -17,7 +17,10 @@
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions.configuration/Abstractions.Configuration.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Configuration" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Include="$(RepoRoot)modules/abstractions/hands/Abstractions.Hands.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" /></ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/infrastructure/Infrastructure.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/llm/agents.interfaces/Agents.Interfaces.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Agents.Interfaces" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/llm/agents.output/Agents.Output.csproj" />

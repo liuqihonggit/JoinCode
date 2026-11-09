@@ -108,4 +108,8 @@ public enum CliArg {
     /// <summary>静默模式：只输出错误信息，抑制正常输出</summary>
     [CliOption(JccCliArgEnumConstants.Quiet, "-q", "静默模式：只输出错误信息，抑制正常输出", Category = "输出")]
     Quiet,
+
+    /// <summary>启用部分消息流式输出（仅在 --format ndjson 模式下生效，将 LLM API 原始流式事件作为 stream_event 透传）</summary>
+    [CliOption(JccCliArgEnumConstants.IncludePartialMessages, "", "启用部分消息流式输出（仅在 --format ndjson 模式下生效）", Category = "输出")]
+    IncludePartialMessages,
 }

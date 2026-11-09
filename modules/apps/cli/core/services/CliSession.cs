@@ -80,6 +80,7 @@ public sealed class CliSession {
     /// <param name="logger">日志记录器；null 时不记录日志</param>
     /// <param name="sessionId">会话 ID；null 时自动生成新会话 ID</param>
     /// <param name="agentMode">true 启用 AX 模式（NDJSON 事件流），false 为 DX 模式（彩色输出）— Bug 14: --format ndjson 接线</param>
+    /// <param name="includePartialMessages">启用 --include-partial-messages（stream_event 透传，仅 NDJSON 模式生效）</param>
     public CliSession(
         IChatService chatService,
         ICodeService codeService,
@@ -90,7 +91,8 @@ public sealed class CliSession {
         IClockService? clock = null,
         ILogger<CliSession>? logger = null,
         string? sessionId = null,
-        bool agentMode = false) {
+        bool agentMode = false,
+        bool includePartialMessages = false) {
         _clock = clock ?? SystemClockService.Instance;
         _logger = logger;
         _sessionStartedAt = _clock.GetUtcNow();
@@ -180,7 +182,7 @@ public sealed class CliSession {
         var eventConsumer = agentMode
             ? new CliEventConsumer(agentMode: true, sessionId: _sessionId, tools: toolNames, model: modelId,
                 agents: agents, slashCommands: slashCommands, outputStyle: outputStyle,
-                plugins: plugins, fastModeState: fastModeState)
+                plugins: plugins, fastModeState: fastModeState, includePartialMessages: includePartialMessages)
             : new CliEventConsumer(consumerOutputChannel);
         _eventConsumer = agentMode ? eventConsumer : null;
 

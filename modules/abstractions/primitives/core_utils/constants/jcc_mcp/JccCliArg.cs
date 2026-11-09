@@ -94,6 +94,9 @@ public enum JccCliArg {
     [EnumValue("-q")]
     Quiet,
 
+    [EnumValue("--include-partial-messages")]
+    IncludePartialMessages,
+
     [EnumValue("--print")]
     Print,
 

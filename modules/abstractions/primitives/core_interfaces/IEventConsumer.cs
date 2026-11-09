@@ -255,6 +255,14 @@ public interface IEventConsumer {
     /// </summary>
     /// <param name="suggestion">建议内容</param>
     void OnPromptSuggestion(string suggestion) { }
+
+    /// <summary>
+    /// 流式事件透传（TASK073 Phase 2.1 — 对齐基准侧 stream_event 事件；
+    /// --include-partial-messages 启用时输出 SdkStreamEventMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="eventJson">原始 LLM 流式事件 JSON</param>
+    /// <param name="parentToolUseId">父工具调用 ID（子代理场景下设置，主对话为 null）</param>
+    void OnStreamEvent(System.Text.Json.JsonElement eventJson, string? parentToolUseId = null) { }
 }
 
 /// <summary>

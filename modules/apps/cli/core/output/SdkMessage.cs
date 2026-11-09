@@ -624,3 +624,17 @@ public sealed record SdkPromptSuggestionMessage : SdkMessageBase {
     /// <summary>创建带默认 Uuid 的提示建议消息实例</summary>
     public static SdkPromptSuggestionMessage Create(string? sessionId, string suggestion) => new() { Uuid = NewUuid(), SessionId = sessionId, Suggestion = suggestion };
 }
+
+/// <summary>流式事件消息 — 对齐基准侧 stream_event 事件（--include-partial-messages 启用时输出）</summary>
+public sealed record SdkStreamEventMessage : SdkMessageBase {
+    /// <summary>消息类型</summary>
+    public string Type => "stream_event";
+    /// <summary>原始 LLM 流式事件 JSON（Anthropic API 原始事件透传）</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("event")]
+    public System.Text.Json.JsonElement Event { get; init; }
+    /// <summary>父工具调用 ID（子代理场景下设置，主对话为 null）</summary>
+    [System.Text.Json.Serialization.JsonPropertyName("parent_tool_use_id")]
+    public string? ParentToolUseId { get; init; }
+    /// <summary>创建带默认 Uuid 的流式事件消息实例</summary>
+    public static SdkStreamEventMessage Create(string? sessionId, System.Text.Json.JsonElement eventJson, string? parentToolUseId = null) => new() { Uuid = NewUuid(), SessionId = sessionId, Event = eventJson, ParentToolUseId = parentToolUseId };
+}

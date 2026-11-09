@@ -44,7 +44,8 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     /// <param name="outputStyle">输出风格 — 从配置获取，填充 system/init 消息的 output_style 字段</param>
     /// <param name="plugins">插件列表 — 从 IPluginManager 获取，填充 system/init 消息的 plugins 字段</param>
     /// <param name="fastModeState">快速模式状态（off/cooldown/on）— 从 IFastModeService 获取，填充 system/init 消息的 fast_mode_state 字段</param>
-    public CliEventConsumer(bool agentMode, string? sessionId = null, System.Collections.Generic.IReadOnlyList<string>? tools = null, string? model = null, string? version = null, System.Collections.Generic.IReadOnlyList<Cli.Output.SdkMcpServer>? mcpServers = null, System.Collections.Generic.IReadOnlyList<string>? skills = null, System.Collections.Generic.IReadOnlyList<string>? agents = null, string? apiKeySource = null, System.Collections.Generic.IReadOnlyList<string>? betas = null, System.Collections.Generic.IReadOnlyList<string>? slashCommands = null, string? outputStyle = null, System.Collections.Generic.IReadOnlyList<Cli.Output.SdkPlugin>? plugins = null, string? fastModeState = null) {
+    /// <param name="includePartialMessages">是否启用 --include-partial-messages（stream_event 透传）</param>
+    public CliEventConsumer(bool agentMode, string? sessionId = null, System.Collections.Generic.IReadOnlyList<string>? tools = null, string? model = null, string? version = null, System.Collections.Generic.IReadOnlyList<Cli.Output.SdkMcpServer>? mcpServers = null, System.Collections.Generic.IReadOnlyList<string>? skills = null, System.Collections.Generic.IReadOnlyList<string>? agents = null, string? apiKeySource = null, System.Collections.Generic.IReadOnlyList<string>? betas = null, System.Collections.Generic.IReadOnlyList<string>? slashCommands = null, string? outputStyle = null, System.Collections.Generic.IReadOnlyList<Cli.Output.SdkPlugin>? plugins = null, string? fastModeState = null, bool includePartialMessages = false) {
         _agentMode = agentMode;
         _jsonContext = Cli.Output.CliOutputJsonContext.Default;
         _sessionId = sessionId;
@@ -60,6 +61,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         _outputStyle = outputStyle ?? "default";
         _plugins = plugins ?? [];
         _fastModeState = fastModeState;
+        _includePartialMessages = includePartialMessages;
     }
 
     private readonly System.Collections.Generic.IReadOnlyList<string> _tools = [];
@@ -74,6 +76,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     private readonly string _outputStyle = "default";
     private readonly System.Collections.Generic.IReadOnlyList<Cli.Output.SdkPlugin> _plugins = [];
     private readonly string? _fastModeState;
+    private readonly bool _includePartialMessages;
 
     /// <summary>指定输出通道管理器构造函数 — DX 模式，通过通道管理器分发输出</summary>
     /// <param name="outputChannelManager">输出通道管理器（null 时退化为直接终端输出）</param>
@@ -408,6 +411,14 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         if (_agentMode) {
             EnsureSystemInit();
             WriteSdkJson(Cli.Output.SdkPromptSuggestionMessage.Create(_sessionId, suggestion));
+        }
+    }
+
+    /// <summary>流式事件透传 — --include-partial-messages 启用时输出 SdkStreamEventMessage</summary>
+    public void OnStreamEvent(System.Text.Json.JsonElement eventJson, string? parentToolUseId = null) {
+        if (_agentMode && _includePartialMessages) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkStreamEventMessage.Create(_sessionId, eventJson, parentToolUseId));
         }
     }
 

@@ -74,6 +74,7 @@ namespace JoinCode.Cli.Output;
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkFailedFile))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkElicitationCompleteMessage))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkPromptSuggestionMessage))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(SdkStreamEventMessage))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkMessageBody))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkContentBlock))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(SdkTextBlock))]

@@ -190,6 +190,14 @@ public sealed record ToolResult {
     public ToolDiagnostic? Diagnostic { get; set; }
 
     /// <summary>
+    /// 结构化输出 — 对齐 TS SyntheticOutputTool result.structured_output
+    /// 当 LLM 通过 StructuredOutput 合成工具返回符合 Schema 的输出时，验证通过的数据填充到此字段
+    /// QueryEngine 捕获后透传到 SdkResultMessage.structured_output
+    /// </summary>
+    [JsonIgnore]
+    public System.Text.Json.JsonElement? StructuredOutput { get; set; }
+
+    /// <summary>
     /// 权限决策结果 — PendingConfirmation 时由上层 ToolExecutionHandler 触发 IPermissionConfirmationHandler.Confirm。
     /// 默认 Allowed,表示工具已正常执行。不序列化到 LLM。
     /// </summary>

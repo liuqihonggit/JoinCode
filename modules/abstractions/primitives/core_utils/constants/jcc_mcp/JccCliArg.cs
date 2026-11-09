@@ -97,6 +97,9 @@ public enum JccCliArg {
     [EnumValue("--include-partial-messages")]
     IncludePartialMessages,
 
+    [EnumValue("--json-schema")]
+    JsonSchema,
+
     [EnumValue("--print")]
     Print,
 

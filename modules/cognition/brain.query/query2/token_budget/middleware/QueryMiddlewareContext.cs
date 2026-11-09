@@ -139,4 +139,23 @@ public sealed class QueryMiddlewareContext {
     /// 用于 MaybePersistLargeToolResult（即时持久化，非预算机制）
     /// </summary>
     public IContentReplacementService? ContentReplacementService { get; set; }
+
+    /// <summary>
+    /// 结构化输出 — 对齐 TS QueryEngine structuredOutputFromTool
+    /// 当 StructuredOutput 合成工具验证通过时，QueryEngine 从 ToolResult.StructuredOutput 捕获到此字段
+    /// 最终填充到 SdkResultMessage.structured_output
+    /// </summary>
+    public System.Text.Json.JsonElement? StructuredOutputFromTool { get; set; }
+
+    /// <summary>
+    /// StructuredOutput 合成工具调用次数 — 对齐 TS countToolCalls(messages, SYNTHETIC_OUTPUT_TOOL_NAME)
+    /// 每次合成工具调用时递增，超过 MaxStructuredOutputRetries（默认5）则报错终止
+    /// </summary>
+    public int StructuredOutputCallCount { get; set; }
+
+    /// <summary>
+    /// StructuredOutput 合成工具重试上限 — 对齐 TS MAX_STRUCTURED_OUTPUT_RETRIES（默认5）
+    /// 可通过环境变量 MAX_STRUCTURED_OUTPUT_RETRIES 覆盖
+    /// </summary>
+    public int MaxStructuredOutputRetries { get; init; } = 5;
 }

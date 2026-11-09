@@ -29,6 +29,7 @@
     <Project Path="../../modules/llm/agents.coordinator.backend/Agents.Coordinator.Backend.csproj" />
     <Project Path="../../modules/llm/agents.worktree.lifecycle/Agents.Worktree.Lifecycle.csproj" />
     <Project Path="../../modules/llm/agents.team.serialization/Agents.Team.Serialization.csproj" />
+    <Project Path="../../modules/llm/agents.core/Agents.Core.csproj" />
     <Project Path="../../modules/llm/agents/Agents.csproj" />
     <Project Path="../../modules/llm/agents.output/Agents.Output.csproj" />
     <Project Path="../../modules/llm/agents.tests/Agents.Tests.csproj" />

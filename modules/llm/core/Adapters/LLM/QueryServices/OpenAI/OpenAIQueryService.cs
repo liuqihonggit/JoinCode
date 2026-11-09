@@ -95,7 +95,7 @@ public class OpenAIQueryService : QueryServiceBase {
                     ["Created"] = JsonElementHelper.FromInt64(chunk.Created),
                     ["Usage"] = JsonElementHelper.FromObject(tokenUsage, NativeJsonContext.Default.TokenUsage)
                 };
-                yield return new StreamEvent(MessageRole.Assistant, string.Empty, chunk.Model, usageMetadata);
+                yield return new StreamEvent(MessageRole.Assistant, string.Empty, chunk.Model, usageMetadata, chunk.RawJson);
                 continue;
             }
 
@@ -126,7 +126,7 @@ public class OpenAIQueryService : QueryServiceBase {
                             ["Created"] = JsonElementHelper.FromInt64(sc.Created),
                             ["Usage"] = JsonElementHelper.FromObject(tu, NativeJsonContext.Default.TokenUsage)
                         };
-                        yield return new StreamEvent(MessageRole.Assistant, string.Empty, sc.Model, um);
+                        yield return new StreamEvent(MessageRole.Assistant, string.Empty, sc.Model, um, sc.RawJson);
                         continue;
                     }
 
@@ -174,7 +174,7 @@ public class OpenAIQueryService : QueryServiceBase {
                         secondFirstChunk = false;
                         AppendRateLimitHeaders(scMeta);
                     }
-                    yield return new StreamEvent(scRole, scStreamContent, sc.Model, scMeta);
+                    yield return new StreamEvent(scRole, scStreamContent, sc.Model, scMeta, sc.RawJson);
                 }
 
                 if (secondAccumulator.Count > 0) {
@@ -188,7 +188,7 @@ public class OpenAIQueryService : QueryServiceBase {
                         ["Created"] = JsonElementHelper.FromInt64(0),
                         ["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries)
                     };
-                    yield return new StreamEvent(MessageRole.Assistant, null, null, flushMeta);
+            yield return new StreamEvent(MessageRole.Assistant, null, null, flushMeta, null);
                 }
                 yield break;
             }
@@ -245,7 +245,7 @@ public class OpenAIQueryService : QueryServiceBase {
                     }
                 }
             }
-            yield return new StreamEvent(role, streamContent, chunk.Model, metadata);
+            yield return new StreamEvent(role, streamContent, chunk.Model, metadata, chunk.RawJson);
         }
 
         if (toolCallAccumulator.Count > 0) {
@@ -263,7 +263,7 @@ public class OpenAIQueryService : QueryServiceBase {
                 ["Created"] = JsonElementHelper.FromInt64(0),
                 ["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries)
             };
-            yield return new StreamEvent(MessageRole.Assistant, null, null, flushMeta);
+            yield return new StreamEvent(MessageRole.Assistant, null, null, flushMeta, null);
         }
     }
 
@@ -580,6 +580,7 @@ public class OpenAIQueryService : QueryServiceBase {
                 continue;
             }
             chunkCount++;
+            chunk.RawJson = data;
             if (chunk.Choices.Count > 0) {
                 var choice = chunk.Choices[0];
                 if (!string.IsNullOrEmpty(choice.Delta?.Content?.Text)) contentChunks++;

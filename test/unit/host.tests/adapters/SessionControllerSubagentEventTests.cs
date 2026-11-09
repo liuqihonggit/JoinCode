@@ -241,8 +241,8 @@ public sealed class SessionControllerSubagentEventTests
 
     private static IChatService CreateMockChatService(IReadOnlyList<ChatStreamEvent> events) {
         var mock = new Mock<IChatService>();
-        mock.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Returns((string input, CancellationToken ct) => EmitEventsAsync(events, ct));
+        mock.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<IEventConsumer?>()))
+            .Returns((string input, CancellationToken ct, IEventConsumer? _) => EmitEventsAsync(events, ct));
         return mock.Object;
     }
 

@@ -121,7 +121,7 @@ public sealed class EngineSessionCommandCallbacksTests {
 
         public Task<string> SendMessageAsync(string message, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public IAsyncEnumerable<string> SendMessageStreamAsync(string message, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(string message, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(string message, CancellationToken cancellationToken = default, IEventConsumer? eventConsumer = null) => throw new NotSupportedException();
         public Task<IReadOnlyList<ApiMessageRecord>> GetMessageListAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();

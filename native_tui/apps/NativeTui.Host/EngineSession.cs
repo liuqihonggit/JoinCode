@@ -211,6 +211,8 @@ public sealed class EngineSession : IAsyncDisposable {
             cancellationToken: ct).ConfigureAwait(false);
 
         var output = AnsiStripper.Strip(result.Output).TrimEnd();
+        // TASK073 Phase 4: trigger local command output event (NDJSON stream-json mode outputs system/local_command_output)
+        consumer.OnLocalCommandOutput(output);
         if (output.Length > 0) {
             consumer.OnText(output);
         }

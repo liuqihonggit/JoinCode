@@ -29,6 +29,11 @@ public sealed class PostSamplingContext {
     /// 取消令牌
     /// </summary>
     public CancellationToken CancellationToken { get; init; }
+
+    /// <summary>
+    /// 事件消费者 — 用于 PostSampling 回调中将结果（如 prompt_suggestion）转发到 NDJSON 输出
+    /// </summary>
+    public IEventConsumer? EventConsumer { get; init; }
 }
 
 /// <summary>

@@ -109,6 +109,9 @@ public sealed class CommandServices {
     /// <summary>Web 服务</summary>
     public IWebService? WebService { get; init; }
 
+    /// <summary>事件消费者 — 用于触发 system/status 等 SDK 事件（可选，CLI 路径注入）</summary>
+    public IEventConsumer? EventConsumer { get; init; }
+
     /// <summary>文件系统抽象</summary>
     public required IFileSystem FileSystem { get; init; }
 }

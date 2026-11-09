@@ -167,6 +167,7 @@ public static class ApplicationBuilder {
             Yes = result.Yes,
             Force = result.Force,
             Quiet = result.Quiet,
+            IncludePartialMessages = result.IncludePartialMessages,
         };
 
         // --await N: 超时自动关闭秒数

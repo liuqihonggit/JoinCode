@@ -296,6 +296,10 @@ internal sealed class OpenAIChatChunk {
     [JsonPropertyName("usage")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public OpenAIUsage? Usage { get; set; }
+
+    /// <summary>原始 SSE JSON（由 SendStreamingRequestAsync 注入，不参与序列化）。</summary>
+    [JsonIgnore]
+    public string? RawJson { get; set; }
 }
 
 internal sealed class OpenAITool {

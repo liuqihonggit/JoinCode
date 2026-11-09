@@ -115,6 +115,154 @@ public interface IEventConsumer {
     /// <param name="maxRetries">最大重试次数</param>
     /// <param name="delayMs">本次退避等待毫秒数</param>
     void OnRetry(string reason, int attempt, int maxRetries, int delayMs) { }
+
+    /// <summary>
+    /// 会话状态变更（TASK073 Phase 2 — 对齐基准侧 system/session_state_changed 事件；
+    /// state: idle|running|requires_action。NDJSON 模式输出 SdkSessionStateChangedMessage，
+    /// DX 模式忽略。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="state">新状态（idle/running/requires_action）</param>
+    void OnSessionStateChanged(string state) { }
+
+    /// <summary>
+    /// Hook 开始执行（TASK073 Phase 3 — 对齐基准侧 system/hook_started 事件；
+    /// NDJSON 模式输出 SdkHookStartedMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="hookId">Hook 标识</param>
+    /// <param name="hookName">Hook 名称</param>
+    /// <param name="hookEvent">Hook 事件类型</param>
+    void OnHookStarted(string hookId, string hookName, string hookEvent) { }
+
+    /// <summary>
+    /// Hook 执行进度更新（TASK073 Phase 3 — 对齐基准侧 system/hook_progress 事件；
+    /// NDJSON 模式输出 SdkHookProgressMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="hookId">Hook 标识</param>
+    /// <param name="hookName">Hook 名称</param>
+    /// <param name="hookEvent">Hook 事件类型</param>
+    /// <param name="stdout">标准输出</param>
+    /// <param name="stderr">标准错误输出</param>
+    void OnHookProgress(string hookId, string hookName, string hookEvent, string? stdout, string? stderr) { }
+
+    /// <summary>
+    /// Hook 执行完成（TASK073 Phase 3 — 对齐基准侧 system/hook_response 事件；
+    /// NDJSON 模式输出 SdkHookResponseMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="hookId">Hook 标识</param>
+    /// <param name="hookName">Hook 名称</param>
+    /// <param name="hookEvent">Hook 事件类型</param>
+    /// <param name="output">合并输出</param>
+    /// <param name="stdout">标准输出</param>
+    /// <param name="stderr">标准错误输出</param>
+    /// <param name="exitCode">退出码</param>
+    /// <param name="outcome">执行结果（success/error/cancelled）</param>
+    void OnHookResponse(string hookId, string hookName, string hookEvent, string? output, string? stdout, string? stderr, int? exitCode, string outcome) { }
+
+    /// <summary>
+    /// 速率限制事件（TASK073 Phase 3 — 对齐基准侧 rate_limit_event 事件；
+    /// NDJSON 模式输出 SdkRateLimitEventMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="status">限制状态（allowed/allowed_warning/rejected）</param>
+    /// <param name="resetsAt">限制重置时间戳（Unix 秒），null = 未提供</param>
+    /// <param name="rateLimitType">限制类型（five_hour/seven_day 等），null = 未提供</param>
+    void OnRateLimit(string status, long? resetsAt, string? rateLimitType) { }
+
+    /// <summary>
+    /// 任务开始（TASK073 Phase 3 — 对齐基准侧 system/task_started 事件；
+    /// NDJSON 模式输出 SdkTaskStartedMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="taskId">任务标识</param>
+    /// <param name="description">任务描述</param>
+    /// <param name="toolUseId">关联的工具调用标识；null = 未提供</param>
+    /// <param name="taskType">任务类型；null = 未提供</param>
+    /// <param name="workflowName">工作流名称；null = 未提供</param>
+    /// <param name="prompt">任务提示词；null = 未提供</param>
+    void OnTaskStarted(string taskId, string description, string? toolUseId = null, string? taskType = null, string? workflowName = null, string? prompt = null) { }
+
+    /// <summary>
+    /// 任务进度更新（TASK073 Phase 3 — 对齐基准侧 system/task_progress 事件；
+    /// NDJSON 模式输出 SdkTaskProgressMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="taskId">任务标识</param>
+    /// <param name="description">任务描述</param>
+    /// <param name="toolUseId">关联的工具调用标识；null = 未提供</param>
+    /// <param name="lastToolName">最后使用的工具名称；null = 未提供</param>
+    /// <param name="summary">任务摘要；null = 未提供</param>
+    void OnTaskProgress(string taskId, string description, string? toolUseId = null, string? lastToolName = null, string? summary = null) { }
+
+    /// <summary>
+    /// 任务完成通知（TASK073 Phase 3 — 对齐基准侧 system/task_notification 事件；
+    /// NDJSON 模式输出 SdkTaskNotificationMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="taskId">任务标识</param>
+    /// <param name="status">任务状态（completed/failed/stopped）</param>
+    /// <param name="summary">任务摘要</param>
+    /// <param name="toolUseId">关联的工具调用标识；null = 未提供</param>
+    /// <param name="outputFile">输出文件路径；null = 未提供</param>
+    void OnTaskNotification(string taskId, string status, string summary, string? toolUseId = null, string? outputFile = null) { }
+
+    /// <summary>
+    /// 状态消息（TASK073 Phase 3 — 对齐基准侧 system/status 事件；
+    /// NDJSON 模式输出 SdkStatusMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="status">状态描述（compacting 等）；null = 未提供</param>
+    /// <param name="permissionMode">权限模式；null = 未提供</param>
+    void OnStatus(string? status, string? permissionMode = null) { }
+
+    /// <summary>
+    /// 认证状态（TASK073 Phase 3 — 对齐基准侧 auth_status 事件；
+    /// NDJSON 模式输出 SdkAuthStatusMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="isAuthenticating">是否正在认证</param>
+    /// <param name="output">认证输出信息列表</param>
+    /// <param name="error">认证错误信息；null = 无错误</param>
+    void OnAuthStatus(bool isAuthenticating, System.Collections.Generic.List<string>? output = null, string? error = null) { }
+
+    /// <summary>
+    /// 工具使用摘要（TASK073 Phase 3 — 对齐基准侧 tool_use_summary 事件；
+    /// NDJSON 模式输出 SdkToolUseSummaryMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="summary">工具使用摘要文本</param>
+    /// <param name="precedingToolUseIds">前置工具调用标识列表</param>
+    void OnToolUseSummary(string summary, System.Collections.Generic.List<string>? precedingToolUseIds = null) { }
+
+    /// <summary>
+    /// 本地命令输出（TASK073 Phase 4 — 对齐基准侧 system/local_command_output 事件；
+    /// NDJSON 模式输出 SdkLocalCommandOutputMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="content">命令输出内容</param>
+    void OnLocalCommandOutput(string content) { }
+
+    /// <summary>
+    /// 文件持久化（TASK073 Phase 4 — 对齐基准侧 system/files_persisted 事件；
+    /// NDJSON 模式输出 SdkFilesPersistedMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="files">成功持久化的文件列表</param>
+    /// <param name="failed">持久化失败的文件列表</param>
+    void OnFilesPersisted(System.Collections.Generic.List<(string Filename, string FileId)>? files = null, System.Collections.Generic.List<(string Filename, string Error)>? failed = null) { }
+
+    /// <summary>
+    /// 引导完成（TASK073 Phase 4 — 对齐基准侧 system/elicitation_complete 事件；
+    /// NDJSON 模式输出 SdkElicitationCompleteMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="mcpServerName">MCP 服务器名称</param>
+    /// <param name="elicitationId">引导标识</param>
+    void OnElicitationComplete(string mcpServerName, string elicitationId) { }
+
+    /// <summary>
+    /// 提示建议（TASK073 Phase 4 — 对齐基准侧 prompt_suggestion 事件；
+    /// NDJSON 模式输出 SdkPromptSuggestionMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="suggestion">建议内容</param>
+    void OnPromptSuggestion(string suggestion) { }
+
+    /// <summary>
+    /// 流式事件透传（TASK073 Phase 2.1 — 对齐基准侧 stream_event 事件；
+    /// --include-partial-messages 启用时输出 SdkStreamEventMessage。默认空实现 — 既有实现方零改动）
+    /// </summary>
+    /// <param name="eventJson">原始 LLM 流式事件 JSON</param>
+    /// <param name="parentToolUseId">父工具调用 ID（子代理场景下设置，主对话为 null）</param>
+    void OnStreamEvent(System.Text.Json.JsonElement eventJson, string? parentToolUseId = null) { }
 }
 
 /// <summary>

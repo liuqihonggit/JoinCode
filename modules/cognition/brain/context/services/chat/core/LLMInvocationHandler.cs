@@ -84,6 +84,15 @@ public sealed partial class LLMInvocationHandler : ServiceEntity, ILLMInvocation
                 context.Timing.FirstTokenLatencyMs = context.Timing.LlmTotalMs;
             }
 
+            if (chunk.RawEvent is not null && context.EventConsumer is not null) {
+                try {
+                    using var doc = System.Text.Json.JsonDocument.Parse(chunk.RawEvent);
+                    context.EventConsumer.OnStreamEvent(doc.RootElement.Clone());
+                } catch (System.Text.Json.JsonException ex) {
+                    _logger?.LogWarning(ex, "[LLM {CallId}] stream_event RawEvent JSON 解析失败", callId);
+                }
+            }
+
             var result = _chunkProcessor.ProcessChunk(chunk, iterState, streamingToolExecution);
 
             foreach (var evt in result.Events) {

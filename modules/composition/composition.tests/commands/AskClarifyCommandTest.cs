@@ -23,8 +23,8 @@ public sealed class AskClarifyCommandTest {
     private static (AskClarifyCommand Command, ChatCommandContext Context, Mock<IChatService> Chat) Arrange(
         string arguments = "做一个 todo 应用") {
         var chatService = new Mock<IChatService>();
-        chatService.Setup(c => c.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Returns((string message, CancellationToken ct) => EventStream(
+        chatService.Setup(c => c.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<IEventConsumer?>()))
+            .Returns((string message, CancellationToken ct, IEventConsumer? _) => EventStream(
                 new[] {
                     ChatStreamEvent.Text("【需求已明确】\n需求清单: 1. 增删改查 2. 本地存储"),
                 }, ct));
@@ -56,7 +56,7 @@ public sealed class AskClarifyCommandTest {
                 msg.StartsWith(AskClarifyPrompts.SystemPrompt, StringComparison.Ordinal)
                 && msg.Contains("---")
                 && msg.Contains("用户需求: 做一个 todo 应用")),
-            It.IsAny<CancellationToken>()), Times.Once,
+            It.IsAny<CancellationToken>(), It.IsAny<IEventConsumer?>()), Times.Once,
             "首轮消息应为系统提示词 + 分隔线 + 用户需求形态");
     }
 
@@ -67,15 +67,15 @@ public sealed class AskClarifyCommandTest {
         var (result, _) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
 
         result.ShouldContinue.Should().BeTrue();
-        chat.Verify(c => c.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once,
+        chat.Verify(c => c.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<IEventConsumer?>()), Times.Once,
             "响应含【需求已明确】标记应直接退出澄清循环,只发起一轮请求");
     }
 
     [Fact]
     public async Task Execute_DoneMarkerIsCaseInsensitive_AlsoExits() {
         var chat = new Mock<IChatService>();
-        chat.Setup(c => c.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Returns((string message, CancellationToken ct) => EventStream(
+        chat.Setup(c => c.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<IEventConsumer?>()))
+            .Returns((string message, CancellationToken ct, IEventConsumer? _) => EventStream(
                 new[] { ChatStreamEvent.Text("【需求已明确】") }, ct));
         var commandServices = new CommandServices {
             ChatService = chat.Object,
@@ -94,14 +94,14 @@ public sealed class AskClarifyCommandTest {
         var (result, _) = await CommandTestHarness.CaptureOutputAsync(() => new AskClarifyCommand().ExecuteAsync(context));
 
         result.ShouldContinue.Should().BeTrue();
-        chat.Verify(c => c.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once,
+        chat.Verify(c => c.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<IEventConsumer?>()), Times.Once,
             "完成标记匹配应大小写不敏感并退出循环");
     }
 
     [Fact]
     public async Task Execute_ChatServiceThrows_ConvergesWithoutCrash() {
         var chat = new Mock<IChatService>();
-        chat.Setup(c => c.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        chat.Setup(c => c.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<IEventConsumer?>()))
             .Throws(new InvalidOperationException("provider unavailable"));
         var commandServices = new CommandServices {
             ChatService = chat.Object,
@@ -120,7 +120,7 @@ public sealed class AskClarifyCommandTest {
         var (result, _) = await CommandTestHarness.CaptureOutputAsync(() => new AskClarifyCommand().ExecuteAsync(context));
 
         result.ShouldContinue.Should().BeTrue("ChatService 异常应被命令内部捕获收敛,不应向上抛出");
-        chat.Verify(c => c.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        chat.Verify(c => c.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<IEventConsumer?>()), Times.Once);
     }
 
     [Theory]

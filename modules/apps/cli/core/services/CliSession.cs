@@ -80,6 +80,7 @@ public sealed class CliSession {
     /// <param name="logger">日志记录器；null 时不记录日志</param>
     /// <param name="sessionId">会话 ID；null 时自动生成新会话 ID</param>
     /// <param name="agentMode">true 启用 AX 模式（NDJSON 事件流），false 为 DX 模式（彩色输出）— Bug 14: --format ndjson 接线</param>
+    /// <param name="includePartialMessages">启用 --include-partial-messages（stream_event 透传，仅 NDJSON 模式生效）</param>
     public CliSession(
         IChatService chatService,
         ICodeService codeService,
@@ -90,7 +91,8 @@ public sealed class CliSession {
         IClockService? clock = null,
         ILogger<CliSession>? logger = null,
         string? sessionId = null,
-        bool agentMode = false) {
+        bool agentMode = false,
+        bool includePartialMessages = false) {
         _clock = clock ?? SystemClockService.Instance;
         _logger = logger;
         _sessionStartedAt = _clock.GetUtcNow();
@@ -121,6 +123,7 @@ public sealed class CliSession {
 
         // Bug 14: --format ndjson 启用 AX 模式（NDJSON 事件流），否则 DX 模式（彩色输出/通道管理器）
         // Bug G: AX 模式传入工具列表/模型名/版本号，填充 system/init 消息字段
+        // TASK073: 补齐 system/init 缺失字段 — agents/apiKeySource/betas/slash_commands/output_style/plugins/fast_mode_state
         System.Collections.Generic.IReadOnlyList<string>? toolNames = null;
         if (agentMode) {
             try {
@@ -133,8 +136,53 @@ public sealed class CliSession {
         var modelId = optionalServices?.WorkflowConfig?.Provider.ModelId
             ?? System.Environment.GetEnvironmentVariable("JCC_MODEL_ID")
             ?? "unknown";
+
+        // TASK073: 提取 system/init 新增字段数据
+        System.Collections.Generic.IReadOnlyList<string>? agents = null;
+        System.Collections.Generic.IReadOnlyList<string>? slashCommands = null;
+        System.Collections.Generic.IReadOnlyList<Cli.Output.SdkPlugin>? plugins = null;
+        string? outputStyle = null;
+        string? fastModeState = null;
+        if (agentMode && optionalServices?.ServiceProvider is not null) {
+            try {
+                var agentService = optionalServices.ServiceProvider.GetService<IAgentService>();
+                if (agentService is not null) {
+                    var agentTypes = agentService.GetAvailableAgentTypesAsync().GetAwaiter().GetResult();
+                    agents = agentTypes.Select(a => a.Name).OrderBy(n => n).ToList();
+                }
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "[CliSession] 获取子代理列表失败，system/init agents 将为空");
+            }
+            try {
+                var slashCatalog = optionalServices.ServiceProvider.GetService<ISlashCommandCatalog>();
+                slashCatalog ??= new GeneratedSlashCommandCatalog();
+                slashCommands = slashCatalog.ByCategory
+                    .SelectMany(kv => kv.Value.Select(c => c.Name))
+                    .OrderBy(n => n)
+                    .ToList();
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "[CliSession] 获取斜杠命令列表失败，system/init slash_commands 将为空");
+            }
+            try {
+                var pluginManager = optionalServices.PluginManager;
+                if (pluginManager is not null) {
+                    plugins = pluginManager.LoadedPluginNames
+                        .Select(name => new Cli.Output.SdkPlugin { Name = name })
+                        .ToList();
+                }
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "[CliSession] 获取插件列表失败，system/init plugins 将为空");
+            }
+            outputStyle = optionalServices?.WorkflowConfig?.OutputStyle;
+            if (optionalServices?.FastModeService is { } fm) {
+                fastModeState = fm.IsFastModeActive ? "on" : "off";
+            }
+        }
+
         var eventConsumer = agentMode
-            ? new CliEventConsumer(agentMode: true, sessionId: _sessionId, tools: toolNames, model: modelId)
+            ? new CliEventConsumer(agentMode: true, sessionId: _sessionId, tools: toolNames, model: modelId,
+                agents: agents, slashCommands: slashCommands, outputStyle: outputStyle,
+                plugins: plugins, fastModeState: fastModeState, includePartialMessages: includePartialMessages)
             : new CliEventConsumer(consumerOutputChannel);
         _eventConsumer = agentMode ? eventConsumer : null;
 
@@ -181,6 +229,7 @@ public sealed class CliSession {
             TurnDiffProvider = _turnDiffService,
             SessionTagService = optionalServices?.SessionTagService ?? optionalServices?.ServiceProvider?.GetService<ISessionTagService>(),
             WebService = optionalServices?.ServiceProvider?.GetService<IWebService>(),
+            EventConsumer = eventConsumer,
             FileSystem = _fs,
         };
 
@@ -235,6 +284,10 @@ public sealed class CliSession {
                 _logger?.LogWarning(ex, "[CliSession] 保存 SessionInfo 失败");
             }
         }
+
+        // TASK073 Phase 3 — 初始化后发送当前认证状态（对齐基准侧 print.ts:4504-4517）
+        // NDJSON 模式下输出 auth_status 事件；非 NDJSON 模式 _eventConsumer 为 null，静默跳过
+        _eventConsumer?.OnAuthStatus(isAuthenticating: false);
     }
 
     /// <summary>
@@ -418,6 +471,8 @@ public sealed class CliSession {
         var outputText = commandOutput.ToString();
         Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' outputLen={outputText.Length}, outputPreview='{(outputText.SafeTruncate(200))}'");
         if (!string.IsNullOrWhiteSpace(outputText)) {
+            // TASK073 Phase 4: trigger local command output event (NDJSON stream-json mode outputs system/local_command_output)
+            _eventConsumer?.OnLocalCommandOutput(outputText.TrimEnd());
             TerminalHelper.WriteLine(outputText.TrimEnd());
         }
 

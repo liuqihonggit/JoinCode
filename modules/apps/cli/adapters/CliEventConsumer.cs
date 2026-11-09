@@ -35,7 +35,17 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     /// <param name="tools">可用工具名称列表 — 从 IToolRegistry 获取，填充 system/init 消息的 tools 字段</param>
     /// <param name="model">模型标识 — 从配置获取，填充 system/init 消息的 model 字段</param>
     /// <param name="version">jcc 版本号 — 从程序集获取，填充 system/init 消息的 claude_code_version 字段</param>
-    public CliEventConsumer(bool agentMode, string? sessionId = null, System.Collections.Generic.IReadOnlyList<string>? tools = null, string? model = null, string? version = null, System.Collections.Generic.IReadOnlyList<Cli.Output.SdkMcpServer>? mcpServers = null, System.Collections.Generic.IReadOnlyList<string>? skills = null) {
+    /// <param name="mcpServers">MCP 服务器列表 — 从 DI 获取，填充 system/init 消息的 mcp_servers 字段</param>
+    /// <param name="skills">技能列表 — 从 DI 获取，填充 system/init 消息的 skills 字段</param>
+    /// <param name="agents">可用子代理列表 — 从 IAgentService 获取，填充 system/init 消息的 agents 字段</param>
+    /// <param name="apiKeySource">API Key 来源（user/project/org/temporary/oauth）— 填充 system/init 消息的 apiKeySource 字段</param>
+    /// <param name="betas">Beta 特性列表 — 填充 system/init 消息的 betas 字段</param>
+    /// <param name="slashCommands">斜杠命令列表 — 从 ISlashCommandCatalog 获取，填充 system/init 消息的 slash_commands 字段</param>
+    /// <param name="outputStyle">输出风格 — 从配置获取，填充 system/init 消息的 output_style 字段</param>
+    /// <param name="plugins">插件列表 — 从 IPluginManager 获取，填充 system/init 消息的 plugins 字段</param>
+    /// <param name="fastModeState">快速模式状态（off/cooldown/on）— 从 IFastModeService 获取，填充 system/init 消息的 fast_mode_state 字段</param>
+    /// <param name="includePartialMessages">是否启用 --include-partial-messages（stream_event 透传）</param>
+    public CliEventConsumer(bool agentMode, string? sessionId = null, System.Collections.Generic.IReadOnlyList<string>? tools = null, string? model = null, string? version = null, System.Collections.Generic.IReadOnlyList<Cli.Output.SdkMcpServer>? mcpServers = null, System.Collections.Generic.IReadOnlyList<string>? skills = null, System.Collections.Generic.IReadOnlyList<string>? agents = null, string? apiKeySource = null, System.Collections.Generic.IReadOnlyList<string>? betas = null, System.Collections.Generic.IReadOnlyList<string>? slashCommands = null, string? outputStyle = null, System.Collections.Generic.IReadOnlyList<Cli.Output.SdkPlugin>? plugins = null, string? fastModeState = null, bool includePartialMessages = false) {
         _agentMode = agentMode;
         _jsonContext = Cli.Output.CliOutputJsonContext.Default;
         _sessionId = sessionId;
@@ -44,6 +54,14 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         _version = version;
         _mcpServers = mcpServers ?? [];
         _skills = skills ?? [];
+        _agents = agents ?? [];
+        _apiKeySource = apiKeySource ?? "user";
+        _betas = betas ?? [];
+        _slashCommands = slashCommands ?? [];
+        _outputStyle = outputStyle ?? "default";
+        _plugins = plugins ?? [];
+        _fastModeState = fastModeState;
+        _includePartialMessages = includePartialMessages;
     }
 
     private readonly System.Collections.Generic.IReadOnlyList<string> _tools = [];
@@ -51,6 +69,14 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     private readonly string? _version;
     private readonly System.Collections.Generic.IReadOnlyList<Cli.Output.SdkMcpServer> _mcpServers = [];
     private readonly System.Collections.Generic.IReadOnlyList<string> _skills = [];
+    private readonly System.Collections.Generic.IReadOnlyList<string> _agents = [];
+    private readonly string _apiKeySource = "user";
+    private readonly System.Collections.Generic.IReadOnlyList<string> _betas = [];
+    private readonly System.Collections.Generic.IReadOnlyList<string> _slashCommands = [];
+    private readonly string _outputStyle = "default";
+    private readonly System.Collections.Generic.IReadOnlyList<Cli.Output.SdkPlugin> _plugins = [];
+    private readonly string? _fastModeState;
+    private readonly bool _includePartialMessages;
 
     /// <summary>指定输出通道管理器构造函数 — DX 模式，通过通道管理器分发输出</summary>
     /// <param name="outputChannelManager">输出通道管理器（null 时退化为直接终端输出）</param>
@@ -81,7 +107,6 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
         _pendingToolResults.Clear();
         _permissionDenials.Clear();
         _toolInputs.Clear();
-        _systemInitSent = false;
     }
 
     /// <summary>收到文本内容</summary>
@@ -235,6 +260,168 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
     /// <summary>上下文窗口余量</summary>
     public void OnContextUsage(int promptTokens, int contextWindowTokens, int percentLeft) { }
 
+    /// <summary>会话状态变更 — NDJSON 模式输出 SdkSessionStateChangedMessage</summary>
+    public void OnSessionStateChanged(string state) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkSessionStateChangedMessage.Create(_sessionId, state));
+        }
+    }
+
+    /// <summary>自动重试 — NDJSON 模式输出 SdkApiRetryMessage</summary>
+    public void OnRetry(string reason, int attempt, int maxRetries, int delayMs) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkApiRetryMessage.Create(_sessionId, attempt, maxRetries, delayMs, reason));
+        }
+    }
+
+    /// <summary>上下文压缩完成 — NDJSON 模式输出 SdkCompactBoundaryMessage</summary>
+    public void OnCompactCompleted(int messagesSummarized, long originalTokens, long compressedTokens, bool isAuto) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkCompactBoundaryMessage.Create(_sessionId, new Cli.Output.SdkCompactMetadata {
+                Trigger = isAuto ? "auto" : "manual",
+                PreTokens = originalTokens,
+            }));
+        }
+    }
+
+    /// <summary>Hook 开始 — NDJSON 模式输出 SdkHookStartedMessage</summary>
+    public void OnHookStarted(string hookId, string hookName, string hookEvent) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkHookStartedMessage.Create(_sessionId, hookId, hookName, hookEvent));
+        }
+    }
+
+    /// <summary>Hook 进度 — NDJSON 模式输出 SdkHookProgressMessage</summary>
+    public void OnHookProgress(string hookId, string hookName, string hookEvent, string? stdout, string? stderr) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            var msg = Cli.Output.SdkHookProgressMessage.Create(_sessionId, hookId, hookName, hookEvent);
+            WriteSdkJson(msg with { Stdout = stdout, Stderr = stderr });
+        }
+    }
+
+    /// <summary>Hook 完成 — NDJSON 模式输出 SdkHookResponseMessage</summary>
+    public void OnHookResponse(string hookId, string hookName, string hookEvent, string? output, string? stdout, string? stderr, int? exitCode, string outcome) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            var msg = Cli.Output.SdkHookResponseMessage.Create(_sessionId, hookId, hookName, hookEvent);
+            WriteSdkJson(msg with { Output = output, Stdout = stdout, Stderr = stderr, ExitCode = exitCode, Outcome = outcome });
+        }
+    }
+
+    /// <summary>速率限制事件 — NDJSON 模式输出 SdkRateLimitEventMessage</summary>
+    public void OnRateLimit(string status, long? resetsAt, string? rateLimitType) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkRateLimitEventMessage.Create(_sessionId, new Cli.Output.SdkRateLimitInfo {
+                Status = status,
+                ResetsAt = resetsAt?.ToString(),
+                RateLimitType = rateLimitType,
+            }));
+        }
+    }
+
+    /// <summary>任务开始 — NDJSON 模式输出 SdkTaskStartedMessage</summary>
+    public void OnTaskStarted(string taskId, string description, string? toolUseId = null, string? taskType = null, string? workflowName = null, string? prompt = null) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            var msg = Cli.Output.SdkTaskStartedMessage.Create(_sessionId, taskId, description);
+            WriteSdkJson(msg with { ToolUseId = toolUseId, TaskType = taskType, WorkflowName = workflowName, Prompt = prompt });
+        }
+    }
+
+    /// <summary>任务进度 — NDJSON 模式输出 SdkTaskProgressMessage</summary>
+    public void OnTaskProgress(string taskId, string description, string? toolUseId = null, string? lastToolName = null, string? summary = null) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            var msg = Cli.Output.SdkTaskProgressMessage.Create(_sessionId, taskId, description);
+            WriteSdkJson(msg with { ToolUseId = toolUseId, LastToolName = lastToolName, Summary = summary });
+        }
+    }
+
+    /// <summary>任务完成通知 — NDJSON 模式输出 SdkTaskNotificationMessage</summary>
+    public void OnTaskNotification(string taskId, string status, string summary, string? toolUseId = null, string? outputFile = null) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            var msg = Cli.Output.SdkTaskNotificationMessage.Create(_sessionId, taskId, status, summary);
+            WriteSdkJson(msg with { ToolUseId = toolUseId, OutputFile = outputFile ?? string.Empty });
+        }
+    }
+
+    /// <summary>状态消息 — NDJSON 模式输出 SdkStatusMessage</summary>
+    public void OnStatus(string? status, string? permissionMode = null) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkStatusMessage.Create(_sessionId, status) with { PermissionMode = permissionMode });
+        }
+    }
+
+    /// <summary>认证状态 — NDJSON 模式输出 SdkAuthStatusMessage</summary>
+    public void OnAuthStatus(bool isAuthenticating, System.Collections.Generic.List<string>? output = null, string? error = null) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            var msg = Cli.Output.SdkAuthStatusMessage.Create(_sessionId, isAuthenticating);
+            WriteSdkJson(msg with { Output = output ?? [], Error = error });
+        }
+    }
+
+    /// <summary>工具使用摘要 — NDJSON 模式输出 SdkToolUseSummaryMessage</summary>
+    public void OnToolUseSummary(string summary, System.Collections.Generic.List<string>? precedingToolUseIds = null) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            var msg = Cli.Output.SdkToolUseSummaryMessage.Create(_sessionId, summary);
+            WriteSdkJson(msg with { PrecedingToolUseIds = precedingToolUseIds ?? [] });
+        }
+    }
+
+    /// <summary>本地命令输出 — NDJSON 模式输出 SdkLocalCommandOutputMessage</summary>
+    public void OnLocalCommandOutput(string content) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkLocalCommandOutputMessage.Create(_sessionId, content));
+        }
+    }
+
+    /// <summary>文件持久化 — NDJSON 模式输出 SdkFilesPersistedMessage</summary>
+    public void OnFilesPersisted(System.Collections.Generic.List<(string Filename, string FileId)>? files = null, System.Collections.Generic.List<(string Filename, string Error)>? failed = null) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            var msg = Cli.Output.SdkFilesPersistedMessage.Create(_sessionId) with {
+                Files = files?.Select(f => new Cli.Output.SdkPersistedFile { Filename = f.Filename, FileId = f.FileId }).ToList() ?? [],
+                Failed = failed?.Select(f => new Cli.Output.SdkFailedFile { Filename = f.Filename, Error = f.Error }).ToList() ?? [],
+            };
+            WriteSdkJson(msg);
+        }
+    }
+
+    /// <summary>引导完成 — NDJSON 模式输出 SdkElicitationCompleteMessage</summary>
+    public void OnElicitationComplete(string mcpServerName, string elicitationId) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkElicitationCompleteMessage.Create(_sessionId, mcpServerName, elicitationId));
+        }
+    }
+
+    /// <summary>提示建议 — NDJSON 模式输出 SdkPromptSuggestionMessage</summary>
+    public void OnPromptSuggestion(string suggestion) {
+        if (_agentMode) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkPromptSuggestionMessage.Create(_sessionId, suggestion));
+        }
+    }
+
+    /// <summary>流式事件透传 — --include-partial-messages 启用时输出 SdkStreamEventMessage</summary>
+    public void OnStreamEvent(System.Text.Json.JsonElement eventJson, string? parentToolUseId = null) {
+        if (_agentMode && _includePartialMessages) {
+            EnsureSystemInit();
+            WriteSdkJson(Cli.Output.SdkStreamEventMessage.Create(_sessionId, eventJson, parentToolUseId));
+        }
+    }
+
     /// <summary>确保 system/init 消息已发送（首次事件时发送）</summary>
     private void EnsureSystemInit() {
         if (_systemInitSent) return;
@@ -248,6 +435,13 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
             McpServers = _mcpServers.Count > 0 ? new System.Collections.Generic.List<Cli.Output.SdkMcpServer>(_mcpServers) : [],
             PermissionMode = System.Environment.GetEnvironmentVariable("JCC_PERMISSION_MODE") ?? "default",
             Skills = _skills.Count > 0 ? new System.Collections.Generic.List<string>(_skills) : [],
+            Agents = _agents.Count > 0 ? new System.Collections.Generic.List<string>(_agents) : [],
+            ApiKeySource = _apiKeySource,
+            Betas = _betas.Count > 0 ? new System.Collections.Generic.List<string>(_betas) : [],
+            SlashCommands = _slashCommands.Count > 0 ? new System.Collections.Generic.List<string>(_slashCommands) : [],
+            OutputStyle = _outputStyle,
+            Plugins = _plugins.Count > 0 ? new System.Collections.Generic.List<Cli.Output.SdkPlugin>(_plugins) : [],
+            FastModeState = _fastModeState,
         });
     }
 

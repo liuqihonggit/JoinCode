@@ -632,8 +632,8 @@ public sealed class SessionControllerTests {
     [Fact]
     public async Task StreamResponseAsync_AutoCompactFailure_TurnStillSucceeds() {
         var chatService = new Mock<IChatService>();
-        chatService.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Returns((string input, CancellationToken ct) => EmitEventsAsync(
+        chatService.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<IEventConsumer?>()))
+            .Returns((string input, CancellationToken ct, IEventConsumer? _) => EmitEventsAsync(
                 [ChatStreamEvent.Text("ok"), ChatStreamEvent.Done(usage: new TokenUsage(150_000, 500))], ct));
         chatService.Setup(s => s.GetMessageListAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<ApiMessageRecord> { new() { Role = "user", Content = "q" } });
@@ -673,8 +673,8 @@ public sealed class SessionControllerTests {
         IReadOnlyList<ChatStreamEvent> events, int historyMessages, string summaryText) {
         var compactCalls = new List<string>();
         var mock = new Mock<IChatService>();
-        mock.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Returns((string input, CancellationToken ct) => EmitEventsAsync(events, ct));
+        mock.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<IEventConsumer?>()))
+            .Returns((string input, CancellationToken ct, IEventConsumer? _) => EmitEventsAsync(events, ct));
         mock.Setup(s => s.GetMessageListAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(Enumerable.Range(0, historyMessages)
                 .Select(_ => new ApiMessageRecord { Role = "user", Content = "消息内容" })
@@ -720,15 +720,15 @@ public sealed class SessionControllerTests {
 
     private static IChatService CreateMockChatService(IReadOnlyList<ChatStreamEvent> events) {
         var mock = new Mock<IChatService>();
-        mock.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Returns((string input, CancellationToken ct) => EmitEventsAsync(events, ct));
+        mock.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<IEventConsumer?>()))
+            .Returns((string input, CancellationToken ct, IEventConsumer? _) => EmitEventsAsync(events, ct));
         return mock.Object;
     }
 
     private static IChatService CreateMockChatService(Func<string, Exception> throwFunc, int delayMs = 0) {
         var mock = new Mock<IChatService>();
-        mock.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Returns((string input, CancellationToken ct) => ThrowEventsAsync(throwFunc, input, delayMs, ct));
+        mock.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<IEventConsumer?>()))
+            .Returns((string input, CancellationToken ct, IEventConsumer? _) => ThrowEventsAsync(throwFunc, input, delayMs, ct));
         return mock.Object;
     }
 

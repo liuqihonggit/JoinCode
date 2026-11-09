@@ -24,10 +24,14 @@ public sealed class SessionController {
     private decimal _lastCostUsd;
     /// <summary>本回合 API 耗时毫秒（对齐 ClaudeCode SDK duration_api_ms 语义）。</summary>
     private long _lastApiDurationMs;
+    /// <summary>本回合工具调用记录（工具名+callId），用于 onDone 时构造 tool_use_summary 事件。</summary>
+    private readonly List<(string ToolName, string? CallId)> _turnToolCalls = [];
     private readonly string _sessionId;
     private readonly IServiceProvider? _serviceProvider;
     private readonly IClockService _clock;
     private readonly AgentBase? _mainAgent;
+    private readonly Action<HookExecutionEvent>? _hookEventHandler;
+    private readonly Action<RateLimitSnapshot>? _rateLimitHandler;
 
     /// <summary>会话是否正在运行</summary>
     public bool IsRunning { get; private set; } = true;
@@ -85,6 +89,58 @@ public sealed class SessionController {
             _mainAgent.RetryNotifier = notification =>
                 _consumer.OnRetry(notification.Reason, notification.Attempt, notification.MaxRetries, notification.DelayMs);
         }
+
+        // TASK073 Phase 3 — Hook 事件桥接：IHookOrchestrator → HookExecutionEvent → IEventConsumer 回调
+        // 注册 handler 将 Hook 生命周期事件转发到 NDJSON 输出
+        var hookOrchestrator = serviceProvider?.GetService<IHookOrchestrator>();
+        if (hookOrchestrator is not null) {
+            _hookEventHandler = evt => {
+                switch (evt) {
+                    case HookStartedEvent started:
+                        _consumer.OnHookStarted(started.HookId, started.HookName, started.HookEvent.ToString());
+                        break;
+                    case HookProgressEvent progress:
+                        _consumer.OnHookProgress(progress.HookId, progress.HookName, progress.HookEvent.ToString(), progress.Stdout, progress.Stderr);
+                        break;
+                    case HookResponseEvent response:
+                        _consumer.OnHookResponse(response.HookId, response.HookName, response.HookEvent.ToString(), response.Output, response.Stdout, response.Stderr, response.ExitCode, response.Outcome.ToString());
+                        break;
+                }
+            };
+            hookOrchestrator.RegisterHookEventHandler(_hookEventHandler);
+        }
+
+        // TASK073 Phase 3 — RateLimit 事件桥接：IRateLimitTracker → IEventConsumer.OnRateLimit
+        var rateLimitTracker = serviceProvider?.GetService<IRateLimitTracker>();
+        if (rateLimitTracker is not null) {
+            _rateLimitHandler = snapshot => {
+                var status = snapshot.RequestRemaining switch {
+                    <= 0 => "rejected",
+                    <= 10 => "allowed_warning",
+                    _ => "allowed"
+                };
+                long? resetsAtUnix = snapshot.RequestResetsAt.HasValue
+                    ? new DateTimeOffset(snapshot.RequestResetsAt.Value).ToUnixTimeSeconds()
+                    : null;
+                _consumer.OnRateLimit(status, resetsAtUnix, null);
+            };
+            rateLimitTracker.RegisterUpdateHandler(_rateLimitHandler);
+        }
+
+        // TASK073 Phase 4 — ElicitationComplete 事件桥接：IRemoteClientManager → IEventConsumer.OnElicitationComplete
+        // MCP 服务器发送 notifications/elicitation_complete 通知时（URL 模式 elicitation 完成），
+        // RemoteClientManager 触发 ElicitationCompleteReceived 事件 → 转发到 NDJSON 输出
+        var remoteClientManager = serviceProvider?.GetService<IRemoteClientManager>();
+        if (remoteClientManager is not null) {
+            remoteClientManager.ElicitationCompleteReceived += OnElicitationCompleteReceived;
+        }
+    }
+
+    /// <summary>
+    /// ElicitationComplete 事件处理器 — 将 MCP 引导完成通知转发到 IEventConsumer.OnElicitationComplete
+    /// </summary>
+    private void OnElicitationCompleteReceived(object? sender, ElicitationCompleteEventArgs e) {
+        _consumer.OnElicitationComplete(e.ClientId, e.ElicitationId);
     }
 
     /// <summary>
@@ -102,6 +158,9 @@ public sealed class SessionController {
 
         if (_consumer is IResettableEventConsumer resettable)
             resettable.Reset();
+
+        // TASK073 Phase 2: 会话状态变更 — idle → running（在 Reset 之后调用，避免 EnsureSystemInit 被重置导致重复输出）
+        _consumer.OnSessionStateChanged("running");
 
         var fullResponse = new StringBuilder();
         var thinkingContent = new StringBuilder();
@@ -172,7 +231,7 @@ public sealed class SessionController {
 
                 await PostProcessMainAgentAsync(preprocess.PreprocessResult, fullResponse.ToString(), startCount, lastModelId, cancellationToken).ConfigureAwait(false);
             } else {
-                await foreach (var evt in _chatService.StreamWithEventsAsync(input, timeoutToken).ConfigureAwait(false)) {
+                await foreach (var evt in _chatService.StreamWithEventsAsync(input, timeoutToken, _consumer).ConfigureAwait(false)) {
                     hasReceivedEvent = true;
                     var mid = ProcessEvent(evt, fullResponse, thinkingContent);
                     if (mid is not null) lastModelId = mid;
@@ -207,6 +266,13 @@ public sealed class SessionController {
                 };
                 return SessionTurnResult.Error(emptyMsg, partialResponse: string.Empty);
             }
+
+            // TASK073 Phase 4 — 文件持久化事件：回合结束后通知 SDK 消费方 transcript 已落盘
+            // 对齐基准侧 print.ts:2256-2272 — 回合结束后触发 system/files_persisted 事件
+            _consumer.OnFilesPersisted(
+                files: [($"{_sessionId}/transcript.jsonl", "")],
+                failed: null
+            );
 
             return SessionTurnResult.Success(LastResponse, requestTimestamp);
         } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && !hasReceivedEvent) {
@@ -246,6 +312,9 @@ public sealed class SessionController {
             if (ex is JoinCode.Abstractions.Exceptions.WorkflowException wfEx)
                 return SessionTurnResult.Error(wfEx.Message, LastResponse, wfEx.ErrorCode, originalException: ex);
             return SessionTurnResult.Error(ex.Message, LastResponse, originalException: ex);
+        } finally {
+            // TASK073 Phase 2: 会话状态变更 — running → idle
+            _consumer.OnSessionStateChanged("idle");
         }
     }
 
@@ -299,6 +368,7 @@ public sealed class SessionController {
             },
             onToolEnd: (toolName, resultText, callId, isToolError, structuredPatch) => {
                 _consumer.OnToolEnd(toolName, resultText, callId, isToolError, structuredPatch);
+                _turnToolCalls.Add((toolName, callId));
                 RecordToolCallForTurnDiff(toolName, resultText, structuredPatch);
             },
             onToolProgress: (toolName, progressType, progressMessage) => {
@@ -318,6 +388,16 @@ public sealed class SessionController {
                 if (usage is { PromptTokens: > 0 })
                     _lastDoneUsage = usage;
                 _lastStopReason = evt.StopReason;
+                if (_turnToolCalls.Count > 0) {
+                    var summary = string.Join(", ", _turnToolCalls.Select(tc => tc.ToolName));
+                    var toolUseIds = new List<string>();
+                    foreach (var tc in _turnToolCalls) {
+                        if (tc.CallId is not null)
+                            toolUseIds.Add(tc.CallId);
+                    }
+                    _consumer.OnToolUseSummary(summary, toolUseIds.Count > 0 ? toolUseIds : null);
+                    _turnToolCalls.Clear();
+                }
             });
         return modelId;
     }
@@ -378,9 +458,12 @@ public sealed class SessionController {
     /// </summary>
     private async Task RunAutoCompactAsync(int promptTokens) {
         try {
+            _consumer.OnStatus("compacting");
             var history = await _chatService.GetMessageListAsync(CancellationToken.None).ConfigureAwait(false);
-            if (history.Count == 0)
+            if (history.Count == 0) {
+                _consumer.OnStatus(null);
                 return;
+            }
 
             var compactPrompt = Core.Prompts.Templates.Memory.CompactPromptTemplate.GetCompactPrompt(customInstructions: null);
             var rawSummary = await _chatService.SendMessageAsync(compactPrompt, CancellationToken.None).ConfigureAwait(false);
@@ -390,10 +473,12 @@ public sealed class SessionController {
             await _chatService.CompactHistoryAsync(summary, CancellationToken.None).ConfigureAwait(false);
 
             _consumer.OnCompactCompleted(history.Count, promptTokens, compressedTokens, isAuto: true);
+            _consumer.OnStatus(null);
             _serviceProvider?.GetService<ILogger<SessionController>>()?.LogInformation(
                 "[SessionController] 自动压缩完成: {Messages} 条消息, {Original} → {Compressed} tokens",
                 history.Count, promptTokens, compressedTokens);
         } catch (Exception ex) {
+            _consumer.OnStatus(null);
             _serviceProvider?.GetService<ILogger<SessionController>>()?.LogWarning(ex, "[SessionController] 自动压缩失败（回合产出不受影响）");
         }
     }

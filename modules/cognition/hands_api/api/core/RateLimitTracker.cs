@@ -6,6 +6,7 @@ namespace Services.Api;
 [Register(typeof(IRateLimitTracker), ServiceLifetime.Singleton)]
 public sealed partial class RateLimitTracker : ServiceEntity, IRateLimitTracker {
     private volatile RateLimitSnapshot? _snapshot;
+    private Action<RateLimitSnapshot>? _updateHandler;
 
     /// <summary>
     /// 更新当前速率限制快照
@@ -14,6 +15,7 @@ public sealed partial class RateLimitTracker : ServiceEntity, IRateLimitTracker 
     public void Update(RateLimitSnapshot snapshot) {
         ArgumentNullException.ThrowIfNull(snapshot);
         _snapshot = snapshot;
+        _updateHandler?.Invoke(snapshot);
     }
 
     /// <summary>
@@ -26,4 +28,10 @@ public sealed partial class RateLimitTracker : ServiceEntity, IRateLimitTracker 
     /// 清除当前快照
     /// </summary>
     public void Clear() => _snapshot = null;
+
+    /// <inheritdoc />
+    public void RegisterUpdateHandler(Action<RateLimitSnapshot> handler) => _updateHandler += handler;
+
+    /// <inheritdoc />
+    public void UnregisterUpdateHandler(Action<RateLimitSnapshot> handler) => _updateHandler -= handler;
 }

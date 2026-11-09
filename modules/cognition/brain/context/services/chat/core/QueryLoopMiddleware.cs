@@ -221,7 +221,8 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                 ToolCallsSinceLastExtraction = totalToolCalls,
                 QuerySource = "repl_main_thread",
                 SessionId = sessionId,
-                CancellationToken = ct
+                CancellationToken = ct,
+                EventConsumer = context.EventConsumer
             };
             await _services.PostSamplingCallbacks.FireAsync(postSamplingCtx).ConfigureAwait(false);
         }

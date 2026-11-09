@@ -52,6 +52,9 @@ public sealed class FireAndForgetTask<T> : IAsyncDisposable {
     public static FireAndForgetTask<T> Run(Func<CancellationToken, Task<T>> factory, string? name = null);
     public static FireAndForgetTask<Unit> Run(Func<CancellationToken, Task> factory, string? name = null);
 
+    // 包装已存在的 Task（异步初始化场景 — 不通过 Task.Run 调度，保留直接调用语义）
+    public static FireAndForgetTask<Unit> FromExistingTask(Task task, string? name = null);
+
     // 强度 1：可选等待（替代 _loadTask.Task / TCS? Completion）
     public Task<T> Task { get; }
     public bool IsCompleted { get; }
@@ -69,6 +72,7 @@ public sealed class FireAndForgetTask<T> : IAsyncDisposable {
 - **异常默认吞 + 日志** — fire-and-forget 语义下异常不应传播到调用方（对齐 JCC3005 理由：async void 异常炸进程）
 - **`Task` 属性天然就是可选等待句柄** — 替代 `_loadTask` 和 `TCS? Completion` 两种模式
 - **`DisposeAsync(TimeSpan)` 梯度释放** — 正常释放无限等，紧急释放有限等
+- **`FromExistingTask` 用于异步初始化场景** — `Run` 内部用 `Task.Run` 调度到线程池，改变了直接调用异步方法的执行语义；异步初始化（如构造函数中 `LoadFromFileAsync()`）需要立即开始执行而非排队到线程池，因此用 `FromExistingTask` 包装已存在的 Task（无独立 CTS，Cancel 无操作，DisposeAsync 仅等待完成）
 
 **第二层：`FireAndForgetTracker` — 容器**
 
@@ -112,7 +116,7 @@ DisposeAsync(TimeSpan.Zero) → Cancel + 立即走（紧急）
 | 现有模式 | 统一后 |
 |---------|--------|
 | `_ = Task.Run(...)` 裸跑 | `tracker.Register(async ct => ...)` — 必须注册到容器 |
-| `_loadTask` | `var fft = FireAndForgetTask.Run(...); _loadTask = fft.Task;` — Dispose 时 `await fft.DisposeAsync()` |
+| `_loadTask` | `var fft = FireAndForgetTask<Unit>.FromExistingTask(SomeAsyncInit().AsTask()); _loadTask = fft;` — Dispose 时 `await fft.DisposeAsync()` |
 | `RegisterInFlight` | ActorBase 内部用 `FireAndForgetTracker` 替代手写 `_inFlightTasks` |
 | `TCS? Completion` | `FireAndForgetTask.Task` 属性天然就是可选等待句柄 |
 
@@ -123,6 +127,16 @@ DisposeAsync(TimeSpan.Zero) → Cancel + 立即走（紧急）
 | 默认 | 吞异常 + 日志记录（fire-and-forget 语义） |
 | `await fft.Task` | 异常传播给 await 方（正常 Task 语义） |
 | `DisposeAsync()` | 异常吞 + 日志（释放不应因单个任务异常而中断其他任务等待） |
+
+### `Run` vs `FromExistingTask` 选择指南
+
+| 场景 | 用哪个 | 原因 |
+|------|--------|------|
+| 后台 fire-and-forget 任务（日志、通知、监控） | `Run(factory, name)` | 需要 CancellationToken 通知停止；Task.Run 调度到线程池不阻塞构造 |
+| 异步初始化（构造函数中 `LoadFromFileAsync()`） | `FromExistingTask(task, name)` | 直接调用异步方法立即开始执行；Task.Run 调度会延迟执行，跨实例持久化测试中数据未就绪 |
+| Actor `RegisterInFlight`（已启动的 Task） | `FromExistingTask(task, name)` | Task 已经在运行，不需要再通过 Task.Run 调度 |
+
+**关键区别**：`Run` 内部用 `Task.Run(() => factory(ct), ct)` 调度到线程池，任务可能延迟执行；`FromExistingTask` 包装已存在的 Task，异步操作在调用时就已经开始。
 
 ## 替代方案
 

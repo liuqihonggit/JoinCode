@@ -221,4 +221,11 @@ public record CommandLineOptions {
     /// 跳过工具名过滤 — mcp serve 需要暴露所有工具给外部客户端，不受 SkipChatServices 触发的 gh_* 过滤影响
     /// </summary>
     public bool SkipToolFilter { get; init; }
+
+    /// <summary>
+    /// 启用部分消息流式输出（--include-partial-messages 参数）
+    /// 仅在 --format ndjson 模式下生效，将 LLM API 原始流式事件作为 stream_event 透传到 NDJSON 输出
+    /// 对齐 TS: claude --include-partial-messages
+    /// </summary>
+    public bool IncludePartialMessages { get; init; }
 }

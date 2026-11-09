@@ -27,6 +27,7 @@ public sealed class CompactCommand : ChatCommandBase {
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         // 对齐 TS: customInstructions = args.trim()
         var customInstructions = GetNormalizedArgs(context);
+        var eventConsumer = context.GetCommandServices().EventConsumer;
 
         TerminalHelper.WriteLine("正在压缩上下文...");
 
@@ -42,51 +43,58 @@ public sealed class CompactCommand : ChatCommandBase {
         const int maxPtRetries = 3;
         var contextManager = context.Services?.GetService(typeof(IChatContextManager)) as IChatContextManager;
 
-        for (var attempt = 0; attempt < maxPtRetries; attempt++) {
+        // 对齐基准侧 commands/compact/compact.ts:153 — 压缩开始时触发 system/status 事件
+        eventConsumer?.OnStatus("compacting");
+        try {
+            for (var attempt = 0; attempt < maxPtRetries; attempt++) {
+                try {
+                    var summary = await GenerateSummaryFromHistoryAsync(history, context, customInstructions).ConfigureAwait(false);
+                    var compressedTokens = (summary?.Length ?? 0) / 4;
+
+                    await context.GetCommandServices().ChatService.CompactHistoryAsync(summary ?? "[无摘要]", context.CancellationToken).ConfigureAwait(false);
+
+                    var fallbackData = new CompactSummaryData {
+                        MessagesSummarized = messageCount,
+                        Direction = CompactDirection.UpTo,
+                        OriginalTokens = originalTokens,
+                        CompressedTokens = compressedTokens,
+                    };
+
+                    TerminalHelper.WriteLine(new CompactSummaryRenderer().Render(fallbackData));
+                    // TASK070 C6 — 数据随结果透传宿主投影层（TUI bridge 发 compact_completed 事件；
+                    // CLI 直连路径忽略 Data，输出已由上方 Renderer 自渲染）
+                    return ChatCommandResult.ContinueWith(fallbackData);
+                } catch (Exception ex) when (IsPromptTooLongError(ex.Message)) {
+                    // 对齐 TS: truncateHeadForPTLRetry — 无管理器可回滚或重试耗尽(attempt=maxPtRetries-1)时,
+                    // break 走下方"最终失败"降级路径(兜底再试 + HandleError 收敛),禁止第 3 次 PTL 异常冒泡传播 REPL
+                    if (contextManager is null || attempt >= maxPtRetries - 1) break;
+
+                    // 对齐 TS: PTL 重试 — 回滚最近一轮消息后重试
+                    var rewindResult = await contextManager.RewindLastTurnAsync(context.CancellationToken).ConfigureAwait(false);
+                    if (rewindResult.RemovedCount == 0) break;
+                    TerminalHelper.WriteLine($"上下文过长，自动精简后重试... ({attempt + 1}/{maxPtRetries})");
+                }
+            }
+
+            // 最终失败
             try {
                 var summary = await GenerateSummaryFromHistoryAsync(history, context, customInstructions).ConfigureAwait(false);
-                var compressedTokens = (summary?.Length ?? 0) / 4;
-
                 await context.GetCommandServices().ChatService.CompactHistoryAsync(summary ?? "[无摘要]", context.CancellationToken).ConfigureAwait(false);
-
-                var fallbackData = new CompactSummaryData {
+                return ChatCommandResult.ContinueWith(new CompactSummaryData {
                     MessagesSummarized = messageCount,
                     Direction = CompactDirection.UpTo,
                     OriginalTokens = originalTokens,
-                    CompressedTokens = compressedTokens,
-                };
-
-                TerminalHelper.WriteLine(new CompactSummaryRenderer().Render(fallbackData));
-                // TASK070 C6 — 数据随结果透传宿主投影层（TUI bridge 发 compact_completed 事件；
-                // CLI 直连路径忽略 Data，输出已由上方 Renderer 自渲染）
-                return ChatCommandResult.ContinueWith(fallbackData);
-            } catch (Exception ex) when (IsPromptTooLongError(ex.Message)) {
-                // 对齐 TS: truncateHeadForPTLRetry — 无管理器可回滚或重试耗尽(attempt=maxPtRetries-1)时,
-                // break 走下方"最终失败"降级路径(兜底再试 + HandleError 收敛),禁止第 3 次 PTL 异常冒泡传播 REPL
-                if (contextManager is null || attempt >= maxPtRetries - 1) break;
-
-                // 对齐 TS: PTL 重试 — 回滚最近一轮消息后重试
-                var rewindResult = await contextManager.RewindLastTurnAsync(context.CancellationToken).ConfigureAwait(false);
-                if (rewindResult.RemovedCount == 0) break;
-                TerminalHelper.WriteLine($"上下文过长，自动精简后重试... ({attempt + 1}/{maxPtRetries})");
+                    CompressedTokens = (summary?.Length ?? 0) / 4,
+                });
+            } catch (Exception ex) {
+                HandleError("生成摘要", ex);
             }
-        }
 
-        // 最终失败
-        try {
-            var summary = await GenerateSummaryFromHistoryAsync(history, context, customInstructions).ConfigureAwait(false);
-            await context.GetCommandServices().ChatService.CompactHistoryAsync(summary ?? "[无摘要]", context.CancellationToken).ConfigureAwait(false);
-            return ChatCommandResult.ContinueWith(new CompactSummaryData {
-                MessagesSummarized = messageCount,
-                Direction = CompactDirection.UpTo,
-                OriginalTokens = originalTokens,
-                CompressedTokens = (summary?.Length ?? 0) / 4,
-            });
-        } catch (Exception ex) {
-            HandleError("生成摘要", ex);
+            return ChatCommandResult.Continue();
+        } finally {
+            // 对齐基准侧 commands/compact/compact.ts:226 — 压缩结束时清除 status
+            eventConsumer?.OnStatus(null);
         }
-
-        return ChatCommandResult.Continue();
     }
 
     internal static (int Count, int EstimatedTokens) CalculateOriginalMetrics(IReadOnlyList<ApiMessageRecord> history) {

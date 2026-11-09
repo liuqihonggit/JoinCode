@@ -429,7 +429,7 @@ public class JccChatSessionAssemblyTests {
             yield break;
         }
 
-        public async IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
+        public async IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default, IEventConsumer? eventConsumer = null) {
             await Task.CompletedTask;
             yield break;
         }

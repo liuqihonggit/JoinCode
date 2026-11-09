@@ -247,7 +247,7 @@ class Program {
                 var resultMessage = Cli.Output.SdkResultMessage.Create(System.Guid.NewGuid().ToString("N")) with {
                     Subtype = "error_during_execution",
                     IsError = true,
-                    Result = string.Empty,
+                    Result = null,
                     ModelUsage = new(),
                     Errors = [error.Message],
                 };

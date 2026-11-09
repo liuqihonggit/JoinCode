@@ -36,15 +36,22 @@ public sealed class LoginCommand : ChatCommandBase {
 
         var loginSuccess = false;
 
+        // TASK073 Phase 3 — 登录开始：触发 auth_status 事件（对齐基准侧 AwsAuthStatusManager.startAuthentication）
+        var eventConsumer = context.GetCommandServices().EventConsumer;
+        eventConsumer?.OnAuthStatus(isAuthenticating: true);
+
         if (useOAuth && definition.SupportsOAuth) {
             loginSuccess = await LoginWithOAuthAsync(context, definition).ConfigureAwait(false);
         } else {
             loginSuccess = await LoginWithApiKeyAsync(context, definition).ConfigureAwait(false);
         }
 
-        // 登录后刷新 — 对齐 TS login.tsx post-login refresh logic
+        // TASK073 Phase 3 — 登录结束：触发 auth_status 事件（对齐基准侧 AwsAuthStatusManager.endAuthentication）
         if (loginSuccess) {
+            eventConsumer?.OnAuthStatus(isAuthenticating: false);
             await PostLoginRefreshAsync(context).ConfigureAwait(false);
+        } else {
+            eventConsumer?.OnAuthStatus(isAuthenticating: false, error: "登录失败");
         }
 
         return ChatCommandResult.Continue();

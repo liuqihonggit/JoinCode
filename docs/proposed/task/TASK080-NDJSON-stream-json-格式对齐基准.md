@@ -1,8 +1,10 @@
 # TASK080 — NDJSON stream-json 格式对齐基准 ClaudeCode
 
-## 差异概述
+> **状态：已实现** — 代码已演进为嵌套消息流模式，与基准 ClaudeCode stream-json 格式对齐。本文档差异项已过时，保留作历史参考。
 
-C# 侧 NDJSON 输出格式与基准 ClaudeCode stream-json 格式存在架构级差异。C# 侧采用扁平事件流（13 种独立事件类型），基准侧采用嵌套消息流（8+ 种顶层 type，工具调用嵌在 assistant/user 消息内）。
+## 差异概述（历史记录 — 代码已对齐）
+
+C# 侧 NDJSON 输出格式曾采用扁平事件流（13 种独立事件类型），现已改为嵌套消息流（assistant/user 消息内嵌 content blocks），与基准侧对齐。
 
 ## 两侧源码位置
 

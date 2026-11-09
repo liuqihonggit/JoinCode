@@ -42,15 +42,16 @@
 
 - **描述**：C# 步骤机+单目录 vs TS SKILL.md prompt 扩展模型
 - **来源**：TASK071 差异扫描
-- **资料**：待检索 — 需查 TS 基准 SKILL.md 格式 + C# 技能加载机制
-- **修复面**：待评估
+- **状态**：**已实现** — C# 侧已有完整技能系统（SkillExecutor/SkillService/SkillSearchService/SkillDiscoveryService/MCP技能/插件技能/11个内置技能），支持 JSON+Markdown+内置+MCP远程+插件多种加载方式
+- **关键文件**：`modules/cognition/hands_core/skills/` 目录下完整实现
 
 ### 8. TASK071-C6 结构化输出体系
 
 - **描述**：synthetic tool + 重试上限 5 + result.structured_output
 - **来源**：TASK071 差异扫描
-- **资料**：待检索 — 需查 TS 基准 structured output 实现 + C# 工具结果模型
-- **修复面**：待评估
+- **状态**：**部分实现** — structured_output_register/validate 工具 + Schema 持久化 + 验证缓存 + SdkResultMessage.StructuredOutput 字段已实现；**缺失**：synthetic tool 重试上限5次机制 + result.structured_output 自动填充接线
+- **已实现文件**：`modules/cognition/hands_core/tool_handlers/system_tools/handlers/StructuredOutputToolHandler.cs`、`modules/abstractions/primitives/core_tools/StructuredOutputSchema.cs`、`modules/apps/cli/core/output/SdkMessage.cs`
+- **待实现**：① LLM 输出不符合 Schema 时自动构造 synthetic tool result 重试（上限5次）② 成功完成时自动将验证通过的结构化输出填充到 result.structured_output
 
 ### 9. TASK071-A4 设置迁移机制
 

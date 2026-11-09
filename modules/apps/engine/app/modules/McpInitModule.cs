@@ -135,7 +135,7 @@ public sealed class McpInitModule : IAppModule {
 
         try {
             var toolRegistry = services.GetRequiredService<IToolRegistry>();
-            var validator = services.GetRequiredService<SimpleJsonSchemaValidator>();
+            var validator = services.GetRequiredService<IJsonSchemaValidator>();
 
             var schemaValidation = validator.ValidateSchema(options.JsonSchema);
             if (!schemaValidation.IsValid) {

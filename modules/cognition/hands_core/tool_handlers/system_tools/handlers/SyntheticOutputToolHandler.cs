@@ -7,7 +7,7 @@ namespace Tools.Handlers;
 /// 验证失败 → ToolResult.IsError=true + 错误信息，LLM 收到后可修正重试（上限5次）
 /// </summary>
 public sealed class SyntheticOutputToolHandler {
-    private readonly SimpleJsonSchemaValidator _validator;
+    private readonly IJsonSchemaValidator _validator;
     private readonly string _schemaJson;
 
     /// <summary>
@@ -16,7 +16,7 @@ public sealed class SyntheticOutputToolHandler {
     /// <param name="validator">JSON Schema 验证器</param>
     /// <param name="schemaJson">JSON Schema 定义字符串</param>
     public SyntheticOutputToolHandler(
-        SimpleJsonSchemaValidator validator,
+        IJsonSchemaValidator validator,
         string schemaJson) {
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
         _schemaJson = schemaJson ?? throw new ArgumentNullException(nameof(schemaJson));

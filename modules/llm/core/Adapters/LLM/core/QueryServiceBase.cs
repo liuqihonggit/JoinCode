@@ -151,7 +151,7 @@ public abstract partial class QueryServiceBase : IQueryService {
             newMetadata[$"ratelimit_{kvp.Key}"] = JsonElementHelper.FromString(kvp.Value);
         }
 
-        return new StreamEvent(msg.Role, msg.Content, msg.ModelId, newMetadata);
+        return new StreamEvent(msg.Role, msg.Content, msg.ModelId, newMetadata, msg.RawEvent);
     }
 
     /// <summary>

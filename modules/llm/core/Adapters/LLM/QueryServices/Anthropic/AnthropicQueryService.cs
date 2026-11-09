@@ -657,10 +657,10 @@ public sealed class AnthropicQueryService : QueryServiceBase {
                         serverToolUseTracker[idx] = (serverToolUseId, null, new StringBuilder(), 0);
 
                         var metadata = BuildServerToolUseStartMetadata(messageId, modelName, serverToolUseId, evt.ContentBlock.Name ?? "");
-                        yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, metadata);
+                        yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, metadata, data);
                     } else if (evt.ContentBlock.Type == AnthropicContentBlockType.WebSearchToolResult) {
                         var searchMetadata = BuildWebSearchResultMetadata(evt.ContentBlock, messageId, modelName);
-                        yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, searchMetadata);
+                        yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, searchMetadata, data);
                     }
                 }
                 break;
@@ -671,7 +671,7 @@ public sealed class AnthropicQueryService : QueryServiceBase {
                     var delta = evt.Delta;
 
                     if (delta.Type == AnthropicDeltaType.ThinkingDelta && delta.Thinking != null) {
-                        yield return new StreamEvent(MessageRole.Assistant, delta.Thinking, modelName, thinkingDeltaMetadata);
+                        yield return new StreamEvent(MessageRole.Assistant, delta.Thinking, modelName, thinkingDeltaMetadata, data);
                     } else if (delta.Type == AnthropicDeltaType.TextDelta && delta.Text != null) {
                         descRequestAccumulator.Append(delta.Text);
                         var accumulated = descRequestAccumulator.ToString();
@@ -679,7 +679,7 @@ public sealed class AnthropicQueryService : QueryServiceBase {
                             descRequestContent = accumulated;
                             break;
                         }
-                        yield return new StreamEvent(MessageRole.Assistant, delta.Text, modelName, textDeltaMetadata);
+                        yield return new StreamEvent(MessageRole.Assistant, delta.Text, modelName, textDeltaMetadata, data);
                     } else if (delta.Type == AnthropicDeltaType.InputJsonDelta && delta.PartialJson != null) {
                         var queryUpdateEvent = TryBuildQueryUpdateStreamEvent(
                             idx, delta, toolCallAccumulator, serverToolUseTracker, messageId, modelName);
@@ -693,7 +693,7 @@ public sealed class AnthropicQueryService : QueryServiceBase {
                 case AnthropicStreamingEventType.MessageDelta:
                 if (evt.Delta?.StopReason != null || evt.Usage != null) {
                     var metadata = BuildMessageDeltaMetadata(messageId, modelName, evt.Delta, evt.Usage, toolCallAccumulator);
-                    yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, metadata);
+                    yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, metadata, data);
                 }
                 break;
 

@@ -48,7 +48,8 @@ public class JccChatSessionPermissionSeamTests {
     private sealed class FakeChatService : IChatService {
         public async IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(
             string message,
-            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default,
+            IEventConsumer? eventConsumer = null) {
             yield return ChatStreamEvent.Text("执行完成");
             yield return ChatStreamEvent.Done();
             await Task.CompletedTask;

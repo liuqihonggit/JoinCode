@@ -1,4 +1,5 @@
-﻿global using Core.Goal;
+﻿global using Core.Context;
+global using Core.Goal;
 global using Core.Hooks.Lifecycle;
 global using Core.Hosting;
 global using Core.Scheduling.Cron;

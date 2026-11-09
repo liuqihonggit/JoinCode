@@ -72,7 +72,8 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         _stateUpdater = new GoalStateUpdater(_clock);
         _retryHandler = new RetryHandler(_nodeInspector, _logger);
         _nodeExecutor = new NodeExecutorDispatcher([
-            new AgentNodeExecutor(_agentService, _dispatchGuard, _teamManager, _stateUpdater, _logger),
+            new AgentNodeExecutor(_agentService, _dispatchGuard, _teamManager, _stateUpdater, _logger,
+                serviceProvider.GetService<IEmptyResponseTracker>()),
             new FunctionNodeExecutor(_functionRegistry, _serviceProvider, _logger),
             new JoinNodeExecutor()
         ]);

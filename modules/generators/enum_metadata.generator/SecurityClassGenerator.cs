@@ -71,9 +71,11 @@ public sealed class SecurityClassGenerator : IIncrementalGenerator {
                         AutoAllowed: GetNamedArg("AutoAllowed"),
                         PlanAllowed: GetNamedArg("PlanAllowed"),
                         AskAllowed: GetNamedArg("AskAllowed"),
+                        UnattendedAllowed: GetNamedArg("UnattendedAllowed"),
                         AutoDenied: GetNamedArg("AutoDenied"),
                         PlanDenied: GetNamedArg("PlanDenied"),
                         AskDenied: GetNamedArg("AskDenied"),
+                        UnattendedDenied: GetNamedArg("UnattendedDenied"),
                         AgentDestructive: GetNamedArg("AgentDestructive")));
                 }
             }
@@ -107,9 +109,11 @@ public sealed class SecurityClassGenerator : IIncrementalGenerator {
         GeneratePermissionSet(sb, "AutoAllowedTools", "自动模式允许的工具集合", tools, t => t.AutoAllowed);
         GeneratePermissionSet(sb, "PlanAllowedTools", "计划模式允许的工具集合", tools, t => t.PlanAllowed);
         GeneratePermissionSet(sb, "AskAllowedTools", "询问模式允许的工具集合", tools, t => t.AskAllowed);
+        GeneratePermissionSet(sb, "UnattendedAllowedTools", "无人值守模式允许的工具集合", tools, t => t.UnattendedAllowed);
         GeneratePermissionSet(sb, "AutoDeniedTools", "自动模式拒绝的工具集合", tools, t => t.AutoDenied);
         GeneratePermissionSet(sb, "PlanDeniedTools", "计划模式拒绝的工具集合", tools, t => t.PlanDenied);
         GeneratePermissionSet(sb, "AskDeniedTools", "询问模式拒绝的工具集合", tools, t => t.AskDenied);
+        GeneratePermissionSet(sb, "UnattendedDeniedTools", "无人值守模式拒绝的工具集合", tools, t => t.UnattendedDenied);
         GeneratePermissionSet(sb, "AgentDestructiveTools", "代理破坏性工具集合 — 子代理禁止使用的工具", tools, t => t.AgentDestructive);
 
         sb.AppendLine("}");
@@ -164,20 +168,24 @@ public sealed class SecurityClassGenerator : IIncrementalGenerator {
         public bool AutoAllowed { get; }
         public bool PlanAllowed { get; }
         public bool AskAllowed { get; }
+        public bool UnattendedAllowed { get; }
         public bool AutoDenied { get; }
         public bool PlanDenied { get; }
         public bool AskDenied { get; }
+        public bool UnattendedDenied { get; }
         public bool AgentDestructive { get; }
 
-        public ToolSecurityInfo(string ToolName, string Classification, bool AutoAllowed, bool PlanAllowed, bool AskAllowed, bool AutoDenied, bool PlanDenied, bool AskDenied, bool AgentDestructive) {
+        public ToolSecurityInfo(string ToolName, string Classification, bool AutoAllowed, bool PlanAllowed, bool AskAllowed, bool UnattendedAllowed, bool AutoDenied, bool PlanDenied, bool AskDenied, bool UnattendedDenied, bool AgentDestructive) {
             this.ToolName = ToolName;
             this.Classification = Classification;
             this.AutoAllowed = AutoAllowed;
             this.PlanAllowed = PlanAllowed;
             this.AskAllowed = AskAllowed;
+            this.UnattendedAllowed = UnattendedAllowed;
             this.AutoDenied = AutoDenied;
             this.PlanDenied = PlanDenied;
             this.AskDenied = AskDenied;
+            this.UnattendedDenied = UnattendedDenied;
             this.AgentDestructive = AgentDestructive;
         }
     }

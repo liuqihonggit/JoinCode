@@ -27,6 +27,7 @@ internal sealed class AgentNodeExecutor : INodeExecutor {
     private readonly ICaptainDispatchGuard? _dispatchGuard;
     private readonly ITeamManager? _teamManager;
     private readonly GoalStateUpdater _stateUpdater;
+    private readonly IEmptyResponseTracker? _emptyResponseTracker;
     private readonly ILogger? _logger;
 
     /// <summary>初始化 Agent 节点执行器</summary>
@@ -35,12 +36,14 @@ internal sealed class AgentNodeExecutor : INodeExecutor {
         ICaptainDispatchGuard? dispatchGuard,
         ITeamManager? teamManager,
         GoalStateUpdater stateUpdater,
-        ILogger? logger) {
+        ILogger? logger,
+        IEmptyResponseTracker? emptyResponseTracker = null) {
         _agentService = agentService;
         _dispatchGuard = dispatchGuard;
         _teamManager = teamManager;
         _stateUpdater = stateUpdater;
         _logger = logger;
+        _emptyResponseTracker = emptyResponseTracker;
     }
 
     /// <inheritdoc/>
@@ -123,6 +126,23 @@ internal sealed class AgentNodeExecutor : INodeExecutor {
 
         payload.TokensUsed = totalTokens;
         payload.TurnsCompleted = totalTurns;
+
+        if (string.IsNullOrEmpty(lastOutput) && _emptyResponseTracker is not null) {
+            var exceeded = _emptyResponseTracker.RecordEmptyResponse();
+            if (exceeded) {
+                _logger?.LogWarning("[GoalGraph] {NodeId}({Name}): LLM 连续空响应超过阈值 {_max}，标记失败",
+                    nodeId, payload.Name, _emptyResponseTracker.MaxConsecutiveEmpty);
+                return NodeResult.Failed(
+                    $"LLM 连续空响应超过阈值 {_emptyResponseTracker.MaxConsecutiveEmpty}，节点标记失败");
+            }
+
+            var interventionPrompt = _emptyResponseTracker.BuildInterventionPrompt();
+            _logger?.LogWarning("[GoalGraph] {NodeId}({Name}): LLM 空响应（第 {count} 次），注入干预提示词",
+                nodeId, payload.Name, _emptyResponseTracker.ConsecutiveEmptyCount);
+            await _stateUpdater.AppendChatMessageAsync(context, interventionPrompt, ct).ConfigureAwait(false);
+        } else if (!string.IsNullOrEmpty(lastOutput) && _emptyResponseTracker is not null) {
+            _emptyResponseTracker.Reset();
+        }
 
         if (!string.IsNullOrEmpty(lastOutput)) {
             await _stateUpdater.AppendChatMessageAsync(context, $"[{payload.Name}]: {lastOutput}", ct).ConfigureAwait(false);

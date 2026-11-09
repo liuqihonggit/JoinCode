@@ -40,7 +40,7 @@ public sealed class CodeIndexCommand : ChatCommandBase {
         TerminalHelper.WriteLine($"正在后台构建代码索引 (任务ID: {taskId})...");
         TerminalHelper.WriteLine("使用 /tasks 查看任务状态，构建完成后会在此通知");
 
-        _ = Task.Run(async () => {
+        _ = FireAndForgetTask<Unit>.Run(async ct => {
             try {
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 await indexer.RebuildIndexAsync(CancellationToken.None).ConfigureAwait(false);
@@ -51,7 +51,7 @@ public sealed class CodeIndexCommand : ChatCommandBase {
             } catch (Exception ex) {
                 TerminalHelper.WriteLine($"[后台任务 {taskId}] 代码索引构建失败: {ex.Message}");
             }
-        });
+        }, $"code-index-{taskId}");
 
         return ChatCommandResult.Continue();
     }

@@ -89,16 +89,13 @@ internal sealed class TeamMemoryPathStore {
 
         var snapshot = _teamMemoryPaths.Values.ToList();
         var json = RelaxedJsonSerializer.Serialize(snapshot, MemdirJsonContext.Default);
-        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var request = new PersistRequest {
             Category = "memory",
             Directory = TeamPathsSubDir,
             FileName = TeamPathsFileName,
             Content = json,
-            Completion = tcs,
         };
-        await _persistencePipeline.EnqueueAsync(request, ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await _persistencePipeline.EnqueueAndWaitAsync(request, ct).ConfigureAwait(false);
     }
 
     /// <summary>

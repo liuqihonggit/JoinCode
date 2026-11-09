@@ -11,8 +11,15 @@ namespace JoinCode.Abstractions.Interfaces;
 public interface IPersistencePipeline : IAsyncDisposable {
     /// <summary>
     /// 异步入队持久化请求 — 有界通道在满时按 DropOldest 丢弃最旧请求。
+    /// <para>不等待写完成（fire-and-forget 语义）。</para>
     /// </summary>
     ValueTask EnqueueAsync(PersistRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// 异步入队持久化请求并等待 Actor 写完磁盘 — 返回的 Task 在写完成后完成。
+    /// <para>异常时 Task 包含写盘异常；CancellationToken 取消时 Task 包含 OperationCanceledException。</para>
+    /// </summary>
+    Task EnqueueAndWaitAsync(PersistRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// 同步尝试入队 — 通道已关闭、已释放或已满时返回 false。
@@ -32,6 +39,6 @@ public sealed class PersistRequest {
     public required string FileName { get; init; }
     /// <summary>已序列化的 JSON 内容</summary>
     public required string Content { get; init; }
-    /// <summary>可选:需要等待写完的生产者传入,Actor 写完后 TrySetResult;异常时 TrySetException。null 表示 fire-and-forget。</summary>
-    public TaskCompletionSource? Completion { get; init; }
+    /// <summary>内部: Actor 写完后 TrySetResult 的 TCS；null 表示 fire-and-forget。由 EnqueueAndWaitAsync 设置。</summary>
+    internal TaskCompletionSource? CompletionSource { get; init; }
 }

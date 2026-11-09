@@ -2,8 +2,8 @@ namespace AotSafety.Generator.Rules;
 
 /// <summary>
 /// JCC9305: Actor Handle 方法里 fire-and-forget 必须通过 RegisterInFlight 注册。
-/// <para>DisposeAsync 只等 Consumer 退出,不等待 Handle 里 fire-and-forget 启动的 in-flight 任务。</para>
-/// <para>未注册的任务在 Dispose 后仍可能跑,访问已释放资源或结果丢失(CI #691 根因)。</para>
+/// <para>RegisterInFlight 内部委托给 FireAndForgetTracker.RegisterExistingTask(ADR 0155)。</para>
+/// <para>DisposeAsync 通过 FireAndForgetTracker 等待所有注册的 in-flight 任务完成,确保资源真正释放。</para>
 /// <para>正确模式: RegisterInFlight(SomeAsync().AsTask()) 或 RegisterInFlight(Task.Run(...))。</para>
 /// </summary>
 [AnalyzerRule(
@@ -14,7 +14,7 @@ namespace AotSafety.Generator.Rules;
     Category = "FireAndForgetSafety",
     Severity = DiagnosticSeverity.Warning,
     IsEnabledByDefault = true,
-    HelpLinkUri = "Actor Handle 方法里 fire-and-forget 启动的任务必须通过 RegisterInFlight 注册,确保 DisposeAsync 等待 in-flight 任务完成。正确模式: RegisterInFlight(SomeAsync().AsTask())。CI #691 根因: BackgroundTaskActor.Handle 里 _ = ExecuteTaskAsync 是 fire-and-forget,DisposeAsync 不等待,导致 AnalyticsService 历史加载丢失。")]
+    HelpLinkUri = "Actor Handle 方法里 fire-and-forget 启动的任务必须通过 RegisterInFlight 注册,确保 DisposeAsync 等待 in-flight 任务完成。RegisterInFlight 内部委托给 FireAndForgetTracker.RegisterExistingTask(ADR 0155)。正确模式: RegisterInFlight(SomeAsync().AsTask())。CI #691 根因: BackgroundTaskActor.Handle 里 _ = ExecuteTaskAsync 是 fire-and-forget,DisposeAsync 不等待,导致 AnalyticsService 历史加载丢失。")]
 public sealed class HandleFireAndForgetRule : AnalyzerRuleBase<HandleFireAndForgetRule> {
     public override void Register(CompilationStartAnalysisContext context, ProjectContext projectContext) {
         context.RegisterSyntaxNodeAction(Analyze, SyntaxKind.MethodDeclaration);

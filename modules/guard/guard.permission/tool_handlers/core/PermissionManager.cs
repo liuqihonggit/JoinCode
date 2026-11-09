@@ -14,7 +14,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     private volatile PermissionMode _currentMode;
     private List<ToolPermissionRule> _strippedRules = [];
     private bool _disposed;
-    private readonly Task _loadTask;
+    private readonly FireAndForgetTask<Unit> _loadTask;
 
     /// <summary>
     /// 缓存过期时间
@@ -35,7 +35,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         _logger = logger;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _currentMode = PermissionMode.Auto;
-        _loadTask = InitializeModeAsync(fs);
+        _loadTask = FireAndForgetTask<Unit>.FromExistingTask(InitializeModeAsync(fs), "PermissionManager init");
     }
 
     /// <summary>
@@ -251,7 +251,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
 
         _disposed = true;
 
-        await _loadTask.ConfigureAwait(false);
+        await _loadTask.DisposeAsync().ConfigureAwait(false);
         while (true) {
             var current = _approvedTools;
             if (Interlocked.CompareExchange(ref _approvedTools, ImmutableHamT<string, DateTimeOffset>.Empty, current) == current) break;

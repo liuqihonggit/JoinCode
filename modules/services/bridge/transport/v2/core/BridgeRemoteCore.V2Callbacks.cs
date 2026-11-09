@@ -107,7 +107,7 @@ public static partial class BridgeRemoteCore {
             parameters.OnStateChange?.Invoke(BridgeState.Reconnecting,
                 $"Transport closed (code {code}), reconnecting...");
 
-            _ = Task.Run(async () => {
+            _ = FireAndForgetTask<Unit>.Run(async ct => {
                 try {
                     var handle = BridgeHandle.GetHandle() as V1BridgeHandle;
                     if (handle is not null) {
@@ -123,7 +123,7 @@ public static partial class BridgeRemoteCore {
                         parameters.OnStateChange?.Invoke(BridgeState.Failed, $"Reconnect error: {ex.Message}");
                     }
                 }
-            }, state.InitCts.Token);
+            }, "bridge-v2-reconnect");
         });
     }
 

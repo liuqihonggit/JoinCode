@@ -81,7 +81,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     private volatile ImmutableHamT<string, ToolHealthRecord> _records = ImmutableHamT.Create<string, ToolHealthRecord>(StringComparer.OrdinalIgnoreCase);
     private readonly string _configPath;
     private readonly ActorTimers<IToolHealthCommand> _timers;
-    private readonly Task _loadTask;
+    private readonly FireAndForgetTask<Unit> _loadTask;
     private volatile BlacklistSnapshot _blacklistSnapshot;
     private volatile Dictionary<string, int> _penalties;
     private int _disposed;
@@ -118,7 +118,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
             "tool-health.json");
         _timers = new ActorTimers<IToolHealthCommand>(this);
         _timers.StartPeriodicTimer("decay", new DecayTickCmd(), TimeSpan.FromHours(1), TimeSpan.FromHours(1));
-        _loadTask = LoadFromDiskAsync();
+        _loadTask = FireAndForgetTask<Unit>.FromExistingTask(LoadFromDiskAsync(), "ToolHealthMonitor init");
     }
 
 
@@ -256,7 +256,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// </summary>
     /// <param name="ct">取消令牌</param>
     public async Task FlushAsync(CancellationToken ct = default) {
-        await _loadTask.ConfigureAwait(false);
+        await _loadTask.Task.ConfigureAwait(false);
         var tcs = TcsFactory.Create();
         Tell(new FlushSentinelCmd(tcs));
         await AskAwait(tcs, ct).ConfigureAwait(false);
@@ -536,7 +536,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         await _timers.DisposeAsync().ConfigureAwait(false);
-        await _loadTask.ConfigureAwait(false);
+        await _loadTask.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
 }

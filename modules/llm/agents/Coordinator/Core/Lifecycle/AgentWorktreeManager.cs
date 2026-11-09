@@ -342,7 +342,7 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     private void FireWorktreeHookAsync(HookEvent hookEvent, string agentId, string worktreePath, string branchName) {
         if (_hookOrchestrator is null) return;
 
-        _ = Task.Run(async () => {
+        _ = FireAndForgetTask<Unit>.Run(async ct => {
             try {
                 var payload = new Dictionary<string, System.Text.Json.JsonElement> {
                     ["agent_id"] = System.Text.Json.JsonSerializer.SerializeToElement(agentId, AgentsJsonContext.Default.String),
@@ -351,12 +351,11 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
                 };
 
                 await foreach (var _ in _hookOrchestrator.ExecuteHooksAsync(hookEvent, payload).ConfigureAwait(false)) {
-                    // 消费所有结果，但不阻塞
                 }
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, "Failed to execute {HookEvent} hook for agent {AgentId}", hookEvent.ToValue(), agentId);
             }
-        });
+        }, $"worktree-{hookEvent.ToValue()}-{agentId}");
     }
 
     /// <summary>

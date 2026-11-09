@@ -55,7 +55,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         _persistenceFs = fileSystem;
         _stateFilePath = fileSystem is not null ? GetStateFilePath() : null;
         _actor = new TeamActor(this, logger);
-        _loadTask = LoadStateAsync();
+        _loadTask = FireAndForgetTask<Unit>.FromExistingTask(LoadStateAsync(), "TeamManager init");
     }
 
     /// <summary>
@@ -698,7 +698,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
     /// <summary>异步释放资源 — await Actor 完全退出</summary>
     public override async ValueTask DisposeAsync() {
-        await _loadTask.ConfigureAwait(false);
+        await _loadTask.DisposeAsync().ConfigureAwait(false);
         await _actor.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }

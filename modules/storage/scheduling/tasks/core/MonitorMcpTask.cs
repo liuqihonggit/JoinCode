@@ -169,7 +169,7 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
         _sessions[monitorId] = session;
 
 
-        _ = Task.Run(() => RunMonitorLoopAsync(session, ct));
+        _ = FireAndForgetTask<Unit>.Run(async ct => await RunMonitorLoopAsync(session, ct).ConfigureAwait(false), $"mcp-monitor-{monitorId}");
 
         RecordMonitorMetrics("start", config.ServerName, true);
         return monitorId;

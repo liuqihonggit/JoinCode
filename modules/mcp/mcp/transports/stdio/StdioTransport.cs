@@ -96,7 +96,7 @@ public sealed partial class StdioTransport : TransportBase, IMcpTransport {
             while (!cancellationToken.IsCancellationRequested && IsRunning) {
                 var message = await ReadMessageAsync(cancellationToken).ConfigureAwait(false);
                 if (message is not null) {
-                    _ = Task.Run(() => {
+                    _ = FireAndForgetTask<Unit>.Run(async ct => {
                         try {
                             MessageReceived?.Invoke(this, new McpMessageReceivedEventArgs {
                                 Message = message,
@@ -108,7 +108,7 @@ public sealed partial class StdioTransport : TransportBase, IMcpTransport {
                                 ConnectionId = "stdio"
                             });
                         }
-                    }, cancellationToken);
+                    }, "stdio-message-received");
                 }
             }
         } catch (OperationCanceledException) {

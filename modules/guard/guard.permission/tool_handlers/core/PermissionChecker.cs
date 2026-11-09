@@ -14,7 +14,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     private readonly PermissionConfig _config;
     private PermissionMode _currentMode;
     private readonly IFileSystem _fs;
-    private readonly Task _loadTask;
+    private readonly FireAndForgetTask<Unit> _loadTask;
     private volatile bool _disableBypassGate;
     /// <summary>规则热加载 mtime 快照（TASK070 P1-P2/DSG046 — settings.json 最后写入时间，
     /// 判定链前段比对变化触发重读；null = 启动时文件不存在）。</summary>
@@ -49,7 +49,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
         _config = configOptions.Value;
         _currentMode = PermissionMode.Auto;
         _fs = fs;
-        _loadTask = InitializeModeAsync(fs);
+        _loadTask = FireAndForgetTask<Unit>.FromExistingTask(InitializeModeAsync(fs), "PermissionChecker init");
 
         _autoApprovedTools = _config.AutoApprovedTools
             .Keys
@@ -143,7 +143,15 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// 启动模式/安全闸异步加载任务 — bridge 握手（session_info 上报 CurrentMode/DisableBypassGate）前等待，
     /// 确保 fire-and-forget 初始化已完成（PhysicalFileSystem UTF-8 走 mmap 实际同步完成，等待仅兜底）。
     /// </summary>
-    public Task ModeInitialization => _loadTask;
+    public Task ModeInitialization => _loadTask.Task;
+
+    /// <summary>
+    /// 异步释放 — 释放 fire-and-forget 加载任务的 CancellationTokenSource
+    /// </summary>
+    public override async ValueTask DisposeAsync() {
+        await _loadTask.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
 
     /// <summary>
     /// 当前权限模式
@@ -168,7 +176,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     public async Task<ToolPermissionCheckResult> CheckPermissionAsync(string toolName, Dictionary<string, JsonElement>? arguments = null, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
 
-        await _loadTask.ConfigureAwait(false);
+        await _loadTask.Task.ConfigureAwait(false);
         await ReloadRulesIfSettingsChangedAsync().ConfigureAwait(false);
 
         var context = new PermissionCheckContext {

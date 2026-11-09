@@ -18,6 +18,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager {
     private readonly MiddlewarePipeline<RemoteSyncContext>? _syncPipeline;
     private readonly INetworkConnectivityService? _networkService;
     private readonly ConcurrentDictionary<string, ClientEventSubscription> _clientHandlers = new();
+    private readonly FireAndForgetTracker _fft = new();
     private int _disposed;
 
     /// <summary>单个远程客户端的事件订阅封装 — 字段持有 client 与 handler,Dispose 中取消订阅</summary>
@@ -97,7 +98,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager {
         switch (method) {
             case McpMethod.NotificationToolsListChanged:
             _logger.LogInformation("远程客户端 {ClientId} 发送工具列表变更通知，触发自动同步", clientId);
-            _ = Task.Run(async () => {
+            _fft.Register(async ct => {
                 try {
                     var result = await SyncToolsAsync(clientId).ConfigureAwait(false);
 
@@ -108,12 +109,12 @@ public sealed partial class RemoteClientManager : IRemoteClientManager {
                 } catch (Exception ex) {
                     _logger.LogError(ex, "处理远程客户端 {ClientId} 工具变更通知时同步失败", clientId);
                 }
-            });
+            }, $"sync-tools-{clientId}");
             break;
 
             case McpMethod.NotificationResourcesListChanged:
             _logger.LogInformation("远程客户端 {ClientId} 发送资源列表变更通知，触发自动同步", clientId);
-            _ = Task.Run(async () => {
+            _fft.Register(async ct => {
                 try {
                     var result = await SyncResourcesAsync(clientId).ConfigureAwait(false);
 
@@ -124,12 +125,12 @@ public sealed partial class RemoteClientManager : IRemoteClientManager {
                 } catch (Exception ex) {
                     _logger.LogError(ex, "处理远程客户端 {ClientId} 资源变更通知时同步失败", clientId);
                 }
-            });
+            }, $"sync-resources-{clientId}");
             break;
 
             case McpMethod.NotificationPromptsListChanged:
             _logger.LogInformation("远程客户端 {ClientId} 发送提示模板列表变更通知，触发自动同步", clientId);
-            _ = Task.Run(async () => {
+            _fft.Register(async ct => {
                 try {
                     var result = await SyncPromptsAsync(clientId).ConfigureAwait(false);
 
@@ -140,7 +141,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager {
                 } catch (Exception ex) {
                     _logger.LogError(ex, "处理远程客户端 {ClientId} 提示模板变更通知时同步失败", clientId);
                 }
-            });
+            }, $"sync-prompts-{clientId}");
             break;
         }
     }
@@ -153,7 +154,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager {
             return;
         }
 
-        _ = Task.Run(() => ReconnectWithBackoffAsync(clientId, args.TransportType));
+        _fft.Register(async ct => await ReconnectWithBackoffAsync(clientId, args.TransportType).ConfigureAwait(false), $"reconnect-{clientId}");
     }
 
     /// <summary>
@@ -598,6 +599,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager {
         }
         _clientHandlers.Clear();
 
+        await _fft.DisposeAsync(TimeSpan.Zero).ConfigureAwait(false);
         await _clients.ClearAllAsync().ConfigureAwait(false);
         _toolSpecCache.Clear();
     }

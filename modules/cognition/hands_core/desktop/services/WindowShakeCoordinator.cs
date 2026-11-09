@@ -32,7 +32,7 @@ public sealed class WindowShakeCoordinator : ServiceEntity, IWindowShakeCoordina
     /// 从配置缓存的启用状态 — 默认 true，后台任务读取后更新。
     /// </summary>
     private volatile bool _cachedEnabled = true;
-    private readonly Task _loadTask;
+    private readonly FireAndForgetTask<Unit>? _loadTask;
 
     /// <summary>
     /// 构造窗口震动去抖协调器。
@@ -48,10 +48,8 @@ public sealed class WindowShakeCoordinator : ServiceEntity, IWindowShakeCoordina
         _configService = configService;
 
         if (configService is not null) {
-            _loadTask = ReadConfigAsync(configService, logger);
+            _loadTask = FireAndForgetTask<Unit>.FromExistingTask(ReadConfigAsync(configService, logger), "WindowShakeCoordinator init");
             configService.SettingChanged += OnSettingChanged;
-        } else {
-            _loadTask = Task.CompletedTask;
         }
     }
 
@@ -107,7 +105,7 @@ public sealed class WindowShakeCoordinator : ServiceEntity, IWindowShakeCoordina
     public override async ValueTask DisposeAsync() {
         if (LifecycleState == EntityLifecycle.Disposed) return;
         if (_loadTask is not null) {
-            try { await _loadTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
+            await _loadTask.DisposeAsync().ConfigureAwait(false);
         }
         await base.DisposeAsync().ConfigureAwait(false);
     }

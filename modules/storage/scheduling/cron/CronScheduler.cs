@@ -303,13 +303,13 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
                 _inFlight.Add(task.Id);
                 _nextFireAt.Remove(task.Id);
 
-                _ = Task.Run(async () => {
+                _ = FireAndForgetTask<Unit>.Run(async ct => {
                     try {
                         await _taskStore.RemoveTasksAsync([task.Id]).ConfigureAwait(false);
                     } finally {
                         TrySend(new CronRemoveInFlightCmd(task.Id));
                     }
-                });
+                }, $"cron-remove-{task.Id}");
             }
         } catch (Exception ex) {
             _logger?.LogError(ex, "[CronScheduler] 触发任务 {TaskId} 失败", task.Id);

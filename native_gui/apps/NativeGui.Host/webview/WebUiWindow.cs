@@ -45,7 +45,7 @@ internal sealed class WebUiWindow : Window {
 
     /// <summary>后台组装真实引擎，完成后 UI 线程热切换（失败回 app/error，不崩溃）</summary>
     private void StartEngine() {
-        _ = Task.Run(async () => {
+        _ = FireAndForgetTask<Unit>.Run(async ct => {
             try {
                 var session = await JccChatSession.CreateAsync();
                 Dispatcher.UIThread.Post(() => AttachEngine(session));
@@ -54,7 +54,7 @@ internal sealed class WebUiWindow : Window {
                 Dispatcher.UIThread.Post(() => _host.Send(new AppErrorMessage(
                     $"引擎加载失败：{ex.Message}", "查看 dumps 崩溃日志定位后重启应用")));
             }
-        });
+        }, "webui-start-engine");
     }
 
     /// <summary>挂接真实引擎：建会话流投影层 + 权限弹窗代理（web 允许/拒绝/始终允许）+ 会话存储切换到统一入口后刷新列表</summary>

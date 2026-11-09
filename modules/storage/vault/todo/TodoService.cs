@@ -214,16 +214,13 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
 
         var snapshot = _todoDag.Nodes.Values.Select(n => n.Payload).ToList();
         var json = RelaxedJsonSerializer.Serialize(snapshot, TodoJsonContext.Default);
-        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var request = new PersistRequest {
             Category = "todo",
             Directory = TodosSubDir,
             FileName = TodosFileName,
             Content = json,
-            Completion = tcs,
         };
-        await _persistencePipeline.EnqueueAsync(request, ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await _persistencePipeline.EnqueueAndWaitAsync(request, ct).ConfigureAwait(false);
     }
 
     private async Task EnsureTodosLoadedAsync(CancellationToken ct) {

@@ -88,10 +88,10 @@ public sealed class UpdateServer {
         _app.MapGet("/shutdown", async (HttpContext ctx) => {
             ctx.Response.ContentType = "application/json";
             await ctx.Response.WriteAsync("""{"status":"shutting_down"}""").ConfigureAwait(false);
-            _ = Task.Run(async () => {
+            _ = FireAndForgetTask<Unit>.Run(async ct => {
                 await Task.Delay(100).ConfigureAwait(false);
                 await _app!.StopAsync().ConfigureAwait(false);
-            });
+            }, "update-server-shutdown");
         });
 
         _ = _app.RunAsync();

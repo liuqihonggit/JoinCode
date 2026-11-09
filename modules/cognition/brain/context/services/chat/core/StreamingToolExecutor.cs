@@ -315,17 +315,14 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor {
     /// 同步执行会自等自死锁。Task.Run 强制在线程池另一线程执行,避免与当前线程锁持有冲突。> ADR: 0060</para>
     /// </summary>
     private void RunFireAndForget(Func<Task> taskFactory) {
-        _ = Task.Run(SafeRunAsync);
-
-        async Task SafeRunAsync() {
+        _ = FireAndForgetTask<Unit>.Run(async ct => {
             try {
                 await taskFactory().ConfigureAwait(false);
             } catch (OperationCanceledException) when (_discarded || _siblingCts.IsCancellationRequested) {
-                // 丢弃或级联取消导致的取消 — 预期行为，不视为错误
             } catch (Exception ex) {
                 _logger?.LogError(ex, "[StreamingToolExecutor] 后台队列任务异常");
             }
-        }
+        }, "streaming-tool-exec");
     }
 
     private static bool IsShellTool(string toolName) {

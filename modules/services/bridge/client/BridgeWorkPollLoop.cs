@@ -260,11 +260,11 @@ public sealed class BridgeWorkPollLoop : ServiceEntity {
             try {
                 // P1-4: 改用异步关闭+释放，消除 sync 方法中的 sync-over-async 阻塞
                 // P1-4: DisposeAsync 置于 try/catch 内，防止旧传输释放异常成为未观察异常
-                _ = Task.Run(async () => {
+                _ = FireAndForgetTask<Unit>.Run(async ct => {
                     try {
                         await oldTransport.DisposeAsync().ConfigureAwait(false);
                     } catch (Exception closeEx) { _logger?.LogWarning(closeEx, "[BridgeWorkPollLoop] 关闭旧传输失败"); }
-                });
+                }, "bridge-poll-close-old-transport");
             } catch (Exception ex) {
                 // 忽略旧传输关闭错误
                 _logger?.LogWarning(ex, "[BridgeWorkPollLoop] 关闭旧传输失败（外部）");

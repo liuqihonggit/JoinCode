@@ -96,7 +96,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
         var memoryDir = GetAgentMemoryDir(agentType, scope);
 
         // fire-and-forget 确保目录存在 — 对齐 TS ensureMemoryDirExists
-        _ = Task.Run(() => EnsureDirectoryExists(memoryDir), ct);
+        _ = FireAndForgetTask<Unit>.Run(async _ => EnsureDirectoryExists(memoryDir), "ensure-memory-dir");
 
         var entrypointPath = Path.Combine(memoryDir, MemoryEntrypointFile);
         var entrypointContent = await ReadEntrypointContentAsync(entrypointPath, ct).ConfigureAwait(false);

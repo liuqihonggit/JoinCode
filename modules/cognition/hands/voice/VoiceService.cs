@@ -149,7 +149,7 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
         Become(RecordingReceive);
         _logger?.LogInformation(L.T(StringKey.VoiceStartRecording));
 
-        _ = Task.Run(() => RecordLoopAsync(_recordingCts.Token));
+        _ = FireAndForgetTask<Unit>.Run(async ct => await RecordLoopAsync(_recordingCts.Token).ConfigureAwait(false), "voice-record");
         cmd.Tcs.TrySetResult();
     }
 

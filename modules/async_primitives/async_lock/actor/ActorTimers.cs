@@ -9,6 +9,7 @@ namespace Core.Utils;
 public sealed class ActorTimers<TCommand> : IAsyncDisposable {
     private readonly IActorTell<TCommand> _actor;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _timers = new(StringComparer.Ordinal);
+    private readonly FireAndForgetTracker _fft = new();
     private int _disposed;
 
     /// <summary>构造 Actor 定时器</summary>
@@ -28,16 +29,20 @@ public sealed class ActorTimers<TCommand> : IAsyncDisposable {
         if (Volatile.Read(ref _disposed) != 0) return;
         var cts = new CancellationTokenSource();
         _timers[key] = cts;
-        _ = Task.Run(async () => {
-            try {
-                await Task.Delay(delay, cts.Token).ConfigureAwait(false);
-                _actor.Tell(msg);
-            } catch (OperationCanceledException) {
-            } finally {
-                _timers.TryRemove(key, out _);
-                cts.Dispose();
-            }
-        });
+        try {
+            _fft.Register(async ct => {
+                try {
+                    await Task.Delay(delay, cts.Token).ConfigureAwait(false);
+                    _actor.Tell(msg);
+                } catch (OperationCanceledException) {
+                } finally {
+                    _timers.TryRemove(key, out var _);
+                    cts.Dispose();
+                }
+            }, $"timer-single-{key}");
+        } catch (ObjectDisposedException) {
+            cts.Dispose();
+        }
     }
 
     /// <summary>
@@ -52,19 +57,23 @@ public sealed class ActorTimers<TCommand> : IAsyncDisposable {
         if (Volatile.Read(ref _disposed) != 0) return;
         var cts = new CancellationTokenSource();
         _timers[key] = cts;
-        _ = Task.Run(async () => {
-            try {
-                await Task.Delay(initialDelay, cts.Token).ConfigureAwait(false);
-                while (!cts.IsCancellationRequested) {
-                    _actor.Tell(msg);
-                    await Task.Delay(interval, cts.Token).ConfigureAwait(false);
+        try {
+            _fft.Register(async ct => {
+                try {
+                    await Task.Delay(initialDelay, cts.Token).ConfigureAwait(false);
+                    while (!cts.IsCancellationRequested) {
+                        _actor.Tell(msg);
+                        await Task.Delay(interval, cts.Token).ConfigureAwait(false);
+                    }
+                } catch (OperationCanceledException) {
+                } finally {
+                    _timers.TryRemove(key, out var _);
+                    cts.Dispose();
                 }
-            } catch (OperationCanceledException) {
-            } finally {
-                _timers.TryRemove(key, out _);
-                cts.Dispose();
-            }
-        });
+            }, $"timer-periodic-{key}");
+        } catch (ObjectDisposedException) {
+            cts.Dispose();
+        }
     }
 
     /// <summary>取消指定 key 的定时器</summary>
@@ -88,9 +97,9 @@ public sealed class ActorTimers<TCommand> : IAsyncDisposable {
     public int Count => _timers.Count;
 
     /// <summary>释放 — 取消所有定时器</summary>
-    public ValueTask DisposeAsync() {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+    public async ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         CancelAll();
-        return ValueTask.CompletedTask;
+        await _fft.DisposeAsync().ConfigureAwait(false);
     }
 }

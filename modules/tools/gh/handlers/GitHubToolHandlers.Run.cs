@@ -1123,7 +1123,7 @@ public partial class GitHubToolHandlers {
     private void StartBackgroundCiMonitor(
         IGitHubApiClient client, string owner, string repo, string runId,
         HashSet<long> reportedJobIds) {
-        _ = Task.Run(async () => {
+        _ = FireAndForgetTask<Unit>.Run(async ct => {
             try {
                 using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
                 while (await timer.WaitForNextTickAsync(CancellationToken.None).ConfigureAwait(false)) {
@@ -1161,7 +1161,7 @@ public partial class GitHubToolHandlers {
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, "后台 CI 监控任务异常退出: runId={RunId}", runId);
             }
-        });
+        }, $"gh-ci-monitor-{runId}");
     }
 
     /// <summary>

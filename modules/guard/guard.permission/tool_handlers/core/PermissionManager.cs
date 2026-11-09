@@ -35,7 +35,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         _logger = logger;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _currentMode = PermissionMode.Auto;
-        _loadTask = FireAndForgetTask<Unit>.Run(async ct => await InitializeModeAsync(fs).ConfigureAwait(false), "PermissionManager init");
+        _loadTask = FireAndForgetTask<Unit>.FromExistingTask(InitializeModeAsync(fs), "PermissionManager init");
     }
 
     /// <summary>

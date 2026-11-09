@@ -35,8 +35,8 @@ public sealed class FireAndForgetTask<T> : IFireAndForgetTask, IAsyncDisposable 
         _cts = null;
     }
 
-    /// <summary>从已存在的 Task 创建包装（不启动新任务，无独立 CTS，Cancel 无操作）</summary>
-    internal static FireAndForgetTask<Unit> FromExistingTask(Task task, string? name, Action<Exception>? onError) {
+    /// <summary>从已存在的 Task 创建包装（不启动新任务，无独立 CTS，Cancel 无操作）— 用于异步初始化等需立即开始执行的场景</summary>
+    public static FireAndForgetTask<Unit> FromExistingTask(Task task, string? name = null, Action<Exception>? onError = null) {
         var unitTask = task.ContinueWith(_ => Unit.Value, TaskContinuationOptions.ExecuteSynchronously);
         return new FireAndForgetTask<Unit>(unitTask, name, onError);
     }

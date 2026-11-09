@@ -24,7 +24,7 @@ public sealed class ToolInterventionManager : ServiceEntity {
         _configPath = Path.Combine(
             JoinCode.Abstractions.Configuration.AppData.AppDataConstants.JccDirectory,
             "tool-interventions.json");
-        _loadTask = FireAndForgetTask<Unit>.Run(async ct => await LoadFromDiskAsync().ConfigureAwait(false), "ToolInterventionManager init");
+        _loadTask = FireAndForgetTask<Unit>.FromExistingTask(LoadFromDiskAsync(), "ToolInterventionManager init");
     }
 
     /// <summary>

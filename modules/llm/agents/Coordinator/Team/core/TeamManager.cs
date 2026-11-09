@@ -55,7 +55,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         _persistenceFs = fileSystem;
         _stateFilePath = fileSystem is not null ? GetStateFilePath() : null;
         _actor = new TeamActor(this, logger);
-        _loadTask = FireAndForgetTask<Unit>.Run(async ct => await LoadStateAsync().ConfigureAwait(false), "TeamManager init");
+        _loadTask = FireAndForgetTask<Unit>.FromExistingTask(LoadStateAsync(), "TeamManager init");
     }
 
     /// <summary>

@@ -28,7 +28,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
         _fs = fs;
         _logger = logger;
         _actor = new ReloadActor(this, logger);
-        _loadTask = FireAndForgetTask<Unit>.Run(async ct => await LoadConfigAsync().ConfigureAwait(false), "DynamicKeywordConfigService init");
+        _loadTask = FireAndForgetTask<Unit>.FromExistingTask(LoadConfigAsync().AsTask(), "DynamicKeywordConfigService init");
         StartWatching();
     }
 

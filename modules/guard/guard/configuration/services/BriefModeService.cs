@@ -21,7 +21,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService {
         _clock = clock;
         _fs = fs;
         _logger = logger;
-        _loadTask = FireAndForgetTask<Unit>.Run(async ct => await LoadFromFileAsync().ConfigureAwait(false), "BriefModeService init");
+        _loadTask = FireAndForgetTask<Unit>.FromExistingTask(LoadFromFileAsync().AsTask(), "BriefModeService init");
     }
     private bool _isEnabled;
     private DateTime? _enabledAt;

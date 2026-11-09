@@ -30,7 +30,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
         _httpClientProvider = httpClientProvider;
         _authPersistenceFs = fileSystem;
         _authStateFilePath = fileSystem is not null ? GetAuthStateFilePath() : null;
-        _loadTask = FireAndForgetTask<Unit>.Run(async ct => await LoadAuthStateAsync().ConfigureAwait(false), "McpAuthToolHandlers init");
+        _loadTask = FireAndForgetTask<Unit>.FromExistingTask(LoadAuthStateAsync(), "McpAuthToolHandlers init");
     }
 
     /// <summary>

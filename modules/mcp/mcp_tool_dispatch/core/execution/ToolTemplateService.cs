@@ -26,7 +26,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
         _templatesDir = AppDataConstants.Paths.ToolTemplatesDirectory;
 
         EnsureTemplatesDir();
-        _loadTask = FireAndForgetTask<Unit>.Run(async ct => await LoadTemplatesAsync(ct).ConfigureAwait(false), "ToolTemplateService init");
+        _loadTask = FireAndForgetTask<Unit>.FromExistingTask(LoadTemplatesAsync(_disposeCts.Token), "ToolTemplateService init");
     }
 
     /// <summary>

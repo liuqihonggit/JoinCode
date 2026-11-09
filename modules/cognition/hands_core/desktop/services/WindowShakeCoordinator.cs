@@ -48,7 +48,7 @@ public sealed class WindowShakeCoordinator : ServiceEntity, IWindowShakeCoordina
         _configService = configService;
 
         if (configService is not null) {
-            _loadTask = FireAndForgetTask<Unit>.Run(async ct => await ReadConfigAsync(configService, logger).ConfigureAwait(false), "WindowShakeCoordinator init");
+            _loadTask = FireAndForgetTask<Unit>.FromExistingTask(ReadConfigAsync(configService, logger), "WindowShakeCoordinator init");
             configService.SettingChanged += OnSettingChanged;
         }
     }

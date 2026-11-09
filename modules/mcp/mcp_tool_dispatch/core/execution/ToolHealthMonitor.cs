@@ -118,7 +118,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
             "tool-health.json");
         _timers = new ActorTimers<IToolHealthCommand>(this);
         _timers.StartPeriodicTimer("decay", new DecayTickCmd(), TimeSpan.FromHours(1), TimeSpan.FromHours(1));
-        _loadTask = FireAndForgetTask<Unit>.Run(async ct => await LoadFromDiskAsync().ConfigureAwait(false), "ToolHealthMonitor init");
+        _loadTask = FireAndForgetTask<Unit>.FromExistingTask(LoadFromDiskAsync(), "ToolHealthMonitor init");
     }
 
 

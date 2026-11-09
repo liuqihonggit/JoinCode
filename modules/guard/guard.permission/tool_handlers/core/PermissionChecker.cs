@@ -49,7 +49,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
         _config = configOptions.Value;
         _currentMode = PermissionMode.Auto;
         _fs = fs;
-        _loadTask = FireAndForgetTask<Unit>.Run(async ct => await InitializeModeAsync(fs).ConfigureAwait(false), "PermissionChecker init");
+        _loadTask = FireAndForgetTask<Unit>.FromExistingTask(InitializeModeAsync(fs), "PermissionChecker init");
 
         _autoApprovedTools = _config.AutoApprovedTools
             .Keys

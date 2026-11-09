@@ -2,52 +2,37 @@
 
 ## 状态
 
-proposed
+accepted — 已实现
 
 ## 上下文
 
-C# 侧 NDJSON 输出采用扁平事件流（13 种独立事件类型：text/thinking/tool_start/tool_end/...），基准 ClaudeCode stream-json 采用嵌套消息流（8+ 种顶层 type，工具调用嵌在 assistant/user 消息内）。
+C# 侧 NDJSON 输出曾采用扁平事件流（13 种独立事件类型：text/thinking/tool_start/tool_end/...），现已改为嵌套消息流（assistant/user 消息内嵌 content blocks），与基准 ClaudeCode stream-json 格式对齐。
 
-差异详见 [TASK080](../../task/TASK080-NDJSON-stream-json-格式对齐基准.md)。
+差异详见 [TASK080](../../task/TASK080-NDJSON-stream-json-格式对齐基准.md)（历史记录）。
 
-### 核心差异
+### 已对齐的核心差异
 
-1. **事件结构**：C# `{ type, timestamp, data }` vs 基准 `{ type, uuid, session_id, ...fields }`
-2. **工具调用**：C# 独立 tool_start/tool_end vs 基准 assistant 消息内 tool_use block + user 消息内 tool_result block
-3. **缺少 system/init**：基准侧首条消息含 cwd/model/tools 等会话元数据
-4. **缺少 uuid/session_id**：基准侧每条消息有唯一标识和会话关联
-5. **result 结构不完整**：缺少 duration_ms/usage/cost/num_turns 等
+1. **事件结构**：已改为 `{ type, uuid, session_id, ...fields }` 嵌套消息流 — `SdkMessageBase` + `SdkContentBlock`（text/thinking/tool_use/tool_result）
+2. **工具调用**：已嵌在 `assistant` 消息内 `tool_use` block + `user` 消息内 `tool_result` block — `_pendingBlocks` 累积后 `FlushAssistant()` 整体输出
+3. **system/init 消息**：已实现 — `SdkSystemInitMessage` 含 cwd/model/tools/mcp_servers/permissionMode/slash_commands/skills/plugins/agents/apiKeySource/betas/output_style/fast_mode_state
+4. **uuid/session_id**：已实现 — `SdkMessageBase.Uuid` + `SessionId`
+5. **result 结构**：已扩展 — `SdkResultMessage` 含 structured_output/duration_ms/usage/cost/num_turns/stop_reason/permission_denials/modelUsage
 
 ## 决策
 
-对齐基准侧 stream-json 格式：
+对齐基准侧 stream-json 格式（方案 C）：
 
-1. **重写 CliEventConsumer**：文本/思考/工具调用嵌在 `assistant` 消息内，工具结果嵌在 `user` 消息内
-2. **新增 system/init 消息**：每个会话开始时输出含会话元数据的 system/init
-3. **补充 uuid/session_id**：每条消息有唯一标识和会话关联
-4. **扩展 result 消息**：补充 duration_ms/usage/cost/num_turns/stop_reason 等字段
+1. **CliEventConsumer 重写为 assistant/user 消息流** — 已实现
+2. **新增 system/init 消息** — 已实现
+3. **补充 uuid/session_id** — 已实现
+4. **扩展 result 消息** — 已实现
 
-## 替代方案
+## 实现位置
 
-### 方案 A：保留扁平事件流（放弃）
-
-- 优点：改动小
-- 缺点：SDK 消费者无法直接消费 jcc 输出；与基准侧格式不兼容；未来 SDK 集成困难
-
-### 方案 B：双格式过渡（拒绝）
-
-- 优点：渐进式迁移，不破坏现有消费者
-- 缺点：维护两套格式成本高；过渡期长；项目无后向兼容要求（AGENTS.md 规则1）
-
-### 方案 C：对齐基准侧（采纳）
-
-- 优点：SDK 兼容性；与基准侧行为一致；未来集成容易
-- 缺点：改动大，影响所有 NDJSON 消费方
-
-## 影响
-
-- `CliEventConsumer` 重写为 assistant/user 消息流
-- `CliStreamEvent`/`CliStreamEventData` 替换为基准兼容的 DTO
-- `NonInteractiveModeRunner` 的 result 事件扩展
-- E2E 测试中 NDJSON 解析代码更新
-- bridge `NdjsonParser` 已对齐基准侧（无需改动）
+| 组件 | 文件 |
+|------|------|
+| SDK 消息类型定义 | `modules/apps/cli/core/output/SdkMessage.cs` |
+| NDJSON 事件流输出器 | `modules/apps/cli/adapters/CliEventConsumer.cs` |
+| --format ndjson 参数 | `modules/apps/engine/app/builder/CommandLineOptions.cs` |
+| 非交互模式启动器 | `modules/apps/cli/entry/runners/NonInteractiveModeRunner.cs` |
+| NDJSON 行解析器 | `modules/async_primitives/transport.impl/bridge/shared/messaging/NdjsonParser.cs` |

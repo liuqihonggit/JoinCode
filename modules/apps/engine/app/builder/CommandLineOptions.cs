@@ -228,4 +228,13 @@ public record CommandLineOptions {
     /// 对齐 TS: claude --include-partial-messages
     /// </summary>
     public bool IncludePartialMessages { get; init; }
+
+    /// <summary>
+    /// JSON Schema for structured output（--json-schema 参数）
+    /// 对齐 TS: claude --json-schema '{"type":"object",...}'
+    /// 当提供时，动态创建 StructuredOutput 合成工具，LLM 调用该工具时验证输出是否符合 Schema
+    /// 验证通过的数据填充到 result.structured_output；验证失败则构造 is_error tool_result 让 LLM 重试
+    /// 重试上限默认5次，可通过 MAX_STRUCTURED_OUTPUT_RETRIES 环境变量覆盖
+    /// </summary>
+    public string? JsonSchema { get; init; }
 }

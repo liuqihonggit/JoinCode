@@ -10,4 +10,7 @@ public static class ToolGroupNameConstants {
 
     /// <summary>MCP 工具组 — 远程/斜杠工具，首次只发分组+名称，按需加载完整描述</summary>
     public const string McpTools = "mcp_tools";
+
+    /// <summary>结构化输出合成工具组 — --json-schema 参数触发动态注册</summary>
+    public const string StructuredOutput = "structured_output";
 }

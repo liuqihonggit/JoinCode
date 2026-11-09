@@ -91,6 +91,12 @@ public sealed class StartupContext {
     public string? StopReason { get; set; }
 
     /// <summary>
+    /// 结构化输出 — 由 ExecuteStep 设置，对齐 ClaudeCode SDK structured_output 语义
+    /// 当 --json-schema 参数提供且合成工具验证通过时，填充验证数据到 result 消息
+    /// </summary>
+    public System.Text.Json.JsonElement? StructuredOutput { get; set; }
+
+    /// <summary>
     /// 权限拒绝列表 — 由 ExecuteStep 从 CliEventConsumer 收集，对齐 ClaudeCode SDK permission_denials 语义
     /// </summary>
     public System.Collections.Generic.List<Cli.Output.SdkPermissionDenial> PermissionDenials { get; set; } = [];

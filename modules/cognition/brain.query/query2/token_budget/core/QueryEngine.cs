@@ -272,7 +272,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                         ReasoningTokens = totalReasoning,
                     }
                     : null;
-                context.OutputChunks.Enqueue(BuildCompletionChunk(content, context.Stopwatch.ElapsedMilliseconds, context.TotalToolCalls, totalTurns, context.TotalCostUsd, BuildCacheSafeParams(context), usage, MapFinishReasonToStopReason(iterationResult.FinishReason), iterationResult.ModelId));
+                context.OutputChunks.Enqueue(BuildCompletionChunk(content, context.Stopwatch.ElapsedMilliseconds, context.TotalToolCalls, totalTurns, context.TotalCostUsd, BuildCacheSafeParams(context), usage, MapFinishReasonToStopReason(iterationResult.FinishReason), iterationResult.ModelId, context.StructuredOutputFromTool));
                 return;
             }
 
@@ -309,6 +309,23 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 
                 // 将工具结果添加到对话历史
                 await AddToolResultToHistory(context, toolCall, toolResult).ConfigureAwait(false);
+
+                // TASK071-C6 — 结构化输出捕获：对齐 TS QueryEngine structuredOutputFromTool
+                // 合成工具验证通过时 ToolResult.StructuredOutput 携带验证数据，捕获到 context 供 result 消息填充
+                if (toolResult.StructuredOutput is { } structuredOutput) {
+                    context.StructuredOutputFromTool = structuredOutput;
+                }
+
+                // TASK071-C6 — 合成工具调用计数 + 重试上限（对齐 TS MAX_STRUCTURED_OUTPUT_RETRIES）
+                if (toolCall.ToolName == SystemToolNameEnumConstants.SyntheticOutput) {
+                    context.StructuredOutputCallCount++;
+                    if (context.StructuredOutputCallCount >= context.MaxStructuredOutputRetries) {
+                        _logger?.LogWarning("[QueryEngine] StructuredOutput 合成工具调用次数超限: {Count}/{Max}",
+                            context.StructuredOutputCallCount, context.MaxStructuredOutputRetries);
+                        context.OutputChunks.Enqueue(BuildStructuredOutputRetryExhaustedErrorChunk(context.MaxStructuredOutputRetries));
+                        return;
+                    }
+                }
 
                 // 子代理 usage 累计 — agent 工具的 ToolResult.Usage 携带子代理 token 用量（含缓存命中）
                 if (toolResult.Usage is { } subagentUsage) {
@@ -365,6 +382,19 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
     }
 
     /// <summary>
+    /// 构建结构化输出重试耗尽的错误 chunk — 对齐 TS error_max_structured_output_retries
+    /// </summary>
+    /// <param name="maxRetries">合成工具最大重试次数</param>
+    /// <returns>错误类型的 QueryStreamChunk</returns>
+    internal static QueryStreamChunk BuildStructuredOutputRetryExhaustedErrorChunk(int maxRetries) {
+        return new QueryStreamChunk {
+            Type = AgentStreamChunkType.Error,
+            Content = $"Structured output validation failed after {maxRetries} attempts",
+            StopReason = "error_max_structured_output_retries"
+        };
+    }
+
+    /// <summary>
     /// 构建查询完成的 chunk — 纯函数（TASK031 阶段2.1 提取；TASK063 P7 补 usage 透传）
     /// </summary>
     /// <param name="content">完成内容</param>
@@ -376,8 +406,9 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
     /// <param name="usage">累计 token 用量 — 沿链透传到子代理 AgentFinished 事件（P7 完成态权威校正数据源）</param>
     /// <param name="stopReason">查询终止原因（end_turn/max_tokens/content_filter/tool_calls），null 默认 end_turn</param>
     /// <param name="modelId">模型标识（从流式 chunk 提取），null = 未提供</param>
+    /// <param name="structuredOutput">结构化输出数据（合成工具验证通过时携带），null = 无结构化输出</param>
     /// <returns>完成类型的 QueryStreamChunk</returns>
-    internal static QueryStreamChunk BuildCompletionChunk(string content, long elapsedMs, int totalToolCalls, int totalTurns, decimal costUsd, JoinCode.Abstractions.LLM.Chat.CacheSafeParams? cacheSafeParams, JoinCode.Abstractions.LLM.Chat.TokenUsage? usage = null, string? stopReason = null, string? modelId = null) {
+    internal static QueryStreamChunk BuildCompletionChunk(string content, long elapsedMs, int totalToolCalls, int totalTurns, decimal costUsd, JoinCode.Abstractions.LLM.Chat.CacheSafeParams? cacheSafeParams, JoinCode.Abstractions.LLM.Chat.TokenUsage? usage = null, string? stopReason = null, string? modelId = null, System.Text.Json.JsonElement? structuredOutput = null) {
         return new QueryStreamChunk {
             Type = AgentStreamChunkType.Complete,
             Content = content,
@@ -388,7 +419,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
             CostUsd = costUsd,
             CacheSafeParams = cacheSafeParams,
             Usage = usage,
-            ModelId = modelId
+            ModelId = modelId,
+            StructuredOutput = structuredOutput
         };
     }
 

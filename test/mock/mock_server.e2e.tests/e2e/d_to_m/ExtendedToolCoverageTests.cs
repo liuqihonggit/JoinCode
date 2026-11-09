@@ -23,15 +23,6 @@ public sealed class ExtendedToolCoverageTests : CoverageTestBase {
     }
 
     // ============================================================
-    // 基础设施工具测试
-    // ============================================================
-
-    [Fact]
-    public async Task StructuredOutputRegister_ShouldRegisterSchema() {
-        await RunScriptAsync(InfrastructureToolScripts.StructuredOutputRegisterTest).ConfigureAwait(true);
-    }
-
-    // ============================================================
     // 网络工具测试
     // ============================================================
 

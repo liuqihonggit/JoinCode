@@ -107,10 +107,13 @@ public sealed class McpInitModule : IAppModule {
         }
     }
 
-    /// <summary>插件就绪钩子 — 全部加载成功后同步工具列表 + 刷新 kernel.Plugins
-    /// （原 ConfigureAsync 尾部逻辑原样迁移；异常由 Bootstrap SafeAsync 兜底吞掉）。</summary>
+    /// <summary>
+    /// 插件就绪钩子 — 全部加载成功后同步工具列表 + 刷新 kernel.Plugins
+    /// （原 ConfigureAsync 尾部逻辑原样迁移；异常由 Bootstrap SafeAsync 兜底吞掉）
+    /// </summary>
     private static async Task OnPluginsReadyAsync(IServiceProvider services, ILogger? logger, CancellationToken ct, bool skipChat) {
-        // 所有工具注册完成后，同步工具列表 + 刷新 kernel.Plugins
+        await RegisterSyntheticOutputToolAsync(services, logger, ct).ConfigureAwait(false);
+
         try {
             var toolsBridge = services.GetRequiredService<Core.DependencyInjection.McpToolSyncBridge>();
             await toolsBridge.OnToolsListChangedAsync(ct).ConfigureAwait(false);
@@ -118,13 +121,62 @@ public sealed class McpInitModule : IAppModule {
             HandleRefreshError(ex, logger);
         }
 
-        // 把 IToolRegistry 中的工具挂载到 kernel.Plugins — 修复断裂的工具管线
-        // McpToolBridge.CreatePluginAsync 从 IToolRegistry 提取所有工具（含 SlashToMcpAdapter 注册的斜杠命令）
-        // 挂载到 IChatClient.Plugins 后，AnthropicQueryService/OpenAIQueryService 能通过 BuildXxxToolsFromKernel 构建工具列表发送给 LLM
-        // SkipChatServices 模式（gh/mcp_call 等工具元命令）不需要 kernel.Plugins，跳过 IChatClient 构造
         if (!skipChat)
             await RefreshKernelPluginsAsync(services, logger).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// 当 --json-schema 参数存在时，动态注册 StructuredOutput 合成工具到 IToolRegistry
+    /// 对齐 TS: createSyntheticOutputTool(jsonSchema) → tools = [...tools, syntheticOutputTool]
+    /// </summary>
+    private static async Task RegisterSyntheticOutputToolAsync(IServiceProvider services, ILogger? logger, CancellationToken ct) {
+        var options = services.GetService<CommandLineOptions>();
+        if (string.IsNullOrEmpty(options?.JsonSchema)) return;
+
+        try {
+            var toolRegistry = services.GetRequiredService<IToolRegistry>();
+            var validator = services.GetRequiredService<IJsonSchemaValidator>();
+
+            var schemaValidation = validator.ValidateSchema(options.JsonSchema);
+            if (!schemaValidation.IsValid) {
+                var errors = string.Join("; ", schemaValidation.Errors.Select(e => $"{e.Path}: {e.Message}"));
+                logger?.LogError("[StructuredOutput] JSON Schema 验证失败: {Errors}", errors);
+                return;
+            }
+
+            var handler = new SyntheticOutputToolHandler(validator, options.JsonSchema);
+            await toolRegistry.RegisterToolAsync(
+                SystemToolNameEnumConstants.SyntheticOutput,
+                "Provide structured output conforming to the registered JSON Schema",
+                BuildSyntheticOutputSchema(options.JsonSchema),
+                async (toolName, args, innerCt, onProgress) => await handler.ProvideStructuredOutputAsync(
+                    args.TryGetValue("input", out var inputEl) ? inputEl.GetString() ?? string.Empty : string.Empty,
+                    innerCt).ConfigureAwait(false),
+                ct,
+                ToolKind.System,
+                ToolGroupNameConstants.StructuredOutput).ConfigureAwait(false);
+
+            logger?.LogInformation("[StructuredOutput] 合成工具已注册 (--json-schema 验证通过)");
+        } catch (Exception ex) {
+            logger?.LogError(ex, "[StructuredOutput] 合成工具注册失败");
+        }
+    }
+
+    /// <summary>
+    /// 从 JSON Schema 字符串构建合成工具的 ToolSchema
+    /// 合成工具接受单个 input 参数（JSON 字符串），由 handler 内部验证是否符合 Schema
+    /// </summary>
+    private static ToolSchema BuildSyntheticOutputSchema(string schemaJson) =>
+        new() {
+            Type = "object",
+            Properties = new() {
+                ["input"] = new ToolSchemaProperty {
+                    Type = "string",
+                    Description = $"JSON output conforming to this schema: {schemaJson}"
+                }
+            },
+            Required = ["input"]
+        };
 
     /// <summary>
     /// 从 IToolRegistry 刷新 kernel.Plugins — 把所有注册的工具（MCP + 斜杠）挂载到 IChatClient

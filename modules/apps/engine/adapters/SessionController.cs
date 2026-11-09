@@ -54,6 +54,9 @@ public sealed class SessionController {
     /// <summary>本回合停止原因（对齐 ClaudeCode SDK stop_reason 语义）</summary>
     public string? LastStopReason => _lastStopReason;
 
+    /// <summary>本回合结构化输出（对齐 ClaudeCode SDK structured_output 语义）</summary>
+    public System.Text.Json.JsonElement? LastStructuredOutput { get; private set; }
+
     /// <summary>聊天服务</summary>
     public IChatService ChatService => _chatService;
 
@@ -175,6 +178,7 @@ public sealed class SessionController {
         _hasSubstantiveOutput = false;
         _lastDoneUsage = null;
         _lastStopReason = null;
+        LastStructuredOutput = null;
         _totalTurns = 0;
 
         try {
@@ -340,6 +344,8 @@ public sealed class SessionController {
             _lastApiDurationMs = apiMs;
         if (!string.IsNullOrEmpty(chunk.StopReason))
             _lastStopReason = chunk.StopReason;
+        if (chunk.StructuredOutput is { } structuredOutput)
+            LastStructuredOutput = structuredOutput;
     }
 
     /// <summary>

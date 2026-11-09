@@ -168,6 +168,7 @@ public static class ApplicationBuilder {
             Force = result.Force,
             Quiet = result.Quiet,
             IncludePartialMessages = result.IncludePartialMessages,
+            JsonSchema = result.JsonSchema,
         };
 
         // --await N: 超时自动关闭秒数

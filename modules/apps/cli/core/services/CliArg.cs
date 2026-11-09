@@ -112,4 +112,8 @@ public enum CliArg {
     /// <summary>启用部分消息流式输出（仅在 --format ndjson 模式下生效，将 LLM API 原始流式事件作为 stream_event 透传）</summary>
     [CliOption(JccCliArgEnumConstants.IncludePartialMessages, "", "启用部分消息流式输出（仅在 --format ndjson 模式下生效）", Category = "输出")]
     IncludePartialMessages,
+
+    /// <summary>JSON Schema for structured output — 动态创建 StructuredOutput 合成工具</summary>
+    [CliOption(JccCliArgEnumConstants.JsonSchema, "", "JSON Schema for structured output (creates a StructuredOutput tool)", AcceptsValue = true, Category = "输出")]
+    JsonSchema,
 }

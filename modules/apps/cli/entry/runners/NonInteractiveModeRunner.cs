@@ -70,6 +70,7 @@ internal static class NonInteractiveModeRunner {
                 NumTurns = context.NumTurns,
                 TotalCostUsd = context.TotalCostUsd,
                 StopReason = context.StopReason,
+                StructuredOutput = ok ? context.StructuredOutput : null,
                 Usage = context.Usage,
                 ModelUsage = BuildModelUsage(context),
                 PermissionDenials = context.PermissionDenials,

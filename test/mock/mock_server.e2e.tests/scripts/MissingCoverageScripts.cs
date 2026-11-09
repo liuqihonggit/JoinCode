@@ -346,41 +346,6 @@ public static class TaskToolScripts {
 }
 
 /// <summary>
-/// 基础设施工具 E2E 测试脚本
-/// </summary>
-public static class InfrastructureToolScripts {
-    public static ConversationScript StructuredOutputRegisterTest => new() {
-        Name = "structured_output_register 工具调用",
-        Turns =
-        [
-            new ConversationTurn
-            {
-                UserInput = "注册一个输出Schema",
-                AiResponse = new MockResponseScript
-                {
-                    Type = MockResponseType.WithToolCalls,
-                    TextResponse = "",
-                    ToolCalls =
-                    [
-                        new MockToolCallScript
-                        {
-                            ToolName = "structured_output_register",
-                            Arguments = new { schema_name = "test_schema", schema_json = "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}", description = "测试Schema" }
-                        }
-                    ],
-                    FollowUpText = "Schema 'test_schema' 已注册。"
-                },
-                Asserts =
-                [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "structured_output_register", Description = "应包含structured_output_register工具调用" },
-                    new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
-                ]
-            }
-        ]
-    };
-}
-
-/// <summary>
 /// 调度工具 E2E 测试脚本
 /// </summary>
 public static class SchedulingToolScripts {

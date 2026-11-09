@@ -49,4 +49,10 @@ public sealed class QueryStreamChunk {
     public decimal CostUsd { get; init; }
     /// <summary>获取缓存安全参数。</summary>
     public CacheSafeParams? CacheSafeParams { get; init; }
+
+    /// <summary>
+    /// 结构化输出 — 对齐 TS result.structured_output
+    /// 当 StructuredOutput 合成工具验证通过时，验证数据通过 Complete chunk 传递到消费方
+    /// </summary>
+    public System.Text.Json.JsonElement? StructuredOutput { get; init; }
 }

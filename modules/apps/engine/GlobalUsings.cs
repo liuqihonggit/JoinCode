@@ -141,6 +141,7 @@ global using System.Text.Json.Serialization.Metadata;
 global using System.Text.RegularExpressions;
 global using System.Threading.Channels;
 global using Tools;
+global using Tools.Handlers;
 global using Tools.Shell;
 global using ChatStreamEvent = JoinCode.Abstractions.LLM.Chat.ChatStreamEvent;
 global using ChatStreamEventType = JoinCode.Abstractions.LLM.Chat.ChatStreamEventType;

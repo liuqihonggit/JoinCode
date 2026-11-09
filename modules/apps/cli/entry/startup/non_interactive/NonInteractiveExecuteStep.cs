@@ -60,6 +60,7 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
             context.TotalCostUsd = session.LastCostUsd;
             context.ApiDurationMs = session.LastApiDurationMs;
             context.StopReason = session.LastStopReason;
+            context.StructuredOutput = session.LastStructuredOutput;
             if (session.PermissionDenials is { } denials)
                 context.PermissionDenials.AddRange(denials);
             context.Usage = session.LastUsage is { } usage

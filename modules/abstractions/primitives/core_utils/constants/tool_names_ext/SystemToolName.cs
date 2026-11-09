@@ -112,14 +112,6 @@ public enum SystemToolName {
     [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     Repl,
 
-    [EnumValue("structured_output_register")]
-    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
-    StructuredOutputRegister,
-
-    [EnumValue("structured_output_validate")]
-    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
-    StructuredOutputValidate,
-
     [EnumValue("goal_get")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GoalGet,

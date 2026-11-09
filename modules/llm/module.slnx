@@ -4,6 +4,7 @@
   <Project Path="agents.interfaces/Agents.Interfaces.csproj" />
   <Project Path="agents.coordinator.backend/Agents.Coordinator.Backend.csproj" />
   <Project Path="agents.worktree.lifecycle/Agents.Worktree.Lifecycle.csproj" />
+  <Project Path="agents.team.serialization/Agents.Team.Serialization.csproj" />
   <Project Path="agents/Agents.csproj" />
   <Project Path="agents.output/Agents.Output.csproj" />
   <Project Path="agents.tests/Agents.Tests.csproj" />

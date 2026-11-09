@@ -142,8 +142,8 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         var hookOrchestrator = _hookOrchestrator ?? throw new InvalidOperationException("Hook orchestrator not available.");
         try {
             var payload = new Dictionary<string, System.Text.Json.JsonElement> {
-                ["agent_id"] = System.Text.Json.JsonSerializer.SerializeToElement(agentId, AgentsJsonContext.Default.String),
-                ["action"] = System.Text.Json.JsonSerializer.SerializeToElement("create", AgentsJsonContext.Default.String)
+                ["agent_id"] = System.Text.Json.JsonSerializer.SerializeToElement(agentId, LifecycleJsonContext.Default.String),
+                ["action"] = System.Text.Json.JsonSerializer.SerializeToElement("create", LifecycleJsonContext.Default.String)
             };
 
             await foreach (var result in hookOrchestrator.ExecuteHooksAsync(
@@ -164,7 +164,7 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     /// 从 hook 返回的 JSON 中提取 worktree 路径（提取以扁平化嵌套）
     /// </summary>
     private static string? TryGetWorktreePath(System.Text.Json.JsonDocument doc) {
-        var path = doc.RootElement.Deserialize(AgentsJsonContext.Default.WorktreePathJson);
+        var path = doc.RootElement.Deserialize(LifecycleJsonContext.Default.WorktreePathJson);
         var result = path?.WorktreePath ?? path?.WorktreePathCamel;
         return string.IsNullOrEmpty(result) ? null : result;
     }
@@ -345,9 +345,9 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         _ = FireAndForgetTask<Unit>.Run(async ct => {
             try {
                 var payload = new Dictionary<string, System.Text.Json.JsonElement> {
-                    ["agent_id"] = System.Text.Json.JsonSerializer.SerializeToElement(agentId, AgentsJsonContext.Default.String),
-                    ["worktree_path"] = System.Text.Json.JsonSerializer.SerializeToElement(worktreePath, AgentsJsonContext.Default.String),
-                    ["branch_name"] = System.Text.Json.JsonSerializer.SerializeToElement(branchName, AgentsJsonContext.Default.String)
+                    ["agent_id"] = System.Text.Json.JsonSerializer.SerializeToElement(agentId, LifecycleJsonContext.Default.String),
+                    ["worktree_path"] = System.Text.Json.JsonSerializer.SerializeToElement(worktreePath, LifecycleJsonContext.Default.String),
+                    ["branch_name"] = System.Text.Json.JsonSerializer.SerializeToElement(branchName, LifecycleJsonContext.Default.String)
                 };
 
                 await foreach (var _ in _hookOrchestrator.ExecuteHooksAsync(hookEvent, payload).ConfigureAwait(false)) {

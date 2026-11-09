@@ -123,7 +123,7 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity {
         try {
             var data = RelaxedJsonSerializer.Deserialize(
                 message.Content,
-                AgentsJsonContext.Default.SwarmPermissionRequestData);
+                SwarmJsonContext.Default.SwarmPermissionRequestData);
 
             if (data == null) {
                 _logger?.LogWarning("无法反序列化权限请求: From={FromId}", message.FromAgentId);

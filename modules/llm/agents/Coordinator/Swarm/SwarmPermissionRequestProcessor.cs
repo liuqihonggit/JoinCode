@@ -65,7 +65,7 @@ public sealed partial class SwarmPermissionRequestProcessor : ServiceEntity, ISw
             PermissionUpdates = allowed ? (permissionUpdates ?? []) : []
         };
 
-        var content = JsonSerializer.Serialize(responseData, AgentsJsonContext.Default.SwarmPermissionResponseData);
+        var content = JsonSerializer.Serialize(responseData, SwarmJsonContext.Default.SwarmPermissionResponseData);
 
         var coordinatorId = _subAgentContextAccessor.Current?.AgentId ?? AgentRole.Coordinator.ToValue();
 

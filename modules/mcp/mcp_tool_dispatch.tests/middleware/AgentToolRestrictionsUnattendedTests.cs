@@ -40,14 +40,12 @@ public class AgentToolRestrictionsUnattendedTests {
     }
 
     [Fact]
-    public async Task IsToolAllowedForMode_Unattended_AutoDeniedTool_ReturnsFalse() {
+    public async Task GetAllowedTools_Unattended_ReturnsAutoAllowedTools() {
         await using var restrictions = new Core.Utils.AgentToolRestrictions();
-        var autoDenied = restrictions.GetDeniedTools(PermissionMode.Auto);
-        if (autoDenied.Count > 0) {
-            var someDeniedTool = autoDenied.First();
-            restrictions.IsToolAllowedForMode(someDeniedTool, PermissionMode.Unattended)
-                .Should().BeFalse("Unattended 模式下 Auto denied 工具仍应被拒绝");
-        }
+        var unattendedAllowed = restrictions.GetAllowedTools(PermissionMode.Unattended);
+        var autoAllowed = restrictions.GetAllowedTools(PermissionMode.Auto);
+        unattendedAllowed.Should().BeEquivalentTo(autoAllowed,
+            "Unattended 模式继承 Auto 模式的 allowed 集合，仅额外通过 denied 集合限制");
     }
 
     [Fact]

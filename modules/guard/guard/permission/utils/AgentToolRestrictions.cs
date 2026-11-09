@@ -41,7 +41,7 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
             PermissionMode.Plan => _planAllowed,
             PermissionMode.Ask => _askAllowed,
             PermissionMode.Bypass => _autoAllowed,
-            PermissionMode.Unattended => _unattendedAllowed,
+            PermissionMode.Unattended => _autoAllowed,
             _ => _autoAllowed
         };
     }

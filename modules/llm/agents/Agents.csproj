@@ -30,6 +30,8 @@
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Agents.Core" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/llm/agents.configuration/Agents.Configuration.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Agents.Configuration" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/llm/agents.worktree.pipeline/Agents.Worktree.Pipeline.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Agents.Worktree.Pipeline" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
 
   <ItemGroup>

@@ -2,7 +2,8 @@
 namespace Core.Agents;
 
 /// <summary>
-/// Agents 子系统统一 JSON 序列化上下文 — AOT 源码生成，覆盖权限、计划审批、判断等类型
+/// Agents 子系统核心 JSON 序列化上下文 — AOT 源码生成，覆盖基本类型、判断结果、快照元数据等
+/// Swarm/Lifecycle 相关类型已拆分到各自的局部 JsonContext（SwarmJsonContext/LifecycleJsonContext）
 /// </summary>
 [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, WriteIndented = false, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(List<string>))]
@@ -10,17 +11,10 @@ namespace Core.Agents;
 [JsonSerializable(typeof(int))]
 [JsonSerializable(typeof(double))]
 [JsonSerializable(typeof(bool))]
-[JsonSerializable(typeof(SwarmPermissionRequestData))]
-[JsonSerializable(typeof(SwarmPermissionResponseData))]
-[JsonSerializable(typeof(SwarmPermissionUpdateData))]
-[JsonSerializable(typeof(List<SwarmPermissionUpdateData>))]
-[JsonSerializable(typeof(PlanApprovalRequestMessage))]
-[JsonSerializable(typeof(PlanApprovalResponseMessage))]
 [JsonSerializable(typeof(BootstrapJudgmentJson))]
 [JsonSerializable(typeof(AgentMemorySnapshotMetaJson))]
 [JsonSerializable(typeof(AgentMemorySyncedMetaJson))]
 [JsonSerializable(typeof(ToolCallItemJson))]
-[JsonSerializable(typeof(WorktreePathJson))]
 public partial class AgentsJsonContext : JsonSerializerContext;
 
 /// <summary>

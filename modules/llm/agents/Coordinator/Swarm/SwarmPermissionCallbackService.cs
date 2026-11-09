@@ -143,7 +143,7 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
             WorkerAgentId = workerAgentId
         };
 
-        var content = JsonSerializer.Serialize(data, AgentsJsonContext.Default.SwarmPermissionRequestData);
+        var content = JsonSerializer.Serialize(data, SwarmJsonContext.Default.SwarmPermissionRequestData);
 
         var message = new CoordinatorAgentMessage {
             FromAgentId = workerAgentId,
@@ -225,7 +225,7 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
         try {
             var data = RelaxedJsonSerializer.Deserialize(
                 message.Content,
-                AgentsJsonContext.Default.SwarmPermissionResponseData);
+                SwarmJsonContext.Default.SwarmPermissionResponseData);
 
             if (data == null) {
                 _logger?.LogWarning("无法反序列化权限响应: From={FromId}", message.FromAgentId);

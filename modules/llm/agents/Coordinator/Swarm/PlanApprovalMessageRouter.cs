@@ -135,7 +135,7 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity {
         try {
             var request = RelaxedJsonSerializer.Deserialize(
                 message.Content,
-                AgentsJsonContext.Default.PlanApprovalRequestMessage);
+                SwarmJsonContext.Default.PlanApprovalRequestMessage);
 
             if (request == null) {
                 _logger?.LogWarning("无法反序列化 Plan 审批请求: From={FromId}", message.FromAgentId);
@@ -159,7 +159,7 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity {
                 PermissionMode = currentMode.ToValue()
             };
 
-            var responseContent = JsonSerializer.Serialize(response, AgentsJsonContext.Default.PlanApprovalResponseMessage);
+            var responseContent = JsonSerializer.Serialize(response, SwarmJsonContext.Default.PlanApprovalResponseMessage);
 
             // 通过 broker 发送审批响应给 teammate
             var responseMessage = new CoordinatorAgentMessage {
@@ -187,7 +187,7 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity {
         try {
             var response = RelaxedJsonSerializer.Deserialize(
                 message.Content,
-                AgentsJsonContext.Default.PlanApprovalResponseMessage);
+                SwarmJsonContext.Default.PlanApprovalResponseMessage);
 
             if (response == null) {
                 _logger?.LogWarning("无法反序列化 Plan 审批响应: From={FromId}", message.FromAgentId);

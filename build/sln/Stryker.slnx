@@ -41,6 +41,7 @@
     <Project Path="../../modules/cognition/brain.context_fold/Brain.ContextFold.csproj" />
     <Project Path="../../modules/cognition/brain.context_collapse/Brain.ContextCollapse.csproj" />
     <Project Path="../../modules/cognition/brain.context_core/Brain.ContextCore.csproj" />
+    <Project Path="../../modules/cognition/brain.context_compact/Brain.ContextCompact.csproj" />
     <Project Path="../../modules/cognition/brain.query/Brain.Query.csproj" />
     <Project Path="../../modules/cognition/prompts/Prompts.csproj" />
     <Project Path="../../modules/cognition/brain.context.tests/Brain.Context.Tests.csproj" />

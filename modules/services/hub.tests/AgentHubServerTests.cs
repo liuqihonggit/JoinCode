@@ -109,13 +109,180 @@ public class AgentHubServerTests : IAsyncDisposable {
     }
 
     [Fact]
-    public async Task UnknownPath_Returns404() {
+    public async Task ModelsEndpoint_ReturnsModelList() {
         await StartTestServerAsync();
 
         using var client = new HttpClient();
-        using var response = await client.GetAsync($"http://localhost:{_port}/unknown");
+        using var response = await client.GetAsync($"http://localhost:{_port}/v1/models");
 
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.IsSuccessStatusCode.Should().BeTrue();
+        var content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("test-model");
+        content.Should().Contain("\"data\"");
+    }
+
+    [Fact]
+    public async Task HealthEndpoint_ReturnsProviderCount() {
+        await StartTestServerAsync();
+
+        using var client = new HttpClient();
+        using var response = await client.GetAsync($"http://localhost:{_port}/health");
+
+        response.IsSuccessStatusCode.Should().BeTrue();
+        var content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("\"providers\":1");
+    }
+
+    [Fact]
+    public async Task AgentRoute_WithMatchingCapability_ReturnsDelivered() {
+        await StartTestServerAsync();
+
+        using var client = new HttpClient();
+        await client.PostAsync(
+            $"http://localhost:{_port}/agent/register",
+            new StringContent("""{"agent_id":"worker-1","capabilities":["code-review"]}""", Encoding.UTF8, "application/json"));
+
+        using var response = await client.PostAsync(
+            $"http://localhost:{_port}/agent/route",
+            new StringContent("""{"capability":"code-review","from_agent_id":"orchestrator","content":"review this"}""", Encoding.UTF8, "application/json"));
+
+        response.IsSuccessStatusCode.Should().BeTrue();
+        var content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("delivered");
+        content.Should().Contain("worker-1");
+    }
+
+    [Fact]
+    public async Task AgentRoute_NoMatchingCapability_ReturnsNoAgent() {
+        await StartTestServerAsync();
+
+        using var client = new HttpClient();
+        await client.PostAsync(
+            $"http://localhost:{_port}/agent/register",
+            new StringContent("""{"agent_id":"worker-1","capabilities":["code-review"]}""", Encoding.UTF8, "application/json"));
+
+        using var response = await client.PostAsync(
+            $"http://localhost:{_port}/agent/route",
+            new StringContent("""{"capability":"deployment","from_agent_id":"orchestrator","content":"deploy this"}""", Encoding.UTF8, "application/json"));
+
+        response.IsSuccessStatusCode.Should().BeTrue();
+        var content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("no_agent");
+    }
+
+    [Fact]
+    public async Task AgentMessage_DeliversToTargetAgent() {
+        await StartTestServerAsync();
+
+        using var client = new HttpClient();
+        await client.PostAsync(
+            $"http://localhost:{_port}/agent/register",
+            new StringContent("""{"agent_id":"agent-1"}""", Encoding.UTF8, "application/json"));
+        await client.PostAsync(
+            $"http://localhost:{_port}/agent/register",
+            new StringContent("""{"agent_id":"agent-2"}""", Encoding.UTF8, "application/json"));
+
+        using var response = await client.PostAsync(
+            $"http://localhost:{_port}/agent/message",
+            new StringContent("""{"from_agent_id":"agent-1","to_agent_id":"agent-2","content":"hello"}""", Encoding.UTF8, "application/json"));
+
+        response.IsSuccessStatusCode.Should().BeTrue();
+        var content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("delivered");
+    }
+
+    [Fact]
+    public async Task AgentMessage_BroadcastsToAllExceptSender() {
+        await StartTestServerAsync();
+
+        using var client = new HttpClient();
+        await client.PostAsync(
+            $"http://localhost:{_port}/agent/register",
+            new StringContent("""{"agent_id":"agent-1"}""", Encoding.UTF8, "application/json"));
+        await client.PostAsync(
+            $"http://localhost:{_port}/agent/register",
+            new StringContent("""{"agent_id":"agent-2"}""", Encoding.UTF8, "application/json"));
+        await client.PostAsync(
+            $"http://localhost:{_port}/agent/register",
+            new StringContent("""{"agent_id":"agent-3"}""", Encoding.UTF8, "application/json"));
+
+        using var response = await client.PostAsync(
+            $"http://localhost:{_port}/agent/message",
+            new StringContent("""{"from_agent_id":"agent-1","content":"broadcast msg"}""", Encoding.UTF8, "application/json"));
+
+        response.IsSuccessStatusCode.Should().BeTrue();
+        var content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("broadcast");
+    }
+
+    [Fact]
+    public async Task AgentMessage_ToUnregisteredAgent_ReturnsAgentNotFound() {
+        await StartTestServerAsync();
+
+        using var client = new HttpClient();
+
+        using var response = await client.PostAsync(
+            $"http://localhost:{_port}/agent/message",
+            new StringContent("""{"from_agent_id":"agent-1","to_agent_id":"nonexistent","content":"hello"}""", Encoding.UTF8, "application/json"));
+
+        response.IsSuccessStatusCode.Should().BeTrue();
+        var content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("agent_not_found");
+    }
+
+    [Fact]
+    public async Task AgentRegister_WithCapabilities_ReturnsOk() {
+        await StartTestServerAsync();
+
+        using var client = new HttpClient();
+        using var response = await client.PostAsync(
+            $"http://localhost:{_port}/agent/register",
+            new StringContent("""{"agent_id":"worker-1","capabilities":["code-review","testing"]}""", Encoding.UTF8, "application/json"));
+
+        response.IsSuccessStatusCode.Should().BeTrue();
+        var content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("ok");
+        content.Should().Contain("worker-1");
+    }
+
+    [Fact]
+    public async Task ModelsEndpoint_ReturnsModelsFromMultipleProviders() {
+        _port = GetAvailablePort();
+        var settings = new SettingsJson {
+            Vendor = new Dictionary<string, ProfileSettings> {
+                ["provider-a"] = new ProfileSettings {
+                    Provider = "provider-a",
+                    Protocol = ProtocolKindEnumConstants.OpenAiCompatible,
+                    Endpoint = "http://localhost:9998/v1",
+                    ApiKeyEnvVar = "KEY_A",
+                    Model = "model-a"
+                },
+                ["provider-b"] = new ProfileSettings {
+                    Provider = "provider-b",
+                    Protocol = ProtocolKindEnumConstants.OpenAiCompatible,
+                    Endpoint = "http://localhost:9997/v1",
+                    ApiKeyEnvVar = "KEY_B",
+                    Model = "model-b"
+                }
+            },
+            Current = new CurrentSettings { Profile = "provider-a" }
+        };
+
+        var registry = ProviderDefinitionRegistry.Create(new ModelConfigLoader(), null, null);
+        _server = new AgentHubServer(settings, registry, _port);
+        _server.Start();
+        var sw = new SpinWait();
+        while (!_server.IsRunning) sw.SpinOnce();
+
+        using var client = new HttpClient();
+        using var response = await client.GetAsync($"http://localhost:{_port}/v1/models");
+
+        response.IsSuccessStatusCode.Should().BeTrue();
+        var content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("model-a");
+        content.Should().Contain("model-b");
+        content.Should().Contain("provider-a");
+        content.Should().Contain("provider-b");
     }
 
     public async ValueTask DisposeAsync() {

@@ -5,7 +5,7 @@ namespace Core.Agents.Coordinator;
 [Register(typeof(SwarmPermissionMessageRouter), ServiceLifetime.Singleton)]
 public sealed partial class SwarmPermissionMessageRouter : ServiceEntity {
     private readonly IMailbox _messageBroker;
-    private readonly SwarmPermissionCallbackService _callbackService;
+    private readonly ISwarmPermissionCallbackHandler _callbackService;
     private readonly ISwarmPermissionRequestProcessor _requestProcessor;
     private readonly ILogger<SwarmPermissionMessageRouter>? _logger;
     private CancellationTokenSource? _cts;
@@ -21,7 +21,7 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity {
     /// <param name="logger">日志记录器</param>
     public SwarmPermissionMessageRouter(
         IMailbox messageBroker,
-        SwarmPermissionCallbackService callbackService,
+        ISwarmPermissionCallbackHandler callbackService,
         ISwarmPermissionRequestProcessor requestProcessor,
         ILogger<SwarmPermissionMessageRouter>? logger = null) {
         _messageBroker = messageBroker ?? throw new ArgumentNullException(nameof(messageBroker));

@@ -19,7 +19,7 @@ public interface ISwarmPermissionRequestProcessor {
 public sealed partial class SwarmPermissionRequestProcessor : ServiceEntity, ISwarmPermissionRequestProcessor {
     private readonly IMailbox _messageBroker;
     private readonly IAgentPermissionManager _permissionManager;
-    private readonly SwarmPermissionCallbackService _callbackService;
+    private readonly ISwarmPermissionCallbackHandler _callbackService;
     private readonly ILogger<SwarmPermissionRequestProcessor>? _logger;
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
 
@@ -34,7 +34,7 @@ public sealed partial class SwarmPermissionRequestProcessor : ServiceEntity, ISw
     public SwarmPermissionRequestProcessor(
         IMailbox messageBroker,
         IAgentPermissionManager permissionManager,
-        SwarmPermissionCallbackService callbackService,
+        ISwarmPermissionCallbackHandler callbackService,
         ILogger<SwarmPermissionRequestProcessor>? logger = null,
         ISubAgentContextAccessor? subAgentContextAccessor = null) {
         _messageBroker = messageBroker ?? throw new ArgumentNullException(nameof(messageBroker));

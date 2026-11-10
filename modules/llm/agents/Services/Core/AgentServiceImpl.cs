@@ -8,7 +8,7 @@ namespace Core.Agents;
 public sealed record AgentServiceDependencies(
     JoinCode.Abstractions.Interfaces.IAgentTranscriptService? TranscriptService = null,
     IMailbox? MessageBroker = null,
-    SwarmPermissionCallbackService? PermissionCallbackService = null,
+    ISwarmPermissionCallbackHandler? PermissionCallbackService = null,
     JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? McpServerManager = null,
     JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? InputForwardQueue = null,
     JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? OutputChannelManager = null,
@@ -40,7 +40,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     private readonly IMailbox? _messageBroker;
     private readonly JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? _inputForwardQueue;
     private readonly JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? _outputChannelManager;
-    private readonly SwarmPermissionCallbackService? _permissionCallbackService;
+    private readonly ISwarmPermissionCallbackHandler? _permissionCallbackService;
     private readonly JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? _mcpServerManager;
     private readonly JoinCode.Abstractions.Interfaces.IAgentWorktreeManager? _worktreeManager;
     private readonly JoinCode.Abstractions.Interfaces.IAgentNotificationQueue? _notificationQueue;

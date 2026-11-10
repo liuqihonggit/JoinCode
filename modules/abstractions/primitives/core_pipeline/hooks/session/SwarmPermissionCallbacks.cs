@@ -23,6 +23,29 @@ public interface ISwarmPermissionCallbacks {
 }
 
 /// <summary>
+/// Swarm 权限回调处理接口 — 扩展 ISwarmPermissionCallbacks，补充消息处理和请求查询能力
+/// </summary>
+public interface ISwarmPermissionCallbackHandler : ISwarmPermissionCallbacks {
+    /// <summary>处理权限响应 — 执行已注册的回调（允许或拒绝）。</summary>
+    /// <param name="requestId">请求标识。</param>
+    /// <param name="allowed">是否允许。</param>
+    /// <param name="updatedInput">更新后的工具输入参数。</param>
+    /// <param name="permissionUpdates">权限更新列表。</param>
+    /// <param name="feedback">反馈信息。</param>
+    Task HandlePermissionResponseAsync(string requestId, bool allowed, Dictionary<string, JsonElement>? updatedInput, List<PermissionUpdate>? permissionUpdates, string? feedback);
+
+    /// <summary>获取指定请求的待处理权限请求。</summary>
+    /// <param name="requestId">请求唯一标识。</param>
+    /// <returns>待处理权限请求，不存在则返回 null。</returns>
+    SwarmPermissionRequest? GetPendingRequest(string requestId);
+
+    /// <summary>异步处理收到的权限响应消息。</summary>
+    /// <param name="message">收到的协调器消息。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    Task ProcessIncomingResponseMessageAsync(CoordinatorMessage message, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
 /// Swarm 权限请求
 /// </summary>
 public sealed record SwarmPermissionRequest {

@@ -8,7 +8,7 @@ public class ResponsesQueryServiceTests {
         var config = new ProviderConfig {
             Vendor = provider,
             ApiKey = "sk-test",
-            ModelId = "gpt-4o",
+            ModelId = "test-model",
             Definition = new FallbackProviderDefinition(kind)
         };
         return new ResponsesQueryService(config);
@@ -23,7 +23,7 @@ public class ResponsesQueryServiceTests {
 
         var request = service.CreateRequest(history, null, stream: false, null);
 
-        request.Model.Should().Be("gpt-4o");
+        request.Model.Should().Be("test-model");
         request.Stream.Should().BeFalse();
         request.Input.ValueKind.Should().Be(JsonValueKind.Array);
     }
@@ -34,12 +34,12 @@ public class ResponsesQueryServiceTests {
         var history = new MessageList();
         var options = new ChatOptions {
             FastMode = true,
-            FastModelId = "gpt-4o-mini"
+            FastModelId = "test-model"
         };
 
         var request = service.CreateRequest(history, options, stream: false, null);
 
-        request.Model.Should().Be("gpt-4o-mini");
+        request.Model.Should().Be("test-model");
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public class ResponsesQueryServiceTests {
 
         var request = service.CreateRequest(new MessageList(), options, stream: false, null);
 
-        request.Model.Should().Be("gpt-4o");
+        request.Model.Should().Be("test-model");
     }
 
     [Fact]
@@ -410,7 +410,7 @@ public class ResponsesQueryServiceTests {
         var response = new ResponsesResponse {
             Id = "resp-1",
             Object = "response",
-            Model = "gpt-4o",
+            Model = "test-model",
             Status = "completed",
             Output =
             [
@@ -568,7 +568,7 @@ public class ResponsesQueryServiceTests {
         var config = new ProviderConfig {
             Vendor = "openai",
             ApiKey = "sk-test",
-            ModelId = "gpt-4o",
+            ModelId = "test-model",
             Definition = new FallbackProviderDefinition(kind)
         };
 
@@ -733,7 +733,7 @@ public class ResponsesQueryServiceTests {
         ]));
 
         var originalRequest = new ResponsesRequest {
-            Model = "gpt-4o",
+            Model = "test-model",
             Stream = true
         };
         var descRequestContent = """{"tools":["mcp.tool1","mcp.tool2"]}""";
@@ -742,7 +742,7 @@ public class ResponsesQueryServiceTests {
 
         secondRequest.ToolDescriptions.Should().HaveCount(2);
         secondRequest.ToolDescriptions!.Select(t => t.Name).Should().Contain(["mcp.tool1", "mcp.tool2"]);
-        secondRequest.Model.Should().Be("gpt-4o");
+        secondRequest.Model.Should().Be("test-model");
         secondRequest.Stream.Should().BeTrue();
     }
 
@@ -753,7 +753,7 @@ public class ResponsesQueryServiceTests {
             new ToolDef("mcp.tool1", "MCP tool 1")
         ]));
 
-        var originalRequest = new ResponsesRequest { Model = "gpt-4o" };
+        var originalRequest = new ResponsesRequest { Model = "test-model" };
         var descRequestContent = """{"tools":["nonexistent.tool"]}""";
 
         var secondRequest = ResponsesQueryService.CreateSecondResponsesRequestWithDescriptions(originalRequest, descRequestContent, kernel);
@@ -769,7 +769,7 @@ public class ResponsesQueryServiceTests {
         ]));
 
         var originalRequest = new ResponsesRequest {
-            Model = "gpt-4o",
+            Model = "test-model",
             Stream = true,
             Temperature = 0.7f,
             MaxOutputTokens = 1000,
@@ -780,7 +780,7 @@ public class ResponsesQueryServiceTests {
 
         var secondRequest = ResponsesQueryService.CreateSecondResponsesRequestWithDescriptions(originalRequest, descRequestContent, kernel);
 
-        secondRequest.Model.Should().Be("gpt-4o");
+        secondRequest.Model.Should().Be("test-model");
         secondRequest.Temperature.Should().Be(0.7f);
         secondRequest.MaxOutputTokens.Should().Be(1000);
         secondRequest.Tools.Should().BeSameAs(originalRequest.Tools);

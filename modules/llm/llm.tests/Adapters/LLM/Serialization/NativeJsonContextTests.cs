@@ -6,7 +6,7 @@ public class NativeJsonContextTests {
     [Fact]
     public void OpenAIChatRequest_RoundTrip_SerializesModelAndMessages() {
         var request = new OpenAIChatRequest {
-            Model = "gpt-4o",
+            Model = "test-model",
             Stream = true,
             Temperature = 0.7f,
             Messages =
@@ -19,7 +19,7 @@ public class NativeJsonContextTests {
         var deserialized = JsonSerializer.Deserialize(json, NativeJsonContext.Default.OpenAIChatRequest);
 
         deserialized.Should().NotBeNull();
-        deserialized!.Model.Should().Be("gpt-4o");
+        deserialized!.Model.Should().Be("test-model");
         deserialized.Stream.Should().BeTrue();
         deserialized.Temperature.Should().Be(0.7f);
         deserialized.Messages.Should().ContainSingle();
@@ -30,7 +30,7 @@ public class NativeJsonContextTests {
     public void OpenAIChatResponse_RoundTrip_PreservesChoices() {
         var response = new OpenAIChatResponse {
             Id = "resp-1",
-            Model = "gpt-4o",
+            Model = "test-model",
             Choices =
             [
                 new OpenAIChoice
@@ -55,7 +55,7 @@ public class NativeJsonContextTests {
     public void OpenAIChatChunk_RoundTrip_PreservesUsage() {
         var chunk = new OpenAIChatChunk {
             Id = "chunk-1",
-            Model = "gpt-4o",
+            Model = "test-model",
             Usage = new OpenAIUsage {
                 PromptTokens = 10,
                 CompletionTokens = 5,

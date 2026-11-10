@@ -13,8 +13,8 @@ public class SettingsJsonModelWriterTests {
         var captured = new List<string>();
         var (writer, _) = CreateWriter(captured);
         var updates = new Dictionary<string, List<ModelItemConfig>> {
-            ["openai"] = [new ModelItemConfig { Id = "gpt-5.6-sol" }],
-            ["zhipu"] = [new ModelItemConfig { Id = "glm-5.2" }],
+            ["openai"] = [new ModelItemConfig { Id = "test-model" }],
+            ["zhipu"] = [new ModelItemConfig { Id = "test-model" }],
         };
 
         await writer.WriteAsync(updates);
@@ -31,14 +31,14 @@ public class SettingsJsonModelWriterTests {
         var captured = new List<(string Path, string Content)>();
         var (writer, _) = CreateWriter(paths: null, contents: captured);
         var updates = new Dictionary<string, List<ModelItemConfig>> {
-            ["zhipu"] = [new ModelItemConfig { Id = "glm-5.2" }],
+            ["zhipu"] = [new ModelItemConfig { Id = "test-model" }],
         };
 
         await writer.WriteAsync(updates);
 
         captured.Should().HaveCount(1);
         captured[0].Content.Should().Contain("\"models\"");
-        captured[0].Content.Should().Contain("glm-5.2");
+        captured[0].Content.Should().Contain("test-model");
     }
 
     /// <summary>空更新 — 零写入。</summary>

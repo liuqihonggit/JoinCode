@@ -138,14 +138,14 @@ public class DiagnosticLogRecorderTests {
         var usage = new TokenUsage(100, 50) { CacheCreationInputTokens = 10, CacheReadInputTokens = 20 };
         var events = new List<ChatStreamEvent>
         {
-            ChatStreamEvent.Done(usage, "gpt-4o"),
+            ChatStreamEvent.Done(usage, "test-model"),
         };
 
         await foreach (var _ in recorder.InvokeAsync(context, (_, _) => EventsAsync(events), CancellationToken.None)) { }
 
         var logContent = await ReadLogContentAsync(fs);
         Assert.Contains("api_complete", logContent);
-        Assert.Contains("gpt-4o", logContent);
+        Assert.Contains("test-model", logContent);
     }
 
     [Fact]

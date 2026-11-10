@@ -235,7 +235,7 @@ public sealed class TranscriptServiceTests : IDisposable {
             Id = "ensure-1",
             ProjectPath = "/proj/ensure",
             Vendor = "deepseek",
-            ModelId = "deepseek-chat",
+            ModelId = "test-model",
             CreatedAt = new DateTime(2026, 10, 20, 0, 0, 0, DateTimeKind.Utc),
         };
 

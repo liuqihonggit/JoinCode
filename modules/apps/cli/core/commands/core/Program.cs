@@ -585,7 +585,7 @@ class Program {
     }
 
     /// <summary>
-    /// 扫描 args 找第一个子命令的索引（允许全局选项在前，如 --trust --model gpt-4o mcp_search read）。
+    /// 扫描 args 找第一个子命令的索引（允许全局选项在前，如 --trust --model &lt;model-id&gt; mcp_search read）。
     /// </summary>
     private static int? FindSubCommandIndex(string[] args) {
         for (var i = 0; i < args.Length; i++) {

@@ -167,13 +167,13 @@ public sealed class EffortCommandTest {
         var catalog = new Mock<IModelCatalog>();
         catalog.Setup(c => c.SupportsMaxEffort(It.IsAny<string>(), It.IsAny<string>())).Returns(false);
         var fastMode = new Mock<IFastModeService>();
-        fastMode.Setup(f => f.PrimaryModelId).Returns("gpt-4o-mini");
+        fastMode.Setup(f => f.PrimaryModelId).Returns("test-model");
         var (cmd, context, settings, _, _) = Arrange("max", modelCatalog: catalog, fastMode: fastMode);
 
         var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
 
         result.ShouldContinue.Should().BeTrue();
-        output.Should().Contain("模型 gpt-4o-mini 不支持 max effort，已降级为 high",
+        output.Should().Contain("模型 test-fast-model 不支持 max effort，已降级为 high",
             "不支持 max 的模型应自动降级为 high");
         settings.Object.EffortLevel.Should().Be(EffortLevel.High, "降级后执行设置应为 high");
     }
@@ -184,7 +184,7 @@ public sealed class EffortCommandTest {
     [Fact]
     public async Task Execute_MaxWithoutModelCatalog_DowngradesInsteadOfThrowing() {
         var fastMode = new Mock<IFastModeService>();
-        fastMode.Setup(f => f.PrimaryModelId).Returns("sensenova-6.8-flash-lite");
+        fastMode.Setup(f => f.PrimaryModelId).Returns("test-model");
         var (cmd, context, settings, _, _) = Arrange("max", modelCatalog: null, fastMode: fastMode);
 
         var act = async () => {

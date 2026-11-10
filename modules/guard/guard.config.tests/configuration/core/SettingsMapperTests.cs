@@ -151,7 +151,7 @@ public class SettingsMapperTests {
                     Provider = "deepseek",
                     Protocol = "responses",
                     Endpoint = "http://localhost:18092",
-                    Model = "deepseek-v4-flash"
+                    Model = "test-model"
                 },
             },
             Current = new CurrentSettings { Profile = "deepseek" },
@@ -170,7 +170,7 @@ public class SettingsMapperTests {
             Vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase) {
                 ["deepseek"] = new ProfileSettings {
                     Provider = "deepseek",
-                    Model = "deepseek-v4-flash"
+                    Model = "test-model"
                 },
             },
             Current = new CurrentSettings { Profile = "deepseek" },
@@ -191,10 +191,10 @@ public class SettingsMapperTests {
             },
             Current = new CurrentSettings { Profile = "openai" },
         };
-        Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), "gpt-4o-mini");
+        Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), "test-model");
         try {
             var result = EnvOverrideApplier.Apply(settings);
-            result.Vendor!["openai"].Model.Should().Be("gpt-4o-mini");
+            result.Vendor!["openai"].Model.Should().Be("test-model");
         } finally {
             Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), null);
         }
@@ -202,7 +202,7 @@ public class SettingsMapperTests {
 
     [Fact]
     public async Task Given_无环境变量_When_ApplyEnvOverrides_Then_配置不变() {
-        var testModelId = "deepseek-v4-flash";
+        var testModelId = "test-model";
         var config = new WorkflowConfig {
             Provider = new ProviderConfig {
                 Vendor = VendorKind.DeepSeek.ToValue(),

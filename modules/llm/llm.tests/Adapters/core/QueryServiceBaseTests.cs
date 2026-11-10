@@ -5,12 +5,12 @@ public class QueryServiceBaseTests {
     public void ProviderConfig_HasRequiredProperties() {
         var config = new ProviderConfig {
             Vendor = VendorKind.OpenAi.ToValue(),
-            ModelId = "gpt-4o",
+            ModelId = "test-model",
             ApiKey = "sk-test"
         };
 
         config.VendorKind.Should().Be(VendorKind.OpenAi);
-        config.ModelId.Should().Be("gpt-4o");
+        config.ModelId.Should().Be("test-model");
         config.ApiKey.Should().Be("sk-test");
     }
 

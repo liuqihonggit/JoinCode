@@ -8,7 +8,7 @@ namespace Core.Configuration.ModelFetch;
 /// <para>output_modalities→OutputModalities, supported_features→SupportedFeatures</para>
 /// </summary>
 public sealed record RemoteModelInfo {
-    /// <summary>模型 ID — 唯一标识，如 "sensenova-6.8-flash-lite"</summary>
+    /// <summary>模型 ID — 唯一标识。</summary>
     public string Id { get; init; } = string.Empty;
 
     /// <summary>模型描述 — 来自 API description 字段，空表示未返回</summary>

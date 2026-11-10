@@ -32,8 +32,8 @@ public sealed class LoginCommandTest {
         public ProtocolKind Protocol => ProtocolKind.OpenAiCompatible;
         public string ProviderName => "openai";
         public string DisplayName => "OpenAI";
-        public string DefaultModelId => "gpt-4o-mini";
-        public string DefaultFastModelId => "gpt-4o-mini";
+        public string DefaultModelId => "test-model";
+        public string DefaultFastModelId => "test-model";
         public string? DefaultEndpoint => null;
         public IEnumerable<ModelEntry> AvailableModels => [];
         public string? ApiKeyEnvironmentVariable => "OPENAI_API_KEY";

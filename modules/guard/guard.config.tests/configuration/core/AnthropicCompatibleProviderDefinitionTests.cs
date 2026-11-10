@@ -20,7 +20,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable {
         _modelConfigLoader.ApplyProviders(new Dictionary<string, ModelProviderConfig>(StringComparer.OrdinalIgnoreCase) {
             ["deepseek"] = new ModelProviderConfig {
                 DefaultModelId = "deepseek-v4-pro",
-                DefaultFastModelId = "deepseek-v4-flash",
+                DefaultFastModelId = "test-model",
                 Models =
                 [
                     new ModelItemConfig

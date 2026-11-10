@@ -11,9 +11,9 @@ public sealed class ModelInfoTests
     [Fact]
     public void FromEntry_ProjectsAllFields()
     {
-        var info = ModelInfo.FromEntry("zhipu", new ModelEntry("glm-5.2", "GLM 5.2", 1_048_576, "旗舰"));
+        var info = ModelInfo.FromEntry("zhipu", new ModelEntry("test-model", "GLM 5.2", 1_048_576, "旗舰"));
 
-        info.ModelId.Should().Be("glm-5.2");
+        info.ModelId.Should().Be("test-model");
         info.Provider.Should().Be("zhipu");
         info.DisplayName.Should().Be("GLM 5.2");
         info.ContextWindow.Should().Be(1_048_576);
@@ -52,7 +52,7 @@ public sealed class ModelInfoTests
     [Fact]
     public void ValidateOrThrow_ValidWindow_ReturnsSelf()
     {
-        var info = ModelInfo.FromModelItemConfig("sensenova", new ModelItemConfig { Id = "glm-5.2", ContextWindow = 1_048_576 });
+        var info = ModelInfo.FromModelItemConfig("sensenova", new ModelItemConfig { Id = "test-model", ContextWindow = 1_048_576 });
 
         info.ValidateOrThrow().Should().BeSameAs(info);
     }

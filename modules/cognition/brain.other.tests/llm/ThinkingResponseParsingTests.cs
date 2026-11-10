@@ -81,7 +81,7 @@ public sealed class ThinkingResponseParsingTests {
             Id = "msg_test",
             Type = "message",
             Role = "assistant",
-            Model = "claude-3-7-sonnet",
+            Model = "test-model-7-sonnet",
             Content =
             [
                 new AnthropicResponseContentBlock { Type = AnthropicContentBlockType.Thinking, Thinking = "Let me reason about this..." },

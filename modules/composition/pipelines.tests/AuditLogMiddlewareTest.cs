@@ -34,7 +34,7 @@ public sealed class AuditLogMiddlewareTest {
         await using var mw = NewMiddleware(logger);
         var ctx = TestHelpers.NewContext();
         var usage = new TokenUsage(100, 50);
-        var events = new[] { ChatStreamEvent.Done(usage, "gpt-4o") };
+        var events = new[] { ChatStreamEvent.Done(usage, "test-model") };
 
         await TestHelpers.CollectAsync(
             mw.InvokeAsync(ctx, (_, ct) => TestHelpers.EventsAsync(events, ct), default));

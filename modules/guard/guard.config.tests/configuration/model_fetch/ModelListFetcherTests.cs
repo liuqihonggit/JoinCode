@@ -14,13 +14,13 @@ public class ModelListFetcherTests {
             ["openai"] = new() { Provider = "openai", Protocol = "openai-compatible", Endpoint = "https://api.openai.com/v1", ModelsEndpoint = "models", ApiKeyEnvVar = TestApiKeyEnv }
         };
 
-        var handler = new LambdaHandler(_ => Ok("""{"data":[{"id":"gpt-4o"},{"id":"gpt-5"}]}"""));
+        var handler = new LambdaHandler(_ => Ok("""{"data":[{"id":"test-model"},{"id":"gpt-5"}]}"""));
         var fetcher = new ModelListFetcher(CreateProvider(handler), CreateFileSystem());
 
         var result = await fetcher.FetchAllAsync(vendor);
 
         result.Should().ContainKey("openai");
-        result["openai"].Select(x => x.Id).Should().Equal(["gpt-4o", "gpt-5"]);
+        result["openai"].Select(x => x.Id).Should().Equal(["test-model", "gpt-5"]);
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public class ModelListFetcherTests {
         };
 
         HttpRequestMessage? captured = null;
-        var handler = new LambdaHandler(req => { captured = req; return Ok("""{"data":[{"id":"gpt-4o"}]}"""); });
+        var handler = new LambdaHandler(req => { captured = req; return Ok("""{"data":[{"id":"test-model"}]}"""); });
         var fetcher = new ModelListFetcher(CreateProvider(handler), CreateFileSystem());
 
         var result = await fetcher.FetchAllAsync(vendor);
@@ -130,15 +130,15 @@ public class ModelListFetcherTests {
         };
 
         var handler = new LambdaHandler(req => req.RequestUri!.ToString().Contains("openai")
-            ? Ok("""{"data":[{"id":"gpt-4o"}]}""")
-            : Ok("""{"data":[{"id":"agnes-2.0-flash"}]}"""));
+            ? Ok("""{"data":[{"id":"test-model"}]}""")
+            : Ok("""{"data":[{"id":"test-model"}]}"""));
         var fetcher = new ModelListFetcher(CreateProvider(handler), CreateFileSystem());
 
         var result = await fetcher.FetchAllAsync(vendor);
 
         result.Should().HaveCount(2);
-        result["openai"].Select(x => x.Id).Should().Equal(["gpt-4o"]);
-        result["agnes"].Select(x => x.Id).Should().Equal(["agnes-2.0-flash"]);
+        result["openai"].Select(x => x.Id).Should().Equal(["test-model"]);
+        result["agnes"].Select(x => x.Id).Should().Equal(["test-model"]);
     }
 
     [Fact]
@@ -165,7 +165,7 @@ public class ModelListFetcherTests {
             ["sensenova"] = new() { Provider = "sensenova", Protocol = "openai-compatible", Endpoint = "https://token.sensenova.cn/v1", ModelsEndpoint = "models", ApiKeyEnvVar = TestApiKeyEnv }
         };
 
-        const string json = """{"data":[{"id":"sensenova-6.8-flash-lite","description":"lightweight multimodal","context_length":262144,"max_output_length":65536,"input_modalities":["text","image"],"output_modalities":["text"],"supported_features":["tools","json_mode","reasoning"]}]}""";
+        const string json = """{"data":[{"id":"test-model","description":"lightweight multimodal","context_length":262144,"max_output_length":65536,"input_modalities":["text","image"],"output_modalities":["text"],"supported_features":["tools","json_mode","reasoning"]}]}""";
         var handler = new LambdaHandler(_ => Ok(json));
         var fetcher = new ModelListFetcher(CreateProvider(handler), CreateFileSystem());
 
@@ -173,7 +173,7 @@ public class ModelListFetcherTests {
 
         result.Should().ContainKey("sensenova");
         var model = result["sensenova"].Should().HaveCount(1).And.Subject.First();
-        model.Id.Should().Be("sensenova-6.8-flash-lite");
+        model.Id.Should().Be("test-model");
         model.Description.Should().Be("lightweight multimodal");
         model.ContextLength.Should().Be(262144);
         model.MaxOutputLength.Should().Be(65536);

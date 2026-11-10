@@ -15,10 +15,10 @@ public sealed class ContextSetupMiddlewareSubagentModelTests {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_EnvSubagentModelSet_OverridesAll() {
-        Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", "gpt-4o-mini");
+        Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", "test-model");
         try {
             var ctx = await InvokeMiddleware(model: "definition-model");
-            ctx.ResolvedSubOptions!.ModelName.Should().Be("gpt-4o-mini");
+            ctx.ResolvedSubOptions!.ModelName.Should().Be("test-model");
         } finally {
             Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
         }

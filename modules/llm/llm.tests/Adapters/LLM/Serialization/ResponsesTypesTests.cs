@@ -9,7 +9,7 @@ public class ResponsesTypesTests {
     [Fact]
     public void ResponsesRequest_WithStringInput_SerializesCorrectly() {
         var request = new ResponsesRequest {
-            Model = "deepseek-v4-flash",
+            Model = "test-model",
             Input = JsonDocument.Parse("\"Hi, how are you?\"").RootElement,
             Instructions = "You are a helpful assistant.",
             Stream = false
@@ -17,7 +17,7 @@ public class ResponsesTypesTests {
 
         var json = JsonSerializer.Serialize(request, NativeJsonContext.Default.ResponsesRequest);
 
-        json.Should().Contain("\"model\":\"deepseek-v4-flash\"");
+        json.Should().Contain("\"model\":\"test-model\"");
         json.Should().Contain("\"input\":\"Hi, how are you?\"");
         json.Should().Contain("\"instructions\":\"You are a helpful assistant.\"");
         json.Should().Contain("\"stream\":false");
@@ -40,7 +40,7 @@ public class ResponsesTypesTests {
     [Fact]
     public void ResponsesRequest_WithoutOptionalFields_DoesNotSerializeThem() {
         var request = new ResponsesRequest {
-            Model = "deepseek-v4-flash",
+            Model = "test-model",
             Input = JsonDocument.Parse("\"hi\"").RootElement
         };
 
@@ -59,7 +59,7 @@ public class ResponsesTypesTests {
     [Fact]
     public void ResponsesRequest_WithTools_SerializesTools() {
         var request = new ResponsesRequest {
-            Model = "deepseek-v4-flash",
+            Model = "test-model",
             Input = JsonDocument.Parse("\"use tool\"").RootElement,
             Tools = [new ResponsesTool { Type = "function", Name = "get_weather", Description = "Get weather", Parameters = JsonDocument.Parse("{\"type\":\"object\"}").RootElement }]
         };
@@ -76,7 +76,7 @@ public class ResponsesTypesTests {
         var response = new ResponsesResponse {
             Id = "resp-123",
             Object = "response",
-            Model = "deepseek-v4-flash",
+            Model = "test-model",
             Status = "completed",
             OutputText = "Hello!",
             Output = [new ResponsesOutputItem
@@ -112,7 +112,7 @@ public class ResponsesTypesTests {
         var response = new ResponsesResponse {
             Id = "resp-456",
             Object = "response",
-            Model = "deepseek-v4-flash",
+            Model = "test-model",
             Status = "completed",
             Output = [new ResponsesOutputItem
             {

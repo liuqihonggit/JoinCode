@@ -8,7 +8,7 @@ public class OpenAIQueryServiceTests {
         var config = new ProviderConfig {
             Vendor = provider,
             ApiKey = "sk-test",
-            ModelId = "gpt-4o",
+            ModelId = "test-model",
             Definition = new FallbackProviderDefinition(kind)
         };
         return new OpenAIQueryService(config);
@@ -23,7 +23,7 @@ public class OpenAIQueryServiceTests {
 
         var request = service.CreateRequest(history, null, stream: false, null);
 
-        request.Model.Should().Be("gpt-4o");
+        request.Model.Should().Be("test-model");
         request.Stream.Should().BeFalse();
         request.Messages.Should().ContainSingle();
     }
@@ -34,12 +34,12 @@ public class OpenAIQueryServiceTests {
         var history = new MessageList();
         var options = new ChatOptions {
             FastMode = true,
-            FastModelId = "gpt-4o-mini"
+            FastModelId = "test-model"
         };
 
         var request = service.CreateRequest(history, options, stream: false, null);
 
-        request.Model.Should().Be("gpt-4o-mini");
+        request.Model.Should().Be("test-model");
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public class OpenAIQueryServiceTests {
 
         var request = service.CreateRequest(new MessageList(), options, stream: false, null);
 
-        request.Model.Should().Be("gpt-4o");
+        request.Model.Should().Be("test-model");
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
@@ -346,7 +346,7 @@ public class OpenAIQueryServiceTests {
         ]));
 
         var originalRequest = new OpenAIChatRequest {
-            Model = "gpt-4o",
+            Model = "test-model",
             Messages = [new OpenAIApiMessage { Role = "user", Content = "hi" }],
             Stream = true
         };
@@ -356,7 +356,7 @@ public class OpenAIQueryServiceTests {
 
         secondRequest.ToolDescriptions.Should().HaveCount(2);
         secondRequest.ToolDescriptions!.Select(t => t.Function.Name).Should().Contain(["mcp.tool1", "mcp.tool2"]);
-        secondRequest.Model.Should().Be("gpt-4o");
+        secondRequest.Model.Should().Be("test-model");
         secondRequest.Stream.Should().BeTrue();
     }
 
@@ -367,7 +367,7 @@ public class OpenAIQueryServiceTests {
             new ToolDef("mcp.tool1", "MCP tool 1")
         ]));
 
-        var originalRequest = new OpenAIChatRequest { Model = "gpt-4o" };
+        var originalRequest = new OpenAIChatRequest { Model = "test-model" };
         var descRequestContent = """{"tools":["nonexistent.tool"]}""";
 
         var secondRequest = OpenAIQueryService.CreateSecondRequestWithDescriptions(originalRequest, descRequestContent, kernel);
@@ -383,7 +383,7 @@ public class OpenAIQueryServiceTests {
         ]));
 
         var originalRequest = new OpenAIChatRequest {
-            Model = "gpt-4o",
+            Model = "test-model",
             Messages = [new OpenAIApiMessage { Role = "user", Content = "test" }],
             Stream = true,
             Temperature = 0.7f,
@@ -395,7 +395,7 @@ public class OpenAIQueryServiceTests {
 
         var secondRequest = OpenAIQueryService.CreateSecondRequestWithDescriptions(originalRequest, descRequestContent, kernel);
 
-        secondRequest.Model.Should().Be("gpt-4o");
+        secondRequest.Model.Should().Be("test-model");
         secondRequest.Temperature.Should().Be(0.7f);
         secondRequest.MaxTokens.Should().Be(1000);
         secondRequest.Tools.Should().BeSameAs(originalRequest.Tools);

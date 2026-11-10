@@ -37,8 +37,8 @@ public class McpHttpServerAuthTests {
         var server = new McpServer("test");
         var port = GetFreePort();
         await using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/");
-        using var cts = new CancellationTokenSource();
-        _ = Task.Run(() => httpServer.RunAsync(cts.Token));
+        var fireTask = FireAndForgetTask<Unit>.Run(
+            ct => httpServer.RunAsync(ct), "McpHttpServer-auth-test");
         try {
             await Task.Delay(300);
             using var client = new HttpClient();
@@ -48,8 +48,8 @@ public class McpHttpServerAuthTests {
             response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
             response.Headers.WwwAuthenticate.Should().NotBeEmpty("401 必须带 WWW-Authenticate: Bearer 头");
         } finally {
-            cts.Cancel();
             httpServer.Stop();
+            await fireTask.DisposeAsync();
         }
     }
 
@@ -58,8 +58,8 @@ public class McpHttpServerAuthTests {
         var server = new McpServer("test");
         var port = GetFreePort();
         await using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/");
-        using var cts = new CancellationTokenSource();
-        _ = Task.Run(() => httpServer.RunAsync(cts.Token));
+        var fireTask = FireAndForgetTask<Unit>.Run(
+            ct => httpServer.RunAsync(ct), "McpHttpServer-auth-test");
         try {
             await Task.Delay(300);
             using var client = new HttpClient();
@@ -67,8 +67,8 @@ public class McpHttpServerAuthTests {
             using var response = await client.SendAsync(request);
             response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         } finally {
-            cts.Cancel();
             httpServer.Stop();
+            await fireTask.DisposeAsync();
         }
     }
 
@@ -77,8 +77,8 @@ public class McpHttpServerAuthTests {
         var server = new McpServer("test");
         var port = GetFreePort();
         await using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/");
-        using var cts = new CancellationTokenSource();
-        _ = Task.Run(() => httpServer.RunAsync(cts.Token));
+        var fireTask = FireAndForgetTask<Unit>.Run(
+            ct => httpServer.RunAsync(ct), "McpHttpServer-auth-test");
         try {
             await Task.Delay(300);
             using var client = new HttpClient();
@@ -86,8 +86,8 @@ public class McpHttpServerAuthTests {
             using var response = await client.SendAsync(request);
             response.StatusCode.Should().Be(HttpStatusCode.OK);
         } finally {
-            cts.Cancel();
             httpServer.Stop();
+            await fireTask.DisposeAsync();
         }
     }
 
@@ -96,8 +96,8 @@ public class McpHttpServerAuthTests {
         var server = new McpServer("test");
         var port = GetFreePort();
         await using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/");
-        using var cts = new CancellationTokenSource();
-        _ = Task.Run(() => httpServer.RunAsync(cts.Token));
+        var fireTask = FireAndForgetTask<Unit>.Run(
+            ct => httpServer.RunAsync(ct), "McpHttpServer-auth-test");
         try {
             await Task.Delay(300);
             using var client = new HttpClient();
@@ -105,8 +105,8 @@ public class McpHttpServerAuthTests {
             using var response = await client.SendAsync(request);
             response.StatusCode.Should().Be(HttpStatusCode.OK);
         } finally {
-            cts.Cancel();
             httpServer.Stop();
+            await fireTask.DisposeAsync();
         }
     }
 

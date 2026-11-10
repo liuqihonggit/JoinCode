@@ -47,16 +47,16 @@ public sealed class ModelSearchToolHandlersTests {
     [Fact]
     public async Task SearchModelsAsync_MapByModalityAndVendor_FiltersVendor() {
         var loader = new FakeModelConfigLoader();
-        loader.AddModel("openai", "test-model", "GPT-4o", ModelModalityKind.ReadImage);
-        loader.AddModel("anthropic", "test-model", "Claude 3", ModelModalityKind.ReadImage);
+        loader.AddModel("openai", "test-openai-model", "GPT-4o", ModelModalityKind.ReadImage);
+        loader.AddModel("anthropic", "test-anthropic-model", "Claude 3", ModelModalityKind.ReadImage);
         var handler = new ModelSearchToolHandlers(loader);
 
         var result = await handler.SearchModelsAsync("map[readImage][openai]");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
-        text.Should().Contain("test-model");
-        text.Should().NotContain("test-model");
+        text.Should().Contain("test-openai-model");
+        text.Should().NotContain("test-anthropic-model");
     }
 
     [Fact]

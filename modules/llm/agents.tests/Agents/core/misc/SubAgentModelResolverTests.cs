@@ -48,7 +48,7 @@ public sealed class SubAgentModelResolverTests {
     [InlineData("opus", "Opus")]
     [InlineData("sonnet", "Sonnet")]
     [InlineData("haiku", "Haiku")]
-    [InlineData("test-model", "Gpt-4o")]
+    [InlineData("test-model", "Test-model")]
     [InlineData("g", "G")]
     public void GetAgentModelDisplay_OtherModels_ReturnsCapitalized(string model, string expected) {
         SubAgentModelResolver.GetAgentModelDisplay(model).Should().Be(expected);

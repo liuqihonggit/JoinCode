@@ -167,7 +167,7 @@ public sealed class EffortCommandTest {
         var catalog = new Mock<IModelCatalog>();
         catalog.Setup(c => c.SupportsMaxEffort(It.IsAny<string>(), It.IsAny<string>())).Returns(false);
         var fastMode = new Mock<IFastModeService>();
-        fastMode.Setup(f => f.PrimaryModelId).Returns("test-model");
+        fastMode.Setup(f => f.PrimaryModelId).Returns("test-fast-model");
         var (cmd, context, settings, _, _) = Arrange("max", modelCatalog: catalog, fastMode: fastMode);
 
         var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));

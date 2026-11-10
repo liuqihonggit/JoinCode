@@ -8,7 +8,7 @@ namespace Core.Agents.Coordinator;
 /// 该模式曾致 Host.DisposeAsync 永挂：MailboxBase.ReadAllAsync(ct) 无令牌时无消息永不退出）。
 /// 生命周期：Start 单次启动；DisposeAsync 取消 → 无超时等待循环收尾（幂等）。
 /// </summary>
-internal sealed class AgentMessageRouteLoop : IAsyncDisposable
+internal sealed class AgentMessageRouteLoop : IAgentMessageRouteLoop
 {
     private readonly IMailbox _broker;
     private readonly string _agentId;
@@ -74,6 +74,19 @@ internal sealed class AgentMessageRouteLoop : IAsyncDisposable
             }
         }
 
-        _cts.Dispose();
-    }
+    _cts.Dispose();
+}
+
+/// <summary>
+/// AgentMessageRouteLoop 工厂实现 — 通过 DI 注入，解耦 Swarm 对具体类的依赖
+/// </summary>
+[Register(typeof(IAgentMessageRouteLoopFactory), ServiceLifetime.Singleton)]
+internal sealed class AgentMessageRouteLoopFactory : IAgentMessageRouteLoopFactory {
+    /// <summary>创建路由循环实例（不自动启动 — 调用方负责 Start）</summary>
+    public IAgentMessageRouteLoop Create(
+        IMailbox broker,
+        string agentId,
+        Func<CoordinatorMessage, CancellationToken, Task> handler)
+        => new AgentMessageRouteLoop(broker, agentId, handler);
+}
 }

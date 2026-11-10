@@ -8,9 +8,10 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity, ISwarm
     private readonly ISwarmPermissionCallbackHandler _callbackService;
     private readonly ISwarmPermissionRequestProcessor _requestProcessor;
     private readonly ILogger<SwarmPermissionMessageRouter>? _logger;
+    private readonly IAgentMessageRouteLoopFactory _routeLoopFactory;
     private CancellationTokenSource? _cts;
     private Task? _routingTask;
-    private readonly List<(string WorkerId, AgentMessageRouteLoop Loop)> _workerLoops = [];
+    private readonly List<(string WorkerId, IAgentMessageRouteLoop Loop)> _workerLoops = [];
 
     /// <summary>
     /// 初始化 Swarm 权限消息路由器
@@ -18,15 +19,18 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity, ISwarm
     /// <param name="messageBroker">消息邮箱</param>
     /// <param name="callbackService">权限回调服务</param>
     /// <param name="requestProcessor">权限请求处理器</param>
+    /// <param name="routeLoopFactory">路由循环工厂</param>
     /// <param name="logger">日志记录器</param>
     public SwarmPermissionMessageRouter(
         IMailbox messageBroker,
         ISwarmPermissionCallbackHandler callbackService,
         ISwarmPermissionRequestProcessor requestProcessor,
+        IAgentMessageRouteLoopFactory routeLoopFactory,
         ILogger<SwarmPermissionMessageRouter>? logger = null) {
         _messageBroker = messageBroker ?? throw new ArgumentNullException(nameof(messageBroker));
         _callbackService = callbackService ?? throw new ArgumentNullException(nameof(callbackService));
         _requestProcessor = requestProcessor ?? throw new ArgumentNullException(nameof(requestProcessor));
+        _routeLoopFactory = routeLoopFactory ?? throw new ArgumentNullException(nameof(routeLoopFactory));
         _logger = logger;
     }
 
@@ -87,8 +91,8 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity, ISwarm
     }
 
     /// <summary>构造并启动 Worker 响应路由循环（所有权随返回值转移给调用方列表 — StopRoutingAsync 统一收尾）。</summary>
-    private AgentMessageRouteLoop StartWorkerLoop(string workerAgentId) {
-        var loop = new AgentMessageRouteLoop(_messageBroker, workerAgentId, RouteWorkerResponseMessageAsync);
+    private IAgentMessageRouteLoop StartWorkerLoop(string workerAgentId) {
+        var loop = _routeLoopFactory.Create(_messageBroker, workerAgentId, RouteWorkerResponseMessageAsync);
         loop.Start();
         return loop;
     }

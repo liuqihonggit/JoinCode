@@ -13,24 +13,28 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity, IPlanAppr
     private readonly IToolPermissionManager? _permissionManager;
     private readonly ILogger<PlanApprovalMessageRouter>? _logger;
     private readonly IClockService _clock;
+    private readonly IAgentMessageRouteLoopFactory _routeLoopFactory;
     private CancellationTokenSource? _leaderCts;
     private Task? _leaderRoutingTask;
-    private readonly List<(string TeammateId, AgentMessageRouteLoop Loop)> _teammateRoutings = [];
+    private readonly List<(string TeammateId, IAgentMessageRouteLoop Loop)> _teammateRoutings = [];
 
     /// <summary>初始化计划审批消息路由器</summary>
     /// <param name="messageBroker">消息邮箱，用于订阅/发布审批消息</param>
     /// <param name="planModeManager">计划模式管理器，控制计划模式的启用与退出</param>
+    /// <param name="routeLoopFactory">路由循环工厂，创建消息路由循环</param>
     /// <param name="permissionManager">工具权限管理器（可选），用于审批期间约束工具调用</param>
     /// <param name="logger">日志记录器（可选）</param>
     /// <param name="clock">时钟服务（可选），默认使用系统时钟</param>
     public PlanApprovalMessageRouter(
         IMailbox messageBroker,
         IPlanModeManager planModeManager,
+        IAgentMessageRouteLoopFactory routeLoopFactory,
         IToolPermissionManager? permissionManager = null,
         ILogger<PlanApprovalMessageRouter>? logger = null,
         IClockService? clock = null) {
         _messageBroker = messageBroker ?? throw new ArgumentNullException(nameof(messageBroker));
         _planModeManager = planModeManager ?? throw new ArgumentNullException(nameof(planModeManager));
+        _routeLoopFactory = routeLoopFactory ?? throw new ArgumentNullException(nameof(routeLoopFactory));
         _permissionManager = permissionManager;
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
@@ -58,8 +62,8 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity, IPlanAppr
     }
 
     /// <summary>构造并启动 Teammate 响应路由循环（所有权随返回值转移给调用方列表 — StopRoutingAsync 统一收尾）。</summary>
-    private AgentMessageRouteLoop StartTeammateLoop(string teammateAgentId) {
-        var loop = new AgentMessageRouteLoop(_messageBroker, teammateAgentId, RouteTeammateResponseMessageAsync);
+    private IAgentMessageRouteLoop StartTeammateLoop(string teammateAgentId) {
+        var loop = _routeLoopFactory.Create(_messageBroker, teammateAgentId, RouteTeammateResponseMessageAsync);
         loop.Start();
         return loop;
     }

@@ -46,8 +46,7 @@ public sealed partial class WorktreeSpawnMiddleware : ServiceEntity, IUnifiedSpa
             }
 
             if (!worktreeCreated) {
-                var agent = (AgentBase)context.Agent!;
-                agent.AddContext("当前选择不创建 worktree，在主工作目录中执行。");
+                context.Agent!.AddContext("当前选择不创建 worktree，在主工作目录中执行。");
             }
         }
 
@@ -75,7 +74,7 @@ public sealed partial class WorktreeSpawnMiddleware : ServiceEntity, IUnifiedSpa
             var worktreePath = session.WorktreePath;
             _logger?.LogInformation("[WorktreeSpawn] Agent {AgentId} Worktree 创建成功: {Path}", agentId, worktreePath);
 
-            var agent = (AgentBase)context.Agent!;
+            var agent = context.Agent!;
             agent.Options.WorktreePath = worktreePath;
             agent.Options.WorktreeBranch = session.BranchName;
 
@@ -105,8 +104,7 @@ public sealed partial class WorktreeSpawnMiddleware : ServiceEntity, IUnifiedSpa
 
             var session = await _worktreeManager.GetWorktreeSessionAsync(agentId, ct).ConfigureAwait(false);
             if (session is not null) {
-                var agent = (AgentBase)context.Agent!;
-                agent.AddContext($"已创建git worktree,路径是:{session.WorktreePath} 已创建git分支:{session.BranchName}");
+                context.Agent!.AddContext($"已创建git worktree,路径是:{session.WorktreePath} 已创建git分支:{session.BranchName}");
             }
             return true;
         } catch (Exception ex) {

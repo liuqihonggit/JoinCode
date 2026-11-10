@@ -66,7 +66,7 @@ public sealed partial class AgentExecutionEngine : ServiceEntity, IAgentExecutio
         foreach (var agent in agents) {
             // 添加上下文
             if (previousResult != null) {
-                ((AgentBase)agent).AddContext($"上一个任务的结果: {previousResult}");
+                agent.AddContext($"上一个任务的结果: {previousResult}");
             }
 
             var result = await _lifecycleManager.ExecuteAsync(agent, cancellationToken).ConfigureAwait(false);

@@ -495,7 +495,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
             return false;
         }
 
-        if (((AgentBase)agent).State.IsTerminal()) {
+        if (agent.State.IsTerminal()) {
             _logger?.LogWarning("[AgentCoordinator] Agent {AgentId} 已结束，无法接收消息", agentId);
             return false;
         }
@@ -510,7 +510,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     /// <param name="cancellationToken">取消令牌</param>
     public async Task BroadcastAsync(CoordinatorAgentMessage message, CancellationToken cancellationToken = default) {
         var allAgents = await _lifecycleManager.GetAllAgentsAsync(cancellationToken).ConfigureAwait(false);
-        var activeAgentCount = allAgents?.Count(a => !((AgentBase)a).State.IsTerminal()) ?? 0;
+        var activeAgentCount = allAgents?.Count(a => !a.State.IsTerminal()) ?? 0;
 
         _logger?.LogInformation("[AgentCoordinator] 广播消息给 {Count} 个活跃Agent", activeAgentCount);
 
@@ -653,15 +653,15 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
             return false;
         }
 
-        if (((AgentBase)agent).State != TaskExecutionStatus.Running && ((AgentBase)agent).State != TaskExecutionStatus.Pending) {
-            _logger?.LogWarning("[AgentCoordinator] Agent {AgentId} 状态为 {State}，无法停止", agentId, ((AgentBase)agent).State);
+        if (agent.State != TaskExecutionStatus.Running && agent.State != TaskExecutionStatus.Pending) {
+            _logger?.LogWarning("[AgentCoordinator] Agent {AgentId} 状态为 {State}，无法停止", agentId, agent.State);
             return false;
         }
 
         _logger?.LogInformation("[AgentCoordinator] 停止Agent {AgentId}", agentId);
 
-        ((AgentBase)agent).CancellationTokenSource?.Cancel();
-        ((AgentBase)agent).State = TaskExecutionStatus.Cancelled;
+        agent.Cancel();
+        agent.State = TaskExecutionStatus.Cancelled;
 
         UpdateExecutionContext(agentId, ctx => ctx with { Outcome = AgentOutcome.Cancelled });
 

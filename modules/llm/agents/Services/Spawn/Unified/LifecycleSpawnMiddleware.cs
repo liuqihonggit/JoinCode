@@ -42,10 +42,9 @@ public sealed partial class LifecycleSpawnMiddleware : ServiceEntity, IUnifiedSp
         context.Agent = agent;
 
         if (context.SpawnOptions is not null) {
-            var concreteAgent = (AgentBase)agent;
-            if (concreteAgent.Context is not null) {
-                concreteAgent.Context.ParentAgentId = _subAgentContextAccessor.Current?.AgentId;
-                concreteAgent.Context.SessionId = parentSessionId ?? concreteAgent.SessionId.UniqueId;
+            if (agent.Context is not null) {
+                agent.Context.ParentAgentId = _subAgentContextAccessor.Current?.AgentId;
+                agent.Context.SessionId = parentSessionId ?? agent.SessionId.UniqueId;
             }
         }
 

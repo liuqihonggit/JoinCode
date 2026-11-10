@@ -24,7 +24,10 @@ public static partial class ServiceRegistration {
             (config, http, logger, fs, executor) => new JevQueryService(config, http, logger, fs, executor));
         s_factory.RegisterProvider(ProtocolKind.Hub,
             (config, http, logger, fs, executor) => new Api.Chat.HubQueryService(
-                new Api.Chat.HubTransportConfig { Endpoint = config.Definition?.DefaultEndpoint ?? "http://localhost:3457" },
+                new Api.Chat.HubTransportConfig {
+                    Endpoint = config.Definition?.DefaultEndpoint ?? "http://localhost:3457",
+                    ModelId = config.ModelId,
+                },
                 config.ApiKey,
                 logger as ILogger<Api.Chat.HubQueryService>,
                 executor));

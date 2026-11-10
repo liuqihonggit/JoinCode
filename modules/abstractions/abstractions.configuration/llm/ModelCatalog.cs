@@ -159,7 +159,7 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
     /// <param name="provider">供应商标识</param>
     /// <returns>默认快速模型 ID</returns>
     public string GetDefaultFastModelForProvider(string provider) {
-        return _registry.TryGet(provider)?.DefaultFastModelId ?? _modelConfigLoader?.GetDefaultFastModelId(VendorKindEnumConstants.OpenAi) ?? "gpt-4o-mini";
+        return _registry.TryGet(provider)?.DefaultFastModelId ?? _modelConfigLoader?.GetDefaultFastModelId(VendorKindEnumConstants.OpenAi) ?? DefaultModelCatalog.FallbackModel;
     }
 
     /// <summary>

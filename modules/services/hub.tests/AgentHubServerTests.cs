@@ -327,6 +327,126 @@ public class AgentHubServerTests : IAsyncDisposable {
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
+    [Fact]
+    public async Task ApplyReload_AddsNewProviderToModelsEndpoint() {
+        await StartTestServerAsync();
+
+        using var client = new HttpClient();
+
+        // 初始状态：只有 test-model
+        using var response1 = await client.GetAsync($"http://localhost:{_port}/v1/models");
+        var content1 = await response1.Content.ReadAsStringAsync();
+        content1.Should().Contain("test-model");
+        content1.Should().NotContain("new-model");
+
+        // 热重载：添加新 provider
+        var newSettings = new SettingsJson {
+            Vendor = new Dictionary<string, ProfileSettings> {
+                ["test-provider"] = new ProfileSettings {
+                    Provider = "test-provider",
+                    Protocol = ProtocolKindEnumConstants.OpenAiCompatible,
+                    Endpoint = "http://localhost:9999/v1",
+                    ApiKeyEnvVar = "TEST_API_KEY",
+                    Model = "test-model"
+                },
+                ["new-provider"] = new ProfileSettings {
+                    Provider = "new-provider",
+                    Protocol = ProtocolKindEnumConstants.OpenAiCompatible,
+                    Endpoint = "http://localhost:9996/v1",
+                    ApiKeyEnvVar = "NEW_API_KEY",
+                    Model = "new-model"
+                }
+            },
+            Current = new CurrentSettings { Profile = "test-provider" }
+        };
+        var newRegistry = ProviderDefinitionRegistry.Create(new ModelConfigLoader(), null, null);
+        if (_server is null) throw new InvalidOperationException("Server not started");
+        _server.ApplyReload(newSettings, newRegistry);
+
+        // 热重载后：应该包含 new-model
+        using var response2 = await client.GetAsync($"http://localhost:{_port}/v1/models");
+        var content2 = await response2.Content.ReadAsStringAsync();
+        content2.Should().Contain("test-model");
+        content2.Should().Contain("new-model");
+        content2.Should().Contain("new-provider");
+    }
+
+    [Fact]
+    public async Task ApplyReload_RemovesDeletedProviderFromModelsEndpoint() {
+        await StartTestServerAsync();
+
+        using var client = new HttpClient();
+
+        // 初始状态：有 test-model
+        using var response1 = await client.GetAsync($"http://localhost:{_port}/v1/models");
+        var content1 = await response1.Content.ReadAsStringAsync();
+        content1.Should().Contain("test-model");
+
+        // 热重载：删除 test-provider，替换为另一个 provider
+        var newSettings = new SettingsJson {
+            Vendor = new Dictionary<string, ProfileSettings> {
+                ["replacement-provider"] = new ProfileSettings {
+                    Provider = "replacement-provider",
+                    Protocol = ProtocolKindEnumConstants.OpenAiCompatible,
+                    Endpoint = "http://localhost:9995/v1",
+                    ApiKeyEnvVar = "REPL_API_KEY",
+                    Model = "replacement-model"
+                }
+            },
+            Current = new CurrentSettings { Profile = "replacement-provider" }
+        };
+        var newRegistry = ProviderDefinitionRegistry.Create(new ModelConfigLoader(), null, null);
+        if (_server is null) throw new InvalidOperationException("Server not started");
+        _server.ApplyReload(newSettings, newRegistry);
+
+        // 热重载后：test-model 应该消失，replacement-model 应该出现
+        using var response2 = await client.GetAsync($"http://localhost:{_port}/v1/models");
+        var content2 = await response2.Content.ReadAsStringAsync();
+        content2.Should().NotContain("test-model");
+        content2.Should().Contain("replacement-model");
+    }
+
+    [Fact]
+    public async Task ApplyReload_UpdatesProviderCountInHealthEndpoint() {
+        await StartTestServerAsync();
+
+        using var client = new HttpClient();
+
+        // 初始状态：1 个 provider
+        using var response1 = await client.GetAsync($"http://localhost:{_port}/health");
+        var content1 = await response1.Content.ReadAsStringAsync();
+        content1.Should().Contain("\"providers\":1");
+
+        // 热重载：添加第二个 provider
+        var newSettings = new SettingsJson {
+            Vendor = new Dictionary<string, ProfileSettings> {
+                ["test-provider"] = new ProfileSettings {
+                    Provider = "test-provider",
+                    Protocol = ProtocolKindEnumConstants.OpenAiCompatible,
+                    Endpoint = "http://localhost:9999/v1",
+                    ApiKeyEnvVar = "TEST_API_KEY",
+                    Model = "test-model"
+                },
+                ["extra-provider"] = new ProfileSettings {
+                    Provider = "extra-provider",
+                    Protocol = ProtocolKindEnumConstants.OpenAiCompatible,
+                    Endpoint = "http://localhost:9994/v1",
+                    ApiKeyEnvVar = "EXTRA_API_KEY",
+                    Model = "extra-model"
+                }
+            },
+            Current = new CurrentSettings { Profile = "test-provider" }
+        };
+        var newRegistry = ProviderDefinitionRegistry.Create(new ModelConfigLoader(), null, null);
+        if (_server is null) throw new InvalidOperationException("Server not started");
+        _server.ApplyReload(newSettings, newRegistry);
+
+        // 热重载后：2 个 provider
+        using var response2 = await client.GetAsync($"http://localhost:{_port}/health");
+        var content2 = await response2.Content.ReadAsStringAsync();
+        content2.Should().Contain("\"providers\":2");
+    }
+
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 

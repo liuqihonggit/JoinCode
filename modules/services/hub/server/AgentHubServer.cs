@@ -136,6 +136,15 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
             new ModelConfigLoader(),
             fs);
 
+        ApplyReload(newSettings, newRegistry);
+    }
+
+    /// <summary>
+    /// 应用热重载 — 用新的 SettingsJson 和 ProviderDefinitionRegistry 原子替换 volatile 字段，重建 HttpClient 字典。
+    /// </summary>
+    /// <param name="newSettings">新的 SettingsJson。</param>
+    /// <param name="newRegistry">新的 ProviderDefinitionRegistry。</param>
+    internal void ApplyReload(SettingsJson newSettings, IProviderDefinitionRegistry newRegistry) {
         var oldClients = _providerClients;
 
         _settings = newSettings;

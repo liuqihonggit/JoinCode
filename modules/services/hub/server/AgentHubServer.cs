@@ -218,6 +218,10 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
                 await HandleAgentMessageAsync(context, cancellationToken).ConfigureAwait(false);
                 break;
 
+            case "/agent/route":
+                await HandleAgentRouteAsync(context, cancellationToken).ConfigureAwait(false);
+                break;
+
             default:
                 context.Response.StatusCode = 404;
                 await WriteJsonResponseAsync(context.Response, new HubErrorResponse { Error = "Not found" }).ConfigureAwait(false);
@@ -350,7 +354,7 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
             return;
         }
 
-        _agentRegistry.Register(registerRequest.AgentId, registerRequest.SessionId);
+        _agentRegistry.Register(registerRequest.AgentId, registerRequest.SessionId, registerRequest.Capabilities);
         _logger?.LogInformation("[AgentHubServer] Agent 注册: {AgentId}", registerRequest.AgentId);
 
         await WriteJsonResponseAsync(context.Response, new HubRegisterResponse { Status = "ok", AgentId = registerRequest.AgentId }).ConfigureAwait(false);
@@ -391,6 +395,31 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
         }
     }
 
+    private async Task HandleAgentRouteAsync(HttpListenerContext context, CancellationToken cancellationToken) {
+        var body = await ReadRequestBodyAsync(context.Request, cancellationToken).ConfigureAwait(false);
+        var routeRequest = RelaxedJsonSerializer.Deserialize(body, HubServerJsonContext.Default.AgentRouteRequest);
+
+        if (routeRequest == null || string.IsNullOrEmpty(routeRequest.Capability)) {
+            context.Response.StatusCode = 400;
+            await WriteJsonResponseAsync(context.Response, new HubErrorResponse { Error = "Capability required" }).ConfigureAwait(false);
+            return;
+        }
+
+        var message = new AgentMessageRequest {
+            FromAgentId = routeRequest.FromAgentId,
+            MessageType = routeRequest.MessageType,
+            Content = routeRequest.Content,
+            Timestamp = DateTimeOffset.UtcNow
+        };
+
+        var targetAgentId = await _agentRegistry.RouteByCapabilityAsync(routeRequest.Capability, message, cancellationToken).ConfigureAwait(false);
+
+        await WriteJsonResponseAsync(context.Response, new HubRouteResponse {
+            Status = targetAgentId is not null ? "delivered" : "no_agent",
+            AgentId = targetAgentId
+        }).ConfigureAwait(false);
+    }
+
     private static async Task<string> ReadRequestBodyAsync(HttpListenerRequest request, CancellationToken cancellationToken) {
         using var reader = new StreamReader(request.InputStream, request.ContentEncoding);
         return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
@@ -404,6 +433,7 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
             HubStatusResponse s => JsonSerializer.Serialize(s, HubServerJsonContext.Default.HubStatusResponse),
             HubRegisterResponse r => JsonSerializer.Serialize(r, HubServerJsonContext.Default.HubRegisterResponse),
             HubModelsResponse m => JsonSerializer.Serialize(m, HubServerJsonContext.Default.HubModelsResponse),
+            HubRouteResponse rt => JsonSerializer.Serialize(rt, HubServerJsonContext.Default.HubRouteResponse),
             _ => throw new InvalidOperationException($"Unsupported response type: {typeof(T).Name}")
         };
         var buffer = Encoding.UTF8.GetBytes(json);

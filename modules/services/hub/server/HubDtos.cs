@@ -10,6 +10,10 @@ public sealed class AgentRegisterRequest {
     /// <summary>会话标识符（可选）。</summary>
     [JsonPropertyName("session_id")]
     public string? SessionId { get; init; }
+
+    /// <summary>能力标签列表（可选，用于按能力路由）。</summary>
+    [JsonPropertyName("capabilities")]
+    public List<string> Capabilities { get; init; } = [];
 }
 
 /// <summary>Agent 注销请求 DTO。</summary>
@@ -40,6 +44,36 @@ public sealed class AgentMessageRequest {
     /// <summary>消息时间戳。</summary>
     [JsonPropertyName("timestamp")]
     public DateTimeOffset Timestamp { get; init; }
+}
+
+/// <summary>按能力路由消息请求 DTO。</summary>
+public sealed class AgentRouteRequest {
+    /// <summary>目标能力标签。</summary>
+    [JsonPropertyName("capability")]
+    public string Capability { get; init; } = string.Empty;
+
+    /// <summary>发送方 Agent 标识符。</summary>
+    [JsonPropertyName("from_agent_id")]
+    public string FromAgentId { get; init; } = string.Empty;
+
+    /// <summary>消息类型（如 "text"）。</summary>
+    [JsonPropertyName("message_type")]
+    public string MessageType { get; init; } = "text";
+
+    /// <summary>消息内容。</summary>
+    [JsonPropertyName("content")]
+    public string? Content { get; init; }
+}
+
+/// <summary>按能力路由消息响应 DTO。</summary>
+public sealed class HubRouteResponse {
+    /// <summary>操作状态（"delivered" 或 "no_agent"）。</summary>
+    [JsonPropertyName("status")]
+    public string Status { get; init; } = string.Empty;
+
+    /// <summary>被选中的目标 Agent 标识符（成功时）。</summary>
+    [JsonPropertyName("agent_id")]
+    public string? AgentId { get; init; }
 }
 
 /// <summary>健康检查响应 DTO。</summary>

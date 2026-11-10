@@ -225,6 +225,23 @@ public sealed class EngineApplicationBuilder {
             }
         }
 
+        // 从服务端 /v1/models 获取可用模型列表
+        try {
+            using var modelClient = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+            var modelsResponse = await modelClient.GetAsync("http://localhost:3457/v1/models").ConfigureAwait(false);
+            if (modelsResponse.IsSuccessStatusCode) {
+                var modelsJson = await modelsResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
+                var modelsData = RelaxedJsonSerializer.Deserialize(modelsJson, HubModelsJsonContext.Default.HubModelsResponse);
+                if (modelsData?.Data is not null && modelsData.Data.Count > 0) {
+                    var firstModel = modelsData.Data[0];
+                    config = config with { Provider = config.Provider with { ModelId = firstModel.Id } };
+                    Diag.WriteLine($"[HUB] 从服务端获取 {modelsData.Data.Count} 个模型，默认使用: {firstModel.Id}");
+                }
+            }
+        } catch (Exception ex) {
+            Diag.WriteLine($"[HUB] 从服务端获取模型列表失败(失败): {ex.Message}");
+        }
+
         // 加载规则文件
         var projectDir = fs.GetCurrentDirectory();
         await using var rulesLoader = new Core.Configuration.ProjectRulesLoader(fs);

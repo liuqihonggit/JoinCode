@@ -18,15 +18,19 @@ public sealed partial class AgentRegistry {
     /// <summary>注册 Agent。</summary>
     /// <param name="agentId">Agent 标识符。</param>
     /// <param name="sessionId">会话标识符（可选）。</param>
-    public void Register(string agentId, string? sessionId = null) {
+    /// <param name="capabilities">能力标签列表（可选，用于按能力路由）。</param>
+    public void Register(string agentId, string? sessionId = null, List<string>? capabilities = null) {
         var info = new AgentInfo {
             AgentId = agentId,
             SessionId = sessionId,
-            ConnectedAt = DateTimeOffset.UtcNow
+            ConnectedAt = DateTimeOffset.UtcNow,
+            Capabilities = capabilities ?? [],
+            PendingMessages = 0
         };
         _agents[agentId] = info;
         _mailboxes[agentId] = Channel.CreateUnbounded<AgentMessageRequest>();
-        _logger?.LogInformation("[AgentRegistry] Agent 注册: {AgentId}", agentId);
+        _logger?.LogInformation("[AgentRegistry] Agent 注册: {AgentId} (capabilities={Caps})",
+            agentId, capabilities is null ? "none" : string.Join(",", capabilities));
     }
 
     /// <summary>注销 Agent。</summary>
@@ -56,6 +60,9 @@ public sealed partial class AgentRegistry {
             return false;
         }
         await channel.Writer.WriteAsync(message, ct).ConfigureAwait(false);
+        if (_agents.TryGetValue(toAgentId, out var info)) {
+            _agents[toAgentId] = info with { PendingMessages = info.PendingMessages + 1 };
+        }
         return true;
     }
 
@@ -67,7 +74,33 @@ public sealed partial class AgentRegistry {
         foreach (var (agentId, channel) in _mailboxes) {
             if (agentId == fromAgentId) continue;
             await channel.Writer.WriteAsync(message, ct).ConfigureAwait(false);
+            if (_agents.TryGetValue(agentId, out var info)) {
+                _agents[agentId] = info with { PendingMessages = info.PendingMessages + 1 };
+            }
         }
+    }
+
+    /// <summary>
+    /// 按能力路由消息 — 在具有指定能力的 Agent 中选择待处理消息最少的（负载均衡）。
+    /// </summary>
+    /// <param name="capability">目标能力标签。</param>
+    /// <param name="message">消息内容。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>投递成功返回目标 AgentId，无匹配 Agent 返回 null。</returns>
+    public async Task<string?> RouteByCapabilityAsync(string capability, AgentMessageRequest message, CancellationToken ct) {
+        var candidates = _agents.Values
+            .Where(a => a.Capabilities.Contains(capability))
+            .OrderBy(a => a.PendingMessages)
+            .ToList();
+
+        if (candidates.Count == 0) {
+            _logger?.LogWarning("[AgentRegistry] 无具有能力 '{Capability}' 的 Agent", capability);
+            return null;
+        }
+
+        var target = candidates[0];
+        var delivered = await DeliverMessageAsync(target.AgentId, message, ct).ConfigureAwait(false);
+        return delivered ? target.AgentId : null;
     }
 
     /// <summary>异步接收指定 Agent 的消息流。</summary>
@@ -93,7 +126,7 @@ public sealed partial class AgentRegistry {
 }
 
 /// <summary>Agent 信息 DTO。</summary>
-public sealed class AgentInfo {
+public sealed record AgentInfo {
     /// <summary>Agent 标识符。</summary>
     [JsonPropertyName("agent_id")]
     public string AgentId { get; init; } = string.Empty;
@@ -105,4 +138,12 @@ public sealed class AgentInfo {
     /// <summary>连接时间。</summary>
     [JsonPropertyName("connected_at")]
     public DateTimeOffset ConnectedAt { get; init; }
+
+    /// <summary>能力标签列表（用于按能力路由）。</summary>
+    [JsonPropertyName("capabilities")]
+    public List<string> Capabilities { get; init; } = [];
+
+    /// <summary>待处理消息数量（用于负载均衡）。</summary>
+    [JsonPropertyName("pending_messages")]
+    public int PendingMessages { get; init; }
 }

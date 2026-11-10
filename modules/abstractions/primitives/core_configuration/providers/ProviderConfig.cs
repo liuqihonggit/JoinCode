@@ -63,4 +63,9 @@ public sealed record ProviderConfig {
     /// Provider 完整定义 — 由 ConfigLoader 在加载时注入，QueryService 等消费者通过此属性访问 Provider 知识
     /// </summary>
     public IProviderDefinition? Definition { get; init; }
+
+    /// <summary>
+    /// Agent 标识符 — Hub 模式下标识当前 jcc 实例，用于 Agent 间消息路由
+    /// </summary>
+    public string AgentId { get; init; } = string.Empty;
 }

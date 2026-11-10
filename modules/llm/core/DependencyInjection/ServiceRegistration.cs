@@ -27,6 +27,7 @@ public static partial class ServiceRegistration {
                 new Api.Chat.HubTransportConfig {
                     Endpoint = config.Definition?.DefaultEndpoint ?? "http://localhost:3457",
                     ModelId = config.ModelId,
+                    AgentId = config.AgentId,
                 },
                 config.ApiKey,
                 logger as ILogger<Api.Chat.HubQueryService>,

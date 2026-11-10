@@ -193,6 +193,10 @@ public sealed class EngineApplicationBuilder {
         // 只加载 settings.json 的 current 部分（UI 偏好等），不加载 vendor 部分
         var settings = await Core.Configuration.ConfigLoader.LoadSettingsJsonAsync(fs).ConfigureAwait(false);
 
+        // 生成 Agent ID 并向 Hub 服务端注册
+        var agentId = $"agent-{Guid.NewGuid():N}"[..16];
+        await RegisterAgentAsync(hubEndpoint, agentId).ConfigureAwait(false);
+
         // 构造使用 Hub 协议的简化 WorkflowConfig
         var config = new WorkflowConfig {
             Provider = new ProviderConfig {
@@ -202,6 +206,7 @@ public sealed class EngineApplicationBuilder {
                 ApiKey = string.Empty,
                 ModelId = string.Empty,
                 Definition = null,
+                AgentId = agentId,
             }
         };
 
@@ -291,6 +296,51 @@ public sealed class EngineApplicationBuilder {
             Diag.WriteLine($"[HUB] 配置的模型 {configuredModel} 不在可用列表中，使用第一个可用模型: {availableModels[0].Id}");
         }
         return availableModels[0];
+    }
+
+    /// <summary>
+    /// 向 Hub 服务端注册当前 Agent
+    /// </summary>
+    private static async Task RegisterAgentAsync(string hubEndpoint, string agentId) {
+        try {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+            var requestBody = JsonSerializer.Serialize(
+                new HubAgentRegisterRequest {
+                    AgentId = agentId,
+                    SessionId = $"session-{Guid.NewGuid():N}"[..18],
+                    Capabilities = [],
+                },
+                HubModelsJsonContext.Default.HubAgentRegisterRequest);
+            using var content = new StringContent(requestBody, Encoding.UTF8, "application/json");
+            var response = await client.PostAsync($"{hubEndpoint}/agent/register", content).ConfigureAwait(false);
+            if (response.IsSuccessStatusCode) {
+                Diag.WriteLine($"[HUB] Agent 注册成功: {agentId}");
+            } else {
+                Diag.WriteLine($"[HUB] Agent 注册失败: {response.StatusCode}");
+            }
+        } catch (Exception ex) {
+            Diag.WriteLine($"[HUB] Agent 注册异常: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 向 Hub 服务端注销当前 Agent
+    /// </summary>
+    public static async Task UnregisterAgentAsync(string hubEndpoint, string agentId) {
+        if (string.IsNullOrEmpty(agentId)) return;
+        try {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+            var requestBody = JsonSerializer.Serialize(
+                new HubAgentUnregisterRequest { AgentId = agentId },
+                HubModelsJsonContext.Default.HubAgentUnregisterRequest);
+            using var content = new StringContent(requestBody, Encoding.UTF8, "application/json");
+            var response = await client.PostAsync($"{hubEndpoint}/agent/unregister", content).ConfigureAwait(false);
+            if (response.IsSuccessStatusCode) {
+                Diag.WriteLine($"[HUB] Agent 注销成功: {agentId}");
+            }
+        } catch (Exception ex) {
+            Diag.WriteLine($"[HUB] Agent 注销异常: {ex.Message}");
+        }
     }
 
     private static Entry.DotEnvConfig? _dotEnvCache;

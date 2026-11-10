@@ -105,6 +105,7 @@ class Program {
             swSession?.Stop();
 
             var config = engineResult.Config;
+            _hubAgentId = config.Provider.AgentId;
             await using var host = engineResult.Host;
 
             logger = host.Services.GetService<ILogger<Program>>();
@@ -203,8 +204,19 @@ class Program {
             }
 
             return (int)ExitCode.GeneralError;
+        } finally {
+            // ADR 0155: Agent 注销 — 进程退出时通知 Hub 服务端
+            if (!string.IsNullOrEmpty(_hubAgentId)) {
+                try {
+                    await EngineApplicationBuilder.UnregisterAgentAsync("http://localhost:3457", _hubAgentId).ConfigureAwait(false);
+                } catch (Exception ex) {
+                    Diag.WriteLine($"[HUB] Agent 注销失败: {ex.Message}");
+                }
+            }
         }
     }
+
+    private static string? _hubAgentId;
 
     /// <summary>
     /// 写入错误日志到临时目录的 jcc_error.log。

@@ -124,6 +124,7 @@ public sealed class EngineApplicationBuilder {
 
     /// <summary>
     /// 加载配置 — 含 DotEnv 回退
+    /// ADR 0155: 当 Hub 服务可用时，跳过 Provider 配置加载，直接使用 Hub 协议
     /// </summary>
     public static async Task<WorkflowConfig> LoadConfigAsync(CommandLineOptions options, IFileSystem fs, IModelConfigLoader? modelConfigLoader = null) {
         var sw = PerfTimer.Start("  GetDotEnv");
@@ -134,9 +135,16 @@ public sealed class EngineApplicationBuilder {
         var configLogLevel = JoinCode.Abstractions.Utils.Diagnostics.Diag.IsDebugLog ? LogLevel.Debug : LogLevel.Warning;
         using var configLoggerFactory = LoggerFactory.Create(b => b.AddProvider(new Core.Configuration.StderrLoggerProvider(configLogLevel)));
 
+        // ADR 0155: Hub 模式 — 当 Hub 服务可用时，跳过所有 Provider 配置加载
+        // 客户端不需要 ProviderDefinitionRegistry、API Key 解析、Provider 验证
+        // 所有 Provider 相关逻辑由 jcchub.exe 服务端处理
+        if (await IsHubServerAvailableAsync().ConfigureAwait(false)) {
+            Diag.WriteLine("[HUB] Hub 服务可用，使用 Hub 协议 — 跳过 Provider 配置加载");
+            config = await LoadHubConfigAsync(fs, options).ConfigureAwait(false);
+            return config;
+        }
+
         // 启动开销优化 — 先创建 registry 再传给 ConfigLoader，避免 ConfigLoader 构造函数内部重复创建
-        // （原流程：ConfigLoader 构造 → ProviderDefinitionRegistry.Create 读 settings.json，
-        //   然后 LoadConfigAsync 行 141 又 CreateAsync 读 settings.json — 重复读取）
         modelConfigLoader ??= new ModelConfigLoader();
         var sw1 = PerfTimer.Start("  ProviderRegistry.Create");
         var registry = await Core.Configuration.Providers.ProviderDefinitionRegistry.CreateAsync(modelConfigLoader, logger: configLoggerFactory.CreateLogger<Core.Configuration.Providers.ProviderDefinitionRegistry>()).ConfigureAwait(false);
@@ -165,8 +173,6 @@ public sealed class EngineApplicationBuilder {
         }
 
         // 环境变量优先级最高 — 无论 dotEnv 是否存在，都必须应用环境变量覆盖
-        // 修复: 之前 ApplyEnvOverrides 只在 dotEnv != null 时调用，
-        // 导致无 .env/api.json 时 JCC_ENDPOINT/JCC_MODEL_ID 等环境变量不生效
         config = await new Core.Configuration.SettingsMapper(registry).ApplyEnvOverridesAsync(config).ConfigureAwait(false);
         sw3?.Stop();
 
@@ -175,6 +181,77 @@ public sealed class EngineApplicationBuilder {
             config = config with { PipeEndpoint = new PipeTransportConfig { PipeName = options.PipeName ?? throw new InvalidOperationException("PipeName required in pipe mode") } };
 
         return config;
+    }
+
+    /// <summary>
+    /// ADR 0155: Hub 模式配置加载 — 跳过所有 Provider 配置，直接使用 Hub 协议
+    /// 客户端只需要 Hub endpoint（固定 http://localhost:3457），不需要 API Key、ProviderDefinitionRegistry
+    /// </summary>
+    private static async Task<WorkflowConfig> LoadHubConfigAsync(IFileSystem fs, CommandLineOptions options) {
+        const string hubEndpoint = "http://localhost:3457";
+
+        // 只加载 settings.json 的 current 部分（UI 偏好等），不加载 vendor 部分
+        var settings = await Core.Configuration.ConfigLoader.LoadSettingsJsonAsync(fs).ConfigureAwait(false);
+
+        // 构造使用 Hub 协议的简化 WorkflowConfig
+        var config = new WorkflowConfig {
+            Provider = new ProviderConfig {
+                Vendor = "hub",
+                Protocol = ProtocolKind.Hub.ToValue(),
+                Endpoint = hubEndpoint,
+                ApiKey = string.Empty,
+                ModelId = string.Empty,
+                Definition = null,
+            }
+        };
+
+        // 应用非 Provider 相关的 settings.current 配置（UI 偏好、行为开关等）
+        if (settings is not null) {
+            config = config with { FastMode = settings.Current?.FastMode ?? false };
+            config = config with { Language = settings.Current?.Language };
+            config = config with { OutputStyle = settings.Current?.OutputStyle };
+            config = config with { AutoMemoryEnabled = settings.Current?.AutoMemoryEnabled ?? true };
+            config = config with { AutoDreamEnabled = settings.Current?.AutoDreamEnabled ?? true };
+            config = config with { CleanupPeriodDays = settings.Current?.CleanupPeriodDays ?? 30 };
+            config = config with { ShowTurnDuration = settings.Current?.ShowTurnDuration ?? true };
+            config = config with { AutoCompactEnabled = settings.Current?.AutoCompactEnabled ?? true };
+            config = config with { FileCheckpointingEnabled = settings.Current?.FileCheckpointingEnabled ?? true };
+
+            // 注入 settings.env 到环境变量
+            Core.Configuration.SettingsMapper.InjectEnvFromSettings(settings);
+
+            if (settings.Current?.DebugLog == true) {
+                Diag.EnableDebugLog();
+            }
+        }
+
+        // 加载规则文件
+        var projectDir = fs.GetCurrentDirectory();
+        await using var rulesLoader = new Core.Configuration.ProjectRulesLoader(fs);
+        var projectRules = await rulesLoader.LoadRulesAsync(projectDir).ConfigureAwait(false);
+        var externalRulesLoader = new Core.Configuration.ExternalRulesLoader(fs);
+        var externalRules = await externalRulesLoader.LoadProjectRulesAsync(projectDir).ConfigureAwait(false);
+
+        config = config with {
+            ProjectRules = projectRules,
+            ExternalRules = externalRules
+        };
+
+        // Pipe 模式
+        if (options.IsPipeMode)
+            config = config with { PipeEndpoint = new PipeTransportConfig { PipeName = options.PipeName ?? throw new InvalidOperationException("PipeName required in pipe mode") } };
+
+        return config;
+    }
+
+    private static async Task<bool> IsHubServerAvailableAsync() {
+        try {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(1) };
+            var response = await client.GetAsync("http://localhost:3457/health").ConfigureAwait(false);
+            return response.IsSuccessStatusCode;
+        } catch {
+            return false;
+        }
     }
 
     private static Entry.DotEnvConfig? _dotEnvCache;

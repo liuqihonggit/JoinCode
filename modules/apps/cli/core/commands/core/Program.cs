@@ -90,6 +90,14 @@ class Program {
 
             var fs = IO.FileSystem.FileSystemFactory.Create();
 
+            // ADR 0155: AgentHubServer — 多 Agent 中央服务器，随首个 jcc 自动启动
+            // 端口可用 → 启动服务器（本实例为拥有者）；端口已占用 → 连接已运行的服务器
+            var hubPort = Environment.GetEnvironmentVariable("JCC_HUB_PORT") is { } portStr && int.TryParse(portStr, out var p) ? p : 3457;
+            var configLoader = new Core.Configuration.ConfigLoader();
+            var hubBootstrap = new Core.Hub.Bootstrap.AgentHubBootstrap(configLoader, fs);
+            var hubConnection = await hubBootstrap.EnsureServerAsync(hubPort).ConfigureAwait(false);
+            Diag.WriteLine($"[HUB] AgentHubServer: {hubConnection.Endpoint} (owner={hubConnection.IsOwner})");
+
             // ADR 0149: 默认(非非交互)→ TUI, 非交互(-p)→ NonInteractiveModeRunner
             // TUI 分支: NativeTui.Host 自己组装引擎(EngineSession.CreateAsync),跳过 CreateCliSessionAsync 避免重复组装
             if (!options.IsNonInteractiveMode) {

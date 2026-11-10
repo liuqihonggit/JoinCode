@@ -5,4 +5,4 @@ namespace Core.Agents.Coordinator;
 /// </summary>
 [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(TeammateIdleNotification))]
-internal sealed partial class TeammateInitJsonContext : JsonSerializerContext;
+public sealed partial class TeammateInitJsonContext : JsonSerializerContext;

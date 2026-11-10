@@ -7,6 +7,8 @@ namespace Core.Agents;
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentPromptBuilder), ServiceLifetime.Singleton)]
 public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentPromptBuilder {
 
+    private const string SubAgentSystemMessageTemplate = "你是一个专业的助手，正在执行以下任务: {0}";
+
     /// <summary>
     /// 构造 AgentPromptBuilder 实例，注入定义提供者、子代理上下文访问器、服务提供者及日志器
     /// </summary>
@@ -53,7 +55,7 @@ public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstrac
         if (definition?.SystemPrompt is not null) {
             sb.AppendLine(definition.SystemPrompt);
         } else {
-            sb.AppendLine(string.Format(AgentCoordinatorConstants.SystemPrompts.SubAgentSystemMessage, task));
+            sb.AppendLine(string.Format(SubAgentSystemMessageTemplate, task));
         }
 
         if (!string.IsNullOrWhiteSpace(definition?.DisplayId)) {

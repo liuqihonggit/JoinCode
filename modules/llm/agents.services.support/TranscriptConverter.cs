@@ -4,7 +4,7 @@ namespace Core.Agents;
 /// <summary>
 /// 转录记录转换器 — 将 TranscriptEntry 列表转换为 MessageList，支持追加新提示
 /// </summary>
-internal static class TranscriptConverter {
+public static class TranscriptConverter {
     /// <summary>
     /// 将转录记录列表转换为消息列表，跳过空内容与未知角色
     /// </summary>

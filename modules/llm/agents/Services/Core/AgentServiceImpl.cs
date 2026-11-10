@@ -8,7 +8,7 @@ namespace Core.Agents;
 public sealed record AgentServiceDependencies(
     JoinCode.Abstractions.Interfaces.IAgentTranscriptService? TranscriptService = null,
     IMailbox? MessageBroker = null,
-    SwarmPermissionCallbackService? PermissionCallbackService = null,
+    ISwarmPermissionCallbackHandler? PermissionCallbackService = null,
     JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? McpServerManager = null,
     JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? InputForwardQueue = null,
     JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? OutputChannelManager = null,
@@ -40,7 +40,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     private readonly IMailbox? _messageBroker;
     private readonly JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? _inputForwardQueue;
     private readonly JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? _outputChannelManager;
-    private readonly SwarmPermissionCallbackService? _permissionCallbackService;
+    private readonly ISwarmPermissionCallbackHandler? _permissionCallbackService;
     private readonly JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? _mcpServerManager;
     private readonly JoinCode.Abstractions.Interfaces.IAgentWorktreeManager? _worktreeManager;
     private readonly JoinCode.Abstractions.Interfaces.IAgentNotificationQueue? _notificationQueue;
@@ -150,12 +150,10 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         UpdateRuntimeState(init.SubAgent.ObjectId.UniqueId, s => s with { CompletionSource = tcs });
         _agentStartTimer.Record(init.SubAgent.ObjectId.UniqueId, _clock.GetUtcNow());
         _inputForwardQueue?.Register(init.SubAgent.ObjectId.UniqueId);
-        if (init.SubAgent is AgentBase baseAgent) {
-            if (_inputForwardQueue is not null)
-                baseAgent.InputForwardQueue = _inputForwardQueue;
-            if (_outputChannelManager is not null)
-                baseAgent.OutputChannelManager = _outputChannelManager;
-        }
+        if (_inputForwardQueue is not null)
+            init.SubAgent.InputForwardQueue = _inputForwardQueue;
+        if (_outputChannelManager is not null)
+            init.SubAgent.OutputChannelManager = _outputChannelManager;
         RegisterAgentNameIndex(init.SubAgent);
 
         var runInBackground = options.RunInBackground || (init.Definition?.IsBackground ?? false);
@@ -198,12 +196,10 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         _agentStartTimer.Record(init.SubAgent.ObjectId.UniqueId, _clock.GetUtcNow());
         _inputForwardQueue?.Register(init.SubAgent.ObjectId.UniqueId);
-        if (init.SubAgent is AgentBase streamBaseAgent) {
-            if (_inputForwardQueue is not null)
-                streamBaseAgent.InputForwardQueue = _inputForwardQueue;
-            if (_outputChannelManager is not null)
-                streamBaseAgent.OutputChannelManager = _outputChannelManager;
-        }
+        if (_inputForwardQueue is not null)
+            init.SubAgent.InputForwardQueue = _inputForwardQueue;
+        if (_outputChannelManager is not null)
+            init.SubAgent.OutputChannelManager = _outputChannelManager;
         RegisterAgentNameIndex(init.SubAgent);
 
         // 流式消费 SubAgent 的输出 — 对齐 TS for await (const message of runAgent(...))
@@ -413,25 +409,22 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     public async Task<string?> GetAgentWorktreePathAsync(string agentId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         var agent = await _lifecycleManager.GetAgentAsync(agentId, cancellationToken).ConfigureAwait(false);
-        // WorktreePath 存于 AgentBase.Options（IAgent 接口不暴露），需向下转型
-        return agent is AgentBase concrete ? concrete.Options.WorktreePath : null;
+        return agent?.Options.WorktreePath;
     }
 
     /// <summary>
     /// 注册子代理名称索引 — Spawn 时调用，建立 name→agentId 的多键映射
     /// </summary>
     private void RegisterAgentNameIndex(IAgent subAgent) {
-        if (subAgent is not AgentBase baseAgent) return;
-        _agentNameIndex.Register(subAgent.ObjectId.UniqueId, baseAgent.Name, baseAgent.Task, baseAgent.Options.DisplayName);
-        _outputChannelManager?.Register(subAgent.ObjectId.UniqueId, baseAgent.Options.DisplayName ?? baseAgent.Name);
+        _agentNameIndex.Register(subAgent.ObjectId.UniqueId, subAgent.Name, subAgent.Task, subAgent.Options.DisplayName);
+        _outputChannelManager?.Register(subAgent.ObjectId.UniqueId, subAgent.Options.DisplayName ?? subAgent.Name);
     }
 
     /// <summary>
     /// 注销子代理名称索引 — 完成时调用，仅移除属于该 agentId 的键（同名子代理不误删）
     /// </summary>
     private void UnregisterAgentNameIndex(IAgent subAgent) {
-        if (subAgent is not AgentBase baseAgent) return;
-        _agentNameIndex.Unregister(subAgent.ObjectId.UniqueId, baseAgent.Name, baseAgent.Task, baseAgent.Options.DisplayName);
+        _agentNameIndex.Unregister(subAgent.ObjectId.UniqueId, subAgent.Name, subAgent.Task, subAgent.Options.DisplayName);
         _outputChannelManager?.Unregister(subAgent.ObjectId.UniqueId);
     }
 
@@ -513,10 +506,9 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         var description = $"Resume: {metadata.Description}";
         var subAgent = await _lifecycleManager.SpawnSubAgentAsync(description, subOptions, cancellationToken).ConfigureAwait(false);
 
-        var concreteAgent = (AgentBase)subAgent;
-        if (concreteAgent.Context is not null) {
-            concreteAgent.Context.ParentAgentId = _subAgentContextAccessor.Current?.AgentId;
-            concreteAgent.Context.SessionId = sessionId;
+        if (subAgent.Context is not null) {
+            subAgent.Context.ParentAgentId = _subAgentContextAccessor.Current?.AgentId;
+            subAgent.Context.SessionId = sessionId;
         }
 
         await AppendTranscriptEntryAsync(subAgent.ObjectId.UniqueId, "system", $"[RESUME from {options.AgentId}]", cancellationToken).ConfigureAwait(false);
@@ -748,8 +740,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     }
 
     private async Task RunBackgroundAgentAsync(IAgent subAgent, TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult> tcs, CancellationToken cancellationToken) {
-        var concreteAgent = (AgentBase)subAgent;
-        using var scope = concreteAgent.Context?.EnterScopeWithCwd(concreteAgent.Options.WorktreePath);
+        using var scope = subAgent.Context?.EnterScopeWithCwd(subAgent.Options.WorktreePath);
         try {
             var result = await _lifecycleManager.ExecuteAsync(subAgent, cancellationToken).ConfigureAwait(false);
 
@@ -785,14 +776,13 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
     private void FireAgentCompleted(IAgent subAgent, JoinCode.Abstractions.Interfaces.AgentResult result) {
         try {
-            var concreteAgent = (AgentBase)subAgent;
             _inputForwardQueue?.Unregister(subAgent.ObjectId.UniqueId);
             UnregisterAgentNameIndex(subAgent);
             var status = result.Success ? AgentStatus.Completed : AgentStatus.Failed;
 
             var runtimeState = GetRuntimeState(subAgent.ObjectId.UniqueId);
-            if (runtimeState?.ProgressTracker is { } tracker && concreteAgent.Context is not null)
-                tracker.RecordTokenUsage(concreteAgent.Context.TokenUsage.TotalTokens);
+            if (runtimeState?.ProgressTracker is { } tracker && subAgent.Context is not null)
+                tracker.RecordTokenUsage(subAgent.Context.TokenUsage.TotalTokens);
 
             var durationMs = _agentStartTimer.TryRemoveDurationMs(subAgent.ObjectId.UniqueId, _clock.GetUtcNow());
 
@@ -804,7 +794,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             runtimeState?.ActivityHistory?.Append(AgentActivityType.Finished, result.Success ? "✓ 完成" : $"✗ {result.Error}", result.Success ? "✓" : "✗", isError: !result.Success);
 
             var toolUseCount = runtimeState?.ProgressTracker?.ToolUseCount;
-            var tokenCount = concreteAgent.Context?.TokenUsage.TotalTokens;
+            var tokenCount = subAgent.Context?.TokenUsage.TotalTokens;
 
             AgentCompleted?.Invoke(this, new JoinCode.Abstractions.Interfaces.AgentCompletedEventArgs {
                 AgentId = subAgent.ObjectId.UniqueId,
@@ -813,11 +803,11 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
                 Output = result.Output,
                 Error = result.Error,
                 ExecutionTimeMs = durationMs,
-                Role = concreteAgent.Options.Role,
-                Variant = concreteAgent.Options.Variant,
+                Role = subAgent.Options.Role,
+                Variant = subAgent.Options.Variant,
                 ToolUseId = null,
-                WorktreePath = concreteAgent.Options.WorktreePath,
-                WorktreeBranch = concreteAgent.Options.WorktreeBranch,
+                WorktreePath = subAgent.Options.WorktreePath,
+                WorktreeBranch = subAgent.Options.WorktreeBranch,
                 ToolUseCount = toolUseCount,
                 TokenCount = tokenCount
             });
@@ -830,15 +820,15 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
                 Output = result.Success ? result.Output : null,
                 Error = result.Success ? null : result.Error,
                 ExecutionTimeMs = durationMs,
-                Role = concreteAgent.Options.Role,
-                Variant = concreteAgent.Options.Variant,
+                Role = subAgent.Options.Role,
+                Variant = subAgent.Options.Variant,
                 ToolUseCount = toolUseCount,
                 TokenCount = tokenCount,
-                WorktreePath = concreteAgent.Options.WorktreePath,
-                WorktreeBranch = concreteAgent.Options.WorktreeBranch
+                WorktreePath = subAgent.Options.WorktreePath,
+                WorktreeBranch = subAgent.Options.WorktreeBranch
             };
 
-            _notificationQueue?.Enqueue(concreteAgent.Context?.ParentAgentId, notification.ToXml());
+            _notificationQueue?.Enqueue(subAgent.Context?.ParentAgentId, notification.ToXml());
 
             CancellationToken persistToken;
             try {
@@ -856,7 +846,6 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         if (_transcriptService is null) return;
 
         try {
-            var concreteAgent = (AgentBase)subAgent;
             var role = result.Success ? "assistant" : "error";
             var content = result.Success ? result.Output : $"ERROR: {result.Error}";
             await AppendTranscriptEntryAsync(subAgent.ObjectId.UniqueId, role, content, cancellationToken).ConfigureAwait(false);
@@ -865,10 +854,10 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
             await _transcriptService.SaveMetadataAsync(SubAgentContext.Current?.SessionId ?? SessionIdFactory.DefaultSessionId, new JoinCode.Abstractions.Interfaces.AgentMetadata {
                 AgentId = subAgent.ObjectId.UniqueId,
-                AgentType = concreteAgent.Options.Variant?.ToValue() ?? concreteAgent.Options.Role.ToValue(),
+                AgentType = subAgent.Options.Variant?.ToValue() ?? subAgent.Options.Role.ToValue(),
                 Description = subAgent.Task,
-                WorktreePath = concreteAgent.Options.WorktreePath,
-                ModelName = concreteAgent.Options.ModelName,
+                WorktreePath = subAgent.Options.WorktreePath,
+                ModelName = subAgent.Options.ModelName,
                 CompletedAt = _clock.GetUtcNow(),
                 Status = status.ToValue(),
                 ErrorMessage = result.Success ? null : result.Error,
@@ -907,15 +896,14 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     }
 
     private static JoinCode.Abstractions.Interfaces.AgentInfo MapToAgentInfo(IAgent subAgent, SubAgentResult? result = null) {
-        var concreteAgent = (AgentBase)subAgent;
         return new JoinCode.Abstractions.Interfaces.AgentInfo {
             Id = subAgent.ObjectId.UniqueId,
             Description = subAgent.Task,
-            Role = concreteAgent.Options.Role,
-            Variant = concreteAgent.Options.Variant,
-            Status = concreteAgent.State.ToAgentStatus(),
-            StartedAt = concreteAgent.StartedAt,
-            CompletedAt = concreteAgent.CompletedAt,
+            Role = subAgent.Options.Role,
+            Variant = subAgent.Options.Variant,
+            Status = subAgent.State.ToAgentStatus(),
+            StartedAt = subAgent.StartedAt,
+            CompletedAt = subAgent.CompletedAt,
             Output = result?.Output
         };
     }

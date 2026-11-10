@@ -18,17 +18,40 @@ public interface IAgent : IAsyncDisposable {
     ExecutorVariant? Variant { get; }
     /// <summary>获取父对象标识。</summary>
     ObjectId? ParentObjectId { get; }
+    /// <summary>获取所属会话标识。</summary>
+    ObjectId SessionId { get; }
 
     /// <summary>获取任务描述。</summary>
     string Task { get; }
-    /// <summary>获取或设置任务执行状态。</summary>
+    /// <summary>获取或设置任务执行状态（内部执行跟踪）。</summary>
     TaskExecutionStatus Status { get; set; }
+    /// <summary>获取或设置任务执行状态（外部协调器跟踪，与 Status 独立维护）。</summary>
+    TaskExecutionStatus State { get; set; }
+    /// <summary>获取或设置开始时间。</summary>
+    DateTime? StartedAt { get; set; }
+    /// <summary>获取或设置完成时间。</summary>
+    DateTime? CompletedAt { get; set; }
     /// <summary>获取聊天历史记录。</summary>
     MessageList ChatHistory { get; }
     /// <summary>获取系统提示词。</summary>
     string? SystemPrompt { get; }
     /// <summary>获取或设置指令文本。</summary>
     string? Instruction { get; set; }
+
+    /// <summary>获取子代理选项。</summary>
+    SubAgentOptions Options { get; }
+    /// <summary>获取子代理上下文。</summary>
+    SubAgentContext? Context { get; }
+    /// <summary>添加上下文信息。</summary>
+    void AddContext(string context);
+    /// <summary>获取或设置用户输入转发队列。</summary>
+    IAgentInputForwardQueue? InputForwardQueue { get; set; }
+    /// <summary>获取或设置输出 channel 管理器。</summary>
+    IAgentOutputChannelManager? OutputChannelManager { get; set; }
+    /// <summary>获取或设置延迟邮件服务。</summary>
+    IDeferredMailService? DeferredMailService { get; set; }
+    /// <summary>获取或设置契约变更通知队列。</summary>
+    ConcurrentQueue<string> ContractChangeNotifications { get; set; }
 
     /// <summary>异步执行任务并返回结果。</summary>
     /// <param name="cancellationToken">取消令牌。</param>

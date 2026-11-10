@@ -70,7 +70,8 @@ public sealed partial class SwarmPermissionUpdateData {
 
 /// <summary>Swarm 权限回调服务 — 管理权限请求的回调注册与触发，处理权限决策结果的通知分发</summary>
 [Register(typeof(ISwarmPermissionCallbacks), ServiceLifetime.Singleton)]
-public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwarmPermissionCallbacks {
+[Register(typeof(ISwarmPermissionCallbackHandler), ServiceLifetime.Singleton)]
+public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwarmPermissionCallbackHandler {
     private readonly IMailbox _messageBroker;
     private readonly ILogger<SwarmPermissionCallbackService>? _logger;
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;

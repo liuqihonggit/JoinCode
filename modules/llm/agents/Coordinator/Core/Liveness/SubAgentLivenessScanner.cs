@@ -228,11 +228,11 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable {
     }
 
     private static string GetSessionId(IAgent agent) {
-        return agent is AgentBase ab ? ab.Context?.SessionId ?? agent.ObjectId.UniqueId : agent.ObjectId.UniqueId;
+        return agent.Context?.SessionId ?? agent.ObjectId.UniqueId;
     }
 
     private static string? GetParentAgentId(IAgent agent) {
-        return agent is AgentBase ab ? ab.Context?.ParentAgentId : null;
+        return agent.Context?.ParentAgentId;
     }
 
     private SubAgentIdleDetector GetOrAddDetector(string key, Func<string, SubAgentIdleDetector> factory) {

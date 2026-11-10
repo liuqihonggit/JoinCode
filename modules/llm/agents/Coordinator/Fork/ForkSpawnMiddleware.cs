@@ -124,7 +124,7 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
             if (session is not null) {
                 var parentCwd = _subAgentContextAccessor.Current?.WorktreePath ?? Environment.CurrentDirectory;
                 var notice = ForkMessageBuilder.BuildWorktreeNotice(parentCwd, session.WorktreePath);
-                ((AgentBase)agent).AddContext(notice);
+                agent.AddContext(notice);
                 context.AgentOptions.WorktreePath = session.WorktreePath;
                 context.AgentOptions.WorktreeBranch = session.BranchName;
             }
@@ -137,10 +137,8 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
         if (_hotSpotIntegration is not null) {
             var captainId = _subAgentContextAccessor.Current?.AgentId ?? "main";
             _hotSpotIntegration.EnsureListenersRegistered(captainId);
-            if (agent is AgentBase agentBase) {
-                agentBase.ContractChangeNotifications = _hotSpotIntegration.GetOrCreateNotificationQueue(agent.ObjectId.UniqueId);
-                agentBase.DeferredMailService = _deferredMailService;
-            }
+            agent.ContractChangeNotifications = _hotSpotIntegration.GetOrCreateNotificationQueue(agent.ObjectId.UniqueId);
+            agent.DeferredMailService = _deferredMailService;
         }
 
         _logger?.LogInformation("Fork {ForkId} created for parent session {ParentSessionId}",

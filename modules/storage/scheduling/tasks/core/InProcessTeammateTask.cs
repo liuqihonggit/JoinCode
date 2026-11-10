@@ -632,7 +632,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
 
             if (_definition.InitialContext is { Count: > 0 }) {
                 foreach (var ctx in _definition.InitialContext) {
-                    ((AgentBase)_agent).AddContext(ctx);
+                    _agent.AddContext(ctx);
                 }
             }
 

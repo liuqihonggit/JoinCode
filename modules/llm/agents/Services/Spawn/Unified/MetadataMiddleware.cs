@@ -36,13 +36,12 @@ public sealed partial class MetadataMiddleware : ServiceEntity, IUnifiedSpawnMid
 
     private async Task SaveAgentMetadataAsync(IAgent agent, JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? definition, CancellationToken cancellationToken) {
         try {
-            var baseAgent = (AgentBase)agent;
             await (_transcriptService ?? throw new InvalidOperationException("TranscriptService not available")).SaveMetadataAsync(SubAgentContext.Current?.SessionId ?? SessionIdFactory.DefaultSessionId, new AgentMetadata {
                 AgentId = agent.ObjectId.UniqueId,
-                AgentType = baseAgent.Options.Variant?.ToValue() ?? baseAgent.Options.Role.ToValue(),
+                AgentType = agent.Options.Variant?.ToValue() ?? agent.Options.Role.ToValue(),
                 Description = agent.Task,
-                WorktreePath = baseAgent.Options.WorktreePath,
-                ModelName = definition?.ModelName ?? baseAgent.Options.ModelName,
+                WorktreePath = agent.Options.WorktreePath,
+                ModelName = definition?.ModelName ?? agent.Options.ModelName,
                 Status = AgentStatusEnumConstants.Running
             }, cancellationToken).ConfigureAwait(false);
         } catch (Exception ex) {

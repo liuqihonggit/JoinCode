@@ -37,7 +37,7 @@ public sealed partial class TeammateSpawnMiddleware : ServiceEntity, ITeammateEx
 
         if (definition.InitialContext is { Count: > 0 }) {
             foreach (var initialCtx in definition.InitialContext) {
-                ((AgentBase)agent).AddContext(initialCtx);
+                agent.AddContext(initialCtx);
             }
         }
 

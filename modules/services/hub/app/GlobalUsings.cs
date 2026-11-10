@@ -1,6 +1,7 @@
 global using Core.Configuration;
 global using Core.Configuration.Providers;
 global using Core.Hub.Server;
+global using IO.FileSystem;
 global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Configuration.Llm;
 global using JoinCode.Abstractions.Configuration.Providers;

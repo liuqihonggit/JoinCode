@@ -135,9 +135,11 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
         while (!_cts.Token.IsCancellationRequested) {
             try {
                 var context = await _httpListener.GetContextAsync().ConfigureAwait(false);
-                _ = Task.Run(async () => {
-                    try { await HandleRequestAsync(context, _cts.Token).ConfigureAwait(false); } catch (Exception ex) { _logger?.LogError(ex, "[AgentHubServer] HandleRequestAsync 异常"); }
-                });
+                try {
+                    await HandleRequestAsync(context, _cts.Token).ConfigureAwait(false);
+                } catch (Exception ex) {
+                    _logger?.LogError(ex, "[AgentHubServer] HandleRequestAsync 异常");
+                }
             } catch (HttpListenerException) when (_cts.Token.IsCancellationRequested) {
                 break;
             } catch (Exception ex) {

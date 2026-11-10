@@ -15,7 +15,6 @@
     <ProjectReference Include="$(RepoRoot)modules/storage/clock/Clock.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/services/dream/Dream.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/services/browser/Browser.csproj" />
-    <ProjectReference Include="$(RepoRoot)modules/services/hub/Hub.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/composition/pipelines/Pipelines.csproj" />
     <ProjectReference Include="$(RepoRoot)modules/persistence/pithosdb/PithosDB.Core.csproj" />
     <!-- ADR 0149: jcc 默认 TUI 宿主,引用 NativeTui.Host(Library) 调 RunInteractiveAsync -->

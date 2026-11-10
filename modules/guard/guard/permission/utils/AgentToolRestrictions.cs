@@ -8,7 +8,6 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
     private readonly FrozenSet<string> _autoAllowed;
     private readonly FrozenSet<string> _planAllowed;
     private readonly FrozenSet<string> _askAllowed;
-    private readonly FrozenSet<string> _unattendedAllowed;
     private readonly FrozenSet<string> _autoDenied;
     private readonly FrozenSet<string> _planDenied;
     private readonly FrozenSet<string> _askDenied;
@@ -25,7 +24,6 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
         _autoAllowed = MergeWithOverrides(ToolSecuritySets.AutoAllowedTools, overrides, PermissionMode.Auto.ToValue(), allow: true);
         _planAllowed = MergeWithOverrides(ToolSecuritySets.PlanAllowedTools, overrides, PermissionMode.Plan.ToValue(), allow: true);
         _askAllowed = MergeWithOverrides(ToolSecuritySets.AskAllowedTools, overrides, PermissionMode.Ask.ToValue(), allow: true);
-        _unattendedAllowed = MergeWithOverrides(ToolSecuritySets.UnattendedAllowedTools, overrides, PermissionMode.Unattended.ToValue(), allow: true);
         _autoDenied = MergeWithOverrides(ToolSecuritySets.AutoDeniedTools, overrides, PermissionMode.Auto.ToValue(), allow: false);
         _planDenied = MergeWithOverrides(ToolSecuritySets.PlanDeniedTools, overrides, PermissionMode.Plan.ToValue(), allow: false);
         _askDenied = MergeWithOverrides(ToolSecuritySets.AskDeniedTools, overrides, PermissionMode.Ask.ToValue(), allow: false);

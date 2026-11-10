@@ -53,9 +53,9 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExe
             var filterContext = new ToolFilterContext(
                 context.ToolName,
                 context.AgentMode,
-                deniedTools,
+                FrozenSet<string>.Empty,
                 null,
-                null);
+                deniedTools);
             var filterResult = _toolFilterPolicy.Check(filterContext);
             if (!filterResult.IsAllowed) {
                 _logger.LogWarning(L.T(StringKey.AgentToolLimitDeniedLog, context.ToolName, context.AgentMode));

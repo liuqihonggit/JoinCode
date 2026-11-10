@@ -13,7 +13,7 @@ public class OpenAIStreamingTests {
         var config = new ProviderConfig {
             Vendor = "openai",
             ApiKey = "sk-test",
-            ModelId = "gpt-4o",
+            ModelId = "test-model",
             Definition = new FallbackProviderDefinition(kind)
         };
 
@@ -75,7 +75,7 @@ public class OpenAIStreamingTests {
 
     [Fact]
     public async Task GetStreamEventContentsAsync_WithUsageChunk_IncludesUsageMetadata() {
-        var usageChunk = """data: {"id":"chatcmpl-test","object":"chat.completion.chunk","choices":[],"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15,"prompt_tokens_details":{"cached_tokens":3}},"model":"gpt-4o","created":1700000000}""" + "\n\n";
+        var usageChunk = """data: {"id":"chatcmpl-test","object":"chat.completion.chunk","choices":[],"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15,"prompt_tokens_details":{"cached_tokens":3}},"model":"test-model","created":1700000000}""" + "\n\n";
         var sse = BuildSseResponse(["Hi"], withDone: true, extraBeforeDone: usageChunk);
         var service = CreateServiceWithMockResponse(sse);
 
@@ -120,7 +120,7 @@ public class OpenAIStreamingTests {
         var config = new ProviderConfig {
             Vendor = "openai",
             ApiKey = "sk-test",
-            ModelId = "gpt-4o",
+            ModelId = "test-model",
             Definition = new FallbackProviderDefinition(kind)
         };
         var handler = new StalledStreamHandler();
@@ -134,11 +134,11 @@ public class OpenAIStreamingTests {
 
         foreach (var chunk in contentChunks) {
             var escaped = chunk.Replace("\\", "\\\\").Replace("\"", "\\\"");
-            sb.AppendLine($"data: {{\"id\":\"{id}\",\"object\":\"chat.completion.chunk\",\"choices\":[{{\"index\":0,\"delta\":{{\"content\":\"{escaped}\"}},\"finish_reason\":null}}],\"model\":\"gpt-4o\",\"created\":1700000000}}");
+            sb.AppendLine($"data: {{\"id\":\"{id}\",\"object\":\"chat.completion.chunk\",\"choices\":[{{\"index\":0,\"delta\":{{\"content\":\"{escaped}\"}},\"finish_reason\":null}}],\"model\":\"test-model\",\"created\":1700000000}}");
             sb.AppendLine();
         }
 
-        sb.AppendLine($"data: {{\"id\":\"{id}\",\"object\":\"chat.completion.chunk\",\"choices\":[{{\"index\":0,\"delta\":{{}},\"finish_reason\":\"stop\"}}],\"model\":\"gpt-4o\",\"created\":1700000000}}");
+        sb.AppendLine($"data: {{\"id\":\"{id}\",\"object\":\"chat.completion.chunk\",\"choices\":[{{\"index\":0,\"delta\":{{}},\"finish_reason\":\"stop\"}}],\"model\":\"test-model\",\"created\":1700000000}}");
         sb.AppendLine();
 
         if (extraBeforeDone != null) {

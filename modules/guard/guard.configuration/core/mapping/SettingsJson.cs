@@ -617,7 +617,7 @@ public sealed class ProfileSettings {
     [JsonPropertyName("protocol")]
     public string? Protocol { get; init; }
 
-    /// <summary>首选模型 ID（如 gpt-4o、deepseek-v4-flash）— 该供应商的默认模型</summary>
+    /// <summary>首选模型 ID — 该供应商的默认模型。</summary>
     [JsonPropertyName("model")]
     public string? Model { get; init; }
 

@@ -40,7 +40,7 @@ public class ConfigLoaderTests : IDisposable {
         AppDataConstants.Paths = AppDataPaths.FromEnvironment();
 
         // 在临时目录写入 settings.json，提供 vendor 和 model 配置
-        var settingsJson = """{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","model":"gpt-4o","models":[{"id":"gpt-4o","displayName":"GPT-4o","contextWindow":128000,"aliases":["4o","default"],"capabilities":{"fastMode":true,"modalities":["text","readImage","readPdf","toolUse"]}},{"id":"gpt-4o-mini","displayName":"GPT-4o Mini","contextWindow":128000,"aliases":["mini","fast"],"capabilities":{"fastMode":true,"modalities":["text","readImage","readPdf","toolUse"]}}]},"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY","model":"claude-opus-4-7","models":[{"id":"claude-opus-4-7","displayName":"Claude Opus 4.7","contextWindow":1000000,"aliases":["opus"],"capabilities":{"thinkingMode":true,"modalities":["text","readImage","readPdf","thinking","toolUse"]}},{"id":"claude-sonnet-4-6","displayName":"Claude Sonnet 4.6","contextWindow":1000000,"aliases":["sonnet"],"capabilities":{"fastMode":true,"modalities":["text","readImage","readPdf","thinking","toolUse"]}}]}},"current":{"vendor":"openai","model":"gpt-4o"}}""";
+        var settingsJson = """{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","model":"test-model","models":[{"id":"test-model","displayName":"GPT-4o","contextWindow":128000,"aliases":["4o","default"],"capabilities":{"fastMode":true,"modalities":["text","readImage","readPdf","toolUse"]}},{"id":"test-model","displayName":"GPT-4o Mini","contextWindow":128000,"aliases":["mini","fast"],"capabilities":{"fastMode":true,"modalities":["text","readImage","readPdf","toolUse"]}}]},"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY","model":"claude-opus-4-7","models":[{"id":"claude-opus-4-7","displayName":"Claude Opus 4.7","contextWindow":1000000,"aliases":["opus"],"capabilities":{"thinkingMode":true,"modalities":["text","readImage","readPdf","thinking","toolUse"]}},{"id":"claude-sonnet-4-6","displayName":"Claude Sonnet 4.6","contextWindow":1000000,"aliases":["sonnet"],"capabilities":{"fastMode":true,"modalities":["text","readImage","readPdf","thinking","toolUse"]}}]}},"current":{"vendor":"openai","model":"test-model"}}""";
         _ = _fs.WriteAllText(AppDataConstants.Paths.SettingsFilePath, settingsJson);
 
         // 覆盖用户级环境变量（JCC_VENDOR 可能存在于用户级环境变量中）
@@ -90,7 +90,7 @@ public class ConfigLoaderTests : IDisposable {
         Diag.ResetRuntimeDebugLogForTest();
         Environment.SetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey, "sk-test-debuglog-key");
         try {
-            var settingsJson = """{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","model":"gpt-4o","models":[{"id":"gpt-4o","displayName":"GPT-4o","contextWindow":128000,"aliases":["default"],"capabilities":{"modalities":["text","toolUse"]}}]}},"current":{"profile":"openai","debuglog":true}}""";
+            var settingsJson = """{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","model":"test-model","models":[{"id":"test-model","displayName":"GPT-4o","contextWindow":128000,"aliases":["default"],"capabilities":{"modalities":["text","toolUse"]}}]}},"current":{"profile":"openai","debuglog":true}}""";
             _ = _fs.WriteAllText(AppDataConstants.Paths.SettingsFilePath, settingsJson);
 
             await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
@@ -107,7 +107,7 @@ public class ConfigLoaderTests : IDisposable {
         Diag.ResetRuntimeDebugLogForTest();
         Environment.SetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey, "sk-test-debuglog-key");
         try {
-            var settingsJson = """{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","model":"gpt-4o","models":[{"id":"gpt-4o","displayName":"GPT-4o","contextWindow":128000,"aliases":["default"],"capabilities":{"modalities":["text","toolUse"]}}]}},"current":{"profile":"openai","debuglog":false}}""";
+            var settingsJson = """{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","model":"test-model","models":[{"id":"test-model","displayName":"GPT-4o","contextWindow":128000,"aliases":["default"],"capabilities":{"modalities":["text","toolUse"]}}]}},"current":{"profile":"openai","debuglog":false}}""";
             _ = _fs.WriteAllText(AppDataConstants.Paths.SettingsFilePath, settingsJson);
 
             await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
@@ -196,7 +196,7 @@ public class ConfigLoaderTests : IDisposable {
     }
 
     /// <summary>
-    /// Bug 26 (EC4): --vendor non-existent --model gpt-4o → 应抛 ConfigurationException (rc=2)，
+    /// Bug 26 (EC4): --vendor non-existent --model test-model → 应抛 ConfigurationException (rc=2)，
     /// 而非跳过 vendor 验证后到 ApiKeyCheck 返回 rc=4 (ApiKeyMissing)。
     /// 根因: SettingsMapper.ApplyProviderSettings 当 profile.Model 非空时直接设置 ModelId，
     /// 跳过 vendor 存在性验证（definition 为 null 时未抛异常）。
@@ -204,7 +204,7 @@ public class ConfigLoaderTests : IDisposable {
     [Fact]
     public async Task LoadConfig_UnknownVendorWithModel_ThrowsConfigurationException() {
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.Vendor, "non-existent-vendor");
-        Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.ModelId, "gpt-4o");
+        Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.ModelId, "test-model");
         var realKey = TestConfiguration.GetRealApiKey();
         Environment.SetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey, realKey);
 

@@ -11,7 +11,7 @@ namespace AotSafety.Generator.Rules;
     Category = "CodeStyle",
     Severity = DiagnosticSeverity.Warning,
     IsEnabledByDefault = true,
-    HelpLinkUri = "当字典的 Key == Value 时（如 \"gpt-4o\" → \"gpt-4o\"），手动维护映射是冗余的. 正确做法: 1) 定义枚举 + [EnumValue] 特性; 2) 用 EnumType[] + ToValue() 遍历匹配; 3) 源码生成器自动生成 FrozenDictionary 映射. 例外: Key != Value 的映射字典是合法的.")]
+    HelpLinkUri = "当字典的 Key == Value 时，手动维护映射是冗余的. 正确做法: 1) 定义枚举 + [EnumValue] 特性; 2) 用 EnumType[] + ToValue() 遍历匹配; 3) 源码生成器自动生成 FrozenDictionary 映射. 例外: Key != Value 的映射字典是合法的.")]
 public sealed class RedundantKeyValueDictionaryRule : AnalyzerRuleBase<RedundantKeyValueDictionaryRule> {
     public override void Register(CompilationStartAnalysisContext context, ProjectContext projectContext) {
         context.RegisterSyntaxNodeAction(AnalyzeRedundantKeyValueDictionary, SyntaxKind.FieldDeclaration, SyntaxKind.PropertyDeclaration);

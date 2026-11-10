@@ -7,7 +7,7 @@ namespace Composition.Tests.Commands;
 /// </summary>
 [Collection("command-output")]
 public sealed class VendorCommandTest {
-    private static Mock<IModelCatalog> CreateCatalog(string defaultModel = "deepseek-chat") {
+    private static Mock<IModelCatalog> CreateCatalog(string defaultModel = "test-model") {
         var catalog = new Mock<IModelCatalog>();
         catalog.Setup(c => c.GetDefaultModelForProvider(It.IsAny<string>())).Returns(defaultModel);
         return catalog;
@@ -15,12 +15,12 @@ public sealed class VendorCommandTest {
 
     private static Mock<IFastModeService> CreateFastMode() {
         var fastMode = new Mock<IFastModeService>();
-        fastMode.Setup(f => f.PrimaryModelId).Returns("gpt-4o");
+        fastMode.Setup(f => f.PrimaryModelId).Returns("test-model");
         fastMode.Setup(f => f.IsFastModeActive).Returns(false);
         return fastMode;
     }
 
-    private static WorkflowConfig CreateConfig(string vendor = "openai", string modelId = "gpt-4o") => new() {
+    private static WorkflowConfig CreateConfig(string vendor = "openai", string modelId = "test-model") => new() {
         Provider = new ProviderConfig { Vendor = vendor, ModelId = modelId },
     };
 
@@ -100,13 +100,13 @@ public sealed class VendorCommandTest {
         var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
 
         result.ShouldContinue.Should().BeTrue();
-        output.Should().Contain("已切换供应商: openai → deepseek（默认模型: deepseek-chat）");
+        output.Should().Contain("已切换供应商: openai → deepseek（默认模型: test-model）");
         var effectiveConfig = context.GetCommandServices().WorkflowConfig;
         effectiveConfig.Should().NotBeNull();
         Assert.NotNull(effectiveConfig);
         effectiveConfig.Provider.Vendor.Should().Be("deepseek", "切换应更新 WorkflowConfig 供应商");
-        effectiveConfig.Provider.ModelId.Should().Be("deepseek-chat", "默认模型应跟随供应商切换(对齐 GUI SetVendorAsync 语义)");
-        fastMode.Verify(f => f.SetPrimaryModel("deepseek-chat"), Times.Once);
+        effectiveConfig.Provider.ModelId.Should().Be("test-model", "默认模型应跟随供应商切换(对齐 GUI SetVendorAsync 语义)");
+        fastMode.Verify(f => f.SetPrimaryModel("test-model"), Times.Once);
         config.Verify(c => c.SetAsync(ConfigKeyEnumConstants.Profile, "deepseek", It.IsAny<CancellationToken>()), Times.Once,
             "切换应持久化 profile");
     }
@@ -123,7 +123,7 @@ public sealed class VendorCommandTest {
         output.Should().NotContain("默认模型:", "无默认模型时不应显示默认模型括号");
         var effectiveConfig = context.GetCommandServices().WorkflowConfig;
         Assert.NotNull(effectiveConfig);
-        effectiveConfig.Provider.ModelId.Should().Be("gpt-4o", "供应商无默认模型时应保持原模型 ID");
+        effectiveConfig.Provider.ModelId.Should().Be("test-model", "供应商无默认模型时应保持原模型 ID");
         fastMode.Verify(f => f.SetPrimaryModel(It.IsAny<string>()), Times.Never,
             "无默认模型时不应同步 FastModeService 主模型");
         config.Verify(c => c.SetAsync(ConfigKeyEnumConstants.Profile, "deepseek", It.IsAny<CancellationToken>()), Times.Once,

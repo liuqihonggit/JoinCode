@@ -123,8 +123,14 @@ public sealed partial class HubQueryService : IQueryService {
     private ChatRequest CreateChatRequest(MessageList chatHistory, ChatOptions? settings, bool stream) {
         var messages = chatHistory.Select(ConvertToMessage).ToList();
 
+        var model = !string.IsNullOrEmpty(_config.ModelId)
+            ? _config.ModelId
+            : settings?.ExtensionData?.TryGetValue("model", out var m) == true && m.ValueKind == JsonValueKind.String
+                ? m.GetString() ?? DefaultModelCatalog.FallbackModel
+                : DefaultModelCatalog.FallbackModel;
+
         return new ChatRequest {
-            Model = settings?.ExtensionData?.TryGetValue("model", out var model) == true && model.ValueKind == JsonValueKind.String ? model.GetString() ?? DefaultModelCatalog.FallbackModel : DefaultModelCatalog.FallbackModel,
+            Model = model,
             Messages = messages,
             Stream = stream,
             Temperature = settings?.Temperature,
@@ -238,8 +244,11 @@ public sealed class HubTransportConfig {
     /// <summary>AgentHubServer 的 HTTP endpoint 地址。</summary>
     public string Endpoint { get; init; } = "http://localhost:3457";
 
-    /// <summary>当前 jcc 实例的 Agent 标识符。</summary>
+    /// <summary>当前 Agent 标识符。</summary>
     public string AgentId { get; init; } = string.Empty;
+
+    /// <summary>默认模型 ID — 从 ProviderConfig.ModelId 传入，作为 ChatRequest.Model 的首选值。</summary>
+    public string ModelId { get; init; } = string.Empty;
 
     /// <summary>请求超时时间（毫秒）。</summary>
     public int RequestTimeoutMs { get; init; } = 90_000;

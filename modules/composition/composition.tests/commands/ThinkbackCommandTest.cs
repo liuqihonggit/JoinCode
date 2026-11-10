@@ -30,7 +30,7 @@ public sealed class ThinkbackCommandTest {
 
     private static ThinkingEntry Entry(
         string content = "分析用户需求",
-        string? modelId = "gpt-4o",
+        string? modelId = "test-model",
         DateTime? timestamp = null) => new() {
         SessionId = "test-session",
         Content = content,
@@ -134,7 +134,7 @@ public sealed class ThinkbackCommandTest {
 
         result.ShouldContinue.Should().BeTrue();
         output.Should().Contain("  ── 思考 #1 ──");
-        output.Should().Contain("  模型: gpt-4o");
+        output.Should().Contain("  模型: test-model");
         output.Should().Contain("  时间: 2026-01-15 10:30:00 UTC");
         output.Should().Contain("  用户需要排序算法");
         output.Should().Contain("  考虑性能优化", "多行内容应逐行渲染");

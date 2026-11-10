@@ -10,8 +10,13 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
     private readonly AgentRegistry _agentRegistry = new();
     private volatile Dictionary<string, HttpClient> _providerClients = new();
     private Task? _listenerTask;
+    private Task? _tcpListenerTask;
+    private readonly TcpListener? _tcpListener;
     private volatile bool _running;
     private int _disposed;
+
+    /// <summary>TCP 消息推送端口（SSE 降级备用）。</summary>
+    public int TcpPort { get; }
 
     /// <summary>获取服务器监听端口。</summary>
     public int Port { get; }
@@ -40,9 +45,11 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
         _providerRegistry = providerRegistry ?? throw new ArgumentNullException(nameof(providerRegistry));
         _logger = logger;
         Port = port;
+        TcpPort = port + 1;
         _cts = new CancellationTokenSource();
         _httpListener = new HttpListener();
         _httpListener.Prefixes.Add($"http://{host}:{port}/");
+        _tcpListener = new TcpListener(IPAddress.Loopback, TcpPort);
     }
 
     /// <summary>启动服务器。</summary>
@@ -58,6 +65,11 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
         _logger?.LogInformation("[AgentHubServer] 服务器已启动，端口: {Port}", Port);
 
         _listenerTask = Task.Run(ListenAsync);
+        if (_tcpListener is not null) {
+            _tcpListener.Start();
+            _tcpListenerTask = Task.Run(TcpListenAsync);
+            _logger?.LogInformation("[AgentHubServer] TCP 消息端口已启动: {TcpPort}", TcpPort);
+        }
     }
 
     /// <summary>停止服务器。</summary>
@@ -67,12 +79,18 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
         _running = false;
 
         _httpListener.Stop();
+        _tcpListener?.Stop();
 
         await _agentRegistry.CloseAllAsync(cancellationToken).ConfigureAwait(false);
 
         if (_listenerTask != null) {
             await _listenerTask.ConfigureAwait(false);
             _listenerTask = null;
+        }
+
+        if (_tcpListenerTask != null) {
+            try { await _tcpListenerTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
+            _tcpListenerTask = null;
         }
 
         foreach (var client in _providerClients.Values) {
@@ -136,6 +154,15 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
             new ModelConfigLoader(),
             fs);
 
+        ApplyReload(newSettings, newRegistry);
+    }
+
+    /// <summary>
+    /// 应用热重载 — 用新的 SettingsJson 和 ProviderDefinitionRegistry 原子替换 volatile 字段，重建 HttpClient 字典。
+    /// </summary>
+    /// <param name="newSettings">新的 SettingsJson。</param>
+    /// <param name="newRegistry">新的 ProviderDefinitionRegistry。</param>
+    internal void ApplyReload(SettingsJson newSettings, IProviderDefinitionRegistry newRegistry) {
         var oldClients = _providerClients;
 
         _settings = newSettings;
@@ -161,6 +188,54 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
         }
 
         return string.Empty;
+    }
+
+    private async Task TcpListenAsync() {
+        if (_tcpListener is null) return;
+        while (!_cts.Token.IsCancellationRequested) {
+            try {
+                var tcpClient = await _tcpListener.AcceptTcpClientAsync(_cts.Token).ConfigureAwait(false);
+                _ = HandleTcpClientAsync(tcpClient, _cts.Token);
+            } catch (OperationCanceledException) {
+                break;
+            } catch (Exception ex) {
+                _logger?.LogError(ex, "[AgentHubServer] TCP Accept 异常");
+            }
+        }
+    }
+
+    private async Task HandleTcpClientAsync(TcpClient tcpClient, CancellationToken cancellationToken) {
+        using var client = tcpClient;
+        try {
+            using var stream = client.GetStream();
+            using var reader = new StreamReader(stream, new UTF8Encoding(false));
+            var newlineBytes = new UTF8Encoding(false).GetBytes("\n");
+
+            var agentIdLine = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(agentIdLine) || !_agentRegistry.IsRegistered(agentIdLine)) {
+                var errorMsg = new UTF8Encoding(false).GetBytes("ERROR: agent not found\n");
+                await stream.WriteAsync(errorMsg, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            var okMsg = new UTF8Encoding(false).GetBytes("OK\n");
+            await stream.WriteAsync(okMsg, cancellationToken).ConfigureAwait(false);
+            _logger?.LogInformation("[AgentHubServer] TCP 连接: {AgentId}", agentIdLine);
+
+            await foreach (var message in _agentRegistry.ReceiveAsync(agentIdLine, cancellationToken).ConfigureAwait(false)) {
+                var json = JsonSerializer.Serialize(message, HubServerJsonContext.Default.AgentMessageRequest);
+                var jsonBytes = new UTF8Encoding(false).GetBytes(json);
+                var lengthPrefix = BitConverter.GetBytes(jsonBytes.Length);
+                if (BitConverter.IsLittleEndian) {
+                    Array.Reverse(lengthPrefix);
+                }
+                await stream.WriteAsync(lengthPrefix, cancellationToken).ConfigureAwait(false);
+                await stream.WriteAsync(jsonBytes, cancellationToken).ConfigureAwait(false);
+            }
+        } catch (OperationCanceledException) {
+        } catch (Exception ex) {
+            _logger?.LogDebug(ex, "[AgentHubServer] TCP 连接关闭");
+        }
     }
 
     private async Task ListenAsync() {
@@ -214,6 +289,10 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
                 await HandleAgentUnregisterAsync(context, cancellationToken).ConfigureAwait(false);
                 break;
 
+            case "/agent/heartbeat":
+                await HandleAgentHeartbeatAsync(context, cancellationToken).ConfigureAwait(false);
+                break;
+
             case "/agent/message":
                 await HandleAgentMessageAsync(context, cancellationToken).ConfigureAwait(false);
                 break;
@@ -223,8 +302,12 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
                 break;
 
             default:
-                context.Response.StatusCode = 404;
-                await WriteJsonResponseAsync(context.Response, new HubErrorResponse { Error = "Not found" }).ConfigureAwait(false);
+                if (path.StartsWith("/agent/messages/", StringComparison.Ordinal)) {
+                    await HandleAgentMessagesSseAsync(context, path, cancellationToken).ConfigureAwait(false);
+                } else {
+                    context.Response.StatusCode = 404;
+                    await WriteJsonResponseAsync(context.Response, new HubErrorResponse { Error = "Not found" }).ConfigureAwait(false);
+                }
                 break;
         }
     }
@@ -420,6 +503,59 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
         }).ConfigureAwait(false);
     }
 
+    private async Task HandleAgentHeartbeatAsync(HttpListenerContext context, CancellationToken cancellationToken) {
+        var body = await ReadRequestBodyAsync(context.Request, cancellationToken).ConfigureAwait(false);
+        var heartbeatRequest = RelaxedJsonSerializer.Deserialize(body, HubServerJsonContext.Default.AgentHeartbeatRequest);
+
+        if (heartbeatRequest == null || string.IsNullOrEmpty(heartbeatRequest.AgentId)) {
+            context.Response.StatusCode = 400;
+            await WriteJsonResponseAsync(context.Response, new HubErrorResponse { Error = "AgentId required" }).ConfigureAwait(false);
+            return;
+        }
+
+        var updated = _agentRegistry.UpdateHeartbeat(heartbeatRequest.AgentId);
+        if (!updated) {
+            context.Response.StatusCode = 404;
+            await WriteJsonResponseAsync(context.Response, new HubErrorResponse { Error = "Agent not found" }).ConfigureAwait(false);
+            return;
+        }
+
+        await WriteJsonResponseAsync(context.Response, new HubStatusResponse { Status = "ok" }).ConfigureAwait(false);
+    }
+
+    private async Task HandleAgentMessagesSseAsync(HttpListenerContext context, string path, CancellationToken cancellationToken) {
+        var agentId = path["/agent/messages/".Length..];
+
+        if (string.IsNullOrEmpty(agentId) || !_agentRegistry.IsRegistered(agentId)) {
+            context.Response.StatusCode = 404;
+            await WriteJsonResponseAsync(context.Response, new HubErrorResponse { Error = "Agent not found" }).ConfigureAwait(false);
+            return;
+        }
+
+        context.Response.ContentType = "text/event-stream";
+        context.Response.Headers["Cache-Control"] = "no-cache";
+        context.Response.Headers["Connection"] = "keep-alive";
+
+        try {
+            await foreach (var message in _agentRegistry.ReceiveAsync(agentId, cancellationToken).ConfigureAwait(false)) {
+                var json = JsonSerializer.Serialize(message, HubServerJsonContext.Default.AgentMessageRequest);
+                var sseData = $"data: {json}\n\n";
+                var buffer = Encoding.UTF8.GetBytes(sseData);
+                await context.Response.OutputStream.WriteAsync(buffer, cancellationToken).ConfigureAwait(false);
+                await context.Response.OutputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+            }
+        } catch (OperationCanceledException) {
+        } catch (HttpListenerException ex) {
+            _logger?.LogDebug(ex, "[AgentHubServer] SSE 连接关闭");
+        }
+
+        try {
+            context.Response.Close();
+        } catch (ObjectDisposedException ex) {
+            _logger?.LogDebug(ex, "[AgentHubServer] SSE Response 已关闭");
+        }
+    }
+
     private static async Task<string> ReadRequestBodyAsync(HttpListenerRequest request, CancellationToken cancellationToken) {
         using var reader = new StreamReader(request.InputStream, request.ContentEncoding);
         return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
@@ -450,11 +586,17 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
             _cts.Cancel();
             _running = false;
             _httpListener.Stop();
+            _tcpListener?.Stop();
         }
 
         if (_listenerTask != null) {
             try { await _listenerTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
             _listenerTask = null;
+        }
+
+        if (_tcpListenerTask != null) {
+            try { await _tcpListenerTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
+            _tcpListenerTask = null;
         }
 
         await _agentRegistry.CloseAllAsync(CancellationToken.None).ConfigureAwait(false);

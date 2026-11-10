@@ -19,7 +19,7 @@ public sealed class ModelSearchToolHandlersTests {
     [Fact]
     public async Task SearchModelsAsync_ListGroups_ReturnsFunctionalities() {
         var loader = new FakeModelConfigLoader();
-        loader.AddModel("openai", "gpt-4o", "GPT-4o", ModelModalityKind.Text | ModelModalityKind.ReadImage);
+        loader.AddModel("openai", "test-model", "GPT-4o", ModelModalityKind.Text | ModelModalityKind.ReadImage);
         loader.AddModel("openai", "dall-e-3", "DALL-E 3", ModelModalityKind.GenerateImage);
         var handler = new ModelSearchToolHandlers(loader);
 
@@ -47,16 +47,16 @@ public sealed class ModelSearchToolHandlersTests {
     [Fact]
     public async Task SearchModelsAsync_MapByModalityAndVendor_FiltersVendor() {
         var loader = new FakeModelConfigLoader();
-        loader.AddModel("openai", "gpt-4o", "GPT-4o", ModelModalityKind.ReadImage);
-        loader.AddModel("anthropic", "claude-3", "Claude 3", ModelModalityKind.ReadImage);
+        loader.AddModel("openai", "test-openai-model", "GPT-4o", ModelModalityKind.ReadImage);
+        loader.AddModel("anthropic", "test-anthropic-model", "Claude 3", ModelModalityKind.ReadImage);
         var handler = new ModelSearchToolHandlers(loader);
 
         var result = await handler.SearchModelsAsync("map[readImage][openai]");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
-        text.Should().Contain("gpt-4o");
-        text.Should().NotContain("claude-3");
+        text.Should().Contain("test-openai-model");
+        text.Should().NotContain("test-anthropic-model");
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public sealed class ModelSearchToolHandlersTests {
     [Fact]
     public async Task SearchModelsAsync_KeywordSearch_MatchesModelId() {
         var loader = new FakeModelConfigLoader();
-        loader.AddModel("openai", "gpt-4o", "GPT-4o", ModelModalityKind.Text);
+        loader.AddModel("openai", "test-model", "GPT-4o", ModelModalityKind.Text);
         loader.AddModel("openai", "dall-e-3", "DALL-E 3", ModelModalityKind.GenerateImage);
         var handler = new ModelSearchToolHandlers(loader);
 

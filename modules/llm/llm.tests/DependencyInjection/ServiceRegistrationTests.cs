@@ -9,7 +9,7 @@ public class ServiceRegistrationTests {
     [Fact]
     public async Task AddLlmServices_RegistersQueryService() {
         var services = new ServiceCollection();
-        var config = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
+        var config = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "test-model" };
 
         services.AddLlmServices(config);
 
@@ -53,7 +53,7 @@ public class ServiceRegistrationTests {
     [Fact]
     public async Task AddKernelWithPlugins_WithPipeEndpoint_RegistersPipeQueryService() {
         var services = new ServiceCollection();
-        var providerConfig = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
+        var providerConfig = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "test-model" };
         var pipeConfig = new PipeTransportConfig { PipeName = "pipe" };
 
         services.AddKernelWithPlugins(providerConfig, pipeConfig);
@@ -65,7 +65,7 @@ public class ServiceRegistrationTests {
     [Fact]
     public async Task AddKernelWithPlugins_WithoutPipeEndpoint_RegistersStandardQueryService() {
         var services = new ServiceCollection();
-        var providerConfig = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
+        var providerConfig = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "test-model" };
 
         services.AddKernelWithPlugins(providerConfig);
 
@@ -76,7 +76,7 @@ public class ServiceRegistrationTests {
     [Fact]
     public void AddKernelWithDynamicPlugins_DoesNotThrow() {
         var services = new ServiceCollection();
-        var providerConfig = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
+        var providerConfig = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "test-model" };
 
         var act = () => services.AddKernelWithDynamicPlugins(providerConfig);
 

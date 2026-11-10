@@ -110,9 +110,9 @@ public sealed class FallbackProviderDefinitionTests {
     [Fact]
     public void Azure_GetBaseUrl_IncludesDeploymentModel() {
         var definition = new FallbackProviderDefinition(ProtocolKind.Azure);
-        var config = new ProviderConfig { Vendor = "azure", Endpoint = "https://test.openai.azure.com", ModelId = "gpt-4o" };
+        var config = new ProviderConfig { Vendor = "azure", Endpoint = "https://test.openai.azure.com", ModelId = "test-model" };
 
-        definition.GetBaseUrl(config).Should().Be("https://test.openai.azure.com/openai/deployments/gpt-4o");
+        definition.GetBaseUrl(config).Should().Be("https://test.openai.azure.com/openai/deployments/test-model");
     }
 
     [Fact]

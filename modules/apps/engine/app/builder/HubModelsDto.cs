@@ -18,6 +18,30 @@ public sealed class HubModelInfo {
     public string Provider { get; init; } = string.Empty;
 }
 
+/// <summary>Agent 注册请求 DTO。</summary>
+public sealed class HubAgentRegisterRequest {
+    /// <summary>Agent 标识符。</summary>
+    [JsonPropertyName("agent_id")]
+    public string AgentId { get; init; } = string.Empty;
+
+    /// <summary>会话标识符。</summary>
+    [JsonPropertyName("session_id")]
+    public string SessionId { get; init; } = string.Empty;
+
+    /// <summary>Agent 能力列表。</summary>
+    [JsonPropertyName("capabilities")]
+    public List<string> Capabilities { get; init; } = [];
+}
+
+/// <summary>Agent 注销请求 DTO。</summary>
+public sealed class HubAgentUnregisterRequest {
+    /// <summary>Agent 标识符。</summary>
+    [JsonPropertyName("agent_id")]
+    public string AgentId { get; init; } = string.Empty;
+}
+
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(HubModelsResponse))]
+[JsonSerializable(typeof(HubAgentRegisterRequest))]
+[JsonSerializable(typeof(HubAgentUnregisterRequest))]
 public partial class HubModelsJsonContext : JsonSerializerContext;

@@ -64,7 +64,7 @@ public static class ModelListMerger {
     }
 
     /// <summary>
-    /// 从 model id 生成默认显示名称 — 如 "gpt-4o-mini" → "Gpt 4o Mini"
+    /// 从 model id 生成默认显示名称 — 将连字符/下划线替换为空格并首字母大写
     /// </summary>
     private static string GenerateDisplayName(string modelId) {
         var parts = modelId.Split('-', StringSplitOptions.RemoveEmptyEntries);

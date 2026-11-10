@@ -19,13 +19,13 @@ public class DeepSeekProviderDefinitionTests : IDisposable {
         _modelConfigLoader = new ModelConfigLoader();
         _modelConfigLoader.ApplyProviders(new Dictionary<string, ModelProviderConfig>(StringComparer.OrdinalIgnoreCase) {
             ["deepseek"] = new ModelProviderConfig {
-                DefaultModelId = "deepseek-chat",
-                DefaultFastModelId = "deepseek-chat",
+                DefaultModelId = "test-model",
+                DefaultFastModelId = "test-model",
                 Models =
                 [
                     new ModelItemConfig
                     {
-                        Id = "deepseek-chat",
+                        Id = "test-model",
                         DisplayName = "DeepSeek Chat",
                         ContextWindow = 64000,
                         Description = "DeepSeek Chat",
@@ -73,12 +73,12 @@ public class DeepSeekProviderDefinitionTests : IDisposable {
 
     [Fact]
     public void DeepSeek_DefaultModelId_ShouldBeDeepSeekChat() {
-        _definition.DefaultModelId.Should().Be("deepseek-chat");
+        _definition.DefaultModelId.Should().Be("test-model");
     }
 
     [Fact]
     public void DeepSeek_DefaultFastModelId_ShouldBeDeepSeekChat() {
-        _definition.DefaultFastModelId.Should().Be("deepseek-chat");
+        _definition.DefaultFastModelId.Should().Be("test-model");
     }
 
     [Fact]

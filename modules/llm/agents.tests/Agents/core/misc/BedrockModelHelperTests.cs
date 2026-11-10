@@ -15,7 +15,7 @@ public sealed class BedrockModelHelperTests {
     [InlineData("anthropic.claude-opus-4-6-v1", true)]
     [InlineData("eu.anthropic.claude-sonnet-4-5-v1:0", false)]
     [InlineData("claude-sonnet-4-5-20250929", false)]
-    [InlineData("gpt-4o", false)]
+    [InlineData("test-model", false)]
     [InlineData("", false)]
     [InlineData(null, false)]
     public void IsFoundationModel_VariousInputs(string? modelId, bool expected) {
@@ -62,7 +62,7 @@ public sealed class BedrockModelHelperTests {
 
     [Theory]
     [InlineData("eu.anthropic.claude-sonnet-4-5-20250929-v1:0", "eu")]
-    [InlineData("us.anthropic.claude-3-7-sonnet-20250219-v1:0", "us")]
+    [InlineData("us.anthropic.test-model-v1:0", "us")]
     [InlineData("apac.anthropic.claude-opus-4-6-v1", "apac")]
     [InlineData("global.anthropic.claude-opus-4-6-v1", "global")]
     public void GetBedrockRegionPrefix_WithPrefix_ReturnsPrefix(string modelId, string expected) {
@@ -77,9 +77,9 @@ public sealed class BedrockModelHelperTests {
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Theory]
-    [InlineData("anthropic.claude-3-5-sonnet-20241022-v2:0", null)]
+    [InlineData("anthropic.test-model-v2:0", null)]
     [InlineData("claude-sonnet-4-5-20250929", null)]
-    [InlineData("gpt-4o", null)]
+    [InlineData("test-model", null)]
     [InlineData("", null)]
     [InlineData(null, null)]
     public void GetBedrockRegionPrefix_NoPrefix_ReturnsNull(string? modelId, string? expected) {

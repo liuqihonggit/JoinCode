@@ -83,7 +83,7 @@ public sealed class ModelCoordinatorTests {
         });
 
         var coordinator = new ModelCoordinator(
-            queryEngine, CreateAgentFactory(), "gpt-4o-mini", "gpt-4o",
+            queryEngine, CreateAgentFactory(), "test-model", "test-model",
             shouldPlan: input => false);
 
         var result = await coordinator.PlanAndExecuteAsync("Hello", CancellationToken.None).ConfigureAwait(true);

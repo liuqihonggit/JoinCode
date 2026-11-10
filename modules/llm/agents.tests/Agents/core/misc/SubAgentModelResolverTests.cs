@@ -48,7 +48,7 @@ public sealed class SubAgentModelResolverTests {
     [InlineData("opus", "Opus")]
     [InlineData("sonnet", "Sonnet")]
     [InlineData("haiku", "Haiku")]
-    [InlineData("gpt-4o", "Gpt-4o")]
+    [InlineData("test-model", "Test-model")]
     [InlineData("g", "G")]
     public void GetAgentModelDisplay_OtherModels_ReturnsCapitalized(string model, string expected) {
         SubAgentModelResolver.GetAgentModelDisplay(model).Should().Be(expected);
@@ -64,7 +64,7 @@ public sealed class SubAgentModelResolverTests {
     [InlineData("opus", "claude-sonnet-4-6", false)]
     [InlineData("sonnet", "claude-sonnet-4-6", true)]
     [InlineData("sonnet", "claude-opus-4-6", false)]
-    [InlineData("haiku", "claude-3-5-haiku-20241022", true)]
+    [InlineData("haiku", "test-model-5-haiku-20241022", true)]
     [InlineData("haiku", "claude-opus-4-6", false)]
     [InlineData("inherit", "claude-opus-4-6", false)]
     [InlineData("opus[1m]", "claude-opus-4-6", false)]

@@ -9,7 +9,7 @@ namespace JoinCode.Abstractions.Configuration.Llm;
 /// </summary>
 public sealed record ModelInfo
 {
-    /// <summary>模型标识（如 glm-5.2 / sensenova-6.8-flash-lite）。</summary>
+    /// <summary>模型标识。</summary>
     public required string ModelId { get; init; }
 
     /// <summary>供应商标识（如 zhipu / sensenova）。</summary>

@@ -7,7 +7,7 @@ public sealed record JoinCodeOptions {
     /// <summary>LLM 供应商类型，默认 OpenAi。</summary>
     public VendorKind Vendor { get; init; } = VendorKind.OpenAi;
 
-    /// <summary>模型 ID（如 gpt-4o、deepseek-chat）。</summary>
+    /// <summary>模型 ID。</summary>
     public string ModelId { get; init; } = string.Empty;
 
     /// <summary>API Key，可选（也可通过环境变量提供）。</summary>

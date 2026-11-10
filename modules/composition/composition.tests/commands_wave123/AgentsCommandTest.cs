@@ -92,7 +92,7 @@ public sealed class AgentsCommandTest {
     [Fact]
     public async Task Execute_InfoWithAgent_RendersDetailFields() {
         var agent = CreateAgent(ExecutorVariant.Code, "执行编码任务",
-            description: "代码执行专家", modelName: "deepseek-chat", tools: ["read_file", "write_file"]);
+            description: "代码执行专家", modelName: "test-model", tools: ["read_file", "write_file"]);
         var provider = new Mock<IAgentDefinitionProvider>();
         provider.Setup(p => p.GetAgentDefinitionAsync(
                 AgentRole.Executor, ExecutorVariant.Code, It.IsAny<string?>(), It.IsAny<CancellationToken>()))
@@ -106,7 +106,7 @@ public sealed class AgentsCommandTest {
         output.Should().Contain("描述：代码执行专家");
         output.Should().Contain("使用场景：执行编码任务");
         output.Should().Contain("后台模式：否");
-        output.Should().Contain("模型：deepseek-chat");
+        output.Should().Contain("模型：test-model");
         output.Should().Contain("允许工具 (2):");
         output.Should().Contain("+ read_file");
         output.Should().Contain("+ write_file");

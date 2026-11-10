@@ -41,7 +41,7 @@ public sealed class QueryServiceFactoryTests {
             Protocol = protocol,
             ApiKey = "sk-test",
             Endpoint = "https://test.openai.azure.com",
-            ModelId = "gpt-4o"
+            ModelId = "test-model"
         };
 
         var service = _factory.Create(config);

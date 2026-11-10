@@ -23,7 +23,7 @@ public sealed class ModelSearchEngineTests {
     [Fact]
     public void Search_ListGroups_ReturnsSupportedFunctionalities() {
         var engine = Sut(
-            Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.Text | ModelModalityKind.ReadImage | ModelModalityKind.ToolUse),
+            Model("openai", "test-model", "GPT-4o", ModelModalityKind.Text | ModelModalityKind.ReadImage | ModelModalityKind.ToolUse),
             Model("openai", "dall-e-3", "DALL-E 3", ModelModalityKind.Text | ModelModalityKind.GenerateImage));
 
         var result = engine.Search("list_groups");
@@ -47,35 +47,35 @@ public sealed class ModelSearchEngineTests {
     [Fact]
     public void Search_MapByModality_ReturnsAllModelsSupportingIt() {
         var engine = Sut(
-            Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.Text | ModelModalityKind.ReadImage),
-            Model("anthropic", "claude-3-opus", "Claude 3 Opus", ModelModalityKind.Text | ModelModalityKind.ReadImage | ModelModalityKind.ReadPdf),
+            Model("openai", "test-model", "GPT-4o", ModelModalityKind.Text | ModelModalityKind.ReadImage),
+            Model("anthropic", "test-model", "Claude 3 Opus", ModelModalityKind.Text | ModelModalityKind.ReadImage | ModelModalityKind.ReadPdf),
             Model("openai", "dall-e-3", "DALL-E 3", ModelModalityKind.GenerateImage));
 
         var result = engine.Search("map[readImage]");
 
         result.IsModelList.Should().BeTrue();
         result.Lines.Should().HaveCount(2);
-        result.Lines.Should().Contain("anthropic/claude-3-opus (Claude 3 Opus)");
-        result.Lines.Should().Contain("openai/gpt-4o (GPT-4o)");
+        result.Lines.Should().Contain("anthropic/test-model (Claude 3 Opus)");
+        result.Lines.Should().Contain("openai/test-model (GPT-4o)");
         result.Lines.Should().NotContain(l => l.Contains("dall-e-3"), "dall-e-3 不支持 readImage");
     }
 
     [Fact]
     public void Search_MapByModalityAndVendor_FiltersByVendor() {
         var engine = Sut(
-            Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.ReadImage),
-            Model("anthropic", "claude-3-opus", "Claude 3 Opus", ModelModalityKind.ReadImage));
+            Model("openai", "test-model", "GPT-4o", ModelModalityKind.ReadImage),
+            Model("anthropic", "test-model", "Claude 3 Opus", ModelModalityKind.ReadImage));
 
         var result = engine.Search("map[readImage][openai]");
 
         result.IsModelList.Should().BeTrue();
         result.Lines.Should().ContainSingle();
-        result.Lines[0].Should().Be("openai/gpt-4o (GPT-4o)");
+        result.Lines[0].Should().Be("openai/test-model (GPT-4o)");
     }
 
     [Fact]
     public void Search_MapByModality_NoModels_ReturnsEmpty() {
-        var engine = Sut(Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.Text));
+        var engine = Sut(Model("openai", "test-model", "GPT-4o", ModelModalityKind.Text));
 
         var result = engine.Search("map[generateImage]");
 
@@ -85,7 +85,7 @@ public sealed class ModelSearchEngineTests {
 
     [Fact]
     public void Search_MapInvalidModalityKey_ReturnsEmptyModelList() {
-        var engine = Sut(Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.ReadImage));
+        var engine = Sut(Model("openai", "test-model", "GPT-4o", ModelModalityKind.ReadImage));
 
         var result = engine.Search("map[nonexistent]");
 
@@ -96,7 +96,7 @@ public sealed class ModelSearchEngineTests {
     [Fact]
     public void Search_Keyword_MatchesModelId() {
         var engine = Sut(
-            Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.Text),
+            Model("openai", "test-model", "GPT-4o", ModelModalityKind.Text),
             Model("openai", "dall-e-3", "DALL-E 3", ModelModalityKind.GenerateImage));
 
         var result = engine.Search("dall");
@@ -108,25 +108,25 @@ public sealed class ModelSearchEngineTests {
     [Fact]
     public void Search_Keyword_MatchesDisplayName() {
         var engine = Sut(
-            Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.Text),
-            Model("anthropic", "claude-3-opus", "Claude 3 Opus", ModelModalityKind.Text));
+            Model("openai", "test-model", "GPT-4o", ModelModalityKind.Text),
+            Model("anthropic", "test-model", "Claude 3 Opus", ModelModalityKind.Text));
 
         var result = engine.Search("Claude");
 
         result.Lines.Should().ContainSingle();
-        result.Lines[0].Should().Contain("claude-3-opus");
+        result.Lines[0].Should().Contain("test-model");
     }
 
     [Fact]
     public void Search_Keyword_MatchesVendor() {
         var engine = Sut(
-            Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.Text),
-            Model("anthropic", "claude-3-opus", "Claude 3 Opus", ModelModalityKind.Text));
+            Model("openai", "test-model", "GPT-4o", ModelModalityKind.Text),
+            Model("anthropic", "test-model", "Claude 3 Opus", ModelModalityKind.Text));
 
         var result = engine.Search("anthropic");
 
         result.Lines.Should().ContainSingle();
-        result.Lines[0].Should().Contain("claude-3-opus");
+        result.Lines[0].Should().Contain("test-model");
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public sealed class ModelSearchEngineTests {
 
     [Fact]
     public void Search_MapByModalityKey_IsCaseInsensitive() {
-        var engine = Sut(Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.ReadImage));
+        var engine = Sut(Model("openai", "test-model", "GPT-4o", ModelModalityKind.ReadImage));
 
         var result = engine.Search("map[READIMAGE]");
 
@@ -153,7 +153,7 @@ public sealed class ModelSearchEngineTests {
 
     [Fact]
     public void Search_ListGroups_OnlyListsFunctionalitiesWithModels() {
-        var engine = Sut(Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.Text | ModelModalityKind.ToolUse));
+        var engine = Sut(Model("openai", "test-model", "GPT-4o", ModelModalityKind.Text | ModelModalityKind.ToolUse));
 
         var result = engine.Search("list_groups");
 

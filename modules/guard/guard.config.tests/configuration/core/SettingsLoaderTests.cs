@@ -473,10 +473,10 @@ public class SettingsLoaderTests : IDisposable {
         var vendorsDir = Path.Combine(_userAppDataDir, "providers_llm", "openai");
         _fs.CreateDirectory(vendorsDir);
 
-        var configJson = """{"provider":"openai","protocol":"openai-compatible","model":"gpt-4o","endpoint":"https://api.openai.com/v1","apiKeyEnvVar":"OPENAI_API_KEY","modelsEndpoint":"models"}""";
+        var configJson = """{"provider":"openai","protocol":"openai-compatible","model":"test-model","endpoint":"https://api.openai.com/v1","apiKeyEnvVar":"OPENAI_API_KEY","modelsEndpoint":"models"}""";
         await _fs.WriteAllText(Path.Combine(vendorsDir, "config.json"), configJson);
 
-        var modelsJson = """{"models":[{"id":"gpt-4o","displayName":"GPT-4o","contextWindow":128000}]}""";
+        var modelsJson = """{"models":[{"id":"test-model","displayName":"GPT-4o","contextWindow":128000}]}""";
         await _fs.WriteAllText(Path.Combine(vendorsDir, "models.json"), modelsJson);
 
         var result = await SettingsLoader.LoadVendorSubConfigsAsync(_fs, _userAppDataDir, CancellationToken.None);
@@ -486,7 +486,7 @@ public class SettingsLoaderTests : IDisposable {
         openai.Provider.Should().Be("openai");
         openai.Endpoint.Should().Be("https://api.openai.com/v1");
         openai.Models.Should().HaveCount(1);
-        openai.Models[0].Id.Should().Be("gpt-4o");
+        openai.Models[0].Id.Should().Be("test-model");
         openai.Models[0].ContextWindow.Should().Be(128000);
     }
 

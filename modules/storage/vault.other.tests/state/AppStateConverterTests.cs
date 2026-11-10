@@ -18,7 +18,7 @@ public sealed class AppStateConverterTests {
                 new ApiMessageState { Role = "assistant", Content = "Hello", Timestamp = new DateTime(2026, 1, 1, 0, 1, 0, DateTimeKind.Utc) }),
             StartedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             LastActivityAt = new DateTime(2026, 1, 1, 1, 0, 0, DateTimeKind.Utc),
-            CurrentModel = "gpt-4o",
+            CurrentModel = "test-model",
             IsPlanMode = true,
             CurrentPlan = "plan-1"
         },
@@ -56,7 +56,7 @@ public sealed class AppStateConverterTests {
         var doc = AppStateConverter.ToDocument(state);
         doc.Session.SessionId.Should().Be("session-001");
         doc.Session.SystemPrompt.Should().Be("You are helpful");
-        doc.Session.CurrentModel.Should().Be("gpt-4o");
+        doc.Session.CurrentModel.Should().Be("test-model");
         doc.Session.IsPlanMode.Should().BeTrue();
         doc.Session.CurrentPlan.Should().Be("plan-1");
         doc.Session.MessageList.Should().HaveCount(2);

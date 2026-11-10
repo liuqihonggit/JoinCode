@@ -94,6 +94,9 @@ class Program {
             // 检测端口 3457 是否有服务在运行，没有则 Process.Start 拉起 jcchub.exe
             await EnsureHubServerAsync().ConfigureAwait(false);
 
+            // ADR 0155: 注册当前 jcc 实例到 Hub 服务端，启动心跳+消息接收
+            await using var hubAgent = await RegisterHubAgentAsync().ConfigureAwait(false);
+
             // ADR 0149: 默认(非非交互)→ TUI, 非交互(-p)→ NonInteractiveModeRunner
             // TUI 分支: NativeTui.Host 自己组装引擎(EngineSession.CreateAsync),跳过 CreateCliSessionAsync 避免重复组装
             if (!options.IsNonInteractiveMode) {
@@ -105,6 +108,7 @@ class Program {
             swSession?.Stop();
 
             var config = engineResult.Config;
+            _hubAgentId = config.Provider.AgentId;
             await using var host = engineResult.Host;
 
             logger = host.Services.GetService<ILogger<Program>>();
@@ -203,8 +207,19 @@ class Program {
             }
 
             return (int)ExitCode.GeneralError;
+        } finally {
+            // ADR 0155: Agent 注销 — 进程退出时通知 Hub 服务端
+            if (!string.IsNullOrEmpty(_hubAgentId)) {
+                try {
+                    await EngineApplicationBuilder.UnregisterAgentAsync("http://localhost:3457", _hubAgentId).ConfigureAwait(false);
+                } catch (Exception ex) {
+                    Diag.WriteLine($"[HUB] Agent 注销失败: {ex.Message}");
+                }
+            }
         }
     }
+
+    private static string? _hubAgentId;
 
     /// <summary>
     /// 写入错误日志到临时目录的 jcc_error.log。
@@ -570,7 +585,7 @@ class Program {
     }
 
     /// <summary>
-    /// 扫描 args 找第一个子命令的索引（允许全局选项在前，如 --trust --model gpt-4o mcp_search read）。
+    /// 扫描 args 找第一个子命令的索引（允许全局选项在前，如 --trust --model &lt;model-id&gt; mcp_search read）。
     /// </summary>
     private static int? FindSubCommandIndex(string[] args) {
         for (var i = 0; i < args.Length; i++) {
@@ -609,6 +624,30 @@ class Program {
             }
         }
         return null;
+    }
+
+    /// <summary>
+    /// ADR 0155: 注册当前 jcc 实例到 Hub 服务端 — 自动注册+心跳+SSE消息接收。
+    /// 退出时通过 DisposeAsync 自动注销。
+    /// </summary>
+    private static async Task<Api.Chat.HubAgentClient?> RegisterHubAgentAsync() {
+        try {
+            using var healthClient = new HttpClient { Timeout = TimeSpan.FromSeconds(1) };
+            var healthResponse = await healthClient.GetAsync("http://localhost:3457/health").ConfigureAwait(false);
+            if (!healthResponse.IsSuccessStatusCode) return null;
+
+            var agentId = Api.Chat.HubAgentClient.GenerateAgentId();
+            var agent = new Api.Chat.HubAgentClient(agentId, capabilities: []);
+            var registered = await agent.RegisterAsync().ConfigureAwait(false);
+            if (!registered) return null;
+
+            agent.StartBackgroundTasks();
+            Console.Error.WriteLine($"[HUB] Agent 已注册: {agentId}");
+            return agent;
+        } catch (Exception ex) {
+            Console.Error.WriteLine($"[HUB] Agent 注册失败: {ex.Message}");
+            return null;
+        }
     }
 
     /// <summary>

@@ -47,7 +47,7 @@ public class VisionToolHandlers {
         if (result.ImageWidth == 0 && result.ImageHeight == 0 && result.Elements.Count == 0)
             return ToolResultBuilder.Error().WithText(
                 "LLM 未返回有效识别结果。可能原因:\n" +
-                "  1) 当前模型不支持图片理解(vision)，请切换到支持多模态的模型(如 gpt-4o/claude-3.5-sonnet)\n" +
+                "  1) 当前模型不支持图片理解(vision)，请切换到支持多模态的模型\n" +
                 "  2) API Key 配置错误或已过期\n" +
                 "  3) 网络连接问题\n" +
                 "提示: 用 jcc --vendor <vendor> --model <model> 切换支持 vision 的模型").Build();

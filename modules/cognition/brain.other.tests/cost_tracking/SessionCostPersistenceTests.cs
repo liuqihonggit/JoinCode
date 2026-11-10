@@ -36,7 +36,7 @@ public class SessionCostPersistenceTests {
     public async Task SaveCurrentSessionCostsAsync_ValidSession_ShouldWriteFile() {
         var tracker = CreateCostTracker();
         await using (tracker) {
-            tracker.RecordUsage("gpt-4o", 100, 50, "test-session");
+            tracker.RecordUsage("test-model", 100, 50, "test-session");
 
             await using var persistence = CreatePersistence(tracker);
             _fileOpMock.Setup(f => f.DirectoryExists(It.IsAny<string>())).Returns(true);
@@ -56,7 +56,7 @@ public class SessionCostPersistenceTests {
     public async Task SaveAndRestore_RoundTrip_ShouldPreserveData() {
         var tracker = CreateCostTracker();
         await using (tracker) {
-            tracker.RecordUsage("gpt-4o", 100, 50, "session-rt");
+            tracker.RecordUsage("test-model", 100, 50, "session-rt");
 
             await using var persistence = CreatePersistence(tracker);
 
@@ -124,7 +124,7 @@ public class SessionCostPersistenceTests {
     public async Task SaveCurrentSessionCostsAsync_WriteFailure_ShouldNotThrow() {
         var tracker = CreateCostTracker();
         await using (tracker) {
-            tracker.RecordUsage("gpt-4o", 100, 50, "session-wf");
+            tracker.RecordUsage("test-model", 100, 50, "session-wf");
 
             await using var persistence = CreatePersistence(tracker);
             _fileOpMock.Setup(f => f.DirectoryExists(It.IsAny<string>())).Returns(true);

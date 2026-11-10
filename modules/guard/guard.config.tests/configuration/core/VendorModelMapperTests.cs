@@ -17,11 +17,11 @@ public class VendorModelMapperTests {
                 "sensenova": {
                   "provider": "sensenova",
                   "protocol": "openai-compatible",
-                  "model": "sensenova-6.8-flash-lite",
+                  "model": "test-model",
                   "endpoint": "https://token.sensenova.cn/v1",
                   "apiKeyEnvVar": "SENSENOVA_API_KEY",
                   "models": [
-                    {"id":"sensenova-6.8-flash-lite","canonicalId":"sensenova-6.8-flash-lite","displayName":"SenseNova 6.8 Flash-Lite","contextWindow":262144}
+                    {"id":"test-model","canonicalId":"test-model","displayName":"SenseNova 6.8 Flash-Lite","contextWindow":262144}
                   ]
                 }
               },
@@ -34,7 +34,7 @@ public class VendorModelMapperTests {
         var act = () => VendorModelMapper.BuildProviders(settings);
 
         var providers = act.Should().NotThrow("models 缺少 capabilities 字段时应降级处理而非 NRE").Subject;
-        providers["sensenova"].DefaultFastModelId.Should().Be("sensenova-6.8-flash-lite",
+        providers["sensenova"].DefaultFastModelId.Should().Be("test-model",
             "无 capabilities 时应回退到 models 列表首个模型作为 FastModel");
     }
 
@@ -45,18 +45,18 @@ public class VendorModelMapperTests {
               "vendor": {
                 "sensenova": {
                   "provider": "sensenova",
-                  "model": "sensenova-6.8-flash-lite",
-                  "models": [{"id":"sensenova-6.8-flash-lite","displayName":"SenseNova","contextWindow":262144}]
+                  "model": "test-model",
+                  "models": [{"id":"test-model","displayName":"SenseNova","contextWindow":262144}]
                 },
                 "openai": {
                   "provider": "openai",
-                  "model": "gpt-5.6-sol",
-                  "models": [{"id":"gpt-5.6-sol","displayName":"GPT","contextWindow":200000}]
+                  "model": "test-model",
+                  "models": [{"id":"test-model","displayName":"GPT","contextWindow":200000}]
                 },
                 "deepseek": {
                   "provider": "deepseek",
-                  "model": "deepseek-v4-flash",
-                  "models": [{"id":"deepseek-v4-flash","displayName":"DeepSeek","contextWindow":128000}]
+                  "model": "test-model",
+                  "models": [{"id":"test-model","displayName":"DeepSeek","contextWindow":128000}]
                 }
               },
               "current": { "profile": "sensenova" }
@@ -68,9 +68,9 @@ public class VendorModelMapperTests {
         var providers = VendorModelMapper.BuildProviders(settings);
 
         providers.Should().HaveCount(3);
-        providers["sensenova"].DefaultFastModelId.Should().Be("sensenova-6.8-flash-lite");
-        providers["openai"].DefaultFastModelId.Should().Be("gpt-5.6-sol");
-        providers["deepseek"].DefaultFastModelId.Should().Be("deepseek-v4-flash");
+        providers["sensenova"].DefaultFastModelId.Should().Be("test-model");
+        providers["openai"].DefaultFastModelId.Should().Be("test-model");
+        providers["deepseek"].DefaultFastModelId.Should().Be("test-model");
     }
 
     #endregion
@@ -84,9 +84,9 @@ public class VendorModelMapperTests {
               "vendor": {
                 "openai": {
                   "provider": "openai",
-                  "model": "gpt-5.6-sol",
+                  "model": "test-model",
                   "models": [
-                    {"id":"gpt-5.6-sol","displayName":"GPT","contextWindow":200000,"capabilities":{"fastMode":false}},
+                    {"id":"test-model","displayName":"GPT","contextWindow":200000,"capabilities":{"fastMode":false}},
                     {"id":"gpt-5.6-mini","displayName":"GPT Mini","contextWindow":200000,"capabilities":{"fastMode":true}}
                   ]
                 }
@@ -117,7 +117,7 @@ public class VendorModelMapperTests {
     public void Given_vendor无models_When_BuildProviders_Then_DefaultFastModelId为空() {
         var settings = new SettingsJson {
             Vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase) {
-                ["openai"] = new ProfileSettings { Provider = "openai", Model = "gpt-4o" },
+                ["openai"] = new ProfileSettings { Provider = "openai", Model = "test-model" },
             },
             Current = new CurrentSettings { Profile = "openai" },
         };

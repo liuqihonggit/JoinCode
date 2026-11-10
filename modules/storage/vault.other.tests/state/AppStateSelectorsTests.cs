@@ -55,7 +55,7 @@ public sealed class AppStateSelectorsTests : IDisposable {
     public void SelectCurrentModel_ReturnsCurrentModel() {
         var selector = _selectors.SelectCurrentModel();
 
-        selector.CurrentValue.Should().Be("gpt-4o");
+        selector.CurrentValue.Should().Be("test-model");
     }
 
     [Fact]
@@ -290,7 +290,7 @@ public sealed class AppStateSelectorsTests : IDisposable {
         var selector = _selectors.SelectSessionOverview();
 
         selector.CurrentValue.SessionId.Should().Be("session-001");
-        selector.CurrentValue.CurrentModel.Should().Be("gpt-4o");
+        selector.CurrentValue.CurrentModel.Should().Be("test-model");
         selector.CurrentValue.MessageCount.Should().Be(2);
         selector.CurrentValue.IsPlanMode.Should().BeTrue();
     }
@@ -340,7 +340,7 @@ public sealed class AppStateSelectorsTests : IDisposable {
                 MessageList = ImmutableList.Create(
                     new ApiMessageState { Role = "user", Content = "Hi", Timestamp = DateTime.UtcNow },
                     new ApiMessageState { Role = "assistant", Content = "Hello", Timestamp = DateTime.UtcNow }),
-                CurrentModel = "gpt-4o",
+                CurrentModel = "test-model",
                 IsPlanMode = true
             },
             Agents = ImmutableHamT.CreateRange(new Dictionary<string, AgentState> {

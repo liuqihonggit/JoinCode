@@ -295,7 +295,7 @@ public sealed class AnthropicQueryServiceTests {
         ]));
 
         var originalRequest = new AnthropicMessagesRequest {
-            Model = "claude-3",
+            Model = "test-model",
             Messages = [new AnthropicMessage { Role = "user", Content = "hi" }],
             Stream = true
         };
@@ -305,7 +305,7 @@ public sealed class AnthropicQueryServiceTests {
 
         secondRequest.ToolDescriptions.Should().HaveCount(2);
         secondRequest.ToolDescriptions!.Select(t => t.Name).Should().Contain(["mcp.tool1", "mcp.tool2"]);
-        secondRequest.Model.Should().Be("claude-3");
+        secondRequest.Model.Should().Be("test-model");
         secondRequest.Stream.Should().BeTrue();
     }
 
@@ -316,7 +316,7 @@ public sealed class AnthropicQueryServiceTests {
             new ToolDef("mcp.tool1", "MCP tool 1")
         ]));
 
-        var originalRequest = new AnthropicMessagesRequest { Model = "claude-3" };
+        var originalRequest = new AnthropicMessagesRequest { Model = "test-model" };
         var descRequestContent = """{"tools":["nonexistent.tool"]}""";
 
         var secondRequest = AnthropicQueryService.CreateSecondAnthropicRequestWithDescriptions(originalRequest, descRequestContent, kernel);
@@ -332,7 +332,7 @@ public sealed class AnthropicQueryServiceTests {
         ]));
 
         var originalRequest = new AnthropicMessagesRequest {
-            Model = "claude-3",
+            Model = "test-model",
             Messages = [new AnthropicMessage { Role = "user", Content = "test" }],
             Stream = true,
             Temperature = 0.7f,
@@ -344,7 +344,7 @@ public sealed class AnthropicQueryServiceTests {
 
         var secondRequest = AnthropicQueryService.CreateSecondAnthropicRequestWithDescriptions(originalRequest, descRequestContent, kernel);
 
-        secondRequest.Model.Should().Be("claude-3");
+        secondRequest.Model.Should().Be("test-model");
         secondRequest.Temperature.Should().Be(0.7f);
         secondRequest.MaxTokens.Should().Be(1000);
         secondRequest.Tools.Should().BeSameAs(originalRequest.Tools);
@@ -946,17 +946,17 @@ public sealed class AnthropicQueryServiceTests {
 
     [Fact]
     public void BuildMessageStartMetadata_ContainsIdAndModelInBothDictionaries() {
-        var (text, thinking) = AnthropicQueryService.BuildMessageStartMetadata("msg-1", "claude-3");
+        var (text, thinking) = AnthropicQueryService.BuildMessageStartMetadata("msg-1", "test-model");
 
         text["Id"].GetString().Should().Be("msg-1");
-        text["Model"].GetString().Should().Be("claude-3");
+        text["Model"].GetString().Should().Be("test-model");
         thinking["Id"].GetString().Should().Be("msg-1");
-        thinking["Model"].GetString().Should().Be("claude-3");
+        thinking["Model"].GetString().Should().Be("test-model");
     }
 
     [Fact]
     public void BuildMessageStartMetadata_ThinkingContainsThinkingContentFlag() {
-        var (_, thinking) = AnthropicQueryService.BuildMessageStartMetadata("msg-1", "claude-3");
+        var (_, thinking) = AnthropicQueryService.BuildMessageStartMetadata("msg-1", "test-model");
 
         thinking.Should().ContainKey("thinking_content");
         thinking["thinking_content"].GetBoolean().Should().BeTrue();
@@ -964,7 +964,7 @@ public sealed class AnthropicQueryServiceTests {
 
     [Fact]
     public void BuildMessageStartMetadata_TextDoesNotContainThinkingContent() {
-        var (text, _) = AnthropicQueryService.BuildMessageStartMetadata("msg-1", "claude-3");
+        var (text, _) = AnthropicQueryService.BuildMessageStartMetadata("msg-1", "test-model");
 
         text.Should().NotContainKey("thinking_content");
     }
@@ -979,7 +979,7 @@ public sealed class AnthropicQueryServiceTests {
 
     [Fact]
     public void BuildMessageStartMetadata_ReturnsFrozenDictionaries() {
-        var (text, thinking) = AnthropicQueryService.BuildMessageStartMetadata("msg-1", "claude-3");
+        var (text, thinking) = AnthropicQueryService.BuildMessageStartMetadata("msg-1", "test-model");
 
         text.Should().BeAssignableTo<FrozenDictionary<string, JsonElement>>();
         thinking.Should().BeAssignableTo<FrozenDictionary<string, JsonElement>>();
@@ -991,10 +991,10 @@ public sealed class AnthropicQueryServiceTests {
 
     [Fact]
     public void BuildServerToolUseStartMetadata_ContainsAllRequiredFields() {
-        var metadata = AnthropicQueryService.BuildServerToolUseStartMetadata("msg-1", "claude-3", "wsu-1", "web_search");
+        var metadata = AnthropicQueryService.BuildServerToolUseStartMetadata("msg-1", "test-model", "wsu-1", "web_search");
 
         metadata["Id"].GetString().Should().Be("msg-1");
-        metadata["Model"].GetString().Should().Be("claude-3");
+        metadata["Model"].GetString().Should().Be("test-model");
         metadata["server_tool_use"].GetBoolean().Should().BeTrue();
         metadata["tool_use_id"].GetString().Should().Be("wsu-1");
         metadata["tool_name"].GetString().Should().Be("web_search");
@@ -1064,10 +1064,10 @@ public sealed class AnthropicQueryServiceTests {
         var delta = new AnthropicStreamingDelta { StopReason = AnthropicStopReason.EndTurn };
         var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
 
-        var metadata = AnthropicQueryService.BuildMessageDeltaMetadata("msg-1", "claude-3", delta, null, toolAccumulator);
+        var metadata = AnthropicQueryService.BuildMessageDeltaMetadata("msg-1", "test-model", delta, null, toolAccumulator);
 
         metadata["Id"].GetString().Should().Be("msg-1");
-        metadata["Model"].GetString().Should().Be("claude-3");
+        metadata["Model"].GetString().Should().Be("test-model");
         metadata["FinishReason"].GetString().Should().Be("end_turn");
     }
 
@@ -1077,7 +1077,7 @@ public sealed class AnthropicQueryServiceTests {
         var usage = new AnthropicUsage { InputTokens = 10, OutputTokens = 20 };
         var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
 
-        var metadata = AnthropicQueryService.BuildMessageDeltaMetadata("msg-1", "claude-3", delta, usage, toolAccumulator);
+        var metadata = AnthropicQueryService.BuildMessageDeltaMetadata("msg-1", "test-model", delta, usage, toolAccumulator);
 
         metadata.Should().ContainKey("Usage");
     }
@@ -1089,7 +1089,7 @@ public sealed class AnthropicQueryServiceTests {
             [1] = ("call-1", "get_weather", new StringBuilder("{\"city\":\"SF\"}"))
         };
 
-        var metadata = AnthropicQueryService.BuildMessageDeltaMetadata("msg-1", "claude-3", delta, null, toolAccumulator);
+        var metadata = AnthropicQueryService.BuildMessageDeltaMetadata("msg-1", "test-model", delta, null, toolAccumulator);
 
         metadata.Should().ContainKey("AllToolCalls");
         metadata["AllToolCalls"].GetArrayLength().Should().Be(1);
@@ -1102,7 +1102,7 @@ public sealed class AnthropicQueryServiceTests {
             [1] = ("call-1", "tool", new StringBuilder("{}"))
         };
 
-        var metadata = AnthropicQueryService.BuildMessageDeltaMetadata("msg-1", "claude-3", delta, null, toolAccumulator);
+        var metadata = AnthropicQueryService.BuildMessageDeltaMetadata("msg-1", "test-model", delta, null, toolAccumulator);
 
         metadata.Should().NotContainKey("AllToolCalls", "非 tool_use 停止原因不写 AllToolCalls");
     }
@@ -1112,7 +1112,7 @@ public sealed class AnthropicQueryServiceTests {
         var delta = new AnthropicStreamingDelta { StopReason = AnthropicStopReason.ToolUse };
         var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
 
-        var metadata = AnthropicQueryService.BuildMessageDeltaMetadata("msg-1", "claude-3", delta, null, toolAccumulator);
+        var metadata = AnthropicQueryService.BuildMessageDeltaMetadata("msg-1", "test-model", delta, null, toolAccumulator);
 
         metadata.Should().NotContainKey("AllToolCalls", "空累积器不写 AllToolCalls");
     }
@@ -1121,10 +1121,10 @@ public sealed class AnthropicQueryServiceTests {
     public void BuildMessageDeltaMetadata_NullDeltaAndUsage_StillBuildsBaseMetadata() {
         var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
 
-        var metadata = AnthropicQueryService.BuildMessageDeltaMetadata("msg-1", "claude-3", null, null, toolAccumulator);
+        var metadata = AnthropicQueryService.BuildMessageDeltaMetadata("msg-1", "test-model", null, null, toolAccumulator);
 
         metadata["Id"].GetString().Should().Be("msg-1");
-        metadata["Model"].GetString().Should().Be("claude-3");
+        metadata["Model"].GetString().Should().Be("test-model");
         metadata.Should().NotContainKey("Usage");
         metadata.Should().NotContainKey("AllToolCalls");
     }
@@ -1168,7 +1168,7 @@ public sealed class AnthropicQueryServiceTests {
         var toolAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
         var tracker = new Dictionary<int, (string ToolUseId, string? LastQuery, StringBuilder JsonBuilder, int LastExtractionLength)>();
 
-        var result = AnthropicQueryService.TryBuildQueryUpdateStreamEvent(0, delta, toolAccumulator, tracker, "msg-1", "claude-3");
+        var result = AnthropicQueryService.TryBuildQueryUpdateStreamEvent(0, delta, toolAccumulator, tracker, "msg-1", "test-model");
 
         result.Should().BeNull("无 server_tool_use 追踪条目时返回 null");
     }
@@ -1181,7 +1181,7 @@ public sealed class AnthropicQueryServiceTests {
             [0] = ("wsu-1", null, new StringBuilder(), 0)
         };
 
-        var result = AnthropicQueryService.TryBuildQueryUpdateStreamEvent(0, delta, toolAccumulator, tracker, "msg-1", "claude-3");
+        var result = AnthropicQueryService.TryBuildQueryUpdateStreamEvent(0, delta, toolAccumulator, tracker, "msg-1", "test-model");
 
         result.Should().BeNull("累积 JSON 不足 50 字符时不提取");
     }
@@ -1196,7 +1196,7 @@ public sealed class AnthropicQueryServiceTests {
             [0] = ("wsu-1", null, new StringBuilder(), 0)
         };
 
-        var result = AnthropicQueryService.TryBuildQueryUpdateStreamEvent(0, delta, toolAccumulator, tracker, "msg-1", "claude-3");
+        var result = AnthropicQueryService.TryBuildQueryUpdateStreamEvent(0, delta, toolAccumulator, tracker, "msg-1", "test-model");
 
         result.Should().NotBeNull("应提取到 query 并返回 StreamEvent");
         result!.Metadata.Should().ContainKey("query_update");
@@ -1212,7 +1212,7 @@ public sealed class AnthropicQueryServiceTests {
             [0] = ("wsu-1", extractedQuery, new StringBuilder(partialJson), partialJson.Length)
         };
 
-        var result = AnthropicQueryService.TryBuildQueryUpdateStreamEvent(0, delta, toolAccumulator, tracker, "msg-1", "claude-3");
+        var result = AnthropicQueryService.TryBuildQueryUpdateStreamEvent(0, delta, toolAccumulator, tracker, "msg-1", "test-model");
 
         result.Should().BeNull("query 未变化时不发事件");
     }
@@ -1226,7 +1226,7 @@ public sealed class AnthropicQueryServiceTests {
         };
         var tracker = new Dictionary<int, (string ToolUseId, string? LastQuery, StringBuilder JsonBuilder, int LastExtractionLength)>();
 
-        AnthropicQueryService.TryBuildQueryUpdateStreamEvent(0, delta, toolAccumulator, tracker, "msg-1", "claude-3");
+        AnthropicQueryService.TryBuildQueryUpdateStreamEvent(0, delta, toolAccumulator, tracker, "msg-1", "test-model");
 
         toolAccumulator[0].Arguments.ToString().Should().Be(partialJson, "工具调用累积器应追加 partial json");
     }

@@ -49,9 +49,9 @@ public sealed class SystemPromptProviderOptionsCoordinatorModeTests {
 
     [Fact]
     public void GetSubagentModelFromEnv_WhenEnvVarSet_ReturnsValue() {
-        Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", "gpt-4o-mini");
+        Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", "test-model");
         try {
-            SystemPromptProviderOptions.GetSubagentModelFromEnv().Should().Be("gpt-4o-mini");
+            SystemPromptProviderOptions.GetSubagentModelFromEnv().Should().Be("test-model");
         } finally {
             Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
         }
@@ -65,7 +65,7 @@ public sealed class SystemPromptProviderOptionsCoordinatorModeTests {
 
     [Theory]
     [InlineData("opus", "claude-opus-4-6", true)]
-    [InlineData("opus", "gpt-4o", false)]
+    [InlineData("opus", "test-model", false)]
     [InlineData("sonnet", "claude-sonnet-4", true)]
     [InlineData("haiku", "claude-haiku-3", true)]
     [InlineData(null, "claude-opus-4", false)]

@@ -11,14 +11,14 @@ public class ModelListMergerTests {
     public void Merge_RemoteHasNewModel_AddsWithGeneratedDisplayName() {
         var local = new List<ModelItemConfig>
         {
-            new() { Id = "gpt-4o", DisplayName = "GPT-4o", ContextWindow = 128000 }
+            new() { Id = "test-model", DisplayName = "GPT-4o", ContextWindow = 128000 }
         };
-        IReadOnlyList<RemoteModelInfo> remote = [Remote("gpt-4o"), Remote("gpt-5")];
+        IReadOnlyList<RemoteModelInfo> remote = [Remote("test-model"), Remote("gpt-5")];
 
         var result = ModelListMerger.Merge(local, remote);
 
         result.Should().HaveCount(2);
-        result[0].Id.Should().Be("gpt-4o");
+        result[0].Id.Should().Be("test-model");
         result[0].DisplayName.Should().Be("GPT-4o");
         result[0].ContextWindow.Should().Be(128000);
         result[1].Id.Should().Be("gpt-5");
@@ -29,24 +29,24 @@ public class ModelListMergerTests {
     public void Merge_RemoteMissingLocalModel_RemovesIt() {
         var local = new List<ModelItemConfig>
         {
-            new() { Id = "gpt-4o", DisplayName = "GPT-4o" },
+            new() { Id = "test-model", DisplayName = "GPT-4o" },
             new() { Id = "old-model", DisplayName = "Old" }
         };
-        IReadOnlyList<RemoteModelInfo> remote = [Remote("gpt-4o")];
+        IReadOnlyList<RemoteModelInfo> remote = [Remote("test-model")];
 
         var result = ModelListMerger.Merge(local, remote);
 
         result.Should().HaveCount(1);
-        result[0].Id.Should().Be("gpt-4o");
+        result[0].Id.Should().Be("test-model");
     }
 
     [Fact]
     public void Merge_BothHave_PreservesLocalMetadata() {
         var local = new List<ModelItemConfig>
         {
-            new() { Id = "gpt-4o", DisplayName = "GPT-4o", ContextWindow = 128000, Description = "多模态模型" }
+            new() { Id = "test-model", DisplayName = "GPT-4o", ContextWindow = 128000, Description = "多模态模型" }
         };
-        IReadOnlyList<RemoteModelInfo> remote = [Remote("gpt-4o")];
+        IReadOnlyList<RemoteModelInfo> remote = [Remote("test-model")];
 
         var result = ModelListMerger.Merge(local, remote);
 
@@ -60,46 +60,46 @@ public class ModelListMergerTests {
     public void Merge_EmptyRemote_ReturnsLocal() {
         var local = new List<ModelItemConfig>
         {
-            new() { Id = "gpt-4o", DisplayName = "GPT-4o" }
+            new() { Id = "test-model", DisplayName = "GPT-4o" }
         };
 
         var result = ModelListMerger.Merge(local, Array.Empty<RemoteModelInfo>());
 
         result.Should().HaveCount(1);
-        result[0].Id.Should().Be("gpt-4o");
+        result[0].Id.Should().Be("test-model");
     }
 
     [Fact]
     public void Merge_NullLocal_AllNewWithGeneratedNames() {
-        IReadOnlyList<RemoteModelInfo> remote = [Remote("gpt-4o"), Remote("gpt-5")];
+        IReadOnlyList<RemoteModelInfo> remote = [Remote("test-model"), Remote("test-model-pro")];
 
         var result = ModelListMerger.Merge(null, remote);
 
         result.Should().HaveCount(2);
-        result[0].DisplayName.Should().Be("Gpt 4o");
-        result[1].DisplayName.Should().Be("Gpt 5");
+        result[0].DisplayName.Should().Be("Test Model");
+        result[1].DisplayName.Should().Be("Test Model Pro");
     }
 
     [Fact]
     public void Merge_CaseInsensitiveMatch_PreservesLocal() {
         var local = new List<ModelItemConfig>
         {
-            new() { Id = "GPT-4O", DisplayName = "GPT-4o" }
+            new() { Id = "TEST-MODEL", DisplayName = "TEST-MODEL" }
         };
-        IReadOnlyList<RemoteModelInfo> remote = [Remote("gpt-4o")];
+        IReadOnlyList<RemoteModelInfo> remote = [Remote("test-model")];
 
         var result = ModelListMerger.Merge(local, remote);
 
         result.Should().HaveCount(1);
-        result[0].Id.Should().Be("GPT-4O");
-        result[0].DisplayName.Should().Be("GPT-4o");
+        result[0].Id.Should().Be("TEST-MODEL");
+        result[0].DisplayName.Should().Be("TEST-MODEL");
     }
 
     /// <summary>
     /// 远程新模型不从 ID 推断模态 — 配置大于代码，模态能力由用户在 settings.json 显式配置
     /// </summary>
     [Theory]
-    [InlineData("deepseek-v4-flash-vision-exp", "含 vision 不应推断 ReadImage")]
+    [InlineData("test-model-vision-exp", "含 vision 不应推断 ReadImage")]
     [InlineData("deepseek-v4-pro", "含 pro 不应推断 Thinking")]
     [InlineData("deepseek-reasoner", "含 reasoner 不应推断 Thinking")]
     public void Merge_NewModel_DoesNotInferModalitiesFromId(string remoteId, string reason) {
@@ -119,7 +119,7 @@ public class ModelListMergerTests {
         {
             new()
             {
-                Id = "deepseek-v4-flash-vision-exp",
+                Id = "test-model-vision-exp",
                 DisplayName = "DeepSeek V4 Flash Vision",
                 Capabilities = new ModelCapabilitiesConfig
                 {
@@ -128,7 +128,7 @@ public class ModelListMergerTests {
                 }
             }
         };
-        IReadOnlyList<RemoteModelInfo> remote = [Remote("deepseek-v4-flash-vision-exp")];
+        IReadOnlyList<RemoteModelInfo> remote = [Remote("test-model-vision-exp")];
 
         var result = ModelListMerger.Merge(local, remote);
 
@@ -142,7 +142,7 @@ public class ModelListMergerTests {
         [
             new()
             {
-                Id = "glm-5.2",
+                Id = "test-model",
                 Description = "GLM-5.2 flagship model",
                 ContextLength = 1048576,
                 MaxOutputLength = 131072,
@@ -155,7 +155,7 @@ public class ModelListMergerTests {
         var result = ModelListMerger.Merge(null, remote);
 
         result.Should().HaveCount(1);
-        result[0].Id.Should().Be("glm-5.2");
+        result[0].Id.Should().Be("test-model");
         result[0].Description.Should().Be("GLM-5.2 flagship model");
         result[0].ContextWindow.Should().Be(1048576);
     }
@@ -164,11 +164,11 @@ public class ModelListMergerTests {
     public void Merge_ExistingModelWithZeroContextWindow_SupplementsFromRemote() {
         var local = new List<ModelItemConfig>
         {
-            new() { Id = "glm-5.2", DisplayName = "Glm 5.2", ContextWindow = 0, Description = "本地描述" }
+            new() { Id = "test-model", DisplayName = "Glm 5.2", ContextWindow = 0, Description = "本地描述" }
         };
         IReadOnlyList<RemoteModelInfo> remote =
         [
-            new() { Id = "glm-5.2", Description = "远程描述", ContextLength = 1048576 }
+            new() { Id = "test-model", Description = "远程描述", ContextLength = 1048576 }
         ];
 
         var result = ModelListMerger.Merge(local, remote);
@@ -182,11 +182,11 @@ public class ModelListMergerTests {
     public void Merge_ExistingModelWithEmptyDescription_SupplementsFromRemote() {
         var local = new List<ModelItemConfig>
         {
-            new() { Id = "glm-5.2", DisplayName = "Glm 5.2", ContextWindow = 200000, Description = "" }
+            new() { Id = "test-model", DisplayName = "Glm 5.2", ContextWindow = 200000, Description = "" }
         };
         IReadOnlyList<RemoteModelInfo> remote =
         [
-            new() { Id = "glm-5.2", Description = "远程描述", ContextLength = 1048576 }
+            new() { Id = "test-model", Description = "远程描述", ContextLength = 1048576 }
         ];
 
         var result = ModelListMerger.Merge(local, remote);

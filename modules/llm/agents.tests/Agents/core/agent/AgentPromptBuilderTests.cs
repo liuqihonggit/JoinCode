@@ -36,7 +36,7 @@ public sealed class AgentPromptBuilderTests {
     public async Task BuildSystemPromptAsync_WithSettingsSummary_InjectsSummary() {
         await using var builder = CreateBuilder();
         var promptContext = new AgentPromptContext {
-            SettingsSummary = "权限模式: auto, 模型: gpt-4o",
+            SettingsSummary = "权限模式: auto, 模型: test-model",
         };
 
         var result = await builder.BuildSystemPromptAsync(

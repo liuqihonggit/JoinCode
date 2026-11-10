@@ -44,6 +44,8 @@ global using System.Collections.Immutable;
 global using Structura.Collections;
 global using System.IO.Pipes;
 global using System.Net;
+global using System.Net.Http.Headers;
+global using System.Net.Sockets;
 global using System.Runtime.CompilerServices;
 global using System.Text;
 global using System.Text.Json;

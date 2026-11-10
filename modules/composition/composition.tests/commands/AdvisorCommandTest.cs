@@ -28,13 +28,13 @@ public sealed class AdvisorCommandTest {
     public async Task Execute_EmptyArgs_AdvisorEnabled_ShowsModelAndReviewHint() {
         var service = new Mock<IAdvisorService>();
         service.Setup(s => s.GetIsAdvisorEnabledAsync()).ReturnsAsync(true);
-        service.Setup(s => s.GetAdvisorModelAsync()).ReturnsAsync("gpt-4o");
+        service.Setup(s => s.GetAdvisorModelAsync()).ReturnsAsync("test-model");
         var (cmd, context, _) = Arrange(service: service);
 
         var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
 
         result.ShouldContinue.Should().BeTrue();
-        output.Should().Contain("顾问模型: gpt-4o");
+        output.Should().Contain("顾问模型: test-model");
         output.Should().Contain("顾问将审查主模型的工作");
     }
 
@@ -70,14 +70,14 @@ public sealed class AdvisorCommandTest {
     [Fact]
     public async Task Execute_KnownModel_SetsAdvisorModelDirectly() {
         var service = new Mock<IAdvisorService>();
-        var loader = LoaderWithModels("gpt-4o", "claude-3");
-        var (cmd, context, _) = Arrange(arguments: "claude-3", service: service, loader: loader);
+        var loader = LoaderWithModels("test-model", "test-model");
+        var (cmd, context, _) = Arrange(arguments: "test-model", service: service, loader: loader);
 
         var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
 
         result.ShouldContinue.Should().BeTrue();
-        service.Verify(s => s.SetAdvisorModel("claude-3"), Times.Once, "已知模型应直接设置");
-        output.Should().Contain("顾问模型: claude-3");
+        service.Verify(s => s.SetAdvisorModel("test-model"), Times.Once, "已知模型应直接设置");
+        output.Should().Contain("顾问模型: test-model");
         output.Should().Contain("顾问将审查主模型的工作");
         output.Should().NotContain("已知支持模型：", "已知模型不应触发支持列表警告");
     }
@@ -85,7 +85,7 @@ public sealed class AdvisorCommandTest {
     [Fact]
     public async Task Execute_UnknownModel_WarnsButStillSets() {
         var service = new Mock<IAdvisorService>();
-        var loader = LoaderWithModels("gpt-4o", "claude-3");
+        var loader = LoaderWithModels("test-model", "test-model");
         var (cmd, context, _) = Arrange(arguments: "llama-x", service: service, loader: loader);
 
         var (result, output) = await CommandTestHarness.CaptureOutputAsync(() => cmd.ExecuteAsync(context));
@@ -93,8 +93,8 @@ public sealed class AdvisorCommandTest {
         result.ShouldContinue.Should().BeTrue();
         output.Should().Contain("模型 'llama-x' 可能不支持顾问功能", "未知模型应给出警告");
         output.Should().Contain("已知支持模型：");
-        output.Should().Contain("  gpt-4o");
-        output.Should().Contain("  claude-3", "警告应列出全部已知模型辅助选择");
+        output.Should().Contain("  test-model");
+        output.Should().Contain("  test-model", "警告应列出全部已知模型辅助选择");
         output.Should().Contain("确定设置？输入 /advisor <model> 确认");
         service.Verify(s => s.SetAdvisorModel("llama-x"), Times.Once,
             "未知模型仍执行设置(警告不拦截,交由用户确认)");
@@ -116,7 +116,7 @@ public sealed class AdvisorCommandTest {
     [Fact]
     public async Task Execute_WithoutService_ReturnsSilently() {
         var services = CommandTestHarness.CreateServices();
-        var context = CommandTestHarness.CreateContext(services, arguments: "gpt-4o");
+        var context = CommandTestHarness.CreateContext(services, arguments: "test-model");
 
         var (result, output) = await CommandTestHarness.CaptureOutputAsync(
             () => new AdvisorCommand().ExecuteAsync(context));

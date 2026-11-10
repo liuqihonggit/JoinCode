@@ -22,7 +22,7 @@ public enum CliArg {
     Prompt,
 
     /// <summary>指定模型</summary>
-    [CliOption(JccCliArgEnumConstants.Model, "-m", "指定模型", AcceptsValue = true, Category = "基础", Example = "jcc -m gpt-4o -p \"hello\"", EnvVar = "JCC_MODEL_ID")]
+    [CliOption(JccCliArgEnumConstants.Model, "-m", "指定模型", AcceptsValue = true, Category = "基础", Example = "jcc -m <model-id> -p \"hello\"", EnvVar = "JCC_MODEL_ID")]
     Model,
 
     /// <summary>切换供应商（自动匹配 settings.json vendor 预设中的同名配置）</summary>

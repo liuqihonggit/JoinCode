@@ -48,11 +48,9 @@ public static class BedrockModelHelper {
     /// 从 Bedrock 跨区域推理模型 ID 提取区域前缀 — 对齐 TS 原版 getBedrockRegionPrefix
     /// <para>处理纯模型 ID 和完整 ARN 格式</para>
     /// <para>示例:</para>
-    /// <para>  "eu.anthropic.claude-sonnet-4-5-20250929-v1:0" → "eu"</para>
-    /// <para>  "us.anthropic.claude-3-7-sonnet-20250219-v1:0" → "us"</para>
-    /// <para>  "arn:aws:bedrock:ap-northeast-2:123:inference-profile/global.anthropic.claude-opus-4-6-v1" → "global"</para>
-    /// <para>  "anthropic.claude-3-5-sonnet-20241022-v2:0" → null(foundation model,无前缀)</para>
-    /// <para>  "claude-sonnet-4-5-20250929" → null(第一方格式,无前缀)</para>
+    /// <para>  "&lt;region&gt;.&lt;vendor&gt;.&lt;model&gt;" → "&lt;region&gt;"</para>
+    /// <para>  "&lt;vendor&gt;.&lt;model&gt;" → null(foundation model,无前缀)</para>
+    /// <para>  "arn:aws:bedrock:&lt;region&gt;:&lt;account&gt;:inference-profile/&lt;prefix&gt;.&lt;vendor&gt;.&lt;model&gt;" → "&lt;prefix&gt;"</para>
     /// </summary>
     public static string? GetBedrockRegionPrefix(string modelId) {
         if (string.IsNullOrEmpty(modelId))

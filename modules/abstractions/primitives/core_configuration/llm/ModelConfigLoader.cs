@@ -140,9 +140,20 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
     /// <summary>
     /// 从 SettingsJson.Vendor 构建的 providers 数据灌入 — 唯一的数据入口
     /// 由 Core 层在加载 settings.json 后调用，热重载时再次调用
+    /// <para>当 DefaultModelId 为空时，自动取 Models 列表第一个模型的 ID 作为默认值</para>
     /// </summary>
     public void ApplyProviders(Dictionary<string, ModelProviderConfig> providers) {
-        var newIndex = ModelConfigIndex.Build(new ModelConfigRoot { Providers = providers });
+        var normalized = new Dictionary<string, ModelProviderConfig>(providers, StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, config) in normalized) {
+            if (string.IsNullOrEmpty(config.DefaultModelId) && config.Models is { Count: > 0 }) {
+                normalized[name] = config with { DefaultModelId = config.Models[0].Id };
+            }
+            if (string.IsNullOrEmpty(config.DefaultFastModelId) && config.Models is { Count: > 0 }) {
+                var fastModel = config.Models.FirstOrDefault(m => m.Capabilities?.FastMode == true) ?? config.Models[0];
+                normalized[name] = normalized[name] with { DefaultFastModelId = fastModel.Id };
+            }
+        }
+        var newIndex = ModelConfigIndex.Build(new ModelConfigRoot { Providers = normalized });
         Interlocked.Exchange(ref _index, newIndex);
     }
 

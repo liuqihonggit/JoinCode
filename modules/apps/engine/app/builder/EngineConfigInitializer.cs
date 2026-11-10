@@ -32,7 +32,7 @@ public static class EngineConfigInitializer {
     }
 
     private static string BuildDefaultSettingsTemplate(IModelConfigLoader? modelConfigLoader) {
-        var defaultModel = modelConfigLoader?.GetDefaultModelId(VendorKind.DeepSeek.ToValue()) ?? DefaultModelCatalog.GetDefaultModel(VendorKind.DeepSeek); // P1-⑤⑥ 委托枚举+统一数据源
+        var defaultModel = modelConfigLoader?.GetDefaultModelId(VendorKind.DeepSeek.ToValue()) ?? string.Empty;
         var sb = new StringBuilder();
         sb.AppendLine("{");
         sb.AppendLine("  // LLM Provider: deepseek | openai | anthropic | azure | agnes");

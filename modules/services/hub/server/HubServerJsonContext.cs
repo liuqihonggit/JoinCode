@@ -11,4 +11,6 @@ namespace Core.Hub.Server;
 [JsonSerializable(typeof(HubErrorResponse))]
 [JsonSerializable(typeof(HubStatusResponse))]
 [JsonSerializable(typeof(HubRegisterResponse))]
+[JsonSerializable(typeof(HubModelInfo))]
+[JsonSerializable(typeof(HubModelsResponse))]
 public partial class HubServerJsonContext : JsonSerializerContext;

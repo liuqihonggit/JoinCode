@@ -166,6 +166,10 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
                 }).ConfigureAwait(false);
                 break;
 
+            case "/v1/models":
+                await HandleModelsAsync(context).ConfigureAwait(false);
+                break;
+
             case "/v1/chat/completions":
                 await HandleChatCompletionsAsync(context, cancellationToken).ConfigureAwait(false);
                 break;
@@ -187,6 +191,32 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
                 await WriteJsonResponseAsync(context.Response, new HubErrorResponse { Error = "Not found" }).ConfigureAwait(false);
                 break;
         }
+    }
+
+    private async Task HandleModelsAsync(HttpListenerContext context) {
+        var models = new List<HubModelInfo>();
+
+        foreach (var (providerName, profile) in _settings.Vendor) {
+            if (profile.Models is not null) {
+                foreach (var model in profile.Models) {
+                    models.Add(new HubModelInfo {
+                        Id = model.Id,
+                        Provider = providerName,
+                        OwnedBy = providerName
+                    });
+                }
+            }
+
+            if (!string.IsNullOrEmpty(profile.Model)) {
+                models.Add(new HubModelInfo {
+                    Id = profile.Model,
+                    Provider = providerName,
+                    OwnedBy = providerName
+                });
+            }
+        }
+
+        await WriteJsonResponseAsync(context.Response, new HubModelsResponse { Data = models }).ConfigureAwait(false);
     }
 
     private async Task HandleChatCompletionsAsync(HttpListenerContext context, CancellationToken cancellationToken) {
@@ -341,6 +371,7 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
             HubErrorResponse e => JsonSerializer.Serialize(e, HubServerJsonContext.Default.HubErrorResponse),
             HubStatusResponse s => JsonSerializer.Serialize(s, HubServerJsonContext.Default.HubStatusResponse),
             HubRegisterResponse r => JsonSerializer.Serialize(r, HubServerJsonContext.Default.HubRegisterResponse),
+            HubModelsResponse m => JsonSerializer.Serialize(m, HubServerJsonContext.Default.HubModelsResponse),
             _ => throw new InvalidOperationException($"Unsupported response type: {typeof(T).Name}")
         };
         var buffer = Encoding.UTF8.GetBytes(json);

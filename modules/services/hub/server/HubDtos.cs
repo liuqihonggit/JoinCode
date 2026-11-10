@@ -88,3 +88,25 @@ public sealed class HubRegisterResponse {
     [JsonPropertyName("agent_id")]
     public string AgentId { get; init; } = string.Empty;
 }
+
+/// <summary>模型信息 DTO。</summary>
+public sealed class HubModelInfo {
+    /// <summary>模型 ID。</summary>
+    [JsonPropertyName("id")]
+    public string Id { get; init; } = string.Empty;
+
+    /// <summary>所属 Provider。</summary>
+    [JsonPropertyName("provider")]
+    public string Provider { get; init; } = string.Empty;
+
+    /// <summary>拥有者。</summary>
+    [JsonPropertyName("owned_by")]
+    public string OwnedBy { get; init; } = string.Empty;
+}
+
+/// <summary>模型列表响应 DTO（兼容 OpenAI /v1/models 格式）。</summary>
+public sealed class HubModelsResponse {
+    /// <summary>模型列表。</summary>
+    [JsonPropertyName("data")]
+    public List<HubModelInfo> Data { get; init; } = [];
+}

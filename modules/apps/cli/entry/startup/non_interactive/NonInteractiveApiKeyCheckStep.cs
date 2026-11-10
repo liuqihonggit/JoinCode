@@ -8,6 +8,14 @@ internal sealed partial class NonInteractiveApiKeyCheckStep : ServiceEntity, IMi
     /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
         Diag.WriteLine("[STEP] ApiKeyCheck start");
+
+        // ADR 0155: Hub 协议不需要 API Key — 由 jcchub.exe 服务端统一处理认证
+        if (context.Config.Provider.ProtocolKind == ProtocolKind.Hub) {
+            Diag.WriteLine("[STEP] ApiKeyCheck skipped: Hub protocol (server-side auth)");
+            await next(context, ct).ConfigureAwait(false);
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(context.Config.Provider.ApiKey)) {
             if (context.Config.Provider.Definition is null) {
                 context.ExitCode = (int)ExitCode.ConfigurationError;

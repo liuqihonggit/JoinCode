@@ -90,6 +90,10 @@ class Program {
 
             var fs = IO.FileSystem.FileSystemFactory.Create();
 
+            // ADR 0155: AgentHubServer — 多 Agent 中央服务器，随首个 jcc 自动拉起独立进程
+            // 检测端口 3457 是否有服务在运行，没有则 Process.Start 拉起 jcchub.exe
+            await EnsureHubServerAsync().ConfigureAwait(false);
+
             // ADR 0149: 默认(非非交互)→ TUI, 非交互(-p)→ NonInteractiveModeRunner
             // TUI 分支: NativeTui.Host 自己组装引擎(EngineSession.CreateAsync),跳过 CreateCliSessionAsync 避免重复组装
             if (!options.IsNonInteractiveMode) {
@@ -605,6 +609,62 @@ class Program {
             }
         }
         return null;
+    }
+
+    /// <summary>
+    /// ADR 0155: 确保 jcchub.exe 已启动 — 检测端口 3457，没有服务则拉起独立进程。
+    /// 固定端口 3457，不需要环境变量控制。一切默认。
+    /// </summary>
+    private static async Task EnsureHubServerAsync() {
+        const string hubEndpoint = "http://localhost:3457";
+
+        if (await IsHubServerRunningAsync(hubEndpoint).ConfigureAwait(false))
+            return;
+
+        var hubExePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "jcchub.exe");
+
+        if (!File.Exists(hubExePath)) {
+            Console.Error.WriteLine($"[HUB] jcchub.exe 未找到: {hubExePath}");
+            return;
+        }
+
+        try {
+            var psi = new ProcessStartInfo {
+                FileName = hubExePath,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+
+            using var process = Process.Start(psi);
+            if (process is null) {
+                Console.Error.WriteLine("[HUB] 无法启动 jcchub.exe");
+                return;
+            }
+
+            for (var i = 0; i < 30; i++) {
+                await Task.Delay(200).ConfigureAwait(false);
+                if (await IsHubServerRunningAsync(hubEndpoint).ConfigureAwait(false)) {
+                    Console.Error.WriteLine($"[HUB] AgentHubServer 已启动 — {hubEndpoint}");
+                    return;
+                }
+            }
+
+            Console.Error.WriteLine("[HUB] jcchub.exe 启动超时（6s），继续执行");
+        } catch (Exception ex) {
+            Console.Error.WriteLine($"[HUB] 启动 jcchub.exe 失败: {ex.Message}");
+        }
+    }
+
+    private static async Task<bool> IsHubServerRunningAsync(string endpoint) {
+        try {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(1) };
+            var response = await client.GetAsync($"{endpoint}/health").ConfigureAwait(false);
+            return response.IsSuccessStatusCode;
+        } catch {
+            return false;
+        }
     }
 }
 

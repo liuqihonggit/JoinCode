@@ -6,6 +6,8 @@
   <Project Path="browser.tests/Browser.Tests.csproj" />
   <Project Path="dream/Dream.csproj" />
   <Project Path="dream.tests/Dream.Tests.csproj" />
+  <Project Path="hub/Hub.csproj" />
+  <Project Path="hub.tests/Hub.Tests.csproj" />
   <Project Path="update/Update.csproj" />
   <Project Path="sandbox_satellite/SandboxSatellite.csproj" />
 </Solution>

@@ -225,7 +225,8 @@ public sealed class EngineApplicationBuilder {
             }
         }
 
-        // 从服务端 /v1/models 获取可用模型列表
+        // 从服务端 /v1/models 获取可用模型列表，优先使用用户配置的模型
+        var configuredModel = settings?.GetActiveProfile()?.Model;
         try {
             using var modelClient = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
             var modelsResponse = await modelClient.GetAsync("http://localhost:3457/v1/models").ConfigureAwait(false);
@@ -233,13 +234,18 @@ public sealed class EngineApplicationBuilder {
                 var modelsJson = await modelsResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
                 var modelsData = RelaxedJsonSerializer.Deserialize(modelsJson, HubModelsJsonContext.Default.HubModelsResponse);
                 if (modelsData?.Data is not null && modelsData.Data.Count > 0) {
-                    var firstModel = modelsData.Data[0];
-                    config = config with { Provider = config.Provider with { ModelId = firstModel.Id } };
-                    Diag.WriteLine($"[HUB] 从服务端获取 {modelsData.Data.Count} 个模型，默认使用: {firstModel.Id}");
+                    var selectedModel = SelectHubModel(modelsData.Data, configuredModel);
+                    config = config with { Provider = config.Provider with { ModelId = selectedModel.Id } };
+                    Diag.WriteLine($"[HUB] 从服务端获取 {modelsData.Data.Count} 个模型，使用: {selectedModel.Id} (provider={selectedModel.Provider})");
                 }
             }
         } catch (Exception ex) {
-            Diag.WriteLine($"[HUB] 从服务端获取模型列表失败(失败): {ex.Message}");
+            Diag.WriteLine($"[HUB] 从服务端获取模型列表失败: {ex.Message}");
+            // 兜底：使用配置的模型名（即使无法验证是否可用）
+            if (!string.IsNullOrEmpty(configuredModel)) {
+                config = config with { Provider = config.Provider with { ModelId = configuredModel } };
+                Diag.WriteLine($"[HUB] 服务端不可达，使用配置的模型: {configuredModel}");
+            }
         }
 
         // 加载规则文件
@@ -269,6 +275,22 @@ public sealed class EngineApplicationBuilder {
         } catch {
             return false;
         }
+    }
+
+    /// <summary>
+    /// 从服务端返回的模型列表中选择模型 — 优先使用用户配置的模型
+    /// </summary>
+    private static HubModelInfo SelectHubModel(List<HubModelInfo> availableModels, string? configuredModel) {
+        if (!string.IsNullOrEmpty(configuredModel)) {
+            var match = availableModels.FirstOrDefault(m =>
+                string.Equals(m.Id, configuredModel, StringComparison.OrdinalIgnoreCase));
+            if (match is not null) {
+                Diag.WriteLine($"[HUB] 配置的模型 {configuredModel} 在可用列表中，使用它");
+                return match;
+            }
+            Diag.WriteLine($"[HUB] 配置的模型 {configuredModel} 不在可用列表中，使用第一个可用模型: {availableModels[0].Id}");
+        }
+        return availableModels[0];
     }
 
     private static Entry.DotEnvConfig? _dotEnvCache;

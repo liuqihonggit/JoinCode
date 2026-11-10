@@ -223,8 +223,12 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
                 break;
 
             default:
-                context.Response.StatusCode = 404;
-                await WriteJsonResponseAsync(context.Response, new HubErrorResponse { Error = "Not found" }).ConfigureAwait(false);
+                if (path.StartsWith("/agent/messages/", StringComparison.Ordinal)) {
+                    await HandleAgentMessagesSseAsync(context, path, cancellationToken).ConfigureAwait(false);
+                } else {
+                    context.Response.StatusCode = 404;
+                    await WriteJsonResponseAsync(context.Response, new HubErrorResponse { Error = "Not found" }).ConfigureAwait(false);
+                }
                 break;
         }
     }
@@ -418,6 +422,45 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
             Status = targetAgentId is not null ? "delivered" : "no_agent",
             AgentId = targetAgentId
         }).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// SSE 端点 — 客户端通过 GET /agent/messages/{agentId} 接收来自其他 Agent 的消息流
+    /// </summary>
+    private async Task HandleAgentMessagesSseAsync(HttpListenerContext context, string path, CancellationToken cancellationToken) {
+        var agentId = path["/agent/messages/".Length..];
+
+        if (string.IsNullOrEmpty(agentId)) {
+            context.Response.StatusCode = 400;
+            await WriteJsonResponseAsync(context.Response, new HubErrorResponse { Error = "Agent ID required" }).ConfigureAwait(false);
+            return;
+        }
+
+        if (!_agentRegistry.IsRegistered(agentId)) {
+            context.Response.StatusCode = 404;
+            await WriteJsonResponseAsync(context.Response, new HubErrorResponse { Error = "Agent not registered" }).ConfigureAwait(false);
+            return;
+        }
+
+        context.Response.ContentType = "text/event-stream";
+        context.Response.Headers["Cache-Control"] = "no-cache";
+        context.Response.Headers["Connection"] = "keep-alive";
+
+        try {
+            await foreach (var message in _agentRegistry.ReceiveAsync(agentId, cancellationToken).ConfigureAwait(false)) {
+                var json = JsonSerializer.Serialize(message, HubServerJsonContext.Default.AgentMessageRequest);
+                var sseData = $"data: {json}\n\n";
+                var buffer = Encoding.UTF8.GetBytes(sseData);
+                await context.Response.OutputStream.WriteAsync(buffer, cancellationToken).ConfigureAwait(false);
+                await context.Response.OutputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+            }
+        } catch (OperationCanceledException) {
+            // 客户端断开连接
+        } catch (Exception ex) {
+            _logger?.LogError(ex, "[AgentHubServer] SSE 消息流异常: {AgentId}", agentId);
+        }
+
+        try { context.Response.Close(); } catch (Exception ex) { _logger?.LogDebug("[AgentHubServer] SSE 关闭响应异常: {Message}", ex.Message); }
     }
 
     private static async Task<string> ReadRequestBodyAsync(HttpListenerRequest request, CancellationToken cancellationToken) {

@@ -6,7 +6,7 @@ namespace Core.Agents.Coordinator;
 internal sealed class TeamMessageDispatcher {
     private readonly TeamRegistry _registry;
     private readonly ITeammateMailboxService? _mailboxService;
-    private readonly MailboxHub? _mailboxHub;
+    private readonly IMailboxHub? _mailboxHub;
     private readonly ILogger? _logger;
 
     /// <summary>
@@ -16,7 +16,7 @@ internal sealed class TeamMessageDispatcher {
     /// <param name="mailboxService">可选的文件邮箱服务</param>
     /// <param name="mailboxHub">可选的邮箱中枢</param>
     /// <param name="logger">可选日志记录器</param>
-    public TeamMessageDispatcher(TeamRegistry registry, ITeammateMailboxService? mailboxService, MailboxHub? mailboxHub, ILogger? logger) {
+    public TeamMessageDispatcher(TeamRegistry registry, ITeammateMailboxService? mailboxService, IMailboxHub? mailboxHub, ILogger? logger) {
         _registry = registry;
         _mailboxService = mailboxService;
         _mailboxHub = mailboxHub;

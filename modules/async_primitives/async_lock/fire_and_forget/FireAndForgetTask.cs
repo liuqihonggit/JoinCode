@@ -42,7 +42,7 @@ public sealed class FireAndForgetTask<T> : IFireAndForgetTask, IAsyncDisposable 
     }
 
     /// <summary>启动 fire-and-forget 任务（有返回值）</summary>
-    /// <param name="factory">异步工厂委托，接收 CancellationToken</param>
+    /// <param name="factory">异步工厂委托，接收 CancellationToken。<b>必须响应 Cancel token</b>，否则 DisposeAsync 会无限等待</param>
     /// <param name="name">任务名称（用于诊断日志）</param>
     /// <param name="onError">异常回调（默认 null = 静默吞异常）</param>
     public static FireAndForgetTask<T> Run(Func<CancellationToken, Task<T>> factory, string? name = null, Action<Exception>? onError = null) {
@@ -51,7 +51,7 @@ public sealed class FireAndForgetTask<T> : IFireAndForgetTask, IAsyncDisposable 
     }
 
     /// <summary>启动 fire-and-forget 任务（无返回值）</summary>
-    /// <param name="factory">异步工厂委托，接收 CancellationToken</param>
+    /// <param name="factory">异步工厂委托，接收 CancellationToken。<b>必须响应 Cancel token</b>，否则 DisposeAsync 会无限等待</param>
     /// <param name="name">任务名称（用于诊断日志）</param>
     /// <param name="onError">异常回调（默认 null = 静默吞异常）</param>
     public static FireAndForgetTask<Unit> Run(Func<CancellationToken, Task> factory, string? name = null, Action<Exception>? onError = null) {
@@ -80,6 +80,8 @@ public sealed class FireAndForgetTask<T> : IFireAndForgetTask, IAsyncDisposable 
     }
 
     /// <summary>正常释放 — Cancel + 等待完成（强度 2：释放时等待）</summary>
+    /// <remarks>factory 必须响应 CancellationToken，否则此方法会无限等待。
+    /// 如需有限等待窗口，使用 <see cref="DisposeAsync(TimeSpan)"/>。</remarks>
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _cts?.Cancel();
@@ -94,6 +96,9 @@ public sealed class FireAndForgetTask<T> : IFireAndForgetTask, IAsyncDisposable 
 
     /// <summary>梯度释放 — Cancel + 有限等待窗口，超时放弃等待（强度 2+：紧急释放）</summary>
     /// <param name="gracePeriod">等待窗口；Zero = 不等待，Infinite = 无限等</param>
+    /// <remarks>超时后放弃等待但<b>不 Dispose CTS</b> — CTS 随 GC 回收。
+    /// 这样 task 可继续使用已 Cancel 的 CTS.Token（Cancel 后的 token 仍可用），
+    /// 不会因 CTS 被 Dispose 而抛 ObjectDisposedException。</remarks>
     public async ValueTask DisposeAsync(TimeSpan gracePeriod) {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _cts?.Cancel();
@@ -113,7 +118,7 @@ public sealed class FireAndForgetTask<T> : IFireAndForgetTask, IAsyncDisposable 
             } catch (Exception ex) {
                 _onError?.Invoke(ex);
             }
+            _cts?.Dispose();
         }
-        _cts?.Dispose();
     }
 }

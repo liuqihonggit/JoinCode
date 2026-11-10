@@ -94,6 +94,9 @@ class Program {
             // 检测端口 3457 是否有服务在运行，没有则 Process.Start 拉起 jcchub.exe
             await EnsureHubServerAsync().ConfigureAwait(false);
 
+            // ADR 0155: 注册当前 jcc 实例到 Hub 服务端，启动心跳+消息接收
+            await using var hubAgent = await RegisterHubAgentAsync().ConfigureAwait(false);
+
             // ADR 0149: 默认(非非交互)→ TUI, 非交互(-p)→ NonInteractiveModeRunner
             // TUI 分支: NativeTui.Host 自己组装引擎(EngineSession.CreateAsync),跳过 CreateCliSessionAsync 避免重复组装
             if (!options.IsNonInteractiveMode) {
@@ -621,6 +624,30 @@ class Program {
             }
         }
         return null;
+    }
+
+    /// <summary>
+    /// ADR 0155: 注册当前 jcc 实例到 Hub 服务端 — 自动注册+心跳+SSE消息接收。
+    /// 退出时通过 DisposeAsync 自动注销。
+    /// </summary>
+    private static async Task<Api.Chat.HubAgentClient?> RegisterHubAgentAsync() {
+        try {
+            using var healthClient = new HttpClient { Timeout = TimeSpan.FromSeconds(1) };
+            var healthResponse = await healthClient.GetAsync("http://localhost:3457/health").ConfigureAwait(false);
+            if (!healthResponse.IsSuccessStatusCode) return null;
+
+            var agentId = Api.Chat.HubAgentClient.GenerateAgentId();
+            var agent = new Api.Chat.HubAgentClient(agentId, capabilities: []);
+            var registered = await agent.RegisterAsync().ConfigureAwait(false);
+            if (!registered) return null;
+
+            agent.StartBackgroundTasks();
+            Console.Error.WriteLine($"[HUB] Agent 已注册: {agentId}");
+            return agent;
+        } catch (Exception ex) {
+            Console.Error.WriteLine($"[HUB] Agent 注册失败: {ex.Message}");
+            return null;
+        }
     }
 
     /// <summary>

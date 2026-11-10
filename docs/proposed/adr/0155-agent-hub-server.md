@@ -74,17 +74,54 @@
 | `/agents` | GET | 已注册 Agent 列表 |
 | `/v1/models` | GET | 可用模型列表（兼容 OpenAI 格式） |
 | `/v1/chat/completions` | POST | LLM 请求转发（流式/非流式） |
-| `/agent/register` | POST | Agent 注册 |
+| `/agent/register` | POST | Agent 注册（含能力标签） |
 | `/agent/unregister` | POST | Agent 注销 |
+| `/agent/heartbeat` | POST | Agent 心跳（更新最后活跃时间） |
 | `/agent/message` | POST | Agent 间消息转发（定向/广播） |
+| `/agent/route` | POST | 按能力路由消息（负载均衡） |
+| `/agent/messages/{agentId}` | GET | SSE 流 — 客户端实时接收发给自己的消息 |
+
+### Agent 生命周期管理
+
+客户端 jcc.exe 与服务端 jcchub.exe 的完整交互链路：
+
+```
+jcc.exe 启动
+  ├── EnsureHubServerAsync() — 检测/拉起 jcchub.exe
+  ├── POST /agent/register — 注册自身（AgentId + 能力标签）
+  ├── GET /agent/messages/{agentId} — 建立 SSE 连接接收消息
+  ├── 每 30s POST /agent/heartbeat — 定期心跳
+  └── jcc.exe 退出
+      └── POST /agent/unregister — 自动注销
+```
+
+**心跳与超时注销**：
+- 客户端每 30 秒发送一次心跳
+- 服务端 AgentRegistry 后台定时扫描（每 60 秒）
+- 超过 90 秒未收到心跳的 Agent 自动注销（3 次心跳间隔的容忍）
+- 注销时关闭该 Agent 的消息 Channel 和 SSE 连接
+
+**SSE 消息接收**：
+- 客户端通过 `GET /agent/messages/{agentId}` 建立 SSE 长连接
+- 服务端将投递到该 Agent 邮箱的消息通过 SSE 推送
+- SSE 事件格式：`data: {json}\n\n`
+- 连接断开后客户端自动重连
+
+**AgentId 生成**：
+- 格式：`jcc-{PID}-{短GUID}`（如 `jcc-12345-a1b2c3`）
+- 保证唯一性，便于调试时关联进程
 
 ### 启动机制
 
 1. jcc.exe 启动 → `EnsureHubServerAsync()` 检测端口 3457
 2. 端口无响应 → `Process.Start("jcchub.exe")` 拉起独立进程
 3. 等待服务就绪（最多 6s，30 次 × 200ms health check）
-4. `LoadHubConfigAsync()` 构造 Hub 协议 WorkflowConfig（跳过 Provider 配置）
-5. jcc 实例通过 `HubQueryService` 发送 LLM 请求到 `http://localhost:3457`
+4. `POST /agent/register` — 注册当前 jcc 实例（AgentId + 能力标签）
+5. `GET /agent/messages/{agentId}` — 建立 SSE 连接接收消息
+6. 启动心跳定时器（每 30s POST /agent/heartbeat）
+7. `LoadHubConfigAsync()` 构造 Hub 协议 WorkflowConfig（跳过 Provider 配置）
+8. jcc 实例通过 `HubQueryService` 发送 LLM 请求到 `http://localhost:3457`
+9. jcc.exe 退出时 `POST /agent/unregister` — 自动注销
 
 ### 模型配置
 
@@ -100,6 +137,9 @@
 3. **独立命令显式启动** — 否决：用户选择随首个 jcc 自动拉起
 4. **jcc.exe 进程内线程** — 否决：用户要求独立 exe 进程，进程级隔离
 5. **环境变量控制端口** — 否决：用户要求一切默认，不需要变量控制
+6. **轮询接收消息（非 SSE）** — 否决：轮询延迟高且浪费资源，SSE 长连接实时性好
+7. **WebSocket 接收消息** — 否决：HttpListener 不原生支持 WebSocket，SSE 更简单且足够
+8. **固定能力标签（硬编码）** — 否决：能力标签应从配置/参数获取，支持灵活扩展
 
 ## 影响
 
@@ -107,9 +147,14 @@
 - 新增 `HubQueryService` 实现 `IQueryService`
 - 新增 `jcchub.exe` 独立可执行项目（`Hub.csproj` 改为 Exe）
 - 新增 `LoadHubConfigAsync` Hub 模式简化配置加载
+- 新增 `/agent/heartbeat` 端点 — 心跳保活
+- 新增 `/agent/messages/{agentId}` SSE 端点 — 实时消息推送
+- 新增 `AgentInfo.LastHeartbeatAt` 字段 — 心跳时间追踪
+- 新增 `AgentRegistry` 后台超时扫描 — 自动注销失联 Agent
+- 新增客户端 `HubAgentClient` — 注册/注销/心跳/SSE消息接收
 - 修改 `NonInteractiveApiKeyCheckStep` — Hub 协议跳过 API Key 检查
 - 修改 `EngineApplicationBuilder.LoadConfigAsync` — Hub 服务可用时走简化路径
-- 修改 jcc.exe `Program.cs` — `EnsureHubServerAsync` 拉起 jcchub.exe
+- 修改 jcc.exe `Program.cs` — `EnsureHubServerAsync` 拉起 jcchub.exe + 注册/注销/心跳
 - 从 `JoinCode.csproj` 移除 Hub 项目引用（客户端不再直接依赖 Hub 代码）
 - 移除 `AgentHubBootstrap`（逻辑移到 jcchub.exe Program.cs）
 - 移除 `JCC_HUB_PORT` 环境变量（固定端口 3457）

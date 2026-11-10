@@ -220,4 +220,36 @@ public class AgentRegistryTests {
         var all = registry.GetAll();
         all[0].PendingMessages.Should().Be(1);
     }
+
+    [Fact]
+    public void UpdateHeartbeat_UpdatesLastHeartbeatAt() {
+        var registry = new AgentRegistry();
+        registry.Register("agent-1");
+        var beforeHeartbeat = registry.GetAll()[0].LastHeartbeatAt;
+
+        var result = registry.UpdateHeartbeat("agent-1");
+
+        result.Should().BeTrue();
+        var afterHeartbeat = registry.GetAll()[0].LastHeartbeatAt;
+        afterHeartbeat.Should().BeOnOrAfter(beforeHeartbeat);
+    }
+
+    [Fact]
+    public void UpdateHeartbeat_UnregisteredAgent_ReturnsFalse() {
+        var registry = new AgentRegistry();
+
+        var result = registry.UpdateHeartbeat("nonexistent");
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Register_SetsLastHeartbeatAtToConnectedAt() {
+        var registry = new AgentRegistry();
+        registry.Register("agent-1");
+
+        var all = registry.GetAll();
+        all[0].LastHeartbeatAt.Should().BeCloseTo(all[0].ConnectedAt, TimeSpan.FromSeconds(1));
+        await Task.CompletedTask;
+    }
 }

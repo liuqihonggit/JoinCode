@@ -23,6 +23,13 @@ public sealed class AgentUnregisterRequest {
     public string AgentId { get; init; } = string.Empty;
 }
 
+/// <summary>Agent 心跳请求 DTO。</summary>
+public sealed class AgentHeartbeatRequest {
+    /// <summary>Agent 标识符。</summary>
+    [JsonPropertyName("agent_id")]
+    public string AgentId { get; init; } = string.Empty;
+}
+
 /// <summary>Agent 间消息转发请求 DTO。</summary>
 public sealed class AgentMessageRequest {
     /// <summary>发送方 Agent 标识符。</summary>

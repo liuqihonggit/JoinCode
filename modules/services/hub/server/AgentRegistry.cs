@@ -5,6 +5,9 @@ public sealed partial class AgentRegistry {
     private readonly ConcurrentDictionary<string, AgentInfo> _agents = new();
     private readonly ConcurrentDictionary<string, Channel<AgentMessageRequest>> _mailboxes = new();
     private readonly ILogger? _logger;
+    private readonly TimeSpan _heartbeatTimeout = TimeSpan.FromSeconds(90);
+    private readonly TimeSpan _scanInterval = TimeSpan.FromSeconds(60);
+    private Timer? _heartbeatScanner;
 
     /// <summary>获取已注册 Agent 数量。</summary>
     public int Count => _agents.Count;
@@ -13,6 +16,7 @@ public sealed partial class AgentRegistry {
     /// <param name="logger">日志记录器（可选）。</param>
     public AgentRegistry(ILogger? logger = null) {
         _logger = logger;
+        StartHeartbeatScanner();
     }
 
     /// <summary>注册 Agent。</summary>
@@ -20,10 +24,12 @@ public sealed partial class AgentRegistry {
     /// <param name="sessionId">会话标识符（可选）。</param>
     /// <param name="capabilities">能力标签列表（可选，用于按能力路由）。</param>
     public void Register(string agentId, string? sessionId = null, List<string>? capabilities = null) {
+        var now = DateTimeOffset.UtcNow;
         var info = new AgentInfo {
             AgentId = agentId,
             SessionId = sessionId,
-            ConnectedAt = DateTimeOffset.UtcNow,
+            ConnectedAt = now,
+            LastHeartbeatAt = now,
             Capabilities = capabilities ?? [],
             PendingMessages = 0
         };
@@ -113,9 +119,40 @@ public sealed partial class AgentRegistry {
         return channel.Reader.ReadAllAsync(ct);
     }
 
+    /// <summary>更新 Agent 心跳时间。</summary>
+    /// <param name="agentId">Agent 标识符。</param>
+    /// <returns>心跳更新成功返回 true，Agent 不存在返回 false。</returns>
+    public bool UpdateHeartbeat(string agentId) {
+        if (!_agents.TryGetValue(agentId, out var info)) {
+            return false;
+        }
+        _agents[agentId] = info with { LastHeartbeatAt = DateTimeOffset.UtcNow };
+        return true;
+    }
+
+    /// <summary>启动后台心跳超时扫描器。</summary>
+    private void StartHeartbeatScanner() {
+        _heartbeatScanner = new Timer(_ => ScanTimeoutAgents(), null, _scanInterval, _scanInterval);
+    }
+
+    /// <summary>扫描并注销心跳超时的 Agent。</summary>
+    internal void ScanTimeoutAgents() {
+        var now = DateTimeOffset.UtcNow;
+        var timeoutAgents = _agents.Values
+            .Where(a => now - a.LastHeartbeatAt > _heartbeatTimeout)
+            .Select(a => a.AgentId)
+            .ToList();
+
+        foreach (var agentId in timeoutAgents) {
+            _logger?.LogWarning("[AgentRegistry] Agent 心跳超时，自动注销: {AgentId}", agentId);
+            Unregister(agentId);
+        }
+    }
+
     /// <summary>关闭所有 Agent 连接。</summary>
     /// <param name="ct">取消令牌。</param>
     public async Task CloseAllAsync(CancellationToken ct) {
+        _heartbeatScanner?.Dispose();
         foreach (var (agentId, channel) in _mailboxes) {
             channel.Writer.TryComplete();
         }
@@ -138,6 +175,10 @@ public sealed record AgentInfo {
     /// <summary>连接时间。</summary>
     [JsonPropertyName("connected_at")]
     public DateTimeOffset ConnectedAt { get; init; }
+
+    /// <summary>最后心跳时间。</summary>
+    [JsonPropertyName("last_heartbeat_at")]
+    public DateTimeOffset LastHeartbeatAt { get; init; }
 
     /// <summary>能力标签列表（用于按能力路由）。</summary>
     [JsonPropertyName("capabilities")]

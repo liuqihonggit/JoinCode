@@ -214,6 +214,10 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
                 await HandleAgentUnregisterAsync(context, cancellationToken).ConfigureAwait(false);
                 break;
 
+            case "/agent/heartbeat":
+                await HandleAgentHeartbeatAsync(context, cancellationToken).ConfigureAwait(false);
+                break;
+
             case "/agent/message":
                 await HandleAgentMessageAsync(context, cancellationToken).ConfigureAwait(false);
                 break;
@@ -424,21 +428,32 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
         }).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// SSE 端点 — 客户端通过 GET /agent/messages/{agentId} 接收来自其他 Agent 的消息流
-    /// </summary>
-    private async Task HandleAgentMessagesSseAsync(HttpListenerContext context, string path, CancellationToken cancellationToken) {
-        var agentId = path["/agent/messages/".Length..];
+    private async Task HandleAgentHeartbeatAsync(HttpListenerContext context, CancellationToken cancellationToken) {
+        var body = await ReadRequestBodyAsync(context.Request, cancellationToken).ConfigureAwait(false);
+        var heartbeatRequest = RelaxedJsonSerializer.Deserialize(body, HubServerJsonContext.Default.AgentHeartbeatRequest);
 
-        if (string.IsNullOrEmpty(agentId)) {
+        if (heartbeatRequest == null || string.IsNullOrEmpty(heartbeatRequest.AgentId)) {
             context.Response.StatusCode = 400;
-            await WriteJsonResponseAsync(context.Response, new HubErrorResponse { Error = "Agent ID required" }).ConfigureAwait(false);
+            await WriteJsonResponseAsync(context.Response, new HubErrorResponse { Error = "AgentId required" }).ConfigureAwait(false);
             return;
         }
 
-        if (!_agentRegistry.IsRegistered(agentId)) {
+        var updated = _agentRegistry.UpdateHeartbeat(heartbeatRequest.AgentId);
+        if (!updated) {
             context.Response.StatusCode = 404;
-            await WriteJsonResponseAsync(context.Response, new HubErrorResponse { Error = "Agent not registered" }).ConfigureAwait(false);
+            await WriteJsonResponseAsync(context.Response, new HubErrorResponse { Error = "Agent not found" }).ConfigureAwait(false);
+            return;
+        }
+
+        await WriteJsonResponseAsync(context.Response, new HubStatusResponse { Status = "ok" }).ConfigureAwait(false);
+    }
+
+    private async Task HandleAgentMessagesSseAsync(HttpListenerContext context, string path, CancellationToken cancellationToken) {
+        var agentId = path["/agent/messages/".Length..];
+
+        if (string.IsNullOrEmpty(agentId) || !_agentRegistry.IsRegistered(agentId)) {
+            context.Response.StatusCode = 404;
+            await WriteJsonResponseAsync(context.Response, new HubErrorResponse { Error = "Agent not found" }).ConfigureAwait(false);
             return;
         }
 
@@ -455,12 +470,15 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
                 await context.Response.OutputStream.FlushAsync(cancellationToken).ConfigureAwait(false);
             }
         } catch (OperationCanceledException) {
-            // 客户端断开连接
-        } catch (Exception ex) {
-            _logger?.LogError(ex, "[AgentHubServer] SSE 消息流异常: {AgentId}", agentId);
+        } catch (HttpListenerException ex) {
+            _logger?.LogDebug(ex, "[AgentHubServer] SSE 连接关闭");
         }
 
-        try { context.Response.Close(); } catch (Exception ex) { _logger?.LogDebug("[AgentHubServer] SSE 关闭响应异常: {Message}", ex.Message); }
+        try {
+            context.Response.Close();
+        } catch (ObjectDisposedException ex) {
+            _logger?.LogDebug(ex, "[AgentHubServer] SSE Response 已关闭");
+        }
     }
 
     private static async Task<string> ReadRequestBodyAsync(HttpListenerRequest request, CancellationToken cancellationToken) {

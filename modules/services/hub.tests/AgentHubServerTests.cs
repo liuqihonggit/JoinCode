@@ -285,6 +285,48 @@ public class AgentHubServerTests : IAsyncDisposable {
         content.Should().Contain("provider-b");
     }
 
+    [Fact]
+    public async Task AgentHeartbeat_UpdatesHeartbeatForRegisteredAgent() {
+        await StartTestServerAsync();
+
+        using var client = new HttpClient();
+        await client.PostAsync(
+            $"http://localhost:{_port}/agent/register",
+            new StringContent("""{"agent_id":"agent-1"}""", Encoding.UTF8, "application/json"));
+
+        using var hbResponse = await client.PostAsync(
+            $"http://localhost:{_port}/agent/heartbeat",
+            new StringContent("""{"agent_id":"agent-1"}""", Encoding.UTF8, "application/json"));
+
+        hbResponse.IsSuccessStatusCode.Should().BeTrue();
+        var content = await hbResponse.Content.ReadAsStringAsync();
+        content.Should().Contain("ok");
+    }
+
+    [Fact]
+    public async Task AgentHeartbeat_UnregisteredAgent_Returns404() {
+        await StartTestServerAsync();
+
+        using var client = new HttpClient();
+        using var response = await client.PostAsync(
+            $"http://localhost:{_port}/agent/heartbeat",
+            new StringContent("""{"agent_id":"nonexistent"}""", Encoding.UTF8, "application/json"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task AgentHeartbeat_EmptyAgentId_Returns400() {
+        await StartTestServerAsync();
+
+        using var client = new HttpClient();
+        using var response = await client.PostAsync(
+            $"http://localhost:{_port}/agent/heartbeat",
+            new StringContent("""{"agent_id":""}""", Encoding.UTF8, "application/json"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 

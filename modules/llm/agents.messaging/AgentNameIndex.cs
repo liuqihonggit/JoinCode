@@ -6,7 +6,7 @@ namespace Core.Agents.Coordinator.Core.Messaging;
 /// 注销时仅移除属于该 agentId 的键（同名子代理不误删）
 /// </summary>
 [Register(typeof(IAgentNameIndex), ServiceLifetime.Singleton)]
-internal sealed class AgentNameIndex : IAgentNameIndex {
+public sealed class AgentNameIndex : IAgentNameIndex {
     private volatile ImmutableHamT<string, string> _index = ImmutableHamT<string, string>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>

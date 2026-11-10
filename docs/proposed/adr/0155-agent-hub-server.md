@@ -79,7 +79,8 @@
 | `/agent/heartbeat` | POST | Agent 心跳（更新最后活跃时间） |
 | `/agent/message` | POST | Agent 间消息转发（定向/广播） |
 | `/agent/route` | POST | 按能力路由消息（负载均衡） |
-| `/agent/messages/{agentId}` | GET | SSE 流 — 客户端实时接收发给自己的消息 |
+| `/agent/messages/{agentId}` | GET | SSE 流 — 客户端实时接收发给自己的消息（默认） |
+| TCP :3458 | TCP | TCP 长连接 — SSE 3次失败后自动降级的消息接收通道 |
 
 ### Agent 生命周期管理
 
@@ -101,11 +102,12 @@ jcc.exe 启动
 - 超过 90 秒未收到心跳的 Agent 自动注销（3 次心跳间隔的容忍）
 - 注销时关闭该 Agent 的消息 Channel 和 SSE 连接
 
-**SSE 消息接收**：
-- 客户端通过 `GET /agent/messages/{agentId}` 建立 SSE 长连接
-- 服务端将投递到该 Agent 邮箱的消息通过 SSE 推送
-- SSE 事件格式：`data: {json}\n\n`
-- 连接断开后客户端自动重连
+**SSE 消息接收 + TCP 自动降级**：
+- 客户端默认通过 `GET /agent/messages/{agentId}` 建立 SSE 长连接接收消息
+- SSE 连续 3 次连接失败（超时/HTTP错误），自动降级到 TCP 长连接
+- TCP 端口 3458，协议：客户端连接→发送 `AgentId\n`→服务端验证→推送 `[4字节大端长度][JSON消息体]`
+- 降级自动进行，无需用户配置开关 — 适应受限网络环境（沙箱/防火墙/代理）
+- SSE 和 TCP 双端点在服务端同时运行
 
 **AgentId 生成**：
 - 格式：`jcc-{PID}-{短GUID}`（如 `jcc-12345-a1b2c3`）
@@ -137,9 +139,11 @@ jcc.exe 启动
 3. **独立命令显式启动** — 否决：用户选择随首个 jcc 自动拉起
 4. **jcc.exe 进程内线程** — 否决：用户要求独立 exe 进程，进程级隔离
 5. **环境变量控制端口** — 否决：用户要求一切默认，不需要变量控制
-6. **轮询接收消息（非 SSE）** — 否决：轮询延迟高且浪费资源，SSE 长连接实时性好
-7. **WebSocket 接收消息** — 否决：HttpListener 不原生支持 WebSocket，SSE 更简单且足够
-8. **固定能力标签（硬编码）** — 否决：能力标签应从配置/参数获取，支持灵活扩展
+7. **轮询接收消息（非 SSE）** — 否决：轮询延迟高且浪费资源，SSE 长连接实时性好
+8. **WebSocket 接收消息** — 否决：HttpListener 不原生支持 WebSocket，SSE 更简单且足够
+9. **固定能力标签（硬编码）** — 否决：能力标签应从配置/参数获取，支持灵活扩展
+10. **手动开关切换 SSE/TCP7** — 否决：用户不应需要配置传输模式，自动降级更优雅
+11. **只用 TCP 不用 SSE** — 否决：SSE 在正常环境中更简单且 HTTP 兼容，TCP 作为降级备用
 
 ## 影响
 

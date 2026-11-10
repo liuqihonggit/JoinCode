@@ -10,8 +10,13 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
     private readonly AgentRegistry _agentRegistry = new();
     private volatile Dictionary<string, HttpClient> _providerClients = new();
     private Task? _listenerTask;
+    private Task? _tcpListenerTask;
+    private readonly TcpListener? _tcpListener;
     private volatile bool _running;
     private int _disposed;
+
+    /// <summary>TCP 消息推送端口（SSE 降级备用）。</summary>
+    public int TcpPort { get; }
 
     /// <summary>获取服务器监听端口。</summary>
     public int Port { get; }
@@ -40,9 +45,11 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
         _providerRegistry = providerRegistry ?? throw new ArgumentNullException(nameof(providerRegistry));
         _logger = logger;
         Port = port;
+        TcpPort = port + 1;
         _cts = new CancellationTokenSource();
         _httpListener = new HttpListener();
         _httpListener.Prefixes.Add($"http://{host}:{port}/");
+        _tcpListener = new TcpListener(IPAddress.Loopback, TcpPort);
     }
 
     /// <summary>启动服务器。</summary>
@@ -58,6 +65,11 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
         _logger?.LogInformation("[AgentHubServer] 服务器已启动，端口: {Port}", Port);
 
         _listenerTask = Task.Run(ListenAsync);
+        if (_tcpListener is not null) {
+            _tcpListener.Start();
+            _tcpListenerTask = Task.Run(TcpListenAsync);
+            _logger?.LogInformation("[AgentHubServer] TCP 消息端口已启动: {TcpPort}", TcpPort);
+        }
     }
 
     /// <summary>停止服务器。</summary>
@@ -67,12 +79,18 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
         _running = false;
 
         _httpListener.Stop();
+        _tcpListener?.Stop();
 
         await _agentRegistry.CloseAllAsync(cancellationToken).ConfigureAwait(false);
 
         if (_listenerTask != null) {
             await _listenerTask.ConfigureAwait(false);
             _listenerTask = null;
+        }
+
+        if (_tcpListenerTask != null) {
+            try { await _tcpListenerTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
+            _tcpListenerTask = null;
         }
 
         foreach (var client in _providerClients.Values) {
@@ -170,6 +188,52 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
         }
 
         return string.Empty;
+    }
+
+    private async Task TcpListenAsync() {
+        if (_tcpListener is null) return;
+        while (!_cts.Token.IsCancellationRequested) {
+            try {
+                var tcpClient = await _tcpListener.AcceptTcpClientAsync(_cts.Token).ConfigureAwait(false);
+                _ = HandleTcpClientAsync(tcpClient, _cts.Token);
+            } catch (OperationCanceledException) {
+                break;
+            } catch (Exception ex) {
+                _logger?.LogError(ex, "[AgentHubServer] TCP Accept 异常");
+            }
+        }
+    }
+
+    private async Task HandleTcpClientAsync(TcpClient tcpClient, CancellationToken cancellationToken) {
+        using var client = tcpClient;
+        try {
+            using var stream = client.GetStream();
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            using var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+
+            var agentIdLine = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(agentIdLine) || !_agentRegistry.IsRegistered(agentIdLine)) {
+                await writer.WriteLineAsync("ERROR: agent not found").ConfigureAwait(false);
+                return;
+            }
+
+            await writer.WriteLineAsync("OK").ConfigureAwait(false);
+            _logger?.LogInformation("[AgentHubServer] TCP 连接: {AgentId}", agentIdLine);
+
+            await foreach (var message in _agentRegistry.ReceiveAsync(agentIdLine, cancellationToken).ConfigureAwait(false)) {
+                var json = JsonSerializer.Serialize(message, HubServerJsonContext.Default.AgentMessageRequest);
+                var jsonBytes = Encoding.UTF8.GetBytes(json);
+                var lengthPrefix = BitConverter.GetBytes(jsonBytes.Length);
+                if (BitConverter.IsLittleEndian) {
+                    Array.Reverse(lengthPrefix);
+                }
+                await stream.WriteAsync(lengthPrefix, cancellationToken).ConfigureAwait(false);
+                await stream.WriteAsync(jsonBytes, cancellationToken).ConfigureAwait(false);
+            }
+        } catch (OperationCanceledException) {
+        } catch (Exception ex) {
+            _logger?.LogDebug(ex, "[AgentHubServer] TCP 连接关闭");
+        }
     }
 
     private async Task ListenAsync() {
@@ -520,11 +584,17 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
             _cts.Cancel();
             _running = false;
             _httpListener.Stop();
+            _tcpListener?.Stop();
         }
 
         if (_listenerTask != null) {
             try { await _listenerTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
             _listenerTask = null;
+        }
+
+        if (_tcpListenerTask != null) {
+            try { await _tcpListenerTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
+            _tcpListenerTask = null;
         }
 
         await _agentRegistry.CloseAllAsync(CancellationToken.None).ConfigureAwait(false);

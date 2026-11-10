@@ -44,11 +44,138 @@ public class McpInitModuleTests
         McpInitModule.HandleRefreshError(new InvalidOperationException("y"), null);
     }
 
+    /// <summary>--json-schema 参数不存在时不注册工具（直接 return，不调用 RegisterToolAsync）。</summary>
+    [Fact]
+    public async Task RegisterSyntheticOutputToolAsync_NoJsonSchema_DoesNotRegister()
+    {
+        var toolRegistry = new Mock<IToolRegistry>();
+        var services = new ServiceCollection()
+            .AddSingleton(new CommandLineOptions())
+            .AddSingleton(toolRegistry.Object)
+            .BuildServiceProvider();
+        var logger = new SpyLogger();
+
+        await McpInitModule.RegisterSyntheticOutputToolAsync(services, logger, CancellationToken.None);
+
+        toolRegistry.Verify(
+            r => r.RegisterToolAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<ToolSchema>(),
+                It.IsAny<ToolHandler>(), It.IsAny<CancellationToken>(),
+                It.IsAny<ToolKind>(), It.IsAny<string?>(), It.IsAny<ToolTimeoutPolicy?>(), It.IsAny<string?>()),
+            Times.Never,
+            "无 --json-schema 参数时不应注册工具");
+        Assert.Empty(logger.ErrorCalls);
+    }
+
+    /// <summary>Schema 验证失败时不注册工具，记 Error 日志。</summary>
+    [Fact]
+    public async Task RegisterSyntheticOutputToolAsync_SchemaValidationFails_DoesNotRegister()
+    {
+        var validator = new Mock<IJsonSchemaValidator>();
+        validator.Setup(v => v.ValidateSchema(It.IsAny<string>()))
+            .Returns(new SchemaValidationResult {
+                IsValid = false,
+                Errors = [new ValidationError { Path = "$", Message = "Invalid type" }]
+            });
+        var toolRegistry = new Mock<IToolRegistry>();
+        var options = new CommandLineOptions { JsonSchema = """{"type":"invalid"}""" };
+        var services = new ServiceCollection()
+            .AddSingleton(options)
+            .AddSingleton(toolRegistry.Object)
+            .AddSingleton(validator.Object)
+            .BuildServiceProvider();
+        var logger = new SpyLogger();
+
+        await McpInitModule.RegisterSyntheticOutputToolAsync(services, logger, CancellationToken.None);
+
+        toolRegistry.Verify(
+            r => r.RegisterToolAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<ToolSchema>(),
+                It.IsAny<ToolHandler>(), It.IsAny<CancellationToken>(),
+                It.IsAny<ToolKind>(), It.IsAny<string?>(), It.IsAny<ToolTimeoutPolicy?>(), It.IsAny<string?>()),
+            Times.Never,
+            "Schema 验证失败时不应注册工具");
+        Assert.Contains(logger.ErrorCalls, c => c.Contains("JSON Schema 验证失败"));
+    }
+
+    /// <summary>Schema 验证通过时注册工具到 IToolRegistry。</summary>
+    [Fact]
+    public async Task RegisterSyntheticOutputToolAsync_SchemaValid_RegistersTool()
+    {
+        var validator = new Mock<IJsonSchemaValidator>();
+        validator.Setup(v => v.ValidateSchema(It.IsAny<string>()))
+            .Returns(new SchemaValidationResult { IsValid = true });
+        var toolRegistry = new Mock<IToolRegistry>();
+        toolRegistry.Setup(r => r.RegisterToolAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<ToolSchema>(),
+                It.IsAny<ToolHandler>(), It.IsAny<CancellationToken>(),
+                It.IsAny<ToolKind>(), It.IsAny<string?>(), It.IsAny<ToolTimeoutPolicy?>(), It.IsAny<string?>()))
+            .Returns(Task.CompletedTask)
+            .Verifiable();
+        var options = new CommandLineOptions { JsonSchema = """{"type":"object","properties":{"name":{"type":"string"}}}""" };
+        var services = new ServiceCollection()
+            .AddSingleton(options)
+            .AddSingleton(toolRegistry.Object)
+            .AddSingleton(validator.Object)
+            .BuildServiceProvider();
+        var logger = new SpyLogger();
+
+        await McpInitModule.RegisterSyntheticOutputToolAsync(services, logger, CancellationToken.None);
+
+        toolRegistry.Verify();
+        Assert.Contains(logger.InformationCalls, c => c.Contains("合成工具已注册"));
+    }
+
+    /// <summary>注册过程异常时记日志不崩溃（catch 兜底，Error 级日志）。</summary>
+    [Fact]
+    public async Task RegisterSyntheticOutputToolAsync_Exception_LogsAndDoesNotCrash()
+    {
+        var validator = new Mock<IJsonSchemaValidator>();
+        validator.Setup(v => v.ValidateSchema(It.IsAny<string>()))
+            .Returns(new SchemaValidationResult { IsValid = true });
+        var toolRegistry = new Mock<IToolRegistry>();
+        toolRegistry.Setup(r => r.RegisterToolAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<ToolSchema>(),
+                It.IsAny<ToolHandler>(), It.IsAny<CancellationToken>(),
+                It.IsAny<ToolKind>(), It.IsAny<string?>(), It.IsAny<ToolTimeoutPolicy?>(), It.IsAny<string?>()))
+            .ThrowsAsync(new InvalidOperationException("注册表已锁定"));
+        var options = new CommandLineOptions { JsonSchema = """{"type":"object"}""" };
+        var services = new ServiceCollection()
+            .AddSingleton(options)
+            .AddSingleton(toolRegistry.Object)
+            .AddSingleton(validator.Object)
+            .BuildServiceProvider();
+        var logger = new SpyLogger();
+
+        await McpInitModule.RegisterSyntheticOutputToolAsync(services, logger, CancellationToken.None);
+
+        Assert.Contains(logger.ErrorCalls, c => c.Contains("合成工具注册失败"));
+    }
+
+    /// <summary>BuildSyntheticOutputSchema 正确构建含 input 属性的 ToolSchema，Required 包含 "input"。</summary>
+    [Fact]
+    public void BuildSyntheticOutputSchema_ReturnsCorrectSchema()
+    {
+        var schemaJson = """{"type":"object","properties":{"name":{"type":"string"}}}""";
+
+        var toolSchema = McpInitModule.BuildSyntheticOutputSchema(schemaJson);
+
+        Assert.Equal("object", toolSchema.Type);
+        Assert.Single(toolSchema.Properties);
+        Assert.True(toolSchema.Properties.ContainsKey("input"));
+        Assert.Equal("string", toolSchema.Properties["input"].Type);
+        var description = toolSchema.Properties["input"].Description;
+        Assert.NotNull(description);
+        Assert.Contains(schemaJson, description);
+        Assert.Contains("input", toolSchema.Required);
+    }
+
     /// <summary>记录型 logger 假体 — 按级别分桶捕获消息。</summary>
     private sealed class SpyLogger : ILogger<McpInitModule>
     {
         public List<string> ErrorCalls { get; } = [];
         public List<string> DebugCalls { get; } = [];
+        public List<string> InformationCalls { get; } = [];
 
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
         public bool IsEnabled(LogLevel logLevel) => true;
@@ -58,6 +185,7 @@ public class McpInitModuleTests
             var message = formatter(state, exception);
             if (logLevel == LogLevel.Error) ErrorCalls.Add(message);
             if (logLevel == LogLevel.Debug) DebugCalls.Add(message);
+            if (logLevel == LogLevel.Information) InformationCalls.Add(message);
         }
     }
 }

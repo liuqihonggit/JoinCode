@@ -336,7 +336,7 @@ public sealed class SessionController {
     /// 应用 Complete 类型 chunk 的汇总字段到本回合状态（num_turns/cost/api_duration/stop_reason）。
     /// 提取为方法消除 JCC1009 if 嵌套过深（foreach → if → if → if 三层）。
     /// </summary>
-    private void ApplyCompletionChunk(AgentStreamChunk chunk) {
+    internal void ApplyCompletionChunk(AgentStreamChunk chunk) {
         if (chunk.TotalTurns > 0)
             _totalTurns = chunk.TotalTurns;
         _lastCostUsd = chunk.CostUsd;

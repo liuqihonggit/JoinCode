@@ -417,7 +417,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime {
             bgResult.State.Should().Be(ForkState.Running);
 
             var secondForkCompleted = false;
-            _ = Task.Run(async () => {
+            _ = FireAndForgetTask<Core.Utils.Unit>.Run(async ct => {
                 try {
                     await manager.ForkAsync(new ForkOptions {
                         ParentSessionId = "parent-sync",
@@ -427,7 +427,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime {
                 } catch (System.TimeoutException ex) {
                     Console.WriteLine($"[Retry] 第二个 fork 锁超时(预期,后台仍持有): {ex.Message}");
                 }
-            });
+            }, "second-fork-attempt");
 
             await WaitUntilAsync(() => manager.InputCount == 0, TimeSpan.FromMilliseconds(500));
             await Task.Delay(500);

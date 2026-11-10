@@ -11,11 +11,12 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     private readonly ILogger? _logger;
     private readonly AgentStateMachine _stateMachine;
     private readonly IToolLifecycleKiller? _toolLifecycleKiller;
+    private readonly IAgentFactory _agentFactory;
     private ImmutableHamT<string, AgentEntry> _entries = ImmutableHamT<string, AgentEntry>.Empty;
     private readonly SubAgentLivenessOptions? _livenessOptions;
     private int _agentCounter;
 
-    private sealed record AgentEntry(AgentBase Agent, SubAgentResult? Result = null);
+    private sealed record AgentEntry(IAgent Agent, SubAgentResult? Result = null);
 
     /// <summary>暴露给同程序集内部使用的状态机引用，用于直接查询或驱动状态转换</summary>
     internal AgentStateMachine StateMachine => _stateMachine;
@@ -28,18 +29,21 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// </summary>
     /// <param name="queryEngine">查询引擎，用于创建子代理</param>
     /// <param name="stateMachine">Agent 状态机，负责跟踪各 Agent 的执行状态</param>
+    /// <param name="agentFactory">Agent 工厂，用于创建 Agent 实例</param>
     /// <param name="logger">可选日志记录器</param>
     /// <param name="livenessOptions">卡死防护配置（L1 超时 + L2 检测参数），null=使用默认值</param>
     /// <param name="toolLifecycleKiller">工具生命周期杀手（ADR 0152，取消/销毁 agent 时杀死其 bash 子进程防孤儿，可选）</param>
     public AgentLifecycleManager(
         IQueryEngine queryEngine,
         AgentStateMachine stateMachine,
+        IAgentFactory agentFactory,
         ILogger? logger = null,
         SubAgentLivenessOptions? livenessOptions = null,
         IToolLifecycleKiller? toolLifecycleKiller = null) {
         _queryEngine = queryEngine ?? throw new ArgumentNullException(nameof(queryEngine));
         _logger = logger;
         _stateMachine = stateMachine;
+        _agentFactory = agentFactory ?? throw new ArgumentNullException(nameof(agentFactory));
         _livenessOptions = livenessOptions;
         _toolLifecycleKiller = toolLifecycleKiller;
     }
@@ -48,7 +52,7 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// 原子添加新 agent 条目 — 无锁 CAS 循环
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void AddEntry(string agentId, AgentBase agent) {
+    private void AddEntry(string agentId, IAgent agent) {
         while (true) {
             var current = _entries;
             var updated = current.Add(agentId, new AgentEntry(agent));
@@ -78,7 +82,7 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
             var counter = Interlocked.Increment(ref _agentCounter);
             customUniqueId = $"{parentSessionId}-sub-{counter:D2}";
         }
-        var agent = AgentFactory.Create(
+        var agent = _agentFactory.Create(
             task,
             options,
             _queryEngine,
@@ -252,7 +256,7 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// 释放Agent资源 — 直接 Dispose + 杀死工具子进程（对齐 ClaudeCode，无回池复用）
     /// </summary>
     public async Task DisposeAgentAsync(string agentId, CancellationToken cancellationToken = default) {
-        AgentBase? agent = null;
+        IAgent? agent = null;
         while (true) {
             var current = _entries;
             if (!current.TryGetValue(agentId, out var entry)) break;

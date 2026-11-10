@@ -1,4 +1,4 @@
-namespace Core.Agents.Coordinator;
+namespace JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
 /// Agent执行上下文 - 跟踪Agent的执行状态和元数据
@@ -43,7 +43,7 @@ public sealed record AgentExecutionContext {
     /// <summary>
     /// 执行模式
     /// </summary>
-    public ExecutionMode ExecutionMode { get; init; } = ExecutionMode.Single;
+    public AgentExecutionMode ExecutionMode { get; init; } = AgentExecutionMode.Single;
 }
 
 /// <summary>
@@ -64,9 +64,9 @@ public enum AgentOutcome {
 }
 
 /// <summary>
-/// 执行模式
+/// Agent 执行模式
 /// </summary>
-public enum ExecutionMode {
+public enum AgentExecutionMode {
     /// <summary>
     /// 单Agent执行
     /// </summary>

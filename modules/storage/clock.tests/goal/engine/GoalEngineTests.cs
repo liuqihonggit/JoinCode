@@ -20,6 +20,11 @@ public sealed class GoalEngineTests {
             .Setup(sp => sp.GetService(It.Is<Type>(t => t == typeof(IAgentService))))
             .Returns(agentService.Object);
 
+        var agentFactory = new Core.Agents.Coordinator.AgentFactory();
+        serviceProvider
+            .Setup(sp => sp.GetService(It.Is<Type>(t => t == typeof(IAgentFactory))))
+            .Returns(agentFactory);
+
         return (kernel, evaluator, serviceProvider);
     }
 
@@ -51,6 +56,11 @@ public sealed class GoalEngineTests {
         serviceProvider
             .Setup(sp => sp.GetService(It.Is<Type>(t => t == typeof(IAgentService))))
             .Returns(agentService.Object);
+
+        var agentFactory = new Core.Agents.Coordinator.AgentFactory();
+        serviceProvider
+            .Setup(sp => sp.GetService(It.Is<Type>(t => t == typeof(IAgentFactory))))
+            .Returns(agentFactory);
 
         return (kernel, evaluator, serviceProvider);
     }

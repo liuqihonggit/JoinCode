@@ -965,7 +965,13 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             return;
         }
 
-        var mainAgent = Core.Agents.Coordinator.AgentFactory.Create(
+        var agentFactory = _serviceProvider.GetService<IAgentFactory>();
+        if (agentFactory is null) {
+            _logger?.LogWarning("[GoalEngine] IAgentFactory 未注入，无法创建 mainAgent，Goal={GoalId}", goalId);
+            return;
+        }
+
+        var mainAgent = agentFactory.Create(
             task: objective,
             options: new SubAgentOptions { DisplayName = "mainAgent", Role = AgentRole.Coordinator },
             queryEngine: queryEngine,
@@ -997,7 +1003,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             }
         }
 
-        _logger?.LogInformation("[GoalEngine] mainAgent 创建并注册到 SessionScope: {AgentId}, Goal={GoalId}", mainAgent.Id, goalId);
+        _logger?.LogInformation("[GoalEngine] mainAgent 创建并注册到 SessionScope: {AgentId}, Goal={GoalId}", mainAgent.ObjectId.UniqueId, goalId);
     }
 
     private async Task ConsumeCommandsAsync() {

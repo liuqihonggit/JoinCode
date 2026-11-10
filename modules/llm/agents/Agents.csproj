@@ -32,6 +32,10 @@
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Agents.Configuration" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/llm/agents.worktree.pipeline/Agents.Worktree.Pipeline.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Agents.Worktree.Pipeline" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/llm/agents.spawn/Agents.Spawn.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Agents.Spawn" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/llm/agents.services.support/Agents.Services.Support.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Agents.Services.Support" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
 
   <ItemGroup>

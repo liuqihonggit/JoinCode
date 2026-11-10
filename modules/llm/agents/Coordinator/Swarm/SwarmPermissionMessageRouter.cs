@@ -3,7 +3,7 @@ namespace Core.Agents.Coordinator;
 
 /// <summary>Swarm 权限消息路由器 — 在邮箱与权限回调服务/请求处理器之间路由权限消息，驱动权限审批流程</summary>
 [Register(typeof(SwarmPermissionMessageRouter), ServiceLifetime.Singleton)]
-public sealed partial class SwarmPermissionMessageRouter : ServiceEntity {
+public sealed partial class SwarmPermissionMessageRouter : ServiceEntity, ISwarmPermissionMessageRouter {
     private readonly IMailbox _messageBroker;
     private readonly ISwarmPermissionCallbackHandler _callbackService;
     private readonly ISwarmPermissionRequestProcessor _requestProcessor;

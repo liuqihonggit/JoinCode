@@ -1,4 +1,3 @@
-
 namespace Core.Agents.Coordinator;
 
 /// <summary>
@@ -6,12 +5,13 @@ namespace Core.Agents.Coordinator;
 /// 所有子代理都是 AgentBase 实例，通过 SubAgentOptions.AllowedTools/DeniedTools 过滤工具集
 /// variant 只影响系统提示词，不影响管道
 /// </summary>
-public static class AgentFactory {
+[Register(typeof(IAgentFactory), ServiceLifetime.Singleton)]
+public sealed class AgentFactory : IAgentFactory {
     /// <summary>
     /// 创建 AgentBase 实例 — 主代理和子代理走同一个类、同一条管道
     /// 工具集通过 SubAgentOptions.AllowedTools/DeniedTools 过滤
     /// </summary>
-    public static AgentBase Create(
+    public IAgent Create(
         string task,
         SubAgentOptions? options,
         IQueryEngine queryEngine,

@@ -14,7 +14,7 @@ public sealed class AgentLifecycleManagerSubSessionIdTests {
             .Returns(Array.Empty<QueryStreamChunk>().ToAsyncEnumerable());
 
         var stateMachine = new AgentStateMachine();
-        await using var manager = new AgentLifecycleManager(queryEngineMock.Object, stateMachine);
+        await using var manager = new AgentLifecycleManager(queryEngineMock.Object, stateMachine, new AgentFactory());
 
         const string parentSessionId = "20260822-1512-myproject-w2";
 
@@ -32,7 +32,7 @@ public sealed class AgentLifecycleManagerSubSessionIdTests {
             .Returns(Array.Empty<QueryStreamChunk>().ToAsyncEnumerable());
 
         var stateMachine = new AgentStateMachine();
-        await using var manager = new AgentLifecycleManager(queryEngineMock.Object, stateMachine);
+        await using var manager = new AgentLifecycleManager(queryEngineMock.Object, stateMachine, new AgentFactory());
 
         var agent = await manager.SpawnSubAgentAsync("test task").ConfigureAwait(true);
 
@@ -48,7 +48,7 @@ public sealed class AgentLifecycleManagerSubSessionIdTests {
             .Returns(Array.Empty<QueryStreamChunk>().ToAsyncEnumerable());
 
         var stateMachine = new AgentStateMachine();
-        await using var manager = new AgentLifecycleManager(queryEngineMock.Object, stateMachine);
+        await using var manager = new AgentLifecycleManager(queryEngineMock.Object, stateMachine, new AgentFactory());
 
         const string parentSessionId = "20260822-1512-myproject-w2";
 

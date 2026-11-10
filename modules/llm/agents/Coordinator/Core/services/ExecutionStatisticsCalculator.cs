@@ -40,8 +40,8 @@ internal static class ExecutionStatisticsCalculator {
             CancelledAgents = contexts.Count(c => c.Outcome == AgentOutcome.Cancelled),
             TotalRetries = contexts.Sum(c => c.RetryCount),
             AverageExecutionTimeMs = CalculateAverageExecutionTime(contexts),
-            ParallelExecutions = contexts.Count(c => c.ExecutionMode == ExecutionMode.Parallel),
-            SequentialExecutions = contexts.Count(c => c.ExecutionMode == ExecutionMode.Sequential)
+            ParallelExecutions = contexts.Count(c => c.ExecutionMode == AgentExecutionMode.Parallel),
+            SequentialExecutions = contexts.Count(c => c.ExecutionMode == AgentExecutionMode.Sequential)
         };
     }
 }

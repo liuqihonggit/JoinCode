@@ -398,7 +398,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         _logger?.LogInformation("[AgentCoordinator] 并行执行 {Count} 个Agent", agentList.Count);
 
         foreach (var agent in agentList) {
-            UpdateExecutionContext(agent.ObjectId.UniqueId, ctx => ctx with { ExecutionMode = ExecutionMode.Parallel });
+            UpdateExecutionContext(agent.ObjectId.UniqueId, ctx => ctx with { ExecutionMode = AgentExecutionMode.Parallel });
         }
 
         return await _executionEngine.ExecuteParallelAsync(agentList, options, clusterOptions, cancellationToken).ConfigureAwait(false);
@@ -417,7 +417,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         _logger?.LogInformation("[AgentCoordinator] 串行执行 {Count} 个Agent", agentList.Count);
 
         foreach (var agent in agentList) {
-            UpdateExecutionContext(agent.ObjectId.UniqueId, ctx => ctx with { ExecutionMode = ExecutionMode.Sequential });
+            UpdateExecutionContext(agent.ObjectId.UniqueId, ctx => ctx with { ExecutionMode = AgentExecutionMode.Sequential });
         }
 
         return await _executionEngine.ExecuteSequentialAsync(agentList, cancellationToken).ConfigureAwait(false);

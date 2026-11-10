@@ -74,8 +74,9 @@ public sealed class FileStateGuardNode {
         if (lastWriteMs <= readState.TimestampMs + 1000) // 1s 容忍
             return null;
 
-        // 对齐 TS FileWriteTool.ts L286-289: 部分读无法做内容兜底（缓存内容不是全量），直接拒绝
-        if (readState.IsPartialView)
+        // 对齐 TS FileEditTool.ts L296-301: isFullRead = offset===undefined && limit===undefined
+        // 部分读（有 offset/limit）不走内容兜底（缓存内容不是全量），直接拒绝
+        if (readState.Offset.HasValue || readState.Limit.HasValue)
             return new StaleWriteDetection(lastWriteMs, readState.TimestampMs);
 
         // 时间戳显示已修改，但 Windows 上云同步/杀毒等会改时间戳而不改内容，比对内容兜底

@@ -56,6 +56,7 @@
     <Project Path="../../modules/llm/agents.core/Agents.Core.csproj" />
     <Project Path="../../modules/llm/agents.configuration/Agents.Configuration.csproj" />
     <Project Path="../../modules/llm/agents.worktree.pipeline/Agents.Worktree.Pipeline.csproj" />
+    <Project Path="../../modules/llm/agents.spawn/Agents.Spawn.csproj" />
     <Project Path="../../modules/llm/agents/Agents.csproj" />
     <Project Path="../../modules/llm/agents.output/Agents.Output.csproj" />
     <Project Path="../../modules/llm/reasoning/Reasoning.csproj" />

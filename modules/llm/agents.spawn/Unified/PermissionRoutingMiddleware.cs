@@ -11,7 +11,7 @@ public sealed partial class PermissionRoutingMiddleware : ServiceEntity, IUnifie
     /// <summary>
     /// 构造 PermissionRoutingMiddleware 实例，注入消息代理、子代理上下文访问器、日志器及可选路由器
     /// </summary>
-    public PermissionRoutingMiddleware(IMailbox messageBroker, ISubAgentContextAccessor subAgentContextAccessor, ILogger<PermissionRoutingMiddleware> logger, SwarmPermissionMessageRouter? permissionRouter = null, PlanApprovalMessageRouter? planApprovalRouter = null) {
+    public PermissionRoutingMiddleware(IMailbox messageBroker, ISubAgentContextAccessor subAgentContextAccessor, ILogger<PermissionRoutingMiddleware> logger, ISwarmPermissionMessageRouter? permissionRouter = null, IPlanApprovalMessageRouter? planApprovalRouter = null) {
         _messageBroker = messageBroker;
         _subAgentContextAccessor = subAgentContextAccessor;
         _logger = logger;
@@ -21,8 +21,8 @@ public sealed partial class PermissionRoutingMiddleware : ServiceEntity, IUnifie
     private readonly IMailbox _messageBroker;
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly ILogger<PermissionRoutingMiddleware> _logger;
-    private readonly SwarmPermissionMessageRouter? _permissionRouter;
-    private readonly PlanApprovalMessageRouter? _planApprovalRouter;
+    private readonly ISwarmPermissionMessageRouter? _permissionRouter;
+    private readonly IPlanApprovalMessageRouter? _planApprovalRouter;
 
     /// <summary>中间件错误处理策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;

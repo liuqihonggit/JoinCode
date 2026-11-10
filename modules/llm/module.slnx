@@ -8,6 +8,7 @@
   <Project Path="agents.core/Agents.Core.csproj" />
   <Project Path="agents.configuration/Agents.Configuration.csproj" />
   <Project Path="agents.worktree.pipeline/Agents.Worktree.Pipeline.csproj" />
+  <Project Path="agents.spawn/Agents.Spawn.csproj" />
   <Project Path="agents/Agents.csproj" />
   <Project Path="agents.output/Agents.Output.csproj" />
   <Project Path="agents.tests/Agents.Tests.csproj" />

@@ -48,15 +48,15 @@ public class McpTcpServerAuthTests {
         var server = new McpServer("test");
         var port = GetFreePort();
         await using var tcpServer = new McpTcpServer(server, "localhost", port);
-        using var cts = new CancellationTokenSource();
-        _ = Task.Run(() => tcpServer.RunAsync(cts.Token));
+        var fireTask = FireAndForgetTask<Unit>.Run(
+            ct => tcpServer.RunAsync(ct), "McpTcpServer-auth-test");
         try {
             await Task.Delay(300);
             var (statusCode, _) = await SendRawAsync(port, null);
             statusCode.Should().Be(401);
         } finally {
-            cts.Cancel();
             tcpServer.Stop();
+            await fireTask.DisposeAsync();
         }
     }
 
@@ -65,15 +65,15 @@ public class McpTcpServerAuthTests {
         var server = new McpServer("test");
         var port = GetFreePort();
         await using var tcpServer = new McpTcpServer(server, "localhost", port);
-        using var cts = new CancellationTokenSource();
-        _ = Task.Run(() => tcpServer.RunAsync(cts.Token));
+        var fireTask = FireAndForgetTask<Unit>.Run(
+            ct => tcpServer.RunAsync(ct), "McpTcpServer-auth-test");
         try {
             await Task.Delay(300);
             var (statusCode, _) = await SendRawAsync(port, $"Authorization: Bearer {tcpServer.AuthToken.Value}");
             statusCode.Should().Be(200);
         } finally {
-            cts.Cancel();
             tcpServer.Stop();
+            await fireTask.DisposeAsync();
         }
     }
 
@@ -82,15 +82,15 @@ public class McpTcpServerAuthTests {
         var server = new McpServer("test");
         var port = GetFreePort();
         await using var tcpServer = new McpTcpServer(server, "localhost", port);
-        using var cts = new CancellationTokenSource();
-        _ = Task.Run(() => tcpServer.RunAsync(cts.Token));
+        var fireTask = FireAndForgetTask<Unit>.Run(
+            ct => tcpServer.RunAsync(ct), "McpTcpServer-auth-test");
         try {
             await Task.Delay(300);
             var (statusCode, _) = await SendRawAsync(port, $"Mcp-Token: {tcpServer.AuthToken.Value}");
             statusCode.Should().Be(200);
         } finally {
-            cts.Cancel();
             tcpServer.Stop();
+            await fireTask.DisposeAsync();
         }
     }
 

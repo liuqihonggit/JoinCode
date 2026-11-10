@@ -1,3 +1,4 @@
+global using Core.Utils;
 global using FluentAssertions;
 global using Infrastructure.Http;
 global using Infrastructure.IO;

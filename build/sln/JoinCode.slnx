@@ -68,6 +68,7 @@
     <Project Path="../../modules/llm/agents.spawn/Agents.Spawn.csproj" />
     <Project Path="../../modules/llm/agents.services.support/Agents.Services.Support.csproj" />
     <Project Path="../../modules/llm/agents.swarm/Agents.Swarm.csproj" />
+    <Project Path="../../modules/llm/agents.messaging/Agents.Messaging.csproj" />
     <Project Path="../../modules/llm/agents/Agents.csproj" />
     <Project Path="../../modules/llm/agents.output/Agents.Output.csproj" />
     <Project Path="../../modules/llm/agents.tests/Agents.Tests.csproj" />

@@ -81,7 +81,7 @@ internal sealed class AgentMessageRouteLoop : IAgentMessageRouteLoop
 /// AgentMessageRouteLoop 工厂实现 — 通过 DI 注入，解耦 Swarm 对具体类的依赖
 /// </summary>
 [Register(typeof(IAgentMessageRouteLoopFactory), ServiceLifetime.Singleton)]
-internal sealed class AgentMessageRouteLoopFactory : IAgentMessageRouteLoopFactory {
+public sealed class AgentMessageRouteLoopFactory : IAgentMessageRouteLoopFactory {
     /// <summary>创建路由循环实例（不自动启动 — 调用方负责 Start）</summary>
     public IAgentMessageRouteLoop Create(
         IMailbox broker,

@@ -14,7 +14,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     private readonly ChatRoomViewBuilder _chatRoomViewBuilder;
     private readonly ITelemetryService? _telemetryService;
     private readonly ITeammateMailboxService? _mailboxService;
-    private readonly MailboxHub? _mailboxHub;
+    private readonly IMailboxHub? _mailboxHub;
     private readonly IServiceProvider? _serviceProvider;
     private readonly IClockService _clock;
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
@@ -40,7 +40,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     /// <param name="subAgentContextAccessor">子智能体上下文访问器</param>
     /// <param name="logger">日志记录器</param>
     /// <param name="fileSystem">文件系统（提供则启用持久化）</param>
-    public TeamManager(IClockService clock, ITelemetryService? telemetryService = null, ITeammateMailboxService? mailboxService = null, MailboxHub? mailboxHub = null, IServiceProvider? serviceProvider = null, ISubAgentContextAccessor? subAgentContextAccessor = null, ILogger<TeamManager>? logger = null, IFileSystem? fileSystem = null) {
+    public TeamManager(IClockService clock, ITelemetryService? telemetryService = null, ITeammateMailboxService? mailboxService = null, IMailboxHub? mailboxHub = null, IServiceProvider? serviceProvider = null, ISubAgentContextAccessor? subAgentContextAccessor = null, ILogger<TeamManager>? logger = null, IFileSystem? fileSystem = null) {
 
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _telemetryService = telemetryService;

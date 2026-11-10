@@ -8,7 +8,8 @@ namespace Core.Agents.Coordinator;
 /// <para>跨通道广播：<see cref="BroadcastAsync(CoordinatorMessage, CancellationToken)"/> 向所有已注册通道广播。</para>
 /// </summary>
 [Register(typeof(MailboxHub), ServiceLifetime.Singleton)]
-public sealed partial class MailboxHub {
+[Register(typeof(IMailboxHub), ServiceLifetime.Singleton)]
+public sealed partial class MailboxHub : IMailboxHub {
     private readonly IMailbox _inProcess;
     private readonly ITeammateMailboxService? _fileMailbox;
     private volatile ImmutableHamT<MailboxKind, MailboxBase<CoordinatorMessage>> _extraChannels = ImmutableHamT<MailboxKind, MailboxBase<CoordinatorMessage>>.Empty;
@@ -232,6 +233,10 @@ public sealed partial class MailboxHub {
             break;
         }
     }
+
+    /// <summary>IMailboxHub 显式实现 — 简化注册（默认 InProcess 通道）</summary>
+    ValueTask IMailboxHub.RegisterAgentAsync(string agentId, string? sessionId, CancellationToken ct)
+        => RegisterAgentAsync(agentId, MailboxKind.InProcess, sessionId, ChatRoomRole.Member, ct);
 
     /// <summary>
     /// 注册 agent 到进程内邮箱（遗留同步重载 — InProcess 通道，同步注册）。

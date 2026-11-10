@@ -12,7 +12,8 @@ public sealed record AgentServiceDependencies(
     JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? McpServerManager = null,
     JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? InputForwardQueue = null,
     JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? OutputChannelManager = null,
-    JoinCode.Abstractions.Interfaces.IAgentWorktreeManager? WorktreeManager = null);
+    JoinCode.Abstractions.Interfaces.IAgentWorktreeManager? WorktreeManager = null,
+    IAgentNameIndex? AgentNameIndex = null);
 
 /// <summary>
 /// Agent 服务实现 — 负责子代理的生成、执行、消息路由、进度跟踪与生命周期管理
@@ -50,7 +51,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     private readonly Infrastructure.Pipeline.MiddlewarePipeline<UnifiedSpawnContext> _spawnPipeline;
     private volatile ImmutableHamT<string, AgentRuntimeState> _runtimeStates = ImmutableHamT<string, AgentRuntimeState>.Empty;
     private readonly Coordinator.Core.Lifecycle.AgentStartTimer _agentStartTimer = new();
-    private readonly Coordinator.Core.Messaging.AgentNameIndex _agentNameIndex = new();
+    private readonly IAgentNameIndex _agentNameIndex;
     private readonly CancellationTokenSource _disposeCts = new();
     private readonly BackgroundTaskActor _backgroundTaskActor;
     private int _disposed;
@@ -83,6 +84,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         _mcpServerManager = deps?.McpServerManager;
         _worktreeManager = deps?.WorktreeManager;
         _notificationQueue = notificationQueue;
+        _agentNameIndex = deps?.AgentNameIndex ?? new Coordinator.Core.Messaging.AgentNameIndex();
         _logger = logger;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _clock = clock ?? SystemClockService.Instance;

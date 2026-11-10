@@ -5,13 +5,14 @@ namespace Core.Agents.Coordinator.Core.Messaging;
 /// 注册键: agentId、Name、Task(description)、DisplayName（均大小写不敏感）
 /// 注销时仅移除属于该 agentId 的键（同名子代理不误删）
 /// </summary>
-internal sealed class AgentNameIndex {
+[Register(typeof(IAgentNameIndex), ServiceLifetime.Singleton)]
+public sealed class AgentNameIndex : IAgentNameIndex {
     private volatile ImmutableHamT<string, string> _index = ImmutableHamT<string, string>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 注册子代理的多个名称键到 agentId
     /// </summary>
-    internal void Register(string agentId, string name, string task, string? displayName) {
+    public void Register(string agentId, string name, string task, string? displayName) {
         SetIndex(agentId, agentId);
         if (!string.IsNullOrEmpty(name))
             SetIndex(name, agentId);
@@ -24,7 +25,7 @@ internal sealed class AgentNameIndex {
     /// <summary>
     /// 注销子代理的名称键 — 仅移除属于该 agentId 的键
     /// </summary>
-    internal void Unregister(string agentId, string name, string task, string? displayName) {
+    public void Unregister(string agentId, string name, string task, string? displayName) {
         TryRemoveIndexIfMatch(agentId, agentId);
         if (!string.IsNullOrEmpty(name))
             TryRemoveIndexIfMatch(name, agentId);
@@ -37,7 +38,7 @@ internal sealed class AgentNameIndex {
     /// <summary>
     /// 按名称查找 agentId — O(1) 字典查找
     /// </summary>
-    internal string? Find(string name) {
+    public string? Find(string name) {
         return _index.TryGetValue(name, out var agentId) ? agentId : null;
     }
 

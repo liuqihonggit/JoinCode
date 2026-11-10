@@ -3,12 +3,12 @@ namespace Core.Hub.Server;
 
 public sealed partial class AgentHubServer : IAsyncDisposable {
     private readonly HttpListener _httpListener;
-    private readonly SettingsJson _settings;
-    private readonly IProviderDefinitionRegistry _providerRegistry;
+    private volatile SettingsJson _settings;
+    private volatile IProviderDefinitionRegistry _providerRegistry;
     private readonly ILogger<AgentHubServer>? _logger;
     private readonly CancellationTokenSource _cts;
     private readonly AgentRegistry _agentRegistry = new();
-    private readonly Dictionary<string, HttpClient> _providerClients = new();
+    private volatile Dictionary<string, HttpClient> _providerClients = new();
     private Task? _listenerTask;
     private volatile bool _running;
     private int _disposed;
@@ -84,6 +84,8 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
     }
 
     private void InitializeProviderClients() {
+        var newClients = new Dictionary<string, HttpClient>();
+
         foreach (var (providerName, profile) in _settings.Vendor) {
             if (string.IsNullOrEmpty(profile.Endpoint)) {
                 _logger?.LogWarning("[AgentHubServer] Provider '{Name}' 无 endpoint，跳过", providerName);
@@ -112,9 +114,39 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
                 }
             }
 
-            _providerClients[providerName] = client;
+            newClients[providerName] = client;
             _logger?.LogInformation("[AgentHubServer] 已注册 Provider: {Name} ({Protocol})", providerName, profile.Protocol);
         }
+
+        _providerClients = newClients;
+    }
+
+    /// <summary>
+    /// 热重载 Provider 配置 — 全量读取 settings.json + 重建 ProviderRegistry + 重建 HttpClient 字典，原子替换。
+    /// </summary>
+    /// <param name="ct">取消令牌。</param>
+    public async Task ReloadProvidersAsync(CancellationToken ct = default) {
+        _logger?.LogInformation("[AgentHubServer] 开始热重载 Provider 配置");
+
+        var fs = FileSystemFactory.Create();
+        var newSettings = await ConfigLoader.LoadSettingsJsonAsync(fs, ct).ConfigureAwait(false);
+        newSettings ??= new SettingsJson();
+
+        var newRegistry = ProviderDefinitionRegistry.Create(
+            new ModelConfigLoader(),
+            fs);
+
+        var oldClients = _providerClients;
+
+        _settings = newSettings;
+        _providerRegistry = newRegistry;
+        InitializeProviderClients();
+
+        foreach (var client in oldClients.Values) {
+            client.Dispose();
+        }
+
+        _logger?.LogInformation("[AgentHubServer] 热重载完成 — Providers: {Count}", _providerClients.Count);
     }
 
     private static string ResolveApiKey(ProfileSettings profile, IProviderDefinition? definition) {

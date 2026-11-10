@@ -189,10 +189,11 @@ public sealed partial class HubAgentClient : IAsyncDisposable {
             await tcpClient.ConnectAsync(IPAddress.Loopback, HubTcpPort, ct).ConfigureAwait(false);
 
             using var stream = tcpClient.GetStream();
-            using var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
-            using var reader = new StreamReader(stream, Encoding.UTF8);
+            var utf8NoBom = new UTF8Encoding(false);
+            var agentIdBytes = utf8NoBom.GetBytes(_agentId + "\n");
+            await stream.WriteAsync(agentIdBytes, ct).ConfigureAwait(false);
 
-            await writer.WriteLineAsync(_agentId).ConfigureAwait(false);
+            using var reader = new StreamReader(stream, utf8NoBom);
             var handshake = await reader.ReadLineAsync(ct).ConfigureAwait(false);
 
             if (handshake != "OK") {

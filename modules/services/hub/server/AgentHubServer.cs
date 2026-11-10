@@ -208,21 +208,23 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
         using var client = tcpClient;
         try {
             using var stream = client.GetStream();
-            using var reader = new StreamReader(stream, Encoding.UTF8);
-            using var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+            using var reader = new StreamReader(stream, new UTF8Encoding(false));
+            var newlineBytes = new UTF8Encoding(false).GetBytes("\n");
 
             var agentIdLine = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrEmpty(agentIdLine) || !_agentRegistry.IsRegistered(agentIdLine)) {
-                await writer.WriteLineAsync("ERROR: agent not found").ConfigureAwait(false);
+                var errorMsg = new UTF8Encoding(false).GetBytes("ERROR: agent not found\n");
+                await stream.WriteAsync(errorMsg, cancellationToken).ConfigureAwait(false);
                 return;
             }
 
-            await writer.WriteLineAsync("OK").ConfigureAwait(false);
+            var okMsg = new UTF8Encoding(false).GetBytes("OK\n");
+            await stream.WriteAsync(okMsg, cancellationToken).ConfigureAwait(false);
             _logger?.LogInformation("[AgentHubServer] TCP 连接: {AgentId}", agentIdLine);
 
             await foreach (var message in _agentRegistry.ReceiveAsync(agentIdLine, cancellationToken).ConfigureAwait(false)) {
                 var json = JsonSerializer.Serialize(message, HubServerJsonContext.Default.AgentMessageRequest);
-                var jsonBytes = Encoding.UTF8.GetBytes(json);
+                var jsonBytes = new UTF8Encoding(false).GetBytes(json);
                 var lengthPrefix = BitConverter.GetBytes(jsonBytes.Length);
                 if (BitConverter.IsLittleEndian) {
                     Array.Reverse(lengthPrefix);

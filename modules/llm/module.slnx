@@ -12,11 +12,11 @@
   <Project Path="agents.services.support/Agents.Services.Support.csproj" />
   <Project Path="agents.swarm/Agents.Swarm.csproj" />
   <Project Path="agents.messaging/Agents.Messaging.csproj" />
-    <Project Path="modules/llm/agents.discovery/Agents.Discovery.csproj" />
-    <Project Path="modules/llm/agents.dual_model/Agents.DualModel.csproj" />
-    <Project Path="modules/llm/agents.pipeline/Agents.Pipeline.csproj" />
-    <Project Path="modules/llm/agents.fork/Agents.Fork.csproj" />
-    <Project Path="modules/llm/agents.team/Agents.Team.csproj" />
+    <Project Path="agents.discovery/Agents.Discovery.csproj" />
+    <Project Path="agents.dual_model/Agents.DualModel.csproj" />
+    <Project Path="agents.pipeline/Agents.Pipeline.csproj" />
+    <Project Path="agents.fork/Agents.Fork.csproj" />
+    <Project Path="agents.team/Agents.Team.csproj" />
   <Project Path="agents/Agents.csproj" />
   <Project Path="agents.output/Agents.Output.csproj" />
   <Project Path="agents.tests/Agents.Tests.csproj" />

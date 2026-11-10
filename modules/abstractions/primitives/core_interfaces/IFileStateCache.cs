@@ -8,7 +8,7 @@ public interface IFileStateCache {
     /// <summary>
     /// Record that a file has been read at the given timestamp.
     /// </summary>
-    void RecordRead(string filePath, string content, long timestampMs, int? offset = null, int? limit = null);
+    void RecordRead(string filePath, string content, long timestampMs, int? offset = null, int? limit = null, bool isPartialView = false);
 
     /// <summary>
     /// Check if a file has been read.

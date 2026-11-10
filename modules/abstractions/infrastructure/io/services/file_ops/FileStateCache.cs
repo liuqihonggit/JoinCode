@@ -32,7 +32,8 @@ public sealed partial class FileStateCache : ServiceEntity, IFileStateCache {
     /// <param name="timestampMs">读取时间戳(毫秒)</param>
     /// <param name="offset">可选行偏移</param>
     /// <param name="limit">可选行限制</param>
-    public void RecordRead(string filePath, string content, long timestampMs, int? offset = null, int? limit = null) {
+    /// <param name="isPartialView">是否为部分视图（自动注入场景，内容与磁盘不一致）</param>
+    public void RecordRead(string filePath, string content, long timestampMs, int? offset = null, int? limit = null, bool isPartialView = false) {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         var normalizedPath = NormalizePath(filePath);
@@ -42,7 +43,7 @@ public sealed partial class FileStateCache : ServiceEntity, IFileStateCache {
             TimestampMs = timestampMs,
             Offset = offset,
             Limit = limit,
-            IsPartialView = offset.HasValue || limit.HasValue
+            IsPartialView = isPartialView
         };
 
         _cache.Set(normalizedPath, state);

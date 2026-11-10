@@ -102,22 +102,46 @@ public class WriteDefenseEndToEndTests {
     }
 
     /// <summary>
-    /// 部分读端到端：read with offset/limit → write 链路 → RequireReadBeforeWrite 拒绝（IsPartialView）。
+    /// 部分读端到端：read with offset/limit → write 链路 → 放行（对齐 TS FileEditTool.ts L276）。
+    /// TS 中普通 Read 带 offset/limit 不设置 isPartialView，只有自动注入文件才标记。
     /// </summary>
     [Fact]
-    public async Task E2E_PartialRead_DefenseRejectsNotRead() {
+    public async Task E2E_PartialRead_DefensePasses() {
         await using var fs = new PhysicalFileSystem();
         await using var cache = new FileStateCache();
         var filePath = Path.Combine(Path.GetTempPath(), $"e2e_partial_{Guid.NewGuid():N}.txt");
         try {
             await fs.WriteAllText(filePath, "line1\nline2\nline3\nline4\nline5");
             var readMs = new DateTimeOffset(fs.GetLastWriteTimeUtc(filePath)).ToUnixTimeMilliseconds();
-            cache.RecordRead(filePath, "line2\nline3", readMs - 10_000, offset: 2, limit: 2);
+            cache.RecordRead(filePath, "line2\nline3", readMs, offset: 2, limit: 2);
 
             var defense = CreateDefense(fs, cache);
             var (_, rejection) = await RunWriteDefenseAsync(defense, filePath, "new content");
 
-            Assert.NotNull(rejection); // 部分读，视为未读，拒绝
+            Assert.Null(rejection); // 部分读放行，对齐 TS
+        } finally {
+            if (fs.FileExists(filePath)) fs.DeleteFile(filePath);
+        }
+    }
+
+    /// <summary>
+    /// 自动注入文件（isPartialView=true）端到端：write 链路 → RequireReadBeforeWrite 拒绝。
+    /// 对齐 TS attachments.ts L1749: 自动注入内容与磁盘不一致时标记 isPartialView。
+    /// </summary>
+    [Fact]
+    public async Task E2E_AutoInjectedPartialView_DefenseRejectsNotRead() {
+        await using var fs = new PhysicalFileSystem();
+        await using var cache = new FileStateCache();
+        var filePath = Path.Combine(Path.GetTempPath(), $"e2e_autoinject_{Guid.NewGuid():N}.txt");
+        try {
+            await fs.WriteAllText(filePath, "full disk content");
+            var readMs = new DateTimeOffset(fs.GetLastWriteTimeUtc(filePath)).ToUnixTimeMilliseconds();
+            cache.RecordRead(filePath, "injected partial content", readMs - 10_000, isPartialView: true);
+
+            var defense = CreateDefense(fs, cache);
+            var (_, rejection) = await RunWriteDefenseAsync(defense, filePath, "new content");
+
+            Assert.NotNull(rejection); // 自动注入 partial view，拒绝
         } finally {
             if (fs.FileExists(filePath)) fs.DeleteFile(filePath);
         }

@@ -50,10 +50,11 @@ public class FileStateGuardNodeTests {
     }
 
     /// <summary>
-    /// 部分读（isPartialView）视为未读，对齐 TS FileWriteTool.ts L199 / FileEditTool.ts L276。
+    /// 自动注入文件（isPartialView=true）视为未读，对齐 TS FileWriteTool.ts L199 / FileEditTool.ts L276。
+    /// TS 中只有自动注入场景（attachments.ts L1749）才设置 isPartialView=true。
     /// </summary>
     [Fact]
-    public void HasBeenRead_PartialRead_ReturnsFalse() {
+    public void HasBeenRead_AutoInjectedPartialView_ReturnsFalse() {
         var filePath = CreateFile("test");
         var cache = new Mock<IFileStateCache>();
         cache.Setup(c => c.GetReadState(filePath)).Returns(PartialReadState("partial", 0));
@@ -62,6 +63,28 @@ public class FileStateGuardNodeTests {
         var result = node.HasBeenRead(filePath);
 
         Assert.False(result);
+    }
+
+    /// <summary>
+    /// 普通 Read 带 offset/limit 但 IsPartialView=false → 视为已读，对齐 TS FileEditTool.ts L276。
+    /// TS 中普通 Read 带 offset/limit 不设置 isPartialView，允许后续 edit。
+    /// </summary>
+    [Fact]
+    public void HasBeenRead_PartialReadWithoutIsPartialView_ReturnsTrue() {
+        var filePath = CreateFile("test");
+        var cache = new Mock<IFileStateCache>();
+        cache.Setup(c => c.GetReadState(filePath)).Returns(new FileReadState {
+            Content = "partial content",
+            TimestampMs = 0,
+            Offset = 2,
+            Limit = 2,
+            IsPartialView = false,
+        });
+        var node = new FileStateGuardNode(_fs, cache.Object);
+
+        var result = node.HasBeenRead(filePath);
+
+        Assert.True(result);
     }
 
     // === CheckStaleWriteAsync 短路 ===
@@ -150,18 +173,25 @@ public class FileStateGuardNodeTests {
     // === 边缘场景 ===
 
     /// <summary>
-    /// 边缘场景：部分读 + 时间戳变 → 直接拒绝，不进内容兜底。
-    /// 对齐 TS FileWriteTool.ts L286-289: 部分读缓存内容不是全量，无法比对，保守拒绝。
+    /// 边缘场景：部分读（有 offset/limit，IsPartialView=false）+ 时间戳变 → 拒绝，不进内容兜底。
+    /// 对齐 TS FileEditTool.ts L296-301: isFullRead = offset===undefined && limit===undefined，
+    /// 部分读不走内容兜底（缓存内容不是全量），保守拒绝。
     /// </summary>
     [Fact]
-    public async Task CheckStaleWriteAsync_PartialRead_TimestampNewer_ReturnsStale() {
+    public async Task CheckStaleWriteAsync_PartialReadByOffsetLimit_TimestampNewer_ReturnsStale() {
         const string fullContent = "line1\nline2\nline3\nline4\nline5";
         const string partialContent = "line2\nline3";
         var filePath = CreateFile(fullContent);
         var lastWriteMs = new DateTimeOffset(_fs.GetLastWriteTimeUtc(filePath)).ToUnixTimeMilliseconds();
 
         var cache = new Mock<IFileStateCache>();
-        cache.Setup(c => c.GetReadState(filePath)).Returns(PartialReadState(partialContent, lastWriteMs - 10_000));
+        cache.Setup(c => c.GetReadState(filePath)).Returns(new FileReadState {
+            Content = partialContent,
+            TimestampMs = lastWriteMs - 10_000,
+            Offset = 2,
+            Limit = 2,
+            IsPartialView = false,
+        });
         var node = new FileStateGuardNode(_fs, cache.Object);
 
         var result = await node.CheckStaleWriteAsync(filePath, CancellationToken.None);

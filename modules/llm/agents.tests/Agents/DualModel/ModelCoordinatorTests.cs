@@ -9,7 +9,7 @@ public sealed class ModelCoordinatorTests {
     public async Task PlanAsync_Success_ReturnsPlanResult() {
         var queryEngine = CreateMockQueryEngine("1. Read the file\n2. Fix the bug\n3. Add tests");
         var coordinator = new ModelCoordinator(
-            queryEngine, DefaultFastModelId, DefaultModelId);
+            queryEngine, CreateAgentFactory(), DefaultFastModelId, DefaultModelId);
 
         var result = await coordinator.PlanAsync("Fix the login bug", CancellationToken.None).ConfigureAwait(true);
 
@@ -22,7 +22,7 @@ public sealed class ModelCoordinatorTests {
     public async Task PlanAsync_NoOpPlan_ReturnsNoOpResult() {
         var queryEngine = CreateMockQueryEngine("no changes needed, already implemented");
         var coordinator = new ModelCoordinator(
-            queryEngine, DefaultFastModelId, DefaultModelId);
+            queryEngine, CreateAgentFactory(), DefaultFastModelId, DefaultModelId);
 
         var result = await coordinator.PlanAsync("Check if login works", CancellationToken.None).ConfigureAwait(true);
 
@@ -34,7 +34,7 @@ public sealed class ModelCoordinatorTests {
     public async Task ExecuteAsync_Success_ReturnsExecutionResult() {
         var queryEngine = CreateMockQueryEngine("Bug fixed and tests added");
         var coordinator = new ModelCoordinator(
-            queryEngine, DefaultFastModelId, DefaultModelId);
+            queryEngine, CreateAgentFactory(), DefaultFastModelId, DefaultModelId);
 
         var result = await coordinator.ExecuteAsync("Fix the login bug", "1. Fix the bug\n2. Add tests", CancellationToken.None).ConfigureAwait(true);
 
@@ -51,7 +51,7 @@ public sealed class ModelCoordinatorTests {
         });
 
         var coordinator = new ModelCoordinator(
-            queryEngine, DefaultFastModelId, DefaultModelId);
+            queryEngine, CreateAgentFactory(), DefaultFastModelId, DefaultModelId);
 
         var result = await coordinator.PlanAndExecuteAsync("Fix the login bug", CancellationToken.None).ConfigureAwait(true);
 
@@ -65,7 +65,7 @@ public sealed class ModelCoordinatorTests {
     public async Task PlanAndExecuteAsync_NoOpPlan_SkipsExecution() {
         var queryEngine = CreateMockQueryEngine("no changes needed");
         var coordinator = new ModelCoordinator(
-            queryEngine, DefaultFastModelId, DefaultModelId);
+            queryEngine, CreateAgentFactory(), DefaultFastModelId, DefaultModelId);
 
         var result = await coordinator.PlanAndExecuteAsync("Check if login works", CancellationToken.None).ConfigureAwait(true);
 
@@ -83,7 +83,7 @@ public sealed class ModelCoordinatorTests {
         });
 
         var coordinator = new ModelCoordinator(
-            queryEngine, "gpt-4o-mini", "gpt-4o",
+            queryEngine, CreateAgentFactory(), "gpt-4o-mini", "gpt-4o",
             shouldPlan: input => false);
 
         var result = await coordinator.PlanAndExecuteAsync("Hello", CancellationToken.None).ConfigureAwait(true);
@@ -96,7 +96,7 @@ public sealed class ModelCoordinatorTests {
     public void ResetPlannerSession_ClearsSession() {
         var queryEngine = CreateMockQueryEngine("plan");
         var coordinator = new ModelCoordinator(
-            queryEngine, DefaultFastModelId, DefaultModelId);
+            queryEngine, CreateAgentFactory(), DefaultFastModelId, DefaultModelId);
 
         coordinator.ResetPlannerSession();
     }
@@ -109,6 +109,10 @@ public sealed class ModelCoordinatorTests {
         Assert.Contains("glob", tools);
         Assert.DoesNotContain("write_file", tools);
         Assert.DoesNotContain("edit_file", tools);
+    }
+
+    private static IAgentFactory CreateAgentFactory() {
+        return new AgentFactory();
     }
 
     private static IQueryEngine CreateMockQueryEngine(string response) {

@@ -8,6 +8,7 @@ namespace Core.Agents.DualModel;
 /// </summary>
 public sealed class ModelCoordinator : IModelCoordinator {
     private readonly IQueryEngine _queryEngine;
+    private readonly IAgentFactory _agentFactory;
     private readonly ILogger? _logger;
     private readonly string _plannerModelId;
     private readonly string _executorModelId;
@@ -35,6 +36,7 @@ public sealed class ModelCoordinator : IModelCoordinator {
     /// 构造双模型协调器实例
     /// </summary>
     /// <param name="queryEngine">查询引擎，用于创建子代理会话</param>
+    /// <param name="agentFactory">Agent 工厂，用于创建 Agent 实例</param>
     /// <param name="plannerModelId">Planner 使用的模型 ID</param>
     /// <param name="executorModelId">Executor 使用的模型 ID</param>
     /// <param name="plannerAllowedTools">Planner 允许使用的只读工具列表，缺省时使用 <see cref="DefaultPlannerTools"/></param>
@@ -42,12 +44,14 @@ public sealed class ModelCoordinator : IModelCoordinator {
     /// <param name="logger">可选日志记录器</param>
     public ModelCoordinator(
         IQueryEngine queryEngine,
+        IAgentFactory agentFactory,
         string plannerModelId,
         string executorModelId,
         List<string>? plannerAllowedTools = null,
         Func<string, bool>? shouldPlan = null,
         ILogger? logger = null) {
         _queryEngine = queryEngine;
+        _agentFactory = agentFactory;
         _plannerModelId = plannerModelId;
         _executorModelId = executorModelId;
         _plannerAllowedTools = plannerAllowedTools ?? DefaultPlannerTools();
@@ -78,7 +82,7 @@ public sealed class ModelCoordinator : IModelCoordinator {
             InitialMessageList = _plannerSession,
             SessionId = SessionIdFactory.DefaultSessionId,
         };
-        await using var planner = AgentFactory.Create(
+        await using var planner = _agentFactory.Create(
             objective,
             plannerOptions,
             _queryEngine,
@@ -116,7 +120,7 @@ public sealed class ModelCoordinator : IModelCoordinator {
             SystemPrompt = "You are the executor in a two-model coding agent. Carry out the plan using your available tools.",
             SessionId = SessionIdFactory.DefaultSessionId,
         };
-        await using var executor = AgentFactory.Create(
+        await using var executor = _agentFactory.Create(
             handoff,
             executorOptions,
             _queryEngine,

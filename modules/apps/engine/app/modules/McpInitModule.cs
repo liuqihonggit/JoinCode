@@ -129,7 +129,7 @@ public sealed class McpInitModule : IAppModule {
     /// 当 --json-schema 参数存在时，动态注册 StructuredOutput 合成工具到 IToolRegistry
     /// 对齐 TS: createSyntheticOutputTool(jsonSchema) → tools = [...tools, syntheticOutputTool]
     /// </summary>
-    private static async Task RegisterSyntheticOutputToolAsync(IServiceProvider services, ILogger? logger, CancellationToken ct) {
+    internal static async Task RegisterSyntheticOutputToolAsync(IServiceProvider services, ILogger? logger, CancellationToken ct) {
         var options = services.GetService<CommandLineOptions>();
         if (string.IsNullOrEmpty(options?.JsonSchema)) return;
 
@@ -166,7 +166,7 @@ public sealed class McpInitModule : IAppModule {
     /// 从 JSON Schema 字符串构建合成工具的 ToolSchema
     /// 合成工具接受单个 input 参数（JSON 字符串），由 handler 内部验证是否符合 Schema
     /// </summary>
-    private static ToolSchema BuildSyntheticOutputSchema(string schemaJson) =>
+    internal static ToolSchema BuildSyntheticOutputSchema(string schemaJson) =>
         new() {
             Type = "object",
             Properties = new() {

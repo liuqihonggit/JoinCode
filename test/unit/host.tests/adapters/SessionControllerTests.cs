@@ -718,6 +718,74 @@ public sealed class SessionControllerTests {
         Assert.Empty(consumer.Retries);
     }
 
+    /// <summary>Complete chunk 带 StructuredOutput → LastStructuredOutput 被设置。</summary>
+    [Fact]
+    public void ApplyCompletionChunk_WithStructuredOutput_SetsLastStructuredOutput() {
+        var controller = new SessionController(
+            CreateMockChatService(Array.Empty<ChatStreamEvent>()),
+            new RecordingEventConsumer(),
+            new TurnDiffService(),
+            "test-session");
+
+        var structuredJson = JsonDocument.Parse("""{"name":"test","value":42}""").RootElement.Clone();
+        var chunk = new AgentStreamChunk {
+            Type = AgentStreamChunkType.Complete,
+            AgentId = "main",
+            StructuredOutput = structuredJson
+        };
+
+        controller.ApplyCompletionChunk(chunk);
+
+        controller.LastStructuredOutput.Should().NotBeNull();
+        if (controller.LastStructuredOutput is not { } structuredOutput) return;
+        structuredOutput.GetProperty("name").GetString().Should().Be("test");
+        structuredOutput.GetProperty("value").GetInt32().Should().Be(42);
+    }
+
+    /// <summary>Complete chunk 不带 StructuredOutput → LastStructuredOutput 保持 null。</summary>
+    [Fact]
+    public void ApplyCompletionChunk_WithoutStructuredOutput_KeepsLastStructuredOutputNull() {
+        var controller = new SessionController(
+            CreateMockChatService(Array.Empty<ChatStreamEvent>()),
+            new RecordingEventConsumer(),
+            new TurnDiffService(),
+            "test-session");
+
+        var chunk = new AgentStreamChunk {
+            Type = AgentStreamChunkType.Complete,
+            AgentId = "main",
+            StopReason = "end_turn"
+        };
+
+        controller.ApplyCompletionChunk(chunk);
+
+        controller.LastStructuredOutput.Should().BeNull();
+    }
+
+    /// <summary>回合开始时 LastStructuredOutput 被重置为 null（StreamResponseAsync 入口重置）。</summary>
+    [Fact]
+    public async Task StreamResponseAsync_ResetsLastStructuredOutputOnNewTurn() {
+        var controller = new SessionController(
+            CreateMockChatService([ChatStreamEvent.Text("ok"), ChatStreamEvent.Done()]),
+            new RecordingEventConsumer(),
+            new TurnDiffService(),
+            "test-session");
+
+        // 先通过 ApplyCompletionChunk 设置 LastStructuredOutput
+        var structuredJson = JsonDocument.Parse("""{"status":"done"}""").RootElement.Clone();
+        controller.ApplyCompletionChunk(new AgentStreamChunk {
+            Type = AgentStreamChunkType.Complete,
+            AgentId = "main",
+            StructuredOutput = structuredJson
+        });
+        controller.LastStructuredOutput.Should().NotBeNull("前置条件：先设置 StructuredOutput");
+
+        // 调用 StreamResponseAsync — 回合开始应重置 LastStructuredOutput 为 null
+        await controller.StreamResponseAsync("test", CancellationToken.None).ConfigureAwait(true);
+
+        controller.LastStructuredOutput.Should().BeNull("新回合开始时应重置 LastStructuredOutput");
+    }
+
     private static IChatService CreateMockChatService(IReadOnlyList<ChatStreamEvent> events) {
         var mock = new Mock<IChatService>();
         mock.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>(), It.IsAny<IEventConsumer?>()))

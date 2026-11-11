@@ -189,4 +189,5 @@
   <Project Path="../../modules/abstractions/abstractions.primitives.utils/Abstractions.Primitives.Utils.csproj" />
   <Project Path="../../modules/abstractions/abstractions.primitives.models/Abstractions.Primitives.Models.csproj" />
   <Project Path="../../modules/abstractions/abstractions.primitives.interfaces/Abstractions.Primitives.Interfaces.csproj" />
+  <Project Path="../../modules/abstractions/abstractions.primitives.pipeline/Abstractions.Primitives.Pipeline.csproj" />
 </Solution>

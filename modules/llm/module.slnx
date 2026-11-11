@@ -17,6 +17,7 @@
     <Project Path="agents.pipeline/Agents.Pipeline.csproj" />
     <Project Path="agents.fork/Agents.Fork.csproj" />
     <Project Path="agents.team/Agents.Team.csproj" />
+    <Project Path="agents.coordinator.core/Agents.Coordinator.Core.csproj" />
   <Project Path="agents/Agents.csproj" />
   <Project Path="agents.output/Agents.Output.csproj" />
   <Project Path="agents.tests/Agents.Tests.csproj" />

@@ -65,6 +65,7 @@
     <Project Path="../../modules/llm/agents.pipeline/Agents.Pipeline.csproj" />
     <Project Path="../../modules/llm/agents.fork/Agents.Fork.csproj" />
     <Project Path="../../modules/llm/agents.team/Agents.Team.csproj" />
+    <Project Path="../../modules/llm/agents.coordinator.core/Agents.Coordinator.Core.csproj" />
     <Project Path="../../modules/llm/agents/Agents.csproj" />
     <Project Path="../../modules/llm/agents.output/Agents.Output.csproj" />
     <Project Path="../../modules/llm/reasoning/Reasoning.csproj" />

@@ -1,7 +1,7 @@
 # DSG048 实现设计 — 详细类图与文件结构
 
 > 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [DSG048](DSG048-node-plugin-inheritance-architecture.md)
-> 状态: 设计草案
+> 状态: accepted（阶段1 基础设施层已实现并验收）
 > 创建: 2026-11-12
 > 关联: [DSG048](DSG048-node-plugin-inheritance-architecture.md) 架构 spec
 
@@ -9,29 +9,42 @@
 
 ## 1. 文件结构
 
-### 1.1 新增文件清单
+### 1.1 新增文件清单（阶段1 已实现）
 
 ```
-modules/abstractions/abstractions.interfaces/interfaces/composition/
-  INode.cs                    — 节点统一接口
-  NodeMetadata.cs             — 节点元数据 record
-  NodeState.cs                — 节点生命周期状态枚举
-  NodeContext.cs              — 节点上下文（可逆注册）
-  INodeConsumer.cs            — 消费点接口
-  INodeRegistry.cs            — 节点注册表接口
+modules/abstractions/composition/node/interfaces/
+  INode.cs                    — 节点统一接口 ✅
+  NodeMetadata.cs             — 节点元数据 record ✅
+  NodeState.cs                — 节点生命周期状态枚举 ✅
+  INodeConsumer.cs            — 消费点接口 ✅
+  INodeRegistry.cs            — 节点注册表接口 ✅
 
-modules/abstractions/abstractions.interfaces/interfaces/composition/profile/
-  NodeProfile.cs              — Profile 数据结构
-  NodeProfileOverride.cs      — Profile 覆写条目
-  ResolvedProfile.cs          — 合并后的最终 Profile
-  ConsumerConfig.cs           — 消费点配置
+modules/abstractions/composition/node/profile/
+  NodeProfile.cs              — Profile 数据结构 ✅
+  NodeProfileOverride.cs      — Profile 覆写条目 ✅
+  ResolvedProfile.cs          — 合并后的最终 Profile ✅
+  ConsumerConfig.cs           — 消费点配置 ✅
+  NodeEntryConfig.cs          — 消费点中单个节点配置 ✅
+  ResolvedConsumerConfig.cs   — 合并后的消费点配置 ✅
+  ResolvedNodeEntry.cs        — 合并后的节点条目 ✅
 
 modules/composition/composition/node_registry/
-  NodeRegistry.cs             — NodeRegistry 实现
-  NodeProfileResolver.cs      — Profile 继承链解析器
-  NodeProfileLoader.cs        — 内嵌资源 Profile 加载器
-  NodeEntry.cs                — 节点注册条目（内部）
+  NodeRegistry.cs             — NodeRegistry 实现 ✅
+  NodeProfileResolver.cs      — Profile 继承链解析器 ✅
+  NodeProfileLoader.cs        — 内嵌资源 Profile 加载器 ✅
+  NodeEntry.cs                — 节点注册条目（内部） ✅
+  Node.cs                     — Node<TService> 运行期适配器 ✅
 
+resources/profiles/
+  base.yaml                   — 基础 Profile ✅
+  headless.yaml               — 无头模式 Profile ✅
+  sdk.yaml                    — SDK 模式 Profile ✅
+  ci.yaml                     — CI 模式 Profile ✅
+```
+
+### 1.2 待实现文件清单（阶段2+）
+
+```
 modules/composition/composition/node_registry/consumers/
   PipelineConsumer.cs         — 管道消费点
   ToolDispatchConsumer.cs     — 工具分发消费点

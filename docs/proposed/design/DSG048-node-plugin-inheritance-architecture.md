@@ -3,9 +3,9 @@
 > 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [adr/](../adr/README.md)
 > 🔗 **上游索引**: [design/README.md](README.md) — 修改本文档后须同步更新此索引
 
-> 状态: 设计草案(待用户确认)
+> 状态: accepted（阶段1 基础设施层已实现并验收）
 > 创建: 2026-11-12
-> 关联 ADR: 待定(实现后创建)
+> 关联 ADR: 待定（后续阶段实现后创建）
 > 取代: 无
 > 范围: 运行期统一节点管理 + 数据驱动组合 + 省略即继承 + 可逆注册 + DynamicPluginRegistry AOT 改造
 
@@ -739,15 +739,16 @@ services.AddSingleton<IMiddleware<ChatMiddlewareContext>>(
 
 ## 6. 实施计划
 
-| 阶段 | 内容 | 优先级 | 依赖 |
-|------|------|--------|------|
-| P1 | NodeRegistry + INode + NodeKind + NodeMetadata | 高 | 无 |
-| P2 | NodeProfile YAML + NodeProfileResolver（省略即继承） | 高 | P1 |
-| P3 | 数据驱动的管道组装（替代 PipelineComposition.cs） | 高 | P1, P2 |
-| P4 | NodeContext 可逆注册（RegisterEffect + 自动回滚） | 中 | P1 |
-| P5 | DynamicPluginRegistry AOT 改造 | 中 | P1 |
-| P6 | 泛型中间件自动注册（MiddlewareRegistrationGenerator） | 中 | P1 |
-| P7 | LlmAdapter 式继承适配模式推广 | 低 | P1-P6 |
+| 阶段 | 内容 | 优先级 | 依赖 | 状态 |
+|------|------|--------|------|------|
+| P1 | INode + NodeMetadata + NodeState + INodeConsumer + INodeRegistry | 高 | 无 | ✅ 已完成 |
+| P2 | NodeProfile YAML + NodeProfileResolver（省略即继承） | 高 | P1 | ✅ 已完成 |
+| P3 | NodeProfileLoader + NodeRegistry + Node<TService> + 诊断命令 + DI 注册 | 高 | P1, P2 | ✅ 已完成 |
+| P4 | 数据驱动的管道组装（替代 PipelineComposition.cs） | 高 | P1-P3 | ❌ 待实施 |
+| P5 | NodeContext 可逆注册（复用现有 EffectScope） | 中 | P1 | ❌ 待实施 |
+| P6 | DynamicPluginRegistry AOT 改造 | 中 | P1 | ❌ 待实施 |
+| P7 | 泛型中间件自动注册（MiddlewareRegistrationGenerator） | 中 | P1 | ❌ 待实施 |
+| P8 | LlmAdapter 式继承适配模式推广 | 低 | P1-P7 | ❌ 待实施 |
 
 ---
 
@@ -755,13 +756,20 @@ services.AddSingleton<IMiddleware<ChatMiddlewareContext>>(
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| NodeRegistry + INode | 运行期统一管理所有节点 | ❌ | ❌ |
-| NodeProfile YAML + 省略即继承 | 运行期配置决定哪些节点激活 | ❌ | ❌ |
-| 数据驱动的管道组装 | PipelineComposition.cs 不再硬编码 | ❌ | ❌ |
-| NodeContext 可逆注册 | 节点卸载时自动回滚 | ❌ | ❌ |
-| DynamicPluginRegistry AOT 改造 | invoke 在 AOT 下能路由 | ❌ | ❌ |
-| 泛型中间件自动注册 | CrashSnapshotMiddleware 等不再手动注册 | ❌ | ❌ |
-| LlmAdapter 式继承适配 | 抽象类+默认实现+覆写模式推广 | ❌ | ❌ |
+| INode + NodeMetadata + NodeState | 运行期统一节点接口 | ✅ `modules/abstractions/composition/node/interfaces/` | ✅ 编译通过 |
+| INodeConsumer + INodeRegistry | 消费点驱动节点获取 | ✅ `modules/abstractions/composition/node/interfaces/` | ✅ 编译通过 |
+| NodeProfile + ConsumerConfig + ResolvedProfile | Profile 数据结构 | ✅ `modules/abstractions/composition/node/profile/` | ✅ 编译通过 |
+| NodeProfileLoader (YAML 内嵌资源) | Profile YAML 加载 | ✅ `modules/composition/composition/node_registry/NodeProfileLoader.cs` | ✅ `jcc --dump-nodes` 输出正确 |
+| NodeProfileResolver (省略即继承) | 继承链解析合并 | ✅ `modules/composition/composition/node_registry/NodeProfileResolver.cs` | ✅ `jcc --dump-profile sdk` 验证排除/新增/覆写 |
+| NodeRegistry + NodeEntry + Node<TService> | 运行期节点注册表 | ✅ `modules/composition/composition/node_registry/NodeRegistry.cs` | ✅ 编译通过 + DI 注册 |
+| base/headless/sdk/ci Profile YAML | 四个预设 Profile | ✅ `resources/profiles/` | ✅ `jcc --dump-nodes` 全部输出正确 |
+| --dump-nodes / --dump-profile / --profile CLI | 诊断命令 | ✅ `modules/apps/cli/core/commands/core/Program.cs` | ✅ exe 启动验收通过 |
+| ServiceRegistration DI 注册 | NodeRegistry + ProfileResolver 注入 | ✅ `modules/composition/composition/dependency_injection/core/ServiceRegistration.cs` | ✅ 编译通过 |
+| 数据驱动的管道组装 | PipelineComposition.cs 不再硬编码 | ❌ 阶段2 | ❌ |
+| NodeContext 可逆注册 | 节点卸载时自动回滚 | ❌ 阶段4（复用现有 EffectScope） | ❌ |
+| DynamicPluginRegistry AOT 改造 | invoke 在 AOT 下能路由 | ❌ 阶段5 | ❌ |
+| 泛型中间件自动注册 | CrashSnapshotMiddleware 等不再手动注册 | ❌ 阶段6 | ❌ |
+| LlmAdapter 式继承适配 | 抽象类+默认实现+覆写模式推广 | ❌ 阶段7 | ❌ |
 
 ---
 

@@ -84,6 +84,10 @@ class Program {
             if (options.ShowHelp) { App.Builder.ApplicationBuilder.ShowHelp(GetHelpTopic(args)); return 0; }
             if (options.ShowVersion) { App.Builder.ApplicationBuilder.ShowVersion(); return 0; }
 
+            // --dump-nodes / --dump-profile: 诊断命令 — 输出后直接退出
+            if (options.DumpNodes) return DumpNodesInfo();
+            if (options.DumpProfile is not null) return DumpProfileInfo(options.DumpProfile);
+
             // 早期超时计时器已完成使命（子命令路由已过），主路径计时器接管 — 避免双重超时输出
             earlyAwaitTimer?.Dispose();
             await using var awaitTimer = StartAwaitTimer(options, options.IsStructuredOutputMode, logger);
@@ -220,6 +224,63 @@ class Program {
     }
 
     private static string? _hubAgentId;
+
+    /// <summary>
+    /// --dump-nodes: 输出所有 Profile 中定义的节点列表（诊断用）
+    /// </summary>
+    private static int DumpNodesInfo() {
+        var profiles = Composition.NodeRegistry.NodeProfileLoader.LoadFromResources();
+        var resolver = new Composition.NodeRegistry.NodeProfileResolver(profiles);
+
+        Cli.TerminalHelper.WriteLine("═══ 已注册节点列表 ═══");
+        Cli.TerminalHelper.WriteLine();
+
+        foreach (var profileName in profiles.Keys.Order()) {
+            var resolved = resolver.Resolve(profileName);
+            Cli.TerminalHelper.WriteLine($"Profile: {profileName}");
+
+            foreach (var (consumerId, consumerConfig) in resolved.Consumers.OrderBy(kv => kv.Key)) {
+                Cli.TerminalHelper.WriteLine($"  消费点: {consumerId}");
+                foreach (var node in consumerConfig.Nodes.OrderBy(n => n.Priority)) {
+                    var flag = node.EnabledWhenFeatureFlag is not null ? $" [flag:{node.EnabledWhenFeatureFlag}]" : "";
+                    Cli.TerminalHelper.WriteLine($"    - {node.Id} (priority={node.Priority}){flag}");
+                }
+            }
+            Cli.TerminalHelper.WriteLine();
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// --dump-profile: 输出指定 Profile 的解析结果（诊断用）
+    /// </summary>
+    private static int DumpProfileInfo(string profileName) {
+        var profiles = Composition.NodeRegistry.NodeProfileLoader.LoadFromResources();
+        var resolver = new Composition.NodeRegistry.NodeProfileResolver(profiles);
+
+        if (!profiles.ContainsKey(profileName)) {
+            App.ErrorConsole.Warning($"Profile '{profileName}' 不存在。可用 Profile: {string.Join(", ", profiles.Keys.Order())}");
+            return (int)ExitCode.ArgumentParseError;
+        }
+
+        var resolved = resolver.Resolve(profileName);
+
+        Cli.TerminalHelper.WriteLine($"═══ Profile: {profileName} ═══");
+        Cli.TerminalHelper.WriteLine();
+
+        foreach (var (consumerId, consumerConfig) in resolved.Consumers.OrderBy(kv => kv.Key)) {
+            Cli.TerminalHelper.WriteLine($"消费点: {consumerId}");
+            foreach (var node in consumerConfig.Nodes.OrderBy(n => n.Priority)) {
+                var flag = node.EnabledWhenFeatureFlag is not null ? $" [flag:{node.EnabledWhenFeatureFlag}]" : "";
+                var config = node.Config.Count > 0 ? $" config={{{string.Join(",", node.Config.Select(kv => $"{kv.Key}={kv.Value}"))}}}" : "";
+                Cli.TerminalHelper.WriteLine($"  - {node.Id} (priority={node.Priority}){flag}{config}");
+            }
+            Cli.TerminalHelper.WriteLine();
+        }
+
+        return 0;
+    }
 
     /// <summary>
     /// 写入错误日志到临时目录的 jcc_error.log。

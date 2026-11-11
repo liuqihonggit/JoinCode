@@ -1,0 +1,7 @@
+name: headless
+inherits: base
+excludes:
+  - gui-module
+  - theme-command
+  - vim-mode-plugin
+  - memory-prompt

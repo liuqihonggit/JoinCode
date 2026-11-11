@@ -1,0 +1,6 @@
+name: ci
+inherits: headless
+excludes:
+  - web-tool
+  - chat-telemetry-mw
+  - audit-log-mw

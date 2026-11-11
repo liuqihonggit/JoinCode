@@ -1,0 +1,123 @@
+name: base
+consumers:
+  chat-pipeline:
+    nodes:
+      - id: stream-crash-snapshot-mw
+        priority: 50
+      - id: rate-limit-mw
+        priority: 100
+      - id: chat-error-handling-mw
+        priority: 150
+      - id: chat-timing-mw
+        priority: 200
+      - id: token-budget-mw
+        priority: 250
+      - id: security-check-mw
+        priority: 300
+      - id: audit-log-mw
+        priority: 350
+      - id: chat-context-mw
+        priority: 400
+      - id: chat-prompt-mw
+        priority: 450
+      - id: chat-stream-mw
+        priority: 500
+      - id: chat-admin-mw
+        priority: 550
+      - id: chat-tool-mw
+        priority: 600
+      - id: chat-telemetry-mw
+        priority: 650
+      - id: crash-snapshot-mw
+        priority: 700
+
+  preprocess-pipeline:
+    nodes:
+      - id: keyword-injection-mw
+        priority: 100
+      - id: synonym-mw
+        priority: 200
+      - id: system-prompt-mw
+        priority: 300
+      - id: lsp-diagnostic-mw
+        priority: 400
+      - id: crash-snapshot-mw
+        priority: 50
+
+  permission-pipeline:
+    nodes:
+      - id: bypass-permission-mw
+        priority: 100
+      - id: agent-permission-mw
+        priority: 200
+      - id: dangerous-command-mw
+        priority: 300
+      - id: auto-class-permission-mw
+        priority: 400
+      - id: config-permission-mw
+        priority: 500
+      - id: web-fetch-permission-mw
+        priority: 600
+      - id: path-deny-permission-mw
+        priority: 700
+      - id: tool-list-permission-mw
+        priority: 800
+      - id: path-permission-mw
+        priority: 900
+      - id: dangerous-op-permission-mw
+        priority: 1000
+      - id: plan-mode-permission-mw
+        priority: 1100
+      - id: default-permission-mw
+        priority: 1200
+      - id: crash-snapshot-mw
+        priority: 50
+
+  shell-pipeline:
+    nodes:
+      - id: shell-timeout-mw
+        priority: 100
+      - id: shell-validate-mw
+        priority: 200
+      - id: shell-intercept-mw
+        priority: 300
+      - id: shell-path-gate-mw
+        priority: 400
+      - id: shell-classify-mw
+        priority: 500
+      - id: shell-sed-intercept-mw
+        priority: 600
+      - id: shell-background-mw
+        priority: 700
+      - id: shell-build-intercept-mw
+        priority: 800
+      - id: shell-download-hint-mw
+        priority: 900
+      - id: shell-execute-mw
+        priority: 1000
+      - id: shell-output-mw
+        priority: 1100
+      - id: shell-perturbation-audit-mw
+        priority: 1200
+      - id: crash-snapshot-mw
+        priority: 50
+
+  tool-dispatch:
+    nodes:
+      - id: shell-tool
+      - id: fs-tool
+      - id: web-tool
+        enabled-when: feature.web-search
+      - id: code-tool
+
+  command-dispatch:
+    nodes:
+      - id: shell-command
+      - id: fs-command
+
+  prompt-assembly:
+    nodes:
+      - id: system-prompt
+      - id: security-prompt
+      - id: tool-guidance-prompt
+      - id: memory-prompt

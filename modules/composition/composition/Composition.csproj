@@ -41,6 +41,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="$(RepoRoot)resources/profiles/base.yaml" LogicalName="JoinCode.Composition.Profiles.base.yaml" />
+    <EmbeddedResource Include="$(RepoRoot)resources/profiles/headless.yaml" LogicalName="JoinCode.Composition.Profiles.headless.yaml" />
+    <EmbeddedResource Include="$(RepoRoot)resources/profiles/sdk.yaml" LogicalName="JoinCode.Composition.Profiles.sdk.yaml" />
+    <EmbeddedResource Include="$(RepoRoot)resources/profiles/ci.yaml" LogicalName="JoinCode.Composition.Profiles.ci.yaml" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsVersion)" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="$(MicrosoftExtensionsVersion)" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="$(MicrosoftExtensionsVersion)" />

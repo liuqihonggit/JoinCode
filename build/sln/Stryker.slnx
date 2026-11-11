@@ -185,4 +185,5 @@
   <Project Path="../../modules/abstractions/abstractions.primitives.tools/Abstractions.Primitives.Tools.csproj" />
   <Project Path="../../modules/abstractions/abstractions.primitives.localization/Abstractions.Primitives.Localization.csproj" />
   <Project Path="../../modules/abstractions/abstractions.primitives.shell/Abstractions.Primitives.Shell.csproj" />
+  <Project Path="../../modules/abstractions/abstractions.primitives.configuration/Abstractions.Primitives.Configuration.csproj" />
 </Solution>

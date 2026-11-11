@@ -11,6 +11,7 @@
   <Project Path="abstractions.primitives.tools/Abstractions.Primitives.Tools.csproj" />
   <Project Path="abstractions.primitives.localization/Abstractions.Primitives.Localization.csproj" />
   <Project Path="abstractions.primitives.shell/Abstractions.Primitives.Shell.csproj" />
+  <Project Path="abstractions.primitives.configuration/Abstractions.Primitives.Configuration.csproj" />
   <Project Path="exceptions/Abstractions.Exceptions.csproj" />
   <Folder Name="/abstractions.utils/">
     <Project Path="abstractions.utils/Abstractions.Utils.csproj" />

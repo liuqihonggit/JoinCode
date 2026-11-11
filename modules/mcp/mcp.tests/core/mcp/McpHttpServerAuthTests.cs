@@ -32,6 +32,20 @@ public class McpHttpServerAuthTests {
         return request;
     }
 
+    /// <summary>等待 HTTP 服务就绪 — 确定性轮询连接,替代 Task.Delay(300) 时间耦合</summary>
+    private static async Task WaitForServerReadyAsync(int port, TimeSpan timeout) {
+        using var cts = new CancellationTokenSource(timeout);
+        while (!cts.IsCancellationRequested) {
+            try {
+                using var probe = new System.Net.Sockets.TcpClient();
+                await probe.ConnectAsync(System.Net.IPAddress.Loopback, port, cts.Token);
+                return;
+            } catch (System.Net.Sockets.SocketException) {
+                await Task.Delay(50, cts.Token);
+            }
+        }
+    }
+
     [Fact]
     public async Task PostInitialize_WithoutToken_Returns401() {
         var server = new McpServer("test");
@@ -40,7 +54,7 @@ public class McpHttpServerAuthTests {
         var fireTask = FireAndForgetTask<Unit>.Run(
             ct => httpServer.RunAsync(ct), "McpHttpServer-auth-test");
         try {
-            await Task.Delay(300);
+            await WaitForServerReadyAsync(port, TimeSpan.FromSeconds(5));
             using var client = new HttpClient();
             using var response = await client.PostAsync(
                 $"http://localhost:{port}/mcp/",
@@ -61,7 +75,7 @@ public class McpHttpServerAuthTests {
         var fireTask = FireAndForgetTask<Unit>.Run(
             ct => httpServer.RunAsync(ct), "McpHttpServer-auth-test");
         try {
-            await Task.Delay(300);
+            await WaitForServerReadyAsync(port, TimeSpan.FromSeconds(5));
             using var client = new HttpClient();
             using var request = CreatePost($"http://localhost:{port}/mcp/", McpAuthToken.Generate());
             using var response = await client.SendAsync(request);
@@ -80,7 +94,7 @@ public class McpHttpServerAuthTests {
         var fireTask = FireAndForgetTask<Unit>.Run(
             ct => httpServer.RunAsync(ct), "McpHttpServer-auth-test");
         try {
-            await Task.Delay(300);
+            await WaitForServerReadyAsync(port, TimeSpan.FromSeconds(5));
             using var client = new HttpClient();
             using var request = CreatePost($"http://localhost:{port}/mcp/", httpServer.AuthToken.Value);
             using var response = await client.SendAsync(request);
@@ -99,7 +113,7 @@ public class McpHttpServerAuthTests {
         var fireTask = FireAndForgetTask<Unit>.Run(
             ct => httpServer.RunAsync(ct), "McpHttpServer-auth-test");
         try {
-            await Task.Delay(300);
+            await WaitForServerReadyAsync(port, TimeSpan.FromSeconds(5));
             using var client = new HttpClient();
             using var request = CreatePostWithMcpToken($"http://localhost:{port}/mcp/", httpServer.AuthToken.Value);
             using var response = await client.SendAsync(request);

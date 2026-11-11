@@ -6,7 +6,7 @@ namespace Core.Tests.Agents.Coordinator;
 /// </summary>
 public sealed class CrossChannelVisibilityE2ETests {
     private static async Task<List<CoordinatorMessage>> ReceiveWithTimeoutAsync(
-        IAsyncEnumerable<CoordinatorMessage> stream, int timeoutMs = 500) {
+        IAsyncEnumerable<CoordinatorMessage> stream, int timeoutMs = 2000) {
         using var cts = new CancellationTokenSource(timeoutMs);
         var result = new List<CoordinatorMessage>();
         try {

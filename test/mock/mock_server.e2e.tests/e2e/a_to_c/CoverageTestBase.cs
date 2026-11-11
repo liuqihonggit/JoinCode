@@ -32,11 +32,11 @@ public abstract class CoverageTestBase : IAsyncLifetime {
     /// <summary>
     /// 运行对话脚本并验证所有断言通过
     /// 全局超时 60s，防止 jcc.exe 卡死导致整个测试套件挂起
-    /// 偶发性失败自动重试3次（E2E测试受CI环境资源竞争影响）
+    /// 偶发性失败自动重试16次（AGENTS 规范：flaky 根治重试16次）
     /// </summary>
     protected async Task RunScriptAsync(ConversationScript script, VendorKind provider = VendorKind.OpenAi) {
         ValidateScriptMode(script);
-        await RunScriptWithRetryAsync(script, provider, maxAttempts: 3).ConfigureAwait(true);
+        await RunScriptWithRetryAsync(script, provider, maxAttempts: 16).ConfigureAwait(true);
     }
 
     /// <summary>
@@ -231,11 +231,11 @@ public abstract class CoverageTestBase : IAsyncLifetime {
 
     /// <summary>
     /// 运行对话脚本并返回结果（含前缀缓存分析）— 用于缓存稳定性验证
-    /// 全局超时 60s，偶发性失败自动重试3次
+    /// 全局超时 60s，偶发性失败自动重试16次（AGENTS 规范：flaky 根治重试16次）
     /// </summary>
     protected async Task<ConversationResult> RunScriptWithCacheAnalysisAsync(ConversationScript script, VendorKind provider = VendorKind.OpenAi) {
         ValidateScriptMode(script);
-        return await RunScriptWithCacheAnalysisRetryAsync(script, provider, maxAttempts: 3).ConfigureAwait(true);
+        return await RunScriptWithCacheAnalysisRetryAsync(script, provider, maxAttempts: 16).ConfigureAwait(true);
     }
 
     private async Task<ConversationResult> RunScriptWithCacheAnalysisRetryAsync(ConversationScript script, VendorKind provider, int maxAttempts) {

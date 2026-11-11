@@ -43,6 +43,20 @@ public class McpTcpServerAuthTests {
         return (statusCode, text[..text.IndexOf('\r')]);
     }
 
+    /// <summary>等待 TCP 服务就绪 — 确定性轮询连接,替代 Task.Delay(300) 时间耦合</summary>
+    private static async Task WaitForServerReadyAsync(int port, TimeSpan timeout) {
+        using var cts = new CancellationTokenSource(timeout);
+        while (!cts.IsCancellationRequested) {
+            try {
+                using var probe = new System.Net.Sockets.TcpClient();
+                await probe.ConnectAsync(System.Net.IPAddress.Loopback, port, cts.Token);
+                return;
+            } catch (System.Net.Sockets.SocketException) {
+                await Task.Delay(50, cts.Token);
+            }
+        }
+    }
+
     [Fact]
     public async Task PostInitialize_WithoutToken_Returns401() {
         var server = new McpServer("test");
@@ -51,7 +65,7 @@ public class McpTcpServerAuthTests {
         var fireTask = FireAndForgetTask<Unit>.Run(
             ct => tcpServer.RunAsync(ct), "McpTcpServer-auth-test");
         try {
-            await Task.Delay(300);
+            await WaitForServerReadyAsync(port, TimeSpan.FromSeconds(5));
             var (statusCode, _) = await SendRawAsync(port, null);
             statusCode.Should().Be(401);
         } finally {
@@ -68,7 +82,7 @@ public class McpTcpServerAuthTests {
         var fireTask = FireAndForgetTask<Unit>.Run(
             ct => tcpServer.RunAsync(ct), "McpTcpServer-auth-test");
         try {
-            await Task.Delay(300);
+            await WaitForServerReadyAsync(port, TimeSpan.FromSeconds(5));
             var (statusCode, _) = await SendRawAsync(port, $"Authorization: Bearer {tcpServer.AuthToken.Value}");
             statusCode.Should().Be(200);
         } finally {
@@ -85,7 +99,7 @@ public class McpTcpServerAuthTests {
         var fireTask = FireAndForgetTask<Unit>.Run(
             ct => tcpServer.RunAsync(ct), "McpTcpServer-auth-test");
         try {
-            await Task.Delay(300);
+            await WaitForServerReadyAsync(port, TimeSpan.FromSeconds(5));
             var (statusCode, _) = await SendRawAsync(port, $"Mcp-Token: {tcpServer.AuthToken.Value}");
             statusCode.Should().Be(200);
         } finally {

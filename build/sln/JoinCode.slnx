@@ -32,6 +32,7 @@
     <Project Path="../../modules/abstractions/abstractions.primitives.configuration/Abstractions.Primitives.Configuration.csproj" />
     <Project Path="../../modules/abstractions/abstractions.primitives.utils/Abstractions.Primitives.Utils.csproj" />
     <Project Path="../../modules/abstractions/abstractions.primitives.models/Abstractions.Primitives.Models.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.interfaces/Abstractions.Primitives.Interfaces.csproj" />
     <Project Path="../../modules/abstractions/exceptions/Abstractions.Exceptions.csproj" />
     <Project Path="../../modules/abstractions/guard/Abstractions.Guard.csproj" />
     <Project Path="../../modules/abstractions/perception/Abstractions.Perception.csproj" />

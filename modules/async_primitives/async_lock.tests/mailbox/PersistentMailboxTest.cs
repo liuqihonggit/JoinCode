@@ -31,6 +31,10 @@ public class PersistentMailboxTest {
     [Fact]
     [Trait("Category", "Flaky")]
     public async Task RecoverAsync_ReplaysPendingMessages() {
+        await TestWaitHelper.Retry16Async(attempt => RecoverAsync_ReplaysPendingMessages_Core(attempt));
+    }
+
+    private static async Task RecoverAsync_ReplaysPendingMessages_Core(int attempt) {
         var store = new InMemoryPersistentStore<string>();
         await using var actor = new SimpleTestActor();
         await using var mailbox = new PersistentMailbox<string, Unit>(actor, store, "actor-1");
@@ -43,12 +47,10 @@ public class PersistentMailboxTest {
         actor.OnMessage = msg => processed.Enqueue(msg);
 
         await mailbox.RecoverAsync();
-        // 状态收敛等待（禁睡规范）：回放经 Actor 邮箱异步处理，固定 Task.Delay(100) 在本机
-        // 全量并行高压下不够 → 偶发丢断言（8 轮全量 1 红实证）；10s 窗口轮询到三条齐即返回
         var converged = System.Threading.SpinWait.SpinUntil(
             () => processed.Count >= 3,
             TimeSpan.FromSeconds(10));
-        converged.Should().BeTrue("10s 窗口内应回放完成（本机并行高压兜底）");
+        converged.Should().BeTrue($"attempt={attempt}: 10s 窗口内应回放完成（本机并行高压兜底）");
         processed.Should().Contain(new[] { "msg-1", "msg-2", "msg-3" });
     }
 

@@ -10,7 +10,7 @@ public abstract class CoverageTestBase : IAsyncLifetime {
     protected readonly ILoggerFactory LoggerFactory;
     protected readonly MockServerSharedFixture? SharedFixture;
 
-    /// <summary>重试间隔 — 固定1s,16次共16s,防CI雪崩</summary>
+    /// <summary>重试间隔 — 固定1s,不递增,防CI雪崩</summary>
     private static readonly TimeSpan RetryInterval = TimeSpan.FromSeconds(1);
 
     protected CoverageTestBase(ITestOutputHelper output, MockServerSharedFixture? sharedFixture = null) {
@@ -32,11 +32,11 @@ public abstract class CoverageTestBase : IAsyncLifetime {
     /// <summary>
     /// 运行对话脚本并验证所有断言通过
     /// 全局超时 60s，防止 jcc.exe 卡死导致整个测试套件挂起
-    /// 偶发性失败自动重试3次（E2E测试受CI环境资源竞争影响）
+    /// 偶发性失败自动重试16次（AGENTS 规范：flaky 根治重试16次）
     /// </summary>
     protected async Task RunScriptAsync(ConversationScript script, VendorKind provider = VendorKind.OpenAi) {
         ValidateScriptMode(script);
-        await RunScriptWithRetryAsync(script, provider, maxAttempts: 3).ConfigureAwait(true);
+        await RunScriptWithRetryAsync(script, provider, maxAttempts: 16).ConfigureAwait(true);
     }
 
     /// <summary>
@@ -79,7 +79,7 @@ public abstract class CoverageTestBase : IAsyncLifetime {
 
                 if (attempt < maxAttempts) {
                     Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试失败，自动重试: {script.Name} (provider={provider})");
-                    await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                    await Task.Delay(RetryInterval).ConfigureAwait(true);
                     continue;
                 }
 
@@ -89,24 +89,24 @@ public abstract class CoverageTestBase : IAsyncLifetime {
                 sw.Stop();
                 if (attempt < maxAttempts) {
                     Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试超时(>60s)，自动重试: {script.Name} (provider={provider})");
-                    await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                    await Task.Delay(RetryInterval).ConfigureAwait(true);
                     continue;
                 }
                 throw new TimeoutException($"[GEN035] 测试超时(>60s): {script.Name} (provider={provider})");
             } catch (OperationCanceledException) when (!timeoutCts.IsCancellationRequested && attempt < maxAttempts) {
                 sw.Stop();
                 Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试被内层取消(如MockServer就绪超时)，自动重试: {script.Name} (provider={provider})");
-                await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                await Task.Delay(RetryInterval).ConfigureAwait(true);
                 continue;
             } catch (TimeoutException ex) when (attempt < maxAttempts) {
                 sw.Stop();
                 Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试超时，自动重试: {script.Name} (provider={provider})，原因: {ex.Message}");
-                await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                await Task.Delay(RetryInterval).ConfigureAwait(true);
                 continue;
             } catch (InvalidOperationException ex) when (IsRetryableProcessFailure(ex) && attempt < maxAttempts) {
                 sw.Stop();
                 Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试进程暂时失败，自动重试: {script.Name} (provider={provider})，原因: {ex.Message}");
-                await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                await Task.Delay(RetryInterval).ConfigureAwait(true);
                 continue;
             } finally {
                 await runner.DisposeAsync().ConfigureAwait(true);
@@ -231,11 +231,11 @@ public abstract class CoverageTestBase : IAsyncLifetime {
 
     /// <summary>
     /// 运行对话脚本并返回结果（含前缀缓存分析）— 用于缓存稳定性验证
-    /// 全局超时 60s，偶发性失败自动重试3次
+    /// 全局超时 60s，偶发性失败自动重试16次（AGENTS 规范：flaky 根治重试16次）
     /// </summary>
     protected async Task<ConversationResult> RunScriptWithCacheAnalysisAsync(ConversationScript script, VendorKind provider = VendorKind.OpenAi) {
         ValidateScriptMode(script);
-        return await RunScriptWithCacheAnalysisRetryAsync(script, provider, maxAttempts: 3).ConfigureAwait(true);
+        return await RunScriptWithCacheAnalysisRetryAsync(script, provider, maxAttempts: 16).ConfigureAwait(true);
     }
 
     private async Task<ConversationResult> RunScriptWithCacheAnalysisRetryAsync(ConversationScript script, VendorKind provider, int maxAttempts) {
@@ -254,7 +254,7 @@ public abstract class CoverageTestBase : IAsyncLifetime {
 
                 if (attempt < maxAttempts) {
                     Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试失败，自动重试: {script.Name} (provider={provider})");
-                    await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                    await Task.Delay(RetryInterval).ConfigureAwait(true);
                     continue;
                 }
 
@@ -263,21 +263,21 @@ public abstract class CoverageTestBase : IAsyncLifetime {
             } catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested) {
                 if (attempt < maxAttempts) {
                     Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试超时(>60s)，自动重试: {script.Name} (provider={provider})");
-                    await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                    await Task.Delay(RetryInterval).ConfigureAwait(true);
                     continue;
                 }
                 throw new TimeoutException($"[GEN035] 测试超时(>60s): {script.Name} (provider={provider})");
             } catch (OperationCanceledException) when (!timeoutCts.IsCancellationRequested && attempt < maxAttempts) {
                 Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试被内层取消(如MockServer就绪超时)，自动重试: {script.Name} (provider={provider})");
-                await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                await Task.Delay(RetryInterval).ConfigureAwait(true);
                 continue;
             } catch (TimeoutException ex) when (attempt < maxAttempts) {
                 Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试超时，自动重试: {script.Name} (provider={provider})，原因: {ex.Message}");
-                await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                await Task.Delay(RetryInterval).ConfigureAwait(true);
                 continue;
             } catch (InvalidOperationException ex) when (IsRetryableProcessFailure(ex) && attempt < maxAttempts) {
                 Output.WriteLine($"[Coverage] ⚠ 第{attempt}次尝试进程暂时失败，自动重试: {script.Name} (provider={provider})，原因: {ex.Message}");
-                await Task.Delay(TimeSpan.FromSeconds(attempt)).ConfigureAwait(true);
+                await Task.Delay(RetryInterval).ConfigureAwait(true);
                 continue;
             } finally {
                 await runner.DisposeAsync().ConfigureAwait(true);

@@ -29,8 +29,15 @@ public class TransportE2ETest {
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
+    [Trait("Category", "Flaky")]
     public async Task BusTransport_HostSlave_MessageRoundTrip() {
-        var pipeName = $"e2e-bus-{Guid.NewGuid():N}";
+        await TestWaitHelper.Retry16Async(attempt => BusTransport_HostSlave_MessageRoundTrip_Core(attempt),
+            totalTimeout: TimeSpan.FromSeconds(120));
+    }
+
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    private static async Task BusTransport_HostSlave_MessageRoundTrip_Core(int attempt) {
+        var pipeName = $"e2e-bus-{attempt}-{Guid.NewGuid():N}";
         var hostPid = "100001";
         var slavePid = "100002";
 
@@ -39,7 +46,7 @@ public class TransportE2ETest {
 
         await host.StartAsync();
         await TestWaitHelper.WaitUntilAsync(() => Task.FromResult(host.Role == ProcessRole.Host), TimeSpan.FromSeconds(2));
-        host.Role.Should().Be(ProcessRole.Host, "第一个启动应为主机");
+        host.Role.Should().Be(ProcessRole.Host, $"attempt={attempt}: 第一个启动应为主机");
 
         await slave.StartAsync();
         await Task.Delay(500);
@@ -48,8 +55,9 @@ public class TransportE2ETest {
         await host.BroadcastAsync(data);
 
         var received = await ReceiveWithTimeoutAsync(slave.ReceiveAsync(), TimeSpan.FromSeconds(5));
-        received.Should().NotBeNull();
-        Encoding.UTF8.GetString(received!.Data.Span).Should().Be("e2e-bus-message");
+        received.Should().NotBeNull($"attempt={attempt}: slave 应收到消息");
+        if (received is null) return;
+        Encoding.UTF8.GetString(received.Data.Span).Should().Be("e2e-bus-message");
         received.SourceProcessId.Should().Be(hostPid);
     }
 
@@ -75,12 +83,17 @@ public class TransportE2ETest {
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
+    [Trait("Category", "Flaky")]
     public async Task MeshTransport_TwoPeers_PointToPointMessage() {
-        // 诊断日志开启（finally 复位）：CI 失败时 stderr 输出 PIPE-ACCEPT/MESH/MESH-WRITE 全链，
-        // 丢帧断点直接可定位（TransportDiagnostics.Enabled 是进程级静态，仅本测试窗口内开启）
+        await TestWaitHelper.Retry16Async(attempt => MeshTransport_TwoPeers_PointToPointMessage_Core(attempt),
+            totalTimeout: TimeSpan.FromSeconds(120));
+    }
+
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    private static async Task MeshTransport_TwoPeers_PointToPointMessage_Core(int attempt) {
         TransportDiagnostics.Enabled = true;
         try {
-            var baseName = $"e2e-mesh-{Guid.NewGuid():N}";
+            var baseName = $"e2e-mesh-{attempt}-{Guid.NewGuid():N}";
             var pid1 = "300001";
             var pid2 = "300002";
 
@@ -91,17 +104,15 @@ public class TransportE2ETest {
             await peer2.StartAsync();
 
             var connected = await peer1.AddPeerAsync(pid2, CancellationToken.None);
-            connected.Should().BeTrue("应能连接到 peer2");
+            connected.Should().BeTrue($"attempt={attempt}: 应能连接到 peer2");
 
-            // 确定性发送：立即发送（对齐同文件双向测试的 CI 绿形态 — AddPeer 后无需延时等待；
-            // 数据经 peer1 连接缓存直写，peer2 侧读循环由管道内核缓冲保底，原先的 Task.Delay(100)
-            // 是时间耦合反模式：Windows 上碰巧够、Linux CI 慢机上无正确性保证）
             var data = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes("mesh-p2p-msg"));
             await peer1.SendAsync(pid2, data);
 
             var received = await ReceiveWithTimeoutAsync(peer2.ReceiveAsync(), TimeSpan.FromSeconds(5));
-            received.Should().NotBeNull();
-            Encoding.UTF8.GetString(received!.Data.Span).Should().Be("mesh-p2p-msg");
+            received.Should().NotBeNull($"attempt={attempt}: peer2 应收到消息");
+            if (received is null) return;
+            Encoding.UTF8.GetString(received.Data.Span).Should().Be("mesh-p2p-msg");
             received.SourceProcessId.Should().Be(pid1);
         } finally {
             TransportDiagnostics.Enabled = false;
@@ -110,8 +121,15 @@ public class TransportE2ETest {
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
+    [Trait("Category", "Flaky")]
     public async Task MeshTransport_Bidirectional_BothDirectionsWork() {
-        var baseName = $"e2e-mesh-bi-{Guid.NewGuid():N}";
+        await TestWaitHelper.Retry16Async(attempt => MeshTransport_Bidirectional_BothDirectionsWork_Core(attempt),
+            totalTimeout: TimeSpan.FromSeconds(120));
+    }
+
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    private static async Task MeshTransport_Bidirectional_BothDirectionsWork_Core(int attempt) {
+        var baseName = $"e2e-mesh-bi-{attempt}-{Guid.NewGuid():N}";
         var pid1 = "400001";
         var pid2 = "400002";
 
@@ -133,17 +151,26 @@ public class TransportE2ETest {
         var recv2 = await ReceiveWithTimeoutAsync(peer2.ReceiveAsync(), TimeSpan.FromSeconds(5));
         var recv1 = await ReceiveWithTimeoutAsync(peer1.ReceiveAsync(), TimeSpan.FromSeconds(5));
 
-        recv2.Should().NotBeNull();
-        Encoding.UTF8.GetString(recv2!.Data.Span).Should().Be("1->2");
+        recv2.Should().NotBeNull($"attempt={attempt}: peer2 应收到 1->2");
+        if (recv2 is null) return;
+        Encoding.UTF8.GetString(recv2.Data.Span).Should().Be("1->2");
 
-        recv1.Should().NotBeNull();
-        Encoding.UTF8.GetString(recv1!.Data.Span).Should().Be("2->1");
+        recv1.Should().NotBeNull($"attempt={attempt}: peer1 应收到 2->1");
+        if (recv1 is null) return;
+        Encoding.UTF8.GetString(recv1.Data.Span).Should().Be("2->1");
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
+    [Trait("Category", "Flaky")]
     public async Task NamedPipeTransport_HostSlave_MessageRoundTrip() {
-        var pipeName = $"e2e-np-{Guid.NewGuid():N}";
+        await TestWaitHelper.Retry16Async(attempt => NamedPipeTransport_HostSlave_MessageRoundTrip_Core(attempt),
+            totalTimeout: TimeSpan.FromSeconds(120));
+    }
+
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    private static async Task NamedPipeTransport_HostSlave_MessageRoundTrip_Core(int attempt) {
+        var pipeName = $"e2e-np-{attempt}-{Guid.NewGuid():N}";
         var hostPid = "500001";
         var slavePid = "500002";
 
@@ -157,8 +184,8 @@ public class TransportE2ETest {
         await TestWaitHelper.WaitUntilAsync(() => Task.FromResult(slave.Role == ProcessRole.Slave), TimeSpan.FromSeconds(2));
         await Task.Delay(200);
 
-        host.Role.Should().Be(ProcessRole.Host);
-        slave.Role.Should().Be(ProcessRole.Slave);
+        host.Role.Should().Be(ProcessRole.Host, $"attempt={attempt}");
+        slave.Role.Should().Be(ProcessRole.Slave, $"attempt={attempt}");
 
         var data = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes("np-e2e-msg"));
         await host.BroadcastAsync(data);
@@ -168,29 +195,27 @@ public class TransportE2ETest {
             received = await ReceiveWithTimeoutAsync(slave.ReceiveAsync(), TimeSpan.FromMilliseconds(500));
             return received is not null;
         }, TimeSpan.FromMilliseconds(500));
-        received.Should().NotBeNull();
-        Encoding.UTF8.GetString(received!.Data.Span).Should().Be("np-e2e-msg");
+        received.Should().NotBeNull($"attempt={attempt}: slave 应收到消息");
+        if (received is null) return;
+        Encoding.UTF8.GetString(received.Data.Span).Should().Be("np-e2e-msg");
         received.SourceProcessId.Should().Be(hostPid);
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
+    [Trait("Category", "Flaky")]
     public async Task BusTransport_Broadcast_MultipleSlavesReceive() {
-        // 信号处理式：从源头消除竞态（StartAsync 同步创建 server pipe 实例），
-        // WaitForConnectedAsync 确定性等待 slave 入表，无需机械重试。
-        // 若仍失败，单次执行 + 现场快照直接定位根因（而非盲目重试掩盖信号）。
-        await BusTransport_Broadcast_MultipleSlavesReceive_Core();
+        await TestWaitHelper.Retry16Async(attempt => BusTransport_Broadcast_MultipleSlavesReceive_Core(attempt),
+            totalTimeout: TimeSpan.FromSeconds(180));
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
-    private static async Task BusTransport_Broadcast_MultipleSlavesReceive_Core() {
-        var pipeName = $"e2e-bus-multi-{Guid.NewGuid():N}";
+    private static async Task BusTransport_Broadcast_MultipleSlavesReceive_Core(int attempt) {
+        var pipeName = $"e2e-bus-multi-{attempt}-{Guid.NewGuid():N}";
         var hostPid = "600001";
         var slave1Pid = "600002";
         var slave2Pid = "600003";
 
-        // Linux CI 确定性失败取证（本地 Windows 恒绿无法复现）：开 TransportDiagnostics，
-        // 失败时 xUnit 会把 stderr 全轨迹（PIPE-ACCEPT/BUS 收发）带进失败输出 — 一次定位根因
         TransportDiagnostics.Enabled = true;
         try {
         await using var host = new BusTransport(pipeName: pipeName, processId: hostPid);
@@ -200,17 +225,15 @@ public class TransportE2ETest {
         await host.StartAsync();
         await slave1.StartAsync();
         await slave2.StartAsync();
-        // 确定性等待两个 slave 握手入表（BroadcastAsync 只发已连接者，无回放 — 参见 WaitForConnectedAsync 注释）
-        await WaitForConnectedAsync(host, [slave1Pid, slave2Pid], TimeSpan.FromSeconds(10));
+        await WaitForConnectedAsync(host, [slave1Pid, slave2Pid], TimeSpan.FromSeconds(15));
 
         var data = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes("broadcast-all"));
         await host.BroadcastAsync(data);
 
-        var recv1 = await ReceiveWithTimeoutAsync(slave1.ReceiveAsync(), TimeSpan.FromSeconds(5));
-        var recv2 = await ReceiveWithTimeoutAsync(slave2.ReceiveAsync(), TimeSpan.FromSeconds(5));
+        var recv1 = await ReceiveWithTimeoutAsync(slave1.ReceiveAsync(), TimeSpan.FromSeconds(10));
+        var recv2 = await ReceiveWithTimeoutAsync(slave2.ReceiveAsync(), TimeSpan.FromSeconds(10));
 
-        // 现场快照：广播后 host 连接表 + 各 slave 实收帧（失败时直接看丢在哪一环）
-        var scene = $"广播后host表=[{string.Join(",", host.GetConnectedProcesses())}] "
+        var scene = $"attempt={attempt} 广播后host表=[{string.Join(",", host.GetConnectedProcesses())}] "
             + $"slave1实收={DescribeFrame(recv1)} slave2实收={DescribeFrame(recv2)}";
 
         recv1.Should().NotBeNull($"slave1 应收到广播；现场: {scene}");

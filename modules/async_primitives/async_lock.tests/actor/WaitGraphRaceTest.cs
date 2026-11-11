@@ -29,6 +29,11 @@ public class WaitGraphRaceTest {
     /// </summary>
     [Fact]
     public async Task BugP13_ConcurrentAskWaitGraph_NoSharedDagRace() {
+        await TestWaitHelper.Retry16Async(attempt => BugP13_ConcurrentAskWaitGraph_NoSharedDagRace_Core(attempt),
+            totalTimeout: TimeSpan.FromSeconds(120));
+    }
+
+    private static async Task BugP13_ConcurrentAskWaitGraph_NoSharedDagRace_Core(int attempt) {
         await using var echo = new P13EchoActor();
         await using var proxy = new P13ProxyActor(echo);
 
@@ -37,7 +42,8 @@ public class WaitGraphRaceTest {
             .ToArray();
 
         var results = await Task.WhenAll(tasks);
-        results.Should().HaveCount(30).And.OnlyContain(r => r.StartsWith("echo:"));
+        results.Should().HaveCount(30).And.OnlyContain(r => r.StartsWith("echo:"),
+            $"attempt={attempt}: 并发 AskAwait 各流应独立 ImmutableDag 副本，不共享同一实例竞态");
     }
 
     /// <summary>

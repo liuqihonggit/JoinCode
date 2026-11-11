@@ -1,6 +1,14 @@
 <Solution>
   <Project Path="primitives/Abstractions.Primitives.csproj" />
   <Project Path="abstractions.primitives.shared/Abstractions.Primitives.Shared.csproj" />
+  <Project Path="abstractions.primitives.clock/Abstractions.Primitives.Clock.csproj" />
+  <Project Path="abstractions.primitives.collections/Abstractions.Primitives.Collections.csproj" />
+  <Project Path="abstractions.primitives.config/Abstractions.Primitives.Config.csproj" />
+  <Project Path="abstractions.primitives.security/Abstractions.Primitives.Security.csproj" />
+  <Project Path="abstractions.primitives.execution/Abstractions.Primitives.Execution.csproj" />
+  <Project Path="abstractions.primitives.exceptions/Abstractions.Primitives.Exceptions.csproj" />
+  <Project Path="abstractions.primitives.http/Abstractions.Primitives.Http.csproj" />
+  <Project Path="abstractions.primitives.tools/Abstractions.Primitives.Tools.csproj" />
   <Project Path="exceptions/Abstractions.Exceptions.csproj" />
   <Folder Name="/abstractions.utils/">
     <Project Path="abstractions.utils/Abstractions.Utils.csproj" />

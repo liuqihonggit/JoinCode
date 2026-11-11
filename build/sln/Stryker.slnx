@@ -175,4 +175,12 @@
   <Project Path="../../modules/abstractions/abstractions.interfaces/Abstractions.Interfaces.csproj" />
   <Project Path="../../modules/abstractions/primitives/Abstractions.Primitives.csproj" />
   <Project Path="../../modules/abstractions/abstractions.primitives.shared/Abstractions.Primitives.Shared.csproj" />
+  <Project Path="../../modules/abstractions/abstractions.primitives.clock/Abstractions.Primitives.Clock.csproj" />
+  <Project Path="../../modules/abstractions/abstractions.primitives.collections/Abstractions.Primitives.Collections.csproj" />
+  <Project Path="../../modules/abstractions/abstractions.primitives.config/Abstractions.Primitives.Config.csproj" />
+  <Project Path="../../modules/abstractions/abstractions.primitives.security/Abstractions.Primitives.Security.csproj" />
+  <Project Path="../../modules/abstractions/abstractions.primitives.execution/Abstractions.Primitives.Execution.csproj" />
+  <Project Path="../../modules/abstractions/abstractions.primitives.exceptions/Abstractions.Primitives.Exceptions.csproj" />
+  <Project Path="../../modules/abstractions/abstractions.primitives.http/Abstractions.Primitives.Http.csproj" />
+  <Project Path="../../modules/abstractions/abstractions.primitives.tools/Abstractions.Primitives.Tools.csproj" />
 </Solution>

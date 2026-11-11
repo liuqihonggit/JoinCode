@@ -16,6 +16,8 @@
   <Project Path="abstractions.primitives.models/Abstractions.Primitives.Models.csproj" />
   <Project Path="abstractions.primitives.interfaces/Abstractions.Primitives.Interfaces.csproj" />
   <Project Path="abstractions.primitives.pipeline/Abstractions.Primitives.Pipeline.csproj" />
+  <Project Path="abstractions.primitives.attributes/Abstractions.Primitives.Attributes.csproj" />
+  <Project Path="abstractions.primitives.commands/Abstractions.Primitives.Commands.csproj" />
   <Project Path="exceptions/Abstractions.Exceptions.csproj" />
   <Folder Name="/abstractions.utils/">
     <Project Path="abstractions.utils/Abstractions.Utils.csproj" />

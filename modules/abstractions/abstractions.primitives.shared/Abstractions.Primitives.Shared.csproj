@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ProjectType>library</ProjectType>
+    <Description>JoinCode 抽象共享类型 — 跨模块共享的枚举/常量/接口，打破 Primitives 三角循环依赖</Description>
+    <ExcludeStructura>true</ExcludeStructura>
+    <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
+    <IsAotCompatible>true</IsAotCompatible>
+    <AllowPack>true</AllowPack>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

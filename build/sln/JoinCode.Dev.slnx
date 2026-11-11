@@ -18,6 +18,7 @@
   </Folder>
   <Folder Name="/lib/">
     <Project Path="../../modules/abstractions/primitives/Abstractions.Primitives.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.shared/Abstractions.Primitives.Shared.csproj" />
     <Project Path="../../modules/abstractions/guard/Abstractions.Guard.csproj" />
     <Project Path="../../modules/abstractions/abstractions/Abstractions.csproj" />
     <Project Path="../../modules/storage/downloader/Downloader.csproj" />

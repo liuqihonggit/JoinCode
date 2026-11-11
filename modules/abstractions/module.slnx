@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="primitives/Abstractions.Primitives.csproj" />
+  <Project Path="abstractions.primitives.shared/Abstractions.Primitives.Shared.csproj" />
   <Project Path="exceptions/Abstractions.Exceptions.csproj" />
   <Folder Name="/abstractions.utils/">
     <Project Path="abstractions.utils/Abstractions.Utils.csproj" />

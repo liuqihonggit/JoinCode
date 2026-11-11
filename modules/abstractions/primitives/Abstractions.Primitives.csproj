@@ -14,6 +14,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/abstractions/abstractions.primitives.shared/Abstractions.Primitives.Shared.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions.Primitives.Shared" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="JoinCode.Integration.Tests" />
     <InternalsVisibleTo Include="JoinCode.Abs.Core.Tests" />
     <InternalsVisibleTo Include="JoinCode.Abs.Ai.Tests" />

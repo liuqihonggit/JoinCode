@@ -50,6 +50,8 @@
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Agents.Fork" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/llm/agents.team/Agents.Team.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Agents.Team" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)modules/llm/agents.coordinator.core/Agents.Coordinator.Core.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Agents.Coordinator.Core" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
 
   <ItemGroup>

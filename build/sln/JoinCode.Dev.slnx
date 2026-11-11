@@ -27,6 +27,8 @@
     <Project Path="../../modules/abstractions/abstractions.primitives.exceptions/Abstractions.Primitives.Exceptions.csproj" />
     <Project Path="../../modules/abstractions/abstractions.primitives.http/Abstractions.Primitives.Http.csproj" />
     <Project Path="../../modules/abstractions/abstractions.primitives.tools/Abstractions.Primitives.Tools.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.localization/Abstractions.Primitives.Localization.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.shell/Abstractions.Primitives.Shell.csproj" />
     <Project Path="../../modules/abstractions/guard/Abstractions.Guard.csproj" />
     <Project Path="../../modules/abstractions/abstractions/Abstractions.csproj" />
     <Project Path="../../modules/storage/downloader/Downloader.csproj" />

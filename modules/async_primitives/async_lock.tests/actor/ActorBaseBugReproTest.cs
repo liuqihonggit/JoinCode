@@ -18,15 +18,8 @@ public class ActorBaseBugReproTest {
     [Trait("Category", "Flaky")]
     [Trait("Category", "Timing")]
     public async Task Bug3_InputCount_NeverNegative_UnderConcurrency() {
-        for (var attempt = 0; attempt < 16; attempt++) {
-            try {
-                await Bug3_InputCount_NeverNegative_UnderConcurrency_Core(attempt);
-                return;
-            } catch (Xunit.Sdk.XunitException) when (attempt < 15) {
-                continue;
-            }
-        }
-        throw new Xunit.Sdk.XunitException("16次重试均失败: InputCount 在并发下出现负值（自维护计数器与 Channel 队列非原子）");
+        await TestWaitHelper.Retry16Async(attempt => Bug3_InputCount_NeverNegative_UnderConcurrency_Core(attempt),
+            totalTimeout: TimeSpan.FromSeconds(120));
     }
 
     private static async Task Bug3_InputCount_NeverNegative_UnderConcurrency_Core(int attempt) {

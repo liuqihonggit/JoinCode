@@ -31,15 +31,8 @@ public class TransportE2ETest {
     [Fact]
     [Trait("Category", "Flaky")]
     public async Task BusTransport_HostSlave_MessageRoundTrip() {
-        for (var attempt = 0; attempt < 16; attempt++) {
-            try {
-                await BusTransport_HostSlave_MessageRoundTrip_Core(attempt);
-                return;
-            } catch (Xunit.Sdk.XunitException) when (attempt < 15) {
-                continue;
-            }
-        }
-        throw new Xunit.Sdk.XunitException("16次重试均失败: BusTransport 主从消息往返在 CI 高负载下失败");
+        await TestWaitHelper.Retry16Async(attempt => BusTransport_HostSlave_MessageRoundTrip_Core(attempt),
+            totalTimeout: TimeSpan.FromSeconds(120));
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
@@ -92,15 +85,8 @@ public class TransportE2ETest {
     [Fact]
     [Trait("Category", "Flaky")]
     public async Task MeshTransport_TwoPeers_PointToPointMessage() {
-        for (var attempt = 0; attempt < 16; attempt++) {
-            try {
-                await MeshTransport_TwoPeers_PointToPointMessage_Core(attempt);
-                return;
-            } catch (Xunit.Sdk.XunitException) when (attempt < 15) {
-                continue;
-            }
-        }
-        throw new Xunit.Sdk.XunitException("16次重试均失败: MeshTransport 点对点消息在 CI 高负载下失败");
+        await TestWaitHelper.Retry16Async(attempt => MeshTransport_TwoPeers_PointToPointMessage_Core(attempt),
+            totalTimeout: TimeSpan.FromSeconds(120));
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
@@ -137,15 +123,8 @@ public class TransportE2ETest {
     [Fact]
     [Trait("Category", "Flaky")]
     public async Task MeshTransport_Bidirectional_BothDirectionsWork() {
-        for (var attempt = 0; attempt < 16; attempt++) {
-            try {
-                await MeshTransport_Bidirectional_BothDirectionsWork_Core(attempt);
-                return;
-            } catch (Xunit.Sdk.XunitException) when (attempt < 15) {
-                continue;
-            }
-        }
-        throw new Xunit.Sdk.XunitException("16次重试均失败: MeshTransport 双向通信在 CI 高负载下失败");
+        await TestWaitHelper.Retry16Async(attempt => MeshTransport_Bidirectional_BothDirectionsWork_Core(attempt),
+            totalTimeout: TimeSpan.FromSeconds(120));
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
@@ -185,15 +164,8 @@ public class TransportE2ETest {
     [Fact]
     [Trait("Category", "Flaky")]
     public async Task NamedPipeTransport_HostSlave_MessageRoundTrip() {
-        for (var attempt = 0; attempt < 16; attempt++) {
-            try {
-                await NamedPipeTransport_HostSlave_MessageRoundTrip_Core(attempt);
-                return;
-            } catch (Xunit.Sdk.XunitException) when (attempt < 15) {
-                continue;
-            }
-        }
-        throw new Xunit.Sdk.XunitException("16次重试均失败: NamedPipeTransport 主从消息往返在 CI 高负载下失败");
+        await TestWaitHelper.Retry16Async(attempt => NamedPipeTransport_HostSlave_MessageRoundTrip_Core(attempt),
+            totalTimeout: TimeSpan.FromSeconds(120));
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
@@ -233,18 +205,8 @@ public class TransportE2ETest {
     [Fact]
     [Trait("Category", "Flaky")]
     public async Task BusTransport_Broadcast_MultipleSlavesReceive() {
-        // flaky 根治（AGENTS 规范：重试16次+延长超时）：BusClientConnection 用 Channel Actor 模型
-        // （射后不理防死锁），Linux CI 慢机上后台 WriteLoopAsync 调度延迟可致 slave 接收超时。
-        // 单轮 10s 接收超时 × 16 轮重试，全部失败才判红。广播消息幂等（相同内容重复收不影响语义）。
-        for (var attempt = 0; attempt < 16; attempt++) {
-            try {
-                await BusTransport_Broadcast_MultipleSlavesReceive_Core(attempt);
-                return;
-            } catch (Xunit.Sdk.XunitException) when (attempt < 15) {
-                continue;
-            }
-        }
-        throw new Xunit.Sdk.XunitException("16次重试均失败: BusTransport 广播在 CI 高负载下 slave 未收到消息");
+        await TestWaitHelper.Retry16Async(attempt => BusTransport_Broadcast_MultipleSlavesReceive_Core(attempt),
+            totalTimeout: TimeSpan.FromSeconds(180));
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]

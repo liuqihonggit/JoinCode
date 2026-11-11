@@ -31,15 +31,7 @@ public class PersistentMailboxTest {
     [Fact]
     [Trait("Category", "Flaky")]
     public async Task RecoverAsync_ReplaysPendingMessages() {
-        for (var attempt = 0; attempt < 16; attempt++) {
-            try {
-                await RecoverAsync_ReplaysPendingMessages_Core(attempt);
-                return;
-            } catch (Xunit.Sdk.XunitException) when (attempt < 15) {
-                continue;
-            }
-        }
-        throw new Xunit.Sdk.XunitException("16次重试均失败: RecoverAsync 回放在 CI 高负载下未完成");
+        await TestWaitHelper.Retry16Async(attempt => RecoverAsync_ReplaysPendingMessages_Core(attempt));
     }
 
     private static async Task RecoverAsync_ReplaysPendingMessages_Core(int attempt) {

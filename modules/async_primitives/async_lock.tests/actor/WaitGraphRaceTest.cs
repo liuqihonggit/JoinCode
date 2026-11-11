@@ -29,15 +29,8 @@ public class WaitGraphRaceTest {
     /// </summary>
     [Fact]
     public async Task BugP13_ConcurrentAskWaitGraph_NoSharedDagRace() {
-        for (var attempt = 0; attempt < 16; attempt++) {
-            try {
-                await BugP13_ConcurrentAskWaitGraph_NoSharedDagRace_Core(attempt);
-                return;
-            } catch (Xunit.Sdk.XunitException) when (attempt < 15) {
-                continue;
-            }
-        }
-        throw new Xunit.Sdk.XunitException("16次重试均失败: 并发 AskAwait 等待图竞态在 CI 高负载下全部失败");
+        await TestWaitHelper.Retry16Async(attempt => BugP13_ConcurrentAskWaitGraph_NoSharedDagRace_Core(attempt),
+            totalTimeout: TimeSpan.FromSeconds(120));
     }
 
     private static async Task BugP13_ConcurrentAskWaitGraph_NoSharedDagRace_Core(int attempt) {

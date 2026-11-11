@@ -18,6 +18,24 @@
   </Folder>
   <Folder Name="/lib/">
     <Project Path="../../modules/abstractions/primitives/Abstractions.Primitives.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.shared/Abstractions.Primitives.Shared.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.clock/Abstractions.Primitives.Clock.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.collections/Abstractions.Primitives.Collections.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.config/Abstractions.Primitives.Config.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.security/Abstractions.Primitives.Security.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.execution/Abstractions.Primitives.Execution.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.exceptions/Abstractions.Primitives.Exceptions.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.http/Abstractions.Primitives.Http.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.tools/Abstractions.Primitives.Tools.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.localization/Abstractions.Primitives.Localization.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.shell/Abstractions.Primitives.Shell.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.configuration/Abstractions.Primitives.Configuration.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.utils/Abstractions.Primitives.Utils.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.models/Abstractions.Primitives.Models.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.interfaces/Abstractions.Primitives.Interfaces.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.pipeline/Abstractions.Primitives.Pipeline.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.attributes/Abstractions.Primitives.Attributes.csproj" />
+    <Project Path="../../modules/abstractions/abstractions.primitives.commands/Abstractions.Primitives.Commands.csproj" />
     <Project Path="../../modules/abstractions/guard/Abstractions.Guard.csproj" />
     <Project Path="../../modules/abstractions/abstractions/Abstractions.csproj" />
     <Project Path="../../modules/storage/downloader/Downloader.csproj" />

@@ -1,0 +1,9 @@
+global using JoinCode.Abstractions.Attributes;
+global using JoinCode.Abstractions.ChatCommands;
+global using JoinCode.Abstractions.Commands;
+global using JoinCode.Abstractions.Utils;
+global using System.Collections.Frozen;
+global using System.ComponentModel.DataAnnotations;
+global using System.Diagnostics.CodeAnalysis;
+global using System.Text.Json;
+global using System.Text.Json.Serialization;

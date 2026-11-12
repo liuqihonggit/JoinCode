@@ -25,6 +25,13 @@ internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<Sta
     /// <param name="next">下一中间件委托</param>
     /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
+        // Hub 模式下 API Key 由服务端管理，跳过配置引导
+        if (string.Equals(context.Config.Provider.Vendor, "hub", StringComparison.OrdinalIgnoreCase)) {
+            context.HasApiKey = true;
+            await next(context, ct).ConfigureAwait(false);
+            return;
+        }
+
         context.HasApiKey = !string.IsNullOrEmpty(context.Config.Provider.ApiKey);
         if (context.HasApiKey) {
             await next(context, ct).ConfigureAwait(false);

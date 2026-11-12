@@ -348,6 +348,17 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
         _logger?.LogInformation("[AgentHubServer] 热重载完成 — Providers: {Count}", _catalog.GetProviderNames().Count);
     }
 
+    /// <summary>
+    /// 应用热重载 — 用新的 SettingsJson 和 ProviderDefinitionRegistry 重建 ProviderCatalog，原子替换。
+    /// 供测试注入特定配置验证热重载行为。
+    /// </summary>
+    /// <param name="newSettings">新的 SettingsJson。</param>
+    /// <param name="newRegistry">新的 ProviderDefinitionRegistry。</param>
+    internal void ApplyReload(SettingsJson newSettings, IProviderDefinitionRegistry newRegistry) {
+        BuildCatalog(newSettings, newRegistry);
+        _logger?.LogInformation("[AgentHubServer] 热重载完成 — Providers: {Count}", _catalog.GetProviderNames().Count);
+    }
+
     /// <summary>从 ProviderEntry 解析 API Key — 环境变量 > auth.json。</summary>
     private static string ResolveApiKeyForEntry(ProviderEntry entry) {
         if (!string.IsNullOrEmpty(entry.ApiKeyEnvVar)) {

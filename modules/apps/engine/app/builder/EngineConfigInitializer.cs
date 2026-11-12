@@ -32,20 +32,16 @@ public static class EngineConfigInitializer {
     }
 
     private static string BuildDefaultSettingsTemplate(IModelConfigLoader? modelConfigLoader) {
-        var defaultModel = modelConfigLoader?.GetDefaultModelId(VendorKind.DeepSeek.ToValue()) ?? string.Empty;
         var sb = new StringBuilder();
         sb.AppendLine("{");
-        sb.AppendLine("  // LLM Provider: deepseek | openai | anthropic | azure | agnes");
-        sb.AppendLine($"  \"provider\": \"{VendorKind.DeepSeek.ToValue()}\","); // P1-⑤ 委托枚举
+        sb.AppendLine("  // 当前供应商 — 由 Hub 服务端管理，客户端不需手动配置");
+        sb.AppendLine("  // \"provider\": \"sensenova\",");
         sb.AppendLine();
         sb.AppendLine("  // 模型 ID，可用 /model 命令切换");
-        sb.AppendLine($"  \"model\": \"{defaultModel}\",");
-        sb.AppendLine();
-        sb.AppendLine("  // API 端点（默认使用 Provider 内置地址，无需修改）");
-        sb.AppendLine("  // \"endpoint\": \"https://api.deepseek.com\",");
+        sb.AppendLine("  // \"model\": \"deepseek-v4-flash\",");
         sb.AppendLine();
         sb.AppendLine("  // 推理努力级别: low | medium | high");
-        sb.AppendLine("  // \"effortLevel\": \"high\",");
+        sb.AppendLine("  //%20\"effortLevel\": \"high\",");
         sb.AppendLine();
         sb.AppendLine("  // 快速模式：使用轻量模型处理简单任务");
         sb.AppendLine("  // \"fastMode\": false,");
@@ -65,16 +61,11 @@ public static class EngineConfigInitializer {
     private static string BuildDefaultAuthTemplate() {
         var sb = new StringBuilder();
         sb.AppendLine("{");
-        sb.AppendLine("  // API Key 存储 — 键名为 Provider 名称，值为对应的 API Key");
-        sb.AppendLine("  // 支持的键名: deepseek | openai | anthropic | azure | agnes");
+        sb.AppendLine("  // API Key 存储 — 由 Hub 服务端管理，客户端不需手动配置");
+        sb.AppendLine("  // 键名为 Provider 名称，值为对应的 API Key");
         sb.AppendLine("  //");
         sb.AppendLine("  // 示例:");
-        sb.AppendLine("  // \"deepseek\": \"sk-your-deepseek-api-key\",");
-        sb.AppendLine("  // \"openai\": \"sk-your-openai-api-key\",");
-        sb.AppendLine("  // \"anthropic\": \"sk-ant-your-anthropic-api-key\"");
-        sb.AppendLine("  //");
-        sb.AppendLine("  // 也可通过环境变量设置（优先级更高）:");
-        sb.AppendLine("  //   DEEPSEEK_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY / AZURE_OPENAI_API_KEY");
+        sb.AppendLine("  // \"sensenova\": \"your-api-key\"");
         sb.Append('}');
         return sb.ToString();
     }

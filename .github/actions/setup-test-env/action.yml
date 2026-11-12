@@ -96,3 +96,42 @@ runs:
       if: inputs.build-e2e-exes == 'true' && runner.os == 'Linux'
       shell: bash
       run: find artifacts/bin/ -type f -exec chmod +x {} + 2>/dev/null || true
+
+    - name: Start Hub Server (for E2E)
+      if: inputs.build-e2e-exes == 'true'
+      shell: bash
+      run: |
+        # Find jcchub executable
+        HUB_EXE=""
+        for candidate in \
+          "artifacts/bin/Hub/Debug/net10.0/jcchub" \
+          "artifacts/bin/Hub/Debug/net10.0/jcchub.exe" \
+          "artifacts/bin/jcchub/Debug/net10.0/jcchub" \
+          "artifacts/bin/jcchub/Debug/net10.0/jcchub.exe"; do
+          if [ -f "$candidate" ]; then
+            HUB_EXE="$candidate"
+            break
+          fi
+        done
+
+        if [ -z "$HUB_EXE" ]; then
+          echo "::warning::jcchub not found in artifacts/bin — Hub-dependent E2E tests will fail"
+          exit 0
+        fi
+
+        echo "Starting Hub Server: $HUB_EXE"
+        "$HUB_EXE" &
+        HUB_PID=$!
+        echo "Hub Server PID: $HUB_PID"
+
+        # Wait for Hub to be ready (max 10s)
+        for i in $(seq 1 10); do
+          sleep 1
+          if curl -s http://localhost:3457/health >/dev/null 2>&1; then
+            echo "Hub Server ready (waited ${i}s)"
+            break
+          fi
+          if [ $i -eq 10 ]; then
+            echo "::warning::Hub Server not ready after 10s — Hub-dependent E2E tests may fail"
+          fi
+        done

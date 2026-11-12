@@ -20,11 +20,11 @@ public sealed class DataDrivenPipelineCompositionTest {
     }
 
     [Fact]
-    public void BuildNodeFactories_ContainsAll16ConsumerCrashSnapshots() {
+    public void BuildNodeFactories_ContainsAll17ConsumerCrashSnapshots() {
         var factories = DataDrivenPipelineComposition.BuildNodeFactories().ToDictionary();
 
         var crashKeys = factories.Keys.Where(k => k.Contains("crash-snapshot")).ToList();
-        crashKeys.Should().HaveCount(16);
+        crashKeys.Should().HaveCount(17);
         crashKeys.Should().Contain("chat-pipeline:stream-crash-snapshot-mw");
         crashKeys.Should().Contain("preprocess-pipeline:crash-snapshot-mw");
         crashKeys.Should().Contain("chatinit-pipeline:crash-snapshot-mw");
@@ -41,6 +41,7 @@ public sealed class DataDrivenPipelineCompositionTest {
         crashKeys.Should().Contain("skill-pipeline:crash-snapshot-mw");
         crashKeys.Should().Contain("code-pipeline:crash-snapshot-mw");
         crashKeys.Should().Contain("dream-pipeline:crash-snapshot-mw");
+        crashKeys.Should().Contain("tool-execution-pipeline:crash-snapshot-mw");
     }
 
     [Fact]

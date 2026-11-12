@@ -164,7 +164,7 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
         foreach (var s in regexSections) {
             var fieldName = $"s_{ToCamelCase(s.SectionName)}Regex";
             sb.AppendLine($"    private static readonly Regex {fieldName} = new(");
-            sb.AppendLine($"        @\"{EscapeString(s.RegexPattern)}\",");
+            sb.AppendLine($"        @\"{EscapeVerbatimString(s.RegexPattern)}\",");
             sb.AppendLine("        RegexOptions.IgnoreCase | RegexOptions.Compiled);");
             sb.AppendLine();
         }
@@ -420,6 +420,10 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
             sb.Append(c);
         }
         return sb.ToString();
+    }
+
+    private static string EscapeVerbatimString(string s) {
+        return s.Replace("\"", "\"\"");
     }
 
     private static string EscapeString(string s) {

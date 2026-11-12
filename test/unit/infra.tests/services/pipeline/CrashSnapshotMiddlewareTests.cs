@@ -101,11 +101,11 @@ public sealed class CrashSnapshotMiddlewareTests {
     }
 
     [Fact]
-    public void OnError_Returns_Propagate() {
+    public void OnError_Returns_Continue() {
         var store = new CrashSnapshotStore();
         var middleware = new CrashSnapshotMiddleware<TestCtx>(store, "PropPipe");
 
-        middleware.OnError.Should().Be(ErrorBehavior.Propagate);
+        middleware.OnError.Should().Be(ErrorBehavior.Continue);
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]

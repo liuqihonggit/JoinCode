@@ -123,13 +123,10 @@ public sealed class EngineApplicationBuilder {
     }
 
     /// <summary>
-    /// 加载配置 — 含 DotEnv 回退
+    /// 加载配置 — Hub 优先，回退到本地配置
     /// ADR 0155: 当 Hub 服务可用时，跳过 Provider 配置加载，直接使用 Hub 协议
     /// </summary>
     public static async Task<WorkflowConfig> LoadConfigAsync(CommandLineOptions options, IFileSystem fs, IModelConfigLoader? modelConfigLoader = null) {
-        var sw = PerfTimer.Start("  GetDotEnv");
-        var dotEnv = GetDotEnv();
-        sw?.Stop();
         WorkflowConfig config;
 
         var configLogLevel = JoinCode.Abstractions.Utils.Diagnostics.Diag.IsDebugLog ? LogLevel.Debug : LogLevel.Warning;
@@ -144,7 +141,7 @@ public sealed class EngineApplicationBuilder {
             return config;
         }
 
-        // 启动开销优化 — 先创建 registry 再传给 ConfigLoader，避免 ConfigLoader 构造函数内部重复创建
+        // 回退路径 — Hub 不可达时从本地配置加载
         modelConfigLoader ??= new ModelConfigLoader();
         var sw1 = PerfTimer.Start("  ProviderRegistry.Create");
         var registry = await Core.Configuration.Providers.ProviderDefinitionRegistry.CreateAsync(modelConfigLoader, logger: configLoggerFactory.CreateLogger<Core.Configuration.Providers.ProviderDefinitionRegistry>()).ConfigureAwait(false);
@@ -155,28 +152,12 @@ public sealed class EngineApplicationBuilder {
         };
 
         var sw2 = PerfTimer.Start("  ConfigLoader.Load");
-        try {
-            config = await loader.LoadConfigAsync(fs).ConfigureAwait(false);
-        } catch (ConfigurationException ex) when (ex.Message.Contains("API Key")) {
-            if (dotEnv is not null) {
-                await dotEnv.ApplyToConfigAsync(fs).ConfigureAwait(false);
-                config = await loader.LoadConfigAsync(fs).ConfigureAwait(false);
-            } else {
-                throw;
-            }
-        }
+        config = await loader.LoadConfigAsync(fs).ConfigureAwait(false);
         sw2?.Stop();
 
-        var sw3 = PerfTimer.Start("  DotEnv+EnvOverrides");
-        if (dotEnv is not null) {
-            config = dotEnv.ApplyToMemory(config, registry);
-        }
-
-        // 环境变量优先级最高 — 无论 dotEnv 是否存在，都必须应用环境变量覆盖
+        // 环境变量优先级最高
         config = await new Core.Configuration.SettingsMapper(registry).ApplyEnvOverridesAsync(config).ConfigureAwait(false);
-        sw3?.Stop();
 
-        // --model 已在 ParseArgs 阶段转为 JCC_MODEL_ID 环境变量，由 EnvOverrideApplier + ApplyEnvOverrides 统一处理
         if (options.IsPipeMode)
             config = config with { PipeEndpoint = new PipeTransportConfig { PipeName = options.PipeName ?? throw new InvalidOperationException("PipeName required in pipe mode") } };
 
@@ -341,36 +322,5 @@ public sealed class EngineApplicationBuilder {
         } catch (Exception ex) {
             Diag.WriteLine($"[HUB] Agent 注销异常: {ex.Message}");
         }
-    }
-
-    private static Entry.DotEnvConfig? _dotEnvCache;
-
-    private static Entry.DotEnvConfig? GetDotEnv() {
-        if (_dotEnvCache is null)
-            _dotEnvCache = LoadDotEnvCore();
-        return _dotEnvCache;
-    }
-
-    private static Entry.DotEnvConfig? LoadDotEnvCore() {
-        var envPath = FindDotEnvPath();
-        if (envPath is null) return null;
-        return Entry.DotEnvConfig.LoadFrom(envPath);
-    }
-
-    private static string? FindDotEnvPath() {
-        // 1. 当前工作目录 — 用户从任意目录运行 jcc 时查找
-        var cwdPath = System.IO.Path.Combine(Environment.CurrentDirectory, ".env", "api.json");
-        if (System.IO.File.Exists(cwdPath)) return cwdPath;
-
-        // 2. 项目级 .jcc 目录 — Release 部署场景
-        var envPath = System.IO.Path.Combine(AppDataConstants.Paths.DotEnvDirectory, "api.json");
-        if (System.IO.File.Exists(envPath)) return envPath;
-
-        // 3. 开发环境回退 — 从 bin/Release/net10.0 向上 5 级到项目根
-        var projectRoot = System.IO.Path.GetFullPath(
-            System.IO.Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".env", "api.json"));
-        if (System.IO.File.Exists(projectRoot)) return projectRoot;
-
-        return null;
     }
 }

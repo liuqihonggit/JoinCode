@@ -59,12 +59,6 @@ public static class PluginErrors {
         $"    · 裸 Thread/Timer/Task.Run → 改用 ctx.RunBackgroundTask" + Environment.NewLine +
         $"    · 闭包捕获 ALC 内类型 → 检查后台任务是否长期持有插件类型实例";
 
-    /// <summary>ALC 不可回收 — 引导检查 isCollectible</summary>
-    public static string AlcNotCollectible(string pluginName) =>
-        $"[INF-PLUGIN-ALC-NOT-COLLECTIBLE] 插件 '{pluginName}' 的 ALC 不可回收,已跳过 Unload。" + Environment.NewLine +
-        $"  排错: 该 ALC 创建时未开启 isCollectible,属于宿主配置问题。" + Environment.NewLine +
-        $"  修复: 用 PluginAlc(name) 创建可收集 ALC(内部 isCollectible: true)。";
-
     /// <summary>外部插件可执行文件不存在 — 引导检查路径</summary>
     public static string ExternalExeNotFound(string exePath) =>
         $"[INF036] 外部插件可执行文件不存在: {exePath}" + Environment.NewLine +

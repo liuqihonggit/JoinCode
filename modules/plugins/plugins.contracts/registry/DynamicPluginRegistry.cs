@@ -154,13 +154,11 @@ public readonly struct PluginInvokeResult {
 }
 
 /// <summary>
-/// 运行中的插件实例 — 绑定 Package + ALC + handler 表
+/// 运行中的插件实例 — 绑定 Package + handler 表
 /// </summary>
 internal sealed class RunningPluginInstance {
     /// <summary>获取插件包标识。</summary>
     public PluginPackageId PackageId { get; }
-    /// <summary>获取插件的可卸载程序集加载上下文。</summary>
-    public PluginAlc Alc { get; }
     /// <summary>获取插件已注册的处理器映射表。</summary>
     public FrozenDictionary<string, Func<object?[], object?>> Handlers { get; }
     /// <summary>获取插件启动时间。</summary>
@@ -168,16 +166,13 @@ internal sealed class RunningPluginInstance {
 
     /// <summary>构造运行中的插件实例。</summary>
     /// <param name="packageId">插件包标识。</param>
-    /// <param name="alc">可卸载程序集加载上下文。</param>
     /// <param name="handlers">已注册的处理器映射表。</param>
     /// <param name="startedAt">启动时间。</param>
     public RunningPluginInstance(
         PluginPackageId packageId,
-        PluginAlc alc,
         FrozenDictionary<string, Func<object?[], object?>> handlers,
         DateTimeOffset startedAt) {
         PackageId = packageId;
-        Alc = alc;
         Handlers = handlers;
         StartedAt = startedAt;
     }
@@ -186,10 +181,10 @@ internal sealed class RunningPluginInstance {
 /// <summary>
 /// 动态插件运行时注册表 — 对齐 DSH define/run/update/stop/undefine + inspect + invoke
 /// <para>进程内存 Map，重启全部丢失（纯内存，不持久化）</para>
-/// <para>DefinePlugin 声明包元数据，RunPlugin 加载程序集并激活，StopPlugin 只停运行，UndefinePlugin 永久删除</para>
+/// <para>DefinePlugin 声明包元数据，RunPlugin 标记运行状态，StopPlugin 只停运行，UndefinePlugin 永久删除</para>
 /// <para>UpdatePlugin 原子替换包版本，旧运行实例标记 stale</para>
 /// <para>审批前置：RunPlugin 前检查 PluginApprovalRegistry（依赖 #3）</para>
-/// <para>NativeAOT 降级：不支持源码求值，只加载已编译 DLL</para>
+/// <para>NativeAOT 兼容：不依赖 AssemblyLoadContext，handler 表由外部注入</para>
 /// <para>线程安全：ConcurrentDictionary + CAS + Interlocked（无锁）</para>
 /// <para>时钟可注入：Func&lt;DateTimeOffset&gt;? clock = null，测试可控、生产用 UtcNow</para>
 /// </summary>
@@ -198,18 +193,18 @@ public sealed class DynamicPluginRegistry {
     private readonly PluginRuntimeRegistry _runtime = new();
     private readonly PluginApprovalRegistry _approval;
     private readonly Func<DateTimeOffset>? _clock;
-    private readonly Func<PluginPackage, PluginAlc, FrozenDictionary<string, Func<object?[], object?>>> _loader;
+    private readonly Func<PluginPackage, FrozenDictionary<string, Func<object?[], object?>>> _loader;
 
     /// <param name="approval">审批注册表（依赖 #3），null 时跳过审批</param>
     /// <param name="clock">时钟注入，null 用 DateTimeOffset.UtcNow</param>
-    /// <param name="loader">handler 表加载委托，null 用默认 LoadHandlerTable（真实程序集加载）</param>
+    /// <param name="loader">handler 表加载委托，null 时返回空表（AOT 兼容）</param>
     public DynamicPluginRegistry(
         PluginApprovalRegistry? approval = null,
         Func<DateTimeOffset>? clock = null,
-        Func<PluginPackage, PluginAlc, FrozenDictionary<string, Func<object?[], object?>>>? loader = null) {
+        Func<PluginPackage, FrozenDictionary<string, Func<object?[], object?>>>? loader = null) {
         _approval = approval ?? new PluginApprovalRegistry(clock);
         _clock = clock;
-        _loader = loader ?? LoadHandlerTable;
+        _loader = loader ?? (_ => FrozenDictionary<string, Func<object?[], object?>>.Empty);
     }
 
     private DateTimeOffset Now() => _clock?.Invoke() ?? DateTimeOffset.UtcNow;
@@ -242,7 +237,7 @@ public sealed class DynamicPluginRegistry {
     }
 
     /// <summary>
-    /// 运行插件 — 加载程序集到新 ALC，激活 handler 表
+    /// 运行插件 — 标记运行状态，加载 handler 表
     /// <para>审批前置：若 PluginApprovalRegistry 有该插件的待审批请求且未批准 → 抛 InvalidOperationException</para>
     /// <para>插件未定义 → 抛 KeyNotFoundException</para>
     /// <para>已在运行 → 返回当前运行实例的 PackageId（幂等）</para>
@@ -260,19 +255,17 @@ public sealed class DynamicPluginRegistry {
                 $"[DYN-RUN-PENDING-APPROVAL] 插件 {name} 有待审批请求 {pending.RequestId}，请先审批。");
         }
 
-        var alc = new PluginAlc($"plugin-{name}-{pkg.PackageId}");
-        var handlers = _loader(pkg, alc);
-        var instance = new RunningPluginInstance(pkg.PackageId, alc, handlers, Now());
+        var handlers = _loader(pkg);
+        var instance = new RunningPluginInstance(pkg.PackageId, handlers, Now());
 
         if (_runtime.TrySetRunningIfAbsent(name, instance, out var winner))
             return pkg.PackageId;
 
-        alc.Unload();
         return winner is not null ? winner.PackageId : pkg.PackageId;
     }
 
     /// <summary>
-    /// 更新插件 — 原子替换包版本，旧运行实例标记 stale（卸载旧 ALC）
+    /// 更新插件 — 原子替换包版本，旧运行实例标记 stale
     /// <para>插件未定义 → 抛 KeyNotFoundException</para>
     /// <para>新版本号 &lt;= 旧版本号 → 抛 ArgumentException</para>
     /// <para>若旧版本在运行，先 stop 再替换</para>
@@ -291,10 +284,7 @@ public sealed class DynamicPluginRegistry {
             throw new ArgumentException(
                 $"[DYN-UPDATE-VERSION] 新版本 {newVersion} 必须大于旧版本 {oldPkg.Version}。");
 
-        var wasRunning = _runtime.TryRemoveRunning(name, out var oldInstance);
-        if (wasRunning && oldInstance is not null) {
-            oldInstance.Alc.Unload();
-        }
+        var wasRunning = _runtime.TryRemoveRunning(name, out _);
 
         var id = NextPackageId();
         var newPkg = new PluginPackage(
@@ -311,11 +301,10 @@ public sealed class DynamicPluginRegistry {
     /// <para>插件未运行 → 返回 false（幂等）</para>
     /// </summary>
     public bool StopPlugin(string name) {
-        if (!_runtime.TryRemoveRunning(name, out var instance)) {
+        if (!_runtime.TryRemoveRunning(name, out _)) {
             return false;
         }
 
-        instance.Alc.Unload();
         _runtime.SetState(name, DynamicPluginState.Stopped);
         return true;
     }
@@ -326,9 +315,7 @@ public sealed class DynamicPluginRegistry {
     /// <para>插件未定义 → 返回 false</para>
     /// </summary>
     public bool UndefinePlugin(string name) {
-        if (_runtime.TryRemoveRunning(name, out var instance))
-            instance.Alc.Unload();
-
+        _runtime.TryRemoveRunning(name, out _);
         return _runtime.Undefine(name);
     }
 
@@ -381,18 +368,5 @@ public sealed class DynamicPluginRegistry {
         } catch (Exception ex) {
             return PluginInvokeResult.Fail(PluginInvokeFailure.HandlerError, ex.Message);
         }
-    }
-
-    /// <summary>
-    /// 加载 handler 表 — 从程序集加载入口类型，提取 [ServiceInvoke] 标记的方法
-    /// <para>NativeAOT 降级：实际程序集加载由 PluginAlc 负责，此处返回空表（无反射）</para>
-    /// <para>真实实现需源码生成器在编译时为每个插件生成 handler 注册代码</para>
-    /// <para>ADR 0098 #8 AOT 降级：LoadFromAssemblyPath 不兼容 trimming，仅非 AOT 模式可用</para>
-    /// </summary>
-    private static FrozenDictionary<string, Func<object?[], object?>> LoadHandlerTable(PluginPackage pkg, PluginAlc alc) {
-#pragma warning disable IL2026
-        _ = alc.LoadFromAssemblyPath(pkg.AssemblyPath);
-#pragma warning restore IL2026
-        return FrozenDictionary<string, Func<object?[], object?>>.Empty;
     }
 }

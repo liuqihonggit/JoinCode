@@ -223,6 +223,13 @@ public sealed class EngineApplicationBuilder {
             }
         }
 
+        // 从服务端 /config/default 获取供应商配置，写入本地 settings.json（首次启动时）
+        try {
+            await FetchHubConfigDefaultAsync(fs, settings).ConfigureAwait(false);
+        } catch (Exception ex) {
+            Diag.WriteLine($"[HUB] 从服务端获取供应商配置失败: {ex.Message}");
+        }
+
         // 加载规则文件
         var projectDir = fs.GetCurrentDirectory();
         await using var rulesLoader = new Core.Configuration.ProjectRulesLoader(fs);
@@ -320,6 +327,82 @@ public sealed class EngineApplicationBuilder {
         }
 
         loader.ApplyProviders(providers);
+    }
+
+    /// <summary>
+    /// 从 Hub /config/default 获取供应商配置，首次启动时写入本地 settings.json
+    /// </summary>
+    private static async Task FetchHubConfigDefaultAsync(IFileSystem fs, SettingsJson? existingSettings) {
+        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+        var response = await client.GetAsync("http://localhost:3457/config/default").ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode) {
+            Diag.WriteLine($"[HUB] /config/default 返回 {response.StatusCode}");
+            return;
+        }
+
+        var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        var configDefault = RelaxedJsonSerializer.Deserialize(json, HubModelsJsonContext.Default.HubConfigDefaultResponse);
+        if (configDefault is null || configDefault.Vendor.Count == 0) {
+            Diag.WriteLine("[HUB] /config/default 返回空配置");
+            return;
+        }
+
+        Diag.WriteLine($"[HUB] /config/default 获取 {configDefault.Vendor.Count} 个供应商配置，currentProfile={configDefault.CurrentProfile}");
+
+        // 本地已有 vendor 配置时不覆盖
+        if (existingSettings is not null && existingSettings.Vendor.Count > 0) {
+            Diag.WriteLine("[HUB] 本地已有 vendor 配置，跳过写入");
+            return;
+        }
+
+        // 将 Hub 返回的配置转换为 SettingsJson 格式并写入本地
+        var settingsToWrite = ConvertHubConfigToSettingsJson(configDefault, existingSettings);
+        var settingsPath = System.IO.Path.Combine(AppDataConstants.Paths.JccDirectory, AppDataConstants.SettingsFileName);
+        var settingsJson = RelaxedJsonSerializer.Serialize(settingsToWrite, ConfigJsonContext.Default);
+        await fs.WriteAllTextAsync(settingsPath, settingsJson).ConfigureAwait(false);
+        Diag.WriteLine($"[HUB] 已将供应商配置写入 {settingsPath}");
+    }
+
+    /// <summary>
+    /// 将 Hub /config/default 响应转换为 SettingsJson 格式
+    /// </summary>
+    private static SettingsJson ConvertHubConfigToSettingsJson(HubConfigDefaultResponse configDefault, SettingsJson? existingSettings) {
+        var vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (name, entry) in configDefault.Vendor) {
+            var models = entry.Models.Select(m => new ModelItemConfig {
+                Id = m.Id,
+                DisplayName = string.IsNullOrEmpty(m.DisplayName) ? m.Id : m.DisplayName,
+                ContextWindow = m.ContextWindow,
+            }).ToList();
+
+            vendor[name] = new ProfileSettings {
+                Provider = entry.Provider,
+                Protocol = entry.Protocol,
+                Endpoint = entry.Endpoint,
+                ApiKeyEnvVar = entry.ApiKeyEnvVar,
+                Model = entry.Model,
+                Models = models,
+            };
+        }
+
+        return new SettingsJson {
+            Vendor = vendor,
+            Current = new CurrentSettings {
+                Profile = configDefault.CurrentProfile,
+                FastMode = existingSettings?.Current?.FastMode ?? false,
+                Language = existingSettings?.Current?.Language,
+                OutputStyle = existingSettings?.Current?.OutputStyle,
+                AutoMemoryEnabled = existingSettings?.Current?.AutoMemoryEnabled ?? true,
+                AutoDreamEnabled = existingSettings?.Current?.AutoDreamEnabled ?? true,
+                CleanupPeriodDays = existingSettings?.Current?.CleanupPeriodDays ?? 30,
+                ShowTurnDuration = existingSettings?.Current?.ShowTurnDuration ?? true,
+                AutoCompactEnabled = existingSettings?.Current?.AutoCompactEnabled ?? true,
+                FileCheckpointingEnabled = existingSettings?.Current?.FileCheckpointingEnabled ?? true,
+                DebugLog = existingSettings?.Current?.DebugLog ?? false,
+            },
+            AutoFetchModels = existingSettings?.AutoFetchModels ?? true,
+        };
     }
 
     /// <summary>

@@ -350,7 +350,7 @@ public sealed class EngineApplicationBuilder {
         Diag.WriteLine($"[HUB] /config/default 获取 {configDefault.Vendor.Count} 个供应商配置，currentProfile={configDefault.CurrentProfile}");
 
         // 本地已有 vendor 配置时不覆盖
-        if (existingSettings is not null && existingSettings.Vendor.Count > 0) {
+        if (existingSettings is not null && existingSettings.Vendor is { Count: > 0 }) {
             Diag.WriteLine("[HUB] 本地已有 vendor 配置，跳过写入");
             return;
         }
@@ -358,7 +358,7 @@ public sealed class EngineApplicationBuilder {
         // 将 Hub 返回的配置转换为 SettingsJson 格式并写入本地
         var settingsToWrite = ConvertHubConfigToSettingsJson(configDefault, existingSettings);
         var settingsPath = System.IO.Path.Combine(AppDataConstants.Paths.JccDirectory, AppDataConstants.SettingsFileName);
-        var settingsJson = RelaxedJsonSerializer.Serialize(settingsToWrite, ConfigJsonContext.Default);
+        var settingsJson = RelaxedJsonSerializer.Serialize(settingsToWrite, ConfigIndentedJsonContext.Default);
         await fs.WriteAllTextAsync(settingsPath, settingsJson).ConfigureAwait(false);
         Diag.WriteLine($"[HUB] 已将供应商配置写入 {settingsPath}");
     }
@@ -370,7 +370,7 @@ public sealed class EngineApplicationBuilder {
         var vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var (name, entry) in configDefault.Vendor) {
-            var models = entry.Models.Select(m => new ModelItemConfig {
+            var models = (entry.Models ?? []).Select(m => new ModelItemConfig {
                 Id = m.Id,
                 DisplayName = string.IsNullOrEmpty(m.DisplayName) ? m.Id : m.DisplayName,
                 ContextWindow = m.ContextWindow,

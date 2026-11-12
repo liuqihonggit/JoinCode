@@ -7,7 +7,7 @@ namespace JoinCode.Abstractions.Configuration.Providers;
 /// </summary>
 public interface IProviderDefinition {
     /// <summary>
-    /// 供应商枚举类型 — openai/anthropic/deepseek/azure/agnes/sensenova
+    /// 供应商枚举类型 — 由 VendorKind 枚举定义
     /// </summary>
     VendorKind Vendor { get; }
 
@@ -17,7 +17,7 @@ public interface IProviderDefinition {
     ProtocolKind Protocol { get; }
 
     /// <summary>
-    /// Provider 标识名（小写，如 "openai", "agnes"）
+    /// Provider 标识名（小写，如 "test-provider"）
     /// </summary>
     string ProviderName { get; }
 
@@ -77,7 +77,7 @@ public interface IProviderDefinition {
     bool IsValid(ProviderConfig config);
 
     /// <summary>
-    /// 解析模型别名（如 "sonnet" → "claude-sonnet-4-6"）
+    /// 解析模型别名（如 "alias" → "test-model"）
     /// </summary>
     string? ResolveAlias(string input) => null;
 

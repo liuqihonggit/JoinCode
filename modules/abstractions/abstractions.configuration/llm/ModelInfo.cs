@@ -12,7 +12,7 @@ public sealed record ModelInfo
     /// <summary>模型标识。</summary>
     public required string ModelId { get; init; }
 
-    /// <summary>供应商标识（如 zhipu / sensenova）。</summary>
+    /// <summary>供应商标识（如 test-provider）。</summary>
     public required string Provider { get; init; }
 
     /// <summary>显示名称（如 GLM 5.2）。</summary>

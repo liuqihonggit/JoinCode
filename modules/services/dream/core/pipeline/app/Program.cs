@@ -140,7 +140,7 @@ internal static class DreamEntryPoint {
         Console.WriteLine("  --force, -f           Force execution");
         Console.WriteLine();
         Console.WriteLine("Environment Variables:");
-        Console.WriteLine("  JCC_VENDOR     LLM vendor (openai/azure/anthropic/deepseek/sensenova)");
+        Console.WriteLine("  JCC_VENDOR     LLM vendor (see /vendor list for available providers)");
         Console.WriteLine("  <PROVIDER>_API_KEY  Provider-specific API key (e.g. OPENAI_API_KEY, DEEPSEEK_API_KEY)");
         Console.WriteLine("  JCC_MODEL_ID    Model ID");
         Console.WriteLine("  JCC_ENDPOINT    API endpoint");

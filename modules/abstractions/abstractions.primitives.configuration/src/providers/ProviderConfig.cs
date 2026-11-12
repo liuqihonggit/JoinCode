@@ -2,11 +2,11 @@
 namespace JoinCode.Abstractions.Configuration.Providers;
 
 /// <summary>
-/// LLM Provider 配置类 - 支持多 Provider（OpenAI/Azure/Anthropic/Agnes）
+/// LLM Provider 配置类 - 支持多 Provider
 /// </summary>
 public sealed record ProviderConfig {
     /// <summary>
-    /// 供应商身份 — openai/anthropic/deepseek/azure/agnes/sensenova
+    /// 供应商身份 — 由 VendorKind 枚举定义
     /// 决定 auth key/模型列表/显示名
     /// </summary>
     [Required]

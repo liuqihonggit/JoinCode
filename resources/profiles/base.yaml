@@ -35,6 +35,8 @@ consumers:
     nodes:
       - id: crash-snapshot-mw
         priority: 50
+        config:
+          pipeline-name: Preprocess
       - id: keyword-injection-mw
         priority: 100
       - id: synonym-injection-mw
@@ -52,6 +54,8 @@ consumers:
     nodes:
       - id: crash-snapshot-mw
         priority: 50
+        config:
+          pipeline-name: ChatInit
       - id: context-load-mw
         priority: 100
       - id: cost-restore-mw
@@ -65,6 +69,8 @@ consumers:
     nodes:
       - id: crash-snapshot-mw
         priority: 50
+        config:
+          pipeline-name: ChatAdmin
       - id: session-admin-mw
         priority: 100
       - id: session-save-mw
@@ -74,6 +80,8 @@ consumers:
     nodes:
       - id: crash-snapshot-mw
         priority: 50
+        config:
+          pipeline-name: Compact
       - id: compact-hook-mw
         priority: 100
       - id: compact-telemetry-mw
@@ -91,6 +99,8 @@ consumers:
     nodes:
       - id: crash-snapshot-mw
         priority: 50
+        config:
+          pipeline-name: Query
       - id: query-rate-limit-mw
         priority: 100
       - id: usd-budget-mw
@@ -116,6 +126,8 @@ consumers:
     nodes:
       - id: crash-snapshot-mw
         priority: 50
+        config:
+          pipeline-name: Permission
       - id: bypass-permission-mw
         priority: 100
       - id: agent-restriction-mw
@@ -145,6 +157,8 @@ consumers:
     nodes:
       - id: crash-snapshot-mw
         priority: 50
+        config:
+          pipeline-name: Settings
       - id: settings-reload-mw
         priority: 100
       - id: effort-level-mw
@@ -162,6 +176,8 @@ consumers:
     nodes:
       - id: crash-snapshot-mw
         priority: 50
+        config:
+          pipeline-name: UnifiedSpawn
       - id: definition-resolution-mw
         priority: 100
       - id: prompt-building-mw
@@ -193,6 +209,8 @@ consumers:
     nodes:
       - id: crash-snapshot-mw
         priority: 50
+        config:
+          pipeline-name: AgentDispose
       - id: dispose-unregister-message-mw
         priority: 100
       - id: dispose-worktree-cleanup-mw
@@ -208,6 +226,8 @@ consumers:
     nodes:
       - id: crash-snapshot-mw
         priority: 50
+        config:
+          pipeline-name: Fork
       - id: fork-validation-mw
         priority: 100
       - id: fork-spawn-mw
@@ -221,6 +241,8 @@ consumers:
     nodes:
       - id: crash-snapshot-mw
         priority: 50
+        config:
+          pipeline-name: Web
       - id: web-timeout-mw
         priority: 100
       - id: web-retry-mw
@@ -248,6 +270,8 @@ consumers:
     nodes:
       - id: crash-snapshot-mw
         priority: 50
+        config:
+          pipeline-name: Shell
       - id: shell-timeout-keyword-mw
         priority: 100
       - id: absolute-timeout-mw
@@ -279,6 +303,8 @@ consumers:
     nodes:
       - id: crash-snapshot-mw
         priority: 50
+        config:
+          pipeline-name: Skill
       - id: skill-timeout-mw
         priority: 100
       - id: skill-metrics-mw
@@ -294,6 +320,8 @@ consumers:
     nodes:
       - id: crash-snapshot-mw
         priority: 50
+        config:
+          pipeline-name: Code
       - id: code-timeout-mw
         priority: 100
       - id: code-cache-mw
@@ -311,6 +339,8 @@ consumers:
     nodes:
       - id: crash-snapshot-mw
         priority: 50
+        config:
+          pipeline-name: Dream
       - id: dream-gate-check-mw
         priority: 100
       - id: dream-session-scan-mw

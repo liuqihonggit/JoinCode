@@ -143,6 +143,10 @@ public sealed class HubModelInfo {
     /// <summary>拥有者。</summary>
     [JsonPropertyName("owned_by")]
     public string OwnedBy { get; init; } = string.Empty;
+
+    /// <summary>上下文窗口大小。</summary>
+    [JsonPropertyName("context_window")]
+    public int ContextWindow { get; init; }
 }
 
 /// <summary>模型列表响应 DTO（兼容 OpenAI /v1/models 格式）。</summary>

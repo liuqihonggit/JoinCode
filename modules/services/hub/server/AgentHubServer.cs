@@ -524,7 +524,8 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
                 models.Add(new HubModelInfo {
                     Name = model.Id,
                     Provider = name,
-                    OwnedBy = name
+                    OwnedBy = name,
+                    ContextWindow = model.ContextWindow
                 });
             }
 
@@ -535,7 +536,8 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
                     models.Add(new HubModelInfo {
                         Name = currentId,
                         Provider = name,
-                        OwnedBy = name
+                        OwnedBy = name,
+                        ContextWindow = entry.CurrentModel.ContextWindow
                     });
                 }
             }

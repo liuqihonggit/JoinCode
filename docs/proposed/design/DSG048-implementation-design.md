@@ -1,7 +1,7 @@
 # DSG048 实现设计 — 详细类图与文件结构
 
 > 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [DSG048](DSG048-node-plugin-inheritance-architecture.md)
-> 状态: accepted（阶段1-4 已实现并验收）
+> 状态: accepted（P1-P4 + 阶段5.5 + 阶段6 已实现并验收）
 > 创建: 2026-11-12
 > 关联: [DSG048](DSG048-node-plugin-inheritance-architecture.md) 架构 spec
 
@@ -881,10 +881,10 @@ services.AddSingleton(sp => {
 | 步骤 | 内容 | 文件 | 状态 |
 |------|------|------|------|
 | 5.1 | 移除 PipelineComposition.cs 的手动 .Use() 链（已被数据驱动替代） | composition/pipelines/registration/ → .xxx/ | ✅ 完成 |
-| 5.2 | 移除 PluginAlc（AOT 下不可用，已被 AOT handler 注册表替代） | plugins.contracts/plugin_core/PluginAlc.cs → .xxx/ | 待定 |
-| 5.3 | 移除 AlcUnloadVerifier（依赖 ALC，AOT 下无意义） | plugins.contracts/plugin_core/AlcUnloadVerifier.cs → .xxx/ | 待定 |
-| 5.4 | 移除 DynamicPluginRegistry.LoadHandlerTable 的反射路径 | plugins.contracts/registry/DynamicPluginRegistry.cs | 待定 |
-| 5.5 | 移除 ServiceRegistration.Mcp.cs 中 ToolExecution + AgentTool 管道手动组装 | composition/dependency_injection/infrastructure/ | 待定 |
+| 5.2 | 移除 PluginAlc（AOT 下不可用，已被 AOT handler 注册表替代） | plugins.contracts/plugin_core/PluginAlc.cs → .xxx/ | ✅ 完成 |
+| 5.3 | 移除 AlcUnloadVerifier（依赖 ALC，AOT 下无意义） | plugins.contracts/plugin_core/AlcUnloadVerifier.cs → .xxx/ | ✅ 完成（已不存在） |
+| 5.4 | 移除 DynamicPluginRegistry.LoadHandlerTable 的反射路径 | plugins.contracts/registry/DynamicPluginRegistry.cs | ✅ 完成（已不存在） |
+| 5.5 | 移除 ServiceRegistration.Mcp.cs 中 ToolExecution + AgentTool 管道手动组装 | composition/dependency_injection/infrastructure/ | ✅ 完成 |
 
 **验收表（步骤 5.1）**:
 
@@ -1093,13 +1093,13 @@ private static CrashSnapshotMiddleware<ToolExecutionContext> CreateCrashSnapshot
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| 扩展泛型 `CrashSnapshotMiddleware<TContext>` (abstractions/) | `CreateCrashSnapshotForToolExecution` | ❌ | ❌ |
-| `base.yaml` 新增 tool-execution-pipeline (resources/profiles/) | `BuildTaskPipeline<ToolExecutionContext>` | ❌ | ❌ |
-| `base.yaml` 新增 agent-tool-pipeline (resources/profiles/) | `BuildTaskPipeline<AgentToolContext>` | ❌ | ❌ |
-| `BuildNodeFactories` 新增20个映射 (pipelines/registration/) | `ResolveMiddlewares` | ❌ | ❌ |
-| `AddDataDrivenPipelines` 新增2个管道注册 (pipelines/registration/) | DI 容器 | ❌ | ❌ |
-| `ServiceRegistration.Mcp.cs` 移除手动组装 | 无（已移除） | ❌ | ❌ |
-| 非泛型 `CrashSnapshotMiddleware` 归档到 `.xxx/` | 无（已移除） | ❌ | ❌ |
+| 扩展泛型 `CrashSnapshotMiddleware<TContext>` (abstractions/) | `CreateCrashSnapshotForToolExecution` | ✅ | ✅ exe 对话正常 |
+| `base.yaml` 新增 tool-execution-pipeline (resources/profiles/) | `BuildTaskPipeline<ToolExecutionContext>` | ✅ | ✅ `--dump-profile base` 输出正确 |
+| `base.yaml` 新增 agent-tool-pipeline (resources/profiles/) | `BuildTaskPipeline<AgentToolContext>` | ✅ | ✅ `--dump-profile base` 输出正确 |
+| `BuildNodeFactories` 新增20个映射 (pipelines/registration/) | `ResolveMiddlewares` | ✅ | ✅ 单元测试全绿 |
+| `AddDataDrivenPipelines` 新增2个管道注册 (pipelines/registration/) | DI 容器 | ✅ | ✅ exe 启动正常 |
+| `ServiceRegistration.Mcp.cs` 移除手动组装 | 无（已移除） | ✅ | ✅ 编译通过 |
+| 非泛型 `CrashSnapshotMiddleware` 归档到 `.xxx/` | 无（已移除） | ✅ | ✅ 编译无引用错误 |
 
 **验收方式**：
 
@@ -1121,13 +1121,13 @@ dotnet test modules/composition/pipelines/pipelines.tests/ --filter "Category!=I
 
 #### 阶段6：清理硬编码点（可选优化）
 
-| 步骤 | 内容 | 文件 |
-|------|------|------|
-| 6.1 | PromptTemplateGenerator.InferClassName 改为特性标注驱动 | generators/prompt_template.generator/ |
-| 6.2 | McpToolDispatchGenerator.DetectTimeoutPolicy 改为类型符号比较 | generators/mcp_tool_dispatch.generator/ |
-| 6.3 | PromptSectionGenerator 硬编码正则改为特性标注收集 | generators/prompt_section.generator/ |
+| 步骤 | 内容 | 文件 | 状态 |
+|------|------|------|------|
+| 6.1 | PromptTemplateGenerator.InferClassName 改为特性标注驱动 | generators/prompt_template.generator/ | ✅ 完成 |
+| 6.2 | McpToolDispatchGenerator.DetectTimeoutPolicy 改为类型符号比较 | generators/mcp_tool_dispatch.generator/ | ✅ 完成 |
+| 6.3 | PromptSectionGenerator 硬编码正则改为特性标注收集 | generators/prompt_section.generator/ | ✅ 完成 |
 
-**验收**: 编译通过，测试通过。
+**验收**: 编译通过，测试通过。✅ 全部完成（PR #653）
 
 #### 阶段7：统一 Registry（可选优化，长期目标）
 

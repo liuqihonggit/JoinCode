@@ -288,7 +288,10 @@ public sealed class EngineApplicationBuilder {
         if (modelsData?.Data is null || modelsData.Data.Count == 0) return config;
 
         var selectedModel = SelectHubModel(modelsData.Data, configuredModel);
-        config = config with { Provider = config.Provider with { ModelId = selectedModel.Name } };
+        config = config with { Provider = config.Provider with {
+            ModelId = selectedModel.Name,
+            Vendor = selectedModel.Provider,
+        } };
         Diag.WriteLine($"[HUB] 从服务端获取 {modelsData.Data.Count} 个模型，使用: {selectedModel.Name} (provider={selectedModel.Provider})");
 
         if (modelConfigLoader is not null) {

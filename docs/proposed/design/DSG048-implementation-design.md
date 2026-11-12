@@ -884,7 +884,7 @@ services.AddSingleton(sp => {
 | 5.2 | 移除 PluginAlc（AOT 下不可用，已被 AOT handler 注册表替代） | plugins.contracts/plugin_core/PluginAlc.cs → .xxx/ | 待定 |
 | 5.3 | 移除 AlcUnloadVerifier（依赖 ALC，AOT 下无意义） | plugins.contracts/plugin_core/AlcUnloadVerifier.cs → .xxx/ | 待定 |
 | 5.4 | 移除 DynamicPluginRegistry.LoadHandlerTable 的反射路径 | plugins.contracts/registry/DynamicPluginRegistry.cs | 待定 |
-| 5.5 | 移除 ServiceRegistration.Mcp.cs 中 ToolExecution 管道手动组装 | composition/dependency_injection/infrastructure/ | 待定 |
+| 5.5 | 移除 ServiceRegistration.Mcp.cs 中 ToolExecution + AgentTool 管道手动组装 | composition/dependency_injection/infrastructure/ | 待定 |
 
 **验收表（步骤 5.1）**:
 
@@ -896,6 +896,228 @@ services.AddSingleton(sp => {
 | `JccChatSessionAssemblyTests.cs` 改用 `AddDataDrivenPipelines("base")` | 测试 DI 容器构建 | ✅ | ✅ 编译通过 |
 
 **验收**: 全量编译通过，所有测试通过。AOT 发布测试通过。
+
+#### 阶段5.5：移除 ToolExecution + AgentTool 管道手动组装（数据驱动迁移）
+
+> **目标**：将 `ServiceRegistration.Mcp.cs` 中手动组装的 `MiddlewarePipeline<ToolExecutionContext>`（15个 `.Use()` 链）和 `MiddlewarePipeline<AgentToolContext>`（DI GetServices + OrderBy）迁移到 YAML 数据驱动组装。
+
+**当前状态**：
+- `ServiceRegistration.Mcp.cs:66-87` — ToolExecution 管道：15个 `.Use(sp.GetRequiredService<...>())` 硬编码链 + `.WithShortCircuit(ctx => ctx.IsShortCircuited)`
+- `ServiceRegistration.Mcp.cs:53-64` — AgentTool 管道：`GetServices<IAgentToolMiddleware>() + OrderBy(Order)` 动态收集 + OnError 日志回调
+
+**关键发现**：
+- 所有 15 个 ToolExecution 中间件都只有 DI 依赖，无硬编码构造参数
+- 所有 5 个 AgentTool 中间件都只有 DI 依赖，Order 属性已在类中定义
+- 所有中间件已有 `[Register(typeof(IToolExecutionMiddleware/IAgentToolMiddleware))]` 自动 DI 注册
+
+**CrashSnapshotMiddleware 统一**：
+
+当前存在两个版本：
+
+| 版本 | 位置 | 构造参数 | OnError | Result.IsError 检查 | CooldownService |
+|------|------|---------|---------|---------------------|-----------------|
+| 非泛型 `McpToolRegistry.CrashSnapshotMiddleware` | mcp_tool_dispatch/core/middleware/ | `(ICrashSnapshotStore, ILogger)` | Continue | 有 | 有 |
+| 泛型 `CrashSnapshotMiddleware<TContext>` | abstractions/infrastructure/pipeline/middlewares/ | `(ICrashSnapshotStore, string pipelineName, Func<TContext,CrashExecutionContext?>?)` | Propagate | 无 | 无 |
+
+**决策**：扩展泛型版本，合并非泛型版本的额外逻辑，然后废弃非泛型版本。
+
+扩展后的泛型 `CrashSnapshotMiddleware<TContext>` 构造函数：
+
+```csharp
+public CrashSnapshotMiddleware(
+    ICrashSnapshotStore store,
+    string pipelineName,
+    Func<TContext, CrashExecutionContext?>? contextExtractor = null,
+    Func<TContext, bool>? isErrorSelector = null,
+    Func<TContext, string>? errorMsgSelector = null)
+```
+
+新增参数：
+- `isErrorSelector` — 可选，当 TContext 有 Result.IsError 语义时传入（如 ToolExecutionContext: `ctx => ctx.Result?.IsError == true`）
+- `errorMsgSelector` — 可选，从 TContext 提取错误消息（如 `ctx => ctx.Result?.GetFirstText()`）
+
+行为变更：
+- OnError 改为 Continue（记录快照后不中断管道）—与非泛型版本对齐
+- 当 `isErrorSelector` 不为 null 且返回 true 时，也记录 CrashSnapshot（非异常路径）
+- 集成 CooldownService 防止同一 pipeline+toolName 重复记录
+
+**变更清单**：
+
+| 步骤 | 内容 | 文件 |
+|------|------|------|
+| 5.5.1 | 扩展泛型 CrashSnapshotMiddleware<TContext> — 增加 isErrorSelector/errorMsgSelector/CooldownService/OnError=Continue | abstractions/infrastructure/pipeline/middlewares/CrashSnapshotMiddleware.cs |
+| 5.5.2 | base.yaml 新增 tool-execution-pipeline consumer（15节点） | resources/profiles/base.yaml |
+| 5.5.3 | base.yaml 新增 agent-tool-pipeline consumer（5节点） | resources/profiles/base.yaml |
+| 5.5.4 | BuildNodeFactories 新增 20 个工厂映射 | composition/pipelines/registration/DataDrivenPipelineComposition.cs |
+| 5.5.5 | AddDataDrivenPipelines 新增 2 个管道注册（含短路条件） | composition/pipelines/registration/DataDrivenPipelineComposition.cs |
+| 5.5.6 | ServiceRegistration.Mcp.cs 移除 2 个手动组装块 | composition/dependency_injection/infrastructure/ServiceRegistration.Mcp.cs |
+| 5.5.7 | 非泛型 McpToolRegistry.CrashSnapshotMiddleware 归档到 .xxx/ | mcp/mcp_tool_dispatch/core/middleware/CrashSnapshotMiddleware.cs |
+
+**base.yaml 新增 consumer 定义**：
+
+```yaml
+tool-execution-pipeline:
+  nodes:
+    - id: crash-snapshot-mw
+      priority: 0
+      config:
+        pipeline-name: ToolExecution
+    - id: argument-repair-mw
+      priority: 100
+    - id: required-params-mw
+      priority: 200
+    - id: schema-validation-mw
+      priority: 300
+    - id: agent-restriction-mw
+      priority: 400
+    - id: permission-check-mw
+      priority: 500
+    - id: pre-tool-use-hook-mw
+      priority: 600
+    - id: remote-policy-mw
+      priority: 700
+    - id: feature-flag-mw
+      priority: 800
+    - id: on-error-tool-injection-mw
+      priority: 850
+    - id: tool-health-scoring-mw
+      priority: 860
+    - id: tool-fix-hook-mw
+      priority: 870
+    - id: tool-aesthetic-mw
+      priority: 880
+    - id: post-tool-use-hook-mw
+      priority: 890
+    - id: tool-execution-mw
+      priority: 900
+
+agent-tool-pipeline:
+  nodes:
+    - id: agent-validation-mw
+      priority: 100
+    - id: agent-fork-mw
+      priority: 200
+    - id: agent-background-spawn-mw
+      priority: 300
+    - id: agent-stream-execution-mw
+      priority: 400
+    - id: agent-handoff-mw
+      priority: 500
+```
+
+**BuildNodeFactories 新增映射**：
+
+```csharp
+// tool-execution-pipeline — IMiddleware<ToolExecutionContext>
+yield return F("tool-execution-pipeline:crash-snapshot-mw",
+    sp => CreateCrashSnapshotForToolExecution(sp, "tool-execution-pipeline"));
+yield return F("tool-execution-pipeline:argument-repair-mw",
+    sp => sp.GetRequiredService<McpToolRegistry.ArgumentRepairMiddleware>());
+yield return F("tool-execution-pipeline:required-params-mw",
+    sp => sp.GetRequiredService<McpToolRegistry.RequiredParamsMiddleware>());
+yield return F("tool-execution-pipeline:schema-validation-mw",
+    sp => sp.GetRequiredService<McpToolRegistry.SchemaValidationMiddleware>());
+yield return F("tool-execution-pipeline:agent-restriction-mw",
+    sp => sp.GetRequiredService<McpToolRegistry.AgentRestrictionMiddleware>());
+yield return F("tool-execution-pipeline:permission-check-mw",
+    sp => sp.GetRequiredService<McpToolRegistry.PermissionCheckMiddleware>());
+yield return F("tool-execution-pipeline:pre-tool-use-hook-mw",
+    sp => sp.GetRequiredService<McpToolRegistry.PreToolUseHookMiddleware>());
+yield return F("tool-execution-pipeline:remote-policy-mw",
+    sp => sp.GetRequiredService<McpToolRegistry.RemotePolicyMiddleware>());
+yield return F("tool-execution-pipeline:feature-flag-mw",
+    sp => sp.GetRequiredService<McpToolRegistry.FeatureFlagMiddleware>());
+yield return F("tool-execution-pipeline:on-error-tool-injection-mw",
+    sp => sp.GetRequiredService<McpToolRegistry.OnErrorToolInjectionMiddleware>());
+yield return F("tool-execution-pipeline:tool-health-scoring-mw",
+    sp => sp.GetRequiredService<McpToolRegistry.ToolHealthScoringMiddleware>());
+yield return F("tool-execution-pipeline:tool-fix-hook-mw",
+    sp => sp.GetRequiredService<McpToolRegistry.ToolFixHookMiddleware>());
+yield return F("tool-execution-pipeline:tool-aesthetic-mw",
+    sp => sp.GetRequiredService<McpToolRegistry.ToolAestheticMiddleware>());
+yield return F("tool-execution-pipeline:post-tool-use-hook-mw",
+    sp => sp.GetRequiredService<McpToolRegistry.PostToolUseHookMiddleware>());
+yield return F("tool-execution-pipeline:tool-execution-mw",
+    sp => sp.GetRequiredService<McpToolRegistry.ToolExecutionMiddleware>());
+
+// agent-tool-pipeline — IMiddleware<AgentToolContext>
+yield return F("agent-tool-pipeline:agent-validation-mw",
+    sp => sp.GetRequiredService<AgentValidationMiddleware>());
+yield return F("agent-tool-pipeline:agent-fork-mw",
+    sp => sp.GetRequiredService<AgentForkMiddleware>());
+yield return F("agent-tool-pipeline:agent-background-spawn-mw",
+    sp => sp.GetRequiredService<AgentBackgroundSpawnMiddleware>());
+yield return F("agent-tool-pipeline:agent-stream-execution-mw",
+    sp => sp.GetRequiredService<AgentStreamExecutionMiddleware>());
+yield return F("agent-tool-pipeline:agent-handoff-mw",
+    sp => sp.GetRequiredService<AgentHandoffMiddleware>());
+```
+
+**AddDataDrivenPipelines 新增注册**：
+
+```csharp
+// ToolExecution 管道 (短路: ctx.IsShortCircuited)
+services.AddSingleton<MiddlewarePipeline<ToolExecutionContext>>(sp =>
+    BuildTaskPipeline<ToolExecutionContext>(sp, "tool-execution-pipeline",
+        shortCircuit: ctx => ctx.IsShortCircuited));
+
+// AgentTool 管道
+services.AddSingleton<MiddlewarePipeline<AgentToolContext>>(sp =>
+    BuildTaskPipeline<AgentToolContext>(sp, "agent-tool-pipeline"));
+```
+
+**CreateCrashSnapshotForToolExecution 辅助方法**：
+
+```csharp
+private static CrashSnapshotMiddleware<ToolExecutionContext> CreateCrashSnapshotForToolExecution(
+    IServiceProvider sp, string consumerId) {
+    var profile = sp.GetRequiredService<ResolvedProfile>();
+    var pipelineName = GetPipelineName(profile, consumerId);
+    var store = sp.GetRequiredService<ICrashSnapshotStore>();
+    return new CrashSnapshotMiddleware<ToolExecutionContext>(
+        store, pipelineName,
+        contextExtractor: ctx => new CrashExecutionContext {
+            ToolName = ctx.ToolName,
+            OperationName = pipelineName,
+        },
+        isErrorSelector: ctx => ctx.Result?.IsError == true,
+        errorMsgSelector: ctx => ctx.Result?.GetFirstText());
+}
+```
+
+**ServiceRegistration.Mcp.cs 移除内容**：
+
+移除 `AddMcpServices` 中第 53-87 行的两个 `MiddlewarePipeline` 手动组装块（AgentTool + ToolExecution），保留其他服务注册。
+
+**验收表**：
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| 扩展泛型 `CrashSnapshotMiddleware<TContext>` (abstractions/) | `CreateCrashSnapshotForToolExecution` | ❌ | ❌ |
+| `base.yaml` 新增 tool-execution-pipeline (resources/profiles/) | `BuildTaskPipeline<ToolExecutionContext>` | ❌ | ❌ |
+| `base.yaml` 新增 agent-tool-pipeline (resources/profiles/) | `BuildTaskPipeline<AgentToolContext>` | ❌ | ❌ |
+| `BuildNodeFactories` 新增20个映射 (pipelines/registration/) | `ResolveMiddlewares` | ❌ | ❌ |
+| `AddDataDrivenPipelines` 新增2个管道注册 (pipelines/registration/) | DI 容器 | ❌ | ❌ |
+| `ServiceRegistration.Mcp.cs` 移除手动组装 | 无（已移除） | ❌ | ❌ |
+| 非泛型 `CrashSnapshotMiddleware` 归档到 `.xxx/` | 无（已移除） | ❌ | ❌ |
+
+**验收方式**：
+
+```powershell
+# 1. 编译
+dotnet build modules/apps/cli/JoinCode.csproj -c Debug
+
+# 2. --dump-profile base 验证新增 consumer
+./artifacts/bin/JoinCode/Debug/net10.0/jcc.exe --dump-profile base
+# 期望：输出包含 tool-execution-pipeline 和 agent-tool-pipeline 消费点
+
+# 3. 对话验证 — 工具调用走数据驱动管道
+./artifacts/bin/JoinCode/Debug/net10.0/jcc.exe -p "say hello" --trust --await 15
+# 期望：正常对话，工具调用正常
+
+# 4. 单元测试
+dotnet test modules/composition/pipelines/pipelines.tests/ --filter "Category!=Integration"
+```
 
 #### 阶段6：清理硬编码点（可选优化）
 

@@ -29,6 +29,13 @@ public sealed class PromptSectionAttribute : Attribute {
     public string[] Keywords { get; init; } = Array.Empty<string>();
 
     /// <summary>
+    /// 正则匹配模式 — 提供比 Keywords 更复杂的匹配能力（如多词短语、变体拼写）
+    /// 生成器自动生成 Regex 字段，在 AnalyzeInput 中优先于 Keywords 匹配
+    /// 留空表示仅用 Keywords 做简单匹配
+    /// </summary>
+    public string RegexPattern { get; init; } = "";
+
+    /// <summary>
     /// 注入条件：Keyword=关键词触发, AgentMode=Agent模式自动注入, CoordinatorMode=协调器模式自动注入
     /// 可组合：Keyword | AgentMode
     /// </summary>

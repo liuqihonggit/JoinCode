@@ -51,16 +51,16 @@ public class KeywordSectionMapperTests {
     }
 
     [Fact]
-    public void GetSectionContent_Negative_ReturnsNull() {
+    public void GetSectionContent_Negative_ReturnsContent() {
         var content = KeywordSectionMapper.GetSectionContentForKeywordType(UserPromptKeywordType.Negative);
 
-        content.Should().BeNull();
+        content.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
-    public void GetSectionContent_KeepGoing_ReturnsNull() {
+    public void GetSectionContent_KeepGoing_ReturnsContent() {
         var content = KeywordSectionMapper.GetSectionContentForKeywordType(UserPromptKeywordType.KeepGoing);
 
-        content.Should().BeNull();
+        content.Should().NotBeNullOrEmpty();
     }
 }

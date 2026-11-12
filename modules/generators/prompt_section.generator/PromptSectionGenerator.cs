@@ -45,6 +45,7 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
     private static PromptSectionInfo? ExtractSectionInfo(INamedTypeSymbol typeSymbol, AttributeData attr) {
         var name = AttributeScanner.GetStringNamedArg(attr, "Name");
         var keywords = AttributeScanner.GetStringArrayNamedArg(attr, "Keywords");
+        var regexPattern = AttributeScanner.GetStringNamedArg(attr, "RegexPattern") ?? "";
         var injectOn = AttributeScanner.GetIntNamedArg(attr, "InjectOn");
         var isDynamic = AttributeScanner.GetBoolNamedArg(attr, "IsDynamic");
         var order = AttributeScanner.GetIntNamedArg(attr, "Order", 100);
@@ -64,6 +65,7 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
             typeSymbol.ContainingNamespace.ToDisplayString(),
             name!,
             keywords.ToImmutableArray(),
+            regexPattern,
             injectOn,
             isDynamic,
             order,
@@ -72,7 +74,7 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
 
     private static void GenerateKeywordEnum(SourceProductionContext context, ImmutableArray<PromptSectionInfo> sections) {
         var keywordSections = sections
-            .Where(s => s.Keywords.Length > 0)
+            .Where(s => s.Keywords.Length > 0 || !string.IsNullOrEmpty(s.RegexPattern))
             .OrderBy(s => s.Order)
             .ToList();
 
@@ -93,10 +95,6 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
         sb.AppendLine("{");
         sb.AppendLine("    /// <summary>无匹配关键词。</summary>");
         sb.AppendLine("    [EnumValue(\"none\")] None,");
-        sb.AppendLine("    /// <summary>负面情绪关键词（如 wtf、awful 等）。</summary>");
-        sb.AppendLine("    [EnumValue(\"negative\")] Negative,");
-        sb.AppendLine("    /// <summary>继续指令关键词（如 keep going、go on 等）。</summary>");
-        sb.AppendLine("    [EnumValue(\"keepGoing\")] KeepGoing,");
 
         for (var i = 0; i < keywordSections.Count; i++) {
             var s = keywordSections[i];
@@ -139,7 +137,7 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
 
     private static void GenerateKeywordAnalyzer(SourceProductionContext context, ImmutableArray<PromptSectionInfo> sections) {
         var keywordSections = sections
-            .Where(s => s.Keywords.Length > 0)
+            .Where(s => s.Keywords.Length > 0 || !string.IsNullOrEmpty(s.RegexPattern))
             .OrderBy(s => s.Order)
             .ToList();
 
@@ -160,18 +158,19 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
         sb.AppendLine("public static partial class UserPromptKeywordAnalyzer");
         sb.AppendLine("{");
 
-        sb.AppendLine("    private static readonly Regex NegativePattern = new(");
-        sb.AppendLine("        @\"\\b(wtf|wth|ffs|omfg|shit(ty|tiest)?|dumbass|horrible|awful|piss(ed|ing)? off|piece of (shit|crap|junk)|what the (fuck|hell)|fucking? (broken|useless|terrible|awful|horrible)|fuck you|screw (this|you)|so frustrating|this sucks|damn it)\\b\",");
-        sb.AppendLine("        RegexOptions.IgnoreCase | RegexOptions.Compiled);");
-        sb.AppendLine();
+        var regexSections = keywordSections.Where(s => !string.IsNullOrEmpty(s.RegexPattern)).ToList();
+        var keywordOnlySections = keywordSections.Where(s => s.Keywords.Length > 0).ToList();
 
-        sb.AppendLine("    private static readonly Regex KeepGoingPattern = new(");
-        sb.AppendLine("        @\"\\b(keep going|go on|please continue|continue please)\\b\",");
-        sb.AppendLine("        RegexOptions.IgnoreCase | RegexOptions.Compiled);");
-        sb.AppendLine();
+        foreach (var s in regexSections) {
+            var fieldName = $"s_{ToCamelCase(s.SectionName)}Regex";
+            sb.AppendLine($"    private static readonly Regex {fieldName} = new(");
+            sb.AppendLine($"        @\"{EscapeVerbatimString(s.RegexPattern)}\",");
+            sb.AppendLine("        RegexOptions.IgnoreCase | RegexOptions.Compiled);");
+            sb.AppendLine();
+        }
 
         var allKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var s in keywordSections) {
+        foreach (var s in keywordOnlySections) {
             var dictFieldName = $"s_{ToCamelCase(s.SectionName)}Keywords";
             sb.AppendLine($"    private static readonly HashSet<string> {dictFieldName} = new(StringComparer.OrdinalIgnoreCase)");
             sb.AppendLine("    {");
@@ -184,15 +183,17 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
             sb.AppendLine();
         }
 
-        sb.AppendLine("    private static readonly HashSet<string> s_allKeywords = new(StringComparer.OrdinalIgnoreCase)");
-        sb.AppendLine("    {");
-        var allKwList = allKeywords.ToList();
-        for (var i = 0; i < allKwList.Count; i++) {
-            var comma = i < allKwList.Count - 1 ? "," : "";
-            sb.AppendLine($"        \"{EscapeString(allKwList[i])}\"{comma}");
+        if (allKeywords.Count > 0) {
+            sb.AppendLine("    private static readonly HashSet<string> s_allKeywords = new(StringComparer.OrdinalIgnoreCase)");
+            sb.AppendLine("    {");
+            var allKwList = allKeywords.ToList();
+            for (var i = 0; i < allKwList.Count; i++) {
+                var comma = i < allKwList.Count - 1 ? "," : "";
+                sb.AppendLine($"        \"{EscapeString(allKwList[i])}\"{comma}");
+            }
+            sb.AppendLine("    };");
+            sb.AppendLine();
         }
-        sb.AppendLine("    };");
-        sb.AppendLine();
 
         sb.AppendLine("    /// <summary>");
         sb.AppendLine("    /// 分析用户输入，检测是否包含已知关键词，返回匹配结果。");
@@ -205,23 +206,22 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
         sb.AppendLine("            return new UserPromptKeywordResult { Type = UserPromptKeywordType.None };");
         sb.AppendLine();
 
-        sb.AppendLine("        var negativeMatch = NegativePattern.Match(input);");
-        sb.AppendLine("        if (negativeMatch.Success)");
-        sb.AppendLine("            return new UserPromptKeywordResult { Type = UserPromptKeywordType.Negative, MatchedKeyword = negativeMatch.Value, SuggestedPrompt = NegativeKeywordPrompt };");
-        sb.AppendLine();
+        foreach (var s in regexSections) {
+            var regexFieldName = $"s_{ToCamelCase(s.SectionName)}Regex";
+            var enumName = $"UserPromptKeywordType.{ToPascalCase(s.SectionName)}";
+            var promptConst = $"{ToPascalCase(s.SectionName)}KeywordPrompt";
+            sb.AppendLine($"        var {ToCamelCase(s.SectionName)}Match = {regexFieldName}.Match(input);");
+            sb.AppendLine($"        if ({ToCamelCase(s.SectionName)}Match.Success)");
+            sb.AppendLine($"            return new UserPromptKeywordResult {{ Type = {enumName}, MatchedKeyword = {ToCamelCase(s.SectionName)}Match.Value, SuggestedPrompt = {promptConst} }};");
+            sb.AppendLine();
+        }
 
-        sb.AppendLine("        if (MatchesKeepGoingKeyword(input))");
-        sb.AppendLine("        {");
-        sb.AppendLine("            var lowerInput = input.ToLowerInvariant().Trim();");
-        sb.AppendLine("            string matchedKeyword = lowerInput == \"continue\" ? \"continue\" : KeepGoingPattern.Match(input).Value;");
-        sb.AppendLine("            return new UserPromptKeywordResult { Type = UserPromptKeywordType.KeepGoing, MatchedKeyword = matchedKeyword, SuggestedPrompt = KeepGoingPrompt };");
-        sb.AppendLine("        }");
-        sb.AppendLine();
+        if (allKeywords.Count > 0) {
+            sb.AppendLine("        var tokens = InputTokenizer.Tokenize(input, s_allKeywords);");
+            sb.AppendLine();
+        }
 
-        sb.AppendLine("        var tokens = InputTokenizer.Tokenize(input, s_allKeywords);");
-        sb.AppendLine();
-
-        foreach (var s in keywordSections) {
+        foreach (var s in keywordOnlySections) {
             var dictFieldName = $"s_{ToCamelCase(s.SectionName)}Keywords";
             var enumName = $"UserPromptKeywordType.{ToPascalCase(s.SectionName)}";
             var promptConst = $"{ToPascalCase(s.SectionName)}KeywordPrompt";
@@ -238,17 +238,11 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
         sb.AppendLine("    }");
         sb.AppendLine();
 
-        sb.AppendLine("    private static bool MatchesKeepGoingKeyword(string input)");
-        sb.AppendLine("    {");
-        sb.AppendLine("        var lowerInput = input.ToLowerInvariant().Trim();");
-        sb.AppendLine("        if (lowerInput == \"continue\") return true;");
-        sb.AppendLine("        return KeepGoingPattern.IsMatch(input);");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-
         foreach (var s in keywordSections) {
             var methodName = $"Matches{ToPascalCase(s.SectionName)}Keyword";
-            var dictFieldName = $"s_{ToCamelCase(s.SectionName)}Keywords";
+            var hasRegex = !string.IsNullOrEmpty(s.RegexPattern);
+            var hasKeywords = s.Keywords.Length > 0;
+
             sb.AppendLine($"    /// <summary>");
             sb.AppendLine($"    /// 判断输入是否包含 {s.SectionName} 关键词。");
             sb.AppendLine($"    /// </summary>");
@@ -257,35 +251,25 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
             sb.AppendLine($"    public static bool {methodName}(string input)");
             sb.AppendLine($"    {{");
             sb.AppendLine($"        if (string.IsNullOrWhiteSpace(input)) return false;");
-            sb.AppendLine($"        var tokens = InputTokenizer.Tokenize(input, s_allKeywords);");
-            sb.AppendLine($"        foreach (var token in tokens)");
-            sb.AppendLine($"        {{");
-            sb.AppendLine($"            if ({dictFieldName}.Contains(token)) return true;");
-            sb.AppendLine($"        }}");
+
+            if (hasRegex) {
+                var regexFieldName = $"s_{ToCamelCase(s.SectionName)}Regex";
+                sb.AppendLine($"        if ({regexFieldName}.IsMatch(input)) return true;");
+            }
+
+            if (hasKeywords) {
+                var dictFieldName = $"s_{ToCamelCase(s.SectionName)}Keywords";
+                sb.AppendLine($"        var tokens = InputTokenizer.Tokenize(input, s_allKeywords);");
+                sb.AppendLine($"        foreach (var token in tokens)");
+                sb.AppendLine($"        {{");
+                sb.AppendLine($"            if ({dictFieldName}.Contains(token)) return true;");
+                sb.AppendLine($"        }}");
+            }
+
             sb.AppendLine($"        return false;");
             sb.AppendLine($"    }}");
             sb.AppendLine();
         }
-
-        sb.AppendLine("    private const string NegativeKeywordPrompt = \"\"\"");
-        sb.AppendLine("        The user seems frustrated or dissatisfied with the previous response.");
-        sb.AppendLine("        Please:");
-        sb.AppendLine("        1. Acknowledge their frustration with empathy");
-        sb.AppendLine("        2. Apologize for any shortcomings");
-        sb.AppendLine("        3. Offer to help in a different way or clarify your previous response");
-        sb.AppendLine("        4. Be more careful and thorough in your next response");
-        sb.AppendLine("        \"\"\";");
-        sb.AppendLine();
-
-        sb.AppendLine("    private const string KeepGoingPrompt = \"\"\"");
-        sb.AppendLine("        The user wants you to continue from where you left off.");
-        sb.AppendLine("        Please:");
-        sb.AppendLine("        1. Review the previous conversation context");
-        sb.AppendLine("        2. Continue the task or explanation without repeating what was already said");
-        sb.AppendLine("        3. Pick up exactly where you stopped");
-        sb.AppendLine("        4. Maintain the same context and goal as before");
-        sb.AppendLine("        \"\"\";");
-        sb.AppendLine();
 
         foreach (var s in keywordSections) {
             var constName = $"{ToPascalCase(s.SectionName)}KeywordPrompt";
@@ -300,7 +284,7 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
 
     private static void GenerateSectionMapper(SourceProductionContext context, ImmutableArray<PromptSectionInfo> sections) {
         var keywordSections = sections
-            .Where(s => s.Keywords.Length > 0)
+            .Where(s => s.Keywords.Length > 0 || !string.IsNullOrEmpty(s.RegexPattern))
             .OrderBy(s => s.Order)
             .ToList();
 
@@ -354,7 +338,7 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
     private static void GenerateProviderRegistration(SourceProductionContext context, ImmutableArray<PromptSectionInfo> sections) {
         var orderedSections = sections.OrderBy(s => s.Order).ToList();
 
-        var alwaysSections = orderedSections.Where(s => s.InjectOn == 0 && s.Keywords.Length == 0).ToList();
+        var alwaysSections = orderedSections.Where(s => s.InjectOn == 0 && s.Keywords.Length == 0 && string.IsNullOrEmpty(s.RegexPattern)).ToList();
         var agentModeSections = orderedSections.Where(s => (s.InjectOn & 2) != 0).ToList();
         var coordinatorModeSections = orderedSections.Where(s => (s.InjectOn & 4) != 0).ToList();
 
@@ -438,6 +422,10 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
         return sb.ToString();
     }
 
+    private static string EscapeVerbatimString(string s) {
+        return s.Replace("\"", "\"\"");
+    }
+
     private static string EscapeString(string s) {
         var sb = new StringBuilder(s.Length);
         foreach (var c in s) {
@@ -473,6 +461,7 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
         public string Namespace { get; }
         public string SectionName { get; }
         public ImmutableArray<string> Keywords { get; }
+        public string RegexPattern { get; }
         public int InjectOn { get; }
         public bool IsDynamic { get; }
         public int Order { get; }
@@ -484,6 +473,7 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
             string ns,
             string sectionName,
             ImmutableArray<string> keywords,
+            string regexPattern,
             int injectOn,
             bool isDynamic,
             int order,
@@ -493,6 +483,7 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator {
             Namespace = ns;
             SectionName = sectionName;
             Keywords = keywords;
+            RegexPattern = regexPattern;
             InjectOn = injectOn;
             IsDynamic = isDynamic;
             Order = order;

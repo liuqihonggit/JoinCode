@@ -229,6 +229,34 @@ public static class DataDrivenPipelineComposition {
         yield return F("dream-pipeline:dream-prompt-build-mw", sp => sp.GetRequiredService<JoinCode.Dream.Pipeline.DreamPromptBuildMiddleware>());
         yield return F("dream-pipeline:dream-llm-consolidate-mw", sp => sp.GetRequiredService<JoinCode.Dream.Pipeline.DreamLlmConsolidateMiddleware>());
         yield return F("dream-pipeline:dream-record-turn-mw", sp => sp.GetRequiredService<JoinCode.Dream.Pipeline.DreamRecordTurnMiddleware>());
+
+        // ═══════════════════════════════════════════════════════════
+        // tool-execution-pipeline — IMiddleware<ToolExecutionContext> (短路)
+        // ═══════════════════════════════════════════════════════════
+        yield return F("tool-execution-pipeline:crash-snapshot-mw", sp2 => CreateCrashSnapshotForToolExecution(sp2, "tool-execution-pipeline"));
+        yield return F("tool-execution-pipeline:argument-repair-mw", sp2 => sp2.GetRequiredService<McpToolRegistry.ArgumentRepairMiddleware>());
+        yield return F("tool-execution-pipeline:required-params-mw", sp2 => sp2.GetRequiredService<McpToolRegistry.RequiredParamsMiddleware>());
+        yield return F("tool-execution-pipeline:schema-validation-mw", sp2 => sp2.GetRequiredService<McpToolRegistry.SchemaValidationMiddleware>());
+        yield return F("tool-execution-pipeline:agent-restriction-mw", sp2 => sp2.GetRequiredService<McpToolRegistry.AgentRestrictionMiddleware>());
+        yield return F("tool-execution-pipeline:permission-check-mw", sp2 => sp2.GetRequiredService<McpToolRegistry.PermissionCheckMiddleware>());
+        yield return F("tool-execution-pipeline:pre-tool-use-hook-mw", sp2 => sp2.GetRequiredService<McpToolRegistry.PreToolUseHookMiddleware>());
+        yield return F("tool-execution-pipeline:remote-policy-mw", sp2 => sp2.GetRequiredService<McpToolRegistry.RemotePolicyMiddleware>());
+        yield return F("tool-execution-pipeline:feature-flag-mw", sp2 => sp2.GetRequiredService<McpToolRegistry.FeatureFlagMiddleware>());
+        yield return F("tool-execution-pipeline:on-error-tool-injection-mw", sp2 => sp2.GetRequiredService<McpToolRegistry.OnErrorToolInjectionMiddleware>());
+        yield return F("tool-execution-pipeline:tool-health-scoring-mw", sp2 => sp2.GetRequiredService<McpToolRegistry.ToolHealthScoringMiddleware>());
+        yield return F("tool-execution-pipeline:tool-fix-hook-mw", sp2 => sp2.GetRequiredService<McpToolRegistry.ToolFixHookMiddleware>());
+        yield return F("tool-execution-pipeline:tool-aesthetic-mw", sp2 => sp2.GetRequiredService<McpToolRegistry.ToolAestheticMiddleware>());
+        yield return F("tool-execution-pipeline:post-tool-use-hook-mw", sp2 => sp2.GetRequiredService<McpToolRegistry.PostToolUseHookMiddleware>());
+        yield return F("tool-execution-pipeline:tool-execution-mw", sp2 => sp2.GetRequiredService<McpToolRegistry.ToolExecutionMiddleware>());
+
+        // ═══════════════════════════════════════════════════════════
+        // agent-tool-pipeline — IMiddleware<AgentToolContext>
+        // ═══════════════════════════════════════════════════════════
+        yield return F("agent-tool-pipeline:agent-validation-mw", sp2 => sp2.GetRequiredService<AgentValidationMiddleware>());
+        yield return F("agent-tool-pipeline:agent-fork-mw", sp2 => sp2.GetRequiredService<AgentForkMiddleware>());
+        yield return F("agent-tool-pipeline:agent-background-spawn-mw", sp2 => sp2.GetRequiredService<AgentBackgroundSpawnMiddleware>());
+        yield return F("agent-tool-pipeline:agent-stream-execution-mw", sp2 => sp2.GetRequiredService<AgentStreamExecutionMiddleware>());
+        yield return F("agent-tool-pipeline:agent-handoff-mw", sp2 => sp2.GetRequiredService<AgentHandoffMiddleware>());
     }
 
     /// <summary>
@@ -324,6 +352,15 @@ public static class DataDrivenPipelineComposition {
         services.AddSingleton<MiddlewarePipeline<JoinCode.Dream.Pipeline.DreamContext>>(sp =>
             BuildTaskPipeline<JoinCode.Dream.Pipeline.DreamContext>(sp, "dream-pipeline",
                 shortCircuit: ctx => ctx.Result is not null));
+
+        // ToolExecution 工具执行管道 (短路: ctx.IsShortCircuited)
+        services.AddSingleton<MiddlewarePipeline<ToolExecutionContext>>(sp =>
+            BuildTaskPipeline<ToolExecutionContext>(sp, "tool-execution-pipeline",
+                shortCircuit: ctx => ctx.IsShortCircuited));
+
+        // AgentTool Agent工具管道
+        services.AddSingleton<MiddlewarePipeline<AgentToolContext>>(sp =>
+            BuildTaskPipeline<AgentToolContext>(sp, "agent-tool-pipeline"));
 
         return services;
     }
@@ -424,6 +461,22 @@ public static class DataDrivenPipelineComposition {
         var pipelineName = GetPipelineName(profile, consumerId);
         var store = sp.GetRequiredService<ICrashSnapshotStore>();
         return new CrashSnapshotMiddleware<TContext>(store, pipelineName);
+    }
+
+    /// <summary>创建 CrashSnapshotMiddleware 实例用于 ToolExecution 管道 — 含 isErrorSelector 和 errorMsgSelector</summary>
+    private static CrashSnapshotMiddleware<ToolExecutionContext> CreateCrashSnapshotForToolExecution(
+        IServiceProvider sp, string consumerId) {
+        var profile = sp.GetRequiredService<ResolvedProfile>();
+        var pipelineName = GetPipelineName(profile, consumerId);
+        var store = sp.GetRequiredService<ICrashSnapshotStore>();
+        return new CrashSnapshotMiddleware<ToolExecutionContext>(
+            store, pipelineName,
+            contextExtractor: ctx => new CrashExecutionContext {
+                ToolName = ctx.ToolName,
+                OperationName = pipelineName,
+            },
+            isErrorSelector: ctx => ctx.Result?.IsError == true,
+            errorMsgSelector: ctx => ctx.Result?.GetFirstText());
     }
 
     /// <summary>从 YAML config 读取 int 参数，带默认值回退</summary>

@@ -6,13 +6,15 @@ internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBa
 
     internal override PromptTemplateInfo? ExtractInfo(INamedTypeSymbol typeSymbol, AttributeData attr, Compilation compilation) {
         var name = AttributeScanner.GetStringNamedArg(attr, "Name");
-        var category = AttributeScanner.GetIntNamedArg(attr, "Category");
+        var categoryInt = AttributeScanner.GetIntNamedArg(attr, "Category");
         var description = AttributeScanner.GetStringNamedArg(attr, "Description") ?? "";
         var contentMember = AttributeScanner.GetStringNamedArg(attr, "ContentMember") ?? "";
         var hasParameters = AttributeScanner.GetBoolNamedArg(attr, "HasParameters");
 
         if (string.IsNullOrEmpty(name))
             return null;
+
+        var (categoryName, groupName) = ResolveCategoryInfo(compilation, categoryInt);
 
         var contentMethod = "";
         var isFieldAccess = false;
@@ -50,11 +52,36 @@ internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBa
             typeSymbol.Name,
             typeSymbol.ContainingNamespace.ToDisplayString(),
             name!,
-            category,
+            categoryInt,
+            categoryName,
+            groupName,
             description,
             contentMethod,
             isFieldAccess,
             hasParameters);
+    }
+
+    /// <summary>
+    /// 从 PromptTemplateCategory 枚举的 [PromptTemplateGroup] 特性读取类别名称和组名
+    /// </summary>
+    private static (string CategoryName, string? GroupName) ResolveCategoryInfo(Compilation compilation, int categoryValue) {
+        var enumSymbol = compilation.GetTypeByMetadataName("JoinCode.Abstractions.Attributes.PromptTemplateCategory");
+        if (enumSymbol is null)
+            return (categoryValue.ToString(), null);
+
+        var members = enumSymbol.GetMembers().OfType<IFieldSymbol>().ToList();
+        if (categoryValue < 0 || categoryValue >= members.Count)
+            return (categoryValue.ToString(), null);
+
+        var member = members[categoryValue];
+        var categoryName = member.Name;
+        var groupName = member.GetAttributes()
+            .FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(
+                a.AttributeClass,
+                compilation.GetTypeByMetadataName("JoinCode.Abstractions.Attributes.PromptTemplateGroupAttribute")))
+            ?.NamedArguments.FirstOrDefault(kvp => kvp.Key == "GroupName").Value.Value as string;
+
+        return (categoryName, groupName);
     }
 
     internal override void GenerateRegistration(SourceProductionContext context, ImmutableArray<PromptTemplateInfo> infos) {
@@ -108,7 +135,7 @@ internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBa
         sb.AppendLine("    {");
 
         foreach (var info in orderedInfos) {
-            var categoryName = ((PromptTemplateCategoryValue)info.Category).ToString();
+            var categoryName = info.CategoryName;
             var escaped = info.Description.Replace("\"", "\\\"");
             sb.AppendLine($"        yield return (\"{info.Name}\", \"{categoryName}\", \"{escaped}\", {info.HasParameters.ToString().ToLowerInvariant()});");
         }
@@ -119,39 +146,17 @@ internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBa
         context.AddSource($"{className}.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
     }
 
+    /// <summary>
+    /// 从 PromptTemplateCategory 枚举的 [PromptTemplateGroup] 特性读取类别→组名映射，
+    /// 替代硬编码 switch。多类别混合时取第一个匹配的组名。
+    /// </summary>
     private static string InferClassName(List<PromptTemplateInfo> infos) {
-        var categories = infos.Select(i => (PromptTemplateCategoryValue)i.Category).Distinct().ToList();
+        var groupNames = infos.Select(i => i.GroupName).Where(g => g is not null).Distinct().ToList();
 
-        if (categories.Count == 1) {
-            return categories[0] switch {
-                PromptTemplateCategoryValue.Memory or PromptTemplateCategoryValue.Agent or PromptTemplateCategoryValue.Plan => "BrainPromptTemplates",
-                PromptTemplateCategoryValue.Dream => "DreamPromptTemplates",
-                PromptTemplateCategoryValue.Mcp => "McpPromptTemplates",
-                PromptTemplateCategoryValue.Skill => "HandsPromptTemplates",
-                PromptTemplateCategoryValue.Goal => "ClockPromptTemplates",
-                PromptTemplateCategoryValue.System => "SystemPromptTemplates",
-                _ => "PromptTemplates"
-            };
-        }
+        if (groupNames.Count == 1)
+            return groupNames[0]!;
 
-        var categoryNames = categories.Select(c => c.ToString()).ToList();
-        if (categoryNames.Contains("Memory") || categoryNames.Contains("Agent") || categoryNames.Contains("Plan"))
-            return "BrainPromptTemplates";
-        if (categoryNames.Contains("Skill"))
-            return "HandsPromptTemplates";
-
-        return "PromptTemplates";
-    }
-
-    private enum PromptTemplateCategoryValue {
-        Memory = 0,
-        Agent = 1,
-        System = 2,
-        Dream = 3,
-        Mcp = 4,
-        Skill = 5,
-        Plan = 6,
-        Goal = 7
+        return groupNames.FirstOrDefault() ?? "PromptTemplates";
     }
 
     internal sealed class PromptTemplateInfo {
@@ -160,6 +165,8 @@ internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBa
         public string Namespace { get; }
         public string Name { get; }
         public int Category { get; }
+        public string CategoryName { get; }
+        public string? GroupName { get; }
         public string Description { get; }
         public string ContentMethod { get; }
         public bool IsFieldAccess { get; }
@@ -167,13 +174,15 @@ internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBa
 
         public PromptTemplateInfo(
             string fullyQualifiedName, string typeName, string ns,
-            string name, int category, string description,
-            string contentMethod, bool isFieldAccess, bool hasParameters) {
+            string name, int category, string categoryName, string? groupName,
+            string description, string contentMethod, bool isFieldAccess, bool hasParameters) {
             FullyQualifiedName = fullyQualifiedName;
             TypeName = typeName;
             Namespace = ns;
             Name = name;
             Category = category;
+            CategoryName = categoryName;
+            GroupName = groupName;
             Description = description;
             ContentMethod = contentMethod;
             IsFieldAccess = isFieldAccess;

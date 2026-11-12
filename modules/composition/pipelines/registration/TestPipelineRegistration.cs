@@ -231,6 +231,38 @@ public static class TestPipelineRegistration {
                 .WithHooks(sp)
                 .Build());
 
+        // ToolExecution 工具执行管道 — 短路: ctx.IsShortCircuited（排除 CrashSnapshot 状态性保护）
+        services.AddSingleton<MiddlewarePipeline<ToolExecutionContext>>(sp =>
+            new PipelineBuilder<ToolExecutionContext>()
+                .WithShortCircuit(ctx => ctx.IsShortCircuited)
+                .Use(sp.GetRequiredService<McpToolRegistry.ArgumentRepairMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.RequiredParamsMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.SchemaValidationMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.AgentRestrictionMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.PermissionCheckMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.PreToolUseHookMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.RemotePolicyMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.FeatureFlagMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.OnErrorToolInjectionMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.ToolHealthScoringMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.ToolFixHookMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.ToolAestheticMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.PostToolUseHookMiddleware>())
+                .Use(sp.GetRequiredService<McpToolRegistry.ToolExecutionMiddleware>())
+                .WithHooks(sp)
+                .Build());
+
+        // AgentTool Agent工具管道
+        services.AddSingleton<MiddlewarePipeline<AgentToolContext>>(sp =>
+            new PipelineBuilder<AgentToolContext>()
+                .Use(sp.GetRequiredService<AgentValidationMiddleware>())
+                .Use(sp.GetRequiredService<AgentForkMiddleware>())
+                .Use(sp.GetRequiredService<AgentBackgroundSpawnMiddleware>())
+                .Use(sp.GetRequiredService<AgentStreamExecutionMiddleware>())
+                .Use(sp.GetRequiredService<AgentHandoffMiddleware>())
+                .WithHooks(sp)
+                .Build());
+
         return services;
     }
 }

@@ -50,41 +50,8 @@ public static partial class ServiceRegistration {
             return config.ToolExecution.CustomHyperedges;
         });
 
-        services.AddSingleton<MiddlewarePipeline<AgentToolContext>>(sp => {
-            var middlewares = sp.GetServices<IAgentToolMiddleware>()
-                .Cast<IMiddleware<AgentToolContext>>()
-                .OrderBy(m => ((IAgentToolMiddleware)m).Order);
-            var builder = new PipelineBuilder<AgentToolContext>()
-                .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
-                .UseRange(middlewares);
-            var logger = sp.GetService<ILogger<AgentToolHandlers>>();
-            if (logger is not null)
-                builder.OnError((ctx, ex) => logger.LogError(ex, "[AgentPipeline] 中间件异常继续执行"));
-            return builder.Build();
-        });
-
-        services.AddSingleton<MiddlewarePipeline<ToolExecutionContext>>(sp => {
-            var lf = sp.GetRequiredService<ILoggerFactory>();
-            return new PipelineBuilder<ToolExecutionContext>()
-                .WithLoggingScope(lf)
-                .Use(sp.GetRequiredService<McpToolRegistry.CrashSnapshotMiddleware>())
-                .Use(sp.GetRequiredService<McpToolRegistry.ArgumentRepairMiddleware>())
-                .Use(sp.GetRequiredService<McpToolRegistry.RequiredParamsMiddleware>())
-                .Use(sp.GetRequiredService<McpToolRegistry.SchemaValidationMiddleware>())
-                .Use(sp.GetRequiredService<McpToolRegistry.AgentRestrictionMiddleware>())
-                .Use(sp.GetRequiredService<McpToolRegistry.PermissionCheckMiddleware>())
-                .Use(sp.GetRequiredService<McpToolRegistry.PreToolUseHookMiddleware>())
-                .Use(sp.GetRequiredService<McpToolRegistry.RemotePolicyMiddleware>())
-                .Use(sp.GetRequiredService<McpToolRegistry.FeatureFlagMiddleware>())
-                .Use(sp.GetRequiredService<McpToolRegistry.OnErrorToolInjectionMiddleware>())
-                .Use(sp.GetRequiredService<McpToolRegistry.ToolHealthScoringMiddleware>())
-                .Use(sp.GetRequiredService<McpToolRegistry.ToolFixHookMiddleware>())
-                .Use(sp.GetRequiredService<McpToolRegistry.ToolAestheticMiddleware>())
-                .Use(sp.GetRequiredService<McpToolRegistry.PostToolUseHookMiddleware>())
-                .Use(sp.GetRequiredService<McpToolRegistry.ToolExecutionMiddleware>())
-                .WithShortCircuit(ctx => ctx.IsShortCircuited)
-                .Build();
-        });
+        // MiddlewarePipeline<AgentToolContext> — 数据驱动组装（AddDataDrivenPipelines 注册）
+        // MiddlewarePipeline<ToolExecutionContext> — 数据驱动组装（AddDataDrivenPipelines 注册）
 
         // IToolExecutionGateway — [Register(typeof(IToolExecutionGateway), ServiceLifetime.Singleton)] 自动注册（PermissionAwareToolExecutor）
         // IToolCategoryProvider — [Register] 自动注册（GeneratedToolCategoryProvider）

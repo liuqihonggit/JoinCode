@@ -371,6 +371,54 @@ consumers:
       - id: dream-record-turn-mw
         priority: 600
 
+  tool-execution-pipeline:
+    nodes:
+      - id: crash-snapshot-mw
+        priority: 0
+        config:
+          pipeline-name: ToolExecution
+      - id: argument-repair-mw
+        priority: 100
+      - id: required-params-mw
+        priority: 200
+      - id: schema-validation-mw
+        priority: 300
+      - id: agent-restriction-mw
+        priority: 400
+      - id: permission-check-mw
+        priority: 500
+      - id: pre-tool-use-hook-mw
+        priority: 600
+      - id: remote-policy-mw
+        priority: 700
+      - id: feature-flag-mw
+        priority: 800
+      - id: on-error-tool-injection-mw
+        priority: 850
+      - id: tool-health-scoring-mw
+        priority: 860
+      - id: tool-fix-hook-mw
+        priority: 870
+      - id: tool-aesthetic-mw
+        priority: 880
+      - id: post-tool-use-hook-mw
+        priority: 890
+      - id: tool-execution-mw
+        priority: 900
+
+  agent-tool-pipeline:
+    nodes:
+      - id: agent-validation-mw
+        priority: 100
+      - id: agent-fork-mw
+        priority: 200
+      - id: agent-background-spawn-mw
+        priority: 300
+      - id: agent-stream-execution-mw
+        priority: 400
+      - id: agent-handoff-mw
+        priority: 500
+
   tool-dispatch:
     nodes:
       - id: shell-tool

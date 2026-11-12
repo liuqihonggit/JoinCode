@@ -1,4 +1,5 @@
 extern alias composition;
+global using System.Collections.Frozen;
 global using System.Diagnostics.CodeAnalysis;
 
 global using CompositionServiceRegistration = composition::Core.DependencyInjection.ServiceRegistration;
@@ -37,6 +38,7 @@ global using Infrastructure.Time;
 global using IO;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.CodeIndex;
+global using JoinCode.Abstractions.Composition.Profile;
 global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Configuration.Execution;

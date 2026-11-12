@@ -30,12 +30,8 @@ public sealed class CoreModule : IAppModule {
         // 中间件已通过 [Register] + AddAutoRegisteredServices 注册到 DI
         // 此处从 DI 解析中间件并按 Order 排序后构建管道
         // 替代源码生成器的 AddAutoRegisteredPipelines（解决跨程序集管道覆盖问题）
-        sw = PerfTimer.Start("    AddAllPipelines");
-        var profileName = context.Options.Profile;
-        if (profileName is not null && profileName != "legacy")
-            services.AddDataDrivenPipelines(profileName);
-        else
-            services.AddAllPipelines();
+        sw = PerfTimer.Start("    AddDataDrivenPipelines");
+        services.AddDataDrivenPipelines(context.Options.Profile ?? "base");
         sw?.Stop();
     }
 

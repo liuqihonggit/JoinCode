@@ -1,10 +1,43 @@
 namespace JoinCode.Pipelines;
 
 /// <summary>
-/// 数据驱动管道组装 — 从 YAML Profile 配置组装管道，替代手动 .Use() 链
-/// 新旧并行：--profile legacy 使用 PipelineComposition（手动组装），--profile base 使用此路径
+/// 数据驱动管道组装 — 从 YAML Profile 配置组装管道
 /// </summary>
 public static class DataDrivenPipelineComposition {
+
+    /// <summary>
+    /// 注册基础中间件服务 — 包含 CLI 独有聊天中间件、通用泛型中间件、CrashSnapshot 泛型中间件
+    /// </summary>
+    public static IServiceCollection RegisterBaseMiddlewareServices(this IServiceCollection services) {
+        services.AddSingleton<ChatTimingMiddleware>();
+        services.AddSingleton<ChatErrorHandlingMiddleware>();
+        services.AddSingleton<AuditLogMiddleware>();
+        services.AddSingleton<TokenBudgetMiddleware>();
+        services.AddSingleton<MediaIntentDetector>();
+        services.AddSingleton<ModalityValidationMiddleware>();
+
+        services.AddSingleton(sp => new MetricsMiddleware<WebContext>(sp.GetService<ITelemetryService>()));
+        services.AddSingleton(sp => new MetricsMiddleware<SkillContext>(sp.GetService<ITelemetryService>()));
+        services.AddSingleton(sp => new MetricsMiddleware<CodeContext>(sp.GetService<ITelemetryService>()));
+
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<PreprocessContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Preprocess"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<ChatInitContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "ChatInit"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<ChatAdminContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "ChatAdmin"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<CompactContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Compact"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<QueryMiddlewareContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Query"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<PermissionCheckContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Permission"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<SettingsContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Settings"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<UnifiedSpawnContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "UnifiedSpawn"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<AgentDisposeContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "AgentDispose"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<ForkContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Fork"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<WebContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Web"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<ShellPipelineContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Shell"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<SkillContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Skill"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<CodeContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Code"));
+        services.AddSingleton(sp => new CrashSnapshotMiddleware<JoinCode.Dream.Pipeline.DreamContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Dream"));
+
+        return services;
+    }
 
     /// <summary>
     /// 构建所有节点工厂映射 — (consumerId:nodeId) → 服务实例工厂

@@ -4,11 +4,11 @@ namespace JoinCode.Pipelines;
 /// 测试用管道注册 — 全量注册已实现的中间件管道，但刻意排除生产加装的状态性保护：
 /// 1) Chat 管道排除 4 个 CLI 专属中间件（ChatTiming/ChatErrorHandling/AuditLog/TokenBudget）
 /// 2) 全部管道排除速率限制 / 超时 / 熔断等 Fixed*Guard（避免 Token 预算阻塞与限流抖动导致的测试偶发失败）
-/// 语义与生产 AddAllPipelines 对齐（洋葱顺序），供测试工程统一调用，消除两套 AddTestPipelines 漂移。
+/// 语义与生产 AddDataDrivenPipelines 对齐（洋葱顺序），供测试工程统一调用，消除两套 AddTestPipelines 漂移。
 /// </summary>
 public static class TestPipelineRegistration {
     /// <summary>
-    /// 注册测试用全部管道 — 与生产 AddAllPipelines 等价但排除状态性修饰中间件
+    /// 注册测试用全部管道 — 与生产 AddDataDrivenPipelines 等价但排除状态性修饰中间件
     /// </summary>
     public static IServiceCollection AddTestPipelines(this IServiceCollection services) {
         services.AddSingleton(sp => new MetricsMiddleware<WebContext>(sp.GetService<ITelemetryService>()));

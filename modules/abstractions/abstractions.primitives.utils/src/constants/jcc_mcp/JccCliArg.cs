@@ -169,4 +169,13 @@ public enum JccCliArg {
 
     [EnumValue("--token")]
     Token,
+
+    [EnumValue("--dump-nodes")]
+    DumpNodes,
+
+    [EnumValue("--dump-profile")]
+    DumpProfile,
+
+    [EnumValue("--profile")]
+    Profile,
 }

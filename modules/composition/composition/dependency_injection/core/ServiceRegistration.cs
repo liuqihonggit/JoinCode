@@ -79,6 +79,15 @@ public static partial class ServiceRegistration {
         services.AddReasoning();
         sw?.Stop();
 
+        // Node Plugin Architecture (DSG048): 注册 NodeRegistry + NodeProfileResolver
+        sw = PerfTimer.Start("    AddNodeRegistry");
+        services.AddSingleton<NodeProfileResolver>(sp => {
+            var profiles = NodeProfileLoader.LoadFromResources();
+            return new NodeProfileResolver(profiles);
+        });
+        services.AddSingleton<INodeRegistry>(sp => NodeRegistry.Build(sp));
+        sw?.Stop();
+
         services.AddLogging();
 
         return services;

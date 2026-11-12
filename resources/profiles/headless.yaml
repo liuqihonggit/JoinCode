@@ -1,0 +1,6 @@
+name: headless
+inherits: base
+excludes:
+  - teammate-pane-mw
+  - transcript-mw
+  - transcript-persist-mw

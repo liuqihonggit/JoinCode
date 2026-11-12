@@ -116,4 +116,16 @@ public enum CliArg {
     /// <summary>JSON Schema for structured output — 动态创建 StructuredOutput 合成工具</summary>
     [CliOption(JccCliArgEnumConstants.JsonSchema, "", "JSON Schema for structured output (creates a StructuredOutput tool)", AcceptsValue = true, Category = "输出")]
     JsonSchema,
+
+    /// <summary>输出所有已注册节点列表（诊断用）</summary>
+    [CliOption(JccCliArgEnumConstants.DumpNodes, "", "输出所有已注册节点列表（诊断用）", Category = "诊断")]
+    DumpNodes,
+
+    /// <summary>输出指定 Profile 的解析结果（诊断用）</summary>
+    [CliOption(JccCliArgEnumConstants.DumpProfile, "", "输出指定 Profile 的解析结果（诊断用）", AcceptsValue = true, Category = "诊断", Example = "jcc --dump-profile sdk")]
+    DumpProfile,
+
+    /// <summary>指定运行时 Profile（如 base/headless/sdk/ci）</summary>
+    [CliOption(JccCliArgEnumConstants.Profile, "", "指定运行时 Profile（如 base/headless/sdk/ci）", AcceptsValue = true, Category = "基础", EnvVar = "JCC_NODE_PROFILE")]
+    Profile,
 }

@@ -169,6 +169,9 @@ public static class ApplicationBuilder {
             Quiet = result.Quiet,
             IncludePartialMessages = result.IncludePartialMessages,
             JsonSchema = result.JsonSchema,
+            DumpNodes = result.DumpNodes,
+            DumpProfile = result.DumpProfile,
+            Profile = result.Profile,
         };
 
         // --await N: 超时自动关闭秒数

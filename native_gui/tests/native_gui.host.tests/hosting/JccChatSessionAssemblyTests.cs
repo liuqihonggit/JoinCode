@@ -106,7 +106,7 @@ public class JccChatSessionAssemblyTests {
         };
 
         services.AddAiWorkflowServices(config);
-        services.AddAllPipelines();
+        services.AddDataDrivenPipelines("base");
 
         return services.BuildServiceProvider();
     }

@@ -237,4 +237,19 @@ public record CommandLineOptions {
     /// 重试上限默认5次，可通过 MAX_STRUCTURED_OUTPUT_RETRIES 环境变量覆盖
     /// </summary>
     public string? JsonSchema { get; init; }
+
+    /// <summary>
+    /// 输出所有已注册节点列表（--dump-nodes 参数）— 诊断用，输出后退出
+    /// </summary>
+    public bool DumpNodes { get; init; }
+
+    /// <summary>
+    /// 输出指定 Profile 的解析结果（--dump-profile 参数）— 诊断用，输出后退出
+    /// </summary>
+    public string? DumpProfile { get; init; }
+
+    /// <summary>
+    /// 指定运行时 Profile（--profile 参数）— 如 base/headless/sdk/ci
+    /// </summary>
+    public string? Profile { get; init; }
 }

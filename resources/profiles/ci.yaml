@@ -1,0 +1,7 @@
+name: ci
+inherits: headless
+excludes:
+  - web-tool
+  - audit-log-mw
+  - crash-snapshot-mw
+  - process-usage-mw

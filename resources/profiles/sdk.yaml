@@ -1,0 +1,15 @@
+name: sdk
+inherits: headless
+excludes:
+  - web-tool
+  - crash-snapshot-mw
+  - audit-log-mw
+includes:
+  tool-dispatch:
+    nodes:
+      - id: sdk-api-tool
+overrides:
+  - consumer: shell-pipeline
+    node: shell-timeout-keyword-mw
+    config:
+      timeout: 600

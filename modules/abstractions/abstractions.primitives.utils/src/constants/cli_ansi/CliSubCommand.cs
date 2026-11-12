@@ -89,8 +89,8 @@ public enum CliSubCommand {
     [SubCommandInfo("GitHub 操作 — 扁平元动词(pr/issue/repo/release/run/branch/api)", "GitHub", Example = "jcc gh pr checks 123", SelfHelp = true)]
     Gh,
 
-    /// <summary>bridge 引擎服务端 — jcc bridge_serve [--vendor V] [--model M]，stdin/stdout NDJSON 协议（ADR 0141），供 TUI 进程拉起</summary>
+    /// <summary>bridge 引擎服务端 — jcc bridge_serve [--vendor V] [--model M]，stdin/stdout NDJSON 协议，供 TUI 进程拉起</summary>
     [EnumValue("bridge_serve")]
-    [SubCommandInfo("bridge 引擎服务端 — stdio NDJSON 协议, 供 TUI 拉起 (ADR 0141)", "引擎服务", Example = "jcc bridge_serve --vendor agnes")]
+    [SubCommandInfo("bridge 引擎服务端 — stdio NDJSON 协议, 供 TUI 拉起", "引擎服务", Example = "jcc bridge_serve --vendor test-provider")]
     BridgeServe,
 }

@@ -26,7 +26,7 @@ public enum CliArg {
     Model,
 
     /// <summary>切换供应商（自动匹配 settings.json vendor 预设中的同名配置）</summary>
-    [CliOption(JccCliArgEnumConstants.Vendor, "", "切换供应商（自动匹配 settings.json vendor 预设中的同名配置）", AcceptsValue = true, Category = "基础", Example = "jcc --vendor agnes -p \"hello\"", EnvVar = "JCC_VENDOR")]
+    [CliOption(JccCliArgEnumConstants.Vendor, "", "切换供应商（自动匹配 settings.json vendor 预设中的同名配置）", AcceptsValue = true, Category = "基础", Example = "jcc --vendor test-provider -p \"hello\"", EnvVar = "JCC_VENDOR")]
     Vendor,
 
     /// <summary>强制非交互模式</summary>

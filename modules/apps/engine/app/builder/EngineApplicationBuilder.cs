@@ -196,11 +196,7 @@ public sealed class EngineApplicationBuilder {
         try {
             config = await FetchHubModelsAsync(config, configuredModel, modelConfigLoader).ConfigureAwait(false);
         } catch (Exception ex) {
-            Diag.WriteLine($"[HUB] 从服务端获取模型列表失败: {ex.Message}");
-            if (!string.IsNullOrEmpty(configuredModel)) {
-                config = config with { Provider = config.Provider with { ModelId = configuredModel } };
-                Diag.WriteLine($"[HUB] 服务端不可达，使用配置的模型: {configuredModel}");
-            }
+            throw new InvalidOperationException($"Hub /v1/models 端点不可达: {ex.Message}", ex);
         }
 
         // 从服务端 /config/default 获取供应商配置，写入本地 settings.json（首次启动时）

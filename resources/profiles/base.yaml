@@ -6,6 +6,9 @@ consumers:
         priority: 50
       - id: stream-rate-limit-mw
         priority: 100
+        config:
+          max-requests: 30
+          window-seconds: 60
       - id: chat-error-handling-mw
         priority: 150
       - id: chat-timing-mw
@@ -103,6 +106,9 @@ consumers:
           pipeline-name: Query
       - id: query-rate-limit-mw
         priority: 100
+        config:
+          max-requests: 60
+          window-seconds: 60
       - id: usd-budget-mw
         priority: 200
       - id: query-token-budget-mw
@@ -245,10 +251,17 @@ consumers:
           pipeline-name: Web
       - id: web-timeout-mw
         priority: 100
+        config:
+          timeout-seconds: 30
       - id: web-retry-mw
         priority: 200
+        config:
+          max-retries: 2
       - id: web-circuit-breaker-mw
         priority: 300
+        config:
+          failure-threshold: 5
+          open-duration-seconds: 30
       - id: web-metrics-mw
         priority: 400
       - id: web-validation-mw
@@ -307,6 +320,8 @@ consumers:
           pipeline-name: Skill
       - id: skill-timeout-mw
         priority: 100
+        config:
+          timeout-seconds: 60
       - id: skill-metrics-mw
         priority: 200
       - id: skill-validation-mw
@@ -324,6 +339,8 @@ consumers:
           pipeline-name: Code
       - id: code-timeout-mw
         priority: 100
+        config:
+          timeout-seconds: 120
       - id: code-cache-mw
         priority: 200
       - id: code-security-mw

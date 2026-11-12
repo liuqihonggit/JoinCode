@@ -32,7 +32,7 @@ public static class DataDrivenPipelineComposition {
         // chat-pipeline (Stream) — IStreamMiddleware<ChatMiddlewareContext, ChatStreamEvent>
         // ═══════════════════════════════════════════════════════════
         yield return F("chat-pipeline:stream-crash-snapshot-mw", sp => sp.GetRequiredService<StreamCrashSnapshotMiddleware>());
-        yield return F("chat-pipeline:stream-rate-limit-mw", _ => new FixedStreamRateLimitMiddleware<ChatMiddlewareContext, ChatStreamEvent>(30, TimeSpan.FromSeconds(60)));
+        yield return F("chat-pipeline:stream-rate-limit-mw", sp => CreateStreamRateLimit<ChatMiddlewareContext, ChatStreamEvent>(sp, "chat-pipeline", "stream-rate-limit-mw", 30, 60));
         yield return F("chat-pipeline:chat-error-handling-mw", sp => sp.GetRequiredService<ChatErrorHandlingMiddleware>());
         yield return F("chat-pipeline:chat-timing-mw", sp => sp.GetRequiredService<ChatTimingMiddleware>());
         yield return F("chat-pipeline:token-budget-mw", sp => sp.GetRequiredService<TokenBudgetMiddleware>());
@@ -88,7 +88,7 @@ public static class DataDrivenPipelineComposition {
         // query-pipeline — IMiddleware<QueryMiddlewareContext>
         // ═══════════════════════════════════════════════════════════
         yield return F("query-pipeline:crash-snapshot-mw", sp => CreateCrashSnapshot<QueryMiddlewareContext>(sp, "query-pipeline"));
-        yield return F("query-pipeline:query-rate-limit-mw", _ => new FixedRateLimitMiddleware<QueryMiddlewareContext>(60, TimeSpan.FromSeconds(60)));
+        yield return F("query-pipeline:query-rate-limit-mw", sp => CreateRateLimit<QueryMiddlewareContext>(sp, "query-pipeline", "query-rate-limit-mw", 60, 60));
         yield return F("query-pipeline:usd-budget-mw", sp => sp.GetRequiredService<UsdBudgetMiddleware>());
         yield return F("query-pipeline:query-token-budget-mw", sp => sp.GetRequiredService<QueryTokenBudgetMiddleware>());
         yield return F("query-pipeline:cost-tracking-mw", sp => sp.GetRequiredService<CostTrackingMiddleware>());
@@ -168,9 +168,9 @@ public static class DataDrivenPipelineComposition {
         // web-pipeline — IMiddleware<WebContext>
         // ═══════════════════════════════════════════════════════════
         yield return F("web-pipeline:crash-snapshot-mw", sp => CreateCrashSnapshot<WebContext>(sp, "web-pipeline"));
-        yield return F("web-pipeline:web-timeout-mw", _ => new FixedTimeoutMiddleware<WebContext>(TimeSpan.FromSeconds(30)));
-        yield return F("web-pipeline:web-retry-mw", _ => new FixedRetryMiddleware<WebContext>(2, ex => ex is HttpRequestException or TimeoutException));
-        yield return F("web-pipeline:web-circuit-breaker-mw", _ => new FixedCircuitBreakerMiddleware<WebContext>(5, TimeSpan.FromSeconds(30)));
+        yield return F("web-pipeline:web-timeout-mw", sp => CreateTimeout<WebContext>(sp, "web-pipeline", "web-timeout-mw", 30));
+        yield return F("web-pipeline:web-retry-mw", sp => CreateRetry<WebContext>(sp, "web-pipeline", "web-retry-mw", 2, ex => ex is HttpRequestException or TimeoutException));
+        yield return F("web-pipeline:web-circuit-breaker-mw", sp => CreateCircuitBreaker<WebContext>(sp, "web-pipeline", "web-circuit-breaker-mw", 5, 30));
         yield return F("web-pipeline:web-metrics-mw", sp => sp.GetRequiredService<MetricsMiddleware<WebContext>>());
         yield return F("web-pipeline:web-validation-mw", sp => sp.GetRequiredService<WebValidationMiddleware>());
         yield return F("web-pipeline:web-ssrf-guard-mw", sp => sp.GetRequiredService<WebSsrfGuardMiddleware>());
@@ -202,7 +202,7 @@ public static class DataDrivenPipelineComposition {
         // skill-pipeline — IMiddleware<SkillContext>
         // ═══════════════════════════════════════════════════════════
         yield return F("skill-pipeline:crash-snapshot-mw", sp => CreateCrashSnapshot<SkillContext>(sp, "skill-pipeline"));
-        yield return F("skill-pipeline:skill-timeout-mw", _ => new FixedTimeoutMiddleware<SkillContext>(TimeSpan.FromSeconds(60)));
+        yield return F("skill-pipeline:skill-timeout-mw", sp => CreateTimeout<SkillContext>(sp, "skill-pipeline", "skill-timeout-mw", 60));
         yield return F("skill-pipeline:skill-metrics-mw", sp => sp.GetRequiredService<MetricsMiddleware<SkillContext>>());
         yield return F("skill-pipeline:skill-validation-mw", sp => sp.GetRequiredService<SkillValidationMiddleware>());
         yield return F("skill-pipeline:skill-telemetry-mw", sp => sp.GetRequiredService<SkillTelemetryMiddleware>());
@@ -212,7 +212,7 @@ public static class DataDrivenPipelineComposition {
         // code-pipeline — IMiddleware<CodeContext>
         // ═══════════════════════════════════════════════════════════
         yield return F("code-pipeline:crash-snapshot-mw", sp => CreateCrashSnapshot<CodeContext>(sp, "code-pipeline"));
-        yield return F("code-pipeline:code-timeout-mw", _ => new FixedTimeoutMiddleware<CodeContext>(TimeSpan.FromSeconds(120)));
+        yield return F("code-pipeline:code-timeout-mw", sp => CreateTimeout<CodeContext>(sp, "code-pipeline", "code-timeout-mw", 120));
         yield return F("code-pipeline:code-cache-mw", sp => sp.GetRequiredService<CodeCacheMiddleware>());
         yield return F("code-pipeline:code-security-mw", sp => sp.GetRequiredService<CodeSecurityMiddleware>());
         yield return F("code-pipeline:code-llm-mw", sp => sp.GetRequiredService<CodeLlmMiddleware>());
@@ -424,5 +424,62 @@ public static class DataDrivenPipelineComposition {
         var pipelineName = GetPipelineName(profile, consumerId);
         var store = sp.GetRequiredService<ICrashSnapshotStore>();
         return new CrashSnapshotMiddleware<TContext>(store, pipelineName);
+    }
+
+    /// <summary>从 YAML config 读取 int 参数，带默认值回退</summary>
+    private static int GetConfigInt(ResolvedProfile profile, string consumerId, string nodeId, string key, int defaultValue) {
+        var config = GetNodeConfig(profile, consumerId, nodeId);
+        return config.TryGetValue(key, out var value) && int.TryParse(value, out var result) ? result : defaultValue;
+    }
+
+    /// <summary>从 YAML config 读取秒数并转为 TimeSpan，带默认值回退</summary>
+    private static TimeSpan GetConfigSeconds(ResolvedProfile profile, string consumerId, string nodeId, string key, int defaultSeconds) {
+        var seconds = GetConfigInt(profile, consumerId, nodeId, key, defaultSeconds);
+        return TimeSpan.FromSeconds(seconds);
+    }
+
+    /// <summary>创建 FixedTimeoutMiddleware 实例，timeout 从 YAML config 读取</summary>
+    private static FixedTimeoutMiddleware<TContext> CreateTimeout<TContext>(
+        IServiceProvider sp, string consumerId, string nodeId, int defaultSeconds) {
+        var profile = sp.GetRequiredService<ResolvedProfile>();
+        var timeout = GetConfigSeconds(profile, consumerId, nodeId, "timeout-seconds", defaultSeconds);
+        return new FixedTimeoutMiddleware<TContext>(timeout);
+    }
+
+    /// <summary>创建 FixedRateLimitMiddleware 实例，参数从 YAML config 读取</summary>
+    private static FixedRateLimitMiddleware<TContext> CreateRateLimit<TContext>(
+        IServiceProvider sp, string consumerId, string nodeId, int defaultMaxRequests, int defaultWindowSeconds) {
+        var profile = sp.GetRequiredService<ResolvedProfile>();
+        var maxRequests = GetConfigInt(profile, consumerId, nodeId, "max-requests", defaultMaxRequests);
+        var window = GetConfigSeconds(profile, consumerId, nodeId, "window-seconds", defaultWindowSeconds);
+        return new FixedRateLimitMiddleware<TContext>(maxRequests, window);
+    }
+
+    /// <summary>创建 FixedStreamRateLimitMiddleware 实例，参数从 YAML config 读取</summary>
+    private static FixedStreamRateLimitMiddleware<TContext, TEvent> CreateStreamRateLimit<TContext, TEvent>(
+        IServiceProvider sp, string consumerId, string nodeId, int defaultMaxRequests, int defaultWindowSeconds) {
+        var profile = sp.GetRequiredService<ResolvedProfile>();
+        var maxRequests = GetConfigInt(profile, consumerId, nodeId, "max-requests", defaultMaxRequests);
+        var window = GetConfigSeconds(profile, consumerId, nodeId, "window-seconds", defaultWindowSeconds);
+        return new FixedStreamRateLimitMiddleware<TContext, TEvent>(maxRequests, window);
+    }
+
+    /// <summary>创建 FixedRetryMiddleware 实例，maxRetries 从 YAML config 读取</summary>
+    private static FixedRetryMiddleware<TContext> CreateRetry<TContext>(
+        IServiceProvider sp, string consumerId, string nodeId, int defaultMaxRetries,
+        Func<Exception, bool> shouldRetry) {
+        var profile = sp.GetRequiredService<ResolvedProfile>();
+        var maxRetries = GetConfigInt(profile, consumerId, nodeId, "max-retries", defaultMaxRetries);
+        return new FixedRetryMiddleware<TContext>(maxRetries, shouldRetry);
+    }
+
+    /// <summary>创建 FixedCircuitBreakerMiddleware 实例，参数从 YAML config 读取</summary>
+    private static FixedCircuitBreakerMiddleware<TContext> CreateCircuitBreaker<TContext>(
+        IServiceProvider sp, string consumerId, string nodeId,
+        int defaultFailureThreshold, int defaultOpenDurationSeconds) {
+        var profile = sp.GetRequiredService<ResolvedProfile>();
+        var failureThreshold = GetConfigInt(profile, consumerId, nodeId, "failure-threshold", defaultFailureThreshold);
+        var openDuration = GetConfigSeconds(profile, consumerId, nodeId, "open-duration-seconds", defaultOpenDurationSeconds);
+        return new FixedCircuitBreakerMiddleware<TContext>(failureThreshold, openDuration);
     }
 }

@@ -126,6 +126,6 @@ public enum CliArg {
     DumpProfile,
 
     /// <summary>指定运行时 Profile（如 base/headless/sdk/ci）</summary>
-    [CliOption(JccCliArgEnumConstants.Profile, "", "指定运行时 Profile（如 base/headless/sdk/ci）", AcceptsValue = true, Category = "基础", EnvVar = "JCC_PROFILE")]
+    [CliOption(JccCliArgEnumConstants.Profile, "", "指定运行时 Profile（如 base/headless/sdk/ci）", AcceptsValue = true, Category = "基础", EnvVar = "JCC_NODE_PROFILE")]
     Profile,
 }

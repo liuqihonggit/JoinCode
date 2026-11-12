@@ -4,7 +4,7 @@ consumers:
     nodes:
       - id: stream-crash-snapshot-mw
         priority: 50
-      - id: rate-limit-mw
+      - id: stream-rate-limit-mw
         priority: 100
       - id: chat-error-handling-mw
         priority: 150
@@ -12,43 +12,113 @@ consumers:
         priority: 200
       - id: token-budget-mw
         priority: 250
-      - id: security-check-mw
+      - id: modality-validation-mw
         priority: 300
       - id: audit-log-mw
         priority: 350
-      - id: chat-context-mw
+      - id: transcript-persist-mw
         priority: 400
-      - id: chat-prompt-mw
+      - id: pre-chat-mw
         priority: 450
-      - id: chat-stream-mw
+      - id: query-loop-mw
         priority: 500
-      - id: chat-admin-mw
+      - id: loop-intervention-mw
         priority: 550
-      - id: chat-tool-mw
+      - id: process-usage-mw
         priority: 600
-      - id: chat-telemetry-mw
+      - id: cleanup-injections-mw
         priority: 650
-      - id: crash-snapshot-mw
+      - id: save-context-mw
         priority: 700
 
   preprocess-pipeline:
     nodes:
+      - id: crash-snapshot-mw
+        priority: 50
       - id: keyword-injection-mw
         priority: 100
-      - id: synonym-mw
+      - id: synonym-injection-mw
         priority: 200
       - id: system-prompt-mw
         priority: 300
-      - id: lsp-diagnostic-mw
+      - id: reminder-injection-mw
         priority: 400
+      - id: tool-listing-injection-mw
+        priority: 500
+      - id: lsp-diagnostic-mw
+        priority: 600
+
+  chatinit-pipeline:
+    nodes:
       - id: crash-snapshot-mw
         priority: 50
+      - id: context-load-mw
+        priority: 100
+      - id: cost-restore-mw
+        priority: 200
+      - id: config-change-start-mw
+        priority: 300
+      - id: session-start-hook-mw
+        priority: 400
+
+  chatadmin-pipeline:
+    nodes:
+      - id: crash-snapshot-mw
+        priority: 50
+      - id: session-admin-mw
+        priority: 100
+      - id: session-save-mw
+        priority: 200
+
+  compact-pipeline:
+    nodes:
+      - id: crash-snapshot-mw
+        priority: 50
+      - id: compact-hook-mw
+        priority: 100
+      - id: compact-telemetry-mw
+        priority: 200
+      - id: context-collapse-mw
+        priority: 300
+      - id: microcompact-mw
+        priority: 400
+      - id: session-memory-compact-mw
+        priority: 500
+      - id: reactive-compact-mw
+        priority: 600
+
+  query-pipeline:
+    nodes:
+      - id: crash-snapshot-mw
+        priority: 50
+      - id: query-rate-limit-mw
+        priority: 100
+      - id: usd-budget-mw
+        priority: 200
+      - id: query-token-budget-mw
+        priority: 300
+      - id: cost-tracking-mw
+        priority: 400
+      - id: diminishing-returns-mw
+        priority: 500
+      - id: history-snip-mw
+        priority: 600
+      - id: idle-reminder-mw
+        priority: 700
+      - id: stop-hook-mw
+        priority: 800
+      - id: state-transition-mw
+        priority: 900
+      - id: content-replacement-mw
+        priority: 1000
 
   permission-pipeline:
     nodes:
+      - id: crash-snapshot-mw
+        priority: 50
       - id: bypass-permission-mw
         priority: 100
-      - id: agent-permission-mw
+      - id: agent-restriction-mw
         priority: 200
       - id: dangerous-command-mw
         priority: 300
@@ -70,37 +140,189 @@ consumers:
         priority: 1100
       - id: default-permission-mw
         priority: 1200
+
+  settings-pipeline:
+    nodes:
       - id: crash-snapshot-mw
         priority: 50
+      - id: settings-reload-mw
+        priority: 100
+      - id: effort-level-mw
+        priority: 200
+      - id: hook-refresh-mw
+        priority: 300
+      - id: permission-cache-mw
+        priority: 400
+      - id: tool-score-settings-mw
+        priority: 500
+      - id: subagent-concurrency-mw
+        priority: 600
+
+  unified-spawn-pipeline:
+    nodes:
+      - id: crash-snapshot-mw
+        priority: 50
+      - id: definition-resolution-mw
+        priority: 100
+      - id: prompt-building-mw
+        priority: 200
+      - id: context-setup-mw
+        priority: 300
+      - id: lifecycle-spawn-mw
+        priority: 400
+      - id: worktree-spawn-mw
+        priority: 500
+      - id: record-context-mw
+        priority: 600
+      - id: register-message-mw
+        priority: 700
+      - id: hook-setup-mw
+        priority: 800
+      - id: mcp-setup-mw
+        priority: 900
+      - id: permission-routing-mw
+        priority: 1000
+      - id: teammate-pane-mw
+        priority: 1100
+      - id: metadata-mw
+        priority: 1200
+      - id: transcript-mw
+        priority: 1300
+
+  agent-dispose-pipeline:
+    nodes:
+      - id: crash-snapshot-mw
+        priority: 50
+      - id: dispose-unregister-message-mw
+        priority: 100
+      - id: dispose-worktree-cleanup-mw
+        priority: 200
+      - id: dispose-shell-tasks-mw
+        priority: 300
+      - id: dispose-pane-mw
+        priority: 400
+      - id: dispose-lifecycle-mw
+        priority: 500
+
+  fork-pipeline:
+    nodes:
+      - id: crash-snapshot-mw
+        priority: 50
+      - id: fork-validation-mw
+        priority: 100
+      - id: fork-spawn-mw
+        priority: 200
+      - id: fork-permission-mw
+        priority: 300
+      - id: fork-execution-mw
+        priority: 400
+
+  web-pipeline:
+    nodes:
+      - id: crash-snapshot-mw
+        priority: 50
+      - id: web-timeout-mw
+        priority: 100
+      - id: web-retry-mw
+        priority: 200
+      - id: web-circuit-breaker-mw
+        priority: 300
+      - id: web-metrics-mw
+        priority: 400
+      - id: web-validation-mw
+        priority: 500
+      - id: web-ssrf-guard-mw
+        priority: 600
+      - id: web-cache-check-mw
+        priority: 700
+      - id: web-domain-check-mw
+        priority: 800
+      - id: web-fetch-mw
+        priority: 900
+      - id: web-content-processing-mw
+        priority: 1000
+      - id: web-cache-write-mw
+        priority: 1100
 
   shell-pipeline:
     nodes:
-      - id: shell-timeout-mw
-        priority: 100
-      - id: shell-validate-mw
-        priority: 200
-      - id: shell-intercept-mw
-        priority: 300
-      - id: shell-path-gate-mw
-        priority: 400
-      - id: shell-classify-mw
-        priority: 500
-      - id: shell-sed-intercept-mw
-        priority: 600
-      - id: shell-background-mw
-        priority: 700
-      - id: shell-build-intercept-mw
-        priority: 800
-      - id: shell-download-hint-mw
-        priority: 900
-      - id: shell-execute-mw
-        priority: 1000
-      - id: shell-output-mw
-        priority: 1100
-      - id: shell-perturbation-audit-mw
-        priority: 1200
       - id: crash-snapshot-mw
         priority: 50
+      - id: shell-timeout-keyword-mw
+        priority: 100
+      - id: absolute-timeout-mw
+        priority: 200
+      - id: shell-validate-mw
+        priority: 300
+      - id: shell-intercept-mw
+        priority: 400
+      - id: shell-path-gate-mw
+        priority: 500
+      - id: shell-classify-mw
+        priority: 600
+      - id: shell-sed-intercept-mw
+        priority: 700
+      - id: shell-background-mw
+        priority: 800
+      - id: shell-build-intercept-mw
+        priority: 900
+      - id: shell-download-hint-mw
+        priority: 1000
+      - id: shell-execute-mw
+        priority: 1100
+      - id: shell-output-mw
+        priority: 1200
+      - id: shell-perturbation-audit-mw
+        priority: 1300
+
+  skill-pipeline:
+    nodes:
+      - id: crash-snapshot-mw
+        priority: 50
+      - id: skill-timeout-mw
+        priority: 100
+      - id: skill-metrics-mw
+        priority: 200
+      - id: skill-validation-mw
+        priority: 300
+      - id: skill-telemetry-mw
+        priority: 400
+      - id: skill-execution-mw
+        priority: 500
+
+  code-pipeline:
+    nodes:
+      - id: crash-snapshot-mw
+        priority: 50
+      - id: code-timeout-mw
+        priority: 100
+      - id: code-cache-mw
+        priority: 200
+      - id: code-security-mw
+        priority: 300
+      - id: code-llm-mw
+        priority: 400
+      - id: code-sandbox-mw
+        priority: 500
+      - id: code-metrics-mw
+        priority: 600
+
+  dream-pipeline:
+    nodes:
+      - id: crash-snapshot-mw
+        priority: 50
+      - id: dream-gate-check-mw
+        priority: 100
+      - id: dream-session-scan-mw
+        priority: 200
+      - id: dream-task-register-mw
+        priority: 300
+      - id: dream-prompt-build-mw
+        priority: 400
+      - id: dream-llm-consolidate-mw
+        priority: 500
+      - id: dream-record-turn-mw
+        priority: 600
 
   tool-dispatch:
     nodes:

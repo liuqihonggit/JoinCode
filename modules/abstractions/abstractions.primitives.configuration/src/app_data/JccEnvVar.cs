@@ -15,6 +15,9 @@ public enum JccEnvVar {
     [SubCommandInfo("API 端点", "供应商配置")]
     Endpoint,
     [EnumValue("JCC_PROFILE")] Profile,
+    [EnumValue("JCC_NODE_PROFILE")]
+    [SubCommandInfo("节点管道 Profile (base/headless/sdk/ci)", "运行时配置")]
+    NodeProfile,
     [EnumValue("JCC_API_VERSION")] ApiVersion,
     [EnumValue("JCC_ORGANIZATION_ID")] OrganizationId,
     [EnumValue("JCC_ENABLE_OAUTH")]

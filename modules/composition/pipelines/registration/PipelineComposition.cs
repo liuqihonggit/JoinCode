@@ -8,11 +8,10 @@ namespace JoinCode.Pipelines;
 /// </summary>
 public static class PipelineComposition {
     /// <summary>
-    /// 注册所有管道到 DI — 替代源码生成器的 AddAutoRegisteredPipelines
+    /// 注册基础中间件服务 — 新旧管道组装路径共享的 DI 注册
+    /// 包含：CLI 独有聊天中间件、通用泛型中间件、CrashSnapshot 泛型中间件
     /// </summary>
-    public static IServiceCollection AddAllPipelines(this IServiceCollection services) {
-        // 4 个原是 CLI 独有的聊天中间件（纯引擎中间件，零 CLI 依赖），在此显式注册
-        // 注意：共享工程是 library，不能依赖 [Register] 生成器（会过度注册所有引用程序集类型）
+    public static IServiceCollection RegisterBaseMiddlewareServices(this IServiceCollection services) {
         services.AddSingleton<ChatTimingMiddleware>();
         services.AddSingleton<ChatErrorHandlingMiddleware>();
         services.AddSingleton<AuditLogMiddleware>();
@@ -20,12 +19,10 @@ public static class PipelineComposition {
         services.AddSingleton<MediaIntentDetector>();
         services.AddSingleton<ModalityValidationMiddleware>();
 
-        // 通用泛型中间件注册（工厂方式避免 IL2066）
         services.AddSingleton(sp => new MetricsMiddleware<WebContext>(sp.GetService<ITelemetryService>()));
         services.AddSingleton(sp => new MetricsMiddleware<SkillContext>(sp.GetService<ITelemetryService>()));
         services.AddSingleton(sp => new MetricsMiddleware<CodeContext>(sp.GetService<ITelemetryService>()));
 
-        // CrashSnapshot 泛型中间件 — 每条 Task 管道最外层，捕获异常自动记录快照
         services.AddSingleton(sp => new CrashSnapshotMiddleware<PreprocessContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Preprocess"));
         services.AddSingleton(sp => new CrashSnapshotMiddleware<ChatInitContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "ChatInit"));
         services.AddSingleton(sp => new CrashSnapshotMiddleware<ChatAdminContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "ChatAdmin"));
@@ -41,6 +38,15 @@ public static class PipelineComposition {
         services.AddSingleton(sp => new CrashSnapshotMiddleware<SkillContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Skill"));
         services.AddSingleton(sp => new CrashSnapshotMiddleware<CodeContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Code"));
         services.AddSingleton(sp => new CrashSnapshotMiddleware<JoinCode.Dream.Pipeline.DreamContext>(sp.GetRequiredService<ICrashSnapshotStore>(), "Dream"));
+
+        return services;
+    }
+
+    /// <summary>
+    /// 注册所有管道到 DI — 替代源码生成器的 AddAutoRegisteredPipelines
+    /// </summary>
+    public static IServiceCollection AddAllPipelines(this IServiceCollection services) {
+        services.RegisterBaseMiddlewareServices();
         // ═══════════════════════════════════════════════════════════
         // Stream 管道
         // ═══════════════════════════════════════════════════════════

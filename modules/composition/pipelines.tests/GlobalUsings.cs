@@ -1,10 +1,15 @@
 global using Core.Context;
+global using Core.Context.Modality;
+global using Core.Skills;
 global using JoinCode.Abstractions.Exceptions;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Pipeline;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils.Diagnostics;
+global using JoinCode.Composition.NodeRegistry;
+global using JoinCode.Pipelines;
 global using JoinCode.Pipelines.Middlewares;
+global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging.Abstractions;
 global using System.Runtime.CompilerServices;

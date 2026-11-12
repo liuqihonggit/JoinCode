@@ -55,35 +55,12 @@ modules/composition/composition/node_registry/consumers/
   CommandDispatchConsumer.cs  — 命令分发消费点
   PromptAssemblyConsumer.cs   — 提示词组装消费点
 
-modules/composition/pipelines/registration/
-  PipelineComposition.cs      — 改造为数据驱动（现有文件）
-
-modules/generators/node_handler.generator/
-  NodeHandlerGenerator.cs     — handler 编译期注册生成器
-  GlobalUsings.cs
-  NodeHandler.Generator.csproj
-
-modules/generators/middleware_registration.generator/
-  MiddlewareRegistrationGenerator.cs — 泛型中间件自动注册生成器
-  GlobalUsings.cs
-  MiddlewareRegistration.Generator.csproj
-
 modules/plugins/plugins.contracts/registry/
   DynamicPluginRegistry.cs    — 改造（现有文件）
   AotHandlerRegistry.cs       — AOT handler 注册表接口
 
 modules/plugins/plugins.infrastructure/services/
   PluginAotHandlerRegistry.cs — AOT handler 注册表实现
-
-modules/abstractions/primitives/core_attributes/node/
-  NodeHandlerAttribute.cs     — [NodeHandler] 特性
-  MiddlewareContextAttribute.cs — [MiddlewareContext] 特性
-
-resources/profiles/           — 内嵌资源目录
-  base.yaml
-  headless.yaml
-  sdk.yaml
-  ci.yaml
 ```
 
 ### 1.2 改造的现有文件
@@ -683,7 +660,9 @@ public static class PipelineComposition {
 
 ---
 
-## 8. DynamicPluginRegistry AOT 改造
+## 8. DynamicPluginRegistry AOT 改造（YAML 配置驱动）
+
+> **设计方向调整**（2026-11-13）：不新增 `[NodeHandler]` 特性。配置参数通过 YAML `config` 字段配置，handler 实现通过现有接口约定识别。
 
 ### 8.1 AotHandlerRegistry 接口
 
@@ -697,8 +676,10 @@ public interface IAotHandlerRegistry {
 
 ### 8.2 CompiledNodeHandlers — 源码生成器产出
 
+源码生成器扫描实现了现有接口（如 `[Register]` 注册的服务）的类，结合 YAML 配置中声明的 handler 映射，生成编译期路由表：
+
 ```csharp
-// 由 NodeHandlerGenerator 在编译期生成
+// 由源码生成器在编译期生成（数据源：YAML 配置 + 接口实现扫描）
 internal static class CompiledNodeHandlers {
     private static readonly FrozenDictionary<string, FrozenDictionary<string, Func<object?[], object?>>> _handlers =
         FrozenDictionary<string, FrozenDictionary<string, Func<object?[], object?>>>.Empty
@@ -733,40 +714,53 @@ public InvokeResult Invoke(string name, string method, object?[] args) {
 
 ---
 
-## 9. 泛型中间件自动注册
+## 9. 泛型中间件 YAML config 配置
 
-### 9.1 MiddlewareContextAttribute
+> **设计方向调整**（2026-11-13）：不新增 `[MiddlewareContext]` 特性。配置参数通过 YAML `config` 字段配置，泛型类型参数通过消费点 ID 自动映射。
 
-```csharp
-namespace JoinCode.Abstractions.CoreAttributes;
+### 9.1 YAML config 字段配置构造参数
 
-[AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
-public sealed class MiddlewareContextAttribute : Attribute {
-    public Type ContextType { get; }
-    public string PipelineId { get; }
-    public int Priority { get; }
+```yaml
+# base.yaml — config 字段配置泛型中间件的构造参数
+preprocess-pipeline:
+  nodes:
+    - id: crash-snapshot-mw
+      priority: 50
+      config:
+        pipeline-name: Preprocess
 
-    public MiddlewareContextAttribute(Type contextType, string pipelineId, int priority = 0) {
-        ContextType = contextType;
-        PipelineId = pipelineId;
-        Priority = priority;
-    }
-}
+chat-pipeline:
+  nodes:
+    - id: crash-snapshot-mw
+      priority: 700
+      config:
+        pipeline-name: Chat
 ```
 
-### 9.2 使用示例
+### 9.2 代码中从 YAML config 读取构造参数
 
 ```csharp
-[MiddlewareContext(typeof(ChatMiddlewareContext), "chat-pipeline", 50)]
-public class CrashSnapshotMiddleware<TContext> : IMiddleware<TContext> { ... }
-
-// 源码生成器自动生成：
-// services.AddSingleton(sp => new CrashSnapshotMiddleware<ChatMiddlewareContext>(...));
+// RegisterBaseMiddlewareServices 中从 YAML config 读取构造参数
+services.AddSingleton(sp => {
+    var config = ResolveNodeConfig("crash-snapshot-mw", "preprocess-pipeline");
+    var pipelineName = config.GetValueOrDefault("pipeline-name", "Default");
+    return new CrashSnapshotMiddleware<PreprocessContext>(
+        sp.GetRequiredService<ICrashSnapshotStore>(), pipelineName);
+});
 ```
 
-### 9.3 MiddlewareRegistrationGenerator
+### 9.3 消费点 ID → 泛型类型映射
 
-扫描 `[MiddlewareContext]` 特性，为每个 (TContext, TPipeline) 组合生成泛型实例化注册代码。
+泛型类型参数通过消费点 ID 自动映射（代码中固定，AOT 兼容）：
+
+| 消费点 ID | 上下文类型 |
+|-----------|-----------|
+| chat-pipeline | ChatMiddlewareContext |
+| preprocess-pipeline | PreprocessContext |
+| shell-pipeline | ShellPipelineContext |
+| ... | ... |
+
+**设计原则**：配置参数在 YAML `config` 字段中（显式组合、直观可读），泛型类型参数通过消费点 ID 映射（代码中固定，AOT 兼容），不新增 `[MiddlewareContext]` 特性。
 
 ---
 
@@ -835,16 +829,18 @@ public class CrashSnapshotMiddleware<TContext> : IMiddleware<TContext> { ... }
 
 **验收**: headless/sdk/ci 的排除（Excludes）、新增（Includes）、覆写（Overrides）三种操作都正确执行。
 
-#### 阶段3（原计划）：泛型中间件自动注册（新旧并行）
+#### 阶段3（原计划）：泛型中间件 YAML config 配置（不新增特性）
+
+> **设计方向调整**（2026-11-13）：放弃 `[MiddlewareContext]` 特性 + `MiddlewareRegistrationGenerator` 方案。
+> 配置参数通过 YAML `config` 字段配置，泛型类型参数通过消费点 ID 自动映射。
 
 | 步骤 | 内容 | 文件 |
 |------|------|------|
-| 3.1 | MiddlewareContextAttribute | primitives/core_attributes/node/ |
-| 3.2 | MiddlewareRegistrationGenerator | generators/middleware_registration.generator/ |
-| 3.3 | 在现有中间件类上标注 [MiddlewareContext] | 各中间件文件 |
-| 3.4 | PipelineComposition.cs 中移除手动泛型实例化，改用生成器产出 | composition/pipelines/registration/ |
+| 3.1 | base.yaml 扩展 config 字段 — CrashSnapshotMiddleware 的 pipelineName 等构造参数移入 YAML | resources/profiles/ |
+| 3.2 | RegisterBaseMiddlewareServices 改为从 YAML config 读取构造参数 | composition/pipelines/registration/DataDrivenPipelineComposition.cs |
+| 3.3 | 消费点 ID → 泛型类型映射表建立 | composition/pipelines/registration/DataDrivenPipelineComposition.cs |
 
-**验收**: CrashSnapshotMiddleware/MetricsMiddleware 等泛型中间件不再手动注册。编译通过，测试通过。
+**验收**: CrashSnapshotMiddleware 等泛型中间件的构造参数从 YAML config 读取，不再硬编码在代码中。编译通过，测试通过。
 
 #### 阶段4：移除旧路径（数据驱动成为唯一路径）
 
@@ -866,15 +862,17 @@ public class CrashSnapshotMiddleware<TContext> : IMiddleware<TContext> { ... }
 
 **验收**: 数据驱动管道组装成为唯一路径，旧的手动 .Use() 链已移除。exe 启动+对话正常。
 
-#### 阶段4（原计划）：DynamicPluginRegistry AOT 改造（新旧并行）
+#### 阶段4（原计划）：DynamicPluginRegistry AOT 改造（YAML 配置驱动，不新增特性）
+
+> **设计方向调整**（2026-11-13）：放弃 `[NodeHandler]` 特性 + `NodeHandlerGenerator` 方案。
+> 配置参数通过 YAML `config` 字段配置，handler 实现通过现有接口约定识别。
 
 | 步骤 | 内容 | 文件 |
 |------|------|------|
-| 4.1 | NodeHandlerAttribute | primitives/core_attributes/node/ |
-| 4.2 | NodeHandlerGenerator | generators/node_handler.generator/ |
-| 4.3 | IAotHandlerRegistry 接口 | plugins.contracts/registry/ |
-| 4.4 | PluginAotHandlerRegistry 实现 | plugins.infrastructure/services/ |
-| 4.5 | DynamicPluginRegistry.Invoke 改造 — AOT 路径优先，反射路径降级 | plugins.contracts/registry/DynamicPluginRegistry.cs |
+| 4.1 | IAotHandlerRegistry 接口 | plugins.contracts/registry/ |
+| 4.2 | PluginAotHandlerRegistry 实现 | plugins.infrastructure/services/ |
+| 4.3 | DynamicPluginRegistry.Invoke 改造 — AOT 路径优先，反射路径降级 | plugins.contracts/registry/DynamicPluginRegistry.cs |
+| 4.4 | YAML config 字段配置 handler 路由映射 | resources/profiles/ |
 
 **验收**: AOT 下 Invoke 能路由到 handler。非 AOT 模式反射路径仍可用。
 
@@ -922,9 +920,10 @@ public class CrashSnapshotMiddleware<TContext> : IMiddleware<TContext> { ... }
 ### 10.3 阶段依赖图
 
 ```
-阶段1（基础设施）→ 阶段2（管道组装）→ 阶段5（删除旧代码）
-                 → 阶段3（泛型中间件）↗
-                 → 阶段4（AOT 改造）↗
+阶段1（基础设施）→ 阶段2（管道组装）→ 阶段4移除旧路径（已完成）
+                 → 阶段3（YAML config 扩展）↗
+                 → 阶段4原计划（AOT 改造，YAML 驱动）↗
+                 → 阶段5（删除旧代码）
 阶段6（硬编码清理）— 独立，可并行
 阶段7（统一 Registry）— 长期目标，依赖阶段1-5完成
 ```
@@ -1043,37 +1042,36 @@ dotnet build modules/apps/cli/JoinCode.csproj -c Debug
 - `--profile headless` 正确排除节点
 - E2E 对话链路正常（MockServer + jcc.exe）
 
-### 11.3 阶段3验收 — 泛型中间件自动注册
+### 11.3 阶段3验收 — 泛型中间件 YAML config 配置
 
-**验收方式**：`--dump-nodes` 验证自动注册 + 对话验证
+**验收方式**：YAML config 字段验证 + 对话验证
 
 ```powershell
-# 1. 编译（需要 --no-incremental，因为涉及源码生成器）
-dotnet build modules/apps/cli/JoinCode.csproj -c Debug --no-incremental
+# 1. 编译
+dotnet build modules/apps/cli/JoinCode.csproj -c Debug
 
-# 2. --dump-nodes 验证泛型中间件已自动注册
-./modules/apps/cli/bin/Debug/net10.0/jcc.exe --dump-nodes
+# 2. --dump-profile base 验证 config 字段包含构造参数
+./modules/apps/cli/bin/Debug/net10.0/jcc.exe --dump-profile base
 
-# 期望：CrashSnapshotMiddleware<ChatMiddlewareContext> 等泛型中间件出现在 chat-pipeline 消费点中
-# 且不再需要 PipelineComposition.cs 中手动注册
+# 期望：crash-snapshot-mw 节点的 config 字段包含 pipeline-name 等构造参数
 
-# 3. 对话验证 — crash-snapshot 中间件实际生效
+# 3. 对话验证 — crash-snapshot 中间件使用 YAML config 中的 pipelineName
 ./modules/apps/cli/bin/Debug/net10.0/jcc.exe --profile base -p "echo hello" --trust --await 15
 
-# 期望：正常对话，crash-snapshot 中间件在管道中生效（可通过 --debuglog 验证中间件执行顺序）
+# 期望：正常对话，crash-snapshot 中间件在管道中生效
 
 # 4. --debuglog 验证中间件执行链
 ./modules/apps/cli/bin/Debug/net10.0/jcc.exe --profile base -p "echo hello" --trust --await 15 --debuglog
 
-# 期望：日志中可见中间件按 priority 顺序执行
+# 期望：日志中可见中间件按 priority 顺序执行，pipelineName 从 YAML config 读取
 ```
 
 **判定标准**：
-- `--dump-nodes` 中泛型中间件自动出现，无需手动注册
+- `--dump-profile base` 中 crash-snapshot-mw 的 config 字段包含 pipeline-name
 - `--debuglog` 日志显示中间件按 priority 顺序执行
 - 对话行为与阶段2一致
 
-### 11.4 阶段4验收 — DynamicPluginRegistry AOT 改造
+### 11.4 阶段4验收 — DynamicPluginRegistry AOT 改造（YAML 配置驱动）
 
 **验收方式**：AOT 发布 + invoke 路由验证
 

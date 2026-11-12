@@ -5,20 +5,28 @@ namespace JoinCode.Abstractions.Attributes;
 /// </summary>
 public enum PromptTemplateCategory {
     [EnumValue("memory")]
+    [PromptTemplateGroup(GroupName = "BrainPromptTemplates")]
     Memory,
     [EnumValue("agent")]
+    [PromptTemplateGroup(GroupName = "BrainPromptTemplates")]
     Agent,
     [EnumValue("system")]
+    [PromptTemplateGroup(GroupName = "SystemPromptTemplates")]
     System,
     [EnumValue("dream")]
+    [PromptTemplateGroup(GroupName = "DreamPromptTemplates")]
     Dream,
     [EnumValue("mcp")]
+    [PromptTemplateGroup(GroupName = "McpPromptTemplates")]
     Mcp,
     [EnumValue("skill")]
+    [PromptTemplateGroup(GroupName = "HandsPromptTemplates")]
     Skill,
     [EnumValue("plan")]
+    [PromptTemplateGroup(GroupName = "BrainPromptTemplates")]
     Plan,
     [EnumValue("goal")]
+    [PromptTemplateGroup(GroupName = "ClockPromptTemplates")]
     Goal,
 }
 

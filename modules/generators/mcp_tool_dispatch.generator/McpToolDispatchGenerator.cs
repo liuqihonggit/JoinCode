@@ -243,7 +243,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
                         optional,
                         kind,
                         groupName,
-                        DetectTimeoutPolicy(typeSymbol),
+                        DetectTimeoutPolicy(typeSymbol, compilation),
                         tools));
                 }
             }
@@ -315,13 +315,18 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
 
     /// <summary>
     /// 检测工具处理组的超时策略 — 遍历基类链查找 OneShotCommandGroup / LongRunningGroup
+    /// 用 SymbolEqualityComparer 做类型符号比较，避免字符串名称误匹配
+    /// 返回值须与 ToolTimeoutPolicy 静态字段名一致（生成代码中引用 ToolTimeoutPolicy.XXX）
     /// </summary>
-    private static string DetectTimeoutPolicy(INamedTypeSymbol typeSymbol) {
+    private static string DetectTimeoutPolicy(INamedTypeSymbol typeSymbol, Compilation compilation) {
+        var oneShotSymbol = compilation.GetTypeByMetadataName("JoinCode.Abstractions.Tools.OneShotCommandGroup");
+        var longRunningSymbol = compilation.GetTypeByMetadataName("JoinCode.Abstractions.Tools.LongRunningGroup");
+
         var baseType = typeSymbol.BaseType;
         while (baseType is not null) {
-            if (baseType.Name == "OneShotCommandGroup")
+            if (SymbolEqualityComparer.Default.Equals(baseType, oneShotSymbol))
                 return "AbsoluteThreeMinutes";
-            if (baseType.Name == "LongRunningGroup")
+            if (SymbolEqualityComparer.Default.Equals(baseType, longRunningSymbol))
                 return "None";
             baseType = baseType.BaseType;
         }

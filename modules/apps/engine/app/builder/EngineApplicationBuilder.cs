@@ -123,40 +123,20 @@ public sealed class EngineApplicationBuilder {
     }
 
     /// <summary>
-    /// 加载配置 — Hub 优先，回退到本地配置
-    /// ADR 0155: 当 Hub 服务可用时，跳过 Provider 配置加载，直接使用 Hub 协议
+    /// 加载配置 — Hub 模式，Hub 不可达直接报错
+    /// ADR 0155: 客户端只支持 Hub 协议，所有 Provider 配置由 Hub 服务端管理
     /// </summary>
     public static async Task<WorkflowConfig> LoadConfigAsync(CommandLineOptions options, IFileSystem fs, IModelConfigLoader? modelConfigLoader = null) {
-        WorkflowConfig config;
-
         var configLogLevel = JoinCode.Abstractions.Utils.Diagnostics.Diag.IsDebugLog ? LogLevel.Debug : LogLevel.Warning;
         using var configLoggerFactory = LoggerFactory.Create(b => b.AddProvider(new Core.Configuration.StderrLoggerProvider(configLogLevel)));
 
-        // ADR 0155: Hub 模式 — 当 Hub 服务可用时，跳过所有 Provider 配置加载
-        // 客户端不需要 ProviderDefinitionRegistry、API Key 解析、Provider 验证
-        // 所有 Provider 相关逻辑由 jcchub.exe 服务端处理
-        if (await IsHubServerAvailableAsync().ConfigureAwait(false)) {
-            Diag.WriteLine("[HUB] Hub 服务可用，使用 Hub 协议 — 跳过 Provider 配置加载");
-            config = await LoadHubConfigAsync(fs, options, modelConfigLoader).ConfigureAwait(false);
-            return config;
+        if (!await IsHubServerAvailableAsync().ConfigureAwait(false)) {
+            Diag.WriteLine("[HUB] Hub 服务不可达 — 请确认 jcchub.exe 已启动且监听 http://localhost:3457");
+            throw new InvalidOperationException("Hub 服务不可达，请确认 jcchub.exe 已启动且监听 http://localhost:3457");
         }
 
-        // 回退路径 — Hub 不可达时从本地配置加载
-        modelConfigLoader ??= new ModelConfigLoader();
-        var sw1 = PerfTimer.Start("  ProviderRegistry.Create");
-        var registry = await Core.Configuration.Providers.ProviderDefinitionRegistry.CreateAsync(modelConfigLoader, logger: configLoggerFactory.CreateLogger<Core.Configuration.Providers.ProviderDefinitionRegistry>()).ConfigureAwait(false);
-        sw1?.Stop();
-
-        var loader = new Core.Configuration.ConfigLoader(registry: registry, modelConfigLoader: modelConfigLoader, loggerFactory: configLoggerFactory) {
-            SkipProviderValidation = options.SkipProviderValidation
-        };
-
-        var sw2 = PerfTimer.Start("  ConfigLoader.Load");
-        config = await loader.LoadConfigAsync(fs).ConfigureAwait(false);
-        sw2?.Stop();
-
-        // 环境变量优先级最高
-        config = await new Core.Configuration.SettingsMapper(registry).ApplyEnvOverridesAsync(config).ConfigureAwait(false);
+        Diag.WriteLine("[HUB] Hub 服务可用，使用 Hub 协议 — 跳过 Provider 配置加载");
+        var config = await LoadHubConfigAsync(fs, options, modelConfigLoader).ConfigureAwait(false);
 
         if (options.IsPipeMode)
             config = config with { PipeEndpoint = new PipeTransportConfig { PipeName = options.PipeName ?? throw new InvalidOperationException("PipeName required in pipe mode") } };

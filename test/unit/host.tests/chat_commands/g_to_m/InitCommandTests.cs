@@ -77,12 +77,12 @@ public sealed class InitCommandTests {
         var rulesContent = await fs.ReadAllText(expectedRulesFile);
         rulesContent.Should().Contain("项目规则");
 
-        // P8: settings.json 极简（不含 vendor/searchProviders 内联，由 Hub 管理）
+        // P8: settings.json 极简（不含 vendor 内联），供应商配置由 Hub 服务端管理
         var settingsContent = await fs.ReadAllText(expectedSettingsFile);
         settingsContent.Should().Contain("autoFetchModels", "骨架应启用 autoFetchModels");
         settingsContent.Should().Contain("profile", "极简 settings.json 应含 current.profile 指针");
 
-        // P8: current/ 10 子文件
+        // P8: current/ 子文件
         var currentDir = Path.Combine(expectedJccDir, "current");
         fs.DirectoryExists(currentDir).Should().BeTrue("current/ 目录应存在");
         fs.FileExists(Path.Combine(currentDir, "ui.json")).Should().BeTrue("current/ui.json 应存在");

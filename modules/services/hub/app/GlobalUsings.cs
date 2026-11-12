@@ -1,4 +1,5 @@
 global using Core.Configuration;
+global using Core.Configuration.ModelFetch;
 global using Core.Configuration.Providers;
 global using Core.Hub.Server;
 global using IO.FileSystem;

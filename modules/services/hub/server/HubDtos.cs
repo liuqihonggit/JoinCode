@@ -132,9 +132,9 @@ public sealed class HubRegisterResponse {
 
 /// <summary>模型信息 DTO。</summary>
 public sealed class HubModelInfo {
-    /// <summary>模型 ID。</summary>
-    [JsonPropertyName("id")]
-    public string Id { get; init; } = string.Empty;
+    /// <summary>模型名称。</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = string.Empty;
 
     /// <summary>所属 Provider。</summary>
     [JsonPropertyName("provider")]

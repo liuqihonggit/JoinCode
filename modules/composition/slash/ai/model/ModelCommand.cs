@@ -148,10 +148,15 @@ public sealed class ModelCommand : ChatCommandBase {
         var catalog = ResolveModelCatalog(context);
         var providerName = catalog?.GetProviderDisplayName(provider) ?? provider;
 
+        var primaryModelId = fastModeService?.PrimaryModelId ?? "unknown";
+        var fastModelId = fastModeService?.FastModelId ?? "unknown";
+        var primaryDisplayName = ResolveModelDisplayName(catalog, provider, primaryModelId);
+        var fastDisplayName = ResolveModelDisplayName(catalog, provider, fastModelId);
+
         TerminalHelper.WriteLine("=== 当前模型信息 ===");
         TerminalHelper.WriteLine($"  Provider: {providerName}");
-        TerminalHelper.WriteLine($"  主模型: {fastModeService?.PrimaryModelId ?? "unknown"}");
-        TerminalHelper.WriteLine($"  快速模型: {fastModeService?.FastModelId ?? "unknown"}");
+        TerminalHelper.WriteLine($"  主模型: {primaryDisplayName}");
+        TerminalHelper.WriteLine($"  快速模型: {fastDisplayName}");
         TerminalHelper.WriteLine($"  快速模式: {(fastModeService?.IsFastModeActive == true ? "开启" : "关闭")}");
         TerminalHelper.WriteLine($"  Effort 等级: {(executionSettings?.EffortLevel ?? EffortLevel.Auto).ToValue()}");
 
@@ -160,16 +165,26 @@ public sealed class ModelCommand : ChatCommandBase {
         return Task.FromResult(ChatCommandResult.Continue());
     }
 
+    private static string ResolveModelDisplayName(IModelCatalog? catalog, string provider, string modelId) {
+        if (catalog is null || string.IsNullOrEmpty(modelId) || modelId == "unknown")
+            return modelId;
+        var models = catalog.GetModelsForProvider(provider);
+        var match = Array.Find(models, m => m.Id.Equals(modelId, StringComparison.OrdinalIgnoreCase));
+        return match?.DisplayName ?? modelId;
+    }
+
     private async Task<ChatCommandResult> SwitchToDefaultModelAsync(ChatCommandContext context) {
         var provider = GetCurrentProvider(context);
-        var defaultModel = ResolveModelCatalog(context)?.GetDefaultModelForProvider(provider);
+        var catalog = ResolveModelCatalog(context);
+        var defaultModel = catalog?.GetDefaultModelForProvider(provider);
         if (defaultModel is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}模型目录不可用 — 无法解析默认模型，请显式指定模型 id{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
+        var displayName = ResolveModelDisplayName(catalog, provider, defaultModel);
         await ApplyModelSwitchAsync(context, defaultModel).ConfigureAwait(false);
-        TerminalHelper.WriteLine($"{TerminalColors.Primary}已恢复默认模型: {defaultModel}{AnsiStyleEnumConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Primary}已恢复默认模型: {displayName}{AnsiStyleEnumConstants.Reset}");
 
         return ChatCommandResult.Continue();
     }
@@ -177,9 +192,11 @@ public sealed class ModelCommand : ChatCommandBase {
     private async Task<ChatCommandResult> SwitchToModelAsync(ChatCommandContext context, string modelArg) {
         var provider = GetCurrentProvider(context);
         var resolvedModelId = ResolveModelId(context, modelArg, provider);
+        var catalog = ResolveModelCatalog(context);
+        var displayName = ResolveModelDisplayName(catalog, provider, resolvedModelId);
 
         await ApplyModelSwitchAsync(context, resolvedModelId).ConfigureAwait(false);
-        TerminalHelper.WriteLine($"{TerminalColors.Primary}已切换模型: {resolvedModelId}{AnsiStyleEnumConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Primary}已切换模型: {displayName}{AnsiStyleEnumConstants.Reset}");
 
         return ChatCommandResult.Continue();
     }

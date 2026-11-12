@@ -240,8 +240,8 @@ public sealed class EngineApplicationBuilder {
                 var modelsData = RelaxedJsonSerializer.Deserialize(modelsJson, HubModelsJsonContext.Default.HubModelsResponse);
                 if (modelsData?.Data is not null && modelsData.Data.Count > 0) {
                     var selectedModel = SelectHubModel(modelsData.Data, configuredModel);
-                    config = config with { Provider = config.Provider with { ModelId = selectedModel.Id } };
-                    Diag.WriteLine($"[HUB] 从服务端获取 {modelsData.Data.Count} 个模型，使用: {selectedModel.Id} (provider={selectedModel.Provider})");
+                    config = config with { Provider = config.Provider with { ModelId = selectedModel.Name } };
+                    Diag.WriteLine($"[HUB] 从服务端获取 {modelsData.Data.Count} 个模型，使用: {selectedModel.Name} (provider={selectedModel.Provider})");
                 }
             }
         } catch (Exception ex) {
@@ -288,12 +288,12 @@ public sealed class EngineApplicationBuilder {
     private static HubModelInfo SelectHubModel(List<HubModelInfo> availableModels, string? configuredModel) {
         if (!string.IsNullOrEmpty(configuredModel)) {
             var match = availableModels.FirstOrDefault(m =>
-                string.Equals(m.Id, configuredModel, StringComparison.OrdinalIgnoreCase));
+                string.Equals(m.Name, configuredModel, StringComparison.OrdinalIgnoreCase));
             if (match is not null) {
                 Diag.WriteLine($"[HUB] 配置的模型 {configuredModel} 在可用列表中，使用它");
                 return match;
             }
-            Diag.WriteLine($"[HUB] 配置的模型 {configuredModel} 不在可用列表中，使用第一个可用模型: {availableModels[0].Id}");
+            Diag.WriteLine($"[HUB] 配置的模型 {configuredModel} 不在可用列表中，使用第一个可用模型: {availableModels[0].Name}");
         }
         return availableModels[0];
     }

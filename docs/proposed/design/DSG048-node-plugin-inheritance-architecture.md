@@ -693,16 +693,16 @@ public async ValueTask LoadAsync(NodeContext ctx, CancellationToken ct) {
 }
 ```
 
-### 5.8 DynamicPluginRegistry AOT 改造
+### 5.8 DynamicPluginRegistry AOT 改造（YAML 配置驱动）
 
-将 handler 加载从反射改为**编译期源码生成器注册**：
+将 handler 加载从反射改为**编译期源码生成器注册**，不新增特性标注。配置参数通过 YAML `config` 字段配置，handler 实现通过现有接口约定识别：
 
-1. 新增 `[NodeHandler]` 特性 — 标记方法为节点 handler
-2. 新增 NodeHandlerGenerator — 扫描 `[NodeHandler]`，生成 `CompiledNodeHandlers` 类
+1. YAML 配置声明节点 handler 映射 — 在消费点的 `config` 字段中配置 handler 路由
+2. 源码生成器扫描实现了现有接口（如 `[Register]` 注册的服务）的类，结合 YAML 配置生成 `CompiledNodeHandlers` 路由表
 3. DynamicPluginRegistry.Invoke 改为从 `CompiledNodeHandlers` 路由
 
 ```csharp
-// 编译期生成的 handler 注册代码
+// 编译期生成的 handler 注册代码（从 YAML 配置 + 接口实现扫描生成）
 internal static class CompiledNodeHandlers {
     private static readonly FrozenDictionary<string, FrozenDictionary<string, Func<object?[], object?>>> _handlers = ...;
 
@@ -720,20 +720,33 @@ public InvokeResult Invoke(string name, string method, object?[] args) {
 }
 ```
 
-### 5.9 泛型中间件自动注册
+**设计原则**：不新增 `[NodeHandler]` 特性。handler 的代码实现通过现有接口约定识别，handler 的配置参数通过 YAML `config` 字段配置。
 
-新增 MiddlewareRegistrationGenerator，扫描 `[MiddlewareContext(typeof(XxxContext))]` 特性，自动生成泛型实例化注册代码：
+### 5.9 泛型中间件 YAML config 配置
+
+泛型中间件的配置参数（如 `pipelineName`、`timeout` 等）通过 YAML `config` 字段配置，不在代码特性上放参数。泛型类型参数通过消费点 ID 自动映射（AOT 限制下仍需编译期已知）。不新增 `[MiddlewareContext]` 特性。
+
+```yaml
+# base.yaml — config 字段配置构造参数
+preprocess-pipeline:
+  nodes:
+    - id: crash-snapshot-mw
+      priority: 50
+      config:
+        pipeline-name: Preprocess
+```
 
 ```csharp
-// 标注
-[MiddlewareContext(typeof(ChatMiddlewareContext))]
-public class CrashSnapshotMiddleware<TContext> : IMiddleware<TContext> { ... }
-
-// 生成器自动生成
-services.AddSingleton<IMiddleware<ChatMiddlewareContext>>(
-    sp => new CrashSnapshotMiddleware<ChatMiddlewareContext>(sp.GetRequiredService<ILogger>())
-);
+// 代码中从 YAML config 读取构造参数
+services.AddSingleton(sp => {
+    var config = ResolveNodeConfig("crash-snapshot-mw", "preprocess-pipeline");
+    var pipelineName = config.GetValueOrDefault("pipeline-name", "Default");
+    return new CrashSnapshotMiddleware<PreprocessContext>(
+        sp.GetRequiredService<ICrashSnapshotStore>(), pipelineName);
+});
 ```
+
+**设计原则**：配置参数在 YAML `config` 字段中（显式组合、直观可读），泛型类型参数通过消费点 ID 映射（代码中固定，AOT 兼容），不新增 `[MiddlewareContext]` 特性。
 
 ---
 
@@ -746,8 +759,8 @@ services.AddSingleton<IMiddleware<ChatMiddlewareContext>>(
 | P3 | NodeProfileLoader + NodeRegistry + Node<TService> + 诊断命令 + DI 注册 | 高 | P1, P2 | ✅ 已完成 |
 | P4 | 数据驱动的管道组装（替代 PipelineComposition.cs） | 高 | P1-P3 | ❌ 待实施 |
 | P5 | NodeContext 可逆注册（复用现有 EffectScope） | 中 | P1 | ❌ 待实施 |
-| P6 | DynamicPluginRegistry AOT 改造 | 中 | P1 | ❌ 待实施 |
-| P7 | 泛型中间件自动注册（MiddlewareRegistrationGenerator） | 中 | P1 | ❌ 待实施 |
+| P6 | DynamicPluginRegistry AOT 改造（YAML 配置驱动，不新增特性） | 中 | P1 | ❌ 待实施 |
+| P7 | 泛型中间件 YAML config 配置（不新增特性） | 中 | P1 | ❌ 待实施 |
 | P8 | LlmAdapter 式继承适配模式推广 | 低 | P1-P7 | ❌ 待实施 |
 
 ---
@@ -767,8 +780,8 @@ services.AddSingleton<IMiddleware<ChatMiddlewareContext>>(
 | ServiceRegistration DI 注册 | NodeRegistry + ProfileResolver 注入 | ✅ `modules/composition/composition/dependency_injection/core/ServiceRegistration.cs` | ✅ 编译通过 |
 | 数据驱动的管道组装 | PipelineComposition.cs 不再硬编码 | ❌ 阶段2 | ❌ |
 | NodeContext 可逆注册 | 节点卸载时自动回滚 | ❌ 阶段4（复用现有 EffectScope） | ❌ |
-| DynamicPluginRegistry AOT 改造 | invoke 在 AOT 下能路由 | ❌ 阶段5 | ❌ |
-| 泛型中间件自动注册 | CrashSnapshotMiddleware 等不再手动注册 | ❌ 阶段6 | ❌ |
+| DynamicPluginRegistry AOT 改造 | invoke 在 AOT 下能路由 | ❌ P6（YAML 配置驱动，不新增特性） | ❌ |
+| 泛型中间件 YAML config 配置 | CrashSnapshotMiddleware 等构造参数从 YAML 读取 | ❌ P7（不新增特性） | ❌ |
 | LlmAdapter 式继承适配 | 抽象类+默认实现+覆写模式推广 | ❌ 阶段7 | ❌ |
 
 ---
@@ -797,6 +810,7 @@ services.AddSingleton<IMiddleware<ChatMiddlewareContext>>(
 | 6 | NodeKind 推断规则 | **消费点驱动，非节点固有属性** | 2026-11-12 | 节点本身无状态类型标注；消费点通过 YAML 配置自由搭配需要的节点列表。一个节点可出现在多个消费点 |
 | 7 | 条件禁用语法 | **Feature flag 名称** | 2026-11-12 | `enabled-when: \"feature.web-search\"` — 简单的 feature flag 名称，当 flag 开启时才加载 |
 | 8 | 继承适配推广范围 | **数据层面继承为主，代码层面继承只在不可避免场景** | 2026-11-12 | 与 DSH 一致：大部分场景用 Profile YAML 数据层面继承；只有 LLM API 适配等不可避免的代码逻辑差异用抽象类+覆写。开发者日常只需理解 YAML 配置 |
+| 9 | 配置参数位置 | **YAML config 字段，不在特性上** | 2026-11-13 | 用户反馈：所有配置参数（priority、pipelineName、timeout 等）应该在 YAML 中显式配置，不在特性标注上放参数。YAML 是配置单一数据源，显式组合更直观。不新增 `[MiddlewareContext]`/`[NodeHandler]` 等带参数的特性 |
 
 ---
 

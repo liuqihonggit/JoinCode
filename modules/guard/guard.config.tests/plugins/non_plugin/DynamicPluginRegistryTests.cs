@@ -6,7 +6,7 @@ public sealed class DynamicPluginRegistryTests {
         return new DynamicPluginRegistry(
             approval,
             clock: null,
-            loader: (_, _) => FrozenDictionary<string, Func<object?[], object?>>.Empty);
+            loader: _ => FrozenDictionary<string, Func<object?[], object?>>.Empty);
     }
 
     private static PluginPackage DefineSample(DynamicPluginRegistry reg, string name = "alpha") {

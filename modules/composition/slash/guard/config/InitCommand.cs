@@ -72,10 +72,9 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
     private async Task QuickInitAsync(ChatCommandContext context) {
         var fs = context.GetCommandServices().FileSystem;
         var cwd = fs.GetCurrentDirectory();
-        // 修复: 统一使用 AppDataConstants.AppDataFolder,避免硬编码 ".jcc" 与 EnsureJccDirectory 路径不一致
-        var jccDir = Path.Combine(cwd, AppDataConstants.AppDataFolder);
-        var rulesFile = Path.Combine(jccDir, "project_rules.md");
-        var settingsFile = Path.Combine(jccDir, "settings.json");
+        var projectJccDir = Path.Combine(cwd, AppDataConstants.AppDataFolder);
+        var rulesFile = Path.Combine(projectJccDir, "project_rules.md");
+        var projectSettingsFile = Path.Combine(projectJccDir, "settings.json");
 
         TerminalHelper.WriteLine($"快速初始化项目配置: {cwd}");
         TerminalHelper.NewLine();
@@ -89,20 +88,60 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
             TerminalHelper.WriteLine("  · project_rules.md 已存在");
         }
 
-        if (!fs.FileExists(settingsFile)) {
-            await Core.Configuration.SettingsLoader.BuildDefaultConfigTreeAsync(fs, jccDir, context.CancellationToken).ConfigureAwait(false);
-            TerminalHelper.WriteLine("  ✓ 创建配置树骨架 (settings.json + current/)");
+        await EnsureUserSettingsFromHubAsync(fs, context.CancellationToken).ConfigureAwait(false);
+
+        if (!fs.FileExists(projectSettingsFile)) {
+            await Core.Configuration.SettingsLoader.BuildDefaultConfigTreeAsync(fs, projectJccDir, context.CancellationToken).ConfigureAwait(false);
+            TerminalHelper.WriteLine("  ✓ 创建项目配置骨架 (.jcc/settings.json + current/)");
         } else {
-            TerminalHelper.WriteLine("  · settings.json 已存在");
+            TerminalHelper.WriteLine("  · .jcc/settings.json 已存在");
         }
 
-        await WriteConfigTemplatesAsync(context, fs, jccDir).ConfigureAwait(false);
+        await WriteConfigTemplatesAsync(context, fs, projectJccDir).ConfigureAwait(false);
 
         await RegisterProjectConfigAsync(context, cwd).ConfigureAwait(false);
 
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine("快速初始化完成");
         TerminalHelper.WriteLine("使用 /init (不带quick) 让AI分析代码库并生成详细规则");
+    }
+
+    /// <summary>
+    /// 确保 ~/.jcc/settings.json 存在且包含供应商配置 — 首次启动时从 Hub /config/default 获取
+    /// </summary>
+    private static async Task EnsureUserSettingsFromHubAsync(IFileSystem fs, CancellationToken ct) {
+        var userSettingsPath = Core.Configuration.SettingsLoader.GetUserSettingsPath();
+        if (fs.FileExists(userSettingsPath)) {
+            TerminalHelper.WriteLine("  · ~/.jcc/settings.json 已存在");
+            return;
+        }
+
+        try {
+            var hubConfig = await FetchHubConfigDefaultAsync(ct).ConfigureAwait(false);
+            var userJccDir = AppDataConstants.Paths.JccDirectory;
+            await Core.Configuration.SettingsLoader.BuildHubDrivenConfigTreeAsync(fs, userJccDir, hubConfig, ct).ConfigureAwait(false);
+            TerminalHelper.WriteLine("  ✓ 从 Hub 获取供应商配置并写入 ~/.jcc/settings.json");
+        } catch (Exception ex) {
+            TerminalHelper.WriteLine($"  ✗ 从 Hub 获取供应商配置失败: {ex.Message}");
+            TerminalHelper.WriteLine("    请确认 jcchub.exe 已启动后重试 /init quick");
+        }
+    }
+
+    /// <summary>
+    /// 从 Hub /config/default 获取供应商配置 — Hub 不可达时抛异常
+    /// </summary>
+    private static async Task<HubConfigDefaultResponse> FetchHubConfigDefaultAsync(CancellationToken ct) {
+        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+        var response = await client.GetAsync("http://localhost:3457/config/default", ct).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException($"Hub /config/default 返回 {response.StatusCode}");
+
+        var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        var configDefault = RelaxedJsonSerializer.Deserialize(json, HubConfigJsonContext.Default.HubConfigDefaultResponse);
+        if (configDefault is null || configDefault.Vendor.Count == 0)
+            throw new InvalidOperationException("Hub /config/default 返回空配置");
+
+        return configDefault;
     }
 
     /// <summary>

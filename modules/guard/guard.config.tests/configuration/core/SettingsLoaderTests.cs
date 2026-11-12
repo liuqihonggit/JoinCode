@@ -612,5 +612,91 @@ public class SettingsLoaderTests : IDisposable {
     }
 
     #endregion
+
+    #region P9: BuildHubDrivenConfigTreeAsync Hub 驱动配置树生成
+
+    [Fact]
+    public async Task P9_BuildHubDrivenConfigTreeAsync_生成settingsJson和current目录() {
+        var baseDir = $"/test/p9_basic_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        var hubConfig = CreateSampleHubConfig();
+        await SettingsLoader.BuildHubDrivenConfigTreeAsync(_fs, baseDir, hubConfig, CancellationToken.None);
+
+        var settingsPath = Path.Combine(baseDir, "settings.json");
+        _fs.FileExists(settingsPath).Should().BeTrue("settings.json 应存在");
+
+        var currentDir = Path.Combine(baseDir, "current");
+        _fs.DirectoryExists(currentDir).Should().BeTrue("应生成 current/ 目录");
+    }
+
+    [Fact]
+    public async Task P9_BuildHubDrivenConfigTreeAsync_settingsJson含供应商配置() {
+        var baseDir = $"/test/p9_vendor_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        var hubConfig = CreateSampleHubConfig();
+        await SettingsLoader.BuildHubDrivenConfigTreeAsync(_fs, baseDir, hubConfig, CancellationToken.None);
+
+        var settingsPath = Path.Combine(baseDir, "settings.json");
+        var settingsContent = await _fs.ReadAllText(settingsPath);
+
+        settingsContent.Should().Contain("test-provider", "settings.json 应含供应商配置");
+        settingsContent.Should().Contain("autoFetchModels", "settings.json 应含 autoFetchModels");
+        settingsContent.Should().Contain("profile", "settings.json 应含 current.profile 指针");
+    }
+
+    [Fact]
+    public async Task P9_BuildHubDrivenConfigTreeAsync_不生成providers_llm目录() {
+        var baseDir = $"/test/p9_no_vendors_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        var hubConfig = CreateSampleHubConfig();
+        await SettingsLoader.BuildHubDrivenConfigTreeAsync(_fs, baseDir, hubConfig, CancellationToken.None);
+
+        var vendorsDir = Path.Combine(baseDir, "providers_llm");
+        _fs.DirectoryExists(vendorsDir).Should().BeFalse("不应生成 providers_llm/ 目录");
+    }
+
+    [Fact]
+    public async Task P9_BuildHubDrivenConfigTreeAsync_加载侧合并后含供应商和UI配置() {
+        var baseDir = $"/test/p9_roundtrip_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        var hubConfig = CreateSampleHubConfig();
+        await SettingsLoader.BuildHubDrivenConfigTreeAsync(_fs, baseDir, hubConfig, CancellationToken.None);
+
+        var treeSettings = await SettingsLoader.LoadUserSettingsFromDirAsync(_fs, baseDir, CancellationToken.None);
+        treeSettings.Should().NotBeNull();
+        var settings = treeSettings ?? throw new InvalidOperationException("unreachable");
+        settings.Current?.Profile.Should().Be("test-provider", "current.profile 应来自 Hub 配置");
+        settings.Vendor.Should().NotBeEmpty("vendor 配置应来自 Hub");
+        settings.Vendor.Should().ContainKey("test-provider");
+        settings.AutoFetchModels.Should().BeTrue("autoFetchModels 应为 true");
+    }
+
+    private static HubConfigDefaultResponse CreateSampleHubConfig() {
+        return new HubConfigDefaultResponse {
+            CurrentProfile = "test-provider",
+            Vendor = new Dictionary<string, VendorConfigEntry>(StringComparer.OrdinalIgnoreCase) {
+                ["test-provider"] = new VendorConfigEntry {
+                    Provider = "test-provider",
+                    Protocol = "openai-compatible",
+                    Endpoint = "https://api.test-provider.com",
+                    ApiKeyEnvVar = "TEST_PROVIDER_API_KEY",
+                    Model = "test-model",
+                    Models = [
+                        new VendorModelEntry {
+                            Id = "test-model",
+                            DisplayName = "Test Model",
+                            ContextWindow = 8192,
+                        },
+                    ],
+                },
+            },
+        };
+    }
+
+    #endregion
 }
 #pragma warning restore JCC3010, JCC3011, JCC3012

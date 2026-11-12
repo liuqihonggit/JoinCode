@@ -90,6 +90,60 @@ public static class SettingsLoader {
     }
 
     /// <summary>
+    /// 从 Hub /config/default 配置生成配置树 — 方案 B：Hub 管供应商配置，客户端管自己的 UI/行为配置。
+    /// <para>生成结构:</para>
+    /// <list type="bullet">
+    /// <item>settings.json — 含供应商配置（来自 Hub）+ current.profile 指针 + autoFetchModels</item>
+    /// <item>current/ — 子文件（subagent.json 等 UI 偏好配置）</item>
+    /// </list>
+    /// </summary>
+    /// <param name="fs">文件系统</param>
+    /// <param name="baseDir">jcc 基础目录（如 ~/.jcc/ 或 {projectDir}/.jcc/）</param>
+    /// <param name="hubConfig">从 Hub /config/default 获取的供应商配置</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    public static async Task BuildHubDrivenConfigTreeAsync(
+        IFileSystem fs, string baseDir, HubConfigDefaultResponse hubConfig, CancellationToken cancellationToken = default) {
+        DirectoryHelper.EnsureDirectoryExists(fs, baseDir);
+
+        var settings = ConvertHubConfigToSettingsJson(hubConfig);
+        var settingsJson = RelaxedJsonSerializer.SerializeIndented(settings, ConfigIndentedJsonContext.Default);
+        await fs.WriteAllTextAsync(Path.Combine(baseDir, "settings.json"), settingsJson, cancellationToken).ConfigureAwait(false);
+        await WriteCurrentSubFilesAsync(fs, baseDir, settings, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 将 Hub /config/default 响应转换为 SettingsJson — 供应商配置来自 Hub，UI/行为配置用客户端默认值。
+    /// </summary>
+    private static SettingsJson ConvertHubConfigToSettingsJson(HubConfigDefaultResponse hubConfig) {
+        var vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (name, entry) in hubConfig.Vendor) {
+            var models = (entry.Models ?? []).Select(m => new ModelItemConfig {
+                Id = m.Id,
+                DisplayName = string.IsNullOrEmpty(m.DisplayName) ? m.Id : m.DisplayName,
+                ContextWindow = m.ContextWindow,
+            }).ToList();
+
+            vendor[name] = new ProfileSettings {
+                Provider = entry.Provider,
+                Protocol = entry.Protocol,
+                Endpoint = entry.Endpoint,
+                ApiKeyEnvVar = entry.ApiKeyEnvVar,
+                Model = entry.Model,
+                Models = models,
+            };
+        }
+
+        return new SettingsJson {
+            Vendor = vendor,
+            Current = new CurrentSettings {
+                Profile = hubConfig.CurrentProfile,
+            },
+            AutoFetchModels = true,
+        };
+    }
+
+    /// <summary>
     /// 从指定目录加载 settings.json + 合并 providers_llm/current 子文件 — P8 roundtrip 测试用。
     /// <para>读取 {baseDir}/settings.json，然后合并 {baseDir}/providers_llm/ 和 {baseDir}/current/ 子文件。</para>
     /// </summary>

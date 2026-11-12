@@ -324,7 +324,7 @@ public sealed class EngineApplicationBuilder {
         }
 
         var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-        var configDefault = RelaxedJsonSerializer.Deserialize(json, HubModelsJsonContext.Default.HubConfigDefaultResponse);
+        var configDefault = RelaxedJsonSerializer.Deserialize(json, HubConfigJsonContext.Default.HubConfigDefaultResponse);
         if (configDefault is null || configDefault.Vendor.Count == 0) {
             Diag.WriteLine("[HUB] /config/default 返回空配置");
             return;

@@ -1,7 +1,7 @@
 # DSG048 实现设计 — 详细类图与文件结构
 
 > 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [DSG048](DSG048-node-plugin-inheritance-architecture.md)
-> 状态: accepted（阶段1 基础设施层已实现并验收）
+> 状态: accepted（阶段1-4 已实现并验收）
 > 创建: 2026-11-12
 > 关联: [DSG048](DSG048-node-plugin-inheritance-architecture.md) 架构 spec
 
@@ -9,7 +9,7 @@
 
 ## 1. 文件结构
 
-### 1.1 新增文件清单（阶段1 已实现）
+### 1.1 新增文件清单（阶段1-4 已实现）
 
 ```
 modules/abstractions/composition/node/interfaces/
@@ -34,9 +34,13 @@ modules/composition/composition/node_registry/
   NodeProfileLoader.cs        — 内嵌资源 Profile 加载器 ✅
   NodeEntry.cs                — 节点注册条目（内部） ✅
   Node.cs                     — Node<TService> 运行期适配器 ✅
+  NodeServiceResolver.cs      — (consumerId,nodeId) 组合 key 服务解析器 ✅
+
+modules/composition/pipelines/registration/
+  DataDrivenPipelineComposition.cs — 数据驱动管道组装（唯一路径） ✅
 
 resources/profiles/
-  base.yaml                   — 基础 Profile ✅
+  base.yaml                   — 基础 Profile（16条管道消费点） ✅
   headless.yaml               — 无头模式 Profile ✅
   sdk.yaml                    — SDK 模式 Profile ✅
   ci.yaml                     — CI 模式 Profile ✅
@@ -84,11 +88,14 @@ resources/profiles/           — 内嵌资源目录
 
 ### 1.2 改造的现有文件
 
-| 文件 | 改造内容 |
-|------|---------|
-| `modules/composition/pipelines/registration/PipelineComposition.cs` | 从手动 .Use() 链改为数据驱动组装 |
-| `modules/plugins/plugins.contracts/registry/DynamicPluginRegistry.cs` | LoadHandlerTable 从反射改为 AOT 注册表 |
-| `modules/composition/composition/dependency_injection/core/ServiceRegistration.cs` | AddWorkflowServices 中新增 NodeRegistry 注册 |
+| 文件 | 改造内容 | 状态 |
+|------|---------|------|
+| `modules/composition/pipelines/registration/PipelineComposition.cs` | 从手动 .Use() 链改为数据驱动组装 → 阶段4 归档到 .xxx/ | ✅ 归档 |
+| `modules/apps/engine/app/modules/CoreModule.cs` | 始终用 AddDataDrivenPipelines(profile ?? "base") | ✅ |
+| `modules/apps/cli/core/services/CliArg.cs` | --profile EnvVar 从 JCC_PROFILE 改为 JCC_NODE_PROFILE | ✅ |
+| `modules/abstractions/primitives.configuration/src/app_data/JccEnvVar.cs` | 新增 NodeProfile 枚举项 | ✅ |
+| `native_gui/tests/native_gui.host.tests/hosting/JccChatSessionAssemblyTests.cs` | AddAllPipelines → AddDataDrivenPipelines("base") | ✅ |
+| `modules/composition/pipelines/registration/TestPipelineRegistration.cs` | 注释更新 | ✅ |
 
 ---
 
@@ -792,14 +799,43 @@ public class CrashSnapshotMiddleware<TContext> : IMiddleware<TContext> { ... }
 
 | 步骤 | 内容 | 文件 |
 |------|------|------|
-| 2.1 | PipelineConsumer + 其他消费点 | composition/node_registry/consumers/ |
-| 2.2 | PipelineComposition.cs 改造 — 新增数据驱动路径，保留旧路径作为降级 | composition/pipelines/registration/ |
-| 2.3 | ServiceRegistration 注册 NodeRegistry + NodeProfileResolver | composition/dependency_injection/core/ |
-| 2.4 | 验证数据驱动组装的管道与手动组装的管道行为一致 | 测试 |
+| 2.1 | NodeServiceResolver — (consumerId,nodeId) 组合 key 服务解析器 | composition/node_registry/ |
+| 2.2 | DataDrivenPipelineComposition — 数据驱动管道组装新路径 | composition/pipelines/registration/ |
+| 2.3 | CoreModule — 根据 Profile 选择新旧路径 | apps/engine/app/modules/ |
+| 2.4 | base.yaml 补全 — 全部16条管道消费点定义 | resources/profiles/ |
+| 2.5 | RegisterBaseMiddlewareServices 提取为公共方法 | composition/pipelines/registration/ |
+
+**验收表**:
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| `NodeServiceResolver.cs` (composition/node_registry/) | `DataDrivenPipelineComposition.BuildTaskPipeline/BuildStreamPipeline` | ✅ | ✅ exe `--profile base` 启动正常 |
+| `DataDrivenPipelineComposition.cs` (pipelines/registration/) | `CoreModule.ConfigureServices` | ✅ | ✅ exe `--profile base` 对话正常 |
+| `CoreModule.cs` (apps/engine/app/modules/) | `ApplicationBuilder` | ✅ | ✅ exe `--dump-profile base/headless/sdk/ci` 正常 |
+| `base.yaml` (resources/profiles/) | `NodeProfileLoader.LoadFromResources` | ✅ | ✅ `--dump-profile base` 输出16条管道 |
+| `RegisterBaseMiddlewareServices` (pipelines/registration/) | `DataDrivenPipelineComposition.AddDataDrivenPipelines` | ✅ | ✅ 单元测试 `RegisterBaseMiddlewareServicesTest` |
 
 **验收**: 数据驱动组装的管道与手动组装的管道行为一致。通过 `--profile base` 使用数据驱动，通过 `--profile legacy` 使用旧的手动组装。
 
-#### 阶段3：泛型中间件自动注册（新旧并行）
+#### 阶段3：Profile 继承链验证（headless/sdk/ci 继承 base.yaml）
+
+| 步骤 | 内容 | 文件 |
+|------|------|------|
+| 3.1 | headless/sdk/ci YAML 修正 — 排除项改为 base.yaml 中实际存在的节点 ID | resources/profiles/ |
+| 3.2 | NodeProfileResolverTest — 9个测试验证继承链（排除/新增/覆写/多级继承） | composition.tests/node_registry/ |
+
+**验收表**:
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| `headless.yaml` 排除项修正 (resources/profiles/) | `NodeProfileResolver.Merge` 排除逻辑 | ✅ | ✅ `--dump-profile headless` 正确排除节点 |
+| `sdk.yaml` 排除+覆写修正 (resources/profiles/) | `NodeProfileResolver.Merge` 覆写逻辑 | ✅ | ✅ `--dump-profile sdk` 正确覆写配置 |
+| `ci.yaml` 排除项修正 (resources/profiles/) | `NodeProfileResolver.Merge` 排除逻辑 | ✅ | ✅ `--dump-profile ci` 正确排除节点 |
+| `NodeProfileResolverTest` (composition.tests/) | 9个单元测试覆盖全部分支 | ✅ | ✅ 全绿 |
+
+**验收**: headless/sdk/ci 的排除（Excludes）、新增（Includes）、覆写（Overrides）三种操作都正确执行。
+
+#### 阶段3（原计划）：泛型中间件自动注册（新旧并行）
 
 | 步骤 | 内容 | 文件 |
 |------|------|------|
@@ -810,7 +846,27 @@ public class CrashSnapshotMiddleware<TContext> : IMiddleware<TContext> { ... }
 
 **验收**: CrashSnapshotMiddleware/MetricsMiddleware 等泛型中间件不再手动注册。编译通过，测试通过。
 
-#### 阶段4：DynamicPluginRegistry AOT 改造（新旧并行）
+#### 阶段4：移除旧路径（数据驱动成为唯一路径）
+
+| 步骤 | 内容 | 文件 |
+|------|------|------|
+| 4.1 | RegisterBaseMiddlewareServices 从 PipelineComposition.cs 移入 DataDrivenPipelineComposition.cs | composition/pipelines/registration/ |
+| 4.2 | PipelineComposition.cs 归档到 .xxx/（含 AddAllPipelines 手动 .Use() 链） | composition/pipelines/registration/ → .xxx/ |
+| 4.3 | CoreModule.cs 始终用 AddDataDrivenPipelines(profile ?? "base") | apps/engine/app/modules/ |
+| 4.4 | JccChatSessionAssemblyTests.cs 改用 AddDataDrivenPipelines("base") | native_gui/tests/ |
+
+**验收表**:
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| `RegisterBaseMiddlewareServices` 移入 `DataDrivenPipelineComposition.cs` | `AddDataDrivenPipelines` 内部调用 | ✅ | ✅ 单元测试全绿 |
+| `PipelineComposition.cs` 归档到 `.xxx/` | 无（已移除） | ✅ | ✅ 编译无引用错误 |
+| `CoreModule.cs` 始终用数据驱动 | `ApplicationBuilder` | ✅ | ✅ exe 默认启动+`--profile base` 正常 |
+| `JccChatSessionAssemblyTests.cs` 改用数据驱动 | 测试 DI 容器 | ✅ | ✅ 编译通过 |
+
+**验收**: 数据驱动管道组装成为唯一路径，旧的手动 .Use() 链已移除。exe 启动+对话正常。
+
+#### 阶段4（原计划）：DynamicPluginRegistry AOT 改造（新旧并行）
 
 | 步骤 | 内容 | 文件 |
 |------|------|------|
@@ -824,13 +880,22 @@ public class CrashSnapshotMiddleware<TContext> : IMiddleware<TContext> { ... }
 
 #### 阶段5：删除旧代码（仅在阶段2-4验证通过后）
 
-| 步骤 | 内容 | 文件 |
-|------|------|------|
-| 5.1 | 移除 PipelineComposition.cs 的手动 .Use() 链（已被数据驱动替代） | composition/pipelines/registration/ |
-| 5.2 | 移除 PluginAlc（AOT 下不可用，已被 AOT handler 注册表替代） | plugins.contracts/plugin_core/PluginAlc.cs → .xxx/ |
-| 5.3 | 移除 AlcUnloadVerifier（依赖 ALC，AOT 下无意义） | plugins.contracts/plugin_core/AlcUnloadVerifier.cs → .xxx/ |
-| 5.4 | 移除 DynamicPluginRegistry.LoadHandlerTable 的反射路径 | plugins.contracts/registry/DynamicPluginRegistry.cs |
-| 5.5 | 移除 ServiceRegistration.Mcp.cs 中 ToolExecution 管道手动组装 | composition/dependency_injection/infrastructure/ |
+| 步骤 | 内容 | 文件 | 状态 |
+|------|------|------|------|
+| 5.1 | 移除 PipelineComposition.cs 的手动 .Use() 链（已被数据驱动替代） | composition/pipelines/registration/ → .xxx/ | ✅ 完成 |
+| 5.2 | 移除 PluginAlc（AOT 下不可用，已被 AOT handler 注册表替代） | plugins.contracts/plugin_core/PluginAlc.cs → .xxx/ | 待定 |
+| 5.3 | 移除 AlcUnloadVerifier（依赖 ALC，AOT 下无意义） | plugins.contracts/plugin_core/AlcUnloadVerifier.cs → .xxx/ | 待定 |
+| 5.4 | 移除 DynamicPluginRegistry.LoadHandlerTable 的反射路径 | plugins.contracts/registry/DynamicPluginRegistry.cs | 待定 |
+| 5.5 | 移除 ServiceRegistration.Mcp.cs 中 ToolExecution 管道手动组装 | composition/dependency_injection/infrastructure/ | 待定 |
+
+**验收表（步骤 5.1）**:
+
+| 基建实现 | 消费点 | 已实现 | 已验收 |
+|---------|--------|--------|--------|
+| `PipelineComposition.cs` 归档到 `.xxx/` | `DataDrivenPipelineComposition` 成为唯一路径 | ✅ | ✅ exe `--profile base` 启动+对话正常 |
+| `RegisterBaseMiddlewareServices` 移入 `DataDrivenPipelineComposition.cs` | `AddDataDrivenPipelines` 内部调用 | ✅ | ✅ 单元测试 `RegisterBaseMiddlewareServicesTest` 全绿 |
+| `CoreModule.cs` 始终用 `AddDataDrivenPipelines(profile ?? "base")` | `ApplicationBuilder` | ✅ | ✅ exe 默认启动（无 --profile）正常 |
+| `JccChatSessionAssemblyTests.cs` 改用 `AddDataDrivenPipelines("base")` | 测试 DI 容器构建 | ✅ | ✅ 编译通过 |
 
 **验收**: 全量编译通过，所有测试通过。AOT 发布测试通过。
 

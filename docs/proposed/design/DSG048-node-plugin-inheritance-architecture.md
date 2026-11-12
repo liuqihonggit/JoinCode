@@ -758,7 +758,7 @@ services.AddSingleton(sp => {
 | P2 | NodeProfile YAML + NodeProfileResolver（省略即继承） | 高 | P1 | ✅ 已完成 |
 | P3 | NodeProfileLoader + NodeRegistry + Node<TService> + 诊断命令 + DI 注册 | 高 | P1, P2 | ✅ 已完成 |
 | P4 | 数据驱动的管道组装（替代 PipelineComposition.cs） | 高 | P1-P3 | ✅ 已完成 |
-| P5 | NodeContext 可逆注册（复用现有 EffectScope） | 中 | P1 | ❌ 待实施 |
+| P5 | NodeContext 可逆注册（复用现有 EffectScope） | 中 | P1 | ✅ 已完成 |
 | P6 | DynamicPluginRegistry AOT 改造（YAML 配置驱动，不新增特性） | 中 | P1 | ❌ 待实施 |
 | P7 | 泛型中间件 YAML config 配置（不新增特性） | 中 | P1 | ✅ 已完成 |
 | P8 | LlmAdapter 式继承适配模式推广 | 低 | P1-P7 | ❌ 待实施 |
@@ -779,7 +779,7 @@ services.AddSingleton(sp => {
 | --dump-nodes / --dump-profile / --profile CLI | 诊断命令 | ✅ `modules/apps/cli/core/commands/core/Program.cs` | ✅ exe 启动验收通过 |
 | ServiceRegistration DI 注册 | NodeRegistry + ProfileResolver 注入 | ✅ `modules/composition/composition/dependency_injection/core/ServiceRegistration.cs` | ✅ 编译通过 |
 | 数据驱动的管道组装 | PipelineComposition.cs 不再硬编码 | ✅ `DataDrivenPipelineComposition.cs` 成为唯一路径 | ✅ exe `--profile base` 启动+对话正常 |
-| NodeContext 可逆注册 | 节点卸载时自动回滚 | ❌ P5（复用现有 EffectScope） | ❌ |
+| NodeContext 可逆注册 | 节点卸载时自动回滚 | ✅ `modules/abstractions/composition/node/interfaces/NodeContext.cs` | ✅ 11/11 测试全绿 |
 | DynamicPluginRegistry AOT 改造 | invoke 在 AOT 下能路由 | ❌ P6（YAML 配置驱动，不新增特性） | ❌ |
 | 泛型中间件 YAML config 配置 | CrashSnapshotMiddleware 等构造参数从 YAML 读取 | ✅ `GetPipelineName/GetConfigInt/GetConfigSeconds` 辅助方法 | ✅ 所有泛型中间件构造参数从 YAML config 读取 |
 | LlmAdapter 式继承适配 | 抽象类+默认实现+覆写模式推广 | ❌ P8 | ❌ |

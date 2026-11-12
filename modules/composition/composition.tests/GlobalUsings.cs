@@ -38,6 +38,7 @@ global using Infrastructure.Time;
 global using IO;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.CodeIndex;
+global using JoinCode.Abstractions.Composition;
 global using JoinCode.Abstractions.Composition.Profile;
 global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Configuration.AppData;

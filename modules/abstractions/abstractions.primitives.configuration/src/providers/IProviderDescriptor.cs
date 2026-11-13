@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Configuration.Providers;
 /// <para>线程安全：实现类应为不可变或线程安全（适配器包装的底层对象自身负责线程安全）。</para>
 /// </summary>
 public interface IProviderDescriptor {
-    /// <summary>供应商名称标识（如 "openai"、"tavily"、"sensenova"）— 全局唯一</summary>
+    /// <summary>供应商名称标识（如 "test-provider"）— 全局唯一</summary>
     string Name { get; }
 
     /// <summary>供应商类别 — Llm / Search / Embedding</summary>

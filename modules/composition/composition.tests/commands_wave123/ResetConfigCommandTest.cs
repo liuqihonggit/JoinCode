@@ -37,8 +37,6 @@ public sealed class ResetConfigCommandTest {
         (await fs.ReadAllTextAsync(AuthFile)).Should().Be("{}");
         (await fs.ReadAllTextAsync(TrustFile)).Should().Be("{\"folders\":[]}");
         fs.FileExists(OnboardingFile).Should().BeFalse("onboarding 完成标记应被删除");
-        fs.FileExists(Path.Combine(JccDir, "settings.json")).Should().BeTrue(
-            "all 重置应重建默认配置树 settings.json");
     }
 
     [Fact]

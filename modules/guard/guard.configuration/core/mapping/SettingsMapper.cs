@@ -177,6 +177,8 @@ public sealed partial class SettingsMapper : ServiceEntity {
                 provider = provider with { Protocol = profile.Protocol };
             else
                 provider = provider with { Protocol = definition.Protocol.ToValue() };
+        } else if (string.IsNullOrEmpty(provider.Vendor)) {
+            Diag.WriteLifecycle("[WARN] Provider Vendor 为空 — Hub 模式下配置尚未从 Hub 加载，跳过 Provider 验证");
         } else if (SkipProviderValidation) {
             Diag.WriteLifecycle($"[WARN] 跳过 Provider 验证 — 未知 Provider '{provider.Vendor}'，可用值: {string.Join(", ", _registry.GetRegisteredProviders())}。元命令模式降级运行。");
         } else if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JccEnvVar.Endpoint.ToValue()))) {

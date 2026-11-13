@@ -159,7 +159,7 @@ public sealed class VendorCommandTest {
         var cmd = new VendorCommand();
         cmd.Name.Should().Be("vendor");
         cmd.Usage.Should().Be("/vendor [名称|list]");
-        cmd.ArgumentHint.Should().StartWith("[openai|anthropic|deepseek");
+        cmd.ArgumentHint.Should().Be("[provider|list]");
         cmd.Description.Should().Contain("供应商");
     }
 }

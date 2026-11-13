@@ -2,22 +2,22 @@
 namespace JoinCode.Abstractions.Configuration.Providers;
 
 /// <summary>
-/// LLM Provider 配置类 - 支持多 Provider（OpenAI/Azure/Anthropic/Agnes）
+/// LLM Provider 配置类 - 支持多 Provider
 /// </summary>
 public sealed record ProviderConfig {
     /// <summary>
-    /// 供应商身份 — openai/anthropic/deepseek/azure/agnes/sensenova
+    /// 供应商身份 — 由 VendorKind 枚举定义
     /// 决定 auth key/模型列表/显示名
     /// </summary>
     [Required]
-    public string Vendor { get; set; } = VendorKind.DeepSeek.ToValue();
+    public string Vendor { get; set; } = string.Empty;
 
     /// <summary>
     /// 协议 — openai-compatible/anthropic/azure/agnes
     /// 决定 API 格式/认证/端点路径/QueryService 分派
     /// </summary>
     [Required]
-    public string Protocol { get; init; } = ProtocolKind.OpenAiCompatible.ToValue();
+    public string Protocol { get; init; } = string.Empty;
 
     /// <summary>
     /// API Key（可运行时更新：GUI 模型页保存密钥后写回，下一次请求即生效）
@@ -52,12 +52,12 @@ public sealed record ProviderConfig {
     /// <summary>
     /// 供应商枚举 — 从 Vendor 字符串推导
     /// </summary>
-    public VendorKind VendorKind => VendorKindExtensions.FromValue(Vendor) ?? VendorKind.DeepSeek;
+    public VendorKind VendorKind => VendorKindExtensions.FromValue(Vendor) ?? default;
 
     /// <summary>
     /// 协议枚举 — 从 Protocol 字符串推导，决定 QueryService 分派
     /// </summary>
-    public ProtocolKind ProtocolKind => ProtocolKindExtensions.FromValue(Protocol) ?? ProtocolKind.OpenAiCompatible;
+    public ProtocolKind ProtocolKind => ProtocolKindExtensions.FromValue(Protocol) ?? default;
 
     /// <summary>
     /// Provider 完整定义 — 由 ConfigLoader 在加载时注入，QueryService 等消费者通过此属性访问 Provider 知识

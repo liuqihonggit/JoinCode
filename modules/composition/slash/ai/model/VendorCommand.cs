@@ -5,7 +5,7 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// /vendor 命令 — 查看或切换 LLM 供应商
 /// </summary>
-[ChatCommand(Name = ChatCommandNameEnumConstants.Vendor, Description = "查看或切换 LLM 供应商", Usage = "/vendor [名称|list]", Category = ChatCommandCategory.Model, ArgumentHint = "[openai|anthropic|deepseek|azure|agnes|sensenova|bedrock|zhipu|jev|list]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Vendor, Description = "查看或切换 LLM 供应商", Usage = "/vendor [名称|list]", Category = ChatCommandCategory.Model, ArgumentHint = "[provider|list]")]
 // Enum 列表委托 VendorKindEnumConstants + CrudActionEnumConstants.List,与 VendorKind 枚举保持同步
 [ChatCommandArg("name", Type = "string", Description = "供应商名称或 list", Enum = [VendorKindEnumConstants.OpenAi, VendorKindEnumConstants.Anthropic, VendorKindEnumConstants.DeepSeek, VendorKindEnumConstants.Azure, VendorKindEnumConstants.Agnes, VendorKindEnumConstants.Sensenova, VendorKindEnumConstants.Bedrock, VendorKindEnumConstants.Zhipu, VendorKindEnumConstants.Jev, CrudActionEnumConstants.List])]
 public sealed class VendorCommand : ChatCommandBase {

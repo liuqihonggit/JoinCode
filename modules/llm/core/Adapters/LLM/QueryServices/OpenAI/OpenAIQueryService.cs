@@ -409,12 +409,14 @@ public class OpenAIQueryService : QueryServiceBase {
         HashSet<string> toolNames;
         try {
             using var doc = JsonDocument.Parse(descRequestContent);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+                throw new JsonException($"Expected JSON Object but got {doc.RootElement.ValueKind}");
             toolNames = doc.RootElement.GetProperty("tools").EnumerateArray()
                 .Where(t => t.ValueKind == JsonValueKind.String)
                 .Select(t => t.GetString() ?? "")
                 .Where(s => !string.IsNullOrEmpty(s))
                 .ToHashSet(StringComparer.Ordinal);
-        } catch (JsonException ex) {
+        } catch (Exception ex) when (ex is JsonException or InvalidOperationException) {
             var truncLen = Math.Min(descRequestContent.Length, 200);
             if (truncLen > 0 && truncLen < descRequestContent.Length && char.IsLowSurrogate(descRequestContent[truncLen]) && char.IsHighSurrogate(descRequestContent[truncLen - 1]))
                 truncLen--;

@@ -123,39 +123,50 @@ public sealed class EngineApplicationBuilder {
     }
 
     /// <summary>
-    /// 加载配置 — Hub 优先，回退到本地配置
-    /// ADR 0155: 当 Hub 服务可用时，跳过 Provider 配置加载，直接使用 Hub 协议
+    /// 加载配置 — Hub 优先，Hub 不可达时回退到直接连接模式
+    /// ADR 0155: 客户端优先使用 Hub 协议；E2E 测试环境无 Hub 时回退到直接连接模式
     /// </summary>
     public static async Task<WorkflowConfig> LoadConfigAsync(CommandLineOptions options, IFileSystem fs, IModelConfigLoader? modelConfigLoader = null) {
-        WorkflowConfig config;
-
         var configLogLevel = JoinCode.Abstractions.Utils.Diagnostics.Diag.IsDebugLog ? LogLevel.Debug : LogLevel.Warning;
         using var configLoggerFactory = LoggerFactory.Create(b => b.AddProvider(new Core.Configuration.StderrLoggerProvider(configLogLevel)));
 
-        // ADR 0155: Hub 模式 — 当 Hub 服务可用时，跳过所有 Provider 配置加载
-        // 客户端不需要 ProviderDefinitionRegistry、API Key 解析、Provider 验证
-        // 所有 Provider 相关逻辑由 jcchub.exe 服务端处理
         if (await IsHubServerAvailableAsync().ConfigureAwait(false)) {
             Diag.WriteLine("[HUB] Hub 服务可用，使用 Hub 协议 — 跳过 Provider 配置加载");
-            config = await LoadHubConfigAsync(fs, options, modelConfigLoader).ConfigureAwait(false);
-            return config;
+            var hubConfig = await LoadHubConfigAsync(fs, options, modelConfigLoader).ConfigureAwait(false);
+
+            if (options.IsPipeMode)
+                hubConfig = hubConfig with { PipeEndpoint = new PipeTransportConfig { PipeName = options.PipeName ?? throw new InvalidOperationException("PipeName required in pipe mode") } };
+
+            return hubConfig;
         }
 
-        // 回退路径 — Hub 不可达时从本地配置加载
-        modelConfigLoader ??= new ModelConfigLoader();
-        var sw1 = PerfTimer.Start("  ProviderRegistry.Create");
-        var registry = await Core.Configuration.Providers.ProviderDefinitionRegistry.CreateAsync(modelConfigLoader, logger: configLoggerFactory.CreateLogger<Core.Configuration.Providers.ProviderDefinitionRegistry>()).ConfigureAwait(false);
-        sw1?.Stop();
+        Diag.WriteLine("[HUB] Hub 服务不可达 — 回退到直接连接模式");
+        return await LoadDirectConfigAsync(options, fs, modelConfigLoader, configLoggerFactory).ConfigureAwait(false);
+    }
 
-        var loader = new Core.Configuration.ConfigLoader(registry: registry, modelConfigLoader: modelConfigLoader, loggerFactory: configLoggerFactory) {
+    /// <summary>
+    /// 直接连接模式配置加载 — 使用环境变量和 settings.json 中的供应商配置
+    /// E2E 测试环境使用此模式：JCC_ENDPOINT 指向 MockServer，OPENAI_API_KEY 等环境变量直接配置
+    /// </summary>
+    private static async Task<WorkflowConfig> LoadDirectConfigAsync(
+        CommandLineOptions options,
+        IFileSystem fs,
+        IModelConfigLoader? modelConfigLoader,
+        ILoggerFactory configLoggerFactory) {
+        modelConfigLoader ??= new ModelConfigLoader();
+        var registry = await Core.Configuration.Providers.ProviderDefinitionRegistry.CreateAsync(
+            modelConfigLoader,
+            logger: configLoggerFactory.CreateLogger<Core.Configuration.Providers.ProviderDefinitionRegistry>()).ConfigureAwait(false);
+
+        var loader = new Core.Configuration.ConfigLoader(
+            registry: registry,
+            modelConfigLoader: modelConfigLoader,
+            loggerFactory: configLoggerFactory) {
             SkipProviderValidation = options.SkipProviderValidation
         };
 
-        var sw2 = PerfTimer.Start("  ConfigLoader.Load");
-        config = await loader.LoadConfigAsync(fs).ConfigureAwait(false);
-        sw2?.Stop();
+        var config = await loader.LoadConfigAsync(fs).ConfigureAwait(false);
 
-        // 环境变量优先级最高
         config = await new Core.Configuration.SettingsMapper(registry).ApplyEnvOverridesAsync(config).ConfigureAwait(false);
 
         if (options.IsPipeMode)
@@ -216,11 +227,7 @@ public sealed class EngineApplicationBuilder {
         try {
             config = await FetchHubModelsAsync(config, configuredModel, modelConfigLoader).ConfigureAwait(false);
         } catch (Exception ex) {
-            Diag.WriteLine($"[HUB] 从服务端获取模型列表失败: {ex.Message}");
-            if (!string.IsNullOrEmpty(configuredModel)) {
-                config = config with { Provider = config.Provider with { ModelId = configuredModel } };
-                Diag.WriteLine($"[HUB] 服务端不可达，使用配置的模型: {configuredModel}");
-            }
+            throw new InvalidOperationException($"Hub /v1/models 端点不可达: {ex.Message}", ex);
         }
 
         // 从服务端 /config/default 获取供应商配置，写入本地 settings.json（首次启动时）
@@ -344,7 +351,7 @@ public sealed class EngineApplicationBuilder {
         }
 
         var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-        var configDefault = RelaxedJsonSerializer.Deserialize(json, HubModelsJsonContext.Default.HubConfigDefaultResponse);
+        var configDefault = RelaxedJsonSerializer.Deserialize(json, HubConfigJsonContext.Default.HubConfigDefaultResponse);
         if (configDefault is null || configDefault.Vendor.Count == 0) {
             Diag.WriteLine("[HUB] /config/default 返回空配置");
             return;

@@ -105,7 +105,7 @@ public sealed record PromptHook : HookCommand {
     public required string Prompt { get; init; }
 
     /// <summary>
-    /// 使用的模型（如 "claude-sonnet-4-6"）
+    /// 使用的模型（如 "test-model"）
     /// </summary>
     public string? Model { get; init; }
 

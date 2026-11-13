@@ -38,10 +38,15 @@ internal static class HttpResponseExtensions {
         if (string.IsNullOrEmpty(body)) return "(空响应体)";
         try {
             using var doc = System.Text.Json.JsonDocument.Parse(body);
-            if (doc.RootElement.TryGetProperty("error", out var errEl) && errEl.TryGetProperty("message", out var msgEl)) {
-                return msgEl.GetString() ?? body;
+            if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+                && doc.RootElement.TryGetProperty("error", out var errEl)) {
+                if (errEl.ValueKind == System.Text.Json.JsonValueKind.String)
+                    return errEl.GetString() ?? body;
+                if (errEl.ValueKind == System.Text.Json.JsonValueKind.Object
+                    && errEl.TryGetProperty("message", out var msgEl))
+                    return msgEl.GetString() ?? body;
             }
-        } catch (System.Text.Json.JsonException) {
+        } catch (Exception ex) when (ex is System.Text.Json.JsonException or InvalidOperationException) {
             Console.Error.WriteLine($"[HttpResponseExtensions] 错误响应体非 JSON 格式，回退到原始文本: {body[..Math.Min(80, body.Length)]}");
         }
         return body.Length > 200 ? body[..200] + "..." : body;

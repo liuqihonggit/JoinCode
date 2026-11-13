@@ -70,8 +70,31 @@ public sealed class ResetConfigCommand : ChatCommandBase {
     }
 
     private static async Task ResetSettingsAsync(string jccDir, IFileSystem fs, CancellationToken ct) {
-        await Core.Configuration.SettingsLoader.BuildDefaultConfigTreeAsync(fs, jccDir, ct).ConfigureAwait(false);
-        TerminalHelper.WriteLine("  ✓ 配置树已重置为默认骨架 (settings.json + current/)");
+        try {
+            var hubConfig = await FetchHubConfigDefaultAsync(ct).ConfigureAwait(false);
+            await Core.Configuration.SettingsLoader.BuildHubDrivenConfigTreeAsync(fs, jccDir, hubConfig, ct).ConfigureAwait(false);
+            TerminalHelper.WriteLine("  ✓ 配置已从 Hub 重置 (settings.json + current/)");
+        } catch (Exception ex) {
+            TerminalHelper.WriteLine($"  ✗ 配置重置失败: {ex.Message}");
+            TerminalHelper.WriteLine("    请确认 jcchub.exe 已启动后重试");
+        }
+    }
+
+    /// <summary>
+    /// 从 Hub /config/default 获取供应商配置 — Hub 不可达时抛异常
+    /// </summary>
+    private static async Task<HubConfigDefaultResponse> FetchHubConfigDefaultAsync(CancellationToken ct) {
+        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+        var response = await client.GetAsync("http://localhost:3457/config/default", ct).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException($"Hub /config/default 返回 {response.StatusCode}，请确认 jcchub.exe 已启动");
+
+        var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        var configDefault = RelaxedJsonSerializer.Deserialize(json, HubConfigJsonContext.Default.HubConfigDefaultResponse);
+        if (configDefault is null || configDefault.Vendor.Count == 0)
+            throw new InvalidOperationException("Hub /config/default 返回空配置");
+
+        return configDefault;
     }
 
     private static async Task ResetTrustAsync(string jccDir, IFileSystem fs, CancellationToken ct) {

@@ -90,6 +90,60 @@ public static class SettingsLoader {
     }
 
     /// <summary>
+    /// 从 Hub /config/default 配置生成配置树 — 方案 B：Hub 管供应商配置，客户端管自己的 UI/行为配置。
+    /// <para>生成结构:</para>
+    /// <list type="bullet">
+    /// <item>settings.json — 含供应商配置（来自 Hub）+ current.profile 指针 + autoFetchModels</item>
+    /// <item>current/ — 子文件（subagent.json 等 UI 偏好配置）</item>
+    /// </list>
+    /// </summary>
+    /// <param name="fs">文件系统</param>
+    /// <param name="baseDir">jcc 基础目录（如 ~/.jcc/ 或 {projectDir}/.jcc/）</param>
+    /// <param name="hubConfig">从 Hub /config/default 获取的供应商配置</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    public static async Task BuildHubDrivenConfigTreeAsync(
+        IFileSystem fs, string baseDir, HubConfigDefaultResponse hubConfig, CancellationToken cancellationToken = default) {
+        DirectoryHelper.EnsureDirectoryExists(fs, baseDir);
+
+        var settings = ConvertHubConfigToSettingsJson(hubConfig);
+        var settingsJson = RelaxedJsonSerializer.SerializeIndented(settings, ConfigIndentedJsonContext.Default);
+        await fs.WriteAllTextAsync(Path.Combine(baseDir, "settings.json"), settingsJson, cancellationToken).ConfigureAwait(false);
+        await WriteCurrentSubFilesAsync(fs, baseDir, settings, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 将 Hub /config/default 响应转换为 SettingsJson — 供应商配置来自 Hub，UI/行为配置用客户端默认值。
+    /// </summary>
+    private static SettingsJson ConvertHubConfigToSettingsJson(HubConfigDefaultResponse hubConfig) {
+        var vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (name, entry) in hubConfig.Vendor) {
+            var models = (entry.Models ?? []).Select(m => new ModelItemConfig {
+                Id = m.Id,
+                DisplayName = string.IsNullOrEmpty(m.DisplayName) ? m.Id : m.DisplayName,
+                ContextWindow = m.ContextWindow,
+            }).ToList();
+
+            vendor[name] = new ProfileSettings {
+                Provider = entry.Provider,
+                Protocol = entry.Protocol,
+                Endpoint = entry.Endpoint,
+                ApiKeyEnvVar = entry.ApiKeyEnvVar,
+                Model = entry.Model,
+                Models = models,
+            };
+        }
+
+        return new SettingsJson {
+            Vendor = vendor,
+            Current = new CurrentSettings {
+                Profile = hubConfig.CurrentProfile,
+            },
+            AutoFetchModels = true,
+        };
+    }
+
+    /// <summary>
     /// 从指定目录加载 settings.json + 合并 providers_llm/current 子文件 — P8 roundtrip 测试用。
     /// <para>读取 {baseDir}/settings.json，然后合并 {baseDir}/providers_llm/ 和 {baseDir}/current/ 子文件。</para>
     /// </summary>
@@ -104,15 +158,13 @@ public static class SettingsLoader {
     }
 
     /// <summary>
-    /// 生成默认配置树骨架到指定目录 — TASK054 P8 物理树状拆分。
+    /// 生成默认配置树骨架到指定目录 — Hub 模式下极简骨架。
     /// <para>生成结构:</para>
     /// <list type="bullet">
-    /// <item>settings.json — 极简主入口（current.profile 指针 + autoFetchModels + update）</item>
-    /// <item>current/ — 10 个子文件（ui/inference/behavior/security/mcp/plugins/subagent/tools/worktree/runtime）</item>
-    /// <item>providers_llm/{name}/ — 每个供应商含 config.json（ProfileSettings 除 models）+ models.json（模型列表）</item>
-    /// <item>providers_search/{name}/ — 每个搜索供应商含 config.json + models.json（空列表占位）</item>
+    /// <item>settings.json — 极简主入口（current.profile 指针 + autoFetchModels）</item>
+    /// <item>current/ — 子文件（subagent.json 等 UI 偏好配置）</item>
     /// </list>
-    /// <para>消费方无感知 — LoadVendorSubConfigsAsync/LoadCurrentSubConfigsAsync 合并子文件成 DTO（P6/P7 已实现）。</para>
+    /// <para>供应商配置由 Hub 服务端管理，不在本地生成 providers_llm/ 和 providers_search/ 目录。</para>
     /// </summary>
     /// <param name="fs">文件系统</param>
     /// <param name="baseDir">jcc 基础目录（如 ~/.jcc/ 或 {projectDir}/.jcc/）</param>
@@ -127,8 +179,6 @@ public static class SettingsLoader {
 
         await WriteMinimalSettingsJsonAsync(fs, baseDir, fullSettings, cancellationToken).ConfigureAwait(false);
         await WriteCurrentSubFilesAsync(fs, baseDir, fullSettings, cancellationToken).ConfigureAwait(false);
-        await WriteVendorSubFilesAsync(fs, baseDir, fullSettings, cancellationToken).ConfigureAwait(false);
-        await WriteSearchProviderSubFilesAsync(fs, baseDir, fullSettings, cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task WriteMinimalSettingsJsonAsync(
@@ -166,106 +216,28 @@ public static class SettingsLoader {
         };
     }
 
-    private static async Task WriteVendorSubFilesAsync(
-        IFileSystem fs, string baseDir, SettingsJson fullSettings, CancellationToken ct) {
-        if (fullSettings.Vendor is null || fullSettings.Vendor.Count == 0)
-            return;
-
-        var vendorsDir = Path.Combine(baseDir, "providers_llm");
-        DirectoryHelper.EnsureDirectoryExists(fs, vendorsDir);
-
-        foreach (var (name, profile) in fullSettings.Vendor) {
-            var vendorDir = Path.Combine(vendorsDir, name);
-            DirectoryHelper.EnsureDirectoryExists(fs, vendorDir);
-
-            var configProfile = new VendorConfigFile {
-                Provider = profile.Provider,
-                Protocol = profile.Protocol,
-                Model = profile.Model,
-                Endpoint = profile.Endpoint,
-                ApiKeyEnvVar = profile.ApiKeyEnvVar,
-                ModelsEndpoint = profile.ModelsEndpoint,
-            };
-            var configJson = RelaxedJsonSerializer.SerializeIndented(configProfile, ConfigIndentedJsonContext.Default);
-            await fs.WriteAllTextAsync(Path.Combine(vendorDir, "config.json"), configJson, ct).ConfigureAwait(false);
-
-            var modelsFile = new VendorModelsFile { Models = profile.Models };
-            var modelsJson = RelaxedJsonSerializer.SerializeIndented(modelsFile, ConfigIndentedJsonContext.Default);
-            await fs.WriteAllTextAsync(Path.Combine(vendorDir, "models.json"), modelsJson, ct).ConfigureAwait(false);
-        }
-    }
-
-    private static async Task WriteSearchProviderSubFilesAsync(
-        IFileSystem fs, string baseDir, SettingsJson fullSettings, CancellationToken ct) {
-        if (fullSettings.SearchProviders is null || fullSettings.SearchProviders.Count == 0)
-            return;
-
-        var searchDir = Path.Combine(baseDir, "providers_search");
-        DirectoryHelper.EnsureDirectoryExists(fs, searchDir);
-
-        var emptyModelsJson = RelaxedJsonSerializer.SerializeIndented(new VendorModelsFile(), ConfigIndentedJsonContext.Default);
-
-        foreach (var (name, sp) in fullSettings.SearchProviders) {
-            var providerDir = Path.Combine(searchDir, name);
-            DirectoryHelper.EnsureDirectoryExists(fs, providerDir);
-
-            var configJson = RelaxedJsonSerializer.SerializeIndented(sp, ConfigIndentedJsonContext.Default);
-            await fs.WriteAllTextAsync(Path.Combine(providerDir, "config.json"), configJson, ct).ConfigureAwait(false);
-            await fs.WriteAllTextAsync(Path.Combine(providerDir, "models.json"), emptyModelsJson, ct).ConfigureAwait(false);
-        }
-    }
-
     /// <summary>
     /// 加载用户全局设置: ~/.jcc/settings.json
-    /// 文件不存在或为空(0字节)时自动创建默认骨架
+    /// 文件不存在或解析失败时返回 null（Hub 模式下配置由 Hub 服务端管理）
     /// </summary>
     public static async Task<SettingsJson?> LoadUserSettingsAsync(IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null) {
         var path = GetUserSettingsPath();
         var result = await LoadSettingsFileAsync(fs, path, cancellationToken, logger).ConfigureAwait(false);
         if (result is not null)
             return await MergeAllSubConfigsAsync(fs, result, AppDataConstants.Paths.JccDirectory, cancellationToken, logger).ConfigureAwait(false);
-
-        // 文件不存在或为空 → 自动创建默认骨架
-        if (fs.FileExists(path) && fs.GetFileLength(path) > 0)
-            return null; // 文件存在但非空,解析失败,返回 null
-
-        var skeletonJson = BuildDefaultSettingsJson();
-        var skeleton = RelaxedJsonSerializer.Deserialize(skeletonJson, ConfigJsonContext.Default.SettingsJson);
-        if (skeleton is null)
-            return null;
-
-        var directory = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(directory))
-            DirectoryHelper.EnsureDirectoryExists(fs, directory);
-
-        await fs.WriteAllTextAsync(path, skeletonJson, cancellationToken).ConfigureAwait(false);
-        return await MergeAllSubConfigsAsync(fs, skeleton, AppDataConstants.Paths.JccDirectory, cancellationToken, logger).ConfigureAwait(false);
+        return null;
     }
 
     /// <summary>
     /// 异步加载用户全局设置 — IFileSystem 异步化后原同步入口改为 async
-    /// 文件不存在或为空(0字节)时自动创建默认骨架
+    /// 文件不存在或解析失败时返回 null（Hub 模式下配置由 Hub 服务端管理）
     /// </summary>
     public static async Task<SettingsJson?> LoadUserSettings(IFileSystem fs) {
         var path = GetUserSettingsPath();
         var result = await LoadSettingsFileSync(fs, path).ConfigureAwait(false);
         if (result is not null)
             return await MergeAllSubConfigsAsync(fs, result, AppDataConstants.Paths.JccDirectory, CancellationToken.None, null).ConfigureAwait(false);
-
-        if (fs.FileExists(path) && fs.GetFileLength(path) > 0)
-            return null;
-
-        var skeletonJson = BuildDefaultSettingsJson();
-        var skeleton = RelaxedJsonSerializer.Deserialize(skeletonJson, ConfigJsonContext.Default.SettingsJson);
-        if (skeleton is null)
-            return null;
-
-        var directory = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(directory))
-            DirectoryHelper.EnsureDirectoryExists(fs, directory);
-
-        await fs.WriteAllText(path, skeletonJson).ConfigureAwait(false);
-        return await MergeAllSubConfigsAsync(fs, skeleton, AppDataConstants.Paths.JccDirectory, CancellationToken.None, null).ConfigureAwait(false);
+        return null;
     }
 
     /// <summary>

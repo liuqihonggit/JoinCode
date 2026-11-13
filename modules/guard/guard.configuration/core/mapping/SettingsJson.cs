@@ -14,7 +14,7 @@ public sealed class SettingsJson {
 
     /// <summary>
     /// 供应商预设 — 命名的供应商/模型/端点组合，用户通过 current.profile 或 --vendor 切换
-    /// 键: 供应商名（如 "sensenova"、"agnes"），值: 预设配置
+    /// 键: 供应商名（如 "test-provider"），值: 预设配置
     /// </summary>
     [JsonPropertyName("vendor")]
     public Dictionary<string, ProfileSettings> Vendor { get; init; } = [];
@@ -343,7 +343,7 @@ public sealed partial class CurrentSettings {
     /// 模型选择历史 — LRU 逗号串（最新在前），C# 自有功能（TS 基准无对应键）。
     /// 消费方：TUI ModelPicker 清单最近使用置顶排序（ModelPickerAssembly.SortByHistory）；
     /// 写入方：/model 命令（ModelCommand.RecordModelHistoryAsync）+ 模型选择器（同款 LRU 头插去重 20 条上限）。
-    /// 格式: "gpt-5.6-terra,deepseek-r1,..."
+    /// 格式: "test-model-1,test-model-2,..."
     /// </summary>
     [JsonPropertyName("modelHistory")]
     [SettingsProperty(SettingsMergeStrategy.ListConcatDistinct)]
@@ -609,7 +609,7 @@ public sealed class ToolScoreSettingsJson {
 /// 供应商预设 — vendor 字典的值，命名的供应商/模型/端点组合
 /// </summary>
 public sealed class ProfileSettings {
-    /// <summary>供应商名称（如 openai/sensenova/agnes/deepseek/anthropic）</summary>
+    /// <summary>供应商名称（如 test-provider）</summary>
     [JsonPropertyName("provider")]
     public string? Provider { get; init; }
 
@@ -621,11 +621,11 @@ public sealed class ProfileSettings {
     [JsonPropertyName("model")]
     public string? Model { get; init; }
 
-    /// <summary>API 端点（如 https://token.sensenova.cn/v1）</summary>
+    /// <summary>API 端点（如 https://api.example.com/v1）</summary>
     [JsonPropertyName("endpoint")]
     public string? Endpoint { get; init; }
 
-    /// <summary>API Key 环境变量名（如 OPENAI_API_KEY、ANTHROPIC_API_KEY）</summary>
+    /// <summary>API Key 环境变量名（如 PROVIDER_API_KEY）</summary>
     [JsonPropertyName("apiKeyEnvVar")]
     public string? ApiKeyEnvVar { get; init; }
 
@@ -706,7 +706,7 @@ public sealed class MinimalCurrentSettings {
 /// <para>不含 models 字段 — 模型列表拆到 providers_llm/{name}/models.json（VendorModelsFile）。</para>
 /// </summary>
 public sealed class VendorConfigFile {
-    /// <summary>供应商名称（如 openai/sensenova/agnes/deepseek/anthropic）</summary>
+    /// <summary>供应商名称（如 test-provider）</summary>
     [JsonPropertyName("provider")]
     public string? Provider { get; init; }
 

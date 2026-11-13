@@ -96,3 +96,6 @@ runs:
       if: inputs.build-e2e-exes == 'true' && runner.os == 'Linux'
       shell: bash
       run: find artifacts/bin/ -type f -exec chmod +x {} + 2>/dev/null || true
+
+    # Hub Server 启动已移除 — E2E 测试使用直接连接模式（JCC_ENDPOINT 指向 MockServer）
+    # Hub 模式的集成测试由 Hub 自己的测试项目覆盖，E2E 测试不需要 Hub

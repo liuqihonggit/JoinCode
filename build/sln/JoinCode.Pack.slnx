@@ -144,6 +144,7 @@
     <Project Path="../../modules/services/bridge.config/Bridge.Config.csproj" />
     <Project Path="../../modules/services/sandbox_satellite/SandboxSatellite.csproj" />
     <Project Path="../../modules/services/update/Update.csproj" />
+    <Project Path="../../modules/services/hub/Hub.csproj" />
     <Project Path="../../modules/perception/vision/Vision.csproj" />
   </Folder>
   <Folder Name="/composition/">

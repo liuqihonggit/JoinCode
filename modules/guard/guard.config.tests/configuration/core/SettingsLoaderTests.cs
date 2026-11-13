@@ -163,16 +163,15 @@ public class SettingsLoaderTests : IDisposable {
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
-    public async Task Given_无任何配置文件_When_加载全部_Then_返回默认骨架() {
+    public async Task Given_无任何配置文件_When_加载全部_Then_返回空SettingsJson() {
         // Given: 无配置文件
 
         // When
         var result = await SettingsLoader.LoadAllSourcesAsync(_fs, projectDir: _tempDir).ConfigureAwait(true);
 
-        // Then
+        // Then: Hub 模式下无本地配置文件时返回空 SettingsJson（供应商配置由 Hub 管理）
         result.Should().NotBeNull();
-        result.Vendor.Should().BeNullOrEmpty("默认骨架不含 vendor（由 Hub 管理）");
-        result.AutoFetchModels.Should().BeTrue();
+        result.Vendor.Should().BeNullOrEmpty();
     }
 
     #endregion
@@ -278,7 +277,7 @@ public class SettingsLoaderTests : IDisposable {
     /// </summary>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
-    public async Task Given_用户设置文件为空_When_加载用户设置_Then_返回默认骨架并写入磁盘() {
+    public async Task Given_用户设置文件为空_When_加载用户设置_Then_返回null() {
         // Given: 用户设置文件存在但为空(0字节)
         var userPath = GetUserSettingsPath();
         var dir = Path.GetDirectoryName(userPath);
@@ -289,17 +288,8 @@ public class SettingsLoaderTests : IDisposable {
         // When
         var result = await SettingsLoader.LoadUserSettingsAsync(_fs).ConfigureAwait(true);
 
-        // Then
-        result.Should().NotBeNull();
-        result!.Vendor.Should().BeNullOrEmpty("默认骨架不含 vendor（由 Hub 管理）");
-        result.AutoFetchModels.Should().BeTrue();
-
-        // 验证骨架已写入磁盘
-        var written = await _fs.ReadAllTextAsync(userPath, CancellationToken.None).ConfigureAwait(true);
-        written.Should().NotBeNullOrWhiteSpace();
-        var parsed = JsonSerializer.Deserialize<SettingsJson>(written, ConfigJsonContext.Default.SettingsJson);
-        parsed.Should().NotBeNull();
-        parsed!.Vendor.Should().BeNullOrEmpty("默认骨架不含 vendor（由 Hub 管理）");
+        // Then: Hub 模式下不再自动创建骨架，空文件返回 null
+        result.Should().BeNull();
     }
 
     #endregion
@@ -347,18 +337,16 @@ public class SettingsLoaderTests : IDisposable {
     #region 场景8: 默认骨架含 SearchProviders 配置
 
     /// <summary>
-    /// BuildDefaultSettingsJson 生成的骨架不应包含 vendor/searchProviders 节点,
-    /// 默认供应商配置由 Hub 服务端统一管理(ADR: 默认供应商数据迁移到 Hub)
+    /// BuildDefaultSettingsJson 生成的极简骨架不含 searchProviders 节点（Hub 模式下搜索供应商配置由 Hub 管理）
     /// </summary>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
-    public void Given_默认骨架_When_解析_Then_不含Vendor和SearchProviders() {
+    public void Given_默认骨架_When_解析_Then_不含SearchProviders() {
         var json = SettingsLoader.BuildDefaultSettingsJson();
         var parsed = JsonSerializer.Deserialize<SettingsJson>(json, ConfigJsonContext.Default.SettingsJson);
 
         parsed.Should().NotBeNull();
-        parsed!.Vendor.Should().BeNullOrEmpty("默认骨架不含 vendor 节点（由 Hub 管理）");
-        parsed.SearchProviders.Should().BeNullOrEmpty("默认骨架不含 searchProviders 节点（由 Hub 管理）");
+        parsed!.SearchProviders.Should().BeNullOrEmpty();
     }
 
     /// <summary>
@@ -570,25 +558,25 @@ public class SettingsLoaderTests : IDisposable {
     }
 
     [Fact]
-    public async Task P8_BuildDefaultConfigTreeAsync_不生成vendors目录() {
-        var baseDir = $"/test/p8_vendors_{Guid.NewGuid():N}";
+    public async Task P8_BuildDefaultConfigTreeAsync_不生成providers_llm目录() {
+        var baseDir = $"/test/p8_no_vendors_{Guid.NewGuid():N}";
         _fs.CreateDirectory(baseDir);
 
         await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
 
         var vendorsDir = Path.Combine(baseDir, "providers_llm");
-        _fs.DirectoryExists(vendorsDir).Should().BeFalse("默认骨架不应生成 providers_llm/ 目录（由 Hub 管理）");
+        _fs.DirectoryExists(vendorsDir).Should().BeFalse("Hub 模式下不应生成 providers_llm/ 目录");
     }
 
     [Fact]
-    public async Task P8_BuildDefaultConfigTreeAsync_不生成searchProviders目录() {
-        var baseDir = $"/test/p8_search_{Guid.NewGuid():N}";
+    public async Task P8_BuildDefaultConfigTreeAsync_不生成providers_search目录() {
+        var baseDir = $"/test/p8_no_search_{Guid.NewGuid():N}";
         _fs.CreateDirectory(baseDir);
 
         await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
 
         var searchDir = Path.Combine(baseDir, "providers_search");
-        _fs.DirectoryExists(searchDir).Should().BeFalse("默认骨架不应生成 providers_search/ 目录（由 Hub 管理）");
+        _fs.DirectoryExists(searchDir).Should().BeFalse("Hub 模式下不应生成 providers_search/ 目录");
     }
 
     [Fact]
@@ -604,23 +592,12 @@ public class SettingsLoaderTests : IDisposable {
 
         settingsContent.Should().Contain("autoFetchModels", "极简 settings.json 应含 autoFetchModels 全局开关");
         settingsContent.Should().Contain("profile", "极简 settings.json 应含 current.profile 指针");
-        settingsContent.Should().NotContain("\"vendor\":", "极简 settings.json 不应内联 vendor 节点（已拆到 providers_llm/ 子文件夹）");
-        settingsContent.Should().NotContain("\"searchProviders\":", "极简 settings.json 不应内联 searchProviders 节点（已拆到 providers_search/ 子文件夹）");
+        settingsContent.Should().NotContain("\"vendor\":", "极简 settings.json 不应内联 vendor 节点（Hub 模式下由 Hub 管理）");
+        settingsContent.Should().NotContain("\"searchProviders\":", "极简 settings.json 不应内联 searchProviders 节点（Hub 模式下由 Hub 管理）");
     }
 
     [Fact]
-    public async Task P8_BuildDefaultConfigTreeAsync_不生成vendors子文件() {
-        var baseDir = $"/test/p8_vendor_content_{Guid.NewGuid():N}";
-        _fs.CreateDirectory(baseDir);
-
-        await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
-
-        var vendorsDir = Path.Combine(baseDir, "providers_llm");
-        _fs.DirectoryExists(vendorsDir).Should().BeFalse("默认骨架不应生成 providers_llm/ 目录（由 Hub 管理）");
-    }
-
-    [Fact]
-    public async Task P8_BuildDefaultConfigTreeAsync_加载侧合并后不含Vendor和SearchProviders() {
+    public async Task P8_BuildDefaultConfigTreeAsync_加载侧合并后等价于单文件骨架() {
         var baseDir = $"/test/p8_roundtrip_{Guid.NewGuid():N}";
         _fs.CreateDirectory(baseDir);
 
@@ -629,11 +606,95 @@ public class SettingsLoaderTests : IDisposable {
         var treeSettings = await SettingsLoader.LoadUserSettingsFromDirAsync(_fs, baseDir, CancellationToken.None);
         treeSettings.Should().NotBeNull();
         var settings = treeSettings ?? throw new InvalidOperationException("unreachable");
-        settings.Vendor.Should().BeNullOrEmpty("默认骨架不含 vendor（由 Hub 管理）");
-        settings.SearchProviders.Should().BeNullOrEmpty("默认骨架不含 searchProviders（由 Hub 管理）");
         settings.Current?.Profile.Should().NotBeNullOrEmpty();
         settings.Current?.Actor.Should().NotBeNull("subagent.json 应含 actor 配置");
         settings.Current?.SubAgentLiveness.Should().NotBeNull("subagent.json 应含 subAgentLiveness 配置");
+    }
+
+    #endregion
+
+    #region P9: BuildHubDrivenConfigTreeAsync Hub 驱动配置树生成
+
+    [Fact]
+    public async Task P9_BuildHubDrivenConfigTreeAsync_生成settingsJson和current目录() {
+        var baseDir = $"/test/p9_basic_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        var hubConfig = CreateSampleHubConfig();
+        await SettingsLoader.BuildHubDrivenConfigTreeAsync(_fs, baseDir, hubConfig, CancellationToken.None);
+
+        var settingsPath = Path.Combine(baseDir, "settings.json");
+        _fs.FileExists(settingsPath).Should().BeTrue("settings.json 应存在");
+
+        var currentDir = Path.Combine(baseDir, "current");
+        _fs.DirectoryExists(currentDir).Should().BeTrue("应生成 current/ 目录");
+    }
+
+    [Fact]
+    public async Task P9_BuildHubDrivenConfigTreeAsync_settingsJson含供应商配置() {
+        var baseDir = $"/test/p9_vendor_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        var hubConfig = CreateSampleHubConfig();
+        await SettingsLoader.BuildHubDrivenConfigTreeAsync(_fs, baseDir, hubConfig, CancellationToken.None);
+
+        var settingsPath = Path.Combine(baseDir, "settings.json");
+        var settingsContent = await _fs.ReadAllText(settingsPath);
+
+        settingsContent.Should().Contain("test-provider", "settings.json 应含供应商配置");
+        settingsContent.Should().Contain("autoFetchModels", "settings.json 应含 autoFetchModels");
+        settingsContent.Should().Contain("profile", "settings.json 应含 current.profile 指针");
+    }
+
+    [Fact]
+    public async Task P9_BuildHubDrivenConfigTreeAsync_不生成providers_llm目录() {
+        var baseDir = $"/test/p9_no_vendors_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        var hubConfig = CreateSampleHubConfig();
+        await SettingsLoader.BuildHubDrivenConfigTreeAsync(_fs, baseDir, hubConfig, CancellationToken.None);
+
+        var vendorsDir = Path.Combine(baseDir, "providers_llm");
+        _fs.DirectoryExists(vendorsDir).Should().BeFalse("不应生成 providers_llm/ 目录");
+    }
+
+    [Fact]
+    public async Task P9_BuildHubDrivenConfigTreeAsync_加载侧合并后含供应商和UI配置() {
+        var baseDir = $"/test/p9_roundtrip_{Guid.NewGuid():N}";
+        _fs.CreateDirectory(baseDir);
+
+        var hubConfig = CreateSampleHubConfig();
+        await SettingsLoader.BuildHubDrivenConfigTreeAsync(_fs, baseDir, hubConfig, CancellationToken.None);
+
+        var treeSettings = await SettingsLoader.LoadUserSettingsFromDirAsync(_fs, baseDir, CancellationToken.None);
+        treeSettings.Should().NotBeNull();
+        var settings = treeSettings ?? throw new InvalidOperationException("unreachable");
+        settings.Current?.Profile.Should().Be("test-provider", "current.profile 应来自 Hub 配置");
+        settings.Vendor.Should().NotBeEmpty("vendor 配置应来自 Hub");
+        settings.Vendor.Should().ContainKey("test-provider");
+        settings.AutoFetchModels.Should().BeTrue("autoFetchModels 应为 true");
+    }
+
+    private static HubConfigDefaultResponse CreateSampleHubConfig() {
+        return new HubConfigDefaultResponse {
+            CurrentProfile = "test-provider",
+            Vendor = new Dictionary<string, VendorConfigEntry>(StringComparer.OrdinalIgnoreCase) {
+                ["test-provider"] = new VendorConfigEntry {
+                    Provider = "test-provider",
+                    Protocol = "openai-compatible",
+                    Endpoint = "https://api.test-provider.com",
+                    ApiKeyEnvVar = "TEST_PROVIDER_API_KEY",
+                    Model = "test-model",
+                    Models = [
+                        new VendorModelEntry {
+                            Id = "test-model",
+                            DisplayName = "Test Model",
+                            ContextWindow = 8192,
+                        },
+                    ],
+                },
+            },
+        };
     }
 
     #endregion

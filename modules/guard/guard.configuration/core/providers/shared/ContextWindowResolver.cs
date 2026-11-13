@@ -48,7 +48,7 @@ public sealed partial class ContextWindowResolver : ServiceEntity, IContextWindo
             var modelConfig = _modelConfigLoader.FindModel(provider, currentModel);
             if (modelConfig is not null)
                 // TASK061 强校验 — contextWindow<=0 直接报错（不再静默透传 0 致下游 ArgumentOutOfRange；
-                // agnes 9 模型 0 值脏数据形态，错误带模型/供应商/providers_llm 修复指引）
+                // 脏数据形态：错误带模型/供应商/providers_llm 修复指引）
                 return ModelInfo.FromModelItemConfig(provider, modelConfig).ValidateOrThrow().ContextWindow;
         }
 

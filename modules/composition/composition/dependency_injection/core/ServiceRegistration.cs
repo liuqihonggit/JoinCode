@@ -97,6 +97,10 @@ public static partial class ServiceRegistration {
         services.AddSingleton<IRegistryHub, RegistryHub>();
         sw?.Stop();
 
+        sw = PerfTimer.Start("    AddDynamicPluginServices");
+        services.AddDynamicPluginServices();
+        sw?.Stop();
+
         services.AddLogging();
 
         return services;

@@ -421,11 +421,11 @@ consumers:
 
   tool-dispatch:
     nodes:
-      - id: shell-tool
-      - id: fs-tool
-      - id: web-tool
+      - id: shell
+      - id: file
+      - id: web
         enabled-when: feature.web-search
-      - id: code-tool
+      - id: code_execution
 
   command-dispatch:
     nodes:

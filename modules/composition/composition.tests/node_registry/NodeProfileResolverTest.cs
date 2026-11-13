@@ -53,7 +53,7 @@ public sealed class NodeProfileResolverTest {
     [Fact]
     public void Resolve_Includes_AddsNodesToExistingConsumer() {
         var baseProfile = MakeProfile("base", consumers: MakeConsumers(
-            MakeConsumer("tool-dispatch", MakeNode("shell-tool", 0))
+            MakeConsumer("tool-dispatch", MakeNode("shell", 0))
         ));
         var childProfile = MakeProfile("child", inherits: "base", includes: MakeConsumers(
             MakeConsumer("tool-dispatch", MakeNode("sdk-api-tool", 0))
@@ -63,7 +63,7 @@ public sealed class NodeProfileResolverTest {
         var resolved = resolver.Resolve("child");
 
         resolved.Consumers["tool-dispatch"].Nodes.Should().HaveCount(2);
-        resolved.Consumers["tool-dispatch"].Nodes.Should().Contain(n => n.Id == "shell-tool");
+        resolved.Consumers["tool-dispatch"].Nodes.Should().Contain(n => n.Id == "shell");
         resolved.Consumers["tool-dispatch"].Nodes.Should().Contain(n => n.Id == "sdk-api-tool");
     }
 

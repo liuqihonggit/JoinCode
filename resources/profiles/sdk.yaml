@@ -1,7 +1,7 @@
 name: sdk
 inherits: headless
 excludes:
-  - web-tool
+  - web
   - crash-snapshot-mw
   - audit-log-mw
 includes:

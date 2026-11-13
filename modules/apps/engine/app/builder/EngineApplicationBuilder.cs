@@ -123,8 +123,8 @@ public sealed class EngineApplicationBuilder {
     }
 
     /// <summary>
-    /// 加载配置 — Hub 优先，Hub 不可达时回退到直接连接模式
-    /// ADR 0155: 客户端优先使用 Hub 协议；E2E 测试环境无 Hub 时回退到直接连接模式
+    /// 加载配置 — Hub 优先，Hub 不可达时默认报错退出。
+    /// 设置 JCC_ALLOW_DIRECT_FALLBACK=1 可允许回退到直接连接模式（E2E 测试用）。
     /// </summary>
     public static async Task<WorkflowConfig> LoadConfigAsync(CommandLineOptions options, IFileSystem fs, IModelConfigLoader? modelConfigLoader = null) {
         var configLogLevel = JoinCode.Abstractions.Utils.Diagnostics.Diag.IsDebugLog ? LogLevel.Debug : LogLevel.Warning;
@@ -140,8 +140,25 @@ public sealed class EngineApplicationBuilder {
             return hubConfig;
         }
 
-        Diag.WriteLine("[HUB] Hub 服务不可达 — 回退到直接连接模式");
+        if (!IsDirectFallbackAllowed()) {
+            throw new InvalidOperationException(
+                "Hub 服务不可达，请确认 jcchub.exe 已启动并监听 http://localhost:3457。" +
+                "如需在无 Hub 环境下运行（如 E2E 测试），设置环境变量 JCC_ALLOW_DIRECT_FALLBACK=1。");
+        }
+
+        Diag.WriteLine("[HUB] Hub 服务不可达 — 回退到直接连接模式（JCC_ALLOW_DIRECT_FALLBACK=1）");
         return await LoadDirectConfigAsync(options, fs, modelConfigLoader, configLoggerFactory).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 检查是否允许 Hub 不可达时回退到直接连接模式 — 默认禁止，JCC_ALLOW_DIRECT_FALLBACK=1 启用
+    /// </summary>
+    private static bool IsDirectFallbackAllowed() {
+        var value = Environment.GetEnvironmentVariable("JCC_ALLOW_DIRECT_FALLBACK");
+        if (string.IsNullOrEmpty(value)) return false;
+        return value.Equals("1", StringComparison.Ordinal)
+            || value.Equals("true", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("yes", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -222,10 +239,10 @@ public sealed class EngineApplicationBuilder {
             }
         }
 
-        // 从服务端 /v1/models 获取可用模型列表，优先使用用户配置的模型
+        // 从服务端 /v1/models 获取可用模型列表，优先使用 --vendor 筛选和用户配置的模型
         var configuredModel = settings?.GetActiveProfile()?.Model;
         try {
-            config = await FetchHubModelsAsync(config, configuredModel, modelConfigLoader).ConfigureAwait(false);
+            config = await FetchHubModelsAsync(config, configuredModel, modelConfigLoader, options.Vendor).ConfigureAwait(false);
         } catch (Exception ex) {
             throw new InvalidOperationException($"Hub /v1/models 端点不可达: {ex.Message}", ex);
         }
@@ -267,25 +284,38 @@ public sealed class EngineApplicationBuilder {
     }
 
     /// <summary>
-    /// 从服务端返回的模型列表中选择模型 — 优先使用用户配置的模型
+    /// 从服务端返回的模型列表中选择模型 — 优先使用 --vendor 筛选，再匹配配置的模型
     /// </summary>
-    private static HubModelInfo SelectHubModel(List<HubModelInfo> availableModels, string? configuredModel) {
+    private static HubModelInfo SelectHubModel(List<HubModelInfo> availableModels, string? configuredModel, string? vendorFilter) {
+        var candidates = availableModels;
+        if (!string.IsNullOrEmpty(vendorFilter)) {
+            candidates = availableModels
+                .Where(m => string.Equals(m.Provider, vendorFilter, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (candidates.Count > 0) {
+                Diag.WriteLine($"[HUB] --vendor {vendorFilter} 筛选到 {candidates.Count} 个模型");
+            } else {
+                Diag.WriteLine($"[HUB] --vendor {vendorFilter} 无匹配模型，使用全部 {availableModels.Count} 个模型");
+                candidates = availableModels;
+            }
+        }
+
         if (!string.IsNullOrEmpty(configuredModel)) {
-            var match = availableModels.FirstOrDefault(m =>
+            var match = candidates.FirstOrDefault(m =>
                 string.Equals(m.Name, configuredModel, StringComparison.OrdinalIgnoreCase));
             if (match is not null) {
                 Diag.WriteLine($"[HUB] 配置的模型 {configuredModel} 在可用列表中，使用它");
                 return match;
             }
-            Diag.WriteLine($"[HUB] 配置的模型 {configuredModel} 不在可用列表中，使用第一个可用模型: {availableModels[0].Name}");
+            Diag.WriteLine($"[HUB] 配置的模型 {configuredModel} 不在可用列表中，使用第一个可用模型: {candidates[0].Name}");
         }
-        return availableModels[0];
+        return candidates[0];
     }
 
     /// <summary>
     /// 从 Hub /v1/models 获取模型列表并灌入 ModelConfigLoader
     /// </summary>
-    private static async Task<WorkflowConfig> FetchHubModelsAsync(WorkflowConfig config, string? configuredModel, IModelConfigLoader? modelConfigLoader) {
+    private static async Task<WorkflowConfig> FetchHubModelsAsync(WorkflowConfig config, string? configuredModel, IModelConfigLoader? modelConfigLoader, string? vendorFilter = null) {
         using var modelClient = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
         var modelsResponse = await modelClient.GetAsync("http://localhost:3457/v1/models").ConfigureAwait(false);
         if (!modelsResponse.IsSuccessStatusCode) return config;
@@ -294,7 +324,7 @@ public sealed class EngineApplicationBuilder {
         var modelsData = RelaxedJsonSerializer.Deserialize(modelsJson, HubModelsJsonContext.Default.HubModelsResponse);
         if (modelsData?.Data is null || modelsData.Data.Count == 0) return config;
 
-        var selectedModel = SelectHubModel(modelsData.Data, configuredModel);
+        var selectedModel = SelectHubModel(modelsData.Data, configuredModel, vendorFilter);
         config = config with { Provider = config.Provider with {
             ModelId = selectedModel.Name,
             Vendor = selectedModel.Provider,

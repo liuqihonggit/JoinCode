@@ -92,6 +92,11 @@ public static partial class ServiceRegistration {
         AotHandlerRegistrations_JoinCode_Composition.AddAotHandlerRegistry(services);
         sw?.Stop();
 
+        sw = PerfTimer.Start("    AddRegistryHub");
+        services.AddSingleton<IFileReadListenerRegistry, FileReadListenerRegistry>();
+        services.AddSingleton<IRegistryHub, RegistryHub>();
+        sw?.Stop();
+
         services.AddLogging();
 
         return services;

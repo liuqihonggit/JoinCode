@@ -1,7 +1,7 @@
 # DSG048 实现设计 — 详细类图与文件结构
 
 > 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [DSG048](DSG048-node-plugin-inheritance-architecture.md)
-> 状态: accepted（P1-P4 + 阶段5.5 + 阶段6 已实现并验收）
+> 状态: accepted（P1-P4 + 阶段5.5 + 阶段6 + P6 + 阶段7 已实现并验收）
 > 创建: 2026-11-12
 > 关联: [DSG048](DSG048-node-plugin-inheritance-architecture.md) 架构 spec
 
@@ -46,7 +46,30 @@ resources/profiles/
   ci.yaml                     — CI 模式 Profile ✅
 ```
 
-### 1.2 待实现文件清单（阶段2+）
+### 1.2 阶段7 新增文件（统一 Registry）
+
+```
+modules/composition/composition/dependency_injection/core/
+  RegistryHub.cs                          — IRegistryHub 聚合门面实现 ✅
+
+modules/composition/composition/dependency_injection/infrastructure/
+  PluginFileWatcherHostedService.cs       — 插件文件监控 IHostedService ✅
+
+modules/plugins/plugins.infrastructure/services/
+  PluginServiceRegistration.cs            — 动态插件服务 DI 注册扩展 ✅
+```
+
+### 1.3 阶段7 改造的现有文件
+
+| 文件 | 改造内容 | 状态 |
+|------|---------|------|
+| `modules/composition/composition/dependency_injection/core/ServiceRegistration.cs` | 添加 IRegistryHub + FileReadListenerRegistry + AddDynamicPluginServices 注册 | ✅ |
+| `modules/composition/composition/GlobalUsings.cs` | 添加 JoinCode.Plugins.Infrastructure.Services 命名空间 | ✅ |
+| `modules/abstractions/infrastructure/utils/collections/CategorizedRegistry.cs` | CachedRegistry → MapRegistry(trackCanonical: true) | ✅ |
+| `modules/abstractions/infrastructure/utils/collections/CachedRegistry.cs` | 归档到 .xxx/（向后兼容别名消除） | ✅ 归档 |
+| `test/unit/infra.tests/utils/collections/RegistryTests.cs` | CachedRegistryTests → MapRegistryCanonicalTests | ✅ |
+
+### 1.4 待实现文件清单（阶段2+）
 
 ```
 modules/composition/composition/node_registry/consumers/

@@ -101,6 +101,7 @@ global using JoinCode.Abstractions.Shell;
 global using JoinCode.Abstractions.State;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Plugins.Infrastructure.Generated;
+global using JoinCode.Plugins.Infrastructure.Services;
 global using JoinCode.Abstractions.Transport;
 global using JoinCode.Abstractions.UI;
 global using JoinCode.Abstractions.Utils;

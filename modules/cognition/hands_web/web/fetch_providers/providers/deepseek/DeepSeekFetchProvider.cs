@@ -6,14 +6,13 @@ namespace Services.Web;
 /// 与 <see cref="DeepSeekSearchProvider"/> 共享同一 API Key。
 /// </summary>
 [Register(typeof(IWebFetchProvider), ServiceLifetime.Singleton)]
-public sealed partial class DeepSeekFetchProvider : ServiceEntity, IWebFetchProvider {
+public sealed partial class DeepSeekFetchProvider : WebFetchProviderBase {
     private const string Endpoint = "https://api.deepseek.com/v1/tools/fetch";
 
     private const string DefaultApiKeyEnvVar = "DEEPSEEK_API_KEY";
 
     private readonly IApiClient _apiClient;
     private readonly string? _apiKey;
-    private readonly ILogger<DeepSeekFetchProvider>? _logger;
 
     /// <summary>
     /// 初始化 <see cref="DeepSeekFetchProvider"/> 实例。
@@ -24,67 +23,62 @@ public sealed partial class DeepSeekFetchProvider : ServiceEntity, IWebFetchProv
     public DeepSeekFetchProvider(
         IApiClient apiClient,
         IConfigRoot config,
-        ILogger<DeepSeekFetchProvider>? logger = null) {
+        ILogger<DeepSeekFetchProvider>? logger = null)
+        : base(logger) {
         _apiClient = apiClient;
         var envVarName = SearchProviderConfigHelper.ResolveEnvVar(config, "deepseek", "apiKeyEnvVar", DefaultApiKeyEnvVar);
         _apiKey = Environment.GetEnvironmentVariable(envVarName);
-        _logger = logger;
     }
 
     /// <inheritdoc />
-    public string Name => "DeepSeek";
+    public override string Name => "DeepSeek";
 
     /// <inheritdoc />
-    public bool IsAvailable => !string.IsNullOrWhiteSpace(_apiKey);
+    public override bool IsAvailable => !string.IsNullOrWhiteSpace(_apiKey);
 
     /// <inheritdoc />
-    public async Task<WebFetchResult> FetchAsync(string url, CancellationToken cancellationToken = default) {
-        try {
-            var apiKey = _apiKey ?? "";
-            if (string.IsNullOrEmpty(apiKey)) {
-                return new WebFetchResult(false, url, ErrorMessage: "DEEPSEEK_API_KEY not configured");
-            }
-
-            if (string.IsNullOrWhiteSpace(url) || url.Length > 8192) {
-                return new WebFetchResult(false, url, ErrorMessage: "URL is empty or exceeds 8192 characters");
-            }
-
-            var dto = new DeepSeekFetchRequestDto { Url = url };
-            var body = JsonSerializer.Serialize(dto, DeepSeekFetchJsonContext.Default.DeepSeekFetchRequestDto);
-
-            var apiRequest = new ApiRequest {
-                Method = HttpMethod.Post,
-                Path = Endpoint,
-                Body = body,
-                Headers = new Dictionary<string, string> { ["Authorization"] = $"Bearer {apiKey}" },
-                SkipRetry = true
-            };
-            var response = await _apiClient.SendAsync(apiRequest, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var result = JsonSerializer.Deserialize(json, DeepSeekFetchJsonContext.Default.DeepSeekFetchResponseDto);
-
-            var content = result?.Content ?? "";
-            if (string.IsNullOrEmpty(content)) {
-                return new WebFetchResult(false, url, ErrorMessage: "DeepSeek Fetch returned empty content");
-            }
-
-            var title = result?.Title ?? "";
-            var fullContent = string.IsNullOrEmpty(title) ? content : $"# {title}\n\n{content}";
-            var bytes = Encoding.UTF8.GetByteCount(fullContent);
-
-            return new WebFetchResult(
-                true, url,
-                Content: fullContent,
-                ContentType: "text/markdown",
-                Bytes: bytes,
-                StatusCode: 200,
-                StatusText: "OK");
-        } catch (Exception ex) {
-            _logger?.LogError(ex, "DeepSeek Fetch 失败: {Url}", url);
-            return new WebFetchResult(false, url, ErrorMessage: ex.Message);
+    protected override async Task<WebFetchResult> FetchCoreAsync(string url, CancellationToken cancellationToken) {
+        var apiKey = _apiKey ?? "";
+        if (string.IsNullOrEmpty(apiKey)) {
+            return new WebFetchResult(false, url, ErrorMessage: "DEEPSEEK_API_KEY not configured");
         }
+
+        if (string.IsNullOrWhiteSpace(url) || url.Length > 8192) {
+            return new WebFetchResult(false, url, ErrorMessage: "URL is empty or exceeds 8192 characters");
+        }
+
+        var dto = new DeepSeekFetchRequestDto { Url = url };
+        var body = JsonSerializer.Serialize(dto, DeepSeekFetchJsonContext.Default.DeepSeekFetchRequestDto);
+
+        var apiRequest = new ApiRequest {
+            Method = HttpMethod.Post,
+            Path = Endpoint,
+            Body = body,
+            Headers = new Dictionary<string, string> { ["Authorization"] = $"Bearer {apiKey}" },
+            SkipRetry = true
+        };
+        var response = await _apiClient.SendAsync(apiRequest, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var result = JsonSerializer.Deserialize(json, DeepSeekFetchJsonContext.Default.DeepSeekFetchResponseDto);
+
+        var content = result?.Content ?? "";
+        if (string.IsNullOrEmpty(content)) {
+            return new WebFetchResult(false, url, ErrorMessage: "DeepSeek Fetch returned empty content");
+        }
+
+        var title = result?.Title ?? "";
+        var fullContent = string.IsNullOrEmpty(title) ? content : $"# {title}\n\n{content}";
+        var bytes = Encoding.UTF8.GetByteCount(fullContent);
+
+        return new WebFetchResult(
+            true, url,
+            Content: fullContent,
+            ContentType: "text/markdown",
+            Bytes: bytes,
+            StatusCode: 200,
+            StatusText: "OK");
     }
 }
 

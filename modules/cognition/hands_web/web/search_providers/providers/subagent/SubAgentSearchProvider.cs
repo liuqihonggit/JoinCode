@@ -7,7 +7,7 @@ namespace Services.Web;
 /// 优先级 999（最低，仅当所有其他供应商都失败时触发）。
 /// </summary>
 [Register(typeof(ISearchProvider), ServiceLifetime.Singleton)]
-public sealed partial class SubAgentSearchProvider : ServiceEntity, ISearchProvider {
+public sealed partial class SubAgentSearchProvider : SearchProviderBase {
     private const string DuckDuckGoEndpoint = "https://html.duckduckgo.com/html/";
     private const int DefaultPriority = 999;
     private const int MaxHtmlLength = 50000;
@@ -15,7 +15,6 @@ public sealed partial class SubAgentSearchProvider : ServiceEntity, ISearchProvi
     private readonly IApiClient _apiClient;
     private readonly IQueryService? _queryService;
     private readonly ProviderConfig? _providerConfig;
-    private readonly ILogger<SubAgentSearchProvider>? _logger;
 
     /// <summary>
     /// 初始化 <see cref="SubAgentSearchProvider"/> 实例。
@@ -28,46 +27,37 @@ public sealed partial class SubAgentSearchProvider : ServiceEntity, ISearchProvi
         IApiClient apiClient,
         IQueryService? queryService = null,
         ProviderConfig? providerConfig = null,
-        ILogger<SubAgentSearchProvider>? logger = null) {
+        ILogger<SubAgentSearchProvider>? logger = null)
+        : base(logger) {
         _apiClient = apiClient;
         _queryService = queryService;
         _providerConfig = providerConfig;
-        _logger = logger;
     }
 
     /// <inheritdoc />
-    public string Name => "SubAgent";
+    public override string Name => "SubAgent";
 
     /// <inheritdoc />
-    public int Priority => DefaultPriority;
+    public override int Priority => DefaultPriority;
 
     /// <inheritdoc />
-    public bool IsAvailable => true;
+    public override bool IsAvailable => true;
 
     /// <inheritdoc />
-    public async Task<SearchProviderResult> SearchAsync(SearchRequest request, CancellationToken cancellationToken = default) {
-        var stopwatch = Stopwatch.StartNew();
-        try {
-            var html = await FetchDuckDuckGoHtmlAsync(request.Query, cancellationToken).ConfigureAwait(false);
-            if (string.IsNullOrEmpty(html)) {
-                stopwatch.Stop();
-                return new SearchProviderResult(false, Name, [], stopwatch.Elapsed.TotalSeconds, "DuckDuckGo returned empty content");
-            }
-
-            var truncatedHtml = html.Length > MaxHtmlLength ? html[..MaxHtmlLength] : html;
-
-            var results = await ExtractResultsWithLlmAsync(truncatedHtml, request.MaxResults, cancellationToken).ConfigureAwait(false);
-            if (results.Count == 0) {
-                results = ExtractResultsWithRegex(truncatedHtml, request.MaxResults);
-            }
-
-            stopwatch.Stop();
-            return new SearchProviderResult(true, Name, results, stopwatch.Elapsed.TotalSeconds);
-        } catch (Exception ex) {
-            stopwatch.Stop();
-            _logger?.LogError(ex, "SubAgent 兜底搜索失败: {Query}", request.Query);
-            return new SearchProviderResult(false, Name, [], stopwatch.Elapsed.TotalSeconds, ex.Message);
+    protected override async Task<SearchProviderResult> SearchCoreAsync(SearchRequest request, CancellationToken cancellationToken) {
+        var html = await FetchDuckDuckGoHtmlAsync(request.Query, cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrEmpty(html)) {
+            return new SearchProviderResult(false, Name, [], 0, "DuckDuckGo returned empty content");
         }
+
+        var truncatedHtml = html.Length > MaxHtmlLength ? html[..MaxHtmlLength] : html;
+
+        var results = await ExtractResultsWithLlmAsync(truncatedHtml, request.MaxResults, cancellationToken).ConfigureAwait(false);
+        if (results.Count == 0) {
+            results = ExtractResultsWithRegex(truncatedHtml, request.MaxResults);
+        }
+
+        return new SearchProviderResult(true, Name, results);
     }
 
     private async Task<string> FetchDuckDuckGoHtmlAsync(string query, CancellationToken cancellationToken) {
@@ -109,7 +99,7 @@ public sealed partial class SubAgentSearchProvider : ServiceEntity, ISearchProvi
             var json = string.Concat(messages.Select(m => m.Content ?? ""));
             return ParseLlmJsonResults(json);
         } catch (Exception ex) {
-            _logger?.LogWarning(ex, "LLM 提取搜索结果失败，回退到正则");
+            Logger?.LogWarning(ex, "LLM 提取搜索结果失败，回退到正则");
             return [];
         }
     }
@@ -134,7 +124,7 @@ public sealed partial class SubAgentSearchProvider : ServiceEntity, ISearchProvi
                 results.Add(new SearchResultItem(safeTitle, safeUrl, Snippet: snippet));
             }
         } catch (JsonException ex) {
-            _logger?.LogWarning(ex, "LLM 返回的 JSON 解析失败，由正则兜底");
+            Logger?.LogWarning(ex, "LLM 返回的 JSON 解析失败，由正则兜底");
         }
         return results;
     }

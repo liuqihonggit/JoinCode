@@ -6,13 +6,12 @@ namespace Services.Web;
 /// 优先级 400，需 SEARXNG_URL 就绪。
 /// </summary>
 [Register(typeof(ISearchProvider), ServiceLifetime.Singleton)]
-public sealed partial class SearXngSearchProvider : ServiceEntity, ISearchProvider {
+public sealed partial class SearXngSearchProvider : SearchProviderBase {
     private const int DefaultPriority = 400;
     private const string DefaultEndpointEnvVar = "SEARXNG_URL";
 
     private readonly IApiClient _apiClient;
     private readonly string? _baseUrl;
-    private readonly ILogger<SearXngSearchProvider>? _logger;
 
     /// <summary>
     /// 初始化 <see cref="SearXngSearchProvider"/> 实例。
@@ -23,68 +22,59 @@ public sealed partial class SearXngSearchProvider : ServiceEntity, ISearchProvid
     public SearXngSearchProvider(
         IApiClient apiClient,
         IConfigRoot config,
-        ILogger<SearXngSearchProvider>? logger = null) {
+        ILogger<SearXngSearchProvider>? logger = null)
+        : base(logger) {
         _apiClient = apiClient;
         var envVarName = SearchProviderConfigHelper.ResolveEnvVar(config, "searxng", "endpointEnvVar", DefaultEndpointEnvVar);
         _baseUrl = Environment.GetEnvironmentVariable(envVarName)?.TrimEnd('/');
-        _logger = logger;
     }
 
     /// <inheritdoc />
-    public string Name => "SearXNG";
+    public override string Name => "SearXNG";
 
     /// <inheritdoc />
-    public int Priority => DefaultPriority;
+    public override int Priority => DefaultPriority;
 
     /// <inheritdoc />
-    public bool IsAvailable => !string.IsNullOrWhiteSpace(_baseUrl) && Uri.TryCreate(_baseUrl, UriKind.Absolute, out _);
+    public override bool IsAvailable => !string.IsNullOrWhiteSpace(_baseUrl) && Uri.TryCreate(_baseUrl, UriKind.Absolute, out _);
 
     /// <inheritdoc />
-    public async Task<SearchProviderResult> SearchAsync(SearchRequest request, CancellationToken cancellationToken = default) {
-        var stopwatch = Stopwatch.StartNew();
-        try {
-            var baseUrl = _baseUrl ?? "";
-            if (string.IsNullOrEmpty(baseUrl)) {
-                stopwatch.Stop();
-                return new SearchProviderResult(false, Name, [], stopwatch.Elapsed.TotalSeconds, "SEARXNG_URL not configured");
-            }
-
-            var queryParams = new Dictionary<string, string> {
-                ["q"] = request.Query,
-                ["format"] = "json",
-                ["pageno"] = "1"
-            };
-            var apiRequest = new ApiRequest {
-                Method = HttpMethod.Get,
-                Path = $"{baseUrl}/search",
-                QueryParams = queryParams,
-                SkipRetry = true
-            };
-            var response = await _apiClient.SendAsync(apiRequest, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var result = JsonSerializer.Deserialize(json, SearXngJsonContext.Default.SearXngResponseDto);
-
-            stopwatch.Stop();
-            var items = new List<SearchResultItem>();
-            if (result?.Results is not null) {
-                foreach (var r in result.Results) {
-                    var title = r.Title ?? "";
-                    var url = r.Url ?? "";
-                    if (string.IsNullOrEmpty(title) || string.IsNullOrEmpty(url)) continue;
-                    var content = r.Content ?? "";
-                    items.Add(new SearchResultItem(title, url, Snippet: content.Length > 0 ? content : null));
-                    if (items.Count >= request.MaxResults) break;
-                }
-            }
-
-            return new SearchProviderResult(true, Name, items, stopwatch.Elapsed.TotalSeconds);
-        } catch (Exception ex) {
-            stopwatch.Stop();
-            _logger?.LogError(ex, "SearXNG 搜索失败: {Query}", request.Query);
-            return new SearchProviderResult(false, Name, [], stopwatch.Elapsed.TotalSeconds, ex.Message);
+    protected override async Task<SearchProviderResult> SearchCoreAsync(SearchRequest request, CancellationToken cancellationToken) {
+        var baseUrl = _baseUrl ?? "";
+        if (string.IsNullOrEmpty(baseUrl)) {
+            return new SearchProviderResult(false, Name, [], 0, "SEARXNG_URL not configured");
         }
+
+        var queryParams = new Dictionary<string, string> {
+            ["q"] = request.Query,
+            ["format"] = "json",
+            ["pageno"] = "1"
+        };
+        var apiRequest = new ApiRequest {
+            Method = HttpMethod.Get,
+            Path = $"{baseUrl}/search",
+            QueryParams = queryParams,
+            SkipRetry = true
+        };
+        var response = await _apiClient.SendAsync(apiRequest, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var result = JsonSerializer.Deserialize(json, SearXngJsonContext.Default.SearXngResponseDto);
+
+        var items = new List<SearchResultItem>();
+        if (result?.Results is not null) {
+            foreach (var r in result.Results) {
+                var title = r.Title ?? "";
+                var url = r.Url ?? "";
+                if (string.IsNullOrEmpty(title) || string.IsNullOrEmpty(url)) continue;
+                var content = r.Content ?? "";
+                items.Add(new SearchResultItem(title, url, Snippet: content.Length > 0 ? content : null));
+                if (items.Count >= request.MaxResults) break;
+            }
+        }
+
+        return new SearchProviderResult(true, Name, items);
     }
 }
 

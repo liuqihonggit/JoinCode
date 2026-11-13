@@ -761,7 +761,7 @@ services.AddSingleton(sp => {
 | P5 | NodeContext 可逆注册（复用现有 EffectScope） | 中 | P1 | ✅ 已完成 |
 | P6 | DynamicPluginRegistry AOT 改造（YAML 配置驱动，不新增特性） | 中 | P1 | ❌ 待实施 |
 | P7 | 泛型中间件 YAML config 配置（不新增特性） | 中 | P1 | ✅ 已完成 |
-| P8 | LlmAdapter 式继承适配模式推广 | 低 | P1-P7 | ❌ 待实施 |
+| P/8 | LlmAdapter 式继承适配模式推广 | 低 | P1-P7 | ✅ 已完成 |
 
 ---
 
@@ -782,7 +782,7 @@ services.AddSingleton(sp => {
 | NodeContext 可逆注册 | 节点卸载时自动回滚 | ✅ `modules/abstractions/composition/node/interfaces/NodeContext.cs` | ✅ 11/11 测试全绿 |
 | DynamicPluginRegistry AOT 改造 | invoke 在 AOT 下能路由 | ❌ P6（YAML 配置驱动，不新增特性） | ❌ |
 | 泛型中间件 YAML config 配置 | CrashSnapshotMiddleware 等构造参数从 YAML 读取 | ✅ `GetPipelineName/GetConfigInt/GetConfigSeconds` 辅助方法 | ✅ 所有泛型中间件构造参数从 YAML config 读取 |
-| LlmAdapter 式继承适配 | 抽象类+默认实现+覆写模式推广 | ❌ P8 | ❌ |
+| LlmAdapter 式继承适配 | 抽象类+默认实现+覆写模式推广 | ✅ SearchProviderBase + WebFetchProviderBase + PresentationAdapterBase | ✅ 328 测试全绿 |
 
 ---
 
@@ -850,3 +850,45 @@ services.AddSingleton(sp => {
 | `PluginApprovalRegistry` | 插件审批（首个回答者获胜，CAS） | Singleton |
 | `PluginFileWatcher` | YAML 约定文件夹文件监控 → DynamicPluginRegistry | Singleton + IHostedService |
 | `IRegistryHub` | 9个通用Registry聚合门面 | Singleton |
+
+---
+
+## 12. P8: LlmAdapter 式继承适配模式推广 — 实现总结
+
+> 状态: accepted（2026-11-14 已实现并验收）
+
+### 12.1 问题
+
+项目中多个领域存在"多供应商/多实现 + 适配"模式，但缺少抽象基类，导致重复代码：
+- 搜索供应商（7个实现）— 每个都重复 Stopwatch + try-catch + API key 检查 + 错误处理骨架
+- 网页获取供应商（1个实现）— try-catch + 错误处理骨架
+- 表示层适配器（1个实现，15+方法）— 未来 TUI/GUI 适配器需要大量 no-op 默认实现
+
+### 12.2 已有的抽象基类+覆写模式（6个，已符合 LlmAdapter 模式）
+
+| 抽象基类 | 子类 | 模式 |
+|---------|------|------|
+| `QueryServiceBase` | OpenAI/Anthropic/Azure/Agnes/Responses/Jev | abstract 必须 + virtual 默认 |
+| `SandboxProviderBase` | Soft/Bubblewrap/Docker/Process | abstract 必须 + protected virtual 钩子 |
+| `OpenAICompatibleProviderDefinitionBase` | 各 OpenAI 兼容供应商 | abstract 必须 + virtual 默认 |
+| `StaticAuthProviderBase` | ApiKey/Bearer/Basic | abstract 必须 + 默认 no-op |
+| `PlatformBotAdapterBase<TConfig>` | QqBot/FeishuBot | Template Method |
+| `TransportBase` | HttpTransport 等 | Template Method |
+
+### 12.3 新增的 3 个抽象基类
+
+| 抽象基类 | 文件路径 | abstract 方法 | virtual 默认实现 | 子类 |
+|---------|---------|--------------|-----------------|------|
+| `SearchProviderBase` | `modules/cognition/hands_web/web/search_providers/contracts/SearchProviderBase.cs` | `Name`, `Priority`, `SearchCoreAsync` | `IsAvailable`(默认true), `SearchAsync`(Stopwatch+try-catch骨架), `DisposeAsync`(空) | Tavily/Serper/Brave/DeepSeek/SearXNG/SubAgent/Anthropic |
+| `WebFetchProviderBase` | `modules/cognition/hands_web/web/fetch_providers/contracts/WebFetchProviderBase.cs` | `Name`, `FetchCoreAsync` | `IsAvailable`(默认true), `FetchAsync`(try-catch骨架), `DisposeAsync`(空) | DeepSeekFetch |
+| `PresentationAdapterBase` | `modules/abstractions/composition/presentation/PresentationAdapterBase.cs` | 无（全部virtual） | 所有15+方法默认空实现/no-op，`RequestInputAsync`返回空字符串，`ConfirmAsync`返回true | ConsolePresentationAdapter |
+
+### 12.4 设计原则
+
+遵循 DSG048 决策8："数据层面继承为主，代码层面继承只在不可避免场景"。
+
+搜索供应商的 API 协议差异（不同的 HTTP 方法/头/DTO）属于"不可避免场景"，无法用 YAML 数据层面继承解决。表示层适配器的 UI 差异也属于代码层面差异。
+
+### 12.5 AOT 兼容性
+
+C# 的 `abstract class` + `virtual`/`override` 是编译时确定的多态机制，与 NativeAOT 完全兼容。所有子类通过 `[Register]` 特性 + 源码生成器在编译期注册到 DI 容器，不依赖反射。

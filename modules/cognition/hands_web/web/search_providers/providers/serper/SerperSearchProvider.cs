@@ -6,7 +6,7 @@ namespace Services.Web;
 /// 优先级 200，需 SERPER_API_KEY 就绪。
 /// </summary>
 [Register(typeof(ISearchProvider), ServiceLifetime.Singleton)]
-public sealed partial class SerperSearchProvider : ServiceEntity, ISearchProvider {
+public sealed partial class SerperSearchProvider : SearchProviderBase {
     private const string Endpoint = "https://google.serper.dev/search";
     private const int DefaultPriority = 200;
 
@@ -14,7 +14,6 @@ public sealed partial class SerperSearchProvider : ServiceEntity, ISearchProvide
 
     private readonly IApiClient _apiClient;
     private readonly string? _apiKey;
-    private readonly ILogger<SerperSearchProvider>? _logger;
 
     /// <summary>
     /// 初始化 <see cref="SerperSearchProvider"/> 实例。
@@ -25,69 +24,60 @@ public sealed partial class SerperSearchProvider : ServiceEntity, ISearchProvide
     public SerperSearchProvider(
         IApiClient apiClient,
         IConfigRoot config,
-        ILogger<SerperSearchProvider>? logger = null) {
+        ILogger<SerperSearchProvider>? logger = null)
+        : base(logger) {
         _apiClient = apiClient;
         var envVarName = SearchProviderConfigHelper.ResolveEnvVar(config, "serper", "apiKeyEnvVar", DefaultApiKeyEnvVar);
         _apiKey = Environment.GetEnvironmentVariable(envVarName);
-        _logger = logger;
     }
 
     /// <inheritdoc />
-    public string Name => "Serper";
+    public override string Name => "Serper";
 
     /// <inheritdoc />
-    public int Priority => DefaultPriority;
+    public override int Priority => DefaultPriority;
 
     /// <inheritdoc />
-    public bool IsAvailable => !string.IsNullOrWhiteSpace(_apiKey);
+    public override bool IsAvailable => !string.IsNullOrWhiteSpace(_apiKey);
 
     /// <inheritdoc />
-    public async Task<SearchProviderResult> SearchAsync(SearchRequest request, CancellationToken cancellationToken = default) {
-        var stopwatch = Stopwatch.StartNew();
-        try {
-            var apiKey = _apiKey ?? "";
-            if (string.IsNullOrEmpty(apiKey)) {
-                stopwatch.Stop();
-                return new SearchProviderResult(false, Name, [], stopwatch.Elapsed.TotalSeconds, "SERPER_API_KEY not configured");
-            }
-
-            var dto = new SerperRequestDto {
-                Query = request.Query,
-                Num = request.MaxResults
-            };
-            var body = JsonSerializer.Serialize(dto, SerperJsonContext.Default.SerperRequestDto);
-
-            var apiRequest = new ApiRequest {
-                Method = HttpMethod.Post,
-                Path = Endpoint,
-                Body = body,
-                Headers = new Dictionary<string, string> { ["X-API-KEY"] = apiKey },
-                SkipRetry = true
-            };
-            var response = await _apiClient.SendAsync(apiRequest, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var result = JsonSerializer.Deserialize(json, SerperJsonContext.Default.SerperResponseDto);
-
-            stopwatch.Stop();
-            var items = new List<SearchResultItem>();
-            if (result?.Organic is not null) {
-                foreach (var r in result.Organic) {
-                    var title = r.Title ?? "";
-                    var link = r.Link ?? "";
-                    if (string.IsNullOrEmpty(title) || string.IsNullOrEmpty(link)) continue;
-                    var snippet = r.Snippet ?? "";
-                    items.Add(new SearchResultItem(title, link, Snippet: snippet.Length > 0 ? snippet : null));
-                }
-            }
-
-            return new SearchProviderResult(true, Name, items, stopwatch.Elapsed.TotalSeconds);
-        } catch (Exception ex) {
-            stopwatch.Stop();
-            _logger?.LogError(ex, "Serper 搜索失败: {Query}", request.Query);
-            return new SearchProviderResult(false, Name, [], stopwatch.Elapsed.TotalSeconds, ex.Message);
+    protected override async Task<SearchProviderResult> SearchCoreAsync(SearchRequest request, CancellationToken cancellationToken) {
+        var apiKey = _apiKey ?? "";
+        if (string.IsNullOrEmpty(apiKey)) {
+            return new SearchProviderResult(false, Name, [], 0, "SERPER_API_KEY not configured");
         }
+
+        var dto = new SerperRequestDto {
+            Query = request.Query,
+            Num = request.MaxResults
+        };
+        var body = JsonSerializer.Serialize(dto, SerperJsonContext.Default.SerperRequestDto);
+
+        var apiRequest = new ApiRequest {
+            Method = HttpMethod.Post,
+            Path = Endpoint,
+            Body = body,
+            Headers = new Dictionary<string, string> { ["X-API-KEY"] = apiKey },
+            SkipRetry = true
+        };
+        var response = await _apiClient.SendAsync(apiRequest, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var result = JsonSerializer.Deserialize(json, SerperJsonContext.Default.SerperResponseDto);
+
+        var items = new List<SearchResultItem>();
+        if (result?.Organic is not null) {
+            foreach (var r in result.Organic) {
+                var title = r.Title ?? "";
+                var link = r.Link ?? "";
+                if (string.IsNullOrEmpty(title) || string.IsNullOrEmpty(link)) continue;
+                var snippet = r.Snippet ?? "";
+                items.Add(new SearchResultItem(title, link, Snippet: snippet.Length > 0 ? snippet : null));
+            }
+        }
+
+        return new SearchProviderResult(true, Name, items);
     }
 }
 

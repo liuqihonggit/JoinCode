@@ -25,7 +25,12 @@ internal static class Program {
 
         var fs = FileSystemFactory.Create();
         var settings = await ConfigLoader.LoadSettingsJsonAsync(fs).ConfigureAwait(false);
-        settings ??= new SettingsJson();
+
+        // 如果 settings.json 不存在或没有 vendor 配置，从嵌入资源加载默认供应商配置
+        if (settings is null || settings.Vendor.Count == 0) {
+            settings = LoadDefaultVendorsFromEmbeddedResource();
+            Console.WriteLine($"[jcchub] settings.json 无供应商配置，已从嵌入资源加载 {settings.Vendor.Count} 个默认供应商");
+        }
 
         var providerRegistry = ProviderDefinitionRegistry.Create(
             new ModelConfigLoader(),
@@ -88,5 +93,22 @@ internal static class Program {
         Console.WriteLine("[jcchub] 服务器已停止");
 
         return 0;
+    }
+
+    /// <summary>
+    /// 从嵌入资源 default_vendors.json 加载默认供应商配置
+    /// </summary>
+    private static SettingsJson LoadDefaultVendorsFromEmbeddedResource() {
+        var assembly = typeof(Program).Assembly;
+        var resourceName = "JoinCode.Hub.app.default_vendors.json";
+        using var stream = assembly.GetManifestResourceStream(resourceName);
+        if (stream is null) {
+            Console.WriteLine($"[jcchub] 嵌入资源 {resourceName} 未找到");
+            return new SettingsJson();
+        }
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        var json = reader.ReadToEnd();
+        var settings = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
+        return settings ?? new SettingsJson();
     }
 }

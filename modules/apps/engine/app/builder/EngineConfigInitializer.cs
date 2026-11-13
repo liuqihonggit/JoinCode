@@ -35,10 +35,10 @@ public static class EngineConfigInitializer {
         var sb = new StringBuilder();
         sb.AppendLine("{");
         sb.AppendLine("  // 当前供应商 — 由 Hub 服务端管理，客户端不需手动配置");
-        sb.AppendLine("  // \"provider\": \"sensenova\",");
+        sb.AppendLine("  // \"provider\": \"test-provider\",");
         sb.AppendLine();
         sb.AppendLine("  // 模型 ID，可用 /model 命令切换");
-        sb.AppendLine("  // \"model\": \"deepseek-v4-flash\",");
+        sb.AppendLine("  // \"model\": \"test-model\",");
         sb.AppendLine();
         sb.AppendLine("  // 推理努力级别: low | medium | high");
         sb.AppendLine("  //%20\"effortLevel\": \"high\",");
@@ -65,7 +65,7 @@ public static class EngineConfigInitializer {
         sb.AppendLine("  // 键名为 Provider 名称，值为对应的 API Key");
         sb.AppendLine("  //");
         sb.AppendLine("  // 示例:");
-        sb.AppendLine("  // \"sensenova\": \"your-api-key\"");
+        sb.AppendLine("  // \"test-provider\": \"your-api-key\"");
         sb.Append('}');
         return sb.ToString();
     }

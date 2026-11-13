@@ -59,7 +59,7 @@ public static class SettingsLoader {
         {
           "autoFetchModels": true,
           "current": {
-            "profile": "@@VENDOR_SENSENOVA@@",
+            "profile": "test-provider",
             "actor": {
               "buildQueue": {
                 "mode": "serial",
@@ -86,8 +86,7 @@ public static class SettingsLoader {
             }
           }
         }
-        """
-        .Replace("@@VENDOR_SENSENOVA@@", VendorKind.Sensenova.ToValue());
+        """;
     }
 
     /// <summary>

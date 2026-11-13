@@ -1,0 +1,62 @@
+{
+  "vendor": {
+    "sensenova": {
+      "provider": "sensenova",
+      "protocol": "openai-compatible",
+      "model": "",
+      "endpoint": "https://token.sensenova.cn/v1",
+      "apiKeyEnvVar": "SENSENOVA_API_KEY",
+      "models": [],
+      "modelsEndpoint": "models"
+    },
+    "openai": {
+      "provider": "openai",
+      "protocol": "openai-compatible",
+      "model": "",
+      "endpoint": "https://api.openai.com/v1",
+      "apiKeyEnvVar": "OPENAI_API_KEY",
+      "models": [],
+      "modelsEndpoint": "models"
+    },
+    "anthropic": {
+      "provider": "anthropic",
+      "protocol": "anthropic",
+      "model": "",
+      "endpoint": "https://api.anthropic.com",
+      "apiKeyEnvVar": "ANTHROPIC_API_KEY",
+      "models": [],
+      "modelsEndpoint": "models"
+    },
+    "deepseek": {
+      "provider": "deepseek",
+      "protocol": "openai-compatible",
+      "model": "",
+      "endpoint": "https://api.deepseek.com",
+      "apiKeyEnvVar": "DEEPSEEK_API_KEY",
+      "models": [],
+      "modelsEndpoint": "models"
+    },
+    "agnes": {
+      "provider": "agnes",
+      "protocol": "openai-compatible",
+      "model": "",
+      "endpoint": "https://apihub.agnes-ai.com/v1",
+      "apiKeyEnvVar": "AGNES_API_KEY",
+      "models": [],
+      "modelsEndpoint": "models"
+    },
+    "zhipu": {
+      "provider": "zhipu",
+      "protocol": "openai-compatible",
+      "model": "",
+      "endpoint": "https://open.bigmodel.cn/api/paas/v4",
+      "apiKeyEnvVar": "ZHIPUAI_API_KEY",
+      "models": [],
+      "modelsEndpoint": "models"
+    }
+  },
+  "autoFetchModels": true,
+  "current": {
+    "profile": "sensenova"
+  }
+}

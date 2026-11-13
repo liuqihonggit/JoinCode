@@ -5,7 +5,7 @@ namespace JoinCode.Abstractions.Configuration.AppData;
 /// </summary>
 public enum JccEnvVar {
     [EnumValue("JCC_VENDOR")]
-    [SubCommandInfo("LLM 供应商 (openai/azure/anthropic/deepseek/sensenova)", "供应商配置")]
+    [SubCommandInfo("LLM 供应商名称", "供应商配置")]
     Vendor,
     [EnumValue("JCC_PROTOCOL")] Protocol,
     [EnumValue("JCC_MODEL_ID")]

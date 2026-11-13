@@ -63,18 +63,27 @@ internal static class Program {
             AppDataConstants.SettingsFileName);
         var settingsDir = Path.GetDirectoryName(settingsPath) ?? AppDataConstants.Paths.JccDirectory;
 
-        await using var watcher = fs.Watch(settingsDir, AppDataConstants.SettingsFileName);
-        watcher.EnableRaisingEvents = true;
+        IFileSystemWatcher? watcher = null;
+        try {
+            if (!fs.DirectoryExists(settingsDir))
+                fs.CreateDirectory(settingsDir);
+            watcher = fs.Watch(settingsDir, AppDataConstants.SettingsFileName);
+            watcher.EnableRaisingEvents = true;
+        } catch (Exception ex) {
+            logger.LogWarning(ex, "[jcchub] 热重载监听初始化失败，跳过热重载");
+        }
 
         using var reloadCts = new CancellationTokenSource();
-        watcher.DebouncedChanged += async (_, _) => {
-            try {
-                await server.ReloadProvidersAsync(reloadCts.Token).ConfigureAwait(false);
-            } catch (OperationCanceledException) {
-            } catch (Exception ex) {
-                logger.LogError(ex, "[jcchub] 热重载失败");
-            }
-        };
+        if (watcher is not null) {
+            watcher.DebouncedChanged += async (_, _) => {
+                try {
+                    await server.ReloadProvidersAsync(reloadCts.Token).ConfigureAwait(false);
+                } catch (OperationCanceledException) {
+                } catch (Exception ex) {
+                    logger.LogError(ex, "[jcchub] 热重载失败");
+                }
+            };
+        }
 
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => {
@@ -89,6 +98,8 @@ internal static class Program {
         }
 
         Console.WriteLine("[jcchub] 正在停止服务器...");
+        if (watcher is not null)
+            await watcher.DisposeAsync().ConfigureAwait(false);
         await server.StopAsync(CancellationToken.None).ConfigureAwait(false);
         Console.WriteLine("[jcchub] 服务器已停止");
 

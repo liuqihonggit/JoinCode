@@ -34,10 +34,17 @@ public static partial class ServiceRegistration {
     /// </summary>
     public static IServiceCollection AddConfigurationServices(this IServiceCollection services) {
         services.TryAddSingleton<IModelConfigLoader, ModelConfigLoader>();
-        services.TryAddSingleton<IProviderDefinitionRegistry>(sp => Core.Configuration.Providers.ProviderDefinitionRegistry.Create(
-            sp.GetRequiredService<IModelConfigLoader>(),
-            sp.GetService<IFileSystem>(),
-            sp.GetService<ILogger<Core.Configuration.Providers.ProviderDefinitionRegistry>>()));
+        services.TryAddSingleton<IProviderDefinitionRegistry>(sp => {
+            // Hub 模式下客户端不需要供应商定义，注册空注册表避免读取 settings.json vendor 节点
+            var config = sp.GetService<WorkflowConfig>();
+            if (config is not null && string.Equals(config.Provider?.Vendor, "hub", StringComparison.OrdinalIgnoreCase)) {
+                return Core.Configuration.Providers.ProviderDefinitionRegistry.CreateEmpty();
+            }
+            return Core.Configuration.Providers.ProviderDefinitionRegistry.Create(
+                sp.GetRequiredService<IModelConfigLoader>(),
+                sp.GetService<IFileSystem>(),
+                sp.GetService<ILogger<Core.Configuration.Providers.ProviderDefinitionRegistry>>());
+        });
         services.TryAddSingleton<IMemoryCache>(sp => new MemoryCache(new MemoryCacheOptions {
             SizeLimit = 4096,
             CompactionPercentage = 0.25,

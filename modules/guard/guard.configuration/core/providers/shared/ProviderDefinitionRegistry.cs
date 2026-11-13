@@ -34,6 +34,11 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry {
         return CreateAsync(modelConfigLoader, fs, logger).GetAwaiter().GetResult();
     }
 
+    /// <summary>
+    /// 创建空注册表 — Hub 模式下客户端不需要供应商定义，避免读取 settings.json vendor 节点
+    /// </summary>
+    public static ProviderDefinitionRegistry CreateEmpty() => new();
+
     private async Task InitializeAsync(IModelConfigLoader modelConfigLoader, IFileSystem? fs, ILogger? logger) {
         var dict = new Dictionary<string, IProviderDefinition>(StringComparer.OrdinalIgnoreCase);
         await ApplyVendorFromSettingsAsync(dict, modelConfigLoader, fs, logger).ConfigureAwait(false);

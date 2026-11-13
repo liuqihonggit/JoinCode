@@ -5,7 +5,7 @@ namespace JoinCode.Entry;
 /// </summary>
 public sealed class StartupContext {
     /// <summary>
-    /// 工作流配置 — 启动各步骤共享的配置根，运行时可替换引用（ProviderSetupStep 等步骤用 with 表达式构造新 config 后写回）
+    /// 工作流配置 — 启动各步骤共享的配置根，运行时可替换引用
     /// </summary>
     public required WorkflowConfig Config { get; set; }
 

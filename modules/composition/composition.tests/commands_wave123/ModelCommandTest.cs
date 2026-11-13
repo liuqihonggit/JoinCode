@@ -79,7 +79,7 @@ public sealed class ModelCommandTest {
         result.ShouldContinue.Should().BeTrue();
         output.Should().Contain("=== 当前模型信息 ===");
         output.Should().Contain("Provider: OpenAI");
-        output.Should().Contain("主模型: model-a");
+        output.Should().Contain("主模型: Model A");
         output.Should().Contain("快速模型: fast-model");
         output.Should().Contain("快速模式: 关闭");
         output.Should().Contain("Effort 等级: auto");

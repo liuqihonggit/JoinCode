@@ -324,13 +324,24 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
                     try { _siblingCts.Cancel(); } catch (ObjectDisposedException) { _logger?.LogDebug("[StreamingToolExecutorActor] SiblingCts 已释放"); }
                 }
             } catch (OperationCanceledException) when (_combinedCt.IsCancellationRequested) {
-                result = BuildCancelledResult(tool);
+                result = new StreamingToolResult {
+                    ToolName = tool.Entry.Name,
+                    ToolCallId = tool.Entry.Id,
+                    Result = new ToolCallResult {
+                        ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.Cancelled, "工具执行被取消", tool.Entry.Name),
+                        IsError = true
+                    },
+                    OriginalIndex = tool.OriginalIndex
+                };
             } catch (Exception ex) {
                 _logger?.LogError(ex, "[StreamingToolExecutorActor] 工具执行失败: {ToolName}", tool.Entry.Name);
                 result = new StreamingToolResult {
                     ToolName = tool.Entry.Name,
                     ToolCallId = tool.Entry.Id,
-                    Result = new ToolCallResult { ResultText = $"工具执行失败: {ex.Message}", IsError = true },
+                    Result = new ToolCallResult {
+                        ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.ExecutionFailed, $"工具执行失败: {ex.Message}", tool.Entry.Name),
+                        IsError = true
+                    },
                     OriginalIndex = tool.OriginalIndex
                 };
             }
@@ -343,7 +354,10 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     private static StreamingToolResult BuildCancelledResult(QueuedTool tool) => new() {
         ToolName = tool.Entry.Name,
         ToolCallId = tool.Entry.Id,
-        Result = new ToolCallResult { ResultText = "(cancelled by sibling error)", IsError = true },
+        Result = new ToolCallResult {
+            ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.Cancelled, "工具执行被取消（兄弟工具错误级联取消）", tool.Entry.Name),
+            IsError = true
+        },
         OriginalIndex = tool.OriginalIndex
     };
 

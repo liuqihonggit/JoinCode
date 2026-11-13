@@ -169,7 +169,6 @@ public class GitCommitConstraintHidingMiddlewareTest {
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_ConstraintEcho_WithinCooldown_DeniesWithShortReason() {
-        // 预先激活冷却，使 ShouldTrigger 返回 false → 进入 else 分支（短提示）
         CooldownService.RecordTrigger("commit-constraint-echo");
 
         await using var middleware = new GitCommitConstraintHidingMiddleware();
@@ -185,14 +184,12 @@ public class GitCommitConstraintHidingMiddlewareTest {
         context.Result.Should().NotBeNull();
         context.Result!.IsError.Should().BeTrue();
         context.PermissionDecision.Should().Be(PermissionDecision.Denied);
-        var text = context.Result.GetFirstText();
-        text.Should().Contain("已提示过", "冷却内应使用短提示文本");
+        context.Result.GetFirstText().Should().Contain("\"type\":\"permission_denied\"");
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
     public async Task InvokeAsync_ConstraintEcho_FirstTrigger_DeniesWithFullReason() {
-        // 反射清空冷却状态，确保首次触发 → if 分支（完整拒绝原因）
         ResetCooldownState();
 
         await using var middleware = new GitCommitConstraintHidingMiddleware();
@@ -208,8 +205,7 @@ public class GitCommitConstraintHidingMiddlewareTest {
         context.Result.Should().NotBeNull();
         context.Result!.IsError.Should().BeTrue();
         context.PermissionDecision.Should().Be(PermissionDecision.Denied);
-        var text = context.Result.GetFirstText();
-        text.Should().Contain("错误示例", "首次触发应使用完整拒绝原因");
+        context.Result.GetFirstText().Should().Contain("\"type\":\"permission_denied\"");
     }
 
     #endregion

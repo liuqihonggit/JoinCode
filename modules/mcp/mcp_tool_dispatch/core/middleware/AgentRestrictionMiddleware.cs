@@ -59,14 +59,14 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExe
             var filterResult = _toolFilterPolicy.Check(filterContext);
             if (!filterResult.IsAllowed) {
                 _logger.LogWarning(L.T(StringKey.AgentToolLimitDeniedLog, context.ToolName, context.AgentMode));
-                context.Deny(filterResult.Reason ?? L.T(StringKey.ToolNotAllowedInMode, context.ToolName, context.AgentMode));
+                context.Deny(filterResult.Reason ?? L.T(StringKey.ToolNotAllowedInMode, context.ToolName, context.AgentMode), ToolErrorType.AgentRestricted);
                 return;
             }
 
             _logger.LogDebug(L.T(StringKey.AgentToolLimitPassedLog, context.ToolName, context.AgentMode));
         } else if (!_agentToolRestrictions.IsToolAllowedForMode(context.ToolName, context.AgentMode)) {
             _logger.LogWarning(L.T(StringKey.AgentToolLimitDeniedLog, context.ToolName, context.AgentMode));
-            context.Deny(L.T(StringKey.ToolNotAllowedInMode, context.ToolName, context.AgentMode));
+            context.Deny(L.T(StringKey.ToolNotAllowedInMode, context.ToolName, context.AgentMode), ToolErrorType.AgentRestricted);
             return;
         } else {
             _logger.LogDebug(L.T(StringKey.AgentToolLimitPassedLog, context.ToolName, context.AgentMode));

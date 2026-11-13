@@ -40,7 +40,7 @@ public sealed partial class FeatureFlagMiddleware : ServiceEntity, IToolExecutio
 
             if (!isEnabled) {
                 _logger.LogWarning(L.T(StringKey.FeatureFlagDisabledLog, context.ToolName, featureKey));
-                context.Deny(L.T(StringKey.FeatureFlagDisabledTool, context.ToolName));
+                context.Deny(L.T(StringKey.FeatureFlagDisabledTool, context.ToolName), ToolErrorType.FeatureFlagDisabled);
                 return;
             }
         }

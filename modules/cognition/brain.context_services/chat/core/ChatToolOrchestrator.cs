@@ -88,7 +88,7 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
         CancellationToken ct) {
         if (_toolExecutionGateway is null && _cmdMap is null) {
             return new ToolCallResult {
-                ResultText = FormatToolError($"工具执行网关不可用: {toolCallName}"),
+                ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.GatewayUnavailable, $"工具执行网关不可用: {toolCallName}", toolCallName),
                 IsError = true
             };
         }
@@ -136,7 +136,7 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
 
             if (_toolExecutionGateway is null) {
                 return new ToolCallResult {
-                    ResultText = FormatToolError($"工具执行网关不可用: {toolCallName}"),
+                    ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.GatewayUnavailable, $"工具执行网关不可用: {toolCallName}", toolCallName),
                     IsError = true
                 };
             }
@@ -177,33 +177,22 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
                 PermissionRuleContent = toolResult.PermissionRuleContent
             };
         } catch (Exception ex) {
-            // 多级报错分类：可重试的基础设施故障（限流/超时/5xx）在错误文本中标注，
-            // 让 LLM 知道可以重试；致命/逻辑错误保持原样。不 rethrow — 保持工具循环契约，
-            // 由模型自行决定修复或放弃（对齐 TS tool_use_error 行为）。
             if (ex is WorkflowException { IsRetryable: true } retryableEx) {
                 _logger?.LogWarning(retryableEx, "[ChatToolOrchestrator] 工具调用可重试失败: {ToolName}, Code={Code}, Retry={Retry}",
                     toolCallName, retryableEx.ErrorCode, retryableEx.SuggestedRetryCount);
-                return new ToolCallResult { ResultText = FormatToolError($"工具调用失败（可重试）: {ex.Message}"), IsError = true };
+                return new ToolCallResult {
+                    ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.ExecutionFailed, $"工具调用失败（可重试）: {ex.Message}", toolCallName, retryable: true),
+                    IsError = true
+                };
             }
 
             _logger?.LogError(ex, "[ChatToolOrchestrator] 工具调用失败: {ToolName}", toolCallName);
             Diag.WriteError($"[ChatToolOrchestrator] Tool={toolCallName}", ex);
-            return new ToolCallResult { ResultText = FormatToolError($"工具调用失败: {ex.Message}"), IsError = true };
+            return new ToolCallResult {
+                ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.ExecutionFailed, $"工具调用失败: {ex.Message}", toolCallName),
+                IsError = true
+            };
         }
-    }
-
-    /// <summary>
-    /// 格式化工具错误消息 — 对齐 TS formatError + tool_use_error 标签
-    /// 超过 10000 字符时截断：保留前 5000 + 后 5000
-    /// </summary>
-    private static string FormatToolError(string message) {
-        if (message.Length > 10000) {
-            var halfLength = 5000;
-            var truncated = message.Length - 10000;
-            message = $"{message[..halfLength]}\n\n... [{truncated} characters truncated] ...\n\n{message[^halfLength..]}";
-        }
-
-        return $"<tool_use_error>{message}</tool_use_error>";
     }
 
 }

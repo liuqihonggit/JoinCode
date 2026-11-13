@@ -94,6 +94,7 @@ public sealed partial class RequiredParamsMiddleware : ServiceEntity, IToolExecu
             ToolErrorType.ParameterMissing,
             message,
             toolName,
+            errorCode: ToolErrorCode.ParameterMissingRequired,
             details: missingParams,
             suggestions: [L.T(StringKey.MissingRequiredParams, toolName, missingDetails)]);
     }

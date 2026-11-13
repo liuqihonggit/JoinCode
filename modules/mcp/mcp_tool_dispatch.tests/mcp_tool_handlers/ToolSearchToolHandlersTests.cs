@@ -13,7 +13,7 @@ public class ToolSearchToolHandlersTests {
         var result = await _handler.SearchToolsAsync("", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
-        Assert.Contains("不能为空", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 
     [Fact]
@@ -92,6 +92,6 @@ public class ToolSearchToolHandlersTests {
         var result = await _handler.SearchToolsAsync("test", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
-        Assert.Contains("工具搜索失败", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 }

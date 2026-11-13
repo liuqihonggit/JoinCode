@@ -8,7 +8,7 @@ public class RemoteTriggerToolHandlersTests {
         var result = await _handler.ManageRemoteTriggerAsync("list", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
-        Assert.Contains("远程触发器服务未配置", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 
     [Fact]
@@ -16,7 +16,7 @@ public class RemoteTriggerToolHandlersTests {
         var result = await _handler.ManageRemoteTriggerAsync("get", trigger_id: null, cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
-        Assert.Contains("远程触发器服务未配置", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 
     [Fact]
@@ -24,6 +24,6 @@ public class RemoteTriggerToolHandlersTests {
         var result = await _handler.ManageRemoteTriggerAsync("invalid", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
-        Assert.Contains("远程触发器服务未配置", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 }

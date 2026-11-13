@@ -14,7 +14,7 @@ public class TaskOutputToolHandlersTests {
         var result = await _handler.GetTaskOutputAsync("", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
-        Assert.Contains("不能为空", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
@@ -23,7 +23,7 @@ public class TaskOutputToolHandlersTests {
         var result = await _handler.GetTaskOutputAsync(null!, cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
-        Assert.Contains("不能为空", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public class TaskOutputToolHandlersTests {
         var result = await _handler.GetTaskOutputAsync("missing", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
-        Assert.Contains("未找到任务", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 
     [Fact]
@@ -57,6 +57,6 @@ public class TaskOutputToolHandlersTests {
         var result = await _handler.GetTaskOutputAsync("id", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
-        Assert.Contains("获取任务输出失败", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 }

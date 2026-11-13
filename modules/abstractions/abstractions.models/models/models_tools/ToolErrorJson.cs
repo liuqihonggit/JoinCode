@@ -9,6 +9,11 @@ public sealed record ToolErrorJson {
     [JsonPropertyName("type")]
     public required string Type { get; init; }
 
+    /// <summary>错误码 — ToolErrorCode 枚举的字符串值（如 "PM001"），精确标识错误场景</summary>
+    [JsonPropertyName("error_code")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ErrorCode { get; init; }
+
     /// <summary>工具名称 — 触发错误的工具名（如 "bash"、"read"）</summary>
     [JsonPropertyName("tool")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

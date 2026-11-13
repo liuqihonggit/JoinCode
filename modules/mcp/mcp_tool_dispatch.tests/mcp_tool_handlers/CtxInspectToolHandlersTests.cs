@@ -39,6 +39,6 @@ public class CtxInspectToolHandlersTests {
         var result = await _handler.InspectContextAsync("summary", CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
-        Assert.Contains("上下文检查失败", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 }

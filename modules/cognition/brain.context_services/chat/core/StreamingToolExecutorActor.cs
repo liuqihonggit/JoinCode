@@ -328,7 +328,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
                     ToolName = tool.Entry.Name,
                     ToolCallId = tool.Entry.Id,
                     Result = new ToolCallResult {
-                        ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.Cancelled, "工具执行被取消", tool.Entry.Name),
+                        ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.Cancelled, "工具执行被取消", tool.Entry.Name, ToolErrorCode.CancelledByUser),
                         IsError = true
                     },
                     OriginalIndex = tool.OriginalIndex
@@ -339,7 +339,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
                     ToolName = tool.Entry.Name,
                     ToolCallId = tool.Entry.Id,
                     Result = new ToolCallResult {
-                        ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.ExecutionFailed, $"工具执行失败: {ex.Message}", tool.Entry.Name),
+                        ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.ExecutionFailed, $"工具执行失败: {ex.Message}", tool.Entry.Name, ToolErrorCode.ExecutionFailedException),
                         IsError = true
                     },
                     OriginalIndex = tool.OriginalIndex
@@ -355,7 +355,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
         ToolName = tool.Entry.Name,
         ToolCallId = tool.Entry.Id,
         Result = new ToolCallResult {
-            ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.Cancelled, "工具执行被取消（兄弟工具错误级联取消）", tool.Entry.Name),
+            ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.Cancelled, "工具执行被取消（兄弟工具错误级联取消）", tool.Entry.Name, ToolErrorCode.CancelledBySiblingError),
             IsError = true
         },
         OriginalIndex = tool.OriginalIndex

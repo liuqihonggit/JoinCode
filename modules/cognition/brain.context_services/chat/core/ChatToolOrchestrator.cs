@@ -88,7 +88,7 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
         CancellationToken ct) {
         if (_toolExecutionGateway is null && _cmdMap is null) {
             return new ToolCallResult {
-                ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.GatewayUnavailable, $"工具执行网关不可用: {toolCallName}", toolCallName),
+                ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.GatewayUnavailable, $"工具执行网关不可用: {toolCallName}", toolCallName, ToolErrorCode.ExecutionFailedGatewayUnavailable),
                 IsError = true
             };
         }
@@ -136,7 +136,7 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
 
             if (_toolExecutionGateway is null) {
                 return new ToolCallResult {
-                    ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.GatewayUnavailable, $"工具执行网关不可用: {toolCallName}", toolCallName),
+                    ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.GatewayUnavailable, $"工具执行网关不可用: {toolCallName}", toolCallName, ToolErrorCode.ExecutionFailedGatewayUnavailable),
                     IsError = true
                 };
             }
@@ -181,7 +181,7 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
                 _logger?.LogWarning(retryableEx, "[ChatToolOrchestrator] 工具调用可重试失败: {ToolName}, Code={Code}, Retry={Retry}",
                     toolCallName, retryableEx.ErrorCode, retryableEx.SuggestedRetryCount);
                 return new ToolCallResult {
-                    ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.ExecutionFailed, $"工具调用失败（可重试）: {ex.Message}", toolCallName, retryable: true),
+                    ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.ExecutionFailed, $"工具调用失败（可重试）: {ex.Message}", toolCallName, ToolErrorCode.ExecutionFailedException, retryable: true),
                     IsError = true
                 };
             }
@@ -189,7 +189,7 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
             _logger?.LogError(ex, "[ChatToolOrchestrator] 工具调用失败: {ToolName}", toolCallName);
             Diag.WriteError($"[ChatToolOrchestrator] Tool={toolCallName}", ex);
             return new ToolCallResult {
-                ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.ExecutionFailed, $"工具调用失败: {ex.Message}", toolCallName),
+                ResultText = ToolErrorJsonBuilder.BuildJson(ToolErrorType.ExecutionFailed, $"工具调用失败: {ex.Message}", toolCallName, ToolErrorCode.ExecutionFailedException),
                 IsError = true
             };
         }

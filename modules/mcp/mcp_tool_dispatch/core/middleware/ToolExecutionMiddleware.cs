@@ -29,7 +29,7 @@ public sealed partial class ToolExecutionMiddleware : ServiceEntity, IToolExecut
         MiddlewareDelegate<ToolExecutionContext> next,
         CancellationToken ct) {
         if (context.Handler is null) {
-            context.Result = ToolErrorJsonBuilder.ToToolResult(ToolErrorType.HandlerNotFound, $"Tool '{context.ToolName}' handler not found.", context.ToolName);
+            context.Result = ToolErrorJsonBuilder.ToToolResult(ToolErrorType.HandlerNotFound, $"Tool '{context.ToolName}' handler not found.", context.ToolName, ToolErrorCode.HandlerNotFoundInContext);
             return;
         }
 

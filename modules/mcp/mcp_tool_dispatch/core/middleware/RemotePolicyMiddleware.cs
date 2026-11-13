@@ -50,7 +50,7 @@ public sealed partial class RemotePolicyMiddleware : ServiceEntity, IToolExecuti
             if (!result.Allowed) {
                 _logger.LogWarning(L.T(StringKey.RemotePolicyDeniedLog,
                     context.ToolName, result.RuleId, result.Reason));
-                context.Deny(L.T(StringKey.RemotePolicyDeniedTool, context.ToolName, result.Reason), ToolErrorType.RemotePolicy);
+                context.Deny(L.T(StringKey.RemotePolicyDeniedTool, context.ToolName, result.Reason), ToolErrorType.RemotePolicy, ToolErrorCode.PermissionDeniedByRemotePolicy);
                 return;
             }
         }

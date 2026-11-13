@@ -12,6 +12,7 @@ public static class ToolErrorJsonBuilder {
     /// <param name="type">错误类型枚举</param>
     /// <param name="message">错误消息</param>
     /// <param name="tool">工具名称（可选）</param>
+    /// <param name="errorCode">精确错误码（可选）</param>
     /// <param name="details">结构化详情（可选）</param>
     /// <param name="suggestions">可操作建议（可选）</param>
     /// <param name="retryable">是否可重试</param>
@@ -19,10 +20,12 @@ public static class ToolErrorJsonBuilder {
         ToolErrorType type,
         string message,
         string? tool = null,
+        ToolErrorCode? errorCode = null,
         IReadOnlyList<DiagnosticDetail>? details = null,
         IReadOnlyList<string>? suggestions = null,
         bool retryable = false) => new() {
             Type = type.ToValue(),
+            ErrorCode = errorCode?.ToValue(),
             Message = message,
             Tool = tool,
             Details = details ?? [],
@@ -43,10 +46,11 @@ public static class ToolErrorJsonBuilder {
         ToolErrorType type,
         string message,
         string? tool = null,
+        ToolErrorCode? errorCode = null,
         IReadOnlyList<DiagnosticDetail>? details = null,
         IReadOnlyList<string>? suggestions = null,
         bool retryable = false) =>
-        Serialize(Build(type, message, tool, details, suggestions, retryable));
+        Serialize(Build(type, message, tool, errorCode, details, suggestions, retryable));
 
     /// <summary>
     /// 构建 ToolErrorJson 并转换为 ToolResult（含 Diagnostic）。
@@ -55,10 +59,11 @@ public static class ToolErrorJsonBuilder {
         ToolErrorType type,
         string message,
         string? tool = null,
+        ToolErrorCode? errorCode = null,
         IReadOnlyList<DiagnosticDetail>? details = null,
         IReadOnlyList<string>? suggestions = null,
         bool retryable = false) {
-        var error = Build(type, message, tool, details, suggestions, retryable);
+        var error = Build(type, message, tool, errorCode, details, suggestions, retryable);
         var json = Serialize(error);
         return new ToolResult {
             Content = [new ToolContent { Type = ToolContentType.Text, Text = json }],
@@ -78,18 +83,22 @@ public static class ToolErrorJsonBuilder {
         Exception ex,
         string? tool = null,
         ToolErrorType type = ToolErrorType.ExecutionFailed,
+        ToolErrorCode? errorCode = null,
         bool retryable = false) => ToToolResult(
             type,
             $"{ex.GetType().Name}: {ex.Message}",
             tool,
+            errorCode ?? ToolErrorCode.ExecutionFailedException,
             retryable: retryable);
 
     /// <summary>
     /// 从 OperationCanceledException 构建 ToolResult — 不再 rethrow，转为 JSON。
     /// </summary>
     public static ToolResult FromCancellation(
-        string? tool = null) => ToToolResult(
+        string? tool = null,
+        ToolErrorCode errorCode = ToolErrorCode.CancelledByUser) => ToToolResult(
             ToolErrorType.Cancelled,
             "工具执行被取消",
-            tool);
+            tool,
+            errorCode);
 }

@@ -13,7 +13,7 @@ public class SendUserFileToolHandlersTests {
         var result = await _handler.SendUserFileAsync("", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
-        Assert.Contains("不能为空", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 
     [Fact]
@@ -21,7 +21,7 @@ public class SendUserFileToolHandlersTests {
         var result = await _handler.SendUserFileAsync("nonexistent_file_12345.txt", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
-        Assert.Contains("文件不存在", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 
     [Fact]

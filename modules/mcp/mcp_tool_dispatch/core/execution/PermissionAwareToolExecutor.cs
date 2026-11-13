@@ -59,7 +59,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
 
         if (handler is null) {
             _logger.LogWarning(L.T(StringKey.ToolNotFoundLog, toolName));
-            return ToolErrorJsonBuilder.ToToolResult(ToolErrorType.ToolNotFound, $"Tool '{toolName}' not found.", toolName);
+            return ToolErrorJsonBuilder.ToToolResult(ToolErrorType.ToolNotFound, $"Tool '{toolName}' not found.", toolName, ToolErrorCode.ToolNotFoundInRegistry);
         }
 
         await using var span = _telemetryService?.StartSpan($"tool.{toolName}", TelemetrySpanKind.Client);
@@ -100,7 +100,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
             }
 
             _logger.LogError("Tool {ToolName} pipeline completed without result", toolName);
-            var noResultError = ToolErrorJsonBuilder.ToToolResult(ToolErrorType.NoResult, $"Tool '{toolName}' execution produced no result.", toolName);
+            var noResultError = ToolErrorJsonBuilder.ToToolResult(ToolErrorType.NoResult, $"Tool '{toolName}' execution produced no result.", toolName, ToolErrorCode.ExecutionFailedNoResult);
             CompleteExecutionEntity(context);
             RaiseToolExecutionCompleted(toolName, noResultError, arguments);
             return noResultError;
@@ -142,7 +142,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         CancellationToken cancellationToken) {
         if (_confirmationHandler is null) {
             _logger.LogWarning("无确认处理器,工具权限待确认作为拒绝返回: {ToolName}", toolName);
-            var noHandlerError = context.Result ?? ToolErrorJsonBuilder.ToToolResult(ToolErrorType.PermissionRequired, $"工具 '{toolName}' 需要确认但无确认处理器", toolName);
+            var noHandlerError = context.Result ?? ToolErrorJsonBuilder.ToToolResult(ToolErrorType.PermissionRequired, $"工具 '{toolName}' 需要确认但无确认处理器", toolName, ToolErrorCode.PermissionRequiredNoHandler);
             CompleteExecutionEntity(context);
             RaiseToolExecutionCompleted(toolName, noHandlerError, arguments);
             return noHandlerError;
@@ -153,7 +153,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
 
         if (action != PermissionConfirmAction.Allow && action != PermissionConfirmAction.AlwaysAllow) {
             _logger.LogWarning("用户拒绝工具执行: {ToolName}", toolName);
-            var deniedError = ToolErrorJsonBuilder.ToToolResult(ToolErrorType.PermissionDenied, $"用户拒绝工具执行: {toolName}", toolName);
+            var deniedError = ToolErrorJsonBuilder.ToToolResult(ToolErrorType.PermissionDenied, $"用户拒绝工具执行: {toolName}", toolName, ToolErrorCode.PermissionDeniedByUser);
             CompleteExecutionEntity(context);
             RaiseToolExecutionCompleted(toolName, deniedError, arguments);
             return deniedError;
@@ -190,7 +190,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         }
 
         _logger.LogError("Tool {ToolName} retry pipeline completed without result", toolName);
-        var retryNoResultError = ToolErrorJsonBuilder.ToToolResult(ToolErrorType.NoResult, $"Tool '{toolName}' execution produced no result.", toolName);
+        var retryNoResultError = ToolErrorJsonBuilder.ToToolResult(ToolErrorType.NoResult, $"Tool '{toolName}' execution produced no result.", toolName, ToolErrorCode.ExecutionFailedNoResult);
         CompleteExecutionEntity(retryContext);
         RaiseToolExecutionCompleted(toolName, retryNoResultError, arguments);
         return retryNoResultError;

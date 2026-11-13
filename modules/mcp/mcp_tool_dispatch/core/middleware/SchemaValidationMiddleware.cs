@@ -51,6 +51,7 @@ public sealed partial class SchemaValidationMiddleware : ServiceEntity, IToolExe
                     ToolErrorType.SchemaValidation,
                     formatted,
                     context.ToolName,
+                    errorCode: ToolErrorCode.SchemaValidationTypeMismatch,
                     details: errorDetails);
                 return;
             }

@@ -49,10 +49,11 @@ public sealed class ToolExecutionContext {
     /// </summary>
     /// <param name="reason">拒绝原因</param>
     /// <param name="errorType">错误类型枚举，默认 PermissionDenied</param>
-    public void Deny(string reason, ToolErrorType errorType = ToolErrorType.PermissionDenied) {
+    /// <param name="errorCode">精确错误码（可选）</param>
+    public void Deny(string reason, ToolErrorType errorType = ToolErrorType.PermissionDenied, ToolErrorCode? errorCode = null) {
         PermissionDecision = PermissionDecision.Denied;
         PermissionDenyReason = reason;
-        Result = ToolErrorJsonBuilder.ToToolResult(errorType, reason, ToolName);
+        Result = ToolErrorJsonBuilder.ToToolResult(errorType, reason, ToolName, errorCode);
         Result.PermissionDecision = PermissionDecision.Denied;
     }
 
@@ -64,7 +65,7 @@ public sealed class ToolExecutionContext {
         PermissionDecision = PermissionDecision.PendingConfirmation;
         PermissionConfirmationPrompt = prompt;
         PermissionRuleContent = ruleContent;
-        Result = ToolErrorJsonBuilder.ToToolResult(ToolErrorType.PermissionRequired, $"工具 '{ToolName}' 需要确认: {prompt}", ToolName);
+        Result = ToolErrorJsonBuilder.ToToolResult(ToolErrorType.PermissionRequired, $"工具 '{ToolName}' 需要确认: {prompt}", ToolName, ToolErrorCode.PermissionRequiredPendingConfirmation);
         Result.PermissionDecision = PermissionDecision.PendingConfirmation;
         Result.ConfirmationPrompt = prompt;
         Result.PermissionRuleContent = ruleContent;

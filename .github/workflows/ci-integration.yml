@@ -9,6 +9,7 @@ env:
   NUGET_XMLDOC_MODE: skip
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
   Configuration: Debug
+  JCC_ALLOW_DIRECT_FALLBACK: 1
 
 jobs:
   integration-core:

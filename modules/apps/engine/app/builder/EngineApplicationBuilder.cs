@@ -123,8 +123,8 @@ public sealed class EngineApplicationBuilder {
     }
 
     /// <summary>
-    /// 加载配置 — Hub 优先，Hub 不可达时回退到直接连接模式
-    /// ADR 0155: 客户端优先使用 Hub 协议；E2E 测试环境无 Hub 时回退到直接连接模式
+    /// 加载配置 — Hub 优先，Hub 不可达时默认报错退出。
+    /// 设置 JCC_ALLOW_DIRECT_FALLBACK=1 可允许回退到直接连接模式（E2E 测试用）。
     /// </summary>
     public static async Task<WorkflowConfig> LoadConfigAsync(CommandLineOptions options, IFileSystem fs, IModelConfigLoader? modelConfigLoader = null) {
         var configLogLevel = JoinCode.Abstractions.Utils.Diagnostics.Diag.IsDebugLog ? LogLevel.Debug : LogLevel.Warning;
@@ -140,8 +140,25 @@ public sealed class EngineApplicationBuilder {
             return hubConfig;
         }
 
-        Diag.WriteLine("[HUB] Hub 服务不可达 — 回退到直接连接模式");
+        if (!IsDirectFallbackAllowed()) {
+            throw new InvalidOperationException(
+                "Hub 服务不可达，请确认 jcchub.exe 已启动并监听 http://localhost:3457。" +
+                "如需在无 Hub 环境下运行（如 E2E 测试），设置环境变量 JCC_ALLOW_DIRECT_FALLBACK=1。");
+        }
+
+        Diag.WriteLine("[HUB] Hub 服务不可达 — 回退到直接连接模式（JCC_ALLOW_DIRECT_FALLBACK=1）");
         return await LoadDirectConfigAsync(options, fs, modelConfigLoader, configLoggerFactory).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 检查是否允许 Hub 不可达时回退到直接连接模式 — 默认禁止，JCC_ALLOW_DIRECT_FALLBACK=1 启用
+    /// </summary>
+    private static bool IsDirectFallbackAllowed() {
+        var value = Environment.GetEnvironmentVariable("JCC_ALLOW_DIRECT_FALLBACK");
+        if (string.IsNullOrEmpty(value)) return false;
+        return value.Equals("1", StringComparison.Ordinal)
+            || value.Equals("true", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("yes", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

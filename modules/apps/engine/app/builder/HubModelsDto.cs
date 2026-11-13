@@ -16,6 +16,10 @@ public sealed class HubModelInfo {
     /// <summary>所属 Provider。</summary>
     [JsonPropertyName("provider")]
     public string Provider { get; init; } = string.Empty;
+
+    /// <summary>上下文窗口大小。</summary>
+    [JsonPropertyName("context_window")]
+    public int ContextWindow { get; init; }
 }
 
 /// <summary>Agent 注册请求 DTO。</summary>

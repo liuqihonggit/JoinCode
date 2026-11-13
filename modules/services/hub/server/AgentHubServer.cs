@@ -478,6 +478,10 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
                 await HandleModelsAsync(context).ConfigureAwait(false);
                 break;
 
+            case "/config/default":
+                await HandleConfigDefaultAsync(context).ConfigureAwait(false);
+                break;
+
             case "/v1/chat/completions":
                 await HandleChatCompletionsAsync(context, cancellationToken).ConfigureAwait(false);
                 break;
@@ -524,7 +528,8 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
                 models.Add(new HubModelInfo {
                     Name = model.Id,
                     Provider = name,
-                    OwnedBy = name
+                    OwnedBy = name,
+                    ContextWindow = model.ContextWindow
                 });
             }
 
@@ -535,13 +540,47 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
                     models.Add(new HubModelInfo {
                         Name = currentId,
                         Provider = name,
-                        OwnedBy = name
+                        OwnedBy = name,
+                        ContextWindow = entry.CurrentModel.ContextWindow
                     });
                 }
             }
         }
 
         await WriteJsonResponseAsync(context.Response, new HubModelsResponse { Data = models }).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// /config/default — 下发默认供应商配置，供客户端首次启动时获取
+    /// </summary>
+    private async Task HandleConfigDefaultAsync(HttpListenerContext context) {
+        var currentCatalog = _catalog;
+        var vendors = new Dictionary<string, VendorConfigEntry>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var name in currentCatalog.GetProviderNames()) {
+            var entry = currentCatalog[name];
+            vendors[name] = new VendorConfigEntry {
+                Provider = name,
+                Protocol = entry.Protocol,
+                Endpoint = entry.Endpoint,
+                ApiKeyEnvVar = entry.ApiKeyEnvVar ?? string.Empty,
+                Model = entry.CurrentModel?.Id ?? string.Empty,
+                Models = entry.Models.Select(m => new VendorModelEntry {
+                    Id = m.Id,
+                    DisplayName = m.DisplayName,
+                    ContextWindow = m.ContextWindow,
+                }).ToList(),
+            };
+        }
+
+        var response = new HubConfigDefaultResponse {
+            Vendor = vendors,
+            CurrentProfile = currentCatalog.GetProviderNames().Count > 0
+                ? currentCatalog.GetProviderNames()[0]
+                : string.Empty,
+        };
+
+        await WriteJsonResponseAsync(context.Response, response).ConfigureAwait(false);
     }
 
     private async Task HandleChatCompletionsAsync(HttpListenerContext context, CancellationToken cancellationToken) {
@@ -791,6 +830,7 @@ public sealed partial class AgentHubServer : IAsyncDisposable {
             HubStatusResponse s => JsonSerializer.Serialize(s, HubServerJsonContext.Default.HubStatusResponse),
             HubRegisterResponse r => JsonSerializer.Serialize(r, HubServerJsonContext.Default.HubRegisterResponse),
             HubModelsResponse m => JsonSerializer.Serialize(m, HubServerJsonContext.Default.HubModelsResponse),
+            HubConfigDefaultResponse c => JsonSerializer.Serialize(c, HubServerJsonContext.Default.HubConfigDefaultResponse),
             HubRouteResponse rt => JsonSerializer.Serialize(rt, HubServerJsonContext.Default.HubRouteResponse),
             _ => throw new InvalidOperationException($"Unsupported response type: {typeof(T).Name}")
         };

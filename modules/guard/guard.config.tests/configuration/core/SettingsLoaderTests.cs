@@ -171,12 +171,7 @@ public class SettingsLoaderTests : IDisposable {
 
         // Then
         result.Should().NotBeNull();
-        result.Vendor.Should().NotBeNull();
-        result.Vendor!.Should().ContainKey("sensenova");
-        result.Vendor!.Should().ContainKey("openai");
-        result.Vendor!.Should().ContainKey("anthropic");
-        result.Vendor!.Should().ContainKey("deepseek");
-        result.Vendor!.Should().ContainKey("agnes");
+        result.Vendor.Should().BeNullOrEmpty("默认骨架不含 vendor（由 Hub 管理）");
         result.AutoFetchModels.Should().BeTrue();
     }
 
@@ -296,12 +291,7 @@ public class SettingsLoaderTests : IDisposable {
 
         // Then
         result.Should().NotBeNull();
-        result!.Vendor.Should().NotBeNull();
-        result.Vendor!.Should().ContainKey("sensenova");
-        result.Vendor!.Should().ContainKey("openai");
-        result.Vendor!.Should().ContainKey("anthropic");
-        result.Vendor!.Should().ContainKey("deepseek");
-        result.Vendor!.Should().ContainKey("agnes");
+        result!.Vendor.Should().BeNullOrEmpty("默认骨架不含 vendor（由 Hub 管理）");
         result.AutoFetchModels.Should().BeTrue();
 
         // 验证骨架已写入磁盘
@@ -309,8 +299,7 @@ public class SettingsLoaderTests : IDisposable {
         written.Should().NotBeNullOrWhiteSpace();
         var parsed = JsonSerializer.Deserialize<SettingsJson>(written, ConfigJsonContext.Default.SettingsJson);
         parsed.Should().NotBeNull();
-        parsed!.Vendor.Should().NotBeNull();
-        parsed.Vendor!.Should().ContainKey("sensenova");
+        parsed!.Vendor.Should().BeNullOrEmpty("默认骨架不含 vendor（由 Hub 管理）");
     }
 
     #endregion
@@ -358,46 +347,18 @@ public class SettingsLoaderTests : IDisposable {
     #region 场景8: 默认骨架含 SearchProviders 配置
 
     /// <summary>
-    /// BuildDefaultSettingsJson 生成的骨架应包含 searchProviders 节点,
-    /// 含 7 个搜索供应商(deepseek/tavily/serper/brave/searxng/anthropic/subagent),优先级与 enabled 正确(TASK054)
+    /// BuildDefaultSettingsJson 生成的骨架不应包含 vendor/searchProviders 节点,
+    /// 默认供应商配置由 Hub 服务端统一管理(ADR: 默认供应商数据迁移到 Hub)
     /// </summary>
     [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
     [Fact]
-    public void Given_默认骨架_When_解析_Then_包含SearchProviders且7供应商配置正确() {
+    public void Given_默认骨架_When_解析_Then_不含Vendor和SearchProviders() {
         var json = SettingsLoader.BuildDefaultSettingsJson();
         var parsed = JsonSerializer.Deserialize<SettingsJson>(json, ConfigJsonContext.Default.SettingsJson);
 
         parsed.Should().NotBeNull();
-        parsed!.SearchProviders.Should().NotBeNull();
-        parsed.SearchProviders.Count.Should().Be(7);
-
-        parsed.SearchProviders.Should().ContainKey("deepseek");
-        parsed.SearchProviders["deepseek"].ApiKeyEnvVar.Should().Be("DEEPSEEK_API_KEY");
-        parsed.SearchProviders["deepseek"].Priority.Should().Be(90);
-        parsed.SearchProviders["deepseek"].Enabled.Should().BeTrue();
-
-        parsed.SearchProviders.Should().ContainKey("tavily");
-        parsed.SearchProviders["tavily"].ApiKeyEnvVar.Should().Be("TAVILY_API_KEY");
-        parsed.SearchProviders["tavily"].Priority.Should().Be(100);
-        parsed.SearchProviders["tavily"].Enabled.Should().BeTrue();
-
-        parsed.SearchProviders.Should().ContainKey("serper");
-        parsed.SearchProviders["serper"].ApiKeyEnvVar.Should().Be("SERPER_API_KEY");
-        parsed.SearchProviders["serper"].Priority.Should().Be(200);
-
-        parsed.SearchProviders.Should().ContainKey("brave");
-        parsed.SearchProviders["brave"].ApiKeyEnvVar.Should().Be("BRAVE_API_KEY");
-        parsed.SearchProviders["brave"].Priority.Should().Be(300);
-
-        parsed.SearchProviders.Should().ContainKey("searxng");
-        parsed.SearchProviders["searxng"].EndpointEnvVar.Should().Be("SEARXNG_URL");
-        parsed.SearchProviders["searxng"].Priority.Should().Be(400);
-
-        parsed.SearchProviders.Should().ContainKey("anthropic");
-        parsed.SearchProviders["anthropic"].Priority.Should().Be(500);
-
-        parsed.SearchProviders.Should().ContainKey("subagent");
-        parsed.SearchProviders["subagent"].Priority.Should().Be(999);
+        parsed!.Vendor.Should().BeNullOrEmpty("默认骨架不含 vendor 节点（由 Hub 管理）");
+        parsed.SearchProviders.Should().BeNullOrEmpty("默认骨架不含 searchProviders 节点（由 Hub 管理）");
     }
 
     /// <summary>
@@ -609,42 +570,25 @@ public class SettingsLoaderTests : IDisposable {
     }
 
     [Fact]
-    public async Task P8_BuildDefaultConfigTreeAsync_生成vendors目录7供应商() {
+    public async Task P8_BuildDefaultConfigTreeAsync_不生成vendors目录() {
         var baseDir = $"/test/p8_vendors_{Guid.NewGuid():N}";
         _fs.CreateDirectory(baseDir);
 
         await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
 
         var vendorsDir = Path.Combine(baseDir, "providers_llm");
-        _fs.DirectoryExists(vendorsDir).Should().BeTrue("应生成 providers_llm/ 目录");
-        var expectedVendors = new[] {
-            "sensenova", "openai", "anthropic", "deepseek",
-            "deepseek-anthropic", "agnes", "zhipu"
-        };
-        foreach (var name in expectedVendors) {
-            var vendorDir = Path.Combine(vendorsDir, name);
-            _fs.DirectoryExists(vendorDir).Should().BeTrue($"providers_llm/{name}/ 应存在");
-            _fs.FileExists(Path.Combine(vendorDir, "config.json")).Should().BeTrue($"providers_llm/{name}/config.json 应存在");
-            _fs.FileExists(Path.Combine(vendorDir, "models.json")).Should().BeTrue($"providers_llm/{name}/models.json 应存在");
-        }
+        _fs.DirectoryExists(vendorsDir).Should().BeFalse("默认骨架不应生成 providers_llm/ 目录（由 Hub 管理）");
     }
 
     [Fact]
-    public async Task P8_BuildDefaultConfigTreeAsync_生成searchProviders目录7供应商() {
+    public async Task P8_BuildDefaultConfigTreeAsync_不生成searchProviders目录() {
         var baseDir = $"/test/p8_search_{Guid.NewGuid():N}";
         _fs.CreateDirectory(baseDir);
 
         await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
 
         var searchDir = Path.Combine(baseDir, "providers_search");
-        _fs.DirectoryExists(searchDir).Should().BeTrue("应生成 providers_search/ 目录");
-        var expectedProviders = new[] { "deepseek", "tavily", "serper", "brave", "searxng", "anthropic", "subagent" };
-        foreach (var name in expectedProviders) {
-            var providerDir = Path.Combine(searchDir, name);
-            _fs.DirectoryExists(providerDir).Should().BeTrue($"providers_search/{name}/ 应存在");
-            _fs.FileExists(Path.Combine(providerDir, "config.json")).Should().BeTrue($"providers_search/{name}/config.json 应存在");
-            _fs.FileExists(Path.Combine(providerDir, "models.json")).Should().BeTrue($"providers_search/{name}/models.json 应存在");
-        }
+        _fs.DirectoryExists(searchDir).Should().BeFalse("默认骨架不应生成 providers_search/ 目录（由 Hub 管理）");
     }
 
     [Fact]
@@ -665,22 +609,18 @@ public class SettingsLoaderTests : IDisposable {
     }
 
     [Fact]
-    public async Task P8_BuildDefaultConfigTreeAsync_vendors子文件含完整Profile() {
+    public async Task P8_BuildDefaultConfigTreeAsync_不生成vendors子文件() {
         var baseDir = $"/test/p8_vendor_content_{Guid.NewGuid():N}";
         _fs.CreateDirectory(baseDir);
 
         await SettingsLoader.BuildDefaultConfigTreeAsync(_fs, baseDir, CancellationToken.None);
 
-        var openaiConfigPath = Path.Combine(baseDir, "providers_llm", "openai", "config.json");
-        var configContent = await _fs.ReadAllText(openaiConfigPath);
-        configContent.Should().Contain("https://api.openai.com/v1", "openai config.json 应含 endpoint");
-        configContent.Should().Contain("openai-compatible", "openai config.json 应含 protocol");
-        configContent.Should().Contain("apiKeyEnvVar", "openai config.json 应含 apiKeyEnvVar 字段");
-        configContent.Should().NotContain("\"models\":", "config.json 不应含 models 字段（已拆到 models.json）");
+        var vendorsDir = Path.Combine(baseDir, "providers_llm");
+        _fs.DirectoryExists(vendorsDir).Should().BeFalse("默认骨架不应生成 providers_llm/ 目录（由 Hub 管理）");
     }
 
     [Fact]
-    public async Task P8_BuildDefaultConfigTreeAsync_加载侧合并后等价于单文件骨架() {
+    public async Task P8_BuildDefaultConfigTreeAsync_加载侧合并后不含Vendor和SearchProviders() {
         var baseDir = $"/test/p8_roundtrip_{Guid.NewGuid():N}";
         _fs.CreateDirectory(baseDir);
 
@@ -689,12 +629,8 @@ public class SettingsLoaderTests : IDisposable {
         var treeSettings = await SettingsLoader.LoadUserSettingsFromDirAsync(_fs, baseDir, CancellationToken.None);
         treeSettings.Should().NotBeNull();
         var settings = treeSettings ?? throw new InvalidOperationException("unreachable");
-        settings.Vendor.Should().ContainKey("openai");
-        settings.Vendor["openai"].Endpoint.Should().Be("https://api.openai.com/v1");
-        settings.Vendor["openai"].Protocol.Should().Be("openai-compatible");
-        settings.Vendor.Should().ContainKey("deepseek-anthropic");
-        settings.SearchProviders.Should().ContainKey("tavily");
-        settings.SearchProviders["tavily"].Priority.Should().Be(100);
+        settings.Vendor.Should().BeNullOrEmpty("默认骨架不含 vendor（由 Hub 管理）");
+        settings.SearchProviders.Should().BeNullOrEmpty("默认骨架不含 searchProviders（由 Hub 管理）");
         settings.Current?.Profile.Should().NotBeNullOrEmpty();
         settings.Current?.Actor.Should().NotBeNull("subagent.json 应含 actor 配置");
         settings.Current?.SubAgentLiveness.Should().NotBeNull("subagent.json 应含 subAgentLiveness 配置");

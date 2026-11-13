@@ -52,78 +52,11 @@ public static class SettingsLoader {
     }
 
     /// <summary>
-    /// 构建默认 settings.json 骨架 — 含所有5个供应商的预设入口点,models 数组留空
-    /// 模型列表由启动时 AutoFetchModels 从 {endpoint}/{modelsEndpoint} 自动拉取填充
-    /// 供应商端点来源: README 供应商表 + ModelListFetcher 测试数据
+    /// 构建极简 settings.json 骨架 — 不包含供应商列表，供应商配置由 Hub 服务端管理
     /// </summary>
     public static string BuildDefaultSettingsJson() {
         return """
         {
-          "vendor": {
-            "sensenova": {
-              "provider": "@@VENDOR_SENSENOVA@@",
-              "protocol": "openai-compatible",
-              "model": "@@MODEL_SENSENOVA@@",
-              "endpoint": "https://token.sensenova.cn/v1",
-              "apiKeyEnvVar": "@@SENSENOVA_API_KEY@@",
-              "models": [],
-              "modelsEndpoint": "models"
-            },
-            "openai": {
-              "provider": "@@VENDOR_OPENAI@@",
-              "protocol": "openai-compatible",
-              "model": "@@MODEL_OPENAI@@",
-              "endpoint": "https://api.openai.com/v1",
-              "apiKeyEnvVar": "@@OPENAI_API_KEY@@",
-              "models": [],
-              "modelsEndpoint": "models"
-            },
-            "anthropic": {
-              "provider": "@@VENDOR_ANTHROPIC@@",
-              "protocol": "anthropic",
-              "model": "@@MODEL_ANTHROPIC@@",
-              "endpoint": "https://api.anthropic.com",
-              "apiKeyEnvVar": "@@ANTHROPIC_API_KEY@@",
-              "models": [],
-              "modelsEndpoint": "models"
-            },
-            "deepseek": {
-              "provider": "@@VENDOR_DEEPSEEK@@",
-              "protocol": "openai-compatible",
-              "model": "@@MODEL_DEEPSEEK@@",
-              "endpoint": "https://api.deepseek.com",
-              "apiKeyEnvVar": "@@DEEPSEEK_API_KEY@@",
-              "models": [],
-              "modelsEndpoint": "models"
-            },
-            "deepseek-anthropic": {
-              "provider": "@@VENDOR_DEEPSEEK@@",
-              "protocol": "anthropic",
-              "model": "@@MODEL_DEEPSEEK@@",
-              "endpoint": "https://api.deepseek.com/anthropic",
-              "apiKeyEnvVar": "@@DEEPSEEK_API_KEY@@",
-              "models": [],
-              "modelsEndpoint": "models"
-            },
-            "agnes": {
-              "provider": "@@VENDOR_AGNES@@",
-              "protocol": "openai-compatible",
-              "model": "@@MODEL_AGNES@@",
-              "endpoint": "https://apihub.agnes-ai.com/v1",
-              "apiKeyEnvVar": "@@AGNES_API_KEY@@",
-              "models": [],
-              "modelsEndpoint": "models"
-            },
-            "zhipu": {
-              "provider": "@@VENDOR_ZHIPU@@",
-              "protocol": "openai-compatible",
-              "model": "@@MODEL_ZHIPU@@",
-              "endpoint": "https://open.bigmodel.cn/api/paas/v4",
-              "apiKeyEnvVar": "@@ZHIPUAI_API_KEY@@",
-              "models": [],
-              "modelsEndpoint": "models"
-            }
-          },
           "autoFetchModels": true,
           "current": {
             "profile": "@@VENDOR_SENSENOVA@@",
@@ -151,62 +84,10 @@ public static class SettingsLoader {
               "preemptMinWindowRatio": 0.2,
               "activationRecoverySeconds": 10
             }
-          },
-          "searchProviders": {
-            "deepseek": {
-              "apiKeyEnvVar": "DEEPSEEK_API_KEY",
-              "priority": 90,
-              "enabled": true
-            },
-            "tavily": {
-              "apiKeyEnvVar": "TAVILY_API_KEY",
-              "priority": 100,
-              "enabled": true
-            },
-            "serper": {
-              "apiKeyEnvVar": "SERPER_API_KEY",
-              "priority": 200,
-              "enabled": true
-            },
-            "brave": {
-              "apiKeyEnvVar": "BRAVE_API_KEY",
-              "priority": 300,
-              "enabled": true
-            },
-            "searxng": {
-              "endpointEnvVar": "SEARXNG_URL",
-              "priority": 400,
-              "enabled": true
-            },
-            "anthropic": {
-              "priority": 500,
-              "enabled": true
-            },
-            "subagent": {
-              "priority": 999,
-              "enabled": true
-            }
           }
         }
         """
-        .Replace("@@SENSENOVA_API_KEY@@", ProviderEnvVar.SenseNovaApiKey.ToValue())
-        .Replace("@@OPENAI_API_KEY@@", ProviderEnvVar.OpenAiApiKey.ToValue())
-        .Replace("@@ANTHROPIC_API_KEY@@", ProviderEnvVar.AnthropicApiKey.ToValue())
-        .Replace("@@DEEPSEEK_API_KEY@@", ProviderEnvVar.DeepSeekApiKey.ToValue())
-        .Replace("@@AGNES_API_KEY@@", ProviderEnvVar.AgnesApiKey.ToValue())
-        .Replace("@@ZHIPUAI_API_KEY@@", ProviderEnvVar.ZhipuApiKey.ToValue())
-        .Replace("@@VENDOR_SENSENOVA@@", VendorKind.Sensenova.ToValue())
-        .Replace("@@VENDOR_OPENAI@@", VendorKind.OpenAi.ToValue())
-        .Replace("@@VENDOR_ANTHROPIC@@", VendorKind.Anthropic.ToValue())
-        .Replace("@@VENDOR_DEEPSEEK@@", VendorKind.DeepSeek.ToValue())
-        .Replace("@@VENDOR_AGNES@@", VendorKind.Agnes.ToValue())
-        .Replace("@@VENDOR_ZHIPU@@", VendorKind.Zhipu.ToValue())
-        .Replace("@@MODEL_SENSENOVA@@", DefaultModelCatalog.GetDefaultModel(VendorKind.Sensenova))
-        .Replace("@@MODEL_OPENAI@@", DefaultModelCatalog.GetDefaultModel(VendorKind.OpenAi))
-        .Replace("@@MODEL_ANTHROPIC@@", DefaultModelCatalog.GetDefaultModel(VendorKind.Anthropic))
-        .Replace("@@MODEL_DEEPSEEK@@", DefaultModelCatalog.GetDefaultModel(VendorKind.DeepSeek))
-        .Replace("@@MODEL_AGNES@@", DefaultModelCatalog.GetDefaultModel(VendorKind.Agnes))
-        .Replace("@@MODEL_ZHIPU@@", DefaultModelCatalog.GetDefaultModel(VendorKind.Zhipu));
+        .Replace("@@VENDOR_SENSENOVA@@", VendorKind.Sensenova.ToValue());
     }
 
     /// <summary>
@@ -288,6 +169,9 @@ public static class SettingsLoader {
 
     private static async Task WriteVendorSubFilesAsync(
         IFileSystem fs, string baseDir, SettingsJson fullSettings, CancellationToken ct) {
+        if (fullSettings.Vendor is null || fullSettings.Vendor.Count == 0)
+            return;
+
         var vendorsDir = Path.Combine(baseDir, "providers_llm");
         DirectoryHelper.EnsureDirectoryExists(fs, vendorsDir);
 
@@ -314,6 +198,9 @@ public static class SettingsLoader {
 
     private static async Task WriteSearchProviderSubFilesAsync(
         IFileSystem fs, string baseDir, SettingsJson fullSettings, CancellationToken ct) {
+        if (fullSettings.SearchProviders is null || fullSettings.SearchProviders.Count == 0)
+            return;
+
         var searchDir = Path.Combine(baseDir, "providers_search");
         DirectoryHelper.EnsureDirectoryExists(fs, searchDir);
 

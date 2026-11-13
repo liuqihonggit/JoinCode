@@ -137,7 +137,7 @@ public sealed class EngineApplicationBuilder {
         // 所有 Provider 相关逻辑由 jcchub.exe 服务端处理
         if (await IsHubServerAvailableAsync().ConfigureAwait(false)) {
             Diag.WriteLine("[HUB] Hub 服务可用，使用 Hub 协议 — 跳过 Provider 配置加载");
-            config = await LoadHubConfigAsync(fs, options).ConfigureAwait(false);
+            config = await LoadHubConfigAsync(fs, options, modelConfigLoader).ConfigureAwait(false);
             return config;
         }
 
@@ -168,7 +168,7 @@ public sealed class EngineApplicationBuilder {
     /// ADR 0155: Hub 模式配置加载 — 跳过所有 Provider 配置，直接使用 Hub 协议
     /// 客户端只需要 Hub endpoint（固定 http://localhost:3457），不需要 API Key、ProviderDefinitionRegistry
     /// </summary>
-    private static async Task<WorkflowConfig> LoadHubConfigAsync(IFileSystem fs, CommandLineOptions options) {
+    private static async Task<WorkflowConfig> LoadHubConfigAsync(IFileSystem fs, CommandLineOptions options, IModelConfigLoader? modelConfigLoader = null) {
         const string hubEndpoint = "http://localhost:3457";
 
         // 只加载 settings.json 的 current 部分（UI 偏好等），不加载 vendor 部分
@@ -214,20 +214,9 @@ public sealed class EngineApplicationBuilder {
         // 从服务端 /v1/models 获取可用模型列表，优先使用用户配置的模型
         var configuredModel = settings?.GetActiveProfile()?.Model;
         try {
-            using var modelClient = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
-            var modelsResponse = await modelClient.GetAsync("http://localhost:3457/v1/models").ConfigureAwait(false);
-            if (modelsResponse.IsSuccessStatusCode) {
-                var modelsJson = await modelsResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-                var modelsData = RelaxedJsonSerializer.Deserialize(modelsJson, HubModelsJsonContext.Default.HubModelsResponse);
-                if (modelsData?.Data is not null && modelsData.Data.Count > 0) {
-                    var selectedModel = SelectHubModel(modelsData.Data, configuredModel);
-                    config = config with { Provider = config.Provider with { ModelId = selectedModel.Name } };
-                    Diag.WriteLine($"[HUB] 从服务端获取 {modelsData.Data.Count} 个模型，使用: {selectedModel.Name} (provider={selectedModel.Provider})");
-                }
-            }
+            config = await FetchHubModelsAsync(config, configuredModel, modelConfigLoader).ConfigureAwait(false);
         } catch (Exception ex) {
             Diag.WriteLine($"[HUB] 从服务端获取模型列表失败: {ex.Message}");
-            // 兜底：使用配置的模型名（即使无法验证是否可用）
             if (!string.IsNullOrEmpty(configuredModel)) {
                 config = config with { Provider = config.Provider with { ModelId = configuredModel } };
                 Diag.WriteLine($"[HUB] 服务端不可达，使用配置的模型: {configuredModel}");
@@ -277,6 +266,60 @@ public sealed class EngineApplicationBuilder {
             Diag.WriteLine($"[HUB] 配置的模型 {configuredModel} 不在可用列表中，使用第一个可用模型: {availableModels[0].Name}");
         }
         return availableModels[0];
+    }
+
+    /// <summary>
+    /// 从 Hub /v1/models 获取模型列表并灌入 ModelConfigLoader
+    /// </summary>
+    private static async Task<WorkflowConfig> FetchHubModelsAsync(WorkflowConfig config, string? configuredModel, IModelConfigLoader? modelConfigLoader) {
+        using var modelClient = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+        var modelsResponse = await modelClient.GetAsync("http://localhost:3457/v1/models").ConfigureAwait(false);
+        if (!modelsResponse.IsSuccessStatusCode) return config;
+
+        var modelsJson = await modelsResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
+        var modelsData = RelaxedJsonSerializer.Deserialize(modelsJson, HubModelsJsonContext.Default.HubModelsResponse);
+        if (modelsData?.Data is null || modelsData.Data.Count == 0) return config;
+
+        var selectedModel = SelectHubModel(modelsData.Data, configuredModel);
+        config = config with { Provider = config.Provider with { ModelId = selectedModel.Name } };
+        Diag.WriteLine($"[HUB] 从服务端获取 {modelsData.Data.Count} 个模型，使用: {selectedModel.Name} (provider={selectedModel.Provider})");
+
+        if (modelConfigLoader is not null) {
+            ApplyHubModelsToConfigLoader(modelConfigLoader, modelsData.Data, selectedModel);
+        }
+
+        return config;
+    }
+
+    /// <summary>
+    /// 将 Hub /v1/models 返回的模型信息灌入 ModelConfigLoader — 按 Provider 分组构造 ModelProviderConfig
+    /// </summary>
+    private static void ApplyHubModelsToConfigLoader(IModelConfigLoader loader, List<HubModelInfo> models, HubModelInfo selectedModel) {
+        var providers = new Dictionary<string, ModelProviderConfig>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var model in models) {
+            if (!providers.TryGetValue(model.Provider, out var providerConfig)) {
+                providerConfig = new ModelProviderConfig();
+                providers[model.Provider] = providerConfig;
+            }
+
+            var isDefault = string.Equals(model.Name, selectedModel.Name, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(model.Provider, selectedModel.Provider, StringComparison.OrdinalIgnoreCase);
+
+            var modelItem = new ModelItemConfig {
+                Id = model.Name,
+                DisplayName = model.Name,
+                ContextWindow = model.ContextWindow,
+            };
+
+            if (isDefault) {
+                providers[model.Provider] = providerConfig with { DefaultModelId = model.Name };
+            }
+
+            providerConfig.Models.Add(modelItem);
+        }
+
+        loader.ApplyProviders(providers);
     }
 
     /// <summary>

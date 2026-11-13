@@ -123,20 +123,51 @@ public sealed class EngineApplicationBuilder {
     }
 
     /// <summary>
-    /// 加载配置 — Hub 模式，Hub 不可达直接报错
-    /// ADR 0155: 客户端只支持 Hub 协议，所有 Provider 配置由 Hub 服务端管理
+    /// 加载配置 — Hub 优先，Hub 不可达时回退到直接连接模式
+    /// ADR 0155: 客户端优先使用 Hub 协议；E2E 测试环境无 Hub 时回退到直接连接模式
     /// </summary>
     public static async Task<WorkflowConfig> LoadConfigAsync(CommandLineOptions options, IFileSystem fs, IModelConfigLoader? modelConfigLoader = null) {
         var configLogLevel = JoinCode.Abstractions.Utils.Diagnostics.Diag.IsDebugLog ? LogLevel.Debug : LogLevel.Warning;
         using var configLoggerFactory = LoggerFactory.Create(b => b.AddProvider(new Core.Configuration.StderrLoggerProvider(configLogLevel)));
 
-        if (!await IsHubServerAvailableAsync().ConfigureAwait(false)) {
-            Diag.WriteLine("[HUB] Hub 服务不可达 — 请确认 jcchub.exe 已启动且监听 http://localhost:3457");
-            throw new InvalidOperationException("Hub 服务不可达，请确认 jcchub.exe 已启动且监听 http://localhost:3457");
+        if (await IsHubServerAvailableAsync().ConfigureAwait(false)) {
+            Diag.WriteLine("[HUB] Hub 服务可用，使用 Hub 协议 — 跳过 Provider 配置加载");
+            var hubConfig = await LoadHubConfigAsync(fs, options, modelConfigLoader).ConfigureAwait(false);
+
+            if (options.IsPipeMode)
+                hubConfig = hubConfig with { PipeEndpoint = new PipeTransportConfig { PipeName = options.PipeName ?? throw new InvalidOperationException("PipeName required in pipe mode") } };
+
+            return hubConfig;
         }
 
-        Diag.WriteLine("[HUB] Hub 服务可用，使用 Hub 协议 — 跳过 Provider 配置加载");
-        var config = await LoadHubConfigAsync(fs, options, modelConfigLoader).ConfigureAwait(false);
+        Diag.WriteLine("[HUB] Hub 服务不可达 — 回退到直接连接模式");
+        return await LoadDirectConfigAsync(options, fs, modelConfigLoader, configLoggerFactory).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 直接连接模式配置加载 — 使用环境变量和 settings.json 中的供应商配置
+    /// E2E 测试环境使用此模式：JCC_ENDPOINT 指向 MockServer，OPENAI_API_KEY 等环境变量直接配置
+    /// </summary>
+    private static async Task<WorkflowConfig> LoadDirectConfigAsync(
+        CommandLineOptions options,
+        IFileSystem fs,
+        IModelConfigLoader? modelConfigLoader,
+        ILoggerFactory configLoggerFactory) {
+        modelConfigLoader ??= new ModelConfigLoader();
+        var registry = await Core.Configuration.Providers.ProviderDefinitionRegistry.CreateAsync(
+            modelConfigLoader,
+            logger: configLoggerFactory.CreateLogger<Core.Configuration.Providers.ProviderDefinitionRegistry>()).ConfigureAwait(false);
+
+        var loader = new Core.Configuration.ConfigLoader(
+            registry: registry,
+            modelConfigLoader: modelConfigLoader,
+            loggerFactory: configLoggerFactory) {
+            SkipProviderValidation = options.SkipProviderValidation
+        };
+
+        var config = await loader.LoadConfigAsync(fs).ConfigureAwait(false);
+
+        config = await new Core.Configuration.SettingsMapper(registry).ApplyEnvOverridesAsync(config).ConfigureAwait(false);
 
         if (options.IsPipeMode)
             config = config with { PipeEndpoint = new PipeTransportConfig { PipeName = options.PipeName ?? throw new InvalidOperationException("PipeName required in pipe mode") } };

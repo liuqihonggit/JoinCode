@@ -169,6 +169,9 @@ public static class SettingsLoader {
 
     private static async Task WriteVendorSubFilesAsync(
         IFileSystem fs, string baseDir, SettingsJson fullSettings, CancellationToken ct) {
+        if (fullSettings.Vendor is null || fullSettings.Vendor.Count == 0)
+            return;
+
         var vendorsDir = Path.Combine(baseDir, "providers_llm");
         DirectoryHelper.EnsureDirectoryExists(fs, vendorsDir);
 
@@ -195,6 +198,9 @@ public static class SettingsLoader {
 
     private static async Task WriteSearchProviderSubFilesAsync(
         IFileSystem fs, string baseDir, SettingsJson fullSettings, CancellationToken ct) {
+        if (fullSettings.SearchProviders is null || fullSettings.SearchProviders.Count == 0)
+            return;
+
         var searchDir = Path.Combine(baseDir, "providers_search");
         DirectoryHelper.EnsureDirectoryExists(fs, searchDir);
 

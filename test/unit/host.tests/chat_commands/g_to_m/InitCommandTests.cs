@@ -77,32 +77,16 @@ public sealed class InitCommandTests {
         var rulesContent = await fs.ReadAllText(expectedRulesFile);
         rulesContent.Should().Contain("项目规则");
 
-        // P8: settings.json 极简（不含 vendor 内联），供应商配置拆到 providers_llm/ 子文件夹
+        // P8: settings.json 极简（不含 vendor/searchProviders 内联，由 Hub 管理）
         var settingsContent = await fs.ReadAllText(expectedSettingsFile);
         settingsContent.Should().Contain("autoFetchModels", "骨架应启用 autoFetchModels");
         settingsContent.Should().Contain("profile", "极简 settings.json 应含 current.profile 指针");
-
-        // P8: providers_llm/ 子文件夹含供应商配置
-        var deepseekConfig = Path.Combine(expectedJccDir, "providers_llm", "deepseek", "config.json");
-        fs.FileExists(deepseekConfig).Should().BeTrue("providers_llm/deepseek/config.json 应存在");
-        var deepseekConfigContent = await fs.ReadAllText(deepseekConfig);
-        deepseekConfigContent.Should().Contain("https://api.deepseek.com", "应含 DeepSeek API 端点");
-        deepseekConfigContent.Should().Contain("modelsEndpoint", "骨架应含 modelsEndpoint 供 AutoFetchModels 拉取");
-
-        var deepseekAnthropicConfig = Path.Combine(expectedJccDir, "providers_llm", "deepseek-anthropic", "config.json");
-        fs.FileExists(deepseekAnthropicConfig).Should().BeTrue("providers_llm/deepseek-anthropic/config.json 应存在 (Anthropic 协议)");
 
         // P8: current/ 10 子文件
         var currentDir = Path.Combine(expectedJccDir, "current");
         fs.DirectoryExists(currentDir).Should().BeTrue("current/ 目录应存在");
         fs.FileExists(Path.Combine(currentDir, "ui.json")).Should().BeTrue("current/ui.json 应存在");
         fs.FileExists(Path.Combine(currentDir, "subagent.json")).Should().BeTrue("current/subagent.json 应存在");
-
-        // P8: providers_search/ 7 子文件夹
-        var searchDir = Path.Combine(expectedJccDir, "providers_search");
-        fs.DirectoryExists(searchDir).Should().BeTrue("providers_search/ 目录应存在");
-        fs.FileExists(Path.Combine(searchDir, "deepseek", "config.json")).Should().BeTrue("providers_search/deepseek/config.json 应存在");
-        fs.FileExists(Path.Combine(searchDir, "tavily", "config.json")).Should().BeTrue("providers_search/tavily/config.json 应存在");
     }
 
     [Fact]

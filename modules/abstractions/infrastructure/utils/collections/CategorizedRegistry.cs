@@ -1,13 +1,13 @@
 namespace Core.Utils;
 
 /// <summary>
-/// 分类注册表 — 在 CachedRegistry 基础上为每个键关联分类标签，支持启用/禁用过滤和缓存枚举
+/// 分类注册表 — 在 MapRegistry(trackCanonical: true) 基础上为每个键关联分类标签，支持启用/禁用过滤和缓存枚举
 /// </summary>
 /// <typeparam name="TKey">键类型</typeparam>
 /// <typeparam name="TValue">值类型</typeparam>
 /// <typeparam name="TCategory">分类类型</typeparam>
 public sealed class CategorizedRegistry<TKey, TValue, TCategory> where TKey : notnull {
-    private readonly CachedRegistry<TKey, TValue> _registry;
+    private readonly MapRegistry<TKey, TValue> _registry;
     private readonly Dictionary<TKey, TCategory> _categories;
     private readonly Func<TValue, bool>? _isEnabled;
     private readonly TCategory _defaultCategory;
@@ -29,7 +29,7 @@ public sealed class CategorizedRegistry<TKey, TValue, TCategory> where TKey : no
         TCategory defaultCategory,
         Func<TValue, bool>? isEnabled = null,
         IEqualityComparer<TKey>? comparer = null) {
-        _registry = new CachedRegistry<TKey, TValue>(comparer);
+        _registry = new MapRegistry<TKey, TValue>(comparer, trackCanonical: true);
         _categories = new Dictionary<TKey, TCategory>(comparer ?? EqualityComparer<TKey>.Default);
         _isEnabled = isEnabled;
         _defaultCategory = defaultCategory;

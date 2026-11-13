@@ -1,9 +1,9 @@
 namespace Infra.Tests.Utils.Collections;
 
-public class CachedRegistryTests {
+public class MapRegistryCanonicalTests {
     [Fact]
     public void Register_And_TryGetValue_ShouldWork() {
-        var registry = new CachedRegistry<string, int>();
+        var registry = new MapRegistry<string, int>(trackCanonical: true);
         registry.Register("a", 1);
         registry.TryGetValue("a", out var value).Should().BeTrue();
         value.Should().Be(1);
@@ -11,13 +11,13 @@ public class CachedRegistryTests {
 
     [Fact]
     public void TryGetValue_MissingKey_ShouldReturnFalse() {
-        var registry = new CachedRegistry<string, int>();
+        var registry = new MapRegistry<string, int>(trackCanonical: true);
         registry.TryGetValue("a", out _).Should().BeFalse();
     }
 
     [Fact]
     public void RegisterAlias_ShouldMapToValue() {
-        var registry = new CachedRegistry<string, int>();
+        var registry = new MapRegistry<string, int>(trackCanonical: true);
         registry.Register("a", 1);
         registry.RegisterAlias("alias_a", 1);
         registry.TryGetValue("alias_a", out var value).Should().BeTrue();
@@ -26,7 +26,7 @@ public class CachedRegistryTests {
 
     [Fact]
     public void Unregister_ShouldRemoveKey() {
-        var registry = new CachedRegistry<string, int>();
+        var registry = new MapRegistry<string, int>(trackCanonical: true);
         registry.Register("a", 1);
         registry.Unregister("a").Should().BeTrue();
         registry.TryGetValue("a", out _).Should().BeFalse();
@@ -34,13 +34,13 @@ public class CachedRegistryTests {
 
     [Fact]
     public void Unregister_MissingKey_ShouldReturnFalse() {
-        var registry = new CachedRegistry<string, int>();
+        var registry = new MapRegistry<string, int>(trackCanonical: true);
         registry.Unregister("a").Should().BeFalse();
     }
 
     [Fact]
     public void Count_ShouldReturnCorrectCount() {
-        var registry = new CachedRegistry<string, int>();
+        var registry = new MapRegistry<string, int>(trackCanonical: true);
         registry.Count.Should().Be(0);
         registry.Register("a", 1);
         registry.Count.Should().Be(1);
@@ -48,7 +48,7 @@ public class CachedRegistryTests {
 
     [Fact]
     public void ContainsKey_ShouldWork() {
-        var registry = new CachedRegistry<string, int>();
+        var registry = new MapRegistry<string, int>(trackCanonical: true);
         registry.Register("a", 1);
         registry.ContainsKey("a").Should().BeTrue();
         registry.ContainsKey("b").Should().BeFalse();

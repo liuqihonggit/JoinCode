@@ -88,6 +88,10 @@ public static partial class ServiceRegistration {
         services.AddSingleton<INodeRegistry>(sp => NodeRegistry.Build(sp));
         sw?.Stop();
 
+        sw = PerfTimer.Start("    AddAotHandlerRegistry");
+        AotHandlerRegistrations_JoinCode_Composition.AddAotHandlerRegistry(services);
+        sw?.Stop();
+
         services.AddLogging();
 
         return services;

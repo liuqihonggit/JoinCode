@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
         <ProjectType>library</ProjectType>
@@ -64,6 +64,7 @@
     <ProjectReference Include="$(RepoRoot)modules/generators/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="$(RepoRoot)modules/generators/fsm.generator/Fsm.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="$(RepoRoot)modules/generators/mcp_tool_dispatch.generator/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/aot_handler.generator/AotHandler.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 

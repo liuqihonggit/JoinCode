@@ -27,6 +27,7 @@
   <!-- 源码生成器 — 扫描 engine 程序集 [Register] 类型生成 AddJoinCodeEngineAutoRegisteredServices/Options（ADR 0143 Step 3c） -->
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)modules/generators/mcp_tool_dispatch.generator/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)modules/generators/aot_handler.generator/AotHandler.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

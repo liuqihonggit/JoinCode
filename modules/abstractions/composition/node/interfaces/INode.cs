@@ -5,7 +5,7 @@ namespace JoinCode.Abstractions.Composition;
 /// 节点本身无 NodeKind 固有属性，由消费点通过 Profile 配置决定如何组合
 /// </summary>
 public interface INode {
-    /// <summary>节点唯一标识（如 "shell-tool"、"crash-snapshot-mw"）</summary>
+    /// <summary>节点唯一标识（如 "shell"、"crash-snapshot-mw"）</summary>
     string NodeId { get; }
 
     /// <summary>节点元数据</summary>

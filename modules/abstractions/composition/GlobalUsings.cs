@@ -51,6 +51,7 @@ global using JoinCode.Abstractions.Transport;
 global using JoinCode.Abstractions.Utils;
 global using System.Collections.Frozen;
 global using System.Collections.Immutable;
+global using Microsoft.Extensions.DependencyInjection;
 global using Structura.Collections;
 global using System.ComponentModel.DataAnnotations;
 global using System.Diagnostics.CodeAnalysis;

@@ -3,7 +3,7 @@
 > 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [adr/](../adr/README.md)
 > 🔗 **上游索引**: [design/README.md](README.md) — 修改本文档后须同步更新此索引
 
-> 状态: accepted（阶段1 基础设施层已实现并验收）
+> 状态: accepted（阶段1 基础设施层 + P6 AOT改造 + 阶段7 统一Registry 已实现并验收）
 > 创建: 2026-11-12
 > 关联 ADR: 待定（后续阶段实现后创建）
 > 取代: 无
@@ -815,3 +815,38 @@ services.AddSingleton(sp => {
 ---
 
 ## 10. 所有决策已确认
+
+---
+
+## 11. 阶段7: 统一 Registry — 实现总结
+
+> 状态: accepted（2026-11-14 已实现并验收）
+
+### 11.1 问题
+
+项目中存在 20+ 个 Registry，职责有重叠：
+- `IRegistryHub` 接口已定义但**无实现类** — 聚合门面缺失
+- `DynamicPluginRegistry`、`PluginApprovalRegistry` **无 DI 注册** — 通过 `new` 创建，多实例状态不一致风险
+- `PluginFileWatcher` 未接线到生产环境 — P6 创建但从未启动
+- `CachedRegistry` 标注为"向后兼容别名"但仍在使用 — 冗余代码
+
+### 11.2 解决方案
+
+| 步骤 | 内容 | 关键文件 |
+|------|------|---------|
+| 7-A | 落地 `IRegistryHub` 实现 — `RegistryHub` 聚合9个通用Registry | `modules/composition/composition/dependency_injection/core/RegistryHub.cs` |
+| 7-A | `FileReadListenerRegistry` 纳入 DI 注册 | `ServiceRegistration.cs` |
+| 7-B | `PluginApprovalRegistry` + `DynamicPluginRegistry` + `ExternalPluginLoader` + `PluginFileWatcher` 纳入 DI Singleton | `modules/plugins/plugins.infrastructure/services/PluginServiceRegistration.cs` |
+| 7-B | `PluginFileWatcherHostedService` — IHostedService 自动启动文件监控 | `modules/composition/composition/dependency_injection/infrastructure/PluginFileWatcherHostedService.cs` |
+| 7-C | `CategorizedRegistry` 从 `CachedRegistry` 改为 `MapRegistry(trackCanonical: true)` | `modules/abstractions/infrastructure/utils/collections/CategorizedRegistry.cs` |
+| 7-C | `CachedRegistry` 归档到 `.xxx/` | 消除向后兼容别名冗余 |
+
+### 11.3 架构边界明确
+
+| Registry | 职责 | DI 注册 |
+|----------|------|---------|
+| `DynamicPluginRegistry` | DSH 规范内存态 define/run/invoke（外部动态插件） | Singleton |
+| `PluginManager` | Actor 模型加载/卸载/资源管理（内部工作流+外部进程插件） | Singleton（[Register] 自动） |
+| `PluginApprovalRegistry` | 插件审批（首个回答者获胜，CAS） | Singleton |
+| `PluginFileWatcher` | YAML 约定文件夹文件监控 → DynamicPluginRegistry | Singleton + IHostedService |
+| `IRegistryHub` | 9个通用Registry聚合门面 | Singleton |

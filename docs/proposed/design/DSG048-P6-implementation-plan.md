@@ -1,6 +1,6 @@
 # P6 实现规划 — DynamicPluginRegistry AOT 改造
 
-> 状态: proposed
+> 状态: accepted（已实现 2026-11-14）
 > 创建: 2026-11-14
 > 关联: [DSG048](DSG048-node-plugin-inheritance-architecture.md) §5.8, [DSG048-impl](DSG048-implementation-design.md) §8
 
@@ -405,3 +405,63 @@ P6 改造后，`DynamicPluginRegistry` 成为 `NodeRegistry` 的补充：`NodeRe
 | 6 | 步骤 8（DI 注册） | exe 启动验证 |
 | 7 | 步骤 7（文件监控） | 编译通过 + 单元测试 |
 | 8 | 步骤 9（验收） | exe 对话验证 + AOT 发布验证 |
+
+---
+
+## 9. 实现记录（2026-11-14 完成）
+
+### 9.1 实际实现步骤与决策
+
+| 步骤 | 实际实现 | 关键决策 | commit |
+|------|---------|---------|--------|
+| P6-A: 接口定义 | `IAotHandlerRegistry` + `IAotHandlerRegistryBuilder` 移至 `abstractions.interfaces/interfaces/tools/`（非 `plugins.contracts/registry/`） | 命名空间从 `JoinCode.Abstractions.Entity` 改为 `JoinCode.Abstractions.Tools` — 生成器在所有含 `[McpToolDispatch]` 的项目中运行，这些项目不依赖 `plugins.contracts` 但都依赖 `abstractions` | `76b2eb36a` |
+| P6-B: 源码生成器 | `AotHandlerRegistryGenerator` 生成两种输出：`Register(builder)`（Builder 模式）+ `AddAotHandlerRegistry(services)`（DI 自包含注册） | 生成器自包含 DI 注册代码（含 `GeneratedAotHandlerRegistry` 内部实现类），避免 Composition 引用 `plugins.infrastructure` | `76b2eb36a` + `fb9121a6a` |
+| P6-C: Invoke 改造 | `DynamicPluginRegistry.Invoke` 增加 `IAotHandlerRegistry?` 构造参数，AOT 路径优先 → 动态路径降级 | AOT handler 不需要 define/run/stop/undefine 生命周期管理 — 编译期已注册，始终可用 | `76b2eb36a` |
+| P6-D: YAML 节点 ID | `base.yaml` 中 `shell-tool→shell`, `fs-tool→file`, `web-tool→web`, `code-tool→code_execution` | 消除 `-tool` 后缀保持 SSOT，节点 ID 与 `ToolCategory.[EnumValue]` 统一 | `8d8473fc4` |
+| P6-E: DI 注册 | `ServiceRegistration.cs` 中 `AddNodeRegistry` 之后调用 `AotHandlerRegistrations_JoinCode_Composition.AddAotHandlerRegistry(services)` | 生成器生成的 `AddAotHandlerRegistry` 方法注册 Handler 单例 + 构建 `IAotHandlerRegistry` 实现，Composition 不需要引用 `plugins.infrastructure` | `fb9121a6a` |
+| P6-F: 文件监控 | `PluginYamlConfig` DTO + `ExternalPluginLoader`（反射加载 DLL）+ `PluginFileWatcher`（FileSystemWatcher 监控 `~/.jcc/plugins/`） | `ExternalPluginLoader` 标注 `[RequiresUnreferencedCode]`（非 AOT 路径）；`PluginFileWatcher` 注入 `IFileSystem` 符合 JCC9001 规范 | `62b8ad96d` |
+| P6-G: 验收 | 5 个集成测试（`AotHandlerRegistryIntegrationTests`）+ exe 启动验证 + 全仓编译通过 | 集成测试验证 `IAotHandlerRegistry` 在完整 DI 容器中可用，节点 ID 与 `ToolCategory.[EnumValue]` 对齐 | `b21377403` |
+
+### 9.2 关键架构决策
+
+1. **接口位置**：`IAotHandlerRegistry` 从 `plugins.contracts/registry/` 移至 `abstractions.interfaces/interfaces/tools/` — 生成器在所有含 `[McpToolDispatch]` 的项目中运行，这些项目不依赖 `plugins.contracts` 但都依赖 `abstractions`
+
+2. **生成器自包含 DI 注册**：`AotHandlerRegistryGenerator` 生成 `AddAotHandlerRegistry(IServiceCollection)` 方法，包含 Handler 单例注册 + `IAotHandlerRegistry` 实现（`GeneratedAotHandlerRegistry` 内部类）— Composition 项目不需要引用 `plugins.infrastructure`
+
+3. **JCC11004 分析器移除**：用户选择完全移除 JCC11004 规则（公开方法返回集合类型时禁止 return null）— 规则注册通过反射扫描 `[AnalyzerRule]` 特性自动注册，删除文件即可移除
+
+4. **`#nullable enable` 指令**：生成器输出的代码必须包含 `#nullable enable` 指令，否则 CS8669 错误（可空引用类型批注只在 `#nullable` 上下文中可用）
+
+5. **NoWarn 排除 AOT 反射警告**：`Plugins.Infrastructure.csproj` 添加 `NoWarn=JCC1015;JCC1016;IL2026;IL2075;IL2072` — `ExternalPluginLoader` 本质上需要反射（`Activator.CreateInstance`、`MethodInfo.Invoke`、`AssemblyLoadContext`），这些在 AOT 模式下不可用但在非 AOT 模式下必需
+
+### 9.3 验收结果
+
+| 验收项 | 方式 | 结果 |
+|--------|------|------|
+| Debug 编译 | `Build-AllDomains.ps1` 全仓编译 | ✅ 全部通过 |
+| 集成测试 | `AotHandlerRegistryIntegrationTests`（5 个测试） | ✅ 5/5 通过 |
+| exe 启动 | `dotnet run --project JoinCode.csproj -- --help` | ✅ 正常启动 |
+| 生成代码审查 | `AotHandlerRegistrations_JoinCode_Composition.g.cs`（1970 行） | ✅ 749 个 handler 注册，涵盖所有 `[McpToolDispatch]` 标注的类 |
+| Composition 测试 | `Composition.Tests`（1028 个测试） | ✅ 1028/1028 通过 |
+
+### 9.4 文件清单
+
+**新增文件**：
+- `modules/abstractions/abstractions.interfaces/interfaces/tools/IAotHandlerRegistry.cs`
+- `modules/abstractions/abstractions.interfaces/interfaces/tools/IAotHandlerRegistryBuilder.cs`
+- `modules/generators/aot_handler.generator/` — 源码生成器项目（3 个文件）
+- `modules/plugins/plugins.infrastructure/services/PluginAotHandlerRegistry.cs`
+- `modules/plugins/plugins.infrastructure/services/AotHandlerRegistryBuilder.cs`
+- `modules/plugins/plugins.infrastructure/services/PluginYamlConfig.cs`
+- `modules/plugins/plugins.infrastructure/services/ExternalPluginLoader.cs`
+- `modules/plugins/plugins.infrastructure/services/PluginFileWatcher.cs`
+- `test/integration/integration.tests/plugins/AotHandlerRegistryIntegrationTests.cs`
+
+**修改文件**：
+- `modules/plugins/plugins.contracts/registry/DynamicPluginRegistry.cs` — Invoke 改造
+- `modules/generators/aot_handler.generator/AotHandlerRegistryGenerator.cs` — 生成 `AddAotHandlerRegistry` 方法
+- `modules/composition/composition/dependency_injection/core/ServiceRegistration.cs` — DI 注册调用
+- `modules/composition/composition/GlobalUsings.cs` — 添加 `JoinCode.Plugins.Infrastructure.Generated`
+- `resources/profiles/base.yaml` — YAML 节点 ID 对齐
+- `resources/profiles/ci.yaml` / `sdk.yaml` — 同步更新
+- 18 个 .csproj — 添加 `aot_handler.generator` Analyzer 引用

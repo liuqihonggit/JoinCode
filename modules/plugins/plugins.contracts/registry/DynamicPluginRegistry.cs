@@ -194,17 +194,21 @@ public sealed class DynamicPluginRegistry {
     private readonly PluginApprovalRegistry _approval;
     private readonly Func<DateTimeOffset>? _clock;
     private readonly Func<PluginPackage, FrozenDictionary<string, Func<object?[], object?>>> _loader;
+    private readonly IAotHandlerRegistry? _aotRegistry;
 
     /// <param name="approval">审批注册表（依赖 #3），null 时跳过审批</param>
     /// <param name="clock">时钟注入，null 用 DateTimeOffset.UtcNow</param>
     /// <param name="loader">handler 表加载委托，null 时返回空表（AOT 兼容）</param>
+    /// <param name="aotRegistry">AOT handler 注册表，null 时跳过 AOT 路径（非 AOT 模式或无编译期 handler）</param>
     public DynamicPluginRegistry(
         PluginApprovalRegistry? approval = null,
         Func<DateTimeOffset>? clock = null,
-        Func<PluginPackage, FrozenDictionary<string, Func<object?[], object?>>>? loader = null) {
+        Func<PluginPackage, FrozenDictionary<string, Func<object?[], object?>>>? loader = null,
+        IAotHandlerRegistry? aotRegistry = null) {
         _approval = approval ?? new PluginApprovalRegistry(clock);
         _clock = clock;
         _loader = loader ?? (_ => FrozenDictionary<string, Func<object?[], object?>>.Empty);
+        _aotRegistry = aotRegistry;
     }
 
     private DateTimeOffset Now() => _clock?.Invoke() ?? DateTimeOffset.UtcNow;
@@ -347,10 +351,22 @@ public sealed class DynamicPluginRegistry {
 
     /// <summary>
     /// invoke handler — host.call(method, args) 路由
+    /// <para>路由优先级：AOT handler 表 → 动态运行实例 handler 表</para>
     /// <para>4 类失败码：PluginNotRunning / StaleRun / MethodNotFound / HandlerError</para>
     /// <para>expectedPackageId 不匹配当前运行实例 → StaleRun（UpdatePlugin 后旧引用失效）</para>
     /// </summary>
     public PluginInvokeResult Invoke(string name, string method, object?[] args, PluginPackageId? expectedPackageId = null) {
+        if (_aotRegistry is not null) {
+            var aotHandlers = _aotRegistry.GetHandlers(name);
+            if (aotHandlers is not null && aotHandlers.TryGetValue(method, out var aotHandler)) {
+                try {
+                    return PluginInvokeResult.Ok(aotHandler(args));
+                } catch (Exception ex) {
+                    return PluginInvokeResult.Fail(PluginInvokeFailure.HandlerError, ex.Message);
+                }
+            }
+        }
+
         if (!_runtime.TryGetRunning(name, out var instance))
             return PluginInvokeResult.Fail(PluginInvokeFailure.PluginNotRunning, $"插件 {name} 未运行。");
 

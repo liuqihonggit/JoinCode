@@ -1,10 +1,9 @@
 namespace Core.Configuration;
 
 /// <summary>
-/// 配置加载器 — 通过中间件管道或直接方法加载多源配置并合并为 WorkflowConfig,提供 settings.json/global.json/auth.json 的读写入口
+/// 配置加载器 — 加载多源配置并合并为 WorkflowConfig,提供 settings.json/global.json/auth.json 的读写入口
 /// </summary>
 public class ConfigLoader {
-    private readonly MiddlewarePipeline<ConfigLoadContext>? _pipeline;
     private readonly IProviderDefinitionRegistry _registry;
     private readonly SettingsMapper _settingsMapper;
     private readonly IModelConfigLoader? _modelConfigLoader;
@@ -19,60 +18,21 @@ public class ConfigLoader {
     /// <summary>
     /// 构造配置加载器
     /// </summary>
-    /// <param name="middlewares">配置加载中间件序列(可选),非 null 时启用管道化加载</param>
-    /// <param name="loggerFactory">日志工厂(可选),启用管道日志作用域</param>
+    /// <param name="loggerFactory">日志工厂(可选)</param>
     /// <param name="registry">Provider 定义注册表(可选),默认创建内置注册表</param>
     /// <param name="settingsMapper">Settings 映射器(可选),默认创建内置映射器</param>
     /// <param name="modelConfigLoader">模型配置加载器(可选),用于灌入 vendor 模型数据</param>
     /// <param name="processService">进程服务(可选),apiKeyHelper 脚本执行用</param>
-    public ConfigLoader(IEnumerable<IConfigLoadMiddleware>? middlewares = null, ILoggerFactory? loggerFactory = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null, IModelConfigLoader? modelConfigLoader = null, IProcessService? processService = null) {
+    public ConfigLoader(ILoggerFactory? loggerFactory = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null, IModelConfigLoader? modelConfigLoader = null, IProcessService? processService = null) {
         _logger = loggerFactory?.CreateLogger<ConfigLoader>();
         _registry = registry ?? ProviderDefinitionRegistry.Create(modelConfigLoader ?? new ModelConfigLoader(), logger: loggerFactory?.CreateLogger<ProviderDefinitionRegistry>());
         _settingsMapper = settingsMapper ?? new SettingsMapper(_registry);
         _modelConfigLoader = modelConfigLoader;
         _processService = processService;
-        if (middlewares is not null && loggerFactory is not null) {
-            _pipeline = new PipelineBuilder<ConfigLoadContext>()
-                .WithLoggingScope(loggerFactory)
-                .UseRange(middlewares)
-                .Build();
-        } else if (middlewares is not null) {
-            _pipeline = new MiddlewarePipeline<ConfigLoadContext>(middlewares);
-        }
     }
 
     /// <summary>
-    /// 管道化加载配置 — 通过中间件管道执行7步配置加载
-    /// </summary>
-    public async Task<WorkflowConfig> LoadAsync(IFileSystem fs, CancellationToken cancellationToken = default) {
-        if (_pipeline is null) {
-            return await LoadConfigAsync(fs, cancellationToken).ConfigureAwait(false);
-        }
-
-        var context = new ConfigLoadContext {
-            FileSystem = fs,
-            ProjectDirectory = fs.GetCurrentDirectory(),
-            CancellationToken = cancellationToken,
-            SkipProviderValidation = SkipProviderValidation
-        };
-
-        try {
-            await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
-
-            if (context.Failed) {
-                throw new ConfigurationException(context.ErrorMessage ?? "[GRD004] 加载配置失败");
-            }
-
-            return context.Result ?? throw new ConfigurationException("[GRD001] 配置加载未产生结果");
-        } catch (ConfigurationException) {
-            throw;
-        } catch (Exception ex) {
-            throw new ConfigurationException("[GRD005] 加载配置失败", ex);
-        }
-    }
-
-    /// <summary>
-    /// 加载配置（向后兼容）
+    /// 加载配置
     /// 配置优先级（从低到高）: UserSettings → ProjectSettings → LocalSettings → FlagSettings → PolicySettings → 环境变量 → Provider 定义环境变量
     /// </summary>
     public async Task<WorkflowConfig> LoadConfigAsync(IFileSystem fs, CancellationToken cancellationToken = default) {

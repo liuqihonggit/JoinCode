@@ -1,5 +1,4 @@
 global using Core.Configuration;
-global using Core.Configuration.ConfigPipeline;
 global using Core.Configuration.Providers;
 global using Core.Utils;
 global using Guard.Configuration.Security;

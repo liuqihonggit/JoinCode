@@ -6,7 +6,7 @@ namespace Services.Web;
 /// 优先级 100（最高优先），需 TAVILY_API_KEY 就绪。
 /// </summary>
 [Register(typeof(ISearchProvider), ServiceLifetime.Singleton)]
-public sealed partial class TavilySearchProvider : ServiceEntity, ISearchProvider {
+public sealed partial class TavilySearchProvider : SearchProviderBase {
     private const string Endpoint = "https://api.tavily.com/search";
     private const int DefaultPriority = 100;
 
@@ -14,7 +14,6 @@ public sealed partial class TavilySearchProvider : ServiceEntity, ISearchProvide
 
     private readonly IApiClient _apiClient;
     private readonly string? _apiKey;
-    private readonly ILogger<TavilySearchProvider>? _logger;
 
     /// <summary>
     /// 初始化 <see cref="TavilySearchProvider"/> 实例。
@@ -25,67 +24,58 @@ public sealed partial class TavilySearchProvider : ServiceEntity, ISearchProvide
     public TavilySearchProvider(
         IApiClient apiClient,
         IConfigRoot config,
-        ILogger<TavilySearchProvider>? logger = null) {
+        ILogger<TavilySearchProvider>? logger = null)
+        : base(logger) {
         _apiClient = apiClient;
         var envVarName = SearchProviderConfigHelper.ResolveEnvVar(config, "tavily", "apiKeyEnvVar", DefaultApiKeyEnvVar);
         _apiKey = Environment.GetEnvironmentVariable(envVarName);
-        _logger = logger;
     }
 
     /// <inheritdoc />
-    public string Name => "Tavily";
+    public override string Name => "Tavily";
 
     /// <inheritdoc />
-    public int Priority => DefaultPriority;
+    public override int Priority => DefaultPriority;
 
     /// <inheritdoc />
-    public bool IsAvailable => !string.IsNullOrWhiteSpace(_apiKey);
+    public override bool IsAvailable => !string.IsNullOrWhiteSpace(_apiKey);
 
     /// <inheritdoc />
-    public async Task<SearchProviderResult> SearchAsync(SearchRequest request, CancellationToken cancellationToken = default) {
-        var stopwatch = Stopwatch.StartNew();
-        try {
-            var apiKey = _apiKey ?? "";
-            if (string.IsNullOrEmpty(apiKey)) {
-                stopwatch.Stop();
-                return new SearchProviderResult(false, Name, [], stopwatch.Elapsed.TotalSeconds, "TAVILY_API_KEY not configured");
-            }
-
-            var dto = new TavilyRequestDto {
-                ApiKey = apiKey,
-                Query = request.Query,
-                MaxResults = request.MaxResults,
-                SearchDepth = "basic",
-                IncludeAnswer = true,
-                IncludeRawContent = false
-            };
-            var body = JsonSerializer.Serialize(dto, TavilyJsonContext.Default.TavilyRequestDto);
-
-            var apiRequest = ApiRequest.Post(Endpoint, body) with { SkipRetry = true };
-            var response = await _apiClient.SendAsync(apiRequest, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var result = JsonSerializer.Deserialize(json, TavilyJsonContext.Default.TavilyResponseDto);
-
-            stopwatch.Stop();
-            var items = new List<SearchResultItem>();
-            if (result?.Results is not null) {
-                foreach (var r in result.Results) {
-                    var title = r.Title ?? "";
-                    var url = r.Url ?? "";
-                    if (string.IsNullOrEmpty(title) || string.IsNullOrEmpty(url)) continue;
-                    var content = r.Content ?? "";
-                    items.Add(new SearchResultItem(title, url, Snippet: content.Length > 0 ? content : null));
-                }
-            }
-
-            return new SearchProviderResult(true, Name, items, stopwatch.Elapsed.TotalSeconds);
-        } catch (Exception ex) {
-            stopwatch.Stop();
-            _logger?.LogError(ex, "Tavily 搜索失败: {Query}", request.Query);
-            return new SearchProviderResult(false, Name, [], stopwatch.Elapsed.TotalSeconds, ex.Message);
+    protected override async Task<SearchProviderResult> SearchCoreAsync(SearchRequest request, CancellationToken cancellationToken) {
+        var apiKey = _apiKey ?? "";
+        if (string.IsNullOrEmpty(apiKey)) {
+            return new SearchProviderResult(false, Name, [], 0, "TAVILY_API_KEY not configured");
         }
+
+        var dto = new TavilyRequestDto {
+            ApiKey = apiKey,
+            Query = request.Query,
+            MaxResults = request.MaxResults,
+            SearchDepth = "basic",
+            IncludeAnswer = true,
+            IncludeRawContent = false
+        };
+        var body = JsonSerializer.Serialize(dto, TavilyJsonContext.Default.TavilyRequestDto);
+
+        var apiRequest = ApiRequest.Post(Endpoint, body) with { SkipRetry = true };
+        var response = await _apiClient.SendAsync(apiRequest, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var result = JsonSerializer.Deserialize(json, TavilyJsonContext.Default.TavilyResponseDto);
+
+        var items = new List<SearchResultItem>();
+        if (result?.Results is not null) {
+            foreach (var r in result.Results) {
+                var title = r.Title ?? "";
+                var url = r.Url ?? "";
+                if (string.IsNullOrEmpty(title) || string.IsNullOrEmpty(url)) continue;
+                var content = r.Content ?? "";
+                items.Add(new SearchResultItem(title, url, Snippet: content.Length > 0 ? content : null));
+            }
+        }
+
+        return new SearchProviderResult(true, Name, items);
     }
 }
 

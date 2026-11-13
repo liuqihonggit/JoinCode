@@ -6,7 +6,7 @@ namespace Services.Web;
 /// 优先级 300，需 BRAVE_API_KEY 就绪。
 /// </summary>
 [Register(typeof(ISearchProvider), ServiceLifetime.Singleton)]
-public sealed partial class BraveSearchProvider : ServiceEntity, ISearchProvider {
+public sealed partial class BraveSearchProvider : SearchProviderBase {
     private const string Endpoint = "https://api.search.brave.com/res/v1/web/search";
     private const int DefaultPriority = 300;
 
@@ -14,7 +14,6 @@ public sealed partial class BraveSearchProvider : ServiceEntity, ISearchProvider
 
     private readonly IApiClient _apiClient;
     private readonly string? _apiKey;
-    private readonly ILogger<BraveSearchProvider>? _logger;
 
     /// <summary>
     /// 初始化 <see cref="BraveSearchProvider"/> 实例。
@@ -25,67 +24,58 @@ public sealed partial class BraveSearchProvider : ServiceEntity, ISearchProvider
     public BraveSearchProvider(
         IApiClient apiClient,
         IConfigRoot config,
-        ILogger<BraveSearchProvider>? logger = null) {
+        ILogger<BraveSearchProvider>? logger = null)
+        : base(logger) {
         _apiClient = apiClient;
         var envVarName = SearchProviderConfigHelper.ResolveEnvVar(config, "brave", "apiKeyEnvVar", DefaultApiKeyEnvVar);
         _apiKey = Environment.GetEnvironmentVariable(envVarName);
-        _logger = logger;
     }
 
     /// <inheritdoc />
-    public string Name => "Brave";
+    public override string Name => "Brave";
 
     /// <inheritdoc />
-    public int Priority => DefaultPriority;
+    public override int Priority => DefaultPriority;
 
     /// <inheritdoc />
-    public bool IsAvailable => !string.IsNullOrWhiteSpace(_apiKey);
+    public override bool IsAvailable => !string.IsNullOrWhiteSpace(_apiKey);
 
     /// <inheritdoc />
-    public async Task<SearchProviderResult> SearchAsync(SearchRequest request, CancellationToken cancellationToken = default) {
-        var stopwatch = Stopwatch.StartNew();
-        try {
-            var apiKey = _apiKey ?? "";
-            if (string.IsNullOrEmpty(apiKey)) {
-                stopwatch.Stop();
-                return new SearchProviderResult(false, Name, [], stopwatch.Elapsed.TotalSeconds, "BRAVE_API_KEY not configured");
-            }
-
-            var queryParams = new Dictionary<string, string> {
-                ["q"] = request.Query,
-                ["count"] = request.MaxResults.ToString(CultureInfo.InvariantCulture)
-            };
-            var apiRequest = new ApiRequest {
-                Method = HttpMethod.Get,
-                Path = Endpoint,
-                QueryParams = queryParams,
-                Headers = new Dictionary<string, string> { ["X-Subscription-Token"] = apiKey },
-                SkipRetry = true
-            };
-            var response = await _apiClient.SendAsync(apiRequest, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var result = JsonSerializer.Deserialize(json, BraveJsonContext.Default.BraveResponseDto);
-
-            stopwatch.Stop();
-            var items = new List<SearchResultItem>();
-            if (result?.Web?.Results is not null) {
-                foreach (var r in result.Web.Results) {
-                    var title = r.Title ?? "";
-                    var url = r.Url ?? "";
-                    if (string.IsNullOrEmpty(title) || string.IsNullOrEmpty(url)) continue;
-                    var description = r.Description ?? "";
-                    items.Add(new SearchResultItem(title, url, Snippet: description.Length > 0 ? description : null));
-                }
-            }
-
-            return new SearchProviderResult(true, Name, items, stopwatch.Elapsed.TotalSeconds);
-        } catch (Exception ex) {
-            stopwatch.Stop();
-            _logger?.LogError(ex, "Brave 搜索失败: {Query}", request.Query);
-            return new SearchProviderResult(false, Name, [], stopwatch.Elapsed.TotalSeconds, ex.Message);
+    protected override async Task<SearchProviderResult> SearchCoreAsync(SearchRequest request, CancellationToken cancellationToken) {
+        var apiKey = _apiKey ?? "";
+        if (string.IsNullOrEmpty(apiKey)) {
+            return new SearchProviderResult(false, Name, [], 0, "BRAVE_API_KEY not configured");
         }
+
+        var queryParams = new Dictionary<string, string> {
+            ["q"] = request.Query,
+            ["count"] = request.MaxResults.ToString(CultureInfo.InvariantCulture)
+        };
+        var apiRequest = new ApiRequest {
+            Method = HttpMethod.Get,
+            Path = Endpoint,
+            QueryParams = queryParams,
+            Headers = new Dictionary<string, string> { ["X-Subscription-Token"] = apiKey },
+            SkipRetry = true
+        };
+        var response = await _apiClient.SendAsync(apiRequest, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var result = JsonSerializer.Deserialize(json, BraveJsonContext.Default.BraveResponseDto);
+
+        var items = new List<SearchResultItem>();
+        if (result?.Web?.Results is not null) {
+            foreach (var r in result.Web.Results) {
+                var title = r.Title ?? "";
+                var url = r.Url ?? "";
+                if (string.IsNullOrEmpty(title) || string.IsNullOrEmpty(url)) continue;
+                var description = r.Description ?? "";
+                items.Add(new SearchResultItem(title, url, Snippet: description.Length > 0 ? description : null));
+            }
+        }
+
+        return new SearchProviderResult(true, Name, items);
     }
 }
 

@@ -68,12 +68,24 @@ public sealed class NodeRegistry : INodeRegistry {
     }
 
     /// <summary>获取指定消费点的所有服务实例（类型安全版本，检查 enabled-when feature flag）</summary>
-    public async Task<IReadOnlyList<T>> GetServicesForConsumerAsync<T>(string consumerId, ResolvedProfile profile, CancellationToken cancellationToken = default) where T : notnull {
-        var nodes = await GetNodesForConsumerAsync(consumerId, profile, cancellationToken).ConfigureAwait(false);
+    public async Task<IReadOnlyList<T>> GetServicesForConsumerAsync<T>(string consumerId, ResolvedProfile profile, CancellationToken cancellationToken = default) where T : class {
+        if (!profile.Consumers.TryGetValue(consumerId, out var consumerConfig)) return [];
+        var resolver = _services.GetService<NodeServiceResolver>();
         var result = new List<T>();
-        foreach (var node in nodes) {
-            if (node is Node<T> typedNode)
+        foreach (var nodeEntry in consumerConfig.Nodes.OrderBy(n => n.Priority)) {
+            if (nodeEntry.EnabledWhenFeatureFlag is not null) {
+                if (_featureFlagService is null) continue;
+                var isEnabled = await _featureFlagService.IsEnabledAsync(
+                    nodeEntry.EnabledWhenFeatureFlag, cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (!isEnabled) continue;
+            }
+            if (resolver is not null && resolver.TryResolve<T>(consumerId, nodeEntry.Id, _services, out var service)) {
+                result.Add(service);
+            } else if (_nodes.TryGetValue(nodeEntry.Id, out var entry) && entry.CreateNode(_services) is Node<T> typedNode) {
                 result.Add(typedNode.Service);
+            } else {
+                _logger?.LogWarning("Node '{NodeId}' in consumer '{ConsumerId}' could not be resolved for service type '{ServiceType}'", nodeEntry.Id, consumerId, typeof(T).Name);
+            }
         }
         return result;
     }

@@ -368,17 +368,16 @@ public static class DataDrivenPipelineComposition {
     }
 
     /// <summary>
-    /// 数据驱动构建 Task 管道 — 从 Profile 解析中间件列表，通过 NodeServiceResolver 解析实例
+    /// 数据驱动构建 Task 管道 — 从 Profile 解析中间件列表，通过 INodeRegistry 解析实例
     /// </summary>
     private static MiddlewarePipeline<TContext> BuildTaskPipeline<TContext>(
         IServiceProvider sp, string consumerId,
         Func<TContext, bool>? shortCircuit = null,
         Func<TContext, ObjectId>? objectIdSelector = null) {
         var profile = sp.GetRequiredService<ResolvedProfile>();
-        var resolver = sp.GetRequiredService<NodeServiceResolver>();
         var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
 
-        var middlewares = ResolveMiddlewares<IMiddleware<TContext>>(sp, resolver, profile, consumerId);
+        var middlewares = ResolveMiddlewares<IMiddleware<TContext>>(sp, profile, consumerId);
 
         var builder = new PipelineBuilder<TContext>();
 
@@ -402,10 +401,9 @@ public static class DataDrivenPipelineComposition {
     private static StreamMiddlewarePipeline<TContext, TEvent> BuildStreamPipeline<TContext, TEvent>(
         IServiceProvider sp, string consumerId) {
         var profile = sp.GetRequiredService<ResolvedProfile>();
-        var resolver = sp.GetRequiredService<NodeServiceResolver>();
         var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
 
-        var middlewares = ResolveMiddlewares<IStreamMiddleware<TContext, TEvent>>(sp, resolver, profile, consumerId);
+        var middlewares = ResolveMiddlewares<IStreamMiddleware<TContext, TEvent>>(sp, profile, consumerId);
 
         var builder = new StreamPipelineBuilder<TContext, TEvent>()
             .WithLoggingScope(loggerFactory)
@@ -416,24 +414,14 @@ public static class DataDrivenPipelineComposition {
     }
 
     /// <summary>
-    /// 从 Profile + NodeServiceResolver 解析中间件列表
+    /// 从 Profile + INodeRegistry 解析中间件列表（统一 feature flag 检查）
     /// </summary>
     private static List<TMiddleware> ResolveMiddlewares<TMiddleware>(
-        IServiceProvider sp, NodeServiceResolver resolver, ResolvedProfile profile, string consumerId)
+        IServiceProvider sp, ResolvedProfile profile, string consumerId)
         where TMiddleware : class {
-        if (!profile.Consumers.TryGetValue(consumerId, out var consumerConfig))
-            throw new InvalidOperationException($"Consumer '{consumerId}' not found in profile '{profile.Name}'");
-
-        var logger = sp.GetService<ILoggerFactory>()?.CreateLogger(typeof(DataDrivenPipelineComposition));
-        var result = new List<TMiddleware>();
-        foreach (var nodeEntry in consumerConfig.Nodes.OrderBy(n => n.Priority)) {
-            if (resolver.TryResolve<TMiddleware>(consumerId, nodeEntry.Id, sp, out var middleware)) {
-                result.Add(middleware);
-            } else {
-                logger?.LogWarning("Node '{NodeId}' in consumer '{ConsumerId}' could not be resolved for middleware type '{MiddlewareType}'", nodeEntry.Id, consumerId, typeof(TMiddleware).Name);
-            }
-        }
-        return result;
+        var registry = sp.GetRequiredService<INodeRegistry>();
+        var services = registry.GetServicesForConsumerAsync<TMiddleware>(consumerId, profile).GetAwaiter().GetResult();
+        return services.ToList();
     }
 
     /// <summary>工厂映射辅助方法</summary>

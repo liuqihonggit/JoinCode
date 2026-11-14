@@ -25,7 +25,6 @@ global using JoinCode.Abstractions.Prompts;
 global using JoinCode.ChatCommands;
 global using Core.Prompts;
 global using JoinCode.Composition.NodeRegistry;
-global using JoinCode.Composition.NodeRegistry.Consumers;
 global using JoinCode.Pipelines.Middlewares;
 global using McpToolRegistry;
 global using Microsoft.Extensions.DependencyInjection;

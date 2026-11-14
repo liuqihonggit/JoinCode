@@ -99,7 +99,6 @@ global using JoinCode.Abstractions.UI;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Utils.Diagnostics;
 global using JoinCode.Abstractions.Composition;
-global using JoinCode.Composition.NodeRegistry.Consumers;
 global using JoinCode.Abstractions.Utils.Path;
 global using JoinCode.Abstractions.Utils.Text;
 global using JoinCode.ChatCommands;

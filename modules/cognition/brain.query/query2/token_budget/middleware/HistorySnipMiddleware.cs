@@ -52,6 +52,13 @@ public sealed partial class HistorySnipMiddleware : ServiceEntity, IQueryMiddlew
             var snipTarget = (int)(maxTokens * 0.65);
             var snipResult = await snipService.SnipByTokenLimitAsync(context.ChatHistory, snipTarget, ct).ConfigureAwait(false);
             context.Logger?.LogInformation("[QueryEngine] 历史裁剪完成: 移除 {Removed} 条消息", snipResult.MessagesRemoved);
+
+            var postSnipRemaining = _tokenBudgetManager is not null
+                ? await _tokenBudgetManager.GetRemainingBudgetAsync(ct).ConfigureAwait(false)
+                : EstimateRemainingBudget(context, maxTokens);
+            if (postSnipRemaining < maxTokens * 0.3) {
+                context.Logger?.LogWarning("[QueryEngine] 历史裁剪后剩余预算仍不足（{Remaining} token），下一轮将触发预防性折叠", postSnipRemaining);
+            }
         }
     }
 

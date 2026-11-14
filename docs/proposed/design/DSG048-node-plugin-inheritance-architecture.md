@@ -780,7 +780,7 @@ services.AddSingleton(sp => {
 | ServiceRegistration DI 注册 | NodeRegistry + ProfileResolver 注入 | ✅ `modules/composition/composition/dependency_injection/core/ServiceRegistration.cs` | ✅ exe 启动成功 |
 | 数据驱动的管道组装 | PipelineComposition.cs 不再硬编码 | ✅ `DataDrivenPipelineComposition.cs` 成为唯一路径 | ✅ exe `--profile base` 启动+tool_search 正常 |
 | NodeContext 可逆注册 | 节点卸载时自动回滚 | ✅ `modules/abstractions/composition/node/interfaces/NodeContext.cs` | ✅ exe 启动/退出正常 + 11 单元测试全绿 |
-| DynamicPluginRegistry AOT 改造 | invoke 在 AOT 下能路由 | ❌ P6（YAML 配置驱动，不新增特性） | ❌ 未实施 |
+| DynamicPluginRegistry AOT 改造 | invoke 在 AOT 下能路由 | ✅ `AotHandlerRegistryGenerator` + `IAotHandlerRegistry` + `DynamicPluginRegistry.Invoke` 双路径 | ✅ 源码生成器扫描 99 个 `[McpToolDispatch]` + `[McpTool]` 生成路由表；`ServiceRegistration` 调用 `AddAotHandlerRegistry`；待 AOT 发布验证 |
 | 泛型中间件 YAML config 配置 | CrashSnapshotMiddleware 等构造参数从 YAML 读取 | ✅ `GetPipelineName/GetConfigInt/GetConfigSeconds` 辅助方法 | ✅ exe `--dump-profile base` 验证 config 字段正确读取 |
 | LlmAdapter 式继承适配 | 抽象类+默认实现+覆写模式推广 | ✅ SearchProviderBase + WebFetchProviderBase + PresentationAdapterBase | ✅ exe tool_search 正常 + 54 单元测试全绿 |
 

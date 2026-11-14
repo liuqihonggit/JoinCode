@@ -4,9 +4,11 @@ namespace Infrastructure.Pipeline;
 /// Task 管道 — 从 DI 注入的中间件集合构建，自动处理异常和 Hook 拦截
 /// </summary>
 public sealed class MiddlewarePipeline<TContext> {
-    private readonly MiddlewareDelegate<TContext> _pipeline;
+    private volatile MiddlewareDelegate<TContext> _pipeline;
     private readonly PipelinePreHookDelegate<TContext>? _onPreExecute;
     private readonly PipelinePostHookDelegate<TContext>? _onPostExecute;
+    private readonly Action<TContext, Exception>? _onError;
+    private readonly Func<TContext, bool>? _shortCircuitPredicate;
 
     /// <summary>
     /// 构造中间件管道
@@ -24,7 +26,17 @@ public sealed class MiddlewarePipeline<TContext> {
         Func<TContext, bool>? shortCircuitPredicate = null) {
         _onPreExecute = onPreExecute;
         _onPostExecute = onPostExecute;
+        _onError = onError;
+        _shortCircuitPredicate = shortCircuitPredicate;
         _pipeline = Build(middlewares, onError, shortCircuitPredicate);
+    }
+
+    /// <summary>
+    /// 重建管道中间件链 — Profile 切换后用新中间件列表替换内部委托链（volatile 原子替换）
+    /// </summary>
+    /// <param name="middlewares">新的中间件集合</param>
+    internal void Rebuild(IEnumerable<IMiddleware<TContext>> middlewares) {
+        _pipeline = Build(middlewares, _onError, _shortCircuitPredicate);
     }
 
     /// <summary>

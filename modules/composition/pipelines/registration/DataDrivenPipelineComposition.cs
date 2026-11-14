@@ -309,15 +309,16 @@ public static class DataDrivenPipelineComposition {
             var logger = sp.GetService<ILoggerFactory>()?.CreateLogger<ProfileManager>();
             return new ProfileManager(resolver, initial, logger);
         });
-        services.AddSingleton<ResolvedProfile>(sp => sp.GetRequiredService<IProfileManager>().Current);
 
-        // ═══════════════════════════════════════════════════════════
+        // ═══════════════════════════════════════════════════════════8
         // Stream 管道
         // ═══════════════════════════════════════════════════════════
 
         // Chat 聊天管道 (Stream)
         services.AddSingleton<StreamMiddlewarePipeline<ChatMiddlewareContext, ChatStreamEvent>>(sp =>
-            BuildStreamPipeline<ChatMiddlewareContext, ChatStreamEvent>(sp, "chat-pipeline"));
+            SubscribeStreamPipelineRebuild(sp,
+                BuildStreamPipeline<ChatMiddlewareContext, ChatStreamEvent>(sp, "chat-pipeline"),
+                "chat-pipeline"));
 
         // ═══════════════════════════════════════════════════════════
         // Task 管道
@@ -325,76 +326,110 @@ public static class DataDrivenPipelineComposition {
 
         // Preprocess 预处理管道
         services.AddSingleton<MiddlewarePipeline<PreprocessContext>>(sp =>
-            BuildTaskPipeline<PreprocessContext>(sp, "preprocess-pipeline"));
+            SubscribePipelineRebuild(sp,
+                BuildTaskPipeline<PreprocessContext>(sp, "preprocess-pipeline"),
+                "preprocess-pipeline"));
 
         // ChatInit 聊天初始化管道
         services.AddSingleton<MiddlewarePipeline<ChatInitContext>>(sp =>
-            BuildTaskPipeline<ChatInitContext>(sp, "chatinit-pipeline"));
+            SubscribePipelineRebuild(sp,
+                BuildTaskPipeline<ChatInitContext>(sp, "chatinit-pipeline"),
+                "chatinit-pipeline"));
 
         // ChatAdmin 管理管道
         services.AddSingleton<MiddlewarePipeline<ChatAdminContext>>(sp =>
-            BuildTaskPipeline<ChatAdminContext>(sp, "chatadmin-pipeline"));
+            SubscribePipelineRebuild(sp,
+                BuildTaskPipeline<ChatAdminContext>(sp, "chatadmin-pipeline"),
+                "chatadmin-pipeline"));
 
         // Compact 压缩管道
         services.AddSingleton<MiddlewarePipeline<CompactContext>>(sp =>
-            BuildTaskPipeline<CompactContext>(sp, "compact-pipeline"));
+            SubscribePipelineRebuild(sp,
+                BuildTaskPipeline<CompactContext>(sp, "compact-pipeline"),
+                "compact-pipeline"));
 
         // Query 查询管道
         services.AddSingleton<MiddlewarePipeline<QueryMiddlewareContext>>(sp =>
-            BuildTaskPipeline<QueryMiddlewareContext>(sp, "query-pipeline"));
+            SubscribePipelineRebuild(sp,
+                BuildTaskPipeline<QueryMiddlewareContext>(sp, "query-pipeline"),
+                "query-pipeline"));
 
         // Permission 权限管道 (短路)
         services.AddSingleton<MiddlewarePipeline<PermissionCheckContext>>(sp =>
-            BuildTaskPipeline<PermissionCheckContext>(sp, "permission-pipeline",
-                shortCircuit: ctx => ctx.Result is not null));
+            SubscribePipelineRebuild(sp,
+                BuildTaskPipeline<PermissionCheckContext>(sp, "permission-pipeline",
+                    shortCircuit: ctx => ctx.Result is not null),
+                "permission-pipeline"));
 
         // Settings 设置管道
         services.AddSingleton<MiddlewarePipeline<SettingsContext>>(sp =>
-            BuildTaskPipeline<SettingsContext>(sp, "settings-pipeline"));
+            SubscribePipelineRebuild(sp,
+                BuildTaskPipeline<SettingsContext>(sp, "settings-pipeline"),
+                "settings-pipeline"));
 
         // UnifiedSpawn 统一管道 (自定义 LoggingScope)
         services.AddSingleton<MiddlewarePipeline<UnifiedSpawnContext>>(sp =>
-            BuildTaskPipeline<UnifiedSpawnContext>(sp, "unified-spawn-pipeline",
-                objectIdSelector: ctx => ctx.Agent?.ObjectId ?? ObjectId.Empty));
+            SubscribePipelineRebuild(sp,
+                BuildTaskPipeline<UnifiedSpawnContext>(sp, "unified-spawn-pipeline",
+                    objectIdSelector: ctx => ctx.Agent?.ObjectId ?? ObjectId.Empty),
+                "unified-spawn-pipeline"));
 
         // AgentDispose 释放管道
         services.AddSingleton<MiddlewarePipeline<AgentDisposeContext>>(sp =>
-            BuildTaskPipeline<AgentDisposeContext>(sp, "agent-dispose-pipeline"));
+            SubscribePipelineRebuild(sp,
+                BuildTaskPipeline<AgentDisposeContext>(sp, "agent-dispose-pipeline"),
+                "agent-dispose-pipeline"));
 
         // Fork 分支管道 (自定义 LoggingScope)
         services.AddSingleton<MiddlewarePipeline<ForkContext>>(sp =>
-            BuildTaskPipeline<ForkContext>(sp, "fork-pipeline",
-                objectIdSelector: ctx => ctx.Agent?.ObjectId ?? ObjectId.Empty));
+            SubscribePipelineRebuild(sp,
+                BuildTaskPipeline<ForkContext>(sp, "fork-pipeline",
+                    objectIdSelector: ctx => ctx.Agent?.ObjectId ?? ObjectId.Empty),
+                "fork-pipeline"));
 
         // Web 网页管道
         services.AddSingleton<MiddlewarePipeline<WebContext>>(sp =>
-            BuildTaskPipeline<WebContext>(sp, "web-pipeline"));
+            SubscribePipelineRebuild(sp,
+                BuildTaskPipeline<WebContext>(sp, "web-pipeline"),
+                "web-pipeline"));
 
         // Shell 命令管道
         services.AddSingleton<MiddlewarePipeline<ShellPipelineContext>>(sp =>
-            BuildTaskPipeline<ShellPipelineContext>(sp, "shell-pipeline"));
+            SubscribePipelineRebuild(sp,
+                BuildTaskPipeline<ShellPipelineContext>(sp, "shell-pipeline"),
+                "shell-pipeline"));
 
         // Skill 技能管道
         services.AddSingleton<MiddlewarePipeline<SkillContext>>(sp =>
-            BuildTaskPipeline<SkillContext>(sp, "skill-pipeline"));
+            SubscribePipelineRebuild(sp,
+                BuildTaskPipeline<SkillContext>(sp, "skill-pipeline"),
+                "skill-pipeline"));
 
         // Code 代码管道
         services.AddSingleton<MiddlewarePipeline<CodeContext>>(sp =>
-            BuildTaskPipeline<CodeContext>(sp, "code-pipeline"));
+            SubscribePipelineRebuild(sp,
+                BuildTaskPipeline<CodeContext>(sp, "code-pipeline"),
+                "code-pipeline"));
 
         // Dream 记忆整合管道 (短路)
         services.AddSingleton<MiddlewarePipeline<JoinCode.Dream.Pipeline.DreamContext>>(sp =>
-            BuildTaskPipeline<JoinCode.Dream.Pipeline.DreamContext>(sp, "dream-pipeline",
-                shortCircuit: ctx => ctx.Result is not null));
+            SubscribePipelineRebuild(sp,
+                BuildTaskPipeline<JoinCode.Dream.Pipeline.DreamContext>(sp, "dream-pipeline",
+                    shortCircuit: ctx => ctx.Result is not null),
+                "dream-pipeline"));
 
         // ToolExecution 工具执行管道 (短路: ctx.IsShortCircuited)
         services.AddSingleton<MiddlewarePipeline<ToolExecutionContext>>(sp =>
-            BuildTaskPipeline<ToolExecutionContext>(sp, "tool-execution-pipeline",
-                shortCircuit: ctx => ctx.IsShortCircuited));
+            SubscribePipelineRebuild(sp,
+                BuildTaskPipeline<ToolExecutionContext>(sp, "tool-execution-pipeline",
+                    shortCircuit: ctx => ctx.IsShortCircuited),
+                "tool-execution-pipeline"));
 
         // AgentTool Agent工具管道
         services.AddSingleton<MiddlewarePipeline<AgentToolContext>>(sp =>
-            BuildTaskPipeline<AgentToolContext>(sp, "agent-tool-pipeline"));
+            SubscribePipelineRebuild(sp,
+                BuildTaskPipeline<AgentToolContext>(sp, "agent-tool-pipeline"),
+                "agent-tool-pipeline"));
 
         return services;
     }
@@ -406,7 +441,7 @@ public static class DataDrivenPipelineComposition {
         IServiceProvider sp, string consumerId,
         Func<TContext, bool>? shortCircuit = null,
         Func<TContext, ObjectId>? objectIdSelector = null) {
-        var profile = sp.GetRequiredService<ResolvedProfile>();
+        var profile = sp.GetRequiredService<IProfileManager>().Current;
         var resolver = sp.GetRequiredService<NodeServiceResolver>();
         var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
 
@@ -433,7 +468,7 @@ public static class DataDrivenPipelineComposition {
     /// </summary>
     private static StreamMiddlewarePipeline<TContext, TEvent> BuildStreamPipeline<TContext, TEvent>(
         IServiceProvider sp, string consumerId) {
-        var profile = sp.GetRequiredService<ResolvedProfile>();
+        var profile = sp.GetRequiredService<IProfileManager>().Current;
         var resolver = sp.GetRequiredService<NodeServiceResolver>();
         var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
 
@@ -445,6 +480,38 @@ public static class DataDrivenPipelineComposition {
             .WithHooks(sp);
 
         return builder.Build();
+    }
+
+    /// <summary>
+    /// 订阅 ProfileSwitching 事件 — Profile 切换后用新中间件列表重建 Task 管道（DSG050）
+    /// </summary>
+    private static MiddlewarePipeline<TContext> SubscribePipelineRebuild<TContext>(
+        IServiceProvider sp, MiddlewarePipeline<TContext> pipeline, string consumerId) {
+        var profileManager = sp.GetRequiredService<IProfileManager>();
+        var resolver = sp.GetRequiredService<NodeServiceResolver>();
+        var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+        profileManager.ProfileSwitching += (oldProfile, newProfile) => {
+            var middlewares = ResolveMiddlewares<IMiddleware<TContext>>(sp, resolver, newProfile, consumerId, loggerFactory);
+            pipeline.Rebuild(middlewares);
+            return ValueTask.CompletedTask;
+        };
+        return pipeline;
+    }
+
+    /// <summary>
+    /// 订阅 ProfileSwitching 事件 — Profile 切换后用新中间件列表重建 Stream 管道（DSG050）
+    /// </summary>
+    private static StreamMiddlewarePipeline<TContext, TEvent> SubscribeStreamPipelineRebuild<TContext, TEvent>(
+        IServiceProvider sp, StreamMiddlewarePipeline<TContext, TEvent> pipeline, string consumerId) {
+        var profileManager = sp.GetRequiredService<IProfileManager>();
+        var resolver = sp.GetRequiredService<NodeServiceResolver>();
+        var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+        profileManager.ProfileSwitching += (oldProfile, newProfile) => {
+            var middlewares = ResolveMiddlewares<IStreamMiddleware<TContext, TEvent>>(sp, resolver, newProfile, consumerId, loggerFactory);
+            pipeline.Rebuild(middlewares);
+            return ValueTask.CompletedTask;
+        };
+        return pipeline;
     }
 
     /// <summary>
@@ -499,7 +566,7 @@ public static class DataDrivenPipelineComposition {
     /// <summary>创建 CrashSnapshotMiddleware 实例，pipelineName 从 YAML config 读取</summary>
     private static CrashSnapshotMiddleware<TContext> CreateCrashSnapshot<TContext>(
         IServiceProvider sp, string consumerId) {
-        var profile = sp.GetRequiredService<ResolvedProfile>();
+        var profile = sp.GetRequiredService<IProfileManager>().Current;
         var pipelineName = GetPipelineName(profile, consumerId);
         var store = sp.GetRequiredService<ICrashSnapshotStore>();
         return new CrashSnapshotMiddleware<TContext>(store, pipelineName);
@@ -508,7 +575,7 @@ public static class DataDrivenPipelineComposition {
     /// <summary>创建 CrashSnapshotMiddleware 实例用于 ToolExecution 管道 — 含 isErrorSelector 和 errorMsgSelector</summary>
     private static CrashSnapshotMiddleware<ToolExecutionContext> CreateCrashSnapshotForToolExecution(
         IServiceProvider sp, string consumerId) {
-        var profile = sp.GetRequiredService<ResolvedProfile>();
+        var profile = sp.GetRequiredService<IProfileManager>().Current;
         var pipelineName = GetPipelineName(profile, consumerId);
         var store = sp.GetRequiredService<ICrashSnapshotStore>();
         return new CrashSnapshotMiddleware<ToolExecutionContext>(
@@ -536,7 +603,7 @@ public static class DataDrivenPipelineComposition {
     /// <summary>创建 FixedTimeoutMiddleware 实例，timeout 从 YAML config 读取</summary>
     private static FixedTimeoutMiddleware<TContext> CreateTimeout<TContext>(
         IServiceProvider sp, string consumerId, string nodeId, int defaultSeconds) {
-        var profile = sp.GetRequiredService<ResolvedProfile>();
+        var profile = sp.GetRequiredService<IProfileManager>().Current;
         var timeout = GetConfigSeconds(profile, consumerId, nodeId, "timeout-seconds", defaultSeconds);
         return new FixedTimeoutMiddleware<TContext>(timeout);
     }
@@ -544,7 +611,7 @@ public static class DataDrivenPipelineComposition {
     /// <summary>创建 FixedRateLimitMiddleware 实例，参数从 YAML config 读取</summary>
     private static FixedRateLimitMiddleware<TContext> CreateRateLimit<TContext>(
         IServiceProvider sp, string consumerId, string nodeId, int defaultMaxRequests, int defaultWindowSeconds) {
-        var profile = sp.GetRequiredService<ResolvedProfile>();
+        var profile = sp.GetRequiredService<IProfileManager>().Current;
         var maxRequests = GetConfigInt(profile, consumerId, nodeId, "max-requests", defaultMaxRequests);
         var window = GetConfigSeconds(profile, consumerId, nodeId, "window-seconds", defaultWindowSeconds);
         return new FixedRateLimitMiddleware<TContext>(maxRequests, window);
@@ -553,7 +620,7 @@ public static class DataDrivenPipelineComposition {
     /// <summary>创建 FixedStreamRateLimitMiddleware 实例，参数从 YAML config 读取</summary>
     private static FixedStreamRateLimitMiddleware<TContext, TEvent> CreateStreamRateLimit<TContext, TEvent>(
         IServiceProvider sp, string consumerId, string nodeId, int defaultMaxRequests, int defaultWindowSeconds) {
-        var profile = sp.GetRequiredService<ResolvedProfile>();
+        var profile = sp.GetRequiredService<IProfileManager>().Current;
         var maxRequests = GetConfigInt(profile, consumerId, nodeId, "max-requests", defaultMaxRequests);
         var window = GetConfigSeconds(profile, consumerId, nodeId, "window-seconds", defaultWindowSeconds);
         return new FixedStreamRateLimitMiddleware<TContext, TEvent>(maxRequests, window);
@@ -563,7 +630,7 @@ public static class DataDrivenPipelineComposition {
     private static FixedRetryMiddleware<TContext> CreateRetry<TContext>(
         IServiceProvider sp, string consumerId, string nodeId, int defaultMaxRetries,
         Func<Exception, bool> shouldRetry) {
-        var profile = sp.GetRequiredService<ResolvedProfile>();
+        var profile = sp.GetRequiredService<IProfileManager>().Current;
         var maxRetries = GetConfigInt(profile, consumerId, nodeId, "max-retries", defaultMaxRetries);
         return new FixedRetryMiddleware<TContext>(maxRetries, shouldRetry);
     }
@@ -572,7 +639,7 @@ public static class DataDrivenPipelineComposition {
     private static FixedCircuitBreakerMiddleware<TContext> CreateCircuitBreaker<TContext>(
         IServiceProvider sp, string consumerId, string nodeId,
         int defaultFailureThreshold, int defaultOpenDurationSeconds) {
-        var profile = sp.GetRequiredService<ResolvedProfile>();
+        var profile = sp.GetRequiredService<IProfileManager>().Current;
         var failureThreshold = GetConfigInt(profile, consumerId, nodeId, "failure-threshold", defaultFailureThreshold);
         var openDuration = GetConfigSeconds(profile, consumerId, nodeId, "open-duration-seconds", defaultOpenDurationSeconds);
         return new FixedCircuitBreakerMiddleware<TContext>(failureThreshold, openDuration);

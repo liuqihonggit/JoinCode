@@ -28,9 +28,12 @@ public sealed class TextToolCallParserChain {
     public TextToolCallParseResult? TryParse(ReadOnlySpan<char> content) {
         foreach (var parser in _parsers) {
             var result = parser.TryParse(content);
-            if (result is not null)
+            if (result is not null) {
+                Diag.WriteLine($"[XML-PARSE] {parser.GetType().Name} 解析成功: {result.ToolCalls.Count} 个工具调用");
                 return result with { ToolCalls = ToolCallRepairHelper.RepairAll(result.ToolCalls, _logger) };
+            }
         }
+        Diag.WriteLine("[XML-PARSE] 所有解析器均未识别");
         return null;
     }
 }

@@ -12,6 +12,10 @@ internal static class ToolCallRepairHelper {
     public static ToolCallEntry Repair(ToolCallEntry entry, ILogger? logger = null) {
         var repairedName = LlmJsonHelper.RepairToolName(entry.Name, logger);
         var jsonRepair = LlmJsonHelper.RepairJson(entry.Arguments, logger);
+        if (!string.Equals(entry.Name, repairedName, StringComparison.Ordinal))
+            Diag.WriteLine($"[XML-REPAIR] 工具名修复: '{entry.Name}' → '{repairedName}'");
+        if (jsonRepair.Success && !string.Equals(entry.Arguments, jsonRepair.RepairedJson, StringComparison.Ordinal))
+            Diag.WriteLine($"[XML-REPAIR] 参数JSON修复: {jsonRepair.RepairHint}");
         return entry with {
             Name = repairedName,
             Arguments = jsonRepair.Success ? jsonRepair.RepairedJson : entry.Arguments

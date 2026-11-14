@@ -559,12 +559,14 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             _logger?.LogWarning(ex,
                 "[QueryLoop {CallId}] Fallback 解析异常，已容错跳过: {Message}",
                 iterState.CallId, ex.Message);
+            Diag.WriteLine($"[FALLBACK] 解析异常已容错: {ex.Message}");
             return false;
         }
 
         if (parseResult is null || parseResult.ToolCalls.Count == 0) {
             if (ContainsSuspiciousXmlTags(iterState.FullResponse.ToString())) {
                 iterState.SuspiciousTagsDetected = true;
+                Diag.WriteLine($"[FALLBACK] 可疑XML标签检测: SuspiciousTagsDetected=true");
                 _logger?.LogWarning(
                     "[QueryLoop {CallId}] LLM 输出包含可疑 XML 工具调用标签但无法完整解析，" +
                     "可能为异常输出（如 <parameter name=\"...\"> 标签），内容前200字符: {Preview}",
@@ -591,6 +593,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         _logger?.LogWarning(
             "[QueryLoop {CallId}] 检测到文本格式工具调用（非协议层），已 fallback 解析: {ToolName}, 工具调用数={Count}",
             iterState.CallId, first.Name, parseResult.ToolCalls.Count);
+        Diag.WriteLine($"[FALLBACK] 解析成功: {first.Name}, 工具调用数={parseResult.ToolCalls.Count}");
         return true;
     }
 

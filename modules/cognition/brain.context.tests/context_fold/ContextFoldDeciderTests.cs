@@ -173,38 +173,46 @@ public sealed class ContextFoldDeciderTests {
 
     [Fact]
     public void EstimateTokenCount_MessageContent_DividedByCharsPerToken() {
-        var messages = new List<ApiMessage> { new(MessageRole.User, "12345678") }; // 8 chars / 4 = 2
+        var messages = new List<ApiMessage> { new(MessageRole.User, "12345678") }; // 8 non-CJK chars / 4 = 2 + 4 struct = 6
 
-        Assert.Equal(2, ContextFoldDecider.EstimateTokenCount(messages, []));
+        Assert.Equal(6, ContextFoldDecider.EstimateTokenCount(messages, []));
     }
 
     [Fact]
     public void EstimateTokenCount_NullContent_Skipped() {
-        var messages = new List<ApiMessage> { new(MessageRole.User, null) };
+        var messages = new List<ApiMessage> { new(MessageRole.User, null) }; // 0 content + 4 struct = 4
 
-        Assert.Equal(0, ContextFoldDecider.EstimateTokenCount(messages, []));
+        Assert.Equal(4, ContextFoldDecider.EstimateTokenCount(messages, []));
     }
 
     [Fact]
     public void EstimateTokenCount_ToolSpecAllFields() {
-        var specs = new List<ToolSpec> { new("name", "desc", "schema") }; // 4+4+6=14 / 4 = 3
+        var specs = new List<ToolSpec> { new("name", "desc", "schema") }; // 14 non-CJK chars / 4 = 3 + 10 struct = 13
 
-        Assert.Equal(3, ContextFoldDecider.EstimateTokenCount([], specs));
+        Assert.Equal(13, ContextFoldDecider.EstimateTokenCount([], specs));
     }
 
     [Fact]
     public void EstimateTokenCount_ToolSpecNullDescriptionAndSchema() {
-        var specs = new List<ToolSpec> { new("name") }; // 4 / 4 = 1
+        var specs = new List<ToolSpec> { new("name") }; // 4 / 4 = 1 + 10 struct = 11
 
-        Assert.Equal(1, ContextFoldDecider.EstimateTokenCount([], specs));
+        Assert.Equal(11, ContextFoldDecider.EstimateTokenCount([], specs));
     }
 
     [Fact]
     public void EstimateTokenCount_CustomCharsPerToken() {
         var thresholds = new ContextFoldThresholds { CharsPerToken = 2 };
-        var messages = new List<ApiMessage> { new(MessageRole.User, "1234") }; // 4 / 2 = 2
+        var messages = new List<ApiMessage> { new(MessageRole.User, "1234") }; // 4 / 2 = 2 + 4 struct = 6
 
-        Assert.Equal(2, ContextFoldDecider.EstimateTokenCount(messages, [], thresholds));
+        Assert.Equal(6, ContextFoldDecider.EstimateTokenCount(messages, [], thresholds));
+    }
+
+    [Fact]
+    public void EstimateTokenCount_CjkContent_HigherTokenEstimate() {
+        var messages = new List<ApiMessage> { new(MessageRole.User, "你好世界") }; // 4 CJK chars / 1.5 ≈ 2.67 + 4 struct ≈ 6
+
+        var result = ContextFoldDecider.EstimateTokenCount(messages, []);
+        Assert.True(result >= 6, $"CJK content should estimate more tokens than non-CJK, got {result}");
     }
 
     // ---------- ComputeTailBoundary ----------

@@ -74,7 +74,9 @@ public static class ContextFoldDecider {
     }
 
     /// <summary>
-    /// 估算消息列表与工具规格占用的 token 数
+    /// 估算消息列表与工具规格占用的 token 数（ADR 0156 内容类型感知估算）
+    /// <para>CJK 字符（中文/日文/韩文）按 1.5 字符/token 估算，非 CJK 按 4 字符/token。</para>
+    /// <para>每条消息 +4 token 结构开销，每个工具规格 +10 token JSON 结构开销。</para>
     /// </summary>
     /// <param name="messages">消息列表</param>
     /// <param name="toolSpecs">工具规格列表</param>
@@ -85,22 +87,56 @@ public static class ContextFoldDecider {
         IReadOnlyList<ToolSpec> toolSpecs,
         ContextFoldThresholds? thresholds = null) {
         var t = thresholds ?? ContextFoldThresholds.Default;
-        var totalChars = 0;
+        var cjkTokens = 0.0;
+        var nonCjkTokens = 0.0;
 
         for (var i = 0; i < messages.Count; i++) {
             var msg = messages[i];
-            if (msg.Content != null)
-                totalChars += msg.Content.Length;
+            if (msg.Content != null) {
+                CountTokensByCharType(msg.Content, t, ref cjkTokens, ref nonCjkTokens);
+            }
+            cjkTokens += 4;
         }
 
         for (var i = 0; i < toolSpecs.Count; i++) {
             var spec = toolSpecs[i];
-            totalChars += spec.Name.Length;
-            if (spec.Description != null) totalChars += spec.Description.Length;
-            if (spec.InputSchemaJson != null) totalChars += spec.InputSchemaJson.Length;
+            if (spec.Name != null)
+                CountTokensByCharType(spec.Name, t, ref cjkTokens, ref nonCjkTokens);
+            if (spec.Description != null)
+                CountTokensByCharType(spec.Description, t, ref cjkTokens, ref nonCjkTokens);
+            if (spec.InputSchemaJson != null)
+                CountTokensByCharType(spec.InputSchemaJson, t, ref cjkTokens, ref nonCjkTokens);
+            cjkTokens += 10;
         }
 
-        return totalChars / t.CharsPerToken;
+        return (int)(cjkTokens + nonCjkTokens);
+    }
+
+    /// <summary>按字符类型分类估算 token 数 — CJK 字符用 CJK 比率，非 CJK 用默认比率</summary>
+    private static void CountTokensByCharType(
+        string text, ContextFoldThresholds t,
+        ref double cjkTokens, ref double nonCjkTokens) {
+        var cjkChars = 0;
+        var nonCjkChars = 0;
+        for (var i = 0; i < text.Length; i++) {
+            if (IsCjkChar(text[i])) {
+                cjkChars++;
+            } else {
+                nonCjkChars++;
+            }
+        }
+        var cjkRatio = t.CharsPerToken > 0 ? Math.Max(1.5, t.CharsPerToken / 2.0) : 1.5;
+        cjkTokens += cjkChars / cjkRatio;
+        nonCjkTokens += nonCjkChars / (double)t.CharsPerToken;
+    }
+
+    /// <summary>判断字符是否为 CJK 字符（中文/日文/韩文）</summary>
+    private static bool IsCjkChar(char c) {
+        return c >= 0x4E00 && c <= 0x9FFF
+            || c >= 0x3040 && c <= 0x30FF
+            || c >= 0xAC00 && c <= 0xD7AF
+            || c >= 0x3400 && c <= 0x4DBF
+            || c >= 0x20000 && c <= 0x2A6DF;
     }
 
     /// <summary>

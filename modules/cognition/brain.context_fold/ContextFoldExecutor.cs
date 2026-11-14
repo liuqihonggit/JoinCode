@@ -8,15 +8,18 @@ public sealed partial class ContextFoldExecutor {
         "[CONVERSATION HISTORY SUMMARY — earlier turns folded for context efficiency]\n\n";
 
     private readonly IFoldSummarizer _summarizer;
+    private readonly IContextArchiveService? _notebookService;
     private readonly ILogger<ContextFoldExecutor>? _logger;
 
     /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="summarizer">折叠摘要器</param>
+    /// <param name="notebookService">笔记本服务（可选，用于存档折叠内容供 LLM 按需查阅）</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public ContextFoldExecutor(IFoldSummarizer summarizer, ILogger<ContextFoldExecutor>? logger = null) {
+    public ContextFoldExecutor(IFoldSummarizer summarizer, IContextArchiveService? notebookService = null, ILogger<ContextFoldExecutor>? logger = null) {
         _summarizer = summarizer ?? throw new ArgumentNullException(nameof(summarizer));
+        _notebookService = notebookService;
         _logger = logger;
     }
 
@@ -95,7 +98,22 @@ public sealed partial class ContextFoldExecutor {
 
         var summary = await _summarizer.SummarizeForFoldAsync(foldable, cancellationToken).ConfigureAwait(false);
 
-        var summaryMsg = new ApiMessage(MessageRole.Assistant, HistoryFoldMarker + summary);
+        var foldId = string.Empty;
+        if (_notebookService is not null) {
+            try {
+                foldId = await _notebookService.SaveFoldArchiveAsync(
+                    "default", foldable, summary, cancellationToken).ConfigureAwait(false);
+            } catch (Exception ex) {
+                _logger?.LogWarning(ex, "Failed to save fold archive to notebook, continuing without archive");
+            }
+        }
+
+        var summaryContent = HistoryFoldMarker + summary;
+        if (!string.IsNullOrEmpty(foldId)) {
+            summaryContent += $"\n\n[folded archive: {foldId} — use recall tool to read full content]";
+        }
+
+        var summaryMsg = new ApiMessage(MessageRole.Assistant, summaryContent);
 
         var replacement = new List<ApiMessage>(kept.Count + 1 + tail.Count);
         replacement.AddRange(kept);

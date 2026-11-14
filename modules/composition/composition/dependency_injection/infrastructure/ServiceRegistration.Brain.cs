@@ -10,8 +10,9 @@ public static partial class ServiceRegistration {
     public static IServiceCollection AddBrainPipelines(this IServiceCollection services) {
         services.AddSingleton<ChatContextOptions>(sp => {
             var summarizer = sp.GetRequiredService<IFoldSummarizer>();
+            var notebookService = sp.GetService<JoinCode.Abstractions.LLM.Chat.IContextArchiveService>();
             var foldLogger = sp.GetService<ILogger<ContextFoldExecutor>>();
-            var executor = new ContextFoldExecutor(summarizer, foldLogger);
+            var executor = new ContextFoldExecutor(summarizer, notebookService, foldLogger);
             return new ChatContextOptions { FoldExecutor = executor };
         });
 

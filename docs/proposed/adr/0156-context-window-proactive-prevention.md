@@ -317,4 +317,101 @@ if (remaining < context.Config.MaxTokens * 0.15) {
 2. **手动 exe 验收**（ADR 0080）：
    - 启动 jcc.exe，注入大量工具输出模拟上下文接近满
    - 验证 Agent 不崩溃、主动压缩、继续对话
+
+---
+
+## P4：持久化笔记本 — 折叠非破坏性 + LLM 按需查阅
+
+### 背景
+
+当前折叠（Fold）和响应式压缩（ReactiveCompact）是**破坏性操作**：
+- Fold：调 LLM 生成摘要 → `CompactInPlace` 原地替换 → 原始消息永久丢失
+- ReactiveCompact：纯规则提取关键信息 → 消息直接丢弃 → 原始内容永久丢失
+- Snip：头尾行保留 + 中间省略 → 只能重新运行工具恢复
+
+LLM 生成的摘要可能遗漏关键细节（如具体代码片段、错误消息、文件路径），而原始内容已被永久删除，LLM 无法回查。
+
+### 设计
+
+#### 核心原则
+
+1. **折叠/压缩变为非破坏性** — 执行前将原始内容存档到磁盘
+2. **每个存档有唯一 ID** — 折叠摘要中嵌入存档 ID
+3. **LLM 可按需查阅** — 通过 `recall` 系统工具读取存档内容
+
+#### 存档机制
+
+在 `ContextFoldExecutor.FoldAsync` 执行 `CompactInPlace` 前：
+
+```
+1. 生成唯一 fold ID（格式：fold-{timestamp}-{shortHash}）
+2. 将被折叠的原始消息序列化为 JSON，写入：
+   {AppDataFolder}/notebook/{sessionId}/{foldId}.json
+3. JSON 格式包含：
+   - foldId: 唯一标识
+   - timestamp: 折叠时间
+   - messageRange: 被折叠的消息索引范围 [start, end)
+   - messages: 被折叠的原始消息列表（完整内容）
+   - summary: LLM 生成的摘要文本
+4. 摘要消息中嵌入 fold ID 指针
+```
+
+#### 摘要消息格式变更
+
+```
+改前：
+[CONVERSATION HISTORY SUMMARY — earlier turns folded for context efficiency]
+{LLM生成的摘要内容}
+
+改后：
+[CONVERSATION HISTORY SUMMARY — earlier turns folded for context efficiency]
+{LLM生成的摘要内容}
+
+[folded archive: {foldId} — use recall tool to read full content]
+```
+
+#### `recall` 系统工具
+
+新增 MCP 系统工具 `recall`，让 LLM 按需查阅笔记本中的存档内容：
+
+| 子命令 | 功能 | 参数 |
+|--------|------|------|
+| `recall list` | 列出所有存档条目（ID+类型+时间+摘要预览） | 无 |
+| `recall read {foldId}` | 读取指定存档的完整原始内容 | foldId |
+| `recall search {keyword}` | 搜索存档内容（匹配消息文本） | keyword |
+
+工具描述（给 LLM 看的）：
+```
+Recall folded or compacted conversation history from the notebook.
+Use 'recall list' to see available archives, 'recall read {id}' to read full content,
+or 'recall search {keyword}' to search across all archives.
+```
+
+#### 与现有机制的整合
+
+| 现有机制 | 整合方式 |
+|---------|---------|
+| `IToolResultFileService`（工具结果持久化） | 保持不变，已有文件路径可 Read |
+| `transcriptPath`（压缩前保存完整对话记录） | 保持不变，作为宏观回查手段 |
+| `session-memory.md`（LLM 自维护笔记） | 保持不变，是 LLM 主动记录的笔记 |
+| **新增 `recall` 工具** | 统一查阅折叠/压缩时自动存档的内容 |
+
+### 实施步骤
+
+| 步骤 | 内容 | 影响 |
+|------|------|------|
+| 1 | 新增 `INotebookService` 接口 + `NotebookService` 实现 | `abstractions/` + `infrastructure/` |
+| 2 | 修改 `ContextFoldExecutor.FoldAsync` — 存档原始消息 | `brain.context_fold/` |
+| 3 | 修改 `FoldSummarizer` — 摘要消息中嵌入 fold ID | `composition/` |
+| 4 | 新增 `RecallToolHandlers` — MCP 系统工具 | `mcp/mcp.tool_handlers/` |
+| 5 | 修改 `ReactiveCompactService` — 存档被丢弃的消息组 | `brain.context_compact/` |
+
+### 验收标准
+
+| 验收项 | 标准 |
+|--------|------|
+| 折叠后原始内容可查阅 | 执行 `/compact` 后，LLM 可通过 `recall read {foldId}` 读取被折叠的原始消息 |
+| 摘要中有指针 | 折叠后的摘要消息包含 fold ID，LLM 知道可查阅 |
+| recall 工具可用 | `recall list` / `recall read` / `recall search` 三个子命令均正常工作 |
+| 存档文件格式正确 | JSON 格式包含 foldId/timestamp/messageRange/messages/summary |
    - 验证 `prompt_too_long` 错误不再出现（或大幅减少）

@@ -36,8 +36,15 @@ public static class ToolErrorJsonBuilder {
     /// <summary>
     /// 序列化 ToolErrorJson 为 JSON 字符串。
     /// </summary>
+    private static readonly ToolErrorJsonContext RelaxedContext = new(
+        new JsonSerializerOptions(ToolErrorJsonContext.Default.Options) {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            TypeInfoResolver = ToolErrorJsonContext.Default,
+        });
+
+    /// <summary>序列化 ToolErrorJson 为 JSON 字符串（保留中文等非 ASCII 字符原文）。</summary>
     public static string Serialize(ToolErrorJson error) =>
-        JsonSerializer.Serialize(error, ToolErrorJsonContext.Default.ToolErrorJson);
+        JsonSerializer.Serialize(error, RelaxedContext.ToolErrorJson);
 
     /// <summary>
     /// 构建 + 序列化一步完成，返回 JSON 字符串。

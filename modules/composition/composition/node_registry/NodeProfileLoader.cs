@@ -14,6 +14,7 @@ public static class NodeProfileLoader {
             .Where(n => n.StartsWith(ResourcePrefix, StringComparison.Ordinal))
             .Select(n => n[ResourcePrefix.Length..])
             .Select(n => n.EndsWith(".yaml", StringComparison.Ordinal) ? n[..^5] : n)
+            .Where(n => n.Length > 0)
             .ToList();
 
         var profiles = new Dictionary<string, NodeProfile>(StringComparer.Ordinal);
@@ -44,7 +45,7 @@ public static class NodeProfileLoader {
         yamlStream.Load(new StringReader(yaml));
 
         if (yamlStream.Documents.Count == 0) throw new InvalidOperationException($"Profile '{name}' YAML 为空");
-        if (yamlStream.Documents[0].RootNode is not YamlMappingNode root) throw new InvalidOperationException($"Profile '{name}' YAML 根节点不是 mapping");
+        if (yamlStream.Documents[0].RootNode is not YamlMappingNode root) throw new InvalidOperationException($"Profile '{name}' YAML root node must be a mapping, got {yamlStream.Documents[0].RootNode.GetType().Name}");
 
         var inherits = root.Children.TryGetValue("inherits", out var inheritsNode) ? inheritsNode.ToString() : null;
 
@@ -54,6 +55,8 @@ public static class NodeProfileLoader {
                 throw new InvalidOperationException($"Profile '{name}': 'consumers' must be a mapping, got {consumersNode.GetType().Name}");
             foreach (var (key, value) in consumersMapping.Children) {
                 var consumerId = key.ToString() ?? "";
+                if (string.IsNullOrEmpty(consumerId))
+                    throw new InvalidOperationException($"Profile '{name}': consumer has empty key");
                 var nodes = ParseConsumerNodes(value, name);
                 consumers[consumerId] = new ConsumerConfig(consumerId, nodes.ToArray());
             }
@@ -87,6 +90,8 @@ public static class NodeProfileLoader {
             var includeDict = new Dictionary<string, ConsumerConfig>(StringComparer.Ordinal);
             foreach (var (key, value) in includesMap.Children) {
                 var consumerId = key.ToString() ?? "";
+                if (string.IsNullOrEmpty(consumerId))
+                    throw new InvalidOperationException($"Profile '{name}': include consumer has empty key");
                 var nodes = ParseConsumerNodes(value, name);
                 includeDict[consumerId] = new ConsumerConfig(consumerId, nodes.ToArray());
             }

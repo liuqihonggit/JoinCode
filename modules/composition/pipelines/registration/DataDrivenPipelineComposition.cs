@@ -265,6 +265,8 @@ public static class DataDrivenPipelineComposition {
     /// <param name="services">DI 容器</param>
     /// <param name="profileName">Profile 名称（如 base/headless/sdk/ci）</param>
     public static IServiceCollection AddDataDrivenPipelines(this IServiceCollection services, string profileName) {
+        ArgumentException.ThrowIfNullOrEmpty(profileName);
+
         // 注册基础中间件服务（新旧路径共享）
         services.RegisterBaseMiddlewareServices();
 
@@ -442,14 +444,14 @@ public static class DataDrivenPipelineComposition {
     private static IReadOnlyDictionary<string, string> GetNodeConfig(
         ResolvedProfile profile, string consumerId, string nodeId) {
         if (!profile.Consumers.TryGetValue(consumerId, out var consumerConfig))
-            return new Dictionary<string, string>();
+            return FrozenDictionary<string, string>.Empty;
 
         foreach (var node in consumerConfig.Nodes) {
             if (node.Id == nodeId)
                 return node.Config;
         }
 
-        return new Dictionary<string, string>();
+        return FrozenDictionary<string, string>.Empty;
     }
 
     /// <summary>从 YAML config 读取 pipeline-name，带默认值回退</summary>

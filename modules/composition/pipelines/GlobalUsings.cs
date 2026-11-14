@@ -1,3 +1,4 @@
+global using System.Collections.Frozen;
 global using Core.Agents;
 global using Core.Agents.Coordinator;
 global using Core.Configuration;

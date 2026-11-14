@@ -77,7 +77,7 @@ public sealed class NodeContext : IAsyncDisposable {
         try {
             _onCleanupFailed?.Invoke(ex, null);
         } catch (Exception callbackEx) {
-            Console.WriteLine($"[NodeContext] onCleanupFailed 回调异常: {callbackEx.Message}");
+            Console.Error.WriteLine($"[NodeContext] onCleanupFailed callback error: {callbackEx.Message}");
         }
     }
 }

@@ -39,5 +39,9 @@ public sealed class NodeServiceResolver {
     }
 
     /// <summary>组合 key 格式：consumerId + ":" + nodeId</summary>
-    public static string CombineKey(string consumerId, string nodeId) => $"{consumerId}:{nodeId}";
+    public static string CombineKey(string consumerId, string nodeId) {
+        if (consumerId.Contains(':') || nodeId.Contains(':'))
+            throw new ArgumentException($"consumerId and nodeId must not contain ':' — got consumerId='{consumerId}', nodeId='{nodeId}'");
+        return $"{consumerId}:{nodeId}";
+    }
 }

@@ -54,7 +54,7 @@ public sealed class DesktopSceneClickToolHandlers {
                   }]
                 }
                 """;
-            return ToolResultBuilder.Error().WithText(errorJson).Build();
+            return ToolResultBuilder.Success().WithText(errorJson).Build();
         }
 
         var json = $$"""

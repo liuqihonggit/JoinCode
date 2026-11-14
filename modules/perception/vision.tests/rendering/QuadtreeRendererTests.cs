@@ -76,12 +76,12 @@ public sealed class QuadtreeRendererTests {
 
         var result = await _renderer.ZoomAsync(base64, "L0.2", 100, 100, 2, 1);
 
-        result.Grid.ImageWidth.Should().Be(25);
-        result.Grid.ImageHeight.Should().Be(25);
+        result.Grid.ImageWidth.Should().Be(50);
+        result.Grid.ImageHeight.Should().Be(50);
         var bytes = Convert.FromBase64String(result.SubImageBase64);
         using var img = SKBitmap.Decode(bytes);
-        img!.Width.Should().Be(25);
-        img.Height.Should().Be(25);
+        img!.Width.Should().Be(50);
+        img.Height.Should().Be(50);
     }
 
     [Fact]

@@ -149,9 +149,9 @@ public sealed class ResilientHttpExecutor {
         var budget = retry.TotalBudget;
         var sw = budget.HasValue ? Stopwatch.StartNew() : null;
         var attempt = 0;
-        // 预算模式 + 无 TransientErrorPredicate = 所有错误无限重试 → 显示 ∞
-        // 预算模式 + 有 TransientErrorPredicate = 仅容量错误无限，其他受 MaxRetries 限制 → 显示 MaxRetries
-        var maxLabel = budget.HasValue && retry.TransientErrorPredicate is null ? "∞" : retry.MaxRetries.ToString();
+        // 预算模式 + 有 TransientErrorPredicate = 仅容量错误无限，其他受 MaxRetries 限制 → 显示 ∞
+        // 其他情况（无预算或无 TransientErrorPredicate）= 受 MaxRetries 限制 → 显示 MaxRetries
+        var maxLabel = budget.HasValue && retry.TransientErrorPredicate is not null ? "∞" : retry.MaxRetries.ToString();
 
         while (true) {
             if (sw is not null && sw.Elapsed >= budget.GetValueOrDefault()) {
@@ -324,13 +324,13 @@ public sealed class ResilientHttpExecutor {
 
     /// <summary>
     /// 判断是否允许重试 — 区分容量错误（429/529）和其他错误
-    /// <para>容量错误 + 预算模式 → 无限重试（对齐基准 persistent 模式仅 429/529 无限）</para>
+    /// <para>容量错误 + 预算模式 + TransientErrorPredicate 配置 → 无限重试（仅无人值守模式）</para>
     /// <para>其他错误 → 有限重试（MaxRetries 驱动）</para>
-    /// <para>TransientErrorPredicate 未配置 → 向后兼容（预算模式无限重试所有错误）</para>
+    /// <para>TransientErrorPredicate 未配置 → 有限重试（MaxRetries 驱动，交互式模式）</para>
     /// </summary>
     private static bool IsRetryAllowed(Exception ex, RetryConfig retry, TimeSpan? budget, int attempt) {
         if (budget is null) return attempt < retry.MaxRetries;
-        if (retry.TransientErrorPredicate is null) return true;
+        if (retry.TransientErrorPredicate is null) return attempt < retry.MaxRetries;
         return retry.TransientErrorPredicate(ex) || attempt < retry.MaxRetries;
     }
 

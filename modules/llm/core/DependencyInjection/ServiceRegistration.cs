@@ -152,8 +152,8 @@ public static partial class ServiceRegistration {
             };
         }
 
-        // 交互式模式：429/529 也不无限重试，走 MaxRetries 有限重试（避免用户长时间等待）
-        // 无人值守模式：429/529 无限重试（用户睡觉时让 AI 持续重试直到预算耗尽）
+        // 交互式模式：无 TotalBudget，走 MaxRetries 有限重试（避免用户长时间等待）
+        // 无人值守模式：有 TotalBudget + TransientErrorPredicate，容量错误无限重试直到预算耗尽
         retryConfig = new RetryConfig {
             MaxRetries = retryConfig.MaxRetries,
             BaseDelay = retryConfig.BaseDelay,

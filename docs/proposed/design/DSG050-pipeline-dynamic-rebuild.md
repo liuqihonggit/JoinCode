@@ -184,3 +184,26 @@ services.AddSingleton<ResolvedProfile>(sp => sp.GetRequiredService<IProfileManag
 | `StreamPipelineRebuildTests.cs` | 3 个 Stream Rebuild 单元测试 |
 
 **验证**：7 个 Rebuild 测试全绿 + 98 个管道测试全绿 + 27 个 composition 测试全绿 + 全仓编译通过
+
+### 阶段3 已完成（2026-11-15）
+
+**目标**：端到端验证 — exe 启动后通过 `/profile` slash 命令切换 Profile，确认管道中间件列表变化
+
+**新增 `/profile` slash 命令**：
+| 文件 | 改动 |
+|------|------|
+| `ChatCommandName.cs` | 添加 `Profile` 枚举值 `[EnumValue("profile")]` |
+| `IProfileManager.cs` | 添加 `AvailableProfiles` 属性 |
+| `NodeProfileResolver.cs` | 添加 `AvailableProfiles` 属性（暴露 `_profiles.Keys`） |
+| `ProfileManager.cs` | 实现 `AvailableProfiles`（委托到 `_resolver.AvailableProfiles`） |
+| `ProfileCommand.cs` | 新增 `/profile` slash 命令 — list 列出全部 Profile + 切换 Profile |
+| `GlobalUsings.cs` (slash) | 添加 `global using JoinCode.Abstractions.Composition` |
+
+**端到端验证结果**（exe 实际运行，非 mock）：
+| 场景 | 输入 | 输出 | 状态 |
+|------|------|------|------|
+| 列出 Profile | `/profile list` | base ← 当前, ci, headless, sdk | ✅ |
+| 切换 Profile | `/profile sdk` | "已切换 Profile: base → sdk" + "管道中间件列表已动态重建" | ✅ |
+| 无需切换 | `/profile base` | "当前已是 base，无需切换" | ✅ |
+| 未知 Profile | `/profile nonexistent` | "未知 Profile: nonexistent。输入 /profile 查看可用列表" | ✅ |
+| `--dump-profile` 对比 | `--dump-profile base` vs `--dump-profile sdk` | sdk 的 agent-dispose-pipeline 无 crash-snapshot-mw | ✅ |

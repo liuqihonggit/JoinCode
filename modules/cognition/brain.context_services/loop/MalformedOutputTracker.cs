@@ -11,7 +11,7 @@ public sealed class MalformedOutputTracker : ServiceEntity, IMalformedOutputTrac
     private int _consecutiveMalformedCount;
 
     /// <summary>
-    /// 当前连续异常输出次数G次数
+    /// 当前连续异常输出次数
     /// </summary>
     public int ConsecutiveMalformedCount => _consecutiveMalformedCount;
 

@@ -13,8 +13,8 @@ public sealed class NetworkRetryOptions {
     /// <summary>退避起始延迟，默认 2s</summary>
     public TimeSpan BaseDelay { get; init; } = TimeSpan.FromSeconds(2);
 
-    /// <summary>退避上限延迟，默认 5min，到达后稳态重试</summary>
-    public TimeSpan MaxDelay { get; init; } = TimeSpan.FromMinutes(5);
+    /// <summary>退避上限延迟，默认 30s（交互式模式），无人值守模式可用更大值</summary>
+    public TimeSpan MaxDelay { get; init; } = TimeSpan.FromSeconds(30);
 
     /// <summary>退避策略，默认 ExponentialWithJitter</summary>
     public string Strategy { get; init; } = "ExponentialWithJitter";

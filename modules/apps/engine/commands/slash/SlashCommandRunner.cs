@@ -46,10 +46,25 @@ public static class SlashCommandRunner {
         CancellationToken cancellationToken = default) {
         var commandRegistry = services.GetService<ChatCommandRegistry>();
         if (commandRegistry is null) {
-            // DI 未注册命令注册表时（如测试/精简宿主），用本程序集生成的全量清单兜底
             commandRegistry = new ChatCommandRegistry();
             GeneratedCommandRegistration.RegisterAllChatCommands(commandRegistry);
         }
+
+        var nodeRegistry = services.GetService<INodeRegistry>();
+        var profileManager = services.GetService<IProfileManager>();
+        if (nodeRegistry is not null && profileManager is not null) {
+            var categoryNodes = await nodeRegistry.GetServicesForConsumerAsync<CommandCategoryNode>(
+                "command-dispatch", profileManager.Current, cancellationToken).ConfigureAwait(false);
+            if (categoryNodes.Count > 0) {
+                var filteredRegistry = new ChatCommandRegistry();
+                foreach (var node in categoryNodes) {
+                    foreach (var cmd in node.Commands)
+                        filteredRegistry.Register(cmd);
+                }
+                commandRegistry = filteredRegistry;
+            }
+        }
+
         var toolRegistry = services.GetService<IToolRegistry>();
         var cmdMap = toolRegistry is not null ? new CmdMap(commandRegistry, toolRegistry) : null;
 

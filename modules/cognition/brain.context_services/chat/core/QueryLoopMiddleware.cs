@@ -197,6 +197,16 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                 continue;
             }
 
+            var suspiciousAction = SuspiciousTagsAction.FallThrough;
+            if (iterState.SuspiciousTagsDetected)
+                suspiciousAction = await HandleSuspiciousTagsAsync(iterState, ct).ConfigureAwait(false);
+            if (suspiciousAction == SuspiciousTagsAction.Break) {
+                yield return ChatStreamEvent.Text(
+                    $"⚠ 模型连续{_services?.MalformedOutputTracker?.MaxConsecutiveMalformed ?? 3}次输出异常格式，本轮对话已结束。");
+                break;
+            }
+            if (suspiciousAction == SuspiciousTagsAction.Continue) continue;
+
             if (!string.IsNullOrWhiteSpace(iterState.FullResponse.ToString())) {
                 _emptyResponseTracker.Reset();
                 // B11 steer：本步无工具调用，但邮箱里还有待注入输入 → 不得收尾（DSH :998-1006），
@@ -542,9 +552,19 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         var parserChain = _services?.TextToolCallParserChain;
         if (parserChain is null || iterState.FullResponse.Length == 0) return false;
 
-        var parseResult = parserChain.TryParse(iterState.FullResponse.ToString());
+        TextToolCallParseResult? parseResult;
+        try {
+            parseResult = parserChain.TryParse(iterState.FullResponse.ToString());
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex,
+                "[QueryLoop {CallId}] Fallback 解析异常，已容错跳过: {Message}",
+                iterState.CallId, ex.Message);
+            return false;
+        }
+
         if (parseResult is null || parseResult.ToolCalls.Count == 0) {
             if (ContainsSuspiciousXmlTags(iterState.FullResponse.ToString())) {
+                iterState.SuspiciousTagsDetected = true;
                 _logger?.LogWarning(
                     "[QueryLoop {CallId}] LLM 输出包含可疑 XML 工具调用标签但无法完整解析，" +
                     "可能为异常输出（如 <parameter name=\"...\"> 标签），内容前200字符: {Preview}",
@@ -585,5 +605,28 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             || content.Contains("<function_calls>", StringComparison.Ordinal)
             || content.Contains("<function_call ", StringComparison.Ordinal)
             || content.Contains("<invoke ", StringComparison.Ordinal);
+    }
+
+    /// <summary>可疑标签处理动作</summary>
+    private enum SuspiciousTagsAction { FallThrough, Continue, Break }
+
+    /// <summary>
+    /// 处理可疑 XML 标签 — 记录异常输出次数，注入干预提示词让 LLM 重新生成。
+    /// 超过阈值时返回 Break 强制结束对话。
+    /// </summary>
+    private async Task<SuspiciousTagsAction> HandleSuspiciousTagsAsync(IterationState iterState, CancellationToken ct) {
+        var tracker = _services?.MalformedOutputTracker;
+        if (tracker is null) return SuspiciousTagsAction.FallThrough;
+
+        var exceeded = tracker.RecordMalformedOutput();
+        if (exceeded) {
+            Diag.WriteLine($"[LOOP {iterState.CallId}] 连续异常输出已达{tracker.MaxConsecutiveMalformed}次, 强制结束");
+            return SuspiciousTagsAction.Break;
+        }
+
+        await _contextManager.AddUserMessageAsync(
+            tracker.BuildInterventionPrompt(), cancellationToken: ct).ConfigureAwait(false);
+        Diag.WriteLine($"[LOOP {iterState.CallId}] 检测到可疑XML标签, 注入干预提示词 (第{tracker.ConsecutiveMalformedCount}次)");
+        return SuspiciousTagsAction.Continue;
     }
 }

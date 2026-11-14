@@ -41,6 +41,11 @@ public sealed partial class IterationState {
     public List<ToolCallEntry> ToolCalls { get; } = new();
     /// <summary>是否检测到工具调用</summary>
     public bool IsToolCallDetected => ToolCallName is not null;
+    /// <summary>
+    /// 本轮 LLM 输出包含可疑 XML 工具调用标签但无法完整解析。
+    /// 用于 InvokeAsync while 循环检测后注入提示词让 LLM 重新生成。
+    /// </summary>
+    public bool SuspiciousTagsDetected { get; set; }
 }
 
 /// <summary>

@@ -375,9 +375,10 @@ public static class DataDrivenPipelineComposition {
         Func<TContext, bool>? shortCircuit = null,
         Func<TContext, ObjectId>? objectIdSelector = null) {
         var profile = sp.GetRequiredService<ResolvedProfile>();
+        var resolver = sp.GetRequiredService<NodeServiceResolver>();
         var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
 
-        var middlewares = ResolveMiddlewares<IMiddleware<TContext>>(sp, profile, consumerId);
+        var middlewares = ResolveMiddlewares<IMiddleware<TContext>>(sp, resolver, profile, consumerId, loggerFactory);
 
         var builder = new PipelineBuilder<TContext>();
 
@@ -401,9 +402,10 @@ public static class DataDrivenPipelineComposition {
     private static StreamMiddlewarePipeline<TContext, TEvent> BuildStreamPipeline<TContext, TEvent>(
         IServiceProvider sp, string consumerId) {
         var profile = sp.GetRequiredService<ResolvedProfile>();
+        var resolver = sp.GetRequiredService<NodeServiceResolver>();
         var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
 
-        var middlewares = ResolveMiddlewares<IStreamMiddleware<TContext, TEvent>>(sp, profile, consumerId);
+        var middlewares = ResolveMiddlewares<IStreamMiddleware<TContext, TEvent>>(sp, resolver, profile, consumerId, loggerFactory);
 
         var builder = new StreamPipelineBuilder<TContext, TEvent>()
             .WithLoggingScope(loggerFactory)
@@ -414,14 +416,28 @@ public static class DataDrivenPipelineComposition {
     }
 
     /// <summary>
-    /// 从 Profile + INodeRegistry 解析中间件列表（统一 feature flag 检查）
+    /// 从 Profile + NodeServiceResolver 解析中间件列表，解析失败时记录警告日志
     /// </summary>
     private static List<TMiddleware> ResolveMiddlewares<TMiddleware>(
-        IServiceProvider sp, ResolvedProfile profile, string consumerId)
+        IServiceProvider sp, NodeServiceResolver resolver, ResolvedProfile profile, string consumerId,
+        ILoggerFactory loggerFactory)
         where TMiddleware : class {
-        var registry = sp.GetRequiredService<INodeRegistry>();
-        var services = registry.GetServicesForConsumerAsync<TMiddleware>(consumerId, profile).GetAwaiter().GetResult();
-        return services.ToList();
+        if (!profile.Consumers.TryGetValue(consumerId, out var consumerConfig))
+            throw new InvalidOperationException($"Consumer '{consumerId}' not found in profile '{profile.Name}'");
+
+        var logger = loggerFactory.CreateLogger("DataDrivenPipelineComposition");
+        var result = new List<TMiddleware>();
+        foreach (var nodeEntry in consumerConfig.Nodes.OrderBy(n => n.Priority)) {
+            if (resolver.TryResolve<TMiddleware>(consumerId, nodeEntry.Id, sp, out var middleware)) {
+                result.Add(middleware);
+            } else {
+                logger.LogWarning(
+                    "中间件解析跳过: consumer='{ConsumerId}', node='{NodeId}', type='{MiddlewareType}' — " +
+                    "NodeServiceResolver 未找到匹配的工厂注册，该中间件将被静默跳过",
+                    consumerId, nodeEntry.Id, typeof(TMiddleware).Name);
+            }
+        }
+        return result;
     }
 
     /// <summary>工厂映射辅助方法</summary>

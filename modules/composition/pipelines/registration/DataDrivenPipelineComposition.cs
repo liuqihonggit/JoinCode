@@ -265,6 +265,8 @@ public static class DataDrivenPipelineComposition {
     /// <param name="services">DI 容器</param>
     /// <param name="profileName">Profile 名称（如 base/headless/sdk/ci）</param>
     public static IServiceCollection AddDataDrivenPipelines(this IServiceCollection services, string profileName) {
+        ArgumentException.ThrowIfNullOrEmpty(profileName);
+
         // 注册基础中间件服务（新旧路径共享）
         services.RegisterBaseMiddlewareServices();
 
@@ -366,17 +368,16 @@ public static class DataDrivenPipelineComposition {
     }
 
     /// <summary>
-    /// 数据驱动构建 Task 管道 — 从 Profile 解析中间件列表，通过 NodeServiceResolver 解析实例
+    /// 数据驱动构建 Task 管道 — 从 Profile 解析中间件列表，通过 INodeRegistry 解析实例
     /// </summary>
     private static MiddlewarePipeline<TContext> BuildTaskPipeline<TContext>(
         IServiceProvider sp, string consumerId,
         Func<TContext, bool>? shortCircuit = null,
         Func<TContext, ObjectId>? objectIdSelector = null) {
         var profile = sp.GetRequiredService<ResolvedProfile>();
-        var resolver = sp.GetRequiredService<NodeServiceResolver>();
         var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
 
-        var middlewares = ResolveMiddlewares<IMiddleware<TContext>>(sp, resolver, profile, consumerId);
+        var middlewares = ResolveMiddlewares<IMiddleware<TContext>>(sp, profile, consumerId);
 
         var builder = new PipelineBuilder<TContext>();
 
@@ -400,10 +401,9 @@ public static class DataDrivenPipelineComposition {
     private static StreamMiddlewarePipeline<TContext, TEvent> BuildStreamPipeline<TContext, TEvent>(
         IServiceProvider sp, string consumerId) {
         var profile = sp.GetRequiredService<ResolvedProfile>();
-        var resolver = sp.GetRequiredService<NodeServiceResolver>();
         var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
 
-        var middlewares = ResolveMiddlewares<IStreamMiddleware<TContext, TEvent>>(sp, resolver, profile, consumerId);
+        var middlewares = ResolveMiddlewares<IStreamMiddleware<TContext, TEvent>>(sp, profile, consumerId);
 
         var builder = new StreamPipelineBuilder<TContext, TEvent>()
             .WithLoggingScope(loggerFactory)
@@ -414,20 +414,14 @@ public static class DataDrivenPipelineComposition {
     }
 
     /// <summary>
-    /// 从 Profile + NodeServiceResolver 解析中间件列表
+    /// 从 Profile + INodeRegistry 解析中间件列表（统一 feature flag 检查）
     /// </summary>
     private static List<TMiddleware> ResolveMiddlewares<TMiddleware>(
-        IServiceProvider sp, NodeServiceResolver resolver, ResolvedProfile profile, string consumerId)
+        IServiceProvider sp, ResolvedProfile profile, string consumerId)
         where TMiddleware : class {
-        if (!profile.Consumers.TryGetValue(consumerId, out var consumerConfig))
-            throw new InvalidOperationException($"Consumer '{consumerId}' not found in profile '{profile.Name}'");
-
-        var result = new List<TMiddleware>();
-        foreach (var nodeEntry in consumerConfig.Nodes.OrderBy(n => n.Priority)) {
-            if (resolver.TryResolve<TMiddleware>(consumerId, nodeEntry.Id, sp, out var middleware))
-                result.Add(middleware);
-        }
-        return result;
+        var registry = sp.GetRequiredService<INodeRegistry>();
+        var services = registry.GetServicesForConsumerAsync<TMiddleware>(consumerId, profile).GetAwaiter().GetResult();
+        return services.ToList();
     }
 
     /// <summary>工厂映射辅助方法</summary>
@@ -438,14 +432,14 @@ public static class DataDrivenPipelineComposition {
     private static IReadOnlyDictionary<string, string> GetNodeConfig(
         ResolvedProfile profile, string consumerId, string nodeId) {
         if (!profile.Consumers.TryGetValue(consumerId, out var consumerConfig))
-            return new Dictionary<string, string>();
+            return FrozenDictionary<string, string>.Empty;
 
         foreach (var node in consumerConfig.Nodes) {
             if (node.Id == nodeId)
                 return node.Config;
         }
 
-        return new Dictionary<string, string>();
+        return FrozenDictionary<string, string>.Empty;
     }
 
     /// <summary>从 YAML config 读取 pipeline-name，带默认值回退</summary>

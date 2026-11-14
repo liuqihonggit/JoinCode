@@ -6,10 +6,10 @@ namespace JoinCode.Abstractions.Composition;
 /// <para>UnloadAsync 逆序执行所有 cleanup，异常不传播（通过可选回调上报）</para>
 /// </summary>
 public sealed class NodeContext : IAsyncDisposable {
-    private readonly Stack<Func<ValueTask>> _cleanupStack = new();
+    private readonly ConcurrentStack<Func<ValueTask>> _cleanupStack = new();
     private readonly IServiceProvider _services;
     private readonly Action<Exception, string?>? _onCleanupFailed;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     /// <summary>已登记副作用数量</summary>
     public int RegisteredCount => _cleanupStack.Count;
@@ -77,7 +77,7 @@ public sealed class NodeContext : IAsyncDisposable {
         try {
             _onCleanupFailed?.Invoke(ex, null);
         } catch (Exception callbackEx) {
-            Console.WriteLine($"[NodeContext] onCleanupFailed 回调异常: {callbackEx.Message}");
+            Console.Error.WriteLine($"[NodeContext] onCleanupFailed callback error: {callbackEx.Message}");
         }
     }
 }

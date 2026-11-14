@@ -35,8 +35,14 @@ public sealed partial class FeatureFlagMiddleware : ServiceEntity, IToolExecutio
         CancellationToken ct) {
         if (_featureFlagService is not null) {
             var featureKey = $"tool.{context.ToolName}.enabled";
-            var isEnabled = await _featureFlagService.IsEnabledAsync(
-                featureKey, cancellationToken: ct).ConfigureAwait(false);
+            bool isEnabled;
+            try {
+                isEnabled = await _featureFlagService.IsEnabledAsync(
+                    featureKey, cancellationToken: ct).ConfigureAwait(false);
+            } catch (Exception ex) {
+                _logger.LogError(ex, "FeatureFlag service error checking '{FeatureKey}' for tool '{ToolName}'; allowing execution", featureKey, context.ToolName);
+                isEnabled = true;
+            }
 
             if (!isEnabled) {
                 _logger.LogWarning(L.T(StringKey.FeatureFlagDisabledLog, context.ToolName, featureKey));

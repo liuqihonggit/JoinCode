@@ -1,3 +1,4 @@
+global using System.Collections.Frozen;
 global using Core.Agents;
 global using Core.Agents.Coordinator;
 global using Core.Configuration;
@@ -10,6 +11,7 @@ global using Core.Query;
 global using Core.Skills;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Pipeline.Middlewares;
+global using JoinCode.Abstractions.Composition;
 global using JoinCode.Abstractions.Composition.Profile;
 global using JoinCode.Abstractions.Entity;
 global using JoinCode.Abstractions.Exceptions;

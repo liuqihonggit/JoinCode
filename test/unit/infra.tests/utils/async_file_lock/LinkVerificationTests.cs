@@ -326,7 +326,7 @@ public sealed class LinkVerificationTests : IAsyncLifetime
         var readStarted = new TaskCompletionSource<bool>();
 
         // 写入任务
-        _ = Task.Run(async () =>
+        var writeTask = Task.Run(async () =>
         {
             await using var stream = _fs.CreateStream(filePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
             await using var writer = new StreamWriter(stream) { AutoFlush = true };
@@ -343,7 +343,7 @@ public sealed class LinkVerificationTests : IAsyncLifetime
         });
 
         // 读取任务
-        _ = Task.Run(async () =>
+        var readTask = Task.Run(async () =>
         {
             await readStarted.Task.ConfigureAwait(true);
             await Task.Delay(100).ConfigureAwait(true);
@@ -358,6 +358,7 @@ public sealed class LinkVerificationTests : IAsyncLifetime
         var timeout = TimeSpan.FromSeconds(10);
         var writeResult = await writeCompleted.Task.WaitAsync(timeout).ConfigureAwait(true);
         var readResult = await readCompleted.Task.WaitAsync(timeout).ConfigureAwait(true);
+        await Task.WhenAll(writeTask, readTask).ConfigureAwait(true);
 
         writeResult.Should().Be("write-done");
         readResult.Should().Contain("initial", "should see initial content");

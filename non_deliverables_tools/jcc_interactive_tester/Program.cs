@@ -33,7 +33,7 @@ internal static class Program {
         using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
 
         // 异步读 stdout — 直接输出到控制台
-        _ = Task.Run(async () => {
+        var stdoutTask = Task.Run(async () => {
             var buf = new char[4096];
             while (!cts.Token.IsCancellationRequested) {
                 var read = await p.StandardOutput.ReadAsync(buf, cts.Token).ConfigureAwait(false);
@@ -43,7 +43,7 @@ internal static class Program {
         }, cts.Token);
 
         // 异步读 stderr — 检测生命周期标记 [READY]/[DONE]
-        _ = Task.Run(async () => {
+        var stderrTask = Task.Run(async () => {
             string? line;
             while ((line = await p.StandardError.ReadLineAsync(cts.Token).ConfigureAwait(false)) is not null) {
                 Console.WriteLine(line);
@@ -83,6 +83,8 @@ internal static class Program {
         await p.StandardInput.WriteLineAsync("/exit").ConfigureAwait(false);
 
         p.WaitForExit(15000);
+        cts.Cancel();
+        await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
         Console.WriteLine($"\nEXIT: {p.ExitCode}");
         return p.ExitCode;
     }

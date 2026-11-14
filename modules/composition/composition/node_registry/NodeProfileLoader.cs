@@ -14,12 +14,17 @@ public static class NodeProfileLoader {
             .Where(n => n.StartsWith(ResourcePrefix, StringComparison.Ordinal))
             .Select(n => n[ResourcePrefix.Length..])
             .Select(n => n.EndsWith(".yaml", StringComparison.Ordinal) ? n[..^5] : n)
+            .Where(n => n.Length > 0)
             .ToList();
 
         var profiles = new Dictionary<string, NodeProfile>(StringComparer.Ordinal);
         foreach (var name in profileNames) {
-            var profile = LoadProfile(asm, name);
-            if (profile is not null) profiles[name] = profile;
+            try {
+                var profile = LoadProfile(asm, name);
+                if (profile is not null) profiles[name] = profile;
+            } catch (Exception ex) {
+                throw new InvalidOperationException($"Failed to load profile '{name}': {ex.Message}", ex);
+            }
         }
         return profiles.ToFrozenDictionary(StringComparer.Ordinal);
     }
@@ -40,15 +45,19 @@ public static class NodeProfileLoader {
         yamlStream.Load(new StringReader(yaml));
 
         if (yamlStream.Documents.Count == 0) throw new InvalidOperationException($"Profile '{name}' YAML 为空");
-        if (yamlStream.Documents[0].RootNode is not YamlMappingNode root) throw new InvalidOperationException($"Profile '{name}' YAML 根节点不是 mapping");
+        if (yamlStream.Documents[0].RootNode is not YamlMappingNode root) throw new InvalidOperationException($"Profile '{name}' YAML root node must be a mapping, got {yamlStream.Documents[0].RootNode.GetType().Name}");
 
         var inherits = root.Children.TryGetValue("inherits", out var inheritsNode) ? inheritsNode.ToString() : null;
 
         var consumers = new Dictionary<string, ConsumerConfig>(StringComparer.Ordinal);
-        if (root.Children.TryGetValue("consumers", out var consumersNode) && consumersNode is YamlMappingNode consumersMapping) {
+        if (root.Children.TryGetValue("consumers", out var consumersNode)) {
+            if (consumersNode is not YamlMappingNode consumersMapping)
+                throw new InvalidOperationException($"Profile '{name}': 'consumers' must be a mapping, got {consumersNode.GetType().Name}");
             foreach (var (key, value) in consumersMapping.Children) {
                 var consumerId = key.ToString() ?? "";
-                var nodes = ParseConsumerNodes(value);
+                if (string.IsNullOrEmpty(consumerId))
+                    throw new InvalidOperationException($"Profile '{name}': consumer has empty key");
+                var nodes = ParseConsumerNodes(value, name);
                 consumers[consumerId] = new ConsumerConfig(consumerId, nodes.ToArray());
             }
         }
@@ -65,7 +74,9 @@ public static class NodeProfileLoader {
                 if (item is not YamlMappingNode overrideMap) continue;
                 var consumer = overrideMap.Children.TryGetValue("consumer", out var c) ? c.ToString() ?? "" : "";
                 var node = overrideMap.Children.TryGetValue("node", out var n) ? n.ToString() ?? "" : "";
-                var priority = overrideMap.Children.TryGetValue("priority", out var p) ? int.Parse(p.ToString() ?? "0") : (int?)null;
+                var priority = overrideMap.Children.TryGetValue("priority", out var p)
+                    ? int.TryParse(p.ToString(), out var pv) ? pv : throw new InvalidOperationException($"Profile '{name}': override for consumer '{consumer}', node '{node}' has invalid priority value '{p}'")
+                    : (int?)null;
                 var config = overrideMap.Children.TryGetValue("config", out var cfg) && cfg is YamlMappingNode cfgMap
                     ? cfgMap.Children.ToFrozenDictionary(k => k.Key.ToString() ?? "", v => v.Value.ToString() ?? "", StringComparer.Ordinal)
                     : null;
@@ -79,7 +90,9 @@ public static class NodeProfileLoader {
             var includeDict = new Dictionary<string, ConsumerConfig>(StringComparer.Ordinal);
             foreach (var (key, value) in includesMap.Children) {
                 var consumerId = key.ToString() ?? "";
-                var nodes = ParseConsumerNodes(value);
+                if (string.IsNullOrEmpty(consumerId))
+                    throw new InvalidOperationException($"Profile '{name}': include consumer has empty key");
+                var nodes = ParseConsumerNodes(value, name);
                 includeDict[consumerId] = new ConsumerConfig(consumerId, nodes.ToArray());
             }
             includes = includeDict.ToFrozenDictionary(StringComparer.Ordinal);
@@ -100,23 +113,27 @@ public static class NodeProfileLoader {
     /// 1. { nodes: [...] } — mapping 包含 nodes 字段（标准格式）
     /// 2. [...] — 直接是序列（简写格式）
     /// </summary>
-    private static List<NodeEntryConfig> ParseConsumerNodes(YamlNode value) {
+    private static List<NodeEntryConfig> ParseConsumerNodes(YamlNode value, string profileName) {
         if (value is YamlMappingNode mapping) {
             if (mapping.Children.TryGetValue("nodes", out var nodesNode))
-                return ParseNodeList(nodesNode);
+                return ParseNodeList(nodesNode, profileName);
             return new List<NodeEntryConfig>();
         }
-        return ParseNodeList(value);
+        return ParseNodeList(value, profileName);
     }
 
-    private static List<NodeEntryConfig> ParseNodeList(YamlNode node) {
+    private static List<NodeEntryConfig> ParseNodeList(YamlNode node, string profileName) {
         var result = new List<NodeEntryConfig>();
         if (node is not YamlSequenceNode seq) return result;
 
         foreach (var item in seq.Children) {
             if (item is not YamlMappingNode map) continue;
             var id = map.Children.TryGetValue("id", out var idNode) ? idNode.ToString() ?? "" : "";
-            var priority = map.Children.TryGetValue("priority", out var priNode) ? int.Parse(priNode.ToString() ?? "0") : 0;
+            if (string.IsNullOrEmpty(id))
+                throw new InvalidOperationException($"Profile '{profileName}': node entry has empty or missing 'id' field");
+            var priority = map.Children.TryGetValue("priority", out var priNode)
+                ? int.TryParse(priNode.ToString(), out var p) ? p : throw new InvalidOperationException($"Profile '{profileName}': node '{id}' has invalid priority value '{priNode}'")
+                : 0;
             var enabledWhen = map.Children.TryGetValue("enabled-when", out var enNode) ? enNode.ToString() : null;
             var config = map.Children.TryGetValue("config", out var cfgNode) && cfgNode is YamlMappingNode cfgMap
                 ? cfgMap.Children.ToFrozenDictionary(k => k.Key.ToString() ?? "", v => v.Value.ToString() ?? "", StringComparer.Ordinal)

@@ -769,20 +769,32 @@ services.AddSingleton(sp => {
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| INode + NodeMetadata + NodeState | 运行期统一节点接口 | ✅ `modules/abstractions/composition/node/interfaces/` | ✅ 编译通过 |
-| INodeConsumer + INodeRegistry | 消费点驱动节点获取 | ✅ `modules/abstractions/composition/node/interfaces/` | ✅ 编译通过 |
-| NodeProfile + ConsumerConfig + ResolvedProfile | Profile 数据结构 | ✅ `modules/abstractions/composition/node/profile/` | ✅ 编译通过 |
-| NodeProfileLoader (YAML 内嵌资源) | Profile YAML 加载 | ✅ `modules/composition/composition/node_registry/NodeProfileLoader.cs` | ✅ `jcc --dump-nodes` 输出正确 |
-| NodeProfileResolver (省略即继承) | 继承链解析合并 | ✅ `modules/composition/composition/node_registry/NodeProfileResolver.cs` | ✅ `jcc --dump-profile sdk` 验证排除/新增/覆写 |
-| NodeRegistry + NodeEntry + Node<TService> | 运行期节点注册表 | ✅ `modules/composition/composition/node_registry/NodeRegistry.cs` | ✅ 编译通过 + DI 注册 |
-| base/headless/sdk/ci Profile YAML | 四个预设 Profile | ✅ `resources/profiles/` | ✅ `jcc --dump-nodes` 全部输出正确 |
-| --dump-nodes / --dump-profile / --profile CLI | 诊断命令 | ✅ `modules/apps/cli/core/commands/core/Program.cs` | ✅ exe 启动验收通过 |
-| ServiceRegistration DI 注册 | NodeRegistry + ProfileResolver 注入 | ✅ `modules/composition/composition/dependency_injection/core/ServiceRegistration.cs` | ✅ 编译通过 |
-| 数据驱动的管道组装 | PipelineComposition.cs 不再硬编码 | ✅ `DataDrivenPipelineComposition.cs` 成为唯一路径 | ✅ exe `--profile base` 启动+对话正常 |
-| NodeContext 可逆注册 | 节点卸载时自动回滚 | ✅ `modules/abstractions/composition/node/interfaces/NodeContext.cs` | ✅ 11/11 测试全绿 |
-| DynamicPluginRegistry AOT 改造 | invoke 在 AOT 下能路由 | ❌ P6（YAML 配置驱动，不新增特性） | ❌ |
-| 泛型中间件 YAML config 配置 | CrashSnapshotMiddleware 等构造参数从 YAML 读取 | ✅ `GetPipelineName/GetConfigInt/GetConfigSeconds` 辅助方法 | ✅ 所有泛型中间件构造参数从 YAML config 读取 |
-| LlmAdapter 式继承适配 | 抽象类+默认实现+覆写模式推广 | ✅ SearchProviderBase + WebFetchProviderBase + PresentationAdapterBase | ✅ 328 测试全绿 |
+| INode + NodeMetadata + NodeState | 运行期统一节点接口 | ✅ `modules/abstractions/composition/node/interfaces/` | ✅ exe `--dump-nodes` 输出正确 |
+| INodeConsumer + INodeRegistry | 消费点驱动节点获取 | ✅ `modules/abstractions/composition/node/interfaces/` | ✅ exe `--dump-nodes` 消费点输出正确 |
+| NodeProfile + ConsumerConfig + ResolvedProfile | Profile 数据结构 | ✅ `modules/abstractions/composition/node/profile/` | ✅ exe `--dump-profile` 输出正确 |
+| NodeProfileLoader (YAML 内嵌资源) | Profile YAML 加载 | ✅ `modules/composition/composition/node_registry/NodeProfileLoader.cs` | ✅ exe `--dump-nodes` 4 个 Profile 全部输出 |
+| NodeProfileResolver (省略即继承) | 继承链解析合并 | ✅ `modules/composition/composition/node_registry/NodeProfileResolver.cs` | ✅ exe `--dump-profile sdk/ci` 验证排除/新增/覆写 |
+| NodeRegistry + NodeEntry + Node<TService> | 运行期节点注册表 | ✅ `modules/composition/composition/node_registry/NodeRegistry.cs` | ✅ exe 启动成功 + DI 注册 |
+| base/headless/sdk/ci Profile YAML | 四个预设 Profile | ✅ `resources/profiles/` | ✅ exe `--dump-nodes` 全部输出正确 |
+| --dump-nodes / --dump-profile / --profile CLI | 诊断命令 | ✅ `modules/apps/cli/core/commands/core/Program.cs` | ✅ exe 启动验收通过（2026-11-14 完整验收） |
+| ServiceRegistration DI 注册 | NodeRegistry + ProfileResolver 注入 | ✅ `modules/composition/composition/dependency_injection/core/ServiceRegistration.cs` | ✅ exe 启动成功 |
+| 数据驱动的管道组装 | PipelineComposition.cs 不再硬编码 | ✅ `DataDrivenPipelineComposition.cs` 成为唯一路径 | ✅ exe `--profile base` 启动+tool_search 正常 |
+| NodeContext 可逆注册 | 节点卸载时自动回滚 | ✅ `modules/abstractions/composition/node/interfaces/NodeContext.cs` | ✅ exe 启动/退出正常 + 11 单元测试全绿 |
+| DynamicPluginRegistry AOT 改造 | invoke 在 AOT 下能路由 | ✅ `AotHandlerRegistryGenerator` + `IAotHandlerRegistry` + `DynamicPluginRegistry.Invoke` 双路径 | ✅ 源码生成器扫描 99 个 `[McpToolDispatch]` + `[McpTool]` 生成路由表；`ServiceRegistration` 调用 `AddAotHandlerRegistry`；待 AOT 发布验证 |
+| 泛型中间件 YAML config 配置 | CrashSnapshotMiddleware 等构造参数从 YAML 读取 | ✅ `GetPipelineName/GetConfigInt/GetConfigSeconds` 辅助方法 | ✅ exe `--dump-profile base` 验证 config 字段正确读取 |
+| LlmAdapter 式继承适配 | 抽象类+默认实现+覆写模式推广 | ✅ SearchProviderBase + WebFetchProviderBase + PresentationAdapterBase | ✅ exe tool_search 正常 + 54 单元测试全绿 |
+
+### 7.1 薄弱环节修复（2026-11-14）
+
+系统性审查发现 40 个薄弱环节（4 高/14 中/12 低），修复 27 个，搁置 1 个（Metadata 硬编码 → P6 阶段）。
+
+| 严重度 | 修复数 | 关键修复 |
+|--------|--------|---------|
+| 高 | 4 | YAML解析异常包装 + Register逻辑错误 + FeatureFlag安全优先 + INodeConsumer异步化 |
+| 中 | 14 | int.TryParse抛异常 + 循环继承visited回滚 + Config合并语义 + includes重复node合并 + NodeContext线程安全 + FeatureFlagMiddleware fail-open + NodeEntry缓存实例 |
+| 低 | 9 | 空字符串校验 + 异常消息友好化 + FrozenDictionary.Empty + CombineKey冒号校验 + profileName验证 |
+
+Commits: `c1e88d80c`, `4bbaa9598`, `522485a00`
 
 ---
 

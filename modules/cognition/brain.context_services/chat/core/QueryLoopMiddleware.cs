@@ -323,6 +323,9 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             if (iterState.FullResponse.Length == 0) {
                 yield break;
             }
+            if (TryFallbackParseToolCalls(iterState)) {
+                goto StreamingToolExecution;
+            }
             var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
             foreach (var evt in pureEvents)
                 yield return evt;
@@ -331,6 +334,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             yield break;
         }
 
+        StreamingToolExecution:
         var toolCalls = _toolHandler.PrepareToolCalls(iterState);
         var assistantContent = iterState.FullResponse.Length > 0 ? iterState.FullResponse.ToString() : null;
         var assistantMetadata = ToolCallEntry.BuildAssistantMetadata(toolCalls);
@@ -408,6 +412,9 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             if (iterState.FullResponse.Length == 0) {
                 yield break;
             }
+            if (TryFallbackParseToolCalls(iterState)) {
+                goto TraditionalToolExecution;
+            }
             var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
             foreach (var evt in pureEvents)
                 yield return evt;
@@ -416,6 +423,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             yield break;
         }
 
+        TraditionalToolExecution:
         var toolCalls = _toolHandler.PrepareToolCalls(iterState);
         var assistantContent = iterState.FullResponse.Length > 0 ? iterState.FullResponse.ToString() : null;
         var assistantMetadata = ToolCallEntry.BuildAssistantMetadata(toolCalls);
@@ -516,5 +524,59 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         }
 
         return (events, aiResponse);
+    }
+
+    /// <summary>
+    /// Fallback 解析 — 当协议层未检测到工具调用时，尝试从 LLM content 文本中解析工具调用。
+    /// 防御场景：LLM 在 content 中输出 XML 格式工具调用（如 &lt;antml:invoke&gt;、&lt;tool_use&gt;），
+    /// 或异常输出 &lt;parameter name="..."&gt; 标签导致 ReAct 循环中断。
+    /// </summary>
+    /// <param name="iterState">当前迭代状态</param>
+    /// <returns>解析成功返回 true（iterState 已填充工具调用信息）；失败返回 false</returns>
+    private bool TryFallbackParseToolCalls(IterationState iterState) {
+        var parserChain = _services?.TextToolCallParserChain;
+        if (parserChain is null || iterState.FullResponse.Length == 0) return false;
+
+        var parseResult = parserChain.TryParse(iterState.FullResponse.ToString());
+        if (parseResult is null || parseResult.ToolCalls.Count == 0) {
+            if (ContainsSuspiciousXmlTags(iterState.FullResponse.ToString())) {
+                _logger?.LogWarning(
+                    "[QueryLoop {CallId}] LLM 输出包含可疑 XML 工具调用标签但无法完整解析，" +
+                    "可能为异常输出（如 <parameter name=\"...\"> 标签），内容前200字符: {Preview}",
+                    iterState.CallId,
+                    iterState.FullResponse.Length > 200
+                        ? iterState.FullResponse.ToString(0, 200)
+                        : iterState.FullResponse.ToString());
+            }
+            return false;
+        }
+
+        var first = parseResult.ToolCalls[0];
+        iterState.ToolCallName = first.Name;
+        iterState.ToolCallId = first.Id;
+        iterState.ToolCallArguments = JsonArgumentParser.Parse(first.Arguments);
+        foreach (var tc in parseResult.ToolCalls)
+            iterState.ToolCalls.Add(tc);
+
+        if (parseResult.RemainingText is not null) {
+            iterState.FullResponse.Clear();
+            iterState.FullResponse.Append(parseResult.RemainingText);
+        }
+
+        _logger?.LogWarning(
+            "[QueryLoop {CallId}] 检测到文本格式工具调用（非协议层），已 fallback 解析: {ToolName}, 工具调用数={Count}",
+            iterState.CallId, first.Name, parseResult.ToolCalls.Count);
+        return true;
+    }
+
+    /// <summary>
+    /// 检测 LLM 输出是否包含可疑的 XML 工具调用标签。
+    /// 用于在 fallback 解析失败时发出警告，防止 LLM 异常输出静默中断 ReAct 循环。
+    /// </summary>
+    private static bool ContainsSuspiciousXmlTags(string content) {
+        return content.Contains("<parameter ", StringComparison.Ordinal)
+            || content.Contains("<antml:", StringComparison.Ordinal)
+            || content.Contains("<tool_use>", StringComparison.Ordinal)
+            || content.Contains("<function_calls>", StringComparison.Ordinal);
     }
 }

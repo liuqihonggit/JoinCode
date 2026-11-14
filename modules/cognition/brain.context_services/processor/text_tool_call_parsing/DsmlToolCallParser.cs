@@ -12,6 +12,7 @@ namespace Core.Context;
 ///     &lt;/｜DSML｜invoke&gt;
 ///   &lt;/｜DSML｜tool_calls&gt;
 /// </summary>
+[Register(typeof(ITextToolCallParser), ServiceLifetime.Singleton)]
 public sealed class DsmlToolCallParser : ITextToolCallParser {
     private const string ToolCallsOpen = "<\uFF5CDSML\uFF5Ctool_calls>";
     private const string ToolCallsClose = "</\uFF5CDSML\uFF5Ctool_calls>";

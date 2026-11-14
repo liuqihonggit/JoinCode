@@ -5,6 +5,7 @@ namespace Core.Context;
 /// 对应不同 LLM 在 content 里输出的各种工具调用文本格式（DSML/DeepSeek原生/antml/XML/JSON）。
 /// 顺序按格式特异性从高到低排列，最特殊的先试，避免误匹配。
 /// </summary>
+[Register(typeof(TextToolCallParserChain), ServiceLifetime.Singleton)]
 public sealed class TextToolCallParserChain {
     private readonly IReadOnlyList<ITextToolCallParser> _parsers;
 

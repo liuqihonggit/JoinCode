@@ -8,13 +8,15 @@ namespace Core.Context;
 /// <param name="IdleDetector">聊天空闲检测器（可选）</param>
 /// <param name="TelemetryService">遥测服务（可选）</param>
 /// <param name="PostSamplingCallbacks">采样后回调管理器（可选）</param>
+/// <param name="TextToolCallParserChain">文本格式工具调用解析链（可选，fallback 解析 LLM 在 content 中输出的工具调用）</param>
 [Register(typeof(QueryLoopServices), ServiceLifetime.Singleton)]
 public sealed record QueryLoopServices(
     IChatContentReplacer? ContentReplacer = null,
     IChatFileContextService? FileContextService = null,
     IChatIdleDetector? IdleDetector = null,
     ITelemetryService? TelemetryService = null,
-    IPostSamplingCallbackManager? PostSamplingCallbacks = null) {
+    IPostSamplingCallbackManager? PostSamplingCallbacks = null,
+    TextToolCallParserChain? TextToolCallParserChain = null) {
     /// <summary>
     /// 从 DI 容器解析所有可选服务 — 保持向后兼容
     /// </summary>
@@ -25,5 +27,6 @@ public sealed record QueryLoopServices(
         FileContextService: sp.GetService<IChatFileContextService>(),
         IdleDetector: sp.GetService<IChatIdleDetector>(),
         TelemetryService: sp.GetService<ITelemetryService>(),
-        PostSamplingCallbacks: sp.GetService<IPostSamplingCallbackManager>());
+        PostSamplingCallbacks: sp.GetService<IPostSamplingCallbackManager>(),
+        TextToolCallParserChain: sp.GetService<TextToolCallParserChain>());
 }

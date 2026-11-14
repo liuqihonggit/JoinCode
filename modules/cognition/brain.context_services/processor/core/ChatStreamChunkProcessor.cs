@@ -41,6 +41,11 @@ public sealed partial class IterationState {
     public List<ToolCallEntry> ToolCalls { get; } = new();
     /// <summary>是否检测到工具调用</summary>
     public bool IsToolCallDetected => ToolCallName is not null;
+    /// <summary>
+    /// 本轮 LLM 输出包含可疑 XML 工具调用标签但无法完整解析。
+    /// 用于 InvokeAsync while 循环检测后注入提示词让 LLM 重新生成。
+    /// </summary>
+    public bool SuspiciousTagsDetected { get; set; }
 }
 
 /// <summary>
@@ -233,16 +238,11 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
 
             if (string.IsNullOrWhiteSpace(name)) continue;
 
-            // 对每个工具调用独立执行工具名修复
-            var repairedName = LlmJsonHelper.RepairToolName(name, logger);
-            var jsonRepair = LlmJsonHelper.RepairJson(arguments, logger);
-            var repairedArgs = jsonRepair.Success ? jsonRepair.RepairedJson : arguments;
-
-            state.ToolCalls.Add(new ToolCallEntry {
+            state.ToolCalls.Add(ToolCallRepairHelper.Repair(new ToolCallEntry {
                 Id = id,
-                Name = repairedName,
-                Arguments = repairedArgs
-            });
+                Name = name,
+                Arguments = arguments
+            }, logger));
         }
     }
 }

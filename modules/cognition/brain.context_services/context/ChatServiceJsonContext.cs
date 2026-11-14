@@ -7,6 +7,7 @@ namespace Core.Context;
 [JsonSerializable(typeof(TokenUsage))]
 [JsonSerializable(typeof(List<Dictionary<string, JsonElement>>))]
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
+[JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(DiagnosticLogEntryDto))]
 [JsonSerializable(typeof(KeywordMissLogDto))]
 [JsonSerializable(typeof(MessageOriginMetadataDto))]

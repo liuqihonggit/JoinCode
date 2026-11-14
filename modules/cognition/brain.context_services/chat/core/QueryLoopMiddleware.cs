@@ -197,6 +197,16 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
                 continue;
             }
 
+            var suspiciousAction = SuspiciousTagsAction.FallThrough;
+            if (iterState.SuspiciousTagsDetected)
+                suspiciousAction = await HandleSuspiciousTagsAsync(iterState, ct).ConfigureAwait(false);
+            if (suspiciousAction == SuspiciousTagsAction.Break) {
+                yield return ChatStreamEvent.Text(
+                    $"⚠ 模型连续{_services?.MalformedOutputTracker?.MaxConsecutiveMalformed ?? 3}次输出异常格式，本轮对话已结束。");
+                break;
+            }
+            if (suspiciousAction == SuspiciousTagsAction.Continue) continue;
+
             if (!string.IsNullOrWhiteSpace(iterState.FullResponse.ToString())) {
                 _emptyResponseTracker.Reset();
                 // B11 steer：本步无工具调用，但邮箱里还有待注入输入 → 不得收尾（DSH :998-1006），
@@ -323,12 +333,12 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             if (iterState.FullResponse.Length == 0) {
                 yield break;
             }
-            var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
-            foreach (var evt in pureEvents)
-                yield return evt;
-            if (!context.IsDryRun && !string.IsNullOrWhiteSpace(pureResponse))
-                await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
-            yield break;
+            if (!TryFallbackParseToolCalls(iterState)) {
+                await foreach (var evt in EmitPureTextResponseAsync(iterState, context, ct).ConfigureAwait(false)) {
+                    yield return evt;
+                }
+                yield break;
+            }
         }
 
         var toolCalls = _toolHandler.PrepareToolCalls(iterState);
@@ -408,12 +418,12 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             if (iterState.FullResponse.Length == 0) {
                 yield break;
             }
-            var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
-            foreach (var evt in pureEvents)
-                yield return evt;
-            if (!context.IsDryRun && !string.IsNullOrWhiteSpace(pureResponse))
-                await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
-            yield break;
+            if (!TryFallbackParseToolCalls(iterState)) {
+                await foreach (var evt in EmitPureTextResponseAsync(iterState, context, ct).ConfigureAwait(false)) {
+                    yield return evt;
+                }
+                yield break;
+            }
         }
 
         var toolCalls = _toolHandler.PrepareToolCalls(iterState);
@@ -516,5 +526,110 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         }
 
         return (events, aiResponse);
+    }
+
+    /// <summary>
+    /// 发射纯文本响应事件流 — 从 BuildPureTextResponse 构建事件并持久化助手消息
+    /// </summary>
+    private async IAsyncEnumerable<ChatStreamEvent> EmitPureTextResponseAsync(
+        IterationState iterState, ChatMiddlewareContext context,
+        [EnumeratorCancellation] CancellationToken ct) {
+        var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
+        foreach (var evt in pureEvents)
+            yield return evt;
+        if (!context.IsDryRun && !string.IsNullOrWhiteSpace(pureResponse))
+            await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Fallback 解析 — 当协议层未检测到工具调用时，尝试从 LLM content 文本中解析工具调用。
+    /// 防御场景：LLM 在 content 中输出 XML 格式工具调用（如 &lt;antml:invoke&gt;、&lt;tool_use&gt;），
+    /// 或异常输出 &lt;parameter name="..."&gt; 标签导致 ReAct 循环中断。
+    /// </summary>
+    /// <param name="iterState">当前迭代状态</param>
+    /// <returns>解析成功返回 true（iterState 已填充工具调用信息）；失败返回 false</returns>
+    private bool TryFallbackParseToolCalls(IterationState iterState) {
+        var parserChain = _services?.TextToolCallParserChain;
+        if (parserChain is null || iterState.FullResponse.Length == 0) return false;
+
+        TextToolCallParseResult? parseResult;
+        try {
+            parseResult = parserChain.TryParse(iterState.FullResponse.ToString());
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex,
+                "[QueryLoop {CallId}] Fallback 解析异常，已容错跳过: {Message}",
+                iterState.CallId, ex.Message);
+            Diag.WriteLine($"[FALLBACK] 解析异常已容错: {ex.Message}");
+            return false;
+        }
+
+        if (parseResult is null || parseResult.ToolCalls.Count == 0) {
+            if (ContainsSuspiciousXmlTags(iterState.FullResponse.ToString())) {
+                iterState.SuspiciousTagsDetected = true;
+                Diag.WriteLine($"[FALLBACK] 可疑XML标签检测: SuspiciousTagsDetected=true");
+                _logger?.LogWarning(
+                    "[QueryLoop {CallId}] LLM 输出包含可疑 XML 工具调用标签但无法完整解析，" +
+                    "可能为异常输出（如 <parameter name=\"...\"> 标签），内容前200字符: {Preview}",
+                    iterState.CallId,
+                    iterState.FullResponse.Length > 200
+                        ? iterState.FullResponse.ToString(0, 200)
+                        : iterState.FullResponse.ToString());
+            }
+            return false;
+        }
+
+        var first = parseResult.ToolCalls[0];
+        iterState.ToolCallName = first.Name;
+        iterState.ToolCallId = first.Id;
+        iterState.ToolCallArguments = JsonArgumentParser.Parse(first.Arguments);
+        foreach (var tc in parseResult.ToolCalls)
+            iterState.ToolCalls.Add(tc);
+
+        if (parseResult.RemainingText is not null) {
+            iterState.FullResponse.Clear();
+            iterState.FullResponse.Append(parseResult.RemainingText);
+        }
+
+        _logger?.LogWarning(
+            "[QueryLoop {CallId}] 检测到文本格式工具调用（非协议层），已 fallback 解析: {ToolName}, 工具调用数={Count}",
+            iterState.CallId, first.Name, parseResult.ToolCalls.Count);
+        Diag.WriteLine($"[FALLBACK] 解析成功: {first.Name}, 工具调用数={parseResult.ToolCalls.Count}");
+        return true;
+    }
+
+    /// <summary>
+    /// 检测 LLM 输出是否包含可疑的 XML 工具调用标签。
+    /// 用于在 fallback 解析失败时发出警告，防止 LLM 异常输出静默中断 ReAct 循环。
+    /// </summary>
+    private static bool ContainsSuspiciousXmlTags(string content) {
+        return content.Contains("<parameter ", StringComparison.Ordinal)
+            || content.Contains("<antml:", StringComparison.Ordinal)
+            || content.Contains("<tool_use>", StringComparison.Ordinal)
+            || content.Contains("<function_calls>", StringComparison.Ordinal)
+            || content.Contains("<function_call ", StringComparison.Ordinal)
+            || content.Contains("<invoke ", StringComparison.Ordinal);
+    }
+
+    /// <summary>可疑标签处理动作</summary>
+    private enum SuspiciousTagsAction { FallThrough, Continue, Break }
+
+    /// <summary>
+    /// 处理可疑 XML 标签 — 记录异常输出次数，注入干预提示词让 LLM 重新生成。
+    /// 超过阈值时返回 Break 强制结束对话。
+    /// </summary>
+    private async Task<SuspiciousTagsAction> HandleSuspiciousTagsAsync(IterationState iterState, CancellationToken ct) {
+        var tracker = _services?.MalformedOutputTracker;
+        if (tracker is null) return SuspiciousTagsAction.FallThrough;
+
+        var exceeded = tracker.RecordMalformedOutput();
+        if (exceeded) {
+            Diag.WriteLine($"[LOOP {iterState.CallId}] 连续异常输出已达{tracker.MaxConsecutiveMalformed}次, 强制结束");
+            return SuspiciousTagsAction.Break;
+        }
+
+        await _contextManager.AddUserMessageAsync(
+            tracker.BuildInterventionPrompt(), cancellationToken: ct).ConfigureAwait(false);
+        Diag.WriteLine($"[LOOP {iterState.CallId}] 检测到可疑XML标签, 注入干预提示词 (第{tracker.ConsecutiveMalformedCount}次)");
+        return SuspiciousTagsAction.Continue;
     }
 }

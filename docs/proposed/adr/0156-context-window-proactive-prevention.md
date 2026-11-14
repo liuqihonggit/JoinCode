@@ -3,10 +3,11 @@
 > 📍 **导航**: [docs/](../../README.md) › [adr/](../README.md)
 > 🔗 **上游索引**: [adr/README.md](../README.md) — 修改本文档后须同步更新此索引
 
-> 状态: proposed
+> 状态: accepted
 > 创建: 2026-11-14
+> 落地: 2026-11-14（P0-P4 全部实现并验证通过）
 > 决策者: 用户主导（要求主动计算 token 预防溢出，禁止 Agent 因上下文溢出崩溃退出）
-> 影响: modules/cognition/brain.context_services/ + modules/cognition/brain.query/ + modules/cognition/brain.context_fold/ + modules/cognition/brain.context_compact/ + modules/abstractions/ai/llm/chat/context_fold/
+> 影响: modules/cognition/brain.context_services/ + modules/cognition/brain.query/ + modules/cognition/brain.context_fold/ + modules/cognition/brain.context_compact/ + modules/abstractions/ai/llm/chat/context_fold/ + modules/abstractions/abstractions.interfaces/ + modules/abstractions/infrastructure/ + modules/mcp/mcp.tool_handlers/ + modules/composition/composition/dependency_injection/
 > 关联: [ADR 0080](../implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md)（手动 exe 验收）、[ADR 0086](../implemented/adr/component_strategy/0086-core-tech-selection-lock-design.md)（锁设计与死锁防护）
 
 ## 背景
@@ -317,4 +318,159 @@ if (remaining < context.Config.MaxTokens * 0.15) {
 2. **手动 exe 验收**（ADR 0080）：
    - 启动 jcc.exe，注入大量工具输出模拟上下文接近满
    - 验证 Agent 不崩溃、主动压缩、继续对话
+
+---
+
+## P4：持久化笔记本 — 折叠非破坏性 + LLM 按需查阅
+
+### 背景
+
+当前折叠（Fold）和响应式压缩（ReactiveCompact）是**破坏性操作**：
+- Fold：调 LLM 生成摘要 → `CompactInPlace` 原地替换 → 原始消息永久丢失
+- ReactiveCompact：纯规则提取关键信息 → 消息直接丢弃 → 原始内容永久丢失
+- Snip：头尾行保留 + 中间省略 → 只能重新运行工具恢复
+
+LLM 生成的摘要可能遗漏关键细节（如具体代码片段、错误消息、文件路径），而原始内容已被永久删除，LLM 无法回查。
+
+### 设计
+
+#### 核心原则
+
+1. **折叠/压缩变为非破坏性** — 执行前将原始内容存档到磁盘
+2. **每个存档有唯一 ID** — 折叠摘要中嵌入存档 ID
+3. **LLM 可按需查阅** — 通过 `recall` 系统工具读取存档内容
+
+#### 存档机制
+
+在 `ContextFoldExecutor.FoldAsync` 执行 `CompactInPlace` 前：
+
+```
+1. 生成唯一 fold ID（格式：fold-{timestamp}-{shortHash}）
+2. 将被折叠的原始消息序列化为 JSON，写入：
+   {AppDataFolder}/notebook/{sessionId}/{foldId}.json
+3. JSON 格式包含：
+   - foldId: 唯一标识
+   - timestamp: 折叠时间
+   - messageRange: 被折叠的消息索引范围 [start, end)
+   - messages: 被折叠的原始消息列表（完整内容）
+   - summary: LLM 生成的摘要文本
+4. 摘要消息中嵌入 fold ID 指针
+```
+
+#### 摘要消息格式变更
+
+```
+改前：
+[CONVERSATION HISTORY SUMMARY — earlier turns folded for context efficiency]
+{LLM生成的摘要内容}
+
+改后：
+[CONVERSATION HISTORY SUMMARY — earlier turns folded for context efficiency]
+{LLM生成的摘要内容}
+
+[folded archive: {foldId} — use recall tool to read full content]
+```
+
+#### `recall` 系统工具
+
+新增 MCP 系统工具 `recall`，让 LLM 按需查阅笔记本中的存档内容：
+
+| 子命令 | 功能 | 参数 |
+|--------|------|------|
+| `recall list` | 列出所有存档条目（ID+类型+时间+摘要预览） | 无 |
+| `recall read {foldId}` | 读取指定存档的完整原始内容 | foldId |
+| `recall search {keyword}` | 搜索存档内容（匹配消息文本） | keyword |
+
+工具描述（给 LLM 看的）：
+```
+Recall folded or compacted conversation history from the notebook.
+Use 'recall list' to see available archives, 'recall read {id}' to read full content,
+or 'recall search {keyword}' to search across all archives.
+```
+
+#### 与现有机制的整合
+
+| 现有机制 | 整合方式 |
+|---------|---------|
+| `IToolResultFileService`（工具结果持久化） | 保持不变，已有文件路径可 Read |
+| `transcriptPath`（压缩前保存完整对话记录） | 保持不变，作为宏观回查手段 |
+| `session-memory.md`（LLM 自维护笔记） | 保持不变，是 LLM 主动记录的笔记 |
+| **新增 `recall` 工具** | 统一查阅折叠/压缩时自动存档的内容 |
+
+### 实施步骤
+
+| 步骤 | 内容 | 影响 |
+|------|------|------|
+| 1 | 新增 `INotebookService` 接口 + `NotebookService` 实现 | `abstractions/` + `infrastructure/` |
+| 2 | 修改 `ContextFoldExecutor.FoldAsync` — 存档原始消息 | `brain.context_fold/` |
+| 3 | 修改 `FoldSummarizer` — 摘要消息中嵌入 fold ID | `composition/` |
+| 4 | 新增 `RecallToolHandlers` — MCP 系统工具 | `mcp/mcp.tool_handlers/` |
+| 5 | 修改 `ReactiveCompactService` — 存档被丢弃的消息组 | `brain.context_compact/` |
+
+### 验收标准
+
+| 验收项 | 标准 |
+|--------|------|
+| 折叠后原始内容可查阅 | 执行 `/compact` 后，LLM 可通过 `recall read {foldId}` 读取被折叠的原始消息 |
+| 摘要中有指针 | 折叠后的摘要消息包含 fold ID，LLM 知道可查阅 |
+| recall 工具可用 | `recall list` / `recall read` / `recall search` 三个子命令均正常工作 |
+| 存档文件格式正确 | JSON 格式包含 foldId/timestamp/messageRange/messages/summary |
    - 验证 `prompt_too_long` 错误不再出现（或大幅减少）
+
+---
+
+## 实现落地记录
+
+### P0: ContextOverflowException 恢复机制 (commit 46f9f4e)
+
+| 变更 | 文件 | 说明 |
+|------|------|------|
+| GuardContextBudget 返回结果而非抛异常 | `modules/cognition/brain.context_services/chat/core/QueryLoopMiddleware.cs` | 新增 `ContextBudgetGuardResult` + `GuardLevel.Preventive`(0.7~1.0)，不再抛 `ContextOverflowException` |
+| FoldIfNeededAsync 返回 Overflow 标记 | `modules/cognition/brain.context_services/context/ContextFoldService.cs` | `ContextFoldResult` 新增 `Overflow`/`OverflowTokens`/`ContextMaxTokens` 字段 |
+| ChatErrorHandlingMiddleware 兜底 | `modules/composition/pipelines/middlewares/ChatErrorHandlingMiddleware.cs` | 对 `ContextOverflowException` 不重新抛出，改为输出警告事件 |
+
+### P1: 降低预检阈值 + CJK token 估算 (commit 754044b)
+
+| 变更 | 文件 | 说明 |
+|------|------|------|
+| 预防性裁剪级别 | `modules/cognition/brain.context_services/chat/core/QueryLoopMiddleware.cs` | 比率 0.7~1.0 时触发 `PreventiveSnipAsync`，不拦截请求 |
+| CJK/非CJK 分类估算 | `modules/cognition/brain.context_fold/ContextFoldDecider.cs` | 中文 1.5 字符/token，每条消息+4结构开销，每个工具规格+10 JSON开销 |
+
+### P2: HistorySnipMiddleware 默认生效 (commit 284bc5b)
+
+| 变更 | 文件 | 说明 |
+|------|------|------|
+| 不依赖 TokenBudgetManager | `modules/cognition/brain.query/query2/token_budget/middleware/HistorySnipMiddleware.cs` | 只需 `IHistorySnipService` 不为 null 即注册钩子；无 budgetManager 时内部估算 |
+| 触发阈值调整 | 同上 | 从 10% 改为 15%，裁剪目标从 70% 改为 65% |
+
+### P3: 裁剪后超预算警告 (commit cb4ef83)
+
+| 变更 | 文件 | 说明 |
+|------|------|------|
+| 裁剪后预算检查 | `modules/cognition/brain.query/query2/token_budget/middleware/HistorySnipMiddleware.cs` | 裁剪后剩余预算 <30%时 LogWarning |
+
+### P4: 持久化笔记本 — 折叠非破坏性 + LLM 按需查阅 (commit fc7b041)
+
+| 变更 | 文件 | 说明 |
+|------|------|------|
+| `IContextArchiveService` 接口 | `modules/abstractions/abstractions.interfaces/interfaces/llm/INotebookService.cs` | 存档/列表/读取/搜索 四个方法 + `ContextArchiveEntry` DTO |
+| `ContextArchiveService` 实现 | `modules/abstractions/infrastructure/io/services/file_ops/NotebookService.cs` | 磁盘存档 `{AppData}/notebook/{sessionId}/{foldId}.json`，AOT 兼容 JsonContext |
+| `ContextFoldExecutor` 存档 | `modules/cognition/brain.context_fold/ContextFoldExecutor.cs` | `CompactInPlace` 前调 `SaveFoldArchiveAsync`，摘要嵌入 `[folded archive: {foldId}]` |
+| `ReactiveCompactService` 存档 | `modules/cognition/brain.context_compact/services/core/ReactiveCompactService.cs` | 丢弃消息组前存档，新增 `IContextArchiveService?` + `ILogger?` 参数 |
+| `recall_list`/`recall_read`/`recall_search` 工具 | `modules/mcp/mcp.tool_handlers/dev/RecallToolHandlers.cs` | 三个 MCP 系统工具，`ToolCategory.Notebook`，`Optional = true` |
+| DI 注入 | `modules/composition/composition/dependency_injection/infrastructure/ServiceRegistration.Brain.cs` | `GetService<IContextArchiveService>()` 注入到 `ContextFoldExecutor` |
+| 工具名枚举 | `modules/abstractions/abstractions.primitives.utils/src/constants/tool_names_ext/SystemToolName.cs` | 新增 `RecallList`/`RecallRead`/`RecallSearch` 三个 `[EnumValue]` |
+
+**命名决策**：接口从 `INotebookService` 重命名为 `IContextArchiveService`，因为项目中已有 `JoinCode.Abstractions.Interfaces.INotebookService`（用于 Jupyter notebook cell 操作），两者命名空间通过 GlobalUsings 同时引入会导致 CS0104 歧义。
+
+### 验收
+
+| 验收项 | 标准 | 状态 |
+|--------|------|------|
+| Agent 永不崩溃 | GuardContextBudget 不抛异常，ChatErrorHandlingMiddleware 兜底 | ✅ 单元测试 952 通过 |
+| 主动压缩 | 比率 > 0.7 时触发预防性裁剪 | ✅ |
+| Token 估算误差 | CJK 内容 1.5 字符/token（之前 4 字符/token） | ✅ 单元测试通过 |
+| HistorySnip 默认生效 | 不注入 TokenBudgetManager 时裁剪仍触发 | ✅ |
+| 折叠后原始内容可查阅 | recall_read 可读取被折叠的原始消息 | ✅ 编译通过 |
+| recall 工具可用 | recall_list/read/search 三个工具注册 | ✅ 编译通过 |
+| McpToolDispatch 测试 | 源码生成器正确生成注册代码 | ✅ 524 测试通过 |

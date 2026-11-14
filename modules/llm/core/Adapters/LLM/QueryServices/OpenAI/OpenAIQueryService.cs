@@ -284,7 +284,8 @@ public class OpenAIQueryService : QueryServiceBase {
             MaxTokens = settings?.MaxTokens,
             TopP = settings?.TopP,
             FrequencyPenalty = settings?.FrequencyPenalty,
-            PresencePenalty = settings?.PresencePenalty
+            PresencePenalty = settings?.PresencePenalty,
+            PromptCacheKey = settings?.PromptCacheKey
         };
 
         // 流式请求时显式要求 API 返回 usage(含 cached_tokens) —

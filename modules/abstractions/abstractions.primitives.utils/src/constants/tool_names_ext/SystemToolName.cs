@@ -139,4 +139,16 @@ public enum SystemToolName {
     [EnumValue("model_search")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     ModelSearch,
+
+    [EnumValue("recall_list")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    RecallList,
+
+    [EnumValue("recall_read")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    RecallRead,
+
+    [EnumValue("recall_search")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    RecallSearch,
 }

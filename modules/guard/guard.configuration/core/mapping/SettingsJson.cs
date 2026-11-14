@@ -80,10 +80,31 @@ public sealed class SettingsJson {
         if (overrideDict is null) return baseDict;
 
         var result = new Dictionary<string, ProfileSettings>(baseDict, StringComparer.OrdinalIgnoreCase);
-        foreach (var (key, value) in overrideDict)
-            result[key] = value;
+        foreach (var (key, value) in overrideDict) {
+            if (result.TryGetValue(key, out var baseProfile)) {
+                result[key] = MergeProfileSettings(baseProfile, value);
+            } else {
+                result[key] = value;
+            }
+        }
 
         return result;
+    }
+
+    /// <summary>
+    /// 字段级合并 ProfileSettings — override 中非 null 字段覆盖 base，null 字段保留 base 值。
+    /// 防止子文件(config.json)整体替换 settings.json 中的 vendor 配置。
+    /// </summary>
+    private static ProfileSettings MergeProfileSettings(ProfileSettings baseProfile, ProfileSettings overrideProfile) {
+        return new ProfileSettings {
+            Provider = overrideProfile.Provider ?? baseProfile.Provider,
+            Protocol = overrideProfile.Protocol ?? baseProfile.Protocol,
+            Model = overrideProfile.Model ?? baseProfile.Model,
+            Endpoint = overrideProfile.Endpoint ?? baseProfile.Endpoint,
+            ApiKeyEnvVar = overrideProfile.ApiKeyEnvVar ?? baseProfile.ApiKeyEnvVar,
+            Models = overrideProfile.Models.Count > 0 ? overrideProfile.Models : baseProfile.Models,
+            ModelsEndpoint = overrideProfile.ModelsEndpoint ?? baseProfile.ModelsEndpoint,
+        };
     }
 
     private static Dictionary<string, SearchProviderProfileSettings>? MergeSearchProviderDictionaries(

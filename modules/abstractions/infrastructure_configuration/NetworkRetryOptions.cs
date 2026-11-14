@@ -13,8 +13,8 @@ public sealed class NetworkRetryOptions {
     /// <summary>退避起始延迟，默认 2s</summary>
     public TimeSpan BaseDelay { get; init; } = TimeSpan.FromSeconds(2);
 
-    /// <summary>退避上限延迟，默认 5min，到达后稳态重试</summary>
-    public TimeSpan MaxDelay { get; init; } = TimeSpan.FromMinutes(5);
+    /// <summary>退避上限延迟，默认 30s（交互式模式），无人值守模式可用更大值</summary>
+    public TimeSpan MaxDelay { get; init; } = TimeSpan.FromSeconds(30);
 
     /// <summary>退避策略，默认 ExponentialWithJitter</summary>
     public string Strategy { get; init; } = "ExponentialWithJitter";
@@ -39,10 +39,12 @@ public sealed class NetworkRetryOptions {
 
     /// <summary>
     /// 转换为 ResilientHttpExecutor 的 RetryConfig — 请求-响应型重试配置
+    /// <para>交互式模式（isUnattended=false）：不设置 TotalBudget，由 MaxRetries 驱动有限重试</para>
+    /// <para>无人值守模式（isUnattended=true）：设置 TotalBudget，由预算驱动无限重试</para>
     /// </summary>
-    /// <param name="isUnattended">无人值守模式 — 启用 SingleDelayCap + HeartbeatInterval</param>
+    /// <param name="isUnattended">无人值守模式 — 启用 TotalBudget + SingleDelayCap + HeartbeatInterval</param>
     public RetryConfig ToRetryConfig(bool isUnattended = false) => new() {
-        TotalBudget = TotalBudget,
+        TotalBudget = isUnattended ? TotalBudget : null,
         BaseDelay = BaseDelay,
         MaxDelay = MaxDelay,
         Strategy = ParseStrategy(Strategy),

@@ -12,17 +12,25 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
 
     private readonly IMicrocompactService _microcompactService;
     private readonly IMessageGroupingService _groupingService;
+    private readonly JoinCode.Abstractions.LLM.Chat.IContextArchiveService? _notebookService;
+    private readonly ILogger<ReactiveCompactService>? _logger;
 
     /// <summary>
     /// 初始化 <see cref="ReactiveCompactService"/> 实例
     /// </summary>
     /// <param name="microcompactService">微压缩服务，用于 token 估算</param>
     /// <param name="groupingService">可选消息分组服务，null 时使用默认实现</param>
+    /// <param name="notebookService">可选笔记本服务，用于存档被丢弃的消息组供 LLM 按需查阅</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public ReactiveCompactService(
         IMicrocompactService microcompactService,
-        IMessageGroupingService? groupingService = null) {
+        IMessageGroupingService? groupingService = null,
+        JoinCode.Abstractions.LLM.Chat.IContextArchiveService? notebookService = null,
+        ILogger<ReactiveCompactService>? logger = null) {
         _microcompactService = microcompactService;
         _groupingService = groupingService ?? new MessageGroupingService();
+        _notebookService = notebookService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -32,48 +40,48 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
     /// <param name="errorMessage">触发压缩的错误消息</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>压缩结果，包含丢弃组数、节省 token 数等元数据</returns>
-    public Task<CompactResult> RunReactiveCompactAsync(
+    public async Task<CompactResult> RunReactiveCompactAsync(
         IReadOnlyList<ApiMessage> messages,
         string errorMessage,
         CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(messages);
 
         if (!IsPromptTooLongError(errorMessage)) {
-            return Task.FromResult(new CompactResult {
+            return new CompactResult {
                 Compacted = false,
                 Level = CompactLevel.None,
                 Trigger = CompactTrigger.Reactive,
                 PreCompactTokenCount = _microcompactService.EstimateMessageTokens(messages),
                 PostCompactTokenCount = _microcompactService.EstimateMessageTokens(messages)
-            });
+            };
         }
 
         var tokenGap = GetPromptTooLongTokenGap(errorMessage);
         var groups = _groupingService.GroupMessagesByApiRound(messages);
 
         if (groups.Count < 2) {
-            return Task.FromResult(new CompactResult {
+            return new CompactResult {
                 Compacted = false,
                 Level = CompactLevel.None,
                 Trigger = CompactTrigger.Reactive,
                 PreCompactTokenCount = _microcompactService.EstimateMessageTokens(messages),
                 PostCompactTokenCount = _microcompactService.EstimateMessageTokens(messages),
                 ErrorMessage = "消息不足以进行响应式压缩"
-            });
+            };
         }
 
         var dropCount = CalculateDropCount(groups, tokenGap);
         dropCount = Math.Min(dropCount, groups.Count - 1);
 
         if (dropCount < 1) {
-            return Task.FromResult(new CompactResult {
+            return new CompactResult {
                 Compacted = false,
                 Level = CompactLevel.None,
                 Trigger = CompactTrigger.Reactive,
                 PreCompactTokenCount = _microcompactService.EstimateMessageTokens(messages),
                 PostCompactTokenCount = _microcompactService.EstimateMessageTokens(messages),
                 ErrorMessage = "无法再丢弃更多消息组"
-            });
+            };
         }
 
         var droppedGroups = groups.Take(dropCount).ToList();
@@ -82,10 +90,20 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
 
         var droppedSummary = BuildDroppedGroupsSummary(droppedGroups);
 
+        if (_notebookService is not null) {
+            try {
+                var droppedMessages = droppedGroups.SelectMany(g => g).ToList();
+                await _notebookService.SaveFoldArchiveAsync(
+                    "default", droppedMessages, droppedSummary, cancellationToken).ConfigureAwait(false);
+            } catch (OperationCanceledException) { throw; } catch (Exception ex) {
+                _logger?.LogWarning(ex, "Failed to save reactive compact archive to notebook, continuing without archive");
+            }
+        }
+
         var preCompactTokens = _microcompactService.EstimateMessageTokens(messages);
         var postCompactTokens = _microcompactService.EstimateMessageTokens(keptMessages);
 
-        return Task.FromResult(new CompactResult {
+        return new CompactResult {
             Compacted = true,
             Level = CompactLevel.ReactiveCompact,
             Trigger = CompactTrigger.Reactive,
@@ -100,7 +118,7 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
                 ["tokenGap"] = JsonElementHelper.FromInt32(tokenGap ?? 0),
                 ["hasSummary"] = JsonElementHelper.FromBoolean(!string.IsNullOrEmpty(droppedSummary))
             }
-        });
+        };
     }
 
     /// <summary>

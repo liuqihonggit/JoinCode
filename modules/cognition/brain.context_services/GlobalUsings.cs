@@ -67,6 +67,7 @@ global using JoinCode.Abstractions.Services;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Utils.Diagnostics;
+global using JoinCode.Abstractions.Composition;
 global using JoinCode.Abstractions.Utils.Text;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging;

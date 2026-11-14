@@ -232,4 +232,4 @@ P6 的 AOT 改造已完整实现，通过 `AotHandlerRegistryGenerator` 源码�
 1. **P4 对话验证不完整** — API Key 401 环境问题导致无法完成完整对话，但管道组装和 tool_search 功能验证通过
 2. **P5 运行期回滚未验证** — 当前不支持运行期 Profile 动态切换，可逆注册的回滚行为通过单元测试覆盖
 3. **P6 已实现** — DynamicPluginRegistry AOT 改造通过 `AotHandlerRegistryGenerator` 源码生成器实现，99 个 `[McpToolDispatch]` 特性覆盖全部工具分发场景
-4. **enabled-when 条件禁用未实际拦截** — `feature.web-search` flag 已解析存储，但运行期尚未实际拦截（当前默认启用所有节点）
+4. **enabled-when 条件禁用按设计工作** — `feature.web-search` flag 在 NodeRegistry.GetNodesForConsumerAsync 中已实际拦截（第56-60行）；`IFeatureFlagService.IsEnabledAsync` 当 flag 不存在时返回 `true`（默认启用），只有显式配置为 `false` 才拦截——这是安全优先设计，非缺陷

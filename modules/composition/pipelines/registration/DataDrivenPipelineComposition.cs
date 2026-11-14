@@ -273,11 +273,14 @@ public static class DataDrivenPipelineComposition {
         // 注册 NodeServiceResolver
         services.AddSingleton<NodeServiceResolver>(_ => NodeServiceResolver.Build(BuildNodeFactories()));
 
-        // 注册 ResolvedProfile
-        services.AddSingleton<ResolvedProfile>(sp => {
+        // 注册 IProfileManager + ResolvedProfile（DSG049: 运行期 Profile 动态切换）
+        services.AddSingleton<IProfileManager>(sp => {
             var resolver = sp.GetRequiredService<NodeProfileResolver>();
-            return resolver.Resolve(profileName);
+            var initial = resolver.Resolve(profileName);
+            var logger = sp.GetService<ILoggerFactory>()?.CreateLogger<ProfileManager>();
+            return new ProfileManager(resolver, initial, logger);
         });
+        services.AddSingleton<ResolvedProfile>(sp => sp.GetRequiredService<IProfileManager>().Current);
 
         // ═══════════════════════════════════════════════════════════
         // Stream 管道

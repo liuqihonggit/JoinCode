@@ -784,6 +784,18 @@ services.AddSingleton(sp => {
 | 泛型中间件 YAML config 配置 | CrashSnapshotMiddleware 等构造参数从 YAML 读取 | ✅ `GetPipelineName/GetConfigInt/GetConfigSeconds` 辅助方法 | ✅ exe `--dump-profile base` 验证 config 字段正确读取 |
 | LlmAdapter 式继承适配 | 抽象类+默认实现+覆写模式推广 | ✅ SearchProviderBase + WebFetchProviderBase + PresentationAdapterBase | ✅ exe tool_search 正常 + 54 单元测试全绿 |
 
+### 7.1 薄弱环节修复（2026-11-14）
+
+系统性审查发现 40 个薄弱环节（4 高/14 中/12 低），修复 27 个，搁置 1 个（Metadata 硬编码 → P6 阶段）。
+
+| 严重度 | 修复数 | 关键修复 |
+|--------|--------|---------|
+| 高 | 4 | YAML解析异常包装 + Register逻辑错误 + FeatureFlag安全优先 + INodeConsumer异步化 |
+| 中 | 14 | int.TryParse抛异常 + 循环继承visited回滚 + Config合并语义 + includes重复node合并 + NodeContext线程安全 + FeatureFlagMiddleware fail-open + NodeEntry缓存实例 |
+| 低 | 9 | 空字符串校验 + 异常消息友好化 + FrozenDictionary.Empty + CombineKey冒号校验 + profileName验证 |
+
+Commits: `c1e88d80c`, `4bbaa9598`, `522485a00`
+
 ---
 
 ## 8. 风险与缓解

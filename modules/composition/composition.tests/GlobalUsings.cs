@@ -77,6 +77,7 @@ global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Utils.Diagnostics;
 global using JoinCode.ChatCommands;
 global using JoinCode.Composition.ContextFold;
+global using JoinCode.Composition.NodeRegistry.Consumers;
 global using JoinCode.Composition.SubAgent;
 global using JoinCode.Llm.DependencyInjection;
 global using JoinCode.Transport.Bridge;

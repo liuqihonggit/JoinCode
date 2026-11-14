@@ -422,10 +422,14 @@ public static class DataDrivenPipelineComposition {
         if (!profile.Consumers.TryGetValue(consumerId, out var consumerConfig))
             throw new InvalidOperationException($"Consumer '{consumerId}' not found in profile '{profile.Name}'");
 
+        var logger = sp.GetService<ILoggerFactory>()?.CreateLogger(typeof(DataDrivenPipelineComposition));
         var result = new List<TMiddleware>();
         foreach (var nodeEntry in consumerConfig.Nodes.OrderBy(n => n.Priority)) {
-            if (resolver.TryResolve<TMiddleware>(consumerId, nodeEntry.Id, sp, out var middleware))
+            if (resolver.TryResolve<TMiddleware>(consumerId, nodeEntry.Id, sp, out var middleware)) {
                 result.Add(middleware);
+            } else {
+                logger?.LogWarning("Node '{NodeId}' in consumer '{ConsumerId}' could not be resolved for middleware type '{MiddlewareType}'", nodeEntry.Id, consumerId, typeof(TMiddleware).Name);
+            }
         }
         return result;
     }

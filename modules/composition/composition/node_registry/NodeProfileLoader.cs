@@ -65,7 +65,9 @@ public static class NodeProfileLoader {
                 if (item is not YamlMappingNode overrideMap) continue;
                 var consumer = overrideMap.Children.TryGetValue("consumer", out var c) ? c.ToString() ?? "" : "";
                 var node = overrideMap.Children.TryGetValue("node", out var n) ? n.ToString() ?? "" : "";
-                var priority = overrideMap.Children.TryGetValue("priority", out var p) ? int.Parse(p.ToString() ?? "0") : (int?)null;
+                var priority = overrideMap.Children.TryGetValue("priority", out var p)
+                    ? int.TryParse(p.ToString(), out var pv) ? pv : (int?)null
+                    : (int?)null;
                 var config = overrideMap.Children.TryGetValue("config", out var cfg) && cfg is YamlMappingNode cfgMap
                     ? cfgMap.Children.ToFrozenDictionary(k => k.Key.ToString() ?? "", v => v.Value.ToString() ?? "", StringComparer.Ordinal)
                     : null;
@@ -116,7 +118,9 @@ public static class NodeProfileLoader {
         foreach (var item in seq.Children) {
             if (item is not YamlMappingNode map) continue;
             var id = map.Children.TryGetValue("id", out var idNode) ? idNode.ToString() ?? "" : "";
-            var priority = map.Children.TryGetValue("priority", out var priNode) ? int.Parse(priNode.ToString() ?? "0") : 0;
+            var priority = map.Children.TryGetValue("priority", out var priNode)
+                ? int.TryParse(priNode.ToString(), out var p) ? p : 0
+                : 0;
             var enabledWhen = map.Children.TryGetValue("enabled-when", out var enNode) ? enNode.ToString() : null;
             var config = map.Children.TryGetValue("config", out var cfgNode) && cfgNode is YamlMappingNode cfgMap
                 ? cfgMap.Children.ToFrozenDictionary(k => k.Key.ToString() ?? "", v => v.Value.ToString() ?? "", StringComparer.Ordinal)

@@ -16,4 +16,15 @@ public sealed class ContextFoldResult {
 
     /// <summary>本次折叠前执行的工具结果剪裁统计（无可剪裁内容时为空）。</summary>
     public SnipStats? Snip { get; init; }
+
+    /// <summary>获取折叠后是否仍超过紧急阈值（溢出标记）。</summary>
+    /// <para>为 true 时表示折叠未能将 token 占用降到安全范围，调用方应触发降级处理
+    ///（如 ReactiveCompactService 或输出警告事件），而非抛异常导致 Agent 崩溃。</para>
+    public bool Overflow { get; init; }
+
+    /// <summary>获取溢出时的 token 估算数（仅当 <see cref="Overflow"/> 为 true 时有效）。</summary>
+    public int OverflowTokens { get; init; }
+
+    /// <summary>获取上下文窗口最大 token 数（仅当 <see cref="Overflow"/> 为 true 时有效）。</summary>
+    public int ContextMaxTokens { get; init; }
 }

@@ -377,26 +377,29 @@ public sealed class QueryLoopMiddlewareTests {
         mailbox.HasPending(sessionId).Should().BeFalse();
     }
 
-    /// <summary>TASK061 请求前上下文预算守卫（孤儿接线 — DecidePreflight 此前无消费方）：
-    /// 估算比率 ≥ 1.0（消息+工具已超模型上下文窗口本体）→ 直接抛 ContextOverflowException
-    ///（不发 API — 用户要求"超 1M 窗口直接报错"；错误带估算/窗口/诱导清上下文）。</summary>
+    /// <summary>ADR 0156 请求前上下文预算守卫：估算比率 ≥ 1.0 → 不抛异常，
+    /// 执行紧急折叠后仍超限 → 输出警告事件 + Done(context_overflow)，Agent 不崩溃。</summary>
     [Fact]
-    public async Task InvokeAsync_EstimatedRatioOverWindow_ThrowsContextOverflow() {
+    public async Task InvokeAsync_EstimatedRatioOverWindow_NoThrow_EmitsWarningEvent() {
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MessageList());
         contextManager.Setup(c => c.DecidePreflightWithCurrentSpecs())
             .Returns(new PreflightDecision { NeedsAction = true, EstimatedRatio = 1.5 });
+        contextManager.Setup(c => c.GetContextMaxTokens()).Returns(200_000);
+        contextManager.Setup(c => c.FoldIfNeededAsync(It.IsAny<ContextFoldDecision>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ContextFoldResult { Folded = false, Decision = ContextFoldDecision.FoldAggressive });
 
         await using var middleware = CreateMiddleware(contextManager, new Mock<IChatToolOrchestrator>(), []);
 
-        var act = async () => {
-            await foreach (var _ in middleware.InvokeAsync(
-                CreateContext(), (ctx, ct) => AsyncEnumerableEmpty<ChatStreamEvent>(), CancellationToken.None)) { }
-        };
+        var events = new List<ChatStreamEvent>();
+        await foreach (var evt in middleware.InvokeAsync(
+            CreateContext(), (ctx, ct) => AsyncEnumerableEmpty<ChatStreamEvent>(), CancellationToken.None)) {
+            events.Add(evt);
+        }
 
-        (await act.Should().ThrowAsync<ContextOverflowException>())
-            .Which.Message.Should().Contain("上下文");
+        events.Should().Contain(e => e.Type == ChatStreamEventType.Content && e.Content != null && e.Content.Contains("上下文溢出"));
+        events.Should().Contain(e => e.Type == ChatStreamEventType.Complete && e.StopReason == "context_overflow");
     }
 
     /// <summary>TASK061 — 估算比率 &lt; 1.0（窗口内）：不拦截正常流（守卫静默放行）。</summary>

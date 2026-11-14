@@ -163,9 +163,18 @@ internal sealed class ContextFoldService : IContextFoldService {
                 if (postFoldTokens > ctxMax * _thresholds.EmergencyThreshold) {
                     _logger?.LogError("上下文溢出：折叠后 {Tokens} token 仍超过紧急阈值 {Threshold} token（ctxMax={CtxMax}）",
                         postFoldTokens, (int)(ctxMax * _thresholds.EmergencyThreshold), ctxMax);
-                    throw new ContextOverflowException(
-                        $"上下文溢出：折叠后 {postFoldTokens} token 仍超过紧急阈值 {(int)(ctxMax * _thresholds.EmergencyThreshold)} token",
-                        ctxMax, postFoldTokens);
+                    return new ContextFoldResult {
+                        Folded = foldResult.Folded,
+                        HeadMessageCount = foldResult.HeadMessageCount,
+                        TailMessageCount = foldResult.TailMessageCount,
+                        OriginalMessageCount = foldResult.OriginalMessageCount,
+                        Summary = foldResult.Summary,
+                        Decision = foldResult.Decision,
+                        Snip = snip.Results > 0 ? snip : null,
+                        Overflow = true,
+                        OverflowTokens = postFoldTokens,
+                        ContextMaxTokens = ctxMax
+                    };
                 }
             }
 

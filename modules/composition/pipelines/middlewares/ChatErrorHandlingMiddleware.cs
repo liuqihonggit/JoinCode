@@ -38,6 +38,15 @@ internal sealed partial class ChatErrorHandlingMiddleware : ServiceEntity, Core.
         }
 
         if (error is not null) {
+            if (error is ContextOverflowException overflowEx) {
+                _logger?.LogError(overflowEx, "[ChatErrorHandling] 上下文溢出（兜底拦截）: Turn={Turn}", context.ConversationTurn);
+                Diag.WriteError($"[ChatErrorHandling] Turn={context.ConversationTurn}, 上下文溢出兜底拦截", overflowEx);
+                yield return ChatStreamEvent.Text(
+                    $"⚠ 上下文溢出：{overflowEx.Message} " +
+                    "请用 /compact 压缩对话历史、运行 /clear 清空上下文，" +
+                    "或切换到更大上下文窗口的模型。");
+                yield break;
+            }
             var classified = ClassifyException(error);
             var errorCode = classified is WorkflowException wfEx ? wfEx.ErrorCode : ErrorCode.WorkflowExecution.ToValue();
             _logger.LogError(error, "[ChatErrorHandling] 管道异常: Turn={Turn}, DryRun={DryRun}, Code={Code}",

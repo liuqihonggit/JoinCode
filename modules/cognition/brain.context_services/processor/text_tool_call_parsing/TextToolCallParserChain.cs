@@ -4,26 +4,32 @@ namespace Core.Context;
 /// 文本工具调用解析器责任链 — 依次尝试多个解析器，首个成功即返回。
 /// 对应不同 LLM 在 content 里输出的各种工具调用文本格式（DSML/DeepSeek原生/antml/XML/JSON）。
 /// 顺序按格式特异性从高到低排列，最特殊的先试，避免误匹配。
+/// 解析成功后统一执行 ToolCallRepairHelper.RepairAll，确保与协议层修复逻辑一致。
 /// </summary>
 [Register(typeof(TextToolCallParserChain), ServiceLifetime.Singleton)]
 public sealed class TextToolCallParserChain {
     private readonly IReadOnlyList<ITextToolCallParser> _parsers;
+    private readonly ILogger? _logger;
 
     /// <summary>
     /// 初始化责任链
     /// </summary>
     /// <param name="parsers">按优先级排列的解析器列表</param>
-    public TextToolCallParserChain(IEnumerable<ITextToolCallParser> parsers) {
+    /// <param name="loggerFactory">日志工厂（可选，测试时不传）</param>
+    public TextToolCallParserChain(IEnumerable<ITextToolCallParser> parsers, ILoggerFactory? loggerFactory = null) {
         _parsers = parsers as IReadOnlyList<ITextToolCallParser> ?? parsers.ToList();
+        _logger = loggerFactory?.CreateLogger<TextToolCallParserChain>();
     }
 
     /// <summary>
-    /// 依次尝试解析器，首个成功即返回；全部失败返回 null
+    /// 依次尝试解析器，首个成功即返回；全部失败返回 null。
+    /// 解析成功后对结果统一执行修复（工具名归一化 + 参数 JSON 修复）。
     /// </summary>
     public TextToolCallParseResult? TryParse(ReadOnlySpan<char> content) {
         foreach (var parser in _parsers) {
             var result = parser.TryParse(content);
-            if (result is not null) return result;
+            if (result is not null)
+                return result with { ToolCalls = ToolCallRepairHelper.RepairAll(result.ToolCalls, _logger) };
         }
         return null;
     }

@@ -233,16 +233,11 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
 
             if (string.IsNullOrWhiteSpace(name)) continue;
 
-            // 对每个工具调用独立执行工具名修复
-            var repairedName = LlmJsonHelper.RepairToolName(name, logger);
-            var jsonRepair = LlmJsonHelper.RepairJson(arguments, logger);
-            var repairedArgs = jsonRepair.Success ? jsonRepair.RepairedJson : arguments;
-
-            state.ToolCalls.Add(new ToolCallEntry {
+            state.ToolCalls.Add(ToolCallRepairHelper.Repair(new ToolCallEntry {
                 Id = id,
-                Name = repairedName,
-                Arguments = repairedArgs
-            });
+                Name = name,
+                Arguments = arguments
+            }, logger));
         }
     }
 }

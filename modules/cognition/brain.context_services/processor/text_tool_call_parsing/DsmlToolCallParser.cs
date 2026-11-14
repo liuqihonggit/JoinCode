@@ -1,5 +1,3 @@
-// JCC1017 抑制: 存量手写 JSON, 后续改为 DTO+JsonContext
-#pragma warning disable JCC1017
 namespace Core.Context;
 
 /// <summary>
@@ -43,7 +41,7 @@ public sealed class DsmlToolCallParser : ITextToolCallParser {
         foreach (Match m in matches) {
             var toolName = m.Groups[1].Value;
             var invokeBody = m.Groups[2].Value;
-            var arguments = ParseArguments(invokeBody);
+            var arguments = ExtractParametersToJson(invokeBody);
             toolCalls.Add(new ToolCallEntry {
                 Id = null,
                 Name = toolName,
@@ -70,22 +68,18 @@ public sealed class DsmlToolCallParser : ITextToolCallParser {
         };
     }
 
-    private static string ParseArguments(string invokeBody) {
+    /// <summary>
+    /// 从 DSML 参数标签中提取键值对，序列化为 JSON 字符串。
+    /// 使用 JsonSerializer.Serialize 替代手写 StringBuilder 拼接，确保 JSON 格式正确性。
+    /// </summary>
+    private static string ExtractParametersToJson(string invokeBody) {
         var paramMatches = ParameterRegex.Matches(invokeBody);
         if (paramMatches.Count == 0) return "{}";
 
-        var sb = new StringBuilder("{");
-        for (var i = 0; i < paramMatches.Count; i++) {
-            if (i > 0) sb.Append(',');
-            var name = paramMatches[i].Groups[1].Value;
-            var value = paramMatches[i].Groups[2].Value;
-            sb.Append('"');
-            sb.Append(JsonEncodedText.Encode(name).Value);
-            sb.Append("\":\"");
-            sb.Append(JsonEncodedText.Encode(value).Value);
-            sb.Append('"');
-        }
-        sb.Append('}');
-        return sb.ToString();
+        var dict = new Dictionary<string, string>(paramMatches.Count);
+        foreach (Match m in paramMatches)
+            dict[m.Groups[1].Value] = m.Groups[2].Value;
+
+        return JsonSerializer.Serialize(dict, ChatServiceJsonContext.Default.DictionaryStringString);
     }
 }

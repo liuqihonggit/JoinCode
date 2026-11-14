@@ -271,4 +271,47 @@ public sealed class AntmlToolCallParserTests {
         result.ToolCalls[0].Name.Should().Be("Read");
         result.ToolCalls[1].Name.Should().Be("Grep");
     }
+
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void TryParse_ParameterWithSpecialChars_ParsesCorrectly() {
+        var content = """
+            <antml:invoke name="edit">
+            <antml:parameter name="oldString">line with "quotes" and \backslash</antml:parameter>
+            <antml:parameter name="newString">replacement with 中文 and newline
+            content</antml:parameter>
+            </antml:invoke>
+            """.AsSpan();
+
+        var result = Sut.TryParse(content);
+
+        result.Should().NotBeNull();
+        result!.ToolCalls.Should().HaveCount(1);
+        result.ToolCalls[0].Name.Should().Be("edit");
+        var args = JsonDocument.Parse(result.ToolCalls[0].Arguments).RootElement;
+        args.GetProperty("oldString").GetString().Should().Contain("\"quotes\"");
+        args.GetProperty("oldString").GetString().Should().Contain("\\backslash");
+        args.GetProperty("newString").GetString().Should().Contain("中文");
+        args.GetProperty("newString").GetString().Should().Contain("newline");
+    }
+
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void TryParse_StandaloneInvokeNotInsideFunctionCalls_ReturnsToolCall() {
+        var content = """
+            我来搜索文件。
+            <invoke name="Grep">
+            <parameter name="pattern">foo</parameter>
+            </invoke>
+            完成。
+            """.AsSpan();
+
+        var result = Sut.TryParse(content);
+
+        result.Should().NotBeNull();
+        result!.ToolCalls.Should().HaveCount(1);
+        result.ToolCalls[0].Name.Should().Be("Grep");
+        var args = JsonDocument.Parse(result.ToolCalls[0].Arguments).RootElement;
+        args.GetProperty("pattern").GetString().Should().Be("foo");
+    }
 }

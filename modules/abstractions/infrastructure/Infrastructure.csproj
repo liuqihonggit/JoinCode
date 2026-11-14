@@ -55,6 +55,8 @@
     <InternalsVisibleTo Include="JoinCode.Integration.Tests" />
     <InternalsVisibleTo Include="JoinCode.Dream" />
     <InternalsVisibleTo Include="JoinCode.Dream.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Pipelines" />
+    <InternalsVisibleTo Include="JoinCode.Pipelines.Tests" />
   </ItemGroup>
 
   <ItemGroup>

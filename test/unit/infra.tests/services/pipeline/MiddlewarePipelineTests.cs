@@ -140,6 +140,69 @@ public sealed class MiddlewarePipelineTests {
         ctx.ExecutionLog.Should().Contain("key2=value2");
     }
 
+    // === Rebuild（DSG050 管道动态重建） ===
+
+    [Fact]
+    public async Task Rebuild_ReplacesMiddlewareChain() {
+        var pipeline = new MiddlewarePipeline<TestContext>([new TrackingMiddleware("A")]);
+        var ctx1 = new TestContext();
+        await pipeline.ExecuteAsync(ctx1, CancellationToken.None).ConfigureAwait(true);
+        ctx1.ExecutionLog.Should().Equal("A");
+
+        pipeline.Rebuild([new TrackingMiddleware("B"), new TrackingMiddleware("C")]);
+        var ctx2 = new TestContext();
+        await pipeline.ExecuteAsync(ctx2, CancellationToken.None).ConfigureAwait(true);
+        ctx2.ExecutionLog.Should().Equal("B", "C");
+    }
+
+    [Fact]
+    public async Task Rebuild_PreservesOnErrorBehavior() {
+        var errors = new List<Exception>();
+        var pipeline = new MiddlewarePipeline<TestContext>(
+            [new ThrowingMiddleware("A", ErrorBehavior.Continue)],
+            onError: (_, ex) => errors.Add(ex));
+        var ctx1 = new TestContext();
+        await pipeline.ExecuteAsync(ctx1, CancellationToken.None).ConfigureAwait(true);
+        errors.Should().HaveCount(1);
+
+        pipeline.Rebuild([new ThrowingMiddleware("B", ErrorBehavior.Continue), new TrackingMiddleware("C")]);
+        errors.Clear();
+        var ctx2 = new TestContext();
+        await pipeline.ExecuteAsync(ctx2, CancellationToken.None).ConfigureAwait(true);
+        ctx2.ExecutionLog.Should().Equal("C");
+        errors.Should().HaveCount(1);
+        errors[0].Message.Should().Be("B failed");
+    }
+
+    [Fact]
+    public async Task Rebuild_PreservesShortCircuitPredicate() {
+        var pipeline = new MiddlewarePipeline<TestContext>(
+            [new TrackingMiddleware("A"), new TrackingMiddleware("B")],
+            shortCircuitPredicate: ctx => ctx.Bag.ContainsKey("skip"));
+        var ctx1 = new TestContext();
+        await pipeline.ExecuteAsync(ctx1, CancellationToken.None).ConfigureAwait(true);
+        ctx1.ExecutionLog.Should().Equal("A", "B");
+
+        pipeline.Rebuild([new TrackingMiddleware("C"), new TrackingMiddleware("D")]);
+        var ctx2 = new TestContext();
+        ctx2.Bag["skip"] = "true";
+        await pipeline.ExecuteAsync(ctx2, CancellationToken.None).ConfigureAwait(true);
+        ctx2.ExecutionLog.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Rebuild_EmptyMiddlewareList_ProducesNoOpPipeline() {
+        var pipeline = new MiddlewarePipeline<TestContext>([new TrackingMiddleware("A")]);
+        var ctx1 = new TestContext();
+        await pipeline.ExecuteAsync(ctx1, CancellationToken.None).ConfigureAwait(true);
+        ctx1.ExecutionLog.Should().Equal("A");
+
+        pipeline.Rebuild([]);
+        var ctx2 = new TestContext();
+        await pipeline.ExecuteAsync(ctx2, CancellationToken.None).ConfigureAwait(true);
+        ctx2.ExecutionLog.Should().BeEmpty();
+    }
+
     // === 测试辅助类 ===
 
     private sealed class TestContext {

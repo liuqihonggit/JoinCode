@@ -4,3 +4,5 @@ excludes:
   - teammate-pane-mw
   - transcript-mw
   - transcript-persist-mw
+  - 社交-command
+  - coordinator-mode-prompt

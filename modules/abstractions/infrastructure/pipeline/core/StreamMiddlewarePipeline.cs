@@ -5,9 +5,11 @@ namespace Infrastructure.Pipeline;
 /// Stream 中间件默认 OnError=Propagate，因为流式场景异常传播更安全
 /// </summary>
 public sealed class StreamMiddlewarePipeline<TContext, TEvent> {
-    private readonly StreamMiddlewareDelegate<TContext, TEvent> _pipeline;
+    private volatile StreamMiddlewareDelegate<TContext, TEvent> _pipeline;
     private readonly PipelinePreHookDelegate<TContext>? _onPreExecute;
     private readonly PipelinePostHookDelegate<TContext>? _onPostExecute;
+    private readonly Action<TContext, Exception>? _onError;
+    private readonly Func<TContext, bool>? _shortCircuitPredicate;
 
     /// <summary>
     /// 构造流式中间件管道
@@ -25,7 +27,17 @@ public sealed class StreamMiddlewarePipeline<TContext, TEvent> {
         Func<TContext, bool>? shortCircuitPredicate = null) {
         _onPreExecute = onPreExecute;
         _onPostExecute = onPostExecute;
+        _onError = onError;
+        _shortCircuitPredicate = shortCircuitPredicate;
         _pipeline = Build(middlewares, onError, shortCircuitPredicate);
+    }
+
+    /// <summary>
+    /// 重建管道中间件链 — Profile 切换后用新中间件列表替换内部委托链（volatile 原子替换）
+    /// </summary>
+    /// <param name="middlewares">新的中间件集合</param>
+    internal void Rebuild(IEnumerable<IStreamMiddleware<TContext, TEvent>> middlewares) {
+        _pipeline = Build(middlewares, _onError, _shortCircuitPredicate);
     }
 
     /// <summary>

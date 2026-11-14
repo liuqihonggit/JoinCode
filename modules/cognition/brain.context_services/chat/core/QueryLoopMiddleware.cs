@@ -193,6 +193,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             if (iterState.StreamModelId is not null) finalModelId = iterState.StreamModelId;
 
             if (iterState.ToolCallName is not null) {
+                _services?.MalformedOutputTracker?.Reset();
                 totalToolCalls += iterState.ToolCalls.Count;
                 continue;
             }
@@ -209,6 +210,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
 
             if (!string.IsNullOrWhiteSpace(iterState.FullResponse.ToString())) {
                 _emptyResponseTracker.Reset();
+                _services?.MalformedOutputTracker?.Reset();
                 // B11 steer：本步无工具调用，但邮箱里还有待注入输入 → 不得收尾（DSH :998-1006），
                 // 否则注入会被丢弃或拖到下一轮。下一步步首统一 drain。
                 if (HasPendingSteerInput(context)) {
@@ -594,6 +596,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             "[QueryLoop {CallId}] 检测到文本格式工具调用（非协议层），已 fallback 解析: {ToolName}, 工具调用数={Count}",
             iterState.CallId, first.Name, parseResult.ToolCalls.Count);
         Diag.WriteLine($"[FALLBACK] 解析成功: {first.Name}, 工具调用数={parseResult.ToolCalls.Count}");
+        _services?.MalformedOutputTracker?.Reset();
         return true;
     }
 

@@ -91,6 +91,13 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
     public IReadOnlyDictionary<string, IChatCommand> GetAllCommands() => _registry.GetAllCanonical();
 
     /// <summary>
+    /// 按分类获取所有已启用的命令
+    /// </summary>
+    /// <param name="category">命令分类</param>
+    /// <returns>该分类下所有已启用的命令列表</returns>
+    public IReadOnlyList<IChatCommand> GetByCategory(ChatCommandCategory category) => _registry.GetByCategory(category);
+
+    /// <summary>
     /// 解析用户输入 — 去除前导 / 后拆分命令名与参数
     /// </summary>
     /// <param name="input">原始用户输入</param>

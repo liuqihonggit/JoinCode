@@ -429,12 +429,42 @@ consumers:
 
   command-dispatch:
     nodes:
-      - id: shell-command
-      - id: fs-command
+      - id: 会话-command
+        priority: 100
+      - id: 模型-command
+        priority: 200
+      - id: 代码-command
+        priority: 300
+      - id: 工具-command
+        priority: 400
+      - id: 配置-command
+        priority: 500
+      - id: 信息-command
+        priority: 600
+      - id: 系统-command
+        priority: 700
+      - id: 认证-command
+        priority: 800
+      - id: 智能体-command
+        priority: 900
+      - id: 任务-command
+        priority: 1000
+      - id: 连接-command
+        priority: 1100
+      - id: 平台-command
+        priority: 1200
+      - id: 社交-command
+        priority: 1300
+      - id: 法律-command
+        priority: 1400
+      - id: 其他-command
+        priority: 1500
 
   prompt-assembly:
     nodes:
-      - id: system-prompt
-      - id: security-prompt
-      - id: tool-guidance-prompt
-      - id: memory-prompt
+      - id: always-prompt
+        priority: 100
+      - id: agent-mode-prompt
+        priority: 200
+      - id: coordinator-mode-prompt
+        priority: 300

@@ -257,6 +257,35 @@ public static class DataDrivenPipelineComposition {
         yield return F("agent-tool-pipeline:agent-background-spawn-mw", sp2 => sp2.GetRequiredService<AgentBackgroundSpawnMiddleware>());
         yield return F("agent-tool-pipeline:agent-stream-execution-mw", sp2 => sp2.GetRequiredService<AgentStreamExecutionMiddleware>());
         yield return F("agent-tool-pipeline:agent-handoff-mw", sp2 => sp2.GetRequiredService<AgentHandoffMiddleware>());
+
+        // ═══════════════════════════════════════════════════════════
+        // command-dispatch — CommandCategoryNode（按 ChatCommandCategory 分类）
+        // ═══════════════════════════════════════════════════════════
+        foreach (var category in Enum.GetValues<ChatCommandCategory>()) {
+            var categoryId = $"{category.ToValue()}-command";
+            yield return F($"command-dispatch:{categoryId}", sp => {
+                var registry = sp.GetRequiredService<ChatCommandRegistry>();
+                var commands = registry.GetByCategory(category);
+                return new CommandCategoryNode(categoryId, category, commands);
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // prompt-assembly — PromptSectionCategoryNode（按 PromptSectionGroup 分组）
+        // ═══════════════════════════════════════════════════════════
+        yield return F("prompt-assembly:always-prompt", sp => {
+            var provider = sp.GetRequiredService<ISystemPromptProvider>();
+            var sections = provider.GetSections().ToArray();
+            return new PromptSectionCategoryNode("always-prompt", PromptSectionGroup.Always, sections);
+        });
+        yield return F("prompt-assembly:agent-mode-prompt", sp => {
+            var sections = PromptSectionRegistration.GetAgentModeSections().ToArray();
+            return new PromptSectionCategoryNode("agent-mode-prompt", PromptSectionGroup.AgentMode, sections);
+        });
+        yield return F("prompt-assembly:coordinator-mode-prompt", sp => {
+            var sections = PromptSectionRegistration.GetCoordinatorModeSections().ToArray();
+            return new PromptSectionCategoryNode("coordinator-mode-prompt", PromptSectionGroup.CoordinatorMode, sections);
+        });
     }
 
     /// <summary>

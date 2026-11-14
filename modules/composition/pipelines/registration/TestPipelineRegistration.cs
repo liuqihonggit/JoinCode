@@ -11,6 +11,17 @@ public static class TestPipelineRegistration {
     /// 注册测试用全部管道 — 与生产 AddDataDrivenPipelines 等价但排除状态性修饰中间件
     /// </summary>
     public static IServiceCollection AddTestPipelines(this IServiceCollection services) {
+        services.AddSingleton<NodeProfileResolver>(sp => {
+            var profiles = Composition.NodeRegistry.NodeProfileLoader.LoadFromResources();
+            return new Composition.NodeRegistry.NodeProfileResolver(profiles);
+        });
+        services.AddSingleton<INodeRegistry>(sp => Composition.NodeRegistry.NodeRegistry.Build(sp));
+        services.AddSingleton<IProfileManager>(sp => {
+            var resolver = sp.GetRequiredService<Composition.NodeRegistry.NodeProfileResolver>();
+            var initial = resolver.Resolve("base");
+            return new Composition.NodeRegistry.ProfileManager(resolver, initial);
+        });
+
         services.AddSingleton(sp => new MetricsMiddleware<WebContext>(sp.GetService<ITelemetryService>()));
         services.AddSingleton(sp => new MetricsMiddleware<SkillContext>(sp.GetService<ITelemetryService>()));
         services.AddSingleton(sp => new MetricsMiddleware<CodeContext>(sp.GetService<ITelemetryService>()));

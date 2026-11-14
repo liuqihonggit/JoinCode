@@ -228,3 +228,33 @@ foreach (var category in PromptSectionCategoryEnumConstants.All) {
 1. **命令分类标准**：当前 `[ChatCommand]` 的 `Category` 字段值是否与 Profile YAML 中的 `shell-command`/`fs-command` 等分类对齐？需要审查所有命令的 Category。
 2. **提示词分类标准**：当前 `[PromptSection]` 是否有 Category 字段？如果没有，需要追加分类字段还是按其他方式归类？
 3. **阶段4是否执行**：移除旧路径（直接从 ChatCommandRegistry/DefaultSystemPromptProvider 获取）是否值得风险？双路查询长期保留是否可接受？
+
+## 7. 实施记录
+
+### 阶段1+2 已完成（2026-11-14）
+
+- `CommandCategoryNode` 和 `PromptSectionCategoryNode` 已创建
+- `DataDrivenPipelineComposition.BuildNodeFactories()` 中已注册 command-dispatch / prompt-assembly 节点工厂
+- `ChatCommandRegistry` 已有 `GetByCategory` 方法
+- `SlashCommandRunner` 已实现双路查询（NodeRegistry → 回退 ChatCommandRegistry）
+- `SystemPromptMiddleware` 已实现双路查询（NodeRegistry → 回退 SystemPromptBuilder）
+
+### 阶段3 已完成（2026-11-15）
+
+- `headless.yaml` 添加 `社交-command` 和 `coordinator-mode-prompt` 到 excludes
+- Profile 继承链验证测试（10个）全绿
+
+### 阶段4 已完成（2026-11-15）
+
+**决策更新**：用户指示移除旧路径，做好测试即可。双路查询的保守策略不再保留。
+
+**改动**：
+| 文件 | 改动 |
+|------|------|
+| `SlashCommandRunner.cs` | 移除 `ChatCommandRegistry` 直接依赖回退；`INodeRegistry`+`IProfileManager` 成为唯一命令来源；移除 `GeneratedCommandRegistration.RegisterAllChatCommands` 回退调用 |
+| `SystemPromptMiddleware.cs` | 移除 `SystemPromptBuilder` 直接依赖回退；`INodeRegistry`+`IProfileManager` 成为唯一提示词来源；构造函数参数从可选改为必需 |
+
+**验证**：
+- Composition.Tests: 1068 通过 ✅
+- Host.Tests: 1276 通过 ✅
+- 端到端: `/profile list`, `/help`, `/profile headless` 切换, 消息发送 全部正常 ✅

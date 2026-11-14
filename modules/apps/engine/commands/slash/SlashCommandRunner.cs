@@ -44,25 +44,15 @@ public static class SlashCommandRunner {
         Func<SessionPickerRequest, CancellationToken, Task<string?>>? beginSessionPicker = null,
         Action? onExitRequested = null,
         CancellationToken cancellationToken = default) {
-        var commandRegistry = services.GetService<ChatCommandRegistry>();
-        if (commandRegistry is null) {
-            commandRegistry = new ChatCommandRegistry();
-            GeneratedCommandRegistration.RegisterAllChatCommands(commandRegistry);
-        }
+        var nodeRegistry = services.GetRequiredService<INodeRegistry>();
+        var profileManager = services.GetRequiredService<IProfileManager>();
+        var categoryNodes = await nodeRegistry.GetServicesForConsumerAsync<CommandCategoryNode>(
+            "command-dispatch", profileManager.Current, cancellationToken).ConfigureAwait(false);
 
-        var nodeRegistry = services.GetService<INodeRegistry>();
-        var profileManager = services.GetService<IProfileManager>();
-        if (nodeRegistry is not null && profileManager is not null) {
-            var categoryNodes = await nodeRegistry.GetServicesForConsumerAsync<CommandCategoryNode>(
-                "command-dispatch", profileManager.Current, cancellationToken).ConfigureAwait(false);
-            if (categoryNodes.Count > 0) {
-                var filteredRegistry = new ChatCommandRegistry();
-                foreach (var node in categoryNodes) {
-                    foreach (var cmd in node.Commands)
-                        filteredRegistry.Register(cmd);
-                }
-                commandRegistry = filteredRegistry;
-            }
+        var commandRegistry = new ChatCommandRegistry();
+        foreach (var node in categoryNodes) {
+            foreach (var cmd in node.Commands)
+                commandRegistry.Register(cmd);
         }
 
         var toolRegistry = services.GetService<IToolRegistry>();

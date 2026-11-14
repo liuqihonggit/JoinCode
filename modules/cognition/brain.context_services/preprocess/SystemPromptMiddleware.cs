@@ -9,45 +9,30 @@ public sealed partial class SystemPromptMiddleware : ServiceEntity, IPreparePrep
     /// <summary>
     /// 初始化系统提示构建中间件
     /// </summary>
-    /// <param name="systemPromptBuilder">系统提示构建器</param>
     /// <param name="contextManager">聊天上下文管理器</param>
-    /// <param name="nodeRegistry">节点注册表（可选，用于 NodeRegistry 双路查询）</param>
-    /// <param name="profileManager">Profile 管理器（可选，用于 NodeRegistry 双路查询）</param>
+    /// <param name="nodeRegistry">节点注册表</param>
+    /// <param name="profileManager">Profile 管理器</param>
     public SystemPromptMiddleware(
-        SystemPromptBuilder systemPromptBuilder,
         IChatContextManager contextManager,
-        INodeRegistry? nodeRegistry = null,
-        IProfileManager? profileManager = null) {
-        _systemPromptBuilder = systemPromptBuilder;
+        INodeRegistry nodeRegistry,
+        IProfileManager profileManager) {
         _contextManager = contextManager;
         _nodeRegistry = nodeRegistry;
         _profileManager = profileManager;
     }
-    private readonly SystemPromptBuilder _systemPromptBuilder;
     private readonly IChatContextManager _contextManager;
-    private readonly INodeRegistry? _nodeRegistry;
-    private readonly IProfileManager? _profileManager;
+    private readonly INodeRegistry _nodeRegistry;
+    private readonly IProfileManager _profileManager;
 
 
     /// <inheritdoc/>
     public async Task InvokeAsync(PreprocessContext context, MiddlewareDelegate<PreprocessContext> next, CancellationToken ct) {
-        string staticPrefix;
-        string dynamicSuffix;
-
-        if (_nodeRegistry is not null && _profileManager is not null) {
-            var categoryNodes = await _nodeRegistry.GetServicesForConsumerAsync<PromptSectionCategoryNode>(
-                "prompt-assembly", _profileManager.Current, ct).ConfigureAwait(false);
-            if (categoryNodes.Count > 0) {
-                var allSections = categoryNodes.SelectMany(n => n.Sections).ToList();
-                await using var builder = new SystemPromptBuilder();
-                builder.AddSections(allSections);
-                (staticPrefix, dynamicSuffix) = await builder.BuildPartitionedAsync().ConfigureAwait(false);
-            } else {
-                (staticPrefix, dynamicSuffix) = await _systemPromptBuilder.BuildPartitionedAsync().ConfigureAwait(false);
-            }
-        } else {
-            (staticPrefix, dynamicSuffix) = await _systemPromptBuilder.BuildPartitionedAsync().ConfigureAwait(false);
-        }
+        var categoryNodes = await _nodeRegistry.GetServicesForConsumerAsync<PromptSectionCategoryNode>(
+            "prompt-assembly", _profileManager.Current, ct).ConfigureAwait(false);
+        var allSections = categoryNodes.SelectMany(n => n.Sections).ToList();
+        await using var builder = new SystemPromptBuilder();
+        builder.AddSections(allSections);
+        var (staticPrefix, dynamicSuffix) = await builder.BuildPartitionedAsync().ConfigureAwait(false);
 
         context.StaticPrefix = staticPrefix;
         context.DynamicSuffix = dynamicSuffix;

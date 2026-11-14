@@ -51,6 +51,7 @@ public enum ChatCommandName {
 
     // 配置
     [EnumValue("config")] Config,
+    [EnumValue("profile")] Profile,
     [EnumValue("vendor")] Vendor,
     [EnumValue("theme")] Theme,
     [EnumValue("color")] Color,

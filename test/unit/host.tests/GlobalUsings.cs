@@ -31,6 +31,8 @@ global using IO.Services;
 global using JoinCode;
 global using JoinCode.Abstractions.ChatCommands;
 global using JoinCode.Abstractions.Clock;
+global using JoinCode.Abstractions.Composition;
+global using JoinCode.Abstractions.Composition.Profile;
 global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Configuration.Execution;

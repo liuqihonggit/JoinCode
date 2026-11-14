@@ -12,6 +12,9 @@ public sealed class ProfileManager : IProfileManager {
     /// <summary>当前活跃的 ResolvedProfile</summary>
     public ResolvedProfile Current => _current;
 
+    /// <summary>可用 Profile 名称列表</summary>
+    public IReadOnlyList<string> AvailableProfiles => _resolver.AvailableProfiles;
+
     /// <summary>Profile 切换前事件</summary>
     public event Func<ResolvedProfile, ResolvedProfile, ValueTask>? ProfileSwitching;
 

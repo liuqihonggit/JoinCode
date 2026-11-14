@@ -8,31 +8,31 @@ namespace JoinCode.Composition.NodeRegistry;
 public sealed class NodeRegistry : INodeRegistry {
     private readonly FrozenDictionary<string, NodeEntry> _nodes;
     private readonly IServiceProvider _services;
+    private readonly IFeatureFlagService? _featureFlagService;
 
-    private NodeRegistry(IServiceProvider services, FrozenDictionary<string, NodeEntry> nodes) {
+    private NodeRegistry(IServiceProvider services, FrozenDictionary<string, NodeEntry> nodes, IFeatureFlagService? featureFlagService) {
         _services = services;
         _nodes = nodes;
+        _featureFlagService = featureFlagService;
     }
 
     /// <summary>从 DI 容器构建节点注册表</summary>
     public static NodeRegistry Build(IServiceProvider sp, IEnumerable<KeyValuePair<string, Func<IServiceProvider, INode>>>? customFactories = null) {
         var nodes = new Dictionary<string, NodeEntry>(StringComparer.Ordinal);
 
-        // 注册自定义工厂（用于手动注册的节点）
         if (customFactories is not null) {
             foreach (var (nodeId, factory) in customFactories) {
                 nodes[nodeId] = new NodeEntry(nodeId, factory);
             }
         }
 
-        return new NodeRegistry(sp, nodes.ToFrozenDictionary(StringComparer.Ordinal));
+        var featureFlagService = sp.GetService<IFeatureFlagService>();
+        return new NodeRegistry(sp, nodes.ToFrozenDictionary(StringComparer.Ordinal), featureFlagService);
     }
 
     /// <summary>注册单个节点</summary>
     public void Register(string nodeId, Func<IServiceProvider, INode> factory) {
         if (!_nodes.TryGetValue(nodeId, out _)) {
-            // FrozenDictionary 是不可变的，需要重建
-            // 阶段1：仅支持构建时注册，运行期不可变
             throw new InvalidOperationException($"NodeRegistry is immutable; cannot add '{nodeId}' after build");
         }
     }
@@ -47,14 +47,15 @@ public sealed class NodeRegistry : INodeRegistry {
         return false;
     }
 
-    /// <summary>获取指定消费点的所有节点（按 Profile 配置和 Priority 排序）</summary>
-    public IReadOnlyList<INode> GetNodesForConsumer(string consumerId, ResolvedProfile profile) {
+    /// <summary>获取指定消费点的所有节点（按 Profile 配置和 Priority 排序，检查 enabled-when feature flag）</summary>
+    public async Task<IReadOnlyList<INode>> GetNodesForConsumerAsync(string consumerId, ResolvedProfile profile, CancellationToken cancellationToken = default) {
         if (!profile.Consumers.TryGetValue(consumerId, out var consumerConfig)) return [];
         var result = new List<INode>();
         foreach (var nodeEntry in consumerConfig.Nodes.OrderBy(n => n.Priority)) {
-            if (nodeEntry.EnabledWhenFeatureFlag is not null) {
-                // Feature Flag 检查（阶段1暂不实现，后续接入 IFeatureFlagService）
-                // 当前默认启用所有节点
+            if (nodeEntry.EnabledWhenFeatureFlag is not null && _featureFlagService is not null) {
+                var isEnabled = await _featureFlagService.IsEnabledAsync(
+                    nodeEntry.EnabledWhenFeatureFlag, cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (!isEnabled) continue;
             }
             if (_nodes.TryGetValue(nodeEntry.Id, out var entry))
                 result.Add(entry.CreateNode(_services));
@@ -62,9 +63,9 @@ public sealed class NodeRegistry : INodeRegistry {
         return result;
     }
 
-    /// <summary>获取指定消费点的所有服务实例（类型安全版本）</summary>
-    public IReadOnlyList<T> GetServicesForConsumer<T>(string consumerId, ResolvedProfile profile) where T : notnull {
-        var nodes = GetNodesForConsumer(consumerId, profile);
+    /// <summary>获取指定消费点的所有服务实例（类型安全版本，检查 enabled-when feature flag）</summary>
+    public async Task<IReadOnlyList<T>> GetServicesForConsumerAsync<T>(string consumerId, ResolvedProfile profile, CancellationToken cancellationToken = default) where T : notnull {
+        var nodes = await GetNodesForConsumerAsync(consumerId, profile, cancellationToken).ConfigureAwait(false);
         var result = new List<T>();
         foreach (var node in nodes) {
             if (node is Node<T> typedNode)

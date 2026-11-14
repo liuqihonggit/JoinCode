@@ -759,7 +759,7 @@ services.AddSingleton(sp => {
 | P3 | NodeProfileLoader + NodeRegistry + Node<TService> + 诊断命令 + DI 注册 | 高 | P1, P2 | ✅ 已完成 |
 | P4 | 数据驱动的管道组装（替代 PipelineComposition.cs） | 高 | P1-P3 | ✅ 已完成 |
 | P5 | NodeContext 可逆注册（复用现有 EffectScope） | 中 | P1 | ✅ 已完成 |
-| P6 | DynamicPluginRegistry AOT 改造（YAML 配置驱动，不新增特性） | 中 | P1 | ❌ 待实施 |
+| P6 | DynamicPluginRegistry AOT 改造（YAML 配置驱动，不新增特性） | 中 | P1 | ✅ 已完成 |
 | P7 | 泛型中间件 YAML config 配置（不新增特性） | 中 | P1 | ✅ 已完成 |
 | P/8 | LlmAdapter 式继承适配模式推广 | 低 | P1-P7 | ✅ 已完成 |
 

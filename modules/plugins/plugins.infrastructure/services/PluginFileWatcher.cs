@@ -2,13 +2,12 @@ namespace JoinCode.Plugins.Infrastructure.Services;
 
 /// <summary>
 /// 插件文件监控服务 — 监控 ~/.jcc/plugins/ 约定文件夹中的 plugin.yaml 文件
-/// <para>检测到新 plugin.yaml 时，解析 YAML 配置，调用 DynamicPluginRegistry.DefinePlugin + RunPlugin</para>
+/// <para>检测到新 plugin.yaml 时，解析 YAML 配置，调用 DynamicPluginRegistry0.DefinePlugin + RunPlugin</para>
 /// <para>检测到 plugin.yaml 删除时，调用 DynamicPluginRegistry.StopPlugin + UndefinePlugin</para>
-/// <para>AOT 模式下文件监控不可用 — AssemblyLoadContext 无法加载外部 DLL</para>
+/// <para>外部插件通过 YAML 配置 + 文件监控加载，handler 由 IAotHandlerRegistry（源码生成器）提供</para>
 /// </summary>
 public sealed class PluginFileWatcher : IAsyncDisposable {
     private readonly DynamicPluginRegistry _registry;
-    private readonly ExternalPluginLoader _loader;
     private readonly IFileSystem _fs;
     private readonly ILogger<PluginFileWatcher>? _logger;
     private IFileSystemWatcher? _watcher;
@@ -19,16 +18,13 @@ public sealed class PluginFileWatcher : IAsyncDisposable {
     /// 构造插件文件监控服务
     /// </summary>
     /// <param name="registry">动态插件注册表</param>
-    /// <param name="loader">外部插件加载器</param>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">可选日志器</param>
     public PluginFileWatcher(
         DynamicPluginRegistry registry,
-        ExternalPluginLoader loader,
         IFileSystem fs,
         ILogger<PluginFileWatcher>? logger = null) {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
-        _loader = loader ?? throw new ArgumentNullException(nameof(loader));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
         _pluginsDir = Path.Combine(
@@ -69,7 +65,7 @@ public sealed class PluginFileWatcher : IAsyncDisposable {
         ScanExistingPlugins();
 
         _isWatching = true;
-        _logger?.LogInformation("[PluginFileWatcher] 开始监控插件目录: {Dir}", _pluginsDir);
+        _logger?.LogInformation("[PluginFile7FileWatcher] 开始监控插件目录: {Dir}", _pluginsDir);
     }
 
     /// <summary>
@@ -111,6 +107,7 @@ public sealed class PluginFileWatcher : IAsyncDisposable {
 
     /// <summary>
     /// 从 plugin.yaml 加载插件 — 解析 YAML，注册到 DynamicPluginRegistry
+    /// handler 由 IAotHandlerRegistry（源码生成器编译期生成）提供，不需要反射加载 DLL
     /// </summary>
     internal void LoadPluginFromYaml(string yamlPath) {
         try {
@@ -123,10 +120,6 @@ public sealed class PluginFileWatcher : IAsyncDisposable {
             }
 
             var pluginDir = Path.GetDirectoryName(yamlPath) ?? string.Empty;
-            var assemblyFullPath = Path.IsPathRooted(config.AssemblyPath)
-                ? config.AssemblyPath
-                : Path.Combine(pluginDir, config.AssemblyPath);
-
             var version = Version.TryParse(config.Version, out var v) ? v : new Version(1, 0, 0);
 
             var capabilities = config.Capabilities.Count > 0
@@ -141,7 +134,7 @@ public sealed class PluginFileWatcher : IAsyncDisposable {
 
             _registry.DefinePlugin(
                 config.Name,
-                assemblyFullPath,
+                pluginDir,
                 version,
                 config.EntryType,
                 config.Methods.Count > 0 ? config.Methods[0].EntryMethod : "ExecuteAsync",

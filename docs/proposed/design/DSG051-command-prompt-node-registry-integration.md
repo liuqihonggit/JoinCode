@@ -228,3 +228,30 @@ foreach (var category in PromptSectionCategoryEnumConstants.All) {
 1. **命令分类标准**：当前 `[ChatCommand]` 的 `Category` 字段值是否与 Profile YAML 中的 `shell-command`/`fs-command` 等分类对齐？需要审查所有命令的 Category。
 2. **提示词分类标准**：当前 `[PromptSection]` 是否有 Category 字段？如果没有，需要追加分类字段还是按其他方式归类？
 3. **阶段4是否执行**：移除旧路径（直接从 ChatCommandRegistry/DefaultSystemPromptProvider 获取）是否值得风险？双路查询长期保留是否可接受？
+
+## 7. 实施记录
+
+### 阶段1+2 已完成（2026-11-14）
+
+- `CommandCategoryNode` 和 `PromptSectionCategoryNode` 已创建
+- `DataDrivenPipelineComposition.BuildNodeFactories()` 中已注册 command-dispatch / prompt-assembly 节点工厂
+- `ChatCommandRegistry` 已有 `GetByCategory` 方法
+- `SlashCommandRunner` 已实现双路查询（NodeRegistry → 回退 ChatCommandRegistry）
+- `SystemPromptMiddleware` 已实现双路查询（NodeRegistry → 回退 SystemPromptBuilder）
+
+### 阶段3 已完成（2026-11-15）
+
+- `headless.yaml` 添加 `社交-command` 和 `coordinator-mode-prompt` 到 excludes
+- Profile 继承链验证测试（10个）全绿
+
+### 阶段4 决策：暂不执行（2026-11-15）
+
+**决策**：保留双路查询，不移除旧路径。
+
+**原因**：
+1. 双路查询工作正常，NodeRegistry 优先 + 回退路径作为安全网
+2. 移除旧路径风险较高 — 如果 NodeRegistry 配置出错，回退路径是唯一保障
+3. `CommandDispatchConsumer` / `PromptAssemblyConsumer` 当前是占位类，需要额外开发才能成为真正的消费入口
+4. 双路查询长期保留的成本很低（几行 if-else 判断），收益（安全网）远大于成本
+
+** revisit 条件**：当 NodeRegistry 配置稳定性得到充分验证（CI 全量测试 + 生产环境运行一段时间）后，可重新评估移除旧路径。

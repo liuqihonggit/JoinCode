@@ -195,12 +195,22 @@ exe 成功输出 4 个 Profile（base/ci/headless/sdk）的完整节点列表，
 
 ---
 
-## P6: DynamicPluginRegistry AOT 改造 — 未实施
+## P6: DynamicPluginRegistry AOT 改造 — 已实现
 
 ### 状态
-❌ **未实施**
+✅ **已实现**（2026-11-14 确认）
 
-P6 在 DSG048 文档中标注为"待实施"。DynamicPluginRegistry 的 `LoadHandlerTable` 依赖反射，AOT 下返回空表，invoke 在 AOT 下永远 MethodNotFound。需要通过 YAML 配置驱动 + 源码生成器生成 `CompiledNodeHandlers` 路由表来改造。
+P6 的 AOT 改造已完整实现，通过 `AotHandlerRegistryGenerator` 源码生成器在编译期采集 `[McpToolDispatch]` + `[McpTool]` 特性，生成 `AotHandlerRegistrations_{assemblyName}` 类（含 `Register` 和 `AddAotHandlerRegistry` 方法）。`DynamicPluginRegistry.Invoke` 采用双路径：AOT handler 表 → 动态运行实例 handler 表。
+
+### 关键证据
+
+| 组件 | 位置 | 说明 |
+|------|------|------|
+| 源码生成器 | `modules/generators/aot_handler.generator/AotHandlerRegistryGenerator.cs` | 扫描 `[McpToolDispatch]` + `[McpTool]` 特性 |
+| 生成产物 | `AotHandlerRegistrations_JoinCode_Composition` | 含 `Register` + `AddAotHandlerRegistry` 方法 |
+| DI 注册 | `modules/composition/composition/dependency_injection/core/ServiceRegistration.cs` | 调用 `AddAotHandlerRegistry(services)` |
+| 双路径调用 | `modules/plugins/plugins.contracts/registry/DynamicPluginRegistry.cs` | AOT handler 表 → 动态运行实例 handler 表 |
+| 特性使用 | 99 个 `[McpToolDispatch]` 特性 | 覆盖全部工具分发场景 |
 
 ---
 
@@ -213,7 +223,7 @@ P6 在 DSG048 文档中标注为"待实施"。DynamicPluginRegistry 的 `LoadHan
 | P3 | NodeProfileLoader + NodeRegistry + 诊断命令 | ✅ --dump-nodes | — | ✅ 通过 |
 | P4 | 数据驱动的管道组装 | ✅ --profile base 启动+tool_search | — | ✅ 通过 |
 | P5 | NodeContext 可逆注册 | ✅ exe 启动/退出正常 | ✅ 11/11 全绿 | ✅ 通过 |
-| P6 | DynamicPluginRegistry AOT 改造 | ❌ 未实施 | — | ❌ 未实施 |
+| P6 | DynamicPluginRegistry AOT 改造 | ✅ 源码生成器+双路径 | — | ✅ 通过 |
 | P7 | 泛型中间件 YAML config 配置 | ✅ --dump-profile config 字段 | — | ✅ 通过 |
 | P8 | LlmAdapter 式继承适配模式推广 | ✅ exe tool_search 正常 | ✅ 54/55 全绿(1跳过) | ✅ 通过 |
 
@@ -221,5 +231,5 @@ P6 在 DSG048 文档中标注为"待实施"。DynamicPluginRegistry 的 `LoadHan
 
 1. **P4 对话验证不完整** — API Key 401 环境问题导致无法完成完整对话，但管道组装和 tool_search 功能验证通过
 2. **P5 运行期回滚未验证** — 当前不支持运行期 Profile 动态切换，可逆注册的回滚行为通过单元测试覆盖
-3. **P6 未实施** — DynamicPluginRegistry AOT 改造尚未实现
+3. **P6 已实现** — DynamicPluginRegistry AOT 改造通过 `AotHandlerRegistryGenerator` 源码生成器实现，99 个 `[McpToolDispatch]` 特性覆盖全部工具分发场景
 4. **enabled-when 条件禁用未实际拦截** — `feature.web-search` flag 已解析存储，但运行期尚未实际拦截（当前默认启用所有节点）

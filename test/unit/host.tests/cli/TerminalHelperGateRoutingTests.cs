@@ -30,11 +30,25 @@ public sealed class TerminalHelperGateRoutingTests {
         Console.SetOut(originalOut);
         try {
             using var _ = ConsoleSuppressionGate.Begin("TUI 会话");
-            TerminalHelper.WriteRaw("[TEST-TH] raw");
-            TerminalHelper.WriteRaw('x');
+            TerminalHelper.WriteRaw("[TEST-TH] rawx");
             Assert.Equal(string.Empty, originalOut.ToString());
             var drained = ConsoleSuppressionGate.TakeSuppressedLines();
             Assert.Contains(drained, line => line.Contains("[TEST-TH] rawx"));
+        } finally {
+            Console.SetOut(new StreamWriter(Stream.Null) { AutoFlush = true });
+        }
+    }
+
+    [Fact]
+    public void WriteRawChar_DuringGate_RoutesToRingNotOriginalWriter() {
+        using var originalOut = new StringWriter();
+        Console.SetOut(originalOut);
+        try {
+            using var _ = ConsoleSuppressionGate.Begin("TUI 会话");
+            TerminalHelper.WriteRaw('z');
+            Assert.Equal(string.Empty, originalOut.ToString());
+            var drained = ConsoleSuppressionGate.TakeSuppressedLines();
+            Assert.Contains(drained, line => line.Contains('z'));
         } finally {
             Console.SetOut(new StreamWriter(Stream.Null) { AutoFlush = true });
         }

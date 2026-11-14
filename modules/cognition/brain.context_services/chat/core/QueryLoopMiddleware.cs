@@ -582,6 +582,8 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         return content.Contains("<parameter ", StringComparison.Ordinal)
             || content.Contains("<antml:", StringComparison.Ordinal)
             || content.Contains("<tool_use>", StringComparison.Ordinal)
-            || content.Contains("<function_calls>", StringComparison.Ordinal);
+            || content.Contains("<function_calls>", StringComparison.Ordinal)
+            || content.Contains("<function_call ", StringComparison.Ordinal)
+            || content.Contains("<invoke ", StringComparison.Ordinal);
     }
 }

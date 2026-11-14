@@ -244,14 +244,17 @@ foreach (var category in PromptSectionCategoryEnumConstants.All) {
 - `headless.yaml` 添加 `社交-command` 和 `coordinator-mode-prompt` 到 excludes
 - Profile 继承链验证测试（10个）全绿
 
-### 阶段4 决策：暂不执行（2026-11-15）
+### 阶段4 已完成（2026-11-15）
 
-**决策**：保留双路查询，不移除旧路径。
+**决策更新**：用户指示移除旧路径，做好测试即可。双路查询的保守策略不再保留。
 
-**原因**：
-1. 双路查询工作正常，NodeRegistry 优先 + 回退路径作为安全网
-2. 移除旧路径风险较高 — 如果 NodeRegistry 配置出错，回退路径是唯一保障
-3. `CommandDispatchConsumer` / `PromptAssemblyConsumer` 当前是占位类，需要额外开发才能成为真正的消费入口
-4. 双路查询长期保留的成本很低（几行 if-else 判断），收益（安全网）远大于成本
+**改动**：
+| 文件 | 改动 |
+|------|------|
+| `SlashCommandRunner.cs` | 移除 `ChatCommandRegistry` 直接依赖回退；`INodeRegistry`+`IProfileManager` 成为唯一命令来源；移除 `GeneratedCommandRegistration.RegisterAllChatCommands` 回退调用 |
+| `SystemPromptMiddleware.cs` | 移除 `SystemPromptBuilder` 直接依赖回退；`INodeRegistry`+`IProfileManager` 成为唯一提示词来源；构造函数参数从可选改为必需 |
 
-** revisit 条件**：当 NodeRegistry 配置稳定性得到充分验证（CI 全量测试 + 生产环境运行一段时间）后，可重新评估移除旧路径。
+**验证**：
+- Composition.Tests: 1068 通过 ✅
+- Host.Tests: 1276 通过 ✅
+- 端到端: `/profile list`, `/help`, `/profile headless` 切换, 消息发送 全部正常 ✅

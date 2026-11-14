@@ -10,5 +10,5 @@ public interface INodeConsumer {
     string ConsumerId { get; }
 
     /// <summary>从注册表中解析此消费点所需的节点列表</summary>
-    IReadOnlyList<INode> ResolveNodes(INodeRegistry registry, ResolvedProfile profile);
+    Task<IReadOnlyList<INode>> ResolveNodesAsync(INodeRegistry registry, ResolvedProfile profile, CancellationToken cancellationToken = default);
 }

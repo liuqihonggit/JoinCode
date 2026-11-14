@@ -9,11 +9,13 @@ public sealed class NodeRegistry : INodeRegistry {
     private readonly FrozenDictionary<string, NodeEntry> _nodes;
     private readonly IServiceProvider _services;
     private readonly IFeatureFlagService? _featureFlagService;
+    private readonly ILogger<NodeRegistry>? _logger;
 
-    private NodeRegistry(IServiceProvider services, FrozenDictionary<string, NodeEntry> nodes, IFeatureFlagService? featureFlagService) {
+    private NodeRegistry(IServiceProvider services, FrozenDictionary<string, NodeEntry> nodes, IFeatureFlagService? featureFlagService, ILogger<NodeRegistry>? logger) {
         _services = services;
         _nodes = nodes;
         _featureFlagService = featureFlagService;
+        _logger = logger;
     }
 
     /// <summary>从 DI 容器构建节点注册表</summary>
@@ -27,14 +29,13 @@ public sealed class NodeRegistry : INodeRegistry {
         }
 
         var featureFlagService = sp.GetService<IFeatureFlagService>();
-        return new NodeRegistry(sp, nodes.ToFrozenDictionary(StringComparer.Ordinal), featureFlagService);
+        var logger = sp.GetService<ILoggerFactory>()?.CreateLogger<NodeRegistry>();
+        return new NodeRegistry(sp, nodes.ToFrozenDictionary(StringComparer.Ordinal), featureFlagService, logger);
     }
 
-    /// <summary>注册单个节点</summary>
+    /// <summary>注册单个节点 — 不可变注册表不支持运行时注册</summary>
     public void Register(string nodeId, Func<IServiceProvider, INode> factory) {
-        if (!_nodes.TryGetValue(nodeId, out _)) {
-            throw new InvalidOperationException($"NodeRegistry is immutable; cannot add '{nodeId}' after build");
-        }
+        throw new NotSupportedException($"NodeRegistry is immutable; cannot register '{nodeId}' after build. Use NodeRegistry.Build() to create a new registry with additional factories.");
     }
 
     /// <summary>按节点 ID 尝试获取单个节点</summary>
@@ -52,13 +53,16 @@ public sealed class NodeRegistry : INodeRegistry {
         if (!profile.Consumers.TryGetValue(consumerId, out var consumerConfig)) return [];
         var result = new List<INode>();
         foreach (var nodeEntry in consumerConfig.Nodes.OrderBy(n => n.Priority)) {
-            if (nodeEntry.EnabledWhenFeatureFlag is not null && _featureFlagService is not null) {
+            if (nodeEntry.EnabledWhenFeatureFlag is not null) {
+                if (_featureFlagService is null) continue;
                 var isEnabled = await _featureFlagService.IsEnabledAsync(
                     nodeEntry.EnabledWhenFeatureFlag, cancellationToken: cancellationToken).ConfigureAwait(false);
                 if (!isEnabled) continue;
             }
             if (_nodes.TryGetValue(nodeEntry.Id, out var entry))
                 result.Add(entry.CreateNode(_services));
+            else
+                _logger?.LogWarning("Node '{NodeId}' required by consumer '{ConsumerId}' is not registered in NodeRegistry", nodeEntry.Id, consumerId);
         }
         return result;
     }

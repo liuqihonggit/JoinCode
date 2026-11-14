@@ -8,10 +8,12 @@ namespace JoinCode.Composition.NodeRegistry;
 public sealed class NodeProfileResolver {
     private const int MaxInheritanceDepth = 3;
     private readonly FrozenDictionary<string, NodeProfile> _profiles;
+    private readonly ILogger<NodeProfileResolver>? _logger;
 
     /// <summary>从已加载的 Profile 字典构建解析器</summary>
-    public NodeProfileResolver(FrozenDictionary<string, NodeProfile> profiles) {
+    public NodeProfileResolver(FrozenDictionary<string, NodeProfile> profiles, ILogger<NodeProfileResolver>? logger = null) {
         _profiles = profiles;
+        _logger = logger;
     }
 
     /// <summary>解析指定 Profile 的完整继承链，返回合并后的 ResolvedProfile</summary>
@@ -33,6 +35,7 @@ public sealed class NodeProfileResolver {
 
         visited.Add(profileName);
         var parent = Resolve(profile.Inherits, visited, depth + 1);
+        visited.Remove(profileName);
         return Merge(parent, profile);
     }
 
@@ -47,27 +50,49 @@ public sealed class NodeProfileResolver {
         return new ResolvedProfile(profile.Name, consumers.ToFrozenDictionary(StringComparer.Ordinal));
     }
 
-    private static ResolvedProfile Merge(ResolvedProfile parent, NodeProfile child) {
+    private static FrozenDictionary<string, string> MergeConfig(IReadOnlyDictionary<string, string> baseConfig, IReadOnlyDictionary<string, string> overrideConfig) {
+        var merged = new Dictionary<string, string>(baseConfig, StringComparer.Ordinal);
+        foreach (var (key, value) in overrideConfig)
+            merged[key] = value;
+        return merged.ToFrozenDictionary(StringComparer.Ordinal);
+    }
+
+    private ResolvedProfile Merge(ResolvedProfile parent, NodeProfile child) {
         var consumers = new Dictionary<string, ResolvedConsumerConfig>(parent.Consumers, StringComparer.Ordinal);
 
         // 1. 排除子 Profile 明确移除的节点（从所有消费点中移除）
         foreach (var nodeId in child.Excludes) {
+            var foundAny = false;
             foreach (var (consumerId, consumerConfig) in consumers) {
-                var filtered = consumerConfig.Nodes.Where(n => n.Id != nodeId).ToArray();
-                consumers[consumerId] = consumerConfig with { Nodes = filtered };
+                if (consumerConfig.Nodes.Any(n => n.Id == nodeId)) {
+                    foundAny = true;
+                    var filtered = consumerConfig.Nodes.Where(n => n.Id != nodeId).ToArray();
+                    consumers[consumerId] = consumerConfig with { Nodes = filtered };
+                }
             }
+            if (!foundAny)
+                _logger?.LogWarning("Profile '{ProfileName}' excludes node '{NodeId}' but it was not found in any consumer", child.Name, nodeId);
         }
 
         // 2. 添加子 Profile 明确新增的消费点或节点
         foreach (var (consumerId, config) in child.Includes) {
             if (consumers.TryGetValue(consumerId, out var existing)) {
-                var existingIds = existing.Nodes.Select(n => n.Id).ToFrozenSet(StringComparer.Ordinal);
-                var newNodes = config.Nodes
-                    .Where(n => !existingIds.Contains(n.Id))
-                    .Select(n => new ResolvedNodeEntry(n.Id, n.Priority, n.EnabledWhenFeatureFlag, n.Config))
-                    .ToArray();
-                var combined = existing.Nodes.Concat(newNodes).ToArray();
-                consumers[consumerId] = existing with { Nodes = combined };
+                var existingNodes = existing.Nodes.ToDictionary(n => n.Id, StringComparer.Ordinal);
+                foreach (var newNode in config.Nodes) {
+                    var resolved = new ResolvedNodeEntry(newNode.Id, newNode.Priority, newNode.EnabledWhenFeatureFlag, newNode.Config ?? FrozenDictionary<string, string>.Empty);
+                    if (existingNodes.TryGetValue(newNode.Id, out var existingNode)) {
+                        var mergedConfig = newNode.Config is not null && newNode.Config.Count > 0
+                            ? MergeConfig(existingNode.Config, newNode.Config)
+                            : existingNode.Config;
+                        existingNodes[newNode.Id] = existingNode with {
+                            Priority = newNode.Priority != 0 ? newNode.Priority : existingNode.Priority,
+                            Config = mergedConfig
+                        };
+                    } else {
+                        existingNodes[newNode.Id] = resolved;
+                    }
+                }
+                consumers[consumerId] = existing with { Nodes = existingNodes.Values.OrderBy(n => n.Priority).ToArray() };
             } else {
                 var nodes = config.Nodes
                     .Select(n => new ResolvedNodeEntry(n.Id, n.Priority, n.EnabledWhenFeatureFlag, n.Config))
@@ -83,9 +108,12 @@ public sealed class NodeProfileResolver {
                 var nodes = consumerConfig.Nodes.Select(n => {
                     if (n.Id != overrideEntry.Node) return n;
                     found = true;
+                    var mergedConfig = overrideEntry.Config is not null
+                        ? MergeConfig(n.Config, overrideEntry.Config)
+                        : n.Config;
                     return n with {
                         Priority = overrideEntry.Priority ?? n.Priority,
-                        Config = overrideEntry.Config ?? n.Config
+                        Config = mergedConfig
                     };
                 }).ToArray();
                 if (!found)

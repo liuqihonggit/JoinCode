@@ -1,7 +1,7 @@
 # DSG050: 管道动态重建 — Profile 切换后管道热更新
 
 > 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [DSG049](DSG049-runtime-profile-switching.md) 阶段2
-> 状态: proposed
+> 状态: accepted
 > 创建: 2026-11-14
 > 关联: [DSG049](DSG049-runtime-profile-switching.md) 阶段2, [DSG048](DSG048-node-plugin-inheritance-architecture.md)
 
@@ -158,6 +158,29 @@ services.AddSingleton<ResolvedProfile>(sp => sp.GetRequiredService<IProfileManag
 
 ## 6. 待确认决策
 
-1. **中间件状态迁移**：Profile 切换后中间件重建，有状态中间件（如 `CrashSnapshotMiddleware`）的状态是否需要迁移到新实例？
-2. **分批改造 vs 全量改造**：18 条管道是否全部一次性改造，还是先改核心管道（chat/preprocess）验证后再推广？
-3. **DynamicXxxPipeline 是否实现接口**：是直接暴露 `InvokeAsync` 方法，还是实现 `IMiddlewarePipeline<TContext>` 接口（如果存在）？
+1. **中间件状态迁移**：Profile 切换后中间件重建，有状态中间件（如 `CrashSnapshotMiddleware`）的状态是否需要迁移到新实例？— **暂不迁移**，Profile 切换是低频操作，中间件状态丢失可接受
+2. **分批改造 vs 全量改造**：18 条管道是否全部一次性改造？— **全量改造**，改动机械性强，一次性完成避免遗漏
+3. **DynamicXxxPipeline 是否实现接口**：是直接暴露 `InvokeAsync` 方法，还是实现 `IMiddlewarePipeline<TContext>` 接口？— **既不新建 DynamicXxxPipeline 也不引入接口**，直接在 `MiddlewarePipeline`/`StreamMiddlewarePipeline` 上添加 `internal Rebuild` 方法，避免改动 68 个消费方文件
+
+## 7. 实施记录
+
+### 阶段1+2 已完成（2026-11-15）
+
+**实施决策**：放弃 spec 中 `DynamicMiddlewarePipeline` 包装类方案，改为在现有 `MiddlewarePipeline<TContext>` 和 `StreamMiddlewarePipeline<TContext, TEvent>` 上添加 `internal Rebuild(IEnumerable<TMiddleware>)` 方法。
+
+**原因**：
+- `MiddlewarePipeline` 是 sealed class，不实现接口，68 个文件直接注入具体类型
+- 引入接口需要修改所有消费方，改动面过大
+- `Rebuild` 方法只需把 `_pipeline` 从 `readonly` 改为 `volatile`，添加保存构造参数的字段，改动最小
+
+**改动文件**：
+| 文件 | 改动 |
+|------|------|
+| `MiddlewarePipeline.cs` | `_pipeline` 改 volatile + 添加 `_onError`/`_shortCircuitPredicate` 字段 + `internal Rebuild` 方法 |
+| `StreamMiddlewarePipeline.cs` | 同上 |
+| `Infrastructure.csproj` | 添加 `InternalsVisibleTo JoinCode.Pipelines/JoinCode.Pipelines.Tests` |
+| `DataDrivenPipelineComposition.cs` | 移除 `AddSingleton<ResolvedProfile>` + 18 条管道注册订阅 `ProfileSwitching` + `BuildTaskPipeline`/`BuildStreamPipeline` 改用 `IProfileManager.Current` + 7 处工厂委托改用 `IProfileManager.Current` |
+| `MiddlewarePipelineTests.cs` | 4 个 Rebuild 单元测试 |
+| `StreamPipelineRebuildTests.cs` | 3 个 Stream Rebuild 单元测试 |
+
+**验证**：7 个 Rebuild 测试全绿 + 98 个管道测试全绿 + 27 个 composition 测试全绿 + 全仓编译通过

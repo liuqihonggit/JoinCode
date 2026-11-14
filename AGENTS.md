@@ -165,6 +165,15 @@
 
 > ADR: [0080](docs/implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md) — 详见 ADR 文档（含验收标准、推荐配置[架构选型/效率/编译]）用户说了`测试`等等关键字眼,必须要提示用户是否执行这个操作.
 
+### 打点验证工作流（Diag.WriteLine + JCC_DEBUGLOG=1）
+
+当实现过程中存在未验证的细节（如容错路径、特殊字符处理、格式检测逻辑等），必须通过打点验证确认行为正确：
+
+1. **添加打点**：在关键位置添加 `Diag.WriteLine($"[TAG] ...")`，标签语义化（如 `[XML-PARSE]`、`[FALLBACK]`、`[XML-REPAIR]`）
+2. **启动 exe**：用 `JCC_DEBUGLOG=1 JCC_ALLOW_DIRECT_FALLBACK=1` 启动 `artifacts/bin/JoinCode/Debug/net10.0/jcc.exe`，通过 `-p` 传入触发目标逻辑的提示词
+3. **验证输出**：grep 打点标签确认逻辑被正确触发，禁止只用单元测试作为验证手段
+4. **打点保留**：打点日志使用 `Diag.WriteLine`（受 `JCC_DEBUGLOG` 开关控制），默认不输出，不影响生产环境
+
 ## 🔴 绝对禁止（触碰即错）
 
 ### 操作禁令

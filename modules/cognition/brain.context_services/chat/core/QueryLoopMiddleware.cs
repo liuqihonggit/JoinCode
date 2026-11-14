@@ -138,10 +138,37 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             var historySnapshot = await _contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
             Diag.WriteLine($"[LOOP] 迭代 #{totalToolCalls} | 消息={historySnapshot.Count}");
 
-            // TASK061 请求前上下文预算守卫（孤儿接线 — DecidePreflight 此前无消费方）：
-            // 估算消息+工具 token 比率 ≥ 1.0（超模型上下文窗口本体）→ 直接拦截不发 API
-            //（用户要求"超窗直接报错"；null 容错 — mock/旧实现未提供决策时静默放行）
-            GuardContextBudget();
+            // ADR 0156 请求前上下文预算守卫：分级处理
+            var guardResult = GuardContextBudget();
+            if (guardResult.NeedsEmergencyCompaction) {
+                _logger?.LogWarning("上下文预算超限（估算 {Ratio:P0}），执行紧急折叠", guardResult.EstimatedRatio);
+                try {
+                    await _contextManager.FoldIfNeededAsync(ContextFoldDecision.FoldAggressive, null, ct).ConfigureAwait(false);
+                } catch (OperationCanceledException) {
+                    throw;
+                } catch (Exception foldEx) {
+                    _logger?.LogWarning(foldEx, "紧急上下文折叠失败，尝试继续对话");
+                }
+                var postFoldPreflight = _contextManager.DecidePreflightWithCurrentSpecs();
+                if (postFoldPreflight is { EstimatedRatio: >= 1.0 }) {
+                    yield return ChatStreamEvent.Text(
+                        $"⚠ 上下文溢出：当前估算约 {postFoldPreflight.EstimatedRatio:P0} 占用模型上下文窗口" +
+                        $"（{guardResult.ContextMaxTokens} token）。已自动压缩但仍超限。" +
+                        $"请用 /compact 手动压缩对话历史、运行 /clear 清空上下文，" +
+                        $"或切换到更大上下文窗口的模型。");
+                    yield return ChatStreamEvent.Done(stopReason: "context_overflow");
+                    break;
+                }
+            } else if (guardResult.NeedsPreventiveSnip) {
+                _logger?.LogInformation("上下文预算预防性裁剪（估算 {Ratio:P0}），执行 SnipStaleToolResults", guardResult.EstimatedRatio);
+                try {
+                    await _contextManager.FoldIfNeededAsync(ContextFoldDecision.FoldNormal, null, ct).ConfigureAwait(false);
+                } catch (OperationCanceledException) {
+                    throw;
+                } catch (Exception snipEx) {
+                    _logger?.LogWarning(snipEx, "预防性上下文裁剪失败，继续对话");
+                }
+            }
 #if DEBUG
             if (System.Diagnostics.Debugger.IsAttached) System.Diagnostics.Debugger.Break();
 #endif
@@ -237,23 +264,41 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         yield return ChatStreamEvent.Done(finalUsage, finalModelId, innerStopReason);
     }
 
-    /// <summary>请求前上下文预算守卫（TASK061）— 估算比率 ≥ 1.0（消息+工具已超模型上下文窗口本体，
-    /// 主流模型已达 1M）→ 抛 ContextOverflowException 直接拦截不发 API（对齐"超窗直接报错"；
-    /// 错误诱导：窗口数/估算数/清上下文或切大窗口模型）；决策 null 容错（mock/旧实现静默放行）。</summary>
-    private void GuardContextBudget() {
+    /// <summary>请求前上下文预算守卫（ADR 0156）— 估算比率分级处理：
+    /// ≥ 1.0 → 紧急压缩信号；0.7~1.0 → 预防性裁剪信号；&lt; 0.7 → 放行。
+    /// 不抛异常，确保 Agent 永不因上下文溢出崩溃退出；决策 null 容错。</summary>
+    private ContextBudgetGuardResult GuardContextBudget() {
         var preflight = _contextManager.DecidePreflightWithCurrentSpecs();
-        if (preflight is not { EstimatedRatio: >= 1.0 }) {
-            return;
+        if (preflight is null) {
+            return ContextBudgetGuardResult.Ok;
         }
 
-        var ctxMax = _contextManager.GetContextMaxTokens();
-        var estimatedTokens = (int)(ctxMax * preflight.EstimatedRatio);
-        throw new ContextOverflowException(
-            $"上下文预算超限：当前消息+工具估算约 {estimatedTokens} token，已超过模型上下文窗口 {ctxMax} token" +
-            $"（比率 {preflight.EstimatedRatio:F2}）。请用 /compact 压缩对话历史、运行 /clear 清空上下文，" +
-            $"或切换到更大上下文窗口的模型（主流已达 1M token）。",
-            ctxMax,
-            estimatedTokens);
+        var ratio = preflight.EstimatedRatio;
+        if (ratio >= 1.0) {
+            var ctxMax = _contextManager.GetContextMaxTokens();
+            var estimatedTokens = (int)(ctxMax * ratio);
+            return new ContextBudgetGuardResult(GuardLevel.Emergency, ctxMax, estimatedTokens, ratio);
+        }
+
+        if (ratio > 0.7) {
+            var ctxMax = _contextManager.GetContextMaxTokens();
+            var estimatedTokens = (int)(ctxMax * ratio);
+            return new ContextBudgetGuardResult(GuardLevel.Preventive, ctxMax, estimatedTokens, ratio);
+        }
+
+        return ContextBudgetGuardResult.Ok;
+    }
+
+    /// <summary>上下文预算守卫级别</summary>
+    private enum GuardLevel { Ok, Preventive, Emergency }
+
+    /// <summary>上下文预算守卫结果</summary>
+    private sealed record ContextBudgetGuardResult(GuardLevel Level, int ContextMaxTokens, int EstimatedTokens, double EstimatedRatio) {
+        /// <summary>是否需要紧急压缩（比率 ≥ 1.0）</summary>
+        public bool NeedsEmergencyCompaction => Level == GuardLevel.Emergency;
+        /// <summary>是否需要预防性裁剪（比率 0.7~1.0）</summary>
+        public bool NeedsPreventiveSnip => Level == GuardLevel.Preventive;
+        public static readonly ContextBudgetGuardResult Ok = new(GuardLevel.Ok, 0, 0, 0);
     }
 
     /// <summary>

@@ -323,18 +323,14 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             if (iterState.FullResponse.Length == 0) {
                 yield break;
             }
-            if (TryFallbackParseToolCalls(iterState)) {
-                goto StreamingToolExecution;
+            if (!TryFallbackParseToolCalls(iterState)) {
+                await foreach (var evt in EmitPureTextResponseAsync(iterState, context, ct).ConfigureAwait(false)) {
+                    yield return evt;
+                }
+                yield break;
             }
-            var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
-            foreach (var evt in pureEvents)
-                yield return evt;
-            if (!context.IsDryRun && !string.IsNullOrWhiteSpace(pureResponse))
-                await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
-            yield break;
         }
 
-        StreamingToolExecution:
         var toolCalls = _toolHandler.PrepareToolCalls(iterState);
         var assistantContent = iterState.FullResponse.Length > 0 ? iterState.FullResponse.ToString() : null;
         var assistantMetadata = ToolCallEntry.BuildAssistantMetadata(toolCalls);
@@ -412,18 +408,14 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             if (iterState.FullResponse.Length == 0) {
                 yield break;
             }
-            if (TryFallbackParseToolCalls(iterState)) {
-                goto TraditionalToolExecution;
+            if (!TryFallbackParseToolCalls(iterState)) {
+                await foreach (var evt in EmitPureTextResponseAsync(iterState, context, ct).ConfigureAwait(false)) {
+                    yield return evt;
+                }
+                yield break;
             }
-            var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
-            foreach (var evt in pureEvents)
-                yield return evt;
-            if (!context.IsDryRun && !string.IsNullOrWhiteSpace(pureResponse))
-                await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
-            yield break;
         }
 
-        TraditionalToolExecution:
         var toolCalls = _toolHandler.PrepareToolCalls(iterState);
         var assistantContent = iterState.FullResponse.Length > 0 ? iterState.FullResponse.ToString() : null;
         var assistantMetadata = ToolCallEntry.BuildAssistantMetadata(toolCalls);
@@ -524,6 +516,19 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         }
 
         return (events, aiResponse);
+    }
+
+    /// <summary>
+    /// 发射纯文本响应事件流 — 从 BuildPureTextResponse 构建事件并持久化助手消息
+    /// </summary>
+    private async IAsyncEnumerable<ChatStreamEvent> EmitPureTextResponseAsync(
+        IterationState iterState, ChatMiddlewareContext context,
+        [EnumeratorCancellation] CancellationToken ct) {
+        var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
+        foreach (var evt in pureEvents)
+            yield return evt;
+        if (!context.IsDryRun && !string.IsNullOrWhiteSpace(pureResponse))
+            await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
     }
 
     /// <summary>

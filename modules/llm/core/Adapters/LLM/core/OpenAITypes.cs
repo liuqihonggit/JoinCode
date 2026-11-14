@@ -85,6 +85,15 @@ internal sealed class OpenAIChatRequest {
     [JsonPropertyName("thinking")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public OpenAIThinkingOptions? Thinking { get; set; }
+
+    /// <summary>
+    /// 提示词缓存键 — DeepSeek/sensenova 等供应商通过此字段启用 prompt caching,
+    /// 同一缓存键的请求前缀可命中缓存,大幅减少 TPM 消耗。
+    /// 使用会话 ID 作为缓存键,确保同一会话内的请求共享缓存。
+    /// </summary>
+    [JsonPropertyName("prompt_cache_key")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PromptCacheKey { get; set; }
 }
 
 /// <summary>

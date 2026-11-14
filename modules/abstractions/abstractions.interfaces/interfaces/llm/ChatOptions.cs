@@ -45,6 +45,13 @@ public sealed class ChatOptions {
     public string? FastModelId { get; init; }
 
     /// <summary>
+    /// 提示词缓存键 — DeepSeek/sensenova 等供应商通过此字段启用 prompt caching,
+    /// 同一缓存键的请求前缀可命中缓存,大幅减少 TPM 消耗。
+    /// 使用会话 ID 作为缓存键,确保同一会话内的请求共享缓存。
+    /// </summary>
+    public string? PromptCacheKey { get; init; }
+
+    /// <summary>
     /// API 端上下文管理配置 — 对齐 TS getAPIContextManagement
     /// 通过 context_management 请求参数让 Anthropic API 在服务端自动清理工具结果
     /// 不破坏 prompt cache，优于客户端 microcompact

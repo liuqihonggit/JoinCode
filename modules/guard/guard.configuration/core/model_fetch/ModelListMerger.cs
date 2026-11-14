@@ -7,7 +7,7 @@ public static class ModelListMerger {
     /// <summary>
     /// 智能合并本地模型列表与远程模型信息
     /// <para>远程有本地无 → 新增（用远程元数据完整填充: Description/ContextWindow/Modalities）</para>
-    /// <para>远程无本地有 → 删除</para>
+    /// <para>远程无本地有 → 保留（用户手动配置的模型不应被远程列表删除）</para>
     /// <para>远程有本地有 → 保留本地元数据，仅补全缺失字段（ContextWindow==0 或 Description=="" 时用远程补）</para>
     /// </summary>
     public static List<ModelItemConfig> Merge(List<ModelItemConfig>? localModels, IReadOnlyList<RemoteModelInfo> remoteModels) {
@@ -22,14 +22,20 @@ public static class ModelListMerger {
             }
         }
 
-        var result = new List<ModelItemConfig>(remoteModels.Count);
+        var result = new List<ModelItemConfig>(remoteModels.Count + localById.Count);
+        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var remote in remoteModels) {
             if (string.IsNullOrEmpty(remote.Id))
                 continue;
+            seenIds.Add(remote.Id);
             if (localById.TryGetValue(remote.Id, out var local))
                 result.Add(SupplementLocal(local, remote));
             else
                 result.Add(BuildFromRemote(remote));
+        }
+        foreach (var (id, local) in localById) {
+            if (!seenIds.Contains(id))
+                result.Add(local);
         }
         return result;
     }

@@ -152,8 +152,8 @@ public static partial class ServiceRegistration {
             };
         }
 
-        // 默认模式也设置 TransientErrorPredicate — 只有容量错误（429/529）才无限重试，
-        // 连接失败/超时等非容量错误在 MaxRetries 次后放弃，避免无限重试卡死非交互模式
+        // 交互式模式：429/529 也不无限重试，走 MaxRetries 有限重试（避免用户长时间等待）
+        // 无人值守模式：429/529 无限重试（用户睡觉时让 AI 持续重试直到预算耗尽）
         retryConfig = new RetryConfig {
             MaxRetries = retryConfig.MaxRetries,
             BaseDelay = retryConfig.BaseDelay,
@@ -170,7 +170,7 @@ public static partial class ServiceRegistration {
                     logger?.LogWarning("[LLM:UNATTENDED] 重试等待 {RemainingMs:F0}ms (尝试 {Attempt}) | {ExType}: {Message}",
                         remaining.TotalMilliseconds, attempt, ex.GetType().Name, ex.Message)
                 : retryConfig.HeartbeatCallback,
-            TransientErrorPredicate = IsTransientCapacityError,
+            TransientErrorPredicate = isUnattended ? IsTransientCapacityError : null,
         };
 
         var defaultPolicy = ResiliencePolicy.LlmDefault("LLM");
@@ -197,7 +197,7 @@ public static partial class ServiceRegistration {
                     SingleDelayCap = defaultRetry.SingleDelayCap,
                     HeartbeatInterval = defaultRetry.HeartbeatInterval,
                     HeartbeatCallback = defaultRetry.HeartbeatCallback,
-                    TransientErrorPredicate = IsTransientCapacityError,
+                    TransientErrorPredicate = isUnattended ? IsTransientCapacityError : null,
                 },
                 CircuitBreaker = defaultPolicy.CircuitBreaker,
                 HealthCheck = defaultPolicy.HealthCheck,

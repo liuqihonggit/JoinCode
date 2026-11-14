@@ -26,7 +26,7 @@ public class ModelListMergerTests {
     }
 
     [Fact]
-    public void Merge_RemoteMissingLocalModel_RemovesIt() {
+    public void Merge_RemoteMissingLocalModel_PreservesIt() {
         var local = new List<ModelItemConfig>
         {
             new() { Id = "test-model", DisplayName = "GPT-4o" },
@@ -36,8 +36,9 @@ public class ModelListMergerTests {
 
         var result = ModelListMerger.Merge(local, remote);
 
-        result.Should().HaveCount(1);
-        result[0].Id.Should().Be("test-model");
+        result.Should().HaveCount(2);
+        result.Should().Contain(m => m.Id == "test-model");
+        result.Should().Contain(m => m.Id == "old-model");
     }
 
     [Fact]

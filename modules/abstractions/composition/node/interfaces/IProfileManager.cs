@@ -8,6 +8,9 @@ public interface IProfileManager {
     /// <summary>当前活跃的 ResolvedProfile（volatile 读）</summary>
     ResolvedProfile Current { get; }
 
+    /// <summary>可用 Profile 名称列表</summary>
+    IReadOnlyList<string> AvailableProfiles { get; }
+
     /// <summary>切换到指定 Profile（原子替换引用）</summary>
     /// <param name="profileName">目标 Profile 名称（如 base/headless/sdk/ci）</param>
     /// <param name="cancellationToken">取消令牌</param>

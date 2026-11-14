@@ -10,6 +10,9 @@ public sealed class NodeProfileResolver {
     private readonly FrozenDictionary<string, NodeProfile> _profiles;
     private readonly ILogger<NodeProfileResolver>? _logger;
 
+    /// <summary>可用 Profile 名称列表</summary>
+    public IReadOnlyList<string> AvailableProfiles => _profiles.Keys.Order().ToArray();
+
     /// <summary>从已加载的 Profile 字典构建解析器</summary>
     public NodeProfileResolver(FrozenDictionary<string, NodeProfile> profiles, ILogger<NodeProfileResolver>? logger = null) {
         _profiles = profiles;

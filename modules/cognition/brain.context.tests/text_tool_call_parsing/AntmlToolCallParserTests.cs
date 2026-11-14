@@ -171,4 +171,104 @@ public sealed class AntmlToolCallParserTests {
         var args = JsonDocument.Parse(result.ToolCalls[0].Arguments).RootElement;
         args.GetProperty("newString").GetString().Should().Be("0");
     }
+
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void TryParse_FunctionCallSingular_ReturnsToolCall() {
+        var content = """
+            <function_call name="Read">
+            <parameter name="filePath">/tmp/a.txt</parameter>
+            </function_call>
+            """.AsSpan();
+
+        var result = Sut.TryParse(content);
+
+        result.Should().NotBeNull();
+        result!.ToolCalls.Should().HaveCount(1);
+        result.ToolCalls[0].Name.Should().Be("Read");
+        var args = JsonDocument.Parse(result.ToolCalls[0].Arguments).RootElement;
+        args.GetProperty("filePath").GetString().Should().Be("/tmp/a.txt");
+    }
+
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void TryParse_AntmlFunctionCalls_ReturnsToolCall() {
+        var content = """
+            <antml:function_calls>
+            <antml:invoke name="Bash">
+            <antml:parameter name="command">ls -la</antml:parameter>
+            </antml:invoke>
+            </antml:function_calls>
+            """.AsSpan();
+
+        var result = Sut.TryParse(content);
+
+        result.Should().NotBeNull();
+        result!.ToolCalls.Should().HaveCount(1);
+        result.ToolCalls[0].Name.Should().Be("Bash");
+        var args = JsonDocument.Parse(result.ToolCalls[0].Arguments).RootElement;
+        args.GetProperty("command").GetString().Should().Be("ls -la");
+    }
+
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void TryParse_StandaloneInvoke_ReturnsToolCall() {
+        var content = """
+            我来读取文件。
+            <invoke name="Read">
+            <parameter name="filePath">/tmp/a.txt</parameter>
+            </invoke>
+            完成。
+            """.AsSpan();
+
+        var result = Sut.TryParse(content);
+
+        result.Should().NotBeNull();
+        result!.ToolCalls.Should().HaveCount(1);
+        result.ToolCalls[0].Name.Should().Be("Read");
+        var args = JsonDocument.Parse(result.ToolCalls[0].Arguments).RootElement;
+        args.GetProperty("filePath").GetString().Should().Be("/tmp/a.txt");
+    }
+
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void TryParse_FunctionCallSingularWithMultipleParams_ReturnsToolCall() {
+        var content = """
+            <function_call name="edit">
+            <parameter name="filePath">/tmp/a.txt</parameter>
+            <parameter name="oldString">old</parameter>
+            <parameter name="newString">new</parameter>
+            </function_call>
+            """.AsSpan();
+
+        var result = Sut.TryParse(content);
+
+        result.Should().NotBeNull();
+        result!.ToolCalls.Should().HaveCount(1);
+        result.ToolCalls[0].Name.Should().Be("edit");
+        var args = JsonDocument.Parse(result.ToolCalls[0].Arguments).RootElement;
+        args.GetProperty("filePath").GetString().Should().Be("/tmp/a.txt");
+        args.GetProperty("oldString").GetString().Should().Be("old");
+        args.GetProperty("newString").GetString().Should().Be("new");
+    }
+
+    [SuppressMessage("AotSafety", "JCC11003", Justification = "边界可空抑制: 反射/延迟初始化/解析保证非空")]
+    [Fact]
+    public void TryParse_MultipleFunctionCallSingular_ReturnsAllToolCalls() {
+        var content = """
+            <function_call name="Read">
+            <parameter name="filePath">/tmp/a.txt</parameter>
+            </function_call>
+            <function_call name="Grep">
+            <parameter name="pattern">foo</parameter>
+            </function_call>
+            """.AsSpan();
+
+        var result = Sut.TryParse(content);
+
+        result.Should().NotBeNull();
+        result!.ToolCalls.Should().HaveCount(2);
+        result.ToolCalls[0].Name.Should().Be("Read");
+        result.ToolCalls[1].Name.Should().Be("Grep");
+    }
 }

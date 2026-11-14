@@ -8,7 +8,7 @@ public class SubscribePRToolHandlersTests {
         var result = await _handler.SubscribePRAsync("list", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
-        Assert.Contains("GitHub 服务未配置", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 
     [Fact]
@@ -16,7 +16,7 @@ public class SubscribePRToolHandlersTests {
         var result = await _handler.SubscribePRAsync("subscribe", pr_ref: null, cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
-        Assert.Contains("GitHub 服务未配置", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 
     [Fact]
@@ -25,6 +25,6 @@ public class SubscribePRToolHandlersTests {
 
         Assert.True(result.IsError);
         // FromValue("invalid") 返回 null，在到达 GitHub 服务检查之前就返回了未知操作错误
-        Assert.Contains("未知操作", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 }

@@ -47,14 +47,14 @@ public sealed class ToolExecutionContext {
     /// <summary>
     /// 拒绝执行 — 设置权限决策为 Denied,填充错误结果并短路管道(不调 next)
     /// </summary>
-    public void Deny(string reason) {
+    /// <param name="reason">拒绝原因</param>
+    /// <param name="errorType">错误类型枚举，默认 PermissionDenied</param>
+    /// <param name="errorCode">精确错误码（可选）</param>
+    public void Deny(string reason, ToolErrorType errorType = ToolErrorType.PermissionDenied, ToolErrorCode? errorCode = null) {
         PermissionDecision = PermissionDecision.Denied;
         PermissionDenyReason = reason;
-        Result = new ToolResult {
-            Content = [new() { Type = ToolContentType.Text, Text = reason }],
-            IsError = true,
-            PermissionDecision = PermissionDecision.Denied
-        };
+        Result = ToolErrorJsonBuilder.ToToolResult(errorType, reason, ToolName, errorCode);
+        Result.PermissionDecision = PermissionDecision.Denied;
     }
 
     /// <summary>
@@ -65,12 +65,9 @@ public sealed class ToolExecutionContext {
         PermissionDecision = PermissionDecision.PendingConfirmation;
         PermissionConfirmationPrompt = prompt;
         PermissionRuleContent = ruleContent;
-        Result = new ToolResult {
-            Content = [new() { Type = ToolContentType.Text, Text = $"工具 '{ToolName}' 需要确认: {prompt}" }],
-            IsError = true,
-            PermissionDecision = PermissionDecision.PendingConfirmation,
-            ConfirmationPrompt = prompt,
-            PermissionRuleContent = ruleContent
-        };
+        Result = ToolErrorJsonBuilder.ToToolResult(ToolErrorType.PermissionRequired, $"工具 '{ToolName}' 需要确认: {prompt}", ToolName, ToolErrorCode.PermissionRequiredPendingConfirmation);
+        Result.PermissionDecision = PermissionDecision.PendingConfirmation;
+        Result.ConfirmationPrompt = prompt;
+        Result.PermissionRuleContent = ruleContent;
     }
 }

@@ -80,17 +80,22 @@ public sealed partial class RequiredParamsMiddleware : ServiceEntity, IToolExecu
 
     private static ToolResult CreateParameterMissingResult(string toolName, string missingDetails) {
         var message = L.T(StringKey.MissingRequiredParams, toolName, missingDetails);
+        var missingParams = missingDetails
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => {
+                var param = line.TrimStart('-').TrimStart();
+                var spaceIdx = param.IndexOf(' ');
+                if (spaceIdx > 0) param = param[..spaceIdx];
+                return new DiagnosticDetail("param", param);
+            })
+            .ToList();
 
-        return new ToolResult {
-            Content =
-            [
-                new ToolContent
-                {
-                    Type = ToolContentType.Text,
-                    Text = message
-                }
-            ],
-            IsError = true
-        };
+        return ToolErrorJsonBuilder.ToToolResult(
+            ToolErrorType.ParameterMissing,
+            message,
+            toolName,
+            errorCode: ToolErrorCode.ParameterMissingRequired,
+            details: missingParams,
+            suggestions: [L.T(StringKey.MissingRequiredParams, toolName, missingDetails)]);
     }
 }

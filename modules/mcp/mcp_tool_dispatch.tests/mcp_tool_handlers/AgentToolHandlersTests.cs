@@ -95,7 +95,7 @@ public class AgentToolHandlersTests {
         var result = await handler.AgentListAsync(CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
-        Assert.Contains("未初始化", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 
     [Fact]

@@ -126,8 +126,10 @@ public class PermissionAwareToolExecutorTest {
         var result = await executor.ExecuteAsync("test_tool", []);
 
         result.IsError.Should().BeTrue();
-        result.GetFirstText().Should().Contain("Error executing tool");
-        result.GetFirstText().Should().Contain("boom");
+        var json = result.GetFirstText();
+        json.Should().NotBeNull();
+        json.Should().Contain("\"type\":\"execution_failed\"");
+        json.Should().Contain("boom");
     }
 
     [Fact]
@@ -196,7 +198,7 @@ public class PermissionAwareToolExecutorTest {
         var result = await executor.ExecuteAsync("test_tool", []);
 
         result.IsError.Should().BeTrue();
-        result.GetFirstText().Should().Contain("拒绝");
+        result.GetFirstText().Should().Contain("\"type\":\"permission_denied\"");
     }
 
     [Fact]
@@ -333,19 +335,20 @@ public class PermissionAwareToolExecutorTest {
         }
     }
 
-    // === ExecuteAsync — OperationCanceledException 透传 ===
+    // === ExecuteAsync — OperationCanceledException 转为 JSON 结果（不再 rethrow） ===
 
     [Fact]
-    public async Task ExecuteAsync_PipelineThrowsOperationCanceledException_Propagates() {
+    public async Task ExecuteAsync_PipelineThrowsOperationCanceledException_ReturnsCancelledResult() {
         var handler = CreateStubHandler();
         await using var executor = new PermissionAwareToolExecutor(
             CreateRegistry(handler),
             CreatePipeline(new ThrowingMiddleware(new OperationCanceledException())),
             CreatePermissionManager(), logger: NullLogger<PermissionAwareToolExecutor>.Instance);
 
-        var act = () => executor.ExecuteAsync("test_tool", []);
+        var result = await executor.ExecuteAsync("test_tool", []);
 
-        await act.Should().ThrowAsync<OperationCanceledException>();
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("\"type\":\"cancelled\"");
     }
 
     // === HandlePendingConfirmationAsync — 边缘分支 ===
@@ -361,7 +364,7 @@ public class PermissionAwareToolExecutorTest {
         var result = await executor.ExecuteAsync("test_tool", []);
 
         result.IsError.Should().BeTrue();
-        result.GetFirstText().Should().Contain("需要确认但无确认处理器");
+        result.GetFirstText().Should().Contain("\"type\":\"permission_required\"");
     }
 
     [Fact]

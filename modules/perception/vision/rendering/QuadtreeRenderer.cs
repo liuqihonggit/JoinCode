@@ -66,13 +66,13 @@ public sealed partial class QuadtreeRenderer : IQuadtreeRenderer {
         ArgumentException.ThrowIfNullOrWhiteSpace(cellCode);
 
         var (col, row) = QuadtreeEncoder.DecodeToGrid(cellCode);
-        var size = 1 << sourceDepth;
+        var size = 1 << targetDepth;
         if (col < 0 || col >= size || row < 0 || row >= size)
-            throw new ArgumentException($"[VIS112] 格子编码 {cellCode} 越界: 解码坐标 (col={col}, row={row}) 超出 sourceDepth={sourceDepth} 的合法范围 0..{size - 1}");
-        var cellW = imageWidth / size;
-        var cellH = imageHeight / size;
-        var x = col * cellW;
-        var y = row * cellH;
+            throw new ArgumentException($"[VIS112] 格子编码 {cellCode} 越界: 解码坐标 (col={col}, row={row}) 超出 targetDepth={targetDepth} 的合法范围 0..{size - 1}");
+        var cellW = imageWidth / 2;
+        var cellH = imageHeight / 2;
+        var x = (col & 1) * cellW;
+        var y = (row & 1) * cellH;
 
         if (!VisionBase64.TryDecode(imageBase64, out var bytes, out var decodeError))
             throw new ArgumentException($"[VIS013] {decodeError}", nameof(imageBase64));

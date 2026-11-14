@@ -44,17 +44,15 @@ public sealed partial class SchemaValidationMiddleware : ServiceEntity, IToolExe
                 _logger.LogWarning("Tool {ToolName} input schema validation failed: {Errors}",
                     context.ToolName, formatted);
                 context.Span?.SetStatus(TelemetryStatusCode.Error, "Schema validation failed");
-                context.Result = new ToolResult {
-                    Content =
-                    [
-                        new ToolContent
-                        {
-                            Type = ToolContentType.Text,
-                            Text = $"<tool_use_error>InputValidationError: {formatted}</tool_use_error>"
-                        }
-                    ],
-                    IsError = true
-                };
+                var errorDetails = validation.Errors
+                    .Select(e => new DiagnosticDetail(e.Path ?? "root", e.Message ?? e.ToString() ?? "validation error"))
+                    .ToList();
+                context.Result = ToolErrorJsonBuilder.ToToolResult(
+                    ToolErrorType.SchemaValidation,
+                    formatted,
+                    context.ToolName,
+                    errorCode: ToolErrorCode.SchemaValidationTypeMismatch,
+                    details: errorDetails);
                 return;
             }
         }

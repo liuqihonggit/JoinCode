@@ -29,10 +29,7 @@ public sealed partial class ToolExecutionMiddleware : ServiceEntity, IToolExecut
         MiddlewareDelegate<ToolExecutionContext> next,
         CancellationToken ct) {
         if (context.Handler is null) {
-            context.Result = new ToolResult {
-                Content = [new ToolContent { Type = ToolContentType.Text, Text = $"Tool '{context.ToolName}' handler not found." }],
-                IsError = true
-            };
+            context.Result = ToolErrorJsonBuilder.ToToolResult(ToolErrorType.HandlerNotFound, $"Tool '{context.ToolName}' handler not found.", context.ToolName, ToolErrorCode.HandlerNotFoundInContext);
             return;
         }
 
@@ -43,12 +40,14 @@ public sealed partial class ToolExecutionMiddleware : ServiceEntity, IToolExecut
             _logger.LogInformation(L.T(StringKey.ToolExecSuccessLog, context.ToolName));
             context.Span?.SetStatus(TelemetryStatusCode.Ok);
             context.Result = result;
-        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
+        } catch (OperationCanceledException) {
+            _logger.LogInformation(L.T(StringKey.ToolExecCancelledLog, context.ToolName));
+            context.Span?.SetStatus(TelemetryStatusCode.Error, "Cancelled");
+            context.Result = ToolErrorJsonBuilder.FromCancellation(context.ToolName);
+        } catch (Exception ex) {
             _logger.LogError(ex, L.T(StringKey.ToolExecFailedLog, context.ToolName));
-            context.Result = new ToolResult {
-                Content = [new ToolContent { Type = ToolContentType.Text, Text = $"{ex.GetType().Name}: {ex.Message}" }],
-                IsError = true
-            };
+            context.Span?.SetStatus(TelemetryStatusCode.Error, ex.Message);
+            context.Result = ToolErrorJsonBuilder.FromException(ex, context.ToolName);
         }
 
         await next(context, ct).ConfigureAwait(false);

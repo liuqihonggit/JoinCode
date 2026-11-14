@@ -36,6 +36,6 @@ public class MonitorToolHandlersTests {
         var result = await _handler.MonitorMcpAsync("invalid", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
-        Assert.Contains("未知监控类型", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 }

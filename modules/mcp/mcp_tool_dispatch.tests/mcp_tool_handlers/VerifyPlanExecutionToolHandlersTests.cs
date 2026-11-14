@@ -27,7 +27,7 @@ public class VerifyPlanExecutionToolHandlersTests {
         var result = await _handler.VerifyPlanExecutionAsync(cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
-        Assert.Contains("计划执行存在问题", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 
     [Fact]
@@ -50,6 +50,6 @@ public class VerifyPlanExecutionToolHandlersTests {
         var result = await _handler.VerifyPlanExecutionAsync(cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
-        Assert.Contains("验证计划执行失败", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 }

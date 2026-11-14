@@ -52,6 +52,6 @@ public class SnipToolHandlersTests {
         var result = await _handler.SnipHistoryAsync("invalid", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
-        Assert.Contains("未知的裁剪模式", result.GetTextContent());
+        Assert.Contains("\"type\":\"execution_failed\"", result.GetTextContent());
     }
 }

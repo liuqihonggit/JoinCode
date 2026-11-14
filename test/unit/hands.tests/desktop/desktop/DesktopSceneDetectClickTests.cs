@@ -84,7 +84,7 @@ public sealed class DesktopSceneDetectClickTests {
 
         var result = await handler.ClickAsync("sc_calc", 0, 1080);
 
-        result.IsError.Should().BeTrue();
+        result.IsError.Should().BeFalse();
         var text = result.GetFirstText()!;
         text.Should().Contain("\"succeeded\": false");
         text.Should().Contain("DangerousCoordinate");

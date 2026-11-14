@@ -114,6 +114,18 @@ public sealed class CategorizedRegistry<TKey, TValue, TCategory> where TKey : no
     public IReadOnlyDictionary<TKey, TValue> GetAllCanonical() => _registry.GetAllCanonical();
 
     /// <summary>
+    /// 按分类获取所有已启用的条目
+    /// </summary>
+    /// <param name="category">分类标签</param>
+    /// <returns>该分类下所有已启用的条目列表</returns>
+    public IReadOnlyList<TValue> GetByCategory(TCategory category) {
+        return GetCategorizedEntries()
+            .Where(e => e.Category is not null && e.Category.Equals(category) && e.IsEnabled)
+            .Select(e => e.Value)
+            .ToArray();
+    }
+
+    /// <summary>
     /// 遍历器 — 返回 IEnumerable，脏标记缓存数组，仅在变更时重建
     /// </summary>
     public IEnumerable<CategorizedEntry<TKey, TValue, TCategory>> GetCategorizedEntries() {

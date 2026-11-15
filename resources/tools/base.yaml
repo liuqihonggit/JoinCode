@@ -1,0 +1,102 @@
+# JoinCode 基础工具注册表 — 首轮请求 tools 字段的唯一来源
+#
+# 设计约束（ADR 0157 v2）:
+#   * 只有本清单中的工具进入 AI 供应商协议原生的 tools 数组（完整 schema）
+#   * 其余工具一律为独立 CLI.exe，通过各自的 node.yaml + -h 按需阅读
+#   * 基础工具不得声明 exe 字段；Exe 为 null 即宿主内实现
+#   * 参数描述是单一数据源，禁止再写一份到 C# 特性或提示词里
+#
+# 这 4 个工具覆盖高频操作；其余能力由 LLM 用 bash 探索 CLI 目录树获得。
+
+version: 1
+
+tools:
+  - id: file_read
+    name: FileRead
+    summary: 读取指定路径的文件内容，可按行偏移与行数限制截取
+    category: file
+    examples:
+      - FileRead /abs/path/to/File.cs
+      - FileRead /abs/path/to/File.cs --offset 120 --limit 40
+    parameters:
+      - name: file_path
+        type: string
+        description: 要读取的文件绝对路径
+        required: true
+      - name: offset
+        type: integer
+        description: 起始行号（从 0 开始），省略则从头读取
+        required: false
+        default: "0"
+        aliases: -o,--offset
+      - name: limit
+        type: integer
+        description: 最多读取的行数，省略则读至文件末尾
+        required: false
+        aliases: -n,--limit
+
+  - id: file_write
+    name: FileWrite
+    summary: 创建或整体覆写指定路径的文件内容
+    category: file
+    examples:
+      - FileWrite /abs/path/to/File.cs --content "..."
+    parameters:
+      - name: file_path
+        type: string
+        description: 目标文件绝对路径
+        required: true
+      - name: content
+        type: string
+        description: 要写入的完整文本内容
+        required: true
+        aliases: -c,--content
+
+  - id: code_execution
+    name: CodeExecution
+    summary: 执行编译或构建命令并返回标准输出与退出码
+    category: build
+    examples:
+      - CodeExecution dotnet build build/sln/JoinCode.slnx --timeout_seconds 300
+    parameters:
+      - name: command
+        type: string
+        description: 要执行的编译/构建命令
+        required: true
+        aliases: -c,--command
+      - name: working_directory
+        type: string
+        description: 命令工作目录，省略则用当前目录
+        required: false
+        aliases: -w,--cwd
+      - name: timeout_seconds
+        type: integer
+        description: 超时秒数
+        required: false
+        default: "120"
+        aliases: -t,--timeout
+
+  - id: bash
+    name: Bash
+    summary: 在 shell 中执行命令，用于系统操作与探索 CLI 工具目录树
+    category: shell
+    examples:
+      - Bash "ls tools/search/"
+      - Bash "jcc-rg -h"
+      - Bash "jcc tool find pr check"
+    parameters:
+      - name: command
+        type: string
+        description: 要执行的 shell 命令
+        required: true
+        aliases: -c,--command
+      - name: description
+        type: string
+        description: 命令用途的简短说明，用于审计展示
+        required: false
+      - name: timeout
+        type: integer
+        description: 超时秒数
+        required: false
+        default: "120"
+        aliases: -t,--timeout

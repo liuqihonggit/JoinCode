@@ -25,9 +25,9 @@
 |---|------|---------|------|------|--------|
 | 1 | 备份 tag + ADR v1 + 任务清单 | `backup/pre-node-cli-20261115072248`、`211f4f379` | — | — | ✅ |
 | 2 | **ADR 0157 v2 修订 + 本清单重排** | `docs/proposed/adr/0157-*.md`、本文件 | — | — | ⬜ 待提交 |
-| 3 | CLI 节点契约层 + `base.yaml` 注册 4 个基础工具 | `modules/abstractions/abstractions.primitives.tools/src/cli_nodes/`、`resources/tools/base.yaml` | ⬜ | ⬜ | ⬜ |
-| 4 | 垂直切片 `jcc-rg`：`node.yaml` + `-h` + 独立 exe，实测单 exe 成本 | `modules/tools/rg/` | ⬜ | ⬜ | ⬜ |
-| 5 | CLI 搜索下钻 `tool find` / `tool tree` | `modules/apps/cli/core/commands/core/` | ⬜ | ⬜ | ⬜ |
+| 3 | CLI 节点契约层 + `base.yaml` 注册 4 个基础工具 | `modules/abstractions/abstractions.primitives.tools/src/cli_nodes/`、`resources/tools/base.yaml` | ✅ | ✅ 13/13 | ⬜ |
+| 4 | 垂直切片 `jcc-rg`：`node.yaml` + `-h` + 独立 exe，实测单 exe 成本 | `modules/tools/rg/` | ✅ | ✅ 真实 exe | ⬜ |
+| 5 | CLI 搜索下钻 `tool find` / `tree` / `help` / `base` | `modules/apps/cli/core/commands/core/CliToolCommand.cs` | ✅ | ✅ 真实 exe | ⬜ |
 | 6 | 按域分批迁移其余约 540 工具（每批编译+测试+commit） | `modules/*/tool_handlers/` | ⬜ | ⬜ | ⬜ |
 | 7 | 切换主请求链路：首轮 tools 只读 `BaseToolRegistry`；退役 `tool_groups` / 两阶段加载 / `ToolsSection` 三级下钻 | `BuildToolsFromKernel`、`ToolsSection.cs`、各 QueryService | ⬜ | ⬜ | ⬜ |
 | 8 | 归档生成器项目到 `.xxx/` + 修复引用 + 目录节点化重组 | `modules/generators/mcp_tool_dispatch.generator/`、16 域 slnx | ⬜ | ⬜ | ⬜ |
@@ -39,22 +39,44 @@
 
 | 基建实现 | 消费点 | 已实现 | 已验收 |
 |---------|--------|--------|--------|
-| `resources/tools/base.yaml` 4 个基础工具 | `BaseToolRegistry` → 首轮 `tools` 字段 | ⬜ | ⬜ |
-| `BaseToolManifest` DTO + YamlDotNet Loader | 内嵌资源加载，AOT 兼容 | ⬜ | ⬜ |
-| `ICliToolNode` / `CliToolDescriptor` 契约 | 各独立工具 exe 共用 | ⬜ | ⬜ |
-| `node.yaml` 参数描述单一数据源 | `-h` 自描述输出 | ⬜ | ⬜ |
-| `jcc-rg.exe` 垂直切片 | 独立运行 + `-h` | ⬜ | ⬜ |
-| `jcc tool find <q>` / `jcc tool tree` | CLI 目录树下钻 | ⬜ | ⬜ |
-| 首轮 tools ≤ 4 回归守卫 | 防 466KB 巨型请求复活 | ⬜ | ⬜ |
-| MCP `tool_groups` 退役 | 生产代码检索无残留 | ⬜ | ⬜ |
-| 生成器项目归档 | `.xxx/` + 引用修复 | ⬜ | ⬜ |
-| 节点粒度自包含目录 | module.slnx + 构建脚本 | ⬜ | ⬜ |
+| `resources/tools/base.yaml` 4 个基础工具 | `jcc tool base` 输出 4 条 | ✅ | ✅ 真实 exe |
+| `BaseToolManifest` DTO + YamlDotNet Loader | 内嵌资源加载，AOT 兼容 | ✅ | ✅ 13 单测全绿 |
+| `ICliToolNode` / `CliToolDescriptor` 契约 | 各独立工具 exe 共用 | ✅ | ✅ 编译 0 警告 |
+| `node.yaml` 参数描述单一数据源 | `jcc-rg.exe -h` 自描述输出 | ✅ | ✅ 真实 exe |
+| `jcc-rg.exe` 垂直切片 | 独立运行 + 真实搜索 | ✅ | ✅ 真实 exe |
+| `jcc tool find <q>` / `tree` / `help` / `base` | CLI 目录树下钻 | ✅ | ✅ 真实 exe |
+| 首轮 tools ≤ 4 回归守卫 | `BaseToolRegistryTests` 锁定契约 | ✅ | ✅ 单测 |
+| 首轮 `tools` 字段改读 `BaseToolRegistry` | 主请求链路切换 | ⬜ | ⬜ 步骤 7 |
+| MCP `tool_groups` 退役 | 生产代码检索无残留 | ⬜ | ⬜ 步骤 7 |
+| 生成器项目归档 | `.xxx/` + 引用修复 | ⬜ | ⬜ 步骤 8 |
+| 节点粒度自包含目录 | module.slnx + 构建脚本 | ⬜ | ⬜ 步骤 8 |
 
 > `已验收` 列必须走 [ADR 0080](../../implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md) 真实 exe 验收（非 mock）。
 
 ---
 
-## 4. 约束与纪律
+## 4. 垂直切片实测成本基线（2026-11-15）
+
+Debug framework-dependent 构建，真实产物统计（非估算）：
+
+| 指标 | 实测值 |
+|------|--------|
+| `jcc-rg.exe` apphost | 159 KB |
+| `jcc-rg.dll` | 106 KB |
+| 依赖 DLL 数 | **81** |
+| 输出目录总大小 | **16 MB** |
+| `rg.csproj` 首次编译 | 1m33s（含依赖树重建） |
+| `JoinCode.csproj` 首次编译 | 6m27s（含整个引擎重建） |
+| 主 CLI 增量编译 | 51s |
+| 契约层单元测试 | 13/13 通过，290ms |
+
+**结论**：单工具 exe 拖 81 个依赖，根因是 `rg.csproj` 引用了整个 `Infrastructure.csproj`。按 540 个工具线性外推，仅输出体积即约 8.6 GB（尚未计 NativeAOT 发布膨胀），不可接受。
+
+**批量迁移硬约束**：工具 exe 只允许引用 `Abstractions.Primitives.Tools`（契约层：纯 DTO + YamlDotNet）与完成该工具所需的最小 abstractions；**禁止引用 `Infrastructure` / 引擎 / DI 容器**。批量铺开前须先做一次「只引契约层」的 AOT 单 exe 发布实测，确认体积与编译时间收敛，再决定每批数量。
+
+---
+
+## 5. 约束与纪律
 
 - **禁止一次性大规模重构** — 每次移动一个模块，移动后立即编译验证，成功后提交
 - **禁止删除文件** — 归档统一 `Move-Item` 到项目根 `.xxx/`，格式 `.xxx/{文件名}.{时间戳}.del`；移走后修复 XML `<see cref>` 与 `GlobalUsings.cs` 引用
@@ -67,7 +89,7 @@
 
 ---
 
-## 5. 开工前状态
+## 6. 开工前状态
 
 - 工作区：`git status --short` 为空（干净）
 - 备份 tag：`backup/pre-node-cli-20261115072248`

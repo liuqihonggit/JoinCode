@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ProjectType>test</ProjectType>
+    <RootNamespace>CliNodes.Tests</RootNamespace>
+    <AssemblyName>JoinCode.CliNodes.Tests</AssemblyName>
+    <Description>CLI 节点契约层单元测试 — ADR 0157 v2（基础工具 YAML 注册 / -h 自描述 / CLI 搜索下钻）</Description>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)modules/abstractions/abstractions.primitives.tools/Abstractions.Primitives.Tools.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -93,4 +93,10 @@ public enum CliSubCommand {
     [EnumValue("bridge_serve")]
     [SubCommandInfo("bridge 引擎服务端 — stdio NDJSON 协议, 供 TUI 拉起", "引擎服务", Example = "jcc bridge_serve --vendor test-provider")]
     BridgeServe,
+
+    /// <summary>CLI 工具节点发现 — jcc tool tree/find/base/help（ADR 0157 v2）</summary>
+    /// <para>目录树 + 关键词搜索下钻，取代 MCP 分组；结果不注入系统提示词。</para>
+    [EnumValue("tool")]
+    [SubCommandInfo("CLI 工具节点目录树与搜索下钻 — 按需阅读 -h", "CLI 节点", Example = "jcc tool find pr check", SelfHelp = true)]
+    Tool,
 }

@@ -104,13 +104,13 @@ ADR 0149:18「减少 exe 数量 — 不要搞那么多 exe」在**交互宿主**
 |------|------|------|
 | 1 | 备份 tag + ADR v1 + TASK082（已完成 `211f4f379`） | 已完成 |
 | 2 | **本 ADR v2 修订 + TASK082 任务重排** | 进行中 |
-| 3 | 契约层：`ICliToolNode` / `BaseToolManifest` DTO / YamlDotNet Loader / `BaseToolRegistry` / CLI 搜索下钻 | 待办 |
-| 4 | `resources/tools/base.yaml` 注册 4 个基础工具 + 单元测试 | 待办 |
-| 5 | 垂直切片：改造 `jcc-rg.exe`（`node.yaml` + `-h` + 独立可运行），实测单 exe 编译/体积成本 | 待办 |
+| 3 | 契约层：`ICliToolNode` / `BaseToolManifest` DTO / YamlDotNet Loader / `BaseToolRegistry` / CLI 搜索下钻 | ✅ 已完成（13/13 单测） |
+| 4 | `resources/tools/base.yaml` 注册 4 个基础工具 + 单元测试 | ✅ 已完成（`jcc tool base` 真实 exe 验收） |
+| 5 | 垂直切片：改造 `jcc-rg.exe`（`node.yaml` + `-h` + 独立可运行），实测单 exe 编译/体积成本 | ✅ 已完成（实测 81 DLL / 16 MB，见 TASK082 §4） |
 | 6 | 按工具域分批迁移其余工具（每批编译 + 测试 + commit） | 待办 |
 | 7 | 切换主请求链路：首轮 `tools` 只读 `BaseToolRegistry`；退役 `tool_groups` / 两阶段加载 / `ToolsSection` 三级下钻 | 待办 |
 | 8 | 目录节点化重组 + 归档生成器项目到 `.xxx/` + 修复引用 | 待办 |
-| 9 | 全仓编译 + 全量测试 + 真实 exe 验收 + 四列验收表 + ADR 转 accepted | 待办 |
+| 9 | 全仓编译 + 全量测试 + 真实 exe 验收 + 四列验收表 + ADR 转 accepted | 进行中（全仓编译后台执行） |
 
 ---
 

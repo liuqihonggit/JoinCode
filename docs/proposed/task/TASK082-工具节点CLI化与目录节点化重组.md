@@ -71,9 +71,21 @@ Debug framework-dependent 构建，真实产物统计（非估算）：
 | 契约层单元测试 | 13/13 通过，290ms |
 | 全仓编译 `Build-AllDomains.ps1` | 6m7s，全部通过（JoinCode.slnx） |
 
-**结论**：单工具 exe 拖 81 个依赖，根因是 `rg.csproj` 引用了整个 `Infrastructure.csproj`。按 540 个工具线性外推，仅输出体积即约 8.6 GB（尚未计 NativeAOT 发布膨胀），不可接受。
+**收敛方案（已实现）**：`modules/tools/cli_nodes/cli_node.props` 共享配置 + `modules/tools/cli_nodes/sample/` 最小样板。工具 exe 只引契约层、关闭全仓分析器与 Structura 全局引用、AOT 改为发布阶段显式开关。
 
-**批量迁移硬约束**：工具 exe 只允许引用 `Abstractions.Primitives.Tools`（契约层：纯 DTO + YamlDotNet）与完成该工具所需的最小 abstractions；**禁止引用 `Infrastructure` / 引擎 / DI 容器**。批量铺开前须先做一次「只引契约层」的 AOT 单 exe 发布实测，确认体积与编译时间收敛，再决定每批数量。
+| 指标 | 基线（引 Infrastructure） | 收敛后（clean publish） | 变化 |
+|------|--------------------------|------------------------|------|
+| 依赖 DLL 数 | 81 | **5** | −94% |
+| 输出目录体积 | 16 MB | **653 KB** | −96% |
+| 构建依赖项目数 | 80+ | **2** | −97% |
+| 首次编译 | 1m33s | 9.8s | −89% |
+| 增量编译 | — | **1.94s** | 540 个串行约 17 分钟 |
+
+根因三处叠加：`Infrastructure.csproj:17-95`（20+ ProjectReference + 5 包 + 2 生成器）、`Directory.Build.props:148-152`（全局 Structura）、`Directory.Build.props:64`（Release 全局 AOT）。
+
+**AOT 单文件体积本环境不可测**：链接阶段 `LNK1181: advapi32.lib` 缺失 + `reg.exe` 被安全策略拦截；未重试未绕过，待具备完整 Windows SDK 的 CI 补测。
+
+**批量迁移硬约束**：所有工具 exe 必须 Import `cli_node.props`，禁止新增 `Infrastructure` / 引擎 / DI / 生成器引用。此前「按 540 个线性外推 8.6 GB」的估算在收敛后不再成立（约 540 × 653 KB ≈ 340 MB 框架依赖产物）。
 
 ---
 

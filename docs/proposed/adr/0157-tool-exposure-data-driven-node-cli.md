@@ -87,6 +87,27 @@ ADR 0149:18「减少 exe 数量 — 不要搞那么多 exe」在**交互宿主**
 
 ---
 
+### 4.1 依赖墙收敛实测（2026-11-15）
+
+建立 `modules/tools/cli_nodes/cli_node.props` 共享配置：工具 exe 只引用 `Abstractions.Primitives.Tools` 契约层，关闭全仓分析器 / 代码风格 / 文档生成 / Structura 全局引用，AOT 改为发布阶段显式开关。最小样板为 `modules/tools/cli_nodes/sample/`。
+
+| 指标 | 基线（`jcc-rg` 引 `Infrastructure`） | 收敛后（clean publish） | 变化 |
+|------|-----------------------------------|------------------------|------|
+| 依赖 DLL 数 | 81 | **5** | −94% |
+| 输出目录体积 | 16 MB | **653 KB** | −96% |
+| 构建依赖项目数 | 80+ | **2**（契约层 + 工具） | −97% |
+| 首次编译 | 1m33s | 9.8s | −89% |
+| 增量编译 | — | **1.94s** | 540 个串行约 17 分钟 |
+| AOT 发布 | — | 本环境不可测（见下） | 环境限制 |
+
+根因：`Infrastructure.csproj:17-95` 单项目挂 20+ ProjectReference + 5 个 Microsoft.Extensions 包 + 2 个源码生成器；`Directory.Build.props:148-152` 另给所有 net10.0 项目全局注入 `Structura`；`Directory.Build.props:64` 在 Release 全局开 AOT。三者叠加导致每个工具 exe 都被拖入整个引擎。
+
+**AOT 实测的环境限制（如实记录）**：`dotnet publish -p:PublishAot=true` 在本机链接阶段报 `LNK1181: 无法打开输入文件 advapi32.lib`（Windows SDK 链接库不全），且工具链调用的 `reg.exe` 被安全策略拦截。按规则未重试、未绕过；AOT 单文件体积待具备完整 Windows SDK 的 CI 环境补测。当前 AOT 开关设计为 `-p:CliNodePublishAot=true` 显式启用，不影响日常编译速度。
+
+**由此产生的批量迁移硬约束**：所有工具 exe 必须 Import `cli_node.props`，禁止新增 `Infrastructure` / 引擎 / DI 容器 / 源码生成器引用；`YamlDotNet.dll`（293 KB）是剩余依赖中的最大项，若后续需再压缩，方向是编译期把 `node.yaml` 转为内嵌纯文本帮助。
+
+---
+
 ## 5. 替代方案（考虑过但放弃）
 
 | 方案 | 放弃原因 |

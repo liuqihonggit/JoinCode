@@ -1,0 +1,15 @@
+id: sample
+name: jcc-tool-sample
+summary: CLI 节点最小样板，用于验证零引擎依赖与 -h 自描述链路
+category: sample
+exe: jcc-tool-sample.exe
+tags: [sample, template, probe]
+examples:
+  - jcc-tool-sample -h
+  - jcc-tool-sample hello world
+parameters:
+  - name: words
+    type: array
+    description: 任意文本参数，节点会回显参数个数与总长度
+    required: false
+    aliases: 位置参数

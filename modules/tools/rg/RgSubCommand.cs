@@ -9,6 +9,9 @@ internal static class RgSubCommand {
     private const int DefaultTimeoutSeconds = 30;
     private const int MaxTimeoutSeconds = 300;
 
+    /// <summary>猜测 stdin 时的等待上限：超时即判定「没有管道数据」，报错退出而不是挂死。</summary>
+    private static readonly TimeSpan InferredStdinTimeout = TimeSpan.FromSeconds(3);
+
     /// <summary>执行 ripgrep 兼容搜索子命令：解析参数、修复转义、校验路径并调用 RgEngine 输出结果。</summary>
     public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
         var parsed = ParseArgs(args);
@@ -41,7 +44,16 @@ internal static class RgSubCommand {
             }
 
             if (paths.Any(p => p == "-")) {
-                var stdinContent = await Console.In.ReadToEndAsync(ct).ConfigureAwait(false);
+                // 用户显式写 '-' 时无限等（`git diff | jcc rg x -` 可能是慢管道）；
+                // 「没给路径所以猜 stdin」时必须有上限，否则 stdin 是打开但永不 EOF 的管道就永久挂住。
+                var stdinContent = parsed.StdinPathInferred
+                    ? await ReadInferredStdinAsync(ct).ConfigureAwait(false)
+                    : (string?)await Console.In.ReadToEndAsync(ct).ConfigureAwait(false);
+                if (stdinContent is null) {
+                    Console.Error.WriteLine($"错误: 没有指定搜索路径，且 {InferredStdinTimeout.TotalSeconds:0} 秒内没有从 stdin 读到内容。");
+                    Console.Error.WriteLine("      请显式传路径（jcc rg <pattern> <path>），或用 '-' 明确表示从 stdin 读取。");
+                    return 1;
+                }
                 if (string.IsNullOrEmpty(stdinContent)) {
                     Console.Error.WriteLine("错误: stdin 内容为空。请指定搜索路径，或通过管道提供搜索目标。");
                     return 1;
@@ -228,6 +240,9 @@ internal static class RgSubCommand {
         var typeList = false;
         var formatExplicitlySet = false;
         var stream = false;
+        // 这个 "-" 不是用户写的，是下面「没有路径就猜 stdin」补上的。
+        // 猜出来的就必须有上限：否则 stdin 是「打开但永不 EOF」的管道时会静默挂死。
+        var stdinPathInferred = false;
 
         for (var i = 1; i < args.Length; i++) {
             var arg = args[i];
@@ -393,10 +408,11 @@ internal static class RgSubCommand {
         }
 
         if (paths.Count == 0 && !typeList) {
-            // 宽容：stdin 被重定向/管道时，自动从 stdin 读取搜索目标（对齐系统 rg 管道行为）
+            // 宽容：stdin 被重定向/管道时，自动从 stdin 读取搜索目标
             // --files 模式不从 stdin 读取（列文件模式无 stdin 概念）
             if (!listFiles && Console.IsInputRedirected) {
                 paths.Add("-");
+                stdinPathInferred = true;
             } else {
                 Console.Error.WriteLine("错误: 必须指定搜索路径。禁止无路径搜索（会扫盘卡死）。");
                 Console.Error.WriteLine("用法: jcc rg <pattern> <path> [path...]");
@@ -448,7 +464,8 @@ internal static class RgSubCommand {
             MaxFilesize: maxFilesize,
             ListFiles: listFiles,
             TypeList: typeList,
-            Stream: stream);
+            Stream: stream,
+            StdinPathInferred: stdinPathInferred);
     }
 
     private static string? ReadNextValue(string[] args, ref int i) {
@@ -673,9 +690,11 @@ internal static class RgSubCommand {
         }
 
         var sb = new StringBuilder(256);
+        // stdin 在内部被落到临时文件才能复用搜索管线，但那个路径带随机 GUID 且对用户毫无意义，
+        // 三种文本输出必须统一改写成 <stdin>（JSON 分支一直是这么做的，文本分支曾经漏了）。
+        var stdinPrefix = stdinTempFile?.Replace('\\', '/');
         switch (opts.OutputMode) {
             case SearchOutputMode.Content:
-            var stdinPrefix = stdinTempFile?.Replace('\\', '/');
             foreach (var r in outcome.Results) {
                 if (r.ContentLines is null) continue;
                 foreach (var line in r.ContentLines)
@@ -684,12 +703,12 @@ internal static class RgSubCommand {
             break;
             case SearchOutputMode.Count:
             foreach (var r in outcome.Results)
-                sb.Append(r.FilePath.Replace('\\', '/')).Append(':').Append(r.MatchCount).Append('\n');
+                sb.Append(DisplayPath(r.FilePath, stdinPrefix)).Append(':').Append(r.MatchCount).Append('\n');
             sb.Append($"Found {outcome.TotalMatches} total matches across {outcome.Results.Count} file(s).");
             break;
             default:
             foreach (var r in outcome.Results)
-                sb.Append(r.FilePath.Replace('\\', '/')).Append('\n');
+                sb.Append(DisplayPath(r.FilePath, stdinPrefix)).Append('\n');
             break;
         }
 
@@ -708,8 +727,7 @@ internal static class RgSubCommand {
         var stdinPrefix = stdinTempFile?.Replace('\\', '/');
         var matches = new List<RgJsonMatch>(outcome.Results.Count);
         foreach (var r in outcome.Results) {
-            var filePath = r.FilePath.Replace('\\', '/');
-            var displayFile = stdinPrefix is not null && filePath == stdinPrefix ? "<stdin>" : filePath;
+            var displayFile = DisplayPath(r.FilePath, stdinPrefix);
             List<string>? lines = null;
             if (r.ContentLines is not null && r.ContentLines.Count > 0) {
                 lines = new List<string>(r.ContentLines.Count);
@@ -720,6 +738,35 @@ internal static class RgSubCommand {
         }
         var result = new RgJsonResult(matches, outcome.TotalMatches, outcome.Results.Count);
         System.Console.WriteLine(RgJsonContext.UnescapeHtmlChars(JsonSerializer.Serialize(new RgJsonEnvelope(true, result), RgJsonContext.Safe.RgJsonEnvelope)));
+    }
+
+    /// <summary>
+    /// 读 stdin，超过 <see cref="InferredStdinTimeout"/> 没读到内容就放弃（返回 null）。
+    /// <para>为什么需要上限：stdin 若是「打开但永不 EOF」的管道（agent、CI、包装脚本都长这样），
+    /// <c>ReadToEnd</c> 会永不返回。而这个 <c>"-"</c> 是程序自己猜出来的（用户没给路径），
+    /// 不该让一次猜错变成静默挂死 —— 实测直跑 <c>jcc-rg id:</c> 在死管道上挂 15 秒以上、零输出。</para>
+    /// <para>阻塞读放在长驻线程上：Windows 上重定向 stdin 是同步原生 ReadFile，取消令牌打断不了，
+    /// 只能等超时后直接放弃这个线程（随进程退出回收）。</para>
+    /// </summary>
+    private static async Task<string?> ReadInferredStdinAsync(CancellationToken ct) {
+        var reader = Task.Factory.StartNew(
+            () => Console.In.ReadToEnd(),
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
+        var finished = await Task.WhenAny(reader, Task.Delay(InferredStdinTimeout, ct)).ConfigureAwait(false);
+        if (ReferenceEquals(finished, reader))
+            return await reader.ConfigureAwait(false);
+        ct.ThrowIfCancellationRequested();
+        return null;
+    }
+
+    /// <summary>把 stdin 临时文件路径换成用户能理解的 <c>&lt;stdin&gt;</c>，其余路径原样返回。</summary>
+    private static string DisplayPath(string filePath, string? stdinPrefix) {
+        var normalized = filePath.Replace('\\', '/');
+        return stdinPrefix is not null && string.Equals(normalized, stdinPrefix, StringComparison.Ordinal)
+            ? "<stdin>"
+            : normalized;
     }
 
     /// <summary>剥离 stdin 临时文件路径前缀，返回用户可见的行内容（无前缀或剥离失败时原样返回）。</summary>
@@ -773,10 +820,18 @@ internal static class RgSubCommand {
               - 作为 pattern（第一个位置参数）: 从 stdin 读取搜索词
               - 作为 path（后续位置参数）: 从 stdin 读取要搜索的内容，写入临时文件
               - 两者不能同时为 '-'（stdin 只能读一次）
+              - 不写 path 且 stdin 被重定向时自动按 '-' 处理，但最多等 3 秒没数据就报错（避免挂死）
+                显式写 '-' 时不设上限，慢管道（git diff 之类）也能等完
+
+            常用选项:
+              -r, --replace <文本>      把匹配替换成该文本（注意不是「递归」：给了 path 就递归）
+              -c, --count               每文件只输出匹配数
+              -l, --files-with-matches  只列有匹配的文件名
+              -i / -F / -n / -C N       忽略大小写 / 固定字符串 / 行号 / 上下文 N 行
 
             宽容策略:
               1. PowerShell 把 \s 传成 \\s → 自动修复为 \s
-              2. 缺少 path → 立即报错退出（禁止无路径搜索，避免扫盘卡死）
+              2. 缺少 path → stdin 被重定向时按 '-' 读（限 3 秒）；否则立即报错退出（禁止无路径扫盘）
               3. 根目录（C:\ / /）→ 拒绝扫盘
               4. 超时 → 硬终止返回退出码 2
               5. 无匹配 → 退出码 1（对齐 rg）
@@ -822,7 +877,9 @@ internal static class RgSubCommand {
         long? MaxFilesize,
         bool ListFiles,
         bool TypeList,
-        bool Stream);
+        bool Stream,
+        /// <summary>Paths 里的 <c>"-"</c> 是「没给路径所以猜 stdin」补的，读 stdin 必须有上限。</summary>
+        bool StdinPathInferred = false);
 }
 
 /// <summary>rg --json 单条匹配结果 DTO</summary>

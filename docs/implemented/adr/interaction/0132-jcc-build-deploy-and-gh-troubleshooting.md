@@ -250,3 +250,52 @@ C:\Users\54076\bin\
 - `app/cli/core/commands/core/GhCommandResolver.cs` — 别名/短选项映射
 - `app/cli/core/commands/core/GhSubCommand.cs` — gh 子命令入口
 - `lib/infrastructure/io/process/GitCommandRunner.cs` — git 命令执行器（含默认超时）
+
+---
+
+## 2026-11-16 补记：host 工具「看起来隔离、其实全不可用」与调用耗时
+
+### 真缺陷：411 个 host 工具在 CLI 里 100% 不可达
+
+`jcc tool call <组> <工具>` 对 host 工具转发 `jcc mcp_call`。但 `McpCliCommand.BuildHostAsync` 长期用
+`SkipChatServices=true` 建宿主，`EngineApplicationBuilder.BuildHost` 因此只注册 `gh_*` 工具（原本为 `jcc gh` 提速）；
+非 gh 工具在注册表里根本不存在，报「未找到工具」。远端没有 Hub 时更早一步就被「Hub 服务不可达」挡住。
+**这不是能力边界，是调用链断了**——`config_list` / `skill_list` / `build_output` 这些纯本地服务工具也全挂。
+
+修法（三处、都只动元命令路径）：
+
+1. `CommandLineOptions.ToolNameFilter` → `BuildHost` 只放行本次要执行的工具名，注册表只构造那一个 handler（实测 3 个 handler → 1 个工具，注册 30ms）。
+2. `BuildHostAsync` 内用 `EnvVarScope` 临时允许直连配置：工具元命令不读模型配置，不该被 `jcc -p` 的 Hub 门槛挡住；退出即恢复默认保护。
+3. 新增 `SkipProviderConfig`：工具元命令只从 `settings.json` 取 UI 偏好，不构 `ProviderDefinitionRegistry`。
+   `JCC_DEBUG_TIMING=1` 实测 `LoadConfig` **1282ms → 约 200ms**；`jcc tool call system config_list` **2.5s → 1.4s**。
+   需要全量目录的工具（`tool_search` / `tool_score` / `tool_hypergraph` / `tool_list_templates`）走 `SkipToolFilter`，多花约 1 秒。
+4. `requiredTool` 已在编译期注册表时就跳过 1.6s 的 MCP 插件后台链等待；只有查不到时才等。
+
+副作用修正：`SessionIdFactory.GetCurrentBranch` 原本不重定向 stderr，非仓库目录下每次调用都会把
+`fatal: not a git repository` 混进工具的 stderr，看上去像工具报错；现在排空 stderr 后消失。
+
+### 目录 id 必须是运行时名（`[EnumValue]`），不是枚举成员名
+
+生成器 `migrate_mcp_tools_to_cli_nodes.py` 原先用 `to_snake(CodeToolNameEnumConstants.CodeIndexStats)` 得到
+`code_index_stats`，而内核真正注册的名字是 `[EnumValue("search_stats")]`。同类假 id 共 **33 个**：
+`file_read/write/edit/apply_patch`、`code_index_*`→`search_*`、`mcp_auth_o_auth2`→`mcp_auth_oauth2`、
+`sub_agent_control`→`subagent_control` 等。后果分两层：
+
+- `jcc tool call search code_index_stats` 被目录校验层拦（注册表只有 `search_stats`）；
+- **首轮 tools 只剩 bash 一个**：`BuildBaseTools` 用 `function.Name` 去 `BaseToolRegistry.Get()`，
+  `base.yaml` 写 `file_read` 而内核叫 `read`，三条全匹配不上，LLM 根本拿不到文件工具。
+
+修复：生成器按枚举类型 + `[EnumValue]` 解析真名（处理 `XxxEnumConstants` 包装类与同名成员歧义），解析不到即 fail-fast；
+`file` 组本地实现键与 `base.yaml` / `ToolsSection` / 相关测试同步改为 `read` / `write` / `edit` / `apply_patch`。
+真机复核：`jcc tool base` 4 条齐；`mcp_schema read` 有 schema；`read → write → edit → read` 闭环退出 0；
+`jcc tool call search search_stats` 退出 0。工具总数仍是 638（改名不是增补）。
+
+### gh 的 jq 两个缺陷
+
+- `gh api user -q .login` 报「多余的位置参数」：`-q→jq` 的短选项规则只覆盖 view/list，现补 `gh_api`。
+- `--jq login`（漏点号）静默打印整份 JSON：`SimpleJqEvaluator` 对不支持的管道阶段是 `continue`，
+  用户以为筛选生效。改成 `TryEvaluate` 返回原因，`FormatGhOutput` / `gh_api` / `gh_run_list` 统一抛
+  `JqSyntaxException`，`GhSubCommand` 转成 stderr + 退出码 2。现有「不支持语法宽容跳过」测试已按新语义改写。
+
+**测试**：gh.tests 787/787、契约层 33/33、llm.tests 613/613、prompt ToolsSection 4/4、host.tests CLI 相关 216/216。
+**编译**：改动项目逐个 0 警告 0 错误；未跑全仓编译（用户明确要求只编改动项目）。

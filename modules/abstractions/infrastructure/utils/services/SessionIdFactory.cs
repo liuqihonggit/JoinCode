@@ -62,19 +62,27 @@ public static class SessionIdFactory {
         return (projectName, branch);
     }
 
-    /// <summary>获取当前 git 分支名 — 失败返回 null</summary>
+    /// <summary>
+    /// 获取当前 git 分支名 — 失败返回 null。
+    /// <para>必须重定向 stderr：在非仓库目录里起一次 git 会往控制台打
+    /// <c>fatal: not a git repository</c>，这行噪声会盖在 <c>jcc tool call</c> 的 stderr 上被当成工具报错。
+    /// 不做「先看 .git 在不在」的磁盘预检 —— 本类是无 DI 的静态工具，直接探盘会触发 JCC9001（绕过 IFileSystem）。</para>
+    /// </summary>
     private static string? GetCurrentBranch(string workingDir) {
         try {
             var psi = new ProcessStartInfo("git", "rev-parse --abbrev-ref HEAD") {
                 WorkingDirectory = workingDir,
                 RedirectStandardOutput = true,
+                RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
             using var p = Process.Start(psi);
             if (p is null) return null;
+            var stderr = p.StandardError.ReadToEndAsync();
             var branch = p.StandardOutput.ReadToEnd().Trim();
             p.WaitForExit(3000);
+            _ = stderr.Result.Length; // 排空 stderr，避免子进程写满管道阻塞（内容按设计丢弃）
             if (p.ExitCode != 0) return null;
             return string.IsNullOrEmpty(branch) || branch == "HEAD" ? null : branch;
         } catch (Exception ex) {

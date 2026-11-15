@@ -127,6 +127,47 @@ public sealed class CliToolNodeTests {
         Assert.Contains("缺少 id", ex.Message);
     }
 
+    [Fact]
+    public void ParseNode_DelegateModeCountsAsProcessIsolated() {
+        const string yaml = """
+            id: github
+            name: jcc-tool-github
+            summary: github 工具分组
+            category: github
+            exe: jcc-tool-github.exe
+            tools:
+              - id: gh_issue_list
+                mode: delegate
+              - id: gh_pr_view
+                mode: host
+            """;
+
+        var descriptor = NodeManifestLoader.LoadNodeFromText(yaml, "node.yaml");
+
+        // delegate 不经过宿主，必须计入隔离数；否则审计会把已隔离的组看成「还在宿主里」。
+        Assert.Equal(1, descriptor.LocalToolCount);
+        Assert.Equal("delegate", descriptor.Tools[0].ModeLabel);
+        Assert.True(descriptor.Tools[0].IsLocal);
+        Assert.False(descriptor.Tools[1].IsLocal);
+    }
+
+    [Fact]
+    public void ParseNode_UnknownModeMentionsAllAcceptedValues() {
+        const string yaml = """
+            id: x
+            name: jcc-x
+            summary: x
+            category: x
+            exe: jcc-x.exe
+            tools:
+              - id: a_tool
+                mode: remote
+            """;
+
+        var ex = Assert.Throws<InvalidOperationException>(() => NodeManifestLoader.LoadNodeFromText(yaml, "node.yaml"));
+        Assert.Contains("local / delegate / host", ex.Message);
+    }
+
     // 目录树下钻 LoadNodesFromDirectory 涉及真实磁盘 IO，按 JCC9001「测试 0 磁盘读写」
     // 不放单元测试，由 ADR 0080 真实 exe 验收覆盖（jcc tool find / jcc tool tree）。
 

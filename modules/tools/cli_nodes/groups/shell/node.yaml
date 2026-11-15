@@ -1,5 +1,6 @@
 # 由 migrate_mcp_tools_to_cli_nodes.py 从现有 [McpTool] 特性按分组生成
-# 子工具的 mode 由各组 private/*.cs 的实际注册表反推：local=独立进程内实现，host=转发宿主执行。
+# 子工具的 mode 由各组 private/*.cs 的实际注册表反推：local=本 exe 内实现，
+# delegate=委托另一个独立 exe（不经宿主），host=转发宿主执行。
 id: shell
 name: jcc-tool-shell
 summary: "Execute C# code in sandbox environment; Evaluate a simple C# expression; Test a code snippet with sample input"

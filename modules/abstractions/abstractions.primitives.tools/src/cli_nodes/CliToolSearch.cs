@@ -66,9 +66,9 @@ public static class CliToolSearch {
         return sb.ToString().TrimEnd();
     }
 
-    /// <summary>本地实现覆盖率 — 只有分组节点才有意义。</summary>
+    /// <summary>进程隔离覆盖率（local + delegate）— 只有分组节点才有意义。</summary>
     private static string Coverage(CliToolDescriptor node) =>
-        node.HasToolEntries ? $"  (本地实现 {node.LocalToolCount}/{node.Tools.Length})" : string.Empty;
+        node.HasToolEntries ? $"  (进程隔离 {node.LocalToolCount}/{node.Tools.Length})" : string.Empty;
 
     /// <summary>
     /// 查询命中分组内某个子工具时，列出命中的子工具及其执行方式 —
@@ -83,8 +83,14 @@ public static class CliToolSearch {
             .OrderBy(entry => entry.Id, StringComparer.Ordinal)
             .ToArray();
         foreach (var entry in matched)
-            sb.AppendLine($"      · {entry.Id,-30} {(entry.IsLocal ? "本地进程隔离" : "转发宿主执行")}{Aliases(entry)}");
+            sb.AppendLine($"      · {entry.Id,-30} {ModeText(entry)}{Aliases(entry)}");
     }
+
+    private static string ModeText(CliToolEntry entry) => entry.Mode switch {
+        CliExecutionMode.Local => "本地进程隔离",
+        CliExecutionMode.Delegate => "委托独立 exe（不经宿主）",
+        _ => "转发宿主执行"
+    };
 
     private static string Aliases(CliToolEntry entry) =>
         entry.Aliases.Length == 0 ? string.Empty : $"  别名: {string.Join(", ", entry.Aliases)}";

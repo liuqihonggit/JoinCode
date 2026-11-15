@@ -50,6 +50,23 @@ public sealed class CliNodeDefinition {
     /// </summary>
     public Func<string, string> NameNormalizer { get; init; } = static name => name;
 
+    /// <summary>
+    /// 工具由另一个独立 exe 执行时的目标名（如 <c>jcc-gh</c>）；为空表示转发宿主。
+    /// <para>存在理由：github 组 172 个工具的实现已经在 <c>modules/tools/gh</c> 里，
+    /// 且那本身就是一个独立 exe。把这 18K 行搬进分组 exe 只会得到两份会漂移的实现；
+    /// 委托过去同样是跨进程隔离，且不经过宿主的引擎与 Hub。</para>
+    /// </summary>
+    public string? DelegateExecutable { get; init; }
+
+    /// <summary>委托 exe 路径的环境变量名（可选）；未设置时按「本 exe 同目录 → PATH」查找。</summary>
+    public string? DelegateEnvironmentVariable { get; init; }
+
+    /// <summary>委托调用时插在工具名之前的动词，如 <c>--call-tool</c>。</summary>
+    public string DelegateVerb { get; init; } = "--call-tool";
+
+    /// <summary>委托 exe 缺失时的原因说明。</summary>
+    public string DelegateReason { get; init; } = "该组的工具由另一个独立 exe 实现，当前部署缺少它。";
+
     /// <summary>本地实现依赖宿主独有能力时的说明，出现在转发失败提示里。</summary>
     public string HostReason { get; init; } = "该工具依赖宿主独有能力（引擎服务 / 共享状态 / 模型调用），零依赖 exe 无法等价实现。";
 }
@@ -100,7 +117,7 @@ public static class CliNodeRunner {
             return ExitSuccess;
         }
         if (CliNodeCoverage.IsRequested(args[0])) {
-            Write(CliNodeCoverage.Render(definition.GroupId, definition.LocalToolIds()));
+            Write(CliNodeCoverage.Render(definition.GroupId, definition.LocalToolIds(), definition.DelegateExecutable));
             return ExitSuccess;
         }
 
@@ -151,6 +168,11 @@ public static class CliNodeRunner {
 
     private static async Task<int> ForwardAsync(
         CliNodeDefinition definition, string toolId, Dictionary<string, string> options, CancellationToken ct) {
+        // 委托别的独立 exe 时，宿主完全不参与 —— 这是「进程隔离」，不是「转发宿主」。
+        if (!string.IsNullOrWhiteSpace(definition.DelegateExecutable)) {
+            return await DelegateAsync(definition, toolId, options, ct).ConfigureAwait(false);
+        }
+
         var host = Environment.GetEnvironmentVariable(definition.HostEnvironmentVariable);
         if (string.IsNullOrWhiteSpace(host)) host = definition.HostExecutable;
 
@@ -181,6 +203,100 @@ public static class CliNodeRunner {
         }
     }
 
+    /// <summary>
+    /// 把调用交给另一个独立 exe。<c>--k v</c> 原样透传，退出码原样返回。
+    /// <para>与宿主转发分开的理由：委托目标自带实现与凭据，不需要引擎 DI / Hub / 会话状态，
+    /// 因此它失败时的修复动作也不同（缺的是那个 exe，不是宿主）。</para>
+    /// </summary>
+    private static async Task<int> DelegateAsync(
+        CliNodeDefinition definition, string toolId, Dictionary<string, string> options, CancellationToken ct) {
+        var exe = ResolveDelegatePath(definition);
+        if (exe is null) {
+            WriteError($"工具 '{toolId}' 需要独立执行器 '{definition.DelegateExecutable}'，但没有找到它（委托层拦截）。");
+            WriteError($"原因：{definition.DelegateReason}");
+            WriteError($"修复方式：{DelegateLocateHint(definition)}");
+            return ExitHostUnavailable;
+        }
+
+        var psi = new ProcessStartInfo(exe) {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        psi.ArgumentList.Add(definition.DelegateVerb);
+        psi.ArgumentList.Add(toolId);
+        foreach (var pair in options) {
+            // false / 空值不传：帮助里「默认=true」的开关，LLM 显式写 false 才需要落到命令行。
+            psi.ArgumentList.Add("--" + pair.Key);
+            psi.ArgumentList.Add(pair.Value);
+        }
+
+        try {
+            using var process = Process.Start(psi) ?? throw new InvalidOperationException("无法启动委托进程");
+            var stdout = process.StandardOutput.ReadToEndAsync(ct);
+            var stderr = process.StandardError.ReadToEndAsync(ct);
+            await process.WaitForExitAsync(ct).ConfigureAwait(false);
+            Write(await stdout.ConfigureAwait(false));
+            WriteError(await stderr.ConfigureAwait(false), newline: false);
+            return process.ExitCode;
+        } catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException) {
+            WriteError($"工具 '{toolId}' 的独立执行器 '{exe}' 启动失败（委托层拦截）：{ex.Message}");
+            WriteError($"修复方式：{DelegateLocateHint(definition)}");
+            return ExitHostUnavailable;
+        }
+    }
+
+    /// <summary>
+    /// 定位委托 exe：环境变量 → 本 exe 同目录 → 上一级目录（装配布局里 tools/ 根共享一份）→ PATH。
+    /// <para>带上一级目录是因为委托实现可能很重（jcc-gh 连依赖共 20 MB），
+    /// 按组各放一份不划算，装配脚本只在 tools/ 根放一份。</para>
+    /// </summary>
+    private static string? ResolveDelegatePath(CliNodeDefinition definition) {
+        var name = definition.DelegateExecutable;
+        if (string.IsNullOrWhiteSpace(name)) return null;
+        if (!string.IsNullOrWhiteSpace(definition.DelegateEnvironmentVariable)) {
+            var configured = Environment.GetEnvironmentVariable(definition.DelegateEnvironmentVariable);
+            if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured)) return configured;
+        }
+        var baseDir = AppContext.BaseDirectory;
+        foreach (var dir in new[] { baseDir, Path.Combine(baseDir, "..") }) {
+            foreach (var candidate in CandidateNames(name)) {
+                var full = Path.Combine(dir, candidate);
+                if (File.Exists(full)) return Path.GetFullPath(full);
+            }
+        }
+        // 都没有就交给系统 PATH：装了 jcc-gh 的机器不必再拷一份到分组目录。
+        return OnPath(name);
+    }
+
+    private static string[] CandidateNames(string name) =>
+        name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? [name] : [name, name + ".exe"];
+
+    private static string? OnPath(string name) {
+        var path = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrEmpty(path)) return null;
+        foreach (var dir in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)) {
+            foreach (var candidate in CandidateNames(name)) {
+                try {
+                    var full = Path.Combine(dir.Trim(), candidate);
+                    if (File.Exists(full)) return full;
+                } catch (ArgumentException) {
+                    // PATH 里混进非法字符的目录时跳过，不要因此整条查找失败。
+                }
+            }
+        }
+        return null;
+    }
+
+    private static string DelegateLocateHint(CliNodeDefinition definition) {
+        var env = definition.DelegateEnvironmentVariable;
+        var target = definition.DelegateExecutable;
+        return string.IsNullOrWhiteSpace(env)
+            ? $"把 {target}.exe 放到本程序同目录，或加入 PATH。"
+            : $"把 {target}.exe 放到本程序同目录 / 加入 PATH，或设置 {env} 指向它。";
+    }
+
     private static string BuildUnknownToolMessage(CliNodeDefinition definition, string toolId, List<string> known) {
         var builder = new StringBuilder(256);
         builder.Append("未知工具 '").Append(toolId).Append("'（").Append(definition.Title).AppendLine("内不存在）。");
@@ -188,8 +304,17 @@ public static class CliNodeRunner {
         if (suggestions.Count > 0) {
             builder.Append("你是不是想用：").AppendLine(string.Join(" / ", suggestions));
         }
-        builder.Append("执行 ").Append(definition.GroupId).AppendLine(" -h 查看本组全部工具。");
+        // 提示里写真实 exe 名：写分组 ID（github）会让人去敲 `github -h`，那不是可执行文件。
+        builder.Append("执行 ").Append(ExecutableNameOf(definition)).AppendLine(" -h 查看本组全部工具。");
         return builder.ToString();
+    }
+
+    /// <summary>当前进程的可执行文件名；拿不到时退回分组 ID，保证提示总有内容。</summary>
+    private static string ExecutableNameOf(CliNodeDefinition definition) {
+        var processPath = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(processPath)) return definition.GroupId;
+        var name = Path.GetFileNameWithoutExtension(processPath);
+        return string.IsNullOrWhiteSpace(name) ? definition.GroupId : name;
     }
 
     /// <summary>近似名建议：包含关系优先，其次编辑距离不超过 2。</summary>
@@ -243,7 +368,9 @@ public static class CliNodeRunner {
         var end = boundaries.Length > 0 ? boundaries.Min() : normalized.Length;
         var mode = definition.Resolve(toolId) is not null
             ? "local（本 exe 内零依赖实现）"
-            : $"host（转发宿主 jcc {definition.HostVerb}）";
+            : definition.DelegateExecutable is not null
+                ? $"delegate（独立执行器 {definition.DelegateExecutable}，不经宿主）"
+                : $"host（转发宿主 jcc {definition.HostVerb}）";
         Write($"{definition.Title} / {toolId} — 参数说明（复用现有 [McpToolParameter] 特性）\n");
         Write($"执行方式: {mode}\n");
         Write(normalized[start..end].TrimEnd() + "\n");

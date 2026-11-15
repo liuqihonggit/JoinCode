@@ -20,13 +20,17 @@ public static class CliNodeCoverage {
     /// <summary>渲染单行自报结果。</summary>
     /// <param name="group">分组 ID。</param>
     /// <param name="localToolIds">该 exe 内真实注册的本地工具 ID。</param>
-    /// <returns>单行 <c>group=... local_count=... local=...</c>。</returns>
-    public static string Render(string group, IEnumerable<string> localToolIds) {
+    /// <param name="delegatedExecutable">整组委托给另一个独立 exe 时的目标名；无委托传 null。</param>
+    /// <returns>单行 <c>group=... local_count=... local=...</c>（委托时追加 <c>delegated_to=...</c>）。</returns>
+    public static string Render(string group, IEnumerable<string> localToolIds, string? delegatedExecutable = null) {
         var ids = localToolIds
             .Where(id => !string.IsNullOrWhiteSpace(id))
             .Distinct(StringComparer.Ordinal)
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToArray();
-        return $"group={group} local_count={ids.Length} local={string.Join(",", ids)}{Environment.NewLine}";
+        var line = $"group={group} local_count={ids.Length} local={string.Join(",", ids)}";
+        // 委托也算「不经过宿主」：数字上不是本地实现，但隔离性与本地实现同档，必须能自报出来。
+        if (!string.IsNullOrWhiteSpace(delegatedExecutable)) line += $" delegated_to={delegatedExecutable}";
+        return line + Environment.NewLine;
     }
 }

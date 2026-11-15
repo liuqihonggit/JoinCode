@@ -26,7 +26,7 @@ public static class CliToolHelp {
         if (descriptor.Exe is not null)
             sb.AppendLine($"可执行文件: {descriptor.Exe}");
         if (descriptor.HasToolEntries)
-            sb.AppendLine($"进程隔离覆盖: 本地实现 {descriptor.LocalToolCount}/{descriptor.Tools.Length}（其余转发宿主执行）");
+            sb.AppendLine($"进程隔离覆盖: {descriptor.LocalToolCount}/{descriptor.Tools.Length}（local=本 exe 内实现，delegate=委托独立 exe，其余转发宿主）");
     }
 
     /// <summary>
@@ -36,10 +36,10 @@ public static class CliToolHelp {
     private static void AppendTools(StringBuilder sb, CliToolDescriptor descriptor) {
         if (!descriptor.HasToolEntries) return;
         sb.AppendLine();
-        sb.AppendLine("子工具（local=独立进程内实现，host=转发宿主执行）:");
+        sb.AppendLine("子工具（local=本 exe 内实现，delegate=委托独立 exe，host=转发宿主执行）:");
         foreach (var entry in descriptor.Tools.OrderBy(item => item.Id, StringComparer.Ordinal)) {
             var aliases = entry.Aliases.Length == 0 ? string.Empty : $"  别名: {string.Join(", ", entry.Aliases)}";
-            sb.AppendLine($"  {entry.Id,-32} {(entry.IsLocal ? "local" : "host")}{aliases}");
+            sb.AppendLine($"  {entry.Id,-32} {entry.ModeLabel}{aliases}");
         }
     }
 

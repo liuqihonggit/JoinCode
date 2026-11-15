@@ -6,9 +6,9 @@ namespace JoinCode.CliNode.Github;
 
 /// <summary>
 /// github 分组独立 CLI.exe — 由 migrate_mcp_tools_to_cli_nodes.py 生成。
-/// <para>入口行为（-h / --list-local / 参数解析 / 本地分发 / 转发宿主 / 退出码）统一在
+/// <para>入口行为（-h / --list-local / 参数解析 / 本地分发 / 转发 / 退出码）统一在
 /// <see cref="CliNodeRunner"/>，本文件只声明分组身份与本地实现表。</para>
-/// <para>Resolve 返回 null 表示该工具走宿主转发；逐组做实时把它换成私有实现表的 Find。</para>
+/// <para>该组工具委托独立 exe 执行（不经宿主）；</para>
 /// -h 文本来自现有 [McpTool] 特性，不在生成物里重复维护说明。
 /// </summary>
 internal static class Program {
@@ -18,6 +18,9 @@ internal static class Program {
         HelpResource = "JoinCode.CliNodes.Groups.github.help.txt",
         Resolve = static _ => null,
         LocalToolIds = static () => [],
-        HostReason = "github 组暂无本地实现，工具依赖宿主持有的引擎服务与共享状态。"
+        DelegateExecutable = "jcc-gh",
+        DelegateVerb = "--call-tool",
+        DelegateReason = "github 组 172 个工具由独立 jcc-gh.exe 实现（自带 REST 调用与 hosts.yml 凭据），分组 exe 只做转发。",
+        HostReason = "该组工具由委托的独立 exe 执行，未配置该 exe 时无法运行。"
     }, args);
 }

@@ -242,7 +242,7 @@ internal static class Program {{
             Console.Out.Write(await stdout.ConfigureAwait(false));
             Console.Error.Write(await stderr.ConfigureAwait(false));
             return process.ExitCode;
-        }} catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException) {{
+        }} catch (Exception ex) when (ex is global::System.ComponentModel.Win32Exception or InvalidOperationException) {{
             Console.Error.WriteLine($"工具 '{{toolId}}' 需要宿主 jcc 才能执行（分组 exe 转发层拦截）：{{ex.Message}}");
             Console.Error.WriteLine("修复方式：设置 JCC_HOST_EXE 指向 jcc.exe，或把 jcc 加入 PATH；也可用 -h 只查看说明。");
             return 3;

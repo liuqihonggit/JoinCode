@@ -101,7 +101,9 @@ public class OpenAIQueryServiceTests {
     public async Task CreateRequest_ToolChoiceAutoWithKernel_BuildsTools() {
         var service = CreateService();
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
-        kernel.Plugins.Add(new ToolGroup("tools", [new ToolDef("TestTool", "A test tool")]));
+        kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
+            new ToolDef("file_read", "Read a file")
+        ]));
         var options = new ChatOptions { ToolChoice = ToolChoice.AutoInvoke };
 
         var request = service.CreateRequest(new MessageList(), options, stream: false, kernel);
@@ -109,7 +111,7 @@ public class OpenAIQueryServiceTests {
         request.Tools.Should().NotBeNull();
         request.Tools.Should().ContainSingle();
         request.ToolChoice.Should().Be("auto");
-        request.Tools![0].Function.Name.Should().Be("TestTool");
+        request.Tools![0].Function.Name.Should().Be("file_read");
     }
 
     [Fact]

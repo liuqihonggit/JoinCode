@@ -319,19 +319,22 @@ def render_group_index(category: str, exe: str, tools: list[dict], local_ids: se
     return header + "".join(lines)
 
 
-LOCAL_REGISTRY_PATTERN = re.compile(
-    r'^\s*\["(?P<id>[A-Za-z_][A-Za-z_0-9]*)"\]\s*=\s*(?P<handler>[A-Za-z_][A-Za-z0-9_]*)\s*(?=[,}\s])',
-    re.M,
+REGISTRY_DECL_RE = re.compile(
+    r"new\s+Dictionary<string,\s*.+?>\s*\([^)]*\)\s*\{",
+)
+REGISTRY_ENTRY_RE = re.compile(
+    r'\["(?P<id>[A-Za-z_][A-Za-z_0-9]*)"\]\s*=\s*(?P<handler>[A-Za-z_][A-Za-z0-9_]*)\s*(?=[,}\s])',
 )
 
 
 def collect_local_ids(target_dir: Path) -> set[str]:
     """从分组私有实现里反推本地已实现的工具 id。
 
-    以 private/*.cs 的字典字面量键为唯一依据（`["<id>"] = <方法组>,`）——这是「代码里真实现了什么」，
-    而不是另写一份清单来自称实现了什么。手工组才有 private/；纯转发组返回空集。
+    只认「注册表字典字面量」里的键：`new Dictionary<string, X>(...) { ["id"] = Handler, ... }`。
+    这是「代码里真实现了什么」，而不是另写一份清单自称实现了什么；手工组才有 private/。
 
-    右值必须是方法组标识符（不带引号），否则会把 `["amp"] = "&"` 这类字符表误判成工具 id。
+    不能只按 `["k"] = 标识符` 全文件扫：notebook 实现里的 `new JsonObject { ["cell_type"] = ... }`
+    会被误判成工具 id，直接把生成流程卡死。
     """
     private_dir = target_dir / "private"
     if not private_dir.exists():
@@ -339,7 +342,11 @@ def collect_local_ids(target_dir: Path) -> set[str]:
     ids: set[str] = set()
     for cs in sorted(private_dir.glob("*.cs")):
         body = cs.read_text(encoding="utf-8", errors="replace")
-        ids.update(m.group("id") for m in LOCAL_REGISTRY_PATTERN.finditer(body))
+        for decl in REGISTRY_DECL_RE.finditer(body):
+            block = extract_braced_block(body, decl.end() - 1)
+            if not block:
+                continue
+            ids.update(m.group("id") for m in REGISTRY_ENTRY_RE.finditer(block))
     return ids
 
 

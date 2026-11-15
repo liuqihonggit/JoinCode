@@ -96,3 +96,18 @@ jobs:
           name: unit-test-results-${{ matrix.domain }}
           path: '**/*.trx'
           retention-days: 7
+
+  # ADR 0157 工具节点的声明侧对账：13 份 node.yaml 各自自洽 + 与 group_map.yaml 双向一致。
+  # 不需要编译、不跑 exe，几秒结束，所以够格进 PR 门禁 —— 此前这类漂移只有人工会看。
+  # 「声明 vs 现实」的完整对账（--list-local 自报、-h 体积、抽样真跑）要 13 个 exe，
+  # 仍由本地 `Verify-ToolNodes.ps1`（不加 -DeclarationsOnly）全量跑。
+  tool-node-declarations:
+    name: Tool Nodes - declarations
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Verify node.yaml and group_map.yaml consistency
+        shell: pwsh
+        run: pwsh -ExecutionPolicy Bypass -File non_deliverables_tools/scripts/Verify-ToolNodes.ps1 -DeclarationsOnly

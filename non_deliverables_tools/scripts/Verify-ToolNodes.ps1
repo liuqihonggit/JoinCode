@@ -9,11 +9,20 @@
     2. 清单对账：node.yaml 的 tool_count、tools 条目数、-h 索引里的工具名个数三者一致
     3. 帮助可用：<exe> -h 能输出、不超长（大组必须走索引），单工具 -h 能定位到参数表
 
+  另有声明侧自洽（不需要 exe，-DeclarationsOnly 只跑这部分）：
+  tool_count / local_tool_count 与条目对得上、mode 只有 local/delegate/host、id 不重复、
+  exe 名与组名一致、delegates 与 group_map.yaml 双向一致、分组目录与 groups 段双向一致。
+
   加 -Sample 才真调工具，且只用无副作用的那几个（读文件 / git 状态 / glob / worktree 列表 /
-  sleep 1 秒）。写文件、提交、删除类工具一律不抽样 —— 校验脚本不该改仓库。
+  sleep 1 秒 / 临时目录里建一个 notebook 再读回）。写文件、提交、删除类工具一律不抽样 ——
+  校验脚本不该改仓库。
 
 .PARAMETER SkipBuild
   不编译，直接用已有产物。
+
+.PARAMETER DeclarationsOnly
+  只验声明侧：13 份 node.yaml 自洽 + 与 group_map.yaml 交叉一致。
+  不编译、不跑 exe，几秒完成 —— CI 用这个模式，本地全量校验不要加它。
 
 .PARAMETER Sample
   抽样真跑每组一个无副作用工具。
@@ -24,6 +33,7 @@
 [CmdletBinding()]
 param(
     [switch]$SkipBuild,
+    [switch]$DeclarationsOnly,
     [switch]$Sample,
     [int]$MaxHelpBytes = 8192,
     [string]$Configuration = "Debug"
@@ -65,8 +75,96 @@ if (-not $groups) {
     exit 2
 }
 
+if ($DeclarationsOnly -and $Sample) {
+    Write-Output "-DeclarationsOnly 与 -Sample 互斥（前者不跑任何 exe），已忽略 -Sample。"
+    $Sample = $false
+}
+
+# ── 单一数据源侧：group_map.yaml ────────────────────────────────────
+# 只解析两段键名，不引入 YAML 库：delegates 段（委托给独立 exe 的组）与 groups 段（组→分类）。
+$groupMapPath = Join-Path $repoRoot "resources/tools/group_map.yaml"
+$groupMapText = Get-Content -Path $groupMapPath -Raw
+
+$delegatedInMap = @{}
+$delegateSection = [regex]::Match($groupMapText, '(?ms)^delegates:\s*$(.*?)(?=^\S)')
+if ($delegateSection.Success) {
+    foreach ($m in [regex]::Matches($delegateSection.Groups[1].Value, '(?m)^  ([A-Za-z0-9_]+):\s*$')) {
+        $delegatedInMap[$m.Groups[1].Value] = $true
+    }
+} else {
+    $problems += "group_map.yaml 里找不到 delegates 段（github 组的委托登记靠它）"
+}
+
+$mappedGroups = @{}
+$groupSection = [regex]::Match($groupMapText, '(?ms)^groups:\s*$(.*)')
+if ($groupSection.Success) {
+    foreach ($m in [regex]::Matches($groupSection.Groups[1].Value, '(?m)^  ([A-Za-z0-9_]+):\s*$')) {
+        $mappedGroups[$m.Groups[1].Value] = $true
+    }
+} else {
+    $problems += "group_map.yaml 里找不到 groups 段"
+}
+
+$dirNames = @($groups | ForEach-Object { $_.Name })
+# slash 组本来就不该在 groups 段：它由 [ChatCommand] 经 generate_slash_cli_node.py 生成，
+# 没有 MCP 分类可映射。除它之外出现「有工程没登记」都是真漂移。
+$groupsOutsideMap = @("slash")
+foreach ($missing in @($dirNames | Where-Object { $groupsOutsideMap -notcontains $_ -and -not $mappedGroups.ContainsKey($_) })) {
+    $problems += "[$missing] 有分组工程，但 group_map.yaml 的 groups 段没登记"
+}
+foreach ($orphan in @($mappedGroups.Keys | Where-Object { $dirNames -notcontains $_ })) {
+    $problems += "[$orphan] group_map.yaml 登记了分组，但没有对应的分组工程"
+}
+
 foreach ($group in $groups) {
     $name = $group.Name
+
+    # ── 声明侧：node.yaml 自身必须自洽（不需要编译，CI 里几秒跑完）─────────
+    $yaml = Get-Content -Path (Join-Path $group.FullName "node.yaml") -Raw
+    $declaredTotal = [int]([regex]::Match($yaml, 'tool_count:\s*(\d+)').Groups[1].Value)
+    $declaredLocalCount = [int]([regex]::Match($yaml, 'local_tool_count:\s*(\d+)').Groups[1].Value)
+    $declaredLocal = ([regex]::Matches($yaml, 'mode:\s*local\b')).Count
+    $declaredDelegate = ([regex]::Matches($yaml, 'mode:\s*delegate\b')).Count
+    $declaredHost = ([regex]::Matches($yaml, 'mode:\s*host\b')).Count
+    $declaredExe = [regex]::Match($yaml, '(?m)^exe:\s*(\S+)').Groups[1].Value
+    $toolIds = @([regex]::Matches($yaml, '(?m)^\s+- id:\s*(\S+)') | ForEach-Object { $_.Groups[1].Value })
+    $entryCount = $toolIds.Count
+    $declaredOther = $entryCount - $declaredLocal - $declaredDelegate - $declaredHost
+
+    if ($declaredTotal -ne $entryCount) {
+        $problems += "[$name] node.yaml 自相矛盾: tool_count=$declaredTotal 但只有 $entryCount 条 tools 条目"
+    }
+    if ($declaredLocalCount -ne $declaredLocal) {
+        $problems += "[$name] node.yaml 自相矛盾: local_tool_count=$declaredLocalCount 但 mode: local 有 $declaredLocal 条"
+    }
+    if ($declaredOther -ne 0) {
+        $problems += "[$name] node.yaml 有 $declaredOther 条 tools 的 mode 不是 local/delegate/host"
+    }
+    $duplicateIds = @($toolIds | Group-Object | Where-Object { $_.Count -gt 1 } | ForEach-Object { $_.Name })
+    if ($duplicateIds.Count -gt 0) {
+        $problems += "[$name] tools 里重复登记了 $($duplicateIds -join ', ')（同名工具会互相覆盖）"
+    }
+    if ($declaredExe -ne "jcc-tool-$name.exe") {
+        $problems += "[$name] node.yaml 的 exe=$declaredExe 与组名对不上（应为 jcc-tool-$name.exe）"
+    }
+    if ($delegatedInMap.ContainsKey($name) -ne ($declaredDelegate -gt 0)) {
+        $problems += if ($declaredDelegate -gt 0) {
+            "[$name] node.yaml 有 $declaredDelegate 条 delegate，但 group_map.yaml 的 delegates 段没登记该组"
+        } else {
+            "[$name] group_map.yaml 的 delegates 段登记了该组，但 node.yaml 里没有 mode: delegate"
+        }
+    }
+
+    if ($DeclarationsOnly) {
+        $rows += [pscustomobject]@{
+            Group = $name; Total = $declaredTotal; Local = $declaredLocal
+            Delegate = $declaredDelegate; Isolated = $declaredLocal + $declaredDelegate
+            Target = ""; HelpKB = 0
+        }
+        continue
+    }
+
+    # ── 现实侧：先编译，再自报 ────────────────────────────────────────
     if (-not $SkipBuild) {
         $build = Invoke-Probe -Exe "dotnet" -Arguments @(
             "build", (Join-Path $group.FullName ("jcc_tool_" + $name + ".csproj")),
@@ -86,18 +184,6 @@ foreach ($group in $groups) {
         continue
     }
 
-    # ── 声明侧：node.yaml ──────────────────────────────────────────────
-    $yaml = Get-Content -Path (Join-Path $group.FullName "node.yaml") -Raw
-    $declaredTotal = [int]([regex]::Match($yaml, 'tool_count:\s*(\d+)').Groups[1].Value)
-    $declaredLocal = ([regex]::Matches($yaml, 'mode:\s*local\b')).Count
-    $declaredDelegate = ([regex]::Matches($yaml, 'mode:\s*delegate\b')).Count
-    $entryCount = ([regex]::Matches($yaml, '(?m)^\s+- id:')).Count
-
-    if ($declaredTotal -ne $entryCount) {
-        $problems += "[$name] node.yaml 自相矛盾: tool_count=$declaredTotal 但只有 $entryCount 条 tools 条目"
-    }
-
-    # ── 现实侧：--list-local ─────────────────────────────────────────
     $selfReport = (Invoke-Probe -Exe $exe -Arguments @("--list-local")).Output
     $reportedLocal = 0
     $match = [regex]::Match($selfReport, 'local_count=(\d+)')
@@ -109,6 +195,9 @@ foreach ($group in $groups) {
     }
     if ($declaredDelegate -gt 0 -and -not $reportedDelegate) {
         $problems += "[$name] node.yaml 声明了 delegate，但 exe 未自报 delegated_to"
+    }
+    if ($reportedDelegate -and -not $delegatedInMap.ContainsKey($name)) {
+        $problems += "[$name] exe 自报委托到 $reportedDelegate，但 group_map.yaml 没登记"
     }
 
     # ── 帮助侧：-h 体积与单工具定位 ─────────────────────────────────
@@ -195,8 +284,13 @@ $totalTools = ($rows | Measure-Object -Property Total -Sum).Sum
 $totalIsolated = ($rows | Measure-Object -Property Isolated -Sum).Sum
 $delegateGroups = @($rows | Where-Object { $_.Delegate -gt 0 }).Count
 $percent = if ($totalTools -gt 0) { [math]::Floor($totalIsolated * 100 / $totalTools) } else { 0 }
-$report += ("共 {0} 组 / {1} 个工具，进程隔离 {2}（{3}%），其中 {4} 组走 delegate" -f `
-    @($rows).Count, $totalTools, $totalIsolated, $percent, $delegateGroups)
+if ($DeclarationsOnly) {
+    $report += ("共 {0} 组 / {1} 个工具，声明隔离 {2}（{3}%），其中 {4} 组走 delegate —— 仅声明侧，未编译未真跑" -f `
+        @($rows).Count, $totalTools, $totalIsolated, $percent, $delegateGroups)
+} else {
+    $report += ("共 {0} 组 / {1} 个工具，进程隔离 {2}（{3}%），其中 {4} 组走 delegate" -f `
+        @($rows).Count, $totalTools, $totalIsolated, $percent, $delegateGroups)
+}
 
 if ($problems.Count -gt 0) {
     $report += ""
@@ -206,6 +300,6 @@ if ($problems.Count -gt 0) {
     exit 1
 }
 
-$report += "声明与现实一致。"
+$report += if ($DeclarationsOnly) { "声明自洽（node.yaml 与 group_map.yaml 一致）。" } else { "声明与现实一致。" }
 Write-Output ($report -join [Environment]::NewLine)
 exit 0

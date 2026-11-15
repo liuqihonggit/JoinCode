@@ -221,7 +221,9 @@
 
 **三类执行方式**（`node.yaml` 的 `mode`）：`local` 本 exe 内实现；`delegate` 委托另一个独立 exe（不经宿主，与 local 同档计入隔离）；`host` 转发宿主。三者都可由 `--list-local` 自报（委托时输出 `delegated_to=jcc-gh`），`-h` 会打印当前工具的执行方式。
 
-**对账脚本**：`non_deliverables_tools/scripts/Verify-ToolNodes.ps1` 做三件事——① `--list-local` 的 local 数与 `node.yaml` 的 `mode: local` 条数必须相等（实现与登记漂移即失败）；② `tool_count` / `tools` 条目数 / `-h` 索引里的工具名个数三者一致；③ `-h` 体积不超阈（大组必须走索引）。加 `-Sample` 才真跑，且只用无副作用工具（读文件 / git 状态 / glob / worktree 列表 / sleep 1 秒），校验脚本不改仓库。当前实测输出：`共 13 组 / 638 个工具，进程隔离 227（35%），其中 1 组走 delegate`。
+**对账脚本**：`non_deliverables_tools/scripts/Verify-ToolNodes.ps1` 做三件事——① `--list-local` 的 local 数与 `node.yaml` 的 `mode: local` 条数必须相等（实现与登记漂移即失败）；② `tool_count` / `tools` 条目数 / `-h` 索引里的工具名个数三者一致；③ `-h` 体积不超阈（大组必须走索引）。加 `-Sample` 才真跑，且只用无副作用工具（读文件 / git 状态 / glob / worktree 列表 / sleep 1 秒 / 临时目录里建一个 notebook 再读回），校验脚本不改仓库。当前实测输出：`共 13 组 / 638 个工具，进程隔离 227（35%），其中 1 组走 delegate`。
+
+另设 `-DeclarationsOnly`：只验声明侧自洽（`tool_count` / `local_tool_count` 与条目数对得上、`mode` 只有 local/delegate/host、工具 id 不重复、`exe` 名与组名一致、`delegates` 段与 `group_map.yaml` 双向一致、13 个分组工程与 `groups:` 段双向一致），不编译、不跑 exe，几秒完成。这部分已进 CI 单测矩阵（job `Tool Nodes - declarations`），因为不需要 13 个 exe 就能拦住「登记与实现漂移」；完整对账仍由本地全量跑。`slash` 组不在 `groups:` 段是设计如此——它由 `[ChatCommand]` 经 `generate_slash_cli_node.py` 生成，没有 MCP 分类可映射，脚本里以显式例外登记并注明原因。
 
 **为什么剩下 411 个不硬做**：它们依赖的东西可归为 6 类——① 模型调用（`web_fetch`/`generate_*`/`analyze_*`）；② 会话与代理状态（`slash` 99、计划 / 子代理 / 任务队列）；③ Roslyn AST + SQLite 索引（`code_index_*`、`lsp_*`）；④ 桌面 UI 与浏览器（`media` 60、`web_browser`）；⑤ MCP 连接与认证（`mcp` 25）；⑥ 宿主存储（`config_*`/`permission_*`/`memory_*`/`analytics_*`/`skill_*`）。在零依赖 exe 内等价实现任何一类，要么引入整套引擎（81 DLL / 16 MB，违反依赖墙），要么分叉出第二份真相源。这是**能力边界，不是遗漏**。
 

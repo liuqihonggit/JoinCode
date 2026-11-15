@@ -165,6 +165,19 @@
 
 **同时修正了一个假工具**：`base.yaml` 原先登记的第 3 项 `code_execution` 在 546 个内核工具里**并不存在**（是凭空命名的）。步骤 9 一旦接上，LLM 会拿到一个永远「工具不存在」的槽位。编译/构建本就由 `bash` 覆盖，故改为真实高频的 `file_edit`（局部查找替换，与 `file_write` 的整体覆写互补）。`BaseToolRegistryTests` 7/7 通过，`jcc tool base` 真机输出已变为 `file_read / file_write / file_edit / bash`，`file_edit` 走进程隔离实跑成功（写→改→读回验证）。
 
+### 3.2.7 自包含装配目录 — jcc 离开仓库开发布局也能启动子进程
+
+进程隔离执行器有一处隐含前提：分组 exe 得能被找到。开发态靠仓库里的 `artifacts/bin/jcc_tool_<组>/`，发布态没有这个路径，等于「拆了 exe 但部署后调不到」。
+
+| 项 | 实现 |
+|----|------|
+| 脚本 | `non_deliverables_tools/scripts/Pack-ToolNodes.ps1` → `<Target>/tools/<组>/`，每组装 apphost + 程序集 + `deps.json`/`runtimeconfig.json` + `node.yaml` + `help.txt` |
+| 按需编译 | 只在缺 exe 时编该组；`obj` 被清过时先按需 restore 一次；单组失败不影响其余组，末尾汇总并返回非 0 |
+| jcc 消费 | 目录发现与 exe 定位都认 `JCC_CLI_TOOLS_DIR`（`jcc tool tree` 首行会打印实际解析到的目录），或直接放到 `<jcc>/tools/` |
+| 实测 | 13 组 / 9045 KB / 装配 23.6 秒；`jcc tool tree` 首行指向装配目录，`jcc tool call file file_read` 退出码 0，装配后的 exe 自带 `-h` |
+
+**诚实边界**：装配产物是框架依赖构建（每组约 680 KB，含契约层 DLL），不是单文件；AOT 单文件本机不可测（缺 `advapi32.lib`，`reg.exe` 被安全策略拦截）。
+
 ### 3.3 对 ADR 0149 的显式收窄
 
 ADR 0149:18「减少 exe 数量 — 不要搞那么多 exe」在**交互宿主**语境下仍然成立（`jcc.exe` + `NativeGui.Host.exe` 保持），但**不适用于工具层**：工具 exe 不是用户交互宿主，而是能力的物理封装单元。本次决策把工具层从「宿主内进程」改为「独立可执行文件」，exe 数量显著增加。记录为对 0149 适用范围的收窄，而非整体废弃。
@@ -236,7 +249,7 @@ ADR 0149:18「减少 exe 数量 — 不要搞那么多 exe」在**交互宿主**
 | 8b | **进程隔离执行器** `jcc tool call <组> <工具>`：jcc 启动分组 exe、透传参数、回传 stdout/stderr/退出码，不初始化引擎 DI | ✅ 已完成（七连真机验收，退出码 0/2/3 全覆盖） |
 | 8c | **斜杠命令独立 exe** `jcc-tool-slash.exe`（99 命令 / 15 分类）+ `jcc tool call slash <命令>` 进程隔离调用 | ✅ 已完成（生成器 + 真机验收，含 Git Bash 命令名归一化） |
 | 9 | 切换主请求链路：首轮 `tools` 只读 `BaseToolRegistry`；退役 `tool_groups` / 两阶段加载 / `ToolsSection` 三级下钻 | ✅ 已完成（三个 provider 的 `BuildBaseTools`；`BuildToolsFromKernel` / `BuildAnthropicToolsFromKernel` 已删除；`request.ToolGroups` 不再写入；9 个单测改写为「只发基础工具」契约） |
-| 10 | 目录节点化重组 + 全部消费方切换后归档生成器项目到 `.xxx/` + 修复引用 | 待办 |
+| 10 | 目录节点化重组 + 全部消费方切换后归档生成器项目到 `.xxx/` + 修复引用 | 部分完成：自包含装配目录已落地（`Pack-ToolNodes.ps1` → `tools/<组>/`，13 组 9045 KB，jcc 经 `JCC_CLI_TOOLS_DIR` 真机消费通过）；生成器归档与目录重组待办 |
 | 11 | 全仓编译 + 全量测试 + 真实 exe 验收 + 四列验收表 + ADR 转 accepted | 部分完成：全仓编译通过（6m7s）、真机 exe 验收通过；全量测试待步骤 8-10 |
 
 ---

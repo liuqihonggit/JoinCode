@@ -57,7 +57,7 @@
 | 首轮 `tools` 字段改读 `BaseToolRegistry` | 主请求链路切换 | ✅ | ✅ 9 个单测 + `jcc tool base` 真机 |
 | MCP `tool_groups` 退役 | 生产代码检索无残留（三个 provider 不再写 `request.ToolGroups`） | ✅ | ✅ 编译 0 警告 |
 | 生成器项目归档 | `.xxx/` + 引用修复 | ⬜ | ⬜ 步骤 8 |
-| 节点粒度自包含目录 | module.slnx + 构建脚本 | ⬜ | ⬜ 步骤 8 |
+| 节点粒度自包含目录 | `Pack-ToolNodes.ps1` 装配 `tools/<组>/`（exe+deps+node.yaml+help.txt）；jcc 经 `JCC_CLI_TOOLS_DIR` 或自身 `tools/` 直接消费 | ✅ | ✅ 真机（13 组 / 9045 KB / 23.6s 装配） |
 
 > `已验收` 列必须走 [ADR 0080](../../implemented/adr/engineering_ci_test/0080-manual-exe-testing-guide.md) 真实 exe 验收（非 mock）。
 

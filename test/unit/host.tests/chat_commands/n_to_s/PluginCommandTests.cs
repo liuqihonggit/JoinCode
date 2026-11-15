@@ -1,5 +1,10 @@
 namespace Host.Tests.ChatCommands;
 
+/// <summary>
+/// /plugin 命令测试 — 通过 TerminalHelper.WriteLine 间接写入 Console.Out
+/// 加入 ConsoleOutput collection 串行执行，避免其他测试的 Console.SetOut 污染
+/// </summary>
+[Collection("ConsoleOutput")]
 public sealed class PluginCommandTests {
     [Fact]
     public void Name_Should_Be_plugin() {

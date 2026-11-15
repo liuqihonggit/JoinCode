@@ -1,3 +1,4 @@
+// HANDCRAFTED — DO NOT OVERWRITE BY GENERATOR
 using System.Reflection;
 
 namespace JoinCode.CliNode.Git;
